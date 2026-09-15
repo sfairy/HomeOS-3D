@@ -1,3 +1,18 @@
+/**
+ * 3D 安防配置编辑器（摄像头与人体传感器共用一个弹窗）。
+ *
+ * 位置：interaction3d 的安防编辑入口，由宿主的安防模块调用。与 config-editor.js
+ * 同构：弹窗 + 预览舞台（runtime.js 的 mountInteraction3d，editing=true） + 草稿。
+ *
+ * 两种编辑对象共用同一个面板实现，只靠 getCollectionKey / getKindLabel 区分：
+ *   - 摄像头：位置、朝向、焦距、点击行为等；
+ *   - 人体传感器：触发模式与探测路线，路线编辑会打开 presence-editor.js 子编辑器，
+ *     子编辑器期间本编辑器主动卸载预览运行时（一个容器只挂一个）。
+ *
+ * 约定：保存通过 onSave 回调把整份草稿快照交给宿主落库（本模块不发保存请求），
+ * 脏标记沿用 editor-save-status 的签名比较口径，退出前用同一套文案确认。
+ * 对外只导出 openSecurityEditor。
+ */
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
@@ -14,6 +29,17 @@ import {
   subscribeInteraction3dAccess
 } from "/static/modules/interaction3d/bridge.js?v=20260916013557";
 import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js";
+/**
+ * 打开 3D 安防配置编辑器。
+ *
+ * 先取编辑授权，再建弹窗与预览舞台；舞台回报场景元数据后才渲染面板
+ * （可选项来自场景，未就绪时面板只能显示加载态）。
+ *
+ * @param {object} options 配置项：component 控件描述（properties 为安防配置草稿源）、
+ *     panelDocument 户型文档 API、entities 实体列表、pickers 选择器工厂、
+ *     onSave 保存回调（收到整份草稿快照）。
+ * @returns {Promise<void>} 弹窗关闭后 resolve。
+ */
 export async function openSecurityEditor({
   component: component,
   panelDocument: documentApi,
@@ -23,39 +49,52 @@ export async function openSecurityEditor({
 }) {
   await requestInteraction3dAccess();
   const draftProperties = structuredClone(component.properties || {});
+  // 补齐 security 结构：旧配置可能整个缺失，面板各处都直接按下标取，先兜住。
   draftProperties.security = {
     ...draftProperties.security,
     cameras: draftProperties.security?.cameras || [],
     presenceSensors: draftProperties.security?.presenceSensors || []
   };
   for (const cameraItem of draftProperties.security.cameras) {
+    // 摄像头没有「按钮」的概念：历史配置里可能残留按钮相关字段，
+    // 打开时顺手清掉，免得保存后又把无效字段写回后端。
     delete cameraItem.buttonHidden;
     delete cameraItem.hiddenClickable;
   }
+  // 已保存的草稿签名：脏标记与「是否有改动」判断的唯一参照。
   let savedDraftSignature = serializeEditorDraft(draftProperties);
+  // 建元素并挂类名 / 文本的小工具；类名一律带 i3d- 前缀，样式复用 runtime.css。
   const createElement = (tagName, classNames = "", initialText = "") => {
     const createdElement = document.createElement(tagName);
     createdElement.className = classNames;
     createdElement.textContent = initialText;
     return createdElement;
   };
+  // 编辑器按钮统一走这里：写死 type="button"，避免浏览器按默认的 submit 处理
+  // （对话框里一旦出现表单，回车 / 点击都可能误提交）。
   const createButton = (buttonLabel, onButtonClick) => {
     const buttonElement = createElement("button", "", buttonLabel);
     buttonElement.type = "button";
     buttonElement.addEventListener("click", onButtonClick);
     return buttonElement;
   };
+  // 编辑器样式复用运行时的 runtime.css，打开时注入、关闭时移除，
+  // 展示页无需为编辑器额外加载样式。
   const styleSheetLinkElement = createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
     "/api/v1/modules/interaction3d/runtime.css?v=20260916013557";
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D 安防配置");
+  // 标记预览作用域：宿主据此识别「哪些弹窗会遮挡 3D 预览」，
+  // 从而在弹窗盖住预览时挂起渲染（runtime.js 的挂起检测就是按这个属性找 dialog 的）。
   editorDialogElement.dataset.i3dPreviewScope = "security";
   const headerElement = createElement("header");
   const bodyElement = createElement("div", "i3d-editor-body");
   const viewElement = createElement("div", "i3d-editor-view");
   const panelElement = createElement("aside");
+  // 「当前容器」游标：字段创建函数把控件挂到它上面，分区 / 折叠块只需切换这个游标，
+  // 不必层层传参。
   let currentContainerElement = panelElement;
   const aspectBoxElement = createElement("div", "i3d-editor-aspect");
   const stageHostElement = createElement("div", "i3d-editor-stage");
@@ -67,9 +106,12 @@ export async function openSecurityEditor({
   aspectBoxElement.append(stageHostElement);
   viewElement.append(aspectBoxElement);
   bodyElement.append(viewElement, panelElement);
+  // 舞台元数据（楼层、可用模型、摄像头 / 传感器列表）：面板的可选项完全由它决定，
+  // 未就绪前所有下拉只能显示加载态。
   let sceneMetadata = null;
   let selectedFloorId =
     draftProperties.floorSelection === "all" ? "" : draftProperties.floorSelection || "";
+  // 当前编辑的安防类型：摄像头或人体传感器，两者共用同一套面板逻辑。
   let securityKind = "camera";
   let selectedItemId = "";
   let editorRuntime = null;
@@ -79,25 +121,39 @@ export async function openSecurityEditor({
   let isCameraEditing = false;
   let pendingCameraDraft = null;
   let cameraCommandQueue = Promise.resolve();
+  // 折叠块的展开状态：面板是全量重建的，靠这个 Set 按 key 记住展开过的分组。
   const expandedDisclosureKeySet = new Set();
   let activePickerHandle = null;
+  // 选择器代次：关闭选择器时自增，作废它尚未返回的异步回调。
   let pickerGeneration = 0;
   let presenceEditorHandle = null;
+  // 人体传感器子编辑器是否打开：打开期间本编辑器不占用预览运行时，也禁止保存。
   let isPresenceEditorOpen = false;
+  // 记下打开编辑器前的焦点：关闭时还回去，键盘用户不会被丢回页面开头。
   const previouslyFocusedElement = document.activeElement;
+  // 配置项 → 同设备实体列表：实体选择框要按「这台设备上有哪些可用实体」给候选。
   const deviceEntitiesByItemId = new Map();
+  // 两种类型的取值口径集中在这两个小函数上：面板、脏标记、预览都靠它们区分对象。
   const getCollectionKey = () => (securityKind === "camera" ? "cameras" : "presenceSensors");
+  // 两类安防设备在界面上的中文名，面板标题与提示统一从这里取，不散落字符串。
   const getKindLabel = () => (securityKind === "camera" ? "摄像头" : "人体传感器");
+  // 当前编辑类型对应的配置数组（摄像头 / 人体传感器二选一）。
   const getItemList = () => draftProperties.security[getCollectionKey()];
+  // 选中项必须同时匹配 ID 与楼层：同一个模型在不同楼层可能有不同配置项。
   const findSelectedItem = () =>
     getItemList().find(
       candidateItem =>
         candidateItem.id === selectedItemId && candidateItem.floorId === selectedFloorId
     );
+  // 当前编辑楼层在场景元数据里的记录；楼层已被删除时返回 undefined。
   const findSelectedFloor = () =>
     sceneMetadata?.floors.find(candidateFloor => candidateFloor.id === selectedFloorId);
+  // 该楼层上可用的同类型场景模型（映射用的候选）；找不到楼层时给空数组。
   const getFloorModelList = () => findSelectedFloor()?.[getCollectionKey()] || [];
+  // 配置项的稳定标识：两类设备的 id 可能重名，拼上类型前缀后作为 3D 侧命令的目标 ID。
   const toItemKey = item => securityKind + ":" + item.id;
+  // 预览用属性：楼层固定为当前编辑楼层，相机取该楼层已保存的视角，
+  // 这样编辑器里的取景与展示页一致，拖出来的位置才有可比性。
   const buildEditorProperties = () => ({
     ...draftProperties,
     floorSelection: selectedFloorId,
@@ -105,6 +161,7 @@ export async function openSecurityEditor({
       draftProperties.floorCameras?.[selectedFloorId] ||
       (draftProperties.floorSelection === selectedFloorId ? draftProperties.camera : null)
   });
+  // 错误统一走保存结果提示位，保证错误与成功不会同时占两个位置。
   const showError = error => {
     if (!isDisposed) {
       setSaveResultMessage(error?.message || String(error), {
@@ -112,6 +169,8 @@ export async function openSecurityEditor({
       });
     }
   };
+  // 把草稿推给预览运行时。人体传感器子编辑器打开期间跳过 ——
+  // 那时预览运行时已被卸载，由子编辑器接管。
   function syncEditorRuntime() {
     if (!isDisposed && !isPresenceEditorOpen && isAccessAllowed) {
       editorRuntime?.update(
@@ -120,11 +179,13 @@ export async function openSecurityEditor({
       );
     }
   }
+  // 一次改动后的统一收尾：刷新脏标记、清掉上一次的错误提示、把草稿同步进预览。
   function markPropertiesDirty() {
     syncDraftDirtyState();
     errorMessageElement.textContent = "";
     syncEditorRuntime();
   }
+  // 脏标记 = 草稿签名 ≠ 已保存签名；保存过程中不覆盖状态文案。
   function syncDraftDirtyState() {
     isDirty = serializeEditorDraft(draftProperties) !== savedDraftSignature;
     if (!isSaving) {
@@ -132,6 +193,8 @@ export async function openSecurityEditor({
     }
     syncSaveButtonState();
   }
+  // 保存按钮的禁用条件集中在这里：保存中 / 无改动 / 正在调视角 / 无授权 /
+  // 场景未就绪 / 子编辑器打开，任一成立都不可保存。
   function syncSaveButtonState() {
     if (!isDisposed) {
       saveButtonElement.disabled =
@@ -143,6 +206,8 @@ export async function openSecurityEditor({
         isPresenceEditorOpen;
     }
   }
+  // 保存结果只占一个展示位：错误写错误行、成功写状态行，两者互斥，
+  // 避免出现「保存失败」和「已保存」同时挂在界面上。
   function setSaveResultMessage(messageText, { isError = false } = {}) {
     if (isDisposed) {
       return;
@@ -155,11 +220,14 @@ export async function openSecurityEditor({
     errorMessageElement.textContent = "";
     saveStatusElement.textContent = messageText;
   }
+  // 关闭选择器并自增代次：选择器回调里会检查代次，过期结果直接丢弃。
   function closeActivePicker() {
     pickerGeneration++;
     activePickerHandle?.close();
     activePickerHandle = null;
   }
+  // 下拉字段：候选为空时给出「正在加载… / 暂无可选项」占位，
+  // 否则一个空白下拉会让人以为界面坏了。
   function createSelectField(labelText, optionEntries, selectedValue, onValueChange) {
     const selectElement = createElement("select");
     selectElement.setAttribute("aria-label", labelText);
@@ -178,6 +246,22 @@ export async function openSecurityEditor({
     currentContainerElement.append(labelElement);
     return selectElement;
   }
+  /**
+   * 数字输入字段。
+   *
+   * 两种提交时机：shouldCommitWhileTyping 用于需要边调边看效果的字段（焦距等），
+   * 其余字段在 change 时提交；提交时若值非法（空 / 非数字 / 越界）就退回上一个合法值，
+   * 而不是把 NaN 或越界值写进草稿。
+   *
+   * @param {string} fieldLabel 标签（同时作为 aria-label）。
+   * @param {number} currentValue 当前值。
+   * @param {number} minValue 最小值。
+   * @param {number} maxValue 最大值。
+   * @param {Function} onValueCommit 合法值提交回调。
+   * @param {number} [stepSize=0.1] 步进。
+   * @param {boolean} [shouldCommitWhileTyping=false] 是否边输入边提交。
+   * @returns {HTMLInputElement} 输入元素。
+   */
   function createNumberField(
     fieldLabel,
     currentValue,
@@ -276,6 +360,8 @@ export async function openSecurityEditor({
   });
   saveButtonElement.className = "primary";
   saveButtonElement.disabled = true;
+  // 关闭编辑器：有未保存改动先确认；随后释放子编辑器、选择器、预览运行时与观察者，
+  // 移除注入的样式，并把焦点还给打开它的元素。
   function closeEditor() {
     if (!isDisposed) {
       if (isDirty && !window.confirm(EDITOR_SAVE_STATUS.dirtyExitConfirm)) {
@@ -305,6 +391,7 @@ export async function openSecurityEditor({
     cancelEvent.preventDefault();
     closeEditor();
   });
+  // 预览按 16:9 适配，与配置编辑器用同一套尺寸算法，保证两处观感一致。
   function updatePreviewSize() {
     const previewSize = interaction3dPreviewSize(
       component,
@@ -317,6 +404,8 @@ export async function openSecurityEditor({
   }
   const previewResizeObserver = new ResizeObserver(updatePreviewSize);
   previewResizeObserver.observe(viewElement);
+  // 授权变化：失去授权时立即卸载预览运行时并关掉所有子弹窗 ——
+  // 没有权限就不应继续渲染或编辑；此时不自动重挂，等用户重新获取授权。
   const unsubscribeAccessChange = subscribeInteraction3dAccess(accessState => {
     const isAllowed = accessState.allowed === true;
     if (isAllowed !== isAccessAllowed) {
@@ -339,6 +428,7 @@ export async function openSecurityEditor({
       }
     }
   });
+  // 相机指令串行执行：队列保证先后顺序，避免并发指令把视角互相覆盖。
   async function runCameraCommand(commandName, commandPayload) {
     const commandTargetItem = findSelectedItem();
     if (!commandTargetItem || isSaving || !isAccessAllowed || isDisposed) {
@@ -394,6 +484,9 @@ export async function openSecurityEditor({
       }
     }
   }
+  // 打开人体传感器子编辑器。它会接管预览：这里先卸载自己的运行时（一个容器只挂一个），
+  // 子编辑器的保存回调把草稿合并进 security；无论正常关闭还是异常，都要重新挂载预览并重绘面板，
+  // 否则回到本编辑器会是一个空白舞台。
   async function openPresenceSubEditor() {
     if (!isSaving && !isCameraEditing && !isPresenceEditorOpen && !!isAccessAllowed) {
       isPresenceEditorOpen = true;
@@ -445,6 +538,7 @@ export async function openSecurityEditor({
       }
     }
   }
+  // 新建分区并把「当前容器」切到它，后续创建的字段自然落进该分区。
   function createSectionHeading(sectionTitle) {
     const sectionElement = createElement("section", "i3d-focus-settings i3d-security-settings");
     sectionElement.append(createElement("h4", "", sectionTitle));
@@ -452,6 +546,8 @@ export async function openSecurityEditor({
     currentContainerElement = sectionElement;
     return sectionElement;
   }
+  // 折叠分组：展开状态按 key 记在 Set 里，面板重绘后仍然保持展开。
+  // 返回的是内容容器，调用方往里面塞字段。
   function createDisclosure(summaryText, disclosureKey, hostElement = currentContainerElement) {
     const detailsElement = createElement("details", "i3d-security-disclosure");
     detailsElement.open = expandedDisclosureKeySet.has(disclosureKey);
@@ -468,6 +564,8 @@ export async function openSecurityEditor({
     hostElement.append(detailsElement);
     return disclosureBodyElement;
   }
+  // 面板总渲染：整块替换子节点。选中项、折叠状态等界面状态都存在闭包变量里，
+  // 所以这里不能把状态寄存在 DOM 节点上，否则每次重绘都会丢。
   function renderPanel() {
     panelElement.replaceChildren();
     syncSaveButtonState();
@@ -1127,6 +1225,7 @@ export async function openSecurityEditor({
               focalLengthInputElement.value = String(pendingCameraDraft?.focalLength || 50);
               return;
             }
+            // 焦距夹到 18~120mm：这是常见监控镜头的可用区间，越界值没有实际意义。
             focalLengthInputElement.value = String(Math.max(18, Math.min(120, nextFocalLength)));
             runCameraCommand("focus-focal-length", Number(focalLengthInputElement.value));
           });
@@ -1253,6 +1352,8 @@ export async function openSecurityEditor({
       }
     }
   }
+  // 挂载安防编辑器的预览运行时：editing=true 且模块固定为 security，
+  // 因此舞台上只有摄像头与人体传感器可交互。
   function mountEditorRuntime() {
     if (!isDisposed && !!isAccessAllowed && !editorRuntime && !isPresenceEditorOpen) {
       editorRuntime = mountInteraction3d(stageHostElement, {

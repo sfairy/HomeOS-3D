@@ -1,3 +1,24 @@
+/**
+ * 3D 控件的配置编辑器（弹窗形态，挂着在宿主页上）。
+ *
+ * 位置：interaction3d 子系统的「编辑侧」。它不直接操作 three.js，而是复用
+ * runtime.js 的 mountInteraction3d 在弹窗里挂一个 editing=true 的预览舞台，
+ * 用户在舞台上点选 / 拖拽标记，编辑器把结果写进草稿（draftProperties）。
+ *
+ * 职责划分：
+ *   - 草稿：所有编辑都只改 draftProperties；保存时把整份快照交给 onSave 回调
+ *     （真正的落库与 revision 冲突处理在宿主侧，本模块不直接发保存请求）；
+ *   - 脏标记：isDirty = 草稿签名 ≠ 已保存签名，退出前用 confirm 拦一次；
+ *   - 权限：通过 bridge 的 requestInteraction3dAccess / subscribeInteraction3dAccess 取
+ *     编辑授权，未授权时面板 inert 且不可保存。
+ *
+ * 对外导出：
+ *   - openInteraction3dEditor(options)：配置编辑器（灯光 / 空调 / 窗帘 / 电视 / NAS / 扫地机等）；
+ *   - openInteraction3dAppearanceEditor(options)：整体外观（baseLighting）编辑器。
+ *
+ * 字段约定：草稿结构与后端下发的 component.properties 完全一致（camelCase），
+ * 落库后由后端的面板文档校验层把关；本模块只负责收集、不做合法性兜底。
+ */
 import { vacuumMapIdentity } from "./vacuum-map.js?v=20260916013557";
 import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260916013557";
 import { mountInteraction3d } from "./runtime.js?v=20260916013557";
@@ -21,6 +42,8 @@ import {
   editorDraftHasChanges,
   serializeEditorDraft
 } from "./editor-save-status.js?v=20260916013557";
+// 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
+// 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
   [
     "整体",
@@ -56,6 +79,22 @@ const APPEARANCE_GROUPS = [
     ]
   ]
 ];
+/**
+ * 打开 3D 控件配置编辑器。
+ *
+ * 流程：先取编辑授权 → 建弹窗骨架 → 挂预览舞台运行时 → 等舞台 ready 后渲染面板。
+ * 弹窗以 dialog.showModal() 打开，关闭时整体释放（含舞台 iframe）。
+ *
+ * @param {object} options 配置项：
+ *     component 控件描述（properties 为被编辑的 3D 配置，草稿从它克隆）；
+ *     document 户型文档 API；entities / states 实体与状态；pickers 选择器工厂；
+ *     onSave 保存回调，收到整份草稿快照；
+ *     deviceKind 编辑对象类型（light / climate / cover / nas / television / vacuum…）；
+ *     startAdding 打开后是否直接进「添加模型」弹窗；
+ *     vacuumId 扫地机模式下要编辑的扫地机 ID；
+ *     editingFloorId 初始楼层。
+ * @returns {Promise<void>} 弹窗关闭后 resolve。
+ */
 export async function openInteraction3dEditor({
   component: component,
   document: documentApi,
@@ -91,6 +130,8 @@ export async function openInteraction3dEditor({
   let collectionKey;
   let defaultIcon;
   let modelIdKey;
+  // 由 deviceKind 集中推导所有模式开关与文案（kindLabel / collectionKey / defaultIcon /
+  // modelIdKey 等），避免这些判断散落到各处导致新增类型时漏改。
   function applyKindFlags(nextKind) {
     deviceKind = nextKind;
     isVacuumShortcutMode = deviceKind === "vacuum-shortcut";
@@ -145,8 +186,11 @@ export async function openInteraction3dEditor({
     modelIdKey = usesModelBinding ? "modelId" : "groupId";
   }
   applyKindFlags(deviceKind);
+  // 列表里显示某个配置项的名字：没有名字就退回类型名，保证列表不留空白。
   const describeItem = describableItem =>
     describableItem.name || describableItem.label || kindLabel;
+  // 点击行为白名单化：不同模块允许的动作集合不同，非法值一律回落到该模块的默认动作
+  // （带状态面板的模块默认 focus-panel），这样旧配置也能安全打开。
   const normalizeClickAction = rawClickAction =>
     usesStatusPanel
       ? ["focus", "focus-panel", "panel"].includes(rawClickAction)
@@ -159,11 +203,14 @@ export async function openInteraction3dEditor({
         : ["turn-on-focus", "turn-on", "turn-on-panel"].includes(rawClickAction)
           ? rawClickAction
           : "focus";
+  // 编辑器样式直接引运行时的 runtime.css：编辑器只在打开时注入这一份样式，
+  // 展示页就不必为了弹窗多加载一个 CSS 文件；关闭时随弹窗一起移除。
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
     "/api/v1/modules/interaction3d/runtime.css?v=20260916013557";
   document.head.append(styleSheetLinkElement);
+  // 建元素小工具，文本一律走 textContent，不拼 HTML。
   const createElement = (tagName, classNames, initialText) => {
     const createdElement = document.createElement(tagName);
     createdElement.className = classNames || "";
@@ -172,6 +219,8 @@ export async function openInteraction3dEditor({
     }
     return createdElement;
   };
+  // 按钮一律显式 type="button"：弹窗内的按钮不写 type 会默认 submit，
+  // 回车键就会误触发第一个按钮。
   const createButton = (buttonLabel, onButtonClick) => {
     const buttonElement = createElement("button", "", buttonLabel);
     buttonElement.type = "button";
@@ -194,11 +243,15 @@ export async function openInteraction3dEditor({
   viewElement.append(aspectBoxElement, statusElement);
   const errorMessageElement = createElement("p", "i3d-error");
   errorMessageElement.setAttribute("role", "status");
+  // 草稿副本：编辑器只改它，组件本体直到保存成功才被宿主更新。
+  // 深拷贝是必要的 —— 直接改 component.properties 会让「取消编辑」无法回退。
   let draftProperties = structuredClone(component.properties || {});
   let selectedItemId = "";
   let sceneMetadata = null;
   let editorRuntime = null;
   let isDisposed = false;
+  // 默认先放行：真正的授权结果由 bridge 的回调异步确认；
+  // 在拿到结果前面板是 inert 的，因此默认值不会造成越权操作。
   let isAccessAllowed = true;
   let selectedFloorId =
     editingFloorId ||
@@ -207,23 +260,42 @@ export async function openInteraction3dEditor({
   let isRangeEditorOpen = false;
   let subEditorHandle = null;
   let vacuumCameraMode = "focus";
+  // 正在调整视角：此时草稿里的相机还是旧的，所以禁止保存（见保存按钮的前置条件）。
   let isCameraEditing = false;
+  // 有相机指令在途：期间禁止保存与再次下发，避免把中间视角存进草稿。
   let isCameraCommandPending = false;
+  // 等待回写的视角草稿：舞台回传 camera 事件后写入 floorCameras。
   let pendingCameraDraft = null;
+  // 场景就绪代次：舞台重载或权限收回时自增，用于作废在途的回调。
   let sceneReadyGeneration = 0;
+  // 相机指令串行队列：舞台一次只处理一条视角指令，串起来才能保证先后顺序，
+  // 否则并发下发会让视角互相覆盖。
   let cameraCommandQueue = Promise.resolve();
   let addDialogState = null;
   let pickerHandle = null;
+  // 选择器代次：选择器关闭 / 重开时自增，用于丢弃过期选择回调。
   let pickerGeneration = 0;
   let isEffectDetailsOpen = false;
+  // 保存中：防重复提交，也让状态文案不被其它流程覆盖。
   let isSaving = false;
+  // 是否有未保存改动；退出确认与保存按钮可用性都看它。
   let isDirty = false;
+  // 变更代次：每次草稿实质性变化自增，异步回调据此判断自己处理的是否仍是最新一轮，
+  // 避免（例如）上一轮场景就绪的渲染覆盖掉刚做的编辑。
   let changeRevisionCount = 0;
+  // 最近一次实体状态：面板上的只读状态展示与能力探测（色温上下限等）都从这里取。
   let latestStates = null;
+  // 先占位成空函数，稍后由 renderPanel 按当前编辑类型赋上真实实现
+  // （没有选中项时会再被打回空函数），因此任何时刻调用都必须安全。
   let refreshEffectSettings = () => {};
+  // 设备 → 实体列表索引：状态面板要按设备聚合实体（同设备的多个实体合并展示），
+  // 预建索引避免每次渲染都重新遍历。
   const devicesByDeviceId = new Map();
+  // 找到当前编辑的扫地机配置项（快捷指令模式下它的 shortcuts 才是编辑对象）。
   const findVacuumModel = () =>
     draftProperties.devices?.vacuums?.find(vacuumModelProbe => vacuumModelProbe.id === vacuumId);
+  // 当前编辑对象的配置数组。四种编辑模式各取一处：扫地机快捷指令、状态面板类设备、
+  // 模型绑定类设备、灯光；其余代码只认这一份列表，不再各自判断模式。
   const getItemList = () =>
     isVacuumShortcutMode
       ? findVacuumModel()?.shortcuts || []
@@ -232,6 +304,8 @@ export async function openInteraction3dEditor({
         : usesModelBinding
           ? draftProperties.environment[collectionKey]
           : draftProperties.lights;
+  // getItemList 的写入侧：把（可能整组替换的）列表写回同一处。
+  // 每层都先确认容器存在，避免在旧配置上凭空补出一个新字段。
   const setItemList = nextItemList => {
     if (isVacuumShortcutMode) {
       if (findVacuumModel()) {
@@ -245,6 +319,8 @@ export async function openInteraction3dEditor({
       draftProperties.lights = nextItemList;
     }
   };
+  // 补齐各配置集合（旧版本的配置可能缺 devices / environment 等），
+  // 让后续代码不必到处写可选链兜底。
   function ensureItemCollections() {
     if (usesStatusPanel) {
       draftProperties.devices = {
@@ -325,7 +401,10 @@ export async function openInteraction3dEditor({
     );
   }
   ensureItemCollections();
+  // 已保存的草稿签名：脏标记的唯一参照物，保存成功后刷新。
   let savedDraftSignature = serializeEditorDraft(draftProperties);
+  // 可批量套用的字段清单：[字段路径, 中文名, 单位]；路径支持 "a.b" 形式，
+  // 由 readNestedPath 解析。清单随模块不同（状态面板类与灯光类字段完全不同）。
   const buildEditableFieldList = () =>
     usesModelBinding
       ? [
@@ -355,12 +434,17 @@ export async function openInteraction3dEditor({
           ["effectRange.temperatureMax", "最高色温", "K"]
         ];
   let fieldDefs = buildEditableFieldList();
+  // 基线快照：批量套用与「相对基线改了哪些字段」的提示都以它为参照，
+  // 切换编辑类型或重新打开时会重建。
   let baselineItemsById = new Map(
     getItemList().map(baselinedItem => [baselinedItem.id, structuredClone(baselinedItem)])
   );
   const kindSessionsByKind = new Map();
   let auxDialogElement = null;
+  // 同上，占位回调：真正实现由各类型面板在渲染时挂上，用于刷新批量操作按钮的可用性。
   let refreshBatchButtons = () => {};
+  // 把配置项归一化成可比较的字段快照：缺省值都在这里补齐
+  // （例如点击范围默认不小于按钮大小 44px），批量套用与脏字段比较都以这份快照为准。
   function buildItemPayload(item, lightStatus = getLightStatus(item)) {
     if (usesModelBinding) {
       return {
@@ -399,10 +483,13 @@ export async function openInteraction3dEditor({
       };
     }
   }
+  // 按 "a.b.c" 取嵌套值，任一层缺失即返回 undefined。
   const readNestedPath = (targetObject, dottedPath) =>
     dottedPath
       .split(".")
       .reduce((pathAccumulator, pathSegment) => pathAccumulator?.[pathSegment], targetObject);
+  // 列出相对基线发生变化的字段：基线在首次比较时惰性建立，
+  // 用作「用户改了什么」的参照，也用于批量套用前的提示。
   function listChangedFields(changedItem) {
     if (!baselineItemsById.has(changedItem.id)) {
       baselineItemsById.set(changedItem.id, structuredClone(changedItem));
@@ -416,6 +503,8 @@ export async function openInteraction3dEditor({
         readNestedPath(currentPayload, payloadFieldName)
     );
   }
+  // 把快照里选中的字段写回目标任务项。写空时要顺手删掉空壳对象，
+  // 否则草稿里会残留 effectRange: {} 这种脏结构，落库后影响后端校验。
   function applyFieldValues(targetItem, sourcePayload, fieldNames) {
     for (const fieldKey of fieldNames) {
       if (fieldKey === "buttonVisibility") {
@@ -443,11 +532,14 @@ export async function openInteraction3dEditor({
       }
     }
   }
+  // 关闭辅助弹窗。指标选择与批量应用共用一个插槽，因此同时只允许存在一个。
   function closeAuxDialog() {
     auxDialogElement?.close();
     auxDialogElement?.remove();
     auxDialogElement = null;
   }
+  // 打开「显示内容」弹窗（状态面板类模块）：勾选要展示的指标并允许调整顺序。
+  // 前置条件里带 auxDialogElement 判空，保证同一时刻只有一个辅助弹窗。
   function openMetricsDialog(metricsTargetEntry) {
     const statusSource = metricsTargetEntry.statusSource;
     if (
@@ -479,6 +571,7 @@ export async function openInteraction3dEditor({
     const metricsBodyElement = createElement("div", "i3d-add-dialog-body");
     const metricsActionsElement = createElement("div", "dialog-actions");
     const selectionSummaryElement = createElement("span", "i3d-note");
+    // 勾选状态与「已选 N 项」摘要统一刷新，避免两处各写一遍不同步。
     const syncMetricsSelection = () => {
       selectionSummaryElement.textContent = "已选 " + visibleMetricIds.size + " 项";
       for (const metricCheckboxItem of metricCheckboxes) {
@@ -503,6 +596,8 @@ export async function openInteraction3dEditor({
       statusSource.metrics.some(nasGroupProbe => nasGroupProbe.group === nasGroupKey)
     );
     const groupControlsByKey = new Map();
+    // 分组顺序与组内顺序直接写回 statusSource：弹窗里的调整先落在草稿上，
+    // 仍需要用户点「保存配置」才会落库。
     const syncNasGroupOrder = () => {
       nasFieldGroups.forEach(([orderedGroupKey], groupIndex) => {
         const {
@@ -521,6 +616,8 @@ export async function openInteraction3dEditor({
       );
       const fieldGroupSectionElement = createElement("section");
       const fieldGroupHeadingElement = createElement("div", "i3d-nas-fields-heading");
+      // 上移 / 下移一个分组：就地交换数组中的位置，再重排这一块的 DOM。
+      // 越界直接返回（首尾按钮本该禁用，这里再兜一层）。
       const moveFieldGroup = groupOffset => {
         const groupCurrentIndex = nasFieldGroups.findIndex(
           ([candidateGroupKey]) => candidateGroupKey === fieldGroupKey
@@ -553,6 +650,8 @@ export async function openInteraction3dEditor({
         metrics: groupMetrics
       });
       const metricControlsByEntityId = new Map();
+      // 按 groupMetrics 的当前顺序把每行重新 append 一遍（append 已存在的节点等于移动），
+      // 因此这一句既是重排 DOM，也是刷新首 / 尾行的上下移按钮禁用态。
       const syncNasMetricOrder = () =>
         groupMetrics.forEach((metricItem, metricIndex) => {
           const metricControl = metricControlsByEntityId.get(metricItem.entityId);
@@ -576,6 +675,7 @@ export async function openInteraction3dEditor({
           }
           syncMetricsSelection();
         });
+        // 在同一分组内把指标上移 / 下移：交换顺序后调一次重排，越界直接返回。
         const moveNasMetric = metricOffset => {
           const metricCurrentIndex = groupMetrics.indexOf(nasMetric);
           const metricTargetIndex = metricCurrentIndex + metricOffset;
@@ -649,6 +749,8 @@ export async function openInteraction3dEditor({
     });
     metricsDialogElement.showModal();
   }
+  // 打开批量应用弹窗：把源灯 / 源设备的字段值套用到勾选出来的其它项，
+  // 只覆盖被勾选的字段，其余保持各自的绑定与位置。
   function openBatchApplyDialog(sourceItem) {
     if (
       isDisposed ||
@@ -692,6 +794,7 @@ export async function openInteraction3dEditor({
     const batchColumnsElement = createElement("div", "navigation-style-apply-columns");
     const changedColumnElement = createElement("section");
     const targetsColumnElement = createElement("section");
+    // 批量应用表格的列头（带说明性提示文案）。
     const createBatchColumnHeading = (headingTitle, headingHint) => {
       const columnHeadingElement = createElement("div", "navigation-style-apply-heading");
       columnHeadingElement.append(
@@ -707,6 +810,7 @@ export async function openInteraction3dEditor({
     );
     const batchFieldCheckboxes = [];
     const batchTargetCheckboxes = [];
+    // 批量应用表格的一行选项，并把复选框登记进收集列表供后续批量读写。
     const createBatchOption = (optionValue, optionLabel, optionHint, optionCheckboxList) => {
       const optionLabelElement = createElement("label", "navigation-style-apply-option");
       const optionCheckboxElement = createElement("input");
@@ -800,6 +904,8 @@ export async function openInteraction3dEditor({
         );
       }
       batchTargetCheckboxes.push(...floorTargetCheckboxes);
+      // 刷新「已选 N/M 个…」计数与全选 / 取消全选按钮的文案；
+      // itemKindLabel 是当前编辑类型的中文名（灯、窗帘…），随类型变化。
       const refreshFloorSelection = () => {
         const checkedTargetCount = floorTargetCheckboxes.filter(
           checkedTargetProbe => checkedTargetProbe.checked
@@ -958,6 +1064,8 @@ export async function openInteraction3dEditor({
     });
     batchDialogElement.showModal();
   }
+  // 预览区按 16:9 等比适配：尺寸由 interaction3dPreviewSize 统一算，
+  // 保证编辑器里的取景与展示页一致（否则拖拽定位会看不出偏差）。
   const syncPreviewSize = () => {
     const previewSize = interaction3dPreviewSize(
       component,
@@ -972,6 +1080,8 @@ export async function openInteraction3dEditor({
   };
   const previewResizeObserver = new ResizeObserver(syncPreviewSize);
   previewResizeObserver.observe(viewElement);
+  // 释放编辑器：关掉所有子弹窗、断开尺寸观察、卸载预览运行时、移除 DOM 与样式，
+  // 最后广播 preview-scope 事件，通知舞台相关的挂起逻辑重新计算。
   const disposeEditor = () => {
     if (!isDisposed) {
       isDisposed = true;
@@ -988,6 +1098,8 @@ export async function openInteraction3dEditor({
       document.dispatchEvent(new Event("hb-i3d-preview-scope"));
     }
   };
+  // 关闭前拦截未保存改动；确认文案取自 EDITOR_SAVE_STATUS，
+  // 与保存状态提示共用一套措辞。
   const requestCloseEditor = () => {
     if (isDirty && !window.confirm(EDITOR_SAVE_STATUS.dirtyExitConfirm)) {
       return;
@@ -996,6 +1108,9 @@ export async function openInteraction3dEditor({
   };
   const saveStatusElement = createElement("span", "i3d-save-status");
   saveStatusElement.setAttribute("role", "status");
+  // 保存：先冻结草稿快照再提交，提交期间禁止重复点击；
+  // 相机编辑中 / 指令在途时也不允许保存，避免把中间态写进配置。
+  // 保存成功后重新比较脏状态：用户在等待期间又改了东西就提示「已保存，仍有改动」。
   const saveButtonElement = createButton("保存配置", async () => {
     if (
       isSaving ||
@@ -1064,6 +1179,8 @@ export async function openInteraction3dEditor({
     editorCancelEvent.preventDefault();
     requestCloseEditor();
   });
+  // 交给预览运行时的属性：扫地机快捷指令模式下预览必须跟着快捷项所在楼层，
+  // 所以这里临时改写 floorSelection 与 camera（不改草稿本身）。
   const buildRuntimeProperties = () => {
     const runtimeFloorId =
       isVacuumShortcutMode && findVacuumModel() ? findVacuumModel().floorId : selectedFloorId;
@@ -1080,6 +1197,8 @@ export async function openInteraction3dEditor({
           })
     };
   };
+  // 刷新预览舞台。markDirty 为 false 用于「只切换选中项」这类不改变配置的操作，
+  // 否则每次点选都会被记成一次改动，退出时白弹一次确认框。
   function refreshEditorPreview({ markDirty = true } = {}) {
     if (markDirty) {
       changeRevisionCount++;
@@ -1100,6 +1219,8 @@ export async function openInteraction3dEditor({
       syncSaveButtonState();
     }
   }
+  // 脏标记 = 草稿签名 ≠ 已保存签名；保存进行中不覆盖状态文案，
+  // 免得把「保存中…」冲掉。
   function syncDraftDirtyState() {
     isDirty = serializeEditorDraft(draftProperties) !== savedDraftSignature;
     if (!isSaving) {
@@ -1107,6 +1228,7 @@ export async function openInteraction3dEditor({
     }
     syncSaveButtonState();
   }
+  // 保存按钮的可用性收敛到这一处判断，避免多处各写一套条件。
   function syncSaveButtonState() {
     if (!isDisposed) {
       saveButtonElement.disabled =
@@ -1117,6 +1239,7 @@ export async function openInteraction3dEditor({
         isCameraCommandPending;
     }
   }
+  // 设置行小工厂：统一「标签 + 控件」的结构，三行区分控件类型。
   function createSettingRow(rowContainer, rowLabel, rowControl) {
     rowControl.name = "i3d-" + deviceKind + "-" + (selectedItemId || "scene") + "-" + rowLabel;
     const settingRowElement = createElement(
@@ -1127,6 +1250,7 @@ export async function openInteraction3dEditor({
     rowContainer.append(settingRowElement);
     return rowControl;
   }
+  // 下拉选择行：选项变化即写回草稿。
   function createSelectRow(
     selectContainer,
     selectLabel,
@@ -1144,6 +1268,7 @@ export async function openInteraction3dEditor({
     selectElement.addEventListener("change", () => onSelectChange(selectElement.value));
     return createSettingRow(selectContainer, selectLabel, selectElement);
   }
+  // 数字输入行：解析失败时保留原值，不把 NaN 写进草稿。
   function createNumberRow(
     numberContainer,
     numberLabel,
@@ -1171,6 +1296,8 @@ export async function openInteraction3dEditor({
     });
     return createSettingRow(numberContainer, numberLabel, numberInputElement);
   }
+  // 尺寸行：当前值由调用方通过 readCurrentSize 提供（按钮大小与状态框缩放的语义不同），
+  // 因此这里只负责读取与回写。
   function createSizeRow(sizeContainer, sizeLabel, readCurrentSize, onSizeChange) {
     const sizeInputElement = createElement("input");
     Object.assign(sizeInputElement, {
@@ -1190,6 +1317,8 @@ export async function openInteraction3dEditor({
     });
     return createSettingRow(sizeContainer, sizeLabel, sizeInputElement);
   }
+  // 取灯具能力：色温上下限、是否支持亮度 / 色温。优先读实体属性，
+  // 取不到时用编辑器兜底范围，保证滑杆在离线或状态未到时不至于不可用。
   function getLightStatus(statusItem) {
     const entityId = statusItem.entityId || "";
     const entityState = latestStates === null ? states?.get?.(entityId) : latestStates[entityId];
@@ -1215,6 +1344,8 @@ export async function openInteraction3dEditor({
     }
     return resolvedLightStatus;
   }
+  // 渲染「灯光效果」设置：默认亮度 / 色温、缓开缓灭时长与亮度、色温范围。
+  // 校验口径是「上下限不能交叉」：交叉时给提示且不写回草稿。
   function renderEffectSettings(containerElement, lightItem, lightCapabilities) {
     containerElement.replaceChildren();
     if (lightItem.entityId && !lightCapabilities.known) {
@@ -1373,6 +1504,7 @@ export async function openInteraction3dEditor({
     );
     containerElement.append(effectRangeDetailsElement);
   }
+  // 列出还可添加的模型：已被绑定的模型不再出现，避免同一模型重复绑定。
   function listAddableModels() {
     return (sceneMetadata?.floors || [])
       .filter(candidateFloorEntry => candidateFloorEntry.id === selectedFloorId)
@@ -1393,6 +1525,8 @@ export async function openInteraction3dEditor({
           }))
       );
   }
+  // 切换编辑对象类型（灯光 ↔ 空调 ↔ 窗帘 ↔ 设备 …）：重建字段定义与基线，
+  // 并按需重挂预览运行时，因为不同类型在舞台上的可编辑内容不同。
   async function switchEditorKind(nextDeviceKind, shouldOpenAddDialog = false) {
     if (
       isDisposed ||
@@ -1456,6 +1590,7 @@ export async function openInteraction3dEditor({
       openAddDialog();
     }
   }
+  // 关闭「添加模型」弹窗并清掉状态。
   function closeAddDialog() {
     if (addDialogState) {
       pickerGeneration++;
@@ -1466,6 +1601,8 @@ export async function openInteraction3dEditor({
     addDialogState?.remove();
     addDialogState = null;
   }
+  // 添加模型弹窗：按楼层列出尚未绑定的模型（部分模型带尺寸），选中即写入草稿
+  // 并把新项设为当前选中项。
   function openAddDialog(addDialogTriggerEvent) {
     if (
       isDisposed ||
@@ -1621,6 +1758,8 @@ export async function openInteraction3dEditor({
     });
     addDialogElement.showModal();
   }
+  // 扫地机房间选择：房间数据不在配置里，需要从平面图的墙体端点推算候选区域，
+  // 因此这里的逻辑比其它选择器重一些。
   async function openVacuumRoomPicker(roomPickerTriggerEvent) {
     const vacuumModelRecord = findVacuumModel();
     if (!vacuumModelRecord || getItemList().length >= 64) {
@@ -1659,6 +1798,8 @@ export async function openInteraction3dEditor({
             wallSegment.start,
             wallSegment.end
           ]);
+          // 房间快捷入口的落点：房间实体在平面数据里没有自己的几何，只能用该楼层
+          // 全部墙端点的坐标均值近似房间中心；没有墙数据时退回扫地机模型坐标。
           const averageWallCoordinate = axisKey =>
             wallEndpoints.length
               ? wallEndpoints.reduce(
@@ -1703,6 +1844,8 @@ export async function openInteraction3dEditor({
       }
     }
   }
+  // 扫地机快捷指令面板：每条指令 = 绑定实体 + 图标 + 位置；
+  // 位置在舞台上拖动后由 onEdit 回写。
   function renderVacuumShortcutPanel() {
     const scopeSectionElement = createConfigRow(createConfigSection("配置范围"));
     createSelectRow(
@@ -1804,6 +1947,8 @@ export async function openInteraction3dEditor({
       refreshEditorPreview();
     };
     createSettingRow(bindingSectionElement, "名称", shortcutNameInput);
+    // 快捷指令的实体选择器：选择器异步打开，用 pickerGeneration 作废过期回调，
+    // 避免快速连点后把旧选择写进新字段。
     const openShortcutPicker = (pickerName, shortcutPickerTrigger) => {
       const shortcutPickerGeneration = ++pickerGeneration;
       Promise.resolve(
@@ -1983,17 +2128,21 @@ export async function openInteraction3dEditor({
     refreshBatchButtons();
     createConfigSection("绑定管理").append(removeShortcutButton);
   }
+  // 配置面板的分区容器（标题 + 内容）。
   function createConfigSection(sectionTitle) {
     const configSectionElement = createElement("section", "i3d-config-section");
     configSectionElement.append(createElement("h4", "", sectionTitle));
     panelElement.append(configSectionElement);
     return configSectionElement;
   }
+  // 配置行容器：一行一个字段，标签与控件左右排布。
   function createConfigRow(parentSectionElement) {
     const configRowElement = createElement("div", "i3d-config-row");
     parentSectionElement.append(configRowElement);
     return configRowElement;
   }
+  // 右侧面板的总渲染：按当前编辑类型与选中项重建全部字段。
+  // 这里是全量重绘（点选、拖拽结束都会触发），所以不要在内部做重活。
   function renderPanel() {
     refreshEffectSettings = () => {};
     refreshBatchButtons = () => {};
@@ -2252,6 +2401,7 @@ export async function openInteraction3dEditor({
           }
         }
         currentContainer = bindingContainer;
+        // 通用实体 / 模型选择器入口，选择结果写回指定字段（支持嵌套路径）。
         const openItemPicker = async (targetField, itemPickerTrigger) => {
           const itemPickerGeneration = ++pickerGeneration;
           errorMessageElement.textContent = "";
@@ -2851,6 +3001,8 @@ export async function openInteraction3dEditor({
         const sizeDetailsElement = createElement("details");
         sizeDetailsElement.append(createElement("summary", "", "更多尺寸设置"), sizeGridElement);
         currentContainer.append(sizeDetailsElement);
+        // 触控范围（px）：显式配置过就用它，否则取「按钮大小」兜底，
+        // 且不小于 44 —— 44px 是移动端可点区域的最小推荐尺寸（与 buildItemPayload 一致）。
         const readHitSize = () =>
           Number.isFinite(selectedItem.hitSize) && selectedItem.hitSize > 0
             ? selectedItem.hitSize
@@ -3004,6 +3156,8 @@ export async function openInteraction3dEditor({
           currentContainer = createConfigSection("灯光效果");
           const lightEffectContainerElement = createElement("div");
           currentContainer.append(lightEffectContainerElement);
+          // 把影响效果面板渲染的字段压成一个签名（JSON 字符串）：这些值没变就整体跳过重绘，
+          // 免得状态每上报一次就把用户正在操作的控件重建一遍。
           const lightStatusSignature = statusSnapshot =>
             JSON.stringify([
               statusSnapshot.known,
@@ -3100,6 +3254,7 @@ export async function openInteraction3dEditor({
             )
           );
         }
+        // 相机指令统一入队：同时只允许一条在途指令，队列保证先后的视角操作不会互相覆盖。
         const runCameraCommand = async (cameraCommand, cameraPayload) => {
           const sceneReadySnapshot = sceneReadyGeneration;
           const isFocalLengthCommand = cameraCommand === "focus-focal-length";
@@ -3282,6 +3437,8 @@ export async function openInteraction3dEditor({
       }
     }
   }
+  // 挂载编辑器内的预览舞台：editing=true，并接管 onReady（渲染面板）、
+  // onEdit（点选 / 拖拽 / 相机回写）、onStates（状态刷新）三个回调。
   function mountEditorRuntime() {
     editorRuntime = mountInteraction3d(stageHostElement, {
       component: {
@@ -3429,6 +3586,8 @@ export async function openInteraction3dEditor({
       }
     });
   }
+  // 订阅编辑授权：未授权时面板 inert、关掉所有子弹窗并作废在途回调；
+  // 授权恢复后重新挂载（或恢复）预览运行时；被明确拒绝时直接卸载运行时。
   const accessUnsubscribe = subscribeInteraction3dAccess(accessState => {
     if (!isDisposed) {
       isAccessAllowed = accessState.allowed;
@@ -3467,10 +3626,20 @@ export async function openInteraction3dEditor({
     }
   });
   renderPanel();
+  // 先渲染面板再 showModal：反过来会出现弹窗先以空面板亮相、随后跳动一下的观感。
   editorDialogElement.showModal();
   document.dispatchEvent(new Event("hb-i3d-preview-scope"));
   syncPreviewSize();
 }
+/**
+ * 打开「整体外观」编辑器（曝光 / 主光 / 补光与阴影等 baseLighting 参数）。
+ *
+ * 与配置编辑器的区别：它改的是整份户型文档层面的光照，保存回调收到的也是
+ * baseLighting 草稿；复用同一套授权门禁与脏标记口径。
+ *
+ * @param {object} options 配置项：component 控件描述、onSave 保存回调。
+ * @returns {Promise<void>} 弹窗关闭后 resolve。
+ */
 export async function openInteraction3dAppearanceEditor({
   component: appearanceComponent,
   onSave: onAppearanceSave
@@ -3500,6 +3669,8 @@ export async function openInteraction3dAppearanceEditor({
   appearanceStyleLinkElement.href =
     "/api/v1/modules/interaction3d/runtime.css?v=20260916013557";
   document.head.append(appearanceStyleLinkElement);
+  // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
+  // 与上面带类名的 createElement 区分开，避免传一堆空字符串。
   const createPlainElement = (plainTagName, plainText = "") => {
     const plainElement = document.createElement(plainTagName);
     plainElement.textContent = plainText;
@@ -3515,6 +3686,7 @@ export async function openInteraction3dAppearanceEditor({
   appearanceErrorElement.className = "i3d-error";
   appearanceErrorElement.setAttribute("role", "status");
   let dragState;
+  // 按锚点坐标摆放外观弹窗（相对宿主控件的左侧 / 顶部对齐）。
   const positionAppearanceDialog = (targetLeft, targetTop) => {
     const dialogRect = appearanceDialogElement.getBoundingClientRect();
     Object.assign(appearanceDialogElement.style, {
@@ -3525,6 +3697,8 @@ export async function openInteraction3dAppearanceEditor({
       top: Math.max(8, Math.min(targetTop, window.innerHeight - dialogRect.height - 8)) + "px"
     });
   };
+  // 跟随目标控件重新定位：窗口尺寸变化、祖先滚动都会触发，
+  // 所以位置是现算的而不是缓存的。
   const repositionAppearanceDialog = () => {
     const currentRect = appearanceDialogElement.getBoundingClientRect();
     positionAppearanceDialog(currentRect.left, currentRect.top);
@@ -3559,11 +3733,15 @@ export async function openInteraction3dAppearanceEditor({
     });
   }
   window.addEventListener("resize", repositionAppearanceDialog);
+  // 外观保存按钮只在草稿与快照有差异时可用 —— 复用 editorDraftHasChanges，
+  // 与配置编辑器保持同一套「是否有改动」的判断口径。
   const syncAppearanceSaveButton = () => {
     if (!isAppearanceClosed) {
       appearanceSaveButton.disabled = !isAppearanceDirty;
     }
   };
+  // 把光照草稿即时应用到舞台（所见即所得）；
+  // 真正落库仍要走保存按钮，这里只做预览。
   const applyAppearanceLighting = () => {
     isAppearanceDirty = editorDraftHasChanges(baseLightingDraft, openLightingSnapshot);
     syncAppearanceSaveButton();
@@ -3572,6 +3750,8 @@ export async function openInteraction3dAppearanceEditor({
       baseLighting: baseLightingDraft
     });
   };
+  // 关闭外观弹窗；shouldKeepLighting 为 true 表示保留当前预览光照
+  // （保存流程会用到，避免关闭瞬间画面闪回旧光照）。
   const closeAppearanceEditor = (shouldKeepLighting = false) => {
     if (!isAppearanceClosed) {
       isAppearanceClosed = true;
@@ -3702,6 +3882,8 @@ export async function openInteraction3dAppearanceEditor({
     });
     floorBrightnessRangeInput.setAttribute("aria-label", "地面颜色深浅");
     floorBrightnessNumberInput.setAttribute("aria-label", "地面亮度百分比");
+    // 落定地面亮度：非有限输入（空串、粘贴的脏值）直接忽略；有效值夹到 50~150，
+    // 与滑杆的 min/max 一致（100 为原色），再把滑杆与数字框同步成同一个值。
     const commitFloorBrightness = floorBrightnessInput => {
       if (Number.isFinite(floorBrightnessInput.valueAsNumber)) {
         baseLightingDraft.floorBrightness = Math.max(

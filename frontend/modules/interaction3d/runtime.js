@@ -1,9 +1,44 @@
+/**
+ * 3D 交互模块的外层运行时（宿主页侧，非 iframe 内）。
+ *
+ * 位置：interaction3d 子系统的「外壳层」。它在宿主 DOM 里建一个 iframe 指向 3D 舞台，
+ * 然后负责三件事：
+ *   1) 状态：订阅被追踪实体的状态（优先走 lightStream 增量流，退化到 registerRuntimeStateHandler），
+ *      把状态随配置一起推给舞台；
+ *   2) 配置：runtimeApi.update 收到控件属性后做差异判断，必要时重载 iframe 或只发 config；
+ *   3) 命令：舞台回传的 control 在这里落到 /api/v1/modules/interaction3d/control，
+ *      编辑类指令（视角、聚焦、照射范围）用 editor-command 发下去并按 requestId 等回执。
+ *
+ * 与舞台的协议：channel 固定 "hb-i3d-v1"，双向都只认同源窗口；
+ * 控制请求 12 秒超时（AbortController），编辑类回执 5 秒超时；
+ * 加载兜底 45 秒 —— 超时按加载失败提示，避免页面永远停在骨架屏。
+ *
+ * 对外导出 mountInteraction3d(hostElement, options)：返回 runtimeApi 句柄
+ * （update / setPageVisible / setAuthorized / setViewEditing / viewCommand / captureView /
+ * focusCommand / closeRangeEditor 与若干只读属性）。所有方法在 dispose 之后都是空操作。
+ */
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
 } from "./popup-preview.js?v=20260916013557";
 import { createLightStream } from "./light-stream.js?v=20260916013557";
+// 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
+/**
+ * 把 3D 交互控件挂到宿主元素上，返回运行时句柄。
+ *
+ * 挂载时会：建 iframe + 加载占位、注册窗口级事件（指针 / 键盘 / 页面可见性 / 祖先尺寸）、
+ * 起状态订阅，并在舞台回报 ready 后开始下发配置。
+ *
+ * @param {HTMLElement} hostElement 宿主容器（会被清空并接管）。
+ * @param {object} options 挂载选项：
+ *     component 控件描述（properties 为 3D 配置）；
+ *     context 运行时上下文（document 场景文档、entityMetadata、editable 等）；
+ *     editing / editingModule / editingVacuumId 编辑态与当前编辑模块；
+ *     rangeEditorOnly 是否只做照射范围编辑；
+ *     onEdit / onStates / onReady / onPresented / onLoadError / onFocusChange 回调。
+ * @returns {object} runtimeApi 句柄。
+ */
 export function mountInteraction3d(
   hostElement,
   {
@@ -31,10 +66,14 @@ export function mountInteraction3d(
   let isPageHidden = false;
   let popupLayoutPreview = null;
   let focusDevicePopup = null;
+  // 关闭聚焦设备弹窗（摄像头 / 扫地机），幂等：重复调用不会报错。
   function disposeFocusDevicePopup() {
     focusDevicePopup?.dispose();
     focusDevicePopup = null;
   }
+  // 打开聚焦设备弹窗。目标 ID 形如 "camera:xxx" / "vacuum:xxx"，
+  // 先按前缀判断设备类型，再从配置里找出对应项；找不到就静默返回（配置可能刚被改过）。
+  // 弹窗自身初始化失败时只回收弹窗并回调 onLoadError，不影响舞台主体。
   function openFocusDevicePopup(popupTargetId) {
     disposeFocusDevicePopup();
     const focusDeviceKind = popupTargetId?.startsWith("camera:")
@@ -72,32 +111,46 @@ export function mountInteraction3d(
       }
     });
   }
+  // 一次性关掉所有预览浮层：设备弹窗 + 弹窗布局预览。
   function closePopupLayoutPreview() {
     disposeFocusDevicePopup();
     popupLayoutPreview?.dispose();
     popupLayoutPreview = null;
   }
+  // 舞台是否已回报 presented（画面真正可见）；未呈现前不做聚焦与视角编辑。
   let isScenePresented = false;
   let isViewEditing = false;
+  // 请求 ID 自增源（range- / view- / focus- 前缀）：回执按 ID 配对，
+  // 与舞台侧自己的控制请求计数互不干扰。
   let requestIdCounter = 0;
+  // 配置代次：随之发送的 configId 让舞台能把 presented / error 对回到具体那份配置。
   let configIdCounter = 0;
   let defaultCamera;
   let activeCamera =
     componentProperties.floorCameras?.[componentProperties.floorSelection] ||
     componentProperties.camera;
+  // 上次下发的配置 JSON：完全相同时不重发，只补一次布局与状态刷新，
+  // 避免父页面的重渲染把整份配置再推一遍导致舞台重算。
   let lastConfigJson = "";
+  // 预览挂起：被顶层对话框遮住时暂停状态推送与渲染，
+  // 既省算力，也避免弹窗后面继续跑 3D 动画造成卡顿。
   let isPreviewSuspended = false;
   let isFocusActive = false;
   let isFocusPanelOpen = false;
   let isStageReady = false;
   let hasBeenConnected = false;
   let hasLoadFailed = false;
+  // iframe 重载代次：异步回调据此判断自己等的加载是否已被新一次重载取代。
   let reloadGeneration = 0;
   let isRangeEditing = false;
   const pendingEditsByRequestId = new Map();
   const pendingRangeRequestsByRequestId = new Map();
   const editSubscribersSet = new Set();
+  // 光照模式只有两种取值，非法值一律按 standard 处理，
+  // 免得旧数据里的未知值触发一次无谓的 iframe 重载。
   const normalizeLightingMode = lightingMode => (lightingMode === "region" ? "region" : "standard");
+  // 建舞台 iframe。非编辑 / 非视角编辑 / 非范围编辑时把指针事件关掉：
+  // 否则 iframe 会吃掉宿主页面的滚动与点击。
   function createStageFrameElement() {
     const frameElement = document.createElement("iframe");
     frameElement.title = "3D 交互户型";
@@ -114,6 +167,8 @@ export function mountInteraction3d(
   loadingElement.setAttribute("role", "status");
   hostElement.replaceChildren(stageFrameElement, loadingElement);
   const projectId = runtimeContext.document?.projectId || "";
+  // 统一发给舞台的通道：带 channel 标识，只发给同源 iframe，
+  // iframe 尚未建立 contentWindow 时直接丢弃（后面 ready 后会重发配置）。
   const postToStageFrame = outgoingMessage => {
     if (!isDisposed && stageFrameElement.contentWindow) {
       stageFrameElement.contentWindow.postMessage(
@@ -125,12 +180,16 @@ export function mountInteraction3d(
       );
     }
   };
+  // 编辑事件广播：先回调构造时的 onEdit，再分发给 addEditSubscriber 注册的订阅者。
+  // 复制一份集合再遍历，允许订阅者在回调里退订。
   function notifyEditSubscribers(editEvent) {
     onEdit(editEvent);
     for (const subscriber of [...editSubscribersSet]) {
       subscriber(editEvent);
     }
   }
+  // 更新照射范围编辑状态：即使状态没变，只要带错误信息也要广播一次，
+  // 否则「拒绝进入范围编辑」的原因传不出去。
   function setRangeEditingState(requestedActive, errorMessage = "") {
     const isRangeEditingActive = requestedActive === true;
     if (isRangeEditingActive !== isRangeEditing || !!errorMessage) {
@@ -159,8 +218,11 @@ export function mountInteraction3d(
   let lastActivityAtMs = -Infinity;
   const activePointerIdsSet = new Set();
   const heldKeySet = new Set();
+  // 有指针按下或按键未松开，就算「用户正在操作」，空闲动画必须让位。
   const hasHeldInput = () => activePointerIdsSet.size > 0 || heldKeySet.size > 0;
   let isInViewport = typeof IntersectionObserver === "undefined";
+  // 弹窗遮挡检测：取最上层的、标记了 data-i3d-preview-scope 的 dialog，
+  // 若它不包含宿主元素，说明 3D 预览被挡住了，挂起状态推送与渲染。
   function syncPreviewSuspension() {
     const topmostScopedDialog = [
       ...(document.querySelectorAll?.("dialog[data-i3d-preview-scope][open]") || [])
@@ -187,6 +249,8 @@ export function mountInteraction3d(
       refreshActivityState();
     }
   }
+  // 宿主是否真的可见：断开连接 / hidden / inert / iframe hidden / 不在视口 / 被弹窗盖住
+  // 任一成立都算不可见 —— 这些条件都会让 3D 渲染白跑，早停早省电。
   function isHostActuallyVisible() {
     if (
       hostElement.isConnected === false ||
@@ -237,6 +301,8 @@ export function mountInteraction3d(
       (hostBoundingRect.bottom ?? (hostBoundingRect.top || 0) + hostBoundingRect.height) > 0
     );
   }
+  // 汇总可见性与活动态并同步给舞台：把「宿主可见 / 呈现层可见 / 用户是否在操作」
+  // 组合成 activity-state 消息。forceImmediate 用于忽略节流，立刻发一次。
   function refreshActivityState(forceImmediate = false) {
     if (isDisposed) {
       return;
@@ -277,6 +343,8 @@ export function mountInteraction3d(
       });
     }
   }
+  // 活动输入监听：只认 isTrusted 的事件（合成事件不算用户操作），
+  // 按下时记录指针 / 按键，松开时移除，并在变化时刷新活动态。
   function handleActivityInputEvent(inputEvent) {
     if (isDisposed || inputEvent.isTrusted === false) {
       return;
@@ -306,6 +374,8 @@ export function mountInteraction3d(
       }
     }
   }
+  // 窗口失焦：清空所有按下状态。否则切走再切回来时，
+  // 那些「按下没松开」的集合会永远留着，空闲动画再也不启动。
   function handleWindowBlur() {
     if (isDisposed) {
       return;
@@ -322,11 +392,14 @@ export function mountInteraction3d(
       });
     }
   }
+  // 页面进入后台（含 from bfcache 的 pagehide）：关掉预览浮层并刷新活动态。
   function handlePageHide() {
     closePopupLayoutPreview();
     isPageHiddenByEvent = true;
     refreshActivityState();
   }
+  // 页面从 bfcache 恢复：iframe 里的 WebGL 上下文通常已经失效，
+  // 直接重载舞台而不是尝试复用（persisted 为 true 就代表走的是往返缓存）。
   function handlePageShow(pageShowEvent) {
     isPageHiddenByEvent = false;
     if (pageShowEvent?.persisted && !isDisposed) {
@@ -335,6 +408,7 @@ export function mountInteraction3d(
       refreshActivityState();
     }
   }
+  // 页面可见性变化：隐藏时关掉预览浮层，避免弹窗留在后台状态不一致。
   function handleVisibilityChange() {
     if (document.hidden) {
       closePopupLayoutPreview();
@@ -374,6 +448,8 @@ export function mountInteraction3d(
           }
         })
       : null;
+  // 决定状态流是否激活：只有在宿主曾真正连接过、且当前可见时才开流，
+  // 防止隐藏期间白白拉长连接。
   function syncLightStreamActive() {
     if (!lightStream || isDisposed) {
       return;
@@ -408,6 +484,8 @@ export function mountInteraction3d(
     }
     lightStream.setActive(isStreamActive);
   }
+  // 找出窗帘的「电机反向」实体。它是集成侧暴露的开关，实体 ID 不在配置里，
+  // 只能从运行时实体元数据里按设备归属反查，因此这里做了能力探测（没有元数据就返回空）。
   function findCurtainMotorReverseEntities() {
     const entityMetadata = runtimeContext.entityMetadata;
     if (!entityMetadata?.get || !entityMetadata?.values) {
@@ -450,6 +528,8 @@ export function mountInteraction3d(
       });
     }
   }
+  // 把电机反向状态合进状态表：它影响窗帘开合方向的正负解释，
+  // 舞台侧拿不到这个信息，所以在宿主侧统一补齐后再下发。
   function mergeMotorReverseStates(statesMap, patchStates) {
     const mergedStates = {
       ...(patchStates || statesMap)
@@ -493,6 +573,8 @@ export function mountInteraction3d(
     }
     return mergedStates;
   }
+  // 需要跟踪状态的实体全集：窗帘反向开关、摄像头、人体传感器、扫地机及其关联实体、
+  // 灯光、电视电源等。多订阅几个实体换来的是一次订阅覆盖全部面板。
   const collectTrackedEntities = () => [
     ...findCurtainMotorReverseEntities(),
     ...(componentProperties.security?.cameras || []),
@@ -527,6 +609,8 @@ export function mountInteraction3d(
       );
     })
   ];
+  // 判断选中 ID 是否仍在当前配置里存在：配置更新后旧的选中项可能已被删除，
+  // 这时要清掉选中，不能让下游一直拿着一个不存在的 ID。
   function isKnownSelectionId(selectionId) {
     if (typeof selectionId != "string" || !selectionId) {
       return false;
@@ -557,6 +641,7 @@ export function mountInteraction3d(
       );
     }
   }
+  // 取当前状态表：优先用 lightStream 的合并结果，没有流时退回到宿主注册的处理器缓存。
   const getCurrentStates = () =>
     lightStream
       ? latestStates
@@ -566,6 +651,8 @@ export function mountInteraction3d(
             runtimeContext.states?.get(entityRef.entityId) || null
           ])
         );
+  // 把状态推给舞台。挂起（被弹窗遮挡）或页面隐藏时不推，
+  // 并且用引用比较跳过「状态对象没换过」的重复推送。
   const publishStates = (statePatch = null) => {
     if (isPreviewSuspended || isPageHidden) {
       return;
@@ -591,6 +678,8 @@ export function mountInteraction3d(
     }
   };
   const registeredEntityIdsSet = new Set();
+  // 配置状态订阅：有 lightStream 时把「主实体 + 附加实体」一起交给它按需订阅；
+  // 没有流时退回逐实体注册 runtimeContext.registerRuntimeStateHandler，并去重。
   function configureStateSubscriptions() {
     if (lightStream) {
       lightStream.configure(
@@ -624,6 +713,8 @@ export function mountInteraction3d(
       }
     }
   }
+  // 下发配置。用 JSON 比对做短路：内容没变时只补一次布局 / 活动态 / 状态推送。
+  // 每次真正下发都自增 configId 并把 isSceneActive 复位 —— 舞台要用它回报 presented。
   function sendConfigUpdate() {
     if (!isStageReady || isDisposed || isPreviewSuspended) {
       return;
@@ -663,18 +754,22 @@ export function mountInteraction3d(
       refreshActivityState(true);
     }
   }
+  // 背景图开关只通过类名控制，交给 CSS 决定具体表现。
   function syncBackgroundVisibility() {
     hostElement.classList.toggle(
       "is-background-hidden",
       componentProperties.backgroundVisible === false
     );
   }
+  // 聚焦状态变化时才回调，避免宿主每帧收到重复通知。
   function updateFocusActive(focusActive) {
     if (isFocusActive !== focusActive) {
       isFocusActive = focusActive;
       onFocusChange(focusActive);
     }
   }
+  // 统一失败所有在途编辑请求（卸载 / 失去授权 / 重载时调用），
+  // 让调用方的 Promise 立刻 reject，而不是各自等到 5 秒超时。
   function rejectPendingEdits(reason) {
     for (const pendingEditRequest of pendingEditsByRequestId.values()) {
       clearTimeout(pendingEditRequest.timeout);
@@ -682,6 +777,7 @@ export function mountInteraction3d(
     }
     pendingEditsByRequestId.clear();
   }
+  // 同上，处理照射范围相关的在途请求。
   function rejectPendingRangeRequests(failureReason) {
     for (const pendingRangeRequest of pendingRangeRequestsByRequestId.values()) {
       clearTimeout(pendingRangeRequest.timeout);
@@ -689,6 +785,8 @@ export function mountInteraction3d(
     }
     pendingRangeRequestsByRequestId.clear();
   }
+  // 退出聚焦：清空焦点目标、关掉两个详情弹窗与面板，并通知宿主。
+  // immediate 透传给舞台，表示不做相机过渡。
   function dismissFocus(immediate = false) {
     activeFocusTargetId = "";
     closeCameraPreviewPopup();
@@ -703,6 +801,8 @@ export function mountInteraction3d(
   let cameraPreviewPopup = null;
   let cameraPreviewTargetId = "";
   let activeFocusTargetId = "";
+  // 关闭摄像头预览浮层。先摘引用再 close()：浮层的关闭回调里可能再次调用本函数，
+  // 引用已经清空才不会无限递归。
   const closeCameraPreviewPopup = () => {
     const popupToClose = cameraPreviewPopup;
     cameraPreviewPopup = null;
@@ -711,11 +811,15 @@ export function mountInteraction3d(
   };
   let vacuumDetailsPopup = null;
   let isVacuumFollowActive = false;
+  // 关闭扫地机详情浮层；与摄像头预览同一套「先摘引用再 close」的写法，
+  // 保证重复调用与浮层内的关闭回调都不会递归。
   const closeVacuumDetailsPopup = () => {
     const vacuumPopupToClose = vacuumDetailsPopup;
     vacuumDetailsPopup = null;
     vacuumPopupToClose?.close?.();
   };
+  // 点击外部退出聚焦：指针落在弹窗内不算（弹窗自己处理），
+  // 落在宿主之外才算「点到别处了」。
   function handleWindowPointerDown(pointerEvent) {
     if (
       !cameraPreviewPopup?.contains?.(pointerEvent.target) &&
@@ -726,6 +830,8 @@ export function mountInteraction3d(
       }
     }
   }
+  // ESC 优先关预览浮层，其次退出聚焦；顺序不能反，
+  // 否则弹窗打开时按 ESC 会先把下面的聚焦一起关掉。
   function handleWindowKeyDown(keyEvent) {
     if (keyEvent.key === "Escape") {
       closePopupLayoutPreview();
@@ -734,6 +840,8 @@ export function mountInteraction3d(
       dismissFocus();
     }
   }
+  // 舞台加载失败（含 45 秒兜底超时）：复位所有「正在加载」的标志，
+  // 让骨架屏与交互状态回到可重试的初始态。
   function handleStageLoadError(messageText) {
     hasLoadFailed = true;
     isScenePresented = false;
@@ -756,6 +864,8 @@ export function mountInteraction3d(
     loadingElement.textContent = messageText || "3D 户型加载失败，请重新载入户型。";
     onLoadError(new Error(loadingElement.textContent));
   }
+  // 重建 iframe（换场景、光照模式变化、从 bfcache 恢复时调用）。
+  // 所有与旧 iframe 绑定的浮层与焦点都必须重置，否则会挂在已卸载的文档上。
   function reloadStageFrame() {
     closePopupLayoutPreview();
     isVacuumFollowActive = false;
@@ -837,6 +947,8 @@ export function mountInteraction3d(
       scheduleLoadTimeout();
     }
   }
+  // 45 秒加载兜底：慢到这一步基本是网络或后端异常，
+  // 与其让用户对着骨架屏，不如给出可重试的提示。
   function scheduleLoadTimeout() {
     loadingTimeoutId = setTimeout(
       () => handleStageLoadError("3D 户型加载较慢，请稍候；若一直没有画面，请重新载入户型。"),
@@ -844,6 +956,15 @@ export function mountInteraction3d(
     );
   }
   const pendingAbortControllersSet = new Set();
+  /**
+   * 舞台消息总入口（同源 + iframe 来源 + channel 三重校验后分发）。
+   *
+   * 处理的类型见文件头；控制类消息会落到后端 /control，并按 requestId 回执；
+   * 编辑类（视角 / 聚焦 / 范围）按各自的 requestId 兑现对应的 Promise。
+   *
+   * @param {MessageEvent} messageEvent 来自舞台 iframe 的消息。
+   * @returns {Promise<void>}
+   */
   async function handleStageMessage(messageEvent) {
     if (
       isDisposed ||
@@ -1149,6 +1270,8 @@ export function mountInteraction3d(
         return;
       }
       const controlGeneration = reloadGeneration;
+      // 结果回传的门卫：只有期间没发生整页重载（generation 未变）、场景已呈现且仍持有授权
+      // 时才回发，否则宿主会收到一条属于旧页面的 control-result。
       const sendControlResult = resultPayload => {
         if (controlGeneration === reloadGeneration && isScenePresented && isAuthorized) {
           postToStageFrame(resultPayload);
@@ -1156,6 +1279,8 @@ export function mountInteraction3d(
       };
       const controlAbortController = new AbortController();
       pendingAbortControllersSet.add(controlAbortController);
+      // 12 秒超时并 abort：设备操作的真实耗时不长，卡这么久基本都是链路问题，
+      // 主动断开比让舞台侧一直等更省资源。
       const controlTimeoutId = setTimeout(() => controlAbortController.abort(), 12000);
       try {
         const controlResponse = await fetch(INTERACTION3D_API_BASE + "/control", {
@@ -1253,6 +1378,8 @@ export function mountInteraction3d(
         );
   intersectionObserver?.observe(hostElement);
   let observedAncestorElements = [];
+  // 观察宿主的所有祖先尺寸变化：控件常被放在可折叠面板里，
+  // 面板展开时窗口 resize 不会触发，只能靠 MutationObserver / ResizeObserver 补。
   function observeAncestors() {
     if (isDisposed) {
       return;
@@ -1293,6 +1420,8 @@ export function mountInteraction3d(
   observeAncestors();
   let lastLayoutJson = "";
   let presentationLayout = null;
+  // 同步 iframe 尺寸：宿主还没有宽高时直接返回（此时测量必然为 0）。
+  // forceLayout 用于绕过「尺寸没变」的短路，强制重排一次。
   function syncFrameLayout(forceLayout = false) {
     refreshActivityState();
     const hostRect = hostElement.getBoundingClientRect();
@@ -1348,6 +1477,9 @@ export function mountInteraction3d(
   syncPreviewSuspension();
   reloadStageFrame();
   const layoutFrameRequestId = requestAnimationFrame(syncFrameLayout);
+  // 释放一切：清定时器、断开观察者、移除所有事件监听、abort 在途请求、
+  // 清空 iframe 与宿主内容，并把在途编辑请求统一失败。
+  // 之后所有 runtimeApi 方法都会因 isDisposed 变成空操作。
   const runtimeApi = () => {
     if (!isDisposed) {
       closePopupLayoutPreview();
@@ -1620,6 +1752,8 @@ export function mountInteraction3d(
       });
     });
   };
+  // 授权状态变化：未授权时把宿主置 inert，并关掉范围编辑、拒绝在途编辑请求、
+  // abort 所有请求；授权恢复后若处于编辑场景，重发一次配置让舞台恢复可交互。
   runtimeApi.setAuthorized = authorized => {
     const hasAuthorizationChanged = isAuthorized !== (authorized === true);
     isAuthorized = authorized === true;
@@ -1654,6 +1788,8 @@ export function mountInteraction3d(
   Object.defineProperty(runtimeApi, "rangeEditing", {
     get: () => isRangeEditing && !isDisposed && isAuthorized
   });
+  // 进入 / 退出视角调整。前置条件不满足时直接抛中文错误，由调用方展示；
+  // 进入视角调整前必须先退出照射范围编辑，两者共用同一套指针交互。
   runtimeApi.setViewEditing = viewEditingEnabled => {
     if (viewEditingEnabled) {
       closePopupLayoutPreview();
@@ -1678,6 +1814,8 @@ export function mountInteraction3d(
     stageFrameElement.style.pointerEvents = isViewEditing || isRangeEditing ? "auto" : "none";
     sendConfigUpdate();
   };
+  // 视角指令：发给舞台的 editor-command 并按 requestId 等回执（5 秒超时）。
+  // 只有宿主页（editable）且在视角编辑中才允许，展示页调用一律拒绝。
   runtimeApi.viewCommand = (viewCommandName, viewCommandValue) =>
     new Promise((resolveView, rejectView) => {
       if (!runtimeContext.editable || !isViewEditing || !isScenePresented || isDisposed) {
@@ -1702,6 +1840,7 @@ export function mountInteraction3d(
       });
     });
   runtimeApi.captureView = () => runtimeApi.viewCommand("save-camera");
+  // 聚焦视角指令：编辑态专用，同样 5 秒超时；目标默认取当前选中项。
   runtimeApi.focusCommand = (focusCommandName, focusTargetId = selectedId, focusCommandValue) =>
     new Promise((resolveFocus, rejectFocus) => {
       if (!isEditing || !isScenePresented || isDisposed || !isAuthorized) {
