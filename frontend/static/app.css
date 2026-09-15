@@ -1,3 +1,22 @@
+/*
+  编辑器主界面样式（frontend/index.html 专用）。
+
+  适用页面：只服务编辑器主页面；显示端与运行时弹窗用 renderer.css、bridge.css，
+  本文件末尾的 .hb-custom-popup-* 区块是编辑器里的弹窗预览，不是运行期弹窗本体。
+  主题变量：调色板在本文件 :root 里定义（--bg / --surface / --accent 等），
+  运行期由 home.js 往 documentElement 注入 --editor-layout-height、
+  --editor-viewport-scale、--component-template-dialog-scale；仓库中没有 --homeos-*
+  前缀的变量，新增主题色请沿用这里的 -- 变量，不要另起前缀。
+  尺寸基准：编辑器 UI 的设计标称宽度是 1020px（home.js 里的 EDITOR_DESIGN_WIDTH），
+  仪表盘画布的设计标称是 2778×1940（后端 panel/schema.py 的 DESIGN_WIDTH / DESIGN_HEIGHT），
+  组件坐标与字号都按该画布换算，因此本文件里的 px 一律是 CSS 像素、不做 DPR 换算；
+  视口放不下时由 home.js 给 html 挂 .editor-viewport-fit 整体等比缩放，而不是重排。
+*/
+
+/* ===== 主题变量与全局重置 ===== */
+
+/* 全局调色板与字体栈。color-scheme: dark 让原生控件（下拉、日期选择、滚动条）
+   也走深色；字体按 Latin → 系统中文字体的顺序排列，避免中文回落到衬线字体。 */
 :root {
   color-scheme: dark;
   font-family:
@@ -10,6 +29,8 @@
     PingFang SC,
     Microsoft YaHei,
     sans-serif;
+  /* 深色主题调色板：三档抬升面（surface / soft / raised）+ 输入框底色 field；
+     accent 是品牌橙，accent-soft 是它的 12% 透明度版本，专用于 hover / 选中底色。 */
   --bg: #151a1f;
   --surface: #1a2026;
   --surface-soft: #1e252c;
@@ -25,6 +46,8 @@
   background: var(--bg);
   color: var(--text);
 }
+/* 隐藏滚动条的两套写法必须成对出现：Firefox 认 scrollbar-width，
+   WebKit / Blink 认伪元素；面板内容照常可滚，只是不显示轨道、不占宽度。 */
 * {
   box-sizing: border-box;
   scrollbar-width: none;
@@ -32,11 +55,14 @@
 *::-webkit-scrollbar {
   display: none;
 }
+/* 页面整体不滚动，滚动交给三栏内部的 .panel；窄屏例外见下方 1180px 媒体查询。 */
 html,
 body {
   height: 100%;
   overflow: hidden;
 }
+/* 980px 是能容纳三栏加弹窗的底线；再窄由 home.js 挂 .editor-viewport-fit 整体缩放，
+   而不是继续压缩布局。 */
 body {
   min-width: 980px;
   margin: 0;
@@ -48,6 +74,12 @@ select,
 textarea {
   font: inherit;
 }
+/* ===== 编辑器视口缩放 ===== */
+
+/* 视口装不下设计标称宽度时，home.js 量出「顶栏 + 三栏」的实际高度写进
+   --editor-layout-height，再按 min(1, 视口宽/1020, 视口高/布局高) 算出
+   --editor-viewport-scale，由这里整体等比缩放；1020px 与 home.js 的
+   EDITOR_DESIGN_WIDTH 是同一个基准，改一处就要同步另一处。 */
 html.editor-viewport-fit {
   overflow: hidden;
 }
@@ -60,6 +92,10 @@ html.editor-viewport-fit body {
   transform: scale(var(--editor-viewport-scale, 1));
   transform-origin: top left;
 }
+/* ===== 顶部工具栏 ===== */
+
+/* 顶栏固定 52px，是全站唯一的高度基准：.editor-shell 的高度、home.js 的缩放计算
+   都引用这个值。 */
 .editor-header {
   position: relative;
   z-index: 40;
@@ -134,6 +170,8 @@ html.editor-viewport-fit body {
   min-height: 32px;
   padding: 4px 10px;
 }
+/* 顶栏状态胶囊（HA / 授权 / 日志）：圆点用 <i> 充当，connected / error / warning
+   三个修饰类只改圆点颜色与光晕，尺寸和圆角在这里统一。 */
 .ha-status {
   display: inline-flex;
   min-height: 30px;
@@ -163,6 +201,9 @@ html.editor-viewport-fit body {
   background: #f2a20d;
   box-shadow: 0 0 8px #f2a20d6b;
 }
+/* ===== 授权卡片 ===== */
+
+/* 卡片用浮动宽度而非固定值：窄屏弹窗要留出左右各 16px 的呼吸空间。 */
 .license-dialog .connection-details dd {
   overflow-wrap: anywhere;
 }
@@ -174,6 +215,7 @@ html.editor-viewport-fit body {
   gap: 14px;
   margin: 0;
 }
+/* 左侧标签固定 66px 一列，右侧取值列允许收缩，长授权串靠 overflow-wrap 断行。 */
 .license-card-fields > div {
   display: grid;
   grid-template-columns: 66px minmax(0, 1fr);
@@ -270,6 +312,10 @@ html.editor-viewport-fit body {
   background: #ffffff08;
   cursor: default;
 }
+/* ===== 通用按钮 ===== */
+
+/* 所有原生 <button> 的基线样式；.primary / .danger / .danger-quiet 只覆盖配色，
+   不改变尺寸，因此弹窗与工具栏里的按钮高度天然一致。 */
 button {
   min-height: 32px;
   padding: 6px 11px;
@@ -308,6 +354,10 @@ button.danger-quiet {
   color: #c98682;
   background: transparent;
 }
+/* ===== 三栏骨架与面板 ===== */
+
+/* 三栏骨架：导航 250px + 画布（弹性，最窄 520px）+ 检查器 250px；
+   高度减去顶栏的 52px，两处数值必须与 .editor-header 保持一致。 */
 .editor-shell {
   display: grid;
   grid-template-columns: 250px minmax(520px, 1fr) 250px;
@@ -315,6 +365,8 @@ button.danger-quiet {
   min-height: 560px;
   overflow: hidden;
 }
+/* 左右侧栏共用的滚动容器；上下内边距刻意留成 0 / 16px，
+   由 .panel-heading 的负边距把标题栏顶到侧栏边缘。 */
 .panel {
   min-width: 0;
   overflow: auto;
@@ -327,6 +379,8 @@ button.danger-quiet {
 .inspector {
   border-left: 1px solid var(--line);
 }
+/* 视口不足 1180px 时解除整页锁死，改为允许页面级滚动（触屏开惯性滚动），
+   三栏自身保持 1020px 最小宽度；这是唯一一处让 html/body 可滚动的分支。 */
 @media (max-width: 1180px) {
   html,
   body {
@@ -344,6 +398,9 @@ button.danger-quiet {
     -webkit-overflow-scrolling: touch;
   }
 }
+/* ===== 面板标题与仪表盘控件 ===== */
+
+/* margin 的负值用来抵消 .panel 的左右 16px 内边距，让标题栏底色铺满整个侧栏。 */
 .panel-heading {
   display: flex;
   height: 42px;
@@ -373,6 +430,7 @@ h2 {
   font-size: 11px;
   letter-spacing: 0.02em;
 }
+/* 三个「新建」按钮共用一套高亮配色，用 id 选择器是为了盖过全局 button 的灰底。 */
 .dashboard-control-heading #project-new,
 .dashboard-control-heading #page-new,
 .dashboard-control-heading #popup-new {
@@ -399,6 +457,9 @@ h2 {
 .page-control {
   margin-bottom: 13px;
 }
+/* ===== 内容页签（仪表盘 / 弹窗） ===== */
+
+/* 两个页签等宽平分；容器自己画边框与内衬底色，按钮本身不带边框。 */
 .editor-content-tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -429,6 +490,10 @@ h2 {
   background: #f2a20d1f;
   box-shadow: inset 0 0 0 1px #f2a20d42;
 }
+/* ===== 页面 / 项目选择行 ===== */
+
+/* 两列网格：选择器占满剩余宽度，右侧「⋯」按钮固定 34px，
+   与 .page-select-row 的列宽以及下面按钮的 height 必须一致。 */
 .page-select-row {
   position: relative;
   display: grid;
@@ -461,6 +526,7 @@ h2 {
 .page-select-row select:disabled {
   color: #727e86;
 }
+/* 34px 与 .page-select-row 的第二列同宽，保证「⋯」与下拉右端对齐。 */
 #page-actions-button,
 #project-actions-button {
   align-self: end;
@@ -501,6 +567,7 @@ h2 {
   background: transparent;
   cursor: default;
 }
+/* 菜单层级第一档：压在列表与卡片之上，但低于自定义下拉（500）与弹窗。 */
 .page-actions-menu {
   position: absolute;
   z-index: 230;
@@ -546,6 +613,10 @@ h2 {
 .custom-select[hidden] {
   display: none !important;
 }
+/* ===== 自定义下拉（custom-select） ===== */
+
+/* 视觉上完全隐藏、但保留在无障碍树里：JS 把原生 select 的选择结果同步给按钮，
+   全属性加 !important 是为了压过后面针对 select / input 的通用样式。 */
 .native-select-control {
   position: absolute !important;
   width: 1px !important;
@@ -575,6 +646,8 @@ h2 {
   font-weight: 400;
   box-shadow: inset 0 1px 2px #00000038;
 }
+/* 两条边框旋转 45° 拼出下拉箭头；展开时转到 225° 指向上方，
+   同时把 margin-top 从 -5px 收到 -1px，抵消旋转后的视觉重心偏移。 */
 .custom-select-button:after {
   position: absolute;
   top: 50%;
@@ -607,6 +680,8 @@ h2 {
 .custom-select-button:disabled:after {
   border-color: #59646c;
 }
+/* position: fixed 是刻意的：菜单要脱离侧栏的 overflow 裁剪，由 JS 按触发按钮定位。
+   层级 500 高于页面操作菜单，素材 / 图标文件夹下拉再用 630 压过素材弹窗。 */
 .custom-select-menu {
   position: fixed;
   z-index: 500;
@@ -620,6 +695,7 @@ h2 {
   background: #22292f;
   box-shadow: 0 18px 42px #000000ad;
 }
+/* 文件夹下拉需要盖在素材选择弹窗之上，故单独抬到 630。 */
 .custom-select-menu[data-select-id="image-asset-folder"],
 .custom-select-menu[data-select-id="ibe-asset-folder"] {
   z-index: 630;
@@ -694,6 +770,9 @@ h2 {
   color: #66727a;
   cursor: default;
 }
+/* ===== 元素列表页签与新建按钮 ===== */
+
+/* 页签栏只在下边画一条通栏细线，选中态的下划线用绝对定位的 2px 橙色条压在这条线上。 */
 .element-list-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -729,6 +808,7 @@ h2 {
   background: var(--accent);
   content: "";
 }
+/* 虚线边框 + 低透明度橙底，与实心的主按钮区分开，强调它是「新增入口」而非主操作。 */
 .add-element-button {
   width: 100%;
   min-height: 31px;
@@ -749,6 +829,10 @@ h2 {
   border-color: #343d44;
   background: transparent;
 }
+/* ===== 组件模板选择卡片 ===== */
+
+/* 卡片列表默认四列，随视口降到三列（≤720px）与两列（≤540px）；
+   max-height 用 vh 减去顶栏与标题，保证列表自身滚动而不是整页长高。 */
 .component-template-body {
   display: grid;
   max-height: min(720px, calc(100vh - 116px));
@@ -782,6 +866,7 @@ h2 {
   background: #f2a20d14;
   box-shadow: 0 0 0 2px #f2a20d14;
 }
+/* 预览图固定 2:1（520×260），与模板缩略图的出图比例一致，避免加载完成时高度跳变。 */
 .component-template-preview {
   display: block;
   width: 100%;
@@ -797,6 +882,7 @@ h2 {
   height: 100%;
   object-fit: cover;
 }
+/* 设备按钮模板的缩略图是 1:1 出图，单独改成拉伸填满，否则 cover 会裁掉设备图形。 */
 .component-template-card[data-template-id="device-button"] .component-template-preview img {
   object-fit: fill;
 }
@@ -846,6 +932,9 @@ h2 {
   line-height: 1.55;
   text-align: center;
 }
+/* ===== 元素列表与拖拽 ===== */
+
+/* 三列：左侧色标 / 图标 15px，中间名称自适应，右侧操作按钮 28px。 */
 .element-item {
   display: grid;
   min-height: 37px;
@@ -869,6 +958,8 @@ h2 {
   color: #fff;
   background: #f2a20d0b;
 }
+/* 多选时只有主选中项（selection-primary，由 JS 标记）用实心橙边，
+   其余选中项降到半透明橙边，用来区分「当前编辑的那个」。 */
 .element-item.selected:not(.selection-primary) {
   border-color: #f2a20d7a;
   background: #f2a20d06;
@@ -896,6 +987,7 @@ h2 {
   color: #ffd678;
   background: #f2a20d12;
 }
+/* 拖拽反馈：被拖项降透明度，落点用 inset 阴影在顶 / 底边画 2px 插入线。 */
 .element-item.dragging {
   opacity: 0.45;
 }
@@ -910,6 +1002,8 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 色标默认 opacity 0 且 visibility: hidden —— 两者同时用是为了让隐藏的色标
+   不参与 Tab 焦点顺序；只有列表项带上 has-color-label 时才显形。 */
 .element-label-color {
   width: 10px;
   height: 10px;
@@ -936,6 +1030,8 @@ h2 {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* 分组项右上角的色标小圆点：颜色由 --element-label-color 逐个内联注入，
+   描边与底色同弹窗背景，做出「压在图标上」的层次。 */
 .element-item.group-item.has-color-label .element-group-icon:after {
   content: "";
   position: absolute;
@@ -971,6 +1067,7 @@ h2 {
   opacity: 1;
   transform: scale(1.08);
 }
+/* 28px 是元素列表第三列的宽度，与 .element-item 的网格列成对出现。 */
 .element-visibility {
   width: 28px;
   min-width: 28px;
@@ -999,6 +1096,10 @@ h2 {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* ===== 组件右键菜单与标签颜色 ===== */
+
+/* fixed 定位由 JS 按鼠标位置摆放，脱离侧栏裁剪；层级与文件夹下拉同档（620），
+   高于素材选择弹窗、低于由 <dialog> 顶层渲染的设置弹窗。 */
 .component-context-menu {
   position: fixed;
   z-index: 620;
@@ -1042,6 +1143,7 @@ h2 {
 .component-context-actions [data-component-action="visibility"] {
   grid-column: auto;
 }
+/* 两列网格；「复制到页面」文案最长，单独占满一整行。 */
 .component-context-actions [data-component-action="copy-to-page"] {
   grid-column: 1 / -1;
 }
@@ -1078,6 +1180,8 @@ h2 {
   border: 1px solid rgba(255, 255, 255, 0.42);
   border-radius: 2px;
 }
+/* 下面这组 data-label-color 色值与 JS 色板数组一一对应，是两侧约定死的契约：
+   这里只负责把某个按钮映射到它在色板里的颜色，改动需与 JS 同步。 */
 .component-label-options button[data-label-color="#ef5350"] span {
   background: #ef5350;
 }
@@ -1125,6 +1229,10 @@ h2 {
   color: #aeb6bc;
   font-size: 10px;
 }
+/* ===== 画布工作区外框 ===== */
+
+/* 两行网格：42px 标题条（与 .panel-heading 同高）+ 余下全部给画布；
+   第二行写成 minmax(0, 1fr) 是为了允许画布被压缩，避免把中栏撑高。 */
 .workspace-panel {
   display: grid;
   min-width: 0;
@@ -1148,10 +1256,12 @@ h2 {
   align-items: center;
   gap: 10px;
 }
+/* 标题固定 64px 宽，与下方画布尺寸文字左对齐，标题长短变化不会带动右侧元素抖动。 */
 .workspace-heading-copy h2 {
   width: 64px;
   flex: 0 0 64px;
 }
+/* 尺寸读数用等宽字体：画布缩放时数字位数变化也不会左右跳动。 */
 .workspace-resolution {
   flex: 0 0 auto;
   color: #7f8a92;
@@ -1205,6 +1315,8 @@ h2 {
   font-size: 10px;
   white-space: nowrap;
 }
+/* 两个图标互斥显示：带 is-muted 时藏起「有声」图标、放出「静音」图标，
+   切换只由这一个类驱动，不需要 JS 改图标。 */
 .workspace-sound-toggle .sound-icon-off,
 .workspace-sound-toggle.is-muted .sound-icon-on {
   display: none;
@@ -1225,6 +1337,8 @@ h2 {
 .dashboard-display-hint[hidden] {
   display: none;
 }
+/* 显示端地址可能很长，限制在 min(42vw, 520px) 内并用省略号截断，
+   避免把右侧按钮挤出可视区域。 */
 .dashboard-display-hint a {
   display: block;
   max-width: min(42vw, 520px);
@@ -1250,6 +1364,9 @@ h2 {
   border-color: #d4a64e;
   color: #ffc45b;
 }
+/* ===== 工作区工具栏与撤销重做 ===== */
+
+/* 工具栏占满剩余空间，主操作（保存等）用 margin-left: auto 推到最右。 */
 .workspace-toolbar {
   display: flex;
   flex: 1 1 auto;
@@ -1269,6 +1386,7 @@ h2 {
   flex: 0 0 auto;
   align-items: center;
 }
+/* 与 .inspector-save 同为 64px 宽，保存按钮出现在两处时视觉一致。 */
 .workspace-save {
   width: 64px;
   min-width: 64px;
@@ -1281,6 +1399,7 @@ h2 {
   align-items: center;
   gap: 3px;
 }
+/* 28px 与元素列表右侧按钮同档，撤销 / 重做图标按钮按 28px 见方排布。 */
 .history-toolbar-button {
   display: grid;
   width: 28px;
@@ -1313,6 +1432,10 @@ h2 {
   background: transparent;
   cursor: default;
 }
+/* ===== 折线图阈值输入 ===== */
+
+/* 四个阈值一行等分（上 / 下 / 最小 / 最大）。
+   order: -1 把 DOM 里排在后面的模式标签提到数值前面，改 DOM 顺序时别删这条。 */
 .line-chart-thresholds {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1345,6 +1468,10 @@ h2 {
   font-size: 10px;
   line-height: 1.35;
 }
+/* ===== 显示模式切换 ===== */
+
+/* 三段等宽 52px 的分段控件，分隔线用按钮自身的右边框拼出，
+   最后一段去掉右边框以免与容器边框叠成 2px。 */
 .workspace-modes {
   display: grid;
   grid-template-columns: repeat(3, 52px);
@@ -1381,6 +1508,10 @@ h2 {
   color: #d3d9dd;
   background: #20272d;
 }
+/* ===== 画布与空状态 ===== */
+
+/* 24px 网格底纹由横竖两条 1px 线性渐变叠加而成，透明度压到 0.035 只作参考线；
+   用渐变而非图片是为了让底纹在任意缩放下都保持锐利。 */
 .workspace {
   position: relative;
   display: grid;
@@ -1398,6 +1529,8 @@ h2 {
 .workspace.empty {
   padding: 0;
 }
+/* 带 !important 是必要的：子面板自己也有 [hidden] 选择器，优先级更高，
+   不加就无法保证隐藏生效。 */
 .workspace > [hidden] {
   display: none !important;
 }
@@ -1477,6 +1610,9 @@ h2 {
   font-size: 10px;
   letter-spacing: 0.08em;
 }
+/* ===== 检查器骨架与表单 ===== */
+
+/* 检查器里的一段说明文字，靠底部细线与下一段内容分隔。 */
 .property-section {
   margin-bottom: 18px;
   padding-bottom: 16px;
@@ -1497,6 +1633,8 @@ h2 {
 .inspector-empty {
   border-bottom: 0;
 }
+/* 负边距抵消 .panel 的左右 16px 内边距，让每个 section 自己决定留白（14px），
+   这样 section 之间的分割线才能贴到面板边缘。 */
 .inspector-form {
   display: grid;
   min-width: 0;
@@ -1517,6 +1655,8 @@ h2 {
 .inspector-section[hidden] {
   display: none;
 }
+/* 分割线用伪元素画在 section 内部而不是 border-bottom：
+   这样左右可以各缩进 14px，与 section 的内容对齐。 */
 .inspector-section:after {
   position: absolute;
   right: 14px;
@@ -1539,6 +1679,7 @@ h2 {
   color: #8d989f;
   font-size: 9px;
 }
+/* label 默认是 display: grid，所以这里的隐藏必须带 !important 才压得住。 */
 .inspector-section label[hidden],
 .navigation-property-control[hidden] {
   display: none !important;
@@ -1565,6 +1706,8 @@ h2 {
   line-height: 1.45;
   resize: vertical;
 }
+/* 副标题的两行输入共用一个外框：内层 input 去掉边框与聚焦阴影，
+   聚焦态统一由外框的 :focus-within 表现；中间的 <i> 是两行之间的细分隔线。 */
 .title-button-secondary-lines-field {
   display: grid;
   overflow: hidden;
@@ -1612,6 +1755,10 @@ h2 {
   background: #14191e;
   cursor: default;
 }
+/* ===== 数字输入与步进器 ===== */
+
+/* 输入框自带浏览器原生上下箭头，这里靠 appearance: textfield 关掉，
+   换成自己的两格步进器（见下），左右内边距 26px 是给步进器让位。 */
 .inspector-number-control {
   position: relative;
   display: block;
@@ -1629,6 +1776,8 @@ h2 {
   appearance: none;
   -webkit-appearance: none;
 }
+/* 绝对定位贴住输入框右内侧，上下两格按 1fr / 1fr 平分，
+   右侧圆角与输入框保持一致；touch-action: none 让触屏拖动不会误触发滚动。 */
 .inspector-number-steppers {
   position: absolute;
   top: 1px;
@@ -1654,6 +1803,7 @@ h2 {
   background: #1b2228;
   touch-action: none;
 }
+/* 只给上格画下边框，就得到两个按钮之间的那条分隔线。 */
 .inspector-number-stepper:first-child {
   border-bottom: 1px solid #343e46;
 }
@@ -1676,11 +1826,15 @@ h2 {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* 用 :has 跟随输入框的禁用 / 只读状态灰掉步进器；
+   pointer-events: none 是为了连点击都拦掉，而不只是视觉变灰。 */
 .inspector-number-control:has(input:disabled) .inspector-number-steppers,
 .inspector-number-control:has(input[readonly]) .inspector-number-steppers {
   opacity: 0.34;
   pointer-events: none;
 }
+/* 原生取色控件在 WebKit 与 Firefox 下的内部结构不同（swatch wrapper / swatch），
+   两套伪元素都要写一遍，圆角才能一致。 */
 .inspector-section input[type="color"] {
   padding: 4px;
   overflow: hidden;
@@ -1697,6 +1851,10 @@ h2 {
   border: 0;
   border-radius: 4px;
 }
+/* ===== 全局取色器 ===== */
+
+/* fixed 定位由 JS 按触发点摆放；层级 760 高于侧栏所有菜单，
+   但仍低于浏览器 <dialog> 的顶层渲染，弹窗里打开时靠 dialog 自身层级兜底。 */
 .global-color-picker {
   position: fixed;
   z-index: 760;
@@ -1713,6 +1871,8 @@ h2 {
 .global-color-picker[hidden] {
   display: none;
 }
+/* SV 取色区：色相色（--picker-hue，JS 注入）打底，
+   上面叠「白 → 透明」的横向渐变与「黑 → 透明」的纵向渐变，合成饱和度 / 明度平面。 */
 .global-color-picker-sv {
   position: relative;
   width: 100%;
@@ -1725,6 +1885,8 @@ h2 {
   cursor: crosshair;
   touch-action: none;
 }
+/* 游标用 translate(-50%, -50%) 让圆心对准坐标点；
+   pointer-events: none 避免拖拽时指针命中游标自身而丢事件。 */
 .global-color-picker-sv i {
   position: absolute;
   width: 13px;
@@ -1767,6 +1929,7 @@ h2 {
   background: transparent;
   box-shadow: 0 0 0 1px #000000b3;
 }
+/* 四列：预览色块 34px、HEX 输入自适应、复制、重置，四个控件同为 34px 高。 */
 .global-color-picker-value-row {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) 34px 34px;
@@ -1813,6 +1976,7 @@ h2 {
   stroke: currentColor;
   stroke-width: 1.25;
 }
+/* 复制成功后 JS 会短暂挂上 .copied：对勾替换图标，1.4 秒后移除。 */
 .global-color-picker-value-row button > span {
   display: none;
   color: #70d590;
@@ -1848,6 +2012,9 @@ h2 {
   font-size: 11px;
   text-align: center;
 }
+/* ===== 检查器网格与选择器 ===== */
+
+/* 表单网格默认单列，按字段数量叠加 .two-columns / .three-columns 改变列数。 */
 .inspector-grid {
   display: grid;
   min-width: 0;
@@ -1893,6 +2060,7 @@ h2 {
   white-space: nowrap;
   pointer-events: none;
 }
+/* 与 .custom-select-button 同款箭头：两条边框转 45°，展开时转 225°。 */
 .inspector-picker-button:after {
   position: absolute;
   top: 50%;
@@ -1917,6 +2085,8 @@ h2 {
   margin-top: -1px;
   transform: rotate(225deg);
 }
+/* 侧栏内联菜单：绝对定位贴着触发按钮，层级 180 只求盖住同栏内容；
+   需要在弹窗里脱离裁剪的场景由下面那组 fixed 选择器接管。 */
 .inspector-picker-menu {
   position: absolute;
   z-index: 180;
@@ -1934,6 +2104,8 @@ h2 {
 .inspector-picker-menu[hidden] {
   display: none;
 }
+/* 这批实体 / 素材菜单会被用在 <dialog> 里，绝对定位会被弹窗裁剪，
+   所以逐个 id 改成 fixed（由 JS 定位）；层级 580 与侧栏内联菜单区分开。 */
 #image-entity-menu,
 #weather-entity-menu,
 #line-chart-entity-menu,
@@ -2006,6 +2178,7 @@ h2 {
 .asset-upload-hint[hidden] {
   display: none;
 }
+/* 与「上传」按钮同为 47px 宽，两个按钮在工具栏里并排时不出现宽度差。 */
 .asset-folder-delete {
   min-width: 47px;
   min-height: 34px;
@@ -2032,6 +2205,10 @@ h2 {
   overflow-x: hidden;
   overflow-y: auto;
 }
+/* ===== 实体 / 素材选择列表 ===== */
+
+/* 实体列表可能上千行，content-visibility: auto 只渲染可视区域，
+   contain-intrinsic-size 给出 46px 行高估计，滚动条长度才不会乱跳。 */
 .inspector-entity-option {
   display: grid;
   width: 100%;
@@ -2048,6 +2225,7 @@ h2 {
   content-visibility: auto;
   contain-intrinsic-size: 46px;
 }
+/* 内容层不接收指针事件，整行的点击目标始终是最外层按钮。 */
 .inspector-entity-option-content {
   display: grid;
   width: 100%;
@@ -2096,6 +2274,8 @@ h2 {
   opacity: 0.45;
   cursor: default;
 }
+/* hover 且文本超长时 JS 会挂上 hover-scrolling：把省略号换成 clip，
+   配合横向滚动动画展示完整名称；这里只改 text-overflow，不动 overflow / white-space。 */
 .inspector-entity-option-line.hover-scrolling,
 .inspector-picker-value.hover-scrolling {
   text-overflow: clip;
@@ -2133,6 +2313,8 @@ h2 {
   font-size: 10px;
   text-align: center;
 }
+/* 素材缩略图两列网格；max-height 与 .inspector-entity-options 同为 360px，
+   在实体 / 素材之间切换时列表高度不会跳。 */
 .inspector-asset-options {
   display: grid;
   min-height: 0;
@@ -2144,6 +2326,7 @@ h2 {
   overflow-x: hidden;
   overflow-y: auto;
 }
+/* 两行网格：图片占满余下空间、文件名固定 13px 一行，所有素材卡片因此等高 94px。 */
 .inspector-asset-option {
   display: grid;
   width: 100%;
@@ -2195,6 +2378,7 @@ h2 {
 .user-asset-option-wrap .inspector-asset-option {
   height: 94px;
 }
+/* 用户素材右上角的删除角标：绝对定位压在卡片上，z-index: 2 高于卡片内容。 */
 .user-asset-delete {
   position: absolute;
   z-index: 2;
@@ -2241,9 +2425,14 @@ h2 {
   background: #f2a20d14;
   box-shadow: inset 0 0 0 1px #f2a20d29;
 }
+/* 加载失败时只压暗破图当占位（不改 display，避免卡片高度塌陷）。 */
 .inspector-asset-option.image-load-error img {
   opacity: 0.18;
 }
+/* ===== 图片大图预览 ===== */
+
+/* 悬停缩略图时的放大预览：fixed 由 JS 定位，pointer-events: none 让指针事件穿过浮层，
+   否则鼠标进入浮层会打断 hover，预览会来回闪烁。 */
 .image-asset-large-preview {
   position: fixed;
   z-index: 610;
@@ -2282,6 +2471,10 @@ h2 {
   text-align: center;
   font-size: 10px;
 }
+/* ===== 分页选择弹窗（实体 / 素材 / 图标） ===== */
+
+/* 原生 <dialog>：宽高都用 min() 跟随视口收缩，
+   max-width / max-height 显式置为 none 是为了覆盖 UA 默认值，否则收不到视口以内。 */
 .editor-paged-picker-dialog {
   width: min(980px, calc(100vw - 32px));
   max-width: none;
@@ -2296,6 +2489,8 @@ h2 {
   background: #151c21;
   box-shadow: 0 26px 78px #0000009e;
 }
+/* 图标 / 实体两种选择器内容更窄，单独收窄到 920px；
+   kind 值由 JS 写在 data-editor-picker-kind 上，是前后端之外另一处约定死的字段名。 */
 .editor-paged-picker-dialog[data-editor-picker-kind="icon"],
 .editor-paged-picker-dialog[data-editor-picker-kind="entity"] {
   width: min(920px, calc(100vw - 32px));
@@ -2304,6 +2499,9 @@ h2 {
   background: #04080bb8;
   backdrop-filter: blur(5px);
 }
+/* 卡片纵向被切成五段：标题 / 工具栏 / 搜索 / 列表 / 页脚；
+   列表那段必须写 minmax(0, 1fr)，否则内容会把手伸出去而不产生内部滚动。
+   带筛选工具行时多一段，于是 .with-toolbar 单独声明六段。 */
 .editor-paged-picker-card {
   display: grid;
   height: 100%;
@@ -2363,6 +2561,8 @@ h2 {
   color: #e4e8ea;
   background: #ffffff0f;
 }
+/* 三列：文件夹、搜索、上传按钮（54px 固定），窗口变窄时只有前两列让步，
+   按钮不会被挤到第二行。 */
 .editor-paged-picker-toolbar {
   display: grid;
   grid-template-columns: minmax(170px, 1fr) minmax(170px, 0.8fr) 54px;
@@ -2494,6 +2694,8 @@ h2 {
   color: #849199;
   font-size: 10px;
 }
+/* 实体选择弹窗的字号整体比其它两种大一档（13px），并把当前实体与右侧操作按钮拉开；
+   操作按钮用 margin-left: auto 推到行尾 —— 这一组是「kind=entity」变体的统一调整。 */
 .editor-paged-picker-dialog[data-editor-picker-kind="entity"] .editor-paged-picker-selected {
   gap: 10px;
   padding: 7px 9px;
@@ -2587,6 +2789,8 @@ h2 {
   gap: 8px;
   color: #cbd2d6;
 }
+/* 图标用 CSS mask 上色：background-color 取 currentColor 当填充色、
+   mask 只保留形状，于是同一份 SVG 能跟随文字颜色；标准属性与 -webkit- 前缀必须成对出现。 */
 .editor-paged-picker-current-icon i {
   display: block;
   flex: 0 0 19px;
@@ -2631,6 +2835,8 @@ h2 {
   padding: 0 10px;
   font-size: 13px;
 }
+/* 图标名提示：fixed 定位让提示不随列表滚动移动，pointer-events: none 避免提示本身
+   挡住鼠标造成 hover 抖动；z-index 只需 4，因为它已经在 <dialog> 的顶层上下文里。 */
 .editor-icon-name-tooltip {
   position: fixed;
   z-index: 4;
@@ -2646,6 +2852,8 @@ h2 {
   pointer-events: none;
   white-space: nowrap;
 }
+/* scrollbar-gutter: stable 用来预留滚动条宽度：列表从「无滚动条」变成「有滚动条」时
+   内容宽度不跳（滚动条本身被全局规则隐藏，仍会占位）。 */
 .editor-paged-picker-items {
   min-height: 0;
   margin: 10px 18px 5px;
@@ -2654,6 +2862,8 @@ h2 {
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
+/* 三种网格共用 876px 作为内容宽度上限并居中，
+   这样实体、图标、素材列表在各自弹窗里的左右边界一致。 */
 .editor-paged-picker-items.entity-list {
   display: grid;
   width: min(100%, 876px);
@@ -2690,6 +2900,8 @@ h2 {
   gap: 6px;
   overflow-y: hidden;
 }
+/* 图标格子按 1:1 排布，必须关掉列表项继承来的 content-visibility / contain：
+   在网格里按 aspect-ratio 算尺寸时，那套「估算行高」的优化会给出错误高度。 */
 .editor-paged-picker-items.icon-grid .navigation-icon-option {
   position: relative;
   width: 100%;
@@ -2799,6 +3011,8 @@ h2 {
   color: #748089;
   font-size: 9px;
 }
+/* 窄屏下选择弹窗几乎占满视口，工具栏收成两列、文件夹行独占一行，
+   实体 / 图标 / 素材网格的列数与卡片高度同步下调。 */
 @media (max-width: 720px) {
   .editor-paged-picker-dialog {
     width: calc(100vw - 20px);
@@ -2881,6 +3095,10 @@ h2 {
   min-width: 0;
   gap: 5px;
 }
+/* ===== 灯组统计实体列表 ===== */
+
+/* 空列表占位文案用 :empty:before 生成，列表为空时不需要 JS 额外插节点；
+   content 里是「还没有添加统计实体」的 Unicode 转义写法。 */
 .light-statistics-entity-list:empty:before {
   display: block;
   padding: 10px 8px;
@@ -2948,6 +3166,10 @@ h2 {
   color: #efb2ad;
   background: #cd463e12;
 }
+/* ===== 导航控件属性组 ===== */
+
+/* 两列：内容选择器自适应 + 右侧 48px 图标按钮；
+   align-items: end 让按钮与输入框底边对齐（label 上方还有一行文字标签）。 */
 .navigation-content-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 48px;
@@ -2965,6 +3187,8 @@ h2 {
   border-radius: 5px;
   background: #ffffff05;
 }
+/* 用负边距把这几个子控件横向撑到组卡片边框上（外层 padding 是 10px），
+   残留的 1px 是为了不和边框叠在一起。 */
 .navigation-property-group > label,
 .navigation-property-group > .inspector-grid,
 .navigation-property-group > .inspector-picker {
@@ -3161,6 +3385,10 @@ h2 {
   border-color: #70bd91;
   background: #70bd91;
 }
+/* ===== 关联实体设置与选择弹窗 ===== */
+
+/* 复选方框是纯 CSS 画的：外层 <i> 画框，选中时用两条边框转 45° 组成对勾，
+   不引入图标字体，颜色只由这一处控制。 */
 .popup-related-entity-option.selected > i:after {
   position: absolute;
   top: 2px;
@@ -3192,6 +3420,8 @@ h2 {
   color: #65737b;
   font-size: 9px;
 }
+/* 两种「不可选」用不同灰度区分：unavailable 是实体本身不可用，
+   limit-reached 是关联数量已达上限；都保留展示但不可点击。 */
 .popup-related-entity-option.unavailable {
   opacity: 0.6;
 }
@@ -3244,6 +3474,10 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
+/* ===== 分段选项（segmented） ===== */
+
+/* 默认两列，用 .three-columns / .four-columns 覆盖列数；
+   容器留 3px 内衬，选中块（inset 阴影 + 橙底）四周才有背景色可衬。 */
 .navigation-segmented-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3299,6 +3533,8 @@ h2 {
   font-size: 8px;
   line-height: 1;
 }
+/* 帘幕设置要在一屏里放下四行，分段控件整体缩到紧凑档：
+   内衬与间距各减 1px，按钮高度从 27px 降到 24px，以适配左侧 30px 的标签列。 */
 .cover-settings-compact-row .navigation-segmented-options {
   gap: 2px;
   padding: 2px;
@@ -3308,6 +3544,10 @@ h2 {
   padding: 0 3px;
   font-size: 8px;
 }
+/* ===== 可见性开关（显示 / 隐藏） ===== */
+
+/* 开关上的圆点用伪元素画：尺寸按状态分两档（4px / 5px），
+   状态一律由 aria-pressed 驱动，不再额外加 class —— 保证无障碍属性是唯一真相。 */
 .inspector-visibility-toggle {
   width: 100%;
   min-width: 0;
@@ -3397,9 +3637,14 @@ h2 {
 .navigation-visibility-options {
   align-items: stretch;
 }
+/* 「全部显示 / 全部隐藏」独占整行，与上面的单项开关分行。 */
 .navigation-visibility-options .inspector-visibility-toggle:last-child {
   grid-column: 1 / -1;
 }
+/* ===== 图标选择与复制 ===== */
+
+/* 图标选择区与右侧复制按钮共用一个外框：35px 列宽与 .navigation-icon-copy 的宽度成对，
+   聚焦态由外框的 :focus-within 统一表现，内部按钮自己不带边框。 */
 .navigation-icon-field-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 35px;
@@ -3480,6 +3725,8 @@ h2 {
   stroke-width: 1.5;
   transform: translate(-50%, -50%);
 }
+/* 复制图标与「已复制」对勾叠在同一位置，用透明度 + 轻微缩放做 120ms 切换，
+   类名 .copied 由 JS 短暂挂上。 */
 .navigation-icon-copy span {
   position: absolute;
   top: 50%;
@@ -3505,6 +3752,7 @@ h2 {
   color: #a8dfb9;
   background: #409c5e1f;
 }
+/* 图标网格每行 4 个；与实体列表同款懒渲染优化（图标总量可达数百个）。 */
 .navigation-icon-options {
   display: grid;
   min-height: 0;
@@ -3567,6 +3815,8 @@ h2 {
   line-height: 16px;
   text-align: center;
 }
+/* 这一组排在前面同名单类的声明之后，用来统一三个「清除选择」按钮的外观
+   （压掉各自的虚线边框），依赖书写顺序，不能上移。 */
 .inspector-entity-clear,
 .inspector-asset-clear,
 .navigation-icon-clear {
@@ -3594,6 +3844,8 @@ h2 {
   box-shadow: none;
   font-weight: 400;
 }
+/* ===== 批量操作区 ===== */
+
 .navigation-batch-section h3 {
   display: flex;
   align-items: center;
@@ -3618,6 +3870,8 @@ h2 {
   color: #fff2d9;
   background: #f2a20d33;
 }
+/* 显式写 opacity: 1 是为了压过浏览器给 disabled 控件的默认降透明，
+   这里的禁用状态由颜色表达（灰字 + 深底），不整体变淡。 */
 .navigation-batch-section > button:disabled {
   border-color: #3d474f;
   color: #68747c;
@@ -3671,6 +3925,8 @@ h2 {
   color: #75818a;
   font-size: 9px;
 }
+/* 选项区平铺时三列，切到「按页面分组」时变成单列（每行一个页面组）。
+   两种排布共用同一个容器，只用 .grouped-by-page 切换列数。 */
 .navigation-style-apply-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3689,6 +3945,7 @@ h2 {
   min-width: 0;
   gap: 8px;
 }
+/* 第二个及以后的作用域加顶部分隔线，第一个不加，避免与对话框标题重复。 */
 .navigation-style-apply-scope + .navigation-style-apply-scope {
   margin-top: 4px;
   padding-top: 10px;
@@ -3843,6 +4100,11 @@ h2 {
   box-shadow: none;
   background: #f2a20d0b;
 }
+/* ===== 效果图对齐选项 ===== */
+
+/* 原生单选框完全视觉隐藏（1px + opacity: 0）但保留在无障碍树里：
+   选中态一律由容器上的 :has(input: checked) 表达，点击热区是整张卡片，
+   同时键盘仍能 Tab 到 input。 */
 .effect-image-align-option input {
   position: absolute;
   width: 1px;
@@ -3850,6 +4112,8 @@ h2 {
   opacity: 0;
   pointer-events: none;
 }
+/* 右上角圆形标记默认只画一个圈（文字色透明，字符仍在），
+   选中时把颜色反转成橙底黑勾。 */
 .effect-image-align-option:after {
   position: absolute;
   top: 50%;
@@ -3912,6 +4176,8 @@ h2 {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* 窄屏下分组选项降为两列并压低高度上限，
+   让对话框在竖向空间有限时仍能一屏看到页脚按钮。 */
 @media (max-width: 680px) {
   .navigation-style-apply-options,
   .navigation-style-apply-page-options {
@@ -3970,6 +4236,9 @@ h2 {
 .door-window-perspective-action:disabled {
   opacity: 0.42;
 }
+/* ===== 组件动作设置 ===== */
+
+/* 独占一行的字段（例如动作目标选择）在网格里跨满所有列。 */
 .inspector-grid > .inspector-full-row {
   grid-column: 1 / -1;
 }
@@ -3981,6 +4250,7 @@ h2 {
   color: #8d989f;
   font-size: 9px;
 }
+/* 四段按文案长度分配宽度而不是等分：等分的话「更多信息」会被挤成两行。 */
 .component-action-options {
   display: grid;
   grid-template-columns: 0.85fr 0.72fr 1.05fr 1.05fr;
@@ -4036,6 +4306,7 @@ h2 {
 .component-action-target select {
   height: 30px;
 }
+/* 自定义下拉要比默认 34px 矮一档，才能与同一行的原生 select（30px）齐平。 */
 .component-action-target .custom-select-button {
   min-height: 30px;
   height: 30px;
@@ -4043,6 +4314,8 @@ h2 {
   padding-bottom: 4px;
   font-size: 10px;
 }
+/* ===== 图片排列方式 ===== */
+
 .image-layout-control {
   display: grid;
   gap: 6px;
@@ -4104,6 +4377,9 @@ h2 {
   color: #f0f3f5;
   background: #303941;
 }
+/* ===== 设置类对话框 ===== */
+
+/* 通用设置弹窗：宽度跟随视口收缩；padding 置 0 由内部标题 / 内容 / 页脚各自留白。 */
 .settings-dialog {
   width: min(620px, calc(100vw - 40px));
   padding: 0;
@@ -4145,6 +4421,12 @@ h2 {
   gap: 10px;
   margin-top: 10px;
 }
+/* ===== 户型图自动布灯面板 ===== */
+
+/* 可拖动的浮层（标题栏 cursor: move，位置由 JS 改写 top / right）。
+   初始 right: 292px 让面板停在右侧检查器栏（250px）之外，不压住属性表单；
+   z-index 140 低于下拉菜单（180），保证面板上方展开的菜单仍可见；
+   半透明底 + backdrop-filter 让底下的画布若隐若现。 */
 .floorplan-auto-lighting-panel {
   position: fixed;
   z-index: 140;
@@ -4158,6 +4440,7 @@ h2 {
   box-shadow: 0 16px 42px #0000006b;
   backdrop-filter: blur(12px);
 }
+/* 标题栏就是拖动把手：cursor: move 作提示，user-select: none 防止拖动时选中文字。 */
 .floorplan-auto-lighting-header {
   min-height: 32px;
   display: flex;
@@ -4297,6 +4580,9 @@ h2 {
     font-size: 12px;
   }
 }
+/* ===== 对话框标题与表单 ===== */
+
+/* 所有 <dialog> 共用同一个标题条：左侧小字 + 标题，右侧圆形关闭按钮。 */
 .dialog-heading {
   display: flex;
   align-items: center;
@@ -4377,6 +4663,9 @@ h2 {
   min-height: 32px;
   font-size: 10px;
 }
+/* ===== 项目画布与画幅锁定 ===== */
+
+/* .fixed 表示项目画布尺寸已被已有内容锁定：字段转只读，用橙色描边与普通输入框区分。 */
 .project-canvas-fields {
   display: grid;
   gap: 12px;
@@ -4398,6 +4687,8 @@ h2 {
   background: #13181c;
   cursor: not-allowed;
 }
+/* 四列按内容配比：项目名最宽、宽高两列最窄、比例列居中；
+   840px 以下压成两列且名称独占整行（见下方媒体查询）。 */
 .project-details-grid {
   display: grid;
   grid-template-columns: minmax(190px, 1.35fr) minmax(108px, 0.68fr) minmax(108px, 0.68fr) minmax(
@@ -4414,6 +4705,7 @@ h2 {
   color: #b7c0c6;
   font-size: 11px;
 }
+/* 三格：锁图标 15px、比例文案、右侧数值；数值用等宽字体右对齐，位数变化不抖动。 */
 .project-aspect-lock {
   display: grid;
   width: 100%;
@@ -4460,10 +4752,12 @@ h2 {
 .project-aspect-lock.locked output {
   color: #f2b744;
 }
+/* 与批量按钮同理：禁用不靠降透明，改用 not-allowed 光标表达。 */
 .project-aspect-lock:disabled {
   opacity: 1;
   cursor: not-allowed;
 }
+/* 「仅名称」模式：保留项目名，隐藏画布宽高等画布字段。 */
 .project-canvas-fields.name-only {
   padding: 0;
   border: 0;
@@ -4503,6 +4797,7 @@ h2 {
 .project-resize-warning-body p {
   margin: 0;
 }
+/* 第一行是警告主旨，单独用橙色强调，其余是解释性文字。 */
 .project-resize-warning-body p:first-child {
   color: #f0c56c;
 }
@@ -4514,6 +4809,7 @@ h2 {
   max-height: calc(100vh - 104px);
   overflow-y: auto;
 }
+/* 窄屏把项目详情四列压成两列，项目名独占整行。 */
 @media (max-width: 840px) {
   .project-details-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4522,6 +4818,8 @@ h2 {
     grid-column: 1 / -1;
   }
 }
+/* 两个 !important 是为了压过 .settings-form label 的 display: grid ——
+   复选行必须横排（勾选框在左、文案在右）。 */
 .check-row {
   display: flex !important;
   align-items: center;
@@ -4553,6 +4851,8 @@ h2 {
   color: #dce2e6;
   background: #ffffff0b;
 }
+/* is-disabled 由 JS 标记（该选项当前不可用）：
+   禁用时连 hover 底色也去掉，只留 not-allowed 光标。 */
 .effect-realtime-options .check-row.is-disabled {
   color: #56616a;
   cursor: not-allowed;
@@ -4570,6 +4870,8 @@ h2 {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
+/* 与效果图对齐选项同一套路数：勾选框视觉隐藏，选中态由整行的 :has(input:checked) 表达，
+   键盘聚焦时才补一圈 outline（inset 到行内，避免盖住相邻选项）。 */
 .effect-realtime-options .check-row input {
   position: absolute;
   width: 1px;
@@ -4587,6 +4889,9 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ===== 提示与状态消息 ===== */
+
+/* 三态共用一套盒子：默认中性灰，.success / .error 只改描边与文字颜色。 */
 .settings-message {
   padding: 10px 12px;
   border: 1px solid #35404a;
@@ -4629,6 +4934,8 @@ h2 {
   gap: 8px;
   padding-top: 3px;
 }
+/* ===== 复制组件到页面 ===== */
+
 .copy-component-page-dialog {
   width: min(560px, calc(100vw - 40px));
 }
@@ -4654,6 +4961,7 @@ h2 {
   color: #edc36b;
   font-size: 10px;
 }
+/* 目标页面的宽高比读数用等宽字体：数值随选择变化时不左右抖动。 */
 .copy-component-scale-options > div span {
   color: #87939b;
   font-family: SFMono-Regular, Consolas, monospace;
@@ -4671,6 +4979,8 @@ h2 {
   background: #12181d;
   cursor: pointer;
 }
+/* 选项卡片是 <label>，选中态靠 :has(input:checked) 驱动；
+   radio 本身只保留 accent-color，不做视觉隐藏（这里点击热区已经是整卡）。 */
 .copy-component-scale-options > label:has(input:checked) {
   border-color: #f2a20d9e;
   background: #f2a20d14;
@@ -4690,6 +5000,10 @@ h2 {
   color: #75818a;
   font-size: 9px;
 }
+/* ===== 显示设备管理 ===== */
+
+/* 设备管理弹窗宽度取 620px 与视口的较小者；减去的 40px 是左右各 20px 的边距，
+   保证窄屏下弹窗不与视口边缘贴死。 */
 .display-devices-dialog {
   width: min(620px, calc(100vw - 40px));
 }
@@ -4703,6 +5017,9 @@ h2 {
   color: var(--muted);
   line-height: 1.65;
 }
+/* 配对表单三列：名称弹性、配对码固定 148px、生成按钮按内容收窄。
+   align-items: end 让按钮与输入框底边对齐 —— label 里还有一行小字，
+   若用居中对齐，按钮会比输入框低半行。 */
 .display-pairing-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 148px auto;
@@ -4758,6 +5075,8 @@ h2 {
     inset 0 1px 3px #0000005c,
     0 0 0 2px #f2a20d1a;
 }
+/* 配对码逐字加宽字距并启用等宽数字：6 位码在输入过程中不会因字符宽度变化而抖动，
+   也便于人工逐位核对。 */
 .display-pairing-form input[name="code"] {
   letter-spacing: 0.16em;
   font-variant-numeric: tabular-nums;
@@ -4771,6 +5090,7 @@ h2 {
   font-size: 11px;
   white-space: nowrap;
 }
+/* 列表标题与上方表单之间靠一条上边框分隔，padding-top 是边框到文字的间隙。 */
 .display-device-list-heading {
   display: flex;
   align-items: center;
@@ -4794,6 +5114,7 @@ h2 {
   color: var(--muted);
   text-align: center;
 }
+/* 单台显示设备一行三列：名称弹性、配对码 76px、操作按钮组 138px。 */
 .display-device-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 76px 138px;
@@ -4813,6 +5134,7 @@ h2 {
   min-width: 0;
   gap: 3px;
 }
+/* 名称与副标题都做单行省略：显示端名称由用户在显示端本地命名，长度不可控。 */
 .display-device-item strong,
 .display-device-item span {
   overflow: hidden;
@@ -4830,6 +5152,8 @@ h2 {
   letter-spacing: 0.08em;
   text-align: center;
 }
+/* 三个操作按钮等分 138px 那一列；min-height 27px 压到全局 button 的 32px 之下，
+   是为了让整条设备行仍能维持 50px 的高度。 */
 .display-device-actions {
   display: grid;
   min-width: 0;
@@ -4849,6 +5173,8 @@ h2 {
   color: #ed8d88;
   background: #e26b670e;
 }
+/* 断点 620px 与上面的弹窗最大宽度同值：弹窗一旦被迫收缩，配对表单就降成两列、
+   生成按钮落到第二行左对齐，设备条则去掉操作列、由操作按钮组独占下一行右对齐。 */
 @media (max-width: 620px) {
   .display-pairing-form {
     grid-template-columns: minmax(0, 1fr) 118px;
@@ -4865,6 +5191,10 @@ h2 {
     justify-content: flex-end;
   }
 }
+/* ===== 弹窗模块设置对话框 ===== */
+
+/* 弹窗模块（弹窗里的一块内容）的设置弹窗：宽度与「复制组件」弹窗同档，
+   overflow: visible 是为了让实体选择菜单能溢出到弹窗边界之外。 */
 .popup-module-dialog {
   width: min(560px, calc(100vw - 40px));
   overflow: visible;
@@ -4887,6 +5217,8 @@ h2 {
   background: #11171c;
   font-size: 12px;
 }
+/* 实体选择菜单在弹窗里改回文档流内展开（默认是脱离裁剪的 fixed），
+   310px / 246px 两个高度上限把它压进弹窗可视区，避免弹窗自己长出滚动条。 */
 .popup-module-dialog .inspector-picker-menu {
   z-index: 5;
   top: calc(100% + 6px);
@@ -4895,6 +5227,7 @@ h2 {
 .popup-module-dialog .inspector-entity-options {
   max-height: 246px;
 }
+/* 页脚用负边距抵消弹窗的 20px 内衬，让分隔线与底色铺满弹窗整个宽度。 */
 .popup-module-dialog .dialog-actions {
   margin: 2px -20px -20px;
   padding: 15px 20px;
@@ -4904,11 +5237,15 @@ h2 {
 .popup-module-dialog .dialog-actions button {
   min-width: 76px;
 }
+/* ===== 连接状态与同步概览 ===== */
+
 .ha-connection-view {
   display: grid;
   gap: 16px;
   padding: 20px;
 }
+/* [hidden] 的规则必须自己写 display: none：上面的 display: grid 优先级更高，
+   单靠 HTML 的 hidden 属性压不住它。 */
 .ha-connection-view[hidden] {
   display: none;
 }
@@ -4919,6 +5256,7 @@ h2 {
   padding-bottom: 15px;
   border-bottom: 1px solid rgba(126, 141, 153, 0.15);
 }
+/* 状态圆点固定 9px，用 margin-top 手动对齐标题首行，不靠 flex 居中。 */
 .connection-state-heading > i {
   width: 9px;
   height: 9px;
@@ -4959,6 +5297,8 @@ h2 {
   gap: 12px;
   margin: 0;
 }
+/* 135px 按最长中文标签预留；取值列 minmax(0, 1fr) 允许收缩，
+   超长内容由 dd 的单行省略兜底。 */
 .connection-details div {
   display: grid;
   grid-template-columns: 135px minmax(0, 1fr);
@@ -4969,6 +5309,7 @@ h2 {
   color: #78848c;
   font-size: 10px;
 }
+/* 取值列单行省略：地址与授权串可能很长，宁可截断也不换行把弹窗撑高。 */
 .connection-details dd {
   min-width: 0;
   margin: 0;
@@ -4979,6 +5320,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 同步概览是连接弹窗的页脚，靠上边框与独立底色和上方内容分层。 */
 .sync-overview {
   padding: 15px 20px 18px;
   border-top: 1px solid var(--line);
@@ -4987,6 +5329,7 @@ h2 {
 .sync-overview[hidden] {
   display: none;
 }
+/* 页脚标签按小号 + 加宽字距排版，当分组标题用而不是正文。 */
 .sync-overview > span {
   color: #78848c;
   font-size: 9px;
@@ -5003,6 +5346,10 @@ h2 {
   color: #748089;
   font-size: 10px;
 }
+/* ===== 删除确认对话框 ===== */
+
+/* 警告块整体用低饱和红：边框、底色、文字都是红色系的低透明度变体，
+   提示危险的同时不抢下方需要用户输入的文字。 */
 .delete-warning {
   padding: 12px;
   border: 1px solid rgba(205, 87, 82, 0.34);
@@ -5020,6 +5367,7 @@ h2 {
   font-size: 10px;
   line-height: 1.6;
 }
+/* 标题里的警示文案单独染红，与普通对话框标题区分开。 */
 .delete-dialog .dialog-heading span {
   color: #df7772;
 }
@@ -5027,6 +5375,8 @@ h2 {
   color: #e5a09d;
   font-weight: 700;
 }
+/* ===== 导航栏弹窗列表 ===== */
+
 .popup-control {
   position: relative;
   margin-bottom: 13px;
@@ -5036,6 +5386,8 @@ h2 {
   gap: 3px;
   padding-top: 2px;
 }
+/* 单条弹窗两列：名称弹性、右侧模块数按内容收窄。
+   选中色条交给 :before，因此这里边框默认透明，避免未选中时留下边框痕迹。 */
 .popup-list-item {
   position: relative;
   width: 100%;
@@ -5052,6 +5404,7 @@ h2 {
   background: transparent;
   text-align: left;
 }
+/* 选中指示条用绝对定位的伪元素画：不改内边距，切换选中态时文字不会左右位移。 */
 .popup-list-item:before {
   position: absolute;
   top: 7px;
@@ -5079,6 +5432,7 @@ h2 {
   color: #eef1f3;
   background: #ffffff09;
 }
+/* 选中态用橙色描边 + 低透明度橙底；未选中时按钮边框本就透明，这里只需覆盖配色。 */
 .popup-list-item.selected {
   border-color: #f2a20d47;
   color: #fff2d6;
@@ -5090,6 +5444,7 @@ h2 {
 .popup-list-item.selected > small {
   color: #b9924d;
 }
+/* 项目里还没有任何弹窗时的空列表提示。 */
 .popup-list-empty {
   padding: 24px 8px;
   color: #647078;
@@ -5097,6 +5452,7 @@ h2 {
   line-height: 1.6;
   text-align: center;
 }
+/* 右键菜单沿用元素列表菜单的层级（620），fixed 坐标由 JS 按鼠标位置写入。 */
 .popup-list-context-menu {
   position: fixed;
   z-index: 620;
@@ -5107,17 +5463,23 @@ h2 {
 .popup-list-context-menu button {
   text-align: center;
 }
+/* 进入弹窗模式后隐藏元素列表的三件套（页签栏 / 新建按钮 / 元素列表）；
+   !important 是为了压过这三者各自声明过的 display。 */
 #navigator-content.popup-mode .element-list-tabs,
 #navigator-content.popup-mode .add-element-button,
 #navigator-content.popup-mode .element-list {
   display: none !important;
 }
+/* ===== 自定义弹窗编辑器 ===== */
+
+/* 编辑器占满整个画布区域；自身不滚动，滚动交给内层 .custom-popup-stage。 */
 .custom-popup-editor {
   width: 100%;
   height: 100%;
   padding: 0;
   overflow: hidden;
 }
+/* 竖向两段：工具栏按内容占高（flex: none），画布区吃掉剩余高度。 */
 .custom-popup-editor-shell {
   width: 100%;
   height: 100%;
@@ -5126,6 +5488,7 @@ h2 {
   flex-direction: column;
   gap: 12px;
 }
+/* 工具栏自身不铺满，靠 align-self: center 居中，左右留出呼吸空间。 */
 .custom-popup-editor-toolbar {
   flex: none;
   align-self: center;
@@ -5147,6 +5510,8 @@ h2 {
   color: #7f8a91;
   font-size: 12px;
 }
+/* 工具栏按钮与模块卡片里的按钮共用同一套「深色描边」外观；
+   尺寸仍由各自更靠后的规则决定。 */
 .custom-popup-editor-toolbar button,
 .popup-module-card button {
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -5161,6 +5526,7 @@ h2 {
 .custom-popup-toolbar-actions {
   justify-content: flex-end;
 }
+/* 分段控件：外框只画一次，内部按钮靠自身右边框拼出分隔线，末项再抹掉。 */
 .custom-popup-layout-toggle {
   display: inline-flex;
   overflow: hidden;
@@ -5180,11 +5546,13 @@ h2 {
 .custom-popup-layout-toggle button:last-child {
   border-right: 0;
 }
+/* 选中态用实心橙 + 近黑文字，与全局 .primary 按钮保持同一套配色语言。 */
 .custom-popup-layout-toggle button.active {
   color: #201707;
   background: var(--accent);
   font-weight: 700;
 }
+/* 画布区用 grid 对齐：弹窗舞台按缩放后的实际尺寸水平居中、顶部对齐。 */
 .custom-popup-stage-wrap {
   flex: 1;
   display: grid;
@@ -5194,11 +5562,16 @@ h2 {
   padding: 0;
   overflow: hidden;
 }
+/* 视口容器不参与伸缩，宽高由 JS 按缩放后的舞台实际占位回写。 */
 .custom-popup-viewport {
   position: relative;
   flex: none;
   overflow: visible;
 }
+/* ===== 弹窗舞台与模块卡片 ===== */
+
+/* 舞台本体：绝对定位 + transform-origin: top left，便于 JS 用 scale 完成
+   「设计尺寸 → 可用区域」的整体等比缩放，而不是重排内部网格。 */
 .custom-popup-stage {
   position: absolute;
   top: 0;
@@ -5214,6 +5587,9 @@ h2 {
   box-shadow: 0 18px 55px #00000047;
   transform-origin: top left;
 }
+/* 网格底纹：行列数由 JS 写入 --popup-columns / --popup-rows，
+   两条 1px 线性渐变按该行列数等分，用来提示拖放时的格子边界。
+   pointer-events: none 保证底纹不挡住卡片的拖拽命中。 */
 .custom-popup-stage:before {
   content: "";
   position: absolute;
@@ -5224,6 +5600,7 @@ h2 {
     linear-gradient(90deg, rgba(111, 126, 137, 0.06) 1px, transparent 1px);
   background-size: calc(100% / var(--popup-columns, 1)) calc(100% / var(--popup-rows, 3));
 }
+/* 模块卡片：半透明深底 + 圆角，整卡可拖拽（cursor: grab）。 */
 .popup-module-card {
   position: relative;
   z-index: 1;
@@ -5253,6 +5630,8 @@ h2 {
   opacity: 0.34;
   transform: scale(0.985);
 }
+/* 拖放指示条：四个方向共用一个伪元素，默认 content: none 不渲染，
+   命中方向后由 popup-module-drop-* 修饰类放出并给定位。 */
 .popup-module-card:after {
   position: absolute;
   z-index: 4;
@@ -5290,10 +5669,12 @@ h2 {
   width: 4px;
   content: "";
 }
+/* 舞台为空（或拖到卡片之外）时的追加落点提示，用内嵌虚线框表达。 */
 .custom-popup-stage.popup-module-append-target {
   outline: 2px dashed rgba(244, 168, 22, 0.66);
   outline-offset: -8px;
 }
+/* 卡片标题行：左侧两行文字（名称 + 类型），右侧操作按钮固定宽度不参与压缩。 */
 .popup-module-card-heading {
   display: flex;
   align-items: center;
@@ -5320,6 +5701,7 @@ h2 {
   flex: none;
   gap: 8px;
 }
+/* 44px 见方是触屏最小可点区域，也让标题行高度稳定，缩放时不至错位。 */
 .popup-module-card-actions button {
   width: 44px;
   min-width: 44px;
@@ -5331,10 +5713,13 @@ h2 {
   line-height: 1;
   cursor: pointer;
 }
+/* 卡片整体是拖拽把手，但按钮本身不参与拖拽：这里把游标改回默认，
+   免得鼠标停在按钮上时误以为可拖。 */
 .popup-module-card-actions,
 .popup-module-card-actions button {
   cursor: default;
 }
+/* 未配置内容的模块占位：垂直居中 + 极低透明度底色，表明它是空位而非控件。 */
 .popup-module-placeholder {
   flex: 1;
   display: grid;
@@ -5362,6 +5747,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 模块类型 ID 用等宽字体显示，与中文名区分开。 */
 .popup-module-placeholder > small {
   max-width: 100%;
   overflow: hidden;
@@ -5371,6 +5757,10 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ===== 模块内嵌设置（窗帘 / 空调 / 折线图） ===== */
+
+/* 窗帘与空调的设置行同构：66px 标签列 + 控件列；
+   宽度上限 420px，避免卡片变宽时设置项被拉成整行。 */
 .popup-cover-settings,
 .popup-climate-settings {
   width: min(100%, 420px);
@@ -5390,6 +5780,8 @@ h2 {
   text-align: left;
   white-space: nowrap;
 }
+/* 三选一分段控件：三段等分，分隔线由按钮右边框拼出、末项去掉；
+   外框自带圆角，overflow: hidden 用来裁掉首尾按钮的直角。 */
 .popup-cover-setting-options {
   min-width: 0;
   display: grid;
@@ -5415,11 +5807,14 @@ h2 {
 .popup-cover-setting-options button:last-child {
   border-right: 0;
 }
+/* 选中态配色与布局切换控件保持一致：实心橙底 + 近黑字。 */
 .popup-cover-setting-options button.active {
   color: #211807;
   background: var(--accent);
   font-weight: 700;
 }
+/* ===== 折线图模块设置 ===== */
+
 .popup-line-chart-settings {
   width: min(100%, 420px);
   margin-top: 9px;
@@ -5438,6 +5833,8 @@ h2 {
   text-align: left;
   white-space: nowrap;
 }
+/* 自定义下拉在窄列里必须允许收缩（min-width: 0），
+   否则按钮的固有宽度会撑破「66px 标签 + 1fr 控件」的两列网格。 */
 .popup-line-chart-setting-row > .custom-select {
   min-width: 0;
 }
@@ -5448,6 +5845,7 @@ h2 {
   border-radius: 7px;
   font-size: 10px;
 }
+/* 颜色样本的数量随折线数量变化，用 grid-auto-flow: column 让它们等分一行。 */
 .popup-line-chart-colors {
   min-width: 0;
   display: grid;
@@ -5455,6 +5853,7 @@ h2 {
   grid-auto-columns: minmax(0, 1fr);
   gap: 6px;
 }
+/* 四个阈值（上 / 下 / 最小 / 最大）一行等分，顺序与检查器里的阈值输入一致。 */
 .popup-line-chart-threshold-values {
   min-width: 0;
   display: grid;
@@ -5490,6 +5889,8 @@ h2 {
   background: #05090c7a;
   cursor: pointer;
 }
+/* 色块要撑满 28px 高的输入框：分别去掉 WebKit 与 Gecko 的内衬和描边，
+   再给色块自身补上圆角，两个内核下的外观才对得上。 */
 .popup-line-chart-colors input[type="color"]::-webkit-color-swatch-wrapper {
   padding: 0;
 }
@@ -5501,6 +5902,7 @@ h2 {
   border: 0;
   border-radius: 4px;
 }
+/* 一个模块都没有时的空状态：占满剩余高度，文字居中。 */
 .custom-popup-empty {
   flex: 1;
   display: grid;
@@ -5508,6 +5910,10 @@ h2 {
   color: #7d8990;
   text-align: center;
 }
+/* ===== 检查器中的弹窗配置行 ===== */
+
+/* 弹窗来源配置区：两列网格，第 1 格放各配置行、第 2 格钉住右上角的「预览」按钮，
+   整体是一个浅描边小面板（由 home.js 在动作设置里插入）。 */
 .component-popup-config {
   margin-top: 5px;
   padding: 7px;
@@ -5519,6 +5925,8 @@ h2 {
   border-radius: 6px;
   background: #0000001f;
 }
+/* JS 只切 HTML 的 hidden 属性、不切类名，所以 display: none 必须显式写，
+   并用 !important 压过同一元素上的 display: grid。 */
 .component-popup-config[hidden] {
   display: none !important;
 }
@@ -5532,10 +5940,12 @@ h2 {
 .component-popup-config-row[hidden] {
   display: none !important;
 }
+/* 首行（弹窗来源）显式钉在第 1 格，把第 2 格让给右上角的预览按钮。 */
 .component-popup-config > .component-popup-config-row:first-child {
   grid-column: 1;
   grid-row: 1;
 }
+/* 「选择实体」与「选择弹窗」两行由 JS 切 hidden 控制显隐，出现时跨满两列。 */
 .component-popup-config > [data-popup-entity-row],
 .component-popup-config > [data-popup-custom-row] {
   grid-column: 1 / -1;
@@ -5566,12 +5976,16 @@ h2 {
   border-radius: 4px;
   font-size: 10px;
 }
+/* 弹窗配置里的实体菜单与检查器其它实体菜单同档（fixed 定位 + 580 层级 +
+   overflow: hidden）；这里单独声明一次，使该菜单不必依赖 id 选择器列表。 */
 .component-popup-entity-menu {
   position: fixed;
   z-index: 580;
   right: auto;
   overflow: hidden;
 }
+/* 菜单内部自己滚动：细滚动条样式与高度上限 282px 配套，
+   免得菜单比它所属的检查器面板还高。 */
 .component-popup-entity-menu .inspector-entity-options {
   max-height: 282px;
   overflow-x: hidden;
@@ -5587,6 +6001,7 @@ h2 {
   border-radius: 4px;
   background: #505b63;
 }
+/* 预览按钮钉在网格第 2 格第 1 行的右下角，与「弹窗来源」同一行，不额外占高度。 */
 .component-popup-preview {
   grid-column: 2;
   grid-row: 1;
@@ -5606,6 +6021,12 @@ h2 {
   background: #f2a20d1f;
   color: #ffe4ae;
 }
+/* ===== 弹窗外观（编辑器预览） ===== */
+
+/* 这一段与 renderer/renderer.css 里的同名选择器是两套取值：renderer.css 是运行期
+   那一份（左对齐大标题、28px 内衬），这里这份是编辑器侧的预览外观
+   （标题居中、58px 标题条、右上角带关闭按钮）。两页同时加载同优先级规则时
+   后加载的 renderer.css 生效，因此改这里的取值不会传到显示端。 */
 .hb-custom-popup-dialog {
   border: 0;
   padding: 0;
@@ -5613,6 +6034,7 @@ h2 {
   color: inherit;
   overflow: visible;
 }
+/* 卡片宽度与最大高度都按视口收缩（四边各留 23px），小视口下也保证整卡可见。 */
 .hb-custom-popup-card {
   width: min(840px, calc(100vw - 46px));
   max-height: calc(100vh - 46px);
@@ -5626,6 +6048,7 @@ h2 {
     inset 0 1px #ffffff09;
   overflow: hidden;
 }
+/* 预览版标题居中：左右各留 72px 内边距，正好容下绝对定位在右上角的关闭按钮。 */
 .hb-custom-popup-heading {
   position: relative;
   min-height: 58px;
@@ -5646,6 +6069,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 关闭按钮脱离标题文字流钉在右上角，48px 圆钮便于触屏点按。 */
 .hb-custom-popup-heading button {
   position: absolute;
   top: 5px;
@@ -5664,6 +6088,8 @@ h2 {
   color: #f4a816;
   background: #f4a81612;
 }
+/* 12 栏网格：模块的列 / 行跨度由 JS 按弹窗布局写进 style。
+   固定 12 栏是为了让 1/2、1/3、1/4 这些常见等分都能整除。 */
 .hb-custom-popup-grid {
   flex: 1;
   min-height: 0;
@@ -5673,6 +6099,8 @@ h2 {
   gap: 10px;
   overflow: auto;
 }
+/* 单个模块卡片：两行（标题 + 内容）。内容行用 minmax(0, 1fr) 允许收缩，
+   内部控件自己滚动，而不是把卡片撑高进而撑破整个弹窗。 */
 .hb-custom-popup-module {
   min-width: 0;
   min-height: 0;
@@ -5688,6 +6116,7 @@ h2 {
     inset 0 1px #ffffff08;
   overflow: hidden;
 }
+/* 模块标题按预览尺度的可视距离放大，长标题单行省略。 */
 .hb-custom-popup-module > strong {
   min-width: 0;
   overflow: hidden;
@@ -5701,9 +6130,12 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 灯光模块：在共享的「标题 + 内容」两行之外再补一行电源开关。 */
 .hb-custom-popup-module--light {
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
+/* 详情控件在这里改成两行等分（滑条 + 电源），并清掉运行期版本的高度与内衬，
+   让内容完全贴合卡片宽度。 */
 .hb-custom-popup-module--light > .hb-light-details-controls {
   width: 100%;
   height: 100%;
@@ -5712,6 +6144,7 @@ h2 {
   gap: 9px;
   padding: 0;
 }
+/* 滑条分区：圆角更大、内阴影更浅，匹配预览尺度的玻璃质感。 */
 .hb-custom-popup-module--light .hb-light-details-slider {
   min-height: 0;
   align-content: space-between;
@@ -5747,6 +6180,8 @@ h2 {
 .hb-custom-popup-module--light .hb-light-details-slider input::-webkit-slider-runnable-track {
   height: 13px;
 }
+/* 滑块 28px 配 13px 轨道；负 margin-top 是把滑块垂直居中到轨道上的常用手法
+   （WebKit 的滑块与轨道分开定位，不像 Gecko 那样自动居中）。 */
 .hb-custom-popup-module--light .hb-light-details-slider input::-webkit-slider-thumb {
   width: 28px;
   height: 28px;
@@ -5778,6 +6213,7 @@ h2 {
 .hb-custom-popup-module--light > .hb-light-details-power strong {
   font-size: 22px;
 }
+/* 空调模块：左列固定 360px 放温控盘、右列弹性放其余分组，行列间距均为 14px。 */
 .hb-custom-popup-module--climate > .hb-climate-details-controls {
   width: 100%;
   height: 100%;
@@ -5789,6 +6225,7 @@ h2 {
   padding: 0;
   overflow: hidden;
 }
+/* 温控盘纵跨全部行，与右侧各分组的整体高度对齐。 */
 .hb-custom-popup-module--climate > .hb-climate-details-controls > .hb-climate-thermostat {
   grid-row: 1 / -1;
 }
@@ -5802,6 +6239,8 @@ h2 {
   min-height: 50px;
   font-size: 16px;
 }
+/* 风速与紧凑分组的按钮压低到 42px：这两组选项本身行数多，
+   沿用 50px 会把卡片内容挤出可视区。 */
 .hb-custom-popup-module--climate
   .hb-climate-details-group.fan-options
   .hb-climate-details-options
@@ -5820,6 +6259,7 @@ h2 {
 .hb-custom-popup-module--climate .hb-climate-temperature-content > span {
   font-size: 16px;
 }
+/* 温度读数放大到 72px，单位跟在更小一号的 <small> 里。 */
 .hb-custom-popup-module--climate .hb-climate-temperature-content > strong {
   font-size: 72px;
 }
@@ -5836,6 +6276,7 @@ h2 {
 .hb-custom-popup-module--climate .hb-climate-fan-slider-legend small {
   font-size: 15px;
 }
+/* 折线图模块：图表容器去掉运行期的外边距与内衬，占满卡片内容区。 */
 .hb-custom-popup-module--line-chart > .hb-line-chart-details {
   width: 100%;
   height: 100%;
@@ -5852,6 +6293,7 @@ h2 {
     inset 0 1px #ffffff06,
     0 8px 20px #00000024;
 }
+/* SVG 撑满容器并用 margin: auto 居中：非 1:1 画幅时也不会贴到左上角。 */
 .hb-custom-popup-module--line-chart > .hb-line-chart-details > svg {
   width: 100%;
   height: 100%;
@@ -5864,6 +6306,7 @@ h2 {
 .hb-custom-popup-module--line-chart .hb-line-chart-details-axis-title {
   font-size: 17px;
 }
+/* 摄像头模块：黑底 + 圆角裁切，充当视频加载完成前的占位。 */
 .hb-custom-popup-camera-stage {
   position: relative;
   width: 100%;
@@ -5877,6 +6320,8 @@ h2 {
     inset 0 1px #ffffff06,
     0 8px 20px #0000002e;
 }
+/* 视频与图片一律 cover 填满容器（摄像头出图比例不固定，contain 会留黑边）；
+   border-radius: inherit 让画面跟随容器的圆角一起被裁。 */
 .hb-custom-popup-camera-stage video,
 .hb-custom-popup-camera-stage img {
   width: 100%;
@@ -5884,6 +6329,7 @@ h2 {
   border-radius: inherit;
   object-fit: cover;
 }
+/* 兜底模块（类型没有对应控件）与空弹窗提示共用的一段居中文字。 */
 .hb-custom-popup-generic {
   min-height: 0;
   margin: 0;
@@ -5892,6 +6338,10 @@ h2 {
   color: #aeb8bd;
   font-size: 13px;
 }
+/* ===== 配对二维码对话框 ===== */
+
+/* 由 display-pairing-qr.js 动态建好 DOM 后 showModal()。高度上限用 dvh 而非 vh：
+   移动端地址栏收起 / 展开会改变可视高度，dvh 才是真正能用的高度。 */
 .display-pairing-qr-dialog {
   box-sizing: border-box;
   width: min(440px, calc(100vw - 32px));
@@ -5903,6 +6353,7 @@ h2 {
   background: #192126;
   color: #eef4f7;
 }
+/* 遮罩色显式指定，避免各浏览器 ::backdrop 默认深浅不一。 */
 .display-pairing-qr-dialog::backdrop {
   background: #000000a6;
 }
@@ -5920,6 +6371,7 @@ h2 {
   gap: 8px;
   font-size: 12px;
 }
+/* 输入框补上 box-sizing: border-box，否则 100% 宽再加内衬与描边会溢出弹窗。 */
 .display-pairing-qr-dialog input {
   box-sizing: border-box;
   width: 100%;
@@ -5929,6 +6381,8 @@ h2 {
   border: 1px solid #42525f;
   border-radius: 7px;
 }
+/* 二维码必须浅底深块才容易被相机识别，因此这里写死白底，与深色主题无关；
+   aspect-ratio: 1 保证图形不被拉伸。 */
 .display-pairing-qr-graphic {
   margin: 20px auto;
   max-width: 280px;
@@ -5942,6 +6396,7 @@ h2 {
   width: 100%;
   height: 100%;
 }
+/* 弹窗里唯一的关闭按钮，撑满整行方便触屏点按。 */
 .display-pairing-qr-dialog > button {
   width: 100%;
   padding: 10px;
@@ -5951,6 +6406,7 @@ h2 {
   color: #eef4f7;
   cursor: pointer;
 }
+/* 下载入口结构上是 <a>，需要手动补齐内衬、居中、字号，才像按钮。 */
 .display-pairing-qr-download {
   display: block;
   margin: 16px 0;
@@ -5966,10 +6422,12 @@ h2 {
 .display-pairing-qr-download:hover {
   background: #25333d;
 }
+/* 键盘聚焦态用橙色描边，与全局按钮的 :focus-visible 保持一致。 */
 .display-pairing-qr-download:focus-visible {
   outline: 2px solid #f8b32d;
   outline-offset: 3px;
 }
+/* 说明文字里的有序列表：padding-left 是给序号预留的缩进。 */
 .display-pairing-qr-note ol {
   padding-left: 22px;
   font-size: 13px;
