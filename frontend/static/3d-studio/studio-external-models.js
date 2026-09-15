@@ -97,7 +97,8 @@ function defineHomeItemModel(homeModelKey, homeFallbackVersion, homeModelOverrid
   });
 }
 /**
- * 生成「电器类」模型定义：与家居类同构，只是共用一条 20260916013557 的版本戳。
+ * 生成「电器类」模型定义：与家居类同构，区别只是轻量版与完整版共用一个版本常量
+ * （APPLIANCE_LITE_MODEL_VERSION，而非各自传入）。
  *
  * 家电的轻量版与完整版由同一次构建产出，因此两者版本一致；单独一个函数是为了
  * 让日后家电与家具分开更新时不必回头改表结构。
