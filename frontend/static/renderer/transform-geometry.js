@@ -1,5 +1,33 @@
+/**
+ * 画布几何变换工具。
+ *
+ * 职责：为「出风层」（空调 / 风扇的送风动画图层）与多选拖拽提供坐标换算——
+ * 计算出风层在普通控件内与分组内的落点，以及分组旋转缩放后鼠标位移在本地的分量。
+ *
+ * 位置：纯计算模块，被编辑器与运行时共用；不读 DOM，也不碰控件注册表。
+ * 对外导出四个纯函数：airflowCanvasOffsetBounds（偏移滑块的上下界）、
+ * airflowLayerGeometry（出风层定位盒）、rotateMultiSelectionTransforms（多选整体旋转）、
+ * groupedComponentLocalDelta（分组拖拽的位移换算）；调用方见 renderer.js 与 home.js。
+ *
+ * 坐标约定：控件的 position / properties 里，x、y、width、height 一律是画布像素，
+ * rotation 是角度（deg，顺时针为正），scale 是无量纲倍数；
+ * 而出风层的 airflowOffsetX / Y、airflowWidth / Height 存的是相对控件宽高的百分比。
+ */
+
+/**
+ * 计算出风层偏移量的可调上下界（百分比单位）。
+ *
+ * 界值取「把控件中心推到画布边缘时的比例」再与 ±500 取外扩较大者：
+ * 下限用 Math.min、上限用 Math.max，保证无论控件在画布哪个角落，
+ * 滑块都有 ±500% 的可调空间，不会因为控件居中就把范围压成 0。
+ *
+ * @param {object} component 控件对象，读取 position 的 width / height / x / y。
+ * @param {object} canvasSize 画布尺寸，缺省按 2778 × 1940 处理。
+ * @returns {{minX: number, maxX: number, minY: number, maxY: number}} 百分比偏移界值。
+ */
 export function airflowCanvasOffsetBounds(component, canvasSize) {
   const position = component?.position || {};
+  // 宽高至少为 1，否则下面按宽高做分母时会得到 Infinity。
   const componentWidthPx = Math.max(1, Number(position.width || 100));
   const componentHeightPx = Math.max(1, Number(position.height || 100));
   const canvasWidth = Math.max(1, Number(canvasSize?.width || 2778));
@@ -13,13 +41,32 @@ export function airflowCanvasOffsetBounds(component, canvasSize) {
     maxY: Math.max(500, ((canvasHeight - centerY) / componentHeightPx) * 100)
   };
 }
+/**
+ * 计算出风图层的定位盒。
+ *
+ * 分组内外的返回值口径刻意不同，调用方要按 grouped 区分：
+ * - 未分组：left / top 是画布绝对坐标。
+ * - 分组内：left / top 是相对组内原点的坐标，且先按组旋转把偏移转到组的本地坐标系、
+ *   再除以组缩放，抵消父层的 transform；rotation 只保留出风层自身的角度，
+ *   scale 则是自身缩放除以组缩放，这样最终视觉大小与未分组时一致。
+ *
+ * @param {object} sourceComponent 控件对象，读取 position、properties 与 style.scale。
+ * @param {object} [options] 选项。
+ * @param {boolean} [options.grouped] 是否处于分组上下文。
+ * @returns {{left: number, top: number, width: number, height: number,
+ *   rotation: number, scale: number}} 出风层的定位盒，单位与调用方所处的坐标系一致。
+ */
 export function airflowLayerGeometry(sourceComponent, { grouped: isGrouped = false } = {}) {
   const componentPosition = sourceComponent?.position || {};
   const properties = sourceComponent?.properties || {};
   const componentWidth = Math.max(1, Number(componentPosition.width || 300));
   const componentHeight = Math.max(1, Number(componentPosition.height || 150));
+  // 横向偏移按控件宽度换算像素；-75 是历史默认值，表示出风层略偏左，
+  // 老文档没写这个属性时也有一段可见的送风动画。
   const airflowOffsetXPx = (componentWidth * Number(properties.airflowOffsetX ?? -75)) / 100;
+  // 纵向用控件高度单独换算（不共用宽度）：控件高宽比千差万别，分开换算才能保住视觉比例。
   const airflowOffsetYPx = (componentHeight * Number(properties.airflowOffsetY ?? 34)) / 100;
+  // 宽高各给 0.01% 的下限：0 会让图层塌成一条线，负值会翻转朝向。
   const airflowWidthPx =
     (componentWidth * Math.max(0.01, Number(properties.airflowWidth ?? 64))) / 100;
   const airflowHeightPx =
@@ -28,6 +75,7 @@ export function airflowLayerGeometry(sourceComponent, { grouped: isGrouped = fal
   const airflowRotation = Number(properties.airflowRotation || 0);
   const airflowScale = Math.max(0.01, Math.min(5, Number(properties.airflowScale || 1)));
   if (!isGrouped) {
+    // 未分组：把偏移从组件中心算起，再减去图层自身一半的宽高换算成左上角坐标。
     return {
       left:
         Number(componentPosition.x || 0) +
@@ -46,9 +94,13 @@ export function airflowLayerGeometry(sourceComponent, { grouped: isGrouped = fal
     };
   }
   const groupScale = Math.max(0.01, Math.min(5, Number(sourceComponent?.style?.scale || 1)));
+  // 组的旋转量就存在组件自己的 position.rotation 上（组容器与组内控件共用同一个角度），
+  // 所以这里不需要额外参数；三角函数要弧度，先由角度制换算过来。
   const groupRotationRadians = (componentRotation * Math.PI) / 180;
   const groupRotationCos = Math.cos(groupRotationRadians);
   const groupRotationSin = Math.sin(groupRotationRadians);
+  // 逆旋转矩阵（角度取相反数，等价于把这个矩阵非对角项改号）加上除以组缩放，
+  // 把画布方向上的偏移换算到组内本地坐标系。
   const scaledOffsetXPx =
     (groupRotationCos * airflowOffsetXPx + groupRotationSin * airflowOffsetYPx) / groupScale;
   const scaledOffsetYPx =
@@ -62,7 +114,20 @@ export function airflowLayerGeometry(sourceComponent, { grouped: isGrouped = fal
     scale: airflowScale / groupScale
   };
 }
+/**
+ * 围绕枢轴点旋转一组控件的变换。
+ *
+ * 做法：先把各控件中心平移到以枢轴为原点的相对坐标，
+ * 乘上旋转矩阵后再平移回去，最后按控件自身宽高还原成左上角坐标。
+ *
+ * @param {Array<object>} transforms 每个元素含 componentId、centerX / centerY、width / height、rotation。
+ * @param {number} pivotX 枢轴点 x（画布像素）。
+ * @param {number} pivotY 枢轴点 y（画布像素）。
+ * @param {number} pivotRotationDegrees 本次旋转增量（deg）。
+ * @returns {Array<{componentId: *, x: number, y: number, rotation: number}>} 旋转后的控件变换。
+ */
 export function rotateMultiSelectionTransforms(transforms, pivotX, pivotY, pivotRotationDegrees) {
+  // 本次旋转增量由角度制换算成弧度，只算一次供下面所有控件复用。
   const selectionRotationRadians = (Number(pivotRotationDegrees || 0) * Math.PI) / 180;
   const selectionRotationCos = Math.cos(selectionRotationRadians);
   const selectionRotationSin = Math.sin(selectionRotationRadians);
@@ -75,15 +140,30 @@ export function rotateMultiSelectionTransforms(transforms, pivotX, pivotY, pivot
       componentId: transform.componentId,
       x: rotatedX - Number(transform.width || 0) / 2,
       y: rotatedY - Number(transform.height || 0) / 2,
+      // 角度直接相加；象限判定交给下游渲染，这里不做归一化。
       rotation: Number(transform.rotation || 0) + pivotRotationDegrees
     };
   });
 }
+/**
+ * 把画布方向的位移换算成分组本地坐标系下的位移。
+ *
+ * 分组带有旋转与缩放时，鼠标在屏幕上的位移并不等于控件在组内的位移，
+ * 这里用逆旋转（非对角项改号）+ 除以缩放还原，拖拽才能贴着指针走。
+ *
+ * @param {number} deltaX 画布 / 屏幕方向的横向位移。
+ * @param {number} deltaY 画布 / 屏幕方向的纵向位移。
+ * @param {object} [options] 分组变换。
+ * @param {number} [options.rotation] 分组旋转角度（deg）。
+ * @param {number} [options.scale] 分组缩放倍数，钳到不小于 0.01 以防止除零。
+ * @returns {{x: number, y: number}} 组内本地坐标系下的位移。
+ */
 export function groupedComponentLocalDelta(
   deltaX,
   deltaY,
   { rotation: rotationDegrees = 0, scale: scale = 1 } = {}
 ) {
+  // 组的旋转角同样以角度制传入，换一次弧度供下面的逆旋转矩阵使用。
   const localRotationRadians = (Number(rotationDegrees || 0) * Math.PI) / 180;
   const localRotationCos = Math.cos(localRotationRadians);
   const localRotationSin = Math.sin(localRotationRadians);
