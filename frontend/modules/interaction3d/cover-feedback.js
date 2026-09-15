@@ -91,6 +91,8 @@ export function createCoverFeedback({
     try {
       const storageKey = storageKeyFor(entityId);
       const stored = storageKey && JSON.parse(storage?.getItem(storageKey) || "null");
+      // 校验从存储恢复的位置值：必须是 0~100 之间的有限数字。存储内容属于外部输入，
+      // 手改 / 旧版本残留 / 损坏都可能塞进字符串或越界值，NaN 一旦进入动画就会整条卡死。
       const isValidPosition = value =>
         typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100;
       // 存储内容是外部输入，逐项校验：位置必须落在 0–100，时间戳必须可解析。
