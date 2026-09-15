@@ -117,7 +117,7 @@ def main() -> int:
         if binding is None:
             binding = DeviceBinding(
                 license_id=license_row.id, instance_id="demo-instance-000000000001",
-                client_version="0.6.0", activated_at=utcnow(), last_heartbeat_at=utcnow(),
+                client_version="0.5.5", activated_at=utcnow(), last_heartbeat_at=utcnow(),
                 last_ip="127.0.0.1", active=True,
             )
             session.add(binding)

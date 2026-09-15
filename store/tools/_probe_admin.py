@@ -343,7 +343,7 @@ async def main() -> int:
         with database.session() as session:
             binding = DeviceBinding(
                 license_id=license_id, instance_id="probe-instance-0001",
-                client_version="0.6.0", activated_at=utcnow(),
+                client_version="0.5.5", activated_at=utcnow(),
             )
             session.add(binding)
             session.flush()
