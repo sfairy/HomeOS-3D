@@ -1,3 +1,21 @@
+/**
+ * 3D 交互组件的属性面板（inspector）。
+ *
+ * 位置：编辑器侧边栏的入口，负责把「一个 interaction3d 组件」的属性渲染成表单，
+ *   并处理权限校验、户型载入、楼层视角、渲染质量、压暗与弹窗等分组设置。
+ *   面板内所有「配置设备 / 灯光 / 环境 / 安防 / 扫地机」按钮都只是拉取懒加载编辑器，
+ *   真正复杂的设备选择逻辑不在这里。
+ * 对外导出：interaction3dEntries、changesInteraction3d、guardInteraction3dChanges、
+ *   renderInteraction3dThumbnail、updateInteraction3dCard、requestInteraction3dScene、
+ *   renderInteraction3dInspector。
+ * 全局约定：
+ *   - 改动一律通过 editorOptions.onChange(patch) 提交，patch 形如 { properties, position, style }；
+ *     需要整段替换属性时额外传 { replaceProperties: true }；
+ *   - 组件的渲染结果不会即时回传，面板通过 editorOptions.prepareCanvas() +
+ *     waitInteraction3dEditorView(componentId) 拿到「已挂载的视图句柄」再下命令；
+ *   - 户型 ID（sceneId）是 32 位十六进制，由后端签发，面板只做格式校验不做语义解析。
+ * 副作用：发起授权校验与户型载入请求，动态 import 各子编辑器模块，并直接操作宿主 DOM。
+ */
 import { resolvePageBehavior } from "./page-behavior.js?v=20260916013557";
 import {
   performanceWarnings,
@@ -21,6 +39,17 @@ import {
   BACKGROUND_THEMES,
   normalizeBackgroundTheme
 } from "./definition.js?v=20260916013557";
+/**
+ * 递归收集组件树里的 interaction3d 组件。
+ *
+ * 用「路径片段数组」的 JSON 串当键：同一个组件可能被页面与共享组件引用，
+ * 路径才是它在文档里的唯一位置，仅靠 id 无法区分。
+ *
+ * @param {any} componentTree 组件树（数组或对象）。
+ * @param {Array<string>} [pathSegments] 当前递归到的路径。
+ * @param {Map<string, object>} [entriesByPath] 累积结果。
+ * @returns {Map<string, object>} 路径 → 组件。
+ */
 export function interaction3dEntries(componentTree, pathSegments = [], entriesByPath = new Map()) {
   if (Array.isArray(componentTree)) {
     componentTree.forEach((arrayItem, arrayIndex) =>
@@ -32,6 +61,7 @@ export function interaction3dEntries(componentTree, pathSegments = [], entriesBy
     );
   } else if (componentTree && typeof componentTree == "object") {
     if (componentTree.type === "interaction3d") {
+      // 命中即止，不再往组件内部递归（内部不会再嵌套 3D 交互组件）。
       entriesByPath.set(JSON.stringify(pathSegments), componentTree);
       return entriesByPath;
     }
@@ -41,6 +71,8 @@ export function interaction3dEntries(componentTree, pathSegments = [], entriesBy
   }
   return entriesByPath;
 }
+// 用于判断「保存前后的 3D 交互配置是否变了」的深比较；
+// 只需要正确性，不需要处理循环引用（项目文档是纯 JSON 树）。
 function isDeepEqual(leftValue, rightValue) {
   if (leftValue === rightValue) {
     return true;
@@ -65,6 +97,7 @@ function isDeepEqual(leftValue, rightValue) {
     );
   }
 }
+// 比较前剥掉 position.zIndex：它纯粹是画布层叠序，改动它不该触发重新授权校验。
 function stripPositionZIndex(component) {
   if (!component) {
     return null;
@@ -75,6 +108,17 @@ function stripPositionZIndex(component) {
     position: remainingPosition
   };
 }
+/**
+ * 判断两个项目版本之间「3D 交互相关内容」是否发生变化。
+ *
+ * 用于决定保存前是否需要重新做一次授权校验（3D 交互是受限功能）。
+ * 除了组件属性，还要看「页面是否新引用了含 3D 交互的共享组件」——
+ * 这种情况组件本身没变，但新的页面上会出现 3D 交互。
+ *
+ * @param {object} previousProject 旧项目文档。
+ * @param {object} nextProject 新项目文档。
+ * @returns {boolean} 有变化为 true。
+ */
 export function changesInteraction3d(previousProject, nextProject) {
   const previousEntriesByPath = interaction3dEntries(previousProject);
   const nextEntriesByPath = interaction3dEntries(nextProject);
@@ -88,6 +132,7 @@ export function changesInteraction3d(previousProject, nextProject) {
       return true;
     }
   }
+  // 只关心「本身含 3D 交互」的共享组件，其余共享组件引用变化与本功能无关。
   const nextSharedComponentIdSet = new Set(
     (nextProject?.sharedComponents || [])
       .filter(sharedComponentCandidate => interaction3dEntries(sharedComponentCandidate).size)
@@ -105,18 +150,36 @@ export function changesInteraction3d(previousProject, nextProject) {
     );
   });
 }
+/**
+ * 保存前守卫：涉及 3D 交互内容的改动必须先通过授权校验。
+ *
+ * @param {object} currentProject 当前项目文档。
+ * @param {object} incomingProject 即将保存的项目文档。
+ * @returns {Promise<void>} 无返回；无变化时直接返回，有变化时校验失败会抛错以阻断保存。
+ * @throws {Error} 授权校验失败（如 403）时抛出。
+ */
 export async function guardInteraction3dChanges(currentProject, incomingProject) {
   if (changesInteraction3d(currentProject, incomingProject)) {
     await requestInteraction3dAccess();
   }
 }
+// 组件卡片上的缩略图：统一套用封面样式，保证与画布上的占位外观一致。
 export function renderInteraction3dThumbnail(thumbnailButton) {
   thumbnailButton.classList.add("interaction3d-thumbnail");
   thumbnailButton.append(createInteraction3dCover());
 }
+// 每张卡片的授权状态单独记：状态对象还兼任「本次异步流程是否已被新的流程取代」的凭据，
+// 因此一旦重新开始校验就换新对象，旧回调靠身份比较自动失效。
 const cardStateByButton = new WeakMap();
+/**
+ * 刷新组件卡片按钮的可用状态（授权校验 + 文案）。
+ *
+ * @param {HTMLElement} cardButton 组件卡片按钮。
+ * @returns {Promise<void>} 无返回；失败时以文案形式反馈，不抛错。
+ */
 export async function updateInteraction3dCard(cardButton) {
   const cardState = {
+    // 保留上一次「已确认无权限」的结论：无权限是稳定状态，不必每次重试都先闪一次加载文案。
     denied: cardStateByButton.get(cardButton)?.denied === true
   };
   cardStateByButton.set(cardButton, cardState);
@@ -129,6 +192,7 @@ export async function updateInteraction3dCard(cardButton) {
   }
   try {
     await requestInteraction3dAccess();
+    // 期间若卡片被重新渲染（状态对象被替换），本次结果已经过期，不能再改 DOM。
     if (cardStateByButton.get(cardButton) !== cardState) {
       return;
     }
@@ -140,6 +204,8 @@ export async function updateInteraction3dCard(cardButton) {
     if (cardStateByButton.get(cardButton) !== cardState) {
       return;
     }
+    // 403 视为「这套部署没有该功能」，封面上直接说明原因；
+    // 401 只是登录过期，提示重新登录即可，不要让用户以为功能不可用。
     cardState.denied ||= accessError?.status === 403;
     titleElement.hidden = false;
     updateInteraction3dCoverMessage(
@@ -155,9 +221,19 @@ export async function updateInteraction3dCard(cardButton) {
     cardButton.title = accessError?.status === 403 ? "3D 交互" : "3D 交互暂时无法连接，请稍后重试";
   }
 }
+// 户型载入状态按「项目 + 组件」缓存：同一个组件反复打开面板时，
+// 只有第一次需要请求，也让「正在载入 / 失败」这类过程状态在面板重建后仍然可见。
 const sceneStateByKey = new Map();
+// 每个宿主元素一份 AbortController：面板重建时会中断上一次仍在飞的校验 / 弹窗流程。
 const inspectorAbortByHost = new WeakMap();
+/**
+ * 向后端申请一个新的户型场景 ID。
+ *
+ * @returns {Promise<{sceneId: string}>} 新签发的 sceneId。
+ * @throws {Error} 请求失败、超时或返回体不符合约定（非 32 位十六进制）时抛出中文错误。
+ */
 export async function requestInteraction3dScene() {
+  // 户型解析在后端做，耗时不可控，因此必须带超时，否则面板会一直停在「正在载入」。
   return withRequestTimeout(20000, async abortSignal => {
     const response = await fetch("/api/v1/modules/interaction3d/scenes", {
       method: "POST",
@@ -170,6 +246,8 @@ export async function requestInteraction3dScene() {
         typeof responseBody.detail == "string" ? responseBody.detail : "户型载入失败，请重试。"
       );
     }
+    // sceneId 是后端签发的 32 位十六进制；格式不对说明拿到的不是正常响应
+    // （例如被登录页 / 网关改写），此时宁可当作失败，也不能把脏值写进组件属性。
     if (!/^[0-9a-f]{32}$/.test(responseBody.sceneId || "")) {
       throw new Error("户型载入失败，请重试。");
     }
@@ -178,10 +256,25 @@ export async function requestInteraction3dScene() {
     };
   });
 }
+/**
+ * 渲染（或重建）3D 交互组件的属性面板。
+ *
+ * 面板采用「整块重建」策略：任何影响结构的改动都会重新走一遍本函数，
+ * 因此下面刻意保存并恢复滚动位置、焦点控件名与最小高度，避免重建造成视觉跳动。
+ *
+ * @param {HTMLElement} hostElement 面板宿主容器。
+ * @param {object} targetComponent 当前选中的组件；非 interaction3d 时用于隐藏面板。
+ * @param {object} editorOptions 编辑器回调：onChange / onError / document / entities /
+ *   states / pickers / prepareCanvas / enhanceControls 等。
+ * @returns {void}
+ */
 export function renderInteraction3dInspector(hostElement, targetComponent, editorOptions) {
+  // 每次重建都作废旧面板的在途异步流程（授权校验、性能告警弹窗等），
+  // 否则它们会在新面板上写入已经过期的状态。
   inspectorAbortByHost.get(hostElement)?.abort();
   const inspectorAbortController = new AbortController();
   inspectorAbortByHost.set(hostElement, inspectorAbortController);
+  // 3D 视口同一时刻只服务一个组件：切到别的组件时要先把其它视图关掉。
   cancelOtherInteraction3dViews(
     targetComponent?.type === "interaction3d" ? targetComponent.id : null
   );
@@ -192,6 +285,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     inspectorElement.className = "inspector-form";
     hostElement.append(inspectorElement);
   }
+  // 「同一个组件重新打开」时要尽量保持视觉位置：记住滚动、焦点与高度。
   const isSameComponentOpen =
     !inspectorElement.hidden && inspectorElement.dataset.componentId === targetComponent?.id;
   const previousScrollTop = hostElement.scrollTop;
@@ -200,6 +294,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     : "";
   const previousMinHeight = inspectorElement.style.minHeight;
   if (isSameComponentOpen) {
+    // 先锁住当前高度，重建后内容高度可能短暂变小，导致面板塌陷再弹回。
     inspectorElement.style.minHeight = inspectorElement.getBoundingClientRect().height + "px";
   }
   inspectorElement.hidden = targetComponent?.type !== "interaction3d";
@@ -208,39 +303,50 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     return;
   }
   inspectorElement.dataset.componentId = targetComponent.id;
+  // 折叠状态按 group 名记忆：重建后同名的分组保持原来的展开 / 收起。
   const openStateByGroup = new Map(
     [...inspectorElement.querySelectorAll("details")]
       .filter(detailsElement => detailsElement.dataset.inspectorGroup)
       .map(detailsEntry => [detailsEntry.dataset.inspectorGroup, detailsEntry.open])
   );
   inspectorElement.replaceChildren();
+  // 面板重建时的统一元素工厂：所有子节点都经它创建，保证 className 与文本的赋值口径一致。
   const createElement = (tagName, className = "", textContent = "") => {
+    // 文本一律用 textContent 赋值，避免面板里的用户数据（设备名等）被当作 HTML 解析。
     const createdElement = document.createElement(tagName);
     createdElement.className = className;
     createdElement.textContent = textContent;
     return createdElement;
   };
+  // 新建一个带标题的 section 并挂到面板根节点，返回该 section 供调用方继续追加内容。
   const createSection = sectionTitle => {
     const sectionElement = createElement("section", "inspector-section");
     sectionElement.append(createElement("h3", "", sectionTitle));
     inspectorElement.append(sectionElement);
     return sectionElement;
   };
+  // 把「标题 + 控件」包成一个 <label> 挂到容器上，点击标题文字即可聚焦 / 切换控件。
   const createLabeledField = (containerElement, labelText, controlElement) => {
     const labelElement = createElement("label");
     labelElement.append(createElement("span", "", labelText), controlElement);
     containerElement.append(labelElement);
     return controlElement;
   };
+  // 统一把异步提交的失败交给宿主：面板不弹自己的错误 UI，保持与其它面板一致。
   const commitChange = propertiesPatch =>
     Promise.resolve(editorOptions.onChange(propertiesPatch)).catch(changeError =>
       editorOptions.onError?.(changeError)
     );
   const properties = targetComponent.properties || {};
   const position = targetComponent.position || {};
+  // 以代码方式同步控件值时（如提交失败、外部状态回滚）会重新派发 change 事件，
+  // 用这个弱集合标记「本次 change 是自己造的」，各监听器据此忽略，防止回环提交。
   const programmaticControls = new WeakSet();
+  // 以代码方式写回控件值：先登记进 programmaticControls 再派发 change，
+  // 各监听器据此识别「这次 change 是自己造的」并跳过，避免提交回环。
   const setControlValue = (inputControl, nextValue) => {
     inputControl.value = String(nextValue);
+    // 标记期间派发的 change 必须被自家监听器忽略，否则会再次提交同一份改动。
     programmaticControls.add(inputControl);
     try {
       inputControl.dispatchEvent?.(
@@ -252,6 +358,8 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       programmaticControls.delete(inputControl);
     }
   };
+  // 提交前的最后一道门：高负载设置需要用户确认；同时确认过程可能耗时，
+  // 因此结束后还要复核面板是否仍是同一个组件的、且没被关闭 —— 否则放弃这次提交。
   const confirmChangeWithWarning = async pendingProperties =>
     (await confirmPerformanceWarning(performanceWarnings(properties, pendingProperties), {
       document: document,
@@ -260,13 +368,18 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     !inspectorAbortController.signal.aborted &&
     !inspectorElement.hidden &&
     inspectorElement.dataset.componentId === targetComponent.id;
+  // 布局面板里的旋转设置也会写进 component.properties.interaction，
+  // 这里先取一份用于「调整视角」时回写，避免把用户的交互配置覆盖成默认值。
   const interactionSettings = {
     rotationMode: properties.interaction?.rotationMode || properties.camera?.rotationMode || "free",
     panEnabled: false,
     zoomEnabled: false
   };
   const editorView = getInteraction3dEditorView(targetComponent.id);
+  // 视角调整模式下，面板上绝大部分设置都会禁用：此刻用户在拖 3D 视口，改属性会互相干扰。
   const isViewEditing = !!editorView?.viewEditing;
+  // 百分比输入需要换算像素，因此必须知道画布与组件的实际尺寸；
+  // 默认值对应后端的默认画布（2778×1940），避免文档里缺字段时算出 NaN。
   const sourceCanvas = editorOptions.document?.canvas || {};
   const canvasWidthPx = Number(sourceCanvas.width || 2778);
   const canvasHeightPx = Number(sourceCanvas.height || 1940);
@@ -276,6 +389,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   const layoutModeGroupElement = createElement("div", "image-layout-options");
   layoutModeGroupElement.setAttribute("role", "group");
   layoutModeGroupElement.setAttribute("aria-label", "3D 交互布局");
+  // 布局模式只有自由 / 铺满两种：铺满时位置与尺寸都由宿主决定，相关输入要整体禁用。
   const isFillLayout = properties.layoutMode === "fill";
   for (const [layoutModeValue, layoutModeLabel] of [
     ["free", "自由"],
@@ -284,9 +398,11 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     const layoutModeButton = createElement("button", "", layoutModeLabel);
     layoutModeButton.type = "button";
     layoutModeButton.dataset.interaction3dLayout = layoutModeValue;
+    // 未显式声明 layoutMode（或写了非法值）时按自由布局处理，与渲染端默认值保持一致。
     const isActiveLayoutMode = (isFillLayout ? "fill" : "free") === layoutModeValue;
     layoutModeButton.classList.toggle("active", isActiveLayoutMode);
     layoutModeButton.setAttribute("aria-pressed", String(isActiveLayoutMode));
+    // 已是当前项就不重复提交，避免产生无意义的文档改动与保存。
     layoutModeButton.addEventListener("click", () => {
       if (!isActiveLayoutMode) {
         commitChange({
@@ -301,6 +417,8 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   const layoutGridElement = createElement("div", "inspector-grid two-columns");
   layoutSection.append(layoutModeGroupElement, layoutGridElement);
   layoutGridElement.hidden = isFillLayout;
+  // 位置 / 尺寸对用户按百分比呈现（与设计稿一致），提交时再换算回画布像素；
+  // 数值统一夹在 [min,max] 内，避免手输越界值把组件推出画布。
   const createPercentInput = (fieldLabel, fieldValue, minValue, maxValue, buildPatch) => {
     const fieldInputElement = createElement("input");
     Object.assign(fieldInputElement, {
@@ -309,10 +427,12 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       min: String(minValue),
       max: String(maxValue),
       step: ".1",
+      // 保留一位小数即可，避免浮点换算结果在输入框里出现一长串尾数。
       value: String(Math.round(fieldValue * 10) / 10),
       disabled: isFillLayout
     });
     fieldInputElement.addEventListener("change", () => {
+      // 空值 / 非法输入时什么都不做，让输入框保持原样由用户修正。
       if (Number.isFinite(fieldInputElement.valueAsNumber)) {
         commitChange(
           buildPatch(Math.max(minValue, Math.min(maxValue, fieldInputElement.valueAsNumber)))
@@ -323,6 +443,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   };
   createPercentInput(
     "左侧（%）",
+    // position 存的是左上角坐标，而用户填写的是中心点位置，因此这里要加上半个宽 / 高。
     ((Number(position.x || 0) + componentWidthPx / 2) / canvasWidthPx) * 100,
     0,
     100,
@@ -383,7 +504,10 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   }));
   const houseSection = createSection("户型");
   const houseStatusElement = createElement("p", "inspector-section-note");
+  // role=status 让屏幕阅读器在状态变化时自动播报（载入中 / 失败原因）。
   houseStatusElement.setAttribute("role", "status");
+  // 过程状态按「项目 + 组件」缓存：面板重建（每次改属性都会重建）不应该把
+  // 「正在载入」或失败原因丢掉，也不该重复发起请求。
   const sceneStateKey = (editorOptions.document?.projectId || "") + "/" + targetComponent.id;
   if (!sceneStateByKey.has(sceneStateKey)) {
     sceneStateByKey.set(sceneStateKey, {
@@ -400,11 +524,13 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   environmentConfigButton.type = "button";
   const planRenderButton = createElement("button", "", "户型渲染");
   planRenderButton.type = "button";
+  // 让宿主先把画布准备好（3D 视图需要挂到画布上），再等待视图句柄就绪。
   const ensureEditorView = async () => {
     editorOptions.prepareCanvas?.();
     viewStatusElement.hidden = false;
     viewStatusElement.textContent = "正在准备户型…";
     const readyView = await waitInteraction3dEditorView(targetComponent.id);
+    // 等待期间面板可能已被关闭或切到别的组件，此时不能把句柄交回去。
     if (inspectorElement.hidden || inspectorElement.dataset.componentId !== targetComponent.id) {
       return null;
     } else {
@@ -418,7 +544,9 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       if (!(await ensureEditorView())) {
         return;
       }
+      // 渲染外观编辑器会读写后端资源，打开前再校验一次授权。
       await requestInteraction3dAccess();
+      // 子编辑器体积大且只在点击时才用得上，用动态 import 拆包。
       const { openInteraction3dAppearanceEditor: openAppearanceEditor } =
         await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916013557");
       await openAppearanceEditor({
@@ -448,6 +576,9 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   const configureDevicesButton = createElement("button", "", "配置设备");
   configureDevicesButton.type = "button";
   devicesSection.append(configureDevicesButton);
+  // 设备 / 扫地机 / 灯光 / 环境这几个子编辑器都在维护「同一份 properties 的一组字段」，
+  // 因此保存时用 replaceProperties 整段替换：子编辑器内部会自行清理被移除的字段，
+  // 若只做浅合并，删掉的设备配置会残留下来。
   configureDevicesButton.addEventListener("click", async () => {
     configureDevicesButton.disabled = true;
     try {
@@ -483,6 +614,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   configureSecurityButton.addEventListener("click", async () => {
     configureSecurityButton.disabled = true;
     try {
+      // 安防编辑器会接触摄像头相关配置，同样先做一次授权校验。
       await requestInteraction3dAccess();
       const { openSecurityEditor: openSecurityEditor } =
         await import("/api/v1/modules/interaction3d/security-editor.js?v=20260916013557");
@@ -537,6 +669,8 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       configureVacuumButton.disabled = false;
     }
   });
+  // 户型的「依赖状态」集中在一处刷新：所有按钮的可用性都由 sceneId 是否存在、
+  // 以及是否处于视角调整模式决定，避免各处重复判断导致状态不一致。
   sceneState.refresh = () => {
     if (houseStatusElement.isConnected) {
       houseStatusElement.textContent = properties.sceneId
@@ -555,7 +689,10 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       planRenderButton.disabled = !properties.sceneId || isViewEditing;
     }
   };
+  // 请求后端签发户型（sceneId）并写回组件属性；state / error 只影响提示与按钮可用性，
+  // 由 sceneState.refresh 统一反映到界面。
   const loadScene = async () => {
+    // 载入中就不重复发请求，防止用户连点「重新载入」产生多个并发户型请求。
     if (sceneState.state !== "loading") {
       sceneState.state = "loading";
       sceneState.error = "";
@@ -568,6 +705,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
         sceneState.state = "ready";
       } catch (sceneLoadError) {
         sceneState.state = "error";
+        // 超时对用户来说「稍后重试」即可，与真正的后端错误区分开文案。
         sceneState.error =
           sceneLoadError.name === "TimeoutError"
             ? "户型载入超时，请重试。"
@@ -580,6 +718,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   lightingConfigButton.addEventListener("click", async () => {
     lightingConfigButton.disabled = true;
     try {
+      // 灯光配置涉及实体绑定，先确认当前会话仍有 3D 交互权限。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openLightingEditor } =
         await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916013557");
@@ -608,6 +747,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   environmentConfigButton.addEventListener("click", async () => {
     environmentConfigButton.disabled = true;
     try {
+      // 环境（温湿度 / 空气质量）配置同样属于受限能力，打开前校验授权。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openEnvironmentEditor } =
         await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916013557");
@@ -639,9 +779,11 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   viewSection.append(viewFloorRowElement);
   const floorSelectElement = createElement("select");
   floorSelectElement.name = "i3d-view-floor";
+  // 视角调整进行中时不允许切楼层：当前相机要回写到对应楼层，换了楼层就不知道往哪写。
   floorSelectElement.disabled = isViewEditing;
   createLabeledField(viewFloorRowElement, "视角楼层", floorSelectElement);
   const floorGapInput = createElement("input");
+  // 楼层间距优先取组件里已保存的值，其次取视图元数据（同项目其它组件已设过的值），最后用 3m 兜底。
   Object.assign(floorGapInput, {
     name: "i3d-floor-gap",
     type: "number",
@@ -663,6 +805,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
           }
         });
       } else {
+        // 非法输入时回填旧值，避免留下空框让用户以为自己改成功了。
         floorGapInput.value = String(properties.floorGap ?? editorView?.metadata?.floorGap ?? 3);
       }
     }
@@ -696,12 +839,16 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   const floorNumberFieldsElement = createElement("div", "i3d-floor-number-fields");
   floorNumberGroupElement.append(floorNumberFieldsElement);
   viewSection.append(floorNumberGroupElement);
+  // 按当前户型的楼层列表渲染「楼层编号」输入行；编号存进 properties.floorNumbers，
+  // 负数表示地下层，列表为空时整组隐藏。
   const renderFloorNumberFields = floorList => {
     floorNumberFieldsElement.replaceChildren();
+    // 只有一层时楼层编号没有意义（不需要互相区分），整体隐藏。
     floorNumberGroupElement.hidden = !floorList.length;
     for (const [floorIndex, floorEntry] of floorList.entries()) {
       const floorId = floorEntry.id;
       const floorName = floorEntry.name || "未命名楼层";
+      // 楼层编号优先用组件自己的配置，其次是户型文件里带的编号，最后按列表顺序推一个。
       const floorNumber = properties.floorNumbers?.[floorId] ?? floorEntry.number ?? floorIndex + 1;
       const floorNumberInput = createElement("input");
       Object.assign(floorNumberInput, {
@@ -715,9 +862,11 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
         disabled: isViewEditing
       });
       createLabeledField(floorNumberFieldsElement, floorName, floorNumberInput);
+      // 记住「已提交成功」的编号：提交失败时用它回滚输入框，保证界面与文档一致。
       let committedFloorNumber = floorNumber;
       floorNumberInput.addEventListener("change", async () => {
         let nextFloorNumber = floorNumberInput.valueAsNumber;
+        // 0 层不存在：按原有的正负方向「跳过」到相邻楼层，避免用户手动再输一次。
         if (nextFloorNumber === 0) {
           nextFloorNumber = committedFloorNumber < 0 ? 1 : -1;
         }
@@ -725,6 +874,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
           floorNumberInput.value = String(committedFloorNumber);
           return;
         }
+        // 只提交这一层的编号，但仍要带上完整的 floorNumbers 对象（后端按整体校验）。
         const floorNumbersPatch = {
           ...properties.floorNumbers,
           [floorId]: nextFloorNumber
@@ -736,6 +886,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
               floorNumbers: floorNumbersPatch
             }
           });
+          // 面板不会重建，所以本地状态要跟着更新，否则下一次比较会用到旧值。
           properties.floorNumbers = floorNumbersPatch;
           committedFloorNumber = nextFloorNumber;
           floorNumberInput.value = String(nextFloorNumber);
@@ -748,6 +899,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       });
     }
   };
+  // 用视图元数据同步楼层下拉、楼层间距与多层叠加开关；视图还没挂载时静默跳过。
   const syncFloorControls = editorViewData => {
     if (!floorSelectElement.isConnected) {
       return;
@@ -894,6 +1046,8 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   viewOptionsElement.hidden = !isViewEditing;
   viewSection.append(viewOptionsElement);
   const viewCamera = editorView?.viewCamera || properties.camera || {};
+  // 向正在调整视角的 3D 视图下发一条相机命令；视图已退出调整态时静默放弃，
+  // 提交成功后整体重建面板，让按钮的选中态与最新相机配置对齐。
   const runViewCommand = async (commandName, commandValue) => {
     try {
       const currentEditorView = getInteraction3dEditorView(targetComponent.id);
@@ -1092,6 +1246,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     ...properties,
     pageBehaviors: pageBehaviors
   };
+  // 算出当前范围下真正生效的行为配置：单页面未单独设置的字段由 resolvePageBehavior 回退到全局。
   const resolveCurrentBehavior = () =>
     resolvePageBehavior(
       {
@@ -1101,6 +1256,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       },
       behaviorPage
     );
+  // 统一读取行为开关：hideIconsWhileRotating 存布尔值本身，其余行为存 { enabled }。
   const readBehaviorFlag = behaviorKey =>
     behaviorKey === "hideIconsWhileRotating"
       ? resolveCurrentBehavior()[behaviorKey]
@@ -1145,6 +1301,8 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       "以下设置统一应用于所选范围；单页面未单独设置的参数沿用全部页面。"
     )
   );
+  // 提交一条行为改动。两种范围的落点不同，必须分流：单页面写进 pageBehaviors[当前页]，
+  // 全局写进顶层属性 draftProperties；布尔类设置存值本身，其余存 { ...原值, ...改动 }。
   const commitBehavior = (behaviorField, behaviorValue) => {
     if (!isViewEditing) {
       if (behaviorScope === "page") {
@@ -1195,6 +1353,8 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       }
     }
   };
+  // 开关类设置的统一入口：hideIconsWhileRotating 历史上存的是布尔值本身（与它会话内生效的
+  // 语义一致），其余行为存 { enabled }，这里替调用方抹平差异。
   const commitBehaviorEnabled = (behaviorName, enabled) =>
     commitBehavior(
       behaviorName,
@@ -1301,6 +1461,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   }
   autoRotateRowElement.append(autoRotateToggleLabel, autoRotateDirectionOptionsElement);
   autoRotateSection.append(autoRotateRowElement, autoRotateFieldsElement);
+  // 生成自动旋转的数值输入行；idleSeconds 以秒计必须取整，speed 允许 0.5 的步进。
   const createAutoRotateField = (
     autoRotateFieldLabel,
     settingKey,
@@ -1487,6 +1648,8 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     hideWhileRotatingInput
   );
   iconVisibilitySection.append(hideWhileRotatingLabel);
+  // 把当前生效的行为配置回灌到控件。切范围 / 切页面 / 提交失败回滚都走这里，
+  // 因此它同时负责字段值、禁用态与折叠态三类同步。
   function syncBehaviorControls() {
     behaviorPageRowElement.hidden = behaviorScope !== "page";
     const resolvedBehavior = resolveCurrentBehavior();
@@ -1583,6 +1746,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   ]) {
     const visibilityButton = createElement("button", "", visibilityLabel);
     visibilityButton.type = "button";
+    // backgroundVisible 缺省视为「显示」，只有显式 false 才算隐藏，与渲染端默认一致。
     const isActiveVisibility = (properties.backgroundVisible !== false) === visibilityValue;
     visibilityButton.classList.toggle("active", isActiveVisibility);
     visibilityButton.setAttribute("aria-pressed", String(isActiveVisibility));
@@ -1698,12 +1862,16 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     step: "1"
   });
   motionScaleInput.setAttribute("aria-label", "转动分辨率百分比");
+  // 转动分辨率的显示口径：文档里存 0.25~1 的比例（null 表示自动跟随静止分辨率），
+  // 面板上按整数百分比呈现，因此这里要做比例 ↔ 百分比的换算。
   const syncMotionResolutionControls = () => {
     setControlValue(motionModeSelect, motionRenderScale === null ? "auto" : "custom");
     motionModeSelect.disabled = isViewEditing;
     motionScaleInput.disabled = isViewEditing || motionRenderScale === null;
     motionScaleInput.value = String(Math.round(lastMotionRenderScale * 100));
   };
+  // 提交转动分辨率：null 表示「自动」，数值是 0.25~1 的比例；提交前照例过高负载确认，
+  // 结束后无论成功失败都回到 syncMotionResolutionControls 重算禁用态与显示值。
   const commitMotionRenderScale = async nextMotionScale => {
     motionModeSelect.disabled = motionScaleInput.disabled = true;
     try {
@@ -1808,10 +1976,13 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   reflectionStrengthSettingElement.append(reflectionStrengthInput, reflectionStrengthOutput);
   groundReflectionSection.append(reflectionOptionsElement);
   createLabeledField(groundReflectionSection, "强度", reflectionStrengthSettingElement);
+  // 反射范围选「关闭」时清晰度与强度都不生效，一并禁用，避免用户改了却看不到变化。
   const syncReflectionControls = () => {
     reflectionResolutionSelect.disabled = reflectionStrengthInput.disabled =
       isViewEditing || groundReflectionSettings.mode === "off";
   };
+  // 提交地面反射设置（范围 / 清晰度 / 强度已归一）。三组控件共用这一个处理器，
+  // 因此先按 programmaticControls 拦掉自身派发的 change，再把控件回滚到已提交的取值。
   const commitGroundReflection = async changeEvent => {
     if (programmaticControls.has(changeEvent?.target)) {
       return;
@@ -1885,6 +2056,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   const saturationInput = createElement("input");
   const saturationOutput = createElement("output");
   const saturationSettingElement = createElement("div", "i3d-vignette-setting");
+  // 饱和度按页面分别存储；缺省值区分「ALL（全部楼层，100% 即不降饱和）」与单页（75%）。
   const readPageSaturation = () =>
     pageSaturationByPage[dimmingPageSelect.value] ??
     (dimmingPageSelect.value === "overview" ? 100 : 75);
@@ -1914,6 +2086,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     pageSaturationByPage = nextSaturationByPage;
   });
   saturationSettingElement.append(saturationInput, saturationOutput);
+  // 压暗强度同样按页面存储：ALL 默认不压暗（0），单页回退到组件里的 environment.dimStrength。
   const readPageDimStrength = () =>
     pageDimStrengthByPage[dimmingPageSelect.value] ??
     (dimmingPageSelect.value === "overview" ? 0 : (properties.environment?.dimStrength ?? 70));
@@ -2005,6 +2178,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       scale: 1,
       ...popupLayout[popupPresetKey]
     };
+    // 只在非视角调整模式下预览：调整视角时 3D 视图由相机接管，弹窗预览会互相干扰。
     const previewPopupLayout = (previewLayout = popupPresetLayout) => {
       if (!isViewEditing) {
         getInteraction3dEditorView(targetComponent.id)?.previewPopupLayout?.(popupPresetKey, {
@@ -2047,6 +2221,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     const popupPositionElement = createElement("div", "i3d-popup-position");
     popupGroupSection.append(popupPositionElement);
     const popupPositionInputsByAxis = {};
+    // 提交弹窗布局：先立即预览（滑杆拖动要跟手），再把该预设写回本地副本并整体提交。
     const commitPopupLayout = () => {
       previewPopupLayout();
       popupLayout[popupPresetKey] = {
@@ -2058,6 +2233,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
         }
       });
     };
+    // 只有勾选「自定义位置」时才显示并启用两个位置滑杆，否则位置由宿主自动排布。
     const syncPopupPositionControls = () => {
       popupPositionElement.hidden = !popupCustomPositionInput.checked;
       for (const popupPositionInput of Object.values(popupPositionInputsByAxis)) {
@@ -2321,6 +2497,8 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     [...openStateByGroup.entries()].find(([, groupOpen]) => groupOpen)?.[0] ?? null;
   const hasRenderedGroups = openStateByGroup.size > 0;
   const defaultOpenGroupKey = isViewEditing ? "view" : "layout";
+  // 追加一个可折叠分组。手风琴语义（同时只展开一组）与「弹窗分组被收起时撤回预览」
+  // 都在 toggle 监听里处理；重建面板时按 groupKey 恢复上次展开的那一组。
   const appendInspectorGroup = (groupKey, groupTitle, groupChildren) => {
     const detailsGroupElement = createElement("details", "i3d-inspector-group");
     detailsGroupElement.dataset.inspectorGroup = groupKey;

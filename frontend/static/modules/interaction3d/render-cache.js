@@ -1,4 +1,30 @@
+/**
+ * 3D 渲染结果的磁盘 / 内存缓存层。
+ *
+ * 位置：舞台页每次需要一帧画面时都先问这里（按「灯光增量」分层缓存），
+ *   命中就免去一次服务端渲染；未命中则取回 PNG、解码成 ImageBitmap 交给渲染器。
+ * 对外导出：RENDER_CACHE_VERSION、stableCacheJSON、sha256、lightLayerKey、
+ *   cacheSceneDescriptor、createRenderCache。
+ * 全局约定：
+ *   - RENDER_CACHE_VERSION 参与 key 计算：只要渲染算法或缓存语义变了就必须改它，
+ *     否则新旧结果会共用同一个 key，客户端会一直命中旧图；
+ *   - 服务端接口约定：GET 命中返回 image/png，未生成返回 404（且 content-type 不是 JSON），
+ *     明确无缓存返回 204；写回用 PUT，正文为 image/png；
+ *   - 所有 key 都由 sha256 得出，任何字段变化都必须体现为不同的 key，不能依赖时间戳。
+ * 副作用：持有 ImageBitmap（必须显式 close 才能释放显存）、在途请求与上传队列；
+ *   调用 close() 会中断全部在途请求并释放所有已解码位图。
+ */
+// 版本戳：改渲染口径（光照计算、分块策略等）时自增，用作所有 key 的一部分。
 export const RENDER_CACHE_VERSION = "i3d-light-delta-20260907-v5";
+/**
+ * 生成「键序无关」的 JSON 文本。
+ *
+ * 对象的键顺序在 JSON.stringify 里是有意义的，若不排序，同一份逻辑内容因键序不同
+ * 会算出不同的 key，缓存命中率会莫名其妙地掉下去。
+ *
+ * @param {*} payload 任意可序列化的值。
+ * @returns {string} 稳定文本（对象键递归排序后序列化）。
+ */
 export function stableCacheJSON(payload) {
   return JSON.stringify(payload, (key, rawValue) =>
     rawValue && typeof rawValue == "object" && !Array.isArray(rawValue)
@@ -10,15 +36,28 @@ export function stableCacheJSON(payload) {
       : rawValue
   );
 }
+/**
+ * 同步实现的 SHA-256。
+ *
+ * 为什么不用 crypto.subtle.digest：它是异步的，而缓存 key 需要在一帧之内算出来，
+ * 无法在同步的渲染路径里 await。因此这里自带一份纯 JS 实现（常量由前 64 个质数的
+ * 立方根 / 平方根小数部分按 FIPS 180-4 生成，不要手工改动）。
+ *
+ * @param {string} text 待哈希文本（UTF-8）。
+ * @returns {string} 64 位十六进制摘要。
+ */
 export function sha256(text) {
   const messageBytes = new TextEncoder().encode(text);
   const byteLength = messageBytes.length;
+  // 补位：0x80 + 若干 0，最后 8 字节放比特长度，因此总长向上取整到 64 字节。
   const paddedBytes = new Uint8Array(Math.ceil((byteLength + 9) / 64) * 64);
   paddedBytes.set(messageBytes);
   paddedBytes[byteLength] = 128;
   const dataView = new DataView(paddedBytes.buffer);
+  // 长度用两个 32 位字表示：高位是 length / 2^29（即除以 536870912）。
   dataView.setUint32(paddedBytes.length - 8, Math.floor(byteLength / 536870912));
   dataView.setUint32(paddedBytes.length - 4, byteLength * 8);
+  // 按标准生成 64 个轮常量（立方根）与 8 个初始向量（平方根）。
   const primes = [];
   const cubeRootConstants = [];
   const squareRootConstants = [];
@@ -31,10 +70,12 @@ export function sha256(text) {
       }
     }
   }
+  // SHA-256 的 32 位循环右移；JS 的 >>> 只取低 5 位位移量，因此 32 - shift 天然对 0 安全。
   const rotateRight = (word, shift) => (word >>> shift) | (word << (32 - shift));
   const messageSchedule = new Uint32Array(64);
   const hashState = squareRootConstants;
   for (let chunkOffset = 0; chunkOffset < paddedBytes.length; chunkOffset += 64) {
+    // 前 16 个字直接取原文，其余 48 个用标准递推式扩展。
     for (let scheduleIndex = 0; scheduleIndex < 16; scheduleIndex++) {
       messageSchedule[scheduleIndex] = dataView.getUint32(chunkOffset + scheduleIndex * 4);
     }
@@ -48,6 +89,7 @@ export function sha256(text) {
         (rotateRight(word2, 17) ^ rotateRight(word2, 19) ^ (word2 >>> 10));
     }
     let [stateA, stateB, stateC, stateD, stateE, stateF, stateG, stateH] = hashState;
+    // 64 轮压缩函数：temp1 是「Σ1 + Ch + K + W」，temp2 是「Σ0 + Maj」。
     for (let roundIndex = 0; roundIndex < 64; roundIndex++) {
       const temp1 =
         (stateH +
@@ -69,6 +111,7 @@ export function sha256(text) {
       stateB = stateA;
       stateA = (temp1 + temp2) >>> 0;
     }
+    // 每块算完后把结果累加回全局状态（>>> 0 保证保持 32 位无符号）。
     [stateA, stateB, stateC, stateD, stateE, stateF, stateG, stateH].forEach(
       (stateWord, stateIndex) => {
         hashState[stateIndex] = (hashState[stateIndex] + stateWord) >>> 0;
@@ -77,6 +120,16 @@ export function sha256(text) {
   }
   return hashState.map(hexWord => hexWord.toString(16).padStart(8, "0")).join("");
 }
+/**
+ * 计算「基础画面 + 某一层灯光」的缓存 key。
+ *
+ * key 由版本戳、基础 key、灯的描述与楼层 ID 共同决定：任何一项变化都会得到
+ * 一个全新的 key，因此缓存天然按「灯光增量」分层，不需要再做失效通知。
+ *
+ * @param {string} baseKey 基础画面（无灯光增量）的 key。
+ * @param {{item: object, floor: {id: string}}} layerDescriptor 灯光层的描述。
+ * @returns {string} 十六进制缓存 key。
+ */
 export function lightLayerKey(baseKey, layerDescriptor) {
   return sha256(
     stableCacheJSON({
@@ -87,12 +140,24 @@ export function lightLayerKey(baseKey, layerDescriptor) {
     })
   );
 }
+/**
+ * 生成用于计算基础 key 的场景描述。
+ *
+ * 这里做的是「剔除不影响画面的字段」：相机视图 / 剖切 / 面板宽度只影响编辑器的观察方式，
+ * 灯光组的 enabled / name 以及灯具自身的亮度色温也不参与 —— 灯光是单独分层的，
+ * 基础画面在灯光变化时必须保持同一个 key，否则每次调灯都要重新渲染整张底图。
+ *
+ * @param {Array<object>} floors 楼层列表。
+ * @returns {Array<object>} 可安全参与 key 计算的场景描述。
+ */
 export function cacheSceneDescriptor(floors) {
+  // 按名单剔除字段：只保留「会影响基础画面像素」的部分，供上层组合出稳定 key。
   const omitProperties = (source, omittedKeys) =>
     Object.fromEntries(
       Object.entries(source || {}).filter(([propertyName]) => !omittedKeys.includes(propertyName))
     );
   return floors.map(floor => ({
+    // name 置 undefined 而不是删除：保持对象形状一致，让 stableCacheJSON 结果更稳定。
     ...floor,
     name: undefined,
     scene: {
@@ -119,6 +184,33 @@ export function cacheSceneDescriptor(floors) {
     }
   }));
 }
+/**
+ * 创建渲染缓存实例。
+ *
+ * 缓存分三层，职责与上限各不相同：
+ *   1) encodedBlobsByKey：已下载 / 已生成的 PNG（LRU，最多 64 条且总字节不超过 maxBytes）；
+ *   2) decodedRecordsByKey：解码后的 ImageBitmap（引用计数 + 最多 maxDecodedFrames 帧），
+ *      必须显式 close 才能释放显存，因此用 refs / retained 两个标记控制回收；
+ *   3) inFlightReadsByKey：同一 key 的并发读取合并成一次请求，避免同一张图下载多次。
+ * 另外维护一个上传队列（pendingUploadsByKey），把本地新生成的图回写服务端。
+ *
+ * 所有依赖（fetcher / decode / now / makeCanvas / report）都可注入，便于在测试里
+ * 用假计时器与假解码器复现容量淘汰、超时、并发合并等分支。
+ *
+ * @param {object} [options] 配置。
+ * @param {string} options.sceneId 场景 ID（拼进请求 URL）。
+ * @param {string} options.projectId 项目 ID（拼进请求 URL，可为空）。
+ * @param {Function} [options.fetcher] 网络实现，默认全局 fetch。
+ * @param {(blob: Blob) => Promise<ImageBitmap>} [options.decode] 解码实现，默认 createImageBitmap。
+ * @param {number} [options.maxBytes] 编码缓存字节上限，默认 32MB。
+ * @param {number} [options.timeoutMs] 单次请求超时，默认 1800ms。
+ * @param {() => number} [options.now] 当前时间，默认 Date.now。
+ * @param {Function} [options.report] 统计上报回调。
+ * @param {Function} [options.makeCanvas] 创建离屏画布，用于大图分块。
+ * @param {number} [options.maxDecodedBytes] 解码后位图字节上限，默认 32MB。
+ * @param {number} [options.maxDecodedFrames] 解码后位图帧数上限，默认 3 帧。
+ * @returns {object} 缓存实例（stats / closed / acquire / read / write / close）。
+ */
 export function createRenderCache({
   sceneId: sceneId,
   projectId: projectId,
@@ -133,15 +225,19 @@ export function createRenderCache({
   maxDecodedFrames: maxDecodedFrames = 3
 } = {}) {
   const encodedBlobsByKey = new Map();
+  // 在途请求集合：close 时统一 abort，避免残留请求在页面销毁后仍然回调。
   const abortControllers = new Set();
   const pendingUploadsByKey = new Map();
   const decodedRecordsByKey = new Map();
+  // 同一个 key 的并发读取合并表：waiters 记录调用方的「还需要吗」判定，
+  // 全部判定为假时共享的 promise 也会自行放弃结果（见 acquire）。
   const inFlightReadsByKey = new Map();
   let decodedBytes = 0;
   let memoryBytes = 0;
   let pendingBytes = 0;
   let isUploading = false;
   let isClosed = false;
+  // 出错后的冷却截止时间：后端故障时若不断重试，会把本该用于渲染的带宽全耗在重试上。
   let errorCooldownUntil = 0;
   const stats = {
     memoryHits: 0,
@@ -152,6 +248,7 @@ export function createRenderCache({
     errors: 0,
     decodedHits: 0
   };
+  // 统计随用随报：解码 / 命中 / 上传等每个关键节点都会触发一次，供性能面板实时展示。
   const emitStats = () =>
     onReport({
       ...stats,
@@ -160,12 +257,15 @@ export function createRenderCache({
       decodedBytes: decodedBytes,
       decodedFrames: decodedRecordsByKey.size
     });
+  // 归还一份引用；只有「不再被缓存持有」且「所有租约都已归还」时才真正 close。
+  // ImageBitmap 不 close 会一直占显存，而正在被渲染器使用的位图又不能提前释放。
   function releaseEntry(leaseRecord) {
     leaseRecord.refs--;
     if (!leaseRecord.retained && leaseRecord.refs === 0) {
       leaseRecord.image.close();
     }
   }
+  // 淘汰一帧解码缓存：先摘出账，再按是否有活跃租约决定是否 close。
   function evictDecodedEntry(evictedKey) {
     const cachedRecord = decodedRecordsByKey.get(evictedKey);
     if (cachedRecord) {
@@ -177,6 +277,8 @@ export function createRenderCache({
       }
     }
   }
+  // 存入新解码的位图并立即执行容量淘汰。
+  // bytes 按 RGBA 四字节估算，用于和 maxDecodedBytes 比较；淘汰按 Map 的插入顺序（最旧优先）。
   function storeDecodedImage(cacheKey, sourceImage, imageWidth, imageHeight) {
     evictDecodedEntry(cacheKey);
     const newRecord = {
@@ -194,6 +296,8 @@ export function createRenderCache({
     }
     return newRecord;
   }
+  // 为调用方创建一份租约：调用方必须在用完后 close()，
+  // isReleased 保证重复 close 不会把引用计数减成负数。
   function createDecodedLease(record) {
     record.refs++;
     let isReleased = false;
@@ -209,6 +313,7 @@ export function createRenderCache({
       }
     };
   }
+  // 分块 URL 的拼装口径与服务端路由约定死；tileKey 已经过 sha256，无需再转义。
   const buildTileUrl = tileKey =>
     "/api/v1/modules/interaction3d/scenes/" +
     encodeURIComponent(sceneId) +
@@ -216,6 +321,7 @@ export function createRenderCache({
     tileKey +
     "?projectId=" +
     encodeURIComponent(projectId || "");
+  // 写入编码缓存（重写同一 key 时先扣掉旧账），随后按「字节上限 + 64 条」两个维度做 LRU 淘汰。
   function cacheBlob(blobKey, blobValue) {
     if (encodedBlobsByKey.has(blobKey)) {
       memoryBytes -= encodedBlobsByKey.get(blobKey).size;
@@ -231,13 +337,26 @@ export function createRenderCache({
       encodedBlobsByKey.delete(oldestKey);
     }
   }
+  /**
+   * 发起一次缓存请求（GET 下载 / PUT 回写共用）。
+   *
+   * @param {string} requestKey 缓存 key。
+   * @param {object} [requestOptions] 附加 fetch 选项；带 method 视为写请求。
+   * @param {() => boolean} [isRequestWanted] 返回 false 表示调用方已不再需要这次结果。
+   * @returns {Promise<Blob|Response|object|null>} GET 成功返回 Blob，PUT 返回 Response，
+   *   未命中 / 已放弃 / 失败返回 null。
+   */
   async function requestBlob(requestKey, requestOptions = {}, isRequestWanted = () => true) {
+    // 关闭中或处于错误冷却期时直接放弃，不产生任何请求。
     if (isClosed || now() < errorCooldownUntil) {
       return null;
     }
     const requestAbortController = new AbortController();
     abortControllers.add(requestAbortController);
+    // 单次请求硬超时：后端渲染偶发卡顿时不能让调用方一直等。
     const timeoutId = setTimeout(() => requestAbortController.abort(), timeoutMs);
+    // 读请求还要额外轮询「调用方是否仍然需要」：画面已经切走时立刻中断下载，省流量也省后端算力。
+    // 写请求（PUT）不回传画面，不必做这个轮询。
     const stalePollId = requestOptions.method
       ? null
       : setInterval(() => {
@@ -251,6 +370,8 @@ export function createRenderCache({
         credentials: "same-origin",
         signal: requestAbortController.signal
       });
+      // 404 且不是 JSON，说明「服务端还没生成这张缓存」，属于正常的未命中而不是故障。
+      // 区分二者很重要：把未命中当错误会让下一次请求被冷却期挡住。
       const isBinaryMiss =
         !requestOptions.method &&
         response.status === 404 &&
@@ -258,6 +379,7 @@ export function createRenderCache({
       if (!response.ok && !isBinaryMiss) {
         throw new Error("cache unavailable");
       }
+      // 204 与服务端未生成：明确没有缓存，返回 null 让上层走「需要渲染」的分支。
       if (!requestOptions.method && (response.status === 204 || isBinaryMiss)) {
         return null;
       } else if (requestOptions.method) {
@@ -268,17 +390,21 @@ export function createRenderCache({
         return null;
       }
     } catch {
+      // 只有「调用方仍然需要」的失败才计入错误并进入冷却；
+      // 主动放弃（切页、超时中止）不应影响后续请求。
       if (!isClosed && isRequestWanted()) {
         stats.errors++;
         errorCooldownUntil = now() + 15000;
       }
       return null;
     } finally {
+      // 三条路径都必须清掉定时器与轮询，否则会留下永久运行的 interval。
       clearTimeout(timeoutId);
       clearInterval(stalePollId);
       abortControllers.delete(requestAbortController);
     }
   }
+  // 串行回写本地新生成的缓存：一次只 PUT 一张，且每次都重取队首 —— 上传过程中可能又有新图入队。
   async function flushPendingUploads() {
     if (!isUploading && !isClosed) {
       isUploading = true;
@@ -286,7 +412,9 @@ export function createRenderCache({
         while (pendingUploadsByKey.size && !isClosed) {
           const [uploadKey, uploadBlob] = pendingUploadsByKey.entries().next().value;
           pendingUploadsByKey.delete(uploadKey);
+          // 出队即先减账：无论上传成功与否，这张图都不再占用待传配额。
           pendingBytes -= uploadBlob.size;
+          // PUT 失败不计入错误：回写只影响下次的命中率，不该打断当前渲染或触发冷却。
           if (
             (
               await requestBlob(uploadKey, {
@@ -307,6 +435,8 @@ export function createRenderCache({
       }
     }
   }
+  // 把超过阈值的大图切成 1024 × 1024 的分块：单张巨图会让服务端与浏览器同时出现内存峰值，
+  // 也更容易触发请求超时；分块后还能按视口只取需要的部分。块的 key 里带上尺寸与偏移保证唯一。
   const createTilePlan = (tileHash, tileWidth, tileHeight) => {
     const tiles = [];
     for (let offsetY = 0; offsetY < tileHeight; offsetY += 1024) {
@@ -329,19 +459,36 @@ export function createRenderCache({
     get closed() {
       return isClosed;
     },
+    /**
+     * 取一张已解码的位图，返回带引用计数的租约。
+     *
+     * 命中内存时直接复用；未命中则合并并发读取，只发起一次下载 + 解码。
+     * 调用方用完必须 close() 租约。
+     *
+     * @param {string} acquireKey 缓存 key。
+     * @param {number} acquireWidth 目标宽度（px）。
+     * @param {number} acquireHeight 目标高度（px）。
+     * @param {() => boolean} [isAcquireWanted] 返回 false 表示调用方已不再需要。
+     * @returns {Promise<object|null>} 租约对象（含 image / width / height / close）；无结果时为 null。
+     */
     async acquire(acquireKey, acquireWidth, acquireHeight, isAcquireWanted = () => true) {
+      // 关闭、无 key、调用方已不需要：三种情况都直接不做事。
       if (isClosed || !acquireKey || !isAcquireWanted()) {
         return null;
       }
+      // 解码缓存按「key + 目标尺寸」索引：同一张图在不同尺寸下是两份独立位图。
       const acquireRecordKey = acquireKey + ":" + acquireWidth + ":" + acquireHeight;
       const existingRecord = decodedRecordsByKey.get(acquireRecordKey);
       if (existingRecord) {
+        // 命中后把记录移到 Map 末尾（LRU 热端）：淘汰按插入顺序从头部开始，越靠后越安全。
         decodedRecordsByKey.delete(acquireRecordKey);
         decodedRecordsByKey.set(acquireRecordKey, existingRecord);
         stats.decodedHits++;
         emitStats();
         return createDecodedLease(existingRecord);
       }
+      // 合并同一 key 的并发读取：多个调用方共享一次下载 / 解码。
+      // waiters 里存的是各调用方的「还需要吗」判定函数，只要还有一方需要就保留结果。
       let inFlightEntry = inFlightReadsByKey.get(acquireRecordKey);
       if (!inFlightEntry) {
         inFlightEntry = {
@@ -350,8 +497,11 @@ export function createRenderCache({
         };
         inFlightReadsByKey.set(acquireRecordKey, inFlightEntry);
       }
+      // 本调用方的需求判定：一旦缓存关闭或调用方改了口径，就不再认领共享结果。
       const isStillWanted = () => !isClosed && isAcquireWanted();
       inFlightEntry.waiters.add(isStillWanted);
+      // 共享的读取 promise：所有等待者都放弃时结果会被丢弃，不会白占一份解码内存。
+      // 有值后（||=）再调用本方法的人会直接复用同一次读取。
       inFlightEntry.promise ||= cache
         .read(acquireKey, acquireWidth, acquireHeight, () =>
           [...inFlightEntry.waiters].some(waiterCheck => waiterCheck())
@@ -372,6 +522,7 @@ export function createRenderCache({
             : null
         );
       try {
+        // 等共享结果；期间若本调用方已不再需要（换了场景 / 换了尺寸），就不能把结果交回去。
         const sharedRecord = await inFlightEntry.promise;
         if (sharedRecord && isStillWanted()) {
           return createDecodedLease(sharedRecord);
@@ -380,6 +531,8 @@ export function createRenderCache({
         }
       } finally {
         inFlightEntry.waiters.delete(isStillWanted);
+        // 最后一个等待者离开时删表并归还「缓存持有的那一份引用」：
+        // 引用计数归零后位图才会真正被 close。
         if (!inFlightEntry.waiters.size) {
           inFlightReadsByKey.delete(acquireRecordKey);
           if (inFlightEntry.entry) {
@@ -388,10 +541,20 @@ export function createRenderCache({
         }
       }
     },
+    /**
+     * 读取一张缓存图并解码成位图（不进入解码缓存，供 acquire 与本模块内部使用）。
+     *
+     * @param {string} readKey 缓存 key。
+     * @param {number} readWidth 期望宽度（px）。
+     * @param {number} readHeight 期望高度（px）。
+     * @param {() => boolean} [isReadWanted] 返回 false 表示调用方已不再需要。
+     * @returns {Promise<object|null>} 位图（或由分块拼装出的画布）；未命中 / 失败为 null。
+     */
     async read(readKey, readWidth, readHeight, isReadWanted = () => true) {
       if (isClosed || !readKey || !isReadWanted()) {
         return null;
       }
+      // 2M 像素（约 1448²）是单张 PNG 的实际上限：超过就分块读取再拼装，避免一次性申请巨量内存。
       if (readWidth * readHeight > 2097152) {
         const canvasElement = makeCanvas();
         canvasElement.width = readWidth;
@@ -403,6 +566,7 @@ export function createRenderCache({
             return null;
           }
           for (const sourceTile of createTilePlan(readKey, readWidth, readHeight)) {
+            // 递归读取分块：单块尺寸都小于阈值，因此走的是下面的直接请求分支。
             const tileImage = await cache.read(
               sourceTile.key,
               sourceTile.width,
@@ -412,6 +576,7 @@ export function createRenderCache({
             if (!tileImage) {
               return null;
             }
+            // 无论画图成功还是中途放弃，分块位图都必须 close，否则拆图过程会持续泄漏显存。
             try {
               if (isClosed || !isReadWanted()) {
                 return null;
@@ -421,6 +586,8 @@ export function createRenderCache({
               tileImage.close();
             }
           }
+          // 拼装结果伪装成 ImageBitmap：调用方统一用 close() 释放，
+          // 这里把宽高归零，尽快让浏览器回收这块像素内存。
           canvasElement.close = () => {
             canvasElement.width = canvasElement.height = 0;
           };
@@ -432,18 +599,22 @@ export function createRenderCache({
           }
         }
       }
+      // 先查内存缓存；命中与需要走网络的统计分开记，便于评估缓存命中率。
       let cachedBlob = encodedBlobsByKey.get(readKey);
       let statsKey = cachedBlob ? "memoryHits" : "serverHits";
       cachedBlob ||= await requestBlob(readKey, {}, isReadWanted);
       if (isClosed || !isReadWanted()) {
         return null;
       }
+      // 超过 10MB 或类型不是 PNG 一律视为未命中：超大图解码会长时间占用主线程；
+      // 类型不符通常意味着拿到的是错误页或被代理改写过的响应。
       if (!cachedBlob || cachedBlob.size > 10485760 || cachedBlob.type !== "image/png") {
         stats.misses++;
         emitStats();
         return null;
       }
       let decodedImage;
+      // 解码后必须复核尺寸：解码期间场景可能已经切换，尺寸不符说明这是过期结果，宁可丢弃。
       try {
         decodedImage = await decode(cachedBlob);
         if (
@@ -454,11 +625,14 @@ export function createRenderCache({
         ) {
           throw new Error("stale image");
         }
+        // 确认可用之后才写入内存缓存：不把过期 / 坏数据留在缓存里。
         cacheBlob(readKey, cachedBlob);
         stats[statsKey]++;
         emitStats();
         return decodedImage;
       } catch {
+        // 解码失败或尺寸不符：释放半成品位图，并把可能已写入的编码缓存清掉，
+        // 否则下一帧会继续命中同一张坏图，形成持续失败。
         decodedImage?.close?.();
         if (encodedBlobsByKey.has(readKey)) {
           memoryBytes -= encodedBlobsByKey.get(readKey).size;
@@ -469,10 +643,19 @@ export function createRenderCache({
         return null;
       }
     },
+    /**
+     * 写回一张渲染结果：先存内存，再后台排队上传到服务端。
+     *
+     * @param {string} writeKey 缓存 key。
+     * @param {object} writeImage 待写回的位图 / 画布（需支持 toBlob 与 width / height）。
+     * @param {() => boolean} [isWriteWanted] 返回 false 表示调用方已不再需要这次写回。
+     * @returns {Promise<void>} 无返回值；失败只计入统计，不抛错。
+     */
     async write(writeKey, writeImage, isWriteWanted = () => true) {
       if (isClosed || !writeKey || !isWriteWanted()) {
         return;
       }
+      // 大图同样按 1024 分块写出，理由与读取一致：避免单张巨图造成的内存峰值与超时。
       if (writeImage.width * writeImage.height > 2097152) {
         const tileCanvas = makeCanvas();
         try {
@@ -497,6 +680,7 @@ export function createRenderCache({
               tile.width,
               tile.height
             );
+            // 递归写回每个分块；tileCanvas 被复用，因此每轮都要重设尺寸。
             await cache.write(tile.key, tileCanvas, isWriteWanted);
           }
         } finally {
@@ -505,6 +689,7 @@ export function createRenderCache({
         return;
       }
       let blob;
+      // toBlob 是异步的（编码可能发生在别的线程），因此包成 Promise 等待。
       try {
         blob = await new Promise(resolveBlob => writeImage.toBlob(resolveBlob, "image/png"));
       } catch {
@@ -515,6 +700,8 @@ export function createRenderCache({
       if (!isClosed && !!isWriteWanted() && !!blob && !(blob.size > 10485760)) {
         cacheBlob(writeKey, blob);
         stats.generated++;
+        // 入队条件（待传总量 <= 16MB、队列 <= 32 条、不在错误冷却期、同 key 未排队）：
+        // 上传是后台行为，必须严格限流，绝不能和前台渲染争带宽与后端算力。
         if (
           pendingBytes + blob.size <= 16777216 &&
           pendingUploadsByKey.size < 32 &&
@@ -529,6 +716,8 @@ export function createRenderCache({
       }
     },
     close() {
+      // 关闭后：中断全部在途请求（否则它们的回调会在页面销毁后仍然执行），
+      // 释放所有解码位图，清空编码缓存与上传队列（未上传的结果不再有意义）。
       isClosed = true;
       for (const pendingController of abortControllers) {
         pendingController.abort();

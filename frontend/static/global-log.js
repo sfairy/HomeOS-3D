@@ -1,14 +1,34 @@
+/**
+ * 全局日志查看器（后端日志 + 客户端上报日志的统一界面）。
+ *
+ * 位置：编辑器 / 面板顶栏「全局日志」按钮打开的对话框，由 global-log-boot.js
+ *   注入 api 后调用 setupGlobalLog 启动。
+ * 职责：分页拉取 /api/v1/logs、按等级 / 分类 / 关键字筛选、展开详情、
+ *   导出为 txt、清空日志，并在对话框打开期间自动刷新。
+ * 约定：接口路径由注入的 api 拼接（相对 /api/v1），本模块不直接 fetch；
+ *   每页 200 条，翻到「查看历史」时暂停自动刷新，避免覆盖用户正在看的内容。
+ */
+
+// 日志等级的中文名，与后端 global_log.py 的等级枚举一致。
 const LEVEL_LABELS = {
   info: "信息",
   success: "成功",
   warning: "警告",
   error: "错误"
 };
+
+/**
+ * 把时间戳格式化成「MM-DD HH:mm:ss」。
+ *
+ * @param {string|number} timestamp 时间戳或可被 Date 解析的字符串。
+ * @returns {string} 格式化结果；无法解析时返回「时间未知」。
+ */
 function formatTimestamp(timestamp) {
   const parsedDate = new Date(timestamp);
   if (Number.isNaN(parsedDate.getTime())) {
     return "时间未知";
   } else {
+    // zh-CN 默认用 "/" 分隔，替换成 "-" 与后端日志文本风格统一。
     return new Intl.DateTimeFormat("zh-CN", {
       month: "2-digit",
       day: "2-digit",
@@ -21,9 +41,19 @@ function formatTimestamp(timestamp) {
       .replace(/\//g, "-");
   }
 }
+
+/**
+ * 启动全局日志对话框。
+ *
+ * @param {object} handlers 依赖注入。
+ * @param {function(string, object=): Promise<*>} handlers.api 请求函数，
+ *   接收以 /api/v1 为前缀的路径与 fetch 配置。
+ * @returns {object|null} {open, refresh} 控制器；页面缺少必要节点或已初始化时返回 null。
+ */
 export function setupGlobalLog({ api: apiRequest }) {
   const openButton = document.querySelector("#global-log-open");
   const dialogElement = document.querySelector("#global-log-dialog");
+  // dataset 标记做幂等保护：同一页面重复调用不会重复绑定事件。
   if (!openButton || !dialogElement || openButton.dataset.globalLogReady === "true") {
     return null;
   }
@@ -44,8 +74,11 @@ export function setupGlobalLog({ api: apiRequest }) {
   let refreshTimer = null;
   let searchTimer = null;
   let nextOffset = null;
+  // 加载中又收到新的刷新请求时置位，当前请求结束后补一次，避免请求互相覆盖。
   let hasPendingRefresh = false;
   const PAGE_SIZE = 200;
+
+  // 渲染日志列表；entryList 为空时展示占位文案。
   function renderEntries(entryList) {
     listElement.replaceChildren();
     if (!entryList.length) {
@@ -55,6 +88,7 @@ export function setupGlobalLog({ api: apiRequest }) {
       listElement.append(emptyElement);
       return;
     }
+    // 先攒进 DocumentFragment 再一次性插入，避免逐条 append 触发多次布局。
     const fragment = document.createDocumentFragment();
     for (const logEntry of entryList) {
       const itemElement = document.createElement("article");
@@ -65,6 +99,8 @@ export function setupGlobalLog({ api: apiRequest }) {
       const messageElement = document.createElement("strong");
       messageElement.textContent = logEntry.message || "未提供说明";
       const metaElement = document.createElement("span");
+      // 客户端上报的日志同时给出「客户端发生」与「服务端接收」两个时间，
+      // 便于排查离线补传的时序问题。
       const timeText = logEntry.clientTimestamp
         ? "客户端发生 " +
           formatTimestamp(logEntry.clientTimestamp) +
@@ -74,6 +110,7 @@ export function setupGlobalLog({ api: apiRequest }) {
       metaElement.textContent =
         timeText + " · " + (logEntry.source || "系统后台") + " · " + (logEntry.category || "系统");
       bodyElement.append(messageElement, metaElement);
+      // 有上下文或详情时才渲染可展开区域。
       if (logEntry.details || Object.keys(logEntry.context || {}).length) {
         const detailsElement = document.createElement("details");
         const summaryElement = document.createElement("summary");
@@ -90,6 +127,7 @@ export function setupGlobalLog({ api: apiRequest }) {
         detailsElement.append(summaryElement, detailsPreElement);
         bodyElement.append(detailsElement);
       }
+      // 重复日志被后端聚合计数，这里补一行「重复 N 次」的说明。
       if (Number(logEntry.repeatCount || 1) > 1) {
         const repeatElement = document.createElement("span");
         repeatElement.textContent =
@@ -110,6 +148,8 @@ export function setupGlobalLog({ api: apiRequest }) {
     }
     listElement.append(fragment);
   }
+
+  // 刷新分类下拉；当前选中的分类若已不存在则回退到「全部分类」。
   function syncCategoryOptions(categories) {
     const currentCategory = categorySelect.value;
     categorySelect.replaceChildren(new Option("全部分类", ""));
@@ -122,6 +162,8 @@ export function setupGlobalLog({ api: apiRequest }) {
       ? currentCategory
       : "";
   }
+
+  // 按当前筛选控件拼出查询参数。
   function buildQueryParams() {
     const searchParams = new URLSearchParams();
     if (levelSelect.value) {
@@ -135,8 +177,18 @@ export function setupGlobalLog({ api: apiRequest }) {
     }
     return searchParams;
   }
+
+  /**
+   * 拉取日志列表。
+   *
+   * @param {object} [options] 选项。
+   * @param {boolean} [options.append] 为 true 时在现有列表后追加（翻页），
+   *   否则从第一页重新加载。
+   * @returns {Promise<void>}
+   */
   async function loadEntries({ append: append = false } = {}) {
     if (isLoading) {
+      // 正在加载时记下待刷新标记，由 finally 里的逻辑补一次。
       if (!append) {
         hasPendingRefresh = true;
       }
@@ -146,6 +198,7 @@ export function setupGlobalLog({ api: apiRequest }) {
     refreshButton.disabled = true;
     moreButton.disabled = true;
     if (!append) {
+      // 非追加模式视为全新查询，清空游标与「查看更多」。
       entries = [];
       nextOffset = null;
       moreButton.hidden = true;
@@ -157,12 +210,14 @@ export function setupGlobalLog({ api: apiRequest }) {
       queryParams.set("offset", String((append && nextOffset) || 0));
       const response = await apiRequest("/logs?" + queryParams);
       const items = response?.items || [];
+      // 追加时按 id 去重（Map 保留后写入的项），避免翻页期间新日志造成重复行。
       entries = append
         ? [...new Map([...entries, ...items].map(entry => [entry.id, entry])).values()]
         : items;
       nextOffset = response?.hasMore ? response.nextOffset : null;
       syncCategoryOptions(response?.categories || []);
       renderEntries(entries);
+      // 状态栏把存储用量、保留天数、写入失败等信息拼成一行提示。
       const storage = response?.storage || {};
       const sizeLimitText = storage.maxBytes
         ? " / " + (storage.maxBytes / 1024 / 1024).toFixed(0) + " MB 上限"
@@ -208,18 +263,23 @@ export function setupGlobalLog({ api: apiRequest }) {
       isLoading = false;
       refreshButton.disabled = false;
       moreButton.disabled = false;
+      // 期间被别处请求过刷新，这里补一次，保证界面最终是最新数据。
       if (hasPendingRefresh) {
         hasPendingRefresh = false;
         loadEntries();
       }
     }
   }
+
+  // 关闭对话框时必须停止自动刷新，否则会在后台持续请求。
   function stopAutoRefresh() {
     if (refreshTimer) {
       window.clearInterval(refreshTimer);
     }
     refreshTimer = null;
   }
+
+  // 打开对话框：加载首屏后开启 10 秒轮询。
   async function openDialog() {
     if (!dialogElement.open) {
       dialogElement.showModal();
@@ -227,17 +287,21 @@ export function setupGlobalLog({ api: apiRequest }) {
     await loadEntries();
     stopAutoRefresh();
     refreshTimer = window.setInterval(() => {
+      // 用户翻到历史页或展开了详情时暂停刷新，避免内容被顶掉。
       if (entries.length <= PAGE_SIZE && !listElement.querySelector("details[open]")) {
         loadEntries();
       }
     }, 10000);
   }
+
+  // 关闭对话框：必须停掉轮询再 close，否则对话框已关但 interval 仍在后台发请求。
   function closeDialog() {
     stopAutoRefresh();
     if (dialogElement.open) {
       dialogElement.close();
     }
   }
+
   openButton.addEventListener("click", openDialog);
   closeButton.addEventListener("click", closeDialog);
   closeFooterButton.addEventListener("click", closeDialog);
@@ -249,12 +313,14 @@ export function setupGlobalLog({ api: apiRequest }) {
   );
   levelSelect.addEventListener("change", loadEntries);
   categorySelect.addEventListener("change", loadEntries);
+  // 搜索输入做 250ms 防抖，避免每敲一个字就发一次请求。
   searchInput.addEventListener("input", () => {
     window.clearTimeout(searchTimer);
     searchTimer = window.setTimeout(loadEntries, 250);
   });
   dialogElement.addEventListener("close", stopAutoRefresh);
   exportButton.addEventListener("click", () => {
+    // 用临时 <a download> 触发浏览器下载，导出条件与当前筛选一致。
     const downloadLink = document.createElement("a");
     const exportParams = buildQueryParams();
     downloadLink.href = "/api/v1/logs/export" + (exportParams.size ? "?" + exportParams : "");
@@ -265,6 +331,7 @@ export function setupGlobalLog({ api: apiRequest }) {
     downloadLink.remove();
   });
   clearButton.addEventListener("click", async () => {
+    // 清空不可恢复，必须二次确认。
     if (window.confirm("确定清空当前全局日志吗？清空后无法恢复。")) {
       clearButton.disabled = true;
       try {
