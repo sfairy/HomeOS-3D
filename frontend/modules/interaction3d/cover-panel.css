@@ -1,7 +1,28 @@
+/*
+ * 窗帘 / 梦幻帘面板（.i3d-cover-panel）在 3D 舞台内的样式。
+ *
+ * 位置：interaction3d 展示侧，由 stage.css @import 引入；作用对象是
+ * cover-panel.js 生成的窗帘面板：标题与百分比、位置滑杆与三个动作按钮
+ * （打开 / 暂停 / 关闭）、反馈文案与梦幻帘叶片提示。
+ * 面板外壳沿用灯光面板的 .i3d-light-panel，只覆盖高度。
+ *
+ * 主题变量：宿主页 :root 提供 --surface / --field / --line / --muted（本文件未用到）；
+ * 滑杆已填充的长度由 JS 写成 --hb-cover-position-progress（百分比），
+ * 是这里唯一由脚本注入的自定义属性。
+ *
+ * 约定：
+ *   - .hb-cover-details-* 是「窗帘详情控件」的共享类名，renderer.js 在别处也会
+ *     用同一套结构渲染，本文件里的规则都以 .i3d-cover-panel 作前缀限定作用域；
+ *   - 滑杆的 WebKit 与 Firefox 伪元素必须分别写，两条链路的盒模型不同。
+ */
+
+/* 面板外壳：高度自适应并给出 232px 下限，保证位置滑杆与动作按钮不会挤在一起。 */
 .interaction3d-stage .i3d-light-panel.is-cover-panel {
   height: auto;
   min-height: 232px;
 }
+/* ===== 面板容器 ===== */
+
 .i3d-cover-panel {
   display: flex;
   flex-direction: column;
@@ -9,6 +30,7 @@
   width: 100%;
   height: 100%;
   min-height: 0;
+  /* 面板内容允许溢出到外壳之外：动作按钮的悬停放大不该被裁切。 */
   overflow: visible;
   color: #dce2e6;
   font:
@@ -16,6 +38,9 @@
     PingFang SC,
     sans-serif;
 }
+/* ===== 标题 ===== */
+
+/* 标题区固定 38px，与其它设备面板保持同一节奏。 */
 .i3d-cover-heading {
   flex: none;
   height: 38px;
@@ -37,6 +62,10 @@
   font-size: 11px;
   line-height: 14px;
 }
+/* ===== 控件槽位与共享窗帘控件 ===== */
+
+/* 槽位高度固定 120px：里面的 .hb-cover-details-controls 是绝对定位的，
+   两者配合才能保证面板展开/收起时不发生跳动。 */
 .i3d-cover-controls-slot {
   position: relative;
   flex: none;
@@ -50,6 +79,7 @@
   gap: 16px;
   padding: 4px 0 0;
 }
+/* 位置区：左列 60px 放「位置」标题（跨两行），右列放滑杆与图例。 */
 .i3d-cover-panel .hb-cover-details-position {
   position: relative;
   display: grid;
@@ -75,6 +105,8 @@
   font-weight: 620;
   text-align: center;
 }
+/* 滑杆本体：用 background 渐变画「已填充 / 未填充」两段，
+   分界点由 JS 写入的 --hb-cover-position-progress 控制，位置未知时按 0% 画。 */
 .i3d-cover-panel .hb-cover-details-position input {
   grid-column: 2;
   grid-row: 1;
@@ -82,6 +114,7 @@
   height: 14px;
   margin: 0;
   align-self: end;
+  /* 4px 深色边框充作轨道外圈，与内层渐变一起形成"凹槽"观感。 */
   border: 4px solid #252a2d;
   border-radius: 99px;
   outline: 0;
@@ -97,11 +130,14 @@
     0 0 0 2px #6f849240,
     inset 0 2px 7px #000c;
 }
+/* WebKit 的滑杆拆成 track / thumb 两个伪元素，轨道自身透明，进度交给上面的背景。 */
 .i3d-cover-panel .hb-cover-details-position input::-webkit-slider-runnable-track {
   height: 14px;
   border-radius: 99px;
   background: transparent;
 }
+/* 滑块：transparent 边框 + padding-box 背景，等于给圆形滑块留出一圈描边空间；
+   负 margin-top 是把 43px 的滑块在 14px 轨道上垂直居中所需的补偿值。 */
 .i3d-cover-panel .hb-cover-details-position input::-webkit-slider-thumb {
   width: 43px;
   height: 43px;
@@ -118,11 +154,13 @@
     height 0.12s ease,
     margin-top 0.12s ease;
 }
+/* 按住时滑块放大 6px，并把 margin-top 同步补偿，保证视觉中心不偏移。 */
 .i3d-cover-panel .hb-cover-details-position input:active::-webkit-slider-thumb {
   width: 49px;
   height: 49px;
   margin-top: -17.5px;
 }
+/* Firefox 的轨道需要显式给高度，否则滑块会贴着控件顶部。 */
 .i3d-cover-panel .hb-cover-details-position input::-moz-range-track {
   height: 14px;
 }
@@ -138,10 +176,12 @@
     width 0.12s ease,
     height 0.12s ease;
 }
+/* Firefox 的滑块不需要 margin 补偿，放大时只改尺寸。 */
 .i3d-cover-panel .hb-cover-details-position input:active::-moz-range-thumb {
   width: 47px;
   height: 47px;
 }
+/* 滑杆下方的刻度图例：两端对齐（关闭 / 打开）。 */
 .i3d-cover-panel .hb-cover-details-position-legend {
   display: flex;
   grid-column: 2;
@@ -152,6 +192,7 @@
   color: #6f7980;
   font-size: 11px;
 }
+/* 三个动作按钮（打开 / 暂停 / 关闭）等分一行。 */
 .i3d-cover-panel .hb-cover-details-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -174,6 +215,7 @@
     color 0.18s ease,
     transform 0.18s ease;
 }
+/* 悬停与选中共用同一套高亮：is-active 表示当前状态就落在这个按钮上。 */
 .i3d-cover-panel .hb-cover-details-actions button:hover,
 .i3d-cover-panel .hb-cover-details-actions button.is-active {
   border-color: #a8c5d3bd;
@@ -183,6 +225,7 @@
 .i3d-cover-panel .hb-cover-details-actions button:active {
   transform: scale(0.96);
 }
+/* is-pending：指令已发出、等待设备确认，用描边而不是改底色，避免与选中态混淆。 */
 .i3d-cover-panel .hb-cover-details-actions button.is-pending {
   border-color: #a8c5d3bd;
   box-shadow: inset 0 0 0 1px #a8c5d34d;
@@ -199,6 +242,8 @@
   font-size: 15px;
   font-weight: 620;
 }
+/* 覆盖：控件整体绝对定位在槽位里并缩放到 85%，
+   这样 374px 的固定宽度不会受面板实际宽度影响，缩放时也保持居中。 */
 .i3d-cover-panel .hb-cover-details-controls {
   position: absolute;
   top: 0;
@@ -210,11 +255,13 @@
 .i3d-cover-panel .hb-cover-details-actions button {
   cursor: pointer;
 }
+/* 禁用态统一降透明度；滑杆禁用时不再显示手型光标。 */
 .i3d-cover-panel .hb-cover-details-actions button:disabled,
 .i3d-cover-panel .hb-cover-details-position input:disabled {
   opacity: 0.45;
   cursor: default;
 }
+/* 禁用按钮上仍会命中 :hover，这里把高亮还原回默认渐变，避免"看起来可点"。 */
 .i3d-cover-panel .hb-cover-details-actions button:disabled:hover {
   border-color: #8397a25c;
   color: #c4d2d9;
@@ -225,6 +272,9 @@
   outline: 2px solid #a8c5d3;
   outline-offset: 3px;
 }
+/* ===== 反馈文案与提示 ===== */
+
+/* 反馈区预留 28px 固定高度：文案出现/消失时面板不抖动。 */
 .i3d-cover-feedback {
   flex: none;
   min-height: 28px;
@@ -237,6 +287,9 @@
 .i3d-cover-feedback.is-error {
   color: #eeb0a0;
 }
+/* ===== 隐藏与减少动态效果 ===== */
+
+/* [hidden] 需要强制生效，否则会被上面的 flex 规则覆盖。 */
 .i3d-cover-panel [hidden] {
   display: none !important;
 }
@@ -246,12 +299,16 @@
     transition: none !important;
   }
 }
+/* ===== 梦幻帘（叶片角度）模式 ===== */
+
+/* 梦幻帘的滑杆表示叶片角度而非整体开合，提示文案补一句「50% 为 90°打开」。 */
 .i3d-cover-blade-hint {
   flex: none;
   margin: 4px 0 0;
   color: #b9b3a9;
   font-size: 11px;
 }
+/* 梦幻帘不需要为「暂停」多留空间，控件槽位间距收紧到 4px。 */
 .i3d-cover-panel.is-dream .i3d-cover-controls-slot {
   margin-top: 4px;
 }

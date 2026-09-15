@@ -1,6 +1,24 @@
+/*
+ * NAS 状态面板（.i3d-nas-panel）在 3D 舞台内的样式。
+ *
+ * 位置：interaction3d 展示侧，由 stage.css @import 引入；作用对象是
+ * nas-panel.js 渲染的 NAS 概览：标题、状态行、按分组排列的指标卡片
+ * （卡片底部有一条按百分比填充的细条），以及底部的更新时间。
+ * 面板外壳沿用灯光面板的 .i3d-light-panel，只覆盖固定高度。
+ *
+ * 主题变量：宿主页 :root 提供 --surface / --field / --line / --muted（本文件未使用）；
+ * 卡片底部的细条宽度由 JS 写成内联 style.width，不经过自定义属性。
+ *
+ * 约定：配色统一走绿色系（NAS 属存储类设备），卡片状态只用类名表达——
+ * .is-wide（时间戳占整行）、.is-warning（接近阈值）、.is-unavailable（取值失败）。
+ */
+
+/* 面板外壳：固定 400px，与灯光面板展开后的高度一致，指标区内部滚动。 */
 .interaction3d-stage .i3d-light-panel.is-nas-panel {
   height: 400px;
 }
+/* ===== 面板容器与标题 ===== */
+
 .i3d-nas-panel {
   display: flex;
   flex-direction: column;
@@ -25,6 +43,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ===== 状态行与指标滚动区 ===== */
+
 .i3d-nas-status {
   margin: 0;
   padding: 8px 10px;
@@ -33,20 +53,28 @@
   color: #9caaa4;
   font-size: 12px;
 }
+/* 指标区是面板里唯一可滚动的部分：flex: 1 占满剩余高度，标题与状态行保持不动。 */
 .i3d-nas-metrics {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  /* 滚到边界时不把滚动事件传给外层舞台，避免误触平移/缩放。 */
   overscroll-behavior: contain;
+  /* 预留滚动条宽度：内容多寡切换时卡片宽度不会来回跳。 */
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: rgba(183, 204, 193, 0.28) transparent;
   padding-right: 6px;
 }
+/* 悬停或键盘聚焦时把滚动条调亮，提示"这块可以滚"。 */
 .i3d-nas-metrics:hover,
 .i3d-nas-metrics:focus-within {
   scrollbar-color: rgba(198, 220, 207, 0.48) transparent;
 }
+/* ===== 指标区滚动条（WebKit 覆盖） ===== */
+
+/* scrollbar-width / scrollbar-color 是标准属性，::-webkit-scrollbar 只在 WebKit 生效；
+   用 @supports 探测到 WebKit 后把标准属性还原成 auto，避免两套样式互相干扰。 */
 @supports selector(::-webkit-scrollbar) {
   .i3d-nas-metrics,
   .i3d-nas-metrics:hover,
@@ -62,6 +90,7 @@
   .i3d-nas-metrics::-webkit-scrollbar-corner {
     background: transparent;
   }
+  /* 2px 透明边框 + padding-box 让滑块看起来更细，同时保留 8px 的可点区域。 */
   .i3d-nas-metrics::-webkit-scrollbar-thumb {
     min-height: 32px;
     border: 2px solid transparent;
@@ -79,12 +108,16 @@
   .i3d-nas-metrics::-webkit-scrollbar-thumb:active {
     background-color: #e1f1e8cc;
   }
+  /* 隐藏滚动条两端的按钮（Windows 上会出现小箭头），保持观感干净。 */
   .i3d-nas-metrics::-webkit-scrollbar-button {
     display: none;
     width: 0;
     height: 0;
   }
 }
+/* ===== 分组与指标卡片 ===== */
+
+/* 分组之间拉开距离；用相邻兄弟选择器而不是给每组加外边距，首组自然没有多余间距。 */
 .i3d-nas-group + .i3d-nas-group {
   margin-top: 12px;
 }
@@ -94,6 +127,7 @@
   color: #9caea4;
   letter-spacing: 0.08em;
 }
+/* 每行两张卡片；卡片内部用 space-between 把标签与数值分居两端。 */
 .i3d-nas-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -111,6 +145,7 @@
   border-radius: 10px;
   background: #ffffff04;
 }
+/* 时间戳这类长文案独占整行，不与其它指标挤在一格里。 */
 .i3d-nas-metric.is-wide {
   grid-column: 1 / -1;
 }
@@ -128,18 +163,23 @@
   margin-left: auto;
   text-align: right;
   font-size: 15px;
+  /* 等宽数字：数值刷新时宽度不变，卡片不会抖动。 */
   font-variant-numeric: tabular-nums;
   font-weight: 550;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 接近阈值：数值转琥珀色提醒。 */
 .i3d-nas-metric.is-warning strong {
   color: #efbd70;
 }
+/* 取值失败/实体离线：数值压暗，弱化到背景里。 */
 .i3d-nas-metric.is-unavailable strong {
   color: #68756e;
 }
+/* 卡片底部的细进度条：宽度由 JS 写成内联 style.width（百分比），
+   transition 让每次刷新的数值变化表现为平滑滑动而不是突跳。 */
 .i3d-nas-bar {
   position: absolute;
   bottom: 0;
@@ -148,6 +188,8 @@
   background: #6bd49c;
   transition: width 0.3s ease;
 }
+/* ===== 底部更新时间 ===== */
+
 .i3d-nas-meta {
   flex-shrink: 0;
   margin: 0 0 0 auto;
@@ -156,6 +198,7 @@
   white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) {
+  /* 减少动态效果时不做进度条过渡，数值直接跳到新位置。 */
   .i3d-nas-bar {
     transition: none;
   }

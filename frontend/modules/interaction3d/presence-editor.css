@@ -1,18 +1,38 @@
+/*
+ * 人物存在 / 安防绑定编辑器的弹窗样式。
+ *
+ * 位置：interaction3d 的编辑器侧。presence-editor.js 在打开弹窗时动态注入本文件、
+ * 关闭时移除；弹窗根节点是 .i3d-editor.i3d-presence-editor，内部为
+ * 「左绑定列表 / 中户型平面 / 右参数表单」三栏。
+ *
+ * 主题变量：宿主页面在 :root 上定义 --surface / --field / --line / --muted
+ * （编辑页来自 app.css，3D 工作室来自 studio.css），这里全部写成
+ * var(--名, 兜底色) 的形式，保证弹窗被单独打开时也不会丢样式。
+ *
+ * 约定：开头 @import runtime.css 复用弹窗骨架（.i3d-editor 的头部、按钮与焦点样式），
+ * 本文件只负责人物编辑器特有的三栏布局、路线工具、预设宫格与配色按钮。
+ */
 @import "./runtime.css";
+/* ===== 弹窗骨架与三栏布局 ===== */
+
+/* 弹窗比通用编辑器更宽：中间要放得下户型平面。 */
 .i3d-presence-editor {
   width: min(1600px, calc(100vw - 32px));
 }
+/* 头部状态文字：限宽避免长实体名把标题栏挤变形。 */
 .presence-status {
   max-width: 380px;
   color: var(--muted, #89949d);
   font-size: 12px;
 }
+/* 三栏：绑定列表 190px / 户型平面自适应 / 参数表单 280px；窄屏再压缩（见文件末尾）。 */
 .presence-body {
   display: grid;
   grid-template-columns: 190px minmax(260px, 1fr) 280px;
   min-height: 0;
   flex: 1;
 }
+/* 左右两栏共用：内边距一致、各自独立滚动，列内元素纵向排布。 */
 .i3d-presence-editor .presence-bindings,
 .i3d-presence-editor .presence-controls {
   padding: 14px;
@@ -21,20 +41,28 @@
   flex-direction: column;
   gap: 10px;
 }
+/* ===== 左栏：绑定列表 ===== */
+
+/* 只留右侧分隔线：弹窗自身已经提供了左边界。 */
 .i3d-presence-editor .presence-bindings {
   border-left: 0;
   border-right: 1px solid var(--line, #303840);
 }
+/* 绑定条目文案很长（实体名 + 楼层），允许任意位置折行并保持左对齐。 */
 .presence-bindings button {
   text-align: left;
   overflow-wrap: anywhere;
 }
+/* 选中态用琥珀色，与舞台里人物标记的高亮色系保持一致。 */
 .i3d-presence-editor button[aria-pressed="true"] {
   border-color: #f2a20d7a;
   color: #fff4dc;
   background: #f2a20d29;
   box-shadow: inset 0 0 0 1px #f2a20d7a;
 }
+/* ===== 参数表单与提示文字 ===== */
+
+/* 说明文字用 pre-line：内容里的换行符会原样换行，而不是整段挤成一行。 */
 .presence-note {
   margin: 0;
   color: var(--muted, #89949d);
@@ -47,12 +75,16 @@
   gap: 6px;
   margin: 0;
 }
+/* 字段里的控件统一撑满列宽，避免长文案把栅格列撑开。 */
 .presence-field input,
 .presence-field select,
 .presence-field button {
   width: 100%;
   min-width: 0;
 }
+/* ===== 中栏：户型平面与路线工具 ===== */
+
+/* 中栏底色与左右两栏不同，用色块把平面图与表单在视觉上分开。 */
 .presence-plan {
   display: flex;
   flex-direction: column;
@@ -62,6 +94,7 @@
   gap: 10px;
   background: var(--surface, #1a2026);
 }
+/* touch-action: none 把触摸手势交给 JS（平移/缩放路线），否则移动端会与页面滚动打架。 */
 .presence-plan > svg {
   width: 100%;
   flex: 1;
@@ -70,6 +103,7 @@
   background: var(--field, #171d22);
   border-radius: 6px;
 }
+/* 路线工具按钮比通用按钮更紧凑，一行里能放下更多操作。 */
 .presence-route-tools {
   display: flex;
   flex-wrap: wrap;
@@ -78,6 +112,9 @@
 .presence-route-tools button {
   padding: 6px 8px;
 }
+/* ===== 预设宫格与配色 ===== */
+
+/* 三列宫格：设计、页面、配色三组按钮共用同一节奏，保持一致的点击手感。 */
 .presence-designs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -91,6 +128,7 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
 }
+/* 编辑器内页签更窄：显式允许收缩并在文字上省略，否则栅格项会被内容撑破。 */
 .i3d-editor .presence-pages button {
   padding: 6px 3px;
   min-width: 0;
@@ -102,6 +140,7 @@
 .presence-colors button {
   flex: 1;
 }
+/* 色块圆点用伪元素画，省得为每个按钮再塞一个 span。 */
 .presence-colors button:before {
   content: "";
   display: inline-block;
@@ -111,9 +150,12 @@
   background: #52b8b1;
   margin-right: 6px;
 }
+/* 第二种配色：只有橙色一种，默认的青色写在上面那条 :before 里。 */
 .presence-colors button[data-color="orange"]:before {
   background: #eaa044;
 }
+/* ===== 角色预览 ===== */
+
 .presence-character-preview {
   display: flex;
   align-items: center;
@@ -123,14 +165,19 @@
   border: 1px solid var(--line, #303840);
   border-radius: 6px;
 }
+/* canvas 的绘制尺寸由 JS 按像素比设置，这里只限制显示高度。 */
 .presence-character-preview canvas {
   max-width: 100%;
   height: 160px;
 }
+/* ===== 窄屏适配 ===== */
+
 @media (max-width: 900px) {
+  /* 窄屏下三栏一起收窄，宁可挤一点也不让中间平面被压没。 */
   .presence-body {
     grid-template-columns: 155px minmax(230px, 1fr) 245px;
   }
+  /* 弹窗本身改为可滚动兜底，防止三栏加起来超过视口宽度。 */
   .i3d-presence-editor {
     overflow: auto;
   }
@@ -138,6 +185,9 @@
     max-width: 220px;
   }
 }
+/* ===== 平面视图（运行时） ===== */
+
+/* 视图容器：SVG 绝对定位铺满，overflow: hidden 防止平移时露出容器外的内容。 */
 .presence-viewport {
   position: relative;
   flex: 1;
@@ -146,10 +196,12 @@
   background: var(--field, #171d22);
   border-radius: 6px;
 }
+/* 运行时平面层（底图 / 路线）铺满容器，与上面的 SVG 叠加。 */
 .presence-plan-runtime {
   position: absolute;
   inset: 0;
 }
+/* 透明背景：底图由 runtime 层绘制，这一层只承载矢量叠加。 */
 .presence-viewport > svg {
   position: absolute;
   inset: 0;
@@ -158,24 +210,32 @@
   touch-action: none;
   background: transparent;
 }
+/* ===== 视图工具栏 ===== */
+
 .presence-view-tools {
   display: flex;
   align-items: center;
   margin: 0;
 }
+/* 聚焦操作组固定两列 70px，宽度交给内容，不再撑满整行。 */
 .presence-view-tools .i3d-focus-actions[role="group"] {
   flex: 0 0 auto;
   grid-template-columns: repeat(2, minmax(70px, 1fr));
   margin: 0;
   width: auto;
 }
+/* 主按钮推到最右（margin-left: auto），与左侧操作组拉开距离。 */
 .presence-view-tools > button {
   min-width: 65px;
   margin-left: auto;
 }
+/* [hidden] 的 display: none 可能被上面的 flex/absolute 规则覆盖，这里显式兜底。 */
 .presence-plan [hidden] {
   display: none;
 }
+/* ===== 编辑器内的排版覆盖 ===== */
+
+/* 以下 .i3d-editor 前缀是编辑器弹窗内的覆盖：工具栏不换行、不撑满整行。 */
 .i3d-editor .presence-view-tools {
   display: flex;
   flex-wrap: nowrap;
@@ -190,23 +250,28 @@
   min-width: 70px;
   margin-left: auto;
 }
+/* 编辑器里字段改成「标签 56px + 控件自适应」两列，标签对齐后更好扫读。 */
 .i3d-editor .presence-field {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
 }
+/* 数字字段的控件固定 82px，位数变化时行内布局不跳动。 */
 .i3d-editor .presence-number-field {
   grid-template-columns: minmax(0, 1fr) 82px;
 }
+/* 标签不换行：宽度交给栅格列控制。 */
 .presence-field > span {
   white-space: nowrap;
 }
+/* 字段里的按钮文案过长时省略，避免弹窗出现横向滚动条。 */
 .presence-field > button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 与左右栏共用规则的 10px 同值，这里为右栏单独再声明一次，便于日后只调它。 */
 .i3d-presence-editor .presence-controls {
   gap: 10px;
 }

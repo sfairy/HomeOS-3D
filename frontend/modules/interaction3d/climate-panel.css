@@ -1,11 +1,34 @@
+/*
+ * 空调 / 温控面板（.i3d-climate-panel）在 3D 舞台内的样式。
+ *
+ * 位置：interaction3d 展示侧，由 stage.css 用 @import 引入；作用对象是
+ * climate-panel.js 渲染的温控面板——标题与电源键、温度步进器、
+ * 模式 / 风速选项组、温区提示与错误文案。
+ *
+ * 主题变量：宿主页 :root 提供 --surface / --field / --line / --muted；
+ * 面板另外定义 --i3d-climate-accent 作为「当前模式强调色」，由 data-climate-mode
+ * 属性切换（制冷蓝 / 制热橙 / 关机灰），--hb-climate-accent* 则是给
+ * .hb-* 前缀的通用控件复用的别名。
+ *
+ * 约定：面板外壳沿用灯光面板的 .i3d-light-panel（只覆盖高度与滚动），
+ * 所有面板内类名一律以 i3d-climate- 前缀书写。
+ */
+
+/* 面板起始位置与外层 .i3d-light-panel 共用同一个 top 公式，
+   因此这里的高度上限也把那段 max(12px, min(56% - 400px, 100% - 812px)) 算进去：
+   减去起始偏移与上下各 12px 间距后再取剩余空间的一半，展开时不会越过视口下沿；
+   内容超出时由 overflow: auto 兜底滚动。 */
 .interaction3d-stage .i3d-light-panel.is-climate-panel {
   height: auto;
   max-height: calc((100% - max(12px, min(calc(56% - 400px), calc(100% - 812px))) - 12px) / 2);
   overflow: auto;
   scrollbar-width: thin;
 }
+/* ===== 面板容器与模式强调色 ===== */
+
 .i3d-climate-panel {
   --i3d-climate-accent: #dce2e6;
+  /* 强调色的柔和底：用 color-mix 与面板底色混合，避免每个模式各写一份常量。 */
   --hb-climate-accent: var(--i3d-climate-accent);
   --hb-climate-accent-soft: color-mix(in srgb, var(--i3d-climate-accent) 28%, #11171c);
   display: flex;
@@ -21,6 +44,7 @@
     PingFang SC,
     sans-serif;
 }
+/* 三种模式的强调色：制冷蓝 / 制热橙 / 关机灰，未设置时用上面的默认灰白。 */
 .i3d-climate-panel[data-climate-mode="cool"] {
   --i3d-climate-accent: #73c8ff;
 }
@@ -30,6 +54,8 @@
 .i3d-climate-panel[data-climate-mode="off"] {
   --i3d-climate-accent: #65717a;
 }
+/* ===== 标题区 ===== */
+
 .i3d-climate-heading {
   display: flex;
   align-items: center;
@@ -59,9 +85,13 @@
   font-size: 11px;
   line-height: 14px;
 }
+/* 开机时副标题跟随模式强调色，一眼能看出当前是制冷还是制热。 */
 .i3d-climate-panel.is-on .i3d-climate-heading p {
   color: var(--i3d-climate-accent);
 }
+/* ===== 温度步进按钮 ===== */
+
+/* 加减按钮固定 42×42（与温控器表盘两侧的栅格列同宽），保证点按区域够大。 */
 .i3d-climate-panel .hb-climate-temperature-step {
   width: 42px;
   min-width: 42px;
@@ -80,22 +110,27 @@
     color 0.28s ease,
     background 0.28s ease;
 }
+/* 悬停态用模式强调色：与标题副标题一起构成「当前模式」的视觉线索。 */
 .i3d-climate-panel .hb-climate-temperature-step:hover:not(:disabled) {
   border-color: var(--hb-climate-accent);
   color: var(--hb-climate-accent);
   background: var(--hb-climate-accent-soft);
 }
+/* 指令下发中禁用按钮并显示等待光标，防止连点叠加多条温控指令。 */
 .i3d-climate-panel .hb-climate-temperature-step:disabled {
   color: #59646b;
   cursor: wait;
   opacity: 0.55;
 }
+/* 温区提示（设定温区 x–y°C · 当前 z°C）：只在支持温区、不支持单点调温时出现。 */
 .i3d-climate-temperature-interval {
   margin: 0;
   padding: 12px 0;
   color: #aeb7bc;
   text-align: center;
 }
+/* ===== 模式与选项分组 ===== */
+
 .i3d-climate-groups {
   display: flex;
   flex: none;
@@ -116,6 +151,7 @@
   font-weight: 620;
   line-height: 14px;
 }
+/* 空态与错误共用排版，只靠颜色区分严重程度。 */
 .i3d-climate-empty,
 .i3d-climate-error {
   flex: none;
@@ -128,10 +164,13 @@
 .i3d-climate-error {
   color: #eeb0a0;
 }
+/* ===== 禁用态、隐藏与减少动态效果 ===== */
+
 .i3d-climate-panel button:disabled,
 .i3d-climate-panel select:disabled {
   cursor: default;
 }
+/* 面板内的 [hidden] 需要强制生效，避免被上面的 flex 布局规则覆盖。 */
 .i3d-climate-panel [hidden] {
   display: none !important;
 }
@@ -141,11 +180,14 @@
     transition: none !important;
   }
 }
+/* ===== 选项按钮（模式 / 风速 / 电源） ===== */
+
 .i3d-climate-choices {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
+/* 选项按钮按 48px 基准等分并允许换行，模式名再长也不会撑破面板。 */
 .i3d-climate-choice {
   flex: 1 1 48px;
   min-width: 0;
@@ -166,6 +208,8 @@
     sans-serif;
   cursor: pointer;
 }
+/* 选中态一律用 aria-pressed 表达（而不是自造 .is-active 类），
+   这样视觉状态与无障碍状态天然一致。 */
 .i3d-climate-choice[aria-pressed="true"],
 .i3d-climate-power[aria-pressed="true"] {
   border-color: var(--i3d-climate-accent);
@@ -177,14 +221,19 @@
   opacity: 0.5;
   cursor: default;
 }
+/* 键盘焦点描边同样跟随模式强调色，与选中态保持一致的语言。 */
 .i3d-climate-panel button:focus-visible {
   outline: 2px solid var(--i3d-climate-accent);
   outline-offset: 3px;
 }
+/* ===== 温控器表盘槽位 ===== */
+
+/* 槽位保留展开/收起的布局空间，避免表盘出现时把下方选项组顶下去。 */
 .i3d-climate-thermostat-slot {
   flex: none;
   padding: 12px 0 18px;
 }
+/* 三列栅格：减号 / 温度内容 / 加号，与步进按钮的 42px 宽度对齐。 */
 .i3d-climate-panel .hb-climate-thermostat {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) 42px;
@@ -202,6 +251,7 @@
   color: #8c979e;
   font-size: 11px;
 }
+/* 设定温度：等宽数字（tabular-nums）让温度变化时数字不左右跳动。 */
 .i3d-climate-target {
   color: #f0f3f5;
   font-size: 34px;
