@@ -1,12 +1,34 @@
+/**
+ * 灯光控件的纯计算层：能力探测、颜色空间转换、服务数据拼装与预设确认状态机。
+ *
+ * 职责：
+ * - 从 HA 属性推断灯支持哪些能力（亮度 / 色温 / 彩色），供界面决定显示哪些滑条；
+ * - 在 HS（色相 + 饱和度）与 RGB 之间互转，并把拾色盘上的归一化坐标与 HS 互换；
+ * - 把用户操作拼成要发给 HA 的服务数据；
+ * - 维护「点了预设之后等设备状态稳定」的判定逻辑。
+ *
+ * 位置：不碰 DOM，也不读控件注册表；灯光控件的 runtime 与编辑器预览共用这里的口径。
+ */
+
+/**
+ * 把 0~100 的相对色温百分比换算成开尔文。
+ *
+ * @param {number} minimumKelvin 该灯支持的最低色温（最暖端）。
+ * @param {number} maximumKelvin 该灯支持的最高色温（最冷端）。
+ * @param {number} relativePercent 相对百分比，0 对应最低色温，100 对应最高色温。
+ * @returns {number} 开尔文值；区间非法时回落到最低色温，最低色温也不可用时用 2700（常见暖白默认值）。
+ */
 export function relativeLightColorTemperature(minimumKelvin, maximumKelvin, relativePercent) {
   const parsedMinimumKelvin = Number(minimumKelvin);
   const parsedMaximumKelvin = Number(maximumKelvin);
+  // 先把百分比夹到 0~100 再归一：滑块越界或属性缺失时不会算出区间外的色温。
   const relativeRatio = Math.max(0, Math.min(100, Number(relativePercent) || 0)) / 100;
   if (
     !Number.isFinite(parsedMinimumKelvin) ||
     !Number.isFinite(parsedMaximumKelvin) ||
     parsedMaximumKelvin <= parsedMinimumKelvin
   ) {
+    // 上界缺失或区间反转时只能给一个值，选最低色温即「最暖」，视觉上最不易出错。
     if (Number.isFinite(parsedMinimumKelvin)) {
       return parsedMinimumKelvin;
     } else {
@@ -16,6 +38,17 @@ export function relativeLightColorTemperature(minimumKelvin, maximumKelvin, rela
     return parsedMinimumKelvin + (parsedMaximumKelvin - parsedMinimumKelvin) * relativeRatio;
   }
 }
+/**
+ * 在「控件支持该能力」与「属性里有可用数值」同时成立时才采用实际值，否则用兜底值。
+ *
+ * 布尔判断放在外面：某些灯会把 brightness 等字段留在属性里但已经不支持调节，
+ * 只看数值存在会把不支持的能力误判为可用。
+ *
+ * @param {boolean} isCapabilitySupported 能力探测结果。
+ * @param {*} capabilityValue 实体属性里读到的值。
+ * @param {*} fallbackValue 不可用时的兜底值。
+ * @returns {number} 最终用于渲染的数值。
+ */
 export function lightVisualValueForCapability(
   isCapabilitySupported,
   capabilityValue,
@@ -28,7 +61,17 @@ export function lightVisualValueForCapability(
     return Number(fallbackValue);
   }
 }
+// 这些色彩模式意味着灯能接收具体颜色指令；onoff 与 brightness / color_temp 只能调明暗或冷暖。
 const COLOR_CAPABLE_MODES_SET = new Set(["hs", "rgb", "rgbw", "rgbww", "xy"]);
+/**
+ * 归一化 supported_color_modes：统一小写去空格并丢掉空项。
+ *
+ * 老固件不下发 supported_color_modes，只会给 hs_color / rgb_color，
+ * 这时补一个 "hs" 作为等价声明，避免把能调色的灯误判成只能调亮度。
+ *
+ * @param {object} [attributes] 实体属性。
+ * @returns {string[]} 归一化后的色彩模式列表，可能为空。
+ */
 function resolveSupportedColorModes(attributes = {}) {
   const normalizedColorModes = Array.isArray(attributes?.supported_color_modes)
     ? attributes.supported_color_modes
@@ -47,14 +90,35 @@ function resolveSupportedColorModes(attributes = {}) {
     return normalizedColorModes;
   }
 }
+/**
+ * 判断灯是否支持彩色（而非仅明暗 / 冷暖）。
+ *
+ * @param {object} [entityAttributes] 实体属性。
+ * @returns {boolean} 支持任一彩色模式返回 true。
+ */
 export function lightSupportsColor(entityAttributes = {}) {
   return resolveSupportedColorModes(entityAttributes).some(colorMode =>
     COLOR_CAPABLE_MODES_SET.has(colorMode)
   );
 }
+/**
+ * 探测灯在实时状态下的可调能力。
+ *
+ * 三个依据按「任一成立即算支持」的并集处理，兼容新旧 HA 版本：
+ * - supported_color_modes 声明（新）；
+ * - 属性里存在对应的数值字段；
+ * - 旧的 supported_features 位掩码：第 1 位是亮度、第 2 位是色温（位判断用 & 1 === 1 的写法）。
+ *
+ * 非 light 域一律返回全 false，因为温度单位、属性名与灯并不通用。
+ *
+ * @param {string} [entityId] 实体 ID，用于判断域。
+ * @param {object} [entityState] 状态对象或变更对象。
+ * @returns {{brightness: boolean, colorTemperature: boolean}} 两项能力是否可用。
+ */
 export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
   const stateObject = entityState?.newState || entityState || {};
   const stateAttributes = stateObject?.attributes || {};
+  // 实体 ID 缺失时退回状态对象自带的 entityId / domain，避免拿不到域就判成不支持。
   const isLightEntity =
     String(entityId || stateObject.entityId || stateObject.domain || "").split(".", 1)[0] ===
     "light";
@@ -66,6 +130,7 @@ export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
     stateAttributes[attributeName] !== null &&
     stateAttributes[attributeName] !== undefined &&
     Number.isFinite(Number(stateAttributes[attributeName]));
+  // 亮度判定：onoff 模式是唯一的纯开关模式，其余（brightness / color_temp / 彩色）都隐含可调亮度。
   return {
     brightness:
       isLightEntity &&
@@ -82,6 +147,15 @@ export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
         (supportedFeatures & 2) === 2)
   };
 }
+/**
+ * RGB 转 HS。
+ *
+ * 返回 HS 而不是直接操作界面，是因为拾色盘的色相环用的就是 HS，
+ * 而 HA 服务也接受 hs_color，链路中间不需要再转一次。
+ *
+ * @param {number[]} rgbColor 形如 [r, g, b]，0~255，允许越界（会被夹紧）。
+ * @returns {[number, number]|null} [色相 0~360, 饱和度 0~100]；入参不是长度 ≥3 的数组时返回 null。
+ */
 export function rgbToHsColor(rgbColor) {
   if (!Array.isArray(rgbColor) || rgbColor.length < 3) {
     return null;
@@ -94,6 +168,7 @@ export function rgbToHsColor(rgbColor) {
   const channelRange = maximumChannel - minimumChannel;
   let hueDegrees = 0;
   if (channelRange > 0) {
+    // 标准 HSV 六段色相公式：按最大分量落在哪个通道决定用哪一段。
     if (maximumChannel === normalizedChannels[0]) {
       hueDegrees = (((normalizedChannels[1] - normalizedChannels[2]) / channelRange) % 6) * 60;
     } else if (maximumChannel === normalizedChannels[1]) {
@@ -105,16 +180,28 @@ export function rgbToHsColor(rgbColor) {
   if (hueDegrees < 0) {
     hueDegrees += 360;
   }
+  // 灰色（最大分量为 0）没有色相可言，饱和度直接记 0，避免除零。
   const saturationRatio = maximumChannel <= 0 ? 0 : channelRange / maximumChannel;
   return [hueDegrees, saturationRatio * 100];
 }
+/**
+ * HS 转 RGB。
+ *
+ * 亮度固定按 100% 计算：HA 的亮度是独立字段，颜色只需要表达色相与饱和度，
+ * 若把亮度也揉进来，界面在灯处于低亮时拾色盘会整片发暗。
+ *
+ * @param {number[]} hsColor 形如 [色相, 饱和度]，色相可为任意实数（会被归一化到 0~360）。
+ * @returns {[number, number, number]|null} [r, g, b]，各 0~255；入参非法时返回 null。
+ */
 export function hsToRgbColor(hsColor) {
   if (!Array.isArray(hsColor) || hsColor.length < 2) {
     return null;
   }
+  // 双取模再加 360 取模，负数色相也能落到 0~360。
   const normalizedHue = (((Number(hsColor[0]) || 0) % 360) + 360) % 360;
   const normalizedSaturation = Math.max(0, Math.min(100, Number(hsColor[1]) || 0)) / 100;
   const maximumValue = 1;
+  // 标准 HSV → RGB：chroma 为最大与最小分量之差，secondaryComponent 是次大分量。
   const chroma = maximumValue * normalizedSaturation;
   const hueSector = normalizedHue / 60;
   const secondaryComponent = chroma * (1 - Math.abs((hueSector % 2) - 1));
@@ -135,6 +222,17 @@ export function hsToRgbColor(hsColor) {
     Math.round((componentValue + minimumValue) * 255)
   );
 }
+/**
+ * 拾色盘点击坐标 → HS。
+ *
+ * 坐标约定：入参是相对拾色盘外接正方形的归一化坐标（0~1，左上为原点）。
+ * 0.36 是色相环半径相对正方形的比例，用来把方形内的点折算成半径比例；
+ * 角度上先算 atan2（0° 在正右方，逆时针为正），再整体 +90° 对齐色相环的绘制起点。
+ *
+ * @param {number} normalizedX 归一化横坐标。
+ * @param {number} normalizedY 归一化纵坐标。
+ * @returns {[number, number]} [色相 0~360, 饱和度 0~100]。
+ */
 export function lightColorPickerHsFromPoint(normalizedX, normalizedY) {
   const clampedX = Math.max(0, Math.min(1, Number(normalizedX) || 0));
   const clampedY = Math.max(0, Math.min(1, Number(normalizedY) || 0));
@@ -146,17 +244,37 @@ export function lightColorPickerHsFromPoint(normalizedX, normalizedY) {
     radiusRatio * 100
   ];
 }
+/**
+ * HS → 拾色盘上的归一化坐标，是 lightColorPickerHsFromPoint 的逆运算。
+ *
+ * @param {number[]} hueSaturation 形如 [色相, 饱和度]。
+ * @returns {{x: number, y: number}} 相对拾色盘外接正方形的归一化坐标，已夹在 0~1 内。
+ */
 export function lightColorPickerPointFromHs(hueSaturation) {
+  // 色相先归一化到 0~360，负值与绕了多圈的输入都能落回标准区间。
   const pickerHueDegrees = (((Number(hueSaturation?.[0]) || 0) % 360) + 360) % 360;
   const pickerSaturationRatio = Math.max(0, Math.min(100, Number(hueSaturation?.[1]) || 0)) / 100;
+  // 与上面 +90° 的偏移互逆，所以这里减 90° 再转弧度。
   const hueRadians = ((pickerHueDegrees - 90) * Math.PI) / 180;
   return {
     x: Math.max(0, Math.min(1, 0.5 + Math.cos(hueRadians) * pickerSaturationRatio * 0.36)),
     y: Math.max(0, Math.min(1, 0.5 + Math.sin(hueRadians) * pickerSaturationRatio * 0.36))
   };
 }
+/**
+ * 拼装设置颜色的服务数据。
+ *
+ * 字段选择规则：支持 hs 或 xy 时优先发 hs_color；仅当明确只支持 rgb 时才发 rgb_color。
+ * 这个「优先 hs」的顺序是刻意的——rgb_color 在部分灯上会被转回 hs 时丢精度，
+ * 而 xy 灯同样接受 hs_color。
+ *
+ * @param {object} lightAttributes 实体属性，读取 supported_color_modes。
+ * @param {number[]} hsColorPair [色相, 饱和度]。
+ * @returns {{hs_color: number[]}|{rgb_color: number[]}} 服务数据。
+ */
 export function lightColorServiceData(lightAttributes, hsColorPair) {
   const colorModes = resolveSupportedColorModes(lightAttributes);
+  // 发出去前先取整：小数色相 / 饱和度在部分设备上会被拒或产生抖动。
   const roundedHsColor = [
     Math.round((((Number(hsColorPair?.[0]) || 0) % 360) + 360) % 360),
     Math.round(Math.max(0, Math.min(100, Number(hsColorPair?.[1]) || 0)))
@@ -171,9 +289,21 @@ export function lightColorServiceData(lightAttributes, hsColorPair) {
     };
   }
 }
+// 灯不支持色温时的显示用色温：4600K 接近正白，视觉上既不偏暖也不偏冷。
 export const UNSUPPORTED_LIGHT_VISUAL_TEMPERATURE_KELVIN = 4600;
+// 灯不支持亮度调节时的显示用亮度：按满亮绘制。
 export const UNSUPPORTED_LIGHT_VISUAL_BRIGHTNESS_PERCENT = 100;
+/**
+ * 拼装预设亮度对应的服务数据。
+ *
+ * 100% 时走 brightness: 255 而不是 brightness_pct：满量程下按 255 发送可以避免
+ * 部分固件把 100% 换算成 254 导致「按了没反应」。
+ *
+ * @param {number} brightnessPercent 目标亮度百分比。
+ * @returns {{brightness: number}|{brightness_pct: number}} 服务数据。
+ */
 export function lightPresetBrightnessServiceData(brightnessPercent) {
+  // 下限取 1：0% 在 HA 里等价于关灯，而调用方此处要表达的是「调到最暗但仍亮」。
   const clampedBrightnessPercent = Math.max(
     1,
     Math.min(100, Math.round(Number(brightnessPercent) || 1))
@@ -188,6 +318,12 @@ export function lightPresetBrightnessServiceData(brightnessPercent) {
     };
   }
 }
+/**
+ * 灯光详情面板的三个快捷预设。
+ *
+ * 冻结成常量：这是与界面文案约定死的配置（label 会直接上屏），
+ * colorTemperaturePercent 用相对百分比是为了适配不同灯的色温区间。
+ */
 export const LIGHT_DETAIL_PRESET_DEFINITIONS = Object.freeze([
   Object.freeze({
     label: "柔和",
@@ -208,9 +344,21 @@ export const LIGHT_DETAIL_PRESET_DEFINITIONS = Object.freeze([
     colorTemperaturePercent: 100
   })
 ]);
+// 预设下发后的最短等待：灯从收到指令到上报状态通常需要一段时间，
+// 太早判定会把还没生效的旧状态当成「用户又改了」，故给 8 秒底线。
 export const LIGHT_PRESET_MINIMUM_HOLD_MS = 8000;
+// 状态需要连续稳定这么久才认可，避免调光过程上报的中间值被当成最终结果。
 export const LIGHT_PRESET_STABLE_CONFIRMATION_MS = 1200;
+// 超过这个时长还没等到匹配状态就放弃等待，防止 pending 永远挂着。
 export const LIGHT_PRESET_MAXIMUM_HOLD_MS = 12000;
+/**
+ * 判断某个待确认预设当前应处于什么阶段。
+ *
+ * @param {object} pendingPreset 待确认记录，含 expiresAt、minimumHoldUntil、
+ *   matchStartedAt 与 latestMatches。
+ * @param {number} [nowMs] 当前时间戳（毫秒），便于测试注入。
+ * @returns {"idle"|"timeout"|"hold"|"confirmed"} 确认状态机的阶段。
+ */
 export function lightPresetPendingDecision(pendingPreset, nowMs = Date.now()) {
   if (!pendingPreset) {
     return "idle";
@@ -219,6 +367,7 @@ export function lightPresetPendingDecision(pendingPreset, nowMs = Date.now()) {
   if (currentTimeMs >= Number(pendingPreset.expiresAt || 0)) {
     return "timeout";
   }
+  // 还没观察到匹配状态，或匹配的起始时刻未知，都只能继续等——累计稳定时长要从某个明确的起点算。
   if (!pendingPreset.latestMatches || !Number.isFinite(Number(pendingPreset.matchStartedAt))) {
     return "hold";
   }

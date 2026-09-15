@@ -1,3 +1,18 @@
+/**
+ * 天气图表的数据映射与曲线绘制。
+ *
+ * 职责：
+ * - 把 Home Assistant 的天气状态（sunny / rainy / …）映射成图标名与中文文案，并按昼夜修正；
+ * - 生成 meteocons 图标地址（带白名单校验，防止把任意字符串拼进 URL）；
+ * - 由序列自动推导阈值色带，或归一化用户手填的阈值；
+ * - 把点集转成平滑的 SVG 路径。
+ *
+ * 位置：纯计算模块，折线 / 天气图表控件在渲染时调用；不碰网络与 DOM。
+ *
+ * 约定：条件字符串与图标名沿用 HA 与 meteocons 的既有命名，改动会直接影响图标能否加载。
+ */
+
+// 天气条件 → [meteocons 图标名, 中文文案]。文案会直接上屏，与界面约定死的字符串一致。
 const WEATHER_VISUALS_BY_CONDITION = {
   sunny: ["clear-day", "晴"],
   "clear-night": ["clear-night", "晴"],
@@ -15,6 +30,16 @@ const WEATHER_VISUALS_BY_CONDITION = {
   hail: ["hail", "冰雹"],
   exceptional: ["code-red", "异常天气"]
 };
+/**
+ * 取天气图标名与文案。
+ *
+ * HA 的天气条件不含昼夜信息，sunny / partlycloudy 在太阳落山后必须换成夜间图标，
+ * 否则晚上会显示大太阳。unknown / unavailable 用通用的异常图标，不把原始状态当文案上屏。
+ *
+ * @param {string} condition HA 天气条件。
+ * @param {string} [sunState] 太阳实体状态，等于 "below_horizon" 表示夜间。
+ * @returns {[string, string]} [图标名, 中文文案]。
+ */
 export function weatherVisual(condition, sunState = "") {
   let normalizedCondition = String(condition || "")
     .trim()
@@ -23,12 +48,14 @@ export function weatherVisual(condition, sunState = "") {
   if (isBelowHorizon && normalizedCondition === "sunny") {
     normalizedCondition = "clear-night";
   }
+  // partlycloudy 单独处理：夜间需要换成 partly-cloudy-night，而它在映射表里没有对应项。
   if (isBelowHorizon && normalizedCondition === "partlycloudy") {
     return ["partly-cloudy-night", "多云"];
   } else {
     return (
       WEATHER_VISUALS_BY_CONDITION[normalizedCondition] || [
         "code-red",
+        // 认不出的条件原样显示（便于排查），只有明确的无效状态才回落到「天气不可用」。
         normalizedCondition && !["unknown", "unavailable"].includes(normalizedCondition)
           ? normalizedCondition
           : "天气不可用"
@@ -36,6 +63,15 @@ export function weatherVisual(condition, sunState = "") {
     );
   }
 }
+/**
+ * 拼 meteocons 图标地址。
+ *
+ * 图标名来自后端下发，理论上可信，但仍做一次白名单校验（只允许小写字母、数字与连字符），
+ * 避免异常数据拼出跨目录路径；不合法时统一回落到 code-red。
+ *
+ * @param {string} iconName 图标名。
+ * @returns {string} `/static/vendor/meteocons/fill/<name>.svg` 形式的地址。
+ */
 export function meteoconUrl(iconName) {
   const normalizedIconName = String(iconName || "").trim();
   if (/^[a-z0-9-]+$/.test(normalizedIconName)) {
@@ -44,6 +80,16 @@ export function meteoconUrl(iconName) {
     return "/static/vendor/meteocons/fill/code-red.svg";
   }
 }
+/**
+ * 校验 CSS 颜色，不合法则用兜底值。
+ *
+ * 颜色会被写进内联样式，这里用白名单正则挡掉任意字符串，
+ * 只放行十六进制与 rgb / hsl 系列函数写法。
+ *
+ * @param {string} color 待校验的颜色。
+ * @param {string} fallbackColor 兜底颜色。
+ * @returns {string} 可安全写入样式的颜色字符串。
+ */
 function sanitizeCssColor(color, fallbackColor) {
   const trimmedColor = String(color || "").trim();
   if (/^(#[\da-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\))$/i.test(trimmedColor)) {
@@ -52,11 +98,20 @@ function sanitizeCssColor(color, fallbackColor) {
     return fallbackColor;
   }
 }
+// 自动阈值的四档渐变色：由浅绿到红，对应「低 → 高」。顺序即取值由小到大，不能重排。
 const THRESHOLD_GRADIENT_COLORS = ["#ddffc2", "#68cc3e", "#ff8e52", "#ff1a1a"];
+/**
+ * 在升序数组上按比例取插值样本，相当于一次轻量的分位数查询。
+ *
+ * @param {number[]} values 升序数值数组。
+ * @param {number} ratio 0~1 的比例。
+ * @returns {number} 插值结果；数组为空时返回 NaN。
+ */
 function sampleArrayAtRatio(values, ratio) {
   if (!values.length) {
     return NaN;
   }
+  // 按比例落到的浮点下标：floor / ceil 各取一个端点，再按小数部分线性插值。
   const scaledIndex = (values.length - 1) * ratio;
   const lowerIndex = Math.floor(scaledIndex);
   const upperIndex = Math.ceil(scaledIndex);
@@ -68,6 +123,15 @@ function sampleArrayAtRatio(values, ratio) {
     );
   }
 }
+/**
+ * 归一化用户手填的阈值：丢掉非数值项、校验颜色、按值升序排列。
+ *
+ * 排序是必须的：后面的 thresholdColor 依赖「升序 + 取最后一个不超过当前值的档位」，
+ * 顺序错了颜色就会错档。
+ *
+ * @param {Array<object>} thresholds 形如 [{value, color}] 的阈值数组。
+ * @returns {Array<{value: number, color: string}>} 归一化并升序的阈值。
+ */
 export function normalizedThresholds(thresholds) {
   return (Array.isArray(thresholds) ? thresholds : [])
     .filter(entry => Number.isFinite(Number(entry?.value)))
@@ -77,7 +141,19 @@ export function normalizedThresholds(thresholds) {
     }))
     .sort((leftEntry, rightEntry) => leftEntry.value - rightEntry.value);
 }
+/**
+ * 由序列自动生成四档阈值。
+ *
+ * 取值区间用分位数而非极值：点数足够（≥5）时取 5% 与 95% 分位，
+ * 这样个别离群点不会把整条色带拉平；点数太少时只能退化为取最小 / 最大。
+ * 序列几乎恒定（跨度小于浮点误差量级）时用 ±padding 人为撑开四档，
+ * 否则四档会重叠成同一个值，图上只剩一种颜色。
+ *
+ * @param {Array<number|object>} series 数值数组或 [{value}] 数组。
+ * @returns {Array<{value: number, color: string}>} 四档阈值；无有效数值时返回空数组。
+ */
 export function automaticThresholds(series) {
+  // 拍平成升序数值数组；非数值项（null / 纯字符串 / 缺 value 的项）在这一步就被滤掉。
   const sortedValues = (Array.isArray(series) ? series : [])
     .map(seriesValue => Number(seriesValue?.value ?? seriesValue))
     .filter(numericSeriesValue => Number.isFinite(numericSeriesValue))
@@ -94,6 +170,7 @@ export function automaticThresholds(series) {
     [minimumValue, maximumValue] = [maximumValue, minimumValue];
   }
   const valueSpan = maximumValue - minimumValue;
+  // 用相对误差量级判断「几乎恒定」，避免绝对值相近但量级差别很大的序列被误判。
   const spanEpsilon = Math.max(Math.abs(minimumValue), Math.abs(maximumValue), 1) * 1e-9;
   if (valueSpan <= spanEpsilon) {
     const padding = Math.max(Math.abs(minimumValue) * 0.01, 0.01);
@@ -116,12 +193,21 @@ export function automaticThresholds(series) {
       }
     ];
   }
+  // 正常情况：把区间三等分，四个端点各取一种颜色。
   const step = valueSpan / (THRESHOLD_GRADIENT_COLORS.length - 1);
   return THRESHOLD_GRADIENT_COLORS.map((colorScaleColor, colorIndex) => ({
     value: minimumValue + step * colorIndex,
     color: colorScaleColor
   }));
 }
+/**
+ * 决定最终使用的阈值集合。
+ *
+ * @param {Array<object>} manualThresholds 用户手填的阈值。
+ * @param {Array<number|object>} seriesValues 序列取值。
+ * @param {string} [thresholdMode] "auto" 强制自动；"manual" 或无模式时，只要手填阈值非空就用它。
+ * @returns {Array<{value: number, color: string}>} 阈值集合。
+ */
 export function resolvedThresholds(manualThresholds, seriesValues, thresholdMode = "") {
   const normalizedManualThresholds = normalizedThresholds(manualThresholds);
   if (thresholdMode === "auto") {
@@ -132,6 +218,13 @@ export function resolvedThresholds(manualThresholds, seriesValues, thresholdMode
     return automaticThresholds(seriesValues);
   }
 }
+/**
+ * 取某个数值对应的颜色。
+ *
+ * @param {Array<{value: number, color: string}>} sortedThresholds 已升序的阈值。
+ * @param {number} value 当前值。
+ * @returns {string} 颜色；低于最低档时用最低档颜色，阈值为空时用默认绿。
+ */
 export function thresholdColor(sortedThresholds, value) {
   return (
     sortedThresholds.filter(candidate => value >= candidate.value).at(-1)?.color ||
@@ -139,11 +232,22 @@ export function thresholdColor(sortedThresholds, value) {
     "#68cc3e"
   );
 }
+/**
+ * 把点集转成平滑的三次贝塞尔路径。
+ *
+ * 控制点按 Catmull-Rom 转 Bézier 的经典做法取相邻点差的 1/6，
+ * 首尾点用自身补齐（previousPoint / afterNextPoint），这样端点也能得到切线而不出现折角。
+ * 坐标统一保留三位小数，避免路径字符串过长。
+ *
+ * @param {Array<{x: number, y: number}>} points 已映射到 SVG 坐标系的点，按 x 升序。
+ * @returns {string} SVG 路径的 d 属性；无点时为空串，单点时画一条横贯绘图区的直线。
+ */
 export function smoothChartPath(points) {
   if (!points.length) {
     return "";
   }
   if (points.length === 1) {
+    // 只有一个点画不出线，用一条水平线表达「该值恒定」而不是留白。
     return "M0 " + points[0].y + " L100 " + points[0].y;
   }
   let path = "M" + points[0].x.toFixed(3) + " " + points[0].y.toFixed(3);
@@ -152,6 +256,7 @@ export function smoothChartPath(points) {
     const nextPoint = points[index + 1];
     const previousPoint = points[index - 1] || currentPoint;
     const afterNextPoint = points[index + 2] || nextPoint;
+    // 1/6 是 Catmull-Rom 转 Bézier 的系数，展开后即相邻两点差的三分之一。
     const control1X = currentPoint.x + (nextPoint.x - previousPoint.x) / 6;
     const control1Y = currentPoint.y + (nextPoint.y - previousPoint.y) / 6;
     const control2X = nextPoint.x - (afterNextPoint.x - currentPoint.x) / 6;
