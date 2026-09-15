@@ -1,7 +1,54 @@
+/**
+ * 3D 户型工作室的纯几何、吸附与渲染预算工具库。
+ *
+ * 位置：studio-app.js 唯一的几何依赖（其余 studio-*.js 只做渲染 / 控件助手）。
+ *   本文件不持有状态、不碰 DOM、不 import three.js，导出的全是可直接单测的纯函数，
+ *   因此平面绘制、三维建模、导出三条路径可以复用同一套判定结果。
+ * 对外：平面几何（距离 / 投影 / 求交 / 面积 / 点内含）、墙体拓扑（切分 / 合并 /
+ *   端点延伸 / 闭环成房间 / 开口切块）、多边形布尔（并集与挖洞）、吸附
+ *   （端点 / 交点 / 墙线 / 正交轴 / 角度 / 网格）、灯光与画质自适应预算、
+ *   以及画布包围盒。
+ * 坐标与单位约定（改动任何几何代码前先读这段）：
+ * - 入参是「平面（plan）坐标」：x 向右、y 向下，单位是底图像素；同一场景内
+ *   calibration.pixelsPerMeter 是唯一的像素↔米换算系数（未标定或为 0 时由调用方兜底）。
+ * - 墙厚、层高、物件尺寸、照射距离等真实尺度一律是米，换算只发生在
+ *   wallLengthMeters / clampWindowT / wallSolidPieces 这类函数里（显式除以
+ *   pixelsPerMeter），其余函数只在像素空间内运算，不混用单位。
+ * - 平面 y 轴对应三维世界 z 轴（平面 x→世界 x、平面 y→世界 z，世界 y 轴向上）；
+ *   像素→场景米的平移与旋转由 studio-app.js 的 floorPointToScenePoint 负责，
+ *   本文件不做任何三维变换，也不感知楼层堆叠。
+ * 容差约定：平面坐标量级通常为 1e-1~1e4 像素，double 在该量级下的相对舍入误差
+ *   约 1e-12，故用 EPSILON = 1e-7 作为「同一点 / 零长度 / 平行」的统一判定阈值 ——
+ *   比一个像素的显示精度小几个数量级，又明显高于浮点噪声。需要随数据尺度缩放的
+ *   判定（共线、墙端点归类、按比例的正交容差）会在函数内另行派生容差并注明来历。
+ */
 const EPSILON = 1e-7;
+/**
+ * 把数值夹到 [lowerBound, upperBound] 闭区间内。
+ *
+ * 本文件所有阈值收口都走这里。注意 clamp 不做 NaN 兜底（NaN 会原样传出），
+ * 因此调用方一律先用 `Number(x) || 默认值`、Number.isFinite 或 finite() 把脏值换掉。
+ *
+ * @param {number} value 待夹取值。
+ * @param {number} lowerBound 下界（含）。
+ * @param {number} upperBound 上界（含）。
+ * @returns {number} 夹取后的数值。
+ */
 export function clamp(value, lowerBound, upperBound) {
   return Math.min(upperBound, Math.max(lowerBound, value));
 }
+/**
+ * 把 0~1 的亮度输入映射成聚光灯的渲染强度响应。
+ *
+ * 平方曲线（gamma≈2）用于贴近人眼对亮度的非线性感知：低亮度段压得更低，
+ * 高亮度段才拉开差距；吸顶灯在 (0, 0.35) 亮度区间另叠加一个峰值约 +0.007 的
+ * 抛物线增量（两端归零），补偿宽角吸顶灯在低亮度时因光斑铺开而「看着比筒灯暗」
+ * 的观感差，0.35 是实测中该补偿不再明显的拐点。
+ *
+ * @param {string} lightType 灯具类型，仅 "ceilinglight" 进入补偿分支。
+ * @param {number} brightnessInput 亮度（0~1），非数字与越界都按 0 处理。
+ * @returns {number} 渲染强度响应（0~1 略高）。
+ */
 export function spotLightBrightnessResponse(lightType = "downlight", brightnessInput = 0) {
   const brightnessRatio = clamp(Number(brightnessInput) || 0, 0, 1);
   const baseResponse = brightnessRatio * brightnessRatio;
@@ -11,7 +58,25 @@ export function spotLightBrightnessResponse(lightType = "downlight", brightnessI
   const downlightBoost = brightnessRatio * 0.08 * (1 - brightnessRatio / 0.35);
   return baseResponse + downlightBoost;
 }
+/**
+ * 由灯带（striplight）的三项配置推导它的投影几何与强度。
+ *
+ * 三个入参先按工程可达范围夹取：层高 0.05~6m（低于 5cm 视为无效、高于 6m 不可能是住宅）、
+ * 射程 0.5~10m、灯带长度 0.2~8m；默认值 2.7 / 3.5 / 2 分别取自常见住宅层高、
+ * 灯带有效射程与两米标准灯带。随后所有调制都以这两个基准归一：
+ * elevationRatio = 层高/2.7、lengthRatio = 长度/2，灯越高光斑越大越远但越弱
+ * （强度按 1/elevationRatio 衰减），灯带越长光斑越扁。
+ * 各夹取区间（0.6~1.6、0.75~1.5、0.65~1.55、0.5~2.2）是防止极端输入把光斑拉爆的
+ * 边界，取值来自两端外观可接受的极限，而非物理量推导。
+ *
+ * @param {number} elevationInput 安装高度（米），默认 2.7。
+ * @param {number} rangeInput 标称射程（米），默认 3.5。
+ * @param {number} lengthInput 灯带长度（米），默认 2。
+ * @returns {{elevation: number, range: number, coreScale: number, intensity: number}}
+ *   归一后的高度、射程、光斑核心缩放与强度系数。
+ */
 export function stripLightProjection(elevationInput = 2.7, rangeInput = 3.5, lengthInput = 2) {
+  // 非有限值（undefined / NaN / 字符串）一律回落到默认层高，避免 NaN 顺着比例扩散。
   const elevationMeters = clamp(
     Number.isFinite(Number(elevationInput)) ? Number(elevationInput) : 2.7,
     0.05,
@@ -27,7 +92,9 @@ export function stripLightProjection(elevationInput = 2.7, rangeInput = 3.5, len
     0.2,
     8
   );
+  // 以 2.7m 层高为基准的高度比；夹到 0.2~2.2，避免 5cm 或 6m 这类极端值把光斑拉成一点或一片。
   const elevationRatio = clamp(elevationMeters / 2.7, 0.2, 2.2);
+  // 以 2m 标准灯带为基准的长度比，决定光斑在灯带方向上的拉伸程度。
   const lengthRatio = clamp(lengthMeters / 2, 0.1, 4);
   return {
     elevation: elevationMeters,
@@ -39,6 +106,17 @@ export function stripLightProjection(elevationInput = 2.7, rangeInput = 3.5, len
     intensity: clamp(1 / elevationRatio, 0.5, 2.2)
   };
 }
+/**
+ * 估算一组灯在单帧里的相对渲染开销权重，供自适应画质降级使用。
+ *
+ * 权重按「是否生成阴影贴图 + 光源面积」分档：灯带 0.3（不投影，只做自发光）、
+ * 张角 ≥140° 的吸顶灯 1.65（需要更大阴影贴图）或 1.1、筒灯 1、其它类型 0；
+ * 关灯或亮度为 0 的灯完全不参与累计。这些数字是相对权重而不是实测耗时，
+ * 只用于与 adaptiveDeviceLightBudget 的预算比较，判断本机吃不吃得下这批灯。
+ *
+ * @param {Array<object>} lights 灯光列表（读 enabled / brightness / type / angle）。
+ * @returns {number} 累计开销权重。
+ */
 export function adaptiveLightRenderCost(lights = []) {
   return lights.reduce(
     (totalCost, light) =>
@@ -54,6 +132,21 @@ export function adaptiveLightRenderCost(lights = []) {
     0
   );
 }
+/**
+ * 按设备能力与预览分辨率估算本机可同时渲染的灯光预算（相对权重上限）。
+ *
+ * 基准 4.5 + min(核数, 16) * 0.55：4.5 是双核低端机的起步值，核数只取到 16
+ * （再多也不会加快 WebGL 主线程的提交）。内存分档 0.78 / 0.88 / 1 / 1.1 按实测
+ * 档位给出（≤4GB 明显掉帧、≥16GB 才有余量）；像素因子以 500000 像素
+ * （约 960×520 的预览画布）为基准按 sqrt 反比缩放并夹在 0.72~1.2，
+ * 因为填充率近似与像素数成正比。最后整体夹到 4~16，避免任何一端推成无意义的预算。
+ *
+ * @param {object} [deviceOptions] 设备能力（来自 navigator 的近似值）。
+ * @param {number} [deviceOptions.hardwareConcurrency] CPU 逻辑核数。
+ * @param {number} [deviceOptions.deviceMemory] 设备内存 GB。
+ * @param {number} [deviceOptions.previewPixels] 预览画布像素数。
+ * @returns {number} 灯光开销预算，与 adaptiveLightRenderCost 同一量纲。
+ */
 export function adaptiveDeviceLightBudget({
   hardwareConcurrency: hardwareConcurrency = 4,
   deviceMemory: deviceMemory = 8,
@@ -67,7 +160,22 @@ export function adaptiveDeviceLightBudget({
   const pixelFactor = clamp(Math.sqrt(500000 / previewPixelCount), 0.72, 1.2);
   return clamp(baseBudget * memoryFactor * pixelFactor, 4, 16);
 }
+/**
+ * 汇总最近若干帧的耗时，判断当前渲染是否流畅、是否需要降级。
+ *
+ * 先剔除 8~120ms 以外的样本：小于 8ms 多半是重复的 rAF 回调或计时噪声，
+ * 大于 120ms 基本是切标签页 / 断点造成的停顿，都不代表真实渲染能力；
+ * 有效样本不足 12 帧时不下结论（sufficient=false），避免刚启动就误判降级。
+ * 结论用平均 + p75 + p90 三个口径共同判定：p90 负责抓偶发卡顿，
+ * severe 阈值 45/50/68ms 对应约 22/20/15fps，slow 阈值 34/38/55ms 对应约 29fps，
+ * 只有平均 ≤24ms 且 p90 ≤32ms（约 42fps 以上）才算 smooth。
+ *
+ * @param {number[]} frameTimes 帧耗时样本（毫秒）。
+ * @returns {object} 判定结果：sufficient / sampleCount / averageFrameMs /
+ *   p75FrameMs / p90FrameMs / fps / severe / slow / smooth。
+ */
 export function assessAdaptiveRenderFrames(frameTimes = []) {
+  // 8~120ms 是「真实一帧」的合理区间，区间外的样本会污染均值，直接丢弃。
   const validFrameTimesMs = frameTimes
     .map(Number)
     .filter(frameTime => Number.isFinite(frameTime) && frameTime >= 8 && frameTime <= 120);
@@ -104,6 +212,21 @@ export function assessAdaptiveRenderFrames(frameTimes = []) {
     smooth: averageFrameMs <= 24 && p90FrameMs <= 32
   };
 }
+/**
+ * 计算平面标签（房间名 / 图标 / 副标题 / 下划线）在绘制画布上的投影位置。
+ *
+ * 所有比例系数都取自设计稿坐标（2048×640）中的实测像素：标题基线 130/640、
+ * 字号 184/640、下划线 590/640 等，按实际画布尺寸等比缩放；再减去半宽 / 半高，
+ * 把原点从画布左上角平移到中心，得到以中心为原点的投影坐标（3D 平面标签复用
+ * 同一套布局）。baselineScaleRatio 是下划线相对标题宽度的收放系数，默认 0.86，
+ * 夹在 0.3~1，防止传入异常值时划线冲出画布。画布尺寸非法时按 0 处理，
+ * 由上层自行跳过绘制。
+ *
+ * @param {number} widthPx 画布宽度（像素）。
+ * @param {number} heightPx 画布高度（像素）。
+ * @param {number} [baselineScaleInput] 下划线缩放比例。
+ * @returns {object} 各元素的 x / y / 尺寸，供画布 2D 变换使用。
+ */
 export function planLabelProjectionMetrics(widthPx, heightPx, baselineScaleInput = 0.86) {
   const safeWidthPx = Math.max(0, Number(widthPx) || 0);
   const safeHeightPx = Math.max(0, Number(heightPx) || 0);
@@ -131,6 +254,20 @@ export function planLabelProjectionMetrics(widthPx, heightPx, baselineScaleInput
     baselineCapHalfHeight: (safeHeightPx * 24) / 640
   };
 }
+/**
+ * 在阴影贴图数量上限内挑出最值得投影的灯。
+ *
+ * 先排除关灯、亮度为 0 与灯带（灯带只做自发光，不投影），再按亮度打分，
+ * 吸顶灯乘 1.08 的微弱加成（它的光斑更依赖阴影来体现体积感）。
+ * 名额不足时先按 groupId 去重——同一分组（同一房间）只保留最亮的一盏，
+ * 避免相邻两盏灯把彼此的阴影叠加糊成一片；还有余额再按分数补足。
+ * 排序用「分数降序、原始下标升序」做稳定兜底，保证同一份数据每次选出同一批灯，
+ * 否则灯一换阴影贴图就得整体重算。
+ *
+ * @param {Array<object>} lightList 灯光列表（读 id / groupId / type / brightness / enabled）。
+ * @param {number} maxCount 阴影灯数量上限。
+ * @returns {string[]} 被选中的灯 id 列表。
+ */
 export function selectShadowCastingLightIds(lightList = [], maxCount = 8) {
   const lightLimit = Math.max(0, Math.floor(Number(maxCount) || 0));
   if (lightLimit === 0) {
@@ -152,6 +289,7 @@ export function selectShadowCastingLightIds(lightList = [], maxCount = 8) {
         candidate.brightness > 0 &&
         candidate.type !== "striplight"
     )
+    // 1.08 只是打破同亮度平手的微弱加成，不足以让暗的吸顶灯挤掉更亮的筒灯。
     .map(scoredCandidate => ({
       ...scoredCandidate,
       score: scoredCandidate.brightness * (scoredCandidate.type === "ceilinglight" ? 1.08 : 1)
@@ -159,10 +297,18 @@ export function selectShadowCastingLightIds(lightList = [], maxCount = 8) {
   if (scoredLights.length <= lightLimit) {
     return scoredLights.map(rankedLight => rankedLight.id);
   }
+  /**
+   * 灯光排序比较器：分数高者在前；同分时按原始下标升序，保证结果稳定可复现。
+   *
+   * @param {object} leftLight 左侧灯光。
+   * @param {object} rightLight 右侧灯光。
+   * @returns {number} 负数表示 leftLight 应排在前面。
+   */
   const compareLightsByScore = (leftLight, rightLight) =>
     rightLight.score - leftLight.score || leftLight.index - rightLight.index;
   const bestCandidateByGroupId = new Map();
   for (const groupCandidate of scoredLights) {
+    // 没分组的灯各自当作独立分组（用下标造唯一键），不会互相顶掉名额。
     const groupId = groupCandidate.groupId || "__ungrouped-" + groupCandidate.index;
     const currentBest = bestCandidateByGroupId.get(groupId);
     if (!currentBest || compareLightsByScore(groupCandidate, currentBest) < 0) {
@@ -181,6 +327,24 @@ export function selectShadowCastingLightIds(lightList = [], maxCount = 8) {
   }
   return selectedLights.map(finalLight => finalLight.id);
 }
+/**
+ * 推算聚光灯阴影贴图可用的纹理单元数量上限。
+ *
+ * WebGL 片段着色器的纹理单元是硬资源（典型 16 个），必须先扣掉材质贴图、
+ * 非聚光灯阴影、面光源与预留位；硬件余量之外还有一层按容量的经验分档：
+ * 16 单元的设备最多 3 张、24 单元最多 6 张、更宽裕的才放到 hardLimit（默认 8）。
+ * 之所以分档而不是直接取剩余量，是因为每多一张阴影贴图就多一次全屏采样，
+ * 低端 GPU 往往先在这里掉帧。最终取「硬上限、分档上限、剩余可用单元」的最小值。
+ *
+ * @param {object} [unitOptions] 纹理单元占用情况。
+ * @param {number} [unitOptions.maxTextureUnits] 硬件纹理单元总数。
+ * @param {number} [unitOptions.materialTextureUnits] 材质贴图占用。
+ * @param {number} [unitOptions.nonSpotShadowTextureUnits] 其它阴影占用。
+ * @param {number} [unitOptions.rectAreaLightTextureUnits] 面光源占用。
+ * @param {number} [unitOptions.reservedTextureUnits] 预留单元。
+ * @param {number} [unitOptions.hardLimit] 业务硬上限。
+ * @returns {number} 可用的阴影贴图单元数（可能为 0）。
+ */
 export function spotShadowTextureUnitLimit({
   maxTextureUnits: maxTextureUnits = 16,
   materialTextureUnits: materialTextureUnits = 0,
@@ -200,6 +364,20 @@ export function spotShadowTextureUnitLimit({
   const adaptiveLimitUnits = unitCapacity <= 16 ? 3 : unitCapacity <= 24 ? 6 : hardLimitUnits;
   return Math.min(hardLimitUnits, adaptiveLimitUnits, Math.max(0, unitCapacity - unitsInUse));
 }
+/**
+ * 给单盏聚光灯 / 筒灯推荐阴影贴图参数。
+ *
+ * 宽角吸顶灯（ceilinglight 且张角 ≥140°）光斑铺得开，用 512 贴图、更大模糊半径
+ * 与 8 次采样压住锯齿，代价是显存与采样数翻倍，因此普通灯仍用 256 / 4 次。
+ * normalBias 0.018 略高于 three.js 的常用值，是为了在低分辨率贴图下先消除
+ * 自阴影痤疮（acne），宁可让接触阴影略微浮起一点。
+ *
+ * @param {string} shadowLightType 灯具类型。
+ * @param {number} shadowRangeInput 照射距离（米）。
+ * @param {number} angleInput 张角（度）。
+ * @returns {object} mapSize / radius / blurSamples / normalBias /
+ *   wideCeilingLight / range / angle。
+ */
 export function localSpotShadowSettings(
   shadowLightType = "downlight",
   shadowRangeInput = 3.5,
@@ -222,21 +400,56 @@ export function localSpotShadowSettings(
     angle: angleDeg
   };
 }
+/**
+ * 计算平面坐标下两点间的欧氏距离。
+ *
+ * @param {{x: number, y: number}} firstPoint 起点。
+ * @param {{x: number, y: number}} secondPoint 终点。
+ * @returns {number} 两点距离（单位与入参一致，即平面像素）。
+ */
 export function distance(firstPoint, secondPoint) {
   return Math.hypot(secondPoint.x - firstPoint.x, secondPoint.y - firstPoint.y);
 }
+/**
+ * 计算推拉门两扇在给定开启比例下的中心偏移（相对门洞中心）。
+ *
+ * 固定扇偏移取 ±23% 门宽：handleSide ≥ 0 时向一侧、否则镜像，23% 来自两扇
+ * 搭接量约 4~5% 门宽时的实测外观比例。活动扇基准偏移是固定扇的镜像
+ * （两扇错开最远 = 完全闭合），再按 openRatio 线性插值：0 = 闭合，1 = 两扇完全重合 = 全开。
+ *
+ * @param {number} panelWidth 单扇门宽（平面像素）。
+ * @param {number} handleSide 把手侧，≥0 为一侧、<0 为另一侧。
+ * @param {number} openRatio 开启比例（0~1），默认 2/3。
+ * @returns {{fixed: number, moving: number}} 固定扇与活动扇的中心偏移（平面像素）。
+ */
 export function slidingDoorPanelCenters(panelWidth, handleSide = -1, openRatio = 2 / 3) {
+  // 0.23 是门扇中心相对门洞中心的横向偏移比例（两扇搭接约 4~5% 门宽时的实测值）。
   const fixedOffset = (handleSide >= 0 ? 1 : -1) * panelWidth * 0.23;
+  // 活动扇的基准位置与固定扇反向对称，即闭合状态。
   const movingBaseOffset = -fixedOffset;
   return {
     fixed: fixedOffset,
     moving: movingBaseOffset + (fixedOffset - movingBaseOffset) * clamp(openRatio, 0, 1)
   };
 }
+/**
+ * 把点投影到线段上，取线段上离它最近的点。
+ *
+ * t 被夹在 [0,1]，所以结果一定落在线段内（不是无限延长线），这是做吸附 /
+ * 命中检测时的期望语义。线段长度平方 ≤ 1e-7（EPSILON）时视为退化点，
+ * 直接返回起点并把 t 记 0，避免除零产生 NaN/Infinity 污染下游。
+ *
+ * @param {{x: number, y: number}} point 待投影的点。
+ * @param {{x: number, y: number}} segmentStart 线段起点。
+ * @param {{x: number, y: number}} segmentEnd 线段终点。
+ * @returns {{point: {x: number, y: number}, t: number, distance: number}}
+ *   线段上最近点、归一化参数 t 与该点到最近点的距离。
+ */
 export function projectPointToSegment(point, segmentStart, segmentEnd) {
   const segmentDirX = segmentEnd.x - segmentStart.x;
   const segmentDirY = segmentEnd.y - segmentStart.y;
   const segmentLengthSquared = segmentDirX * segmentDirX + segmentDirY * segmentDirY;
+  // 退化线段（两端点重合，长度平方 ≤ EPSILON）直接退化成起点，避免后面除以 0。
   if (segmentLengthSquared <= 1e-7) {
     return {
       point: {
@@ -262,19 +475,39 @@ export function projectPointToSegment(point, segmentStart, segmentEnd) {
     distance: distance(point, closestPoint)
   };
 }
+/**
+ * 求两条线段的交点。
+ *
+ * 用叉积参数化求解：|cross| ≤ EPSILON 说明两段平行或共线，直接返回 null ——
+ * 共线重叠的情形不在这里处理，由 mergeCollinearWallSegments /
+ * uncoveredCollinearWallSegments 用区间合并单独负责，避免一个函数承担两种语义。
+ * 参数区间判定用不对称容差（下界 1e-7、上界写成 1.0000001）：两端都略微放宽，
+ * 让「交点正好落在公共端点」的情况仍算命中，同时对 t 做 clamp 后再插值，
+ * 把这点微小越界修正回线段上。
+ *
+ * @param {{x: number, y: number}} firstStart 第一条线段起点。
+ * @param {{x: number, y: number}} firstEnd 第一条线段终点。
+ * @param {{x: number, y: number}} secondStart 第二条线段起点。
+ * @param {{x: number, y: number}} secondEnd 第二条线段终点。
+ * @returns {{x: number, y: number}|null} 交点坐标；平行、共线或不相交时为 null。
+ */
 export function segmentIntersection(firstStart, firstEnd, secondStart, secondEnd) {
   const firstDirX = firstEnd.x - firstStart.x;
   const firstDirY = firstEnd.y - firstStart.y;
   const secondDirX = secondEnd.x - secondStart.x;
   const secondDirY = secondEnd.y - secondStart.y;
+  // 二维叉积即两方向向量张成的平行四边形面积，为 0（含浮点噪声）表示平行或共线。
   const crossDenominator = firstDirX * secondDirY - firstDirY * secondDirX;
   if (Math.abs(crossDenominator) <= 1e-7) {
     return null;
   }
   const startDeltaX = secondStart.x - firstStart.x;
   const startDeltaY = secondStart.y - firstStart.y;
+  // 交点在第一段上的归一化参数（0=起点，1=终点）。
   const firstT = (startDeltaX * secondDirY - startDeltaY * secondDirX) / crossDenominator;
+  // 交点在第二段上的归一化参数。
   const secondT = (startDeltaX * firstDirY - startDeltaY * firstDirX) / crossDenominator;
+  // 参数越界即交点落在线段之外；上界写成 1.0000001 是 1 + EPSILON 的字面量形式。
   if (firstT < -1e-7 || firstT > 1.0000001 || secondT < -1e-7 || secondT > 1.0000001) {
     return null;
   } else {
@@ -284,6 +517,18 @@ export function segmentIntersection(firstStart, firstEnd, secondStart, secondEnd
     };
   }
 }
+/**
+ * 求一组墙两两之间的全部交点，并去重。
+ *
+ * O(n²) 两两求交；一根墙上可能有多个交点，而在三墙 / 四墙交汇处同一点会被
+ * 重复算出，因此按距离 ≤ EPSILON 去重（同一点在 double 下的误差远小于该阈值）。
+ * 用「近距离去重而非坐标哈希」是因为交点坐标由插值得到，位模式并不稳定。
+ * 调用方（studio-app.js 的 wallIntersectionsForWalls）按场景缓存结果，
+ * 所以这里的平方复杂度在撤销 / 重绘时不会反复付出。
+ *
+ * @param {Array<{start: {x: number, y: number}, end: {x: number, y: number}}>} wallList 墙列表。
+ * @returns {Array<{x: number, y: number}>} 去重后的交点坐标。
+ */
 export function wallIntersections(wallList) {
   const intersectionPoints = [];
   for (let wallIndex = 0; wallIndex < wallList.length; wallIndex += 1) {
@@ -308,7 +553,20 @@ export function wallIntersections(wallList) {
   }
   return intersectionPoints;
 }
+/**
+ * 按墙与墙的交点把每根墙切成若干子段。
+ *
+ * 这是「画墙 → 生成墙面」链路的第一步：切开后每段才能独立处理开口、角落延伸
+ * 与合并。minGap（默认 1e-6 像素）是「同一点」级容差，用来吸收浮点误差：
+ * 落在端点附近或与前一个切点几乎重合的 t 会被丢弃，否则会切出零长度碎片。
+ *
+ * @param {Array<{start: {x: number, y: number}, end: {x: number, y: number}}>} inputWalls 原始墙列表。
+ * @param {number} [minGap] 切点去重容差（平面像素）。
+ * @returns {Array<object>} 子段列表，每段带 sourceWall / sourceIndex / pieceIndex /
+ *   pieceCount / startT / endT / start / end。
+ */
 export function splitWallSegments(inputWalls, minGap = 0.000001) {
+  // 再兜一道 EPSILON 下限：传 0 或负数时仍要有一个能吸收浮点噪声的容差。
   const gapTolerance = Math.max(Number(minGap) || 0, 1e-7);
   const cutTsByWall = inputWalls.map(() => [0, 1]);
   for (let splitWallIndex = 0; splitWallIndex < inputWalls.length; splitWallIndex += 1) {
@@ -377,6 +635,22 @@ export function splitWallSegments(inputWalls, minGap = 0.000001) {
   });
   return pieces;
 }
+/**
+ * 求一根参考墙中「没有被其它共线墙覆盖」的部分。
+ *
+ * 用于画墙时提示重叠：只有与参考墙近似共线（方向叉积归一化后 ≤ 容差）
+ * 且两个端点都贴在参考墙上（垂距 ≤ 容差）的墙才算覆盖。minLength 同时充当
+ * 两种角色 —— 绝对长度阈值（0.001 米级，调用方传 max(0.75, 每米像素数*0.01)，
+ * 即重叠超过约 1cm 才提示）与除以墙长得到的归一化 t 容差，
+ * 这样「几毫米的错位」在长短墙上都能被同样地容忍。
+ * 覆盖区间按 t 合并后取补集，返回仍露在外面的子段。
+ *
+ * @param {object} referenceWall 参考墙（需有 start / end / id）。
+ * @param {Array<object>} otherWalls 其它墙列表。
+ * @param {number} [minLength] 长度 / 归一化容差。
+ * @returns {Array<{start: {x: number, y: number}, end: {x: number, y: number}}>}
+ *   未被覆盖的子段；参考墙退化时返回空数组。
+ */
 export function uncoveredCollinearWallSegments(referenceWall, otherWalls, minLength = 0.001) {
   if (!referenceWall?.start || !referenceWall?.end) {
     return [];
@@ -392,6 +666,7 @@ export function uncoveredCollinearWallSegments(referenceWall, otherWalls, minLen
     x: dirX / wallLength,
     y: dirY / wallLength
   };
+  // 把绝对长度容差换算成 t 空间容差：后续区间比较都在 [0,1] 上做，与墙长无关。
   const normalizedTolerance = lengthTolerance / wallLength;
   const coveredRanges = [];
   for (const overlappingWall of otherWalls || []) {
@@ -484,10 +759,25 @@ export function uncoveredCollinearWallSegments(referenceWall, otherWalls, minLen
     }
   }));
 }
+/**
+ * 生成与「起点 / 绕向」无关的多边形规范化键，用于去重。
+ *
+ * 先把每个坐标四舍五入到 precision 位小数（默认 5，即 1e-5 像素）；上限 12
+ * 是因为 double 在小数点后 12 位已不剩有效数字。绝对值小于半个刻度
+ * （10^-decimals / 2）的坐标强制归零，否则 -0 与浮点噪声会造出本该相同
+ * 却不相等的键。随后把正序与逆序两串坐标各做一轮循环移位，取 2n 个结果中
+ * 字典序最小者：形状相同的多边形因此得到同一个键，与从哪条边走起、
+ * 顺时针还是逆时针无关（用于判定「这两块墙面本来就是同一块」）。
+ *
+ * @param {Array<{x: number, y: number}>} points 多边形顶点。
+ * @param {number} [precision] 四舍五入保留的小数位数（夹在 0~12）。
+ * @returns {string} 规范化键；入参为空时返回空串。
+ */
 export function canonicalPolygonKey(points, precision = 5) {
   if (!Array.isArray(points) || !points.length) {
     return "";
   }
+  // 12 位是 double 定点化后仍有意义的极限，再多的位数只会放大浮点噪声。
   const decimals = clamp(Math.round(Number(precision) || 0), 0, 12);
   const coordinateKeys = points.map(polygonPoint => {
     const roundedX =
@@ -510,6 +800,21 @@ export function canonicalPolygonKey(points, precision = 5) {
   }
   return rotationKeys.sort()[0];
 }
+/**
+ * 在两根墙之间寻找唯一一对「几乎重合」的端点。
+ *
+ * 枚举 start-start / start-end / end-start / end-end 四种配对，只有恰好一对
+ * 落在容差内才返回结果：0 对说明两墙没接上，2 对以上说明两墙几乎完全重合
+ * （零长墙或重复墙），此时合并方向不唯一，宁可不合并。接点取两个端点坐标的
+ * 中点，避免合并后的坐标在两根墙之间来回漂移。
+ *
+ * @param {object} wallA 第一根墙。
+ * @param {object} wallB 第二根墙。
+ * @param {number} endpointTolerance 端点配对的距离容差。
+ * @returns {{point: {x: number, y: number}, firstKey: string, secondKey: string,
+ *   firstOuter: {x: number, y: number}, secondOuter: {x: number, y: number}}|null}
+ *   接点、两条墙上配对端点的键名，以及各自另一端（合并后新墙的两端）。
+ */
 function matchWallEndpoints(wallA, wallB, endpointTolerance) {
   const matchingPairs = [
     {
@@ -547,6 +852,19 @@ function matchWallEndpoints(wallA, wallB, endpointTolerance) {
     secondOuter: wallB[matchedPair.secondKey === "start" ? "end" : "start"]
   };
 }
+/**
+ * 判断两根墙的「可合并属性」是否一致：高度、厚度、透明度与 allowOpenEnd。
+ *
+ * 只有这些都一致（数值按容差比较，单位为米 / 0~1）才允许合并，否则拼出来的
+ * 墙会留下半截高、半截透的接缝。透明度单独处理：null 表示「跟随场景默认值」，
+ * 因此两个 null 才算相等；一个 null 一个数字时无法判断最终透明度是否一致，
+ * 按不兼容处理。
+ *
+ * @param {object} firstWall 第一根墙。
+ * @param {object} secondWall 第二根墙。
+ * @param {number} compatibilityTolerance 数值属性的比较容差。
+ * @returns {boolean} 属性是否兼容。
+ */
 function canMergeWalls(firstWall, secondWall, compatibilityTolerance) {
   const firstOpacity =
     firstWall.opacity === null || firstWall.opacity === undefined
@@ -569,6 +887,17 @@ function canMergeWalls(firstWall, secondWall, compatibilityTolerance) {
     (firstWall.allowOpenEnd === true) == (secondWall.allowOpenEnd === true)
   );
 }
+/**
+ * 统计接点附近有多少个墙端点（即该节点的度数）。
+ *
+ * 合并要求接点处恰好只有这 2 个端点：3 个以上说明这里是 T 形 / 十字路口，
+ * 合并会吞掉第三根墙的接头；1 个以下说明两墙其实并未真正相接。
+ *
+ * @param {Array<{wall: object}>} incidentWallEntries 待统计的墙条目。
+ * @param {{x: number, y: number}} probePoint 探测点。
+ * @param {number} proximityTolerance 距离容差。
+ * @returns {number} 落在探测点附近的端点数。
+ */
 function countEndpointsNearPoint(incidentWallEntries, probePoint, proximityTolerance) {
   return incidentWallEntries.reduce(
     (count, nearbyWall) =>
@@ -578,6 +907,18 @@ function countEndpointsNearPoint(incidentWallEntries, probePoint, proximityToler
     0
   );
 }
+/**
+ * 判断这次端点配对是否构成「发夹接头」：两根墙几乎反向、又几乎共线。
+ *
+ * 发夹接头合并后会得到零长墙或方向翻转的墙，必须排除。判据是两个外侧端点
+ * 方向点积 < 0（反向）且叉积绝对值 ≤ 容差 × 较长边长；乘长度把叉积
+ * 归一化成夹角的正弦，使同一个容差在长短墙上表示同一个角度，下限 1 则防止
+ * 墙极短时容差退化为 0。
+ *
+ * @param {object} endpointMatch matchWallEndpoints 的返回值。
+ * @param {number} hairpinTolerance 共线判定容差（夹角正弦的量级）。
+ * @returns {boolean} true 表示是发夹接头，不应合并。
+ */
 function isHairpinJoin(endpointMatch, hairpinTolerance) {
   const firstOuterVector = subtractPoints(endpointMatch.firstOuter, endpointMatch.point);
   const secondOuterVector = subtractPoints(endpointMatch.secondOuter, endpointMatch.point);
@@ -592,8 +933,27 @@ function isHairpinJoin(endpointMatch, hairpinTolerance) {
     crossMagnitude <= hairpinTolerance * Math.max(firstOuterLength, secondOuterLength, 1)
   );
 }
+/**
+ * 合并同一平面内共线、且仅在端点相接的墙，减少墙数量。
+ *
+ * 反复扫描直到没有可合并的一对为止，每次合并必须同时满足四个条件：
+ * 属性兼容（canMergeWalls）、端点唯一配对（matchWallEndpoints）、
+ * 接点度数恰好为 2（countEndpointsNearPoint）、且不是发夹接头（isHairpinJoin）。
+ * 缺任何一条都会破坏墙体拓扑（T 形路口被吞、零长墙、半截属性），
+ * 因此这里宁可不合并。
+ * mergeDistanceTolerance 是「同一点 / 共线」级容差（默认 1e-6 平面像素，
+ * 调用方传 0.000001），只用来吸收浮点误差，不承担几何上的模糊匹配。
+ *
+ * @param {Array<object>} sourceWalls 原始墙列表（不会被就地修改）。
+ * @param {number} [mergeDistanceTolerance] 合并容差（平面像素）。
+ * @returns {{walls: Array<object>, wallIdMap: Map<string, string>}}
+ *   合并后的墙，以及「原始墙 id → 合并后墙 id」的映射（供门窗重新挂载）。
+ */
 export function mergeCollinearWallSegments(sourceWalls, mergeDistanceTolerance = 0.000001) {
   const mergeTolerance = Math.max(Number(mergeDistanceTolerance) || 0, 1e-7);
+  // 先剔除零长墙（两端距离 ≤ 容差），再深拷贝每条墙及其端点：合并过程会就地改写
+  // 中间结果，绝不能污染调用方的场景数据。sourceIds 记录该墙由哪些原始 id 合成，
+  // 供最后的 wallIdMap 回溯。
   const workList = (sourceWalls || [])
     .filter(
       rawWall =>
@@ -669,6 +1029,19 @@ export function mergeCollinearWallSegments(sourceWalls, mergeDistanceTolerance =
     wallIdMap: wallIdBySourceId
   };
 }
+/**
+ * 把挂在某根墙上的附件（门 / 窗 / 栏杆等）重新定位到合并后的新墙。
+ *
+ * 附件在墙上用归一化参数 t 表示，原墙被合并后 t 不能直接复用：先把 t 还原成
+ * 平面点，再投影到目标墙求新的 t 并夹回 [0,1]。这样即使新墙方向被合并过程
+ * 反转（start / end 对调），附件位置依然正确。任一入参缺失时原样返回，
+ * 交由调用方兜底。
+ *
+ * @param {{t: number}} attachment 挂在墙上的附件。
+ * @param {object} fromWall 附件原本挂载的墙。
+ * @param {object} destinationWall 合并后的目标墙。
+ * @returns {object} 带新 wallId 与新 t 的附件。
+ */
 export function remapWallAttachment(attachment, fromWall, destinationWall) {
   if (!attachment || !fromWall || !destinationWall) {
     return attachment;
@@ -685,6 +1058,19 @@ export function remapWallAttachment(attachment, fromWall, destinationWall) {
     )
   };
 }
+/**
+ * 在候选点里找出离查询点最近、且不超过 maxDistance 的一个。
+ *
+ * 距离比较写成 `!(candidateDistance > maxDistance)` 与
+ * `!(candidateDistance >= bestCandidate.distance)`，等价于「不严格更远就接受、
+ * 严格更近才替换」：当多个候选同样近（比如相邻墙的公共端点）时保留先到者，
+ * 让吸附结果稳定、不随遍历顺序抖动。
+ *
+ * @param {{x: number, y: number}} queryPoint 查询点。
+ * @param {Array<{point: {x: number, y: number}}>} candidates 候选点列表。
+ * @param {number} maxDistance 最大命中距离。
+ * @returns {object|null} 最近候选的副本（含 distance）；全部超出范围时为 null。
+ */
 function findNearestCandidate(queryPoint, candidates, maxDistance) {
   let bestCandidate = null;
   for (const snapCandidate of candidates) {
@@ -701,6 +1087,18 @@ function findNearestCandidate(queryPoint, candidates, maxDistance) {
   }
   return bestCandidate;
 }
+/**
+ * 把自由点沿就近的坐标轴锁到锚点上，得到「水平 / 垂直二选一」的正交结果。
+ *
+ * 位移较大的那个分量所在的轴被保留（点仍可沿该轴移动），另一个分量压到锚点
+ * 坐标上；两边相等时归入垂直轴（锁 x），让边界情况有确定行为。
+ * label 是直接展示给用户的中文提示，不是标识符，不要拿它做逻辑判断。
+ *
+ * @param {{x: number, y: number}} freePoint 自由点。
+ * @param {{x: number, y: number}} lockedAnchor 锚点。
+ * @returns {{point: {x: number, y: number}, axis: string, label: string}}
+ *   锁定后的点、轴名（horizontal / vertical）与中文标签。
+ */
 export function axisLockedPoint(freePoint, lockedAnchor) {
   const deltaX = freePoint.x - lockedAnchor.x;
   const deltaY = freePoint.y - lockedAnchor.y;
@@ -724,6 +1122,21 @@ export function axisLockedPoint(freePoint, lockedAnchor) {
     };
   }
 }
+/**
+ * 在墙列表里找与「正交轴锁定」结果最接近的吸附点。
+ *
+ * 分两种情况：墙在锁定轴方向上退化（近似垂直于锁定轴，如垂直吸附遇到竖墙），
+ * 此时要求墙自身坐标与锚点同轴，否则会吸到看不见的位置，再投影求最近点；
+ * 否则把锚点坐标代入墙的参数方程求 t，t 越界即说明交点不在这面墙上。
+ * 两个分支都用与 findNearestCandidate 相同的「不严格更远就接受」比较，保证稳定。
+ *
+ * @param {{x: number, y: number}} snapQueryPoint 查询点。
+ * @param {{x: number, y: number}} snapAnchor 轴锚点。
+ * @param {Array<object>} targetWalls 候选墙。
+ * @param {number} snapDistanceLimit 最大吸附距离。
+ * @param {string} axis 锁定轴（horizontal / vertical）。
+ * @returns {object|null} 吸附结果（point / kind / targetId / label / distance）。
+ */
 function findAxisSnapOnWalls(snapQueryPoint, snapAnchor, targetWalls, snapDistanceLimit, axis) {
   let bestSnap = null;
   for (const snapWall of targetWalls) {
@@ -753,6 +1166,7 @@ function findAxisSnapOnWalls(snapQueryPoint, snapAnchor, targetWalls, snapDistan
       };
       continue;
     }
+    // 把锚点坐标代入墙的参数方程，求锚点在墙上的归一化位置 t。
     const wallT = (snapAnchor[axisKey] - snapWall.start[axisKey]) / wallDelta;
     if (wallT < -1e-7 || wallT > 1.0000001) {
       continue;
@@ -779,6 +1193,19 @@ function findAxisSnapOnWalls(snapQueryPoint, snapAnchor, targetWalls, snapDistan
   }
   return bestSnap;
 }
+/**
+ * 垂直轴优先吸附：光标与锚点的横向偏差在容差内时，优先给出竖直方向的吸附。
+ *
+ * 先查墙线（findAxisSnapOnWalls），命中不了再退化成纯垂直轴提示；
+ * 兜底分支的距离取横向偏差本身，使返回值的 distance 语义始终是
+ * 「吸附点与原始光标点的距离」。
+ *
+ * @param {{x: number, y: number}} pointInput 光标点。
+ * @param {{x: number, y: number}} verticalAnchor 垂直轴锚点。
+ * @param {Array<object>} wallSegments 墙列表。
+ * @param {number} verticalSnapDistance 吸附距离上限。
+ * @returns {object|null} 吸附结果；锚点缺失或偏差过大时为 null。
+ */
 function findVerticalAxisSnap(pointInput, verticalAnchor, wallSegments, verticalSnapDistance) {
   if (!verticalAnchor || Math.abs(pointInput.x - verticalAnchor.x) > verticalSnapDistance) {
     return null;
@@ -802,6 +1229,22 @@ function findVerticalAxisSnap(pointInput, verticalAnchor, wallSegments, vertical
     }
   );
 }
+/**
+ * 强制正交约束下的吸附：在「轴锁定 + 锚点」限定的一条直线上找最近的特征点。
+ *
+ * 候选只保留与锚点在锁定轴坐标上相同的端点与交点（筛选用吸附距离的百万分之一
+ * 作坐标容差，量级远小于可感知的像素偏移），这样候选必然落在正交线上，
+ * 不会把光标拽到斜向位置；候选都够不着时退回墙线吸附，最后仍无命中就返回
+ * 轴锁定点本身（kind = "axis"，表示只受正交约束、没有吸附到特征点）。
+ *
+ * @param {{x: number, y: number}} cursorPoint 光标点。
+ * @param {{x: number, y: number}} orthogonalAnchor 正交锚点。
+ * @param {Array<object>} wallGeometry 墙列表。
+ * @param {number} orthogonalSnapDistance 吸附距离上限。
+ * @param {Array<{x: number, y: number}>} [knownIntersections] 预计算好的墙交点。
+ * @param {object} [options] 开关：snapEndpoints / snapIntersections / snapSegments。
+ * @returns {object} 吸附结果（含轴锁定信息与中文 label）。
+ */
 function findOrthogonalAxisSnap(
   cursorPoint,
   orthogonalAnchor,
@@ -865,8 +1308,27 @@ function findOrthogonalAxisSnap(
     distance: distance(cursorPoint, axisLock.point)
   };
 }
+/**
+ * 平面绘制的统一吸附入口：按优先级依次尝试各类吸附，返回第一个命中。
+ *
+ * 顺序即优先级：强制正交轴（约束键按下时）→ 端点 → 交点 → 垂直轴
+ * （preferVerticalAxis，正交模式下的首选项）→ 墙线 → 角度 → 网格 → 不吸附。
+ * 这个顺序体现「越结构化的特征越优先」：端点与交点是精确的建筑特征，
+ * 角度与网格只是粗粒度的辅助对齐，所以排最后。屏幕容差除以 zoom 换算成
+ * 平面容差，这样任何缩放级别下「多少像素以内算命中」的手感都一致。
+ * 每个子步骤都能被 snapOptions 的开关单独关闭（对应设置面板里的同名选项），
+ * 全部未命中时返回 kind = null 的原点，调用方据此显示「无吸附」。
+ *
+ * @param {{x: number, y: number}} pointToSnap 待吸附的点。
+ * @param {Array<object>} wallShapes 场景中的墙。
+ * @param {object} [snapOptions] 吸附配置：zoom / screenTolerance / anchor /
+ *   angleStepDegrees / gridSize / intersections，以及各 snap* 开关。
+ * @returns {{point: {x: number, y: number}, kind: string|null, label: string,
+ *   distance: number, targetId?: string}} 吸附结果。
+ */
 export function snapPoint(pointToSnap, wallShapes, snapOptions = {}) {
   const zoomScale = Math.max(Number(snapOptions.zoom) || 1, 1e-7);
+  // 屏幕容差（默认 12px）换算成平面距离：视图放得越大，同样的像素容差对应的世界距离越小。
   const worldTolerance = (Number(snapOptions.screenTolerance) || 12) / zoomScale;
   const intersections = Array.isArray(snapOptions.intersections) ? snapOptions.intersections : null;
   if (snapOptions.forceOrthogonalAxis === true && snapOptions.anchor) {
@@ -963,6 +1425,7 @@ export function snapPoint(pointToSnap, wallShapes, snapOptions = {}) {
     const anchorDeltaY = pointToSnap.y - snapOptions.anchor.y;
     const anchorDistance = Math.hypot(anchorDeltaX, anchorDeltaY);
     if (anchorDistance > 1e-7) {
+      // 角度吸附步长默认 15°，与设置面板里提供的可选步长保持一致。
       const angleStepRad = ((Number(snapOptions.angleStepDegrees) || 15) * Math.PI) / 180;
       const pointerAngleRad = Math.atan2(anchorDeltaY, anchorDeltaX);
       const snappedAngleRad = Math.round(pointerAngleRad / angleStepRad) * angleStepRad;
@@ -972,6 +1435,7 @@ export function snapPoint(pointToSnap, wallShapes, snapOptions = {}) {
       };
       const angleSnapDistance = distance(pointToSnap, angleSnapPoint);
       if (angleSnapDistance <= worldTolerance) {
+        // 先归一到 [0, 360) 再取整，避免标签出现 -0° 或 360° 这种反直觉的读法。
         const snappedAngleDeg = ((snappedAngleRad * 180) / Math.PI + 360) % 360;
         return {
           point: angleSnapPoint,
@@ -1007,6 +1471,17 @@ export function snapPoint(pointToSnap, wallShapes, snapOptions = {}) {
     distance: 0
   };
 }
+/**
+ * 找出离参考点最近的墙（连同墙上的投影点与参数 t）。
+ *
+ * maxWallDistance 默认 Infinity，命中检测时由调用方限制范围。
+ * 距离比较沿用 findNearestCandidate 的写法：等距时保留先遍历到的墙，结果稳定。
+ *
+ * @param {{x: number, y: number}} referencePoint 参考点。
+ * @param {Array<object>} wallCandidates 候选墙。
+ * @param {number} [maxWallDistance] 最大命中距离。
+ * @returns {object|null} 命中的墙与投影结果（wall / point / t / distance）。
+ */
 export function nearestWall(referencePoint, wallCandidates, maxWallDistance = Infinity) {
   let nearestHit = null;
   for (const hitWall of wallCandidates) {
@@ -1023,11 +1498,34 @@ export function nearestWall(referencePoint, wallCandidates, maxWallDistance = In
   }
   return nearestHit;
 }
+/**
+ * 把墙的平面像素长度换算成米。
+ *
+ * pixelsPerMeter 是场景标定出的唯一换算系数；未标定（0 / NaN / 负数）时兜底为 1，
+ * 保证除法不会得到 0、NaN 或负长度 —— 此时结果数值没有物理意义，但流程仍能走完
+ * （上层会因为标定为 0 而不显示真实尺寸标注）。
+ *
+ * @param {{start: {x: number, y: number}, end: {x: number, y: number}}} measuredWall 墙。
+ * @param {number} pixelsPerMeter 每米对应的平面像素数。
+ * @returns {number} 墙长（米）。
+ */
 export function wallLengthMeters(measuredWall, pixelsPerMeter) {
   return (
     distance(measuredWall.start, measuredWall.end) / Math.max(Number(pixelsPerMeter) || 1, 1e-7)
   );
 }
+/**
+ * 把开口在墙上的归一化位置 t 夹到「洞口不越出墙端」的合法区间。
+ *
+ * 合法区间由半个洞口宽决定：halfWidth 取洞口宽的一半与墙长一半的较小值，
+ * 于是超宽洞口（比墙还长）退化成居中放置而不是报错；墙长为 0 时直接返回 0.5。
+ * 门窗沿墙拖动时都走这里，保证无论怎么拖，洞口都不会跑到墙外。
+ *
+ * @param {object} openingWall 承载开口的墙。
+ * @param {object} windowOpening 开口（读 width / t）。
+ * @param {number} pixelsPerMeterReference 像素↔米换算系数。
+ * @returns {number} 夹取后的 t（0~1）。
+ */
 export function clampWindowT(openingWall, windowOpening, pixelsPerMeterReference) {
   const openingWallLength = wallLengthMeters(openingWall, pixelsPerMeterReference);
   if (openingWallLength <= 1e-7) {
@@ -1043,9 +1541,37 @@ export function clampWindowT(openingWall, windowOpening, pixelsPerMeterReference
     1 - halfWidth / openingWallLength
   );
 }
+/**
+ * 计算门扇的开启角（弧度），由门的 swing 决定往哪一侧开。
+ *
+ * swing === -1（反向开启）取正角，其余取负角，绝对值为 maxAngleRad（默认 90°）。
+ * 这里只表达平面图上的开启方向指示，不按开启百分比插值 —— 真实开启比例
+ * 由三维动画另行驱动，两者刻意解耦。
+ *
+ * @param {object} door 门对象（读 swing）。
+ * @param {number} [maxAngleRad] 最大开启角（弧度）。
+ * @returns {number} 带符号的开启角（弧度）。
+ */
 export function doorLeafRotation(door, maxAngleRad = Math.PI / 2) {
   return -(door?.swing === -1 ? -1 : 1) * maxAngleRad;
 }
+/**
+ * 计算每根墙两端需要向外延伸的长度，把同一个角上的墙体接缝补严。
+ *
+ * 原理：先把所有墙端点按容差聚成「节点」，每个端点在节点上带一条沿墙向外的
+ * 单位方向与半墙厚。对同一节点上相邻的两条边（夹角不接近 0° 或 180°），
+ * 按三角形关系算出斜接（miter）所需的外伸量 (t_other + t_self·cosθ) / sinθ，
+ * 使两根墙的外侧棱在斜接处正好相交。最大外伸量限制为
+ * 半墙厚 × maxExtensionRatio（默认 4）：夹角极小时斜接长度会趋于无穷，
+ * 必须截断，否则墙角会甩出一条长刺，剩下的缺口由渲染端的墙面覆盖补掉；
+ * sinGap ≤ SIN_TOLERANCE（0.0001，约 0.006°）的近乎平行 / 反向情形直接跳过。
+ * 返回值的单位是米（与墙厚一致），渲染时再乘以 pixelsPerMeter 落到平面。
+ *
+ * @param {Array<object>} wallEntries 墙列表。
+ * @param {number} [junctionTolerance] 端点聚类容差（平面像素）。
+ * @param {number} [maxExtensionRatio] 最大外伸量与半墙厚的比值。
+ * @returns {Object<string, {start: number, end: number}>} 墙 id → 两端外伸长度（米）。
+ */
 export function wallJoinExtensions(wallEntries, junctionTolerance = 0.001, maxExtensionRatio = 4) {
   const joinTolerance = Math.max(Number(junctionTolerance) || 0, 1e-7);
   const extensionRatioLimit = Math.max(Number(maxExtensionRatio) || 0, 1);
@@ -1097,6 +1623,8 @@ export function wallJoinExtensions(wallEntries, junctionTolerance = 0.001, maxEx
       halfThickness: halfThickness
     });
   }
+  // 0.0001（约 0.006°）用来把「几乎平行 / 几乎反向」的相邻边排除掉：
+  // 这类边做斜接会得到无穷长的外伸，没有意义。
   const SIN_TOLERANCE = 0.0001;
   for (const incidentJunction of junctions) {
     if (incidentJunction.incidents.length < 2) {
@@ -1146,6 +1674,23 @@ export function wallJoinExtensions(wallEntries, junctionTolerance = 0.001, maxEx
   }
   return extensionsByWallId;
 }
+/**
+ * 把一根墙按开口（门 / 窗 / 洞口）切成若干实心块，供三维建模使用。
+ *
+ * 先在「沿墙长度」方向收集所有分界点（墙两端 + 每个开口的左右边），
+ * 再把每个子区间在高度方向上用该处的开口区间求补：开口下方的墙裙、
+ * 开口上方的过梁以及开口之间的墙垛各自成为独立的块。这样切出的块彼此不重叠，
+ * 可以直接挤出成墙体几何，也能拿去做遮挡 / 阴影计算。
+ * 开口的宽高一律夹进墙长与层高之内，所以即使用户填了超出墙面的尺寸，
+ * 也不会生成穿透的几何。
+ *
+ * @param {object} targetWall 目标墙。
+ * @param {Array<object>} openings 开口列表（读 wallId / width / height / sill / t）。
+ * @param {number} pixelsPerMeterScale 像素↔米换算系数。
+ * @param {number} wallHeightMeters 层高（米）。
+ * @returns {Array<{start: number, end: number, bottom: number, top: number}>}
+ *   实心块列表（沿墙距离与高度，单位米）；墙退化或层高为 0 时返回空数组。
+ */
 export function wallSolidPieces(targetWall, openings, pixelsPerMeterScale, wallHeightMeters) {
   const wallLengthValue = wallLengthMeters(targetWall, pixelsPerMeterScale);
   const wallHeight = Math.max(Number(wallHeightMeters) || 0, 0);
@@ -1189,6 +1734,7 @@ export function wallSolidPieces(targetWall, openings, pixelsPerMeterScale, wallH
     if (spanEnd - spanStart <= 1e-7) {
       continue;
     }
+    // 用区间中点判定该子段落在哪些开口的横向范围内，避免边界骑缝时归属含糊。
     const spanMidpoint = (spanStart + spanEnd) / 2;
     const overlappingSpans = openingSpans
       .filter(
@@ -1238,7 +1784,21 @@ export function wallSolidPieces(targetWall, openings, pixelsPerMeterScale, wallH
   }
   return solidPieces;
 }
+/**
+ * 判断平面点是否落在「可旋转矩形」内。
+ *
+ * 做法是把点先反向旋转（绕矩形中心转 -rotation）回到矩形自己的坐标轴，
+ * 再与半宽 / 半深比较。用反向变换而不是构造四个角点做凸多边形判定，
+ * 是因为三角函数误差不会在四个角上累积，也省掉一次多边形包含计算。
+ * rect.width / depth 是米，scale 是像素↔米换算系数，相乘得到平面像素尺寸。
+ *
+ * @param {{x: number, y: number}} worldPoint 待判定的平面点。
+ * @param {object} rect 矩形（x / y / width / depth / rotation，角度制）。
+ * @param {number} scale 像素↔米换算系数。
+ * @returns {boolean} 点是否落在矩形内（含边界）。
+ */
 export function pointInRotatedRectangle(worldPoint, rect, scale) {
+  // 旋转角取反：把点转回矩形自身的坐标轴，rotation 以度为单位。
   const inverseRotationRad = (-(Number(rect.rotation) || 0) * Math.PI) / 180;
   const localDeltaX = worldPoint.x - rect.x;
   const localDeltaY = worldPoint.y - rect.y;
@@ -1246,10 +1806,34 @@ export function pointInRotatedRectangle(worldPoint, rect, scale) {
     localDeltaX * Math.cos(inverseRotationRad) - localDeltaY * Math.sin(inverseRotationRad);
   const alignedY =
     localDeltaX * Math.sin(inverseRotationRad) + localDeltaY * Math.cos(inverseRotationRad);
+  // 半宽 / 半深：米换算成平面像素后取一半，作为局部坐标下的比较边界。
   const halfBoxWidth = (Math.max(Number(rect.width) || 0, 0) * scale) / 2;
+  // 半深：同样由米换算成平面像素再取一半。
   const halfBoxDepth = (Math.max(Number(rect.depth) || 0, 0) * scale) / 2;
+  // 两个方向都落在半个盒体内才算命中，这一步等价于「点在矩形内」。
   return Math.abs(alignedX) <= halfBoxWidth && Math.abs(alignedY) <= halfBoxDepth;
 }
+/**
+ * 拖拽四角手柄缩放一个可旋转物件，返回新的中心与宽深（可等比）。
+ *
+ * 所有运算都在物件自身的局部坐标系里做：先把指针位移反向旋转，得到沿物件
+ * 宽 / 深方向的增量，再乘角点符号（拖右上角与拖左下角的生成方向相反）
+ * 并除以像素比例换算成米。宽深夹在 [最小尺寸, 8m]：最小尺寸默认 0.1m，
+ * 防止拖成零厚度后拖不回来；8m 是单件家具的合理上限。
+ * 等比模式用「宽深两个方向里较大的缩放倍数」统一缩放，保持比例不变；
+ * 最后把中心从对角锚点沿旋转后的方向推出半个新尺寸，因此缩放过程中对角点
+ * 始终不动，视觉上不会漂移。item.height 只在等比时跟着缩放，非等比不改高度。
+ *
+ * @param {object} item 待缩放物件（x / y / width / depth / rotation / height）。
+ * @param {{x: number, y: number}} cornerSign 角点方向符号（±1）。
+ * @param {{x: number, y: number}} anchorPoint 对角锚点（保持不动）。
+ * @param {{x: number, y: number}} pointerPoint 当前指针位置。
+ * @param {number} cornerPixelsPerMeter 像素↔米换算系数。
+ * @param {boolean} [isUniformScale] 是否等比缩放。
+ * @param {object} [resizeOptions] minimumDimension / minimum / maximum。
+ * @returns {{x: number, y: number, width: number, depth: number, height?: number}}
+ *   新的中心与宽深（等比时附高度）。
+ */
 export function resizeRotatedItemFromCorner(
   item,
   cornerSign,
@@ -1262,6 +1846,7 @@ export function resizeRotatedItemFromCorner(
   const pixelScale = Math.max(Number(cornerPixelsPerMeter) || 0, 1e-7);
   const signX = cornerSign?.x < 0 ? -1 : 1;
   const signY = cornerSign?.y < 0 ? -1 : 1;
+  // 同样先把指针位移反向旋转到物件的局部坐标轴（rotation 为角度制）。
   const itemInverseRotationRad = (-(Number(item.rotation) || 0) * Math.PI) / 180;
   const pointerDeltaX = pointerPoint.x - anchorPoint.x;
   const pointerDeltaY = pointerPoint.y - anchorPoint.y;
@@ -1271,7 +1856,9 @@ export function resizeRotatedItemFromCorner(
   const rotatedDeltaY =
     pointerDeltaX * Math.sin(itemInverseRotationRad) +
     pointerDeltaY * Math.cos(itemInverseRotationRad);
+  // 局部位移乘角点符号后换算成米：拖右上角（符号为正）时宽深都随指针增大。
   const deltaWidthMeters = (signX * rotatedDeltaX) / pixelScale;
+  // 深度的局部增量同样乘角点符号后换算成米，与宽度各自独立。
   const deltaDepthMeters = (signY * rotatedDeltaY) / pixelScale;
   const minDimension = Math.max(Number(resizeOptions.minimumDimension) || 0.1, 1e-7);
   const itemWidth = Math.max(Number(item.width) || minDimension, minDimension);
@@ -1291,8 +1878,11 @@ export function resizeRotatedItemFromCorner(
     newWidth = itemWidth * uniformScale;
     newDepth = itemDepth * uniformScale;
   }
+  // 新中心 = 对角锚点沿旋转后的宽 / 深方向推出半个新尺寸，保证锚点不动。
   const offsetX = (signX * newWidth * pixelScale) / 2;
+  // 深度方向的半尺寸偏移，同样沿旋转后的局部轴推出。
   const offsetY = (signY * newDepth * pixelScale) / 2;
+  // 物件自身的旋转角（度转弧度），用于把局部位移还原到平面方向。
   const rotationRad = ((Number(item.rotation) || 0) * Math.PI) / 180;
   const resizedItem = {
     x: anchorPoint.x + offsetX * Math.cos(rotationRad) - offsetY * Math.sin(rotationRad),
@@ -1305,6 +1895,21 @@ export function resizeRotatedItemFromCorner(
   }
   return resizedItem;
 }
+/**
+ * 由两个指针的位置关系推算物件的绝对旋转角（度）。
+ *
+ * 双指手势的语义是「指针连线转多少，物件就转多少」：用两次 atan2 得到双指
+ * 相对轴心的夹角变化，叠加到手势开始时的基准角度上。可选的角度吸附步长
+ * （默认 0 = 不吸附）会把结果取整到步长整数倍，便于对齐 15° / 45° 这类常用角。
+ * 最后归一到 [0, 360)，避免出现负角或超过一圈的角度，否则上层的角度比较会失配。
+ *
+ * @param {number} baseRotationDeg 手势开始时的旋转角（度）。
+ * @param {{x: number, y: number}} pivotPoint 旋转轴心。
+ * @param {{x: number, y: number}} firstPointer 第一个指针位置。
+ * @param {{x: number, y: number}} secondPointer 第二个指针位置。
+ * @param {number} [angleStepDeg] 角度吸附步长（度）。
+ * @returns {number} 归一化后的旋转角（0~360 度）。
+ */
 export function itemRotationFromPointers(
   baseRotationDeg,
   pivotPoint,
@@ -1322,6 +1927,16 @@ export function itemRotationFromPointers(
   }
   return ((rotationDeg % 360) + 360) % 360;
 }
+/**
+ * 用鞋带公式计算多边形的有向面积（平面像素²）。
+ *
+ * 结果带符号：逆时针为正、顺时针为负 —— 调用方靠符号判断绕向
+ * （extractClosedFaces 就用「有向面积为负」判定外轮廓），要面积大小时取绝对值。
+ * 这里不校验顶点数，退化多边形会得到接近 0 的值。
+ *
+ * @param {Array<{x: number, y: number}>} polygon 多边形顶点（按顺序，首尾不重复）。
+ * @returns {number} 有向面积（平面像素²）。
+ */
 export function polygonArea(polygon) {
   let doubleArea = 0;
   for (let vertexIndex = 0; vertexIndex < polygon.length; vertexIndex += 1) {
@@ -1331,6 +1946,21 @@ export function polygonArea(polygon) {
   }
   return doubleArea / 2;
 }
+/**
+ * 判断点是否落在多边形内部（含边界，边界判定带容差）。
+ *
+ * 分两个阶段：先看点到最后一条边的距离是否 ≤ 容差，是则直接判为「在内部」——
+ * 这一步专治射线法在边界附近的抖动（点压在墙线上时结果不稳定，用户拖动时
+ * 会看到内外闪烁）；再用经典奇偶射线法，沿 +x 方向数水平射线与各边的交叉次数
+ * 判断严格内部。edgeTolerance 默认 1e-7（EPSILON），调用方传入的是随标定尺度
+ * 派生的容差（约 1cm 对应的像素数），于是「贴着墙线」在这一层就被明确归入内部，
+ * 上层不必再补判定。
+ *
+ * @param {{x: number, y: number}} testPoint 待判定点。
+ * @param {Array<{x: number, y: number}>} polygonOutline 多边形轮廓。
+ * @param {number} [edgeTolerance] 边界容差。
+ * @returns {boolean} 点是否在多边形内（含边界）。
+ */
 export function pointInPolygon(testPoint, polygonOutline, edgeTolerance = 1e-7) {
   if (!Array.isArray(polygonOutline) || polygonOutline.length < 3) {
     return false;
@@ -1360,26 +1990,75 @@ export function pointInPolygon(testPoint, polygonOutline, edgeTolerance = 1e-7) 
   }
   return isInside;
 }
+/**
+ * 二维叉积的 z 分量，即两向量张成的有向平行四边形面积。
+ *
+ * @param {{x: number, y: number}} vectorA 第一个向量。
+ * @param {{x: number, y: number}} vectorB 第二个向量。
+ * @returns {number} 叉积值；符号表示 vectorB 在 vectorA 的逆 / 顺时针方向，0 表示共线。
+ */
 function crossProduct(vectorA, vectorB) {
   return vectorA.x * vectorB.y - vectorA.y * vectorB.x;
 }
+/**
+ * 向量减法（pointA - pointB）。
+ *
+ * @param {{x: number, y: number}} pointA 被减向量。
+ * @param {{x: number, y: number}} pointB 减去的向量。
+ * @returns {{x: number, y: number}} 差向量。
+ */
 function subtractPoints(pointA, pointB) {
   return {
     x: pointA.x - pointB.x,
     y: pointA.y - pointB.y
   };
 }
+/**
+ * 在两点之间做线性插值（factor = 0 取起点，1 取终点）。
+ *
+ * @param {{x: number, y: number}} startPoint 起点。
+ * @param {{x: number, y: number}} endPoint 终点。
+ * @param {number} factor 插值比例。
+ * @returns {{x: number, y: number}} 插值后的点。
+ */
 function lerpPoint(startPoint, endPoint, factor) {
   return {
     x: startPoint.x + (endPoint.x - startPoint.x) * factor,
     y: startPoint.y + (endPoint.y - startPoint.y) * factor
   };
 }
+/**
+ * 把一次求交得到的切点参数 t 收进切线表。
+ *
+ * 只接受落在 [-容差, 1 + 容差] 内的 t（越界说明交点落在线段外），
+ * 并 clamp 回 [0, 1] 后再存 —— 这样「恰好落在端点」的交点既不会被丢掉，
+ * 也不会因一点浮点越界在后续排序里跑到首尾之外。
+ *
+ * @param {Array<Array<number>>} cutLists 各条边的切线参数列表。
+ * @param {number} edgeIndex 目标边下标。
+ * @param {number} cutT 切点参数。
+ * @param {number} cutTolerance 参数容差。
+ * @returns {void}
+ */
 function pushCutT(cutLists, edgeIndex, cutT, cutTolerance) {
   if (!(cutT < -cutTolerance) && !(cutT > 1 + cutTolerance)) {
     cutLists[edgeIndex].push(clamp(cutT, 0, 1));
   }
 }
+/**
+ * 简化多边形：去掉重复点、首尾重合点与近乎共线的中间顶点。
+ *
+ * 布尔运算会产生大量「同一条直线上多切一刀」的顶点，既拖慢后续判定，
+ * 也让墙体几何多出无意义的细分，所以在生成轮廓的最后一步统一清理。
+ * 共线判据是「叉积绝对值 ≤ 容差 × 两段长度之积」：乘长度把叉积归一化成夹角
+ * 的正弦，长度乘积下限取 1 则防止极短边把容差压成 0；每删掉一个点就重新扫描，
+ * 因为删点会让原本不共线的邻居变成共线。顶点不足 3 个时返回空数组，
+ * 表示这不是一个有效的面。
+ *
+ * @param {Array<{x: number, y: number}>} polygonPoints 顶点序列。
+ * @param {number} simplifyTolerance 容差（平面像素）。
+ * @returns {Array<{x: number, y: number}>} 简化后的顶点；不足 3 个时为空数组。
+ */
 function simplifyPolygon(polygonPoints, simplifyTolerance) {
   const simplifiedPoints = polygonPoints.filter(
     (dedupePoint, pointIndex) =>
@@ -1423,9 +2102,43 @@ function simplifyPolygon(polygonPoints, simplifyTolerance) {
   }
   return simplifiedPoints;
 }
+/**
+ * 多边形挖洞：从基准轮廓里减去若干洞轮廓。
+ *
+ * 只是 unionPolygonLoops 的参数换位封装 —— 布尔内核只实现「并集」一种，
+ * 挖洞 = 把洞也当作轮廓一起求并、靠奇偶规则让洞变成空腔，因此不需要第二套
+ * 算法，两条路径的容差语义也随之保持一致。
+ *
+ * @param {Array<Array<{x: number, y: number}>>} baseLoops 基准轮廓。
+ * @param {Array<Array<{x: number, y: number}>>} holeLoops 洞轮廓。
+ * @param {number} [loopTolerance] 容差。
+ * @returns {Array<Array<{x: number, y: number}>>} 结果轮廓（按面积降序）。
+ */
 export function subtractPolygonLoops(baseLoops, holeLoops, loopTolerance = 0.000001) {
   return unionPolygonLoops(baseLoops, loopTolerance, holeLoops);
 }
+/**
+ * 多边形布尔内核：把多组轮廓求并，可选地挖掉洞，输出互不重叠的结果轮廓。
+ *
+ * 步骤（各步容差都由 loopMergeTolerance 派生，默认 1e-6 平面像素）：
+ * 1. 归一化：丢弃顶点不足 3 个、含非有限坐标、面积 ≤ epsilon² 的退化轮廓，
+ *    并按 epsilon 过滤零长边；
+ * 2. 求所有边的自交点与共线重叠投影，用参数 t 把每条边切成子段；
+ * 3. 判定每个子段是否为边界边 —— 取中点向两侧各偏移一点探针，只保留
+ *    「一侧在并集内、另一侧在外」的边（正是轮廓的定义），重叠边按快照键去重；
+ * 4. 在边界边上按「转向最大」的规则游走成环，闭合环经 simplifyPolygon 清理。
+ * 关键取舍：顶点先按 epsilon × 8 的网格吸附，把数值上同一个点归并成同一个图节点，
+ * 否则游走会因浮点误差断链；转向最大保证游走贴着边界外侧，不会拐进内部。
+ * requireCompleteWalks 为 true 时只要有一个环没闭合就整体返回空数组，
+ * 供 validatedUnionPolygonLoops 判定「这次布尔不可信」。
+ * 结果按面积降序返回，外轮廓在前。
+ *
+ * @param {Array<Array<{x: number, y: number}>>} loops 参与求并的轮廓。
+ * @param {number} [loopMergeTolerance] 容差。
+ * @param {Array<Array<{x: number, y: number}>>} [holesToSubtract] 需要挖掉的洞。
+ * @param {boolean} [requireCompleteWalks] 是否要求所有环都闭合。
+ * @returns {Array<Array<{x: number, y: number}>>} 结果轮廓（按面积降序）。
+ */
 export function unionPolygonLoops(
   loops,
   loopMergeTolerance = 0.000001,
@@ -1433,6 +2146,8 @@ export function unionPolygonLoops(
   requireCompleteWalks = false
 ) {
   const epsilon = Math.max(Number(loopMergeTolerance) || 0, 1e-7);
+  // 归一化：顶点不足 3 个、含非有限坐标、面积小于 epsilon² 的轮廓都算噪声丢弃；
+  // 阈值取 epsilon² 而不是 epsilon，是因为面积是长度的平方量纲。
   const normalizedLoops = (loops || [])
     .filter(rawLoop => Array.isArray(rawLoop) && rawLoop.length >= 3)
     .map(loopPoints =>
@@ -1621,6 +2336,7 @@ export function unionPolygonLoops(
         break;
       }
       walkPoints.push(currentEdge.end.point);
+      // 优先走尚未访问的后继边，避免把已经成环的边再串进当前环里。
       const nextEdgeIndices = (edgeIndicesByStartKey.get(currentEdge.end.key) || []).filter(
         candidateEdgeIndex => unvisitedEdges.has(candidateEdgeIndex)
       );
@@ -1664,8 +2380,23 @@ export function unionPolygonLoops(
     (loopLeft, loopRight) => Math.abs(polygonArea(loopRight)) - Math.abs(polygonArea(loopLeft))
   );
 }
+/**
+ * 带自检的多边形并集：结果不可信时宁可返回空数组。
+ *
+ * 布尔运算遇到数值病态输入（几乎重合的边、自相交轮廓）可能输出空结果或
+ * 面积暴涨的怪轮廓，直接拿去建模会破面。因此这里做两道校验：必须走通所有环
+ * （requireCompleteWalks），且结果总面积既不能小于源面积的千分之一
+ * （再用 epsilon² × 1024 兜住极小规模），也不能超过源面积之和 ——
+ * 并集面积在数学上不可能大于源面积之和，超出即说明运算已不可信。
+ * 校验不过就返回空数组，让调用方退回「不做布尔、直接用原始轮廓」。
+ *
+ * @param {Array<Array<{x: number, y: number}>>} inputLoops 输入轮廓。
+ * @param {number} [validationTolerance] 容差。
+ * @returns {Array<Array<{x: number, y: number}>>} 可信的并集结果；不可信时为空数组。
+ */
 export function validatedUnionPolygonLoops(inputLoops, validationTolerance = 0.000001) {
   const epsilonValue = Math.max(Number(validationTolerance) || 0, 1e-7);
+  // 输入先过一遍同量的退化过滤，保证后面「源面积之和」这个基准是干净的。
   const validLoops = (inputLoops || [])
     .filter(checkedLoop => Array.isArray(checkedLoop) && checkedLoop.length >= 3)
     .filter(areaLoop => Math.abs(polygonArea(areaLoop)) > epsilonValue * epsilonValue);
@@ -1691,6 +2422,24 @@ export function validatedUnionPolygonLoops(inputLoops, validationTolerance = 0.0
     return mergedLoops;
   }
 }
+/**
+ * 把墙列表建成「节点 + 子边」的平面图，供闭环与端点度数分析使用。
+ *
+ * 三个要点：
+ * - 节点合并走空间哈希（按 nodeTolerance 分格，只查周围 3×3 格）而不是两两比较，
+ *   否则每加一个端点都要扫全表，墙一多就是 O(n²)；同一组端点里取「下标最小且
+ *   距离在容差内」的节点，保证每次运行都归并到同一个节点，结果可复现。
+ * - 边先按包围盒 x 区间排序，只与 x 区间重叠的边求交（扫描线剪枝），
+ *   把两两求交从 O(n²) 降到接近 O(n log n)。
+ * - 交点在边上以参数 t 记进 cuts，最后按 t 排序切出子边并按节点对去重，
+ *   于是「一条长墙被若干短墙穿过」也能被正确切成多段。
+ * 返回的 endpointWalls 记录每个节点上挂了哪些墙，用于度数判断与开口朝向。
+ *
+ * @param {Array<object>} graphWalls 墙列表。
+ * @param {number} nodeTolerance 节点合并容差（平面像素）。
+ * @returns {{nodes: Array<{x: number, y: number}>, edges: Array<{start: number, end: number}>,
+ *   endpointWalls: Array<Array<object>>}} 平面图。
+ */
 function buildWallGraph(graphWalls, nodeTolerance) {
   const nodes = [];
   const endpointWallsByNode = [];
@@ -1729,6 +2478,13 @@ function buildWallGraph(graphWalls, nodeTolerance) {
     nodeIndicesByCell.get(cellKey).push(newNodeIndex);
     return newNodeIndex;
   };
+  /**
+   * 生成与先后顺序无关的节点对键（小下标在前），用于子边去重。
+   *
+   * @param {number} nodeIndexA 节点下标 A。
+   * @param {number} nodeIndexB 节点下标 B。
+   * @returns {string} "较小下标,较大下标"。
+   */
   const makeNodePairKey = (nodeIndexA, nodeIndexB) =>
     nodeIndexA < nodeIndexB ? nodeIndexA + "," + nodeIndexB : nodeIndexB + "," + nodeIndexA;
   const graphEdges = [];
@@ -1774,6 +2530,17 @@ function buildWallGraph(graphWalls, nodeTolerance) {
       ]
     });
   }
+  /**
+   * 把一个节点作为切点挂到某条边上（前提是它落在边的内部且确实贴边）。
+   *
+   * 条件是 t 严格落在 (0, 1) 且投影距离 ≤ nodeTolerance：边的两个端点本来
+   * 就已经作为 cuts 的首尾存在，重复添加会切出零长子边；距离判据则过滤掉
+   * 「同处一格但不在该边上」的节点。
+   *
+   * @param {object} graphEdge 目标边。
+   * @param {number} intersectionNodeIndex 切点所在节点的下标。
+   * @returns {void}
+   */
   const addGraphEdgeCut = (graphEdge, intersectionNodeIndex) => {
     if (intersectionNodeIndex === graphEdge.start || intersectionNodeIndex === graphEdge.end) {
       return;
@@ -1849,6 +2616,23 @@ function buildWallGraph(graphWalls, nodeTolerance) {
     endpointWalls: endpointWallsByNode
   };
 }
+/**
+ * 从墙图中提取所有闭合面（房间与外轮廓）。
+ *
+ * 用半边（half-edge）结构做最小环搜索：每条无向边拆成方向相反、互为孪生的
+ * 两条半边；在每个节点上按出射角排序，走环时固定取「孪生边的下一条」——
+ * 这等价于始终贴着边界的同一侧拐弯，因此走出的每个环都是不能再细分的极小面。
+ * 有向面积为负的面标记为 outer（外轮廓），为正的是内腔（房间）。
+ * 同一个环可能从不同起点被走两遍，所以用「从最小下标顶点起的旋转键」去重；
+ * 面积小于 faceTolerance² 的退化环直接丢弃。
+ * 结果按面积降序返回，调用方（closedWallPolygons / closedWallFloorPolygons）
+ * 各取所需。
+ *
+ * @param {Array<object>} faceWalls 墙列表。
+ * @param {number} faceTolerance 容差（平面像素）。
+ * @returns {Array<{polygon: Array<{x: number, y: number}>, area: number, outer: boolean}>}
+ *   面列表（按面积降序）。
+ */
 function extractClosedFaces(faceWalls, faceTolerance) {
   const { nodes: graphNodes, edges: faceGraphEdges } = buildWallGraph(faceWalls, faceTolerance);
   const halfEdgeIndicesByNode = Array.from(
@@ -1976,10 +2760,29 @@ function extractClosedFaces(faceWalls, faceTolerance) {
     (faceLeft, faceRight) => faceRight.area - faceLeft.area
   );
 }
+/**
+ * 求墙围出的所有闭合房间多边形。
+ *
+ * @param {Array<object>} loopWalls 墙列表。
+ * @param {number} [polygonTolerance] 接缝容差（平面像素），默认 1；调用方按
+ *   「每米像素数 × 1%」派生，即约 1cm 对应的像素数。
+ * @returns {Array<Array<{x: number, y: number}>>} 房间多边形列表（按面积降序）。
+ */
 export function closedWallPolygons(loopWalls, polygonTolerance = 1) {
   const polygonToleranceValue = Math.max(Number(polygonTolerance) || 0, 1e-7);
   return extractClosedFaces(loopWalls, polygonToleranceValue).map(face => face.polygon);
 }
+/**
+ * 找出墙图中度数为 1 的端点，也就是只连着一根墙的「悬空端」。
+ *
+ * 度数直接由子边计数得到：墙被切分后，只有真正的悬空端才会只剩一条子边，
+ * 因此这里不需要额外的几何判断就能区分「开口」与「内部接缝」。
+ *
+ * @param {Array<object>} degreeWalls 墙列表。
+ * @param {number} [degreeTolerance] 节点合并容差（平面像素）。
+ * @returns {Array<{point: {x: number, y: number}, walls: Array<object>}>}
+ *   悬空端点及其关联墙。
+ */
 function collectOpenEndpoints(degreeWalls, degreeTolerance = 1) {
   const endpointToleranceValue = Math.max(Number(degreeTolerance) || 0, 1e-7);
   const {
@@ -2003,11 +2806,30 @@ function collectOpenEndpoints(degreeWalls, degreeTolerance = 1) {
       : []
   );
 }
+/**
+ * 取所有悬空墙端点的坐标（供端点标记与闭合提示使用）。
+ *
+ * @param {Array<object>} endpointWalls 墙列表。
+ * @param {number} [openEndpointTolerance] 节点合并容差（平面像素）。
+ * @returns {Array<{x: number, y: number}>} 悬空端点坐标。
+ */
 export function openWallEndpoints(endpointWalls, openEndpointTolerance = 1) {
   return collectOpenEndpoints(endpointWalls, openEndpointTolerance).map(endpoint => ({
     ...endpoint.point
   }));
 }
+/**
+ * 判断一个点是否「严格」落在多边形内部（即不贴在任意一条边上）。
+ *
+ * 先用 pointInPolygon 做粗判，再逐条边检查点到边的最小距离是否大于容差，
+ * 全部大于才算严格内部。这道额外检查是为了把「压在房间轮廓上的悬空端点」
+ * 排除掉：端点贴在轮廓上说明它仍然是需要提示的开口，只是刚好与外轮廓相接。
+ *
+ * @param {{x: number, y: number}} boundaryPolygon 待判定的点（命名沿用调用方语义）。
+ * @param {Array<{x: number, y: number}>} enclosingPolygon 外围多边形。
+ * @param {number} loopEdgeTolerance 边界容差。
+ * @returns {boolean} 点是否严格位于多边形内部。
+ */
 function isStrictlyInsidePolygon(boundaryPolygon, enclosingPolygon, loopEdgeTolerance) {
   if (pointInPolygon(boundaryPolygon, enclosingPolygon, loopEdgeTolerance)) {
     return enclosingPolygon.every(
@@ -2022,6 +2844,19 @@ function isStrictlyInsidePolygon(boundaryPolygon, enclosingPolygon, loopEdgeTole
     return false;
   }
 }
+/**
+ * 找出「没有闭合」的墙端点：悬空的，且不在任何一个房间外轮廓内部。
+ *
+ * 两层过滤：先剔除自己声明了 allowOpenEnd 的端点（有意留口，如栏杆接口），
+ * 再剔除落在房间轮廓内的端点 —— 房间内部的隔墙端点到不了外墙，不算未闭合。
+ * floorPolygons 允许调用方传入已算好的楼层轮廓，避免在渲染循环里重复跑闭环搜索
+ * （不传时本函数会自行调用 closedWallFloorPolygons 计算）。
+ *
+ * @param {Array<object>} unclosedWalls 墙列表。
+ * @param {number} [unclosedTolerance] 容差（平面像素）。
+ * @param {Array<Array<{x: number, y: number}>>} [floorPolygons] 预计算的楼层轮廓。
+ * @returns {Array<{x: number, y: number}>} 未闭合的端点坐标。
+ */
 export function unclosedWallEndpoints(unclosedWalls, unclosedTolerance = 1, floorPolygons = null) {
   const wallToleranceValue = Math.max(Number(unclosedTolerance) || 0, 1e-7);
   const checkedFloorPolygons = Array.isArray(floorPolygons)
@@ -2043,6 +2878,19 @@ export function unclosedWallEndpoints(unclosedWalls, unclosedTolerance = 1, floo
       ...mappedEndpoint.point
     }));
 }
+/**
+ * 判断 innerLoop 是否被 outerLoop 完全包住（用于剔除嵌套的轮廓）。
+ *
+ * 两道判据：outer 的绝对面积必须大于 inner（否则不可能是「包住」），
+ * 且 inner 的每个顶点与每条边的中点都落在 outer 内部 —— 补上边中点是为了
+ * 防止「顶点都在里面、边却跨出去」的凹多边形漏判。面积比较用容差的平方
+ * （engulfTolerance²）是因为面积与长度差一个量纲。
+ *
+ * @param {Array<{x: number, y: number}>} innerLoop 待判定的内轮廓。
+ * @param {Array<{x: number, y: number}>} outerLoop 可能的包围轮廓。
+ * @param {number} engulfTolerance 容差（平面像素）。
+ * @returns {boolean} innerLoop 是否被 outerLoop 包住。
+ */
 function isLoopEngulfedByLoop(innerLoop, outerLoop, engulfTolerance) {
   const toleranceSquared = engulfTolerance * engulfTolerance;
   const absolutePolygonArea = measuredLoop =>
@@ -2065,6 +2913,17 @@ function isLoopEngulfedByLoop(innerLoop, outerLoop, engulfTolerance) {
     });
   }
 }
+/**
+ * 求墙围出的「楼层外轮廓」：只保留有向面积为负（外轮廓）且不被他者包住的面。
+ *
+ * extractClosedFaces 会把房间内腔与外轮廓一起返回，这里只取外轮廓，
+ * 再用 isLoopEngulfedByLoop 去掉被更大外轮廓包住的嵌套轮廓（例如内院形成的小外环），
+ * 保证调用方拿到的是一组互不包含的楼层底面积。
+ *
+ * @param {Array<object>} floorWalls 墙列表。
+ * @param {number} [floorTolerance] 容差（平面像素）。
+ * @returns {Array<Array<{x: number, y: number}>>} 楼层外轮廓列表。
+ */
 export function closedWallFloorPolygons(floorWalls, floorTolerance = 1) {
   const floorToleranceValue = Math.max(Number(floorTolerance) || 0, 1e-7);
   const outerFloorPolygons = [];
@@ -2073,6 +2932,7 @@ export function closedWallFloorPolygons(floorWalls, floorTolerance = 1) {
     floorToleranceValue
   )) {
     if (
+      // 用 !! 把 undefined（未经判定的面）明确当作非外轮廓，而不是依赖隐式转换。
       !!isOuterFace &&
       !outerFloorPolygons.some(candidateFloor =>
         isLoopEngulfedByLoop(outerFacePolygon, candidateFloor, floorToleranceValue)
@@ -2083,6 +2943,18 @@ export function closedWallFloorPolygons(floorWalls, floorTolerance = 1) {
   }
   return outerFloorPolygons;
 }
+/**
+ * 计算整个模型的平面包围盒（底图 + 所有墙端点 + 所有物件锚点）。
+ *
+ * 用途是取景：视图缩放、楼层堆叠对齐、导出选区都需要一个稳定的范围。
+ * 三类数据缺一不可 —— 只算墙会漏掉摆在墙外的家具，只算家具又会让空场景没有范围。
+ * 完全空文档时返回 1200 × 800（与默认底图尺寸一致的兜底画布），
+ * 让取景逻辑不必对「空」做特判；宽高下限取 1 是为了避免后续除零。
+ *
+ * @param {object} model 场景模型（读 background / walls / items）。
+ * @returns {{minX: number, minY: number, maxX: number, maxY: number,
+ *   width: number, height: number}} 包围盒（平面像素）。
+ */
 export function modelBounds(model) {
   const boundPoints = [];
   if (model.background?.width && model.background?.height) {
