@@ -332,6 +332,10 @@ export class RuntimeStaticImageCache {
     let isSettled = false;
     let hasDecodeStarted = false;
     let timeoutHandle = null;
+    // 静态图加载的唯一收尾出口：load / error / decode 完成 / 超时 / 被取消 都汇到这里，
+    // 靠 isSettled 保证只跑一次；摘监听、清定时器、从在途表出队，成功且仍被需要时把
+    // Image 挪到 LRU 末尾并裁剪缓存，最后 drain() 把并发名额让给下一张。loaded=false
+    // 表示失败或超时，此时不认领结果，下次 setSources 需要它会重新入队。
     const finishStaticLoad = loaded => {
         // 收尾动作：摘监听、从在途表移除，成功时把解码后的 Image 放到 LRU 末尾，最后再尝试排空。
       if (!isSettled) {
@@ -627,6 +631,10 @@ export class RuntimeEffectImageLoader {
     pendingImage.dataset.effectLoadingSource = pendingSource;
     let isEffectSettled = false;
     let effectTimeoutHandle = null;
+    // 特效图加载的唯一收尾出口：load / error / 超时 / 被取消都走这里（isEffectSettled
+    // 保证只执行一次）。与静态图的区别是它在收尾时会二次核对 dataset.effectPendingSource，
+    // 只认领「元素此刻仍想要这次地址」的结果，否则说明期间已切图，结果必须丢弃。
+    // inFlight 用计数器而非 activeLoads 的键数来记账，最后统一 drain()。
     const finishEffectLoad = effectLoaded => {
         // 收尾：只有「元素当前想要的地址仍是本次这个」时才认领结果，
         // 否则说明期间已切到别的图，本次结果要丢弃。
@@ -838,6 +846,9 @@ export class RuntimeVacuumMapImagePreloader {
     // 与静态图缓存不同，预加载器不做超时：地图服务慢，总比中途取消再重来要好。
     const preloaderImage = this.createImage();
     let isVacuumSettled = false;
+    // 扫地机地图预加载的唯一收尾出口（load / error / 被取消），isVacuumSettled 保证
+    // 只跑一次。成功时把 loadKey 指向新地址并摘掉同键旧地址，保持 loadedSourceByKey
+    // 与 loadedSources 一致；失败则记 failedAt 时间戳做退避，重试交给下次 enqueue 判断。
     const finishVacuumLoad = vacuumLoaded => {
       if (!isVacuumSettled) {
         isVacuumSettled = true;

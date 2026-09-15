@@ -141,6 +141,9 @@ export function collectComponents(inputComponents, predicate, matches = []) {
  * @returns {object|null} 命中的折线图组件，找不到返回 null。
  */
 export function matchingLineChartComponent(documentModel, page, entityId) {
+  // 判定组件是否为「绑定了目标实体」的折线图：类型与 entityId 都要匹配。它是纯判定
+  // 无副作用，所以能直接当 collectComponents 的 predicate 复用多次，对应下面
+  // 「当前页 → 共享组件 → 其它页 → 全部共享组件」由近及远的查找顺序。
   const isLineChartForEntity = candidateComponent =>
     candidateComponent.type === "line-chart" &&
     candidateComponent.bindings?.entity?.entityId === entityId;

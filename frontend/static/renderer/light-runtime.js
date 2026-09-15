@@ -126,6 +126,9 @@ export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
     ? stateAttributes.supported_color_modes
     : [];
   const supportedFeatures = Number(stateAttributes.supported_features || 0);
+  // 判断某属性是否已上报可用数值：null / undefined 视为缺失，其余经 Number 转换后校验
+  // 有限性（HA 上报的数值属性可能是字符串）。调用点都希望「无效即等于没上报」，
+  // 例如 brightness 为空时才需要退回 supported_features 位掩码来推断能力。
   const hasNumericAttribute = attributeName =>
     stateAttributes[attributeName] !== null &&
     stateAttributes[attributeName] !== undefined &&

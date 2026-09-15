@@ -725,6 +725,9 @@ export function createExternalModelManager({
    */
   function loadModelWithFallback(modelDefinition, modelTypeLabel) {
     let timeoutId = null;
+    // 发起一次带超时的加载：与 loadAsync 赛跑的计时器写入外层的 timeoutId 变量，
+    // 让 loadModelWithFallback 的 finally 能统一清除（闭包共享同一个变量，只留一个定时器）。
+    // 超时错误带上模型类型，便于定位是哪种家具的资源慢。
     const loadFromUrl = resourceUrl =>
       Promise.race([
         loader.loadAsync(resourceUrl),

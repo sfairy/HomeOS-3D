@@ -579,6 +579,9 @@ export function iconButtonEffectLightVisualAwaiting(effectAwaitComponent, effect
     effectAwaitEntityId,
     effectAwaitState
   );
+  // 判断某属性是否已带上可用数值：null / undefined / 空串一律算「缺席」（HA 里未上报
+  // 的属性正是这几种形态），其余再经 Number 转换并校验有限性 —— 因为 HA 上报的数值
+  // 属性可能是字符串。返回 false 表示实时值还没到，调用方据此继续等待视觉。
   const hasNumericAttribute = attributeKey =>
     effectAwaitAttributes[attributeKey] !== null &&
     effectAwaitAttributes[attributeKey] !== undefined &&
@@ -1552,6 +1555,9 @@ function attachChartTooltip(
   hoverDotElement.hidden = true;
   chartContainerElement.append(hoverGuideElement, hoverDotElement);
   tooltipParentElement.append(tooltipElement);
+  // 图表气泡的 pointermove 处理器：把指针横坐标折算成时间（先取容器内比例，再用
+  // valueRange 收窄到数据区间），线性扫描最近样本，再按容器 / 弹层的实际缩放摆放
+  // 气泡、引导线与光点。元素一律用百分比定位，容器尺寸变化时无需重算像素。
   const handlePointerMove = pointerEvent => {
     const dialogLayerElement =
       tooltipParentElement === chartContainerElement
@@ -1716,6 +1722,9 @@ function buildNavigationEffects(
   const navFrameAngleValue = clampNumber(navFrameProperties.frameAngle, 0, 360, 45);
   const navGlowAngleValue = clampNumber(navFrameProperties.glowAngle, 0, 360, 45);
   const navOpacityDivisor = isNavFrameActive ? 0.98 : 0.48;
+  // 把设计稿的透明度档位折算到当前控件的透明度：先乘 navFrameOpacity，再除以档位
+  // 上限 navOpacityDivisor（活动 0.98 / 非活动 0.48），让最亮的 stop 恰好落在控件
+  // 设定值上；末尾夹到 0~1，防止系数放大后溢出。
   const scaleNavOpacity = navOpacityInput =>
     Math.max(0, Math.min(1, (navOpacityInput * navFrameOpacity) / navOpacityDivisor));
   const navGradientIdSuffix = "navigation-" + randomUuid();
@@ -4151,6 +4160,11 @@ export function mountCameraMedia({
     }
   });
   mediaContainer.prepend(cameraVideoElement);
+  // 启动 HLS 播放：向后端取 HLS 源地址，能用 hls.js 就用它，否则退回原生 src。
+  // 取源是异步的，期间可能已切换实体或控件被卸载 / 暂停，所以每个回调都拿
+  // playbackGeneration 与 mediaGeneration 比对，过期就直接放弃；isMediaDisposed /
+  // isMediaSuspended 分别对应销毁与暂停。致命错误会删掉 cameraSourceCache 并回落旧版流，
+  // 避免下次仍复用坏地址。缓冲区前后各 15s 配 lowLatencyMode，是延迟与卡顿的折中。
   const startHlsPlayback = async playbackGeneration => {
     try {
       const hlsSourceUrl = await fetchCameraHlsSource(mediaEntityId);

@@ -336,6 +336,9 @@ export function effectReferenceImageTransform(
   const referenceImageId = String(referenceComponent?.properties?.effectReferenceImageId || "");
   const referencedCandidates = [];
   const fallbackCandidates = [];
+  // 递归把组件树里所有 image 塞进候选池。显式指定了 effectReferenceImageId 时只收该图；
+  // 否则收「可见 + 原始尺寸与目标完全一致 + 层级低于参考组件」的图（启发式：同尺寸底图
+  // 通常就是它所属的参考图）。分成两个数组是因为指定命中要优先于尺寸启发式。
   const collectCandidates = componentList => {
     for (const childComponent of componentList || []) {
       if (childComponent.type === "image") {

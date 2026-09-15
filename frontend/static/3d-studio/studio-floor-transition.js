@@ -92,6 +92,9 @@ export function createFloorTransition({
           return;
         }
         const originalMaterial = sceneNode.material;
+        // 过渡期间地面必须可透明（要做淡入淡出），并复制原材质的着色器钩子 ——
+        // clone() 不会带过去，漏掉会让阴影图集 / 环境反射的补丁在过渡中失效。
+        // 同时关掉深度写入：多层半透明地面否则会互相遮挡出条纹。
         const cloneGroundMaterial = material => {
           const clonedMaterial = material.clone();
           // clone() 不会复制这两个钩子，必须手动带过去，
@@ -272,6 +275,8 @@ export function createFloorTransition({
     }
     const keptPreviousRecord =
       previousRecords.find(keptEntry => keptEntry.keep) || previousRecords[0];
+    // 取楼层在自下而上顺序里的下标，用来算层间相对位移（层差 × floorSpread）；
+    // 找不到时 indexOf 返回 -1，位移量会退化但不会抛错 —— 楼层列表本应与 floorOrder 一致。
     const orderIndexOf = orderFloorId => floorOrder.indexOf(orderFloorId);
     // 滚动模式需要上一轮的滚动位置来保持惯性连续，否则每次切换都会跳回起点。
     const scrollAnchorRecord = previousRecords.find(scrollingEntry =>

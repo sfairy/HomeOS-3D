@@ -1,6 +1,35 @@
+/**
+ * 3D 工作室的输入归一化工具箱。
+ *
+ * 位置：文档从后端读回、或用户在面板上输入参数之后，统一由本模块把可能缺失 /
+ *   越界 / 类型不对的字段收敛成安全值，再交给渲染与状态逻辑使用。
+ * 对外：基础数值工具、尺寸下限、标签文本、色温转色、固定机位与相机设置、
+ *   以及默认基础照明与照明归一化。
+ * 约定：长度单位一律米，角度单位度；相机位置 / 注视点用世界坐标；
+ *   色温用开尔文。所有函数都是纯函数，不持有状态、不写回入参。
+ */
+
+/**
+ * 把数字限制在闭区间内。
+ *
+ * @param {number} inputValue 原始值。
+ * @param {number} minimum 下限。
+ * @param {number} maximum 上限。
+ * @returns {number} 钳制后的值。
+ */
 function clampNumber(inputValue, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, inputValue));
 }
+
+/**
+ * 转成有限数字，失败时用兜底值。
+ *
+ * JSON 里常见 null、""、"abc" 这类值，直接参与运算会得到 NaN 并污染整条数据链。
+ *
+ * @param {*} value 原始值。
+ * @param {number} [fallback] 兜底值，默认 0。
+ * @returns {number} 有限数字或兜底值。
+ */
 export function finite(value, fallback = 0) {
   const numericValue = Number(value);
   if (Number.isFinite(numericValue)) {
@@ -9,14 +38,36 @@ export function finite(value, fallback = 0) {
     return fallback;
   }
 }
+
+/**
+ * 把任意角度归一化到 [0, 360)。
+ *
+ * 已经落在 [0, 360] 区间内的值原样返回 —— 这里刻意保留 360 而不取模成 0，
+ * 因为界面上「正好转了一圈」与「没转」是两种输入，取模会吞掉用户的意图。
+ *
+ * @param {*} degrees 角度（度）。
+ * @param {number} [fallbackDegrees] 非法输入时的兜底角度，默认 0。
+ * @returns {number} [0, 360) 区间内的角度，或原样返回的合法值。
+ */
 export function normalizeFullRotation(degrees, fallbackDegrees = 0) {
   const rotationDegrees = finite(degrees, fallbackDegrees);
   if (rotationDegrees >= 0 && rotationDegrees <= 360) {
     return rotationDegrees;
   } else {
+    // 先取模再 +360 再取模，负数角度也能落到 [0, 360)。
     return ((rotationDegrees % 360) + 360) % 360;
   }
 }
+
+/**
+ * 给出某类物件允许的最小平面尺寸（米）。
+ *
+ * 对应检查器里尺寸输入框的 min 属性。人体存在传感器外形细长，允许小到 1 厘米；
+ * 其余家具最小 10 厘米，避免误输入后生成几乎不可见的碎片。
+ *
+ * @param {string} itemType 物件类型。
+ * @returns {number} 最小平面尺寸（米）。
+ */
 export function itemMinimumFootprint(itemType) {
   if (itemType === "presence") {
     return 0.01;
@@ -24,6 +75,15 @@ export function itemMinimumFootprint(itemType) {
     return 0.1;
   }
 }
+
+/**
+ * 给出某类物件允许的最小高度 / 厚度（米）。
+ *
+ * 平面标签是零厚度的贴片，1 毫米即可；地毯 4 毫米；其余物件至少 5 厘米。
+ *
+ * @param {string} itemKind 物件类型。
+ * @returns {number} 最小高度（米）。
+ */
 export function itemMinimumHeight(itemKind) {
   if (itemKind === "planlabel") {
     return 0.001;
@@ -33,12 +93,31 @@ export function itemMinimumHeight(itemKind) {
     return 0.05;
   }
 }
+
+/**
+ * 归一化平面坐标点。
+ *
+ * @param {{x?: *, y?: *}} [point] 原始点。
+ * @returns {{x: number, y: number}} 两个分量都保证是有限数字。
+ */
 export function normalizePoint(point) {
   return {
     x: finite(point?.x),
     y: finite(point?.y)
   };
 }
+
+/**
+ * 归一化标签文本。
+ *
+ * 连续空白（含换行）折成一个空格再 trim：标签是画布上单行绘制的内容，
+ * 换行符会画出异常的字距；超长文本按 maxLength 截断，空文本回落到占位文案。
+ *
+ * @param {*} labelText 原始文本。
+ * @param {string} fallbackText 文本为空时的兜底文案。
+ * @param {number} maxLength 最大字符数。
+ * @returns {string} 归一化后的文本。
+ */
 export function normalizeLabelText(labelText, fallbackText, maxLength) {
   return (
     String(labelText ?? "")
@@ -47,7 +126,18 @@ export function normalizeLabelText(labelText, fallbackText, maxLength) {
       .slice(0, maxLength) || fallbackText
   );
 }
+
+/**
+ * 把色温换算成 0xRRGGBB 整数（用于灯具发光色）。
+ *
+ * 采用常见的冷暖色温近似式（分段幂函数 / 对数式），只在 2200~6500 K 区间内准确；
+ * 超出区间的输入先被夹到边界，避免出现负底数或非法对数。
+ *
+ * @param {number} kelvin 色温（开尔文）。
+ * @returns {number} 24 位 RGB 整数。
+ */
 export function kelvinToRgbHex(kelvin) {
+  // 近似式的自变量以百开尔文为单位，分界点 66 即 6600 K。
   const scaledKelvin = clampNumber(finite(kelvin, 3000), 2200, 6500) / 100;
   const redValue = scaledKelvin <= 66 ? 255 : (scaledKelvin - 60) ** -0.1332047592 * 329.698727446;
   const greenValue =
@@ -60,13 +150,25 @@ export function kelvinToRgbHex(kelvin) {
       : scaledKelvin <= 19
         ? 0
         : Math.log(scaledKelvin - 10) * 138.5177312231 - 305.0447927307;
+  // 把近似式算出的通道值夹到 0~255 再取整：近似式在色温两端会给出负值或 >255 的值，
+  // 不夹的话左移拼位会溢出 / 借位，把另外两个通道也污染掉。
   const clampChannel = channelValue => Math.round(clampNumber(channelValue, 0, 255));
   return (clampChannel(redValue) << 16) | (clampChannel(greenValue) << 8) | clampChannel(blueValue);
 }
+
+/**
+ * 归一化「固定机位」视图。
+ *
+ * @param {*} savedView 已保存的机位。
+ * @returns {{mode: string, view: string, topRotation: number, position: object,
+ *   target: object, visibleHeight: number, fov: number, focalLength: number|null}|null}
+ *   清洗后的机位；入参非法或位置与目标过近时返回 null。
+ */
 export function normalizeFixedCameraView(savedView) {
   if (!savedView || typeof savedView != "object") {
     return null;
   }
+  // ±500 米足以覆盖任何住宅场景，同时挡住明显的脏数据（例如未初始化的极大值）。
   const positionVector = {
     x: clampNumber(finite(savedView.position?.x), -500, 500),
     y: clampNumber(finite(savedView.position?.y), -500, 500),
@@ -77,6 +179,7 @@ export function normalizeFixedCameraView(savedView) {
     y: clampNumber(finite(savedView.target?.y), -500, 500),
     z: clampNumber(finite(savedView.target?.z), -500, 500)
   };
+  // 位置与目标重合时视线方向无定义，这类机位不可用，直接判为无效。
   if (
     Math.hypot(
       positionVector.x - targetVector.x,
@@ -92,8 +195,10 @@ export function normalizeFixedCameraView(savedView) {
       topRotation: (((Math.round(finite(savedView.topRotation, 0) / 90) * 90) % 360) + 360) % 360,
       position: positionVector,
       target: targetVector,
+      // 固定机位的取景范围收得比导出预设更紧：1~100 米、视场角 20°~80°。
       visibleHeight: clampNumber(finite(savedView.visibleHeight, 10), 1, 100),
       fov: clampNumber(finite(savedView.fov, 36), 20, 80),
+      // 焦距允许为 null（正交模式没有焦距）；只在确实给出数值时才换算与钳制。
       focalLength:
         savedView.focalLength !== null &&
         savedView.focalLength !== undefined &&
@@ -103,15 +208,29 @@ export function normalizeFixedCameraView(savedView) {
     };
   }
 }
+
+/**
+ * 归一化文档级相机设置。
+ *
+ * @param {object} [cameraSettings] 原始相机设置。
+ * @returns {{cameraView: string, cameraTopRotation: number, cameraMode: string,
+ *   cameraFocalLength: number}} 清洗后的设置。
+ */
 export function normalizeCameraSettings(cameraSettings) {
   return {
     cameraView: cameraSettings?.cameraView === "top" ? "top" : "free",
+    // 顶视图旋转吸附到 90° 的倍数，避免出现 17° 这种手工拖出来的零碎角度。
     cameraTopRotation:
       (((Math.round(finite(cameraSettings?.cameraTopRotation, 0) / 90) * 90) % 360) + 360) % 360,
     cameraMode: cameraSettings?.cameraMode === "orthographic" ? "orthographic" : "perspective",
     cameraFocalLength: clampNumber(finite(cameraSettings?.cameraFocalLength, 50), 18, 120)
   };
 }
+
+// 默认基础照明：一组实测调好的数值，作为新建场景与「恢复默认」的基准。
+// 角度说明：方位角以场景正前方为 0、顺时针为正，仰角自地平线向上度量；
+// 强度均为各灯的相对系数，曝光为渲染器 toneMappingExposure。
+// 冻结对象：这些值会被 normalizeBaseLighting 当作兜底读，运行期不允许被就地改写。
 export const DEFAULT_BASE_LIGHTING = Object.freeze({
   exposure: 1.05,
   hemisphereIntensity: 0.58,
@@ -127,11 +246,24 @@ export const DEFAULT_BASE_LIGHTING = Object.freeze({
   topAzimuth: 90,
   topElevation: 86
 });
+
+/**
+ * 归一化基础照明参数。
+ *
+ * 各字段的上限按「明显过曝 / 过暗」的边界给出：强度类 0~5 之间，
+ * 角度类方位限 ±180°、仰角限 0~89°（89° 而非 90° 是为了避免顶光与地面共面）。
+ *
+ * @param {object} [lightingSettings] 原始照明设置。
+ * @returns {object} 清洗后的照明设置；floorBrightness 仅在原始数据里显式给出时才输出。
+ */
 export function normalizeBaseLighting(lightingSettings) {
+  // 非对象（null / 字符串）统一当空对象处理，后续全部走默认值。
   const lightingInput =
     lightingSettings && typeof lightingSettings == "object" ? lightingSettings : {};
   return {
     exposure: clampNumber(finite(lightingInput.exposure, DEFAULT_BASE_LIGHTING.exposure), 0.5, 2),
+    // floorBrightness 是后加的字段：旧文档里没有，此时不输出该键，
+    // 让上层能区分「未设置」与「显式设成默认值」。
     ...(lightingInput.floorBrightness !== undefined
       ? {
           floorBrightness: clampNumber(finite(lightingInput.floorBrightness, 100), 50, 150)

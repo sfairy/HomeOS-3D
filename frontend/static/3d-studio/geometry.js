@@ -188,6 +188,9 @@ export function assessAdaptiveRenderFrames(frameTimes = []) {
   const sortedFrameTimesMs = [...validFrameTimesMs].sort(
     (frameTimeLeft, frameTimeRight) => frameTimeLeft - frameTimeRight
   );
+  // 取排序后帧耗时数组的指定分位值：percentile 传 0~1（0.75 看「偏慢的大多数」，
+  // 0.9 抓长尾卡顿）。用 (n-1)×percentile 向下取整，保证 0 命中首样本、1 命中末样本，
+  // 不会越界；闭包复用已排好序的数组，避免每次分位都重新排序。
   const frameTimeAtPercentile = percentile =>
     sortedFrameTimesMs[
       Math.min(
@@ -1585,6 +1588,9 @@ export function wallJoinExtensions(wallEntries, junctionTolerance = 0.001, maxEx
     ])
   );
   const junctions = [];
+  // 按容差把墙端点归并到「节点」：线性扫描已登记的节点，取距离 ≤ joinTolerance 的那个，
+  // 命中即复用（同一墙角上的多条墙由此共享一个节点，斜接才会一起算）；
+  // 未命中则新建节点登记。incidents 由调用方继续 push 各墙在该节点处的入射信息。
   const getJunction = endpointPoint => {
     let junction = junctions.find(
       matchingJunction => distance(matchingJunction.point, endpointPoint) <= joinTolerance
@@ -2241,11 +2247,17 @@ export function unionPolygonLoops(
       pushCutT(edgeCutTs, secondEdgeIndex, projectedFirstEndT, epsilon);
     }
   }
+  // 判断点是否落在「实体」区域内：至少在一个外轮廓内，且不落在洞口 / 内院多边形内。
+  // 调用方用它探测子边中点的左右侧归属，只保留一侧在内、一侧在外的子边，
+  // 从而筛出墙体围成的区域边界，并排除洞口处的碎片。
   const isInteriorPoint = samplePoint =>
     normalizedLoops.some(loop => pointInPolygon(samplePoint, loop, epsilon)) &&
     !normalizedHoles.some(hole => pointInPolygon(samplePoint, hole, epsilon));
   const snapStep = epsilon * 8;
   const snappedPointByKey = new Map();
+  // 把点吸附到 snapStep（= epsilon×8）的方格上，并用 Map 按格键缓存：同一格内的点
+  // 返回同一个对象引用，后续就能直接比较 key（判重、生成无向边键）来去重近重合端点。
+  // 取 8 倍容差是为了既压掉浮点抖动，又不改变可见的几何形状。
   const snapSamplePoint = snapInputPoint => {
     const snappedX = Math.round(snapInputPoint.x / snapStep) * snapStep;
     const snappedY = Math.round(snapInputPoint.y / snapStep) * snapStep;
@@ -2444,6 +2456,9 @@ function buildWallGraph(graphWalls, nodeTolerance) {
   const nodes = [];
   const endpointWallsByNode = [];
   const nodeIndicesByCell = new Map();
+  // 查询（或登记）端点所属节点：按 nodeTolerance 分格的哈希表把查找限制在自身与周围
+  // 3×3 格内，避免 O(n²) 的两两比较。同一格组内取「下标最小」且在容差内的节点，
+  // 保证归并结果与遍历顺序无关、每次运行都能复现（供闭环 / 度数分析使用）。
   const getNodeIndex = nodePoint => {
     const cellX = Math.floor(nodePoint.x / nodeTolerance);
     const cellY = Math.floor(nodePoint.y / nodeTolerance);
@@ -2659,6 +2674,9 @@ function extractClosedFaces(faceWalls, faceTolerance) {
   }
   const sortedOrderByHalfEdge = new Int32Array(halfEdges.length);
   halfEdgeIndicesByNode.forEach((nodeHalfEdges, nodeIndex) => {
+    // 节点周围的半边按「从本节点指向对端的方位角」（atan2，弧度 -π~π）升序排列，
+    // 这是求「下一条半边」的前提：逆时针绕面行走时，只需取排序中当前反向边的前一条
+    // 即可（+length-1 取环形前一位），无需在行走时反复做角度查询。
     const halfEdgeAngle = halfEdgeIndex =>
       Math.atan2(
         graphNodes[halfEdges[halfEdgeIndex].end].y - graphNodes[nodeIndex].y,
@@ -2680,6 +2698,10 @@ function extractClosedFaces(faceWalls, faceTolerance) {
   });
   const visitedHalfEdges = new Uint8Array(halfEdges.length);
   const facesByCycleKey = new Map();
+  // 登记一条由半边索引构成的闭合环（面）：少于 3 条边或面积小于 faceTolerance² 的
+  // 退化环直接丢弃（零面积环是数值噪声，不是房间）。有向面积先平移首个顶点再算以
+  // 减小浮点误差；随后把环旋转到「最小半边下标开头」生成规范化 key 去重，
+  // 使同一条环无论从哪个半边起步、正反哪个方向都只登记一次。
   const recordFace = cycleHalfEdges => {
     if (cycleHalfEdges.length < 3) {
       return;
@@ -2733,6 +2755,9 @@ function extractClosedFaces(faceWalls, faceTolerance) {
     const faceWalk = [];
     const walkPositions = new Map();
     let currentWalkHalfEdge = walkStartHalfEdgeIndex;
+    // 把半边压入当前行走路径；若该半边已在路径中，说明绕回了旧位置 —— 中间那段
+    // 就是一个闭合环，交给 recordFace 登记，并把多出来的尾巴从路径和索引表里弹出，
+    // 以便同一次行走里再识别出嵌套的其它环。
     const pushFaceWalk = walkHalfEdgeIndex => {
       const existingPosition = walkPositions.get(walkHalfEdgeIndex);
       if (existingPosition !== undefined) {
@@ -2893,6 +2918,9 @@ export function unclosedWallEndpoints(unclosedWalls, unclosedTolerance = 1, floo
  */
 function isLoopEngulfedByLoop(innerLoop, outerLoop, engulfTolerance) {
   const toleranceSquared = engulfTolerance * engulfTolerance;
+  // 求环的绝对面积：先整体平移到首个顶点为原点再套鞋带公式，可减小坐标数值大时
+  // 的浮点抵消误差；取绝对值是因为这里只比大小、不关心绕向。与 engulfTolerance²
+  // （面积与长度差一个量纲）配合，比较两个环谁包住谁（见下方 isLoopEngulfedByLoop）。
   const absolutePolygonArea = measuredLoop =>
     Math.abs(
       polygonArea(measuredLoop.map(loopPoint => subtractPoints(loopPoint, measuredLoop[0])))
