@@ -1,12 +1,26 @@
+/**
+ * 苹果设备「添加到主屏幕」引导脚本。
+ *
+ * 位置：随配对 / 展示页一起加载的独立脚本，运行在应用主脚本之前。
+ * 职责：在 iPhone / iPad 上注入一个悬浮按钮与说明弹窗，指导用户把页面
+ *   添加到主屏幕；支持 ?addToHome=1 自动弹出。
+ * 约定：needsAppleInstallGuide 来自 pairing-link.js，统一判断「是否该引导」；
+ *   自动弹出要等展示页启动态（display-booting）结束，避免盖住启动遮罩。
+ */
 import { needsAppleInstallGuide as shouldShowInstallGuide } from "./pairing-link.js";
+
+// isAddToHomeLaunch 为真表示配对链接带 addToHome=1，这次落地就是引导添加主屏的场景。
 const currentUrl = new URL(location.href),
   isAddToHomeLaunch = currentUrl.searchParams.get("addToHome") === "1";
+
+// 无论是否弹引导，addToHome 参数都要立刻从地址栏抹掉，防止刷新重复进入引导态。
 if (
   (isAddToHomeLaunch &&
     (currentUrl.searchParams.delete("addToHome"),
     history.replaceState(null, "", currentUrl.pathname + currentUrl.search + currentUrl.hash)),
   shouldShowInstallGuide(navigator, matchMedia("(display-mode: standalone)").matches))
 ) {
+  // isChromeIos 用于区分分享菜单入口：Chrome iOS 与 Safari 的文案不同。
   const isChromeIos = /CriOS\//.test(navigator.userAgent),
     triggerButton = document.createElement("button");
   ((triggerButton.className = "apple-install-trigger"),
@@ -28,7 +42,16 @@ if (
     <p class="apple-install-footnote">\u9996\u6B21\u6253\u5F00\u82E5\u63D0\u793A\u914D\u5BF9\uFF0C\u8F93\u5165\u8FD9\u53F0\u8BBE\u5907\u539F\u6765\u7684\u914D\u5BF9\u7801\u5373\u53EF\u3002</p>
     <button class="apple-install-done" type="button">\u77E5\u9053\u4E86\uFF0C\u8FDB\u5165\u9762\u677F</button>`),
     document.body.append(triggerButton, guideDialog));
+  /**
+   * 打开「添加到主屏幕」说明弹窗。
+   *
+   * 有两个触发点：用户点击悬浮按钮；或链接带 addToHome=1 且展示页启动遮罩已摘掉时
+   * 自动弹出（启动阶段弹窗会被 display-booting 遮罩压住，必须等遮罩消失）。
+   *
+   * @returns {void}
+   */
   const openGuide = () => {
+    // 重复点击时 dialog 已打开就不要再 showModal，否则会抛异常。
     guideDialog.open || guideDialog.showModal();
   };
   if (
@@ -38,8 +61,10 @@ if (
       .addEventListener("click", () => guideDialog.close()),
     isAddToHomeLaunch)
   )
+    // 展示页启动阶段会挂 display-booting 类，此时弹窗会被启动遮罩压住。
     if (!document.documentElement.classList.contains("display-booting")) openGuide();
     else {
+      // 监听根节点 class 变化，等启动遮罩摘掉后再弹，避免闪现被遮挡的弹窗。
       const bootingObserver = new MutationObserver(() => {
         document.documentElement.classList.contains("display-booting") ||
           (bootingObserver.disconnect(), openGuide());
