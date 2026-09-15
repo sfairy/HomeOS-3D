@@ -1,3 +1,17 @@
+/*
+ * 3D 交互设置面板里的开关（toggle）样式。
+ *
+ * 位置：只被 bridge.css 以 @import 引入，因此它同时作用于四处宿主：
+ *   组件检查器 #interaction3d-inspector、3D 编辑器 .i3d-editor、
+ *   清扫地图编辑器 .i3d-vacuum-map-editor 与 plan2 的范围编辑器；
+ *   所有规则都以这组 :is(...) 前缀限定作用域，避免污染其它面板的原生复选框。
+ * 约定：勾选态使用主题强调色 var(--accent)，缺省 #f2a20d；
+ *   手柄位移（12px）与轨道 / 手柄尺寸是算好的，改尺寸必须同时改 translate。
+ */
+
+/* ===== 开关行与轨道 ===== */
+
+/* 26 × 14 的轨道配 99px 圆角：圆角取足够大以免随高度变化失效；行高固定 28px 保证与同类设置项对齐。 */
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   label.i3d-setting-toggle {
   display: flex;
@@ -8,6 +22,7 @@
   gap: 8px;
   cursor: pointer;
 }
+/* 轨道：appearance: none 抹掉原生外观后自己画；order 把它排到文字右侧。 */
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
   input[type="checkbox"] {
@@ -32,6 +47,7 @@
     background 0.16s ease,
     border-color 0.16s ease;
 }
+/* 手柄：用伪元素而非背景图，省一次请求；1px 内缩与轨道边框宽度对齐。 */
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
   input:before {
@@ -47,6 +63,7 @@
     transform 0.16s ease,
     background 0.16s ease;
 }
+/* 勾选态：轨道填强调色；落点用 translate(12px) 表示，能走合成层而不触发重排。 */
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
   input:checked {
@@ -59,12 +76,14 @@
   background: #fff4dc;
   transform: translate(12px);
 }
+/* 焦点环只在键盘操作时出现（focus-visible），鼠标点击不显示，避免干扰视觉。 */
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
   input:focus-visible {
   outline: 2px solid var(--accent, #f2a20d);
   outline-offset: 3px;
 }
+/* 禁用态用 :has 命中整行（含文字）统一降透明度；光标恢复默认，明确「点不动」。 */
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle:has(input:disabled) {
   opacity: 0.5;
@@ -75,6 +94,7 @@
   input:disabled {
   cursor: default;
 }
+/* 尊重系统的「减少动态效果」偏好：连状态切换的过渡也要去掉。 */
 @media (prefers-reduced-motion: reduce) {
   .i3d-setting-toggle input,
   .i3d-setting-toggle input:before {

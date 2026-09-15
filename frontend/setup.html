@@ -1,9 +1,17 @@
 <!doctype html>
+<!--
+  首次设置页（/setup）：创建本机唯一的超级管理员账号。
+  后端只在「尚未初始化」时下发本页，其余情况一律 303：已初始化时按登录状态去 / 或 /login。
+  表单里的 minlength / maxlength 与后端 SetupAdminRequest 的字段约束一一对应
+  （账号 3 至 64 位、密码 8 至 256 位）；前端只是为了先拦一道，真正把关仍在后端。
+  入口脚本：/static/auth-shell.js（形象动画与密码显隐）、/static/setup.js（两次密码比对后提交）。
+  与登录页共用 /static/auth.css，DOM 结构（.login-shell / .login-showcase / .login-panel）不可改动，否则样式失配。
+-->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/client-log.js?v=20260916013557"></script>
+    <script src="/static/client-log.js?v=20260916074544"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#172029" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,21 +19,23 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>初始化 · HomeOS</title>
-    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916013557" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916013557" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916013557" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916013557" sizes="180x180" />
-    <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260916013557" />
-    <link rel="stylesheet" href="/static/auth.css?v=20260916013557" />
+    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916074544" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916074544" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916074544" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916074544" sizes="180x180" />
+    <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260916074544" />
+    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
+    <link rel="stylesheet" href="/static/auth.css?v=20260916074544" />
   </head>
   <body>
+    <!-- ===== 左侧品牌展示区（纯装饰） ===== -->
     <main class="login-shell">
       <section class="login-showcase" aria-label="HomeOS介绍">
         <div class="showcase-grid" aria-hidden="true"></div>
         <div class="showcase-orb orb-one" aria-hidden="true"></div>
         <div class="showcase-orb orb-two" aria-hidden="true"></div>
         <div class="showcase-brand">
-          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260916013557" alt="" /><span
+          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260916074544" alt="" /><span
             >HomeOS</span
           >
         </div>
@@ -36,9 +46,10 @@
           <div class="character character-yellow"><i></i><i></i><span class="character-mouth yellow-mouth"></span></div>
         </div>
       </section>
+      <!-- ===== 右侧设置表单区 ===== -->
       <section class="login-panel">
         <div class="mobile-brand">
-          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260916013557" alt="" /><span
+          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260916074544" alt="" /><span
             >HomeOS</span
           >
         </div>
@@ -81,6 +92,8 @@
                     <circle cx="12" cy="12" r="2.5" />
                   </svg></button></span
             ></label>
+            <!-- 两次密码用同一个 data-toggle-password 机制，按钮只会切换自己 id 指向的那个输入框；
+                 autocomplete="new-password" 是为了让浏览器不要拿旧密码去自动填充这一栏。 -->
             <label
               ><span>再次输入密码</span
               ><span class="token-field"
@@ -109,6 +122,8 @@
         </div>
       </section>
     </main>
+    <!-- 两个脚本都是 module：现代浏览器下 module 默认 defer，执行顺序与书写顺序一致；
+         auth-shell.js 先跑是为了让密码显隐按钮在 setup.js 提交失败后依然可用。 -->
     <script type="module" src="/static/auth-shell.js"></script>
     <script type="module" src="/static/setup.js"></script>
   </body>

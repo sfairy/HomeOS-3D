@@ -1,5 +1,23 @@
+/**
+ * 苹果设备全屏展示页的背景色同步。
+ *
+ * 位置：展示页（display）启动流程里调用，仅对 iOS / iPadOS 生效。
+ * 职责：把项目画布背景色写进 CSS 变量 --display-surface-background 与
+ *   meta[theme-color]，让状态栏与页面底色一致，避免全屏下露出黑边。
+ * 约定：只有「已添加到主屏并以 standalone 运行」的设备才处理；普通浏览器
+ *   标签页交给页面自身背景，不改主题色。win 参数可注入，便于测试。
+ */
+
+/**
+ * 按画布背景色更新苹果全屏设备的表面颜色。
+ *
+ * @param {object} docModel 文档模型，读取 docModel.canvas.background。
+ * @param {Window} [win] 目标窗口，默认当前 window；测试时可注入替身。
+ * @returns {void} 非苹果设备或非 standalone 模式直接返回，不做任何写入。
+ */
 export function syncAppleDisplaySurface(docModel, win = window) {
   const { document: doc, navigator: nav } = win;
+  // iPadOS 13+ 默认伪装成 Macintosh，只能用 maxTouchPoints > 1 与桌面 Mac 区分。
   const isApple =
     /iPad|iPhone|iPod/i.test(nav.userAgent || "") ||
     (/Macintosh/i.test(nav.userAgent || "") && Number(nav.maxTouchPoints || 0) > 1);
@@ -9,6 +27,7 @@ export function syncAppleDisplaySurface(docModel, win = window) {
     return;
   }
   const background = docModel?.canvas?.background;
+  // 先确认背景类型是纯色，再用 CSS.supports 复核颜色字符串合法，否则回退深色底。
   const surfaceColor =
     background?.type === "color" &&
     typeof background.color === "string" &&

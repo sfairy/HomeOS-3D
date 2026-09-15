@@ -1,6 +1,27 @@
+/**
+ * 展示页的配对二维码弹窗。
+ *
+ * 位置：中控设备展示页上「扫码配对新设备」入口，仅在配对被启用时可用。
+ * 职责：把服务地址与 6 位配对码编码成 /pair?scan=1#... 链接并渲染成 QR，
+ *   地址可现场修改（家里换网段时无需回后台改配置），并附 iPhone 添加到主屏引导。
+ * 约定：二维码内容格式必须与 pairing-link.js 的 parsePairingLink 完全对应
+ *   （路径 /pair、查询串 ?scan=1、哈希字段 code/type/version）；
+ *   拒绝本机回环地址，因为手机连不上电脑的 localhost。
+ */
 import qrcode from "./vendor/qrcode-generator/qrcode.js";
+
+/**
+ * 校验服务地址与配对码，拼出二维码内容。
+ *
+ * @param {string} serverUrl 服务地址，形如 http://192.168.1.20:18080。
+ * @param {string|number} code 6 位配对码。
+ * @returns {string} 二维码承载的配对链接。
+ * @throws {Error} 地址不合法（含路径 / 账号 / 查询串）或配对码格式错误。
+ */
 export function pairingQrPayload(serverUrl, code) {
   const serverUrlObject = new URL(String(serverUrl).trim());
+  // 只接受「裸 origin」形式：不允许用户信息、查询串、哈希与非根路径，
+  // 否则拼出来的配对链接会被 parsePairingLink 拒绝。
   if (
     !["http:", "https:"].includes(serverUrlObject.protocol) ||
     serverUrlObject.username ||
@@ -14,6 +35,7 @@ export function pairingQrPayload(serverUrl, code) {
     );
   if (!/^\d{6}$/.test(String(code)))
     throw new Error("\u9700\u8981\u6709\u6548\u7684 6 \u4F4D\u914D\u5BF9\u7801\u3002");
+  // 手机扫到 localhost 只会指向手机自己，必须挡掉这类地址。
   if (
     ["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "[::]"].includes(serverUrlObject.hostname) ||
     serverUrlObject.hostname.endsWith(".localhost") ||
@@ -22,10 +44,20 @@ export function pairingQrPayload(serverUrl, code) {
     throw new Error(
       "\u624B\u673A\u65E0\u6CD5\u8FDE\u63A5\u7535\u8111\u7684\u672C\u673A\u5730\u5740\uFF0C\u8BF7\u6539\u4E3A\u624B\u673A\u53EF\u8BBF\u95EE\u7684\u5C40\u57DF\u7F51 IP \u6216\u57DF\u540D\u3002"
     );
+  // origin 已含协议与端口；哈希字段顺序写成 type/version/code，与解析端只做集合比较无关。
   return `${serverUrlObject.origin}/pair?scan=1#type=homeos-pair&version=1&code=${String(code)}`;
 }
+
+/**
+ * 把配对链接渲染成内联 SVG 二维码。
+ *
+ * @param {string} payload 二维码内容。
+ * @returns {string} SVG 字符串。
+ */
 export function pairingQrSvg(payload) {
+  // 默认按 Latin-1 编码，中文域名 / 参数会乱码，必须显式切到 UTF-8。
   qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
+  // 纠错等级 "M"（约 15%）兼顾容错与二维码尺寸；scalable 让 SVG 自适应弹窗宽度。
   const qrCode = qrcode(0, "M");
   return (
     qrCode.addData(payload),
@@ -33,6 +65,16 @@ export function pairingQrSvg(payload) {
     qrCode.createSvgTag({ cellSize: 5, margin: 20, scalable: !0 })
   );
 }
+
+/**
+ * 打开配对二维码弹窗。
+ *
+ * @param {object} pairing 配对信息。
+ * @param {string} pairing.name 设备名称，展示在说明文案里。
+ * @param {string} pairing.code 6 位配对码。
+ * @param {boolean} pairing.enabled 该配对码是否仍启用。
+ * @returns {void} 弹窗关闭后自行从 DOM 移除。
+ */
 export function showDisplayPairingQr(pairing) {
   const dialogElement = document.createElement("dialog");
   dialogElement.className = "display-pairing-qr-dialog";
@@ -41,6 +83,7 @@ export function showDisplayPairingQr(pairing) {
   const descriptionElement = document.createElement("p");
   descriptionElement.textContent = `\u626B\u63CF\u4E0B\u65B9\u4E8C\u7EF4\u7801\uFF0C\u8FDE\u63A5\u201C${pairing.name}\u201D\u3002\u5B89\u5353 App \u6216\u624B\u673A\u76F8\u673A\u5747\u53EF\u626B\u7801\u3002`;
   const downloadLink = document.createElement("a");
+  // 外链必须带 noopener noreferrer，避免被打开的页面拿到 window.opener。
   ((downloadLink.className = "display-pairing-qr-download"),
     (downloadLink.href = "https://wiki.habridge.cn/downloads/HaBridge.apk"),
     (downloadLink.target = "_blank"),
@@ -51,6 +94,7 @@ export function showDisplayPairingQr(pairing) {
   const noteTitle = document.createElement("strong");
   noteTitle.textContent = "iPhone / iPad \u4F7F\u7528\u5F15\u5BFC";
   const stepsList = document.createElement("ol");
+  // iOS 不支持安装 PWA 的提示，只能给出添加到主屏的手动步骤。
   for (const stepText of [
     "\u624B\u673A\u76F8\u673A\u626B\u7801\uFF0C\u6253\u5F00\u9875\u9762\u540E\u70B9\u51FB\u201C\u8FDE\u63A5\u201D\u3002",
     "Chrome \u6216 Safari\uFF1A\u5206\u4EAB \u2192 \u6DFB\u52A0\u5230\u4E3B\u5C4F\u5E55 \u2192 \u6DFB\u52A0\u3002"
@@ -65,6 +109,7 @@ export function showDisplayPairingQr(pairing) {
   const addressLabel = document.createElement("label");
   addressLabel.textContent = "\u624B\u673A\u53EF\u8BBF\u95EE\u7684\u8FDE\u63A5\u5730\u5740";
   const addressInput = document.createElement("input");
+  // 默认填当前 origin，用户改网段时可直接改这里重新生成二维码。
   ((addressInput.type = "url"),
     (addressInput.autocomplete = "off"),
     (addressInput.spellcheck = !1),
@@ -84,6 +129,7 @@ export function showDisplayPairingQr(pairing) {
   ((closeButton.type = "button"),
     (closeButton.textContent = "\u5173\u95ED"),
     closeButton.addEventListener("click", () => dialogElement.close()));
+  // 重新生成二维码；地址非法时清空图形并把原因写到提示行。
   const renderQr = () => {
     try {
       if (!pairing.enabled)
@@ -114,6 +160,7 @@ export function showDisplayPairingQr(pairing) {
       closeButton
     ),
     document.body.append(dialogElement),
+    // 关闭后立即从 DOM 摘除，避免二维码 SVG 长期占内存；once 保证只解绑一次。
     dialogElement.addEventListener("close", () => dialogElement.remove(), { once: !0 }),
     renderQr(),
     dialogElement.showModal());

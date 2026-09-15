@@ -1,3 +1,27 @@
+/**
+ * 编辑器选择器的 DOM 元素工厂。
+ *
+ * 位置：图标 / 实体 / 素材三类分页选择器弹层，负责生成列表项与「当前选中值」
+ *   展示块。
+ * 约定：所有节点通过全局 document 创建；展示文案由注入的回调（entityPickerText、
+ *   assetDisplayName 等）决定，本模块只管结构与类名，保证选择器样式统一。
+ * 约定：列表项统一用 dataset.editorPickerValue 携带取值，选择器靠它读取点击结果。
+ */
+
+/**
+ * 创建选择器元素工厂。
+ *
+ * @param {object} handlers 展示文案与图标能力的依赖注入。
+ * @param {function(object): string} handlers.entityKindLabel 取实体域标签。
+ * @param {function(object): string} handlers.entityPickerPrimaryName 取实体主名称。
+ * @param {function(object): string} handlers.entityPickerText 取实体完整展示文案。
+ * @param {function(Element, Element): void} handlers.enableEntityTextHoverScroll 让过长文本可悬停滚动。
+ * @param {function(object): string} handlers.assetDisplayName 取素材显示名。
+ * @param {function(object): string} handlers.assetPreviewUrl 取素材预览地址。
+ * @param {function(Element, string): void} handlers.bindEditorIconNameTooltip 绑定图标名提示。
+ * @param {function(string): string} handlers.mdiIconUrl 由图标名生成 MDI 图标地址。
+ * @returns {object} 冻结的元素工厂集合。
+ */
 export function createEditorPickerElements({
   entityKindLabel: entityKindLabel,
   entityPickerPrimaryName: entityPickerPrimaryName,
@@ -8,6 +32,14 @@ export function createEditorPickerElements({
   bindEditorIconNameTooltip: bindEditorIconNameTooltip,
   mdiIconUrl: mdiIconUrl
 }) {
+  /**
+   * 创建图标选择器的「清除」选项。
+   *
+   * @param {boolean} isClearSelected 当前是否已选中该项。
+   * @param {string} clearOptionLabel 按钮文案。
+   * @param {string} clearDatasetKey 存放取值的 dataset 键名。
+   * @returns {HTMLButtonElement} 选项按钮。
+   */
   function createIconPickerClearOption(isClearSelected, clearOptionLabel, clearDatasetKey) {
     const clearOptionElement = document.createElement("button");
     return (
@@ -18,6 +50,15 @@ export function createEditorPickerElements({
       clearOptionElement
     );
   }
+
+  /**
+   * 创建一个图标选项（用 mask-image 渲染 MDI 图标）。
+   *
+   * @param {object} icon 图标信息，含 name 与 previewUrl。
+   * @param {string} selectedIconName 当前选中的图标名。
+   * @param {string} iconDatasetKey 存放图标名的 dataset 键名。
+   * @returns {HTMLButtonElement} 选项按钮。
+   */
   function createIconPickerOption(icon, selectedIconName, iconDatasetKey) {
     const iconOptionElement = document.createElement("button");
     ((iconOptionElement.type = "button"),
@@ -26,6 +67,7 @@ export function createEditorPickerElements({
       iconOptionElement.setAttribute("aria-label", icon.name),
       (iconOptionElement.dataset.iconName = icon.name));
     const iconMaskElement = document.createElement("i");
+    // 同时设置标准与 webkit 前缀属性，兼容 Safari。
     return (
       iconMaskElement.setAttribute("aria-hidden", "true"),
       (iconMaskElement.style.maskImage = `url("${icon.previewUrl}")`),
@@ -35,6 +77,14 @@ export function createEditorPickerElements({
       iconOptionElement
     );
   }
+
+  /**
+   * 创建「当前图标」展示块。
+   *
+   * @param {string} iconName 当前图标名，可为空。
+   * @param {string} [emptyIconLabel] 未设置图标时的占位文案。
+   * @returns {HTMLSpanElement} 展示块。
+   */
   function createEditorPickerCurrentIcon(
     iconName,
     emptyIconLabel = "\u672A\u4F7F\u7528\u56FE\u6807"
@@ -46,6 +96,7 @@ export function createEditorPickerElements({
     const iconGlyphElement = document.createElement("i");
     iconGlyphElement.setAttribute("aria-hidden", "true");
     const maskImageUrl = mdiIconUrl(trimmedIconName);
+    // 没有图标名时不生成 mask 地址，避免出现无效的 url("")。
     (maskImageUrl &&
       (iconGlyphElement.style.setProperty("mask-image", `url("${maskImageUrl}")`),
       iconGlyphElement.style.setProperty("-webkit-mask-image", `url("${maskImageUrl}")`)),
@@ -58,6 +109,14 @@ export function createEditorPickerElements({
       currentIconElement
     );
   }
+
+  /**
+   * 创建一个实体选项行（域标签 + 名称 + 实体 ID）。
+   *
+   * @param {object} entity 实体对象。
+   * @param {string} selectedEntityId 当前选中的实体 ID。
+   * @returns {HTMLButtonElement} 选项按钮。
+   */
   function createEditorEntityPickerOption(entity, selectedEntityId) {
     const entityOptionElement = document.createElement("button");
     ((entityOptionElement.type = "button"),
@@ -90,6 +149,14 @@ export function createEditorPickerElements({
       entityOptionElement
     );
   }
+
+  /**
+   * 创建「清除选择」按钮。
+   *
+   * @param {string} clearLabel 按钮文案。
+   * @param {boolean} [isClearOptionSelected] 是否处于选中态。
+   * @returns {HTMLButtonElement} 按钮元素。
+   */
   function editorPickerClearOption(clearLabel, isClearOptionSelected = !1) {
     const clearButtonElement = document.createElement("button");
     return (
@@ -100,16 +167,33 @@ export function createEditorPickerElements({
       clearButtonElement
     );
   }
+
+  /**
+   * 创建动作选择器里的「不使用实体」按钮。
+   *
+   * @param {string} [clearActionLabel] 按钮文案。
+   * @param {boolean} [isClearActionSelected] 是否处于选中态。
+   * @returns {HTMLButtonElement} 按钮元素。
+   */
   function editorPickerClearAction(
     clearActionLabel = "\u4E0D\u4F7F\u7528\u5B9E\u4F53",
     isClearActionSelected = !1
   ) {
     const clearActionElement = editorPickerClearOption(clearActionLabel, isClearActionSelected);
+    // 复用清除按钮的类名与 dataset，只换外层样式类以适配动作选择器。
     return (
       (clearActionElement.className = "editor-paged-picker-selected-action"),
       clearActionElement
     );
   }
+
+  /**
+   * 创建动作选择器里的实体按钮。
+   *
+   * @param {object} actionEntity 实体对象。
+   * @param {boolean} [isEntityActionSelected] 是否处于选中态。
+   * @returns {HTMLButtonElement} 按钮元素。
+   */
   function editorPickerEntityAction(actionEntity, isEntityActionSelected = !1) {
     const entityActionElement = document.createElement("button");
     return (
@@ -121,6 +205,14 @@ export function createEditorPickerElements({
       entityActionElement
     );
   }
+
+  /**
+   * 创建「当前实体」展示块。
+   *
+   * @param {object|null} selectedEntity 当前选中的实体。
+   * @param {string} [emptyEntityLabel] 未选择时的占位文案。
+   * @returns {HTMLSpanElement} 展示块。
+   */
   function createEditorPickerCurrentEntity(
     selectedEntity,
     emptyEntityLabel = "\u672A\u9009\u62E9\u5B9E\u4F53"
@@ -139,10 +231,19 @@ export function createEditorPickerElements({
         : ((currentEntityNameElement.textContent = emptyEntityLabel),
           (currentEntityIdElement.textContent = "")),
       currentEntityElement.append(currentEntityNameElement),
+      // 没有实体 ID 时连 ID 行一起隐藏，保持展示块紧凑。
       currentEntityIdElement.textContent && currentEntityElement.append(currentEntityIdElement),
       currentEntityElement
     );
   }
+
+  /**
+   * 创建「当前素材」展示块（缩略图 + 名称）。
+   *
+   * @param {object|null} asset 当前选中的素材。
+   * @param {string} [emptyAssetLabel] 未使用素材时的占位文案。
+   * @returns {HTMLSpanElement} 展示块。
+   */
   function createEditorPickerCurrentAsset(
     asset,
     emptyAssetLabel = "\u672A\u4F7F\u7528\u56FE\u7247"
@@ -150,6 +251,7 @@ export function createEditorPickerElements({
     const currentAssetElement = document.createElement("span");
     currentAssetElement.className = "editor-paged-picker-current-asset";
     const assetImageElement = document.createElement("img");
+    // 纯装饰图，alt 留空让读屏跳过。
     assetImageElement.alt = "";
     const assetNameElement = document.createElement("span");
     return (
@@ -157,6 +259,7 @@ export function createEditorPickerElements({
       asset
         ? ((assetImageElement.src = assetPreviewUrl(asset)),
           (assetNameElement.textContent = assetDisplayName(asset) || emptyAssetLabel),
+          // 名称可能重复，title 里补上文件名 / 相对路径以便区分。
           (currentAssetElement.title =
             asset.name || asset.relativePath || asset.assetId || emptyAssetLabel))
         : ((assetImageElement.hidden = !0), (assetNameElement.textContent = emptyAssetLabel)),

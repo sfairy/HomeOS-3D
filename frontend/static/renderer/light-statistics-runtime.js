@@ -1,3 +1,16 @@
+/**
+ * 灯光统计控件的数据汇总。
+ *
+ * 职责：接收一组实体 ID，结合实时状态与实体描述，输出「共几个 / 开几个 / 关几个 / 几个异常」
+ * 以及逐条的明细，供统计控件直接渲染。
+ *
+ * 位置：纯计算模块，不发起请求；实时状态由调用方（控件 runtime）从状态中心取出后传进来。
+ *
+ * 约定：状态来源同时兼容 Map 与普通对象两种容器（后端下发与前端缓存用的形态不同），
+ * 也兼容「状态对象」与「变更对象（含 newState）」两种入参形态。
+ */
+
+// 这些域的「开 / 关」语义天然成立，直接按 state 判定。
 const ON_OFF_DOMAINS_SET = new Set([
   "light",
   "switch",
@@ -6,7 +19,15 @@ const ON_OFF_DOMAINS_SET = new Set([
   "humidifier",
   "siren"
 ]);
+// 这些域没有 on / off 状态，只有关 / 运行之分（climate 是 hvac_action，water_heater 是 operation_mode），
+// 因此单独成组，任何非 off 的状态都算作「开」。
 const RUNNING_STATE_DOMAINS_SET = new Set(["climate", "water_heater"]);
+/**
+ * 解析实体所属域，优先用描述里的 domain 字段，缺失时回退到实体 ID 的点号前缀。
+ *
+ * @param {string|object} entityDescriptor 实体 ID 字符串，或含 domain / entityId 的描述对象。
+ * @returns {string} 小写的域名字符串；无法判断时返回空串。
+ */
 function resolveEntityDomain(entityDescriptor) {
   const entityId =
     typeof entityDescriptor == "string"
@@ -18,6 +39,16 @@ function resolveEntityDomain(entityDescriptor) {
       .toLowerCase() || entityId.split(".", 1)[0].toLowerCase()
   );
 }
+/**
+ * 判断某个实体能否参与灯光统计，并给出给用户看的口径说明。
+ *
+ * 判定顺序：虚拟实体 → 群组 → 开 / 关域 → 运行态域 → 其余不支持。
+ * 虚拟实体与群组放在最前，是因为它们的 domain 可能是 virtual / group，
+ * 若先按域的集合匹配会被判成不支持，而它们实际上可以参与统计。
+ *
+ * @param {string|object} entityLike 实体 ID 或实体描述对象。
+ * @returns {{supported: boolean, message: string}} supported 为 false 时 message 说明原因。
+ */
 export function lightStatisticsEntitySupport(entityLike) {
   const targetEntityId =
     typeof entityLike == "string"
@@ -51,6 +82,16 @@ export function lightStatisticsEntitySupport(entityLike) {
     };
   }
 }
+/**
+ * 把单条状态归类成 on / off / abnormal 三态。
+ *
+ * 空串、unknown、unavailable 一律算 abnormal——它们代表「读数不可信」而不是「关」，
+ * 混进 off 会让统计结果偏乐观。运行态域（climate / water_heater）只要不是 off 就算 on。
+ *
+ * @param {string|object} entityInput 实体 ID 或描述。
+ * @param {object} stateLike 状态对象、变更对象或裸状态字符串。
+ * @returns {"on"|"off"|"abnormal"} 统计用的归类结果。
+ */
 export function lightStatisticsEntityStateStatus(entityInput, stateLike) {
   if (!lightStatisticsEntitySupport(entityInput).supported) {
     return "abnormal";
@@ -69,6 +110,13 @@ export function lightStatisticsEntityStateStatus(entityInput, stateLike) {
     return "abnormal";
   }
 }
+/**
+ * 从 Map 或普通对象里取一项，取不到返回 null。
+ *
+ * @param {Map|object} source 状态 / 描述容器。
+ * @param {string} key 实体 ID。
+ * @returns {*} 命中的值或 null。
+ */
 function readFromMapOrRecord(source, key) {
   if (typeof source?.get == "function") {
     return source.get(key) || null;
@@ -76,6 +124,16 @@ function readFromMapOrRecord(source, key) {
     return (source && typeof source == "object" && source[key]) || null;
   }
 }
+/**
+ * 剥掉变更对象的外壳，取出真正的状态对象。
+ *
+ * 用 hasOwnProperty 判断而非取值判空：状态对象本身也可能带 newState 字段，
+ * 只有「自己拥有该键」时才说明这确实是变更事件。
+ *
+ * @param {Map|object} statesByEntityId 以实体 ID 为键的状态容器。
+ * @param {string} entityIdKey 实体 ID。
+ * @returns {object|null} 状态对象，缺失返回 null。
+ */
 function unwrapStateChange(statesByEntityId, entityIdKey) {
   const stateOrChange =
     typeof statesByEntityId?.get == "function"
@@ -91,11 +149,21 @@ function unwrapStateChange(statesByEntityId, entityIdKey) {
     return stateOrChange || null;
   }
 }
+/**
+ * 汇总一批实体的开关统计。
+ *
+ * @param {string[]} entityIds 参与统计的实体 ID，允许重复与空项。
+ * @param {Map|object} [liveStatesByEntityId] 实时状态容器，键为实体 ID。
+ * @param {Map|object} [descriptorsByEntityId] 实体描述容器，用于取展示名。
+ * @returns {{total: number, on: number, off: number, abnormal: number, items: Array<object>}}
+ *   items 每项含 entityId、label、state、status 与 message。
+ */
 export function lightStatisticsSummary(
   entityIds,
   liveStatesByEntityId = new Map(),
   descriptorsByEntityId = new Map()
 ) {
+  // 去重但保持配置顺序：统计卡片的行序应与用户在编辑器里的排布一致，因此不能用 Set 直接输出。
   const orderedEntityIds = [];
   const seenEntityIds = new Set();
   for (const entityIdEntry of Array.isArray(entityIds) ? entityIds : []) {
@@ -111,6 +179,7 @@ export function lightStatisticsSummary(
     const normalizedStateEntry = String(stateChange?.state || "")
       .trim()
       .toLowerCase();
+    // 描述里补上 entityId：域解析既要认 domain 字段，也要能退回 ID 前缀。
     const support = lightStatisticsEntitySupport({
       ...descriptor,
       entityId: currentEntityId
@@ -124,6 +193,7 @@ export function lightStatisticsSummary(
     );
     return {
       entityId: currentEntityId,
+      // 展示名优先级：HA 的 friendly_name → 本地描述名 → 原始名 → 实体 ID 兜底。
       label: String(
         stateChange?.attributes?.friendly_name ||
           descriptor.name ||
@@ -131,6 +201,7 @@ export function lightStatisticsSummary(
           currentEntityId
       ),
       state: normalizedStateEntry,
+      // 本可统计、但当前读数不可信的实体，文案与「压根不支持统计」区分开。
       status: status,
       message: status === "abnormal" && support.supported ? "当前状态无法判断" : support.message
     };

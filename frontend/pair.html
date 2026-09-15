@@ -1,10 +1,21 @@
 <!doctype html>
+<!--
+  中控设备配对页（/pair）。
+  后端门禁顺序固定：未初始化先 303 去 /setup；已登录且不是 ?scan=1 时按 ?next= 跳走；
+  已配对设备（非 ?scan=1）直接 303 去它绑定的那块仪表盘；最后还要授权允许 display 能力，否则 403 不下发本页。
+  ?scan=1 是「我还要再配一台」的显式通道，走这条时上面两条跳转都会被跳过，因此它是扫码链接的固定落点。
+  入口脚本：/static/pairing-entry.js（必须在最前，见下方顺序说明）、client-log.js、auth-shell.js、/static/pair.js。
+  配对成功后由 /static/pair.js 调 /api/v1/displays/pair，由服务端下发中控设备 Cookie。
+-->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/pairing-entry.js?v=20260916013557"></script>
-    <script src="/static/client-log.js?v=20260916013557"></script>
+    <!-- pairing-entry.js 必须是本页第一个脚本：它要在其它脚本读地址栏之前，
+         把 location.hash 里的配对信息搬到 window.__HA_BRIDGE_PAIRING_HASH__ 并清掉哈希，
+         否则刷新页面会重复触发一次配对。 -->
+    <script src="/static/pairing-entry.js?v=20260916074544"></script>
+    <script src="/static/client-log.js?v=20260916074544"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#172029" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,20 +23,22 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>配对中控设备 · HomeOS</title>
-    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916013557" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916013557" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916013557" sizes="180x180" />
-    <link rel="manifest" href="/static/dashboard.webmanifest?v=20260916013557" />
-    <link rel="stylesheet" href="/static/auth.css?v=20260916013557" />
+    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916074544" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916074544" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916074544" sizes="180x180" />
+    <link rel="manifest" href="/static/dashboard.webmanifest?v=20260916074544" />
+    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
+    <link rel="stylesheet" href="/static/auth.css?v=20260916074544" />
   </head>
   <body>
+    <!-- ===== 左侧品牌展示区（is-entered 让形象跳过入场动画，直接停在最终姿态） ===== -->
     <main class="login-shell">
       <section class="login-showcase" aria-label="HomeOS 中控设备配对">
         <div class="showcase-grid" aria-hidden="true"></div>
         <div class="showcase-orb orb-one" aria-hidden="true"></div>
         <div class="showcase-orb orb-two" aria-hidden="true"></div>
         <div class="showcase-brand">
-          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260916013557" alt="" /><span
+          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260916074544" alt="" /><span
             >HomeOS</span
           >
         </div>
@@ -36,20 +49,25 @@
           <div class="character character-yellow"><i></i><i></i><span class="character-mouth yellow-mouth"></span></div>
         </div>
       </section>
+      <!-- ===== 右侧配对表单区 ===== -->
       <section class="login-panel">
         <div class="mobile-brand">
-          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260916013557" alt="" /><span
+          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260916074544" alt="" /><span
             >HomeOS</span
           >
         </div>
         <div class="login-card">
           <header>
             <p class="eyebrow">DISPLAY PAIRING</p>
+            <!-- pair-title / pair-description 会被 /static/pair.js 改写文案：扫码成功时换成「连接 HomeOS」的说法。 -->
             <h1 id="pair-title">配对中控设备</h1>
             <p id="pair-description">输入管理员为这台中控设置的固定 6 位配对码。</p>
           </header>
+          <!-- 默认 hidden，只有 /static/pair.js 判定「iOS 且未加入主屏幕」时才显示，避免桌面端看到无关提示。 -->
           <p id="apple-pair-note" hidden>连接成功后会引导你添加到主屏幕，以后点击 HomeOS 图标即可打开。</p>
           <form id="pair-form" class="auth-form">
+            <!-- pattern + inputmode 是双保险：前者给浏览器做原生校验（也只能提交 6 位数字），
+                 后者让移动端直接弹数字键盘；真正的合法性仍由后端按 6 位数字码判定。 -->
             <label
               ><span>6 位配对码</span
               ><input
@@ -69,6 +87,6 @@
       </section>
     </main>
     <script type="module" src="/static/auth-shell.js"></script>
-    <script type="module" src="/static/pair.js?v=20260916013557"></script>
+    <script type="module" src="/static/pair.js?v=20260916074544"></script>
   </body>
 </html>

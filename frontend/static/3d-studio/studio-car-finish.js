@@ -1,3 +1,17 @@
+/**
+ * 汽车模型的着色增强：车漆高光、车窗玻璃与车灯发光。
+ *
+ * 位置：3D 工作室的车位 / 车库展示模块里，外部导入的汽车模型只有基础 PBR 材质，
+ *   本模块在材质编译阶段注入自定义 GLSL，补上拍照贴图里缺失的镜面感与灯带亮度。
+ * 对外：smoothCarSurfaceNormals（法线平滑）、applyCarFinish（材质注入）与两张常量表。
+ * 约定：两张常量表的坐标都相对 700×700 的车体贴图，单位是该贴图的像素；
+ *   它们与车模的 UV 布局绑定，换模型必须同步更新。
+ * 注意：注入的 GLSL 字符串里保留了原有英文注释 —— 它们属于字符串内容，
+ *   改动即改变着色器源码，因此按原文保留。
+ */
+
+// 前后车灯灯罩的轮廓多边形（贴图像素坐标），一盏灯由多段灯带组成。
+// 顶点顺序不限：生成着色器表达式前会按带符号面积统一环绕方向。
 export const CAR_LAMP_LENSES = {
   front: [
     [
@@ -40,13 +54,27 @@ export const CAR_LAMP_LENSES = {
     ]
   ]
 };
+// 车玻璃在贴图图集里的两块「岛区」，格式为 [minU, minV, maxU, maxV]（归一化 UV）：
+// 一块是侧窗 / 后窗带，另一块是风挡带；着色器据此判断当前像素是否落在玻璃上。
 export const CAR_GLASS_ATLAS_REGIONS = [
   [0.3, 0.655, 0.96, 0.975],
   [0.38, 0.395, 0.81, 0.49]
 ];
+// 把 700×700 贴图像素坐标转成 GLSL 的 vec2 字面量；
+// 固定 7 位小数是为了让常量在不同 GPU 的浮点精度下保持稳定，避免编译期出现细微分歧。
 const toGlslVec2 = uvPoint =>
   "vec2(" + (uvPoint[0] / 700).toFixed(7) + ", " + (uvPoint[1] / 700).toFixed(7) + ")";
+/**
+ * 生成「UV 是否落在该多边形内」的 GLSL 表达式。
+ *
+ * 做法是逐边做半平面判定再相乘（凸多边形内判定的常见写法），
+ * 因此必须先统一环绕方向，否则不同朝向的多边形会得到相反的符号。
+ *
+ * @param {Array<Array<number>>} lens 多边形顶点（贴图像素坐标）。
+ * @returns {string} 结果落在 0~1 的 GLSL 表达式。
+ */
 const buildLensEdgeExpression = lens => {
+  // 鞋带公式求带符号面积：为负说明是顺时针，反转后保证每条边的判定符号一致。
   const windingOrdered =
     lens.reduce((signedArea, point, index) => {
       const nextPoint = lens[(index + 1) % lens.length];
@@ -65,17 +93,30 @@ const buildLensEdgeExpression = lens => {
     )
     .join(" * ");
 };
+// 同一盏灯的多个灯带取并集：各多边形的判定结果直接相加，由着色器侧再 clamp 到 1。
 const buildLampGlowExpression = lampId =>
   CAR_LAMP_LENSES[lampId]
     .map(buildLensEdgeExpression)
     .map(edgeExpression => "(" + edgeExpression + ")")
     .join(" + ");
+/**
+ * 按空间位置合并重复顶点的法线，让车漆表面平滑着色。
+ *
+ * 车模常因 UV 或材质分组把同一位置拆成多个顶点，各自持有独立法线，
+ * 渲染出来会有明显接缝。这里按位置聚类后做面积加权的法线平均，
+ * 但只合并夹角在 50° 以内的邻居，以保住车身折角的硬边。
+ *
+ * @param {object} THREE three.js 模块命名空间。
+ * @param {object} geometry 原始几何（不会被修改）。
+ * @returns {object} 新的几何；顶点属性不满足要求时原样返回入参。
+ */
 export function smoothCarSurfaceNormals(THREE, geometry) {
   const positionAttribute = geometry?.attributes?.position;
   const normalAttribute = geometry?.attributes?.normal;
   if (!positionAttribute || !normalAttribute || positionAttribute.count !== normalAttribute.count) {
     return geometry;
   }
+  // 位置键 → 落在同一位置上的全部顶点下标，供下面的法线聚类使用。
   const vertexIndexByPosition = new Map();
   const vertexWeights = new Float64Array(positionAttribute.count);
   const triangleA = new THREE.Vector3();
@@ -84,6 +125,7 @@ export function smoothCarSurfaceNormals(THREE, geometry) {
   const crossVector = new THREE.Vector3();
   const indexAttribute = geometry.index;
   const triangleVertexCount = indexAttribute?.count ?? positionAttribute.count;
+  // 第一遍遍历三角形并按面积给顶点加权：面积越大，它的法线对平滑结果影响越大。
   for (let triangleOffset = 0; triangleOffset + 2 < triangleVertexCount; triangleOffset += 3) {
     const triangleIndices = [0, 1, 2].map(corner =>
       indexAttribute ? indexAttribute.getX(triangleOffset + corner) : triangleOffset + corner
@@ -99,6 +141,8 @@ export function smoothCarSurfaceNormals(THREE, geometry) {
       vertexWeights[cornerIndex] += triangleArea;
     }
   }
+  // 第二遍按位置建索引。坐标乘以 1e4 再取整作为键：车模尺度约数米，
+  // 这样既能容忍浮点误差，又不至于把相邻顶点误并成同一个。
   for (let vertexIndex = 0; vertexIndex < positionAttribute.count; vertexIndex++) {
     const positionKey = [
       positionAttribute.getX(vertexIndex),
@@ -112,10 +156,13 @@ export function smoothCarSurfaceNormals(THREE, geometry) {
     }
     vertexIndexByPosition.get(positionKey).push(vertexIndex);
   }
+  // 先克隆几何与法线属性：聚类计算始终读原始法线，写入落在副本上。
   const smoothedGeometry = geometry.clone();
   const smoothedNormals = normalAttribute.clone();
   const accumulatedNormal = new THREE.Vector3();
+  // 50° 的余弦阈值：只跟朝向接近的邻居做平均，避免把车窗与车身之间的硬边一并磨平。
   const cosineThreshold = Math.cos(THREE.MathUtils.degToRad(50));
+  // 同一位置的每个顶点都要重算：以自身原始法线为参考，只累积夹角够小的邻居法线。
   for (const samePositionIndices of vertexIndexByPosition.values()) {
     for (const sourceVertexIndex of samePositionIndices) {
       triangleA.fromBufferAttribute(normalAttribute, sourceVertexIndex).normalize();
@@ -141,12 +188,26 @@ export function smoothCarSurfaceNormals(THREE, geometry) {
   smoothedNormals.needsUpdate = true;
   return smoothedGeometry;
 }
+/**
+ * 给车身材质注入车漆 / 玻璃 / 车灯效果。
+ *
+ * 通过 onBeforeCompile 挂到 three.js 的标准材质上，不改动几何与贴图；
+ * 已注入过（userData.hbCarFinish）或不是标准材质的对象直接原样返回。
+ * 注入的内容包括：把物件坐标传给片元着色器、用贴图 UV 判定玻璃与车灯区域，
+ * 再按高度与视线方向叠加天光反射与灯带自发光。
+ *
+ * @param {object} material 车身材质。
+ * @returns {object} 同一个材质对象（可能已被改写）。
+ */
 export function applyCarFinish(material) {
   if (!material?.isMeshStandardMaterial || material.userData.hbCarFinish) {
     return material;
   }
+  // 记下原有的编译钩子与缓存键：材质可能已被上层改过，
+  // 必须在原基础上叠加，否则会丢掉别人注入的效果，或让着色器缓存串味。
   const previousOnBeforeCompile = material.onBeforeCompile;
   const previousCacheKey = material.customProgramCacheKey?.call(material) || "";
+  // 用函数表达式而非箭头函数：three.js 调用时 this 指向材质，箭头函数拿不到。
   material.onBeforeCompile = function (shader, renderer) {
     previousOnBeforeCompile?.call(this, shader, renderer);
     shader.vertexShader =
@@ -184,7 +245,11 @@ export function applyCarFinish(material) {
         ", 0.0, 1.0)\n          * smoothstep(1.85, 1.95, vHbCarLength);\n        outgoingLight += carFrontLamp * vec3(2.0, 2.3, 2.6)\n          + carRearLamp * vec3(0.84, 0.036, 0.018);\n      #endif\n      #include <opaque_fragment>"
     );
   };
+  // 缓存键后缀带上版本号：着色器源码一变就必须让旧编译结果失效，
+  // 否则升级后仍会命中旧程序，表现为新效果不生效。
   material.customProgramCacheKey = () => previousCacheKey + "|hb-car-finish-v7-glazing-detail";
+  // 标记已注入，避免同一材质被重复包装导致着色器里出现重复定义；
+  // 同时关掉平面二期的表面接触效果——车漆高光已由本模块的着色器接管，再叠加会发白。
   material.userData.hbCarFinish = true;
   material.userData.plan2SurfaceContact = false;
   return material;

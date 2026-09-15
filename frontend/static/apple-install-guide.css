@@ -1,3 +1,14 @@
+/*
+ * 苹果设备「添加到主屏幕」引导样式（配合 apple-install-guide.js）。
+ *
+ * 位置：配对 / 展示页在 iPhone、iPad 上注入的悬浮按钮与说明弹窗。
+ * 约定：整体走深绿暗色系，与展示页配色一致；触发按钮 z-index 必须高于
+ *   展示页启动遮罩，保证引导不会被盖住。
+ */
+
+/* ===== 悬浮触发按钮 ===== */
+
+/* position: fixed 配合 safe-area 内边距，避免在刘海屏底部被系统手势条挡住。 */
 .apple-install-trigger {
   position: fixed;
   right: 16px;
@@ -12,6 +23,10 @@
   box-shadow: 0 4px 20px #0003;
   cursor: pointer;
 }
+
+/* ===== 引导弹窗 ===== */
+
+/* 宽度取 min(440px, 视口 - 32px)：小屏留边，大屏不超出阅读宽度。 */
 .apple-install-dialog {
   box-sizing: border-box;
   width: min(440px, calc(100vw - 32px));
@@ -25,6 +40,7 @@
   font: 14px/1.6 system-ui;
   box-shadow: 0 24px 90px #0008;
 }
+/* 弹窗遮罩加模糊，弱化背后的展示页，突出引导内容。 */
 .apple-install-dialog::backdrop {
   background: #07110ec9;
   backdrop-filter: blur(5px);
@@ -39,6 +55,7 @@
   height: 56px;
   border-radius: 14px;
 }
+/* IPHONE · IPAD 小标签，靠字距拉开显示成标题眉。 */
 .apple-install-eyebrow {
   font-size: 11px;
   letter-spacing: 2px;
@@ -49,6 +66,7 @@
   color: #bed0c8;
   margin: 0 0 24px;
 }
+/* 步骤列表用 grid 排布，序号圆圈与文字两列对齐。 */
 .apple-install-steps {
   padding: 0;
   margin: 0 0 24px;
@@ -78,6 +96,7 @@
   color: #aabcb3;
   font-size: 13px;
 }
+/* 折叠说明区：上边框把「更多说明」与步骤列表分隔开。 */
 .apple-install-dialog details {
   border-top: 1px solid #32463e;
   padding-top: 14px;
@@ -86,6 +105,7 @@
   cursor: pointer;
   color: #bde9d5;
 }
+/* 折叠区正文与页脚说明共用同一档小字号，保持信息层级一致。 */
 .apple-install-dialog details p,
 .apple-install-footnote {
   font-size: 12px;
@@ -111,6 +131,7 @@
   cursor: pointer;
   margin-top: 22px;
 }
+/* 复制结果提示：没有文案时（:empty）整行隐藏，不占位。 */
 .apple-install-copy-status:empty {
   display: none;
 }

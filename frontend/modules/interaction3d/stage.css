@@ -1,7 +1,26 @@
-@import "/static/modules/interaction3d/controls.css?v=20260916013557";
-@import "./nas-panel.css?v=20260916013557";
-@import "./climate-panel.css?v=20260916013557";
-@import "./cover-panel.css?v=20260916013557";
+/*
+ * 3D 舞台（iframe 内）的样式表。
+ *
+ * 位置：interaction3d 的展示侧。stage.js 建出的 DOM —— 演示层、标记层、
+ * 工具栏与模块 / 楼层页签、灯光面板、电视 / 扫地机 / 安防状态卡、聚焦暗角、
+ * 以及内嵌的平面照射范围编辑器 —— 全部靠这里的类名定位。
+ * 舞台页只在加载时引入本文件（外加 controls.css 与几个面板的局部样式）。
+ *
+ * 约定：
+ *   - 标记与浮层用绝对定位叠在 canvas 上，坐标由 stage.js 每帧投影后写成
+ *     style.left / top，因此这里不要给它们加会改变盒模型的 margin；
+ *   - 状态一律用类名或 [hidden] 表达，JS 只负责切类名；
+ *   - 每段动画都配一份 prefers-reduced-motion 兜底，尊重系统的「减少动态效果」。
+ */
+@import "/static/modules/interaction3d/controls.css?v=20260916074544";
+@import "./nas-panel.css?v=20260916074544";
+@import "./climate-panel.css?v=20260916074544";
+@import "./cover-panel.css?v=20260916074544";
+/* ===== 舞台页面骨架 ===== */
+
+/* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
+   → #preview-3d 这条链路，宿主页面的其余结构一概隐藏，
+   避免父页面的调试容器或工具栏漏进舞台。 */
 html:has(body.interaction3d-stage),
 body.interaction3d-stage {
   width: 100%;
@@ -65,6 +84,10 @@ body.interaction3d-stage.is-background-hidden,
   width: 100%;
   height: 100%;
 }
+/* ===== 演示层与标记层 ===== */
+
+/* 演示层统一承载标记、面板与页签：整层可以整体缩放 / 平移（-presentation 布局），
+   因此子元素一律用绝对定位，定位上下文由这一层提供。 */
 .interaction3d-stage .i3d-presentation {
   position: absolute;
   top: 0;
@@ -103,6 +126,7 @@ body.interaction3d-stage.is-background-hidden,
   left: 16px;
   z-index: 9;
 }
+/* 工具栏按钮：只放「恢复视角 / 跟随漫游」这类全局动作。 */
 .interaction3d-stage .i3d-toolbar button {
   padding: 8px 12px;
   color: #d6c7ad;
@@ -163,6 +187,10 @@ body.interaction3d-stage.is-background-hidden,
   transform: translate(0) scale(2);
   visibility: visible;
 }
+/* ===== 灯光面板 ===== */
+
+/* 面板默认收起（只露 header），is-open 时展开控件；
+   聚焦设备后由 stage.js 切换类名，这里不做任何 JS 能做的宽度计算。 */
 .interaction3d-stage .i3d-light-panel header {
   position: relative;
   flex: 0 0 112px;
@@ -203,6 +231,8 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-device-status.is-on {
   color: #c9a26d;
 }
+/* 总开关：灯泡是纯 CSS 画的（灯罩 / 灯丝 / 光晕分层），
+   开灯时给光晕加呼吸动画，因此这里的分层结构不能随意合并。 */
 .interaction3d-stage .i3d-power {
   --i3d-lamp-color: rgb(255, 196, 112);
   --i3d-lamp-opacity: 0.8;
@@ -398,6 +428,8 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-light-controls:not(:has(> :not([hidden]))) {
   display: none;
 }
+/* 滑杆与预设：色温滑杆的渐变方向与「暖色 / 冷色」标注保持一致，
+   亮度滑杆则是「暗 → 亮」；两侧的小字由 JS 生成，样式只需对齐。 */
 .interaction3d-stage .i3d-slider {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
@@ -565,6 +597,8 @@ body.interaction3d-stage.is-background-hidden,
   outline: 2px solid #edcb88;
   outline-offset: 3px;
 }
+/* [hidden] 必须显式覆盖 display：本表大量使用 flex / grid，
+   它们的 display 会盖过 UA 对 [hidden] 的默认处理。 */
 .interaction3d-stage [hidden] {
   display: none !important;
 }
@@ -627,6 +661,8 @@ body.interaction3d-stage.is-background-hidden,
   );
   transition: opacity 1.1s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
+/* 聚焦暗角：聚焦时压暗四周，把注意力引到被聚焦的设备上；
+   只用不透明度做淡入淡出，避免触发重排。 */
 .interaction3d-stage .i3d-focus-vignette.is-active {
   opacity: 1;
 }
@@ -652,6 +688,7 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-markers.is-view-editing .i3d-marker {
   pointer-events: none;
 }
+/* 视图编辑时显示的鼠标操作提示条。 */
 .interaction3d-stage .i3d-view-help {
   position: absolute;
   z-index: 10;
@@ -691,6 +728,10 @@ body.interaction3d-stage.is-background-hidden,
   cursor: pointer;
   touch-action: none;
 }
+/* ===== 标记（设备按钮） ===== */
+
+/* 标记本体与状态底色：is-on / is-offline / is-selected 等状态由 stage.js 切换，
+   这里只描述状态长什么样；图标与文字来自 marker 的内部结构。 */
 .interaction3d-stage .i3d-marker:before {
   content: "";
   position: absolute;
@@ -775,6 +816,7 @@ body.interaction3d-stage.is-background-hidden,
   z-index: 9;
   white-space: nowrap;
 }
+/* 模块页签：顺序与文案由 stage.js 生成，样式负责选中态与滚动。 */
 .interaction3d-stage .i3d-module-tabs button {
   padding: 8px 12px;
   color: #d6c7ad;
@@ -864,6 +906,10 @@ body.interaction3d-stage.is-background-hidden,
   opacity: 0.42;
   cursor: default;
 }
+/* ===== 平面照射范围编辑器 ===== */
+
+/* 浮在舞台右下角的编辑器：面板宽度固定，SVG 覆盖层铺满整层；
+   它同时被舞台（内嵌）与平面编辑器复用，所以选择器不限定父级。 */
 .plan2-range-editor .p2r-top {
   position: absolute;
   top: 10px;
@@ -1141,6 +1187,8 @@ body.interaction3d-stage.is-background-hidden,
   font-weight: 400;
   box-shadow: inset 0 1px 2px #00000038;
 }
+/* 自定义下拉：原生 select 被隐藏，按钮 + 弹出菜单代替，
+   菜单层级必须高于面板内的其它控件，箭头用伪元素以免占额外节点。 */
 .plan2-range-editor .custom-select-button:after {
   position: absolute;
   top: 50%;
@@ -1222,6 +1270,7 @@ body.interaction3d-stage.is-background-hidden,
   color: #66727a;
   cursor: default;
 }
+/* 数字步进控件：输入框两侧的上下箭头按钮，与数字输入共用一套宽度节奏。 */
 .plan2-range-editor .inspector-number-control {
   position: relative;
   display: block;
@@ -1324,6 +1373,10 @@ body.interaction3d-stage.is-background-hidden,
   height: auto;
   min-height: 210px;
 }
+/* ===== 设备状态面板（电视 / NAS / 扫地机） ===== */
+
+/* 三者共用灯光面板的容器壳（.i3d-light-panel），只是内部结构不同，
+   所以这几段都写在与灯光面板同级的顶层选择器上。 */
 .i3d-television-panel {
   flex: none;
   min-width: 0;
@@ -1426,6 +1479,7 @@ body.interaction3d-stage.is-background-hidden,
 .i3d-tv-details [hidden] {
   display: none;
 }
+/* NAS 在线时的标记配色，与灯光 / 窗帘的「开」色区分开。 */
 .interaction3d-stage .i3d-marker.is-nas.is-on {
   color: #70ff9c;
 }
@@ -1475,6 +1529,7 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-marker.is-vacuum-status:after {
   border-radius: 10px;
 }
+/* 扫地机状态卡：名称 / 明细 / 电量三段，电量条按剩余百分比着色。 */
 .i3d-vacuum-status {
   position: absolute;
   left: 50%;
@@ -1566,6 +1621,8 @@ body.interaction3d-stage.is-background-hidden,
   border-top: 0;
   text-align: center;
 }
+/* 扫地机随口文案气泡：只在总览页随机出现，用淡入淡出避免干扰，
+   位置由 stage.js 投影决定，这里不设固定偏移。 */
 .i3d-vacuum-quip {
   display: block;
   padding-top: 4px;
@@ -1596,6 +1653,10 @@ body.interaction3d-stage.is-background-hidden,
   top: 50%;
   transform: translate(-50%, -50%);
 }
+/* ===== 底部导航（模块页签 + 楼层页签 + 工具栏） ===== */
+
+/* 导航分两行摆放：位置由 stage.js 依据配置里的偏移设置计算，
+   这里只负责外观与换行规则。 */
 .interaction3d-stage .i3d-navigation {
   position: absolute;
   z-index: 15;
@@ -1606,6 +1667,7 @@ body.interaction3d-stage.is-background-hidden,
   pointer-events: none;
 }
 .interaction3d-stage .i3d-navigation[hidden],
+/* 楼层页签：单层户型时 stage.js 直接隐藏整块。 */
 .interaction3d-stage .i3d-floor-tabs[hidden] {
   display: none;
 }
@@ -1715,6 +1777,7 @@ body.interaction3d-stage.is-background-hidden,
     opacity 0.2s ease,
     visibility 0s;
 }
+/* 聚焦设备时隐藏导航并置 inert，样式与可交互性必须同时关闭。 */
 .interaction3d-stage .i3d-navigation.is-focus-hidden {
   translate: 0 100vh;
 }
@@ -1850,6 +1913,7 @@ body.interaction3d-stage.is-background-hidden,
     translate: none;
   }
 }
+/* 跟随漫游工具栏：只在扫地机可跟随时出现，与模块页签同排。 */
 .interaction3d-stage .i3d-navigation .i3d-toolbar {
   left: 50%;
   top: auto;
@@ -1896,6 +1960,10 @@ body.interaction3d-stage.is-background-hidden,
     animation: none !important;
   }
 }
+/* ===== 安防：人体传感器热区与状态标签 ===== */
+
+/* 命中热区是不可见层，只用于承载可点击矩形与键盘焦点圈，
+   因此不能设置背景色或边框（会把房型图挡住）。 */
 .i3d-presence-hit-layer {
   position: absolute;
   inset: 0;
@@ -1919,6 +1987,7 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-marker.is-security-label {
   border-radius: 10px;
 }
+/* 安防标签：摄像头 / 传感器的名称与状态，颜色随在线状态变化。 */
 .interaction3d-stage .i3d-security-label {
   position: absolute;
   left: 50%;
@@ -1979,6 +2048,8 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .i3d-security-label.is-camera-status > .i3d-marker-icon:before {
   content: none;
 }
+/* 模型描边层：由 three.js 侧算好的屏幕轮廓画在这里（SVG），
+   让被遮挡的模型在当前视图下仍能被认出来。 */
 .interaction3d-stage .i3d-model-outlines {
   position: absolute;
   inset: 0;
@@ -2001,6 +2072,8 @@ body.interaction3d-stage.is-background-hidden,
 .interaction3d-stage .is-presence-wave:after {
   display: none;
 }
+/* 人体存在的扩散波纹：三层同心圆错峰播放，
+   所以 nth-child 的动画延迟是刻意错开的。 */
 .interaction3d-stage .i3d-sensor-wave {
   position: absolute;
   left: 50%;
@@ -2044,6 +2117,7 @@ body.interaction3d-stage.is-background-hidden,
     display: none;
   }
 }
+/* 安防编辑器复用的分区样式：与聚焦设置共用一套栅格。 */
 .i3d-editor aside .i3d-security-settings {
   display: grid;
   gap: 10px;
@@ -2083,6 +2157,7 @@ body.interaction3d-stage.is-background-hidden,
   border-color: #e4bf80;
   color: #f2d7a7;
 }
+/* 平面编辑 / 3D 预览的视图切换，用 aria-pressed 表达选中态。 */
 .plan2-range-editor .p2r-view-switch {
   display: flex;
   gap: 6px;

@@ -1,4 +1,18 @@
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260916013557";
+/**
+ * 扫地机器人控件的状态映射。
+ *
+ * 职责：
+ * - 把 Home Assistant 的 supported_features 位掩码翻译成界面要显示的按钮列表；
+ * - 把按钮动作映射成真正要调用的服务名（老固件只有 turn_on / turn_off，没有 start / stop）；
+ * - 从机器人自身属性或同设备的电池传感器里解析电量。
+ *
+ * 位置：纯计算模块，被 interaction3d 的扫地机面板与编辑器预览共用。
+ *
+ * 约定：位掩码取值直接沿用 HA 官方 vacuum 集成定义，硬编码在此以免与后端版本耦合。
+ */
+
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260916074544";
+// HA vacuum 集成的能力位定义。数值来自官方 constant，不能改；只用到其中一部分。
 const VACUUM_FEATURE_FLAGS = Object.freeze({
   turn_on: 1,
   turn_off: 2,
@@ -9,6 +23,16 @@ const VACUUM_FEATURE_FLAGS = Object.freeze({
   clean_spot: 1024,
   start: 8192
 });
+/**
+ * 由 supported_features 位掩码得出可用动作列表。
+ *
+ * 属性缺失或非法时回落到最小可用集 start / pause / return_to_base：
+ * 与其把所有按钮都禁用（那样用户完全无法操作），不如给出最常见的一组，
+ * 由后端在调用失败时把错误回显出来。
+ *
+ * @param {object} vacuumState 扫地机状态对象或变更对象。
+ * @returns {string[]} 动作名数组，顺序即界面按钮顺序。
+ */
 export function vacuumSupportedActions(vacuumState) {
   const supportedFeatures = vacuumState?.attributes?.supported_features;
   if (supportedFeatures == null || supportedFeatures === "") {
@@ -19,6 +43,7 @@ export function vacuumSupportedActions(vacuumState) {
     return ["start", "pause", "return_to_base"];
   }
   const actions = [];
+  // start 与 turn_on 语义等价：具备任一位都能开始清扫。
   if (
     numericFeatures & VACUUM_FEATURE_FLAGS.start ||
     numericFeatures & VACUUM_FEATURE_FLAGS.turn_on
@@ -28,6 +53,7 @@ export function vacuumSupportedActions(vacuumState) {
   if (numericFeatures & VACUUM_FEATURE_FLAGS.pause) {
     actions.push("pause");
   }
+  // 同理 stop 与 turn_off 等价。
   if (
     numericFeatures & VACUUM_FEATURE_FLAGS.stop ||
     numericFeatures & VACUUM_FEATURE_FLAGS.turn_off
@@ -45,6 +71,16 @@ export function vacuumSupportedActions(vacuumState) {
   }
   return actions;
 }
+/**
+ * 把动作名映射成实际要调用的服务名。
+ *
+ * 只处理「有 turn_on 但没有 start」与「有 turn_off 但没有 stop」这两种老固件形态，
+ * 其余动作名与服务名同名，直接透传；位掩码不可解析时也透传，把判断交给后端。
+ *
+ * @param {object} vacuumEntity 扫地机实体状态对象。
+ * @param {string} actionName 界面动作名。
+ * @returns {string} 服务名。
+ */
 export function vacuumActionService(vacuumEntity, actionName) {
   const featureFlags = Number(vacuumEntity?.attributes?.supported_features);
   if (Number.isFinite(featureFlags)) {
@@ -67,9 +103,21 @@ export function vacuumActionService(vacuumEntity, actionName) {
     return actionName;
   }
 }
+/**
+ * 兼容变更对象与状态对象两种形态。
+ *
+ * @param {object} stateOrChange 状态对象或变更对象。
+ * @returns {object|null} 状态对象，缺失返回 null。
+ */
 function unwrapStateChange(stateOrChange) {
   return stateOrChange?.newState || stateOrChange || null;
 }
+/**
+ * 解析百分比数值。
+ *
+ * @param {*} rawPercent 原始值，可能是数字、带百分号的字符串或空值。
+ * @returns {number|null} 夹在 0~100 的数值；空值或不可解析时返回 null。
+ */
 function parsePercent(rawPercent) {
   if (rawPercent == null || String(rawPercent).trim() === "") {
     return null;
@@ -81,6 +129,16 @@ function parsePercent(rawPercent) {
     return null;
   }
 }
+/**
+ * 取扫地机电量。
+ *
+ * 先按 battery_level → battery_percentage → battery 的顺序读机器人自身属性
+ * （不同固件字段名不同，逐个尝试比按型号分支更稳），都没有时才回退到独立的电池传感器。
+ *
+ * @param {object} vacuumStateOrChange 扫地机状态对象或变更对象。
+ * @param {object} [batterySensor] 关联的电池传感器状态对象。
+ * @returns {number|null} 0~100 的电量；始终取不到时返回 null。
+ */
 export function vacuumBatteryPercent(vacuumStateOrChange, batterySensor = null) {
   const attributes = unwrapStateChange(vacuumStateOrChange)?.attributes || {};
   for (const batteryAttribute of [
@@ -95,6 +153,27 @@ export function vacuumBatteryPercent(vacuumStateOrChange, batterySensor = null) 
   }
   return parsePercent(unwrapStateChange(batterySensor)?.state);
 }
+/**
+ * 在同一个设备下挑出最可能是「电量」的传感器实体。
+ *
+ * 做法是打分排序而不是写死命名规则：各家扫地机的实体命名差异很大，
+ * 打分能同时利用 device_class、翻译键、名称关键词、图标与单位这些线索。
+ *
+ * 加分：device_class 为 battery（+240）、翻译键恰为 battery（+210）、
+ * 名称里出现 battery / 电池电量 等词（+150）、图标是 mdi:battery（+60）、单位为 %（+25）。
+ * 减分：名称含滤芯 / 主刷 / 尘袋 等耗材词（-260，这类实体的值也是百分比，最容易误判）、
+ * 当前状态解析不出百分比（-40，说明多半不是电量读数）。
+ * 只保留正分候选，依次按分数降序、实体 ID 长度升序（越短越像主实体）、
+ * 字典序升序排序，取第一条。
+ *
+ * 候选前置条件：必须与扫地机同设备、必须是 sensor 域、且实体当前可用，
+ * 否则电池读数没有意义。
+ *
+ * @param {Map<string, object>} metadataByEntityId 实体元数据索引。
+ * @param {Map<string, object>} statesByEntityId 实体状态索引。
+ * @param {string} vacuumEntityId 扫地机主实体 ID。
+ * @returns {string|null} 电池实体 ID；没有合适候选时返回 null。
+ */
 export function relatedVacuumBatteryEntity(metadataByEntityId, statesByEntityId, vacuumEntityId) {
   const vacuumMetadata = metadataByEntityId.get(vacuumEntityId);
   return (
@@ -111,6 +190,7 @@ export function relatedVacuumBatteryEntity(metadataByEntityId, statesByEntityId,
             statesByEntityId.get(candidateMetadata.entityId)
           );
           const candidateAttributes = candidateState?.attributes || {};
+          // 把可用于识别的字段拼成一段文本，后面几条正则都在这上面匹配。
           const searchText = (
             (candidateMetadata.entityId || "") +
             " " +

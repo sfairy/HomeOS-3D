@@ -1,9 +1,20 @@
+/*
+ * 展示页基础样式（/display/<项目名>）。
+ *
+ * 位置：展示页最外层布局，负责铺满屏幕、禁止滚动与统一底色。
+ * 约定：--display-surface-background 由 display-surface.js 按画布背景色写入，
+ *   未设置时回退到 #070b0e，保证任何设备上都不会露出白底。
+ */
+
+/* ===== 页面底色 ===== */
+
 :root {
   color-scheme: dark;
   background: var(--display-surface-background, #070b0e);
 }
 * {
   box-sizing: border-box;
+  /* 关掉移动端点击高亮，展示页是长期挂机的触屏面板。 */
   -webkit-tap-highlight-color: transparent;
 }
 html,
@@ -14,6 +25,7 @@ body {
   min-height: 100%;
   margin: 0;
   padding: 0;
+  /* overflow: hidden 防止拖拽时页面整体滚动，破坏全屏观感。 */
   overflow: hidden;
   border: 0;
   outline: 0;
@@ -21,8 +33,12 @@ body {
 }
 body {
   position: relative;
+  /* 关闭 iOS 的橡皮筋回弹，避免拖动时露出页面外的区域。 */
   overscroll-behavior: none;
 }
+
+/* ===== 布局容器 ===== */
+
 #display-shell {
   position: absolute;
   top: 0;
@@ -36,6 +52,7 @@ body {
   outline: 0;
   background: var(--display-surface-background, #070b0e);
 }
+/* 渲染根节点铺满整块屏幕，内容居中（place-items: center）。 */
 #display-root {
   position: absolute;
   inset: 0;
@@ -49,6 +66,7 @@ body {
   outline: 0;
   background: var(--display-surface-background, #070b0e);
   place-items: center;
+  /* manipulation 去掉双击缩放延迟，按钮响应更快。 */
   touch-action: manipulation;
 }
 #display-root > .hb-renderer-viewport,
@@ -56,17 +74,25 @@ body {
   border: 0;
   outline: 0;
 }
+
+/* ===== 错误提示 ===== */
+
 .display-error {
   color: #d78d89;
   font:
     13px system-ui,
     sans-serif;
 }
+
+/* ===== 截图预览模式（?capturePreview=1） ===== */
+
+/* 摄像头画面可能拍到隐私内容，预览模式下整体打码。 */
 .capture-preview .hb-camera-component {
   isolation: isolate;
 }
 .capture-preview .hb-camera-image,
 .capture-preview .hb-camera-video {
+  /* 放大 1.08 倍叠在模糊层上，避免模糊后四周露出空隙。 */
   filter: blur(24px) brightness(0.48) saturate(0.45);
   transform: scale(1.08);
 }

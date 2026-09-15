@@ -1,3 +1,15 @@
+/*
+ * 登录 / 授权页样式（配合 login.js、setup.js、license.js 与 auth-shell.js）。
+ *
+ * 位置：/login、/setup、/license 等未进入编辑器前的页面，左展示区 + 右表单栏。
+ * 约定：左侧 .home-characters 的动效由 auth-shell.js 通过类名驱动
+ *   （is-ready / is-account-typing / has-password / is-password-visible /
+ *   is-*-blinking），CSS 变量 --look-x、--look-y、--body-skew 也由它写入；
+ *   本文件只负责外观，不承担任何状态判断。
+ */
+
+/* ===== 主题变量与全局重置 ===== */
+
 :root {
   color-scheme: dark;
   font-family:
@@ -18,6 +30,7 @@
 *:after {
   box-sizing: border-box;
 }
+/* 兜底最小宽度，旧机型浏览器也不会把表单压到不可用。 */
 body {
   min-width: 320px;
   min-height: 100vh;
@@ -27,11 +40,18 @@ button,
 input {
   font: inherit;
 }
+
+/* ===== 页面骨架 ===== */
+
+/* 两栏：左展示区最小 360px，右表单区最小 420px，按比例分配剩余宽度。 */
 .login-shell {
   display: grid;
   min-height: 100vh;
   grid-template-columns: minmax(360px, 1.04fr) minmax(420px, 0.96fr);
 }
+
+/* ===== 左侧展示区 ===== */
+
 .login-showcase {
   position: relative;
   display: flex;
@@ -40,10 +60,12 @@ input {
   flex-direction: column;
   justify-content: space-between;
   padding: clamp(34px, 5vw, 58px);
+  /* 建立独立层叠上下文，兜住下面 -1 层级的纹理与光斑。 */
   isolation: isolate;
   color: #172029;
   background: linear-gradient(132deg, #d7dadc, #b7bdc3 49%, #929ca5);
 }
+/* 背景网格纹理：两条 1px 渐变线分别画横线与竖线，再向下淡出。 */
 .showcase-grid {
   position: absolute;
   z-index: -1;
@@ -55,6 +77,7 @@ input {
   background-size: 24px 24px;
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent 86%);
 }
+/* 两个模糊光斑同样置于内容之下，负责给背景增加体积感。 */
 .showcase-orb {
   position: absolute;
   z-index: -1;
@@ -75,6 +98,7 @@ input {
   height: 390px;
   background: #64717e40;
 }
+/* 展示区与移动端窄屏共用同一套品牌行样式。 */
 .showcase-brand,
 .mobile-brand {
   display: flex;
@@ -105,6 +129,11 @@ input {
   font-weight: 800;
   letter-spacing: 0.22em;
 }
+
+/* ===== 角色舞台 ===== */
+
+/* 固定画布 550x400，四个角色按绝对坐标摆放；--look-* 由 auth-shell.js 写入，
+   让眼睛随输入焦点移动，--body-skew 表示身体左右倾斜角度。 */
 .home-characters {
   position: relative;
   width: 550px;
@@ -124,6 +153,7 @@ input {
   gap: 32px;
   align-items: flex-start;
   padding-top: 40px;
+  /* 高度 / 位移 / 内边距统一缓动，做「探身」这类姿态变化才不跳变。 */
   transition:
     height 0.7s ease,
     transform 0.7s ease,
@@ -138,6 +168,7 @@ input {
   background: #fff;
   transform-origin: center;
 }
+/* 眼珠：白眼球内的深色圆点，按 --look-* 做小幅位移实现「看向」效果。 */
 .character i:after {
   display: block;
   width: 7px;
@@ -149,6 +180,7 @@ input {
   transform: translate(calc(var(--look-x) * 4px), calc(var(--look-y) * 3px));
   transition: transform 0.15s ease;
 }
+/* 四个角色用 z-index 定前后遮挡关系：紫、深灰在后，橙、黄在前。 */
 .character-purple {
   z-index: 1;
   left: 70px;
@@ -201,6 +233,11 @@ input {
   gap: 34px;
   transform: skew(var(--body-skew));
 }
+
+/* ===== 入场前状态 ===== */
+
+/* 还没加 is-ready（auth-shell.js 等首帧渲染后）时把角色藏到画面外，
+   避免动画启动前一瞬露出静止姿态。 */
 .home-characters:not(.is-ready):not(.is-entered) .character {
   opacity: 0;
 }
@@ -212,6 +249,11 @@ input {
 .home-characters:not(.is-ready):not(.is-entered) .character-yellow {
   transform: translateY(310px) scaleY(0.82);
 }
+
+/* ===== 入场动画 ===== */
+
+/* 后两个角色是「落下」，前两个是「升起」，各自错开延迟依次进场，
+   cubic-bezier 用了超出 1 的末端值，落地时带一点回弹。 */
 .home-characters.is-ready .character-purple {
   animation: character-tall-drop 1.02s cubic-bezier(0.18, 0.9, 0.2, 1.08) 0.04s both;
 }
@@ -224,6 +266,7 @@ input {
 .home-characters.is-ready .character-yellow {
   animation: character-front-rise 0.68s cubic-bezier(0.18, 0.9, 0.2, 1.12) 0.51s both;
 }
+/* 前排两个角色直接以深色圆点当眼睛，不再用眼白 + 眼珠的两层结构。 */
 .character-orange i,
 .character-yellow i {
   width: 12px;
@@ -251,6 +294,11 @@ input {
   border-radius: 99px;
   transform: translate(calc(var(--look-x) * 5px), calc(var(--look-y) * 3px));
 }
+
+/* ===== 表单联动姿态 ===== */
+
+/* 以下类名由 auth-shell.js 按输入框状态切换：输入账号时侧身、已有密码时遮眼、
+   点击显示密码后收回手并让眼珠归位，点击输入框外部则恢复。 */
 .home-characters.is-account-typing .character-purple {
   height: 440px;
   padding: 65px 0 0 55px;
@@ -264,6 +312,7 @@ input {
   height: 440px;
   transform: skew(-12deg) translate(40px);
 }
+/* 密码可见后取消所有倾斜（.character 上的 skew），角色回到正对屏幕。 */
 .home-characters.is-password-visible .character {
   transform: skew(0);
 }
@@ -290,6 +339,7 @@ input {
   left: 10px;
   transform: translateY(-4px);
 }
+/* 眨眼：把眼球纵向压扁成一条缝，由定时器随机触发。 */
 .home-characters.is-purple-blinking .character-purple i,
 .home-characters.is-dark-blinking .character-dark i {
   transform: scaleY(0.12);
@@ -328,6 +378,9 @@ input {
     transform: translateY(0) scaleY(1);
   }
 }
+
+/* ===== 右侧表单面板 ===== */
+
 .login-panel {
   position: relative;
   display: flex;
@@ -338,6 +391,7 @@ input {
   padding: 48px 32px 25px;
   background: #171d23;
 }
+/* 品牌行默认隐藏，窄屏（展示区被收起）时才显示。 */
 .mobile-brand {
   display: none;
   margin-bottom: 38px;
@@ -346,6 +400,7 @@ input {
 .login-card {
   width: min(100%, 430px);
 }
+/* 授权页右上角的退出按钮，绝对定位避开表单区。 */
 .license-logout {
   position: absolute;
   top: 30px;
@@ -383,6 +438,7 @@ input {
 .license-logout:active {
   transform: translateY(0);
 }
+/* 键盘聚焦用外发光提示，不使用默认 outline 以保持圆角胶囊形状。 */
 .license-logout:focus-visible {
   border-color: #df9a2c;
   box-shadow: 0 0 0 3px #e09a2a21;
@@ -406,11 +462,15 @@ input {
   font-size: 13px;
   line-height: 1.6;
 }
+
+/* ===== 表单 ===== */
+
 .auth-form {
   position: relative;
   display: grid;
   gap: 17px;
 }
+/* 授权页会按状态隐藏部分字段，hidden 必须真正不占位。 */
 .auth-form label[hidden] {
   display: none;
 }
@@ -447,12 +507,14 @@ input {
   background: #131a1f;
   box-shadow: 0 0 0 3px #e09a2a21;
 }
+/* 密码框：右侧内边距用 !important 覆盖表单通用内边距，给切换按钮让位。 */
 .token-field {
   position: relative;
 }
 .token-field input {
   padding-right: 47px !important;
 }
+/* 密码可见性开关贴合输入框右侧内沿（1px 是输入框边框宽度）。 */
 .token-field button {
   position: absolute;
   top: 1px;
@@ -471,6 +533,7 @@ input {
   color: #f5bc5f;
   background: #ffffff09;
 }
+/* 图标走描边风格（fill: none），颜色跟随按钮 currentColor。 */
 .token-field svg {
   width: 18px;
   height: 18px;
@@ -478,6 +541,9 @@ input {
   stroke: currentColor;
   stroke-width: 1.7;
 }
+
+/* ===== 错误提示 ===== */
+
 .login-error {
   margin: -3px 0 0;
   padding: 10px 11px;
@@ -488,6 +554,10 @@ input {
   font-size: 12px;
   line-height: 1.45;
 }
+
+/* ===== 提交按钮 ===== */
+
+/* 结构：:before 做 hover 底色填充，span 文案左移、b 箭头从右侧滑入。 */
 .login-submit {
   position: relative;
   display: flex;
@@ -516,6 +586,7 @@ input {
   opacity: 0;
   transition: opacity 0.25s ease;
 }
+/* 文案与箭头都抬到填充层之上，否则会被 :before 盖住。 */
 .login-submit span,
 .login-submit b {
   position: relative;
@@ -544,9 +615,14 @@ input {
   transform: translate(0);
   opacity: 1;
 }
+/* 提交中按钮会被脚本禁用，降低透明度给出「不可再点」的反馈。 */
 .login-submit:disabled {
   opacity: 0.65;
 }
+
+/* ===== 响应式 ===== */
+
+/* 窄屏：收起左侧展示区，改用顶部品牌行，表单占满整屏。 */
 @media (max-width: 820px) {
   .login-shell {
     display: block;
@@ -567,6 +643,7 @@ input {
     right: 24px;
   }
 }
+/* 中等宽度：展示区被压窄，缩小角色舞台并用负外边距吃掉多余空白。 */
 @media (max-width: 1100px) and (min-width: 821px) {
   .home-characters {
     transform: scale(1.0176);
@@ -574,12 +651,14 @@ input {
     margin-bottom: -16px;
   }
 }
+/* 矮屏（横屏笔记本）：进一步缩小舞台，保证按钮不被挤到首屏之外。 */
 @media (max-height: 820px) and (min-width: 821px) {
   .home-characters {
     transform: scale(0.8448);
     margin-bottom: -20px;
   }
 }
+/* 超窄屏：退出按钮只剩图标，文字用 clip 视觉隐藏但对读屏软件仍可见。 */
 @media (max-width: 440px) {
   .login-panel {
     padding: 30px 20px 23px;

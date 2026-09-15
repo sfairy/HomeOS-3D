@@ -1,3 +1,23 @@
+/**
+ * 运行时弹窗与设备入场的动画补丁。
+ *
+ * 位置：只在「3D 运行时」这类全屏场景里使用，编辑器不加载。
+ *
+ * 核心目的：绕开 Safari（WebKit）在弹窗内播放一次性 CSS 动画时的渲染缺陷——
+ * 动画结束后元素可能停在首帧（全透明 / 错位），看起来像弹窗没出来。
+ * 因此这里宁可牺牲一部分动效，也要保证内容一定可见。
+ */
+
+/**
+ * 判断当前浏览器是否为「非 Chromium 的 Safari / WebKit」。
+ *
+ * 判定同时要求出现 AppleWebKit 与 Safari，并排除 Chrome、Edg、OPR、FxiOS 等
+ * 同样带 AppleWebKit 字样的浏览器——它们的 UA 里都有这两段字符串，只有排除后才剩下真 Safari。
+ *
+ * @param {object} [options] 可注入 UA 以便测试。
+ * @param {string} [options.userAgent] 用户代理字符串，默认取 navigator.userAgent。
+ * @returns {boolean} 需要走稳定动效补丁时返回 true。
+ */
 export function runtimeDialogUsesStableMotion({
   userAgent: userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent || ""
 } = {}) {
@@ -8,10 +28,24 @@ export function runtimeDialogUsesStableMotion({
     !/Chrome|Chromium|CriOS|Edg|OPR|OPiOS|FxiOS/i.test(userAgentText)
   );
 }
+/**
+ * 播放入场动画，保证弹窗内容可见。
+ *
+ * 处理顺序：
+ * 1. 非 Safari 直接返回空数组，交给 CSS 原有的复杂动画，不做任何干预；
+ * 2. 带 hb-runtime-simplified-motion 类时，连所有后代一起扫描并取消「只播放一次」的动画
+ *    （iterations === 1），因为正是这类动画会卡在首帧；无限循环的动画不影响可见性，保留不动；
+ * 3. 只对第一个子元素做不透明度淡入，避免与弹窗自身尺寸动画叠加出抖动。
+ *
+ * @param {Element} dialogElement 弹窗外层元素。
+ * @param {Element} contentElement 弹窗内容元素。
+ * @returns {Animation[]} 新建的动画对象数组；未启用稳定动效时为空数组。
+ */
 export function playStableRuntimeDialogEntrance(dialogElement, contentElement) {
   if (!runtimeDialogUsesStableMotion()) {
     return [];
   }
+  // 简化动效模式下弹窗内部还有别的入场动画，需要连后代一起清掉，否则局部仍可能透明。
   const motionRoots = dialogElement.classList.contains("hb-runtime-simplified-motion")
     ? [dialogElement, contentElement, ...contentElement.querySelectorAll("*")]
     : [dialogElement, contentElement];
@@ -25,6 +59,7 @@ export function playStableRuntimeDialogEntrance(dialogElement, contentElement) {
   const firstChildElement = contentElement.firstElementChild;
   const animations = [];
   if (firstChildElement?.animate) {
+    // 240ms 的时长按「能看出过渡但不等」来定；缓动与全局弹窗动效保持同一曲线。
     animations.push(
       firstChildElement.animate(
         [
@@ -43,14 +78,23 @@ export function playStableRuntimeDialogEntrance(dialogElement, contentElement) {
       )
     );
   } else if (firstChildElement) {
+    // 元素不支持 Web Animations 时只能直接置为可见，宁可没有动效也不能空着。
     firstChildElement.style.opacity = "1";
   }
   return animations;
 }
+/**
+ * 播放音箱控件的滑入入场动画。
+ *
+ * @param {Element} speakerElement 音箱元素。
+ * @returns {Animation|null} 动画对象；元素缺失或用户开启了「减弱动态效果」时返回 null。
+ */
 export function playMediaSpeakerEntrance(speakerElement) {
+  // 尊重系统的 prefers-reduced-motion：前庭敏感用户不应看到位移与旋转。
   if (!speakerElement || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
     return null;
   } else {
+    // 关键帧刻意做过冲：先滑过头再回弹，最后停在原位（offset 1 时 transform 已是恒等变换）。
     return speakerElement.animate(
       [
         {
@@ -76,6 +120,7 @@ export function playMediaSpeakerEntrance(speakerElement) {
       ],
       {
         duration: 720,
+        // 140ms 延迟让弹窗本体先出现，避免两个动画挤在同一帧上显得突兀。
         delay: 140,
         easing: "cubic-bezier(.18,.78,.24,1)",
         fill: "both"
@@ -83,6 +128,15 @@ export function playMediaSpeakerEntrance(speakerElement) {
     );
   }
 }
+/**
+ * 播放固定式设备的「下落归位」入场动画。
+ *
+ * @param {Element} deviceElement 设备元素。
+ * @param {object} [options] 动画参数。
+ * @param {number} [options.distance] 起始高度（像素），越大落得越远。
+ * @param {number} [options.delay] 起始延迟（毫秒）。
+ * @returns {Animation|null} 动画对象；元素缺失或用户开启了「减弱动态效果」时返回 null。
+ */
 export function playFixedDeviceDropEntrance(
   deviceElement,
   { distance: distancePx = 150, delay: delayMs = 90 } = {}
@@ -90,6 +144,8 @@ export function playFixedDeviceDropEntrance(
   if (!deviceElement || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
     return null;
   } else {
+    // 用 translate 而不是 top / left：位移交给合成层，长列表里不会触发重排。
+    // 起始帧带 2px 模糊模拟景深，落定过程中清零，最后以 7px → -3px → 0 的二次回弹收尾。
     return deviceElement.animate(
       [
         {

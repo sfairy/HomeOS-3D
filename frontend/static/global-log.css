@@ -1,24 +1,45 @@
+/*
+ * 全局日志对话框样式（配合 global-log.js）。
+ *
+ * 位置：编辑器 / 面板顶栏「全局日志」弹层，宿主是 .settings-dialog。
+ * 约定：整体走深色后台风格，尺寸与编辑器其它设置弹窗共用 .settings-dialog
+ *   外壳，这里只覆盖宽度与内部布局；自定义下拉（.custom-select）样式需与
+ *   全局控件保持一致，因此比同层其它元素多一层选择器。
+ */
+
+/* ===== 打开按钮 ===== */
+
 .global-log-open i {
   background: var(--accent);
   box-shadow: 0 0 8px #f2a20d59;
 }
+
+/* ===== 对话框骨架 ===== */
+
 .settings-dialog.global-log-dialog {
   width: min(1080px, calc(100vw - 48px));
   max-width: none;
+  /* 外层不滚动，滚动交给内部列表，保证工具栏与底栏常驻。 */
   overflow: hidden;
 }
+/* 四行网格：工具栏 / 状态行 / 列表（占满剩余高度）/ 底部操作区。 */
 .global-log-body {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: min(680px, calc(100vh - 116px));
   min-height: 420px;
 }
+
+/* ===== 筛选工具栏 ===== */
+
+/* 四列：等级 / 分类 / 搜索（可伸缩）/ 按钮组。 */
 .global-log-toolbar {
   display: grid;
   grid-template-columns: 122px 138px minmax(190px, 1fr) auto;
   gap: 8px;
   padding: 14px 18px 10px;
 }
+/* min-width: 0 让网格子项可以收缩，否则搜索框会把整行撑宽。 */
 .global-log-toolbar select,
 .global-log-toolbar input {
   min-width: 0;
@@ -45,6 +66,7 @@
 .global-log-toolbar .custom-select-button {
   height: 34px;
   min-height: 34px;
+  /* 右侧留 30px 给下拉箭头。 */
   padding: 0 30px 0 10px;
   border-color: #39434c;
   border-radius: 5px;
@@ -56,6 +78,7 @@
   border-color: #56636d;
   background: #182027;
 }
+/* 弹层内部的下拉菜单要盖住列表，单独抬高层级。 */
 .global-log-dialog .custom-select-menu {
   z-index: 10;
   border-color: #505b64;
@@ -65,13 +88,20 @@
   min-height: 32px;
   font-size: 11px;
 }
+
+/* ===== 状态行 ===== */
+
 .global-log-status {
   margin: 0;
   padding: 0 18px 10px;
   color: #78848c;
   font-size: 10px;
 }
+
+/* ===== 日志列表 ===== */
+
 .global-log-list {
+  /* min-height: 0 是网格能出现内部滚动条的关键。 */
   min-height: 0;
   overflow: auto;
   margin: 0 18px;
@@ -79,6 +109,7 @@
   border-radius: 7px;
   background: #11171c;
 }
+/* 每条三列：等级圆点 / 正文 / 等级徽标。 */
 .global-log-item {
   display: grid;
   grid-template-columns: 8px minmax(0, 1fr) auto;
@@ -97,6 +128,7 @@
   border-radius: 50%;
   background: #71808a;
 }
+/* 等级色只在圆点与徽标上体现，正文保持中性色以免整屏发花。 */
 .global-log-item.success > i {
   background: var(--success);
   box-shadow: 0 0 7px #54bd7859;
@@ -115,12 +147,14 @@
   gap: 5px;
 }
 .global-log-item strong {
+  /* 日志里可能含超长路径 / 堆栈片段，强制换行避免撑宽列表。 */
   overflow-wrap: anywhere;
   color: #dce2e5;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.45;
 }
+/* 元信息行单行省略，完整内容在标题与详情里可见。 */
 .global-log-item span {
   overflow: hidden;
   color: #727e86;
@@ -148,6 +182,9 @@
   border-color: #e26b675c;
   color: #e99995;
 }
+
+/* ===== 空态 ===== */
+
 .global-log-empty {
   display: grid;
   min-height: 180px;
@@ -155,6 +192,9 @@
   font-size: 11px;
   place-items: center;
 }
+
+/* ===== 底部操作区 ===== */
+
 .global-log-actions {
   display: flex;
   align-items: center;
@@ -166,10 +206,14 @@
   display: flex;
   gap: 8px;
 }
+
+/* ===== 响应式（窄屏） ===== */
+
 @media (max-width: 760px) {
   .settings-dialog.global-log-dialog {
     width: calc(100vw - 28px);
   }
+  /* 工具栏折成两列，搜索框独占一整行，避免控件被压到不可用宽度。 */
   .global-log-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -177,6 +221,9 @@
     grid-column: 1/-1;
   }
 }
+
+/* ===== 详情展开 ===== */
+
 .global-log-item details {
   min-width: 0;
 }
@@ -196,9 +243,14 @@
   color: #acbac4;
   font-size: 10px;
   line-height: 1.6;
+  /* 详情是堆栈 / JSON，保留换行但长行要能折行。 */
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* ===== 兜底 ===== */
+
+/* 「查看更多」等按钮用 hidden 属性隐藏时必须真正不占位。 */
 .global-log-actions [hidden] {
   display: none;
 }

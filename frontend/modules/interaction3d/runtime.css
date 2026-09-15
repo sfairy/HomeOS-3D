@@ -1,4 +1,18 @@
-@import "/static/modules/interaction3d/controls.css?v=20260916013557";
+/*
+ * 3D 交互控件的外层样式（宿主页侧）。
+ *
+ * 位置：interaction3d 的运行时外壳。runtime.js 建出的 iframe 与加载态，
+ * 以及各编辑器弹窗（配置编辑器、外观编辑器、照射范围对话框、
+ * 扫地机地图编辑器、弹窗布局预览、聚焦设备弹窗）都靠这里的类名；
+ * 编辑器弹窗由 JS 在打开时动态注入本文件，关闭时移除。
+ *
+ * 约定：
+ *   - 控件撑满宿主元素，实际预览尺寸由 JS 按 16:9 算好后写到内联样式，
+ *     这里只负责撑满与裁切；
+ *   - 弹窗一律用原生 dialog + ::backdrop，遮罩与焦点陷阱交给浏览器；
+ *   - 每段动画都配 prefers-reduced-motion 兜底。
+ */
+@import "/static/modules/interaction3d/controls.css?v=20260916074544";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;
@@ -10,6 +24,10 @@
 .hb-interaction3d-runtime.is-background-hidden {
   background: transparent;
 }
+/* ===== 舞台 iframe 与加载态 ===== */
+
+/* iframe 尺寸由 JS 按 16:9 算好，缩放原点固定在左上角（transform-origin: 0 0），
+   因此这里不要改成 center，否则与 JS 的定位计算会不一致。 */
 .hb-interaction3d-runtime .i3d-frame {
   position: absolute;
   inset: 0;
@@ -19,6 +37,8 @@
   transform-origin: 0 0;
   opacity: 0;
 }
+/* 就绪前 iframe 保持透明，避免用户看到尚未布好光的半成品画面；
+   就绪后淡入，缩放同步由 JS 完成。 */
 .hb-interaction3d-runtime.is-ready .i3d-frame {
   opacity: 1;
   animation: i3d-scene-enter 0.48s cubic-bezier(0.22, 0.61, 0.36, 1) both;
@@ -31,6 +51,8 @@
     opacity: 1;
   }
 }
+/* 加载占位：骨架屏 + 转圈。is-loading / is-ready 由 runtime.js 切换，
+   超时（45 秒）后同样会走到这里显示失败提示。 */
 .hb-interaction3d-runtime .i3d-loading {
   position: absolute;
   inset: 0;
@@ -87,9 +109,15 @@
     opacity: 1;
   }
 }
+/* [hidden] 显式覆盖 display：本表大量使用 flex / grid，
+   否则 [hidden] 会被这些 display 值盖掉。 */
 .hb-interaction3d-runtime [hidden] {
   display: none;
 }
+/* ===== 配置编辑器弹窗 ===== */
+
+/* 弹窗尺寸按视口比例给，保证在常见桌面上不出现内部滚动；
+   ::backdrop 只做压暗，不做模糊，避免与 3D 画面争夺性能。 */
 .i3d-editor {
   width: min(1600px, calc(100vw - 32px));
   height: calc(100vh - 32px);
@@ -149,6 +177,7 @@
   outline: 2px solid var(--accent, #f2a20d);
   outline-offset: 2px;
 }
+/* 左预览（16:9 舞台）右面板的两栏布局。 */
 .i3d-editor .i3d-editor-body {
   flex: 1;
   min-height: 0;
@@ -260,6 +289,7 @@
   border: 0;
   accent-color: var(--accent, #f2a20d);
 }
+/* 说明文案与错误行：错误行空着时不占高度，避免面板跳动。 */
 .i3d-editor .i3d-note {
   margin: 8px 0 12px;
   color: var(--muted, #89949d);
@@ -310,6 +340,7 @@
 .i3d-editor .i3d-light-add > button {
   width: 100%;
 }
+/* 选择器按钮：显示当前选中项的图标与名字，右侧箭头表示可点击。 */
 .i3d-editor .i3d-picker-button {
   display: flex;
   align-items: center;
@@ -355,6 +386,7 @@
   border-color: #e69c9355;
   background: transparent;
 }
+/* 尺寸字段：输入框 + 右侧单位输出，宽度固定以免多行字段不对齐。 */
 .i3d-editor .i3d-size-field {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -375,6 +407,8 @@
 .i3d-editor .i3d-size-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+/* 聚焦视角操作组：一排互斥按钮，用 aria-pressed 表达当前模式，
+   因此选中态样式挂在 [aria-pressed="true"] 上。 */
 .i3d-focus-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -410,6 +444,7 @@
   background: #f2a20d29;
   box-shadow: inset 0 0 0 1px #f2a20d7a;
 }
+/* 主按钮（保存 / 确定）：整个编辑器里只允许出现一个强调色。 */
 .i3d-editor button.primary {
   border-color: #f4a719;
   color: #1e1607;
@@ -458,6 +493,10 @@
   color: var(--muted, #89949d);
   background: transparent;
 }
+/* ===== 外观（整体光照）编辑器 ===== */
+
+/* 它不是模态弹窗：以浮动面板形式挂在控件旁边，位置由 JS 算，
+   因此这里用 absolute 且不依赖 ::backdrop。 */
 .i3d-editor.i3d-appearance-editor {
   width: min(360px, calc(100vw - 16px));
   height: max-content;
@@ -488,6 +527,7 @@
   border-radius: 5px;
   font-size: 11px;
 }
+/* 外观面板内容：分组 + 两列栅格，每行一个参数滑杆。 */
 .i3d-appearance-body {
   min-height: 0;
   overflow: auto;
@@ -524,6 +564,7 @@
   border-radius: 5px;
   font-size: 11px;
 }
+/* 楼层亮度：滑杆与数字输入联动，两者共享同一行布局。 */
 .i3d-floor-brightness {
   display: flex;
   align-items: center;
@@ -590,6 +631,8 @@
     padding: 12px;
   }
 }
+/* 「隐藏但可点击」开关：用伪元素画自绘复选框，
+   原生 input 只保留可聚焦与无障碍语义。 */
 .i3d-editor .i3d-hidden-clickable-setting {
   display: flex;
   align-items: center;
@@ -649,6 +692,7 @@
 .i3d-editor .i3d-hidden-clickable-setting input:disabled {
   cursor: default;
 }
+/* 按钮显示方式（显示 / 隐藏可点 / 隐藏不可点）的单选行。 */
 .i3d-editor .i3d-button-visibility-row {
   display: flex;
   align-items: center;
@@ -673,6 +717,10 @@
     transition: none;
   }
 }
+/* ===== 照射范围对话框 ===== */
+
+/* 它是范围编辑器的外层壳：内部嵌的是舞台页面里的 .plan2-range-editor，
+   所以这里只管壳的尺寸与状态行。 */
 .i3d-range-dialog .i3d-range-dialog-body {
   flex: 1;
   min-height: 0;
@@ -728,6 +776,7 @@
   font-size: 24px;
   line-height: 1;
 }
+/* 批量应用弹窗：表头与表体共用栅格，保证多列对齐。 */
 .i3d-light-batch h4 {
   display: flex;
   justify-content: space-between;
@@ -746,6 +795,8 @@
 .i3d-batch-dialog [hidden] {
   display: none !important;
 }
+/* 添加模型弹窗：模型按楼层分组，选中即写入草稿；
+   与配置编辑器共用一套弹窗外观。 */
 .i3d-add-dialog {
   width: min(440px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
@@ -797,6 +848,7 @@
   opacity: 0.45;
   cursor: default;
 }
+/* NAS 显示内容弹窗：分组 + 勾选 + 上下排序按钮。 */
 .i3d-nas-fields {
   max-height: min(50dvh, 440px);
   overflow: auto;
@@ -851,6 +903,10 @@
   accent-color: #d6b573;
   flex: none;
 }
+/* ===== 扫地机地图编辑器 ===== */
+
+/* 左侧地图 SVG、右侧参数面板；地图上的房间与边线用 data-drag 标记可拖拽，
+   光标样式挂在属性选择器上，JS 只需维护属性。 */
 .i3d-vacuum-map-editor {
   width: min(1100px, 96vw);
   height: min(790px, 94dvh);
@@ -890,6 +946,7 @@
   min-height: 0;
   background: #101824;
 }
+/* 地图 SVG 的绘制顺序与穿透规则：房间块在下、边线与手柄在上。 */
 .i3d-vacuum-plan svg {
   width: 100%;
   height: 100%;
@@ -934,6 +991,7 @@
   line-height: 1.6;
   color: #b8c6da;
 }
+/* 房间列表：每行一个房间，名称可改、顺序可调。 */
 .i3d-vacuum-room-list > div {
   display: flex;
   flex-wrap: wrap;
@@ -1096,6 +1154,7 @@
 .i3d-vacuum-view-tools button {
   pointer-events: auto;
 }
+/* 坐标输入组：X / Y（以及高度）成对出现，两列等宽。 */
 .i3d-editor .i3d-coordinate-grid {
   align-items: end;
 }
@@ -1138,6 +1197,7 @@
   border: 1px solid var(--line, #303840);
   border-radius: 6px;
 }
+/* 安防折叠块：summary 自带展开箭头，这里只统一间距与触控高度。 */
 .i3d-security-disclosure > summary {
   cursor: pointer;
   padding: 9px 10px;
@@ -1192,6 +1252,7 @@
 .i3d-security-model-list > label > span:first-child {
   display: none;
 }
+/* 模型列表里的折叠项：同一楼层一个分组，列出可绑定的模型。 */
 .i3d-security-model-list > .i3d-security-disclosure {
   grid-column: 1 / -1;
   margin-bottom: 0;
@@ -1209,6 +1270,10 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+/* ===== 统一设置面板（配置编辑器右侧） ===== */
+
+/* 这里是配置编辑器面板的主样式：分区、行、列表行三级结构，
+   所有模块类型（灯光 / 空调 / 窗帘 / 设备）共用同一套栅格。 */
 .i3d-unified-settings .i3d-config-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1315,6 +1380,10 @@
 .i3d-unified-settings .i3d-config-row > label:only-child {
   grid-column: 1 / -1;
 }
+/* ===== 弹窗布局预览 ===== */
+
+/* 预览层整体挂在一个不可交互的覆盖层上，指针事件全部穿透，
+   避免预览挡住了下方的真实弹窗。 */
 .i3d-popup-preview-layer {
   position: absolute;
   inset: 0;
@@ -1412,6 +1481,7 @@
   background: radial-gradient(ellipse at 30% 20%, #344760, #172332 75%);
 }
 .i3d-focus-popup-preview,
+/* 聚焦设备弹窗的宿主：跟随被聚焦设备定位，内容由 popup-preview 生成。 */
 .i3d-focus-popup-host {
   position: absolute;
   inset: 0;

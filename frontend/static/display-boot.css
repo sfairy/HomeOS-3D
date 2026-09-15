@@ -1,3 +1,15 @@
+/*
+ * 展示页启动引导（splash）样式（配合 display-boot.js）。
+ *
+ * 位置：/display/<项目名> 首屏遮罩，脚本在首屏素材就绪后摘掉本层。
+ * 约定：明暗主题由 :root 上的 data-display-theme 决定（display-boot.js 按画布
+ *   背景色写入），没有该属性时跟随系统 prefers-color-scheme；各元素的出现
+ *   动画都带固定延迟，形成「图标 → 标识 → 光晕 → 页脚」的节奏。
+ */
+
+/* ===== 主题变量 ===== */
+
+/* 默认深色；:root:not([data-display-theme="dark"]) 让显式 dark 主题覆盖系统设置。 */
 :root {
   --display-boot-bg: #11171d;
   --display-boot-fg: #f1f4f5;
@@ -10,11 +22,16 @@
     --display-boot-muted: #64717c;
   }
 }
+/* 画布背景是浅色时由脚本写入，优先级高于系统偏好。 */
 :root[data-display-theme="light"] {
   --display-boot-bg: #edf0f2;
   --display-boot-fg: #27323c;
   --display-boot-muted: #64717c;
 }
+
+/* ===== 启动层容器 ===== */
+
+/* z-index 取接近上限的值，保证盖住展示页里任何弹层。 */
 #display-splash {
   position: fixed;
   z-index: 2147483000;
@@ -22,6 +39,7 @@
   display: grid;
   place-items: center;
   overflow: auto;
+  /* 四边都留安全区，避免内容被刘海或手势条遮挡。 */
   padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
     max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   color: var(--display-boot-fg);
@@ -37,12 +55,16 @@
   transition: opacity 0.5s ease;
   outline: none;
 }
+
+/* ===== 品牌标识 ===== */
+
 .display-splash-identity {
   position: relative;
   width: 100%;
   max-width: 460px;
   padding: 30px 0;
 }
+/* 尺寸随视口缩放，但限制在 108~164px 之间。 */
 .display-splash-logo {
   display: block;
   width: clamp(108px, 18vmin, 164px);
@@ -50,11 +72,13 @@
   margin: 0 auto;
   overflow: visible;
 }
+/* 初始 opacity: 0，靠 animation ... forwards 在 0.8s 后淡入并保持终态。 */
 .display-splash-wordmark {
   margin-top: 28px;
   font-size: clamp(15px, 2vmin, 19px);
   font-weight: 500;
   letter-spacing: 0.3em;
+  /* 字距会在末尾多出一格，用左内边距补正让文字视觉居中。 */
   padding-left: 0.3em;
   opacity: 0;
   animation: display-boot-appear 0.6s ease 0.8s forwards;
@@ -70,6 +94,7 @@
   opacity: 0;
   animation: display-boot-appear 0.5s ease 1.1s forwards;
 }
+/* 图标背后的暖色光晕，作为负 z-index 图层铺在标识下方。 */
 .display-splash-halo {
   position: absolute;
   z-index: -1;
@@ -83,6 +108,7 @@
   animation: display-boot-breathe 1.9s ease-in-out 1.4s infinite;
   pointer-events: none;
 }
+/* 后出现的这条覆盖上面的静态规则，让图标一起呼吸。 */
 .display-splash-logo {
   animation: display-boot-logo-breathe 1.9s ease-in-out 1.4s infinite;
 }
@@ -109,6 +135,7 @@
 .stmk-hub {
   animation: stmkHub 3.4s ease-in-out infinite;
 }
+/* 三段信号弧错开 0.14s 依次亮起，形成向外扩散的动效。 */
 .stmk-wifi-a {
   animation: stmkWifi 2.2s ease-in-out infinite;
 }
@@ -129,6 +156,9 @@
   opacity: 0;
   animation: display-boot-appear 0.65s ease 0.9s forwards;
 }
+
+/* ===== 错误态操作按钮 ===== */
+
 #display-splash-actions {
   display: flex;
   flex-wrap: wrap;
@@ -136,6 +166,7 @@
   gap: 12px;
   margin-top: 22px;
 }
+/* hidden 由脚本控制（重试 / 先进入两种出口），必须真正不占位。 */
 #display-splash-actions[hidden],
 #display-splash-actions button[hidden] {
   display: none;
@@ -151,20 +182,26 @@
   font-size: 14px;
   cursor: pointer;
 }
+/* 键盘聚焦用 2px 描边 + 偏移，触屏点击不显示，避免误触高亮。 */
 #display-splash-actions button:focus-visible {
   outline: 2px solid #f5a40b;
   outline-offset: 3px;
 }
+
+/* ===== 阶段状态（由 display-boot.js 切换类名） ===== */
+
 #display-splash.is-complete .display-splash-logo {
   animation: display-boot-lit 0.25s ease forwards;
 }
 #display-splash.is-leaving {
   opacity: 0;
 }
+/* 离场时轻微放大标识，配合透明度淡出更有「推进」感。 */
 #display-splash.is-leaving .display-splash-identity {
   transform: scale(1.09);
   transition: transform 0.55s ease;
 }
+/* 错误态停掉循环动画，避免用户以为仍在加载。 */
 #display-splash.is-error .display-splash-logo,
 #display-splash.is-error .display-splash-halo {
   animation: none;
@@ -173,9 +210,13 @@
   opacity: 1;
   animation: none;
 }
+/* 截图预览模式（?capturePreview=1）直接不显示启动层。 */
 .capture-preview #display-splash {
   display: none;
 }
+
+/* ===== 关键帧 ===== */
+
 @keyframes display-boot-appear {
   0% {
     opacity: 0;
@@ -215,6 +256,10 @@
     filter: brightness(1.2);
   }
 }
+
+/* ===== 响应式（矮屏） ===== */
+
+/* 高度不足 420px（横屏手机）时隐藏页脚并收紧间距，保证主体居中可见。 */
 @media (max-height: 420px) {
   .display-splash-footer {
     display: none;
@@ -226,6 +271,11 @@
     margin-top: 16px;
   }
 }
+
+/* ===== 减少动态效果 ===== */
+
+/* 用户开启系统「减少动态效果」后：停掉所有动画与过渡，
+   并把原本靠动画淡入的元素直接设为不透明，防止内容永远不可见。 */
 @media (prefers-reduced-motion: reduce) {
   #display-splash *,
   #display-splash.is-complete .display-splash-logo {

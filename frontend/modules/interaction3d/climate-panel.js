@@ -15,7 +15,7 @@ import {
   climatePowerControl,
   climateModeLabel,
   climateSwingModeLabel
-} from "./climate-state.js?v=20260916013557";
+} from "./climate-state.js?v=20260916074544";
 /**
  * HA 的 fan_mode 取值 → 中文文案。
  *

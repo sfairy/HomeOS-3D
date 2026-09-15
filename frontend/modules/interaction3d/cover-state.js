@@ -1,15 +1,41 @@
+/**
+ * 窗帘（cover）实体的状态归一化与控制命令构造。
+ *
+ * 在 3D 子系统里的位置：把 HA 的 cover 实体翻译成窗帘动画需要的「整体位置 +
+ * 叶片角度」，并把面板操作翻译成下面要发给 HA 的服务调用。
+ *
+ * 对外提供：coverStateLabel、coverIconIsOn、coverState、coverCanAdjustBlades、coverControl。
+ *
+ * 与 HA 的字段约定：位置取 current_position（0–100），叶片角度取
+ * current_tilt_position（0–100）；能力位来自 supported_features
+ * （1=开、2=关、4=设位置、8=停、16/32/64/128=tilt 相关，见 HA CoverEntityFeature）。
+ */
+
+/**
+ * 把任意输入转成有限数字，不可用时返回 null。
+ *
+ * 只接受 number 与 string：布尔值会被 Number 转成 0/1，属于脏数据；
+ * 纯空白字符串也必须排除，否则会被当成 0 而误判成「已关到底」。
+ */
 const toFiniteNumber = input =>
   ["number", "string"].includes(typeof input) &&
   (typeof input != "string" || input.trim() !== "") &&
   Number.isFinite(Number(input))
     ? Number(input)
     : null;
+/** HA 窗帘状态 → 中文文案；同时被当作「状态是否合法」的白名单使用。 */
 const STATE_LABELS = {
   open: "已打开",
   closed: "已关闭",
   opening: "正在打开",
   closing: "正在关闭"
 };
+/**
+ * 取窗帘状态的中文文案。
+ *
+ * @param {string} stateName HA 的 state 值。
+ * @returns {string} 已知状态返回对应文案，其余（含 unknown/unavailable）返回「设备不可用」。
+ */
 export function coverStateLabel(stateName) {
   if (Object.hasOwn(STATE_LABELS, stateName)) {
     return STATE_LABELS[stateName];
@@ -17,11 +43,28 @@ export function coverStateLabel(stateName) {
     return "设备不可用";
   }
 }
+/**
+ * 判断窗帘图标是否应按「点亮」呈现。
+ *
+ * @param {object} binding 图标绑定配置。
+ * @param {object} iconState 由状态归一化得到的图标状态（含 available 与 on）。
+ * @returns {boolean} 可用且（按需取反后）为 on 时返回 true。
+ */
 export function coverIconIsOn(binding, iconState) {
   return (
+    // iconStateReversed 用于「反转开关语义」的窗帘（例如常闭电磁阀驱动），
+    // 严格比较 true，避免配置里写成字符串 "true" 时被误判。
     !!iconState?.available && !!(binding?.iconStateReversed === true ? !iconState.on : iconState.on)
   );
 }
+/**
+ * 把 HA 的窗帘实体状态归一化成 3D 动画使用的状态对象。
+ *
+ * @param {string} entityId 实体 ID，形如 cover.living_room。
+ * @param {object} receivedState HA 的 state 对象或 state_changed 事件。
+ * @param {object} [item={}] 绑定项；coverKind === "dream" 时按「梦幻帘」处理。
+ * @returns {object} 归一化状态，含位置 / 叶片角度 / 各种能力位与派生布尔量。
+ */
 export function coverState(entityId, receivedState, item = {}) {
   const stateObject = receivedState?.newState || receivedState || {};
   const attributes = stateObject.attributes || {};
@@ -30,15 +73,24 @@ export function coverState(entityId, receivedState, item = {}) {
     .toLowerCase();
   const reportedPosition = toFiniteNumber(attributes.current_position);
   const reportedTilt = toFiniteNumber(attributes.current_tilt_position);
+  // 梦幻帘由「整体 + 叶片」两套机构组成，整体位置的反馈往往不可信，
+  // 需要单独判断，见下面的 overallFeedbackAvailable。
   const isDreamCover = item.coverKind === "dream";
   const rawSupportedFeatures = toFiniteNumber(attributes.supported_features);
+  // supported_features 必须是安全范围内的非负整数，否则宁可按「无任何能力」处理。
   const supportedFeatures =
     Number.isSafeInteger(rawSupportedFeatures) && rawSupportedFeatures >= 0
       ? rawSupportedFeatures
       : 0;
+  // 240 = 16+32+64+128，即 HA 里全部 tilt（开合角度）相关能力位；
+  // 只要有任意一位，就认为设备能上报叶片角度。
   const hasTiltFeedback = reportedTilt !== null || !!(supportedFeatures & 240);
+  // 非梦幻帘的整体位置始终可信；梦幻帘只有拿到叶片反馈时才敢相信整体位置，
+  // 否则宁可当作未知，交由动画走估算逻辑。
   const overallFeedbackAvailable = !isDreamCover || hasTiltFeedback;
   const normalizedState = overallFeedbackAvailable ? stateValue : "unknown";
+  // 位置归一：能上报就用上报值并夹到 0–100；只报 closed 而无位置时按 0 处理；
+  // 其余情况保持 null，让上层区分「真的是 0」和「不知道」。
   const position = overallFeedbackAvailable
     ? reportedPosition === null
       ? normalizedState === "closed"
@@ -46,11 +98,18 @@ export function coverState(entityId, receivedState, item = {}) {
         : null
       : Math.max(0, Math.min(100, reportedPosition))
     : null;
+  // 没有独立的 tilt 反馈时，退而用整体位置近似叶片角度（部分设备的约定）。
   const tiltPosition = hasTiltFeedback ? reportedTilt : reportedPosition;
+  // 实体 ID 必须是原生 cover 域、HA 未标记不可用，且 state 落在已知文案表内；
+  // 状态未知时一律视为不可用，避免动画对着未知状态乱动。
   const available =
     /^cover\.[a-z0-9_]+$/.test(entityId) &&
     stateObject.available !== false &&
     Object.hasOwn(STATE_LABELS, stateValue);
+  // 返回结构是窗帘动画与图标的内部契约；下面几个派生量集中说明：
+  // positionKnown 区分「位置为 0」与「位置未知」；positionReported 表示位置来自 HA 而非推断；
+  // closedConfirmed 要求三重成立（可用、反馈可信、state 与位置都指向全关），
+  // 它是「允许调叶片」的硬门槛；on 在位置未知时退回用 state 判断。
   return {
     entityId: entityId,
     raw: stateObject,
@@ -79,24 +138,50 @@ export function coverState(entityId, receivedState, item = {}) {
     positionSupported: !!(supportedFeatures & 4),
     stopSupported: !!(supportedFeatures & 8),
     tiltSupported: !!(supportedFeatures & 128),
+    // 叶片可调能力：显式声明了 set_tilt_position 位即可；
+    // 另外，若设备没有 tilt 反馈却支持设位置，说明位置属性其实就是叶片角度。
     bladeSupported: !!(supportedFeatures & 128) || (!hasTiltFeedback && !!(supportedFeatures & 4))
   };
 }
+/**
+ * 判断当前是否允许调整叶片角度。
+ *
+ * 梦幻帘的叶片机构依赖整体处于「完全关闭」状态才安全，因此这里是一道门禁。
+ *
+ * @param {object} state coverState 产出的状态对象。
+ * @param {object} [presentation=state] 展示层状态（可能含估算位置与移动标记）。
+ * @returns {boolean} 允许调整时返回 true。
+ */
 export function coverCanAdjustBlades(state, presentation = state) {
   if (!state.available || !state.bladeSupported) {
     return false;
   } else if (state.overallFeedbackAvailable) {
+    // 有可信反馈时只认「确认全关」；用户手动拖到 0 但尚未停止不算。
     return presentation.closedConfirmed === true;
   } else if (presentation.moving || ["opening", "closing"].includes(state.raw?.state)) {
+    // 反馈不可信时，运动过程中一律禁止，防止叶片命令与整体运动打架。
     return false;
   } else {
+    // 完全无反馈的最后兜底：位置是估算的且大于 0，就认为没关严，禁止调叶片。
     return !presentation.estimated || !(presentation.position > 0);
   }
 }
+/**
+ * 构造窗帘控制命令。
+ *
+ * @param {object} sourceState coverState 产出的状态对象。
+ * @param {string} service 服务名：open_cover、close_cover、stop_cover、
+ *        set_cover_position、set_cover_tilt_position。
+ * @param {*} value 目标位置（0–100 整数）；开关与停止类服务忽略此参数。
+ * @returns {object} 服务调用描述，data 里只带该服务需要的字段。
+ * @throws {Error} 设备不可用、不支持该操作，或梦幻帘状态下不允许调叶片、位置非法。
+ */
 export function coverControl(sourceState, service, value) {
   if (!sourceState.available) {
     throw new Error("窗帘当前不可用。");
   }
+  // 服务名 → 状态对象上的能力字段；用白名单既能挡未知服务，
+  // 也能在设备未声明该能力时给出统一的中文报错。
   const capabilityKey = {
     open_cover: "openSupported",
     close_cover: "closeSupported",
@@ -117,6 +202,7 @@ export function coverControl(sourceState, service, value) {
   let serviceData = {};
   if (service === "set_cover_position" || service === "set_cover_tilt_position") {
     const positionValue = toFiniteNumber(value);
+    // HA 只接受整数百分比；小数或越界值直接拒绝，避免设备侧静默忽略。
     if (!Number.isInteger(positionValue) || positionValue < 0 || positionValue > 100) {
       throw new Error("目标位置必须是 0–100 之间的整数。");
     }

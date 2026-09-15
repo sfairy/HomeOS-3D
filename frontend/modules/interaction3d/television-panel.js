@@ -15,7 +15,7 @@ import {
   televisionTime,
   televisionPower,
   televisionMediaControl
-} from "./television-state.js?v=20260916013557";
+} from "./television-state.js?v=20260916074544";
 /**
  * 创建电视面板。
  *

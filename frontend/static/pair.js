@@ -1,14 +1,30 @@
+/**
+ * 设备配对落地页（/pair）逻辑。
+ *
+ * 位置：中控设备首次配对页面，可手输 6 位配对码，也可由二维码链接直接带入。
+ * 职责：识别扫码模式下的哈希参数、把配对码提交到 /api/v1/displays/pair，
+ *   校验返回的面板地址后跳转过去。
+ * 约定：pairing-entry.js 会把二维码哈希暂存在 window.__HA_BRIDGE_PAIRING_HASH__，
+ *   本模块优先读它；配对码只允许 6 位数字；返回的 targetUrl 必须与当前站点
+ *   同源且以 /display/ 开头，否则视为非法响应拒绝跳转。
+ */
 import {
   parsePairingLink as parseScanLink,
   needsAppleInstallGuide as shouldShowInstallGuide
 } from "./pairing-link.js";
+
 const formElement = document.querySelector("#pair-form"),
   messageElement = document.querySelector("#message"),
   codeInput = formElement.elements.code,
+  // scan=1 表示这次进入是扫码引导流程，才需要自动解析哈希里的配对码。
   isScanMode = new URLSearchParams(location.search).get("scan") === "1";
+
 shouldShowInstallGuide() && (document.querySelector("#apple-pair-note").hidden = !1);
+
+// 解析并应用地址栏 / 桥接缓存里的配对哈希。
 function applyPairingHash() {
   const rawHash = window.__HA_BRIDGE_PAIRING_HASH__ || location.hash;
+  // 先清掉缓存与地址栏哈希，防止刷新或重复派发事件时重复处理。
   if (
     (delete window.__HA_BRIDGE_PAIRING_HASH__,
     location.hash && history.replaceState(null, "", location.pathname + location.search),
@@ -16,9 +32,11 @@ function applyPairingHash() {
   ) {
     ((codeInput.value = ""), (messageElement.hidden = !0));
     try {
+      // 二维码里的链接是完整 URL，这里用当前页地址补全后交给统一解析器校验。
       const pairingLink = parseScanLink(
         location.origin + location.pathname + location.search + rawHash
       );
+      // 解析成功：把配对码填进输入框并隐藏手输入口，改成「连接」引导。
       ((codeInput.value = pairingLink.code),
         (codeInput.closest("label").hidden = !0),
         (document.querySelector("#pair-title").textContent = "\u8FDE\u63A5 HomeOS"),
@@ -26,22 +44,28 @@ function applyPairingHash() {
           "\u5DF2\u8BC6\u522B\u914D\u5BF9\u4E8C\u7EF4\u7801\uFF0C\u70B9\u51FB\u8FDE\u63A5\u5373\u53EF\u6253\u5F00\u4F60\u7684\u9762\u677F\u3002"),
         (formElement.querySelector('button[type="submit"] span').textContent = "\u8FDE\u63A5"));
     } catch (caughtError) {
+      // 解析失败：恢复手输入口并把原因显示给用户。
       ((codeInput.closest("label").hidden = !1),
         (messageElement.textContent = caughtError.message),
         (messageElement.hidden = !1));
     }
   }
 }
+
+// 一次性挂上四个监听：桥接事件、初始哈希处理、配对码输入过滤、表单提交。
 (window.addEventListener("homeos-pairing-link", applyPairingHash),
   applyPairingHash(),
   codeInput.addEventListener("input", () => {
+    // 输入即时过滤：只留数字并截断到 6 位，避免用户提交必然失败的格式。
     codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 6);
   }),
   formElement.addEventListener("submit", async submitEvent => {
     (submitEvent.preventDefault(), (messageElement.hidden = !0));
     const submitButton = formElement.querySelector('button[type="submit"]');
+    // 请求期间禁用按钮，防止重复配对同一台设备。
     submitButton.disabled = !0;
     try {
+      // 非 JSON 响应按空对象处理，走统一错误文案。
       const response = await fetch("/api/v1/displays/pair", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -53,6 +77,7 @@ function applyPairingHash() {
           payload.detail ||
             "\u914D\u5BF9\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u914D\u5BF9\u7801\u3002"
         );
+      // 只允许跳到自己站点的 /display/xxx，防止服务端被污染后把用户带去外站。
       const panelUrl = new URL(payload.targetUrl || "", location.origin);
       if (
         panelUrl.origin !== location.origin ||
@@ -60,11 +85,13 @@ function applyPairingHash() {
         panelUrl.pathname.length <= "/display/".length
       )
         throw new Error("\u670D\u52A1\u8FD4\u56DE\u7684\u9762\u677F\u5730\u5740\u65E0\u6548\u3002");
+      // 配对成功即清空输入框，避免返回时残留旧配对码。
       codeInput.value = "";
       const needsInstallGuide = shouldShowInstallGuide(
         navigator,
         window.matchMedia("(display-mode: standalone)").matches
       );
+      // 需要引导添加到主屏时带上 addToHome=1，由展示页决定是否弹引导。
       window.location.replace(
         panelUrl.pathname + panelUrl.search + (needsInstallGuide ? "?addToHome=1" : "")
       );

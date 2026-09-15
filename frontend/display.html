@@ -1,35 +1,52 @@
 <!doctype html>
+<!--
+  正式展示页（/display/{项目名}）：中控设备与墙面屏打开的那一页，只读渲染仪表盘文档。
+  授权：需要 license 允许 display 能力，且身份只能是「已登录管理员」或「已配对且绑定该项目的设备」；
+  两者都没有时后端不会返回本页，而是 303 到 /pair（墙面设备没有键盘，报错页无法处理）。
+  入口脚本：/static/display-boot.js（classic，必须在 head 里同步执行，见下方说明）、/static/display.js（module）。
+  3D 舞台通过同源 iframe 嵌入，CSP 里 frame-src 'self' 与 frame-ancestors 'self' 就是为它留的。
+-->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/client-log.js?v=20260916013557"></script>
+    <script src="/static/client-log.js?v=20260916074544"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <script src="/static/display-boot.js?v=20260916013557"></script>
+    <!-- display-boot.js 刻意放在 head 且不加 defer：它要在首帧之前读画布背景算出明暗主题并写到 <html> 上，
+         早了才能避免启动图先闪一次错误配色，晚了用户会看到明显的主题跳变。 -->
+    <script src="/static/display-boot.js?v=20260916074544"></script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <meta name="theme-color" content="#172029" />
     <title>HomeOS Display</title>
-    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916013557" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916013557" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916013557" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916013557" sizes="180x180" />
-    <link rel="manifest" href="/static/dashboard.webmanifest?v=20260916013557" />
+    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；同一页面里所有静态资源必须共用同一枚时间戳。 -->
+    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916074544" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916074544" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916074544" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916074544" sizes="180x180" />
+    <link rel="manifest" href="/static/dashboard.webmanifest?v=20260916074544" />
+    <!--
+      renderer.css 与 display.js 内部 import 的 renderer 模块必须用同一个 ?v=20260916074544
+      两者共用同一份运行时样式与控件注册表，戳不一致会同时加载两套实现。
+    -->
     <link
       rel="stylesheet"
-      href="/static/renderer/renderer.css?v=20260916013557"
+      href="/static/renderer/renderer.css?v=20260916074544"
     />
-    <link rel="stylesheet" href="/static/display.css?v=20260916013557" />
-    <link rel="stylesheet" href="/static/display-boot.css?v=20260916013557" />
-    <link rel="stylesheet" href="/static/modules/interaction3d/bridge.css?v=20260916013557" />
-    <link rel="stylesheet" href="/static/apple-install-guide.css?v=20260916013557" />
+    <link rel="stylesheet" href="/static/display.css?v=20260916074544" />
+    <link rel="stylesheet" href="/static/display-boot.css?v=20260916074544" />
+    <link rel="stylesheet" href="/static/modules/interaction3d/bridge.css?v=20260916074544" />
+    <link rel="stylesheet" href="/static/apple-install-guide.css?v=20260916074544" />
   </head>
   <body>
+    <!-- ===== 仪表盘渲染骨架 ===== -->
     <main id="display-shell"><div id="display-root" tabindex="-1"></div></main>
+    <!-- ===== 启动图（display-boot.js 全权接管：文案、重试、超时兜底都在那边） ===== -->
     <section id="display-splash" aria-label="正在打开仪表盘" tabindex="-1">
       <div class="display-splash-halo" aria-hidden="true"></div>
+      <!-- ===== 启动图品牌标识：内联 SVG，避免启动阶段再发一次图片请求 ===== -->
       <div class="display-splash-identity">
         <svg
           class="display-splash-logo"
@@ -39,6 +56,8 @@
           aria-label="HomeOS"
         >
           <title>HomeOS</title>
+          <!-- 渐变与裁剪路径全在 defs 里定义，正文靠 fill="url(#id)" 引用；
+               这些 id 属于页面全局命名空间（都以 stmk 前缀避让），改名会同时打断所有引用点。 -->
           <defs>
             <linearGradient id="stmkHouse" x1="12" y1="92" x2="90" y2="10" gradientUnits="userSpaceOnUse">
               <stop offset="0%" stop-color="#0F766E" />
@@ -95,7 +114,7 @@
               <ellipse cx="50" cy="72" rx="30" ry="24" fill="url(#stmkWarm)" />
             </g>
 
-            <!-- 山墙信号：三道弧 + 源点 -->
+            <!-- 山墙信号：三道弧 + 源点（stmk-wifi-a/b/c 由 display-boot.css 做递增延迟的闪烁） -->
             <g fill="none" stroke="#F0FBFF" stroke-linecap="round" stroke-linejoin="round">
               <path class="stmk-wifi-a" d="M46.4 38.4 Q50 35 53.6 38.4" stroke-width="2.2" />
               <path class="stmk-wifi-b" d="M43.4 33.6 Q50 27 56.6 33.6" stroke-width="2.1" />
@@ -103,6 +122,7 @@
             </g>
             <circle cx="50" cy="41.6" r="1.7" fill="#F0FBFF" />
 
+            <!-- ===== 屏内示意：四向连线代表四类被控设备，配色与上方渐变一一对应 ===== -->
             <rect x="28.5" y="49.5" width="43" height="39.2" rx="7.2" fill="url(#stmkScreen)" />
             <rect x="28.5" y="49.5" width="43" height="39.2" rx="7.2" fill="url(#stmkScreenGlow)" />
 
@@ -117,12 +137,17 @@
             <circle cx="50" cy="81.2" r="3" fill="#FF9500" />
             <circle cx="37" cy="69" r="3" fill="#2DD4BF" />
 
+            <!-- 中枢光晕：stmk-hub 由 display-boot.css 做 3.4 秒呼吸动画，
+                 外面那圈柔光是叠加的径向渐变，不是滤镜，性能开销更低。 -->
             <circle class="stmk-hub" cx="50" cy="69" r="8.4" fill="url(#stmkHubGlow)" />
             <circle cx="50" cy="69" r="3.3" fill="#FFF6E4" />
           </g>
         </svg>
         <div class="display-splash-wordmark">HOMEOS</div>
+        <!-- 文案与可见性由 display-boot.js 控制：连接超时后它会改写这句话并放出下面的按钮。 -->
         <p id="display-splash-message" role="status" aria-live="polite">正在连接你的家…</p>
+        <!-- 平时整个操作条 hidden；只有加载卡住（超时）时 display-boot.js 才放出来，
+             避免正常启动路径上多出两个需要用户判断的按钮。 -->
         <div id="display-splash-actions" hidden>
           <button id="display-splash-retry" type="button">重新加载</button>
           <button id="display-splash-enter" type="button" hidden>先进入仪表盘</button>
@@ -130,11 +155,14 @@
       </div>
       <div class="display-splash-footer" aria-hidden="true">让家，触手可及</div>
     </section>
+    <!-- hls.js 走 vendor 目录、版本写在路径里，因此不需要 ?v=20260916074544 也被 bump 脚本显式跳过。 -->
     <script src="/static/vendor/hls.js/1.6.16/hls.min.js"></script>
+    <!-- display.js 是 module：它的 import 图里带着同一枚 ?v=20260916074544 URL 不同来强制刷新整张依赖图。 -->
     <script
       type="module"
-      src="/static/display.js?v=20260916013557"
+      src="/static/display.js?v=20260916074544"
     ></script>
-    <script type="module" src="/static/apple-install-guide.js?v=20260916013557"></script>
+    <!-- 安装引导是独立模块：只在 iOS Safari 且未加入主屏幕时才有可见效果，失败也不影响仪表盘。 -->
+    <script type="module" src="/static/apple-install-guide.js?v=20260916074544"></script>
   </body>
 </html>

@@ -1,9 +1,16 @@
 <!doctype html>
+<!--
+  授权激活页（/license）。
+  后端门禁顺序固定：未初始化先去 /setup；未登录先去 /login；若当前授权已允许 editor（说明无需激活）直接 303 回 /。
+  表单字段与后端激活请求体对齐：email 最长 255 位、activationCode 最长 128 位，改长度必须两边一起改。
+  入口脚本：/static/auth-shell.js、/static/license.js（读 /api/v1/license/status，每 5 秒轮询直到可进编辑器）。
+  #logout 是本页唯一的退出入口，由 /static/license.js 绑定：授权被撤销的用户需要靠它换账号重试。
+-->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/client-log.js?v=20260916013557"></script>
+    <script src="/static/client-log.js?v=20260916074544"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#172029" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,21 +18,23 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>激活授权 · HomeOS</title>
-    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916013557" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916013557" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916013557" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916013557" sizes="180x180" />
-    <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260916013557" />
-    <link rel="stylesheet" href="/static/auth.css?v=20260916013557" />
+    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916074544" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916074544" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916074544" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916074544" sizes="180x180" />
+    <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260916074544" />
+    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
+    <link rel="stylesheet" href="/static/auth.css?v=20260916074544" />
   </head>
   <body>
+    <!-- ===== 左侧品牌展示区（纯装饰） ===== -->
     <main class="login-shell">
       <section class="login-showcase" aria-label="HomeOS介绍">
         <div class="showcase-grid" aria-hidden="true"></div>
         <div class="showcase-orb orb-one" aria-hidden="true"></div>
         <div class="showcase-orb orb-two" aria-hidden="true"></div>
         <div class="showcase-brand">
-          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260916013557" alt="" /><span
+          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260916074544" alt="" /><span
             >HomeOS</span
           >
         </div>
@@ -36,7 +45,9 @@
           <div class="character character-yellow"><i></i><i></i><span class="character-mouth yellow-mouth"></span></div>
         </div>
       </section>
+      <!-- ===== 右侧激活表单区 ===== -->
       <section class="login-panel">
+        <!-- 退出按钮放在表单区最前，是为了在授权被撤销时仍能一眼看到换账号入口。 -->
         <button id="logout" class="license-logout" type="button" aria-label="退出登录">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -46,7 +57,7 @@
           <span>退出登录</span>
         </button>
         <div class="mobile-brand">
-          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260916013557" alt="" /><span
+          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260916074544" alt="" /><span
             >HomeOS</span
           >
         </div>
@@ -54,6 +65,7 @@
           <header>
             <p class="eyebrow">LICENSE INFORMATION · 0.5.5</p>
             <h1>激活 HomeOS</h1>
+            <!-- 初始文案只是占位，/static/license.js 会按 /api/v1/license/status 的 status 字段改写它。 -->
             <p id="license-status-text">正在读取授权状态…</p>
           </header>
           <form id="license-form" class="auth-form">
@@ -77,7 +89,9 @@
         </div>
       </section>
     </main>
+    <!-- 两个脚本都声明为 module，默认 defer 且按书写顺序执行；auth-shell.js 负责密码显隐与形象动画，
+         license.js 负责状态轮询与激活提交，二者没有互相依赖。 -->
     <script type="module" src="/static/auth-shell.js"></script>
-    <script type="module" src="/static/license.js?v=20260916013557"></script>
+    <script type="module" src="/static/license.js?v=20260916074544"></script>
   </body>
 </html>
