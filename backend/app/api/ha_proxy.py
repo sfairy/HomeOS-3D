@@ -406,6 +406,11 @@ async def proxy_http(request: Request) -> Response:
         )
     if stream_response:
         async def stream_body():
+            """把上游字节流原样转发给客户端。
+
+            使用 aiter_raw() 而不是 aiter_bytes()：这里只做管道，不做解码，
+            避免上游是压缩响应时被再解压/再压缩一次。
+            """
             try:
                 async for chunk in upstream.aiter_raw():
                     if chunk:

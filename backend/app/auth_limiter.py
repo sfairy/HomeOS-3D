@@ -25,6 +25,13 @@ class LoginAttemptLimiter:
         window_seconds: int = 300,
         block_seconds: int = 600,
     ) -> None:
+        """记录阈值。
+
+        参数:
+            max_failures: 窗口内允许的失败次数上限。
+            window_seconds: 统计窗口长度（秒）。
+            block_seconds: 超限后的封禁时长（秒）。
+        """
         self.max_failures = max_failures
         self.window_seconds = window_seconds
         self.block_seconds = block_seconds

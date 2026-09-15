@@ -168,6 +168,8 @@ def snapshot_scene(request: Request, _user: LicensedUser):
     path = folder / f'{scene_id}.json'
     # 'x' 独占创建：sceneId 是新的，万一撞名也宁可报错，不覆盖已有快照。
     with path.open('x', encoding='utf-8') as output:
+        # 原样落盘 studio 草稿的 JSON，不裁剪也不另加版本号：快照与草稿共用同一份
+        # 场景格式，兼容性靠读取端容错（例如缺 floors 时兜底成单层）。
         json.dump(payload, output, ensure_ascii=False)
     # 384（八进制 600）：快照含户型细节，只给属主读写。
     path.chmod(384)

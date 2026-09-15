@@ -527,6 +527,15 @@ class AssetCatalog:
     '''
 
     def __init__(self, built_in_root: Path, user_root: Path, studio3d_exports_root: Path | None = None, effect_variants_root: Path | None = None) -> None:
+        """记录各素材根目录并统一转成绝对路径。
+
+        参数:
+            built_in_root: 内置素材根目录（随仓库分发，只读）。
+            user_root: 用户上传素材根目录（可写）。
+            studio3d_exports_root: 3D 工作室导出物根目录；None 表示不使用。
+            effect_variants_root: 特效变体缓存根目录；None 时默认落在用户素材的
+                同级 cache/effect-variants 下。
+        """
         self.built_in_root = built_in_root.resolve()
         self.user_root = user_root.resolve()
         self.studio3d_exports_root = studio3d_exports_root.resolve() if studio3d_exports_root else None

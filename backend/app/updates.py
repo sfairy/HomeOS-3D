@@ -98,6 +98,17 @@ class UpdateChecker:
         endpoints=RELEASE_ENDPOINTS,
         clock=time.time,
     ):
+        """初始化检查器并尝试读取上一次的缓存结果。
+
+        参数:
+            data_dir: 数据目录；缓存写在 data_dir/cache/update-check.json。
+            version: 当前运行的版本号，用于判断远端是否更新。
+            channel: 发布通道（如 stable），决定请求哪个发布列表。
+            enabled: 为 False 时完全不联网，只保留缓存里的结果。
+            transport: HTTP 传输实现，测试时注入桩以避免真实请求。
+            endpoints: 发布接口地址列表，按顺序尝试直到有一个可用。
+            clock: 时间源，默认 time.time；注入后可控制节流与过期判定。
+        """
         self.version, self.channel, self.enabled = version, channel, enabled
         self.transport, self.endpoints, self.clock = transport, endpoints, clock
         self.path = data_dir / "cache" / "update-check.json"

@@ -24,6 +24,7 @@ class StateHub:
     """实体状态内存表 + 订阅者分发器。"""
 
     def __init__(self) -> None:
+        """建立空的实体状态表与订阅者集合。"""
         # entityId -> 归一化后的状态字典。
         self._states = {}
         # 订阅者队列集合；用 set 是因为退订只需 O(1) 丢弃，不关心顺序。

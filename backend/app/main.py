@@ -480,11 +480,17 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     @app.get('/favicon.ico', include_in_schema = False)
     def favicon() -> FileResponse:
+        """站点图标：浏览器标签页与书签栏使用。"""
         return FileResponse(app_settings.frontend_dir / 'static' / 'homeos-favicon-h5.ico', media_type = 'image/x-icon')
 
     @app.get('/apple-touch-icon.png', include_in_schema = False)
     @app.get('/apple-touch-icon-precomposed.png', include_in_schema = False)
     def apple_touch_icon() -> FileResponse:
+        """iOS 添加到主屏时使用的 180×180 图标。
+
+        同时挂在 /apple-touch-icon.png 与 /apple-touch-icon-precomposed.png 上：
+        不同 iOS 版本会请求其中之一，缺了就会在添加到主屏时显示空白图标。
+        """
         return FileResponse(app_settings.frontend_dir / 'static' / 'homeos-icon-180-h5.png', media_type = 'image/png')
 
     @app.get('/assets/builtin/{asset_path:path}', include_in_schema = False)

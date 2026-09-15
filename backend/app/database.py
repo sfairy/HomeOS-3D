@@ -26,6 +26,11 @@ class Database:
     """SQLite 引擎与会话工厂的持有者。"""
 
     def __init__(self, database_url: str) -> None:
+        """创建引擎与会话工厂。
+
+        参数:
+            database_url: SQLAlchemy 连接串；SQLite 时走这里的 PRAGMA 配置。
+        """
         # check_same_thread=False：FastAPI 会把同步依赖丢到线程池里执行，
         # 关闭 SQLite 默认的同线程检查，否则会话跨线程使用会直接报错。
         self.engine = create_engine(database_url, connect_args={'check_same_thread': False})

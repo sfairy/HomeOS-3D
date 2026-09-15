@@ -86,6 +86,7 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
 
         # 梦幻帘的叶片判断要做数值解析：HA 常把位置上报成数字字符串，这里统一转 float。
         def number(value):
+            """把上报值解析成有限浮点数；bool、NaN 与非数字一律返回 None（视作没有该值）。"""
             if isinstance(value, bool) or not isinstance(value, (str, int, float)):
                 return None
             try:

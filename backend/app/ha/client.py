@@ -268,6 +268,14 @@ class HAClient:
         ) as client:
 
             async def fetch_one(entity_id: str) -> dict[str, Any] | None:
+                """拉取单个实体的状态；实体已不存在时返回 None 而不是抛错。
+
+                参数:
+                    entity_id: 实体 ID。
+
+                返回:
+                    实体状态字典；404 时返回 None。
+                """
                 async with semaphore:
                     try:
                         # 实体 ID 里的「点」必须转义；safe='' 让 quote 把 . 也编码掉，
