@@ -1,9 +1,23 @@
 <!doctype html>
+<!--
+  编辑器主页面（/），也就是仪表盘的全部编辑入口。
+  后端三道门禁顺序固定：未初始化 → 303 /setup；未登录 → 303 /login；无 editor 能力 → 303 /license。
+  因此本页能打开，就说明初始化、登录与授权三者都已通过；页面自身不做这三项判断。
+  三栏结构共用同一份「仪表盘文档」（字段口径见 backend/app/panel/schema.py）：
+  左侧控件图层导航、中间页面画布 / 仪表盘预览 / 组合弹窗编辑、右侧属性检查器。
+  入口脚本按顺序：/static/global-log-boot.js（日志面板先就绪，不依赖主脚本）、
+  /static/vendor/hls.js/1.6.16/hls.min.js（摄像头 HLS 播放）、/static/home.js（主体，module）。
+  版本戳约定：home.js 内部 import 的 renderer/renderer.js 与 renderer/registry.js 必须与
+  renderer.css 共用同一条 `?v=`，否则会出现两份控件注册表，表现为某些控件「找不到类型」。
+  CSP 为 style-src 'self' 且 script-src 'self'，所以页面里没有任何内联 <style> / <script>，
+  全部行为靠 id 与 data-* 属性与脚本约定挂接，改动这些名字等于改接口。
+-->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
     <script src="/static/client-log.js?v=20260916013557"></script>
+    <!-- 编辑器是桌面级布局，固定按 1020px 逻辑宽度出图，小屏靠缩放而不是响应式重排。 -->
     <meta name="viewport" content="width=1020,user-scalable=yes" />
     <meta name="theme-color" content="#172029" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -17,6 +31,8 @@
     <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916013557" sizes="180x180" />
     <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260916013557" />
     <link rel="stylesheet" href="/static/global-log.css?v=20260916013557" />
+    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；app.css、renderer.css 与 home.js
+         内部 import 的模块必须共用同一枚时间戳，否则样式与运行时会对不上版本。 -->
     <link
       rel="stylesheet"
       href="/static/app.css?v=20260916013557"
@@ -25,6 +41,7 @@
     <link rel="stylesheet" href="/static/modules/interaction3d/bridge.css?v=20260916013557" />
   </head>
   <body>
+    <!-- ===== 顶部工具条：四个入口按钮的状态点都由脚本按轮询结果着色 ===== -->
     <header class="editor-header">
       <div class="brand-lockup">
         <img class="brand-icon" src="/static/homeos-mark-white-orange.svg?v=20260916013557" alt="" /><strong
@@ -38,7 +55,9 @@
         ><button id="logout">退出</button>
       </div>
     </header>
+    <!-- ===== 三栏编辑器：左侧控件图层、中间画布、右侧属性检查器 ===== -->
     <main class="editor-shell">
+      <!-- ===== 左栏：控件图层导航（仪表盘 → 页面 / 弹窗 → 控件树） ===== -->
       <aside class="panel navigator">
         <div class="panel-heading navigator-heading">
           <h2>控件图层</h2>
@@ -62,6 +81,7 @@
               >
                 ···
               </button>
+              <!-- data-project-action 是动作分发键，脚本按它走 switch，改值等于改行为。 -->
               <div id="project-actions-menu" class="page-actions-menu" hidden>
                 <button type="button" data-project-action="edit">重命名</button>
                 <button type="button" data-project-action="resize">修改分辨率</button>
@@ -71,6 +91,7 @@
             </div>
           </div>
           <div class="editor-content-tabs" role="tablist" aria-label="编辑内容">
+            <!-- 页面与组合弹窗共用同一块画布，切页签只是换掉正在编辑的那棵树。 -->
             <button id="show-page-editor" class="active" type="button" role="tab" aria-selected="true">页面</button>
             <button id="show-popup-editor" type="button" role="tab" aria-selected="false">组合弹窗</button>
           </div>
@@ -103,6 +124,9 @@
             <div class="dashboard-control-heading">
               <span>全局组合弹窗</span><button id="popup-new" type="button" disabled="disabled">新建</button>
             </div>
+            <!-- 原生 select 仍是 value 的真相源与 change 事件来源，只是被脚本包了一层自建菜单外观
+                 （原生弹层在部分内核上无法显示「★ 默认页」标记，也无法受 CSS 控制）；
+                 标记 data-native-select 的作用是让增强逻辑幂等跳过，不要删。 -->
             <select id="popup-select" data-native-select="true" aria-label="选择组合弹窗" hidden disabled="disabled">
               <option value="">暂无组合弹窗</option>
             </select>
@@ -127,15 +151,18 @@
           >
             ＋ 添加控件
           </button>
+          <!-- 两个控件树容器由「侧边栏 / 主页面」页签互斥显示；内容全部由脚本渲染，这里只留空容器。 -->
           <div id="shared-component-list" class="element-list"></div>
           <div id="page-component-list" class="element-list" hidden></div>
         </div>
       </aside>
+      <!-- ===== 中栏：页面画布与仪表盘预览（同一文档的编辑态 / 展示态） ===== -->
       <section class="workspace-panel">
         <div class="workspace-heading">
           <div class="workspace-heading-copy">
             <h2 id="workspace-title">页面画布</h2>
             <span id="workspace-resolution" class="workspace-resolution" hidden></span>
+            <!-- 中控地址只在保存过之后才有意义，未保存时整段 hidden，避免给出会 404 的链接。 -->
             <p id="dashboard-display-hint" class="dashboard-display-hint" hidden>
               中控地址 <a id="dashboard-display-link" target="_blank" rel="noopener noreferrer"></a
               ><button id="display-devices-open" type="button">中控设备</button>
@@ -143,6 +170,7 @@
           </div>
           <div class="workspace-toolbar">
             <div class="workspace-primary-actions">
+              <!-- 撤销 / 重做是文档快照式历史，各留 10 步（与 title 文案一致，改上限要一起改）。 -->
               <div class="history-toolbar-actions" aria-label="编辑历史">
                 <button
                   id="undo"
@@ -171,6 +199,7 @@
                 </button>
               </div>
               <div class="workspace-modes" role="tablist" aria-label="中间区域显示内容">
+                <!-- 「编辑」用编辑器渲染，「仪表盘」用与中控一致的运行时渲染，两者同一份文档、不同渲染器。 -->
                 <button id="show-editor-preview" class="active" type="button" role="tab" aria-selected="true">
                   编辑</button
                 ><button id="show-dashboard-preview" type="button" role="tab" aria-selected="false">仪表盘</button
@@ -192,6 +221,7 @@
           </div>
         </div>
         <div class="workspace empty">
+          <!-- 三种中间态互斥：编辑画布 / 仪表盘预览 / 组合弹窗编辑，都由脚本切 hidden。 -->
           <div id="editor-canvas" class="workspace-empty-state">
             <div class="canvas-message"><strong>请从左侧新建仪表盘。</strong></div>
           </div>
@@ -201,12 +231,17 @@
           <div id="custom-popup-editor" class="workspace-mode-surface custom-popup-editor" hidden></div>
         </div>
       </section>
+      <!-- ===== 右栏：属性检查器（每个控件类型一个 form，同时只有一个可见） ===== -->
       <aside class="panel inspector">
         <div class="panel-heading"><h2>属性</h2></div>
+        <!-- 未选中控件时的空态提示，选中后由脚本隐藏。 -->
         <div id="inspector-empty" class="property-section inspector-empty"><p>选择一个控件开始编辑。</p></div>
+        <!-- 图片控件：与「底图框」的区别是内容来自素材库，且自由 / 铺满两种布局会改变渲染方式。 -->
         <form id="image-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
+            <!-- 每个 inspector-form 对应一种控件类型，名字里的 id 前缀就是 home.js 里的 syncXxxInspector；
+                 form 之间字段名可以重名，因为同一时刻只会显示一个。 -->
             <div class="inspector-grid two-columns">
               <label>类型<input id="image-type" value="图片" readonly="readonly" /></label>
               <label>备注<input id="image-label" maxlength="128" /></label>
@@ -264,6 +299,7 @@
               <label>透明度（%）<input id="image-opacity" type="number" min="0" max="100" step="1" /></label>
               <div class="image-layout-control">
                 <span>图片布局</span>
+                <!-- free = 按原始比例摆放，fill = 拉伸铺满控件框；两种布局下缩放/旋转的语义不同。 -->
                 <div id="image-layout-options" class="image-layout-options" role="group" aria-label="图片布局">
                   <button type="button" data-image-layout="free">自由</button>
                   <button type="button" data-image-layout="fill">铺满</button>
@@ -287,6 +323,9 @@
           </section>
           <section class="inspector-section">
             <h3>动作</h3>
+            <!-- 三种触发方式各自一组动作，data-action-trigger 是脚本读取的键（tap / doubleTap / hold），
+                 data-action-type 是动作分发键（none / toggle / more-info / navigate）。
+                 选到 navigate 时才会显示 data-action-target 那个页面下拉。 -->
             <div id="component-action-controls" class="component-action-controls">
               <div class="component-action-control" data-action-trigger="tap">
                 <span>点按</span>
@@ -330,6 +369,8 @@
             </div>
           </section>
         </form>
+        <!-- 户型图自动导图控件：本项目里唯一需要跳到 3D 工作室生成素材的控件，
+             画布上只管位置与大小，图片由后台按保存的视角渲染后回填。 -->
         <form id="floorplan-auto-diagram-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>户型图自动导图</h3>
@@ -421,11 +462,13 @@
             <button id="floorplan-auto-diagram-open-base-lighting" type="button">进阶设置</button>
             <p class="inspector-section-note">调整完成后直接点击“确定位置大小并后台生成”，当前视角就是最终导图视角。</p>
           </section>
+          <!-- 灯组实体绑定：只有后台生成过导图、且识别出灯组之后才出现。 -->
           <section id="floorplan-auto-diagram-bindings" class="inspector-section" hidden>
             <h3>灯组实体</h3>
             <div id="floorplan-auto-diagram-binding-list" class="inspector-grid"></div>
           </section>
         </form>
+        <!-- 图标按钮（效果）：在图标底上叠一层按实体状态变化的效果层（填充、光晕等），字段都以 ibe- 前缀。 -->
         <form id="icon-button-effect-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -477,6 +520,7 @@
           </section>
           <section class="inspector-section">
             <h3>图层</h3>
+            <!-- 效果控件由「按钮层 + 效果层」两张图叠成，data-ibe-layer 决定下面配置的是哪一层。 -->
             <div id="ibe-layer-options" class="navigation-segmented-options" role="group" aria-label="选择要设置的图层">
               <button type="button" data-ibe-layer="button">控制按钮</button>
               <button type="button" data-ibe-layer="effect">效果图层</button>
@@ -560,6 +604,7 @@
               </div>
             </div>
           </section>
+          <!-- 效果层：一张按实体状态切换的图片，透明度与淡入淡出都在这里调。 -->
           <section id="ibe-effect-section" class="inspector-section">
             <div class="navigation-property-heading section-heading">
               <h3>效果层</h3>
@@ -628,6 +673,7 @@
               <label>旋转（°）<input id="ibe-effect-rotation" type="number" min="-360" max="360" step="0.1" /></label>
             </div>
           </section>
+          <!-- 按钮层：图标、尺寸与位置（变换）配置，与「效果层」共用同一套对齐基准。 -->
           <section id="ibe-button-transform-section" class="inspector-section">
             <h3>按钮位置与变换</h3>
             <div class="inspector-grid two-columns">
@@ -639,6 +685,7 @@
               ><label>旋转（°）<input id="ibe-rotation" type="number" min="-360" max="360" step="0.1" /></label>
             </div>
           </section>
+          <!-- 效果控件的动作：与普通图标按钮同一套 tap / doubleTap / hold 语义。 -->
           <section id="ibe-action-section" class="inspector-section">
             <h3>动作</h3>
             <div id="ibe-action-controls" class="component-action-controls">
@@ -691,11 +738,14 @@
               </div>
             </div>
           </section>
+          <!-- 批量应用：把当前面板里的改动一次性写进同类型的其它控件，目标由对话框勾选决定；
+               文案里的「N 项修改」由脚本统计，不是用户主动填的数量。 -->
           <section class="inspector-section navigation-batch-section">
             <h3>批量应用 <span id="ibe-apply-count">0 项修改</span></h3>
             <button id="ibe-apply-style" type="button">一键应用到同类型控件</button>
           </section>
         </form>
+        <!-- 标题按钮：文字标题 + 可选实体，主要用于分区标题或状态摘要。 -->
         <form id="title-button-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -995,6 +1045,7 @@
             <button id="title-button-apply-style" type="button">一键应用到同类型控件</button>
           </section>
         </form>
+        <!-- 数量统计：把某个域下处于打开状态的实体数（如开着的灯）渲染成数字，支持单实体与实体组两种口径。 -->
         <form id="light-statistics-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -1242,6 +1293,7 @@
             </div>
           </section>
         </form>
+        <!-- 图标按钮：最常用的控件类型，字段最多（样式、光效、动作、批量应用都在这里）。 -->
         <form id="icon-button-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -1740,6 +1792,7 @@
             <button id="icon-button-apply-style" type="button">一键应用到同类型控件</button>
           </section>
         </form>
+        <!-- 空调 / 浴霸：一个控件覆盖 climate 域与浴霸面板，实体能力不同时下方区块会自动隐藏。 -->
         <form id="air-conditioner-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -2133,6 +2186,7 @@
             <button id="air-conditioner-apply-style" type="button">一键应用到同类型控件</button>
           </section>
         </form>
+        <!-- 扫地机器人实时地图：地图瓦片由 HA 提供，控件只负责摆放与缩放。 -->
         <form id="vacuum-map-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -2178,6 +2232,7 @@
             </div>
           </section>
         </form>
+        <!-- 摄像头实时预览：播放地址可能来自 HA 相机实体，也可能是 HLS 流（依赖页面引入的 hls.js）。 -->
         <form id="camera-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -2327,6 +2382,7 @@
             <button id="camera-apply-style" type="button">一键应用到同类型控件</button>
           </section>
         </form>
+        <!-- 时间 / 日期 / 天气：三个纯展示控件，只读 HA 或本地时钟，不产生动作。 -->
         <form id="time-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -2384,6 +2440,7 @@
             </div>
           </section>
         </form>
+        <!-- 日期 -->
         <form id="date-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -2451,6 +2508,7 @@
             </div>
           </section>
         </form>
+        <!-- 天气 -->
         <form id="weather-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -2579,6 +2637,7 @@
             </div>
           </section>
         </form>
+        <!-- 折线图：数据来自 recorder 历史统计，采样窗口在下方单独配置。 -->
         <form id="line-chart-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -2744,6 +2803,7 @@
             <button id="line-chart-apply-style" type="button">一键应用到同类型控件</button>
           </section>
         </form>
+        <!-- 底图框：不绑定实体的纯装饰容器，可设圆角、边框与填充，常用于给一组控件打底。 -->
         <form id="panel-frame-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -2894,6 +2954,7 @@
             <button id="panel-frame-apply-style" type="button">一键应用到同类型控件</button>
           </section>
         </form>
+        <!-- 导航按钮：跳转到本仪表盘内的另一页，页面列表在下方选择。 -->
         <form id="navigation-inspector" class="inspector-form" hidden>
           <section class="inspector-section">
             <h3>基础</h3>
@@ -3229,6 +3290,19 @@
         </section>
       </aside>
     </main>
+    <!-- ===== 对话框与结果提示 =====
+         全部使用原生 <dialog>，由 home.js 里的 showModal() 打开、close() 关闭：
+         原生 dialog 自带焦点陷阱（focus trap）与顶层渲染，无需自己实现遮罩与 Tab 循环。
+         约定：
+         - 每个可关闭的对话框右上角都有一个 .icon-button，带 aria-label（纯符号按钮，
+           没有可读文字时必须给无障碍名）；点击只是「取消」，真正的动作在 .settings-form 里的提交按钮。
+         - .settings-form 是共用表单栅格（见 app.css），不是 <form> 才有这个类，
+           说明区、结果提示同样用它对齐内边距。
+         - 删除类对话框统一加 .delete-dialog 并配 "DANGER ZONE" 眉标，样式上做危险色区分。
+         - 带 id 的标题 / 眉标（如 xxx-dialog-title、xxx-dialog-kicker）由脚本按「新建 / 编辑」
+           两种模式改写文案，所以同一对话框能复用于新增与修改。
+         - 部分对话框内嵌隐藏表单（例如项目、页面、HA 连接），首次打开时由脚本填充后再显示。 -->
+
     <dialog id="popup-name-dialog" class="settings-dialog popup-name-dialog">
       <div class="dialog-heading">
         <div>
@@ -3237,6 +3311,7 @@
         </div>
         <button id="popup-name-close" class="icon-button" type="button" aria-label="关闭">&times;</button>
       </div>
+      <!-- 组合弹窗只有一个名称字段：提交后关闭本对话框，并在左栏新建一个空组合进入编辑态。 -->
       <form id="popup-name-form" class="settings-form">
         <label><span>组合弹窗名称</span><input name="name" value="新建组合弹窗" maxlength="128" required /></label>
         <div class="dialog-actions">
@@ -3244,6 +3319,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 新建组合弹窗：只输入名称，随后进入组合编辑态再逐个加模块。 -->
     <dialog id="popup-module-dialog" class="settings-dialog popup-module-dialog">
       <div class="dialog-heading">
         <div>
@@ -3304,6 +3380,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 删除组合弹窗：二次确认，删除后引用该弹窗的导航按钮会一并失效，故归入危险区。 -->
     <dialog id="delete-popup-dialog" class="settings-dialog delete-dialog">
       <div class="dialog-heading">
         <div>
@@ -3395,6 +3472,7 @@
         <label><input id="global-color-picker-b" type="number" min="0" max="255" step="1" /><span>B</span></label>
       </div>
     </div>
+    <!-- 控件模板库：模板清单来自 component-templates.js，选中即按模板默认尺寸新建控件。 -->
     <dialog id="component-template-dialog" class="settings-dialog component-template-dialog">
       <div class="dialog-heading">
         <div>
@@ -3410,6 +3488,8 @@
         <div id="component-template-list" class="component-template-list"></div>
       </div>
     </dialog>
+    <!-- 户型图自动导图：把底图送到服务端识别墙线与灯组，产物作为素材回填；
+         本项目里唯一需要跨到 3D 工作室能力（module.3d_interaction）才能用的编辑器功能。 -->
     <dialog id="floorplan-auto-diagram-dialog" class="settings-dialog floorplan-auto-diagram-dialog">
       <div class="dialog-heading">
         <div>
@@ -3429,6 +3509,7 @@
         </div>
       </div>
     </dialog>
+    <!-- 中控设备：列出已配对展示端并生成新的配对码；配对成功后新增设备仍需后端 license 能力放行。 -->
     <dialog id="display-devices-dialog" class="settings-dialog display-devices-dialog">
       <div class="dialog-heading">
         <div>
@@ -3473,6 +3554,7 @@
         <div id="display-devices-message" class="settings-message" hidden></div>
       </div>
     </dialog>
+    <!-- 导航样式批量应用：把一套样式套用到其他页面 / 其他导航按钮，属破坏性操作故需确认。 -->
     <dialog id="navigation-style-apply-dialog" class="settings-dialog navigation-style-apply-dialog">
       <div class="dialog-heading">
         <div>
@@ -3505,6 +3587,7 @@
         </div>
       </div>
     </dialog>
+    <!-- 选择本页对齐图片：为「效果图对齐」挑选参照底图，选中后进入画布上的拖动对齐态。 -->
     <dialog id="effect-image-align-dialog" class="settings-dialog effect-image-align-dialog">
       <div class="dialog-heading">
         <div>
@@ -3530,6 +3613,8 @@
         </div>
       </div>
     </dialog>
+    <!-- HA 连接与实体同步：连接表单与「已连接」视图互斥显示——
+         未配置时显示表单，已配置时显示连接视图（含重连 / 删除入口），切换由 #ha-connection-view 的 hidden 控制。 -->
     <dialog id="ha-dialog" class="settings-dialog">
       <div class="dialog-heading">
         <div>
@@ -3563,6 +3648,10 @@
           ><button id="ha-delete" class="danger-quiet" type="button">删除</button>
         </div>
       </section>
+      <!-- HA 连接表单：与 #ha-connection-view 互斥（未连接时显示本表单，已连接时显示只读视图）。
+           accessToken 用 type="password" + autocomplete="off"：长期访问令牌是长效凭证，
+           不能让浏览器记住或自动回填；verifyTls 默认勾选，只有自签名证书的内网部署才需关掉。
+           提交结果（成功或失败原因）统一写进下方的 #ha-message，不另开提示框。 -->
       <form id="ha-form" class="settings-form" hidden>
         <label><span>连接名称</span><input name="name" value="Home Assistant" maxlength="128" required /></label>
         <label
@@ -3592,6 +3681,7 @@
         <p id="ha-sync-detail">实体 0 · 设备 0 · 区域 0</p>
       </div>
     </dialog>
+    <!-- 授权信息：展示租约状态与设备绑定；这里刻意复用 .ha-connection-view 的只读视图样式。 -->
     <dialog id="license-dialog" class="settings-dialog license-dialog">
       <div class="dialog-heading">
         <div>
@@ -3642,6 +3732,8 @@
       <div class="license-actions">
         <button id="license-reactivate" type="button">重新激活</button>
       </div>
+      <!-- 授权激活：邮箱 + 激活码一起送后端做绑定校验（邮箱用于定位租约，激活码证明持有权）；
+           激活成功后本对话框切到只读的授权信息视图，不再显示输入框。 -->
       <form id="license-form" class="settings-form">
         <label
           ><span>授权邮箱</span
@@ -3667,6 +3759,7 @@
         <div class="dialog-actions"><button class="primary" type="submit">激活当前实例</button></div>
       </form>
     </dialog>
+    <!-- 删除 HA 连接：只解除本机保存的凭证，不动 Home Assistant 侧的任何数据。 -->
     <dialog id="delete-ha-dialog" class="settings-dialog delete-dialog">
       <div class="dialog-heading">
         <div>
@@ -3690,6 +3783,8 @@
         </div>
       </form>
     </dialog>
+    <!-- 仪表盘项目：kicker 与标题按「新建 / 编辑」改写，故用 id 而非写死文案；
+         画布宽高改动会触发下面的超框警告对话框。 -->
     <dialog id="project-dialog" class="settings-dialog project-dialog">
       <div class="dialog-heading">
         <div>
@@ -3766,6 +3861,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 控件可能超出画布：改分辨率前的预警，给用户「继续 / 取消」而不是直接裁掉内容。 -->
     <dialog id="project-resize-warning-dialog" class="settings-dialog project-resize-warning-dialog">
       <div class="dialog-heading">
         <div>
@@ -3785,6 +3881,7 @@
         </div>
       </div>
     </dialog>
+    <!-- 页面：与项目对话框同样复用「新建 / 编辑」两种模式（kicker + title 由脚本改写）。 -->
     <dialog id="page-dialog" class="settings-dialog page-dialog">
       <div class="dialog-heading">
         <div>
@@ -3802,6 +3899,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 重命名组合：沿用 page-dialog 的窄对话框样式，只是文案不同。 -->
     <dialog id="component-group-rename-dialog" class="settings-dialog page-dialog">
       <div class="dialog-heading">
         <div>
@@ -3992,6 +4090,7 @@
         </div>
       </div>
     </section>
+    <!-- 删除仪表盘项目：连带其下所有页面与草稿，是全站最重的删除操作。 -->
     <dialog id="delete-project-dialog" class="settings-dialog delete-dialog">
       <div class="dialog-heading">
         <div>
@@ -4016,6 +4115,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 删除页面：页面内的控件随之移除；项目至少要保留一页，脚本会拦掉最后一页的删除。 -->
     <dialog id="delete-page-dialog" class="settings-dialog delete-dialog">
       <div class="dialog-heading">
         <div>
@@ -4036,6 +4136,7 @@
         </div>
       </div>
     </dialog>
+    <!-- 删除控件：单控件移除，是最轻的一档删除，因此这里不需要勾选确认。 -->
     <dialog id="delete-component-dialog" class="settings-dialog delete-dialog">
       <div class="dialog-heading">
         <div>
@@ -4055,6 +4156,8 @@
         </div>
       </div>
     </dialog>
+    <!-- 复制控件到其他区域：目标可选其他页面或组合弹窗；复制会重建控件 id，
+         因此不能只做数组浅拷贝，必须走文档模型的深拷贝路径。 -->
     <dialog id="copy-component-page-dialog" class="settings-dialog copy-component-page-dialog">
       <div class="dialog-heading">
         <div>
@@ -4105,6 +4208,8 @@
         </div>
       </form>
     </dialog>
+    <!-- 复制成功提示：只有一行文案（#copy-component-success-message），无关闭按钮，
+         由脚本在短暂延时后自动关闭，所以标题区也没有 × 。 -->
     <dialog id="copy-component-success-dialog" class="settings-dialog copy-component-success-dialog">
       <div class="dialog-heading">
         <div>
@@ -4121,6 +4226,7 @@
         </div>
       </div>
     </dialog>
+    <!-- 删除上传图片：只删用户素材；内置素材由后端拒绝，脚本会先过滤掉删除入口。 -->
     <dialog id="delete-asset-dialog" class="settings-dialog delete-dialog">
       <div class="dialog-heading">
         <div>
@@ -4140,6 +4246,7 @@
         </div>
       </div>
     </dialog>
+    <!-- 删除自动导图文件夹：删文件夹会连带其中的导图素材；若已被控件引用，脚本会提示引用位置。 -->
     <dialog id="delete-asset-folder-dialog" class="settings-dialog delete-dialog">
       <div class="dialog-heading">
         <div>
@@ -4162,6 +4269,7 @@
         </div>
       </div>
     </dialog>
+    <!-- 操作失败：把后端返回的中文错误文案统一呈现给用户（含 409 revision 冲突的提示）。 -->
     <dialog id="error-dialog" class="settings-dialog error-dialog">
       <div class="dialog-heading">
         <div>
@@ -4177,6 +4285,8 @@
         </div>
       </div>
     </dialog>
+    <!-- 恢复未保存修改：草稿自动保存前的崩溃/关窗兜底，由脚本在启动时检测本地草稿后弹出；
+         没有 × 关闭按钮，必须明确选择「恢复」或「丢弃」，避免用户误以为只是提示。 -->
     <dialog id="recovery-dialog" class="settings-dialog recovery-dialog">
       <div class="dialog-heading">
         <div>
@@ -4195,6 +4305,8 @@
         </div>
       </div>
     </dialog>
+    <!-- 全局日志：内容由 /static/global-log.js 渲染到 .global-log-body（分页 + 级别过滤），
+         页面里只留容器，避免日志量大时把主文档撑大。 -->
     <dialog id="global-log-dialog" class="settings-dialog global-log-dialog">
       <div class="dialog-heading">
         <div>

@@ -1,4 +1,13 @@
 <!doctype html>
+<!--
+  3D 户型工作室（Desktop Creator，/3d-studio）主页面：导入底图 → 标定比例 → 描绘户型 → 摆物件 → 布灯 → 导图。
+  授权：需要登录且授权允许 editor 能力，否则后端 303 去 /login 或 /license；未初始化先去 /setup。
+  入口脚本：/static/3d-studio/studio-app.js（module，唯一编排层，其余 studio-*.js 都是它 import 的纯函数模块）。
+  版本戳约定：/static/3d-studio/studio.css 与 studio-app.js 必须共用同一条 `?v=`，
+  否则浏览器会同时加载新旧两份模块，出现两套模块级单例状态（控件注册表、渲染缓存版本号）。
+  页面本身没有任何内联 <style> / <script>：CSP 是 style-src 'self'，内联样式会被直接拦掉。
+  本页只负责结构，全部状态与行为由 studio-app.js 通过 id / data-* 属性接管。
+-->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
@@ -8,12 +17,14 @@
     <meta name="theme-color" content="#111820" />
     <title>户型图绘制</title>
     <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916013557" type="image/svg+xml" />
+    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
     <link
       rel="stylesheet"
       href="/static/3d-studio/studio.css?v=20260916013557"
     />
   </head>
   <body>
+    <!-- ===== 顶部工作流条（六个步骤只是进度指示，点击不生效；data-step 供脚本高亮当前阶段） ===== -->
     <header class="studio-header">
       <div class="header-leading">
         <img class="brand-logo" src="/static/homeos-mark-white-orange.svg?v=20260916013557" alt="HomeOS" />
@@ -36,10 +47,13 @@
         </ol>
       </div>
       <div class="header-actions">
+        <!-- 保存状态：自动保存是防抖 + revision 乐观并发，这里只反映结果（载入中 / 已保存 / 冲突）。 -->
         <span id="save-state" class="save-state"><i></i>正在载入…</span>
       </div>
     </header>
+    <!-- ===== 三栏工作区：左侧素材库、中间绘图台、右侧预览与属性 ===== -->
     <main class="studio-shell">
+      <!-- ===== 左侧素材库面板 ===== -->
       <aside class="library-panel panel-surface">
         <section class="start-card">
           <div class="start-card-row">
@@ -50,6 +64,8 @@
               ><button id="remove-plan" type="button" disabled="disabled">移除</button>
             </div>
           </div>
+          <!-- accept 只列这四种：三种位图 + SVG。底图要参与 canvas 绘制与像素↔米换算，
+               不支持的格式一律在选文件阶段就挡掉，避免进来后才失败。 -->
           <input id="plan-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden />
         </section>
         <section class="floor-manager-card">
@@ -60,11 +76,14 @@
               ><button id="add-floor" type="button">新增楼层</button>
             </div>
           </div>
+          <!-- 楼层列表整段由 studio-app.js 渲染，这里只留容器；"对齐楼层" 默认 hidden，多层时才放出来。 -->
           <div id="floor-list" class="floor-list" aria-label="楼层列表"></div>
         </section>
         <section class="model-settings-card">
           <div class="model-settings-row">
             <h2>墙体</h2>
+            <!-- 这三处的 min/max/step 与 studio-app.js 里写回场景时的钳制范围保持一致；
+                 墙高 2.4m / 墙厚 0.15m 是新建墙体的初始值，改这里等于改默认墙面。 -->
             <label title="墙高（m）"
               ><span>高</span
               ><input
@@ -109,11 +128,14 @@
               <h2>家居、电器与灯光</h2>
             </div>
           </div>
+          <!-- 分类页签靠 data-asset-category 与 #asset-grid 里的 data-asset-subcategory 配对过滤：
+               家居 / 电器两组常驻，灯光组只有存在灯具模板时才显示。 -->
           <div class="asset-category-tabs" role="group" aria-label="模型分类">
             <button class="active" type="button" data-asset-category="home" aria-pressed="true">家居</button
             ><button type="button" data-asset-category="appliance" aria-pressed="false">电器</button
             ><button type="button" data-asset-category="light" aria-pressed="false">灯光</button>
           </div>
+          <!-- 灯具模板整排默认 hidden：只有灯光分类被选中时才由脚本放出来，避免三栏并排时抢占首屏。 -->
           <div id="light-asset-row" class="light-asset-row" aria-label="灯具模板" hidden>
             <button
               class="asset-card light-asset-card"
@@ -144,6 +166,8 @@
               <span class="light-asset-icon light-asset-icon-strip" aria-hidden="true"></span>
             </button>
           </div>
+          <!-- 灯层面板：draggable="true" + data-item-type 是拖拽放置的约定 ——
+               画布 drop 时读的是 data-item-type，脚本再用它去查模型定义，值必须与模型表里的键一致。 -->
           <section id="light-layer-panel" class="light-layer-panel" hidden>
             <div class="light-layer-heading">
               <div id="light-layer-actions">
@@ -154,7 +178,16 @@
             </div>
             <div id="light-group-list" class="light-group-list"></div>
           </section>
+          <!-- 素材网格：每个按钮就是一个模型入口，data-item-type 是脚本查表用的键，
+               data-asset-subcategory 决定它归到哪个分组标题下，两者都不能随手改。
+               下面的分组标题（asset-group-heading）与按钮是同级兄弟，脚本按顺序决定显隐。
+               标题上的 data-asset-heading-category 与顶部页签的 data-asset-category 取值一一对应
+               （home / appliance），切页签时整组连同标题一起隐藏；data-asset-subcategory 是更细的
+               过滤键，用于在页签内部继续筛选。
+               卡片右侧 <small> 里的尺寸是模型真实占地（米），必须与模型实际尺寸一致：
+               3D 场景按真实尺度摆放，文字与实际不符会让用户误判剩余可摆放空间。 -->
           <div id="asset-grid" class="asset-grid" aria-label="家居与电器模型库">
+            <!-- 家居页签第 1 组：沙发、茶几、电视柜等客厅常用家具。 -->
             <div class="asset-group-heading" data-asset-heading-category="home">客厅常用</div>
             <button
               class="asset-card"
@@ -246,6 +279,7 @@
             >
               <i>▰</i><span>钢琴</span><small>1.80 × 1.80m</small>
             </button>
+            <!-- 卧室与书房类家具（床、书桌、衣柜等）。 -->
             <div class="asset-group-heading" data-asset-heading-category="home">卧室与书房</div>
             <button
               class="asset-card"
@@ -301,6 +335,7 @@
             >
               <i>▥</i><span>书架</span><small>1.20 × 0.32m</small>
             </button>
+            <!-- 餐厅与收纳：餐桌椅、餐边柜、置物架等。 -->
             <div class="asset-group-heading" data-asset-heading-category="home">餐厅与收纳</div>
             <button
               class="asset-card"
@@ -392,6 +427,7 @@
             >
               <i>▧</i><span>吊柜</span><small>1.50 × 0.35m</small>
             </button>
+            <!-- 厨房固定家具：橱柜、灶台、水槽等随户型固定的件，通常沿墙摆放。 -->
             <div class="asset-group-heading" data-asset-heading-category="home">厨房固定家具</div>
             <button
               class="asset-card"
@@ -420,6 +456,7 @@
             >
               <i>▦</i><span>地柜带燃气灶</span><small>1.20 × 0.60m</small>
             </button>
+            <!-- 卫浴洁具：马桶、淋浴、洗手台等。 -->
             <div class="asset-group-heading" data-asset-heading-category="home">卫浴</div>
             <button
               class="asset-card"
@@ -484,6 +521,8 @@
             >
               <i>▥</i><span>玻璃隔断</span><small>1.20 × 0.08m</small>
             </button>
+            <!-- 结构与特殊物件：楼梯、电梯、栏杆等非家具构件；这类件尺寸大且常跨楼层，
+                 放置后容易压到墙线，删改前先用工具面板的「楼板洞口」与墙体工具核对。 -->
             <div class="asset-group-heading" data-asset-heading-category="home">结构与特殊物件</div>
             <button
               class="asset-card"
@@ -539,6 +578,7 @@
             >
               <i>⇧</i><span>电梯</span><small>1.40 × 1.52m</small>
             </button>
+            <!-- 电器页签第 1 组：影音设备（电视等）+ 环境设备（出风口等）。 -->
             <div class="asset-group-heading" data-asset-heading-category="appliance">客厅与环境</div>
             <button
               class="asset-card"
@@ -630,6 +670,7 @@
             >
               <i>▥</i><span>出风口</span><small>0.19 × 2.00m</small>
             </button>
+            <!-- 厨房电器：冰箱、洗碗机、电饭煲等（与上面「厨房固定家具」分开，这类是可挪动的电器）。 -->
             <div class="asset-group-heading" data-asset-heading-category="appliance">厨房电器</div>
             <button
               class="asset-card"
@@ -685,6 +726,7 @@
             >
               <i>◉</i><span>电饭煲</span><small>0.28 × 0.32m</small>
             </button>
+            <!-- 洗护：洗衣机、烘干机。 -->
             <div class="asset-group-heading" data-asset-heading-category="appliance">洗护</div>
             <button
               class="asset-card"
@@ -704,6 +746,7 @@
             >
               <i>◎</i><span>烘干机</span><small>0.60 × 0.65m</small>
             </button>
+            <!-- 热水与饮水：储水式/即热式热水器、饮水机、茶吧机。 -->
             <div class="asset-group-heading" data-asset-heading-category="appliance">热水与饮水</div>
             <button
               class="asset-card"
@@ -741,6 +784,7 @@
             >
               <i>▤</i><span>茶吧机</span><small>0.62 × 0.48m</small>
             </button>
+            <!-- 办公与设备：台式机、打印机等办公设备。 -->
             <div class="asset-group-heading" data-asset-heading-category="appliance">办公与设备</div>
             <button
               class="asset-card"
@@ -772,8 +816,11 @@
           </div>
         </section>
       </aside>
+      <!-- ===== 中间绘图台 ===== -->
       <section class="plan-panel panel-surface">
         <div class="plan-toolbar">
+          <!-- data-tool 是工具注册表的键（select / pan / scale / wall / window / door / railing /
+               label / flooropening），studio-app.js 按它切换指针行为与 canvas 光标；新增工具必须在脚本里同步注册。 -->
           <div class="tool-group" role="toolbar" aria-label="绘图工具">
             <button class="tool-button active" type="button" data-tool="select" title="选择与移动">
               <i>⌁</i><span>选择</span>
@@ -822,7 +869,10 @@
                 ⌔
               </button>
               <div id="snap-settings-panel" class="snap-settings-panel" hidden>
+                <!-- "按住 S 临时关闭" 是脚本实现的临时旁路：不改变勾选状态，松开即恢复，
+                     便于在一个点上精确落位而不必反复开关吸附。 -->
                 <header><strong>吸附设置</strong><small>按住 S 临时关闭</small></header>
+                <!-- data-snap-setting 的取值就是持久化配置里的字段名，改名会导致旧配置读不回来。 -->
                 <div class="snap-option-grid">
                   <label
                     ><input
@@ -882,7 +932,9 @@
                 >
               </div>
             </div>
+            <!-- 楼板洞口与其他工具不同：它拖出的是矩形切除区域，且只作用于当前楼层。 -->
             <button type="button" data-tool="flooropening" title="拖出矩形，仅切除当前层楼板">楼板洞口</button>
+            <!-- 只有画墙过程中才出现（默认 hidden）：未闭合的墙线不会生成地面，这个按钮给用户一个明确的收尾动作。 -->
             <button id="finish-wall" type="button" title="未闭合的墙线不会生成地面" hidden>结束绘制</button>
             <button id="delete-selection" class="danger-action" type="button" disabled="disabled">删除</button>
             <button id="rotate-plan-view" type="button" title="顺时针旋转画布 90°" aria-label="顺时针旋转画布 90 度">
@@ -892,7 +944,9 @@
           </div>
         </div>
         <div id="plan-stage" class="plan-stage">
+          <!-- tabindex="0" 让 canvas 能接收键盘事件（空格拖动、快捷键、方向微调都挂在它上面）。 -->
           <canvas id="plan-canvas" tabindex="0" aria-label="户型描摹画布"></canvas>
+          <!-- 空状态覆盖层：没有底图时显示引导，导入后由脚本隐藏而不是删除，切回空文档可直接复用。 -->
           <div id="canvas-empty" class="canvas-empty">
             <div>
               <span>01</span><strong>先导入一张户型图</strong>
@@ -910,9 +964,11 @@
             <button id="zoom-out" type="button">−</button><span id="zoom-value">100%</span
             ><button id="zoom-in" type="button">＋</button>
           </div>
+          <!-- 拖拽提示层：平时不占位，脚本在 dragenter 时加类显示、drop/dragleave 时收起。 -->
           <div id="drop-hint" class="drop-hint">松开即可放置</div>
         </div>
       </section>
+      <!-- ===== 右侧详情面板（3D 预览 + 属性） ===== -->
       <aside class="details-panel">
         <section class="preview-card panel-surface">
           <div class="preview-heading">
@@ -929,10 +985,13 @@
               <div class="preview-primary-controls">
                 <span class="preview-control-label">预览</span>
                 <div class="preview-scope-controls">
+                  <!-- 实时 = 每次改动立即重建场景；手动 = 攒到用户点「已更新」再渲染。
+                       data-preview-sync / data-preview-floor 的取值就是脚本里那套状态机的键，不要改写。 -->
                   <div class="preview-sync-switch" role="group" aria-label="3D 预览同步方式">
                     <button class="active" type="button" data-preview-sync="live">实时</button
                     ><button type="button" data-preview-sync="manual">手动</button>
                   </div>
+                  <!-- 全楼模式才会把各层在竖直方向堆起来，因此下面的层间距 / 等比例开关默认都是 hidden。 -->
                   <div class="preview-floor-switch" role="group" aria-label="3D 楼层显示">
                     <button class="active" type="button" data-preview-floor="active">当前层</button
                     ><button type="button" data-preview-floor="all">全楼</button>
@@ -950,6 +1009,7 @@
                   >
                 </div>
                 <span class="preview-control-spacer"></span>
+                <!-- 当前层与全楼两套固定机位是分开存的：切换显示范围不会互相覆盖（隐藏的那组在下面）。 -->
                 <div id="floor-camera-actions" class="fixed-camera-actions" role="group" aria-label="当前楼层视角">
                   <button id="save-camera-view" type="button" title="记录当前楼层的角度、缩放和投影方式">
                     保存视角
@@ -965,6 +1025,7 @@
                   aria-label="全楼总览视角"
                   hidden
                 >
+                  <!-- 与「保存视角」同理：没有存过机位时「恢复」保持禁用，避免恢复到一个凭空的默认角度。 -->
                   <button id="save-overview-view" type="button" title="保存当前全楼角度和投影方式">保存总览</button>
                   <button id="fixed-overview-view" type="button" title="恢复上次保存的全楼视角" disabled="disabled">
                     恢复总览
@@ -986,6 +1047,7 @@
                     <button class="active" type="button" data-camera-mode="orthographic">正交</button
                     ><button type="button" data-camera-mode="perspective">透视</button>
                   </div>
+                  <!-- 焦段只在透视模式下有意义，正交模式下脚本会把它置灰。 -->
                   <label class="camera-focal-control" title="仅在透视模式下生效"
                     ><span>焦段</span
                     ><input
@@ -1008,7 +1070,12 @@
               ><button id="open-base-lighting" class="open-base-lighting" type="button">进阶设置</button>
             </div>
           </div>
+          <!-- data-style 决定 3D 预览的底色主题，脚本会按它选背景与地面材质；
+               preview-3d 同时是 three.js 的挂载点，webgl-message / model-loading-status 都盖在它上面。 -->
           <div id="preview-3d" class="preview-3d" data-style="night">
+            <!-- 进阶设置面板默认 hidden，由「进阶设置」按钮开合；
+                 data-base-light-control 的取值与渲染缓存描述符里的灯光参数同名，
+                 改这里必须同步改 studio-app.js 的默认值与缓存键，否则缓存会串味。 -->
             <div id="base-light-controls" class="base-light-controls" hidden>
               <div class="base-light-controls-header">
                 <strong>基础光调节</strong><span class="base-light-drag-hint">按住拖动</span
@@ -1184,15 +1251,21 @@
                 </div>
               </div>
             </div>
+            <!-- 两张离屏 canvas 都是 hidden 的中间产物：light-cache 存便宜的灯光合图，
+                 render-shield 在重渲染时挡住画面避免看到半成品，二者都不参与布局。 -->
             <canvas id="preview-light-cache" class="preview-light-cache" hidden></canvas
             ><canvas id="preview-render-shield" class="preview-render-shield" hidden></canvas>
+            <!-- WebGL 创建失败时的兜底文案：只有真的起不来场景才显示，正常路径一直 hidden。 -->
             <div id="webgl-message" class="webgl-message" hidden>当前浏览器无法创建 3D 画面。</div>
+            <!-- 模型懒加载状态条：首次构建或切换楼层拉模型时才出现，避免用户以为页面卡死。 -->
             <div id="model-loading-status" class="model-loading-status" role="status" aria-live="polite" hidden>
               <span class="model-loading-spinner" aria-hidden="true"></span><span>正在加载模型…</span>
             </div>
           </div>
         </section>
         <div class="details-divider">
+          <!-- role="separator" + 拖动：把画布宽度和 3D 预览高度的分配权交给用户，
+               脚本监听 pointerdown/move 调整栅格比例并写回 studio.css 定义的 CSS 变量。 -->
           <button
             id="details-resizer"
             class="details-resizer"
@@ -1201,6 +1274,7 @@
             aria-label="拖动调整画布宽度和 3D 预览高度"
           ></button>
         </div>
+        <!-- ===== 属性检查器：按选中对象类型只放开一个 field-section ===== -->
         <section class="inspector-card panel-surface">
           <div class="section-heading">
             <div>
@@ -1213,6 +1287,8 @@
             <span>⌁</span><strong>选择画布中的对象</strong>
             <p>选中墙体、窗户、门或家具后，可在这里精确调整。</p>
           </div>
+          <!-- 表单整体 hidden，选中对象后才显示；下面每个 field-section 也各自 hidden，
+               脚本按选中类型只放出一个，字段之间不会互相干扰。 -->
           <form id="selection-inspector" class="selection-inspector" hidden>
             <div class="selection-heading">
               <strong id="selection-title">未选择</strong><span id="selection-id"></span
@@ -1227,6 +1303,7 @@
                 ></label
               >
             </div>
+            <!-- ===== 墙体属性 ===== -->
             <div id="wall-fields" class="field-section" hidden>
               <label>墙长<input id="wall-length" readonly="readonly" /></label>
               <div class="field-grid">
@@ -1249,6 +1326,8 @@
                   <input id="wall-thickness" type="number" min="0.01" max="3" step="0.01" />
                 </div>
               </div>
+              <!-- global 跟随左侧面板的通用透明度，custom 表示这面墙单独设值；
+                   这两种模式的取值会被写进文档，切模式时不要丢自定义值。 -->
               <div class="field-grid wall-opacity-fields">
                 <div class="light-batch-control">
                   <div>
@@ -1272,6 +1351,7 @@
                   <input id="wall-opacity" type="number" min="0" max="100" step="1" />
                 </div>
               </div>
+              <!-- auto 会按相邻墙线自动判断端点是否必须闭合，allowed 则允许留出开放端点（如隔断）。 -->
               <label class="door-type-field"
                 ><span>开放端点提醒</span
                 ><select id="wall-open-end-mode">
@@ -1280,6 +1360,7 @@
                 </select></label
               >
             </div>
+            <!-- ===== 窗户属性 ===== -->
             <div id="window-fields" class="field-section" hidden>
               <div class="field-grid">
                 <label>窗宽（m）<input id="window-width" type="number" min="0.3" max="20" step="0.05" /></label
@@ -1295,6 +1376,7 @@
                 </select></label
               >
             </div>
+            <!-- ===== 门属性：门类型的每个 option 值都对应一套几何与开合动画，新增类型必须两边同步 ===== -->
             <div id="door-fields" class="field-section" hidden>
               <label class="door-type-field"
                 >门类型<select id="door-type">
@@ -1317,6 +1399,7 @@
                 ><button id="door-swing" type="button">内外翻转</button>
               </div>
             </div>
+            <!-- ===== 栏杆属性 ===== -->
             <div id="railing-fields" class="field-section" hidden>
               <div class="field-grid">
                 <label>栏杆宽（m）<input id="railing-width" type="number" min="0.3" max="20" step="0.05" /></label
@@ -1324,6 +1407,7 @@
                 ><label>墙上位置<input id="railing-position" readonly="readonly" /></label>
               </div>
             </div>
+            <!-- ===== 物件属性：下面那些专属字段块都默认 hidden，脚本按 data-item-type 只显示匹配的一块 ===== -->
             <div id="item-fields" class="field-section" hidden>
               <div id="label-text-fields" class="label-text-fields" hidden>
                 <label>中文标题<input id="label-title" maxlength="24" autocomplete="off" /></label
@@ -1335,6 +1419,7 @@
                 ><label>底线长度（%）<input id="label-line-length" type="number" min="30" max="100" step="5" /></label>
               </div>
               <div id="light-fields" class="light-fields" hidden>
+                <!-- 灯组是可选归属：分组只影响批量操作与「全关」，不改变灯具本身的属性。 -->
                 <label>所属灯组<select id="light-group"></select></label>
                 <div class="field-grid">
                   <div class="light-batch-control">
@@ -1375,6 +1460,7 @@
                   </div>
                 </div>
               </div>
+              <!-- 窗帘轨道：L / U 型才有转角与左右两段长度，直线型下这些字段保持 hidden。 -->
               <div id="curtain-track-fields" hidden>
                 <label class="door-type-field"
                   ><span>轨道形状</span
@@ -1428,6 +1514,8 @@
                   预览打开：0% 为关闭，100% 为完全收拢。主边长度在下方调整，旋转可改变开口朝向；合拢位置沿整条轨道计算。
                 </p>
               </div>
+              <!-- 每个隐藏的 select 都对应一种物件的可选样式：id 与脚本里的字段名同名，
+                   value 会直接落进文档，因此改文字可以、改 value 不行。 -->
               <label id="curtain-position-field" class="door-type-field" hidden
                 ><span>收拢方式</span
                 ><select id="curtain-position">
@@ -1523,6 +1611,7 @@
                 </div>
               </div>
               <div class="field-grid item-transform-fields">
+                <!-- 离地高度是平面坐标之外的第三个维度：平面只记录 x/y，高度在这里单独调。 -->
                 <div id="item-elevation-field" class="light-batch-control">
                   <div>
                     <label for="item-elevation">离地（m）</label
@@ -1550,6 +1639,7 @@
                 /></label>
               </div>
               <div id="item-rotation-actions" class="rotation-actions">
+                <!-- data-rotate 的数值由脚本读取后累加，正负号表示方向，不要把它当成索引。 -->
                 <button type="button" data-rotate="-15">−15°</button
                 ><button type="button" data-rotate="-90">−90°</button
                 ><button type="button" data-rotate="90">＋90°</button
@@ -1560,12 +1650,27 @@
         </section>
       </aside>
     </main>
+    <!-- ===== 对话框集合：统一用原生 <dialog>，关闭依赖 form method="dialog" 的浏览器内建行为，
+         因此这里不需要（也不应该）自己写 display 显隐逻辑，showModal / close 由脚本调用。 ===== -->
+    <!-- ===== 小对话框：比例尺 / 重命名 / 删除 / 批量应用 / 导出提示 =====
+         共同约定：
+         - 都用 <form method="dialog">：原生提交即关闭，省掉手动 close()；分支靠各按钮的
+           id 或 value 区分，脚本读 dialog.returnValue 或直接绑 click。
+         - 样式基类是 .scale-dialog（窄条），再按语义叠加 .light-group-rename-dialog（改名/应用类）
+           或 .floor-delete-dialog（删除类）。这两个类名只决定配色与宽度，可以跨语义复用，
+           例如「删除导出预设」也挂 floor-delete-dialog。
+         - 文案里的可变部分（名称、路径、计数）都留成带 id 的空元素，打开前由脚本填充。 -->
+
+    <!-- 参考线比例尺：填这段参考线的真实米数，与只读的像素长度相除得到 pixelsPerMeter，
+         它是全场景唯一的像素↔米换算系数，后续墙长 / 窗宽 / 家具尺寸都按它计算。 -->
     <dialog id="scale-dialog" class="scale-dialog">
       <form id="scale-form" method="dialog">
         <button id="scale-close" class="dialog-close" type="button" aria-label="关闭">×</button>
         <span class="dialog-index">02 · SCALE REFERENCE</span>
         <h2>这条参考线实际有多长？</h2>
         <p>请填写图纸上这段距离的真实尺寸。之后墙长、窗宽和家具大小都会按这个比例计算。</p>
+        <!-- 左边是参考线的像素长度（只读展示），右边是用户填的真实米数；
+             两者相除得到 pixelsPerMeter，它是全场景唯一的像素↔米换算系数。 -->
         <div class="measurement-preview">
           <span id="reference-pixels">0 px</span><i>→</i
           ><label><input id="reference-meters" type="number" min="0.1" max="100" step="0.01" value="3" /> 米</label>
@@ -1576,6 +1681,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 重命名灯组所属区域。 -->
     <dialog id="area-rename-dialog" class="scale-dialog light-group-rename-dialog">
       <form id="area-rename-form" method="dialog">
         <button id="area-rename-close" class="dialog-close" type="button" aria-label="关闭">×</button>
@@ -1591,6 +1697,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 设置灯组所属区域：可选已有区域，也可就地新建并选中（新名称与选择框在同一行）。 -->
     <dialog id="light-group-area-dialog" class="scale-dialog light-group-rename-dialog">
       <form id="light-group-area-form" method="dialog">
         <button id="light-group-area-close" class="dialog-close" type="button" aria-label="关闭">×</button>
@@ -1612,6 +1719,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 灯组重命名：只改显示名，不改灯组 id，因此已引用该灯组的仪表盘控件不受影响。 -->
     <dialog id="light-group-rename-dialog" class="scale-dialog light-group-rename-dialog">
       <form id="light-group-rename-form" method="dialog">
         <button id="light-group-rename-close" class="dialog-close" type="button" aria-label="关闭">×</button>
@@ -1627,6 +1735,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 楼层重命名。 -->
     <dialog id="floor-rename-dialog" class="scale-dialog light-group-rename-dialog">
       <form id="floor-rename-form" method="dialog">
         <button id="floor-rename-close" class="dialog-close" type="button" aria-label="关闭">×</button>
@@ -1642,6 +1751,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 删除楼层：连同该层的墙体、门窗与家具一起移除；项目至少要留一层。 -->
     <dialog id="floor-delete-dialog" class="scale-dialog floor-delete-dialog">
       <form id="floor-delete-form" method="dialog">
         <button id="floor-delete-close" class="dialog-close" type="button" aria-label="关闭删除楼层提示">×</button>
@@ -1654,6 +1764,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 导出预设重命名：预设保存的是相机与导出范围，重命名不改变其内容。 -->
     <dialog id="export-preset-rename-dialog" class="scale-dialog light-group-rename-dialog">
       <form id="export-preset-rename-form" method="dialog">
         <button id="export-preset-rename-close" class="dialog-close" type="button" aria-label="关闭">×</button>
@@ -1669,6 +1780,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 删除导出预设（沿用删除类配色）。 -->
     <dialog id="export-preset-delete-dialog" class="scale-dialog floor-delete-dialog">
       <form id="export-preset-delete-form" method="dialog">
         <button id="export-preset-delete-close" class="dialog-close" type="button" aria-label="关闭删除存档提示">
@@ -1686,6 +1798,10 @@
         </div>
       </form>
     </dialog>
+    <!-- 保存冲突：PUT /api/v1/studio3d 返回 409（revision 与服务器不一致）时弹出。
+         这里刻意不给「自动合并」选项 —— 两个页面都在改同一份户型，静默合并必然覆盖掉一方的改动。 -->
+    <!-- 保存冲突（revision 不一致）：另一处已改过户型，自动保存暂停，只给两条明确出路——
+         加载服务器版本（丢弃本地）或用当前页面覆盖（丢弃远端），不做自动合并。 -->
     <dialog id="save-conflict-dialog" class="scale-dialog export-notice-dialog save-conflict-dialog">
       <form method="dialog">
         <span class="dialog-index">SAVE CONFLICT</span>
@@ -1698,6 +1814,9 @@
         </div>
       </form>
     </dialog>
+    <!-- 批量应用：先记录要改的值与文案，再把候选对象列出来让用户勾选；
+         两个对话框结构相同，只是候选集一个是灯具一个是墙体。 -->
+    <!-- 灯具属性批量应用：候选集是所有灯具。 -->
     <dialog id="light-property-apply-dialog" class="scale-dialog light-group-rename-dialog light-property-apply-dialog">
       <form id="light-property-apply-form" method="dialog">
         <button id="light-property-apply-close" class="dialog-close" type="button" aria-label="关闭">×</button>
@@ -1717,6 +1836,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 墙体属性批量应用：与灯具版结构相同，候选集换成墙体。 -->
     <dialog id="wall-property-apply-dialog" class="scale-dialog light-group-rename-dialog light-property-apply-dialog">
       <form id="wall-property-apply-form" method="dialog">
         <button id="wall-property-apply-close" class="dialog-close" type="button" aria-label="关闭">×</button>
@@ -1736,11 +1856,13 @@
         </div>
       </form>
     </dialog>
+    <!-- 同名导图已存在：覆盖是整体替换文件夹，未勾选的文件也会被删除，因此必须二次确认。 -->
     <dialog id="export-overwrite-dialog" class="scale-dialog export-notice-dialog">
       <form method="dialog">
         <button id="export-overwrite-close" class="dialog-close" type="button" aria-label="关闭同名导图提示">×</button>
         <span class="dialog-index">EXPORT EXISTS</span>
         <h2>同名导图已经存在</h2>
+        <!-- 覆盖是整体替换文件夹，而不是逐个文件合并：用户取消勾选的文件也会被删掉。 -->
         <p>
           导图“<strong id="export-overwrite-name"></strong>”已经保存在 NAS
           中。覆盖会整体替换原文件夹，原来存在但本次未勾选的文件也会删除。
@@ -1753,6 +1875,7 @@
         </div>
       </form>
     </dialog>
+    <!-- 导图保存完成：显示保存路径；标题与正文都用 id，因为同一对话框也用于「部分成功」等结果。 -->
     <dialog id="export-complete-dialog" class="scale-dialog export-notice-dialog export-complete-dialog">
       <form method="dialog">
         <button id="export-complete-close" class="dialog-close" type="button" aria-label="关闭导图完成提示">×</button>
@@ -1765,6 +1888,8 @@
         </div>
       </form>
     </dialog>
+    <!-- 导图工作区：尺寸、楼层与相机、文件夹名、导出内容四段；
+         预览区里的 export-safe-area 只是给构图用的参考框，不参与导出图像素。 -->
     <dialog id="export-dialog" class="export-dialog">
       <div class="export-workspace">
         <header class="export-heading">
@@ -1877,6 +2002,8 @@
               <div><strong>文件夹名</strong><small>保存到 NAS data/exports</small></div>
               <button id="export-package" class="export-section-action primary-action" type="button">保存导图</button>
             </div>
+            <!-- 文件夹名会同时出现在 URL 的 export-folder 参数与请求头 x-export-folder 上，
+                 因此后端按名字限定字符集；60 位的上限与后端的目录名校验一致。 -->
             <label class="export-folder-field"
               ><span>名称</span
               ><input id="export-folder-name" maxlength="60" autocomplete="off" placeholder="例如：一楼户型"
@@ -1958,7 +2085,9 @@
         </main>
       </div>
     </dialog>
+    <!-- 全局轻提示：单例，脚本改文案后加类淡出，不阻塞操作。 -->
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <!-- ===== 右键菜单：灯组 / 区域 / 楼层各一个，都是常态 hidden 的固定定位小面板 ===== -->
     <div id="light-group-context-menu" class="light-group-context-menu" hidden>
       <button type="button" data-light-group-action="area">设置区域</button
       ><button type="button" data-light-group-action="rename">重命名</button
@@ -1973,6 +2102,8 @@
       <button type="button" data-floor-action="rename">重命名</button
       ><button type="button" data-floor-action="delete">删除楼层</button>
     </div>
+    <!-- 入口脚本：本页唯一的 module。它与 studio.css 必须共用同一条 ?v=，
+         否则浏览器会缓存两份模块实例，出现两套注册表与缓存版本号。 -->
     <script
       type="module"
       src="/static/3d-studio/studio-app.js?v=20260916013557"
