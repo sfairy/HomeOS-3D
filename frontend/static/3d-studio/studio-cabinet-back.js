@@ -1,12 +1,39 @@
+/**
+ * 外部柜类模型的几何修补。
+ *
+ * 位置：studio-external-models.js 在加载玻璃柜 / 书柜 / 吊柜的 glTF 之后调用本模块，
+ *   修掉导出模型里背板与侧板缺失或错位的问题，使柜体在场景中看起来是封闭的箱体。
+ * 对外：repairGlassCabinetBack（玻璃柜背板）与 repairWallCabinetSides（吊柜侧板 / 顶板）。
+ * 约定：靠材质名定位部件，命名规则为 `<类型>-material-<序号>`，序号与导出脚本绑定：
+ *   玻璃柜 / 书柜的背板是 0、外框是 10（书柜为 7）；吊柜的 0 / 1 / 2 分别是左板、侧板与顶板。
+ * 单位与坐标：长度单位米，直接沿用模型自身坐标系；两函数都就地替换网格的 geometry，
+ *   不改动变换与材质。
+ */
+
+/**
+ * 为玻璃柜 / 书柜补一块完整的背板。
+ *
+ * 原模型导出的背板常常比外框小一圈（或位置偏内），从背面看会露出缝隙。
+ * 这里以「外框与背板两者在面板局部空间里的包围盒」为准重建一块整板：
+ * 宽高对齐外框，进深从面板前表面一直延伸到最深处的 4 毫米之外。
+ *
+ * @param {object} THREE three.js 模块命名空间。
+ * @param {object} root 模型根节点。
+ * @param {string} [cabinetKind] 柜体类型前缀，决定材质名与背板序号，默认 glasscabinet。
+ * @returns {boolean} 找到并修补成功返回 true；缺件时返回 false 表示不做修改。
+ */
 export function repairGlassCabinetBack(THREE, root, cabinetKind = "glasscabinet") {
+  // 包围盒要用世界矩阵换算，先强制刷新一次矩阵，避免用到上一帧的陈旧变换。
   root.updateMatrixWorld(true);
   let panelMesh;
   let frameMesh;
   root.traverse(child => {
+    // 多材质网格的 material 是数组，无法按名字判断，直接跳过。
     if (!!child.isMesh && !Array.isArray(child.material)) {
       if (child.material?.name === cabinetKind + "-material-0") {
         panelMesh = child;
       }
+      // 书柜的外框序号与玻璃柜不同，按类型区分取材质名。
       if (
         child.material?.name ===
         cabinetKind + "-material-" + (cabinetKind === "bookcase" ? 7 : 10)
@@ -16,31 +43,38 @@ export function repairGlassCabinetBack(THREE, root, cabinetKind = "glasscabinet"
     }
   });
   if (!panelMesh || !frameMesh) {
+    // 两个部件缺任一都不修补：宁可保持原样，也不要凭空造一块位置错误的板。
     return false;
   }
   panelMesh.geometry.computeBoundingBox();
   frameMesh.geometry.computeBoundingBox();
   const panelBounds = panelMesh.geometry.boundingBox;
+  // 外框的顶点在它自己的局部空间里，先右乘外框世界矩阵、再左乘面板世界矩阵的逆，
+  // 换算到面板局部空间后才能与面板包围盒直接比较。
   const frameBounds = frameMesh.geometry.boundingBox
     .clone()
     .applyMatrix4(
       new THREE.Matrix4().copy(panelMesh.matrixWorld).invert().multiply(frameMesh.matrixWorld)
     );
+  // 背板背面比两者都深 4 毫米，盖住外框背边的接缝，同时不至于明显凸出柜体。
   const backFaceZ = Math.min(panelBounds.min.z, frameBounds.min.z) - 0.004;
   const repairGeometry = new THREE.BoxGeometry(
     frameBounds.max.x - frameBounds.min.x,
     frameBounds.max.y - frameBounds.min.y,
     panelBounds.max.z - backFaceZ
   );
+  // BoxGeometry 以中心为原点，这里平移到包围盒的实际中心位置。
   repairGeometry.translate(
     (frameBounds.min.x + frameBounds.max.x) / 2,
     (frameBounds.min.y + frameBounds.max.y) / 2,
     (backFaceZ + panelBounds.max.z) / 2
   );
+  // 新几何要参与后续的阴影 / 拾取计算，包围盒与包围球都需重建。
   repairGeometry.computeBoundingBox();
   repairGeometry.computeBoundingSphere();
   const originalGeometry = panelMesh.geometry;
   panelMesh.geometry = repairGeometry;
+  // 原几何可能被同一模型里的其它网格共用，只有确认无人引用时才释放。
   let isShared = false;
   root.traverse(traversedNode => {
     if (traversedNode !== panelMesh && traversedNode.geometry === originalGeometry) {
@@ -52,6 +86,17 @@ export function repairGlassCabinetBack(THREE, root, cabinetKind = "glasscabinet"
   }
   return true;
 }
+
+/**
+ * 把多块盒体合并成一个几何体。
+ *
+ * 先 toNonIndexed 转成非索引形式再拼接：索引形式合并时需要重算索引偏移，
+ * 合并后顶点数不多，牺牲一点顶点重复换取实现简单与绘制批次更少。
+ *
+ * @param {object} three three.js 模块命名空间。
+ * @param {Array<Array<number>>} boxes 每项为 [宽, 高, 深, 偏移X, 偏移Y, 偏移Z]。
+ * @returns {object} 合并后的 BufferGeometry（含 position / normal / uv）。
+ */
 function buildBoxGeometry(three, boxes) {
   const positions = [];
   const normals = [];
@@ -59,8 +104,10 @@ function buildBoxGeometry(three, boxes) {
   for (const [boxWidth, boxHeight, boxDepth, offsetX, offsetY, offsetZ] of boxes) {
     const boxGeometry = new three.BoxGeometry(boxWidth, boxHeight, boxDepth);
     const nonIndexed = boxGeometry.toNonIndexed();
+    // 索引版的临时几何此时已无用，立即释放。
     boxGeometry.dispose();
     nonIndexed.translate(offsetX, offsetY, offsetZ);
+    // 属性数组展开后顺序追加，多块盒体在同一个几何里共存。
     positions.push(...nonIndexed.attributes.position.array);
     normals.push(...nonIndexed.attributes.normal.array);
     uvs.push(...nonIndexed.attributes.uv.array);
@@ -74,7 +121,20 @@ function buildBoxGeometry(three, boxes) {
   geometry.computeBoundingSphere();
   return geometry;
 }
+
+/**
+ * 重建吊柜的侧板与顶板。
+ *
+ * 导入模型的三种材质被贴到了错误的板块上，导致柜体侧面漏空、顶板变成一块悬空的板。
+ * 这里按外框的包围盒反推正确的板材位置，把三块板各自替换成若干块盒体的合并几何：
+ * 侧板拆成左右两片加顶部封条，顶板拆成上下两片，左板改成背板。
+ *
+ * @param {object} threeLib three.js 模块命名空间。
+ * @param {object} meshRoot 模型根节点。
+ * @returns {boolean} 三个部件齐全时返回 true；缺件时返回 false 且不做修改。
+ */
 export function repairWallCabinetSides(threeLib, meshRoot) {
+  // 材质名到网格的映射：吊柜每个部件用独立材质，名字唯一，可以据此定位。
   const meshByMaterialName = new Map();
   meshRoot.traverse(mesh => {
     if (mesh.isMesh && !Array.isArray(mesh.material)) {
@@ -90,18 +150,25 @@ export function repairWallCabinetSides(threeLib, meshRoot) {
   for (const panelMeshEntry of [leftPanelMesh, sidePanelMesh, topPanelMesh]) {
     panelMeshEntry.geometry.computeBoundingBox();
   }
+  // 三块板的包围盒都以同一模型坐标系为准，下面直接用它们推板厚与边界。
   const leftBounds = leftPanelMesh.geometry.boundingBox;
   const sideBounds = sidePanelMesh.geometry.boundingBox;
   const topBounds = topPanelMesh.geometry.boundingBox;
   const leftPanelWidth = leftBounds.max.x - leftBounds.min.x;
   const sidePanelDepth = sideBounds.max.z - sideBounds.min.z;
+  // 板厚取左板自身的进深（导出模型里左板就是一块厚度方向的薄板）。
   const leftPanelDepth = leftBounds.max.z - leftBounds.min.z;
+  // 左立板在模型坐标系里的 X 中心，用来把新几何体摆回原位。
   const leftPanelCenterX = (leftBounds.min.x + leftBounds.max.x) / 2;
+  // 侧板在模型坐标系里的 Z 中心，同上用于定位。
   const sidePanelCenterZ = (sideBounds.min.z + sideBounds.max.z) / 2;
   const bottomY = topBounds.min.y;
   const topY = sideBounds.max.y;
   const innerTopY = topBounds.max.y;
+  // 去掉两侧板厚后的可用内宽，上下的横板与背板都按这个宽度做。
   const innerPanelWidth = leftPanelWidth - leftPanelDepth * 2;
+  // 三个部件的替换几何：侧板组（左右立板 + 顶部封条）、顶板组（上下横板）、左板（背板）。
+  // 每个盒体的偏移量都按上一步推出的边界算出，保证拼接后恰好围成封闭柜体。
   const repairs = [
     [
       sidePanelMesh,
@@ -170,6 +237,7 @@ export function repairWallCabinetSides(threeLib, meshRoot) {
   for (const [targetMesh, replacementGeometry] of repairs) {
     const savedGeometry = targetMesh.geometry;
     targetMesh.geometry = replacementGeometry;
+    // 被换下的旧几何若仍被其它网格引用就不能释放，否则会连带破坏那些网格。
     let isReferenced = false;
     meshRoot.traverse(otherNode => {
       if (otherNode !== targetMesh && otherNode.geometry === savedGeometry) {

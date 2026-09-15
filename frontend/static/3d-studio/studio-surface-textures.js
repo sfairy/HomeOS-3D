@@ -1,11 +1,17 @@
 /**
- * Procedural surface textures for the studio model library.
+ * 工作室模型库的程序化表面贴图。
  *
- * Both the framed wall mural and the background wall are generated on a 2D canvas
- * so the models need no external image files. Every painter draws from a seeded
- * LCG, which keeps a style byte-identical across reloads and exports.
+ * 位置：3D 工作室里「挂画墙」的装饰画与「背景墙」的饰面材质都由本模块在线生成，
+ *   因此模型库不需要附带任何外部图片资源。
+ * 对外：风格常量表、样式归一化、以及 createMuralArtTexture / createFeatureWallTexture
+ *   两个贴图工厂（结果按风格缓存）。
+ * 关键约定：每个绘制函数都基于「带种子的 LCG」取随机数，
+ *   同一个风格在每次刷新与每次导出中都会画出逐字节相同的图像。
+ * 坐标与单位：绘制尺寸是贴图像素（挂画 768×512、背景墙 1024×768），
+ *   各绘制函数内部一律用宽高的比例值定位，与具体分辨率解耦。
  */
 
+// 挂画墙可选的艺术风格。
 export const MURAL_ART_STYLES = Object.freeze([
   "bauhaus",
   "colorfield",
@@ -15,6 +21,7 @@ export const MURAL_ART_STYLES = Object.freeze([
   "terrazzo"
 ]);
 
+// 背景墙可选饰面：大理石、木饰面、格栅、石材、清水混凝土、织物、金属。
 export const FEATURE_WALL_STYLES = Object.freeze([
   "marble",
   "wood",
@@ -26,8 +33,10 @@ export const FEATURE_WALL_STYLES = Object.freeze([
 ]);
 
 /**
- * Per-surface material settings so each background-wall cladding reads differently
- * in 3D, not only through its texture.
+ * 各饰面对应的材质参数：让同一种饰面在 3D 里除了贴图之外，粗糙度与金属度也各不相同。
+ *
+ * 只靠贴图无法体现材质差异（例如混凝土的漫反射与金属的高光），
+ * 因此每种风格各配一组颜色 / 粗糙度 / 金属度。
  */
 export const FEATURE_WALL_STYLE_MATERIAL = Object.freeze({
   marble: { color: 0xf7f7f5, roughness: 0.34, metalness: 0.03 },
@@ -39,26 +48,53 @@ export const FEATURE_WALL_STYLE_MATERIAL = Object.freeze({
   metal: { color: 0x9ba0a6, roughness: 0.38, metalness: 0.28 }
 });
 
+// 用 Set 做白名单查询：归一化函数会被频繁调用，线性查找没必要。
 const muralArtStyleSet = new Set(MURAL_ART_STYLES);
 const featureWallStyleSet = new Set(FEATURE_WALL_STYLES);
 
+/**
+ * 归一化挂画风格，非法值回落到第一个风格。
+ *
+ * @param {*} styleValue 原始风格值。
+ * @returns {string} 合法的风格名。
+ */
 export function normalizeMuralArtStyle(styleValue) {
   return muralArtStyleSet.has(styleValue) ? styleValue : MURAL_ART_STYLES[0];
 }
 
+/**
+ * 归一化背景墙饰面风格，非法值回落到第一个风格。
+ *
+ * @param {*} styleValue 原始风格值。
+ * @returns {string} 合法的风格名。
+ */
 export function normalizeFeatureWallStyle(styleValue) {
   return featureWallStyleSet.has(styleValue) ? styleValue : FEATURE_WALL_STYLES[0];
 }
 
-/** Deterministic pseudo-random source so a style always renders to the exact same artwork. */
+/**
+ * 确定性伪随机数源。
+ *
+ * @param {number} seed 种子。
+ * @returns {function(): number} 返回 [0, 1) 随机数的函数。
+ */
 function seededRandomSource(seed) {
   let randomSeed = seed >>> 0;
   return () => {
+    // 常数取自 Numerical Recipes 的 LCG（乘 1664525、加 1013904223），
+    // 再除以 2^32 归一化到 [0, 1)；>>> 0 保证中间结果留在 32 位无符号范围内。
     randomSeed = (randomSeed * 1664525 + 1013904223) >>> 0;
     return randomSeed / 4294967296;
   };
 }
 
+/**
+ * 按系数调整颜色明度。
+ *
+ * @param {number} hexColor 24 位 RGB 整数。
+ * @param {number} factor 明度系数，大于 1 变亮、小于 1 变暗。
+ * @returns {string} CSS rgb() 字符串；各通道夹在 0~255。
+ */
 function shadeColor(hexColor, factor) {
   const red = Math.min(255, Math.max(0, Math.round(((hexColor >> 16) & 255) * factor)));
   const green = Math.min(255, Math.max(0, Math.round(((hexColor >> 8) & 255) * factor)));
@@ -66,7 +102,16 @@ function shadeColor(hexColor, factor) {
   return "rgb(" + red + ", " + green + ", " + blue + ")";
 }
 
-/** Quadratic smoothing between sampled points so procedural veins and grain stay organic. */
+/**
+ * 用二次曲线平滑地串起一串采样点并描边。
+ *
+ * 直接连线会得到明显的折线感；这里以相邻点的中点为锚、
+ * 采样点本身为控制点做二次贝塞尔，让石纹与木纹看起来是自然生长的。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {Array<{x: number, y: number}>} points 采样点。
+ * @returns {void}
+ */
 function strokeSmoothPath(canvasCtx, points) {
   if (points.length < 2) {
     return;
@@ -74,7 +119,9 @@ function strokeSmoothPath(canvasCtx, points) {
   canvasCtx.beginPath();
   canvasCtx.moveTo(points[0].x, points[0].y);
   for (let index = 1; index < points.length - 1; index += 1) {
+    // 相邻两点的中点作为二次贝塞尔的锚点：曲线终点落在中点，才能自然接上下一段。
     const midX = (points[index].x + points[index + 1].x) / 2;
+    // 锚点的纵向分量。
     const midY = (points[index].y + points[index + 1].y) / 2;
     canvasCtx.quadraticCurveTo(points[index].x, points[index].y, midX, midY);
   }
@@ -83,6 +130,14 @@ function strokeSmoothPath(canvasCtx, points) {
   canvasCtx.stroke();
 }
 
+/**
+ * 包豪斯风格挂画：几何色块 + 一条手绘曲线 + 右侧刻度短线。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintMuralBauhaus(canvasCtx, width, height) {
   const muralBase = canvasCtx.createLinearGradient(0, 0, width, height);
   muralBase.addColorStop(0, "#f5f0e6");
@@ -140,6 +195,16 @@ function paintMuralBauhaus(canvasCtx, width, height) {
   }
 }
 
+/**
+ * 色域风格挂画：几块大面积的半透明圆角色块叠在竖向浅色条带上。
+ *
+ * 圆角半径由随机数决定，让每块色域的柔和程度略有差别。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintMuralColorField(canvasCtx, width, height) {
   const colorFieldRandom = seededRandomSource(74123);
   const muralBase = canvasCtx.createLinearGradient(0, 0, 0, height);
@@ -175,6 +240,14 @@ function paintMuralColorField(canvasCtx, width, height) {
   canvasCtx.strokeRect(width * 0.07, height * 0.09, width * 0.86, height * 0.82);
 }
 
+/**
+ * 线条风格挂画：46 条随机长度与透明度的斜线，加一段深蓝圆弧与红点、一条水平参考线。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintMuralLinework(canvasCtx, width, height) {
   const lineworkRandom = seededRandomSource(90211);
   canvasCtx.fillStyle = "#f6f3ec";
@@ -209,6 +282,14 @@ function paintMuralLinework(canvasCtx, width, height) {
   canvasCtx.stroke();
 }
 
+/**
+ * 色块风格挂画：四列自下而上堆叠的矩形色块，列间留竖向浅色缝。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintMuralBlocks(canvasCtx, width, height) {
   const blocksRandom = seededRandomSource(31577);
   canvasCtx.fillStyle = "#f2ece1";
@@ -246,6 +327,14 @@ function paintMuralBlocks(canvasCtx, width, height) {
   canvasCtx.fillRect(width * 0.52, height * 0.44, width * 0.06, height * 0.14);
 }
 
+/**
+ * 水墨风格挂画：14 团径向渐变的墨晕 + 一条黑色笔触 + 一道红色横笔与朱点。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintMuralInk(canvasCtx, width, height) {
   const inkRandom = seededRandomSource(60413);
   canvasCtx.fillStyle = "#f7f2e8";
@@ -310,6 +399,14 @@ function paintMuralInk(canvasCtx, width, height) {
   canvasCtx.fill();
 }
 
+/**
+ * 水磨石风格挂画：340 颗随机旋转的多边形石粒，叠两段粗圆弧与一块浅色遮盖圆。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintMuralTerrazzo(canvasCtx, width, height) {
   const terrazzoRandom = seededRandomSource(52019);
   canvasCtx.fillStyle = "#f3eee4";
@@ -357,6 +454,7 @@ function paintMuralTerrazzo(canvasCtx, width, height) {
   canvasCtx.stroke();
 }
 
+// 风格名 → 绘制函数；新增风格需要同时更新 MURAL_ART_STYLES 与本表。
 const muralPainters = Object.freeze({
   bauhaus: paintMuralBauhaus,
   colorfield: paintMuralColorField,
@@ -366,14 +464,23 @@ const muralPainters = Object.freeze({
   terrazzo: paintMuralTerrazzo
 });
 
+// 贴图按风格缓存：Canvas 绘制开销不小，同一风格全场景只生成一次。
 const muralArtTextures = new Map();
 
-/** Procedural artwork used by the framed wall mural so the model needs no external texture. */
+/**
+ * 生成（或取回缓存的）挂画贴图。
+ *
+ * @param {object} threeApi three.js 模块命名空间。
+ * @param {string} styleValue 风格值。
+ * @param {number} [maxAnisotropy] 渲染器支持的最大各向异性过滤级别。
+ * @returns {object|null} 贴图；取不到 2D 上下文时返回 null。
+ */
 export function createMuralArtTexture(threeApi, styleValue, maxAnisotropy = 1) {
   const muralStyle = normalizeMuralArtStyle(styleValue);
   if (muralArtTextures.has(muralStyle)) {
     return muralArtTextures.get(muralStyle);
   }
+  // 768×512 是挂画在两米宽墙面上仍够清晰的折中尺寸，再大对内存不划算。
   const canvasElement = document.createElement("canvas");
   canvasElement.width = 768;
   canvasElement.height = 512;
@@ -382,14 +489,24 @@ export function createMuralArtTexture(threeApi, styleValue, maxAnisotropy = 1) {
     return null;
   }
   muralPainters[muralStyle](canvasCtx, canvasElement.width, canvasElement.height);
+  // 基色贴图必须标为 sRGB，否则渲染器会按线性空间解释导致颜色发灰。
   const texture = new threeApi.CanvasTexture(canvasElement);
   texture.colorSpace = threeApi.SRGBColorSpace;
+  // 各向异性上限取 8：足以让斜视角度下的纹路不糊，又不会在小设备上耗费过多采样。
   texture.anisotropy = Math.min(maxAnisotropy || 1, 8);
   texture.needsUpdate = true;
   muralArtTextures.set(muralStyle, texture);
   return texture;
 }
 
+/**
+ * 大理石饰面：白底 + 柔和的云斑 + 9 条粗黑纹 + 46 条细纹 + 明暗噪点。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintFeatureWallMarble(canvasCtx, width, height) {
   const marbleRandom = seededRandomSource(88117);
   const surfaceBase = canvasCtx.createLinearGradient(0, 0, width, height);
@@ -424,7 +541,7 @@ function paintFeatureWallMarble(canvasCtx, width, height) {
     );
   }
   canvasCtx.lineCap = "round";
-  // Bold black stripe veins give the classic white-marble contrast.
+  // 粗黑主纹是白色大理石最典型的对比特征，宽度与透明度随随机数变化。
   for (let vein = 0; vein < 9; vein += 1) {
     const veinPoints = [];
     let veinX = width * (-0.04 + marbleRandom() * 1.08);
@@ -439,7 +556,7 @@ function paintFeatureWallMarble(canvasCtx, width, height) {
     canvasCtx.lineWidth = 1.6 + marbleRandom() * 5.2;
     strokeSmoothPath(canvasCtx, veinPoints);
   }
-  // Thin secondary branches in softer black keep the stone from reading as printed stripes.
+  // 再补一层更细、更淡的分支纹：只有主纹的话会像印刷的条纹而不像石材。
   for (let fine = 0; fine < 46; fine += 1) {
     const finePoints = [];
     let fineX = marbleRandom() * width;
@@ -465,6 +582,14 @@ function paintFeatureWallMarble(canvasCtx, width, height) {
   }
 }
 
+/**
+ * 木饰面：四块竖向拼板，每块带横向渐变的底色、120 条木纹与若干年轮节疤。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintFeatureWallWood(canvasCtx, width, height) {
   const woodRandom = seededRandomSource(45119);
   const grainPalette = [0xa4713f, 0x8c5c31, 0xb98a54];
@@ -493,6 +618,7 @@ function paintFeatureWallWood(canvasCtx, width, height) {
       const grainPoints = [];
       let grainX = plankX + woodRandom() * plankWidth;
       let grainY = -height * 0.06;
+      // 木纹整体沿板宽方向的漂移量（±4.5% 板宽）：让纹路不总是与板长方向平行。
       const grainDrift = (woodRandom() - 0.5) * plankWidth * 0.09;
       grainPoints.push({ x: grainX, y: grainY });
       while (grainY < height * 1.06) {
@@ -535,6 +661,14 @@ function paintFeatureWallWood(canvasCtx, width, height) {
   canvasCtx.fillRect(width - 2.4, 0, 2.4, height);
 }
 
+/**
+ * 木格栅饰面：深色凹槽底 + 等距竖条，竖条中间有一条高光细线。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintFeatureWallSlat(canvasCtx, width, height) {
   const slatRandom = seededRandomSource(70841);
   const slatCount = Math.max(12, Math.round(width / 34));
@@ -569,6 +703,14 @@ function paintFeatureWallSlat(canvasCtx, width, height) {
   canvasCtx.fillRect(0, 0, width, height);
 }
 
+/**
+ * 石材墙面：3×2 块板材，每块在基准色上做明度浮动，并叠加云斑、细纹与白色噪点。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintFeatureWallStone(canvasCtx, width, height) {
   const stoneRandom = seededRandomSource(25309);
   const slabColumns = 3;
@@ -636,6 +778,14 @@ function paintFeatureWallStone(canvasCtx, width, height) {
   }
 }
 
+/**
+ * 清水混凝土饰面：中性灰底 + 34 团云斑 + 16 道抹刀弧痕 + 两层噪点。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintFeatureWallConcrete(canvasCtx, width, height) {
   const concreteRandom = seededRandomSource(13627);
   const surfaceBase = canvasCtx.createLinearGradient(0, 0, width, height);
@@ -698,6 +848,16 @@ function paintFeatureWallConcrete(canvasCtx, width, height) {
   }
 }
 
+/**
+ * 织物饰面：底色 + 22 团柔斑 + 3 像素间距的经纬织纹 + 90 道横向竹节纱。
+ *
+ * 织纹用奇偶列 / 行交替的明暗线模拟平纹织物，间距 3 像素是像素与观感的折中。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintFeatureWallFabric(canvasCtx, width, height) {
   const fabricRandom = seededRandomSource(38971);
   canvasCtx.fillStyle = shadeColor(0xc9c0b2, 1);
@@ -748,6 +908,14 @@ function paintFeatureWallFabric(canvasCtx, width, height) {
   }
 }
 
+/**
+ * 金属饰面：多段竖向灰度渐变模拟反射 + 900 道拉丝 + 12 道高光条。
+ *
+ * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
+ * @param {number} width 画布宽（像素）。
+ * @param {number} height 画布高（像素）。
+ * @returns {void}
+ */
 function paintFeatureWallMetal(canvasCtx, width, height) {
   const metalRandom = seededRandomSource(19237);
   const surfaceBase = canvasCtx.createLinearGradient(0, 0, 0, height);
@@ -787,6 +955,7 @@ function paintFeatureWallMetal(canvasCtx, width, height) {
   }
 }
 
+// 饰面名 → 绘制函数；新增饰面需要同时更新 FEATURE_WALL_STYLES 与本表。
 const featureWallPainters = Object.freeze({
   marble: paintFeatureWallMarble,
   wood: paintFeatureWallWood,
@@ -797,14 +966,23 @@ const featureWallPainters = Object.freeze({
   metal: paintFeatureWallMetal
 });
 
+// 背景墙饰面贴图同样按风格缓存。
 const featureWallTextures = new Map();
 
-/** Procedural cladding for the background wall so no external texture file is required. */
+/**
+ * 生成（或取回缓存的）背景墙饰面贴图。
+ *
+ * @param {object} threeApi three.js 模块命名空间。
+ * @param {string} styleValue 饰面风格值。
+ * @param {number} [maxAnisotropy] 渲染器支持的最大各向异性过滤级别。
+ * @returns {object|null} 贴图；取不到 2D 上下文时返回 null。
+ */
 export function createFeatureWallTexture(threeApi, styleValue, maxAnisotropy = 1) {
   const wallStyle = normalizeFeatureWallStyle(styleValue);
   if (featureWallTextures.has(wallStyle)) {
     return featureWallTextures.get(wallStyle);
   }
+  // 背景墙尺寸更大，用 1024×768，纹理细节（木纹、拉丝）才经得起近看。
   const canvasElement = document.createElement("canvas");
   canvasElement.width = 1024;
   canvasElement.height = 768;

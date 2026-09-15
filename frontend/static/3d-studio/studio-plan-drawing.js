@@ -1,27 +1,77 @@
+/**
+ * 平面图叠加层的绘制工具。
+ *
+ * 位置：3D 工作室的平面视图（俯视示意图）在 three.js 画布之上叠一层 2D Canvas，
+ *   本模块提供这层 Canvas 的基础图元：米制网格、线段、端点、告警圈与浮标文字。
+ * 对外：drawTrackedText（可控字距文本）与 createPlanDrawingTools（图元工厂）。
+ * 坐标约定：入参一律是「设计图平面坐标」（像素单位，与户型数据同一套），
+ *   由调用方注入的 planToScreen / screenToPlan 负责与屏幕像素互转；
+ *   pixelsPerMeter 给出当前设计图坐标系下每米对应的像素数。
+ * 副作用：所有图元都只写调用方提供的 2D 上下文，且各自 save / restore，
+ *   不向外泄漏绘图状态。
+ */
+
+/**
+ * 逐字绘制文本，以支持字距（letter-spacing）。
+ *
+ * Canvas 2D 原生没有字距设置，只能自己累计游标逐字绘制；
+ * 当整串宽度超出 maxWidthPx 时，对整体做横向压缩（而不是截断或换行），
+ * 保证标签在窄空间里仍然完整可读。
+ *
+ * @param {CanvasRenderingContext2D} textContext 目标上下文。
+ * @param {string} text 文本内容。
+ * @param {number} originX 起始 X（屏幕像素）。
+ * @param {number} originY 基线 Y（屏幕像素）。
+ * @param {number} trackingPx 字间距（屏幕像素）。
+ * @param {number} maxWidthPx 允许的最大宽度（屏幕像素）。
+ * @returns {number} 实际占用宽度；文本为空时返回 0。
+ */
 export function drawTrackedText(textContext, text, originX, originY, trackingPx, maxWidthPx) {
+  // 用展开运算符按码点切分，避免把 emoji 等代理对字符拆成两半。
   const characters = [...String(text || "")];
   if (!characters.length) {
     return 0;
   }
   const glyphWidths = characters.map(glyph => textContext.measureText(glyph).width);
+  // 总宽 = 各字宽之和 + 字间距 ×（字数 - 1），单字时没有字间距。
   const totalWidth =
     glyphWidths.reduce((accumulatedWidth, glyphWidth) => accumulatedWidth + glyphWidth, 0) +
     Math.max(characters.length - 1, 0) * trackingPx;
+  // 只在超宽时压缩（widthScale 上限为 1），空串或零宽时按 1 处理防止除零。
   const widthScale = totalWidth > 0 ? Math.min(1, maxWidthPx / totalWidth) : 1;
   textContext.save();
   textContext.translate(originX, originY);
+  // 横向缩放交给变换矩阵，字形本身不变形到不可读。
   textContext.scale(widthScale, 1);
   textContext.textAlign = "left";
   textContext.textBaseline = "middle";
   let cursorX = 0;
   characters.forEach((character, characterIndex) => {
     textContext.fillText(character, cursorX, 0);
+    // 最后一个字符后面不再补字距，否则返回值会比实际视觉宽度大。
     cursorX +=
       glyphWidths[characterIndex] + (characterIndex < characters.length - 1 ? trackingPx : 0);
   });
   textContext.restore();
+  // 返回压缩后的宽度，便于调用方排布相邻元素。
   return totalWidth * widthScale;
 }
+
+/**
+ * 创建一组绑定到具体画布与坐标转换函数的绘图工具。
+ *
+ * @param {object} options 依赖注入。
+ * @param {CanvasRenderingContext2D} options.context 目标 2D 上下文。
+ * @param {function({x: number, y: number}): {x: number, y: number}} options.planToScreen
+ *   设计图平面坐标 → 屏幕坐标。
+ * @param {function({x: number, y: number}): {x: number, y: number}} options.screenToPlan
+ *   屏幕坐标 → 设计图平面坐标。
+ * @param {function(): number} options.pixelsPerMeter 当前每米对应的设计图像素数。
+ * @param {function(): {width: number, height: number}} options.getCanvasSize 画布尺寸。
+ * @param {function(): number} options.getViewZoom 当前视图缩放倍数。
+ * @returns {{drawMetricGrid: Function, drawLine: Function, drawPoint: Function,
+ *   drawOpenEndpointWarning: Function, drawFloatingLabel: Function}} 绘图工具集。
+ */
 export function createPlanDrawingTools({
   context: context,
   planToScreen: planToScreen,
@@ -30,13 +80,21 @@ export function createPlanDrawingTools({
   getCanvasSize: getCanvasSize,
   getViewZoom: getViewZoom
 }) {
+  /**
+   * 绘制米制网格：按当前缩放自适应的步长，只画可见区域内的横纵线。
+   *
+   * @returns {void}
+   */
   function drawMetricGrid() {
     const meterScale = pixelsPerMeter();
+    // 比例尺尚未就绪（如画布还没量出尺寸）时直接跳过，避免画出错误间距的网格。
     if (!meterScale) {
       return;
     }
     const { width: canvasWidth, height: canvasHeight } = getCanvasSize();
     const zoom = getViewZoom();
+    // 基准步长半米，再按缩放把屏幕上的间距收敛到 18~100 像素：
+    // 太密会糊成灰底，太疏则失去参照作用；翻倍 / 减半保证步长始终是 0.5 米的整数倍。
     let gridStep = meterScale * 0.5;
     while (gridStep * zoom < 18) {
       gridStep *= 2;
@@ -44,6 +102,7 @@ export function createPlanDrawingTools({
     while (gridStep * zoom > 100) {
       gridStep /= 2;
     }
+    // 只有可见区域需要画线，用画布四角反算设计图范围即可。
     const canvasCorners = [
       {
         x: 0,
@@ -68,6 +127,7 @@ export function createPlanDrawingTools({
     const maxPlanY = Math.max(...canvasCorners.map(cornerForMaxY => cornerForMaxY.y));
     context.save();
     context.lineWidth = 1;
+    // 起点对齐到步长整数倍，保证缩放时网格线不会整体漂移。
     for (
       let gridX = Math.floor(minPlanX / gridStep) * gridStep;
       gridX <= maxPlanX;
@@ -81,6 +141,7 @@ export function createPlanDrawingTools({
         x: gridX,
         y: maxPlanY
       });
+      // 半米索引为偶数即整米线，用更深的颜色区分主次网格。
       const halfMeterIndexX = Math.round((gridX / meterScale) * 2);
       context.strokeStyle =
         halfMeterIndexX % 2 === 0 ? "rgba(91, 119, 139, .13)" : "rgba(91, 119, 139, .065)";
@@ -89,6 +150,7 @@ export function createPlanDrawingTools({
       context.lineTo(screenBottom.x, screenBottom.y);
       context.stroke();
     }
+    // 纵线同理；横纵两次绘制分开做，是为了让主次线色能各按各的索引判断。
     for (
       let gridY = Math.floor(minPlanY / gridStep) * gridStep;
       gridY <= maxPlanY;
@@ -112,13 +174,24 @@ export function createPlanDrawingTools({
     }
     context.restore();
   }
+
+  /**
+   * 绘制一条设计图线段。
+   *
+   * @param {{x: number, y: number}} fromPlan 起点（设计图平面坐标）。
+   * @param {{x: number, y: number}} toPlan 终点（设计图平面坐标）。
+   * @param {object} [lineOptions] 样式：color / width / cap / dash。
+   * @returns {void}
+   */
   function drawLine(fromPlan, toPlan, lineOptions = {}) {
     const fromScreen = planToScreen(fromPlan);
     const toScreen = planToScreen(toPlan);
     context.save();
     context.strokeStyle = lineOptions.color || "#fff";
     context.lineWidth = lineOptions.width || 1;
+    // 圆头端点让首尾相接的线段不留缺口。
     context.lineCap = lineOptions.cap || "round";
+    // 虚线样式由调用方给出（例如用虚线区分参考线），未给则沿用上一段实线设置。
     if (lineOptions.dash) {
       context.setLineDash(lineOptions.dash);
     }
@@ -128,9 +201,19 @@ export function createPlanDrawingTools({
     context.stroke();
     context.restore();
   }
+
+  /**
+   * 绘制一个端点圆点（深色实心 + 彩色描边）。
+   *
+   * @param {{x: number, y: number}} planPoint 端点（设计图平面坐标）。
+   * @param {string} strokeColor 描边颜色，用于区分端点类型。
+   * @param {number} [radiusPx] 屏幕半径（像素），默认 4。
+   * @returns {void}
+   */
   function drawPoint(planPoint, strokeColor, radiusPx = 4) {
     const screenPoint = planToScreen(planPoint);
     context.save();
+    // 深色实心 + 彩色描边，保证在浅色底图与深色底图上都能看清。
     context.fillStyle = "#0e151b";
     context.strokeStyle = strokeColor;
     context.lineWidth = 2;
@@ -140,10 +223,19 @@ export function createPlanDrawingTools({
     context.stroke();
     context.restore();
   }
+
+  /**
+   * 绘制「墙体未闭合」告警标记（红色发光圈）。
+   *
+   * @param {{x: number, y: number}} endpointPlan 未闭合端点（设计图平面坐标）。
+   * @returns {void}
+   */
   function drawOpenEndpointWarning(endpointPlan) {
     const endpointScreen = planToScreen(endpointPlan);
     context.save();
+    // 强制不透明：告警标记不能因为全局透明度设置而被淡化。
     context.globalAlpha = 1;
+    // 红色外发光 + 半透明填充圈 + 中心实心点，共三层以突出「墙体未闭合」的端点。
     context.shadowColor = "rgba(255, 84, 76, .75)";
     context.shadowBlur = 12;
     context.fillStyle = "rgba(255, 84, 76, .18)";
@@ -153,6 +245,7 @@ export function createPlanDrawingTools({
     context.arc(endpointScreen.x, endpointScreen.y, 9, 0, Math.PI * 2);
     context.fill();
     context.stroke();
+    // 关掉阴影再画中心点，否则小圆点会被自己的发光糊掉。
     context.shadowBlur = 0;
     context.fillStyle = "#ff6258";
     context.beginPath();
@@ -160,7 +253,17 @@ export function createPlanDrawingTools({
     context.fill();
     context.restore();
   }
+
+  /**
+   * 在锚点正上方绘制带底框的浮标文字标签。
+   *
+   * @param {{x: number, y: number}} anchorPlan 锚点（设计图平面坐标）。
+   * @param {string} labelText 文本内容；为空时直接返回。
+   * @param {string} [labelColor] 文字颜色，默认浅灰。
+   * @returns {void}
+   */
   function drawFloatingLabel(anchorPlan, labelText, labelColor = "#dce3e8") {
+    // 空文本直接返回，省掉一次测量与一次绘制。
     if (!labelText) {
       return;
     }
@@ -169,11 +272,13 @@ export function createPlanDrawingTools({
     context.font = "600 10px ui-monospace, monospace";
     context.textAlign = "center";
     context.textBaseline = "middle";
+    // 底框宽度跟随文本宽度（左右各留 6 像素内边距）。
     const labelWidth = context.measureText(labelText).width + 12;
     context.fillStyle = "rgba(8, 13, 18, .88)";
     context.strokeStyle = "rgba(255, 255, 255, .11)";
     context.lineWidth = 1;
     context.beginPath();
+    // 标签悬在锚点上方 25 像素处，避免遮挡锚点本身的图形。
     context.roundRect(anchorScreen.x - labelWidth / 2, anchorScreen.y - 25, labelWidth, 18, 5);
     context.fill();
     context.stroke();
