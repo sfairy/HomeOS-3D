@@ -1,3 +1,8 @@
+"""口令、会话令牌与 Cookie 的密码学工具。
+
+只提供无状态的纯函数，不碰数据库也不读配置内容（只读 Settings 里的开关）。
+所有随机值一律走 secrets 模块，不用 random，避免可预测的会话令牌。
+"""
 from __future__ import annotations
 
 import hashlib
@@ -10,14 +15,22 @@ from starlette.responses import Response
 
 from .config import Settings
 
+# 模块级单例：PasswordHasher 内部会缓存参数，重复构造纯属浪费。
 password_hasher = PasswordHasher()
 
 
 def hash_password(password: str) -> str:
+    """把明文口令哈希成 argon2 串（含盐与参数，可直接入库）。"""
     return password_hasher.hash(password)
 
 
 def verify_password(password_hash: str, password: str) -> bool:
+    """校验口令是否匹配哈希。
+
+    哈希格式非法与口令不匹配都返回 False，不向外区分二者 ——
+    区分等于把「该用户是否存在 / 哈希是否损坏」暴露给攻击者。
+    因此登录流程固定走一次校验，避免用响应时间枚举用户名。
+    """
     try:
         return password_hasher.verify(password_hash, password)
     except (InvalidHashError, VerifyMismatchError):
@@ -25,17 +38,33 @@ def verify_password(password_hash: str, password: str) -> bool:
 
 
 def new_session_token() -> str:
+    """生成新的会话随机令牌（32 字节，URL 安全 base64）。"""
     return secrets.token_urlsafe(32)
 
 
 def session_token_hash(token: str) -> str:
+    """会话令牌入库前的哈希。
+
+    库里只存哈希不存原文：即使数据库泄露也无法直接拿去冒用会话。
+    这里用 sha256 而非 argon2 是因为令牌本身已是高熵随机值，
+    不需要抗爆破的慢哈希，而每次请求都要查库、必须够快。
+    """
     return hashlib.sha256(token.encode('utf-8')).hexdigest()
 
 
 def session_expiry(max_age_seconds: int) -> datetime:
+    """按有效期算出会话的绝对过期时间（UTC）。"""
     return datetime.now(timezone.utc) + timedelta(seconds=max_age_seconds)
 
 
 def set_display_cookie(response: Response, settings: Settings, token: str) -> None:
+    """写入中控设备 Cookie。
+
+    有效期取 display_cookie_max_age_seconds（默认十年），墙面平板
+    不应该因为 Cookie 过期而要求重新配对；同时刷新 max_age 与 expires，
+    兼容只认其中一个的旧浏览器。
+    """
     max_age = settings.display_cookie_max_age_seconds
+    # httponly 防脚本读取；samesite=lax 允许展示页被同源 iframe 打开；
+    # path='/' 保证 /display/* 与 /api/* 都能带上这个 Cookie。
     response.set_cookie(key=settings.display_cookie_name, value=token, max_age=max_age, expires=datetime.now(timezone.utc) + timedelta(seconds=max_age), httponly=True, secure=settings.cookie_secure, samesite='lax', path='/')

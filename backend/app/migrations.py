@@ -1,3 +1,8 @@
+"""启动时的数据库迁移。
+
+本项目按首个发布版本维护，只有一条基线迁移（0001），
+因此这里不做升级前备份与失败回滚，只处理「库内记录了已下线的 revision」这一种情况。
+"""
 from __future__ import annotations
 
 import sqlite3
@@ -15,6 +20,11 @@ BASE_REVISION = '0001'
 
 
 def _migration_config(settings: Settings) -> Config:
+    """构造 Alembic 配置：脚本目录与数据库 URL 都从 Settings 推导。
+
+    显式覆盖 script_location 与 sqlalchemy.url，让迁移不依赖当前工作目录，
+    也不依赖 alembic.ini 里可能被改动的默认值。
+    """
     config = Config(settings.project_root / 'alembic.ini')
     config.set_main_option('script_location', str(settings.project_root / 'migrations'))
     config.set_main_option('sqlalchemy.url', settings.database_url)
@@ -22,7 +32,11 @@ def _migration_config(settings: Settings) -> Config:
 
 
 def _recorded_revision(database_path: Path) -> str | None:
-    """读取库内记录的 revision；库里没有版本表时返回 None。"""
+    """读取库内记录的 revision；库里没有版本表时返回 None。
+
+    用只读 URI 打开，避免在校验阶段意外创建或修改数据库文件
+    （库文件不存在时 sqlite3.connect 默认会新建）。
+    """
     with sqlite3.connect(f'file:{database_path}?mode=ro', uri=True) as connection:
         table = connection.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'alembic_version'"

@@ -1,1 +1,6 @@
-'''3D interaction add-on. Separate from the existing floor-plan studio.'''
+"""3D 交互增量包，与既有的 3D 户型图绘制（studio）互不依赖。
+
+分工：户型由 studio 负责绘制并保存成草稿，本包只把草稿冻结成只读快照
+（sceneId），再在其上叠加灯光、环境与设备控制，并提供舞台页与渲染缓存。
+两者共用同一份场景 JSON 格式，但拥有各自的路由前缀与授权能力码。
+"""

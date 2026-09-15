@@ -1,3 +1,7 @@
+"""正式展示页的访问控制辅助。
+
+只回答两个问题：项目名称如何变成展示地址，以及一个中控令牌当前是否仍然有效。
+"""
 from __future__ import annotations
 
 from urllib.parse import quote
@@ -20,10 +24,13 @@ def display_path(project_name: str) -> str:
 
 
 def active_display_device(database: Session, token: str) -> DisplayDevice | None:
-    """Resolve a display token while honoring its persistent pairing-code switch.
+    """用中控令牌查找仍然有效的设备，同时尊重配对码的启停开关。
 
-    Devices created before persistent pairing codes have no pairing_code_id and
-    remain valid until an administrator explicitly revokes them.
+    判定条件：令牌哈希匹配、设备未被吊销，且满足以下之一 ——
+    - 设备没有关联配对码（早期版本创建的设备），
+    - 其关联的配对码仍处于启用状态。
+    也就是说停用某个配对码即可让这一批设备同时失效，
+    而历史设备在没有配对码时依然有效，直到管理员显式吊销。
     """
     if not token:
         return None

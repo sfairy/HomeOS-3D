@@ -1,3 +1,16 @@
+"""Home Assistant 集成的主接口面：连接配置、目录查询、历史、同步与设备控制。
+
+HA 能力码分三档，写接口各自声明需要哪一档（读接口只要求 api）：
+- ha.control   —— 调用服务、浏览媒体，只影响设备状态，风险最低；
+- ha.sync      —— 触发目录同步，会批量改库；
+- ha.configure —— 保存 / 删除连接，会改 HA 地址与 Token，风险最高。
+
+中控设备的可见范围另由 dependencies 层收窄：本模块所有涉及实体的查询都会经过
+viewer_entity_ids，中控设备只能看到自己绑定的实体；管理员不受限。
+
+runtime_router 提供 /ws/runtime 实时状态推送：客户端订阅一批实体后，服务端把
+HA 侧的状态变化推给浏览器，并用心跳与配对状态复查维持这条长连接。
+"""
 from __future__ import annotations
 
 import asyncio
@@ -25,9 +38,15 @@ from ..schemas import HABrowseMediaRequest, HAConnectionInput, HAServiceCallRequ
 from ..security import session_token_hash
 
 router = APIRouter(prefix='/ha', tags=['home-assistant'])
+# 实时连接单独一个 router：不带 /ha 前缀，挂在 /api/v1/ws/runtime 下。
 runtime_router = APIRouter(tags=['runtime'])
+# 单条实时连接最多订阅的实体数：正常页面几十个，1000 已经远超合理范围。
 MAX_RUNTIME_ENTITIES = 1000
+# 中控配对状态的缓存窗口（秒）。展示页的心跳是秒级的，不缓存就等于每秒查一次库。
 DISPLAY_BINDING_CACHE_SECONDS = 1
+# 服务调用白名单：键为 (domain, service)，值为允许透传的参数名（空集表示不接受参数）。
+# 只有列在这里的组合才能被前端调用，多传的参数会被拒绝 ——
+# 这样即便前端被篡改，也无法把 HA 的任意服务当作远程执行入口。
 ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('homeassistant', 'toggle'): set(),
     ('button', 'press'): set(),
@@ -83,16 +102,28 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
 
 
 def require_admin(user: User) -> None:
+    """要求当前用户是 admin，否则 403。
+
+    改 HA 连接配置是整个集成里权限最高的一档，普通用户与中控设备都不允许。
+    """
     if user.role != 'admin':
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='仅管理员可以修改 Home Assistant 连接。')
     return None
 
 
 def active_connection(database: DatabaseSession) -> HAConnection | None:
+    """取当前活跃的 HA 连接；未配置返回 None。
+
+    全库最多只有一条 is_active 连接，因此用 scalar 而不是取列表。
+    """
     return database.scalar(select(HAConnection).where(HAConnection.is_active.is_(True)))
 
 
 def load_active_connection_snapshot(database_manager: Database) -> HAConnection | None:
+    """在独立会话里取活跃连接并在返回前 detach，供 async 路由用 to_thread 调用。
+
+    async 路由不能在事件循环里做同步查库，这个函数就是给 asyncio.to_thread 用的入口。
+    """
     with database_manager.session_factory() as database:
         connection = active_connection(database)
         if connection is not None:
@@ -101,10 +132,16 @@ def load_active_connection_snapshot(database_manager: Database) -> HAConnection 
 
 
 def load_translation_context(database_manager: Database) -> tuple[HAConnection | None, set[str]]:
+    """取活跃连接，以及需要向其请求实体翻译的集成名集合。
+
+    只统计「同步正常、来自 HA registry 且带 translation_key」的实体所属平台：
+    只有这些平台才可能有需要翻译的枚举值，其余平台请求了也是白跑一趟。
+    """
     with database_manager.session_factory() as database:
         connection = active_connection(database)
         if connection is None:
             return None, set()
+        # 同平台只需要一次，因此用 SQL 的 distinct 去重后再转集合。
         integrations = set(
             database.scalars(
                 select(HAEntity.platform)
@@ -126,7 +163,17 @@ def load_authorized_entity_context(
     viewer: ViewerPrincipal,
     entity_id: str,
 ) -> tuple[HAConnection | None, bool]:
+    """取活跃连接，并确认该实体在当前主体可见范围内且同步正常。
+
+    返回:
+        (connection, entity_exists)。connection 为 None 表示尚未配置 HA；
+        entity_exists 为 False 表示实体不存在、已禁用或已失联。
+
+    异常:
+        HTTPException 403: 实体不属于当前中控仪表盘（由 require_viewer_entity 抛出）。
+    """
     with database_manager.session_factory() as database:
+        # 先做可见范围门禁：越权访问在查库之前就被拦下。
         require_viewer_entity(database, viewer, entity_id)
         connection = active_connection(database)
         if connection is None:
@@ -146,7 +193,15 @@ def load_authorized_entity_context(
 
 
 def connection_payload(connection: HAConnection | None, request: Request) -> dict[str, Any]:
+    """把连接配置转成前端要的结构（camelCase）。
+
+    永不回传 Token 本体，只回 hasToken 布尔值。未配置时给一份带默认值的空壳，
+    让同一套前端逻辑既能渲染表单也能渲染状态。
+    lastError 优先用连接器的运行时错误（更实时）；连接正常时强制为 None，
+    避免界面继续展示早已过期的历史错误。
+    """
     connector = request.app.state.ha_connector
+    # 连接正常就不存在「运行时错误」，这里主动抹掉，防止旧错误一直挂在界面上。
     live_error = None if connector.connected else connector.runtime_error
     if connection is None:
         return {
@@ -162,6 +217,7 @@ def connection_payload(connection: HAConnection | None, request: Request) -> dic
         }
     return {
         'configured': True,
+        # 只回布尔值：Token 密文不出库这一层。
         'hasToken': bool(connection.encrypted_access_token),
         'connected': connector.connected,
         'baseUrl': connection.base_url,
@@ -169,26 +225,41 @@ def connection_payload(connection: HAConnection | None, request: Request) -> dic
         'verifyTls': connection.verify_tls,
         'version': connection.ha_version,
         'lastConnectedAt': connection.last_connected_at,
+        # 运行时错误优先于库里的历史错误。
         'lastError': None if connector.connected else (live_error or connection.last_error),
     }
 
 
 @router.get('/connection')
 def get_connection(request: Request, database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
+    """读取 HA 连接配置（需已登录且授权允许 api）。
+
+    返回 connection_payload 的结构：configured / hasToken / connected /
+    baseUrl / name / verifyTls / version / lastConnectedAt / lastError。
+    永不回传 Token 明文。
+    """
     return connection_payload(active_connection(database), request)
 
 
 @router.delete('/connection', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_connection(request: Request, database: DatabaseSession, user: LicensedUser) -> None:
+    """删除 HA 连接配置（需管理员 + 授权允许 api）。
+
+    顺序：先停连接器 → 删库 → 清空状态缓存并广播目录变更 → 重新启动连接器。
+    异常:
+        HTTPException 404: 当前没有可删除的连接。
+    """
     require_admin(user)
     connection = active_connection(database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Home Assistant 连接不存在。')
     connector = request.app.state.ha_connector
+    # 先停后台任务：否则删完配置后它还会拿着旧配置继续尝试连接。
     await connector.stop()
     try:
         database.delete(connection)
         database.commit()
+        # 清空并广播空目录，让所有在看的仪表盘立刻撤下旧实体，而不是等下一次快照。
         await connector.state_hub.replace([])
         await connector.state_hub.publish(
             {
@@ -198,21 +269,32 @@ async def delete_connection(request: Request, database: DatabaseSession, user: L
             }
         )
     except Exception:
+        # 清库失败就回滚并直接抛出，不能留下「连接器已停、配置还在」的半吊子状态。
         database.rollback()
         raise
     finally:
+        # 无论如何都要重启连接器：此时它进入未配置状态，后台任务不会空转。
         await connector.restart()
+    # 删除连接属于高影响操作，用 warning 级别留痕。
     request.app.state.global_log.append('warning', 'Home Assistant', '连接', 'Home Assistant 连接配置已删除')
     return None
 
 
 @router.post('/test')
 async def test_connection(payload: HATestRequest, request: Request, user: LicensedUser) -> dict[str, Any]:
+    """用请求里给的地址与 Token 试连 HA（需管理员 + 授权允许 api）。
+
+    请求体: base_url / access_token / verify_tls。
+    成功返回 {'ok': True, **HA 探测结果}（含 version）。
+    异常:
+        HTTPException 422: HA 不可达、Token 无效或 TLS 校验失败，detail 为中文文案。
+    """
     require_admin(user)
     client = HAClient(
         payload.base_url,
         payload.access_token,
         verify_tls=payload.verify_tls,
+        # 试连也走统一的 HA 超时配置，避免前端按钮一直转圈。
         timeout=request.app.state.settings.ha_request_timeout_seconds,
     )
     try:
@@ -229,6 +311,19 @@ async def save_connection(
     database: DatabaseSession,
     user: LicensedUser,
 ) -> dict[str, Any]:
+    """保存 HA 连接配置（需管理员 + 授权允许 api 与 ha.configure）。
+
+    门禁顺序是刻意的：先查能力码 ha.configure，再校验管理员身份 ——
+    这样即便身份不符，也不会把「授权不足」与「权限不足」两种原因的提示弄反。
+
+    请求体字段: name / base_url / access_token / verify_tls。
+    未填 access_token 时沿用已保存的 Token；首次连接必须填。
+    保存前一定先用新配置试连一次，试连不过则整份配置都不落库。
+    返回连接结构，并额外带 'test'（本次试连结果）。
+    异常:
+        403 授权不足或非管理员；422 试连失败、首次连接缺 Token、旧 Token 解密失败。
+    """
+    # ha.configure 是最高一档能力码：改 HA 地址与 Token 等于交出控制面。
     if not request.app.state.license_service.allows('ha.configure'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
     require_admin(user)
@@ -238,6 +333,7 @@ async def save_connection(
         if payload.access_token:
             token = payload.access_token
         elif connection is not None:
+            # 用户没改 Token，就把库里存的密文解出来复用。
             token = connector.cipher.decrypt(connection.encrypted_access_token)
         else:
             raise HTTPException(
@@ -251,6 +347,7 @@ async def save_connection(
             timeout=request.app.state.settings.ha_request_timeout_seconds,
         ).test_connection()
     except (HAClientError, CredentialCipherError) as error:
+        # 试连失败整份配置都不写库：绝不让打不通的地址沉到库里。
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
     if connection is None:
         connection = HAConnection(
@@ -258,6 +355,7 @@ async def save_connection(
             base_url=payload.base_url,
             encrypted_access_token=connector.cipher.encrypt(token),
             verify_tls=payload.verify_tls,
+            # 顺手把实测到的版本号记下来，界面展示不必依赖上一次的值。
             ha_version=tested.get('version'),
         )
         database.add(connection)
@@ -267,10 +365,13 @@ async def save_connection(
         connection.verify_tls = payload.verify_tls
         connection.ha_version = tested.get('version')
         connection.last_error = None
+        # 只在用户真的传了新 Token 时才改写密文，
+        # 避免用「解密再加密」的结果覆盖原值（密文每次都会变）。
         if payload.access_token:
             connection.encrypted_access_token = connector.cipher.encrypt(token)
     database.commit()
     database.refresh(connection)
+    # 配置变了，连接器需要按新地址与 Token 重新连一遍。
     await connector.restart()
     request.app.state.global_log.append(
         'success',
@@ -292,16 +393,26 @@ def list_entities(
     limit: int = Query(200, ge=1, le=500),
     offset: int = Query(0, ge=0),
 ) -> dict[str, Any]:
+    """分页查询实体目录（需已认证 + 授权允许 api）。
+
+    查询参数: search（同时匹配 entityId 与名称）、domain、areaId、status（同步状态）、
+    limit（默认 200，1..500）、offset。
+    中控设备只看到 viewer_entity_ids 允许的实体；管理员不受限。
+    返回 {items, total, limit, offset}，item 字段为 camelCase。
+    """
     connection = active_connection(database)
     if connection is None:
+        # 未配置 HA 时返回空页而不是报错：「有没有配置」由 /connection 接口负责表达。
         return {'items': [], 'total': 0, 'limit': limit, 'offset': offset}
     filters = [HAEntity.connection_id == connection.id]
     allowed_entity_ids = viewer_entity_ids(database, viewer)
     if allowed_entity_ids is not None:
         if not allowed_entity_ids:
+            # 没有任何可见实体就直接短路，避免生成 IN () 这种退化 SQL。
             return {'items': [], 'total': 0, 'limit': limit, 'offset': offset}
         filters.append(HAEntity.entity_id.in_(allowed_entity_ids))
     if search:
+        # 两端模糊匹配：entity_id 与显示名都查，前端搜索框不必区分。
         pattern = f'%{search.strip()}%'
         filters.append(or_(HAEntity.entity_id.ilike(pattern), HAEntity.name.ilike(pattern)))
     if domain:
@@ -312,14 +423,17 @@ def list_entities(
         filters.append(HAEntity.sync_status == sync_status)
     rows = (
         database.execute(
+            # 窗口函数把「过滤后的总数」和「当页数据」一次查出来，省掉一次单独的 count。
             select(HAEntity, func.count().over().label('total_count'))
             .where(*filters)
+            # 按域、实体 ID 排序：固定顺序才能让分页结果稳定可复现。
             .order_by(HAEntity.domain, HAEntity.entity_id)
             .offset(offset)
             .limit(limit)
         ).all()
     )
     items = [row[0] for row in rows]
+    # 当页为空（例如 offset 越界）时窗口函数无可读行，退回补一次 count 拿真实总数。
     total = int(rows[0][1]) if rows else int(database.scalar(select(func.count()).select_from(HAEntity).where(*filters)) or 0)
     return {
         'items': [
@@ -354,6 +468,14 @@ async def entity_translations(
     _database: DatabaseSession,
     _viewer: LicensedViewer,
 ) -> dict[str, Any]:
+    """拉取实体枚举值的简体中文翻译（需已认证 + 授权允许 api）。
+
+    返回 {'language': 'zh-Hans', 'resources': {...}}；未配置 HA 时 resources 为空字典，
+    前端保持集成自带的英文原值即可。
+    异常:
+        HTTPException 502: HA 不可达或凭证解密失败。
+    """
+    # 同步查库交给线程执行：本路由是 async，不能阻塞事件循环。
     connection, integrations = await asyncio.to_thread(load_translation_context, request.app.state.database)
     if connection is None:
         return {'language': 'zh-Hans', 'resources': {}}
@@ -375,6 +497,14 @@ async def entity_history(
     entity_id: str = Query(alias='entityId', min_length=3, max_length=255),
     hours: int = Query(24, ge=1, le=168),
 ) -> dict[str, Any]:
+    """读取实体的历史曲线（需已认证 + 授权允许 api）。
+
+    查询参数: entityId（必填）、hours（默认 24，1..168）。
+    返回 {entityId, hours, points}，points 为 [{timestamp, value}]。
+    异常:
+        403 实体不在当前主体可见范围；409 未配置 HA；
+        404 实体不存在、已禁用或已失联；502 HA 侧查询失败。
+    """
     connection, entity_exists = await asyncio.to_thread(
         load_authorized_entity_context,
         request.app.state.database,
@@ -385,6 +515,7 @@ async def entity_history(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
     if not entity_exists:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='实体不存在、已禁用或已失联。')
+    # HA 的历史接口按绝对起始时间查询，这里换算成 UTC 的 ISO 字符串。
     start_time = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
     try:
         history = await request.app.state.ha_connector.fetch_history(connection, entity_id, start_time, hours)
@@ -393,28 +524,42 @@ async def entity_history(
     points = []
     for item in history:
         value = history_state_value(item.get('state'))
+        # 非数值状态（unavailable、unknown 等）画不出曲线，直接跳过该点。
         if value is None:
             continue
+        # 优先用 last_updated；某些集成只回 last_changed，作为兜底。
         timestamp = item.get('last_updated') or item.get('last_changed')
         if not timestamp:
             continue
         points.append({'timestamp': str(timestamp), 'value': value})
     if len(points) > 480:
+        # 最多 480 个点：等间隔抽稀，既保留曲线形状又不把响应体撑大。
         step = len(points) / 480
         points = [points[min(len(points) - 1, int(index * step))] for index in range(480)]
     return {'entityId': entity_id, 'hours': hours, 'points': points}
 
 
 def history_state_value(raw_state: Any) -> float | str | None:
+    """把 HA 的历史状态转成曲线可用的数值或字符串。
+
+    返回:
+        能转成浮点数就返回浮点数（温度、湿度、电量等）；
+        否则返回去掉空白的字符串；空值与空串统一返回 None，由调用方跳过该点。
+    """
     try:
         return float(raw_state)
     except (TypeError, ValueError):
+        # state 可能是 'unavailable'、'on' 之类的文案，转不了数字就按字符串保留。
         value = str(raw_state or '').strip()
         return value or None
 
 
 @router.get('/areas')
 def list_areas(database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
+    """列出 HA 区域（需已登录 + 授权允许 api）。
+
+    返回 {items: [{areaId, name, aliases, status}]}；未配置 HA 时为空列表。
+    """
     connection = active_connection(database)
     if connection is None:
         return {'items': []}
@@ -424,6 +569,7 @@ def list_areas(database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]
             {
                 'areaId': item.area_id,
                 'name': item.name,
+                # 别名以 JSON 字符串入库，出参转回数组给前端。
                 'aliases': json.loads(item.aliases_json),
                 'status': item.sync_status,
             }
@@ -434,6 +580,12 @@ def list_areas(database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]
 
 @router.get('/devices')
 def list_devices(database: DatabaseSession, viewer: LicensedViewer) -> dict[str, Any]:
+    """列出 HA 设备（需已认证 + 授权允许 api）。
+
+    中控设备只看到「其下挂着可见实体」的设备：先用可见实体反查出 device_id 集合，
+    再按集合过滤，避免把同一 HA 里别的设备名字暴露给这块屏。
+    返回 {items: [{deviceId, name, manufacturer, model, registryMetadata?, areaId, status}]}。
+    """
     connection = active_connection(database)
     if connection is None:
         return {'items': []}
@@ -441,7 +593,9 @@ def list_devices(database: DatabaseSession, viewer: LicensedViewer) -> dict[str,
     allowed_entity_ids = viewer_entity_ids(database, viewer)
     if allowed_entity_ids is not None:
         if not allowed_entity_ids:
+            # 没有可见实体就没有可见设备。
             return {'items': []}
+        # 用子查询而不是把 ID 拉回 Python：条件规模不会随实体数量增长。
         allowed_device_ids = select(HAEntity.device_id).where(
             HAEntity.connection_id == connection.id,
             HAEntity.entity_id.in_(allowed_entity_ids),
@@ -455,9 +609,11 @@ def list_devices(database: DatabaseSession, viewer: LicensedViewer) -> dict[str,
         'items': [
             {
                 'deviceId': item.device_id,
+                # 用户改过的名字优先，其次才是集成注册的原始名。
                 'name': item.name_by_user or item.name,
                 'manufacturer': item.manufacturer,
                 'model': item.model,
+                # 元数据为空时不输出该键，前端不必额外判 null。
                 **({'registryMetadata': json.loads(item.registry_metadata_json)} if item.registry_metadata_json else {}),
                 'areaId': item.area_id,
                 'status': item.sync_status,
@@ -469,13 +625,20 @@ def list_devices(database: DatabaseSession, viewer: LicensedViewer) -> dict[str,
 
 @router.get('/sync/status')
 def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedViewer) -> dict[str, Any]:
+    """读取目录同步状态（需已认证 + 授权允许 api）。
+
+    返回 configured / connected / status / phase / 各次同步时间 / catalogRevision /
+    counts / lastError；未配置 HA 时返回最小的 not_configured 结构。
+    """
     connection = active_connection(database)
     if connection is None:
         return {'configured': False, 'status': 'not_configured', 'connected': False}
+    # 同步状态行以连接 ID 为主键，直接 get 即可。
     state = database.get(HASyncState, connection.id)
     return {
         'configured': True,
         'connected': request.app.state.ha_connector.connected,
+        # 还没建状态行时按 idle 处理，前端不必区分「空行」与「空闲」。
         'status': state.status if state else 'idle',
         'phase': state.phase if state else None,
         'lastFullSyncAt': state.last_full_sync_at if state else None,
@@ -487,6 +650,7 @@ def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedVi
             'devices': state.device_count if state else 0,
             'areas': state.area_count if state else 0,
         },
+        # 连接正常时一律为 None；异常时优先用连接器的实时错误，其次才是库里的历史错误。
         'lastError': None
         if request.app.state.ha_connector.connected
         else (
@@ -497,6 +661,14 @@ def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedVi
 
 @router.post('/sync')
 async def run_sync(request: Request, _database: DatabaseSession, user: LicensedUser) -> dict[str, Any]:
+    """触发一次全量同步（需管理员 + 授权允许 api 与 ha.sync）。
+
+    ha.sync 会批量改库（新增/更新/回收实体、设备、区域），风险高于 ha.control，
+    因此单独占一档能力码。
+    返回 {'ok': True, 'counts': {...}}。
+    异常:
+        403 授权不足或非管理员；409 未配置 HA；502 HA 侧错误或凭证解密失败。
+    """
     if not request.app.state.license_service.allows('ha.sync'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许同步 Home Assistant。')
     require_admin(user)
@@ -504,6 +676,7 @@ async def run_sync(request: Request, _database: DatabaseSession, user: LicensedU
     if connection is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
     try:
+        # reconciled=True：这次同步会顺带回收目录里已经消失的实体、设备与区域。
         counts = await request.app.state.ha_connector.sync_once(connection.id, reconciled=True)
     except (HAClientError, CredentialCipherError) as error:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
@@ -512,6 +685,11 @@ async def run_sync(request: Request, _database: DatabaseSession, user: LicensedU
 
 @router.get('/health')
 def ha_health(request: Request, database: DatabaseSession, _viewer: LicensedViewer) -> dict[str, Any]:
+    """HA 连接健康检查（需已认证 + 授权允许 api）。
+
+    返回 configured / connected / lastError；lastError 优先取连接器的运行时错误，
+    其次取库里记录的上次错误。
+    """
     connection = active_connection(database)
     connected = request.app.state.ha_connector.connected
     return {
@@ -532,26 +710,45 @@ async def call_service(
     _database: DatabaseSession,
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
+    """调用 HA 服务控制设备（需已认证 + 授权允许 api 与 ha.control）。
+
+    请求体: domain / service / entity_id / data（透传参数）。
+    校验顺序（都不通过就不必回源 HA）：
+    1. ha.control 能力码；
+    2. (domain, service) 必须在 ALLOWED_SERVICES 里；
+    3. data 里的字段必须是该服务允许的参数；
+    4. homeassistant.toggle 要求实体域本身可开关，其它服务要求服务域与实体域一致；
+    5. 实体必须在当前主体可见范围内且同步正常。
+    返回 {'ok': True, 'result': {...}}。
+    异常:
+        403 授权不足或服务不在白名单；422 参数不允许、域不匹配；
+        409 未配置 HA；404 实体不存在 / 禁用 / 失联；502 调用失败。
+    """
     if not request.app.state.license_service.allows('ha.control'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
+    # 白名单里没有这个 (domain, service) 就直接拒绝，不做任何回源尝试。
     allowed_fields = ALLOWED_SERVICES.get((payload.domain, payload.service))
     if allowed_fields is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail='该 Home Assistant 服务不在允许列表中。',
         )
+    # 未知参数一律拒绝：防止借 data 把任意高层字段塞给 HA 服务。
     unknown_fields = set(payload.data) - allowed_fields
     if unknown_fields:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f'服务参数不允许：{", ".join(sorted(unknown_fields))}',
         )
+    # 实体 ID 的域就是第一个点之前的部分。
     entity_domain = payload.entity_id.partition('.')[0]
+    # homeassistant.toggle 是跨域服务，必须额外确认实体域本身支持开关。
     if payload.domain == 'homeassistant' and payload.service == 'toggle' and entity_domain not in TOGGLE_ENTITY_DOMAINS:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail='该实体类型不支持切换动作。',
         )
+    # 非跨域服务要求域一致，避免用 light.turn_on 去操作一个 switch 实体。
     if payload.domain != 'homeassistant' and entity_domain != payload.domain:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -575,9 +772,11 @@ async def call_service(
             payload.data,
         )
     except (HAClientError, CredentialCipherError) as error:
+        # 标记诊断日志已记录，避免全局日志中间件为同一次失败再补一条。
         request.state.diagnostic_error_logged = True
         request.app.state.global_log.append(
             'error',
+            # 来源按操作主体区分，便于判断是哪块屏出的问题。
             '仪表盘编辑器' if viewer.is_admin_session else '展示设备',
             '设备操作',
             f'操作失败：{payload.entity_id} · {payload.domain}.{payload.service} · {error}',
@@ -586,9 +785,11 @@ async def call_service(
                 'service': f'{payload.domain}.{payload.service}',
                 'status': 502,
             },
+            # 失败栈也一并记下，排障时不必再复现一次。
             details=traceback.format_exc(),
         )
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
+    # 成功也记一条：设备操作属于审计重点，只记失败会缺一半上下文。
     request.app.state.global_log.append(
         'success',
         '仪表盘编辑器' if viewer.is_admin_session else '展示设备',
@@ -609,9 +810,18 @@ async def browse_media(
     _database: DatabaseSession,
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
+    """浏览媒体播放器的可播放内容（需已认证 + 授权允许 api 与 ha.control）。
+
+    请求体: entity_id / media_content_id / media_content_type（可空）。
+    返回 {'ok': True, 'result': HA 原始结果}。
+    异常:
+        403 授权不足；422 实体不是媒体播放器；409 未配置 HA；
+        404 实体不存在 / 禁用 / 失联；502 HA 侧错误。
+    """
     if not request.app.state.license_service.allows('ha.control'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
     entity_domain = payload.entity_id.partition('.')[0]
+    # 媒体浏览只对媒体播放器有意义，其它域直接拒绝，不必回源。
     if entity_domain != 'media_player':
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -639,15 +849,23 @@ async def browse_media(
 
 
 def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
+    """从 WebSocket 握手的 Cookie 解析访问主体。
+
+    与 HTTP 侧的 authenticated_viewer 同口径，但只能独立实现：WebSocket 不走
+    FastAPI 依赖注入，需要自己读 Cookie、查会话与中控配对。
+    管理员会话优先；两者都拿不到返回 None，由调用方以 4401 关闭连接。
+    """
     settings = websocket.app.state.settings
     token = websocket.cookies.get(settings.cookie_name, '')
     with websocket.app.state.database.session_factory() as database:
         if token:
             record = database.scalar(select(LoginSession).where(LoginSession.id_hash == session_token_hash(token)))
             now = datetime.now(timezone.utc)
+            # SQLite 取回的时间没有时区，比较前统一按 UTC 解释。
             if record is not None and record.expires_at.replace(tzinfo=timezone.utc) > now:
                 user = database.get(User, record.user_id)
                 if user is not None and user.is_active:
+                    # 解析完就 detach：这条连接可能挂很久，不能把数据库连接占住。
                     database.expunge(user)
                     return ViewerPrincipal(user=user)
         display_token = websocket.cookies.get(settings.display_cookie_name, '')
@@ -661,12 +879,19 @@ def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
 
 
 def websocket_origin_allowed(websocket: WebSocket) -> bool:
-    '''Require browser WebSockets to originate from this application host.'''
+    """校验 WebSocket 握手的 Origin 是否来自本应用主机。
+
+    配置了 app_base_url 时必须与之完全一致（含 scheme 与端口）；没配置时退化为
+    「Origin 的 host 与请求 Host 相同」，并额外要求 Origin 只能是 scheme://host
+    形态 —— 否则 http://evil@本机地址/xxx 之类的写法能骗过朴素的字符串比较。
+    """
     origin = websocket.headers.get('origin', '').strip()
+    # 浏览器一定会带 Origin，缺失说明不是页面发起的连接，直接拒绝。
     if not origin:
         return False
     configured_base_url = websocket.app.state.settings.app_base_url
     if configured_base_url:
+        # 显式配置的基址最可靠：要求 Origin 与它完全一致。
         parsed = urlsplit(configured_base_url)
         expected_origin = (
             f'{parsed.scheme}://{parsed.netloc}'
@@ -676,6 +901,7 @@ def websocket_origin_allowed(websocket: WebSocket) -> bool:
         return bool(expected_origin) and origin == expected_origin
     parsed_origin = urlsplit(origin)
     host = websocket.headers.get('host', '').strip()
+    # 没配置基址时的兜底比较：不接受带用户信息、路径、查询或片段的 Origin。
     if (
         parsed_origin.scheme not in {'http', 'https'}
         or not parsed_origin.netloc
@@ -687,16 +913,24 @@ def websocket_origin_allowed(websocket: WebSocket) -> bool:
         or not host
     ):
         return False
+    # 域名比较不区分大小写。
     return parsed_origin.netloc.casefold() == host.casefold()
 
 
 @runtime_router.websocket('/ws/runtime')
 async def runtime_websocket(websocket: WebSocket) -> None:
+    """实时状态推送 WebSocket 的入口壳：建上下文、兜异常、还原上下文。
+
+    连接级异常先记一条日志再抛出，保证连接被正常关闭且错误不会被吞。
+    真正的握手与推送逻辑在 _runtime_websocket 里。
+    """
+    # 手工造一份与 HTTP 中间件同形的上下文，让 WS 相关的日志也能带上 requestId。
     context = {
         'requestId': uuid4().hex,
         'path': '/api/v1/ws/runtime',
         'method': 'WEBSOCKET',
     }
+    # 绑定到当前任务：连接期间产生的所有日志都会自动带上这份上下文。
     token = event_context.set(context)
     try:
         await _runtime_websocket(websocket, context)
@@ -710,6 +944,7 @@ async def runtime_websocket(websocket: WebSocket) -> None:
         )
         raise
     finally:
+        # 协程结束必须还原 ContextVar，否则同一 worker 的后续请求会串到这份上下文。
         event_context.reset(token)
     return None
 
@@ -722,7 +957,13 @@ def _runtime_log(
     *,
     details: str | None = None,
 ) -> None:
+    """写一条实时连接日志；global_log 未挂载时静默跳过。
+
+    来源按上下文推断：有 displayId 是展示设备，有 actor 是仪表盘编辑器，
+    都没有才算系统后台 —— 与 HTTP 侧的口径保持一致。
+    """
     log = getattr(websocket.app.state, 'global_log', None)
+    # 不做硬依赖：测试或极简启动时可能就没有全局日志组件。
     if log is not None:
         source = (
             '展示设备'
@@ -734,9 +975,15 @@ def _runtime_log(
 
 
 async def _runtime_send_json(websocket: WebSocket, payload: dict) -> None:
+    """安全地发一条 JSON；连接已关闭时转成 WebSocketDisconnect。
+
+    Starlette 在 close 之后再 send 会抛 RuntimeError，且只能按文案区分，
+    这里把已知的几种文案统一翻译成断连信号，让上层走正常的收尾流程。
+    """
     try:
         await websocket.send_json(payload)
     except RuntimeError as error:
+        # 这些文案是 Starlette 各版本的历史产物，匹配不上就原样抛出，不吞错。
         if str(error) in {
             'Cannot call "send" once a close message has been sent.',
             "Unexpected ASGI message 'websocket.send', after sending 'websocket.close'.",
@@ -748,7 +995,20 @@ async def _runtime_send_json(websocket: WebSocket, payload: dict) -> None:
 
 
 async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
+    """实时状态连接的主流程。
+
+    握手阶段依次校验：Origin → 身份（管理员 Cookie 会话或中控配对）→
+    runtime.websocket 能力码；任一不过就以 44xx 码关闭并记日志
+    （4401 未认证、4403 被拒、4400 协议错误，是本应用自定义的语义）。
+    握手通过后要求客户端在 30 秒内发 subscribe 消息（带 entityIds），
+    随后推送 snapshot 与增量事件，并用 ping 保活。
+    """
     async def close_with_log(code: int, reason: str, *, send_reason: bool = True) -> None:
+        """关闭连接前先记一条日志。
+
+        send_reason=False 时不把内部原因回给客户端，避免泄露实现细节；
+        日志里始终保留完整原因。
+        """
         _runtime_log(
             websocket,
             'warning',
@@ -758,13 +1018,17 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         await websocket.close(code=code, reason=reason if send_reason else None)
         return None
 
+    # Origin 不合法按 4403（禁止）处理，且不回传原因。
     if not websocket_origin_allowed(websocket):
         await close_with_log(4403, 'origin not allowed')
         return None
+    # 同步查库放到线程里，别阻塞事件循环。
     viewer = await asyncio.to_thread(websocket_viewer, websocket)
     if viewer is None:
+        # 4401 表示未认证，客户端应引导用户去登录或完成配对。
         await close_with_log(4401, 'authentication required', send_reason=False)
         return None
+    # 把身份写进上下文：这条连接后续产生的日志都能标出是谁在看。
     if viewer.user is not None:
         context['actor'] = getattr(viewer.user, 'username', None)
     if viewer.display is not None:
@@ -773,17 +1037,26 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             displayName=getattr(viewer.display, 'name', None),
             projectId=viewer.display.project_id,
         )
+    # 实时推送是独立能力码：没有它时看板仍可用 HTTP 轮询，只是没有推送。
     if not await asyncio.to_thread(websocket.app.state.license_service.allows, 'runtime.websocket'):
         await close_with_log(4403, 'license restricted', send_reason=False)
         return None
     await websocket.accept()
     _runtime_log(websocket, 'info', '实时连接已建立', {**context, 'phase': 'accepted'})
+    # 每条连接一个订阅队列，广播由 state_hub 统一分发。
     queue = websocket.app.state.ha_connector.state_hub.subscribe()
     entity_ids = set()
+    # 标记是否已登记监听：决定收尾时要不要撤销，避免撤销未登记过的订阅。
     watching = False
     display_binding_cache = None
 
     async def display_binding_matches() -> bool:
+        """复查中控配对是否仍然有效（管理员连接恒为 True）。
+
+        配对可能在连接期间被解绑或改绑到别的项目，因此要周期性确认；
+        查库结果按 DISPLAY_BINDING_CACHE_SECONDS 缓存 —— 心跳是秒级的，
+        不缓存就等于每秒查一次库。
+        """
         if viewer.display is None:
             return True
         now = time.monotonic()
@@ -791,6 +1064,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             return display_binding_cache[1]
 
         def load_binding_match() -> bool:
+            """重新读 Cookie 解析当前配对，确认设备与项目都没被改。"""
             with websocket.app.state.database.session_factory() as database:
                 current_display = active_display_device(
                     database,
@@ -807,6 +1081,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         return matches
 
     try:
+        # 30 秒内必须订阅：否则按超时关闭，防止空连接长期占着资源。
         subscribe = await asyncio.wait_for(websocket.receive_json(), timeout=30)
         if subscribe.get('type') != 'subscribe' or not isinstance(subscribe.get('entityIds'), list):
             await close_with_log(4400, 'subscribe message required')
@@ -815,30 +1090,38 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         if viewer.project_id is not None:
 
             def load_allowed_entity_ids() -> set[str]:
+                """中控设备可见的实体集合。"""
                 with websocket.app.state.database.session_factory() as database:
                     return viewer_entity_ids(database, viewer) or set()
 
             allowed_entity_ids = await asyncio.to_thread(load_allowed_entity_ids)
+            # 越界的订阅直接剪掉而不是报错：前端可能整页订阅，剪掉后仍能正常显示。
             entity_ids.intersection_update(allowed_entity_ids)
+        # 订阅上限：一次连接关心上千个实体基本是异常用法。
         if len(entity_ids) > MAX_RUNTIME_ENTITIES:
             await close_with_log(4400, 'too many entities')
             return None
         websocket.app.state.ha_connector.state_hub.set_subscription_entities(queue, entity_ids)
+        # ensure_states=False：先登记监听，状态按需补全，避免订阅瞬间发起大量回源。
         await websocket.app.state.ha_connector.add_runtime_entity_watch(entity_ids, ensure_states=False)
         watching = True
 
         async def send_updates() -> None:
+            """推送初始快照，然后持续转发状态事件并保活。"""
             initial_snapshot = await websocket.app.state.ha_connector.state_hub.snapshot(entity_ids)
             await _runtime_send_json(websocket, {'type': 'snapshot', 'states': initial_snapshot})
+            # 先推内存里的快照让界面尽快有数据，再补全状态；有变化就补推一次。
             await websocket.app.state.ha_connector.ensure_entity_states(entity_ids)
             hydrated_snapshot = await websocket.app.state.ha_connector.state_hub.snapshot(entity_ids)
             if hydrated_snapshot != initial_snapshot:
                 await _runtime_send_json(websocket, {'type': 'snapshot', 'states': hydrated_snapshot})
             while True:
+                # 每次循环都确认配对没变；改绑后立即断开，避免旧屏继续看到别的项目数据。
                 if not await display_binding_matches():
                     await close_with_log(4401, 'display pairing changed')
                     return None
                 try:
+                    # 展示设备用 5 秒心跳（要更快发现改绑），编辑器用 25 秒减少无意义唤醒。
                     event = await asyncio.wait_for(queue.get(), timeout=5 if viewer.display else 25)
                 except TimeoutError:
                     if not await display_binding_matches():
@@ -853,18 +1136,22 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
             return None
 
         async def receive_disconnect() -> None:
+            """另一路任务只负责感知客户端断开。"""
             while True:
                 message = await websocket.receive()
                 if message['type'] == 'websocket.disconnect':
                     raise WebSocketDisconnect(code=message.get('code', 1000))
 
         failure = None
+        # 两路任务谁先结束就取消另一路，避免留下悬挂的接收循环。
         async with create_task_group() as tasks:
 
             async def run_until_closed(operation) -> None:
+                """执行一路任务；结束后取消整组并把异常留下来上报。"""
                 try:
                     await operation()
                 except Exception as error:
+                    # 正常断连不作为错误上报；真正的异常要保留（先到的优先）。
                     if failure is None or not isinstance(error, WebSocketDisconnect):
                         failure = error
                 finally:
@@ -873,9 +1160,11 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
 
             tasks.start_soon(run_until_closed, receive_disconnect)
             tasks.start_soon(run_until_closed, send_updates)
+        # 异常在任务组退出后再抛出：此时两路任务都已收尾，不会有并发写入。
         if failure is not None:
             raise failure
     except WebSocketDisconnect as error:
+        # 1000/1001/1005 是正常关闭码，不记警告 —— 否则刷新一次页面就刷出一条告警。
         if error.code not in {1000, 1001, 1005}:
             _runtime_log(
                 websocket,
@@ -884,6 +1173,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
                 {**context, 'code': str(error.code), 'phase': 'disconnected'},
             )
     except TimeoutError:
+        # wait_for 的订阅超时也冒泡到这里，单独记一条便于和普通断连区分。
         _runtime_log(
             websocket,
             'warning',
@@ -892,8 +1182,10 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
         )
     finally:
         try:
+            # 只有真正开始监听后才需要撤销登记。
             if watching:
                 await websocket.app.state.ha_connector.remove_runtime_entity_watch(entity_ids)
         finally:
+            # 退订必须执行，否则 state_hub 的队列会随连接数一直累积。
             websocket.app.state.ha_connector.state_hub.unsubscribe(queue)
     return None

@@ -1,26 +1,45 @@
+"""运行期配置：常量默认值、环境变量解析与路径推导。
+
+职责边界：本模块只做「读环境变量 → 拼出不可变的 Settings 对象」，
+不建立目录、不连数据库、不读密钥文件内容（只给出路径）。
+
+优先级约定：真实环境变量 > 仓库根 `.env`（由 `start.py` 预先载入）> 这里的默认值。
+授权相关默认值刻意写成「零配置即指向自建授权服务器」，因此不设任何环境变量
+也能在 /license 完成激活。
+"""
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
+# backend/app/config.py -> 上溯三层即仓库根，用来定位 frontend/、keys/、VERSION。
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # 授权服务器：本项目自带的 ``store/`` 应用（默认监听 18082），不再依赖任何外部厂商节点。
 # 体系为「服务端签发 Ed25519 签名租约 → 客户端离线验签 → 定期心跳续租」。
 # 信任锚是仓库根 ``keys/`` 下的公钥镜像，真相源为 ``store/keys/local/``（由
 # ``python -m store.tools.gen_keys`` 生成，公钥会自动同步回 ``keys/``）。
 SELF_HOSTED_LICENSE_SERVER_URL = 'http://127.0.0.1:18082'
+# 单条 direct 批次：只访问自建服务器，不会散到其它节点。
 DEFAULT_LICENSE_SERVER_BATCHES = (('direct', (SELF_HOSTED_LICENSE_SERVER_URL,)),)
 DEFAULT_LICENSE_KEY_ID = 'hb-local-2026'
 DEFAULT_LICENSE_PUBLIC_KEY_FILENAME = 'license-public.pem'
+# 签名公钥的文件字节 sha256；必须与 store/keys/local/ 下的私钥配对，
+# 不匹配时验签会失败，因此 keys/ 镜像与真相源必须逐字节一致。
 DEFAULT_LICENSE_PUBLIC_KEY_SHA256 = 'a53d869318a3d9005431b0296b9f0d1d7f7b2523e088f0ede322f88c882e0c28'
 DEFAULT_LICENSE_TRANSPORT_KEY_ID = 'hb-local-transport-2026'
 DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_FILENAME = 'license-transport-public.pem'
 DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256 = '1dd4a0a822b9227ebd1032fabd992342f7fb52630cdf2fedfc30db54191b2b19'
+# 可信公钥表：keyId -> (文件名, 期望 sha256)，租约头里的 keyId 靠它找到验签公钥。
 DEFAULT_LICENSE_TRUSTED_PUBLIC_KEYS = ((DEFAULT_LICENSE_KEY_ID, DEFAULT_LICENSE_PUBLIC_KEY_FILENAME, DEFAULT_LICENSE_PUBLIC_KEY_SHA256),)
 
 
 def _environment_bool(name: str, default: bool = False) -> bool:
+    """把环境变量解析成布尔值。
+
+    只有 1 / on / yes / true（大小写与首尾空白不敏感）算真，
+    其余非空值一律为假；变量未设置时返回 default。
+    """
     value = os.getenv(name)
     if value is None:
         return default
@@ -28,6 +47,10 @@ def _environment_bool(name: str, default: bool = False) -> bool:
 
 
 def _environment_path(name: str) -> Path | None:
+    """把环境变量解析成绝对路径，未设置或为空时返回 None。
+
+    expanduser 支持 `~` 写法，resolve 统一成绝对路径，避免受工作目录影响。
+    """
     value = os.getenv(name, '').strip()
     return Path(value).expanduser().resolve() if value else None
 
@@ -41,13 +64,16 @@ def _environment_batches(name: str) -> tuple[tuple[str, tuple[str, ...]], ...]:
     value = os.getenv(name, '').strip()
     if not value:
         return ()
+    # 先声明成 list 再转 tuple：Settings 是 frozen dataclass，内部用可变类型更易拼装。
     groups: list[tuple[str, tuple[str, ...]], ...] = []
     for chunk in value.split(';'):
         chunk = chunk.strip()
         if not chunk:
             continue
         label, _, servers = chunk.partition('=')
+        # 名称留空时归到 direct，保证每批都有可用标识。
         label = label.strip() or 'direct'
+        # rstrip('/') 去掉尾部斜杠，拼 URL 时不会出现双斜杠。
         items = tuple(item.strip().rstrip('/') for item in servers.split('|') if item.strip())
         groups.append((label, items))
     return tuple(groups)
@@ -64,6 +90,7 @@ def _environment_trusted_keys(name: str) -> tuple[tuple[str, Path, str | None], 
     entries: list[tuple[str, Path, str | None]] = []
     for chunk in value.split('|'):
         parts = [part.strip() for part in chunk.split(':')]
+        # keyId 与路径缺一不可，指纹可选，因此少于两段直接跳过。
         if len(parts) < 2 or not parts[0] or not parts[1]:
             continue
         fingerprint = parts[2] if len(parts) > 2 and parts[2] else None
@@ -73,23 +100,36 @@ def _environment_trusted_keys(name: str) -> tuple[tuple[str, Path, str | None], 
 
 @dataclass(frozen=True)
 class Settings:
+    """一次运行期内不可变的配置快照。
+
+    字段用扁平结构而非嵌套，方便直接与 `.env` 变量一一对应；
+    数据目录下的各式路径统一用 property 推导，避免调用方各自拼字符串。
+    """
+
     data_dir: Path
     project_root: Path = PROJECT_ROOT
+    # 对外访问根地址：反向代理时设置，供 WebSocket 校验 Origin。
     app_base_url: str = ''
     session_max_age_seconds: int = 28800
+    # HTTPS 部署时置 True，否则浏览器会因非 Secure 而丢弃会话 Cookie。
     cookie_secure: bool = False
     update_checks_enabled: bool = False
     update_channel: str = 'docker'
+    # Cookie 名沿用历史前缀 ha_bridge_*：改名会让已登录用户全部掉线，故保持不变。
     cookie_name: str = 'ha_bridge_session'
     display_cookie_name: str = 'ha_bridge_display'
+    # 中控设备 Cookie 有效十年：墙面平板不应因过期而要求重新配对。
     display_cookie_max_age_seconds: int = 315360000
     ha_request_timeout_seconds: float = 10
     ha_reconcile_interval_seconds: int = 1800
+    # 64 MiB：HA 在实体很多时单条状态推送会很大，默认值容易触发断连。
     ha_websocket_max_size_bytes: int = 67108864
+    # 字段默认 False，但 load_settings 始终传 True：授权校验不可通过环境变量关闭。
     license_required: bool = False
     license_server_url: str = SELF_HOSTED_LICENSE_SERVER_URL
     license_server_batches: tuple[tuple[str, tuple[str, ...]], ...] = DEFAULT_LICENSE_SERVER_BATCHES
     license_request_timeout_seconds: float = 10
+    # 允许的时钟偏差，用于容忍租约生效时间比本机时间稍晚的情况。
     license_clock_skew_seconds: int = 300
     license_public_key_path_override: Path | None = None
     license_public_key_sha256: str | None = None
@@ -98,86 +138,113 @@ class Settings:
     license_transport_public_key_path_override: Path | None = None
     license_transport_public_key_sha256: str = DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
     license_transport_key_id: str = DEFAULT_LICENSE_TRANSPORT_KEY_ID
+    # 硬件指纹覆盖项：容器里拿不到真实机器信息时用于人工指定。
     hardware_machine_id_override: str = ''
     hardware_board_id_override: str = ''
+    # 三个密钥文件的路径覆盖项；为空时统一落在 data_dir/secrets/ 下。
     credential_key_path_override: Path | None = None
     display_pairing_key_path_override: Path | None = None
     license_secret_key_path_override: Path | None = None
 
     @property
     def database_path(self) -> Path:
+        """主应用 SQLite 主库文件。"""
         return self.data_dir / 'app.db'
 
     @property
     def database_url(self) -> str:
+        """SQLAlchemy 连接串（本项目只用 SQLite）。"""
         return f'sqlite:///{self.database_path}'
 
     @property
     def admin_account_path(self) -> Path:
+        """管理员账号文件；删除该文件并重启即可回到设置页。"""
         return self.data_dir / 'admin-account.json'
 
     @property
     def frontend_dir(self) -> Path:
+        """前端页面与静态资源根目录（挂载为 /static）。"""
         return self.project_root / 'frontend'
 
     @property
     def built_in_assets_dir(self) -> Path:
+        """内置素材目录，默认空；可自行增删，编辑器里也能改用用户上传图片。"""
         return self.project_root / 'image'
 
     @property
     def user_assets_dir(self) -> Path:
+        """用户上传图片目录。"""
         return self.data_dir / 'assets'
 
     @property
     def studio3d_dir(self) -> Path:
+        """3D 户型工作室的数据目录。"""
         return self.data_dir / 'studio3d'
 
     @property
     def studio3d_draft_path(self) -> Path:
+        """工作室草稿文件，前端自动保存即写到这里。"""
         return self.studio3d_dir / 'draft.json'
 
     @property
     def studio3d_exports_dir(self) -> Path:
+        """3D 导出产物目录（户型图、图层 PNG 等）。"""
         return self.data_dir / 'exports'
 
     @property
     def effect_variants_dir(self) -> Path:
+        """灯光效果变体缓存目录，属于可再生数据，可安全清理。"""
         return self.data_dir / 'cache' / 'effect-variants'
 
     @property
     def secrets_dir(self) -> Path:
+        """各类凭据密钥的默认存放目录（权限 0700）。"""
         return self.data_dir / 'secrets'
 
     @property
     def credential_key_path(self) -> Path:
+        """HA 凭据加密密钥；用于加密长期访问令牌后再入库。"""
         return self.credential_key_path_override or self.secrets_dir / 'ha_credentials.key'
 
     @property
     def display_pairing_key_path(self) -> Path:
+        """中控配对令牌的签名密钥。"""
         return self.display_pairing_key_path_override or self.secrets_dir / 'display_pairing_codes.key'
 
     @property
     def license_secret_key_path(self) -> Path:
+        """本机授权凭据的加密密钥。"""
         return self.license_secret_key_path_override or self.secrets_dir / 'license_credentials.key'
 
     @property
     def instance_id_path(self) -> Path:
+        """安装 UUID 文件，由硬件指纹模块按需生成。"""
         return self.data_dir / 'instance-id'
 
     @property
     def hardware_fallback_id_path(self) -> Path:
+        """硬件指纹回退标识文件：读不到真实硬件信息时用这里的随机值代替。"""
         return self.data_dir / 'hardware-fallback-id'
 
     @property
     def license_public_key_path(self) -> Path:
+        """签名公钥路径，默认取仓库 keys/ 下的镜像。"""
         return self.license_public_key_path_override or self.project_root / 'keys' / DEFAULT_LICENSE_PUBLIC_KEY_FILENAME
 
     @property
     def license_transport_public_key_path(self) -> Path:
+        """传输层公钥路径（X25519），同样是 keys/ 下的镜像。"""
         return self.license_transport_public_key_path_override or self.project_root / 'keys' / DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_FILENAME
 
     @property
     def license_trusted_public_keys(self) -> dict[str, tuple[Path, str | None]]:
+        """可信公钥表 keyId -> (路径, 期望 sha256)。
+
+        三种来源按优先级取其一：
+        1. 显式覆盖表（APP_LICENSE_TRUSTED_PUBLIC_KEYS），可整体替换；
+        2. 只覆盖了单个公钥文件路径时，收敛成一条 legacy 记录；
+        3. 默认使用仓库 keys/ 下的内置镜像。
+        """
         if self.license_trusted_public_keys_override:
             return {key_id: (path, expected_sha256) for key_id, path, expected_sha256 in self.license_trusted_public_keys_override}
         if self.license_public_key_path_override is not None:
@@ -186,6 +253,11 @@ class Settings:
 
     @property
     def effective_license_server_batches(self) -> tuple[tuple[str, tuple[str, ...]], ...]:
+        """实际生效的授权服务器批次。
+
+        显式配置了批次就用它；否则退化到「esa / eo 两个禁用批次 + direct 单条地址」，
+        保留这两个空批次是为了与历史上的批次顺序兼容，空组表示禁用。
+        """
         if self.license_server_batches:
             return self.license_server_batches
         if self.license_server_url:
@@ -194,11 +266,14 @@ class Settings:
 
     @property
     def version(self) -> str:
+        """当前版本号，直接读仓库根的 VERSION 文件。"""
         return (self.project_root / 'VERSION').read_text(encoding='utf-8').strip()
 
 
 def load_settings() -> Settings:
+    """从环境变量组装 Settings；未设置的项一律回落到内置默认值。"""
     data_dir = Path(os.getenv('APP_DATA_DIR', PROJECT_ROOT / 'data')).expanduser().resolve()
+    # 三个密钥文件路径先读成字符串，为空表示「用数据目录下的默认位置」。
     ha_key_path = os.getenv('APP_HA_CREDENTIAL_FILE', '').strip()
     display_pairing_key_path = os.getenv('APP_DISPLAY_PAIRING_KEY_FILE', '').strip()
     license_key_path = os.getenv('APP_LICENSE_CREDENTIAL_FILE', '').strip()
@@ -214,16 +289,19 @@ def load_settings() -> Settings:
     else:
         license_batches = DEFAULT_LICENSE_SERVER_BATCHES
 
+    # 用字典展开而非逐项赋值：字段名与变量名对齐，漏改一处也不会静默用错默认值。
     return Settings(**{
         'data_dir': data_dir,
         'app_base_url': os.getenv('APP_BASE_URL', '').strip().rstrip('/'),
         'session_max_age_seconds': int(os.getenv('APP_SESSION_MAX_AGE_SECONDS', '28800')),
         'cookie_secure': _environment_bool('APP_COOKIE_SECURE'),
+        # 更新检查在本项目中固定开启，不提供环境变量开关。
         'update_checks_enabled': True,
         'update_channel': os.getenv('APP_UPDATE_CHANNEL', 'docker').strip().lower(),
         'ha_request_timeout_seconds': float(os.getenv('APP_HA_REQUEST_TIMEOUT_SECONDS', '10')),
         'ha_reconcile_interval_seconds': int(os.getenv('APP_HA_RECONCILE_INTERVAL_SECONDS', '1800')),
         'ha_websocket_max_size_bytes': int(os.getenv('APP_HA_WEBSOCKET_MAX_SIZE_BYTES', str(67108864))),
+        # 硬编码 True：授权校验始终开启，README 明确不能用环境变量关闭。
         'license_required': True,
         'license_server_url': custom_license_url or SELF_HOSTED_LICENSE_SERVER_URL,
         'license_server_batches': license_batches,
@@ -235,6 +313,7 @@ def load_settings() -> Settings:
         'license_transport_public_key_path_override': _environment_path('APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE'),
         'license_transport_public_key_sha256': os.getenv('APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256,
         'license_transport_key_id': os.getenv('APP_LICENSE_TRANSPORT_KEY_ID', '').strip() or DEFAULT_LICENSE_TRANSPORT_KEY_ID,
+        # 容器里用环境变量指向挂载的密钥文件（/run/secrets/*）。
         'credential_key_path_override': Path(ha_key_path).expanduser().resolve() if ha_key_path else None,
         'display_pairing_key_path_override': Path(display_pairing_key_path).expanduser().resolve() if display_pairing_key_path else None,
         'license_secret_key_path_override': Path(license_key_path).expanduser().resolve() if license_key_path else None,
