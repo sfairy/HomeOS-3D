@@ -1,3 +1,26 @@
+/*
+ * 3D 户型工作室（/3d-studio，结构见 frontend/3d-studio.html）的唯一样式表。
+ *
+ * 这份样式只服务 studio.html 一个页面，页面里没有任何内联 <style>（CSP 是
+ * style-src 'self'，内联样式会被拦掉），所以所有视觉规则都必须写在这里。
+ *
+ * 主题变量来源：
+ *   - 调色板（--bg / --surface / --accent / --cyan / --danger 等）在本文件顶部的
+ *     :root 里定义，不依赖 app.css 或后端下发的主题；改配色只改这一处。
+ *   - --details-panel-width 与 --preview-panel-height 是例外：由 studio-app.js 在
+ *     拖拽分隔条时用 style.setProperty 写到元素上，这里只提供默认兜底值。
+ *   - --light-asset-icon 由每条 .light-asset-icon-* 规则自己给出，值是 vendor
+ *     mdi 图标的 URL，靠 mask 上色（图标本身是纯色黑，颜色跟着 currentColor）。
+ *
+ * 布局前提：桌面端工具页，body 最小宽度 1180px（窄屏只做尺寸降级，不做移动端
+ * 重排），面板三栏由 grid 固定分配，页面本身不允许出现滚动条。
+ *
+ * 版本戳：本文件与 studio-app.js 必须共用同一条 `?v=`（见 studio.html），
+ * 否则新旧模块会同时加载，出现两套模块级单例状态。
+ */
+
+/* ===== 设计令牌（主题变量） ===== */
+
 :root {
   color-scheme: dark;
   --bg: #0a0f14;
@@ -22,9 +45,13 @@
     Microsoft YaHei,
     sans-serif;
 }
+/* ===== 基础重置与通用输入控件 ===== */
+
 * {
   box-sizing: border-box;
 }
+/* !important 是必要的：各 panel 内部大量用 class 设定 display，仅靠属性选择器
+   [hidden] 的特异性压不住，会出现「设了 hidden 却仍然显示」的情况。 */
 [hidden] {
   display: none !important;
 }
@@ -34,6 +61,8 @@ body {
 }
 body {
   margin: 0;
+  /* 三栏布局的最小可用宽度：再窄左栏与属性栏就会挤掉中间画布，故直接锁死并
+     配合 overflow: hidden，禁止出现横向滚动（滚动条会破坏 canvas 的尺寸测量）。 */
   min-width: 1180px;
   overflow: hidden;
   color: var(--text);
@@ -45,6 +74,10 @@ button,
 input {
   font: inherit;
 }
+/* ===== 数字步进器（number-stepper） ===== */
+
+/* 关掉浏览器自带的上下箭头，改用下面自绘的 .number-stepper-button 两颗三角按钮：
+   原生箭头在深色主题下无法换色，且宽度不可控。tabular-nums 让数字等宽以免抖动。 */
 input[type="number"] {
   appearance: textfield;
   font-variant-numeric: tabular-nums;
@@ -54,6 +87,8 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
   appearance: none;
 }
+/* 结构约定：输入框在左、18px 宽的按钮列在右（[输入][上下]），
+   按钮列比标准 18px 再小的地方由使用方覆盖 --stepper 宽度（见下文的 16/17px 变体）。 */
 .number-stepper {
   min-width: 0;
   width: 100%;
@@ -74,6 +109,8 @@ input[type="number"]::-webkit-outer-spin-button {
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 2px;
 }
+/* font-size: 0 把按钮里的箭头字符（"▲"/"▼"之类）藏掉，只留下 :before 画的三角形；
+   这样可以避免不同平台字体对 Arrow 字形宽度/位置的差异。 */
 .number-stepper .number-stepper-button {
   width: 18px;
   min-width: 18px;
@@ -90,6 +127,7 @@ input[type="number"]::-webkit-outer-spin-button {
   font-size: 0;
   line-height: 1;
 }
+/* 上 / 下两个按钮共用一套纯 CSS 三角形，方向由 border 边的颜色决定。 */
 .number-stepper .number-stepper-button:before {
   width: 0;
   height: 0;
@@ -118,9 +156,14 @@ input[type="number"]::-webkit-outer-spin-button {
   outline-width: 1px;
   outline-offset: 1px;
 }
+/* 禁用态只压按钮列、不压输入框：输入框此时仍允许键盘直接输入 / 粘贴数值。 */
 .number-stepper.is-disabled .number-stepper-buttons {
   opacity: 0.42;
 }
+
+/* ===== 通用按钮与焦点态 ===== */
+
+/* 全局按钮基线：透明底 + 细边框，具体面板只覆盖颜色与圆角，避免每个面板重写整套状态。 */
 button {
   color: inherit;
   border: 1px solid var(--line);
@@ -139,6 +182,8 @@ button:hover:not(:disabled) {
 button:active:not(:disabled) {
   transform: translateY(1px);
 }
+/* canvas 也要有可见焦点环：绘图台支持纯键盘操作（方向键平移、快捷键切换工具），
+   但 canvas 默认不可聚焦，这里只是为 tabindex 生效时补上视觉反馈。 */
 button:focus-visible,
 input:focus-visible,
 canvas:focus-visible {
@@ -149,6 +194,15 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.38;
 }
+/* ===== 顶栏（工作流步骤条 / 保存状态） ===== */
+
+/* 三列网格让中间的步骤条真正居中：左右两列都写成 minmax(180px, 1fr)，
+   这样两侧内容长度不同也不会把步骤条推偏。高度 70px 与 .studio-shell 的
+   calc(100% - 70px) 是一对常量，改一处必须改另一处。
+   半透明底 + backdrop-filter 是刻意的：画布内容滚到顶栏下方时仍能透出一点轮廓，
+   提示「后面还有内容」；z-index 20 让顶栏压住所有面板，但仍低于各类浮层
+   （吸附设置 35、右键菜单 300）。
+ */
 .studio-header {
   height: 70px;
   display: grid;
@@ -162,6 +216,8 @@ button:disabled {
   position: relative;
   z-index: 20;
 }
+/* 顶栏左右两栏共用一套 flex 基线；高度交由 .studio-header 的 70px 与 align-items: center
+   控制，这里不再写高度，避免两处常量各说各话。 */
 .header-leading,
 .header-actions {
   display: flex;
@@ -198,6 +254,8 @@ button:disabled {
   text-decoration: none;
   font-size: 13px;
 }
+/* 返回箭头与文字拆成两个节点：箭头用文本箭头（字号 13px），文字压到 10px 并禁止换行，
+   这样顶栏变窄时「返回工作室」不会折成两行把顶栏撑高。 */
 .back-link span {
   font-size: 10px;
   white-space: nowrap;
@@ -252,6 +310,8 @@ button:disabled {
   font-size: 11px;
   white-space: nowrap;
 }
+/* 步骤条只是进度指示，六步之间的连接线由 :after 伪元素画在 li 右侧，
+   最后一项用 :not(:last-child) 去掉，避免末尾多出一截悬空的线。 */
 .workflow-steps li:not(:last-child):after {
   content: "";
   width: 14px;
@@ -269,6 +329,8 @@ button:disabled {
   font-style: normal;
   font-size: 10px;
 }
+/* complete / active 两个状态类由 studio-app.js 按当前阶段写到 li 上，
+   配色与 --cyan（已完成）/ --accent（进行中）两枚令牌绑定，不在这里写死色值。 */
 .workflow-steps li.complete {
   color: #aab4be;
 }
@@ -293,6 +355,8 @@ button:disabled {
   color: #c8d0d8;
   font-size: 11px;
 }
+/* 保存状态：小圆点 + 文案三段式（saved 绿 / saving 橙且呼吸 / error 红）。
+   默认灰点对应「正在载入」，避免未拿到保存结果时闪成错误色。 */
 .save-state {
   min-width: 94px;
   display: flex;
@@ -321,11 +385,18 @@ button:disabled {
 .save-state.error i {
   background: var(--danger);
 }
+/* 自动保存进行中只做透明度呼吸，不做位移动画：顶栏在视口固定位置，
+   位移动画会持续触发重绘。 */
 @keyframes pulse {
   to {
     opacity: 0.25;
   }
 }
+
+/* ===== 三栏工作区骨架 ===== */
+
+/* 右栏宽度优先读 --details-panel-width（由 studio-app.js 拖拽写入），没有时才用 29vw；
+   而左栏是固定 204px —— 素材库内容宽度固定，不需要按比例伸缩。 */
 .studio-shell {
   height: calc(100% - 70px);
   display: grid;
@@ -333,12 +404,20 @@ button:disabled {
   gap: 10px;
   padding: 10px;
 }
+/* ===== 面板通用外观 ===== */
+
+/* 三个面板共用同一层「表面」：边框 + 大圆角 + 投影。各面板只覆盖背景与滚动行为。 */
 .panel-surface {
   border: 1px solid var(--line);
   border-radius: 15px;
   background: #111820ed;
   box-shadow: 0 18px 60px #0000002e;
 }
+
+/* ===== 左侧素材库面板 ===== */
+
+/* scrollbar-gutter: stable 是刻意的：素材列表长度会随楼层/灯光分组变化，
+   预留滚动条槽位可以避免列表在有无滚动条之间左右抖动。 */
 .library-panel {
   min-height: 0;
   overflow-x: hidden;
@@ -364,6 +443,7 @@ button:disabled {
 .library-panel :is(.start-card, .floor-manager-card, .model-settings-card, .asset-library-card) {
   padding: 9px 10px;
 }
+/* 卡片内的 eyebrow 是「小标题」，比库里其它 section 更紧凑，单独收一次间距。 */
 .library-panel
   :is(.start-card, .floor-manager-card, .model-settings-card, .asset-library-card)
   .eyebrow {
@@ -379,6 +459,8 @@ button:disabled {
   font-size: 12px;
   white-space: nowrap;
 }
+/* 起始卡片底部的按钮行：横排 + 4px 间距，主次按钮的差异分别由下面的
+   .primary-action 与 .background-actions > button 两组规则覆盖，这里只管排列。 */
 .background-actions {
   display: flex;
   align-items: center;
@@ -399,6 +481,8 @@ button:disabled {
   border-color: #ffc16c;
   background: linear-gradient(180deg, #ffba53, #f7942d);
 }
+/* 起始卡片内高度紧张，主按钮降一档（30px 高、去掉投影、10px 字），
+   避免面板里的按钮比中间画布更抢眼。 */
 .start-card .primary-action {
   min-height: 30px;
   padding: 0 10px;
@@ -423,6 +507,8 @@ button:disabled {
   color: #f4b167;
   font-size: 10px;
 }
+/* 楼层标题右侧的图标按钮组（对齐基点等）：用 4px 间距紧贴，配色风格与主按钮区分开，
+   琥珀色文字暗示这是会改动几何数据的操作。 */
 .floor-heading-actions {
   display: flex;
   align-items: center;
@@ -449,6 +535,7 @@ button:disabled {
   cursor: default;
   user-select: none;
 }
+/* 淡橙描边 + 微弱底色标记可拖拽：这是唯一提示「这一行按下去能拖动排序」的视觉线索。 */
 .floor-row.drag-ready {
   cursor: grab;
   box-shadow: inset 0 0 0 1px #ffa73a33;
@@ -456,6 +543,9 @@ button:disabled {
 .floor-row.dragging {
   opacity: 0.42;
 }
+/* drop-before / drop-after 由拖拽逻辑互斥设置，用 2px 橙色横线表示插入位置；
+   线画在行外（top/bottom 取负值），所以必须 pointer-events: none，
+   否则它会挡住相邻行的拖拽命中区域造成抖动。 */
 .floor-row.drop-before:before,
 .floor-row.drop-after:after {
   position: absolute;
@@ -477,6 +567,8 @@ button:disabled {
   border-color: #ff9d2e57;
   background: #ff9d2e14;
 }
+/* unaligned = 该楼层还没做过「对齐基点」，用琥珀色提醒；楼号与标高两处都要染色，
+   所以分成 > span 与 > small 两条规则（两处文字在不同网格列，无法合并选择器）。 */
 .floor-row.unaligned > span {
   color: #d2a56f;
 }
@@ -503,6 +595,7 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 楼层标高读数：等宽字体 + 不换行，数字变化时不会挤动左侧楼名。 */
 .floor-row > small {
   padding-right: 4px;
   color: #71808b;
@@ -531,6 +624,9 @@ button:disabled {
   color: #75828d;
   font-size: 10px;
 }
+/* 模型标定参数行（楼层高、网格尺寸等）：左侧 22px 放名称，右侧两列等宽放数值。
+   两列都用 minmax(0, 1fr) 是必需的——默认的 minmax(auto, 1fr) 会被输入框固有宽度撑破，
+   面板变窄时输入框会溢出网格而不是跟着收缩。 */
 .model-settings-row {
   display: grid;
   grid-template-columns: 22px repeat(2, minmax(0, 1fr));
@@ -541,6 +637,8 @@ button:disabled {
   font-size: 11px;
   white-space: nowrap;
 }
+/* 标签与输入框同处一格：auto 列放「楼层高」这类短标签，输入框吃掉剩余宽度，
+   并统一压到 30px 高、数字居中，使两列输入框上下对齐。 */
 .model-settings-row label {
   min-width: 0;
   display: grid;
@@ -566,6 +664,8 @@ button:disabled {
   font-size: 11px;
   text-align: center;
 }
+/* 这两处的步进器比全局的 18px 再收窄到 16px：输入列本身只有几十像素，
+   按钮列再宽一点数字就被挤得看不见了。 */
 .model-settings-row .number-stepper,
 .model-settings-option-row .number-stepper {
   grid-template-columns: minmax(0, 1fr) 16px;
@@ -584,6 +684,8 @@ button:disabled {
 .model-settings-row input:focus {
   border-color: #ff9d2e7a;
 }
+/* 「可选参数」行（例如地脚线、模型朝向）：上方用 1px 分隔线与主参数区分，
+   三列 = 描述 + 输入 + 开关；min-height 32px 保证这一行的点击区域够大。 */
 .model-settings-option-row {
   min-height: 32px;
   margin-top: 6px;
@@ -633,6 +735,8 @@ button:disabled {
   background: #ff9d2e14;
   font-size: 10px;
 }
+/* 用 aria-pressed 而不是额外的 .on 类表示开关态：脚本只需切换一个属性，
+   样式与可访问性（朗读「已按下/未按下」）自动保持一致。 */
 .model-settings-option-row button[aria-pressed="false"] {
   border-color: var(--line);
   color: #7f8b95;
@@ -644,6 +748,8 @@ button:disabled {
   font-size: 10px;
   line-height: 1.45;
 }
+/* 素材库分类页签（灯光 / 家具 / 其它）：三列等宽，选中页由 .active 打底，
+   同一时刻只显示一个 .asset-grid / .light-asset-row，切换逻辑在 studio-app.js。 */
 .asset-category-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -690,6 +796,10 @@ button:disabled {
 .light-asset-card:hover {
   color: var(--accent);
 }
+/* 用 mask 而不是 background-image 上色：vendor 里的 mdi 图标是单色黑，
+   做成遮罩后颜色跟着 currentColor 走，hover 变橙不必再准备第二份资源。
+   下面的 --light-asset-icon 直接写死 vendor 的版本化路径（7.4.47），
+   版本随缓存戳一起发布，不要改成不带版本号的路径。 */
 .light-asset-icon {
   display: block;
   width: 22px;
@@ -708,6 +818,8 @@ button:disabled {
 .light-asset-icon-strip {
   --light-asset-icon: url(/static/vendor/mdi/7.4.47/svg/led-strip-variant.svg);
 }
+/* ===== 灯光图层 / 灯光分组（左栏下层） ===== */
+
 .light-layer-panel {
   display: grid;
   gap: 6px;
@@ -720,6 +832,8 @@ button:disabled {
 .light-layer-panel[hidden] {
   display: none;
 }
+/* 图层标题行：左侧「灯光图层」文字，右侧一排视图切换按钮（灯具 / 电视 / 充电）。
+   justify-content: stretch 配合子项 width: 100%，让按钮组吃掉标题之外的整行宽度。 */
 .light-layer-heading {
   display: flex;
   align-items: center;
@@ -739,6 +853,8 @@ button:disabled {
 .light-layer-heading > div.single {
   grid-template-columns: minmax(0, 1fr);
 }
+/* 视图切换按钮固定 26px 高、文字 10px：左栏总宽只有 204px，三颗按钮平分后每颗约 60px，
+   所以必须 min-width: 0 + ellipsis，否则中文标签会把按钮撑出容器。 */
 .light-layer-heading button {
   width: 100%;
   min-width: 0;
@@ -755,6 +871,8 @@ button:disabled {
   display: grid;
   gap: 4px;
 }
+/* 灯光分组行：网格结构与 .floor-row 完全同构（图标列 + 名称列 + 计数列），
+   区别只是图标列宽 28px、且整行按下即「点亮该分组」，所以比楼层行多了 active 态。 */
 .light-group-row {
   position: relative;
   display: grid;
@@ -778,6 +896,7 @@ button:disabled {
 .light-group-row.dragging {
   opacity: 0.42;
 }
+/* 灯光分组的拖拽指示线与 .floor-row 同一套约定（橙线 + 行外绘制 + 不接收指针事件）。 */
 .light-group-row.drop-before:before,
 .light-group-row.drop-after:after {
   position: absolute;
@@ -795,6 +914,8 @@ button:disabled {
 .light-group-row.drop-after:after {
   bottom: -3px;
 }
+/* 分组开关键：方形图标按钮，.on 表示该分组当前处于点亮状态（由脚本切换类名），
+   未点亮时只留灰色文字，避免一屏全是高亮按钮。 */
 .light-group-row > button {
   width: 28px;
   height: 28px;
@@ -807,6 +928,8 @@ button:disabled {
   color: #ffc071;
   background: #ffa73a1a;
 }
+/* 电视屏与车辆充电是两类「非灯具」图层，各自用蓝 / 绿系底色与灯具（橙）区分，
+   颜色只在图层行内部使用，不影响全局调色板。 */
 .tv-screen-layer-row {
   background: #5c9dff09;
 }
@@ -843,6 +966,8 @@ button:disabled {
     monospace;
   white-space: nowrap;
 }
+/* ===== 灯光区域区（区域树 / 新建区域 / 右键菜单） ===== */
+
 .light-area-section {
   display: grid;
   gap: 4px;
@@ -861,6 +986,8 @@ button:disabled {
   user-select: none;
   cursor: pointer;
 }
+/* hover / drop-into 是区域行的两种「热」状态：hover 只加一点底色，
+   drop-into 则连边框一起点亮，因为它表示松手后会把分组挂到该区域下。 */
 .light-area-row:hover {
   background: #ffffff11;
 }
@@ -883,6 +1010,8 @@ button:disabled {
 .light-area-row.expanded .light-area-caret {
   color: #ffc071;
 }
+/* 区域名与右侧计数胶囊：名字单行省略（min-width: 0 是省略号生效的前提），
+   计数用等宽字体 + 999px 圆角药丸底，数字位数变化时不会左右抖动。 */
 .light-area-name {
   min-width: 0;
   overflow: hidden;
@@ -910,6 +1039,8 @@ button:disabled {
   color: #6f7d88;
   font-size: 9px;
 }
+/* 区域展开后的分组容器：左侧 8px 内边距 + 1px 竖线画出层级缩进，
+   替代「多一层背景色」的做法——画布侧栏本身已经有底色，再叠色会显脏。 */
 .light-area-groups {
   display: grid;
   gap: 4px;
@@ -946,6 +1077,8 @@ button:disabled {
   font-size: 10px;
   white-space: nowrap;
 }
+/* 右键菜单用 position: fixed + z-index 300：它是全屏唯一浮层（高于对话框的 80），
+   坐标由脚本按鼠标位置直接写入 left/top，因此这里的层级不需要参与任何父容器裁剪。 */
 .light-group-context-menu {
   position: fixed;
   z-index: 300;
@@ -974,6 +1107,8 @@ button:disabled {
   color: #f0f3f6;
   background: #ffffff0f;
 }
+/* 删除项统一染成警示红，data-* 选择器列出菜单里三种可删除对象
+   （灯光分组 / 区域 / 楼层），新增删除项时必须同步这里。 */
 .light-group-context-menu button[data-light-group-action="delete"],
 .light-group-context-menu button[data-area-action="delete"],
 .light-group-context-menu button[data-floor-action="delete"] {
@@ -988,6 +1123,8 @@ button:disabled {
 .asset-grid[hidden] {
   display: none;
 }
+/* 素材卡片分组小标题：grid-column: 1 / -1 让它横跨两列，充当双列网格的分隔标尺；
+   :first-child 去掉上边距，避免网格顶部多出一段空白。 */
 .asset-group-heading {
   grid-column: 1 / -1;
   margin: 5px 1px 0;
@@ -1004,6 +1141,8 @@ button:disabled {
 .asset-group-heading[hidden] {
   display: none;
 }
+/* 素材卡默认是「图标 + 文字」两列（用于列表式分组），被 .asset-grid 包裹时
+   由下面的 .asset-grid .asset-card 覆写成上图下字的居中卡片。 */
 .asset-card {
   min-width: 0;
   min-height: 40px;
@@ -1027,6 +1166,9 @@ button:disabled {
   width: 100%;
   text-align: center;
 }
+/* !important 是为了压过全局的 button:hover:not(:disabled)（特异性 0,2,1）
+   高于这里的 .asset-card:hover（0,2,0）—— 否则素材卡 hover 只会变成通用灰色，
+   丢失「可放置」的橙色提示。 */
 .asset-card:hover {
   border-color: #ff9d2e5c !important;
   background: var(--accent-soft) !important;
@@ -1054,6 +1196,11 @@ button:disabled {
 .asset-card small {
   display: none;
 }
+/* ===== 中间绘图台（工具栏 / 画布 / HUD） ===== */
+
+/* container-type: inline-size 让工具栏内部的 @container 查询以「中间栏自身宽度」为准
+   （见文件下方的 880px / 620px 两组降级规则），而不是整个视口 —— 用户拖动分隔条
+   改变中栏宽度时，工具栏需要立刻跟着换排布。 */
 .plan-panel {
   min-width: 0;
   display: flex;
@@ -1071,6 +1218,8 @@ button:disabled {
   padding: 7px 10px;
   border-bottom: 1px solid var(--line);
 }
+/* 工具栏分左右两组：左侧工具按钮组可伸缩、右侧动作组靠右；两组都允许换行，
+   中栏变窄时先换行再收缩，而不是把工具裁掉。 */
 .tool-group,
 .toolbar-actions {
   display: flex;
@@ -1087,6 +1236,8 @@ button:disabled {
   justify-content: flex-end;
   margin-left: auto;
 }
+/* 工具按钮默认透明无边框，仅靠图标 + 11px 文字占位；只有 .active 才上橙底，
+   保证任意时刻只有一个工具（选择 / 墙体 / 放置…）看起来是「按下」的。 */
 .tool-button {
   height: 36px;
   display: flex;
@@ -1106,6 +1257,8 @@ button:disabled {
   font-style: normal;
   font-size: 15px;
 }
+/* 选中工具态：橙色描边 + 淡橙底，图标同步换成 --accent，
+   与画布里橙色选中框形成同一套「当前对象」语言。 */
 .tool-button.active {
   color: #fff;
   border-color: #ff9d2e4d;
@@ -1132,11 +1285,15 @@ button:disabled {
   padding: 0;
   font-size: 18px;
 }
+/* 吸附按钮的定位锚点：设置齿轮弹出的浮层以它为参照做 absolute 定位，
+   所以这里只负责建立定位上下文与水平对齐。 */
 .snap-control {
   position: relative;
   display: inline-flex;
   align-items: center;
 }
+/* 吸附按钮与它的设置齿轮是一对「拼合按钮」：左半圆角在左、右半圆角在右，
+   中间用 -1px 外边距压掉重复边框，看起来才是一条完整的控件。 */
 .toolbar-actions .snap-toggle {
   min-width: 60px;
   gap: 5px;
@@ -1151,6 +1308,8 @@ button:disabled {
   font-size: 9px;
   text-align: center;
 }
+/* 吸附开启态：按钮整体亮橙，右侧计数胶囊反相成橙底深字，
+   扫一眼就能确认吸附是否生效、当前抓住了几个点。 */
 .toolbar-actions .snap-toggle.active {
   border-color: #ff9d2e52;
   color: #f4f6f8;
@@ -1172,6 +1331,8 @@ button:disabled {
   color: var(--accent);
   background: var(--accent-soft);
 }
+/* 吸附设置浮层：贴着按钮下方 8px 展开，z-index 35 高于面板、低于对话框；
+   宽度写死 252px 让两列选项刚好放下，不做响应式收缩。 */
 .snap-settings-panel {
   position: absolute;
   z-index: 35;
@@ -1184,6 +1345,8 @@ button:disabled {
   background: #131b23fa;
   box-shadow: 0 18px 48px #0000006b;
 }
+/* 标题行用 baseline 对齐：12px 标题与 9px 副标题基线齐平，
+   若按顶部对齐，小号副标题会显得整体偏高。 */
 .snap-settings-panel header {
   display: flex;
   align-items: baseline;
@@ -1204,6 +1367,8 @@ button:disabled {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
+/* 选项行做成 30px 高的整行可点卡片（点文字也能切换，不必精确点中小方块）；
+   复选框仍用系统控件，只把 accent-color 换成主题橙。 */
 .snap-option-grid label {
   min-width: 0;
   height: 30px;
@@ -1220,6 +1385,8 @@ button:disabled {
 .snap-option-grid input {
   accent-color: var(--accent);
 }
+/* 吸附距离一行三列：文字 + 滑块（1fr 吃掉剩余宽度）+ 数字读数；
+   读数固定 34px 宽并右对齐，拖动滑块时数字位数变化不会让整行左右跳。 */
 .snap-distance {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -1239,6 +1406,8 @@ button:disabled {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+/* 中栏 < 880px：工具栏从「图标 + 文字横排」改成「图标在上、文字在下」的方块，
+   换取更少的横向占用；这里只降尺寸，不隐藏任何工具。 */
 @container (max-width: 880px) {
   .plan-toolbar {
     gap: 5px 10px;
@@ -1258,6 +1427,7 @@ button:disabled {
     padding-inline: 8px;
   }
 }
+/* 中栏 < 620px：再压一轮内边距，保证工具按钮不换行到第二排（换行会把画布高度挤掉）。 */
 @container (max-width: 620px) {
   .tool-button {
     min-width: 44px;
@@ -1273,6 +1443,8 @@ button:disabled {
     min-width: 32px;
   }
 }
+/* 画布底纹用两层同色 1px 线性渐变拼出 24px 网格：比 background-image 贴图省一次请求，
+   也随 DPR 缩放保持锐利。网格只是视觉参考，不参与任何坐标换算。 */
 .plan-stage {
   min-height: 0;
   flex: 1;
@@ -1284,6 +1456,8 @@ button:disabled {
     linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
   background-size: 24px 24px;
 }
+/* touch-action: none 必须保留：指针事件要独占手势，否则触控板/触屏上拖拽画布
+   会先触发页面级滚动或缩放，导致拖拽中途被系统打断。 */
 #plan-canvas {
   width: 100%;
   height: 100%;
@@ -1291,6 +1465,8 @@ button:disabled {
   touch-action: none;
   cursor: default;
 }
+/* 光标由 data-tool 驱动（脚本切换工具时只改这一个属性）：
+   需要落点的工具用十字准星，平移工具用抓手，正在平移时换成攥紧的手。 */
 #plan-canvas[data-tool="wall"],
 #plan-canvas[data-tool="scale"],
 #plan-canvas[data-tool="window"],
@@ -1304,6 +1480,8 @@ button:disabled {
 #plan-canvas.panning {
   cursor: grabbing;
 }
+/* 空状态盖在画布上但 pointer-events: none：提示文案本身不需要交互，
+   遮罩绝不能挡住画布 —— 没有内容时用户仍然要能拖入素材、框选、平移。 */
 .canvas-empty {
   position: absolute;
   inset: 0;
@@ -1342,6 +1520,8 @@ button:disabled {
   font-size: 10px;
   line-height: 1.6;
 }
+/* HUD 默认不接收指针事件（不挡住画布操作），只有右下角的缩放控件单独开回
+   pointer-events: auto（见下方 .canvas-hud.bottom-right）。 */
 .canvas-hud {
   position: absolute;
   z-index: 4;
@@ -1371,6 +1551,8 @@ button:disabled {
   color: #8a96a0;
   font-size: 10px;
 }
+/* 底部左侧 HUD：光标坐标（等宽字体防抖动）+ 吸附开关状态，
+   第二个 span 用 --cyan 与坐标区分，两者都由脚本按帧写入文本。 */
 .canvas-hud.bottom-left {
   bottom: 12px;
   left: 12px;
@@ -1411,6 +1593,9 @@ button:disabled {
     10px ui-monospace,
     monospace;
 }
+/* 拖拽素材接近画布时整块虚线框亮起（display 由 .plan-stage.dragging-item 切换）。
+   它是覆盖层但 pointer-events: none —— 拖拽过程中指针必须始终落在画布上，
+   否则 HTML5 拖放的 dragover 会中断。 */
 .drop-hint {
   position: absolute;
   inset: 12px;
@@ -1428,6 +1613,10 @@ button:disabled {
 .plan-stage.dragging-item .drop-hint {
   display: grid;
 }
+/* ===== 右栏：3D 预览 + 属性检查器 ===== */
+
+/* 三行网格：预览区可拖拽高度（--preview-panel-height，由 studio-app.js 写入）、
+   14px 的分隔条、属性区吃掉剩余空间。两侧都写 minmax 保证拖到极限时仍可用。 */
 .details-panel {
   min-width: 0;
   min-height: 0;
@@ -1435,6 +1624,9 @@ button:disabled {
   grid-template-rows: minmax(320px, var(--preview-panel-height, 52%)) 14px minmax(170px, 1fr);
   gap: 0;
 }
+/* 右栏上下两个卡片（3D 预览 / 属性检查器）共用同一套纵向布局：
+   标题行固定高度、内容区吃掉剩余空间并各自滚动；卡片自身 overflow: hidden，
+   防止内部滚动条顶出圆角边框。 */
 .preview-card,
 .inspector-card {
   min-height: 0;
@@ -1468,6 +1660,9 @@ button:disabled {
   pointer-events: none;
   transform: translate(-50%, -50%);
 }
+/* 加载提示：居中的胶囊浮层 + 纯 CSS 旋转环。转环只给 border-top-color 上色，
+   其余三边半透明，省掉一张图片资源；两处都 pointer-events: none，
+   这样模型还在加载时也能继续操作画布。 */
 .model-loading-spinner {
   width: 22px;
   height: 22px;
@@ -1481,11 +1676,16 @@ button:disabled {
     transform: rotate(360deg);
   }
 }
+/* 分隔条本身只有 14px 高、默认不可拖（cursor: default），真正的拖拽把手是
+   叠在上面的 .details-resizer 小方块，所以命中的是把手而不是整条线。 */
 .details-divider {
   position: relative;
   z-index: 4;
   cursor: default;
 }
+/* 把手放在分隔条左端（left: -7px）并刻意做得比 14px 高一点，跨出分隔条上下边界，
+   更容易被鼠标命中；box-shadow 0 0 0 5px 是模拟「挖空」效果，省掉一层额外的背景绘制。
+   touch-action: none 同 canvas，防止触屏拖动被系统滚动抢走。 */
 .details-resizer {
   position: absolute;
   z-index: 1;
@@ -1523,6 +1723,9 @@ button:disabled {
   cursor: move;
   user-select: none;
 }
+/* 预览工具栏高度写死 132px 并用 grid-template-areas 排成「标题 / 操作」两行：
+   这里的按钮增减很频繁，固定高度能保证下方的 3D 画布尺寸不随文案长度变化而跳动
+   （画布尺寸变化会触发 WebGL 重新分配 drawingBuffer，代价很高）。 */
 .preview-heading {
   height: 132px;
   min-height: 132px;
@@ -1538,6 +1741,8 @@ button:disabled {
   overflow: hidden;
   border-bottom: 1px solid var(--line);
 }
+/* 标题区左格（.preview-heading 里的 grid-area: copy）：主标题与品质状态同一行，
+   min-width: 0 保证标题过长时走省略号，而不是把网格第一列撑破。 */
 .preview-heading-copy {
   grid-area: copy;
   min-width: 0;
@@ -1558,6 +1763,8 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 标题区右格（grid-area: tip）：相机操作提示 + 「基础照明」快捷入口，整体贴右。
+   提示文字单行省略，宽度不足时优先保住右侧按钮。 */
 .preview-heading-tip {
   grid-area: tip;
   min-width: 0;
@@ -1591,6 +1798,9 @@ button:disabled {
 .preview-heading-actions button {
   white-space: nowrap;
 }
+/* 操作区（grid-area: actions）固定两行 30px：上行主操作、下行相机/视角开关。
+   行高与总高写死是刻意的——按钮文案变化不会顶动画布，画布尺寸一变就要重建
+   WebGL 的 drawingBuffer，代价远高于让标题区留白。 */
 .preview-heading-actions {
   grid-area: actions;
   min-width: 0;
@@ -1609,6 +1819,8 @@ button:disabled {
   align-items: center;
   gap: 6px;
 }
+/* 每行操作前的极窄标签（「视角」「相机」「同步」等）：固定 28px 不参与伸缩，
+   靠 0.08em 字距在 10px 字号下维持可读性。 */
 .preview-control-label {
   width: 28px;
   flex: 0 0 28px;
@@ -1627,6 +1839,8 @@ button:disabled {
   align-items: center;
   gap: 6px;
 }
+/* 导出是预览区的首要动作，单独提亮成橙描边 + 淡橙底，hover 再加深一档；
+   只改颜色不改尺寸，保证标题区高度恒定。 */
 .preview-primary-controls .open-export {
   border-color: #ffa73a52;
   color: #ffc071;
@@ -1639,6 +1853,8 @@ button:disabled {
 .preview-secondary-controls #reset-camera {
   color: #8996a1;
 }
+/* 切换开关组（同步 / 楼层 / 视角 / 相机 / 固定机位）共用同一套外观：
+   外层描边容器 + 内部透明按钮，选中项由 .active 打上蓝底。 */
 .preview-sync-switch,
 .preview-floor-switch,
 .preview-view-switch,
@@ -1669,6 +1885,8 @@ button:disabled {
   background: #869ece3d;
   box-shadow: inset 0 0 0 1px #c2d3f426;
 }
+/* 「焦距 / 楼层间距」这类带单位的小控件：左侧标签 + 内嵌步进器，
+   30px 高、8px 圆角，与工具栏按钮保持同一套视觉语言。 */
 .camera-focal-control {
   min-height: 30px;
   display: flex;
@@ -1692,6 +1910,8 @@ button:disabled {
   flex: 0 0 53px;
   grid-template-columns: minmax(0, 1fr) 16px;
 }
+/* 控件内部的输入框自己不带边框（靠半透明底色区分），焦点态也只画 1px 橙描边：
+   全局的 2px + 2px offset 焦点环会溢出这枚 30px 高的控件被裁掉。 */
 .camera-focal-control input {
   width: 100%;
   min-height: 22px;
@@ -1717,6 +1937,8 @@ button:disabled {
 .camera-focal-control.is-disabled {
   opacity: 0.58;
 }
+/* 导出表单里的楼层切换：外观与预览区的楼层开关同款，但宽度用 max-content ——
+   它在导出面板里独占一行，按容器拉满会显得比旁边的表单控件更「重」。 */
 .export-floor-switch {
   display: flex;
   width: max-content;
@@ -1755,6 +1977,8 @@ button:disabled {
   justify-content: end;
   align-items: end;
 }
+/* 楼层间距字段被隐藏时整块收起：:has() 直接读子元素状态，
+   省掉脚本再给父容器加一次类（节点结构见 3d-studio.html）。 */
 .export-floor-fields:has(.export-floor-gap-control[hidden]) {
   display: none;
 }
@@ -1801,6 +2025,9 @@ button:disabled {
   color: #64717b;
   font-style: normal;
 }
+/* 刷新预览按钮的三种抢占关系（写在后面才能生效）：
+   .is-dirty 表示参数已改但预览未刷新，需要橙色高亮提醒用户点一下；
+   灯光预览按钮在同一位置复用同一套高亮，故用 :not(:disabled) 单独声明。 */
 .preview-heading .refresh-preview {
   color: #71808d;
 }
@@ -1817,10 +2044,14 @@ button:disabled {
   border-color: #ffa73a47;
   background: #ffa73a1a;
 }
+/* 已存过视角的固定机位按钮染成琥珀色，与「空位」区分；状态由脚本按位图写入类名。 */
 .fixed-camera-actions button.has-saved-view {
   color: #ffc071;
   background: #ffa73a1c;
 }
+/* 楼层间距胶囊与相机焦距胶囊共用「标签 + 步进器」的形态，但可用宽度不同
+   （间距只需容下 3 位数 → 53px；焦距要容下小数 → 81px），
+   因此步进器宽度各自覆盖，不强行抽公共类。 */
 .floor-gap-control {
   min-height: 30px;
   display: flex;
@@ -1853,6 +2084,7 @@ button:disabled {
   color: #596570;
   font-style: normal;
 }
+/* 勾选框单独压到 14px 与行内文字等高，避免系统默认尺寸把「各层统一」这一行撑高。 */
 #preview-floor-uniform-control input {
   width: 14px;
   min-width: 14px;
@@ -1861,6 +2093,8 @@ button:disabled {
   margin: 0 2px;
   accent-color: var(--accent);
 }
+/* 预览画布容器：深色径向渐变当作「演播厅背景」，让浅色模型轮廓更清楚；
+   绝对定位的浮层（性能面板、原图缓存、渲染遮罩、加载中提示）都以此为包含块。 */
 .preview-3d {
   min-height: 0;
   flex: 1;
@@ -1872,6 +2106,8 @@ button:disabled {
   height: 100%;
   display: block;
 }
+/* 性能诊断浮层：默认只读展示（pointer-events: none），等宽字体 + 两列网格对齐数值。
+   预览区浮层层级约定：原图缓存 2 < 渲染遮罩 3 < 加载提示 6 < 性能面板 7。 */
 .performance-diagnostics {
   position: absolute;
   z-index: 7;
@@ -1911,6 +2147,10 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 基础光照面板：固定在视口右上角（不随面板滚动），可由标题栏拖拽移动 ——
+   拖拽逻辑直接改 left/top，所以这里必须有 position: fixed 作为起点；
+   z-index 80 与对话框同级，高于所有面板与预览浮层。
+   body.auto-diagram-embedded 下会被强制隐藏（导出时不需要调光）。 */
 .base-light-controls {
   position: fixed;
   z-index: 80;
@@ -1924,6 +2164,8 @@ button:disabled {
   box-shadow: 0 12px 30px #00000052;
   backdrop-filter: blur(12px);
 }
+/* 基础光照面板的标题栏：整条作为拖拽把手（cursor: move），touch-action: none 防止
+   触屏拖动被系统滚动抢走；拖拽逻辑直接改面板的 left/top，所以面板必须 position: fixed。 */
 .base-light-controls-header {
   min-height: 30px;
   display: flex;
@@ -1941,6 +2183,8 @@ button:disabled {
 .base-light-controls-header strong {
   font: inherit;
 }
+/* 拖拽提示用 margin-left: auto 顶到标题栏最右端；letter-spacing 归零是因为它继承
+   了标题栏的 0.04em 字距，小号提示文字带字距会显得松散。 */
 .base-light-drag-hint {
   margin-left: auto;
   color: #596673;
@@ -1956,6 +2200,8 @@ button:disabled {
   background: transparent;
   font-size: 9px;
 }
+/* 面板主体限高（520px 或视口残高）并自行滚动：光照参数分组很多，
+   不限高在 768px 高的屏幕上会把面板顶出视口，拖拽把手也够不到。 */
 .base-light-controls-body {
   max-height: min(520px, calc(100vh - 205px));
   padding: 0 11px 11px;
@@ -1979,6 +2225,8 @@ button:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
 }
+/* 参数行：52px 固定标签列 + 输入列。label 自身就是网格项，配合 min-width: 0
+   让输入框在窄面板里跟着收缩，而不是撑破两列网格。 */
 .base-light-control-grid label {
   min-width: 0;
   display: grid;
@@ -2009,6 +2257,8 @@ button:disabled {
 .base-light-control-grid input:focus {
   border-color: #ffa73a8f;
 }
+/* 光照参数区两列并排，每格输入框只有 60px 左右，步进器收窄到 17px；
+   gap 压到 2px 是为了给数字本身留出宽度。 */
 .base-light-control-grid .number-stepper {
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) 17px;
@@ -2023,6 +2273,8 @@ button:disabled {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
+/* 底部一对操作按钮：左「重置」是低对比中性色（可撤销），右「保存」用橙色描边 + 淡橙底，
+   因为保存会把光照参数写回文档，是本面板的主操作。两者等宽等高。 */
 .reset-base-lighting,
 .save-base-lighting {
   width: 100%;
@@ -2037,6 +2289,9 @@ button:disabled {
   color: #ffc071;
   background: #ff9d2e1a;
 }
+/* 预览区两张离屏 canvas 的覆盖层：灯光合图缓存（z-index 2）与渲染遮罩（z-index 3），
+   都是 inset: 0 铺满 + pointer-events: none。切换时只切 [hidden]、不销毁节点，
+   避免反复创建 canvas 触发 WebGL 上下文重建。 */
 .preview-3d .preview-light-cache {
   position: absolute;
   z-index: 2;
@@ -2055,6 +2310,7 @@ button:disabled {
 .preview-3d .preview-render-shield[hidden] {
   display: none;
 }
+/* WebGL 不可用（或上下文丢失）时替代画布的占位文案，居中显示纯文本。 */
 .webgl-message {
   position: absolute;
   inset: 0;
@@ -2068,6 +2324,8 @@ button:disabled {
   .preview-scope-controls {
     gap: 2px;
   }
+/* 预览区 < 480px 的一级降级：先舍去 28px 的行标签，再把按钮内边距压到 4px，
+   保证「同步 / 楼层 / 视角」这些开关组仍能挤在同一行里（换行会改变标题区高度）。 */
   .preview-primary-controls > .preview-control-label {
     display: none;
   }
@@ -2086,6 +2344,8 @@ button:disabled {
   }
 }
 @container (max-width: 420px) {
+  /* 预览区 < 420px 的二级降级：连 28px 行标签也全部隐藏，只留开关本身。
+     两档降级都只减尺寸 / 隐藏标签，不删任何功能。 */
   .preview-heading {
     padding-inline: 7px;
   }
@@ -2101,6 +2361,8 @@ button:disabled {
   .preview-control-label {
     display: none;
   }
+  /* 按钮内边距收到 4px 是最后一道横向压缩手段；再不够就只能换行，
+     而换行会改变标题区高度（理由见 .preview-heading 的固定高度注释）。 */
   .preview-heading button {
     padding-inline: 4px;
   }
@@ -2115,6 +2377,9 @@ button:disabled {
     padding-inline: 5px;
   }
 }
+/* ===== 属性检查器 ===== */
+
+/* 检查器自身滚动（不撑大右栏），container-type 供内部按栏宽做降级。 */
 .inspector-card {
   container-type: inline-size;
   overflow: auto;
@@ -2134,6 +2399,8 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 属性区空状态：未选中对象时的居中提示（图标圈 + 标题 + 说明文字）。
+   用 align-content: center 在滚动容器里垂直居中，而不是靠固定 padding 顶下来。 */
 .inspector-empty {
   flex: 1;
   display: grid;
@@ -2173,6 +2440,8 @@ button:disabled {
   padding: 13px 0;
   border-bottom: 1px solid var(--line);
 }
+/* light-selected 是选中灯具时的排布变体：标题左侧对齐并留出备注文字，
+   与默认的「标题 + 类型两端对齐」不同，因此单独覆盖。 */
 .selection-heading.light-selected {
   justify-content: flex-start;
   gap: 8px;
@@ -2190,6 +2459,8 @@ button:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 属性字段区：一屏里的分组块，上边留 12px、下边只留 4px（下一组的标签自带间距）。
+   紧随其后的标签基座规则被四类字段容器共用，调字段间距只需改那一处。 */
 .field-section {
   padding: 12px 0 4px;
 }
@@ -2208,6 +2479,8 @@ button:disabled {
   gap: 10px;
   margin-bottom: 10px;
 }
+/* 「名称 / 备注」文本字段组：单列排布 + 底部细分隔线，与下面的灯光字段组区分。
+   隐藏时由脚本挂 hidden，显式写出 none 使它与被隐藏的 grid 声明成对出现，便于对照。 */
 .label-text-fields {
   display: grid;
   grid-template-columns: 1fr;
@@ -2229,6 +2502,8 @@ button:disabled {
 .light-fields[hidden] {
   display: none;
 }
+/* 灯具预览说明文字挤在标题右侧：max-width 限宽 + 允许折行，
+   长度超限时截断而不是把「类型」推到看不见的位置。 */
 .selection-heading > .light-preview-note {
   flex: 0 1 auto;
   min-width: 0;
@@ -2243,6 +2518,9 @@ button:disabled {
 .selection-heading > .light-preview-note[hidden] {
   display: none;
 }
+/* 灯具批量设置区：每行「标签 + 应用到所有」两端对齐（space-between），所以这里的
+   label 用 block 而不是上面那种纵向 grid —— 标签与按钮同排更省高度。
+   类名虽带 light，实际也被墙体 / 家具属性复用（见 3d-studio.html）。 */
 .light-fields .field-grid {
   margin-bottom: 0;
 }
@@ -2262,6 +2540,9 @@ button:disabled {
 .light-batch-control label {
   display: block;
 }
+/* 「应用到所有」小按钮：点击后弹出目标选择对话框（studio-app.js 按
+   data-apply-light-property / data-apply-wall-property 分类），确认后把当前
+   字段值批量写入勾选的对象。24px 高让它在密集属性行里不额外抢高度。 */
 .light-apply-button {
   height: 24px;
   padding: 0 7px;
@@ -2277,6 +2558,8 @@ button:disabled {
 .item-transform-fields {
   margin-top: 0;
 }
+/* 灯带朝向分组标题跨满整行（grid-column 1 / -1）：它把「位置 / 尺寸」与「朝向」分开，
+   上面加一条细分隔线，视觉上不占用独立区块的间距。 */
 .strip-orientation-heading {
   grid-column: 1 / -1;
   display: flex;
@@ -2296,6 +2579,8 @@ button:disabled {
   color: #74818c;
   font-size: 9px;
 }
+/* 该开关只在选中「灯带」（striplight）时放出（脚本按 inspectedEntity.type 切 hidden）：
+   只有灯带的光效范围是块状体积、会明显挡视线，需要给用户关掉的入口。 */
 .selection-heading > .light-source-visibility-control {
   display: inline-flex;
   flex: 0 0 auto;
@@ -2326,6 +2611,8 @@ button:disabled {
   background: #0003;
   font-size: 11px;
 }
+/* 原生 select 的下拉列表由系统渲染，只能用这几个伪类着色（Chrome/Edge 生效）；
+   color-scheme: dark 让滚动条与弹层底色跟随暗色，避免出现白色下拉。 */
 select {
   color-scheme: dark;
 }
@@ -2359,6 +2646,11 @@ select option:disabled {
   outline: 1px solid rgba(125, 177, 232, 0.26);
   outline-offset: 1px;
 }
+/* ===== 自定义下拉框（studio-select） ===== */
+
+/* 原生 <select> 在深色主题下无法统一样式，于是保留它做无障碍与表单语义，
+   视觉上压成 1px 隐藏（下面一串 !important 是为了压过 .field-section select
+   的 width/height/padding），真正可见的是 .studio-select-trigger 与 .studio-select-menu。 */
 .studio-select {
   position: relative;
   min-width: 0;
@@ -2390,6 +2682,8 @@ select option:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 两个 45° 短线段拼成箭头（:before / :after 各转一边），展开时互换角度形成翻转动画。
+   用两条线段而非字符，是为了避开不同字体的箭头字形差异。 */
 .studio-select-trigger:before,
 .studio-select-trigger:after {
   position: absolute;
@@ -2410,6 +2704,7 @@ select option:disabled {
   right: 11px;
   transform: rotate(-45deg);
 }
+/* 展开态：描边变橙 + 两层箭头互换角度，形成「箭头翻转」的效果。 */
 .studio-select.open .studio-select-trigger {
   border-color: #ffa73a8f;
   box-shadow: 0 0 0 2px #ff9d2e14;
@@ -2422,6 +2717,8 @@ select option:disabled {
   background: #ffc071;
   transform: rotate(45deg);
 }
+/* 自定义下拉触发器的键盘焦点态：除橙色描边外再补一圈 2px 半透明外扩
+   （全局 button 的焦点环是 2px 实色，放在这个 36px 控件上过重）。 */
 .studio-select-trigger:focus-visible {
   border-color: #ffa73ab8;
   outline: 2px solid rgba(255, 157, 46, 0.16);
@@ -2431,6 +2728,8 @@ select option:disabled {
   color: #65717c;
   background: #0d1319;
 }
+/* 下拉面板：absolute 挂在 .studio-select 上（父级 position: relative），
+   max-height 240px + 内部滚动，防止灯具组/楼层这类长列表把所在对话框顶出视口。 */
 .studio-select-menu {
   position: absolute;
   z-index: 80;
@@ -2462,6 +2761,9 @@ select option:disabled {
   line-height: 1.35;
   text-align: left;
 }
+/* 选项按钮：撑满菜单宽度、左对齐，hover 与键盘 focus 共用同一底色；
+   .selected 对应原生 <option selected>，.studio-select-option:disabled 则直接
+   同步原生 <option disabled>（见 studio-widgets.js），灰字表示该项当前不可选。 */
 .studio-select-option:hover,
 .studio-select-option:focus-visible {
   color: #eef3f6;
@@ -2481,6 +2783,9 @@ select option:disabled {
   font-size: 10px;
   line-height: 32px;
 }
+/* 三处尺寸覆盖（导出面板的楼层下拉 34px、导出组合标题里 30px、改名行 38px）：
+   都是为了让下拉与同一行/同一栏里的输入框、按钮高度对齐；
+   宽度仍交给所在容器，下拉自身不做定宽。 */
 .export-composition-heading .export-floor-select-control .studio-select-trigger {
   height: 30px;
   line-height: 28px;
@@ -2504,6 +2809,8 @@ select option:disabled {
 .door-type-field {
   margin-bottom: 10px;
 }
+/* 属性区里的快捷动作网格：旋转按钮 4 等分（±90° 四向），门开合 2 等分；
+   两者统一用 32px 高、10px 字的次级按钮，与属性区其它控件的节奏一致。 */
 .rotation-actions {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -2543,6 +2850,11 @@ select option:disabled {
 .shoe-cabinet-actions[hidden] {
   display: none;
 }
+/* ===== 对话框（标定比例 / 楼层删除 / 重命名 / 灯具批量应用） ===== */
+
+/* 这几个都是原生 <dialog>：遮罩用 ::backdrop 而不是自绘 div，
+   既省一层 DOM，也自带「打开时其它内容 inert」的可访问性语义。
+   各对话框只覆盖宽度，其余外观继承这一份基线。 */
 .scale-dialog {
   width: min(510px, calc(100vw - 40px));
   padding: 0;
@@ -2582,6 +2894,8 @@ select option:disabled {
   color: #78848e;
   font-size: 18px;
 }
+/* 标定比例的预览行：三列排成「图上长度 → 实际尺寸」的换算表达式，
+   输入框固定 123px 宽，让两侧的文字长度变化不会推挤中间的关系式。 */
 .measurement-preview {
   margin: 22px 0;
   padding: 15px;
@@ -2593,6 +2907,8 @@ select option:disabled {
   border-radius: 10px;
   background: #00000029;
 }
+/* 换算表达式两端的文字与中间的箭头：左读数右对齐贴近箭头，
+   等宽字体保证它与输入框里的数值视觉对齐；箭头用 --accent 点出「等于」这一步。 */
 .measurement-preview > span {
   color: #92a0aa;
   text-align: right;
@@ -2624,6 +2940,8 @@ select option:disabled {
   color: #fff;
   background: #ff9d2e14;
 }
+/* 所有对话框共用的底部动作条：右对齐、按钮统一 min-width 100px / 38px 高，
+   让「取消 / 确认」在不同宽度的对话框里始终落在同一位置。 */
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -2642,6 +2960,8 @@ select option:disabled {
   color: #ffc071;
   font-weight: 700;
 }
+/* 导出摘要条被三个对话框复用（导出完成 / 覆盖确认 / 保存冲突），
+   这里定义通用外观，颜色由各自的上下文覆盖（例如下面的保存冲突改成琥珀色）。 */
 .export-notice-summary {
   margin: 22px 0;
   padding: 13px 15px;
@@ -2653,6 +2973,8 @@ select option:disabled {
   border-radius: 10px;
   background: #00000029;
 }
+/* 摘要条的左右两段：左侧标签小号灰字，右侧数值等宽字且单行省略 ——
+   数值往往是文件路径或尺寸这类长文本，宁可截断也不能把条撑破。 */
 .export-notice-summary span {
   color: #7f8c96;
   font-size: 10px;
@@ -2667,6 +2989,8 @@ select option:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 复用摘要条的三个对话框各自只改差异：导出完成把数值染绿（成功）、
+   保存冲突染琥珀（需用户决策）、楼层删除整体收窄到 440px。 */
 .export-complete-dialog .export-notice-summary strong {
   color: #91ddb5;
 }
@@ -2683,6 +3007,8 @@ select option:disabled {
   color: #ff9ca0;
   font-weight: 750;
 }
+/* 删除楼层是不可逆操作：确认键改用实心红底，并给出独立的 hover / focus 加深态，
+   与其它对话框的橙色确认键形成明显区分。 */
 .floor-delete-dialog .floor-delete-confirm {
   border-color: #d851587a;
   color: #ffe1e2;
@@ -2697,6 +3023,7 @@ select option:disabled {
 .save-conflict-dialog {
   width: min(540px, calc(100vw - 40px));
 }
+/* 保存冲突是「需要用户决策」而非「已完成」，故摘要值改成琥珀色提醒。 */
 .save-conflict-dialog .export-notice-summary strong {
   color: #f5c46b;
 }
@@ -2713,6 +3040,8 @@ select option:disabled {
   color: #b9c3cb;
   font-size: 11px;
 }
+/* 改名对话框里的文本框与分组下拉共用同一套外观：38px 高、橙色描边 + 淡橙底，
+   表示「这一行是要提交的输入」；聚焦时再叠一圈 3px 光晕。 */
 .light-group-rename-field input {
   width: 100%;
   height: 38px;
@@ -2741,6 +3070,8 @@ select option:disabled {
   border-color: #ffa73ab8;
   box-shadow: 0 0 0 3px #ff9d2e14;
 }
+/* 灯具属性批量应用对话框：加宽到 720px 以容纳多列目标列表；内部用 flex column +
+   max-height 收在视口内，让「说明 / 目标列表 / 动作条」三段中只有列表滚动。 */
 .light-property-apply-dialog {
   width: min(720px, calc(100vw - 40px));
 }
@@ -2755,6 +3086,8 @@ select option:disabled {
     12px ui-monospace,
     monospace;
 }
+/* 灯具属性批量应用对话框：列出所有可应用目标，按图层 / 分组分节。
+   列表区自己滚动（max-height 随视口高度收），保证对话框本体不超出屏幕。 */
 .light-property-targets {
   min-height: 0;
   margin: 20px 0;
@@ -2795,6 +3128,8 @@ select option:disabled {
   background: #ff9d2e0f;
   font-size: 10px;
 }
+/* 目标列表自身滚动：上限 min(430px, 100vh - 330px)，后者保证在矮屏上
+   标题 + 按钮 + 列表总高不溢出对话框。 */
 .light-property-target-list {
   max-height: min(430px, calc(100vh - 330px));
   overflow: auto;
@@ -2820,6 +3155,7 @@ select option:disabled {
   color: #d0d8de;
   font-size: 11px;
 }
+/* 目标三列排布：灯具名 + 类型两行信息，一屏尽可能多勾几个；窄屏降到单列。 */
 .light-property-target-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2837,6 +3173,8 @@ select option:disabled {
   color: #aeb8c1;
   cursor: pointer;
 }
+/* 单个目标项：整个 label 可点（所以 cursor 是 pointer），左列 15px 勾选框、
+   右列两行文字；hover 只加极淡底色，避免与「已勾选」的橙色混淆。 */
 .light-property-target-item:hover {
   background: #ffffff06;
 }
@@ -2856,6 +3194,8 @@ select option:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 两行文字都单行省略：灯具名可能很长，类型 / 区域信息放第二行小字；
+   三列并排时任何一行超宽都会把列宽顶乱，所以必须 overflow: hidden。 */
 .light-property-target-item strong {
   color: #cbd3d9;
   font-size: 11px;
@@ -2871,11 +3211,16 @@ select option:disabled {
   text-align: center;
   font-size: 11px;
 }
+/* 窄屏（<620px）：目标列表从三列收到单列，否则灯具名会被截断到无法辨认。 */
 @media (max-width: 620px) {
   .light-property-target-grid {
     grid-template-columns: 1fr;
   }
 }
+/* ===== 导出工作台（全屏对话框） ===== */
+
+/* 导出界面刻意做成「铺满视口」的大对话框（宽高都是 100vw/100vh 减 14px 留边），
+   因为主诉求是看大图；左侧为参数区、右侧为画幅预览，两栏由 grid 固定。 */
 .export-dialog {
   width: calc(100vw - 28px);
   max-width: none;
@@ -2889,6 +3234,8 @@ select option:disabled {
   background: #111920;
   box-shadow: 0 32px 100px #000000ad;
 }
+/* 导出对话框的遮罩比其它对话框更深并加 8px 模糊：它几乎铺满全屏，
+   需要彻底压掉底下的编辑器界面，只留下「正在导出」这一件事。 */
 .export-dialog::backdrop {
   background: #020508db;
   backdrop-filter: blur(8px);
@@ -2909,6 +3256,8 @@ select option:disabled {
   gap: 20px;
   border-bottom: 1px solid var(--line);
 }
+/* 标题条横跨左右两栏（grid-column: 1 / -1）：左侧标题 + 说明，右侧唯一的关闭按钮。
+   关闭按钮写死 34px 见方，避免被 flex 拉伸成扁圆。 */
 .export-heading h2 {
   margin: 5px 0 4px;
   font-size: 19px;
@@ -2936,6 +3285,8 @@ select option:disabled {
   border-right: 1px solid var(--line);
   background: #080d1275;
 }
+/* 导出进行中禁止关闭对话框的提示条：用琥珀底 + 内阴影做成「警告牌」质感，
+   与成功/错误 toast 区分开（这里是提示而非结果）。 */
 .export-busy-notice {
   display: grid;
   gap: 3px;
@@ -2950,6 +3301,8 @@ select option:disabled {
   color: #ffd778;
   font-size: 11px;
 }
+/* 提示条两行文字与收起态：标题用亮琥珀、正文用低饱和米色，保证在琥珀底上仍可读；
+   导出结束后脚本挂 hidden 收起，显式写出与被隐藏的 grid 声明成对出现。 */
 .export-busy-notice span {
   color: #cdbd9d;
   font-size: 10px;
@@ -2964,6 +3317,8 @@ select option:disabled {
   border-radius: 10px;
   background: #ffffff04;
 }
+/* 参数区的每个分组都是一张卡片（1px 描边 + 10px 圆角 + 极淡底色）；
+   「预设」分组自身再用 grid 排「标题行 + 列表」，所以它的间距由 gap 统一给。 */
 .export-preset-section {
   display: grid;
   gap: 10px;
@@ -2995,11 +3350,16 @@ select option:disabled {
   opacity: 0.32;
   cursor: not-allowed;
 }
+/* 预设槽位固定 4 列 2 行（与 export-presets.js 的槽位数量一致），
+   active 但还没存过值的槽位用虚线框表示「空位可覆盖」。 */
 .export-preset-slots {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
+/* 槽位按钮：固定 54px 高，让 4×2 网格在窄面板里也保持整齐；
+   min-width: 0 是关键——缺了它，grid 子项会被 <strong> 里的长预设名撑破，
+   下面的 text-overflow: ellipsis 就完全失效。 */
 .export-preset-slots button {
   min-width: 0;
   min-height: 54px;
@@ -3014,15 +3374,19 @@ select option:disabled {
   background: #00000029;
   text-align: left;
 }
+/* 悬停：橙色只做到「淡淡一层」的程度，避免与下面的 .active 抢视觉焦点。 */
 .export-preset-slots button:hover {
   border-color: #ff9d2e52;
   background: #ff9d2e09;
 }
+/* 当前选中的槽位：实线橙框 + 外扩 1px 的极淡光晕，靠边框深浅而不是填充色区分。 */
 .export-preset-slots button.active {
   border-color: #ff9d2e9e;
   background: #ff9d2e14;
   box-shadow: 0 0 0 1px #ff9d2e14;
 }
+/* 选中但从未存过值（脚本不加 .has-value）：改成虚线灰框、去掉光晕，
+   语义是「这是个空位，可以被覆盖」，与「已存过值」的实线橙框形成对照。 */
 .export-preset-slots button.active:not(.has-value) {
   border-style: dashed;
   border-color: #8b9aa67a;
@@ -3035,6 +3399,8 @@ select option:disabled {
 .export-preset-slots button.active:not(.has-value) > small {
   color: #aeb9c2;
 }
+/* 槽位内两行文本：上行是预设名（主），下行是分辨率摘要（次）。
+   两者都强制单行省略号，否则不同长度的预设名会让 8 个槽位高低不齐。 */
 .export-preset-slots button > strong {
   min-width: 0;
   overflow: hidden;
@@ -3053,6 +3419,8 @@ select option:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 分区标题行：左边是序号徽标 + 标题/副标题，右边可放一个操作按钮。
+   flex 布局让中间的文本块吸收剩余宽度，按钮永远贴右且不被压缩。 */
 .export-section-heading {
   margin-bottom: 10px;
   display: flex;
@@ -3071,6 +3439,7 @@ select option:disabled {
   font-size: 10px;
   white-space: nowrap;
 }
+/* 序号徽标：等宽字体让「1」「10」这类不同位数的序号右边对齐，不会一宽一窄。 */
 .export-section-heading > span {
   display: grid;
   width: 25px;
@@ -3083,6 +3452,7 @@ select option:disabled {
     10px ui-monospace,
     monospace;
 }
+/* 两行都转成块级，否则 strong 与 small 会并排成一行。 */
 .export-section-heading strong,
 .export-section-heading small {
   display: block;
@@ -3096,12 +3466,16 @@ select option:disabled {
   color: #71808b;
   font-size: 10px;
 }
+/* 尺寸行：宽度 / × 号 / 高度 / 单位按钮 四列。
+   align-items: end 让两侧输入框底部对齐——上方的 label 文字高度不同也不会错行。 */
 .export-size-control-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
   align-items: end;
   gap: 5px;
 }
+/* display: contents 是关键：这个包裹层自身不生成盒子，于是它的两个 label
+   直接成为上面四列网格的子项，省掉一层嵌套又不用改结构。 */
 .export-size-fields {
   display: contents;
 }
@@ -3111,6 +3485,7 @@ select option:disabled {
   color: #8b98a3;
   font-size: 10px;
 }
+/* 等宽字体让宽高两个数字逐位对齐，改数值时不会左右跳动。 */
 .export-size-fields input {
   width: 100%;
   height: 34px;
@@ -3123,6 +3498,9 @@ select option:disabled {
     11px ui-monospace,
     monospace;
 }
+/* 导出目录一行：左 label、右输入框，高度与上面的尺寸输入框一致（34px）。
+   :focus 用橙色描边，与下方 .invalid 的红框区分开，避免「正在编辑」和
+   「路径不可用」两种状态看起来一样。 */
 .export-folder-field {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -3147,6 +3525,8 @@ select option:disabled {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
+/* 导出目录非法（不存在 / 无写权限）时由脚本加 .invalid，用 --danger 直接反馈，
+   避免必须点「开始导出」才知道路径不可用。 */
 .export-folder-field input.invalid {
   border-color: var(--danger);
 }
@@ -3155,6 +3535,8 @@ select option:disabled {
   color: #53606b;
   font-style: normal;
 }
+/* 宽高比锁定：勾选后改一边自动算另一边；output 里的比例值由脚本写入，
+   用等宽字体避免数字位数变化时整行抖动。 */
 .export-ratio-lock {
   height: 34px;
   display: flex;
@@ -3176,6 +3558,8 @@ select option:disabled {
     8px ui-monospace,
     monospace;
 }
+/* 导出参数里的相机控制块：上方 1px 分隔线把它与尺寸字段分开。
+   每行是「26px 短标签 + 开关组」，焦距控件靠 margin-left: auto 顶到行尾。 */
 .export-camera-controls {
   display: grid;
   gap: 5px;
@@ -3194,6 +3578,9 @@ select option:disabled {
   color: #74818c;
   font-size: 9px;
 }
+/* 这里直接复用预览区的开关组件（.preview-view-switch / .preview-camera-switch /
+   .camera-focal-control），只压尺寸：开关按钮 28px 高，「固定机位」按钮 30px 高
+   并用 flex: 1 1 0 等分整行宽度。 */
 .export-camera-row :is(.preview-view-switch, .preview-camera-switch, .camera-focal-control) {
   flex: 0 0 auto;
 }
@@ -3219,6 +3606,8 @@ select option:disabled {
   font-size: 10px;
   white-space: nowrap;
 }
+/* 导出文件清单：去掉列表符号，每行是「勾选框 + 文件名 + 第二行备注」的两行网格；
+   文件名用等宽字体并单行省略，长路径不会撑破 320px 宽的侧栏。 */
 .export-file-list {
   margin: 0;
   padding: 0;
@@ -3242,6 +3631,8 @@ select option:disabled {
   align-items: center;
   gap: 7px;
 }
+/* 勾选框与文件名同处 name 行：勾选框固定 13px 不参与伸缩，
+   文件名所在的 span 有 min-width: 0，超长时才走省略号而不是顶宽侧栏。 */
 .export-file-list input {
   width: 13px;
   height: 13px;
@@ -3272,6 +3663,8 @@ select option:disabled {
   font-size: 10px;
   line-height: 1.3;
 }
+/* 侧栏底部动作区：margin-top: auto 把它顶到最底，状态行固定 18px 高 ——
+   提示文字出现或消失时，下面的按钮不会上下跳动。 */
 .export-footer {
   margin-top: auto;
   padding-top: 4px;
@@ -3307,6 +3700,9 @@ select option:disabled {
   font-size: 10px;
   white-space: nowrap;
 }
+/* --export-aspect 由 studio-app.js 按当前导出宽高写入；这里的 1.432341 是
+   默认预设（1852×1293）算出的兜底值，保证首帧未拿到尺寸时也不会闪成 1:1。
+   宽高同时受视口高度约束（100vh - 160px 是标题栏 + 底部提示的预留高度）。 */
 .export-preview-frame {
   --export-aspect: 1.432341;
   position: relative;
@@ -3335,6 +3731,8 @@ select option:disabled {
   border-radius: 2px;
   pointer-events: none;
 }
+/* 空预设槽位的引导层：+:before 的加号是纯装饰（用 content 写字符而不是图标资源），
+   backdrop-filter: grayscale(1) 让底下的实时预览变灰，明确「还没选中任何预设」。 */
 .export-preset-empty-state {
   position: absolute;
   inset: 0;
@@ -3365,6 +3763,8 @@ select option:disabled {
     300 25px/1 ui-monospace,
     monospace;
 }
+/* 空预设引导层的文字三层：kicker（等宽小字 + 0.18em 字距）、主标题、
+   说明段；整块居中且 pointer-events: none，不挡住下面画幅的交互。 */
 .export-preset-empty-state > span {
   margin-bottom: 8px;
   color: #788691;
@@ -3383,6 +3783,8 @@ select option:disabled {
   color: #8d9aa4;
   font-size: 11px;
 }
+/* 画幅下方的元信息条：左右两端对齐（左侧分辨率、右侧文件大小/比例），
+   宽度与画幅一样限到 900px，避免在大屏上甩得过开。 */
 .export-preview-meta {
   width: min(100%, 900px);
   margin-top: 9px;
@@ -3396,10 +3798,18 @@ select option:disabled {
   color: #9ca8b1;
   font-family: ui-monospace, monospace;
 }
+/* ===== 自动出图内嵌模式（?auto-diagram-embed=1） ===== */
+
+/* 该模式供自动出图（批量截图 / 生成图表）使用：页面打开后只保留导出画幅本身。
+   做法是把 body 下除导出对话框与 toast 之外的一切都 display: none ——
+   比在脚本里逐个移除节点更安全，也不会丢事件监听。
+   触发条件见 studio-app.js 的 isAutoDiagramEmbed（URL 参数 auto-diagram-embed=1）。 */
 body.auto-diagram-embedded {
   overflow: hidden;
   background: #0b1116;
 }
+/* 内嵌模式下列出的白名单：只有这三个对话框与 toast 允许显示，
+   新增浮层（例如新的提示条）时必须同步加进 :not(...) 列表，否则会被整页隐藏。 */
 body.auto-diagram-embedded
   > :not(#export-dialog):not(#export-overwrite-dialog):not(#export-complete-dialog):not(#toast) {
   display: none !important;
@@ -3420,6 +3830,9 @@ body.auto-diagram-embedded #export-dialog {
 body.auto-diagram-embedded #export-dialog::backdrop {
   background: #0b1116;
 }
+/* 内嵌模式把导出对话框摊平成整页：去圆角 / 去边框 / 去阴影，隐藏标题栏、参数区、
+   安全框与调光入口，只留画幅铺满全屏；::backdrop 也刷成同一底色，
+   否则边缘会露出一圈对话框默认的描边。 */
 body.auto-diagram-embedded .export-workspace {
   display: block;
 }
@@ -3446,6 +3859,10 @@ body.auto-diagram-embedded .export-preview-frame {
   aspect-ratio: auto;
   box-shadow: none;
 }
+/* ===== 全局提示条（toast） ===== */
+
+/* 固定底部居中：用 opacity + translateY 做进出场，transform 与 -50% 居中合并写在
+   同一处，避免动画期间两个 transform 互相覆盖；z-index 100 高于所有对话框浮层。 */
 .toast {
   position: fixed;
   left: 50%;
@@ -3482,6 +3899,10 @@ body.auto-diagram-embedded .export-preview-frame {
   border-color: #76cfa161;
   color: #91ddb5;
 }
+/* ===== 窄屏降级（≤1380px） ===== */
+
+/* 只做「整体缩小 + 收紧间距」：左栏 204→196、中栏下限 400→360、右栏比例兜底升到 31vw，
+   同时把步骤条连接线缩短、字号降一档，避免在 1280/1366 这类常见笔记本分辨下换行。 */
 @media (max-width: 1380px) {
   body {
     min-width: 1080px;
