@@ -2,21 +2,18 @@
   --display-boot-bg: #11171d;
   --display-boot-fg: #f1f4f5;
   --display-boot-muted: #98a3ac;
-  --display-boot-ghost: #25303a;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-display-theme="dark"]) {
     --display-boot-bg: #edf0f2;
     --display-boot-fg: #27323c;
     --display-boot-muted: #64717c;
-    --display-boot-ghost: #d9dfe3;
   }
 }
 :root[data-display-theme="light"] {
   --display-boot-bg: #edf0f2;
   --display-boot-fg: #27323c;
   --display-boot-muted: #64717c;
-  --display-boot-ghost: #d9dfe3;
 }
 #display-splash {
   position: fixed;
@@ -53,27 +50,6 @@
   margin: 0 auto;
   overflow: visible;
 }
-.display-splash-ghost {
-  stroke: var(--display-boot-ghost);
-}
-.display-splash-left {
-  stroke: var(--display-boot-fg);
-}
-.display-splash-line {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: display-boot-draw 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
-}
-.display-splash-right {
-  animation-delay: 0.3s;
-}
-.display-splash-connection {
-  fill: var(--display-boot-fg);
-  transform-box: fill-box;
-  transform-origin: left center;
-  transform: scaleX(0);
-  animation: display-boot-connect 0.43s cubic-bezier(0.22, 1, 0.36, 1) 0.9s forwards;
-}
 .display-splash-wordmark {
   margin-top: 28px;
   font-size: clamp(15px, 2vmin, 19px);
@@ -109,6 +85,38 @@
 }
 .display-splash-logo {
   animation: display-boot-logo-breathe 1.9s ease-in-out 1.4s infinite;
+}
+/* 品牌标识取自 store/static/homeos-mark.svg；页面 CSP 为 style-src 'self'，
+   内联 <style> 会被拦截，故把标识自带动画挪到本外部样式表。 */
+@keyframes stmkHub {
+  0%,
+  100% {
+    opacity: 0.82;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes stmkWifi {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+.stmk-hub {
+  animation: stmkHub 3.4s ease-in-out infinite;
+}
+.stmk-wifi-a {
+  animation: stmkWifi 2.2s ease-in-out infinite;
+}
+.stmk-wifi-b {
+  animation: stmkWifi 2.2s ease-in-out 0.14s infinite;
+}
+.stmk-wifi-c {
+  animation: stmkWifi 2.2s ease-in-out 0.28s infinite;
 }
 .display-splash-footer {
   position: absolute;
@@ -168,16 +176,6 @@
 .capture-preview #display-splash {
   display: none;
 }
-@keyframes display-boot-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-@keyframes display-boot-connect {
-  to {
-    transform: scaleX(1);
-  }
-}
 @keyframes display-boot-appear {
   0% {
     opacity: 0;
@@ -233,12 +231,6 @@
   #display-splash.is-complete .display-splash-logo {
     animation: none;
     transition: none;
-  }
-  .display-splash-line {
-    stroke-dashoffset: 0;
-  }
-  .display-splash-connection {
-    transform: none;
   }
   .display-splash-wordmark,
   #display-splash-message,

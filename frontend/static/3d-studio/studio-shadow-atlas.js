@@ -1,4 +1,4 @@
-import { createRenderLightIndex } from "../modules/interaction3d/render-light-index.js?v=20260915211726";
+import { createRenderLightIndex } from "../modules/interaction3d/render-light-index.js?v=20260916013557";
 const DEFAULT_TILE_GUTTER = 1;
 function toPositiveInt(input, fallback = 0) {
   const parsed = Math.floor(Number(input));

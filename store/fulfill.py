@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from store import referrals
@@ -22,6 +22,7 @@ from store.models import (
     Product,
     StoreSetting,
 )
+from store.order_status import RESERVING_STATUSES as RESERVING_STATUS_FROM_ORDER
 from store.security import (
     activation_code_hint,
     new_activation_code,
@@ -41,6 +42,112 @@ def _unique_activation_code(session: Session) -> str:
         if exists is None:
             return candidate
     raise RuntimeError("无法生成唯一激活码。")
+
+
+def bundled_feature_codes(session: Session, product: Product) -> list[str]:
+    """套餐 ``included_product_ids`` 展开出的功能码。
+
+    过去 ``included_product_ids`` 只被后台读来展示「套餐包含什么」，履约时
+    **完全没有人发放它**：``create_license_for_order`` 只认商品自己的
+    ``feature_codes``，``LicenseAuthority.features_for`` 也只读商品自己的功能码。
+    于是运营在后台把三个商品的 id 填进套餐、却没把功能码再抄一遍，用户付款后
+    什么也没拿到（甚至因为功能码为空，落进 ``REQUIRED_FEATURES_FALLBACK`` 的
+    兜底分支，看起来「能用」但其实是走了失败放行）。
+
+    这里把包含商品的功能码展开出来，由履约写入 ``Entitlement``，从而与增量包
+    走同一套「权益叠加」机制。
+    """
+    included = [str(item) for item in json_list(product.included_product_ids_json)]
+    if not included:
+        return []
+    own = {str(code) for code in json_list(product.feature_codes_json)}
+    codes: list[str] = []
+    for bundled in session.scalars(select(Product).where(Product.id.in_(included))):
+        for code in json_list(bundled.feature_codes_json):
+            text = str(code)
+            if text and text not in own and text not in codes:
+                codes.append(text)
+    return codes
+
+
+def grant_bundled_entitlements(
+    session: Session,
+    *,
+    license: License,
+    product: Product,
+    customer: Customer,
+    now: datetime | None = None,
+) -> int:
+    """把套餐包含商品的功能码写成该授权上的权益，返回新增条数。"""
+    moment = now or utcnow()
+    created = 0
+    for feature_code in bundled_feature_codes(session, product):
+        existing = session.scalars(
+            select(Entitlement)
+            .where(Entitlement.license_id == license.id)
+            .where(Entitlement.feature_code == feature_code)
+        ).first()
+        if existing is not None:
+            existing.active = True
+            existing.product_id = product.id
+            existing.product_name = product.name
+            existing.product_type = product.product_type
+            existing.starts_at = moment
+            existing.expires_at = license.access_expires_at
+            continue
+        session.add(
+            Entitlement(
+                customer_id=customer.id,
+                license_id=license.id,
+                product_id=product.id,
+                product_name=product.name,
+                product_type=product.product_type,
+                feature_code=feature_code,
+                active=True,
+                starts_at=moment,
+                expires_at=license.access_expires_at,
+            )
+        )
+        created += 1
+    if created:
+        session.flush()
+    return created
+
+
+def upgrade_license_in_place(
+    session: Session,
+    *,
+    order: Order,
+    product: Product,
+    license: License,
+    customer: Customer,
+    now: datetime | None = None,
+) -> License:
+    """把一张有时限的授权就地升级为订单上的商品（通常是永久授权）。
+
+    保留激活码与设备绑定，因此用户已配好的客户端不需要重新激活 —— 这正是
+    「升级」与「再买一张新码」的区别。前台升级链接一直存在，但服务端从没消费
+    过它，等于点了按钮只是又买了一张新授权。
+    """
+    moment = now or utcnow()
+    validity_days = product.validity_days
+    license.product_id = product.id
+    license.product_name = product.name
+    license.product_type = product.product_type
+    license.price_cents = int(order.amount_cents or 0)
+    license.validity_days = validity_days
+    license.access_started_at = license.access_started_at or moment
+    license.access_expires_at = (
+        moment + timedelta(days=int(validity_days)) if validity_days else None
+    )
+    if license.issuance_source in {"payment_automatic", "payment_manual"}:
+        license.issuance_source = "payment_automatic"
+    order.license_id = license.id
+    grant_bundled_entitlements(
+        session, license=license, product=product, customer=customer, now=moment
+    )
+    session.flush()
+    return license
 
 
 def create_license_for_order(
@@ -76,7 +183,12 @@ def create_license_for_order(
     session.add(license)
     session.flush()
     order.license_id = license.id
+    # 套餐包含的商品必须在这里落成权益，否则「套餐」只是一张价格牌。
+    grant_bundled_entitlements(
+        session, license=license, product=product, customer=customer, now=moment
+    )
     return license
+
 
 
 def apply_addon_to_license(
@@ -136,15 +248,67 @@ def apply_addon_to_license(
 
 
 def release_reserved_stock(session: Session, product: Product | None, quantity: int = 1) -> None:
+    """归还预留。SQL 原子递减并夹到 0，避免「读-改-写」丢更新或写出负数。"""
     if product is None:
         return
-    product.reserved_stock = max(0, int(product.reserved_stock or 0) - max(0, quantity))
+    amount = max(0, int(quantity))
+    if not amount:
+        return
+    result = session.execute(
+        update(Product)
+        .where(Product.id == product.id)
+        .where(func.coalesce(Product.reserved_stock, 0) >= amount)
+        .values(reserved_stock=Product.reserved_stock - amount)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:
+        # 预留本来就是 0：只可能是「同一次预留被归还了两次」（例如订单已被
+        # _expire_stale_orders 归还，后续取消/退款路径又归还一次）。负数预留会
+        # 让 available = stock - reserved 虚高，直接放开超卖，所以这里夹到 0
+        # 并留一条告警 —— 不报错，但必须能被发现。
+        clamped = session.execute(
+            update(Product)
+            .where(Product.id == product.id)
+            .where(func.coalesce(Product.reserved_stock, 0) != 0)
+            .values(reserved_stock=0)
+            .execution_options(synchronize_session=False)
+        )
+        if clamped.rowcount:
+            logger.warning("商品 %s 的预留已被归还过，已夹到 0（请核对订单状态）", product.id)
+    session.expire(product, ["reserved_stock"])
     session.flush()
 
 
-def reserve_stock(session: Session, product: Product, quantity: int = 1) -> None:
-    product.reserved_stock = int(product.reserved_stock or 0) + max(0, quantity)
+def reserve_stock(session: Session, product: Product, quantity: int = 1) -> bool:
+    """占用预留。返回是否成功（库存不足时返回 False 且不做任何改动）。
+
+    这里必须是「带条件的原子 UPDATE」而不是 ``product.reserved_stock += 1``：
+    下单流程在更早的位置读了一次 ``soldOut``，两个并发请求会**同时通过那次检查**，
+    然后各自基于同一份旧值写入 —— 限量 1 件的商品被卖出两份。把判断和自增放进
+    同一条 UPDATE，由数据库保证只有一条能改到行。
+    """
+    amount = max(0, int(quantity))
+    if not amount:
+        return True
+    statement = (
+        update(Product)
+        .where(Product.id == product.id)
+        .values(reserved_stock=func.coalesce(Product.reserved_stock, 0) + amount)
+        .execution_options(synchronize_session=False)
+    )
+    # stock_quantity 为 NULL 表示不限量，无需判可用量。
+    statement = statement.where(
+        or_(
+            Product.stock_quantity.is_(None),
+            func.coalesce(Product.stock_quantity, 0)
+            - func.coalesce(Product.reserved_stock, 0)
+            >= amount,
+        )
+    )
+    result = session.execute(statement)
+    session.expire(product, ["reserved_stock"])
     session.flush()
+    return result.rowcount > 0
 
 
 def consume_stock(session: Session, product: Product | None, quantity: int = 1) -> None:
@@ -164,22 +328,37 @@ def consume_stock(session: Session, product: Product | None, quantity: int = 1) 
     """
     if product is None or product.stock_quantity is None:
         return
-    remaining = int(product.stock_quantity or 0) - max(0, quantity)
-    if remaining < 0:
+    amount = max(0, int(quantity))
+    if not amount:
+        return
+    result = session.execute(
+        update(Product)
+        .where(Product.id == product.id)
+        .where(Product.stock_quantity >= amount)
+        .values(stock_quantity=Product.stock_quantity - amount)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:
         # 只可能是"订单关掉后又被支付复活"这类越卖：预留早还回去了，货其实已超卖。
         # 夹到 0 让商品直接显示售罄，而不是露出一个负数库存。
+        session.execute(
+            update(Product)
+            .where(Product.id == product.id)
+            .where(Product.stock_quantity != 0)
+            .values(stock_quantity=0)
+            .execution_options(synchronize_session=False)
+        )
         logger.warning(
             "商品 %s 库存不足，已按 0 计（说明存在超卖，请核对订单与预留）",
             product.id,
         )
-        remaining = 0
-    product.stock_quantity = remaining
+    session.expire(product, ["stock_quantity"])
     session.flush()
 
 
 #: 真正持有库存预留的订单状态。``reserved_stock`` 只是这张表的缓存，
 #: 真实依据是处于这两个状态的订单条数，见 ``recompute_reserved_stock``。
-RESERVING_STATUSES = ("pending", "paid")
+RESERVING_STATUSES = RESERVING_STATUS_FROM_ORDER
 
 
 def recompute_reserved_stock(session: Session) -> dict[str, int]:
@@ -225,12 +404,31 @@ def fulfill_order(
     的预留，会把 ``reserved_stock`` 算低并直接放开超卖。
     """
     moment = now or utcnow()
-    if order.status == "fulfilled":
+    if order.status == "fulfilled" or order.fulfilled_at is not None:
         return {"alreadyFulfilled": True, "licenseId": order.license_id}
     if order.status == "refunded":
         # 退款已收回授权并退回奖励，重新履约等于凭空补一张码。这里是兜底，
         # 正常入口（admin / 支付宝结算）都会在更早的位置拒绝。
         raise RuntimeError(f"订单 {order.order_no} 已退款，不能重新履约。")
+
+    # 并发幂等闸门：把「订单是否已履约」的判断与标记合并成一条带条件的 UPDATE。
+    # 只靠上面的 ``order.status == "fulfilled"`` 读判断挡不住并发 —— 支付宝会
+    # 重复推送通知，查单又可能同时到达，两个线程各自读到「未履约」就会重复发码
+    # （重复的激活码会一起写进库里）。谁把 fulfilled_at 从 NULL 改掉谁履约。
+    claimed = session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        .where(Order.fulfilled_at.is_(None))
+        .where(Order.status != "refunded")
+        .values(fulfilled_at=moment)
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount == 0:
+        session.refresh(order)
+        if order.status == "refunded":
+            raise RuntimeError(f"订单 {order.order_no} 已退款，不能重新履约。")
+        return {"alreadyFulfilled": True, "licenseId": order.license_id}
+    session.refresh(order)
 
     product = session.get(Product, order.product_id) if order.product_id else None
     if product is None:
@@ -245,6 +443,13 @@ def fulfill_order(
         if license is None:
             raise RuntimeError(f"订单 {order.order_no} 缺少可追加的目标授权。")
         apply_addon_to_license(
+            session, order=order, product=product, license=license, customer=customer, now=moment
+        )
+    elif order.license_action == "upgrade":
+        license = session.get(License, order.target_license_id) if order.target_license_id else None
+        if license is None:
+            raise RuntimeError(f"订单 {order.order_no} 缺少可升级的目标授权。")
+        upgrade_license_in_place(
             session, order=order, product=product, license=license, customer=customer, now=moment
         )
     else:

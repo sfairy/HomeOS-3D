@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 
 from sqlalchemy import select
@@ -20,6 +21,8 @@ from store.models import (
     utcnow,
 )
 from store.security import new_referral_code, new_uuid
+
+logger = logging.getLogger("store.referrals")
 
 
 def _floor2(value: float) -> float:
@@ -55,6 +58,39 @@ def _unique_code(session: Session, account: Account) -> str:
             session.flush()
             return candidate
     raise RuntimeError("无法生成唯一邀请码，请稍后重试。")
+
+
+def available_points(wallet: ReferralWallet | None) -> float:
+    """可用积分 = 余额 - 冻结。
+
+    这是全站唯一的口径：``balance`` 是「已经赚到的总额（含正在提现的部分）」，
+    ``frozen`` 是「已申请提现、还没结算的部分」。界面上叫「可用积分」，提现
+    校验也必须用这个数 —— 这两处口径曾经不一致（界面按 balance-frozen 显示、
+    提现接口却只比 balance），于是「可用 0 元」的用户仍能提交提现申请，
+    申请一路走到后台审核才被人工拒绝。
+    """
+    if wallet is None:
+        return 0.0
+    return round(
+        max(0.0, float(wallet.balance or 0.0) - float(wallet.frozen or 0.0)), 2
+    )
+
+
+def is_self_referral(session: Session, referrer: Account | None, account: Account) -> bool:
+    """判断「自己邀请自己」。
+
+    两种形态都要拦：同一个账号（``referred_by_account_id == 自己的 id``，理论上
+    注册流程已挡），以及**同一个邮箱/同一个邀请码持有者开小号**（这才是实际
+    能刷到积分的路径：注册 A、拿 A 的码注册 B、用 B 下单给自己返点）。
+    邮箱是这套系统里唯一的身份标识，因此按它判定。
+    """
+    if referrer is None or account is None:
+        return True
+    if referrer.id == account.id:
+        return True
+    referrer_email = (referrer.email or "").strip().lower()
+    account_email = (account.email or "").strip().lower()
+    return bool(referrer_email) and referrer_email == account_email
 
 
 def ledger_entry(
@@ -108,11 +144,19 @@ def grant_order_reward(
     buyer = session.get(Account, order.account_id)
     if buyer is None or not buyer.referred_by_account_id:
         return 0.0
-    if buyer.referred_by_account_id == buyer.id:
-        return 0.0
 
     referrer = session.get(Account, buyer.referred_by_account_id)
     if referrer is None or not referrer.is_active:
+        return 0.0
+    # 自邀（同账号 / 同邮箱开小号）不发奖励：否则「自己下单给自己返点」等于
+    # 把奖励比例变成永久折扣，比例设得高一点就能刷出负毛利。
+    if is_self_referral(session, referrer, buyer):
+        logger.warning(
+            "检测到自邀并跳过奖励 buyer=%s referrer=%s order=%s",
+            buyer.email,
+            referrer.email,
+            order.order_no,
+        )
         return 0.0
 
     points = reward_points_for(order, rate_percent)
@@ -136,7 +180,13 @@ def grant_order_reward(
 
 
 def reverse_order_reward(session: Session, *, order: Order, note: str = "订单退款，奖励退回") -> float:
-    """退款时把已发放的奖励扣回。"""
+    """退款时把已发放的奖励扣回。返回**实际扣回**的积分。
+
+    余额必须夹到 0：邀请人可能已经把积分提现了（余额不足），此时硬扣会写出
+    负数余额 —— 负数余额意味着「账本上先欠着」，而系统没有任何追偿手段，
+    它只会让邀请人的可用积分变成负数、再也提不出钱，同时把总负债算错。
+    实际扣不回来的差额记进流水备注，作为追偿依据。
+    """
     if not order.referral_reward_points or order.referral_reward_points <= 0:
         return 0.0
     if not order.account_id:
@@ -148,20 +198,24 @@ def reverse_order_reward(session: Session, *, order: Order, note: str = "订单�
     if referrer is None:
         return 0.0
     wallet = get_or_create_wallet(session, referrer)
-    points = float(order.referral_reward_points)
+    points = round(float(order.referral_reward_points), 2)
+    # 冻结部分不能动（那笔钱已经进入提现审批），所以可扣上限是「余额 - 冻结」。
+    deductible = min(points, available_points(wallet))
+    shortfall = round(points - deductible, 2)
+    detail = note if not shortfall else f"{note}；余额不足，另有 {shortfall:.2f} 积分无法扣回，请人工追偿"
     ledger_entry(
         session,
         wallet,
         kind="reversal",
-        delta=-points,
-        note=note,
+        delta=-deductible,
+        note=detail,
         reference=order.order_no,
         order_id=order.id,
     )
     wallet.earned = round(max(0.0, float(wallet.earned or 0.0) - points), 2)
     order.referral_reward_points = 0.0
     session.flush()
-    return points
+    return deductible
 
 
 def withdraw_fee(points: float, fee_percent: float) -> tuple[float, float]:
@@ -179,7 +233,6 @@ def create_withdrawal(
     wallet: ReferralWallet,
     *,
     points: float,
-    qq: str,
     request_key: str,
     fee_percent: float,
 ) -> ReferralWithdrawal:
@@ -199,7 +252,6 @@ def create_withdrawal(
         fee_percent=round(float(fee_percent), 2),
         fee_points=fee_points,
         net_points=net_points,
-        qq=qq,
         status="pending",
     )
     session.add(withdrawal)

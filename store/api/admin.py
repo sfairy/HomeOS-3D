@@ -11,10 +11,11 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
-from store import coupons, fulfill, referrals, site_settings as site_config
+from store import coupons, features, fulfill, referrals, site_settings as site_config
+from store import mail_settings, mailer
 from store.api.store import (
     _expire_stale_orders,
     _image_map,
@@ -22,6 +23,26 @@ from store.api.store import (
     _product_stats,
 )
 from store.deps import AdminAccount, DbSession, SettingsDep
+from store.order_status import ORDER_STATUS_LABELS, ORDER_STATUS_CHOICES, order_status_label
+from store.order_status import (
+    FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
+)
+from store.order_status import (
+    REFUNDABLE_STATUSES as ORDER_REFUNDABLE_STATUSES,
+)
+from store.order_status import refundable_cents
+from store.payments import PROVIDER_NAMES, is_known_provider, normalize_provider_name
+from store.payments.base import PaymentError
+from store.payments.credentials import (
+    alipay_credentials_summary,
+    resolve_secret_input,
+    validate_callback_url,
+    validate_gateway_url,
+    validate_private_key_text,
+    validate_public_key_text,
+)
+from store.payments.refunds import record_refund_in_new_session
+from store.payments.sweeper import sweep_status
 from store.models import (
     Account,
     AccountSession,
@@ -37,6 +58,7 @@ from store.models import (
     LicenseSession,
     LoginAttempt,
     Order,
+    OrderRefund,
     Product,
     ProductImage,
     RecoveryToken,
@@ -55,6 +77,7 @@ from store.schemas import (
     AdminEntitlementRequest,
     AdminLicensePatch,
     AdminLicenseRequest,
+    AdminMailTestRequest,
     AdminOrderActionRequest,
     AdminProductPatch,
     AdminProductRequest,
@@ -69,11 +92,13 @@ from store.security import (
     hash_password,
     is_valid_email,
     iso,
+    iso_z,
     new_uuid,
     normalize_email,
     utcnow,
 )  # noqa: F401
 from store.serializers import (
+    json_list,
     license_payload,
     list_json,
     order_payload,
@@ -159,18 +184,70 @@ def _drop_account_sessions(session, account_id: str) -> int:
 
 
 def _cooldown(setting: StoreSetting, settings: SettingsDep) -> int:
-    return int(
-        setting.device_release_cooldown_seconds
-        if setting.device_release_cooldown_seconds is not None
-        else settings.device_release_cooldown_seconds
-    )
+    return site_config.resolve_device_release_cooldown(setting, settings)
 
 
 # --------------------------------------------------------------------------- #
 # 概览
 # --------------------------------------------------------------------------- #
+#: 营收与订单量按「滚动时间窗」统计，而不是「自然日」。后台没有站点时区配置，
+#: 服务端算自然日只能用 UTC 或服务器本地时区，两者在运营眼里都是猜的；滚动窗口
+#: 与运营所在时区无关，文案也直说「近 24 小时」，不会出现「今日营收怎么少了 8 小时」。
+_OVERVIEW_WINDOWS: tuple[tuple[str, timedelta], ...] = (
+    ("last24h", timedelta(hours=24)),
+    ("last7d", timedelta(days=7)),
+    ("last30d", timedelta(days=30)),
+)
+
+#: 真的收到过钱的状态。``pending`` 从未付款；``expired`` / ``cancelled`` /
+#: ``payment_failed`` 的库存预留早已归还，不走支付成功路径；``fulfillment_failed``
+#: 的钱是到账的（只是没发出去），所以必须计入。
+PAID_MONEY_STATUSES: tuple[str, ...] = ("paid", "fulfilled", "refunded", "fulfillment_failed")
+
+#: 需要人工介入的授权临期窗口。
+OVERVIEW_EXPIRING_DAYS = 30
+
+
+def _window_money(session: Session, since: datetime) -> dict:
+    """统计 ``[since, now)`` 内的收款、退款与付款订单数。
+
+    口径说明（改这里之前先想清楚，后台三处 KPI 都读它）：
+
+    * 时间归属按 ``paid_at``，不是 ``created_at``——「上周下单今天付款」的订单
+      算今天的营收，因为它今天才让钱进账。
+    * ``grossCents`` 是**订单实付**（已减优惠码），不是商品原价。
+    * ``refundCents`` 是 ``refund_amount_cents``，支持部分退款，所以不能用
+      「refunded 订单的实付额」来代替，否则部分退款会被当成全额退货。
+    """
+    row = session.execute(
+        select(
+            func.coalesce(func.sum(Order.amount_cents), 0),
+            func.coalesce(func.sum(Order.refund_amount_cents), 0),
+            func.count(Order.id),
+        ).where(
+            Order.paid_at.is_not(None),
+            Order.paid_at >= since,
+            Order.status.in_(PAID_MONEY_STATUSES),
+        )
+    ).one()
+    gross = int(row[0] or 0)
+    refunded = int(row[1] or 0)
+    return {
+        "grossCents": gross,
+        "refundCents": refunded,
+        "netCents": gross - refunded,
+        "paidOrders": int(row[2] or 0),
+    }
+
+
 @router.get("/overview")
 def overview(session: DbSession, _admin: AdminAccount) -> dict:
+    """经营看板数据。
+
+    除了原来的累计数，这里补齐了「有时间维度的营收」「订单漏斗」「需要人工处理的
+    待办」「库存/授权/积分的风险面」。后台概览页只读这一个接口，所以任何运营每天
+    要看一眼的数字都应该在这里出现，而不是让人自己去各分页里数。
+    """
     setting = site_config.get_setting(session)
     _expire_stale_orders(session, setting)
     moment = utcnow()
@@ -178,12 +255,112 @@ def overview(session: DbSession, _admin: AdminAccount) -> dict:
     def count(statement) -> int:
         return int(session.execute(statement).scalar_one() or 0)
 
-    paid_total = count(
+    # —— 累计数（保持既有键名，后台与冒烟测试都在用）——
+    total_gross = count(
         select(func.coalesce(func.sum(Order.amount_cents), 0)).where(
-            Order.status.in_(["fulfilled", "paid"])
+            Order.paid_at.is_not(None),
+            Order.status.in_(PAID_MONEY_STATUSES),
         )
     )
+    total_refunded = count(
+        select(func.coalesce(func.sum(Order.refund_amount_cents), 0)).where(
+            Order.paid_at.is_not(None),
+            Order.status.in_(PAID_MONEY_STATUSES),
+        )
+    )
+
+    # —— 时间窗营收 ——
+    revenue = {"totalCents": total_gross - total_refunded, "totalGrossCents": total_gross,
+               "totalRefundCents": total_refunded, "currency": "CNY", "windows": []}
+    for key, span in _OVERVIEW_WINDOWS:
+        bucket = _window_money(session, moment - span)
+        bucket["key"] = key
+        revenue["windows"].append(bucket)
+
+    # —— 订单漏斗 ——
+    # 一次 group by 拿全部状态，避免 8 条 count 语句。缺失的状态补 0，前端才能按
+    # ORDER_STATUS_CHOICES 稳定渲染（不能因为「一条 fulfilled 都没有」就少一格）。
+    status_rows = session.execute(
+        select(
+            Order.status,
+            func.count(Order.id),
+            func.coalesce(func.sum(Order.amount_cents), 0),
+        ).group_by(Order.status)
+    ).all()
+    by_status = {
+        str(row[0]): {"count": int(row[1] or 0), "amountCents": int(row[2] or 0)}
+        for row in status_rows
+    }
+    funnel = [
+        {
+            "status": code,
+            "label": ORDER_STATUS_LABELS.get(code, code),
+            "count": by_status.get(code, {}).get("count", 0),
+            "amountCents": by_status.get(code, {}).get("amountCents", 0),
+        }
+        for code in ORDER_STATUS_CHOICES
+    ]
+
+    # —— 待办：需要人工介入的东西 ——
+    # 「待发货」= 钱已到账但还没发出去。fulfillment_failed 单列出来，因为它不是
+    # 「排队等自动发货」，而是「自动发货炸了、必须人工重试或退款」。
+    awaiting_fulfillment = count(
+        select(func.count(Order.id)).where(
+            Order.status == "paid", Order.fulfillment_mode == "automatic"
+        )
+    )
+    fulfillment_failed = count(
+        select(func.count(Order.id)).where(Order.status == "fulfillment_failed")
+    )
+    payment_failed = count(
+        select(func.count(Order.id)).where(Order.status == "payment_failed")
+    )
+    needs_review = count(
+        select(func.count(Order.id)).where(Order.needs_review.is_(True))
+    )
+
+    expiring_licenses = list(
+        session.scalars(
+            select(License)
+            .where(
+                License.active.is_(True),
+                License.access_expires_at.is_not(None),
+                License.access_expires_at <= moment + timedelta(days=OVERVIEW_EXPIRING_DAYS),
+            )
+            .order_by(License.access_expires_at.asc())
+            .limit(20)
+        )
+    )
+
+    low_stock = list(
+        session.scalars(
+            select(Product)
+            .where(
+                Product.active.is_(True),
+                Product.stock_quantity.is_not(None),
+            )
+            .order_by(Product.stock_quantity.asc())
+            .limit(20)
+        )
+    )
+
+    pending_withdrawal_rows = session.execute(
+        select(
+            func.count(ReferralWithdrawal.id),
+            func.coalesce(func.sum(ReferralWithdrawal.net_points), 0),
+        ).where(ReferralWithdrawal.status == "pending")
+    ).one()
+
+    wallet_row = session.execute(
+        select(
+            func.count(ReferralWallet.id),
+            func.coalesce(func.sum(ReferralWallet.balance), 0.0),
+            func.coalesce(func.sum(ReferralWallet.frozen), 0.0),
+        )
+    ).one()
+
     return {
+        # —— 累计 ——
         "accounts": count(select(func.count(Account.id))),
         "products": count(select(func.count(Product.id))),
         "licenses": count(select(func.count(License.id))),
@@ -196,17 +373,76 @@ def overview(session: DbSession, _admin: AdminAccount) -> dict:
         "fulfilledOrders": count(
             select(func.count(Order.id)).where(Order.status == "fulfilled")
         ),
-        "revenueCents": paid_total,
-        "pendingWithdrawals": count(
-            select(func.count(ReferralWithdrawal.id)).where(
-                ReferralWithdrawal.status == "pending"
-            )
+        "entitlements": count(select(func.count(Entitlement.id))),
+        "activeEntitlements": count(
+            select(func.count(Entitlement.id)).where(Entitlement.active.is_(True))
         ),
+        # 净营收（已减退款）。冒烟测试断言它 > 0，所以不能只算 fulfilled。
+        "revenueCents": total_gross - total_refunded,
+        "pendingWithdrawals": int(pending_withdrawal_rows[0] or 0),
         "deviceBindings": count(
             select(func.count(DeviceBinding.id)).where(DeviceBinding.active.is_(True))
         ),
-        "serverTime": iso(moment),
+        "serverTime": iso_z(moment),
         "maintenanceMode": bool(setting.maintenance_mode),
+        # 后台巡检（查单对账 / 关闭过期渠道交易）的存活状态。它坏掉时没有任何
+        # 接口会报错——钱照收、单停在待支付——所以必须由概览主动把它摆出来。
+        "paymentSweep": sweep_status(),
+        # —— 营收（含时间窗）——
+        "revenue": revenue,
+        # —— 订单漏斗 ——
+        "orderFunnel": funnel,
+        # —— 待办与风险 ——
+        "attention": {
+            "awaitingFulfillment": awaiting_fulfillment,
+            "fulfillmentFailed": fulfillment_failed,
+            "paymentFailed": payment_failed,
+            "needsReview": needs_review,
+            "expiringLicenses": len(expiring_licenses),
+            "expiringWindowDays": OVERVIEW_EXPIRING_DAYS,
+            "lowStock": len(low_stock),
+            "pendingWithdrawals": int(pending_withdrawal_rows[0] or 0),
+            "soldOut": count(
+                select(func.count(Product.id)).where(
+                    Product.active.is_(True),
+                    Product.stock_quantity.is_not(None),
+                    Product.stock_quantity <= 0,
+                )
+            ),
+        },
+        "expiringLicenses": [
+            {
+                "activationCodeId": item.id,
+                "codeHint": item.code_hint,
+                "productName": item.product_name,
+                "productType": item.product_type,
+                "accountId": item.account_id,
+                "accessExpiresAt": iso_z(item.access_expires_at),
+            }
+            for item in expiring_licenses
+        ],
+        "lowStockProducts": [
+            {
+                "id": item.id,
+                "name": item.name,
+                "stockQuantity": int(item.stock_quantity or 0),
+                "reservedStock": int(item.reserved_stock or 0),
+                # 可售 = 库存 - 已被待支付/已付款订单占用的预留。这才是运营该看的数。
+                "availableStock": max(0, int(item.stock_quantity or 0) - int(item.reserved_stock or 0)),
+            }
+            for item in low_stock
+        ],
+        # —— 积分负债 ——
+        "referral": {
+            # 冻结是「已申请提现、还没打款」，仍在 balance 里但用户动不了，
+            # 所以可用 = balance - frozen。三者都要摆出来，只给 balance 会让
+            # 运营以为要付的钱比实际多。
+            "wallets": int(wallet_row[0] or 0),
+            "balancePoints": round(float(wallet_row[1] or 0.0), 2),
+            "frozenPoints": round(float(wallet_row[2] or 0.0), 2),
+            "availablePoints": round(float(wallet_row[1] or 0.0) - float(wallet_row[2] or 0.0), 2),
+            "pendingWithdrawalPoints": round(float(pending_withdrawal_rows[1] or 0.0), 2),
+        },
     }
 
 
@@ -284,19 +520,112 @@ def _product_admin_payload(session, product: Product, context: dict | None = Non
     return payload
 
 
+@router.get("/feature-codes")
+def admin_feature_codes(_admin: AdminAccount) -> dict:
+    """商品可选的功能码目录（中文名 + 说明）。
+
+    目录定义在 ``store/features.py``，与主程序的能力码一一对应。后台下拉多选
+    直接渲染它，运营不再手写代码，也就不会把 ``ha.control`` 抄成 ``ha.contorl``
+    这种「不报错但客户端静默拦截」的隐性故障。
+    """
+    return features.feature_catalog_payload()
+
+
 @router.get("/products")
-def admin_list_products(session: DbSession, _admin: AdminAccount) -> dict:
-    context = _admin_product_context(session)
-    products = session.scalars(
-        select(Product).order_by(Product.sort_order, Product.created_at)
+def admin_list_products(
+    session: DbSession,
+    _admin: AdminAccount,
+    keyword: str | None = None,
+    status_filter: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
+) -> dict:
+    """商品列表（分页 + 筛选）。
+
+    删除守卫的依据（授权数 / 订单数）仍然按**全量**商品统计：它决定「能真删还是
+    只能下架」，随分页变化会让确认弹窗的预告跟实际行为不一致。
+    """
+    base = select(Product)
+    if keyword:
+        like = f"%{keyword.strip()}%"
+        base = base.where(
+            or_(
+                Product.name.like(like),
+                Product.product_code.like(like),
+                Product.feature_codes_json.like(like),
+                Product.display_description.like(like),
+            )
+        )
+    status_value = (status_filter or "").strip()
+    if status_value == "active":
+        base = base.where(Product.active.is_(True))
+    elif status_value == "inactive":
+        base = base.where(Product.active.is_(False))
+    elif status_value == "soldout":
+        base = base.where(
+            Product.active.is_(True),
+            Product.stock_quantity.is_not(None),
+            Product.stock_quantity - Product.reserved_stock <= 0,
+        )
+    elif status_value == "lowstock":
+        # 「低库存」没有全局阈值，这里取「可售 ≤ 5」这一运营常用口径；
+        # 真实的分级预警在概览页按可售升序展示。
+        base = base.where(
+            Product.active.is_(True),
+            Product.stock_quantity.is_not(None),
+            Product.stock_quantity - Product.reserved_stock <= 5,
+        )
+
+    size, skip = _page_bounds(limit, offset)
+    total = _count_rows(session, base)
+    rows = list(
+        session.scalars(
+            base.order_by(Product.sort_order, Product.created_at).limit(size).offset(skip)
+        )
     )
-    return {"items": [_product_admin_payload(session, product, context) for product in products]}
+    context = _admin_product_context(session)
+    return {
+        "items": [_product_admin_payload(session, product, context) for product in rows],
+        "total": total,
+        "limit": size,
+        "offset": skip,
+    }
+
+
+def _assert_deliverable_product(
+    product_type: str, feature_codes: list, included_product_ids: list
+) -> None:
+    """拦下「什么都不会发放」的套餐配置。
+
+    履约时功能码有两个来源：商品自己的 ``feature_codes``，以及套餐
+    ``included_product_ids`` 展开出的功能码。两者都为空时，用户付了钱却拿不到
+    任何功能码 —— 更糟的是授权会在服务端落进 ``REQUIRED_FEATURES_FALLBACK``
+    兜底分支，看起来「能用」，所以这类错配在测试环境里极难发现。
+
+    只对 ``package`` 强制：单卖的主授权/增量包在后台允许先建后补功能码
+    （运营常常先建商品再配功能），而套餐的卖点就是「包含若干商品」，
+    「既没有自己的功能码、也没包含任何商品」的套餐没有任何合法用途。
+    """
+    if str(product_type or "").strip() != "package":
+        return
+    codes = [str(code).strip() for code in (feature_codes or []) if str(code).strip()]
+    if codes:
+        return
+    if [str(item).strip() for item in (included_product_ids or []) if str(item).strip()]:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="套餐必须填写功能码，或指定「套餐包含商品 ID」，否则发货后客户端拿不到任何能力。",
+    )
 
 
 @router.post("/products")
 def admin_create_product(
     payload: AdminProductRequest, session: DbSession, admin: AdminAccount
 ) -> dict:
+    _assert_deliverable_product(
+        payload.product_type, payload.feature_codes, payload.included_product_ids
+    )
     product = Product(
         name=payload.name,
         product_code=payload.product_code or "homeos",
@@ -359,6 +688,11 @@ def admin_update_product(
         product.feature_codes_json = list_json(data["feature_codes"] or [])
     if "included_product_ids" in data:
         product.included_product_ids_json = list_json(data["included_product_ids"] or [])
+    _assert_deliverable_product(
+        product.product_type,
+        json_list(product.feature_codes_json),
+        json_list(product.included_product_ids_json),
+    )
     session.flush()
     _audit(session, _admin_actor(admin), "product.update", product.id)
     return _product_admin_payload(session, product)
@@ -475,29 +809,20 @@ async def admin_upload_product_image(
 # --------------------------------------------------------------------------- #
 # 订单
 # --------------------------------------------------------------------------- #
-#: 允许被后台标记支付 / 履约的状态，与 ``fulfill.RESERVING_STATUSES`` 对齐：
+#: 允许被后台标记支付 / 履约的状态。参见 ``store.order_status``：
 #: 只有仍持有库存预留的订单才谈得上「入账」。终态订单一律拒绝——
 #: cancelled / expired 的库存与优惠码名额早已释放，refunded 的授权也已收回，
 #: 对它们履约等于凭空发一张可用授权，还会重复扣减预留并造成超卖。
 #: 钱确实到账的「复活」场景由支付宝结算路径处理，不走后台接口。
-_FULFILLABLE_STATUSES = fulfill.RESERVING_STATUSES
+_FULFILLABLE_STATUSES = ORDER_FULFILLABLE_STATUSES
 
-#: 订单状态中文口径，与前端 ``admin.html`` 的 ORDER_STATUS 保持一致，
+#: 订单状态中文口径统一来自 ``store.order_status``（服务端唯一来源），
 #: 避免「后台弹窗说 cancelled、页面显示已取消」这种同一状态两套说法。
-_ORDER_STATUS_LABELS = {
-    "pending": "待付款",
-    "paid": "已付款",
-    "fulfilled": "已完成",
-    "cancelled": "已取消",
-    "expired": "已过期",
-    "payment_failed": "下单失败",
-    "fulfillment_failed": "处理中",
-    "refunded": "已退款",
-}
+_ORDER_STATUS_LABELS = ORDER_STATUS_LABELS
 
 
 def _status_label(status: str) -> str:
-    return _ORDER_STATUS_LABELS.get(status, status)
+    return order_status_label(status)
 
 
 @router.get("/orders")
@@ -506,19 +831,90 @@ def admin_list_orders(
     _admin: AdminAccount,
     status_filter: str | None = None,
     keyword: str | None = None,
+    needs_review: bool | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
     limit: int = 100,
+    offset: int = 0,
 ) -> dict:
+    """订单列表（分页 + 筛选）。
+
+    ``status_filter`` 支持多状态，用逗号分隔（例如 ``paid,fulfillment_failed``）——
+    概览看板的「待发货」待办就靠它一次带出两类需要人工推进的订单。
+
+    日期区间按 ``created_at`` 过滤，边界都含。时间参数由前端按本地时区算好再转
+    UTC 传出，服务端只做 naive UTC 归一（见 ``_naive_utc``）。
+    """
     setting = site_config.get_setting(session)
     _expire_stale_orders(session, setting)
-    statement = select(Order).order_by(Order.created_at.desc()).limit(max(1, min(limit, 500)))
-    if status_filter:
-        statement = statement.where(Order.status == status_filter)
+    base = select(Order)
+    wanted = [part.strip() for part in (status_filter or "").split(",") if part.strip()]
+    if wanted:
+        base = base.where(Order.status.in_(wanted))
     if keyword:
         like = f"%{keyword.strip()}%"
-        statement = statement.where(
-            or_(Order.order_no.like(like), Order.email.like(like))
+        base = base.where(
+            or_(Order.order_no.like(like), Order.email.like(like), Order.product_name.like(like))
         )
-    return {"items": [order_payload(order) for order in session.scalars(statement)]}
+    if needs_review:
+        base = base.where(Order.needs_review.is_(True))
+    start = _naive_utc(date_from)
+    if start is not None:
+        base = base.where(Order.created_at >= start)
+    end = _naive_utc(date_to)
+    if end is not None:
+        base = base.where(Order.created_at <= end)
+    return _page(
+        session,
+        base,
+        (Order.created_at.desc(),),
+        limit=limit,
+        offset=offset,
+        render=order_payload,
+    )
+
+
+def _fulfill_with_failure_state(
+    session: Session, *, order: Order, setting: StoreSetting, actor: str
+) -> dict:
+    """履约并处理失败：抛异常时把订单标记为 ``fulfillment_failed`` 而不是 500。
+
+    用 SAVEPOINT 包住履约，失败只回滚这一段的写入（已发的半张授权、扣掉的库存、
+    记上的邀请奖励），订单本身仍占着库存预留与优惠码名额 —— 因为货并没有真的
+    发出去。这样状态机是自洽的：``fulfillment_failed`` 既在
+    ``RESERVING_STATUSES``（预留未归还）又在 ``FULFILLABLE_STATUSES``（可以重试），
+    运营点「履约」就能重来，点「退款」也能正常退。
+
+    过去这里没有兜底：履约抛异常直接 500，订单停在 ``paid``，而且没有任何地方
+    记录「这张单发不出去」，只能靠错误日志发现。
+    """
+    try:
+        with session.begin_nested():
+            fulfill.fulfill_order(session, order=order, setting=setting)
+    except Exception as error:  # noqa: BLE001 - 兜底转成可运营的状态
+        reason = str(error).strip() or error.__class__.__name__
+        session.execute(
+            update(Order)
+            .where(Order.id == order.id)
+            .where(Order.status != "refunded")
+            .values(
+                status="fulfillment_failed",
+                # 履约入口会把 fulfilled_at 抢先写上做幂等闸门，SAVEPOINT 回滚后
+                # 库里已是旧值；这里再显式清一次，避免重试被判成「已完成」。
+                fulfilled_at=None,
+                needs_review=True,
+                review_note=f"履约失败：{reason[:230]}",
+            )
+            .execution_options(synchronize_session=False)
+        )
+        session.flush()
+        _audit(session, actor, "order.fulfill_failed", order.order_no, reason[:200])
+        logger.exception("后台履约失败 order=%s", order.order_no)
+        session.refresh(order)
+        return order_payload(order)
+    session.refresh(order)
+    _audit(session, actor, "order.fulfill", order.order_no)
+    return order_payload(order)
 
 
 @router.post("/orders/{order_no}/mark-paid")
@@ -533,17 +929,33 @@ def admin_mark_paid(
     # 名额，再标记支付并履约会造成二次扣减。
     if order.status not in _FULFILLABLE_STATUSES:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"订单状态为 {order.status}，无法标记支付。")
-    order.status = "paid"
-    order.paid_at = utcnow()
-    order.payment_provider = order.payment_provider or "manual"
-    session.flush()
+    # 条件 UPDATE 抢单：后台按钮可以双击、也可能与「履约」按钮并发点击。
+    # 只靠上面的读判断的话，两个请求各自把订单标成 paid 并各发一次码。
+    result = session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        .where(Order.status.in_(_FULFILLABLE_STATUSES))
+        .values(
+            status="paid",
+            paid_at=order.paid_at or utcnow(),
+            payment_provider=order.payment_provider or "manual",
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:
+        session.refresh(order)
+        logger.info("标记支付重复提交，已忽略 order=%s status=%s", order.order_no, order.status)
+        return order_payload(order)
+    session.refresh(order)
     _audit(session, _admin_actor(admin), "order.mark_paid", order.order_no)
     # 自动发卡商品立刻履约（发码 / 追加增量包 / 邀请奖励）。
     # 手动发卡商品只标记已支付，把发码留给「履约」按钮——两条支付路径必须一致：
     # 真实支付宝到账（settle_paid_order）也是见到 manual 就停在 paid 等人核对，
     # 后台这边一按就发码的话，"人工发卡"这道闸门等于不存在。
     if order.fulfillment_mode != "manual":
-        fulfill.fulfill_order(session, order=order, setting=setting)
+        return _fulfill_with_failure_state(
+            session, order=order, setting=setting, actor=_admin_actor(admin)
+        )
     session.refresh(order)
     return order_payload(order)
 
@@ -565,30 +977,173 @@ def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dic
             ),
         )
     if order.paid_at is None:
-        order.paid_at = utcnow()
-    fulfill.fulfill_order(session, order=order, setting=setting)
-    session.refresh(order)
-    _audit(session, _admin_actor(admin), "order.fulfill", order.order_no)
-    return order_payload(order)
+        # 只补时间戳，不碰状态：状态流转与幂等由 fulfill_order 的条件 UPDATE 负责。
+        session.execute(
+            update(Order)
+            .where(Order.id == order.id)
+            .where(Order.paid_at.is_(None))
+            .values(paid_at=utcnow())
+            .execution_options(synchronize_session=False)
+        )
+        session.refresh(order)
+    return _fulfill_with_failure_state(
+        session, order=order, setting=setting, actor=_admin_actor(admin)
+    )
 
 
 @router.post("/orders/{order_no}/refund")
 def admin_refund(
-    order_no: str, payload: AdminOrderActionRequest, session: DbSession, admin: AdminAccount
+    order_no: str,
+    payload: AdminOrderActionRequest,
+    request: Request,
+    session: DbSession,
+    admin: AdminAccount,
 ) -> dict:
     setting = site_config.get_setting(session)
     order = _order_or_404(session, order_no)
-    if order.status not in {"paid", "fulfilled"}:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"订单状态为 {order.status}，无法退款。")
+    if order.status not in ORDER_REFUNDABLE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"订单状态为{_status_label(order.status)}，无法退款。",
+        )
 
-    # 退的是「还没发码」的那一单时，库存预留还挂在这张订单上（见 RESERVING_STATUSES），
-    # 必须显式还回去：离开 paid 之后就没人再管它了，漏掉这一步等于这一件货永久卖不出去。
-    # 已履约的订单在发码时就把预留释放、库存扣掉了，这里再还一次会把货凭空变多。
-    if order.status == "paid":
+    total_cents = max(0, int(order.amount_cents or 0))
+    refunded_cents = max(0, int(order.refund_amount_cents or 0))
+    remaining_cents = refundable_cents(total_cents, refunded_cents)
+    if remaining_cents <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"该订单已全额退款 ¥{refunded_cents / 100:.2f}，没有可退余额。",
+        )
+
+    # 不传金额 = 退掉剩余全部（与历史上「一退就退全款」的行为保持一致）
+    amount_cents = remaining_cents if payload.amount_cents is None else int(payload.amount_cents)
+    if amount_cents > remaining_cents:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"退款金额超出可退余额：本次最多可退 ¥{remaining_cents / 100:.2f}"
+                f"（订单 ¥{total_cents / 100:.2f}，已退 ¥{refunded_cents / 100:.2f}）。"
+            ),
+        )
+
+    refund_reason = (payload.note or f"订单 {order.order_no} 后台退款")[:255]
+
+    # 幂等键必须**每次退款动作都不同**。写成 RF{订单号} 的话，支付宝会把第二次
+    # 部分退款当成「同一笔退款」直接返回上次结果 —— 钱没退出去，本地却记成已退。
+    out_request_no = f"RF{order.order_no}-{new_uuid()[:8]}"[:128]
+    refund = OrderRefund(
+        order_id=order.id,
+        order_no=order.order_no,
+        out_request_no=out_request_no,
+        amount_cents=amount_cents,
+        reason=refund_reason,
+        offline=bool(payload.offline),
+        operator=_admin_actor(admin),
+        status="failed",
+    )
+    # 先不加进请求事务：失败路径要靠独立事务落库，而已经绑在请求会话上的对象
+    # 再挂到新会话会报「object already attached to session」。
+
+    refund_trade_no: str | None = None
+    refund_detail = ""
+    #: 渠道**实际**退回的金额。渠道可能只退了一部分（unrefunded_cents > 0），
+    #: 记账必须按实际数字，否则账面营收会被多减。
+    settled_cents = amount_cents
+
+    if amount_cents > 0 and not payload.offline:
+        # 关键：退款必须真的把钱退回去。这里过去只改本地状态，界面显示「已退款」
+        # 而钱仍在商户账户：账面上营收消失了，用户却没收到退款。
+        # 网关/渠道失败一律 409 且**不改任何状态**，绝不出现「状态改了、钱没退」。
+        provider = _refund_provider(
+            request.app.state.resolve_payment_provider,
+            order=order,
+            setting=setting,
+        )
+        try:
+            result = provider.refund_payment(
+                order=order,
+                amount_cents=amount_cents,
+                reason=refund_reason,
+                out_request_no=out_request_no,
+                settings=request.app.state.settings,
+                setting=setting,
+            )
+        except PaymentError as error:
+            # 失败也要留痕：否则「退了几次都没成功」这件事在库里查不出来。
+            # 注意这里必须用独立事务 —— 下面抛的 409 会让请求事务整体回滚，
+            # 共用事务的话这条流水会被一起抹掉，等于没记。
+            refund.detail = str(error)[:255]
+            record_refund_in_new_session(session, refund)
+            logger.warning("退款被渠道拒绝 order=%s: %s", order.order_no, error)
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error)) from error
+        if not result.ok:
+            refund.detail = (result.detail or "支付渠道未确认退款成功。")[:255]
+            record_refund_in_new_session(session, refund)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=result.detail or "支付渠道未确认退款成功。",
+            )
+        refund_trade_no = result.trade_no
+        refund_detail = result.detail
+        # 渠道只退了一部分时按实际金额入账，并把差额如实告诉运营 ——
+        # 过去这种情况直接 409 拒绝，连「退了多少」都没记下来。
+        settled_cents = max(0, amount_cents - int(result.unrefunded_cents or 0))
+
+    # 走到这里渠道已经确认退款（或本来就是线下退款），可以安全地并入请求事务。
+    session.add(refund)
+    refund.status = "succeeded"
+    refund.amount_cents = settled_cents
+    refund.trade_no = refund_trade_no
+    refund.detail = refund_detail[:255]
+
+    cumulative_cents = refunded_cents + settled_cents
+    order.refund_amount_cents = cumulative_cents
+    if refund_trade_no:
+        order.refund_trade_no = refund_trade_no
+
+    # 预留归还的判定必须用**退款前**的状态，且对部分退款同样生效：
+    # ``partially_refunded`` 不在 RESERVING_STATUSES 里，订单一旦离开那些状态，
+    # 就再没人负责归还这一件预留了（漏掉等于这件货永久卖不出去）。
+    if order.status in {"paid", "fulfillment_failed"}:
         product = session.get(Product, order.product_id) if order.product_id else None
         fulfill.release_reserved_stock(session, product, 1)
 
-    # 收回授权：停用订单产生的激活码与权益
+    fully_refunded = total_cents > 0 and cumulative_cents >= total_cents
+    if fully_refunded:
+        # 全额退完才收回授权、回退邀请奖励、把订单推进终态。
+        # 部分退款只记录资金流出：客户仍然持有（且我们仍然欠着）那张授权。
+        _revoke_order_entitlements(session, order)
+        referrals.reverse_order_reward(
+            session, order=order, note=f"订单 {order.order_no} 退款，奖励退回"
+        )
+        order.status = "refunded"
+        order.refunded_at = utcnow()
+    else:
+        order.status = "partially_refunded"
+
+    session.flush()
+    _audit(
+        session,
+        _admin_actor(admin),
+        "order.refund",
+        order.order_no,
+        (
+            f"退款 ¥{settled_cents / 100:.2f}（累计 ¥{cumulative_cents / 100:.2f}"
+            f" / 订单 ¥{total_cents / 100:.2f}）"
+            + ("（线下退款）" if payload.offline else "")
+            + (f" 幂等号 {out_request_no}" if not payload.offline else "")
+            + (f" 渠道单号 {refund_trade_no}" if refund_trade_no else "")
+            + (f" {refund_detail}" if refund_detail else "")
+            + (f" 备注：{payload.note}" if payload.note else "")
+        ),
+    )
+    session.refresh(order)
+    return order_payload(order)
+
+
+def _revoke_order_entitlements(session, order: Order) -> None:
+    """收回订单产生的激活码与权益（全额退款时调用）。"""
     for license in session.scalars(select(License).where(License.order_id == order.id)):
         license.active = False
         license.revoked_at = utcnow()
@@ -604,13 +1159,65 @@ def admin_refund(
         if entitlement.license_id and entitlement.license_id == order.license_id:
             entitlement.active = False
 
-    referrals.reverse_order_reward(session, order=order, note=f"订单 {order.order_no} 退款，奖励退回")
-    order.status = "refunded"
-    order.refunded_at = utcnow()
-    session.flush()
-    _audit(session, _admin_actor(admin), "order.refund", order.order_no, payload.note)
-    session.refresh(order)
-    return order_payload(order)
+
+def request_provider(request):
+    """拿当前配置的支付渠道解析器（``app.state`` 上的那个）。"""
+    return request.app.state.resolve_payment_provider
+
+
+def _refund_provider(resolver, *, order: Order, setting):
+    """按**订单下单时**的渠道退款，而不是当前站点配置的渠道。
+
+    运营中途把渠道从支付宝切到模拟收银台（或反过来）后，用当前渠道去退老订单
+    会打到错误的网关：要么报「交易不存在」，要么（模拟渠道）直接「退成功」。
+    所以优先按 ``order.payment_provider`` 找渠道实现。
+    """
+    from store.payments import PROVIDER_NAMES, normalize_provider_name
+
+    order_provider = normalize_provider_name(order.payment_provider)
+    if order_provider in PROVIDER_NAMES:
+        return resolver(setting, name=order_provider)
+    return resolver(setting)
+
+
+@router.get("/orders/{order_no}/refunds")
+def admin_list_order_refunds(
+    order_no: str, session: DbSession, _admin: AdminAccount
+) -> dict:
+    """某张订单的退款流水（含被渠道拒绝的尝试）。
+
+    支持多次部分退款之后，「这张单到底退了几次、每次多少钱」必须能一眼查到，
+    否则对账只能靠翻审计日志里的自由文本。
+    """
+    order = _order_or_404(session, order_no)
+    rows = session.scalars(
+        select(OrderRefund)
+        .where(OrderRefund.order_id == order.id)
+        .order_by(OrderRefund.created_at.desc())
+    ).all()
+    total_cents = int(order.amount_cents or 0)
+    refunded_cents = int(order.refund_amount_cents or 0)
+    return {
+        "orderNo": order.order_no,
+        "amountCents": total_cents,
+        "refundedCents": refunded_cents,
+        "refundableCents": max(0, total_cents - refunded_cents),
+        "items": [
+            {
+                "id": row.id,
+                "amountCents": int(row.amount_cents or 0),
+                "status": row.status,
+                "offline": bool(row.offline),
+                "tradeNo": row.trade_no,
+                "outRequestNo": row.out_request_no,
+                "reason": row.reason,
+                "detail": row.detail,
+                "operator": row.operator,
+                "createdAt": iso_z(row.created_at),
+            }
+            for row in rows
+        ],
+    }
 
 
 @router.post("/orders/{order_no}/cancel")
@@ -621,8 +1228,19 @@ def admin_cancel(
     if order.status != "pending":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
     product = session.get(Product, order.product_id) if order.product_id else None
-    order.status = "cancelled"
-    order.cancelled_at = utcnow()
+    # 条件 UPDATE 抢单：取消与超时扫描/支付入账可能同时发生，只有把订单从
+    # pending 推走的那一个请求才释放预留与优惠码名额。
+    claimed = session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        .where(Order.status == "pending")
+        .values(status="cancelled", cancelled_at=utcnow())
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
+        )
     fulfill.release_reserved_stock(session, product, 1)
     # 与 _expire_stale_orders 对齐：取消要同时归还优惠码名额。漏掉这一步会让
     # redeemed_count 只增不减，而它参与 max_redemptions 校验，名额会被永久占用，
@@ -672,16 +1290,50 @@ def admin_list_licenses(
     settings: SettingsDep,
     _admin: AdminAccount,
     keyword: str | None = None,
+    status_filter: str | None = None,
+    expiring_days: int | None = None,
+    account_id: str | None = None,
     limit: int = 200,
+    offset: int = 0,
 ) -> dict:
-    statement = select(License).order_by(License.created_at.desc()).limit(max(1, min(limit, 500)))
+    """激活码列表（分页 + 筛选）。
+
+    这里没有直接套 ``_page``：``_license_payload`` 需要账号、设备绑定与最近一次
+    解绑时间，逐行去查就是 N+1。所以先取出本页的行，再一次性交给
+    ``_license_meta`` 批量补齐（``_count_rows`` 负责 total）。
+    """
+    base = select(License)
     if keyword:
         like = f"%{keyword.strip()}%"
-        statement = statement.where(
-            or_(License.activation_code.like(like), License.code_hint.like(like))
+        base = base.where(
+            or_(
+                License.activation_code.like(like),
+                License.code_hint.like(like),
+                License.product_name.like(like),
+                License.user_label.like(like),
+            )
         )
-    licenses = list(session.scalars(statement))
-    meta = _license_meta(session, licenses)
+    status_value = (status_filter or "").strip()
+    if status_value == "active":
+        base = base.where(License.active.is_(True))
+    elif status_value == "inactive":
+        base = base.where(License.active.is_(False))
+    if account_id:
+        base = base.where(License.account_id == account_id)
+    if expiring_days is not None:
+        # 只圈「还没过期、但 N 天内过期」的：已经过期的授权不属于「临期提醒」，
+        # 混进来会让运营误以为还有救。
+        moment = utcnow()
+        base = base.where(
+            License.access_expires_at.is_not(None),
+            License.access_expires_at >= moment,
+            License.access_expires_at <= moment + timedelta(days=max(1, int(expiring_days))),
+        )
+
+    size, skip = _page_bounds(limit, offset)
+    total = _count_rows(session, base)
+    rows = list(session.scalars(base.order_by(License.created_at.desc()).limit(size).offset(skip)))
+    meta = _license_meta(session, rows)
     setting = site_config.get_setting(session)
     return {
         "items": [
@@ -692,8 +1344,11 @@ def admin_list_licenses(
                 cooldown_seconds=_cooldown(setting, settings),
                 last_released_at=meta.get(license.id, {}).get("last_released_at"),
             )
-            for license in licenses
-        ]
+            for license in rows
+        ],
+        "total": total,
+        "limit": size,
+        "offset": skip,
     }
 
 
@@ -738,7 +1393,16 @@ def admin_issue_license(
     session.add(license)
     session.flush()
     _audit(session, _admin_actor(admin), "license.issue", license.id, code)
-    return {"activationCodeId": license.id, "activationCode": code, "email": email}
+    # 后台签发成功后要在一个常驻面板里展示结果，所以把「给谁、什么商品、有效期到哪天」
+    # 一并返回，省得前端再发一次列表查询去凑（列表还带分页，不一定含这一条）。
+    return {
+        "activationCodeId": license.id,
+        "activationCode": code,
+        "email": email,
+        "productName": license.product_name,
+        "accessExpiresAt": iso_z(license.access_expires_at),
+        "validityDays": validity_days,
+    }
 
 
 @router.post("/licenses/{license_id}/deactivate")
@@ -830,29 +1494,60 @@ def admin_delete_license(license_id: str, session: DbSession, admin: AdminAccoun
 # --------------------------------------------------------------------------- #
 @router.get("/bindings")
 def admin_list_bindings(
-    session: DbSession, _admin: AdminAccount, active_only: bool = False
+    session: DbSession,
+    _admin: AdminAccount,
+    active_only: bool = False,
+    keyword: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
 ) -> dict:
-    statement = select(DeviceBinding).order_by(DeviceBinding.updated_at.desc())
+    """设备绑定列表（分页 + 筛选）。
+
+    ``keyword`` 命中实例号 / 客户端版本 / IP / 激活码提示，排障时按客户端上报的
+    实例号或 IP 直接搜比翻页快得多。``serializers`` 里没有绑定载荷，所以这里的
+    render 自己拼；激活码提示走本页预取的 License 映射，避免逐行 session.get。
+    """
+    base = select(DeviceBinding)
     if active_only:
-        statement = statement.where(DeviceBinding.active.is_(True))
-    items = []
-    for binding in session.scalars(statement):
-        license = session.get(License, binding.license_id)
-        items.append(
-            {
-                "bindingId": binding.id,
-                "licenseId": binding.license_id,
-                "activationCodeHint": license.code_hint if license else None,
-                "instanceId": binding.instance_id,
-                "clientVersion": binding.client_version,
-                "lastIp": binding.last_ip,
-                "active": bool(binding.active),
-                "activatedAt": iso(binding.activated_at),
-                "lastHeartbeatAt": iso(binding.last_heartbeat_at),
-                "releasedAt": iso(binding.released_at),
-            }
+        base = base.where(DeviceBinding.active.is_(True))
+    if keyword:
+        like = f"%{keyword.strip()}%"
+        base = base.where(
+            or_(
+                DeviceBinding.instance_id.like(like),
+                DeviceBinding.client_version.like(like),
+                DeviceBinding.last_ip.like(like),
+            )
         )
-    return {"items": items}
+
+    size, skip = _page_bounds(limit, offset)
+    total = _count_rows(session, base)
+    rows = list(
+        session.scalars(
+            base.order_by(DeviceBinding.updated_at.desc()).limit(size).offset(skip)
+        )
+    )
+    license_ids = {row.license_id for row in rows}
+    hints = {
+        license.id: license.code_hint
+        for license in session.scalars(select(License).where(License.id.in_(license_ids or {""})))
+    }
+    items = [
+        {
+            "bindingId": binding.id,
+            "licenseId": binding.license_id,
+            "activationCodeHint": hints.get(binding.license_id),
+            "instanceId": binding.instance_id,
+            "clientVersion": binding.client_version,
+            "lastIp": binding.last_ip,
+            "active": bool(binding.active),
+            "activatedAt": iso_z(binding.activated_at),
+            "lastHeartbeatAt": iso_z(binding.last_heartbeat_at),
+            "releasedAt": iso_z(binding.released_at),
+        }
+        for binding in rows
+    ]
+    return {"items": items, "total": total, "limit": size, "offset": skip}
 
 
 @router.post("/bindings/{binding_id}/release")
@@ -887,29 +1582,70 @@ def admin_release_binding(
 # 优惠码
 # --------------------------------------------------------------------------- #
 @router.get("/coupons")
-def admin_list_coupons(session: DbSession, _admin: AdminAccount) -> dict:
-    counts = _coupon_redemption_counts(session)
-    items = [
-        _coupon_payload(coupon, counts.get(coupon.id, 0))
-        for coupon in session.scalars(select(Coupon).order_by(Coupon.created_at.desc()))
-    ]
-    return {"items": items}
+def admin_list_coupons(
+    session: DbSession,
+    _admin: AdminAccount,
+    keyword: str | None = None,
+    status_filter: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
+) -> dict:
+    """优惠码列表（分页 + 筛选）。
+
+    ``redemptionCount`` 需要数核销记录，所以只对**本页**的优惠码做一次
+    ``in_`` 分组统计，而不是全表 ``group by``——优惠码多起来以后全表统计
+    会随表增长变慢，而界面一页只看得到 200 条。
+    """
+    base = select(Coupon)
+    if keyword:
+        like = f"%{keyword.strip()}%"
+        base = base.where(
+            or_(Coupon.code.like(like), Coupon.description.like(like))
+        )
+    status_value = (status_filter or "").strip()
+    moment = utcnow()
+    if status_value == "active":
+        base = base.where(Coupon.active.is_(True))
+    elif status_value == "inactive":
+        base = base.where(Coupon.active.is_(False))
+    elif status_value == "expired":
+        base = base.where(Coupon.expires_at.is_not(None), Coupon.expires_at < moment)
+    elif status_value == "scheduled":
+        base = base.where(Coupon.starts_at.is_not(None), Coupon.starts_at > moment)
+
+    size, skip = _page_bounds(limit, offset)
+    total = _count_rows(session, base)
+    rows = list(session.scalars(base.order_by(Coupon.created_at.desc()).limit(size).offset(skip)))
+    counts = _coupon_redemption_counts(session, [row.id for row in rows])
+    return {
+        "items": [_coupon_payload(coupon, counts.get(coupon.id, 0)) for coupon in rows],
+        "total": total,
+        "limit": size,
+        "offset": skip,
+    }
 
 
-def _coupon_redemption_counts(session) -> dict[str, int]:
+def _coupon_redemption_counts(session, coupon_ids=None) -> dict[str, int]:
     """按核销记录表统计每个优惠码的实际用量。
 
     刻意不用 ``Coupon.redeemed_count`` 这个反规范化计数列：它是发放时的快照，
     一旦和 ``coupon_redemptions`` 漂移，删除守卫（数记录）与界面提示（读计数列）
     就会各说各话——确认弹窗写着「尚未被使用」，点下去却只停用。
+
+    ``coupon_ids`` 给出时只统计这些码（列表页用它把全表 group by 降成本页
+    ``in_`` 统计）；为 None 时统计全部（导出/校验等场景）。
     """
+    statement = select(
+        CouponRedemption.coupon_id, func.count(CouponRedemption.id)
+    ).group_by(CouponRedemption.coupon_id)
+    if coupon_ids is not None:
+        ids = [str(item) for item in coupon_ids]
+        if not ids:
+            return {}
+        statement = statement.where(CouponRedemption.coupon_id.in_(ids))
     return {
         coupon_id: int(count or 0)
-        for coupon_id, count in session.execute(
-            select(CouponRedemption.coupon_id, func.count(CouponRedemption.id)).group_by(
-                CouponRedemption.coupon_id
-            )
-        ).all()
+        for coupon_id, count in session.execute(statement).all()
     }
 
 
@@ -1111,31 +1847,57 @@ def admin_patch_coupon(
 # --------------------------------------------------------------------------- #
 @router.get("/withdrawals")
 def admin_list_withdrawals(
-    session: DbSession, _admin: AdminAccount, status_filter: str | None = None
+    session: DbSession,
+    _admin: AdminAccount,
+    status_filter: str | None = None,
+    keyword: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
 ) -> dict:
-    statement = select(ReferralWithdrawal).order_by(ReferralWithdrawal.created_at.desc())
+    """提现申请列表（分页 + 筛选）。
+
+    ``keyword`` 命中账号邮箱：运营手里通常只有用户报的邮箱，
+    让他自己在几百条里翻既慢又容易看错行。
+    """
+    base = select(ReferralWithdrawal)
     if status_filter:
-        statement = statement.where(ReferralWithdrawal.status == status_filter)
-    items = []
-    for row in session.scalars(statement):
-        account = session.get(Account, row.account_id)
-        items.append(
-            {
-                "id": row.id,
-                "accountId": row.account_id,
-                "email": account.email if account else None,
-                "points": f"{float(row.points or 0.0):.2f}",
-                "feePoints": f"{float(row.fee_points or 0.0):.2f}",
-                "feePercent": float(row.fee_percent or 0.0),
-                "netPoints": f"{float(row.net_points or 0.0):.2f}",
-                "qq": row.qq,
-                "status": row.status,
-                "note": row.note,
-                "createdAt": iso(row.created_at),
-                "resolvedAt": iso(row.resolved_at),
-            }
+        base = base.where(ReferralWithdrawal.status == status_filter)
+    if keyword:
+        like = f"%{keyword.strip()}%"
+        matched = select(Account.id).where(Account.email.like(like))
+        base = base.where(ReferralWithdrawal.account_id.in_(matched))
+
+    size, skip = _page_bounds(limit, offset)
+    total = _count_rows(session, base)
+    rows = list(
+        session.scalars(
+            base.order_by(ReferralWithdrawal.created_at.desc()).limit(size).offset(skip)
         )
-    return {"items": items}
+    )
+    account_ids = {row.account_id for row in rows}
+    emails = {
+        account.id: account.email
+        for account in session.scalars(
+            select(Account).where(Account.id.in_(account_ids or {""}))
+        )
+    }
+    items = [
+        {
+            "id": row.id,
+            "accountId": row.account_id,
+            "email": emails.get(row.account_id),
+            "points": f"{float(row.points or 0.0):.2f}",
+            "feePoints": f"{float(row.fee_points or 0.0):.2f}",
+            "feePercent": float(row.fee_percent or 0.0),
+            "netPoints": f"{float(row.net_points or 0.0):.2f}",
+            "status": row.status,
+            "note": row.note,
+            "createdAt": iso_z(row.created_at),
+            "resolvedAt": iso_z(row.resolved_at),
+        }
+        for row in rows
+    ]
+    return {"items": items, "total": total, "limit": size, "offset": skip}
 
 
 @router.post("/withdrawals/{withdrawal_id}/resolve")
@@ -1200,14 +1962,38 @@ def admin_delete_withdrawal(
 # --------------------------------------------------------------------------- #
 # 站点配置
 # --------------------------------------------------------------------------- #
-@router.get("/settings")
-def admin_get_settings(session: DbSession, _admin: AdminAccount, settings: SettingsDep) -> dict:
-    setting = site_config.get_setting(session)
-    return site_config.site_configuration_payload(setting, settings) | {
+def _alipay_settings_payload(settings: SettingsDep, setting) -> dict:
+    return alipay_credentials_summary(settings, setting)
+
+
+def _mail_settings_payload(settings: SettingsDep, setting) -> dict:
+    return mail_settings.mail_delivery_summary(settings, setting)
+
+
+def _settings_response(setting, settings: SettingsDep) -> dict:
+    """``GET/PUT /settings`` 的统一响应体。
+
+    两个入口必须返回**同一个形状**：前端改完配置直接用 PUT 的返回值刷新页面状态，
+    两边字段不一致时会出现「保存成功但界面还是旧值」——运营会再点一次保存。
+    """
+    return site_config.site_configuration_payload(
+        setting, settings, include_credentials=True
+    ) | {
         "referral": site_config.referral_settings_payload(setting),
         "deviceReleaseCooldownSeconds": setting.device_release_cooldown_seconds,
         "announcement": setting.announcement,
+        #: 支付宝凭据概览（不含明文）。与 ``payment_provider`` 分开放：
+        #: 前者是「渠道怎么走」，这里是「渠道的钥匙」。
+        "alipay": _alipay_settings_payload(settings, setting),
+        #: 注册邮箱验证码配置概览（不含 SMTP 授权码明文）。
+        "mail": _mail_settings_payload(settings, setting),
     }
+
+
+@router.get("/settings")
+def admin_get_settings(session: DbSession, _admin: AdminAccount, settings: SettingsDep) -> dict:
+    setting = site_config.get_setting(session)
+    return _settings_response(setting, settings)
 
 
 @router.put("/settings")
@@ -1232,26 +2018,339 @@ def admin_update_settings(
         "payment_display_name": "payment_display_name",
         "payment_enabled": "payment_enabled",
         "payment_transaction_description": "payment_transaction_description",
-        "payment_merchant_order_template": "payment_merchant_order_template",
         "referral_enabled": "referral_enabled",
         "referral_rate_percent": "referral_rate_percent",
         "referral_withdrawal_fee_percent": "referral_withdrawal_fee_percent",
         "referral_withdrawal_min_points": "referral_withdrawal_min_points",
-        "referral_qq_group": "referral_qq_group",
-        "referral_qq_url": "referral_qq_url",
         "device_release_cooldown_seconds": "device_release_cooldown_seconds",
+        # ---- 注册邮箱验证码 ----
+        "mail_mode": "mail_mode",
+        "mail_from": "mail_from",
+        "smtp_host": "smtp_host",
+        "smtp_port": "smtp_port",
+        "smtp_username": "smtp_username",
+        "smtp_security": "smtp_security",
+        "verification_ttl_seconds": "verification_ttl_seconds",
+        "verification_cooldown_seconds": "verification_cooldown_seconds",
     }
     updates = {column: data[field] for field, column in mapping.items() if field in data}
+    if "payment_provider" in updates:
+        # 渠道名写错一个字符就会让商店静默切到模拟收银台（本地点一下就发码），
+        # 因此在入口直接拒绝未知取值，而不是等到下单时才 503。
+        candidate = updates["payment_provider"]
+        if not is_known_provider(candidate):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"支付渠道「{candidate}」不受支持，可选值为 "
+                    f"{'、'.join(PROVIDER_NAMES)}，留空表示跟随环境变量。"
+                ),
+            )
+        updates["payment_provider"] = normalize_provider_name(candidate)
     if "logo_url" in updates:
         updates["logo_url"] = (
             str(updates["logo_url"] or "").strip() or site_config.DEFAULT_LOGO_URL
         )
+    updates |= _alipay_settings_updates(data)
+    updates |= _mail_settings_updates(data, current=site_config.get_setting(session), settings=settings)
+    # ``update_setting`` 把 ``None`` 当作「这个字段别动」（全局约定，见其实现），
+    # 但回显开关的 NULL 本身就是一个有意义的取值（「跟随环境变量」，区别于
+    # 「生产上明确关掉」的 False）。所以这一个字段单独落地：摘出来，写入后再显式
+    # 写回 NULL。不加这个例外的话，界面上「跟随环境变量」那一项永远选不回去。
+    # 注意不能写成 ``updates.pop(...) is None``：``pop`` 无论值是什么都会摘掉这个键，
+    # 于是「显式传 false」会被顺手丢掉，界面上关掉回显却毫无反应。
+    clear_expose = (
+        "expose_verification_code" in updates
+        and updates["expose_verification_code"] is None
+    )
+    if clear_expose:
+        del updates["expose_verification_code"]
     setting = site_config.update_setting(session, **updates)
-    _audit(session, _admin_actor(admin), "settings.update", "1", ",".join(sorted(updates)))
-    return site_config.site_configuration_payload(setting, settings) | {
-        "referral": site_config.referral_settings_payload(setting),
-        "deviceReleaseCooldownSeconds": setting.device_release_cooldown_seconds,
-        "announcement": setting.announcement,
+    if clear_expose:
+        setting.expose_verification_code = None
+        setting.updated_at = utcnow()
+        session.flush()
+    audited = sorted(set(updates) | ({"expose_verification_code"} if clear_expose else set()))
+    _audit(session, _admin_actor(admin), "settings.update", "1", ",".join(audited))
+    return _settings_response(setting, settings)
+
+
+#: 支付宝的纯文本配置项：前端字段名 → 数据库列名。留空即清空、跟随环境变量。
+_ALIPAY_TEXT_FIELDS = {
+    "alipay_app_id": "alipay_app_id",
+    "alipay_seller_id": "alipay_seller_id",
+    "alipay_gateway_url": "alipay_gateway_url",
+    "alipay_notify_url": "alipay_notify_url",
+    "alipay_return_url": "alipay_return_url",
+}
+
+#: 回调地址的字段名 → 中文标签，仅用于报错文案。
+_ALIPAY_CALLBACK_LABELS = {
+    "alipay_notify_url": "异步通知地址",
+    "alipay_return_url": "同步跳转地址",
+}
+
+
+def _alipay_settings_updates(data: dict) -> dict:
+    """校验并归一化后台提交的支付宝凭据字段，返回待写入的 updates。
+
+    为什么必须在这里校验而不是等第一次支付：私钥填错时 ``sign_params`` 抛的
+    ``PaymentError`` 会出现在**用户下单**的动线上，支付失败的是客户，改配置的人
+    却看不到任何反馈。把校验前移到配置接口，错误当场落在改配置的那个人眼前。
+
+    密钥字段的三种语义（见 ``resolve_secret_input``）：未提交=不改动、
+    空串=清空（跟随环境变量）、打码值=不改动、其它=新密钥。
+    """
+    updates: dict = {}
+    try:
+        for field, column in _ALIPAY_TEXT_FIELDS.items():
+            if field in data:
+                updates[column] = str(data[field] or "").strip()
+        if updates.get("alipay_gateway_url"):
+            validate_gateway_url(updates["alipay_gateway_url"])
+        for field, label in _ALIPAY_CALLBACK_LABELS.items():
+            if updates.get(field):
+                validate_callback_url(updates[field], label=label)
+
+        private_key = resolve_secret_input(data.get("alipay_app_private_key"))
+        if private_key is not None:
+            if private_key:
+                validate_private_key_text(private_key)
+            updates["alipay_app_private_key"] = private_key
+
+        public_key = resolve_secret_input(data.get("alipay_public_key"))
+        if public_key is not None:
+            if public_key:
+                validate_public_key_text(public_key)
+            updates["alipay_public_key"] = public_key
+
+        if "alipay_sandbox" in data:
+            updates["alipay_sandbox"] = bool(data["alipay_sandbox"])
+    except PaymentError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
+    return updates
+
+
+#: 邮件的纯文本配置项：前端字段名 → 数据库列名。留空即清空、跟随环境变量。
+_MAIL_TEXT_FIELDS = {
+    "mail_from": "mail_from",
+    "smtp_host": "smtp_host",
+    "smtp_username": "smtp_username",
+}
+
+
+def _mail_settings_updates(data: dict, *, current: StoreSetting, settings: SettingsDep) -> dict:
+    """校验并归一化后台提交的邮件 / 验证码字段，返回待写入的 updates。
+
+    校验前移到配置接口的理由与支付宝凭据完全相同：SMTP 填错时受害的是
+    **正在注册的用户**（收不到验证码就等于注册不了），而改配置的运营一无所知。
+    错误必须当场落在改配置的那个人眼前。
+
+    这里还要额外校验「有效期 / 冷却」的联动关系，而且必须拿**合并后**的值去算：
+    有效期可能配在后台、冷却可能来自环境变量，只校验提交的那一半会漏掉
+    「冷却 >= 有效期」这种跨来源的死锁（见 ``validate_verification_window``）。
+    """
+    updates: dict = {}
+    for field, column in _MAIL_TEXT_FIELDS.items():
+        if field in data:
+            updates[column] = str(data[field] or "").strip()
+
+    if "mail_mode" in data:
+        mode = str(data["mail_mode"] or "").strip().lower()
+        if mode and mode not in mail_settings.MAIL_MODES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"邮件投递方式「{mode}」不受支持，可选值为 "
+                    f"{'、'.join(mail_settings.MAIL_MODES)}，留空表示跟随环境变量。"
+                ),
+            )
+        updates["mail_mode"] = mode
+
+    if "smtp_security" in data:
+        security = str(data["smtp_security"] or "").strip().lower()
+        if security and security not in mail_settings.SMTP_SECURITY_MODES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"SMTP 加密方式「{security}」不受支持，可选值为 "
+                    f"{'、'.join(mail_settings.SMTP_SECURITY_MODES)}，留空表示跟随环境变量。"
+                ),
+            )
+        updates["smtp_security"] = security
+
+    if "smtp_port" in data:
+        updates["smtp_port"] = int(data["smtp_port"] or 0)
+
+    # 授权码：空串=清空、打码值/未提交=不改动、其它=新授权码。
+    # 「清除已保存的授权码」勾选框必须**压过**输入框：运营勾了它却因为输入框
+    # 里还留着上一次的输入而没清掉，是这类表单最常见的挫败。
+    if data.get("smtp_clear_password"):
+        updates["smtp_password"] = ""
+    else:
+        password = resolve_secret_input(data.get("smtp_password"))
+        if password is not None:
+            updates["smtp_password"] = password
+
+    for field, column in (
+        ("verification_ttl_seconds", "verification_ttl_seconds"),
+        ("verification_cooldown_seconds", "verification_cooldown_seconds"),
+    ):
+        if field in data:
+            updates[column] = int(data[field] or 0)
+
+    # 三态回显开关：字段在请求里就代表运营做了选择。显式传 null 表示清回
+    # 「跟随环境变量」—— 列是可空的，NULL 与 False 是两件事（「没配过」vs
+    # 「生产上明确关掉」），所以这里绝不能写成 ``bool(None) == False``：那会让
+    # 运营一旦点过这个下拉框，就再也回不到「跟随环境变量」。
+    if "expose_verification_code" in data:
+        value = data["expose_verification_code"]
+        updates["expose_verification_code"] = None if value is None else bool(value)
+
+    _validate_verification_window(updates, current=current, settings=settings)
+    return updates
+
+
+def _validate_verification_window(
+    updates: dict, *, current: StoreSetting, settings: SettingsDep
+) -> None:
+    """校验「有效期 / 冷却」的联动关系。
+
+    只在本次提交**动过**这两个字段时才校验：环境变量里历史遗留的坏值
+    （比如 ``STORE_VERIFICATION_TTL_SECONDS=30``）不应该把「改个站点名」
+    这种无关操作也一并卡死 —— 那样运营会陷入「什么都保存不了，但不知道
+    该改哪个页面上的哪个框」。
+
+    校验用的是**合并后**的有效值，所以「有效期配在后台、冷却来自环境变量」
+    这种跨来源的死锁也拦得住（见 ``validate_verification_window``）。
+    """
+    touched = {
+        "verification_ttl_seconds",
+        "verification_cooldown_seconds",
+    } & set(updates)
+    if not touched:
+        return
+    ttl, cooldown = mail_settings.effective_verification_window(
+        settings,
+        current,
+        ttl_override=updates.get("verification_ttl_seconds"),
+        cooldown_override=updates.get("verification_cooldown_seconds"),
+    )
+    try:
+        mail_settings.validate_verification_window(ttl, cooldown)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
+
+
+@router.post("/settings/alipay/test")
+def admin_test_alipay_credentials(
+    request: Request,
+    session: DbSession,
+    admin: AdminAccount,
+    settings: SettingsDep,
+) -> dict:
+    """测试当前（已保存的）支付宝凭据能否被网关接受。
+
+    只看**已保存**的配置，不做「先试再存」：探活要真的把密钥拿去签名并发出请求，
+    如果允许测试未保存的内容，就等于多一条「任意字符串都能触发外呼」的路径，
+    而且试通了却忘了保存反而更乱。运营的正常流程是保存 → 测试。
+
+    这是个**同步**端点（和 ``admin_refund`` 一样），FastAPI 会把它丢进线程池执行，
+    所以内部的阻塞式 HTTPS 调用不会卡住事件循环。
+    """
+    setting = site_config.get_setting(session)
+    try:
+        provider = request.app.state.resolve_payment_provider(setting, name="alipay")
+    except PaymentError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+    probe = getattr(provider, "verify_credentials", None)
+    if probe is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="当前支付渠道不支持凭据自检，请把支付渠道切换为 alipay 后再试。",
+        )
+
+    ok, message = probe(settings)
+    #: 把探测结论也写进审核日志：凭据是否通过验证是排障时的关键事实，
+    #: 事后复盘「谁在什么时候确认过配置可用」只能靠它。不记密钥内容。
+    _audit(
+        session,
+        _admin_actor(admin),
+        "settings.alipay_probe",
+        "1",
+        f"{'通过' if ok else '未通过'}：{message}"[:255],
+    )
+    return {"ok": ok, "message": message, "sandbox": bool(setting.alipay_sandbox)}
+
+
+@router.post("/settings/mail/test")
+def admin_test_mail_delivery(
+    payload: AdminMailTestRequest,
+    session: DbSession,
+    admin: AdminAccount,
+    settings: SettingsDep,
+) -> dict:
+    """按当前（已保存的）邮件配置，向指定邮箱真发一封测试邮件。
+
+    与支付宝凭据自检同一套立场：只看**已保存**的配置，不做「先试再存」。
+    「填了 SMTP 但授权码过期 / 端口选错」过去唯一的暴露方式就是用户注册不了，
+    而运营在后台看不出任何异常 —— 这个按钮把那条反馈回路缩短到一次点击。
+
+    发信是阻塞 I/O，所以这是个**同步**端点，FastAPI 会把它丢进线程池，
+    不会卡住事件循环（与 ``admin_test_alipay_credentials`` 一致）。
+
+    返回里的 ``delivered`` 必须如实反映结果：``mail_mode=log/echo`` 时它一定是
+    ``false``（压根没发信），这时前端要明确提示「当前是日志模式，测试不会真的
+    发出去」，否则运营会以为链路通了，实际只是写了行日志。
+    """
+    email = normalize_email(payload.email)
+    if not is_valid_email(email):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="请输入有效的邮箱地址。"
+        )
+
+    setting = site_config.get_setting(session)
+    #: 必须用合并后的配置发信：直接拿 ``app.state.settings`` 只会读到环境变量，
+    #: 于是「后台刚填的授权码」永远测不出来 —— 而那正是运营点这个按钮的原因。
+    result = mailer.send_test_email(settings, setting, email=email)
+    merged = mail_settings.merge_mail_settings(settings, setting)
+
+    if result.delivered:
+        message = f"测试邮件已通过 SMTP 投递到 {email}（第 {result.attempts} 次尝试成功）。"
+    elif merged.smtp_misconfigured:
+        message = (
+            f"未真正发信：投递方式选了 smtp，但凭据不全（缺服务器地址或授权码），"
+            f"本次已退化为 {result.mode} 模式。请补全后重试。"
+        )
+    elif merged.mail_mode != "smtp":
+        message = (
+            f"未真正发信：当前投递方式是 {merged.mail_mode}（只写日志"
+            f"{'并回显' if merged.mail_mode == 'echo' else ''}），验证码不会离开服务器。"
+            "要真正发信请把投递方式改为 smtp。"
+        )
+    else:
+        message = f"发信失败（已尝试 {result.attempts} 次）：{result.error or '未返回具体原因'}"
+
+    #: 结论写进审核日志：和支付宝探活同理，「谁在什么时候确认过邮件链路可用」
+    #: 是事后复盘的关键事实。不记授权码。
+    _audit(
+        session,
+        _admin_actor(admin),
+        "settings.mail_probe",
+        "1",
+        f"{email}：{'已投递' if result.delivered else '未投递'}（{result.mode}）"[:255],
+    )
+    return {
+        "ok": result.delivered,
+        "email": email,
+        "mode": result.mode,
+        "attempts": result.attempts,
+        "message": message,
     }
 
 
@@ -1259,12 +2358,38 @@ def admin_update_settings(
 # 版本发布
 # --------------------------------------------------------------------------- #
 @router.get("/releases")
-def admin_list_releases(session: DbSession, _admin: AdminAccount) -> dict:
-    items = [
-        _release_payload(release)
-        for release in session.scalars(select(Release).order_by(Release.created_at.desc()))
-    ]
-    return {"items": items}
+def admin_list_releases(
+    session: DbSession,
+    _admin: AdminAccount,
+    keyword: str | None = None,
+    product: str | None = None,
+    channel: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
+) -> dict:
+    """版本发布记录（分页 + 筛选）。"""
+    base = select(Release)
+    if product:
+        base = base.where(Release.product == product.strip())
+    if channel:
+        base = base.where(Release.channel == channel.strip())
+    if keyword:
+        like = f"%{keyword.strip()}%"
+        base = base.where(
+            or_(
+                Release.version.like(like),
+                Release.upgrade_notes.like(like),
+                Release.release_date.like(like),
+            )
+        )
+    return _page(
+        session,
+        base,
+        (Release.created_at.desc(),),
+        limit=limit,
+        offset=offset,
+        render=_release_payload,
+    )
 
 
 @router.post("/releases")
@@ -1313,12 +2438,46 @@ def admin_delete_release(release_id: str, session: DbSession, admin: AdminAccoun
 # --------------------------------------------------------------------------- #
 @router.get("/accounts")
 def admin_list_accounts(
-    session: DbSession, _admin: AdminAccount, keyword: str | None = None, limit: int = 100
+    session: DbSession,
+    _admin: AdminAccount,
+    keyword: str | None = None,
+    role: str | None = None,
+    status_filter: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
 ) -> dict:
-    statement = select(Account).order_by(Account.created_at.desc()).limit(max(1, min(limit, 500)))
+    """账号列表（分页 + 筛选）。
+
+    ``role`` 取 ``admin`` / ``user``；``status_filter`` 取 ``active`` / ``inactive`` /
+    ``unverified``（注册了但邮箱还没验证——这些人登不上前台，客服工单基本都是他们）。
+    """
+    base = select(Account)
     if keyword:
-        statement = statement.where(Account.email.like(f"%{keyword.strip()}%"))
-    return {"items": [_account_payload(session, account) for account in session.scalars(statement)]}
+        like = f"%{keyword.strip()}%"
+        # 邮箱是主键式的检索口径；邀请码是用户唯一会主动报给客服的另一个标识。
+        base = base.where(
+            or_(Account.email.like(like), Account.referral_code.like(like))
+        )
+    role_value = (role or "").strip()
+    if role_value == "admin":
+        base = base.where(Account.is_admin.is_(True))
+    elif role_value == "user":
+        base = base.where(Account.is_admin.is_(False))
+    status_value = (status_filter or "").strip()
+    if status_value == "active":
+        base = base.where(Account.is_active.is_(True))
+    elif status_value == "inactive":
+        base = base.where(Account.is_active.is_(False))
+    elif status_value == "unverified":
+        base = base.where(Account.email_verified_at.is_(None))
+    return _page(
+        session,
+        base,
+        (Account.created_at.desc(),),
+        limit=limit,
+        offset=offset,
+        render=lambda account: _account_payload(session, account),
+    )
 
 
 @router.post("/accounts/{account_id}/activate")
@@ -1592,9 +2751,9 @@ def _entitlement_payload(entry: Entitlement) -> dict:
         # 两者分开返回，后台才能解释「为什么开关是开的但客户端没该功能」。
         "activeFlag": bool(entry.active),
         "active": bool(entry.active) and (entry.expires_at is None or entry.expires_at > now),
-        "startsAt": iso(entry.starts_at),
-        "expiresAt": iso(entry.expires_at),
-        "createdAt": iso(entry.created_at),
+        "startsAt": iso_z(entry.starts_at),
+        "expiresAt": iso_z(entry.expires_at),
+        "createdAt": iso_z(entry.created_at),
     }
 
 
@@ -1605,24 +2764,59 @@ def admin_list_entitlements(
     license_id: str | None = None,
     account_id: str | None = None,
     feature_code: str | None = None,
+    keyword: str | None = None,
+    status_filter: str | None = None,
     limit: int = 200,
+    offset: int = 0,
 ) -> dict:
-    statement = (
-        select(Entitlement)
-        .order_by(Entitlement.created_at.desc())
-        .limit(max(1, min(limit, 500)))
-    )
+    """权益列表（分页 + 筛选）。
+
+    ``status_filter`` 取 ``active`` / ``inactive``。这里的 active 是**叠加有效期后**
+    的实际生效状态，与库里的开关列不同（见 ``_entitlement_payload``）：运营问
+    「这个人到底有没有这个功能」时，答案只能是叠加后的那一个。
+    """
+    base = select(Entitlement)
     if license_id:
-        statement = statement.where(Entitlement.license_id == license_id)
+        base = base.where(Entitlement.license_id == license_id)
     if feature_code:
-        statement = statement.where(Entitlement.feature_code == feature_code)
+        base = base.where(Entitlement.feature_code == feature_code)
+    if keyword:
+        like = f"%{keyword.strip()}%"
+        base = base.where(
+            or_(
+                Entitlement.feature_code.like(like),
+                Entitlement.product_name.like(like),
+                Entitlement.license_id.like(like),
+            )
+        )
     if account_id:
-        statement = statement.where(
+        base = base.where(
             Entitlement.license_id.in_(
                 select(License.id).where(License.account_id == account_id)
             )
         )
-    return {"items": [_entitlement_payload(entry) for entry in session.scalars(statement)]}
+    moment = utcnow()
+    status_value = (status_filter or "").strip()
+    if status_value == "active":
+        base = base.where(
+            Entitlement.active.is_(True),
+            or_(Entitlement.expires_at.is_(None), Entitlement.expires_at > moment),
+        )
+    elif status_value == "inactive":
+        base = base.where(
+            or_(
+                Entitlement.active.is_(False),
+                and_(Entitlement.expires_at.is_not(None), Entitlement.expires_at <= moment),
+            )
+        )
+    return _page(
+        session,
+        base,
+        (Entitlement.created_at.desc(),),
+        limit=limit,
+        offset=offset,
+        render=_entitlement_payload,
+    )
 
 
 @router.post("/entitlements")
@@ -1929,18 +3123,35 @@ def admin_patch_release(
 # offset，第 501 条之后的记录在界面上永远看不到 —— 而这几张表（登录尝试、验证码、
 # 解绑事件）恰恰靠「翻旧账」定位问题，看不到旧记录等于白存。
 # --------------------------------------------------------------------------- #
-def _page(session: Session, base, order_by, *, limit: int, offset: int, render) -> dict:
-    """给一个未加 limit/order 的 select 加排序与分页，并附上总数。"""
+def _page_bounds(limit: int, offset: int) -> tuple[int, int]:
+    """分页参数的统一闸门：单页上限 500，offset 不允许负数或离谱的大值。"""
     size = max(1, min(int(limit or 200), 500))
     skip = max(0, min(int(offset or 0), 1_000_000))
-    total = int(
+    return size, skip
+
+
+def _count_rows(session: Session, base) -> int:
+    """数一个**未加 limit/order** 的 select 有多少行（供分页返回 total）。"""
+    return int(
         session.execute(
             select(func.count()).select_from(base.order_by(None).subquery())
         ).scalar_one()
         or 0
     )
+
+
+def _page(session: Session, base, order_by, *, limit: int, offset: int, render) -> dict:
+    """给一个未加 limit/order 的 select 加排序与分页，并附上总数。
+
+    需要「先拿到本页行、再批量补关联数据」（例如激活码要带账号与绑定）的场景
+    不要用它——``render`` 是逐行的。那种情况自己调 ``_page_bounds`` / ``_count_rows``，
+    把本页的行一次性交给关联查询，避免每行一次 N+1。
+    """
+    size, skip = _page_bounds(limit, offset)
+    total = _count_rows(session, base)
     rows = session.scalars(base.order_by(*order_by).limit(size).offset(skip)).all()
     return {"items": [render(row) for row in rows], "total": total, "limit": size, "offset": skip}
+
 
 
 def _cutoff_days(older_than_days: int) -> datetime:
@@ -2343,7 +3554,12 @@ def admin_list_email_verifications(
     limit: int = 200,
     offset: int = 0,
 ) -> dict:
-    """邮箱验证码记录。``code_hash`` 属敏感字段，一律不下发。"""
+    """邮箱验证码记录。``code_hash`` 属敏感字段，一律不下发。
+
+    同时下发投递结果：``delivered`` 为 false 时运营可以当场判断「用户说没收到」
+    是发信失败还是收件箱问题，不必再去翻（会轮转的）日志。
+    老记录没有这几个字段，一律给 null / 空串，前端按「未记录」展示。
+    """
     base = select(EmailVerification)
     if email:
         base = base.where(EmailVerification.email == email.strip().lower())
@@ -2359,6 +3575,12 @@ def admin_list_email_verifications(
             "email": record.email,
             "purpose": record.purpose,
             "attempts": int(record.attempts or 0),
+            #: None 表示「本次没有真实发信」（log/echo 模式）
+            "delivered": record.delivered,
+            "deliveryMode": record.delivery_mode or "",
+            "deliveryError": record.delivery_error or "",
+            "deliveryAttempts": int(record.delivery_attempts or 0),
+            "deliveredAt": iso(record.delivered_at),
             "consumedAt": iso(record.consumed_at),
             "expiresAt": iso(record.expires_at),
             "createdAt": iso(record.created_at),

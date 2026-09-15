@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from store import site_settings as site_config
 from store.config import StoreSettings
 from store.licensing.crypto import LeaseSigner, LicenseServerError, TransportCipher
 from store.models import (
@@ -42,7 +43,7 @@ logger = logging.getLogger("store.license")
 #: 恢复凭证有效期（比会话长，保证会话失效后仍能救回来）
 RECOVERY_TOKEN_TTL_SECONDS = 180 * 24 * 3600
 
-REQUIRED_FEATURES_FALLBACK = ("api", "assets", "editor", "display", "projects.write", "ui.base")
+REQUIRED_FEATURES_FALLBACK = ("api", "assets", "editor", "display", "projects.write")
 
 
 class LicenseAuthority:
@@ -239,7 +240,8 @@ class LicenseAuthority:
         last = self.last_release_at(session, license_id)
         if last is None:
             return 0
-        allowed = last + timedelta(seconds=self.settings.device_release_cooldown_seconds)
+        cooldown = site_config.effective_device_release_cooldown(session, self.settings)
+        allowed = last + timedelta(seconds=cooldown)
         return int(max(0, (allowed - now).total_seconds()))
 
     def ensure_binding(

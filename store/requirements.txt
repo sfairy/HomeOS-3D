@@ -8,7 +8,9 @@ pydantic>=2.7
 httpx>=0.27
 websockets>=12.0
 Pillow>=10.0
-jinja2>=3.1
+# 不要加 jinja2：商店页面由 store/api/pages.py 直接 read_text 下发、占位符在前端填，
+# 代码里没有任何 jinja2 引用（FastAPI 只在 standard / all extras 下才需要它，
+# 而这里装的是裸 fastapi）。SBOM 里出现过 jinja2 的需求声明纯属历史遗留。
 python-multipart>=0.0.9
 
 # 本地热重载：start.py 默认给商店设 STORE_RELOAD=1，store/run.py 会以 uvicorn 的

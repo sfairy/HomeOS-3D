@@ -130,7 +130,7 @@ export function createFocusDevicePopup(
   previewRootElement.inert = true;
   const stylesheetLink = popupOwnerDocument.createElement("link");
   stylesheetLink.rel = "stylesheet";
-  stylesheetLink.href = "/static/renderer/renderer.css?v=20260915211726";
+  stylesheetLink.href = "/static/renderer/renderer.css?v=20260916013557";
   const rendererHostElement = popupOwnerDocument.createElement("div");
   rendererHostElement.className = "i3d-focus-popup-host";
   previewRootElement.append(stylesheetLink, rendererHostElement);

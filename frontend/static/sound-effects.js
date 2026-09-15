@@ -1,5 +1,5 @@
 const SOUND_ENABLED_STORAGE_KEY = "homeos-dashboard-sound-enabled",
-  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3?v=20260915211726";
+  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3?v=20260916013557";
 function isSoundEnabled() {
   try {
     const storedValue = window.localStorage.getItem(SOUND_ENABLED_STORAGE_KEY);

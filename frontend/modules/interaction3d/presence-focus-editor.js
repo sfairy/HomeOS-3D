@@ -1,5 +1,5 @@
 import { mountInteraction3d } from "./runtime.js";
-import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260915211726";
+import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260916013557";
 export function openPresenceFocusEditor({
   component: component,
   properties: properties,

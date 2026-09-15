@@ -8,13 +8,15 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import timedelta
+from datetime import timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker
 
-from store import coupons, fulfill, mailer, password_gate, referrals, site_settings
+from store import coupons, fulfill, mail_settings, mailer, password_gate, referrals, site_settings
 from store.config import StoreSettings
 from store.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
 from store.models import (
@@ -39,6 +41,7 @@ from store.models import (
     utcnow,
 )
 from store.schemas import (
+    ChangeEmailRequest,
     CouponPreviewRequest,
     CreateOrderRequest,
     LabelRequest,
@@ -47,6 +50,7 @@ from store.schemas import (
     RegisterRequest,
     ReleaseDeviceRequest,
     VerificationRequest,
+    VerifyEmailRequest,
     WithdrawalRequest,
 )
 from store.security import (
@@ -68,6 +72,7 @@ from store.serializers import (
     product_payload,
 )
 from store import site_settings as site_config
+from store.payments.base import PaymentError
 from store.payments.reconcile import reconcile_alipay_order
 
 logger = logging.getLogger("store.api")
@@ -76,6 +81,9 @@ router = APIRouter(prefix="/store/v1", tags=["store"])
 
 PENDING_ORDER_LIMIT = 20
 HISTORY_PAGE_SIZE = 20
+
+#: 同一邮箱一小时内最多能索取多少次验证码（含注册与找回密码）。
+MAX_VERIFICATION_SENDS_PER_HOUR = 10
 
 
 # --------------------------------------------------------------------------- #
@@ -115,6 +123,52 @@ def _account_license_state(session, account: Account) -> tuple[bool, bool]:
         else:
             temporary = True
     return permanent, temporary
+
+
+def _is_trial_product(product: Product) -> bool:
+    """试用商品的判定口径与前台 ``store.js`` 的 ``isTrialProduct`` 完全一致。
+
+    试用 = 「有时限的商品」。这个口径必须两侧同一份，否则会出现「前台显示不能买、
+    后端却放行」这类只在一侧成立的规则。
+    """
+    return product.validity_days is not None
+
+
+def _has_used_trial(session, account: Account) -> bool:
+    """该账号是否已经买过（或被后台发过）试用授权。
+
+    判定用的是「账号下是否存在有时限的授权」，而不是「是否存在试用商品的订单」——
+    后台手动补发的试用同样应该占用这一名额，退款/停用的历史记录也不该让规则失效。
+    """
+    found = session.execute(
+        select(License.id)
+        .where(License.account_id == account.id)
+        .where(License.validity_days.is_not(None))
+        .limit(1)
+    ).first()
+    return found is not None
+
+
+def _resolve_upgrade_target(
+    session, account: Account, upgrade_license_id: str | None
+) -> License | None:
+    """解析「试用升级为永久」要就地升级的那张授权。
+
+    前台升级链接过去把 ``Customer.id`` 当参数传（``&upgrade=<customerId>``），而
+    后端完全没有消费这个参数 —— 于是点了「升级为永久授权」只是重新买了一张新码，
+    原试用授权依旧到期。现在按授权主键解析，并校验它确实属于当前账号且有时限。
+    """
+    normalized = (upgrade_license_id or "").strip()
+    if not normalized:
+        return None
+    license = session.get(License, normalized)
+    if license is None or license.account_id != account.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="要升级的授权不存在。")
+    if not license.active:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="要升级的授权已停用。")
+    if license.validity_days is None and license.access_expires_at is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该授权已是永久授权，无需升级。")
+    return license
 
 
 def _set_session_cookies(
@@ -231,18 +285,37 @@ def _product_item(session, product: Product) -> dict:
 
 
 def _expire_stale_orders(session, setting: StoreSetting) -> None:
-    """把超时的待支付订单置为 expired，并释放占用的库存与优惠码。"""
+    """把超时的待支付订单置为 expired，并释放占用的库存与优惠码。
+
+    这里同样用**条件 UPDATE 抢单**：账号中心轮询、后台列表、下单前的自查都会
+    调用本函数，两个并发调用会读到同一批 stale 订单，各自释放一次预留 ——
+    预留被还了两遍（同类商品立刻虚增可售量）。
+    顺带把「读 - 改 - 写」换成一条语句，避免下单瞬间该订单被标记超时后又被
+    改成 paid 导致状态回退。
+    """
     moment = utcnow()
     stale = session.scalars(
-        select(Order).where(Order.status == "pending").where(Order.expires_at <= moment)
+        select(Order)
+        .where(Order.status == "pending")
+        .where(Order.expires_at <= moment)
     ).all()
+    expired_any = False
     for order in stale:
-        order.status = "expired"
-        order.cancelled_at = moment
+        claimed = session.execute(
+            update(Order)
+            .where(Order.id == order.id)
+            .where(Order.status == "pending")
+            .values(status="expired", cancelled_at=moment)
+            .execution_options(synchronize_session=False)
+        )
+        if claimed.rowcount == 0:
+            # 已被别的路径处理（支付/取消/其它线程的扫描），副作用由它负责。
+            continue
+        expired_any = True
         product = session.get(Product, order.product_id) if order.product_id else None
         fulfill.release_reserved_stock(session, product, 1)
         coupons.release_coupon(session, order)
-    if stale:
+    if expired_any:
         session.flush()
 
 
@@ -367,6 +440,9 @@ def _account_orders(session, account: Account, *, limit: int = 50) -> list[Order
         session.scalars(
             select(Order)
             .where(Order.account_id == account.id)
+            # 用户主动「清除订单记录」写的就是 archived_at。这个字段此前没有任何
+            # 查询过滤它，于是按钮点了只弹个提示，订单照样躺在账号中心。
+            .where(Order.archived_at.is_(None))
             .order_by(Order.created_at.desc())
             .limit(limit)
         )
@@ -392,6 +468,7 @@ def _center_payload(session, request: Request, account: Account) -> dict:
         license_meta=_license_meta(session, licenses),
         entitlements=entitlements,
         orders=_account_orders(session, account),
+        has_used_trial=_has_used_trial(session, account),
     )
 
 
@@ -401,7 +478,11 @@ def _center_payload(session, request: Request, account: Account) -> dict:
 @router.get("/configuration")
 def configuration(session: DbSession, settings: SettingsDep) -> dict:
     setting = site_config.get_setting(session)
-    return site_config.site_configuration_payload(setting, settings)
+    # 这是**匿名可读**的接口：不带商户凭据概览（appId / 网关 / 密钥配置状态）。
+    # 那几项只有后台需要，放在这里等于给扫描器白送一份侦察材料。
+    return site_config.site_configuration_payload(
+        setting, settings, include_credentials=False
+    )
 
 
 @router.get("/products")
@@ -463,25 +544,90 @@ def latest_release(request: Request, session: DbSession, channel: str = "docker"
 # --------------------------------------------------------------------------- #
 # 账号
 # --------------------------------------------------------------------------- #
+#: 需要登录态才能发码的用途。
+#:
+#: 「换绑邮箱」尤其重要：不校验登录态的话，任何人都能填任意邮箱触发验证码，
+#: 这个接口就成了免费的邮件群发器（而且发件人是我们自己的域名，会被拉黑）。
+_PURPOSES_REQUIRING_ACCOUNT = frozenset({"verify", "change_email"})
+
+
+def _assert_purpose_allowed(
+    session, *, purpose: str, email: str, account: Account | None
+) -> None:
+    """按用途校验发码前置条件。
+
+    集中在一处是有原因的：每种用途的「谁能给哪个邮箱发码」规则都不一样，
+    散在接口里最容易漏 —— 漏掉 ``change_email`` 的占用校验就会出现两台账号
+    的邮箱被换到同一个地址上，之后登录按邮箱查账号会随机命中其中一个。
+    """
+    if purpose in _PURPOSES_REQUIRING_ACCOUNT and account is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录后再获取该验证码。"
+        )
+
+    existing = session.scalars(
+        select(Account).where(func.lower(Account.email) == email)
+    ).first()
+
+    if purpose == "register":
+        if existing is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="该邮箱已注册，请直接登录。"
+            )
+        return
+
+    if purpose == "reset":
+        if existing is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="该邮箱尚未注册。"
+            )
+        return
+
+    if purpose == "verify":
+        # 只允许验证「当前账号自己绑定的邮箱」：否则可以拿别人的邮箱刷验证码
+        if account is None or (account.email or "").strip().lower() != email:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="只能验证当前账号绑定的邮箱。",
+            )
+        if account.email_verified_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="该邮箱已验证，无需重复验证。"
+            )
+        return
+
+    if purpose == "change_email":
+        if existing is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="该邮箱已被其它账号使用。"
+            )
+        if account is not None and (account.email or "").strip().lower() == email:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。"
+            )
+
+
 @router.post("/verifications")
 def send_verification(
-    payload: VerificationRequest, request: Request, session: DbSession
+    payload: VerificationRequest,
+    request: Request,
+    session: DbSession,
+    account: CurrentAccount,
 ) -> dict:
     email = payload.email.strip().lower()
     if not email or "@" not in email:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="请输入有效的邮箱地址。")
 
-    settings: StoreSettings = request.app.state.settings
     setting = site_config.get_setting(session)
+    # 邮件 / 验证码相关配置一律用**合并后**的值（站点配置优先、环境变量兜底）。
+    # 直接拿 ``app.state.settings`` 只会读到环境变量，于是后台改的有效期、
+    # 冷却、投递方式全都不生效 —— 表现是「保存成功但没有任何反应」，
+    # 而这恰恰是这几个字段被搬进后台的全部意义。
+    settings: StoreSettings = mail_settings.merge_mail_settings(
+        request.app.state.settings, setting
+    )
     purpose = payload.purpose
-
-    existing_account = session.scalars(
-        select(Account).where(func.lower(Account.email) == email)
-    ).first()
-    if purpose == "register" and existing_account is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该邮箱已注册，请直接登录。")
-    if purpose == "reset" and existing_account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该邮箱尚未注册。")
+    _assert_purpose_allowed(session, purpose=purpose, email=email, account=account)
 
     cooldown_scope = f"verify:{email}"
     remaining = password_gate.retry_after_seconds(session, cooldown_scope)
@@ -502,20 +648,46 @@ def send_verification(
                 headers={"Retry-After": str(int(settings.verification_cooldown_seconds - elapsed))},
             )
 
-    code = new_verification_code()
-    session.add(
-        EmailVerification(
-            email=email,
-            purpose=purpose,
-            code_hash=code_hash(code),
-            expires_at=utcnow() + timedelta(seconds=settings.verification_ttl_seconds),
+    # 单邮箱发信上限：cooldown 只管「两次之间要隔多久」，一个脚本持续按冷却
+    # 间隔调用就能无限量给同一个邮箱发信（轰炸 + 邮件成本）。这里再加一道
+    # 小时级总量闸门，在真正写库/发信之前拦下。
+    sent_in_window = session.execute(
+        select(func.count())
+        .select_from(EmailVerification)
+        .where(EmailVerification.email == email)
+        .where(EmailVerification.created_at >= utcnow() - timedelta(hours=1))
+    ).scalar_one()
+    if int(sent_in_window or 0) >= MAX_VERIFICATION_SENDS_PER_HOUR:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="该邮箱短时间内获取验证码过于频繁，请 1 小时后再试。",
         )
+
+    code = new_verification_code()
+    record = EmailVerification(
+        email=email,
+        purpose=purpose,
+        code_hash=code_hash(code),
+        expires_at=utcnow() + timedelta(seconds=settings.verification_ttl_seconds),
     )
+    session.add(record)
     session.flush()
 
     result = mailer.send_verification_email(
         settings, setting, email=email, code=code, purpose=purpose
     )
+
+    # 投递结果落库。过去 ``delivered`` 只回给前端就丢了，事后完全无法回答
+    # 「用户说没收到，那封信到底发出去没有」—— 只能翻日志，而日志会轮转。
+    # ``mode`` 记录的是**实际生效**的方式（smtp 失败会回退成 log），
+    # 所以不能拿 settings.mail_mode 冒充：那会把「以为发了其实只写了日志」藏起来。
+    record.delivery_mode = result.mode
+    record.delivery_attempts = result.attempts
+    record.delivery_error = result.error
+    record.delivered = result.delivered if result.mode == "smtp" else None
+    record.delivered_at = utcnow()
+    session.flush()
+
     body = {
         "email": email,
         "purpose": purpose,
@@ -523,8 +695,12 @@ def send_verification(
         #: 前端用 resendAfter 驱动「重新发送」倒计时；缺省会让按钮白白多锁 120 秒
         "resendAfter": settings.verification_cooldown_seconds,
         "delivered": result.delivered,
-        "deliveryMode": settings.mail_mode,
+        "deliveryMode": result.mode,
+        "deliveryAttempts": result.attempts,
     }
+    if result.error:
+        # 发信失败要如实告诉用户「可能收不到」，而不是让他对着收件箱干等
+        body["deliveryError"] = "验证码邮件发送失败，请稍后重试或联系客服。"
     if result.exposed_code is not None:
         body["code"] = result.exposed_code
         if settings.mail_mode == "echo":
@@ -539,6 +715,12 @@ def send_verification(
 
 
 def _consume_verification(session, *, email: str, purpose: str, code: str) -> None:
+    scope = f"verify:{email}"
+    if password_gate.retry_after_seconds(session, scope) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="验证码错误次数过多，请稍后重新获取。",
+        )
     record = session.scalars(
         select(EmailVerification)
         .where(EmailVerification.email == email)
@@ -548,17 +730,58 @@ def _consume_verification(session, *, email: str, purpose: str, code: str) -> No
         .limit(1)
     ).first()
     if record is None:
+        _record_verify_failure(session, scope)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请先获取邮箱验证码。")
     if record.expires_at <= utcnow():
+        _record_verify_failure(session, scope)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码已过期，请重新获取。")
-    if int(record.attempts or 0) >= 8:
+    if int(record.attempts or 0) >= MAX_VERIFICATION_CODE_ATTEMPTS:
+        _record_verify_failure(session, scope)
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="尝试次数过多，请重新获取验证码。")
     if record.code_hash != code_hash(code.strip()):
+        # 先记账再从 ORM 改 attempts：此时本事务还只有 SELECT，没有持有 SQLite
+        # 写锁，独立会话的 INSERT 不会被自己挡住。
+        _record_verify_failure(session, scope)
         record.attempts = int(record.attempts or 0) + 1
         session.flush()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码不正确。")
     record.consumed_at = utcnow()
+    # 成功后清空该邮箱的失败计数，避免用户被自己过去的输错次数拖累。
+    password_gate.clear(session, scope)
     session.flush()
+
+
+#: 单封验证码最多可以被尝试几次（按验证码记录计）。
+MAX_VERIFICATION_CODE_ATTEMPTS = 8
+
+
+def _record_verify_failure(session, scope: str) -> None:
+    """记录一次验证码失败，作为 ``verify:<email>`` 的限流依据。
+
+    这里有个必须注意的坑：本函数之后一定会抛 HTTPException，请求事务随之回滚，
+    所以**在本会话里写的记录会被一起回滚掉**。因此改用独立会话提交
+    （``record_attempt_in_new_session``），失败尝试才真的算数。
+    """
+    record_attempt_in_new_session(session, scope)
+
+
+def record_attempt_in_new_session(session, scope: str) -> None:
+    """在一个独立事务里记录失败尝试，确保外层请求回滚不会把它抹掉。
+
+    限流记录的语义就是「即使这次请求失败也要留下痕迹」，所以它天然不能和
+    请求共用事务 —— 共用事务时所有失败路径的记录都会被回滚，限流永远不会触发
+    （``verify:<email>`` 这个 scope 之前就是这样，形同虚设）。
+
+    写入失败（SQLite 写锁被外层事务占着等）一律吞掉并告警：这是限流记账，
+    让用户的「验证码不正确」变成 500 是不可接受的降级。
+    """
+    factory = sessionmaker(bind=session.get_bind(), expire_on_commit=False, future=True)
+    try:
+        with factory() as probe:
+            password_gate.record_attempt(probe, scope, succeeded=False)
+            probe.commit()
+    except SQLAlchemyError:
+        logger.warning("限流记录写入失败，本次不计入 scope=%s", scope, exc_info=True)
 
 
 @router.post("/auth/register")
@@ -583,22 +806,40 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     _customer_for(session, account)
 
     referral_code = (payload.referral_code or "").strip()
-    if referral_code and referral_code.isdigit():
-        referrer_wallet = session.scalars(
-            select(ReferralWallet).where(ReferralWallet.code == referral_code)
-        ).first()
-        if referrer_wallet is not None and referrer_wallet.account_id != account.id:
-            account.referred_by_account_id = referrer_wallet.account_id
-            account.referral_bound_at = utcnow()
-            session.flush()
+    referral_note = ""
+    if referral_code:
+        if not referral_code.isdigit():
+            # 邀请码是纯数字；填错格式时之前是**静默忽略**，用户以为绑定成功了，
+            # 而关系永远补不上（注册流程只有这一次机会写入 referred_by）。
+            referral_note = "邀请码格式不正确（应为纯数字），本次未绑定邀请关系。"
+        else:
+            referrer_wallet = session.scalars(
+                select(ReferralWallet).where(ReferralWallet.code == referral_code)
+            ).first()
+            if referrer_wallet is None:
+                referral_note = "邀请码不存在，本次未绑定邀请关系。"
+            else:
+                referrer = session.get(Account, referrer_wallet.account_id)
+                if referrals.is_self_referral(session, referrer, account):
+                    referral_note = "不能使用自己的邀请码，本次未绑定邀请关系。"
+                    logger.warning("拦截自邀注册 email=%s code=%s", email, referral_code)
+                else:
+                    account.referred_by_account_id = referrer_wallet.account_id
+                    account.referral_bound_at = utcnow()
+                    session.flush()
 
     token = _create_session(session, request, account)
     state = _account_license_state(session, account)
-    response = JSONResponse(
-        account_state_payload(
-            account, has_permanent=state[0], has_temporary=state[1]
-        )
+    body = account_state_payload(
+        account,
+        has_permanent=state[0],
+        has_temporary=state[1],
+        has_used_trial=_has_used_trial(session, account),
     )
+    # 邀请码没能绑定时必须让用户看到：绑定只在注册这一步发生，静默失败之后
+    # 没有任何补救入口。
+    body["referralNote"] = referral_note
+    response = JSONResponse(body)
     _set_session_cookies(
         request,
         response,
@@ -611,6 +852,8 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
 @router.post("/auth/login")
 def login(payload: LoginRequest, request: Request, session: DbSession) -> Response:
     email = payload.email.strip().lower()
+    # 限流表只增不减（prune 定义了却没人调用），挂在登录这条本来就要写的路径上。
+    password_gate.maybe_prune(session)
     scope = f"login:{email}"
     remaining = password_gate.retry_after_seconds(session, scope)
     if remaining > 0:
@@ -631,7 +874,12 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
     token = _create_session(session, request, account)
     permanent, temporary = _account_license_state(session, account)
     response = JSONResponse(
-        account_state_payload(account, has_permanent=permanent, has_temporary=temporary)
+        account_state_payload(
+            account,
+            has_permanent=permanent,
+            has_temporary=temporary,
+            has_used_trial=_has_used_trial(session, account),
+        )
     )
     _set_session_cookies(
         request,
@@ -662,7 +910,12 @@ def me(request: Request, session: DbSession, account: CurrentAccount) -> Respons
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录。")
     permanent, temporary = _account_license_state(session, account)
     response = JSONResponse(
-        account_state_payload(account, has_permanent=permanent, has_temporary=temporary)
+        account_state_payload(
+            account,
+            has_permanent=permanent,
+            has_temporary=temporary,
+            has_used_trial=_has_used_trial(session, account),
+        )
     )
     return response
 
@@ -697,6 +950,95 @@ def account_center(request: Request, session: DbSession, account: AuthedAccount)
     return response
 
 
+@router.post("/account/email/verify")
+def verify_account_email(
+    payload: VerifyEmailRequest, session: DbSession, account: AuthedAccount
+) -> dict:
+    """用发到「当前账号邮箱」的验证码，把账号标记为邮箱已验证。
+
+    注册流程本来就会写上 ``email_verified_at``，所以走到这里的只有两类账号：
+    运营在服务端直接建的号（``seed`` 管理员），以及历史上漏写该字段的老号。
+    它们会被 ``_require_verified`` 挡在「查看订单 / 下单」之外 —— 闸门装了却
+    没有任何开闸动作，账号就等于废了。这个接口就是那道开闸动作。
+    """
+    email = payload.email.strip().lower()
+    if (account.email or "").strip().lower() != email:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="只能验证当前账号绑定的邮箱。",
+        )
+    if account.email_verified_at is not None:
+        return {"email": email, "verified": True, "alreadyVerified": True}
+
+    _consume_verification(session, email=email, purpose="verify", code=payload.code)
+    account.email_verified_at = utcnow()
+    session.flush()
+    logger.info("账号邮箱已验证 account=%s email=%s", account.id, email)
+    return {"email": email, "verified": True, "alreadyVerified": False}
+
+
+@router.post("/account/email")
+def change_account_email(
+    payload: ChangeEmailRequest,
+    request: Request,
+    session: DbSession,
+    account: AuthedAccount,
+) -> dict:
+    """把账号邮箱换成新地址，需要发到**新地址**的验证码 + 当前登录密码。
+
+    为什么两样都要：账号邮箱就是登录名，它一旦被改掉，原主就再也登不进来。
+
+    - 只验旧邮箱 → 任何拿到一次会话的人都能把邮箱改成自己的，再走「忘记密码」
+      把账号彻底夺走。
+    - 只验新邮箱 → 会话被劫持时同样守不住（新邮箱本来就是攻击者的）。
+    - 要求密码 → 这是挡住「会话被劫持」的最后一道锁。
+    """
+    if not verify_password(payload.password, account.password_hash):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="登录密码不正确。")
+
+    email = payload.email.strip().lower()
+    if (account.email or "").strip().lower() == email:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。")
+
+    # 发码时校验过一次，但用户填验证码的这段时间里该地址可能已被别的账号占用
+    # （TOCTOU），这里必须再查一遍 —— 否则两台账号会撞到同一个登录名上。
+    taken = session.scalars(
+        select(Account).where(func.lower(Account.email) == email)
+    ).first()
+    if taken is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="该邮箱已被其它账号使用。"
+        )
+
+    _consume_verification(session, email=email, purpose="change_email", code=payload.code)
+
+    previous = account.email
+    account.email = email
+    # 新地址刚被验证码证明过归属，直接算已验证；否则换完邮箱，账号反而会被
+    # ``_require_verified`` 锁死在自己的订单之外。
+    account.email_verified_at = utcnow()
+
+    customer = session.scalars(
+        select(Customer).where(Customer.account_id == account.id)
+    ).first()
+    if customer is not None:
+        customer.email = email
+
+    # 登录标识变了：把其它设备上的会话全部踢下线，只保留当前这一个。
+    # 不这么做的话，「改邮箱之前就偷到会话的人」依然保持登录。
+    settings: StoreSettings = request.app.state.settings
+    current = token_hash(request.cookies.get(settings.cookie_name) or "")
+    for record in session.scalars(
+        select(AccountSession).where(AccountSession.account_id == account.id)
+    ):
+        if record.id_hash != current:
+            session.delete(record)
+
+    session.flush()
+    logger.info("账号邮箱变更 account=%s %s -> %s", account.id, previous, email)
+    return {"email": email, "previousEmail": previous, "verified": True}
+
+
 @router.patch("/account/licenses/{license_id}/label")
 def update_license_label(
     license_id: str, payload: LabelRequest, session: DbSession, account: AuthedAccount
@@ -726,11 +1068,7 @@ def release_device(
 
     setting = site_config.get_setting(session)
     settings: StoreSettings = request.app.state.settings
-    cooldown = int(
-        setting.device_release_cooldown_seconds
-        if setting.device_release_cooldown_seconds is not None
-        else settings.device_release_cooldown_seconds
-    )
+    cooldown = site_config.resolve_device_release_cooldown(setting, settings)
     moment = utcnow()
     last_release = session.execute(
         select(func.max(DeviceReleaseEvent.created_at)).where(
@@ -749,6 +1087,17 @@ def release_device(
     binding = session.scalars(
         select(DeviceBinding).where(DeviceBinding.license_id == license.id)
     ).first()
+
+    # 乐观锁：前端在弹窗里看到的绑定快照必须仍然有效。用户输密码的这段时间里
+    # 授权可能已经被重新绑定到另一台设备，按旧快照解绑会误踢一台「它没看到」的
+    # 设备。冲突时 409，让前端刷新后重新确认（不猜测、不强行解绑）。
+    conflict = _release_snapshot_conflict(payload, binding)
+    if conflict:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=conflict,
+        )
+
     instance_id = binding.instance_id if binding is not None else None
     if binding is not None:
         binding.active = False
@@ -776,6 +1125,41 @@ def release_device(
     }
 
 
+def _release_snapshot_conflict(payload: ReleaseDeviceRequest, binding) -> str | None:
+    """校验解绑请求里的绑定快照，返回冲突说明（None 表示一致）。
+
+    三个字段都可选：后台脚本 / 老客户端不带快照时保持原行为（不做校验，包括
+    「当前没有绑定设备也允许解绑」——smoke 用它验证「未被占用的授权仍可解绑」）。
+    带了快照就必须一致：用户在弹窗里输密码的这段时间授权可能已被换绑，按旧快照
+    解绑会误踢一台「它没看到」的设备。
+    """
+    has_snapshot = bool(
+        payload.expected_binding_id
+        or payload.expected_activated_at
+        or payload.expected_binding_version
+    )
+    if binding is None:
+        # 带了快照却查不到绑定：说明它在这几秒内被别处释放/换绑了。
+        return "授权绑定的设备已变更，请刷新后重新确认。" if has_snapshot else None
+    if payload.expected_binding_id and payload.expected_binding_id != binding.id:
+        return "授权绑定的设备已变更，请刷新后重新确认。"
+    expected_at = payload.expected_activated_at
+    if expected_at is not None:
+        # 前端发来的是 iso_z（带 Z 的 UTC 时刻），库内是 naive UTC。
+        normalized = expected_at
+        if normalized.tzinfo is not None:
+            normalized = normalized.astimezone(timezone.utc).replace(tzinfo=None)
+        actual = binding.activated_at
+        if actual is None or abs((actual - normalized).total_seconds()) > 1:
+            return "授权绑定的设备已变更，请刷新后重新确认。"
+    if payload.expected_binding_version:
+        from store.serializers import binding_version
+
+        if payload.expected_binding_version != binding_version(binding):
+            return "授权绑定的设备已变更，请刷新后重新确认。"
+    return None
+
+
 # --------------------------------------------------------------------------- #
 # 订单
 # --------------------------------------------------------------------------- #
@@ -796,7 +1180,14 @@ def create_order(
     if setting.maintenance_mode:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=setting.maintenance_message or "商城正在维护，请稍后再试。",
+            detail=setting.maintenance_message or "商城正在升级维护，请稍后再试。",
+        )
+    # 「启用支付」这个开关过去只影响站点配置接口的展示（payment.configured），
+    # 下单流程从没读过它 —— 运营关掉支付后，用户依然能下单并拿到二维码。
+    if not setting.payment_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="当前暂未开放支付，请稍后再试或联系客服。",
         )
 
     _expire_stale_orders(session, setting)
@@ -846,17 +1237,61 @@ def create_order(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="增量包只能添加到永不过期的主授权上。",
             )
+    elif _is_trial_product(product):
+        # 「每个账号只能买一次试用」过去只写在前端（store.js 的 primaryProductUnavailable），
+        # 而 state.hasUsedTrial 恒为 false（后端从未计算过这个字段），等于这条规则
+        # 在前端也是死代码。这里在服务端兜底：试用只能买一次，且已有永久授权时不必再买。
+        permanent, _temporary = _account_license_state(session, account)
+        if permanent:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="当前账号已有永久授权，无需购买试用。",
+            )
+        if _has_used_trial(session, account):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="每个账号只能购买一次试用授权。",
+            )
+    else:
+        target_license = _resolve_upgrade_target(session, account, payload.upgrade_license_id)
 
     coupon = None
     discount = 0
     coupon_code = (payload.coupon_code or "").strip()
     if coupon_code and product.fulfillment_mode != "manual":
-        coupon, discount = _evaluate_coupon(
-            session, account=account, product=product, code=coupon_code
-        )
+        coupon_scope = f"coupon:{account.id}"
+        if password_gate.retry_after_seconds(session, coupon_scope) > 0:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="优惠码尝试次数过多，请稍后再试。",
+            )
+        try:
+            coupon, discount = _evaluate_coupon(
+                session, account=account, product=product, code=coupon_code
+            )
+        except HTTPException:
+            # 失败的尝试必须留在库里才算限流。但本请求接下来一定会回滚
+            # （HTTPException 会被 FastAPI 转成 4xx，事务回滚），在本会话里写的
+            # 记录会一起消失，所以走独立会话落账。
+            record_attempt_in_new_session(session, coupon_scope)
+            raise
+        password_gate.clear(session, coupon_scope)
 
     original_amount = int(product.price_cents or 0)
     amount = max(0, original_amount - discount)
+    is_upgrade = not is_addon and target_license is not None
+    if is_addon:
+        order_type = "addon"
+        license_action = "patch"
+    elif is_upgrade:
+        order_type = "upgrade"
+        license_action = "upgrade"
+    elif product.product_type == "package":
+        order_type = "package"
+        license_action = "issue"
+    else:
+        order_type = "base"
+        license_action = "issue"
     moment = utcnow()
     order = Order(
         order_no=_unique_order_no(session, account.email, moment),
@@ -867,8 +1302,8 @@ def create_order(
         product_id=product.id,
         product_name=product.name,
         product_type=product.product_type,
-        order_type="addon" if is_addon else ("package" if product.product_type == "package" else "base"),
-        license_action="patch" if is_addon else "issue",
+        order_type=order_type,
+        license_action=license_action,
         target_license_id=target_license.id if target_license is not None else None,
         original_amount_cents=original_amount,
         discount_cents=discount,
@@ -883,8 +1318,17 @@ def create_order(
     session.flush()
 
     if coupon is not None:
-        coupons.redeem_coupon(session, order, coupon, account, discount)
-    fulfill.reserve_stock(session, product, 1)
+        try:
+            coupons.redeem_coupon(session, order, coupon, account, discount)
+        except coupons.CouponUnavailable as error:
+            # 名额在「校验」和「占用」之间被别人抢走：整单作废，先建的订单不会
+            # 被 flush 到库里（异常会让请求事务回滚）。
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)
+            ) from error
+    if not fulfill.reserve_stock(session, product, 1):
+        # 并发下单：更早那一次 soldOut 检查是「读」，这里是「原子占位」。
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
 
     import json as _json
 
@@ -908,8 +1352,19 @@ def create_order(
         logger.info("0 元订单直接开通 order=%s", order.order_no)
         return JSONResponse(order_payload(order), status_code=status.HTTP_201_CREATED)
 
-    provider = request.app.state.resolve_payment_provider(setting)
     from store.payments.base import PaymentError
+
+    try:
+        provider = request.app.state.resolve_payment_provider(setting)
+    except PaymentError as error:
+        # 渠道配置非法（例如后台把 payment_provider 写成了未知值）：此时绝不能
+        # 静默回落模拟收银台，也不能把订单留在 pending 占着库存。
+        order.status = "payment_failed"
+        fulfill.release_reserved_stock(session, product, 1)
+        coupons.release_coupon(session, order)
+        session.flush()
+        logger.error("支付渠道解析失败 order=%s: %s", order.order_no, error)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error))
 
     try:
         intent = provider.create_payment(
@@ -939,7 +1394,11 @@ def _reconcile_payment(session, request: Request, order: Order) -> None:
     if order.status != "pending":
         return
     setting = site_config.get_setting(session)
-    provider = request.app.state.resolve_payment_provider(setting)
+    try:
+        provider = request.app.state.resolve_payment_provider(setting)
+    except PaymentError:
+        # 渠道名非法时不做任何事：否则轮询接口会 500（对账绝不能打断用户支付）。
+        return
     if getattr(provider, "name", "") != "alipay":
         return
     try:
@@ -1100,7 +1559,6 @@ def referral_history(
                 "netPoints": f"{float(row.net_points or 0.0):.2f}",
                 "status": row.status,
                 "note": row.note,
-                "qq": row.qq,
                 "createdAt": iso(row.created_at),
                 "resolvedAt": iso(row.resolved_at),
             }
@@ -1181,21 +1639,36 @@ def request_withdrawal(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"最低提现 {minimum:.2f} 积分。",
         )
-    if points > float(wallet.balance or 0.0):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="可用积分不足。")
+    # 「可用积分」口径必须与前端展示一致（余额 - 冻结）。过去这里只比 balance，
+    # 于是「可用 0 元」的用户照样能提交申请，一路走到后台才被人工拒绝。
+    available = referrals.available_points(wallet)
+    if points > available:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"可用积分不足（当前可用 {available:.2f}，已被提现申请冻结 {float(wallet.frozen or 0.0):.2f}）。",
+        )
     if float(wallet.frozen or 0.0) > 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="你有正在处理中的提现申请，请等待处理完成。"
         )
-    if not payload.qq.strip().isdigit():
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="请填写有效的联系 QQ。")
-
     fee_percent = float(setting.referral_withdrawal_fee_percent or 0.0)
+    # 手续费在用户确认那一刻可能是 1%，等运营改成 5% 后才提交 —— 用户看到的
+    # 到账金额与实际不符，只能事后投诉。前端已经在发 expectedFeePercent，
+    # 这里真正校验它：不一致就让用户重新确认一次。
+    if payload.expected_fee_percent is not None and abs(
+        float(payload.expected_fee_percent) - fee_percent
+    ) > 1e-6:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"提现手续费已从 {float(payload.expected_fee_percent):.2f}% "
+                f"调整为 {fee_percent:.2f}%，请确认后重新提交。"
+            ),
+        )
     withdrawal = referrals.create_withdrawal(
         session,
         wallet,
         points=points,
-        qq=payload.qq.strip(),
         request_key=payload.request_key,
         fee_percent=fee_percent,
     )

@@ -318,8 +318,8 @@ async def run(port: int, workdir: Path, admin_email: str, admin_password: str) -
         check("客户端状态 ACTIVE", status["status"] == "ACTIVE", status["status"])
         check("租约序号从 1 开始", status["leaseSequence"] == 1, str(status["leaseSequence"]))
         check(
-            "功能码覆盖编辑器与栖光 UI",
-            {"editor", "ui.base", "assets", "api"} <= set(status["features"]),
+            "功能码覆盖编辑器与素材",
+            {"editor", "assets", "api"} <= set(status["features"]),
             str(status["features"]),
         )
         check("编辑器功能已解锁", service.allows("editor") is True)

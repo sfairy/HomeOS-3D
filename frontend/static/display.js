@@ -1,7 +1,6 @@
-import { PanelRenderer } from "./renderer/renderer.js?v=20260915211726";
-import { ensureUiPackRuntime } from "./ui-packs/loader.js?v=20260915211726";
-import { createButtonSound } from "./sound-effects.js?v=20260915211726";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=20260915211726";
+import { PanelRenderer } from "./renderer/renderer.js?v=20260916013557";
+import { createButtonSound } from "./sound-effects.js?v=20260916013557";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=20260916013557";
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");
 const isCapturePreview = new URLSearchParams(window.location.search).get("capturePreview") === "1";
@@ -12,7 +11,6 @@ let lastGlobalPopupRevision = null;
 let panelRenderer = null;
 const buttonSound = createButtonSound();
 let refreshPromise = null;
-let uiPacks = [];
 let loadedAssetsVersion = null;
 let entityList = [];
 let deviceList = [];
@@ -104,25 +102,6 @@ async function apiRequest(path) {
   } finally {
     window.clearTimeout(timeoutId);
   }
-}
-async function resolveUiPack(dashboardDocument) {
-  const uiPackId = dashboardDocument?.uiPack?.id || "ui.base";
-  let uiPack = uiPacks.find(packEntry => packEntry.id === uiPackId);
-  if (!uiPack) {
-    const uiPackResponse = await apiRequest("/ui-packs?_=" + Date.now());
-    if (!uiPackResponse) {
-      return null;
-    }
-    uiPacks = uiPackResponse.items || [];
-    uiPack = uiPacks.find(packCandidate => packCandidate.id === uiPackId);
-  }
-  if (!uiPack?.allowed) {
-    const restrictedError = new Error("当前授权尚未解锁该 UI 方案。");
-    restrictedError.code = "UI_PACK_RESTRICTED";
-    throw restrictedError;
-  }
-  await ensureUiPackRuntime(uiPack);
-  return uiPack;
 }
 async function refreshCatalog() {
   return (
@@ -230,20 +209,21 @@ function pushCatalogToRenderer() {
     panelRenderer.setEntityCatalog(entityList, translationResources, deviceList);
   }
 }
+function decodeDisplayPath(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
 async function resolveProject() {
   const pathname = window.location.pathname;
-  if (pathname.startsWith("/display/")) {
-    return {
-      id: decodeURIComponent(pathname.slice(9)),
-      name: ""
-    };
-  }
-  if (!pathname.startsWith("/habridge/")) {
+  if (!pathname.startsWith("/display/")) {
     throw new Error("仪表盘地址无效。");
   }
-  const projectName = decodeURIComponent(pathname.slice(10)).trim();
+  const projectName = decodeDisplayPath(pathname.slice(9)).trim();
   if (!projectName) {
-    throw new Error("仪表盘名称不能为空。");
+    throw new Error("仪表盘地址无效。");
   }
   const projectsResponse = await apiRequest("/projects");
   if (!projectsResponse) {
@@ -304,7 +284,6 @@ async function refreshDisplay() {
         window.HABridgeDisplayBoot?.setDocument(draftResponse.document);
         syncAppleDisplaySurface(draftResponse.document);
         buttonSound.setEnabled(draftResponse.document?.soundEnabled !== false);
-        await resolveUiPack(draftResponse.document);
         let targetAssetsVersion = assetsVersion;
         let builtinAssets = null;
         let userAssets = null;
@@ -387,16 +366,6 @@ function handleDisplayError(error) {
     phase: "display-refresh"
   });
   window.HABridgeDisplayBoot?.fail(error);
-  if (error?.code !== "UI_PACK_RESTRICTED") {
-    return;
-  }
-  panelRenderer?.destroy();
-  panelRenderer = null;
-  lastRevision = null;
-  const errorElement = document.createElement("p");
-  errorElement.className = "display-error";
-  errorElement.textContent = error.message;
-  displayRootElement.replaceChildren(errorElement);
 }
 window.addEventListener("pageshow", handleLifecycleResume);
 document.addEventListener("visibilitychange", handleLifecycleResume);
@@ -407,9 +376,6 @@ window.addEventListener("orientationchange", () => window.setTimeout(syncViewpor
 window.setInterval(refreshIfVisible, 10000);
 bootstrap().catch(bootstrapError => {
   handleDisplayError(bootstrapError);
-  if (bootstrapError?.code === "UI_PACK_RESTRICTED") {
-    return;
-  }
   const bootstrapErrorElement = document.createElement("p");
   bootstrapErrorElement.className = "display-error";
   bootstrapErrorElement.textContent = bootstrapError.message;

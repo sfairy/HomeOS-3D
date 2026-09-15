@@ -27,9 +27,14 @@ router = APIRouter(tags=["alipay"])
 NOTIFY_PATH = "/store/v1/payments/alipay/notify"
 
 
-def _alipay_provider(request: Request):
-    """返回当前站点配置下的支付宝渠道；不是支付宝就返回 None。"""
-    provider = request.app.state.resolve_payment_provider()
+def _alipay_provider(request: Request, session=None):
+    """返回当前站点配置下的支付宝渠道；不是支付宝就返回 None。
+
+    传入 ``session`` 是为了让后台配置的凭据生效（凭据存在站点配置里）。
+    不传时 ``resolve_payment_provider`` 会自己读一次库。
+    """
+    setting = site_config.get_setting(session) if session is not None else None
+    provider = request.app.state.resolve_payment_provider(setting)
     if getattr(provider, "name", "") != "alipay":
         return None
     return provider
@@ -38,7 +43,7 @@ def _alipay_provider(request: Request):
 @router.post(NOTIFY_PATH, include_in_schema=False)
 async def alipay_notify(request: Request, session: DbSession) -> PlainTextResponse:
     settings = request.app.state.settings
-    provider = _alipay_provider(request)
+    provider = _alipay_provider(request, session)
     if provider is None:
         logger.warning("收到支付宝异步通知，但当前支付渠道不是支付宝，已忽略")
         return PlainTextResponse("failure")
@@ -124,7 +129,7 @@ _RETURN_PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} - HomeOS 授权中心</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260915211726">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260916013557">
 <style>
   /* 与商店/后台同一套暗色 + 琥珀设计语言（令牌来自 theme.css） */
   body {{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
@@ -167,7 +172,7 @@ def alipay_return(
     真正入账仍然依赖验签通过的异步通知或查单结果。
     """
     settings = request.app.state.settings
-    provider = _alipay_provider(request)
+    provider = _alipay_provider(request, session)
 
     order = None
     if out_trade_no:

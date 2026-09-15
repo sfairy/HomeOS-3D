@@ -16,7 +16,7 @@ from sqlalchemy import select
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_viewer_user_asset, viewer_user_asset_ids
 from ..models import Project, ProjectDraft
 from ..global_popups import global_popups
-from ..ui_packs import UI_PACKS, get_ui_pack_for_asset_path, require_ui_pack_access
+
 router = APIRouter(prefix = '/assets', tags = [
     'assets'])
 SUPPORTED_IMAGE_SUFFIXES = {
@@ -75,16 +75,6 @@ SVG_LENGTH_FACTORS = {
     'in': 96 }
 ElementTree.register_namespace('', SVG_NAMESPACE)
 ElementTree.register_namespace('xlink', XLINK_NAMESPACE)
-
-def legacy_asset_ids(relative_path: str) -> list[str]:
-    if relative_path == 'v1/底图/底图.png':
-        return ['builtin:v1/底图.png']
-    for source in ('v1/户型图示例/2D/', 'v1/户型图示例/3D/'):
-        if not relative_path.startswith(source):
-            continue
-        legacy_path = relative_path.replace('v1/户型图示例/', 'v1/', 1)
-        return [f'builtin:{legacy_path}']
-    return []
 
 def user_asset_file(root: Path, asset_id: str) -> Path | None:
     if not ASSET_ID.fullmatch(asset_id):
@@ -406,7 +396,6 @@ class AssetCatalog:
         self._user_loaded = False
         self._builtin_items = { }
         self._builtin_paths = { }
-        self._builtin_aliases = { }
         self._user_items = { }
         self._effect_variant_paths = { }
         self._builtin_revision = uuid4().hex
@@ -434,9 +423,6 @@ class AssetCatalog:
                 if not resolved.is_relative_to(self.built_in_root):
                     continue
                 relative_path = resolved.relative_to(self.built_in_root).as_posix()
-                ui_pack = get_ui_pack_for_asset_path(relative_path)
-                if ui_pack is None:
-                    continue
                 try:
                     stat = resolved.stat()
                 except OSError:
@@ -449,15 +435,11 @@ class AssetCatalog:
                     'relativePath': relative_path,
                     'folder': resolved.parent.relative_to(self.built_in_root).as_posix() or '.',
                     'source': 'builtin',
-                    'uiPackId': ui_pack.id,
-                    'legacyAssetIds': legacy_asset_ids(relative_path),
                     'version': version,
                     'url': '/assets/builtin/' + '/'.join(relative_path.split('/')) + f'?v={version}' }
                 self._attach_effect_variant(payload, resolved)
                 self._builtin_items[asset_id] = payload
                 self._builtin_paths[relative_path] = resolved
-                for alias in payload['legacyAssetIds']:
-                    self._builtin_aliases[alias] = asset_id
             self._builtin_loaded = True
 
     def _load_user(self) -> None:
@@ -497,10 +479,10 @@ class AssetCatalog:
             'builtin': self._builtin_revision,
             'user': self._user_revision }
 
-    def builtin_items(self, allowed_ui_pack_ids: set[str]) -> list[dict]:
+    def builtin_items(self) -> list[dict]:
         self._load_builtin()
         with self.mutation_lock:
-            items = [dict(item) for item in self._builtin_items.values() if item['uiPackId'] in allowed_ui_pack_ids]
+            items = [dict(item) for item in self._builtin_items.values()]
         items.sort(key = lambda item: (item['folder'], item['name'].casefold()))
         return items
 
@@ -529,20 +511,11 @@ class AssetCatalog:
         items.sort(key = user_asset_sort_key)
         return items
 
-    def builtin_path(self, relative_path: str) -> tuple[Path, str] | None:
+    def builtin_path(self, relative_path: str) -> Path | None:
         self._load_builtin()
         normalized = relative_path.strip('/')
         with self.mutation_lock:
-            path = self._builtin_paths.get(normalized)
-        ui_pack = get_ui_pack_for_asset_path(normalized)
-        return (path, ui_pack.id) if path is not None and ui_pack is not None else None
-
-    def ui_pack_id_for_asset(self, asset_id: str) -> str | None:
-        self._load_builtin()
-        with self.mutation_lock:
-            canonical = self._builtin_aliases.get(asset_id, asset_id)
-            item = self._builtin_items.get(canonical)
-            return item['uiPackId'] if item else None
+            return self._builtin_paths.get(normalized)
 
     def asset_exists(self, asset_id: str) -> bool:
         if asset_id.startswith('user:'):
@@ -550,7 +523,9 @@ class AssetCatalog:
             with self.mutation_lock:
                 return asset_id in self._user_items
         if asset_id.startswith('builtin:'):
-            return self.ui_pack_id_for_asset(asset_id) is not None
+            self._load_builtin()
+            with self.mutation_lock:
+                return asset_id in self._builtin_items
         if asset_id.startswith('studio3d:'):
             self._load_user()
             with self.mutation_lock:
@@ -598,8 +573,7 @@ class AssetCatalog:
         self._load_builtin()
         self._load_user()
         with self.mutation_lock:
-            canonical = self._builtin_aliases.get(asset_id, asset_id)
-            path = self._effect_variant_paths.get(canonical)
+            path = self._effect_variant_paths.get(asset_id)
         return path if path is not None and path.is_file() else None
 
 def document_uses_asset(value, asset_id: str) -> bool:
@@ -613,8 +587,7 @@ def document_uses_asset(value, asset_id: str) -> bool:
 def list_builtin_assets(request: Request, _viewer: LicensedViewer) -> dict:
     if not request.app.state.license_service.allows('assets'):
         raise HTTPException(status_code = 403, detail = { 'code': 'LICENSE_RESTRICTED', 'message': '当前授权不允许读取素材。' })
-    allowed_ui_pack_ids = {item.id for item in UI_PACKS if request.app.state.license_service.allows(item.feature_code)}
-    items = request.app.state.asset_catalog.builtin_items(allowed_ui_pack_ids)
+    items = request.app.state.asset_catalog.builtin_items()
     versions = request.app.state.asset_catalog.versions()
     return {
         'items': items,
@@ -699,10 +672,8 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
         if asset_id.startswith('user:'):
             require_viewer_user_asset(database, viewer, asset_id.removeprefix('user:'))
         elif asset_id.startswith('builtin:'):
-            ui_pack_id = catalog.ui_pack_id_for_asset(asset_id)
-            if ui_pack_id is None:
+            if not catalog.asset_exists(asset_id):
                 raise HTTPException(status_code = 404, detail = '效果图片不存在。')
-            require_ui_pack_access(request, ui_pack_id)
         elif not asset_id.startswith('studio3d:'):
             raise HTTPException(status_code = 404, detail = '效果图片不存在。')
         path = catalog.effect_variant_path(asset_id)
@@ -772,8 +743,6 @@ def read_builtin_asset(relative_path: str, request: Request) -> FileResponse:
     match = request.app.state.asset_catalog.builtin_path(relative_path)
     if match is None:
         raise HTTPException(status_code = 404, detail = '素材不存在。')
-    (path, ui_pack_id) = match
-    require_ui_pack_access(request, ui_pack_id)
-    response = FileResponse(path)
+    response = FileResponse(match)
     response.headers['Cache-Control'] = 'private, max-age=31536000, immutable' if request.query_params.get('v') else 'private, no-cache'
     return response

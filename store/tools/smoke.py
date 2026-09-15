@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import importlib.util
+import logging
 import os
 import re
 import shutil
@@ -30,6 +31,7 @@ import sys
 import tempfile
 import time
 import traceback
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 
@@ -42,10 +44,11 @@ from cryptography.hazmat.primitives.serialization import (
     PrivateFormat,
     PublicFormat,
 )
-from sqlalchemy import select
+from sqlalchemy import Column, MetaData, String, inspect, select
 
 from store.app import create_app
 from store.config import STORE_ROOT, load_settings
+from store.database import Base, create_store_engine
 from store.models import (
     Account,
     AccountSession,
@@ -62,7 +65,15 @@ from store.models import (
     Release,
     StoreSetting,
 )
+from store.order_status import ORDER_STATUS_LABELS
 from store.payments import alipay as alipay_module
+from store.payments.sweeper import (
+    configure_sweep_loop,
+    mark_sweep_loop_stopped,
+    sweep_round,
+    sweep_status,
+)
+from store.payments import sweeper as sweeper_module
 from store.security import hash_password, token_hash, utcnow
 from store.tools.seed import seed_products, seed_release, seed_settings
 
@@ -183,6 +194,60 @@ def check_static_assets() -> None:
                 tail.endswith((";", "}", ")", "]")),
                 f"实际结尾: {tail[-24:]!r}",
             )
+
+
+def check_retired_columns() -> None:
+    """退役列必须能被 ``ensure_schema`` 从存量库上真正删掉。
+
+    防的是一类**只在存量库上出现**的故障：``Mapped[str]`` 会被推断成 ``NOT NULL``，
+    而 SQLAlchemy 不把 Python 侧的 ``default=`` 写进 DDL，于是存量库里那一列是
+    ``NOT NULL`` 且**没有默认值**。ORM 一旦不再映射它，INSERT 就会省略该列并以
+    ``NOT NULL constraint failed`` 失败 —— 全新库（``create_all`` 建表时本就没有
+    这一列）与整套 smoke 全绿，线上却是每次提现都失败。
+
+    这里按「旧版结构」造库（把登记过的退役列以 ``NOT NULL`` 加回去），跑一遍
+    ``ensure_schema``，断言列被删干净、且剩下的列与 ORM 完全一致。
+    """
+    from store.schema_guard import _RETIRED_COLUMNS, ensure_schema
+
+    # 登记表是删列白名单，反过来也要对得上：已经不在模型里的才算「退役」，
+    # 还留在模型里的说明登记表过期了（改名/写错都会让删列静默不发生）。
+    stale = [
+        f"{table}.{column}"
+        for table, columns in _RETIRED_COLUMNS.items()
+        for column in columns
+        if column in Base.metadata.tables[table].columns
+    ]
+    check("退役列登记表与 ORM 一致（登记过的列不该还在模型里）", not stale, f"仍在模型里: {stale}")
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-retired-"))
+    engine = create_store_engine(load_settings(data_dir=workdir / "data"))
+    try:
+        # 整库复制一份再「退回旧结构」：只复制单表的话，它指向的外键在副本里
+        # 找不到目标表，create_all 会以 NoReferencedTableError 直接崩掉。
+        legacy = MetaData()
+        for table in Base.metadata.tables.values():
+            table.to_metadata(legacy)
+        for table_name, columns in _RETIRED_COLUMNS.items():
+            for column in columns:
+                legacy.tables[table_name].append_column(
+                    Column(column, String(64), nullable=False)
+                )
+        legacy.create_all(engine)
+
+        ensure_schema(engine)
+
+        problems: list[str] = []
+        for table_name, columns in _RETIRED_COLUMNS.items():
+            actual = {column["name"] for column in inspect(engine).get_columns(table_name)}
+            expected = {column.name for column in Base.metadata.tables[table_name].columns}
+            problems.extend(f"{table_name}.{name}" for name in columns if name in actual)
+            if actual != expected:
+                problems.append(f"{table_name}：列集合与 ORM 不一致 {sorted(actual ^ expected)}")
+        check("退役列已从存量库删净（列集合与 ORM 一致）", not problems, str(problems))
+    finally:
+        engine.dispose()
+        shutil.rmtree(workdir, ignore_errors=True)
 
 
 def check_theme_matches_app() -> None:
@@ -442,12 +507,277 @@ def check_design_class_coverage() -> None:
     )
 
 
+def check_field_label_fit() -> None:
+    """多列字段带里的字段名必须排得下一行，否则同一行的控件会高低不齐。
+
+    实测过的错位：商品编辑器第一行「名称 / 商品码 / 类型」，中间那个字段名挂了
+    一段 72px 宽的括号说明，折成两行后把它的输入框压低了 19px —— 三个输入框
+    不在一条线上，截图一眼可见，但 DOM 正常、控制台静默、任何断言都不报错。
+
+    布局是 ``repeat(auto-fit, minmax(186px, 1fr))``，列只会变宽不会变窄，所以
+    「字段名在 186px 内排得下」就是它永不换行的充要条件（``--wide`` 表单是
+    210px）。宽度按浏览器实测标定：全角 12.24px、半角 7px、空格 3.4px，
+    再留 8px 余量。独占整行的 ``admin-grid__full`` / ``admin-grid__wide`` 不受此限。
+
+    顺带钉住说明文字的位置：``.admin-field-hint`` **必须写在控件之后**。
+    夹在字段名和控件之间，它同样会把控件顶下去，错位照旧——只是这次宽度检查
+    查不出来，所以在这里一起管。
+    """
+    html = (STORE_ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+
+    def measure(text: str) -> float:
+        width = 0.0
+        for char in text:
+            if char == " ":
+                width += 3.4
+            elif ord(char) > 0x2E80:  # 含全角标点
+                width += 12.24
+            else:
+                width += 7.0
+        return width
+
+    forms = [
+        (match.start(), 210 if "admin-grid--wide" in match.group(1) else 186)
+        for match in re.finditer(r'<form\b[^>]*class="([^"]*\badmin-grid\b[^"]*)"', html)
+    ]
+    fields = list(
+        re.finditer(
+            r'<(?:label|div)\b[^>]*class="([^"]*\bhb-field\b[^"]*)"[^>]*>'
+            r"\s*<span>([^<]{1,90})</span>",
+            html,
+        )
+    )
+    overflow: list[str] = []
+    misplaced: list[str] = []
+    for index, match in enumerate(fields):
+        classes = match.group(1)
+        label = match.group(2).strip()
+        if "admin-grid__full" in classes or "admin-grid__wide" in classes:
+            continue  # 独占整行，列宽由容器给，不存在被邻列挤到换行
+        minimum = max(
+            (width for start, width in forms if start < match.start()), default=186
+        )
+        width = measure(label)
+        if width > minimum - 8:
+            overflow.append(f"{label!r} 约 {width:.0f}px，{minimum}px 列排不下")
+
+        # 该字段的作用域：到下一个字段为止，避免把邻字段的控件算进来
+        end = fields[index + 1].start() if index + 1 < len(fields) else len(html)
+        block = html[match.start():end]
+        hint_at = block.find("admin-field-hint")
+        control_at = min(
+            (at for at in (
+                block.find("<input"), block.find("<select"), block.find("<textarea"),
+                block.find('class="feature-picker"'),
+            ) if at != -1),
+            default=-1,
+        )
+        if hint_at != -1 and control_at != -1 and hint_at < control_at:
+            misplaced.append(label)
+
+    check(
+        "多列字段带的字段名排得下一行（换行会把同一行的控件顶错位）",
+        not overflow,
+        f"超宽: {overflow[:5]}" if overflow else f"共核对 {len(fields)} 个字段名",
+    )
+    check(
+        "字段说明写在控件之后（写在字段名和控件之间同样顶错位）",
+        not misplaced,
+        f"位置不对: {misplaced[:5]}" if misplaced else "全部在控件之后",
+    )
+
+
+def check_stat_card_fit() -> None:
+    """概览 KPI 卡的主数字必须是「一个量级 + 一行」。
+
+    实测过的错位：积分负债卡把 ``1,039,400.5 可用 / 0 冻结`` 整串塞进主数字，
+    194px 的卡里 25px 等宽字排了 3 行（浏览器实测 ``getClientRects().length`` =
+    3），同一排的卡片全被撑高，数字自己也没了量级感。拆成「主数字给总额、
+    拆解走 .stat__note」以后，用下面三条把结论钉住：
+
+    1. 主数字的降档阈值必须真的排得下。卡宽下限 186px（``.stat-grid`` 的
+       ``minmax(186px, 1fr)``）减左右内边距 = 154px；等宽字符按浏览器标定的
+       0.61em/字符（实测 0.59–0.60，留余量）算，各档容量必须 ≥ 该档的字符数上界。
+    2. 降档到最小一档也放不下时（例如十位数的积分余额）必须出省略号：少了
+       ``text-overflow`` 就只剩 ``.stat`` 的 ``overflow: hidden`` 无声截断，
+       看起来是一个「少了一位」的错数字。
+    3. 积分负债的拆解不许再写回主数字（回归守卫）。
+
+    数值来自接口，静态查不出真实长度，所以查的是「阈值与字号的标定关系」——
+    改字号或改阈值任何一边，这里都会 FAIL。
+    """
+    css = (STORE_ROOT / "static" / "admin.css").read_text(encoding="utf-8")
+    html = (STORE_ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+
+    misses: list[str] = []
+
+    def px(pattern: str, label: str) -> float:
+        match = re.search(pattern, css)
+        if match is None:
+            misses.append(label)
+            return 0.0
+        return float(match.group(1))
+
+    column = px(r"\.stat-grid\s*\{[^}]*?minmax\(\s*(\d+)px", ".stat-grid 的列宽下限")
+    pad = px(r"\n\.stat\s*\{[^}]*?padding:\s*[\d.]+px\s+([\d.]+)px", ".stat 的左右内边距")
+    fonts = {"": px(r"\.stat__value\s*\{[^}]*?font-size:\s*([\d.]+)px", "主数字的基准字号")}
+    thresholds: dict[str, int] = {}
+    for length, tier in re.findall(r"if \(length > (\d+)\) return ' stat__value--(\w+)'", html):
+        thresholds[tier] = int(length)
+        fonts[tier] = px(
+            # 不用 f-string：正则里的 {} 在 f-string 里要写成一堆 {{}}，拼接更好读
+            r"\.stat \.stat__value--" + tier + r"\s*\{[^}]*?font-size:\s*([\d.]+)px",
+            f".stat__value--{tier} 的字号",
+        )
+    if misses or len(thresholds) < 2:
+        # 类名或写法被改过，标定关系已经无从核对：直接 FAIL 而不是崩在后面
+        check("概览 KPI 卡主数字的降档标定可核对", False,
+              f"读不到: {misses or list(thresholds)}")
+        return
+
+    usable = column - pad * 2
+
+    # 各档负责的字符数区间：档位按「长度超过 N 就降到这一档」定义，所以 N+1 是本档起点。
+    # 最长的一档不设上界，改按现实最长值核对 —— 金额「¥99,999,999.99」14 位、
+    # 积分余额「1,039,400.5」11 位，16 位足够；再长的值由省略号兜底（下一条断言管）。
+    LONGEST_REALISTIC = 16
+    ladder = sorted(thresholds.items(), key=lambda item: item[1])
+    bounds: list[tuple[str, int, int]] = [("", 1, ladder[0][1])]
+    for index, (tier, threshold) in enumerate(ladder):
+        upper = ladder[index + 1][1] if index + 1 < len(ladder) else max(LONGEST_REALISTIC, threshold + 1)
+        bounds.append((tier, threshold + 1, upper))
+
+    CHAR_EM = 0.61  # 等宽字符宽度 / 字号，浏览器实测 0.59–0.60，留一点余量
+    capacity = {tier: int(usable / (CHAR_EM * fonts[tier])) for tier, _, _ in bounds}
+    overflow = [
+        f"{tier or '默认'}档 {fonts[tier]:.0f}px 一行 {capacity[tier]} 个字符，却要管 {low}–{high} 个"
+        for tier, low, high in bounds
+        if capacity[tier] < high
+    ]
+    check(
+        "概览 KPI 卡的主数字排得下一行（降档阈值与字号必须对得上）",
+        not overflow,
+        f"排不下: {overflow}" if overflow else
+        f"可用宽 {usable:.0f}px，" + "、".join(
+            f"{tier or '默认'} {low}-{high} 字 @{fonts[tier]:.0f}px（放 {capacity[tier]}）"
+            for tier, low, high in bounds
+        ),
+    )
+
+    ellipsis_block = re.search(r"\.stat \.stat__value\s*\{([^}]*)\}", css)
+    block = ellipsis_block.group(1) if ellipsis_block else ""
+    missing = [
+        prop for prop in ("white-space: nowrap", "overflow: hidden", "text-overflow: ellipsis")
+        if prop not in block
+    ]
+    check(
+        "主数字放不下时出省略号（不能靠 overflow: hidden 无声截断）",
+        not missing,
+        f"缺: {missing}" if missing else "单行 + 省略号",
+    )
+
+    row = re.search(r"\['积分负债',\s*([^,]+),\s*`([^`]*)`", html)
+    # 主数字只能是单个量（金额/积分数），「可用/冻结」这类拆解属于 note
+    check(
+        "积分负债卡：主数字只放总额，拆解写在 note",
+        bool(row) and "可用" not in row.group(1) and "冻结" not in row.group(1)
+        and "可用" in row.group(2) and "冻结" in row.group(2),
+        f"主数字 {row.group(1).strip()!r} / note {row.group(2)!r}" if row else "找不到该行",
+    )
+
+
+def check_admin_dom_bindings() -> None:
+    """后台脚本引用的元素 id，必须在模板里真实存在。
+
+    分页改造给商品 / 订单 / 设备绑定补了筛选逻辑，却漏加了对应控件，于是顶层
+    ``$('#order-reset').addEventListener(...)`` 拿到 ``None`` 抛 ``TypeError``，
+    **整个内联脚本从这里往后全部不执行**：面板、登录、导航一起哑掉，页面停在登录态，
+    控制台只有一条 null 错误。改 id 名字（「刷新」改成「查询」）会触发同样的雪崩。
+
+    所以「脚本引用的 id ⊆ 模板定义的 id」必须是一条硬约束，而不是靠事后翻控制台。
+    """
+    templates_dir = STORE_ROOT / "templates"
+    html = (templates_dir / "admin.html").read_text(encoding="utf-8")
+
+    ids = set(re.findall(r'\bid="([\w-]+)"', html))
+    referenced = set(re.findall(r"\$\('#([\w-]+)'\)", html))
+    # bindFilters 的注册表写的是 ['#id', 'pager-key'] 形式，同样要核
+    referenced |= set(re.findall(r"\['#([\w-]+)',", html))
+    missing = sorted(referenced - ids)
+    check(
+        "admin.html 脚本引用的元素 id 都在模板里定义（漏一个即整段脚本失效）",
+        not missing,
+        f"缺失: {missing}" if missing else f"共核对 {len(referenced)} 个 id",
+    )
+
+    # 事件注册必须早于第一次拉列表：bootstrap() 里就直接读筛选控件的值
+    call_at = html.find("bindPanelFilters();")
+    boot_at = html.find("bootstrap().then(")
+    check(
+        "bindPanelFilters() 在 bootstrap() 之前调用",
+        call_at != -1 and boot_at != -1 and call_at < boot_at,
+        f"bindPanelFilters at {call_at} / bootstrap at {boot_at}",
+    )
+
+    # 功能码字段只能由 data-feature-picker 选择器托管：商品（多选）与权益新增 /
+    # 改期（单选）三处都提交一个隐藏域。任何一处退回手写英文代码的输入框，都会
+    # 重新引入「抄错一个字母 → 履约照发、客户端静默拦截」的隐性故障——
+    # 而且退回之后界面上看不出异常，只有客户投诉「功能没生效」。隐藏域也不进
+    # 浏览器 required 校验，所以「字段数 == 选择器数」必须由这条检查兜住。
+    code_inputs = re.findall(r'<input[^>]*name="featureCodes?"[^>]*>', html)
+    handwritten = [
+        tag for tag in code_inputs
+        if 'type="hidden"' not in tag or "data-feature-value" not in tag
+    ]
+    # 只数模板里的实例（data-feature-picker 在脚本的选择器字符串里也出现）
+    pickers = len(re.findall(r'class="feature-picker"[^>]*data-feature-picker', html))
+    check(
+        "功能码字段全部由选择器托管（隐藏域提交，无手写输入框）",
+        bool(code_inputs) and not handwritten and pickers == len(code_inputs),
+        f"输入框 {len(code_inputs)} 个 / 选择器 {pickers} 个"
+        + (f" / 手写输入框: {handwritten}" if handwritten else ""),
+    )
+
+    # 支付巡检的 health 判定在 Python、徽标文案在 JS：两边是同一份状态码的两个副本。
+    # 后端加了新状态而前端没加文案，徽标会**静默退回** SWEEP_HEALTH 的兜底
+    # （显示成「尚未启动」）——不报错、不难看，只是把「连续失败」说成了别的东西。
+    # 这正是本次新增的那块卡片最不该出的错（它就是用来报警的），所以钉死。
+    sweeper_source = (STORE_ROOT / "payments" / "sweeper.py").read_text(encoding="utf-8")
+    backend_health = set(
+        re.findall(r'^HEALTH_[A-Z_]+ = "([a-z]+)"', sweeper_source, re.MULTILINE)
+    )
+    block = re.search(r"const SWEEP_HEALTH = \{(.*?)\n\};", html, re.DOTALL)
+    frontend_health = (
+        set(re.findall(r"^\s{2}([a-z]+): \{", block.group(1), re.MULTILINE)) if block else set()
+    )
+    check(
+        "巡检状态码在前后端一一对应（缺文案会静默显示成「尚未启动」）",
+        bool(backend_health) and backend_health == frontend_health,
+        f"后端 {sorted(backend_health)} / 前端 {sorted(frontend_health)}",
+    )
+
+    # 状态徽标的三个语气类必须真实存在。设计类名漏了不会报错，只是掉回无底色的
+    # ``hb-tag``——「正常」与「连续失败」看上去一模一样，报警就白做了。
+    theme_css = (STORE_ROOT / "static" / "theme.css").read_text(encoding="utf-8")
+    tag_tones = {"hb-tag--success", "hb-tag--warning", "hb-tag--danger"}
+    tag_tone_css = (STORE_ROOT / "static" / "admin.css").read_text(encoding="utf-8")
+    missing_tones = sorted(
+        tone for tone in tag_tones
+        if f".{tone}" not in theme_css and f".{tone}" not in tag_tone_css
+    )
+    check(
+        "巡检徽标用到的 hb-tag 语气类都在 CSS 里定义",
+        not missing_tones,
+        f"缺失: {missing_tones}" if missing_tones else f"共核对 {len(tag_tones)} 个类",
+    )
+
+
 def check_account_meta_chip_tokens() -> None:
     """账号中心芯片：变体必须写在 theme.css 里，且 store.js 必须带上语义类。
 
     芯片配色是「状态一眼可辨」的唯一载体：有效=绿、到期=琥珀、停用=红、永久=琥珀强调。
     如果 store.js 不再输出 ``hb-meta-chip--*``，或 theme.css 里的变体被改回单类名
-    （会被 ``.hb-account-meta span`` 压掉），颜色就静默退回中性灰——
+    （会被外层容器里任何 ``.xxx span`` 这类（0,1,1）规则压掉），颜色就静默退回中性灰——
     功能上没问题，但用户看到的「状态」就没了。
     """
     static_dir = STORE_ROOT / "static"
@@ -455,13 +785,13 @@ def check_account_meta_chip_tokens() -> None:
     store_js = (static_dir / "store.js").read_text(encoding="utf-8")
 
     for variant in ("success", "warning", "danger", "accent"):
-        # 复合类名才压得过 `.hb-account-meta span`
+        # 复合类名才压得过外层容器里的 `.xxx span`（0,1,1）规则
         compound = f".hb-meta-chip.hb-meta-chip--{variant}"
         found = compound in theme_css
         check(
-            f"芯片变体 {compound} 为复合选择器（可压过 .hb-account-meta span）",
+            f"芯片变体 {compound} 为复合选择器（可压过外层容器的 span 规则）",
             found,
-            f"找到 {compound}" if found else "theme.css 里未找到该复合选择器，颜色会被 .hb-account-meta span 吃掉",
+            f"找到 {compound}" if found else "theme.css 里未找到该复合选择器，颜色会被外层 span 规则吃掉",
         )
 
     chips_wired = "licenseStateVariant(" in store_js and "hb-meta-chip" in store_js
@@ -939,6 +1269,457 @@ async def check_alipay_notify_flow() -> None:
     app.state.database.dispose()
 
 
+class _SweepLogCatcher(logging.Handler):
+    """抓巡检自己的日志。
+
+    ``sweep_once`` 唯一的分支就在日志语句上（``if result.queried: logger.info(...)``），
+    而 ``logger.info`` 的格式化错误会被 logging 自己吞掉——只往 stderr 打一行
+    ``--- Logging error ---``，异常不往外抛。所以这里必须自己 ``getMessage()``，
+    否则「%d 个数与参数个数对不上」这类错误在自检里同样是隐形的。
+    """
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.INFO)
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            self.messages.append(record.getMessage())
+        except Exception as error:  # noqa: BLE001 - 格式化失败本身就是被测对象
+            self.messages.append(f"<日志格式化失败: {error}>")
+
+
+def check_payment_sweep_flow() -> None:
+    """后台支付巡检必须真的跑得完一轮。
+
+    这条检查是有来历的：``sweep_once`` 的日志分支曾把 ``result.queried`` 写成
+    ``result.queryed``。它跑在 ``_payment_sweep_loop`` 的 ``try/except Exception`` 里，
+    异常被吃成一行 ``logger.exception`` —— 服务照常启动、下单照常成功，只是**每 30 秒**
+    往日志里刷一次 traceback，而查单、认领已付款订单、关闭过期渠道交易这三件事
+    **一件都没发生**。界面上完全看不出异常，只有「用户付了钱、订单还停在待支付」
+    慢慢堆积，最后变成客服工单。
+
+    之前没有任何检查碰过这个模块（``store/tools`` 里搜不到 ``sweep``），所以这个
+    错别字能一路跑到线上，靠人去翻日志才发现。这里把它当黑盒跑完整两轮：
+
+    1. 已付款但异步通知丢了的单，必须被查单认领并履约；
+    2. 本地已过期、渠道侧还开着的单，必须被关掉；
+    3. 一轮下来没事可做时返回 ``None``，且不在节流窗口内重复查同一笔单。
+
+    渠道调用全部打桩：真去连支付宝既慢，又会因为没有公网回调而失败。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-sweep-"))
+    keys = _alipay_test_keys(workdir)
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="alipay",
+        alipay_app_id="2021000000000000",
+        alipay_app_private_key_path=str(keys["app_private"]),
+        alipay_public_key_path=str(keys["alipay_public"]),
+        # 只测巡检逻辑，不去验网关响应的签名
+        alipay_verify_response_sign=False,
+    )
+    app = create_app(settings)
+    database = app.state.database
+
+    # 订单号带时间戳：``_allow_query`` 的节流表是模块级全局的，同一进程里
+    # 重跑本检查不能撞上上一轮的记录
+    stamp = utcnow().strftime("%H%M%S%f")
+    email = f"sweep-{stamp}@habridge.local"
+
+    with database.session() as session:
+        seed_settings(session)
+        products = seed_products(session)
+        base_product_id = products["base"].id
+        account = Account(
+            email=email,
+            password_hash=hash_password("sweep-password-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        customer = Customer(account_id=account.id, email=email, name=email)
+        session.add(customer)
+        session.flush()
+
+        def _order(suffix: str, status: str, expires_at) -> str:
+            order = Order(
+                order_no=f"HB-SWEEP-{stamp}-{suffix}",
+                lookup_token=f"sweep-token-{stamp}-{suffix}",
+                account_id=account.id,
+                customer_id=customer.id,
+                email=email,
+                product_id=base_product_id,
+                product_name="smoke 主授权",
+                product_type="base",
+                order_type="base",
+                license_action="issue",
+                original_amount_cents=4990,
+                amount_cents=4990,
+                status=status,
+                fulfillment_mode="automatic",
+                payment_provider="alipay",
+                expires_at=expires_at,
+            )
+            session.add(order)
+            session.flush()
+            return order.order_no
+
+        # 钱付了、异步通知丢了：本地还是 pending，渠道侧已经是 TRADE_SUCCESS
+        paid_order_no = _order("paid", "pending", utcnow() + timedelta(minutes=30))
+        # 本地已过期，但渠道侧那笔预下单交易还开着（旧二维码还能扫、还能付）
+        stale_order_no = _order("stale", "expired", utcnow() - timedelta(hours=1))
+        # 用户放着不付：既不该入账，也不该被反复查单
+        waiting_order_no = _order("waiting", "pending", utcnow() + timedelta(minutes=30))
+
+    alipay_cls = alipay_module.AlipayProvider
+    real_query = alipay_cls.query_payment
+    real_close = alipay_cls.close_payment
+    calls: list[str] = []
+
+    # 打桩替代真实网关调用；签名与 AlipayProvider.query_payment 一致
+    def stub_query(self, _settings, order):
+        calls.append(f"query:{order.order_no}")
+        if order.order_no == paid_order_no:
+            return {
+                "trade_status": "TRADE_SUCCESS",
+                "total_amount": "49.90",
+                "trade_no": "2026SWEEP0001",
+                "out_trade_no": order.order_no,
+            }
+        if order.order_no == stale_order_no:
+            # 渠道侧仍是「等待付款」：钱没到，关单环节应该把它关掉
+            return {"trade_status": "WAIT_BUYER_PAY", "out_trade_no": order.order_no}
+        return None
+
+    def stub_close(self, _settings, order):
+        calls.append(f"close:{order.order_no}")
+        return alipay_module.CloseResult(closed=True, reason="smoke 关单")
+
+    catcher = _SweepLogCatcher()
+    sweep_logger = logging.getLogger("store.payments.sweeper")
+    sweep_logger.addHandler(catcher)
+
+    configure_sweep_loop(30)
+    check(
+        "巡检循环启用、第一轮还没跑完时报「尚未启动」",
+        sweep_status()["health"] == "pending",
+        sweep_status()["health"],
+    )
+
+    raised: Exception | None = None
+    result = None
+    second = None
+    first_status: dict = {}
+    try:
+        alipay_cls.query_payment = stub_query
+        alipay_cls.close_payment = stub_close
+        try:
+            # 走 app.py 循环真正调用的那个入口：状态登记就在这一层，
+            # 只测 sweep_once 会漏掉「状态记错了/没记」这一类问题。
+            result = sweep_round(database, settings)
+        except Exception as error:  # noqa: BLE001 - 正是要被测出来的那类异常
+            raised = error
+        else:
+            # 快照要在这里取：lastResult 记的是**最近一轮**，第二轮的「无事可做」
+            # 会把它覆盖成全 0。
+            first_status = sweep_status()
+            second = sweep_round(database, settings)
+    finally:
+        alipay_cls.query_payment = real_query
+        alipay_cls.close_payment = real_close
+        sweep_logger.removeHandler(catcher)
+
+    check(
+        "后台支付巡检单轮跑通（不再抛异常）",
+        raised is None,
+        f"{type(raised).__name__}: {raised}" if raised is not None else "",
+    )
+    if raised is not None:
+        # 后面每一项都依赖这一轮的产物，继续断言只会刷屏
+        app.state.database.dispose()
+        return
+
+    # —— 状态登记：后台概览与 /healthz 读的就是这份快照 ——
+    check(
+        "巡检成功后状态为「正常」并记下本轮结果",
+        first_status.get("health") == "ok"
+        and first_status.get("consecutiveFailures") == 0
+        and first_status.get("lastSuccessAt")
+        and (first_status.get("lastResult") or {}).get("settled") == 1
+        and first_status.get("secondsSinceSuccess") is not None,
+        str(first_status),
+    )
+    success_at = first_status.get("lastSuccessAt")
+    check(
+        "无事可做的一轮也算成功（不会把状态卡在「连续失败」）",
+        sweep_status()["health"] == "ok" and sweep_status()["rounds"] == 2,
+        str(sweep_status()),
+    )
+
+    # 连续失败必须能看出来，而且**不能把「上次成功」抹掉**：运维要判断的正是
+    # 「已经坏了多久」。这里让查单抛一个非 PaymentError（真实故障就是这样：
+    # AttributeError / TypeError 这类不会在 reconcile_due_orders 里被吃掉）。
+    #
+    # 必须先造一笔**新**订单：``_allow_query`` 对同一单号有 3 秒节流，拿上面那几笔
+    # 去注入故障，它们会被直接跳过，异常根本不会发生（这条断言就先自己踩过一次）。
+    with database.session() as session:
+        fresh = Order(
+            order_no=f"HB-SWEEP-{stamp}-boom",
+            lookup_token=f"sweep-token-{stamp}-boom",
+            email=email,
+            product_id=base_product_id,
+            product_name="smoke 主授权",
+            product_type="base",
+            order_type="base",
+            license_action="issue",
+            original_amount_cents=4990,
+            amount_cents=4990,
+            status="pending",
+            fulfillment_mode="automatic",
+            payment_provider="alipay",
+            expires_at=utcnow() + timedelta(minutes=30),
+        )
+        session.add(fresh)
+        session.flush()
+
+    def stub_query_boom(self, _settings, order):
+        calls.append(f"query:{order.order_no}")
+        raise RuntimeError("smoke 注入的巡检故障")
+
+    before_failure = sweep_status()
+    try:
+        alipay_cls.query_payment = stub_query_boom
+        try:
+            sweep_round(database, settings)
+            injected_raised = False
+        except RuntimeError:
+            injected_raised = True
+    finally:
+        alipay_cls.query_payment = real_query
+
+    failed_status = sweep_status()
+    check(
+        "巡检异常照旧往上抛（调用方要打完整 traceback）",
+        injected_raised,
+        "" if injected_raised else "异常被吞掉了，调用方拿不到任何信号",
+    )
+    check(
+        "连续失败会被登记为「连续失败」",
+        failed_status["health"] == "failing"
+        and failed_status["consecutiveFailures"] == 1
+        and "RuntimeError" in failed_status["lastError"],
+        str(failed_status),
+    )
+    # 失败时把 lastSuccessAt 清掉，等于把「已经坏了多久」也一起抹了——运维正是
+    # 靠这个时间判断要不要立刻介入。
+    check(
+        "失败不覆盖上次成功时间（要能看出「已经坏了多久」）",
+        failed_status["lastSuccessAt"] == before_failure["lastSuccessAt"]
+        and success_at is not None,
+        f"失败前 {before_failure['lastSuccessAt']} → 失败后 {failed_status['lastSuccessAt']}",
+    )
+
+    # 配置关掉巡检时，「已关闭」与「坏了」必须分开：前者是运营的选择，后者是故障，
+    # 两种处置完全不同（改配置 vs 查日志）。
+    configure_sweep_loop(0)
+    check(
+        "巡检间隔为 0 时报「已关闭」，不混进故障态",
+        sweep_status()["health"] == "disabled",
+        sweep_status()["health"],
+    )
+    configure_sweep_loop(30)
+
+    check(
+        "巡检日志打印出本轮统计（报错分支就在这条日志语句里）",
+        any("查单" in message for message in catcher.messages),
+        str(catcher.messages) or "没有抓到巡检日志",
+    )
+    check(
+        "巡检认领「已付款但通知丢了」的订单",
+        result is not None and result.settled == 1 and result.settled_orders == [paid_order_no],
+        f"settled={getattr(result, 'settled', None)} "
+        f"settled_orders={getattr(result, 'settled_orders', None)}",
+    )
+    check(
+        "巡检关掉「本地已过期、渠道侧还开着」的订单",
+        result is not None
+        and result.closed == 1
+        and calls.count(f"close:{stale_order_no}") == 1,
+        f"closed={getattr(result, 'closed', None)} calls={calls}",
+    )
+    check(
+        "巡检的查单 / 失败计数与预期一致",
+        result is not None and result.queried == 3 and result.failed == 0,
+        f"queried={getattr(result, 'queried', None)} failed={getattr(result, 'failed', None)}",
+    )
+    waiting_queries = calls.count(f"query:{waiting_order_no}")
+    check(
+        "同一订单在节流窗口内不重复查单（网关有频率限制）",
+        waiting_queries == 1,
+        f"未付款的那笔单被查了 {waiting_queries} 次",
+    )
+    check(
+        "无事可做时返回 None（上层不用猜有没有变化）",
+        second is None,
+        repr(second),
+    )
+
+    with database.session() as session:
+        paid = session.scalars(select(Order).where(Order.order_no == paid_order_no)).first()
+        stale = session.scalars(select(Order).where(Order.order_no == stale_order_no)).first()
+        check(
+            "被认领的订单已履约并发码",
+            paid.status == "fulfilled" and paid.license_id is not None,
+            f"{paid.status} / license={paid.license_id}",
+        )
+        check(
+            "被认领的订单记下了渠道交易号",
+            paid.payment_trade_no == "2026SWEEP0001",
+            str(paid.payment_trade_no),
+        )
+        check(
+            "关单后写下 channel_closed_at（下一轮不会再关一次）",
+            stale.channel_closed_at is not None,
+            str(stale.channel_closed_at),
+        )
+
+    # —— 状态是进程级全局：必须能分清「这条状态归哪一轮循环」——
+    # 同一个进程里先后起过多个 app（测试就是这么反复建的），旧循环的收尾与残留线程
+    # 都可能迟到。它们若还能改写快照，运维看到的就是上一位留下的「上次成功」，
+    # 而真正跑着的那个循环坏没坏，反而看不出来。
+    real_sweep_once = sweeper_module.sweep_once
+    sweeper_module.sweep_once = lambda *_args, **_kwargs: None  # 空转一轮，只测状态登记
+    try:
+        old_generation = configure_sweep_loop(30)
+        sweep_round(database, settings, old_generation)
+        check(
+            "循环跑完一轮后状态为「正常」",
+            sweep_status()["health"] == "ok",
+            str(sweep_status()),
+        )
+
+        # 新循环起来：它必须从零开始，而不是继承上一个循环的「上次成功」。
+        new_generation = configure_sweep_loop(30)
+        check(
+            "新循环启动时不继承上一个循环的成功时间",
+            sweep_status()["lastSuccessAt"] is None,
+            str(sweep_status()["lastSuccessAt"]),
+        )
+
+        # 旧循环的残留线程这时才跑完它那一轮（传旧代号）。
+        sweep_round(database, settings, old_generation)
+        stale_status = sweep_status()
+        check(
+            "旧循环的残留线程写不进新循环的快照",
+            stale_status["rounds"] == 0 and stale_status["lastSuccessAt"] is None,
+            str(stale_status),
+        )
+
+        # 旧循环迟到的 finally。
+        mark_sweep_loop_stopped(old_generation)
+        check(
+            "旧循环的收尾不会把新循环标成「已停止」",
+            sweep_status()["health"] != "stopped",
+            str(sweep_status()),
+        )
+
+        # 反向：当前这一轮循环退出，必须如实标成「已停止」——否则这层校验就成了
+        # 「谁都别想让我停下来」，把真正的异常退出也一起瞒掉。
+        sweep_round(database, settings, new_generation)
+        mark_sweep_loop_stopped(new_generation)
+        check(
+            "当前循环退出后照实报「已停止」",
+            sweep_status()["health"] == "stopped",
+            str(sweep_status()),
+        )
+    finally:
+        sweeper_module.sweep_once = real_sweep_once
+        configure_sweep_loop(30)
+
+    app.state.database.dispose()
+
+
+async def check_payment_sweep_loop_runs() -> None:
+    """巡检循环真的被接上了：起一次真实 lifespan，等它自己跑完第一轮。
+
+    ``check_payment_sweep_flow`` 只证明「单轮跑得通」，证明不了**有人会去跑它**。
+    app.py 的循环有三处能静默失效而单轮检查全绿：
+
+    1. 忘了把 ``sweep_once`` 换成登记状态的入口 → 后台永远显示尚未启动；
+    2. 忘了 ``configure_sweep_loop(...)`` → 状态永远是「尚未启动」；
+    3. 循环压根没被 ``create_task`` → 同上，而且没有任何别的信号。
+
+    所以这里用 ``lifespan_context`` 走真实启动路径，把间隔调到 1 秒等它跑一轮。
+    渠道用自己的空配置（``payment_provider=mock``），``is_configured`` 为假 →
+    不会真的去连支付宝，纯本地一轮。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-sweep-loop-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+        # 首轮延后 min(interval, 5) 秒，设 1 秒让这轮检查只需要等 1 秒左右
+        payment_sweep_interval_seconds=1,
+    )
+    app = create_app(settings)
+    with app.state.database.session() as session:
+        seed_settings(session)
+
+    # 前置条件：先把模块状态置成「已关闭」。
+    # 巡检状态是模块级全局的，前面那条检查已经把它配成 30 秒了；不先弄脏，
+    # 「循环漏了 configure_sweep_loop」就会因为撞上别人留下的状态而被放过
+    # （实测过：只报一条 interval=30 不符，看着像小毛病）。这样一改，漏配
+    # 就直接停在「已关闭」，下面的断言全部炸掉，且与检查顺序无关。
+    configure_sweep_loop(0)
+    check(
+        "（前置）巡检状态被置为「已关闭」，用于验证循环会自己声明配置",
+        sweep_status()["health"] == "disabled",
+        str(sweep_status()),
+    )
+
+    async with app.router.lifespan_context(app):
+        snapshot = sweep_status()
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and not snapshot["lastSuccessAt"]:
+            await asyncio.sleep(0.2)
+            snapshot = sweep_status()
+
+        check(
+            "巡检循环自己跑完第一轮并把状态记为「正常」",
+            snapshot["health"] == "ok" and snapshot["lastSuccessAt"],
+            str(snapshot),
+        )
+        check(
+            "巡检状态回报的间隔与站点配置一致",
+            snapshot["intervalSeconds"] == 1 and snapshot["enabled"] is True,
+            f"interval={snapshot['intervalSeconds']} enabled={snapshot['enabled']}",
+        )
+        check(
+            "本轮无事可做也记下结果（全 0，不是缺失）",
+            snapshot["lastResult"] == {"queried": 0, "settled": 0, "closed": 0, "failed": 0},
+            str(snapshot["lastResult"]),
+        )
+
+        # 外部监控的抓手：探活的机器不该被巡检状态带偏，但监控要能读到它。
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://store.test"
+        ) as client:
+            health = (await client.get("/healthz")).json()
+        check(
+            "/healthz 带上巡检状态（监控可据此报警）",
+            health.get("status") == "ok"
+            and health.get("paymentSweep", {}).get("health") == "ok",
+            str(health),
+        )
+
+    app.state.database.dispose()
+
+
 async def check_verification_isolation() -> None:
     """mail_mode != echo 时，验证码绝不能出现在接口响应里。
 
@@ -1024,20 +1805,148 @@ async def check_smtp_degrades_without_credentials() -> None:
     app.state.database.dispose()
 
 
+def check_mail_settings_merge() -> None:
+    """邮件配置的「站点配置优先、环境变量兜底」口径（纯函数，不建库）。
+
+    这里钉的是**哨兵语义**：留空 / 0 / None 表示「跟随环境变量」。这套规则一旦
+    被写成「有值就覆盖」，整个后台的「留空即跟随环境变量」提示就变成谎话，
+    运营会以为清空某个框就能回到环境变量，实际却把一个空值固化进了数据库。
+    """
+    from store import mail_settings
+    from store.models import StoreSetting
+
+    env = load_settings(
+        mail_mode="smtp",
+        mail_from="env@example.com",
+        smtp_host="env.smtp",
+        smtp_port=465,
+        smtp_username="env-user",
+        smtp_password="env-secret",
+        smtp_use_ssl=True,
+        smtp_starttls=False,
+        verification_ttl_seconds=600,
+        verification_cooldown_seconds=60,
+        expose_verification_code=False,
+    )
+
+    # 1) 库里全空 -> 完全跟随环境变量
+    merged = mail_settings.merge_mail_settings(env, StoreSetting(id=1))
+    check(
+        "邮件配置全空时完全跟随环境变量",
+        (merged.mail_mode, merged.smtp_host, merged.smtp_port, merged.smtp_password)
+        == ("smtp", "env.smtp", 465, "env-secret"),
+        f"{merged.mail_mode} {merged.smtp_host}:{merged.smtp_port}",
+    )
+
+    # 2) 后台覆盖 + 选了 STARTTLS 但没填端口 -> 用 587 而不是环境变量的 465
+    merged = mail_settings.merge_mail_settings(
+        env,
+        StoreSetting(
+            id=1,
+            smtp_host="db.smtp",
+            smtp_security="starttls",
+            smtp_username="db-user",
+            smtp_password="db-secret",
+        ),
+    )
+    check(
+        "选了 STARTTLS 未填端口时推导 587（不会沿用环境变量的 465）",
+        merged.smtp_host == "db.smtp"
+        and merged.smtp_port == 587
+        and merged.smtp_use_ssl is False
+        and merged.smtp_starttls is True,
+        f"{merged.smtp_host}:{merged.smtp_port} ssl={merged.smtp_use_ssl} starttls={merged.smtp_starttls}",
+    )
+
+    # 3) 回显开关的三态：None 跟随环境变量，True / False 显式覆盖
+    check(
+        "回显开关未配置时跟随环境变量",
+        mail_settings.merge_mail_settings(env, StoreSetting(id=1)).expose_verification_code
+        is False,
+    )
+    env_exposed = replace(env, expose_verification_code=True)
+    check(
+        "回显开关既可被后台打开，也可被后台关掉（三态而非布尔覆盖）",
+        mail_settings.merge_mail_settings(
+            env, StoreSetting(id=1, expose_verification_code=True)
+        ).expose_verification_code
+        is True
+        and mail_settings.merge_mail_settings(
+            env_exposed, StoreSetting(id=1, expose_verification_code=False)
+        ).expose_verification_code
+        is False
+        and mail_settings.merge_mail_settings(env_exposed, StoreSetting(id=1))
+        .expose_verification_code
+        is True,
+    )
+
+    # 4) 库里的脏数据（人工改库写错的投递方式）不能把发信整个静默关掉
+    check(
+        "库里的非法投递方式按「未配置」处理（跟随环境变量）",
+        mail_settings.merge_mail_settings(env, StoreSetting(id=1, mail_mode="smpt")).mail_mode
+        == "smtp",
+    )
+
+    # 5) 概览绝不带授权码明文，只报「已配置」与打码值
+    secret = "super-secret-授权码"
+    summary = mail_settings.mail_delivery_summary(
+        env, StoreSetting(id=1, smtp_password=secret)
+    )
+    check(
+        "邮件概览不回显授权码明文",
+        secret not in str(summary)
+        and summary["smtpPasswordConfigured"] is True
+        and summary["smtpPasswordFromDatabase"] is True
+        and summary["smtpPasswordMasked"] == mail_settings.mask_secret(secret),
+        str(summary["smtpPasswordMasked"]),
+    )
+    check(
+        "后台配了 smtp 但漏了授权码时，概览如实报「未就绪」",
+        mail_settings.mail_delivery_summary(
+            replace(env, smtp_password=""), StoreSetting(id=1, mail_mode="smtp")
+        )["smtpReady"]
+        is False,
+    )
+
+    # 6) 有效期 / 冷却的联动校验
+    check(
+        "冷却短于有效期为合法配置",
+        _window_error(mail_settings, 600, 60) is None,
+        str(_window_error(mail_settings, 600, 60)),
+    )
+    check(
+        "冷却 >= 有效期被拒绝（用户会在验证码过期后被冷却锁住）",
+        _window_error(mail_settings, 600, 600) is not None,
+        "未拦下冷却 >= 有效期",
+    )
+    check(
+        "有效期短于 60 秒被拒绝（用户来不及输入）",
+        _window_error(mail_settings, 30, 10) is not None,
+        "未拦下过短的有效期",
+    )
+
+
+def _window_error(mail_settings, ttl: int, cooldown: int) -> str | None:
+    """跑一遍有效期 / 冷却校验，返回错误文案（合法时返回 ``None``）。"""
+    try:
+        mail_settings.validate_verification_window(ttl, cooldown)
+    except ValueError as exc:
+        return str(exc)
+    return None
+
+
 async def run() -> int:
     client_crypto = load_module("hb_client_crypto", CLIENT_CRYPTO_PATH)
 
-    check_static_assets()
-    check_frontend_api_contract()
-    check_theme_matches_app()
-    check_legacy_stylesheets_removed()
-    check_design_class_coverage()
-    check_addon_card_layout()
-    check_account_meta_chip_tokens()
+    # 纯静态检查放在流程末尾统一跑（见下面第 11 节），这里只放不需要建库的
+    # 单元检查与各自带临时库的流程检查
     check_alipay_signing()
+    check_mail_settings_merge()
     await check_verification_isolation()
     await check_smtp_degrades_without_credentials()
     await check_alipay_notify_flow()
+    check_payment_sweep_flow()
+    await check_payment_sweep_loop_runs()
 
     workdir = Path(tempfile.mkdtemp(prefix="hb-store-smoke-"))
     settings = load_settings(
@@ -1127,10 +2036,21 @@ async def run() -> int:
         )
         check(
             "payment 字段齐全",
-            {"provider", "enabled", "displayName", "appId", "gatewayUrl",
-             "transactionDescription", "merchantOrderTemplate", "configured", "available"}
-            <= set(config["payment"]),
+            {"provider", "enabled", "displayName", "icon", "transactionDescription",
+             "configured", "available", "updatedAt"} <= set(config["payment"]),
             str(sorted(config["payment"])),
+        )
+        # 匿名可读的接口不该带商户凭据信息。这不是「少给点信息」的洁癖：
+        # appId / 网关 / 「密钥尚未配置」暴露出去，等于告诉扫描器这个站值不值得下手、
+        # 以及支付是否正处于未配置的脆弱状态。后台的 /settings 里照旧全都有。
+        leaked = sorted(
+            {"appId", "gatewayUrl", "applicationPrivateKeyConfigured",
+             "alipayPublicKeyConfigured", "merchantOrderTemplate"} & set(config["payment"])
+        )
+        check(
+            "公开 configuration 不泄露支付宝凭据信息",
+            not leaked,
+            f"泄露字段: {leaked}",
         )
 
         products_response = (await client.get("/store/v1/products")).json()
@@ -1140,12 +2060,12 @@ async def run() -> int:
         module = next(item for item in items if item["productType"] == "module")
         package = next(item for item in items if item["productType"] == "package")
         check("基础商品价格 4990", base["priceCents"] == 4990, str(base["priceCents"]))
-        check("基础商品功能码 10 个", len(base["featureCodes"]) == 10, str(len(base["featureCodes"])))
+        check("基础商品功能码 9 个", len(base["featureCodes"]) == 9, str(len(base["featureCodes"])))
         check("基础商品永久有效", base["validityDays"] is None, str(base["validityDays"]))
         check("3D 交互包功能码", module["featureCodes"] == ["module.3d_interaction"], str(module["featureCodes"]))
         check(
-            "套餐包含 11 个功能码",
-            len(package["featureCodes"]) == 11,
+            "套餐包含 10 个功能码",
+            len(package["featureCodes"]) == 10,
             str(len(package["featureCodes"])),
         )
         check(
@@ -1274,7 +2194,7 @@ async def run() -> int:
         if status_code == 200:
             payload = verifier.verify(activate["signedLease"], INSTANCE_ID)
             check("租约可通过客户端验签", payload["activationCodeId"] == activation_id)
-            check("租约含 10 个基础功能码", len(payload["features"]) == 10, str(payload["features"]))
+            check("租约含 9 个基础功能码", len(payload["features"]) == 9, str(payload["features"]))
             check("租约序号从 1 开始", payload["leaseSequence"] == 1, str(payload["leaseSequence"]))
             check("租约 7 天有效", payload["expiresAt"].endswith("Z"), payload["expiresAt"])
             check("心跳间隔 300s", activate["heartbeatIn"] == 300, str(activate["heartbeatIn"]))
@@ -1528,11 +2448,94 @@ async def run() -> int:
         {
             "accounts", "products", "licenses", "activeLicenses", "pendingOrders",
             "fulfilledOrders", "revenueCents", "pendingWithdrawals", "deviceBindings",
+            "entitlements", "activeEntitlements", "orderFunnel", "attention", "referral",
+            # 巡检状态必须一直在这个响应里：它坏掉时订单不会报错、界面上
+            # 没有任何别的信号，这块卡片就是唯一的报警入口。
+            "paymentSweep",
         }
         <= set(overview_data),
         str(sorted(overview_data)),
     )
     check("后台营收已累计", int(overview_data["revenueCents"]) > 0, str(overview_data["revenueCents"]))
+
+    # 看板的时间维度与漏斗：营收必须给出 24 小时 / 7 天 / 30 天三个滚动窗口，
+    # 且窗口越大金额越大（同一批付款订单，30 天必然覆盖 24 小时）。
+    revenue_windows = {item["key"]: item for item in overview_data["revenue"]["windows"]}
+    check(
+        "后台营收返回三个滚动时间窗",
+        set(revenue_windows) == {"last24h", "last7d", "last30d"},
+        str(sorted(revenue_windows)),
+    )
+    windowed = [
+        int(revenue_windows[key]["grossCents"])
+        for key in ("last24h", "last7d", "last30d")
+    ]
+    check(
+        "营收时间窗自小到大单调不减",
+        windowed == sorted(windowed),
+        str(windowed),
+    )
+    check(
+        "时间窗净营收 = 收款 − 退款",
+        all(
+            int(item["netCents"]) == int(item["grossCents"]) - int(item["refundCents"])
+            for item in revenue_windows.values()
+        ),
+        str(revenue_windows),
+    )
+    check(
+        "累计净营收 = 收款 − 退款",
+        int(overview_data["revenueCents"])
+        == int(overview_data["revenue"]["totalGrossCents"])
+        - int(overview_data["revenue"]["totalRefundCents"]),
+        str(overview_data["revenue"]),
+    )
+
+    # 漏斗必须覆盖全部已登记状态（含 0 条的那个），否则前端会少画一格，
+    # 运营看不出「这个状态其实一条都没有」。
+    funnel_codes = [item["status"] for item in overview_data["orderFunnel"]]
+    check(
+        "订单漏斗覆盖全部状态且带中文文案",
+        set(funnel_codes) == set(ORDER_STATUS_LABELS)
+        and all(item["label"] for item in overview_data["orderFunnel"]),
+        str(funnel_codes),
+    )
+    funnel_counts = {item["status"]: int(item["count"]) for item in overview_data["orderFunnel"]}
+    check(
+        "漏斗状态计数与累计数一致",
+        funnel_counts.get("pending") == int(overview_data["pendingOrders"])
+        and funnel_counts.get("fulfilled") == int(overview_data["fulfilledOrders"]),
+        str(funnel_counts),
+    )
+
+    attention = overview_data["attention"]
+    check(
+        "待办区字段齐全",
+        {
+            "awaitingFulfillment", "fulfillmentFailed", "paymentFailed", "needsReview",
+            "expiringLicenses", "expiringWindowDays", "lowStock", "pendingWithdrawals", "soldOut",
+        }
+        <= set(attention),
+        str(sorted(attention)),
+    )
+    check(
+        "待审提现笔数两处口径一致",
+        int(attention["pendingWithdrawals"]) == int(overview_data["pendingWithdrawals"]),
+        str(attention["pendingWithdrawals"]),
+    )
+    check(
+        "积分负债：可用 = 余额 − 冻结",
+        abs(
+            float(overview_data["referral"]["availablePoints"])
+            - (float(overview_data["referral"]["balancePoints"]) - float(overview_data["referral"]["frozenPoints"]))
+        ) < 1e-6,
+        str(overview_data["referral"]),
+    )
+    check(
+        "看板附带服务器时间",
+        bool(overview_data["serverTime"]),
+        str(overview_data["serverTime"]),
+    )
 
     coupon_response = await client.post(
         "/store-admin/v1/coupons",
@@ -1551,6 +2554,26 @@ async def run() -> int:
         "优惠码列表含新建码",
         any(item["code"] == "SMOKE10" and item["percent"] == 10 for item in coupons),
         str([item["code"] for item in coupons]),
+    )
+
+    # 后台商品编辑的功能码下拉渲染这份目录；它必须覆盖主程序全部能力码，
+    # 否则运营在界面上勾不到的代码就只能手写，等于没解决问题。
+    feature_catalog = await client.get("/store-admin/v1/feature-codes")
+    check("GET /store-admin/v1/feature-codes", feature_catalog.status_code == 200, str(feature_catalog.status_code))
+    catalog_data = feature_catalog.json()
+    catalog_codes = {item["code"] for item in catalog_data.get("items", [])}
+    check(
+        "功能码目录覆盖主程序全部能力码",
+        {
+            "api", "assets", "editor", "display", "ha.sync", "ha.configure", "ha.control",
+            "projects.write", "runtime.websocket", "module.3d_interaction",
+        } == catalog_codes,
+        str(sorted(catalog_codes)),
+    )
+    check(
+        "功能码目录每项都有中文名与分组",
+        all(item.get("label") and item.get("groupLabel") for item in catalog_data.get("items", [])),
+        str([item.get("code") for item in catalog_data.get("items", []) if not item.get("label")]),
     )
 
     created_product = await client.post(
@@ -1644,6 +2667,208 @@ async def run() -> int:
         "公告已反映到前台 configuration",
         public_config["store"]["announcement"] == "smoke 公告",
         str(public_config["store"]["announcement"]),
+    )
+
+    # ---- 注册邮箱验证码：后台配置必须真的生效（免重启） ---------------- #
+    mail_payload = (await client.get("/store-admin/v1/settings")).json().get("mail", {})
+    check(
+        "GET /settings 带邮件配置概览且不回显授权码明文",
+        {"mode", "smtpHost", "smtpPort", "smtpPasswordConfigured", "smtpReady",
+         "verificationTtlSeconds", "verificationCooldownSeconds",
+         "exposeVerificationCode"} <= set(mail_payload),
+        str(sorted(mail_payload)),
+    )
+
+    # 写入一份「后台优先」的邮件配置：有效期 300、冷却 30（合法组合）。
+    mail_update = await client.put(
+        "/store-admin/v1/settings",
+        json={
+            "mailMode": "log",
+            "smtpHost": "smtp.smoke.local",
+            "smtpPort": 2525,
+            "smtpSecurity": "starttls",
+            "smtpUsername": "smoke@smoke.local",
+            "smtpPassword": "smoke-smtp-secret",
+            "mailFrom": "HomeOS Smoke <no-reply@smoke.local>",
+            "verificationTtlSeconds": 300,
+            "verificationCooldownSeconds": 30,
+        },
+    )
+    check("后台保存邮件配置", mail_update.status_code == 200, str(mail_update.status_code))
+    saved_mail = mail_update.json().get("mail", {})
+    check(
+        "邮件配置回读为后台来源（免重启即时生效）",
+        saved_mail.get("smtpHost") == "smtp.smoke.local"
+        and saved_mail.get("smtpPort") == 2525
+        and saved_mail.get("smtpSecurity") == "starttls"
+        and saved_mail.get("smtpHostFromDatabase") is True,
+        str({k: saved_mail.get(k) for k in ("smtpHost", "smtpPort", "smtpSecurity", "smtpHostFromDatabase")}),
+    )
+    check(
+        "SMTP 授权码只报「已配置」与打码值，绝不回显明文",
+        saved_mail.get("smtpPasswordConfigured") is True
+        and saved_mail.get("smtpPasswordFromDatabase") is True
+        and saved_mail.get("smtpPasswordMasked", "").startswith("••••")
+        and "smoke-smtp-secret" not in str(saved_mail),
+        str(saved_mail.get("smtpPasswordMasked")),
+    )
+    check(
+        "有效期 / 冷却按后台配置解析",
+        saved_mail.get("verificationTtlSeconds") == 300
+        and saved_mail.get("verificationCooldownSeconds") == 30,
+        str({k: saved_mail.get(k) for k in ("verificationTtlSeconds", "verificationCooldownSeconds")}),
+    )
+
+    # 回显开关是三态而不是布尔：False（生产上明确关掉）与 NULL（跟随环境变量）是
+    # 两件事。写成 ``bool(None)`` 的话，运营一旦点过一次那个下拉框就再也回不到
+    # 「跟随环境变量」—— 而界面上那一项照样选得中，是个静默失效的假选项。
+    explicit_off = await client.put(
+        "/store-admin/v1/settings", json={"exposeVerificationCode": False}
+    )
+    check(
+        "回显开关可显式关掉（与「没配过」区分开）",
+        explicit_off.json()["mail"]["exposeVerificationCode"] is False
+        and explicit_off.json()["mail"]["exposeVerificationCodeFromDatabase"] is True,
+        str(explicit_off.json().get("mail", {}).get("exposeVerificationCodeFromDatabase")),
+    )
+    back_to_env = await client.put(
+        "/store-admin/v1/settings", json={"exposeVerificationCode": None}
+    )
+    check(
+        "传 null 可清回「跟随环境变量」（否则这个下拉框只能单向变）",
+        back_to_env.json()["mail"]["exposeVerificationCodeFromDatabase"] is False
+        and back_to_env.json()["mail"]["exposeVerificationCode"] is True,
+        str(back_to_env.json().get("mail", {})),
+    )
+
+    # 把打码值原样回传必须视为「不改动」：真授权码被 •••• 覆盖掉是这类表单最典型的
+    # 静默损坏（接口 200、界面显示已配置，实际发不出信）。
+    masked_round_trip = await client.put(
+        "/store-admin/v1/settings",
+        json={"smtpPassword": saved_mail.get("smtpPasswordMasked")},
+    )
+    check(
+        "回传打码值不会覆盖真实授权码",
+        masked_round_trip.status_code == 200
+        and masked_round_trip.json()["mail"]["smtpPasswordConfigured"] is True
+        and masked_round_trip.json()["mail"]["smtpPasswordMasked"]
+        == saved_mail.get("smtpPasswordMasked"),
+        str(masked_round_trip.json().get("mail", {}).get("smtpPasswordMasked")),
+    )
+
+    # 冷却 >= 有效期 = 用户在验证码过期后仍被冷却挡住，永远完不成注册。
+    deadlock = await client.put(
+        "/store-admin/v1/settings",
+        json={"verificationTtlSeconds": 120, "verificationCooldownSeconds": 120},
+    )
+    check(
+        "冷却 >= 有效期被拒绝（否则用户注册不了）",
+        deadlock.status_code == 422 and "冷却" in str(deadlock.json().get("detail", "")),
+        f"{deadlock.status_code} {deadlock.json().get('detail')}",
+    )
+    too_short = await client.put(
+        "/store-admin/v1/settings", json={"verificationTtlSeconds": 30}
+    )
+    check(
+        "有效期短于 60 秒被拒绝（用户来不及输入）",
+        too_short.status_code == 422,
+        f"{too_short.status_code} {too_short.json().get('detail')}",
+    )
+    bad_mode = await client.put(
+        "/store-admin/v1/settings", json={"mailMode": "smpt"}
+    )
+    check(
+        "非法投递方式被拒绝",
+        bad_mode.status_code == 422,
+        f"{bad_mode.status_code} {bad_mode.json().get('detail')}",
+    )
+
+    # 测试邮件按钮：log 模式下必须如实回报「没真的发出去」，而不是报成功。
+    # 位置刻意放在「清回跟随环境变量」之前 —— 清回之后生效的是环境变量的 echo，
+    # 那时按钮照样会说「未真正发信」，但这个用例想钉的是**后台配置的 log 模式**
+    # 也必须如实自报，而不是把「发送成功」当默认答案。
+    mail_probe = await client.post(
+        "/store-admin/v1/settings/mail/test", json={"email": "probe@smoke.local"}
+    )
+    check(
+        "测试邮件在 log 模式下如实报告未投递",
+        mail_probe.status_code == 200
+        and mail_probe.json().get("ok") is False
+        and mail_probe.json().get("mode") == "log"
+        and "未真正发信" in mail_probe.json().get("message", ""),
+        f"{mail_probe.status_code} {mail_probe.json()}",
+    )
+    bad_probe = await client.post(
+        "/store-admin/v1/settings/mail/test", json={"email": "not-an-email"}
+    )
+    check(
+        "测试邮件校验收件人格式",
+        bad_probe.status_code == 422,
+        str(bad_probe.status_code),
+    )
+
+    # 收尾：把邮件配置清回「跟随环境变量」。后续用例（邀请注册）依赖 smoke 起服务时
+    # 的 echo 模式回显验证码，留着一份 mail_mode=log 的后台配置会让它拿不到码 ——
+    # 这正是「后台配置优先」生效的证明，但必须还原。
+    await client.put(
+        "/store-admin/v1/settings",
+        json={
+            "mailMode": "",
+            "smtpHost": "",
+            "smtpPort": 0,
+            "smtpSecurity": "",
+            "smtpUsername": "",
+            "mailFrom": "",
+            "smtpClearPassword": True,
+            "verificationTtlSeconds": 600,
+            "verificationCooldownSeconds": 60,
+        },
+    )
+    restored = (await client.get("/store-admin/v1/settings")).json()["mail"]
+    check(
+        "邮件配置可清回「跟随环境变量」",
+        restored.get("modeFromDatabase") is False
+        and restored.get("smtpHostFromDatabase") is False
+        and restored.get("smtpPasswordFromDatabase") is False,
+        str({k: restored.get(k) for k in ("modeFromDatabase", "smtpHostFromDatabase", "smtpPasswordFromDatabase")}),
+    )
+
+    # ---- 支付宝回调地址：后台可改，且校验拦得住必然收不到通知的写法 ----- #
+    bad_callback = await client.put(
+        "/store-admin/v1/settings",
+        json={"alipayNotifyUrl": "http://127.0.0.1:18082/store/v1/payments/alipay/notify"},
+    )
+    check(
+        "本机地址的异步通知地址被拒绝（支付宝访问不到 localhost）",
+        bad_callback.status_code == 422,
+        f"{bad_callback.status_code} {bad_callback.json().get('detail')}",
+    )
+    relative_callback = await client.put(
+        "/store-admin/v1/settings", json={"alipayReturnUrl": "/store/payment/return"}
+    )
+    check(
+        "只填路径的回调地址被拒绝",
+        relative_callback.status_code == 422,
+        f"{relative_callback.status_code} {relative_callback.json().get('detail')}",
+    )
+    callback_update = await client.put(
+        "/store-admin/v1/settings",
+        json={
+            "alipayNotifyUrl": "https://pay.smoke.local/store/v1/payments/alipay/notify",
+            "paymentTransactionDescription": "smoke 交易标题",
+        },
+    )
+    check(
+        "回调地址与交易标题可写入并回读",
+        callback_update.status_code == 200
+        and callback_update.json()["alipay"]["notifyUrl"]
+        == "https://pay.smoke.local/store/v1/payments/alipay/notify"
+        and callback_update.json()["alipay"]["notifyUrlFromDatabase"] is True
+        and callback_update.json()["payment"]["transactionDescription"] == "smoke 交易标题",
+        str({
+            "notifyUrl": callback_update.json().get("alipay", {}).get("notifyUrl"),
+            "txn": callback_update.json().get("payment", {}).get("transactionDescription"),
+        }),
     )
 
     audits = (await client.get("/store-admin/v1/audit-logs")).json()["items"]
@@ -1783,7 +3008,7 @@ async def run() -> int:
         manual_payload = verifier.verify(manual_activate["signedLease"], "smoke-manual-instance-000000000002")
         check(
             "手动授权租约含基础功能码",
-            len(manual_payload["features"]) == 10,
+            len(manual_payload["features"]) == 9,
             str(manual_payload["features"]),
         )
 
@@ -1856,7 +3081,6 @@ async def run() -> int:
         "/store/v1/referrals/withdrawals",
         json={
             "points": 20,
-            "qq": "123456789",
             "requestKey": "smoke-withdraw-0001",
             "expectedFeePercent": 1.0,
         },
@@ -1874,7 +3098,6 @@ async def run() -> int:
             "/store/v1/referrals/withdrawals",
             json={
                 "points": 20,
-                "qq": "123456789",
                 "requestKey": "smoke-withdraw-0001",
                 "expectedFeePercent": 1.0,
             },
@@ -1889,7 +3112,7 @@ async def run() -> int:
     )
     blocked = await client.post(
         "/store/v1/referrals/withdrawals",
-        json={"points": 5, "qq": "123456789", "requestKey": "smoke-withdraw-0002"},
+        json={"points": 5, "requestKey": "smoke-withdraw-0002"},
     )
     check("存在处理中提现时拒绝新申请", blocked.status_code == 409, str(blocked.status_code))
 
@@ -2285,7 +3508,6 @@ async def run() -> int:
                 request_key=f"smoke-delete-pending-{utcnow().strftime('%H%M%S%f')}",
                 points=1.0,
                 net_points=1.0,
-                qq="123456789",
                 status="pending",
             )
         )
@@ -2543,10 +3765,14 @@ async def run() -> int:
     # 11. 静态资源完整性（防下载截断）+ 前后端方法契约 + 设计系统单一来源
     # ------------------------------------------------------------------ #
     check_static_assets()
+    check_retired_columns()
     check_frontend_api_contract()
     check_theme_matches_app()
     check_legacy_stylesheets_removed()
     check_design_class_coverage()
+    check_field_label_fit()
+    check_stat_card_fit()
+    check_admin_dom_bindings()
     check_addon_card_layout()
     check_account_meta_chip_tokens()
 

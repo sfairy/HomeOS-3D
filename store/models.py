@@ -52,17 +52,72 @@ class StoreSetting(Base):
     payment_provider: Mapped[str] = mapped_column(String(32), default="")
     payment_display_name: Mapped[str] = mapped_column(String(64), default="")
     payment_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    payment_transaction_description: Mapped[str] = mapped_column(String(128), default="HomeOS 授权")
-    payment_merchant_order_template: Mapped[str] = mapped_column(String(128), default="{{time}}-{{email}}")
+    #: 留空表示跟随 STORE_ALIPAY_TRANSACTION_DESCRIPTION。
+    #:
+    #: 这里刻意**不再**给一个非空默认值（旧版本是 "HomeOS 授权"）：非空默认值会把
+    #: 环境变量永远盖住 —— 运营在 .env 里改了交易标题，界面上却还是「HomeOS 授权」，
+    #: 查半天也想不到是数据库里那行默认值在作祟。留空 == 跟随环境变量，
+    #: 与站点里其它配置保持同一口径。
+    payment_transaction_description: Mapped[str] = mapped_column(String(128), default="")
+
+    # ---- 支付宝凭据（可选） ----
+    #: 全部留空表示「跟随 STORE_ALIPAY_* 环境变量」，非空则站点配置优先。
+    #: 有了这几个字段，运营换商户号/切沙箱不必改容器环境变量再重启。
+    alipay_app_id: Mapped[str] = mapped_column(String(64), default="")
+    #: 商户 uid，用来核验异步通知确实是推给本商户的
+    alipay_seller_id: Mapped[str] = mapped_column(String(64), default="")
+    #: 应用私钥。**明文入库**是刻意取舍：它与 STORE_ALIPAY_APP_PRIVATE_KEY_PATH
+    #: 指向的文件在同一台机器、同一层磁盘权限之下，安全性等价，换来的可运维性
+    #: 却是实打实的。接口层一律不回显（只报「是否已配置」），也不写日志。
+    #: 生产环境若要求密钥不落库，把这几列留空、继续用环境变量/文件即可。
+    alipay_app_private_key: Mapped[str] = mapped_column(Text, default="")
+    #: 支付宝公钥（验签用）。注意不是应用公钥，两者填反是最高频的配置错误。
+    alipay_public_key: Mapped[str] = mapped_column(Text, default="")
+    #: 自定义网关；留空时按 alipay_sandbox 在正式/沙箱网关之间选
+    alipay_gateway_url: Mapped[str] = mapped_column(String(255), default="")
+    #: 沙箱开关。为真时强制使用沙箱网关，联调完把开关关掉即可回到生产
+    alipay_sandbox: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: 异步通知 / 同步跳转地址。留空时按 STORE_ALIPAY_* 环境变量、再按 STORE_BASE_URL 推导。
+    #: 必须能在这里配的原因：内网穿透的域名和 STORE_BASE_URL 常常不是同一个，
+    #: 而它恰恰是「用户付了钱订单不到账」的第一嫌疑人，改它不该需要重启容器。
+    alipay_notify_url: Mapped[str] = mapped_column(String(512), default="")
+    alipay_return_url: Mapped[str] = mapped_column(String(512), default="")
 
     referral_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     referral_rate_percent: Mapped[float] = mapped_column(default=10.0)
     referral_withdrawal_fee_percent: Mapped[float] = mapped_column(default=1.0)
     referral_withdrawal_min_points: Mapped[float] = mapped_column(default=100.0)
-    referral_qq_group: Mapped[str] = mapped_column(String(64), default="")
-    referral_qq_url: Mapped[str] = mapped_column(String(512), default="")
 
     device_release_cooldown_seconds: Mapped[int] = mapped_column(Integer, default=28800)
+
+    # ---- 注册邮箱验证码（可选） ----
+    #: 与支付宝凭据同一套口径：留空 / 0 表示「跟随 STORE_* 环境变量」，
+    #: 非空则站点配置优先。这样本地开发仍可用 .env 一把梭，而生产运营改 SMTP
+    #: 授权码、验证码有效期这类高频动作不必重启容器。
+    #:
+    #: 为什么整块搬进库：验证码邮件是注册动线上唯一的外部依赖，SMTP 授权码过期
+    #: / 被限流是常态。过去换个授权码要改 .env 再重启商店进程，注册会中断整段重启期。
+    mail_mode: Mapped[str] = mapped_column(String(16), default="")
+    mail_from: Mapped[str] = mapped_column(String(255), default="")
+    smtp_host: Mapped[str] = mapped_column(String(255), default="")
+    #: 0 = 跟随环境变量；显式填端口时才覆盖
+    smtp_port: Mapped[int] = mapped_column(Integer, default=0)
+    smtp_username: Mapped[str] = mapped_column(String(255), default="")
+    #: SMTP 授权码。**明文入库**的理由与 alipay_app_private_key 相同：
+    #: 它与 .env 在同一台机器、同一层磁盘权限之下，安全性等价，换来的是
+    #: 「不用重启就能换授权码」。接口层只报「是否已配置」，不打码回显、不写日志。
+    smtp_password: Mapped[str] = mapped_column(Text, default="")
+    #: 连接加密方式：ssl / starttls / plain；留空表示跟随环境变量的两个布尔开关。
+    #: 刻意不用两个裸布尔列：那样「未配置」与「显式关掉」在库里无法区分，
+    #: 而「跟随环境变量」正是这里最需要的第三种状态。
+    smtp_security: Mapped[str] = mapped_column(String(16), default="")
+    #: 验证码有效期 / 重发冷却（秒）。0 = 跟随环境变量。
+    verification_ttl_seconds: Mapped[int] = mapped_column(Integer, default=0)
+    verification_cooldown_seconds: Mapped[int] = mapped_column(Integer, default=0)
+    #: 是否在接口响应里回显验证码（仅本地联调）。NULL = 跟随环境变量，
+    #: 因为「显式关闭」和「没配过」是两件事：前者是生产上的安全决定，不该被
+    #: 一个环境变量默认值悄悄翻转。
+    expose_verification_code: Mapped[bool | None] = mapped_column(Boolean)
 
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -120,6 +175,20 @@ class EmailVerification(Base):
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    #: 投递结果。None 表示「本次没有真实发信」（log/echo 模式），
+    #: True 表示 SMTP 已收下，False 表示发信失败（已回退成日志模式）。
+    #: 过去这个结果只回给前端就丢了，事后完全无法回答「用户说没收到，
+    #: 那封信到底发出去了吗」——只能翻日志，而日志有轮转。
+    delivered: Mapped[bool | None] = mapped_column(Boolean)
+    #: 实际生效的投递方式（smtp / log / echo），用于区分「真发了」和「只记了日志」
+    delivery_mode: Mapped[str] = mapped_column(String(16), default="")
+    #: 失败原因（异常文本，已截断）
+    delivery_error: Mapped[str] = mapped_column(String(255), default="")
+    #: SMTP 实际尝试次数；>1 说明是重试后才成功/失败的
+    delivery_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    #: 投递完成时刻（无论成败），便于算「从请求到发出」的耗时
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     __table_args__ = (Index("ix_email_verifications_email_purpose", "email", "purpose"),)
 
@@ -249,7 +318,9 @@ class CouponRedemption(Base):
 class Order(Base):
     __tablename__ = "orders"
 
-    #: pending | paid | fulfilled | expired | cancelled | refunded
+    #: pending | paid | fulfilled | expired | cancelled | refunded | payment_failed
+    #: 另有 ``fulfillment_failed``：履约过程中抛异常时由管理端标记，等待人工处理。
+    #: ``refundAmountCents`` / ``refundTradeNo`` / ``needsReview`` 见 order_payload。
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
     order_no: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     lookup_token: Mapped[str] = mapped_column(String(64), default="", index=True)
@@ -280,6 +351,15 @@ class Order(Base):
     payment_provider: Mapped[str] = mapped_column(String(32), default="mock")
     payment_payload_json: Mapped[str] = mapped_column(Text, default="{}")
     payment_trade_no: Mapped[str | None] = mapped_column(String(128))
+    #: **累计**已退回到用户的金额（分）。后台退款现在会真的调用支付渠道，这里是对账依据；
+    #: 过去退款只改状态，库里没有任何金额记录，账目与真实资金流对不上。
+    #: 支持多次部分退款后它只增不减，明细见 ``order_refunds``。
+    refund_amount_cents: Mapped[int] = mapped_column(Integer, default=0)
+    refund_trade_no: Mapped[str | None] = mapped_column(String(128))
+    #: 需要人工复核：目前唯一的来源是「订单已超时关闭后支付才到账」——钱收了、
+    #: 码也发了，但这件库存早已还给别人，属于刻意保留的例外，必须让运营看到。
+    needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
+    review_note: Mapped[str] = mapped_column(String(255), default="")
     referral_reward_points: Mapped[float] = mapped_column(default=0.0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -287,12 +367,57 @@ class Order(Base):
     fulfilled_at: Mapped[datetime | None] = mapped_column(DateTime)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime)
     refunded_at: Mapped[datetime | None] = mapped_column(DateTime)
+    #: 渠道侧交易已关闭的时刻（``alipay.trade.close`` 成功或确认交易已不存在）。
+    #:
+    #: 本地订单过期/取消**不等于**渠道那笔预下单交易结束：不主动关单的话，
+    #: 用户手机上那个旧二维码还能扫、还能付款，钱进来时本地订单已是 expired，
+    #: 只能走「复活单 + 人工复核」兜底。这一列记录「已经关过了」，
+    #: 避免后台任务反复对同一笔订单调用关单接口。
+    channel_closed_at: Mapped[datetime | None] = mapped_column(DateTime)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     #: Order 与 License 互相持有外键，必须显式指定 join 条件并用 post_update 打破写入循环
     license: Mapped["License | None"] = relationship(
         "License", foreign_keys=[license_id], post_update=True
     )
+
+
+class OrderRefund(Base):
+    """一次退款动作的流水（含被渠道拒绝的尝试）。
+
+    为什么必须单独一张表：支付宝的 ``out_request_no`` 是**幂等键**，同一个值
+    重复提交会被网关当成「同一笔退款」直接返回上一次的结果。过去它写死成
+    ``RF{订单号}``，于是「先退 30%、再退剩下的 70%」时，第二次调用会被静默
+    去重 —— 钱根本没退出去，本地却已把订单标成已退款，账面与实际资金流彻底
+    对不上，而且**没有任何报错**。
+
+    现在每次退款先生成一条流水（自带 UUID），``out_request_no`` 由流水 id 派生，
+    天然唯一；退款金额、渠道退款单号、操作人、是否线下退款一并留痕，
+    对账不必再去翻审计日志。
+    """
+
+    __tablename__ = "order_refunds"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
+    order_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("orders.id", ondelete="CASCADE"), index=True
+    )
+    order_no: Mapped[str] = mapped_column(String(64), default="", index=True)
+    #: 提交给渠道的幂等键，由本行 id 派生，全局唯一（重复即会被渠道去重）
+    out_request_no: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    #: 本次实际退回的金额（分）
+    amount_cents: Mapped[int] = mapped_column(Integer, default=0)
+    #: succeeded | failed —— 失败也要留痕，否则「退了几次都没成功」查不出来
+    status: Mapped[str] = mapped_column(String(16), default="succeeded", index=True)
+    #: 渠道退款单号 / 交易号；线下退款为空
+    trade_no: Mapped[str | None] = mapped_column(String(128))
+    #: 渠道返回的说明或失败原因
+    detail: Mapped[str] = mapped_column(String(255), default="")
+    reason: Mapped[str] = mapped_column(String(255), default="")
+    #: 是否线下退款：没有渠道资金流，如实标注，不伪造交易号
+    offline: Mapped[bool] = mapped_column(Boolean, default=False)
+    operator: Mapped[str] = mapped_column(String(255), default="system")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -482,7 +607,6 @@ class ReferralWithdrawal(Base):
     fee_percent: Mapped[float] = mapped_column(default=0.0)
     fee_points: Mapped[float] = mapped_column(default=0.0)
     net_points: Mapped[float] = mapped_column(default=0.0)
-    qq: Mapped[str] = mapped_column(String(32), default="")
     #: pending | paid | rejected
     status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
     note: Mapped[str] = mapped_column(String(255), default="")

@@ -1,26 +1,26 @@
-import { vacuumMapIdentity } from "./vacuum-map.js?v=20260915211726";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260915211726";
-import { mountInteraction3d } from "./runtime.js?v=20260915211726";
-import { lightState } from "./light-state.js?v=20260915211726";
-import { openVacuumMapEditor } from "./vacuum-map-editor.js?v=20260915211726";
+import { vacuumMapIdentity } from "./vacuum-map.js?v=20260916013557";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260916013557";
+import { mountInteraction3d } from "./runtime.js?v=20260916013557";
+import { lightState } from "./light-state.js?v=20260916013557";
+import { openVacuumMapEditor } from "./vacuum-map-editor.js?v=20260916013557";
 import { nasGroups } from "./nas-panel.js";
-import { randomUuid } from "/static/utils/random-id.js?v=20260915211726";
-import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260915211726";
+import { randomUuid } from "/static/utils/random-id.js?v=20260916013557";
+import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260916013557";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   subscribeInteraction3dAccess
-} from "/static/modules/interaction3d/bridge.js?v=20260915211726";
-import { normalizeInteraction3dLightingMode } from "/static/modules/interaction3d/definition.js?v=20260915211726";
+} from "/static/modules/interaction3d/bridge.js?v=20260916013557";
+import { normalizeInteraction3dLightingMode } from "/static/modules/interaction3d/definition.js?v=20260916013557";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "/static/3d-studio/studio-normalization.js?v=20260915211726";
+} from "/static/3d-studio/studio-normalization.js?v=20260916013557";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "./editor-save-status.js?v=20260915211726";
+} from "./editor-save-status.js?v=20260916013557";
 const APPEARANCE_GROUPS = [
   [
     "整体",
@@ -162,7 +162,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260915211726";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260916013557";
   document.head.append(styleSheetLinkElement);
   const createElement = (tagName, classNames, initialText) => {
     const createdElement = document.createElement(tagName);
@@ -3498,7 +3498,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260915211726";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260916013557";
   document.head.append(appearanceStyleLinkElement);
   const createPlainElement = (plainTagName, plainText = "") => {
     const plainElement = document.createElement(plainTagName);

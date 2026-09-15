@@ -346,42 +346,6 @@ input {
 .login-card {
   width: min(100%, 430px);
 }
-.login-links {
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-  margin-top: 24px;
-}
-.login-links a {
-  display: grid;
-  min-width: 0;
-  min-height: 38px;
-  flex: 1;
-  align-items: center;
-  justify-items: center;
-  padding: 0 10px;
-  border: 1px solid #39434c;
-  border-radius: 6px;
-  color: #929da5;
-  background: #11171c;
-  font-size: 12px;
-  text-decoration: none;
-  transition:
-    color 0.18s ease,
-    border-color 0.18s ease,
-    background 0.18s ease,
-    transform 0.18s ease;
-}
-.login-links a:hover {
-  border-color: #df9a2c;
-  color: #f5bc5f;
-  background: #e09a2a14;
-  transform: translateY(-1px);
-}
-.login-links a:focus-visible {
-  outline: 2px solid rgba(224, 154, 42, 0.72);
-  outline-offset: 4px;
-}
 .license-logout {
   position: absolute;
   top: 30px;
@@ -523,29 +487,6 @@ input {
   background: #f4686514;
   font-size: 12px;
   line-height: 1.45;
-}
-.account-reset-help {
-  margin: 18px 0 0;
-  color: #7f8b93;
-  font-size: 11px;
-  line-height: 1.65;
-  text-align: center;
-}
-.account-reset-help a {
-  display: inline-flex;
-  min-height: 24px;
-  align-items: center;
-  color: #929da5;
-  font-size: 12px;
-  text-underline-offset: 3px;
-}
-.account-reset-help a:hover {
-  color: #f5bc5f;
-}
-.account-reset-help a:focus-visible {
-  outline: 2px solid rgba(224, 154, 42, 0.72);
-  outline-offset: 4px;
-  border-radius: 2px;
 }
 .login-submit {
   position: relative;

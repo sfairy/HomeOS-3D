@@ -1,7 +1,11 @@
-import { interaction3dTemplate } from "../modules/interaction3d/definition.js?v=20260915211726";
-const templatesByKey = new Map();
+import { interaction3dTemplate } from "../modules/interaction3d/definition.js?v=20260916013557";
+const templatesById = new Map();
+const DEFAULT_DASHBOARD_THEME = Object.freeze({
+  name: "homeos-dark",
+  variables: {}
+});
+const DEFAULT_POPUP_TEMPLATE = "custom-popup";
 registerComponentTemplate(interaction3dTemplate);
-const uiPackDefinitionsById = new Map();
 const templateScopeOrder = {
   shared: ["time", "date", "weather", "line-chart", "panel-frame", "navigation-button"],
   page: [
@@ -553,52 +557,21 @@ const componentDefaultsByType = {
     }
   }
 };
-const LAYOUT_PROPERTY_PATTERN =
-  /(?:text|label|name|title|icon|assetid|targetpage|layoutmode|freelayout|naturalwidth|naturalheight|fit|refreshinterval|exportfolder|previewready|previewing|interactionmode|generated|lightlayers|exportresolution|exportcamera|floorselection)$/i;
-export function registerUiPackDefinition(definition) {
-  if (!definition?.id || !definition?.version) {
-    throw new Error("UI 方案必须包含 id 和 version。");
-  }
-  uiPackDefinitionsById.set(
-    definition.id,
-    Object.freeze({
-      ...definition
-    })
-  );
-}
-export function hasUiPackDefinition(uiPackId) {
-  return uiPackDefinitionsById.has(uiPackId);
-}
-registerUiPackDefinition({
-  id: "ui.base",
-  version: "1.0.0",
-  popupTemplate: "dwell-light",
-  theme: {
-    name: "dashboard-v1-dark",
-    variables: {}
-  },
-  componentDefaults: componentDefaultsByType
-});
 export function registerComponentTemplate(template) {
   if (!template?.id || typeof template.create != "function") {
     throw new Error("控件模板必须包含 id 和 create。");
   }
-  const definitionUiPackId = template.uiPackId || "ui.base";
-  templatesByKey.set(
-    definitionUiPackId + ":" + template.id,
+  templatesById.set(
+    template.id,
     Object.freeze({
-      ...template,
-      uiPackId: definitionUiPackId
+      ...template
     })
   );
 }
-export function listComponentTemplates(scope, requestedUiPackId = "ui.base") {
+export function listComponentTemplates(scope) {
   const templateOrder = templateScopeOrder[scope] || [];
-  return [...templatesByKey.values()]
-    .filter(
-      listedTemplate =>
-        listedTemplate.uiPackId === requestedUiPackId && listedTemplate.scopes?.includes(scope)
-    )
+  return [...templatesById.values()]
+    .filter(listedTemplate => listedTemplate.scopes?.includes(scope))
     .sort((leftTemplate, rightTemplate) => {
       const leftOrderIndex = templateOrder.indexOf(leftTemplate.id);
       const rightOrderIndex = templateOrder.indexOf(rightTemplate.id);
@@ -609,21 +582,18 @@ export function listComponentTemplates(scope, requestedUiPackId = "ui.base") {
     });
 }
 export function createComponentFromTemplate(templateId, templateOptions) {
-  const resolvedUiPackId = templateOptions?.uiPackId || "ui.base";
-  const templateDefinition = templatesByKey.get(resolvedUiPackId + ":" + templateId);
+  const templateDefinition = templatesById.get(templateId);
   if (!templateDefinition) {
     throw new Error("控件模板不存在。");
   }
   const baseComponent = {
     ...templateDefinition.create(templateOptions),
     templateRef: {
-      uiPackId: resolvedUiPackId,
       templateId: templateId,
       version: 1
     }
   };
-  const componentDefaults =
-    uiPackDefinitionsById.get(resolvedUiPackId)?.componentDefaults?.[baseComponent.type];
+  const componentDefaults = componentDefaultsByType[baseComponent.type];
   if (!componentDefaults) {
     return baseComponent;
   }
@@ -655,14 +625,16 @@ export function createComponentFromTemplate(templateId, templateOptions) {
     }
   };
 }
-function pickLayoutProperties(sourceProperties = {}) {
-  return Object.fromEntries(
-    Object.entries(sourceProperties).filter(([propertyKey]) =>
-      LAYOUT_PROPERTY_PATTERN.test(propertyKey)
-    )
-  );
-}
-function normalizeComponentForUiPack(mappedComponent, uiPack, canvas) {
+/**
+ * 打开已有文档时的归一化：只做「补全」和「清理」，绝不改写存量取值。
+ *
+ * 模板默认值仅用于补齐缺失字段（例如新版本新增的默认项），任何文档里已经写下的
+ * properties / style 都原样保留——否则用户刚保存的属性会在下次打开时被默认值覆盖，
+ * 表现为「改完保存无效」。
+ *
+ * 只有 templateId / version 这类结构字段会被规整回模板引用格式。
+ */
+function normalizeComponent(mappedComponent, canvas) {
   const resolvedTemplateId = mappedComponent.templateRef?.templateId || mappedComponent.type;
   let createdComponent = null;
   try {
@@ -670,33 +642,22 @@ function normalizeComponentForUiPack(mappedComponent, uiPack, canvas) {
       id: mappedComponent.id,
       instanceName: mappedComponent.properties?.instanceName,
       canvas: canvas,
-      targetPage: mappedComponent.properties?.targetPage,
-      uiPackId: uiPack.id
+      targetPage: mappedComponent.properties?.targetPage
     });
-  } catch (templateError) {
-    if (templatesByKey.has("ui.base:" + resolvedTemplateId)) {
-      throw templateError;
-    }
+  } catch {
+    // 未知或已下线的模板：保留原样，不能因为归一化失败就拒绝打开项目。
+    createdComponent = null;
   }
   const preparedComponent = createdComponent
     ? {
         ...mappedComponent,
         properties: {
           ...(createdComponent.properties || {}),
-          ...pickLayoutProperties(mappedComponent.properties)
+          ...(mappedComponent.properties || {})
         },
         style: {
           ...(createdComponent.style || {}),
-          ...(Object.prototype.hasOwnProperty.call(mappedComponent.style || {}, "scale")
-            ? {
-                scale: mappedComponent.style.scale
-              }
-            : {}),
-          ...(Object.prototype.hasOwnProperty.call(mappedComponent.style || {}, "visible")
-            ? {
-                visible: mappedComponent.style.visible
-              }
-            : {})
+          ...(mappedComponent.style || {})
         },
         position: mappedComponent.position,
         bindings: mappedComponent.bindings || {},
@@ -705,48 +666,47 @@ function normalizeComponentForUiPack(mappedComponent, uiPack, canvas) {
     : {
         ...mappedComponent
       };
+  const storedTemplateReference =
+    mappedComponent.templateRef && typeof mappedComponent.templateRef === "object"
+      ? mappedComponent.templateRef
+      : {};
   preparedComponent.templateRef = {
-    uiPackId: uiPack.id,
     templateId: resolvedTemplateId,
-    version: Number(uiPack.templateVersion || 1)
+    version: Number(storedTemplateReference.version) > 0 ? Number(storedTemplateReference.version) : 1
   };
   preparedComponent.children = (mappedComponent.children || []).map(childComponent =>
-    normalizeComponentForUiPack(childComponent, uiPack, canvas)
+    normalizeComponent(childComponent, canvas)
   );
   return preparedComponent;
 }
-export function applyUiPackToDocument(editorDocument, documentUiPack) {
-  const packDefinition = uiPackDefinitionsById.get(documentUiPack.id);
-  if (!packDefinition) {
-    throw new Error(
-      "UI 方案“" + (documentUiPack.name || documentUiPack.id) + "”运行时未正确加载。"
-    );
-  }
+export function normalizeDashboardDocument(editorDocument) {
   const documentCanvas = editorDocument.canvas || {};
   editorDocument.sharedComponents = (editorDocument.sharedComponents || []).map(sharedComponent =>
-    normalizeComponentForUiPack(sharedComponent, documentUiPack, documentCanvas)
+    normalizeComponent(sharedComponent, documentCanvas)
   );
   editorDocument.pages = (editorDocument.pages || []).map(page => ({
     ...page,
     components: (page.components || []).map(component =>
-      normalizeComponentForUiPack(component, documentUiPack, documentCanvas)
+      normalizeComponent(component, documentCanvas)
     )
   }));
-  editorDocument.customPopups = (editorDocument.customPopups || []).map(popup => ({
-    ...popup,
-    templateRef: {
-      uiPackId: documentUiPack.id,
-      templateId: documentUiPack.popupTemplate || packDefinition.popupTemplate || "custom-popup",
-      version: Number(documentUiPack.templateVersion || 1)
-    }
-  }));
-  editorDocument.theme = structuredClone(
-    documentUiPack.theme || packDefinition.theme || editorDocument.theme || {}
-  );
-  editorDocument.uiPack = {
-    id: documentUiPack.id,
-    version: documentUiPack.version
-  };
+  editorDocument.customPopups = (editorDocument.customPopups || []).map(popup => {
+    const storedTemplateReference =
+      popup.templateRef && typeof popup.templateRef === "object" ? popup.templateRef : {};
+    return {
+      ...popup,
+      templateRef: {
+        templateId: storedTemplateReference.templateId || DEFAULT_POPUP_TEMPLATE,
+        version:
+          Number(storedTemplateReference.version) > 0
+            ? Number(storedTemplateReference.version)
+            : 1
+      }
+    };
+  });
+  if (!editorDocument.theme?.name) {
+    editorDocument.theme = structuredClone(DEFAULT_DASHBOARD_THEME);
+  }
   return editorDocument;
 }
 export function timeComponentDimensions(timeOptions = {}) {

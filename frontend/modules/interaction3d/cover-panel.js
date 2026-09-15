@@ -3,7 +3,7 @@ import {
   coverControl,
   coverStateLabel,
   coverCanAdjustBlades
-} from "./cover-state.js?v=20260915211726";
+} from "./cover-state.js?v=20260916013557";
 export function createCoverPanel({
   element: hostElement,
   onControl: onControl = async () => {},

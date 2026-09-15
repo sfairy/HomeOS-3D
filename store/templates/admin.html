@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>HomeOS 授权商店 · 管理后台</title>
-<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260915211726">
-<link rel="stylesheet" href="/store-static/theme.css?v=20260915211726">
-<link rel="stylesheet" href="/store-static/admin.css?v=20260915211726">
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260916013557">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260916013557">
+<link rel="stylesheet" href="/store-static/admin.css?v=20260916013557">
 </head>
 <body>
 
 <div id="admin-login" class="login-wrap">
   <div class="login-card">
     <div class="login-card__head">
-      <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260915211726" alt=""></span>
+      <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260916013557" alt=""></span>
       <div>
         <strong>HomeOS 授权商店</strong>
         <small>管理后台 · 请使用管理员账号登录</small>
@@ -32,102 +32,142 @@
 <div id="admin-app" class="admin-shell" hidden>
   <aside class="admin-side">
     <div class="brand">
-      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=20260915211726" alt=""></span>
+      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=20260916013557" alt=""></span>
       <div class="brand__text">
         <strong>HomeOS</strong>
         <small>授权商店后台</small>
       </div>
     </div>
     <nav class="admin-nav" id="admin-nav">
-      <div class="nav-group">
-        <p class="nav-group__label">运营</p>
-        <a class="nav-link active" href="#overview" data-admin-page="overview">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.4" height="7.4" rx="2.1"/><rect x="13.6" y="3" width="7.4" height="7.4" rx="2.1"/><rect x="3" y="13.6" width="7.4" height="7.4" rx="2.1"/><rect x="13.6" y="13.6" width="7.4" height="7.4" rx="2.1"/></svg>
-          <span class="nav-label">概览</span>
-          <span class="nav-badge" data-nav-badge="overview"></span>
-        </a>
-        <a class="nav-link" href="#orders" data-admin-page="orders">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.6"/><path d="M9 8.5h6M9 12.5h6M9 16.5h3.5"/></svg>
-          <span class="nav-label">订单</span>
-          <span class="nav-badge" data-nav-badge="orders"></span>
-        </a>
-        <a class="nav-link" href="#withdrawals" data-admin-page="withdrawals">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.2A2.7 2.7 0 0 1 5.7 5.5H18a2 2 0 0 1 2 2v1"/><rect x="3" y="8.2" width="18" height="10.8" rx="2.6"/><circle cx="16.6" cy="13.6" r="1.2"/></svg>
-          <span class="nav-label">提现审核</span>
-          <span class="nav-badge" data-nav-badge="withdrawals"></span>
-        </a>
+      <div class="nav-group open" data-nav-group="operations">
+        <button class="nav-group__toggle" type="button" aria-expanded="true">
+          <span class="nav-group__text">业务运营</span>
+          <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
+          <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6"/></svg>
+        </button>
+        <div class="nav-group__items">
+          <div class="nav-group__items-inner">
+            <a class="nav-link active" href="#overview" data-admin-page="overview">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.4" height="7.4" rx="2.1"/><rect x="13.6" y="3" width="7.4" height="7.4" rx="2.1"/><rect x="3" y="13.6" width="7.4" height="7.4" rx="2.1"/><rect x="13.6" y="13.6" width="7.4" height="7.4" rx="2.1"/></svg>
+              <span class="nav-label">概览</span>
+              <span class="nav-badge" data-nav-badge="overview"></span>
+            </a>
+            <a class="nav-link" href="#orders" data-admin-page="orders">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.6"/><path d="M9 8.5h6M9 12.5h6M9 16.5h3.5"/></svg>
+              <span class="nav-label">订单</span>
+              <span class="nav-badge" data-nav-badge="orders"></span>
+            </a>
+            <a class="nav-link" href="#withdrawals" data-admin-page="withdrawals">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.2A2.7 2.7 0 0 1 5.7 5.5H18a2 2 0 0 1 2 2v1"/><rect x="3" y="8.2" width="18" height="10.8" rx="2.6"/><circle cx="16.6" cy="13.6" r="1.2"/></svg>
+              <span class="nav-label">提现审核</span>
+              <span class="nav-badge" data-nav-badge="withdrawals"></span>
+            </a>
+          </div>
+        </div>
       </div>
-      <div class="nav-group">
-        <p class="nav-group__label">商品与营销</p>
-        <a class="nav-link" href="#products" data-admin-page="products">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 20.3 7.5v9L12 20.8 3.7 16.5v-9z"/><path d="M3.7 7.5 12 11.8l8.3-4.3M12 11.8v9"/></svg>
-          <span class="nav-label">商品</span>
-          <span class="nav-badge" data-nav-badge="products"></span>
-        </a>
-        <a class="nav-link" href="#coupons" data-admin-page="coupons">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 12.7V4.7a1.1 1.1 0 0 1 1.1-1.1h8l7.7 7.7a1.6 1.6 0 0 1 0 2.2l-6.7 6.7a1.6 1.6 0 0 1-2.2 0z"/><circle cx="8.1" cy="8.1" r="1.4"/></svg>
-          <span class="nav-label">优惠码</span>
-          <span class="nav-badge" data-nav-badge="coupons"></span>
-        </a>
-        <a class="nav-link" href="#releases" data-admin-page="releases">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.8V4.6"/><path d="m7.6 9 4.4-4.4L16.4 9"/><path d="M4.6 15v3.6A1.4 1.4 0 0 0 6 20h12a1.4 1.4 0 0 0 1.4-1.4V15"/></svg>
-          <span class="nav-label">版本发布</span>
-          <span class="nav-badge" data-nav-badge="releases"></span>
-        </a>
+      <div class="nav-group open" data-nav-group="catalog">
+        <button class="nav-group__toggle" type="button" aria-expanded="true">
+          <span class="nav-group__text">商品营销</span>
+          <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
+          <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6"/></svg>
+        </button>
+        <div class="nav-group__items">
+          <div class="nav-group__items-inner">
+            <a class="nav-link" href="#products" data-admin-page="products">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 20.3 7.5v9L12 20.8 3.7 16.5v-9z"/><path d="M3.7 7.5 12 11.8l8.3-4.3M12 11.8v9"/></svg>
+              <span class="nav-label">商品</span>
+              <span class="nav-badge" data-nav-badge="products"></span>
+            </a>
+            <a class="nav-link" href="#coupons" data-admin-page="coupons">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 12.7V4.7a1.1 1.1 0 0 1 1.1-1.1h8l7.7 7.7a1.6 1.6 0 0 1 0 2.2l-6.7 6.7a1.6 1.6 0 0 1-2.2 0z"/><circle cx="8.1" cy="8.1" r="1.4"/></svg>
+              <span class="nav-label">优惠码</span>
+              <span class="nav-badge" data-nav-badge="coupons"></span>
+            </a>
+            <a class="nav-link" href="#releases" data-admin-page="releases">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.8V4.6"/><path d="m7.6 9 4.4-4.4L16.4 9"/><path d="M4.6 15v3.6A1.4 1.4 0 0 0 6 20h12a1.4 1.4 0 0 0 1.4-1.4V15"/></svg>
+              <span class="nav-label">版本发布</span>
+              <span class="nav-badge" data-nav-badge="releases"></span>
+            </a>
+          </div>
+        </div>
       </div>
-      <div class="nav-group">
-        <p class="nav-group__label">授权与用户</p>
-        <a class="nav-link" href="#licenses" data-admin-page="licenses">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.2" cy="12" r="4.3"/><path d="M12.5 12H20M17.4 12v3.3M20 12v2.5"/></svg>
-          <span class="nav-label">激活码</span>
-          <span class="nav-badge" data-nav-badge="licenses"></span>
-        </a>
-        <a class="nav-link" href="#bindings" data-admin-page="bindings">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.6" width="18" height="12" rx="2.6"/><path d="M9 20h6M12 16.6V20"/></svg>
-          <span class="nav-label">设备绑定</span>
-          <span class="nav-badge" data-nav-badge="bindings"></span>
-        </a>
-        <a class="nav-link" href="#accounts" data-admin-page="accounts">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.4" cy="8.4" r="3.5"/><path d="M3.5 19.6c0-3.3 2.6-5.5 5.9-5.5s5.9 2.2 5.9 5.5"/><path d="M16.6 5.3a3.5 3.5 0 0 1 0 6.2M17.6 14.3c2 .8 3.4 2.5 3.4 4.7"/></svg>
-          <span class="nav-label">账号</span>
-          <span class="nav-badge" data-nav-badge="accounts"></span>
-        </a>
+      <div class="nav-group open" data-nav-group="licensing">
+        <button class="nav-group__toggle" type="button" aria-expanded="true">
+          <span class="nav-group__text">授权用户</span>
+          <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
+          <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6"/></svg>
+        </button>
+        <div class="nav-group__items">
+          <div class="nav-group__items-inner">
+            <a class="nav-link" href="#licenses" data-admin-page="licenses">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.2" cy="12" r="4.3"/><path d="M12.5 12H20M17.4 12v3.3M20 12v2.5"/></svg>
+              <span class="nav-label">激活码</span>
+              <span class="nav-badge" data-nav-badge="licenses"></span>
+            </a>
+            <a class="nav-link" href="#bindings" data-admin-page="bindings">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.6" width="18" height="12" rx="2.6"/><path d="M9 20h6M12 16.6V20"/></svg>
+              <span class="nav-label">设备绑定</span>
+              <span class="nav-badge" data-nav-badge="bindings"></span>
+            </a>
+            <a class="nav-link" href="#accounts" data-admin-page="accounts">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.4" cy="8.4" r="3.5"/><path d="M3.5 19.6c0-3.3 2.6-5.5 5.9-5.5s5.9 2.2 5.9 5.5"/><path d="M16.6 5.3a3.5 3.5 0 0 1 0 6.2M17.6 14.3c2 .8 3.4 2.5 3.4 4.7"/></svg>
+              <span class="nav-label">账号</span>
+              <span class="nav-badge" data-nav-badge="accounts"></span>
+            </a>
+          </div>
+        </div>
       </div>
-      <div class="nav-group">
-        <p class="nav-group__label">数据维护</p>
-        <a class="nav-link" href="#entitlements" data-admin-page="entitlements">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4 19.4 6v6.2c0 4.3-3 7.4-7.4 8.4-4.4-1-7.4-4.1-7.4-8.4V6z"/><path d="m9.4 12 1.9 1.9 3.6-3.7"/></svg>
-          <span class="nav-label">功能权益</span>
-          <span class="nav-badge" data-nav-badge="entitlements"></span>
-        </a>
-        <a class="nav-link" href="#ledger" data-admin-page="ledger">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6.4h14M5 11.4h8M5 16.4h5"/><circle cx="17.4" cy="16.4" r="2.4"/><path d="M17.4 14v2.4l1.6 1"/></svg>
-          <span class="nav-label">积分流水</span>
-          <span class="nav-badge" data-nav-badge="ledger"></span>
-        </a>
-        <a class="nav-link" href="#customers" data-admin-page="customers">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.6"/><circle cx="9" cy="11" r="2.2"/><path d="M5.6 16.4c0-1.9 1.5-3.1 3.4-3.1s3.4 1.2 3.4 3.1"/><path d="M15.4 10h3M15.4 13.4h3"/></svg>
-          <span class="nav-label">客户档案</span>
-          <span class="nav-badge" data-nav-badge="customers"></span>
-        </a>
-        <a class="nav-link" href="#diagnostics" data-admin-page="diagnostics">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 12.4h3.9l2.1-4.7 3 9.2 2-6.1 1.7 3.1h4.5"/></svg>
-          <span class="nav-label">诊断数据</span>
-          <span class="nav-badge" data-nav-badge="diagnostics"></span>
-        </a>
+      <div class="nav-group open" data-nav-group="records">
+        <button class="nav-group__toggle" type="button" aria-expanded="true">
+          <span class="nav-group__text">数据资产</span>
+          <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
+          <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6"/></svg>
+        </button>
+        <div class="nav-group__items">
+          <div class="nav-group__items-inner">
+            <a class="nav-link" href="#entitlements" data-admin-page="entitlements">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4 19.4 6v6.2c0 4.3-3 7.4-7.4 8.4-4.4-1-7.4-4.1-7.4-8.4V6z"/><path d="m9.4 12 1.9 1.9 3.6-3.7"/></svg>
+              <span class="nav-label">功能权益</span>
+              <span class="nav-badge" data-nav-badge="entitlements"></span>
+            </a>
+            <a class="nav-link" href="#ledger" data-admin-page="ledger">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6.4h14M5 11.4h8M5 16.4h5"/><circle cx="17.4" cy="16.4" r="2.4"/><path d="M17.4 14v2.4l1.6 1"/></svg>
+              <span class="nav-label">积分流水</span>
+              <span class="nav-badge" data-nav-badge="ledger"></span>
+            </a>
+            <a class="nav-link" href="#customers" data-admin-page="customers">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.6"/><circle cx="9" cy="11" r="2.2"/><path d="M5.6 16.4c0-1.9 1.5-3.1 3.4-3.1s3.4 1.2 3.4 3.1"/><path d="M15.4 10h3M15.4 13.4h3"/></svg>
+              <span class="nav-label">客户档案</span>
+              <span class="nav-badge" data-nav-badge="customers"></span>
+            </a>
+            <a class="nav-link" href="#diagnostics" data-admin-page="diagnostics">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 12.4h3.9l2.1-4.7 3 9.2 2-6.1 1.7 3.1h4.5"/></svg>
+              <span class="nav-label">诊断数据</span>
+              <span class="nav-badge" data-nav-badge="diagnostics"></span>
+            </a>
+          </div>
+        </div>
       </div>
-      <div class="nav-group">
-        <p class="nav-group__label">系统</p>
-        <a class="nav-link" href="#settings" data-admin-page="settings">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M18.4 7H20M4 12h3.6M13 12h7M4 17h8M17.6 17H20"/><circle cx="15.7" cy="7" r="2.1"/><circle cx="10.4" cy="12" r="2.1"/><circle cx="15" cy="17" r="2.1"/></svg>
-          <span class="nav-label">站点配置</span>
-          <span class="nav-badge" data-nav-badge="settings"></span>
-        </a>
-        <a class="nav-link" href="#audits" data-admin-page="audits">
-          <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2.6"/><path d="M9 5V3.9A1.4 1.4 0 0 1 10.4 2.5h3.2A1.4 1.4 0 0 1 15 3.9V5"/><path d="M9 11.2h6M9 15.2h4"/></svg>
-          <span class="nav-label">审计日志</span>
-          <span class="nav-badge" data-nav-badge="audits"></span>
-        </a>
+      <div class="nav-group open" data-nav-group="system">
+        <button class="nav-group__toggle" type="button" aria-expanded="true">
+          <span class="nav-group__text">系统设置</span>
+          <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
+          <svg class="nav-group__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8.4 10.2 3.6 3.6 3.6-3.6"/></svg>
+        </button>
+        <div class="nav-group__items">
+          <div class="nav-group__items-inner">
+            <a class="nav-link" href="#settings" data-admin-page="settings">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M18.4 7H20M4 12h3.6M13 12h7M4 17h8M17.6 17H20"/><circle cx="15.7" cy="7" r="2.1"/><circle cx="10.4" cy="12" r="2.1"/><circle cx="15" cy="17" r="2.1"/></svg>
+              <span class="nav-label">站点配置</span>
+              <span class="nav-badge" data-nav-badge="settings"></span>
+            </a>
+            <a class="nav-link" href="#audits" data-admin-page="audits">
+              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2.6"/><path d="M9 5V3.9A1.4 1.4 0 0 1 10.4 2.5h3.2A1.4 1.4 0 0 1 15 3.9V5"/><path d="M9 11.2h6M9 15.2h4"/></svg>
+              <span class="nav-label">审计日志</span>
+              <span class="nav-badge" data-nav-badge="audits"></span>
+            </a>
+          </div>
+        </div>
       </div>
     </nav>
     <div class="admin-side__foot">
@@ -149,13 +189,98 @@
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>运营概览</h2>
-          <p>账号、订单与授权的一眼总览</p>
+          <p>营收、订单漏斗、待办与风险项目的经营看板</p>
         </div>
         <div class="panel-head__actions">
+          <span class="overview-stamp" id="overview-stamp"></span>
           <button class="hb-button hb-button--secondary hb-button--sm" id="overview-refresh">刷新</button>
         </div>
       </header>
-      <div class="stat-grid" id="overview-stats"></div>
+
+      <!-- 支付巡检存活状态。
+           这块刻意常驻显示（不像待办那样为 0 就隐藏）：巡检坏掉时订单不会报错、
+           钱照收、单只是停在待支付，界面上没有任何别的信号。等它「看起来有问题」
+           再显示就来不及了，所以平时也要能看到「上次成功 xx 秒前」。
+           文案与配色由后端 health 决定，见 loadOverview()。 -->
+      <div class="hb-card" id="overview-sweep">
+        <div class="hb-card__body">
+          <div class="setting-row">
+            <div>
+              <strong>支付巡检 <span class="hb-tag" id="overview-sweep-pill">—</span></strong>
+              <p id="overview-sweep-detail">正在读取巡检状态…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 待办：没有待办时整块隐藏，避免满屏 0 让「有东西要处理」变得看不出来 -->
+      <div class="hb-card overview-todos" id="overview-todos" hidden>
+        <div class="hb-card__head">
+          <h3>需要处理</h3>
+          <p>点任意一项跳到对应列表并带好筛选条件</p>
+        </div>
+        <div class="hb-card__body">
+          <div class="overview-todos__grid" id="overview-todos-grid"></div>
+        </div>
+      </div>
+
+      <div class="hb-card">
+        <div class="hb-card__head">
+          <h3>营收</h3>
+          <p>按<b>付款时间</b>归属；净营收 = 实付合计 − 已退款。时间窗是滚动的（近 24 小时 / 近 7 天 / 近 30 天），与服务端时区无关。</p>
+        </div>
+        <div class="hb-card__body">
+          <div class="stat-grid" id="overview-revenue"></div>
+        </div>
+      </div>
+
+      <div class="hb-card">
+        <div class="hb-card__head">
+          <h3>订单漏斗</h3>
+          <p>各状态订单数与金额合计（含未付款订单，所以金额不等于营收）</p>
+        </div>
+        <div class="hb-card__body">
+          <div class="funnel-grid" id="overview-funnel"></div>
+        </div>
+      </div>
+
+      <div class="overview-cols">
+        <div class="hb-card">
+          <div class="hb-card__head">
+            <h3>库存预警</h3>
+            <p>可售 = 库存 − 已占用预留；已售罄或即将售罄的商品排在最前</p>
+          </div>
+          <div class="table-wrap">
+            <table class="hb-table" id="overview-stock-table">
+              <thead><tr><th>商品</th><th class="nowrap">库存</th><th class="nowrap">预留</th><th class="nowrap">可售</th></tr></thead>
+              <tbody id="overview-stock-rows"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="hb-card">
+          <div class="hb-card__head">
+            <h3>30 天内到期授权</h3>
+            <p>永久授权不在其中；列出最近到期的 20 条，供提前提醒续费</p>
+          </div>
+          <div class="table-wrap">
+            <table class="hb-table" id="overview-expiring-table">
+              <thead><tr><th>授权</th><th>商品</th><th class="nowrap">到期</th></tr></thead>
+              <tbody id="overview-expiring-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="hb-card">
+        <div class="hb-card__head">
+          <h3>累计</h3>
+          <p>站点开通至今的总量。营收为净营收（已减退款）</p>
+        </div>
+        <div class="hb-card__body">
+          <div class="stat-grid" id="overview-stats"></div>
+        </div>
+      </div>
+
       <div class="hb-card">
         <div class="hb-card__body">
           <div class="setting-row">
@@ -185,33 +310,66 @@
           <p>定价、有效期与库存；有历史授权或订单的商品只能下架</p>
         </div>
         <div class="panel-head__actions">
-          <button class="hb-button hb-button--secondary hb-button--sm" id="product-refresh">刷新</button>
           <button class="hb-button hb-button--primary hb-button--sm" id="product-new">新增商品</button>
         </div>
       </header>
+      <div class="panel-toolbar">
+        <input class="hb-input" id="product-keyword" aria-label="商品名、商品码、功能码或描述关键字" placeholder="商品名 / 商品码 / 功能码">
+        <select class="hb-select" id="product-status" aria-label="按商品状态筛选">
+          <option value="">全部状态</option>
+          <option value="active">已上架</option>
+          <option value="inactive">已下架</option>
+          <option value="soldout">已售罄</option>
+          <option value="lowstock">低库存（可售 ≤ 5）</option>
+        </select>
+        <button class="hb-button hb-button--secondary hb-button--sm" id="product-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="product-reset">重置</button>
+      </div>
       <div class="table-wrap">
         <table class="hb-table">
           <thead><tr><th>名称</th><th>类型</th><th class="nowrap">价格</th><th class="nowrap">有效期</th><th>功能码</th><th class="nowrap">库存</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
           <tbody id="product-rows"></tbody>
         </table>
       </div>
+      <div class="admin-pager" data-pager="products"></div>
       <div class="hb-card admin-editor" id="product-editor" hidden>
         <div class="hb-card__body">
           <h3 class="admin-editor__title" id="product-editor-title">新增商品</h3>
           <form id="product-form" class="admin-grid">
             <input type="hidden" name="id">
+            <h4 class="admin-grid__section">基本定义</h4>
             <label class="hb-field"><span>名称</span><input class="hb-input" name="name" required></label>
-            <label class="hb-field"><span>商品码（写进授权的来源标识，留空自动生成）</span><input class="hb-input is-mono" name="productCode"></label>
+            <label class="hb-field">
+              <span>商品码</span>
+              <input class="hb-input is-mono" name="productCode">
+              <span class="admin-field-hint">写进授权的来源标识；留空自动生成。</span>
+            </label>
             <label class="hb-field"><span>类型</span>
               <select class="hb-select" name="productType">
                 <option value="base">base</option><option value="module">module</option><option value="package">package</option>
               </select>
             </label>
+            <h4 class="admin-grid__section">定价与有效期</h4>
             <label class="hb-field"><span>价格（分）</span><input class="hb-input" name="priceCents" type="number" min="0" value="0"></label>
             <label class="hb-field"><span>划线原价（分，留空不展示）</span><input class="hb-input" name="originalPriceCents" type="number" min="0"></label>
             <label class="hb-field"><span>有效期（天）</span><input class="hb-input" name="validityDays" type="number" min="1"></label>
             <label class="hb-field"><span>排序</span><input class="hb-input" name="sortOrder" type="number" value="100"></label>
-            <label class="hb-field admin-grid__full"><span>功能码（逗号分隔）</span><input class="hb-input is-mono" name="featureCodes"></label>
+            <h4 class="admin-grid__section">能力与交付</h4>
+            <div class="hb-field admin-grid__full">
+              <span>功能码</span>
+              <div class="feature-picker" id="product-features" data-feature-picker data-feature-multiple="true" data-feature-empty="未选择（该商品不发放任何能力）">
+                <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
+                  <span class="feature-picker__value" data-feature-summary>未选择（该商品不发放任何能力）</span>
+                  <span class="feature-picker__caret" aria-hidden="true"></span>
+                </button>
+                <input type="hidden" name="featureCodes" data-feature-value value="">
+                <div class="feature-picker__pop" data-feature-pop hidden>
+                  <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
+                  <div class="feature-picker__list" data-feature-list role="listbox" aria-multiselectable="true"></div>
+                </div>
+              </div>
+              <small class="admin-field-hint">能力码由主程序逐项校验，勾选才会写进授权；未勾的能力客户端会被拦截。</small>
+            </div>
             <label class="hb-field admin-grid__full"><span>套餐包含商品 ID（逗号分隔）</span><input class="hb-input is-mono" name="includedProductIds"></label>
             <label class="hb-field"><span>角标文案</span><input class="hb-input" name="badgeText"></label>
             <label class="hb-field"><span>库存（留空=不限量）</span><input class="hb-input" name="stockQuantity" type="number" min="0"></label>
@@ -220,6 +378,7 @@
                 <option value="automatic">automatic</option><option value="manual">manual</option>
               </select>
             </label>
+            <h4 class="admin-grid__section">上架开关</h4>
             <div class="hb-check-group admin-grid__full">
               <label class="hb-check"><input type="checkbox" name="active" id="product-active" checked> 上架</label>
               <label class="hb-check"><input type="checkbox" name="featured" id="product-featured"> 推荐</label>
@@ -231,6 +390,7 @@
               <span class="admin-field-hint">勾上以后客户端下单要选一张已有授权、增量包的功能码写进那张授权，而不是另发一张新码。商品类型选了 module 也等同于此。</span>
               <input type="checkbox" name="requiresLicense">
             </label>
+            <h4 class="admin-grid__section">文案备注</h4>
             <label class="hb-field admin-grid__full"><span>内部备注（仅后台可见）</span><textarea class="hb-textarea" name="note" rows="2"></textarea></label>
             <label class="hb-field admin-grid__full"><span>展示描述</span><textarea class="hb-textarea" name="displayDescription" rows="2"></textarea></label>
             <div class="admin-form-actions admin-grid__full">
@@ -251,12 +411,30 @@
         </div>
       </header>
       <div class="panel-toolbar">
-        <select class="hb-select" id="order-status">
-          <option value="">全部状态</option><option value="pending">pending</option><option value="fulfilled">fulfilled</option>
-          <option value="paid">paid</option><option value="cancelled">cancelled</option><option value="expired">expired</option><option value="refunded">refunded</option>
+        <select class="hb-select" id="order-status" aria-label="按订单状态筛选">
+          <option value="">全部状态</option>
+          <option value="pending">待付款</option>
+          <option value="paid">已付款</option>
+          <option value="fulfilled">已完成</option>
+          <option value="payment_failed">支付失败</option>
+          <option value="fulfillment_failed">发货失败</option>
+          <option value="cancelled">已取消</option>
+          <option value="expired">已过期</option>
+          <option value="refunded">已退款</option>
         </select>
-        <input class="hb-input" id="order-keyword" placeholder="订单号 / 邮箱">
+        <input class="hb-input" id="order-keyword" aria-label="订单号或邮箱关键字" placeholder="订单号 / 邮箱">
+        <label class="hb-field panel-toolbar__field">
+          <span class="panel-toolbar__label">下单时间</span>
+          <input class="hb-input" id="order-date-from" type="date" aria-label="下单时间起">
+        </label>
+        <span class="panel-toolbar__sep">–</span>
+        <label class="hb-field panel-toolbar__field">
+          <span class="panel-toolbar__label">至</span>
+          <input class="hb-input" id="order-date-to" type="date" aria-label="下单时间止">
+        </label>
+        <label class="hb-check"><input type="checkbox" id="order-review"> 仅待人工复核</label>
         <button class="hb-button hb-button--secondary hb-button--sm" id="order-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="order-reset">重置</button>
       </div>
       <div class="table-wrap">
         <table class="hb-table">
@@ -264,6 +442,7 @@
           <tbody id="order-rows"></tbody>
         </table>
       </div>
+      <div class="admin-pager" data-pager="orders"></div>
     </section>
 
     <!-- 激活码 -->
@@ -278,8 +457,20 @@
         </div>
       </header>
       <div class="panel-toolbar">
-        <input class="hb-input" id="license-keyword" placeholder="激活码 / 提示码">
+        <input class="hb-input" id="license-keyword" aria-label="激活码、提示码、商品名或备注关键字" placeholder="激活码 / 提示码 / 商品 / 备注">
+        <select class="hb-select" id="license-status" aria-label="按授权状态筛选">
+          <option value="">全部状态</option>
+          <option value="active">启用中</option>
+          <option value="inactive">已停用</option>
+        </select>
+        <select class="hb-select" id="license-expiring" aria-label="按到期时间筛选">
+          <option value="">不限到期</option>
+          <option value="7">7 天内到期</option>
+          <option value="30">30 天内到期</option>
+          <option value="90">90 天内到期</option>
+        </select>
         <button class="hb-button hb-button--secondary hb-button--sm" id="license-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="license-reset">重置</button>
       </div>
       <div class="table-wrap">
         <table class="hb-table">
@@ -287,6 +478,7 @@
           <tbody id="license-rows"></tbody>
         </table>
       </div>
+      <div class="admin-pager" data-pager="licenses"></div>
       <div class="hb-card admin-editor" id="license-editor" hidden>
         <div class="hb-card__body">
           <h3 class="admin-editor__title">手动签发激活码</h3>
@@ -299,6 +491,14 @@
               <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="license-cancel">取消</button>
             </div>
           </form>
+          <div class="admin-result" id="license-issue-result" hidden>
+            <div class="admin-result__head"><strong>签发成功</strong><span id="license-issue-target"></span></div>
+            <div class="admin-result__row">
+              <code class="admin-result__code" id="license-issue-code"></code>
+              <button class="hb-button hb-button--secondary hb-button--sm" type="button" data-copy-target="#license-issue-code">复制</button>
+            </div>
+            <small class="admin-result__note">激活码只会完整显示这一次，请立即交付给客户；账号中心里也能查到。</small>
+          </div>
         </div>
       </div>
       <div class="hb-card admin-editor" id="license-patch-editor" hidden>
@@ -335,8 +535,10 @@
         </div>
       </header>
       <div class="panel-toolbar">
+        <input class="hb-input" id="binding-keyword" aria-label="实例号、客户端版本、IP 或激活码提示关键字" placeholder="实例号 / 版本 / IP / 激活码">
         <label class="hb-check"><input type="checkbox" id="binding-active-only"> 仅有效</label>
-        <button class="hb-button hb-button--secondary hb-button--sm" id="binding-refresh">刷新</button>
+        <button class="hb-button hb-button--secondary hb-button--sm" id="binding-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="binding-reset">重置</button>
       </div>
       <div class="table-wrap">
         <table class="hb-table">
@@ -344,6 +546,7 @@
           <tbody id="binding-rows"></tbody>
         </table>
       </div>
+      <div class="admin-pager" data-pager="bindings"></div>
     </section>
 
     <!-- 优惠码 -->
@@ -357,12 +560,25 @@
           <button class="hb-button hb-button--primary hb-button--sm" id="coupon-new">新增优惠码</button>
         </div>
       </header>
+      <div class="panel-toolbar">
+        <input class="hb-input" id="coupon-keyword" aria-label="优惠码或说明关键字" placeholder="码 / 说明">
+        <select class="hb-select" id="coupon-status" aria-label="按优惠码状态筛选">
+          <option value="">全部状态</option>
+          <option value="active">启用中</option>
+          <option value="inactive">已停用</option>
+          <option value="scheduled">未生效</option>
+          <option value="expired">已失效</option>
+        </select>
+        <button class="hb-button hb-button--secondary hb-button--sm" id="coupon-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="coupon-reset">重置</button>
+      </div>
       <div class="table-wrap">
         <table class="hb-table">
           <thead><tr><th>码</th><th>说明</th><th class="nowrap">折扣</th><th class="nowrap">门槛</th><th class="nowrap">占用/上限</th><th class="nowrap">历史核销</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
           <tbody id="coupon-rows"></tbody>
         </table>
       </div>
+      <div class="admin-pager" data-pager="coupons"></div>
       <div class="hb-card admin-editor" id="coupon-editor" hidden>
         <div class="hb-card__body">
           <h3 class="admin-editor__title" id="coupon-editor-title">新增优惠码</h3>
@@ -371,14 +587,17 @@
           </p>
           <form id="coupon-form" class="admin-grid">
             <input type="hidden" name="id">
+            <h4 class="admin-grid__section">识别信息</h4>
             <label class="hb-field"><span>码（创建后不可改）</span><input class="hb-input is-mono" name="code" required></label>
             <label class="hb-field"><span>说明</span><input class="hb-input" name="description"></label>
+            <h4 class="admin-grid__section">优惠力度</h4>
             <label class="hb-field"><span>类型</span>
               <select class="hb-select" name="discountType"><option value="percent">percent</option><option value="fixed">fixed</option></select>
             </label>
             <label class="hb-field"><span>百分比</span><input class="hb-input" type="number" step="0.01" name="percent" value="0"></label>
             <label class="hb-field"><span>减免(分)</span><input class="hb-input" type="number" name="amountCents" value="0"></label>
             <label class="hb-field"><span>门槛(分)</span><input class="hb-input" type="number" name="minAmountCents" value="0"></label>
+            <h4 class="admin-grid__section">使用限制</h4>
             <label class="hb-field"><span>总量上限</span><input class="hb-input" type="number" name="maxRedemptions"></label>
             <label class="hb-field"><span>每账号</span><input class="hb-input" type="number" name="perAccountLimit" value="1"></label>
             <label class="hb-field"><span>生效时间（本地时间，空=立即）</span><input class="hb-input" type="datetime-local" name="startsAt"></label>
@@ -405,17 +624,20 @@
         </div>
       </header>
       <div class="panel-toolbar">
-        <select class="hb-select" id="withdrawal-status">
+        <select class="hb-select" id="withdrawal-status" aria-label="按提现状态筛选">
           <option value="">全部</option><option value="pending">待审核</option><option value="paid">已提现</option><option value="rejected">已驳回</option>
         </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" id="withdrawal-refresh">刷新</button>
+        <input class="hb-input" id="withdrawal-keyword" aria-label="账号邮箱关键字" placeholder="邮箱">
+        <button class="hb-button hb-button--secondary hb-button--sm" id="withdrawal-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="withdrawal-reset">重置</button>
       </div>
       <div class="table-wrap">
         <table class="hb-table">
-          <thead><tr><th>账号</th><th class="nowrap">积分</th><th class="nowrap">手续费</th><th class="nowrap">到账</th><th class="nowrap">QQ</th><th class="nowrap">状态</th><th class="nowrap">申请时间</th><th class="nowrap">操作</th></tr></thead>
+          <thead><tr><th>账号</th><th class="nowrap">积分</th><th class="nowrap">手续费</th><th class="nowrap">到账</th><th class="nowrap">状态</th><th class="nowrap">申请时间</th><th class="nowrap">操作</th></tr></thead>
           <tbody id="withdrawal-rows"></tbody>
         </table>
       </div>
+      <div class="admin-pager" data-pager="withdrawals"></div>
     </section>
 
     <!-- 账号 -->
@@ -427,8 +649,20 @@
         </div>
       </header>
       <div class="panel-toolbar">
-        <input class="hb-input" id="account-keyword" placeholder="邮箱关键字">
+        <input class="hb-input" id="account-keyword" aria-label="邮箱或邀请码关键字" placeholder="邮箱 / 邀请码">
+        <select class="hb-select" id="account-role" aria-label="按角色筛选">
+          <option value="">全部角色</option>
+          <option value="user">普通用户</option>
+          <option value="admin">管理员</option>
+        </select>
+        <select class="hb-select" id="account-status" aria-label="按账号状态筛选">
+          <option value="">全部状态</option>
+          <option value="active">已启用</option>
+          <option value="inactive">已停用</option>
+          <option value="unverified">邮箱未验证</option>
+        </select>
         <button class="hb-button hb-button--secondary hb-button--sm" id="account-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="account-reset">重置</button>
       </div>
       <div class="table-wrap">
         <table class="hb-table">
@@ -436,6 +670,7 @@
           <tbody id="account-rows"></tbody>
         </table>
       </div>
+      <div class="admin-pager" data-pager="accounts"></div>
       <div class="hb-card admin-editor" id="account-editor" hidden>
         <div class="hb-card__body">
           <h3 class="admin-editor__title">编辑账号 <span class="mono" id="account-editor-email"></span></h3>
@@ -471,30 +706,120 @@
       <div class="hb-card">
         <div class="hb-card__body">
           <form id="settings-form" class="admin-grid admin-grid--wide">
+            <h4 class="admin-grid__section">站点信息</h4>
             <label class="hb-field"><span>站点名</span><input class="hb-input" name="siteName"></label>
             <label class="hb-field"><span>站点标题</span><input class="hb-input" name="siteTitle"></label>
             <label class="hb-field"><span>客服邮箱</span><input class="hb-input" name="supportEmail"></label>
             <label class="hb-field admin-grid__wide"><span>品牌标识 URL（留空回落系统默认标识）</span><input class="hb-input is-mono" name="logoUrl"></label>
             <label class="hb-field admin-grid__full"><span>站点描述</span><input class="hb-input" name="description"></label>
             <label class="hb-field admin-grid__full"><span>公告（前台 toast 展示）</span><input class="hb-input" name="announcement"></label>
+            <h4 class="admin-grid__section">支付与维护</h4>
             <label class="hb-field"><span>支付渠道</span>
               <select class="hb-select" name="paymentProvider"><option value="">跟随环境变量</option><option value="mock">mock</option><option value="alipay">alipay</option></select>
             </label>
             <label class="hb-field"><span>支付显示名</span><input class="hb-input" name="paymentDisplayName"></label>
-            <label class="hb-field admin-grid__wide"><span>商户订单号模板（可用 <code>{order_no}</code>）</span><input class="hb-input is-mono" name="paymentMerchantOrderTemplate"></label>
+            <label class="hb-field admin-grid__full"><span>交易标题（出现在支付宝账单的「商品名称」里，留空跟随环境变量）</span><input class="hb-input" name="paymentTransactionDescription" placeholder="跟随环境变量"></label>
             <div class="hb-check-group">
               <label class="hb-check"><input type="checkbox" name="paymentEnabled" id="setting-payment-enabled"> 启用支付</label>
               <label class="hb-check"><input type="checkbox" name="maintenanceMode" id="setting-maintenance"> 维护模式</label>
             </div>
             <label class="hb-field admin-grid__full"><span>维护文案</span><input class="hb-input" name="maintenanceMessage"></label>
-            <hr class="admin-grid__full">
+            <h4 class="admin-grid__section">支付宝凭据</h4>
+            <p class="admin-hint admin-grid__full">
+              留空即跟随环境变量；填写后立即生效，无需重启。密钥只打码回显，接口响应与审核日志都不落明文。
+            </p>
+            <div class="admin-form-actions admin-grid__full">
+              <span class="admin-status-chip" id="alipay-credential-status">未配置</span>
+              <button class="hb-button hb-button--ghost hb-button--sm" type="button" id="alipay-test-button">测试凭据</button>
+              <span class="admin-hint" id="alipay-test-result"></span>
+            </div>
+            <label class="hb-field"><span>AppID</span><input class="hb-input is-mono" name="alipayAppId" placeholder="跟随环境变量"></label>
+            <label class="hb-field"><span>卖家 PID（校验异步通知的收款方）</span><input class="hb-input is-mono" name="alipaySellerId" placeholder="跟随环境变量"></label>
+            <label class="hb-field admin-grid__full"><span>应用私钥（PEM，或密钥工具导出的纯 base64）</span>
+              <input class="hb-input is-mono" type="password" autocomplete="new-password" name="alipayAppPrivateKey" placeholder="留空不改动">
+            </label>
+            <label class="hb-field admin-grid__full"><span>支付宝公钥（开放平台的「支付宝公钥」，不是应用公钥）</span>
+              <input class="hb-input is-mono" type="password" autocomplete="new-password" name="alipayPublicKey" placeholder="留空不改动">
+            </label>
+            <label class="hb-field admin-grid__wide"><span>网关地址（留空跟随沙箱开关 / 环境变量）</span><input class="hb-input is-mono" name="alipayGatewayUrl" placeholder="https://openapi.alipay.com/gateway.do"></label>
+            <p class="admin-hint admin-grid__full" id="alipay-effective-urls"></p>
+            <label class="hb-field admin-grid__full"><span>异步通知地址（支付宝服务器回调的地址，必须是公网可达的 https）</span>
+              <input class="hb-input is-mono" name="alipayNotifyUrl" placeholder="留空跟随环境变量；再没有就按 STORE_BASE_URL 推导">
+            </label>
+            <label class="hb-field admin-grid__full"><span>同步跳转地址（用户付完款后浏览器回到的页面）</span>
+              <input class="hb-input is-mono" name="alipayReturnUrl" placeholder="留空跟随环境变量；再没有就按 STORE_BASE_URL 推导">
+            </label>
+            <div class="hb-check-group admin-grid__full">
+              <label class="hb-check"><input type="checkbox" name="alipaySandbox" id="setting-alipay-sandbox"> 沙箱环境（网关自动切换到沙箱）</label>
+              <label class="hb-check"><input type="checkbox" name="alipayClearPrivateKey" id="setting-alipay-clear-private"> 清除已保存的应用私钥</label>
+              <label class="hb-check"><input type="checkbox" name="alipayClearPublicKey" id="setting-alipay-clear-public"> 清除已保存的支付宝公钥</label>
+            </div>
+            <h4 class="admin-grid__section">注册邮箱验证码</h4>
+            <p class="admin-hint admin-grid__full">
+              留空即跟随环境变量；填写后立即生效，无需重启。SMTP 授权码只打码回显，接口响应与审核日志都不落明文。
+            </p>
+            <div class="admin-form-actions admin-grid__full">
+              <span class="admin-status-chip" id="mail-delivery-status">未配置</span>
+              <button class="hb-button hb-button--ghost hb-button--sm" type="button" id="mail-test-button">发送测试邮件</button>
+              <span class="admin-hint" id="mail-test-result"></span>
+            </div>
+            <label class="hb-field admin-grid__full"><span>测试收件邮箱（只用于上面的按钮，不会保存）</span>
+              <input class="hb-input is-mono" name="mailTestEmail" placeholder="you@example.com">
+            </label>
+            <label class="hb-field"><span>投递方式</span>
+              <select class="hb-select" name="mailMode">
+                <option value="">跟随环境变量</option>
+                <option value="log">log · 只写日志</option>
+                <option value="echo">echo · 回显明文（仅本地）</option>
+                <option value="smtp">smtp · 真实发信</option>
+              </select>
+            </label>
+            <label class="hb-field"><span>SMTP 加密</span>
+              <select class="hb-select" name="smtpSecurity">
+                <option value="">跟随环境变量</option>
+                <option value="ssl">SSL（端口 465）</option>
+                <option value="starttls">STARTTLS（端口 587）</option>
+                <option value="plain">不加密（端口 25）</option>
+              </select>
+            </label>
+            <label class="hb-field"><span>SMTP 端口</span>
+              <input class="hb-input" type="number" name="smtpPort" placeholder="留空按加密方式">
+            </label>
+            <label class="hb-field"><span>SMTP 服务器</span>
+              <input class="hb-input is-mono" name="smtpHost" placeholder="跟随环境变量">
+            </label>
+            <label class="hb-field"><span>SMTP 用户名</span>
+              <input class="hb-input is-mono" name="smtpUsername" placeholder="跟随环境变量">
+            </label>
+            <label class="hb-field admin-grid__full"><span>发件人（带显示名时写成 <code>HomeOS &lt;no-reply@example.com&gt;</code>）</span>
+              <input class="hb-input is-mono" name="mailFrom" placeholder="跟随环境变量">
+            </label>
+            <label class="hb-field admin-grid__full"><span>SMTP 授权码（一般是邮箱的 SMTP 授权码，不是登录密码）</span>
+              <input class="hb-input is-mono" type="password" autocomplete="new-password" name="smtpPassword" placeholder="留空不改动">
+            </label>
+            <div class="hb-check-group admin-grid__full">
+              <label class="hb-check"><input type="checkbox" name="smtpClearPassword" id="setting-smtp-clear-password"> 清除已保存的 SMTP 授权码</label>
+            </div>
+            <label class="hb-field"><span>验证码有效期（秒）</span>
+              <input class="hb-input" type="number" name="verificationTtlSeconds" placeholder="跟随环境变量">
+            </label>
+            <label class="hb-field"><span>重发冷却（秒）</span>
+              <input class="hb-input" type="number" name="verificationCooldownSeconds" placeholder="跟随环境变量">
+            </label>
+            <label class="hb-field admin-grid__wide"><span>接口回显验证码（仅本地联调）</span>
+              <select class="hb-select" name="exposeVerificationCode">
+                <option value="">跟随环境变量</option>
+                <option value="false">关闭（生产必须）</option>
+                <option value="true">开启（危险）</option>
+              </select>
+            </label>
+            <h4 class="admin-grid__section">邀请与解绑</h4>
             <div class="hb-check-group">
               <label class="hb-check"><input type="checkbox" name="referralEnabled" id="setting-referral"> 邀请有礼</label>
             </div>
             <label class="hb-field"><span>奖励比例 %</span><input class="hb-input" type="number" step="0.01" name="referralRatePercent"></label>
             <label class="hb-field"><span>提现手续费 %</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalFeePercent"></label>
             <label class="hb-field"><span>最低提现积分</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalMinPoints"></label>
-            <label class="hb-field"><span>QQ 群</span><input class="hb-input" name="referralQqGroup"></label>
             <label class="hb-field"><span>解绑冷却（秒）</span><input class="hb-input" type="number" name="deviceReleaseCooldownSeconds"></label>
             <div class="admin-form-actions admin-grid__full">
               <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存配置</button>
@@ -512,6 +837,23 @@
           <p>客户端「检查更新」取最新一条；删除后会自动回退到次新记录</p>
         </div>
       </header>
+      <div class="panel-toolbar">
+        <input class="hb-input" id="release-keyword" aria-label="版本号、发布日期或更新说明关键字" placeholder="版本号 / 日期 / 说明">
+        <input class="hb-input" id="release-product" aria-label="产品标识" placeholder="产品（如 homeos）">
+        <input class="hb-input" id="release-channel" aria-label="发布渠道" placeholder="渠道（如 docker）">
+        <button class="hb-button hb-button--secondary hb-button--sm" id="release-refresh">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="release-reset">重置</button>
+      </div>
+      <div class="table-wrap">
+        <table class="hb-table">
+          <thead><tr><th>产品</th><th>渠道</th><th>版本</th><th>发布日期</th><th>说明</th><th class="nowrap">操作</th></tr></thead>
+          <tbody id="release-rows"></tbody>
+        </table>
+      </div>
+      <div class="admin-pager" data-pager="releases"></div>
+      <!-- 编辑器放在列表之后：商品 / 优惠码 / 账号 / 激活码 / 功能权益 五个面板都是
+           「列表在上、编辑器在下」，这里过去是反的——同样一个「新增」动作，
+           在版本发布页要先跨过表单才看得到已有记录，位置每页都得重新找。 -->
       <div class="hb-card admin-editor" id="release-editor">
         <div class="hb-card__body">
           <h3 class="admin-editor__title" id="release-editor-title">发布新版本</h3>
@@ -528,12 +870,6 @@
             </div>
           </form>
         </div>
-      </div>
-      <div class="table-wrap admin-table-block">
-        <table class="hb-table">
-          <thead><tr><th>产品</th><th>渠道</th><th>版本</th><th>发布日期</th><th>说明</th><th class="nowrap">操作</th></tr></thead>
-          <tbody id="release-rows"></tbody>
-        </table>
       </div>
     </section>
 
@@ -585,8 +921,14 @@
         </div>
       </header>
       <div class="panel-toolbar">
-        <input class="hb-input" id="entitlement-feature" placeholder="功能码，例如 module.3d_interaction">
+        <input class="hb-input" id="entitlement-feature" aria-label="功能码、商品名或授权 ID 关键字" placeholder="功能码 / 商品 / 授权 ID">
+        <select class="hb-select" id="entitlement-status" aria-label="按生效状态筛选">
+          <option value="">全部</option>
+          <option value="active">实际生效中</option>
+          <option value="inactive">未生效 / 已过期</option>
+        </select>
         <button class="hb-button hb-button--secondary hb-button--sm" id="entitlement-search">查询</button>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="entitlement-reset">重置</button>
       </div>
       <div class="table-wrap">
         <table class="hb-table">
@@ -594,6 +936,7 @@
           <tbody id="entitlement-rows"></tbody>
         </table>
       </div>
+      <div class="admin-pager" data-pager="entitlements"></div>
       <div class="hb-card admin-editor" id="entitlement-editor" hidden>
         <div class="hb-card__body">
           <h3 class="admin-editor__title">手工补一条权益</h3>
@@ -604,10 +947,31 @@
           </p>
           <form id="entitlement-form" class="admin-grid admin-grid--wide">
             <label class="hb-field"><span>授权 ID</span><input class="hb-input is-mono" name="licenseId" required></label>
-            <label class="hb-field"><span>功能码</span><input class="hb-input is-mono" name="featureCode" required placeholder="module.3d_interaction"></label>
+            <div class="hb-field">
+              <span>功能码</span>
+              <div class="feature-picker" id="entitlement-features" data-feature-picker data-feature-empty="点击选择功能码">
+                <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
+                  <span class="feature-picker__value" data-feature-summary>点击选择功能码</span>
+                  <span class="feature-picker__caret" aria-hidden="true"></span>
+                </button>
+                <input type="hidden" name="featureCode" data-feature-value value="">
+                <div class="feature-picker__pop" data-feature-pop hidden>
+                  <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
+                  <div class="feature-picker__list" data-feature-list role="listbox"></div>
+                </div>
+              </div>
+            </div>
             <label class="hb-field"><span>商品名（留空取授权上的商品）</span><input class="hb-input" name="productName"></label>
-            <label class="hb-field"><span>开始时间（本地时间，留空=现在）</span><input class="hb-input" type="datetime-local" name="startsAt"></label>
-            <label class="hb-field"><span>到期时间（本地时间，留空=跟随授权）</span><input class="hb-input" type="datetime-local" name="expiresAt"></label>
+            <label class="hb-field">
+              <span>开始时间</span>
+              <input class="hb-input" type="datetime-local" name="startsAt">
+              <span class="admin-field-hint">本地时间；留空即现在。</span>
+            </label>
+            <label class="hb-field">
+              <span>到期时间</span>
+              <input class="hb-input" type="datetime-local" name="expiresAt">
+              <span class="admin-field-hint">本地时间；留空即跟随授权。</span>
+            </label>
             <div class="hb-check-group">
               <label class="hb-check"><input type="checkbox" name="active" checked> 启用</label>
             </div>
@@ -626,10 +990,23 @@
           </p>
           <form id="entitlement-patch-form" class="admin-grid admin-grid--wide">
             <input type="hidden" name="id">
-            <label class="hb-field"><span>功能码</span><input class="hb-input is-mono" name="featureCode" required></label>
+            <div class="hb-field">
+              <span>功能码</span>
+              <div class="feature-picker" id="entitlement-patch-features" data-feature-picker data-feature-empty="点击选择功能码">
+                <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
+                  <span class="feature-picker__value" data-feature-summary>点击选择功能码</span>
+                  <span class="feature-picker__caret" aria-hidden="true"></span>
+                </button>
+                <input type="hidden" name="featureCode" data-feature-value value="">
+                <div class="feature-picker__pop" data-feature-pop hidden>
+                  <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
+                  <div class="feature-picker__list" data-feature-list role="listbox"></div>
+                </div>
+              </div>
+            </div>
             <label class="hb-field"><span>商品名</span><input class="hb-input" name="productName"></label>
             <label class="hb-field"><span>开始时间（本地时间）</span><input class="hb-input" type="datetime-local" name="startsAt"></label>
-            <label class="hb-field"><span>到期时间（本地时间，留空=永久）</span><input class="hb-input" type="datetime-local" name="expiresAt"></label>
+            <label class="hb-field"><span>到期时间（本地时间）</span><input class="hb-input" type="datetime-local" name="expiresAt"></label>
             <div class="hb-check-group">
               <label class="hb-check"><input type="checkbox" name="active"> 启用</label>
             </div>
@@ -893,7 +1270,7 @@
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
-const state = { account: null, products: [], orders: [], licenses: [], bindings: [], coupons: [], withdrawals: [], accounts: [], settings: null, releases: [], entitlements: [], ledger: [] };
+const state = { account: null, products: [], productPage: [], orders: [], licenses: [], bindings: [], coupons: [], withdrawals: [], accounts: [], settings: null, releases: [], entitlements: [], ledger: [], featureCatalog: [], featureGroups: [] };
 
 function toast(message, kind = 'success') {
   const box = document.createElement('div');
@@ -932,7 +1309,55 @@ async function storeApi(path, options = {}) {
   return data;
 }
 
-function money(cents) { return `¥${(Number(cents || 0) / 100).toFixed(2)}`; }
+// 提交按钮的忙态：请求期间禁用并换文案。
+// 「点了没反应就再点一次」在后台会变成重复发码 / 重复扣库存，所以忙态不是装饰，
+// 而是这一层的第二道闸（第一道在服务端的条件 UPDATE）。所有表单统一走这里。
+// 用 innerHTML 而不是 textContent 存取原文案：按钮里将来加了图标，
+// textContent 的还原会把那个 <i> 节点一起抹掉。
+async function withBusy(form, task, busyText = '处理中…') {
+  const submit = form.querySelector('button[type="submit"]');
+  const label = submit ? submit.innerHTML : '';
+  if (submit) {
+    submit.disabled = true;
+    submit.setAttribute('aria-busy', 'true');
+    submit.textContent = busyText;
+  }
+  try {
+    return await task();
+  } finally {
+    if (submit) {
+      submit.disabled = false;
+      submit.removeAttribute('aria-busy');
+      submit.innerHTML = label;
+    }
+  }
+}
+
+function money(cents) {
+  // 千分位：概览与列表里动辄出现 5–6 位数，没有分隔符基本读不出量级。
+  // 金额一律两位小数（积分是另一回事，走 num()）。
+  const value = Number(cents || 0) / 100;
+  return `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// 积分与计数：去掉浮点尾巴（0.1+0.2 那类），至多两位小数。
+function num(value) {
+  const parsed = Number(value || 0);
+  if (!Number.isFinite(parsed)) return '0';
+  return parsed.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+}
+
+// 概览卡主数字的字号档位。卡宽下限 186px、左右内边距各 16px，可用 154px：
+// 25px 等宽字一行 9 个字符，19px 放 13 个，16px 放 16 个（见 admin.css 的
+// .stat .stat__value--*）。超长时靠 text-overflow 出省略号，不会再折成两三行。
+// 值都是数字/斜杠，按字符数降档足够准；核对在 smoke.py::check_stat_card_fit。
+function valueSize(value) {
+  const length = String(value ?? '').length;
+  if (length > 13) return ' stat__value--xs';
+  if (length > 9) return ' stat__value--sm';
+  return '';
+}
+
 function esc(value) {
   return String(value === null || value === undefined ? '' : value)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1024,6 +1449,9 @@ const STATUS_TONES = {
   pending: 'warning',
   cancelled: 'muted', expired: 'muted',
   refunded: 'danger', rejected: 'danger',
+  // 这两种状态都是「钱/货卡在中间，必须人工介入」，与「已退款」同属需要盯的红色。
+  // 之前漏了它们，落到默认的 muted 灰，反而比「已取消」还不起眼。
+  payment_failed: 'danger', fulfillment_failed: 'danger',
 };
 
 function statusBadge(status, labels = ORDER_STATUS) {
@@ -1032,10 +1460,15 @@ function statusBadge(status, labels = ORDER_STATUS) {
 
 // 订单状态中文口径与前台账号中心完全一致（见 store/static/store.js 的订单状态映射），
 // 后台不要另造一套说法。顺带解决宽度问题：payment_failed 这类 snake_case 比中文宽一倍多。
+// 订单状态：与服务端 store/order_status.py 的 ORDER_STATUS_LABELS 逐字对齐。
+// 两边不一致会出现「弹窗说已取消、列表说已过期」这种同一状态两套说法。
+// payment_failed 是「支付渠道拒单」（预留已归还），不是「下单失败」；
+// fulfillment_failed 是「发货失败、等人工处理」，过去被错译成「处理中」，
+// 与 paid 的语义完全混淆。
 const ORDER_STATUS = {
   pending: '待付款', paid: '已付款', fulfilled: '已完成',
   cancelled: '已取消', expired: '已过期',
-  payment_failed: '下单失败', fulfillment_failed: '处理中', refunded: '已退款',
+  payment_failed: '支付失败', fulfillment_failed: '发货失败', refunded: '已退款',
 };
 
 // 订单类型 / 授权动作：原始值是 base|addon 与 issue|patch，直接显示英文
@@ -1276,7 +1709,16 @@ window.addEventListener('resize', closeRowMenus, { passive: true });
 // --------------------------------------------------------------------------- //
 function setNavBadge(page, count) {
   const node = $(`[data-nav-badge="${page}"]`);
-  if (node) node.textContent = count ? String(count) : '';
+  if (!node) return;
+  node.textContent = count ? String(count) : '';
+  // 分组收起后子项角标看不见了，把合计挂到一级菜单上，
+  // 否则「有待支付订单 / 待审提现」这种信号会随着折叠一起消失。
+  const group = node.closest('[data-nav-group]');
+  const groupBadge = group && group.querySelector('[data-nav-group-badge]');
+  if (!groupBadge) return;
+  const total = $$('[data-nav-badge]', group)
+    .reduce((acc, item) => acc + (Number(item.textContent) || 0), 0);
+  groupBadge.textContent = total ? String(total) : '';
 }
 
 // --------------------------------------------------------------------------- //
@@ -1305,7 +1747,11 @@ async function bootstrap() {
     // 后台所有时间列都按这个时区渲染，写死在界面上比写在文档里靠谱
     $('#admin-timezone').textContent = `时间按 ${localZoneLabel()} 显示`;
     showApp();
-    await Promise.all([loadOverview(), loadProducts()]);
+    // 商品目录要一并拉：授权签发 / 权益编辑的下拉框依赖它，而分页后的商品列表
+    // 只有当前一页的商品。
+    // 功能码目录必须先到：商品列表要用中文名渲染功能码这一列。
+    await Promise.all([loadOverview(), loadProductCatalog(), loadFeatureCatalog()]);
+    await loadProducts();
   } catch (error) {
     showLogin();
   }
@@ -1347,9 +1793,48 @@ const loaders = {
   diagnostics: loadDiagnostics,
 };
 
+// 一级菜单折叠：分组之间互相独立，且默认全部展开。
+// 面板有十几个，全部摊开时侧栏需要滚一下才能看到最后一组——所以保留折叠能力，
+// 让运营可以把暂时不关心的分组收起来；但不做成手风琴式的「一次只开一组」：
+// 那会变成「想切到某个页面，先猜它在哪个组里，再点开」，而十几页的规模下
+// 分组名很难一眼对应到具体页面（「版本发布」在「商品营销」里，「审计日志」在
+// 「系统设置」里，都不直观）。默认全开的代价只是一次滚动，收益是不用猜。
+function setNavGroupOpen(group, open) {
+  if (!group) return;
+  group.classList.toggle('open', open);
+  const toggle = group.querySelector('.nav-group__toggle');
+  if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+// 收起的分组里那些链接会退出 Tab 焦点序列（见 .nav-group__items-inner 的
+// visibility 过渡），所以折叠是「对键盘用户同样成立」的隐藏，不是视觉把戏。
+function toggleNavGroup(group) {
+  setNavGroupOpen(group, !group.classList.contains('open'));
+}
+
+// 当前页所在的链接要始终看得见：默认全开时通常已经可见，但运营收起分组后
+// 再用概览待办跳转、或侧栏滚过一段距离，就需要把高亮项拉回视野。
+// 用 nearest 而不是 center —— 已经可见时不产生任何滚动。
+function revealActiveNav() {
+  const active = $('#admin-nav a.nav-link.active');
+  const nav = $('#admin-nav');
+  if (!active || !nav) return;
+  const link = active.getBoundingClientRect();
+  const box = nav.getBoundingClientRect();
+  if (link.top < box.top) {
+    nav.scrollTop -= box.top - link.top + 8;
+  } else if (link.bottom > box.bottom) {
+    nav.scrollTop += link.bottom - box.bottom + 8;
+  }
+}
+
 function activate(page) {
   closeRowMenus();
   $$('#admin-nav a').forEach(link => link.classList.toggle('active', link.dataset.adminPage === page));
+  // 展开当前页所在的分组：概览待办、优惠码 → 核销记录这类跳转也要落在看得见的菜单上
+  const activeLink = $(`#admin-nav a[data-admin-page="${page}"]`);
+  if (activeLink) setNavGroupOpen(activeLink.closest('[data-nav-group]'), true);
+  revealActiveNav();
   $$('.admin-panel').forEach(panel => panel.classList.toggle('active', panel.id === `panel-${page}`));
   // 主区是唯一滚动容器，切面板时要把滚动位置复位，
   // 否则从长列表切到短面板会停在半空。
@@ -1359,6 +1844,14 @@ function activate(page) {
 }
 
 $('#admin-nav').addEventListener('click', (event) => {
+  // 再点一下已展开的一级菜单可以收起，方便把后面的分组顶上来
+  const toggle = event.target.closest('.nav-group__toggle');
+  if (toggle) {
+    const group = toggle.closest('[data-nav-group]');
+    // 独立折叠：只动被点的这一组，其它分组保持原状（默认全开，收起只是临时让位）
+    toggleNavGroup(group);
+    return;
+  }
   const link = event.target.closest('a[data-admin-page]');
   if (!link) return;
   event.preventDefault();
@@ -1369,26 +1862,258 @@ $('#admin-nav').addEventListener('click', (event) => {
 // --------------------------------------------------------------------------- //
 // 概览
 // --------------------------------------------------------------------------- //
+// 营收时间窗的文案。key 由服务端给（last24h / last7d / last30d），这里只做展示，
+// 不再自己算时间，避免前后端对「今天」的理解不一致。
+const REVENUE_WINDOW_LABELS = {
+  last24h: '近 24 小时',
+  last7d: '近 7 天',
+  last30d: '近 30 天',
+};
+
+// 待办磁贴：超过 0 才显示。jump 是「跳到哪个面板、先把某个筛选器设成什么」。
+// 只跳转不带筛选会让人落在没有过滤的长列表上，等于没告诉他问题在哪。
+const OVERVIEW_TODOS = [
+  {
+    key: 'awaitingFulfillment', label: '待发货', tone: 'is-alert',
+    hint: '已付款但还没发出的自动发货订单',
+    jump: { page: 'orders', filter: '#order-status', value: 'paid' },
+  },
+  {
+    key: 'fulfillmentFailed', label: '发货失败', tone: 'is-danger',
+    hint: '自动发货报错，需要人工重试或退款',
+    jump: { page: 'orders', filter: '#order-status', value: 'fulfillment_failed' },
+  },
+  {
+    key: 'paymentFailed', label: '支付失败', tone: 'is-alert',
+    hint: '支付渠道拒单，库存预留已归还',
+    jump: { page: 'orders', filter: '#order-status', value: 'payment_failed' },
+  },
+  {
+    key: 'needsReview', label: '待人工复核', tone: 'is-danger',
+    hint: '超时后仍收到款等异常入账，需人工确认',
+    jump: { page: 'orders', filter: '#order-review', value: true },
+  },
+  {
+    key: 'pendingWithdrawals', label: '待审提现', tone: 'is-alert',
+    hint: '用户已申请、等待审核打款',
+    jump: { page: 'withdrawals', filter: '#withdrawal-status', value: 'pending' },
+  },
+  {
+    key: 'expiringLicenses', label: '临期授权', tone: 'is-alert',
+    hint: '30 天内到期，可提前提醒续费',
+    jump: { page: 'licenses', filter: '#license-expiring', value: '30' },
+  },
+  {
+    key: 'soldOut', label: '售罄商品', tone: 'is-danger',
+    hint: '库存为 0 且仍在售，下单会被拒',
+    jump: { page: 'products', filter: '#product-status', value: 'soldout' },
+  },
+  {
+    key: 'lowStock', label: '低库存商品', tone: 'is-alert',
+    hint: '库存有限（含已被预留的部分）',
+    jump: { page: 'products', filter: '#product-status', value: 'lowstock' },
+  },
+];
+
+// 概览里的跳转统一走这里：先设筛选、再切面板，切面板时 loaders 会带着新筛选重新拉。
+function jumpFromOverview(target) {
+  if (!target) return;
+  if (target.filter) {
+    const node = $(target.filter);
+    // 复选类筛选取的是 checked 而不是 value，赋值给 value 等于什么都没做。
+    if (node && node.type === 'checkbox') node.checked = Boolean(target.value);
+    else if (node) node.value = target.value ?? '';
+  }
+  // 目标面板可能停在别的页码上，不清零会落到空的第 N 页
+  resetPage(target.page);
+  location.hash = target.page;
+  activate(target.page);
+}
+
+// 巡检状态 → 徽标语气 + 一句话解释。
+// 六种状态对应六种「为什么这块不能正常工作」：配置关掉了 / 循环没了 / 第一轮还没跑完 /
+// 一次都没成功 / 正在连续失败 / 正常。只写「异常」运营没法处置，也分不清该改配置还是重启。
+const SWEEP_HEALTH = {
+  ok: { tone: 'hb-tag--success', label: '正常' },
+  disabled: { tone: 'hb-tag--warning', label: '已关闭' },
+  pending: { tone: 'hb-tag--warning', label: '尚未启动' },
+  never: { tone: 'hb-tag--danger', label: '从未成功' },
+  failing: { tone: 'hb-tag--danger', label: '连续失败' },
+  stopped: { tone: 'hb-tag--danger', label: '已停止' },
+};
+
+// 「多久以前」给中文可读量级，别丢一个秒数让人自己换算。
+function humanAge(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value < 0) return '—';
+  if (value < 60) return `${Math.round(value)} 秒前`;
+  if (value < 3600) return `${Math.round(value / 60)} 分钟前`;
+  if (value < 86400) return `${Math.round(value / 3600)} 小时前`;
+  return `${Math.round(value / 86400)} 天前`;
+}
+
+// 这块的意义就在于「出问题时一定要看得见」：待办区没有待办会整块隐藏，
+// 而巡检坏掉恰恰不产生任何待办（订单只是静静停在待支付），所以必须常驻显示。
+function renderPaymentSweep(sweep) {
+  const pillNode = $('#overview-sweep-pill');
+  const detail = $('#overview-sweep-detail');
+  if (!pillNode || !detail) return;
+  if (!sweep) {
+    pillNode.className = 'hb-tag hb-tag--warning';
+    pillNode.textContent = '未知';
+    detail.textContent = '这个版本的服务端没有上报巡检状态。';
+    return;
+  }
+  const meta = SWEEP_HEALTH[sweep.health] || SWEEP_HEALTH.pending;
+  pillNode.className = `hb-tag ${meta.tone}`;
+  pillNode.textContent = meta.label;
+
+  const interval = Number(sweep.intervalSeconds || 0);
+  const rounds = Number(sweep.rounds || 0);
+  const failures = Number(sweep.consecutiveFailures || 0);
+  const result = sweep.lastResult;
+  const lastRun = result
+    ? `上一轮：查单 ${num(result.queried)} · 入账 ${num(result.settled)} · 关单 ${num(result.closed)} · 失败 ${num(result.failed)}`
+    : '';
+
+  let text;
+  if (sweep.health === 'disabled') {
+    text = '站点配置里把巡检间隔设成了 0，也就是关掉了：付了款但异步通知丢掉的订单不会再被认领，超时订单的渠道交易也不会被关闭。';
+  } else if (sweep.health === 'stopped') {
+    text = '巡检循环已经退出，但服务还在运行。这段时间里没有任何订单在被对账。请重启服务，并确认日志里没有反复出现的巡检异常。';
+  } else if (sweep.health === 'pending') {
+    text = '巡检循环还没跑完第一轮（首轮会稍作延后，避免启动瞬间去抢数据库）。稍后刷新即可。';
+  } else if (sweep.health === 'never') {
+    text = `本进程启动后已经跑了 ${num(rounds)} 轮，一次都没成功，最近一次错误：${sweep.lastError || '（没有记录）'}`;
+  } else if (sweep.health === 'failing') {
+    text = `最近一次成功在 ${humanAge(sweep.secondsSinceSuccess)}，之后连续失败 ${num(failures)} 轮，最近一次错误：${sweep.lastError || '（没有记录）'}`;
+  } else {
+    text = sweep.lastSuccessAt
+      ? `最近一次成功 ${humanAge(sweep.secondsSinceSuccess)}，已跑 ${num(rounds)} 轮。${lastRun}`
+      : `已跑 ${num(rounds)} 轮。${lastRun}`;
+  }
+  if (interval > 0 && sweep.health !== 'disabled' && sweep.health !== 'stopped') {
+    text += `（间隔 ${interval} 秒）`;
+  }
+  detail.textContent = text;
+}
+
 async function loadOverview() {
   const data = await api('/overview');
-  // tone: alert = 有积压需要处理，danger = 需要关注
-  const cards = [
-    ['账号', data.accounts, ''],
-    ['商品', data.products, ''],
-    ['有效授权', `${data.activeLicenses}/${data.licenses}`, ''],
-    ['待支付订单', data.pendingOrders, data.pendingOrders ? 'is-alert' : ''],
-    ['已履约订单', data.fulfilledOrders, ''],
-    ['营收', money(data.revenueCents), ''],
-    ['在线设备', data.deviceBindings, ''],
-    ['待审提现', data.pendingWithdrawals, data.pendingWithdrawals ? 'is-alert' : ''],
-    ['维护模式', data.maintenanceMode ? '开启' : '关闭', data.maintenanceMode ? 'is-danger' : ''],
-  ];
-  $('#overview-stats').innerHTML = cards.map(([label, value, tone]) =>
-    `<div class="stat ${tone}"><span class="stat__label">${esc(label)}</span><strong class="stat__value">${esc(value)}</strong></div>`
+  const revenue = data.revenue || {};
+  const attention = data.attention || {};
+
+  renderPaymentSweep(data.paymentSweep);
+
+
+  // —— 营收 ——
+  const windowCards = (revenue.windows || []).map(bucket => [
+    REVENUE_WINDOW_LABELS[bucket.key] || bucket.key,
+    money(bucket.netCents),
+    `${bucket.paidOrders} 单付款`,
+    '',
+  ]);
+  $('#overview-revenue').innerHTML = [
+    ['净营收（累计）', money(revenue.totalCents), `收款 ${money(revenue.totalGrossCents)} · 退款 ${money(revenue.totalRefundCents)}`, ''],
+    ...windowCards,
+  ].map(([label, value, note, tone]) =>
+    `<div class="stat ${tone}"><span class="stat__label">${esc(label)}</span>` +
+    `<strong class="stat__value${valueSize(value)}" title="${esc(value)}">${esc(value)}</strong>` +
+    (note ? `<span class="stat__note">${esc(note)}</span>` : '') + '</div>'
   ).join('');
+
+  // —— 订单漏斗 ——
+  // 条形宽度按最大计数归一。全为 0 时（新站）给 0 而不是 NaN。
+  const funnel = data.orderFunnel || [];
+  const maxCount = Math.max(1, ...funnel.map(item => Number(item.count || 0)));
+  $('#overview-funnel').innerHTML = funnel.map(item => {
+    const count = Number(item.count || 0);
+    const width = Math.round((count / maxCount) * 100);
+    return `<button class="funnel-item" type="button" data-funnel-status="${esc(item.status)}">` +
+      `<span class="funnel-item__top"><span class="funnel-item__label">${esc(item.label)}</span>` +
+      `<span class="funnel-item__count">${count}</span></span>` +
+      `<span class="funnel-item__track"><span class="funnel-item__fill" style="width:${width}%"></span></span>` +
+      `<span class="funnel-item__amount">${esc(money(item.amountCents))}</span></button>`;
+  }).join('');
+
+  // —— 待办 ——
+  const todos = OVERVIEW_TODOS.filter(todo => Number(attention[todo.key] || 0) > 0);
+  $('#overview-todos').hidden = todos.length === 0;
+  $('#overview-todos-grid').innerHTML = todos.map(todo =>
+    `<button class="overview-todo ${todo.tone}" type="button" data-overview-todo="${esc(todo.key)}">` +
+    `<span class="overview-todo__count">${Number(attention[todo.key] || 0)}</span>` +
+    `<span class="overview-todo__label">${esc(todo.label)}</span>` +
+    `<span class="overview-todo__hint">${esc(todo.hint)}</span></button>`
+  ).join('');
+
+  // —— 库存预警 ——
+  const stock = data.lowStockProducts || [];
+  $('#overview-stock-rows').innerHTML = stock.length
+    ? stock.map(item => {
+      const available = Number(item.availableStock || 0);
+      const tone = available <= 0 ? 'hb-tag--danger' : 'hb-tag--warning';
+      return `<tr><td>${esc(item.name)}</td><td class="is-mono">${item.stockQuantity}</td>` +
+        `<td class="is-mono">${item.reservedStock}</td>` +
+        `<td><span class="hb-tag ${tone}"><b>${available}</b></span></td></tr>`;
+    }).join('')
+    : emptyRow(4, '没有设置库存的商品，或库存都很充足。');
+
+  // —— 临期授权 ——
+  const expiring = data.expiringLicenses || [];
+  $('#overview-expiring-rows').innerHTML = expiring.length
+    ? expiring.map(item =>
+      `<tr><td class="is-mono">${esc(item.codeHint || item.activationCodeId)}</td>` +
+      `<td>${esc(item.productName)}</td><td class="nowrap">${esc(d(item.accessExpiresAt))}</td></tr>`
+    ).join('')
+    : emptyRow(3, `未来 ${Number(attention.expiringWindowDays || 30)} 天内没有到期的授权。`);
+
+  // —— 累计 ——
+  // 每张卡是 [标签, 主数字, 补充说明, 语气]。主数字只放一个量级（不塞「x 可用 / y 冻结」
+  // 这种复合串），拆解一律走 note：卡宽只有 ~186px、主数字 25px，复合串必折行，
+  // 折行后同排卡片被撑高，数字也读不出量级。note 的排版见 .stat__note。
+  const referral = data.referral || {};
+  // 积分负债 = 全部未兑付的积分 = balance（可用 + 冻结）。只给「可用」会低估要付的账，
+  // 只给 balance 又看不出多少已申请提现，所以主数字给总额、note 给拆解。
+  const pointsTotal = Number(referral.balancePoints || 0);
+  const cards = [
+    ['账号', data.accounts, '', ''],
+    ['商品', data.products, '', ''],
+    ['有效授权', `${data.activeLicenses}/${data.licenses}`, '', ''],
+    ['权限项', `${data.activeEntitlements}/${data.entitlements}`, '', ''],
+    ['待支付订单', data.pendingOrders, '', data.pendingOrders ? 'is-alert' : ''],
+    ['已履约订单', data.fulfilledOrders, '', ''],
+    ['在线设备', data.deviceBindings, '', ''],
+    ['积分负债', num(pointsTotal), `可用 ${num(referral.availablePoints)} · 冻结 ${num(referral.frozenPoints)}`, ''],
+    ['维护模式', data.maintenanceMode ? '开启' : '关闭',
+      data.maintenanceMode ? '前台已拦截下单' : '前台正常营业',
+      data.maintenanceMode ? 'is-danger' : ''],
+  ];
+  $('#overview-stats').innerHTML = cards.map(([label, value, note, tone]) =>
+    `<div class="stat ${tone}"><span class="stat__label">${esc(label)}</span>` +
+    `<strong class="stat__value${valueSize(value)}" title="${esc(value)}">${esc(value)}</strong>` +
+    (note ? `<span class="stat__note">${esc(note)}</span>` : '') + '</div>'
+  ).join('');
+
+  const stamp = $('#overview-stamp');
+  if (stamp) stamp.textContent = `数据时间 ${dt(data.serverTime)}`;
+
   setNavBadge('orders', data.pendingOrders);
   setNavBadge('withdrawals', data.pendingWithdrawals);
 }
+
+// 概览跳转：委托在面板上，这样磁贴与漏斗共用一套逻辑。
+$('#panel-overview').addEventListener('click', (event) => {
+  const todo = event.target.closest('[data-overview-todo]');
+  if (todo) {
+    const spec = OVERVIEW_TODOS.find(item => item.key === todo.dataset.overviewTodo);
+    jumpFromOverview(spec && spec.jump);
+    return;
+  }
+  const funnelItem = event.target.closest('[data-funnel-status]');
+  if (funnelItem) {
+    jumpFromOverview({ page: 'orders', filter: '#order-status', value: funnelItem.dataset.funnelStatus });
+  }
+});
 
 $('#overview-refresh').addEventListener('click', () => loadOverview().catch(error => toast(error.message, 'danger')));
 
@@ -1420,6 +2145,277 @@ $('#overview-recompute-stock').addEventListener('click', async () => {
     await Promise.all([loadOverview(), loadProducts()]);
   } catch (error) { toast(error.message, 'danger'); }
 });
+
+// --------------------------------------------------------------------------- //
+// 功能码选择器（商品「功能码」多选 / 权益「功能码」单选共用）
+// --------------------------------------------------------------------------- //
+// 功能码是主程序的能力码（backend/app/license/service.py 的 BASE_FEATURES
+// + backend/app/modules/interaction3d/access.py 的 module.3d_interaction），
+// 决定客户端能用哪些能力。编辑它的地方过去都是手写英文代码的输入框：抄错一个字母
+// 不会报错——履约照发，客户端只是静默拦截，这类隐性故障极难定位。
+//
+// 现在统一走这个选择器，目录由 /feature-codes 下发（中文名 + 代码 + 说明），
+// 勾选即写代码。实例配置全部写在根节点的 data-* 上，页面里可以放任意多个：
+//   data-feature-picker            标记这是选择器根节点
+//   data-feature-multiple="true"   多选；缺省为单选（选中即收起）
+//   data-feature-empty             空值时摘要显示的提示文案
+// 表单里仍只提交一个 name 与原来完全一致的隐藏域（多选存 CSV），所以各处
+// form.elements.xxx.value 的读取口径一行都不用改。
+//
+// 单选实例对应的是必填字段（权益的功能码），而隐藏域不进浏览器的 required
+// 校验，所以提交前必须自己拦一道——见 requireFeatureCode()。
+function featureLabel(code) {
+  const item = (state.featureCatalog || []).find(entry => entry.code === code);
+  return item ? item.label : code;
+}
+
+// 列表里给运营看中文名，代码留在 title 里备查（中文是主口径）。
+function featureCell(codes) {
+  if (!codes.length) return '—';
+  return `<span title="${esc(codes.join(', '))}">${esc(codes.map(featureLabel).join('、'))}</span>`;
+}
+
+function featurePickers() {
+  return $$('[data-feature-picker]');
+}
+
+function featurePickerValue(root) {
+  const input = $('[data-feature-value]', root);
+  const raw = input ? input.value : '';
+  return raw.split(',').map(item => item.trim()).filter(Boolean);
+}
+
+function setFeaturePickerValue(root, codes) {
+  const input = $('[data-feature-value]', root);
+  if (input) input.value = codes.join(',');
+}
+
+function featurePickerMultiple(root) {
+  return root.dataset.featureMultiple === 'true';
+}
+
+// 单选实例（权益的功能码）是必填字段：空值直接拦在客户端，别让一个空
+// featureCode 打到服务端、换回一句读不懂的 pydantic 校验错误。
+function requireFeatureCode(root, message) {
+  if (featurePickerValue(root).length) return true;
+  toast(message, 'danger');
+  openFeaturePicker(root);
+  return false;
+}
+
+// 已有记录可能带着目录里没有的代码（旧版本遗留、脚本导入）。它们必须仍然可见、
+// 可取消勾选——否则运营一保存就被静默丢掉，等于后台擅自改了授权内容。
+function featurePickerExtras(selected) {
+  // 目录还没到就别急着判「未知」：那会把所有已选代码都错标成自定义代码。
+  if (!(state.featureCatalog || []).length) return [];
+  const known = new Set(state.featureCatalog.map(item => item.code));
+  return selected.filter(code => !known.has(code));
+}
+
+function syncFeatureSummary(root) {
+  const summary = $('[data-feature-summary]', root);
+  if (!summary) return;
+  const codes = featurePickerValue(root);
+  if (!codes.length) {
+    summary.textContent = root.dataset.featureEmpty || '未选择';
+    summary.classList.add('is-empty');
+    return;
+  }
+  summary.classList.remove('is-empty');
+  if (!featurePickerMultiple(root)) {
+    // 单选（权益）连代码一起显示：客服核对「客户端认的是哪个功能」看的就是这个标识。
+    summary.textContent = codes.map(code => `${featureLabel(code)} · ${code}`).join('、');
+    return;
+  }
+  const labels = codes.map(featureLabel);
+  summary.textContent = labels.length <= 3
+    ? labels.join('、')
+    : `${labels.slice(0, 3).join('、')} 等 ${labels.length} 项`;
+}
+
+function featureOptionRow(root, code, label, description) {
+  const checked = featurePickerValue(root).includes(code) ? ' checked' : '';
+  // 选项故意不带 name：单选若共用 name，form.elements.featureCode 会变成
+  // RadioNodeList，各处 .value 的读取口径就跟着变了。互斥由 change 处理器自己管。
+  const type = featurePickerMultiple(root) ? 'checkbox' : 'radio';
+  return `<label class="feature-option">
+      <input type="${type}" data-feature-option value="${esc(code)}"${checked}>
+      <span class="feature-option__body">
+        <span class="feature-option__title"><span class="feature-option__name">${esc(label)}</span><code class="feature-option__code">${esc(code)}</code></span>
+        ${description ? `<span class="feature-option__desc">${esc(description)}</span>` : ''}
+      </span>
+    </label>`;
+}
+
+// 重新渲染整个列表：目录只拉一次，但每次打开编辑器都要按当前选中的代码重置勾选态。
+function renderFeatureOptions(root) {
+  const list = $('[data-feature-list]', root);
+  if (!list) return;
+  const searchInput = $('[data-feature-search]', root);
+  const search = (searchInput ? searchInput.value : '').trim().toLowerCase();
+  const matched = (state.featureCatalog || []).filter(item => (
+    !search
+    || item.code.toLowerCase().includes(search)
+    || (item.label || '').toLowerCase().includes(search)
+    || (item.description || '').toLowerCase().includes(search)
+  ));
+  const groups = state.featureGroups && state.featureGroups.length
+    ? [...state.featureGroups]
+    : [{ key: 'base', label: '基础能力' }];
+  // 目录里出现了分组表没登记的新 group 时补一个，避免新增能力码在界面上直接消失。
+  const knownGroups = new Set(groups.map(group => group.key));
+  matched.forEach(item => {
+    if (knownGroups.has(item.group)) return;
+    knownGroups.add(item.group);
+    groups.push({ key: item.group, label: item.groupLabel || item.group });
+  });
+  const blocks = groups.map((group) => {
+    const items = matched.filter(item => item.group === group.key);
+    if (!items.length) return '';
+    return `<div class="feature-group">
+        <div class="feature-group__head">${esc(group.label)}</div>
+        ${items.map(item => featureOptionRow(root, item.code, item.label, item.description)).join('')}
+      </div>`;
+  });
+  const extras = featurePickerExtras(featurePickerValue(root));
+  if (extras.length) {
+    blocks.push(`<div class="feature-group">
+        <div class="feature-group__head">自定义代码</div>
+        ${extras.map(code => featureOptionRow(root, code, code, '不在当前能力码目录中，保留原样不丢失。')).join('')}
+      </div>`);
+  }
+  list.innerHTML = blocks.filter(Boolean).join('')
+    || '<div class="feature-picker__empty">没有匹配的功能码</div>';
+}
+
+// 勾选顺序按目录顺序收集，保证保存结果稳定、可 diff。
+function collectFeatureSelection(root) {
+  const checked = new Set($$('[data-feature-option]:checked', root).map(input => input.value));
+  const known = (state.featureCatalog || []).map(item => item.code);
+  const ordered = known.filter(code => checked.has(code));
+  featurePickerExtras([...checked]).forEach(code => {
+    if (!ordered.includes(code)) ordered.push(code);
+  });
+  return ordered;
+}
+
+function refreshFeaturePickers() {
+  featurePickers().forEach((root) => {
+    renderFeatureOptions(root);
+    syncFeatureSummary(root);
+  });
+}
+
+function closeFeaturePicker(root) {
+  if (!root || !root.classList.contains('is-open')) return;
+  root.classList.remove('is-open');
+  const pop = $('[data-feature-pop]', root);
+  if (pop) pop.hidden = true;
+  const toggle = $('[data-feature-toggle]', root);
+  if (toggle) toggle.setAttribute('aria-expanded', 'false');
+}
+
+function closeFeaturePickers() {
+  featurePickers().forEach(closeFeaturePicker);
+}
+
+// 与行内「⋯」菜单同一套坐标算法：absolute 弹出层会被 .admin-main / .table-wrap 的
+// overflow 裁掉，所以打开时切成 position: fixed，用按钮位置现算坐标。
+function placeFeaturePicker(root) {
+  const pop = $('[data-feature-pop]', root);
+  const toggle = $('[data-feature-toggle]', root);
+  if (!pop || !toggle) return;
+  pop.style.top = '0px';
+  pop.style.left = '0px';
+  const anchor = toggle.getBoundingClientRect();
+  // 字段是整行宽，弹层跟着等宽会拉出一行超长的说明文字，这里夹到一档易读的宽度。
+  pop.style.width = `${Math.round(Math.min(Math.max(anchor.width, 300), 460))}px`;
+  const size = pop.getBoundingClientRect();
+  let top = anchor.bottom + MENU_GAP;
+  if (top + size.height > window.innerHeight - MENU_MARGIN) {
+    top = anchor.top - MENU_GAP - size.height;
+  }
+  top = Math.min(
+    Math.max(MENU_MARGIN, top),
+    Math.max(MENU_MARGIN, window.innerHeight - MENU_MARGIN - size.height),
+  );
+  const left = Math.min(
+    Math.max(MENU_MARGIN, anchor.left),
+    Math.max(MENU_MARGIN, window.innerWidth - MENU_MARGIN - size.width),
+  );
+  pop.style.top = `${Math.round(top)}px`;
+  pop.style.left = `${Math.round(left)}px`;
+}
+
+function openFeaturePicker(root) {
+  const pop = $('[data-feature-pop]', root);
+  if (!pop) return;
+  closeRowMenus();
+  closeFeaturePickers();
+  pop.hidden = false;
+  root.classList.add('is-open');
+  $('[data-feature-toggle]', root).setAttribute('aria-expanded', 'true');
+  // 每次都从完整目录打开：残留的搜索词会让「少了几项」看起来像功能码丢了。
+  const searchInput = $('[data-feature-search]', root);
+  if (searchInput) searchInput.value = '';
+  renderFeatureOptions(root);
+  placeFeaturePicker(root);
+}
+
+async function loadFeatureCatalog() {
+  const data = await api('/feature-codes');
+  state.featureCatalog = data.items || [];
+  state.featureGroups = data.groups || [];
+  refreshFeaturePickers();
+}
+
+// 事件全部委托到 document：选择器实例散落在商品与权益的编辑器里，逐个
+// addEventListener 会在反复开关编辑器时越绑越多。
+document.addEventListener('click', (event) => {
+  const toggle = event.target.closest('[data-feature-toggle]');
+  if (toggle) {
+    const root = toggle.closest('[data-feature-picker]');
+    if (root.classList.contains('is-open')) closeFeaturePicker(root);
+    else openFeaturePicker(root);
+    return;
+  }
+  // 点击弹层内部（勾选、搜索）不收起
+  if (event.target.closest('[data-feature-picker]')) return;
+  closeFeaturePickers();
+});
+
+document.addEventListener('change', (event) => {
+  if (!event.target.matches('[data-feature-option]')) return;
+  const root = event.target.closest('[data-feature-picker]');
+  if (!root) return;
+  const multiple = featurePickerMultiple(root);
+  if (!multiple) {
+    // 单选手动做互斥，选项才敢不带 name（见 featureOptionRow 的注释）
+    $$('[data-feature-option]', root).forEach((input) => {
+      if (input !== event.target) input.checked = false;
+    });
+  }
+  setFeaturePickerValue(root, collectFeatureSelection(root));
+  syncFeatureSummary(root);
+  if (!multiple) closeFeaturePicker(root);
+});
+
+document.addEventListener('input', (event) => {
+  if (!event.target.matches('[data-feature-search]')) return;
+  const root = event.target.closest('[data-feature-picker]');
+  if (root) renderFeatureOptions(root);
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeFeaturePickers();
+});
+
+// 弹层坐标按按钮位置算死，任何祖先滚动都会错位；但弹层自身的列表要能滚，
+// 所以捕获阶段里放行来自 .feature-picker 的 scroll。
+$('.admin-main').addEventListener('scroll', (event) => {
+  if (event.target.closest && event.target.closest('.feature-picker')) return;
+  closeFeaturePickers();
+}, { passive: true, capture: true });
 
 // --------------------------------------------------------------------------- //
 // 商品
@@ -1454,9 +2450,14 @@ function productFormPayload(form) {
 
 function openProductEditor(product) {
   const form = $('#product-form');
+  const picker = $('#product-features');
+  closeFeaturePickers();
   form.reset();
   form.elements.id.value = product ? product.id : '';
   $('#product-editor-title').textContent = product ? `编辑商品 · ${product.name}` : '新增商品';
+  // 隐藏域不参与 required 校验、也不保证被 form.reset() 清掉，所以显式给值：
+  // 新增商品留空，编辑商品回填。漏了这一步，「新增」会带着上一个商品的勾选提交。
+  setFeaturePickerValue(picker, (product && product.featureCodes) || []);
   if (product) {
     form.elements.name.value = product.name;
     form.elements.productCode.value = product.productCode || '';
@@ -1465,7 +2466,6 @@ function openProductEditor(product) {
     form.elements.originalPriceCents.value = product.originalPriceCents ?? '';
     form.elements.validityDays.value = product.validityDays ?? '';
     form.elements.sortOrder.value = product.sortOrder ?? 100;
-    form.elements.featureCodes.value = (product.featureCodes || []).join(',');
     form.elements.includedProductIds.value = (product.includedProductIds || []).join(',');
     form.elements.badgeText.value = product.badgeText || '';
     form.elements.stockQuantity.value = product.stockQuantity ?? '';
@@ -1480,22 +2480,36 @@ function openProductEditor(product) {
   } else {
     form.elements.active.checked = true;
   }
+  renderFeatureOptions(picker);
+  syncFeatureSummary(picker);
   $('#product-editor').hidden = false;
   form.elements.name.focus();
 }
 
-async function loadProducts() {
-  const data = await api('/products');
+// 商品目录（不分页）单独拉一份：授权签发、权益编辑这些下拉框要的是**全部**在售
+// 商品，而分页后的列表只有当前一页。目录缓存放 state.products，商品变动后重拉。
+async function loadProductCatalog() {
+  const data = await api('/products?limit=500&status_filter=active');
   state.products = data.items;
   $('#license-product').innerHTML = state.products
     .map(product => `<option value="${esc(product.id)}">${esc(product.name)}</option>`).join('');
-  $('#product-rows').innerHTML = state.products.length ? state.products.map(product => `
+}
+
+async function loadProducts() {
+  const params = new URLSearchParams();
+  const keyword = $('#product-keyword').value.trim();
+  const status = $('#product-status').value;
+  if (keyword) params.set('keyword', keyword);
+  if (status) params.set('status_filter', status);
+  const data = await pagedFetch('products', '/products', Object.fromEntries(params));
+  state.productPage = data.items;
+  $('#product-rows').innerHTML = data.items.length ? data.items.map(product => `
     <tr>
       <td>${cell(product.name)}${product.featured ? ` ${pill('推荐', 'warning')}` : ''}${product.requiresLicense ? ` ${pill('增量包', 'info')}` : ''}</td>
       <td>${esc(PRODUCT_TYPE[product.productType] || product.productType)}</td>
       <td class="nowrap">${money(product.priceCents)}</td>
       <td class="nowrap">${product.validityDays ? `${product.validityDays} 天` : '永久'}</td>
-      <td class="mono">${cell((product.featureCodes || []).join(', '))}</td>
+      <td>${featureCell(product.featureCodes || [])}</td>
       <td class="nowrap">${product.stockQuantity === null ? '不限' : `${product.availableStock}/${product.stockQuantity}`}</td>
       <td class="nowrap">${product.active ? pill('上架', 'success') : pill('下架', 'muted')}</td>
       <td class="nowrap">${actions(
@@ -1508,18 +2522,27 @@ async function loadProducts() {
           menuItem('删除', `data-product-delete="${esc(product.id)}"`, { danger: true }),
         ),
       )}</td>
-    </tr>`).join('') : emptyRow(8, '暂无商品');
+    </tr>`).join('') : emptyRow(8, pageState('products').offset > 0 ? '本页无数据' : '没有符合条件的商品');
+  renderPager('products');
+}
+
+
+// 商品在两个地方各有一份：分页列表（当前页）与完整目录（下拉框用）。
+// 编辑/删除要拿的是**行上那一条**，所以先查当前页再查目录。
+function findProduct(id) {
+  return (state.productPage || []).find(item => item.id === id)
+    || (state.products || []).find(item => item.id === id);
 }
 
 $('#product-new').addEventListener('click', () => openProductEditor(null));
-$('#product-refresh').addEventListener('click', loadProducts);
+$('#product-refresh').addEventListener('click', () => { resetPage('products'); loadProducts(); });
 $('#product-cancel').addEventListener('click', () => { $('#product-editor').hidden = true; });
 
 $('#product-rows').addEventListener('click', async (event) => {
   const editId = event.target.dataset.productEdit;
   const deleteId = event.target.dataset.productDelete;
   const imageId = event.target.dataset.productImage;
-  if (editId) openProductEditor(state.products.find(item => item.id === editId));
+  if (editId) openProductEditor(findProduct(editId));
 
   // 移除商品图：会同时删掉磁盘文件，删完前台回落到默认标识
   if (imageId) {
@@ -1534,12 +2557,12 @@ $('#product-rows').addEventListener('click', async (event) => {
     try {
       await api(`/products/${imageId}/image`, { method: 'DELETE' });
       toast('商品图已移除');
-      await loadProducts();
+      await Promise.all([loadProductCatalog(), loadProducts()]);
     } catch (error) { toast(error.message, 'danger'); }
     return;
   }
   if (deleteId) {
-    const product = state.products.find(item => item.id === deleteId);
+    const product = findProduct(deleteId);
     // 用后端给的 licenseCount / orderCount（与删除守卫同口径）如实预告结果，
     // 避免管理员以为会真删、结果只是下架。
     const refs = [];
@@ -1558,7 +2581,7 @@ $('#product-rows').addEventListener('click', async (event) => {
     try {
       const result = await api(`/products/${deleteId}`, { method: 'DELETE' });
       toast(result.deleted ? '商品已删除' : `商品已下架（${result.reason || '存在历史引用'}）`, result.deleted ? 'success' : 'warning');
-      await loadProducts();
+      await Promise.all([loadProductCatalog(), loadProducts(), loadOverview()]);
     } catch (error) { toast(error.message, 'danger'); }
   }
 });
@@ -1585,15 +2608,17 @@ $('#product-form').addEventListener('submit', async (event) => {
   const form = event.target;
   const payload = productFormPayload(form);
   try {
-    if (form.elements.id.value) {
-      await api(`/products/${form.elements.id.value}`, { method: 'PATCH', body: JSON.stringify(payload) });
-      toast('商品已更新');
-    } else {
-      await api('/products', { method: 'POST', body: JSON.stringify(payload) });
-      toast('商品已创建');
-    }
-    $('#product-editor').hidden = true;
-    await loadProducts();
+    await withBusy(form, async () => {
+      if (form.elements.id.value) {
+        await api(`/products/${form.elements.id.value}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        toast('商品已更新');
+      } else {
+        await api('/products', { method: 'POST', body: JSON.stringify(payload) });
+        toast('商品已创建');
+      }
+      $('#product-editor').hidden = true;
+      await Promise.all([loadProductCatalog(), loadProducts(), loadOverview()]);
+    }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
 });
 
@@ -1604,9 +2629,14 @@ async function loadOrders() {
   const params = new URLSearchParams();
   const status = $('#order-status').value;
   const keyword = $('#order-keyword').value.trim();
+  const from = dayStartUtc($('#order-date-from').value);
+  const to = dayEndUtc($('#order-date-to').value);
   if (status) params.set('status_filter', status);
   if (keyword) params.set('keyword', keyword);
-  const data = await api(`/orders?${params.toString()}`);
+  if (from) params.set('date_from', from);
+  if (to) params.set('date_to', to);
+  if ($('#order-review').checked) params.set('needs_review', 'true');
+  const data = await pagedFetch('orders', '/orders', Object.fromEntries(params));
   $('#order-rows').innerHTML = data.items.length ? data.items.map(order => {
     // 保留原有的全部动作与出现条件，只重新分层：
     //   主操作 = 推进流程的那一步；其余收进 ⋯ 菜单。
@@ -1648,11 +2678,14 @@ async function loadOrders() {
         ),
       )}</td>
     </tr>`;
-  }).join('') : emptyRow(8, '暂无订单');
+  }).join('') : emptyRow(8, pageState('orders').offset > 0 ? '本页无数据' : '没有符合条件的订单');
+  renderPager('orders');
 }
 
-$('#order-refresh').addEventListener('click', loadOrders);
-$('#order-status').addEventListener('change', loadOrders);
+$('#order-refresh').addEventListener('click', () => { resetPage('orders'); loadOrders(); });
+$('#order-reset').addEventListener('click', () => resetFilters(
+  ['#order-status', '#order-keyword', '#order-date-from', '#order-date-to', '#order-review'], 'orders',
+));
 $('#order-rows').addEventListener('click', async (event) => {
   const { orderPaid, orderFulfill, orderRefund, orderCancel, orderDelete } = event.target.dataset;
   const orderNo = orderPaid || orderFulfill || orderRefund || orderCancel || orderDelete;
@@ -1710,12 +2743,21 @@ $('#order-rows').addEventListener('click', async (event) => {
 // 激活码
 // --------------------------------------------------------------------------- //
 async function loadLicenses() {
+  const params = new URLSearchParams();
   const keyword = $('#license-keyword').value.trim();
-  const data = await api(`/licenses${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''}`);
+  const status = $('#license-status').value;
+  const expiring = $('#license-expiring').value;
+  if (keyword) params.set('keyword', keyword);
+  if (status) params.set('status_filter', status);
+  if (expiring) params.set('expiring_days', expiring);
+  const data = await pagedFetch('licenses', '/licenses', Object.fromEntries(params));
   state.licenses = data.items;
   $('#license-rows').innerHTML = data.items.length ? data.items.map(license => `
     <tr>
-      <td class="mono">${cell(license.activationCode)}</td>
+      <td class="mono"><span id="license-code-${esc(license.activationCodeId)}">${esc(license.activationCode)}</span>
+        <button class="hb-button hb-button--ghost hb-button--sm admin-copy" type="button"
+                data-copy-target="#license-code-${esc(license.activationCodeId)}"
+                aria-label="复制激活码">复制</button></td>
       <td class="nowrap">${cell(license.customerName)}</td>
       <td>${cell(license.productName)}</td>
       <td class="nowrap">${license.accessExpiresAt ? d(license.accessExpiresAt) : '永久'}</td>
@@ -1730,29 +2772,50 @@ async function loadLicenses() {
           menuItem('彻底删除', `data-license-delete="${esc(license.activationCodeId)}" data-license-code="${esc(license.activationCode)}" title="${license.active ? '需先停用' : '彻底删除该授权'}"`, { danger: true }),
         ),
       )}</td>
-    </tr>`).join('') : emptyRow(7, '暂无激活码');
+    </tr>`).join('') : emptyRow(7, pageState('licenses').offset > 0 ? '本页无数据' : '没有符合条件的激活码');
+  renderPager('licenses');
 }
 
-$('#license-refresh').addEventListener('click', loadLicenses);
-$('#license-issue').addEventListener('click', () => { $('#license-editor').hidden = false; });
+$('#license-refresh').addEventListener('click', () => { resetPage('licenses'); loadLicenses(); });
+$('#license-issue').addEventListener('click', () => {
+  $('#license-editor').hidden = false;
+  $('#license-issue-result').hidden = true;
+});
 $('#license-cancel').addEventListener('click', () => { $('#license-editor').hidden = true; });
+
+// 签发结果落在编辑器里的常驻面板：激活码是这一屏唯一的产出，toast 三秒消失后
+// 运营就没法再核对/复制了。同一次会话内重新点「签发」会先清掉上一次的结果。
+function showIssueResult(result) {
+  $('#license-issue-code').textContent = result.activationCode || '';
+  $('#license-issue-target').textContent = [
+    result.email || '',
+    result.productName || '',
+    result.accessExpiresAt ? `到期 ${dt(result.accessExpiresAt)}` : '永久有效',
+  ].filter(Boolean).join(' · ');
+  $('#license-issue-result').hidden = false;
+}
 
 $('#license-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
   try {
-    const result = await api('/licenses', {
-      method: 'POST',
-      body: JSON.stringify({
-        email: form.elements.email.value.trim(),
-        productId: form.elements.productId.value,
-        validityDays: form.elements.validityDays.value ? Number(form.elements.validityDays.value) : null,
-      }),
-    });
-    toast(`已签发：${result.activationCode}`);
-    form.reset();
-    $('#license-editor').hidden = true;
-    await Promise.all([loadLicenses(), loadOverview()]);
+    await withBusy(form, async () => {
+      const result = await api('/licenses', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: form.elements.email.value.trim(),
+          productId: form.elements.productId.value,
+          validityDays: form.elements.validityDays.value ? Number(form.elements.validityDays.value) : null,
+        }),
+      });
+      // 激活码是这一屏的唯一产出，toast 三秒就没了，所以同时写进编辑器里的
+      // 持久结果面板，方便复制粘贴给客户。
+      showIssueResult(result);
+      form.reset();
+      // 新签发的授权按 created_at desc 排在最前，所以回到第 1 页才看得到它
+      resetPage('licenses');
+      await Promise.all([loadLicenses(), loadOverview()]);
+    }, '签发中…');
   } catch (error) { toast(error.message, 'danger'); }
 });
 
@@ -1780,10 +2843,12 @@ $('#license-patch-form').addEventListener('submit', async (event) => {
   else if (expiresAt) payload.accessExpiresAt = utcInput(expiresAt);
   if (validityDays) payload.validityDays = Number(validityDays);
   try {
-    const result = await api(`/licenses/${licenseId}`, { method: 'PATCH', body: JSON.stringify(payload) });
-    toast(`授权已修正，到期时间：${result.accessExpiresAt ? dt(result.accessExpiresAt) : '永久'}`);
-    $('#license-patch-editor').hidden = true;
-    await loadLicenses();
+    await withBusy(form, async () => {
+      const result = await api(`/licenses/${licenseId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      toast(`授权已修正，到期时间：${result.accessExpiresAt ? dt(result.accessExpiresAt) : '永久'}`);
+      $('#license-patch-editor').hidden = true;
+      await loadLicenses();
+    }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
 });
 
@@ -1845,8 +2910,11 @@ $('#license-rows').addEventListener('click', async (event) => {
 // 设备绑定
 // --------------------------------------------------------------------------- //
 async function loadBindings() {
-  const activeOnly = $('#binding-active-only').checked;
-  const data = await api(`/bindings${activeOnly ? '?active_only=true' : ''}`);
+  const params = new URLSearchParams();
+  if ($('#binding-active-only').checked) params.set('active_only', 'true');
+  const keyword = $('#binding-keyword').value.trim();
+  if (keyword) params.set('keyword', keyword);
+  const data = await pagedFetch('bindings', '/bindings', Object.fromEntries(params));
   state.bindings = data.items;
   $('#binding-rows').innerHTML = data.items.length ? data.items.map(binding => `
     <tr>
@@ -1863,11 +2931,11 @@ async function loadBindings() {
           menuItem('彻底删除记录', `data-binding-delete="${esc(binding.bindingId)}" data-binding-instance="${esc(binding.instanceId || '')}"`, { danger: true }),
         ),
       )}</td>
-    </tr>`).join('') : emptyRow(6, '暂无设备绑定');
+    </tr>`).join('') : emptyRow(6, pageState('bindings').offset > 0 ? '本页无数据' : '没有符合条件的设备绑定');
+  renderPager('bindings');
 }
 
-$('#binding-refresh').addEventListener('click', loadBindings);
-$('#binding-active-only').addEventListener('change', loadBindings);
+$('#binding-refresh').addEventListener('click', () => { resetPage('bindings'); loadBindings(); });
 
 // 与「强制解绑」的区别：释放只是置为失效、保留历史，客户端重绑仍受冷却约束；
 // 删除会把记录整条抹掉（会话与找回令牌级联清理），客户端可立即重新激活。
@@ -1911,7 +2979,12 @@ $('#binding-rows').addEventListener('click', async (event) => {
 // 优惠码
 // --------------------------------------------------------------------------- //
 async function loadCoupons() {
-  const data = await api('/coupons');
+  const params = new URLSearchParams();
+  const keyword = $('#coupon-keyword').value.trim();
+  const status = $('#coupon-status').value;
+  if (keyword) params.set('keyword', keyword);
+  if (status) params.set('status_filter', status);
+  const data = await pagedFetch('coupons', '/coupons', Object.fromEntries(params));
   state.coupons = data.items;
   $('#coupon-rows').innerHTML = data.items.length ? data.items.map(coupon => `
     <tr>
@@ -1931,7 +3004,8 @@ async function loadCoupons() {
           menuItem('删除', `data-coupon-delete="${esc(coupon.id)}" data-coupon-code="${esc(coupon.code)}" data-coupon-used="${coupon.redemptionCount || 0}"`, { danger: true }),
         ),
       )}</td>
-    </tr>`).join('') : emptyRow(8, '暂无优惠码');
+    </tr>`).join('') : emptyRow(8, pageState('coupons').offset > 0 ? '本页无数据' : '没有符合条件的优惠码');
+  renderPager('coupons');
 }
 
 // 逗号分隔的 ID 列表 ↔ 数组。多选字段（功能码、套餐内容、适用商品）共用这一个口径。
@@ -1986,15 +3060,19 @@ $('#coupon-form').addEventListener('submit', async (event) => {
     active: form.elements.active.checked,
   };
   try {
-    if (couponId) {
-      await api(`/coupons/${couponId}`, { method: 'PATCH', body: JSON.stringify(body) });
-      toast('优惠码已更新');
-    } else {
-      await api('/coupons', { method: 'POST', body: JSON.stringify({ ...body, code: form.elements.code.value.trim() }) });
-      toast('优惠码已创建');
-    }
-    $('#coupon-editor').hidden = true;
-    await loadCoupons();
+    await withBusy(form, async () => {
+      if (couponId) {
+        await api(`/coupons/${couponId}`, { method: 'PATCH', body: JSON.stringify(body) });
+        toast('优惠码已更新');
+      } else {
+        await api('/coupons', { method: 'POST', body: JSON.stringify({ ...body, code: form.elements.code.value.trim() }) });
+        toast('优惠码已创建');
+      }
+      $('#coupon-editor').hidden = true;
+      // 新建的优惠码按 created_at desc 排最前，回到第 1 页才看得到
+      if (!couponId) resetPage('coupons');
+      await Promise.all([loadCoupons(), loadOverview()]);
+    }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
 });
 
@@ -2054,15 +3132,18 @@ $('#coupon-rows').addEventListener('click', async (event) => {
 // 提现
 // --------------------------------------------------------------------------- //
 async function loadWithdrawals() {
+  const params = new URLSearchParams();
   const status = $('#withdrawal-status').value;
-  const data = await api(`/withdrawals${status ? `?status_filter=${status}` : ''}`);
+  const keyword = $('#withdrawal-keyword').value.trim();
+  if (status) params.set('status_filter', status);
+  if (keyword) params.set('keyword', keyword);
+  const data = await pagedFetch('withdrawals', '/withdrawals', Object.fromEntries(params));
   $('#withdrawal-rows').innerHTML = data.items.length ? data.items.map(item => `
     <tr>
       <td class="nowrap">${cell(item.email || item.accountId)}</td>
       <td class="nowrap">${esc(item.points)}</td>
       <td class="nowrap">${esc(item.feePoints)}</td>
       <td class="nowrap">${esc(item.netPoints)}</td>
-      <td class="nowrap">${esc(item.qq)}</td>
       <td class="nowrap">${statusBadge(item.status, WITHDRAWAL_STATUS)}</td>
       <td class="nowrap">${dt(item.createdAt)}</td>
       <td class="nowrap">${actions(
@@ -2078,11 +3159,11 @@ async function loadWithdrawals() {
             ? menuItem('删除', `data-withdrawal-delete="${esc(item.id)}" data-withdrawal-email="${esc(item.email || item.accountId)}"`, { danger: true }) : '',
         ),
       )}</td>
-    </tr>`).join('') : emptyRow(8, '暂无提现申请');
+    </tr>`).join('') : emptyRow(7, pageState('withdrawals').offset > 0 ? '本页无数据' : '没有任何提现申请');
+  renderPager('withdrawals');
 }
 
-$('#withdrawal-refresh').addEventListener('click', loadWithdrawals);
-$('#withdrawal-status').addEventListener('change', loadWithdrawals);
+$('#withdrawal-refresh').addEventListener('click', () => { resetPage('withdrawals'); loadWithdrawals(); });
 $('#withdrawal-rows').addEventListener('click', async (event) => {
   const ok = event.target.dataset.withdrawalOk;
   const no = event.target.dataset.withdrawalNo;
@@ -2130,8 +3211,14 @@ $('#withdrawal-rows').addEventListener('click', async (event) => {
 // 账号
 // --------------------------------------------------------------------------- //
 async function loadAccounts() {
+  const params = new URLSearchParams();
   const keyword = $('#account-keyword').value.trim();
-  const data = await api(`/accounts${keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''}`);
+  const role = $('#account-role').value;
+  const status = $('#account-status').value;
+  if (keyword) params.set('keyword', keyword);
+  if (role) params.set('role', role);
+  if (status) params.set('status_filter', status);
+  const data = await pagedFetch('accounts', '/accounts', Object.fromEntries(params));
   state.accounts = data.items;
   $('#account-rows').innerHTML = data.items.length ? data.items.map(account => `
     <tr>
@@ -2149,7 +3236,8 @@ async function loadAccounts() {
           menuItem('删除账号', `data-account-delete="${esc(account.id)}" data-account-email="${esc(account.email)}" data-account-licenses="${account.licenseCount || 0}"`, { danger: true }),
         ),
       )}</td>
-    </tr>`).join('') : emptyRow(7, '暂无账号');
+    </tr>`).join('') : emptyRow(7, pageState('accounts').offset > 0 ? '本页无数据' : '没有符合条件的账号');
+  renderPager('accounts');
 }
 
 function openAccountEditor(account) {
@@ -2165,7 +3253,7 @@ function openAccountEditor(account) {
   form.elements.email.focus();
 }
 
-$('#account-refresh').addEventListener('click', loadAccounts);
+$('#account-refresh').addEventListener('click', () => { resetPage('accounts'); loadAccounts(); });
 $('#account-cancel').addEventListener('click', () => { $('#account-editor').hidden = true; });
 
 $('#account-form').addEventListener('submit', async (event) => {
@@ -2181,10 +3269,12 @@ $('#account-form').addEventListener('submit', async (event) => {
   const password = form.elements.newPassword.value;
   if (password) payload.newPassword = password;
   try {
-    await api(`/accounts/${accountId}`, { method: 'PATCH', body: JSON.stringify(payload) });
-    toast(password ? '账号已更新，该账号的登录会话已全部失效' : '账号已更新');
-    $('#account-editor').hidden = true;
-    await loadAccounts();
+    await withBusy(form, async () => {
+      await api(`/accounts/${accountId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      toast(password ? '账号已更新，该账号的登录会话已全部失效' : '账号已更新');
+      $('#account-editor').hidden = true;
+      await loadAccounts();
+    }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
 });
 
@@ -2273,7 +3363,10 @@ async function loadSettings() {
   form.elements.announcement.value = data.announcement || '';
   form.elements.paymentProvider.value = payment.provider || 'mock';
   form.elements.paymentDisplayName.value = payment.displayName || '';
-  form.elements.paymentMerchantOrderTemplate.value = payment.merchantOrderTemplate || '';
+  // 交易标题只在「来源是后台」时回填：留空即跟随环境变量（与支付宝凭据同款口径）。
+  form.elements.paymentTransactionDescription.value = payment.transactionDescriptionFromDatabase
+    ? payment.transactionDescription || ''
+    : '';
   form.elements.paymentEnabled.checked = Boolean(payment.enabled);
   form.elements.maintenanceMode.checked = Boolean(store.maintenanceMode);
   form.elements.maintenanceMessage.value = store.maintenanceMessage || '';
@@ -2281,15 +3374,228 @@ async function loadSettings() {
   form.elements.referralRatePercent.value = referral.ratePercent ?? 0;
   form.elements.referralWithdrawalFeePercent.value = referral.withdrawalFeePercent ?? 0;
   form.elements.referralWithdrawalMinPoints.value = referral.withdrawalMinPoints ?? 0;
-  form.elements.referralQqGroup.value = referral.qqGroup || '';
   form.elements.deviceReleaseCooldownSeconds.value = data.deviceReleaseCooldownSeconds ?? 28800;
+  loadAlipayCredentials(data.alipay || {});
+  loadMailSettings(data.mail || {});
+}
+
+/**
+ * 回填支付宝凭据区块。
+ *
+ * 三条铁律：
+ *  1. 密钥输入框**永不回填**（响应里只有打码值），打码值放进 placeholder。
+ *  2. 只回填「来源是后台」的字段。把环境变量的值回填进输入框，运营随手保存一次
+ *     站点名就会把它固化进数据库，之后改环境变量再也不生效。
+ *  3. 「清除」勾选框每次重新加载都复位，避免上一次的勾选在下一次保存时静默清空密钥。
+ */
+function loadAlipayCredentials(alipay) {
+  const form = $('#settings-form');
+  const envHint = (configured) => (configured ? '跟随环境变量（已配置）' : '跟随环境变量');
+  form.elements.alipayAppId.value = alipay.appIdFromDatabase ? alipay.appId || '' : '';
+  form.elements.alipaySellerId.value = alipay.sellerIdFromDatabase ? alipay.sellerId || '' : '';
+  form.elements.alipayGatewayUrl.value = alipay.gatewayUrlFromDatabase ? alipay.gatewayUrl || '' : '';
+  form.elements.alipayNotifyUrl.value = alipay.notifyUrlFromDatabase ? alipay.notifyUrl || '' : '';
+  form.elements.alipayReturnUrl.value = alipay.returnUrlFromDatabase ? alipay.returnUrl || '' : '';
+  form.elements.alipaySandbox.checked = Boolean(alipay.sandbox);
+  form.elements.alipayClearPrivateKey.checked = false;
+  form.elements.alipayClearPublicKey.checked = false;
+  form.elements.alipayAppPrivateKey.value = '';
+  form.elements.alipayPublicKey.value = '';
+  form.elements.alipayAppPrivateKey.placeholder = alipay.applicationPrivateKeyFromDatabase
+    ? `已保存 ${alipay.applicationPrivateKeyMasked || '••••'}（留空不改动）`
+    : envHint(alipay.applicationPrivateKeyConfigured);
+  form.elements.alipayPublicKey.placeholder = alipay.alipayPublicKeyFromDatabase
+    ? `已保存 ${alipay.alipayPublicKeyMasked || '••••'}（留空不改动）`
+    : envHint(alipay.alipayPublicKeyConfigured);
+  syncAlipaySecretInputs();
+  renderAlipayBadge(alipay);
+  renderAlipayEffectiveUrls(alipay);
+  $('#alipay-test-result').textContent = '';
+  $('#alipay-test-result').className = 'admin-hint';
+}
+
+/**
+ * 把「当前实际生效」的回调地址与签名配置念出来。
+ *
+ * 「用户付了钱、订单不到账」几乎全是通知地址的问题，而过去这个值只存在于服务端
+ * 的拼接逻辑里：运营在后台看不到支付宝到底在往哪个地址推，只能靠翻代码或猜。
+ * 这里把解析后的结果直接展示出来，排障第一步就能自证。
+ */
+function renderAlipayEffectiveUrls(alipay) {
+  const target = $('#alipay-effective-urls');
+  const notify = alipay.notifyUrl || '（未配置，将按 STORE_BASE_URL 推导）';
+  const back = alipay.returnUrl || '（未配置，将按 STORE_BASE_URL 推导）';
+  target.textContent = `当前生效 · 异步通知 ${notify} · 同步跳转 ${back} · 签名 ${alipay.signType || 'RSA2'}${alipay.verifyResponseSign === false ? '（响应验签已关闭，不建议）' : ''}`;
+}
+
+/**
+ * 回填注册邮箱验证码区块。
+ *
+ * 与支付宝凭据区块共用同三条铁律：授权码永不回填（只打码放 placeholder）、
+ * 只回填「来源是后台」的字段、清除勾选框每次复位。
+ *
+ * 有效期 / 冷却的 placeholder 直接写出**当前生效的数值**：这两个值可能来自后台，
+ * 也可能来自环境变量，不写出来的话运营面对一个空输入框根本不知道现在是多少。
+ */
+function loadMailSettings(mail) {
+  const form = $('#settings-form');
+  const envText = (fromDatabase, value) =>
+    fromDatabase ? value || '' : '';
+  form.elements.mailMode.value = mail.modeFromDatabase ? mail.mode || '' : '';
+  form.elements.smtpSecurity.value = mail.smtpSecurityFromDatabase ? mail.smtpSecurity || '' : '';
+  form.elements.smtpHost.value = envText(mail.smtpHostFromDatabase, mail.smtpHost);
+  form.elements.smtpUsername.value = envText(mail.smtpUsernameFromDatabase, mail.smtpUsername);
+  form.elements.mailFrom.value = envText(mail.fromAddressFromDatabase, mail.fromAddress);
+  form.elements.smtpPort.value = mail.smtpPortFromDatabase ? mail.smtpPort : '';
+  form.elements.smtpPort.placeholder = mail.smtpPortFromDatabase
+    ? ''
+    : `跟随环境变量（当前 ${mail.smtpPort || 465}）`;
+  form.elements.smtpClearPassword.checked = false;
+  form.elements.smtpPassword.value = '';
+  form.elements.smtpPassword.placeholder = mail.smtpPasswordFromDatabase
+    ? `已保存 ${mail.smtpPasswordMasked || '••••'}（留空不改动）`
+    : mail.smtpPasswordConfigured
+      ? '跟随环境变量（已配置）'
+      : '跟随环境变量';
+  form.elements.verificationTtlSeconds.value = mail.verificationTtlFromDatabase
+    ? mail.verificationTtlSeconds
+    : '';
+  form.elements.verificationTtlSeconds.placeholder =
+    `跟随环境变量（当前 ${mail.verificationTtlSeconds}）`;
+  form.elements.verificationCooldownSeconds.value = mail.verificationCooldownFromDatabase
+    ? mail.verificationCooldownSeconds
+    : '';
+  form.elements.verificationCooldownSeconds.placeholder =
+    `跟随环境变量（当前 ${mail.verificationCooldownSeconds}）`;
+  form.elements.exposeVerificationCode.value = mail.exposeVerificationCodeFromDatabase
+    ? String(Boolean(mail.exposeVerificationCode))
+    : '';
+  syncMailSecretInput();
+  renderMailBadge(mail);
+  $('#mail-test-result').textContent = '';
+  $('#mail-test-result').className = 'admin-hint';
+}
+
+/**
+ * 渲染邮件投递的状态徽标。
+ *
+ * 这个徽标存在的唯一理由是「填了 SMTP 但授权码漏了」这种配置**不会报错**：
+ * 系统会安静地退化成写日志，用户收不到验证码、注册不了，而后台每一样看起来
+ * 都填好了。所以这里必须把「能不能真的发出去」直接说出来。
+ */
+function renderMailBadge(mail) {
+  const badge = $('#mail-delivery-status');
+  const mode = mail.mode || 'log';
+  if (mail.smtpMisconfigured) {
+    badge.textContent = 'smtp 凭据不全 · 验证码只会写日志，用户收不到';
+    badge.className = 'admin-status-chip is-danger';
+    return;
+  }
+  if (mode === 'smtp' && mail.smtpReady) {
+    badge.textContent = `SMTP 就绪 · ${mail.smtpHost}:${mail.smtpPort}`;
+    badge.className = 'admin-status-chip';
+    return;
+  }
+  if (mode === 'smtp') {
+    badge.textContent = 'smtp 模式但缺少服务器地址，验证码只会写日志';
+    badge.className = 'admin-status-chip is-danger';
+    return;
+  }
+  badge.textContent = mode === 'echo'
+    ? 'echo 模式 · 验证码在接口响应里回显，仅限本地'
+    : 'log 模式 · 验证码不会真正发出（生产请切到 smtp）';
+  badge.className = `admin-status-chip is-${mode === 'echo' ? 'warning' : 'muted'}`;
+}
+
+/** 勾了「清除授权码」就把输入框禁掉，避免「又填又清」这种自相矛盾的提交。 */
+function syncMailSecretInput() {
+  const form = $('#settings-form');
+  const clear = form.elements.smtpClearPassword;
+  const input = form.elements.smtpPassword;
+  input.disabled = clear.checked;
+  if (clear.checked) input.value = '';
+}
+
+$('#settings-form').elements.smtpClearPassword.addEventListener('change', syncMailSecretInput);
+$('#settings-form').elements.mailMode.addEventListener('change', () => {
+  // 下拉框改了但还没保存：先用「当前已保存」的结论兜底，保存后会重新加载。
+  const saved = (state.settings || {}).mail || {};
+  renderMailBadge({ ...saved, mode: $('#settings-form').elements.mailMode.value || saved.mode });
+});
+
+/** 组装 SMTP 授权码：空输入 = 不改动（否则改个站点名就会顺手清掉授权码）。 */
+function mailPasswordPayload(form) {
+  if (form.elements.smtpClearPassword.checked) return { smtpClearPassword: true };
+  const value = form.elements.smtpPassword.value.trim();
+  return value ? { smtpPassword: value } : {};
+}
+
+/**
+ * 渲染「凭据是否可用」的结论徽标。
+ *
+ * 单独抽出来是因为它有两个触发点：加载配置时，以及运营**改了支付渠道下拉框**时 ——
+ * 「把渠道切到 alipay，但凭据还没配」这个组合会直接导致下单 503，必须在切换的
+ * 当下就变色提醒，而不是等保存之后再刷新。
+ */
+function renderAlipayBadge(alipay) {
+  const form = $('#settings-form');
+  const badge = $('#alipay-credential-status');
+  const provider = form.elements.paymentProvider.value;
+  if (!alipay.configured) {
+    badge.textContent = provider === 'alipay' ? '未配置 · 渠道选了 alipay，下单会失败' : '未配置';
+    badge.className = `admin-status-chip${provider === 'alipay' ? ' is-danger' : ' is-muted'}`;
+    return;
+  }
+  const source = alipay.appIdFromDatabase ? '后台配置' : '环境变量';
+  badge.textContent = `已配置 · ${source}${alipay.sandbox ? ' · 沙箱' : ''}`;
+  badge.className = `admin-status-chip${alipay.sandbox ? ' is-warning' : ''}`;
+}
+
+/** 勾了「清除」就把对应输入框禁掉，避免「又填又清」这种自相矛盾的提交。 */
+function syncAlipaySecretInputs() {
+  const form = $('#settings-form');
+  const pairs = [
+    ['alipayClearPrivateKey', 'alipayAppPrivateKey'],
+    ['alipayClearPublicKey', 'alipayPublicKey'],
+  ];
+  pairs.forEach(([clearName, inputName]) => {
+    const clear = form.elements[clearName];
+    const input = form.elements[inputName];
+    input.disabled = clear.checked;
+    if (clear.checked) input.value = '';
+  });
+}
+
+['alipayClearPrivateKey', 'alipayClearPublicKey'].forEach((name) => {
+  $(`#settings-form`).elements[name].addEventListener('change', syncAlipaySecretInputs);
+});
+
+// 渠道下拉框一变就重算徽标：切到 alipay 但凭据不全是最常见的误配置。
+$('#settings-form').elements.paymentProvider.addEventListener('change', () => {
+  renderAlipayBadge((state.settings || {}).alipay || {});
+});
+
+/** 组装密钥字段：只有「确实要改」时才把字段放进请求体。
+ *  空输入 = 不改动（否则改个站点名就会顺手清掉密钥），勾选「清除」= 显式传空串。 */
+function alipaySecretPayload(form) {
+  const payload = {};
+  if (form.elements.alipayClearPrivateKey.checked) payload.alipayAppPrivateKey = '';
+  else if (form.elements.alipayAppPrivateKey.value.trim()) {
+    payload.alipayAppPrivateKey = form.elements.alipayAppPrivateKey.value.trim();
+  }
+  if (form.elements.alipayClearPublicKey.checked) payload.alipayPublicKey = '';
+  else if (form.elements.alipayPublicKey.value.trim()) {
+    payload.alipayPublicKey = form.elements.alipayPublicKey.value.trim();
+  }
+  return payload;
 }
 
 $('#settings-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
   try {
-    await api('/settings', {
+    await withBusy(form, async () => {
+      await api('/settings', {
       method: 'PUT',
       body: JSON.stringify({
         siteName: form.elements.siteName.value.trim(),
@@ -2300,7 +3606,7 @@ $('#settings-form').addEventListener('submit', async (event) => {
         announcement: form.elements.announcement.value.trim(),
         paymentProvider: form.elements.paymentProvider.value,
         paymentDisplayName: form.elements.paymentDisplayName.value.trim(),
-        paymentMerchantOrderTemplate: form.elements.paymentMerchantOrderTemplate.value.trim(),
+        paymentTransactionDescription: form.elements.paymentTransactionDescription.value.trim(),
         paymentEnabled: form.elements.paymentEnabled.checked,
         maintenanceMode: form.elements.maintenanceMode.checked,
         maintenanceMessage: form.elements.maintenanceMessage.value.trim(),
@@ -2308,20 +3614,128 @@ $('#settings-form').addEventListener('submit', async (event) => {
         referralRatePercent: Number(form.elements.referralRatePercent.value || 0),
         referralWithdrawalFeePercent: Number(form.elements.referralWithdrawalFeePercent.value || 0),
         referralWithdrawalMinPoints: Number(form.elements.referralWithdrawalMinPoints.value || 0),
-        referralQqGroup: form.elements.referralQqGroup.value.trim(),
         deviceReleaseCooldownSeconds: Number(form.elements.deviceReleaseCooldownSeconds.value || 0),
+        alipayAppId: form.elements.alipayAppId.value.trim(),
+        alipaySellerId: form.elements.alipaySellerId.value.trim(),
+        alipayGatewayUrl: form.elements.alipayGatewayUrl.value.trim(),
+        alipayNotifyUrl: form.elements.alipayNotifyUrl.value.trim(),
+        alipayReturnUrl: form.elements.alipayReturnUrl.value.trim(),
+        alipaySandbox: form.elements.alipaySandbox.checked,
+        ...alipaySecretPayload(form),
+        // 邮件 / 验证码：留空或 0 表示「跟随环境变量」，原样提交即可 ——
+        // 后端对 0 与空串的解释就是「不覆盖环境变量」。
+        mailMode: form.elements.mailMode.value,
+        smtpSecurity: form.elements.smtpSecurity.value,
+        smtpHost: form.elements.smtpHost.value.trim(),
+        smtpUsername: form.elements.smtpUsername.value.trim(),
+        mailFrom: form.elements.mailFrom.value.trim(),
+        smtpPort: Number(form.elements.smtpPort.value || 0),
+        verificationTtlSeconds: Number(form.elements.verificationTtlSeconds.value || 0),
+        verificationCooldownSeconds: Number(form.elements.verificationCooldownSeconds.value || 0),
+        ...mailPasswordPayload(form),
+        // 三态：null = 清回「跟随环境变量」。必须显式发 null 而不是「不发这个键」，
+        // 否则运营一旦点过这个下拉框就再也回不到「跟随环境变量」—— 后端区分
+        // 「NULL（没配过）」和「false（生产上明确关掉）」，而两者都是有效状态。
+        exposeVerificationCode: form.elements.exposeVerificationCode.value === ''
+          ? null
+          : form.elements.exposeVerificationCode.value === 'true',
       }),
-    });
-    toast('站点配置已保存');
-    await Promise.all([loadSettings(), loadOverview()]);
+      });
+      toast('站点配置已保存');
+      await Promise.all([loadSettings(), loadOverview()]);
+    }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
+});
+
+/**
+ * 测试凭据：用一笔不存在的交易探活。
+ *
+ * 之所以值得单独做一个按钮：凭据填错的反馈原本只在**用户下单**时才出现
+ * （一句笼统的验签失败），运营改完配置没有任何办法自证。这里让网关直接回答
+ * 「这套 app_id + 密钥它认不认」，且不产生任何资金动作 —— 测试的是**已保存**的
+ * 配置，所以流程是「先保存，再测试」。
+ */
+$('#alipay-test-button').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  const output = $('#alipay-test-result');
+  const label = button.textContent;
+  output.textContent = '';
+  output.className = 'admin-hint';
+  // 这个按钮不是 submit，withBusy 抓不到它（它只会找表单里的 submit 按钮），
+  // 所以忙状态在这里自己管。
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.textContent = '测试中…';
+  try {
+    const result = await api('/settings/alipay/test', { method: 'POST' });
+    output.textContent = result.message;
+    output.className = `admin-hint ${result.ok ? 'is-success' : 'is-danger'}`;
+    toast(result.ok ? '凭据可用' : '凭据不可用', result.ok ? 'success' : 'danger');
+  } catch (error) {
+    output.textContent = error.message;
+    output.className = 'admin-hint is-danger';
+    toast(error.message, 'danger');
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    button.textContent = label;
+  }
+});
+
+/**
+ * 发送测试邮件：按**已保存**的邮件配置真发一封到指定地址。
+ *
+ * 与「测试凭据」同一套立场（先保存、再测试）。它要回答的问题很具体：
+ * 「用户注册时到底收不收得到邮件」—— 这个答案过去只能靠问用户，而 SMTP
+ * 填错时的表现是静默降级成写日志，后台一切正常。
+ */
+$('#mail-test-button').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  const output = $('#mail-test-result');
+  const form = $('#settings-form');
+  const email = form.elements.mailTestEmail.value.trim();
+  output.textContent = '';
+  output.className = 'admin-hint';
+  if (!email) {
+    output.textContent = '请先填写测试收件邮箱。';
+    output.className = 'admin-hint is-danger';
+    return;
+  }
+  const label = button.textContent;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.textContent = '发送中…';
+  try {
+    const result = await api('/settings/mail/test', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+    output.textContent = result.message;
+    output.className = `admin-hint ${result.ok ? 'is-success' : 'is-danger'}`;
+    toast(result.ok ? '测试邮件已投递' : '测试邮件未投递', result.ok ? 'success' : 'danger');
+  } catch (error) {
+    output.textContent = error.message;
+    output.className = 'admin-hint is-danger';
+    toast(error.message, 'danger');
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    button.textContent = label;
+  }
 });
 
 // --------------------------------------------------------------------------- //
 // 版本发布
 // --------------------------------------------------------------------------- //
 async function loadReleases() {
-  const data = await api('/releases');
+  const params = new URLSearchParams();
+  const keyword = $('#release-keyword').value.trim();
+  const product = $('#release-product').value.trim();
+  const channel = $('#release-channel').value.trim();
+  if (keyword) params.set('keyword', keyword);
+  if (product) params.set('product', product);
+  if (channel) params.set('channel', channel);
+  const data = await pagedFetch('releases', '/releases', Object.fromEntries(params));
   state.releases = data.items;
   $('#release-rows').innerHTML = data.items.length ? data.items.map(release => `
     <tr>
@@ -2334,7 +3748,8 @@ async function loadReleases() {
           menuItem('删除', `data-release-delete="${esc(release.id)}" data-release-label="${esc(`${release.product}/${release.channel} ${release.version}`)}"`, { danger: true }),
         ),
       )}</td>
-    </tr>`).join('') : emptyRow(6, '暂无版本记录');
+    </tr>`).join('') : emptyRow(6, pageState('releases').offset > 0 ? '本页无数据' : '没有符合条件的版本记录');
+  renderPager('releases');
 }
 
 // 版本记录一旦发布就代表对外承诺，但「渠道填错 / 版本号打错 / 说明写错」
@@ -2398,15 +3813,18 @@ $('#release-form').addEventListener('submit', async (event) => {
     upgradeNotes: form.elements.upgradeNotes.value.trim(),
   };
   try {
-    if (releaseId) {
-      await api(`/releases/${releaseId}`, { method: 'PATCH', body: JSON.stringify(body) });
-      toast('版本记录已修正');
-    } else {
-      await api('/releases', { method: 'POST', body: JSON.stringify(body) });
-      toast('版本已发布');
-    }
-    openReleaseEditor(null);
-    await loadReleases();
+    await withBusy(form, async () => {
+      if (releaseId) {
+        await api(`/releases/${releaseId}`, { method: 'PATCH', body: JSON.stringify(body) });
+        toast('版本记录已修正');
+      } else {
+        await api('/releases', { method: 'POST', body: JSON.stringify(body) });
+        toast('版本已发布');
+      }
+      openReleaseEditor(null);
+      resetPage('releases');
+      await loadReleases();
+    }, '发布中…');
   } catch (error) { toast(error.message, 'danger'); }
 });
 
@@ -2480,12 +3898,16 @@ $('#audit-purge').addEventListener('click', async () => {
 // 功能权益
 // --------------------------------------------------------------------------- //
 async function loadEntitlements() {
+  const params = new URLSearchParams();
   const feature = $('#entitlement-feature').value.trim();
-  const data = await api(`/entitlements${feature ? `?feature_code=${encodeURIComponent(feature)}` : ''}`);
+  const status = $('#entitlement-status').value;
+  if (feature) params.set('keyword', feature);
+  if (status) params.set('status_filter', status);
+  const data = await pagedFetch('entitlements', '/entitlements', Object.fromEntries(params));
   state.entitlements = data.items;
   $('#entitlement-rows').innerHTML = data.items.length ? data.items.map(entry => `
     <tr>
-      <td class="mono">${cell(entry.featureCode)}</td>
+      <td>${featureCell(entry.featureCode ? [entry.featureCode] : [])}</td>
       <td>${cell(entry.productName)}</td>
       <td class="nowrap mono" title="${esc(entry.licenseId)}">${esc((entry.licenseId || '').slice(0, 8))}…</td>
       <td class="nowrap">${d(entry.startsAt)}</td>
@@ -2498,52 +3920,67 @@ async function loadEntitlements() {
           menuItem('删除', `data-entitlement-delete="${esc(entry.id)}" data-entitlement-feature="${esc(entry.featureCode)}"`, { danger: true }),
         ),
       )}</td>
-    </tr>`).join('') : emptyRow(8, '暂无权益记录');
+    </tr>`).join('') : emptyRow(8, pageState('entitlements').offset > 0 ? '本页无数据' : '没有符合条件的权益记录');
+  renderPager('entitlements');
 }
 
 function openEntitlementEditor(entry) {
   const form = $('#entitlement-patch-form');
+  const picker = $('#entitlement-patch-features');
+  closeFeaturePickers();
   form.reset();
   form.elements.id.value = entry.id;
-  form.elements.featureCode.value = entry.featureCode || '';
+  setFeaturePickerValue(picker, entry.featureCode ? [entry.featureCode] : []);
   form.elements.productName.value = entry.productName || '';
   form.elements.startsAt.value = localInput(entry.startsAt);
   form.elements.expiresAt.value = localInput(entry.expiresAt);
   form.elements.active.checked = Boolean(entry.activeFlag);
   $('#entitlement-patch-label').textContent = entry.featureCode || '';
+  renderFeatureOptions(picker);
+  syncFeatureSummary(picker);
   $('#entitlement-patch-editor').hidden = false;
 }
 
 $('#entitlement-refresh').addEventListener('click', loadEntitlements);
-$('#entitlement-search').addEventListener('click', loadEntitlements);
+$('#entitlement-search').addEventListener('click', () => { resetPage('entitlements'); loadEntitlements(); });
 $('#entitlement-new').addEventListener('click', () => {
   const form = $('#entitlement-form');
+  const picker = $('#entitlement-features');
+  closeFeaturePickers();
   form.reset();
   form.elements.active.checked = true;
+  // form.reset() 不会碰隐藏域：不显式清空，上一次填的功能码会跟着留下来。
+  setFeaturePickerValue(picker, []);
+  renderFeatureOptions(picker);
+  syncFeatureSummary(picker);
   $('#entitlement-editor').hidden = false;
 });
-$('#entitlement-cancel').addEventListener('click', () => { $('#entitlement-editor').hidden = true; });
-$('#entitlement-patch-cancel').addEventListener('click', () => { $('#entitlement-patch-editor').hidden = true; });
+$('#entitlement-cancel').addEventListener('click', () => { closeFeaturePickers(); $('#entitlement-editor').hidden = true; });
+$('#entitlement-patch-cancel').addEventListener('click', () => { closeFeaturePickers(); $('#entitlement-patch-editor').hidden = true; });
 
 $('#entitlement-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
+  // 功能码改成了选择器，隐藏域不再受浏览器 required 保护，这里自己拦一道
+  if (!requireFeatureCode($('#entitlement-features'), '请先选择功能码。')) return;
   try {
-    await api('/entitlements', {
-      method: 'POST',
-      body: JSON.stringify({
-        licenseId: form.elements.licenseId.value.trim(),
-        featureCode: form.elements.featureCode.value.trim(),
-        productName: form.elements.productName.value.trim(),
-        // 本地时间 → UTC：后端按 naive UTC 存库，直接回传本地字面量会差一个时区
-        startsAt: utcInput(form.elements.startsAt.value),
-        expiresAt: utcInput(form.elements.expiresAt.value),
-        active: form.elements.active.checked,
-      }),
-    });
-    toast('权益已创建');
-    $('#entitlement-editor').hidden = true;
-    await loadEntitlements();
+    await withBusy(form, async () => {
+      await api('/entitlements', {
+        method: 'POST',
+        body: JSON.stringify({
+          licenseId: form.elements.licenseId.value.trim(),
+          featureCode: form.elements.featureCode.value.trim(),
+          productName: form.elements.productName.value.trim(),
+          // 本地时间 → UTC：后端按 naive UTC 存库，直接回传本地字面量会差一个时区
+          startsAt: utcInput(form.elements.startsAt.value),
+          expiresAt: utcInput(form.elements.expiresAt.value),
+          active: form.elements.active.checked,
+        }),
+      });
+      toast('权益已创建');
+      $('#entitlement-editor').hidden = true;
+      await loadEntitlements();
+    }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
 });
 
@@ -2551,21 +3988,24 @@ $('#entitlement-patch-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
   const entitlementId = form.elements.id.value;
+  if (!requireFeatureCode($('#entitlement-patch-features'), '请先选择功能码。')) return;
   try {
-    await api(`/entitlements/${entitlementId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        featureCode: form.elements.featureCode.value.trim(),
-        productName: form.elements.productName.value.trim(),
-        startsAt: utcInput(form.elements.startsAt.value),
-        // 显式 null = 永久有效，所以「清空到期时间」就是改永久，符合直觉
-        expiresAt: utcInput(form.elements.expiresAt.value),
-        active: form.elements.active.checked,
-      }),
-    });
-    toast('权益已更新');
-    $('#entitlement-patch-editor').hidden = true;
-    await loadEntitlements();
+    await withBusy(form, async () => {
+      await api(`/entitlements/${entitlementId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          featureCode: form.elements.featureCode.value.trim(),
+          productName: form.elements.productName.value.trim(),
+          startsAt: utcInput(form.elements.startsAt.value),
+          // 显式 null = 永久有效，所以「清空到期时间」就是改永久，符合直觉
+          expiresAt: utcInput(form.elements.expiresAt.value),
+          active: form.elements.active.checked,
+        }),
+      });
+      toast('权益已更新');
+      $('#entitlement-patch-editor').hidden = true;
+      await loadEntitlements();
+    }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
 });
 
@@ -2685,15 +4125,87 @@ function pageState(key) {
   return paging[key];
 }
 
+// 每个分页列表对应的表格主体。集中在这里，是为了让「加载中 / 出错」这两种瞬时
+// 状态只在一个地方渲染 —— 分散到 19 个 loader 里必然漏掉一半。
+const PAGED_TABLES = {
+  products: '#product-rows',
+  orders: '#order-rows',
+  licenses: '#license-rows',
+  entitlements: '#entitlement-rows',
+  bindings: '#binding-rows',
+  coupons: '#coupon-rows',
+  withdrawals: '#withdrawal-rows',
+  accounts: '#account-rows',
+  releases: '#release-rows',
+  audits: '#audit-rows',
+  ledger: '#ledger-rows',
+  customers: '#customer-rows',
+  sessions: '#session-rows',
+  'license-sessions': '#license-session-rows',
+  'recovery-tokens': '#recovery-token-rows',
+  'login-attempts': '#attempt-rows',
+  'email-verifications': '#verification-rows',
+  'device-release-events': '#release-event-rows',
+  'coupon-redemptions': '#redemption-rows',
+};
+
+// 列数从表头现读：写死列数的话，将来给某张表加一列就得回来改这里，
+// 而漏改的后果是整行错位一整列。
+function tableSpan(tbody) {
+  const table = tbody.closest('table');
+  return table ? table.querySelectorAll('thead th').length : 1;
+}
+
+function setTableState(key, state, message = '') {
+  const tbody = PAGED_TABLES[key] ? $(PAGED_TABLES[key]) : null;
+  if (!tbody) return;
+  const wrap = tbody.closest('.table-wrap');
+  if (wrap) wrap.classList.toggle('is-busy', state === 'loading');
+  if (state === 'ready') return;
+  if (state === 'loading') {
+    tbody.innerHTML = `<tr><td colspan="${tableSpan(tbody)}"><div class="table-state is-loading">` +
+      `<span class="table-state__spinner" aria-hidden="true"></span>正在读取…</div></td></tr>`;
+  } else if (state === 'error') {
+    tbody.innerHTML = `<tr><td colspan="${tableSpan(tbody)}"><div class="table-state is-error">` +
+      `<i class="fa-duotone fa-regular fa-triangle-exclamation"></i>` +
+      `<div class="table-state__text"><strong>读取出错</strong><small>${esc(message || '请稍后重试')}</small></div>` +
+      `<button class="hb-button hb-button--secondary hb-button--sm" data-retry="${esc(key)}">重试</button>` +
+      `</div></td></tr>`;
+  }
+}
+
 // 带回 {items, total, limit, offset}，并把游标落在 paging[key] 上
 async function pagedFetch(key, path, params = {}) {
   const cursor = pageState(key);
   const query = new URLSearchParams({ ...params, limit: String(cursor.limit), offset: String(cursor.offset) });
-  const data = await api(`${path}?${query.toString()}`);
+  // 先占位再发请求：后台的列表查询偶尔要一两秒，没有占位用户会以为按钮坏了。
+  setTableState(key, 'loading');
+  let data;
+  try {
+    data = await api(`${path}?${query.toString()}`);
+  } catch (error) {
+    setTableState(key, 'error', error.message);
+    throw error;
+  }
+  // 拿到数据就把压暗去掉；行内容由各 loader 自己填（它们才知道列怎么排）。
+  // 这里只清「忙」标记，是因为 loader 紧接着就会覆写 tbody。
+  setTableState(key, 'ready');
   cursor.total = Number(data.total || 0);
   cursor.limit = Number(data.limit || cursor.limit);
   cursor.offset = Number(data.offset || 0);
   return data;
+}
+
+// 筛选条件变了必须回到第 1 页：留在第 3 页去查一个缩小后的结果集，
+// 大概率是空页，用户会以为「查不到」。
+function resetPage(key) {
+  pageState(key).offset = 0;
+}
+
+// 「已到末页」的判定：不能只比 offset+limit，末页不足一页时同样算到底了。
+function atLastPage(key) {
+  const cursor = pageState(key);
+  return cursor.offset + cursor.limit >= cursor.total;
 }
 
 function renderPager(key) {
@@ -2702,18 +4214,88 @@ function renderPager(key) {
   const to = Math.min(cursor.offset + cursor.limit, cursor.total);
   const page = Math.floor(cursor.offset / cursor.limit) + 1;
   const pages = Math.max(1, Math.ceil(cursor.total / cursor.limit));
+  const last = pages === 1 ? 0 : (pages - 1) * cursor.limit;
   $$(`[data-pager="${key}"]`).forEach(box => {
     box.innerHTML = `
       <span class="admin-pager__info">第 ${page}/${pages} 页 · 显示 ${from}–${to} / 共 ${cursor.total} 条</span>
       <button class="hb-button hb-button--secondary hb-button--sm" data-page="${key}" data-page-dir="first" ${cursor.offset <= 0 ? 'disabled' : ''}>首页</button>
       <button class="hb-button hb-button--secondary hb-button--sm" data-page="${key}" data-page-dir="prev" ${cursor.offset <= 0 ? 'disabled' : ''}>上一页</button>
-      <button class="hb-button hb-button--secondary hb-button--sm" data-page="${key}" data-page-dir="next" ${to >= cursor.total ? 'disabled' : ''}>下一页</button>`;
+      <button class="hb-button hb-button--secondary hb-button--sm" data-page="${key}" data-page-dir="next" ${atLastPage(key) ? 'disabled' : ''}>下一页</button>
+      <button class="hb-button hb-button--secondary hb-button--sm" data-page="${key}" data-page-dir="last" ${last === 0 || atLastPage(key) ? 'disabled' : ''}>末页</button>`;
   });
 }
 
+// 筛选控件 → 重载的绑定。统一在这里做，避免每个面板各写一遍
+// 「change 先 resetPage 再 load」而漏掉其中一步。
+// 参数是 [选择器, 面板 key] 列表；loader 走 PAGED_LOADERS，所以这些绑定必须在
+// PAGED_LOADERS 初始化之后、由 bindPanelFilters() 统一注册。
+function bindFilters(entries) {
+  entries.forEach(([selector, key]) => {
+    const node = $(selector);
+    const loader = PAGED_LOADERS[key];
+    if (!node || !loader) return;
+    const event = node.type === 'checkbox' || node.tagName === 'SELECT' ? 'change' : 'input';
+    node.addEventListener(event, () => {
+      resetPage(key);
+      loader();
+    });
+    // 文本框按回车即查询：运营的肌肉记忆，省一次点击。
+    if (event === 'input') {
+      node.addEventListener('keydown', (event_) => {
+        if (event_.key === 'Enter') {
+          event_.preventDefault();
+          resetPage(key);
+          loader();
+        }
+      });
+    }
+  });
+}
+
+// 「重置」按钮：把一组控件恢复成默认值再重载。
+function resetFilters(selectors, key) {
+  selectors.forEach(selector => {
+    const node = $(selector);
+    if (!node) return;
+    if (node.type === 'checkbox') node.checked = false;
+    else node.value = '';
+  });
+  resetPage(key);
+  PAGED_LOADERS[key]();
+}
+
+// 本地日期（YYYY-MM-DD）→ UTC ISO。
+// 时间区间是运营按**本地日历**选的，直接当 UTC 发出去会在东八区整体偏 8 小时，
+// 出现「筛今天却查不到今天下午的单」。边界都含当天：起点取当日 00:00:00，
+// 终点取次日 00:00:00 前一秒。
+function dayStartUtc(value) {
+  if (!value) return '';
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+}
+
+function dayEndUtc(value) {
+  if (!value) return '';
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setDate(date.getDate() + 1);
+  date.setMilliseconds(date.getMilliseconds() - 1);
+  return date.toISOString();
+}
+
 // 游标变化后要重新拉的那一支数据。key 与 data-pager / data-page 一一对应。
-// 含诊断页之外的分页列表（审计 / 积分流水 / 客户档案），所以翻页用文档级委托。
+// 除诊断页之外，还包含九张业务主表（商品/订单/授权/权益/绑定/优惠码/提现/账号/版本），
+// 它们以前一律 limit<=500 且无 offset，第 501 条之后的记录在界面上永远看不到。
 const PAGED_LOADERS = {
+  products: loadProducts,
+  orders: loadOrders,
+  licenses: loadLicenses,
+  entitlements: loadEntitlements,
+  bindings: loadBindings,
+  coupons: loadCoupons,
+  withdrawals: loadWithdrawals,
+  accounts: loadAccounts,
+  releases: loadReleases,
   sessions: loadSessions,
   'license-sessions': loadLicenseSessions,
   'recovery-tokens': loadRecoveryTokens,
@@ -2991,19 +4573,99 @@ async function loadDiagnostics() {
   await Promise.all(DIAGNOSTIC_KEYS.map(key => PAGED_LOADERS[key]()));
 }
 
-// 翻页统一在文档级委托：诊断页之外的审计/流水/客户列表共用同一套分页条
+// 翻页统一在文档级委托：全部列表（含业务主表）共用同一套分页条
+// 复制按钮统一走这一个委托处理器：激活码、订单号、客户邮箱这类值一旦要运营
+// 手工敲一遍，出错只是时间问题。
+// 无论如何都先建立选区：剪贴板 API 可能因为非安全上下文、缺少用户激活或被
+// 权限策略拦下而失败，这时用户手上已经有选中内容，按一次 Ctrl/Cmd+C 就行，
+// 而不是盯着「复制失败」自己拖鼠标。
+function selectNodeText(node) {
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 document.addEventListener('click', async (event) => {
+  const trigger = event.target.closest('[data-copy-target]');
+  if (!trigger) return;
+  const node = $(trigger.dataset.copyTarget);
+  const text = node ? node.textContent.trim() : '';
+  if (!text) return toast('没有可复制的内容', 'warning');
+  selectNodeText(node);
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else if (!document.execCommand('copy')) {
+      throw new Error('copy rejected');
+    }
+    toast('已复制');
+  } catch (error) {
+    toast('已选中内容，请按 Ctrl/Cmd + C 复制', 'warning');
+  }
+});
+
+document.addEventListener('click', async (event) => {
+  const retry = event.target.closest('[data-retry]');
+  if (retry) {
+    const loader = PAGED_LOADERS[retry.dataset.retry];
+    if (loader) await loader();
+    return;
+  }
   const page = event.target.closest('[data-page]');
   if (!page) return;
   const key = page.dataset.page;
   const loader = PAGED_LOADERS[key];
   if (!loader) return;
   const cursor = pageState(key);
-  if (page.dataset.pageDir === 'first') cursor.offset = 0;
-  else if (page.dataset.pageDir === 'prev') cursor.offset = Math.max(0, cursor.offset - cursor.limit);
+  const dir = page.dataset.pageDir;
+  if (dir === 'first') cursor.offset = 0;
+  else if (dir === 'prev') cursor.offset = Math.max(0, cursor.offset - cursor.limit);
+  else if (dir === 'last') cursor.offset = Math.max(0, (Math.ceil(cursor.total / cursor.limit) - 1) * cursor.limit);
   else cursor.offset += cursor.limit;
   await loader();
 });
+
+// 各面板的筛选控件 → 重载。集中注册的理由：loader 需要 PAGED_LOADERS 已经建好
+// （它在本文件靠后位置定义），分散在各面板里注册会踩到暂时性死区。
+function bindPanelFilters() {
+  bindFilters([
+    ['#product-keyword', 'products'],
+    ['#product-status', 'products'],
+    ['#order-status', 'orders'],
+    ['#order-keyword', 'orders'],
+    ['#order-date-from', 'orders'],
+    ['#order-date-to', 'orders'],
+    ['#order-review', 'orders'],
+    ['#license-keyword', 'licenses'],
+    ['#license-status', 'licenses'],
+    ['#license-expiring', 'licenses'],
+    ['#entitlement-feature', 'entitlements'],
+    ['#entitlement-status', 'entitlements'],
+    ['#binding-keyword', 'bindings'],
+    ['#binding-active-only', 'bindings'],
+    ['#coupon-keyword', 'coupons'],
+    ['#coupon-status', 'coupons'],
+    ['#withdrawal-status', 'withdrawals'],
+    ['#withdrawal-keyword', 'withdrawals'],
+    ['#account-keyword', 'accounts'],
+    ['#account-role', 'accounts'],
+    ['#account-status', 'accounts'],
+    ['#release-keyword', 'releases'],
+    ['#release-product', 'releases'],
+    ['#release-channel', 'releases'],
+  ]);
+
+  $('#product-reset').addEventListener('click', () => resetFilters(['#product-keyword', '#product-status'], 'products'));
+  $('#license-reset').addEventListener('click', () => resetFilters(['#license-keyword', '#license-status', '#license-expiring'], 'licenses'));
+  $('#entitlement-reset').addEventListener('click', () => resetFilters(['#entitlement-feature', '#entitlement-status'], 'entitlements'));
+  $('#binding-reset').addEventListener('click', () => resetFilters(['#binding-keyword', '#binding-active-only'], 'bindings'));
+  $('#coupon-reset').addEventListener('click', () => resetFilters(['#coupon-keyword', '#coupon-status'], 'coupons'));
+  $('#withdrawal-reset').addEventListener('click', () => resetFilters(['#withdrawal-status', '#withdrawal-keyword'], 'withdrawals'));
+  $('#account-reset').addEventListener('click', () => resetFilters(['#account-keyword', '#account-role', '#account-status'], 'accounts'));
+  $('#release-reset').addEventListener('click', () => resetFilters(['#release-keyword', '#release-product', '#release-channel'], 'releases'));
+}
 
 $('#diagnostics-refresh').addEventListener('click', () => {
   // 刷新时回到第一页，否则旧游标可能落在已经变短的列表之外
@@ -3099,9 +4761,25 @@ $('#panel-diagnostics').addEventListener('click', async (event) => {
 // --------------------------------------------------------------------------- //
 // 启动
 // --------------------------------------------------------------------------- //
+// 筛选控件在启动时统一注册，且只注册一次：它给每个筛选控件挂 change/submit 监听，
+// 挂两遍会让每次改动都触发两次列表请求。
+// 放在这里而不是各面板旁边，是因为它依赖本文件靠后定义的 PAGED_LOADERS 与
+// resetPage（提前注册会踩到暂时性死区）。
+bindPanelFilters();
+
 const initialPage = (location.hash || '#overview').replace('#', '');
 bootstrap().then(() => {
   if (loaders[initialPage]) activate(initialPage);
+});
+
+// 点导航走 activate()，但浏览器前进/后退、以及手工改地址栏只改 hash，不会调 activate。
+// 没有这个监听就会出现「地址栏是 #orders、画面还停在概览」的错位——刷新一下才对得上，
+// 用户会以为后台卡住了。点击导航时 hash 与面板同时变化，这里用面板 id 去重，避免重复加载。
+window.addEventListener('hashchange', () => {
+  const page = (location.hash || '#overview').replace('#', '');
+  if (!loaders[page]) return;
+  if (document.querySelector('.admin-panel.active')?.id === `panel-${page}`) return;
+  activate(page);
 });
 </script>
 </body>

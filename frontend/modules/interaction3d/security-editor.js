@@ -1,18 +1,18 @@
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "./presence-motion.js?v=20260915211726";
-import { mountInteraction3d } from "./runtime.js?v=20260915211726";
-import { openPresenceEditor } from "./presence-editor.js?v=20260915211726";
+} from "./presence-motion.js?v=20260916013557";
+import { mountInteraction3d } from "./runtime.js?v=20260916013557";
+import { openPresenceEditor } from "./presence-editor.js?v=20260916013557";
 import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
-} from "./editor-save-status.js?v=20260915211726";
+} from "./editor-save-status.js?v=20260916013557";
 import { randomUuid } from "/static/utils/random-id.js";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/modules/interaction3d/bridge.js?v=20260915211726";
+} from "/static/modules/interaction3d/bridge.js?v=20260916013557";
 import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js";
 export async function openSecurityEditor({
   component: component,
@@ -48,7 +48,7 @@ export async function openSecurityEditor({
   const styleSheetLinkElement = createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260915211726";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260916013557";
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D 安防配置");
   editorDialogElement.dataset.i3dPreviewScope = "security";

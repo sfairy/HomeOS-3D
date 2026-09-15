@@ -33,9 +33,12 @@
         $('#referral-copy-code').hidden=!w;$('#referral-copy-link').hidden=!w;
         $('#referral-link').hidden=!w;
         if(w) $('#referral-link').value=`${location.origin}/user/authentication/register?invite=${encodeURIComponent(w.code)}`;
-        $('#referral-stats').innerHTML=[['可用积分',w?.balance],['提现中积分',w?.frozen],['累计净奖励',w?.earned],['已提现积分',w?.withdrawn]].map(([label,v])=>`<article><small>${label}</small><strong>${esc(v||'0.00')}</strong><small>积分</small></article>`).join('');
-        $('#referral-withdraw-form button').disabled=!w || Number(w.balance)<100 || Number(w.frozen)>0;
-        $('#referral-qq').href=s.qqUrl;$('#referral-qq').textContent=`加入 QQ 群 ${s.qqGroup}，联系群主`;$('#referral-qq').hidden=false;
+        // 「可用积分」必须和服务端 referrals.available_points 同一口径：余额 - 提现冻结。
+        // 这里曾经直接展示 balance，于是「可用」把已申请提现的钱也算进去了，
+        // 用户看着 100 积分却提不出来。
+        const available = Math.max(0, Number(w?.balance || 0) - Number(w?.frozen || 0));
+        $('#referral-stats').innerHTML=[['可用积分',available],['提现中积分',w?.frozen],['累计净奖励',w?.earned],['已提现积分',w?.withdrawn]].map(([label,v])=>`<article><small>${label}</small><strong>${esc(typeof v === 'number' ? v.toFixed(2) : (v||'0.00'))}</strong><small>积分</small></article>`).join('');
+        $('#referral-withdraw-form button').disabled=!w || available<100 || Number(w.frozen)>0;
         $('#referral-guide-reward').textContent=`好友注册后，实际支付成功的订单，按实付金额的 ${s.ratePercent}% 奖励积分。注册本身不发积分，支付成功后自动入账。`;
         $('#referral-guide-fee').textContent=`1 积分等于 1 元，满 100 积分可以申请提现。当前手续费 ${s.withdrawalFeePercent}%，申请 100 积分，扣除 ${s.withdrawalFeePercent} 积分手续费，实际到账 ${(100-Number(s.withdrawalFeePercent)).toFixed(2)} 元。手续费不足 0.01 部分舍去。`;
         preview();
@@ -43,7 +46,7 @@
       async function history(){
         document.querySelectorAll('[data-referral-history]').forEach(b=>{b.classList.toggle('hb-button--primary',b.dataset.referralHistory===kind);b.classList.toggle('hb-button--secondary',b.dataset.referralHistory!==kind);});
         const current=++sequence;const result=await api(`/referrals/history?kind=${kind}&page=${page}`);if(current!==sequence)return;
-        $('#referral-history').innerHTML=kind==='ledger' ? table(['时间','类型','可用积分变化','冻结积分变化','余额','说明'],result.items.map(i=>[esc(date(i.createdAt)),esc(labels[i.kind]||i.kind),esc(i.delta),esc(i.frozenDelta),esc(i.balanceAfter),`${esc(i.note)}${i.reference ? `<code>${esc(i.reference)}</code>` : ''}`])) : table(['申请时间 / 编号','申请积分','手续费积分','实际到账（积分等值）','状态','处理说明'],result.items.map(i=>[`${esc(date(i.createdAt))}<code>${esc(i.id)}</code>`,esc(i.points),`${esc(i.feePoints)} (${esc(i.feePercent)}%)`,esc(i.netPoints),esc(labels[i.status]),`${esc(i.note||'请到 QQ 群联系群主')}<small>${esc(date(i.resolvedAt))}</small>`]));
+        $('#referral-history').innerHTML=kind==='ledger' ? table(['时间','类型','可用积分变化','冻结积分变化','余额','说明'],result.items.map(i=>[esc(date(i.createdAt)),esc(labels[i.kind]||i.kind),esc(i.delta),esc(i.frozenDelta),esc(i.balanceAfter),`${esc(i.note)}${i.reference ? `<code>${esc(i.reference)}</code>` : ''}`])) : table(['申请时间 / 编号','申请积分','手续费积分','实际到账（积分等值）','状态','处理说明'],result.items.map(i=>[`${esc(date(i.createdAt))}<code>${esc(i.id)}</code>`,esc(i.points),`${esc(i.feePoints)} (${esc(i.feePercent)}%)`,esc(i.netPoints),esc(labels[i.status]),`${esc(i.note||'待处理')}<small>${esc(date(i.resolvedAt))}</small>`]));
         $('#referral-page').textContent=`第 ${page} 页 · 共 ${result.total} 条`;$('#referral-prev').disabled=page===1;$('#referral-next').disabled=page*20>=result.total;
       }
       const copy = async text => {try{await navigator.clipboard.writeText(text);toast('已复制');}catch{const input=$('#referral-link');input.hidden=false;input.value=text;input.focus();input.select();toast('请长按或使用 Ctrl/Cmd+C 复制选中内容');}};
@@ -53,10 +56,10 @@
       $('#referral-withdraw-form').onsubmit=async e=>{
         e.preventDefault();if(busy)return;busy=true;const form=e.currentTarget;form.querySelector('button').disabled=true;
         try{
-          const item=await api('/referrals/withdrawals',{method:'POST',body:JSON.stringify({points:form.elements.points.value,qq:form.elements.qq.value.trim(),requestKey,expectedFeePercent:data.settings.withdrawalFeePercent})});
-          requestKey=crypto.randomUUID();$('#referral-application').textContent=`申请已提交，编号：${item.id}。请加入下方 QQ 群，联系群主办理提现。`;
+          const item=await api('/referrals/withdrawals',{method:'POST',body:JSON.stringify({points:form.elements.points.value,requestKey,expectedFeePercent:data.settings.withdrawalFeePercent})});
+          requestKey=crypto.randomUUID();$('#referral-application').textContent=`申请已提交，编号：${item.id}。请联系客服办理提现。`;
           kind='withdrawals';page=1;await refresh();await history();
-        }catch(e){error(e);await refresh().catch(()=>{});}finally{busy=false;form.querySelector('button').disabled=!data?.wallet||Number(data.wallet.balance)<100||Number(data.wallet.frozen)>0;}
+        }catch(e){error(e);await refresh().catch(()=>{});}finally{busy=false;const avail=Math.max(0,Number(data?.wallet?.balance||0)-Number(data?.wallet?.frozen||0));form.querySelector('button').disabled=!data?.wallet||avail<100||Number(data?.wallet?.frozen)>0;}
       };
       document.querySelectorAll('[data-referral-history]').forEach(b=>b.onclick=()=>{kind=b.dataset.referralHistory;page=1;document.querySelectorAll('[data-referral-history]').forEach(x=>{x.classList.toggle('hb-button--primary',x===b);x.classList.toggle('hb-button--secondary',x!==b);});history().catch(error);});
       $('#referral-prev').onclick=()=>{page--;history().catch(error);};$('#referral-next').onclick=()=>{page++;history().catch(error);};

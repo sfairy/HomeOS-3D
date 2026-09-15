@@ -22,9 +22,9 @@ from sqlalchemy.orm import Session
 
 from store.app import create_app
 from store.config import load_settings
-from store.migrations import ensure_current_release
+from store.release_info import ensure_current_release
 from store.models import Account, Product, ProductImage, Release, StoreSetting
-from store.security import hash_password
+from store.security import hash_password, utcnow
 from store.serializers import list_json
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)-7s %(message)s")
@@ -44,7 +44,6 @@ BASE_PRODUCT_FEATURES = [
     "ha.sync",
     "projects.write",
     "runtime.websocket",
-    "ui.base",
 ]
 MODULE_3D_FEATURES = ["module.3d_interaction"]
 
@@ -56,7 +55,12 @@ def seed_admin(session: Session, email: str, password: str) -> Account:
     if account is not None:
         if not account.is_admin:
             account.is_admin = True
-            session.flush()
+        # 管理员是运营在服务端直接建出来的，邮箱归属早已确定：留空会让这个账号
+        # 被 ``_require_verified`` 挡在「看订单 / 下单」之外，而它自己又没有任何
+        # 触发验证码的入口（注册走不到、后台建号也不发码）。
+        if account.email_verified_at is None:
+            account.email_verified_at = utcnow()
+        session.flush()
         logger.info("管理员已存在：%s", email)
         return account
     account = Account(
@@ -64,6 +68,8 @@ def seed_admin(session: Session, email: str, password: str) -> Account:
         password_hash=hash_password(password),
         is_admin=True,
         is_active=True,
+        # 同上：服务端建号即视为已验证，否则新装出来的管理员一步都走不动
+        email_verified_at=utcnow(),
     )
     session.add(account)
     session.flush()
@@ -81,7 +87,7 @@ def seed_products(session: Session) -> dict[str, Product]:
     base = existing.get("base")
     if base is None:
         base = Product(
-            name="编辑器+栖光UI+绘制工具",
+            name="编辑器+绘制工具",
             product_code="homeos",
             price_cents=4990,
             validity_days=None,
@@ -117,7 +123,7 @@ def seed_products(session: Session) -> dict[str, Product]:
     package = existing.get("package")
     if package is None:
         package = Product(
-            name="编辑器+栖光UI+绘制工具+3D交互",
+            name="编辑器+绘制工具+3D交互",
             product_code="homeos",
             price_cents=7990,
             validity_days=None,
@@ -140,9 +146,9 @@ def seed_products(session: Session) -> dict[str, Product]:
 def seed_release(session: Session) -> None:
     """写入当前版本的发布记录。
 
-    记录内容（版本号、日期、升级说明）统一由 ``store.migrations`` 维护，
+    记录内容（版本号、日期、升级说明）统一由 ``store.release_info`` 维护，
     这里只负责在初始化脚本里触发一次，避免同一个版本号写两处、seed 与启动
-    迁移各说各话。
+    时的兜底补写各说各话。
     """
     ensure_current_release(session)
 

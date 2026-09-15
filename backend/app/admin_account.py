@@ -182,25 +182,12 @@ class AdminAccountStore:
             user = self._admin_user(session)
             if user is None:
                 return "empty"
-            if user.auth_externalized:
-                session.execute(delete(LoginSession))
-                session.commit()
-                self._recovery_user_id = user.id
-                return "reset_required"
-            credentials = AdminAccountCredentials(
-                user_id=user.id, username=user.username, password_hash=user.password_hash
-            )
-            self._write(credentials)
-            try:
-                user.password_hash = EXTERNAL_PASSWORD_SENTINEL
-                user.auth_externalized = True
-                session.commit()
-            except Exception:
-                session.rollback()
-                self._discard(credentials)
-                raise
-            self._credentials = credentials
-            return "migrated"
+            # 库内还留着管理员、但账号文件不存在：一律按「需要重新设置」处理，
+            # 由设置页重建账号文件（不在此处把库内凭据外置为账号文件）。
+            session.execute(delete(LoginSession))
+            session.commit()
+            self._recovery_user_id = user.id
+            return "reset_required"
 
     def stage(self, user: User, password_hash: str) -> AdminAccountCredentials:
         if self.initialized:

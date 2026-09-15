@@ -8,8 +8,8 @@
 
 ## 功能
 
-- 仪表盘编辑：页面、控件、实体绑定、弹窗、主题（默认 `ui.base`）
-- 正式展示：`/display/{项目ID}` 或 `/habridge/{项目名称}` 打开全屏中控页
+- 仪表盘编辑：页面、控件、实体绑定、弹窗、主题（内置 `homeos-dark`）
+- 正式展示：`/display/{项目名称}` 打开全屏中控页
 - 中控配对：6 位配对码，适合墙面平板或独立浏览器
 - 3D 户型：建模、导入、按楼层或全楼自动导图并回写到仪表盘；灯光按「区域」归类，墙体与灯光属性可批量应用
 - 3D 交互：仪表盘控件嵌入户型舞台；从工作室草稿快照场景，在舞台里开关已绑定的灯、开关、窗帘、空调、电视等；展示页用 iframe 打开同一舞台
@@ -49,7 +49,7 @@ HomeOS/app
 ```text
 HomeOS/app/
 ├── backend/app/            # FastAPI 应用（PYTHONPATH 指向这里）
-│   ├── api/                # 认证、项目、HA、资源、UI Pack、3D、日志、图标、中控、更新
+│   ├── api/                # 认证、项目、HA、资源、3D、日志、图标、中控、更新
 │   ├── ha/                 # HA 客户端、同步、状态推送
 │   ├── panel/              # 仪表盘文档与校验
 │   ├── modules/            # 增量能力（3D 交互）
@@ -66,34 +66,30 @@ HomeOS/app/
 │       ├── modules/        # 3D 交互编辑器桥接、封面、定义
 │       ├── utils/          # 户型工作室与 3D 交互共用工具
 │       ├── templates/      # 控件模板
-│       ├── ui-packs/       # UI Pack 资源
 │       ├── component-thumbnails/  audio/  vendor/（three.js、hls.js、MDI）
 ├── store/                  # 授权商店 + 授权服务器 + 运营后台
 │   ├── app.py run.py config.py models.py schemas.py serializers.py
 │   ├── api/                # store.py(/store/v1) license.py(/v2) admin.py alipay.py pages.py
 │   ├── licensing/          # 服务端传输加密 + 租约签发 + 三端点业务
 │   ├── payments/           # base / mock / alipay（签名·下单·验签·查单）/ 统一入账
-│   ├── fulfill.py referrals.py site_settings.py mailer.py security.py
+│   ├── fulfill.py referrals.py site_settings.py release_info.py mailer.py security.py
 │   ├── templates/          # store.html（前台 8 个分页）+ admin.html（后台 11 个 panel）
 │   ├── static/             # theme.css（唯一设计系统）+ store.css / admin.css（页面布局）+ 字体·图标·jQuery·JS
 │   ├── tools/              # gen_keys / seed / smoke / e2e
 │   ├── keys/local/         # 授权私钥（不入库）
 │   └── data/               # 商店 SQLite 与商品图（不入库）
 ├── keys/                   # 客户端默认读取的公钥镜像（由 gen_keys 自动同步）
-├── migrations/             # Alembic 迁移 0001–0014
-├── image/v1/               # 内置素材与示例户型图
-├── dashboard_templates/    # 内置仪表盘模板
+├── migrations/             # Alembic 单条基线迁移 0001
+├── image/                  # 可选的自定义内置素材目录（默认空）
 ├── tools/                  # bump_static_cache_versions.mjs（静态资源 ?v=）
 ├── data/                   # 主应用运行时数据（不入库）
 ├── .env.example            # 本地密钥与配置模板（复制为 .env）
-├── alembic.ini  VERSION  start.py  container_entrypoint.py
-├── release-manifest.json  sbom.cdx.json
-└── .prettierrc.json  .prettierignore
+└── alembic.ini  VERSION  start.py  container_entrypoint.py
 ```
 
 不要删除 `frontend/`。内置素材目录 `image/` 可自行增删，编辑器里也可改用用户上传图片。
 
-以下内容已写入 `.gitignore`：`data/`、`store/data/`、`store/keys/`、`.env*`、`.venv-store/`、`*.pem.key`。
+以下内容已写入 `.gitignore`：`data/`、`store/data/`、`store/keys/local/`、`.env` 与 `.env.*`（`.env.example` 除外）、`.venv-store/`、`*-private.pem`。
 
 ## 环境
 
@@ -101,7 +97,7 @@ HomeOS/app/
 - 本机同时跑两个进程：主应用 **18081**、授权商店 **18082**
 - 连接 Home Assistant 时，主应用需要能访问 HA 的 HTTP 与 WebSocket
 
-依赖见 [store/requirements.txt](store/requirements.txt)：FastAPI、Uvicorn、SQLAlchemy、Pydantic、httpx、cryptography、Jinja2、python-multipart。主应用与商店共用同一份依赖。
+依赖见 [store/requirements.txt](store/requirements.txt)：FastAPI、Uvicorn、SQLAlchemy、Pydantic、httpx、cryptography、python-multipart。主应用与商店共用同一份依赖。
 
 其中 `watchfiles` 只服务本地热重载：`start.py` 会给商店设 `STORE_RELOAD=1`，`store/run.py` 据此以 uvicorn reload 模式启动并监听 `store/` 目录。缺这个包时商店不会跟随 `store/api/*.py` 的改动重启，改了模块级常量（例如模拟收银台的内联 HTML 与静态资源版本戳）就必须手动重启才能生效。
 
@@ -133,7 +129,7 @@ python3 start.py
 
 主应用打开 <http://127.0.0.1:18081/setup>，商店打开 <http://127.0.0.1:18082/>。
 
-数据库迁移在主应用启动时自动执行。需要手工升级时：
+数据库结构由单条基线迁移在主应用启动时自动建立。需要手工执行时：
 
 ```bash
 APP_DATA_DIR=./data PYTHONPATH=backend/app alembic upgrade head
@@ -180,15 +176,15 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 
 租约携带的能力码决定主应用各部分是否可用（`LicenseService.allows`）：
 
-`api`、`assets`、`editor`、`display`、`ha.sync`、`ha.configure`、`ha.control`、`projects.write`、`runtime.websocket`、`ui.base`、`module.3d_interaction`。
+`api`、`assets`、`editor`、`display`、`ha.sync`、`ha.configure`、`ha.control`、`projects.write`、`runtime.websocket`、`module.3d_interaction`。
 
 `store.tools.seed` 写入的三条商品与能力码对应关系：
 
 | 商品 | 类型 | 能力码 |
 | --- | --- | --- |
-| 编辑器+栖光UI+绘制工具 | `base` | 上表除 `module.3d_interaction` 外的全部 |
+| 编辑器+绘制工具 | `base` | 上表除 `module.3d_interaction` 外的全部 |
 | 3D交互包 | `module` | `module.3d_interaction` |
-| 编辑器+栖光UI+绘制工具+3D交互 | `package` | 基础能力 + `module.3d_interaction` |
+| 编辑器+绘制工具+3D交互 | `package` | 基础能力 + `module.3d_interaction` |
 
 ### 重启时的联网确认
 
@@ -296,18 +292,16 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `/login` | 管理员登录 |
 | `/license` | 用激活码 + 购买邮箱激活 |
 | `/` | 仪表盘编辑器 |
-| `/3d-studio` | 3D 户型工作室（`/projects/{id}/3d-studio` 308 重定向到此） |
+| `/3d-studio` | 3D 户型工作室 |
 | `/pair` | 中控设备配对 |
-| `/display/{project_id}` | 按项目 ID 打开展示页 |
-| `/habridge/{project_name}` | 按项目名称打开展示页 |
+| `/display/{project_name}` | 正式展示地址：按项目名称打开全屏中控页 |
 | `/health/live` · `/health/ready` | 进程存活 · 数据库就绪 |
 | `/api/v1/auth/*` | 初始化、登录、登出、当前用户 |
 | `/api/v1/projects/*` | 仪表盘项目与草稿（`projects.write`） |
 | `/api/v1/ha/*` | HA 连接、实体、翻译、历史、区域、设备、同步、健康、服务调用、媒体浏览 |
 | `/api/v1/ha/*` 子集 | `ha.configure` / `ha.sync` / `ha.control` 分别门禁 |
 | `/api/v1/displays/*` | 中控设备与配对码 |
-| `/api/v1/assets/*` | 内置素材、用户图片、UI Pack、灯光效果变体、户型导出 |
-| `/api/v1/ui-packs/*` | UI Pack 列表与运行时脚本 |
+| `/api/v1/assets/*` | 内置素材、用户图片、灯光效果变体、户型导出 |
 | `/api/v1/icons` | 图标目录 |
 | `/api/v1/studio3d/*` | 3D 草稿与导出 |
 | `/api/v1/modules/interaction3d/*` | 3D 交互：场景快照、舞台页、灯光缓存、配置编辑脚本 |
@@ -355,13 +349,12 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `exports/` | 3D 导出 |
 | `logs/` | 全局事件日志 |
 | `cache/effect-variants/` | 灯光效果变体缓存 |
-| `upgrade-backups/` | 升级前数据库备份 |
 
 授权商店数据在 `store/data/`：`store.db` 与商品图。授权私钥在 `store/keys/local/`。**不要提交这些文件。**
 
 ## 环境变量
 
-主应用与商店的变量可以统一写进仓库根目录的 `.env`（见 [.env.example](.env.example)，已 gitignore）。优先级：**真实环境变量 > `.env` > 代码 / `start.py` 默认值**。
+主应用与商店的变量可以统一写进仓库根目录的 `.env`：把模板 [.env.example](.env.example) 复制成 `.env` 再按需取消注释（`.env` 已被 gitignore）。优先级：**真实环境变量 > `.env` > 代码 / `start.py` 默认值**。
 
 ### 主应用
 
@@ -410,7 +403,11 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `STORE_SESSION_MAX_AGE_SECONDS` | `2592000` | 商店会话有效期 |
 | `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` | 代码内置开发默认值 | `seed` 初始化管理员（生产务必覆盖） |
 
-站点名、公告、客服邮箱、维护模式、邀请比例、提现手续费、解绑冷却等**运行时配置**存在数据库里，直接在 `/admin` 的「站点配置」里改，不需要重启。支付渠道是「后台站点配置优先于 `.env`」。完整的商店变量、支付宝接入步骤与排障表见 [store/README.md](store/README.md)。
+站点名、公告、客服邮箱、维护模式、邀请比例、提现手续费、解绑冷却等**运行时配置**存在数据库里，直接在 `/admin` 的「站点配置」里改，不需要重启。支付渠道是「后台站点配置优先于 `.env`」。
+
+注册邮箱验证码同样如此：投递方式、SMTP 主机 / 端口 / 加密方式 / 授权码 / 发件人，以及验证码有效期与重发冷却，都能在 `/admin` 的「站点配置 → 注册邮箱验证码」里改，**保存即生效、免重启**。口径与支付一致 —— 后台留空 / 填 `0` 表示「跟随 `.env`」，填了值就以后台为准；SMTP 授权码只显示打码值，留空不改动、勾「清除已保存的授权码」才回到环境变量。区块里可以直接看到当前生效的配置与「SMTP 是否就绪」，并有一个「发送测试邮件」按钮往指定邮箱真发一封（不写验证码记录、不占发信配额）—— 排障时用它区分「我们发不出去」和「对方网关拒收」。冷却必须短于有效期，否则保存会被拒（那种配置会让用户在验证码过期后被冷却锁住，彻底无法注册）。支付宝的回调地址（异步通知 / 同步跳转）与交易标题也在后台可改，且不能填 `localhost` / 内网地址 —— 支付宝访问不到，订单会一直停在「待支付」。
+
+完整的商店变量、支付宝接入步骤与排障表见 [store/README.md](store/README.md)。
 
 ## Docker
 
@@ -427,7 +424,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 
 反向代理请转发 WebSocket（`/api/v1/ws/runtime`）以及 `/api/hls/`、`/api/camera_proxy/` 等媒体路径。站点走 HTTPS 时设置 `APP_COOKIE_SECURE=true`。
 
-升级时不要清空 `/data`。应用会在迁移前备份数据库，失败则回滚。
+升级时不要清空 `/data`。数据库结构由单条基线迁移 `0001` 建立；若库内记录的是更早构建的 revision，启动时会直接认领该基线（不改动任何业务数据）。
 
 从运行中的容器导出应用目录：
 
@@ -450,16 +447,26 @@ node tools/bump_static_cache_versions.mjs
 ## 开发注意
 
 - 静态资源缓存标记统一为 `?v=YYYYMMDDHHMMSS`（14 位本地时间，例如 `?v=20260915103715`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后执行 `node tools/bump_static_cache_versions.mjs` 全局同戳 bump；`home.js` 与 `renderer.js` 必须使用同一条 `registry.js?v=`，否则会出现两份控件注册表。
-- 前端 JS / CSS / HTML 遵循 [.prettierrc.json](.prettierrc.json)（`printWidth=100`，HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
+- 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
 - 不要改 `frontend/static/vendor/` 下的 three.js、hls.js、OrbitControls 等第三方文件。
 - 界面中文文案保持原词；缓存戳改动请用 `tools/bump_static_cache_versions.mjs`。
-- 静态资源是扁平目录：`/static/home.js`、`/static/app.css`；子目录为 `renderer/`、`3d-studio/`、`modules/`、`utils/`、`templates/`、`ui-packs/`、`component-thumbnails/`、`audio/`、`vendor/`。
+- 静态资源是扁平目录：`/static/home.js`、`/static/app.css`；子目录为 `renderer/`、`3d-studio/`、`modules/`、`utils/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`。
 - `migrations/env.py` 必须从 `backend/app` 导入 `database` 和 `models`（`from backend.app.database import Base`），不要写成相对导入，否则会重复注册表。
 - 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename}` 下发，需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
 - 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前，令牌值与 `frontend/static/app.css` 对齐（`smoke.py` 会比对，主程序改色而商店没跟就会 FAIL）。详见 [store/README.md](store/README.md) 的「界面主题」。
 - 改动商店授权端点错误文案前，先核对客户端 `is_confirmed_revocation` 的吊销短语表。
 
 ## 更新日志
+
+### v0.5.5
+
+移除
+
+- 彻底下线**栖光 UI 方案**（`ui.base` / DWELL LIGHT）：删除前后端 UI Pack 抽象（`ui_packs.py`、`/api/v1/ui-packs`、`uiPack` / `templateRef.uiPackId` 字段、`ui.base` 能力码），控件模板注册改为按 `templateId` 单键，文档归一化收敛为 `normalizeDashboardDocument`。
+- 删除内置仪表盘模板 `dwell-light`（`dashboard_templates/`、预览轮播与项目创建时的模板选择）与全部栖光预览/封面资源；新建仪表盘只有「空白画布」一种路径。
+- 删除整个 `image/v1` 内置素材（61 张，含示例户型图）与 `legacy_asset_ids` 户型图路径映射；素材选择器只保留「我的图片」。`image/` 目录保留但默认为空。
+- 数据迁移：本项目按**首个发布版本**维护，不再保留历史版本数据迁移。Alembic `0001–0015` 合并为单条基线 `0001_initial_schema`；删除升级前备份 / 失败回滚、`data/secrets/` 密钥搬迁、管理员凭据外置的 `migrated` 分支、旧中控令牌补挂，以及商店启动时的补列 / 品牌标识回填 / 旧图标路径自愈 / `ui.base` 剔除（发布记录兜底迁至 `store/release_info.py`）。库内残留旧 revision 时由启动流程直接认领基线，业务数据不受影响。
+- 下线发布清单与 SBOM：删除 `release-manifest.json` 与 `sbom.cdx.json`。仓库内既没有生成器（`tools/release_artifacts.py` 从未入库），CI 的 `Release manifest consistency` 步骤也已一并移除。
 
 ### v0.5.5
 
@@ -498,10 +505,10 @@ node tools/bump_static_cache_versions.mjs
     - 支付渠道 `mock`（本地收银台）与 `alipay`（当面付扫码）可切换；异步通知验签 + 主动查单兜底，统一入账且重复通知只发一次码。
 - 客户端默认零配置指向自建授权服务器（`backend/app/config.py` 内置端点、keyId 与公钥 sha256），厂商生产节点与生产公钥已彻底移除。
 - 仓库根 `keys/` 作为客户端信任锚公钥镜像，由 `store.tools.gen_keys` 从 `store/keys/local/` 自动同步，二者逐字节一致。
-- 新增 `.env` / `.env.example` 本地配置（SMTP 授权码、支付宝私钥等不进版本库）与 `store/env.py` 极简加载器。
+- 新增 `.env` 本地配置（SMTP 授权码、支付宝私钥等只落在被 gitignore 的 `.env` 里，随仓库分发的 `.env.example` 只含占位符）与 `store/env.py` 极简加载器。
 - 新增 `tools/bump_static_cache_versions.mjs`（统一静态资源 `?v=YYYYMMDDHHMMSS`）。
 - 新增 [frontend/NAMING.md](frontend/NAMING.md) 前端命名规范。
-- 新增 `release-manifest.json`、`sbom.cdx.json`、`.prettierrc.json` / `.prettierignore`。
+- 新增 `release-manifest.json`、`sbom.cdx.json`。
 
 优化
 

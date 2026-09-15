@@ -53,14 +53,21 @@ function applyPairingHash() {
           payload.detail ||
             "\u914D\u5BF9\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u914D\u5BF9\u7801\u3002"
         );
-      if (!/^\/display\/[A-Za-z0-9_-]+$/.test(payload.targetUrl || ""))
+      const panelUrl = new URL(payload.targetUrl || "", location.origin);
+      if (
+        panelUrl.origin !== location.origin ||
+        !panelUrl.pathname.startsWith("/display/") ||
+        panelUrl.pathname.length <= "/display/".length
+      )
         throw new Error("\u670D\u52A1\u8FD4\u56DE\u7684\u9762\u677F\u5730\u5740\u65E0\u6548\u3002");
       codeInput.value = "";
       const needsInstallGuide = shouldShowInstallGuide(
         navigator,
         window.matchMedia("(display-mode: standalone)").matches
       );
-      window.location.replace(payload.targetUrl + (needsInstallGuide ? "?addToHome=1" : ""));
+      window.location.replace(
+        panelUrl.pathname + panelUrl.search + (needsInstallGuide ? "?addToHome=1" : "")
+      );
     } catch (submitError) {
       ((messageElement.textContent = submitError.message),
         (messageElement.hidden = !1),

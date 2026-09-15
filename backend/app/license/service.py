@@ -22,9 +22,10 @@ from .endpoints import LicenseEndpointPool
 
 class LicenseClientError(RuntimeError):
 
-    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+    def __init__(self, message: str, *, status_code: int | None = None, code: str | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.code = code
 
     @property
     def is_confirmed_revocation(self) -> bool:
@@ -41,13 +42,14 @@ class LicenseClientError(RuntimeError):
 
 
 EXPIRED_LEASE_RETRY_SECONDS = 30
+#: 本机拿不出可用激活凭证时返回的错误码，前端据此展开手动激活表单。
+MANUAL_ACTIVATION_REQUIRED = 'LICENSE_ACTIVATION_REQUIRED'
 BASE_FEATURES = {
     'api',
     'assets',
     'editor',
     'display',
     'ha.sync',
-    'ui.base',
     'ha.control',
     'ha.configure',
     'projects.write',
@@ -311,7 +313,7 @@ class LicenseService:
             detail = '授权服务器拒绝请求。'
         return str(detail)
 
-    def _apply_response(self, response: dict, *, activation_code_hint: str | None = None) -> dict:
+    def _apply_response(self, response: dict, *, activation_code_hint: str | None = None, activation_code: str | None = None, email: str | None = None) -> dict:
         signed_lease = response.get('signedLease', '')
         with self.database.session_factory() as database:
             state = self._state(database)
@@ -374,6 +376,10 @@ class LicenseService:
                 state.activated_at = datetime.now(timezone.utc)
             if activation_code_hint:
                 state.activation_code_hint = activation_code_hint
+            if activation_code:
+                state.encrypted_activation_code = self.cipher.encrypt(activation_code)
+            if email:
+                state.activation_email = email
             if response.get('sessionToken'):
                 state.encrypted_session_token = self.cipher.encrypt(response['sessionToken'])
             if response.get('recoveryToken'):
@@ -399,13 +405,62 @@ class LicenseService:
         payload['email'] = normalized_email
         try:
             response = await self._post('/v2/activate', payload)
-            result = self._apply_response(response, activation_code_hint=activation_code.strip()[:-9])
+            result = self._apply_response(
+                response,
+                activation_code_hint = activation_code.strip()[:-9],
+                activation_code = payload['activationCode'],
+                email = normalized_email)
         except (LicenseClientError, LicenseCryptoError) as error:
             self._record_failure('激活', error, sensitive_values=(activation_code, activation_code.strip(), payload['activationCode'], email or '', normalized_email))
             raise
         self._record_online_success('激活')
         self._schedule_changed.set()
         return result
+
+    async def reactivate(self) -> dict:
+        '''用户主动触发的「重新激活」，成功后返回与 ``/license/activate`` 同构的状态。
+
+        会话与租约恢复凭证双双过期后，客户端会卡在「心跳 401 → 恢复 401」的循环里：
+        本地租约尚未到期时状态是 ``CONNECTION_WARNING``（功能仍可用），到期后变成
+        ``LEASE_EXPIRED`` 被门禁拦死，而这条路径不会自己恢复。这里给用户一个显式
+        出口，按代价从低到高尝试：
+
+        1. 一次心跳 —— ``_heartbeat_unlocked`` 会在会话失效时自动回落到恢复凭证，
+           所以这一步同时覆盖「网络抖动」与「只有会话过期」两种情况，且不动本地凭证。
+        2. 用本地加密保存的激活码重跑 ``/v2/activate`` —— 授权服务对「已绑定当前
+           安装」的授权是幂等放行的（``ensure_binding`` 命中 ``already_bound_here``
+           时不消耗解绑冷却），会重新签发会话与恢复凭证。
+
+        确认吊销（403 + 吊销短语）不属于可自愈的故障：那种情况下本地授权已被清空，
+        且自动重激活会把厂商刚释放的绑定悄悄抢回来，因此直接上抛由用户处理。
+        本机没有可用激活凭证时返回 ``MANUAL_ACTIVATION_REQUIRED``，前端据此展开
+        激活表单让用户手动输入。
+        '''
+        with self.database.session_factory() as database:
+            state = self._state(database)
+            licensed = bool(state.license_id)
+            encrypted_activation_code = state.encrypted_activation_code
+            email = state.activation_email or ''
+        if not licensed:
+            raise LicenseClientError('当前安装尚未激活，请填写激活码完成激活。', status_code=409, code=MANUAL_ACTIVATION_REQUIRED)
+        try:
+            return await self.heartbeat()
+        except LicenseClientError as error:
+            if error.is_confirmed_revocation:
+                raise
+            renewal_error = error
+        if not encrypted_activation_code:
+            raise LicenseClientError('本机没有保存激活凭证，请重新输入激活码完成激活。', status_code=409, code=MANUAL_ACTIVATION_REQUIRED) from renewal_error
+        try:
+            activation_code = self.cipher.decrypt(encrypted_activation_code)
+        except LicenseCryptoError as error:
+            self._record_failure('重新激活', error, sensitive_values=(encrypted_activation_code,))
+            raise LicenseClientError('本机保存的激活凭证无法解密，请重新输入激活码完成激活。', status_code=409, code=MANUAL_ACTIVATION_REQUIRED) from error
+        try:
+            return await self.activate(activation_code, email)
+        except LicenseClientError as error:
+            self._record_failure('重新激活', error, sensitive_values=(activation_code, email))
+            raise
 
     async def heartbeat(self) -> dict:
         async with self._heartbeat_lock:
@@ -480,6 +535,8 @@ class LicenseService:
             state.session_id = None
             state.lease_sequence = 0
             state.activation_code_hint = None
+            state.encrypted_activation_code = None
+            state.activation_email = None
             state.signed_lease = None
             state.encrypted_session_token = None
             state.encrypted_recovery_token = None
@@ -636,8 +693,7 @@ class LicenseService:
             'features': visible_features if state.license_id else [],
             'featureAccess': {
                 'editor': bool(state.license_id and 'editor' in visible_features and editor_allowed),
-                'interaction3d': bool(state.license_id and 'module.3d_interaction' in visible_features and self._verified_access(state, 'module.3d_interaction')),
-                'uiPack': bool(state.license_id and any(code.startswith('ui.') and code != 'ui.base' and self._verified_access(state, code) for code in visible_features))},
+                'interaction3d': bool(state.license_id and 'module.3d_interaction' in visible_features and self._verified_access(state, 'module.3d_interaction'))},
             'products': visible_products if state.license_id else [],
             'heartbeatIn': state.heartbeat_interval_seconds,
             'leaseIssuedAt': aware(state.lease_issued_at),

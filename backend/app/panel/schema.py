@@ -41,33 +41,17 @@ class Canvas(ExtensibleModel):
 
 
 class Theme(ExtensibleModel):
-    name: str = Field(default="dashboard-v1-dark", min_length=1, max_length=128)
+    name: str = Field(default="homeos-dark", min_length=1, max_length=128)
     variables: dict[str, str | int | float] = Field(default_factory=dict)
 
 
-class UIPackReference(ExtensibleModel):
-    id: str = Field(default="ui.base", min_length=1, max_length=128)
-    version: str = Field(default="1.0.0", min_length=1, max_length=64)
-
-    @model_validator(mode="after")
-    def validate_id(self) -> 'UIPackReference':
-        if not IDENTIFIER.fullmatch(self.id):
-            raise ValueError(f"无效 UI 方案 ID：{self.id}")
-        return self
-
-
 class TemplateReference(ExtensibleModel):
-    ui_pack_id: str = Field(
-        default="ui.base", alias="uiPackId", min_length=1, max_length=128
-    )
     template_id: str = Field(alias="templateId", min_length=1, max_length=128)
     version: int = Field(default=1, ge=1)
 
     @model_validator(mode="after")
     def validate_ids(self) -> 'TemplateReference':
-        if not IDENTIFIER.fullmatch(self.ui_pack_id) or not IDENTIFIER.fullmatch(
-            self.template_id
-        ):
+        if not IDENTIFIER.fullmatch(self.template_id):
             raise ValueError("控件或弹窗模板来源无效。")
         return self
 
@@ -195,9 +179,6 @@ class PanelDocument(ExtensibleModel):
     )
     canvas: Canvas = Field(default_factory=Canvas)
     theme: Theme = Field(default_factory=Theme)
-    ui_pack: UIPackReference = Field(
-        default_factory=UIPackReference, alias="uiPack"
-    )
     shared_components: list[PanelComponent] = Field(
         default_factory=list, alias="sharedComponents"
     )

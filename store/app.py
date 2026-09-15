@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 
@@ -20,9 +22,16 @@ from store.database import Database
 from store.licensing import keys
 from store.licensing.crypto import LeaseSigner, TransportCipher
 from store.licensing.service import LicenseAuthority
-from store.migrations import CURRENT_VERSION, ensure_current_release, rebrand_legacy_identifiers
 from store.payments import resolve_provider
-from store.site_settings import get_setting, heal_legacy_icon_paths
+from store.payments.sweeper import (
+    configure_sweep_loop,
+    mark_sweep_loop_stopped,
+    sweep_round,
+    sweep_status,
+)
+from store.release_info import CURRENT_VERSION, ensure_current_release
+from store.schema_guard import ensure_schema
+from store.site_settings import get_setting
 
 logger = logging.getLogger("store")
 
@@ -60,19 +69,16 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     database = Database(settings)
     database.create_all()
 
-    # 图标改名后，老部署的 store_settings.logo_url 仍指向旧文件名，启动时自愈。
-    # 品牌改名后，releases.product / products.product_code 仍写着旧标识，同样自愈。
-    # 两处都必须先于任何请求执行：按新值查询查不到旧数据是静默失败。
+    # create_all 只建「缺的表」，对已存在的表**不会加列**。新增字段必须在这里
+    # 补上，否则老部署要等到某条特定 API 被调用时才以 no such column 崩掉。
+    applied = ensure_schema(database.engine)
+    if applied:
+        logger.info("已补齐 %d 项库结构变更：%s", len(applied), "、".join(applied))
+
+    # 确保 docker 渠道存在当前版本的发布记录：「检查更新」查的正是这张表，
+    # 缺了它客户端就没有可升级的目标版本。
     with database.session() as session:
-        healed = heal_legacy_icon_paths(session)
-        rebranded = rebrand_legacy_identifiers(session)
-        # 硬切协议的那一版必须让「检查更新」看得到，否则老客户端被踢下线后
-        # 没有任何可升级的目标版本 —— 这条记录同样在启动时兜底补写。
         released = ensure_current_release(session)
-    if healed:
-        logger.info("已把 %d 处旧图标路径归一为新文件名。", healed)
-    if rebranded:
-        logger.info("已把旧品牌标识归一为新值：%s", rebranded)
     if released:
         logger.info("已补写 %s 渠道 %s 发布记录。", "docker", CURRENT_VERSION)
 
@@ -82,13 +88,51 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     )
     authority = LicenseAuthority(settings, database, signer, transport)
 
+    async def _payment_sweep_loop() -> None:
+        """后台支付巡检循环。
+
+        每轮都跑在 ``asyncio.to_thread`` 里：对渠道的调用是阻塞 I/O，
+        直接在事件循环里发同步请求会把整个服务卡住（连 /healthz 都不响应）。
+
+        状态一律经 ``store.payments.sweeper`` 登记，后台概览与 /healthz 读的是
+        同一份快照——巡检坏了必须能从接口看出来，不能只躺在日志里。
+        """
+        interval = int(settings.payment_sweep_interval_seconds or 0)
+        # 代号要一路带到 sweep_round / mark_sweep_loop_stopped：同一个进程里若还有
+        # 上一个循环的收尾没跑完（测试里就是这么反复建 app 的），只有当前代号的
+        # 写入才算数，旧循环迟到的 finally 不能把新循环标成「已停止」。
+        generation = configure_sweep_loop(interval)
+        if interval <= 0:
+            logger.info("支付巡检已关闭（STORE_PAYMENT_SWEEP_INTERVAL_SECONDS=0）")
+            return
+        # 首轮稍作延后：启动瞬间还在建表/补列，没必要立刻去抢数据库
+        delay = min(interval, 5)
+        try:
+            while True:
+                await asyncio.sleep(delay)
+                delay = interval
+                try:
+                    await asyncio.to_thread(sweep_round, database, settings, generation)
+                except Exception:  # noqa: BLE001 - 单轮异常不能让巡检整体退出
+                    logger.exception("支付巡检本轮失败，将在 %d 秒后重试", interval)
+        finally:
+            # 循环以任何方式结束（取消、任务异常）都要落这个状态：否则后台会一直
+            # 显示「上次成功 xx 分钟前」，看着像还活着，实际已经没人对账了。
+            mark_sweep_loop_stopped(generation)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         logger.info(
             "授权商店服务已启动：%s（数据目录 %s）", settings.public_base_url, settings.data_dir
         )
-        yield
-        database.dispose()
+        sweep_task = asyncio.create_task(_payment_sweep_loop())
+        try:
+            yield
+        finally:
+            sweep_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await sweep_task
+            database.dispose()
 
     app = FastAPI(
         title="HomeOS 授权商店与授权服务器",
@@ -103,7 +147,20 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.state.database = database
     app.state.license_authority = authority
 
-    def resolve_payment_provider(setting=None):
+    def resolve_payment_provider(setting=None, *, name: str | None = None):
+        """解析支付渠道。
+
+        ``name`` 用于「按订单下单时的渠道」做事后操作（例如退款）：渠道被切换后，
+        必须打到当时那个网关。传空表示按当前站点配置解析。
+        """
+        if setting is None:
+            # 没带站点配置就从库里现读一份。支付宝凭据可以在后台改，绝不能把
+            # 「调用方没传 setting」当成「就该用环境变量里那套旧凭据」——
+            # 那正是「后台显示已配置、实际签名用的是旧密钥」的成因。
+            with database.session() as lookup:
+                setting = get_setting(lookup)
+        if name:
+            return resolve_provider(settings, setting, name_override=name)
         return resolve_provider(settings, setting)
 
     def payment_provider_from_db():
@@ -133,7 +190,14 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
-        return {"status": "ok", "version": __version__, "port": settings.port}
+        # status 依然只表示「进程活着」，外部探活的机器不会被巡检状态带偏；
+        # 巡检单独给一个子对象，让监控可以按 paymentSweep.health 报警。
+        return {
+            "status": "ok",
+            "version": __version__,
+            "port": settings.port,
+            "paymentSweep": sweep_status(),
+        }
 
     @app.exception_handler(Exception)
     async def unhandled_exception(_request: Request, error: Exception) -> JSONResponse:

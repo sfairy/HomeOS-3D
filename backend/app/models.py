@@ -207,6 +207,8 @@ class LicenseState(Base):
     session_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     lease_sequence: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     activation_code_hint: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    encrypted_activation_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    activation_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     signed_lease: Mapped[str | None] = mapped_column(Text, nullable=True)
     encrypted_session_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     encrypted_recovery_token: Mapped[str | None] = mapped_column(Text, nullable=True)

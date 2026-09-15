@@ -227,13 +227,13 @@
     return product.validityDays !== null && product.validityDays !== undefined;
   }
 
-  function requestedUpgradeCustomerId() {
+  function requestedUpgradeLicenseId() {
     return new URLSearchParams(location.search).get('upgrade');
   }
 
   function productHref(product) {
     const base = storePageHref(`/item/${encodeURIComponent(product.id)}`);
-    const upgrade = requestedUpgradeCustomerId();
+    const upgrade = requestedUpgradeLicenseId();
     return upgrade && !isTrialProduct(product) ? `${base}&upgrade=${encodeURIComponent(upgrade)}` : base;
   }
 
@@ -283,7 +283,7 @@
       ? `<span class="hb-button hb-button--secondary hb-button--sm is-disabled">${state.hasPermanentLicense ? '已有永久授权' : '已购买试用'}</span>`
       : product.soldOut
       ? '<span class="hb-button hb-button--secondary hb-button--sm is-disabled">已售罄</span>'
-      : `<a class="hb-button hb-button--primary hb-button--sm" href="${productHref(product)}">${state.account ? (requestedUpgradeCustomerId() && !isTrialProduct(product) ? '选择升级版本' : '选择此版本') : '查看详情'}</a>`;
+      : `<a class="hb-button hb-button--primary hb-button--sm" href="${productHref(product)}">${state.account ? (requestedUpgradeLicenseId() && !isTrialProduct(product) ? '选择升级版本' : '选择此版本') : '查看详情'}</a>`;
     const badge = isTrialProduct(product) ? `${product.validityDays} 天试用` : bundle ? '全授权' : product.productType === 'package' ? '自定义套餐' : '主授权';
     // 每个主授权卡都要有一行说明：套餐卡展示所含内容，其余卡展示商品说明（与详情页
     // #store-product-description 同源）。否则「主授权」卡只有徽标+标题，同排被套餐卡拉
@@ -574,11 +574,16 @@
     const eligible = state.accountLicenses.filter(item => item.active && !item.validityDays && !item.accessExpiresAt);
     const requestedCodes = new Set(state.product?.featureCodes || []);
     const seen = new Set();
+    // 选项值必须是**授权主键**：服务端按 License.id 回查目标授权。这里曾经用的是
+    // customerId（= Customer.id），导致所有增量包下单都返回「选择的授权不存在」。
     const options = eligible.filter(item => {
-      if (!item.customerId || seen.has(item.customerId)) return false;
-      seen.add(item.customerId);
+      if (!item.activationCodeId || seen.has(item.activationCodeId)) return false;
+      seen.add(item.activationCodeId);
       const owned = new Set(state.accountEntitlements
-        .filter(entitlement => entitlement.active && entitlement.customerId === item.customerId)
+        .filter(entitlement => entitlement.active && (
+          entitlement.licenseId ? entitlement.licenseId === item.activationCodeId
+            : entitlement.customerId === item.customerId
+        ))
         .map(entitlement => entitlement.featureCode));
       return !requestedCodes.size || [...requestedCodes].some(code => !owned.has(code));
     });
@@ -589,7 +594,7 @@
       if (item.device?.instanceId) parts.push(`设备 ${item.device.instanceId}`);
       return parts.join(' · ');
     };
-    const choices = options.map(item => new Option(labelFor(item), item.customerId));
+    const choices = options.map(item => new Option(labelFor(item), item.activationCodeId));
     if (options.length > 1) {
       const placeholder = new Option('请选择要附加的主授权', '', true, true);
       placeholder.disabled = true;
@@ -601,12 +606,45 @@
     $('#addon-target-empty').hidden = Boolean(options.length);
     const confirmation = $('#addon-target-confirmation');
     const updateConfirmation = () => {
-      const selected = options.find(item => item.customerId === select.value);
+      const selected = options.find(item => item.activationCodeId === select.value);
       confirmation.hidden = !selected;
       confirmation.textContent = selected ? `本增量包将附加到：${labelFor(selected)}` : '';
     };
     select.onchange = updateConfirmation;
     updateConfirmation();
+  }
+
+  function ownedPermanentLicense(product) {
+    if (!state.account || !product || isAddonProduct(product) || product.validityDays) return null;
+    const now = Date.now();
+    return state.accountLicenses.find(item => {
+      if (!item.active || item.productId !== product.id) return false;
+      // 永久授权 = 没有 validityDays 也没有到期时间；已过期的时限授权不算。
+      if (item.validityDays) return false;
+      if (item.accessExpiresAt && new Date(item.accessExpiresAt).getTime() <= now) return false;
+      return true;
+    }) || null;
+  }
+
+  //: 用户在「已经买过」弹窗里点了「仍然购买」后置为 true，避免第二次提交又弹一次。
+  function confirmDuplicatePurchase(product) {
+    const dialog = $('#duplicate-purchase-dialog');
+    if (!dialog?.showModal) {
+      // 浏览器不支持 <dialog>（老 WebView）：退回原生确认框，绝不静默放行。
+      return Promise.resolve(window.confirm(`账号下已有「${product.name}」的永久授权，再买一张会另发新激活码。仍然购买？`));
+    }
+    $('#duplicate-purchase-product').textContent = product.name;
+    return new Promise(resolve => {
+      const finish = (ok) => {
+        dialog.close();
+        resolve(ok);
+      };
+      $('#duplicate-purchase-confirm').onclick = () => finish(true);
+      $('#duplicate-purchase-dismiss').onclick = () => finish(false);
+      // 点遮罩 / 按 Esc 关闭一律视为放弃：这类确认的默认答案必须是「不买」。
+      dialog.oncancel = (event) => { event.preventDefault(); finish(false); };
+      dialog.showModal();
+    });
   }
 
   async function createOrder(event) {
@@ -616,13 +654,22 @@
     if (!product) return;
     if (product.soldOut) { toast('该商品已售罄。'); return; }
     if (!state.account) { showGuestPurchaseNotice(); return; }
+    // 重复购买同一个永久商品：再买一张会**另发一个新激活码**，而不是延长原授权。
+    // 服务端不能硬拦 —— 一人多台设备、多套部署是合法需求（且 smoke/e2e 也会
+    // 连续购买同一商品），所以这里做二次确认，把「买错了」挡在付款之前。
+    if (ownedPermanentLicense(product) && !await confirmDuplicatePurchase(product)) {
+      toast('已取消，未创建订单。');
+      return;
+    }
     const payload = { productId: product.id, email: state.account.email };
     if (product.fulfillmentMode !== 'manual') payload.couponCode = form.elements.couponCode.value.trim() || null;
     if (isAddonProduct(product)) {
       if (!form.elements.customerId.value) { toast('请选择增量包要附加到的主授权。'); return; }
-      payload.customerId = form.elements.customerId.value;
-    } else if (!isTrialProduct(product) && requestedUpgradeCustomerId()) {
-      payload.customerId = requestedUpgradeCustomerId();
+      // targetLicenseId 是授权主键；旧名 customerId 传的是 Customer.id，服务端按
+      // License.id 回查会必然 404（这就是增量包一直买不了的原因）。
+      payload.targetLicenseId = form.elements.customerId.value;
+    } else if (!isTrialProduct(product) && requestedUpgradeLicenseId()) {
+      payload.upgradeLicenseId = requestedUpgradeLicenseId();
     }
     const submit = form.querySelector('[type="submit"]');
     submit.disabled = true;
@@ -718,7 +765,8 @@
   }
 
   function statusLabel(order) {
-    return ({ pending: '待付款', paid: order.fulfillmentMode === 'manual' ? '待人工发卡' : '已付款', fulfilled: '已完成', cancelled: '已取消', expired: '已过期', payment_failed: '下单失败', fulfillment_failed: '处理中', refunded: '已退款' })[order.status] || order.status;
+    // 与服务端 store/order_status.py 的口径保持一致（详见 admin.html 的同名注释）。
+    return ({ pending: '待付款', paid: order.fulfillmentMode === 'manual' ? '待人工发卡' : '已付款', fulfilled: '已完成', cancelled: '已取消', expired: '已过期', payment_failed: '支付失败', fulfillment_failed: '发货失败', refunded: '已退款' })[order.status] || order.status;
   }
 
   function startEmailCooldown(button, seconds) {
@@ -784,7 +832,12 @@
     state.hasPermanentLicense = Boolean(result.hasPermanentLicense);
     state.hasUsedTrial = Boolean(result.hasUsedTrial);
     setAuthHint(true, state.hasPermanentLicense, state.hasTemporaryLicense);
-    toast(state.hasPermanentLicense ? '注册成功，正在进入账号中心。' : '注册成功，正在进入购买页。');
+    if (result.referralNote) {
+      // 邀请码没绑定成功必须显式告诉用户：绑定只发生在注册这一步，错过就补不上。
+      toast(`注册成功。${result.referralNote}`);
+    } else {
+      toast(state.hasPermanentLicense ? '注册成功，正在进入账号中心。' : '注册成功，正在进入购买页。');
+    }
     setTimeout(() => { location.href = state.hasPermanentLicense ? '/user/dashboard/index' : '/products'; }, 500);
   }
 
@@ -808,7 +861,7 @@
     const email = form.elements.email.value.trim();
     if (!email || !form.elements.email.reportValidity()) return;
     try {
-      const result = await api('/verifications', { method: 'POST', body: JSON.stringify({ email, purpose: 'password_reset' }) });
+      const result = await api('/verifications', { method: 'POST', body: JSON.stringify({ email, purpose: 'reset' }) });
       form.dataset.verificationId = result.verificationId;
       startEmailCooldown(button, result.resendAfter);
       if (result.code) {
@@ -852,6 +905,12 @@
      只做中性展示。颜色统一走 theme.css 的令牌，不要在 JS 里写色值。 */
   function metaChip(text, variant = '') {
     return `<span class="hb-meta-chip${variant ? ` hb-meta-chip--${variant}` : ''}">${escapeHtml(text)}</span>`;
+  }
+
+  /* 授权/权益卡的「规格表」单元格：小号等宽标签 + 值。
+     比一排长短不一的芯片更容易竖着对齐，宽屏下也能自己铺满内容区。 */
+  function factCell(label, value, variant = '') {
+    return `<li><small>${escapeHtml(label)}</small><span${variant ? ` class="${variant}"` : ''}>${escapeHtml(value)}</span></li>`;
   }
 
   /* 生命周期 → 芯片配色：有效=绿、到期=琥珀（可续期，不是错误）、停用=红。 */
@@ -908,7 +967,7 @@
       const releasePolicyState = `<p class="hb-release-policy-state" data-release-policy-license="${escapeHtml(item.activationCodeId)}"></p>`;
       const labelAction = `<button class="hb-button hb-button--secondary" data-label-license="${escapeHtml(item.activationCodeId)}" data-current-label="${escapeHtml(item.userLabel || '')}">修改备注</button>`;
       const upgradeAction = item.validityDays && permanentProducts.length
-        ? `<a class="hb-button hb-button--primary" href="${storePageHref('/products')}&upgrade=${encodeURIComponent(item.customerId)}">升级为永久授权</a>`
+        ? `<a class="hb-button hb-button--primary" href="${storePageHref('/products')}&upgrade=${encodeURIComponent(item.activationCodeId)}">升级为永久授权</a>`
         : '';
       const actions = `<div class="hb-account-actions">${upgradeAction}${labelAction}${releaseAction}</div>`;
       const source = ({ admin_manual: '后台手动发卡', historical_import: '历史导入', payment_manual: '支付后手动发卡', payment_automatic: '支付后自动发卡' })[item.issuanceSource] || '后台发放';
@@ -918,13 +977,16 @@
       const manualNote = ['admin_manual', 'historical_import'].includes(item.issuanceSource) ? '<p class="hb-account-manual-note">该授权由后台手动发放，因此没有支付订单。</p>' : '';
       const title = item.userLabel || `主授权 #${payload.licenses.length - index}`;
       const productLine = item.userLabel ? `<p>${escapeHtml(item.productName)}</p>` : '';
-      const meta = [
-        metaChip(`来源：${source}`),
-        metaChip(`状态：${status}`, licenseStateVariant(item.active, expired)),
-        metaChip(`期限：${period}`, item.validityDays ? '' : 'accent'),
-        metaChip(`发卡时间：${new Date(item.issuedAt).toLocaleString('zh-CN')}`),
+      const statusChip = metaChip(status, licenseStateVariant(item.active, expired));
+      const facts = [
+        factCell('来源', source),
+        factCell('期限', period, item.validityDays ? '' : 'is-accent'),
+        factCell('发卡时间', new Date(item.issuedAt).toLocaleString('zh-CN')),
       ].join('');
-      return `<article class="hb-account-item"><div><h3>${escapeHtml(title)}</h3>${productLine}<p class="hb-account-license-code"><span>激活码</span><code>${escapeHtml(activationCode)}</code>${unavailable}</p><div class="hb-account-meta">${meta}</div><p>${item.device ? `已绑定设备 · ${escapeHtml(item.device.instanceId)}` : '当前未绑定设备'}</p>${releasePolicyState}${manualNote}</div>${actions}</article>`;
+      const deviceLine = item.device
+        ? `已绑定设备 · <code>${escapeHtml(item.device.instanceId)}</code>`
+        : '当前未绑定设备';
+      return `<article class="hb-account-item hb-account-item--stacked"><header class="hb-account-head"><div class="hb-account-ident"><div class="hb-account-title"><h3>${escapeHtml(title)}</h3>${statusChip}</div>${productLine}</div>${actions}</header><div class="hb-account-body"><p class="hb-account-license-code"><span>激活码</span><code>${escapeHtml(activationCode)}</code>${unavailable}</p><ul class="hb-account-facts">${facts}</ul></div><footer class="hb-account-foot"><div class="hb-account-foot-main"><p class="hb-account-device">${deviceLine}</p>${manualNote}</div>${releasePolicyState}</footer></article>`;
     }).join('') : '<div class="hb-account-empty">账号下暂无授权。</div>';
     const entitlementSection = $('#account-entitlements-section');
     const entitlementList = $('#account-entitlements');
@@ -937,23 +999,31 @@
       const expired = Boolean(item.expiresAt) && new Date(item.expiresAt) <= new Date();
       const status = !item.active ? '已停用' : expired ? '已到期' : '有效';
       const validity = item.expiresAt ? `有效至 ${new Date(item.expiresAt).toLocaleDateString('zh-CN')}` : '永久';
-      const target = state.accountLicenses.find(license => license.customerId === item.customerId);
+      // 权益带 licenseId，可直接定位它挂在哪张授权上；老数据缺这个字段时再退到 customerId。
+      const target = state.accountLicenses.find(license =>
+        license.activationCodeId === item.licenseId
+      ) || state.accountLicenses.find(license => license.customerId === item.customerId);
       const targetName = target ? `${target.userLabel || target.productName} · 激活码尾号 ${target.codeHint}` : '原主授权';
-      const meta = [
-        metaChip(`附加到：${targetName}`),
-        metaChip(`状态：${status}`, licenseStateVariant(item.active, expired)),
-        metaChip(validity, item.expiresAt ? '' : 'accent'),
+      const statusChip = metaChip(status, licenseStateVariant(item.active, expired));
+      const facts = [
+        factCell('附加到', targetName),
+        factCell('有效期', validity, item.expiresAt ? '' : 'is-accent'),
       ].join('');
-      return `<article class="hb-account-item"><div><h3>${escapeHtml(item.productName)}</h3><p>${escapeHtml(addonTypeLabel(item))}</p><div class="hb-account-meta">${meta}</div></div></article>`;
+      return `<article class="hb-account-item hb-account-item--stacked"><header class="hb-account-head"><div class="hb-account-ident"><div class="hb-account-title"><h3>${escapeHtml(item.productName)}</h3>${statusChip}</div><p>${escapeHtml(addonTypeLabel(item))}</p></div></header><div class="hb-account-body"><ul class="hb-account-facts">${facts}</ul></div></article>`;
     }).join('');
     const orders = $('#account-orders');
     orders.innerHTML = payload.orders.length ? payload.orders.map(item => {
       const countdown = item.status === 'pending'
         ? `<p class="hb-order-countdown" data-order-expires="${escapeHtml(item.expiresAt)}" data-order-no="${escapeHtml(item.orderNo)}">剩余 ${orderCountdownText(item.expiresAt)}，超时后自动关闭</p>`
         : '';
-      const target = item.orderType === 'addon' ? state.accountLicenses.find(license => license.customerId === item.customerId) : null;
+      // 优先按订单记录的目标授权匹配：同一账号下的多张授权共享同一个 customerId，
+      // 只按 customerId 找会一律命中第一张，附加关系显示错。
+      const target = item.orderType === 'addon'
+        ? state.accountLicenses.find(license => license.activationCodeId === item.targetLicenseId)
+          || state.accountLicenses.find(license => license.customerId === item.customerId)
+        : null;
       const targetLine = target ? `<p>附加到：${escapeHtml(target.userLabel || target.productName)} · 激活码尾号 ${escapeHtml(target.codeHint)}</p>` : '';
-      return `<article class="hb-account-item"><div><h3>${escapeHtml(item.productName)}</h3><p>订单号：${escapeHtml(item.orderNo)}</p>${targetLine}<p>${escapeHtml(statusLabel(item))} · ${money(item.amountCents)}</p>${countdown}</div><div class="hb-account-order-side"><span>${escapeHtml(new Date(item.createdAt).toLocaleDateString('zh-CN'))}</span>${accountOrderActions(item)}</div></article>`;
+      return `<article class="hb-account-item hb-account-item--row"><div class="hb-account-order-main"><h3>${escapeHtml(item.productName)}</h3><p>订单号：${escapeHtml(item.orderNo)}</p>${targetLine}<p>${escapeHtml(statusLabel(item))} · ${money(item.amountCents)}</p>${countdown}</div><div class="hb-account-order-side"><span>${escapeHtml(new Date(item.createdAt).toLocaleDateString('zh-CN'))}</span>${accountOrderActions(item)}</div></article>`;
     }).join('') : '<div class="hb-account-empty">账号下暂无订单。</div>';
     clearInterval(state.accountCountdownTimer);
     const updateAccountCountdowns = () => {

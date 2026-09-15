@@ -21,7 +21,9 @@ from store.models import (
     ProductImage,
     StoreSetting,
 )
+from store.order_status import order_status_label, refundable_cents
 from store.security import iso, iso_z
+from store.site_settings import resolve_device_release_cooldown
 
 BASE_FEATURES = frozenset(
     {
@@ -30,7 +32,6 @@ BASE_FEATURES = frozenset(
         "editor",
         "display",
         "ha.sync",
-        "ui.base",
         "ha.control",
         "ha.configure",
         "projects.write",
@@ -140,9 +141,17 @@ def account_payload(account: Account) -> dict:
     return {
         "id": account.id,
         "email": account.email,
-        "createdAt": iso(account.created_at),
-        "lastLoginAt": iso(account.last_login_at),
-        "lastDeviceReleaseAt": iso(account.last_device_release_at),
+        # 邮箱是否已验证。未验证的账号会被 ``_require_verified`` 挡在「查看订单 /
+        # 下单」之外，前端必须能看出来并给出「去验证」的入口，否则用户只会看到
+        # 一个无法解释的 401。
+        "emailVerified": account.email_verified_at is not None,
+        "emailVerifiedAt": iso_z(account.email_verified_at),
+        # 库内时间列都是 naive UTC，序列化必须带 Z 后缀：裸 ISO 串会被浏览器
+        # ``new Date()`` 当成本地时间解析，东八区直接偏早 8 小时（授权显示
+        # "已到期"、解绑冷却少算 8 小时）。
+        "createdAt": iso_z(account.created_at),
+        "lastLoginAt": iso_z(account.last_login_at),
+        "lastDeviceReleaseAt": iso_z(account.last_device_release_at),
     }
 
 
@@ -175,7 +184,7 @@ def device_payload(binding: DeviceBinding | None) -> dict | None:
         "clientVersion": binding.client_version,
         "lastIp": binding.last_ip,
         "activatedAt": iso_z(binding.activated_at),
-        "lastHeartbeatAt": iso(binding.last_heartbeat_at),
+        "lastHeartbeatAt": iso_z(binding.last_heartbeat_at),
     }
 
 
@@ -222,6 +231,8 @@ def license_payload(
         "activationCodeId": license.id,
         "codeHint": license.code_hint,
         "customerId": license.customer_id,
+        # 前台需要它来判断「这个商品我是不是已经买过」，用于重复购买的二次确认。
+        "productId": license.product_id,
         "customerName": customer.name if customer is not None else "",
         "accountEmail": customer.email if customer is not None else "",
         "productName": license.product_name,
@@ -231,10 +242,11 @@ def license_payload(
         "issuanceSource": license.issuance_source,
         "userLabel": license.user_label,
         "active": active,
-        "createdAt": iso(license.created_at),
-        "issuedAt": iso(license.issued_at),
-        "accessStartedAt": iso(license.access_started_at),
-        "accessExpiresAt": iso(access_expires),
+        # 全部走 iso_z：见 account_payload 里的说明（裸 ISO 串在浏览器里会偏 8 小时）。
+        "createdAt": iso_z(license.created_at),
+        "issuedAt": iso_z(license.issued_at),
+        "accessStartedAt": iso_z(license.access_started_at),
+        "accessExpiresAt": iso_z(access_expires),
         "device": device_payload(binding),
         "deviceReleasePolicy": device_release_policy(
             cooldown_seconds=cooldown_seconds,
@@ -250,12 +262,13 @@ def entitlement_payload(entitlement: Entitlement, *, now: datetime | None = None
     return {
         "id": entitlement.id,
         "customerId": entitlement.customer_id,
+        "licenseId": entitlement.license_id,
         "productId": entitlement.product_id,
         "productName": entitlement.product_name,
         "productType": entitlement.product_type,
         "featureCode": entitlement.feature_code,
-        "startsAt": iso(entitlement.starts_at),
-        "expiresAt": iso(entitlement.expires_at),
+        "startsAt": iso_z(entitlement.starts_at),
+        "expiresAt": iso_z(entitlement.expires_at),
         "active": bool(entitlement.active) and not expired,
     }
 
@@ -285,8 +298,18 @@ def order_payload(order: Order) -> dict:
         "amountCents": int(order.amount_cents or 0),
         "couponCode": order.coupon_code,
         "status": order.status,
+        "statusLabel": order_status_label(order.status),
         "fulfillmentMode": order.fulfillment_mode,
         "payment": payment,
+        "refundAmountCents": int(order.refund_amount_cents or 0),
+        #: 还能退多少（分）。支持多次部分退款之后，后台必须知道「剩余可退」，
+        #: 否则第二次退款只能靠运营自己心算已退金额。
+        "refundableCents": refundable_cents(
+            order.amount_cents, order.refund_amount_cents
+        ),
+        "refundTradeNo": order.refund_trade_no,
+        "needsReview": bool(order.needs_review),
+        "reviewNote": order.review_note or "",
         "codeHint": order.license.code_hint if order.license is not None else None,
         "createdAt": iso_z(order.created_at),
         "expiresAt": iso_z(order.expires_at),
@@ -307,14 +330,11 @@ def account_center_payload(
     license_meta: dict[str, dict],
     entitlements: list[Entitlement],
     orders: list[Order],
+    has_used_trial: bool = False,
     now: datetime | None = None,
 ) -> dict:
     moment = _now(now)
-    cooldown = int(
-        setting.device_release_cooldown_seconds
-        if setting.device_release_cooldown_seconds is not None
-        else settings.device_release_cooldown_seconds
-    )
+    cooldown = resolve_device_release_cooldown(setting, settings)
     license_items = []
     for license in licenses:
         meta = license_meta.get(license.id, {})
@@ -334,5 +354,8 @@ def account_center_payload(
         "licenses": license_items,
         "entitlements": [entitlement_payload(item, now=moment) for item in entitlements],
         "orders": [order_payload(order) for order in orders],
+        # 前台靠它决定「试用还能不能买」。这个字段过去从来没人赋值，
+        # 于是 store.js 里那条规则是死代码。
+        "hasUsedTrial": bool(has_used_trial),
         "serverTime": iso_z(moment),
     }

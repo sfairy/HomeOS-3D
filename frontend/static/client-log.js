@@ -90,7 +90,7 @@
   function currentSourceName() {
     return bridgeWindow.location.pathname.startsWith("/3d-studio")
       ? "3D \u6237\u578B\u7F16\u8F91\u5668"
-      : /^\/(?:display|habridge)\//.test(bridgeWindow.location.pathname)
+      : /^\/display\//.test(bridgeWindow.location.pathname)
         ? "\u5C55\u793A\u8BBE\u5907"
         : isPublicPage
           ? "\u767B\u5F55\u4E0E\u914D\u5BF9\u9875\u9762"

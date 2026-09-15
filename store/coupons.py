@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from store.models import Account, Coupon, CouponRedemption, Order
@@ -33,11 +33,35 @@ DISCOUNT_TYPES = frozenset({"percent", "fixed"})
 RELEASED_STATUSES = frozenset({"cancelled", "expired", "payment_failed"})
 
 
+class CouponUnavailable(RuntimeError):
+    """名额在「校验」与「占用」之间被别的请求抢光了。"""
+
+
 def redeem_coupon(
     session: Session, order: Order, coupon: Coupon, account: Account, discount: int
 ) -> None:
-    """下单成功创建订单时占用一个名额：计数 +1 并写入核销记录。"""
-    coupon.redeemed_count = int(coupon.redeemed_count or 0) + 1
+    """下单成功创建订单时占用一个名额：计数 +1 并写入核销记录。
+
+    名额校验（``_evaluate_coupon``）与本函数之间隔着「创建订单」等若干次读写，
+    两个并发请求会同时看到「还有名额」。所以这里用**带条件的原子 UPDATE** 占用：
+    把 ``max_redemptions`` 的判断和自增放进同一条语句，由数据库决定谁抢到。
+    抢不到就抛 :class:`CouponUnavailable`，由调用方转成 400 —— 绝不能出现
+    ``redeemed_count`` 超过 ``max_redemptions`` 的情况（那意味着超发优惠）。
+    """
+    statement = (
+        update(Coupon)
+        .where(Coupon.id == coupon.id)
+        .values(redeemed_count=func.coalesce(Coupon.redeemed_count, 0) + 1)
+        .execution_options(synchronize_session=False)
+    )
+    if coupon.max_redemptions is not None:
+        statement = statement.where(
+            func.coalesce(Coupon.redeemed_count, 0) < int(coupon.max_redemptions)
+        )
+    result = session.execute(statement)
+    if result.rowcount == 0:
+        raise CouponUnavailable("优惠码已被领完。")
+    session.expire(coupon, ["redeemed_count"])
     session.add(
         CouponRedemption(
             coupon_id=coupon.id,
@@ -53,7 +77,8 @@ def release_coupon(session: Session, order: Order) -> None:
     """订单未成交时归还名额（取消 / 超时 / 支付失败）。
 
     调用方都是把订单从 ``pending`` 推向终态的路径，而离开 ``pending`` 只会
-    发生一次，所以每条订单的名额至多被归还一次。
+    发生一次，所以每条订单的名额至多被归还一次。用带条件的原子递减兜底：
+    即使某个异常路径重复归还，也不会把计数写成负数（负数会让名额凭空变多）。
     """
     if not order.coupon_code:
         return
@@ -62,5 +87,12 @@ def release_coupon(session: Session, order: Order) -> None:
     ).first()
     if coupon is None:
         return
-    coupon.redeemed_count = max(0, int(coupon.redeemed_count or 0) - 1)
+    session.execute(
+        update(Coupon)
+        .where(Coupon.id == coupon.id)
+        .where(func.coalesce(Coupon.redeemed_count, 0) > 0)
+        .values(redeemed_count=Coupon.redeemed_count - 1)
+        .execution_options(synchronize_session=False)
+    )
+    session.expire(coupon, ["redeemed_count"])
     session.flush()

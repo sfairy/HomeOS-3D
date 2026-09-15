@@ -9,12 +9,11 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import select, update
 
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
-from ..global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, merge_document_popups, strip_document_popups
+from ..global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
 from ..models import GlobalCustomPopupState, Project, ProjectDraft
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
 from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
-from ..ui_packs import DEFAULT_UI_PACK_ID, get_ui_pack_for_asset_path, load_dashboard_template, require_ui_pack_access
 from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
 
 router = APIRouter(prefix='/projects', tags=['projects'])
@@ -23,24 +22,6 @@ router = APIRouter(prefix='/projects', tags=['projects'])
 def require_project_write(request: Request) -> None:
     if not request.app.state.license_service.allows('projects.write'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许修改仪表盘。')
-
-
-def document_ui_pack_id(document: dict) -> str:
-    ui_pack = document.get('uiPack')
-    return ui_pack.get('id', DEFAULT_UI_PACK_ID) if isinstance(ui_pack, dict) else DEFAULT_UI_PACK_ID
-
-
-def document_template_ui_pack_ids(value) -> set[str]:
-    result = set()
-    if isinstance(value, dict):
-        if isinstance(value.get('templateId'), str) and isinstance(value.get('uiPackId'), str):
-            result.add(value['uiPackId'])
-        for item in value.values():
-            result.update(document_template_ui_pack_ids(item))
-    elif isinstance(value, list):
-        for item in value:
-            result.update(document_template_ui_pack_ids(item))
-    return result
 
 
 def document_asset_ids(value) -> set[str]:
@@ -55,23 +36,6 @@ def document_asset_ids(value) -> set[str]:
         for item in value:
             result.update(document_asset_ids(item))
     return result
-
-
-def require_document_ui_access(request: Request, document: dict, *, database=None) -> None:
-    ui_pack_ids = {document_ui_pack_id(document)} | document_template_ui_pack_ids(document)
-    catalog = request.app.state.asset_catalog
-    for asset_id in document_asset_ids(document):
-        if not asset_id.startswith('builtin:'):
-            continue
-        ui_pack_id = catalog.ui_pack_id_for_asset(asset_id)
-        if ui_pack_id is None:
-            path_pack = get_ui_pack_for_asset_path(asset_id.removeprefix('builtin:'))
-            ui_pack_id = path_pack.id if path_pack else None
-        if not ui_pack_id:
-            continue
-        ui_pack_ids.add(ui_pack_id)
-    for ui_pack_id in sorted(ui_pack_ids):
-        require_ui_pack_access(request, ui_pack_id, database=database)
 
 
 def validate_document_assets(request: Request, document: dict) -> set[str]:
@@ -140,27 +104,9 @@ def list_projects(database: DatabaseSession, viewer: LicensedViewer) -> dict:
 @router.post('', status_code=status.HTTP_201_CREATED)
 def create_project(payload: ProjectCreateRequest, request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
     require_project_write(request)
-    require_ui_pack_access(request, payload.ui_pack_id)
     ensure_unique_project_name(database, payload.name)
     project_id = str(uuid4())
-    if payload.template_id:
-        try:
-            (template, document) = load_dashboard_template(payload.ui_pack_id, payload.template_id)
-        except ValueError as error:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
-        document['projectId'] = project_id
-        document['name'] = payload.name
-        document['dashboardTemplate'] = {
-            'uiPackId': payload.ui_pack_id,
-            'templateId': template.id,
-            'version': template.version}
-        document = validate_panel_document(document)
-        require_interaction3d_changes(request, document, database=database)
-        require_document_ui_access(request, document, database=database)
-        validate_document_assets(request, document)
-        document = merge_document_popups(database, document, updated_by=user.id)
-    else:
-        document = create_blank_project(project_id, payload.name, payload.canvas_width, payload.canvas_height, payload.ui_pack_id)
+    document = create_blank_project(project_id, payload.name, payload.canvas_width, payload.canvas_height)
     project = Project(id=project_id, name=payload.name, slug=unique_slug(database, payload.name), description=payload.description.strip(), created_by=user.id)
     draft = ProjectDraft(project_id=project_id, schema_version=document['schemaVersion'], revision=1, document_json=serialize_document(strip_document_popups(document)), updated_by=user.id)
     database.add_all([project, draft])
@@ -191,7 +137,6 @@ def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request
     document = hydrate_document_popups(database, json.loads(source_draft.document_json))
     document.pop('studio3d', None)
     require_interaction3d_changes(request, document, database=database)
-    require_document_ui_access(request, document, database=database)
     validate_document_assets(request, document)
     document['projectId'] = duplicate_id
     document['name'] = payload.name
@@ -229,7 +174,6 @@ def get_project_draft(project_id: str, request: Request, database: DatabaseSessi
     if draft is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
     document = hydrate_document_popups(database, json.loads(draft.document_json), referenced_only=viewer.project_id is not None)
-    require_document_ui_access(request, document, database=database)
     return {
         'projectId': project_id,
         'schemaVersion': draft.schema_version,
@@ -292,7 +236,6 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
     require_interaction3d_changes(request, document, hydrate_document_popups(database, json.loads(draft.document_json)), database=database)
-    require_document_ui_access(request, document, database=database)
     user_asset_ids = validate_document_assets(request, document)
     if document['projectId'] != project_id:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='文档 projectId 与项目不匹配。')

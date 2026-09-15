@@ -1,16 +1,12 @@
 export function createEditorAssetMatcher({
-  getImageSource: getImageSource,
   getImageFolder: getImageFolder,
-  getIbeSource: getIbeSource,
   getIbeFolder: getIbeFolder,
-  getUserAssets: getUserAssets,
-  getBuiltinAssets: getBuiltinAssets
+  getUserAssets: getUserAssets
 }) {
   return function (assetKind, searchText = "") {
     const isImageKind = assetKind === "image",
-      activeSource = isImageKind ? getImageSource() : getIbeSource(),
       activeFolder = isImageKind ? getImageFolder() : getIbeFolder(),
-      sourceAssets = activeSource === "user" ? getUserAssets() : getBuiltinAssets(),
+      sourceAssets = getUserAssets(),
       normalizedQuery = String(searchText || "")
         .trim()
         .toLocaleLowerCase("zh-CN");

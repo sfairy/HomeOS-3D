@@ -209,7 +209,7 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
     if payload.level not in frozenset({'error', 'warning'}):
         raise HTTPException(status_code=422, detail='未登录页面只能上报异常。')
     page = str(payload.context.get('page') or '').split('?', 1)[0].split('#', 1)[0].rstrip('/') or '/'
-    if page not in PUBLIC_PAGES and not page.startswith(('/display/', '/habridge/', '/3d-studio/')):
+    if page not in PUBLIC_PAGES and not page.startswith(('/display/', '/3d-studio/')):
         raise HTTPException(status_code=422, detail='不支持的页面。')
     _limit_client_log(request, anonymous=True)
     try:

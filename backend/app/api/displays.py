@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import secrets
 from datetime import datetime, timezone
+from urllib.parse import quote
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from sqlalchemy import select
 
 from ..dependencies import DatabaseSession, LicensedUser
+from ..display_access import display_path
 from ..ha.crypto import CredentialCipher, CredentialCipherError
 from ..models import DisplayDevice, DisplayPairingCode, Project, User
 from ..schemas import (
@@ -63,7 +65,7 @@ def pairing_payload(
         'enabled': pairing.is_enabled,
         'createdAt': pairing.created_at,
         'updatedAt': pairing.updated_at,
-        'pairingUrl': f'/pair?next=/display/{project.id}',
+        'pairingUrl': f'/pair?next={quote(display_path(project.name), safe = "/")}',
         'device': device_payload(device, project) if device is not None else None,
     }
 
@@ -302,7 +304,7 @@ def pair_display_device(
     request.app.state.global_log.append('success', '展示设备', '中控设备', f'中控设备已完成配对：{device.name}')
     return {
         'device': device_payload(device, project),
-        'targetUrl': f'/display/{project.id}',
+        'targetUrl': display_path(project.name),
     }
 
 

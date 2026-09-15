@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import hmac
 import json
 import os
 import sys
@@ -33,15 +32,14 @@ from .api.license import router as license_router
 from .modules.interaction3d.api import router as interaction3d_router
 from .api.projects import router as projects_router
 from .api.studio3d import router as studio3d_router
-from .api.ui_packs import router as ui_packs_router
 from .auth_limiter import LoginAttemptLimiter
 from .config import Settings, load_settings
 from .database import Database
 from .ha.service import HAConnectorService
 from .license import LicenseService
 from .updates import UpdateChecker, router as updates_router
-from .migrations import restore_upgrade_backup, run_migrations
-from .display_access import active_display_device, backfill_persistent_display_pairings
+from .migrations import run_migrations
+from .display_access import active_display_device, display_path
 from .global_log import GlobalLogStore, _safe_text, event_context
 from .models import DisplayDevice, LoginSession, Project, User
 from .security import session_token_hash, set_display_cookie
@@ -61,41 +59,6 @@ def _record_lifecycle_failure(app: FastAPI, phase: str, error: Exception) -> Non
         pass
 
 
-def migrate_secret_key(source: os.PathLike[str], target: os.PathLike[str]) -> bool:
-    source_path = os.fspath(source)
-    target_path = os.fspath(target)
-    if os.path.abspath(source_path) == os.path.abspath(target_path):
-        return False
-    if not os.path.isfile(source_path):
-        return False
-    target_parent = os.path.dirname(target_path)
-    os.makedirs(target_parent, mode = 0o700, exist_ok = True)
-    try:
-        os.chmod(target_parent, 0o700)
-    except OSError:
-        pass
-    with open(source_path, 'rb') as source_file:
-        payload = source_file.read()
-    if os.path.exists(target_path):
-        with open(target_path, 'rb') as target_file:
-            target_payload = target_file.read()
-        if not hmac.compare_digest(payload, target_payload):
-            raise RuntimeError('新旧密钥内容不一致，已保留 /data 中的旧密钥。')
-    else:
-        descriptor = os.open(target_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(descriptor, 'wb') as output:
-            output.write(payload)
-            output.flush()
-            os.fsync(output.fileno())
-        with open(target_path, 'rb') as target_file:
-            target_payload = target_file.read()
-        if not hmac.compare_digest(payload, target_payload):
-            raise RuntimeError('新密钥写入验证失败，已保留 /data 中的旧密钥。')
-    os.chmod(target_path, 0o600)
-    os.unlink(source_path)
-    return True
-
-
 def create_app(settings: Settings | None = None, license_transport = None, license_endpoint_pool = None) -> FastAPI:
     app_settings = settings or load_settings()
 
@@ -113,26 +76,14 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             os.chmod(app_settings.studio3d_exports_dir, 0o700)
             app_settings.effect_variants_dir.mkdir(parents = True, exist_ok = True, mode = 0o700)
             os.chmod(app_settings.effect_variants_dir, 0o700)
-            migrate_secret_key(app_settings.secrets_dir / 'ha_credentials.key', app_settings.credential_key_path)
-            migrate_secret_key(app_settings.secrets_dir / 'display_pairing_codes.key', app_settings.display_pairing_key_path)
-            migrate_secret_key(app_settings.secrets_dir / 'license_credentials.key', app_settings.license_secret_key_path)
-            upgrade_backup = run_migrations(app_settings)
+            run_migrations(app_settings)
             os.chmod(app_settings.database_path, 0o600)
             app.state.database = Database(app_settings.database_url)
             app.state.admin_account = AdminAccountStore(app_settings.admin_account_path)
-            try:
-                account_state = app.state.admin_account.initialize(app.state.database)
-            except Exception:
-                app.state.database.dispose()
-                if upgrade_backup is not None:
-                    restore_upgrade_backup(app_settings, upgrade_backup)
-                raise
+            account_state = app.state.admin_account.initialize(app.state.database)
             app.state.settings = app_settings
-            if account_state == 'migrated':
-                app.state.global_log.append('success', '系统后台', '账号', '原管理员账号已自动迁移到独立账号文件')
-            elif account_state == 'reset_required':
+            if account_state == 'reset_required':
                 app.state.global_log.append('warning', '系统后台', '账号', '检测到管理员账号文件已删除，等待重新设置账号和密码')
-            backfill_persistent_display_pairings(app_settings, app.state.database)
             app.state.login_limiter = LoginAttemptLimiter()
             app.state.license_service = LicenseService(app_settings, app.state.database, transport = license_transport, endpoint_pool = license_endpoint_pool, event_log = app.state.global_log)
             await app.state.license_service.start()
@@ -244,7 +195,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     app.include_router(runtime_router, prefix = '/api/v1')
     app.include_router(projects_router, prefix = '/api/v1')
     app.include_router(studio3d_router, prefix = '/api/v1')
-    app.include_router(ui_packs_router, prefix = '/api/v1')
     app.include_router(icons_router, prefix = '/api/v1')
     app.include_router(license_router, prefix = '/api/v1')
     app.include_router(interaction3d_router, prefix = '/api/v1')
@@ -363,8 +313,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             or path.startswith('/static/')
             or path.startswith('/assets/builtin/')
             or path.startswith('/display/')
-            or path.startswith('/habridge/')
-            or path.startswith('/projects/')
         )
         if app_surface:
             embedded_auto_diagram = path == '/3d-studio' and request.query_params.get('auto-diagram-embed') == '1'
@@ -390,8 +338,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             path in {'/', '/pair', '/login', '/setup', '/license', '/3d-studio'}
             or (path.startswith('/api/v1/') and not immutable_private_asset(path))
             or path.startswith('/display/')
-            or path.startswith('/habridge/')
-            or path.startswith('/projects/')
             or path.startswith('/static/3d-studio/')
             or path in {'/static/display.js', '/static/display.css'}
         ):
@@ -466,7 +412,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             return RedirectResponse(safe_next_path(request), status_code = 303)
         device = active_display(request)
         if device is not None and not scan_link:
-            return RedirectResponse(f'/display/{device.project_id}', status_code = 303)
+            with request.app.state.database.session_factory() as database:
+                paired_project = database.get(Project, device.project_id)
+            if paired_project is not None:
+                return RedirectResponse(display_path(paired_project.name), status_code = 303)
         if not request.app.state.license_service.allows('display'):
             raise HTTPException(status_code = 403, detail = '当前授权状态不允许添加中控设备。')
         return FileResponse(app_settings.frontend_dir / 'pair.html')
@@ -501,36 +450,13 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             return RedirectResponse('/license', status_code = 303)
         return FileResponse(app_settings.frontend_dir / '3d-studio.html')
 
-    @app.get('/projects/{project_id}/3d-studio', include_in_schema = False)
-    def legacy_three_d_studio_page(project_id: str, request: Request):
-        if not initialized(request):
-            return RedirectResponse('/setup', status_code = 303)
-        if not signed_in(request):
-            return login_redirect(request)
-        if not request.app.state.license_service.allows('editor'):
-            return RedirectResponse('/license', status_code = 303)
-        return RedirectResponse('/3d-studio', status_code = 308)
-
-    @app.get('/display/{project_id}', include_in_schema = False)
-    def display_page(project_id: str, request: Request):
+    @app.get('/display/{project_name:path}', include_in_schema = False)
+    def display_page(project_name: str, request: Request):
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         device = active_display(request)
-        if not signed_in(request) and (device is None or device.project_id != project_id):
-            return pairing_redirect(request)
-        if not request.app.state.license_service.allows('display'):
-            raise HTTPException(status_code = 403, detail = '当前授权状态不允许打开正式显示页面。')
-        response = FileResponse(app_settings.frontend_dir / 'display.html')
-        if device is not None:
-            set_display_cookie(response, app_settings, request.cookies[app_settings.display_cookie_name])
-        return response
-
-    @app.get('/habridge/{project_name:path}', include_in_schema = False)
-    def named_display_page(project_name: str, request: Request):
-        if not initialized(request):
-            return RedirectResponse('/setup', status_code = 303)
-        device = active_display(request)
-        if not signed_in(request) and device is None:
+        viewer_signed_in = signed_in(request)
+        if not viewer_signed_in and device is None:
             return pairing_redirect(request)
         if not request.app.state.license_service.allows('display'):
             raise HTTPException(status_code = 403, detail = '当前授权状态不允许打开正式显示页面。')
@@ -538,7 +464,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             project = database.scalar(select(Project).where(Project.name == project_name))
         if project is None:
             raise HTTPException(status_code = 404, detail = '仪表盘不存在。')
-        if not signed_in(request) and (device is None or device.project_id != project.id):
+        if not viewer_signed_in and (device is None or device.project_id != project.id):
             return pairing_redirect(request)
         response = FileResponse(app_settings.frontend_dir / 'display.html')
         if device is not None:

@@ -1,23 +1,22 @@
-import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260915211726";
+import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260916013557";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "./renderer/renderer.js?v=20260915211726";
+} from "./renderer/renderer.js?v=20260916013557";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "./renderer/registry.js?v=20260915211726";
+} from "./renderer/registry.js?v=20260916013557";
 import {
-  applyUiPackToDocument,
   createComponentFromTemplate,
   dateComponentDimensions,
-  ensureUiPackRuntime,
   listComponentTemplates,
+  normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "./ui-packs/loader.js?v=20260915211726";
+} from "./templates/component-templates.js?v=20260916013557";
 import {
   clone,
   newId,
@@ -29,21 +28,21 @@ import {
   roundField,
   clampNumber,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260915211726";
+} from "./editor-utils.js?v=20260916013557";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "./popup-layout.js?v=20260915211726";
+} from "./popup-layout.js?v=20260916013557";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260915211726";
+} from "./dashboard-resize.js?v=20260916013557";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260915211726";
+} from "./component-page-copy.js?v=20260916013557";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -55,24 +54,24 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "./related-entities.js?v=20260915211726";
-import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260915211726";
-import { createButtonSound } from "./sound-effects.js?v=20260915211726";
+} from "./related-entities.js?v=20260916013557";
+import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260916013557";
+import { createButtonSound } from "./sound-effects.js?v=20260916013557";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260915211726";
-import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260915211726";
+} from "./editor-dialogs.js?v=20260916013557";
+import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260916013557";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./editor-picker-pagination.js?v=20260915211726";
-import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260915211726";
-import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260915211726";
-import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260915211726";
-import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260915211726";
-import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260915211726";
+} from "./editor-picker-pagination.js?v=20260916013557";
+import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260916013557";
+import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260916013557";
+import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260916013557";
+import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260916013557";
+import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260916013557";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -80,13 +79,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "./action-rules.js?v=20260915211726";
+} from "./action-rules.js?v=20260916013557";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260915211726";
+} from "./component-tree.js?v=20260916013557";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -96,13 +95,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260915211726";
+} from "./editor-component-collections.js?v=20260916013557";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260915211726";
+} from "./editor-basic-inspectors.js?v=20260916013557";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -113,7 +112,7 @@ import {
   popupModuleTypeLabel,
   reorderedPopupModules,
   uniquePagePath
-} from "./editor-document-management.js?v=20260915211726";
+} from "./editor-document-management.js?v=20260916013557";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -121,18 +120,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260915211726";
+} from "./editor-history.js?v=20260916013557";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "./3d-studio/studio-normalization.js?v=20260915211726";
-import { createLicenseCard } from "./license-card.js?v=20260915211726";
+} from "./3d-studio/studio-normalization.js?v=20260916013557";
+import { createLicenseCard } from "./license-card.js?v=20260916013557";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "./modules/interaction3d/editor.js?v=20260915211726";
+} from "./modules/interaction3d/editor.js?v=20260916013557";
 const findElement = selector => document.querySelector(selector);
 installSettingsDialogBackdropGuard();
 const EDITOR_DESIGN_WIDTH = 1020;
@@ -178,6 +177,7 @@ const saveButtonElement = findElement("#save");
 const licenseOpenButtonElement = findElement("#license-open");
 const licenseDialogElement = findElement("#license-dialog");
 const licenseCloseButtonElement = findElement("#license-close");
+const licenseReactivateButtonElement = findElement("#license-reactivate");
 const licenseFormElement = findElement("#license-form");
 const licenseMessageElement = findElement("#license-message");
 const licenseDetailIndicatorElement = findElement("#license-detail-indicator");
@@ -217,13 +217,6 @@ const projectSelectElement = findElement("#project-select");
 const projectActionsButtonElement = findElement("#project-actions-button");
 const projectActionsMenuElement = findElement("#project-actions-menu");
 const projectFloorplanOpenButtonElement = findElement("#project-floorplan-open");
-const uiPackOpenButtonElement = findElement("#ui-pack-open");
-const uiPackCurrentNameElement = findElement("#ui-pack-current-name");
-const uiPackCurrentVersionElement = findElement("#ui-pack-current-version");
-const uiPackDialogElement = findElement("#ui-pack-dialog");
-const uiPackCloseButtonElement = findElement("#ui-pack-close");
-const uiPackListElement = findElement("#ui-pack-list");
-const uiPackMessageElement = findElement("#ui-pack-message");
 const navigatorContentElement = findElement("#navigator-content");
 const pageControlElement = findElement(".page-control");
 const popupControlElement = findElement(".popup-control");
@@ -257,15 +250,6 @@ const projectCancelButtonElement = findElement("#project-cancel");
 const projectFormElement = findElement("#project-form");
 const projectSubmitButtonElement = findElement("#project-submit");
 const projectMessageElement = findElement("#project-message");
-const projectTemplateFieldsElement = findElement("#project-template-fields");
-const projectTemplateOptionsElement = findElement("#project-template-options");
-const projectPreviewDialogElement = findElement("#project-preview-dialog");
-const projectPreviewTitleElement = findElement("#project-preview-title");
-const projectPreviewCountElement = findElement("#project-preview-count");
-const projectPreviewImageElement = findElement("#project-preview-image");
-const projectPreviewPreviousButtonElement = findElement("#project-preview-previous");
-const projectPreviewNextButtonElement = findElement("#project-preview-next");
-const projectPreviewCloseButtonElement = findElement("#project-preview-close");
 const projectCanvasFieldsElement = findElement("#project-canvas-fields");
 const projectCanvasWidthInputElement = findElement("#project-canvas-width");
 const projectCanvasHeightInputElement = findElement("#project-canvas-height");
@@ -1156,15 +1140,11 @@ let activeProject = null;
 let componentScope = "shared";
 let projectDialogMode = "create";
 let resizeWarningResolve = null;
-let selectedTemplateId = "dwell-light";
 let canvasWidth = 2778;
 let canvasHeight = 1940;
 let isAspectLocked = false;
 let lockedCanvasWidth = 2778;
 let lockedCanvasHeight = 1940;
-let previewImageSources = [];
-let previewLabels = [];
-let previewIndex = 0;
 let pageDialogMode = "create";
 let isEditingHaConnection = false;
 let haTestPromise = null;
@@ -1181,10 +1161,8 @@ let moduleDialogPopupId = null;
 let popupModuleDraft = null;
 let pendingDeleteAssetId = null;
 let pendingDeleteAssetFolder = null;
-let builtinAssets = [];
 let userAssets = [];
 let catalogVersionSignature = null;
-let uiPacks = [];
 let entities = [];
 let devices = [];
 let deviceNamesByDeviceId = new Map();
@@ -1195,8 +1173,6 @@ let lastConnectedSignature = null;
 let writeQueuePromise = Promise.resolve();
 let imageAssetFolder = "";
 let effectAssetFolder = "";
-let imageAssetSource = "builtin";
-let effectAssetSource = "builtin";
 let assetPreviewTimeoutId = null;
 let navigationIconSearchDebounceTimeoutId = null;
 let navigationIconCopiedTimeoutId = null;
@@ -1266,8 +1242,8 @@ let colorPickerSaturation = 0;
 let colorPickerBrightness = 1;
 let colorPickerDragPointerId = null;
 let colorPickerCopyResetTimer = null;
-let lastBlockedUiPackId = "";
 let lastLicenseFeatureSignature = null;
+let isLicenseActivationFormRequested = false;
 async function requestJson(requestPath, requestOptions = {}) {
   const apiResponse = await fetch("/api/v1" + requestPath, {
     cache: "no-store",
@@ -1407,12 +1383,6 @@ function syncCustomSelect(selectElement) {
       : selectElement === iconButtonEffectAssetFolderSelectElement
         ? "ibe"
         : "";
-  const assetSource =
-    assetFolderKind === "image"
-      ? imageAssetSource
-      : assetFolderKind === "ibe"
-        ? effectAssetSource
-        : "";
   customSelectForSelect.menu.replaceChildren(
     ...[...selectElement.options].map(nativeOption => {
       const optionButtonElement = document.createElement("button");
@@ -1432,7 +1402,7 @@ function syncCustomSelect(selectElement) {
       }
       optionButtonElement.classList.toggle("active", nativeOption.value === selectElement.value);
       optionButtonElement.disabled = nativeOption.disabled;
-      if (!assetFolderKind || !canDeleteAssetFolder(assetSource, nativeOption.value)) {
+      if (!assetFolderKind || !canDeleteAssetFolder("user", nativeOption.value)) {
         return optionButtonElement;
       }
       const optionRowElement = document.createElement("div");
@@ -1825,7 +1795,6 @@ function setWorkspaceHasProject(hasActiveProject) {
   editorCanvasElement.classList.toggle("workspace-empty-state", !hasActiveProject);
   editorCanvasElement.classList.toggle("canvas-placeholder", hasActiveProject);
   projectActionsButtonElement.disabled = !hasActiveProject;
-  uiPackOpenButtonElement.disabled = !hasActiveProject;
   pageNewButtonElement.disabled = !hasActiveProject;
   popupNewButtonElement.disabled = !hasActiveProject;
   if (!hasActiveProject) {
@@ -1838,110 +1807,6 @@ function setWorkspaceHasProject(hasActiveProject) {
   renderWorkspaceResolution();
   renderDashboardDisplayLink();
   refreshSoundToggle();
-}
-function uiPackIdForDocument(projectDocument = activeProject?.document) {
-  return projectDocument?.uiPack?.id || "ui.base";
-}
-function findUiPack(requestedUiPackId = uiPackIdForDocument()) {
-  return (
-    uiPacks.find(uiPackEntry => uiPackEntry.id === requestedUiPackId) ||
-    (requestedUiPackId === "ui.base"
-      ? {
-          id: "ui.base",
-          name: "栖光",
-          englishName: "DWELL LIGHT",
-          version: "1.0.0",
-          featureCode: "ui.base",
-          description: "黑色界面与橙色高亮，包含现有控件、弹窗和示例素材。",
-          includes: ["components", "popups", "assets"],
-          allowed: true
-        }
-      : null)
-  );
-}
-function renderUiPackHeader() {
-  const activeUiPack = findUiPack();
-  uiPackCurrentNameElement.textContent = activeUiPack?.name || "未知 UI";
-  uiPackCurrentVersionElement.textContent = activeUiPack
-    ? (activeUiPack.englishName || activeUiPack.id) + " · " + activeUiPack.version
-    : uiPackIdForDocument();
-}
-function renderUiPackList() {
-  const currentUiPackId = uiPackIdForDocument();
-  const uiPackIncludesLabels = {
-    dashboards: "仪表盘",
-    components: "控件",
-    popups: "弹窗",
-    assets: "素材"
-  };
-  if (!uiPacks.length) {
-    const uiPackEmptyElement = document.createElement("div");
-    uiPackEmptyElement.className = "component-template-empty";
-    uiPackEmptyElement.textContent = "暂无可用 UI 方案。";
-    uiPackListElement.replaceChildren(uiPackEmptyElement);
-    return;
-  }
-  uiPackListElement.replaceChildren(
-    ...uiPacks.map(uiPackCardData => {
-      const uiPackCardElement = document.createElement("article");
-      const isCurrentUiPack = uiPackCardData.id === currentUiPackId;
-      uiPackCardElement.className = "ui-pack-card" + (isCurrentUiPack ? " current" : "");
-      const uiPackPreviewElement = document.createElement("div");
-      uiPackPreviewElement.className = "ui-pack-preview";
-      if (uiPackCardData.previewUrl) {
-        uiPackPreviewElement.classList.add("has-cover");
-        const uiPackCoverImageElement = document.createElement("img");
-        uiPackCoverImageElement.src = uiPackCardData.previewUrl;
-        uiPackCoverImageElement.alt = uiPackCardData.name + " 仪表盘预览";
-        uiPackPreviewElement.append(uiPackCoverImageElement);
-      }
-      const uiPackCopyElement = document.createElement("div");
-      uiPackCopyElement.className = "ui-pack-card-copy";
-      const uiPackVersionElement = document.createElement("span");
-      uiPackVersionElement.textContent =
-        (uiPackCardData.englishName || uiPackCardData.id) + " · " + uiPackCardData.version;
-      const uiPackNameElement = document.createElement("strong");
-      uiPackNameElement.textContent = uiPackCardData.name;
-      const uiPackDescriptionElement = document.createElement("p");
-      uiPackDescriptionElement.textContent = uiPackCardData.description;
-      const uiPackIncludesElement = document.createElement("div");
-      uiPackIncludesElement.className = "ui-pack-includes";
-      for (const includeEntryKey of uiPackCardData.includes || []) {
-        const includeEntryElement = document.createElement("i");
-        includeEntryElement.textContent = uiPackIncludesLabels[includeEntryKey] || includeEntryKey;
-        uiPackIncludesElement.append(includeEntryElement);
-      }
-      const uiPackApplyButtonElement = document.createElement("button");
-      uiPackApplyButtonElement.type = "button";
-      uiPackApplyButtonElement.dataset.uiPackId = uiPackCardData.id;
-      uiPackApplyButtonElement.disabled = isCurrentUiPack || !uiPackCardData.allowed;
-      uiPackApplyButtonElement.textContent = isCurrentUiPack
-        ? "当前使用"
-        : uiPackCardData.allowed
-          ? "应用到当前仪表盘"
-          : "尚未解锁";
-      if (!isCurrentUiPack && uiPackCardData.allowed) {
-        uiPackApplyButtonElement.className = "primary";
-      }
-      uiPackCopyElement.append(
-        uiPackVersionElement,
-        uiPackNameElement,
-        uiPackDescriptionElement,
-        uiPackIncludesElement,
-        uiPackApplyButtonElement
-      );
-      uiPackCardElement.append(uiPackPreviewElement, uiPackCopyElement);
-      return uiPackCardElement;
-    })
-  );
-}
-async function loadUiPacks() {
-  uiPacks = (await requestJson("/ui-packs?_=" + Date.now())).items || [];
-  renderUiPackHeader();
-  if (uiPackDialogElement.open) {
-    renderUiPackList();
-  }
-  return uiPacks;
 }
 function destroyDashboardPreview() {
   dashboardPreviewRenderer?.destroy();
@@ -1989,7 +1854,7 @@ function renderDashboardDisplayLink() {
     return;
   }
   const dashboardDisplayUrl = new URL(
-    "/habridge/" + encodeURIComponent(dashboardName),
+    "/display/" + encodeURIComponent(dashboardName),
     window.location.origin
   );
   dashboardDisplayLinkElement.href = dashboardDisplayUrl.href;
@@ -3798,9 +3663,8 @@ function setComponentScope(componentScopeName) {
 }
 function syncAddComponentButton() {
   const hasCurrentPage = !!currentPage();
-  const currentUiPackIdForTemplates = uiPackIdForDocument();
   const hasComponentTemplates = ["shared", "page"].some(
-    templateScope => listComponentTemplates(templateScope, currentUiPackIdForTemplates).length > 0
+    templateScope => listComponentTemplates(templateScope).length > 0
   );
   addComponentButtonElement.disabled = !hasCurrentPage || !hasComponentTemplates;
   addComponentButtonElement.title = hasCurrentPage
@@ -3810,10 +3674,9 @@ function syncAddComponentButton() {
     : "请先新建页面";
 }
 function renderComponentTemplates() {
-  const templateUiPackId = uiPackIdForDocument();
   const componentTemplates = [
-    ...listComponentTemplates("shared", templateUiPackId),
-    ...listComponentTemplates("page", templateUiPackId)
+    ...listComponentTemplates("shared"),
+    ...listComponentTemplates("page")
   ].filter(
     (templateEntry, templateIndex, templateList) =>
       templateList.findIndex(templateEntryItem => templateEntryItem.id === templateEntry.id) ===
@@ -3847,7 +3710,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260915211726";
+          ".jpg?v=20260916013557";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -5891,11 +5754,7 @@ function resolveAssetPreviewUrl(asset) {
     }
   }
   const assetRelativePath = String(asset?.relativePath || assetIdText).replace(/^builtin:/, "");
-  const encodedAssetPath = (
-    assetRelativePath.startsWith("v1/2D/") || assetRelativePath.startsWith("v1/3D/")
-      ? assetRelativePath.replace(/^v1\//, "v1/户型图示例/")
-      : assetRelativePath
-  )
+  const encodedAssetPath = assetRelativePath
     .split("/")
     .filter(Boolean)
     .map(pathSegment => encodeURIComponent(pathSegment))
@@ -5975,24 +5834,12 @@ const editorPickers = createInteraction3dEditorPickers({
   }
 });
 const editorAssetMatcher = createEditorAssetMatcher({
-  getImageSource: () => imageAssetSource,
   getImageFolder: () => imageAssetFolder,
-  getIbeSource: () => effectAssetSource,
   getIbeFolder: () => effectAssetFolder,
-  getUserAssets: () => userAssets,
-  getBuiltinAssets: () => builtinAssets
+  getUserAssets: () => userAssets
 });
 const editorAssetToolbar = createEditorAssetToolbar({
   documentObject: document,
-  getSource: currentSourceKey =>
-    currentSourceKey === "image" ? imageAssetSource : effectAssetSource,
-  setSource: (sourceKey, sourceValue) => {
-    if (sourceKey === "image") {
-      imageAssetSource = sourceValue;
-    } else {
-      effectAssetSource = sourceValue;
-    }
-  },
   getFolder: folderKey => (folderKey === "image" ? imageAssetFolder : effectAssetFolder),
   setFolder: (nextFolderKey, folderValue) => {
     if (nextFolderKey === "image") {
@@ -6001,7 +5848,7 @@ const editorAssetToolbar = createEditorAssetToolbar({
       effectAssetFolder = folderValue;
     }
   },
-  getAssets: assetStoreKey => (assetStoreKey === "user" ? userAssets : builtinAssets),
+  getAssets: () => userAssets,
   getUploadInput: uploadSourceKey =>
     uploadSourceKey === "image"
       ? imageAssetUploadInputElement
@@ -6012,13 +5859,10 @@ const editorAssetToolbar = createEditorAssetToolbar({
     requestDeleteAssetFolder(removedSourceKey, removedFolderName)
 });
 function assetMatchesId(assetRecord, targetAssetId) {
-  return (
-    assetRecord?.assetId === targetAssetId ||
-    (assetRecord?.legacyAssetIds || []).includes(targetAssetId)
-  );
+  return assetRecord?.assetId === targetAssetId;
 }
 function allAssets() {
-  return [...builtinAssets, ...userAssets];
+  return userAssets;
 }
 function findAssetById(wantedAssetId) {
   return allAssets().find(assetCandidate => assetMatchesId(assetCandidate, wantedAssetId));
@@ -6047,45 +5891,13 @@ function canDeleteAssetFolder(folderSource, assetFolderName) {
     folderAssets.every(checkedAsset => checkedAsset.source === "studio3d-export")
   );
 }
-function syncAssetSourceControls(sourceKind) {
-  const isImageSource = sourceKind === "image";
-  const currentAssetSource = isImageSource ? imageAssetSource : effectAssetSource;
-  const sourceMenuElement = isImageSource
-    ? imageAssetMenuElement
-    : iconButtonEffectAssetMenuElement;
-  const folderSelectElement = isImageSource
-    ? imageAssetFolderSelectElement
-    : iconButtonEffectAssetFolderSelectElement;
-  const uploadHintElement = isImageSource
-    ? imageAssetUploadHintElement
-    : iconButtonEffectAssetUploadHintElement;
-  const sourceSelector = isImageSource ? "[data-image-asset-source]" : "[data-ibe-asset-source]";
-  for (const sourceButtonElement of sourceMenuElement.querySelectorAll(sourceSelector)) {
-    sourceButtonElement.classList.toggle(
-      "active",
-      sourceButtonElement.dataset[isImageSource ? "imageAssetSource" : "ibeAssetSource"] ===
-        currentAssetSource
-    );
-  }
-  const folderSelectControl = customSelectsBySelectElement.get(folderSelectElement);
-  if (folderSelectControl) {
-    const sourceAssetList = currentAssetSource === "user" ? userAssets : builtinAssets;
-    folderSelectControl.wrapper.hidden = !sourceAssetList.some(sourceAsset => sourceAsset.folder);
-    if (folderSelectControl.wrapper.hidden) {
-      closeCustomSelectMenu(folderSelectControl);
-    }
-  }
-  uploadHintElement.hidden = currentAssetSource !== "user";
-}
 function syncAssetFolderOptions(assetSourceKind) {
   const isImageKind = assetSourceKind === "image";
-  const selectedAssetSource = isImageKind ? imageAssetSource : effectAssetSource;
   const folderSelectInput = isImageKind
     ? imageAssetFolderSelectElement
     : iconButtonEffectAssetFolderSelectElement;
-  const sourceAssets = selectedAssetSource === "user" ? userAssets : builtinAssets;
   const folderNames = [
-    ...new Set(sourceAssets.map(sourceAssetItem => sourceAssetItem.folder).filter(Boolean))
+    ...new Set(userAssets.map(sourceAssetItem => sourceAssetItem.folder).filter(Boolean))
   ].sort((leftFolderName, rightFolderName) =>
     leftFolderName.localeCompare(rightFolderName, "zh-CN")
   );
@@ -6104,7 +5916,6 @@ function syncAssetFolderOptions(assetSourceKind) {
   );
   folderSelectInput.value = nextFolder;
   syncCustomSelect(folderSelectInput);
-  syncAssetSourceControls(assetSourceKind);
 }
 function measureAssetImageSize(measuredAsset) {
   if (Number(measuredAsset?.width) > 0 && Number(measuredAsset?.height) > 0) {
@@ -6352,17 +6163,15 @@ function renderImageAssetOptions(assetSearchQuery = "") {
   hideAssetLargePreview();
   const boundAssetId = selectedComponent()?.properties?.assetId || "";
   const normalizedAssetQuery = assetSearchQuery.trim().toLocaleLowerCase("zh-CN");
-  const filteredAssets = (imageAssetSource === "user" ? userAssets : builtinAssets).filter(
-    matchingAsset => {
-      const matchesQuery =
-        !normalizedAssetQuery ||
-        (matchingAsset.name + " " + matchingAsset.relativePath)
-          .toLocaleLowerCase("zh-CN")
-          .includes(normalizedAssetQuery);
-      const matchesFolder = !!normalizedAssetQuery || matchingAsset.folder === imageAssetFolder;
-      return matchesQuery && matchesFolder;
-    }
-  );
+  const filteredAssets = userAssets.filter(matchingAsset => {
+    const matchesQuery =
+      !normalizedAssetQuery ||
+      (matchingAsset.name + " " + matchingAsset.relativePath)
+        .toLocaleLowerCase("zh-CN")
+        .includes(normalizedAssetQuery);
+    const matchesFolder = !!normalizedAssetQuery || matchingAsset.folder === imageAssetFolder;
+    return matchesQuery && matchesFolder;
+  });
   const clearAssetButton = document.createElement("button");
   clearAssetButton.type = "button";
   clearAssetButton.className = "inspector-asset-clear" + (boundAssetId ? "" : " selected");
@@ -6385,14 +6194,8 @@ function renderImageAssetOptions(assetSearchQuery = "") {
 function syncImageAssetSelection(imageComponent) {
   const currentAssetId = imageComponent.properties?.assetId || "";
   const matchedAsset = findAssetById(currentAssetId);
-  imageAssetSource =
-    ["user", "studio3d-export"].includes(matchedAsset?.source) ||
-    (userAssets.length && !matchedAsset)
-      ? "user"
-      : "builtin";
   imageAssetFolder = matchedAsset?.folder || "" || imageAssetFolder;
   syncAssetFolderOptions("image");
-  syncAssetSourceControls("image");
   imageAssetButtonElement.textContent = matchedAsset?.name || currentAssetId || "不使用图片";
   imageAssetSearchInputElement.value = "";
   imageAssetOptionsElement.replaceChildren();
@@ -6431,7 +6234,7 @@ function renderEffectAssetOptions(effectAssetSearchQuery = "") {
   hideAssetLargePreview();
   const boundEffectAssetId = selectedComponent()?.properties?.effectAssetId || "";
   const normalizedEffectQuery = effectAssetSearchQuery.trim().toLocaleLowerCase("zh-CN");
-  const filteredEffectAssets = (effectAssetSource === "user" ? userAssets : builtinAssets).filter(
+  const filteredEffectAssets = userAssets.filter(
     effectMatchingAsset =>
       (!normalizedEffectQuery ||
         (effectMatchingAsset.name + " " + effectMatchingAsset.relativePath)
@@ -6464,14 +6267,8 @@ function renderEffectAssetOptions(effectAssetSearchQuery = "") {
 function syncEffectAssetSelection(effectOwnerComponent) {
   const currentEffectAssetId = effectOwnerComponent.properties?.effectAssetId || "";
   const matchedEffectAsset = findAssetById(currentEffectAssetId);
-  effectAssetSource =
-    ["user", "studio3d-export"].includes(matchedEffectAsset?.source) ||
-    (userAssets.length && !matchedEffectAsset)
-      ? "user"
-      : "builtin";
   effectAssetFolder = matchedEffectAsset?.folder || effectAssetFolder;
   syncAssetFolderOptions("ibe");
-  syncAssetSourceControls("ibe");
   iconButtonEffectAssetButtonElement.textContent =
     matchedEffectAsset?.name || currentEffectAssetId || "不使用图片";
   iconButtonEffectAssetSearchInputElement.value = "";
@@ -8950,14 +8747,9 @@ function syncInspector() {
   syncComponentActionControls(inspectedComponent, componentActionControlsElement);
 }
 async function reloadAssetCatalog({ refreshInspector: refreshInspector = true } = {}) {
-  const [builtinAssetsResponse, userAssetsResponse] = await Promise.all([
-    requestJson("/assets/builtin?_=" + Date.now()),
-    requestJson("/assets/user?_=" + Date.now())
-  ]);
-  builtinAssets = builtinAssetsResponse.items || [];
+  const userAssetsResponse = await requestJson("/assets/user?_=" + Date.now());
   userAssets = userAssetsResponse.items || [];
-  catalogVersionSignature =
-    (builtinAssetsResponse.catalogVersion || "") + ":" + (userAssetsResponse.catalogVersion || "");
+  catalogVersionSignature = userAssetsResponse.catalogVersion || "";
   const didVersionsChange = setBuiltinAssetVersions(allAssets());
   if (didVersionsChange) {
     editorRenderer?.renderComponents(true);
@@ -8970,7 +8762,7 @@ async function reloadAssetCatalog({ refreshInspector: refreshInspector = true } 
 }
 async function pollAssetCatalogVersion() {
   const versionResponse = await requestJson("/assets/version");
-  const versionSignature = (versionResponse.builtin || "") + ":" + (versionResponse.user || "");
+  const versionSignature = versionResponse.user || "";
   if (catalogVersionSignature !== versionSignature) {
     await reloadAssetCatalog({
       refreshInspector: true
@@ -10610,7 +10402,6 @@ function ensureEditorRenderer() {
   );
 }
 function renderEditorWorkspace(activePagePath = null) {
-  renderUiPackHeader();
   refreshSoundToggle();
   renderWorkspaceResolution();
   renderPopupList(activeProject.document, selectedPopupId);
@@ -10783,16 +10574,7 @@ async function openProjectDraft(requestedProjectId, initialPagePath = null) {
     projectId: requestedProjectId
   });
   activeProject = await requestJson("/projects/" + requestedProjectId + "/draft");
-  lastBlockedUiPackId = "";
-  let projectUiPack = findUiPack(uiPackIdForDocument(activeProject.document));
-  if (!projectUiPack) {
-    await loadUiPacks();
-    projectUiPack = findUiPack(uiPackIdForDocument(activeProject.document));
-  }
-  if (!projectUiPack?.allowed) {
-    throw new Error("当前授权尚未解锁该 UI 方案。");
-  }
-  await ensureUiPackRuntime(projectUiPack);
+  normalizeDashboardDocument(activeProject.document);
   navigationButtonSavedSettingsByComponentId.clear();
   panelFrameBaselineByComponentId.clear();
   lineChartBaselineByComponentId.clear();
@@ -10831,7 +10613,6 @@ async function loadProjects(preferredProjectId = null) {
     editorRenderer = null;
     destroyDashboardPreview();
     activeProject = null;
-    renderUiPackHeader();
     navigationButtonSavedSettingsByComponentId.clear();
     panelFrameBaselineByComponentId.clear();
     lineChartBaselineByComponentId.clear();
@@ -11270,198 +11051,6 @@ function collectHaConnectionInput(requireToken = false) {
     verifyTls: haFormData.get("verifyTls") === "on"
   };
 }
-function applyTemplateSelection(requestedTemplateId = selectedTemplateId) {
-  const baseTemplates =
-    uiPacks.find(uiPackCandidate => uiPackCandidate.id === "ui.base")?.dashboardTemplates || [];
-  selectedTemplateId =
-    requestedTemplateId === "" ||
-    baseTemplates.some(templateCandidate => templateCandidate.id === requestedTemplateId)
-      ? requestedTemplateId
-      : baseTemplates[0]?.id || "";
-  const templateOptions = [
-    {
-      id: "",
-      name: "空白仪表盘",
-      description: "使用栖光 UI 创建空白画布，不预置页面、控件或弹窗。",
-      previewUrls: [],
-      previewLabels: [],
-      canvasWidth: null,
-      canvasHeight: null
-    },
-    ...baseTemplates.map(templateOption => ({
-      id: templateOption.id,
-      name: templateOption.name,
-      description: templateOption.description + " · v" + templateOption.version,
-      previewUrls: templateOption.previewUrls || [],
-      previewLabels: templateOption.previewLabels || [],
-      canvasWidth: Number(templateOption.canvasWidth || 2778),
-      canvasHeight: Number(templateOption.canvasHeight || 1940)
-    }))
-  ];
-  projectTemplateOptionsElement.replaceChildren(
-    ...templateOptions.map(optionTemplate => {
-      const templateOptionElement = document.createElement("div");
-      templateOptionElement.className =
-        "project-template-option" + (optionTemplate.id === selectedTemplateId ? " active" : "");
-      templateOptionElement.dataset.projectTemplateId = optionTemplate.id;
-      templateOptionElement.dataset.previewUrls = JSON.stringify(optionTemplate.previewUrls);
-      templateOptionElement.dataset.previewLabels = JSON.stringify(optionTemplate.previewLabels);
-      templateOptionElement.dataset.previewIndex = "0";
-      templateOptionElement.setAttribute("role", "radio");
-      templateOptionElement.setAttribute(
-        "aria-checked",
-        String(optionTemplate.id === selectedTemplateId)
-      );
-      templateOptionElement.tabIndex = 0;
-      const carouselElement = document.createElement("div");
-      carouselElement.className =
-        "project-template-carousel" + (optionTemplate.previewUrls.length ? "" : " blank");
-      if (optionTemplate.previewUrls.length) {
-        const previewOpenButton = document.createElement("button");
-        previewOpenButton.type = "button";
-        previewOpenButton.className = "project-template-preview-open";
-        previewOpenButton.dataset.projectPreviewAction = "open";
-        previewOpenButton.title = "点击放大预览";
-        const previewImage = document.createElement("img");
-        previewImage.src = optionTemplate.previewUrls[0];
-        previewImage.alt = optionTemplate.previewLabels[0] || optionTemplate.name + "预览 1";
-        previewImage.loading = "eager";
-        previewOpenButton.append(previewImage);
-        const previousPreviewButton = document.createElement("button");
-        previousPreviewButton.type = "button";
-        previousPreviewButton.className = "project-template-carousel-arrow previous";
-        previousPreviewButton.dataset.projectPreviewAction = "previous";
-        previousPreviewButton.setAttribute("aria-label", "上一张预览");
-        previousPreviewButton.textContent = "‹";
-        const nextPreviewButton = document.createElement("button");
-        nextPreviewButton.type = "button";
-        nextPreviewButton.className = "project-template-carousel-arrow next";
-        nextPreviewButton.dataset.projectPreviewAction = "next";
-        nextPreviewButton.setAttribute("aria-label", "下一张预览");
-        nextPreviewButton.textContent = "›";
-        const carouselMetaElement = document.createElement("div");
-        carouselMetaElement.className = "project-template-carousel-meta";
-        const carouselLabelElement = document.createElement("strong");
-        carouselLabelElement.textContent = optionTemplate.previewLabels[0] || "栖光预览";
-        const carouselCountElement = document.createElement("span");
-        carouselCountElement.textContent = "1 / " + optionTemplate.previewUrls.length;
-        carouselMetaElement.append(carouselLabelElement, carouselCountElement);
-        carouselElement.append(
-          previewOpenButton,
-          previousPreviewButton,
-          nextPreviewButton,
-          carouselMetaElement
-        );
-      } else {
-        carouselElement.replaceChildren(
-          ...Array.from(
-            {
-              length: 4
-            },
-            () => document.createElement("i")
-          )
-        );
-      }
-      const optionNameElement = document.createElement("strong");
-      optionNameElement.textContent = optionTemplate.name;
-      const optionDescriptionElement = document.createElement("span");
-      optionDescriptionElement.textContent = optionTemplate.description;
-      templateOptionElement.append(carouselElement, optionNameElement, optionDescriptionElement);
-      return templateOptionElement;
-    })
-  );
-  projectCanvasFieldsElement.hidden = false;
-  if (projectDialogMode === "create") {
-    const selectedTemplateOption = templateOptions.find(
-      templateOptionCandidate => templateOptionCandidate.id === selectedTemplateId
-    );
-    projectFormElement.elements.name.value = selectedTemplateOption?.id
-      ? selectedTemplateOption.name
-      : "我的仪表盘";
-    const hasTemplateId = !!selectedTemplateOption?.id;
-    projectCanvasWidthInputElement.readOnly = hasTemplateId;
-    projectCanvasHeightInputElement.readOnly = hasTemplateId;
-    projectCanvasWidthInputElement.value = String(
-      hasTemplateId ? selectedTemplateOption.canvasWidth : canvasWidth
-    );
-    projectCanvasHeightInputElement.value = String(
-      hasTemplateId ? selectedTemplateOption.canvasHeight : canvasHeight
-    );
-    projectCanvasFieldsElement.classList.toggle("fixed", hasTemplateId);
-    projectCanvasFieldsElement.classList.remove("name-only");
-    projectCanvasHintElement.textContent = hasTemplateId
-      ? "栖光使用固定画布分辨率，创建时会完整保留页面布局与比例。"
-      : "编辑器和仪表盘将共用该分辨率与比例，显示时只做等比缩放。";
-    renderAspectRatio();
-    syncAspectLockButton(hasTemplateId);
-  }
-}
-function readTemplatePreviewData(sourceOptionElement) {
-  try {
-    return {
-      urls: JSON.parse(sourceOptionElement.dataset.previewUrls || "[]"),
-      labels: JSON.parse(sourceOptionElement.dataset.previewLabels || "[]")
-    };
-  } catch {
-    return {
-      urls: [],
-      labels: []
-    };
-  }
-}
-function showTemplatePreviewIndex(previewOptionElement, requestedIndex) {
-  const { urls: previewUrls, labels: previewLabelsList } =
-    readTemplatePreviewData(previewOptionElement);
-  if (!previewUrls.length) {
-    return;
-  }
-  const previewIndexValue =
-    ((Number(requestedIndex) % previewUrls.length) + previewUrls.length) % previewUrls.length;
-  previewOptionElement.dataset.previewIndex = String(previewIndexValue);
-  const openPreviewImageElement = previewOptionElement.querySelector(
-    ".project-template-preview-open img"
-  );
-  const carouselLabelNode = previewOptionElement.querySelector(
-    ".project-template-carousel-meta strong"
-  );
-  const carouselCountNode = previewOptionElement.querySelector(
-    ".project-template-carousel-meta span"
-  );
-  if (openPreviewImageElement) {
-    openPreviewImageElement.src = previewUrls[previewIndexValue];
-    openPreviewImageElement.alt =
-      previewLabelsList[previewIndexValue] || "栖光预览 " + (previewIndexValue + 1);
-  }
-  if (carouselLabelNode) {
-    carouselLabelNode.textContent = previewLabelsList[previewIndexValue] || "栖光预览";
-  }
-  if (carouselCountNode) {
-    carouselCountNode.textContent = previewIndexValue + 1 + " / " + previewUrls.length;
-  }
-}
-function renderProjectPreview() {
-  if (previewImageSources.length) {
-    previewIndex =
-      ((previewIndex % previewImageSources.length) + previewImageSources.length) %
-      previewImageSources.length;
-    projectPreviewImageElement.src = previewImageSources[previewIndex];
-    projectPreviewImageElement.alt =
-      previewLabels[previewIndex] || "栖光预览 " + (previewIndex + 1);
-    projectPreviewTitleElement.textContent = previewLabels[previewIndex] || "栖光预览";
-    projectPreviewCountElement.textContent = previewIndex + 1 + " / " + previewImageSources.length;
-  }
-}
-function openProjectPreviewDialog(dialogSourceOptionElement) {
-  const { urls: optionUrls, labels: optionLabels } =
-    readTemplatePreviewData(dialogSourceOptionElement);
-  if (optionUrls.length) {
-    previewImageSources = optionUrls;
-    previewLabels = optionLabels;
-    previewIndex = Number(dialogSourceOptionElement.dataset.previewIndex || 0);
-    renderProjectPreview();
-    projectPreviewDialogElement.showModal();
-  }
-}
 function openProjectDialog(dialogMode = "create") {
   projectDialogMode = dialogMode;
   const isEditDialogMode = dialogMode === "edit";
@@ -11484,7 +11073,6 @@ function openProjectDialog(dialogMode = "create") {
       : "创建项目";
   projectFormElement.elements.name.value =
     isEditDialogMode || isResizeMode ? activeProject?.document?.name || "" : "我的仪表盘";
-  projectTemplateFieldsElement.hidden = isEditDialogMode || isResizeMode;
   projectCanvasWidthInputElement.readOnly = false;
   projectCanvasHeightInputElement.readOnly = false;
   projectContentLockCheckboxElement.checked = false;
@@ -11499,12 +11087,10 @@ function openProjectDialog(dialogMode = "create") {
     projectCanvasWidthInputElement.value = "2778";
     projectCanvasHeightInputElement.value = "1940";
     renderAspectRatio();
-    applyTemplateSelection("dwell-light");
   } else if (isEditDialogMode) {
     projectCanvasFieldsElement.hidden = false;
     projectCanvasFieldsElement.classList.add("name-only");
   } else {
-    selectedTemplateId = "";
     const resizeWidth = Number(activeProject?.document?.canvas?.width || 2778);
     const resizeHeight = Number(activeProject?.document?.canvas?.height || 1940);
     canvasWidth = resizeWidth;
@@ -11535,30 +11121,24 @@ function renderAspectRatio() {
     projectAspectRatioElement.textContent = "等待输入有效分辨率";
     return;
   }
-  const ratioWidthBase = !selectedTemplateId && isAspectLocked ? lockedCanvasWidth : widthInput;
-  const ratioHeightBase = !selectedTemplateId && isAspectLocked ? lockedCanvasHeight : heightInput;
+  const ratioWidthBase = isAspectLocked ? lockedCanvasWidth : widthInput;
+  const ratioHeightBase = isAspectLocked ? lockedCanvasHeight : heightInput;
   const ratioDivisor = greatestCommonDivisor(ratioWidthBase, ratioHeightBase);
   projectAspectRatioElement.textContent =
     ratioWidthBase / ratioDivisor + " : " + ratioHeightBase / ratioDivisor;
 }
-function syncAspectLockButton(templateFixed = !!selectedTemplateId) {
-  const isAspectLockActive = templateFixed || isAspectLocked;
-  projectAspectLockButtonElement.disabled = templateFixed;
+function syncAspectLockButton() {
+  const isAspectLockActive = isAspectLocked;
+  projectAspectLockButtonElement.disabled = false;
   projectAspectLockButtonElement.setAttribute("aria-pressed", String(isAspectLockActive));
   projectAspectLockButtonElement.classList.toggle("locked", isAspectLockActive);
-  projectAspectLockLabelElement.textContent = templateFixed
-    ? "固定"
-    : isAspectLockActive
-      ? "已锁定"
-      : "锁定";
-  projectAspectLockButtonElement.title = templateFixed
-    ? "栖光画布使用固定比例"
-    : isAspectLockActive
-      ? "点击解锁画布比例"
-      : "锁定当前画布比例";
+  projectAspectLockLabelElement.textContent = isAspectLockActive ? "已锁定" : "锁定";
+  projectAspectLockButtonElement.title = isAspectLockActive
+    ? "点击解锁画布比例"
+    : "锁定当前画布比例";
 }
 function syncLockedCanvasDimension(changedDimension) {
-  if (selectedTemplateId || !isAspectLocked) {
+  if (!isAspectLocked) {
     return;
   }
   const lockedWidthValue = Number(lockedCanvasWidth);
@@ -11694,13 +11274,24 @@ function renderLicenseStatus(licenseState) {
   licenseCardController.render(licenseState);
   licenseDetailErrorElement.hidden = !licenseState?.lastError;
   licenseDetailErrorElement.textContent = licenseState?.lastError || "";
-  licenseFormElement.hidden = ![
-    "UNACTIVATED",
-    "DEACTIVATED",
-    "INVALID",
-    "INSTANCE_MISMATCH",
-    "REVOKED"
-  ].includes(licenseStatusCode);
+  // 「重新激活」失败会要求用户自己填激活码，此时即使状态允许无感续租也必须留着表单，
+  // 否则 15 秒一次的状态轮询会在用户输到一半时把它收回去。
+  licenseFormElement.hidden = !(
+    isLicenseActivationFormRequested ||
+    [
+      "UNACTIVATED",
+      "DEACTIVATED",
+      "INVALID",
+      "INSTANCE_MISMATCH",
+      "REVOKED"
+    ].includes(licenseStatusCode)
+  );
+}
+function revealLicenseActivationForm(message) {
+  isLicenseActivationFormRequested = true;
+  licenseFormElement.hidden = false;
+  setSettingsMessage(licenseMessageElement, message, "error");
+  licenseFormElement.querySelector('input[name="email"]')?.focus();
 }
 async function refreshLicenseStatus() {
   const licenseResponse = await requestJson("/license/status");
@@ -11712,49 +11303,17 @@ async function refreshLicenseStatus() {
   const featuresChanged =
     lastLicenseFeatureSignature !== null && lastLicenseFeatureSignature !== featureSignature;
   lastLicenseFeatureSignature = featureSignature;
-  const projectFeatureUiPack = activeProject
-    ? findUiPack(uiPackIdForDocument(activeProject.document))
-    : null;
-  const featureCodeSet = new Set(
-    Array.isArray(licenseResponse?.features) ? licenseResponse.features : []
-  );
-  if (
-    licenseResponse?.required &&
-    projectFeatureUiPack?.featureCode &&
-    !featureCodeSet.has(projectFeatureUiPack.featureCode)
-  ) {
-    const blockedMessage =
-      "当前授权已不再包含“" + projectFeatureUiPack.name + "”，该仪表盘已停止显示和编辑。";
-    editorRenderer?.destroy();
-    editorRenderer = null;
-    destroyDashboardPreview();
-    activeProject = null;
-    clearComponentSelection();
-    setWorkspaceHasProject(false);
-    const canvasMessageElement = document.createElement("div");
-    canvasMessageElement.className = "canvas-message";
-    const canvasMessageText = document.createElement("strong");
-    canvasMessageText.textContent = blockedMessage;
-    canvasMessageElement.append(canvasMessageText);
-    editorCanvasElement.replaceChildren(canvasMessageElement);
-    if (lastBlockedUiPackId !== projectFeatureUiPack.id) {
-      lastBlockedUiPackId = projectFeatureUiPack.id;
-      handleOperationError(new Error(blockedMessage));
-    }
-  }
   if (featuresChanged) {
-    await Promise.all([
-      reloadAssetCatalog({
-        refreshInspector: false
-      }),
-      loadUiPacks()
-    ]);
+    await reloadAssetCatalog({
+      refreshInspector: false
+    });
   }
   renderLicenseStatus(licenseResponse);
   return licenseResponse;
 }
 licenseOpenButtonElement.addEventListener("click", async () => {
   setSettingsMessage(licenseMessageElement, "");
+  isLicenseActivationFormRequested = false;
   try {
     const licenseStateForDialog = await refreshLicenseStatus();
     if (!licenseStateForDialog?.required || licenseStateForDialog.allowed) {
@@ -11788,12 +11347,33 @@ licenseFormElement.addEventListener("submit", async licenseSubmitEvent => {
       })
     });
     licenseFormElement.reset();
+    isLicenseActivationFormRequested = false;
     renderLicenseStatus(activateResponse);
     setSettingsMessage(licenseMessageElement, "当前实例已成功激活。", "success");
   } catch (licenseActivateError) {
     setSettingsMessage(licenseMessageElement, licenseActivateError.message, "error");
   } finally {
     licenseSubmitButton.disabled = false;
+  }
+});
+licenseReactivateButtonElement.addEventListener("click", async () => {
+  licenseReactivateButtonElement.disabled = true;
+  setSettingsMessage(licenseMessageElement, "正在重新激活并获取签名租约…");
+  try {
+    const reactivateResponse = await requestJson("/license/reactivate", {
+      method: "POST"
+    });
+    licenseFormElement.reset();
+    isLicenseActivationFormRequested = false;
+    renderLicenseStatus(reactivateResponse);
+    setSettingsMessage(licenseMessageElement, "已重新激活，授权租约与恢复凭证均已更新。", "success");
+  } catch (licenseReactivateError) {
+    // 任何失败都把激活表单交给用户：无凭证可复用时要用户补输入，网络类故障时
+    // 手动激活也是唯一还能推进的路径。
+    revealLicenseActivationForm(licenseReactivateError.message);
+    await refreshLicenseStatus().catch(() => {});
+  } finally {
+    licenseReactivateButtonElement.disabled = false;
   }
 });
 haOpenButtonElement.addEventListener("click", async () => {
@@ -11911,57 +11491,7 @@ deleteHaFormElement.addEventListener("submit", async deleteHaSubmitEvent => {
 });
 projectNewButtonElement.addEventListener("click", async () => {
   if (!guardUnsavedChanges()) {
-    try {
-      if (!uiPacks.length) {
-        await loadUiPacks();
-      }
-      openProjectDialog("create");
-    } catch (projectCreateError) {
-      handleOperationError(projectCreateError);
-    }
-  }
-});
-uiPackOpenButtonElement.addEventListener("click", async () => {
-  if (activeProject) {
-    setSettingsMessage(uiPackMessageElement, "");
-    try {
-      await loadUiPacks();
-      renderUiPackList();
-      uiPackDialogElement.showModal();
-    } catch (uiPackDialogError) {
-      handleOperationError(uiPackDialogError);
-    }
-  }
-});
-uiPackCloseButtonElement.addEventListener("click", () => uiPackDialogElement.close());
-uiPackDialogElement.addEventListener("click", uiPackBackdropEvent => {
-  if (uiPackBackdropEvent.target === uiPackDialogElement) {
-    uiPackDialogElement.close();
-  }
-});
-uiPackListElement.addEventListener("click", async uiPackListClickEvent => {
-  const uiPackOptionElement = uiPackListClickEvent.target.closest("[data-ui-pack-id]");
-  if (!uiPackOptionElement || uiPackOptionElement.disabled || !activeProject) {
-    return;
-  }
-  const chosenUiPack = uiPacks.find(
-    candidateUiPack => candidateUiPack.id === uiPackOptionElement.dataset.uiPackId
-  );
-  if (!chosenUiPack?.allowed) {
-    setSettingsMessage(uiPackMessageElement, "当前授权尚未解锁该 UI 方案。", "error");
-    return;
-  }
-  uiPackOptionElement.disabled = true;
-  setSettingsMessage(uiPackMessageElement, "正在加载并应用整套 UI…");
-  try {
-    await ensureUiPackRuntime(chosenUiPack);
-    await mutateDocument(uiPackDraftDocument =>
-      applyUiPackToDocument(uiPackDraftDocument, chosenUiPack)
-    );
-    uiPackDialogElement.close();
-  } catch (uiPackApplyError) {
-    setSettingsMessage(uiPackMessageElement, uiPackApplyError.message, "error");
-    uiPackOptionElement.disabled = false;
+    openProjectDialog("create");
   }
 });
 projectCloseButtonElement.addEventListener("click", () => projectDialogElement.close());
@@ -11971,97 +11501,20 @@ projectDialogElement.addEventListener("click", projectBackdropEvent => {
     projectDialogElement.close();
   }
 });
-projectTemplateOptionsElement.addEventListener("click", templateOptionsClickEvent => {
-  const clickedTemplateOption = templateOptionsClickEvent.target.closest(
-    "[data-project-template-id]"
-  );
-  if (!clickedTemplateOption || projectDialogMode !== "create") {
-    return;
-  }
-  const previewAction = templateOptionsClickEvent.target.closest("[data-project-preview-action]")
-    ?.dataset.projectPreviewAction;
-  if (previewAction) {
-    templateOptionsClickEvent.stopPropagation();
-    if (
-      previewAction === "open" &&
-      (clickedTemplateOption.dataset.projectTemplateId || "") !== selectedTemplateId
-    ) {
-      selectedTemplateId = clickedTemplateOption.dataset.projectTemplateId || "";
-      applyTemplateSelection(selectedTemplateId);
-    } else if (previewAction === "open") {
-      openProjectPreviewDialog(clickedTemplateOption);
-    } else {
-      showTemplatePreviewIndex(
-        clickedTemplateOption,
-        Number(clickedTemplateOption.dataset.previewIndex || 0) +
-          (previewAction === "next" ? 1 : -1)
-      );
-    }
-    return;
-  }
-  selectedTemplateId = clickedTemplateOption.dataset.projectTemplateId || "";
-  applyTemplateSelection(selectedTemplateId);
-});
-projectTemplateOptionsElement.addEventListener("keydown", templateOptionsKeyEvent => {
-  if (
-    !["Enter", " "].includes(templateOptionsKeyEvent.key) ||
-    templateOptionsKeyEvent.target.closest("button")
-  ) {
-    return;
-  }
-  const keyboardTemplateOption = templateOptionsKeyEvent.target.closest(
-    "[data-project-template-id]"
-  );
-  if (!!keyboardTemplateOption && projectDialogMode === "create") {
-    templateOptionsKeyEvent.preventDefault();
-    selectedTemplateId = keyboardTemplateOption.dataset.projectTemplateId || "";
-    applyTemplateSelection(selectedTemplateId);
-  }
-});
-projectPreviewCloseButtonElement.addEventListener("click", () =>
-  projectPreviewDialogElement.close()
-);
-projectPreviewPreviousButtonElement.addEventListener("click", () => {
-  previewIndex -= 1;
-  renderProjectPreview();
-});
-projectPreviewNextButtonElement.addEventListener("click", () => {
-  previewIndex += 1;
-  renderProjectPreview();
-});
-projectPreviewDialogElement.addEventListener("click", previewBackdropEvent => {
-  if (previewBackdropEvent.target === projectPreviewDialogElement) {
-    projectPreviewDialogElement.close();
-  }
-});
-projectPreviewDialogElement.addEventListener("keydown", previewKeyEvent => {
-  if (previewKeyEvent.key === "ArrowLeft") {
-    previewIndex -= 1;
-    renderProjectPreview();
-  }
-  if (previewKeyEvent.key === "ArrowRight") {
-    previewIndex += 1;
-    renderProjectPreview();
-  }
-});
 projectCanvasWidthInputElement.addEventListener("input", () => {
   syncLockedCanvasDimension("width");
-  if (!selectedTemplateId) {
-    canvasWidth = Number(projectCanvasWidthInputElement.value) || 2778;
-    canvasHeight = Number(projectCanvasHeightInputElement.value) || 1940;
-  }
+  canvasWidth = Number(projectCanvasWidthInputElement.value) || 2778;
+  canvasHeight = Number(projectCanvasHeightInputElement.value) || 1940;
   renderAspectRatio();
 });
 projectCanvasHeightInputElement.addEventListener("input", () => {
   syncLockedCanvasDimension("height");
-  if (!selectedTemplateId) {
-    canvasWidth = Number(projectCanvasWidthInputElement.value) || 2778;
-    canvasHeight = Number(projectCanvasHeightInputElement.value) || 1940;
-  }
+  canvasWidth = Number(projectCanvasWidthInputElement.value) || 2778;
+  canvasHeight = Number(projectCanvasHeightInputElement.value) || 1940;
   renderAspectRatio();
 });
 projectAspectLockButtonElement.addEventListener("click", () => {
-  if (selectedTemplateId || !["create", "resize"].includes(projectDialogMode)) {
+  if (!["create", "resize"].includes(projectDialogMode)) {
     return;
   }
   const inputWidthValue = Number(projectCanvasWidthInputElement.value);
@@ -12127,9 +11580,7 @@ projectFormElement.addEventListener("submit", async projectSubmitEvent => {
       ? "正在调整整个仪表盘…"
       : projectDialogMode === "edit"
         ? "正在保存仪表盘名称…"
-        : selectedTemplateId
-          ? "正在套用栖光整套模板…"
-          : "正在创建空白仪表盘…"
+        : "正在创建空白仪表盘…"
   );
   try {
     if (projectDialogMode === "resize") {
@@ -12153,12 +11604,8 @@ projectFormElement.addEventListener("submit", async projectSubmitEvent => {
       const createProjectPayload = {
         name: projectNameInput,
         canvasWidth: formCanvasWidth,
-        canvasHeight: formCanvasHeight,
-        uiPackId: "ui.base"
+        canvasHeight: formCanvasHeight
       };
-      if (selectedTemplateId) {
-        createProjectPayload.templateId = selectedTemplateId;
-      }
       const createdProject = await requestJson("/projects", {
         method: "POST",
         body: JSON.stringify(createProjectPayload)
@@ -24815,7 +24262,7 @@ function openAssetPicker(assetTriggerButton) {
   openEditorPickerDialog({
     kind: assetPickerKind + "-asset",
     title: isImageAssetPicker ? "选择控件图片" : "选择效果图片",
-    subtitle: "我的图片与栖光素材 · 固定分页加载",
+    subtitle: "我的图片 · 固定分页加载",
     searchPlaceholder: "搜索图片名称",
     triggerButton: assetTriggerButton,
     pageSize: EDITOR_PICKER_PAGE_SIZES.asset,
@@ -24863,38 +24310,6 @@ function openAssetPicker(assetTriggerButton) {
   })?.dialog.append(imageAssetLargePreviewElement);
   return true;
 }
-function selectAssetSource(assetKind, resolvedAssetSource) {
-  const assetSourceName = resolvedAssetSource === "user" ? "user" : "builtin";
-  if (assetKind === "image") {
-    imageAssetSource = assetSourceName;
-    imageAssetSearchInputElement.value = "";
-    syncAssetFolderOptions("image");
-    syncAssetSourceControls("image");
-    if (activeEditorPicker?.kind === "image-asset") {
-      activeEditorPicker.rebuildToolbar();
-      activeEditorPicker.refresh({
-        resetPage: true
-      });
-    } else {
-      renderImageAssetOptions();
-      positionImageAssetMenu();
-    }
-  } else {
-    effectAssetSource = assetSourceName;
-    iconButtonEffectAssetSearchInputElement.value = "";
-    syncAssetFolderOptions("ibe");
-    syncAssetSourceControls("ibe");
-    if (activeEditorPicker?.kind === "ibe-asset") {
-      activeEditorPicker.rebuildToolbar();
-      activeEditorPicker.refresh({
-        resetPage: true
-      });
-    } else {
-      renderEffectAssetOptions();
-      positionEffectAssetMenu();
-    }
-  }
-}
 async function uploadAssetFiles(assetFileList, uploadAssetKind) {
   const uploadFiles = [...(assetFileList || [])];
   if (!uploadFiles.length) {
@@ -24928,7 +24343,31 @@ async function uploadAssetFiles(assetFileList, uploadAssetKind) {
     await reloadAssetCatalog({
       refreshInspector: false
     });
-    selectAssetSource(uploadAssetKind, "user");
+    if (uploadAssetKind === "image") {
+      imageAssetSearchInputElement.value = "";
+      syncAssetFolderOptions("image");
+      if (activeEditorPicker?.kind === "image-asset") {
+        activeEditorPicker.rebuildToolbar();
+        activeEditorPicker.refresh({
+          resetPage: true
+        });
+      } else {
+        renderImageAssetOptions();
+        positionImageAssetMenu();
+      }
+    } else {
+      iconButtonEffectAssetSearchInputElement.value = "";
+      syncAssetFolderOptions("ibe");
+      if (activeEditorPicker?.kind === "ibe-asset") {
+        activeEditorPicker.rebuildToolbar();
+        activeEditorPicker.refresh({
+          resetPage: true
+        });
+      } else {
+        renderEffectAssetOptions();
+        positionEffectAssetMenu();
+      }
+    }
     if (uploadErrors.length) {
       handleOperationError(new Error(uploadErrors.join("\n")));
     }
@@ -24958,9 +24397,7 @@ function requestDeleteAsset(assetIdToDelete) {
   deleteAssetDialogElement.showModal();
 }
 function requestDeleteAssetFolder(folderKind, folderName) {
-  if (
-    !canDeleteAssetFolder(folderKind === "image" ? imageAssetSource : effectAssetSource, folderName)
-  ) {
+  if (!canDeleteAssetFolder("user", folderName)) {
     return;
   }
   const folderAssetRecords = exportedAssetsInFolder(folderName);
@@ -25003,21 +24440,6 @@ function refreshAssetPickerViews() {
     positionEffectAssetMenu();
   }
 }
-imageAssetMenuElement.addEventListener("click", imageAssetSourceClickEvent => {
-  const imageAssetSourceElement = imageAssetSourceClickEvent.target.closest(
-    "[data-image-asset-source]"
-  );
-  if (imageAssetSourceElement) {
-    selectAssetSource("image", imageAssetSourceElement.dataset.imageAssetSource);
-  }
-});
-iconButtonEffectAssetMenuElement.addEventListener("click", effectAssetSourceClickEvent => {
-  const effectAssetSourceElement =
-    effectAssetSourceClickEvent.target.closest("[data-ibe-asset-source]");
-  if (effectAssetSourceElement) {
-    selectAssetSource("ibe", effectAssetSourceElement.dataset.ibeAssetSource);
-  }
-});
 imageAssetUploadButtonElement.addEventListener("click", () => imageAssetUploadInputElement.click());
 iconButtonEffectAssetUploadButtonElement.addEventListener("click", () =>
   iconButtonEffectAssetUploadInputElement.click()
@@ -25146,7 +24568,6 @@ imageAssetButtonElement.addEventListener("click", async () => {
 imageAssetFolderSelectElement.addEventListener("change", () => {
   imageAssetFolder = imageAssetFolderSelectElement.value;
   imageAssetSearchInputElement.value = "";
-  syncAssetSourceControls("image");
   renderImageAssetOptions();
 });
 imageAssetSearchInputElement.addEventListener("input", () =>
@@ -25237,7 +24658,6 @@ iconButtonEffectAssetButtonElement.addEventListener("click", async () => {
 iconButtonEffectAssetFolderSelectElement.addEventListener("change", () => {
   effectAssetFolder = iconButtonEffectAssetFolderSelectElement.value;
   iconButtonEffectAssetSearchInputElement.value = "";
-  syncAssetSourceControls("ibe");
   renderEffectAssetOptions();
 });
 iconButtonEffectAssetSearchInputElement.addEventListener("input", () =>
@@ -25448,8 +24868,7 @@ componentTemplateListElement.addEventListener("click", templateListClickEvent =>
     const createdComponent = createComponentFromTemplate(templateItemElement.dataset.templateId, {
       id: newComponentId,
       instanceName: templateInstanceName,
-      canvas: templateDraftDocument.canvas,
-      uiPackId: uiPackIdForDocument(templateDraftDocument)
+      canvas: templateDraftDocument.canvas
     });
     if (draftGroupComponent) {
       const groupWidth = Number(draftGroupComponent.position?.width || 100);
@@ -25573,7 +24992,6 @@ popupNameFormElement.addEventListener("submit", popupNameSubmitEvent => {
       id: popupId,
       name: popupNameInput,
       templateRef: {
-        uiPackId: uiPackIdForDocument(popupNameDraftDocument),
         templateId: "custom-popup",
         version: 1
       },
@@ -26409,7 +25827,6 @@ document.addEventListener("visibilitychange", () => {
 Promise.all([
   refreshAuthSession(),
   refreshLicenseStatus(),
-  loadUiPacks(),
   refreshHaConnection({
     preserveForm: false
   }),

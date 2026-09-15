@@ -64,6 +64,16 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        return float(value.strip())
+    except ValueError:
+        return default
+
+
 def _env_path(name: str, default: Path | None = None) -> Path | None:
     value = os.getenv(name)
     if value is None or not value.strip():
@@ -98,6 +108,13 @@ class StoreSettings:
     smtp_password: str = ""
     smtp_use_ssl: bool = True
     smtp_starttls: bool = False
+    #: 单次 SMTP 交互的超时；重试会让总耗时乘以尝试次数，所以别设太大
+    smtp_timeout_seconds: int = 15
+    #: 发信失败后的重试次数。**只对瞬时故障重试**（连接被拒、超时、4xx），
+    #: 认证失败/收件人被拒这类确定性错误重试没有意义，只会拖慢注册接口。
+    smtp_max_attempts: int = 3
+    #: 重试之间的基础退避秒数（线性递增：1s、2s、3s…）
+    smtp_retry_backoff_seconds: float = 1.0
     verification_ttl_seconds: int = DEFAULT_VERIFICATION_TTL_SECONDS
     verification_cooldown_seconds: int = DEFAULT_VERIFICATION_COOLDOWN_SECONDS
     #: 仅当 mail_mode=echo 时，接口才回显验证码明文（本地联调用）
@@ -133,6 +150,13 @@ class StoreSettings:
     # 订单 / 设备
     order_ttl_seconds: int = DEFAULT_ORDER_TTL_SECONDS
     device_release_cooldown_seconds: int = DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS
+    #: 后台支付巡检间隔（秒）。0 表示关闭巡检。
+    #:
+    #: 巡检负责两件前端轮询覆盖不到的事：认领「用户付完就关页面」的单，
+    #: 以及关闭本地已过期、但支付宝那边仍开着（旧二维码还能付）的交易。
+    payment_sweep_interval_seconds: int = 30
+    #: 每轮巡检处理的订单上限，避免积压时一次性打爆渠道配额
+    payment_sweep_batch: int = 25
 
     # 初始管理员（seed 用）
     bootstrap_admin_email: str = ""
@@ -231,6 +255,9 @@ def load_settings(**overrides) -> StoreSettings:
         "smtp_password": _env_str("STORE_SMTP_PASSWORD"),
         "smtp_use_ssl": _env_bool("STORE_SMTP_USE_SSL", True),
         "smtp_starttls": _env_bool("STORE_SMTP_STARTTLS"),
+        "smtp_timeout_seconds": _env_int("STORE_SMTP_TIMEOUT_SECONDS", 15),
+        "smtp_max_attempts": max(1, _env_int("STORE_SMTP_MAX_ATTEMPTS", 3)),
+        "smtp_retry_backoff_seconds": _env_float("STORE_SMTP_RETRY_BACKOFF_SECONDS", 1.0),
         "verification_ttl_seconds": _env_int("STORE_VERIFICATION_TTL_SECONDS", DEFAULT_VERIFICATION_TTL_SECONDS),
         "verification_cooldown_seconds": _env_int("STORE_VERIFICATION_COOLDOWN_SECONDS", DEFAULT_VERIFICATION_COOLDOWN_SECONDS),
         "expose_verification_code": _env_bool("STORE_EXPOSE_VERIFICATION_CODE"),
@@ -254,6 +281,8 @@ def load_settings(**overrides) -> StoreSettings:
         "heartbeat_interval_seconds": _env_int("STORE_HEARTBEAT_INTERVAL_SECONDS", DEFAULT_HEARTBEAT_INTERVAL_SECONDS),
         "order_ttl_seconds": _env_int("STORE_ORDER_TTL_SECONDS", DEFAULT_ORDER_TTL_SECONDS),
         "device_release_cooldown_seconds": _env_int("STORE_DEVICE_RELEASE_COOLDOWN_SECONDS", DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS),
+        "payment_sweep_interval_seconds": max(0, _env_int("STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30)),
+        "payment_sweep_batch": max(1, _env_int("STORE_PAYMENT_SWEEP_BATCH", 25)),
         "bootstrap_admin_email": _env_str("STORE_ADMIN_EMAIL"),
         "bootstrap_admin_password": _env_str("STORE_ADMIN_PASSWORD"),
     }

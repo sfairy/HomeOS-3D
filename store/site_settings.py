@@ -11,11 +11,10 @@ from store.models import StoreSetting
 from store.security import iso, utcnow
 
 #: 图标文件名从 ``ha-bridge-*`` 改为 ``homeos-*`` 后的旧路径映射。
-#: ``logo_url`` 是持久化值：老部署的数据库里仍写着旧文件名，所以在读取时
-#: 归一化即可彻底修复。
+#: ``logo_url`` 是持久化值，读取时归一化，避免旧记录直接渲染成 404。
 #:
 #: 注意 ``ha-bridge-`` 在这里是**历史数据里的字面量**，不是品牌文案：
-#: 它必须原样保留，否则映射退化成恒等替换、自愈失效。
+#: 它必须原样保留，否则映射退化成恒等替换。
 _LEGACY_ICON_RE = re.compile(r"ha-bridge-(favicon|icon-|mark)")
 
 #: 默认品牌标识。必须与 ``models.StoreSetting.logo_url`` 的默认值一致：
@@ -24,23 +23,30 @@ _LEGACY_ICON_RE = re.compile(r"ha-bridge-(favicon|icon-|mark)")
 DEFAULT_LOGO_URL = "/store-static/homeos-mark.svg"
 
 
+def resolve_device_release_cooldown(setting: StoreSetting | None, settings: StoreSettings) -> int:
+    """解绑冷却秒数的**唯一**取值口径：站点配置优先，未配置时回落到环境变量。
+
+    这个函数存在的理由：冷却值曾经有三处实现 —— 账号中心接口读站点配置，
+    而客户端协议侧（``LicenseAuthority.release_remaining_seconds``）只读环境变量。
+    运营在后台把冷却从 7 天改成 0（关掉限制），账号中心立刻放行，但客户端
+    仍然被按 7 天挡住，且报错里的剩余秒数与后台显示完全对不上。
+    """
+    raw = setting.device_release_cooldown_seconds if setting is not None else None
+    if raw is None:
+        raw = settings.device_release_cooldown_seconds
+    return max(0, int(raw or 0))
+
+
+def effective_device_release_cooldown(session: Session, settings: StoreSettings) -> int:
+    """按会话内的站点配置解析冷却秒数（供没有现成 setting 对象的调用方使用）。"""
+    return resolve_device_release_cooldown(get_setting(session), settings)
+
+
 def normalize_icon_path(path: str | None) -> str | None:
     """把改名前的旧图标路径映射到新文件名（幂等）。"""
     if not path:
         return path
     return _LEGACY_ICON_RE.sub(r"homeos-\1", path)
-
-
-def heal_legacy_icon_paths(session: Session) -> int:
-    """把已持久化的旧图标路径改写为新文件名，返回修正的行数。"""
-    setting = session.get(StoreSetting, 1)
-    if setting is None:
-        return 0
-    normalized = normalize_icon_path(setting.logo_url)
-    if normalized == setting.logo_url:
-        return 0
-    setting.logo_url = normalized
-    return 1
 
 
 def get_setting(session: Session) -> StoreSetting:
@@ -82,7 +88,23 @@ def _mask_secret(configured: bool) -> bool:
     return bool(configured)
 
 
-def payment_configuration_payload(setting: StoreSetting, settings: StoreSettings) -> dict:
+def payment_configuration_payload(
+    setting: StoreSetting, settings: StoreSettings, *, include_credentials: bool
+) -> dict:
+    """支付配置的序列化。
+
+    ``include_credentials`` 是**必填的关键字参数**，不是默认值 —— 这个字段决定了
+    要不要把商户凭据信息放进响应里，而两份响应的受众完全不同：
+
+    - 后台（``/store-admin/v1/settings``）需要 ``appId`` / 网关 / 「密钥配没配」，
+      否则运营没法确认自己填的东西到底有没有生效；
+    - 前台（``/store/v1/configuration``）是**匿名可读**的，把商户号、网关地址、
+      「密钥尚未配置」这类信息报出去没有任何用处，只是白送一份侦察材料
+      （攻击者据此判断这个站值不值得下手，以及支付是否处于未配置的脆弱状态）。
+
+    所以这里不做「默认给全量、需要时再裁剪」：那种默认迟早会有人在新增调用点时
+    忘记裁剪，而且忘了也不会有任何报错。必填参数让每个调用点都必须表态。
+    """
     provider = (setting.payment_provider or settings.payment_provider or "mock").lower()
     if provider == "alipay":
         app_id = settings.alipay_app_id
@@ -103,28 +125,41 @@ def payment_configuration_payload(setting: StoreSetting, settings: StoreSettings
     configured = bool(setting.payment_enabled) and (
         provider != "alipay" or (bool(app_id) and private_configured and public_configured)
     )
-    return {
+    payload = {
         "provider": provider,
         "enabled": bool(setting.payment_enabled),
         "displayName": display_name,
         "icon": icon,
-        "appId": app_id,
-        "applicationPrivateKeyConfigured": _mask_secret(private_configured),
-        "alipayPublicKeyConfigured": _mask_secret(public_configured),
-        "gatewayUrl": gateway,
         "transactionDescription": setting.payment_transaction_description
         or settings.alipay_transaction_description,
-        "merchantOrderTemplate": setting.payment_merchant_order_template,
         "configured": configured,
         "available": configured,
         "updatedAt": iso(setting.updated_at),
     }
+    if include_credentials:
+        payload |= {
+            "appId": app_id,
+            "applicationPrivateKeyConfigured": _mask_secret(private_configured),
+            "alipayPublicKeyConfigured": _mask_secret(public_configured),
+            "gatewayUrl": gateway,
+            #: 交易标题的「来源」标记：留空即跟随环境变量。前端只回填来源为后台的
+            #: 值，否则运营随手保存一次站点名就会把环境变量的值固化进数据库，
+            #: 之后改环境变量再也不生效（与 ``alipay_credentials_summary`` 同款处理）。
+            "transactionDescriptionFromDatabase": bool(
+                (setting.payment_transaction_description or "").strip()
+            ),
+        }
+    return payload
 
 
-def site_configuration_payload(setting: StoreSetting, settings: StoreSettings) -> dict:
+def site_configuration_payload(
+    setting: StoreSetting, settings: StoreSettings, *, include_credentials: bool
+) -> dict:
     return {
         "store": store_configuration_payload(setting),
-        "payment": payment_configuration_payload(setting, settings),
+        "payment": payment_configuration_payload(
+            setting, settings, include_credentials=include_credentials
+        ),
     }
 
 
@@ -134,6 +169,4 @@ def referral_settings_payload(setting: StoreSetting) -> dict:
         "ratePercent": float(setting.referral_rate_percent or 0.0),
         "withdrawalFeePercent": float(setting.referral_withdrawal_fee_percent or 0.0),
         "withdrawalMinPoints": float(setting.referral_withdrawal_min_points or 0.0),
-        "qqGroup": setting.referral_qq_group or "",
-        "qqUrl": setting.referral_qq_url or "",
     }

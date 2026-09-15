@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class _Camel(BaseModel):
@@ -16,7 +16,30 @@ class _Camel(BaseModel):
 # --------------------------------------------------------------------------- #
 class VerificationRequest(_Camel):
     email: str = Field(min_length=3, max_length=255)
-    purpose: str = Field(default="register", pattern="^(register|reset)$")
+    #: register / reset 无需登录；verify / change_email 必须带登录态
+    #: （见 ``store.api.store._PURPOSES_REQUIRING_ACCOUNT``）
+    purpose: str = Field(
+        default="register", pattern="^(register|reset|verify|change_email)$"
+    )
+
+
+class ChangeEmailRequest(_Camel):
+    """把账号邮箱换成一个新地址。
+
+    必须凭**发到新地址**的验证码才能改：只校验旧邮箱的话，账号一旦被他人登录，
+    对方就能把邮箱换走、随后用「忘记密码」彻底夺走账号。
+    """
+
+    email: str = Field(min_length=3, max_length=255)
+    code: str = Field(min_length=4, max_length=12)
+    password: str = Field(default="", min_length=0, max_length=128)
+
+
+class VerifyEmailRequest(_Camel):
+    """用验证码把「当前账号绑定的邮箱」标记为已验证。"""
+
+    email: str = Field(min_length=3, max_length=255)
+    code: str = Field(min_length=4, max_length=12)
 
 
 class RegisterRequest(_Camel):
@@ -45,6 +68,15 @@ class LabelRequest(_Camel):
 
 class ReleaseDeviceRequest(_Camel):
     password: str = Field(min_length=1, max_length=128)
+    #: 乐观锁字段：前端在打开「解除绑定」弹窗时记下当时看到的绑定快照，
+    #: 提交时回传。用户在弹窗里输入的这段时间，授权可能已经在别的标签页
+    #: 重新绑定了新设备 —— 此时按旧快照解绑会踢掉一台它没看到的设备。
+    #: 这三个字段此前被 schema 直接丢弃（前端一直在发），校验形同不存在。
+    expected_binding_id: str | None = Field(default=None, alias="expectedBindingId", max_length=64)
+    expected_activated_at: datetime | None = Field(default=None, alias="expectedActivatedAt")
+    expected_binding_version: str | None = Field(
+        default=None, alias="expectedBindingVersion", max_length=128
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -53,8 +85,21 @@ class ReleaseDeviceRequest(_Camel):
 class CreateOrderRequest(_Camel):
     product_id: str = Field(alias="productId", min_length=1, max_length=64)
     coupon_code: str | None = Field(default=None, alias="couponCode", max_length=64)
-    #: 增量包需要指定要追加到哪一份授权
-    target_license_id: str | None = Field(default=None, alias="customerId", max_length=64)
+    #: 增量包需要指定要追加到哪一份授权。
+    #:
+    #: 线上前台曾把 ``License.customer_id``（= ``Customer.id``）当作目标授权发给服务端，
+    #: 而服务端按 ``License.id`` 回查，两边口径不同 —— 结果所有增量包下单都必然 404。
+    #: 现在统一按授权主键传：新字段名 ``targetLicenseId`` 表达真实语义，同时保留旧别名
+    #: ``customerId`` 作兼容（``smoke.py`` 与老客户端仍按旧名传，且它们传的本来就是授权 id）。
+    target_license_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("targetLicenseId", "customerId"),
+        max_length=64,
+    )
+    #: 「试用授权升级为永久」的既有授权：命中时不再另发新码，而是就地升级这张授权。
+    upgrade_license_id: str | None = Field(
+        default=None, alias="upgradeLicenseId", max_length=64
+    )
 
 
 class CouponPreviewRequest(_Camel):
@@ -71,7 +116,6 @@ class OrderLookupRequest(_Camel):
 # --------------------------------------------------------------------------- #
 class WithdrawalRequest(_Camel):
     points: float = Field(gt=0)
-    qq: str = Field(min_length=5, max_length=20)
     request_key: str = Field(alias="requestKey", min_length=8, max_length=64)
     expected_fee_percent: float | None = Field(default=None, alias="expectedFeePercent")
 
@@ -187,10 +231,6 @@ class AdminSettingsRequest(_AdminBase):
     payment_transaction_description: str | None = Field(
         default=None, alias="paymentTransactionDescription", max_length=128
     )
-    #: 商户订单号模板，支持 {{time}} / {{email}} / {{orderNo}} 占位符
-    payment_merchant_order_template: str | None = Field(
-        default=None, alias="paymentMerchantOrderTemplate", max_length=128
-    )
     referral_enabled: bool | None = Field(default=None, alias="referralEnabled")
     referral_rate_percent: float | None = Field(default=None, alias="referralRatePercent", ge=0, le=100)
     referral_withdrawal_fee_percent: float | None = Field(
@@ -199,11 +239,68 @@ class AdminSettingsRequest(_AdminBase):
     referral_withdrawal_min_points: float | None = Field(
         default=None, alias="referralWithdrawalMinPoints", ge=0
     )
-    referral_qq_group: str | None = Field(default=None, alias="referralQqGroup", max_length=64)
-    referral_qq_url: str | None = Field(default=None, alias="referralQqUrl", max_length=512)
     device_release_cooldown_seconds: int | None = Field(
         default=None, alias="deviceReleaseCooldownSeconds", ge=0
     )
+    # ---- 支付宝凭据（后台可改，免重启） ---------------------------------- #
+    #: 留空 = 清掉站点配置，跟随环境变量；不传 = 保持不变。
+    #: 传回 GET 拿到的打码值（``••••`` 开头）同样视为「保持不变」，
+    #: 否则前端把打码串原样回传就会把真密钥覆盖成 `••••abcd`。
+    alipay_app_id: str | None = Field(default=None, alias="alipayAppId", max_length=64)
+    alipay_seller_id: str | None = Field(default=None, alias="alipaySellerId", max_length=64)
+    alipay_app_private_key: str | None = Field(
+        default=None, alias="alipayAppPrivateKey", max_length=8192
+    )
+    alipay_public_key: str | None = Field(
+        default=None, alias="alipayPublicKey", max_length=8192
+    )
+    alipay_gateway_url: str | None = Field(
+        default=None, alias="alipayGatewayUrl", max_length=255
+    )
+    alipay_notify_url: str | None = Field(
+        default=None, alias="alipayNotifyUrl", max_length=512
+    )
+    alipay_return_url: str | None = Field(
+        default=None, alias="alipayReturnUrl", max_length=512
+    )
+    alipay_sandbox: bool | None = Field(default=None, alias="alipaySandbox")
+
+    # ---- 注册邮箱验证码（后台可改，免重启） ------------------------------ #
+    #: 与支付宝凭据同一套「留空即跟随环境变量」口径。
+    mail_mode: str | None = Field(default=None, alias="mailMode", max_length=16)
+    mail_from: str | None = Field(default=None, alias="mailFrom", max_length=255)
+    smtp_host: str | None = Field(default=None, alias="smtpHost", max_length=255)
+    #: 0 = 跟随环境变量 / 该加密方式的标准端口
+    smtp_port: int | None = Field(default=None, alias="smtpPort", ge=0, le=65535)
+    smtp_username: str | None = Field(default=None, alias="smtpUsername", max_length=255)
+    #: 留空 = 不改动；传空串 = 清空（跟随环境变量）；传打码值 = 不改动
+    smtp_password: str | None = Field(default=None, alias="smtpPassword", max_length=512)
+    smtp_security: str | None = Field(
+        default=None, alias="smtpSecurity", max_length=16
+    )
+    verification_ttl_seconds: int | None = Field(
+        default=None, alias="verificationTtlSeconds", ge=0, le=3600
+    )
+    verification_cooldown_seconds: int | None = Field(
+        default=None, alias="verificationCooldownSeconds", ge=0, le=3600
+    )
+    #: 三态：不传 / null = 跟随环境变量，true / false = 显式覆盖
+    expose_verification_code: bool | None = Field(
+        default=None, alias="exposeVerificationCode"
+    )
+    #: 前端「清除已保存的授权码」勾选框走这个独立字段，避免和「留空不改动」
+    #: 的语义打架（见 ``alipayClearPrivateKey`` 的同款处理）。
+    smtp_clear_password: bool | None = Field(default=None, alias="smtpClearPassword")
+
+
+class AdminMailTestRequest(_AdminBase):
+    """「发送测试邮件」的收件人。
+
+    刻意做成显式传参，而不是「发给当前登录的管理员」：排障时常常要往**客户**
+    那个收不到验证码的邮箱发一封，好判断是「我们发不出去」还是「对方网关拒收」。
+    """
+
+    email: str = Field(min_length=3, max_length=255)
 
 
 class AdminLicenseRequest(_AdminBase):
@@ -295,3 +392,14 @@ class AdminWithdrawalResolveRequest(_AdminBase):
 
 class AdminOrderActionRequest(_AdminBase):
     note: str = Field(default="", max_length=255)
+    #: 只对退款有意义：显式声明「这笔钱是在线下退的」。
+    #: 后台手动标记支付的订单没有支付渠道交易，走网关必然失败；此时运营可以
+    #: 勾选离线退款，让系统如实记录退款金额与备注，而不是伪造一条渠道退款记录。
+    offline: bool = False
+    #: 只对退款有意义：本次要退多少（分）。留空表示退掉**剩余全部可退金额**
+    #: （与历史上「一退就退全款」的行为一致）。
+    #:
+    #: 允许部分退款后，同一个订单可以被退多次；每次退款都会生成一条独立的
+    #: ``order_refunds`` 流水，并携带唯一的渠道幂等请求号 —— 否则第二次退款
+    #: 会被支付宝按幂等键去重，钱根本退不出去。
+    amount_cents: int | None = Field(default=None, alias="amountCents", gt=0)

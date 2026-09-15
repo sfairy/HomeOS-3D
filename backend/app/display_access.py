@@ -1,16 +1,22 @@
 from __future__ import annotations
 
-import secrets
-from uuid import uuid4
+from urllib.parse import quote
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from .config import Settings
-from .database import Database
-from .ha.crypto import CredentialCipher
-from .models import DisplayDevice, DisplayPairingCode, User
+from .models import DisplayDevice, DisplayPairingCode
 from .security import session_token_hash
+
+
+def display_path(project_name: str) -> str:
+    """正式展示地址：路径段用项目名称，特殊字符一律百分号编码。
+
+    项目名称在创建、改名和保存草稿时都做了全局唯一校验，因此名称可以稳定
+    地代表一个仪表盘；名称允许中文、空格、斜杠和百分号，所以这里必须编码
+    后再拼进路径，否则浏览器会把它们当成路径分隔符或查询串。
+    """
+    return '/display/' + quote(project_name, safe = '')
 
 
 def active_display_device(database: Session, token: str) -> DisplayDevice | None:
@@ -36,50 +42,3 @@ def active_display_device(database: Session, token: str) -> DisplayDevice | None
             ),
         )
     )
-
-
-def backfill_persistent_display_pairings(settings: Settings, database: Database) -> int:
-    """Attach pre-0009 display tokens to newly manageable persistent codes."""
-    cipher = CredentialCipher(settings.display_pairing_key_path)
-    with database.session_factory() as session:
-        devices = list(
-            session.scalars(
-                select(DisplayDevice).where(
-                    DisplayDevice.pairing_code_id.is_(None),
-                    DisplayDevice.revoked_at.is_(None),
-                )
-            )
-        )
-        if not devices:
-            return 0
-        owner = session.scalar(
-            select(User).where(User.is_active.is_(True)).order_by(User.created_at)
-        )
-        if owner is None:
-            return 0
-        existing_hashes = set(session.scalars(select(DisplayPairingCode.code_hash)))
-        created = 0
-        for device in devices:
-            for _attempt in range(100):
-                code = f"{secrets.randbelow(1000000):06d}"
-                code_hash = session_token_hash(code)
-                if code_hash not in existing_hashes:
-                    break
-            else:
-                raise RuntimeError("无法为旧中控生成唯一固定配对码。")
-            pairing = DisplayPairingCode(
-                id=str(uuid4()),
-                code_hash=code_hash,
-                encrypted_code=cipher.encrypt(code),
-                name=device.name,
-                project_id=device.project_id,
-                created_by=owner.id,
-                is_enabled=True,
-            )
-            session.add(pairing)
-            session.flush()
-            device.pairing_code_id = pairing.id
-            existing_hashes.add(code_hash)
-            created += 1
-        session.commit()
-        return created

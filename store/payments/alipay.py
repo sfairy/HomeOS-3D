@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from functools import lru_cache
+from uuid import uuid4
 
 import httpx
 from cryptography.exceptions import InvalidSignature
@@ -36,12 +37,17 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from store.config import StoreSettings
 from store.models import Order, StoreSetting
-from store.payments.base import PaymentError, PaymentIntent
+from store.payments.base import PaymentError, PaymentIntent, RefundResult
 
 logger = logging.getLogger("store.payments.alipay")
 
-#: 沙箱网关（STORE_ALIPAY_GATEWAY_URL 换成这个即可联调）
-SANDBOX_GATEWAY_URL = "https://openapi.alipaydev.com/gateway.do"
+#: 沙箱网关（后台的「沙箱环境」开关会切到这里）。
+#:
+#: 注意是**新版**沙箱的域名 ``openapi-sandbox.dl.alipaydev.com``，不是旧的
+#: ``openapi.alipaydev.com``：支付宝两代沙箱是两套完全独立的 AppID 与密钥，
+#: 旧版沙箱已不再维护，新控制台里创建/升级出来的沙箱应用用旧域名调不通
+#: （报「验签失败」或「应用不存在」，看提示完全指不到域名上）。
+SANDBOX_GATEWAY_URL = "https://openapi-sandbox.dl.alipaydev.com/gateway.do"
 
 #: 中国没有夏令时，用固定 +8 偏移，避免依赖 tzdata
 CHINA_TZ = timezone(timedelta(hours=8))
@@ -51,6 +57,28 @@ SUCCESS_TRADE_STATUSES = frozenset({"TRADE_SUCCESS", "TRADE_FINISHED"})
 
 #: 交易不存在（还没付款）时的子错误码
 TRADE_NOT_EXIST_SUB_CODES = frozenset({"ACQ.TRADE_NOT_EXIST", "ACQ.TRADE_HAS_CLOSE"})
+
+#: 关单时「本来就无需关闭」的子错误码：交易不存在，或已经关闭过。
+#: 都按成功处理 —— 目标状态（这笔交易不能再被支付）已经达成。
+CLOSE_IDEMPOTENT_SUB_CODES = frozenset({"ACQ.TRADE_NOT_EXIST", "ACQ.TRADE_HAS_CLOSE"})
+
+#: 关单时发现交易**已经付掉了**。这不是关单失败：钱已经进来，调用方必须立刻
+#: 去对账把订单拉回已支付，否则用户付了款订单却停在过期状态。
+CLOSE_ALREADY_PAID_SUB_CODES = frozenset({"ACQ.TRADE_HAS_FINISHED"})
+
+#: 明确指向「这套凭据有问题」的子错误码，用于凭据自检时区分「凭据错」与
+#: 「渠道侧其它故障」—— 两者的处置完全不同：前者要运营改配置，后者只能等。
+CREDENTIAL_ERROR_SUB_CODES = frozenset(
+    {
+        "isv.invalid-app-id",
+        "isv.app-not-exist",
+        "isv.invalid-signature",
+        "isv.invalid-signature-type",
+        "isv.invalid-encrypt-type",
+        "isv.insufficient-isv-permissions",
+        "isv.missing-parameter",
+    }
+)
 
 _PRE_HEADER = "RSA PRIVATE KEY"
 _PKCS8_HEADER = "PRIVATE KEY"
@@ -246,13 +274,39 @@ class AlipayNotification:
         return self.trade_status in SUCCESS_TRADE_STATUSES
 
 
+@dataclass(frozen=True)
+class CloseResult:
+    """关单结果。
+
+    ``closed`` 为真表示渠道侧那笔交易已经不可能再被支付（包含「本来就不存在 /
+    已经关闭过」这类幂等情况）。``already_paid`` 为真表示关单时发现**钱已经付了**——
+    这不是失败，调用方必须立刻去对账认领这笔钱，否则用户付了款、订单却停在
+    过期状态，只能等人工客服。
+    """
+
+    closed: bool
+    already_paid: bool = False
+    reason: str = ""
+
+
 class AlipayProvider:
     name = "alipay"
+
+    def __init__(self, settings: StoreSettings | None = None) -> None:
+        #: 由 :func:`store.payments.resolve_provider` 注入的「已合并站点配置」的
+        #: settings。方法收到的 ``settings`` 常常直接来自 ``app.state.settings``
+        #: （只含环境变量），照它取凭据会让后台填的商户号/密钥完全失效，
+        #: 所以公开方法一律以注入值为准。
+        self._settings = settings
+
+    def _resolve(self, settings: StoreSettings) -> StoreSettings:
+        return self._settings or settings
 
     # ------------------------------------------------------------------ #
     # 配置
     # ------------------------------------------------------------------ #
     def is_configured(self, settings: StoreSettings) -> bool:
+        settings = self._resolve(settings)
         return bool(
             settings.alipay_app_id
             and settings.alipay_private_key_text
@@ -260,6 +314,7 @@ class AlipayProvider:
         )
 
     def _assert_configured(self, settings: StoreSettings) -> None:
+        settings = self._resolve(settings)
         if self.is_configured(settings):
             return
         missing = []
@@ -274,9 +329,11 @@ class AlipayProvider:
         )
 
     def notify_url(self, settings: StoreSettings, base_url: str) -> str:
+        settings = self._resolve(settings)
         return settings.alipay_notify_url or f"{base_url}/store/v1/payments/alipay/notify"
 
     def return_url(self, settings: StoreSettings, base_url: str) -> str:
+        settings = self._resolve(settings)
         return settings.alipay_return_url or f"{base_url}/store/payment/return"
 
     # ------------------------------------------------------------------ #
@@ -289,8 +346,16 @@ class AlipayProvider:
         biz_content: dict[str, object],
         *,
         base_url: str | None = None,
+        require_signature: bool = True,
     ) -> tuple[dict, str]:
-        """调用一个 OpenAPI 方法，返回 (响应节点, 原始响应文本)。"""
+        """调用一个 OpenAPI 方法，返回 (响应节点, 原始响应文本)。
+
+        ``require_signature=False`` 只给凭据自检用（见 ``verify_credentials``）：
+        支付宝在「app_id 不存在 / 验签失败」这类错误上**不会签名**（它没法用一把
+        未知的公钥去签），开启验签就会在读到 sub_code 之前先抛「响应缺少 sign」，
+        把「app_id 填错了」误报成「响应没签名」。
+        """
+        settings = self._resolve(settings)
         self._assert_configured(settings)
         node_key = method.replace(".", "_") + "_response"
         params: dict[str, object] = {
@@ -339,7 +404,7 @@ class AlipayProvider:
         if not isinstance(node, dict):
             raise PaymentError(f"支付宝返回缺少 {node_key} 节点：{raw[:200]}")
 
-        if settings.alipay_verify_response_sign:
+        if require_signature and settings.alipay_verify_response_sign:
             self._verify_response(raw, node_key, payload.get("sign"), settings)
 
         return node, raw
@@ -351,6 +416,7 @@ class AlipayProvider:
         signature: object,
         settings: StoreSettings,
     ) -> None:
+        settings = self._resolve(settings)
         if not isinstance(signature, str) or not signature:
             raise PaymentError("支付宝响应缺少 sign，已拒绝该响应（可关闭响应验签开关）。")
         content = extract_raw_node(raw, node_key)
@@ -370,6 +436,7 @@ class AlipayProvider:
         setting: StoreSetting,
         base_url: str,
     ) -> PaymentIntent:
+        settings = self._resolve(settings)
         self._assert_configured(settings)
 
         subject = (
@@ -413,11 +480,88 @@ class AlipayProvider:
         )
 
     # ------------------------------------------------------------------ #
+    # 退款
+    # ------------------------------------------------------------------ #
+    def refund_payment(
+        self,
+        *,
+        order: Order,
+        amount_cents: int,
+        reason: str,
+        out_request_no: str,
+        settings: StoreSettings,
+        setting: StoreSetting,
+    ) -> RefundResult:
+        """调用 ``alipay.trade.refund`` 真实退款。
+
+        后台「退款」按钮过去只改本地状态：订单显示已退款、授权被停用，但钱仍留在
+        商户账户里，客户以为退过了。这里补上真实的资金动作，并把渠道退款单号带回
+        去落库，对账时才有依据。
+
+        ``out_request_no`` 由调用方按**每一次退款动作**生成唯一值：支付宝把它当
+        幂等键，同一个值重复提交会直接返回上一次的结果。过去它是按订单号写死的，
+        于是「先退 30%、再退 70%」的第二次调用被静默去重 —— 钱没退出去，本地却
+        已经记成已退款。
+
+        失败一律抛 ``PaymentError``（由调用方转成 409 并**保持订单状态不变**）——
+        绝不能出现「状态改了但钱没退」。
+        """
+        settings = self._resolve(settings)
+        self._assert_configured(settings)
+        if amount_cents <= 0:
+            raise PaymentError("退款金额必须大于 0。")
+        if not (out_request_no or "").strip():
+            raise PaymentError("退款缺少幂等请求号 out_request_no。")
+
+        biz_content: dict[str, object] = {
+            "out_trade_no": order.order_no,
+            "refund_amount": yuan_from_cents(amount_cents),
+            # 每次退款动作唯一：支付宝按它幂等，重复点击不会把钱扣两次，
+            # 而多次部分退款因为值不同都能真的退出去。
+            "out_request_no": out_request_no.strip()[:64],
+        }
+        if reason:
+            biz_content["refund_reason"] = reason[:256]
+
+        try:
+            node, _raw = self._call(settings, "alipay.trade.refund", biz_content)
+        except PaymentError as error:
+            raise PaymentError(f"支付宝退款失败：{error}") from error
+
+        code = str(node.get("code", ""))
+        if code != "10000":
+            detail = node.get("sub_msg") or node.get("msg") or "未知错误"
+            raise PaymentError(f"支付宝退款失败（{code}）：{detail}")
+
+        # fund_change=N 表示本次调用没有产生实际资金变动（重复退款/已退款）。
+        # 这不算失败 —— 钱本来就在用户那边了，按成功处理并说明。
+        fund_change = str(node.get("fund_change", "")).upper()
+        refund_fee_cents = cents_from_yuan(node.get("refund_fee")) or amount_cents
+        trade_no = str(node.get("trade_no") or order.payment_trade_no or "")
+        logger.info(
+            "支付宝退款完成 order=%s amount=%s fund_change=%s",
+            order.order_no,
+            biz_content["refund_amount"],
+            fund_change or "-",
+        )
+        return RefundResult(
+            ok=True,
+            trade_no=trade_no or None,
+            unrefunded_cents=max(0, int(amount_cents) - int(refund_fee_cents)),
+            detail=(
+                "渠道确认本次无新增资金变动（该笔可能已退过款）"
+                if fund_change == "N"
+                else f"支付宝已退回 ¥{refund_fee_cents / 100:.2f}"
+            ),
+        )
+
+    # ------------------------------------------------------------------ #
     # 异步通知验签
     # ------------------------------------------------------------------ #
     def verify_notification(
         self, settings: StoreSettings, form: dict[str, str]
     ) -> AlipayNotification:
+        settings = self._resolve(settings)
         fields = {str(key): ("" if value is None else str(value)) for key, value in form.items()}
         signature = fields.get("sign", "")
         if not signature:
@@ -442,12 +586,60 @@ class AlipayProvider:
         )
 
     # ------------------------------------------------------------------ #
-    # 主动查单
+    # 凭据自检
+    # ------------------------------------------------------------------ #
+    def verify_credentials(self, settings: StoreSettings) -> tuple[bool, str]:
+        """用一笔**不存在的交易**探活，判断这套凭据到底能不能用。
+
+        为什么需要一个专门的探测：凭据填错的反馈极其滞后 —— 私钥不对时签名会失败，
+        但报错只在「用户点下单」的那一刻出现，而且是一句笼统的「验签失败」。
+        运营改完配置只能靠再下一单来验证，改错的代价由客户承担。
+
+        ``alipay.trade.query`` 是理想的探针：它需要一个 out_trade_no，但**不要求
+        交易真实存在**（不存在会返回 ``ACQ.TRADE_NOT_EXIST``）。也就是说，只要拿到
+        「交易不存在」这个回答，就说明网关已经认可了我们的 app_id 并验签通过 ——
+        这正是我们要验证的事，且不产生任何资金动作。
+
+        返回 ``(可用?, 说明文案)``，不抛异常：这是给后台的「测试凭据」按钮用的，
+        失败原因要原样展示给人看，而不是变成一个 500。
+
+        这里刻意**关掉响应验签**（``require_signature=False``）：凭据填错时支付宝
+        的错误响应根本不带 ``sign``（它没有可用的公钥来签），开启验签会先抛
+        「响应缺少 sign」，把「app_id 填错了」误报成「响应没签名」。自检只是把结论
+        念给管理员听，不改变任何状态，所以不验签的代价可以接受。
+        """
+        settings = self._resolve(settings)
+        try:
+            self._assert_configured(settings)
+            node, _raw = self._call(
+                settings,
+                "alipay.trade.query",
+                {"out_trade_no": f"HB-PROBE-{uuid4().hex[:12]}"},
+                require_signature=False,
+            )
+        except PaymentError as error:
+            return False, str(error)
+
+        code = str(node.get("code", ""))
+        sub_code = str(node.get("sub_code", ""))
+        detail = str(node.get("sub_msg") or node.get("msg") or "")
+        if code == "10000":
+            # 理论上不该命中（探测单号是随机生成的），真命中同样说明凭据可用。
+            return True, "凭据可用：网关接受了本次请求。"
+        if sub_code in TRADE_NOT_EXIST_SUB_CODES:
+            return True, "凭据可用：网关已完成验签（探测单号不存在属于预期结果）。"
+        if sub_code in CREDENTIAL_ERROR_SUB_CODES:
+            return False, f"凭据不可用（{code}）：{detail or sub_code}"
+        return False, f"网关返回了预期外的错误（{code}）：{detail or '无详细说明'}"
+
+    # ------------------------------------------------------------------ #
+    # 查单
     # ------------------------------------------------------------------ #
     def query_payment(
         self, settings: StoreSettings, order: Order
     ) -> dict[str, object] | None:
         """查单。返回响应节点；交易不存在（尚未支付）时返回 None。"""
+        settings = self._resolve(settings)
         node, _raw = self._call(
             settings, "alipay.trade.query", {"out_trade_no": order.order_no}
         )
@@ -461,3 +653,50 @@ class AlipayProvider:
         # 查单失败不抛异常：不能因为查单接口抖动就把用户的支付流程打断
         logger.warning("支付宝查单失败 order=%s code=%s detail=%s", order.order_no, code, detail)
         return None
+
+    # ------------------------------------------------------------------ #
+    # 关单
+    # ------------------------------------------------------------------ #
+    def close_payment(self, settings: StoreSettings, order: Order) -> CloseResult:
+        """关闭渠道侧的预下单交易（``alipay.trade.close``）。
+
+        为什么必须关：本地把订单置为 expired / cancelled 只是改了我们自己的状态，
+        用户在支付宝里那笔「待付款」交易仍然开着 —— 旧二维码能继续扫、继续付。
+        钱进来时本地订单已经进终态、库存预留也还给了别人，只能按「复活单」
+        补发并发起人工复核。关单把这个窗口直接堵掉。
+
+        失败的语义刻意分层：
+
+        - 交易不存在 / 已关闭 → 目标已达成，按成功返回（接口幂等，可重复调用）。
+        - 交易已付款 → 不是失败，``already_paid=True``，让调用方立刻对账认钱。
+        - 其余错误 → 抛 ``PaymentError``，由调用方决定是否重试（``channel_closed_at``
+          没写，下一轮扫描还会再来一次）。
+        """
+        settings = self._resolve(settings)
+        self._assert_configured(settings)
+        node, _raw = self._call(
+            settings, "alipay.trade.close", {"out_trade_no": order.order_no}
+        )
+        code = str(node.get("code", ""))
+        if code == "10000":
+            logger.info("支付宝关单成功 order=%s", order.order_no)
+            return CloseResult(closed=True)
+
+        sub_code = str(node.get("sub_code", ""))
+        detail = str(node.get("sub_msg") or node.get("msg") or "未知错误")
+        if sub_code in CLOSE_IDEMPOTENT_SUB_CODES:
+            logger.info(
+                "支付宝关单：交易本就不存在或已关闭 order=%s sub_code=%s",
+                order.order_no,
+                sub_code,
+            )
+            return CloseResult(closed=True, reason=detail)
+        if sub_code in CLOSE_ALREADY_PAID_SUB_CODES:
+            logger.warning(
+                "支付宝关单时发现交易已付款 order=%s sub_code=%s —— 转去对账",
+                order.order_no,
+                sub_code,
+            )
+            return CloseResult(closed=False, already_paid=True, reason=detail)
+
+        raise PaymentError(f"支付宝关单失败（{code}）：{detail}")

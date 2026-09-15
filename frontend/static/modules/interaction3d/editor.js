@@ -1,26 +1,26 @@
-import { resolvePageBehavior } from "./page-behavior.js?v=20260915211726";
+import { resolvePageBehavior } from "./page-behavior.js?v=20260916013557";
 import {
   performanceWarnings,
   confirmPerformanceWarning
-} from "./performance-warning.js?v=20260915211726";
-import { normalizeGroundReflection } from "./reflection-settings.js?v=20260915211726";
+} from "./performance-warning.js?v=20260916013557";
+import { normalizeGroundReflection } from "./reflection-settings.js?v=20260916013557";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   waitInteraction3dEditorView,
   cancelOtherInteraction3dViews
-} from "./bridge.js?v=20260915211726";
+} from "./bridge.js?v=20260916013557";
 import {
   createInteraction3dCover,
   updateInteraction3dCoverMessage
-} from "./cover.js?v=20260915211726";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=20260915211726";
+} from "./cover.js?v=20260916013557";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=20260916013557";
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
   BACKGROUND_THEMES,
   normalizeBackgroundTheme
-} from "./definition.js?v=20260915211726";
+} from "./definition.js?v=20260916013557";
 export function interaction3dEntries(componentTree, pathSegments = [], entriesByPath = new Map()) {
   if (Array.isArray(componentTree)) {
     componentTree.forEach((arrayItem, arrayIndex) =>
@@ -420,7 +420,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       }
       await requestInteraction3dAccess();
       const { openInteraction3dAppearanceEditor: openAppearanceEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915211726");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916013557");
       await openAppearanceEditor({
         component: targetComponent,
         onSave: savedBaseLighting =>
@@ -452,7 +452,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureDevicesButton.disabled = true;
     try {
       const { openInteraction3dEditor: openDevicesEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915211726");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916013557");
       await openDevicesEditor({
         component: targetComponent,
         deviceKind: "devices",
@@ -485,7 +485,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     try {
       await requestInteraction3dAccess();
       const { openSecurityEditor: openSecurityEditor } =
-        await import("/api/v1/modules/interaction3d/security-editor.js?v=20260915211726");
+        await import("/api/v1/modules/interaction3d/security-editor.js?v=20260916013557");
       await openSecurityEditor({
         component: targetComponent,
         panelDocument: editorOptions.document,
@@ -513,7 +513,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureVacuumButton.disabled = true;
     try {
       const { openInteraction3dEditor: openVacuumEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915211726");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916013557");
       await openVacuumEditor({
         component: targetComponent,
         deviceKind: "vacuum",
@@ -582,7 +582,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     try {
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openLightingEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915211726");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916013557");
       await openLightingEditor({
         component: targetComponent,
         document: editorOptions.document,
@@ -610,7 +610,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     try {
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openEnvironmentEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915211726");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916013557");
       await openEnvironmentEditor({
         component: targetComponent,
         deviceKind: "environment",
@@ -2316,32 +2316,40 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   autoRotateSection.append(returnToDefaultLabel);
   behaviorRowElement.append(idleExitSection);
   behaviorSection.append(autoRotateSection, behaviorRowElement, iconVisibilitySection);
-  const appendInspectorGroup = (groupKey, groupTitle, groupChildren, defaultOpen = false) => {
+  const inspectorGroupElements = [];
+  const rememberedOpenGroupKey =
+    [...openStateByGroup.entries()].find(([, groupOpen]) => groupOpen)?.[0] ?? null;
+  const hasRenderedGroups = openStateByGroup.size > 0;
+  const defaultOpenGroupKey = isViewEditing ? "view" : "layout";
+  const appendInspectorGroup = (groupKey, groupTitle, groupChildren) => {
     const detailsGroupElement = createElement("details", "i3d-inspector-group");
     detailsGroupElement.dataset.inspectorGroup = groupKey;
-    detailsGroupElement.open = openStateByGroup.get(groupKey) ?? defaultOpen;
+    detailsGroupElement.open = hasRenderedGroups
+      ? groupKey === rememberedOpenGroupKey
+      : groupKey === defaultOpenGroupKey;
     detailsGroupElement.append(createElement("summary", "", groupTitle), ...groupChildren);
     inspectorElement.append(detailsGroupElement);
-    if (groupKey === "popups") {
-      detailsGroupElement.addEventListener("toggle", () => {
-        if (!detailsGroupElement.open && detailsGroupElement.isConnected) {
-          getInteraction3dEditorView(targetComponent.id)?.closePopupLayoutPreview?.();
+    detailsGroupElement.addEventListener("toggle", () => {
+      if (detailsGroupElement.open) {
+        for (const otherGroupElement of inspectorGroupElements) {
+          if (otherGroupElement !== detailsGroupElement && otherGroupElement.open) {
+            otherGroupElement.open = false;
+          }
         }
-      });
-    }
+      } else if (groupKey === "popups" && detailsGroupElement.isConnected) {
+        getInteraction3dEditorView(targetComponent.id)?.closePopupLayoutPreview?.();
+      }
+    });
+    inspectorGroupElements.push(detailsGroupElement);
   };
-  appendInspectorGroup(
-    "layout",
-    "户型与布局",
-    [houseSection, layoutSection, displaySection],
-    !properties.sceneId
-  );
-  appendInspectorGroup(
-    "devices",
-    "设备配置",
-    [lightsSection, environmentSection, devicesSection, vacuumSection, securitySection],
-    true
-  );
+  appendInspectorGroup("layout", "户型与布局", [houseSection, layoutSection, displaySection]);
+  appendInspectorGroup("devices", "设备配置", [
+    lightsSection,
+    environmentSection,
+    devicesSection,
+    vacuumSection,
+    securitySection
+  ]);
   appendInspectorGroup("appearance", "画面效果", [
     lightEffectsSection,
     renderScaleSection,
@@ -2350,10 +2358,10 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     dimmingSection,
     popupAppearanceSection
   ]);
-  appendInspectorGroup("view", "视角与导航", [viewSection, navigationSection], isViewEditing);
+  appendInspectorGroup("view", "视角与导航", [viewSection, navigationSection]);
   appendInspectorGroup("popups", "弹窗大小与位置", [popupSettingsSection]);
   behaviorSection.children[0].hidden = true;
-  appendInspectorGroup("interaction", "交互行为", [behaviorSection], true);
+  appendInspectorGroup("interaction", "交互行为", [behaviorSection]);
   sceneState.refresh();
   editorOptions.enhanceControls?.(inspectorElement);
   inspectorElement.style.minHeight = previousMinHeight;

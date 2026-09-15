@@ -1,4 +1,4 @@
-import { randomUuid } from "../utils/random-id.js?v=20260915211726";
+import { randomUuid } from "../utils/random-id.js?v=20260916013557";
 import {
   climateDefaultIcon,
   climateEffectMode,
@@ -7,10 +7,10 @@ import {
   climatePresentationMode,
   normalizeClimateCapabilities,
   resolveClimateDeviceType
-} from "./climate.js?v=20260915211726";
-import { entityPowerIsOn } from "./entity-power.js?v=20260915211726";
-import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260915211726";
-import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260915211726";
+} from "./climate.js?v=20260916013557";
+import { entityPowerIsOn } from "./entity-power.js?v=20260916013557";
+import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260916013557";
+import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260916013557";
 const componentsByType = new Map();
 registerComponent("interaction3d", {
   render: renderInteraction3d
@@ -409,18 +409,18 @@ import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport,
   lightStatisticsSummary
-} from "./light-statistics-runtime.js?v=20260915211726";
+} from "./light-statistics-runtime.js?v=20260916013557";
 import {
   automaticNumericPrecision,
   formatLineChartValue,
   formatNumericValue,
   lineChartGeometry,
   normalizedStatePrecision
-} from "./line-chart-runtime.js?v=20260915211726";
+} from "./line-chart-runtime.js?v=20260916013557";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix
-} from "./door-window-runtime.js?v=20260915211726";
+} from "./door-window-runtime.js?v=20260916013557";
 import {
   automaticThresholds,
   meteoconUrl,
@@ -429,12 +429,12 @@ import {
   smoothChartPath,
   thresholdColor,
   weatherVisual
-} from "./weather-chart-runtime.js?v=20260915211726";
+} from "./weather-chart-runtime.js?v=20260916013557";
 import {
   formatLocalDate,
   formatLocalTime,
   formatLunarDate
-} from "./date-time-runtime.js?v=20260915211726";
+} from "./date-time-runtime.js?v=20260916013557";
 export {
   lightStatisticsEntityStateStatus as lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport as lightStatisticsEntitySupport,
@@ -464,7 +464,7 @@ import {
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "./presence-runtime.js?v=20260915211726";
+} from "./presence-runtime.js?v=20260916013557";
 export {
   formatPresenceDuration as formatPresenceDuration,
   presenceAnimationPhase as presenceAnimationPhase,

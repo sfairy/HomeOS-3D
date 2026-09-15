@@ -166,8 +166,6 @@ class ProjectCreateRequest(BaseModel):
     description: str = Field(default='', max_length=2000)
     canvas_width: int = Field(default=2778, alias='canvasWidth', ge=320, le=7680)
     canvas_height: int = Field(default=1940, alias='canvasHeight', ge=240, le=4320)
-    ui_pack_id: str = Field(default='ui.base', alias='uiPackId', min_length=1, max_length=128)
-    template_id: str | None = Field(default=None, alias='templateId', min_length=1, max_length=128)
 
     @field_validator('name')
     @classmethod

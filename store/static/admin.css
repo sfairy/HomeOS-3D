@@ -82,14 +82,15 @@ body {
   flex: 0 0 auto;
   align-items: center;
   gap: 11px;
-  padding: 18px 16px 16px;
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--a-line-soft);
 }
 
 .admin-side .brand__mark {
   display: grid;
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
   place-items: center;
   border: 1px solid var(--hb-accent-line);
   border-radius: 10px;
@@ -98,8 +99,8 @@ body {
 }
 
 .admin-side .brand img {
-  width: 21px;
-  height: 21px;
+  width: 20px;
+  height: 20px;
   object-fit: contain;
 }
 
@@ -124,40 +125,174 @@ body {
   letter-spacing: 0.02em;
 }
 
-/* 导航区：品牌与底部账号栏固定，中间列表自己滚 */
+/* 导航区：品牌与底部账号栏固定，中间列表自己滚。
+   scrollbar-gutter 让滚动条出现/消失时不挤压行宽（否则图标会横向跳 8px）。 */
 .admin-nav {
   min-height: 0;
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 4px 10px 10px;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+  padding: 10px 10px 12px;
 }
 
+/* 暗色侧栏上默认的亮色滚动条太抢眼，收成一根细线 */
+.admin-nav::-webkit-scrollbar {
+  width: 10px;
+}
+
+.admin-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-nav::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  background-clip: content-box;
+}
+
+.admin-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+  background-clip: content-box;
+}
+
+/* 分组之间留出呼吸。默认全开时 5 个分组 + 15 个链接要在一屏内看完，
+   所以这里的间距压到最小可用值：靠标题的字距和竖向导轨区分层级，不再靠留白。 */
 .nav-group + .nav-group {
-  margin-top: 14px;
+  margin-top: 6px;
 }
 
-/* 分组标题：小号大写字母 + 字距，是「控制台」观感的关键 */
-.nav-group__label {
-  margin: 0 0 6px;
-  padding: 0 8px;
-  color: #66727b;
-  font-size: 10.5px;
+/* 一级菜单：整行可点。用 button 而不是 div，键盘 Tab / Enter 天然可用。
+   chevron 在 DOM 里排在最后（保持「标题 → 角标」的阅读顺序），这里用 order
+   把它提到最前：展开箭头紧贴标题，右侧就不会只剩一个孤零零的小箭头，
+   标题和箭头之间也不会出现一大段空白。折叠态箭头指右，展开态指下。
+
+   高度压到 26px：默认全开时 5 个分组标题 + 15 个链接要在 900px 高的屏幕里
+   一屏装下（品牌栏 ~66px + 底部账号栏 ~133px 已经占掉 200px），标题多占
+   12px 就是链接少看两行。 */
+.nav-group__toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--a-radius-sm);
+  color: var(--hb-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
   font-weight: 650;
-  letter-spacing: 0.1em;
+  /* 标题都是中文，uppercase 不生效，能拉开「标签感」的只有字距。
+     但字距随字号一起放大会把中文拆得七零八落，所以字号升上来后
+     字距反而要收回一点，靠字重和颜色区分层级。 */
+  letter-spacing: 0.04em;
+  text-align: left;
   text-transform: uppercase;
+  cursor: pointer;
+  transition: var(--a-transition);
+}
+
+.nav-group__toggle:hover {
+  color: var(--hb-ink-soft);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* 标题字号小、字距大，长名字在窄侧栏里要能自己截断 */
+.nav-group__text {
+  order: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-group__chevron {
+  order: -1;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  opacity: 0.5;
+  transform: rotate(-90deg);
+  transition: transform 0.22s ease, opacity 0.22s ease;
+}
+
+.nav-group.open .nav-group__toggle {
+  color: var(--hb-ink-soft);
+}
+
+/* 一级菜单上的待办合计：只在分组收起时显示，
+   展开后子项各自的角标就在眼前，再挂一个合计是重复信息。 */
+.nav-group__badge {
+  order: 1;
+  flex: 0 0 auto;
+}
+
+.nav-group.open .nav-group__badge {
+  display: none;
+}
+
+.nav-group.open .nav-group__chevron {
+  opacity: 0.85;
+  transform: rotate(0deg);
+}
+
+/* 折叠动画走 grid-template-rows 的 0fr → 1fr：
+   高度是真实内容高度，收起/展开都不断层，也不需要写死 max-height。 */
+.nav-group__items {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+
+.nav-group.open .nav-group__items {
+  grid-template-rows: 1fr;
+}
+
+/* visibility 参与过渡：收起动画播完才真正隐藏，
+   这样折叠分组里的链接不会留在 Tab 焦点序列里。 */
+.nav-group__items-inner {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0.22s;
+}
+
+.nav-group.open .nav-group__items-inner {
+  visibility: visible;
+}
+
+/* 子项左侧的竖向导轨，和一级菜单折叠箭头的中心对齐
+   （标题左右内边距 8px + 箭头半宽 7px）。
+   分组一多，光靠缩进很难一眼看出「这几行列属上面哪个标题」；补一条渐隐的
+   竖线，层级关系就落在视觉上而不是靠猜。 */
+.nav-group__items-inner::before {
+  position: absolute;
+  top: 3px;
+  bottom: 7px;
+  left: 15px;
+  width: 1px;
+  background: linear-gradient(180deg, var(--a-line) 0%, rgba(41, 49, 58, 0.15) 100%);
+  content: "";
+  pointer-events: none;
 }
 
 .admin-side a.nav-link {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 0 2px;
-  padding: 8px 10px;
+  gap: 9px;
+  margin: 0 0 1px;
+  /* 行高压到 ~32px，理由同 .nav-group__toggle：15 个入口要在 900px 高的屏幕
+     里一屏装下，不能靠滚动去找「系统设置」。 */
+  padding: 5px 10px 5px 22px;
   border: 1px solid transparent;
   border-radius: var(--a-radius-sm);
   color: var(--hb-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 560;
   transition: var(--a-transition);
 }
@@ -171,10 +306,10 @@ body {
 }
 
 .nav-ico {
-  width: 17px;
-  height: 17px;
-  flex: 0 0 17px;
-  opacity: 0.72;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  opacity: 0.8;
   transition: var(--a-transition);
 }
 
@@ -187,20 +322,21 @@ body {
   opacity: 1;
 }
 
-/* 选中态：左侧琥珀指示条 + 淡琥珀底 + 高亮文字 */
+/* 选中态：淡琥珀底 + 高亮文字 + 行首一条琥珀指示条。
+   不再用实心描边方框——那会把每一行都框成一个「输入框」，和表单控件混淆，
+   一行行看下来也显得很吵。 */
 .admin-side a.nav-link.active {
-  border-color: var(--hb-accent-line);
   color: var(--hb-accent-bright);
-  background: linear-gradient(90deg, var(--hb-accent-soft), rgba(242, 162, 13, 0.04));
+  background: linear-gradient(90deg, rgba(242, 162, 13, 0.16), rgba(242, 162, 13, 0.02));
 }
 
 .admin-side a.nav-link.active::before {
   position: absolute;
   top: 50%;
-  left: -1px;
-  width: 3px;
-  height: 18px;
-  border-radius: 0 3px 3px 0;
+  left: 0;
+  width: 2px;
+  height: 16px;
+  border-radius: 0 2px 2px 0;
   background: var(--hb-accent-grad);
   content: "";
   transform: translateY(-50%);
@@ -232,55 +368,65 @@ body {
   border-color: rgba(242, 162, 13, 0.6);
 }
 
-/* 底部账号区 */
+/* 底部账号区：整块压低一档底色，和上面的导航列表分开，
+   账号信息收进一张小卡片，两个按钮并排——竖着堆两行满宽按钮太占高度。 */
 .admin-side__foot {
   flex: 0 0 auto;
-  padding: 12px 14px 14px;
+  padding: 12px 12px 14px;
   border-top: 1px solid var(--a-line);
+  background: rgba(0, 0, 0, 0.16);
 }
 
 .who {
   display: flex;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   align-items: center;
   gap: 9px;
   min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--a-line-soft);
+  border-radius: var(--a-radius-sm);
+  background: var(--a-surface);
 }
 
 .who__avatar {
   display: grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
   place-items: center;
   border: 1px solid var(--hb-line-strong);
   border-radius: 999px;
   color: var(--hb-accent-bright);
   background: var(--a-surface-3);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
 .who__email {
   min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
-  color: var(--hb-muted);
+  color: var(--hb-ink-soft);
   font-size: 11.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 时间口径写在界面上：后台时间列按浏览器本地时区渲染，而库内是 UTC */
+/* 时间口径写在界面上：后台时间列按浏览器本地时区渲染，而库内是 UTC。
+   这是解释性文案，不是操作项，所以压到最暗一档，别跟待办抢注意力。 */
 .admin-side__tz {
   margin: 0 0 10px;
-  color: var(--hb-ink-soft);
-  font-size: 11px;
+  padding: 0 2px;
+  color: var(--hb-muted-dim);
+  font-size: 10.5px;
   line-height: 1.5;
 }
 
 .admin-side__actions {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -475,6 +621,30 @@ body {
   padding-right: 32px;
 }
 
+/* 日期区间：两个 date 输入框之间用「–」连成一段，比各带一个标签更省宽度。
+   标签走小字号，避免和输入框里的日期挤在同一视觉层级。 */
+.panel-toolbar__field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel-toolbar__label {
+  color: var(--hb-ink-soft);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.panel-toolbar__sep {
+  color: var(--hb-ink-soft);
+  font-size: 12px;
+}
+
+/* 日期框不需要 170px 那么宽（value 固定是 YYYY-MM-DD） */
+.panel-toolbar__field .hb-input {
+  min-width: 142px;
+}
+
 /* --------------------------------------------------------------------------
    编辑器（商品 / 激活码 / 优惠码的内联表单）
    -------------------------------------------------------------------------- */
@@ -499,14 +669,212 @@ body {
   line-height: 1.65;
 }
 
-/* 字段级说明：挂在 hb-field 的 label 里，跟在字段名后面解释语义 */
-.admin-field-hint {
+/* 字段级说明：解释字段语义，跟在字段名或控件后面。
+   选择器必须带 .hb-field > 这一层。主题里 .hb-field > span 是 (0,1,1)，
+   而 .admin-field-hint 只有 (0,1,0) —— 写在 label 里的
+   <span class="admin-field-hint"> 会被当成字段名，套上 12px / 620 的标签样式，
+   说明文字于是变成第二个加粗标签（实测「增量包」那条就是这样）。
+   加一层类（0,2,0）才压得住，<small> 与 <span> 两种写法也才长得一样。
+
+   位置规则：多列带（一行里两个以上字段）里说明必须写在控件之后。
+   夹在字段名和控件之间会把该字段的控件顶下去，同一行的控件就不在一条线上；
+   独占一整行的字段（admin-grid__full）不受此限。 */
+.admin-field-hint,
+.hb-field > .admin-field-hint {
   display: block;
   margin-top: 2px;
-  color: var(--hb-ink-soft);
+  /* 用 --hb-muted（对卡片背景 5.66:1）而不是 --hb-ink-soft（10.75:1）。
+     说明文字必须比它解释的字段名更弱：字段名是 8.31:1，用 ink-soft 会让
+     说明比标题还亮，层级反过来。也不能用 --hb-muted-dim（3.99:1），那低于
+     对比度下限 4.5。 */
+  color: var(--hb-muted);
   font-size: 11.5px;
   font-weight: 400;
   line-height: 1.55;
+}
+
+/* --------------------------------------------------------------------------
+   功能码多选下拉
+   -------------------------------------------------------------------------- */
+/* 表单里实际提交的仍是一个 name="featureCodes" 的隐藏域（CSV），这里只做选择器
+   外观：中文名 + 代码 + 说明，勾选即写代码，运营不再手写英文能力码。 */
+.feature-picker {
+  position: relative;
+}
+
+.feature-picker__control {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 11px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink);
+  background: var(--hb-field);
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--hb-transition);
+}
+
+.feature-picker__control:hover {
+  border-color: var(--hb-accent-line);
+}
+
+.feature-picker.is-open .feature-picker__control,
+.feature-picker__control:focus-visible {
+  border-color: var(--hb-accent);
+  outline: none;
+  box-shadow: var(--hb-focus-ring);
+}
+
+.feature-picker__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feature-picker__value.is-empty {
+  color: var(--hb-muted-dim);
+}
+
+.feature-picker__caret {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-right: 1.5px solid var(--hb-muted);
+  border-bottom: 1.5px solid var(--hb-muted);
+  transform: rotate(45deg) translateY(-2px);
+  transition: var(--hb-transition);
+}
+
+.feature-picker.is-open .feature-picker__caret {
+  transform: rotate(225deg) translateY(-1px);
+}
+
+/* 节点留在表单里（事件委托才收得到点击），但打开时切成 position: fixed：
+   .admin-main 是 overflow: auto 的滚动容器，absolute 的弹层会被它裁剪并顶出
+   滚动条——与行内「⋯」菜单同一套处理，坐标由 JS 现算。 */
+.feature-picker__pop {
+  position: absolute;
+  z-index: 40;
+  display: grid;
+  width: min(420px, calc(100vw - 32px));
+  max-height: 340px;
+  padding: 8px;
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius-sm);
+  background: var(--a-surface-3);
+  box-shadow: var(--a-elev-2);
+  gap: 6px;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.feature-picker.is-open .feature-picker__pop {
+  position: fixed;
+}
+
+.feature-picker__pop[hidden] {
+  display: none;
+}
+
+.admin-grid .feature-picker__search {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 12.5px;
+}
+
+.feature-picker__list {
+  display: grid;
+  min-height: 0;
+  overflow-y: auto;
+  gap: 8px;
+}
+
+.feature-group {
+  display: grid;
+  gap: 2px;
+}
+
+.feature-group__head {
+  padding: 2px 6px;
+  color: var(--hb-muted-dim);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.feature-option {
+  display: flex;
+  padding: 6px;
+  align-items: flex-start;
+  gap: 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--hb-transition);
+}
+
+.feature-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.feature-option input {
+  width: 15px;
+  height: 15px;
+  margin: 1px 0 0;
+  flex: 0 0 15px;
+  border: 1px solid #46514f;
+  border-radius: 5px;
+  background: var(--hb-field);
+  cursor: pointer;
+}
+
+.feature-option input:checked {
+  border-color: var(--hb-accent);
+  background: var(--hb-accent);
+}
+
+.feature-option__body {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.feature-option__title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.feature-option__name {
+  color: var(--hb-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.feature-option__code {
+  color: var(--hb-muted-dim);
+  font-family: var(--hb-font-mono);
+  font-size: 11px;
+}
+
+.feature-option__desc {
+  color: var(--hb-ink-soft);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.feature-picker__empty {
+  padding: 16px 8px;
+  color: var(--hb-muted);
+  font-size: 12px;
+  text-align: center;
 }
 
 .admin-editor__hint b,
@@ -628,6 +996,90 @@ body {
   gap: 10px;
 }
 
+/* 字段说明文字。用在「分组标题下方的解释」和「测试结果的就地反馈」两处：
+   后者必须是 is-success / is-danger 变色的，否则运营点了「测试凭据」之后
+   会去别处找结果。 */
+.admin-hint {
+  margin: 0;
+  color: var(--hb-ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-hint.is-success { color: var(--hb-success-text); }
+.admin-hint.is-danger { color: var(--hb-danger-text); }
+
+/* 状态徽标（如「支付宝凭据：已配置 · 环境变量」）。
+   四种状态各自的边框与底色都要区分开：这一行是运营判断「配置是否可用」的唯一
+   入口，全靠颜色给出结论。 */
+.admin-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid var(--hb-success-line);
+  border-radius: var(--hb-radius-pill);
+  background: var(--hb-success-soft);
+  color: var(--hb-success-text);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-status-chip.is-warning {
+  border-color: var(--hb-warning-line);
+  background: var(--hb-warning-soft);
+  color: var(--hb-accent-bright);
+}
+
+.admin-status-chip.is-danger {
+  border-color: var(--hb-danger-line);
+  background: var(--hb-danger-soft);
+  color: var(--hb-danger-text);
+}
+
+.admin-status-chip.is-muted {
+  border-color: var(--hb-line);
+  background: transparent;
+  color: var(--hb-ink-soft);
+}
+
+/* 长表单（站点配置 19 个字段、商品编辑器 16 个字段）平铺成一片时，
+   找「支付渠道」和找「邀请有礼」的代价一样高。插入分区小标题，把字段
+   按语义切成两三段。小标题自己也是一个 grid item，跟着列宽走。 */
+.admin-grid__section {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 -2px;
+  color: var(--hb-ink-soft);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+}
+
+/* 紧贴卡片上边缘的首个分区标题不再叠一层外边距 */
+.admin-grid__section:first-child {
+  margin-top: 0;
+}
+
+/* 标题右侧拉一条细线：用最少的字把「下一段从这里开始」画出来，
+   比给标题加底色更安静，也不会和卡片本身抢视觉重量。 */
+.admin-grid__section::after {
+  height: 1px;
+  flex: 1 1 auto;
+  background: var(--a-line);
+  content: "";
+}
+
+/* 动作条单独收口：不加分隔时「保存配置」会被读成最后一个字段的附属按钮，
+   而它其实作用于整张表单。 */
+.admin-grid > .admin-form-actions {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--a-line);
+}
+
 .hb-check-group {
   display: flex;
   min-height: 40px;
@@ -723,16 +1175,27 @@ body {
 /* 表格跟随主区一起滚，表头用 sticky 吸在 .admin-main 顶部。
    overflow: clip 只裁切、不产生滚动容器——所以既能裁出圆角，
    又不会像 overflow: auto/hidden 那样把 sticky 的参照物抢走。 */
+/* 表格自己就是一个有界的滚动视口，而不是「撑满整页 + 靠页面滚」。
+   三件事都靠这一条：
+     1. 表头吸附位置。thead th 是 sticky top: 0，它的吸附参照是最近的滚动祖先。
+        只要这个祖先不是 .table-wrap（例如 overflow: clip 时吸附到 .admin-main），
+        窗口一窄就会失效——过去在 ≤1420px 的媒体查询里把 .table-wrap 改成
+        overflow-x: auto，.table-wrap 于是变成滚动容器，表头改为吸附在它自己的
+        上沿，而它整块又会随页面滚走，结果是笔记本上滚过一屏就再也看不到列名。
+     2. 一页 50 行的订单表有 2400px 高，分页条、筛选条、面板标题全在屏幕外。
+        封顶之后这三样都留在视野里。
+     3. 横向溢出只滚表格本身，不牵动整页（过去窄屏下整页会跟着横向错位）。
+
+   高度用 vh 而不是固定 px：矮屏上表格跟着变矮，面板头 + 筛选条 + 分页条
+   始终能挤出空间。overscroll-behavior 保持默认，滚到表格末尾继续滚就把
+   页面交还出去，不会把用户困在表格里。 */
 .table-wrap {
+  max-height: min(72vh, 820px);
   border: 1px solid var(--a-line);
   border-radius: var(--a-radius);
   background: var(--a-surface);
   box-shadow: var(--a-elev-1);
-  overflow: clip;
-}
-
-.admin-table-block {
-  margin-top: 14px;
+  overflow: auto;
 }
 
 /* table-layout: fixed 是「任何内容都不横向溢出」的根本保证。
@@ -757,7 +1220,22 @@ body {
   box-shadow: inset 2px 0 0 var(--hb-accent);
 }
 
-/* 操作列：主操作 + ⋯ 只占一个紧凑宽度 */
+/* 操作列：主操作 + ⋯ 只占一个紧凑宽度。
+   注意这里必须写死像素，而且必须写够：table-layout: fixed 下 Chrome 会直接忽略
+   列上的 max-content / min-content / fit-content 与 min-width（实测三种写法都无效，
+   列宽就是下面各表写的 px），而 .hb-table tbody td 又是 overflow: hidden——
+   列写窄了按钮不是溢出可见，而是被裁掉一半且再也点不到。
+
+   所以「操作」列宽只能按内容算：
+     列宽 = 单元格内边距 20 + Σ按钮宽 + 5 × (按钮数 - 1)
+     汉字按钮宽 = 11.5 × 字数 + 18（字号 11.5px，左右内边距 8px，边框 1px）
+     ⋯ 按钮宽 = 30（.menu__toggle 的 min-width）
+   例：2 字主操作 + ⋯          = 20 + 41 + 5 + 30 = 96  → 取 100（留 4px 余量）
+       4 字主操作 + ⋯          = 20 + 64 + 5 + 30 = 119 → 取 122
+       2 字 + 2 字 + ⋯         = 20 + 41 + 5 + 41 + 5 + 30 = 142 → 取 146
+       5 字主操作 + ⋯（列宽自动，不定宽列分到剩余空间，不需要写死）
+
+   改动行内主操作文案时（尤其把 2 字加长成 4 字那种），回来同步这一列的 px。 */
 .table-wrap .hb-table thead th:last-child,
 .table-wrap .hb-table tbody td:last-child {
   padding-right: 10px;
@@ -794,6 +1272,152 @@ body {
   line-height: 1;
 }
 
+/* 加载中 / 读取出错：这两种状态过去完全没有，慢查询看着像「点了没反应」，
+   请求失败则只弹一条 3.6 秒就消失的 toast，用户回头就不知道列表为什么是空的。 */
+.table-state {
+  display: flex;
+  min-height: 96px;
+  padding: 26px 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+}
+
+.table-state__text {
+  text-align: left;
+}
+
+.table-state__text strong {
+  display: block;
+  color: var(--hb-danger-text);
+  font-size: 12.5px;
+  font-weight: 620;
+}
+
+.table-state__text small {
+  display: block;
+  margin-top: 3px;
+  color: var(--hb-muted);
+  font-size: 11.5px;
+}
+
+.table-state.is-loading {
+  color: var(--hb-ink-soft);
+}
+
+.table-state.is-error i {
+  color: var(--hb-danger);
+  font-size: 16px;
+}
+
+.table-state__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--hb-line-strong);
+  border-top-color: var(--hb-accent);
+  border-radius: 50%;
+  animation: table-spin 0.72s linear infinite;
+}
+
+@keyframes table-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 拉取中给表格整体压暗一点，明确「这一块正在变」而不是操作没生效 */
+.table-wrap.is-busy {
+  opacity: 0.72;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table-state__spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   一次性结果面板：签发激活码这类「产出即交付」的操作
+   --------------------------------------------------------------------------
+   toast 3.6 秒就消失，而运营通常要「签发 → 复制 → 切到聊天窗口粘贴」，
+   中间任何一次分神都会丢掉刚刚那个码。所以结果要留在页面上，直到下一次
+   操作把它替换掉。
+   -------------------------------------------------------------------------- */
+.admin-result {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-accent-faint);
+}
+
+.admin-result__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--hb-accent-bright);
+  font-size: 12.5px;
+  font-weight: 620;
+}
+
+.admin-result__head span {
+  color: var(--hb-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.admin-result__row {
+  display: flex;
+  margin-top: 10px;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-result__code {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink);
+  background: var(--hb-field);
+  font-family: var(--hb-font-mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  word-break: break-all;
+  user-select: all;
+}
+
+.admin-result__note {
+  display: block;
+  margin-top: 9px;
+  color: var(--hb-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* 列表里的复制按钮：默认半透明、hover 才显形。
+   激活码一屏几十个，常亮的按钮会把整列变成按钮墙，反而看不出哪串是码。
+   这里不用 opacity:0 完全隐藏——键盘 Tab 过去时必须有可见焦点。 */
+.admin-copy {
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-color: transparent;
+  color: var(--hb-muted);
+  background: transparent;
+  font-size: 10.5px;
+  vertical-align: middle;
+}
+
+.admin-copy:hover,
+.admin-copy:focus-visible {
+  border-color: var(--hb-accent-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+}
+
 .mono {
   color: var(--hb-accent-bright);
   font-family: var(--hb-font-mono);
@@ -827,7 +1451,12 @@ body {
 #panel-orders .hb-table th:nth-child(6) { width: 116px; }
 #panel-orders .hb-table th:nth-child(7) { width: 162px; }
 #panel-orders .hb-table th:nth-child(8) { width: 122px; }
-#panel-orders .hb-table { min-width: 1072px; }
+/* 1072 → 1040：1072 是 8 列保底列之和 + 2 张不定宽列 × 150。
+   但 1440 宽度的窗口下正文区正好 1060px，1072 会让订单表常态性地多出 12px
+   横向滚动条（Windows / Linux 的实体滚动条还要再吃掉 15px，变成 27px），
+   为了一屏差 6px 的邮箱列宽换来一根常驻横条并不划算。
+   1040 仍然高于 8 列的可读下限，窄窗口照样按这个下限改为横向滚动。 */
+#panel-orders .hb-table { min-width: 1040px; }
 
 /* 商品：名称* / 类型 / 价格 / 有效期 / 功能码* / 库存 / 状态 / 操作 */
 #panel-products .hb-table th:nth-child(2) { width: 88px; }
@@ -850,7 +1479,8 @@ body {
 #panel-bindings .hb-table th:nth-child(3) { width: 108px; }
 #panel-bindings .hb-table th:nth-child(4) { width: 168px; }
 #panel-bindings .hb-table th:nth-child(5) { width: 96px; }
-#panel-bindings .hb-table th:nth-child(6) { width: 96px; }
+#panel-bindings .hb-table th:nth-child(6) { width: 122px; }
+#panel-bindings .hb-table { min-width: 894px; }
 
 /* 优惠码：码 / 说明* / 折扣 / 门槛 / 已用·上限 / 状态 / 操作 */
 #panel-coupons .hb-table th:nth-child(1) { width: 108px; }
@@ -860,14 +1490,14 @@ body {
 #panel-coupons .hb-table th:nth-child(6) { width: 96px; }
 #panel-coupons .hb-table th:nth-child(7) { width: 100px; }
 
-/* 提现：账号* / 积分 / 手续费 / 到账 / QQ / 状态 / 申请时间 / 操作 */
+/* 提现：账号* / 积分 / 手续费 / 到账 / 状态 / 申请时间 / 操作 */
 #panel-withdrawals .hb-table th:nth-child(2) { width: 86px; }
 #panel-withdrawals .hb-table th:nth-child(3) { width: 80px; }
 #panel-withdrawals .hb-table th:nth-child(4) { width: 84px; }
-#panel-withdrawals .hb-table th:nth-child(5) { width: 102px; }
-#panel-withdrawals .hb-table th:nth-child(6) { width: 96px; }
-#panel-withdrawals .hb-table th:nth-child(7) { width: 162px; }
-#panel-withdrawals .hb-table th:nth-child(8) { width: 112px; }
+#panel-withdrawals .hb-table th:nth-child(5) { width: 96px; }
+#panel-withdrawals .hb-table th:nth-child(6) { width: 162px; }
+#panel-withdrawals .hb-table th:nth-child(7) { width: 146px; }
+#panel-withdrawals .hb-table { min-width: 900px; }
 
 /* 账号：邮箱* / 角色 / 授权数 / 余额 / 邀请码 / 状态 / 操作 */
 #panel-accounts .hb-table th:nth-child(2) { width: 80px; }
@@ -875,14 +1505,14 @@ body {
 #panel-accounts .hb-table th:nth-child(4) { width: 84px; }
 #panel-accounts .hb-table th:nth-child(5) { width: 84px; }
 #panel-accounts .hb-table th:nth-child(6) { width: 96px; }
-#panel-accounts .hb-table th:nth-child(7) { width: 80px; }
+#panel-accounts .hb-table th:nth-child(7) { width: 100px; }
 
 /* 版本：产品 / 渠道 / 版本 / 发布日期 / 说明* / 操作 */
 #panel-releases .hb-table th:nth-child(1) { width: 96px; }
 #panel-releases .hb-table th:nth-child(2) { width: 88px; }
 #panel-releases .hb-table th:nth-child(3) { width: 124px; }
 #panel-releases .hb-table th:nth-child(4) { width: 112px; }
-#panel-releases .hb-table th:nth-child(6) { width: 80px; }
+#panel-releases .hb-table th:nth-child(6) { width: 100px; }
 
 /* 审计：时间 / 操作者 / 动作 / 对象* / 详情* / 操作 */
 #panel-audits .hb-table th:nth-child(1) { width: 168px; }
@@ -971,18 +1601,21 @@ body {
 /* --------------------------------------------------------------------------
    概览 KPI 卡
    -------------------------------------------------------------------------- */
-/* 用 flex 而非栅格：最后一行自动拉伸铺满，不会留下孤立的空位 */
+/* 用栅格而非 flex-wrap：flex 下每一行的 flex-basis 会让**跨行宽度不一致**——
+   营收 4 张卡各 265px，紧接着的累计 9 张卡第一行被分到 5 列、每张只剩 209px，
+   第二行 4 张又回到 265px。同一页里同一种卡片出现两种宽度，看起来像错位。
+   栅格先定列数再放卡片：每行等宽，末行的空位就是空位，不会把卡片撑变形。
+   auto-fit 会让「张数不足一行」时自动收掉空列并铺满（营收 4 张仍然是 4 张 265px）。 */
 .stat-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(186px, 1fr));
   gap: 12px;
 }
 
 .stat {
   position: relative;
   min-width: 0;
-  flex: 1 1 186px;
   overflow: hidden;
   padding: 14px 16px 15px;
   border: 1px solid var(--a-line);
@@ -1047,6 +1680,33 @@ body {
   line-height: 1.1;
 }
 
+/* 主数字永远单行：KPI 卡的价值在于「一眼对比」，同一排里一张两行的数字会让
+   整排卡片被撑高、数字自己也读不出量级。放不下时降档（下面两个类），
+   再放不下就省略号收尾 —— 一定要有 text-overflow，否则靠 .stat 的
+   overflow: hidden 无声截断，看起来是一个「少了一位」的错数字。
+   完整值由渲染时的 title 属性兜底。 */
+.stat .stat__value {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 长数值降档。卡宽下限 186px、左右内边距各 16px，可用 154px：
+   25px 等宽一行 10 个字符、19px 放 13 个、15px 放 16 个（等宽字符约 0.61em/字，
+   浏览器实测 0.59–0.60）。档位由 admin.html 的 valueSize() 按字符数给出，
+   容量与阈值的关系由 store/tools/smoke.py::check_stat_card_fit 核对。
+   选择器必须带 .stat 前缀：`.stat strong` 的权重比单个修饰类高。 */
+.stat .stat__value--sm {
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+
+.stat .stat__value--xs {
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
 .stat.is-alert {
   border-color: rgba(242, 162, 13, 0.32);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 30px -18px rgba(242, 162, 13, 0.7);
@@ -1065,6 +1725,214 @@ body {
 .stat.is-danger strong,
 .stat.is-danger .stat__value {
   color: #f0a5a2;
+}
+
+/* 卡片里的补充说明（营收卡的「收款 x · 退款 y」）。值下面一行小字，
+   比塞进 label 更容易读，也不会挤掉数字的字号。 */
+.stat__note {
+  display: block;
+  margin-top: 6px;
+  color: var(--hb-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------------------
+   概览经营看板：待办磁贴、时间戳、订单漏斗、双列风险区
+   -------------------------------------------------------------------------- */
+
+/* 头部右侧的「数据时间」：看板是快照，不标时间会被当成实时的 */
+.overview-stamp {
+  color: var(--hb-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 待办磁贴。用按钮而不是 div：它可点、可聚焦、支持键盘回车。 */
+.overview-todos {
+  border-color: rgba(242, 162, 13, 0.28);
+}
+
+.overview-todos__grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+
+.overview-todo {
+  display: grid;
+  padding: 12px 14px;
+  text-align: left;
+  gap: 3px;
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius);
+  background: var(--hb-surface-soft);
+  color: var(--hb-ink);
+  cursor: pointer;
+  font: inherit;
+  transition: var(--a-transition);
+}
+
+.overview-todo:hover {
+  border-color: var(--hb-line-strong);
+  transform: translateY(-1px);
+}
+
+.overview-todo.is-alert {
+  border-color: rgba(242, 162, 13, 0.4);
+}
+
+.overview-todo.is-danger {
+  border-color: var(--hb-danger-line);
+}
+
+.overview-todo__count {
+  color: var(--hb-ink);
+  font-family: var(--hb-font-mono);
+  font-size: 22px;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.overview-todo.is-alert .overview-todo__count {
+  color: var(--hb-accent-bright);
+}
+
+.overview-todo.is-danger .overview-todo__count {
+  color: #f0a5a2;
+}
+
+.overview-todo__label {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.overview-todo__hint {
+  color: var(--hb-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* 订单漏斗：一行一个状态，条宽按最大计数归一 */
+.funnel-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+
+.funnel-item {
+  display: grid;
+  padding: 10px 12px;
+  text-align: left;
+  gap: 6px;
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-radius);
+  background: var(--hb-surface-soft);
+  color: var(--hb-ink);
+  cursor: pointer;
+  font: inherit;
+  transition: var(--a-transition);
+}
+
+.funnel-item:hover {
+  border-color: var(--hb-line-strong);
+}
+
+.funnel-item__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.funnel-item__label {
+  color: var(--hb-muted);
+  font-size: 11.5px;
+  font-weight: 560;
+}
+
+.funnel-item__count {
+  font-family: var(--hb-font-mono);
+  font-size: 15px;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+
+.funnel-item__track {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--hb-surface);
+}
+
+.funnel-item__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--hb-accent-line), transparent 92%);
+}
+
+.funnel-item__amount {
+  color: var(--hb-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 风险区双列：窄屏自动落成单列（min 320px 而不是 1fr 1fr，
+   否则 1024px 的笔记本上两张表会一起被挤到换行读不出内容） */
+.overview-cols {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+/* 风险区两张预警表只有 3–4 列，各自挤在 ~540px 的双列卡片里。
+   全局的 860px 保底（.table-wrap .hb-table）是按最宽的订单表定的，
+   套到这两张表上会把右侧的「可售」「到期」顶出卡片边界，只能在卡片内部
+   横向滚——而卡片本身就只有半屏宽，滚起来连表头都对不上。
+   这里按各自的实际列数重定保底与列宽：3–4 个短列 + 1 个可截断的文本列，
+   540px 完全放得下。 */
+#overview-stock-table,
+#overview-expiring-table {
+  min-width: 0;
+}
+
+/* 库存预警：商品 / 库存 / 预留 / 可售 —— 后三列都是 1–3 位数字 */
+#overview-stock-table th:nth-child(2),
+#overview-stock-table th:nth-child(3) { width: 78px; }
+#overview-stock-table th:nth-child(4) { width: 90px; }
+
+/* 临期授权：授权（短码）/ 商品 / 到期 —— 到期是 10 字符日期，给足不省略 */
+#overview-expiring-table th:nth-child(1) { width: 118px; }
+#overview-expiring-table th:nth-child(3) { width: 114px; }
+
+/* 预警表最多 20 行、信息密度低，不需要主列表那么高的视口，
+   否则两张卡片会把整页撑得很长，反而看不到下面的「累计」。 */
+#panel-overview .overview-cols .table-wrap {
+  max-height: min(34vh, 340px);
+}
+
+/* 一行里放两个日期输入框（订单的创建时间区间）。
+   用 inline-flex 而不是 grid：它要跟在其它筛选控件后面共处一行，
+   栅格会把工具栏的换行行为搞乱。 */
+.hb-field-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hb-field-inline .hb-input {
+  width: 148px;
+}
+
+.hb-field-inline__sep {
+  color: var(--hb-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
 }
 
 /* --------------------------------------------------------------------------
@@ -1416,16 +2284,11 @@ body:has(#admin-login:not([hidden]))::before {
    窄屏：侧栏折叠为顶部栏
    -------------------------------------------------------------------------- */
 /* 表格的保底列宽是按桌面宽度定的（最宽的订单表 1072px）。窗口不够宽时，
-   如果仍然 overflow: clip，右侧的「操作」列会被裁掉且无法滚到——
-   这是真正的功能问题，不是观感问题。所以容器装不下时改成横向滚动条。
-   代价是表头吸顶失效：横向滚动容器同时也是 .table-wrap，而 sticky 的参照物
-   会变成这个不纵向滚动的容器。取「所有列都够得着」优先。 */
-@media (max-width: 1420px) {
-  .table-wrap {
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-}
+   右侧的「操作」列必须够得着——这是功能问题，不是观感问题。
+   这条规则过去写成「窄屏才把 .table-wrap 改成 overflow-x: auto」，代价是
+   表头吸顶失效（横向滚动容器也就是 sticky 的参照物）。
+   现在 .table-wrap 在所有宽度下都是自己的滚动视口，横向、纵向各滚各的，
+   两个诉求不再互斥，所以这个媒体查询可以整块删掉。 */
 
 @media (max-width: 860px) {
   .admin-shell {
@@ -1460,7 +2323,22 @@ body:has(#admin-login:not([hidden]))::before {
     display: contents;
   }
 
-  .nav-group__label {
+  /* 窄屏导航是横排平铺，折叠在这里没有意义：
+     隐藏一级菜单标题，把两层折叠容器摊平成 flex 子项，
+     并显式还原 visibility（竖屏折叠态是 hidden，不然平铺出来还是看不见）。 */
+  .nav-group__toggle {
+    display: none;
+  }
+
+  .nav-group__items,
+  .nav-group__items-inner {
+    display: contents;
+    visibility: visible;
+  }
+
+  /* 平铺后没有层级可言，竖向导轨和子项缩进都要撤掉；
+     否则 ::before 会变成 flex 行里的一根游离竖线。 */
+  .nav-group__items-inner::before {
     display: none;
   }
 
@@ -1470,6 +2348,7 @@ body:has(#admin-login:not([hidden]))::before {
 
   .admin-side a.nav-link {
     margin: 0;
+    padding: 8px 10px;
   }
 
   .who {

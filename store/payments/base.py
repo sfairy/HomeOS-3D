@@ -33,6 +33,34 @@ class PaymentProvider(Protocol):
         base_url: str,
     ) -> PaymentIntent: ...
 
+    def refund_payment(
+        self,
+        *,
+        order: Order,
+        amount_cents: int,
+        reason: str,
+        out_request_no: str,
+        settings: StoreSettings,
+        setting: StoreSetting,
+    ) -> "RefundResult": ...
+
+
+@dataclass(frozen=True)
+class RefundResult:
+    """一次退款的执行结果。
+
+    后台的「退款」过去只把订单状态改成 ``refunded`` 并停用授权 —— 钱从来没退给
+    用户，库里也没有任何「退了多少」的记录，账面上这笔营收却已经消失。现在退款
+    必须真的经过支付渠道，并把实际退款金额落库，对账才有依据。
+    """
+
+    ok: bool
+    #: 渠道侧的退款单号 / 交易号，用于对账
+    trade_no: str | None = None
+    #: 未退回的金额（渠道部分退款时 > 0）
+    unrefunded_cents: int = 0
+    detail: str = ""
+
 
 class PaymentError(RuntimeError):
     pass

@@ -27,15 +27,7 @@ export function licenseCardData(licenseData = {}) {
       ["ACTIVE", "CONNECTION_WARNING"].includes(licenseData.status),
     featureAccess = licenseData.featureAccess || {
       editor: isActive && (featureSet.has("editor") || featureSet.has("all")),
-      interaction3d: isActive && featureSet.has("module.3d_interaction"),
-      uiPack:
-        isActive &&
-        [...featureSet].some(
-          featureName =>
-            typeof featureName == "string" &&
-            featureName.startsWith("ui.") &&
-            featureName !== "ui.base"
-        )
+      interaction3d: isActive && featureSet.has("module.3d_interaction")
     },
     rights = [
       { name: "HomeOS \u7F16\u8F91\u5668", enabled: isLicensed && !!featureAccess.editor },
@@ -57,7 +49,7 @@ export function licenseCardData(licenseData = {}) {
     type:
       primaryProduct?.type === "package"
         ? typeLabels.join(" + ")
-        : rights.every(rightItem => rightItem.enabled) && featureAccess.uiPack
+        : rights.every(rightItem => rightItem.enabled)
           ? "\u5168\u6388\u6743"
           : typeLabels.join(" + ") || "\u4E3B\u6388\u6743",
     name:

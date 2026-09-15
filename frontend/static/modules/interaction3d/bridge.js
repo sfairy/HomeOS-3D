@@ -1,6 +1,6 @@
-import { createAccessMonitor } from "./access-monitor.js?v=20260915211726";
-import { createInteraction3dCover } from "./cover.js?v=20260915211726";
-import { createInteraction3dFocusLayout } from "./focus-layout.js?v=20260915211726";
+import { createAccessMonitor } from "./access-monitor.js?v=20260916013557";
+import { createInteraction3dCover } from "./cover.js?v=20260916013557";
+import { createInteraction3dFocusLayout } from "./focus-layout.js?v=20260916013557";
 export async function requestInteraction3dAccess() {
   const abortController = new AbortController();
   const abortTimeoutId = setTimeout(() => abortController.abort(), 5000);
@@ -205,14 +205,14 @@ export function renderInteraction3d(component, context = {}) {
     const currentLoadToken = ++loadToken;
     try {
       const runtimeModule =
-        await import("/api/v1/modules/interaction3d/runtime.js?v=20260915211726");
+        await import("/api/v1/modules/interaction3d/runtime.js?v=20260916013557");
       if (isDisposed || currentLoadToken !== loadToken || document.hidden) {
         return;
       }
       stylesheetElement = document.createElement("link");
       stylesheetElement.rel = "stylesheet";
       stylesheetElement.href =
-        "/api/v1/modules/interaction3d/runtime.css?v=20260915211726";
+        "/api/v1/modules/interaction3d/runtime.css?v=20260916013557";
       hostElement.append(stylesheetElement);
       const runtimeContainerElement = document.createElement("div");
       hostElement.replaceChildren(stylesheetElement, runtimeContainerElement);

@@ -13,11 +13,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import FileResponse, HTMLResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from store import coupons, fulfill, site_settings as site_config
 from store.deps import DbSession
 from store.models import Order, Product
+from store.order_status import order_status_label
+from store.payments.base import PaymentError
 from store.security import utcnow
 from store.serializers import order_payload
 
@@ -106,9 +108,9 @@ def _cashier_html(order: Order, product: Product | None) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>模拟收银台 · {payload['orderNo']}</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260915211726">
-<link rel="stylesheet" href="/store-static/store.css?v=20260915211726">
-<link rel="icon" href="/store-static/favicon-rounded.png?v=20260915211726">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260916013557">
+<link rel="stylesheet" href="/store-static/store.css?v=20260916013557">
+<link rel="icon" href="/store-static/favicon-rounded.png?v=20260916013557">
 </head>
 <body>
 <div class="hb-cashier">
@@ -196,13 +198,38 @@ def mock_pay(order_no: str, request: Request, session: DbSession, payload: dict 
 
     if order.status == "fulfilled":
         return order_payload(order)
-    if order.status in {"expired", "cancelled"}:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="订单已关闭，请重新下单。")
+    # 状态白名单：只有待付款的订单可以被模拟收银台入账。
+    #   · expired / cancelled：库存预留与优惠码名额都已归还，再入账并履约等于
+    #     扣掉其它待支付订单的预留 —— 直接放开超卖。
+    #   · payment_failed：同上，且它表示渠道已经明确拒单。
+    #   · refunded：已经退过款的订单不能复活。
+    # 这里刻意**不**沿用 settlement 的「钱确实到账就照常发码」策略：那是真实
+    # 支付宝通知的补救路径，而模拟收银台只会在用户眼前点两下，没有「钱已付出去
+    # 收不回来」的约束，放行只会制造超卖。
+    if order.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"订单状态为{order_status_label(order.status)}，不能在此入账，请重新下单。",
+        )
 
-    order.status = "paid"
-    order.paid_at = order.paid_at or utcnow()
-    order.payment_trade_no = order.payment_trade_no or f"MOCK{order.order_no[-10:]}"
-    session.flush()
+    # 条件 UPDATE 抢单：模拟收银台按钮可以双击、也可能与轮询并存，两个请求
+    # 各自读到 pending 就会重复发码。谁抢到这一行谁入账，另一个拿到 rowcount=0。
+    claimed = session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        .where(Order.status == "pending")
+        .values(
+            status="paid",
+            paid_at=order.paid_at or utcnow(),
+            payment_trade_no=order.payment_trade_no or f"MOCK{order.order_no[-10:]}",
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount == 0:
+        session.refresh(order)
+        logger.info("模拟支付重复提交，已忽略 order=%s status=%s", order.order_no, order.status)
+        return order_payload(order)
+    session.refresh(order)
 
     # 手动发卡商品只标记已支付，等待管理员发码
     if order.fulfillment_mode != "manual":
@@ -221,8 +248,19 @@ def mock_cancel(order_no: str, request: Request, session: DbSession, payload: di
     if order.status != "pending":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
     product = session.get(Product, order.product_id) if order.product_id else None
-    order.status = "cancelled"
-    order.cancelled_at = utcnow()
+    # 条件 UPDATE 抢单：与「模拟支付」按钮可以同时点，两个请求各自读到 pending
+    # 就会一个取消、一个入账，库存则被释放两次。谁抢到这一行谁负责释放副作用。
+    claimed = session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        .where(Order.status == "pending")
+        .values(status="cancelled", cancelled_at=utcnow())
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
+        )
     fulfill.release_reserved_stock(session, product, 1)
     # 收银台取消同样要归还优惠码名额，否则 redeemed_count 只增不减，
     # 名额被永久占用（该列参与 max_redemptions 校验）。
@@ -233,7 +271,14 @@ def mock_cancel(order_no: str, request: Request, session: DbSession, payload: di
 
 
 def _ensure_mock_provider(request: Request, session) -> None:
-    provider = request.app.state.resolve_payment_provider(site_config.get_setting(session))
+    try:
+        provider = request.app.state.resolve_payment_provider(site_config.get_setting(session))
+    except PaymentError:
+        # 渠道名非法时模拟收银台一律不可用（fail-closed）。
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="当前支付渠道配置无效，模拟收银台不可用。",
+        ) from None
     if getattr(provider, "name", "") != "mock":
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
