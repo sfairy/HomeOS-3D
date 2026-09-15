@@ -2,11 +2,45 @@
 
 from __future__ import annotations
 
+import re
+
 from sqlalchemy.orm import Session
 
 from store.config import StoreSettings
 from store.models import StoreSetting
 from store.security import iso, utcnow
+
+#: 图标文件名从 ``ha-bridge-*`` 改为 ``homeos-*`` 后的旧路径映射。
+#: ``logo_url`` 是持久化值：老部署的数据库里仍写着旧文件名，所以在读取时
+#: 归一化即可彻底修复。
+#:
+#: 注意 ``ha-bridge-`` 在这里是**历史数据里的字面量**，不是品牌文案：
+#: 它必须原样保留，否则映射退化成恒等替换、自愈失效。
+_LEGACY_ICON_RE = re.compile(r"ha-bridge-(favicon|icon-|mark)")
+
+#: 默认品牌标识。必须与 ``models.StoreSetting.logo_url`` 的默认值一致：
+#: 后台把该字段留空时回落到这里，而不是写一个空串进库（否则页面上
+#: ``<img src="">`` 会让整个标识位塌掉）。
+DEFAULT_LOGO_URL = "/store-static/homeos-mark.svg"
+
+
+def normalize_icon_path(path: str | None) -> str | None:
+    """把改名前的旧图标路径映射到新文件名（幂等）。"""
+    if not path:
+        return path
+    return _LEGACY_ICON_RE.sub(r"homeos-\1", path)
+
+
+def heal_legacy_icon_paths(session: Session) -> int:
+    """把已持久化的旧图标路径改写为新文件名，返回修正的行数。"""
+    setting = session.get(StoreSetting, 1)
+    if setting is None:
+        return 0
+    normalized = normalize_icon_path(setting.logo_url)
+    if normalized == setting.logo_url:
+        return 0
+    setting.logo_url = normalized
+    return 1
 
 
 def get_setting(session: Session) -> StoreSetting:
@@ -37,7 +71,7 @@ def store_configuration_payload(setting: StoreSetting) -> dict:
         "description": setting.description,
         "announcement": setting.announcement,
         "supportEmail": setting.support_email,
-        "logoUrl": setting.logo_url,
+        "logoUrl": normalize_icon_path(setting.logo_url),
         "maintenanceMode": bool(setting.maintenance_mode),
         "maintenanceMessage": setting.maintenance_message,
         "updatedAt": iso(setting.updated_at),

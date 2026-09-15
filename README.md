@@ -1,6 +1,6 @@
-# HA Bridge
+# HomeOS
 
-面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.5.4**（见 `VERSION`）。
+面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.0**（见 `VERSION`）。
 
 提供可视化编辑器、3D 户型工作室、全屏展示页和中控配对；后端是 FastAPI，前端是原生 HTML / CSS / JavaScript，数据默认落在本机 SQLite。
 
@@ -24,7 +24,7 @@
 仓库根目录下同时运行两个服务，二者共享 `.venv-store` 虚拟环境：
 
 ```text
-HA-Bridge/app
+HomeOS/app
 ├── backend + frontend        主应用         http://127.0.0.1:18081
 └── store/                    授权商店与授权服务器  http://127.0.0.1:18082
 ```
@@ -37,8 +37,7 @@ HA-Bridge/app
 
 一个独立的 FastAPI 应用，在 **18082** 端口同时提供三件事：
 
-1. **授权商店**：1:1 复刻 `https://pay.habridge.cn/` 的多页前台与 `/store/v1/*` API（账号、商品、订单、优惠码、邀请、账号中心）。
-2. **授权服务器**：`/v2/activate`、`/v2/heartbeat`、`/v2/recover`，签发 Ed25519 租约并使用 X25519 加密传输。
+1. **授权商店**：页面与 `/store/v1/*` API 对齐 `https://pay.habridge.cn/`（账号、商品、订单、优惠码、邀请、账号中心），视觉为本项目自研的暗色 + 琥珀主题。2. **授权服务器**：`/v2/activate`、`/v2/heartbeat`、`/v2/recover`，签发 Ed25519 租约并使用 X25519 加密传输。
 3. **运营后台**：`/admin` + `/store-admin/v1/*`（参考站没有公开管理台，为本项目自建）。
 
 商店与授权服务器共用同一个 SQLite 库 —— 这正是「支付后自动发码并可立即激活」的原因。支付渠道默认 `mock`（本地收银台），可切换为支付宝当面付。完整说明见 [store/README.md](store/README.md)。
@@ -48,7 +47,7 @@ HA-Bridge/app
 工程在仓库根目录，不再套一层 `app/`。
 
 ```text
-HA-Bridge/app/
+HomeOS/app/
 ├── backend/app/            # FastAPI 应用（PYTHONPATH 指向这里）
 │   ├── api/                # 认证、项目、HA、资源、UI Pack、3D、日志、图标、中控、更新
 │   ├── ha/                 # HA 客户端、同步、状态推送
@@ -60,7 +59,7 @@ HA-Bridge/app/
 │   ├── *.html              # index / display / license / login / pair / setup / 3d-studio
 │   ├── NAMING.md           # 前端标识符命名规范
 │   ├── modules/            # 3D 交互舞台与配置编辑器（经 /api/v1/modules/interaction3d 下发）
-│   └── static/             # 挂载为 /bridge-static
+│   └── static/             # 挂载为 /static
 │       ├── *.js / *.css    # 入口脚本与样式（扁平目录）
 │       ├── renderer/       # 仪表盘运行时
 │       ├── 3d-studio/      # 户型工作室
@@ -75,8 +74,8 @@ HA-Bridge/app/
 │   ├── licensing/          # 服务端传输加密 + 租约签发 + 三端点业务
 │   ├── payments/           # base / mock / alipay（签名·下单·验签·查单）/ 统一入账
 │   ├── fulfill.py referrals.py site_settings.py mailer.py security.py
-│   ├── templates/          # store.html（复刻参考站）+ admin.html
-│   ├── static/             # theme.css / admin.css + 复用参考站的 CSS·字体·图标·jQuery·JS
+│   ├── templates/          # store.html（前台 8 个分页）+ admin.html（后台 11 个 panel）
+│   ├── static/             # theme.css（唯一设计系统）+ store.css / admin.css（页面布局）+ 字体·图标·jQuery·JS
 │   ├── tools/              # gen_keys / seed / smoke / e2e
 │   ├── keys/local/         # 授权私钥（不入库）
 │   └── data/               # 商店 SQLite 与商品图（不入库）
@@ -103,6 +102,8 @@ HA-Bridge/app/
 - 连接 Home Assistant 时，主应用需要能访问 HA 的 HTTP 与 WebSocket
 
 依赖见 [store/requirements.txt](store/requirements.txt)：FastAPI、Uvicorn、SQLAlchemy、Pydantic、httpx、cryptography、Jinja2、python-multipart。主应用与商店共用同一份依赖。
+
+其中 `watchfiles` 只服务本地热重载：`start.py` 会给商店设 `STORE_RELOAD=1`，`store/run.py` 据此以 uvicorn reload 模式启动并监听 `store/` 目录。缺这个包时商店不会跟随 `store/api/*.py` 的改动重启，改了模块级常量（例如模拟收银台的内联 HTML 与静态资源版本戳）就必须手动重启才能生效。
 
 ## 本地启动
 
@@ -315,7 +316,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `/api/v1/updates` | 版本更新检查 |
 | `/api/v1/ws/runtime` | 实时状态 WebSocket（需 `runtime.websocket`） |
 | `/api/camera_hls/*`、`/api/camera_proxy/*`、`/api/hls/*` 等 | 摄像头与媒体代理（反向代理需一并转发） |
-| `/bridge-static/*` | 前端静态资源（静态目录扁平：`/bridge-static/home.js`、`/bridge-static/app.css`） |
+| `/static/*` | 前端静态资源（静态目录扁平：`/static/home.js`、`/static/app.css`） |
 | `/assets/builtin/*` | 需登录或已配对，且授权允许 `assets` |
 | `/component-lab`、`/template-assets/*` | 有意保留的 404 占位路由 |
 
@@ -422,7 +423,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | 中控配对密钥 | `/run/secrets/display_pairing_codes.key` |
 | 授权密钥 | `/run/secrets/license_credentials.key` |
 
-`container_entrypoint.py` 在 root 启动时校正目录属主，再降权为 `ha-bridge` 用户运行。
+`container_entrypoint.py` 在 root 启动时校正目录属主，再降权为 `homeos` 用户运行。
 
 反向代理请转发 WebSocket（`/api/v1/ws/runtime`）以及 `/api/hls/`、`/api/camera_proxy/` 等媒体路径。站点走 HTTPS 时设置 `APP_COOKIE_SECURE=true`。
 
@@ -431,9 +432,9 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 从运行中的容器导出应用目录：
 
 ```bash
-docker exec ha-bridge tar -czf /tmp/app.tar.gz -C /app .
-docker cp ha-bridge:/tmp/app.tar.gz ~/Desktop/
-docker exec ha-bridge rm /tmp/app.tar.gz
+docker exec homeos tar -czf /tmp/app.tar.gz -C /app .
+docker cp homeos:/tmp/app.tar.gz ~/Desktop/
+docker exec homeos rm /tmp/app.tar.gz
 ```
 
 ## 开发工具
@@ -452,20 +453,46 @@ node tools/bump_static_cache_versions.mjs
 - 前端 JS / CSS / HTML 遵循 [.prettierrc.json](.prettierrc.json)（`printWidth=100`，HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
 - 不要改 `frontend/static/vendor/` 下的 three.js、hls.js、OrbitControls 等第三方文件。
 - 界面中文文案保持原词；缓存戳改动请用 `tools/bump_static_cache_versions.mjs`。
-- 静态资源是扁平目录：`/bridge-static/home.js`、`/bridge-static/app.css`；子目录为 `renderer/`、`3d-studio/`、`modules/`、`utils/`、`templates/`、`ui-packs/`、`component-thumbnails/`、`audio/`、`vendor/`。
+- 静态资源是扁平目录：`/static/home.js`、`/static/app.css`；子目录为 `renderer/`、`3d-studio/`、`modules/`、`utils/`、`templates/`、`ui-packs/`、`component-thumbnails/`、`audio/`、`vendor/`。
 - `migrations/env.py` 必须从 `backend/app` 导入 `database` 和 `models`（`from backend.app.database import Base`），不要写成相对导入，否则会重复注册表。
 - 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename}` 下发，需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
-- 商店的 `theme.css` 必须最后加载，令牌值与 `frontend/static/app.css` 对齐（`smoke.py` 会比对，主程序改色而商店没跟就会 FAIL）。详见 [store/README.md](store/README.md) 的「界面主题」。
+- 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前，令牌值与 `frontend/static/app.css` 对齐（`smoke.py` 会比对，主程序改色而商店没跟就会 FAIL）。详见 [store/README.md](store/README.md) 的「界面主题」。
 - 改动商店授权端点错误文案前，先核对客户端 `is_confirmed_revocation` 的吊销短语表。
 
 ## 更新日志
 
-### v0.5.4
+### v0.6.0
+
+品牌
+
+- 品牌统一更名为 **HomeOS**：全部 36 个图标资产由 `ha-bridge-*` 改名为 `homeos-*`，矢量源改为方形画布（房子满宽满高），对应 CSS 盒子同步为正方形。
+- 启动时自愈库内遗留数据：`store_settings.logo_url` 的旧图标路径、`releases.product` 与 `products.product_code` 的旧品牌标识都会自动归一。
+
+破坏性变更
+
+- 授权传输协议标识与产品标识改名（`ha-bridge-license-transport-v1` → `homeos-license-transport-v1`，`PRODUCT` → `homeos`）。两者参与 HKDF / AES-GCM AAD，服务端只认新标识：**必须先升级客户端、再升级服务端**，老客户端会在解密阶段直接失败、没有降级路径。升级顺序与影响已写进 0.6.0 的 `upgrade_notes`，客户端「检查更新」可见。
+
+修复
+
+- 库存口径：发码时扣减 `stock_quantity`（`fulfill.consume_stock`），退款「已支付未发码」订单时释放 `reserved_stock` —— 此前限量商品履约后可用量会「长」回来，同一件库存能反复卖出。
+- 订单终态保护：`cancelled` / `expired` / `refunded` 订单不再能被标记支付或履约（此前可凭空发码）。
+- 优惠码名额：取消与退款会归还名额；「每人限用」只统计仍占用名额的订单 —— 此前一单被取消，用户就永久失去该优惠码。
+- 后台时间：一律按浏览器本地时区显示与录入，提交时转成 UTC 入库 —— 此前手填的时间在 `Asia/Shanghai` 下会整体偏 8 小时。
+- 手动履约商品（`fulfillment_mode=manual`）被后台「标记支付」时只入账、不发码，与真实支付宝到账路径语义一致。
+
+数据可维护性
+
+- 后台补齐写入口：商品全部运营字段与商品图上传、优惠码全字段编辑、账号邮箱/密码/启停/管理员、授权有效期修正、权益与积分调账、版本记录修正。
+- 后台新增只读入口：客户端会话、找回令牌、积分流水、核销记录、客户档案、诊断数据（登录会话/登录尝试/邮箱验证码/解绑事件）。
+- 新增维护动作：登录会话单条踢下线、客户端会话与找回令牌撤销、按安全谓词清理日志（只清过期或已消费记录）、优惠码核销记录单条作废并重算占用名额。
+- 诊断类列表统一支持 `limit/offset/total` 翻页；管理接口的请求体改为拒绝未知字段（`extra="forbid"`），不再静默丢弃后台表单里的改动。
+
+### v0.5.5
 
 新增
 
 - 仓库自带完整的**授权商店 + 授权服务器 + 运营后台**（`store/`），取代原 `register/` 本机店：
-    - 商店前台复刻 `pay.habridge.cn` 的多页结构与 `/store/v1/*` 契约：账号注册 / 登录 / 找回密码、邮箱验证码、商品列表与详情、优惠码、订单查询与归档、邀请返利与提现、账号中心与设备自助解绑。
+    - 商店前台与 `pay.habridge.cn` 对齐页面结构与 `/store/v1/*` 契约：账号注册 / 登录 / 找回密码、邮箱验证码、商品列表与详情、优惠码、订单查询与归档、邀请返利与提现、账号中心与设备自助解绑；视觉为本项目自研的暗色 + 琥珀主题。
     - 授权服务器提供 `/v2/activate`、`/v2/heartbeat`、`/v2/recover`：Ed25519 签名租约、X25519 + HKDF-SHA256 + AES-256-GCM 加密传输，租约 7 天、心跳 300 秒续租。
     - 运营后台 `/admin` + `/store-admin/v1/*`：概览、商品、订单、授权、设备绑定、优惠码、提现审核、账号、站点配置、版本发布与审计日志；暗色 + 琥珀统一主题。
     - 支付渠道 `mock`（本地收银台）与 `alipay`（当面付扫码）可切换；异步通知验签 + 主动查单兜底，统一入账且重复通知只发一次码。

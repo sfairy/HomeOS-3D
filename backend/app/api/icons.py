@@ -62,7 +62,7 @@ def icons(
             {
                 'name': item['name'],
                 'slug': f"mdi:{item['name']}",
-                'previewUrl': f"/bridge-static/vendor/mdi/{version}/svg/{item['name']}.svg",
+                'previewUrl': f"/static/vendor/mdi/{version}/svg/{item['name']}.svg",
             }
             for item in page
         ],

@@ -1,52 +1,43 @@
 /* ==========================================================================
-   HA Bridge 授权商店 · 管理后台
+   HomeOS 授权商店 · 管理后台
    --------------------------------------------------------------------------
-   依赖 theme.css（提供设计令牌与 Bootstrap 皮肤），这里负责后台自身的骨架与
-   观感：左侧导航 + 主工作区 + 面板 + 统计卡。
+   依赖 theme.css（令牌 + 按钮 / 表单 / 卡片 / 表格 / 对话框 / 胶囊）。
+   本文件只做三件事：后台骨架（左侧 rail + 主工作区）、面板与数据表排版、
+   以及后台专属的小组件（KPI 卡、行内 ⋯ 菜单、危险操作区、确认弹窗外观）。
 
-   视觉定位：暗色「专业控制台」。与主程序（frontend/static/app.css）共用同一套
-   配色令牌（画布 / 琥珀强调 / 语义色都由 theme.css 提供，smoke.py 会断言三者与
-   主程序完全一致，**不要在这里改这三个值**），在此基础上做三件事：
+   设计定位：暗色「专业控制台」。与主程序（frontend/static/app.css）共用同一套
+   配色令牌（--hb-bg / --hb-accent / --hb-success 由 theme.css 提供，smoke.py 会
+   断言三者与主程序完全一致，**不要在这里改这三个值**），在此基础上：
 
-     1. 建立层级——页面标题 22px、KPI 数值 26px、正文 13.5px、辅助 11.5px。
-        旧版几乎全是 11–13px，所有信息一样大，等于没有层级。
-     2. 分层表面——画布 → 卡片 → 浮层三级，靠渐变 + 1px 顶部高光 + 柔和投影
-        拉开，而不是靠一堆同色的 1px 边框。
+     1. 建立层级——面板标题 22px、KPI 数值 25px、正文 13.5px、辅助 11.5px。
+     2. 分层表面——画布 → 卡片 → 浮层三级，靠渐变 + 顶部高光 + 柔和投影拉开。
      3. 收敛色彩——状态一律用「柔和底色 + 同色文字 + 光点」的胶囊（.pill），
-        替代 Bootstrap 的实心 badge；琥珀只留给真正的强调与待办。
+        琥珀只留给真正的强调与待办。
 
-   后台专属令牌用 --a-* 前缀，避免影响前台 store.html。
+   后台专属令牌用 --a-* 前缀，避免污染前台 store.css。
+   已彻底移除 Bootstrap：这里不再有 .btn / .form-control / .card / .alert 语义。
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
    后台专属令牌
    -------------------------------------------------------------------------- */
-/* 定义在 :root 而不是 .admin-shell，这一点很关键：确认弹窗、轻提示、登录页都是
-   <body> 的直接子元素，在 .admin-shell 之外。若把令牌挂在 .admin-shell 上，
-   这三处引用 var(--a-*) 会解析失败——声明在计算值阶段失效后 background 变透明、
-   border-color 退回 currentColor，弹窗会变成一层没有底色的浅边虚影。
+/* 定义在 :root 而不是 .admin-shell：确认弹窗、轻提示、登录页都是 <body> 的
+   直接子元素，在 .admin-shell 之外。若把令牌挂在 .admin-shell 上，这三处引用
+   var(--a-*) 会解析失败——background 变透明、border-color 退回 currentColor，
+   弹窗会变成一层没有底色的浅边虚影。
    （admin.css 只被 admin.html 引入，放 :root 不会影响前台 store.html。） */
 :root {
-  /* 圆角：比前台略大一点，卡片 14px / 控件 9px */
   --a-radius: 14px;
   --a-radius-sm: 9px;
-
-  /* 发丝线：比 --hb-line 更轻，密集表格下不会显得脏 */
   --a-line: #29313a;
   --a-line-soft: #222a32;
-
-  /* 表面层次 */
   --a-surface: #1a2026;
   --a-surface-2: #1e252c;
   --a-surface-3: #232b33;
-
-  /* 阴影：深色底上用「顶部高光 + 大范围低透明投影」营造厚度 */
-  --a-elev-1: inset 0 1px 0 #ffffff08, 0 1px 2px #00000059;
-  --a-elev-2: inset 0 1px 0 #ffffff0d, 0 14px 34px -16px #000000bf;
-
-  --a-card: linear-gradient(180deg, #1d242b 0%, #191f25 100%);
-  --a-transition: border-color 0.16s ease, background 0.16s ease,
-    color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+  --a-elev-1: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --a-elev-2: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 34px -16px rgba(0, 0, 0, 0.75);
+  --a-transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease,
+    box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 /* 骨架沿用主程序的做法（见 frontend/static/app.css）：body 不滚，主区是唯一
@@ -62,7 +53,6 @@ body {
   color: var(--hb-ink);
   font-family: var(--hb-font);
   font-size: 13.5px;
-  -webkit-font-smoothing: antialiased;
 }
 
 .admin-shell {
@@ -104,7 +94,7 @@ body {
   border: 1px solid var(--hb-accent-line);
   border-radius: 10px;
   background: var(--hb-accent-soft);
-  box-shadow: inset 0 1px 0 #ffffff14;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .admin-side .brand img {
@@ -190,7 +180,7 @@ body {
 
 .admin-side a.nav-link:hover {
   color: var(--hb-ink);
-  background: #ffffff0a;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .admin-side a.nav-link:hover .nav-ico {
@@ -201,7 +191,7 @@ body {
 .admin-side a.nav-link.active {
   border-color: var(--hb-accent-line);
   color: var(--hb-accent-bright);
-  background: linear-gradient(90deg, var(--hb-accent-soft), #f2a20d0a);
+  background: linear-gradient(90deg, var(--hb-accent-soft), rgba(242, 162, 13, 0.04));
 }
 
 .admin-side a.nav-link.active::before {
@@ -239,7 +229,7 @@ body {
 }
 
 .admin-side a.nav-link.active .nav-badge {
-  border-color: #f2a20d99;
+  border-color: rgba(242, 162, 13, 0.6);
 }
 
 /* 底部账号区 */
@@ -281,16 +271,21 @@ body {
   white-space: nowrap;
 }
 
-.admin-side .btn-outline-light {
-  border-color: var(--a-line);
+/* 时间口径写在界面上：后台时间列按浏览器本地时区渲染，而库内是 UTC */
+.admin-side__tz {
+  margin: 0 0 10px;
   color: var(--hb-ink-soft);
-  background: transparent;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
-.admin-side .btn-outline-light:hover {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
+.admin-side__actions {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-side__actions .hb-button {
+  width: 100%;
 }
 
 /* --------------------------------------------------------------------------
@@ -307,28 +302,116 @@ body {
   overscroll-behavior: contain;
 }
 
+/* 面板编号：/01 … /15。
+   这里不能用 CSS 计数器——计数只对「生成了盒子」的元素生效，而 15 个面板
+   同时只有 1 个可见（其余 display:none），用计数器会让每一页都显示 /01。
+   所以按 DOM 顺序显式编号：.admin-main 的子元素正好就是这 15 个 section。 */
+.admin-panel:nth-child(1) { --a-panel-no: "01"; }
+.admin-panel:nth-child(2) { --a-panel-no: "02"; }
+.admin-panel:nth-child(3) { --a-panel-no: "03"; }
+.admin-panel:nth-child(4) { --a-panel-no: "04"; }
+.admin-panel:nth-child(5) { --a-panel-no: "05"; }
+.admin-panel:nth-child(6) { --a-panel-no: "06"; }
+.admin-panel:nth-child(7) { --a-panel-no: "07"; }
+.admin-panel:nth-child(8) { --a-panel-no: "08"; }
+.admin-panel:nth-child(9) { --a-panel-no: "09"; }
+.admin-panel:nth-child(10) { --a-panel-no: "10"; }
+.admin-panel:nth-child(11) { --a-panel-no: "11"; }
+.admin-panel:nth-child(12) { --a-panel-no: "12"; }
+.admin-panel:nth-child(13) { --a-panel-no: "13"; }
+.admin-panel:nth-child(14) { --a-panel-no: "14"; }
+.admin-panel:nth-child(15) { --a-panel-no: "15"; }
+
 .admin-panel {
   display: none;
 }
 
 .admin-panel.active {
   display: block;
-  padding-top: 20px;
 }
 
 /* --------------------------------------------------------------------------
    面板头（标题 + 说明 + 操作区）
    -------------------------------------------------------------------------- */
+/* 与前台 .hb-page-head 是同一套「控制台页头」语言：通栏、细网格 + 琥珀辉光、
+   下缘一道渐隐的琥珀发丝线。这里用负外边距顶到 .admin-main 的内边距边缘，
+   所以 .admin-panel.active 不再需要 padding-top，页头自己带上下留白。 */
 .panel-head {
+  position: relative;
   display: flex;
-  margin-bottom: 16px;
+  margin: 0 -26px 20px;
+  padding: 28px 26px 24px;
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
+  border-bottom: 1px solid var(--a-line-soft);
+  overflow: hidden;
+}
+
+/* 装饰层压在所有子元素下面 */
+.panel-head > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 细网格 + 双层琥珀辉光，与前台页头横幅同一套质感（网格 46px 一循环，
+   所以能直接复用 theme.css 里的 hb-head-drift 做无缝漂移）。 */
+.panel-head::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(120% 155% at 0% 0%, rgba(242, 162, 13, 0.2), transparent 62%),
+    radial-gradient(88% 140% at 100% 100%, rgba(242, 162, 13, 0.1), transparent 58%);
+  background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+  content: "";
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(104deg, #000 16%, rgba(0, 0, 0, 0.45) 58%, transparent 90%);
+  mask-image: linear-gradient(104deg, #000 16%, rgba(0, 0, 0, 0.45) 58%, transparent 90%);
+  animation: hb-head-drift 26s linear infinite;
+}
+
+/* 下缘指示灯 + 左侧能量条 + 左上 / 右下 HUD 角线（与前台页头同一套语言） */
+.panel-head::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: linear-gradient(90deg, transparent, rgba(242, 162, 13, 0.42) 22%, transparent 78%),
+    linear-gradient(180deg, transparent, var(--hb-accent) 24%, var(--hb-accent) 76%, transparent),
+    linear-gradient(var(--hb-accent-line), var(--hb-accent-line)),
+    linear-gradient(var(--hb-accent-line), var(--hb-accent-line)),
+    linear-gradient(var(--hb-accent-line), var(--hb-accent-line)),
+    linear-gradient(var(--hb-accent-line), var(--hb-accent-line));
+  background-position: 50% 100%, 0 50%, 14px 14px, 14px 14px, right 14px bottom 14px, right 14px bottom 14px;
+  background-size: calc(100% - 72px) 1px, 3px 56%, 20px 1px, 1px 20px, 20px 1px, 1px 20px;
+  background-repeat: no-repeat;
+  content: "";
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-head::before {
+    animation: none;
+  }
 }
 
 .panel-head__text {
   min-width: 0;
+}
+
+/* 面板编号：由 .admin-panel 显式给出的 --a-panel-no 决定（见上面的 nth-child），
+   左缩进 13px 与下方说明文字对齐（h2 的琥珀短条占了 13px）。 */
+.panel-head__text::before {
+  display: block;
+  margin: 0 0 7px 13px;
+  color: var(--hb-accent);
+  font-family: var(--hb-font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  content: "/" var(--a-panel-no, "--");
 }
 
 /* 标题前一道琥珀渐变短条：零 HTML 改动就能给每个面板加上强调色 */
@@ -338,9 +421,9 @@ body {
   align-items: center;
   gap: 10px;
   color: var(--hb-ink);
-  font-size: 22px;
+  font-size: 25px;
   font-weight: 640;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 
 .panel-head__text h2::before {
@@ -371,82 +454,212 @@ body {
 /* --------------------------------------------------------------------------
    筛选条（表格上方独立一行）
    -------------------------------------------------------------------------- */
-.panel-toolbar,
-.toolbar {
+.panel-toolbar {
   display: flex;
+  margin-bottom: 12px;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 
-.panel-toolbar {
-  margin-bottom: 12px;
+.panel-toolbar .hb-input,
+.panel-toolbar .hb-select {
+  width: auto;
+  min-width: 170px;
+  min-height: 34px;
+  padding: 6px 11px;
+  font-size: 12.5px;
 }
 
-.panel-toolbar .form-control,
-.panel-toolbar .form-select,
-.toolbar .form-control,
-.toolbar .form-select {
-  width: auto;
-  min-width: 150px;
+.panel-toolbar .hb-select {
+  padding-right: 32px;
 }
 
 /* --------------------------------------------------------------------------
-   按钮
+   编辑器（商品 / 激活码 / 优惠码的内联表单）
    -------------------------------------------------------------------------- */
-.admin-shell .btn {
-  padding: 6px 12px;
-  border-radius: var(--a-radius-sm);
+.admin-editor {
+  margin-top: 14px;
+}
+
+.admin-editor__title {
+  margin-bottom: 14px;
+  color: var(--hb-ink);
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+/* 编辑器说明：写清「这个操作会连带发生什么」。
+   后台的破坏性操作用户界面必须先讲后果，而不是等点完才弹错误。 */
+.admin-editor__hint {
+  margin: -8px 0 14px;
+  color: var(--hb-ink-soft);
   font-size: 12.5px;
+  line-height: 1.65;
+}
+
+/* 字段级说明：挂在 hb-field 的 label 里，跟在字段名后面解释语义 */
+.admin-field-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--hb-ink-soft);
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.admin-editor__hint b,
+.admin-editor__hint code {
+  color: var(--hb-ink);
   font-weight: 600;
-  box-shadow: none;
+}
+
+/* 「诊断数据」这类一页多表的区块标题 */
+.admin-block-title {
+  margin: 20px 0 10px;
+  color: var(--hb-ink-soft);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-block-title:first-of-type {
+  margin-top: 0;
+}
+
+/* 一页多表：每个区块自己带标题、说明、块级动作（如「清理」）与分页条 */
+.admin-block {
+  margin-bottom: 26px;
+}
+
+.admin-block:last-child {
+  margin-bottom: 0;
+}
+
+.admin-block__head {
+  display: flex;
+  margin-bottom: 10px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-block__head .admin-block-title {
+  margin: 0;
+}
+
+.admin-block__hint {
+  margin: 5px 0 0;
+  max-width: 78ch;
+  color: var(--hb-ink-soft);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* 分页条：只读数据面过去一律 limit<=500 且无 offset，看不清「还有多少没看到」 */
+.admin-pager {
+  display: flex;
+  margin-top: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-pager__info {
+  margin-right: auto;
+  color: var(--hb-ink-soft);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 筛选胶囊：点一下清除筛选 */
+.admin-filter-chip {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 2px 9px;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: 999px;
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
   transition: var(--a-transition);
 }
 
-.admin-shell .btn-sm {
-  padding: 5px 10px;
-  border-radius: 8px;
+.admin-filter-chip:hover {
+  background: var(--hb-accent-faint);
+}
+
+/* 负数金额（扣减的积分）用危险色，避免在一列正数里被忽略 */
+.hb-table .is-negative {
+  color: var(--hb-danger-text);
+}
+
+/* 表单栅格：auto-fit 让小屏自动降列，不再需要 col-md-* 断点类 */
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(186px, 1fr));
+  align-items: start;
+  gap: 14px;
+}
+
+.admin-grid--wide {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.admin-grid__full {
+  grid-column: 1 / -1;
+}
+
+.admin-grid__wide {
+  grid-column: span 2;
+}
+
+.admin-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.hb-check-group {
+  display: flex;
+  min-height: 40px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+}
+
+.admin-grid hr {
+  margin: 2px 0 6px;
+}
+
+/* 后台表单控件比前台紧凑一档（一屏要塞下 10+ 字段） */
+.admin-grid .hb-input,
+.admin-grid .hb-select,
+.admin-grid .hb-textarea {
+  min-height: 36px;
+  padding: 7px 11px;
+  font-size: 12.5px;
+}
+
+.admin-grid .hb-textarea {
+  min-height: 62px;
+}
+
+.admin-grid .hb-input.is-mono {
+  font-family: var(--hb-font-mono);
   font-size: 12px;
 }
 
-.admin-shell .btn-success,
-.admin-shell .btn-primary {
-  box-shadow: 0 6px 18px -8px #f2a20d8c;
-}
-
-.admin-shell .btn-success:hover,
-.admin-shell .btn-primary:hover {
-  box-shadow: 0 8px 22px -8px #f2a20da6;
-}
-
-.admin-shell .btn-outline-secondary,
-.admin-shell .btn-outline-light {
-  border-color: var(--a-line);
-  color: var(--hb-ink-soft);
-  background: #ffffff05;
-}
-
-.admin-shell .btn-outline-secondary:hover,
-.admin-shell .btn-outline-light:hover {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
-}
-
-.admin-shell .btn-outline-danger {
-  border-color: var(--hb-danger-line);
-  color: #e59a96;
-  background: #ffffff05;
-}
-
-.admin-shell .btn-outline-danger:hover {
-  border-color: var(--hb-danger);
-  color: #1b0f0f;
-  background: var(--hb-danger);
-}
-
 /* --------------------------------------------------------------------------
-   状态胶囊（替代 Bootstrap 实心 badge）
+   状态胶囊
    -------------------------------------------------------------------------- */
 .pill {
   display: inline-flex;
@@ -456,7 +669,7 @@ body {
   border: 1px solid var(--a-line);
   border-radius: var(--hb-radius-pill);
   color: var(--hb-muted);
-  background: #ffffff08;
+  background: rgba(255, 255, 255, 0.04);
   font-size: 11.5px;
   font-weight: 600;
   line-height: 1.45;
@@ -495,13 +708,13 @@ body {
 .pill--info {
   border-color: #3d4a55;
   color: #a8b6c2;
-  background: #ffffff0a;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .pill--muted {
   border-color: var(--a-line);
   color: var(--hb-muted);
-  background: #ffffff06;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 /* --------------------------------------------------------------------------
@@ -509,7 +722,7 @@ body {
    -------------------------------------------------------------------------- */
 /* 表格跟随主区一起滚，表头用 sticky 吸在 .admin-main 顶部。
    overflow: clip 只裁切、不产生滚动容器——所以既能裁出圆角，
-   又不会像 overflow:auto/hidden 那样把 sticky 的参照物抢走。 */
+   又不会像 overflow: auto/hidden 那样把 sticky 的参照物抢走。 */
 .table-wrap {
   border: 1px solid var(--a-line);
   border-radius: var(--a-radius);
@@ -518,67 +731,36 @@ body {
   overflow: clip;
 }
 
-.table {
-  width: 100%;
-  min-width: 860px;
-  margin-bottom: 0;
-  font-size: 12.5px;
+.admin-table-block {
+  margin-top: 14px;
 }
 
 /* table-layout: fixed 是「任何内容都不横向溢出」的根本保证。
    自动布局下列宽跟着内容走，8 列的订单表会被最小内容宽度顶宽只能横滚；
-   固定布局把列宽钉成下面的百分比，超出部分一律省略号，完整值放 title。 */
-.table {
+   固定布局把列宽钉成下面的像素值，超出部分一律省略号，完整值放 title。 */
+.table-wrap .hb-table {
+  min-width: 860px;
   table-layout: fixed;
 }
 
-.table thead th {
-  position: sticky;
-  z-index: 3;
-  top: 0;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--a-line);
-  color: #7e8a94;
-  background: #1c222a;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-align: left;
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.table tbody td {
+.table-wrap .hb-table tbody td {
   padding: 11px 14px;
-  border-bottom: 1px solid var(--a-line-soft);
-  color: var(--hb-ink-soft);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.table tbody tr:last-child td {
-  border-bottom: 0;
+/* 悬停时左缘亮起琥珀条，与前台账号中心 / 邀请记录的列表保持同一套「行选中」语言 */
+.table-wrap .hb-table tbody td:first-child {
+  box-shadow: inset 2px 0 0 transparent;
+  transition: box-shadow 0.14s ease;
 }
 
-.table tbody tr {
-  transition: background 0.12s ease;
-}
-
-.table tbody tr:hover > * {
-  background: #ffffff07 !important;
-  color: var(--hb-ink);
+.table-wrap .hb-table tbody tr:hover td:first-child {
+  box-shadow: inset 2px 0 0 var(--hb-accent);
 }
 
 /* 操作列：主操作 + ⋯ 只占一个紧凑宽度 */
-.table thead th:last-child,
-.table tbody td:last-child {
+.table-wrap .hb-table thead th:last-child,
+.table-wrap .hb-table tbody td:last-child {
   padding-right: 10px;
-}
-
-.table tbody td:last-child {
   padding-left: 10px;
 }
 
@@ -589,12 +771,14 @@ body {
   gap: 5px;
 }
 
-.row-actions .btn {
+.row-actions .hb-button {
+  min-height: 26px;
   padding: 3px 8px;
+  border-radius: 7px;
   font-size: 11.5px;
 }
 
-/* 空态 */
+/* 空态由 emptyRow() 注入 */
 .table-empty {
   padding: 46px 16px;
   color: var(--hb-muted);
@@ -608,6 +792,16 @@ body {
   color: #3d4750;
   font-size: 26px;
   line-height: 1;
+}
+
+.mono {
+  color: var(--hb-accent-bright);
+  font-family: var(--hb-font-mono);
+  font-size: 11.5px;
+}
+
+.nowrap {
+  white-space: nowrap;
 }
 
 /* --------------------------------------------------------------------------
@@ -627,80 +821,77 @@ body {
    各表的 min-width ≈ 保底列之和 + 每张不定宽列 150px。 */
 
 /* 订单：订单号 / 邮箱* / 商品* / 类型 / 金额 / 状态 / 创建时间 / 操作 */
-#panel-orders .table th:nth-child(1) { width: 180px; }
-#panel-orders .table th:nth-child(4) { width: 112px; }
-#panel-orders .table th:nth-child(5) { width: 80px; }
-#panel-orders .table th:nth-child(6) { width: 116px; }
-#panel-orders .table th:nth-child(7) { width: 162px; }
-#panel-orders .table th:nth-child(8) { width: 122px; }
-#panel-orders .table { min-width: 1072px; }
+#panel-orders .hb-table th:nth-child(1) { width: 180px; }
+#panel-orders .hb-table th:nth-child(4) { width: 112px; }
+#panel-orders .hb-table th:nth-child(5) { width: 80px; }
+#panel-orders .hb-table th:nth-child(6) { width: 116px; }
+#panel-orders .hb-table th:nth-child(7) { width: 162px; }
+#panel-orders .hb-table th:nth-child(8) { width: 122px; }
+#panel-orders .hb-table { min-width: 1072px; }
 
 /* 商品：名称* / 类型 / 价格 / 有效期 / 功能码* / 库存 / 状态 / 操作 */
-#panel-products .table th:nth-child(2) { width: 88px; }
-#panel-products .table th:nth-child(3) { width: 84px; }
-#panel-products .table th:nth-child(4) { width: 76px; }
-#panel-products .table th:nth-child(6) { width: 72px; }
-#panel-products .table th:nth-child(7) { width: 96px; }
-#panel-products .table th:nth-child(8) { width: 100px; }
+#panel-products .hb-table th:nth-child(2) { width: 88px; }
+#panel-products .hb-table th:nth-child(3) { width: 84px; }
+#panel-products .hb-table th:nth-child(4) { width: 76px; }
+#panel-products .hb-table th:nth-child(6) { width: 72px; }
+#panel-products .hb-table th:nth-child(7) { width: 96px; }
+#panel-products .hb-table th:nth-child(8) { width: 100px; }
 
 /* 激活码：激活码 / 客户* / 商品* / 有效期 / 来源 / 状态 / 操作 */
-#panel-licenses .table th:nth-child(1) { width: 250px; }
-#panel-licenses .table th:nth-child(4) { width: 104px; }
-#panel-licenses .table th:nth-child(5) { width: 88px; }
-#panel-licenses .table th:nth-child(6) { width: 96px; }
-#panel-licenses .table th:nth-child(7) { width: 100px; }
-#panel-licenses .table { min-width: 940px; }
+#panel-licenses .hb-table th:nth-child(1) { width: 250px; }
+#panel-licenses .hb-table th:nth-child(4) { width: 104px; }
+#panel-licenses .hb-table th:nth-child(5) { width: 88px; }
+#panel-licenses .hb-table th:nth-child(6) { width: 96px; }
+#panel-licenses .hb-table th:nth-child(7) { width: 100px; }
+#panel-licenses .hb-table { min-width: 940px; }
 
 /* 设备绑定：实例 ID / 激活码* / 客户端版本 / 最近心跳 / 状态 / 操作 */
-#panel-bindings .table th:nth-child(1) { width: 250px; }
-#panel-bindings .table th:nth-child(3) { width: 108px; }
-#panel-bindings .table th:nth-child(4) { width: 168px; }
-#panel-bindings .table th:nth-child(5) { width: 96px; }
-#panel-bindings .table th:nth-child(6) { width: 96px; }
+#panel-bindings .hb-table th:nth-child(1) { width: 250px; }
+#panel-bindings .hb-table th:nth-child(3) { width: 108px; }
+#panel-bindings .hb-table th:nth-child(4) { width: 168px; }
+#panel-bindings .hb-table th:nth-child(5) { width: 96px; }
+#panel-bindings .hb-table th:nth-child(6) { width: 96px; }
 
 /* 优惠码：码 / 说明* / 折扣 / 门槛 / 已用·上限 / 状态 / 操作 */
-#panel-coupons .table th:nth-child(1) { width: 108px; }
-#panel-coupons .table th:nth-child(3) { width: 80px; }
-#panel-coupons .table th:nth-child(4) { width: 80px; }
-#panel-coupons .table th:nth-child(5) { width: 92px; }
-#panel-coupons .table th:nth-child(6) { width: 96px; }
-#panel-coupons .table th:nth-child(7) { width: 100px; }
+#panel-coupons .hb-table th:nth-child(1) { width: 108px; }
+#panel-coupons .hb-table th:nth-child(3) { width: 80px; }
+#panel-coupons .hb-table th:nth-child(4) { width: 80px; }
+#panel-coupons .hb-table th:nth-child(5) { width: 92px; }
+#panel-coupons .hb-table th:nth-child(6) { width: 96px; }
+#panel-coupons .hb-table th:nth-child(7) { width: 100px; }
 
 /* 提现：账号* / 积分 / 手续费 / 到账 / QQ / 状态 / 申请时间 / 操作 */
-#panel-withdrawals .table th:nth-child(2) { width: 86px; }
-#panel-withdrawals .table th:nth-child(3) { width: 80px; }
-#panel-withdrawals .table th:nth-child(4) { width: 84px; }
-#panel-withdrawals .table th:nth-child(5) { width: 102px; }
-#panel-withdrawals .table th:nth-child(6) { width: 96px; }
-#panel-withdrawals .table th:nth-child(7) { width: 162px; }
-#panel-withdrawals .table th:nth-child(8) { width: 112px; }
+#panel-withdrawals .hb-table th:nth-child(2) { width: 86px; }
+#panel-withdrawals .hb-table th:nth-child(3) { width: 80px; }
+#panel-withdrawals .hb-table th:nth-child(4) { width: 84px; }
+#panel-withdrawals .hb-table th:nth-child(5) { width: 102px; }
+#panel-withdrawals .hb-table th:nth-child(6) { width: 96px; }
+#panel-withdrawals .hb-table th:nth-child(7) { width: 162px; }
+#panel-withdrawals .hb-table th:nth-child(8) { width: 112px; }
 
 /* 账号：邮箱* / 角色 / 授权数 / 余额 / 邀请码 / 状态 / 操作 */
-#panel-accounts .table th:nth-child(2) { width: 80px; }
-#panel-accounts .table th:nth-child(3) { width: 78px; }
-#panel-accounts .table th:nth-child(4) { width: 84px; }
-#panel-accounts .table th:nth-child(5) { width: 84px; }
-#panel-accounts .table th:nth-child(6) { width: 96px; }
-#panel-accounts .table th:nth-child(7) { width: 80px; }
+#panel-accounts .hb-table th:nth-child(2) { width: 80px; }
+#panel-accounts .hb-table th:nth-child(3) { width: 78px; }
+#panel-accounts .hb-table th:nth-child(4) { width: 84px; }
+#panel-accounts .hb-table th:nth-child(5) { width: 84px; }
+#panel-accounts .hb-table th:nth-child(6) { width: 96px; }
+#panel-accounts .hb-table th:nth-child(7) { width: 80px; }
 
 /* 版本：产品 / 渠道 / 版本 / 发布日期 / 说明* / 操作 */
-#panel-releases .table th:nth-child(1) { width: 96px; }
-#panel-releases .table th:nth-child(2) { width: 88px; }
-#panel-releases .table th:nth-child(3) { width: 124px; }
-#panel-releases .table th:nth-child(4) { width: 112px; }
-#panel-releases .table th:nth-child(6) { width: 80px; }
+#panel-releases .hb-table th:nth-child(1) { width: 96px; }
+#panel-releases .hb-table th:nth-child(2) { width: 88px; }
+#panel-releases .hb-table th:nth-child(3) { width: 124px; }
+#panel-releases .hb-table th:nth-child(4) { width: 112px; }
+#panel-releases .hb-table th:nth-child(6) { width: 80px; }
 
 /* 审计：时间 / 操作者 / 动作 / 对象* / 详情* / 操作 */
-#panel-audits .table th:nth-child(1) { width: 168px; }
-#panel-audits .table th:nth-child(2) { width: 176px; }
-#panel-audits .table th:nth-child(3) { width: 152px; }
-#panel-audits .table th:nth-child(6) { width: 72px; }
-
-/* 后台不再用 .table-responsive：Bootstrap 给它设了 overflow-x:auto，
-   会变成新的滚动容器并让表头吸顶失效。表格统一走 .table-wrap。 */
+#panel-audits .hb-table th:nth-child(1) { width: 168px; }
+#panel-audits .hb-table th:nth-child(2) { width: 176px; }
+#panel-audits .hb-table th:nth-child(3) { width: 152px; }
+#panel-audits .hb-table th:nth-child(6) { width: 72px; }
 
 /* --------------------------------------------------------------------------
-   行内「⋯」菜单（无 Bootstrap JS，自己实现）
+   行内「⋯」菜单
    -------------------------------------------------------------------------- */
 /* 菜单节点仍留在单元格里，这样绑定在 #xxx-rows 上的事件委托照样能收到点击；
    但弹出层在打开时切成 position: fixed（见下面的 .menu.is-open .menu__pop），
@@ -737,9 +928,9 @@ body {
 }
 
 /* 打开时把弹出层移出裁剪范围：position: fixed 的包含块是视口，不受任何祖先
-   overflow 裁剪，所以 .table-wrap 的 overflow-y: hidden 再也切不到它，表格只有
-   一行时也不用担心「上下都放不下」。坐标由 JS 按「⋯」按钮的位置算好后写成内联
-   top/left（见 admin.html 的 placeRowMenu），这里先把绝对定位的那套值清空。 */
+   overflow 裁剪，所以 .table-wrap 的 overflow-y: hidden 再也切不到它。
+   坐标由 JS 按「⋯」按钮的位置算好后写成内联 top/left（admin.html 的
+   placeRowMenu），这里先把绝对定位的那套值清空。 */
 .menu.is-open .menu__pop {
   position: fixed;
   top: auto;
@@ -749,20 +940,23 @@ body {
 }
 
 .menu__item {
+  display: block;
   padding: 7px 10px;
   border: 0;
   border-radius: 6px;
   color: var(--hb-ink-soft);
   background: transparent;
+  font-family: inherit;
   font-size: 12.5px;
   text-align: left;
   white-space: nowrap;
+  cursor: pointer;
   transition: var(--a-transition);
 }
 
 .menu__item:hover {
   color: var(--hb-ink);
-  background: #ffffff0d;
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .menu__item.is-danger {
@@ -774,16 +968,10 @@ body {
   background: var(--hb-danger-soft);
 }
 
-.menu__sep {
-  height: 1px;
-  margin: 4px 2px;
-  background: var(--a-line);
-}
-
 /* --------------------------------------------------------------------------
    概览 KPI 卡
    -------------------------------------------------------------------------- */
-/* 用 flex 而非栅格：最后一行自动拉伸铺满，不会像 col-xl-3 那样留下孤立的空位 */
+/* 用 flex 而非栅格：最后一行自动拉伸铺满，不会留下孤立的空位 */
 .stat-grid {
   display: flex;
   flex-wrap: wrap;
@@ -799,8 +987,9 @@ body {
   padding: 14px 16px 15px;
   border: 1px solid var(--a-line);
   border-radius: var(--a-radius);
-  background: var(--a-card);
+  background: var(--hb-card-bg);
   box-shadow: var(--a-elev-1);
+  transition: var(--a-transition);
 }
 
 /* 顶部一道极淡高光，让卡片有「面板」的厚度而不是一块纯色 */
@@ -810,8 +999,31 @@ body {
   right: 0;
   left: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #ffffff17, transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
   content: "";
+}
+
+/* 悬停时顶缘亮起琥珀：与前台 .hb-account-stats article 同一套统计卡语言 */
+.stat::before {
+  position: absolute;
+  top: 0;
+  right: 14px;
+  left: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--hb-accent-line), transparent 72%);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--a-transition);
+}
+
+.stat:hover {
+  border-color: var(--hb-line-strong);
+  background: var(--hb-surface-soft);
+}
+
+.stat:hover::before {
+  opacity: 1;
 }
 
 .stat small,
@@ -836,8 +1048,8 @@ body {
 }
 
 .stat.is-alert {
-  border-color: #f2a20d52;
-  box-shadow: inset 0 1px 0 #ffffff0a, 0 14px 30px -18px #f2a20db3;
+  border-color: rgba(242, 162, 13, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 30px -18px rgba(242, 162, 13, 0.7);
 }
 
 .stat.is-alert strong,
@@ -847,7 +1059,7 @@ body {
 
 .stat.is-danger {
   border-color: var(--hb-danger-line);
-  box-shadow: inset 0 1px 0 #ffffff0a, 0 14px 30px -18px #e26b6780;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 30px -18px rgba(226, 107, 103, 0.5);
 }
 
 .stat.is-danger strong,
@@ -856,29 +1068,8 @@ body {
 }
 
 /* --------------------------------------------------------------------------
-   卡片 / 表单
+   概览页的「维护模式」行
    -------------------------------------------------------------------------- */
-.admin-shell .card {
-  border: 1px solid var(--a-line);
-  border-radius: var(--a-radius);
-  background: var(--a-surface);
-  box-shadow: var(--a-elev-1);
-}
-
-.admin-shell .card-body {
-  padding: 18px 20px;
-  color: var(--hb-ink);
-}
-
-.admin-shell .card h6 {
-  margin-bottom: 14px;
-  color: var(--hb-ink);
-  font-size: 13.5px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
-}
-
-/* 概览页那张「维护模式」行 */
 .setting-row {
   display: flex;
   align-items: center;
@@ -898,100 +1089,6 @@ body {
   font-size: 11.5px;
 }
 
-.form-label {
-  margin-bottom: 6px;
-  color: #aab4bc;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.form-control,
-.form-select {
-  height: 34px;
-  padding: 6px 11px;
-  border: 1px solid #333d47;
-  border-radius: var(--a-radius-sm);
-  color: var(--hb-ink);
-  background: #171d22;
-  box-shadow: inset 0 1px 2px #0000003d;
-  font-size: 12.5px;
-}
-
-.form-control:focus,
-.form-select:focus {
-  border-color: var(--hb-accent) !important;
-  color: var(--hb-ink);
-  background: #171d22;
-  box-shadow: 0 0 0 3px var(--hb-accent-soft) !important;
-}
-
-.form-control-sm,
-.form-select-sm {
-  height: 32px;
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 12.5px;
-}
-
-.form-control::placeholder {
-  color: #5d6871;
-}
-
-.form-select option {
-  color: var(--hb-ink);
-  background: var(--a-surface-3);
-}
-
-textarea.form-control {
-  height: auto;
-  min-height: 62px;
-}
-
-.form-text {
-  color: var(--hb-muted-dim);
-  font-size: 11.5px;
-}
-
-.admin-shell .form-check-input {
-  border-color: #46514f;
-  background-color: #171d22;
-}
-
-.admin-shell .form-check-input:checked {
-  border-color: var(--hb-accent);
-  background-color: var(--hb-accent);
-}
-
-.admin-shell .form-check-label {
-  color: var(--hb-ink-soft);
-  font-size: 12.5px;
-}
-
-.mono {
-  color: var(--hb-accent-bright);
-  font-family: var(--hb-font-mono);
-  font-size: 11.5px;
-}
-
-.nowrap {
-  white-space: nowrap;
-}
-
-/* 表单里的分隔线：用极淡的发丝线，别用 Bootstrap 默认的 <hr> 亮度 */
-.admin-shell hr {
-  margin: 14px 0 16px;
-  border-color: var(--a-line);
-  opacity: 1;
-}
-
-/* 行内说明（表格上方的补充说明等） */
-.hint {
-  color: var(--hb-muted);
-  font-size: 11.5px;
-  line-height: 1.6;
-}
-
 /* --------------------------------------------------------------------------
    危险操作区
    -------------------------------------------------------------------------- */
@@ -1000,7 +1097,7 @@ textarea.form-control {
   padding: 18px 20px;
   border: 1px solid var(--hb-danger-line);
   border-radius: var(--a-radius);
-  background: linear-gradient(180deg, #e26b6712, transparent);
+  background: linear-gradient(180deg, rgba(226, 107, 103, 0.07), transparent);
 }
 
 .danger-zone h3 {
@@ -1042,12 +1139,12 @@ textarea.form-control {
   border: 1px solid var(--a-line);
   border-radius: 16px;
   color: var(--hb-ink);
-  background: var(--a-surface-2);
+  background: linear-gradient(180deg, #1e252c, #181e24);
   box-shadow: var(--a-elev-2);
 }
 
 .confirm-dialog::backdrop {
-  background: #05080bd1;
+  background: rgba(5, 8, 11, 0.82);
   backdrop-filter: blur(5px);
 }
 
@@ -1065,7 +1162,7 @@ textarea.form-control {
   border-radius: 12px;
   color: var(--hb-accent-bright);
   background: var(--hb-accent-soft);
-  box-shadow: 0 10px 26px -14px #f2a20dcc;
+  box-shadow: 0 10px 26px -14px rgba(242, 162, 13, 0.8);
   font-size: 20px;
   line-height: 1;
 }
@@ -1074,7 +1171,7 @@ textarea.form-control {
   border-color: var(--hb-danger-line);
   color: #f0a5a2;
   background: var(--hb-danger-soft);
-  box-shadow: 0 10px 26px -14px #e26b67cc;
+  box-shadow: 0 10px 26px -14px rgba(226, 107, 103, 0.8);
 }
 
 /* 会降级成「停用 / 下架」这类可恢复结果时用告警色，避免和不可恢复的删除长得一样 */
@@ -1106,7 +1203,7 @@ textarea.form-control {
   border: 1px solid var(--a-line);
   border-radius: var(--a-radius-sm);
   color: var(--hb-ink-soft);
-  background: #ffffff06;
+  background: rgba(255, 255, 255, 0.03);
   font-size: 11.5px;
   line-height: 1.65;
 }
@@ -1130,9 +1227,11 @@ textarea.form-control {
 /* --------------------------------------------------------------------------
    登录页
    -------------------------------------------------------------------------- */
-/* body 是 overflow:hidden（单滚动容器需要），登录页得自己兜底滚动：
+/* body 是 overflow: hidden（单滚动容器需要），登录页得自己兜底滚动：
    margin 不计入 max-height 也不跟着滚，所以用元素自身的 padding。 */
 .login-wrap {
+  position: relative;
+  z-index: 1;
   width: min(404px, calc(100vw - 32px));
   max-height: 100vh;
   margin: 0 auto;
@@ -1140,12 +1239,57 @@ textarea.form-control {
   overflow-y: auto;
 }
 
+/* 登录页整屏一层极淡的琥珀网格 + 顶部辉光，撑起「控制台」的第一印象。
+   #admin-login 登录成功后会被 JS 置为 hidden，:has() 让这层装饰自动消失，
+   不需要额外的 JS 钩子；不支持 :has() 的浏览器只是少了这层装饰。 */
+body:has(#admin-login:not([hidden]))::before {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    radial-gradient(120% 92% at 50% 0%, rgba(242, 162, 13, 0.16), transparent 62%);
+  background-size: 40px 40px, 40px 40px, 100% 100%;
+  content: "";
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(130% 100% at 50% 0%, #000 22%, transparent 80%);
+  mask-image: radial-gradient(130% 100% at 50% 0%, #000 22%, transparent 80%);
+}
+
 .login-card {
+  position: relative;
   padding: 28px 26px 26px;
   border: 1px solid var(--a-line);
   border-radius: 18px;
   background: linear-gradient(180deg, #1e252c, #181e24);
   box-shadow: var(--a-elev-2);
+  overflow: hidden;
+}
+
+/* 左上 / 右下两道琥珀角线：与前台 .hb-auth-card 同一套「设备取景框」角标 */
+.login-card::before,
+.login-card::after {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  content: "";
+  pointer-events: none;
+}
+
+.login-card::before {
+  top: 9px;
+  left: 9px;
+  border-top: 1px solid var(--hb-accent-line);
+  border-left: 1px solid var(--hb-accent-line);
+  border-top-left-radius: 4px;
+}
+
+.login-card::after {
+  right: 9px;
+  bottom: 9px;
+  border-right: 1px solid var(--hb-accent-line);
+  border-bottom: 1px solid var(--hb-accent-line);
+  border-bottom-right-radius: 4px;
 }
 
 .login-card__head {
@@ -1164,7 +1308,7 @@ textarea.form-control {
   border: 1px solid var(--hb-accent-line);
   border-radius: 13px;
   background: var(--hb-accent-soft);
-  box-shadow: 0 12px 28px -16px #f2a20dcc;
+  box-shadow: 0 12px 28px -16px rgba(242, 162, 13, 0.8);
 }
 
 .login-card__mark img {
@@ -1187,13 +1331,20 @@ textarea.form-control {
   font-size: 11.5px;
 }
 
-.login-card .form-control {
-  height: 38px;
+.login-form {
+  display: grid;
+  gap: 14px;
 }
 
-.login-card .btn {
-  padding: 9px 12px;
-  font-size: 13px;
+.admin-alert {
+  margin-top: 16px;
+  padding: 11px 14px;
+  border: 1px solid var(--hb-danger-line);
+  border-radius: var(--a-radius-sm);
+  color: #f2b0ad;
+  background: #26181a;
+  font-size: 12.5px;
+  line-height: 1.6;
 }
 
 /* --------------------------------------------------------------------------
@@ -1209,35 +1360,36 @@ textarea.form-control {
   gap: 9px;
 }
 
-#admin-toast .alert {
-  margin: 0;
+.admin-toast__item {
   padding: 11px 15px;
   border: 1px solid var(--a-line);
   border-radius: var(--a-radius-sm);
+  color: var(--hb-ink);
   background: var(--a-surface-3);
   box-shadow: var(--a-elev-2);
   font-size: 12.5px;
+  line-height: 1.55;
 }
 
-#admin-toast .alert-success {
+.admin-toast__item.is-success {
   border-color: var(--hb-success-line);
   color: #9adcb0;
   background: #16241c;
 }
 
-#admin-toast .alert-danger {
+.admin-toast__item.is-danger {
   border-color: var(--hb-danger-line);
   color: #f2b0ad;
   background: #26181a;
 }
 
-#admin-toast .alert-warning {
+.admin-toast__item.is-warning {
   border-color: var(--hb-warning-line);
   color: #eabb64;
   background: #241d12;
 }
 
-#admin-toast .alert-info {
+.admin-toast__item.is-info {
   border-color: var(--a-line);
   color: var(--hb-ink-soft);
   background: #1b2229;
@@ -1246,17 +1398,17 @@ textarea.form-control {
 /* --------------------------------------------------------------------------
    杂项
    -------------------------------------------------------------------------- */
-/* 后台里所有裸 <a> 用强调色，避免落到 Bootstrap 的蓝色 */
-.admin-main a:not(.btn):not(.nav-link) {
+/* 后台里所有裸 <a> 用强调色，避免落到浏览器默认蓝 */
+.admin-main a:not(.hb-button):not(.nav-link) {
   color: var(--hb-accent-bright);
 }
 
-.admin-main a:not(.btn):not(.nav-link):hover {
+.admin-main a:not(.hb-button):not(.nav-link):hover {
   color: var(--hb-accent);
 }
 
-/* 概览页各区块之间的间距 */
-.admin-panel .card + .card {
+.admin-panel > .hb-card + .hb-card,
+.admin-panel > .table-wrap + .table-wrap {
   margin-top: 14px;
 }
 
@@ -1294,7 +1446,7 @@ textarea.form-control {
     padding: 12px 14px 10px;
   }
 
-  /* 导航改为横向换行；display:contents 让分组容器不打断 flex 行 */
+  /* 导航改为横向换行；display: contents 让分组容器不打断 flex 行 */
   .admin-nav {
     display: flex;
     flex: 0 0 auto;
@@ -1325,30 +1477,37 @@ textarea.form-control {
   }
 
   .admin-side__foot {
-    display: flex;
-    gap: 8px;
     padding: 10px 12px 12px;
   }
 
-  .admin-side__foot .btn {
-    margin-top: 0 !important;
+  .admin-side__actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .admin-main {
     padding: 0 13px 26px;
   }
 
-  .admin-panel.active {
-    padding-top: 15px;
-  }
-
   .panel-head {
+    margin: 0 -13px 16px;
+    padding: 22px 13px 19px;
     align-items: flex-start;
     flex-direction: column;
     gap: 12px;
   }
 
+  /* ::after 已改成 inset:0 + 多层背景，不再有 left/right 可收；
+     窄屏要收的是角线内缩、角线长度与下缘线的左右缩进。 */
+  .panel-head::after {
+    background-position: 50% 100%, 0 50%, 11px 11px, 11px 11px, right 11px bottom 11px, right 11px bottom 11px;
+    background-size: calc(100% - 44px) 1px, 2px 52%, 16px 1px, 1px 16px, 16px 1px, 1px 16px;
+  }
+
   .panel-head__text h2 {
-    font-size: 19px;
+    font-size: 20px;
+  }
+
+  .admin-grid__wide {
+    grid-column: 1 / -1;
   }
 }

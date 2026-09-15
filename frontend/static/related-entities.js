@@ -1,4 +1,4 @@
-import { resolveXiaomiDeviceProfile } from "./renderer/device-profiles.js?v=20260915153337";
+import { resolveXiaomiDeviceProfile } from "./renderer/device-profiles.js?v=20260915211726";
 export const RELATED_ENTITY_MODE_SELECTED = "selected";
 export const RELATED_POPUP_LABELS = Object.freeze({
   "water-heater": "热水器",

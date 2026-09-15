@@ -13,6 +13,10 @@ from store.security import token_hash, utcnow
 
 SESSION_COOKIE = "ha_bridge_store_session"
 
+#: ``last_seen_at`` 的写入节流窗口（秒）。诊断页要回答"这个会话现在还有人用吗"，
+#: 但每个请求都写一次会把 SQLite 变成写热点，所以最多每分钟落一次盘。
+LAST_SEEN_REFRESH_SECONDS = 60
+
 
 def get_session(request: Request) -> Iterator[Session]:
     database = request.app.state.database
@@ -30,10 +34,16 @@ def _resolve_session(request: Request, session: Session) -> AccountSession | Non
     record = session.get(AccountSession, token_hash(token))
     if record is None:
         return None
-    if record.expires_at <= utcnow():
+    moment = utcnow()
+    if record.expires_at <= moment:
         session.delete(record)
         session.flush()
         return None
+    # 会话活跃时间：不更新的话诊断里永远显示成登录时间，判断不出"还在用 / 早就不用了"。
+    seen = record.last_seen_at or record.created_at
+    if seen is None or (moment - seen).total_seconds() >= LAST_SEEN_REFRESH_SECONDS:
+        record.last_seen_at = moment
+        session.flush()
     return record
 
 

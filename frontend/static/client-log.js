@@ -2,7 +2,7 @@
   "use strict";
   if (bridgeWindow.HABridgeLog || typeof bridgeWindow.fetch != "function") return;
   const originalFetch = bridgeWindow.fetch.bind(bridgeWindow),
-    LOG_STORAGE_KEY = "ha-bridge-client-log-v1",
+    LOG_STORAGE_KEY = "homeos-client-log-v1",
     MAX_QUEUED_EVENT_COUNT = 50,
     MAX_QUEUE_BYTES = 12e4,
     MAX_EVENT_AGE_MS = 900 * 1e3,

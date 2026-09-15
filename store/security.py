@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -117,6 +118,28 @@ def new_order_no(prefix_email: str, *, now: datetime | None = None) -> str:
     if not local_prefix:
         local_prefix = "customer"
     return f"HB-{moment.strftime('%Y%m%d%H%M%S')}-{local_prefix}"
+
+
+#: 邮箱形状校验。刻意写得保守：只拒绝明显不是邮箱的输入（缺 @、带空格、域名没有点等），
+#: 不追求 RFC 5322 的完整文法——把能收信的合法地址误判掉，比放过一个拼错的地址更麻烦。
+_EMAIL_RE = re.compile(
+    r"^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]{1,64}"
+    r"@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$"
+)
+
+
+def is_valid_email(value: str | None) -> bool:
+    """邮箱形态是否合法（同时要求长度不超过 255，和 ``accounts.email`` 列宽对齐）。"""
+    if not value:
+        return False
+    text = value.strip()
+    return len(text) <= 255 and bool(_EMAIL_RE.match(text))
+
+
+def normalize_email(value: str) -> str:
+    """统一大小写与前后空白：库里所有邮箱都按小写比对，签名也要一致。"""
+    return value.strip().lower()
 
 
 def new_referral_code() -> str:

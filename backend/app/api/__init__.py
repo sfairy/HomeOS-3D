@@ -1,1 +1,1 @@
-'''HA Bridge API routers.'''
+'''HomeOS API routers.'''

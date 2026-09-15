@@ -60,6 +60,9 @@ def main() -> None:
     store_environment['STORE_HOST'] = HOST
     store_environment['STORE_PORT'] = STORE_PORT
     store_environment['PYTHONPATH'] = str(ROOT)
+    # 本地联调打开热重载：主应用用 --reload，商店也要跟着重载，否则改了 store/ 下的
+    # 授权协议/密钥相关代码后商店仍跑旧模块，客户端会出现「授权请求无法解密」。
+    store_environment.setdefault('STORE_RELOAD', '1')
     # 本地联调：验证码回显到接口响应（并同步写入日志），否则默认 log 模式会让注册流程
     # 卡在「收不到验证码」。.env 里写了 STORE_MAIL_MODE=smtp 就会走真实发信。
     store_environment.setdefault('STORE_MAIL_MODE', 'echo')

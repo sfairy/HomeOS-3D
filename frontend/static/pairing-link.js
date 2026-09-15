@@ -12,7 +12,7 @@ export function parsePairingLink(rawLink) {
     parsedUrl.pathname !== "/pair" ||
     parsedUrl.search !== "?scan=1" ||
     [...hashParams.keys()].sort().join(",") !== "code,type,version" ||
-    hashParams.get("type") !== "ha-bridge-pair" ||
+    hashParams.get("type") !== "homeos-pair" ||
     hashParams.get("version") !== "1" ||
     !/^[0-9]{6}$/.test(hashParams.get("code") || "")
   )
@@ -32,6 +32,6 @@ export function needsAppleInstallGuide(navigatorObject = navigator, isStandalone
     isAppleMobile(navigatorObject) &&
     !isStandalone &&
     !navigatorObject.standalone &&
-    !/HA-Bridge-(Apple|Android)/i.test(navigatorObject.userAgent)
+    !/HomeOS-(Apple|Android)/i.test(navigatorObject.userAgent)
   );
 }

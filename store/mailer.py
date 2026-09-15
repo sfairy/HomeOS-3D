@@ -34,7 +34,7 @@ class MailResult:
 
 def _render(code: str, purpose: str, setting: StoreSetting) -> tuple[str, str]:
     label = PURPOSE_LABELS.get(purpose, "验证账号")
-    site = setting.site_name or "HA Bridge 授权中心"
+    site = setting.site_name or "HomeOS 授权中心"
     subject = f"{site} - {label}验证码"
     body = (
         f"您好，\n\n"

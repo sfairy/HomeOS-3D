@@ -2677,7 +2677,7 @@ class GLTFParser {
 
 		// Embedded GLB textures are served as local blob URLs. Some embedded
 		// browsers expose createImageBitmap but reject those blob fetches, so use
-		// the broadly compatible image loader for HA Bridge's bundled models.
+		// the broadly compatible image loader for HomeOS's bundled models.
 		this.textureLoader = new TextureLoader( this.options.manager );
 
 		this.textureLoader.setCrossOrigin( this.options.crossOrigin );

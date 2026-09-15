@@ -1,1 +1,1 @@
-'''HA Bridge application package.'''
+'''HomeOS application package.'''

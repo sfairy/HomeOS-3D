@@ -1,4 +1,4 @@
-import { interaction3dTemplate } from "../modules/interaction3d/definition.js?v=20260915153337";
+import { interaction3dTemplate } from "../modules/interaction3d/definition.js?v=20260915211726";
 const templatesByKey = new Map();
 registerComponentTemplate(interaction3dTemplate);
 const uiPackDefinitionsById = new Map();

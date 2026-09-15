@@ -1,26 +1,26 @@
-import { vacuumMapIdentity } from "./vacuum-map.js?v=20260915153337";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260915153337";
-import { mountInteraction3d } from "./runtime.js?v=20260915153337";
-import { lightState } from "./light-state.js?v=20260915153337";
-import { openVacuumMapEditor } from "./vacuum-map-editor.js?v=20260915153337";
+import { vacuumMapIdentity } from "./vacuum-map.js?v=20260915211726";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260915211726";
+import { mountInteraction3d } from "./runtime.js?v=20260915211726";
+import { lightState } from "./light-state.js?v=20260915211726";
+import { openVacuumMapEditor } from "./vacuum-map-editor.js?v=20260915211726";
 import { nasGroups } from "./nas-panel.js";
-import { randomUuid } from "/bridge-static/utils/random-id.js?v=20260915153337";
-import { interaction3dPreviewSize } from "/bridge-static/modules/interaction3d/preview-layout.js?v=20260915153337";
+import { randomUuid } from "/static/utils/random-id.js?v=20260915211726";
+import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260915211726";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   subscribeInteraction3dAccess
-} from "/bridge-static/modules/interaction3d/bridge.js?v=20260915153337";
-import { normalizeInteraction3dLightingMode } from "/bridge-static/modules/interaction3d/definition.js?v=20260915153337";
+} from "/static/modules/interaction3d/bridge.js?v=20260915211726";
+import { normalizeInteraction3dLightingMode } from "/static/modules/interaction3d/definition.js?v=20260915211726";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "/bridge-static/3d-studio/studio-normalization.js?v=20260915153337";
+} from "/static/3d-studio/studio-normalization.js?v=20260915211726";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "./editor-save-status.js?v=20260915153337";
+} from "./editor-save-status.js?v=20260915211726";
 const APPEARANCE_GROUPS = [
   [
     "整体",
@@ -162,7 +162,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260915153337";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260915211726";
   document.head.append(styleSheetLinkElement);
   const createElement = (tagName, classNames, initialText) => {
     const createdElement = document.createElement(tagName);
@@ -1852,7 +1852,7 @@ export async function openInteraction3dEditor({
     iconPickerButton.className = "i3d-picker-button i3d-icon-picker-button";
     const iconPreviewElement = createElement("i");
     iconPreviewElement.style.maskImage =
-      "url('/bridge-static/vendor/mdi/7.4.47/svg/" +
+      "url('/static/vendor/mdi/7.4.47/svg/" +
       (selectedShortcut.icon || defaultIcon).slice(4) +
       ".svg')";
     iconPreviewElement.style.webkitMaskImage = iconPreviewElement.style.maskImage;
@@ -2717,7 +2717,7 @@ export async function openInteraction3dEditor({
             createElement(
               "p",
               "i3d-note",
-              "可绑定任意能提供开关状态的实体：开启显示 HA BRIDGE 海报，关闭黑屏。上方绑定媒体播放器后，有节目封面时优先显示封面；不单独绑定电源时，跟随媒体播放器的开关状态。"
+              "可绑定任意能提供开关状态的实体：开启显示 HOMEOS 海报，关闭黑屏。上方绑定媒体播放器后，有节目封面时优先显示封面；不单独绑定电源时，跟随媒体播放器的开关状态。"
             )
           );
         }
@@ -2836,7 +2836,7 @@ export async function openInteraction3dEditor({
           const itemIconPreviewElement = createElement("i");
           itemIconPreviewElement.setAttribute("aria-hidden", "true");
           const iconMaskUrl =
-            "/bridge-static/vendor/mdi/7.4.47/svg/" +
+            "/static/vendor/mdi/7.4.47/svg/" +
             selectedItem.icon.replace(/^mdi:/, "") +
             ".svg";
           itemIconPreviewElement.style.maskImage = 'url("' + iconMaskUrl + '")';
@@ -3498,7 +3498,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260915153337";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260915211726";
   document.head.append(appearanceStyleLinkElement);
   const createPlainElement = (plainTagName, plainText = "") => {
     const plainElement = document.createElement(plainTagName);

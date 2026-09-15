@@ -50,7 +50,7 @@ SLOW_REQUEST_MILLISECONDS = 2000
 
 
 def _record_lifecycle_failure(app: FastAPI, phase: str, error: Exception) -> None:
-    message = f"HA Bridge {'启动' if phase == 'startup' else '停止'}失败：{error}"
+    message = f"HomeOS {'启动' if phase == 'startup' else '停止'}失败：{error}"
     details = traceback.format_exc()
     event_log = getattr(app.state, 'global_log', None)
     if event_log is not None:
@@ -158,7 +158,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 except Exception as cleanup_error:
                     _record_lifecycle_failure(app, 'shutdown', cleanup_error)
             raise
-        app.state.global_log.append('success', '系统后台', '系统', f'HA Bridge {app_settings.version} 已启动', context={'phase': 'ready'})
+        app.state.global_log.append('success', '系统后台', '系统', f'HomeOS {app_settings.version} 已启动', context={'phase': 'ready'})
         try:
             yield
         finally:
@@ -176,9 +176,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 shutdown_error = shutdown_error or error
             if shutdown_error is not None:
                 raise shutdown_error
-            app.state.global_log.append('info', '系统后台', '系统', 'HA Bridge 已正常停止')
+            app.state.global_log.append('info', '系统后台', '系统', 'HomeOS 已正常停止')
 
-    app = FastAPI(title = 'HA Bridge', version = app_settings.version, lifespan = lifespan, docs_url = None, redoc_url = None, openapi_url = None)
+    app = FastAPI(title = 'HomeOS', version = app_settings.version, lifespan = lifespan, docs_url = None, redoc_url = None, openapi_url = None)
     app.state.settings = app_settings
 
     @app.exception_handler(Exception)
@@ -250,7 +250,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     app.include_router(interaction3d_router, prefix = '/api/v1')
     app.include_router(global_logs_router, prefix = '/api/v1')
     app.include_router(updates_router, prefix = '/api/v1')
-    app.mount('/bridge-static', StaticFiles(directory = app_settings.frontend_dir / 'static'), name = 'bridge-static')
+    app.mount('/static', StaticFiles(directory = app_settings.frontend_dir / 'static'), name = 'static')
 
     def initialized(request: Request) -> bool:
         return request.app.state.admin_account.initialized
@@ -286,59 +286,62 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         return signed_in(request) or active_display(request) is not None
 
     public_static_files = {
-        '/bridge-static/pair.js',
-        '/bridge-static/auth.css',
-        '/bridge-static/login.js',
-        '/bridge-static/setup.js',
-        '/bridge-static/license.js',
-        '/bridge-static/auth-shell.js',
-        '/bridge-static/pairing-link.js',
-        '/bridge-static/pairing-entry.js',
-        '/bridge-static/manifest.webmanifest',
-        '/bridge-static/dashboard.webmanifest',
-        '/bridge-static/ha-bridge-favicon.ico',
-        '/bridge-static/ha-bridge-favicon.svg',
-        '/bridge-static/ha-bridge-icon-16.png',
-        '/bridge-static/ha-bridge-icon-32.png',
-        '/bridge-static/ha-bridge-icon-48.png',
-        '/bridge-static/ha-bridge-icon-180.png',
-        '/bridge-static/ha-bridge-icon-192.png',
-        '/bridge-static/ha-bridge-icon-512.png',
-        '/bridge-static/manifest-h3.webmanifest',
-        '/bridge-static/manifest-h4.webmanifest',
-        '/bridge-static/manifest-h5.webmanifest',
-        '/bridge-static/ha-bridge-favicon-h3.ico',
-        '/bridge-static/ha-bridge-favicon-h3.svg',
-        '/bridge-static/ha-bridge-favicon-h4.ico',
-        '/bridge-static/ha-bridge-favicon-h4.svg',
-        '/bridge-static/ha-bridge-favicon-h5.ico',
-        '/bridge-static/ha-bridge-favicon-h5.svg',
-        '/bridge-static/ha-bridge-icon-16-h3.png',
-        '/bridge-static/ha-bridge-icon-16-h4.png',
-        '/bridge-static/ha-bridge-icon-16-h5.png',
-        '/bridge-static/ha-bridge-icon-32-h3.png',
-        '/bridge-static/ha-bridge-icon-32-h4.png',
-        '/bridge-static/ha-bridge-icon-32-h5.png',
-        '/bridge-static/ha-bridge-icon-48-h3.png',
-        '/bridge-static/ha-bridge-icon-48-h4.png',
-        '/bridge-static/ha-bridge-icon-48-h5.png',
-        '/bridge-static/ha-bridge-icon-180-h3.png',
-        '/bridge-static/ha-bridge-icon-180-h4.png',
-        '/bridge-static/ha-bridge-icon-180-h5.png',
-        '/bridge-static/ha-bridge-icon-192-h3.png',
-        '/bridge-static/ha-bridge-icon-192-h4.png',
-        '/bridge-static/ha-bridge-icon-192-h5.png',
-        '/bridge-static/ha-bridge-icon-512-h3.png',
-        '/bridge-static/ha-bridge-icon-512-h4.png',
-        '/bridge-static/ha-bridge-icon-512-h5.png',
-        '/bridge-static/ha-bridge-mark-black-orange.svg',
-        '/bridge-static/ha-bridge-mark-white-orange.svg'}
+        # 每个页面（含未激活时可访问的 login/setup/pair/license）都会先加载它，
+        # 漏掉这个入口会让「未激活」状态反过来把客户端日志上报一起挡掉。
+        '/static/client-log.js',
+        '/static/pair.js',
+        '/static/auth.css',
+        '/static/login.js',
+        '/static/setup.js',
+        '/static/license.js',
+        '/static/auth-shell.js',
+        '/static/pairing-link.js',
+        '/static/pairing-entry.js',
+        '/static/manifest.webmanifest',
+        '/static/dashboard.webmanifest',
+        '/static/homeos-favicon.ico',
+        '/static/homeos-favicon.svg',
+        '/static/homeos-icon-16.png',
+        '/static/homeos-icon-32.png',
+        '/static/homeos-icon-48.png',
+        '/static/homeos-icon-180.png',
+        '/static/homeos-icon-192.png',
+        '/static/homeos-icon-512.png',
+        '/static/manifest-h3.webmanifest',
+        '/static/manifest-h4.webmanifest',
+        '/static/manifest-h5.webmanifest',
+        '/static/homeos-favicon-h3.ico',
+        '/static/homeos-favicon-h3.svg',
+        '/static/homeos-favicon-h4.ico',
+        '/static/homeos-favicon-h4.svg',
+        '/static/homeos-favicon-h5.ico',
+        '/static/homeos-favicon-h5.svg',
+        '/static/homeos-icon-16-h3.png',
+        '/static/homeos-icon-16-h4.png',
+        '/static/homeos-icon-16-h5.png',
+        '/static/homeos-icon-32-h3.png',
+        '/static/homeos-icon-32-h4.png',
+        '/static/homeos-icon-32-h5.png',
+        '/static/homeos-icon-48-h3.png',
+        '/static/homeos-icon-48-h4.png',
+        '/static/homeos-icon-48-h5.png',
+        '/static/homeos-icon-180-h3.png',
+        '/static/homeos-icon-180-h4.png',
+        '/static/homeos-icon-180-h5.png',
+        '/static/homeos-icon-192-h3.png',
+        '/static/homeos-icon-192-h4.png',
+        '/static/homeos-icon-192-h5.png',
+        '/static/homeos-icon-512-h3.png',
+        '/static/homeos-icon-512-h4.png',
+        '/static/homeos-icon-512-h5.png',
+        '/static/homeos-mark-black-orange.svg',
+        '/static/homeos-mark-white-orange.svg'}
 
     def premium_asset(path: str) -> bool:
         return (
             path.startswith('/assets/builtin/')
             or path == '/assets/builtin'
-            or (path.startswith('/bridge-static/') and path not in public_static_files)
+            or (path.startswith('/static/') and path not in public_static_files)
         )
 
     def immutable_private_asset(path: str) -> bool:
@@ -357,7 +360,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             path == '/'
             or path in {'/pair', '/login', '/setup', '/license', '/3d-studio'}
             or path.startswith('/api/v1/')
-            or path.startswith('/bridge-static/')
+            or path.startswith('/static/')
             or path.startswith('/assets/builtin/')
             or path.startswith('/display/')
             or path.startswith('/habridge/')
@@ -378,7 +381,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             response.headers['X-Frame-Options'] = 'SAMEORIGIN' if same_origin_frame else 'DENY'
             response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
         model_asset = (
-            path.startswith('/bridge-static/3d-studio/models/')
+            path.startswith('/static/3d-studio/models/')
             and Path(path).suffix.lower() in {'.bin', '.glb', '.jpg', '.png', '.gltf', '.jpeg', '.ktx2', '.webp'}
         )
         if model_asset and response.status_code in {304, 200, 206}:
@@ -389,8 +392,8 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             or path.startswith('/display/')
             or path.startswith('/habridge/')
             or path.startswith('/projects/')
-            or path.startswith('/bridge-static/3d-studio/')
-            or path in {'/bridge-static/display.js', '/bridge-static/display.css'}
+            or path.startswith('/static/3d-studio/')
+            or path in {'/static/display.js', '/static/display.css'}
         ):
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'
@@ -421,12 +424,12 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     @app.get('/favicon.ico', include_in_schema = False)
     def favicon() -> FileResponse:
-        return FileResponse(app_settings.frontend_dir / 'static' / 'ha-bridge-favicon-h5.ico', media_type = 'image/x-icon')
+        return FileResponse(app_settings.frontend_dir / 'static' / 'homeos-favicon-h5.ico', media_type = 'image/x-icon')
 
     @app.get('/apple-touch-icon.png', include_in_schema = False)
     @app.get('/apple-touch-icon-precomposed.png', include_in_schema = False)
     def apple_touch_icon() -> FileResponse:
-        return FileResponse(app_settings.frontend_dir / 'static' / 'ha-bridge-icon-180-h5.png', media_type = 'image/png')
+        return FileResponse(app_settings.frontend_dir / 'static' / 'homeos-icon-180-h5.png', media_type = 'image/png')
 
     @app.get('/assets/builtin/{asset_path:path}', include_in_schema = False)
     def built_in_asset(asset_path: str, request: Request) -> FileResponse:

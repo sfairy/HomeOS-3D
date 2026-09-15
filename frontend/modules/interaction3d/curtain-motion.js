@@ -9,11 +9,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../static/3d-studio/studio-curtain-track.js?v=20260915153337",
+        "../../static/3d-studio/studio-curtain-track.js?v=20260915211726",
         import.meta.url
       )
     )
-  : import("/bridge-static/3d-studio/studio-curtain-track.js?v=20260915153337"));
+  : import("/static/3d-studio/studio-curtain-track.js?v=20260915211726"));
 const DIRECTION_SET = new Set(["left", "right", "split"]);
 const CLOTH_PART_SET = new Set(["cloth", "band"]);
 const TRACK_PART_SET = new Set(["rod", "cap", ...CLOTH_PART_SET]);

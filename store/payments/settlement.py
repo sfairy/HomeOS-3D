@@ -6,8 +6,9 @@
 两个关键取舍：
 
 1. **订单已超时关闭但钱确实收到了，仍然照常发码。** 钱在用户那边已经扣了，
-   如果这里把订单当过期丢掉，用户就得走人工客服。库存那边 ``fulfill_order``
-   内部用 ``max(0, ...)`` 释放，重复释放不会变成负数。
+   如果这里把订单当过期丢掉，用户就得走人工客服。这类「复活」单的库存预留
+   在进入终态时就已经释放过，所以必须给 ``fulfill_order`` 传
+   ``release_stock=False``——否则会扣掉其它待支付订单的预留额度。
 2. **用条件 UPDATE 做幂等。** 支付宝会重复推送通知，而查单可能和通知同时到达；
    两个线程各自读到「未履约」就会重复发码。所以状态流转交给带条件的
    UPDATE，谁抢到谁入账。
@@ -79,7 +80,15 @@ def settle_paid_order(
 
     # 手动发卡商品只标记已支付，等管理员核对后发码
     if order.fulfillment_mode != "manual":
-        fulfill.fulfill_order(session, order=order, setting=setting)
+        # expired / cancelled / payment_failed 在进入终态时已经释放过库存预留，
+        # 这里是「钱到账了所以补发」，不能再扣一次预留（否则等于偷走其它待支付
+        # 订单占的额度，直接放开超卖）。
+        fulfill.fulfill_order(
+            session,
+            order=order,
+            setting=setting,
+            release_stock=original_status not in {"expired", "cancelled", "payment_failed"},
+        )
 
     session.refresh(order)
     logger.info(

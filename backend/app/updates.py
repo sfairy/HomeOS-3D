@@ -39,7 +39,7 @@ def stable_version(value: str) -> tuple[int, int, int] | None:
 def release_value(payload: dict, channel: str) -> dict | None:
     if (
         not isinstance(payload, dict)
-        or payload.get("product") != "ha-bridge"
+        or payload.get("product") != "homeos"
         or payload.get("channel") != channel
         or "release" not in payload
     ):
@@ -137,7 +137,7 @@ class UpdateChecker:
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             data = {
-                "product": "ha-bridge",
+                "product": "homeos",
                 "channel": self.channel,
                 "release": self.release,
                 "checkedAt": self.checked_at,

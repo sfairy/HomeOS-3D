@@ -191,10 +191,12 @@ def check_theme_matches_app() -> None:
     这是防「静默漂移」的：主程序改了配色而商店没跟，肉眼一时看不出，但两套
     界面会慢慢变得不像同一个产品。这里把画布色、强调色、成功色直接对齐成硬断言。
 
-    同时锁定两条加载顺序约定（都踩过坑）：
-      · ``theme.css`` 必须是 store.html 里**最后**一张样式表，否则会被
-        bridge-store.css / merged.css 的浅色主题按源码顺序压回去；
-      · admin.html 不得再有内联 ``<style>``，后台皮肤统一走 theme.css + admin.css。
+    同时锁定样式表的职责分层（换过两代主题，都踩过坑）：
+      · ``theme.css`` 是唯一设计系统，必须**先于**页面样式表加载——``store.css``
+        / ``admin.css`` 只排布局、不定义组件，反了就会出现「页面覆盖组件」；
+      · 模板只允许引用这三张自有样式表（字体除外），任何新增的「补丁层」都会
+        在这里被拦下；
+      · ``admin.html`` 不得再有内联 ``<style>``，后台皮肤统一走外置文件。
     """
     static_dir = STORE_ROOT / "static"
     templates_dir = STORE_ROOT / "templates"
@@ -235,10 +237,23 @@ def check_theme_matches_app() -> None:
     admin_html = (templates_dir / "admin.html").read_text(encoding="utf-8")
 
     store_sheets = stylesheet_urls(store_html)
+    allowed_store_sheets = {
+        "/store-static/font.min.css",
+        "/store-static/theme.css",
+        "/store-static/store.css",
+    }
     check(
-        "theme.css 是 store.html 最后一张样式表",
-        bool(store_sheets) and store_sheets[-1] == "/store-static/theme.css",
-        f"实际结尾: {store_sheets[-3:]}",
+        "store.html 只引用字体 + 设计系统 + 前台页面样式表",
+        bool(store_sheets) and set(store_sheets) <= allowed_store_sheets,
+        f"多余: {sorted(set(store_sheets) - allowed_store_sheets)}",
+    )
+    check(
+        "theme.css 先于 store.css 加载（设计系统不被页面布局覆盖）",
+        "/store-static/theme.css" in store_sheets
+        and "/store-static/store.css" in store_sheets
+        and store_sheets.index("/store-static/theme.css")
+        < store_sheets.index("/store-static/store.css"),
+        f"实际顺序: {store_sheets}",
     )
 
     admin_sheets = stylesheet_urls(admin_html)
@@ -249,9 +264,17 @@ def check_theme_matches_app() -> None:
         str(admin_sheets),
     )
     check(
+        "theme.css 先于 admin.css 加载（设计系统不被页面布局覆盖）",
+        "/store-static/theme.css" in admin_sheets
+        and "/store-static/admin.css" in admin_sheets
+        and admin_sheets.index("/store-static/theme.css")
+        < admin_sheets.index("/store-static/admin.css"),
+        f"实际顺序: {admin_sheets}",
+    )
+    check(
         "admin.html 不再内联 <style>（后台皮肤已外置）",
         "<style" not in admin_html,
-        "模板里仍存在 <style> 块",
+        "模板里仍存在 <style> 块" if "<style" in admin_html else "无内联样式块",
     )
 
 
@@ -285,129 +308,137 @@ def check_addon_card_layout() -> None:
     )
 
 
-def _css_luminance(color: tuple[int, int, int]) -> float:
-    """WCAG 相对亮度。用来判断一个背景算不算「浅色」。"""
+def check_legacy_stylesheets_removed() -> None:
+    """参考站的浅色样板表与 Bootstrap 必须彻底消失，且不能再回来。
 
-    def channel(value: float) -> float:
-        value /= 255
-        return value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4
+    这几份文件曾经是「基线」：theme.css 只是个补丁层，靠加载顺序 + 提高特异性把
+    它们的浅色规则硬压成暗色。布局大重构后 theme.css 本身就是暗色的，留着它们
+    只会让任何布局改动都要同时打赢两层，而且它们引用的浅色值随时可能把某个漏掉
+    的块翻回白底。
 
-    r, g, b = (channel(component) for component in color)
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
-
-
-def _css_rgb(raw: str) -> tuple[int, int, int] | None:
-    """只认不透明（或基本不透明）的颜色字面量；解析不出来返回 None。"""
-    value = raw.strip().lower()
-    match = re.fullmatch(r"#([0-9a-f]{6})", value)
-    if match:
-        digits = match.group(1)
-        return tuple(int(digits[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
-    match = re.fullmatch(r"#([0-9a-f]{3})", value)
-    if match:
-        return tuple(int(char * 2, 16) for char in match.group(1))  # type: ignore[return-value]
-    match = re.fullmatch(
-        r"rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)", value
-    )
-    if match:
-        if match.group(4) is not None and float(match.group(4)) < 0.5:
-            return None
-        return tuple(int(float(match.group(i))) for i in (1, 2, 3))  # type: ignore[return-value]
-    return None
-
-
-def _css_specificity(selector: str) -> tuple[int, int, int]:
-    """粗糙但够用的特异性计数（id, class/attr/伪类, 元素）。"""
-    cleaned = re.sub(r"\([^)]*\)", "", selector)
-    ids = len(re.findall(r"#[\w-]+", cleaned))
-    classes = (
-        len(re.findall(r"\.[\w-]+", cleaned))
-        + len(re.findall(r"\[[^\]]+\]", cleaned))
-        + len(re.findall(r":(?!:)[\w-]+", cleaned))
-    )
-    elements = len(re.findall(r"(?:^|[\s>+~])([a-zA-Z][\w-]*)", cleaned))
-    return (ids, classes, elements)
-
-
-def _css_rules(text: str) -> list[tuple[str, str]]:
-    """极简 CSS 规则抽取：返回 (选择器原文, 声明体)。注释先剥掉。"""
-    stripped = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
-    return [
-        (match.group(1).strip(), match.group(2))
-        for match in re.finditer(r"([^{}]+)\{([^}]*)\}", stripped)
-    ]
-
-
-def _css_selectors(text: str) -> list[str]:
-    """拆分选择器列表并归一化空白。
-
-    归一化很重要：``.a > span`` 和 ``.a>span`` 是同一个选择器，如果按字面比较，
-    检查会把「已经覆盖了」误判成「没覆盖」（这条断言自己就踩过一次）。
-    """
-    normalized = []
-    for part in text.split(","):
-        selector = re.sub(r"\s+", " ", part.strip())
-        selector = re.sub(r"\s*([>+~])\s*", r"\1", selector)
-        if selector:
-            normalized.append(selector)
-    return normalized
-
-
-def check_theme_covers_light_blocks() -> None:
-    """第三方浅色样式表里每一处浅色背景，都必须被 theme.css 以**同等或更高特异性**覆盖。
-
-    theme.css 是补丁层：那些参考站原样搬过来的样式表仍是浅色主题，我们靠覆盖把它们
-    刷成暗色。危险之处在于「漏一处」不会报错，只是页面某块地方留着一块白斑——
-    账号中心的功能码芯片（#eef4fa）、收银页的「购买账号」区块（#f7faff）、
-    「授权服务在线」徽标（rgba(255,255,255,.8)）都是这样漏了一轮才发现的。
-
-    比「漏了」更隐蔽的是「覆盖了但压不过」：
-      · ``.hb-account-meta span``（0,1,1）会压过 ``.hb-meta-chip--accent``（0,1,0）
-      · ``.hb-store-body .hb-checkout-form .form-control:focus``（0,3,1）会压过
-        ``.hb-store-body .form-control:focus``（0,2,1）
-    所以这里连特异性一起比，而不是只查选择器名字出现过没有。
-
-    只检查类名出现在 ``templates/*.html`` 里的规则：参考站的查询页 / 找回页样式
-    （``.hb-query-*``、``.hb-recovery-*``）在本副本里没有对应模板，属于死代码。
+    这里守三件事：文件没了、模板与收银页不再引用、没有任何样式文件再退回
+    「Bootstrap 变量桥接」的写法。
     """
     static_dir = STORE_ROOT / "static"
-    theme_css = (static_dir / "theme.css").read_text(encoding="utf-8")
-    markup = "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in sorted((STORE_ROOT / "templates").glob("*.html"))
+    templates_dir = STORE_ROOT / "templates"
+    legacy = (
+        "bootstrap.min.css",
+        "bridge-store.css",
+        "merged.css",
+        "referrals.css",
+        "product-packages.css",
     )
 
-    theme_by_selector: dict[str, list[tuple[int, int, int]]] = {}
-    for selector_text, _body in _css_rules(theme_css):
-        for selector in _css_selectors(selector_text):
-            theme_by_selector.setdefault(selector, []).append(_css_specificity(selector))
-
-    uncovered: list[str] = []
-    for legacy in ("merged.css", "bridge-store.css", "referrals.css", "product-packages.css"):
-        path = static_dir / legacy
-        if not path.is_file():
-            continue
-        for selector_text, body in _css_rules(path.read_text(encoding="utf-8")):
-            light = None
-            for prop, raw in re.findall(r"(background(?:-color)?)\s*:\s*([^;]+)", body):
-                color = _css_rgb(raw)
-                if color is not None and _css_luminance(color) > 0.30:
-                    light = (prop, raw.strip(), round(_css_luminance(color), 2))
-            if light is None:
-                continue
-            for selector in _css_selectors(selector_text):
-                classes = re.findall(r"\.([\w-]+)", selector)
-                if not classes or any(name not in markup for name in classes):
-                    continue  # 本副本没有对应模板 = 死代码
-                needed = _css_specificity(selector)
-                covered = theme_by_selector.get(selector) or []
-                if not covered or max(covered) < needed:
-                    uncovered.append(f"{legacy} {selector} -> {light[1]}")
-
+    surviving = [name for name in legacy if (static_dir / name).is_file()]
     check(
-        "浅色样板表中被模板引用的浅色背景均已被 theme.css 覆盖",
-        not uncovered,
-        f"未覆盖: {'; '.join(sorted(set(uncovered))[:6])}" if uncovered else "共检查 4 张样板表",
+        "参考站样板表与 Bootstrap 已删除",
+        not surviving,
+        f"仍存在: {surviving}" if surviving else f"已删除 {len(legacy)} 张旧样式表",
+    )
+
+    referenced_sources = {
+        "templates/*.html": "\n".join(
+            path.read_text(encoding="utf-8") for path in sorted(templates_dir.glob("*.html"))
+        ),
+        "api/pages.py": (STORE_ROOT / "api" / "pages.py").read_text(encoding="utf-8"),
+    }
+    referenced = [
+        f"{name} <- {source}"
+        for source, text in referenced_sources.items()
+        for name in legacy
+        if name in text
+    ]
+    check(
+        "模板与模拟收银页不再引用已删样式表",
+        not referenced,
+        f"仍引用: {referenced}" if referenced else "无残留引用",
+    )
+
+    bridged = sorted(
+        path.name
+        for path in static_dir.glob("*.css")
+        if re.search(r"--bs-[\w-]+\s*:", path.read_text(encoding="utf-8"))
+    )
+    check(
+        "不再保留 Bootstrap 变量桥接层",
+        not bridged,
+        f"仍声明 --bs-* 变量: {bridged}" if bridged else "无 --bs-* 变量",
+    )
+
+
+# 纯 DOM 钩子：JS 只拿它当 querySelector 的锚点，本身不承担任何视觉职责。
+#   · hb-store-brand-mark —— 顶栏/维护页的品牌图，尺寸由父级 .hb-brand-mark 决定
+#   · hb-payment-close    —— 支付弹窗关闭按钮，外观走 .hb-dialog__close
+#   · hb-*-dialog         —— 三个弹窗的语义标识，外观统一走 .hb-dialog
+HOOK_ONLY_CLASSES = frozenset(
+    {
+        "hb-store-brand-mark",
+        "hb-payment-close",
+        "hb-payment-dialog",
+        "hb-pending-order-dialog",
+        "hb-release-dialog",
+    }
+)
+
+# 图标类来自 font.min.css，不在自研设计系统范围内。
+VENDOR_CLASS_PREFIXES = ("fa", "flag-")
+
+
+def _emitted_class_names(text: str) -> set[str]:
+    """抽出 ``class="..."`` 字面量里的类名（含 JS 模板字符串里的那些）。
+
+    模板字符串里会嵌 ``${...}``，直接按空白切会切出 ``${tone}``、``pill--`` 这类
+    碎片。这里只保留长得像类名的 token，并丢掉以 ``-`` 结尾的（它们是
+    ``hb-meta-chip--${variant}`` 被截断后的产物，对应的完整变体另有字面量）。
+    """
+    names: set[str] = set()
+    for raw in re.findall(r"class=[\"']([^\"']*)[\"']", text):
+        for token in raw.split():
+            if not re.fullmatch(r"[A-Za-z][\w-]*", token) or token.endswith("-"):
+                continue
+            names.add(token)
+    return names
+
+
+def check_design_class_coverage() -> None:
+    """JS / 模板输出的每个类名，都必须能在自研样式表里找到定义。
+
+    布局重写最典型的静默回归是「新加的类名没有对应样式」：节点照样渲染出来，
+    只是没有边框、内边距和配色，看起来像页面坏了，而控制台一声不响。这里把
+    store.js / referrals.js / admin.html（含内联脚本）与两份模板里 ``class=``
+    字面量抽出来，逐个到 theme.css + store.css + admin.css 里核对。
+
+    只检查模板字面量（``class="..."``）里的类名——这些是渲染路径上真正决定外观
+    的东西；纯类名拼接（``classList.toggle('mobile-open')``）另由行为测试覆盖。
+    """
+    static_dir = STORE_ROOT / "static"
+    templates_dir = STORE_ROOT / "templates"
+    css = "\n".join(
+        (static_dir / name).read_text(encoding="utf-8")
+        for name in ("theme.css", "store.css", "admin.css")
+    )
+    defined = set(re.findall(r"\.([A-Za-z][\w-]*)", css))
+
+    sources = (
+        static_dir / "store.js",
+        static_dir / "referrals.js",
+        templates_dir / "store.html",
+        templates_dir / "admin.html",
+    )
+    emitted: dict[str, set[str]] = {}
+    for source in dict.fromkeys(sources):
+        for name in _emitted_class_names(source.read_text(encoding="utf-8")):
+            if name.startswith(VENDOR_CLASS_PREFIXES) or name in HOOK_ONLY_CLASSES:
+                continue
+            emitted.setdefault(name, set()).add(source.name)
+
+    missing = sorted(name for name in emitted if name not in defined)
+    check(
+        "store.js / referrals.js / 模板输出的类名均在自研样式表中有定义",
+        not missing,
+        f"未定义: {[f'{name} ({', '.join(sorted(emitted[name]))})' for name in missing[:8]]}"
+        if missing
+        else f"共核对 {len(emitted)} 个类名",
     )
 
 
@@ -999,8 +1030,9 @@ async def run() -> int:
     check_static_assets()
     check_frontend_api_contract()
     check_theme_matches_app()
+    check_legacy_stylesheets_removed()
+    check_design_class_coverage()
     check_addon_card_layout()
-    check_theme_covers_light_blocks()
     check_account_meta_chip_tokens()
     check_alipay_signing()
     await check_verification_isolation()
@@ -1136,7 +1168,7 @@ async def run() -> int:
         updates = (await client.get("/store/v1/updates/latest?channel=docker")).json()
         check(
             "GET /updates/latest 返回版本",
-            updates["release"] and updates["release"]["version"] == "0.4.6",
+            updates["release"] and updates["release"]["version"] == "0.5.5",
             str(updates["release"]),
         )
 
@@ -1232,7 +1264,7 @@ async def run() -> int:
             {
                 "activationCode": activation_code,
                 "instanceId": INSTANCE_ID,
-                "product": "ha-bridge",
+                "product": "homeos",
                 "clientVersion": CLIENT_VERSION,
                 "nonce": "smoke-nonce-activate",
                 "email": email,
@@ -1393,7 +1425,7 @@ async def run() -> int:
         release = await client.post(
             "/store-admin/v1/releases",
             json={
-                "product": "ha-bridge",
+                "product": "homeos",
                 "channel": "addon",
                 "version": "1.0.0",
                 "releaseDate": "2026-09-14",
@@ -1433,7 +1465,7 @@ async def run() -> int:
             {
                 "activationCode": activation_code,
                 "instanceId": "another-instance-0000000000000002",
-                "product": "ha-bridge",
+                "product": "homeos",
                 "clientVersion": CLIENT_VERSION,
                 "nonce": "smoke-nonce-cooldown",
                 "email": email,
@@ -1452,7 +1484,7 @@ async def run() -> int:
             {
                 "activationCode": activation_code,
                 "instanceId": INSTANCE_ID,
-                "product": "ha-bridge",
+                "product": "homeos",
                 "clientVersion": CLIENT_VERSION,
                 "nonce": "smoke-nonce-disabled",
                 "email": email,
@@ -1467,7 +1499,7 @@ async def run() -> int:
             {
                 "activationCode": "HB-0000-0000-0000-0000-0000-0000",
                 "instanceId": INSTANCE_ID,
-                "product": "ha-bridge",
+                "product": "homeos",
                 "clientVersion": CLIENT_VERSION,
                 "nonce": "smoke-nonce-unknown",
                 "email": email,
@@ -1740,7 +1772,7 @@ async def run() -> int:
         {
             "activationCode": manual_code,
             "instanceId": "smoke-manual-instance-000000000002",
-            "product": "ha-bridge",
+            "product": "homeos",
             "clientVersion": CLIENT_VERSION,
             "nonce": "smoke-nonce-manual",
             "email": email,
@@ -2201,7 +2233,9 @@ async def run() -> int:
             )
         )
     # 夹具刻意没有同步 Coupon.redeemed_count（仍是默认 0），正是「计数列漂移」的场景。
-    # 列表用量必须数 coupon_redemptions，否则确认弹窗会误报「尚未被使用」。
+    # 两个用量字段回答不同问题，必须各归各：
+    #   redemptionCount = 数 coupon_redemptions（历史凭证 + 删除守卫判据）→ 1
+    #   redeemedCount   = 读计数列（此刻仍占用的名额，参与名额校验）      → 0
     used_row = next(
         (
             item
@@ -2211,8 +2245,13 @@ async def run() -> int:
         None,
     )
     check(
-        "优惠码列表用量以核销记录为准（计数列漂移时仍准确）",
-        used_row is not None and used_row.get("redeemedCount") == 1,
+        "优惠码列表的历史用量以核销记录为准（计数列漂移时仍准确）",
+        used_row is not None and used_row.get("redemptionCount") == 1,
+        str(used_row and used_row.get("redemptionCount")),
+    )
+    check(
+        "优惠码列表的占用名额以计数列为准（不被历史记录撑大）",
+        used_row is not None and used_row.get("redeemedCount") == 0,
         str(used_row and used_row.get("redeemedCount")),
     )
     used_deleted = await client.delete(f"/store-admin/v1/coupons/{used_coupon['id']}")
@@ -2277,7 +2316,7 @@ async def run() -> int:
     release_created = (
         await client.post(
             "/store-admin/v1/releases",
-            json={"product": "ha-bridge", "channel": "docker", "version": "0.0.0-smoke-delete"},
+            json={"product": "homeos", "channel": "docker", "version": "0.0.0-smoke-delete"},
         )
     ).json()
     release_deleted = await client.delete(f"/store-admin/v1/releases/{release_created['id']}")
@@ -2501,13 +2540,14 @@ async def run() -> int:
         os.environ.update(saved_env)
 
     # ------------------------------------------------------------------ #
-    # 11. 静态资源完整性（防下载截断）+ 前后端方法契约 + 主题令牌对齐
+    # 11. 静态资源完整性（防下载截断）+ 前后端方法契约 + 设计系统单一来源
     # ------------------------------------------------------------------ #
     check_static_assets()
     check_frontend_api_contract()
     check_theme_matches_app()
+    check_legacy_stylesheets_removed()
+    check_design_class_coverage()
     check_addon_card_layout()
-    check_theme_covers_light_blocks()
     check_account_meta_chip_tokens()
 
     shutil.rmtree(workdir, ignore_errors=True)

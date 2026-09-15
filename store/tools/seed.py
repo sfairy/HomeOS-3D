@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from store.app import create_app
 from store.config import load_settings
+from store.migrations import ensure_current_release
 from store.models import Account, Product, ProductImage, Release, StoreSetting
 from store.security import hash_password
 from store.serializers import list_json
@@ -81,7 +82,7 @@ def seed_products(session: Session) -> dict[str, Product]:
     if base is None:
         base = Product(
             name="编辑器+栖光UI+绘制工具",
-            product_code="ha-bridge",
+            product_code="homeos",
             price_cents=4990,
             validity_days=None,
             product_type="base",
@@ -99,7 +100,7 @@ def seed_products(session: Session) -> dict[str, Product]:
     if module is None:
         module = Product(
             name="3D交互包",
-            product_code="ha-bridge",
+            product_code="homeos",
             price_cents=3990,
             validity_days=None,
             product_type="module",
@@ -117,7 +118,7 @@ def seed_products(session: Session) -> dict[str, Product]:
     if package is None:
         package = Product(
             name="编辑器+栖光UI+绘制工具+3D交互",
-            product_code="ha-bridge",
+            product_code="homeos",
             price_cents=7990,
             validity_days=None,
             product_type="package",
@@ -137,25 +138,13 @@ def seed_products(session: Session) -> dict[str, Product]:
 
 
 def seed_release(session: Session) -> None:
-    exists = session.scalars(select(Release).limit(1)).first()
-    if exists is not None:
-        logger.info("版本记录已存在，跳过。")
-        return
-    session.add(
-        Release(
-            product="ha-bridge",
-            channel="docker",
-            version="0.4.6",
-            release_date="2026-09-01",
-            upgrade_notes=(
-                "1. 自动户型图支持选择全楼或指定楼层生成。\n"
-                "2. 管理员账号改为独立存储。\n"
-                "3. 优化 3D 灯光预加载与反向代理下的模型加载。"
-            ),
-        )
-    )
-    session.flush()
-    logger.info("已写入 docker 渠道版本记录 0.4.6")
+    """写入当前版本的发布记录。
+
+    记录内容（版本号、日期、升级说明）统一由 ``store.migrations`` 维护，
+    这里只负责在初始化脚本里触发一次，避免同一个版本号写两处、seed 与启动
+    迁移各说各话。
+    """
+    ensure_current_release(session)
 
 
 def seed_settings(session: Session) -> StoreSetting:

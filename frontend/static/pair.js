@@ -21,7 +21,7 @@ function applyPairingHash() {
       );
       ((codeInput.value = pairingLink.code),
         (codeInput.closest("label").hidden = !0),
-        (document.querySelector("#pair-title").textContent = "\u8FDE\u63A5 HA Bridge"),
+        (document.querySelector("#pair-title").textContent = "\u8FDE\u63A5 HomeOS"),
         (document.querySelector("#pair-description").textContent =
           "\u5DF2\u8BC6\u522B\u914D\u5BF9\u4E8C\u7EF4\u7801\uFF0C\u70B9\u51FB\u8FDE\u63A5\u5373\u53EF\u6253\u5F00\u4F60\u7684\u9762\u677F\u3002"),
         (formElement.querySelector('button[type="submit"] span').textContent = "\u8FDE\u63A5"));
@@ -32,7 +32,7 @@ function applyPairingHash() {
     }
   }
 }
-(window.addEventListener("ha-bridge-pairing-link", applyPairingHash),
+(window.addEventListener("homeos-pairing-link", applyPairingHash),
   applyPairingHash(),
   codeInput.addEventListener("input", () => {
     codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 6);

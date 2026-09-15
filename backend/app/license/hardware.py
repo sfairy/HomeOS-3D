@@ -126,11 +126,11 @@ def hardware_identity(*, machine_override: str = '', board_override: str = '', r
         machine = f'development-machine:{platform.node()}'
     if not board:
         board = f'development-board:{platform.node()}'
-    material = f'ha-bridge-hardware-v1\x00machine={machine}\x00board={board}'.encode('utf-8')
+    material = f'homeos-hardware-v1\x00machine={machine}\x00board={board}'.encode('utf-8')
     return HardwareIdentity(
         instance_id=hashlib.sha256(material).hexdigest(),
-        machine_id=hashlib.sha256(f'ha-bridge-machine-v1\x00{machine}'.encode('utf-8')).hexdigest(),
-        board_id=hashlib.sha256(f'ha-bridge-board-v1\x00{board}'.encode('utf-8')).hexdigest())
+        machine_id=hashlib.sha256(f'homeos-machine-v1\x00{machine}'.encode('utf-8')).hexdigest(),
+        board_id=hashlib.sha256(f'homeos-board-v1\x00{board}'.encode('utf-8')).hexdigest())
 
 
 def hardware_instance_id(*, machine_override: str = '', board_override: str = '', required: bool = True, fallback_path: Path | None = None) -> str:

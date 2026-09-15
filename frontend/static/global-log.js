@@ -259,7 +259,7 @@ export function setupGlobalLog({ api: apiRequest }) {
     const exportParams = buildQueryParams();
     downloadLink.href = "/api/v1/logs/export" + (exportParams.size ? "?" + exportParams : "");
     downloadLink.download =
-      "ha-bridge-global-log-" + new Date().toISOString().slice(0, 10) + ".txt";
+      "homeos-global-log-" + new Date().toISOString().slice(0, 10) + ".txt";
     document.body.append(downloadLink);
     downloadLink.click();
     downloadLink.remove();

@@ -38,7 +38,7 @@ export function licenseCardData(licenseData = {}) {
         )
     },
     rights = [
-      { name: "HA Bridge \u7F16\u8F91\u5668", enabled: isLicensed && !!featureAccess.editor },
+      { name: "HomeOS \u7F16\u8F91\u5668", enabled: isLicensed && !!featureAccess.editor },
       {
         name: "3D \u4EA4\u4E92\u529F\u80FD\u589E\u91CF\u5305",
         enabled: isLicensed && !!featureAccess.interaction3d
@@ -64,7 +64,7 @@ export function licenseCardData(licenseData = {}) {
       products
         .map(namedProduct => namedProduct.name.trim())
         .filter(Boolean)
-        .join(" \xB7 ") || "HA Bridge \u7F16\u8F91\u5668",
+        .join(" \xB7 ") || "HomeOS \u7F16\u8F91\u5668",
     validity: formatValidity(primaryProduct || products[0]),
     validityNote:
       products.length > 1

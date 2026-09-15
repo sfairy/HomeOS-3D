@@ -2,8 +2,8 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../../editor-picker-pagination.js?v=20260915153337";
-import { createEditorPickerQueries } from "../../editor-picker-queries.js?v=20260915153337";
+} from "../../editor-picker-pagination.js?v=20260915211726";
+import { createEditorPickerQueries } from "../../editor-picker-queries.js?v=20260915211726";
 import { vacuumProfiles } from "./vacuum-catalog.js";
 import { nasProfiles } from "./nas-catalog.js";
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
@@ -340,7 +340,7 @@ export function createInteraction3dEditorPickers({
         pageSize: EDITOR_PICKER_PAGE_SIZES.entity,
         itemClass: "entity-list",
         emptyText:
-          "未找到飞牛或群晖设备。请确认 Home Assistant 已接入对应集成，并在 HA Bridge 同步设备目录。",
+          "未找到飞牛或群晖设备。请确认 Home Assistant 已接入对应集成，并在 HomeOS 同步设备目录。",
         getPage: ({ query: nasQuery, page: nasPage }) =>
           editorEntityPickerPage(
             nasOptions.filter(nasOption =>

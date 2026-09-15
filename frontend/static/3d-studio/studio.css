@@ -234,7 +234,7 @@ button:disabled {
 }
 .brand-logo {
   display: block;
-  width: 42px;
+  width: 32px;
   height: 32px;
   object-fit: contain;
 }
@@ -725,13 +725,13 @@ button:disabled {
   pointer-events: none;
 }
 .light-asset-icon-downlight {
-  --light-asset-icon: url(/bridge-static/vendor/mdi/7.4.47/svg/light-recessed.svg);
+  --light-asset-icon: url(/static/vendor/mdi/7.4.47/svg/light-recessed.svg);
 }
 .light-asset-icon-ceiling {
-  --light-asset-icon: url(/bridge-static/vendor/mdi/7.4.47/svg/ceiling-light-outline.svg);
+  --light-asset-icon: url(/static/vendor/mdi/7.4.47/svg/ceiling-light-outline.svg);
 }
 .light-asset-icon-strip {
-  --light-asset-icon: url(/bridge-static/vendor/mdi/7.4.47/svg/led-strip-variant.svg);
+  --light-asset-icon: url(/static/vendor/mdi/7.4.47/svg/led-strip-variant.svg);
 }
 .light-layer-panel {
   display: grid;

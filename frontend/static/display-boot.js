@@ -1,7 +1,7 @@
 (() => {
   const documentElement = document.documentElement,
     isCapturePreview = new URLSearchParams(location.search).get("capturePreview") === "1",
-    themeStorageKey = `ha-bridge:display-theme:${location.pathname}`;
+    themeStorageKey = `homeos:display-theme:${location.pathname}`;
   documentElement.classList.toggle("capture-preview", isCapturePreview);
   try {
     const storedTheme = localStorage.getItem(themeStorageKey);

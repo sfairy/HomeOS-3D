@@ -12,9 +12,9 @@ from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
-from store import fulfill, mailer, password_gate, referrals, site_settings
+from store import coupons, fulfill, mailer, password_gate, referrals, site_settings
 from store.config import StoreSettings
 from store.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
 from store.models import (
@@ -150,16 +150,21 @@ def _clear_session_cookies(request: Request, response: Response) -> None:
 def _create_session(session, request: Request, account: Account) -> str:
     token = new_token(32)
     settings: StoreSettings = request.app.state.settings
+    moment = utcnow()
     session.add(
         AccountSession(
             id_hash=token_hash(token),
             account_id=account.id,
-            expires_at=utcnow() + timedelta(seconds=settings.session_max_age_seconds),
+            # 诊断页要靠这个字段区分「谁在用后台」。登录那一刻账号是否管理员就定了；
+            # 之后被提权/降权的账号，等下次登录才会更新到新值。
+            is_admin_session=bool(account.is_admin),
+            expires_at=moment + timedelta(seconds=settings.session_max_age_seconds),
+            last_seen_at=moment,
             ip_address=request.client.host if request.client else None,
             user_agent=(request.headers.get("user-agent") or "")[:512] or None,
         )
     )
-    account.last_login_at = utcnow()
+    account.last_login_at = moment
     session.flush()
     return token
 
@@ -236,35 +241,9 @@ def _expire_stale_orders(session, setting: StoreSetting) -> None:
         order.cancelled_at = moment
         product = session.get(Product, order.product_id) if order.product_id else None
         fulfill.release_reserved_stock(session, product, 1)
-        if order.coupon_code:
-            _release_coupon(session, order)
+        coupons.release_coupon(session, order)
     if stale:
         session.flush()
-
-
-def _release_coupon(session, order: Order) -> None:
-    if not order.coupon_code:
-        return
-    coupon = session.scalars(
-        select(Coupon).where(func.lower(Coupon.code) == order.coupon_code.lower())
-    ).first()
-    if coupon is None:
-        return
-    coupon.redeemed_count = max(0, int(coupon.redeemed_count or 0) - 1)
-    session.flush()
-
-
-def _redeem_coupon(session, order: Order, coupon: Coupon, account: Account, discount: int) -> None:
-    coupon.redeemed_count = int(coupon.redeemed_count or 0) + 1
-    session.add(
-        CouponRedemption(
-            coupon_id=coupon.id,
-            account_id=account.id,
-            order_id=order.id,
-            discount_cents=discount,
-        )
-    )
-    session.flush()
 
 
 def _evaluate_coupon(
@@ -287,10 +266,23 @@ def _evaluate_coupon(
     if coupon.max_redemptions is not None and int(coupon.redeemed_count or 0) >= coupon.max_redemptions:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="优惠码已被领完。")
     if coupon.per_account_limit:
+        # 「这个账号用过没有」不能只看有没有核销记录：订单取消/超时/支付失败时
+        # release_coupon 已经把名额还回去了（见 store/coupons.py 的 RELEASED_STATUSES），
+        # 但核销记录会作为历史凭证永久保留。如果这里把所有记录都算成「已使用」，
+        # per_account_limit=1 的用户只要有一单被取消，就永久失去这个优惠码 ——
+        # 名额明明还在，却永远提示「你已使用过」。
+        # 反过来说，refunded（已退款）不在 RELEASED_STATUSES 里：码确实被用掉了，不还名额。
         used = session.execute(
             select(func.count(CouponRedemption.id))
+            .outerjoin(Order, Order.id == CouponRedemption.order_id)
             .where(CouponRedemption.coupon_id == coupon.id)
             .where(CouponRedemption.account_id == account.id)
+            .where(
+                or_(
+                    CouponRedemption.order_id.is_(None),
+                    Order.status.notin_(coupons.RELEASED_STATUSES),
+                )
+            )
         ).scalar_one()
         if int(used or 0) >= int(coupon.per_account_limit):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="你已使用过该优惠码。")
@@ -446,13 +438,13 @@ def product_detail(product_id: str, session: DbSession) -> dict:
 def latest_release(request: Request, session: DbSession, channel: str = "docker") -> JSONResponse:
     release = session.scalars(
         select(Release)
-        .where(Release.product == "ha-bridge")
+        .where(Release.product == "homeos")
         .where(Release.channel == channel)
         .order_by(Release.created_at.desc())
         .limit(1)
     ).first()
     payload = {
-        "product": "ha-bridge",
+        "product": "homeos",
         "channel": channel,
         "release": None
         if release is None
@@ -891,7 +883,7 @@ def create_order(
     session.flush()
 
     if coupon is not None:
-        _redeem_coupon(session, order, coupon, account, discount)
+        coupons.redeem_coupon(session, order, coupon, account, discount)
     fulfill.reserve_stock(session, product, 1)
 
     import json as _json
@@ -929,8 +921,7 @@ def create_order(
     except PaymentError as error:
         order.status = "payment_failed"
         fulfill.release_reserved_stock(session, product, 1)
-        if coupon is not None:
-            _release_coupon(session, order)
+        coupons.release_coupon(session, order)
         session.flush()
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error))
 

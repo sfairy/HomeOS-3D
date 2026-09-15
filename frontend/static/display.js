@@ -1,7 +1,7 @@
-import { PanelRenderer } from "./renderer/renderer.js?v=20260915153337";
-import { ensureUiPackRuntime } from "./ui-packs/loader.js?v=20260915153337";
-import { createButtonSound } from "./sound-effects.js?v=20260915153337";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=20260915153337";
+import { PanelRenderer } from "./renderer/renderer.js?v=20260915211726";
+import { ensureUiPackRuntime } from "./ui-packs/loader.js?v=20260915211726";
+import { createButtonSound } from "./sound-effects.js?v=20260915211726";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=20260915211726";
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");
 const isCapturePreview = new URLSearchParams(window.location.search).get("capturePreview") === "1";
@@ -323,8 +323,8 @@ async function refreshDisplay() {
             return;
           }
         }
-        const title = project.name || draftResponse.document?.name || "HA Bridge";
-        document.title = title + " · HA Bridge";
+        const title = project.name || draftResponse.document?.name || "HomeOS";
+        document.title = title + " · HomeOS";
         if (!panelRenderer) {
           panelRenderer = new PanelRenderer(displayRootElement, {
             scaleMode: "contain",

@@ -208,20 +208,20 @@
   ],
   "metadata": {
     "component": {
-      "name": "ha-bridge",
+      "name": "homeos",
       "type": "application",
-      "version": "0.5.4"
+      "version": "0.6.0"
     },
     "properties": [
       {
-        "name": "ha-bridge:base-image",
+        "name": "homeos:base-image",
         "value": "python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de"
       }
     ],
     "tools": {
       "components": [
         {
-          "name": "ha-bridge-python-sbom-generator",
+          "name": "homeos-python-sbom-generator",
           "type": "application",
           "version": "1"
         }

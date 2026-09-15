@@ -91,7 +91,7 @@ class StoreSettings:
 
     # 邮箱验证码
     mail_mode: str = "log"
-    mail_from: str = "HA Bridge <no-reply@habridge.local>"
+    mail_from: str = "HomeOS <no-reply@habridge.local>"
     smtp_host: str = ""
     smtp_port: int = 465
     smtp_username: str = ""
@@ -109,7 +109,7 @@ class StoreSettings:
     alipay_gateway_url: str = "https://openapi.alipay.com/gateway.do"
     alipay_app_private_key: str = ""
     alipay_public_key: str = ""
-    alipay_transaction_description: str = "HA Bridge 授权"
+    alipay_transaction_description: str = "HomeOS 授权"
     #: 密钥推荐用文件：PEM 是多行的，塞进单行环境变量很容易出错
     alipay_app_private_key_path: str = ""
     alipay_public_key_path: str = ""
@@ -224,7 +224,7 @@ def load_settings(**overrides) -> StoreSettings:
         "cookie_secure": _env_bool("STORE_COOKIE_SECURE"),
         "session_max_age_seconds": _env_int("STORE_SESSION_MAX_AGE_SECONDS", DEFAULT_SESSION_MAX_AGE_SECONDS),
         "mail_mode": (_env_str("STORE_MAIL_MODE", "log") or "log").lower(),
-        "mail_from": _env_str("STORE_MAIL_FROM", "HA Bridge <no-reply@habridge.local>") or "HA Bridge <no-reply@habridge.local>",
+        "mail_from": _env_str("STORE_MAIL_FROM", "HomeOS <no-reply@habridge.local>") or "HomeOS <no-reply@habridge.local>",
         "smtp_host": _env_str("STORE_SMTP_HOST"),
         "smtp_port": _env_int("STORE_SMTP_PORT", 465),
         "smtp_username": _env_str("STORE_SMTP_USERNAME"),
@@ -239,7 +239,7 @@ def load_settings(**overrides) -> StoreSettings:
         "alipay_gateway_url": _env_str("STORE_ALIPAY_GATEWAY_URL", "https://openapi.alipay.com/gateway.do") or "https://openapi.alipay.com/gateway.do",
         "alipay_app_private_key": _env_str("STORE_ALIPAY_APP_PRIVATE_KEY"),
         "alipay_public_key": _env_str("STORE_ALIPAY_PUBLIC_KEY"),
-        "alipay_transaction_description": _env_str("STORE_ALIPAY_TRANSACTION_DESCRIPTION", "HA Bridge 授权") or "HA Bridge 授权",
+        "alipay_transaction_description": _env_str("STORE_ALIPAY_TRANSACTION_DESCRIPTION", "HomeOS 授权") or "HomeOS 授权",
         "alipay_app_private_key_path": _env_str("STORE_ALIPAY_APP_PRIVATE_KEY_PATH"),
         "alipay_public_key_path": _env_str("STORE_ALIPAY_PUBLIC_KEY_PATH"),
         "alipay_seller_id": _env_str("STORE_ALIPAY_SELLER_ID"),

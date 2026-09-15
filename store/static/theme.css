@@ -1,30 +1,29 @@
 /* ==========================================================================
-   HA Bridge 统一主题 · 暗色 + 琥珀强调色
+   HomeOS 统一设计系统 · 暗色 + 琥珀
    --------------------------------------------------------------------------
-   把「授权商店 / 管理后台」的观感对齐主程序（frontend/static/app.css）。
+   本文件是商店（store.html / admin.html / 模拟收银台）**唯一**的样式基座：
+   令牌 → 重置 → 排版 → 组件。页面级布局分别写在 store.css 与 admin.css，
+   那两份文件只允许摆放区块，不允许重新定义组件外观。
 
-   设计语言来源（与主程序逐项对齐）：
-     canvas      #151a1f
-     surface     #1a2026 / soft #1e252c / raised #232b33
-     field       #171d22（内阴影凹陷感 inset 0 1px 2px #00000038）
-     hairline    #303840
-     text        #e8ecef / muted #89949d
-     accent      #f2a20d（亮 #ffb52e，渐变 #ffb82e → #ef9900）
-     success     #54bd78      danger #e26b67
-     圆角        控件 4–7px、卡片 9px、气泡 999px（主程序是「小圆角」风格）
-     文字        11–13px 密集排版；滚动条隐藏；状态点带霓虹微光
+   设计语言与主程序 frontend/static/app.css 同源：
+     canvas      #151a1f      surface  #1a2026
+     soft        #1e252c      raised   #232b33
+     field       #171d22      hairline #303840 / #3b444d
+     ink         #e8ecef      muted    #89949d / #6f7a82
+     accent      #f2a20d（亮 #ffb52e，深 #ef9900，渐变 #ffb82e → #ef9900）
+     success     #54bd78      danger   #e26b67
 
-   本文件在 store.html 与 admin.html 中都**最后加载**，负责：
-     1) 重定义 --hb-* 令牌（原样式表 222 处 var() 会自动跟着变）
-     2) 覆盖散落的硬编码浅色值
-     3) 把 Bootstrap 5.3 组件（表单/按钮/表格/卡片/弹窗…）刷成同一套皮肤
+   --hb-bg / --hb-accent / --hb-success 三个值必须与主程序逐字符一致：
+   store/tools/smoke.py 的 check_theme_matches_app() 会直接比对，
+   主程序改色而这里没跟就会 FAIL。
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. 设计令牌
+   1. 令牌
    -------------------------------------------------------------------------- */
 :root {
   color-scheme: dark;
+  accent-color: var(--hb-accent);
 
   /* 画布与表面 */
   --hb-bg: #151a1f;
@@ -33,6 +32,7 @@
   --hb-surface-raised: #232b33;
   --hb-field: #171d22;
   --hb-line: #303840;
+  --hb-line-soft: #262e36;
   --hb-line-strong: #3b444d;
 
   /* 文字 */
@@ -41,136 +41,85 @@
   --hb-muted: #89949d;
   --hb-muted-dim: #6f7a82;
 
-  /* 强调色：沿用主程序的「单一琥珀色」策略。
-     注意 --hb-green* 是历史命名，这里统一映射到琥珀，
-     这样旧样式表里所有 var(--hb-green) 都会自动变成强调色。 */
+  /* 强调色：单一琥珀策略，与主程序一致 */
   --hb-accent: #f2a20d;
   --hb-accent-bright: #ffb52e;
   --hb-accent-deep: #ef9900;
   --hb-accent-soft: rgba(242, 162, 13, 0.12);
+  --hb-accent-faint: rgba(242, 162, 13, 0.06);
   --hb-accent-line: rgba(242, 162, 13, 0.42);
   --hb-accent-grad: linear-gradient(180deg, #ffb82e, #ef9900);
+  --hb-accent-glow: 0 10px 26px -14px rgba(242, 162, 13, 0.8);
 
-  --hb-green: #f2a20d;
-  --hb-green-dark: #ef9900;
-  --hb-green-deep: #232b33;
-  --hb-mint: rgba(242, 162, 13, 0.12);
-  --hb-mint-bright: #ffb52e;
-  --hb-warm: #f2a20d;
+  /* 表单聚焦环：三层一起用才成立——贴边描边（把 1px 边框「加粗」成 2px）
+     + 4px 扩散环（保证在深色底上的可辨识度）+ 负 spread 的琥珀辉光
+     （只作为光晕，不糊成一片黄）。整站输入控件共用这一个变量，
+     避免各页各写一份 box-shadow 后逐渐走样。 */
+  --hb-focus-ring: 0 0 0 1px var(--hb-accent), 0 0 0 4px var(--hb-accent-soft),
+    0 0 20px -10px rgba(242, 162, 13, 0.85);
 
   /* 语义色 */
   --hb-success: #54bd78;
   --hb-success-soft: rgba(84, 189, 120, 0.13);
   --hb-success-line: rgba(84, 189, 120, 0.32);
+  --hb-success-text: #7ed09b;
   --hb-danger: #e26b67;
   --hb-danger-soft: rgba(226, 107, 103, 0.13);
   --hb-danger-line: rgba(226, 107, 103, 0.34);
+  --hb-danger-text: #ef9f9b;
   --hb-warning-soft: rgba(242, 162, 13, 0.13);
   --hb-warning-line: rgba(242, 162, 13, 0.32);
 
-  /* 圆角：与主程序一致的「小圆角」 */
-  --hb-radius-sm: 6px;
-  --hb-radius-md: 9px;
-  --hb-radius-lg: 12px;
+  /* 圆角：与主程序一致的「小圆角」控制台风格 */
+  --hb-radius-xs: 6px;
+  --hb-radius-sm: 8px;
+  --hb-radius-md: 10px;
+  --hb-radius-lg: 14px;
+  --hb-radius-xl: 18px;
   --hb-radius-pill: 999px;
 
-  /* 阴影：深色底上靠层级阴影 + 1px 高光 */
-  --hb-shadow-sm: 0 4px 16px #00000059;
-  --hb-shadow-md: 0 8px 24px #0006;
-  --hb-shadow-lg: 0 30px 100px #00000094;
-  --hb-inset-highlight: inset 0 1px #ffffff06;
+  /* 阴影：深色底靠「顶部高光 + 大范围低透明投影」营造厚度 */
+  --hb-elev-1: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --hb-elev-2: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 34px -16px rgba(0, 0, 0, 0.75);
+  --hb-shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --hb-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --hb-shadow-lg: 0 30px 100px rgba(0, 0, 0, 0.58);
+  --hb-card-bg: linear-gradient(180deg, #1d242b 0%, #191f25 100%);
 
+  /* 排版 */
   --hb-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   --hb-font-mono: SFMono-Regular, ui-monospace, Consolas, Menlo, monospace;
+
+  /* 动效 */
+  --hb-transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease,
+    box-shadow 0.16s ease, transform 0.16s ease;
+
+  /* 尺寸 */
+  --hb-topbar-h: 62px;
+  --hb-container: 1180px;
 }
 
 /* --------------------------------------------------------------------------
-   2. Bootstrap 5.3 变量桥接
-   Bootstrap 组件大量读取 --bs-*，先在这里一次性改掉底噪。
+   2. 重置与基础
    -------------------------------------------------------------------------- */
-:root {
-  --bs-body-bg: var(--hb-bg);
-  --bs-body-color: var(--hb-ink);
-  --bs-body-font-family: var(--hb-font);
-  --bs-body-font-size: 0.875rem;
-  --bs-border-color: var(--hb-line);
-  --bs-border-color-translucent: var(--hb-line);
-  --bs-secondary-color: var(--hb-muted);
-  --bs-tertiary-color: var(--hb-muted);
-  --bs-emphasis-color: var(--hb-ink);
-  --bs-secondary-bg: var(--hb-surface-soft);
-  --bs-tertiary-bg: var(--hb-surface-raised);
-  --bs-heading-color: var(--hb-ink);
-  --bs-link-color: var(--hb-accent-bright);
-  --bs-link-hover-color: var(--hb-accent);
-  --bs-link-color-rgb: 255, 181, 46;
-  --bs-code-color: var(--hb-accent-bright);
-
-  --bs-primary: var(--hb-accent);
-  --bs-primary-rgb: 242, 162, 13;
-  --bs-success: var(--hb-success);
-  --bs-success-rgb: 84, 189, 120;
-  --bs-danger: var(--hb-danger);
-  --bs-danger-rgb: 226, 107, 103;
-  --bs-warning: var(--hb-accent);
-  --bs-warning-rgb: 242, 162, 13;
-  --bs-info: var(--hb-accent-bright);
-  --bs-info-rgb: 255, 181, 46;
-
-  --bs-card-bg: var(--hb-surface);
-  --bs-card-border-color: var(--hb-line);
-  --bs-card-cap-bg: var(--hb-surface-soft);
-  --bs-card-cap-color: var(--hb-ink);
-  --bs-card-color: var(--hb-ink);
-
-  --bs-table-bg: transparent;
-  --bs-table-color: var(--hb-ink);
-  --bs-table-border-color: var(--hb-line);
-  --bs-table-striped-bg: rgba(255, 255, 255, 0.022);
-  --bs-table-striped-color: var(--hb-ink);
-  --bs-table-hover-bg: var(--hb-accent-soft);
-  --bs-table-hover-color: var(--hb-ink);
-
-  --bs-modal-bg: var(--hb-surface);
-  --bs-modal-color: var(--hb-ink);
-  --bs-modal-border-color: var(--hb-line-strong);
-  --bs-modal-header-border-color: var(--hb-line);
-  --bs-modal-footer-border-color: var(--hb-line);
-  --bs-modal-backdrop-bg: #05080b;
-  --bs-modal-backdrop-opacity: 0.72;
-
-  --bs-dropdown-bg: #22292f;
-  --bs-dropdown-border-color: #505a63;
-  --bs-dropdown-link-color: var(--hb-ink-soft);
-  --bs-dropdown-link-hover-color: var(--hb-ink);
-  --bs-dropdown-link-hover-bg: rgba(255, 255, 255, 0.07);
-  --bs-dropdown-link-active-bg: var(--hb-accent-soft);
-  --bs-dropdown-link-active-color: var(--hb-accent-bright);
-
-  --bs-form-valid-color: var(--hb-success);
-  --bs-form-invalid-color: var(--hb-danger);
-  --bs-body-bg-rgb: 21, 26, 31;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-/* 原生控件跟随主题 */
-:root {
-  accent-color: var(--hb-accent);
-}
-
-/* --------------------------------------------------------------------------
-   3. 基础
-   -------------------------------------------------------------------------- */
 html {
   font-size: 14px;
   background: var(--hb-bg);
+  -webkit-text-size-adjust: 100%;
 }
 
-body,
-body.hb-store-body {
+body {
+  margin: 0;
   color: var(--hb-ink);
   background-color: var(--hb-bg);
-  /* 主程序是纯平深色画布；这里只留两处极淡的琥珀/青色氛围光 */
+  /* 主程序是纯平深色画布，这里只留两处极淡的氛围光 */
   background-image:
     radial-gradient(circle at 88% -6%, rgba(242, 162, 13, 0.08), transparent 34rem),
     radial-gradient(circle at 4% 4%, rgba(120, 140, 160, 0.05), transparent 26rem);
@@ -179,9 +128,10 @@ body.hb-store-body {
   font-size: 14px;
   line-height: 1.62;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* 与主程序一致：隐藏滚动条，让面板看着像一块「仪表盘」 */
+/* 与主程序一致：隐藏滚动条，让面板看着像一块仪表盘 */
 * {
   scrollbar-width: none;
 }
@@ -189,7 +139,20 @@ body.hb-store-body {
   display: none;
 }
 
-/* 深色主题下原生的自动填充会变成白底黑字，必须压掉 */
+[hidden] {
+  display: none !important;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+img {
+  border-style: none;
+}
+
+/* 深色主题下原生自动填充会变白底黑字，必须压掉 */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -206,1381 +169,1278 @@ select:-webkit-autofill {
   background: var(--hb-accent-bright);
 }
 
-.hb-store-body :focus-visible,
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
+:focus-visible {
   outline: none;
-  border-color: var(--hb-accent);
-  box-shadow: 0 0 0 3px var(--hb-accent-soft);
-}
-
-/* 主程序的「霓虹状态点」 */
-.hb-store-device__status,
-.hb-store-guest-dot,
-.hb-product-summary__status > i {
-  box-shadow: 0 0 8px rgba(84, 189, 120, 0.55) !important;
 }
 
 /* --------------------------------------------------------------------------
-   4. 排版
+   3. 排版
    -------------------------------------------------------------------------- */
 h1,
 h2,
 h3,
 h4,
 h5,
-h6,
-.hb-section-heading h2,
-.hb-store-hero h1,
-.hb-query-hero h1,
-.hb-recovery-intro h1,
-.hb-account-heading h1,
-.hb-addons-heading h1,
-.hb-store-empty-state h1,
-.hb-maintenance-copy h1,
-.hb-auth-brand strong {
+h6 {
+  margin: 0;
   color: var(--hb-ink);
+  font-weight: 650;
   letter-spacing: -0.012em;
+  line-height: 1.25;
 }
 
-.hb-section-kicker,
-.hb-store-eyebrow,
-.hb-maintenance-kicker {
-  color: var(--hb-accent);
-  font-weight: 750;
-  letter-spacing: 0.18em;
+h1 {
+  font-size: 30px;
+}
+h2 {
+  font-size: 20px;
+}
+h3 {
+  font-size: 16px;
+}
+h4,
+h5,
+h6 {
+  font-size: 14px;
 }
 
-.hb-store-hero h1 strong,
-.hb-store-hero h1 em {
-  color: var(--hb-accent);
-}
-
-p,
-li,
-dd,
-dt,
-small,
-.hb-muted {
-  color: var(--hb-muted);
-}
-
-.hb-section-heading p,
-.hb-store-hero__copy > p,
-.hb-product-summary__content > p,
-.hb-query-hero p,
-.hb-addons-heading p,
-.hb-store-empty-state p,
-.hb-maintenance-copy > p {
-  color: var(--hb-muted);
-}
-
-code,
-kbd,
-pre,
-.mono,
-.hb-account-license-code code,
-#referral-code-text {
-  color: var(--hb-accent-bright);
-  font-family: var(--hb-font-mono);
-}
-
-.text-muted {
-  color: var(--hb-muted) !important;
+p {
+  margin: 0;
 }
 
 a {
   color: var(--hb-accent-bright);
+  text-decoration: none;
+  transition: color 0.16s ease;
 }
+
 a:hover {
   color: var(--hb-accent);
 }
 
+code,
+kbd,
+samp {
+  font-family: var(--hb-font-mono);
+  font-size: 0.94em;
+}
+
+code {
+  color: var(--hb-accent-bright);
+}
+
 hr {
-  border-color: var(--hb-line);
-  opacity: 1;
+  height: 1px;
+  margin: 18px 0;
+  border: 0;
+  background: var(--hb-line);
+}
+
+strong,
+b {
+  font-weight: 650;
+}
+
+/* 小号大写字母标签：控制台观感的关键 */
+.hb-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hb-accent);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hb-kicker::before {
+  width: 16px;
+  height: 1px;
+  flex: 0 0 16px;
+  background: currentColor;
+  content: "";
+}
+
+.hb-kicker--plain::before {
+  display: none;
+}
+
+.hb-section-head {
+  display: flex;
+  margin-bottom: 18px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.hb-section-head h2 {
+  margin-top: 8px;
+}
+
+.hb-section-head p {
+  max-width: 70ch;
+  margin-top: 6px;
+  color: var(--hb-muted);
+  font-size: 13px;
+}
+
+.hb-lead {
+  color: var(--hb-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.hb-muted {
+  color: var(--hb-muted);
+}
+
+.hb-mono {
+  font-family: var(--hb-font-mono);
+}
+
+.hb-nowrap {
+  white-space: nowrap;
+}
+
+.hb-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --------------------------------------------------------------------------
+   4. 布局骨架
+   -------------------------------------------------------------------------- */
+.hb-container {
+  width: 100%;
+  max-width: var(--hb-container);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.hb-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.hb-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.hb-grid-2,
+.hb-grid-3,
+.hb-grid-4 {
+  display: grid;
+  gap: 14px;
+}
+
+.hb-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.hb-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.hb-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 /* --------------------------------------------------------------------------
    5. 按钮
-   主程序：32px 高、5px 圆角、1px 边框；主按钮为琥珀渐变 + 深色字
    -------------------------------------------------------------------------- */
-.hb-button,
-.hb-store-body .hb-button,
-.btn {
-  border: 1px solid #39424a;
+.hb-button {
+  display: inline-flex;
+  min-height: 38px;
+  padding: 8px 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--hb-line);
   border-radius: var(--hb-radius-sm);
-  color: #dce1e5;
-  background: #20272e;
-  box-shadow: none;
-  font-weight: 600;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
-}
-
-.hb-button:hover,
-.hb-store-body .hb-button:hover,
-.btn:hover {
-  border-color: #515d67;
-  color: #fff;
-  background: #293139;
-}
-
-.hb-button--primary,
-.hb-store-body .hb-button--primary,
-.btn-primary,
-.btn-success {
-  border-color: #f4a719;
-  color: #1e1607 !important;
-  background: var(--hb-accent-grad);
-  font-weight: 700;
-  box-shadow: 0 6px 18px rgba(242, 162, 13, 0.18);
-}
-
-.hb-button--primary:hover,
-.hb-store-body .hb-button--primary:hover,
-.btn-primary:hover,
-.btn-success:hover,
-.btn-primary:focus,
-.btn-success:focus {
-  border-color: #ffc95c;
-  color: #1e1607 !important;
-  background: linear-gradient(180deg, #ffc44a, #f7a616);
-}
-
-.hb-button--secondary,
-.hb-store-body .hb-button--secondary,
-.btn-secondary {
-  border-color: var(--hb-line-strong);
   color: var(--hb-ink-soft);
+  background: var(--hb-surface-soft);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 620;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--hb-transition);
+}
+
+.hb-button:hover {
+  border-color: var(--hb-line-strong);
+  color: var(--hb-ink);
   background: var(--hb-surface-raised);
 }
 
-.hb-button--secondary:hover,
-.hb-store-body .hb-button--secondary:hover,
-.btn-secondary:hover {
-  border-color: #56636d;
-  color: var(--hb-ink);
-  background: #2b343d;
+.hb-button:active {
+  transform: translateY(1px);
 }
 
-.hb-button--ghost,
-.hb-store-body .hb-button--ghost,
-.btn-outline-secondary,
-.btn-outline-light {
+.hb-button--primary {
+  border-color: transparent;
+  color: #24190a;
+  background: var(--hb-accent-grad);
+  box-shadow: var(--hb-accent-glow);
+}
+
+.hb-button--primary:hover {
+  border-color: transparent;
+  color: #24190a;
+  background: linear-gradient(180deg, #ffc247, #f7a400);
+}
+
+.hb-button--secondary {
   border-color: var(--hb-line-strong);
-  color: var(--hb-muted);
-  background: transparent;
+  color: var(--hb-ink-soft);
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.hb-button--ghost:hover,
-.hb-store-body .hb-button--ghost:hover,
-.btn-outline-secondary:hover,
-.btn-outline-light:hover {
+.hb-button--secondary:hover {
   border-color: var(--hb-accent-line);
   color: var(--hb-accent-bright);
   background: var(--hb-accent-soft);
 }
 
-.btn-danger {
-  border-color: #b7514e;
-  color: #fff0ef;
-  background: #9d403d;
-}
-.btn-danger:hover {
-  border-color: #e17873;
-  color: #fff;
-  background: #b94c48;
-}
-
-/* Bootstrap 的 btn-warning 是亮黄底(#ffc107)，在暗色主题里会突兀且对比度不达标。
-   这里按主程序的告警口径改成琥珀实心，和 --hb-accent 同一色系。 */
-.btn-warning {
-  border-color: #d98f0a;
-  color: #1e1607;
-  background: var(--hb-accent-grad);
-  font-weight: 650;
-}
-.btn-warning:hover,
-.btn-warning:focus {
-  border-color: #ffc95c;
-  color: #1e1607;
-  background: linear-gradient(180deg, #ffc44a, #f7a616);
-}
-
-.btn-outline-danger {
-  border-color: var(--hb-danger-line);
-  color: var(--hb-danger);
+.hb-button--ghost {
+  border-color: transparent;
+  color: var(--hb-muted);
   background: transparent;
 }
-.btn-outline-danger:hover {
+
+.hb-button--ghost:hover {
+  border-color: transparent;
+  color: var(--hb-ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hb-button--danger {
+  border-color: var(--hb-danger-line);
+  color: var(--hb-danger-text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hb-button--danger:hover {
   border-color: var(--hb-danger);
   color: #1b0f0f;
   background: var(--hb-danger);
 }
 
-.btn-outline-primary {
+.hb-button--success {
+  border-color: var(--hb-success-line);
+  color: var(--hb-success-text);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hb-button--success:hover {
+  border-color: var(--hb-success);
+  color: #0c1a12;
+  background: var(--hb-success);
+}
+
+.hb-button--warning {
+  border-color: var(--hb-warning-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-warning-soft);
+}
+
+.hb-button--warning:hover {
+  border-color: var(--hb-accent);
+  color: #24190a;
+  background: var(--hb-accent-grad);
+}
+
+.hb-button--sm {
+  min-height: 30px;
+  padding: 5px 11px;
+  border-radius: var(--hb-radius-xs);
+  font-size: 12px;
+}
+
+.hb-button--lg {
+  min-height: 46px;
+  padding: 12px 22px;
+  border-radius: var(--hb-radius-md);
+  font-size: 14.5px;
+}
+
+.hb-button--block {
+  width: 100%;
+}
+
+.hb-button.is-disabled,
+.hb-button:disabled {
+  border-color: var(--hb-line-soft);
+  color: var(--hb-muted-dim);
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.hb-button .fa-solid,
+.hb-button .fa-regular,
+.hb-button .fa-duotone {
+  font-size: 0.95em;
+}
+
+/* 图标按钮：表格行内、卡片角落 */
+.hb-icon-button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-xs);
+  color: var(--hb-muted);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--hb-transition);
+}
+
+.hb-icon-button:hover {
   border-color: var(--hb-accent-line);
   color: var(--hb-accent-bright);
-  background: transparent;
-}
-.btn-outline-primary:hover {
-  border-color: var(--hb-accent);
-  color: #1e1607;
-  background: var(--hb-accent);
+  background: var(--hb-accent-soft);
 }
 
-.hb-button:disabled,
-.hb-button.is-disabled,
-.btn:disabled,
-.btn.disabled {
-  border-color: #343c44 !important;
-  color: #646f77 !important;
-  background: #20262b !important;
-  opacity: 1 !important;
-  box-shadow: none !important;
-  pointer-events: none;
-}
-
-.hb-button.is-loading,
-.hb-button[aria-busy="true"] {
-  color: var(--hb-muted) !important;
+/* 操作按钮组（表格单元格内） */
+.hb-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
 }
 
 /* --------------------------------------------------------------------------
    6. 表单
-   主程序：凹陷内阴影 + 琥珀聚焦环
    -------------------------------------------------------------------------- */
-.form-control,
-.form-select,
-.hb-store-body .form-control,
-.hb-store-body .form-select,
-.hb-store-body .hb-query-form .form-control,
-.hb-store-body .hb-captcha-group .captcha-input,
-.hb-auth-form input,
-.hb-release-dialog input,
-.hb-recovery-card .form-control,
-.referral-withdraw-form input,
-.referral-share input {
-  border: 1px solid #39434c;
+.hb-form {
+  display: grid;
+  gap: 16px;
+}
+
+.hb-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.hb-field > span,
+.hb-label {
+  color: #aab4bc;
+  font-size: 12px;
+  font-weight: 620;
+  letter-spacing: 0.02em;
+}
+
+.hb-field > small,
+.hb-help {
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.hb-input,
+.hb-select,
+.hb-textarea,
+.hb-form input:not([type="checkbox"]):not([type="radio"]),
+.hb-form select,
+.hb-form textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 13px;
+  border: 1px solid var(--hb-line-strong);
   border-radius: var(--hb-radius-sm);
   color: var(--hb-ink);
   background: var(--hb-field);
-  box-shadow: inset 0 1px 2px #00000038;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
+  font-family: inherit;
+  font-size: 13.5px;
+  transition: var(--hb-transition);
 }
 
-.form-control:focus,
-.form-select:focus,
-.hb-store-body .form-control:focus,
-.hb-auth-form input:focus,
-.hb-release-dialog input:focus,
-.hb-recovery-card .form-control:focus {
-  border-color: var(--hb-accent) !important;
+.hb-input::placeholder,
+.hb-textarea::placeholder,
+.hb-form input::placeholder,
+.hb-form textarea::placeholder {
+  color: #5d6871;
+}
+
+.hb-input:focus,
+.hb-select:focus,
+.hb-textarea:focus,
+.hb-form input:focus,
+.hb-form select:focus,
+.hb-form textarea:focus {
+  border-color: var(--hb-accent);
+  outline: none;
+  box-shadow: var(--hb-focus-ring);
+}
+
+.hb-select,
+.hb-form select {
+  appearance: none;
+  padding-right: 34px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--hb-muted) 50%),
+    linear-gradient(135deg, var(--hb-muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% + 1px), calc(100% - 13px) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.hb-select option,
+.hb-form select option {
   color: var(--hb-ink);
-  background: var(--hb-field);
-  box-shadow: 0 0 0 3px var(--hb-accent-soft) !important;
-}
-
-.form-control::placeholder,
-.hb-auth-form input::placeholder {
-  color: #65717a;
-}
-
-.form-control:disabled,
-.form-select:disabled {
-  border-color: #303941;
-  color: #59656d;
-  background: #14191e;
-}
-
-.form-label,
-.hb-auth-form label,
-.hb-release-dialog label,
-.referral-withdraw-form label,
-.hb-form-label {
-  color: #b7c0c6;
-  font-weight: 600;
-}
-
-.form-check-input {
-  border-color: var(--hb-line-strong);
-  background-color: var(--hb-field);
-}
-.form-check-input:checked {
-  border-color: var(--hb-accent);
-  background-color: var(--hb-accent);
-}
-.form-check-input:focus {
-  border-color: var(--hb-accent);
-  box-shadow: 0 0 0 3px var(--hb-accent-soft);
-}
-.form-check-label {
-  color: var(--hb-ink-soft);
-}
-
-.input-group-text {
-  border-color: var(--hb-line);
-  color: var(--hb-muted);
   background: var(--hb-surface-raised);
 }
 
-.form-text,
-.hb-form-help {
-  color: var(--hb-muted);
+.hb-textarea,
+.hb-form textarea {
+  min-height: 84px;
+  resize: vertical;
 }
 
-/* 深色底上密码框的「显示/隐藏」小按钮 */
-.hb-password-field > button,
-[data-password-toggle] {
-  border-color: var(--hb-line-strong);
-  color: var(--hb-muted);
-  background: var(--hb-surface-raised);
+.hb-input.is-invalid,
+.hb-input.is-valid {
+  box-shadow: 0 0 0 3px transparent;
 }
-.hb-password-field > button:hover,
-[data-password-toggle]:hover {
-  border-color: var(--hb-accent-line);
+
+.hb-input.is-invalid {
+  border-color: rgba(226, 107, 103, 0.6);
+  box-shadow: 0 0 0 3px rgba(226, 107, 103, 0.1);
+}
+
+.hb-input.is-valid {
+  border-color: rgba(84, 189, 120, 0.55);
+  box-shadow: 0 0 0 3px rgba(84, 189, 120, 0.1);
+}
+
+/* 密码框：输入 + 显隐按钮 */
+.hb-password-field {
+  position: relative;
+  display: block;
+}
+
+.hb-password-field input {
+  padding-right: 62px;
+}
+
+.hb-password-field button {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--hb-radius-xs);
+  color: var(--hb-muted);
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: var(--hb-transition);
+}
+
+.hb-password-field button:hover {
   color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
 }
 
-/* --------------------------------------------------------------------------
-   7. 导航 / 页头（对齐主程序 52px 页头 + 发丝边框 + 琥珀品牌字）
-   -------------------------------------------------------------------------- */
-.hb-store-body .hb-store-nav,
-.navbar.hb-store-nav {
-  border-bottom: 1px solid var(--hb-line);
-  background: #171d22;
-  box-shadow: 0 3px 18px #0000003d;
-  backdrop-filter: none;
+/* 输入 + 按钮并排（验证码） */
+.hb-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
 }
 
-.hb-store-brand-name,
-.hb-store-brand-copy strong {
-  color: var(--hb-accent);
-  font-weight: 680;
+/* 勾选 */
+.hb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hb-ink-soft);
+  font-size: 13px;
+  cursor: pointer;
 }
 
-.hb-store-brand-copy small {
-  color: var(--hb-muted-dim);
+.hb-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid #46514f;
+  border-radius: 5px;
+  background: var(--hb-field);
+  cursor: pointer;
 }
 
-.hb-store-nav .hb-store-nav-links .nav-link,
-.hb-store-nav .nav-link {
-  border: 1px solid transparent;
-  border-radius: 7px;
+.hb-check input:checked {
+  border-color: var(--hb-accent);
+  background: var(--hb-accent);
+}
+
+.hb-form-error {
+  color: var(--hb-danger-text);
+  font-size: 12.5px;
+}
+
+.hb-form-hint {
   color: var(--hb-muted);
   font-size: 12.5px;
-  font-weight: 600;
 }
 
-.hb-store-nav .hb-store-nav-links .nav-link:hover,
-.hb-store-nav .nav-link:hover {
-  border-color: #56636d;
-  color: var(--hb-ink);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.hb-store-nav .hb-store-nav-links .nav-link.active,
-.hb-store-nav .nav-link.active {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
-}
-
-.hb-store-nav .nav-icon {
-  color: currentColor;
-}
-
-.hb-store-nav-toggle {
-  border-color: var(--hb-line-strong);
-  color: var(--hb-ink-soft);
-  background: var(--hb-surface-raised);
-}
-
-/* 品牌图标：内置的深色版在暗底上几乎不可见。
-   只针对「内置默认图」做替换，管理员自定义的 logoUrl 不受影响。 */
-.hb-store-brand-mark[src$="/ha-bridge-mark.svg"],
-#store-product-image[src$="/ha-bridge-mark.svg"] {
-  content: url("/store-static/ha-bridge-mark-light.svg");
-}
-
-/* --------------------------------------------------------------------------
-   8. 面（卡片 / 分区 / 面板）
-   -------------------------------------------------------------------------- */
-.acg-card,
-.hb-store-products .acg-card,
-.hb-checkout-card,
-.hb-product-summary,
-.hb-query-page .order-item,
-.hb-query-results .order-item,
-.hb-auth-card,
-.hb-release-dialog,
-.hb-payment-dialog,
-.hb-pending-order-dialog,
-.hb-account-heading,
-.hb-account-section,
-.hb-account-item,
-.hb-addons-heading,
-.hb-addon-card,
-.hb-store-empty-state,
-.hb-query-help article,
-.hb-recovery-card,
-.hb-recovery-notes article,
-.hb-assurance-grid article,
-.hb-store-flow-card,
-.hb-purchase-steps article,
-.hb-maintenance-card,
-[data-store-page="referrals"] .hb-account-section,
-.referral-stats article,
-.referral-share aside,
-.referrals .card,
-.card {
-  border: 1px solid var(--hb-line);
+/* 表单分组：一个带标题的小节，用于结算页那种长表单 */
+.hb-form-section {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--hb-line-soft);
   border-radius: var(--hb-radius-md);
-  color: var(--hb-ink);
-  background: var(--hb-surface);
-  box-shadow: var(--hb-shadow-sm);
+  background: rgba(255, 255, 255, 0.015);
 }
 
-.hb-account-item,
-.hb-query-page .order-item,
-.hb-quick-order,
-.hb-purchase-steps article,
-.hb-assurance-grid article,
-.hb-store-flow-card,
-.hb-query-help article {
-  background: var(--hb-surface-soft);
-}
-
-.hb-account-item:hover,
-.hb-addon-card:hover,
-.acg-card:hover {
-  border-color: var(--hb-line-strong);
-}
-
-/* 主程序的分区标题：底部一条发丝线 */
-.hb-section-heading {
-  border-bottom: 1px solid var(--hb-line);
-}
-
-.hb-section-heading > a {
-  color: var(--hb-accent-bright);
-}
-
-/* 商品卡 */
-.hb-store-products .acg-thumb,
-.hb-product-cover,
-.acg-thumb {
-  border: 1px solid var(--hb-line);
-  background: var(--hb-surface-raised);
-}
-
-.hb-store-products .goods-title,
-.acg-card .goods-title,
-.hb-product-summary h1,
-.hb-addon-card h3,
-.hb-account-item h3 {
-  color: var(--hb-ink);
-}
-
-.hb-store-products .price,
-.hb-checkout-price__amount .price,
-.hb-account-order-side strong,
-.amount-value,
-.hb-payment-dialog #payment-price {
-  color: var(--hb-accent-bright);
-}
-
-.hb-store-products .price .unit {
-  color: var(--hb-muted);
-}
-
-.hb-product-cover__badge {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: rgba(24, 20, 10, 0.72);
-}
-
-.hb-product-summary__badges span {
-  border: 1px solid var(--hb-line);
-  color: var(--hb-muted);
-  background: var(--hb-surface-soft);
-}
-
-.hb-product-facts > div,
-.hb-product-facts dt,
-.hb-product-facts dd {
-  border-color: var(--hb-line);
-  color: var(--hb-muted);
-}
-
-/* 芯片 / SKU / 徽标 */
-.hb-store-body .chip,
-.hb-store-body .sku,
-.badge-soft,
-.hb-store-body .badge-soft {
-  border: 1px solid var(--hb-line);
-  color: var(--hb-muted);
-  background: var(--hb-surface-soft);
-}
-
-.hb-store-body .chip.is-primary,
-.hb-store-body .sku.is-primary,
-.hb-store-body .badge-soft-primary,
-.badge-soft-primary {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
-}
-
-.hb-store-body .badge-soft-success,
-.badge-soft-success {
-  border-color: var(--hb-success-line);
-  color: #8ed5a7;
-  background: var(--hb-success-soft);
-}
-
-.hb-store-body .chip .chip-icon,
-.hb-store-body .sku .badge-moeny {
-  color: var(--hb-accent);
-  background: var(--hb-surface-raised);
-}
-
-/* 卡片本身是 grid：同排卡片等高时，行会被拉伸，多出来的高度按行均摊。
-   「主授权」这类只有徽标+标题的短卡因此比套餐卡多出一截行高，表现是
-   徽标与标题之间的空隙更大、标题比邻卡低一截。改成纵向 flex 后，行保持
-   自然高度，多余空间落到卡片底部，由 footer 的 margin-top: auto 吸收。 */
-.hb-addon-card {
+.hb-form-section__head {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 11px;
 }
 
-/* 页脚顶到卡片底部，卡片等高时价格与按钮仍然在同一水平线上。
-   这条原本写在 merged.css 里，此处显式声明一次，让整个弹性布局契约都留在本文件内。 */
-.hb-addon-card__footer {
-  margin-top: auto;
-}
-
-.hb-addon-card__badge {
+.hb-form-section__head > i,
+.hb-form-section__head > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
   border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-xs);
   color: var(--hb-accent-bright);
   background: var(--hb-accent-soft);
-}
-
-.hb-addon-card.is-purchased {
-  background: var(--hb-surface-soft);
-}
-
-/* 徽标（Bootstrap badge） */
-.badge {
-  border: 1px solid var(--hb-line);
-  border-radius: var(--hb-radius-sm);
-  font-weight: 650;
-}
-.badge.bg-success {
-  border-color: var(--hb-success-line);
-  color: #8ed5a7 !important;
-  background: var(--hb-success-soft) !important;
-}
-.badge.bg-secondary {
-  border-color: var(--hb-line);
-  color: var(--hb-muted) !important;
-  background: var(--hb-surface-raised) !important;
-}
-.badge.bg-warning {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright) !important;
-  background: var(--hb-accent-soft) !important;
-}
-.badge.bg-danger {
-  border-color: var(--hb-danger-line);
-  color: #f0a5a2 !important;
-  background: var(--hb-danger-soft) !important;
-}
-.badge.bg-primary,
-.badge.bg-info {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright) !important;
-  background: var(--hb-accent-soft) !important;
-}
-
-/* 提示条 */
-.hb-store-body .alert,
-.alert {
-  border: 1px solid var(--hb-line);
-  border-radius: var(--hb-radius-sm);
-}
-.alert-danger {
-  border-color: var(--hb-danger-line);
-  color: #f2b0ad;
-  background: var(--hb-danger-soft);
-}
-.alert-success {
-  border-color: var(--hb-success-line);
-  color: #9adcb0;
-  background: var(--hb-success-soft);
-}
-.alert-warning {
-  border-color: var(--hb-warning-line);
-  color: #eabb64;
-  background: var(--hb-warning-soft);
-}
-.alert-info,
-.alert-secondary {
-  border-color: var(--hb-line);
-  color: var(--hb-ink-soft);
-  background: var(--hb-surface-raised);
-}
-
-.hb-store-notice {
-  border: 1px solid var(--hb-accent-line);
-  color: var(--hb-ink-soft);
-  background: var(--hb-accent-soft);
-}
-.hb-store-notice__icon {
-  color: var(--hb-accent-bright);
-  background: var(--hb-surface-raised);
-}
-
-/* --------------------------------------------------------------------------
-   9. 表格
-   -------------------------------------------------------------------------- */
-.table {
-  --bs-table-bg: transparent;
-  border-color: var(--hb-line);
-  color: var(--hb-ink);
-}
-.table > :not(caption) > * > * {
-  border-bottom-color: var(--hb-line);
-  background-color: transparent;
-  color: inherit;
-}
-.table thead th,
-.table > thead > tr > th {
-  border-bottom-color: var(--hb-line-strong);
-  color: var(--hb-muted);
   font-size: 12px;
+}
+
+.hb-form-section__head strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 13.5px;
   font-weight: 650;
-  letter-spacing: 0.02em;
-  text-transform: none;
-}
-.table tbody tr:hover,
-.table-hover > tbody > tr:hover > * {
-  background: var(--hb-accent-soft);
-  color: var(--hb-ink);
-}
-.table .table-light,
-.table > thead.table-light > tr > th {
-  color: var(--hb-muted);
-  background: var(--hb-surface-soft);
 }
 
-.referral-table th,
-.referral-table td {
-  border-bottom-color: var(--hb-line);
-  color: var(--hb-ink-soft);
-}
-.referral-table th {
+.hb-form-section__head small {
+  display: block;
+  margin-top: 1px;
   color: var(--hb-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 /* --------------------------------------------------------------------------
-   10. 对话框 / 弹窗 / 轻提示
+   7. 卡片与面板
    -------------------------------------------------------------------------- */
-.hb-store-body dialog,
-dialog.hb-payment-dialog,
-dialog.hb-release-dialog {
-  border: 1px solid var(--hb-line-strong);
-  border-radius: var(--hb-radius-md);
-  color: var(--hb-ink);
-  background: var(--hb-surface);
-  box-shadow: var(--hb-shadow-lg);
-}
-
-.hb-store-body dialog::backdrop,
-.hb-payment-dialog::backdrop,
-.hb-pending-order-dialog::backdrop,
-.hb-release-dialog::backdrop {
-  background: #05080bb8;
-  backdrop-filter: blur(4px);
-}
-
-.hb-payment-dialog #payment-qr {
-  border: 1px solid var(--hb-line);
-  border-radius: var(--hb-radius-md);
-  /* 二维码需要浅底才能被扫，这里必须保持浅色 */
-  background: #f4f6f7;
-}
-
-.hb-payment-dialog #payment-status {
-  color: var(--hb-muted);
-}
-.hb-payment-dialog #payment-status.done {
-  color: var(--hb-success);
-}
-
-.hb-payment-countdown {
-  border: 1px solid var(--hb-accent-line);
-  background: var(--hb-accent-soft);
-}
-.hb-payment-countdown b {
-  color: var(--hb-accent-bright);
-}
-
-.hb-payment-close {
-  border: 1px solid var(--hb-line);
-  color: var(--hb-muted);
-  background: var(--hb-surface-raised);
-}
-.hb-payment-close:hover {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-}
-
-.modal-content {
-  border: 1px solid var(--hb-line-strong);
-  border-radius: var(--hb-radius-md);
-  color: var(--hb-ink);
-  background: var(--hb-surface);
-  box-shadow: var(--hb-shadow-lg);
-}
-.modal-header,
-.modal-footer {
-  border-color: var(--hb-line);
-}
-.modal-title {
-  color: var(--hb-ink);
-}
-.btn-close {
-  filter: invert(1) grayscale(1) brightness(1.8);
-}
-
-/* 轻提示：对齐主程序深色底 + 发丝边框 */
-.hb-store-toast {
-  border: 1px solid var(--hb-line-strong);
-  border-radius: var(--hb-radius-sm);
-  color: var(--hb-ink);
-  background: #14191e;
-  box-shadow: var(--hb-shadow-md);
-}
-
-/* --------------------------------------------------------------------------
-   11. 商店专有块
-   -------------------------------------------------------------------------- */
-/* 首屏：深色 + 极淡琥珀氛围，去掉原浅色玻璃质感 */
-.hb-store-hero {
+.hb-card {
+  position: relative;
   border: 1px solid var(--hb-line);
   border-radius: var(--hb-radius-lg);
-  background:
-    radial-gradient(circle at 78% 24%, rgba(242, 162, 13, 0.11), transparent 42%),
-    linear-gradient(160deg, #1e252c, #171d22);
-  box-shadow: var(--hb-shadow-md), var(--hb-inset-highlight);
-}
-.hb-store-hero::before {
-  background: none;
+  background: var(--hb-card-bg);
+  box-shadow: var(--hb-elev-1);
 }
 
-.hb-store-hero__meta span {
+.hb-card--flat {
+  background: var(--hb-surface);
+}
+
+.hb-card__head {
+  display: flex;
+  padding: 18px 20px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--hb-line-soft);
+}
+
+.hb-card__head h2,
+.hb-card__head h3 {
+  font-size: 15px;
+}
+
+.hb-card__head p {
+  margin-top: 4px;
+  color: var(--hb-muted);
+  font-size: 12px;
+}
+
+.hb-card__body {
+  padding: 20px;
+}
+
+.hb-card__foot {
+  padding: 16px 20px 18px;
+  border-top: 1px solid var(--hb-line-soft);
+}
+
+/* 页面区块：外层留白更松，用于前台的内容段 */
+.hb-block {
+  padding: 26px;
   border: 1px solid var(--hb-line);
-  color: var(--hb-muted);
-  background: var(--hb-surface-soft);
-}
-.hb-store-hero__meta i {
-  color: var(--hb-accent);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-surface);
+  box-shadow: var(--hb-elev-1);
 }
 
-/* 首屏右侧「设备」装饰卡：主程序里这类深色卡片就是靠 1px 高光 + 阴影分层 */
-.hb-store-device {
-  border: 1px solid var(--hb-line-strong);
-  color: var(--hb-ink);
-  background: linear-gradient(160deg, #232b33, #171d22);
-  box-shadow: var(--hb-shadow-lg), var(--hb-inset-highlight);
-}
-.hb-store-device__label {
-  color: var(--hb-ink-soft);
-}
-.hb-store-device__status {
-  background: var(--hb-success) !important;
-}
-.hb-store-orbit {
-  border-color: rgba(242, 162, 13, 0.24) !important;
-}
-
-.hb-store-flow-card__icon,
-.hb-assurance-grid__icon,
-.hb-purchase-steps article > span,
-.hb-query-empty__icon,
-.hb-recovery-card__icon,
-.hb-store-empty-state > span {
-  border: 1px solid var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
-}
-
-/* 结账 / 售后 / 找回 */
-.hb-checkout-shell,
-.hb-recovery-shell {
-  color: var(--hb-ink);
-}
-.hb-checkout-card__header,
-.hb-form-section,
-.hb-checkout-assurances article,
-.hb-query-tips span,
-.hb-recovery-privacy,
-.referral-share aside {
-  border-color: var(--hb-line);
-}
-.hb-form-label > span:first-child {
-  color: var(--hb-ink-soft);
-}
-.hb-form-label[data-checkout-step] > span:first-child::before {
-  color: #1e1607;
-  background: var(--hb-accent);
-}
-.hb-input-with-icon > i,
-.hb-query-form .hb-input-with-icon > i {
-  color: var(--hb-muted);
-}
-.hb-store-body .input-group.qty-group > button {
-  border-color: var(--hb-line);
-  color: var(--hb-ink-soft);
-  background: var(--hb-surface-raised);
-}
-.hb-store-body .input-group.qty-group > button:hover {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-}
-.hb-fixed-quantity {
-  border-color: var(--hb-line);
-  color: var(--hb-muted);
-  background: var(--hb-surface-raised);
-}
-.hb-payment-note {
-  color: var(--hb-muted);
-}
-.hb-store-body .hb-captcha-group .captcha-img {
-  border-color: var(--hb-line);
-  background: #f4f6f7;
-}
-.hb-package-contents {
-  border: 1px solid var(--hb-accent-line);
-  background: var(--hb-accent-soft);
-  color: var(--hb-ink-soft);
-}
-
-/* 订单查询 / 找回结果 */
-.hb-query-results .order-basic,
-.hb-account-order-side,
-.hb-account-license-code > span,
-.hb-account-item p,
-.hb-order-delivery-state p {
-  color: var(--hb-muted);
-}
-.hb-query-page .card-display,
-.hb-recovery-banner {
-  border-color: var(--hb-line);
-  background: var(--hb-surface-soft);
-}
-.hb-account-license-code code {
-  border-color: var(--hb-accent-line);
-  background: var(--hb-surface-raised);
-}
-.hb-account-code-note,
-.hb-form-help {
-  color: #d9ba83;
-}
-.hb-order-countdown,
-.hb-account-order-countdown,
-.hb-order-countdown span {
-  color: var(--hb-accent-bright) !important;
-}
-
-/* 空态 / 加载 */
-.hb-loading-products {
-  color: var(--hb-muted);
-}
-.hb-loading-products__dot {
-  background: var(--hb-accent) !important;
-}
-.hb-home-catalog-empty {
-  border: 1px solid var(--hb-accent-line);
-  color: #eabb64;
-  background: var(--hb-accent-soft);
-}
-
-/* 维护页 */
-.hb-maintenance-visual {
-  background: linear-gradient(145deg, #232b33, #171d22);
-}
-.hb-maintenance-visual::before {
-  background: radial-gradient(
-    circle,
-    rgba(242, 162, 13, 0.14) 0 39%,
-    rgba(242, 162, 13, 0.08) 40% 58%,
-    transparent 59%
-  );
-  filter: none;
-}
-.hb-maintenance-orbit {
-  border-color: rgba(242, 162, 13, 0.2);
-}
-.hb-maintenance-orbit::after {
-  background: var(--hb-accent);
-  box-shadow: 0 0 0 6px var(--hb-accent-soft);
-}
-.hb-maintenance-status {
-  border: 1px solid var(--hb-accent-line);
-  color: #eabb64;
-  background: var(--hb-accent-soft);
-}
-.hb-maintenance-status i {
-  background: var(--hb-accent);
-  box-shadow: 0 0 0 4px var(--hb-accent-soft);
-}
-.hb-maintenance-banner {
-  border-top: 1px solid var(--hb-accent-line);
-  border-bottom: 1px solid var(--hb-accent-line);
-  background: var(--hb-accent-soft);
-}
-.hb-maintenance-banner > .container > span {
-  color: var(--hb-accent-bright);
-  background: var(--hb-surface-raised);
-}
-.hb-maintenance-banner strong,
-.hb-maintenance-banner p {
-  color: #eabb64;
-}
-.hb-maintenance-mode .hb-checkout-card {
-  border-color: var(--hb-accent-line);
-}
-.hb-maintenance-mode .hb-pay-submit:disabled {
-  color: #805b20;
-  background: #2a2416;
-}
-
-/* 邀请页 */
-.referral-share aside strong,
-.referral-stats strong {
-  color: var(--hb-accent-bright);
-}
-.referral-stats article {
-  background: var(--hb-surface-soft);
-}
-.referral-stats small,
-.referral-guide ol,
-.referral-guide li {
-  color: var(--hb-muted);
-}
-#referral-error {
-  border: 1px solid var(--hb-danger-line);
-  color: #f2b0ad;
-  background: var(--hb-danger-soft);
-}
-
-/* 优惠码反馈 */
-.hb-coupon-feedback.is-checking {
-  color: var(--hb-muted);
-}
-.hb-coupon-feedback.is-valid {
-  color: var(--hb-success);
-}
-.hb-coupon-feedback.is-invalid {
-  color: var(--hb-danger);
-}
-.hb-coupon-input.is-valid .form-control {
-  border-color: var(--hb-success-line);
-  box-shadow: 0 0 0 3px var(--hb-success-soft);
-}
-.hb-coupon-input.is-invalid .form-control {
-  border-color: var(--hb-danger-line);
-  box-shadow: 0 0 0 3px var(--hb-danger-soft);
-}
-.hb-checkout-price__amount del {
-  color: var(--hb-muted-dim);
-}
-
-/* 页脚 */
-.hb-site-footer {
-  border-top: 1px solid var(--hb-line);
-  color: var(--hb-muted);
-  background: #171d22;
-}
-.hb-site-footer strong {
-  color: var(--hb-ink-soft);
-}
-.hb-site-footer__links a {
-  color: var(--hb-muted);
-}
-.hb-site-footer__links a:hover {
-  color: var(--hb-accent-bright);
-}
-.hb-site-footer__bottom {
-  border-top: 1px solid var(--hb-line);
-  color: var(--hb-muted-dim);
+.hb-block + .hb-block {
+  margin-top: 18px;
 }
 
 /* --------------------------------------------------------------------------
-   12. 登录 / 注册 / 找回（片内卡片）
+   8. 徽标 / 胶囊 / 状态点
    -------------------------------------------------------------------------- */
-.hb-auth-page {
-  color: var(--hb-ink);
-}
-.hb-auth-brand strong {
-  color: var(--hb-ink);
-}
-.hb-auth-brand p,
-.hb-auth-switch {
-  color: var(--hb-muted);
-}
-.hb-auth-switch a,
-.hb-auth-forgot a {
-  color: var(--hb-accent-bright);
-}
-.hb-auth-body .auth-card {
-  border: 1px solid var(--hb-line);
-  color: var(--hb-ink);
-  background: var(--hb-surface);
-}
-.hb-auth-body .btn-gradient {
-  border: 1px solid #f4a719;
-  color: #1e1607;
-  background: var(--hb-accent-grad);
-  box-shadow: 0 10px 24px rgba(242, 162, 13, 0.18);
-}
-.hb-auth-code-row .hb-button--secondary {
-  border-color: var(--hb-line-strong);
-  color: var(--hb-ink-soft);
-  background: var(--hb-surface-raised);
-}
-
-/* --------------------------------------------------------------------------
-   13. 收尾：把残留的浅色硬编码值压掉
-   -------------------------------------------------------------------------- */
-/* 原样式表里大量 rgba(255,255,255,.7~.95) 的「玻璃卡片」。
-   这些选择器已经由上面的面层规则接管，这里兜住漏网的块级浅底。 */
-.hb-store-body .bg-white,
-.hb-store-body .bg-light {
-  background: var(--hb-surface) !important;
-  color: var(--hb-ink) !important;
-}
-.hb-store-body .border,
-.hb-store-body .border-top,
-.hb-store-body .border-bottom {
-  border-color: var(--hb-line) !important;
-}
-.border,
-.border-top,
-.border-bottom,
-.border-start,
-.border-end {
-  border-color: var(--hb-line) !important;
-}
-
-.list-group-item {
-  border-color: var(--hb-line);
-  color: var(--hb-ink);
-  background: var(--hb-surface);
-}
-.list-group-item:hover {
-  background: var(--hb-surface-soft);
-}
-
-/* 高光/分隔装饰线在深色底上要压暗 */
-.hb-store-body hr,
-.hb-site-footer__inner {
-  border-color: var(--hb-line);
-}
-
-/* 图片类装饰在深色底上去掉亮边 */
-.hb-store-device__logo,
-.hb-store-brand-mark,
-.hb-product-cover img {
-  filter: none;
-}
-
-/* ==========================================================================
-   14. 与源样式表的冲突收口
-   --------------------------------------------------------------------------
-   原有两套浅色主题：
-     · bridge-store.css —— 绿色系（主要）
-     · merged.css       —— 蓝色系（账号 / 授权 / 附加模块 / 维护页 / 空态）
-   它们在这些属性上用了 !important，或者用了二级选择器（特异性高于单类名），
-   所以必须在**这里**以同等或更高的优先级压回去，否则会残留白底 / 蓝字 /
-   看不见的文字。
-   ========================================================================== */
-
-/* --- 14.1 源样式表带 !important 的属性，必须同样带 !important --- */
-
-/* 次要按钮：源为 color: var(--hb-green-deep) !important，
-   而 --hb-green-deep 在深色主题里等于本按钮自己的底色，会把文字压成隐形。 */
-.hb-button--secondary,
-.hb-store-body .hb-button--secondary,
-.btn-secondary {
-  border-color: var(--hb-line-strong) !important;
-  color: var(--hb-ink-soft) !important;
-  background: var(--hb-surface-raised) !important;
-}
-
-.hb-button--ghost,
-.hb-store-body .hb-button--ghost {
-  border-color: var(--hb-line-strong) !important;
-  color: var(--hb-ink) !important;
-  background: transparent !important;
-}
-
-.hb-button--primary {
-  /* 源为 color:#fff !important；深色主题下主按钮是琥珀底，必须用深色字 */
-  color: #1e1607 !important;
-}
-
-/* 商品缩略图底色（源为 background-color:#edf4f1 !important） */
-.hb-store-products .acg-thumb {
-  background-color: var(--hb-surface-raised) !important;
-}
-
-/* 表单聚焦（源为 border-color: rgba(19,121,91,.56) !important）。
-   注意 bridge-store.css 里还写了 `.hb-store-body .hb-checkout-form .form-control:focus`
-   （0,3,1）这种三级选择器把背景写死成 #fff，比本规则（0,2,1）高——只改边框不改背景的话，
-   收银表单「一聚焦输入框就变白底」。所以这里连背景一起收回来。 */
-.hb-store-body .hb-query-form .form-control:focus,
-.hb-store-body .hb-checkout-form .form-control:focus,
-.hb-store-body .form-control:focus {
-  border-color: var(--hb-accent) !important;
-  background: var(--hb-field);
-  box-shadow: 0 0 0 3px var(--hb-accent-soft) !important;
-}
-
-/* 倒计时（源为 color:#16805f !important） */
-.hb-order-countdown {
-  color: var(--hb-accent-bright) !important;
-}
-
-/* --- 14.2 首屏 eyebrow 药丸（源为浅薄荷底 + 绿点） --- */
-.hb-store-eyebrow {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
-}
-
-/* 圆点保留「在线指示灯」的语义色，但换成调色板里的绿并复用霓虹微光 */
-.hb-store-eyebrow > span {
-  background: var(--hb-success);
-  box-shadow: 0 0 0 4px rgba(84, 189, 120, 0.12);
-}
-
-/* --- 14.3 商品卡：源用了 .hb-store-products 二级选择器，特异性高于 .acg-card --- */
-.hb-store-products .acg-card {
-  border-color: var(--hb-line);
-  background: var(--hb-surface);
-  box-shadow: var(--hb-shadow-sm);
-}
-
-.hb-store-products .acg-card:hover {
-  border-color: var(--hb-line-strong);
-}
-
-/* --- 14.4 merged.css 蓝色系文字的归位 --- */
-
-/* 附加商品卡（商品列表页） */
-.hb-addon-card p {
-  color: var(--hb-muted);
-}
-.hb-addon-card__footer strong {
-  border-color: transparent;
-  color: var(--hb-accent-bright);
-}
-
-/* 账号中心 */
-.hb-account-heading p {
-  color: var(--hb-muted);
-}
-.hb-account-item p,
-.hb-account-order-side,
-.hb-account-license-code > span {
-  color: var(--hb-muted);
-}
-.hb-account-item h3 {
-  color: var(--hb-ink);
-}
-.hb-account-license-code code {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-surface-raised);
-}
-
-/* --- 14.5 账号中心元信息芯片 ---
-   merged.css 把这里写成 `.hb-account-meta span { background:#eef4fa }`（浅蓝底 + 蓝灰字），
-   在暗色画布上是一块「白斑」，实测对比度只有 1.96:1——不只是难看，是几乎读不出来。
-   统一换成令牌化的胶囊，并给状态/期限两个关键字段上语义色。 */
-.hb-account-meta {
-  color: var(--hb-muted);
-}
-
-.hb-account-meta span,
-.hb-meta-chip {
-  padding: 4px 9px;
+.hb-tag {
+  display: inline-flex;
+  padding: 3px 10px;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--hb-line);
   border-radius: var(--hb-radius-pill);
-  /* 中性芯片用 ink-soft 而不是 muted：14px 正文色 #89949d 在这个底色上只有 3.69:1，
-     略低于 AA；换 #c3ccd3 后有 ~9:1，且因为套了一层边框+底板，仍明显弱于标题。 */
-  color: var(--hb-ink-soft);
-  background: var(--hb-surface-soft);
+  color: var(--hb-muted);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 11.5px;
+  font-weight: 620;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
-/* 徽标变体必须写成复合类名：基础规则里带了 `.hb-account-meta span`（0,1,1），
-   单类名（0,1,0）的变体压不过它，颜色会被基础规则的 color/background 吃掉。
-   复合类名（0,2,0）才稳定胜出。 */
-/* 有效 = 绿（与主程序状态点同色） */
-.hb-meta-chip.hb-meta-chip--success {
+.hb-tag--accent {
+  border-color: var(--hb-accent-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+}
+
+.hb-tag--success {
   border-color: var(--hb-success-line);
-  color: #8ed5a7;
+  color: var(--hb-success-text);
   background: var(--hb-success-soft);
 }
 
-/* 已到期 = 琥珀，提示可以续期/升级，而不是「出错」 */
+.hb-tag--warning {
+  border-color: var(--hb-warning-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-warning-soft);
+}
+
+.hb-tag--danger {
+  border-color: var(--hb-danger-line);
+  color: var(--hb-danger-text);
+  background: var(--hb-danger-soft);
+}
+
+.hb-tag b {
+  color: inherit;
+  font-weight: 700;
+}
+
+/* 账号中心的元信息芯片。变体**必须**写成复合选择器，
+   否则会被 `.hb-account-meta span` 这类（0,1,1）规则吃掉颜色，
+   状态与期限就会静默退回中性灰 —— smoke.py 对此有断言。 */
+.hb-meta-chip {
+  display: inline-flex;
+  padding: 3px 9px;
+  align-items: center;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-pill);
+  color: var(--hb-muted);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.hb-meta-chip.hb-meta-chip--success {
+  border-color: var(--hb-success-line);
+  color: var(--hb-success-text);
+  background: var(--hb-success-soft);
+}
+
 .hb-meta-chip.hb-meta-chip--warning {
   border-color: var(--hb-warning-line);
   color: var(--hb-accent-bright);
   background: var(--hb-warning-soft);
 }
 
-/* 已停用 = 红 */
 .hb-meta-chip.hb-meta-chip--danger {
   border-color: var(--hb-danger-line);
-  color: #eb9a97;
+  color: var(--hb-danger-text);
   background: var(--hb-danger-soft);
 }
 
-/* 永久授权 / 永久有效期 = 琥珀强调：这是账号里最值钱的属性 */
 .hb-meta-chip.hb-meta-chip--accent {
   border-color: var(--hb-accent-line);
   color: var(--hb-accent-bright);
   background: var(--hb-accent-soft);
 }
 
-/* --- 14.6 收银页「购买账号」区块 + 授权服务状态徽标 ---
-   merged.css 的 #f7faff / #e8f1ff 和 bridge-store.css 的 rgba(255,255,255,.8)
-   都是浅色主题遗留。前者在暗底上就是一块白斑；后者更糟——它把 --hb-green-dark
-   （已映射成琥珀 #ef9900）压在白底上，实测对比度 1.30:1，基本读不出来。
-
-   注意特异性：`.hb-product-summary__badges .hb-product-summary__status` 是 (0,2,0)，
-   比本文件里通用的 `.hb-product-summary__badges span`（0,1,1）高，所以必须原样重复
-   这个选择器才能压过去。 */
-.hb-purchase-account {
-  border-color: var(--hb-line);
-  background: var(--hb-surface-raised);
+/* 霓虹状态点 */
+.hb-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 999px;
+  background: var(--hb-success);
+  box-shadow: 0 0 8px rgba(84, 189, 120, 0.55);
 }
 
-.hb-purchase-account > span {
+.hb-dot--idle {
+  background: var(--hb-muted-dim);
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   9. 空态
+   -------------------------------------------------------------------------- */
+.hb-empty {
+  position: relative;
+  display: grid;
+  padding: 54px 20px;
+  gap: 10px;
+  place-items: center;
+  border: 1px dashed var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  color: var(--hb-muted);
+  text-align: center;
+  overflow: hidden;
+}
+
+/* 空态底色：一层极淡的斜向条纹，让「这里没东西」也有质感。
+   用 repeating-linear-gradient 而不是网格，是因为空态多为窄条/方框，
+   网格线在非整格尺寸下会被切得参差不齐。 */
+.hb-empty::before {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.022) 0 1px,
+    transparent 1px 11px
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.hb-empty > * {
+  position: relative;
+}
+
+.hb-empty i,
+.hb-empty > span {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-md);
   color: var(--hb-accent-bright);
   background: var(--hb-accent-soft);
+  box-shadow: var(--hb-accent-glow);
+  font-size: 19px;
 }
 
-.hb-purchase-account strong {
+.hb-empty strong {
   color: var(--hb-ink);
+  font-size: 14px;
+  font-weight: 640;
 }
 
-.hb-purchase-account small {
-  color: var(--hb-muted);
+.hb-empty p {
+  max-width: 46ch;
+  font-size: 12.5px;
+  line-height: 1.65;
 }
 
-.hb-product-summary__badges .hb-product-summary__status {
+.hb-empty--inline {
+  padding: 22px 16px;
+  border-style: solid;
+  border-color: var(--hb-line-soft);
+  font-size: 12.5px;
+}
+
+/* --------------------------------------------------------------------------
+   10. 表格
+   -------------------------------------------------------------------------- */
+.hb-table-wrap {
   border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-surface);
+  box-shadow: var(--hb-elev-1);
+  overflow: clip;
+}
+
+.hb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.hb-table thead th {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--hb-line);
+  color: #7e8a94;
+  background: #1c222a;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hb-table tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--hb-line-soft);
   color: var(--hb-ink-soft);
-  background: var(--hb-surface-raised);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 授权解绑对话框 */
-.hb-release-dialog h2 {
+.hb-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.hb-table tbody tr {
+  transition: background 0.12s ease;
+}
+
+.hb-table tbody tr:hover > * {
   color: var(--hb-ink);
 }
-.hb-release-dialog p {
+
+.hb-table tbody tr:hover > td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hb-table td.is-mono,
+.hb-table th.is-mono {
+  color: var(--hb-accent-bright);
+  font-family: var(--hb-font-mono);
+  font-size: 11.5px;
+}
+
+.hb-table .hb-cell-truncate {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hb-table-empty {
+  padding: 46px 16px;
   color: var(--hb-muted);
-}
-.hb-release-dialog label {
-  color: #b7c0c6;
-}
-.hb-release-dialog input {
-  border-color: #39434c;
-  color: var(--hb-ink);
-  background: var(--hb-field);
-  box-shadow: inset 0 1px 2px #00000038;
-}
-.hb-release-dialog input:focus {
-  border-color: var(--hb-accent);
-  box-shadow: 0 0 0 3px var(--hb-accent-soft);
-}
-.hb-release-error {
-  border: 1px solid var(--hb-danger-line);
-  color: #f2b0ad;
-  background: var(--hb-danger-soft);
+  text-align: center;
 }
 
-/* 维护页 / 空态 */
-.hb-maintenance-brand {
-  border-bottom-color: var(--hb-line);
+.hb-table-empty span {
+  display: block;
+  margin-bottom: 8px;
+  color: #3d4750;
+  font-size: 26px;
+  line-height: 1;
 }
-.hb-maintenance-brand strong {
+
+/* --------------------------------------------------------------------------
+   11. 对话框
+   -------------------------------------------------------------------------- */
+.hb-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-xl);
   color: var(--hb-ink);
+  background: linear-gradient(180deg, #1e252c, #181e24);
+  box-shadow: var(--hb-shadow-lg);
 }
-.hb-maintenance-brand small {
+
+.hb-dialog::backdrop {
+  background: rgba(5, 8, 11, 0.72);
+  backdrop-filter: blur(5px);
+}
+
+.hb-dialog--wide {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.hb-dialog__head {
+  position: relative;
+  padding: 26px 26px 4px;
+  text-align: center;
+}
+
+.hb-dialog__head h2 {
+  margin-top: 10px;
+  font-size: 18px;
+}
+
+.hb-dialog__head p {
+  margin-top: 8px;
+  color: var(--hb-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.hb-dialog__body {
+  display: grid;
+  padding: 20px 26px 4px;
+  gap: 14px;
+}
+
+.hb-dialog__foot {
+  display: flex;
+  padding: 22px 26px 24px;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.hb-dialog__foot--split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.hb-dialog__close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--hb-muted);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 15px;
+  cursor: pointer;
+  transition: var(--hb-transition);
+}
+
+.hb-dialog__close:hover {
+  border-color: var(--hb-line-strong);
+  color: var(--hb-ink);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* 对话框里的强调数值（金额、倒计时） */
+.hb-dialog__value {
+  display: block;
+  color: var(--hb-accent-bright);
+  font-family: var(--hb-font-mono);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.hb-dialog__meta {
+  display: block;
+  margin-top: 12px;
   color: var(--hb-muted-dim);
-}
-.hb-store-empty-state h1 {
-  color: var(--hb-ink);
-}
-.hb-store-empty-state p {
-  color: var(--hb-muted);
-}
-/* --- 14.7 空态 / 维护页的图标托盘 ---
-   merged.css 给的是 #edf4fb / #fff，暗底上就是白方块。这几处在模板里是静态节点
-   （`.hb-store-empty-state` 是「商品不可购买」页，`.hb-maintenance-*` 是维护页），
-   浏览器里跑一遍自动审计就能发现——前提是**得先点开这些状态**。 */
-.hb-addons-empty,
-.hb-store-empty-state > span,
-.hb-maintenance-icon {
-  border: 1px solid var(--hb-line);
-  color: var(--hb-muted);
-  background: var(--hb-surface-raised);
-}
-.hb-order-delivery-state {
-  border-top-color: var(--hb-line);
-}
-.hb-order-delivery-state > span {
-  border: 1px solid var(--hb-line);
-  background: var(--hb-surface-raised);
-}
-.hb-addons-heading h1 {
-  color: var(--hb-ink);
-}
-.hb-addons-heading p {
-  color: var(--hb-muted);
+  font-family: var(--hb-font-mono);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
 }
 
-/* 密码可见性切换按钮（源为 .hb-password-field button，特异性高于属性选择器） */
-.hb-password-field button {
-  color: var(--hb-muted);
+.hb-dialog__notice {
+  display: grid;
+  margin-top: 14px;
+  padding: 12px 14px;
+  gap: 3px;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-accent-faint);
+  text-align: center;
 }
-.hb-password-field button:hover {
+
+.hb-dialog__notice b {
   color: var(--hb-accent-bright);
+  font-family: var(--hb-font-mono);
+  font-size: 24px;
+  letter-spacing: 0.06em;
 }
 
-.hb-password-mismatch {
-  color: var(--hb-danger);
-}
-
-/* 邀请页正文 */
-.referral-share aside {
-  border-color: var(--hb-line);
+.hb-dialog__notice small {
   color: var(--hb-muted);
-}
-.referral-guide h2,
-.referral-share h2 {
-  color: var(--hb-ink);
-}
-.referral-table code {
-  color: var(--hb-accent-bright);
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
+.hb-dialog__status {
+  display: block;
+  margin-top: 14px;
+  color: var(--hb-muted);
+  font-size: 13px;
+}
+
+.hb-dialog__status.is-done {
+  color: var(--hb-success-text);
+  font-weight: 650;
+}
+
+/* --------------------------------------------------------------------------
+   12. 轻提示
+   -------------------------------------------------------------------------- */
+.hb-toast {
+  position: fixed;
+  z-index: 1200;
+  right: 24px;
+  bottom: 24px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 12px 16px;
+  border: 1px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-md);
+  color: var(--hb-ink);
+  background: var(--hb-surface-raised);
+  box-shadow: var(--hb-elev-2);
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.hb-toast.is-visible,
+.hb-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* --------------------------------------------------------------------------
+   13. 商品卡（前台商品网格与账号中心共用）
+   -------------------------------------------------------------------------- */
+.hb-addons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  gap: 14px;
+}
+
+.hb-addons-grid--compact {
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+
+/* 纵向 flex + 页脚 margin-top:auto 是「等高网格不拉伸徽标行」的关键：
+   卡片若是 grid，同排最矮卡之外多出来的高度会被均摊到每一行，
+   内容少的卡（只有徽标 + 标题）会表现为徽标被拉成竖椭圆、标题比邻卡低一截。
+   smoke.py 的 check_addon_card_layout() 断言这两条，别改回 grid。 */
+.hb-addon-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 20px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-card-bg);
+  box-shadow: var(--hb-elev-1);
+  overflow: hidden;
+  transition: var(--hb-transition);
+}
+
+/* 选中/悬停时上缘亮起一道琥珀线（与统计卡、页头横幅同一套语言）。
+   平时完全透明，所以静止状态下卡片仍是干净的深色块。 */
+.hb-addon-card::before {
+  position: absolute;
+  top: 0;
+  right: 20px;
+  left: 20px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--hb-accent) 42%, transparent);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.hb-addon-card:hover {
+  border-color: var(--hb-accent-line);
+  box-shadow: var(--hb-elev-2);
+  transform: translateY(-2px);
+}
+
+.hb-addon-card:hover::before {
+  opacity: 0.7;
+}
+
+.hb-addon-card.is-purchased {
+  opacity: 0.72;
+}
+
+.hb-addon-card__badge {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-pill);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.hb-addon-card h3 {
+  font-size: 15.5px;
+}
+
+.hb-addon-card p {
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.hb-addon-card__footer {
+  display: flex;
+  margin-top: auto;
+  padding-top: 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--hb-line-soft);
+}
+
+.hb-addon-card__footer strong {
+  color: var(--hb-accent-bright);
+  font-family: var(--hb-font-mono);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.hb-addons-empty {
+  padding: 40px 20px;
+  border: 1px dashed var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  color: var(--hb-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   14. 品牌标识
+   -------------------------------------------------------------------------- */
+.hb-brand-mark {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-accent-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.hb-brand-mark img {
+  width: 21px;
+  height: 21px;
+  object-fit: contain;
+}
+
+/* --------------------------------------------------------------------------
+   15. 可见性开关
+   -------------------------------------------------------------------------- */
+/* auth-bootstrap.js 会在 <html> 上打 hb-auth-hint（读 cookie 的预判），
+   store.js 还会在拿到 /auth/me 后再次校准。两处都只加类，不写行内样式。 */
+.hb-auth-only {
+  display: none !important;
+}
+
+html.hb-auth-hint .hb-auth-only {
+  display: revert !important;
+}
+
+html.hb-auth-hint .hb-guest-only {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   16. 共享动效
+   --------------------------------------------------------------------------
+   前台页头横幅、认证页左栏与后台面板头都用同一块「控制台铭牌」质感：细网格 +
+   琥珀辉光。网格按 46px 一循环，所以位移正好一个循环长度就能无缝接回，做出
+   一条几乎察觉不到的漂移，让铭牌是活的而不是一张贴图。
+
+   放在设计系统里而不是各自的页面样式表里：这两个页面样式表互不加载
+   （前台 theme+store，后台 theme+admin），keyframes 放任何一边都会让另一边
+   引用到一个不存在的动画名——那种失败是静默的，只是不动了。
+   -------------------------------------------------------------------------- */
+@keyframes hb-head-drift {
+  from {
+    background-position: 0 0, 0 0, 0 0, 0 0;
+  }
+
+  to {
+    background-position: 46px 46px, 46px 46px, 0 0, 0 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   17. 窄屏
+   -------------------------------------------------------------------------- */
+@media (max-width: 1020px) {
+  .hb-container {
+    padding: 0 18px;
+  }
+
+  .hb-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hb-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  h1 {
+    font-size: 24px;
+  }
+
+  .hb-grid-2,
+  .hb-grid-3,
+  .hb-grid-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hb-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hb-block {
+    padding: 20px 16px;
+  }
+
+  .hb-input-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hb-dialog__foot--split {
+    grid-template-columns: 1fr;
+  }
+}

@@ -39,9 +39,9 @@ export function weatherVisual(condition, sunState = "") {
 export function meteoconUrl(iconName) {
   const normalizedIconName = String(iconName || "").trim();
   if (/^[a-z0-9-]+$/.test(normalizedIconName)) {
-    return "/bridge-static/vendor/meteocons/fill/" + normalizedIconName + ".svg";
+    return "/static/vendor/meteocons/fill/" + normalizedIconName + ".svg";
   } else {
-    return "/bridge-static/vendor/meteocons/fill/code-red.svg";
+    return "/static/vendor/meteocons/fill/code-red.svg";
   }
 }
 function sanitizeCssColor(color, fallbackColor) {

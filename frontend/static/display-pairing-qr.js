@@ -10,7 +10,7 @@ export function pairingQrPayload(serverUrl, code) {
     (serverUrlObject.pathname !== "/" && serverUrlObject.pathname !== "")
   )
     throw new Error(
-      "\u8BF7\u586B\u5199 HA Bridge \u670D\u52A1\u5730\u5740\uFF0C\u4F8B\u5982 http://192.168.1.20:18080\uFF0C\u4E0D\u5305\u542B\u9875\u9762\u8DEF\u5F84\u3002"
+      "\u8BF7\u586B\u5199 HomeOS \u670D\u52A1\u5730\u5740\uFF0C\u4F8B\u5982 http://192.168.1.20:18080\uFF0C\u4E0D\u5305\u542B\u9875\u9762\u8DEF\u5F84\u3002"
     );
   if (!/^\d{6}$/.test(String(code)))
     throw new Error("\u9700\u8981\u6709\u6548\u7684 6 \u4F4D\u914D\u5BF9\u7801\u3002");
@@ -22,7 +22,7 @@ export function pairingQrPayload(serverUrl, code) {
     throw new Error(
       "\u624B\u673A\u65E0\u6CD5\u8FDE\u63A5\u7535\u8111\u7684\u672C\u673A\u5730\u5740\uFF0C\u8BF7\u6539\u4E3A\u624B\u673A\u53EF\u8BBF\u95EE\u7684\u5C40\u57DF\u7F51 IP \u6216\u57DF\u540D\u3002"
     );
-  return `${serverUrlObject.origin}/pair?scan=1#type=ha-bridge-pair&version=1&code=${String(code)}`;
+  return `${serverUrlObject.origin}/pair?scan=1#type=homeos-pair&version=1&code=${String(code)}`;
 }
 export function pairingQrSvg(payload) {
   qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
@@ -37,7 +37,7 @@ export function showDisplayPairingQr(pairing) {
   const dialogElement = document.createElement("dialog");
   dialogElement.className = "display-pairing-qr-dialog";
   const titleElement = document.createElement("h2");
-  titleElement.textContent = "HA Bridge \u626B\u7801\u914D\u5BF9";
+  titleElement.textContent = "HomeOS \u626B\u7801\u914D\u5BF9";
   const descriptionElement = document.createElement("p");
   descriptionElement.textContent = `\u626B\u63CF\u4E0B\u65B9\u4E8C\u7EF4\u7801\uFF0C\u8FDE\u63A5\u201C${pairing.name}\u201D\u3002\u5B89\u5353 App \u6216\u624B\u673A\u76F8\u673A\u5747\u53EF\u626B\u7801\u3002`;
   const downloadLink = document.createElement("a");
@@ -77,7 +77,7 @@ export function showDisplayPairingQr(pairing) {
   const graphicElement = document.createElement("div");
   ((graphicElement.className = "display-pairing-qr-graphic"),
     graphicElement.setAttribute("role", "img"),
-    graphicElement.setAttribute("aria-label", "HA Bridge \u914D\u5BF9\u4E8C\u7EF4\u7801"));
+    graphicElement.setAttribute("aria-label", "HomeOS \u914D\u5BF9\u4E8C\u7EF4\u7801"));
   const statusNote = document.createElement("p");
   statusNote.className = "display-pairing-qr-note";
   const closeButton = document.createElement("button");

@@ -1,71 +1,71 @@
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../static/modules/interaction3d/popup-placement.js?v=20260915153337",
+        "../../static/modules/interaction3d/popup-placement.js?v=20260915211726",
         import.meta.url
       )
     )
-  : import("/bridge-static/modules/interaction3d/popup-placement.js?v=20260915153337"));
+  : import("/static/modules/interaction3d/popup-placement.js?v=20260915211726"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "./presence-scene.js?v=20260915153337";
-import { createBackgroundTheme } from "./background-theme.js?v=20260915153337";
-import { floorNavigationChoices } from "./floor-navigation.js?v=20260915153337";
+} from "./presence-scene.js?v=20260915211726";
+import { createBackgroundTheme } from "./background-theme.js?v=20260915211726";
+import { floorNavigationChoices } from "./floor-navigation.js?v=20260915211726";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "./vacuum-motion.js?v=20260915153337";
+} from "./vacuum-motion.js?v=20260915211726";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=20260915153337";
-import { televisionState } from "./television-state.js?v=20260915153337";
-import { createTelevisionPanel } from "./television-panel.js?v=20260915153337";
-import { createTelevisionScreens } from "./television-screen.js?v=20260915153337";
+} from "./vacuum-map.js?v=20260915211726";
+import { televisionState } from "./television-state.js?v=20260915211726";
+import { createTelevisionPanel } from "./television-panel.js?v=20260915211726";
+import { createTelevisionScreens } from "./television-screen.js?v=20260915211726";
 import { createNasPanel } from "./nas-panel.js";
-import { createNasStatus, nasDeviceState } from "./nas-status.js?v=20260915153337";
+import { createNasStatus, nasDeviceState } from "./nas-status.js?v=20260915211726";
 import { createCameraStatus, cameraOnline } from "./camera-status.js";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "./cover-state.js?v=20260915153337";
-import { createCoverFeedback } from "./cover-feedback.js?v=20260915153337";
-import { createCoverPanel } from "./cover-panel.js?v=20260915153337";
-import { createCurtainMotion } from "./curtain-motion.js?v=20260915153337";
-import { createEnvironmentAirflow } from "./environment-airflow.js?v=20260915153337";
-import { createScreenOutlines } from "./environment-halos.js?v=20260915153337";
-import { mountRegionRangeEditor } from "./light-range-editor.js?v=20260915153337";
-import { climateState } from "./climate-state.js?v=20260915153337";
-import { createClimatePanel } from "./climate-panel.js?v=20260915153337";
+} from "./cover-state.js?v=20260915211726";
+import { createCoverFeedback } from "./cover-feedback.js?v=20260915211726";
+import { createCoverPanel } from "./cover-panel.js?v=20260915211726";
+import { createCurtainMotion } from "./curtain-motion.js?v=20260915211726";
+import { createEnvironmentAirflow } from "./environment-airflow.js?v=20260915211726";
+import { createScreenOutlines } from "./environment-halos.js?v=20260915211726";
+import { mountRegionRangeEditor } from "./light-range-editor.js?v=20260915211726";
+import { climateState } from "./climate-state.js?v=20260915211726";
+import { createClimatePanel } from "./climate-panel.js?v=20260915211726";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "./environment-scene.js?v=20260915153337";
-import { startSceneSync } from "./scene-sync.js?v=20260915153337";
+} from "./environment-scene.js?v=20260915211726";
+import { startSceneSync } from "./scene-sync.js?v=20260915211726";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "./light-state.js?v=20260915153337";
+} from "./light-state.js?v=20260915211726";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "./camera-motion.js?v=20260915153337";
+} from "./camera-motion.js?v=20260915211726";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=20260915153337";
+} from "./idle-rotation.js?v=20260915211726";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -3841,7 +3841,7 @@ export function mountStage(stageOptions) {
           const iconElement = makeElement("span", "i3d-marker-icon");
           iconElement.setAttribute("aria-hidden", "true");
           iconElement.style.maskImage =
-            'url("/bridge-static/vendor/mdi/7.4.47/svg/' + iconName.slice(4) + '.svg")';
+            'url("/static/vendor/mdi/7.4.47/svg/' + iconName.slice(4) + '.svg")';
           iconElement.style.webkitMaskImage = iconElement.style.maskImage;
           markerElement.replaceChildren(iconElement);
         } else {

@@ -1,8 +1,8 @@
-# HA Bridge 授权商店与授权服务器（store/）
+# HomeOS 授权商店与授权服务器（store/）
 
 在 **18082** 端口同时提供两件事：
 
-1. **授权商店**：1:1 复刻 `https://pay.habridge.cn/` 的多页前端 + `/store/v1/*` API
+1. **授权商店**：结构、页面与 API 对齐 `https://pay.habridge.cn/`（`/store/v1/*`），视觉为本项目自研的暗色 + 琥珀主题
 2. **授权服务器**：`/v2/activate`、`/v2/heartbeat`、`/v2/recover`，Ed25519 签发租约、X25519 加密传输
 
 另有一个自建的运营后台 `/admin` + `/store-admin/v1/*`（参考站没有公开管理台，为让商店可运营而自建）。
@@ -52,7 +52,7 @@ QQ 邮箱的填法（注意 `STORE_SMTP_PASSWORD` 要用**授权码**，不是�
 
 ```ini
 STORE_MAIL_MODE=smtp
-STORE_MAIL_FROM=HA Bridge <156120718@qq.com>
+STORE_MAIL_FROM=HomeOS <156120718@qq.com>
 STORE_SMTP_HOST=smtp.qq.com
 STORE_SMTP_PORT=465
 STORE_SMTP_USERNAME=156120718@qq.com
@@ -145,7 +145,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `STORE_ALIPAY_GATEWAY_URL` | 生产网关 | 沙箱填 `https://openapi.alipaydev.com/gateway.do` |
 | `STORE_ALIPAY_SELLER_ID` | — | 可选：核验通知里的卖家号 |
 | `STORE_ALIPAY_NOTIFY_URL` / `STORE_ALIPAY_RETURN_URL` | 由 `STORE_BASE_URL` 推导 | 可选：用内网穿透时指向穿透域名 |
-| `STORE_ALIPAY_TRANSACTION_DESCRIPTION` | `HA Bridge 授权` | 交易标题（出现在支付宝账单里） |
+| `STORE_ALIPAY_TRANSACTION_DESCRIPTION` | `HomeOS 授权` | 交易标题（出现在支付宝账单里） |
 | `STORE_ALIPAY_VERIFY_RESPONSE` | `true` | 是否校验支付宝响应签名，除排障外不要关 |
 | `STORE_LEASE_TTL_SECONDS` | `604800` | 租约有效期（7 天），心跳 300s 续租 |
 | `STORE_HEARTBEAT_INTERVAL_SECONDS` | `300` | 下发给客户端的 `heartbeatIn` |
@@ -292,38 +292,46 @@ store/
   api/admin.py         # /store-admin/v1/*
   api/alipay.py        # 支付宝异步通知 + 同步跳转页
   api/pages.py         # 页面路由 + /store-static + /fonts + 商品图 + 模拟收银台
-  templates/           # store.html（复刻参考站）+ admin.html（后台，样式全部外置）
-  static/              # 复用参考站自身的 CSS/字体/图标/jquery/前端 JS
-  static/theme.css     # ★ 统一主题：暗色 + 琥珀（令牌 / Bootstrap 皮肤 / 公共组件），两页共用
-  static/admin.css     # ★ 后台骨架：侧栏、面板、统计卡、表格（依赖 theme.css）
+  templates/           # store.html（前台 8 个分页）+ admin.html（后台 11 个 panel，样式全部外置）
+  static/              # 自研前端资源：设计系统 CSS + 字体/图标 + jquery + 前端 JS
+  static/theme.css     # ★ 唯一设计系统：令牌 / 重置 / 排版 / 组件（前台 + 后台 + 收银台共用）
+  static/store.css     # ★ 前台页面布局：外壳 + 首页/商品/结算/认证/账号/邀请
+  static/admin.css     # ★ 后台页面布局：窄侧栏、面板骨架、统计卡、表格
   tools/gen_keys.py    # 生成密钥对，并同步公钥镜像到客户端 keys/
   tools/seed.py        # 初始化管理员 + 商品 + 版本
   tools/smoke.py       # 协议级自检
   tools/e2e.py         # 真实链路端到端（44 项）
 ```
 
-前端复刻策略：`templates/store.html` 与 `static/store.js` / `static/referrals.js` 以参考站自身文件为基线，保留同一套 `data-store-page` 分页、DOM 选择器与 `api(path) → /store/v1` 契约；CSS/字体/jquery 直接复用参考站文件。图标字体写在 `font.min.css` 里的路径是 `../fonts/font.woff2`，所以 `/fonts` 必须挂在根路径（`app.py` 已处理）。
+前端复刻策略：**结构与契约对齐参考站，视觉为本项目自研暗色主题**。`templates/store.html` 与 `static/store.js` / `static/referrals.js` 不保留参考站原有的 DOM 结构，但保留同一套 `data-store-page` 分页、全部 `id`/`data-*` 钩子与 `api(path) → /store/v1` 契约——布局可以随时重排，前后端接口与 JS 行为不动。图标字体写在 `font.min.css` 里的路径是 `../fonts/font.woff2`，所以 `/fonts` 必须挂在根路径（`app.py` 已处理）。
 
 ### 界面主题（暗色 + 琥珀）
 
-前台的原始 CSS（`bridge-store.css` 绿色系 + `merged.css` 蓝色系）和后台的原生 Bootstrap 都是浅色主题，与本项目主程序（`frontend/static/app.css`）的**暗色画布 + 单一琥珀强调色**完全相反。现在是靠一层**覆盖层**把它们统一起来，而不去改动那两份基线文件：
+主题与主程序（`frontend/static/app.css`）同源：**暗色画布 + 单一琥珀强调色**。参考站那份浅色样板表（`bridge-store.css` / `merged.css` / `referrals.css` / `product-packages.css`）与后台的 Bootstrap 5.3 **已全部删除**，不再有「基线样式 + 事后补丁层」这套结构。
 
 | 文件 | 作用 | 谁加载 |
 | --- | --- | --- |
-| `static/theme.css` | 设计令牌 + Bootstrap 5.3 皮肤 + 公共组件 | `store.html`（**最后一张**）、`admin.html` |
-| `static/admin.css` | 后台骨架（侧栏/面板/统计卡/表格） | `admin.html` |
+| `static/theme.css` | 设计令牌 + 重置 + 排版 + 全部组件（按钮/表单/卡片/表格/徽标/对话框/提示） | `store.html`、`admin.html`、模拟收银台 |
+| `static/store.css` | 前台页面布局（外壳/首页/商品/结算/认证/账号/邀请/维护页） | `store.html`、模拟收银台 |
+| `static/admin.css` | 后台页面布局（窄 rail、panels 骨架、统计卡、表格） | `admin.html` |
+
+样式分层即「加载顺序即层级」，不再需要靠特异性互相打赢：
+
+```
+theme.css（令牌 + 组件）  →  store.css | admin.css（只排区块，不重定义组件）
+```
 
 令牌与主程序逐项对齐：画布 `#151a1f`、面 `#1a2026`、发丝线 `#303840`、强调 `#f2a20d`、成功 `#54bd78`，主按钮为琥珀渐变 `#ffb82e → #ef9900` 配深色字。
 
 维护时的三条硬规矩（都踩过坑，`smoke.py` 已加断言）：
 
-1. **`theme.css` 必须最后加载。** 它和基线样式都是单类名选择器，全靠源码顺序取胜；一旦被排到 `bridge-store.css` 前面，浅色就会整体反弹回来。
-2. **基线里的 `!important` 和二级选择器要同等对待。** 例如 `.hb-button--secondary` 的 `color` 带 `!important`，而 `.hb-store-products .acg-card` / `.acg-thumb` 用的二级选择器特异性高于 `.acg-card`。在 `theme.css` 第 14 节统一收口——那里集中处理这类冲突，不要再往前面各节里塞。
-3. **令牌改名即失效。** `--hb-green*` 是历史命名，已在主题里映射到琥珀；`--hb-bg` / `--hb-accent` / `--hb-success` 三个值与 `frontend/static/app.css` 的 `--bg` / `--accent` / `--success` 必须一致，`smoke.py` 的 `check_theme_matches_app()` 会直接比对，主程序改色而商店没跟就会 FAIL。
+1. **`theme.css` 必须排在任何页面样式表之前。** 组件定义在 `theme.css`，`store.css` / `admin.css` 只负责摆放区块；顺序反了就会出现「页面布局被组件样式反向覆盖」这类难查的问题。
+2. **新样式加进对应层级，不要靠提高特异性取胜。** 页面级差异写进 `store.css` / `admin.css`，组件级差异写进 `theme.css` 的组件章节——不要在模板里内联 `<style>`（`smoke.py` 会拦）。
+3. **令牌改名即失效。** `--hb-bg` / `--hb-accent` / `--hb-success` 三个值与 `frontend/static/app.css` 的 `--bg` / `--accent` / `--success` 必须一致，`smoke.py` 的 `check_theme_matches_app()` 会直接比对，主程序改色而商店没跟就会 FAIL。
 
 另外两处**内联** HTML 也走同一套令牌，改配色时别漏：`api/pages.py` 的模拟收银台（`_cashier_html`）和 `api/alipay.py` 的同步跳转页（`_RETURN_PAGE`）。
 
-自查手法：光看截图容易漏掉「白底白字」这类问题，用浏览器 DevTools 遍历 `document.querySelectorAll('*')`，把 `background-color` 亮度 > 170 的元素、以及文字色偏蓝（`b - r > 28`）或过暗（亮度 < 72）的元素打出来，比肉眼可靠得多。
+自查手法：换布局最容易出的是「类名写出来了但没有对应样式」——节点照样渲染，只是没有边框和内边距，控制台一声不响。`smoke.py` 的 `check_design_class_coverage()` 会把 `store.js` / `referrals.js` / 模板 `class=` 字面量里的类名逐个到三份样式表里核对；肉眼核对时则用浏览器 DevTools 遍历 `document.querySelectorAll('*')`，把没有生效样式的节点打出来。
 
 ---
 
@@ -357,11 +365,12 @@ store/
   授权），和守卫「只要有任意一条引用就下架」不同口径。现在后台列表额外暴露 `licenseCount` /
   `orderCount`（不带过滤，与守卫完全一致），弹窗据此决定结论。
 
-语气跟着结果走：不可恢复的删除用 `tone: 'danger'`（红色 `btn-danger`），会降级成停用/下架
-这类可恢复结果时用 `tone: 'warning'`（琥珀 `btn-warning`），避免两者长得一模一样。
+语气跟着结果走：不可恢复的删除用 `tone: 'danger'`（`.hb-button--danger`，红），会降级成停用/下架
+这类可恢复结果时用 `tone: 'warning'`（`.hb-button--warning`，琥珀），避免两者长得一模一样。
 
-> Bootstrap 的 `.btn-warning` 是亮黄底 `#ffc107`，在暗色主题下既突兀又对比度不足，
-> 已在 `theme.css` 改成琥珀实心（与 `--hb-accent` 同色系）。
+> 这两个语义色都是自研的：Bootstrap 的 `.btn-warning` 是亮黄底 `#ffc107`，在暗色主题下既突兀
+> 又对比度不足；现在 `theme.css` 里的 `.hb-button--warning` 走 `--hb-accent` 同色系实心，
+> 后台已经不再引用任何 Bootstrap 类名。
 
 ---
 
@@ -398,8 +407,8 @@ body            { overflow: hidden; }
 `sticky` 的吸附参照是**最近的滚动祖先**，因此：
 
 1. **`.table-wrap` 绝不能有 `overflow`。** 一旦设了 `overflow: auto`（哪怕只为横向滚动），
-   它就成了新的滚动容器，表头会改以它为参照、等于不吸顶。同样的原因，Bootstrap 的
-   `.table-responsive`（自带 `overflow-x: auto`）在后台里被弃用。
+   它就成了新的滚动容器，表头会改以它为参照、等于不吸顶。同理，卡片式 `overflow: hidden`
+   的工具栏在后台里一律不用。
 2. **滚动容器的 `padding-top` 必须是 0。** 表头会吸附在「滚动容器内容盒顶部」，也就是
    max(padding-top, scrollTop) 的位置。`.admin-main` 原本有 `padding-top: 18px`，滚起来后
    表头停在 18px，上方留出 18px 空档、行内容从缝里穿过去。所以这段间距改由
@@ -456,7 +465,7 @@ body            { overflow: hidden; }
 | 提现审核 | 通过、驳回 | 删除 |
 | 版本发布 / 审计日志 | — | 只有一个动作，不包菜单（多一次点击没有收益） |
 
-后台**没有引入 Bootstrap JS**，所以菜单是手写的（`rowMenu` / `menuItem` + `.admin-main` 上的
+后台**没有引入任何前端框架**，所以菜单是手写的（`rowMenu` / `menuItem` + `.admin-main` 上的
 一个委托监听）。两个实现要点：
 
 - **菜单标记仍留在单元格内**，靠绝对定位浮起。若把它 `appendChild` 到 `document.body` 以免被
@@ -503,7 +512,7 @@ body            { overflow: hidden; }
 ### 10.8 视觉层：从「能用的表单」到控制台
 
 骨架修完后界面依然显旧，但那是另一层问题——**结构和观感是两件事**。原来所有文字都在
-11–13px，KPI 数值和正文一样大，等于没有层级；状态用 Bootstrap 实心 `badge`，一屏几十个亮色
+11–13px，KPI 数值和正文一样大，等于没有层级；状态用框架自带实心 `badge`，一屏几十个亮色
 块把视线拉散；卡片、表格、面板各用一套边框，全靠同色的 1px 线分隔。这一层做了三件事：
 
 1. **建立层级。** 页面标题 22px、KPI 数值 26px（等宽数字 + `tabular-nums`，多张卡的数字才能

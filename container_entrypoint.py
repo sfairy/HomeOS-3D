@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Mapping, MutableMapping, Sequence
 
 
-RUN_AS_USER = "ha-bridge"
+RUN_AS_USER = "homeos"
 
 
 def storage_directories(environment: Mapping[str, str]) -> tuple[Path, ...]:
@@ -66,7 +66,7 @@ def initialize_permissions(
 def main(arguments: Sequence[str] | None = None) -> None:
     command = list(arguments if arguments is not None else sys.argv[1:])
     if not command:
-        raise SystemExit("HA Bridge container command is missing.")
+        raise SystemExit("HomeOS container command is missing.")
     initialize_permissions(os.environ)
     os.execvp(command[0], command)
 

@@ -1,10 +1,10 @@
-'''Keep databases created by HA Bridge 0.3.3 upgradeable.
+'''Keep databases created by HomeOS 0.3.3 upgradeable.
 
 Revision ID: 0011
 Revises: 0010
 Create Date: 2026-08-25
 
-HA Bridge 0.3.3 stored an editor theme preference in this column. The 0.3.4
+HomeOS 0.3.3 stored an editor theme preference in this column. The 0.3.4
 runtime intentionally returned to the 0.3.2 feature baseline, but deployed
 databases may already be stamped at revision 0011. Retaining the revision and
 normalising the harmless column lets both older and already-upgraded databases

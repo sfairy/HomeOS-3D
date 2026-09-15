@@ -301,7 +301,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
         scope = light_history_scope(active_connection(database), viewer, projectId)
     scene_path(request, sceneId)
     html = (request.app.state.settings.frontend_dir / '3d-studio.html').read_text(encoding='utf-8')
-    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/stage.css?v=20260915153337"></head>')
+    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/stage.css?v=20260915211726"></head>')
     html = html.replace('<body>', f'<body class="interaction3d-stage" data-i3d-light-history-scope="{scope}">')
     return HTMLResponse(html, headers={'Cache-Control': 'no-store'})
 

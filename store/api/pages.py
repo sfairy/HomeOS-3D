@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy import select
 
-from store import fulfill, site_settings as site_config
+from store import coupons, fulfill, site_settings as site_config
 from store.deps import DbSession
 from store.models import Order, Product
 from store.security import utcnow
@@ -104,41 +104,34 @@ def _cashier_html(order: Order, product: Product | None) -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#151a1f">
 <title>模拟收银台 · {payload['orderNo']}</title>
-<link rel="stylesheet" href="/store-static/bootstrap.min.css">
-<link rel="stylesheet" href="/store-static/theme.css?v=20260915153337">
-<link rel="icon" href="/store-static/favicon-rounded.png">
-<style>
-  /* 统一主题已在 theme.css 里给出暗色画布与 Bootstrap 皮肤，
-     这里只保留收银台自己的版式与「仅本地联调」角标。 */
-  .cashier {{ max-width: 460px; margin: 8vh auto; }}
-  .cashier .badge-mock {{ border: 1px solid var(--hb-accent-line); background: var(--hb-accent-soft); color: var(--hb-accent-bright); border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 650; }}
-  .cashier .amount {{ color: var(--hb-accent-bright); font-size: 34px; font-weight: 700; font-family: var(--hb-font-mono); }}
-  .cashier .meta dt {{ color: var(--hb-muted); font-weight: 500; }}
-</style>
+<link rel="stylesheet" href="/store-static/theme.css?v=20260915211726">
+<link rel="stylesheet" href="/store-static/store.css?v=20260915211726">
+<link rel="icon" href="/store-static/favicon-rounded.png?v=20260915211726">
 </head>
 <body>
-<div class="cashier">
-  <div class="card shadow-sm">
-    <div class="card-body p-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">模拟收银台</h5>
-        <span class="badge-mock">仅本地联调</span>
-      </div>
-      <div class="amount mb-1">¥{amount:.2f}</div>
-      <div class="text-muted mb-3">{payload['productName']}</div>
-      <dl class="row meta small mb-3">
-        <dt class="col-4">订单号</dt><dd class="col-8 text-break">{payload['orderNo']}</dd>
-        <dt class="col-4">下单邮箱</dt><dd class="col-8 text-break">{payload['email']}</dd>
-        <dt class="col-4">状态</dt><dd class="col-8">{payload['status']}</dd>
-      </dl>
-      <div id="cashier-message" class="alert alert-secondary py-2 small mb-3">确认支付后将立即发码，请勿关闭本页。</div>
-      <div class="d-flex gap-2">
-        <button id="cashier-confirm" class="btn btn-primary flex-grow-1">确认支付</button>
-        <button id="cashier-cancel" class="btn btn-outline-secondary">取消订单</button>
-      </div>
-      <a class="btn btn-link w-100 mt-2" href="/user/dashboard/index">返回账号中心</a>
+<div class="hb-cashier">
+  <div class="hb-cashier__card">
+    <div class="hb-cashier__head">
+      <h1>模拟收银台</h1>
+      <span class="hb-tag hb-tag--accent">仅本地联调</span>
     </div>
+    <div>
+      <div class="hb-cashier__amount">¥{amount:.2f}</div>
+      <div class="hb-cashier__product">{payload['productName']}</div>
+    </div>
+    <dl class="hb-cashier__meta">
+      <div><dt>订单号</dt><dd>{payload['orderNo']}</dd></div>
+      <div><dt>下单邮箱</dt><dd>{payload['email']}</dd></div>
+      <div><dt>状态</dt><dd>{payload['status']}</dd></div>
+    </dl>
+    <p id="cashier-message" class="hb-cashier__message">确认支付后将立即发码，请勿关闭本页。</p>
+    <div class="hb-cashier__actions">
+      <button id="cashier-confirm" class="hb-button hb-button--primary hb-button--lg">确认支付</button>
+      <button id="cashier-cancel" class="hb-button hb-button--secondary hb-button--lg">取消订单</button>
+    </div>
+    <a class="hb-cashier__back" href="/user/dashboard/index">返回账号中心</a>
   </div>
 </div>
 <script>
@@ -155,11 +148,11 @@ async function act(action) {{
     }});
     const body = await response.json().catch(() => ({{}}));
     if (!response.ok) throw new Error(body.detail || '操作失败。');
-    message.className = 'alert alert-success py-2 small mb-3';
+    message.className = 'hb-cashier__message is-success';
     message.textContent = action === 'pay' ? '支付成功，正在前往账号中心…' : '订单已取消。';
     setTimeout(() => {{ location.href = '/user/dashboard/index'; }}, 700);
   }} catch (error) {{
-    message.className = 'alert alert-danger py-2 small mb-3';
+    message.className = 'hb-cashier__message is-error';
     message.textContent = error.message;
     confirmButton.disabled = false; cancelButton.disabled = false;
   }}
@@ -231,6 +224,9 @@ def mock_cancel(order_no: str, request: Request, session: DbSession, payload: di
     order.status = "cancelled"
     order.cancelled_at = utcnow()
     fulfill.release_reserved_stock(session, product, 1)
+    # 收银台取消同样要归还优惠码名额，否则 redeemed_count 只增不减，
+    # 名额被永久占用（该列参与 max_redemptions 校验）。
+    coupons.release_coupon(session, order)
     session.flush()
     session.refresh(order)
     return order_payload(order)

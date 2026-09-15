@@ -57,7 +57,7 @@ def _mirror_directory(args, out_dir: Path) -> Path | None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="生成 HA Bridge 授权服务器密钥对")
+    parser = argparse.ArgumentParser(description="生成 HomeOS 授权服务器密钥对")
     parser.add_argument(
         "--out",
         default=str(STORE_ROOT / "keys" / "local"),

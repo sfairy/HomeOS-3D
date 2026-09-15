@@ -160,7 +160,7 @@ def export_global_logs(
         )
         for item in items
     )
-    return PlainTextResponse(content, media_type='text/plain; charset=utf-8', headers={'Content-Disposition': 'attachment; filename="ha-bridge-global-log.txt"'})
+    return PlainTextResponse(content, media_type='text/plain; charset=utf-8', headers={'Content-Disposition': 'attachment; filename="homeos-global-log.txt"'})
 
 
 @router.get('')

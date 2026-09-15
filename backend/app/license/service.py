@@ -389,7 +389,7 @@ class LicenseService:
         payload = {
             'activationCode': activation_code.strip().upper(),
             'instanceId': instance_id,
-            'product': 'ha-bridge',
+            'product': 'homeos',
             'clientVersion': self.settings.version,
             'nonce': secrets.token_urlsafe(24)}
         normalized_email = (email or '').strip().lower()

@@ -4,60 +4,60 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "./studio-curtain-track.js?v=20260915153337";
-import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260915153337";
+} from "./studio-curtain-track.js?v=20260915211726";
+import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260915211726";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "./studio-surface-textures.js?v=20260915153337";
-import { createOverviewStack } from "./studio-overview-stack.js?v=20260915153337";
-import { windowGeometryParts } from "./studio-window-geometry.js?v=20260915153337";
+} from "./studio-surface-textures.js?v=20260915211726";
+import { createOverviewStack } from "./studio-overview-stack.js?v=20260915211726";
+import { windowGeometryParts } from "./studio-window-geometry.js?v=20260915211726";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=20260915153337";
-import { addSecurityModel } from "./studio-security-models.js?v=20260915153337";
-import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260915153337";
-import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260915153337";
-import { createFloorTransition } from "./studio-floor-transition.js?v=20260915153337";
-import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260915153337";
-import { createGroundReflections } from "./studio-ground-reflections.js?v=20260915161527";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260915153337";
+} from "./studio-camera-constraints.js?v=20260915211726";
+import { addSecurityModel } from "./studio-security-models.js?v=20260915211726";
+import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260915211726";
+import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260915211726";
+import { createFloorTransition } from "./studio-floor-transition.js?v=20260915211726";
+import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260915211726";
+import { createGroundReflections } from "./studio-ground-reflections.js?v=20260915211726";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260915211726";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances,
   mergeWallBands
-} from "./studio-wall-materials.js?v=20260915161527";
+} from "./studio-wall-materials.js?v=20260915211726";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../modules/interaction3d/render-cache.js?v=20260915153337";
-import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260915153337";
-import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260915153337";
-import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260915153337";
-import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260915153337";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=20260915153337";
-import * as threeModuleMin from "/bridge-static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/bridge-static/vendor/three/0.182.0/OrbitControls.js?v=20260915153337";
-import { RoundedBoxGeometry } from "/bridge-static/vendor/three/0.182.0/RoundedBoxGeometry.js";
-import { mergeGeometries } from "/bridge-static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/bridge-static/vendor/three/0.182.0/GLTFLoader.js?v=20260915153337";
-import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260915153337";
+} from "../modules/interaction3d/render-cache.js?v=20260915211726";
+import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260915211726";
+import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260915211726";
+import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260915211726";
+import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260915211726";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=20260915211726";
+import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260915211726";
+import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
+import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260915211726";
+import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260915211726";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../modules/interaction3d/light-motion.js?v=20260915153337";
+} from "../modules/interaction3d/light-motion.js?v=20260915211726";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -97,7 +97,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "./geometry.js?v=20260915153337";
+} from "./geometry.js?v=20260915211726";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -106,32 +106,32 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "./export-utils.js?v=20260915153337";
+} from "./export-utils.js?v=20260915211726";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "./export-presets.js?v=20260915153337";
-import { reorderFloors } from "./floor-order.js?v=20260915153337";
-import { syncControlValue } from "./ui-controls.js?v=20260915153337";
+} from "./export-presets.js?v=20260915211726";
+import { reorderFloors } from "./floor-order.js?v=20260915211726";
+import { syncControlValue } from "./ui-controls.js?v=20260915211726";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=20260915153337";
+} from "./studio-widgets.js?v=20260915211726";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "./studio-external-models.js?v=20260915153337";
+} from "./studio-external-models.js?v=20260915211726";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "./studio-plan-drawing.js?v=20260915153337";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260915153337";
-import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260915153337";
-import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260915153337";
+} from "./studio-plan-drawing.js?v=20260915211726";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260915211726";
+import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260915211726";
+import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260915211726";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -144,7 +144,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "./studio-normalization.js?v=20260915153337";
+} from "./studio-normalization.js?v=20260915211726";
 window.__haBridgeStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 const selectElement = selector => document.querySelector(selector);
@@ -1248,9 +1248,9 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/bridge-static/3d-studio/draco-decoder-worker.js?v=20260915153337"
+  "/static/3d-studio/draco-decoder-worker.js?v=20260915211726"
 );
-dracoLoader.setDecoderPath("/bridge-static/vendor/three/0.182.0/draco/");
+dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
   type: "wasm"
 });
@@ -1741,7 +1741,7 @@ let panelResizeState = null;
 let lightingChannel = null;
 try {
   if (typeof BroadcastChannel == "function") {
-    lightingChannel = new BroadcastChannel("ha-bridge-studio3d-base-lighting-v1");
+    lightingChannel = new BroadcastChannel("homeos-studio3d-base-lighting-v1");
   }
 } catch {}
 let needsRender = true;
@@ -2092,7 +2092,7 @@ function renderFloorList() {
         floorRowElement.classList.remove("drag-ready");
         floorRowElement.classList.add("dragging");
         dragStartEvent.dataTransfer.effectAllowed = "move";
-        dragStartEvent.dataTransfer.setData("application/x-ha-bridge-floor", listedFloor.id);
+        dragStartEvent.dataTransfer.setData("application/x-homeos-floor", listedFloor.id);
       });
       floorRowElement.addEventListener("dragend", () => {
         draggingFloorId = "";
@@ -3356,7 +3356,7 @@ function createLightGroupRow(listedLightGroup) {
     groupRowElement.classList.add("dragging");
     groupDragStartEvent.dataTransfer.effectAllowed = "move";
     groupDragStartEvent.dataTransfer.setData(
-      "application/x-ha-bridge-light-group",
+      "application/x-homeos-light-group",
       listedLightGroup.id
     );
   });
@@ -8241,10 +8241,10 @@ function publishRenderStatsTest() {
     instanceSaved: Number(statsCanvasElement.dataset.instanceDrawCallsSaved || 0),
     staticItemSaved: Number(statsCanvasElement.dataset.staticItemDrawCallsSaved || 0)
   };
-  let statsOutputElement = document.querySelector("#ha-bridge-render-stats-test-output");
+  let statsOutputElement = document.querySelector("#homeos-render-stats-test-output");
   if (!statsOutputElement) {
     statsOutputElement = document.createElement("output");
-    statsOutputElement.id = "ha-bridge-render-stats-test-output";
+    statsOutputElement.id = "homeos-render-stats-test-output";
     document.body.append(statsOutputElement);
   }
   statsOutputElement.textContent =
@@ -11203,7 +11203,7 @@ function ensureAutoDiagramFrame(frameAttempt = 0) {
       if (!isFrameProduced) {
         window.parent.postMessage(
           {
-            type: "ha-bridge-floorplan-auto-diagram-error",
+            type: "homeos-floorplan-auto-diagram-error",
             componentId: autoDiagramComponentId,
             message: "3D户型首帧渲染失败，请刷新后重试。"
           },
@@ -11213,7 +11213,7 @@ function ensureAutoDiagramFrame(frameAttempt = 0) {
       }
       window.parent.postMessage(
         {
-          type: "ha-bridge-floorplan-auto-diagram-ready",
+          type: "homeos-floorplan-auto-diagram-ready",
           componentId: autoDiagramComponentId,
           floors: studioDocument.floors.map(floorBrief => ({
             id: floorBrief.id,
@@ -12016,7 +12016,7 @@ function notifyExportStopped(stopCode, stopMessage) {
   if (!!isAutoDiagramEmbed && !!autoDiagramComponentId && window.parent !== window) {
     window.parent.postMessage(
       {
-        type: "ha-bridge-floorplan-auto-diagram-stopped",
+        type: "homeos-floorplan-auto-diagram-stopped",
         componentId: autoDiagramComponentId,
         reason: stopCode,
         message: stopMessage
@@ -12502,7 +12502,7 @@ async function runStudioExport() {
     ) {
       embeddingHostWindow.postMessage(
         {
-          type: "ha-bridge-floorplan-auto-diagram-export",
+          type: "homeos-floorplan-auto-diagram-export",
           componentId: autoDiagramComponentId,
           folderName: exportTargetFolderName,
           manifest: exportManifest
@@ -12524,7 +12524,7 @@ async function runStudioExport() {
     if (isAutoDiagramEmbed && autoDiagramComponentId && window.parent !== window) {
       window.parent.postMessage(
         {
-          type: "ha-bridge-floorplan-auto-diagram-error",
+          type: "homeos-floorplan-auto-diagram-error",
           componentId: autoDiagramComponentId,
           message: exportError?.message || "后台生成失败，请重试。"
         },
@@ -20522,7 +20522,7 @@ function batchRepeatedItemMeshes(instanceRoot, instanceItemEntries) {
         batchEntries.length
       );
       instancedMesh.name =
-        "ha-bridge-instance-" + batchEntries[0].item.type + "-" + (descriptorIndex + 1);
+        "homeos-instance-" + batchEntries[0].item.type + "-" + (descriptorIndex + 1);
       instancedMesh.castShadow = sourceMesh.castShadow;
       instancedMesh.receiveShadow = sourceMesh.receiveShadow;
       instancedMesh.renderOrder = sourceMesh.renderOrder;
@@ -24737,7 +24737,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/stage.js?v=20260915153337");
+        await import("/api/v1/modules/interaction3d/stage.js?v=20260915211726");
       mountStage(createStageController());
       return;
     }
@@ -25733,7 +25733,7 @@ for (const paletteItemTypeButton of itemTypeButtons) {
   paletteItemTypeButton.addEventListener("dragstart", itemTypeDragStartEvent => {
     itemTypeDragStartEvent.dataTransfer.effectAllowed = "copy";
     itemTypeDragStartEvent.dataTransfer.setData(
-      "application/x-ha-bridge-3d-item",
+      "application/x-homeos-3d-item",
       paletteItemTypeButton.dataset.itemType
     );
   });
@@ -25746,12 +25746,12 @@ for (const paletteItemTypeButton of itemTypeButtons) {
   });
 }
 planStageElement.addEventListener("dragenter", stageDragEnterEvent => {
-  if ([...stageDragEnterEvent.dataTransfer.types].includes("application/x-ha-bridge-3d-item")) {
+  if ([...stageDragEnterEvent.dataTransfer.types].includes("application/x-homeos-3d-item")) {
     planStageElement.classList.add("dragging-item");
   }
 });
 planStageElement.addEventListener("dragover", stageDragOverEvent => {
-  if ([...stageDragOverEvent.dataTransfer.types].includes("application/x-ha-bridge-3d-item")) {
+  if ([...stageDragOverEvent.dataTransfer.types].includes("application/x-homeos-3d-item")) {
     stageDragOverEvent.preventDefault();
     stageDragOverEvent.dataTransfer.dropEffect = "copy";
     planStageElement.classList.add("dragging-item");
@@ -25766,7 +25766,7 @@ planStageElement.addEventListener("drop", stageItemDropEvent => {
   stageItemDropEvent.preventDefault();
   planStageElement.classList.remove("dragging-item");
   const droppedItemTypeKey = stageItemDropEvent.dataTransfer.getData(
-    "application/x-ha-bridge-3d-item"
+    "application/x-homeos-3d-item"
   );
   if (droppedItemTypeKey) {
     createSceneItem(droppedItemTypeKey, screenToPlan(canvasPointFromEvent(stageItemDropEvent)));
@@ -25933,7 +25933,7 @@ function postBaseLightingState(lightingStatus = "ready") {
   ) {
     window.parent.postMessage(
       {
-        type: "ha-bridge-floorplan-auto-diagram-base-lighting-state",
+        type: "homeos-floorplan-auto-diagram-base-lighting-state",
         componentId: autoDiagramComponentId,
         status: lightingStatus,
         lighting: normalizeBaseLighting(baseLighting),
@@ -25953,7 +25953,7 @@ function postFloorStateToParent() {
   ) {
     window.parent.postMessage(
       {
-        type: "ha-bridge-floorplan-auto-diagram-floor-state",
+        type: "homeos-floorplan-auto-diagram-floor-state",
         componentId: autoDiagramComponentId,
         floors: studioDocument.floors.map(floorSummaryEntry => ({
           id: floorSummaryEntry.id,
@@ -25976,7 +25976,7 @@ window.addEventListener("message", parentWindowMessageEvent => {
   }
   const parentMessagePayload = parentWindowMessageEvent.data;
   if (!!parentMessagePayload && parentMessagePayload.componentId === autoDiagramComponentId) {
-    if (parentMessagePayload.type === "ha-bridge-floorplan-auto-diagram-floor") {
+    if (parentMessagePayload.type === "homeos-floorplan-auto-diagram-floor") {
       if (parentMessagePayload.command === "set-floor") {
         const requestedFloorMatch = studioDocument.floors.find(
           requestedFloorEntry => requestedFloorEntry.id === parentMessagePayload.value
@@ -25990,7 +25990,7 @@ window.addEventListener("message", parentWindowMessageEvent => {
       }
       return;
     }
-    if (parentMessagePayload.type === "ha-bridge-floorplan-auto-diagram-base-lighting") {
+    if (parentMessagePayload.type === "homeos-floorplan-auto-diagram-base-lighting") {
       if (parentMessagePayload.command === "request-state") {
         baseLightControlsElement.hidden = true;
         applyBaseLightingSettings(studioDocument.baseLighting);
@@ -26019,7 +26019,7 @@ window.addEventListener("message", parentWindowMessageEvent => {
       }
       return;
     }
-    if (parentMessagePayload.type === "ha-bridge-floorplan-auto-diagram-camera") {
+    if (parentMessagePayload.type === "homeos-floorplan-auto-diagram-camera") {
       const editableCameraSettings = cameraSettingsSource();
       if (parentMessagePayload.command === "restore") {
         const incomingCameraSettings = parentMessagePayload.value || {};
@@ -26073,7 +26073,7 @@ window.addEventListener("message", parentWindowMessageEvent => {
       return;
     }
     if (
-      parentMessagePayload.type === "ha-bridge-floorplan-auto-diagram-generate" &&
+      parentMessagePayload.type === "homeos-floorplan-auto-diagram-generate" &&
       !isExportBusy
     ) {
       for (const exportFileCheckbox of exportDialogElement.querySelectorAll(
@@ -26788,7 +26788,7 @@ if (new URLSearchParams(window.location.search).has("model-export")) {
       ...furnitureOverrideValues
     };
     const offlineFurnitureModel = buildItemModel(offlineFurnitureSpec);
-    offlineFurnitureModel.name = "ha-bridge-v1-" + furnitureTypeKey;
+    offlineFurnitureModel.name = "homeos-v1-" + furnitureTypeKey;
     offlineFurnitureModel.updateMatrixWorld(true);
     const offlineFurnitureJson = offlineFurnitureModel.toJSON();
     disposeSceneSubtree(offlineFurnitureModel);
@@ -26831,7 +26831,7 @@ if (new URLSearchParams(window.location.search).has("model-export")) {
     requestAnimationFrame(() => {
       try {
         const modelExportTextArea = document.createElement("textarea");
-        modelExportTextArea.id = "ha-bridge-model-export";
+        modelExportTextArea.id = "homeos-model-export";
         modelExportTextArea.hidden = true;
         const modelExportPayload = JSON.stringify(
           window.__haBridgeExportFurnitureJson(modelExportFurnitureType, modelExportOverrideEntry)
@@ -26922,7 +26922,7 @@ if (materialTestTypeKey) {
       };
       document.documentElement.dataset.materialTestStats = JSON.stringify(materialTestStats);
       const materialTestOutputElement = document.createElement("output");
-      materialTestOutputElement.id = "ha-bridge-material-test-output";
+      materialTestOutputElement.id = "homeos-material-test-output";
       materialTestOutputElement.setAttribute("aria-live", "polite");
       materialTestOutputElement.textContent =
         "材质测试 " +

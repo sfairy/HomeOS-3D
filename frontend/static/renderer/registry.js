@@ -1,4 +1,4 @@
-import { randomUuid } from "../utils/random-id.js?v=20260915153337";
+import { randomUuid } from "../utils/random-id.js?v=20260915211726";
 import {
   climateDefaultIcon,
   climateEffectMode,
@@ -7,10 +7,10 @@ import {
   climatePresentationMode,
   normalizeClimateCapabilities,
   resolveClimateDeviceType
-} from "./climate.js?v=20260915153337";
-import { entityPowerIsOn } from "./entity-power.js?v=20260915153337";
-import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260915153337";
-import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260915153337";
+} from "./climate.js?v=20260915211726";
+import { entityPowerIsOn } from "./entity-power.js?v=20260915211726";
+import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260915211726";
+import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260915211726";
 const componentsByType = new Map();
 registerComponent("interaction3d", {
   render: renderInteraction3d
@@ -201,7 +201,7 @@ function resolveIconUrl(iconName) {
     .trim()
     .replace(/^mdi:/, "");
   if (/^[a-z0-9-]+$/.test(normalizedIconName)) {
-    return "/bridge-static/vendor/mdi/7.4.47/svg/" + normalizedIconName + ".svg";
+    return "/static/vendor/mdi/7.4.47/svg/" + normalizedIconName + ".svg";
   } else {
     return "";
   }
@@ -409,18 +409,18 @@ import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport,
   lightStatisticsSummary
-} from "./light-statistics-runtime.js?v=20260915153337";
+} from "./light-statistics-runtime.js?v=20260915211726";
 import {
   automaticNumericPrecision,
   formatLineChartValue,
   formatNumericValue,
   lineChartGeometry,
   normalizedStatePrecision
-} from "./line-chart-runtime.js?v=20260915153337";
+} from "./line-chart-runtime.js?v=20260915211726";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix
-} from "./door-window-runtime.js?v=20260915153337";
+} from "./door-window-runtime.js?v=20260915211726";
 import {
   automaticThresholds,
   meteoconUrl,
@@ -429,12 +429,12 @@ import {
   smoothChartPath,
   thresholdColor,
   weatherVisual
-} from "./weather-chart-runtime.js?v=20260915153337";
+} from "./weather-chart-runtime.js?v=20260915211726";
 import {
   formatLocalDate,
   formatLocalTime,
   formatLunarDate
-} from "./date-time-runtime.js?v=20260915153337";
+} from "./date-time-runtime.js?v=20260915211726";
 export {
   lightStatisticsEntityStateStatus as lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport as lightStatisticsEntitySupport,
@@ -464,7 +464,7 @@ import {
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "./presence-runtime.js?v=20260915153337";
+} from "./presence-runtime.js?v=20260915211726";
 export {
   formatPresenceDuration as formatPresenceDuration,
   presenceAnimationPhase as presenceAnimationPhase,
@@ -3574,7 +3574,7 @@ export function mountCameraMedia({
                   path: hlsEventData.url || hlsEventData.response?.url || ""
                 }
               );
-              console.warn("[HA Bridge camera] HLS playback failed", {
+              console.warn("[HomeOS camera] HLS playback failed", {
                 entityId: mediaEntityId,
                 type: hlsEventData.type,
                 details: hlsEventData.details,

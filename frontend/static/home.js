@@ -1,14 +1,14 @@
-import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260915153337";
+import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260915211726";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "./renderer/renderer.js?v=20260915153337";
+} from "./renderer/renderer.js?v=20260915211726";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "./renderer/registry.js?v=20260915153337";
+} from "./renderer/registry.js?v=20260915211726";
 import {
   applyUiPackToDocument,
   createComponentFromTemplate,
@@ -17,7 +17,7 @@ import {
   listComponentTemplates,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "./ui-packs/loader.js?v=20260915153337";
+} from "./ui-packs/loader.js?v=20260915211726";
 import {
   clone,
   newId,
@@ -29,21 +29,21 @@ import {
   roundField,
   clampNumber,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260915153337";
+} from "./editor-utils.js?v=20260915211726";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "./popup-layout.js?v=20260915153337";
+} from "./popup-layout.js?v=20260915211726";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260915153337";
+} from "./dashboard-resize.js?v=20260915211726";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260915153337";
+} from "./component-page-copy.js?v=20260915211726";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -55,24 +55,24 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "./related-entities.js?v=20260915153337";
-import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260915153337";
-import { createButtonSound } from "./sound-effects.js?v=20260915153337";
+} from "./related-entities.js?v=20260915211726";
+import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260915211726";
+import { createButtonSound } from "./sound-effects.js?v=20260915211726";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260915153337";
-import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260915153337";
+} from "./editor-dialogs.js?v=20260915211726";
+import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260915211726";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./editor-picker-pagination.js?v=20260915153337";
-import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260915153337";
-import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260915153337";
-import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260915153337";
-import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260915153337";
-import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260915153337";
+} from "./editor-picker-pagination.js?v=20260915211726";
+import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260915211726";
+import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260915211726";
+import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260915211726";
+import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260915211726";
+import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260915211726";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -80,13 +80,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "./action-rules.js?v=20260915153337";
+} from "./action-rules.js?v=20260915211726";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260915153337";
+} from "./component-tree.js?v=20260915211726";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -96,13 +96,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260915153337";
+} from "./editor-component-collections.js?v=20260915211726";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260915153337";
+} from "./editor-basic-inspectors.js?v=20260915211726";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -113,7 +113,7 @@ import {
   popupModuleTypeLabel,
   reorderedPopupModules,
   uniquePagePath
-} from "./editor-document-management.js?v=20260915153337";
+} from "./editor-document-management.js?v=20260915211726";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -121,18 +121,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260915153337";
+} from "./editor-history.js?v=20260915211726";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "./3d-studio/studio-normalization.js?v=20260915153337";
-import { createLicenseCard } from "./license-card.js?v=20260915153337";
+} from "./3d-studio/studio-normalization.js?v=20260915211726";
+import { createLicenseCard } from "./license-card.js?v=20260915211726";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "./modules/interaction3d/editor.js?v=20260915153337";
+} from "./modules/interaction3d/editor.js?v=20260915211726";
 const findElement = selector => document.querySelector(selector);
 installSettingsDialogBackdropGuard();
 const EDITOR_DESIGN_WIDTH = 1020;
@@ -1230,7 +1230,7 @@ const historyState = {
   busy: false
 };
 const MAX_HISTORY_ENTRIES = 10;
-const RECOVERY_STORAGE_PREFIX = "ha-bridge:unsaved:";
+const RECOVERY_STORAGE_PREFIX = "homeos:unsaved:";
 let savedDocumentSignature = "";
 let baselineDocument = null;
 let hasUnsavedChanges = false;
@@ -3845,9 +3845,9 @@ function renderComponentTemplates() {
         const templateThumbnailElement = document.createElement("img");
         const templateThumbnailId = componentTemplate.thumbnailId || componentTemplate.id;
         templateThumbnailElement.src =
-          "/bridge-static/component-thumbnails/" +
+          "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260915153337";
+          ".jpg?v=20260915211726";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -4569,7 +4569,7 @@ function mdiIconUrl(mdiIconName) {
     .trim()
     .replace(/^mdi:/, "");
   if (/^[a-z0-9-]+$/.test(normalizedIconName)) {
-    return "/bridge-static/vendor/mdi/7.4.47/svg/" + normalizedIconName + ".svg";
+    return "/static/vendor/mdi/7.4.47/svg/" + normalizedIconName + ".svg";
   } else {
     return "";
   }
@@ -13854,7 +13854,7 @@ function postDiagramCameraCommand(iframeComponentId, cameraCommand, cameraComman
   if (diagramPreviewFrame?.contentWindow) {
     diagramPreviewFrame.contentWindow.postMessage(
       {
-        type: "ha-bridge-floorplan-auto-diagram-camera",
+        type: "homeos-floorplan-auto-diagram-camera",
         componentId: iframeComponentId,
         command: cameraCommand,
         value: cameraCommandValue
@@ -13875,7 +13875,7 @@ function postDiagramFloorCommand(floorDiagramComponentId, floorLevelValue) {
   if (floorDiagramFrame?.contentWindow) {
     floorDiagramFrame.contentWindow.postMessage(
       {
-        type: "ha-bridge-floorplan-auto-diagram-floor",
+        type: "homeos-floorplan-auto-diagram-floor",
         componentId: floorDiagramComponentId,
         command: "set-floor",
         value: floorLevelValue
@@ -14056,7 +14056,7 @@ function postBaseLightingCommand(lightingCommand, lightingPayload = null) {
   if (lightingFrame?.contentWindow) {
     lightingFrame.contentWindow.postMessage(
       {
-        type: "ha-bridge-floorplan-auto-diagram-base-lighting",
+        type: "homeos-floorplan-auto-diagram-base-lighting",
         componentId: baseLightingComponentId,
         command: lightingCommand,
         ...(lightingPayload
@@ -14317,7 +14317,7 @@ floorplanAutoDiagramOpenStudioButtonElement.addEventListener("click", () => {
   floorplanAutoDiagramOpenStudioButtonElement.textContent = "正在后台生成…";
   studioDialogFrame.contentWindow.postMessage(
     {
-      type: "ha-bridge-floorplan-auto-diagram-generate",
+      type: "homeos-floorplan-auto-diagram-generate",
       componentId: diagramStudioComponent.id,
       width: Math.max(
         320,
@@ -14409,7 +14409,7 @@ window.addEventListener("message", messageEvent => {
     return;
   }
   const messageData = messageEvent.data;
-  if (messageData?.type === "ha-bridge-floorplan-auto-diagram-base-lighting-state") {
+  if (messageData?.type === "homeos-floorplan-auto-diagram-base-lighting-state") {
     const lightingStateComponentId = String(messageData.componentId || "");
     const lightingStateFrame = findDiagramPreviewFrame(lightingStateComponentId);
     if (
@@ -14434,7 +14434,7 @@ window.addEventListener("message", messageEvent => {
     }
     return;
   }
-  if (messageData?.type === "ha-bridge-floorplan-auto-diagram-ready") {
+  if (messageData?.type === "homeos-floorplan-auto-diagram-ready") {
     const readyComponentId = String(messageData.componentId || "");
     const readyFrame = document.querySelector(
       '.hb-component[data-component-id="' +
@@ -14481,7 +14481,7 @@ window.addEventListener("message", messageEvent => {
       syncInspector();
       readyFrame.contentWindow.postMessage(
         {
-          type: "ha-bridge-floorplan-auto-diagram-camera",
+          type: "homeos-floorplan-auto-diagram-camera",
           componentId: readyComponentId,
           command: "restore",
           value: {
@@ -14496,7 +14496,7 @@ window.addEventListener("message", messageEvent => {
     }
     return;
   }
-  if (messageData?.type === "ha-bridge-floorplan-auto-diagram-floor-state") {
+  if (messageData?.type === "homeos-floorplan-auto-diagram-floor-state") {
     const floorStateComponentId = String(messageData.componentId || "");
     const floorStateFrame = document.querySelector(
       '.hb-component[data-component-id="' +
@@ -14544,7 +14544,7 @@ window.addEventListener("message", messageEvent => {
     }
     return;
   }
-  if (messageData?.type === "ha-bridge-floorplan-auto-diagram-stopped") {
+  if (messageData?.type === "homeos-floorplan-auto-diagram-stopped") {
     const stoppedComponentId = String(messageData.componentId || "");
     const stoppedFrame = document.querySelector(
       '.hb-component[data-component-id="' +
@@ -14565,7 +14565,7 @@ window.addEventListener("message", messageEvent => {
     }
     return;
   }
-  if (messageData?.type === "ha-bridge-floorplan-auto-diagram-error") {
+  if (messageData?.type === "homeos-floorplan-auto-diagram-error") {
     const errorComponentId = String(messageData.componentId || "");
     const errorFrame = document.querySelector(
       '.hb-component[data-component-id="' +
@@ -14583,7 +14583,7 @@ window.addEventListener("message", messageEvent => {
     floorplanAutoDiagramStatusElement.textContent = messageData.message || "后台生成失败，请重试。";
     return;
   }
-  if (!messageData || messageData.type !== "ha-bridge-floorplan-auto-diagram-export") {
+  if (!messageData || messageData.type !== "homeos-floorplan-auto-diagram-export") {
     return;
   }
   const exportComponentId = String(messageData.componentId || "");

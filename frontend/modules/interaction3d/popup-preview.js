@@ -1,9 +1,9 @@
 const { popupPlacement: popupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../static/modules/interaction3d/popup-placement.js", import.meta.url))
-  : import("/bridge-static/modules/interaction3d/popup-placement.js"));
+  : import("/static/modules/interaction3d/popup-placement.js"));
 const { cameraPopupLayout: cameraPopupLayout } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../static/modules/interaction3d/camera-popup-layout.js", import.meta.url))
-  : import("/bridge-static/modules/interaction3d/camera-popup-layout.js"));
+  : import("/static/modules/interaction3d/camera-popup-layout.js"));
 export function popupPreviewPlacement(kind, width, height, settings) {
   const cameraLayout = kind === "camera" ? cameraPopupLayout(width, height) : null;
   const panelWidth = cameraLayout?.panelWidth || 360;
@@ -130,7 +130,7 @@ export function createFocusDevicePopup(
   previewRootElement.inert = true;
   const stylesheetLink = popupOwnerDocument.createElement("link");
   stylesheetLink.rel = "stylesheet";
-  stylesheetLink.href = "/bridge-static/renderer/renderer.css?v=20260915153337";
+  stylesheetLink.href = "/static/renderer/renderer.css?v=20260915211726";
   const rendererHostElement = popupOwnerDocument.createElement("div");
   rendererHostElement.className = "i3d-focus-popup-host";
   previewRootElement.append(stylesheetLink, rendererHostElement);
@@ -143,7 +143,7 @@ export function createFocusDevicePopup(
   return {
     ready: (import.meta.url.startsWith("file:")
       ? import(new URL("../../static/renderer/renderer.js", import.meta.url))
-      : import("/bridge-static/renderer/renderer.js")
+      : import("/static/renderer/renderer.js")
     ).then(({ PanelRenderer: PanelRenderer }) => {
       if (isDisposed) {
         return;

@@ -1,8 +1,8 @@
 {
   "id": "/pair",
-  "name": "HA Bridge 仪表盘",
-  "short_name": "HA Bridge",
-  "description": "HA Bridge 智能家居仪表盘",
+  "name": "HomeOS 仪表盘",
+  "short_name": "HomeOS",
+  "description": "HomeOS 智能家居仪表盘",
   "lang": "zh-CN",
   "start_url": "/pair",
   "scope": "/",
@@ -11,13 +11,13 @@
   "theme_color": "#172029",
   "icons": [
     {
-      "src": "/bridge-static/ha-bridge-icon-192-h5.png",
+      "src": "/static/homeos-icon-192-h5.png?v=20260915211726",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/bridge-static/ha-bridge-icon-512-h5.png",
+      "src": "/static/homeos-icon-512-h5.png?v=20260915211726",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

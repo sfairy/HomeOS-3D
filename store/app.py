@@ -20,8 +20,9 @@ from store.database import Database
 from store.licensing import keys
 from store.licensing.crypto import LeaseSigner, TransportCipher
 from store.licensing.service import LicenseAuthority
+from store.migrations import CURRENT_VERSION, ensure_current_release, rebrand_legacy_identifiers
 from store.payments import resolve_provider
-from store.site_settings import get_setting
+from store.site_settings import get_setting, heal_legacy_icon_paths
 
 logger = logging.getLogger("store")
 
@@ -59,6 +60,22 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     database = Database(settings)
     database.create_all()
 
+    # 图标改名后，老部署的 store_settings.logo_url 仍指向旧文件名，启动时自愈。
+    # 品牌改名后，releases.product / products.product_code 仍写着旧标识，同样自愈。
+    # 两处都必须先于任何请求执行：按新值查询查不到旧数据是静默失败。
+    with database.session() as session:
+        healed = heal_legacy_icon_paths(session)
+        rebranded = rebrand_legacy_identifiers(session)
+        # 硬切协议的那一版必须让「检查更新」看得到，否则老客户端被踢下线后
+        # 没有任何可升级的目标版本 —— 这条记录同样在启动时兜底补写。
+        released = ensure_current_release(session)
+    if healed:
+        logger.info("已把 %d 处旧图标路径归一为新文件名。", healed)
+    if rebranded:
+        logger.info("已把旧品牌标识归一为新值：%s", rebranded)
+    if released:
+        logger.info("已补写 %s 渠道 %s 发布记录。", "docker", CURRENT_VERSION)
+
     signer = LeaseSigner(settings.private_key_path, settings.license_key_id)
     transport = TransportCipher(
         settings.transport_private_key_path, settings.license_transport_key_id
@@ -74,7 +91,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         database.dispose()
 
     app = FastAPI(
-        title="HA Bridge 授权商店与授权服务器",
+        title="HomeOS 授权商店与授权服务器",
         version=__version__,
         docs_url="/store-api-docs",
         redoc_url=None,

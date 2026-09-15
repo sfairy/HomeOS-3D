@@ -3,7 +3,19 @@
   const $$ = selector => [...document.querySelectorAll(selector)];
   const STORE_PAGE_REVISION = '20260909-referrals-v1';
   const storePageHref = path => `${path}${path.includes('?') ? '&' : '?'}v=${STORE_PAGE_REVISION}`;
-  const state = { products: [], product: null, configuration: null, account: null, hasLicense: false, hasTemporaryLicense: false, hasPermanentLicense: false, hasUsedTrial: false, accountLicenses: [], accountEntitlements: [], ownedFeatureCodes: new Set(), pollTimer: null, paymentCountdownTimer: null, pendingCountdownTimer: null, accountCountdownTimer: null, accountExpiryRefreshing: false, emailCooldownTimers: new Map(), deviceReleasePolicy: null, releaseCountdownTimer: null, releaseOpening: false, releaseSubmitting: false, releaseLicenseId: null, releaseTarget: null, labelLicenseId: null, currentOrder: null, pendingOrder: null, couponPreviewTimer: null, couponPreviewSequence: 0 };
+  // 接口下发的 logo_url 与商品图路径不带版本号，浏览器会按启发式缓存复用旧图。
+  // 这里复用页面已加载的 theme.css 上的 ?v=（由 tools/bump_static_cache_versions.mjs
+  // 统一维护），给商店静态资源补上版本号，避免图标更新后仍显示旧文件。
+  let storeStaticVersion;
+  function versionedStoreAsset(url) {
+    if (typeof url !== 'string' || !url.startsWith('/store-static/') || url.includes('?')) return url;
+    if (storeStaticVersion === undefined) {
+      const link = document.querySelector('link[rel="stylesheet"][href*="theme.css"]');
+      storeStaticVersion = (link?.getAttribute('href')?.match(/[?&]v=([^&]+)/) || [])[1] || '';
+    }
+    return storeStaticVersion ? `${url}?v=${storeStaticVersion}` : url;
+  }
+  const state = { products: [], product: null, configuration: null, account: null, hasLicense: false, hasTemporaryLicense: false, hasPermanentLicense: false, hasUsedTrial: false, accountLicenses: [], accountEntitlements: [], accountOrders: [], productFilter: 'all', ownedFeatureCodes: new Set(), pollTimer: null, paymentCountdownTimer: null, pendingCountdownTimer: null, accountCountdownTimer: null, accountExpiryRefreshing: false, emailCooldownTimers: new Map(), deviceReleasePolicy: null, releaseCountdownTimer: null, releaseOpening: false, releaseSubmitting: false, releaseLicenseId: null, releaseTarget: null, labelLicenseId: null, currentOrder: null, pendingOrder: null, couponPreviewTimer: null, couponPreviewSequence: 0 };
   const money = cents => `¥${(Number(cents || 0) / 100).toFixed(2)}`;
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
 
@@ -182,7 +194,7 @@
     if (!store) return;
     document.title = store.siteTitle;
     $('#footer-site-name').textContent = store.siteName;
-    $$('.hb-store-brand-mark').forEach(image => { image.src = store.logoUrl; });
+    $$('.hb-store-brand-mark').forEach(image => { image.src = versionedStoreAsset(store.logoUrl); });
     if (store.announcement) toast(store.announcement);
   }
 
@@ -193,9 +205,9 @@
     document.body.classList.toggle('hb-maintenance-active', enabled);
     maintenancePage.hidden = !enabled;
     if (!enabled) return false;
-    $('#maintenance-site-name').textContent = store.siteName || 'HA Bridge';
+    $('#maintenance-site-name').textContent = store.siteName || 'HomeOS';
     $('#store-maintenance-message').textContent = store.maintenanceMessage || '系统正在升级维护，请稍后再试。';
-    document.title = `商城维护中 - ${store.siteTitle || store.siteName || 'HA Bridge'}`;
+    document.title = `商城维护中 - ${store.siteTitle || store.siteName || 'HomeOS'}`;
     stopPaymentTimers();
     document.body.classList.remove('hb-store-loading');
     return true;
@@ -256,42 +268,89 @@
     return isTrialProduct(product) && (state.hasPermanentLicense || state.hasUsedTrial);
   }
 
+  /* 商品分组的唯一口径：筛选 tab、卡片上的 data-product-group、首页速览都用它。
+     自定义套餐归入「主授权」组（它同样是一次性的基础能力购买），只是徽标另说。 */
+  function productGroup(product) {
+    if (isAddonProduct(product)) return 'addon';
+    if (isTrialProduct(product)) return 'trial';
+    return product.productType === 'bundle' ? 'bundle' : 'base';
+  }
+
   function primaryCard(product) {
     const bundle = product.productType === 'bundle';
     const unavailable = primaryProductUnavailable(product);
     const action = unavailable
-      ? `<span class="hb-button hb-button--secondary is-disabled">${state.hasPermanentLicense ? '已有永久授权' : '已购买试用'}</span>`
+      ? `<span class="hb-button hb-button--secondary hb-button--sm is-disabled">${state.hasPermanentLicense ? '已有永久授权' : '已购买试用'}</span>`
       : product.soldOut
-      ? '<span class="hb-button hb-button--secondary is-disabled">已售罄</span>'
-      : `<a class="hb-button hb-button--primary" href="${productHref(product)}">${state.account ? (requestedUpgradeCustomerId() && !isTrialProduct(product) ? '选择升级版本' : '选择此版本') : '查看详情'}</a>`;
+      ? '<span class="hb-button hb-button--secondary hb-button--sm is-disabled">已售罄</span>'
+      : `<a class="hb-button hb-button--primary hb-button--sm" href="${productHref(product)}">${state.account ? (requestedUpgradeCustomerId() && !isTrialProduct(product) ? '选择升级版本' : '选择此版本') : '查看详情'}</a>`;
     const badge = isTrialProduct(product) ? `${product.validityDays} 天试用` : bundle ? '全授权' : product.productType === 'package' ? '自定义套餐' : '主授权';
     // 每个主授权卡都要有一行说明：套餐卡展示所含内容，其余卡展示商品说明（与详情页
     // #store-product-description 同源）。否则「主授权」卡只有徽标+标题，同排被套餐卡拉
     // 齐高度后不但显空，标题还会比其他卡低一截。
     const summary = product.productType === 'package' ? packageContentsText(product) : product.displayDescription || product.note || '';
     const contents = summary ? `<p>${escapeHtml(summary)}</p>` : '';
-    return `<article class="hb-addon-card${unavailable ? ' is-purchased' : ''}"><span class="hb-addon-card__badge">${escapeHtml(badge)}</span><h3>${escapeHtml(product.name)}</h3>${contents}<div class="hb-addon-card__footer"><strong>${money(product.priceCents)}</strong>${action}</div></article>`;
+    return `<article class="hb-addon-card${unavailable ? ' is-purchased' : ''}" data-product-group="${productGroup(product)}"><span class="hb-addon-card__badge">${escapeHtml(badge)}</span><h3>${escapeHtml(product.name)}</h3>${contents}<div class="hb-addon-card__footer"><strong>${money(product.priceCents)}</strong>${action}</div></article>`;
+  }
+
+  /* 商品页的 tab 筛选：只切 .is-filtered，不重排 DOM，
+     这样切来切去不会丢焦点，也不需要重新渲染卡片。 */
+  function applyProductFilter(value = state.productFilter) {
+    state.productFilter = value;
+    $$('[data-product-filter]').forEach(button => {
+      const active = button.dataset.productFilter === value;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    $$('#products-grid .hb-addon-card').forEach(card => {
+      card.classList.toggle('is-filtered', value !== 'all' && card.dataset.productGroup !== value);
+    });
+  }
+
+  /* 上架商品清单：主授权永远显示；增量包只在账号已有永久授权时出现
+     （没有可附加的激活码，展示出来也买不了，与 init() 的跳转守卫同口径）。 */
+  function catalogCards() {
+    const cards = primaryProducts().map(product => ({ group: productGroup(product), html: primaryCard(product) }));
+    if (state.hasPermanentLicense) {
+      addonProducts().forEach(product => cards.push({ group: 'addon', html: addonCard(product) }));
+    }
+    return cards;
   }
 
   function renderProducts() {
-    const products = primaryProducts();
-    document.documentElement.classList.toggle('hb-no-base-products', !availablePrimaryProducts().length);
+    const cards = catalogCards();
+    // 没有任何主授权在售时，顶栏「购买授权」与页脚入口都收起来，
+    // 避免把用户送进一个空页面。语义是「完全没上架」，不是「已经买完」。
+    document.documentElement.classList.toggle('hb-no-base-products', !primaryProducts().length);
+    const counts = { all: cards.length, base: 0, bundle: 0, trial: 0, addon: 0 };
+    cards.forEach(card => { counts[card.group] += 1; });
+    const emptyMarkup = '<div class="hb-addons-empty">暂无主授权或全授权上架。</div>';
+    const markup = cards.length ? cards.map(card => card.html).join('') : emptyMarkup;
     const grid = $('#products-grid');
-    if (grid) grid.innerHTML = products.length ? products.map(primaryCard).join('') : '<div class="hb-addons-empty">暂无主授权或全授权上架。</div>';
+    if (grid) grid.innerHTML = markup;
+    $$('[data-product-count]').forEach(node => {
+      const key = node.dataset.productCount;
+      node.textContent = String(counts[key] ?? 0);
+    });
+    $$('[data-product-filter]').forEach(button => {
+      const key = button.dataset.productFilter;
+      button.hidden = key !== 'all' && !counts[key];
+    });
+    if (state.productFilter !== 'all' && !counts[state.productFilter]) state.productFilter = 'all';
+    applyProductFilter(state.productFilter);
   }
 
   function addonCard(product) {
     const type = addonTypeLabel(product);
     const description = product.displayDescription || product.note || '购买后追加到现有激活码。';
     const action = product.soldOut
-      ? '<span class="hb-button hb-button--secondary is-disabled">已售罄</span>'
-      : `<a class="hb-button hb-button--primary" href="${storePageHref(`/item/${encodeURIComponent(product.id)}`)}">${state.account ? '查看并购买' : '查看详情'}</a>`;
-    return `<article class="hb-addon-card"><span class="hb-addon-card__badge">${escapeHtml(type)}</span><h3>${escapeHtml(product.name)}</h3><p>${escapeHtml(description)}</p><div class="hb-addon-card__footer"><strong>${money(product.priceCents)}</strong>${action}</div></article>`;
+      ? '<span class="hb-button hb-button--secondary hb-button--sm is-disabled">已售罄</span>'
+      : `<a class="hb-button hb-button--primary hb-button--sm" href="${storePageHref(`/item/${encodeURIComponent(product.id)}`)}">${state.account ? '查看并购买' : '查看详情'}</a>`;
+    return `<article class="hb-addon-card" data-product-group="addon"><span class="hb-addon-card__badge">${escapeHtml(type)}</span><h3>${escapeHtml(product.name)}</h3><p>${escapeHtml(description)}</p><div class="hb-addon-card__footer"><strong>${money(product.priceCents)}</strong>${action}</div></article>`;
   }
 
   function renderAddons() {
     const availableProducts = availableAddonProducts();
-    document.documentElement.classList.toggle('hb-no-base-products', !primaryProducts().length);
     const offers = $('#account-addon-offers');
     const section = $('#account-addon-offers-section');
     if (offers && section) {
@@ -335,7 +394,7 @@
     $('#addon-target').hidden = !addon;
     if (addon) renderAddonTargets();
     const image = $('#store-product-image');
-    image.src = product.imageUrl || '/store-static/ha-bridge-mark.svg';
+    image.src = versionedStoreAsset(product.imageUrl || '/store-static/homeos-mark.svg');
     image.alt = product.name;
     image.closest('.hb-product-cover')?.classList.toggle('has-product-image', Boolean(product.imageUrl));
     const submit = $('#purchase-form').querySelector('[type="submit"]');
@@ -344,7 +403,7 @@
       ? '已售罄'
       : unavailable
         ? (state.hasPermanentLicense ? '已有永久授权，不可购买试用' : '每个账号只能购买一次试用')
-        : '<i class="fa-brands fa-alipay"></i> 支付宝付款';
+        : '<i class="fa-duotone fa-regular fa-qrcode"></i> 支付宝付款';
   }
 
   function resetCouponPreview(clearInput = false) {
@@ -662,18 +721,6 @@
     return ({ pending: '待付款', paid: order.fulfillmentMode === 'manual' ? '待人工发卡' : '已付款', fulfilled: '已完成', cancelled: '已取消', expired: '已过期', payment_failed: '下单失败', fulfillment_failed: '处理中', refunded: '已退款' })[order.status] || order.status;
   }
 
-  async function queryOrder(event) {
-    event.preventDefault();
-    const orderNo = event.currentTarget.elements.orderNo.value.trim();
-    if (!/^[A-Za-z0-9@._+-]{1,64}$/.test(orderNo)) { toast('请输入完整订单号。'); return; }
-    try {
-      const order = await api(`/orders/lookup/${encodeURIComponent(orderNo)}`);
-      $('#query-empty').hidden = true;
-      $('#query-results').hidden = false;
-      $('.order-list').innerHTML = `<article class="order-item"><div class="order-header"><div class="order-basic"><div class="order-no">#${escapeHtml(order.orderNo)}</div><div>下单时间：${escapeHtml(new Date(order.createdAt).toLocaleString('zh-CN'))}</div><div>付款时间：${order.paidAt ? escapeHtml(new Date(order.paidAt).toLocaleString('zh-CN')) : '-'}</div><div>订单状态：${escapeHtml(statusLabel(order))}</div></div><div class="order-amount"><span>订单金额</span><span class="amount-value">${money(order.amountCents)}</span></div></div><div class="hb-order-delivery-state"><span><i class="fa-duotone fa-regular fa-user-check"></i></span><div><strong>${escapeHtml(order.productName)}</strong><p>登录购买账号后，可在账号中心查看激活码和授权状态。</p></div><a href="/user/authentication/login">登录账号</a></div></article>`;
-    } catch (error) { $('#query-results').hidden = true; $('#query-empty').hidden = false; toast(error.message); }
-  }
-
   function startEmailCooldown(button, seconds) {
     if (!button || Number(seconds) <= 0) return;
     const previous = state.emailCooldownTimers.get(button);
@@ -813,9 +860,40 @@
     return expired ? 'warning' : 'success';
   }
 
+  /* 账号中心的 tab 切换：纯 class 切换，面板用 [hidden]，不做路由。 */
+  function showAccountTab(tab = 'licenses') {
+    $$('[data-account-tab]').forEach(button => {
+      const active = button.dataset.accountTab === tab;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    $$('[data-account-panel]').forEach(panel => { panel.hidden = panel.dataset.accountPanel !== tab; });
+  }
+
+  function setText(selector, value) {
+    const node = $(selector);
+    if (node) node.textContent = String(value);
+  }
+
+  /* 概览统计条与 tab 计数 —— 都是 payload 的纯函数，别在别处再算一遍。 */
+  function renderAccountOverview(payload) {
+    const licenses = payload.licenses || [];
+    const entitlements = payload.entitlements || [];
+    const orders = payload.orders || [];
+    setText('#account-stat-licenses', licenses.length);
+    setText('#account-stat-entitlements', entitlements.length);
+    setText('#account-stat-orders', orders.length);
+    setText('#account-stat-pending', orders.filter(item => item.status === 'pending').length);
+    setText('[data-account-tab-count="licenses"]', licenses.length);
+    setText('[data-account-tab-count="addons"]', entitlements.length);
+    setText('[data-account-tab-count="orders"]', orders.length);
+  }
+
   function renderAccount(payload) {
     $('#account-email').textContent = payload.account.email;
     state.accountLicenses = payload.licenses || [];
+    state.accountOrders = payload.orders || [];
+    renderAccountOverview(payload);
     const licenses = $('#account-licenses');
     const permanentProducts = primaryProducts().filter(item => !isTrialProduct(item) && !item.soldOut);
     licenses.innerHTML = payload.licenses.length ? payload.licenses.map((item, index) => {
@@ -1045,6 +1123,8 @@
 
   async function init() {
     $('.hb-store-nav-toggle').addEventListener('click', () => $('#navbarNav').classList.toggle('mobile-open'));
+    $$('[data-product-filter]').forEach(button => button.addEventListener('click', () => applyProductFilter(button.dataset.productFilter)));
+    $$('[data-account-tab]').forEach(button => button.addEventListener('click', () => showAccountTab(button.dataset.accountTab)));
     $('#payment-dialog .hb-payment-close').addEventListener('click', () => { $('#payment-dialog').close(); stopPaymentTimers(); state.currentOrder = null; });
     $('#guest-purchase-trigger')?.addEventListener('click', showGuestPurchaseNotice);
     $('#guest-purchase-dismiss')?.addEventListener('click', () => $('#guest-purchase-dialog')?.close());
@@ -1067,7 +1147,6 @@
       clearTimeout(state.couponPreviewTimer);
       if ($('#purchase-form').elements.couponCode.value.trim()) previewCoupon();
     });
-    $('.order-query-form')?.addEventListener('submit', queryOrder);
     $('#store-login-form')?.addEventListener('submit', event => login(event).catch(error => toast(error.message)));
     $('#send-register-code')?.addEventListener('click', () => sendRegisterCode().catch(error => toast(error.message)));
     $('#store-register-form')?.addEventListener('submit', event => register(event).catch(error => toast(error.message)));

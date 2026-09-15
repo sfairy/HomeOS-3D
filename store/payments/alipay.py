@@ -375,7 +375,7 @@ class AlipayProvider:
         subject = (
             setting.payment_transaction_description
             or settings.alipay_transaction_description
-            or "HA Bridge 授权"
+            or "HomeOS 授权"
         )
         biz_content = {
             "out_trade_no": order.order_no,

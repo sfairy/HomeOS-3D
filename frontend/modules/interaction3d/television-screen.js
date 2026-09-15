@@ -1,12 +1,12 @@
-import { televisionState } from "./television-state.js?v=20260915153337";
+import { televisionState } from "./television-state.js?v=20260915211726";
 const { drawTelevisionPoster: drawTelevisionPoster } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../static/3d-studio/studio-television-poster.js?v=20260915153337",
+        "../../static/3d-studio/studio-television-poster.js?v=20260915211726",
         import.meta.url
       )
     )
-  : import("/bridge-static/3d-studio/studio-television-poster.js?v=20260915153337"));
+  : import("/static/3d-studio/studio-television-poster.js?v=20260915211726"));
 export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFrame = () => {} }) {
   let syncedRoot;
   let syncedRevision;

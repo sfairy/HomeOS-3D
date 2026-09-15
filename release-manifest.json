@@ -31,9 +31,9 @@
     "alembic.ini": "20b40e325f79c624b08d7467e454420d2d867e7ebbe0aacb18a41f8eebf1abea",
     "sbom.cdx.json": "c953a7804b755fabc6cc0071db6e3c1fecc97e46480a4837d2abcafeb7a51979"
   },
-  "product": "ha-bridge",
+  "product": "homeos",
   "releaseBatch": "2026-09-a",
   "releaseId": "b8b761498e26327c91fefcb50cbaaa0b",
   "schemaVersion": 1,
-  "version": "0.5.4"
+  "version": "0.6.0"
 }

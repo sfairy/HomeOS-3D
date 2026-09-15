@@ -479,7 +479,7 @@ async def run(port: int, workdir: Path, admin_email: str, admin_password: str) -
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="HA Bridge 商店/授权服务器真实链路端到端联调")
+    parser = argparse.ArgumentParser(description="HomeOS 商店/授权服务器真实链路端到端联调")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"监听端口，默认 {DEFAULT_PORT}")
     parser.add_argument("--timeout", type=float, default=60.0, help="等待服务就绪的秒数")
     parser.add_argument("--keep", action="store_true", help="保留临时目录，便于排查")

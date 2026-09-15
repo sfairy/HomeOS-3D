@@ -11,7 +11,7 @@
   } catch {}
   const labels = {reward:'邀请奖励',freeze:'提现冻结',withdrawal:'提现完成',release:'退回积分',reversal:'邀请失败',pending:'待审核',paid:'已提现',rejected:'已驳回 / 撤销'};
   const date = v => v ? new Date(v).toLocaleString('zh-CN', {hour12:false}) : '—';
-  const table = (heads, rows) => rows.length ? `<div class="referral-table-wrap"><table class="referral-table"><thead><tr>${heads.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p style="padding:24px 0;color:#6b7a70">暂无记录。分享邀请链接，开始积累积分。</p>';
+  const table = (heads, rows) => rows.length ? `<div class="referral-table-wrap"><table class="referral-table"><thead><tr>${heads.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="referral-empty">暂无记录。分享邀请链接，开始积累积分。</p>';
   window.HBReferrals = {
     clearInvite(){try{localStorage.removeItem(storageKey);}catch{}},
     async init(api, toast){

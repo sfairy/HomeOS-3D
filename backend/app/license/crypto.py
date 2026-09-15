@@ -24,7 +24,7 @@ class LicenseCryptoError(RuntimeError):
 
 class LicenseTransportCipher:
     '''Encrypt one licensing request and decrypt its paired response.'''
-    PROTOCOL = b'ha-bridge-license-transport-v1'
+    PROTOCOL = b'homeos-license-transport-v1'
 
     def __init__(self, public_key_path: Path, key_id: str, expected_sha256: str) -> None:
         if not key_id or len(key_id) > 64 or not all(character.isalnum() or character in '-_.' for character in key_id):
@@ -108,7 +108,7 @@ def _decode(value: str) -> bytes:
 
 class LeaseVerifier:
 
-    def __init__(self, public_key_path: Path | None = None, product: str = 'ha-bridge', expected_sha256: str | None = None, *, trusted_keys: Mapping[str, tuple[Path, str | None]] | None = None, legacy_key_id: str = 'legacy') -> None:
+    def __init__(self, public_key_path: Path | None = None, product: str = 'homeos', expected_sha256: str | None = None, *, trusted_keys: Mapping[str, tuple[Path, str | None]] | None = None, legacy_key_id: str = 'legacy') -> None:
         self.product = product
         self.legacy_key_id = legacy_key_id
         if trusted_keys is not None:

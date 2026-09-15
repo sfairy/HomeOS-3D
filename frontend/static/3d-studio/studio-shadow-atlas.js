@@ -1,4 +1,4 @@
-import { createRenderLightIndex } from "../modules/interaction3d/render-light-index.js?v=20260915153337";
+import { createRenderLightIndex } from "../modules/interaction3d/render-light-index.js?v=20260915211726";
 const DEFAULT_TILE_GUTTER = 1;
 function toPositiveInt(input, fallback = 0) {
   const parsed = Math.floor(Number(input));
@@ -383,7 +383,7 @@ export function createSpotShadowAtlasController({
       depthBuffer: false,
       stencilBuffer: false
     });
-    textureTarget.texture.name = "HA Bridge shared spot shadow atlas";
+    textureTarget.texture.name = "HomeOS shared spot shadow atlas";
     textureTarget.texture.generateMipmaps = false;
     return textureTarget;
   }

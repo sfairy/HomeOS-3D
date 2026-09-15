@@ -38,12 +38,13 @@ class StoreSetting(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
 
-    site_name: Mapped[str] = mapped_column(String(128), default="HA Bridge 授权中心")
-    site_title: Mapped[str] = mapped_column(String(256), default="HA Bridge 授权中心")
+    site_name: Mapped[str] = mapped_column(String(128), default="HomeOS 授权中心")
+    site_title: Mapped[str] = mapped_column(String(256), default="HomeOS 授权中心")
     description: Mapped[str] = mapped_column(String(512), default="注册账号、购买授权与管理激活设备")
     announcement: Mapped[str] = mapped_column(Text, default="")
     support_email: Mapped[str] = mapped_column(String(255), default="")
-    logo_url: Mapped[str] = mapped_column(String(512), default="/store-static/ha-bridge-mark.svg")
+    #: 默认值须与 site_settings.DEFAULT_LOGO_URL 保持一致（留空时回落到那里）
+    logo_url: Mapped[str] = mapped_column(String(512), default="/store-static/homeos-mark.svg")
     maintenance_mode: Mapped[bool] = mapped_column(Boolean, default=False)
     maintenance_message: Mapped[str] = mapped_column(String(512), default="系统正在升级维护，请稍后再试。")
 
@@ -51,7 +52,7 @@ class StoreSetting(Base):
     payment_provider: Mapped[str] = mapped_column(String(32), default="")
     payment_display_name: Mapped[str] = mapped_column(String(64), default="")
     payment_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    payment_transaction_description: Mapped[str] = mapped_column(String(128), default="HA Bridge 授权")
+    payment_transaction_description: Mapped[str] = mapped_column(String(128), default="HomeOS 授权")
     payment_merchant_order_template: Mapped[str] = mapped_column(String(128), default="{{time}}-{{email}}")
 
     referral_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -157,7 +158,7 @@ class Product(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
     name: Mapped[str] = mapped_column(String(255))
-    product_code: Mapped[str] = mapped_column(String(64), default="ha-bridge", index=True)
+    product_code: Mapped[str] = mapped_column(String(64), default="homeos", index=True)
     price_cents: Mapped[int] = mapped_column(Integer, default=0)
     original_price_cents: Mapped[int | None] = mapped_column(Integer)
     is_full_price: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -496,7 +497,7 @@ class Release(Base):
     __tablename__ = "releases"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
-    product: Mapped[str] = mapped_column(String(64), default="ha-bridge", index=True)
+    product: Mapped[str] = mapped_column(String(64), default="homeos", index=True)
     channel: Mapped[str] = mapped_column(String(32), default="docker", index=True)
     version: Mapped[str] = mapped_column(String(32))
     release_date: Mapped[str] = mapped_column(String(32), default="")

@@ -31,7 +31,7 @@ def create_blank_project(
                 "background": {"type": "color", "color": "#0b1116"},
             },
             "theme": {
-                "name": "ha-bridge-dark",
+                "name": "homeos-dark",
                 "variables": {"accent": "#f2a20d"},
             },
             "uiPack": {"id": ui_pack.id, "version": ui_pack.version},

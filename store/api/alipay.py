@@ -123,8 +123,8 @@ _RETURN_PAGE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title} - HA Bridge 授权中心</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260915153337">
+<title>{title} - HomeOS 授权中心</title>
+<link rel="stylesheet" href="/store-static/theme.css?v=20260915211726">
 <style>
   /* 与商店/后台同一套暗色 + 琥珀设计语言（令牌来自 theme.css） */
   body {{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
@@ -138,10 +138,8 @@ _RETURN_PAGE = """<!doctype html>
   .order {{ font-family: var(--hb-font-mono); font-size:13px; color: var(--hb-accent-bright);
             background: var(--hb-surface-raised); border:1px solid var(--hb-line);
             border-radius:6px; padding:8px 10px; margin:16px 0; word-break:break-all; }}
-  a.button {{ display:inline-block; margin-top:14px; padding:11px 26px; border:1px solid #f4a719;
-              border-radius:6px; background:linear-gradient(180deg,#ffb82e,#ef9900);
-              color:#1e1607; text-decoration:none; font-size:14px; font-weight:700; }}
-  a.button:hover {{ background:linear-gradient(180deg,#ffc44a,#f7a616); }}
+  /* 按钮直接复用设计系统里的组件，不再抄一份琥珀渐变字面量 */
+  a.hb-button {{ margin-top:18px; }}
 </style>
 </head>
 <body>
@@ -150,7 +148,7 @@ _RETURN_PAGE = """<!doctype html>
     <h1>{title}</h1>
     <p>{message}</p>
     {order_block}
-    <a class="button" href="{next_url}">{next_label}</a>
+    <a class="hb-button hb-button--primary" href="{next_url}">{next_label}</a>
   </div>
 </body>
 </html>

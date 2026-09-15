@@ -1,4 +1,4 @@
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260915153337";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260915211726";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -24,9 +24,9 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260915153337";
-import { randomUuid } from "../utils/random-id.js?v=20260915153337";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260915153337";
+} from "./registry.js?v=20260915211726";
+import { randomUuid } from "../utils/random-id.js?v=20260915211726";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260915211726";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -45,11 +45,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260915153337";
+} from "./climate.js?v=20260915211726";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260915153337";
+} from "./device-profiles.js?v=20260915211726";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -58,25 +58,25 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260915153337";
+} from "../related-entities.js?v=20260915211726";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260915153337";
+} from "./entity-power.js?v=20260915211726";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260915153337";
-import { componentActionIsSupported } from "../action-rules.js?v=20260915153337";
+} from "../virtual-entities.js?v=20260915211726";
+import { componentActionIsSupported } from "../action-rules.js?v=20260915211726";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260915153337";
+} from "./transform-geometry.js?v=20260915211726";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -86,7 +86,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260915153337";
+} from "./effect-geometry.js?v=20260915211726";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -105,14 +105,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260915153337";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260915153337";
+} from "./light-runtime.js?v=20260915211726";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260915211726";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260915153337";
+} from "./vacuum-runtime.js?v=20260915211726";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -145,13 +145,13 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260915153337";
+} from "./cover-runtime.js?v=20260915211726";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260915153337";
+} from "./runtime-dialog-motion.js?v=20260915211726";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -161,13 +161,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260915153337";
+} from "./runtime-caches.js?v=20260915211726";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260915153337";
+} from "./runtime-document.js?v=20260915211726";
 export { setBuiltinAssetVersions as setBuiltinAssetVersions };
 export {
   airflowCanvasOffsetBounds as airflowCanvasOffsetBounds,
@@ -2752,7 +2752,7 @@ export class PanelRenderer {
     }
     try {
       const storedVisualState = JSON.parse(
-        window.localStorage?.getItem("ha-bridge:light-visual:" + lightEntityId) || "null"
+        window.localStorage?.getItem("homeos:light-visual:" + lightEntityId) || "null"
       );
       if (
         !storedVisualState?.attributes ||
@@ -2818,7 +2818,7 @@ export class PanelRenderer {
     this.confirmedLightVisualStates.set(visualEntityId, persistedVisualEntry);
     try {
       window.localStorage?.setItem(
-        "ha-bridge:light-visual:" + visualEntityId,
+        "homeos:light-visual:" + visualEntityId,
         JSON.stringify({
           at: Date.now(),
           attributes: cachedAttributes

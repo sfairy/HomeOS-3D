@@ -8,7 +8,7 @@ import {
   registerUiPackDefinition,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=20260915153337";
+} from "../templates/component-templates.js?v=20260915211726";
 const runtimePromisesByPackId = new Map();
 export async function ensureUiPackRuntime(uiPack) {
   if (!uiPack?.id) {

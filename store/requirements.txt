@@ -10,3 +10,9 @@ websockets>=12.0
 Pillow>=10.0
 jinja2>=3.1
 python-multipart>=0.0.9
+
+# 本地热重载：start.py 默认给商店设 STORE_RELOAD=1，store/run.py 会以 uvicorn 的
+# reload 模式启动并监听 store/ 目录。缺了这个包，uvicorn 的 reload 起不来——
+# 结果是改了 store/api/*.py 里的模块级常量（例如模拟收银台的内联 HTML 与静态资源
+# 版本戳）后服务仍跑旧代码，只能手动重启。不参与线上的运行时逻辑。
+watchfiles>=1.0

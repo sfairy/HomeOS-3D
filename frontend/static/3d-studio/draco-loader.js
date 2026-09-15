@@ -1,4 +1,4 @@
-import { DRACOLoader } from "/bridge-static/vendor/three/0.182.0/DRACOLoader.js?v=20260915153337";
+import { DRACOLoader } from "/static/vendor/three/0.182.0/DRACOLoader.js?v=20260915211726";
 function normalizeWorkerError(cause) {
   const errorMessage = String(cause?.message || "").trim();
   return new Error(errorMessage || "Draco 同源解码 Worker 启动失败");
@@ -23,7 +23,7 @@ export class SameOriginDRACOLoader extends DRACOLoader {
           let worker;
           try {
             worker = new Worker(this.sameOriginWorkerUrl, {
-              name: "ha-bridge-draco"
+              name: "homeos-draco"
             });
           } catch (startError) {
             throw normalizeWorkerError(startError);

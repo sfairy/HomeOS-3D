@@ -70,7 +70,7 @@ class LicenseAuthority:
         instance_id = str(payload.get("instanceId") or "").strip()
         email = str(payload.get("email") or "").strip().lower()
         client_version = str(payload.get("clientVersion") or "").strip()
-        product = str(payload.get("product") or "ha-bridge").strip()
+        product = str(payload.get("product") or "homeos").strip()
 
         if not code:
             raise LicenseServerError("缺少激活码，请输入购买后获得的激活码。", status_code=422)
@@ -78,7 +78,7 @@ class LicenseAuthority:
             raise LicenseServerError("请输入购买授权时使用的邮箱。", status_code=422)
         if not (16 <= len(instance_id) <= 64):
             raise LicenseServerError("客户端实例标识无效，请重启客户端后重试。", status_code=422)
-        if product != "ha-bridge":
+        if product != "homeos":
             raise LicenseServerError("产品标识不匹配。", status_code=422)
 
         with self.database.session() as session:

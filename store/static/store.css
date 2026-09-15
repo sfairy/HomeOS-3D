@@ -1,0 +1,2772 @@
+/* ==========================================================================
+   HomeOS 授权中心 · 前台页面布局
+   --------------------------------------------------------------------------
+   只负责「区块摆放」：外壳、首页、商品、结算、认证、账号、邀请、维护页、收银台。
+   组件外观（按钮 / 表单 / 卡片 / 表格 / 对话框 / 商品卡）全部来自 theme.css，
+   本文件不重新定义组件，也不写死色值（一律走 --hb-* 令牌）。
+
+   加载顺序：font.min.css → theme.css → store.css
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 外壳：顶栏 + 内容 + 页脚
+   -------------------------------------------------------------------------- */
+/* body 是纵向 flex：内容不足一屏时页脚也会贴在底部 */
+body.hb-store-body {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+/* 加载中：顶栏下方一条不定长进度条。只做视觉提示，不遮内容，
+   否则 JS 失败时页面会永远空白。 */
+body.hb-store-loading .hb-topbar::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--hb-accent-bright), transparent);
+  content: "";
+  animation: hb-loading-sweep 1.1s ease-in-out infinite;
+}
+
+@keyframes hb-loading-sweep {
+  0% {
+    opacity: 0.2;
+    transform: translateX(-40%);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+    transform: translateX(40%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.hb-store-loading .hb-topbar::after {
+    animation: none;
+  }
+}
+
+.hb-topbar {
+  position: sticky;
+  z-index: 60;
+  top: 0;
+  border-bottom: 1px solid var(--hb-line);
+  background: rgba(21, 26, 31, 0.86);
+  backdrop-filter: blur(14px);
+}
+
+.hb-topbar__inner {
+  position: relative;
+  display: flex;
+  height: var(--hb-topbar-h);
+  align-items: center;
+  gap: 22px;
+}
+
+.hb-brand {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 11px;
+  color: var(--hb-ink);
+}
+
+.hb-brand:hover {
+  color: var(--hb-ink);
+}
+
+.hb-brand__text {
+  min-width: 0;
+}
+
+.hb-brand__text strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 14.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+.hb-brand__text small {
+  display: block;
+  color: var(--hb-muted-dim);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+}
+
+.hb-nav {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.hb-nav__link {
+  position: relative;
+  padding: 7px 12px;
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-muted);
+  font-size: 13px;
+  font-weight: 580;
+  white-space: nowrap;
+  transition: var(--hb-transition);
+}
+
+.hb-nav__link:hover {
+  color: var(--hb-ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hb-nav__link.active {
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+}
+
+.hb-nav__link.active::after {
+  position: absolute;
+  right: 12px;
+  bottom: 1px;
+  left: 12px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--hb-accent-grad);
+  content: "";
+}
+
+.hb-topbar__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.hb-topbar .hb-button.active {
+  border-color: var(--hb-accent-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+}
+
+/* 商店里一件主授权都没上架时（store.js 在 <html> 上切这个类），
+   把「购买授权」入口整体收起，别把用户送进一个空页面。
+   注意语义是「完全没上架」，不是「你已买完」。 */
+html.hb-no-base-products .hb-nav__link[data-hb-nav="purchase"],
+html.hb-no-base-products #home-purchase-link,
+html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
+  display: none;
+}
+
+.hb-store-nav-toggle {
+  display: none;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink-soft);
+  background: var(--hb-surface-soft);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.hb-store-main {
+  padding: 34px 0 56px;
+}
+
+/* 有底色的整宽区块（首页 hero、页面头）自己撑满，内部再用 .hb-container 收窄 */
+.hb-store-main--flush {
+  padding-top: 0;
+}
+
+.hb-site-footer {
+  position: relative;
+  margin-top: auto;
+  background: rgba(26, 32, 38, 0.6);
+}
+
+/* 页脚上缘由素线换成「两端隐去、中央偏琥珀」的发丝线：整页最后一条水平线
+   落在视口底部，用渐变收尾比一条贯穿全宽的实线更干净，也呼应页头横幅
+   与卡片上缘的那套指示灯语言。 */
+.hb-site-footer::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--hb-line-strong) 18%,
+    var(--hb-accent-line) 50%,
+    var(--hb-line-strong) 82%,
+    transparent
+  );
+  content: "";
+  pointer-events: none;
+}
+
+.hb-site-footer__inner {
+  display: flex;
+  padding: 26px 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.hb-site-footer__brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.hb-site-footer__brand strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 13.5px;
+  font-weight: 640;
+}
+
+.hb-site-footer__brand p {
+  margin-top: 3px;
+  color: var(--hb-muted);
+  font-size: 12px;
+}
+
+.hb-site-footer__meta {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.hb-site-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.hb-site-footer__links a {
+  color: var(--hb-muted);
+  font-size: 12.5px;
+}
+
+.hb-site-footer__links a:hover {
+  color: var(--hb-accent-bright);
+}
+
+.hb-site-footer__bottom {
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+}
+
+/* --------------------------------------------------------------------------
+   2. 通用页面区块
+   --------------------------------------------------------------------------
+   这一节定义「科技感」在首页之外那几页的落点。首页用整屏的视觉重量（巨大
+   渐变标题 + 三层背景特效）来立住第一印象；内页内容更密、更需要可读性，
+   所以改成「一块有分量的控制台铭牌 + 干净的正文」：
+
+     ::before  漂移的细网格 + 左琥珀辉光 + 右下补光（双层斜向光源）
+     ::after   下缘指示灯 + 左上 / 右下两道 HUD 角线
+     eyebrow   状态点 + 分区名 + 等宽路径，把「当前在哪个模块」写清楚
+     h1        放大到 27–40px，强调短语走琥珀渐变，与首页同一套排印语言
+
+   正文区域（卡片 / 表格 / 列表）保持干净——正文要的是可读性，不是氛围。
+   -------------------------------------------------------------------------- */
+.hb-page-head,
+.hb-account-heading {
+  position: relative;
+  display: flex;
+  margin-bottom: 26px;
+  padding: 36px 34px 32px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-xl);
+  /* 三档深色斜向过渡：比单色底多一层「面板厚度」，也把辉光衬得更亮 */
+  background: linear-gradient(126deg, #1e252d 0%, #171c22 58%, #1b2128 100%);
+  box-shadow: var(--hb-elev-2);
+  overflow: hidden;
+}
+
+/* 细网格 + 双层琥珀辉光。网格两个方向各 46px 一循环，所以按 46px 位移可以
+   无缝循环，做出一条几乎察觉不到的漂移，让整块铭牌「是活的」而不是一张贴图。 */
+.hb-page-head::before,
+.hb-account-heading::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(120% 155% at 0% 0%, rgba(242, 162, 13, 0.2), transparent 62%),
+    radial-gradient(88% 140% at 100% 100%, rgba(242, 162, 13, 0.1), transparent 58%);
+  background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+  -webkit-mask-image: linear-gradient(104deg, #000 16%, rgba(0, 0, 0, 0.45) 58%, transparent 90%);
+  mask-image: linear-gradient(104deg, #000 16%, rgba(0, 0, 0, 0.45) 58%, transparent 90%);
+  content: "";
+  pointer-events: none;
+  animation: hb-head-drift 26s linear infinite;
+}
+
+/* 下缘指示灯 + 左侧能量条 + 左上 / 右下 HUD 角线，全在这一个伪元素上分层铺开。
+   角线内缩 14px：横幅圆角是 --hb-radius-xl，贴边的直角线会与圆角互相打架。
+   左侧能量条只占中间 56% 高度，是为了避开上下两个圆角。 */
+.hb-page-head::after,
+.hb-account-heading::after {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(90deg, transparent, var(--hb-accent-line) 22%, transparent 78%),
+    linear-gradient(180deg, transparent, var(--hb-accent) 24%, var(--hb-accent) 76%, transparent),
+    linear-gradient(var(--hb-accent-line), var(--hb-accent-line)),
+    linear-gradient(var(--hb-accent-line), var(--hb-accent-line)),
+    linear-gradient(var(--hb-accent-line), var(--hb-accent-line)),
+    linear-gradient(var(--hb-accent-line), var(--hb-accent-line));
+  background-position: 50% 100%, 0 50%, 14px 14px, 14px 14px, right 14px bottom 14px, right 14px bottom 14px;
+  background-size: calc(100% - 72px) 1px, 3px 56%, 20px 1px, 1px 20px, 20px 1px, 1px 20px;
+  background-repeat: no-repeat;
+  content: "";
+  pointer-events: none;
+}
+
+/* ::before/::after 是绝对定位盒，会盖在普通流子元素之上，所以子元素也要
+   进入定位层（只加 position，不加 z-index：文档顺序自然让子元素在上）。 */
+.hb-page-head > *,
+.hb-account-heading > * {
+  position: relative;
+}
+
+/* eyebrow：状态点 + 分区名 + 等宽路径，做成一条「仪表读数」胶囊。
+   等宽 + 字距让它在视觉上明确区别于正文，读者一眼就知道这是系统元信息。 */
+.hb-page-head__eyebrow,
+.hb-account-heading__eyebrow {
+  display: inline-flex;
+  padding: 5px 13px 5px 11px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-pill);
+  background: rgba(255, 255, 255, 0.03);
+  font-family: var(--hb-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* 呼吸的状态点：整块铭牌唯一的动效来源，用极小的幅度提示「服务在线」 */
+.hb-page-head__eyebrow::before,
+.hb-account-heading__eyebrow::before {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 999px;
+  background: var(--hb-accent-bright);
+  box-shadow: 0 0 0 3px rgba(242, 162, 13, 0.14);
+  content: "";
+  animation: hb-head-blip 2.6s ease-in-out infinite;
+}
+
+@keyframes hb-head-blip {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+/* eyebrow 里的 kicker 要服从胶囊的等宽小字，不能沿用正文里的 11px/0.18em */
+.hb-page-head__eyebrow .hb-kicker,
+.hb-account-heading__eyebrow .hb-kicker {
+  color: var(--hb-accent-bright);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  letter-spacing: inherit;
+}
+
+/* 路径：用一道竖线与分区名分开，读起来像「当前模块 / 子路径」 */
+.hb-page-head__path,
+.hb-account-heading__path {
+  padding-left: 10px;
+  border-left: 1px solid var(--hb-line-strong);
+  color: var(--hb-muted-dim);
+  letter-spacing: 0.08em;
+  text-transform: none;
+}
+
+.hb-page-head h1,
+.hb-account-heading h1 {
+  margin-top: 18px;
+  font-size: clamp(27px, 3.2vw, 40px);
+  letter-spacing: -0.03em;
+  line-height: 1.14;
+}
+
+/* 强调短语走琥珀渐变，与首页 hero 的 h1 strong 完全同一套处理；
+   @supports 兜底，老浏览器退化成纯琥珀色而不是透明字。 */
+.hb-page-head h1 strong,
+.hb-account-heading h1 strong {
+  color: var(--hb-accent-bright);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .hb-page-head h1 strong,
+  .hb-account-heading h1 strong {
+    background-image: linear-gradient(96deg, #ffc65a 6%, var(--hb-accent) 62%, #ef9900);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+.hb-page-head p {
+  max-width: 62ch;
+  margin-top: 12px;
+  color: var(--hb-muted);
+  font-size: 13.5px;
+}
+
+/* 横幅右侧的等宽读数条：把几条「买了会怎样」的硬信息顶到首屏，
+   顺带把标题右侧那块空白填掉——否则宽屏下横幅会左重右轻。 */
+.hb-page-head__feed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 26px;
+}
+
+.hb-page-head__feed > div {
+  display: grid;
+  padding-left: 13px;
+  gap: 4px;
+  border-left: 1px solid var(--hb-line-strong);
+}
+
+.hb-page-head__feed small {
+  color: var(--hb-muted-dim);
+  font-family: var(--hb-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.hb-page-head__feed strong {
+  color: var(--hb-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hb-page-head::before,
+  .hb-account-heading::before,
+  .hb-auth-aside::before,
+  .hb-page-head__eyebrow::before,
+  .hb-account-heading__eyebrow::before {
+    animation: none;
+  }
+}
+
+.hb-section-heading {
+  margin-bottom: 16px;
+}
+
+.hb-section-heading h2 {
+  margin-top: 8px;
+}
+
+.hb-section-heading--compact {
+  margin-bottom: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   2.1 HUD 角标：主面板的左上 / 右下角线
+   --------------------------------------------------------------------------
+   给「页面主角面板」（认证卡、结算摘要、邀请卡、维护卡、收银卡）加上一对
+   16px 的琥珀角线，读起来像设备屏幕的取景框。
+
+   只是 2 条 1px 线、贴在面板内缩 9px 处：
+     · 不放四角——四角 + 每张卡都加，会变成整页噪声，反而看不出主次；
+     · 内缩而不贴边——面板圆角 14–18px，贴边的直角线会与圆角互相打架。
+   -------------------------------------------------------------------------- */
+.hb-auth-card,
+.referral-share,
+.hb-maintenance-card,
+.hb-cashier__card {
+  position: relative;
+}
+
+/* .hb-product-summary 自己就是 position: sticky（已属于定位元素），
+   这里不能改写成 relative，否则结算页右侧摘要会失去吸顶。 */
+.hb-auth-card::before,
+.hb-product-summary::before,
+.referral-share::before,
+.hb-maintenance-card::before,
+.hb-cashier__card::before,
+.hb-auth-card::after,
+.hb-product-summary::after,
+.referral-share::after,
+.hb-maintenance-card::after,
+.hb-cashier__card::after {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--hb-accent-line);
+  content: "";
+  pointer-events: none;
+}
+
+.hb-auth-card::before,
+.hb-product-summary::before,
+.referral-share::before,
+.hb-maintenance-card::before,
+.hb-cashier__card::before {
+  top: 9px;
+  left: 9px;
+  border-right: 0;
+  border-bottom: 0;
+  border-top-left-radius: var(--hb-radius-xs);
+}
+
+.hb-auth-card::after,
+.hb-product-summary::after,
+.referral-share::after,
+.hb-maintenance-card::after,
+.hb-cashier__card::after {
+  right: 9px;
+  bottom: 9px;
+  border-top: 0;
+  border-left: 0;
+  border-bottom-right-radius: var(--hb-radius-xs);
+}
+
+/* --------------------------------------------------------------------------
+   3. 首页：单屏居中 hero（整页不滚动）
+   --------------------------------------------------------------------------
+   首页只留一块内容——居中的品牌宣言 + 三步流程。原来那两段（「可购买的授权版本」
+   商品区 + 服务保障条）已经删掉：商品在 /products 有完整的分组筛选，首页再罗列一遍
+   既稀释焦点，又会在只上架 1–2 个 SKU 时显得零散；保障条的信息量也用不着占一整行。
+
+   页面的「厚度」改由背景特效层承担，而不是靠堆卡片：细网格（科技底色）+ 琥珀辉光
+   （把视线拉到标题）+ 扫描线（给静态页一点活气）。三层透明度都压得很低，只在暗色
+   画布上隐约可见，不参与信息传达。
+
+   —— 不滚动的做法 ——
+   body 本来就是「min-height:100vh 的纵向 flex」，所以只要把首页的 main 变成
+   flex:1 的弹性块，hero 就会自动吃掉「顶栏以下、页脚以上」的全部剩余高度，页脚
+   刚好落在视口底边，一屏之内即可看完全部内容 + 底部信息。
+
+   这里刻意**不写** `height:100svh` + `overflow:hidden` 这类硬锁：
+     · body 的高度语义是 min-height，内容真放不下时（小屏手机、放大字号、首访
+       未登录时多出来的第三个按钮）body 会自然长高、页面照常滚动；
+     · 硬锁会把页脚或流程条直接裁掉，而这类溢出恰恰在小屏上最先发生。
+   代价是「一屏装下」不是强保证，而是「装得下时不滚、装不下时不裁」——这对
+   自适应页面才是正确的取舍。
+
+   用 :has() 而不是让 JS 往 body 上挂类名，是为了让这条规则在 JS 失败时也不参与
+   （:has() 在现代浏览器已全面支持；退化的结果只是首页恢复成普通滚动流，不会错版）。
+   -------------------------------------------------------------------------- */
+body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--flush {
+  display: flex;
+  flex: 1;
+  padding-bottom: 0;
+  flex-direction: column;
+}
+
+.hb-hero {
+  position: relative;
+  display: flex;
+  flex: 1;
+  padding: 56px 0 48px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.hb-hero__fx {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 细网格：径向遮罩让它只在中上部浮现，避免整屏噪点盖过文字 */
+.hb-hero__grid {
+  position: absolute;
+  inset: -1px;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.042) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.042) 1px, transparent 1px);
+  background-size: 58px 58px;
+  -webkit-mask-image: radial-gradient(ellipse 96% 68% at 50% 32%, #000 6%, transparent 76%);
+  mask-image: radial-gradient(ellipse 96% 68% at 50% 32%, #000 6%, transparent 76%);
+}
+
+/* 琥珀辉光：落在标题后方，非常缓慢地呼吸，幅度小到「感觉得到但注意不到」 */
+.hb-hero__glow {
+  position: absolute;
+  top: -140px;
+  left: 50%;
+  width: 1180px;
+  height: 720px;
+  max-width: 190vw;
+  border-radius: 999px;
+  background: radial-gradient(
+    closest-side,
+    rgba(242, 162, 13, 0.17),
+    rgba(242, 162, 13, 0.05) 46%,
+    transparent 72%
+  );
+  animation: hb-hero-breathe 9s ease-in-out infinite;
+}
+
+@keyframes hb-hero-breathe {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: translateX(-50%) scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.07);
+  }
+}
+
+/* 扫描线：一条极细的琥珀光带自上而下掠过 */
+.hb-hero__sweep {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(242, 162, 13, 0.55), transparent);
+  animation: hb-hero-scan 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes hb-hero-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+
+  10%,
+  62% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    /* 不能用百分比：元素只有 1px 高，100% 等于原地不动。按视口高度走完一屏。 */
+    transform: translateY(min(80vh, 900px));
+  }
+}
+
+.hb-hero__inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.hb-hero h1 {
+  margin-top: 22px;
+  font-size: clamp(34px, 5.2vw, 58px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+/* 强调短语走琥珀渐变；@supports 兜底，老浏览器退化成纯琥珀色而不是透明字 */
+.hb-hero h1 strong {
+  color: var(--hb-accent-bright);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .hb-hero h1 strong {
+    -webkit-background-clip: text;
+    background-clip: text;
+    background-image: linear-gradient(96deg, #ffc65a 4%, var(--hb-accent) 58%, var(--hb-accent-deep));
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+.hb-hero__inner > .hb-lead {
+  max-width: 54ch;
+  margin-top: 22px;
+  color: var(--hb-muted);
+  font-size: 15px;
+}
+
+.hb-hero__actions {
+  display: flex;
+  margin-top: 36px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.hb-hero__empty {
+  margin-top: 16px;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+}
+
+/* 01 / 02 / 03 流程条：居中一行，步骤之间用渐隐发丝线相连 */
+.hb-flow {
+  display: grid;
+  width: 100%;
+  max-width: 960px;
+  margin: 64px 0 0;
+  padding: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+}
+
+.hb-flow li {
+  position: relative;
+  display: flex;
+  padding: 0 24px;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.hb-flow li + li::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 34px;
+  background: linear-gradient(180deg, transparent, var(--hb-line-strong), transparent);
+  content: "";
+  transform: translateY(-50%);
+}
+
+/* 方形编号章比圆章更像 HUD 标签，配合等宽数字 */
+.hb-flow li > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  font-family: var(--hb-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hb-flow strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 13px;
+  font-weight: 640;
+}
+
+.hb-flow small {
+  display: block;
+  margin-top: 3px;
+  color: var(--hb-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hb-hero__glow,
+  .hb-hero__sweep {
+    animation: none;
+  }
+
+  /* 扫描线静止时会变成一条横贯页面的亮线，直接藏起来更干净 */
+  .hb-hero__sweep {
+    display: none;
+  }
+}
+
+/* 服务保障条（首页与结算页共用） */
+.hb-assurance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.hb-assurance-grid article {
+  display: flex;
+  padding: 18px;
+  align-items: flex-start;
+  gap: 13px;
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-surface);
+}
+
+.hb-assurance-grid article > i,
+.hb-assurance-grid__icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  font-size: 13px;
+}
+
+.hb-assurance-grid strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 13.5px;
+  font-weight: 640;
+}
+
+.hb-assurance-grid p {
+  margin-top: 4px;
+  color: var(--hb-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* --------------------------------------------------------------------------
+   4. 商品列表：筛选 tab
+   -------------------------------------------------------------------------- */
+.hb-filter {
+  display: flex;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-pill);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.hb-filter__item {
+  display: inline-flex;
+  padding: 7px 15px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: var(--hb-radius-pill);
+  color: var(--hb-muted);
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--hb-transition);
+}
+
+.hb-filter__item:hover {
+  color: var(--hb-ink);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hb-filter__item.is-active {
+  border-color: var(--hb-accent-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  box-shadow: 0 6px 20px -12px rgba(242, 162, 13, 0.9);
+}
+
+.hb-filter__count {
+  color: var(--hb-muted-dim);
+  font-family: var(--hb-font-mono);
+  font-size: 11px;
+}
+
+.hb-filter__item.is-active .hb-filter__count {
+  color: inherit;
+}
+
+/* 被筛掉的商品卡 */
+.hb-addon-card.is-filtered {
+  display: none;
+}
+
+/* 全授权（主授权 + 增量包）是客单价最高、也最省事的一档，默认给它更高的视觉
+   权重：琥珀描边 + 琥珀底纹 + 常亮的顶部光带。这里只做「加权」，真正的推荐
+   角标文案仍由后台商品的 badge 字段决定，不写死在样式里。 */
+.hb-addon-card[data-product-group="bundle"] {
+  border-color: var(--hb-accent-line);
+  background: linear-gradient(168deg, rgba(242, 162, 13, 0.09), rgba(255, 255, 255, 0.012) 48%), var(--hb-card-bg);
+  box-shadow: var(--hb-elev-2);
+}
+
+.hb-addon-card[data-product-group="bundle"]::before {
+  opacity: 0.6;
+}
+
+.hb-addon-card[data-product-group="bundle"]:hover::before {
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+   5. 结算页
+   -------------------------------------------------------------------------- */
+.hb-checkout-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.9fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.hb-checkout-main {
+  display: grid;
+  min-width: 0;
+  gap: 18px;
+}
+
+.hb-checkout-card {
+  position: relative;
+  padding: 24px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-card-bg);
+  box-shadow: var(--hb-elev-1);
+  overflow: hidden;
+}
+
+/* 顶部一道渐隐琥珀线：结算卡是这一页唯一的主面板，用它跟统计卡 / 页头横幅
+   串成同一套「面板上缘指示灯」的语言。 */
+.hb-checkout-card::before {
+  position: absolute;
+  top: 0;
+  right: 24px;
+  left: 24px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--hb-accent-line), transparent 76%);
+  content: "";
+  pointer-events: none;
+}
+
+/* 结算卡头：加一条下缘发丝线 + 一段琥珀短线，把标题区从表单正文里切出来，
+   读起来像一块控制台面板的表头，而不是一张表单的开头。 */
+.hb-checkout-card__header {
+  position: relative;
+  display: flex;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--hb-line-soft);
+}
+
+.hb-checkout-card__header::after {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 92px;
+  height: 1px;
+  background: var(--hb-accent-grad);
+  content: "";
+}
+
+.hb-checkout-card__header h2 {
+  margin-top: 8px;
+}
+
+.hb-checkout-price {
+  text-align: right;
+}
+
+.hb-checkout-price small {
+  display: block;
+  color: var(--hb-muted);
+  font-size: 11.5px;
+}
+
+.hb-checkout-price__amount {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.hb-checkout-price__amount del {
+  color: var(--hb-muted-dim);
+  font-size: 14px;
+}
+
+.hb-checkout-price__amount .price {
+  color: var(--hb-accent-bright);
+  font-family: var(--hb-font-mono);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* 结算表单：每个 .hb-form-section 自动编号 01 / 02 / 03 */
+.hb-checkout-form {
+  display: grid;
+  counter-reset: hb-step;
+  gap: 16px;
+}
+
+.hb-checkout-form .hb-form-section__head::before {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-xs);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  box-shadow: var(--hb-accent-glow);
+  content: counter(hb-step, decimal-leading-zero);
+  counter-increment: hb-step;
+  font-family: var(--hb-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* 编号占位后，原本的图标格就不再需要 */
+.hb-checkout-form .hb-form-section__head > i,
+.hb-checkout-form .hb-form-section__head > span {
+  display: none;
+}
+
+.hb-purchase-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hb-purchase-account > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border: 1px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-accent-bright);
+  background: var(--hb-surface-raised);
+  font-size: 13px;
+}
+
+.hb-purchase-account strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 13.5px;
+  font-weight: 640;
+}
+
+.hb-purchase-account small {
+  display: block;
+  margin-top: 1px;
+  color: var(--hb-muted);
+  font-size: 11.5px;
+}
+
+.hb-purchase-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* 数量固定为 1：不做成输入框，避免「能不能改」的歧义 */
+.hb-fixed-quantity {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+}
+
+.hb-fixed-quantity strong {
+  color: var(--hb-ink);
+  font-family: var(--hb-font-mono);
+  font-size: 18px;
+}
+
+.hb-coupon-input {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.hb-coupon-feedback {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.hb-coupon-feedback.is-checking {
+  color: var(--hb-muted);
+}
+
+.hb-coupon-feedback.is-valid {
+  color: var(--hb-success-text);
+}
+
+.hb-coupon-feedback.is-invalid {
+  color: var(--hb-danger-text);
+}
+
+.hb-form-help {
+  display: block;
+  color: var(--hb-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.hb-payment-methods {
+  display: grid;
+  gap: 12px;
+}
+
+.hb-pay-submit {
+  width: 100%;
+}
+
+.hb-package-contents {
+  padding: 12px 14px;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-sm);
+  background: var(--hb-accent-faint);
+  color: var(--hb-ink-soft);
+  font-size: 12.5px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+/* 右侧订单摘要 */
+.hb-product-summary {
+  position: sticky;
+  top: calc(var(--hb-topbar-h) + 24px);
+  padding: 22px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-card-bg);
+  box-shadow: var(--hb-elev-1);
+}
+
+.hb-product-cover {
+  display: grid;
+  height: 132px;
+  margin-bottom: 18px;
+  place-items: center;
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-md);
+  background: radial-gradient(circle at 50% 30%, rgba(242, 162, 13, 0.12), transparent 70%),
+    var(--hb-surface-raised);
+}
+
+.hb-product-cover img {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+}
+
+.hb-product-cover.has-product-image img {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  object-fit: contain;
+}
+
+.hb-product-summary__badges {
+  display: flex;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hb-product-summary__badges > span {
+  display: inline-flex;
+  padding: 3px 10px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-pill);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  font-size: 11px;
+  font-weight: 620;
+}
+
+.hb-product-summary__badges b {
+  font: inherit;
+}
+
+.hb-product-summary__badges .hb-product-summary__status {
+  border-color: var(--hb-success-line);
+  color: var(--hb-success-text);
+  background: var(--hb-success-soft);
+}
+
+.hb-product-summary__content h1 {
+  font-size: 20px;
+}
+
+.hb-product-summary__content > p {
+  margin-top: 10px;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.hb-product-facts {
+  display: grid;
+  margin: 18px 0 0;
+  gap: 9px;
+}
+
+.hb-product-facts > div {
+  display: flex;
+  padding-top: 9px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid var(--hb-line-soft);
+}
+
+.hb-product-facts dt {
+  color: var(--hb-muted);
+  font-size: 11.5px;
+}
+
+.hb-product-facts dd {
+  margin: 0;
+  color: var(--hb-ink-soft);
+  font-size: 12px;
+  text-align: right;
+}
+
+.hb-share-button {
+  display: inline-flex;
+  width: 100%;
+  margin-top: 18px;
+  padding: 9px 12px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed var(--hb-line-strong);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-muted);
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: var(--hb-transition);
+}
+
+.hb-share-button:hover {
+  border-color: var(--hb-accent-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-faint);
+}
+
+.hb-checkout-assurances {
+  margin-top: 22px;
+}
+
+/* 支付对话框：二维码是白底方块（扫码要求高对比），
+   倒计时、状态、订单号沿用 theme.css 的对话框组件 */
+.hb-payment-dialog #payment-qr {
+  display: grid;
+  width: 216px;
+  height: 216px;
+  margin: 0 auto;
+  place-items: center;
+  border: 1px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-md);
+  background: #fff;
+  overflow: hidden;
+}
+
+.hb-payment-dialog #payment-qr canvas,
+.hb-payment-dialog #payment-qr img {
+  display: block;
+}
+
+.hb-payment-dialog #payment-status.done {
+  color: var(--hb-success-text);
+  font-weight: 650;
+}
+
+#release-device-target {
+  display: grid;
+  gap: 6px;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+}
+
+#release-device-target code {
+  color: var(--hb-accent-bright);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.hb-release-error {
+  display: block;
+}
+
+/* 未登录时把支付动作压暗，提示「先登录」 */
+.hb-checkout-form.is-account-locked .hb-pay-submit {
+  border-color: var(--hb-line-soft);
+  color: var(--hb-muted-dim);
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: none;
+}
+
+.hb-checkout-card.is-guest-checkout .hb-checkout-card__header h2 {
+  color: var(--hb-accent-bright);
+}
+
+/* --------------------------------------------------------------------------
+   6. 认证页（登录 / 注册 / 找回）
+   -------------------------------------------------------------------------- */
+.hb-auth-page {
+  padding: 56px 0 84px;
+}
+
+/* 左栏从 1fr 加宽到 1.2fr：品牌宣言那侧有 3 条清单，太窄会挤成三行折行；
+   右栏固定 404px 是表单的舒适宽度，再宽输入框就空得发慌。 */
+.hb-auth-shell {
+  display: grid;
+  max-width: 1080px;
+  margin: 0 auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 404px);
+  align-items: stretch;
+  gap: 26px;
+}
+
+.hb-auth-aside {
+  position: relative;
+  display: flex;
+  padding: 44px 38px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-xl);
+  /* 与页头横幅同一套三档斜向过渡，让认证页的左栏读起来是「一块面板」
+     而不是一个比页面略亮的空盒子 */
+  background: linear-gradient(150deg, #1f2731 0%, #171c22 58%, #1c222a 100%);
+  box-shadow: var(--hb-elev-2);
+  overflow: hidden;
+}
+
+/* 与页头横幅同一套质感，但方向相反（从右上铺开），
+   让左右两栏在同一页里形成对称的斜向光源，而不是两片一样的底纹。
+   网格保持 46px 一循环，可以直接复用横幅的 hb-head-drift 做无缝漂移。
+   这里占用了 ::before，所以 .hb-auth-aside 不参与 2.1 节的 HUD 角标
+   （大块底纹与角线叠在一起会互相干扰，角标留给右侧的表单卡）。 */
+.hb-auth-aside::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(120% 150% at 100% 0%, rgba(242, 162, 13, 0.22), transparent 62%),
+    radial-gradient(90% 130% at 0% 100%, rgba(242, 162, 13, 0.09), transparent 56%);
+  background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+  -webkit-mask-image: linear-gradient(258deg, #000 16%, rgba(0, 0, 0, 0.4) 58%, transparent 90%);
+  mask-image: linear-gradient(258deg, #000 16%, rgba(0, 0, 0, 0.4) 58%, transparent 90%);
+  content: "";
+  pointer-events: none;
+  animation: hb-head-drift 26s linear infinite;
+}
+
+.hb-auth-aside > * {
+  position: relative;
+}
+
+.hb-auth-aside h2 {
+  font-size: clamp(26px, 3vw, 34px);
+  letter-spacing: -0.028em;
+  line-height: 1.2;
+}
+
+.hb-auth-aside h2 strong {
+  color: var(--hb-accent-bright);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .hb-auth-aside h2 strong {
+    -webkit-background-clip: text;
+    background-clip: text;
+    background-image: linear-gradient(96deg, #ffc65a 6%, var(--hb-accent) 62%, var(--hb-accent-deep));
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+.hb-auth-aside > p {
+  color: var(--hb-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.hb-auth-aside ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 11px;
+  list-style: none;
+}
+
+.hb-auth-aside li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--hb-ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* 勾选图标收进一枚等宽的小方章：比裸图标多一层「清单项」的界面感，
+   也让三条清单在视觉上等距对齐（图标列宽度固定为 20px）。 */
+.hb-auth-aside li i {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-xs);
+  background: var(--hb-accent-soft);
+  color: var(--hb-accent-bright);
+  font-size: 10px;
+}
+
+.hb-auth-card {
+  display: flex;
+  padding: 34px 30px;
+  flex-direction: column;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-xl);
+  background: var(--hb-card-bg);
+  box-shadow: var(--hb-elev-2);
+}
+
+.hb-auth-brand {
+  margin-bottom: 22px;
+}
+
+.hb-auth-brand strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 20px;
+  font-weight: 660;
+  letter-spacing: -0.015em;
+}
+
+.hb-auth-brand p {
+  margin-top: 6px;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.hb-auth-form {
+  display: grid;
+  gap: 15px;
+}
+
+.hb-auth-form label {
+  display: grid;
+  gap: 7px;
+  color: #aab4bc;
+  font-size: 12px;
+  font-weight: 620;
+  letter-spacing: 0.02em;
+}
+
+.hb-auth-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 13px;
+  border: 1px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink);
+  background: var(--hb-field);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  transition: var(--hb-transition);
+}
+
+.hb-auth-form input::placeholder {
+  color: #5d6871;
+}
+
+.hb-auth-form input:focus {
+  border-color: var(--hb-accent);
+  outline: none;
+  box-shadow: var(--hb-focus-ring);
+}
+
+.hb-auth-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  align-items: end;
+  gap: 10px;
+}
+
+.hb-auth-code-row .hb-button {
+  min-height: 44px;
+  padding: 9px 10px;
+}
+
+.hb-auth-forgot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hb-auth-forgot a {
+  font-size: 12.5px;
+}
+
+.hb-auth-switch {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hb-line-soft);
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.hb-auth-switch a {
+  font-weight: 650;
+}
+
+.hb-password-mismatch {
+  color: var(--hb-danger-text);
+  font-size: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   7. 账号中心
+   --------------------------------------------------------------------------
+   .hb-account-heading 的横幅样式（网格 / 辉光 / 圆角 / 内边距）与 .hb-page-head
+   共用，定义在第 2 节；这里只叠加账号页特有的部分。
+   -------------------------------------------------------------------------- */
+.hb-account-heading p {
+  margin-top: 8px;
+  color: var(--hb-muted);
+  font-family: var(--hb-font-mono);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.hb-account-heading__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* 概览统计条 */
+.hb-account-stats {
+  display: grid;
+  margin-bottom: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+/* 统计卡：顶部一道渐隐琥珀线 + 等宽数字。四个数字并列时，等宽 + tabular-nums
+   才能让位数不同的数值左对齐；标签走大写等宽，读起来像仪表盘表头。 */
+.hb-account-stats article,
+.referral-stats article {
+  position: relative;
+  padding: 17px 18px;
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-surface);
+  overflow: hidden;
+  transition: var(--hb-transition);
+}
+
+.hb-account-stats article::before,
+.referral-stats article::before {
+  position: absolute;
+  top: 0;
+  right: 14px;
+  left: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--hb-accent-line), transparent 72%);
+  content: "";
+  pointer-events: none;
+}
+
+.hb-account-stats article:hover,
+.referral-stats article:hover {
+  border-color: var(--hb-line-strong);
+  background: var(--hb-surface-soft);
+}
+
+.hb-account-stats small,
+.referral-stats small {
+  display: block;
+  color: var(--hb-muted);
+  font-family: var(--hb-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hb-account-stats strong,
+.referral-stats strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--hb-ink);
+  font-family: var(--hb-font-mono);
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+/* 内部 tab：竖向导轨
+   --------------------------------------------------------------------------
+   容器最宽 1600px，顶栏横排的 tab 会被拉成一条很长的横线，视点要在「分栏」和
+   「分栏右边的内容」之间来回跳；改成左侧竖向导轨后，分组、计数和概览统计都收
+   在一个固定的小视区里，右侧内容区还能拿到完整的可用宽度（授权与订单都是
+   自适应网格，宽度直接决定列数）。
+   -------------------------------------------------------------------------- */
+.hb-account-shell {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  align-items: start;
+  gap: 22px;
+}
+
+/* grid 子项默认 min-width:auto，授权卡里的长激活码会把整列撑破而不是在卡内
+   换行，所以内容列必须显式 min-width:0。 */
+.hb-account-content {
+  min-width: 0;
+}
+
+/* 导轨跟着长列表吸顶：滚到第四五张授权卡时依然能切分栏 */
+.hb-account-rail {
+  position: sticky;
+  top: calc(var(--hb-topbar-h) + 20px);
+  display: grid;
+  gap: 14px;
+}
+
+.hb-account-tabs {
+  display: grid;
+  padding: 6px;
+  gap: 3px;
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-surface);
+}
+
+.hb-account-tabs__item {
+  position: relative;
+  display: flex;
+  padding: 10px 12px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: var(--hb-radius-md);
+  color: var(--hb-muted);
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 620;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--hb-transition);
+}
+
+.hb-account-tabs__item:hover {
+  color: var(--hb-ink);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.hb-account-tabs__item.is-active {
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+}
+
+/* 激活态：左侧一道亮起的琥珀条。横排时这条指示线在底部，竖排后转 90°，
+   落在导轨 6px 内边距里，不占文字宽度。 */
+.hb-account-tabs__item.is-active::before {
+  position: absolute;
+  top: 50%;
+  left: -6px;
+  width: 2px;
+  height: 18px;
+  border-radius: 2px;
+  background: var(--hb-accent-grad);
+  box-shadow: 0 0 12px rgba(242, 162, 13, 0.65);
+  content: "";
+  transform: translateY(-50%);
+}
+
+/* 计数推到行尾，等宽字体让三个分栏的计数竖着对齐 */
+.hb-account-tabs__item span {
+  margin-left: auto;
+  color: var(--hb-muted-dim);
+  font-family: var(--hb-font-mono);
+  font-size: 11px;
+}
+
+.hb-account-tabs__item.is-active span {
+  color: inherit;
+}
+
+/* 导轨里的概览统计：收成两列紧凑小格，作为分栏导航下方的「读数区」。
+   这里必须覆盖通用的 auto-fit 四列，否则 232px 宽会溢出。 */
+.hb-account-rail .hb-account-stats {
+  margin-bottom: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hb-account-rail .hb-account-stats article {
+  padding: 12px 13px;
+}
+
+.hb-account-rail .hb-account-stats strong {
+  margin-top: 6px;
+  font-size: 21px;
+}
+
+.hb-account-panel[hidden] {
+  display: none !important;
+}
+
+.hb-account-section {
+  margin-bottom: 24px;
+}
+
+.hb-account-section:last-child {
+  margin-bottom: 0;
+}
+
+.hb-account-list {
+  display: grid;
+  gap: 12px;
+}
+
+.hb-account-item {
+  position: relative;
+  display: flex;
+  padding: 20px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-surface);
+  box-shadow: var(--hb-elev-1);
+  overflow: hidden;
+  transition: var(--hb-transition);
+}
+
+/* 悬停时左缘亮起一条琥珀条。用伪元素而不是 border-left，
+   是为了不改变盒宽——列表项在悬停瞬间掉 2px 会很明显。 */
+.hb-account-item::before {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--hb-accent-grad);
+  box-shadow: 0 0 14px rgba(242, 162, 13, 0.6);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.hb-account-item:hover {
+  border-color: var(--hb-line-strong);
+  background: var(--hb-surface-soft);
+}
+
+.hb-account-item:hover::before {
+  opacity: 1;
+}
+
+.hb-account-item > div:first-child {
+  min-width: 0;
+  flex: 1 1 340px;
+}
+
+.hb-account-item h3 {
+  color: var(--hb-ink);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.hb-account-item > div > p {
+  margin-top: 5px;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.hb-account-license-code {
+  display: flex;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.hb-account-license-code > span {
+  color: var(--hb-muted);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+}
+
+.hb-account-license-code code {
+  padding: 5px 11px;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-xs);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.hb-account-code-note {
+  display: block;
+  width: 100%;
+  color: var(--hb-accent-bright);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.hb-account-manual-note {
+  margin-top: 8px;
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+}
+
+.hb-account-meta {
+  display: flex;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+/* 芯片变体已在 theme.css 里写成复合选择器；这里只保证容器不抢色 */
+.hb-account-meta span {
+  color: inherit;
+}
+
+.hb-account-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hb-account-order-side {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 10px;
+  justify-items: end;
+  text-align: right;
+}
+
+.hb-account-order-side > span {
+  color: var(--hb-muted-dim);
+  font-family: var(--hb-font-mono);
+  font-size: 11.5px;
+}
+
+.hb-order-countdown {
+  color: var(--hb-accent-bright) !important;
+  font-family: var(--hb-font-mono);
+  font-size: 12px !important;
+}
+
+.hb-account-empty {
+  padding: 34px 20px;
+  border: 1px dashed var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  color: var(--hb-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.hb-release-policy-state {
+  margin-top: 8px;
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+}
+
+#account-release-policy {
+  margin-bottom: 14px;
+  padding: 11px 14px;
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-muted);
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* --------------------------------------------------------------------------
+   8. 邀请有礼
+   -------------------------------------------------------------------------- */
+.referral-share {
+  display: grid;
+  padding: 24px;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 26px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-card-bg);
+  box-shadow: var(--hb-elev-1);
+}
+
+.referral-share h2 {
+  font-size: 18px;
+}
+
+.referral-share p {
+  margin-top: 8px;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+/* 邀请码生成后（复制按钮出现即代表已生成）把码从一句说明文字升级成一块等宽
+   读数：邀请码是要念给朋友、抄进注册表单的东西，字号和字距必须够醒目。
+   没有生成时 #referral-code-text 仍是一句普通说明，保持 12.5px 正文样式。 */
+.referral-share > div:has(#referral-copy-code:not([hidden])) #referral-code-text {
+  padding: 14px 16px;
+  border: 1px dashed var(--hb-accent-line);
+  border-radius: var(--hb-radius-md);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  font-family: var(--hb-font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-align: center;
+}
+
+.referral-share input {
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px 13px;
+  border: 1px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink);
+  background: var(--hb-field);
+  font-family: var(--hb-font-mono);
+  font-size: 12.5px;
+}
+
+.referral-share aside {
+  display: flex;
+  padding-left: 26px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  border-left: 1px solid var(--hb-line-soft);
+}
+
+.referral-share aside strong {
+  color: var(--hb-accent-bright);
+  font-family: var(--hb-font-mono);
+  font-size: 46px;
+  font-weight: 680;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.referral-share aside span {
+  color: var(--hb-ink-soft);
+  font-size: 12.5px;
+}
+
+.referral-share aside small {
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.referral-actions {
+  display: flex;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+#referral-code-text {
+  color: var(--hb-accent-bright) !important;
+  font-family: var(--hb-font-mono);
+  font-size: 16px !important;
+  letter-spacing: 0.1em;
+  overflow-wrap: anywhere;
+}
+
+.referral-stats {
+  display: grid;
+  margin-bottom: 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* 统计卡的样式与账号中心概览共用，见第 7 节。 */
+
+.referral-withdraw-form {
+  display: flex;
+  margin: 18px 0;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.referral-withdraw-form label {
+  display: grid;
+  min-width: 180px;
+  flex: 1 1 180px;
+  gap: 7px;
+  color: #aab4bc;
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.referral-withdraw-form input {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink);
+  background: var(--hb-field);
+  font-family: inherit;
+  font-size: 13.5px;
+}
+
+.referral-withdraw-form input:focus {
+  border-color: var(--hb-accent);
+  outline: none;
+  box-shadow: var(--hb-focus-ring);
+}
+
+.referral-table-wrap {
+  margin: 18px 0;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-lg);
+  background: var(--hb-surface);
+  overflow-x: auto;
+}
+
+.referral-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.referral-table th,
+.referral-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--hb-line-soft);
+  text-align: left;
+  vertical-align: top;
+}
+
+.referral-table th {
+  color: var(--hb-muted);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.referral-table td {
+  color: var(--hb-ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.referral-table tbody tr {
+  transition: background 0.14s ease;
+}
+
+.referral-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.022);
+}
+
+/* 悬停时左缘亮起琥珀条，与账号中心的列表项保持同一套「行选中」语言 */
+.referral-table tbody tr td:first-child {
+  box-shadow: inset 2px 0 0 transparent;
+  transition: box-shadow 0.14s ease;
+}
+
+.referral-table tbody tr:hover td:first-child {
+  box-shadow: inset 2px 0 0 var(--hb-accent);
+}
+
+.referral-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.referral-table td code {
+  display: block;
+  margin-top: 4px;
+  color: var(--hb-accent-bright);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.referral-table td small {
+  display: block;
+  margin-top: 4px;
+  color: var(--hb-muted-dim);
+  font-size: 11px;
+}
+
+.referral-empty {
+  padding: 26px 0;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.referral-history-tabs,
+.referral-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.referral-pagination {
+  justify-content: flex-end;
+}
+
+#referral-page {
+  color: var(--hb-muted);
+  font-family: var(--hb-font-mono);
+  font-size: 12px;
+}
+
+#referral-error {
+  margin-bottom: 16px;
+  padding: 13px 16px;
+  border: 1px solid var(--hb-danger-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-danger-text);
+  background: var(--hb-danger-soft);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+#referral-fee-preview,
+#referral-application {
+  margin-top: 10px;
+  color: var(--hb-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+#referral-application:not(:empty) {
+  color: var(--hb-accent-bright);
+}
+
+.referral-guide details {
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-md);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.referral-guide summary {
+  padding: 13px 16px;
+  color: var(--hb-ink-soft);
+  font-size: 12.5px;
+  font-weight: 620;
+  cursor: pointer;
+  list-style: none;
+}
+
+.referral-guide summary::-webkit-details-marker {
+  display: none;
+}
+
+.referral-guide summary::after {
+  float: right;
+  color: var(--hb-muted);
+  content: "+";
+}
+
+.referral-guide details[open] summary::after {
+  content: "−";
+}
+
+.referral-guide ol {
+  margin: 0;
+  padding: 0 20px 18px 40px;
+  color: var(--hb-muted);
+  font-size: 12px;
+  line-height: 1.85;
+}
+
+.referral-guide li {
+  padding: 3px 0;
+}
+
+/* --------------------------------------------------------------------------
+   9. 维护页
+   -------------------------------------------------------------------------- */
+.hb-maintenance-page {
+  position: relative;
+  display: grid;
+  min-height: calc(100vh - var(--hb-topbar-h) - 120px);
+  padding: 60px 24px;
+  place-items: center;
+  overflow: hidden;
+}
+
+.hb-maintenance-page::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    radial-gradient(closest-side, rgba(242, 162, 13, 0.18), transparent 74%);
+  background-position: 0 0, 0 0, 50% 46%;
+  background-size: 58px 58px, 58px 58px, 760px 520px;
+  background-repeat: repeat, repeat, no-repeat;
+  -webkit-mask-image: radial-gradient(ellipse 92% 66% at 50% 46%, #000 6%, transparent 80%);
+  mask-image: radial-gradient(ellipse 92% 66% at 50% 46%, #000 6%, transparent 80%);
+  content: "";
+  pointer-events: none;
+}
+
+.hb-maintenance-card {
+  position: relative;
+  display: grid;
+  width: min(520px, 100%);
+  padding: 36px 32px;
+  gap: 14px;
+  justify-items: center;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-xl);
+  background: var(--hb-card-bg);
+  box-shadow: var(--hb-shadow-lg);
+  text-align: center;
+}
+
+.hb-maintenance-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.hb-maintenance-brand strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 14px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.hb-maintenance-brand small {
+  display: block;
+  color: var(--hb-muted-dim);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-align: left;
+}
+
+.hb-maintenance-visual {
+  position: relative;
+  display: grid;
+  width: 116px;
+  height: 116px;
+  margin: 8px 0;
+  place-items: center;
+}
+
+.hb-maintenance-orbit {
+  position: absolute;
+  inset: 0;
+  border: 1px dashed rgba(242, 162, 13, 0.35);
+  border-radius: 999px;
+  animation: hb-orbit-spin 16s linear infinite;
+}
+
+.hb-maintenance-orbit--inner {
+  inset: 22px;
+  border-style: solid;
+  border-color: rgba(242, 162, 13, 0.18);
+  animation-direction: reverse;
+  animation-duration: 11s;
+}
+
+@keyframes hb-orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hb-maintenance-orbit {
+    animation: none;
+  }
+}
+
+.hb-maintenance-icon {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-lg);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  box-shadow: var(--hb-accent-glow);
+  font-size: 22px;
+}
+
+.hb-maintenance-card h1 {
+  margin-top: 4px;
+  font-size: 26px;
+}
+
+.hb-maintenance-card > p {
+  max-width: 42ch;
+  color: var(--hb-muted);
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+.hb-maintenance-status {
+  display: inline-flex;
+  padding: 7px 14px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-pill);
+  color: var(--hb-muted);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+}
+
+.hb-maintenance-card > small {
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+}
+
+body.hb-maintenance-active .hb-store-main,
+body.hb-maintenance-active .hb-site-footer {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   10. 模拟收银台（store/api/pages.py 注入的独立页面）
+   -------------------------------------------------------------------------- */
+.hb-cashier {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  padding: 48px 20px;
+  place-items: center;
+  overflow: hidden;
+}
+
+/* 收银台是独立页面（pages.py 注入的 HTML，没有商店外壳），
+   所以背景纹理直接铺在整屏容器上，用径向遮罩收成中央光晕。 */
+.hb-cashier::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    radial-gradient(closest-side, rgba(242, 162, 13, 0.16), transparent 72%);
+  background-position: 0 0, 0 0, 50% 42%;
+  background-size: 58px 58px, 58px 58px, 720px 500px;
+  background-repeat: repeat, repeat, no-repeat;
+  -webkit-mask-image: radial-gradient(ellipse 90% 62% at 50% 42%, #000 6%, transparent 82%);
+  mask-image: radial-gradient(ellipse 90% 62% at 50% 42%, #000 6%, transparent 82%);
+  content: "";
+  pointer-events: none;
+}
+
+.hb-cashier__card {
+  display: grid;
+  width: min(440px, 100%);
+  padding: 28px;
+  gap: 16px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-xl);
+  background: var(--hb-card-bg);
+  box-shadow: var(--hb-shadow-lg);
+}
+
+.hb-cashier__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hb-cashier__head h1 {
+  font-size: 17px;
+}
+
+.hb-cashier__amount {
+  color: var(--hb-accent-bright);
+  font-family: var(--hb-font-mono);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.hb-cashier__product {
+  margin-top: -10px;
+  color: var(--hb-muted);
+  font-size: 13px;
+}
+
+.hb-cashier__meta {
+  display: grid;
+  margin: 0;
+  gap: 8px;
+  padding: 14px 0;
+  border-top: 1px solid var(--hb-line-soft);
+  border-bottom: 1px solid var(--hb-line-soft);
+}
+
+.hb-cashier__meta > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.hb-cashier__meta dt {
+  flex: 0 0 auto;
+  color: var(--hb-muted);
+  font-size: 12px;
+}
+
+.hb-cashier__meta dd {
+  margin: 0;
+  color: var(--hb-ink-soft);
+  font-family: var(--hb-font-mono);
+  font-size: 12px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.hb-cashier__message {
+  padding: 11px 14px;
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-muted);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.hb-cashier__message.is-success {
+  border-color: var(--hb-success-line);
+  color: var(--hb-success-text);
+  background: var(--hb-success-soft);
+}
+
+.hb-cashier__message.is-error {
+  border-color: var(--hb-danger-line);
+  color: var(--hb-danger-text);
+  background: var(--hb-danger-soft);
+}
+
+.hb-cashier__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.hb-cashier__back {
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   11. 窄屏
+   -------------------------------------------------------------------------- */
+@media (max-width: 980px) {
+  .hb-hero {
+    padding: 40px 0 36px;
+  }
+
+  .hb-flow {
+    margin-top: 46px;
+  }
+
+  .hb-flow li {
+    padding: 0 16px;
+  }
+
+  .hb-checkout-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hb-product-summary {
+    position: static;
+    order: -1;
+  }
+
+  .hb-auth-shell {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 560px;
+  }
+
+  .hb-auth-aside {
+    padding: 26px 22px;
+  }
+
+  .referral-share {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .referral-share aside {
+    padding: 18px 0 0;
+    border-top: 1px solid var(--hb-line-soft);
+    border-left: 0;
+  }
+
+  .referral-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* 导轨放不下「232px + 内容」两列：改回单列，分栏退回一条可横向滚动的
+     分栏条，概览统计回到自动适应的多列。 */
+  .hb-account-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .hb-account-rail {
+    position: static;
+    gap: 12px;
+  }
+
+  .hb-account-tabs {
+    display: flex;
+    padding: 5px;
+    overflow-x: auto;
+    gap: 4px;
+  }
+
+  .hb-account-tabs__item {
+    padding: 8px 12px;
+    flex: 0 0 auto;
+    gap: 7px;
+    font-size: 12.5px;
+  }
+
+  /* 横排后指示条回到下缘：竖排时的 left:-6px 会落到分栏条外面 */
+  .hb-account-tabs__item.is-active::before {
+    top: auto;
+    right: 10px;
+    bottom: -5px;
+    left: 10px;
+    width: auto;
+    height: 2px;
+    transform: none;
+  }
+
+  .hb-account-rail .hb-account-stats {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .hb-nav {
+    display: none;
+    position: absolute;
+    z-index: 70;
+    top: calc(100% + 8px);
+    right: 16px;
+    left: 16px;
+    padding: 10px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    border: 1px solid var(--hb-line-strong);
+    border-radius: var(--hb-radius-lg);
+    background: var(--hb-surface-raised);
+    box-shadow: var(--hb-shadow-md);
+  }
+
+  .hb-nav.mobile-open {
+    display: flex;
+  }
+
+  .hb-nav__link.active::after {
+    display: none;
+  }
+
+  .hb-store-nav-toggle {
+    display: grid;
+  }
+
+  /* 首页的 main 走 --flush（hero 与顶栏无缝相接，且由 flex 锁控制内边距），
+     不能在这里被通用内边距重新撑开——否则顶栏与 hero 之间会露出一条没有
+     网格/辉光的空白缝。 */
+  .hb-store-main:not(.hb-store-main--flush) {
+    padding: 24px 0 44px;
+  }
+
+  /* 页头横幅在窄屏收窄内边距：34px 的水平内边距在 360px 宽的机器上会吃掉
+     19% 的可用宽度，标题换行数量直接翻倍。 */
+  .hb-page-head,
+  .hb-account-heading {
+    padding: 24px 18px 22px;
+    gap: 16px;
+  }
+
+  /* ::after 已改成 inset:0 + 多层背景，不再有 left/right 可收；
+     窄屏要收的是背景层的角线内缩、角线长度和下缘线的左右缩进。 */
+  .hb-page-head::after,
+  .hb-account-heading::after {
+    background-position: 50% 100%, 0 50%, 11px 11px, 11px 11px, right 11px bottom 11px, right 11px bottom 11px;
+    background-size: calc(100% - 44px) 1px, 2px 52%, 16px 1px, 1px 16px, 16px 1px, 1px 16px;
+  }
+
+  .hb-page-head h1,
+  .hb-account-heading h1 {
+    margin-top: 14px;
+    font-size: clamp(23px, 7.4vw, 30px);
+  }
+
+  /* 角标内缩距离跟着卡片内边距一起收：窄屏下卡片内边距收到 22px 左右，
+     9px 内缩的 16px 角线会顶到正文，所以改成 7px 内缩 + 13px 角线。 */
+  .hb-auth-card::before,
+  .hb-product-summary::before,
+  .referral-share::before,
+  .hb-maintenance-card::before,
+  .hb-cashier__card::before {
+    top: 7px;
+    left: 7px;
+    width: 13px;
+    height: 13px;
+  }
+
+  .hb-auth-card::after,
+  .hb-product-summary::after,
+  .referral-share::after,
+  .hb-maintenance-card::after,
+  .hb-cashier__card::after {
+    right: 7px;
+    bottom: 7px;
+    width: 13px;
+    height: 13px;
+  }
+
+  .hb-hero {
+    padding: 34px 0 30px;
+  }
+
+  .hb-hero h1 {
+    font-size: clamp(28px, 8.6vw, 36px);
+  }
+
+  .hb-hero__inner > .hb-lead {
+    margin-top: 18px;
+    font-size: 14px;
+  }
+
+  /* 手机上一行放两个按钮，而不是全宽逐个堆叠：首访（未登录 + 有在售商品）正好
+     是三个按钮，全宽堆叠要占 166px，会把页脚挤出首屏。两列之后 2/3/4 个按钮都
+     不超过两行，且落单的那个会自动撑满整行。 */
+  .hb-hero__actions {
+    width: 100%;
+    margin-top: 28px;
+  }
+
+  .hb-hero__actions .hb-button {
+    flex: 1 1 calc(50% - 7px);
+    min-width: 0;
+  }
+
+  /* 单列后步骤之间的竖分隔线失去意义，改成左对齐的编号行 */
+  .hb-flow {
+    margin-top: 34px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .hb-flow li {
+    padding: 0;
+  }
+
+  .hb-flow li + li::before {
+    top: -9px;
+    left: 16px;
+    width: calc(100% - 32px);
+    height: 1px;
+    background: linear-gradient(90deg, var(--hb-line-strong), transparent);
+    transform: none;
+  }
+
+  .hb-account-order-side {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .hb-account-actions {
+    width: 100%;
+  }
+
+  .hb-account-actions .hb-button {
+    flex: 1 1 auto;
+  }
+
+  .hb-site-footer__inner {
+    flex-direction: column;
+  }
+
+  .hb-site-footer__meta {
+    justify-items: start;
+  }
+
+  .hb-cashier__actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

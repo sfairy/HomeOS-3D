@@ -90,12 +90,12 @@ input {
 }
 .brand-mark {
   display: block;
-  width: 96px;
+  width: 68px;
   height: 68px;
   object-fit: contain;
 }
 .mobile-brand .brand-mark {
-  width: 50px;
+  width: 34px;
   height: 34px;
 }
 .eyebrow {

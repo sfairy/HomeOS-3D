@@ -1,26 +1,26 @@
-import { resolvePageBehavior } from "./page-behavior.js?v=20260915153337";
+import { resolvePageBehavior } from "./page-behavior.js?v=20260915211726";
 import {
   performanceWarnings,
   confirmPerformanceWarning
-} from "./performance-warning.js?v=20260915153337";
-import { normalizeGroundReflection } from "./reflection-settings.js?v=20260915153337";
+} from "./performance-warning.js?v=20260915211726";
+import { normalizeGroundReflection } from "./reflection-settings.js?v=20260915211726";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   waitInteraction3dEditorView,
   cancelOtherInteraction3dViews
-} from "./bridge.js?v=20260915153337";
+} from "./bridge.js?v=20260915211726";
 import {
   createInteraction3dCover,
   updateInteraction3dCoverMessage
-} from "./cover.js?v=20260915153337";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=20260915153337";
+} from "./cover.js?v=20260915211726";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=20260915211726";
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
   BACKGROUND_THEMES,
   normalizeBackgroundTheme
-} from "./definition.js?v=20260915153337";
+} from "./definition.js?v=20260915211726";
 export function interaction3dEntries(componentTree, pathSegments = [], entriesByPath = new Map()) {
   if (Array.isArray(componentTree)) {
     componentTree.forEach((arrayItem, arrayIndex) =>
@@ -420,7 +420,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       }
       await requestInteraction3dAccess();
       const { openInteraction3dAppearanceEditor: openAppearanceEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915153337");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915211726");
       await openAppearanceEditor({
         component: targetComponent,
         onSave: savedBaseLighting =>
@@ -452,7 +452,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureDevicesButton.disabled = true;
     try {
       const { openInteraction3dEditor: openDevicesEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915153337");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915211726");
       await openDevicesEditor({
         component: targetComponent,
         deviceKind: "devices",
@@ -485,7 +485,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     try {
       await requestInteraction3dAccess();
       const { openSecurityEditor: openSecurityEditor } =
-        await import("/api/v1/modules/interaction3d/security-editor.js?v=20260915153337");
+        await import("/api/v1/modules/interaction3d/security-editor.js?v=20260915211726");
       await openSecurityEditor({
         component: targetComponent,
         panelDocument: editorOptions.document,
@@ -513,7 +513,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureVacuumButton.disabled = true;
     try {
       const { openInteraction3dEditor: openVacuumEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915153337");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915211726");
       await openVacuumEditor({
         component: targetComponent,
         deviceKind: "vacuum",
@@ -582,7 +582,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     try {
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openLightingEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915153337");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915211726");
       await openLightingEditor({
         component: targetComponent,
         document: editorOptions.document,
@@ -610,7 +610,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     try {
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openEnvironmentEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915153337");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260915211726");
       await openEnvironmentEditor({
         component: targetComponent,
         deviceKind: "environment",
