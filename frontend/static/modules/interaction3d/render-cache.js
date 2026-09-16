@@ -15,7 +15,7 @@
  *   调用 close() 会中断全部在途请求并释放所有已解码位图。
  */
 // 版本戳：改渲染口径（光照计算、分块策略等）时自增，用作所有 key 的一部分。
-export const RENDER_CACHE_VERSION = "i3d-light-delta-20260907-v5";
+export const RENDER_CACHE_VERSION = "i3d-light-delta-20260916-warm-refine-v6";
 /**
  * 生成「键序无关」的 JSON 文本。
  *

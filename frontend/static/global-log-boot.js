@@ -7,7 +7,7 @@
  * 约定：请求一律 cache: "no-store"，避免日志接口被缓存；401 视为会话失效
  *   直接跳登录页；只有带 body 时才声明 Content-Type: application/json。
  */
-import { setupGlobalLog } from "./global-log.js?v=20260916235816";
+import { setupGlobalLog } from "./global-log.js?v=20260917022019";
 
 /**
  * 发送 JSON 请求并做统一的错误处理。

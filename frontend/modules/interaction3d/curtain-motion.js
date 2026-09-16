@@ -28,11 +28,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../static/3d-studio/studio-curtain-track.js?v=20260916235816",
+        "../../static/3d-studio/studio-curtain-track.js?v=20260917022019",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/studio-curtain-track.js?v=20260916235816"));
+  : import("/static/3d-studio/studio-curtain-track.js?v=20260917022019"));
 /** 允许的开合方向：left 只开左幅、right 只开右幅、split 对开。 */
 const DIRECTION_SET = new Set(["left", "right", "split"]);
 /** 会被本模块接管（隐藏）的局部：cloth 是布料面，band 是帘头装饰带。 */
@@ -137,6 +137,8 @@ function createClothGeometry(three, folds, fabric) {
   const positionArray = [];
   const normalArray = [];
   const uvArray = [];
+  // 顶点色数组：与轨道帘同一套褶皱明暗公式，保证自建几何与轨道几何的暗部层次一致。
+  const colorArray = [];
   const indexArray = [];
   // 褶皱位移与斜率：位移取正弦，斜率取导数，用于把法线扭转成垂直于布面。
   const foldDisplacement = seamRatio => foldAmplitude * Math.sin(seamRatio * folds * Math.PI * 2);
@@ -144,7 +146,7 @@ function createClothGeometry(three, folds, fabric) {
   // 比有限差分稳定，且与 foldDisplacement 严格同相位。
   const foldSlope = seamSlopeRatio =>
     foldAmplitude * folds * Math.PI * 2 * Math.cos(seamSlopeRatio * folds * Math.PI * 2);
-  /** 写入一个顶点（位置 / 法线 / UV）。 */
+  /** 写入一个顶点（位置 / 法线 / UV / 褶皱明暗）。 */
   const pushVertex = (
     positionX,
     positionY,
@@ -158,6 +160,11 @@ function createClothGeometry(three, folds, fabric) {
     positionArray.push(positionX, positionY, positionZ);
     normalArray.push(normalX, normalY, normalZ);
     uvArray.push(textureU, textureV);
+    // 褶皱暗部：positionX 在这里就是沿帘宽的比例，波谷压暗、波峰保持原色。
+    // 暗部深度按面料区分（纱帘 16%、布帘 34%），并用平方让暗部收在波谷附近。
+    const foldDarkness = 0.5 - Math.sin(positionX * folds * Math.PI * 2) * 0.5;
+    const foldShade = 1 - (isSheer ? 0.16 : 0.34) * foldDarkness * foldDarkness;
+    colorArray.push(foldShade, foldShade, foldShade);
   };
   // 纱帘只生成正面（背面看不见且更省三角形）；布帘四面全做，才有厚度感。
   for (const face of isSheer ? ["front"] : ["front", "back", "top", "bottom"]) {
@@ -269,6 +276,7 @@ function createClothGeometry(three, folds, fabric) {
   geometry.setAttribute("position", new three.Float32BufferAttribute(positionArray, 3));
   geometry.setAttribute("normal", new three.Float32BufferAttribute(normalArray, 3));
   geometry.setAttribute("uv", new three.Float32BufferAttribute(uvArray, 2));
+  geometry.setAttribute("color", new three.Float32BufferAttribute(colorArray, 3));
   geometry.setIndex(indexArray);
   // 包围盒与包围球是必须的：视锥剔除与射线拾取都依赖它们。
   geometry.computeBoundingBox();
@@ -441,6 +449,10 @@ export function createCurtainMotion({
         });
     // 向白色靠拢 20%：模型原始贴图偏暗，提亮后与场景整体曝光更协调。
     panelMaterial.color?.lerp(new THREE.Color(16777215), 0.2);
+    // 模型自带的自发光可能很强，会盖掉褶皱的明暗层次，这里压到 0.06 以内。
+    panelMaterial.emissiveIntensity = Math.min(panelMaterial.emissiveIntensity ?? 0, 0.06);
+    // 开启顶点色：几何里写的褶皱明暗只有在材质打开这一项后才参与着色。
+    panelMaterial.vertexColors = true;
     // 布料是单层薄面，必须双面可见；forceSinglePass 让双面渲染只算一遍光照，
     // 否则每片帘子的着色成本翻倍。
     panelMaterial.side = THREE.DoubleSide;

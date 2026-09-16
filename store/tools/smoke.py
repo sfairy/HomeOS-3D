@@ -4922,7 +4922,7 @@ async def run() -> int:
         updates = (await client.get("/store/v1/updates/latest?channel=docker")).json()
         check(
             "GET /updates/latest 返回版本",
-            updates["release"] and updates["release"]["version"] == "0.5.5",
+            updates["release"] and updates["release"]["version"] == "0.5.6",
             str(updates["release"]),
         )
 

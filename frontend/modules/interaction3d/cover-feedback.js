@@ -151,6 +151,48 @@ export function createCoverFeedback({
     return true;
   }
   /**
+   * 把展示位置重新对准新目标。能连续推算时（命令预览 + 非叶片轴），
+   * 按剩余行程折算补间时长，让被打断的行程以大致相同的速度接着走完，
+   * 而不是不管剩多远都固定花 smoothingTime —— 那会在远距离时显得「瞬移」。
+   */
+  function retargetMotion(retargetedEntry, targetPosition) {
+    // 叶片轴不做续算：它的位置反馈是角度，不能用「百分比行程」折算时长。
+    const isResumable = commandPreview && retargetedEntry.actual.axis !== "blade";
+    if (
+      targetPosition === null ||
+      retargetedEntry.position === null ||
+      smoothingTime <= 0 ||
+      (!isResumable && !retargetedEntry.actual.moving && retargetedEntry.actual.axis !== "blade")
+    ) {
+      retargetedEntry.position = targetPosition;
+      retargetedEntry.motion = null;
+      return;
+    }
+    // 目标没变就别重启补间：否则每次上报都重来一遍 180ms，看起来一直在「抖」。
+    if (retargetedEntry.motion?.to === targetPosition) {
+      return;
+    }
+    const remainingDistance = Math.abs(targetPosition - retargetedEntry.position);
+    const durationMs =
+      isResumable &&
+      !retargetedEntry.actual.moving &&
+      // stop_cover 例外：用户按下暂停就该立刻停住，不能还慢慢滑一段。
+      retargetedEntry.intent?.service !== "stop_cover"
+        ? // 剩余距离按 travelTime 折算；短距离至少留 smoothingTime 免得看不出动作，
+          // 长距离封顶 1200ms 免得慢得像卡住。
+          Math.max(smoothingTime, Math.min(1200, (remainingDistance / 100) * travelTime))
+        : smoothingTime;
+    retargetedEntry.motion =
+      remainingDistance === 0
+        ? null
+        : {
+            from: retargetedEntry.position,
+            to: targetPosition,
+            start: now(),
+            duration: durationMs
+          };
+  }
+  /**
    * 吸收一次 HA 上报，更新展示态。
    *
    * @param {string} entityId 实体 ID。
@@ -234,31 +276,12 @@ export function createCoverFeedback({
       // 叶片轴的特殊情况：位置值可能不变，但上报时间更新了，也算一次有效反馈。
       (entry.estimated &&
         nextState.axis === "blade" &&
-        readLastUpdated(nextState) > readLastUpdated(previousState))
+        readLastUpdated(nextState) > readLastUpdated(previousState)) ||
+      // 位置没变但状态变了（例如从 opening 变成 open）：也要停下来对齐。
+      (stateChanged && !nextState.moving)
     ) {
       entry.estimated = false;
-      if (
-        nextState.position === null ||
-        entry.position === null ||
-        // 已经停稳且不是叶片时不必补间，直接对齐就行。
-        (!nextState.moving && nextState.axis !== "blade") ||
-        smoothingTime <= 0
-      ) {
-        entry.position = nextState.position;
-        entry.motion = null;
-      } else {
-        // 正在运动：从当前位置补间到上报位置，掩盖上报间隔造成的跳变。
-        entry.motion = {
-          from: entry.position,
-          to: nextState.position,
-          start: now()
-        };
-      }
-    } else if (stateChanged && !nextState.moving) {
-      // 位置没变但状态变了（例如从 opening 变成 open）：停止估算并对齐。
-      entry.estimated = false;
-      entry.position = nextState.position;
-      entry.motion = null;
+      retargetMotion(entry, nextState.position);
     }
     if (
       lastAvailableChanged &&
@@ -433,8 +456,11 @@ export function createCoverFeedback({
     if (!snapshotEntry) {
       return fallbackState;
     }
-    const hasMotionEstimate = !!snapshotEntry.estimated && !!snapshotEntry.motion;
-    // 估算中时，开合方向由补间的走向决定 —— 设备还没上报，state 还是旧值。
+    // 只要开着命令预览且还有补间在跑，就按补间方向报开 / 关：
+    // 此时设备上报的 state 往往还是旧值（甚至已经是 open / closed），
+    // 若回落到 actual.state，面板会在帘子明显还在移动时显示「已停」。
+    const hasMotionEstimate = !!commandPreview && !!snapshotEntry.motion;
+    // 补间在跑时，开合方向由补间的走向决定。
     const opening = hasMotionEstimate
       ? snapshotEntry.motion.to > snapshotEntry.motion.from
       : snapshotEntry.actual.opening;

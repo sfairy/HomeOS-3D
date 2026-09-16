@@ -10,16 +10,25 @@
  * 保证离线 / 未播放时屏幕也不是纯黑。
  */
 
-import { televisionState } from "./television-state.js?v=20260916235816";
+import { televisionState } from "./television-state.js?v=20260917022019";
 // 程序化海报绘制；缓存戳需与 static 资源版本保持一致。
 const { drawTelevisionPoster: drawTelevisionPoster } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../static/3d-studio/studio-television-poster.js?v=20260916235816",
+        "../../static/3d-studio/studio-television-poster.js?v=20260917022019",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/studio-television-poster.js?v=20260916235816"));
+  : import("/static/3d-studio/studio-television-poster.js?v=20260917022019"));
+// 熄屏玻璃渐变；冷暖两档色标都在该模块里，暖阳原木主题下传 warm=true。
+const { drawTelevisionGlass: drawTelevisionGlass } = await (import.meta.url.startsWith("file:")
+  ? import(
+      new URL(
+        "../../static/3d-studio/studio-television-glass.js?v=20260917022019",
+        import.meta.url
+      )
+    )
+  : import("/static/3d-studio/studio-television-glass.js?v=20260917022019"));
 /**
  * 创建电视屏幕控制器。
  *
@@ -76,16 +85,14 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
     const { canvas: canvas, context: context, state: state, image: image } = entry;
     // 先铺一层近黑底色：封面按等比缩放居中，空出来的部分就是「黑边」。
     context.fillStyle = "#050609";
-    if (!state.on) {
+    if (state.on) {
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
       // 关机状态：画一层从左上到右下的深灰渐变，模拟熄屏玻璃的反光，
       // 比纯黑更有体积感，也能看出屏幕边界。
-      const offGradient = context.createLinearGradient(0, 0, canvas.width * 0.35, canvas.height);
-      offGradient.addColorStop(0, "#2a2c2f");
-      offGradient.addColorStop(0.45, "#222427");
-      offGradient.addColorStop(1, "#181a1d");
-      context.fillStyle = offGradient;
+      // 暖阳原木主题下换成暖色档，与工作室里同一台电视的屏幕材质保持同色系。
+      drawTelevisionGlass(canvas, context, entry.screen.userData?.sceneStyle === "warm-wood");
     }
-    context.fillRect(0, 0, canvas.width, canvas.height);
     if (state.on && image) {
       // 等比缩放（contain）而不是拉伸：封面比例各异，拉伸会明显变形。
       const fitScale = Math.min(

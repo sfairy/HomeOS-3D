@@ -21,14 +21,18 @@
 import {
   applyCarFinish,
   smoothCarSurfaceNormals
-} from "./studio-car-finish.js?v=20260916235816";
+} from "./studio-car-finish.js?v=20260917022019";
 import {
   repairGlassCabinetBack,
   repairWallCabinetSides
-} from "./studio-cabinet-back.js?v=20260916235816";
-import { finite } from "./studio-normalization.js?v=20260916235816";
-const HOME_LITE_MODEL_VERSION = "20260916235816";
-const APPLIANCE_LITE_MODEL_VERSION = "20260916235816";
+} from "./studio-cabinet-back.js?v=20260917022019";
+import { finite } from "./studio-normalization.js?v=20260917022019";
+// 暖阳原木（warm-wood）主题专用的两个模块：地板材质着色器增强与树叶几何放大。
+// 两者都只在 palette.warmWood 为真时被调用，其它主题下不产生任何效果。
+import { decorateWarmFloor } from "./studio-scene-style.js?v=20260917022019";
+import { enlargeWarmLeaves } from "./studio-warm-foliage.js?v=20260917022019";
+const HOME_LITE_MODEL_VERSION = "20260917022019";
+const APPLIANCE_LITE_MODEL_VERSION = "20260917022019";
 /**
  * 自带独立 GLB 资源的异形柱形：方形柱沿用原先烘焙好的方盒，因此仍留在普通的
  * "pillar" 模型上，物件本身的行为保持不变。
@@ -117,216 +121,216 @@ function defineApplianceItemModel(applianceModelKey, applianceModelOverrides) {
     fallbackUrl:
       "/static/3d-studio/models/" +
       applianceModelKey +
-      ".glb?v=20260916235816",
+      ".glb?v=20260917022019",
     ...applianceModelOverrides
   });
 }
 export const EXTERNAL_ITEM_MODELS = Object.freeze({
   sofa: {
-    url: "/static/3d-studio/models/sofa-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/sofa.glb?v=20260916235816",
+    url: "/static/3d-studio/models/sofa-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/sofa.glb?v=20260917022019",
     scaleBasis: [2.2, 0.82, 0.9],
     preserveOrigin: true,
     groundAlign: true,
     groundOffset: -0.008
   },
-  coffeetable: defineHomeItemModel("coffeetable", "20260916235816", {
+  coffeetable: defineHomeItemModel("coffeetable", "20260917022019", {
     scaleBasis: [1.7, 0.5, 1.25],
     preserveOrigin: true
   }),
-  squarecoffeetable: defineHomeItemModel("squarecoffeetable", "20260916235816", {
-    url: "/static/3d-studio/models/squarecoffeetable-lite.glb?v=20260916235816",
+  squarecoffeetable: defineHomeItemModel("squarecoffeetable", "20260917022019", {
+    url: "/static/3d-studio/models/squarecoffeetable-lite.glb?v=20260917022019",
     fallbackUrl:
-      "/static/3d-studio/models/squarecoffeetable.glb?v=20260916235816",
+      "/static/3d-studio/models/squarecoffeetable.glb?v=20260917022019",
     scaleBasis: [1.4, 0.46, 0.7],
     preserveOrigin: true
   }),
-  tvstand: defineHomeItemModel("tvstand", "20260916235816", {
-    url: "/static/3d-studio/models/tvstand-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/tvstand.glb?v=20260916235816",
+  tvstand: defineHomeItemModel("tvstand", "20260917022019", {
+    url: "/static/3d-studio/models/tvstand-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/tvstand.glb?v=20260917022019",
     scaleBasis: [1.8, 0.48, 0.42],
     preserveOrigin: true
   }),
-  rug: defineHomeItemModel("rug", "20260916235816", {
+  rug: defineHomeItemModel("rug", "20260917022019", {
     scaleBasis: [2, 0.012, 1.4],
     preserveOrigin: true
   }),
-  plant: defineHomeItemModel("plant", "20260916235816", {
+  plant: defineHomeItemModel("plant", "20260917022019", {
     scaleBasis: [0.75, 1.6, 0.75],
     preserveOrigin: true
   }),
-  bed: defineHomeItemModel("bed", "20260916235816", {
+  bed: defineHomeItemModel("bed", "20260917022019", {
     scaleBasis: [1.8, 0.62, 2],
     preserveOrigin: true,
     geometryRevision: "20260908-base-inset-v1"
   }),
-  nightstand: defineHomeItemModel("nightstand", "20260916235816", {
+  nightstand: defineHomeItemModel("nightstand", "20260917022019", {
     scaleBasis: [0.5, 0.55, 0.42],
     preserveOrigin: true
   }),
-  vanity: defineHomeItemModel("vanity", "20260916235816", {
+  vanity: defineHomeItemModel("vanity", "20260917022019", {
     scaleBasis: [1.2, 1.55, 0.5],
     preserveOrigin: true
   }),
-  desk: defineHomeItemModel("desk", "20260916235816", {
+  desk: defineHomeItemModel("desk", "20260917022019", {
     scaleBasis: [1.4, 0.76, 0.65],
     preserveOrigin: true
   }),
-  bookcase: defineHomeItemModel("bookcase", "20260916235816", {
+  bookcase: defineHomeItemModel("bookcase", "20260917022019", {
     scaleBasis: [1.2, 1.9, 0.32],
     preserveOrigin: true
   }),
   smallcar: {
-    url: "/static/3d-studio/models/car-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/car.glb?v=20260916235816"
+    url: "/static/3d-studio/models/car-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/car.glb?v=20260917022019"
   },
   airoutlet: {
-    url: "/static/3d-studio/models/air-outlet-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/air-outlet.glb?v=20260916235816"
+    url: "/static/3d-studio/models/air-outlet-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/air-outlet.glb?v=20260917022019"
   },
   pipelinewaterpurifier: {
-    url: "/static/3d-studio/models/pipeline-water-purifier-lite.glb?v=20260916235816",
+    url: "/static/3d-studio/models/pipeline-water-purifier-lite.glb?v=20260917022019",
     fallbackUrl:
-      "/static/3d-studio/models/pipeline-water-purifier.glb?v=20260916235816"
+      "/static/3d-studio/models/pipeline-water-purifier.glb?v=20260917022019"
   },
   tea_bar_machine: {
-    url: "/static/3d-studio/models/tea-bar-machine-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/tea-bar-machine.glb?v=20260916235816"
+    url: "/static/3d-studio/models/tea-bar-machine-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/tea-bar-machine.glb?v=20260917022019"
   },
   elevator: {
-    url: "/static/3d-studio/models/elevator-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/elevator.glb?v=20260916235816"
+    url: "/static/3d-studio/models/elevator-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/elevator.glb?v=20260917022019"
   },
   steelstairs: {
-    url: "/static/3d-studio/models/steel-stairs-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/steel-stairs.glb?v=20260916235816"
+    url: "/static/3d-studio/models/steel-stairs-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/steel-stairs.glb?v=20260917022019"
   },
   glassstairs: {
-    url: "/static/3d-studio/models/glass-stairs-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/glass-stairs.glb?v=20260916235816"
+    url: "/static/3d-studio/models/glass-stairs-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/glass-stairs.glb?v=20260917022019"
   },
   piano: {
-    url: "/static/3d-studio/models/piano-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/piano.glb?v=20260916235816",
+    url: "/static/3d-studio/models/piano-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/piano.glb?v=20260917022019",
     materialRevision: "20260914-piano-surface-shadow-v1",
     preserveAspect: true
   }
 });
 export const ALL_ITEM_MODELS = Object.freeze({
   ...EXTERNAL_ITEM_MODELS,
-  bed: defineHomeItemModel("bed", "20260916235816", {
+  bed: defineHomeItemModel("bed", "20260917022019", {
     scaleBasis: [1.8, 0.62, 2],
     preserveOrigin: true,
     geometryRevision: "20260908-base-inset-v1"
   }),
-  nightstand: defineHomeItemModel("nightstand", "20260916235816", {
+  nightstand: defineHomeItemModel("nightstand", "20260917022019", {
     scaleBasis: [0.5, 0.55, 0.42],
     preserveOrigin: true
   }),
-  vanity: defineHomeItemModel("vanity", "20260916235816", {
+  vanity: defineHomeItemModel("vanity", "20260917022019", {
     scaleBasis: [1.2, 1.55, 0.5],
     preserveOrigin: true
   }),
-  desk: defineHomeItemModel("desk", "20260916235816", {
+  desk: defineHomeItemModel("desk", "20260917022019", {
     scaleBasis: [1.4, 0.76, 0.65],
     preserveOrigin: true
   }),
-  bookcase: defineHomeItemModel("bookcase", "20260916235816", {
-    url: "/static/3d-studio/models/bookcase-lite.glb?v=20260916235816",
+  bookcase: defineHomeItemModel("bookcase", "20260917022019", {
+    url: "/static/3d-studio/models/bookcase-lite.glb?v=20260917022019",
     scaleBasis: [1.2, 1.9, 0.32],
     preserveOrigin: true
   }),
-  aquarium: defineHomeItemModel("aquarium", "20260916235816", {
+  aquarium: defineHomeItemModel("aquarium", "20260917022019", {
     scaleBasis: [1.5, 1.4, 0.55],
     preserveOrigin: true
   }),
-  table: defineHomeItemModel("table", "20260916235816", {
+  table: defineHomeItemModel("table", "20260917022019", {
     scaleBasis: [2.4, 0.82, 1.8],
     preserveOrigin: true
   }),
-  rounddiningtable: defineHomeItemModel("rounddiningtable", "20260916235816", {
+  rounddiningtable: defineHomeItemModel("rounddiningtable", "20260917022019", {
     scaleBasis: [2.2, 0.78, 2.2],
     preserveOrigin: true
   }),
-  chair: defineHomeItemModel("chair", "20260916235816", {
+  chair: defineHomeItemModel("chair", "20260917022019", {
     scaleBasis: [0.5, 0.86, 0.5],
     preserveOrigin: true
   }),
-  bar: defineHomeItemModel("bar", "20260916235816", {
+  bar: defineHomeItemModel("bar", "20260917022019", {
     scaleBasis: [2.2, 1.05, 0.65],
     preserveOrigin: true
   }),
-  sideboard: defineHomeItemModel("sideboard", "20260916235816", {
+  sideboard: defineHomeItemModel("sideboard", "20260917022019", {
     scaleBasis: [1.6, 2.2, 0.45],
     preserveOrigin: true
   }),
-  shoecabinet: defineHomeItemModel("shoecabinet", "20260916235816", {
+  shoecabinet: defineHomeItemModel("shoecabinet", "20260917022019", {
     scaleBasis: [1.8, 2.25, 0.42],
     preserveOrigin: true
   }),
-  cabinet: defineHomeItemModel("cabinet", "20260916235816", {
+  cabinet: defineHomeItemModel("cabinet", "20260917022019", {
     scaleBasis: [1.6, 1.9, 0.45],
     preserveOrigin: true
   }),
-  glasscabinet: defineHomeItemModel("glasscabinet", "20260916235816", {
-    url: "/static/3d-studio/models/glasscabinet-lite.glb?v=20260916235816",
+  glasscabinet: defineHomeItemModel("glasscabinet", "20260917022019", {
+    url: "/static/3d-studio/models/glasscabinet-lite.glb?v=20260917022019",
     scaleBasis: [1.2, 1.9, 0.4],
     preserveOrigin: true
   }),
-  shelf: defineHomeItemModel("shelf", "20260916235816", {
+  shelf: defineHomeItemModel("shelf", "20260917022019", {
     scaleBasis: [1.2, 1.8, 0.45],
     preserveOrigin: true
   }),
-  wallcabinet: defineHomeItemModel("wallcabinet", "20260916235816", {
-    url: "/static/3d-studio/models/wallcabinet-lite.glb?v=20260916235816",
+  wallcabinet: defineHomeItemModel("wallcabinet", "20260917022019", {
+    url: "/static/3d-studio/models/wallcabinet-lite.glb?v=20260917022019",
     scaleBasis: [1.5, 0.82, 0.35],
     preserveOrigin: true
   }),
-  kitchenbase: defineHomeItemModel("kitchenbase", "20260916235816", {
+  kitchenbase: defineHomeItemModel("kitchenbase", "20260917022019", {
     scaleBasis: [2.4, 0.85, 0.6],
     preserveOrigin: true
   }),
-  kitchensink: defineHomeItemModel("kitchensink", "20260916235816", {
+  kitchensink: defineHomeItemModel("kitchensink", "20260917022019", {
     scaleBasis: [1.2, 0.85, 0.6],
     preserveOrigin: true
   }),
-  kitchencooktop: defineHomeItemModel("kitchencooktop", "20260916235816", {
+  kitchencooktop: defineHomeItemModel("kitchencooktop", "20260917022019", {
     scaleBasis: [1.2, 0.85, 0.6],
     preserveOrigin: true
   }),
-  basin: defineHomeItemModel("basin", "20260916235816", {
+  basin: defineHomeItemModel("basin", "20260917022019", {
     scaleBasis: [0.9, 0.88, 0.5],
     preserveOrigin: true
   }),
-  toilet: defineHomeItemModel("toilet", "20260916235816", {
+  toilet: defineHomeItemModel("toilet", "20260917022019", {
     scaleBasis: [0.42, 0.52, 0.7],
     preserveOrigin: true
   }),
-  squattoilet: defineHomeItemModel("squattoilet", "20260916235816", {
+  squattoilet: defineHomeItemModel("squattoilet", "20260917022019", {
     scaleBasis: [0.45, 0.18, 0.65],
     preserveOrigin: true
   }),
-  urinal: defineHomeItemModel("urinal", "20260916235816", {
+  urinal: defineHomeItemModel("urinal", "20260917022019", {
     scaleBasis: [0.38, 0.72, 0.34],
     preserveOrigin: true
   }),
-  shower: defineHomeItemModel("shower", "20260916235816", {
+  shower: defineHomeItemModel("shower", "20260917022019", {
     scaleBasis: [0.9, 2.1, 0.9],
     preserveOrigin: true
   }),
-  bathtub: defineHomeItemModel("bathtub", "20260916235816", {
+  bathtub: defineHomeItemModel("bathtub", "20260917022019", {
     scaleBasis: [1.7, 0.58, 0.78],
     preserveOrigin: true
   }),
-  glasspartition: defineHomeItemModel("glasspartition", "20260916235816", {
+  glasspartition: defineHomeItemModel("glasspartition", "20260917022019", {
     scaleBasis: [1.2, 2, 0.08],
     preserveOrigin: true
   }),
-  stairs: defineHomeItemModel("stairs", "20260916235816", {
+  stairs: defineHomeItemModel("stairs", "20260917022019", {
     scaleBasis: [1, 1.65, 2.8],
     preserveOrigin: true
   }),
-  pillar: defineHomeItemModel("pillar", "20260916235816", {
+  pillar: defineHomeItemModel("pillar", "20260917022019", {
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   }),
@@ -335,46 +339,46 @@ export const ALL_ITEM_MODELS = Object.freeze({
   // studio-app.js 构建出的几何同源（见 gen-pillars.mjs），并共用柱体的 scaleBasis，
   // 因此物件仍保持 0.45 × 2.8 × 0.45 的占地与「底面在原点」的摆放约定。
   pillar_round: {
-    url: "/static/3d-studio/models/pillar-round-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/pillar-round.glb?v=20260916235816",
+    url: "/static/3d-studio/models/pillar-round-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/pillar-round.glb?v=20260917022019",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_semicircle: {
-    url: "/static/3d-studio/models/pillar-semicircle-lite.glb?v=20260916235816",
+    url: "/static/3d-studio/models/pillar-semicircle-lite.glb?v=20260917022019",
     fallbackUrl:
-      "/static/3d-studio/models/pillar-semicircle.glb?v=20260916235816",
+      "/static/3d-studio/models/pillar-semicircle.glb?v=20260917022019",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_quarter: {
-    url: "/static/3d-studio/models/pillar-quarter-lite.glb?v=20260916235816",
-    fallbackUrl: "/static/3d-studio/models/pillar-quarter.glb?v=20260916235816",
+    url: "/static/3d-studio/models/pillar-quarter-lite.glb?v=20260917022019",
+    fallbackUrl: "/static/3d-studio/models/pillar-quarter.glb?v=20260917022019",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_quarterinner: {
-    url: "/static/3d-studio/models/pillar-quarterinner-lite.glb?v=20260916235816",
+    url: "/static/3d-studio/models/pillar-quarterinner-lite.glb?v=20260917022019",
     fallbackUrl:
-      "/static/3d-studio/models/pillar-quarterinner.glb?v=20260916235816",
+      "/static/3d-studio/models/pillar-quarterinner.glb?v=20260917022019",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
-  curtain_left: defineHomeItemModel("curtain_left", "20260916235816", {
+  curtain_left: defineHomeItemModel("curtain_left", "20260917022019", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
-  curtain_right: defineHomeItemModel("curtain_right", "20260916235816", {
+  curtain_right: defineHomeItemModel("curtain_right", "20260917022019", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
-  curtain_split: defineHomeItemModel("curtain_split", "20260916235816", {
+  curtain_split: defineHomeItemModel("curtain_split", "20260917022019", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
   rounddiningtable_turntable: defineHomeItemModel(
     "rounddiningtable_turntable",
-    "20260916235816",
+    "20260917022019",
     {
       scaleBasis: [2.2, 0.78, 2.2],
       preserveOrigin: true
@@ -597,6 +601,68 @@ const CUSTOM_MATERIAL_ITEM_TYPES = new Set([
   "glassstairs",
   "piano"
 ]);
+/**
+ * 「暖阳原木」主题下按整块木料重做的柜类（含吊柜 / 鞋柜 / 书柜等）。
+ *
+ * 这些类型的中 / 柔 / 深三档家具色会一起收敛到木色：一件柜子上出现三种明度的木色
+ * 会显得像拼接，收敛后整体才像同一块木料。清单同时决定台面、门板回边等部件是否
+ * 走木色分支，因此单独提出来共用，而不是在各个分支里各写一份。
+ */
+const WARM_JOINERY_ITEM_TYPES = new Set([
+  "cabinet",
+  "wallcabinet",
+  "shoecabinet",
+  "sideboard",
+  "bookcase",
+  "shelf",
+  "nightstand",
+  "tvstand",
+  "kitchenbase",
+  "kitchensink",
+  "kitchencooktop",
+  "glasscabinet"
+]);
+/**
+ * 「暖阳原木」主题下餐桌 / 餐椅的材质槽位表：键是家具类型，值是按 material-N 下标
+ * 排列的材质语义（wood / linen / sage / ceramic）。
+ *
+ * 餐桌是一进门的视觉中心，只有木色 + 亚麻 + 鼠尾草绿这几种材质才像一套成品的原木
+ * 餐桌，所以按槽位逐一指定，而不是沿用家具调色板的三档灰。下标越界时取到 undefined，
+ * 调用方按「没有专门语义」处理。
+ */
+const WARM_DINING_MATERIAL_TABLE = Object.freeze({
+  table: ["wood", "wood", "linen"],
+  rounddiningtable: ["wood", "wood", "wood", "linen", "wood"],
+  rounddiningtable_turntable: ["wood", "wood", "wood", "wood", "ceramic", "linen", "wood"],
+  chair: ["sage", "wood"]
+});
+/**
+ * 「暖阳原木」主题下各柜类「台面」所在的材质槽位。
+ *
+ * 台面要单独压平粗糙度并换成石材色（countertop），否则会和柜门一起被染成木色、
+ * 整件柜子看上去像一整块木头。槽位值来自建模约定，不能凭外观猜。
+ */
+const WARM_COUNTERTOP_MATERIAL_INDEX_BY_ITEM_TYPE = Object.freeze({
+  sideboard: "0",
+  shoecabinet: "2",
+  nightstand: "1",
+  kitchenbase: "2",
+  kitchensink: "2",
+  kitchencooktop: "2"
+});
+/**
+ * 「暖阳原木」主题下各柜类「门板回边」所在的材质槽位。
+ *
+ * 门板侧面（回边）在暖色侧光下会亮成一条白边，需要注入着色器按法线朝向压暗，
+ * 所以要精确知道哪一号材质是回边 —— 同样来自建模约定。
+ */
+const WARM_DOOR_RETURN_MATERIAL_INDEX_BY_ITEM_TYPE = Object.freeze({
+  sideboard: "3",
+  shoecabinet: "4",
+  kitchenbase: "3",
+  kitchensink: "7",
+  kitchencooktop: "4"
+});
 /**
  * 创建外部模型管理器：负责按需加载、并发排队、材质复用与实例落地。
  *
@@ -1009,16 +1075,108 @@ export function createExternalModelManager({
  * 几处细节：
  * - 窗帘 / 桌 / 橱柜按 material-N 的下标挑档，下标来自建模时的槽位约定；
  * - 地毯的 -soft 面打开 polygonOffset，压住与地面的 z-fighting；
- * - 玻璃等半透明件保持 transparent 并关掉 depthWrite，避免遮挡身后的物件。
+ * - 玻璃等半透明件保持 transparent 并关掉 depthWrite，避免遮挡身后的物件；
+ * - 暖阳原木（palette.warmWood）下额外按槽位覆盖木色 / 布艺 / 台面 / 玻璃色，
+ *   见下方各 warm 分支 —— 这些分支在其它主题下完全不参与计算。
  *
  * @param {object} meshMaterial 原材质（读 name / color / transparent / opacity）。
- * @param {object} paletteColors 调色板。
+ * @param {object} inputPalette 调色板；暖阳原木下会派生一份木色 / 布艺覆盖版，
+ *   后续所有分支都读派生版，非暖色主题下派生版就是入参本身。
  * @param {string} furnitureItemType 家具类型键。
  * @returns {object} 新材质。
  */
-  function applyFurniturePalette(meshMaterial, paletteColors, furnitureItemType) {
+  function applyFurniturePalette(meshMaterial, inputPalette, furnitureItemType) {
+    // 暖阳原木：柜类整件走柜体木色而不是基础家具灰，先把 wood 兜到 cabinetWood，
+    // 这样下面所有分支读到的都是同一块木料。非暖色主题下 isWarmJoinery 恒为 false，
+    // paletteColors 与入参是同一个对象，下游分支的取值完全不变。
+    let paletteColors = inputPalette;
+    const isWarmJoinery =
+      paletteColors.warmWood && WARM_JOINERY_ITEM_TYPES.has(furnitureItemType);
+    if (isWarmJoinery) {
+      paletteColors = {
+        ...paletteColors,
+        wood: paletteColors.cabinetWood ?? paletteColors.wood
+      };
+    }
+    if (paletteColors.warmWood) {
+      // 暖阳原木：除沙发 / 床 / 椅 / 地毯 / 窗帘这些以布艺为主体的类型外，
+      // 「柔光档」整体提到浅色档，否则大面积中灰木色会把暖色背景压暗。
+      if (
+        !["sofa", "bed", "chair", "rug", "curtain_left", "curtain_right", "curtain_split"].includes(
+          furnitureItemType
+        )
+      ) {
+        paletteColors = {
+          ...paletteColors,
+          furnitureSoft: paletteColors.furnitureLight
+        };
+      }
+      // 暖阳原木：柜类的中 / 柔 / 深三档一起收敛到木色 —— 一件柜子上出现三种明度的
+      // 木色会显得像拼接，收敛后整体才像同一块木料。
+      if (
+        [
+          "cabinet",
+          "wallcabinet",
+          "shoecabinet",
+          "sideboard",
+          "bookcase",
+          "shelf",
+          "nightstand",
+          "tvstand",
+          "kitchenbase",
+          "desk",
+          "vanity",
+          "glasscabinet"
+        ].includes(furnitureItemType)
+      ) {
+        paletteColors = {
+          ...paletteColors,
+          furniture: paletteColors.wood,
+          furnitureSoft: paletteColors.wood,
+          furnitureDark: paletteColors.wood
+        };
+      }
+    }
     // 材质名统一转小写后再匹配：建模工具导出的大小写并不稳定。
     const materialName = (meshMaterial?.name || "").toLowerCase();
+    // 暖阳原木：淋浴五金换成暖色金属。showerMetal 只在暖色色卡里定义，
+    // 因此这个判断本身等价于「暖色主题」；默认主题下会落到下面的常规分支。
+    if (furnitureItemType === "shower" && paletteColors.showerMetal !== undefined) {
+      return createFurnitureMaterial(meshMaterial, paletteColors.showerMetal, {
+        roughness: 0.48,
+        metalness: 0.3
+      });
+    }
+    // 暖阳原木：餐桌 / 餐椅按槽位换成木色、亚麻、鼠尾草绿或陶面，而不是沿用家具三档灰。
+    // 命中后直接返回：这类物件的槽位语义已被表完全决定，不需要再走下面的兜底分支。
+    const warmDiningMaterialKey = paletteColors.warmWood
+      ? WARM_DINING_MATERIAL_TABLE[furnitureItemType]?.[
+          Number(materialName.match(/material-(\d+)$/)?.[1])
+        ]
+      : null;
+    if (warmDiningMaterialKey) {
+      const warmDiningColors = {
+        wood: paletteColors.wood,
+        linen: paletteColors.diningLinen ?? 15919316,
+        sage: paletteColors.diningSage ?? 10926731,
+        ceramic: paletteColors.applianceSoft
+      };
+      const isWarmDiningFabric =
+        warmDiningMaterialKey === "linen" || warmDiningMaterialKey === "sage";
+      const warmDiningMaterial = createFurnitureMaterial(
+        meshMaterial,
+        warmDiningColors[warmDiningMaterialKey],
+        {
+          // 布艺面最糙（0.94），陶面上釉（0.3），木面取常规 0.58。
+          roughness: isWarmDiningFabric ? 0.94 : warmDiningMaterialKey === "ceramic" ? 0.3 : 0.58,
+          metalness: 0
+        }
+      );
+      // 记下材质语义：resolveSharedMaterial 据此再补一次自发光强度（布艺比木面更吃光）。
+      warmDiningMaterial.userData.warmDiningFabric = isWarmDiningFabric;
+      warmDiningMaterial.userData.warmDiningMaterial = warmDiningMaterialKey;
+      return warmDiningMaterial;
+    }
     let chosenColor = paletteColors.furniture;
     if (/^curtain_(left|right|split)$/.test(furnitureItemType)) {
       const curtainMaterialIndex = materialName.match(/material-(\d+)/)?.[1];
@@ -1104,19 +1262,163 @@ export function createExternalModelManager({
             ? paletteColors.furniture
             : paletteColors.furnitureSoft;
     }
+    if (paletteColors.warmWood) {
+      // 暖阳原木：按材质槽位逐件指定木色 / 布艺 / 五金，而不是套用家具三档灰 ——
+      // 这几类物件的槽位语义（床架、床品、坐垫、桌面、踏面…）在建模时就是约定死的，
+      // 只有按件取色才能既保住木质主体，又让布艺与金属件各归其位。
+      const warmOverrideMaterialIndex = materialName.match(/material-(\d+)/)?.[1];
+      if (furnitureItemType === "bed") {
+        // 1 / 3 号是床品（浅色），其余是床架木色。
+        chosenColor = ["1", "3"].includes(warmOverrideMaterialIndex)
+          ? paletteColors.furnitureLight
+          : paletteColors.wood;
+      }
+      if (furnitureItemType === "sofa") {
+        // 坐垫用沙发布，框架用木色；沙发布缺失时退回浅色档（这里已在暖色分支内）。
+        chosenColor = materialName.includes("cushion")
+          ? paletteColors.sofaFabric ??
+            (paletteColors.warmWood ? paletteColors.furnitureLight : paletteColors.furnitureSoft)
+          : paletteColors.wood;
+      }
+      if (furnitureItemType === "cabinet") {
+        chosenColor = warmOverrideMaterialIndex === "2" ? 5462356 : paletteColors.wood;
+      }
+      if (furnitureItemType === "nightstand") {
+        chosenColor = warmOverrideMaterialIndex === "2" ? 5462356 : paletteColors.wood;
+      }
+      if (["table", "rounddiningtable", "rounddiningtable_turntable"].includes(furnitureItemType)) {
+        chosenColor = ["0", "3"].includes(warmOverrideMaterialIndex)
+          ? paletteColors.wood
+          : paletteColors.furnitureLight;
+      }
+      if (furnitureItemType === "tvstand") {
+        chosenColor = paletteColors.wood;
+      }
+      if (furnitureItemType === "sideboard") {
+        chosenColor = paletteColors.wood;
+      }
+      if (furnitureItemType === "bookcase" && Number(warmOverrideMaterialIndex) >= 11) {
+        // 书柜第 11 号往后的材质是书脊 / 摆件一类的小色块：按木作强调色、装饰色、
+        // 浅木色轮转，避免整格书架都是一种颜色而显得空。
+        chosenColor = [
+          paletteColors.joineryAccent,
+          paletteColors.decorAccent,
+          paletteColors.furnitureLight
+        ][Number(warmOverrideMaterialIndex) % 3];
+      }
+      if (furnitureItemType === "plant") {
+        chosenColor = materialName.includes("foliagesoft")
+          ? 9877369
+          : materialName.includes("foliage")
+            ? paletteColors.leafColor
+            : materialName.endsWith("-soft")
+              ? paletteColors.decorAccent
+              : paletteColors.furnitureDark;
+      }
+      if (furnitureItemType === "rug") {
+        chosenColor = materialName.endsWith("-soft")
+          ? paletteColors.furnitureLight
+          : paletteColors.joineryAccent;
+      }
+      if (furnitureItemType.startsWith("curtain_")) {
+        // 1 / 2 / 3 / 5 号是布面（暖米白），其余是轨道与端盖（深木色）。
+        chosenColor = ["2", "3", "5", "1"].includes(warmOverrideMaterialIndex)
+          ? 16776696
+          : paletteColors.furnitureDark;
+      }
+      if (furnitureItemType === "chair") {
+        chosenColor =
+          warmOverrideMaterialIndex === "0"
+            ? paletteColors.chairFabric ?? paletteColors.furnitureSoft
+            : paletteColors.wood;
+      }
+      if (["toilet", "squattoilet", "urinal", "bathtub", "basin"].includes(furnitureItemType)) {
+        chosenColor = paletteColors.applianceSoft;
+      }
+    }
+    // 暖阳原木：柜类的台面与金属水槽 / 灶面另有专门色板，这里按槽位单独覆盖；
+    // 只有暖色主题的柜类才走这一块，其它情况下两个标记恒为 false。
+    let isWarmCountertop = false;
+    let isWarmMetalSink = false;
+    if (isWarmJoinery) {
+      const joineryMaterialIndex = materialName.match(/material-(\d+)$/)?.[1];
+      isWarmCountertop =
+        WARM_COUNTERTOP_MATERIAL_INDEX_BY_ITEM_TYPE[furnitureItemType] !== undefined &&
+        joineryMaterialIndex === WARM_COUNTERTOP_MATERIAL_INDEX_BY_ITEM_TYPE[furnitureItemType];
+      if (furnitureItemType === "tvstand") {
+        // 电视柜没有台面槽位表，改按「柔光面，或原模型本身就是浅色」判台面。
+        const tvStandSourceColor = meshMaterial?.color;
+        const tvStandSourceLuminance = tvStandSourceColor
+          ? tvStandSourceColor.r * 0.2126 +
+            tvStandSourceColor.g * 0.7152 +
+            tvStandSourceColor.b * 0.0722
+          : 0;
+        isWarmCountertop =
+          materialName.endsWith("-soft") ||
+          (!materialName.includes("ha-tvstand-") && tvStandSourceLuminance >= 0.3);
+      }
+      if (["kitchensink", "kitchencooktop"].includes(furnitureItemType)) {
+        chosenColor = paletteColors.wood;
+      }
+      if (
+        furnitureItemType === "kitchensink" &&
+        ["3", "4", "5", "6"].includes(joineryMaterialIndex)
+      ) {
+        // 水槽盆体：3 / 4 号是深色石材，5 / 6 号是浅色石材，且都要求高金属度反光。
+        chosenColor = ["3", "4"].includes(joineryMaterialIndex) ? 10200481 : 11450548;
+        isWarmMetalSink = true;
+      }
+      if (
+        furnitureItemType === "kitchencooktop" &&
+        ["3", "6", "7"].includes(joineryMaterialIndex)
+      ) {
+        chosenColor = 4212549;
+      }
+      if (
+        (furnitureItemType === "kitchenbase" && joineryMaterialIndex === "4") ||
+        (furnitureItemType === "kitchensink" && joineryMaterialIndex === "8") ||
+        (furnitureItemType === "kitchencooktop" && joineryMaterialIndex === "5")
+      ) {
+        chosenColor = 7830384;
+      }
+      if (furnitureItemType === "cabinet" && joineryMaterialIndex === "1") {
+        chosenColor = 9794135;
+      }
+      if (isWarmCountertop) {
+        chosenColor = paletteColors.countertop ?? 16117989;
+      }
+    }
     const isSoftRug = furnitureItemType === "rug" && materialName.endsWith("-soft");
     const isTransparentMaterial =
       materialName.endsWith("-glass") ||
       meshMaterial?.transparent === true ||
       (meshMaterial?.opacity ?? 1) < 1;
+    // 暖阳原木：玻璃等透明件换成暖色玻璃，避免冷灰玻璃在暖色场景里显得脏。
+    if (paletteColors.warmWood && isTransparentMaterial) {
+      chosenColor = paletteColors.glass;
+    }
     return createFurnitureMaterial(meshMaterial, chosenColor, {
-      roughness: materialName.includes("foliage") || furnitureItemType === "rug" ? 0.9 : 0.72,
-      metalness: materialName.includes("foliage") || furnitureItemType === "rug" ? 0 : 0.02,
+      roughness: isWarmCountertop
+        ? 0.65
+        : isWarmMetalSink
+          ? 0.36
+          : paletteColors.warmWood && isTransparentMaterial
+            ? 0.18
+            : materialName.includes("foliage") || furnitureItemType === "rug"
+              ? 0.9
+              : 0.72,
+      metalness: isWarmMetalSink
+        ? 0.55
+        : isWarmJoinery || materialName.includes("foliage") || furnitureItemType === "rug"
+          ? 0
+          : 0.02,
       polygonOffset: isSoftRug,
       polygonOffsetFactor: isSoftRug ? -2 : 0,
       polygonOffsetUnits: isSoftRug ? -4 : 0,
       transparent: isTransparentMaterial,
-      opacity: isTransparentMaterial ? 0.42 : 1,
+      // 暖阳原木：透明件保留原材质的不透明度（暖玻璃本来就调过半透明），
+      // 其它主题仍用统一的 0.42。
+      opacity: isTransparentMaterial ? (paletteColors.warmWood ? meshMaterial.opacity : 0.42) : 1,
       depthWrite: !isTransparentMaterial
     });
   }
@@ -1144,7 +1446,8 @@ export function createExternalModelManager({
       finite(existingMaterial.opacity, 1) < 0.5
     ) {
       const glassStairMaterial = new THREE.MeshStandardMaterial({
-        color: stairPalette.furnitureSoft,
+        // 暖阳原木：玻璃楼梯改用暖色玻璃，避免冷灰玻璃在暖色楼梯井里发灰。
+        color: stairPalette.warmWood ? stairPalette.glass : stairPalette.furnitureSoft,
         roughness: 0.12,
         metalness: 0.04,
         transparent: true,
@@ -1158,6 +1461,28 @@ export function createExternalModelManager({
       return glassStairMaterial;
     }
     const isSteelStairs = stairItemType === "steelstairs";
+    if (stairPalette.warmWood) {
+      // 暖阳原木：只有踏面（模型里名称恰为 004 / sacfdsa010 的那块）换成地板色，
+      // 并注入与地板相同的拼板着色器，楼梯才会与地板看起来是同一种木料；
+      // 其余框架件统一用深色 7567993 压住踏面，避免整段楼梯一起发飘。
+      const isWarmStairTread = isSteelStairs
+        ? /^004$/.test(existingMaterial.name || "")
+        : /^sacfdsa010$/.test(existingMaterial.name || "");
+      const warmStairMaterial = createFurnitureMaterial(
+        existingMaterial,
+        isWarmStairTread ? stairPalette.floor : 7567993,
+        {
+          roughness: isWarmStairTread ? 0.84 : 0.38,
+          metalness: isWarmStairTread ? 0 : 0.5
+        }
+      );
+      if (isWarmStairTread) {
+        decorateWarmFloor(warmStairMaterial, stairPalette);
+        // 标记踏面：resolveSharedMaterial 据此把自发光强度压到 0.075。
+        warmStairMaterial.userData.warmFloorTread = true;
+      }
+      return warmStairMaterial;
+    }
     const frameColor = stairPalette.furnitureSoft;
     const frameMaterial = new THREE.MeshStandardMaterial({
       color: frameColor,
@@ -1180,9 +1505,10 @@ export function createExternalModelManager({
  *
  * 分发顺序不可调换，原则是「先专门、后通用」：纯色家电（APPLIANCE_PALETTE）→
  * 家具（FURNITURE_PALETTE 与 sofa）→ 电梯 → 钢琴 → 楼梯 → 其余按亮度分档兜底。
- * 两处特殊处理：
+ * 三处特殊处理：
  * - 拿不到 MeshStandardMaterial 构造器（精简版 three 或测试替身）时直接克隆原材质
  *   放行，宁可保真也不报错，这条分支保证模块在没有 three 的环境里也能跑；
+ * - 暖阳原木下钢琴提前分流：亮光黑琴身在暖色场景里是一块死黑，改走暖木 / 黄铜色板；
  * - 茶几机的自发光被显式清零，因为它的原模型自带 emissive，
  *   替换材质后再叠加场景灯光会明显发白。
  *
@@ -1195,6 +1521,28 @@ export function createExternalModelManager({
   function applyAppliancePalette(baseMaterial, appliancePalette, applianceItemType) {
     if (typeof THREE.MeshStandardMaterial != "function") {
       return baseMaterial.clone?.() || baseMaterial;
+    }
+    if (appliancePalette.warmWood && applianceItemType === "piano") {
+      // 暖阳原木：钢琴整件改成暖木 / 黄铜一族 —— 亮光黑琴身在暖色场景里是一块死黑。
+      // 按材质名区分黄铜件（金色）、琴身饰面（color_009 / blinds_weave）与高光条（*1），
+      // 各给一组暖色，并保持低金属度让木质感出来。
+      const warmPianoMaterialName = (baseMaterial?.name || "").toLowerCase();
+      const isWarmPianoBrass = warmPianoMaterialName.includes("金色");
+      const warmPianoColor = isWarmPianoBrass
+        ? 12296558
+        : warmPianoMaterialName.includes("color_009") ||
+            warmPianoMaterialName.includes("blinds_weave")
+          ? 3423034
+          : warmPianoMaterialName.includes("*1")
+            ? 16315885
+            : 9991250;
+      const warmPianoMaterial = createFurnitureMaterial(baseMaterial, warmPianoColor, {
+        roughness: isWarmPianoBrass ? 0.4 : 0.55,
+        metalness: isWarmPianoBrass ? 0.5 : 0
+      });
+      // 与下方常规钢琴分支一致：关掉 Plan2 接触阴影，否则镜面高光会出现硬边。
+      warmPianoMaterial.userData.plan2SurfaceContact = false;
+      return warmPianoMaterial;
     }
     if (APPLIANCE_PALETTE_ITEM_TYPES.has(applianceItemType)) {
       // 家电材质名同样来自建模约定（material-N 表示部件槽位），统一小写后匹配。
@@ -1216,7 +1564,13 @@ export function createExternalModelManager({
             ? appliancePalette.accent
             : applianceColor
           : applianceItemType === "floorlamp"
-            ? applianceColor
+            ? // 暖阳原木：落地灯的灯杆单独走暖木色（floorLampBody），
+              // 该色只在暖色色卡里定义，因此这个判断等价于「暖色主题且杆件槽位」。
+              appliancePalette.floorLampBody
+              ? applianceMaterialIndex === "3"
+                ? applianceSoftColor
+                : appliancePalette.floorLampBody
+              : applianceColor
             : applianceItemType === "desktop"
               ? applianceMaterialIndex === "1"
                 ? applianceDarkColor
@@ -1728,8 +2082,10 @@ export function createExternalModelManager({
 /**
  * 取得可在多个物件实例间共享的材质：必要时替换外观，并做缓存去重。
  *
- * 流程：按类型决定是「整体换材质」（家电类 / 自定义材质类）还是「克隆一份」→
- * 叠加模型特有的后处理（汽车漆面）→ 修正个别部件的透明标记 → 用材质键查缓存。
+ * 流程：按类型决定是「整体换材质」（家电类 / 自定义材质类，暖阳原木下还包括家具类）
+ * 还是「克隆一份」→ 暖阳原木的各种材质后处理（自发光、地板 / 台面 / 门板回边着色器、
+ * 床尾搭毯）→ 叠加模型特有的后处理（汽车漆面）→ 修正个别部件的透明标记 →
+ * 用材质键查缓存。
  * 命中缓存时，把本次刚生成的等价材质立刻 dispose 并返回缓存里那一份：物件是
  * 克隆出来的，每个实例都会走一遍这条函数，不去重就会按「每个物件的每个部件」
  * 生成材质，显存随之线性膨胀。
@@ -1745,20 +2101,169 @@ export function createExternalModelManager({
     if (!inputMaterial) {
       return inputMaterial;
     }
+    // 暖阳原木：家具类（不只是家电与自定义材质类）也要按件换材质 —— 暖色主题给每种
+    // 家具都写了专门的木色 / 布艺分支，只有走进 applyAppliancePalette 才能命中。
     const preparedMaterial =
       CUSTOM_MATERIAL_ITEM_TYPES.has(modelTypeName) ||
-      APPLIANCE_PALETTE_ITEM_TYPES.has(modelTypeName)
+      APPLIANCE_PALETTE_ITEM_TYPES.has(modelTypeName) ||
+      (materialPalette.warmWood && FURNITURE_PALETTE_ITEM_TYPES.has(modelTypeName))
         ? applyAppliancePalette(inputMaterial, materialPalette, modelTypeName)
         : inputMaterial.clone?.() || inputMaterial;
+    // 暖阳原木：给不透明材质补一层与基色同色的微弱自发光，抵消暖色环境光把木色
+    // 压灰的问题。布艺（沙发 / 床 / 地毯 / 椅）给 0.12、窗帘浅色布面给 0.38，
+    // 其余部件 0.065；透明件不加，否则玻璃会整块糊掉。
+    if (materialPalette.warmWood && preparedMaterial.color && !preparedMaterial.transparent) {
+      preparedMaterial.emissive = preparedMaterial.color.clone();
+      preparedMaterial.emissiveIntensity =
+        modelTypeName.startsWith("curtain_") &&
+        ["1", "2", "3", "5"].includes((inputMaterial.name || "").match(/material-(\d+)/)?.[1])
+          ? 0.38
+          : ["sofa", "bed", "rug", "chair"].includes(modelTypeName)
+            ? 0.12
+            : 0.065;
+    }
+    if (materialPalette.warmWood && modelTypeName === "stairs") {
+      // 暖阳原木：楼梯的木质件换成地板 / 地板描边色，踏面还要自带地板拼板纹理 ——
+      // 否则楼梯会是整个场景里唯一一块「没铺地板」的地面。
+      const isWarmFloorTread = /(?:material-1|-soft)$/.test(inputMaterial.name || "");
+      preparedMaterial.color?.set?.(
+        isWarmFloorTread ? materialPalette.floor : materialPalette.floorEdge
+      );
+      preparedMaterial.emissive?.copy?.(preparedMaterial.color);
+      preparedMaterial.metalness = 0;
+      if (isWarmFloorTread) {
+        decorateWarmFloor(preparedMaterial, materialPalette);
+        preparedMaterial.userData.warmFloorTread = true;
+      }
+    }
+    if (preparedMaterial.userData?.warmFloorTread) {
+      // 踏面已由地板着色器负责提亮，自发光再强会过曝，这里单独压低。
+      preparedMaterial.emissiveIntensity = 0.075;
+    }
+    if (preparedMaterial.userData?.warmDiningMaterial) {
+      // 餐桌布艺比木面更吃光，给更高的自发光才能在同一盏灯下保持同样的明度。
+      preparedMaterial.emissiveIntensity = preparedMaterial.userData.warmDiningFabric ? 0.1 : 0.05;
+    }
+    // 暖阳原木：柜门侧面（回边）在侧光下会亮成一条白边，注入一段着色器按法线朝向压暗。
+    const warmDoorReturnMaterialIndex =
+      WARM_DOOR_RETURN_MATERIAL_INDEX_BY_ITEM_TYPE[modelTypeName];
+    if (
+      materialPalette.warmWood &&
+      warmDoorReturnMaterialIndex !== undefined &&
+      (inputMaterial.name || "").endsWith("material-" + warmDoorReturnMaterialIndex)
+    ) {
+      preparedMaterial.onBeforeCompile = warmDoorReturnShader => {
+        warmDoorReturnShader.vertexShader = warmDoorReturnShader.vertexShader
+          .replace("#include <common>", "#include <common>\nvarying float warmDoorFace;")
+          .replace(
+            "#include <begin_vertex>",
+            "#include <begin_vertex>\nwarmDoorFace = abs(normal.z);"
+          );
+        warmDoorReturnShader.fragmentShader = warmDoorReturnShader.fragmentShader
+          .replace("#include <common>", "#include <common>\nvarying float warmDoorFace;")
+          .replace(
+            "#include <color_fragment>",
+            "#include <color_fragment>\ndiffuseColor.rgb *= mix(0.70, 1.0, smoothstep(0.45, 0.85, warmDoorFace));"
+          );
+      };
+      preparedMaterial.customProgramCacheKey = () => "warm-cabinet-door-returns-v1";
+    }
+    if (
+      materialPalette.warmWood &&
+      modelTypeName === "shoecabinet" &&
+      /material-3$/.test(inputMaterial.name || "")
+    ) {
+      // 暖阳原木：鞋柜台面在模型里与柜门共用同一块材质，无法靠换色区分，于是注入
+      // 一段着色器按局部坐标把最上面那条切出来涂成石材台面色。
+      const warmShoeTopColor = new THREE.Color(materialPalette.countertop);
+      preparedMaterial.onBeforeCompile = warmShoeTopShader => {
+        warmShoeTopShader.uniforms.warmShoeTopColor = {
+          value: warmShoeTopColor
+        };
+        warmShoeTopShader.vertexShader = warmShoeTopShader.vertexShader
+          .replace("#include <common>", "#include <common>\nvarying vec3 warmShoePosition;")
+          .replace(
+            "#include <begin_vertex>",
+            "#include <begin_vertex>\nwarmShoePosition = position;"
+          );
+        warmShoeTopShader.fragmentShader = warmShoeTopShader.fragmentShader
+          .replace(
+            "#include <common>",
+            "#include <common>\nvarying vec3 warmShoePosition;\nuniform vec3 warmShoeTopColor;"
+          )
+          .replace(
+            "#include <color_fragment>",
+            "#include <color_fragment>\nfloat warmShoeTop = step(-0.002, warmShoePosition.x) * step(0.932, warmShoePosition.y) * (1.0 - step(0.970, warmShoePosition.y));\ndiffuseColor.rgb = mix(diffuseColor.rgb, warmShoeTopColor, warmShoeTop);"
+          )
+          .replace(
+            "#include <emissivemap_fragment>",
+            "#include <emissivemap_fragment>\ntotalEmissiveRadiance = mix(totalEmissiveRadiance, warmShoeTopColor * 0.065, warmShoeTop);"
+          );
+      };
+      preparedMaterial.customProgramCacheKey = () =>
+        "warm-shoe-countertop-v1-" + warmShoeTopColor.getHexString();
+    }
+    if (
+      materialPalette.warmWood &&
+      modelTypeName === "bed" &&
+      /material-1$/.test(inputMaterial.name || "")
+    ) {
+      // 暖阳原木：床尾的搭毯（material-1）与床体共用材质，这里改成更糙的布面，
+      // 再用着色器按 z 区间切出一条搭毯，让床在暖色主题下多一层织物层次。
+      const warmBedRunnerColor = new THREE.Color(
+        materialPalette.runnerColor ?? materialPalette.furnitureSoft
+      );
+      preparedMaterial.roughness = 0.94;
+      preparedMaterial.onBeforeCompile = warmBedRunnerShader => {
+        warmBedRunnerShader.uniforms.warmBedRunner = {
+          value: warmBedRunnerColor
+        };
+        warmBedRunnerShader.vertexShader = warmBedRunnerShader.vertexShader
+          .replace("#include <common>", "#include <common>\nvarying float warmBedZ;")
+          .replace("#include <begin_vertex>", "#include <begin_vertex>\nwarmBedZ = position.z;");
+        warmBedRunnerShader.fragmentShader = warmBedRunnerShader.fragmentShader
+          .replace(
+            "#include <common>",
+            "#include <common>\nvarying float warmBedZ;\nuniform vec3 warmBedRunner;"
+          )
+          .replace(
+            "#include <color_fragment>",
+            "#include <color_fragment>\nfloat warmRunner = smoothstep(0.40, 0.415, warmBedZ) * (1.0 - smoothstep(0.86, 0.875, warmBedZ));\ndiffuseColor.rgb = mix(diffuseColor.rgb, warmBedRunner, warmRunner);"
+          )
+          .replace(
+            "#include <emissivemap_fragment>",
+            "#include <emissivemap_fragment>\ntotalEmissiveRadiance = mix(totalEmissiveRadiance, warmBedRunner * 0.12, warmRunner);"
+          );
+      };
+      preparedMaterial.customProgramCacheKey = () =>
+        "warm-bed-runner-v1-" + warmBedRunnerColor.getHexString();
+    }
     if (modelTypeName === "smallcar") {
-      applyCarFinish(preparedMaterial);
+      if (materialPalette.warmWood) {
+        // 暖阳原木：车漆换成暖白并把贴图兼作自发光，让车在暖色场景里保持干净的
+        // 浅色亮点，而不是跟着环境光一起变黄。
+        preparedMaterial.color?.set?.(16776696);
+        preparedMaterial.roughness = 0.38;
+        preparedMaterial.metalness = 0.02;
+        preparedMaterial.emissiveMap = preparedMaterial.map;
+        preparedMaterial.emissiveIntensity = 0.08;
+      }
+      // 暖阳原木下走珍珠白漆面：默认珍珠白偏冷，在暖色场景里会显灰。
+      applyCarFinish(preparedMaterial, {
+        pearlWhite: materialPalette.warmWood === true
+      });
     }
     if (
       (modelTypeName === "glasscabinet" &&
         /^glasscabinet-material-(0|10)$/.test(inputMaterial.name)) ||
       (modelTypeName === "bookcase" && /^bookcase-material-(0|7)$/.test(inputMaterial.name))
     ) {
-      preparedMaterial.color?.set?.(materialPalette.furniture);
+      // 暖阳原木：玻璃柜 / 书柜的背板改用柜体木色，避免背板透出基础的冷灰家具色。
+      preparedMaterial.color?.set?.(
+        materialPalette.warmWood
+          ? materialPalette.cabinetWood ?? materialPalette.wood
+          : materialPalette.furniture
+      );
       preparedMaterial.transparent = false;
       preparedMaterial.opacity = 1;
       preparedMaterial.depthWrite = true;
@@ -1842,6 +2347,11 @@ export function createExternalModelManager({
       }
       const originalGeometry = mesh.geometry;
       const materialList = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      // 暖阳原木：植物的叶片整簇放大到 1.85 倍 —— 暖色主题的观感偏茂密，
+      // 而模型里的叶片是按原尺寸烘死的，只有放大几何才能让树冠站得住。
+      if (resolvedModelType === "plant" && itemPalette.warmWood) {
+        mesh.geometry = enlargeWarmLeaves(mesh.geometry, materialList);
+      }
       if (curtainPosition) {
         const curtainPartIndex = Number(/material-(\d+)$/.exec(materialList[0]?.name || "")?.[1]);
         mesh.userData.curtainPart =

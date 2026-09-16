@@ -465,7 +465,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     scene_path(request, sceneId)
     html = (request.app.state.settings.frontend_dir / '3d-studio.html').read_text(encoding='utf-8')
     # v= 缓存戳需要手动维护：页面本身 no-store，只有 URL 变了浏览器才会重新取样式。
-    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/stage.css?v=20260916235816"></head>')
+    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/stage.css?v=20260917022019"></head>')
     html = html.replace('<body>', f'<body class="interaction3d-stage" data-i3d-light-history-scope="{scope}">')
     return HTMLResponse(html, headers={'Cache-Control': 'no-store'})
 
@@ -554,10 +554,13 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
     """
     require_access(request)
     # 白名单同时充当媒体类型表与可访问清单：没登记的文件一律 404，
-    # 前缀 /{filename} 不会退化成任意文件读取。新增资源必须在这里登记。
+    # 前缀 /{filename} 不会退化成任意文件读取。新增资源必须在这里登记 ——
+    # 漏登记不会报错，只会在浏览器里表现为「某个模块 404、整条 import 链断掉」，
+    # 排查时先看这里。stage.js 的每一个相对 import 都必须与下面的名单保持同步。
     media_types = {
         name: 'text/javascript'
         for name in (
+            'scene-background.js',
             'background-theme.js',
             'security-editor.js',
             'presence-focus-editor.js',

@@ -101,10 +101,12 @@ def validate_config(properties: dict) -> None:
         'autoRotate',
         'layoutMode',
         'navigation',
+        'sceneStyle',
         'environment',
         'interaction',
         'popupLayout',
         'renderScale',
+        'wallOpacity',
         'baseLighting',
         'floorCameras',
         'floorNumbers',
@@ -119,6 +121,7 @@ def validate_config(properties: dict) -> None:
         'pageSaturation',
         'backgroundTheme',
         'pageDimStrength',
+        'backgroundMotion',
         'focusDimStrength',
         'groundReflection',
         'backgroundVisible',
@@ -452,6 +455,18 @@ def validate_config(properties: dict) -> None:
         'grid',
         'contours'}:
         fail()
+    # 材质风格：默认风格与「暖阳原木」。后端不放开 warm-sunlight ——
+    # 「暖阳微光」是运行时派生出来的背景主题，不下发也不落库。
+    if str(properties.get('sceneStyle', 'default')) not in {
+        'default',
+        'warm-wood'}:
+        fail()
+    # 墙体透明度：null 表示跟随主题默认值；给了值就必须是 0~1 的比例。
+    if properties.get('wallOpacity') is not None and not number(properties['wallOpacity'], 0, 1):
+        fail()
+    # 动态背景开关：只有显式关掉（false）才停帧，其余一律按布尔处理。
+    if not isinstance(properties.get('backgroundMotion', True), bool):
+        fail()
     # 这一条单独给出文案：便于前端区分「转动分辨率」设置项自身非法。
     if properties.get('motionRenderScale') is not None and not number(properties['motionRenderScale'], 0.25, 1):
         raise HTTPException(status_code=422, detail='3D 转动分辨率无效')
@@ -601,10 +616,11 @@ def validate_config(properties: dict) -> None:
         if 'fadeDuration' in light and not number(light['fadeDuration'], 0, 10):
             fail()
         # 默认灯光效果：亮度百分比与色温（K），不填表示不做预设。
+        # 亮度上限 150% 与前端编辑器一致，两端必须同步放宽，否则前端填的值会被这里拒掉。
         if 'effectDefaults' in light:
             defaults = light['effectDefaults']
             bounds = {
-                'brightness': (0, 100),
+                'brightness': (0, 150),
                 'kelvin': (1000, 20000)}
             if not isinstance(defaults, dict) or set(defaults) - set(bounds) or any(not number(value, *bounds[key]) for key, value in defaults.items()):
                 fail()
@@ -618,7 +634,7 @@ def validate_config(properties: dict) -> None:
                 'temperatureMin'}
             if not isinstance(effect_range, dict) or set(effect_range) != fields:
                 fail()
-            for minimum, maximum, low, high in (('brightnessMin', 'brightnessMax', 0, 100), ('temperatureMin', 'temperatureMax', 1000, 20000)):
+            for minimum, maximum, low, high in (('brightnessMin', 'brightnessMax', 0, 150), ('temperatureMin', 'temperatureMax', 1000, 20000)):
                 if not number(effect_range[minimum], low, high) or not number(effect_range[maximum], low, high) or effect_range[minimum] > effect_range[maximum]:
                     fail()
         validate_camera(light.get('focusCamera'))

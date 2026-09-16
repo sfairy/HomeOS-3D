@@ -22,7 +22,7 @@
  *
  * 对外提供：pageDimming、pageModelBindings、createEnvironmentScene。
  */
-import { createEnvironmentHalos } from "./environment-halos.js?v=20260916235816";
+import { createEnvironmentHalos } from "./environment-halos.js?v=20260917022019";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  *

@@ -30,7 +30,14 @@ jobs:
           from pathlib import Path
           roots = [Path("backend"), Path("migrations"), Path("store")]
           files = sorted(p for root in roots for p in root.rglob("*.py"))
-          files += [Path("start.py"), Path("container_entrypoint.py")]
+          files += [
+              Path("start.py"),
+              Path("container_entrypoint.py"),
+              Path("docker/license_keys.py"),
+              Path("docker/start_app.py"),
+              Path("docker/start_store.py"),
+              Path("docker/strip_python_sources.py"),
+          ]
           bad = []
           for path in files:
               try:

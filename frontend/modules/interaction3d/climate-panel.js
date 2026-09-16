@@ -14,8 +14,9 @@ import {
   climateControl,
   climatePowerControl,
   climateModeLabel,
-  climateSwingModeLabel
-} from "./climate-state.js?v=20260916235816";
+  climateSwingModeLabel,
+  createClimateModeHistory
+} from "./climate-state.js?v=20260917022019";
 /**
  * HA 的 fan_mode 取值 → 中文文案。
  *
@@ -40,11 +41,14 @@ const FAN_MODE_LABELS = {
  * @param {object} [options] 参数。
  * @param {HTMLElement} options.element 复用的容器；不传则新建一个 section。
  * @param {(command: object) => Promise<void>} [options.onControl] 命令发送回调。
+ * @param {object} [options.modeHistory] 「上次使用模式」记录器（createClimateModeHistory）；
+ *        不传时退化为仅内存的临时记录，关机后再开机无法恢复。
  * @returns {{root: HTMLElement, update: Function, power: Function, dispose: Function}} 面板句柄。
  */
 export function createClimatePanel({
   element: hostElement,
-  onControl: onControl = async () => {}
+  onControl: onControl = async () => {},
+  modeHistory: modeHistory = createClimateModeHistory()
 } = {}) {
   const ownerDocument = hostElement?.ownerDocument || globalThis.document;
   /** 建元素的小工具，统一处理类名与文本。 */
@@ -127,8 +131,6 @@ export function createClimatePanel({
   // 本地乐观温度：用户按下 +/- 后立刻显示，等 HA 回传对齐后再丢弃。
   let draftTemperature = null;
   let temperatureTimeoutId = null;
-  // 记录「开机时用的模式」，供关→开时恢复到原来的模式（HA 关机时会上报 off）。
-  let lastPowerMode = "";
   // 选项组的结构签名，避免每次 render 都重建 DOM。
   let renderedGroupsSignature = "";
   let choiceButtons = [];
@@ -240,7 +242,13 @@ export function createClimatePanel({
     }
     try {
       return sendControl(
-        climatePowerControl(deviceState, toggle ? !deviceState.on : true, lastPowerMode)
+        // 开机时从模式历史里取「上次用的模式」交给命令构造器；
+        // 面板不再自己维护这个状态，历史来源统一在 climate-state 里。
+        climatePowerControl(
+          deviceState,
+          toggle ? !deviceState.on : true,
+          modeHistory.get(deviceState.entityId)
+        )
       );
     } catch (powerError) {
       errorMessage = powerError.message;
@@ -344,20 +352,18 @@ export function createClimatePanel({
     rootElement.classList.toggle("is-running", deviceState.available && deviceState.running);
     powerButton.textContent = deviceState.on ? "关闭" : "开启";
     rootElement.setAttribute("aria-busy", String(isSending || !!viewModel.busy));
-    // 开关按钮的禁用条件：不可控、设备根本没有可用模式（除 off 外），
+    // 开关按钮的禁用条件：不可控、设备既没有 turn_on 能力也没有可用模式（除 off 外），
     // 或设备已开却没有 off 模式（无法关机）。
     powerButton.disabled =
       !isControllable ||
-      !deviceState.modes.some(modeId => modeId !== "off") ||
+      (!deviceState.turnOnSupported &&
+        !deviceState.modes.some(modeId => modeId !== "off")) ||
       (deviceState.on && !deviceState.modes.includes("off"));
     powerButton.setAttribute("aria-pressed", String(deviceState.on));
     powerButton.setAttribute(
       "aria-label",
       titleElement.textContent + "，" + (deviceState.on ? "关闭空调" : "开启空调")
     );
-    if (deviceState.on) {
-      lastPowerMode = deviceState.mode;
-    }
     thermostatSlotElement.hidden = targetOutputElement.hidden = !deviceState.temperatureSupported;
     syncTemperature();
     // 温区提示只在「支持温区但不支持单点调温」时出现，否则会与控温区重复。
@@ -416,7 +422,6 @@ export function createClimatePanel({
       instanceId++;
       isSending = false;
       errorMessage = "";
-      lastPowerMode = "";
       clearTemperatureDraft();
     }
     viewModel = nextViewModel;
@@ -426,6 +431,10 @@ export function createClimatePanel({
       nextViewModel.state?.entityId === nextEntityId && Array.isArray(nextViewModel.state?.modes)
         ? nextViewModel.state
         : climateState(nextEntityId, nextViewModel.state);
+    // 面板每见到一份真实状态就把「上次用的模式」记下来；配置预览里的占位状态不算。
+    if (!nextViewModel.editing) {
+      modeHistory.observe(nextEntityId, deviceState.raw);
+    }
     // 设备上报值已经追上本地草稿（误差在半步以内）就丢弃草稿，
     // 用真实状态渲染，避免长时间停留在乐观值上。
     if (

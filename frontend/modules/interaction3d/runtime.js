@@ -20,8 +20,8 @@
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=20260916235816";
-import { createLightStream } from "./light-stream.js?v=20260916235816";
+} from "./popup-preview.js?v=20260917022019";
+import { createLightStream } from "./light-stream.js?v=20260917022019";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -760,6 +760,11 @@ export function mountInteraction3d(
       "is-background-hidden",
       componentProperties.backgroundVisible === false
     );
+    // 材质风格挂在宿主属性上：runtime.css 里整套暖色弹窗规则都由
+    // [data-scene-style="warm-wood"] 选择器下的后代选择器驱动。
+    // 取值归一成 default / warm-wood 两种，未设置时按 default 处理。
+    hostElement.dataset.sceneStyle =
+      componentProperties.sceneStyle === "warm-wood" ? "warm-wood" : "default";
   }
   // 聚焦状态变化时才回调，避免宿主每帧收到重复通知。
   function updateFocusActive(focusActive) {

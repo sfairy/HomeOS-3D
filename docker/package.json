@@ -1,0 +1,10 @@
+{
+  "name": "homeos-docker-js-protect",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build-time JavaScript obfuscation for HomeOS container images",
+  "type": "module",
+  "dependencies": {
+    "javascript-obfuscator": "^4.1.1"
+  }
+}

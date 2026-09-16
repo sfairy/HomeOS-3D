@@ -1,0 +1,18 @@
+# 本地构建覆盖：与 docker-compose.yml 叠用
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+
+services:
+  homeos-3d:
+    image: homeos-3d:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+
+  homeos-3d-store:
+    image: homeos-3d-store:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: store

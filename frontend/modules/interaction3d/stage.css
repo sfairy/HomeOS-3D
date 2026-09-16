@@ -12,10 +12,10 @@
  *   - 状态一律用类名或 [hidden] 表达，JS 只负责切类名；
  *   - 每段动画都配一份 prefers-reduced-motion 兜底，尊重系统的「减少动态效果」。
  */
-@import "/static/modules/interaction3d/controls.css?v=20260916235816";
-@import "./nas-panel.css?v=20260916235816";
-@import "./climate-panel.css?v=20260916235816";
-@import "./cover-panel.css?v=20260916235816";
+@import "/static/modules/interaction3d/controls.css?v=20260917022019";
+@import "./nas-panel.css?v=20260917022019";
+@import "./climate-panel.css?v=20260917022019";
+@import "./cover-panel.css?v=20260917022019";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
@@ -2173,4 +2173,317 @@ body.interaction3d-stage.is-background-hidden,
   background: #f2a20d29;
   border-color: #f2a20d7a;
   box-shadow: inset 0 0 0 1px #f2a20d7a;
+}
+/* ===== 暖阳原木主题覆盖（sceneStyle = warm-wood） =====
+ *
+ * 场景侧把材质风格写进 data-scene-style（舞台页写在 iframe 的 body 上，
+ * 运行时的宿主节点写在 runtime.js 里），这里整段只做一件事：把默认的冷灰
+ * 面板换成暖米色系。规则分两类 ——
+ *   - 页签 / 工具栏 / 标记等浮在画布上的控件：换成半透明暖米底 + 暖褐色文字；
+ *   - 面板内的滑块、按钮、状态字：统一压成深褐、强调色改用暖陶土 / 木色。
+ * 每条规则的取值都与 0.5.6 的暖色色卡逐字一致，不参与主题的类名一概不写。
+ */
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs,
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs {
+  background: #f8f4eadb;
+  border-color: #89745633;
+  box-shadow: 0 6px 20px #59493317, inset 0 1px #ffffffa6;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button,
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button {
+  color: #77766b;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button:hover,
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button:hover {
+  color: #514a3d;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button[aria-pressed="true"],
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button[aria-pressed="true"] {
+  color: #54432d;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button:before,
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs:before {
+  background: #ceb79280;
+  box-shadow: inset 0 1px #ffffff80;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs button:focus-visible,
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs button:focus-visible {
+  outline-color: #8c734b;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-toolbar button {
+  background: #f8f4eae6;
+  color: #62523d;
+  border-color: #89745640;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-toolbar button[aria-pressed="true"] {
+  background: #ddccb0;
+  color: #54432d;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-light-panel {
+  color: #493f34;
+  border-color: #89745652;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 253, 247, var(--i3d-panel-opacity, .74)),
+    rgba(243, 237, 225, var(--i3d-panel-opacity, .74))
+  );
+  box-shadow: 0 12px 32px #4334212b, inset 0 1px #fff9;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-light-panel header strong,
+    .i3d-cover-heading h3,
+    .i3d-climate-heading h3,
+    .i3d-climate-target,
+    .i3d-nas-heading h3,
+    .i3d-tv-details strong
+  ) {
+  color: #3f382e;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-device-status,
+    .i3d-slider-heading,
+    .i3d-cover-panel,
+    .i3d-climate-panel,
+    .i3d-nas-panel
+  ) {
+  color: #554c40;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-slider output,
+    .hb-cover-details-position output,
+    .i3d-device-status.is-on
+  ) {
+  color: #815827;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-slider-legend small,
+    .i3d-light-preset small,
+    .i3d-cover-heading p,
+    .i3d-cover-feedback,
+    .i3d-cover-blade-hint,
+    .hb-cover-details-position-legend small,
+    .i3d-climate-heading p,
+    .i3d-climate-option-group h4,
+    .i3d-climate-temperature-content small,
+    .i3d-climate-temperature-content span,
+    .i3d-climate-temperature-interval,
+    .i3d-climate-empty,
+    .i3d-nas-status,
+    .i3d-nas-group h4,
+    .i3d-nas-metric span,
+    .i3d-nas-meta,
+    .i3d-tv-status,
+    .i3d-tv-details span
+  ) {
+  color: #716657;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-light-preset,
+    .hb-cover-details-actions button,
+    .hb-climate-temperature-step,
+    .i3d-climate-choice,
+    .i3d-climate-power,
+    .i3d-tv-power,
+    .i3d-tv-actions button
+  ) {
+  color: #554632;
+  border-color: #bca98c;
+  background: #f6f0e5;
+  box-shadow: inset 0 1px #fffb, 0 3px 9px #614c2810;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-light-preset.is-active,
+    .hb-cover-details-actions button.is-active,
+    .hb-cover-details-actions button:hover:not(:disabled),
+    .i3d-tv-actions button:hover:not(:disabled),
+    .i3d-tv-power:hover:not(:disabled)
+  ) {
+  color: #67471e;
+  border-color: #a48351;
+  background: #e6d5b8;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-actions i {
+  color: inherit;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-slider input, .hb-cover-details-position input) {
+  border-color: #ece2d2;
+  box-shadow: 0 0 0 1px #b6a78f, inset 0 1px 3px #6a513322;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-slider input {
+  background: linear-gradient(90deg, #d9cbb5, #b88c4c);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-temperature input {
+  background: linear-gradient(90deg, #e4ad6b, #f3ead9, #a8c7dd);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input {
+  background: linear-gradient(
+    90deg,
+    #ae8c59 var(--hb-cover-position-progress, 0%),
+    #ded4c3 var(--hb-cover-position-progress, 0%)
+  );
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel {
+  --i3d-climate-accent: #655947;
+  --hb-climate-accent-soft: color-mix(in srgb,  var(--i3d-climate-accent) 12%, #fff9ed);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="cool"] {
+  --i3d-climate-accent: #28677f;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="heat"] {
+  --i3d-climate-accent: #a4472a;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel[data-climate-mode="off"] {
+  --i3d-climate-accent: #70685d;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-climate-choice,
+    .i3d-climate-power
+  )[aria-pressed="true"] {
+  color: var(--i3d-climate-accent);
+  border-color: var(--i3d-climate-accent);
+  background: var(--hb-climate-accent-soft);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-climate-panel.is-on .i3d-climate-heading p {
+  color: var(--i3d-climate-accent);
+}
+.interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-nas-metric, .i3d-nas-status) {
+  background: #ede4d580;
+  border-color: #bca98c66;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-nas-metric.is-warning strong {
+  color: #94601d;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-nas-metric.is-unavailable strong {
+  color: #81796e;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-nas-bar {
+  background: #527b57;
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-control-error,
+    .i3d-climate-error,
+    .i3d-cover-feedback.is-error,
+    .i3d-tv-error
+  ) {
+  color: #a13f2c;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] :is(button, input):focus-visible {
+  outline-color: #886333;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-slider input::-webkit-slider-thumb {
+  background: linear-gradient(145deg, #fdf8ed, #d5be98) padding-box;
+  filter: drop-shadow(0 2px 3px #6e542444);
+  box-shadow: inset 0 1px #fff;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input::-webkit-slider-thumb {
+  background: linear-gradient(145deg, #fdf8ed, #d5be98) padding-box;
+  filter: drop-shadow(0 2px 3px #6e542444);
+  box-shadow: inset 0 1px #fff;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-slider input::-moz-range-thumb {
+  background: linear-gradient(145deg, #fdf8ed, #d5be98) padding-box;
+  filter: drop-shadow(0 2px 3px #6e542444);
+  box-shadow: inset 0 1px #fff;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .hb-cover-details-position input::-moz-range-thumb {
+  background: linear-gradient(145deg, #fdf8ed, #d5be98) padding-box;
+  filter: drop-shadow(0 2px 3px #6e542444);
+  box-shadow: inset 0 1px #fff;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker {
+  color: #736b5e;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker:before {
+  background: #f8f4eaf0;
+  border-color: #a9977770;
+  box-shadow: 0 3px 10px #59493326, inset 0 1px #ffffffb3;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-on {
+  color: #815827;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-on:before {
+  background: #ead5aff5;
+  border-color: #ad8752b3;
+  box-shadow: 0 3px 12px #9870392e, inset 0 1px #fff4ddcc;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-selected:after,
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker:focus-visible:after {
+  border-color: #96713d;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-nas.is-on {
+  color: #4e7054;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-nas.is-on:before {
+  background: #e1e9d9f5;
+  border-color: #829c7499;
+  animation-name: i3d-warm-nas-breathe;
+}
+@keyframes i3d-warm-nas-breathe {
+  0%, to {
+    box-shadow: 0 3px 9px #61784c20, inset 0 1px #fff9;
+  }
+  50% {
+    box-shadow: 0 3px 14px #61784c44, inset 0 1px #fffc;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .interaction3d-stage[data-scene-style="warm-wood"] .i3d-marker.is-nas.is-on:before {
+    animation: none;
+    box-shadow: 0 3px 10px #61784c26;
+  }
+}
+.interaction3d-stage[data-scene-style="warm-wood"]
+  :is(
+    .i3d-vacuum-status,
+    .i3d-security-label,
+    .i3d-room-label
+  ) {
+  background: #f8f4eaf0;
+  color: #554b3d;
+  border-color: #a9977770;
+  box-shadow: 0 3px 10px #59493326;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-vacuum-status:after {
+  background: #f8f4ea;
+  border-color: #a9977770;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] :is(.i3d-vacuum-status-detail, .i3d-security-label>span) {
+  color: #736b5e;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .is-on .i3d-vacuum-status {
+  border-color: #829c74aa;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .is-on .i3d-vacuum-status-text {
+  color: #4e7054;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-vacuum-quip {
+  color: #80613a;
+  border-color: #a9977733;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-camera-status>.i3d-marker-icon {
+  color: inherit;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-camera-status>span:before {
+  background: #648566;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .i3d-security-label.is-camera-offline>span:before {
+  background: #948c7e;
+}
+.interaction3d-stage[data-scene-style="warm-wood"] .is-sensor-choice.is-selected .i3d-security-label {
+  color: #815827;
+  background: #ead5aff5;
+  border-color: #ad8752b3;
 }

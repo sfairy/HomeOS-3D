@@ -1,0 +1,187 @@
+name: Docker
+
+# 只保留手动触发：不在 push / PR 上自动构建，避免无意中消耗 Actions 额度、
+# 以及向 GHCR 推送未打算发布的镜像。要出包时在 Actions 页面手动 Run workflow。
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "构建推送后 SSH 拉取并重启远端 compose（需已配置 Deploy secrets）"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      image: ${{ steps.meta.outputs.image }}
+      store_image: ${{ steps.meta.outputs.store_image }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          base="${REGISTRY}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "image=${base}" >> "$GITHUB_OUTPUT"
+          echo "store_image=${base}-store" >> "$GITHUB_OUTPUT"
+
+  smoke:
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build app (amd64, load)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: app
+          platforms: linux/amd64
+          load: true
+          tags: homeos-3d:smoke
+          cache-from: type=gha,scope=smoke-app
+          cache-to: type=gha,mode=max,scope=smoke-app
+          provenance: false
+
+      - name: Build store (amd64, load)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: store
+          platforms: linux/amd64
+          load: true
+          tags: homeos-3d-store:smoke
+          cache-from: type=gha,scope=smoke-store
+          cache-to: type=gha,mode=max,scope=smoke-store
+          provenance: false
+
+      - name: Compose up and probe
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.yml -f docker-compose.smoke.yml up -d --pull never --wait --wait-timeout 180
+          curl -fsS http://127.0.0.1:18082/healthz | tee /tmp/store-health.json
+          curl -fsS http://127.0.0.1:18081/health/ready | tee /tmp/app-health.json
+          docker compose -f docker-compose.yml -f docker-compose.smoke.yml exec -T homeos-3d-store \
+            python -c "import store.tools.seed; print('seed module ok')"
+          docker compose -f docker-compose.yml -f docker-compose.smoke.yml ps
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.smoke.yml down -v --remove-orphans
+
+  build:
+    needs: [meta, smoke]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: app
+            image_output: image
+          - target: store
+            image_output: store_image
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image
+        id: image
+        run: |
+          if [ "${{ matrix.image_output }}" = "store_image" ]; then
+            echo "name=${{ needs.meta.outputs.store_image }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${{ needs.meta.outputs.image }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Docker metadata
+        id: docker_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.meta.outputs.version }},enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+            type=ref,event=pr
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: ${{ matrix.target }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+          provenance: false
+
+  deploy:
+    needs: [meta, build]
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require deploy secrets
+        run: |
+          missing=0
+          for name in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing secret: $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+            export HOMEOS_IMAGE="${{ needs.meta.outputs.image }}:${{ needs.meta.outputs.version }}"
+            export HOMEOS_STORE_IMAGE="${{ needs.meta.outputs.store_image }}:${{ needs.meta.outputs.version }}"
+            echo "Pulling ${HOMEOS_IMAGE} and ${HOMEOS_STORE_IMAGE}"
+            docker compose pull
+            docker compose up -d
+            docker image prune -f

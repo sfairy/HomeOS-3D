@@ -294,10 +294,18 @@ export function createTrackClothGeometry(THREE, clothTrack, clothHeight, fabric 
   // 每褶 8 段、至少 64 段：分段越密，正弦褶皱越平滑。
   const segmentCount = Math.max(64, folds * 8);
   const geometry = new THREE.PlaneGeometry(1, 1, segmentCount, 1);
+  // 顶点色通道：poseTrackCloth 会把褶皱的明暗写进来，材质开启 vertexColors 后生效。
+  // 两排顶点 × (segmentCount + 1) 个采样点，初始全白（不改变原色）。
+  geometry.setAttribute(
+    "color",
+    new THREE.Float32BufferAttribute(new Float32Array((segmentCount + 1) * 6).fill(1), 3)
+  );
   geometry.userData.curtainCloth = {
     segments: segmentCount,
     height: clothHeight,
     folds: folds,
+    // 面料类型也带下去：poseTrackCloth 要据此决定褶皱暗部的深度。
+    fabric: fabric,
     // 褶深：纱帘 2.3 厘米，布帘 4.6 厘米。
     amplitude: fabric === "sheer" ? 0.023 : 0.046
   };
@@ -319,9 +327,11 @@ export function poseTrackCloth(clothGeometry, posedTrack, panel) {
     segments: meshSegments,
     height: height,
     folds: foldCount,
+    fabric: fabricKind,
     amplitude: amplitude
   } = clothGeometry.userData.curtainCloth;
   const positionAttribute = clothGeometry.attributes.position;
+  const colorAttribute = clothGeometry.attributes.color;
   // 分片模式下两片帘布按搭接比例分配褶皱数，视觉上两片密度才协调。
   const foldRatio =
     panel.side === 0 ? posedTrack.curtainMeet / 100 : 1 - posedTrack.curtainMeet / 100;
@@ -332,7 +342,19 @@ export function poseTrackCloth(clothGeometry, posedTrack, panel) {
     const trackPoint = posedTrack.sample(panel.start + (panel.end - panel.start) * foldFraction);
     // 用正弦波在轨道法线方向上来回偏移，形成帘布的褶皱。
     const waveOffset = amplitude * Math.sin(foldFraction * panelFoldCount * Math.PI * 2);
+    // 褶皱暗部：波峰处（sin = +1）亮度为 1，波谷处（sin = -1）压到最暗。
+    // 暗部深度按面料区分 —— 纱帘透光，只压 16%；布帘厚实，压 34%，层次更明显。
+    // 用平方让暗部集中在波谷附近，褶脊不会被一起压灰。
+    const foldDarkness = 0.5 - Math.sin(foldFraction * panelFoldCount * Math.PI * 2) * 0.5;
+    const foldShade = 1 - (fabricKind === "sheer" ? 0.16 : 0.34) * foldDarkness * foldDarkness;
     for (let rowIndex = 0; rowIndex < 2; rowIndex++) {
+      // 两排顶点写同一份明暗：帘布的明暗沿水平方向的褶皱变化，与高度无关。
+      colorAttribute.setXYZ(
+        rowIndex * (meshSegments + 1) + segmentIndex,
+        foldShade,
+        foldShade,
+        foldShade
+      );
       // 平面只有两排顶点：第 0 排是底边（离地 6 厘米），第 1 排是顶边（再往上 height - 0.12 米），
       // 上下各留 6 厘米，帘布才不会插进地面或顶死吊顶。
       positionAttribute.setXYZ(
@@ -344,6 +366,7 @@ export function poseTrackCloth(clothGeometry, posedTrack, panel) {
     }
   }
   positionAttribute.needsUpdate = true;
+  colorAttribute.needsUpdate = true;
   // 顶点整体挪过位置，法线与包围体都要重算，否则光照与剔除都会出错。
   clothGeometry.computeVertexNormals();
   clothGeometry.computeBoundingBox();
@@ -403,6 +426,9 @@ export function addTrackCurtain(three, rigRoot, curtainOptions, colorOverrides =
     // 纱帘用更浅的固有色；帘布颜色可由上层覆盖。
     color: curtainFabric === "sheer" ? 16118766 : (colorOverrides.light ?? 13094354),
     roughness: 0.94,
+    // 开启顶点色以接收 poseTrackCloth 写入的褶皱明暗；
+    // 不打开这一项，几何上的 color 属性会被完全忽略。
+    vertexColors: true,
     side: three.DoubleSide,
     transparent: curtainFabric === "sheer",
     // 纱帘半透明，布帘完全不透明。
@@ -458,6 +484,18 @@ export function createDreamBladeGeometry(threeLib, bladeTrack, bladeHeight) {
   bladeGeometry.setAttribute(
     "position",
     new threeLib.Float32BufferAttribute(new Float32Array(bladeCount * 12), 3)
+  );
+  // 顶点色：每片叶片的四个顶点依次取「外沿暗、中缝亮」的灰度，
+  // 让叶片之间的搭接处自然形成一道亮缝，闭合时也能看出层次。
+  const bladeColorValues = [];
+  for (let bladeIndex = 0; bladeIndex < bladeCount; bladeIndex++) {
+    for (const bladeShade of [0.72, 1, 0.72, 1]) {
+      bladeColorValues.push(bladeShade, bladeShade, bladeShade);
+    }
+  }
+  bladeGeometry.setAttribute(
+    "color",
+    new threeLib.Float32BufferAttribute(bladeColorValues, 3)
   );
   bladeGeometry.attributes.position.setUsage(threeLib.DynamicDrawUsage);
   const indices = [];

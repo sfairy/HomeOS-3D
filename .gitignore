@@ -11,6 +11,7 @@ data/
 store/data/
 store/keys/local/
 *-private.pem
+docker/node_modules/
 
 # 本地临时目录：解包发布的旧构建、反混淆产物、用于对照的原项目快照。
 /app/

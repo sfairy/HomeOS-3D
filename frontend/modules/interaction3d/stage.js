@@ -28,71 +28,71 @@
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../static/modules/interaction3d/popup-placement.js?v=20260916235816",
+        "../../static/modules/interaction3d/popup-placement.js?v=20260917022019",
         import.meta.url
       )
     )
-  : import("/static/modules/interaction3d/popup-placement.js?v=20260916235816"));
+  : import("/static/modules/interaction3d/popup-placement.js?v=20260917022019"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "./presence-scene.js?v=20260916235816";
-import { createBackgroundTheme } from "./background-theme.js?v=20260916235816";
-import { floorNavigationChoices } from "./floor-navigation.js?v=20260916235816";
+} from "./presence-scene.js?v=20260917022019";
+import { createSceneBackground } from "./scene-background.js?v=20260917022019";
+import { floorNavigationChoices } from "./floor-navigation.js?v=20260917022019";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "./vacuum-motion.js?v=20260916235816";
+} from "./vacuum-motion.js?v=20260917022019";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=20260916235816";
-import { televisionState } from "./television-state.js?v=20260916235816";
-import { createTelevisionPanel } from "./television-panel.js?v=20260916235816";
-import { createTelevisionScreens } from "./television-screen.js?v=20260916235816";
+} from "./vacuum-map.js?v=20260917022019";
+import { televisionState } from "./television-state.js?v=20260917022019";
+import { createTelevisionPanel } from "./television-panel.js?v=20260917022019";
+import { createTelevisionScreens } from "./television-screen.js?v=20260917022019";
 import { createNasPanel } from "./nas-panel.js";
-import { createNasStatus, nasDeviceState } from "./nas-status.js?v=20260916235816";
+import { createNasStatus, nasDeviceState } from "./nas-status.js?v=20260917022019";
 import { createCameraStatus, cameraOnline } from "./camera-status.js";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "./cover-state.js?v=20260916235816";
-import { createCoverFeedback } from "./cover-feedback.js?v=20260916235816";
-import { createCoverPanel } from "./cover-panel.js?v=20260916235816";
-import { createCurtainMotion } from "./curtain-motion.js?v=20260916235816";
-import { createEnvironmentAirflow } from "./environment-airflow.js?v=20260916235816";
-import { createScreenOutlines } from "./environment-halos.js?v=20260916235816";
-import { mountRegionRangeEditor } from "./light-range-editor.js?v=20260916235816";
-import { climateState } from "./climate-state.js?v=20260916235816";
-import { createClimatePanel } from "./climate-panel.js?v=20260916235816";
+} from "./cover-state.js?v=20260917022019";
+import { createCoverFeedback } from "./cover-feedback.js?v=20260917022019";
+import { createCoverPanel } from "./cover-panel.js?v=20260917022019";
+import { createCurtainMotion } from "./curtain-motion.js?v=20260917022019";
+import { createEnvironmentAirflow } from "./environment-airflow.js?v=20260917022019";
+import { createScreenOutlines } from "./environment-halos.js?v=20260917022019";
+import { mountRegionRangeEditor } from "./light-range-editor.js?v=20260917022019";
+import { climateState, createClimateModeHistory } from "./climate-state.js?v=20260917022019";
+import { createClimatePanel } from "./climate-panel.js?v=20260917022019";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "./environment-scene.js?v=20260916235816";
-import { startSceneSync } from "./scene-sync.js?v=20260916235816";
+} from "./environment-scene.js?v=20260917022019";
+import { startSceneSync } from "./scene-sync.js?v=20260917022019";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "./light-state.js?v=20260916235816";
+} from "./light-state.js?v=20260917022019";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "./camera-motion.js?v=20260916235816";
+} from "./camera-motion.js?v=20260917022019";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=20260916235816";
+} from "./idle-rotation.js?v=20260917022019";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -227,7 +227,9 @@ export function mountStage(stageOptions) {
   // 统一用它唤醒按需渲染循环。frameLoop 在函数末尾才创建，
   // 早期注册的回调（子系统构造时）也会调用，所以必须用可选链兜底。
   const wakeFrameLoop = () => frameLoop?.wake();
-  const backgroundTheme = createBackgroundTheme(stageOptions, wakeFrameLoop);
+  // 背景控制器：默认主题下驱动地面星尘，暖阳原木下换成全屏暖色背景。
+  // 对外接口与原先的 createBackgroundTheme 完全一致，因此沿用同一个变量名。
+  const backgroundTheme = createSceneBackground(stageOptions, wakeFrameLoop);
   stageOptions.setBackgroundTheme?.(backgroundTheme);
   let areIdleIconsHidden = false;
   let isActivityHeld = false;
@@ -260,6 +262,29 @@ export function mountStage(stageOptions) {
     storage: localStorageRef,
     scope: lightHistoryScope
   });
+  // 空调的「上次使用模式」同样按 scope 隔离；复用灯光那套 storage 与 scope，
+  // 一套「3D 历史的存储可用性判断」即可覆盖两者。
+  const climateModeHistory = createClimateModeHistory({
+    storage: localStorageRef,
+    scope: lightHistoryScope
+  });
+  /**
+   * 遍历配置里的空调，把当前状态喂给模式历史。
+   *
+   * 为什么要主动遍历而不是等面板渲染：面板只有在该空调所在楼层可见时才会渲染，
+   * 「首次进入时空调已经开着」这一最常见场景恰恰不会触发面板，历史就永远记不上。
+   */
+  function observeAllClimates() {
+    // 编辑器（配置预览）里的状态是占位数据，记下来会污染真实历史。
+    if (!isEditing) {
+      for (const airConditionerBinding of config.environment?.airConditioners || []) {
+        climateModeHistory.observe(
+          airConditionerBinding.entityId,
+          statesByEntityId[airConditionerBinding.entityId]
+        );
+      }
+    }
+  }
   // 读某盏灯的当前状态：先问本地缓存（含滑动历史 / 上次已知值），
   // 缓存没有才回落到宿主下发的实体状态，避免宿主状态滞后时灯色闪一下。
   const readLightState = entityId =>
@@ -557,6 +582,8 @@ export function mountStage(stageOptions) {
   controlErrorElement.setAttribute("role", "status");
   const climateRequestsById = new Map();
   const climatePanel = createClimatePanel({
+    // 面板开关机时用它换回「上次使用的模式」（HA 关机后不再上报原模式）。
+    modeHistory: climateModeHistory,
     onControl: climateCommand =>
       new Promise((resolveClimate, rejectClimate) => {
         const climateBinding = collectClimateBindings().find(
@@ -1923,10 +1950,13 @@ export function mountStage(stageOptions) {
     return moduleBindings.filter(isOnActiveFloor);
   };
   // 渲染楼层页签：编辑 / 视图编辑 / 范围编辑时整块隐藏；只有一个楼层时不显示页签。
+  // 编辑器画布里导航栏要留着（切模块靠它），所以那一处按 isEditorCanvas 放行；
+  // 楼层页签不跟随导航栏 —— 编辑器里楼层仍由编辑器自己管，照旧隐藏。
   // 页签按签名比对重建，避免每帧重排 DOM。
   function renderFloorTabs() {
-    navigationElement.hidden = isEditing || isViewEditing || isRangeEditorOpen;
-    floorTabsElement.hidden = navigationElement.hidden || stageOptions.document.floors.length < 2;
+    navigationElement.hidden = !isEditorCanvas && (isEditing || isViewEditing || isRangeEditorOpen);
+    floorTabsElement.hidden =
+      isEditing || isViewEditing || isRangeEditorOpen || stageOptions.document.floors.length < 2;
     const floorChoices = floorNavigationChoices(stageOptions.document.floors, config.floorNumbers);
     const outsideFloorId =
       currentFloorId === "all"
@@ -2328,7 +2358,7 @@ export function mountStage(stageOptions) {
     const overviewBindings = resolveModuleBindings().filter(isOnActiveFloor);
     renderFloorTabs();
     const isAllFloors = currentFloorId === "all";
-    toggleModulePanel(isEditing || isViewEditing || isRangeEditorOpen || isAllFloors);
+    toggleModulePanel(!isEditorCanvas && (isEditing || isViewEditing || isRangeEditorOpen || isAllFloors));
     const activeTabModule = ["overview", "security", "light", "devices", "vacuum"].includes(
       activeModule
     )
@@ -2965,12 +2995,15 @@ export function mountStage(stageOptions) {
   }
   // 聚焦且非面板模式时隐藏导航与楼层页签，并置 inert，
   // 防止还能通过键盘点到已被藏起来的按钮。
+  // 编辑器画布里分类栏要一直可用（它就是切模块的入口），因此对它单独放行；
+  // 楼层页签仍按原规则隐藏。
   function updatePanelChrome() {
     const isFocusHidden = !!focusedId && !!focusMode && focusMode !== "panel";
     for (const chromeElement of [navigationElement, floorTabsElement]) {
-      chromeElement.classList.toggle("is-focus-hidden", isFocusHidden);
-      chromeElement.inert = isFocusHidden;
-      chromeElement.setAttribute("aria-hidden", String(isFocusHidden));
+      const chromeIsFocusHidden = isFocusHidden && (!isEditorCanvas || chromeElement !== navigationElement);
+      chromeElement.classList.toggle("is-focus-hidden", chromeIsFocusHidden);
+      chromeElement.inert = chromeIsFocusHidden;
+      chromeElement.setAttribute("aria-hidden", String(chromeIsFocusHidden));
     }
     const panelOpacity = Number.isFinite(config.popupOpacity)
       ? Math.max(0, Math.min(100, config.popupOpacity))
@@ -4752,6 +4785,13 @@ export function mountStage(stageOptions) {
         canvasPointerUpEvent.clientY - canvasPointerState.y
       ) < 5;
     canvasPointerState = null;
+    // 聚焦返回动画期间也允许点选其他设备：用户刚退出聚焦就想切到隔壁设备时，
+    // 等动画跑完（几百毫秒）会显得很迟钝。只对「聚焦返回」放行 ——
+    // 聚焦进入（focused 为真）、楼层过渡（owner 为 floor）、空闲旋转（owner 为 idle）
+    // 仍照旧拦截，否则会在相机还在移动时按错误的投影去拾取。
+    const canPickDuringFocusReturn =
+      !cameraTransition ||
+      (cameraTransition.owner === "focus" && !cameraTransition.focused && !focusedId && !focusMode);
     if (
       !!isCanvasClick &&
       !followedVacuumId &&
@@ -4763,7 +4803,7 @@ export function mountStage(stageOptions) {
         !isEditing &&
         !isViewEditing &&
         isInteractive &&
-        !cameraTransition
+        canPickDuringFocusReturn
       ) {
         const pickedSensorId = presenceScene.pick(
           canvasPointerUpEvent.clientX,
@@ -4781,7 +4821,7 @@ export function mountStage(stageOptions) {
         !isOverviewMode() &&
         activeModule !== "light" &&
         !isViewEditing &&
-        !cameraTransition &&
+        canPickDuringFocusReturn &&
         (isEditing || isInteractive)
       ) {
         const pickedEnvironmentModel = stageOptions.pickEnvironmentModel?.(
@@ -4923,6 +4963,10 @@ export function mountStage(stageOptions) {
       if (
         (focusMode || focusRestoreCameraPose || cameraTransition) &&
         (isCameraChanged ||
+          // 材质风格与墙体透明度都会整体改变画面，和换楼层一样必须先退出聚焦，
+          // 否则聚焦态的调暗 / 相机都还停留在旧风格上。
+          config.sceneStyle !== message.properties.sceneStyle ||
+          config.wallOpacity !== message.properties.wallOpacity ||
           config.floorSelection !== message.properties.floorSelection ||
           isEditing !== (message.editing === true) ||
           message.viewEditing === true ||
@@ -4944,7 +4988,16 @@ export function mountStage(stageOptions) {
       // config 携带的是全量状态，直接整份替换；增量合并只发生在 states 消息。
       statesByEntityId = message.states || {};
       isEditorCanvas = message.editorCanvas === true && !isEditing;
-      backgroundTheme.configure(config.backgroundTheme);
+      // 材质风格同时落在 body 上：3D 舞台之外的宿主 UI（弹窗、灯控面板等）
+      // 也由 stage.css / runtime.css 的 [data-scene-style="warm-wood"] 规则驱动。
+      if (document.body?.dataset) {
+        document.body.dataset.sceneStyle =
+          config.sceneStyle === "warm-wood" ? "warm-wood" : "default";
+      }
+      // 配置整份替换后，空调状态也跟着变了：先把「上次使用的模式」补齐。
+      observeAllClimates();
+      // 第二个参数带上整份配置：背景控制器据此判断是否切到暖阳、是否停掉动态背景。
+      backgroundTheme.configure(config.backgroundTheme, config);
       // 编辑态强制不可交互：否则在编辑器里挪标记会顺手触发设备的控制命令。
       isInteractive = !isEditing && message.interactive === true;
       editingVacuumId = message.editingVacuumId || "";
@@ -5137,6 +5190,9 @@ export function mountStage(stageOptions) {
               ...(message.states || {})
             }
           : message.states || {};
+      // 状态更新是记录「上次使用的模式」的主要时机，必须放在灯光 reconcile 之前，
+      // 与配置分支保持同一顺序，避免两处行为漂移。
+      observeAllClimates();
       for (const reconciledLightEntry of config.lights || []) {
         if (
           message.patch !== true ||

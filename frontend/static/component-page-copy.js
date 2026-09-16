@@ -151,8 +151,10 @@ function scaleComponentGeometry(geometryComponent, scaleX, scaleY, childScale, i
     height = positiveNumberOr(position.height, 100),
     positionX = Number.isFinite(Number(position.x)) ? Number(position.x) : 0,
     positionY = Number.isFinite(Number(position.y)) ? Number(position.y) : 0,
-    scaledWidth = width * childScale,
-    scaledHeight = height * childScale;
+    // 3D 控件按目标画布的横纵比例各自伸缩，其余组件用统一的子级缩放：
+    // 3D 内部画面是铺满外框渲染的，横纵同比例会让外框与渲染口径不一致。
+    scaledWidth = width * (geometryComponent.type === "interaction3d" ? scaleX : childScale),
+    scaledHeight = height * (geometryComponent.type === "interaction3d" ? scaleY : childScale);
   // 顶层按中心缩放（与目标画布比例对齐），子组件只随父级缩放。
   geometryComponent.position = {
     ...position,
@@ -286,7 +288,9 @@ export function copyComponentsAcrossDocuments(
       // previewState 是源组件当时的预览快照，复制后必须丢弃以免展示旧内容。
       delete copiedComponent.properties.previewState,
       pruneInvalidReferences(copiedComponent, targetDocumentToCopy, handleInvalidAction),
-      scaleMode === "proportional" &&
+      // 3D 控件即使调用方声明 scaleMode: "none" 也要适配目标画布：
+      // 它的外框尺寸直接决定渲染画布大小，不缩放就会在跨分辨率复制后错位。
+      (scaleMode === "proportional" || copiedComponent.type === "interaction3d") &&
         fitComponentToCanvas(
           copiedComponent,
           sourceDocumentToCopy.canvas,

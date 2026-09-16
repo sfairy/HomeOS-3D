@@ -1,0 +1,56 @@
+# 生产反代示例（Nginx）
+#
+# 与 deploy/Caddyfile.example 同拓扑：homeos / pay 两个域名。
+# 请先用 certbot 或其它方式准备证书，再填 ssl_certificate 路径。
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+upstream homeos_app {
+    server 127.0.0.1:18081;
+}
+
+upstream homeos_store {
+    server 127.0.0.1:18082;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name homeos.example.com;
+
+    ssl_certificate     /etc/ssl/certs/homeos.example.com.fullchain.pem;
+    ssl_certificate_key /etc/ssl/private/homeos.example.com.key;
+
+    client_max_body_size 64m;
+
+    location / {
+        proxy_pass http://homeos_app;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 3600s;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name pay.example.com;
+
+    ssl_certificate     /etc/ssl/certs/pay.example.com.fullchain.pem;
+    ssl_certificate_key /etc/ssl/private/pay.example.com.key;
+
+    client_max_body_size 16m;
+
+    location / {
+        proxy_pass http://homeos_store;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}

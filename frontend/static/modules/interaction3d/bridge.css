@@ -13,7 +13,7 @@
 
 /* ===== 宿主容器与授权状态 ===== */
 
-@import "/static/modules/interaction3d/controls.css?v=20260916235816";
+@import "/static/modules/interaction3d/controls.css?v=20260917022019";
 /* 宿主铺满组件区域并把内容居中；透明背景让组件的背景设置（网格 / 星尘）由内部渲染决定。 */
 .hb-interaction3d-host {
   display: flex;
@@ -394,6 +394,57 @@
 }
 #interaction3d-inspector .i3d-inspector-subsection:after {
   display: none;
+}
+/* 画面显示：竖排表单，与检查器其它「标题在上、控件在下」区块一致。
+ * 墙体透明度滑杆行单独收紧，避免自定义比例时把区块撑得过高。 */
+#interaction3d-inspector .i3d-picture-settings {
+  display: grid;
+  gap: 12px;
+  align-items: stretch;
+}
+#interaction3d-inspector .i3d-picture-settings > .navigation-property-control,
+#interaction3d-inspector .i3d-picture-settings > label,
+#interaction3d-inspector .i3d-picture-settings > .i3d-wall-opacity-row,
+#interaction3d-inspector .i3d-picture-settings > .inspector-section-note {
+  width: 100%;
+  min-width: 0;
+}
+/* 墙体透明度：左滑杆占满剩余宽度，右数字框固定宽度（含步进器）+ %。
+ * 数字框会被 enhanceNumberInputsIn 包进 .inspector-number-control（默认 width:100%），
+ * 若不压回固定宽度，步进器会跟着贴到行尾，中间出现大块空白。 */
+#interaction3d-inspector .i3d-wall-opacity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+#interaction3d-inspector .i3d-wall-opacity-row > input[type="range"] {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--accent, #f2a20d);
+}
+#interaction3d-inspector .i3d-wall-opacity-row > .inspector-number-control {
+  flex: none;
+  width: 64px;
+}
+#interaction3d-inspector .i3d-wall-opacity-row > .inspector-number-control input[type="number"] {
+  width: 100%;
+  height: 28px;
+  padding-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+#interaction3d-inspector .i3d-wall-opacity-unit {
+  flex: none;
+  color: var(--muted, #9ba8b3);
+  font-size: 11px;
 }
 #interaction3d-inspector .i3d-inline-section {
   display: flex;

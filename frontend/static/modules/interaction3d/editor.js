@@ -16,29 +16,29 @@
  *   - 户型 ID（sceneId）是 32 位十六进制，由后端签发，面板只做格式校验不做语义解析。
  * 副作用：发起授权校验与户型载入请求，动态 import 各子编辑器模块，并直接操作宿主 DOM。
  */
-import { resolvePageBehavior } from "./page-behavior.js?v=20260916235816";
+import { resolvePageBehavior } from "./page-behavior.js?v=20260917022019";
 import {
   performanceWarnings,
   confirmPerformanceWarning
-} from "./performance-warning.js?v=20260916235816";
-import { normalizeGroundReflection } from "./reflection-settings.js?v=20260916235816";
+} from "./performance-warning.js?v=20260917022019";
+import { normalizeGroundReflection } from "./reflection-settings.js?v=20260917022019";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   waitInteraction3dEditorView,
   cancelOtherInteraction3dViews
-} from "./bridge.js?v=20260916235816";
+} from "./bridge.js?v=20260917022019";
 import {
   createInteraction3dCover,
   updateInteraction3dCoverMessage
-} from "./cover.js?v=20260916235816";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=20260916235816";
+} from "./cover.js?v=20260917022019";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=20260917022019";
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
   BACKGROUND_THEMES,
   normalizeBackgroundTheme
-} from "./definition.js?v=20260916235816";
+} from "./definition.js?v=20260917022019";
 /**
  * 递归收集组件树里的 interaction3d 组件。
  *
@@ -548,7 +548,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       await requestInteraction3dAccess();
       // 子编辑器体积大且只在点击时才用得上，用动态 import 拆包。
       const { openInteraction3dAppearanceEditor: openAppearanceEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916235816");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260917022019");
       await openAppearanceEditor({
         component: targetComponent,
         onSave: savedBaseLighting =>
@@ -583,7 +583,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureDevicesButton.disabled = true;
     try {
       const { openInteraction3dEditor: openDevicesEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916235816");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260917022019");
       await openDevicesEditor({
         component: targetComponent,
         deviceKind: "devices",
@@ -617,7 +617,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 安防编辑器会接触摄像头相关配置，同样先做一次授权校验。
       await requestInteraction3dAccess();
       const { openSecurityEditor: openSecurityEditor } =
-        await import("/api/v1/modules/interaction3d/security-editor.js?v=20260916235816");
+        await import("/api/v1/modules/interaction3d/security-editor.js?v=20260917022019");
       await openSecurityEditor({
         component: targetComponent,
         panelDocument: editorOptions.document,
@@ -645,7 +645,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureVacuumButton.disabled = true;
     try {
       const { openInteraction3dEditor: openVacuumEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916235816");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260917022019");
       await openVacuumEditor({
         component: targetComponent,
         deviceKind: "vacuum",
@@ -721,7 +721,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 灯光配置涉及实体绑定，先确认当前会话仍有 3D 交互权限。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openLightingEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916235816");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260917022019");
       await openLightingEditor({
         component: targetComponent,
         document: editorOptions.document,
@@ -750,7 +750,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 环境（温湿度 / 空气质量）配置同样属于受限能力，打开前校验授权。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openEnvironmentEditor } =
-        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260916235816");
+        await import("/api/v1/modules/interaction3d/config-editor.js?v=20260917022019");
       await openEnvironmentEditor({
         component: targetComponent,
         deviceKind: "environment",
@@ -1692,6 +1692,8 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     hideWhileRotatingInput.checked = readBehaviorFlag("hideIconsWhileRotating");
   }
   const displaySection = createSection("画面显示");
+  // 供 bridge.css 定位这一节的专属布局（墙体透明度那一行需要更紧凑的排布）。
+  displaySection.classList.add("i3d-picture-settings");
   let lightingMode = normalizeInteraction3dLightingMode(properties.lightingMode);
   const lightingModeSelect = createElement("select");
   lightingModeSelect.name = "i3d-lighting-mode";
@@ -1766,17 +1768,50 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     backgroundVisibilityOptionsElement
   );
   displaySection.append(backgroundVisibilityControlElement);
+  // 材质风格：整套 3D 观感的总开关，切换后调色板、地板、家具与背景都会跟着换。
+  const sceneStyleSelect = createElement("select");
+  sceneStyleSelect.name = "i3d-scene-style";
+  sceneStyleSelect.setAttribute("aria-label", "材质风格");
+  for (const [styleValue, styleLabel] of [
+    ["default", "默认风格"],
+    ["warm-wood", "暖阳原木"]
+  ]) {
+    const styleOptionElement = createElement("option", "", styleLabel);
+    styleOptionElement.value = styleValue;
+    sceneStyleSelect.append(styleOptionElement);
+  }
+  // 只有 warm-wood 视为暖阳；文档里的其它历史值一律按默认风格处理。
+  const isWarmWood = properties.sceneStyle === "warm-wood";
+  sceneStyleSelect.value = isWarmWood ? "warm-wood" : "default";
+  sceneStyleSelect.addEventListener("change", () => {
+    if (!programmaticControls.has(sceneStyleSelect)) {
+      commitChange({
+        properties: {
+          sceneStyle: sceneStyleSelect.value
+        }
+      });
+    }
+  });
+  createLabeledField(displaySection, "材质风格", sceneStyleSelect);
   const backgroundThemeSelect = createElement("select");
   backgroundThemeSelect.name = "i3d-background-theme";
   backgroundThemeSelect.setAttribute("aria-label", "背景主题");
-  for (const [themeValue, themeLabel] of BACKGROUND_THEMES) {
+  // 暖阳下背景主题由材质风格接管：下拉只剩「暖阳微光」一项且禁用，
+  // 让用户看到当前生效的是什么，但不会误以为自己能改。
+  for (const [themeValue, themeLabel] of isWarmWood
+    ? [["warm-sunlight", "暖阳微光"]]
+    : BACKGROUND_THEMES) {
     const themeOptionElement = createElement("option", "", themeLabel);
     themeOptionElement.value = themeValue;
     backgroundThemeSelect.append(themeOptionElement);
   }
-  backgroundThemeSelect.value = normalizeBackgroundTheme(properties.backgroundTheme);
+  backgroundThemeSelect.value = isWarmWood
+    ? "warm-sunlight"
+    : normalizeBackgroundTheme(properties.backgroundTheme);
+  backgroundThemeSelect.disabled = isWarmWood;
   backgroundThemeSelect.addEventListener("change", () => {
-    if (!programmaticControls.has(backgroundThemeSelect)) {
+    // 暖阳下的 change 只可能来自程序性写值，不需要（也不该）提交。
+    if (!isWarmWood && !programmaticControls.has(backgroundThemeSelect)) {
       commitChange({
         properties: {
           backgroundTheme: normalizeBackgroundTheme(backgroundThemeSelect.value)
@@ -1785,12 +1820,102 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     }
   });
   createLabeledField(displaySection, "背景主题", backgroundThemeSelect);
+  // 动态背景开关只在暖阳下出现：默认主题的星尘由交互驱动，没有「一直飘」的选项。
+  if (isWarmWood) {
+    const backgroundMotionToggle = createElement("input");
+    backgroundMotionToggle.type = "checkbox";
+    backgroundMotionToggle.name = "i3d-background-motion";
+    // 缺省视为开启动态：只有显式 false 才是关闭。
+    backgroundMotionToggle.checked = properties.backgroundMotion !== false;
+    backgroundMotionToggle.setAttribute("aria-label", "背景动态");
+    backgroundMotionToggle.addEventListener("change", () => {
+      commitChange({
+        properties: {
+          backgroundMotion: backgroundMotionToggle.checked
+        }
+      });
+    });
+    createLabeledField(displaySection, "背景动态", backgroundMotionToggle);
+    // 复用「视图开关」那套 label 布局：复选框与标题同一行，右侧对齐。
+    backgroundMotionToggle.parentElement.className = "i3d-setting-toggle i3d-view-toggle";
+  }
+  // 说明文字挪进 title：暖阳与默认主题的文案不同，静态段落无法兼顾，且占高度。
+  backgroundThemeSelect.title = isWarmWood
+    ? "随材质风格切换，亮区跟随当前楼层底部；ALL 时跟随最底层。"
+    : "微光围绕户型中心渐隐，随视角呈现远近层次。";
+  // 墙体透明度：diy 表示沿用户型自带材质（wallOpacity 存 null），
+  // custom 表示本控件统一覆盖，具体比例存在 wallOpacity（0~1）。
+  const wallOpacityModeSelect = createElement("select");
+  wallOpacityModeSelect.name = "i3d-wall-opacity-mode";
+  wallOpacityModeSelect.setAttribute("aria-label", "墙体透明度模式");
+  for (const [opacityModeValue, opacityModeLabel] of [
+    ["diy", "沿用户型 DIY"],
+    ["custom", "统一调整"]
+  ]) {
+    const opacityModeOptionElement = createElement("option", "", opacityModeLabel);
+    opacityModeOptionElement.value = opacityModeValue;
+    wallOpacityModeSelect.append(opacityModeOptionElement);
+  }
+  const hasCustomWallOpacity =
+    typeof properties.wallOpacity == "number" && Number.isFinite(properties.wallOpacity);
+  wallOpacityModeSelect.value = hasCustomWallOpacity ? "custom" : "diy";
+  wallOpacityModeSelect.addEventListener("change", () => {
+    commitChange({
+      properties: {
+        // 切到「统一调整」时沿用已有比例；从没设置过就用 25% 这个观感默认值。
+        wallOpacity:
+          wallOpacityModeSelect.value === "custom" ? properties.wallOpacity ?? 0.25 : null
+      }
+    });
+  });
+  createLabeledField(displaySection, "墙体透明度", wallOpacityModeSelect);
+  const wallOpacityRowElement = createElement("div", "i3d-wall-opacity-row");
+  const wallOpacityRangeInput = createElement("input");
+  const wallOpacityNumberInput = createElement("input");
+  // 没有自定义透明度时整行隐藏：滑杆保持在上次的值上，切回来不会跳回 25%。
+  wallOpacityRowElement.hidden = !hasCustomWallOpacity;
+  for (const [opacityInput, opacityInputType] of [
+    [wallOpacityRangeInput, "range"],
+    [wallOpacityNumberInput, "number"]
+  ]) {
+    Object.assign(opacityInput, {
+      type: opacityInputType,
+      min: "0",
+      max: "100",
+      step: "1",
+      value: String(Math.round((properties.wallOpacity ?? 0.25) * 100)),
+      disabled: !hasCustomWallOpacity
+    });
+    opacityInput.setAttribute(
+      "aria-label",
+      opacityInputType === "range" ? "墙体透明度" : "墙体透明度百分比"
+    );
+    // 两个控件互相同步：拖动滑杆时数字框跟着变，但此时不提交，等 change 再提交。
+    opacityInput.addEventListener("input", () => {
+      (opacityInput === wallOpacityRangeInput
+        ? wallOpacityNumberInput
+        : wallOpacityRangeInput
+      ).value = opacityInput.value;
+    });
+    opacityInput.addEventListener("change", () => {
+      const nextOpacityPercent = Number(opacityInput.value);
+      if (Number.isFinite(nextOpacityPercent)) {
+        // 越界值夹回 0~100，再折算成 0~1 的比例交给后端。
+        commitChange({
+          properties: {
+            wallOpacity: Math.max(0, Math.min(100, nextOpacityPercent)) / 100
+          }
+        });
+      }
+    });
+    wallOpacityRowElement.append(opacityInput);
+  }
+  const wallOpacityUnitElement = createElement("span", "i3d-wall-opacity-unit", "%");
+  wallOpacityRowElement.append(wallOpacityUnitElement);
+  wallOpacityRowElement.title = "0% 全透明，100% 实心；切换风格保留此设置。";
   displaySection.append(
-    createElement(
-      "p",
-      "inspector-section-note",
-      "微光围绕户型中心渐隐，随视角呈现远近层次；操作反馈会逐渐消退。"
-    )
+    wallOpacityRowElement,
+    createElement("p", "inspector-section-note", "仅影响当前控件，保留户型 DIY。")
   );
   const renderScaleSelect = createElement("select");
   renderScaleSelect.name = "i3d-render-scale";
@@ -2457,9 +2582,10 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   ]) {
     categorySection.classList.add("i3d-category-entry");
   }
+  // 画面显示保留竖排表单（户型底图 / 材质 / 背景 / 墙体透明度），
+  // 不进 i3d-inline-section，否则标题与控件会挤成一行并裁切文案。
   for (const inlineSection of [
     houseSection,
-    displaySection,
     layoutSection,
     lightsSection,
     environmentSection,

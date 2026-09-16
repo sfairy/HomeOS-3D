@@ -16,31 +16,43 @@ from store.models import Release
 
 logger = logging.getLogger("store.release_info")
 
-CURRENT_VERSION = "0.5.5"
-CURRENT_RELEASE_DATE = "2026-09-15"
+CURRENT_VERSION = "0.5.6"
+CURRENT_RELEASE_DATE = "2026-09-17"
 CURRENT_UPGRADE_NOTES = (
-    "1. 品牌标识统一为 HomeOS，图标与标识文件名统一为 homeos-*。\n"
-    "2. 库存口径修正：发码时扣减库存总量、退款时释放预留，"
-    "杜绝「同一件库存被反复卖出」。\n"
-    "3. 优惠码名额修正：取消/退款自动归还名额，且「每人限用」不再把已取消的订单"
-    "算成已使用（此前用户会永久失去该优惠码）。\n"
-    "4. 管理后台所有时间改为按浏览器本地时区显示与录入（库内仍存 UTC）。\n"
-    "5. 管理后台补齐商品字段与商品图上传、登录会话/客户端会话/找回令牌的撤销入口、"
-    "日志清理入口，并让诊断类列表支持翻页。"
+    "1. 自托管改为双容器：主应用（18081）与授权商店 / 授权服务器（18082）"
+    "通过 Docker Compose 一并拉起；默认镜像 ghcr.io/sfairy/homeos-3d 与 …-store。\n"
+    "2. 商店容器负责生成或复用授权密钥，并把公钥同步到共享卷；"
+    "主应用等待公钥就绪后再启动。首次部署请设置 STORE_ADMIN_EMAIL / STORE_ADMIN_PASSWORD 完成 seed。\n"
+    "3. 运行镜像不再包含可读业务源码（Python 仅留 .pyc，业务 JS 经混淆）；"
+    "生产清单与反代示例见 deploy/PRODUCTION.md。\n"
+    "4. .env.example 收敛为部署常改项置顶；邮件 / SMTP / 支付渠道请到商店 /admin「站点配置」修改，免重启。\n"
+    "5. 升级时请保留全部数据卷（homeos-3d-data / homeos-3d-store-data /"
+    "homeos-3d-license-keys / homeos-3d-client-keys），不要删卷。"
 )
 
 
 def ensure_current_release(session: Session) -> bool:
-    """确保 docker 渠道存在当前版本的发布记录（幂等）。"""
-    exists = session.scalars(
+    """确保 docker 渠道存在当前版本的发布记录（幂等；已存在则同步升级说明）。"""
+    existing = session.scalars(
         select(Release).where(
             Release.product == "homeos",
             Release.channel == "docker",
             Release.version == CURRENT_VERSION,
         )
     ).first()
-    if exists is not None:
-        return False
+    if existing is not None:
+        changed = False
+        if existing.release_date != CURRENT_RELEASE_DATE:
+            existing.release_date = CURRENT_RELEASE_DATE
+            changed = True
+        if existing.upgrade_notes != CURRENT_UPGRADE_NOTES:
+            existing.upgrade_notes = CURRENT_UPGRADE_NOTES
+            changed = True
+        if changed:
+            session.flush()
+            logger.info("已同步 %s 渠道 %s 发布记录。", "docker", CURRENT_VERSION)
+        return changed
+
     session.add(
         Release(
             product="homeos",

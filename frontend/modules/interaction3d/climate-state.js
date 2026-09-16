@@ -5,8 +5,8 @@
  * climate 实体（或 state_changed 事件）翻译成渲染器能直接消费的形状，并把
  * 面板上的操作（开关、调温、改模式）翻译成下面要发给 HA 的服务调用。
  *
- * 对外提供：climateState、climatePowerControl、climateControl，以及从渲染器
- * 转出的标签 / 图标工具（climateModeLabel 等）。
+ * 对外提供：climateState、climatePowerControl、createClimateModeHistory、
+ * climateControl，以及从渲染器转出的标签 / 图标工具（climateModeLabel 等）。
  *
  * 与渲染器的约定：能力解析（支持哪些模式、温度步长）与文案统一来自
  * static/renderer/climate.js，这里只做转发，绝不另写一份口径 —— 否则 2D 面板
@@ -17,7 +17,7 @@
 // 缓存戳必须与 static 目录的统一版本号保持一致，改渲染器后要同步更新。
 const climateRendererModule = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../static/renderer/climate.js", import.meta.url))
-  : import("/static/renderer/climate.js?v=20260916235816"));
+  : import("/static/renderer/climate.js?v=20260917022019"));
 const {
   normalizeClimateCapabilities: normalizeClimateCapabilities,
   climateIsPoweredOn: climateIsPoweredOn,
@@ -116,6 +116,9 @@ export function climateState(entityId, receivedState) {
     rangeSupported: !!(supportedFeatures & 2) || targetLow !== null || targetHigh !== null,
     modes: capabilities.hvacModes,
     fanModes: capabilities.fanModes,
+    // supported_features 第 7 位（值 128）是 ClimateEntityFeature.TURN_ON；
+    // 支持它的实体可以只发 turn_on 而不必指定 hvac_mode。
+    turnOnSupported: !!(supportedFeatures & 128),
     swingModes: capabilities.swingModes,
     horizontalSwingModes: capabilities.horizontalSwingModes,
     presetModes: capabilities.presetModes,
@@ -138,6 +141,31 @@ export function climatePowerControl(state, desiredOn = !state.on, lastMode = "")
   if (!state.available) {
     throw new Error("设备当前不可用。");
   }
+  // 开机：优先显式恢复「上次使用的模式」（面板从模式历史里取），
+  // 退而求其次沿用实体当前模式（HA 关机时上报 off，所以这里必须先排除 off）。
+  if (desiredOn) {
+    const restoreMode = lastMode || (state.on ? state.mode : "");
+    if (restoreMode && restoreMode !== "off" && state.modes.includes(restoreMode)) {
+      return {
+        entityId: state.entityId,
+        domain: "climate",
+        service: "set_hvac_mode",
+        data: {
+          hvac_mode: restoreMode
+        }
+      };
+    }
+    // 没有可恢复的模式时，若实体声明支持 turn_on 就用它 —— turn_on 会由设备
+    // 自己决定回到哪个模式，比硬塞一个 mode 更稳妥。
+    if (state.turnOnSupported) {
+      return {
+        entityId: state.entityId,
+        domain: "climate",
+        service: "turn_on",
+        data: {}
+      };
+    }
+  }
   const command = climatePowerCommand(
     state.entityId,
     state.raw,
@@ -155,6 +183,75 @@ export function climatePowerControl(state, desiredOn = !state.on, lastMode = "")
     domain: "climate",
     service: command.service,
     data: command.data
+  };
+}
+/**
+ * 创建「空调上次使用模式」的记录器（关机后再开机时恢复用）。
+ *
+ * 为什么需要它：HA 的 climate 实体一关机，state 就变成 off，实体本身不再上报
+ * 用户最后选的是 cool 还是 heat，面板因此拿不回上一次的模式。这里在内存里记住
+ * 每台空调最后一个「可用且正在运行」的模式，并用 localStorage 持久化，
+ * 刷新页面或重进应用后仍能恢复。
+ *
+ * @param {object} [options] 参数。
+ * @param {Storage} [options.storage] 持久化后端；不可用（隐私模式等）时静默降级为仅内存。
+ * @param {string} [options.scope=""] 作用域；隔离同一实体在不同页面里的记录。
+ * @returns {{get: (entityId: string) => string, observe: (entityId: string, receivedState: object) => void}}
+ */
+export function createClimateModeHistory({ storage, scope = "" } = {}) {
+  const modesByEntityId = new Map();
+  // storage 一旦抛异常就永久关掉：隐私模式下每次访问都会抛，反复重试只会拖慢渲染。
+  let isStorageUsable = true;
+  // 只有形如 cool / heat / dry 这样的模式名才值得记；off 与未知态不是「上次模式」。
+  const isUsableMode = mode =>
+    typeof mode == "string" &&
+    /^[a-z_]+$/.test(mode) &&
+    !["off", "unknown", "unavailable"].includes(mode);
+  // 没有 scope 或实体 ID 非法时不落盘，避免把记录写进无法区分归属的公共键。
+  const storageKeyFor = entityId =>
+    scope && /^climate\.[a-z0-9_]+$/.test(entityId)
+      ? "hb-i3d:climate-mode:v1:" + scope + ":" + entityId
+      : "";
+  /** 取某台空调上次使用的模式；没有记录时返回空串。 */
+  function get(entityId) {
+    const key = storageKeyFor(entityId);
+    try {
+      const storedMode = isStorageUsable && key && storage?.getItem(key);
+      if (isUsableMode(storedMode)) {
+        modesByEntityId.set(entityId, storedMode);
+        return storedMode;
+      }
+    } catch {
+      isStorageUsable = false;
+    }
+    return modesByEntityId.get(entityId) || "";
+  }
+  /** 观察一份实体状态，把它更新进记录。 */
+  function observe(entityId, receivedState) {
+    const observedState = climateState(entityId, receivedState);
+    // 只记「可用 + 开机 + 模式合法」的时刻：关机态与未知态都会污染记录，
+    // 也会让下一次开机恢复到一个并不存在的模式。
+    if (
+      observedState.available &&
+      observedState.on &&
+      isUsableMode(observedState.mode) &&
+      observedState.modes.includes(observedState.mode) &&
+      get(entityId) !== observedState.mode
+    ) {
+      modesByEntityId.set(entityId, observedState.mode);
+      try {
+        const key = storageKeyFor(entityId);
+        if (isStorageUsable && key) {
+          storage?.setItem(key, observedState.mode);
+        }
+      } catch {
+        isStorageUsable = false;
+      }
+    }
+  }
+  return {
+    get: get,
+    observe: observe
   };
 }
 /**

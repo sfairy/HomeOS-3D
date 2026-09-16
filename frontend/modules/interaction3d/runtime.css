@@ -12,7 +12,7 @@
  *   - 弹窗一律用原生 dialog + ::backdrop，遮罩与焦点陷阱交给浏览器；
  *   - 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/modules/interaction3d/controls.css?v=20260916235816";
+@import "/static/modules/interaction3d/controls.css?v=20260917022019";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;
@@ -1499,4 +1499,81 @@
 .i3d-focus-popup-preview :disabled {
   opacity: 1;
   cursor: default;
+}
+/* ===== 暖阳原木主题覆盖（sceneStyle = warm-wood） =====
+ *
+ * 宿主节点上的 data-scene-style 由 runtime.js 写入，这里把弹窗 / 扫地机详情 /
+ * 实体详情这类运行时浮层换成与舞台同一套暖米色，保证 3D 控件与运行时弹窗
+ * 在暖阳原木下看起来是同一套皮肤。取值与 0.5.6 暖色色卡逐字一致。
+ */
+.hb-interaction3d-runtime[data-scene-style="warm-wood"] :is(.i3d-popup-preview, dialog.i3d-vacuum-details) {
+  color: #493f34;
+  border-color: #bca98c;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 253, 247, var(--i3d-panel-opacity, .74)),
+    rgba(243, 237, 225, var(--i3d-panel-opacity, .74))
+  );
+  box-shadow: 0 12px 32px #4334212b, inset 0 1px #fff9;
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"]
+  :is(
+    .hb-entity-details-heading strong,
+    .hb-camera-preview-heading strong,
+    .hb-vacuum-details-stats strong,
+    .hb-vacuum-details-actions button strong,
+    .hb-vacuum-details-option-group strong,
+    .i3d-popup-preview-name
+  ) {
+  color: #493f34;
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"]
+  :is(
+    .hb-entity-details-heading span,
+    .hb-camera-preview-status,
+    .hb-vacuum-details-stats small,
+    .hb-vacuum-details-option-group small,
+    .hb-vacuum-battery small,
+    .i3d-popup-preview-actions
+  ) {
+  color: #716657;
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"]
+  :is(
+    .hb-vacuum-details-stats>div,
+    .hb-vacuum-details-option-group,
+    .i3d-popup-preview-actions
+  ) {
+  border-color: #bca98c66;
+  background: #ede4d550;
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"]
+  :is(
+    .hb-vacuum-details-actions button,
+    .hb-vacuum-details-options button,
+    .hb-camera-preview-heading button,
+    .i3d-popup-preview-heading button
+  ) {
+  color: #554632;
+  border-color: #bca98c;
+  background: #f6f0e5;
+  box-shadow: none;
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"]
+  :is(
+    .hb-vacuum-details-actions button.active,
+    .hb-vacuum-details-options button.active
+  ) {
+  color: #67471e;
+  border-color: #a48351;
+  background: #e6d5b8;
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-heading {
+  border-color: #bca98c66;
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-track {
+  background: linear-gradient(90deg, #ae8c59 50%, #ded4c3 50%);
+}
+.hb-interaction3d-runtime[data-scene-style="warm-wood"] .i3d-popup-preview-track:after {
+  background: #ae8c59;
 }

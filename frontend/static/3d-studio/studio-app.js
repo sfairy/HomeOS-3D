@@ -60,60 +60,65 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "./studio-curtain-track.js?v=20260916235816";
-import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260916235816";
+} from "./studio-curtain-track.js?v=20260917022019";
+import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260917022019";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "./studio-surface-textures.js?v=20260916235816";
-import { createOverviewStack } from "./studio-overview-stack.js?v=20260916235816";
-import { windowGeometryParts } from "./studio-window-geometry.js?v=20260916235816";
+} from "./studio-surface-textures.js?v=20260917022019";
+import { createOverviewStack } from "./studio-overview-stack.js?v=20260917022019";
+import { windowGeometryParts } from "./studio-window-geometry.js?v=20260917022019";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=20260916235816";
-import { addSecurityModel } from "./studio-security-models.js?v=20260916235816";
-import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260916235816";
-import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260916235816";
-import { createFloorTransition } from "./studio-floor-transition.js?v=20260916235816";
-import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260916235816";
-import { createGroundReflections } from "./studio-ground-reflections.js?v=20260916235816";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260916235816";
+} from "./studio-camera-constraints.js?v=20260917022019";
+import { addSecurityModel } from "./studio-security-models.js?v=20260917022019";
+import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260917022019";
+import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260917022019";
+import { createFloorTransition } from "./studio-floor-transition.js?v=20260917022019";
+import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260917022019";
+import { createGroundReflections } from "./studio-ground-reflections.js?v=20260917022019";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260917022019";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances,
   mergeWallBands
-} from "./studio-wall-materials.js?v=20260916235816";
+} from "./studio-wall-materials.js?v=20260917022019";
+import {
+  WARM_WOOD_STYLE,
+  decorateWarmFloor
+} from "./studio-scene-style.js?v=20260917022019";
+import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260917022019";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../modules/interaction3d/render-cache.js?v=20260916235816";
-import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260916235816";
-import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260916235816";
-import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260916235816";
-import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260916235816";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=20260916235816";
+} from "../modules/interaction3d/render-cache.js?v=20260917022019";
+import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260917022019";
+import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260917022019";
+import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260917022019";
+import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260917022019";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=20260917022019";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260916235816";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260917022019";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260916235816";
-import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260916235816";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260917022019";
+import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260917022019";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../modules/interaction3d/light-motion.js?v=20260916235816";
+} from "../modules/interaction3d/light-motion.js?v=20260917022019";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -153,7 +158,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "./geometry.js?v=20260916235816";
+} from "./geometry.js?v=20260917022019";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -162,32 +167,32 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "./export-utils.js?v=20260916235816";
+} from "./export-utils.js?v=20260917022019";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "./export-presets.js?v=20260916235816";
-import { reorderFloors } from "./floor-order.js?v=20260916235816";
-import { syncControlValue } from "./ui-controls.js?v=20260916235816";
+} from "./export-presets.js?v=20260917022019";
+import { reorderFloors } from "./floor-order.js?v=20260917022019";
+import { syncControlValue } from "./ui-controls.js?v=20260917022019";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=20260916235816";
+} from "./studio-widgets.js?v=20260917022019";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "./studio-external-models.js?v=20260916235816";
+} from "./studio-external-models.js?v=20260917022019";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "./studio-plan-drawing.js?v=20260916235816";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260916235816";
-import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260916235816";
-import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260916235816";
+} from "./studio-plan-drawing.js?v=20260917022019";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260917022019";
+import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260917022019";
+import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260917022019";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -200,7 +205,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "./studio-normalization.js?v=20260916235816";
+} from "./studio-normalization.js?v=20260917022019";
 window.__haBridgeStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 /**
@@ -229,6 +234,10 @@ let isVacuumMoving = false;
 let vacuumRevision = 0;
 let isBackgroundFrameVisible = false;
 let backgroundTheme = "grid";
+// 材质风格（default / warm-wood）与墙体透明度覆盖：两者都由舞台侧通过
+// studioApi.appearance() 下发，改动一次就要整体重建场景材质。
+let studioSceneStyle = "default";
+let wallOpacityOverride = null;
 let isCurtainMoving = false;
 let curtainFrameKey = "[]";
 let environmentStructureKey = "[]";
@@ -292,7 +301,9 @@ function sceneCacheDescriptor(widthPx, heightPx) {
           }
         : {}),
       lighting: baseLighting,
-      style: STUDIO_PALETTE,
+      // 材质风格与墙体透明度都参与渲染缓存的指纹：任一项变了，上一版缓存必须作废。
+      style: studioPalette(),
+      wallOpacity: wallOpacityOverride,
       visibility: visibility,
       reflections: groundReflectionSettingsKey,
       curtains: curtainFrameKey,
@@ -1379,7 +1390,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/draco-decoder-worker.js?v=20260916235816"
+  "/static/3d-studio/draco-decoder-worker.js?v=20260917022019"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -9656,12 +9667,19 @@ async function uploadPlanImage(file) {
 /**
  * 取 3D 工作台统一调色板（背景、地面、墙、家具等硬编码色值的唯一出处）。
  *
- * 包成函数而不是让各处直接引用常量，是为了留一个"按主题换配色"的切换点；
- * 目前始终返回 STUDIO_PALETTE。
+ * 包成函数而不是让各处直接引用常量，是为了留一个"按主题换配色"的切换点：
+ * sceneStyle 为 warm-wood 时在基础调色板上叠加暖阳原木色卡（WARM_WOOD_STYLE，
+ * 其中 warmWood: true 是各处判断分支的开关），其余情况返回基础调色板。
  *
  * @returns {object} 调色板对象（色值为十进制 0xRRGGBB）。
  */
 function studioPalette() {
+  if (studioSceneStyle === "warm-wood") {
+    return {
+      ...STUDIO_PALETTE,
+      ...WARM_WOOD_STYLE
+    };
+  }
   return STUDIO_PALETTE;
 }
 /**
@@ -9716,17 +9734,20 @@ function applyBaseLighting() {
   previewOverlayScene.fog = null;
   renderer.toneMappingExposure = lightingSettings.exposure;
   const regionLightingScale = isRegionLightingEnabled ? 0.5 : 1;
+  // 暖阳原木：整套基础光换成暖白 —— 天光偏暖、地面反光偏米黄、主光更黄，
+  // 冷色的环境光/补光整体提亮压平，避免原木色被冷光染灰。
+  const isWarmWood = !!palette.warmWood;
   if (hemisphereLight) {
-    hemisphereLight.color.setHex(14278376);
-    hemisphereLight.groundColor.setHex(1909296);
+    hemisphereLight.color.setHex(isWarmWood ? 16776178 : 14278376);
+    hemisphereLight.groundColor.setHex(isWarmWood ? 10524035 : 1909296);
     hemisphereLight.intensity = lightingSettings.hemisphereIntensity * regionLightingScale;
   }
   if (ambientLight) {
-    ambientLight.color.setHex(9673384);
+    ambientLight.color.setHex(isWarmWood ? 15592162 : 9673384);
     ambientLight.intensity = lightingSettings.ambientIntensity * regionLightingScale;
   }
   if (mainDirectionalLight) {
-    mainDirectionalLight.color.setHex(15922426);
+    mainDirectionalLight.color.setHex(isWarmWood ? 16774367 : 15922426);
     mainDirectionalLight.intensity = lightingSettings.mainIntensity * regionLightingScale;
     positionLightFromAngles(
       mainDirectionalLight,
@@ -9745,7 +9766,7 @@ function applyBaseLighting() {
     mainDirectionalLight.shadow.intensity = lightingSettings.mainShadowIntensity;
   }
   if (fillDirectionalLight) {
-    fillDirectionalLight.color.setHex(10528437);
+    fillDirectionalLight.color.setHex(isWarmWood ? 14346221 : 10528437);
     fillDirectionalLight.intensity = lightingSettings.fillIntensity * regionLightingScale;
     positionLightFromAngles(
       fillDirectionalLight,
@@ -9755,7 +9776,7 @@ function applyBaseLighting() {
     );
   }
   if (topDirectionalLight) {
-    topDirectionalLight.color.setHex(16185338);
+    topDirectionalLight.color.setHex(isWarmWood ? 16776693 : 16185338);
     topDirectionalLight.intensity = lightingSettings.topIntensity * regionLightingScale;
     positionLightFromAngles(
       topDirectionalLight,
@@ -17462,15 +17483,18 @@ function addWindowFrameMeshes(frameParent, windowPanes, frameColor, glassColor) 
       ]
     );
   }
+  // 暖阳原木：窗玻璃略降不透明度、略提金属度，让室内暖光在玻璃上留一层散射感，
+  // 否则纯白背景透过去会显得玻璃「发灰」。
+  const isWarmWoodGlass = !!studioPalette().warmWood;
   for (const glassPaneBox of glassPaneBoxes) {
     addWallBandMesh(frameParent, [glassPaneBox], glassColor, {
       rounded: false,
       transparent: true,
-      opacity: 0.24,
+      opacity: isWarmWoodGlass ? 0.2 : 0.24,
       depthWrite: false,
       side: threeModuleMin.DoubleSide,
       roughness: 0.08,
-      metalness: 0.03,
+      metalness: isWarmWoodGlass ? 0.04 : 0.03,
       castShadow: false,
       receiveShadow: false,
       renderOrder: 7
@@ -17894,8 +17918,14 @@ function addLightFixtureToScene(fixtureParent, lightFixtureItem, prewarmItemIdSe
   }
   const lightTypeDefaults =
     DEFAULT_LIGHT_SETTINGS[lightFixtureItem.type] || DEFAULT_LIGHT_SETTINGS.downlight;
+  // 亮度比例：舞台查看器允许到 150%，编辑器预览仍封顶 100%。
+  // 上限必须按页面区分 —— 编辑器里超亮度会让预览与实际下发效果不一致。
   const brightnessRatio =
-    clamp(finite(lightFixtureItem.lightBrightness, lightTypeDefaults.brightness), 0, 100) / 100;
+    clamp(
+      finite(lightFixtureItem.lightBrightness, lightTypeDefaults.brightness),
+      0,
+      isStageViewerMode ? 150 : 100
+    ) / 100;
   const brightnessScale = LIGHT_TYPE_BRIGHTNESS_SCALE[lightFixtureItem.type] || 1.1;
   const isStripLight = lightFixtureItem.type === "striplight";
   const owningLightGroup = lightGroupForItem(lightFixtureItem);
@@ -17961,7 +17991,10 @@ function addLightFixtureToScene(fixtureParent, lightFixtureItem, prewarmItemIdSe
     (lightFixtureItem.type === "ceilinglight" ? 680 : 520) *
     (isRegionLightingEnabled
       ? brightnessRatio
-      : spotLightBrightnessResponse(lightFixtureItem.type, brightnessRatio)) *
+      : // 超过 100% 的部分不能被灯型的响应曲线压饱和，否则调高亮度看不出变化，
+        // 因此这里额外乘一个「至少为 1」的提亮因子。
+        spotLightBrightnessResponse(lightFixtureItem.type, brightnessRatio) *
+          Math.max(1, brightnessRatio)) *
     brightnessScale;
   for (let spotIndex = 0; spotIndex < spotLightCount; spotIndex += 1) {
     const spotOffsetX =
@@ -18116,6 +18149,23 @@ function addTelevisionScreenMeshes(
       }
     );
     screenOffMesh.userData.televisionScreen = true;
+    // 暖阳原木：熄灭的屏幕换成手工玻璃材质（暖色玻璃 + 微弱反光），
+    // 面序与 BoxGeometry 一致，只替换朝向观众的那一面（索引 4）。
+    if (studioPalette().warmWood) {
+      const tvOffFrameMaterial = screenOffMesh.material;
+      const warmTelevisionGlass = createWarmTelevisionGlass(threeModuleMin);
+      screenOffMesh.material = [
+        tvOffFrameMaterial,
+        tvOffFrameMaterial,
+        tvOffFrameMaterial,
+        tvOffFrameMaterial,
+        warmTelevisionGlass,
+        tvOffFrameMaterial
+      ];
+    }
+    // 屏幕玻璃的冷暖由材质决定，但 2D 画布的贴图渲染走的是 interaction3d 运行时，
+    // 那里只能读到 userData，因此把风格一并挂上去。
+    screenOffMesh.userData.sceneStyle = studioPalette().warmWood ? "warm-wood" : "default";
     if (isStageViewerMode) {
       screenOffMesh.userData.environmentEffect = true;
     }
@@ -18168,6 +18218,8 @@ function addTelevisionScreenMeshes(
     ]
   );
   tvScreenMesh.userData.televisionScreen = true;
+  // 亮屏时 2D 贴图由运行时按 userData.sceneStyle 选冷暖玻璃底色。
+  tvScreenMesh.userData.sceneStyle = studioPalette().warmWood ? "warm-wood" : "default";
   if (isStageViewerMode) {
     tvScreenMesh.userData.environmentEffect = true;
   }
@@ -18835,6 +18887,17 @@ function buildItemModel(itemSpec, prewarmLightIdSet = null) {
       dark: furnitureDarkColor,
       light: furnitureLightColor
     });
+    if (itemPalette.warmWood) {
+      // 暖阳原木：轨道帘的布帘统一换成暖米白并整体补一点自发光 ——
+      // 主题下各面料贴图原本的色差会被冲淡，颜色对齐后整幅帘子才像同一套色系。
+      itemGroup.traverse(curtainPartNode => {
+        if (curtainPartNode.userData.curtainPart === "cloth" && curtainPartNode.material) {
+          curtainPartNode.material.color.set(16776696);
+          curtainPartNode.material.emissive = new threeModuleMin.Color(16776696);
+          curtainPartNode.material.emissiveIntensity = 0.38;
+        }
+      });
+    }
     highlightSelectedModel(itemGroup, isSelected("item", itemSpec.id));
     return itemGroup;
   }
@@ -24545,7 +24608,14 @@ function buildItemModel(itemSpec, prewarmLightIdSet = null) {
             roughness: 0.9
           })
         );
-        plantLeafMesh.scale.set(itemWidth * 0.045, itemHeight * 0.085, itemDepth * 0.025);
+        // 暖阳原木：叶片放大到 1.85 倍，同株植物的体量更饱满，
+        // 不必新增模型资源就能让绿植在暖色背景里站得住。
+        const plantLeafScale = itemPalette.warmWood ? 1.85 : 1;
+        plantLeafMesh.scale.set(
+          itemWidth * 0.045 * plantLeafScale,
+          itemHeight * 0.085 * plantLeafScale,
+          itemDepth * 0.025 * plantLeafScale
+        );
         plantLeafMesh.position.set(
           itemWidth * plantLeafOffsetX + Math.cos(plantLeafAngle) * itemWidth * 0.08,
           itemHeight * plantLeafOffsetY + Math.sin(plantLeafAngle) * itemHeight * 0.035,
@@ -25952,6 +26022,10 @@ function buildPolygonShapes(polygonLoops) {
 function makeWallSideMaterial(sideColor, sideOpacity, wallSideMaterialOptions = {}) {
   const isSideOpaque = sideOpacity >= 0.999;
   const isAlphaBand = isRegionLightingEnabled && !isSideOpaque;
+  // 暖阳原木：墙面靠更强的自发光（0.32）撑起整体亮度，墙脚渐变也换成几乎不压暗的版本；
+  // polygonOffset 特例（选中描边一类）不参与，避免高亮描边跟着变亮。
+  const isWarmCleanWall =
+    !!studioPalette().warmWood && wallSideMaterialOptions.polygonOffset !== true;
   // 工作室预览不走舞台那套正面专用墙面 shader：半透明挤出体若用 DoubleSide +
   // transmission，会从近侧表面透出背面与转角重叠，接缝看起来像被撕碎。
   // 这里对齐舞台的做法 —— 只画正面、开启深度写入、关闭 transmission。
@@ -25977,12 +26051,13 @@ function makeWallSideMaterial(sideColor, sideOpacity, wallSideMaterialOptions = 
       polygonOffsetUnits: wallSideMaterialOptions.polygonOffsetUnits ?? -4,
       side: threeModuleMin.FrontSide,
       emissive: wallSideMaterialOptions.emissive ?? sideColor,
-      emissiveIntensity: wallSideMaterialOptions.emissiveIntensity ?? 0.025
+      emissiveIntensity: wallSideMaterialOptions.emissiveIntensity ?? (isWarmCleanWall ? 0.32 : 0.025)
     },
     wallSideMaterialOptions.polygonOffset !== true,
     isRegionLightingEnabled && typeof window !== "undefined"
       ? (new URLSearchParams(window.location.search).get("wall-trial") ?? WALL_RUNTIME_PROFILE)
-      : "single,depth"
+      : "single,depth",
+    isWarmCleanWall
   );
   createdWallSideMaterial.userData.alphaWallBand = isAlphaBand;
   return createdWallSideMaterial;
@@ -26016,6 +26091,7 @@ function createInvisibleWallMaterial() {
  * @returns {object} MeshStandardMaterial。
  */
 function createWallTopMaterial(topBaseColor, topOpacity, topMaterialOptions = {}) {
+  const isWarmWood = !!studioPalette().warmWood;
   const isTopOpaque = topOpacity >= 0.999;
   const topColor = new threeModuleMin.Color(topMaterialOptions.topColor ?? topBaseColor);
   if (isWallShaderTrialEnabled() && topMaterialOptions.polygonOffset !== true) {
@@ -26038,9 +26114,13 @@ function createWallTopMaterial(topBaseColor, topOpacity, topMaterialOptions = {}
     // 这样从常用的俯视机位看，顶面条带依然可见。
     side: threeModuleMin.DoubleSide,
     emissive: topMaterialOptions.emissive ?? topMaterialOptions.topColor ?? topBaseColor,
+    // 暖阳原木且未走 polygonOffset 特例时，顶面条带自发光抬到 0.18：
+    // 暖色背景下墙顶线本来就浅，不加一点自发光会从天花板上「消失」。
     emissiveIntensity: topMaterialOptions.emissiveIntensity
       ? topMaterialOptions.emissiveIntensity * 0.3
-      : 0.08
+      : isWarmWood && topMaterialOptions.polygonOffset !== true
+        ? 0.18
+        : 0.08
   });
 }
 /**
@@ -26738,10 +26818,12 @@ function buildArchitectureLayer({
   const seenVolumeKeys = new Set();
   const joinExtensionsByWallId = wallJoinExtensionsForWalls(architecturePixelsPerMeter);
   for (const loopedWall of activeScene.walls) {
+    // 墙体透明度覆盖（舞台下发）优先于户型 / 单墙设置；null 表示不覆盖。
     const wallOpacity =
-      loopedWall.opacity === null || loopedWall.opacity === undefined
+      wallOpacityOverride ??
+      (loopedWall.opacity === null || loopedWall.opacity === undefined
         ? activeScene.settings.wallOpacity
-        : clamp(finite(loopedWall.opacity, activeScene.settings.wallOpacity), 0, 1);
+        : clamp(finite(loopedWall.opacity, activeScene.settings.wallOpacity), 0, 1));
     for (const loopedSolidPiece of wallSolidPieces(
       loopedWall,
       wallOpenings,
@@ -26829,7 +26911,10 @@ function buildArchitectureLayer({
         .filter(topVolume => Math.abs(topVolume.top - bandTopY) <= 0.000001)
         .map(topVolumeEntry => topVolumeEntry.footprint);
       addPlanBandMesh(topBandFootprints, bandTopY, architecturePalette.wall, opacityGroup.opacity, {
-        topColor: architecturePalette.wall
+        // 暖阳原木：墙顶压条换成更浅的墙顶色，与提亮后的墙面拉开层次。
+        topColor: architecturePalette.warmWood
+          ? architecturePalette.wallTop
+          : architecturePalette.wall
       });
     }
     const selectedBandFootprints = bandVolumes
@@ -27053,11 +27138,17 @@ function buildArchitectureLayer({
         ? architecturePalette.accent
         : architecturePalette.frame;
       const doorFrameThickness = 0.065;
+      // 暖阳原木：给实心门扇与卷帘补一层暖色自发光（doorLeaf），让木面在低照度下
+      // 仍有可见亮部；玻璃门不加 —— 自发光会把玻璃糊成一片。
+      const warmDoorLeafOptions = architecturePalette.warmWood
+        ? { emissive: architecturePalette.doorLeaf, emissiveIntensity: 0.4 }
+        : {};
       const doorFrameOptions = {
         rounded: false,
         metalness: 0.08,
         castShadow: false,
-        receiveShadow: false
+        receiveShadow: false,
+        ...(hostDoorType === "solid" || hostDoorType === "frame-only" ? warmDoorLeafOptions : {})
       };
       const doorFrameBands = [
         [doorFrameThickness, doorHeight, 0.09, -doorWidth / 2, doorHeight / 2, 0],
@@ -27143,8 +27234,9 @@ function buildArchitectureLayer({
           [[panelOnlyWidth, panelOnlyHeight, 0.045, 0, panelOnlyHeight * 0.5, panelSwing * 0.04]],
           isHostDoorSelected ? architecturePalette.accent : architecturePalette.furnitureSoft,
           {
+            ...warmDoorLeafOptions,
             rounded: false,
-            metalness: 0.36,
+            metalness: architecturePalette.warmWood ? 0.08 : 0.36,
             roughness: 0.42,
             castShadow: false,
             receiveShadow: false
@@ -27158,8 +27250,9 @@ function buildArchitectureLayer({
           shutterSlats.push([panelOnlyWidth * 0.98, 0.012, 0.052, 0, slatY, panelSwing * 0.052]);
         }
         addWallBandMesh(doorGroup, shutterSlats, architecturePalette.furnitureDark, {
+          ...warmDoorLeafOptions,
           rounded: false,
-          metalness: 0.42,
+          metalness: architecturePalette.warmWood ? 0.08 : 0.42,
           roughness: 0.34,
           castShadow: false,
           receiveShadow: false
@@ -27441,6 +27534,9 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
     emissive: scenePalette.floor,
     emissiveIntensity: 0.025
   });
+  // 暖阳原木：往地面材质里注入「浅色橡木地板 + 板缝 + 木纹」的着色器补丁，
+  // 非暖色主题下函数内部会直接返回，材质保持原样。
+  decorateWarmFloor(floorMaterial, scenePalette);
   const floorPolygons = floorPolygonsForWalls(scenePixelsPerMeter);
   const floorOpeningItems = activeScene.items
     .filter(candidateItem => candidateItem.type === "flooropening")
@@ -29828,7 +29924,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/stage.js?v=20260916235816");
+        await import("/api/v1/modules/interaction3d/stage.js?v=20260917022019");
       mountStage(createStageController());
       return;
     }
@@ -32607,17 +32703,19 @@ function createStageController() {
    * 把亮度百分比换算成渲染响应值：区域光下线性，灯带做幂次压缩，其余按灯具类型的响应曲线。
    *
    * @param {object} brightnessLightItem 灯光条目（用 type 区分响应曲线）。
-   * @param {number} brightnessPercent 亮度百分比（0-100）。
-   * @returns {number} 0-1 的响应系数。
+   * @param {number} brightnessPercent 亮度百分比（0-150，舞台查看器可达 150）。
+   * @returns {number} 0-1.5 的响应系数。
    */
   function lightBrightnessResponse(brightnessLightItem, brightnessPercent) {
-    const brightnessFraction = clamp(finite(brightnessPercent, 0), 0, 100) / 100;
+    const brightnessFraction = clamp(finite(brightnessPercent, 0), 0, 150) / 100;
     if (isRegionLightingEnabled) {
       return brightnessFraction;
     } else if (brightnessLightItem.type === "striplight") {
       return Math.pow(brightnessFraction, 0.82);
     } else {
-      return spotLightBrightnessResponse(brightnessLightItem.type, brightnessFraction);
+      // 与 spotBaseIntensity 同理：>100% 的部分要靠这个因子才真正提亮。
+      return spotLightBrightnessResponse(brightnessLightItem.type, brightnessFraction) *
+        Math.max(1, brightnessFraction);
     }
   }
   /**
@@ -33240,7 +33338,10 @@ function createStageController() {
             lightChangeState.fadeDuration,
             {
               ...lightStateOptions,
-              immediate: isImmediateLightTransition
+              immediate: isImmediateLightTransition,
+              // 同一次变化里色温也变了：预览需要更长的过渡，否则冷暖跳变会显得生硬。
+              temperatureChanged:
+                lightChangeState.previousKelvin !== lightChangeState.item.lightTemperature
             }
           );
           const createdLightTransition = createLightTransition(
@@ -34861,10 +34962,34 @@ function createStageController() {
       lastRequestedFloorGap = clampedFloorGapOrNull;
     },
     appearance(appearanceOptions) {
+      // 材质风格与墙体透明度会整体换掉墙面 / 地板 / 门窗 / 灯光的着色方式，
+      // 只标一句「需要重画」不够 —— 必须真正重建一次场景材质，否则旧主题的
+      // 自发光与颜色会留在网格上。相机位姿在重建前后成对保存 / 恢复。
+      const nextSceneStyle =
+        appearanceOptions.sceneStyle === "warm-wood" ? "warm-wood" : "default";
+      const nextWallOpacityOverride =
+        typeof appearanceOptions.wallOpacity == "number" &&
+        Number.isFinite(appearanceOptions.wallOpacity)
+          ? clamp(appearanceOptions.wallOpacity, 0, 1)
+          : null;
+      if (
+        nextSceneStyle !== studioSceneStyle ||
+        nextWallOpacityOverride !== wallOpacityOverride
+      ) {
+        this.finishFloorTransition();
+        releaseFloorCache();
+        const poseBeforeStyleChange = this.cameraState();
+        studioSceneStyle = nextSceneStyle;
+        wallOpacityOverride = nextWallOpacityOverride;
+        rebuildPreviewScene();
+        this.restoreCamera(poseBeforeStyleChange);
+      }
       const nextAppearanceSignature = JSON.stringify([
         appearanceOptions.baseLighting,
         appearanceOptions.lightingMode,
-        appearanceOptions.lightRegionOverrides
+        appearanceOptions.lightRegionOverrides,
+        nextSceneStyle,
+        nextWallOpacityOverride
       ]);
       if (nextAppearanceSignature !== appearanceSignature) {
         releaseFloorCache();

@@ -30,7 +30,7 @@ from store.licensing import keys
 #: 请求会在解密阶段直接失败、没有降级路径。
 #:
 #: 品牌改名时这里从 ``ha-bridge-license-transport-v1`` 改成了
-#: ``homeos-license-transport-v1``，属于**故意的破坏性变更**（0.5.5）：
+#: ``homeos-license-transport-v1``，属于**故意的破坏性变更**（0.5.6）：
 #: 服务端只认新标识，老客户端必须先升级再连。发布时必须同步提升 VERSION
 #: 并在版本说明里写清升级顺序（先升客户端，再升服务端）。
 PROTOCOL = b"homeos-license-transport-v1"

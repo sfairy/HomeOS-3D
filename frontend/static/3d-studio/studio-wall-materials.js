@@ -20,14 +20,21 @@
  * @param {boolean} [enhance] 是否启用墙体增强（渐变、背面剔除等），默认启用。
  * @param {string} [wallFeatures] 逗号分隔的特性串：shader 换成专用着色器、
  *   single 强制单遍渲染、depth 强制写深度。
+ * @param {boolean} [isWarmWood=false] 是否走暖阳原木配色：墙面更亮、几乎不压暗墙脚。
  * @returns {object} 墙体材质。
  */
-export function createWallSideMaterial(THREE, materialParams, enhance = true, wallFeatures = "") {
+export function createWallSideMaterial(
+  THREE,
+  materialParams,
+  enhance = true,
+  wallFeatures = "",
+  isWarmWood = false
+) {
   // 特性串用 Set 查询：下面每个特性都要判断一次，线性查找会随特性数退化。
   const featureSet = new Set(wallFeatures.split(","));
   const material =
     enhance && featureSet.has("shader")
-      ? createDedicatedWallMaterial(THREE, materialParams)
+      ? createDedicatedWallMaterial(THREE, materialParams, isWarmWood)
       : new THREE.MeshPhysicalMaterial(materialParams);
   // 强制单遍渲染：three.js 对半透明双面材质默认会渲染两遍（正、背面各一次），
   // 墙面色块重叠时会出现颜色加倍，这里显式关掉。
@@ -57,11 +64,20 @@ export function createWallSideMaterial(THREE, materialParams, enhance = true, wa
       );
       shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
         "#include <opaque_fragment>",
-        "\n      float wallHeightBlend = smoothstep(0.0, 0.65, vHbWallHeight);\n      outgoingLight *= mix(0.70, 1.0, wallHeightBlend);\n      diffuseColor.a += diffuseColor.a * (1.0 - diffuseColor.a) * 0.65 * (1.0 - wallHeightBlend);\n      #include <opaque_fragment>"
+        // 暖阳下墙面提亮到几乎不压暗（0.92），且完全不做透明度补偿 ——
+        // 墙脚被压暗会让浅色木调显得脏；默认主题沿用 0.70 与 0.65 的补偿。
+        "\n      float wallHeightBlend = smoothstep(0.0, 0.65, vHbWallHeight);\n      outgoingLight *= mix(" +
+          (isWarmWood ? "0.92" : "0.70") +
+          ", 1.0, wallHeightBlend);\n      diffuseColor.a += diffuseColor.a * (1.0 - diffuseColor.a) * " +
+          (isWarmWood ? "0.0" : "0.65") +
+          " * (1.0 - wallHeightBlend);\n      #include <opaque_fragment>"
       );
     };
     // 着色器源码一变就要换缓存键，否则升级后浏览器仍会复用旧编译结果。
-    material.customProgramCacheKey = () => "hb-wall-height-gradient-v4-frontface";
+    // 两个键都带 -frontface：本仓库的注入比上游多一句正面剔除（见上面的修复）；
+    // 暖色分支因此不能直接沿用上游的 hb-wall-warm-clean-v1，否则含义对不上源码。
+    material.customProgramCacheKey = () =>
+      isWarmWood ? "hb-wall-warm-clean-v1-frontface" : "hb-wall-height-gradient-v4-frontface";
   }
   return material;
 }
@@ -74,9 +90,10 @@ export function createWallSideMaterial(THREE, materialParams, enhance = true, wa
  *
  * @param {object} three three.js 模块命名空间。
  * @param {object} wallParams 墙体参数：color、opacity、transparent、depthWrite、depthFunc。
+ * @param {boolean} [isWarmWood=false] 是否走暖阳原木配色（提亮、减弱墙脚与墙角压暗）。
  * @returns {object} 专用墙体材质。
  */
-function createDedicatedWallMaterial(three, wallParams) {
+function createDedicatedWallMaterial(three, wallParams, isWarmWood = false) {
   // 顶点侧只需要透传墙高与角距，法线在世界空间里算好传给片元；
   // 片元侧按「天光 + key 光 + 墙脚/墙角压暗」组合出墙面亮度。
   const shaderMaterial = new three.ShaderMaterial({
@@ -91,7 +108,18 @@ function createDedicatedWallMaterial(three, wallParams) {
     vertexShader:
       "\n      attribute float hbWallHeight;\n      attribute vec2 hbWallCornerDistance;\n      varying float vHbWallHeight;\n      varying vec2 vHbWallCornerDistance;\n      varying vec3 vHbNormal;\n      #include <common>\n      #include <clipping_planes_pars_vertex>\n      void main() {\n        vHbWallHeight = hbWallHeight;\n        vHbWallCornerDistance = hbWallCornerDistance;\n        vHbNormal = normalize(normalMatrix * normal);\n        #include <begin_vertex>\n        #include <project_vertex>\n        #include <clipping_planes_vertex>\n      }",
     fragmentShader:
-      "\n      uniform vec3 diffuse;\n      uniform float opacity;\n      uniform mat4 plan2ViewToWorld;\n      varying float vHbWallHeight;\n      varying vec2 vHbWallCornerDistance;\n      varying vec3 vHbNormal;\n      #include <common>\n      #include <clipping_planes_pars_fragment>\n      void main() {\n        #include <clipping_planes_fragment>\n        // These are closed wall volumes. Their opposite surface would show\n        // its displaced bottom edge through the nearer translucent surface.\n        // Keep the camera-facing surface from either side of the wall.\n        if (!gl_FrontFacing) discard;\n        vec3 normal = normalize(vHbNormal) * (gl_FrontFacing ? 1.0 : -1.0);\n        vec3 worldNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n        float up = worldNormal.y * 0.5 + 0.5;\n        float key = max(dot(worldNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n        vec3 outgoingLight = diffuse * mix(vec3(0.82, 0.85, 0.91), vec3(1.0), up) * (0.30 + 0.40 * up + 0.18 * key);\n        outgoingLight += mix(diffuse, sqrt(max(diffuse, vec3(0.0))), 0.6) * plan2SurfaceLight(vPlan2WorldPosition) * plan2Gain;\n        // Height changes colour only. Changing coverage as well accentuates\n        // the draw-order boundaries between translucent door/window bands.\n        float wallRootShade = 1.0 - smoothstep(0.0, 0.55, vHbWallHeight);\n        // Retain the wall/light hue with a gentler neutral root tint.\n        outgoingLight *= 1.0 - 0.54 * wallRootShade;\n        float cornerDistance = min(vHbWallCornerDistance.x, vHbWallCornerDistance.y);\n        float cornerShade = 1.0 - smoothstep(0.0, 0.24, cornerDistance);\n        outgoingLight *= 1.0 - 0.28 * cornerShade;\n        gl_FragColor = vec4(outgoingLight, opacity);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
+      "\n      uniform vec3 diffuse;\n      uniform float opacity;\n      uniform mat4 plan2ViewToWorld;\n      varying float vHbWallHeight;\n      varying vec2 vHbWallCornerDistance;\n      varying vec3 vHbNormal;\n      #include <common>\n      #include <clipping_planes_pars_fragment>\n      void main() {\n        #include <clipping_planes_fragment>\n        // These are closed wall volumes. Their opposite surface would show\n        // its displaced bottom edge through the nearer translucent surface.\n        // Keep the camera-facing surface from either side of the wall.\n        if (!gl_FrontFacing) discard;\n        vec3 normal = normalize(vHbNormal) * (gl_FrontFacing ? 1.0 : -1.0);\n        vec3 worldNormal = normalize(mat3(plan2MotionToLayout) * mat3(plan2ViewToWorld) * normal);\n        float up = worldNormal.y * 0.5 + 0.5;\n        float key = max(dot(worldNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n        vec3 outgoingLight = diffuse * " +
+      // 暖阳下墙面整体提亮：天光基色更接近白、权重更高，key 光只留一点方向感。
+      (isWarmWood
+        ? "mix(vec3(0.98, 0.98, 0.97), vec3(1.0), up) * (0.66 + 0.16 * up + 0.10 * key)"
+        : "mix(vec3(0.82, 0.85, 0.91), vec3(1.0), up) * (0.30 + 0.40 * up + 0.18 * key)") +
+      ";\n        outgoingLight += mix(diffuse, sqrt(max(diffuse, vec3(0.0))), 0.6) * plan2SurfaceLight(vPlan2WorldPosition) * plan2Gain;\n        // Height changes colour only. Changing coverage as well accentuates\n        // the draw-order boundaries between translucent door/window bands.\n        float wallRootShade = 1.0 - smoothstep(0.0, 0.55, vHbWallHeight);\n        // Retain the wall/light hue with a gentler neutral root tint.\n        outgoingLight *= 1.0 - " +
+      // 暖阳下墙脚几乎不压暗（0.14 对 0.54），否则浅色墙面底部会拖出一条灰带。
+      (isWarmWood ? "0.14" : "0.54") +
+      " * wallRootShade;\n        float cornerDistance = min(vHbWallCornerDistance.x, vHbWallCornerDistance.y);\n        float cornerShade = 1.0 - smoothstep(0.0, 0.24, cornerDistance);\n        outgoingLight *= 1.0 - " +
+      // 墙角同理：0.08 只保留一点转折暗示。
+      (isWarmWood ? "0.08" : "0.28") +
+      " * cornerShade;\n        gl_FragColor = vec4(outgoingLight, opacity);\n        #include <tonemapping_fragment>\n        #include <colorspace_fragment>\n      }",
     transparent: wallParams.transparent,
     depthWrite: wallParams.depthWrite ?? true,
     depthFunc: wallParams.depthFunc ?? three.LessEqualDepth,
@@ -107,7 +135,9 @@ function createDedicatedWallMaterial(three, wallParams) {
   // 两个分量都远大于生效区间，等价于「离所有墙角都很远」，不产生墙角阴影。
   shaderMaterial.defaultAttributeValues.hbWallCornerDistance = [100, 100];
   // 固定缓存键：专用墙体着色器源码唯一，所有墙面共用一份已编译的程序。
-  shaderMaterial.customProgramCacheKey = () => "hb-dedicated-wall-front-corner-balanced-v9";
+  // 暖色分支的源码与默认分支不同（见上面的条件拼接），必须各用各的键。
+  shaderMaterial.customProgramCacheKey = () =>
+    isWarmWood ? "hb-dedicated-wall-warm-clean-v1" : "hb-dedicated-wall-front-corner-balanced-v9";
   return shaderMaterial;
 }
 /**

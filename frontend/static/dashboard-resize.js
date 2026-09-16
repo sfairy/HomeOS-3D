@@ -41,8 +41,13 @@ function scaleComponentSubtree(
     originalHeight = positiveNumberOrDefault(position.height, 100),
     originalX = Number.isFinite(Number(position.x)) ? Number(position.x) : 0,
     originalY = Number.isFinite(Number(position.y)) ? Number(position.y) : 0,
-    scaledWidth = originalWidth * contentScaleFactor,
-    scaledHeight = originalHeight * contentScaleFactor;
+    // 3D 控件的外框按画布比例伸缩，其余组件按统一的内容缩放因子：
+    // 3D 的内部画布是铺满自身外框渲染的，若用等比因子，外框与内部渲染口径不一致，
+    // 就会出现黑边或内容被裁切。
+    scaledWidth =
+      originalWidth * (componentNode.type === "interaction3d" ? horizontalScale : contentScaleFactor),
+    scaledHeight =
+      originalHeight * (componentNode.type === "interaction3d" ? verticalScale : contentScaleFactor);
   // 定位规则：顶层组件按中心点对齐缩放，避免靠近边界的组件被挤出画布；
   // 子组件只随父级等比缩放，保持相对父容器的位置。
   if (
@@ -98,6 +103,14 @@ function flattenComponents(dashboardDocument) {
 
 // 只检查顶层组件的包围盒是否越出画布，嵌套子组件不单独判定。
 function isComponentOutsideCanvas(targetComponent, canvasWidth, limitHeight) {
+  // fill 模式的 3D 控件在布局上就是铺满画布的，尺寸跟着画布走，
+  // 永远不会越界；按记录尺寸判定反而会在改比例后误报。
+  if (
+    targetComponent?.type === "interaction3d" &&
+    targetComponent.properties?.layoutMode === "fill"
+  ) {
+    return !1;
+  }
   const componentPosition = targetComponent?.position || {},
     positionX = Number(componentPosition.x),
     positionY = Number(componentPosition.y),
@@ -170,7 +183,19 @@ export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeigh
   // 尺寸没变就直接返回副本，省掉一次全树遍历。
   if (widthPx === baseWidth && heightPx === baseHeight) return resizedDocument;
   // lockContent：只改画布大小，组件保持原样，常用于「扩展画布再手动排版」。
-  if (options.lockContent)
+  // 3D 控件是唯一例外：它的外框必须跟着画布比例走，否则 fill 模式下的
+  // 渲染尺寸会与画布对不上，缩放时出现内容拉伸或黑边。
+  if (options.lockContent) {
+    for (const flatComponent of flattenComponents(resizedDocument)) {
+      if (flatComponent.type === "interaction3d") {
+        scaleComponentSubtree(
+          flatComponent,
+          widthPx / baseWidth,
+          heightPx / baseHeight,
+          1
+        );
+      }
+    }
     return (
       (resizedDocument.canvas = {
         ...(resizedDocument.canvas || {}),
@@ -182,6 +207,7 @@ export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeigh
       }),
       resizedDocument
     );
+  }
   // scaleDelta 是增量比例 = 本次内容缩放 / 上次内容缩放，用于累乘到组件自身的缩放属性上。
   const scaleRatioX = widthPx / baseWidth,
     scaleRatioY = heightPx / baseHeight,

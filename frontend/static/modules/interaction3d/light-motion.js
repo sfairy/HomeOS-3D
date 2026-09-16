@@ -59,12 +59,12 @@ export function mapLightEffectState(lightEntry) {
   // 实体没上报亮度就保持 undefined：兜底是上层的职责，这里不擅自编造数值。
   if (Number.isFinite(mappedState.brightness)) {
     const brightnessPercent = clamp(mappedState.brightness, 0, 100);
-    // 效果区间默认 1~100，绝对范围 0~100。
+    // 效果区间默认 1~100；绝对范围是 0~150 —— 组件允许把亮度效果预设到 150%。
     const [brightnessMin, brightnessMax] = normalizeRange(
       effectRange?.brightnessMin,
       effectRange?.brightnessMax,
       [1, 100],
-      [0, 100]
+      [0, 150]
     );
     // 0 必须保持 0（关灯语义）；其余把 1~100 的百分比线性铺到效果区间上，
     // 除以 99 是因为有效端点是 1 和 100。
@@ -106,7 +106,8 @@ export function mapLightEffectState(lightEntry) {
     lightEntry?.brightnessSupported === false &&
     Number.isFinite(lightEntry.effectDefaults?.brightness)
   ) {
-    mappedState.brightness = clamp(lightEntry.effectDefaults.brightness, 0, 100);
+    // 效果默认值同样按 150% 上限取值：与编辑器的输入上限保持一致。
+    mappedState.brightness = clamp(lightEntry.effectDefaults.brightness, 0, 150);
   }
   // 同理：不支持色温的灯用效果默认色温兜底，避免显示成 0K 的极端冷色。
   if (
@@ -160,6 +161,7 @@ export function lightEffectColorHex(kelvin) {
  * @param {object} [options] 附加选项。
  * @param {boolean} [options.immediate] 为真时立即生效（例如首次挂载对齐状态）。
  * @param {boolean} [options.preview] 为真时使用更短的预览时长。
+ * @param {boolean} [options.temperatureChanged] 预览时色温是否也变了；色温要更慢地过渡。
  * @returns {number} 过渡时长（毫秒）。
  */
 export function lightTransitionDurationMs(wasOn, isOn, fadeDurationSeconds, options = {}) {
@@ -169,8 +171,9 @@ export function lightTransitionDurationMs(wasOn, isOn, fadeDurationSeconds, opti
   } else if (wasOn !== isOn) {
     return clamp(finiteOr(fadeDurationSeconds, 0.3), 0, 10) * 1000;
   } else if (options.preview) {
-    // 预览面板里的开关要「跟手」，90ms 是能看出过渡又不觉得迟钝的下限。
-    return 90;
+    // 预览面板里的开关要「跟手」，90ms 是能看出过渡又不觉得迟钝的下限；
+    // 但同一次预览里色温也变了的话，90ms 会让冷暖跳变显得生硬，放宽到 180ms。
+    return options.temperatureChanged ? 180 : 90;
   } else {
     // 调节亮度 / 色温：220ms 让拖动滑块时的光影变化连续，同时不至于滞后于手指。
     return 220;

@@ -1,10 +1,10 @@
 # HomeOS
 
-面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.5.5**（见 `VERSION`）。
+面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.5.6**（见 `VERSION`）。
 
 提供可视化编辑器、3D 户型工作室、全屏展示页和中控配对；后端是 FastAPI，前端是原生 HTML / CSS / JavaScript，数据默认落在本机 SQLite。
 
-本仓库是可本地运行的源码树。**授权校验始终开启**，激活走仓库自带的自建授权商店与授权服务器（`store/`），不连接任何外部厂商节点。
+本仓库是可本地运行的源码树，也可用 Docker Compose 双容器自托管（主应用 + 授权商店）。**授权校验始终开启**，激活走仓库自带的自建授权商店与授权服务器（`store/`），不连接任何外部厂商节点。
 
 ## 功能
 
@@ -21,13 +21,15 @@
 
 ## 组件
 
-仓库根目录下同时运行两个服务，二者共享 `.venv-store` 虚拟环境：
+仓库根目录下同时运行两个服务。本地开发共用 `.venv-store`；生产可用 Docker Compose 各跑一个容器：
 
 ```text
 HomeOS/
 ├── backend + frontend        主应用         http://127.0.0.1:18081
 └── store/                    授权商店与授权服务器  http://127.0.0.1:18082
 ```
+
+自托管镜像见下方 [Docker](#docker)；一步检查清单见 [deploy/PRODUCTION.md](deploy/PRODUCTION.md)。
 
 ### 主应用
 
@@ -37,8 +39,8 @@ HomeOS/
 
 一个独立的 FastAPI 应用，在 **18082** 端口同时提供三件事：
 
-1. **授权商店**：页面与 `/store/v1/*` API 对齐 `https://pay.habridge.cn/`（账号、商品、订单、优惠码、邀请、账号中心），视觉为本项目自研的暗色 + 琥珀主题。2. **授权服务器**：`/v2/activate`、`/v2/heartbeat`、`/v2/recover`，签发 Ed25519 租约并使用 X25519 加密传输。
-3. **运营后台**：`/admin` + `/store-admin/v1/*`（参考站没有公开管理台，为本项目自建）。
+1. **授权商店**：页面与 `/store/v1/`* API 对齐 `https://pay.habridge.cn/`（账号、商品、订单、优惠码、邀请、账号中心），视觉为本项目自研的暗色 + 琥珀主题。2. **授权服务器**：`/v2/activate`、`/v2/heartbeat`、`/v2/recover`，签发 Ed25519 租约并使用 X25519 加密传输。
+3. **运营后台**：`/admin` + `/store-admin/v1/`*（参考站没有公开管理台，为本项目自建）。
 
 商店与授权服务器共用同一个 SQLite 库 —— 这正是「支付后自动发码并可立即激活」的原因。支付渠道**默认不配置**（未配置渠道时商店拒绝建单，属刻意的 fail-closed；模拟收银台需 `STORE_PAYMENT_PROVIDER=mock` 加 `STORE_ALLOW_MOCK_PAYMENTS=1` 同时显式打开），正式收款请切换为支付宝当面付。完整说明见 [store/README.md](store/README.md)。
 
@@ -60,7 +62,6 @@ HomeOS/
 │   └── main.py
 ├── frontend/               # 页面与静态资源
 │   ├── *.html              # index / display / license / login / pair / setup / 3d-studio
-│   ├── NAMING.md           # 前端标识符命名规范
 │   ├── modules/            # 3D 交互舞台与配置编辑器（经 /api/v1/modules/interaction3d 下发）
 │   └── static/             # 挂载为 /static
 │       ├── *.js / *.css    # 入口脚本与样式（扁平目录）
@@ -88,8 +89,14 @@ HomeOS/
 ├── migrations/             # Alembic 单条基线迁移 0001
 ├── image/                  # 可选的自定义内置素材目录（默认空）
 ├── tools/                  # bump_static_cache_versions.mjs（静态资源 ?v=）
+├── docker/                 # 容器启动（start_app / start_store）与构建期保护（strip py / obfuscate js）
+├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
-├── .env.example            # 本地密钥与配置模板（复制为 .env）
+├── .env.example            # 环境变量模板（复制为 .env；A 区为部署常改项）
+├── Dockerfile              # 多目标：app（主应用）与 store（商店）
+├── docker-compose.yml      # 双容器自托管（默认拉 GHCR）
+├── docker-compose.build.yml # 本地构建覆盖
+├── docker-compose.smoke.yml # CI / 本地冒烟覆盖
 └── alembic.ini  VERSION  start.py  container_entrypoint.py
 ```
 
@@ -114,6 +121,8 @@ HomeOS/
 ```bash
 python3 start.py
 ```
+
+生产或容器部署请改走 [Docker](#docker)，不必用 `start.py`。
 
 `start.py` 会：
 
@@ -159,7 +168,7 @@ APP_DATA_DIR=./data PYTHONPATH=backend/app alembic upgrade head
 管理员」这件事管住，否则**任何能连上这台机器的人都能抢先把管理员建掉**（并当场拿到
 会话），随后就能写 Home Assistant 连接、配对中控、导出日志。当前规则：
 
-- **本机直连放行**：TCP 对端是 `127.0.0.1` / `::1`，且请求不带任何转发头（`X-Forwarded-*`、
+- **本机直连放行**：TCP 对端是 `127.0.0.1` / `::1`，且请求不带任何转发头（`X-Forwarded-`*、
   `Forwarded`）。带转发头说明前面还有代理，对端地址不再代表真实来源，此时不再按本机放行。
 - **其它来源必须带引导密钥**：`APP_SETUP_TOKEN` 的值，或者首次启动时自动生成的那一串。
   生成的密钥写在 `$APP_DATA_DIR/setup-token`（权限 `0600`），并打印到启动日志/容器日志：
@@ -459,100 +468,161 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 
 ## 环境变量
 
-主应用与商店的变量可以统一写进仓库根目录的 `.env`：把模板 [.env.example](.env.example) 复制成 `.env` 再按需取消注释（`.env` 已被 gitignore）。优先级：**真实环境变量 > `.env` > 代码 / `start.py` 默认值**。
+主应用与商店的变量统一写进仓库根目录的 `.env`：把 [.env.example](.env.example) 复制成 `.env` 再按需取消注释（`.env` 已被 gitignore）。优先级：**真实环境变量 > `.env` > 代码 / `start.py` 默认值**。
 
-### 主应用
+模板按用途分区，**多数部署只需改 A 区**：
+
+| 区 | 内容 |
+| --- | --- |
+| **A. 部署常改** | 公网域名、可信反代、Cookie Secure、模拟支付总闸、首次 `STORE_ADMIN_`* |
+| **B. 主应用** | 数据目录、会话 / 中控寿命、HA / 授权超时与密钥路径（默认即可） |
+| **C. 商店基础设施** | 监听、数据目录、租约 TTL、巡检间隔等（后台改不了的项） |
+| **D. 本地 seed** | 非 Docker 时手工 `python -m store.tools.seed` 用的管理员凭据 |
+
+站点名、公告、客服、维护、邀请提现、解绑冷却、验证码 TTL、**邮件 / SMTP、支付渠道、支付宝商户与回调**等请到商店 `/admin`「站点配置」改（**保存即生效、免重启**）。`.env.example` 故意不再罗列这些项，避免和生产后台双源配置打架。
+
+### 部署常改（A 区）
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `APP_DATA_DIR` | `<仓库>/data` | 运行时数据目录 |
-| `APP_BASE_URL` | 空 | 对外访问根地址；反代时建议设置，供 WebSocket 校验 Origin |
+| `APP_BASE_URL` | 空 | 主应用对外根地址；反代时建议设置，供 WebSocket 校验 Origin |
+| `APP_LICENSE_SERVER_URL` | 本地 `http://127.0.0.1:18082`；Compose 默认 `http://homeos-3d-store:18082` | 授权服务器地址；同 Compose 网络通常不用改 |
+| `APP_TRUSTED_PROXIES` | 空 | 可信反向代理 IP / CIDR（逗号分隔）；留空则不信任任何转发头 |
+| `APP_COOKIE_SECURE` | `false` | 强制会话 Cookie 加 `Secure`；不设时按请求自动判定 https |
+| `STORE_BASE_URL` | 由请求推导 | 商店对外基址（支付二维码 / 回调链接） |
+| `STORE_TRUSTED_PROXIES` | 空 | 商店侧可信反代，语义同主应用 |
+| `STORE_COOKIE_SECURE` | `false` | 商店会话 Cookie 的强制 `Secure` |
+| `STORE_ALLOW_MOCK_PAYMENTS` | `false` | 模拟收银台总闸；**仅本地联调**，生产保持关闭 |
+| `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` | 空（容器内不设则跳过 seed） | 商店首次启动幂等 seed；成功后建议从运行环境删掉密码 |
+
+Compose 还可选：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`（覆盖镜像名）、`APP_PUBLISH_PORT` / `STORE_PUBLISH_PORT`（宿主机映射，默认 18081 / 18082）。
+
+### 主应用常用（B 区摘要）
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `APP_DATA_DIR` | `<仓库>/data`（容器 `/data`） | 运行时数据目录 |
 | `APP_PORT` | `18081` | 容器监听端口 |
 | `APP_SESSION_MAX_AGE_SECONDS` | `28800` | 登录会话滑动时长（8 小时） |
-| `APP_SESSION_HARD_MAX_AGE_SECONDS` | `2592000` | 会话绝对寿命（30 天），滑动续期也突破不了 |
-| `APP_COOKIE_SECURE` | `false` | 强制给会话 Cookie 加 `Secure`；不设置时按请求自动判定 https |
-| `APP_TRUSTED_PROXIES` | 空 | 可信反向代理 IP / CIDR（逗号分隔）；留空则不信任任何转发头，限流与审计按 TCP 对端统计 |
-| `APP_SETUP_TOKEN` | 空 | 首次初始化的引导密钥；留空则首次启动自动生成（见「首次设置窗口」） |
-| `APP_DISPLAY_COOKIE_MAX_AGE_SECONDS` | `15552000` | 中控设备 Cookie 的浏览器侧有效期（180 天） |
-| `APP_DISPLAY_TOKEN_TTL_SECONDS` | `15552000` | 中控令牌的服务端滑动有效期（180 天，活跃即续期） |
-| `APP_DISPLAY_TOKEN_HARD_TTL_SECONDS` | `0` | 中控令牌硬上限；`0` 表示不设 |
+| `APP_SESSION_HARD_MAX_AGE_SECONDS` | `2592000` | 会话绝对寿命（30 天） |
+| `APP_SETUP_TOKEN` | 空 | 首次引导密钥；留空则首次启动自动生成（见「首次设置窗口」） |
+| `APP_DISPLAY_COOKIE_MAX_AGE_SECONDS` | `15552000` | 中控 Cookie 浏览器侧有效期（180 天） |
+| `APP_DISPLAY_TOKEN_TTL_SECONDS` | `15552000` | 中控令牌滑动有效期（活跃即续期） |
+| `APP_DISPLAY_TOKEN_HARD_TTL_SECONDS` | `0` | 中控令牌硬上限；`0` = 不设 |
 | `APP_UPDATE_CHANNEL` | `docker` | 更新检查渠道 |
-| `APP_HA_REQUEST_TIMEOUT_SECONDS` | `10` | 调用 HA 的超时 |
-| `APP_HA_RECONCILE_INTERVAL_SECONDS` | `1800` | HA 全量对账间隔 |
-| `APP_HA_WEBSOCKET_MAX_SIZE_BYTES` | `67108864` | HA WebSocket 最大消息 |
-| `APP_LICENSE_SERVER_URL` | `http://127.0.0.1:18082` | 授权服务器地址 |
-| `APP_LICENSE_SERVER_BATCHES` | 单条 `direct` | 多批次授权服务器覆盖项 |
-| `APP_LICENSE_REQUEST_TIMEOUT_SECONDS` | `10` | 授权请求超时 |
-| `APP_LICENSE_KEY_ID` | `hb-local-2026` | 签名公钥的 keyId |
-| `APP_LICENSE_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/` | 签名公钥路径与文件字节 sha256 |
-| `APP_LICENSE_TRANSPORT_KEY_ID` | `hb-local-transport-2026` | 传输公钥的 keyId |
-| `APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/` | 传输公钥路径与 sha256 |
-| `APP_HA_CREDENTIAL_FILE` | 数据目录内默认路径 | HA 凭据密钥文件 |
-| `APP_DISPLAY_PAIRING_KEY_FILE` | 数据目录内默认路径 | 中控配对密钥文件 |
-| `APP_LICENSE_CREDENTIAL_FILE` | 数据目录内默认路径 | 授权密钥文件 |
+| `APP_LICENSE_KEY_ID` / `APP_LICENSE_TRANSPORT_KEY_ID` | `hb-local-2026` / `hb-local-transport-2026` | 公钥 keyId |
+| `APP_LICENSE_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/`（容器由共享卷注入） | 签名公钥 |
+| `APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/` | 传输公钥 |
+| `APP_HA_CREDENTIAL_FILE` 等 | 数据目录内默认路径 | HA / 中控 / 授权凭据密钥文件 |
 
 授权校验始终开启（`license_required=True`），不能通过环境变量关闭。激活只连接自建授权服务器。
 
-### 授权商店（`store/`）
+### 授权商店常用（C 区摘要）
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `STORE_HOST` / `STORE_PORT` | `0.0.0.0` / `18082` | 监听地址（`start.py` 下为 `127.0.0.1`） |
-| `STORE_DATA_DIR` | `store/data` | SQLite 与商品图目录 |
-| `STORE_BASE_URL` | 由请求推导 | 生成支付二维码、回调链接用的外部基址 |
-| `STORE_COOKIE_NAME` / `STORE_COOKIE_SECURE` | `ha_bridge_store_session` / `false` | 商店会话 Cookie 名与强制 `Secure`（同主应用，默认按请求自动判定 https） |
-| `STORE_TRUSTED_PROXIES` | 空 | 可信反向代理 IP / CIDR（逗号分隔）；留空则不信任任何转发头 |
-| `STORE_LICENSE_KEYS_DIR` | `store/keys/local` | 授权密钥目录 |
-| `STORE_LICENSE_KEY_ID` / `STORE_LICENSE_TRANSPORT_KEY_ID` | `hb-local-2026` / `hb-local-transport-2026` | 签发租约与传输密钥的 keyId，必须与主应用对应 |
-| `STORE_MAIL_MODE` | `log`（`start.py` 下为 `echo`） | `log` \| `echo` \| `smtp` |
-| `STORE_EXPOSE_VERIFICATION_CODE` | `false` | 是否在接口响应回显验证码（生产必须 false） |
-| `STORE_SMTP_HOST` / `_PORT` / `_USERNAME` / `_PASSWORD` / `_USE_SSL` / `_STARTTLS` | — | SMTP 发信（`_PASSWORD` 填授权码） |
-| `STORE_SMTP_TIMEOUT_SECONDS` / `_MAX_ATTEMPTS` / `_RETRY_BACKOFF_SECONDS` | `15` / `3` / `1.0` | SMTP 超时 / 重试次数 / 退避基数（只对瞬时故障重试） |
-| `STORE_PAYMENT_PROVIDER` | 空（未配置，拒绝建单） | `mock` \| `alipay`（后台站点配置优先） |
-| `STORE_ALLOW_MOCK_PAYMENTS` | `false` | 是否允许模拟收银台；**仅供本地联调**，与 `STORE_PAYMENT_PROVIDER=mock` 同时设置才生效 |
-| `STORE_ALIPAY_*` | — | APPID、密钥路径 / 内联、网关、卖家号、回调地址等 |
+| `STORE_DATA_DIR` | `store/data`（容器 `/data`） | SQLite 与商品图目录 |
+| `STORE_LICENSE_KEYS_DIR` | `store/keys/local`（容器 `/data/license-keys`） | 授权私钥目录 |
+| `STORE_LICENSE_KEY_ID` / `STORE_LICENSE_TRANSPORT_KEY_ID` | 与主应用对应 | 签发租约与传输密钥的 keyId |
+| `STORE_COOKIE_NAME` | `ha_bridge_store_session` | 商店会话 Cookie 名 |
 | `STORE_LEASE_TTL_SECONDS` | `604800` | 租约有效期（7 天） |
 | `STORE_HEARTBEAT_INTERVAL_SECONDS` | `300` | 下发给客户端的 `heartbeatIn` |
-| `STORE_ORDER_TTL_SECONDS` | `120` | 订单有效期（真实收款必须调大） |
-| `STORE_PAYMENT_SWEEP_INTERVAL_SECONDS` / `_BATCH` | `30` / `25` | 后台支付巡检间隔（`0` = 关闭）与每轮处理上限 |
-| `STORE_DEVICE_RELEASE_COOLDOWN_SECONDS` | `28800` | 自助解绑冷却（8 小时） |
-| `STORE_VERIFICATION_TTL_SECONDS` / `_COOLDOWN_SECONDS` | `600` / `60` | 验证码有效期 / 重发冷却 |
+| `STORE_ORDER_TTL_SECONDS` | `120` | 订单有效期（真实收款须调大） |
+| `STORE_PAYMENT_SWEEP_INTERVAL_SECONDS` / `_BATCH` | `30` / `25` | 支付巡检间隔与每轮上限 |
 | `STORE_SESSION_MAX_AGE_SECONDS` | `2592000` | 商店会话有效期 |
-| `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` | 代码内置开发默认值 | `seed` 初始化管理员（生产务必覆盖） |
+| `STORE_EXPOSE_VERIFICATION_CODE` | `false` | 接口是否回显验证码（生产必须 false） |
 
-站点名、公告、客服邮箱、维护模式、邀请比例、提现手续费、解绑冷却等**运行时配置**存在数据库里，直接在 `/admin` 的「站点配置」里改，不需要重启。支付渠道是「后台站点配置优先于 `.env`」。
+本地 `start.py` 会临时打开 `STORE_PAYMENT_PROVIDER=mock`、`STORE_ALLOW_MOCK_PAYMENTS=1` 与 `STORE_MAIL_MODE=echo`，方便联调；Docker 生产路径不会自动打开这些开关。
 
-注册邮箱验证码同样如此：投递方式、SMTP 主机 / 端口 / 加密方式 / 授权码 / 发件人，以及验证码有效期与重发冷却，都能在 `/admin` 的「站点配置 → 注册邮箱验证码」里改，**保存即生效、免重启**。口径与支付一致 —— 后台留空 / 填 `0` 表示「跟随 `.env`」，填了值就以后台为准；SMTP 授权码只显示打码值，留空不改动、勾「清除已保存的授权码」才回到环境变量。区块里可以直接看到当前生效的配置与「SMTP 是否就绪」，并有一个「发送测试邮件」按钮往指定邮箱真发一封（不写验证码记录、不占发信配额）—— 排障时用它区分「我们发不出去」和「对方网关拒收」。冷却必须短于有效期，否则保存会被拒（那种配置会让用户在验证码过期后被冷却锁住，彻底无法注册）。支付宝的回调地址（异步通知 / 同步跳转）与交易标题也在后台可改，且不能填 `localhost` / 内网地址 —— 支付宝访问不到，订单会一直停在「待支付」。
-
-完整的商店变量、支付宝接入步骤与排障表见 [store/README.md](store/README.md)。
+后台「站点配置」口径：留空 / 填 `0` 表示跟随环境变量，填了值就以后台为准。SMTP 授权码只显示打码值；支付宝回调不能填 `localhost` / 内网地址。完整变量、支付宝接入与排障见 [store/README.md](store/README.md)。
 
 ## Docker
 
-官方镜像监听 **18081**，数据和密钥分卷挂载。容器启动后：
-**先 `docker logs <容器>` 取首次设置的引导密钥**（容器内 `/data/setup-token`），再访问
-`http://<主机>:18081/setup` 填入。仅桥接网络下，从宿主机访问也会被当成远程来源（对端是
-`172.17.0.1` 这类网关地址），因此这一步不能省。容器内默认路径：
+双容器分别跑主应用（**18081**）与授权商店 / 授权服务器（**18082**）。
+GitHub Actions 构建两个 GHCR 镜像：
 
-| 用途 | 路径 |
-| --- | --- |
-| 数据目录 | `/data` |
-| 首次设置引导密钥 | `/data/setup-token`（初始化成功后自动删除） |
-| HA 凭据密钥 | `/run/secrets/ha_credentials.key` |
-| 中控配对密钥 | `/run/secrets/display_pairing_codes.key` |
-| 授权密钥 | `/run/secrets/license_credentials.key` |
+- `ghcr.io/sfairy/homeos-3d`（Dockerfile target `app`）
+- `ghcr.io/sfairy/homeos-3d-store`（Dockerfile target `store`）
 
-`container_entrypoint.py` 在 root 启动时校正目录属主，再降权为 `homeos` 用户运行。
+该 workflow **只支持手动触发**（在 Actions 页面 Run workflow），不在 `push` / PR 上自动构建。
+从 `main` 手动运行时打 `latest` 与 `VERSION` 标签，从 `v*` tag 手动运行时打 semver。
+构建前会先跑 amd64 冒烟
+（`docker-compose.yml` + `docker-compose.smoke.yml`，探测 `/health/ready` 与 `/healthz`）。
 
-反向代理请转发 WebSocket（`/api/v1/ws/runtime`）以及 `/api/hls/`、`/api/camera_proxy/` 等媒体路径。站点走 HTTPS 时设置 `APP_COOKIE_SECURE=true`。
+最终运行镜像**不包含可读业务源码**：
 
-升级时不要清空 `/data`。数据库结构由单条基线迁移 `0001` 建立；若库内记录的是更早构建的 revision，启动时会直接认领该基线（不改动任何业务数据）。
+- Python：构建阶段编成 legacy `.pyc` 后删除 `.py`（保留 `migrations/*.py`；保留 `store.tools.seed` / `gen_keys`）
+- JavaScript：`javascript-obfuscator` 混淆；跳过 `vendor/` 与 `*.min.js`
+- 不包含 `store/tools/smoke.py` / `e2e.py` 与构建脚本
 
-从运行中的容器导出应用目录：
+生产清单与反代示例见 [deploy/PRODUCTION.md](deploy/PRODUCTION.md)、
+[deploy/Caddyfile.example](deploy/Caddyfile.example)、
+[deploy/nginx.conf.example](deploy/nginx.conf.example)。
+
+### 快速启动
 
 ```bash
-docker exec homeos tar -czf /tmp/app.tar.gz -C /app .
-docker cp homeos:/tmp/app.tar.gz ~/Desktop/
-docker exec homeos rm /tmp/app.tar.gz
+cp .env.example .env
+# 至少填写 STORE_ADMIN_EMAIL / STORE_ADMIN_PASSWORD（首次 seed）
+# 生产再填 APP_BASE_URL / STORE_BASE_URL / *_TRUSTED_PROXIES / *_COOKIE_SECURE
+
+docker compose pull
+docker compose up -d
+
+# 或本地构建
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
+
+容器启动后：**先 `docker logs homeos-3d` 取首次设置的引导密钥**（容器内 `/data/setup-token`），
+再访问 `http://<主机>:18081/setup` 填入。仅桥接网络下，从宿主机访问也会被当成远程来源
+（对端是 `172.17.0.1` 这类网关地址），因此这一步不能省。
+
+商店默认映射 **18082**。主应用默认 `APP_LICENSE_SERVER_URL=http://homeos-3d-store:18082`
+（可在 `.env` 覆盖）。若设置了 `STORE_ADMIN_*`，商店启动时会幂等执行 seed。
+
+启动顺序与密钥：
+
+1. `homeos-3d-store`：生成或复用授权私钥（`/data/license-keys`），同步公钥到共享卷 `/data/keys`
+2. `homeos-3d`：等待共享公钥就绪后，再启动 uvicorn
+3. `container_entrypoint.py`：root 校正目录属主后降权为 `homeos` 用户
+
+容器内默认路径：
+
+| 用途 | 服务 | 路径 |
+| --- | --- | --- |
+| 主应用数据 | `homeos-3d` | `/data` |
+| 商店数据 | `homeos-3d-store` | `/data` |
+| 授权私钥 | `homeos-3d-store` | `/data/license-keys`（独立卷） |
+| 授权公钥镜像 | 两者共享 | `/data/keys`（商店写入，主应用只读挂载） |
+| 首次设置引导密钥 | `homeos-3d` | `/data/setup-token`（初始化成功后自动删除） |
+| HA / 中控 / 授权凭据密钥 | `homeos-3d` | `/run/secrets/*.key` |
+
+健康检查：主应用 `/health/ready`，商店 `/healthz`。
+
+反向代理请转发 WebSocket（`/api/v1/ws/runtime`）以及 `/api/hls/`、`/api/camera_proxy/` 等媒体路径。
+站点走 HTTPS 时设置 `APP_COOKIE_SECURE=true` / `STORE_COOKIE_SECURE=true`，并配置
+`APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES`。
+
+升级时不要清空数据卷（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` /
+`homeos-3d-client-keys`）。数据库结构由单条基线迁移 `0001` 建立；若库内记录的是更早构建的 revision，启动时会直接认领该基线（不改动任何业务数据）。
+
+### GitHub Actions
+
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml)：语法检查
+- [`.github/workflows/docker.yml`](.github/workflows/docker.yml)：**仅手动触发**；冒烟 → 多架构构建推送 GHCR
+
+可选远端部署：在仓库 Secrets 配置 `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_KEY` /
+`DEPLOY_PATH`（可选 `DEPLOY_PORT`），然后在 Actions 里手动运行 **Docker** workflow 并勾选
+「构建推送后 SSH 拉取并重启远端 compose」。远端目录需已放好本仓库的 `docker-compose.yml`
+（可用 `HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE` 覆盖镜像名）。
+
+从运行中的主应用容器导出应用目录：
+
+```bash
+docker exec homeos-3d tar -czf /tmp/app.tar.gz -C /app .
+docker cp homeos-3d:/tmp/app.tar.gz ~/Desktop/
+docker exec homeos-3d rm /tmp/app.tar.gz
 ```
 
 ## 开发工具
@@ -562,8 +632,6 @@ docker exec homeos rm /tmp/app.tar.gz
 ```bash
 node tools/bump_static_cache_versions.mjs
 ```
-
-前端标识符约定见 [frontend/NAMING.md](frontend/NAMING.md)。
 
 ## 开发注意
 
@@ -576,8 +644,21 @@ node tools/bump_static_cache_versions.mjs
 - 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename}` 下发，需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
 - 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前，令牌值与 `frontend/static/app.css` 对齐（`smoke.py` 会比对，主程序改色而商店没跟就会 FAIL）。详见 [store/README.md](store/README.md) 的「界面主题」。
 - 改动商店授权端点错误文案前，先核对客户端 `is_confirmed_revocation` 的吊销短语表。
+- Docker 联调改业务代码后需要重新 `docker compose … --build`；镜像内是混淆 / 去源码产物，不能挂载源码热重载。
 
 ## 更新日志
+
+### v0.5.6
+
+自托管 Docker
+
+- 双容器 Compose：`homeos-3d`（主应用 18081）+ `homeos-3d-store`（商店 / 授权服务器 18082），共享公钥卷、独立数据卷与授权私钥卷。
+- 多目标 Dockerfile：target `app` / `store`；构建期 strip Python 源码、混淆业务 JS；GHCR 镜像 `ghcr.io/sfairy/homeos-3d` 与 `…-store`。
+- 商店容器启动时生成或复用授权密钥并同步公钥；主应用等待公钥就绪后再起；提供 `STORE_ADMIN_*` 时幂等 seed。
+- 新增 `deploy/PRODUCTION.md`、Caddy / nginx 反代示例，以及 `.github/workflows/docker.yml`（冒烟 → 多架构推送；可选 SSH 远端重启）。
+- `.env.example` 收敛为 A/B/C/D 分区：部署常改项置顶，SMTP / 支付 / 站点文案改到 `/admin` 配置，避免双源。
+- 移除已过时的 `frontend/NAMING.md` 与根目录 `COMMENTING.md`。
+- 客户端「检查更新」发布记录写入 `store/release_info.py`（`CURRENT_UPGRADE_NOTES`），启动时幂等补写 / 同步到 `releases` 表。
 
 ### v0.5.5
 
@@ -601,9 +682,7 @@ node tools/bump_static_cache_versions.mjs
 
 - 删除 8 个开发期的探针 / 临时脚本（`backend/probe_*.py` 四个、`store/tools/probe_request_security.py`、`store/tools/_probe_{admin,stock}.py`、`store/tools/_ui_demo_seed.py`），并同步移除 `store/tools/smoke.py` 里对其中两个的悬空引用。
 - `.gitignore` 去掉指向已删除功能的三条死规则（`register/data/`、`upgrade-backups/`、`户型图.png`），本地临时目录 `/app/`、`.deobf/`、`原项目/` 归拢到一处并加注释。
-- `.env.example` 补齐安全相关变量（`APP_TRUSTED_PROXIES`、`APP_SESSION_HARD_MAX_AGE_SECONDS`、`APP_DISPLAY_*`、`STORE_TRUSTED_PROXIES`、`STORE_PAYMENT_SWEEP_*`、`STORE_SMTP_TIMEOUT/MAX_ATTEMPTS/RETRY_BACKOFF`），并修正两处格式说明（`APP_LICENSE_SERVER_BATCHES` 与 `APP_LICENSE_TRUSTED_PUBLIC_KEYS` 是 `;`/`|`/`:` 分隔的字符串，不是 JSON）。
-
-### v0.5.5
+- `.env.example` 补齐安全相关变量（`APP_TRUSTED_PROXIES`、`APP_SESSION_HARD_MAX_AGE_SECONDS`、`APP_DISPLAY_*`、`STORE_TRUSTED_PROXIES`、`STORE_PAYMENT_SWEEP_*`），并修正两处格式说明（`APP_LICENSE_SERVER_BATCHES` 与 `APP_LICENSE_TRUSTED_PUBLIC_KEYS` 是 `;`/`|`/`:` 分隔的字符串，不是 JSON）。
 
 移除
 
@@ -612,8 +691,6 @@ node tools/bump_static_cache_versions.mjs
 - 删除整个 `image/v1` 内置素材（61 张，含示例户型图）与 `legacy_asset_ids` 户型图路径映射；素材选择器只保留「我的图片」。`image/` 目录保留但默认为空。
 - 数据迁移：本项目按**首个发布版本**维护，不再保留历史版本数据迁移。Alembic `0001–0015` 合并为单条基线 `0001_initial_schema`；删除升级前备份 / 失败回滚、`data/secrets/` 密钥搬迁、管理员凭据外置的 `migrated` 分支、旧中控令牌补挂，以及商店启动时的补列 / 品牌标识回填 / 旧图标路径自愈 / `ui.base` 剔除（发布记录兜底迁至 `store/release_info.py`）。库内残留旧 revision 时由启动流程直接认领基线，业务数据不受影响。
 - 下线发布清单与 SBOM：删除 `release-manifest.json` 与 `sbom.cdx.json`。仓库内既没有生成器（`tools/release_artifacts.py` 从未入库），CI 的 `Release manifest consistency` 步骤也已一并移除。
-
-### v0.5.5
 
 品牌
 
@@ -639,8 +716,6 @@ node tools/bump_static_cache_versions.mjs
 - 新增维护动作：登录会话单条踢下线、客户端会话与找回令牌撤销、按安全谓词清理日志（只清过期或已消费记录）、优惠码核销记录单条作废并重算占用名额。
 - 诊断类列表统一支持 `limit/offset/total` 翻页；管理接口的请求体改为拒绝未知字段（`extra="forbid"`），不再静默丢弃后台表单里的改动。
 
-### v0.5.5
-
 新增
 
 - 仓库自带完整的**授权商店 + 授权服务器 + 运营后台**（`store/`），取代原 `register/` 本机店：
@@ -652,8 +727,6 @@ node tools/bump_static_cache_versions.mjs
 - 仓库根 `keys/` 作为客户端信任锚公钥镜像，由 `store.tools.gen_keys` 从 `store/keys/local/` 自动同步，二者逐字节一致。
 - 新增 `.env` 本地配置（SMTP 授权码、支付宝私钥等只落在被 gitignore 的 `.env` 里，随仓库分发的 `.env.example` 只含占位符）与 `store/env.py` 极简加载器。
 - 新增 `tools/bump_static_cache_versions.mjs`（统一静态资源 `?v=YYYYMMDDHHMMSS`）。
-- 新增 [frontend/NAMING.md](frontend/NAMING.md) 前端命名规范。
-- 新增 `release-manifest.json`、`sbom.cdx.json`。
 
 优化
 

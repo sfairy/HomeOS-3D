@@ -24,7 +24,7 @@
  */
 
 import { normalizeGroundReflection } from "../modules/interaction3d/reflection-settings.js";
-import { createReflectionCulling } from "./studio-reflection-culling.js?v=20260916235816";
+import { createReflectionCulling } from "./studio-reflection-culling.js?v=20260917022019";
 /**
  * 创建地面反射控制器（一个渲染器一份）。
  *

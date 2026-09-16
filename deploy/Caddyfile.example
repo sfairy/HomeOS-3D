@@ -1,0 +1,36 @@
+# 生产反代示例（Caddy 2）
+#
+# 假设：
+#   homeos.example.com  → 主应用 127.0.0.1:18081
+#   pay.example.com     → 商店   127.0.0.1:18082
+#
+# 对应 .env：
+#   APP_BASE_URL=https://homeos.example.com
+#   APP_LICENSE_SERVER_URL=http://homeos-3d-store:18082   # 容器内网即可
+#   APP_TRUSTED_PROXIES=<caddy 所在网段或 docker bridge>
+#   APP_COOKIE_SECURE=true
+#   STORE_BASE_URL=https://pay.example.com
+#   STORE_TRUSTED_PROXIES=...
+#   STORE_COOKIE_SECURE=true
+
+homeos.example.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:18081 {
+		header_up Host {host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+		# WebSocket：/api/v1/ws/runtime
+		transport http {
+			read_buffer 64kb
+		}
+	}
+}
+
+pay.example.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:18082 {
+		header_up Host {host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-For {remote_host}
+	}
+}

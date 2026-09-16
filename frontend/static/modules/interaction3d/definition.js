@@ -12,6 +12,9 @@
  *   - lightingMode 只认 standard / region，backgroundTheme 只认 grid / dots ——
  *     文档里可能存在旧版本写入的值或别名，读入时一律经 normalize* 归一，渲染层不再重复判断；
  *     其中 `contours` 是背景主题的历史别名，仍被接受但统一折算成 dots，避免旧文档渲染异常；
+ *   - sceneStyle 只认 default / warm-wood（材质风格），wallOpacity 为 null 或 0~1 的比例
+ *     （null 表示跟随主题默认值），backgroundMotion 是动态背景总开关；
+ *     后端白名单与校验已在 interaction3d/config.py 同步放开这三项；
  *   - create 生成的尺寸按画布 56% 居中放置，模板里的调暗强度（pageDimStrength）等数值
  *     是观感调过的经验值，调整前需确认与渲染层的光照公式仍匹配。
  * 副作用：无，模块只导出常量与一个纯工厂函数。
@@ -77,6 +80,9 @@ export const INTERACTION3D_TYPE = "interaction3d",
           layoutMode: "free",
           backgroundVisible: !0,
           backgroundTheme: "grid",
+          sceneStyle: "default",
+          wallOpacity: null,
+          backgroundMotion: !0,
           renderScale: 0.8,
           lightingMode: "region",
           groundReflection: { mode: "off", resolution: 512, strength: 0.18 },

@@ -197,9 +197,11 @@ export function smoothCarSurfaceNormals(THREE, geometry) {
  * 再按高度与视线方向叠加天光反射与灯带自发光。
  *
  * @param {object} material 车身材质。
+ * @param {object} [options] 选项。
+ * @param {boolean} [options.pearlWhite=false] 是否套用珠光白漆（暖阳原木主题用）。
  * @returns {object} 同一个材质对象（可能已被改写）。
  */
-export function applyCarFinish(material) {
+export function applyCarFinish(material, { pearlWhite = false } = {}) {
   if (!material?.isMeshStandardMaterial || material.userData.hbCarFinish) {
     return material;
   }
@@ -236,18 +238,36 @@ export function applyCarFinish(material) {
         ).join(" + ") +
         ", 0.0, 1.0);\n        float glassValue = dot(sampledDiffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));\n        hbCarGlass = glassIsland * smoothstep(0.88, 1.05, vHbCarHeight)\n          * (1.0 - smoothstep(0.055, 0.13, glassValue));\n        // Preserve the windscreen, split sunroof and rear-window seals, and the\n        // outer glazing edges. Only soften photographed bands inside the panes.\n        // Side-window pillars keep the atlas detail as well.\n        float glassSeams = max(1.0 - smoothstep(0.007, 0.019, abs(glassUv.x - 0.505)),\n          max(1.0 - smoothstep(0.002, 0.006, abs(glassUv.x - 0.635)),\n              1.0 - smoothstep(0.007, 0.020, abs(glassUv.x - 0.792))));\n        float paneInterior = smoothstep(0.704, 0.74, glassUv.y)\n          * (1.0 - smoothstep(0.907, 0.943, glassUv.y)) * (1.0 - glassSeams);\n        vec3 glassAtlas = sampledDiffuseColor.rgb * 0.7 + vec3(0.012, 0.014, 0.017);\n        vec3 paneColor = mix(vec3(0.026, 0.031, 0.038), sampledDiffuseColor.rgb, 0.15);\n        diffuseColor.rgb = mix(diffuseColor.rgb,\n          diffuse * mix(glassAtlas, paneColor, paneInterior), hbCarGlass);\n      #endif"
     );
+    if (pearlWhite) {
+      // 珠光白底漆：只在暖阳原木主题下注入。用贴图亮度挑出「车身漆面」——
+      // 深色玻璃、黑色胶条与包围件的亮度都低于 0.20，再叠加 (1.0 - hbCarGlass)
+      // 排除玻璃，避免把车窗一起刷白。混入的基色带一点暖调（红>绿>蓝），
+      // 并随亮度微调明度，保留贴图上的接缝与阴影细节。
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <roughnessmap_fragment>",
+        "\n      #ifdef USE_MAP\n        // Keep atlas seams and shadow detail; exclude dark glazing, rubber and trim.\n        float pearlLuma = dot(sampledDiffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));\n        float pearlPaint = smoothstep(0.20, 0.48, pearlLuma) * (1.0 - hbCarGlass);\n        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.94, 0.925, 0.89) * (0.68 + 0.32 * pearlLuma), pearlPaint);\n      #endif\n      #include <roughnessmap_fragment>"
+      );
+    }
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <opaque_fragment>",
-      "\n      float carDark = 1.0 - smoothstep(0.035, 0.16, dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));\n      float carUpper = smoothstep(0.68, 1.02, vHbCarHeight);\n      vec3 carView = normalize(vViewPosition);\n      vec3 carReflection = inverseTransformDirection(reflect(-carView, normal), viewMatrix);\n      float carSky = smoothstep(-0.15, 0.85, carReflection.y);\n      float carSoftbox = pow(max(dot(carReflection, normalize(vec3(-0.35, 0.8, 0.48))), 0.0), 12.0);\n      float carFresnel = pow(1.0 - max(dot(normal, carView), 0.0), 4.0);\n      outgoingLight += carDark * carUpper * vec3(0.68, 0.79, 0.94)\n        * (0.012 + 0.025 * carSky + 0.07 * carSoftbox + 0.035 * carFresnel);\n      // Keep the sheen restrained so it cannot wash out the glazing seams.\n      outgoingLight += hbCarGlass * vec3(0.76, 0.84, 0.94)\n        * (0.008 + 0.014 * carSky + 0.02 * carSoftbox);\n      #ifdef USE_MAP\n        vec2 carUv = fract(vMapUv);\n        float carFrontLamp = clamp(" +
+      "\n      float carDark = 1.0 - smoothstep(0.035, 0.16, dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)));\n      float carUpper = smoothstep(0.68, 1.02, vHbCarHeight);\n      vec3 carView = normalize(vViewPosition);\n      vec3 carReflection = inverseTransformDirection(reflect(-carView, normal), viewMatrix);\n      float carSky = smoothstep(-0.15, 0.85, carReflection.y);\n      float carSoftbox = pow(max(dot(carReflection, normalize(vec3(-0.35, 0.8, 0.48))), 0.0), 12.0);\n      float carFresnel = pow(1.0 - max(dot(normal, carView), 0.0), 4.0);\n      " +
+        (pearlWhite
+          ? // 珠光漆的整体提亮：与暖阳原木主题里家具的提亮口径一致（顶部 + 侧上方补光），
+            // 且不作用于玻璃，避免车窗一起发白。0.82 的混入系数给反射高光留了余量。
+            "\n      #ifdef USE_MAP\n        // Match the bright furniture fill in this theme without bleaching glass.\n        vec3 pearlNormal = inverseTransformDirection(normal, viewMatrix);\n        float pearlFill = 0.64 + 0.20 * max(pearlNormal.y, 0.0)\n          + 0.12 * max(dot(pearlNormal, normalize(vec3(-0.4, 0.85, 0.32))), 0.0);\n        outgoingLight = mix(outgoingLight, diffuseColor.rgb * pearlFill, pearlPaint * 0.82);\n      #endif"
+          : "") +
+        "\n      outgoingLight += carDark * carUpper * vec3(0.68, 0.79, 0.94)\n        * (0.012 + 0.025 * carSky + 0.07 * carSoftbox + 0.035 * carFresnel);\n      // Keep the sheen restrained so it cannot wash out the glazing seams.\n      outgoingLight += hbCarGlass * vec3(0.76, 0.84, 0.94)\n        * (0.008 + 0.014 * carSky + 0.02 * carSoftbox);\n      #ifdef USE_MAP\n        vec2 carUv = fract(vMapUv);\n        float carFrontLamp = clamp(" +
         buildLampGlowExpression("front") +
         ", 0.0, 1.0)\n          * (1.0 - smoothstep(-1.95, -1.85, vHbCarLength));\n        float carRearLamp = clamp(" +
         buildLampGlowExpression("rear") +
         ", 0.0, 1.0)\n          * smoothstep(1.85, 1.95, vHbCarLength);\n        outgoingLight += carFrontLamp * vec3(2.0, 2.3, 2.6)\n          + carRearLamp * vec3(0.84, 0.036, 0.018);\n      #endif\n      #include <opaque_fragment>"
     );
   };
-  // 缓存键后缀带上版本号：着色器源码一变就必须让旧编译结果失效，
-  // 否则升级后仍会命中旧程序，表现为新效果不生效。
-  material.customProgramCacheKey = () => previousCacheKey + "|hb-car-finish-v7-glazing-detail";
+  // 缓存键后缀带上版本号与开关：着色器源码一变就必须让旧编译结果失效，
+  // 否则升级后仍会命中旧程序，表现为新效果不生效。珠光白是两个不同的着色器
+  // 变体，必须各自落到独立的缓存键上，否则两种风格会互相串味。
+  material.customProgramCacheKey = () =>
+    previousCacheKey + "|hb-car-finish-v7-glazing-detail|pearl-" + Number(pearlWhite);
   // 标记已注入，避免同一材质被重复包装导致着色器里出现重复定义；
   // 同时关掉平面二期的表面接触效果——车漆高光已由本模块的着色器接管，再叠加会发白。
   material.userData.hbCarFinish = true;

@@ -1,0 +1,77 @@
+# HomeOS 自托管部署（双容器：主应用 + 授权商店）
+#
+# 用法：
+#   cp .env.example .env   # 填写 A 区与首次 STORE_ADMIN_*
+#   docker compose up -d
+#
+# 本地构建：
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+
+services:
+  homeos-3d-store:
+    image: ${HOMEOS_STORE_IMAGE:-ghcr.io/sfairy/homeos-3d-store:latest}
+    container_name: homeos-3d-store
+    restart: unless-stopped
+    ports:
+      - "${STORE_PUBLISH_PORT:-18082}:18082"
+    environment:
+      STORE_DATA_DIR: /data
+      STORE_LICENSE_KEYS_DIR: /data/license-keys
+      APP_CLIENT_KEYS_DIR: /data/keys
+      STORE_HOST: 0.0.0.0
+      STORE_PORT: "18082"
+      STORE_BASE_URL: ${STORE_BASE_URL:-}
+      STORE_COOKIE_SECURE: ${STORE_COOKIE_SECURE:-false}
+      STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-}
+      STORE_ALLOW_MOCK_PAYMENTS: ${STORE_ALLOW_MOCK_PAYMENTS:-0}
+      # 首次启动用于 seed；之后可从 .env 去掉，改密码请走后台
+      STORE_ADMIN_EMAIL: ${STORE_ADMIN_EMAIL:-}
+      STORE_ADMIN_PASSWORD: ${STORE_ADMIN_PASSWORD:-}
+    volumes:
+      - homeos-3d-store-data:/data
+      - homeos-3d-license-keys:/data/license-keys
+      - homeos-3d-client-keys:/data/keys
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:18082/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  homeos-3d:
+    image: ${HOMEOS_IMAGE:-ghcr.io/sfairy/homeos-3d:latest}
+    container_name: homeos-3d
+    restart: unless-stopped
+    depends_on:
+      homeos-3d-store:
+        condition: service_healthy
+    ports:
+      - "${APP_PUBLISH_PORT:-18081}:18081"
+    environment:
+      APP_DATA_DIR: /data
+      APP_PORT: "18081"
+      APP_BASE_URL: ${APP_BASE_URL:-}
+      APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
+      APP_TRUSTED_PROXIES: ${APP_TRUSTED_PROXIES:-}
+      APP_UPDATE_CHANNEL: docker
+      APP_CLIENT_KEYS_DIR: /data/keys
+      # 默认走 compose 内网；独立授权域名时在 .env 覆盖
+      APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-http://homeos-3d-store:18082}
+      UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-*}
+    volumes:
+      - homeos-3d-data:/data
+      - homeos-3d-client-keys:/data/keys:ro
+      - homeos-3d-secrets:/run/secrets
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:18081/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  homeos-3d-data:
+  homeos-3d-store-data:
+  homeos-3d-license-keys:
+  homeos-3d-client-keys:
+  homeos-3d-secrets:
