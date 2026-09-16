@@ -49,8 +49,8 @@ export function createWallSideMaterial(THREE, materialParams, enhance = true, wa
         "#include <begin_vertex>\nvHbWallHeight = hbWallHeight;"
       );
       shaderObject.fragmentShader = "varying float vHbWallHeight;\n" + shaderObject.fragmentShader;
-      // Closed translucent volumes: discard the opposite face so it cannot show
-      // through the nearer surface when side is left as DoubleSide by a caller.
+      // 闭合的半透明体：把背面丢弃，否则当调用方把 side 留作 DoubleSide 时，
+      // 它会透过离观察者更近的那个表面显出来。
       shaderObject.fragmentShader = shaderObject.fragmentShader.replace(
         "#include <clipping_planes_fragment>",
         "#include <clipping_planes_fragment>\nif (!gl_FrontFacing) discard;"
