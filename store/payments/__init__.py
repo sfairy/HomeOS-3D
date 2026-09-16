@@ -58,9 +58,20 @@ def resolve_provider(
     """
     if name_override is not None:
         name = normalize_provider_name(name_override)
+        # 事后操作（退款/查单）要打「这单当时用的渠道」：历史 mock 订单必须仍能退，
+        # 不能因为今天关了模拟收银台就退不了旧账。所以这条路径不校验开关。
+        allow_mock = True
     else:
+        # 注意这里**没有** ``or "mock"`` 兜底。过去那一句是致命的：站点没配渠道时
+        # 静默落到模拟收银台，而 mock 点一下就发码 —— 等于默认免费送授权。
         name = normalize_provider_name(
-            getattr(setting, "payment_provider", None) or settings.payment_provider or "mock"
+            getattr(setting, "payment_provider", None) or settings.payment_provider
+        )
+        allow_mock = bool(getattr(settings, "allow_mock_payments", False))
+    if not name:
+        raise PaymentError(
+            "尚未配置支付渠道，无法创建订单。请在后台「站点配置 → 支付渠道」选择渠道，"
+            "或设置 STORE_PAYMENT_PROVIDER 环境变量。"
         )
     if name == "alipay":
         # 站点配置（后台可改）优先于环境变量；合并后注入 provider，让它后续
@@ -68,6 +79,12 @@ def resolve_provider(
         # 就悄悄退回旧商户号。
         return AlipayProvider(merge_alipay_settings(settings, setting))
     if name == "mock":
+        if not allow_mock:
+            raise PaymentError(
+                "模拟收银台（mock）当前未启用：它不需要真实付款即可把订单标成已支付并签发授权，"
+                "因此默认关闭。本地联调请显式设置 STORE_ALLOW_MOCK_PAYMENTS=1；"
+                "正式收款请改用支付宝。"
+            )
         return MockPaymentProvider()
     raise PaymentError(
         f"支付渠道配置为「{name}」，不是受支持的渠道（可选：{'、'.join(PROVIDER_NAMES)}）。"

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
 from store.licensing.crypto import LicenseServerError
+from store.request_security import resolve_client_ip
 
 logger = logging.getLogger("store.license.api")
 
@@ -31,7 +32,9 @@ async def _dispatch(request: Request, method: str) -> Response:
     except Exception:  # noqa: BLE001 - 非法 JSON 一律 400
         return JSONResponse({"detail": "授权请求格式无效。"}, status_code=400)
 
-    client_ip = request.client.host if request.client else None
+    # 走统一解析：配了可信反向代理就取真实客户端地址，否则用 TCP 对端地址。
+    # 授权记录里的 IP 是「这台机器在哪」的证据，代理后面取错等于全部记成同一个地址。
+    client_ip = resolve_client_ip(request).ip or None
     try:
         result = getattr(authority, method)(payload, ip=client_ip)
     except LicenseServerError as error:

@@ -87,6 +87,9 @@ def _server_env(workdir: Path, port: int, admin_email: str, admin_password: str)
             "STORE_MAIL_MODE": "echo",
             "STORE_EXPOSE_VERIFICATION_CODE": "true",
             "STORE_PAYMENT_PROVIDER": "mock",
+            # 模拟收银台默认关闭（fail-closed：不需要真实付款就能发码），
+            # 联调必须和渠道一起显式打开 —— 少了这一个，下单会 503。
+            "STORE_ALLOW_MOCK_PAYMENTS": "1",
             "STORE_ADMIN_EMAIL": admin_email,
             "STORE_ADMIN_PASSWORD": admin_password,
             "PYTHONUNBUFFERED": "1",
@@ -257,7 +260,8 @@ async def run(port: int, workdir: Path, admin_email: str, admin_password: str) -
         )
         check("POST /orders 创建订单", order_response.status_code == 201, str(order_response.status_code))
         order = order_response.json()
-        check("订单支付方式为 mock", order["payment"]["type"] == "mock", str(order["payment"]))
+        payment = order.get("payment") or {}
+        check("订单支付方式为 mock", payment.get("type") == "mock", str(payment))
         check("订单有效期 2 分钟", order.get("expiresAt") is not None, str(order.get("expiresAt")))
 
         pay = await user.post(

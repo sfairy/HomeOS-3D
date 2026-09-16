@@ -28,6 +28,15 @@ def _id() -> str:
     return new_uuid()
 
 
+#: 本部署的默认邮箱：客服邮箱的默认值，同时也是后台「注册邮箱验证码」预填
+#: SMTP 账号 / 测试收件人 / 发件人的来源（见 ``mail_settings.SMTP_PRESETS``）。
+#:
+#: 之所以放在模型层：它是**数据**的默认值（``store_settings.support_email``），
+#: 而 models 是 ``site_settings`` 与 ``mail_settings`` 共同的上游 —— 定义在
+#: 下游任何一边，另一边都得反向 import，迟早出现两份迟早漂移的字面量。
+DEFAULT_SUPPORT_EMAIL = "156120718@qq.com"
+
+
 # --------------------------------------------------------------------------- #
 # 站点配置
 # --------------------------------------------------------------------------- #
@@ -42,7 +51,9 @@ class StoreSetting(Base):
     site_title: Mapped[str] = mapped_column(String(256), default="HomeOS 授权中心")
     description: Mapped[str] = mapped_column(String(512), default="注册账号、购买授权与管理激活设备")
     announcement: Mapped[str] = mapped_column(Text, default="")
-    support_email: Mapped[str] = mapped_column(String(255), default="")
+    #: 客服邮箱。默认给本部署的邮箱（见 DEFAULT_SUPPORT_EMAIL），后台留空时
+    #: 回落到它 —— 与 logo_url 同款口径：这个字段在页面上永远是「有个地址」的状态。
+    support_email: Mapped[str] = mapped_column(String(255), default=DEFAULT_SUPPORT_EMAIL)
     #: 默认值须与 site_settings.DEFAULT_LOGO_URL 保持一致（留空时回落到那里）
     logo_url: Mapped[str] = mapped_column(String(512), default="/store-static/homeos-mark.svg")
     maintenance_mode: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -342,6 +353,14 @@ class Order(Base):
         String(36), ForeignKey("licenses.id", ondelete="SET NULL")
     )
     license_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("licenses.id", ondelete="SET NULL"))
+    #: 升级 / 增量包履约**之前**那张目标授权的快照（JSON）。
+    #:
+    #: 这两种履约方式与「发一张新码」有一个本质区别：被改的是用户**原先买过、还在用**
+    #: 的授权，而 ``License.order_id`` 仍然指着最早那张订单，所以退款时按
+    #: ``License.order_id == order.id`` 找不到它 —— 结果是钱退了、永久授权还在手上。
+    #: 有了快照，退款可以把授权还原成升级前的样子（而不是把用户已付费的授权整张作废）。
+    #: 空串表示「这单没改过别人的授权」，此时退款仍走原来的「作废本单发出的授权」。
+    license_state_before_json: Mapped[str] = mapped_column(Text, default="")
     original_amount_cents: Mapped[int] = mapped_column(Integer, default=0)
     discount_cents: Mapped[int] = mapped_column(Integer, default=0)
     amount_cents: Mapped[int] = mapped_column(Integer, default=0)
@@ -375,6 +394,14 @@ class Order(Base):
     #: 避免后台任务反复对同一笔订单调用关单接口。
     channel_closed_at: Mapped[datetime | None] = mapped_column(DateTime)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime)
+    #: 这一单占用的库存**是否已经归还**（归还时刻）。空值 = 仍然占着。
+    #:
+    #: 加这一列是因为「此刻还占不占预留」过去没有持久化，只能由调用方看着
+    #: ``order.status`` 反推 —— 而状态与预留的生命周期并不一致：订单从 expired
+    #: 复活成 paid 时预留早已释放，按状态反推会再释放一次，把**别人**的预留
+    #: 扣掉（放开超卖）；``recompute_reserved_stock`` 也会把复活单算成占用。
+    #: 现在「还占不占」只有一个事实来源，就是这一列。
+    stock_reservation_released_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     #: Order 与 License 互相持有外键，必须显式指定 join 条件并用 post_update 打破写入循环
     license: Mapped["License | None"] = relationship(

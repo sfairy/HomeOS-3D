@@ -1,8 +1,12 @@
 """全局事件日志：JSONL 落盘、敏感信息遮盖、查询与自动清理。
 
 设计要点：
-- 落盘走「后台线程 + 内存队列」：请求路径只做入队，不阻塞事件循环；
-  磁盘不可用时降级为只留最近 200 条，并定期往 stderr 告警。
+- 落盘走「后台线程 + 内存队列」：请求路径只做入队、不碰磁盘（也不在事件循环里
+  做 I/O），由唯一的后台写线程批量追加；磁盘不可用时降级为只留最近 200 条，
+  并定期往 stderr 告警。
+- 裁剪（按保留天数与文件上限做一次全量重写）只由后台写线程做，而且强制带最小
+  间隔，绝不随每次写入触发 —— 否则外部只要把日志刷到上限，每一次请求都会
+  放大成一次「读全量 + 解析 + 重写 + fsync」，变成自造的 DoS。
 - 所有写进日志的字符串都必须先过 `_safe_text`，因为日志会被导出与上报，
   令牌、私钥、Cookie、邮箱、摄像头带密 URL 都不能原样留下。
 - 同一事件 5 秒内重复出现会被折叠成一条并累加 repeatCount，
@@ -15,6 +19,7 @@ import os
 import re
 import sys
 import threading
+import time
 from collections import deque
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
@@ -25,6 +30,11 @@ from uuid import uuid4
 # 请求级上下文：由中间件写入 requestId / method / path 等，
 # 这样深层代码 append 日志时不必一路透传这些字段。
 event_context: ContextVar[dict[str, Any]] = ContextVar("global_log_context", default={})
+
+# 去重签名里要剔除的「每次都不同」的上下文字段：
+# requestId / durationMs 逐请求变化，留着会让同一处刷屏的日志永远算「不重复」，
+# 5 秒折叠完全失效（这正是不再逐次触发裁剪之外的另一半写入放大来源）。
+_VOLATILE_CONTEXT_KEYS = frozenset({"requestId", "durationMs"})
 
 # 允许进入日志的上下文键白名单：不在名单里的键一律丢弃，
 # 防止某处误把整个请求体或实体属性塞进 context 而泄露敏感内容。
@@ -135,8 +145,25 @@ def safe_context(value: dict[str, Any] | None) -> dict[str, Any]:
 class GlobalLogStore:
     """事件日志存储：JSONL 文件 + 内存兜底，无需数据库迁移。
 
-    线程安全（内部 RLock）：日志可能从请求线程、后台线程与启动流程同时写入。
+    线程安全（内部 RLock）：日志可能从请求线程、后台写线程与启动流程同时写入。
+    请求线程只入队，磁盘 I/O 全部由 _writer_loop 单线程完成。
     """
+
+    # 后台写线程的节奏：最多每 0.5 秒把队列里的写入合并成一次追加；
+    # 被唤醒后再多等 LINGER_SECONDS，把这一瞬间涌进来的写入攒成一批。
+    FLUSH_INTERVAL_SECONDS = 0.5
+    LINGER_SECONDS = 0.02
+    # 裁剪的最小间隔（文件超限时）与常规间隔（未超限时）。
+    # 两个都远大于请求间隔：裁剪是全量重写，绝不能挂在写入路径上。
+    PRUNE_MIN_INTERVAL_SECONDS = 10
+    PRUNE_INTERVAL_SECONDS = 300
+    # 折叠窗口：同一签名在此窗口内重复出现会被折叠成一条；
+    # 同时也是「同一签名最多多久写一行」的间隔（见 append 与 _expire_recent_locked）。
+    FOLD_WINDOW_SECONDS = 5
+    FOLD_WRITE_INTERVAL_SECONDS = 5
+    # 去重表与「上次入队时间」表的硬上限，防止海量不同签名把内存撑大。
+    MAX_TRACKED_SIGNATURES = 1000
+    MAX_TRACKED_IDS = 1000
 
     def __init__(
         self, data_dir: Path, *, retention_days: int = 7, max_bytes: int = 5242880
@@ -152,12 +179,15 @@ class GlobalLogStore:
         self.path = self.directory / "global-events.jsonl"
         self.retention_days = max(1, int(retention_days))
         self.max_bytes = max(65536, int(max_bytes))
-        # RLock 而非 Lock：append 内部会调用同样加锁的辅助方法，需要可重入。
+        # RLock 而非 Lock：append 与后台写线程会调用同样加锁的辅助方法，需要可重入。
         self._lock = threading.RLock()
-        # 上次裁剪时间，用于把裁剪节流到最多 5 分钟一次。
+        # 上次裁剪时间；None 表示「还没裁过」，允许立刻裁一次以清掉超期旧数据。
         self._last_pruned_at = None
         # 去重签名 -> (首次时间, 事件副本)，用于折叠 5 秒内的重复事件。
         self._recent_events = {}
+        # 事件 id -> 上次真正入队（准备落盘）的时间：折叠期间不再逐条写盘，
+        # 但也不能永远不写，靠它把同一签名的落盘频率压到窗口级别。
+        self._last_queued_at = {}
         # 待写入队列（同时也是磁盘不可用时的兜底缓存），超过 200 条丢弃最旧的。
         self._pending = deque(maxlen=200)
         self._write_failures = 0
@@ -165,10 +195,147 @@ class GlobalLogStore:
         self._last_error = None
         self._last_warning_at = None
         self._tail_checked = False
+        # 统计量：只用于自检与排障，不对外暴露。
+        self._flush_count = 0
+        self._prune_count = 0
         try:
             self._prepare_directory()
         except OSError as error:
             self._io_failure(error)
+        # 唯一的写盘者：append 只入队并唤醒它，磁盘 I/O 一律不出现在调用方线程里。
+        self._wake = threading.Event()
+        self._stopping = False
+        self._writer = threading.Thread(
+            target=self._writer_loop, name="global-log-writer", daemon=True
+        )
+        self._writer.start()
+
+    def _writer_loop(self) -> None:
+        """后台写线程主体：批量刷盘 + 节流裁剪，直到 stop() 被调用。
+
+        合并同一次唤醒期间的所有写入：外部请求再多，一次唤醒也只做一次
+        open/append，以及（最多）一次裁剪。
+        """
+        while True:
+            self._wake.wait(self.FLUSH_INTERVAL_SECONDS)
+            self._wake.clear()
+            try:
+                # 被唤醒后先攒一小会儿：突发写入（例如一次 401 刷屏）会在这段时间里
+                # 合并成一批，而不是每次 append 都触发一次 open/write/close。
+                if self._pending:
+                    time.sleep(self.LINGER_SECONDS)
+                    self._wake.clear()
+                with self._lock:
+                    stopping = self._stopping
+                    # 正常运行时每次都试一次（空队列时只是空转）；
+                    # 停止时只要有剩余事件就先刷完，再退出。
+                    if not stopping or self._pending:
+                        self._flush_locked()
+                        self._expire_recent_locked()
+                    if stopping and not self._pending:
+                        return
+            except Exception as error:  # noqa: BLE001 —— 写线程绝不能因异常静默死掉
+                try:
+                    with self._lock:
+                        self._io_failure(error)
+                except Exception:  # noqa: BLE001 —— 连告警都失败时只能放弃这一轮
+                    pass
+
+    def _expire_recent_locked(self) -> None:
+        """折叠窗口结束时收尾：把需要落盘的最终计数补写一次。调用方必须已持锁。
+
+        折叠期间同一签名不再逐条落盘（否则文件行数按请求量放大），因此文件里
+        那条的 repeatCount 会偏小；窗口一结束就把最终快照推回待写队列，读接口按
+        id 去重后拿到的就是准确计数。只补写过「被折叠过」的事件：本身就是一条的
+        没必要重复写。
+        """
+        cutoff = _utc_now() - timedelta(seconds=self.FOLD_WINDOW_SECONDS)
+        expired = [
+            signature
+            for signature, (seen_at, _event) in self._recent_events.items()
+            if seen_at < cutoff
+        ]
+        for signature in expired:
+            _seen_at, event = self._recent_events.pop(signature)
+            if event.get("repeatCount", 1) <= 1:
+                continue
+            if len(self._pending) == self._pending.maxlen:
+                self._dropped_events += 1
+            self._pending.append(event)
+            self._last_queued_at[event["id"]] = _utc_now()
+
+    def stop(self, *, timeout: float = 2.0) -> None:
+        """停止后台写线程并把队列里剩下的事件刷盘（进程关闭 / 测试收尾时调用）。
+
+        参数:
+            timeout: 等待写线程退出的秒数；超时也会补刷一次，避免丢事件。
+        """
+        with self._lock:
+            self._stopping = True
+        self._wake.set()
+        writer = self._writer
+        if writer is not None and writer.is_alive():
+            writer.join(timeout)
+        # 线程退出（或超时）后可能还有最后几条没落盘，这里补一次。
+        with self._lock:
+            self._flush_locked()
+
+    def _flush_locked(self) -> None:
+        """把待写队列整体追加上盘，并按需裁剪；调用方必须已持有 _lock。
+
+        单次 open + 顺序写入，不 seek、不重写：追加成本与文件大小无关。
+        """
+        if self._pending:
+            # 同一 id 在一次刷盘里只写一条（取最新快照）：折叠期间 id 不变，
+            # 队列里会堆着同一条事件的多个版本，逐条写等于按请求量放大文件行数。
+            batch = {}
+            for pending in self._pending:
+                batch[pending["id"]] = pending
+            try:
+                self._prepare_directory()
+                separate_partial_line = False
+                # 首次写入前检查文件末尾是不是换行：进程被强杀时可能留下
+                # 半行 JSON，不补换行会让新事件和残行粘成一条非法记录。
+                if (
+                    not self._tail_checked
+                    and self.path.exists()
+                    and self.path.stat().st_size
+                ):
+                    with self.path.open("rb") as source_file:
+                        source_file.seek(-1, os.SEEK_END)
+                        separate_partial_line = source_file.read(1) != b"\n"
+                descriptor = os.open(
+                    self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600
+                )
+                with os.fdopen(descriptor, "ab") as output:
+                    if separate_partial_line:
+                        output.write(b"\n")
+                    # 每次唤醒都把整个待写队列刷出去：
+                    # 队列里既有本次事件，也有磁盘故障期间积压的事件。
+                    for pending in batch.values():
+                        output.write(
+                            (
+                                json.dumps(
+                                    pending, ensure_ascii=False, separators=(",", ":")
+                                )
+                                + "\n"
+                            ).encode("utf-8")
+                        )
+                    output.flush()
+                self._pending.clear()
+                self._flush_count += 1
+                self._tail_checked = True
+                was_unavailable = self._last_error is not None
+                self._last_error = None
+                if was_unavailable:
+                    _storage_diagnostic(
+                        f"全局日志存储已恢复，已补写缓存事件；累计未能保留 {self._dropped_events} 条"
+                    )
+            except OSError as error:
+                # 写失败：事件留在 _pending 里等下次补写，本轮不再裁剪。
+                self._io_failure(error)
+                return
+        self._prune_if_needed()
 
     def _prepare_directory(self) -> None:
         """确保目录与文件存在且权限收紧（目录 0700、文件 0600）。"""
@@ -177,8 +344,8 @@ class GlobalLogStore:
         if self.path.exists():
             os.chmod(self.path, 0o600)
 
-    def _io_failure(self, error: OSError) -> None:
-        """记录一次磁盘故障，并把告警节流到每 30 秒最多一条。
+    def _io_failure(self, error: Exception) -> None:
+        """记录一次落盘故障（含写线程里出现的意外异常），告警节流到每 30 秒最多一条。
 
         事件本身已经进了 _pending，所以磁盘恢复后会自动补写，
         这里只负责计数与告警，不向外抛异常。
@@ -192,6 +359,16 @@ class GlobalLogStore:
         ):
             _storage_diagnostic(f"全局日志存储不可用，暂存最近 200 条事件：{self._last_error}")
             self._last_warning_at = now
+
+    def prune_now(self) -> None:
+        """立刻按保留天数与文件上限裁剪一次（跳过节流）。
+
+        只给自检 / 运维用：会加锁，因此不会和后台写线程撞在一起。
+        常规路径不要调它 —— 裁剪是全量重写，必须由写线程按节流节奏做。
+        """
+        with self._lock:
+            self._last_pruned_at = None
+            self._prune_if_needed()
 
     def storage_status(self) -> dict[str, Any]:
         """当前存储健康状况，供 /api/v1/logs 的运维视图展示。"""
@@ -261,13 +438,19 @@ class GlobalLogStore:
         with self._lock:
             # 去重签名只取会影响可读性的字段，不含 id 与时间戳，
             # 这样同一处反复报错才会被识别成"重复"。
+            # requestId / durationMs 是逐请求变化的，必须剔除，否则刷屏时
+            # 每条都会算作「不重复」，折叠失效 → 日志写入量被请求量直接放大。
             signature = json.dumps(
                 [
                     normalized_level,
                     event["source"],
                     event["category"],
                     event["message"],
-                    metadata,
+                    {
+                        key: value
+                        for key, value in metadata.items()
+                        if key not in _VOLATILE_CONTEXT_KEYS
+                    },
                     event.get("details"),
                 ],
                 ensure_ascii=False,
@@ -275,9 +458,10 @@ class GlobalLogStore:
             )
             now = _utc_now()
             recent = self._recent_events.get(signature)
-            # 5 秒窗口内同签名事件折叠：保留首次的 id 与时间戳，
+            # FOLD_WINDOW_SECONDS 窗口内同签名事件折叠：保留首次的 id 与时间戳，
             # 叠加计数并记录最后一次发生时间，前端据此显示「重复 N 次」。
-            if recent and now - recent[0] < timedelta(seconds=5):
+            # 窗口随每次命中向后滑动：只要还在持续刷屏，就始终是同一 id。
+            if recent and (now - recent[0]).total_seconds() < self.FOLD_WINDOW_SECONDS:
                 event["id"] = recent[1]["id"]
                 event["timestamp"] = recent[1]["timestamp"]
                 event["repeatCount"] = recent[1].get("repeatCount", 1) + 1
@@ -288,63 +472,31 @@ class GlobalLogStore:
                         "clientTimestamp", event["clientTimestamp"]
                     )
             self._recent_events[signature] = (now, event.copy())
-            # 兜底清理：正常情况下 5 秒后旧签名就被视作过期，
-            # 但持续高频写入时表不会自己缩小，因此超过 1000 条就强制瘦身。
-            if len(self._recent_events) > 1000:
-                cutoff = now - timedelta(seconds=5)
-                self._recent_events = {
-                    key: value
-                    for key, value in self._recent_events.items()
-                    if value[0] >= cutoff
-                }
-                while len(self._recent_events) > 1000:
-                    self._recent_events.pop(next(iter(self._recent_events)))
-            if len(self._pending) == self._pending.maxlen:
-                # 队列已满：deque 会自动丢弃最旧一条，这里只统计丢弃数量。
-                self._dropped_events += 1
-            self._pending.append(event)
-            try:
-                self._prepare_directory()
-                separate_partial_line = False
-                # 首次写入前检查文件末尾是不是换行：进程被强杀时可能留下
-                # 半行 JSON，不补换行会让新事件和残行粘成一条非法记录。
-                if (
-                    not self._tail_checked
-                    and self.path.exists()
-                    and self.path.stat().st_size
-                ):
-                    with self.path.open("rb") as source_file:
-                        source_file.seek(-1, os.SEEK_END)
-                        separate_partial_line = source_file.read(1) != b"\n"
-                descriptor = os.open(
-                    self.path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600
-                )
-                with os.fdopen(descriptor, "ab") as output:
-                    if separate_partial_line:
-                        output.write(b"\n")
-                    # 每次写入都把整个待写队列刷出去：
-                    # 队列里既有本次事件，也有磁盘故障期间积压的事件。
-                    for pending in self._pending:
-                        output.write(
-                            (
-                                json.dumps(
-                                    pending, ensure_ascii=False, separators=(",", ":")
-                                )
-                                + "\n"
-                            ).encode("utf-8")
-                        )
-                    output.flush()
-                self._pending.clear()
-                self._tail_checked = True
-                was_unavailable = self._last_error is not None
-                self._last_error = None
-                self._prune_if_needed()
-                if was_unavailable:
-                    _storage_diagnostic(
-                        f"全局日志存储已恢复，已补写缓存事件；累计未能保留 {self._dropped_events} 条"
-                    )
-            except OSError as error:
-                self._io_failure(error)
+            # 兜底清理：正常情况下超窗的签名由写线程收尾（_expire_recent_locked），
+            # 但海量不同签名涌进来时表不会自己缩小，因此超过上限就按最旧淘汰。
+            while len(self._recent_events) > self.MAX_TRACKED_SIGNATURES:
+                self._recent_events.pop(next(iter(self._recent_events)))
+            # 折叠命中时不必每条都落盘：同一 id 在 FOLD_WRITE_INTERVAL_SECONDS 内
+            # 最多写一行，否则文件行数会被请求量直接放大（JSONL 是 append-only，
+            # 行数就是磁盘占用与后续裁剪的成本）。代价是窗口内那行的 repeatCount
+            # 会小于内存里的最终值 —— 窗口结束时写线程会补写最终快照，读接口按 id
+            # 去重后看到的仍是准确计数。
+            queued_at = self._last_queued_at.get(event["id"])
+            if (
+                event["repeatCount"] <= 1
+                or queued_at is None
+                or (now - queued_at).total_seconds() >= self.FOLD_WRITE_INTERVAL_SECONDS
+            ):
+                self._last_queued_at[event["id"]] = now
+                while len(self._last_queued_at) > self.MAX_TRACKED_IDS:
+                    self._last_queued_at.pop(next(iter(self._last_queued_at)))
+                if len(self._pending) == self._pending.maxlen:
+                    # 队列已满：deque 会自动丢弃最旧一条，这里只统计丢弃数量。
+                    self._dropped_events += 1
+                self._pending.append(event)
+                # 请求路径到此为止：这里只入队并唤醒后台写线程，不做任何磁盘 I/O
+                # （调用方可能是事件循环里的中间件，绝不能在这里等磁盘）。
+                self._wake.set()
         return event
 
     def list_events(
@@ -414,6 +566,7 @@ class GlobalLogStore:
         with self._lock:
             self._write_events([])
             self._recent_events.clear()
+            self._last_queued_at.clear()
             self._pending.clear()
 
     def _read_events(self, *, strict: bool = False) -> list[dict[str, Any]]:
@@ -424,8 +577,8 @@ class GlobalLogStore:
                 读失败当成"没有事件"而清空日志）；False 时降级为告警。
 
         返回:
-            去重后的事件列表；同一 id 以文件中最后出现的那条为准，
-            并把内存待写队列里的事件追加在末尾。
+            去重后的事件列表；同一 id 以最后收集到的那条为准 ——
+            顺序是「文件 → 待写队列 → 折叠表」，越靠后的越新。
         """
         events = {}
 
@@ -462,12 +615,18 @@ class GlobalLogStore:
         # 前端刷新日志会完全看不到刚刚发生的问题。
         for event in self._pending:
             collect(event)
+        # 折叠表里的是最新快照（repeatCount 比已落盘那行更大，但按行数节流的
+        # 原因还没写盘），放最后收集 —— 同 id 时它赢，前端看到的计数才是最新的。
+        for _seen_at, event in self._recent_events.values():
+            collect(event)
         return list(events.values())
 
     def _write_events(self, events: list[dict[str, Any]]) -> None:
         """全量重写日志文件（临时文件 + fsync + rename，保证原子性）。
 
-        只用于 clear 与裁剪，追加写入走 append 的快路径。
+        只用于 clear 与裁剪；追加写入走后台写线程的 _flush_locked 快路径。
+        调用方必须持有 _lock：临时文件名是固定的，两个重写叠在一起会互相
+        把对方的临时文件 rename 走（表现为 ENOENT + 丢事件）。
         """
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         temporary = self.path.with_suffix(".tmp")
@@ -483,21 +642,30 @@ class GlobalLogStore:
         os.chmod(self.path, 0o600)
 
     def _prune_if_needed(self) -> None:
-        """按保留天数与文件上限裁剪日志。
+        """按保留天数与文件上限裁剪日志（只应由后台写线程调用）。
 
-        两个触发条件：文件超过 max_bytes，或距上次裁剪已过 5 分钟。
+        裁剪是一次「读全量 + 全量重写 + fsync」，因此必须带最小间隔：
+        文件超限时最密 PRUNE_MIN_INTERVAL_SECONDS 一次，未超限时
+        PRUNE_INTERVAL_SECONDS 一次。绝不在每次写入时触发 —— 那等于让请求量
+        直接放大成磁盘读写量（写入放大自 DoS）。两次裁剪之间文件可能略高于
+        max_bytes，这是刻意的取舍：宁可短暂超一点，也不能每次请求都重写。
+
         裁剪从最新往旧保留，累计字节超限即停止 —— 也就是宁可多留新事件，
         也要保证文件不超上限。
         """
         now = _utc_now()
-        oversized = self.path.exists() and self.path.stat().st_size > self.max_bytes
-        # 未超限时按 5 分钟节流：裁剪要全量重写文件，不能每次 append 都做。
-        if (
-            not oversized
-            and self._last_pruned_at
-            and now - self._last_pruned_at < timedelta(minutes=5)
-        ):
-            return
+        # 首次（_last_pruned_at 为 None）允许立刻裁一次，清掉超过保留期的旧数据。
+        if self._last_pruned_at is not None:
+            elapsed = now - self._last_pruned_at
+            if elapsed < timedelta(seconds=self.PRUNE_MIN_INTERVAL_SECONDS):
+                return
+            oversized = (
+                self.path.exists() and self.path.stat().st_size > self.max_bytes
+            )
+            if not oversized and elapsed < timedelta(
+                seconds=self.PRUNE_INTERVAL_SECONDS
+            ):
+                return
         cutoff = now - timedelta(days=self.retention_days)
         retained = []
         retained_bytes = 0
@@ -521,4 +689,5 @@ class GlobalLogStore:
             retained_bytes += event_bytes
         retained.reverse()
         self._write_events(retained)
+        self._prune_count += 1
         self._last_pruned_at = now

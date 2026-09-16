@@ -7,15 +7,19 @@
 from __future__ import annotations
 
 import logging
+import math
 import secrets
+import threading
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from typing import Iterator
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
 from store import coupons, features, fulfill, referrals, site_settings as site_config
-from store import mail_settings, mailer
+from store import catalog, mail_settings, mailer
 from store.api.store import (
     _expire_stale_orders,
     _image_map,
@@ -41,6 +45,7 @@ from store.payments.credentials import (
     validate_private_key_text,
     validate_public_key_text,
 )
+from store.payments.reconcile import CLOSE_LOOKBACK_HOURS, channel_still_payable
 from store.payments.refunds import record_refund_in_new_session
 from store.payments.sweeper import sweep_status
 from store.models import (
@@ -50,6 +55,7 @@ from store.models import (
     Coupon,
     CouponRedemption,
     Customer,
+    DEFAULT_SUPPORT_EMAIL,
     DeviceBinding,
     DeviceReleaseEvent,
     EmailVerification,
@@ -79,6 +85,7 @@ from store.schemas import (
     AdminLicenseRequest,
     AdminMailTestRequest,
     AdminOrderActionRequest,
+    AdminOrderReviewRequest,
     AdminProductPatch,
     AdminProductRequest,
     AdminReleasePatch,
@@ -124,7 +131,46 @@ def _naive_utc(value: datetime | None) -> datetime | None:
 
 
 def _admin_actor(admin: AdminAccount) -> str:
-    return admin.email or admin.username or str(admin.id)
+    # ``Account`` 没有 ``username`` 列（历史遗留的假想字段）：写成
+    # ``admin.email or admin.username`` 时，只要邮箱为空就直接 AttributeError，
+    # 于是一个「资料不全的管理员」做任何操作都会 500，审计日志也永远写不进去。
+    return admin.email or str(admin.id)
+
+
+def _guard_self_lockout(account: Account, admin: AdminAccount, *, action: str) -> None:
+    """不许管理员把自己关在门外（停用自己 / 取消自己的管理员权限）。
+
+    用 409 而不是 400：请求本身完全合法，是它与「当前这个会话就是目标账号」
+    这个状态冲突 —— 与文件里其它守卫（待支付订单不可删除、生效中的授权不可删除）
+    保持同一口径，前端也不必为这一类拒绝单独分支。
+    """
+    if account.id == admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=f"不能{action}。"
+        )
+
+
+def _guard_last_active_admin(session: Session, account: Account) -> None:
+    """停用或降权一个**启用中的管理员**前，确认系统里还留得下至少一个管理员。
+
+    没有这道守卫，最后一位管理员可以把自己关掉，后台从此进不去，只能直接改库
+    救回来 —— 一个纯粹的运营自锁。判断的是「除他之外还有没有启用中的管理员」，
+    所以对非管理员账号、或本来就已停用的账号直接放行。
+    """
+    if not (account.is_admin and account.is_active):
+        return
+    remaining = session.execute(
+        select(func.count(Account.id)).where(
+            Account.is_admin.is_(True),
+            Account.is_active.is_(True),
+            Account.id != account.id,
+        )
+    ).scalar_one()
+    if not remaining:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="系统必须保留至少一个启用状态的管理员。",
+        )
 
 
 def _audit(session, actor: str, action: str, target: str = "", detail: str = "") -> None:
@@ -202,7 +248,18 @@ _OVERVIEW_WINDOWS: tuple[tuple[str, timedelta], ...] = (
 #: 真的收到过钱的状态。``pending`` 从未付款；``expired`` / ``cancelled`` /
 #: ``payment_failed`` 的库存预留早已归还，不走支付成功路径；``fulfillment_failed``
 #: 的钱是到账的（只是没发出去），所以必须计入。
-PAID_MONEY_STATUSES: tuple[str, ...] = ("paid", "fulfilled", "refunded", "fulfillment_failed")
+#:
+#: ``partially_refunded`` 同样必须在列：它表达的是「收到过钱、退了一部分、还有余额
+#: 没退」，漏掉它会让一笔 10000 分、部分退 3000 的订单在营收里贡献 0（gross 记不到、
+#: refund 也记不到），实际应为 7000。order_status.REFUNDABLE_STATUSES 用的是同一套
+#: 口径，两处必须一致。
+PAID_MONEY_STATUSES: tuple[str, ...] = (
+    "paid",
+    "fulfilled",
+    "refunded",
+    "partially_refunded",
+    "fulfillment_failed",
+)
 
 #: 需要人工介入的授权临期窗口。
 OVERVIEW_EXPIRING_DAYS = 30
@@ -241,7 +298,7 @@ def _window_money(session: Session, since: datetime) -> dict:
 
 
 @router.get("/overview")
-def overview(session: DbSession, _admin: AdminAccount) -> dict:
+def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) -> dict:
     """经营看板数据。
 
     除了原来的累计数，这里补齐了「有时间维度的营收」「订单漏斗」「需要人工处理的
@@ -249,7 +306,7 @@ def overview(session: DbSession, _admin: AdminAccount) -> dict:
     要看一眼的数字都应该在这里出现，而不是让人自己去各分页里数。
     """
     setting = site_config.get_setting(session)
-    _expire_stale_orders(session, setting)
+    _expire_stale_orders(session, setting, settings)
     moment = utcnow()
 
     def count(statement) -> int:
@@ -592,23 +649,54 @@ def admin_list_products(
     }
 
 
-def _assert_deliverable_product(
-    product_type: str, feature_codes: list, included_product_ids: list
+def _assert_product_configuration(
+    product_type: str,
+    fulfillment_mode: str,
+    feature_codes: list,
+    included_product_ids: list,
 ) -> None:
-    """拦下「什么都不会发放」的套餐配置。
+    """校验商品的可枚举字段，并拦下「什么都不会发放」的套餐配置。
 
-    履约时功能码有两个来源：商品自己的 ``feature_codes``，以及套餐
-    ``included_product_ids`` 展开出的功能码。两者都为空时，用户付了钱却拿不到
-    任何功能码 —— 更糟的是授权会在服务端落进 ``REQUIRED_FEATURES_FALLBACK``
-    兜底分支，看起来「能用」，所以这类错配在测试环境里极难发现。
+    两个部分：
 
-    只对 ``package`` 强制：单卖的主授权/增量包在后台允许先建后补功能码
+    1. **取值校验**（``store.catalog``）。``product_type`` / ``fulfillment_mode``
+       直接决定下单走哪个分支、付款后自不自动发码，写错一个字母不会报错但会
+       静默走错路（详见 ``store/catalog.py`` 的说明）。功能码同理：它不在这里
+       校验的话，抄错的能力码会一路发到客户端，然后被静默拦截。
+    2. **可发放性**：履约时功能码有两个来源 —— 商品自己的 ``feature_codes``，
+       以及套餐 ``included_product_ids`` 展开出的功能码。两者都为空时，用户付了
+       钱却拿不到任何功能码；更糟的是授权会在服务端落进
+       ``REQUIRED_FEATURES_FALLBACK`` 兜底分支，看起来「能用」，所以这类错配在
+       测试环境里极难发现。
+
+    第 2 条只对 ``package`` 强制：单卖的主授权/增量包在后台允许先建后补功能码
     （运营常常先建商品再配功能），而套餐的卖点就是「包含若干商品」，
     「既没有自己的功能码、也没包含任何商品」的套餐没有任何合法用途。
     """
+    try:
+        catalog.validate_product_type(product_type)
+        catalog.validate_fulfillment_mode(fulfillment_mode)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
+
+    codes = [str(code).strip() for code in (feature_codes or []) if str(code).strip()]
+    unknown = sorted({code for code in codes if code not in features.FEATURE_CODES})
+    if unknown:
+        # 能力码清单在主项目（``backend/app/license/service.py``）与
+        # ``store/features.py`` 里各有一份、必须同步；抄错的码不会让任何一步报错，
+        # 只会在客户端被静默拦截，所以宁可在这里拒绝。
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"功能码 {'、'.join(unknown)} 不在能力目录里，客户端不会认它。"
+                "请从「功能码」选择器里勾选。"
+            ),
+        )
+
     if str(product_type or "").strip() != "package":
         return
-    codes = [str(code).strip() for code in (feature_codes or []) if str(code).strip()]
     if codes:
         return
     if [str(item).strip() for item in (included_product_ids or []) if str(item).strip()]:
@@ -623,8 +711,11 @@ def _assert_deliverable_product(
 def admin_create_product(
     payload: AdminProductRequest, session: DbSession, admin: AdminAccount
 ) -> dict:
-    _assert_deliverable_product(
-        payload.product_type, payload.feature_codes, payload.included_product_ids
+    _assert_product_configuration(
+        payload.product_type,
+        payload.fulfillment_mode,
+        payload.feature_codes,
+        payload.included_product_ids,
     )
     product = Product(
         name=payload.name,
@@ -688,8 +779,9 @@ def admin_update_product(
         product.feature_codes_json = list_json(data["feature_codes"] or [])
     if "included_product_ids" in data:
         product.included_product_ids_json = list_json(data["included_product_ids"] or [])
-    _assert_deliverable_product(
+    _assert_product_configuration(
         product.product_type,
+        product.fulfillment_mode,
         json_list(product.feature_codes_json),
         json_list(product.included_product_ids_json),
     )
@@ -767,7 +859,10 @@ async def admin_upload_product_image(
     suffix = ""
     if file.filename and "." in file.filename:
         suffix = "." + file.filename.rsplit(".", 1)[1].lower()[:8]
-    if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}:
+    # 白名单刻意不含 ``.svg``：SVG 是能内嵌 ``<script>`` 的 XML，而商品图是直接
+    # 按原 Content-Type 回给浏览器的同源静态资源 —— 上传一个 SVG 就等于在商店
+    # 域下拿到一个可执行的 XSS 落点（能偷后台会话、伪造下单）。图标需求用 PNG。
+    if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
         suffix = ".png"
     folder = settings.product_images_dir
     folder.mkdir(parents=True, exist_ok=True)
@@ -829,6 +924,7 @@ def _status_label(status: str) -> str:
 def admin_list_orders(
     session: DbSession,
     _admin: AdminAccount,
+    settings: SettingsDep,
     status_filter: str | None = None,
     keyword: str | None = None,
     needs_review: bool | None = None,
@@ -846,7 +942,7 @@ def admin_list_orders(
     UTC 传出，服务端只做 naive UTC 归一（见 ``_naive_utc``）。
     """
     setting = site_config.get_setting(session)
-    _expire_stale_orders(session, setting)
+    _expire_stale_orders(session, setting, settings)
     base = select(Order)
     wanted = [part.strip() for part in (status_filter or "").split(",") if part.strip()]
     if wanted:
@@ -870,7 +966,9 @@ def admin_list_orders(
         (Order.created_at.desc(),),
         limit=limit,
         offset=offset,
-        render=order_payload,
+        # 删除守卫的第三条判据（渠道交易是否已确认关闭）前端拿不到，这里补进列表，
+        # 让「能不能删」只有一个口径 —— 否则按钮会照常显示、点下去才 409。
+        render=lambda row: {**order_payload(row), "channelPayable": channel_still_payable(row)},
     )
 
 
@@ -991,12 +1089,151 @@ def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dic
     )
 
 
+@router.post("/orders/{order_no}/review")
+def admin_review_order(
+    order_no: str, payload: AdminOrderReviewRequest, session: DbSession, admin: AdminAccount
+) -> dict:
+    """把订单的「待复核」标记清掉（人工已处理）。
+
+    ``needs_review`` 目前唯一的来源是「订单超时关闭后支付才到账」的复活单 ——
+    钱收了、码也发了，但那一件库存早已还给别人，需要人确认补货还是退款。
+    只有置位路径（``settle_paid_order`` / 履约失败）而**没有任何清除路径**时，
+    概览页那条待办会永久挂着：第 10 单之后运营就再也看不见它了，告警等于失效。
+
+    刻意**不**在履约成功时自动清除：复活单的价值就在于让人看见「这单超卖过」，
+    必须由人确认（哪怕确认的结论是「不用处理」）。所以这里要求订单已经不在
+    ``pending``：钱还没到账的单谈不上「已处理」。
+
+    清标记同时把复核结论追加进 ``review_note``（保留原因，不覆盖）：事后复盘
+    「这单当时为什么放行」只能靠它。
+    """
+    order = _order_or_404(session, order_no)
+    if order.status == "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="订单尚未支付，没有需要处理的复核事项。",
+        )
+    if not order.needs_review:
+        #: 幂等：重复点击（两个标签页、误触）不该报错，也不该覆盖上一个人的结论。
+        return order_payload(order)
+
+    previous = (order.review_note or "").strip()
+    note = (payload.note or "").strip()
+    stamp = utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    order.needs_review = False
+    #: 保留原始原因而不是清空：这一栏是「这单为什么被标出来」的唯一记录，
+    #: 清掉之后几天后回头看就只剩一句「已处理」，等于把线索删了。
+    order.review_note = (
+        f"{previous}｜{stamp} 已处理：{note}" if note else f"{previous}｜{stamp} 已处理"
+    )[:255]
+    session.flush()
+    _audit(
+        session,
+        _admin_actor(admin),
+        "order.review",
+        order.order_no,
+        note[:200] or "标记为已处理",
+    )
+    session.refresh(order)
+    return order_payload(order)
+#: 同一订单的退款必须串行执行。渠道退款是**不可逆的资金动作**，而退款接口是
+#: 「读累计值 → 调渠道 → 写累计值」的形状：两个并发请求（双击按钮、两个标签页、
+#: 两位客服同时操作）会各自读到同一个 ``refund_amount_cents``、各自把同一笔钱
+#: 退给用户，而累计值只加一次 —— 钱多退一倍，账面却显示只退了一笔。
+#:
+#: 为什么不用「条件 UPDATE 抢单」当闸门：闸门必须在**调渠道之前**取得，而那一刻
+#: 请求事务还没写过任何东西；条件 UPDATE 会把 SQLite 的写锁一直攥到请求结束，
+#: 也就是在整个网络往返期间阻塞所有下单。放到调渠道之后又拦不住第二次调用。
+#: 所以用进程内锁把同一订单串起来：不占数据库写锁，正好覆盖「同一进程内并发」这个
+#: 真实场景；跨进程的残余窗口由下面的 ``_claim_refund_amount`` 兜住（不静默吞掉）。
+# --------------------------------------------------------------------------- #
+# 退款串行化与记账抢单
+# --------------------------------------------------------------------------- #
+#: 同一订单的退款必须串行执行。渠道退款是**不可逆的资金动作**，而退款接口是
+#: 「读累计值 → 调渠道 → 写累计值」的形状：两个并发请求（双击按钮、两个标签页、
+#: 两位客服同时操作）会各自读到同一个 ``refund_amount_cents``、各自把同一笔钱
+#: 退给用户，而累计值只加一次 —— 钱多退一倍，账面却显示只退了一笔。
+#:
+#: 为什么不用「条件 UPDATE 抢单」当闸门：闸门必须在**调渠道之前**取得，而那一刻
+#: 请求事务还没写过任何东西；条件 UPDATE 会把 SQLite 的写锁一直攥到请求结束，
+#: 也就是在整个网络往返期间阻塞所有下单。放到调渠道之后又拦不住第二次调用。
+#: 所以用进程内锁把同一订单串起来：不占数据库写锁，正好覆盖「同一进程内并发」这个
+#: 真实场景；跨进程的残余窗口由下面的 ``_claim_refund_amount`` 兜住（不静默吞掉）。
+#: 每个订单号一把进程内锁。**带引用计数**：没有计数的话这个字典只增不减 ——
+#: 每来一笔新订单就永久留下一个 Lock 对象，站点跑上几个月就是一条缓慢但确定的内存泄漏
+#: （退款不是高频动作，但订单号是无限的）。最后一个使用者退出时把表项删掉。
+_refund_locks: dict[str, list] = {}
+_refund_locks_guard = threading.Lock()
+
+
+@contextmanager
+def _refund_lock(order_no: str) -> Iterator[None]:
+    """按订单号取一把进程内互斥锁，保证同一订单的退款不会交叠。"""
+    with _refund_locks_guard:
+        entry = _refund_locks.get(order_no)
+        if entry is None:
+            entry = [threading.Lock(), 0]
+            _refund_locks[order_no] = entry
+        lock, holders = entry[0], entry[1]
+        entry[1] = holders + 1
+    lock.acquire()
+    try:
+        yield
+    finally:
+        lock.release()
+        with _refund_locks_guard:
+            entry = _refund_locks.get(order_no)
+            #: 只在「还是同一把锁」时才动计数：期间可能有人把表项删掉重建了。
+            if entry is not None and entry[0] is lock:
+                if entry[1] <= 1:
+                    del _refund_locks[order_no]
+                else:
+                    entry[1] -= 1
+
+
+def _claim_refund_amount(
+    session: Session, order: Order, *, seen_cents: int, add_cents: int
+) -> bool:
+    """把本次退款金额并进累计值，条件是「累计值仍是本次读到的那个」。
+
+    与 ``_expire_stale_orders`` 同一套抢单套路：只有还能看到 ``seen_cents`` 的
+    一方才有资格写。``refund_amount_cents`` 是可空列，用 ``coalesce`` 兜住历史
+    数据里的 NULL（``NULL = 0`` 在 SQL 里不成立，漏掉会让老订单永远抢不到）。
+    """
+    claimed = session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        .where(func.coalesce(Order.refund_amount_cents, 0) == seen_cents)
+        .values(refund_amount_cents=seen_cents + add_cents)
+        .execution_options(synchronize_session=False)
+    )
+    return claimed.rowcount == 1
+
+
 @router.post("/orders/{order_no}/refund")
 def admin_refund(
     order_no: str,
     payload: AdminOrderActionRequest,
     request: Request,
     session: DbSession,
+    admin: AdminAccount,
+) -> dict:
+    """后台退款。真正的逻辑在 ``_refund_order``，这里只负责把同一订单的退款串行化。"""
+    with _refund_lock(order_no):
+        result = _refund_order(order_no, payload, request, session, admin)
+        # 必须在本进程锁**之内**把抢单结果与流水落库。请求会话的 commit 发生在
+        # 依赖 teardown（见 store.database.Database.session），那时锁早就释放了：
+        # 第二笔并发退款会读到同一个旧累计值，于是两次渠道退款都发出去、两次
+        # 抢单也都成立 —— 钱多退一倍。teardown 的 commit 之后是空操作。
+        session.commit()
+        return result
+
+
+def _refund_order(
+    order_no: str,
+    payload: AdminOrderActionRequest,
+    request: Request,
+    session: Session,
     admin: AdminAccount,
 ) -> dict:
     setting = site_config.get_setting(session)
@@ -1090,15 +1327,72 @@ def admin_refund(
         # 过去这种情况直接 409 拒绝，连「退了多少」都没记下来。
         settled_cents = max(0, amount_cents - int(result.unrefunded_cents or 0))
 
+    # 渠道确认「本次没有新增资金变动」时 settled_cents 会是 0（``fund_change=N`` /
+    # ``refund_fee=0``）。这不是一次成功的退款，而是「这笔钱早就退过了」——绝不能
+    # 因此把订单推进 ``partially_refunded``（那会让一笔资金未动的订单显示成退过钱，
+    # 还会连带把预留归还掉）。只留一条流水并如实告知运营，订单状态保持原样。
+    if settled_cents <= 0:
+        refund.status = "succeeded"
+        refund.amount_cents = 0
+        refund.trade_no = refund_trade_no
+        refund.detail = (refund_detail or "渠道确认本次无新增资金变动。")[:255]
+        session.add(refund)
+        session.flush()
+        _audit(
+            session,
+            _admin_actor(admin),
+            "order.refund",
+            order.order_no,
+            f"未产生资金变动（{refund_detail or '该笔可能已退过款'}）"
+            + ("（线下退款）" if payload.offline else "")
+            + (f" 幂等号 {out_request_no}" if not payload.offline else "")
+            + (f" 渠道单号 {refund_trade_no}" if refund_trade_no else ""),
+        )
+        session.refresh(order)
+        return order_payload(order)
+
     # 走到这里渠道已经确认退款（或本来就是线下退款），可以安全地并入请求事务。
+    # 先抢单把本次金额并进累计值，再落流水 —— 两者必须同生共死，否则审计流水会
+    # 与订单上的累计值对不上。
+    cumulative_cents = refunded_cents + settled_cents
+    if not _claim_refund_amount(
+        session, order, seen_cents=refunded_cents, add_cents=settled_cents
+    ):
+        # 抢单失败：本次渠道退款**已经发出去了**，但本地累计值在「读」与「写」之间
+        # 被另一笔退款改动过（进程内锁没覆盖到的跨进程并发）。这里绝不能静默把本次
+        # 覆盖掉 —— 覆盖等于那笔钱从账面上消失；也不能只回一句 409 让人以为没退。
+        # 先在独立事务里把流水留下，再明确告知需要人工核对。
+        # 先回滚请求事务：它此刻可能已持有写锁，独立事务会写不进去（而这条流水
+        # 恰恰是最不能丢的那条）。回滚也会把还没落库的 refund 对象退成游离态，
+        # 正好满足 record_refund_in_new_session 的要求。
+        session.rollback()
+        refund.status = "succeeded"
+        refund.amount_cents = settled_cents
+        refund.trade_no = refund_trade_no
+        refund.detail = (
+            f"{refund_detail} 本地记账冲突：累计值已不是 ¥{refunded_cents / 100:.2f}，"
+            f"本次渠道退款 ¥{settled_cents / 100:.2f} 待人工核对。"
+        )[:255]
+        record_refund_in_new_session(session, refund)
+        logger.error(
+            "退款记账抢单失败（渠道已退款）order=%s out_request_no=%s settled=%s",
+            order.order_no,
+            out_request_no,
+            settled_cents,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"渠道已退出 ¥{settled_cents / 100:.2f}，但本地退款累计值被并发改动，"
+                "为避免重复记账已中止。请到「退款流水」核对这笔后手工处理。"
+            ),
+        )
+
     session.add(refund)
     refund.status = "succeeded"
     refund.amount_cents = settled_cents
     refund.trade_no = refund_trade_no
     refund.detail = refund_detail[:255]
-
-    cumulative_cents = refunded_cents + settled_cents
-    order.refund_amount_cents = cumulative_cents
     if refund_trade_no:
         order.refund_trade_no = refund_trade_no
 
@@ -1107,7 +1401,7 @@ def admin_refund(
     # 就再没人负责归还这一件预留了（漏掉等于这件货永久卖不出去）。
     if order.status in {"paid", "fulfillment_failed"}:
         product = session.get(Product, order.product_id) if order.product_id else None
-        fulfill.release_reserved_stock(session, product, 1)
+        fulfill.release_order_reservation(session, order=order, product=product)
 
     fully_refunded = total_cents > 0 and cumulative_cents >= total_cents
     if fully_refunded:
@@ -1143,7 +1437,28 @@ def admin_refund(
 
 
 def _revoke_order_entitlements(session, order: Order) -> None:
-    """收回订单产生的激活码与权益（全额退款时调用）。"""
+    """收回订单产生的激活码与权益（全额退款时调用）。
+
+    两种情况必须分开处理，因为它们的**权属**完全不同：
+
+    * ``issue``（本单发了一张新授权）→ 这张码就是本单的产物，整张作废；
+    * ``upgrade`` / ``patch``（本单改的是用户**此前已经付过钱**的那张授权）→
+      只能还原成改动前的样子。整张作废等于没收了他原来那笔消费，而什么都不做
+      则是「钱退了、永久授权还在手里」—— 后者是过去真实存在的漏洞：这类授权的
+      ``License.order_id`` 仍指向最早那张订单，按 ``order_id`` 找根本找不到它。
+    """
+    if (
+        order.license_action in {"upgrade", "patch"}
+        and order.license_id
+        and (order.license_state_before_json or "").strip()
+    ):
+        license = session.get(License, order.license_id)
+        if license is not None and fulfill.revert_license_change(
+            session, order=order, license=license
+        ):
+            session.flush()
+            return
+
     for license in session.scalars(select(License).where(License.order_id == order.id)):
         license.active = False
         license.revoked_at = utcnow()
@@ -1241,7 +1556,7 @@ def admin_cancel(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
         )
-    fulfill.release_reserved_stock(session, product, 1)
+    fulfill.release_order_reservation(session, order=order, product=product)
     # 与 _expire_stale_orders 对齐：取消要同时归还优惠码名额。漏掉这一步会让
     # redeemed_count 只增不减，而它参与 max_redemptions 校验，名额会被永久占用，
     # 用户之后下单会收到「优惠码已被领完」。
@@ -1256,11 +1571,24 @@ def admin_cancel(
 def admin_delete_order(order_no: str, session: DbSession, admin: AdminAccount) -> dict:
     """删除订单（用于清理测试单 / 垃圾单）。
 
-    订单是营收与授权来源的凭证，所以只允许删除**确定没有产生授权**的历史单据：
+    订单是营收与授权来源的凭证，所以只允许删除**确定没有动过任何授权**的历史单据：
       · 状态必须是终态 ``cancelled`` 或 ``expired``（待支付单请先取消，才会释放库存）；
-      · 不能关联任何授权（``license_id`` 与 ``target_license_id`` 都为空）。
+      · ``license_id`` 为空——这一单没有发出过授权（``License.order_id`` 是
+        ON DELETE SET NULL，删掉订单会静默切断授权与来源订单的溯源）；
+      · ``license_state_before_json`` 为空——这一单没有改过别人已有的授权；
+      · 渠道交易已确认关闭（``channel_still_payable`` 为假）——见下面的支付宝说明。
+
+    注意**不能**拿 ``target_license_id`` 当判据：增量包（addon）与升级单在**下单时**
+    就会写入这一列，指向用户已持有、被选作目标的那张授权——它表达的是「这单打算改谁」，
+    而不是「这单已经改过谁」。已取消/已过期的这类订单从未履约（履约会把
+    ``license_id`` 与快照一起写上，并把状态推进 ``fulfilled``），把「指向某张授权」
+    当成「已关联授权」会让所有增购/升级的垃圾单永远删不掉（后台操作列整列空白）。
 
     已付款/已履约的订单请走「退款」，用退款保留资金流水的可追溯性。
+
+    支付宝还有一道额外守卫：本地订单过期/取消**不代表**渠道那笔预下单交易结束，
+    用户手机上那个旧二维码仍然能付款。这种单删掉，延迟到账的钱就再也没有凭证
+    （异步通知按订单号查不到，只会打一条 error 日志；巡检的回看窗口也已经过去）。
     """
     order = _order_or_404(session, order_no)
 
@@ -1269,10 +1597,26 @@ def admin_delete_order(order_no: str, session: DbSession, admin: AdminAccount) -
             status_code=status.HTTP_409_CONFLICT,
             detail=f"状态为 {order.status} 的订单不能删除；待支付请先取消，已支付请走退款。",
         )
-    if order.license_id or order.target_license_id:
+    if order.license_id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="该订单已关联授权，不能删除；如需收回授权请使用退款。",
+        )
+    if order.license_state_before_json:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="该订单改动过一张已有授权（升级/增量包），不能删除；如需还原请使用退款。",
+        )
+    if channel_still_payable(order):
+        # 删掉之后钱进来就再没有任何凭证：异步通知找不到订单号只会打 error 日志，
+        # 巡检的回看窗口也已覆盖过它（见 ``channel_still_payable``）。
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "该订单的支付宝交易尚未确认关闭，用户手上那个旧二维码仍可能被付款；"
+                "删除会让一笔延迟到账的付款失去凭证。请等对账巡检关单后再删除"
+                f"（下单后 {CLOSE_LOOKBACK_HOURS} 小时内巡检会持续重试）。"
+            ),
         )
 
     session.delete(order)
@@ -1392,7 +1736,16 @@ def admin_issue_license(
     )
     session.add(license)
     session.flush()
-    _audit(session, _admin_actor(admin), "license.issue", license.id, code)
+    # 审计只记 id + 提示码，**绝不落激活码明文**：激活码就是这张授权的凭证，
+    # 审计日志会在后台列表里长期展示、也常被导出/转发，等于把它抄了一份到
+    # 一个没有访问控制的地方。列表页自己也只用 code_hint。
+    _audit(
+        session,
+        _admin_actor(admin),
+        "license.issue",
+        license.id,
+        f"{license.code_hint}（人工签发）",
+    )
     # 后台签发成功后要在一个常驻面板里展示结果，所以把「给谁、什么商品、有效期到哪天」
     # 一并返回，省得前端再发一次列表查询去凑（列表还带分页，不一定含这一条）。
     return {
@@ -1470,7 +1823,7 @@ def admin_delete_license(license_id: str, session: DbSession, admin: AdminAccoun
             detail="该授权仍有活跃设备绑定，请先强制解绑。",
         )
 
-    code = license.activation_code
+    code_hint = license.code_hint
     binding_count = int(
         session.execute(
             select(func.count(DeviceBinding.id)).where(DeviceBinding.license_id == license.id)
@@ -1479,12 +1832,13 @@ def admin_delete_license(license_id: str, session: DbSession, admin: AdminAccoun
     )
     session.delete(license)
     session.flush()
+    # 只留提示码：审计日志不该成为激活码的第二份副本（见 license.issue 处的说明）
     _audit(
         session,
         _admin_actor(admin),
         "license.delete",
         license_id,
-        f"{code}（连带清理 {binding_count} 条绑定记录）",
+        f"{code_hint}（连带清理 {binding_count} 条绑定记录）",
     )
     return {"activationCodeId": license_id, "deleted": True, "bindings": binding_count}
 
@@ -1512,11 +1866,18 @@ def admin_list_bindings(
         base = base.where(DeviceBinding.active.is_(True))
     if keyword:
         like = f"%{keyword.strip()}%"
+        # 激活码提示也要能搜到：docstring 与后台搜索框都承诺了这一点，但这里的
+        # 条件一直只有实例号 / 版本 / IP。排障时手上拿到的往往正是客户报过来的
+        # 那段提示码（``HB-****-1234``），搜不到就只能一条条翻页。
+        hinted_license_ids = select(License.id).where(
+            or_(License.activation_code.like(like), License.code_hint.like(like))
+        )
         base = base.where(
             or_(
                 DeviceBinding.instance_id.like(like),
                 DeviceBinding.client_version.like(like),
                 DeviceBinding.last_ip.like(like),
+                DeviceBinding.license_id.in_(hinted_license_ids),
             )
         )
 
@@ -1686,7 +2047,7 @@ def _coupon_payload(coupon: Coupon, redemption_count: int) -> dict:
         "redemptionCount": int(redemption_count),
         "perAccountLimit": int(coupon.per_account_limit or 0),
         "applicableProductIds": [
-            str(item) for item in list_json(coupon.applicable_product_ids_json)
+            str(item) for item in json_list(coupon.applicable_product_ids_json)
         ],
         "startsAt": iso(coupon.starts_at),
         "expiresAt": iso(coupon.expires_at),
@@ -2051,6 +2412,13 @@ def admin_update_settings(
         updates["logo_url"] = (
             str(updates["logo_url"] or "").strip() or site_config.DEFAULT_LOGO_URL
         )
+    if "support_email" in updates:
+        # 与 logo_url 同一口径：这个字段**没有「空着」这个状态**。
+        # 允许写空串的话，库里是空的、页面上却总显示默认值（读路径回落），
+        # 于是「清空客服邮箱」是个永远不生效的假选项 —— 不如把默认值直接落库。
+        updates["support_email"] = (
+            str(updates["support_email"] or "").strip() or DEFAULT_SUPPORT_EMAIL
+        )
     updates |= _alipay_settings_updates(data)
     updates |= _mail_settings_updates(data, current=site_config.get_setting(session), settings=settings)
     # ``update_setting`` 把 ``None`` 当作「这个字段别动」（全局约定，见其实现），
@@ -2253,29 +2621,40 @@ def admin_test_alipay_credentials(
     admin: AdminAccount,
     settings: SettingsDep,
 ) -> dict:
-    """测试当前（已保存的）支付宝凭据能否被网关接受。
+    """测试**当前支付渠道**的凭据与回调配置，逐项给出结论。
 
     只看**已保存**的配置，不做「先试再存」：探活要真的把密钥拿去签名并发出请求，
     如果允许测试未保存的内容，就等于多一条「任意字符串都能触发外呼」的路径，
     而且试通了却忘了保存反而更乱。运营的正常流程是保存 → 测试。
 
+    这里刻意测「当前渠道」而不是硬编码 alipay：这个按钮要回答的问题始终是
+    「用户现在能不能付钱」，而不是「我填的支付宝参数对不对」。渠道还停在 mock
+    时，最该让运营看到的就是那句「模拟收银台不能用于生产收款」——
+    过去这一栏会绕开渠道选择直接去测支付宝，于是界面全绿、站点却在白送授权。
+
     这是个**同步**端点（和 ``admin_refund`` 一样），FastAPI 会把它丢进线程池执行，
-    所以内部的阻塞式 HTTPS 调用不会卡住事件循环。
+    所以内部的阻塞式 HTTPS/DNS 调用不会卡住事件循环。
     """
     setting = site_config.get_setting(session)
     try:
-        provider = request.app.state.resolve_payment_provider(setting, name="alipay")
+        provider = request.app.state.resolve_payment_provider(setting)
     except PaymentError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
 
-    probe = getattr(provider, "verify_credentials", None)
-    if probe is None:
+    diagnose = getattr(provider, "diagnose_credentials", None)
+    if diagnose is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="当前支付渠道不支持凭据自检，请把支付渠道切换为 alipay 后再试。",
         )
 
-    ok, message = probe(settings)
+    # 回调地址取**实际生效**的那一份（后台配置 / 环境变量 / 按 STORE_BASE_URL 推导），
+    # 而不是把库里的原始值报出去 —— 运营要核对的是「支付宝到底会往哪推」。
+    base_url = settings.public_base_url
+    notify = provider.notify_url(settings, base_url) if hasattr(provider, "notify_url") else ""
+    callback = provider.return_url(settings, base_url) if hasattr(provider, "return_url") else ""
+
+    ok, message, checks = diagnose(settings, notify_url=notify, return_url=callback)
     #: 把探测结论也写进审核日志：凭据是否通过验证是排障时的关键事实，
     #: 事后复盘「谁在什么时候确认过配置可用」只能靠它。不记密钥内容。
     _audit(
@@ -2285,7 +2664,13 @@ def admin_test_alipay_credentials(
         "1",
         f"{'通过' if ok else '未通过'}：{message}"[:255],
     )
-    return {"ok": ok, "message": message, "sandbox": bool(setting.alipay_sandbox)}
+    return {
+        "ok": ok,
+        "message": message,
+        "checks": checks,
+        "provider": getattr(provider, "name", ""),
+        "sandbox": bool(setting.alipay_sandbox),
+    }
 
 
 @router.post("/settings/mail/test")
@@ -2295,30 +2680,67 @@ def admin_test_mail_delivery(
     admin: AdminAccount,
     settings: SettingsDep,
 ) -> dict:
-    """按当前（已保存的）邮件配置，向指定邮箱真发一封测试邮件。
+    """按当前（已保存）邮件配置做一次诊断；给了收件人就再真发一封。
 
     与支付宝凭据自检同一套立场：只看**已保存**的配置，不做「先试再存」。
     「填了 SMTP 但授权码过期 / 端口选错」过去唯一的暴露方式就是用户注册不了，
     而运营在后台看不出任何异常 —— 这个按钮把那条反馈回路缩短到一次点击。
 
-    发信是阻塞 I/O，所以这是个**同步**端点，FastAPI 会把它丢进线程池，
+    收件人留空表示**只做连接诊断**（域名解析 + TCP/TLS + 登录握手，不发信）：
+    这是能反复点的那一半。填了收件人才会真的投递一封，用来回答「用户到底收得到吗」。
+    两者分开是刻意的 —— SMTP 的故障在握手阶段就能定位到具体原因（授权码错 /
+    端口与加密方式不匹配 / 防火墙），而发信失败往往只回一句笼统的 5xx。
+
+    发信与探测都是阻塞 I/O，所以这是个**同步**端点，FastAPI 会把它丢进线程池，
     不会卡住事件循环（与 ``admin_test_alipay_credentials`` 一致）。
 
-    返回里的 ``delivered`` 必须如实反映结果：``mail_mode=log/echo`` 时它一定是
-    ``false``（压根没发信），这时前端要明确提示「当前是日志模式，测试不会真的
-    发出去」，否则运营会以为链路通了，实际只是写了行日志。
+    返回里的 ``ok`` 必须如实反映结果：带收件人时以「真的投递出去没」为准，
+    不带收件人时以「连接诊断是否全绿」为准。``mail_mode=log/echo`` 时它一定是
+    ``false``（压根没发信），前端要明确提示「当前是日志模式，测试不会真的发出去」，
+    否则运营会以为链路通了，实际只是写了行日志。
     """
-    email = normalize_email(payload.email)
-    if not is_valid_email(email):
+    email = normalize_email(payload.email or "")
+    if email and not is_valid_email(email):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="请输入有效的邮箱地址。"
         )
 
     setting = site_config.get_setting(session)
-    #: 必须用合并后的配置发信：直接拿 ``app.state.settings`` 只会读到环境变量，
+    #: 必须用合并后的配置：直接拿 ``app.state.settings`` 只会读到环境变量，
     #: 于是「后台刚填的授权码」永远测不出来 —— 而那正是运营点这个按钮的原因。
-    result = mailer.send_test_email(settings, setting, email=email)
     merged = mail_settings.merge_mail_settings(settings, setting)
+    diagnosed, checks = mailer.diagnose_mail(merged)
+
+    if not email:
+        failures = [item for item in checks if item["level"] == "fail"]
+        if diagnosed:
+            message = "连接诊断全部通过（未发送邮件）。填写收件邮箱可以再验证一次真实投递。"
+        elif failures:
+            message = "连接诊断未通过：" + "；".join(
+                f"{item['label']} —— {item['detail']}" for item in failures
+            )
+        else:
+            message = (
+                f"未做真实投递：当前投递方式是 {merged.mail_mode}"
+                "（验证码不会离开服务器），因此只报告了配置层面的结论。"
+            )
+        _audit(
+            session,
+            _admin_actor(admin),
+            "settings.mail_probe",
+            "1",
+            f"仅连接诊断：{'通过' if diagnosed else '未通过'}"[:255],
+        )
+        return {
+            "ok": diagnosed,
+            "email": "",
+            "mode": merged.mail_mode,
+            "attempts": 0,
+            "message": message,
+            "checks": checks,
+        }
+
+    result = mailer.send_test_email(settings, setting, email=email)
 
     if result.delivered:
         message = f"测试邮件已通过 SMTP 投递到 {email}（第 {result.attempts} 次尝试成功）。"
@@ -2346,11 +2768,15 @@ def admin_test_mail_delivery(
         f"{email}：{'已投递' if result.delivered else '未投递'}（{result.mode}）"[:255],
     )
     return {
+        #: 带收件人时以**真实投递结果**为准：此时它才是「这条路通不通」的直接证据，
+        #: 而诊断里的 warn（例如匿名投递）不该把一次成功的投递说成失败。
+        #: 各项结论仍原样放在 checks 里供人细看。
         "ok": result.delivered,
         "email": email,
         "mode": result.mode,
         "attempts": result.attempts,
         "message": message,
+        "checks": checks,
     }
 
 
@@ -2496,6 +2922,11 @@ def admin_deactivate_account(account_id: str, session: DbSession, admin: AdminAc
     account = session.get(Account, account_id)
     if account is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号不存在。")
+    # 与 ``admin_patch_account`` 的两条自锁保护必须一致：这个端点是「停用」的
+    # 快捷入口，如果这里不拦，运营绕过 PATCH 一样能把自己（或最后一位管理员）
+    # 关在门外，后台只剩「改数据库」这一条路。
+    _guard_self_lockout(account, admin, action="停用当前登录的账号")
+    _guard_last_active_admin(session, account)
     account.is_active = False
     _drop_account_sessions(session, account.id)
     session.flush()
@@ -2518,15 +2949,10 @@ def admin_patch_account(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="账号不存在。")
 
     data = payload.model_dump(exclude_unset=True)
-    if account.id == admin.id:
-        if data.get("is_admin") is False:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="不能取消自己的管理员权限。"
-            )
-        if data.get("is_active") is False:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="不能停用当前登录的账号。"
-            )
+    if data.get("is_admin") is False:
+        _guard_self_lockout(account, admin, action="取消自己的管理员权限")
+    if data.get("is_active") is False:
+        _guard_self_lockout(account, admin, action="停用当前登录的账号")
 
     changed: list[str] = []
     if data.get("email"):
@@ -2554,23 +2980,15 @@ def admin_patch_account(
         changed.append("email")
 
     if data.get("is_admin") is False and bool(account.is_admin):
-        remaining = session.execute(
-            select(func.count(Account.id)).where(
-                Account.is_admin.is_(True),
-                Account.is_active.is_(True),
-                Account.id != account.id,
-            )
-        ).scalar_one()
-        if not remaining:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="系统必须保留至少一个启用状态的管理员。",
-            )
+        _guard_last_active_admin(session, account)
     if "is_admin" in data and data["is_admin"] is not None:
         account.is_admin = bool(data["is_admin"])
         changed.append("is_admin")
 
     if "is_active" in data and data["is_active"] is not None:
+        if data["is_active"] is False:
+            # 停用最后一位启用中的管理员同样会造成后台自锁
+            _guard_last_active_admin(session, account)
         account.is_active = bool(data["is_active"])
         if not account.is_active:
             _drop_account_sessions(session, account.id)
@@ -2832,6 +3250,16 @@ def admin_create_entitlement(
     if license is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="授权不存在。")
     feature_code = payload.feature_code.strip()
+    # 补权益是「手工放行一个能力」：码写错了不会报错，客户端的 ``allows`` 只会
+    # 一直拒绝 —— 表现是「后台显示已发放、功能却打不开」。所以必须对齐能力目录。
+    if feature_code not in features.FEATURE_CODES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"功能码 {feature_code} 不在能力目录里，客户端不会认它。"
+                "请从「功能码」选择器里勾选。"
+            ),
+        )
     exists = session.scalars(
         select(Entitlement).where(
             Entitlement.license_id == license.id,
@@ -2887,6 +3315,17 @@ def admin_patch_entitlement(
     changed: list[str] = []
     if data.get("feature_code"):
         feature_code = str(data["feature_code"]).strip()
+        # 与 admin_create_entitlement 对齐：功能码写错了不会报任何错，客户端的
+        # ``allows`` 只会一直拒绝 —— 表现是「后台显示已发放、功能却打不开」。
+        # 创建时校验、编辑时不校验，等于给同一条规则留了一个后门。
+        if feature_code not in features.FEATURE_CODES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"功能码 {feature_code} 不在能力目录里，客户端不会认它。"
+                    "请从「功能码」选择器里勾选。"
+                ),
+            )
         if feature_code != entry.feature_code:
             taken = session.scalars(
                 select(Entitlement.id).where(
@@ -2969,6 +3408,14 @@ def admin_adjust_wallet(
 
     delta = round(float(payload.delta), 2)
     frozen_delta = round(float(payload.frozen_delta), 2)
+    if not (math.isfinite(delta) and math.isfinite(frozen_delta)):
+        # JSON 标准里没有 NaN/Infinity，但 Python 的 ``json`` 默认**接受**这三个
+        # 字面量，所以构造出来的请求体能把 nan / inf 一路写进钱包余额：
+        # ``nan == 0`` 与 ``nan < 0`` 全为假，下面两道守卫都会被绕过，落库之后
+        # 该账号的余额永远算不回正常值（所有加减都是 nan）。
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="变动金额必须是有限数字。"
+        )
     if delta == 0 and frozen_delta == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="变动金额不能为 0。")
 

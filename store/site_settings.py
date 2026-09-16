@@ -7,7 +7,8 @@ import re
 from sqlalchemy.orm import Session
 
 from store.config import StoreSettings
-from store.models import StoreSetting
+from store.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
+from store.payments.credentials import merge_alipay_settings
 from store.security import iso, utcnow
 
 #: 图标文件名从 ``ha-bridge-*`` 改为 ``homeos-*`` 后的旧路径映射。
@@ -76,7 +77,9 @@ def store_configuration_payload(setting: StoreSetting) -> dict:
         "siteTitle": setting.site_title,
         "description": setting.description,
         "announcement": setting.announcement,
-        "supportEmail": setting.support_email,
+        # 与 logo_url 同款口径：留空回落到默认值，而不是把空串报给前端 ——
+        # 空串在页面上表现为「这个站没有客服邮箱」，而实际生效的默认值一直在那儿。
+        "supportEmail": setting.support_email or DEFAULT_SUPPORT_EMAIL,
         "logoUrl": normalize_icon_path(setting.logo_url),
         "maintenanceMode": bool(setting.maintenance_mode),
         "maintenanceMessage": setting.maintenance_message,
@@ -105,26 +108,46 @@ def payment_configuration_payload(
     所以这里不做「默认给全量、需要时再裁剪」：那种默认迟早会有人在新增调用点时
     忘记裁剪，而且忘了也不会有任何报错。必填参数让每个调用点都必须表态。
     """
-    provider = (setting.payment_provider or settings.payment_provider or "mock").lower()
+    # 空串 = 尚未配置渠道（不是 mock）。旧写法 ``or "mock"`` 会把「没配渠道」当成
+    # 模拟收银台，于是前台报「支付可用」、实际点一下就白送授权。
+    provider = (setting.payment_provider or settings.payment_provider or "").lower()
     if provider == "alipay":
-        app_id = settings.alipay_app_id
+        # 必须用**合并站点配置后**的凭据（与 ``resolve_provider`` 注入 provider 的是
+        # 同一份）。这里过去读的是启动时的 ``settings``，也就是只有环境变量：
+        # 后台填了商户号/密钥的部署里 ``settings.alipay_app_id`` 是空的，于是
+        # ``configured`` / ``available`` 报 false —— 前台看到「支付不可用」，
+        # 而真实支付通道其实是好的；后台也看不到自己填的值到底生效没有。
+        merged = merge_alipay_settings(settings, setting)
+        app_id = merged.alipay_app_id
         # 密钥可能来自文件而不是内联环境变量，这里必须用解析后的值
-        private_configured = bool(settings.alipay_private_key_text)
-        public_configured = bool(settings.alipay_public_key_text)
-        gateway = settings.alipay_gateway_url
+        private_configured = bool(merged.alipay_private_key_text)
+        public_configured = bool(merged.alipay_public_key_text)
+        gateway = merged.alipay_gateway_url
         display_name = setting.payment_display_name or "支付宝"
         icon = "alipay"
-    else:
+        channel_ready = bool(app_id) and private_configured and public_configured
+    elif provider == "mock":
         app_id = ""
         private_configured = True
         public_configured = True
         gateway = ""
         display_name = setting.payment_display_name or "模拟支付"
         icon = "mock"
+        # 模拟收银台只有在服务端显式打开时才算「可用」：否则下单会 503，
+        # 前台不该显示成一个能付款的渠道。
+        channel_ready = bool(getattr(settings, "allow_mock_payments", False))
+    else:
+        # 没配渠道：如实报「不可用」，让前台把支付入口收起来，而不是给出一个
+        # 点了会失败的按钮（更不该悄悄变成模拟收银台）。
+        app_id = ""
+        private_configured = False
+        public_configured = False
+        gateway = ""
+        display_name = setting.payment_display_name or "未配置支付渠道"
+        icon = "mock"
+        channel_ready = False
 
-    configured = bool(setting.payment_enabled) and (
-        provider != "alipay" or (bool(app_id) and private_configured and public_configured)
-    )
+    configured = bool(setting.payment_enabled) and channel_ready
     payload = {
         "provider": provider,
         "enabled": bool(setting.payment_enabled),
@@ -148,6 +171,10 @@ def payment_configuration_payload(
             "transactionDescriptionFromDatabase": bool(
                 (setting.payment_transaction_description or "").strip()
             ),
+            #: 模拟收银台在服务端是否被显式开启（STORE_ALLOW_MOCK_PAYMENTS）。
+            #: 后台要据此把「mock 现在是能下单还是点一下就 503」说清楚 —— 只看
+            #: 下拉框选了什么是不够的。
+            "mockPaymentsAllowed": bool(getattr(settings, "allow_mock_payments", False)),
         }
     return payload
 

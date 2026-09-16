@@ -12,7 +12,7 @@ from datetime import timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
@@ -40,6 +40,7 @@ from store.models import (
     StoreSetting,
     utcnow,
 )
+from store.request_security import resolve_client_ip, secure_cookies_required
 from store.schemas import (
     ChangeEmailRequest,
     CouponPreviewRequest,
@@ -175,13 +176,16 @@ def _set_session_cookies(
     request: Request, response: Response, *, token: str, hint: str
 ) -> None:
     settings: StoreSettings = request.app.state.settings
+    # Secure 按请求自动判定（https 基址 / 可信代理转发的 https / 本连接 https），
+    # 漏配 STORE_COOKIE_SECURE 时也不会把后台会话明文下发。
+    secure = secure_cookies_required(request)
     response.set_cookie(
         settings.cookie_name,
         token,
         max_age=settings.session_max_age_seconds,
         httponly=True,
         samesite="lax",
-        secure=settings.cookie_secure,
+        secure=secure,
         path="/",
     )
     response.set_cookie(
@@ -190,7 +194,7 @@ def _set_session_cookies(
         max_age=settings.session_max_age_seconds,
         httponly=False,
         samesite="lax",
-        secure=settings.cookie_secure,
+        secure=secure,
         path="/",
     )
 
@@ -214,7 +218,7 @@ def _create_session(session, request: Request, account: Account) -> str:
             is_admin_session=bool(account.is_admin),
             expires_at=moment + timedelta(seconds=settings.session_max_age_seconds),
             last_seen_at=moment,
-            ip_address=request.client.host if request.client else None,
+            ip_address=resolve_client_ip(request).ip[:64] or None,
             user_agent=(request.headers.get("user-agent") or "")[:512] or None,
         )
     )
@@ -284,7 +288,7 @@ def _product_item(session, product: Product) -> dict:
     )
 
 
-def _expire_stale_orders(session, setting: StoreSetting) -> None:
+def _expire_stale_orders(session, setting: StoreSetting, settings: StoreSettings) -> None:
     """把超时的待支付订单置为 expired，并释放占用的库存与优惠码。
 
     这里同样用**条件 UPDATE 抢单**：账号中心轮询、后台列表、下单前的自查都会
@@ -292,12 +296,25 @@ def _expire_stale_orders(session, setting: StoreSetting) -> None:
     预留被还了两遍（同类商品立刻虚增可售量）。
     顺带把「读 - 改 - 写」换成一条语句，避免下单瞬间该订单被标记超时后又被
     改成 paid 导致状态回退。
+
+    超时判据必须带 ``expires_at IS NULL`` 的兜底：``NULL <= moment`` 在 SQL 里
+    永远是 NULL（不是 true），那些历史遗留、没写进过 ``expires_at`` 的待支付单
+    会**永远**扫不到、永远停在 pending 占着预留，而用户本人还会被
+    「有未完成订单」挡住不能再下单。对这类单只用 ``created_at`` 按同一套
+    TTL 兜底，语义上等价于「它在下单时就该有的那个过期时间」。
     """
     moment = utcnow()
+    ttl = timedelta(seconds=max(0, int(settings.order_ttl_seconds or 0)))
+    legacy_before = moment - ttl
     stale = session.scalars(
         select(Order)
         .where(Order.status == "pending")
-        .where(Order.expires_at <= moment)
+        .where(
+            or_(
+                Order.expires_at <= moment,
+                and_(Order.expires_at.is_(None), Order.created_at <= legacy_before),
+            )
+        )
     ).all()
     expired_any = False
     for order in stale:
@@ -313,7 +330,7 @@ def _expire_stale_orders(session, setting: StoreSetting) -> None:
             continue
         expired_any = True
         product = session.get(Product, order.product_id) if order.product_id else None
-        fulfill.release_reserved_stock(session, product, 1)
+        fulfill.release_order_reservation(session, order=order, product=product)
         coupons.release_coupon(session, order)
     if expired_any:
         session.flush()
@@ -381,6 +398,54 @@ def _evaluate_coupon(
     return coupon, max(0, discount)
 
 
+#: 人工发卡商品不支持优惠码的统一文案。下单与 ``/coupons/preview`` 必须**一字不差**：
+#: 预览说能用、下单说不能用（或反过来）比两边都不支持更糟 ——
+#: 用户会觉得系统在骗他，而这种分歧恰恰来自两条路径各写了一遍判断。
+_MANUAL_COUPON_DETAIL = "该商品为人工发卡，不支持使用优惠码。"
+
+
+def _evaluate_coupon_limited(
+    session, *, account: Account, product: Product, code: str
+) -> tuple[Coupon, int]:
+    """试算优惠码：口径校验 → 限流 → 试算 → 记失败 / 清计数，全部收在一处。
+
+    下单与预览必须走同一条路径，原因有两个，都是真实踩过的坑：
+
+    1. **预览过去完全没有限流**。它是一个不消耗任何东西、可以无限调的接口，
+       而每次试探都会返回精确折扣额 —— 等于把「这个码对不对、能减多少」直接
+       念出来。下单路径有 ``password_gate``，预览没有，爆破者当然走预览。
+    2. **两条路径对「哪些商品不能用码」的判断各写了一遍**，于是人工发卡商品在
+       预览里按折后价展示、在下单时被静默忽略原价收款，用户毫无提示地多付了钱。
+
+    失败时用**独立会话**落一条尝试记录：本请求接下来一定会回滚（HTTPException
+    会被转成 4xx，事务回滚），在本会话里写的记录会跟着消失，限流就形同虚设。
+    """
+    normalized = (code or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请输入优惠码。")
+    if product.fulfillment_mode == "manual":
+        # 人工发卡商品由运营手工核对后发码，折扣没法自动结算，因此明确不支持。
+        # 关键是**两条路径都拒绝**：过去下单路径静默忽略、预览照常打折。
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=_MANUAL_COUPON_DETAIL
+        )
+    scope = f"coupon:{account.id}"
+    if password_gate.retry_after_seconds(session, scope) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="优惠码尝试次数过多，请稍后再试。",
+        )
+    try:
+        coupon, discount = _evaluate_coupon(
+            session, account=account, product=product, code=normalized
+        )
+    except HTTPException:
+        record_attempt_in_new_session(session, scope)
+        raise
+    password_gate.clear(session, scope)
+    return coupon, discount
+
+
 def _unique_order_no(session, email: str, moment) -> str:
     """参考站格式 ``HB-20260906224517-156120718``；同一秒内重复下单时补序号。"""
     base = new_order_no(email, now=moment)
@@ -435,7 +500,9 @@ def _account_licenses(session, account: Account) -> list[License]:
     )
 
 
-def _account_orders(session, account: Account, *, limit: int = 50) -> list[Order]:
+def _account_orders(
+    session, account: Account, *, limit: int = 50, offset: int = 0
+) -> list[Order]:
     return list(
         session.scalars(
             select(Order)
@@ -445,13 +512,32 @@ def _account_orders(session, account: Account, *, limit: int = 50) -> list[Order
             .where(Order.archived_at.is_(None))
             .order_by(Order.created_at.desc())
             .limit(limit)
+            .offset(offset)
         )
+    )
+
+
+def _account_orders_total(session, account: Account) -> int:
+    """账号中心订单总数（与 ``_account_orders`` 同口径，含 ``archived_at`` 过滤）。
+
+    加它的理由：这个列表原来固定 ``limit=50`` 且没有任何分页 —— 买满 50 单的
+    用户会**永远看不到**自己更早的订单，界面上也没有任何「还有更多」的提示，
+    看起来就像订单丢了。总数让前端能如实显示「共 N 单」并接上「加载更多」。
+    """
+    return int(
+        session.execute(
+            select(func.count())
+            .select_from(Order)
+            .where(Order.account_id == account.id)
+            .where(Order.archived_at.is_(None))
+        ).scalar_one()
+        or 0
     )
 
 
 def _center_payload(session, request: Request, account: Account) -> dict:
     setting = site_config.get_setting(session)
-    _expire_stale_orders(session, setting)
+    _expire_stale_orders(session, setting, request.app.state.settings)
     licenses = _account_licenses(session, account)
     entitlements = list(
         session.scalars(
@@ -468,6 +554,10 @@ def _center_payload(session, request: Request, account: Account) -> dict:
         license_meta=_license_meta(session, licenses),
         entitlements=entitlements,
         orders=_account_orders(session, account),
+        #: 总数单独查一次（与列表同口径），让前端能如实显示「还有 N 单未加载」——
+        #: 过去固定 limit=50 且界面上没有任何提示，买满 50 单的用户会以为
+        #: 更早的订单被系统丢掉了。
+        orders_total=_account_orders_total(session, account),
         has_used_trial=_has_used_trial(session, account),
     )
 
@@ -549,6 +639,26 @@ def latest_release(request: Request, session: DbSession, channel: str = "docker"
 #: 「换绑邮箱」尤其重要：不校验登录态的话，任何人都能填任意邮箱触发验证码，
 #: 这个接口就成了免费的邮件群发器（而且发件人是我们自己的域名，会被拉黑）。
 _PURPOSES_REQUIRING_ACCOUNT = frozenset({"verify", "change_email"})
+
+#: 视为「本机」的客户端地址（含 ``testclient``：Starlette 的 TestClient 是进程内
+#: 调用，根本没有网络对端，与 localhost 同级）。只有这些地址才允许看到 echo 回显的
+#: 验证码 —— echo 的假设就是「访问者本身就在这台机器上」。
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient", ""})
+
+
+def _client_host(request: Request) -> str:
+    client = getattr(request, "client", None)
+    return str(getattr(client, "host", "") or "").strip().lower()
+
+
+def _is_loopback_client(request: Request) -> bool:
+    """请求的 TCP 对端是否是本机。
+
+    ``client`` 为空视为本机：那只会出现在进程内直接调用 ASGI 应用的场景
+    （自检脚本、TestClient），不存在「谁从网络上打过来」这个问题。
+    反过来误判成非本机只会让本地联调看不到验证码，误判成本很低。
+    """
+    return _client_host(request) in _LOOPBACK_HOSTS
 
 
 def _assert_purpose_allowed(
@@ -672,6 +782,10 @@ def send_verification(
     )
     session.add(record)
     session.flush()
+    #: 发出新码 = 换了一份新凭据，过去的输错次数不该继续拖累它。
+    #: 不清的话会出现这种荒唐情形：用户忘了密码、连错 7 次，重新获取验证码后
+    #: 第 8 次（正确的那次）一输入就被限流 —— 「重新获取」这个动作等于没有用。
+    password_gate.clear(session, f"verify:{email}")
 
     result = mailer.send_verification_email(
         settings, setting, email=email, code=code, purpose=purpose
@@ -701,7 +815,19 @@ def send_verification(
     if result.error:
         # 发信失败要如实告诉用户「可能收不到」，而不是让他对着收件箱干等
         body["deliveryError"] = "验证码邮件发送失败，请稍后重试或联系客服。"
-    if result.exposed_code is not None:
+    #: echo 模式会把验证码明文写进 HTTP 响应，而这个模式的文案本来就写着「仅本地」。
+    #: 一旦生产被切到 echo（改配置时手滑、或者照抄了本地环境变量），它就变成一条
+    #: 账号接管路径：攻击者对受害者邮箱调一次「发送验证码」，响应里直接拿到重置码。
+    #: 所以回显只认**本机**客户端，非本机一律按 log 处理并告警（验证码仍写进服务端
+    #: 日志，运营能捞到，但不会出现在任何一个跨网络的响应里）。
+    echo_allowed = _is_loopback_client(request)
+    if settings.mail_mode == "echo" and not echo_allowed:
+        logger.warning(
+            "mail_mode=echo 但请求来自 %s（非本机），已按 log 处理：验证码写日志、不回显。"
+            "echo 仅供 localhost 联调，生产请改为 smtp。",
+            _client_host(request) or "未知地址",
+        )
+    if result.exposed_code is not None and (settings.mail_mode != "echo" or echo_allowed):
         body["code"] = result.exposed_code
         if settings.mail_mode == "echo":
             body["devNotice"] = "mail_mode=echo，验证码直接在响应中回显，仅供本地联调。"
@@ -711,6 +837,11 @@ def send_verification(
                 "验证码在响应中回显（mail_mode="
                 f"{settings.mail_mode}，由 STORE_EXPOSE_VERIFICATION_CODE 决定）；仅供本地联调，生产请关闭。"
             )
+    elif settings.mail_mode == "echo":
+        body["devNotice"] = (
+            "mail_mode=echo 仅在本机访问时回显验证码；本次请求来自其它地址，"
+            "验证码已写入服务端日志。请把投递方式改为 smtp。"
+        )
     return body
 
 
@@ -730,10 +861,12 @@ def _consume_verification(session, *, email: str, purpose: str, code: str) -> No
         .limit(1)
     ).first()
     if record is None:
-        _record_verify_failure(session, scope)
+        #: 刻意**不**记失败：这条路径连一个验证码记录都没有，记一笔既不反映
+        #: 暴力破解（攻击者连码都不用去拿），又能被用来把任意邮箱锁死 ——
+        #: 免费打 8 次空请求，受害者自己 15 分钟内就无法验证邮箱/重置密码了。
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请先获取邮箱验证码。")
     if record.expires_at <= utcnow():
-        _record_verify_failure(session, scope)
+        # 同上：过期不是「猜错」，把它算成失败次数只会让正常用户被自己拖累。
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码已过期，请重新获取。")
     if int(record.attempts or 0) >= MAX_VERIFICATION_CODE_ATTEMPTS:
         _record_verify_failure(session, scope)
@@ -849,14 +982,86 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     return response
 
 
+#: 登录限流的三档阈值。按账号必须最紧（保护单个账号），按来源 IP 放宽
+#: （同一个出口 NAT 后面可能坐着整间办公室）。
+LOGIN_ACCOUNT_MAX_ATTEMPTS = password_gate.MAX_ATTEMPTS
+LOGIN_IP_MAX_ATTEMPTS = 30
+#: 全局维度**只告警、不拦截**，见 :func:`_note_login_failure` 的说明。
+LOGIN_FLOOD_ALERT_ATTEMPTS = 120
+LOGIN_GLOBAL_SCOPE = "login-global"
+
+
+def _login_scopes(request: Request, email: str) -> list[str]:
+    """一次登录失败要记到哪些维度上。
+
+    只有「按账号」这一档能保护单个账号；加上「按 IP」是为了挡住「同一个来源
+    横扫很多账号」——只有按账号时，攻击者换一个邮箱就等于换了一个全新的计数桶。
+
+    按 IP 那一档只在「来源地址真的代表一个客户端」时启用：反代后面没配可信代理时
+    所有人共用代理那一个地址，用它计数会让任何一个人失败几次就锁掉所有人
+    （包括管理员自己）。这种情况由按账号那一档继续兜底。
+    """
+    scopes = [f"login:{email}"]
+    address = resolve_client_ip(request)
+    if address.per_client and address.ip:
+        scopes.append(f"login-ip:{address.ip}")
+    return scopes
+
+
+def _note_login_failure(session, scopes: list[str]) -> None:
+    """把失败记进各维度，并在全局量异常时告警。
+
+    **必须先结束本请求的事务，再用独立会话提交。** 这里有两层原因，都是实测出来的：
+
+    1. 本函数之后一定会抛 401，请求事务随之回滚 —— 写在请求会话里的失败记录会
+       一起消失，限流永远不会触发（这正是审计里「40 次错误密码无一被拦」的成因）。
+    2. 光换成独立会话还不够：请求会话此刻可能**正持着 SQLite 写锁**（``maybe_prune``
+       的 DELETE 会开启写事务）。SQLite 是单写者，独立会话的写入会一直等到
+       ``busy_timeout``（5 秒）才失败，然后被 ``record_attempt_in_new_session``
+       吞掉并只留一条告警 —— 既拖慢每次失败登录，又照样丢计数。所以先回滚把锁放掉。
+
+    此时回滚是安全的：失败分支到此为止只做过读与一次可丢弃的清理，``account``
+    对象之后不再使用。
+    """
+    session.rollback()
+    for scope in scopes:
+        record_attempt_in_new_session(session, scope)
+    record_attempt_in_new_session(session, LOGIN_GLOBAL_SCOPE)
+    try:
+        factory = sessionmaker(bind=session.get_bind(), expire_on_commit=False, future=True)
+        with factory() as probe:
+            failures = password_gate.recent_failures(probe, LOGIN_GLOBAL_SCOPE)
+    except SQLAlchemyError:
+        logger.warning("全局登录失败计数读取失败，跳过告警判断", exc_info=True)
+        return
+    if failures >= LOGIN_FLOOD_ALERT_ATTEMPTS:
+        logger.warning(
+            "登录失败量异常：最近 %s 分钟内全局失败 %s 次，疑似分布式撞库（全局维度不拦截，"
+            "如需止血请按来源网段处理）",
+            password_gate.WINDOW_MINUTES,
+            failures,
+        )
+
+
 @router.post("/auth/login")
 def login(payload: LoginRequest, request: Request, session: DbSession) -> Response:
     email = payload.email.strip().lower()
     # 限流表只增不减（prune 定义了却没人调用），挂在登录这条本来就要写的路径上。
     password_gate.maybe_prune(session)
-    scope = f"login:{email}"
-    remaining = password_gate.retry_after_seconds(session, scope)
+    account_scope = f"login:{email}"
+    # 按 IP 那一档只在来源地址可信时启用，理由见 _login_scopes。
+    address = resolve_client_ip(request)
+    ip_scope = f"login-ip:{address.ip}" if address.per_client and address.ip else ""
+
+    remaining = password_gate.retry_after_seconds(session, account_scope)
+    blocked_scope = account_scope
+    if remaining <= 0 and ip_scope:
+        remaining = password_gate.retry_after_seconds(
+            session, ip_scope, max_attempts=LOGIN_IP_MAX_ATTEMPTS
+        )
+        blocked_scope = ip_scope
     if remaining > 0:
+        logger.warning("登录被限流 scope=%s 剩余=%s 秒", blocked_scope, remaining)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"尝试过于频繁，请 {remaining} 秒后再试。",
@@ -865,11 +1070,18 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
 
     account = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
     if account is None or not account.is_active or not verify_password(payload.password, account.password_hash):
-        password_gate.record_attempt(session, scope, succeeded=False)
+        _note_login_failure(session, _login_scopes(request, email))
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱或密码不正确。")
 
-    password_gate.clear(session, scope)
-    password_gate.record_attempt(session, scope, succeeded=True)
+    # 登录成功：清掉这个账号与这个来源 IP 的失败计数。
+    # 清来源 IP 一档是为了「同一个人先打错几次再成功」的正常体验；它带来的唯一
+    # 放宽是「持有任一有效凭据者可重置该 IP 的计数」，而攻击者一旦有有效凭据就
+    # 不需要撞库，且按账号那一档始终在拦他真正想攻的那个账号。
+    # 全局桶不清 —— 它是聚合观测，被一次成功登录清零就失去了发现慢速撞库的意义。
+    password_gate.clear(session, account_scope)
+    if ip_scope:
+        password_gate.clear(session, ip_scope)
+    password_gate.record_attempt(session, account_scope, succeeded=True)
 
     token = _create_session(session, request, account)
     permanent, temporary = _account_license_state(session, account)
@@ -1163,17 +1375,46 @@ def _release_snapshot_conflict(payload: ReleaseDeviceRequest, binding) -> str | 
 # --------------------------------------------------------------------------- #
 # 订单
 # --------------------------------------------------------------------------- #
+#: 账号中心订单列表每页条数。与后台的 ``_page`` 保持同一量级（后台默认 100），
+#: 但前台是按卡片渲染的，一次 100 张卡片会明显拖慢首屏，所以取 20。
+ACCOUNT_ORDER_PAGE_SIZE = 20
+
+
 @router.get("/orders")
-def list_orders(session: DbSession, account: AuthedAccount) -> dict:
+def list_orders(
+    session: DbSession,
+    account: AuthedAccount,
+    settings: SettingsDep,
+    limit: int = ACCOUNT_ORDER_PAGE_SIZE,
+    offset: int = 0,
+) -> dict:
+    """账号中心的订单列表（分页）。
+
+    带上 ``ordersTotal``：这个接口过去固定返回最近 50 单且没有总数，用户买满
+    50 单之后更早的订单就再也看不到了，界面也没有任何「还有更多」的提示 ——
+    看起来就像订单丢了。分页本身直接复用 ``_account_orders``，
+    与账号中心首屏用同一口径（都过滤 ``archived_at``）。
+    """
     _require_verified(account)
-    _expire_stale_orders(session, site_config.get_setting(session))
-    orders = _account_orders(session, account)
-    return {"items": [order_payload(order) for order in orders]}
+    _expire_stale_orders(session, site_config.get_setting(session), settings)
+    size = max(1, min(int(limit or ACCOUNT_ORDER_PAGE_SIZE), 100))
+    skip = max(0, int(offset or 0))
+    orders = _account_orders(session, account, limit=size, offset=skip)
+    return {
+        "items": [order_payload(order) for order in orders],
+        "ordersTotal": _account_orders_total(session, account),
+        "limit": size,
+        "offset": skip,
+    }
 
 
 @router.post("/orders")
 def create_order(
-    payload: CreateOrderRequest, request: Request, session: DbSession, account: AuthedAccount
+    payload: CreateOrderRequest,
+    request: Request,
+    session: DbSession,
+    account: AuthedAccount,
+    settings: SettingsDep,
 ) -> Response:
     _require_verified(account)
     setting = site_config.get_setting(session)
@@ -1190,7 +1431,7 @@ def create_order(
             detail="当前暂未开放支付，请稍后再试或联系客服。",
         )
 
-    _expire_stale_orders(session, setting)
+    _expire_stale_orders(session, setting, settings)
 
     pending = session.scalars(
         select(Order)
@@ -1258,24 +1499,13 @@ def create_order(
     coupon = None
     discount = 0
     coupon_code = (payload.coupon_code or "").strip()
-    if coupon_code and product.fulfillment_mode != "manual":
-        coupon_scope = f"coupon:{account.id}"
-        if password_gate.retry_after_seconds(session, coupon_scope) > 0:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="优惠码尝试次数过多，请稍后再试。",
-            )
-        try:
-            coupon, discount = _evaluate_coupon(
-                session, account=account, product=product, code=coupon_code
-            )
-        except HTTPException:
-            # 失败的尝试必须留在库里才算限流。但本请求接下来一定会回滚
-            # （HTTPException 会被 FastAPI 转成 4xx，事务回滚），在本会话里写的
-            # 记录会一起消失，所以走独立会话落账。
-            record_attempt_in_new_session(session, coupon_scope)
-            raise
-        password_gate.clear(session, coupon_scope)
+    if coupon_code:
+        # 限流、口径校验、失败记账都在这里——与 ``/coupons/preview`` 是同一条
+        # 路径。过去这段内联在结账里，导致「哪些商品支持优惠码」与预览各写一遍，
+        # 人工发卡商品在预览里打折、在下单时被静默忽略（用户多付钱且无提示）。
+        coupon, discount = _evaluate_coupon_limited(
+            session, account=account, product=product, code=coupon_code
+        )
 
     original_amount = int(product.price_cents or 0)
     amount = max(0, original_amount - discount)
@@ -1360,7 +1590,7 @@ def create_order(
         # 渠道配置非法（例如后台把 payment_provider 写成了未知值）：此时绝不能
         # 静默回落模拟收银台，也不能把订单留在 pending 占着库存。
         order.status = "payment_failed"
-        fulfill.release_reserved_stock(session, product, 1)
+        fulfill.release_order_reservation(session, order=order, product=product)
         coupons.release_coupon(session, order)
         session.flush()
         logger.error("支付渠道解析失败 order=%s: %s", order.order_no, error)
@@ -1375,7 +1605,7 @@ def create_order(
         )
     except PaymentError as error:
         order.status = "payment_failed"
-        fulfill.release_reserved_stock(session, product, 1)
+        fulfill.release_order_reservation(session, order=order, product=product)
         coupons.release_coupon(session, order)
         session.flush()
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error))
@@ -1440,7 +1670,7 @@ def get_order(
     if not authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该订单。")
 
-    _expire_stale_orders(session, site_config.get_setting(session))
+    _expire_stale_orders(session, site_config.get_setting(session), request.app.state.settings)
     session.refresh(order)
     # 前端每 3 秒轮询一次；顺带向支付宝查单对账，兜住「异步通知没收到」的情况
     _reconcile_payment(session, request, order)
@@ -1449,8 +1679,111 @@ def get_order(
     return response
 
 
+@router.post("/orders/{order_no}/cancel")
+def cancel_order(
+    order_no: str, request: Request, session: DbSession, account: CurrentAccount
+) -> dict:
+    """买家自助取消待支付订单：关掉渠道侧的收款码，归还库存预留与优惠码名额。
+
+    与后台 ``POST /store-admin/v1/orders/{order_no}/cancel`` 的关键区别：后台取消
+    只改本地状态，渠道侧那笔预下单交易仍然开着 —— 用户手里那张二维码还能继续扫、
+    继续付。钱进来时本地订单已经进了终态、库存也还给了别人，只能按「复活单」补发
+    并挂人工复核。所以这里在改状态**之前**先 ``close_payment``，把这个窗口堵掉。
+
+    关单结果分三种，各自的处理不能混：
+      · ``closed`` —— 渠道侧已不可能再被支付（含「交易本来就不存在 / 已经关闭过」
+        这类幂等情况）。照常取消，并写下 ``channel_closed_at``：巡检靠它判断
+        「这笔远端交易已经关过了」，漏写会让同一笔单被反复关。
+      · ``already_paid`` —— 钱已经付了，**绝不能取消**：返回 409。订单保持 pending，
+        交给对账（``reconcile_alipay_order``）走正常入账发码，退款是另一条流程。
+      · ``PaymentError`` —— 网关抖动或凭据没配好。此时仍然本地取消：库存和优惠码
+        必须先还给用户，远端那笔交易留给巡检重试（``channel_closed_at`` 留空，
+        下一轮扫描还会再来关一次）。
+
+    授权口径与 ``GET /orders/{order_no}`` 一致（本人订单，或持有订单查询凭证）。
+    这里**不**要求邮箱已验证：取消只释放资源、不发放任何权益，而把「验证邮箱」设成
+    取消的前提，会把还没验证邮箱却已经占到库存的用户卡在一张他既不能付、也退不掉
+    的单上。
+    """
+    order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
+    if order is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
+
+    order_token = request.headers.get("x-order-token")
+    authorized = (
+        (account is not None and order.account_id == account.id)
+        or (bool(order_token) and order_token == order.lookup_token)
+    )
+    if not authorized:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权操作该订单。")
+
+    if order.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。"
+        )
+
+    # ---- 阶段一：先关渠道（网络调用），失败只记日志 ----
+    setting = site_config.get_setting(session)
+    try:
+        provider = request.app.state.resolve_payment_provider(setting)
+    except PaymentError:
+        # 渠道名非法：没有可关的远端交易，按纯本地取消处理。
+        provider = None
+    channel_closed = False
+    if provider is not None and getattr(provider, "name", "") == "alipay":
+        try:
+            outcome = provider.close_payment(request.app.state.settings, order)
+        except PaymentError as error:
+            logger.warning(
+                "取消订单时关单失败订单号=%s 错误=%s（留给巡检重试）", order.order_no, error
+            )
+        else:
+            if outcome.already_paid:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="该订单已有付款记录，无法取消；请稍后到账号中心查看授权。",
+                )
+            channel_closed = bool(outcome.closed)
+
+    # ---- 阶段二：本地收尾（条件 UPDATE 抢单） ----
+    product = session.get(Product, order.product_id) if order.product_id else None
+    # 取消可能和支付回调、超时扫描同时发生：只有把订单从 pending 推走的那一个请求
+    # 才负责释放副作用，否则预留与优惠码名额会被释放两次。
+    claimed = session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        .where(Order.status == "pending")
+        .values(status="cancelled", cancelled_at=utcnow())
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
+        )
+    if channel_closed:
+        #: 只有真的关掉了（或本来就已关闭）才写这个时间戳。关单报错时留空，
+        #: 巡检下一轮会重试；写错方向是「把还开着的交易标成已关闭」，那笔钱
+        #: 就再也关不掉了。
+        order.channel_closed_at = utcnow()
+    fulfill.release_order_reservation(session, order=order, product=product)
+    #: 与超时扫描、后台取消对齐：取消必须归还优惠码名额。漏掉这一步
+    #: ``redeemed_count`` 只增不减，而它参与 ``max_redemptions`` 校验，名额会被
+    #: 永久占用，用户之后下单直接收到「优惠码已被领完」。
+    coupons.release_coupon(session, order)
+    session.flush()
+    session.refresh(order)
+    logger.info(
+        "用户取消待支付订单 订单号=%s 渠道已关=%s", order.order_no, channel_closed
+    )
+    return order_payload(order)
+
+
 @router.post("/orders/{order_no}/archive")
 def archive_order(order_no: str, session: DbSession, account: AuthedAccount) -> dict:
+    #: 与 ``GET/POST /orders`` 对齐：能读订单列表的账号必须先验证邮箱。
+    #: 少这一道并不会泄露什么，但会让「未验证邮箱」的账号多出一条可写路径 ——
+    #: 权限判断散落成「有的接口查了、有的没查」时，下一个接口照抄哪一份全凭运气。
+    _require_verified(account)
     order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
     if order is None or order.account_id != account.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
@@ -1467,7 +1800,9 @@ def preview_coupon(
     payload: CouponPreviewRequest, session: DbSession, account: AuthedAccount
 ) -> dict:
     product = _product_or_404(session, payload.product_id)
-    coupon, discount = _evaluate_coupon(
+    # 与下单走同一条路径（含限流）：预览返回精确折扣额，是一个天然的判定 oracle，
+    # 不设限流就等于开了一个无限次的优惠码爆破接口。
+    coupon, discount = _evaluate_coupon_limited(
         session, account=account, product=product, code=payload.coupon_code
     )
     original = int(product.price_cents or 0)
@@ -1665,11 +2000,21 @@ def request_withdrawal(
                 f"调整为 {fee_percent:.2f}%，请确认后重新提交。"
             ),
         )
-    withdrawal = referrals.create_withdrawal(
-        session,
-        wallet,
-        points=points,
-        request_key=payload.request_key,
-        fee_percent=fee_percent,
-    )
+    try:
+        withdrawal = referrals.create_withdrawal(
+            session,
+            wallet,
+            points=points,
+            request_key=payload.request_key,
+            fee_percent=fee_percent,
+        )
+    except referrals.WalletConflictError:
+        #: 上面的「可用积分够不够」「有没有正在处理的提现」都是**读**判断，
+        #: 与真正冻结之间存在窗口。两个并发的提现申请会各自读到 frozen=0、
+        #: 各自通过校验，最终只冻结一次却挂两笔待审 —— 审完就能重复套现。
+        #: 冲突时让用户重试即可，绝不能让它变成一个 500 或静默成功。
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="钱包刚刚有其它操作，请刷新后重试。",
+        ) from None
     return _withdrawal_payload(withdrawal)

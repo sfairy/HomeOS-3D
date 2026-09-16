@@ -5241,8 +5241,92 @@ h2 {
   color: #75818a;
   font-size: 9px;
 }
-/* ===== 显示设备管理 ===== */
+/* ===== 登录会话管理 ===== */
 
+/* 宽度取 620px 与视口的较小者；列表容器（.display-device-list）与设备管理弹窗共用，
+   为空时的虚线占位框样式也就跟着一致。但单条会话有自己的行样式 —— 会话行只有
+   「来源 + 时间」和「撤销」两格，套用设备行那种三列网格（名称 / 配对码 / 操作）会
+   让撤销按钮落在中间那列、右半边空出一大块。 */
+.sessions-dialog {
+  width: min(620px, calc(100vw - 40px));
+}
+.sessions-body {
+  display: grid;
+  gap: 11px;
+  padding: 15px 20px 20px;
+}
+/* 说明文字显式给 11px：弹窗体系里正文只有 9~13px，不指定会落回浏览器默认的 16px，
+   比弹窗标题还大。11px 与其他弹窗的解释性段落（如对齐方式弹窗）同档。 */
+.sessions-body > p.sessions-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+/* 单条会话：左列文案弹性收缩，右列只放撤销按钮，按钮自然贴到行的右端。 */
+.session-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 12px;
+  border: 1px solid #313b44;
+  border-radius: 7px;
+  background: #1a2025;
+}
+/* 当前会话用左侧橙色竖条 + 由左向右淡出的橙底标出：一眼认出「这条是自己」，
+   不至于把它当成陌生来源。 */
+.session-item.is-current {
+  border-color: #f2a20d42;
+  background: linear-gradient(90deg, #f2a20d12, #1a2025 46%);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.session-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+/* 三行的来源与长度都不可控（UA 尤其长），一律单行省略。 */
+.session-copy strong,
+.session-meta,
+.session-agent {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 来源 12px / 620：比弹窗标题（16px）低一档，又明显重于下面两行元信息。 */
+.session-copy strong {
+  color: #dbe1e5;
+  font-size: 12px;
+  font-weight: 620;
+}
+.session-item.is-current .session-copy strong {
+  color: var(--accent-bright);
+}
+/* 时间行 10px + 等宽数字：会话列表刷新时数字不会因字宽变化而左右抖动。 */
+.session-meta {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+/* UA 单独一行并再压一档：它最长也最不重要，与上面那行挤在一起会把时间挤掉。 */
+.session-agent {
+  color: #6f7a82;
+  font-size: 9px;
+}
+/* 行内撤销按钮：尺寸只按内容收窄，配色沿用设备行那套「柔和红」。 */
+.session-actions button {
+  min-height: 26px;
+  padding: 3px 10px;
+  font-size: 10px;
+}
+.session-actions .danger {
+  border-color: #e26b674d;
+  color: #ed8d88;
+  background: #e26b670e;
+}
+
+/* ===== 显示设备管理 ===== */
 /* 设备管理弹窗宽度取 620px 与视口的较小者；减去的 40px 是左右各 20px 的边距，
    保证窄屏下弹窗不与视口边缘贴死。 */
 .display-devices-dialog {
@@ -5355,10 +5439,12 @@ h2 {
   color: var(--muted);
   text-align: center;
 }
-/* 单台显示设备一行三列：名称弹性、配对码 76px、操作按钮组 138px。 */
+/* 单台显示设备一行三列：名称弹性、配对码 76px、操作按钮组 150px。
+   操作列从 138px 放宽到 150px 是给 10px 的按钮文字留出「重命名」三个字的宽度
+   （三列等分后每列约 47px，扣掉内边距刚好放得下，不会被挤成两行）。 */
 .display-device-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 76px 138px;
+  grid-template-columns: minmax(0, 1fr) 76px 150px;
   align-items: center;
   gap: 9px;
   min-height: 50px;
@@ -5382,19 +5468,29 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 名称 12px / 620 与登录会话弹窗的行标题同档：不显式指定会继承到 16px，
+   和弹窗标题一样大，行内的层级就塌了。 */
+.display-device-item strong {
+  color: #dbe1e5;
+  font-size: 12px;
+  font-weight: 620;
+}
+/* 副标题与登录会话弹窗的时间行同档（10px）。 */
 .display-device-item span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10px;
 }
+/* 配对码压到 13px：上面还有 12px 的名称，15px 会盖过标题的层级；
+   加宽的字距与等宽数字保留，逐位核对的读法不变。 */
 .display-device-code {
   color: #ffc45b;
-  font-size: 15px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.08em;
   text-align: center;
 }
-/* 三个操作按钮等分 138px 那一列；min-height 27px 压到全局 button 的 32px 之下，
-   是为了让整条设备行仍能维持 50px 的高度。 */
+/* 三个操作按钮等分 150px 那一列；min-height 26px 压到全局 button 的 32px 之下，
+   是为了让整条设备行仍能维持 50px 的高度。字号与登录会话弹窗的行内按钮一致。 */
 .display-device-actions {
   display: grid;
   min-width: 0;
@@ -5404,10 +5500,10 @@ h2 {
 }
 .display-device-actions button {
   min-width: 0;
-  min-height: 27px;
+  min-height: 26px;
   padding: 3px 6px;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 10px;
 }
 .display-device-actions .danger {
   border-color: #e26b674d;

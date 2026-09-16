@@ -96,3 +96,38 @@ def release_coupon(session: Session, order: Order) -> None:
     )
     session.expire(coupon, ["redeemed_count"])
     session.flush()
+
+
+def reoccupy_coupon(session: Session, order: Order) -> bool:
+    """订单「复活」成交时把名额重新占回来，返回是否真的占回。
+
+    ``release_coupon`` 只递减 ``redeemed_count``，刻意**不删**核销记录（记录要
+    留着回答「这个账号用没用过这个码」，见模块开头）。于是超时/取消后又收到钱的
+    复活单会出现「核销记录在、名额不算数」的错位：该码看起来还有名额，能被别人
+    再领一次，``max_redemptions`` 实际被突破。
+
+    ``max_redemptions`` 是硬约束，所以名额已被抢光时不再加码 —— 但订单照常入账
+    （用户钱都付了，不能因为优惠码名额没了就不给授权），返回 ``False`` 让调用方
+    记一条告警告诉运营「这单的折扣没有再占用名额」。
+    """
+    if not order.coupon_code:
+        return True
+    coupon = session.scalars(
+        select(Coupon).where(func.lower(Coupon.code) == order.coupon_code.lower())
+    ).first()
+    if coupon is None:
+        return True
+    statement = (
+        update(Coupon)
+        .where(Coupon.id == coupon.id)
+        .values(redeemed_count=func.coalesce(Coupon.redeemed_count, 0) + 1)
+        .execution_options(synchronize_session=False)
+    )
+    if coupon.max_redemptions is not None:
+        statement = statement.where(
+            func.coalesce(Coupon.redeemed_count, 0) < int(coupon.max_redemptions)
+        )
+    result = session.execute(statement)
+    session.expire(coupon, ["redeemed_count"])
+    session.flush()
+    return result.rowcount > 0

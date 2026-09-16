@@ -30,7 +30,7 @@ from ..database import Database
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, ViewerPrincipal, require_viewer_entity, viewer_entity_ids
 from ..display_access import active_display_device
 from ..global_log import event_context
-from ..ha.client import HAClient, HAClientError
+from ..ha.client import HAClient, HAClientError, link_local_address
 from ..ha.crypto import CredentialCipherError
 from ..models import DisplayDevice, HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
 from ..panel.action_rules import TOGGLE_ENTITY_DOMAINS
@@ -329,10 +329,29 @@ async def save_connection(
     require_admin(user)
     connector = request.app.state.ha_connector
     connection = active_connection(database)
+    # 链路本地地址（169.254.x.x / fe80::）只在 APIPA 场景下才指向真实主机，
+    # 其余情况下多半是把云元数据地址或别的设备误填了进来，这里提示一句。
+    link_local = link_local_address(payload.base_url)
+    if link_local:
+        request.app.state.global_log.append(
+            'warning', 'Home Assistant', '连接',
+            f'Home Assistant 地址使用了链路本地地址（{link_local}），请确认这是你家里的主机。',
+        )
     try:
         if payload.access_token:
             token = payload.access_token
         elif connection is not None:
+            # 换代到另一个地址时必须显式确认复用旧令牌：地址是可以被改的（改完就会
+            # 把旧令牌发给新主机试连），而长期令牌的权限远大于「一次试连」。
+            # 不确认时要求重新输入令牌，避免误改地址把令牌送到攻击者搭的服务上。
+            if payload.base_url != connection.base_url and not payload.reuse_token_for_new_url:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        'code': 'HA_URL_CHANGED_TOKEN_REUSE',
+                        'message': '地址已变更：复用已保存的 Home Assistant 令牌前请确认新地址可信（确认后重发 reuseTokenForNewUrl=true，或直接重新输入令牌）。',
+                    },
+                )
             # 用户没改 Token，就把库里存的密文解出来复用。
             token = connector.cipher.decrypt(connection.encrypted_access_token)
         else:
@@ -349,6 +368,7 @@ async def save_connection(
     except (HAClientError, CredentialCipherError) as error:
         # 试连失败整份配置都不写库：绝不让打不通的地址沉到库里。
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
+    previous_base_url = connection.base_url if connection is not None else None
     if connection is None:
         connection = HAConnection(
             name=payload.name.strip(),
@@ -373,6 +393,16 @@ async def save_connection(
     database.refresh(connection)
     # 配置变了，连接器需要按新地址与 Token 重新连一遍。
     await connector.restart()
+    # 地址变更单独记一条：审计要能看出「令牌被发到了哪个地址」以及是什么时候换的。
+    if previous_base_url and previous_base_url != connection.base_url:
+        request.app.state.global_log.append(
+            'warning',
+            'Home Assistant',
+            '连接',
+            f'Home Assistant 地址已变更：{previous_base_url} → {connection.base_url}（令牌已复用，请确认新地址可信）'
+            if not payload.access_token
+            else f'Home Assistant 地址已变更：{previous_base_url} → {connection.base_url}（同时更新了令牌）',
+        )
     request.app.state.global_log.append(
         'success',
         'Home Assistant',

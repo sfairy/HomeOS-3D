@@ -4,6 +4,8 @@
   后端只在「尚未初始化」时下发本页，其余情况一律 303：已初始化时按登录状态去 / 或 /login。
   表单里的 minlength / maxlength 与后端 SetupAdminRequest 的字段约束一一对应
   （账号 3 至 64 位、密码 8 至 256 位）；前端只是为了先拦一道，真正把关仍在后端。
+  引导密钥（setupToken）一栏默认隐藏：本机直连后端直接放行，从其它地址打开时由
+  setup.js 显式显示并改成必填，否则任何能连上的人都可能抢先建掉管理员账号。
   入口脚本：/static/auth-shell.js（形象动画与密码显隐）、/static/setup.js（两次密码比对后提交）。
   与登录页共用 /static/auth.css，DOM 结构（.login-shell / .login-showcase / .login-panel）不可改动，否则样式失配。
 -->
@@ -11,7 +13,7 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/client-log.js?v=20260916074544"></script>
+    <script src="/static/client-log.js?v=20260916230552"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#172029" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -19,13 +21,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>初始化 · HomeOS</title>
-    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916074544" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916074544" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916074544" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916074544" sizes="180x180" />
-    <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260916074544" />
+    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916230552" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916230552" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916230552" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916230552" sizes="180x180" />
+    <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260916230552" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
-    <link rel="stylesheet" href="/static/auth.css?v=20260916074544" />
+    <link rel="stylesheet" href="/static/auth.css?v=20260916230552" />
   </head>
   <body>
     <!-- ===== 左侧品牌展示区（纯装饰） ===== -->
@@ -35,7 +37,7 @@
         <div class="showcase-orb orb-one" aria-hidden="true"></div>
         <div class="showcase-orb orb-two" aria-hidden="true"></div>
         <div class="showcase-brand">
-          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260916074544" alt="" /><span
+          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260916230552" alt="" /><span
             >HomeOS</span
           >
         </div>
@@ -49,7 +51,7 @@
       <!-- ===== 右侧设置表单区 ===== -->
       <section class="login-panel">
         <div class="mobile-brand">
-          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260916074544" alt="" /><span
+          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260916230552" alt="" /><span
             >HomeOS</span
           >
         </div>
@@ -116,6 +118,18 @@
                     <circle cx="12" cy="12" r="2.5" />
                   </svg></button></span
             ></label>
+            <!-- 引导密钥：本机直连（loopback）后端直接放行，所以默认隐藏；从其它地址
+                 打开本页时由 setup.js 显式显示并改成必填。密钥在服务启动日志里（容器
+                 部署看容器日志），也可用 APP_SETUP_TOKEN 指定。
+                 没有它，任何人都能抢在管理员之前把管理员账号建掉。 -->
+            <label id="setup-token-field" hidden
+              ><span>引导密钥</span
+              ><input
+                name="setupToken"
+                placeholder="见服务启动日志"
+                autocomplete="off"
+                maxlength="256"
+            /></label>
             <p id="message" class="login-error" role="alert" hidden></p>
             <button class="login-submit" type="submit"><span>保存账号并进入系统</span><b>→</b></button>
           </form>

@@ -30,6 +30,11 @@ from store.payments.sweeper import (
     sweep_status,
 )
 from store.release_info import CURRENT_VERSION, ensure_current_release
+from store.request_security import (
+    forwarded_headers_present,
+    parse_trusted_proxies,
+    same_origin_request,
+)
 from store.schema_guard import ensure_schema
 from store.site_settings import get_setting
 
@@ -65,6 +70,14 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     settings.product_images_dir.mkdir(parents=True, exist_ok=True)
     settings.license_keys_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     _ensure_license_keys(settings)
+    # 代理信任范围是安全配置：解析不了的值必须当场炸掉，不能静默退化成「谁也不信」
+    # （那会让限流与授权记录里的客户端地址全变成代理地址）。
+    trusted_proxies = parse_trusted_proxies(tuple(settings.trusted_proxies))
+    if not trusted_proxies and settings.public_base_url.startswith("https://"):
+        logger.warning(
+            "STORE_BASE_URL 是 https 但未配置 STORE_TRUSTED_PROXIES："
+            "限流与授权记录会按反向代理地址统计，建议按部署方式配置。"
+        )
 
     database = Database(settings)
     database.create_all()
@@ -146,6 +159,47 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.database = database
     app.state.license_authority = authority
+
+    @app.middleware("http")
+    async def require_same_origin_for_writes(request: Request, call_next):
+        """改状态的商店/后台请求必须同源（CSRF 第二道闸）。
+
+        第一道闸是 SameSite=Lax + 只收 JSON 体（跨站表单会 422、跨站 fetch 会因
+        没有 CORS 而 preflight 失败）。这里补一道显式的 Origin/Referer 校验，
+        免得日后新增一个 GET 写操作就立刻出现 CSRF 缺口。
+
+        保护范围：``/store/v1/*``（用户侧）与 ``/store-admin/v1/*``（后台侧）的
+        非 GET 请求。两类不拦：
+        - ``/v2/*`` 授权端点：客户端程序调用，报文加密封套 + 签名，没有浏览器 Origin；
+        - 支付宝异步回调（NOTIFY_PATH）：支付宝服务器直连，同样没有 Origin，
+          真伪由签名校验，不能被这道闸门挡住。
+
+        GET / HEAD / OPTIONS 一律不拦：读操作与 CORS 预检本就没有副作用。
+        """
+        path = request.url.path
+        # 只提示一次：请求带了转发头但没配可信代理，说明前面有反代而限流与授权记录
+        # 只能看到代理地址。这是配置问题而不是每次请求的问题，反复记会把日志刷满。
+        if not getattr(app.state, "proxy_warning_logged", False) and forwarded_headers_present(request):
+            if not trusted_proxies:
+                app.state.proxy_warning_logged = True
+                logger.warning(
+                    "检测到请求带反向代理转发头，但未配置 STORE_TRUSTED_PROXIES："
+                    "限流与授权记录会按代理地址统计。请按实际部署配置可信代理的 IP 或网段。"
+                )
+        guarded = (
+            path.startswith("/store/v1/") or path.startswith("/store-admin/v1/")
+        ) and path != alipay_api.NOTIFY_PATH
+        if (
+            guarded
+            and request.method not in {"GET", "HEAD", "OPTIONS"}
+            and not same_origin_request(request)
+        ):
+            return JSONResponse(
+                {"detail": "跨站请求已被拒绝（来源校验未通过）。"},
+                status_code=403,
+                headers={"Cache-Control": "no-store"},
+            )
+        return await call_next(request)
 
     def resolve_payment_provider(setting=None, *, name: str | None = None):
         """解析支付渠道。

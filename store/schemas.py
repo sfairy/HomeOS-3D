@@ -294,13 +294,17 @@ class AdminSettingsRequest(_AdminBase):
 
 
 class AdminMailTestRequest(_AdminBase):
-    """「发送测试邮件」的收件人。
+    """「邮件诊断 / 发送测试邮件」的收件人。
 
     刻意做成显式传参，而不是「发给当前登录的管理员」：排障时常常要往**客户**
     那个收不到验证码的邮箱发一封，好判断是「我们发不出去」还是「对方网关拒收」。
+
+    也刻意允许留空：留空表示**只做连接诊断**（域名解析、TCP/TLS、登录握手），
+    不发任何邮件。这一半是可以反复点、不会往别人邮箱塞东西的，而它恰好在
+    「授权码错 / 端口与加密方式不匹配」这类故障上给的信息最具体。
     """
 
-    email: str = Field(min_length=3, max_length=255)
+    email: str | None = Field(default=None, min_length=3, max_length=255)
 
 
 class AdminLicenseRequest(_AdminBase):
@@ -403,3 +407,13 @@ class AdminOrderActionRequest(_AdminBase):
     #: ``order_refunds`` 流水，并携带唯一的渠道幂等请求号 —— 否则第二次退款
     #: 会被支付宝按幂等键去重，钱根本退不出去。
     amount_cents: int | None = Field(default=None, alias="amountCents", gt=0)
+
+
+class AdminOrderReviewRequest(_AdminBase):
+    """「标记已处理」的复核结论。
+
+    备注可选，但强烈建议填写：``review_note`` 是「这单当时为什么被标出来、
+    为什么放行」的唯一记录，只有时间戳的条目事后等于没有信息。
+    """
+
+    note: str = Field(default="", max_length=200)

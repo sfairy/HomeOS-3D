@@ -28,7 +28,14 @@ python -m venv .venv-store
 .venv-store/bin/python -m store.run
 ```
 
-浏览器打开 <http://127.0.0.1:18082/>。默认管理员 `156120718@qq.com / fcx6041246`（可用 `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` 覆盖；**默认值仅供本机开发，上生产务必覆盖**）。
+浏览器打开 <http://127.0.0.1:18082/>。管理员账号**必须由你自己指定**：执行 `python -m store.tools.seed` 前设置 `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD`，缺任一项会直接退出。
+
+```bash
+STORE_ADMIN_EMAIL=you@example.com STORE_ADMIN_PASSWORD='一个足够强的口令' \
+  .venv-store/bin/python -m store.tools.seed
+```
+
+早期版本在缺省时会用代码里写死的默认管理员（口令还公开在本文件里）建号 —— 那等于给每个照文档部署的实例装一个公开后门，现已移除。`start.py` 首次启动会引导你走 `/setup`，也可以用那里的图形界面创建管理员。
 
 验证码投递由 `STORE_MAIL_MODE` 决定，三种取值：
 
@@ -144,7 +151,8 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `STORE_MAIL_MODE` | `log`（`start.py` 下为 `echo`） | `log` \| `echo` \| `smtp` |
 | `STORE_EXPOSE_VERIFICATION_CODE` | `false` | 是否在接口响应里回显验证码（仅本地，**生产必须 false**） |
 | `STORE_SMTP_HOST` / `_PORT` / `_USERNAME` / `_PASSWORD` / `_USE_SSL` / `_STARTTLS` | — | SMTP 发信（`_PASSWORD` 填授权码，不是登录密码） |
-| `STORE_PAYMENT_PROVIDER` | `mock` | `mock` \| `alipay`（也可以在 `/admin` 站点配置里改，DB 值优先） |
+| `STORE_PAYMENT_PROVIDER` | 空（未配置渠道 → 拒绝建单） | `mock` \| `alipay`（也可以在 `/admin` 站点配置里改，DB 值优先） |
+| `STORE_ALLOW_MOCK_PAYMENTS` | `false` | 是否允许模拟收银台。**默认关闭**；必须与 `STORE_PAYMENT_PROVIDER=mock` 同时设置才能用，仅供本地联调 |
 | `STORE_ALIPAY_APP_ID` | — | 开放平台应用 APPID |
 | `STORE_ALIPAY_APP_PRIVATE_KEY_PATH` / `STORE_ALIPAY_PUBLIC_KEY_PATH` | — | **推荐**：应用私钥 / 支付宝公钥的 PEM 文件路径 |
 | `STORE_ALIPAY_APP_PRIVATE_KEY` / `STORE_ALIPAY_PUBLIC_KEY` | — | 等价的内联写法（单行裸 base64） |
@@ -159,7 +167,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `STORE_DEVICE_RELEASE_COOLDOWN_SECONDS` | `28800` | 解绑冷却（8 小时） |
 | `STORE_VERIFICATION_TTL_SECONDS` / `_COOLDOWN_SECONDS` | `600` / `60` | 验证码有效期 / 重发冷却 |
 | `STORE_SESSION_MAX_AGE_SECONDS` | `2592000` | 商店会话有效期 |
-| `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` | `156120718@qq.com` / `fcx6041246` | `seed` 初始化管理员（默认值仅限本机开发） |
+| `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` | —（**必填**） | `seed` 初始化管理员；缺失时任一项都会让 `seed` 直接退出，不再有内置默认值 |
 
 站点名、公告、客服邮箱、维护模式、邀请比例、提现手续费、解绑冷却等**运行时配置**存在数据库里，直接在 `/admin` 的"站点配置"里改，不需要重启。
 
@@ -172,7 +180,10 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 
 ## 五、接入支付宝（真实收款）
 
-默认是 `mock`，本地收银台点一下就「已支付」，**收不到真钱**。
+**默认不配置任何渠道**：未配置渠道时商店会拒绝建单（下单 503），而不是回落到模拟收银台
+—— 这是刻意的 fail-closed，因为模拟收银台点一下就「已支付」并签发真实授权，**收不到真钱**。
+本地联调要同时设 `STORE_PAYMENT_PROVIDER=mock` 与 `STORE_ALLOW_MOCK_PAYMENTS=1`
+（`start.py` 会自动带上这两个变量）；正式收款请按下面的步骤切到支付宝。
 
 ### 5.1 先决条件
 

@@ -96,7 +96,12 @@ class StoreSettings:
     # 会话
     cookie_name: str = "ha_bridge_store_session"
     hint_cookie_name: str = "ha_bridge_store_hint"
+    #: HTTPS 部署时置 True；默认 False 不代表「只有显式开启才安全」——
+    #: 请求级判定会自动按 https 给 Cookie 加 Secure，见 request_security。
     cookie_secure: bool = False
+    #: 可信反向代理的 IP / CIDR 列表。为空表示不信任任何转发头，
+    #: 此时限流与审计按 TCP 对端地址统计（直连部署下就是真实客户端）。
+    trusted_proxies: tuple[str, ...] = ()
     session_max_age_seconds: int = DEFAULT_SESSION_MAX_AGE_SECONDS
 
     # 邮箱验证码
@@ -121,7 +126,13 @@ class StoreSettings:
     expose_verification_code: bool = False
 
     # 支付
-    payment_provider: str = "mock"
+    #: 空串表示「尚未配置渠道」。**绝不能默认 mock**：模拟收银台点一下按钮就把订单
+    #: 标成已支付并签发真实授权 —— 也就是「照默认配置部署 = 付费产品免费送」。
+    #: 未配置时 ``resolve_provider`` 会直接报错、拒绝建单（fail-closed）。
+    payment_provider: str = ""
+    #: 是否允许使用模拟收银台（mock）。默认关闭，必须显式开启（STORE_ALLOW_MOCK_PAYMENTS=1），
+    #: 且仅供本地联调；正式收款环境绝不能打开。
+    allow_mock_payments: bool = False
     alipay_app_id: str = ""
     alipay_gateway_url: str = "https://openapi.alipay.com/gateway.do"
     alipay_app_private_key: str = ""
@@ -246,6 +257,11 @@ def load_settings(**overrides) -> StoreSettings:
         "base_url": _env_str("STORE_BASE_URL"),
         "cookie_name": _env_str("STORE_COOKIE_NAME", "ha_bridge_store_session") or "ha_bridge_store_session",
         "cookie_secure": _env_bool("STORE_COOKIE_SECURE"),
+        "trusted_proxies": tuple(
+            piece.strip()
+            for piece in _env_str("STORE_TRUSTED_PROXIES").split(",")
+            if piece.strip()
+        ),
         "session_max_age_seconds": _env_int("STORE_SESSION_MAX_AGE_SECONDS", DEFAULT_SESSION_MAX_AGE_SECONDS),
         "mail_mode": (_env_str("STORE_MAIL_MODE", "log") or "log").lower(),
         "mail_from": _env_str("STORE_MAIL_FROM", "HomeOS <no-reply@habridge.local>") or "HomeOS <no-reply@habridge.local>",
@@ -261,7 +277,8 @@ def load_settings(**overrides) -> StoreSettings:
         "verification_ttl_seconds": _env_int("STORE_VERIFICATION_TTL_SECONDS", DEFAULT_VERIFICATION_TTL_SECONDS),
         "verification_cooldown_seconds": _env_int("STORE_VERIFICATION_COOLDOWN_SECONDS", DEFAULT_VERIFICATION_COOLDOWN_SECONDS),
         "expose_verification_code": _env_bool("STORE_EXPOSE_VERIFICATION_CODE"),
-        "payment_provider": (_env_str("STORE_PAYMENT_PROVIDER", "mock") or "mock").lower(),
+        "payment_provider": (_env_str("STORE_PAYMENT_PROVIDER", "") or "").lower(),
+        "allow_mock_payments": _env_bool("STORE_ALLOW_MOCK_PAYMENTS"),
         "alipay_app_id": _env_str("STORE_ALIPAY_APP_ID"),
         "alipay_gateway_url": _env_str("STORE_ALIPAY_GATEWAY_URL", "https://openapi.alipay.com/gateway.do") or "https://openapi.alipay.com/gateway.do",
         "alipay_app_private_key": _env_str("STORE_ALIPAY_APP_PRIVATE_KEY"),

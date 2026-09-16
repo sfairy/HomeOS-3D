@@ -18,8 +18,10 @@ from store.models import StoreSetting
 from store.payments.alipay import (
     SANDBOX_GATEWAY_URL,
     PaymentError,
-    _load_private_key,
-    _load_public_key,
+    public_key_error,
+    private_key_error,
+    validate_callback_url,
+    validate_gateway_url,
 )
 #: 打码 / 归一化密钥提交值的规则与邮箱 SMTP 授权码共用一份实现
 #: （见 ``store.secret_fields``。这里重新导出，保持既有调用点的 import 不变）。
@@ -44,10 +46,6 @@ __all__ = [
 
 #: 支付宝正式网关（站点配置与环境变量都没给时的最终兜底）
 PRODUCTION_GATEWAY_URL = "https://openapi.alipay.com/gateway.do"
-
-#: 支付宝要求 RSA2048。低于这个位数本地能签名成功，网关却一律拒绝 ——
-#: 报错只有一句笼统的「验签失败」，运营根本想不到是密钥长度问题。
-_MIN_RSA_BITS = 2048
 
 
 def merge_alipay_settings(
@@ -162,58 +160,18 @@ def validate_private_key_text(text: str) -> None:
     是 ``PaymentError``，会以 409/503 的形式出现在**用户下单**的动线上 ——
     运营改配置改错了，付不了款的是客户。把校验前移到配置接口，错误直接落在改配置
     的那个人眼前，用户侧完全无感。
+
+    判定逻辑本身放在 ``payments.alipay.private_key_error``：后台自检要拿到同一份
+    结论（只是不抛异常而已），两边各写一遍迟早会漂移成「保存拦得住、自检说没问题」。
     """
-    key = _load_private_key(text)
-    if key.key_size < _MIN_RSA_BITS:
-        raise PaymentError(
-            f"应用私钥只有 {key.key_size} 位，支付宝要求 RSA{_MIN_RSA_BITS}。"
-            "请用支付宝密钥工具重新生成 2048 位密钥。"
-        )
+    message = private_key_error(text)
+    if message:
+        raise PaymentError(message)
 
 
 def validate_public_key_text(text: str) -> None:
     """校验支付宝公钥能被解析；不能则抛 ``PaymentError``。"""
-    key = _load_public_key(text)
-    if key.key_size < _MIN_RSA_BITS:
-        raise PaymentError(
-            f"支付宝公钥只有 {key.key_size} 位，支付宝要求 RSA{_MIN_RSA_BITS}。"
-        )
-
-
-def validate_gateway_url(text: str) -> None:
-    """网关地址必须是 https（沙箱也是 https），且不能带查询串。"""
-    if not text:
-        return
-    lowered = text.lower()
-    if not lowered.startswith("https://"):
-        raise PaymentError("支付宝网关地址必须以 https:// 开头。")
-    if "?" in text or "#" in text:
-        raise PaymentError("支付宝网关地址不能带查询参数，只填到 gateway.do 为止。")
-
-
-def validate_callback_url(text: str, *, label: str) -> None:
-    """回调地址必须是带主机名的绝对 http(s) URL。
-
-    这里刻意允许 http：本地用 ngrok/frp 之外的纯内网调试时会用到，
-    而它填错的真实代价是「用户付了钱订单不到账」，那种错误支付宝**不会**报给
-    我们（它只是连不上我们的地址），只能靠运营自己看地址对不对。所以宁可在
-    保存时就拦下明显写不成 URL 的值（漏了协议、只填了路径、指向 localhost）。
-    """
-    if not text:
-        return
-    lowered = text.lower()
-    if not (lowered.startswith("http://") or lowered.startswith("https://")):
-        raise PaymentError(
-            f"{label}必须以 http:// 或 https:// 开头（要填完整的外部可达地址，"
-            "不能只填路径）。"
-        )
-    host = lowered.split("://", 1)[1].split("/", 1)[0].split("?", 1)[0]
-    if not host:
-        raise PaymentError(f"{label}缺少主机名。")
-    if "localhost" in host or host.startswith("127.0.0.1") or host.startswith("[::1]"):
-        raise PaymentError(
-            f"{label}不能填本机地址：支付宝的服务器访问不到 localhost，"
-            "异步通知会永远收不到（订单停在待支付）。请填公网可达的域名，"
-            "或用内网穿透工具提供的地址。"
-        )
+    message = public_key_error(text)
+    if message:
+        raise PaymentError(message)
     

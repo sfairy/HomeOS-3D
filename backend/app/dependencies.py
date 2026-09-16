@@ -20,8 +20,9 @@ from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from .display_access import active_display_device
+from .display_access import active_display_device, display_token_expired
 from .global_popups import hydrate_document_popups
+from .http_security import resolve_client_ip, secure_cookies_enabled
 from .models import (
     DisplayDevice,
     HAConnection,
@@ -85,18 +86,26 @@ def _admin_session(
         )
     )
     now = datetime.now(timezone.utc)
+    settings = request.app.state.settings
     if record is None or _aware(record.expires_at) <= now:
         if record is not None:
             # 顺手删除过期会话行，否则登录会话表会随使用时间无限增长。
             database.delete(record)
             database.commit()
         return None
+    # 绝对寿命：滑动续期只能把 expires_at 往前推，不能突破 created_at + 硬上限。
+    # 少了这一条，一枚被盗 Cookie 只要还在被使用就永远不会失效。
+    hard_max_age = int(getattr(settings, "session_hard_max_age_seconds", 0) or 0)
+    if hard_max_age > 0 and now >= _aware(record.created_at) + timedelta(seconds=hard_max_age):
+        database.delete(record)
+        database.commit()
+        return None
     if record.user_id != account_user_id:
         return None
     user = database.get(User, record.user_id)
     if user is None or not user.is_active:
         return None
-    max_age = request.app.state.settings.session_max_age_seconds
+    max_age = settings.session_max_age_seconds
     # 续期节流：最多每 300 秒写库一次，且不超过会话寿命的一半。
     # 不做节流的话，展示页每秒一次的轮询会把每次请求都变成一次写事务。
     refresh_interval = min(300, max(1, max_age // 2))
@@ -109,7 +118,7 @@ def _admin_session(
             value=token,
             max_age=max_age,
             httponly=True,
-            secure=request.app.state.settings.cookie_secure,
+            secure=secure_cookies_enabled(request),
             samesite="lax",
             path="/",
         )
@@ -202,7 +211,12 @@ class ViewerPrincipal:
 def _display_device(
     request: Request, response: Response, database: DatabaseSession
 ) -> DisplayDevice | None:
-    """解析中控设备 Cookie，返回对应设备；未配对或已失效返回 None。
+    """解析中控设备 Cookie，返回对应设备；未配对、已失效或已过期返回 None。
+
+    有效期是「滑动」的：每次活跃（>= 5 分钟节流）就把 last_seen_at 推到当前时间，
+    因此有效期按 last_seen_at + display_token_ttl_seconds 判定 ——
+    长期不用的平板与只在攻击者手里的令牌会自己过期，而正常挂机的墙面平板
+    只要还在轮询就一直有效。另有一个可选的硬上限（默认关闭），见 config。
 
     副作用：同样做了心跳节流 —— 设备超过 5 分钟没活跃才写一次库并刷新
     Cookie，因为展示页会长期挂机、每次请求都写库会拖慢整个看板。
@@ -215,12 +229,16 @@ def _display_device(
     if device is None:
         return None
     now = datetime.now(timezone.utc)
+    if display_token_expired(device, settings, now):
+        # 过期就当未配对处理：不删行（管理员列表里还能看到这台设备并手动解绑），
+        # 但不再放行任何请求，前端会回到配对页。
+        return None
     # 5 分钟节流窗口：只有设备"冷下来"才回写活跃时间并续期 Cookie。
     if now - _aware(device.last_seen_at) >= timedelta(minutes=5):
         device.last_seen_at = now
         database.commit()
         # 重新下发 Cookie 是为了刷新浏览器侧的有效期，值不变。
-        set_display_cookie(response, settings, token)
+        set_display_cookie(response, settings, token, secure=secure_cookies_enabled(request))
     # 把设备与项目信息写进日志上下文，接口出错时能直接看出是哪块屏幕。
     context = getattr(request.state, "log_context", None)
     if context is not None:
@@ -682,6 +700,47 @@ def viewer_user_asset_ids(
         )
         if item.startswith("user:")
     }
+
+
+def viewer_studio3d_asset_ids(
+    database: DatabaseSession, viewer: ViewerPrincipal
+) -> set[str] | None:
+    """当前主体可见的 3D 工作室导出资源 ID 集合；None 表示不受限。
+
+    同一份文档里 `studio3d:<导出目录>/<文件名>` 形式的引用（assetId / effectAssetId
+    都算）。3D 导出目录是按项目生成的，但接口只按「目录名 + 文件名」取文件，
+    不做归属校验的话，任何一台中控设备都能遍历出别的项目的户型图与图层截图
+    （跨项目 IDOR）。这里把可见范围收窄到「本仪表盘文档真正引用到的那些文件」。
+
+    为什么按文件而不是按目录放开：一个导出目录里既有被引用的图层，也有中间产物
+    与整包 zip，直接按目录放开等于把该项目的全部导出物都暴露出去。
+    """
+    if viewer.project_id is None:
+        return None
+    # 键名后缀匹配是大小写不敏感的（assetId / AssetId / effectAssetId / imageAssetId…
+    # 全部命中），因此一次扫描就够，不必逐字段枚举。
+    return {
+        item
+        for item in _document_bound_values(_display_document(database, viewer), "assetId")
+        if item.startswith("studio3d:")
+    }
+
+
+def require_viewer_studio3d_asset(
+    database: DatabaseSession, viewer: ViewerPrincipal, asset_id: str
+) -> None:
+    """确认该 3D 导出资源被当前主体的仪表盘引用，否则 403。
+
+    asset_id 形如 `studio3d:<导出目录>/<文件名>`；对不上就拒绝，
+    文案与用户图片那条保持一致口径（不区分「不存在」与「无权访问」的细节）。
+    """
+    allowed = viewer_studio3d_asset_ids(database, viewer)
+    if allowed is not None and asset_id not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="该图片不属于当前中控仪表盘。",
+        )
+    return None
 
 
 def require_viewer_user_asset(

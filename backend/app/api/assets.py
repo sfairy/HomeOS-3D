@@ -23,7 +23,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
-from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_viewer_user_asset, viewer_user_asset_ids
+from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_viewer_studio3d_asset, require_viewer_user_asset, viewer_user_asset_ids
 from ..models import Project, ProjectDraft
 from ..global_popups import global_popups
 
@@ -54,6 +54,14 @@ UPLOAD_CONTENT_TYPES = {
 # 上传图片的硬上限：1000 万像素、单边 8192，挡住解压炸弹式的超大图。
 MAX_UPLOAD_PIXELS = 10000000
 MAX_UPLOAD_DIMENSION = 8192
+# 单次上传请求体的字节上限，**逐块累计**判断（分块传输会让 Content-Length 失效，
+# 只信它等于没限）。用十进制 MB（与 MAX_UPLOAD_SVG_BYTES 同口径），因为同一个数字
+# 会出现在给用户看的文案里。取值刻意宽于像素上限所允许的最大文件：1000 万像素 ×
+# 4 字节原始数据 = 40 MB，PNG 最坏情况也只是「原始数据 + 每行 1 字节过滤字节 +
+# zlib 分块开销」，所以在 64 MB 之内 —— 它的目的不是挑图片，而是不让**单个**请求
+# 把磁盘写满（修复前这里是 `async for chunk in request.stream(): descriptor.write(chunk)`，
+# 没有任何上限，一个请求就能塞满整块盘并连带拖垮 SQLite 与日志）。
+MAX_UPLOAD_BYTES = 64 * 1000 * 1000
 # SVG 是文本，另限体积与元素数量，避免海量节点把解析与渲染拖垮。
 MAX_UPLOAD_SVG_BYTES = 5000000
 MAX_UPLOAD_SVG_ELEMENTS = 20000
@@ -823,6 +831,8 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
     文件名走 X-File-Name 请求头（URL 编码），请求体是裸文件流。
     返回：素材 JSON（含 url 与 version）。
     会抛 422：文件名无效、后缀不支持、文件为空、内容与扩展名不符、尺寸超限；
+    会抛 413：请求体超过该后缀的上限（位图 64 MB、SVG 5 MB）。逐块累计判断，
+    不信任 Content-Length —— 否则分块传输或伪造的长度都能绕过。
     错误文案均为可直接展示的中文。
     """
     # 文件名放在自定义头里：请求体是裸文件流，没有 multipart 表单可承载文件名。
@@ -837,6 +847,14 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
     suffix = Path(filename).suffix.lower()
     if suffix not in UPLOAD_IMAGE_SUFFIXES:
         raise HTTPException(status_code = 422, detail = '仅支持 PNG、JPG、JPEG、WebP 和 SVG 图片。')
+    # 按后缀取更严的那个上限：SVG 只要 5 MB，就不该先写 64 MB 再回头判它超限。
+    byte_limit = MAX_UPLOAD_SVG_BYTES if suffix == '.svg' else MAX_UPLOAD_BYTES
+    size_hint = f'{byte_limit // 1000000} MB'
+    # 声明超限的直接拒，连第一个字节都不读：省下带宽与一次落盘（放在建目录之前，
+    # 这样早拒路径不需要任何清理）。
+    declared_length = request.headers.get('content-length', '').strip()
+    if declared_length.isdigit() and int(declared_length) > byte_limit:
+        raise HTTPException(status_code = 413, detail = f'图片不能超过 {size_hint}，请压缩后重试。')
     root = request.app.state.settings.user_assets_dir.resolve()
     # 目录名用随机 ID 而不是原文件名：避免重名与不可控字符，URL 里也不暴露文件名。
     asset_id = uuid4().hex
@@ -846,10 +864,15 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
     try:
         # 流式落盘：不把整个上传体读进内存，也不预先信任 Content-Length。
         has_content = False
+        received = 0
         with path.open('xb') as descriptor:
             async for chunk in request.stream():
                 if not chunk:
                     continue
+                received += len(chunk)
+                # 逐块累计：Content-Length 可以是假的，分块传输则干脆没有它。
+                if received > byte_limit:
+                    raise HTTPException(status_code = 413, detail = f'图片不能超过 {size_hint}，请压缩后重试。')
                 has_content = True
                 descriptor.write(chunk)
             descriptor.flush()
@@ -895,7 +918,8 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
 
     查询参数为 assetId（三种前缀都可）。可见性按素材类型区分：
     user: 需被当前主体的仪表盘引用，builtin: 需存在于素材目录，
-    studio3d: 直接按缓存文件存在性判断。
+    studio3d: 同样需被当前主体的仪表盘引用（导出目录按项目生成，
+    没有这一步任何中控设备都能按文件名猜出别的项目的户型图）。
     不存在或无权访问一律 404「效果图片不存在。」，不区分两者。
     """
     catalog = request.app.state.asset_catalog
@@ -908,7 +932,9 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
         elif asset_id.startswith('builtin:'):
             if not catalog.asset_exists(asset_id):
                 raise HTTPException(status_code = 404, detail = '效果图片不存在。')
-        elif not asset_id.startswith('studio3d:'):
+        elif asset_id.startswith('studio3d:'):
+            require_viewer_studio3d_asset(database, viewer, asset_id)
+        else:
             raise HTTPException(status_code = 404, detail = '效果图片不存在。')
         path = catalog.effect_variant_path(asset_id)
         if path is None:
@@ -923,16 +949,26 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
     return response
 
 @router.get('/studio3d-export/{folder_name}/{filename}')
-def read_studio3d_export(folder_name: str, filename: str, request: Request, _viewer: LicensedViewer) -> FileResponse:
+def read_studio3d_export(folder_name: str, filename: str, request: Request, viewer: LicensedViewer) -> FileResponse:
     """读取 3D 工作室导出的图片原文。
 
     身份与能力码：LicensedViewer（认证 + api）。
-    路径参数经 studio3d_export_file 严格校验，非法或不存在抛 404「导出图片不存在。」。
+    中控设备身份额外要求「这个文件被自己那块屏引用了」——导出目录是按项目生成的，
+    但 URL 只带目录名与文件名，不校验归属的话任何一台中控设备都能拿到别的项目的
+    户型图与图层截图（跨项目 IDOR）。管理员不受限。
+    路径参数经 studio3d_export_file 严格校验，非法或不存在抛 404「导出图片不存在。」；
+    引用校验不通过抛 403「该图片不属于当前中控仪表盘。」。
     """
     root = request.app.state.settings.studio3d_exports_dir.resolve()
-    path = studio3d_export_file(root, unquote(folder_name), unquote(filename))
+    folder = unquote(folder_name)
+    name = unquote(filename)
+    path = studio3d_export_file(root, folder, name)
     if path is None:
         raise HTTPException(status_code = 404, detail = '导出图片不存在。')
+    if viewer.project_id is not None:
+        # 短会话：读完即归还连接，文件响应体不再占用数据库连接。
+        with request.app.state.database.session_factory() as database:
+            require_viewer_studio3d_asset(database, viewer, f'studio3d:{folder}/{name}')
     # 只允许 PNG / WebP 两种后缀，所以媒体类型可以在这里直接穷举。
     media_type = 'image/webp' if path.suffix.lower() == '.webp' else 'image/png'
     response = FileResponse(path, media_type = media_type)

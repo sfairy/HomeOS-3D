@@ -15,7 +15,8 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from sqlalchemy import select
 
 from ..dependencies import DatabaseSession, LicensedUser
-from ..display_access import display_path
+from ..display_access import display_path, display_token_expired, display_token_expires_at
+from ..http_security import resolve_client_ip, secure_cookies_enabled
 from ..ha.crypto import CredentialCipher, CredentialCipherError
 from ..models import DisplayDevice, DisplayPairingCode, Project, User
 from ..schemas import (
@@ -28,6 +29,16 @@ from ..security import new_session_token, session_token_hash, set_display_cookie
 
 router = APIRouter(prefix='/displays', tags=['displays'])
 
+#: /pair 的**跨来源**失败预算 (max_failures, window_seconds, block_seconds)。
+#:
+#: 为什么除了按 IP 限流还需要这一档：6 位数字只有 100 万种，而按 IP 限流只要换 IP
+#: 就能摊薄 —— 审计实测里轮换来源基本等于不限流。这一档是全进程共享的总预算，
+#: 按 30 次/分钟算，枚举完 100 万种要 23 天以上，中途还得持续顶着 60 秒封禁。
+#: 封禁窗口故意只有 60 秒：它既然是共享的，攻击者就能故意把它填满来制造「谁也配对
+#: 不了」的拥堵，短窗口把这种 DoS 的代价压到「刷新几次就好」，而不是长期瘫痪。
+PAIRING_GLOBAL_LIMIT = (30, 60, 60)
+PAIRING_GLOBAL_KEY = 'display-pair-global'
+
 
 def require_admin(user: User) -> None:
     """确认当前用户是管理员，否则 403「仅管理员可以管理中控设备。」。
@@ -39,10 +50,46 @@ def require_admin(user: User) -> None:
     return None
 
 
-def device_payload(device: DisplayDevice, project: Project) -> dict:
+def enforce_pair_rate_limit(request: Request, ip_address: str, per_client: bool = True) -> tuple:
+    """检查 /pair 的两档限流；被拦时抛 429。
+
+    返回 (按 IP 的限流器或 None, 它的 key)，调用方记失败时要用同一对。
+    拿不到「能代表一个客户端」的来源地址时（per_client=False，例如可信代理没传
+    转发头）不启用按 IP 那一档：那种情况下所有人共用同一个地址，用它计数等于
+    让任何一个人失败几次就锁掉所有人的配对页；跨来源那一档仍然生效。
+    注意 block_seconds 是 int 属性而不是方法（把它当函数调用会 500 而不是 429）。
+    """
+    ip_limiter = request.app.state.login_limiter if per_client else None
+    ip_key = f'display-pair:{ip_address}' if per_client else ''
+    if ip_limiter is not None and ip_limiter.blocked(ip_key):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail='配对失败次数过多，请稍后再试。',
+            headers={'Retry-After': str(ip_limiter.block_seconds)},
+        )
+    global_limiter = request.app.state.pairing_limiter
+    if global_limiter.blocked(PAIRING_GLOBAL_KEY):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail='配对尝试过于频繁，请稍后再试。',
+            headers={'Retry-After': str(global_limiter.block_seconds)},
+        )
+    return (ip_limiter, ip_key)
+
+
+def note_pair_failure(request: Request, ip_limiter, ip_key: str) -> None:
+    """把一次配对失败同时记进两档限流：按 IP 的（若启用）与跨来源的。"""
+    if ip_limiter is not None:
+        ip_limiter.record_failure(ip_key)
+    request.app.state.pairing_limiter.record_failure(PAIRING_GLOBAL_KEY)
+
+
+def device_payload(device: DisplayDevice, project: Project, settings=None) -> dict:
     """把设备行拼成前端使用的 JSON（camelCase 出）。
 
     项目名由调用方一并传入，避免在列表循环里逐条查项目（N+1）。
+    传入 settings 时附带 expiresAt（令牌失效时刻）：管理端列表靠它显示
+    「这台平板还能用到什么时候」，否则一个长期不活跃的设备会悄无声息地过期。
     """
     return {
         'id': device.id,
@@ -53,8 +100,9 @@ def device_payload(device: DisplayDevice, project: Project) -> dict:
         'createdAt': device.created_at,
         'lastSeenAt': device.last_seen_at,
         'revokedAt': device.revoked_at,
+        'expiresAt': display_token_expires_at(device, settings) if settings is not None else None,
+        'expired': display_token_expired(device, settings) if settings is not None else False,
     }
-
 
 def pairing_cipher(request: Request) -> CredentialCipher:
     """构造配对码密文的加解密器，密钥路径取自配置（display_pairing_key_path）。"""
@@ -88,7 +136,7 @@ def pairing_payload(
         'updatedAt': pairing.updated_at,
         # 配对链接把项目名编码进 next，扫码后直接落到这台设备该看的展示路径。
         'pairingUrl': f'/pair?next={quote(display_path(project.name), safe = "/")}',
-        'device': device_payload(device, project) if device is not None else None,
+        'device': device_payload(device, project, request.app.state.settings) if device is not None else None,
     }
 
 
@@ -129,11 +177,12 @@ def unique_pairing_code(database: DatabaseSession, requested: str | None = None)
 
 
 @router.get('')
-def list_display_devices(database: DatabaseSession, user: LicensedUser) -> dict:
+def list_display_devices(request: Request, database: DatabaseSession, user: LicensedUser) -> dict:
     """列出所有在用（未吊销）的中控设备。
 
     仅管理员可调用，否则 403「仅管理员可以管理中控设备。」。
-    返回 {items: [...]}，按最后活跃时间倒序，项目名一并带上。
+    返回 {items: [...]}，按最后活跃时间倒序，项目名一并带上；
+    每条附 expiresAt / expired，便于发现「快过期或已过期」的平板。
     """
     require_admin(user)
     devices = list(
@@ -159,7 +208,7 @@ def list_display_devices(database: DatabaseSession, user: LicensedUser) -> dict:
     )
     return {
         'items': [
-            device_payload(item, projects[item.project_id])
+            device_payload(item, projects[item.project_id], request.app.state.settings)
             for item in devices
             if item.project_id in projects
         ]
@@ -330,22 +379,32 @@ def pair_display_device(
 ) -> dict:
     """设备侧配对：用配对码换一台中控设备的长期令牌。
 
-    刻意不需要登录，因此只能靠 IP 限流挡枚举配对码的尝试。
+    刻意不需要登录，因此门禁全靠限流与「同一配对码不重复发放令牌」这两条。
     请求字段：code、device_name（可选，覆盖配对码上的名字）。
     返回 {device: {...}, targetUrl: ...}，并下发中控设备 Cookie。
-    会抛的错误：429「配对失败次数过多，请稍后再试。」、
+    会抛的错误：429「配对失败次数过多 / 配对尝试过于频繁」、
+    403「当前授权不允许添加中控设备。」、
+    409「该配对码已绑定一台在用设备…」、
     422「配对码无效或已停用。」、404「配对的仪表盘已不存在。」。
+
+    为什么在用设备存在时要拒绝：配对码是「固定」的（可能长期贴在墙上、印在二维码
+    里、被拍照留存），而库里同一配对码只对应一台设备 —— 谁拿到这个码都能换出新令牌
+    并把原有那台设备顶掉（旧 Cookie 立刻失效）。那等于把「看到码」升级成「拿到这个
+    仪表盘的控制权」。所以改绑必须是管理员显式动作：先在管理端解绑那台设备（写
+    revoked_at），这里才会重新发令牌。已吊销的行会被复用（pairing_code_id 上有唯一
+    约束），令牌换新，旧令牌随之作废。
     """
-    ip_address = request.client.host if request.client else ''
-    # 免登录接口唯一的护栏：按 IP 限制单位时间内的失败次数。
-    limiter_key = f'display-pair:{ip_address}'
-    limiter = request.app.state.login_limiter
-    if limiter.blocked(limiter_key):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail='配对失败次数过多，请稍后再试。',
-            headers={'Retry-After': str(limiter.block_seconds(limiter_key))},
-        )
+    # 来源地址走统一解析：配了可信反向代理时取真实客户端，否则用 TCP 对端地址。
+    # per_client 为 False（只能拿到共享代理地址）时跳过按 IP 那一档，
+    # 否则任何人失败几次就能把所有人挡在配对页外。
+    address = resolve_client_ip(request)
+    ip_address = address.ip
+    # 免登录接口的第一道护栏：按 IP + 跨来源两档限流。
+    (ip_limiter, ip_key) = enforce_pair_rate_limit(request, ip_address, address.per_client)
+    # 能力码：页面侧（/pair 路由）已经拦过一次，API 自己也得拦 —— 授权收回 display 后
+    # 不能还能凭一个旧配对码换出新令牌。
+    if not request.app.state.license_service.allows('display'):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许添加中控设备。')
     pairing = database.scalar(
         select(DisplayPairingCode).where(
             DisplayPairingCode.code_hash == session_token_hash(payload.code)
@@ -353,15 +412,31 @@ def pair_display_device(
     )
     # 无效与已停用合并成同一条文案：不向外暴露「这个码存在但被停用了」。
     if not (pairing and pairing.is_enabled):
-        limiter.record_failure(limiter_key)
+        note_pair_failure(request, ip_limiter, ip_key)
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='配对码无效或已停用。')
     project = database.get(Project, pairing.project_id)
     if project is None:
-        limiter.record_failure(limiter_key)
+        note_pair_failure(request, ip_limiter, ip_key)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='配对的仪表盘已不存在。')
+    # 同一配对码下已有在用设备：拒绝，避免后来者把原来那台顶掉。
+    live_device = database.scalar(
+        select(DisplayDevice).where(
+            DisplayDevice.pairing_code_id == pairing.id,
+            DisplayDevice.revoked_at.is_(None),
+        )
+    )
+    if live_device is not None:
+        # 这不是猜码失败（码是对的），所以不计入限流；但要留审计线索。
+        request.app.state.global_log.append(
+            'warning', '展示设备', '中控设备', f'配对码「{pairing.name}」已绑定在用设备，拒绝了重复配对请求'
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail='该配对码已绑定一台在用设备。要在这台设备上重新配对，请先在管理端的显示设备列表里解绑原设备。',
+        )
     now = datetime.now(timezone.utc)
     token = new_session_token()
-    # 同一个配对码重复配对时复用原设备行，避免设备列表里堆出一串一次性记录。
+    # 复用已被管理员解绑的那一行（pairing_code_id 上有唯一约束，不能再插一行）。
     device = database.scalar(
         select(DisplayDevice).where(DisplayDevice.pairing_code_id == pairing.id)
     )
@@ -376,16 +451,25 @@ def pair_display_device(
     device.ip_address = ip_address[:64]
     device.user_agent = request.headers.get('user-agent', '')[:512]
     device.last_seen_at = now
-    # 重新配对等于复活：清掉吊销时间，旧令牌会被新令牌顶掉。
+    # 管理员解绑过（revoked_at 有值）才会走到这里：清除吊销时间等于「重新配对成功」。
     device.revoked_at = None
     pairing.updated_at = now
     database.commit()
     database.refresh(device)
-    limiter.reset(limiter_key)
-    set_display_cookie(response, request.app.state.settings, token)
+    if ip_limiter is not None:
+        ip_limiter.reset(ip_key)
+    request.app.state.pairing_limiter.reset(PAIRING_GLOBAL_KEY)
+    # Secure 按请求自动判定：配了 https 反代却忘开 APP_COOKIE_SECURE 时，
+    # 十年期的中控令牌也不至于明文下发。
+    set_display_cookie(
+        response,
+        request.app.state.settings,
+        token,
+        secure=secure_cookies_enabled(request),
+    )
     request.app.state.global_log.append('success', '展示设备', '中控设备', f'中控设备已完成配对：{device.name}')
     return {
-        'device': device_payload(device, project),
+        'device': device_payload(device, project, request.app.state.settings),
         'targetUrl': display_path(project.name),
     }
 
@@ -394,6 +478,7 @@ def pair_display_device(
 def update_display_device(
     device_id: str,
     payload: DisplayDeviceUpdateRequest,
+    request: Request,
     database: DatabaseSession,
     user: LicensedUser,
 ) -> dict:
@@ -428,7 +513,7 @@ def update_display_device(
             pairing.updated_at = datetime.now(timezone.utc)
     database.commit()
     database.refresh(device)
-    return device_payload(device, project)
+    return device_payload(device, project, request.app.state.settings)
 
 
 @router.delete('/{device_id}', status_code=status.HTTP_204_NO_CONTENT)

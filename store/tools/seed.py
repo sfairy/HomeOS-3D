@@ -2,15 +2,14 @@
 
 用法::
 
-    python -m store.tools.seed
+    STORE_ADMIN_EMAIL=you@example.com STORE_ADMIN_PASSWORD='…' python -m store.tools.seed
+
+管理员凭据**必须**由 ``STORE_ADMIN_EMAIL`` / ``STORE_ADMIN_PASSWORD`` 提供：
+缺失时直接退出，不会用代码里写死的默认口令建号。这是刻意的 —— 硬编码的默认管理员
+等于给每个照文档部署的实例装一个公开后门（早期版本确实如此，口令出现在公开的
+README 里）。若库里已存在管理员，则可以不带凭据重复执行（只补商品与配置）。
 
 幂等：重复执行只会补齐缺失的数据，不会覆盖已有商品与账号。
-管理员凭据取自 ``STORE_ADMIN_EMAIL`` / ``STORE_ADMIN_PASSWORD``，
-未设置时使用 :data:`DEFAULT_ADMIN_EMAIL` / :data:`DEFAULT_ADMIN_PASSWORD`（并打印警告）。
-
-.. warning::
-   默认凭据仅用于本机开发。上生产前必须用 ``STORE_ADMIN_EMAIL`` /
-   ``STORE_ADMIN_PASSWORD`` 覆盖，并确认 ``store/data/store.db`` 里没有残留的默认管理员。
 """
 
 from __future__ import annotations
@@ -30,8 +29,16 @@ from store.serializers import list_json
 logging.basicConfig(level=logging.INFO, format="%(levelname)-7s %(message)s")
 logger = logging.getLogger("store.seed")
 
-DEFAULT_ADMIN_EMAIL = "156120718@qq.com"
-DEFAULT_ADMIN_PASSWORD = "fcx6041246"
+#: 缺失管理员凭据时的退出提示。刻意把「以前有默认口令」这件事写进文案：
+#: 从旧版本升级过来的部署需要知道为什么现在跑不起来了。
+MISSING_ADMIN_CREDENTIALS = (
+    "缺少管理员凭据：请设置 STORE_ADMIN_EMAIL 与 STORE_ADMIN_PASSWORD 后再执行 seed。\n"
+    "  例：STORE_ADMIN_EMAIL=you@example.com STORE_ADMIN_PASSWORD='一个足够强的口令' \\\n"
+    "        python -m store.tools.seed\n"
+    "说明：早期版本在缺省时会用代码里写死的口令建管理员（且该口令公开在 README 里），\n"
+    "      那等于给每个照文档部署的实例装一个公开后门，现已移除。\n"
+    "      若库里已经有管理员账号，可以不带凭据重复执行本命令（只补商品与站点配置）。"
+)
 
 #: 与参考站 pay.habridge.cn 实测完全一致的功能码清单
 BASE_PRODUCT_FEATURES = [
@@ -163,21 +170,41 @@ def seed_settings(session: Session) -> StoreSetting:
     return setting
 
 
+def existing_admin(session: Session) -> Account | None:
+    """返回库里已有的管理员（任一），没有则 None。"""
+    return session.scalars(
+        select(Account).where(Account.is_admin.is_(True)).limit(1)
+    ).first()
+
+
 def main() -> None:
     settings = load_settings()
-    admin_email = settings.bootstrap_admin_email or DEFAULT_ADMIN_EMAIL
-    admin_password = settings.bootstrap_admin_password or DEFAULT_ADMIN_PASSWORD
-    if not settings.bootstrap_admin_email:
-        logger.warning(
-            "未设置 STORE_ADMIN_EMAIL / STORE_ADMIN_PASSWORD，使用默认管理员 %s / %s",
-            DEFAULT_ADMIN_EMAIL,
-            DEFAULT_ADMIN_PASSWORD,
-        )
+    admin_email = (settings.bootstrap_admin_email or "").strip().lower()
+    admin_password = settings.bootstrap_admin_password or ""
+    has_credentials = bool(admin_email and admin_password)
+
+    if not has_credentials and not settings.database_path.exists():
+        # 全新安装又没有凭据：直接退出，连库和密钥都不要建 —— 免得留下一个
+        # 「半初始化、且没有管理员」的目录让后续启动进入更迷惑的状态。
+        raise SystemExit(MISSING_ADMIN_CREDENTIALS)
 
     app = create_app(settings)
     with app.state.database.session() as session:
+        admin = existing_admin(session)
+        if not has_credentials and admin is None:
+            # 库在、但没有任何管理员：仍然拒绝建号。这里不能有「新建库就放宽」的
+            # 分支，否则一次误删账号文件就能把实例变回「无主」状态。
+            raise SystemExit(MISSING_ADMIN_CREDENTIALS)
+
         seed_settings(session)
-        seed_admin(session, admin_email, admin_password)
+        if has_credentials:
+            admin = seed_admin(session, admin_email, admin_password)
+        else:
+            logger.info(
+                "未提供 STORE_ADMIN_EMAIL / STORE_ADMIN_PASSWORD，但库里已有管理员 %s："
+                "跳过管理员初始化（只补商品与站点配置）。",
+                admin.email,
+            )
         seed_products(session)
         seed_release(session)
 
@@ -187,7 +214,7 @@ def main() -> None:
     print(f"  数据库:   {settings.database_path}")
     print(f"  密钥目录: {settings.license_keys_dir}")
     print(f"  管理后台: {settings.public_base_url}/admin")
-    print(f"  管理员:   {admin_email}")
+    print(f"  管理员:   {admin.email if admin is not None else '（未变更）'}")
     print()
 
 

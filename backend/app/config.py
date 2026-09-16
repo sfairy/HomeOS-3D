@@ -111,15 +111,29 @@ class Settings:
     # 对外访问根地址：反向代理时设置，供 WebSocket 校验 Origin。
     app_base_url: str = ''
     session_max_age_seconds: int = 28800
+    # 会话绝对寿命：滑动续期也不能突破它，避免一枚被盗 Cookie 被无限续下去。
+    session_hard_max_age_seconds: int = 2592000
     # HTTPS 部署时置 True，否则浏览器会因非 Secure 而丢弃会话 Cookie。
+    # 默认 False 不代表「只有显式开启才安全」：请求级判定会自动按 https 加 Secure，
+    # 见 http_security.secure_cookies_enabled（这个开关只用于强制开启）。
     cookie_secure: bool = False
+    # 可信反向代理的 IP / CIDR 列表。为空表示不信任任何转发头，
+    # 此时限流按 TCP 对端地址统计（直连部署下就是真实客户端）。
+    trusted_proxies: tuple[str, ...] = ()
     update_checks_enabled: bool = False
     update_channel: str = 'docker'
     # Cookie 名沿用历史前缀 ha_bridge_*：改名会让已登录用户全部掉线，故保持不变。
     cookie_name: str = 'ha_bridge_session'
     display_cookie_name: str = 'ha_bridge_display'
-    # 中控设备 Cookie 有效十年：墙面平板不应因过期而要求重新配对。
-    display_cookie_max_age_seconds: int = 315360000
+    # 中控设备 Cookie 的浏览器侧有效期。服务端另有滑动有效期（见下），
+    # 因此这里不需要留十年：只要平板还在轮询，续期就会把它一直推后。
+    display_cookie_max_age_seconds: int = 15552000
+    # 中控令牌的服务端滑动有效期（默认 180 天）：每次活跃（>= 5 分钟节流）续期。
+    # 作用是「长期不用 / 只在攻击者手里的令牌会自己死掉」，而不是定期强迫平板重配。
+    display_token_ttl_seconds: int = 15552000
+    # 中控令牌的硬上限（默认 0 = 不设）。设成非 0 会强制平板到期重新配对，
+    # 安全性更高但会打断「装好就不管」的墙面使用方式，因此留给运维决定。
+    display_token_hard_ttl_seconds: int = 0
     ha_request_timeout_seconds: float = 10
     ha_reconcile_interval_seconds: int = 1800
     # 64 MiB：HA 在实体很多时单条状态推送会很大，默认值容易触发断连。
@@ -145,6 +159,10 @@ class Settings:
     credential_key_path_override: Path | None = None
     display_pairing_key_path_override: Path | None = None
     license_secret_key_path_override: Path | None = None
+    # 首次初始化的引导密钥（APP_SETUP_TOKEN）。为空时由 SetupGuard 在首次启动生成
+    # 一份，落盘到 data_dir/setup-token 并打印到启动日志（容器部署靠它取用）。
+    # 它只为「尚未初始化的实例」服务，初始化成功后即作废。
+    setup_token: str = ''
 
     @property
     def database_path(self) -> Path:
@@ -290,11 +308,21 @@ def load_settings() -> Settings:
         license_batches = DEFAULT_LICENSE_SERVER_BATCHES
 
     # 用字典展开而非逐项赋值：字段名与变量名对齐，漏改一处也不会静默用错默认值。
+    trusted_proxies = tuple(
+        piece.strip()
+        for piece in os.getenv('APP_TRUSTED_PROXIES', '').split(',')
+        if piece.strip()
+    )
     return Settings(**{
         'data_dir': data_dir,
         'app_base_url': os.getenv('APP_BASE_URL', '').strip().rstrip('/'),
         'session_max_age_seconds': int(os.getenv('APP_SESSION_MAX_AGE_SECONDS', '28800')),
+        'session_hard_max_age_seconds': int(os.getenv('APP_SESSION_HARD_MAX_AGE_SECONDS', '2592000')),
         'cookie_secure': _environment_bool('APP_COOKIE_SECURE'),
+        'trusted_proxies': trusted_proxies,
+        'display_cookie_max_age_seconds': int(os.getenv('APP_DISPLAY_COOKIE_MAX_AGE_SECONDS', '15552000')),
+        'display_token_ttl_seconds': int(os.getenv('APP_DISPLAY_TOKEN_TTL_SECONDS', '15552000')),
+        'display_token_hard_ttl_seconds': int(os.getenv('APP_DISPLAY_TOKEN_HARD_TTL_SECONDS', '0')),
         # 更新检查在本项目中固定开启，不提供环境变量开关。
         'update_checks_enabled': True,
         'update_channel': os.getenv('APP_UPDATE_CHANNEL', 'docker').strip().lower(),
@@ -317,4 +345,6 @@ def load_settings() -> Settings:
         'credential_key_path_override': Path(ha_key_path).expanduser().resolve() if ha_key_path else None,
         'display_pairing_key_path_override': Path(display_pairing_key_path).expanduser().resolve() if display_pairing_key_path else None,
         'license_secret_key_path_override': Path(license_key_path).expanduser().resolve() if license_key_path else None,
+        # 首次初始化的引导密钥；留空则由服务端自动生成一份（见 SetupGuard）。
+        'setup_token': os.getenv('APP_SETUP_TOKEN', '').strip(),
     })

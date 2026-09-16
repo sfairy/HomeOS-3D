@@ -24,7 +24,7 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -32,7 +32,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .admin_account import AdminAccountStore
 from .api.auth import router as auth_router
 from .api.assets import AssetCatalog, read_builtin_asset, router as assets_router
-from .api.displays import router as displays_router
+from .api.displays import PAIRING_GLOBAL_LIMIT, router as displays_router
 from .api.ha import router as ha_router, runtime_router
 from .api.ha_proxy import router as ha_proxy_router
 from .api.global_logs import router as global_logs_router
@@ -45,6 +45,11 @@ from .auth_limiter import LoginAttemptLimiter
 from .config import Settings, load_settings
 from .database import Database
 from .ha.service import HAConnectorService
+from .http_security import (
+    forwarded_headers_present,
+    parse_trusted_proxies,
+    same_origin_request,
+)
 from .license import LicenseService
 from .updates import UpdateChecker, router as updates_router
 from .migrations import run_migrations
@@ -52,6 +57,7 @@ from .display_access import active_display_device, display_path
 from .global_log import GlobalLogStore, _safe_text, event_context
 from .models import DisplayDevice, LoginSession, Project, User
 from .security import session_token_hash, set_display_cookie
+from .setup_guard import SetupGuard, announce_setup_window
 
 # 超过这个耗时的接口会在全局日志里记一条"响应缓慢"的警告。
 SLOW_REQUEST_MILLISECONDS = 2000
@@ -100,6 +106,33 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         try:
             # 日志最先建：后面每一步的失败都要能记进日志。
             app.state.global_log = GlobalLogStore(app_settings.data_dir)
+            # 代理信任范围是安全配置：解析不了的值必须当场炸掉，不能静默退化成
+            # 「谁也不信」（那会让限流悄悄按代理地址统计，等于所有人共用一个桶）。
+            trusted_proxies = parse_trusted_proxies(tuple(app_settings.trusted_proxies))
+            if not trusted_proxies and (app_settings.app_base_url.startswith('https://')):
+                # 最常见的错配：HTTPS 反代后面却没配可信代理 —— 于是限流、审计里的
+                # 客户端 IP 全是代理地址，且带转发头的请求还会被当成「本机直连」之外的
+                # 情况处理。这里提醒一句，不阻断启动（业务仍可用，只是统计不准）。
+                app.state.global_log.append(
+                    'warning', '系统后台', '配置',
+                    'APP_BASE_URL 是 https 但未配置 APP_TRUSTED_PROXIES：限流与审计会按反向代理地址统计，建议按部署方式配置。',
+                )
+            # 中控令牌的有效期必须大于心跳节流窗口（5 分钟），否则设备会在
+            # 有机会续期之前就先过期 —— 表现是「配对完没几分钟就回配对页」。
+            display_ttl = int(getattr(app_settings, 'display_token_ttl_seconds', 0) or 0)
+            if 0 < display_ttl <= 300:
+                app.state.global_log.append(
+                    'warning', '系统后台', '配置',
+                    f'APP_DISPLAY_TOKEN_TTL_SECONDS={display_ttl} 小于中控心跳节流窗口（5 分钟）：'
+                    '中控设备会在能续期之前就过期，请把有效期调到 5 分钟以上（默认 180 天）。',
+                )
+            display_hard_ttl = int(getattr(app_settings, 'display_token_hard_ttl_seconds', 0) or 0)
+            if 0 < display_hard_ttl < display_ttl:
+                app.state.global_log.append(
+                    'warning', '系统后台', '配置',
+                    f'APP_DISPLAY_TOKEN_HARD_TTL_SECONDS={display_hard_ttl} 小于滑动有效期 '
+                    f'（{display_ttl}）：实际生效的是更短的硬上限，请确认是否符合预期。',
+                )
             # 所有数据目录都收紧到 0700，密钥与用户图片不允许同机其它用户读取。
             app_settings.data_dir.mkdir(parents = True, exist_ok = True, mode = 0o700)
             os.chmod(app_settings.data_dir, 0o700)
@@ -123,6 +156,19 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 app.state.global_log.append('warning', '系统后台', '账号', '检测到管理员账号文件已删除，等待重新设置账号和密码')
             # 登录限流器是进程内状态，重启即清空（可接受：重启本身不常见）。
             app.state.login_limiter = LoginAttemptLimiter()
+            # 只按账号（不含 IP）的那一档预算：挡「不停换 IP 撞同一个账号」。
+            # 阈值故意比按 IP 那档宽：正常人手滑几次不该被锁，而换 IP 爆破会被它兜住。
+            app.state.login_account_limiter = LoginAttemptLimiter(10, 900, 900)
+            # 中控配对的跨来源失败预算（按 IP 那一档在 login_limiter 里，见 displays.py）。
+            app.state.pairing_limiter = LoginAttemptLimiter(*PAIRING_GLOBAL_LIMIT)
+            # 首次初始化的守卫：没带引导密钥的远程请求不允许抢建管理员账号。
+            app.state.setup_guard = SetupGuard(app_settings.data_dir, app_settings.setup_token, event_log = app.state.global_log)
+            if account_state in ('empty', 'reset_required'):
+                # 打印到启动日志（stderr），密钥本身不进全局日志：全局日志可导出。
+                announce_setup_window(account_state, app.state.setup_guard)
+            else:
+                # 已初始化：清掉残留的引导密钥文件，免得它以后又被当成有效凭证。
+                app.state.setup_guard.discard_file()
             app.state.license_service = LicenseService(app_settings, app.state.database, transport = license_transport, endpoint_pool = license_endpoint_pool, event_log = app.state.global_log)
             await app.state.license_service.start()
             app.state.asset_catalog = AssetCatalog(app_settings.built_in_assets_dir, app_settings.user_assets_dir, app_settings.studio3d_exports_dir, app_settings.effect_variants_dir)
@@ -149,6 +195,13 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                     database.dispose()
                 except Exception as cleanup_error:
                     _record_lifecycle_failure(app, 'shutdown', cleanup_error)
+            # 启动失败也要收掉日志写线程，否则半启动的进程会留下一个常驻线程。
+            event_log = getattr(app.state, 'global_log', None)
+            if event_log is not None:
+                try:
+                    event_log.stop()
+                except Exception as cleanup_error:
+                    _record_lifecycle_failure(app, 'shutdown', cleanup_error)
             raise
         app.state.global_log.append('success', '系统后台', '系统', f'HomeOS {app_settings.version} 已启动', context={'phase': 'ready'})
         try:
@@ -168,10 +221,15 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             except Exception as error:
                 _record_lifecycle_failure(app, 'shutdown', error)
                 shutdown_error = shutdown_error or error
-            if shutdown_error is not None:
-                raise shutdown_error
-            # 最后一条日志：确认所有服务都已按序关闭。
-            app.state.global_log.append('info', '系统后台', '系统', 'HomeOS 已正常停止')
+            try:
+                if shutdown_error is not None:
+                    raise shutdown_error
+                # 最后一条日志：确认所有服务都已按序关闭。
+                app.state.global_log.append('info', '系统后台', '系统', 'HomeOS 已正常停止')
+            finally:
+                # 日志写线程始终要收尾（且放在最后）：既保证上面那条记录落盘，
+                # 也保证异常退出路径上不留下残余线程。
+                app.state.global_log.stop()
 
     # 关掉 docs / redoc / openapi：本项目不对外暴露接口文档。
     app = FastAPI(title = 'HomeOS', version = app_settings.version, lifespan = lifespan, docs_url = None, redoc_url = None, openapi_url = None)
@@ -221,6 +279,18 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         token = event_context.set(context)
         log_endpoint = request.url.path == '/api/v1/logs' or request.url.path.startswith('/api/v1/logs/')
         api_request = request.url.path.startswith('/api/')
+        # 只提示一次：请求带了转发头但没配可信代理，说明前面有反代而限流/审计只能
+        # 看到代理地址。这是配置问题，不是每次请求的问题，反复记会把日志刷满。
+        if not getattr(request.app.state, 'proxy_warning_logged', False) and forwarded_headers_present(request):
+            if not getattr(request.app.state.settings, 'trusted_proxies', ()):
+                request.app.state.proxy_warning_logged = True
+                forward_log = getattr(request.app.state, 'global_log', None)
+                if forward_log is not None:
+                    forward_log.append(
+                        'warning', '系统后台', '配置',
+                        '检测到请求带反向代理转发头，但未配置 APP_TRUSTED_PROXIES：限流与审计会按代理地址统计。请按实际部署配置可信代理的 IP 或网段。',
+                        context = context,
+                    )
         try:
             response = await call_next(request)
             # 回带 requestId：用户截图报障时服务端能直接定位到这次请求。
@@ -447,6 +517,29 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
         return response
+
+    @app.middleware('http')
+    async def require_same_origin_for_writes(request: Request, call_next):
+        """所有改状态的 /api 请求必须同源（CSRF 第二道闸）。
+
+        第一道闸是 SameSite=Lax + 只收 JSON 体（跨站表单会 422、跨站 fetch 会因
+        没有 CORS 而 preflight 失败）。这里补一道显式的 Origin/Referer 校验，
+        这样日后新增「GET 写操作」或收 text/plain 的接口时不会立刻出现 CSRF 缺口。
+
+        GET / HEAD / OPTIONS 不拦（读操作 + CORS 预检）；非 /api 路径不拦
+        （页面与静态资源没有副作用）。判定细节见 http_security.same_origin_request。
+        """
+        if (
+            request.url.path.startswith('/api/')
+            and request.method not in {'GET', 'HEAD', 'OPTIONS'}
+            and not same_origin_request(request)
+        ):
+            return JSONResponse(
+                {'detail': '跨站请求已被拒绝（来源校验未通过）。'},
+                status_code = 403,
+                headers = {'Cache-Control': 'no-store'},
+            )
+        return await call_next(request)
 
     def safe_next_path(request: Request) -> str:
         """安全地取出 ?next= 跳转目标。

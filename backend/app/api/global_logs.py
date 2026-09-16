@@ -22,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from ..dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..global_log import event_context, safe_context
+from ..http_security import resolve_client_ip
 
 router = APIRouter(prefix='/logs', tags=['global-logs'])
 
@@ -134,8 +135,10 @@ def _limit_client_log(request: Request, *, anonymous: bool) -> None:
         if not hasattr(store, 'client_limiter'):
             store.client_limiter = ClientLogLimiter()
         limiter = store.client_limiter
-    # 取不到 client 时全部归到同一个桶，避免未知来源绕过限流。
-    peer = request.client.host if request.client else 'unknown'
+    # 取不到地址时全部归到同一个桶，避免未知来源绕过限流。
+    # 走统一解析：配了可信代理就按真实客户端计数，否则用 TCP 对端地址。
+    address = resolve_client_ip(request)
+    peer = address.ip or 'unknown'
     if not limiter.allow(peer, anonymous=anonymous):
         raise HTTPException(status_code=429, detail='日志上报过于频繁，请稍后重试。', headers={'Retry-After': '60'})
 

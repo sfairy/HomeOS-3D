@@ -40,6 +40,50 @@
     box-shadow 0.16s ease, transform 0.16s ease;
 }
 
+/* --------------------------------------------------------------------------
+   业务域色调层
+   --------------------------------------------------------------------------
+   五个业务域各一个色相，页面骨架（面板头辉光、编号、角线、KPI 顶缘、漏斗条、
+   侧栏选中态）跟着所属域变色，形成「一眼看出现在在哪个业务域」的色彩编码。
+
+   为什么用 hue 变量而不是五套色值：一行 `--a-tint-h: 265` 就能把整层 token
+   重算一遍，加域只加一行；手写五套（各 6 个色值）改一处字号/透明度时必然漏。
+
+   **--hb-bg / --hb-accent / --hb-success 一个字都不能动**（theme.css 与主程序
+   逐字对齐，smoke.py 会断言），所以多色是「新增一层」，不是改品牌色。
+   品牌琥珀只保留在「可点的东西」上：主操作按钮、焦点环、复选框选中态，
+   以及 is-alert / is-danger 这类**语气**（告警永远是琥珀，不该随域漂移）。
+
+   默认 38° = 琥珀，与 --hb-accent 同色相：没有 data-domain 的容器（登录页、
+   确认弹窗、轻提示）看起来与重构前完全一致。 */
+:root {
+  --a-tint-h: 38;
+  --a-tint: hsl(var(--a-tint-h) 90% 62%);
+  --a-tint-bright: hsl(var(--a-tint-h) 96% 72%);
+  --a-tint-soft: hsl(var(--a-tint-h) 90% 62% / 0.13);
+  --a-tint-faint: hsl(var(--a-tint-h) 90% 62% / 0.06);
+  --a-tint-line: hsl(var(--a-tint-h) 90% 62% / 0.42);
+  --a-tint-grad: linear-gradient(180deg, hsl(var(--a-tint-h) 96% 72%), hsl(var(--a-tint-h) 92% 50%));
+}
+
+/* 域 → 色相。面板与侧栏分组两边都挂 data-domain：
+   面板负责工作区，分组负责侧栏那一组链接的选中态与色点。 */
+.admin-panel[data-domain="operations"],
+.nav-group[data-domain="operations"] { --a-tint-h: 38; }   /* 琥珀：概览 / 订单 / 提现 */
+
+.admin-panel[data-domain="catalog"],
+.nav-group[data-domain="catalog"] { --a-tint-h: 265; }     /* 紫：商品 / 优惠码 / 版本 */
+
+.admin-panel[data-domain="licensing"],
+.nav-group[data-domain="licensing"] { --a-tint-h: 190; }   /* 青：激活码 / 绑定 / 账号 */
+
+.admin-panel[data-domain="data"],
+.nav-group[data-domain="data"] { --a-tint-h: 215; }        /* 蓝：权益 / 流水 / 客户 / 诊断 */
+
+.admin-panel[data-domain="system"],
+.nav-group[data-domain="system"] { --a-tint-h: 158; }      /* 翠：站点配置 / 审计 */
+
+
 /* 骨架沿用主程序的做法（见 frontend/static/app.css）：body 不滚，主区是唯一
    滚动容器，表格不需要 max-height 魔法数字，也不会出现双滚动条。 */
 html,
@@ -173,6 +217,7 @@ body {
    12px 就是链接少看两行。 */
 .nav-group__toggle {
   display: flex;
+  position: relative;
   width: 100%;
   align-items: center;
   gap: 7px;
@@ -192,6 +237,27 @@ body {
   text-transform: uppercase;
   cursor: pointer;
   transition: var(--a-transition);
+}
+
+/* 分组标题左侧一道 3px 域色导轨：竖着看下来，五个分组是五段不同颜色，
+   视线扫过侧栏就知道后台一共分了几个域、现在哪一段是展开的。
+   导轨比给标题上色稳：标题文字要保证对比度，颜色不能太亮，导轨可以。 */
+.nav-group__toggle::before {
+  width: 3px;
+  height: 12px;
+  flex: 0 0 3px;
+  border-radius: 2px;
+  background: var(--a-tint);
+  content: "";
+  /* order -2：导轨排在最前（chevron 是 -1、标题是 0），
+     否则它会夹在箭头和标题之间，看起来像箭头的一部分。 */
+  order: -2;
+  opacity: 0.45;
+  transition: var(--a-transition);
+}
+
+.nav-group.open .nav-group__toggle::before {
+  opacity: 1;
 }
 
 .nav-group__toggle:hover {
@@ -322,12 +388,14 @@ body {
   opacity: 1;
 }
 
-/* 选中态：淡琥珀底 + 高亮文字 + 行首一条琥珀指示条。
+/* 选中态：淡色调底 + 高亮文字 + 行首一条色条。
    不再用实心描边方框——那会把每一行都框成一个「输入框」，和表单控件混淆，
-   一行行看下来也显得很吵。 */
+   一行行看下来也显得很吵。
+   颜色取自所属分组的 data-domain：点开「商品」那一组，整组的选中态是紫的，
+   与工作区的面板头同一个色相，「现在在哪」这件事不需要再读一遍文字。 */
 .admin-side a.nav-link.active {
-  color: var(--hb-accent-bright);
-  background: linear-gradient(90deg, rgba(242, 162, 13, 0.16), rgba(242, 162, 13, 0.02));
+  color: var(--a-tint-bright);
+  background: linear-gradient(90deg, var(--a-tint-soft), hsl(var(--a-tint-h) 90% 62% / 0.02));
 }
 
 .admin-side a.nav-link.active::before {
@@ -337,7 +405,7 @@ body {
   width: 2px;
   height: 16px;
   border-radius: 0 2px 2px 0;
-  background: var(--hb-accent-grad);
+  background: var(--a-tint-grad);
   content: "";
   transform: translateY(-50%);
 }
@@ -350,10 +418,10 @@ body {
 .nav-badge {
   min-width: 20px;
   padding: 1px 6px;
-  border: 1px solid var(--hb-accent-line);
+  border: 1px solid var(--a-tint-line);
   border-radius: var(--hb-radius-pill);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
+  color: var(--a-tint-bright);
+  background: var(--a-tint-soft);
   font-family: var(--hb-font-mono);
   font-size: 10px;
   font-weight: 700;
@@ -365,7 +433,7 @@ body {
 }
 
 .admin-side a.nav-link.active .nav-badge {
-  border-color: rgba(242, 162, 13, 0.6);
+  border-color: hsl(var(--a-tint-h) 90% 62% / 0.6);
 }
 
 /* 底部账号区：整块压低一档底色，和上面的导航列表分开，
@@ -446,27 +514,40 @@ body {
      留了间距就会在表头上方露出空档，让表格内容从缝里穿过去。 */
   padding: 0 26px 30px;
   overscroll-behavior: contain;
+  /* 氛围层：五个业务域的色相各来一圈极淡的辉光（alpha ~0.05），铺在工作区底下。
+     它随面板域色一起给页面「有深度」的观感，但亮度必须低于 0.06 ——
+     再高一点就会和卡片背景抢对比度，正文小字开始发灰。
+
+     写在这里而不是另加一个 ::before 层：滚动容器的背景不随内容滚动，
+     天然就是一块固定的底，不需要 background-attachment: fixed
+     （那个在滚动容器上会强制走合成层重绘，长表格滚动时掉帧）。 */
+  background-image: radial-gradient(90% 55% at 12% 0%, hsl(38 90% 62% / 0.05), transparent 70%),
+    radial-gradient(75% 50% at 88% 8%, hsl(265 90% 62% / 0.045), transparent 72%),
+    radial-gradient(80% 55% at 50% 100%, hsl(190 90% 62% / 0.04), transparent 74%);
+  background-repeat: no-repeat;
 }
 
 /* 面板编号：/01 … /15。
    这里不能用 CSS 计数器——计数只对「生成了盒子」的元素生效，而 15 个面板
    同时只有 1 个可见（其余 display:none），用计数器会让每一页都显示 /01。
-   所以按 DOM 顺序显式编号：.admin-main 的子元素正好就是这 15 个 section。 */
-.admin-panel:nth-child(1) { --a-panel-no: "01"; }
-.admin-panel:nth-child(2) { --a-panel-no: "02"; }
-.admin-panel:nth-child(3) { --a-panel-no: "03"; }
-.admin-panel:nth-child(4) { --a-panel-no: "04"; }
-.admin-panel:nth-child(5) { --a-panel-no: "05"; }
-.admin-panel:nth-child(6) { --a-panel-no: "06"; }
-.admin-panel:nth-child(7) { --a-panel-no: "07"; }
-.admin-panel:nth-child(8) { --a-panel-no: "08"; }
-.admin-panel:nth-child(9) { --a-panel-no: "09"; }
-.admin-panel:nth-child(10) { --a-panel-no: "10"; }
-.admin-panel:nth-child(11) { --a-panel-no: "11"; }
-.admin-panel:nth-child(12) { --a-panel-no: "12"; }
-.admin-panel:nth-child(13) { --a-panel-no: "13"; }
-.admin-panel:nth-child(14) { --a-panel-no: "14"; }
-.admin-panel:nth-child(15) { --a-panel-no: "15"; }
+   也不能用 nth-child：每个面板内部现在还有 tab 容器，DOM 一旦插入节点，
+   「.admin-main 的第 N 个子元素」就整体错位。所以编号挂在 **id** 上，
+   面板怎么搬动、加多少 tab 都不会串号。 */
+#panel-overview { --a-panel-no: "01"; }
+#panel-products { --a-panel-no: "02"; }
+#panel-orders { --a-panel-no: "03"; }
+#panel-licenses { --a-panel-no: "04"; }
+#panel-bindings { --a-panel-no: "05"; }
+#panel-coupons { --a-panel-no: "06"; }
+#panel-withdrawals { --a-panel-no: "07"; }
+#panel-accounts { --a-panel-no: "08"; }
+#panel-settings { --a-panel-no: "09"; }
+#panel-releases { --a-panel-no: "10"; }
+#panel-audits { --a-panel-no: "11"; }
+#panel-entitlements { --a-panel-no: "12"; }
+#panel-ledger { --a-panel-no: "13"; }
+#panel-customers { --a-panel-no: "14"; }
+#panel-diagnostics { --a-panel-no: "15"; }
 
 .admin-panel {
   display: none;
@@ -500,16 +581,17 @@ body {
   z-index: 1;
 }
 
-/* 细网格 + 双层琥珀辉光，与前台页头横幅同一套质感（网格 46px 一循环，
-   所以能直接复用 theme.css 里的 hb-head-drift 做无缝漂移）。 */
+/* 细网格 + 双层域色辉光，与前台页头横幅同一套质感（网格 46px 一循环，
+   所以能直接复用 theme.css 里的 hb-head-drift 做无缝漂移）。
+   辉光色相取自面板的 data-domain —— 这是「多色」在工作区里最大的一块面积。 */
 .panel-head::before {
   position: absolute;
   inset: 0;
   z-index: 0;
   background-image: linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
     linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    radial-gradient(120% 155% at 0% 0%, rgba(242, 162, 13, 0.2), transparent 62%),
-    radial-gradient(88% 140% at 100% 100%, rgba(242, 162, 13, 0.1), transparent 58%);
+    radial-gradient(120% 155% at 0% 0%, hsl(var(--a-tint-h) 90% 62% / 0.2), transparent 62%),
+    radial-gradient(88% 140% at 100% 100%, hsl(var(--a-tint-h) 90% 62% / 0.1), transparent 58%);
   background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%;
   background-position: 0 0, 0 0, 0 0, 0 0;
   content: "";
@@ -524,12 +606,12 @@ body {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: linear-gradient(90deg, transparent, rgba(242, 162, 13, 0.42) 22%, transparent 78%),
-    linear-gradient(180deg, transparent, var(--hb-accent) 24%, var(--hb-accent) 76%, transparent),
-    linear-gradient(var(--hb-accent-line), var(--hb-accent-line)),
-    linear-gradient(var(--hb-accent-line), var(--hb-accent-line)),
-    linear-gradient(var(--hb-accent-line), var(--hb-accent-line)),
-    linear-gradient(var(--hb-accent-line), var(--hb-accent-line));
+  background-image: linear-gradient(90deg, transparent, hsl(var(--a-tint-h) 90% 62% / 0.42) 22%, transparent 78%),
+    linear-gradient(180deg, transparent, var(--a-tint) 24%, var(--a-tint) 76%, transparent),
+    linear-gradient(var(--a-tint-line), var(--a-tint-line)),
+    linear-gradient(var(--a-tint-line), var(--a-tint-line)),
+    linear-gradient(var(--a-tint-line), var(--a-tint-line)),
+    linear-gradient(var(--a-tint-line), var(--a-tint-line));
   background-position: 50% 100%, 0 50%, 14px 14px, 14px 14px, right 14px bottom 14px, right 14px bottom 14px;
   background-size: calc(100% - 72px) 1px, 3px 56%, 20px 1px, 1px 20px, 20px 1px, 1px 20px;
   background-repeat: no-repeat;
@@ -547,12 +629,13 @@ body {
   min-width: 0;
 }
 
-/* 面板编号：由 .admin-panel 显式给出的 --a-panel-no 决定（见上面的 nth-child），
-   左缩进 13px 与下方说明文字对齐（h2 的琥珀短条占了 13px）。 */
+/* 面板编号：由 .admin-panel 的 id 显式给出的 --a-panel-no 决定，
+   左缩进 13px 与下方说明文字对齐（h2 的色条占了 13px）。
+   编号本身也取域色：它是最小的一块「当前业务域」提示。 */
 .panel-head__text::before {
   display: block;
   margin: 0 0 7px 13px;
-  color: var(--hb-accent);
+  color: var(--a-tint);
   font-family: var(--hb-font-mono);
   font-size: 10.5px;
   font-weight: 700;
@@ -560,7 +643,7 @@ body {
   content: "/" var(--a-panel-no, "--");
 }
 
-/* 标题前一道琥珀渐变短条：零 HTML 改动就能给每个面板加上强调色 */
+/* 标题前一道域色渐变短条：零 HTML 改动就能给每个面板加上强调色 */
 .panel-head__text h2 {
   display: flex;
   margin: 0;
@@ -577,7 +660,7 @@ body {
   height: 17px;
   flex: 0 0 3px;
   border-radius: 2px;
-  background: var(--hb-accent-grad);
+  background: var(--a-tint-grad);
   content: "";
 }
 
@@ -595,6 +678,145 @@ body {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+/* 面板头右下角的域色彩芯片：把「当前是哪个业务域」写成字，
+   而不是只靠颜色——颜色对色觉障碍用户不成立，文字才是兜底。 */
+.panel-head__domain {
+  display: inline-flex;
+  padding: 3px 10px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--a-tint-line);
+  border-radius: var(--hb-radius-pill);
+  color: var(--a-tint-bright);
+  background: var(--a-tint-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.panel-head__domain::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--a-tint);
+  box-shadow: 0 0 8px hsl(var(--a-tint-h) 96% 66% / 0.8);
+  content: "";
+}
+
+/* --------------------------------------------------------------------------
+   标签页（tab）
+   --------------------------------------------------------------------------
+   内容密集的面板（站点配置 30 个字段、诊断数据 7 张表、概览 8 个区块）平铺在
+   一页上，滚三屏才看得到最后一段；tab 把它们切成互斥的几屏，每屏首屏可读。
+
+   三件事必须靠组件本身保证：
+     1. 语义 —— role=tablist/tab/tabpanel + aria-selected + aria-controls，
+        屏幕阅读器才会把「现在在哪一屏」读出来；指示条只是视觉层。
+     2. 隐藏用 hidden 属性而不是自定义 class：hidden 同时退出可访问性树与
+        Tab 焦点序列，自己写 display:none 很容易漏掉 aria 的同步。
+     3. 窄屏可横滑 —— 标签一多会撑破宽度，给横向滚动 + 隐藏滚动条，
+        不折行（折行会让面板头高度跳变，切 tab 时整页内容跟着上下跳）。
+
+   .admin-tabs--sub 是面板内的二级标签（更小一档），用在订单列表这类地方。 */
+.admin-tabs {
+  position: relative;
+  display: flex;
+  overflow-x: auto;
+  margin: 0 0 16px;
+  padding-bottom: 1px;
+  gap: 2px;
+  border-bottom: 1px solid var(--a-line);
+  scrollbar-width: none;
+}
+
+.admin-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-tabs__tab {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 8px 14px 10px;
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  color: var(--hb-muted);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: var(--a-transition);
+}
+
+.admin-tabs__tab:hover {
+  color: var(--hb-ink);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-tabs__tab:focus-visible {
+  outline: none;
+  box-shadow: var(--hb-focus-ring);
+}
+
+/* 选中态：域色文字 + 底下一道域色条（条由 ::after 画，不占布局高度，
+   所以选中与未选中的标签宽度完全一致，切换时不抖）。 */
+.admin-tabs__tab[aria-selected="true"] {
+  color: var(--a-tint-bright);
+}
+
+.admin-tabs__tab[aria-selected="true"]::after {
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--a-tint-grad);
+  box-shadow: 0 0 10px hsl(var(--a-tint-h) 96% 66% / 0.55);
+  content: "";
+}
+
+/* 标签上的计数徽标（例如「待人工复核 3」）：0 时不显示，由 JS 决定是否渲染 */
+.admin-tabs__count {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: var(--a-tint-bright);
+  background: var(--a-tint-soft);
+  font-family: var(--hb-font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.admin-tabs--sub {
+  margin-bottom: 12px;
+}
+
+.admin-tabs--sub .admin-tabs__tab {
+  padding: 6px 11px 8px;
+  font-size: 12px;
+}
+
+/* 标签页内容：切换靠 hidden 属性，所以这里只负责「显示时」的排版。
+   .admin-tab-pane 内部可能是表格、编辑器或一整块表单，间距交给下面的
+   相邻规则，不在这里写死。 */
+.admin-tab-pane[hidden] {
+  display: none;
+}
+
+/* tab 容器下的兄弟间距：过去只有「.admin-panel 的直接子元素」有规则，
+   内容搬进 pane 之后就落在 pane 里了，两块卡片会贴在一起。 */
+.admin-tab-pane > .hb-card + .hb-card,
+.admin-tab-pane > .table-wrap + .table-wrap,
+.admin-tab-pane > .hb-card + .table-wrap,
+.admin-tab-pane > .table-wrap + .hb-card,
+.admin-tab-pane > .panel-toolbar + .hb-card,
+.admin-tab-pane > .admin-tabs + .table-wrap {
+  margin-top: 14px;
 }
 
 /* --------------------------------------------------------------------------
@@ -942,15 +1164,15 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* 筛选胶囊：点一下清除筛选 */
+/* 筛选胶囊：点一下清除筛选。取域色，和它所在面板的表格是一套语言 */
 .admin-filter-chip {
   display: inline-flex;
   margin-left: 8px;
   padding: 2px 9px;
-  border: 1px solid var(--hb-accent-line);
+  border: 1px solid var(--a-tint-line);
   border-radius: 999px;
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
+  color: var(--a-tint-bright);
+  background: var(--a-tint-soft);
   font-family: inherit;
   font-size: 11px;
   font-weight: 600;
@@ -961,7 +1183,7 @@ body {
 }
 
 .admin-filter-chip:hover {
-  background: var(--hb-accent-faint);
+  background: var(--a-tint-faint);
 }
 
 /* 负数金额（扣减的积分）用危险色，避免在一列正数里被忽略 */
@@ -989,11 +1211,52 @@ body {
   grid-column: span 2;
 }
 
+/* ---- tab 条与 pane 落在 grid 里的样子（只有站点配置是这种结构）----------
+   `.admin-panel` 里的标签条与 pane 本来是块级兄弟，排版交给它们自己；而站点配置
+   把这两者放进了 ``<form class="admin-grid admin-grid--wide">``（见模板注释：
+   必须留在 form 内，字段列宽才按 210px 算）。在 grid 里它们就成了**网格项**：
+   不写这两条的话，标签条被压进第一列（218px，五个标签得横滑），整块表单也塞在
+   第二列里一列到底 —— 界面上看是「布局乱成一团」，控制台却一句错话都没有。
+
+   1) 两者都必须独占整行；
+   2) pane 自己要再开一层同规格的网格，字段才能像以前那样按列铺开，
+      列宽下限与原表单保持一致（普通表单 186px、``--wide`` 表单 210px），
+      与 smoke 的 ``check_field_label_fit`` 是同一口径。 */
+.admin-grid > .admin-tabs,
+.admin-grid > .admin-tab-pane {
+  grid-column: 1 / -1;
+}
+
+/* ``:not([hidden])`` 不是修辞：下面这份 display 与本文件早先那条
+   ``.admin-tab-pane[hidden] { display: none }`` **优先级完全相同**，
+   胜负全看源码顺序 —— 晚出现的 ``display: grid`` 会把隐藏的 pane 一起显示出来，
+   于是五个分区的字段同时铺在一屏上。 */
+.admin-grid > .admin-tab-pane:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(186px, 1fr));
+  align-items: start;
+  gap: 14px;
+}
+
+.admin-grid--wide > .admin-tab-pane:not([hidden]) {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
 .admin-form-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+/* 一行里既有「标签 + 控件」的字段、又有裸按钮时的对齐方式：按钮跟着**控件**走
+   （贴底），而不是跟着整块居中 —— 后者会让按钮比旁边的输入框高出半个标签，
+   看上去像没对齐。见站点配置「注册邮件 → 邮箱预设」那一行。 */
+.admin-form-actions--fielded {
+  align-items: flex-end;
+}
+.admin-form-actions--fielded .hb-field {
+  min-width: 200px;
 }
 
 /* 字段说明文字。用在「分组标题下方的解释」和「测试结果的就地反馈」两处：
@@ -1008,6 +1271,61 @@ body {
 
 .admin-hint.is-success { color: var(--hb-success-text); }
 .admin-hint.is-danger { color: var(--hb-danger-text); }
+
+/* 逐项诊断清单（站点配置 → 支付宝凭据 / 注册邮件）。
+   四个级别必须一眼可分：pass 是「真的验过了」，skip 是「压根没测」，
+   warn 是「测不了或需留意」。把 skip 画成绿色会让整个自检失去意义 ——
+   那正是这批改动要消灭的东西。所以每一级都有自己的图标位与配色，
+   而不是只靠一句话里的措辞。 */
+.admin-diagnostic-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-diagnostic {
+  display: grid;
+  grid-template-columns: 16px minmax(96px, max-content) 1fr;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--hb-radius-sm);
+  background: var(--hb-surface-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-diagnostic__icon {
+  font-weight: 700;
+  text-align: center;
+}
+
+.admin-diagnostic__label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-diagnostic__detail {
+  color: var(--hb-ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.admin-diagnostic.is-pass { border-color: var(--hb-success-line); }
+.admin-diagnostic.is-pass .admin-diagnostic__icon { color: var(--hb-success-text); }
+
+.admin-diagnostic.is-warn { border-color: var(--hb-warning-line); }
+.admin-diagnostic.is-warn .admin-diagnostic__icon { color: var(--hb-accent-bright); }
+
+.admin-diagnostic.is-fail { border-color: var(--hb-danger-line); }
+.admin-diagnostic.is-fail .admin-diagnostic__icon { color: var(--hb-danger-text); }
+.admin-diagnostic.is-fail .admin-diagnostic__label { color: var(--hb-danger-text); }
+
+.admin-diagnostic.is-skip { border-color: var(--hb-line); }
+.admin-diagnostic.is-skip .admin-diagnostic__icon,
+.admin-diagnostic.is-skip .admin-diagnostic__label { color: var(--hb-ink-soft); }
 
 /* 状态徽标（如「支付宝凭据：已配置 · 环境变量」）。
    四种状态各自的边框与底色都要区分开：这一行是运营判断「配置是否可用」的唯一
@@ -1210,14 +1528,16 @@ body {
   padding: 11px 14px;
 }
 
-/* 悬停时左缘亮起琥珀条，与前台账号中心 / 邀请记录的列表保持同一套「行选中」语言 */
+/* 悬停时左缘亮起域色条，与前台账号中心 / 邀请记录的列表保持同一套「行选中」语言。
+   取域色而非固定琥珀：这样在「激活码」（青）里悬停是青的，一眼知道在哪一类数据上
+   操作，也不会因为几个面板共用 .hb-table 而全部染成同一色。 */
 .table-wrap .hb-table tbody td:first-child {
   box-shadow: inset 2px 0 0 transparent;
   transition: box-shadow 0.14s ease;
 }
 
 .table-wrap .hb-table tbody tr:hover td:first-child {
-  box-shadow: inset 2px 0 0 var(--hb-accent);
+  box-shadow: inset 2px 0 0 var(--a-tint);
 }
 
 /* 操作列：主操作 + ⋯ 只占一个紧凑宽度。
@@ -1316,7 +1636,7 @@ body {
   width: 14px;
   height: 14px;
   border: 2px solid var(--hb-line-strong);
-  border-top-color: var(--hb-accent);
+  border-top-color: var(--a-tint);
   border-radius: 50%;
   animation: table-spin 0.72s linear infinite;
 }
@@ -1348,9 +1668,9 @@ body {
 .admin-result {
   margin-top: 14px;
   padding: 14px 16px;
-  border: 1px solid var(--hb-accent-line);
+  border: 1px solid var(--a-tint-line);
   border-radius: var(--hb-radius-md);
-  background: var(--hb-accent-faint);
+  background: var(--a-tint-faint);
 }
 
 .admin-result__head {
@@ -1358,7 +1678,7 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  color: var(--hb-accent-bright);
+  color: var(--a-tint-bright);
   font-size: 12.5px;
   font-weight: 620;
 }
@@ -1419,7 +1739,7 @@ body {
 }
 
 .mono {
-  color: var(--hb-accent-bright);
+  color: var(--a-tint-bright);
   font-family: var(--hb-font-mono);
   font-size: 11.5px;
 }
@@ -1598,6 +1918,19 @@ body {
   background: var(--hb-danger-soft);
 }
 
+/* 菜单里的说明文字（无动作）：与可点的 menu__item 明确区分，避免被当成按钮点 */
+.menu__note {
+  margin: 0;
+  padding: 7px 10px;
+  max-width: 220px;
+  border-radius: 6px;
+  color: var(--hb-ink-soft);
+  background: var(--hb-surface-soft);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+}
+
 /* --------------------------------------------------------------------------
    概览 KPI 卡
    -------------------------------------------------------------------------- */
@@ -1636,14 +1969,15 @@ body {
   content: "";
 }
 
-/* 悬停时顶缘亮起琥珀：与前台 .hb-account-stats article 同一套统计卡语言 */
+/* 悬停时顶缘亮起域色：与前台 .hb-account-stats article 同一套统计卡语言。
+   取域色而非琥珀，KPI 顶缘就成了面板头部色相的延续，一排卡片自带归属感。 */
 .stat::before {
   position: absolute;
   top: 0;
   right: 14px;
   left: 14px;
   height: 1px;
-  background: linear-gradient(90deg, var(--hb-accent-line), transparent 72%);
+  background: linear-gradient(90deg, var(--a-tint-line), transparent 72%);
   content: "";
   opacity: 0;
   pointer-events: none;
@@ -1707,6 +2041,40 @@ body {
   letter-spacing: 0;
 }
 
+/* ---- 色相修饰类（KPI 卡与订单漏斗共用） ----
+   域色解决「这一屏属于哪个业务域」，但一屏里 4–8 张 KPI 卡如果全同一色，
+   反而读不出「哪个数字讲的是哪件事」。这一类只给一个 `--a-tone` 色相，
+   具体色值由使用它的组件派生 —— 加一族只加一行。
+
+   色相与业务域对齐（紫=商品、青=授权、蓝=账号、翠=系统），同一族数字在
+   不同页面里永远是同一个颜色。
+
+   这一段必须排在 .stat.is-alert / .stat.is-danger **之前**：
+   `is-alert`（待处理，琥珀）是语气，语义上要压过语义色相；两者权重相同时
+   靠源码顺序决胜，顺序反了就会出现「琥珀告警卡被染成蓝的」。 */
+.is-tone-amber { --a-tone: 38; }
+.is-tone-violet { --a-tone: 265; }
+.is-tone-cyan { --a-tone: 190; }
+.is-tone-blue { --a-tone: 215; }
+.is-tone-emerald { --a-tone: 158; }
+.is-tone-slate { --a-tone: 205; }
+
+/* KPI 卡：只换颜色，字号 / 降档阈值 / padding 一律不动 ——
+   check_stat_card_fit 按这里的字号核对卡片能否放下，动一个值就 FAIL。 */
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald) {
+  border-color: hsl(var(--a-tone) 90% 62% / 0.3);
+}
+
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald) strong,
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald) .stat__value {
+  color: hsl(var(--a-tone) 96% 74%);
+}
+
+/* 悬停顶缘用同一个色相（只改 background，opacity 仍由 .stat:hover::before 控） */
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald)::before {
+  background: linear-gradient(90deg, hsl(var(--a-tone) 90% 62% / 0.45), transparent 72%);
+}
+
 .stat.is-alert {
   border-color: rgba(242, 162, 13, 0.32);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 30px -18px rgba(242, 162, 13, 0.7);
@@ -1749,9 +2117,11 @@ body {
   white-space: nowrap;
 }
 
-/* 待办磁贴。用按钮而不是 div：它可点、可聚焦、支持键盘回车。 */
+/* 待办磁贴。用按钮而不是 div：它可点、可聚焦、支持键盘回车。
+   容器边框取域色（概览属运营域，即琥珀），卡片内部仍走 is-alert / is-danger
+   的语气色——「有没有事」和「这是哪一域」是两件事，不该混在一个变量里。 */
 .overview-todos {
-  border-color: rgba(242, 162, 13, 0.28);
+  border-color: hsl(var(--a-tint-h) 90% 62% / 0.28);
 }
 
 .overview-todos__grid {
@@ -1872,7 +2242,22 @@ body {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--hb-accent-line), transparent 92%);
+  background: linear-gradient(90deg, var(--a-tint), var(--a-tint-line) 60%, transparent 92%);
+}
+
+/* 漏斗条按订单状态着色：待支付=琥珀、已支付/发货中=青、已完成=翠、
+   已退款/已关闭=灰蓝（单独一条规则，见下）。状态本身就是语义，
+   一屏里 6 个条子同色的话，读者得逐个去读标签才知道哪一段是「漏掉的」。 */
+.funnel-item:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald)
+  .funnel-item__fill {
+  background: linear-gradient(90deg, hsl(var(--a-tone) 90% 62%), hsl(var(--a-tone) 90% 62% / 0.42) 62%, transparent 94%);
+}
+
+/* 已退款 / 已取消 / 已过期 = 「这笔单子已经结束了」，跟仍在流程里的状态
+   抢注意力没有意义，所以单独给一条低饱和的灰蓝，而不是塞进上面那条
+   90% 饱和的色带（`.is-tone-slate` 的色相偏蓝，直接用会很跳）。 */
+.funnel-item.is-tone-slate .funnel-item__fill {
+  background: linear-gradient(90deg, hsl(210 14% 58%), hsl(210 14% 58% / 0.42) 62%, transparent 94%);
 }
 
 .funnel-item__amount {
@@ -2220,12 +2605,13 @@ body:has(#admin-login:not([hidden]))::before {
    -------------------------------------------------------------------------- */
 #admin-toast {
   position: fixed;
-  right: 22px;
-  bottom: 22px;
+  top: 22px;
+  left: 50%;
   z-index: 1080;
   display: grid;
   max-width: 420px;
   gap: 9px;
+  transform: translateX(-50%);
 }
 
 .admin-toast__item {
@@ -2266,13 +2652,14 @@ body:has(#admin-login:not([hidden]))::before {
 /* --------------------------------------------------------------------------
    杂项
    -------------------------------------------------------------------------- */
-/* 后台里所有裸 <a> 用强调色，避免落到浏览器默认蓝 */
+/* 后台里所有裸 <a> 用域色，避免落到浏览器默认蓝。
+   链接属于「当前这一屏的内容」，跟着域走；主操作按钮才是全局品牌色。 */
 .admin-main a:not(.hb-button):not(.nav-link) {
-  color: var(--hb-accent-bright);
+  color: var(--a-tint-bright);
 }
 
 .admin-main a:not(.hb-button):not(.nav-link):hover {
-  color: var(--hb-accent);
+  color: var(--a-tint);
 }
 
 .admin-panel > .hb-card + .hb-card,
@@ -2384,6 +2771,13 @@ body:has(#admin-login:not([hidden]))::before {
 
   .panel-head__text h2 {
     font-size: 20px;
+  }
+
+  /* 窄屏标签：左右内边距收窄，让 4–5 个标签尽量落在首屏；
+     真放不下就横滑（.admin-tabs 自身可滚），而不是折成两行把面板头顶高。 */
+  .admin-tabs__tab {
+    padding: 7px 10px 9px;
+    font-size: 12px;
   }
 
   .admin-grid__wide {

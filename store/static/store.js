@@ -17,6 +17,8 @@
   }
   const state = { products: [], product: null, configuration: null, account: null, hasLicense: false, hasTemporaryLicense: false, hasPermanentLicense: false, hasUsedTrial: false, accountLicenses: [], accountEntitlements: [], accountOrders: [], productFilter: 'all', ownedFeatureCodes: new Set(), pollTimer: null, paymentCountdownTimer: null, pendingCountdownTimer: null, accountCountdownTimer: null, accountExpiryRefreshing: false, emailCooldownTimers: new Map(), deviceReleasePolicy: null, releaseCountdownTimer: null, releaseOpening: false, releaseSubmitting: false, releaseLicenseId: null, releaseTarget: null, labelLicenseId: null, currentOrder: null, pendingOrder: null, couponPreviewTimer: null, couponPreviewSequence: 0 };
   const money = cents => `¥${(Number(cents || 0) / 100).toFixed(2)}`;
+  // 支付弹窗把「¥」单独排成小一号的符号，只取数字部分
+  const moneyAmount = cents => (Number(cents || 0) / 100).toFixed(2);
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
 
   function toast(message) {
@@ -486,8 +488,15 @@
     if (!order.payment?.qrCode) { toast('该订单暂无可用付款二维码。'); return; }
     const dialog = $('#payment-dialog');
     state.currentOrder = order;
+    // 上一张订单如果超时关闭过，弹窗上会留着「已结束」的压暗状态，重开前先清掉
+    dialog.classList.remove('is-closed');
     $('#payment-product').textContent = order.productName;
-    $('#payment-price').textContent = money(order.amountCents);
+    $('#payment-price').textContent = moneyAmount(order.amountCents);
+    // 付款说明由渠道下发：支付宝是「请用支付宝扫码支付，付款后本页会自动确认。」，
+    // 本地模拟收银台是「本地联调收银台，确认后立即发码」。这段文案一直在
+    // payment.note 里，但界面从来没渲染过，写死成「支付宝」在 mock 模式下是错的。
+    $('#payment-hint').textContent = order.payment.note
+      || `打开${order.payment.displayName || '支付宝'}「扫一扫」完成付款，付款后本页会自动确认。`;
     $('#payment-order').textContent = order.orderNo;
     $('#payment-status').textContent = '等待支付';
     $('#payment-status').classList.remove('done');
@@ -513,6 +522,10 @@
   function showPendingOrderNotice(order) {
     state.pendingOrder = order;
     $('#pending-order-product').textContent = order.productName;
+    // 金额和订单号以前不显示：金额要跟商品对得上，订单号是找客服时唯一能定位的
+    // 凭证。两者都在这张弹窗里补齐，用户不用先跳到账号中心抄单号。
+    $('#pending-order-price').textContent = moneyAmount(order.amountCents);
+    $('#pending-order-no').textContent = order.orderNo;
     const dialog = $('#pending-order-dialog');
     const updateCountdown = () => {
       const remaining = orderRemainingSeconds(order.expiresAt);
@@ -520,7 +533,7 @@
       if (remaining > 0) return;
       clearInterval(state.pendingCountdownTimer);
       state.pendingCountdownTimer = null;
-      $('#pending-order-copy').textContent = '原订单已到期，正在自动释放库存和优惠码…';
+      $('#pending-order-copy').textContent = '已到期，正在释放库存和优惠码…';
       api(`/orders/${encodeURIComponent(order.orderNo)}`)
         .catch(() => null)
         .finally(() => {
@@ -531,15 +544,123 @@
         });
     };
     clearInterval(state.pendingCountdownTimer);
-    $('#pending-order-copy').textContent = '超时后将自动关闭，并释放库存和优惠码。';
+    $('#pending-order-copy').textContent = '等待支付，超时后自动关闭';
     updateCountdown();
     state.pendingCountdownTimer = setInterval(updateCountdown, 1000);
     dialog.showModal();
   }
 
-  async function pollOrder(orderNo, token) {
+  // 站内统一的确认框。过去这三个地方用的是 ``window.confirm``：那个框由浏览器
+  // 绘制，跟着操作系统的语言和主题走（暗色页面上跳出一个浅色系统框），文案里的
+  // 换行、按钮名字、语气都改不了，也不跟随设计系统的颜色与圆角。
+  //
+  // 用 ``<dialog>`` 自绘，行为和原来的原生框严格对齐：
+  //   · 遮罩 / Esc 关闭 —— 一律按「取消」处理（返回值 false），不下发任何写操作；
+  //   · 只有明确点了确认按钮才 resolve(true)，所以调用方写法不变；
+  //   · 同一时刻只可能有一个确认框（``showModal`` 会拒绝第二个），不需要排队。
+  function confirmAction({
+    kicker = 'Confirm',
+    title,
+    message,
+    detail = '',
+    confirmLabel = '确定',
+    cancelLabel = '取消',
+    tone = 'default',
+  }) {
+    const dialog = $('#confirm-dialog');
+    $('#confirm-kicker').textContent = kicker;
+    $('#confirm-title').textContent = title;
+    $('#confirm-message').textContent = message;
+    // 危险动作用红按钮：确认前让用户看清「这一步会清掉什么」。
+    const accept = $('#confirm-accept');
+    accept.textContent = confirmLabel;
+    accept.className = `hb-button hb-button--${tone === 'danger' ? 'danger' : 'primary'}`;
+    $('#confirm-cancel').textContent = cancelLabel;
+    const detailNode = $('#confirm-detail');
+    detailNode.textContent = detail;
+    detailNode.hidden = !detail;
+
+    // 老 WebView 没有 showModal 时的兜底：用 open 属性手动挂出来，并打上
+    // is-fallback 让 CSS 把它摆成居中的浮层（这个类在支持 showModal 的浏览器里
+    // 永远不会出现，正常路径仍是原生模态 + ::backdrop）。不用 window.confirm
+    // 兜底：那正是这次要去掉的东西。
+    const modal = typeof dialog.showModal === 'function';
+    if (modal) dialog.showModal();
+    else {
+      dialog.classList.add('is-fallback');
+      dialog.setAttribute('open', '');
+    }
+
+    return new Promise(resolve => {
+      const finish = (ok) => {
+        $('#confirm-accept').onclick = null;
+        $('#confirm-cancel').onclick = null;
+        dialog.oncancel = null;
+        if (dialog.open) {
+          // 走兜底路径时 close() 也可能不存在，两条都留好出口。
+          if (typeof dialog.close === 'function') dialog.close();
+          else dialog.removeAttribute('open');
+        }
+        dialog.classList.remove('is-fallback');
+        resolve(ok);
+      };
+      accept.onclick = () => finish(true);
+      $('#confirm-cancel').onclick = () => finish(false);
+      // Esc 与点遮罩都按「取消」处理：这类确认的默认答案必须是「什么都不做」。
+      dialog.oncancel = (event) => { event.preventDefault(); finish(false); };
+      accept.focus();
+    });
+  }
+
+  // 取消待支付订单：付款码弹窗与待支付订单弹窗共用这一段。
+  //
+  // 必须走接口，不能只把弹窗关掉：服务端要先关掉渠道侧那笔预下单交易（否则用户
+  // 手里那张二维码还能继续扫、继续付），再把库存预留和优惠码名额还回去。两个
+  // 弹窗各写一份的话，「确认文案 / 按钮禁用 / 失败后刷新」这些细节迟早分叉。
+  async function cancelPendingOrderFrom(button, order) {
+    if (!order) return;
+    const ok = await confirmAction({
+      kicker: 'Cancel Order',
+      title: '取消这笔待支付订单？',
+      message: '取消后订单立即关闭，占用的库存和优惠码会释放。',
+      detail: '如果还需要这份授权，需要重新下单；付款码也会同时作废。',
+      confirmLabel: '取消订单',
+      cancelLabel: '继续支付',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    const label = button.textContent;
+    button.disabled = true;
+    button.textContent = '正在取消…';
     try {
-      const order = await api(`/orders/${encodeURIComponent(orderNo)}`, {
+      await api(`/orders/${encodeURIComponent(order.orderNo)}/cancel`, {
+        method: 'POST',
+        headers: order.lookupToken ? { 'X-Order-Token': order.lookupToken } : {},
+      });
+      toast('订单已取消，库存和优惠码已释放。');
+    } catch (error) {
+      // 409 的两种来源（订单已被支付/已被超时关闭、关单时发现钱已付）都意味着
+      // 这笔单不再归用户处置：提示服务端原文，并把界面状态刷新到最新。
+      toast(error.message || '取消失败，请刷新后重试。');
+    }
+    stopPaymentTimers();
+    clearInterval(state.pendingCountdownTimer);
+    state.pendingCountdownTimer = null;
+    state.currentOrder = null;
+    state.pendingOrder = null;
+    $('#payment-dialog').close();
+    $('#pending-order-dialog').close();
+    // 账号中心的订单卡片是服务端渲染的，取消后要重新拉一次才会变成「已取消」。
+    if (currentPage() === 'account') loadAccount().catch(() => null);
+    button.disabled = false;
+    button.textContent = label;
+  }
+
+  // 返回是否成功取到订单状态：手动点「我已完成支付」时要靠它决定要不要提示失败。
+  async function pollOrder(orderNo, token) {
+    let order = null;
+    try {
+      order = await api(`/orders/${encodeURIComponent(orderNo)}`, {
         headers: token ? { 'X-Order-Token': token } : {},
       });
       const labels = {
@@ -557,9 +678,19 @@
       }
       if (['expired', 'payment_failed', 'cancelled'].includes(order.status)) {
         stopPaymentTimers();
+        // 订单作废了，二维码也就没用了（渠道侧的交易随后会被关单）。这里把二维码
+        // 压暗，避免有人对着一个扫不出结果的码反复扫；但**不关闭弹窗**：
+        //   · 订单号要留给用户报客服，关掉就只剩一句会消失的 toast；
+        //   · 「钱刚好卡在到期点到账」时后端会把这张单重新认回来
+        //     （reconcile._confirm_paid_after_close 专为这种情况兜底），
+        //     弹窗留着、按钮还能再查一次，用户点一下就拿到结果。
+        $('#payment-dialog').classList.add('is-closed');
         if (order.status === 'expired') toast('订单已超时关闭，库存和优惠码已释放。');
       }
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   async function archiveOrder(orderNo) {
@@ -626,24 +757,18 @@
     }) || null;
   }
 
-  //: 用户在「已经买过」弹窗里点了「仍然购买」后置为 true，避免第二次提交又弹一次。
+  //: 用户在「已经买过」确认框里点了「仍然购买」后置为 true，避免第二次提交又弹一次。
   function confirmDuplicatePurchase(product) {
-    const dialog = $('#duplicate-purchase-dialog');
-    if (!dialog?.showModal) {
-      // 浏览器不支持 <dialog>（老 WebView）：退回原生确认框，绝不静默放行。
-      return Promise.resolve(window.confirm(`账号下已有「${product.name}」的永久授权，再买一张会另发新激活码。仍然购买？`));
-    }
-    $('#duplicate-purchase-product').textContent = product.name;
-    return new Promise(resolve => {
-      const finish = (ok) => {
-        dialog.close();
-        resolve(ok);
-      };
-      $('#duplicate-purchase-confirm').onclick = () => finish(true);
-      $('#duplicate-purchase-dismiss').onclick = () => finish(false);
-      // 点遮罩 / 按 Esc 关闭一律视为放弃：这类确认的默认答案必须是「不买」。
-      dialog.oncancel = (event) => { event.preventDefault(); finish(false); };
-      dialog.showModal();
+    // 原来这是一整张专用弹窗（#duplicate-purchase-dialog），和站内确认框除了文案
+    // 没有任何差别：同一个标题 + 说明 + 左右两个按钮的结构。统一到 confirmAction，
+    // 少一份模板、一份 CSS、一份「Esc 要不要算放弃」的判断。
+    return confirmAction({
+      kicker: 'Duplicate Purchase',
+      title: '你可能已经买过这个授权',
+      message: `账号下已有一张有效期内的「${product.name}」授权。再买一张会额外签发一个新的激活码，而不是延长原有授权。`,
+      detail: '如果你只是想续期或升级，请到账号中心使用「升级为永久授权」，或联系客服处理。',
+      confirmLabel: '仍然购买新授权',
+      cancelLabel: '先不买了',
     });
   }
 
@@ -900,6 +1025,57 @@
     return actions.length ? `<div class="hb-account-actions">${actions.join('')}</div>` : '';
   }
 
+  // 单张订单卡片。抽成函数是因为它有两条渲染路径：账号中心首屏与「加载更多」。
+  // 两处各写一份模板的话，加载出来的卡片迟早和首屏长得不一样。
+  function accountOrderCard(item) {
+    const countdown = item.status === 'pending'
+      ? `<p class="hb-order-countdown" data-order-expires="${escapeHtml(item.expiresAt)}" data-order-no="${escapeHtml(item.orderNo)}">剩余 ${orderCountdownText(item.expiresAt)}，超时后自动关闭</p>`
+      : '';
+    // 优先按订单记录的目标授权匹配：同一账号下的多张授权共享同一个 customerId，
+    // 只按 customerId 找会一律命中第一张，附加关系显示错。
+    const target = item.orderType === 'addon'
+      ? state.accountLicenses.find(license => license.activationCodeId === item.targetLicenseId)
+        || state.accountLicenses.find(license => license.customerId === item.customerId)
+      : null;
+    const targetLine = target ? `<p>附加到：${escapeHtml(target.userLabel || target.productName)} · 激活码尾号 ${escapeHtml(target.codeHint)}</p>` : '';
+    return `<article class="hb-account-item hb-account-item--row"><div class="hb-account-order-main"><h3>${escapeHtml(item.productName)}</h3><p>订单号：${escapeHtml(item.orderNo)}</p>${targetLine}<p>${escapeHtml(statusLabel(item))} · ${money(item.amountCents)}</p>${countdown}</div><div class="hb-account-order-side"><span>${escapeHtml(new Date(item.createdAt).toLocaleDateString('zh-CN'))}</span>${accountOrderActions(item)}</div></article>`;
+  }
+
+  /** 「加载更多订单」按钮：只在还有未加载的订单时出现，并写出剩余条数。
+   *  接口按页返回（默认 20 单），没有这个按钮时买满一页的用户会以为更早的订单
+   *  被系统丢掉了 —— 界面上既看不到后面的单，也没有任何「还有更多」的提示。 */
+  function accountOrdersMoreButton() {
+    const remaining = Number(state.accountOrdersTotal || 0) - Number(state.accountOrdersLoaded || 0);
+    if (remaining <= 0) return '';
+    return `<div class="hb-account-more"><button class="hb-button hb-button--secondary" type="button" data-orders-more>加载更多订单（还有 ${remaining} 单）</button></div>`;
+  }
+
+  async function loadMoreAccountOrders() {
+    const container = $('#account-orders');
+    const button = container?.querySelector('[data-orders-more]');
+    if (!container || !button) return;
+    button.disabled = true;
+    button.textContent = '加载中…';
+    try {
+      const offset = Number(state.accountOrdersLoaded || 0);
+      const data = await api(`/orders?offset=${offset}&limit=20`);
+      const items = data.items || [];
+      // 游标按**实际返回条数**推进，而不是按请求的 limit：后端可能因为筛选口径
+      // 变化少给几条，按 limit 跳会被跳过一段（订单从列表里消失）。
+      state.accountOrdersLoaded = offset + items.length;
+      state.accountOrdersTotal = Number(data.ordersTotal ?? state.accountOrdersTotal);
+      button.parentElement.remove();
+      container.insertAdjacentHTML(
+        'beforeend',
+        items.map(accountOrderCard).join('') + accountOrdersMoreButton(),
+      );
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = '加载更多订单';
+      throw error;
+    }
+  }
+
   /* 账号中心的元信息芯片。
      状态与期限是最需要一眼扫到的两个字段，给它们语义色；来源、发卡时间这类
      只做中性展示。颜色统一走 theme.css 的令牌，不要在 JS 里写色值。 */
@@ -1012,19 +1188,16 @@
       return `<article class="hb-account-item hb-account-item--stacked"><header class="hb-account-head"><div class="hb-account-ident"><div class="hb-account-title"><h3>${escapeHtml(item.productName)}</h3>${statusChip}</div><p>${escapeHtml(addonTypeLabel(item))}</p></div></header><div class="hb-account-body"><ul class="hb-account-facts">${facts}</ul></div></article>`;
     }).join('');
     const orders = $('#account-orders');
-    orders.innerHTML = payload.orders.length ? payload.orders.map(item => {
-      const countdown = item.status === 'pending'
-        ? `<p class="hb-order-countdown" data-order-expires="${escapeHtml(item.expiresAt)}" data-order-no="${escapeHtml(item.orderNo)}">剩余 ${orderCountdownText(item.expiresAt)}，超时后自动关闭</p>`
-        : '';
-      // 优先按订单记录的目标授权匹配：同一账号下的多张授权共享同一个 customerId，
-      // 只按 customerId 找会一律命中第一张，附加关系显示错。
-      const target = item.orderType === 'addon'
-        ? state.accountLicenses.find(license => license.activationCodeId === item.targetLicenseId)
-          || state.accountLicenses.find(license => license.customerId === item.customerId)
-        : null;
-      const targetLine = target ? `<p>附加到：${escapeHtml(target.userLabel || target.productName)} · 激活码尾号 ${escapeHtml(target.codeHint)}</p>` : '';
-      return `<article class="hb-account-item hb-account-item--row"><div class="hb-account-order-main"><h3>${escapeHtml(item.productName)}</h3><p>订单号：${escapeHtml(item.orderNo)}</p>${targetLine}<p>${escapeHtml(statusLabel(item))} · ${money(item.amountCents)}</p>${countdown}</div><div class="hb-account-order-side"><span>${escapeHtml(new Date(item.createdAt).toLocaleDateString('zh-CN'))}</span>${accountOrderActions(item)}</div></article>`;
-    }).join('') : '<div class="hb-account-empty">账号下暂无订单。</div>';
+    const orderItems = payload.orders || [];
+    //: 分页状态与「加载更多」：接口只返回最近 20 单，但总数在 ordersTotal 里。
+    //: 没有这个按钮时，买满一页的用户会以为更早的订单丢了 —— 界面上既看不到
+    //: 后面的单，也看不到「还有更多」的提示。
+    state.accountOrdersLoaded = orderItems.length;
+    state.accountOrdersTotal = Number(payload.ordersTotal ?? orderItems.length);
+    orders.innerHTML = (orderItems.length
+      ? orderItems.map(accountOrderCard).join('')
+      : '<div class="hb-account-empty">账号下暂无订单。</div>')
+      + accountOrdersMoreButton();
     clearInterval(state.accountCountdownTimer);
     const updateAccountCountdowns = () => {
       const nodes = $$('[data-order-expires]');
@@ -1140,7 +1313,15 @@
       return;
     }
     if (archive) {
-      if (!window.confirm('确定从账号中清除这条订单记录吗？')) return;
+      const ok = await confirmAction({
+        kicker: 'Clear Record',
+        title: '清除这条订单记录？',
+        message: '这条订单记录会从账号中心移除，账号下其他订单和授权不受影响。',
+        detail: '如果之后还需要查这笔订单的金额或状态，请联系客服。',
+        confirmLabel: '清除记录',
+        tone: 'danger',
+      });
+      if (!ok) return;
       archive.disabled = true;
       try { await archiveOrder(archive.dataset.orderArchive); }
       catch (error) { toast(error.message); archive.disabled = false; }
@@ -1195,14 +1376,41 @@
     $('.hb-store-nav-toggle').addEventListener('click', () => $('#navbarNav').classList.toggle('mobile-open'));
     $$('[data-product-filter]').forEach(button => button.addEventListener('click', () => applyProductFilter(button.dataset.productFilter)));
     $$('[data-account-tab]').forEach(button => button.addEventListener('click', () => showAccountTab(button.dataset.accountTab)));
-    $('#payment-dialog .hb-payment-close').addEventListener('click', () => { $('#payment-dialog').close(); stopPaymentTimers(); state.currentOrder = null; });
+    // ESC 和「关闭」按钮都会关掉这个 <dialog>，把停表和清空当前订单挂在 close
+    // 事件上，免得只按 ESC 时轮询还在后台跑、state.currentOrder 还留着旧订单。
+    $('#payment-dialog').addEventListener('close', () => { stopPaymentTimers(); state.currentOrder = null; });
+    $$('#payment-dialog [data-payment-close]').forEach(button => button.addEventListener('click', () => $('#payment-dialog').close()));
+    // 「我已完成支付」：不等下一轮 3 秒轮询，立刻查一次订单状态——付完款的人
+    // 正盯着这个弹窗，主动点一下比干等更符合预期。订单超时被关单之后这个按钮
+    // 更重要：后端对「关单时发现已付款」有兜底入账（reconcile._confirm_paid_after_close），
+    // 用户在这里点一下就能把补发的激活码取回来。
+    $('#payment-refresh').addEventListener('click', async () => {
+      const order = state.currentOrder;
+      if (!order) return;
+      const button = $('#payment-refresh');
+      const status = $('#payment-status');
+      const previous = status.textContent;
+      button.disabled = true;
+      status.textContent = '正在向服务端确认支付结果…';
+      const ok = await pollOrder(order.orderNo, order.lookupToken);
+      button.disabled = false;
+      // 查单失败时把状态文案还原：停在「正在确认…」会让用户以为卡住了。
+      if (!ok) {
+        status.textContent = previous;
+        toast('查询支付结果失败，请检查网络后重试。');
+      }
+    });
+    $('#payment-cancel').addEventListener('click', event => cancelPendingOrderFrom(event.currentTarget, state.currentOrder));
     $('#guest-purchase-trigger')?.addEventListener('click', showGuestPurchaseNotice);
     $('#guest-purchase-dismiss')?.addEventListener('click', () => $('#guest-purchase-dialog')?.close());
-    $('#pending-order-dismiss').addEventListener('click', () => {
-      $('#pending-order-dialog').close();
+    // 待支付订单弹窗：右上角 X / ESC 只是关掉提示（订单仍然有效，倒计时继续走），
+    // 「取消支付」才真的关单。停表挂在 close 事件上，两条路径都不会漏。
+    $('#pending-order-dialog').addEventListener('close', () => {
       clearInterval(state.pendingCountdownTimer);
       state.pendingCountdownTimer = null;
     });
+    $$('#pending-order-dialog [data-pending-close]').forEach(button => button.addEventListener('click', () => $('#pending-order-dialog').close()));
+    $('#pending-order-cancel').addEventListener('click', event => cancelPendingOrderFrom(event.currentTarget, state.pendingOrder));
     $('#pending-order-continue').addEventListener('click', () => {
       const order = state.pendingOrder;
       $('#pending-order-dialog').close();
@@ -1223,7 +1431,13 @@
     $('#send-reset-code')?.addEventListener('click', () => sendResetCode().catch(error => toast(error.message)));
     $('#store-forget-form')?.addEventListener('submit', event => resetPassword(event).catch(error => toast(error.message)));
     $('#account-licenses')?.addEventListener('click', accountAction);
-    $('#account-orders')?.addEventListener('click', event => accountOrderAction(event).catch(error => toast(error.message)));
+    $('#account-orders')?.addEventListener('click', event => {
+      // 「加载更多」按钮与订单操作共用同一个委派监听：都在 #account-orders 里。
+      if (event.target.closest('[data-orders-more]')) {
+        return loadMoreAccountOrders().catch(error => toast(error.message));
+      }
+      return accountOrderAction(event).catch(error => toast(error.message));
+    });
     $('#release-device-form')?.addEventListener('submit', releaseDevice);
     $('#license-label-form')?.addEventListener('submit', saveLicenseLabel);
     $$('[data-release-close]').forEach(button => button.addEventListener('click', () => {

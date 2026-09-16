@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260916080154";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260916230552";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -51,9 +51,9 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260916080154";
-import { randomUuid } from "../utils/random-id.js?v=20260916080154";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260916080154";
+} from "./registry.js?v=20260916230552";
+import { randomUuid } from "../utils/random-id.js?v=20260916230552";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260916230552";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -72,11 +72,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260916080154";
+} from "./climate.js?v=20260916230552";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260916080154";
+} from "./device-profiles.js?v=20260916230552";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -85,25 +85,25 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260916080154";
+} from "../related-entities.js?v=20260916230552";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260916080154";
+} from "./entity-power.js?v=20260916230552";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260916080154";
-import { componentActionIsSupported } from "../action-rules.js?v=20260916080154";
+} from "../virtual-entities.js?v=20260916230552";
+import { componentActionIsSupported } from "../action-rules.js?v=20260916230552";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260916080154";
+} from "./transform-geometry.js?v=20260916230552";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -113,7 +113,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260916080154";
+} from "./effect-geometry.js?v=20260916230552";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -132,14 +132,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260916080154";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260916080154";
+} from "./light-runtime.js?v=20260916230552";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260916230552";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260916080154";
+} from "./vacuum-runtime.js?v=20260916230552";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -172,13 +172,13 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260916080154";
+} from "./cover-runtime.js?v=20260916230552";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260916080154";
+} from "./runtime-dialog-motion.js?v=20260916230552";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -188,13 +188,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260916080154";
+} from "./runtime-caches.js?v=20260916230552";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260916080154";
+} from "./runtime-document.js?v=20260916230552";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -8988,10 +8988,31 @@ export class PanelRenderer {
           ) + "px";
       };
       cameraDialogElement.resizeInteraction3d = applyInteraction3dLayout;
-      const cameraLayoutObserver = new ResizeObserver(applyInteraction3dLayout);
+      // 观察器的回调只排程：applyInteraction3dLayout 会写 cameraDialogElement 的宽度与
+      // 变换，而 cameraHeadingElement 正是被观察元素，父级宽度一变标题可能换行、尺寸再变，
+      // 通知在投递过程中被重新触发，浏览器随即抛「ResizeObserver loop completed with
+      // undelivered notifications」。推迟到下一帧后，写入落在通知投递之外。
+      // resizeInteraction3d 仍指向同步实现，供 show() 等即时布局路径直接调用。
+      let cameraLayoutFrameId = 0;
+      const scheduleCameraLayout = () => {
+        if (cameraLayoutFrameId) {
+          return;
+        }
+        cameraLayoutFrameId = requestAnimationFrame(() => {
+          cameraLayoutFrameId = 0;
+          applyInteraction3dLayout();
+        });
+      };
+      const cameraLayoutObserver = new ResizeObserver(scheduleCameraLayout);
       cameraLayoutObserver.observe(presentationRootElement);
       cameraLayoutObserver.observe(cameraHeadingElement);
-      cameraMediaCleanups.push(() => cameraLayoutObserver.disconnect());
+      cameraMediaCleanups.push(() => {
+        cameraLayoutObserver.disconnect();
+        if (cameraLayoutFrameId) {
+          cancelAnimationFrame(cameraLayoutFrameId);
+          cameraLayoutFrameId = 0;
+        }
+      });
       applyInteraction3dLayout();
     } else {
       this.registerRuntimeDialogScale(cameraLayerElement, cameraDialogElement, 760, 680);
@@ -19093,6 +19114,8 @@ export class PanelRenderer {
       handlers: vacuumStateHandlers
     };
     let vacuumResizeObserver = null;
+    // 已排程的重排帧句柄，关闭弹窗时连同观察器一起作废。
+    let vacuumLayoutFrameId = 0;
     if (interaction3dOptions) {
       vacuumDialogLayer.classList.add("i3d-vacuum-dialog-layer");
       (interaction3dOptions.root || this.container).append(vacuumDialogLayer);
@@ -19160,7 +19183,20 @@ export class PanelRenderer {
           ) + "px";
       };
       vacuumDialogElement.resizeInteraction3d = layoutVacuumDialog;
-      vacuumResizeObserver = new ResizeObserver(layoutVacuumDialog);
+      // 观察器的回调只排程：layoutVacuumDialog 会把 maxHeight / transform 写回
+      // vacuumDialogElement，而它本身就是被观察元素，尺寸在通知投递过程中变化，
+      // 浏览器随即抛「ResizeObserver loop completed with undelivered notifications」。
+      // resizeInteraction3d 仍指向同步实现，供 show() 等即时布局路径直接调用。
+      const scheduleVacuumDialogLayout = () => {
+        if (vacuumLayoutFrameId) {
+          return;
+        }
+        vacuumLayoutFrameId = requestAnimationFrame(() => {
+          vacuumLayoutFrameId = 0;
+          layoutVacuumDialog();
+        });
+      };
+      vacuumResizeObserver = new ResizeObserver(scheduleVacuumDialogLayout);
       vacuumResizeObserver.observe(interaction3dOptions.root || this.container);
       vacuumResizeObserver.observe(vacuumDialogElement);
       if (interaction3dOptions.frame) {
@@ -19186,6 +19222,11 @@ export class PanelRenderer {
       "close",
       () => {
         vacuumResizeObserver?.disconnect();
+        // 已排程未执行的那一帧要一并取消：弹窗层马上会被移除。
+        if (vacuumLayoutFrameId) {
+          cancelAnimationFrame(vacuumLayoutFrameId);
+          vacuumLayoutFrameId = 0;
+        }
         this.clearRuntimeDialogScale(vacuumDialogElement);
         if (this.detailsDialog === vacuumDialogElement) {
           this.detailsDialog = null;

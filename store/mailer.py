@@ -23,15 +23,20 @@ from __future__ import annotations
 import html
 import logging
 import smtplib
+import socket
 import ssl
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from email.message import EmailMessage
+from email.utils import parseaddr
+from typing import Iterator
 
-from store import mail_settings
+from store import mail_settings, net_probe
 from store.config import StoreSettings
 from store.models import StoreSetting
-from store.security import new_verification_code
+from store.net_probe import check_result
+from store.security import is_valid_email, new_verification_code
 
 logger = logging.getLogger("store.mailer")
 
@@ -198,10 +203,18 @@ def _is_transient(error: BaseException) -> bool:
     return isinstance(error, (OSError, smtplib.SMTPException))
 
 
-def _send_smtp_once(
-    settings: StoreSettings, *, message: EmailMessage, email: str
-) -> None:
-    """一次投递尝试；失败时抛异常，由调用方决定是否重试。"""
+@contextmanager
+def _connect_smtp(settings: StoreSettings) -> Iterator[smtplib.SMTP]:
+    """建立到 SMTP 服务器的连接并完成 TLS / 登录握手，**不发送任何邮件**。
+
+    抽成独立的一段，是为了让后台的「连接诊断」能复用**真正发信时的同一条**连接
+    与登录逻辑。另写一份探测代码的话，两边在「STARTTLS 之后要不要再 ehlo」
+    「用 SSL 直连还是先明文再升级」这些细节上迟早漂移 —— 而漂移的结果正是
+    「自检说通、真发信失败」，比没有自检更糟。
+
+    ``login`` 只在配了用户名时调用：部分内网 SMTP 允许匿名投递，
+    强行带空用户名登录会得到一个与配置无关的认证失败。
+    """
     timeout = max(1, int(settings.smtp_timeout_seconds or 15))
     if settings.smtp_use_ssl:
         context = ssl.create_default_context()
@@ -210,7 +223,7 @@ def _send_smtp_once(
         ) as client:
             if settings.smtp_username:
                 client.login(settings.smtp_username, settings.smtp_password)
-            client.send_message(message)
+            yield client
         return
 
     with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=timeout) as client:
@@ -220,6 +233,14 @@ def _send_smtp_once(
             client.ehlo()
         if settings.smtp_username:
             client.login(settings.smtp_username, settings.smtp_password)
+        yield client
+
+
+def _send_smtp_once(
+    settings: StoreSettings, *, message: EmailMessage, email: str
+) -> None:
+    """一次投递尝试；失败时抛异常，由调用方决定是否重试。"""
+    with _connect_smtp(settings) as client:
         client.send_message(message)
 
 
@@ -354,3 +375,188 @@ def send_test_email(
         code=new_verification_code(),
         purpose="test",
     )
+
+
+def _mail_from_address(mail_from: str) -> str:
+    """从 ``HomeOS <no-reply@example.com>`` 这种带显示名的写法里取出纯地址。
+
+    必须走 ``parseaddr`` 而不是直接拿去正则匹配：``store.security.is_valid_email``
+    刻意不认显示名，而带显示名的发件人是本项目文档里推荐的写法，
+    直接匹配会把一份完全合法的配置判成失败。
+    """
+    _, address = parseaddr(mail_from or "")
+    return address or (mail_from or "").strip()
+
+
+def _describe_smtp_error(error: BaseException) -> str:
+    """把 SMTP/网络异常翻译成运营能照着改的一句话。
+
+    「连不上」的成因有十几种，而每一种的处置方式完全不同：认证失败要去换授权码，
+    SSL 错误要去改加密方式，超时要去查防火墙。丢一句 ``OSError: [Errno 61]``
+    给运营等于没说，所以这里把最常见的几类分别写清楚。
+    """
+    if isinstance(error, smtplib.SMTPAuthenticationError):
+        return (
+            "认证失败：用户名或授权码不对。多数邮箱（QQ/163/Gmail）要求填的是"
+            "「SMTP 授权码」而不是网页登录密码。"
+        )
+    if isinstance(error, smtplib.SMTPRecipientsRefused):
+        return "收件人被服务器拒绝：请确认发件地址与 SMTP 账号属于同一个邮箱服务商。"
+    if isinstance(error, ssl.SSLError):
+        return (
+            f"TLS/SSL 握手失败：{error}。请核对「SMTP 加密」与端口是否匹配"
+            "（SSL 一般 465、STARTTLS 一般 587）。"
+        )
+    if isinstance(error, (socket.timeout, TimeoutError)):
+        return "连接超时：服务器不可达，或端口被防火墙/云安全组拦住了。"
+    if isinstance(error, ConnectionRefusedError):
+        return "连接被拒绝：地址能解析，但该端口上没有服务在监听（端口号填错了？）。"
+    if isinstance(error, smtplib.SMTPServerDisconnected):
+        return (
+            "连接被服务器中断：常见于「明文端口上传了 TLS」或反垃圾策略拒绝了本次会话。"
+        )
+    if isinstance(error, OSError):
+        return f"网络错误：{error}"
+    return f"{error.__class__.__name__}: {error}"
+
+
+def diagnose_mail(
+    settings: StoreSettings, *, timeout_seconds: float = net_probe.DEFAULT_TIMEOUT_SECONDS
+) -> tuple[bool, list[dict]]:
+    """按**已合并站点配置**的 settings 做一次邮件链路诊断，返回 ``(是否全部通过, 结论列表)``。
+
+    与 ``send_test_email`` 的分工是刻意的：
+
+    * 这里回答「配置本身对不对」—— 域名能不能解析、TLS 与端口配不配、授权码能不能
+      登进去。**不发信**，所以可以反复点、不会往别人邮箱里塞东西；
+    * ``send_test_email`` 回答「这条路真的能通吗」，会真发一封。
+
+    为什么不把「连接+登录」也算进发信里一并做掉：SMTP 的错误在握手阶段就能暴露，
+    而发信失败往往只回一句笼统的 5xx（甚至被对端静默丢弃）。分开之后，运维能直接
+    看到「登得进去、但发不出去」这种定位完全不同的结论。
+
+    任何一项不是 ``pass``（含 ``skip`` / ``warn``）都不算通过：后台的整块改造就是
+    为了消灭「界面全绿、用户收不到信」。
+    """
+    checks: list[dict] = []
+    mode = (settings.mail_mode or "log").lower()
+
+    if mode == "smtp":
+        checks.append(
+            check_result("mode", "投递方式", net_probe.LEVEL_PASS, "smtp：验证码会真正投递到收件人邮箱。")
+        )
+    else:
+        hint = "（echo 会回显明文，仅供本地联调）" if mode == "echo" else ""
+        checks.append(
+            check_result(
+                "mode",
+                "投递方式",
+                net_probe.LEVEL_SKIP,
+                f"当前为 {mode}{hint}：验证码不会离开服务器，真实投递链路无法验证。",
+            )
+        )
+
+    host = (settings.smtp_host or "").strip()
+    port = int(settings.smtp_port or 0)
+    server_ok = True
+    if not host:
+        server_ok = False
+        checks.append(check_result("server", "服务器与端口", net_probe.LEVEL_FAIL, "未填写 SMTP 服务器地址。"))
+    elif not (1 <= port <= 65535):
+        server_ok = False
+        checks.append(
+            check_result("server", "服务器与端口", net_probe.LEVEL_FAIL, f"端口 {port} 不在 1-65535 范围内。")
+        )
+    else:
+        checks.append(
+            check_result("server", "服务器与端口", net_probe.LEVEL_PASS, f"{host}:{port}")
+        )
+
+    # 用户名与授权码必须成对。这个组合不对时 ``smtp_ready`` 为假，发信会**静默降级**
+    # 成写日志 —— 用户收不到信，而后台每一样看起来都填好了。
+    if settings.smtp_username and not settings.smtp_password:
+        checks.append(
+            check_result(
+                "auth",
+                "SMTP 登录凭据",
+                net_probe.LEVEL_FAIL,
+                "填了用户名但没有授权码：发信会退化为只写日志。请补全 SMTP 授权码。",
+            )
+        )
+    elif settings.smtp_username:
+        checks.append(
+            check_result("auth", "SMTP 登录凭据", net_probe.LEVEL_PASS, f"用户名 {settings.smtp_username}（授权码已配置）")
+        )
+    else:
+        checks.append(
+            check_result(
+                "auth",
+                "SMTP 登录凭据",
+                net_probe.LEVEL_WARN,
+                "未配置用户名：按匿名投递处理。只有内网开放中继的服务器才允许，公网邮箱服务商一律会拒绝。",
+            )
+        )
+
+    sender = _mail_from_address(settings.mail_from)
+    if is_valid_email(sender):
+        checks.append(check_result("sender", "发件地址", net_probe.LEVEL_PASS, sender))
+    else:
+        checks.append(
+            check_result(
+                "sender",
+                "发件地址",
+                net_probe.LEVEL_FAIL,
+                f"发件地址 {sender or '（空）'} 不是合法邮箱。多数邮箱服务商还要求发件人与 SMTP 账号同域。",
+            )
+        )
+
+    # 只有真打算走 smtp 时才做网络探测：log/echo 模式下检测 DNS 与登录没有意义，
+    # 反而会让运营以为「修好了网络就能发信」。
+    if mode != "smtp":
+        checks.append(
+            check_result("dns", "域名解析", net_probe.LEVEL_SKIP, "投递方式不是 smtp，未做网络探测。")
+        )
+        checks.append(
+            check_result("connect", "连接与登录", net_probe.LEVEL_SKIP, "投递方式不是 smtp，未做连接探测。")
+        )
+    elif not server_ok:
+        checks.append(
+            check_result("dns", "域名解析", net_probe.LEVEL_SKIP, "服务器地址未填对，无法解析。")
+        )
+        checks.append(
+            check_result("connect", "连接与登录", net_probe.LEVEL_SKIP, "服务器地址未填对，无法连接。")
+        )
+    else:
+        resolved, detail, _addresses = net_probe.resolve_host(host)
+        checks.append(
+            check_result(
+                "dns",
+                "域名解析",
+                net_probe.LEVEL_PASS if resolved else net_probe.LEVEL_FAIL,
+                detail,
+            )
+        )
+        if not resolved:
+            checks.append(
+                check_result("connect", "连接与登录", net_probe.LEVEL_SKIP, "域名解析失败，未尝试连接。")
+            )
+        else:
+            try:
+                with _connect_smtp(settings):
+                    pass
+            except Exception as error:  # noqa: BLE001 - 诊断要覆盖 smtplib/socket/ssl 全部异常
+                checks.append(
+                    check_result("connect", "连接与登录", net_probe.LEVEL_FAIL, _describe_smtp_error(error))
+                )
+            else:
+                checks.append(
+                    check_result(
+                        "connect",
+                        "连接与登录",
+                        net_probe.LEVEL_PASS,
+                        "已建立连接并完成登录握手（本次未发送任何邮件）。",
+                    )
+                )
+
+    passed = all(item["level"] in net_probe.PASSING_LEVELS for item in checks)
+    return passed, checks

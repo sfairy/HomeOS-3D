@@ -32,6 +32,49 @@ class HAClientError(RuntimeError):
     pass
 
 
+#: 云元数据端点：SSRF 里最经典的目标，任何情况下都不该被当成 HA 地址。
+#: AWS/GCP/Azure 用 169.254.169.254，ECS 任务元数据用 169.254.170.2，
+#: IPv6 侧是 fd00:ec2::254。
+METADATA_HOSTS = frozenset({'169.254.169.254', '169.254.170.2', 'fd00:ec2::254'})
+
+
+def _host_ip(base_url: str):
+    """取出地址里的 IP 字面量；是域名或解析不出时返回 None。"""
+    hostname = urlparse(base_url).hostname
+    if not hostname:
+        return None
+    try:
+        return ip_address(hostname)
+    except ValueError:
+        return None
+
+
+def metadata_address(base_url: str) -> str:
+    """该地址是否指向云元数据端点；是则返回命中的地址，否则空串。
+
+    同时识别 IPv4 映射形式的 IPv6（``::ffff:169.254.169.254``），
+    否则换个写法就能绕过去。
+    """
+    host = _host_ip(base_url)
+    if host is None:
+        return ''
+    candidates = {str(host)}
+    if host.version == 6 and host.ipv4_mapped is not None:
+        candidates.add(str(host.ipv4_mapped))
+    for candidate in candidates:
+        if candidate in METADATA_HOSTS:
+            return candidate
+    return ''
+
+
+def link_local_address(base_url: str) -> str:
+    """该地址是否是链路本地地址（169.254.0.0/16、fe80::/10），是则返回它。"""
+    host = _host_ip(base_url)
+    if host is None or not host.is_link_local:
+        return ''
+    return str(host)
+
+
 def normalize_base_url(value: str) -> str:
     """把用户填写的 HA 地址整形成规范形式。
 
@@ -42,7 +85,8 @@ def normalize_base_url(value: str) -> str:
         去掉末尾斜杠、且不含 userinfo / query / fragment 的 http(s) URL。
 
     异常:
-        HAClientError: 不是完整 http(s) 地址，或带了账号、密码、查询参数、锚点。
+        HAClientError: 不是完整 http(s) 地址、带了账号/密码/查询参数/锚点，
+            或指向云元数据端点。
     """
     candidate = value.strip().rstrip('/')
     parsed = urlparse(candidate)
@@ -52,6 +96,10 @@ def normalize_base_url(value: str) -> str:
     # 拼接 /api/... 时也容易产生歧义地址（本身就是一类 SSRF 隐患）。
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise HAClientError('Home Assistant 地址不能包含账号、密码、查询参数或锚点。')
+    # 元数据地址不是「家里的 HA」：放行等于白送一个能读到云上凭证的探针。
+    metadata = metadata_address(candidate)
+    if metadata:
+        raise HAClientError(f'{metadata} 是云元数据地址，不能作为 Home Assistant 地址。')
     # 末尾斜杠统一去掉，后面所有接口路径都按 f'{base}/api/...' 拼接，避免出现 //。
     path = parsed.path.rstrip('/')
     return urlunparse((parsed.scheme, parsed.netloc, path, '', '', ''))

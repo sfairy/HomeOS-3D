@@ -24,7 +24,7 @@
 仓库根目录下同时运行两个服务，二者共享 `.venv-store` 虚拟环境：
 
 ```text
-HomeOS/app
+HomeOS/
 ├── backend + frontend        主应用         http://127.0.0.1:18081
 └── store/                    授权商店与授权服务器  http://127.0.0.1:18082
 ```
@@ -40,20 +40,23 @@ HomeOS/app
 1. **授权商店**：页面与 `/store/v1/*` API 对齐 `https://pay.habridge.cn/`（账号、商品、订单、优惠码、邀请、账号中心），视觉为本项目自研的暗色 + 琥珀主题。2. **授权服务器**：`/v2/activate`、`/v2/heartbeat`、`/v2/recover`，签发 Ed25519 租约并使用 X25519 加密传输。
 3. **运营后台**：`/admin` + `/store-admin/v1/*`（参考站没有公开管理台，为本项目自建）。
 
-商店与授权服务器共用同一个 SQLite 库 —— 这正是「支付后自动发码并可立即激活」的原因。支付渠道默认 `mock`（本地收银台），可切换为支付宝当面付。完整说明见 [store/README.md](store/README.md)。
+商店与授权服务器共用同一个 SQLite 库 —— 这正是「支付后自动发码并可立即激活」的原因。支付渠道**默认不配置**（未配置渠道时商店拒绝建单，属刻意的 fail-closed；模拟收银台需 `STORE_PAYMENT_PROVIDER=mock` 加 `STORE_ALLOW_MOCK_PAYMENTS=1` 同时显式打开），正式收款请切换为支付宝当面付。完整说明见 [store/README.md](store/README.md)。
 
 ## 仓库结构
 
 工程在仓库根目录，不再套一层 `app/`。
 
 ```text
-HomeOS/app/
+HomeOS/
 ├── backend/app/            # FastAPI 应用（PYTHONPATH 指向这里）
 │   ├── api/                # 认证、项目、HA、资源、3D、日志、图标、中控、更新
 │   ├── ha/                 # HA 客户端、同步、状态推送
 │   ├── panel/              # 仪表盘文档与校验
 │   ├── modules/            # 增量能力（3D 交互）
 │   ├── license/            # 客户端授权：租约验签、心跳、能力门禁
+│   ├── http_security.py    # 真实来源 IP / HTTPS 判定 / 同源（CSRF）闸门
+│   ├── setup_guard.py      # 首次初始化的访问守卫（本机直连或引导密钥）
+│   ├── global_log.py       # 全局日志：后台写线程 + 折叠 + 去抖裁剪
 │   └── main.py
 ├── frontend/               # 页面与静态资源
 │   ├── *.html              # index / display / license / login / pair / setup / 3d-studio
@@ -73,7 +76,10 @@ HomeOS/app/
 │   ├── licensing/          # 服务端传输加密 + 租约签发 + 三端点业务
 │   ├── payments/           # base / mock / alipay（签名·下单·验签·查单）/ 统一入账
 │   ├── fulfill.py referrals.py site_settings.py release_info.py mailer.py security.py
-│   ├── templates/          # store.html（前台 8 个分页）+ admin.html（后台 11 个 panel）
+│   ├── catalog.py          # 商品类型 / 履约方式的合法取值（服务端唯一来源）
+│   ├── request_security.py # 商店侧同源实现：真实来源 IP / Cookie Secure / CSRF
+│   ├── net_probe.py        # 网络可达性探测（后台「站点配置」自检用）
+│   ├── templates/          # store.html（前台 8 个分页）+ admin.html（后台 15 个 panel）
 │   ├── static/             # theme.css（唯一设计系统）+ store.css / admin.css（页面布局）+ 字体·图标·jQuery·JS
 │   ├── tools/              # gen_keys / seed / smoke / e2e
 │   ├── keys/local/         # 授权私钥（不入库）
@@ -89,7 +95,7 @@ HomeOS/app/
 
 不要删除 `frontend/`。内置素材目录 `image/` 可自行增删，编辑器里也可改用用户上传图片。
 
-以下内容已写入 `.gitignore`：`data/`、`store/data/`、`store/keys/local/`、`.env` 与 `.env.*`（`.env.example` 除外）、`.venv-store/`、`*-private.pem`。
+以下内容已写入 `.gitignore`：`data/`、`store/data/`、`store/keys/local/`、`.env` 与 `.env.*`（`.env.example` 除外）、`.venv/`、`.venv-store/`、`*-private.pem`，以及本地临时目录 `/app/`（解包旧构建）、`.deobf/`（反混淆产物）、`原项目/`（对照快照）。
 
 ## 环境
 
@@ -138,7 +144,8 @@ APP_DATA_DIR=./data PYTHONPATH=backend/app alembic upgrade head
 ## 首次使用
 
 1. 打开 `/setup`，创建管理员（用户名 3–64 个字符，密码至少 8 位）。
-2. 打开 <http://127.0.0.1:18082/>，注册商店账号（本地联调默认 `STORE_MAIL_MODE=echo`，验证码直接回显），选择商品并用模拟收银台完成支付，账号中心会发放激活码。
+   从**本机**（`localhost` / `127.0.0.1`）打开时直接填账号密码即可；从其它地址打开时页面会多出「引导密钥」一栏，需要填服务启动日志里打印的那一串 —— 详见下方「首次设置窗口」。
+2. 打开 <http://127.0.0.1:18082/>，注册商店账号（本地联调默认 `STORE_MAIL_MODE=echo`，验证码直接回显），选择商品并用模拟收银台完成支付（`start.py` 已自动带上 `STORE_PAYMENT_PROVIDER=mock` 与 `STORE_ALLOW_MOCK_PAYMENTS=1`），账号中心会发放激活码。
 3. 回到主应用登录后进入 `/license`，用「激活码 + 购买邮箱」激活。未激活时编辑器会跳到 `/license`，展示页和受保护静态资源返回 401 / 403。
 4. 在编辑器里配置 Home Assistant 的地址和长期访问令牌，然后创建空白仪表盘。
 5. 使用 3D 交互：先在 `/3d-studio` 保存户型，再在编辑器添加「3D 交互」控件并载入户型快照，绑定 `light.*` / `switch.*` 等实体后即可在舞台里控制。
@@ -146,7 +153,105 @@ APP_DATA_DIR=./data PYTHONPATH=backend/app alembic upgrade head
 
 未初始化时任意页面都会跳到 `/setup`。
 
+### 首次设置窗口
+
+`/api/v1/setup/admin` 不能要求登录（此时还没有账号），所以它必须自己把「谁有资格创建
+管理员」这件事管住，否则**任何能连上这台机器的人都能抢先把管理员建掉**（并当场拿到
+会话），随后就能写 Home Assistant 连接、配对中控、导出日志。当前规则：
+
+- **本机直连放行**：TCP 对端是 `127.0.0.1` / `::1`，且请求不带任何转发头（`X-Forwarded-*`、
+  `Forwarded`）。带转发头说明前面还有代理，对端地址不再代表真实来源，此时不再按本机放行。
+- **其它来源必须带引导密钥**：`APP_SETUP_TOKEN` 的值，或者首次启动时自动生成的那一串。
+  生成的密钥写在 `$APP_DATA_DIR/setup-token`（权限 `0600`），并打印到启动日志/容器日志：
+
+  ```text
+  HomeOS 尚未初始化（库中没有任何管理员账号），完成首次设置后本窗口自动关闭。
+    密钥来源: /data/setup-token
+    密钥内容: 1Bv...（32 字节随机串）
+  ```
+
+  取用方式：`docker logs <容器>`，或直接 `cat $APP_DATA_DIR/setup-token`。
+- 失败会计入限流（与登录共用限流器，同一来源连续失败会被短暂拒绝），成功与失败都写审计日志。
+- 初始化成功后密钥立即作废（自动生成的那份文件会被删除），窗口关闭。
+
+重置账号（删除 `data/admin-account.json` 后重启）会重新打开这个窗口，也会重新生成一份密钥。
+
 忘记主应用管理员账号或密码：停掉进程，删除 `data/admin-account.json` 再启动，系统回到设置页。户型、HA 配置、授权和中控配对不会被删。
+
+## 安全基线
+
+下面这些是代码里已经生效的默认行为，不需要额外配置；只有反向代理部署才需要补一对变量。
+两条硬边界先说清楚：**授权校验不能通过环境变量关闭**，**首次设置的窗口不会长期敞开**。
+
+### 请求来源：谁在代理、能不能信转发头
+
+限流、审计与首次设置的放行都建立在「请求到底来自哪个 IP」上，而 `X-Forwarded-For`
+是客户端可以自己写的。判定规则（`backend/app/http_security.py` 与 `store/request_security.py`
+是同一套逻辑的两份实现，两个服务独立部署、刻意不互相 import）：
+
+- **默认不信任任何转发头**（`APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` 留空）：
+  一律按 TCP 对端地址统计。此时伪造 `X-Forwarded-For` 换不来新的限流桶。
+- **配了可信代理**（逗号分隔的 IP / CIDR）后，仍只在这条连接确实来自代理时，才从转发链里
+  取真实来源。代理没传转发头时地址是共享的，按 IP 那一档限流会主动让位 —— 否则任何一个人
+  失败几次就会锁掉所有人。
+- 检测到转发头却没配可信代理时，启动日志会警告一次（只记一次，避免刷屏）。
+
+### 会话与 Cookie
+
+| 机制 | 行为 |
+| --- | --- |
+| Cookie `Secure` | 按请求自动判定，任一成立即加：显式 `APP_COOKIE_SECURE` / `STORE_COOKIE_SECURE` → `APP_BASE_URL` / `STORE_BASE_URL` 是 https → 可信代理转发了 `X-Forwarded-Proto: https` → 连接本身是 https。漏配开关不会让会话 Cookie 明文裸奔，纯 http 局域网也不会误加（误加会让浏览器直接丢弃 Cookie，表现为「登录后又变回未登录」） |
+| 登录会话 | 滑动有效期 `APP_SESSION_MAX_AGE_SECONDS`（默认 8 小时）+ 绝对寿命 `APP_SESSION_HARD_MAX_AGE_SECONDS`（默认 30 天），后者不能被续期突破 |
+| 会话列表与撤销 | `GET /api/v1/auth/sessions` 列出全部登录会话（只回令牌哈希，不回原文），`DELETE /api/v1/auth/sessions/{id}` 踢掉单个，`DELETE /api/v1/auth/sessions` 一键退出其它设备 |
+| 中控令牌 | 滑动有效期 `APP_DISPLAY_TOKEN_TTL_SECONDS`（默认 180 天，活跃即续期，带 5 分钟节流避免每次请求写库）+ 可选硬上限 `APP_DISPLAY_TOKEN_HARD_TTL_SECONDS`（默认 `0` = 不设）。滑块基准是「最近一次活跃」而不是「配对时刻」，所以常年挂墙的平板不会被定期赶去重配 |
+| 中控设备列表 | 附带 `expiresAt` / `expired`，后台能看到每台平板还能用到什么时候；过期设备仍然可见，管理员可手动解绑 |
+
+### CSRF：改状态的请求必须同源
+
+SameSite=Lax + 只收 JSON 是第一道闸，代码里另有一道显式的 Origin / Referer 校验：
+
+- 主应用拦所有非 GET 的 `/api/*`；商店拦非 GET 的 `/store/v1/*` 与 `/store-admin/v1/*`。
+- 只认「裸的 `scheme://host`」：`http://evil@本机地址/`、带路径或查询串的写法一律不算同源。
+- GET / HEAD / OPTIONS 不拦。
+- 两类豁免：`/v2/*` 授权端点（程序调用，报文加密封套 + 签名，本就没有浏览器 Origin）
+  与支付宝异步回调（服务器直连，真伪由签名校验）。
+
+### 首次设置
+
+未初始化实例的「先到先得」问题由 `backend/app/setup_guard.py` 兜住，规则见上方
+[首次设置窗口](#首次设置窗口)。
+
+### 配对、上传与日志
+
+- **配对码生命周期**：6 位码不再可无限复用。两档限流（按 IP + 跨来源总预算，后者防
+  「换 IP 继续枚举」），被拦返回 429 + `Retry-After`；配对码已被在用设备占用时返回 409，
+  必须先在后台解绑才能重配（否则拍到墙上那张码的人就能把合法设备顶下线）；配对前校验
+  授权允许 `display`。
+- **上传体积上限**：`POST /api/v1/assets/user` 先按 `Content-Length` 早拒，再按逐块累计字节数
+  兜底（分块传输 / 不带长度也拦得住）：SVG 5 MB、位图 64 MB，超限 413 且不留垃圾文件。
+- **全局日志不放大**：写盘移交给唯一的后台写线程（请求路径零磁盘 I/O），同一处刷屏折叠成
+  一条并累加 `repeatCount`，超限裁剪带最小间隔（最密 10 秒一次），应用关闭时刷盘并回收线程。
+
+### 归属与出网
+
+- **3D 导出与效果变体按项目归属**：中控设备只能读自己仪表盘引用的导出图 / 效果变体，
+  跨项目 403，文件不存在统一 404（不泄露存在性）；管理员不受限。
+- **HA 换址确认**：改 `baseUrl` 但不重输令牌时返回 409 与错误码 `HA_URL_CHANGED_TOKEN_REUSE`，
+  必须显式带 `reuseTokenForNewUrl: true` 确认新地址可信；被拒时库里的地址不会被改动。
+- **云元数据地址拒绝**：`169.254.169.254`（含 `::ffff:` 映射写法）等云元数据地址在
+  `/api/v1/ha/test` 直接 422，链路本地地址会单独提示。
+
+### 商店侧
+
+- **商品字段取值收敛**：`product_type` 与 `fulfillment_mode` 由 `store/catalog.py` 统一校验
+  （取值与后台两个 `<select>` 一致，`smoke.py` 有断言盯着）。这两个字段过去完全没有校验，
+  拼错一个字母会让「手工发卡」静默变成自动发卡，或让增量包被当成基础授权直接买走。
+- **订单终态保护**：`cancelled` / `expired` / `refunded` 的订单不能再被标记支付或履约。
+- **待复核标记**：`needs_review` 目前只由「订单超时关闭后款项才到账」的复活单产生，
+  后台可看到并用 `POST /store-admin/v1/orders/{order_no}/review` 标记已处理，处理结论追加进
+  `review_note` 而不覆盖原原因。
+- **支付巡检自报状态**：巡检坏掉时过去完全无声，现在概览卡片与 `GET /healthz` 都能读到，
+  详见 [store/README.md](store/README.md) 的「巡检还活着吗」。
 
 ## 授权体系
 
@@ -296,7 +401,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `/pair` | 中控设备配对 |
 | `/display/{project_name}` | 正式展示地址：按项目名称打开全屏中控页 |
 | `/health/live` · `/health/ready` | 进程存活 · 数据库就绪 |
-| `/api/v1/auth/*` | 初始化、登录、登出、当前用户 |
+| `/api/v1/auth/*` | 初始化、登录、登出、当前用户；`/auth/sessions` 列出 / 撤销登录会话 |
 | `/api/v1/projects/*` | 仪表盘项目与草稿（`projects.write`） |
 | `/api/v1/ha/*` | HA 连接、实体、翻译、历史、区域、设备、同步、健康、服务调用、媒体浏览 |
 | `/api/v1/ha/*` 子集 | `ha.configure` / `ha.sync` / `ha.control` 分别门禁 |
@@ -328,7 +433,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `/v2/activate` · `/v2/heartbeat` · `/v2/recover` | 授权服务器端点（加密封套） |
 | `/store-admin/v1/*` | 运营后台 API |
 | `/store/v1/payments/alipay/notify` · `/store/payment/return` | 支付宝异步通知与同步跳转 |
-| `/store/mock/pay/{order_no}` | 模拟收银台（仅 `mock` 渠道） |
+| `/store/mock/pay/{order_no}?token=…` | 模拟收银台（仅 `mock` 渠道，需订单凭证） |
 | `/store-static/*` · `/fonts/*` | 商店静态资源与图标字体 |
 | `/healthz` · `/store-api-docs` | 存活检查 · OpenAPI 文档 |
 
@@ -363,8 +468,14 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `APP_DATA_DIR` | `<仓库>/data` | 运行时数据目录 |
 | `APP_BASE_URL` | 空 | 对外访问根地址；反代时建议设置，供 WebSocket 校验 Origin |
 | `APP_PORT` | `18081` | 容器监听端口 |
-| `APP_SESSION_MAX_AGE_SECONDS` | `28800` | 登录会话时长 |
-| `APP_COOKIE_SECURE` | `false` | HTTPS 下设为 `true` |
+| `APP_SESSION_MAX_AGE_SECONDS` | `28800` | 登录会话滑动时长（8 小时） |
+| `APP_SESSION_HARD_MAX_AGE_SECONDS` | `2592000` | 会话绝对寿命（30 天），滑动续期也突破不了 |
+| `APP_COOKIE_SECURE` | `false` | 强制给会话 Cookie 加 `Secure`；不设置时按请求自动判定 https |
+| `APP_TRUSTED_PROXIES` | 空 | 可信反向代理 IP / CIDR（逗号分隔）；留空则不信任任何转发头，限流与审计按 TCP 对端统计 |
+| `APP_SETUP_TOKEN` | 空 | 首次初始化的引导密钥；留空则首次启动自动生成（见「首次设置窗口」） |
+| `APP_DISPLAY_COOKIE_MAX_AGE_SECONDS` | `15552000` | 中控设备 Cookie 的浏览器侧有效期（180 天） |
+| `APP_DISPLAY_TOKEN_TTL_SECONDS` | `15552000` | 中控令牌的服务端滑动有效期（180 天，活跃即续期） |
+| `APP_DISPLAY_TOKEN_HARD_TTL_SECONDS` | `0` | 中控令牌硬上限；`0` 表示不设 |
 | `APP_UPDATE_CHANNEL` | `docker` | 更新检查渠道 |
 | `APP_HA_REQUEST_TIMEOUT_SECONDS` | `10` | 调用 HA 的超时 |
 | `APP_HA_RECONCILE_INTERVAL_SECONDS` | `1800` | HA 全量对账间隔 |
@@ -389,15 +500,21 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `STORE_HOST` / `STORE_PORT` | `0.0.0.0` / `18082` | 监听地址（`start.py` 下为 `127.0.0.1`） |
 | `STORE_DATA_DIR` | `store/data` | SQLite 与商品图目录 |
 | `STORE_BASE_URL` | 由请求推导 | 生成支付二维码、回调链接用的外部基址 |
+| `STORE_COOKIE_NAME` / `STORE_COOKIE_SECURE` | `ha_bridge_store_session` / `false` | 商店会话 Cookie 名与强制 `Secure`（同主应用，默认按请求自动判定 https） |
+| `STORE_TRUSTED_PROXIES` | 空 | 可信反向代理 IP / CIDR（逗号分隔）；留空则不信任任何转发头 |
 | `STORE_LICENSE_KEYS_DIR` | `store/keys/local` | 授权密钥目录 |
+| `STORE_LICENSE_KEY_ID` / `STORE_LICENSE_TRANSPORT_KEY_ID` | `hb-local-2026` / `hb-local-transport-2026` | 签发租约与传输密钥的 keyId，必须与主应用对应 |
 | `STORE_MAIL_MODE` | `log`（`start.py` 下为 `echo`） | `log` \| `echo` \| `smtp` |
 | `STORE_EXPOSE_VERIFICATION_CODE` | `false` | 是否在接口响应回显验证码（生产必须 false） |
 | `STORE_SMTP_HOST` / `_PORT` / `_USERNAME` / `_PASSWORD` / `_USE_SSL` / `_STARTTLS` | — | SMTP 发信（`_PASSWORD` 填授权码） |
-| `STORE_PAYMENT_PROVIDER` | `mock` | `mock` \| `alipay`（后台站点配置优先） |
+| `STORE_SMTP_TIMEOUT_SECONDS` / `_MAX_ATTEMPTS` / `_RETRY_BACKOFF_SECONDS` | `15` / `3` / `1.0` | SMTP 超时 / 重试次数 / 退避基数（只对瞬时故障重试） |
+| `STORE_PAYMENT_PROVIDER` | 空（未配置，拒绝建单） | `mock` \| `alipay`（后台站点配置优先） |
+| `STORE_ALLOW_MOCK_PAYMENTS` | `false` | 是否允许模拟收银台；**仅供本地联调**，与 `STORE_PAYMENT_PROVIDER=mock` 同时设置才生效 |
 | `STORE_ALIPAY_*` | — | APPID、密钥路径 / 内联、网关、卖家号、回调地址等 |
 | `STORE_LEASE_TTL_SECONDS` | `604800` | 租约有效期（7 天） |
 | `STORE_HEARTBEAT_INTERVAL_SECONDS` | `300` | 下发给客户端的 `heartbeatIn` |
 | `STORE_ORDER_TTL_SECONDS` | `120` | 订单有效期（真实收款必须调大） |
+| `STORE_PAYMENT_SWEEP_INTERVAL_SECONDS` / `_BATCH` | `30` / `25` | 后台支付巡检间隔（`0` = 关闭）与每轮处理上限 |
 | `STORE_DEVICE_RELEASE_COOLDOWN_SECONDS` | `28800` | 自助解绑冷却（8 小时） |
 | `STORE_VERIFICATION_TTL_SECONDS` / `_COOLDOWN_SECONDS` | `600` / `60` | 验证码有效期 / 重发冷却 |
 | `STORE_SESSION_MAX_AGE_SECONDS` | `2592000` | 商店会话有效期 |
@@ -411,11 +528,15 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 
 ## Docker
 
-官方镜像监听 **18081**，数据和密钥分卷挂载。容器启动后访问 `http://<主机>:18081/setup`。容器内默认路径：
+官方镜像监听 **18081**，数据和密钥分卷挂载。容器启动后：
+**先 `docker logs <容器>` 取首次设置的引导密钥**（容器内 `/data/setup-token`），再访问
+`http://<主机>:18081/setup` 填入。仅桥接网络下，从宿主机访问也会被当成远程来源（对端是
+`172.17.0.1` 这类网关地址），因此这一步不能省。容器内默认路径：
 
 | 用途 | 路径 |
 | --- | --- |
 | 数据目录 | `/data` |
+| 首次设置引导密钥 | `/data/setup-token`（初始化成功后自动删除） |
 | HA 凭据密钥 | `/run/secrets/ha_credentials.key` |
 | 中控配对密钥 | `/run/secrets/display_pairing_codes.key` |
 | 授权密钥 | `/run/secrets/license_credentials.key` |
@@ -457,6 +578,30 @@ node tools/bump_static_cache_versions.mjs
 - 改动商店授权端点错误文案前，先核对客户端 `is_confirmed_revocation` 的吊销短语表。
 
 ## 更新日志
+
+### v0.5.5
+
+安全加固
+
+- 首次设置窗口（`backend/app/setup_guard.py`）：`/api/v1/setup/admin` 过去只受「管理员账号文件是否存在」这一道闸门保护，任何能连上机器的人都能抢先把管理员建掉并当场拿到会话。现在**本机直连放行**（TCP 对端是 loopback 且请求不带任何转发头），其它来源必须带引导密钥（`APP_SETUP_TOKEN`，或首次启动自动生成并落盘到 `data/setup-token`、打印到启动日志的那一串）；失败计入登录限流，成功与失败都写审计，初始化成功后密钥立即作废。
+- 真实来源 IP（`backend/app/http_security.py`、`store/request_security.py`）：两个服务默认**不信任任何转发头**，限流、审计与登录记录一律按 TCP 对端统计 —— 此前不可信来源自己写 `X-Forwarded-For` 就能给限流换一个新桶，形同虚设。配了 `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` 后也只在连接确实来自代理时才认转发链；拿不到真实来源时按 IP 那一档主动让位，避免共享地址被一个人的失败锁死所有人。
+- Cookie `Secure` 自动判定：漏配 `APP_COOKIE_SECURE` / `STORE_COOKIE_SECURE` 不再让会话 Cookie（能看订单、能提现、能控中控）明文下发，纯 http 局域网也不会误加。
+- CSRF 同源闸门：主应用拦非 GET 的 `/api/*`，商店拦非 GET 的 `/store/v1/*` 与 `/store-admin/v1/*`；只认裸的 `scheme://host`，`http://evil@本机地址/` 这类写法不会被误判为同源。`/v2/*` 授权端点与支付宝异步回调豁免（前者报文加密签名、后者靠签名校验，都没有浏览器 Origin）。
+- 登录会话管理：新增 `GET /api/v1/auth/sessions`（只回令牌哈希）、`DELETE /api/v1/auth/sessions/{id}` 与 `DELETE /api/v1/auth/sessions`，并补上绝对寿命 `APP_SESSION_HARD_MAX_AGE_SECONDS` —— 滑动续期不能再把一枚被盗 Cookie 无限续下去。
+- 全局日志的写入放大自 DoS（H1）：写盘移交唯一后台写线程（请求路径不再做磁盘 I/O），去重签名剔除逐请求变化的 `requestId` / `durationMs`（此前「5 秒折叠」形同虚设），超限裁剪带最小间隔（最密 10 秒一次，此前每次 append 都会读全量并重写），应用关闭时刷盘并回收线程。
+- 中控配对码生命周期（H2）：两档限流（按 IP + 跨来源总预算，换 IP 也躲不掉）、在用设备被同一码再次配对时返回 409（此前会直接顶掉合法设备）、配对前校验授权允许 `display`；顺带修掉「把 `block_seconds` 属性当函数调用」导致拦截时返回 500 而不是 429 的问题。
+- 中控令牌有效期：滑动有效期 `APP_DISPLAY_TOKEN_TTL_SECONDS`（活跃即续期，带 5 分钟节流）+ 可选硬上限 `APP_DISPLAY_TOKEN_HARD_TTL_SECONDS`；后台设备列表补 `expiresAt` / `expired`，过期设备仍可见可解绑。
+- 上传体积上限（H3）：`POST /api/v1/assets/user` 补 `Content-Length` 早拒与逐块累计上限（SVG 5 MB / 位图 64 MB），413 且不留垃圾文件 —— 此前无任何字节上限，一个请求就能把磁盘写满。
+- 3D 导出与效果变体的跨项目 IDOR（M4）：中控设备只能读自己仪表盘引用的导出图 / 效果变体，跨项目 403，不存在统一 404 不泄露存在性。
+- HA 换址的令牌复用确认（M5）：改 `baseUrl` 但不重输令牌时返回 409 `HA_URL_CHANGED_TOKEN_REUSE`，需显式 `reuseTokenForNewUrl: true`；云元数据地址（`169.254.169.254`，含 IPv4 映射写法）在 `/api/v1/ha/test` 直接拒绝。
+- 商店商品字段取值收敛（`store/catalog.py`）：`product_type` / `fulfillment_mode` 此前完全没有校验，拼错一个字母会让「手工发卡」静默变成自动发卡、或让增量包被当成基础授权买走；现由服务端唯一来源校验，并与后台两个 `<select>` 对齐。
+- 商店订单：`cancelled` / `expired` / `refunded` 的终态订单不能再被标记支付或履约；「超时关闭后款项才到账」的复活单打上 `needs_review`，后台新增 `POST /store-admin/v1/orders/{order_no}/review` 标记已处理，结论追加进 `review_note` 而不覆盖原原因。
+
+清理
+
+- 删除 8 个开发期的探针 / 临时脚本（`backend/probe_*.py` 四个、`store/tools/probe_request_security.py`、`store/tools/_probe_{admin,stock}.py`、`store/tools/_ui_demo_seed.py`），并同步移除 `store/tools/smoke.py` 里对其中两个的悬空引用。
+- `.gitignore` 去掉指向已删除功能的三条死规则（`register/data/`、`upgrade-backups/`、`户型图.png`），本地临时目录 `/app/`、`.deobf/`、`原项目/` 归拢到一处并加注释。
+- `.env.example` 补齐安全相关变量（`APP_TRUSTED_PROXIES`、`APP_SESSION_HARD_MAX_AGE_SECONDS`、`APP_DISPLAY_*`、`STORE_TRUSTED_PROXIES`、`STORE_PAYMENT_SWEEP_*`、`STORE_SMTP_TIMEOUT/MAX_ATTEMPTS/RETRY_BACKOFF`），并修正两处格式说明（`APP_LICENSE_SERVER_BATCHES` 与 `APP_LICENSE_TRUSTED_PUBLIC_KEYS` 是 `;`/`|`/`:` 分隔的字符串，不是 JSON）。
 
 ### v0.5.5
 

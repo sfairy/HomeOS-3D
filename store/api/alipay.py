@@ -17,6 +17,7 @@ from store import site_settings as site_config
 from store.deps import DbSession
 from store.models import Order
 from store.payments.alipay import cents_from_yuan
+from store.payments.base import PaymentError
 from store.payments.reconcile import reconcile_alipay_order
 from store.payments.settlement import settle_paid_order
 
@@ -32,9 +33,17 @@ def _alipay_provider(request: Request, session=None):
 
     传入 ``session`` 是为了让后台配置的凭据生效（凭据存在站点配置里）。
     不传时 ``resolve_payment_provider`` 会自己读一次库。
+
+    ``resolve_payment_provider`` 在渠道没配好时会抛 ``PaymentError``（典型例子是默认
+    关闭的模拟收银台）。这属于「当前不是支付宝在收款」的一种，不能让它冒出去变成 500：
+    异步通知那边必须回纯文本失败让支付宝停止重推，同步跳转页那边必须照常渲染。
     """
     setting = site_config.get_setting(session) if session is not None else None
-    provider = request.app.state.resolve_payment_provider(setting)
+    try:
+        provider = request.app.state.resolve_payment_provider(setting)
+    except PaymentError as error:
+        logger.warning("支付渠道当前不可用，按「非支付宝通知」处理：%s", error)
+        return None
     if getattr(provider, "name", "") != "alipay":
         return None
     return provider
@@ -66,21 +75,28 @@ async def alipay_notify(request: Request, session: DbSession) -> PlainTextRespon
         logger.error("支付宝异步通知验签未通过：%s", notification.reason)
         return PlainTextResponse("failure")
 
-    if notification.app_id and settings.alipay_app_id:
-        if notification.app_id != settings.alipay_app_id:
+    # app_id / seller_id 是「这笔通知属于哪个商户」的判据，必须拿**验签用的那份**
+    # 凭据来比。provider 内部已经合并过后台站点配置，而这里手上的 ``settings``
+    # （来自 app.state.settings）只有环境变量：用它比较的话，后台配了商户号的部署
+    # 里这两个字段是空的，整段校验会被「非空才比较」静默跳过；环境变量与后台不一致
+    # 时又会把正常通知全部拒掉。
+    effective = provider.resolve_settings(settings)
+
+    if notification.app_id and effective.alipay_app_id:
+        if notification.app_id != effective.alipay_app_id:
             logger.error(
                 "支付宝异步通知 app_id 不匹配：收到 %s，期望 %s",
                 notification.app_id,
-                settings.alipay_app_id,
+                effective.alipay_app_id,
             )
             return PlainTextResponse("failure")
 
-    if settings.alipay_seller_id and notification.seller_id:
-        if notification.seller_id != settings.alipay_seller_id:
+    if effective.alipay_seller_id and notification.seller_id:
+        if notification.seller_id != effective.alipay_seller_id:
             logger.error(
                 "支付宝异步通知 seller_id 不匹配：收到 %s，期望 %s",
                 notification.seller_id,
-                settings.alipay_seller_id,
+                effective.alipay_seller_id,
             )
             return PlainTextResponse("failure")
 
@@ -129,7 +145,7 @@ _RETURN_PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} - HomeOS 授权中心</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260916013557">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260916230552">
 <style>
   /* 与商店/后台同一套暗色 + 琥珀设计语言（令牌来自 theme.css） */
   body {{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;

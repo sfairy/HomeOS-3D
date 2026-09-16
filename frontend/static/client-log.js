@@ -43,6 +43,10 @@
       "userAgent",
       "phase"
     ]),
+    // 浏览器在 ResizeObserver 回调改动布局时派发的循环保护提示。它没有可用堆栈、
+    // 也不代表业务出错，却会随每次布局抖动重复上报，这里统一识别后丢弃。
+    // 真正需要修的是触发它的布局代码，而不是把这条提示记进后台。
+    RESIZE_OBSERVER_LOOP_ERROR = /^ResizeObserver loop (?:completed with undelivered notifications|limit exceeded)\.?$/,
     isPublicPage = /^\/(?:login|setup|pair)(?:\/|$)/.test(bridgeWindow.location.pathname);
   // publicMode 可在收到 401 后动态切到 true（会话过期降级为公开上报）。
   let publicMode = isPublicPage,
@@ -405,6 +409,10 @@
     bridgeWindow.addEventListener(
       "error",
       errorEvent => {
+        // 先丢掉浏览器自身的 ResizeObserver 循环提示：非业务异常且高频重复。
+        if (RESIZE_OBSERVER_LOOP_ERROR.test(errorEvent.message || "")) {
+          return;
+        }
         const failedTarget = errorEvent.target;
         if (
           failedTarget &&

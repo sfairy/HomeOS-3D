@@ -57,14 +57,19 @@ def session_expiry(max_age_seconds: int) -> datetime:
     return datetime.now(timezone.utc) + timedelta(seconds=max_age_seconds)
 
 
-def set_display_cookie(response: Response, settings: Settings, token: str) -> None:
+def set_display_cookie(response: Response, settings: Settings, token: str, *, secure: bool | None = None) -> None:
     """写入中控设备 Cookie。
 
-    有效期取 display_cookie_max_age_seconds（默认十年），墙面平板
-    不应该因为 Cookie 过期而要求重新配对；同时刷新 max_age 与 expires，
-    兼容只认其中一个的旧浏览器。
+    浏览器侧有效期取 display_cookie_max_age_seconds（默认 180 天）；服务端还有一层
+    滑动有效期（display_token_expires_at），因此这里不需要留十年 —— 只要平板还在
+    轮询，续期就会把两边一起推后。同时刷新 max_age 与 expires，兼容只认其中一个的旧浏览器。
+
+    参数:
+        secure: 是否加 Secure。调用方有请求上下文时传请求级判定结果
+            （见 http_security.secure_cookies_enabled）；只有 Settings 时留空，
+            退化成读配置开关。
     """
     max_age = settings.display_cookie_max_age_seconds
     # httponly 防脚本读取；samesite=lax 允许展示页被同源 iframe 打开；
     # path='/' 保证 /display/* 与 /api/* 都能带上这个 Cookie。
-    response.set_cookie(key=settings.display_cookie_name, value=token, max_age=max_age, expires=datetime.now(timezone.utc) + timedelta(seconds=max_age), httponly=True, secure=settings.cookie_secure, samesite='lax', path='/')
+    response.set_cookie(key=settings.display_cookie_name, value=token, max_age=max_age, expires=datetime.now(timezone.utc) + timedelta(seconds=max_age), httponly=True, secure=settings.cookie_secure if secure is None else secure, samesite='lax', path='/')

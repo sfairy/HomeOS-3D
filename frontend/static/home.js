@@ -21,7 +21,7 @@
  *   7. 编辑历史、草稿保存与崩溃恢复；
  *   8. 拖拽 / 缩放 / 对齐等画布手势，以及文件末尾的初始化与事件绑定。
  *
- * 版本戳约定：本文件内部所有 `import ... ?v=20260916080154` 必须使用同一条版本戳，
+ * 版本戳约定：本文件内部所有 `import ... ?v=20260916230552` 必须使用同一条版本戳，
  * 与 renderer/renderer.js 引用 renderer/registry.js 的 `?v=` 完全一致 ——
  * 两条路径都指向同一份控件注册表，版本戳一旦不同就会加载出两份注册表，
  * 表现为控件类型在某些视图里"找不到"。改动静态资源后由
@@ -42,17 +42,17 @@
  *   - 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260916080154";
+import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260916230552";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "./renderer/renderer.js?v=20260916080154";
+} from "./renderer/renderer.js?v=20260916230552";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "./renderer/registry.js?v=20260916080154";
+} from "./renderer/registry.js?v=20260916230552";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -60,7 +60,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "./templates/component-templates.js?v=20260916080154";
+} from "./templates/component-templates.js?v=20260916230552";
 import {
   clone,
   newId,
@@ -72,21 +72,21 @@ import {
   roundField,
   clampNumber,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260916080154";
+} from "./editor-utils.js?v=20260916230552";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "./popup-layout.js?v=20260916080154";
+} from "./popup-layout.js?v=20260916230552";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260916080154";
+} from "./dashboard-resize.js?v=20260916230552";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260916080154";
+} from "./component-page-copy.js?v=20260916230552";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -98,24 +98,24 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "./related-entities.js?v=20260916080154";
-import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260916080154";
-import { createButtonSound } from "./sound-effects.js?v=20260916080154";
+} from "./related-entities.js?v=20260916230552";
+import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260916230552";
+import { createButtonSound } from "./sound-effects.js?v=20260916230552";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260916080154";
-import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260916080154";
+} from "./editor-dialogs.js?v=20260916230552";
+import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260916230552";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./editor-picker-pagination.js?v=20260916080154";
-import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260916080154";
-import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260916080154";
-import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260916080154";
-import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260916080154";
-import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260916080154";
+} from "./editor-picker-pagination.js?v=20260916230552";
+import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260916230552";
+import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260916230552";
+import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260916230552";
+import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260916230552";
+import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260916230552";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -123,13 +123,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "./action-rules.js?v=20260916080154";
+} from "./action-rules.js?v=20260916230552";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260916080154";
+} from "./component-tree.js?v=20260916230552";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -139,13 +139,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260916080154";
+} from "./editor-component-collections.js?v=20260916230552";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260916080154";
+} from "./editor-basic-inspectors.js?v=20260916230552";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -156,7 +156,7 @@ import {
   popupModuleTypeLabel,
   reorderedPopupModules,
   uniquePagePath
-} from "./editor-document-management.js?v=20260916080154";
+} from "./editor-document-management.js?v=20260916230552";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -164,18 +164,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260916080154";
+} from "./editor-history.js?v=20260916230552";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "./3d-studio/studio-normalization.js?v=20260916080154";
-import { createLicenseCard } from "./license-card.js?v=20260916080154";
+} from "./3d-studio/studio-normalization.js?v=20260916230552";
+import { createLicenseCard } from "./license-card.js?v=20260916230552";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "./modules/interaction3d/editor.js?v=20260916080154";
+} from "./modules/interaction3d/editor.js?v=20260916230552";
 /**
  * 按选择器取单个 DOM 节点的简写。
  *
@@ -371,6 +371,13 @@ const displayPairingGenerateButtonElement = findElement("#display-pairing-genera
 const displayDeviceCountElement = findElement("#display-device-count");
 const displayDeviceListElement = findElement("#display-device-list");
 const displayDevicesMessageElement = findElement("#display-devices-message");
+const sessionsOpenButtonElement = findElement("#sessions-open");
+const sessionsDialogElement = findElement("#sessions-dialog");
+const sessionsCloseButtonElement = findElement("#sessions-close");
+const sessionsRevokeOthersButtonElement = findElement("#sessions-revoke-others");
+const sessionCountElement = findElement("#session-count");
+const sessionListElement = findElement("#session-list");
+const sessionsMessageElement = findElement("#sessions-message");
 const showEditorPreviewButtonElement = findElement("#show-editor-preview");
 const showDashboardPreviewButtonElement = findElement("#show-dashboard-preview");
 const openHomeAssistantButtonElement = findElement("#open-home-assistant");
@@ -2192,6 +2199,28 @@ function formatLastSeen(lastSeenTimestamp) {
   }
 }
 /**
+ * 把中控设备的令牌有效期整理成可读文案（拼在设备状态后面）。
+ *
+ * 已经过期的设备（expired=true）明确写出「已过期」——它此时已经无法访问任何接口，
+ * 墙上那块屏会跳回配对页，这种状态必须在管理端一眼可见。
+ *
+ * @param {object|null|undefined} displayDevice 配对码里的 device 字段。
+ * @returns {string} 形如「 · 有效期至 10/01 08:30」或「 · 已过期」；无信息时返回空串。
+ */
+function formatDisplayTokenExpiry(displayDevice) {
+  if (!displayDevice) {
+    return "";
+  }
+  if (displayDevice.expired) {
+    return " · 令牌已过期，需重新配对";
+  }
+  const expiresAtDate = new Date(displayDevice.expiresAt);
+  if (!Number.isFinite(expiresAtDate.getTime())) {
+    return "";
+  }
+  return " · 有效期至 " + formatLastSeen(displayDevice.expiresAt);
+}
+/**
  * 拉取当前仪表盘的展示设备配对码并重建列表。
  *
  * 配对码归属于仪表盘（projectId），不是全局资源。
@@ -2229,8 +2258,14 @@ async function loadDisplayPairingCodes() {
     const deviceStatusText = pairingCodeEntry.device
       ? "已绑定 · 最后在线 " + formatLastSeen(pairingCodeEntry.device.lastSeenAt)
       : "等待设备配对";
+    // 令牌过期时间也要显示：长期不活跃的设备会自己失效，墙上那块屏会跳回配对页，
+    // 提前看到「有效期至 …」才能在它真的掉线前重新配对。
+    const deviceExpiryText = formatDisplayTokenExpiry(pairingCodeEntry.device);
     displayDeviceMetaElement.textContent =
-      (pairingCodeEntry.enabled ? "已启用" : "已停用") + " · " + deviceStatusText;
+      (pairingCodeEntry.enabled ? "已启用" : "已停用") +
+      " · " +
+      deviceStatusText +
+      deviceExpiryText;
     const displayDeviceCodeElement = document.createElement("strong");
     displayDeviceCodeElement.className = "display-device-code";
     displayDeviceCodeElement.textContent = pairingCodeEntry.code || "——";
@@ -2282,9 +2317,44 @@ async function loadDisplayPairingCodes() {
     displayDeviceQrButtonElement.addEventListener("click", () =>
       showDisplayPairingQr(pairingCodeEntry)
     );
+    // 「解绑」只在已经绑定了设备时出现：配对码是固定的（可能贴在墙上、印在二维码里
+    // 被拍照留存），所以换设备必须在这里显式解绑，不能让后来者凭码把原设备顶掉
+    // —— 后端在设备仍在用时直接 409，这条路就是那条提示对应的动作。
+    let displayDeviceUnbindButtonElement = null;
+    if (pairingCodeEntry.device) {
+      displayDeviceUnbindButtonElement = document.createElement("button");
+      displayDeviceUnbindButtonElement.type = "button";
+      displayDeviceUnbindButtonElement.textContent = "解绑";
+      displayDeviceUnbindButtonElement.addEventListener("click", async () => {
+        if (
+          !window.confirm(
+            "确认解绑“" +
+              pairingCodeEntry.name +
+              "”？该设备会立即失去控制权；要重新配对，请在那台设备上再输入一次配对码。"
+          )
+        ) {
+          return;
+        }
+        displayDeviceUnbindButtonElement.disabled = true;
+        try {
+          await requestJson("/displays/" + encodeURIComponent(pairingCodeEntry.device.id), {
+            method: "DELETE"
+          });
+          await loadDisplayPairingCodes();
+        } catch (unbindDisplayDeviceError) {
+          setSettingsMessage(
+            displayDevicesMessageElement,
+            unbindDisplayDeviceError.message,
+            "error"
+          );
+          displayDeviceUnbindButtonElement.disabled = false;
+        }
+      });
+    }
     displayDeviceActionsElement.append(
       displayDeviceQrButtonElement,
       displayDeviceToggleButtonElement,
+      ...(displayDeviceUnbindButtonElement ? [displayDeviceUnbindButtonElement] : []),
       displayDeviceDeleteButtonElement
     );
     displayDeviceItemElement.append(
@@ -2311,6 +2381,108 @@ async function openDisplayDevicesDialog() {
     } catch (displayDevicesLoadError) {
       setSettingsMessage(displayDevicesMessageElement, displayDevicesLoadError.message, "error");
     }
+  }
+}
+/**
+ * 拉取并渲染当前管理员的登录会话列表。
+ *
+ * 每条三行：来源（IP 或「本机」）、最近活跃 / 滑动有效期 / 绝对寿命（若配置了）、
+ * User-Agent（若上报了）。三行都做单行省略，完整值挂在 title 上。
+ * 当前这条会话整条标成高亮且不给撤销按钮，避免手一抖把自己踢下线
+ * （要退出本机请用右上角的「退出」）。
+ *
+ * @returns {Promise<void>} 无返回值；失败由调用方提示。
+ */
+async function loadLoginSessions() {
+  const sessions = (await requestJson("/auth/sessions")).items || [];
+  sessionCountElement.textContent = sessions.length + " 个";
+  sessionListElement.replaceChildren();
+  if (!sessions.length) {
+    const sessionsEmptyElement = document.createElement("p");
+    sessionsEmptyElement.textContent = "暂无登录会话";
+    sessionListElement.append(sessionsEmptyElement);
+    return;
+  }
+  for (const sessionEntry of sessions) {
+    const sessionItemElement = document.createElement("div");
+    // 当前这条单独高亮：它是「自己」，视觉上必须和陌生来源区分开。
+    sessionItemElement.className = sessionEntry.current
+      ? "session-item is-current"
+      : "session-item";
+    const sessionCopyElement = document.createElement("div");
+    sessionCopyElement.className = "session-copy";
+    const sessionTitleElement = document.createElement("strong");
+    sessionTitleElement.textContent = sessionEntry.current
+      ? "本机（当前会话）"
+      : sessionEntry.ipAddress || "未知来源";
+    const sessionMetaElement = document.createElement("span");
+    sessionMetaElement.className = "session-meta";
+    const sessionMetaParts = [
+      "最近活跃 " + formatLastSeen(sessionEntry.lastSeenAt),
+      "有效期至 " + formatLastSeen(sessionEntry.expiresAt)
+    ];
+    if (sessionEntry.absoluteExpiresAt) {
+      sessionMetaParts.push("最迟 " + formatLastSeen(sessionEntry.absoluteExpiresAt));
+    }
+    sessionMetaElement.textContent = sessionMetaParts.join(" · ");
+    // 窄行宽下这两行都会触发省略号，title 保证鼠标悬停仍能读到完整值。
+    sessionMetaElement.title = sessionMetaElement.textContent;
+    sessionCopyElement.append(sessionTitleElement, sessionMetaElement);
+    // UA 另起一行：拼进上面那行会把时间一起挤掉，而它本身长到必然显示不全。
+    if (sessionEntry.userAgent) {
+      const sessionAgentElement = document.createElement("span");
+      sessionAgentElement.className = "session-agent";
+      sessionAgentElement.textContent = sessionEntry.userAgent;
+      sessionAgentElement.title = sessionEntry.userAgent;
+      sessionCopyElement.append(sessionAgentElement);
+    }
+    sessionItemElement.append(sessionCopyElement);
+    if (!sessionEntry.current) {
+      const sessionActionsElement = document.createElement("div");
+      sessionActionsElement.className = "session-actions";
+      const sessionRevokeButtonElement = document.createElement("button");
+      sessionRevokeButtonElement.type = "button";
+      sessionRevokeButtonElement.className = "danger";
+      sessionRevokeButtonElement.textContent = "撤销";
+      sessionRevokeButtonElement.addEventListener("click", async () => {
+        if (!window.confirm("确认撤销这条登录会话？该设备会立即掉线。")) {
+          return;
+        }
+        sessionRevokeButtonElement.disabled = true;
+        try {
+          await requestJson("/auth/sessions/" + encodeURIComponent(sessionEntry.id), {
+            method: "DELETE"
+          });
+          await loadLoginSessions();
+        } catch (revokeSessionError) {
+          setSettingsMessage(sessionsMessageElement, revokeSessionError.message, "error");
+          sessionRevokeButtonElement.disabled = false;
+        }
+      });
+      sessionActionsElement.append(sessionRevokeButtonElement);
+      sessionItemElement.append(sessionActionsElement);
+    }
+    sessionListElement.append(sessionItemElement);
+  }
+}
+/**
+ * 打开「登录会话」弹窗并刷新列表。
+ *
+ * @returns {Promise<void>} 无返回值。
+ */
+async function openSessionsDialog() {
+  setSettingsMessage(sessionsMessageElement, "");
+  sessionListElement.replaceChildren();
+  const sessionsLoadingElement = document.createElement("p");
+  sessionsLoadingElement.textContent = "加载中…";
+  sessionListElement.append(sessionsLoadingElement);
+  if (!sessionsDialogElement.open) {
+    sessionsDialogElement.showModal();
+  }
+  try {
+    await loadLoginSessions();
+  } catch (sessionsLoadError) {
+    setSettingsMessage(sessionsMessageElement, sessionsLoadError.message, "error");
   }
 }
 /**
@@ -2525,11 +2697,30 @@ function resizeWorkspaceCanvas() {
     dashboardPreviewRenderer?.resize();
   });
 }
-const workspaceResizeObserver = new ResizeObserver(() => {
-  resizeWorkspaceCanvas();
-  syncCustomPopupStage();
-  dashboardPreviewRenderer?.resize();
-});
+// 已排程的帧句柄，非 0 时同时充当「本帧已排过」标记。
+let workspaceLayoutFrameId = 0;
+/**
+ * 同步工作区布局：把观察器通知合并到下一帧执行一次。
+ *
+ * 观察目标只有 `.workspace`，它的尺寸由 .editor-shell / .workspace-panel 的 grid 决定，
+ * 所以这里写的子元素尺寸不会反过来改变它 —— 这条路径不会自激成 ResizeObserver 循环。
+ * 批处理解决的是另外两件事：① 回调里是「读可用宽高 → 写画布尺寸 → 读 stageWrap
+ * 宽度」交替，挪出通知投递过程可少一轮强制布局；② 连续 resize 通知只在同帧执行一次。
+ *
+ * @returns {void}
+ */
+function syncWorkspaceLayout() {
+  if (workspaceLayoutFrameId) {
+    return;
+  }
+  workspaceLayoutFrameId = requestAnimationFrame(() => {
+    workspaceLayoutFrameId = 0;
+    resizeWorkspaceCanvas();
+    syncCustomPopupStage();
+    dashboardPreviewRenderer?.resize();
+  });
+}
+const workspaceResizeObserver = new ResizeObserver(syncWorkspaceLayout);
 workspaceResizeObserver.observe(workspaceElement);
 /**
  * 取当前编辑的页面对象。
@@ -4507,7 +4698,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260916080154";
+          ".jpg?v=20260916230552";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -13459,7 +13650,7 @@ async function waitForHaConnection(timeoutMs = 30000) {
  *   accessToken 为空时返回 null，表示沿用后端已保存的 Token。
  * @throws {Error} 要求 Token 但未填写时抛出中文提示。
  */
-function collectHaConnectionInput(requireToken = false) {
+function collectHaConnectionInput(requireToken = false, reuseTokenForNewUrl = false) {
   const haFormData = new FormData(haFormElement);
   const accessTokenInput = String(haFormData.get("accessToken") || "").trim();
   if (requireToken && !accessTokenInput) {
@@ -13469,7 +13660,13 @@ function collectHaConnectionInput(requireToken = false) {
     name: String(haFormData.get("name") || "").trim(),
     baseUrl: String(haFormData.get("baseUrl") || "").trim(),
     accessToken: accessTokenInput || null,
-    verifyTls: haFormData.get("verifyTls") === "on"
+    verifyTls: haFormData.get("verifyTls") === "on",
+    /**
+     * 换地址时是否确认「继续复用已保存的令牌」。
+     * 后端默认拒绝：地址可以被随手改掉，而旧令牌会被发到新地址去试连，
+     * 因此必须由用户显式确认（见下方 409 分支）。
+     */
+    reuseTokenForNewUrl
   };
 }
 /**
@@ -13932,10 +14129,30 @@ haFormElement.addEventListener("submit", async haSubmitEvent => {
   haSubmitButton.disabled = true;
   setSettingsMessage(haMessageElement, "正在验证并加密保存连接…");
   try {
-    haConnectionInfo = await requestJson("/ha/connection", {
-      method: "PUT",
-      body: JSON.stringify(collectHaConnectionInput(false))
-    });
+    try {
+      haConnectionInfo = await requestJson("/ha/connection", {
+        method: "PUT",
+        body: JSON.stringify(collectHaConnectionInput(false))
+      });
+    } catch (haUrlChangeError) {
+      // 409 + HA_URL_CHANGED_TOKEN_REUSE = 换了地址但要复用旧令牌：必须由用户确认
+      // 新地址可信，不能静默把令牌发过去（后端拒绝的正是这种「静默复用」）。
+      if (haUrlChangeError.code !== "HA_URL_CHANGED_TOKEN_REUSE") {
+        throw haUrlChangeError;
+      }
+      const confirmed = window.confirm(
+        "你改了 Home Assistant 地址，但仍使用已保存的令牌。\n\n" +
+          "继续保存会把旧令牌发送到新的地址去验证。只有在新地址确实是你自己的 Home Assistant 时才确认。\n\n" +
+          "也可以直接在上面的 Token 输入框里重新输入令牌。\n\n确认继续？"
+      );
+      if (!confirmed) {
+        throw new Error("已取消：请确认新地址可信，或重新输入 Token。");
+      }
+      haConnectionInfo = await requestJson("/ha/connection", {
+        method: "PUT",
+        body: JSON.stringify(collectHaConnectionInput(false, true))
+      });
+    }
     isEditingHaConnection = false;
     syncHaConnectionUi();
     if (
@@ -29233,6 +29450,28 @@ displayDevicesOpenButtonElement.addEventListener("click", openDisplayDevicesDial
 displayDevicesCloseButtonElement.addEventListener("click", () =>
   displayDevicesDialogElement.close()
 );
+sessionsOpenButtonElement.addEventListener("click", openSessionsDialog);
+sessionsCloseButtonElement.addEventListener("click", () => sessionsDialogElement.close());
+sessionsRevokeOthersButtonElement.addEventListener("click", async () => {
+  if (
+    !window.confirm(
+      "确认退出其他所有设备的登录会话？只有当前这个浏览器会保持登录，其余都需要重新输入密码。"
+    )
+  ) {
+    return;
+  }
+  sessionsRevokeOthersButtonElement.disabled = true;
+  setSettingsMessage(sessionsMessageElement, "");
+  try {
+    await requestJson("/auth/sessions", { method: "DELETE" });
+    await loadLoginSessions();
+    setSettingsMessage(sessionsMessageElement, "已退出其他所有设备的登录会话。", "success");
+  } catch (revokeOtherSessionsError) {
+    setSettingsMessage(sessionsMessageElement, revokeOtherSessionsError.message, "error");
+  } finally {
+    sessionsRevokeOthersButtonElement.disabled = false;
+  }
+});
 displayPairingCustomCodeTextInputElement.addEventListener("input", () => {
   displayPairingCustomCodeTextInputElement.value = displayPairingCustomCodeTextInputElement.value
     .replace(/\D/g, "")

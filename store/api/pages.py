@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import secrets
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, status
@@ -16,7 +17,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy import select, update
 
 from store import coupons, fulfill, site_settings as site_config
-from store.deps import DbSession
+from store.deps import CurrentAccount, DbSession
 from store.models import Order, Product
 from store.order_status import order_status_label
 from store.payments.base import PaymentError
@@ -88,8 +89,13 @@ def product_image(product_id: str, request: Request, session: DbSession) -> File
     if image is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="商品图不存在。")
     folder: Path = request.app.state.settings.product_images_dir
-    target = (folder / image.path).resolve()
-    if not str(target).startswith(str(folder.resolve())) or not target.exists():
+    root = folder.resolve()
+    target = (root / image.path).resolve()
+    # 目录边界必须按**路径段**判断，不能用字符串前缀：``/data/images`` 与
+    # ``/data/images-backup`` 前缀相同，字符串比较会把后者一并放行，于是库里一条
+    # 脏 ``path``（历史数据、被改过的行）就能读到商品图目录之外的任意文件。
+    # 另外必须要求是**文件**：目录也能通过 exists()，交给 FileResponse 会炸。
+    if target == root or root not in target.parents or not target.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="商品图不存在。")
     return FileResponse(target, headers={"Cache-Control": "public, max-age=86400"})
 
@@ -108,9 +114,9 @@ def _cashier_html(order: Order, product: Product | None) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>模拟收银台 · {payload['orderNo']}</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260916013557">
-<link rel="stylesheet" href="/store-static/store.css?v=20260916013557">
-<link rel="icon" href="/store-static/favicon-rounded.png?v=20260916013557">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260916230552">
+<link rel="stylesheet" href="/store-static/store.css?v=20260916230552">
+<link rel="icon" href="/store-static/favicon-rounded.png?v=20260916230552">
 </head>
 <body>
 <div class="hb-cashier">
@@ -168,9 +174,32 @@ cancelButton.addEventListener('click', () => act('cancel'));
 
 
 @router.get("/store/mock/pay/{order_no}", include_in_schema=False)
-def mock_cashier(order_no: str, request: Request, session: DbSession) -> HTMLResponse:
+def mock_cashier(
+    order_no: str,
+    request: Request,
+    session: DbSession,
+    account: CurrentAccount,
+    token: str | None = None,
+) -> HTMLResponse:
+    """模拟收银台页面。
+
+    **必须带订单凭证**（``?token=``）或者是该订单所属账号已登录。这个页面会把
+    ``lookupToken`` 写进 HTML 供页面里的按钮调用 ``mock/pay``，而订单号是可枚举
+    的 —— 形如 ``HB-20260916214500-<邮箱前缀>``，只差「哪一秒下单」。过去页面
+    无鉴权，任何人凑出一个订单号就能拿到那张「免付款发码」的凭证。
+
+    ``?token=`` 是主路径（二维码是拿手机扫的，扫码方没有登录态）；登录态兜底
+    只是为了让升级前落库、``payment_payload_json`` 里还没有 token 的旧订单，
+    在账号中心点「继续支付」时不至于打到 404。
+    """
     order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
     if order is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
+    authorized = bool(token) and secrets.compare_digest(
+        str(token), order.lookup_token or ""
+    )
+    if not authorized and not (account is not None and order.account_id == account.id):
+        # 与「订单不存在」返回同一个状态码：不给「这个单号存在」的旁路信息
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
     product = session.get(Product, order.product_id) if order.product_id else None
     return HTMLResponse(_cashier_html(order, product), headers={"Cache-Control": "no-store"})
@@ -184,7 +213,10 @@ def _order_or_404(session, order_no: str) -> Order:
 
 
 def _authorize_mock(order: Order, order_token: str | None) -> None:
-    if not order_token or order_token != order.lookup_token:
+    """校验订单凭证。用常量时间比较：这是可以换取「免费发码」的 bearer 凭证，
+    普通 ``!=`` 会在第一个不同的字符上短路，泄漏出可被逐字节爆破的时间差。"""
+    candidate = str(order_token or "")
+    if not candidate or not secrets.compare_digest(candidate, order.lookup_token or ""):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="订单凭证不正确。")
 
 
@@ -261,7 +293,7 @@ def mock_cancel(order_no: str, request: Request, session: DbSession, payload: di
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
         )
-    fulfill.release_reserved_stock(session, product, 1)
+    fulfill.release_order_reservation(session, order=order, product=product)
     # 收银台取消同样要归还优惠码名额，否则 redeemed_count 只增不减，
     # 名额被永久占用（该列参与 max_redemptions 校验）。
     coupons.release_coupon(session, order)

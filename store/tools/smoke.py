@@ -13,6 +13,8 @@
 7. 管理后台停用设备绑定 → 心跳返回「确认吊销」错误
 8. 解绑冷却 → 冷却期内无法重新绑定
 9. 未设置 APP_LICENSE_* 时默认自包含地指向自建授权服务器，且生产残留为零（静态断言）
+10. 主应用首次初始化的守卫：远程来源必须带引导密钥，本机直连放行，猜密钥会被限流，
+    初始化成功后密钥立即作废（并静态钉住 authorize 排在 argon2 之前）
 
 全部使用临时目录，不会污染 store/data 与 keys/。
 """
@@ -22,18 +24,24 @@ from __future__ import annotations
 import asyncio
 import base64
 import importlib.util
+import json
 import logging
 import os
 import re
 import shutil
+import socket
+import stat
 import subprocess
 import sys
 import tempfile
 import time
 import traceback
+import warnings
+import types
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
+from uuid import uuid4
 
 import httpx
 from cryptography.hazmat.primitives import hashes, serialization
@@ -47,7 +55,8 @@ from cryptography.hazmat.primitives.serialization import (
 from sqlalchemy import Column, MetaData, String, inspect, select
 
 from store.app import create_app
-from store.config import STORE_ROOT, load_settings
+from store.config import STORE_ROOT, StoreSettings, load_settings
+from store import site_settings as site_config
 from store.database import Base, create_store_engine
 from store.models import (
     Account,
@@ -57,6 +66,7 @@ from store.models import (
     CouponRedemption,
     Customer,
     DeviceBinding,
+    Entitlement,
     License,
     Order,
     Product,
@@ -67,6 +77,9 @@ from store.models import (
 )
 from store.order_status import ORDER_STATUS_LABELS
 from store.payments import alipay as alipay_module
+from store.payments import resolve_provider
+from store.payments.base import PaymentError, RefundResult
+from store.payments.mock import MockPaymentProvider
 from store.payments.sweeper import (
     configure_sweep_loop,
     mark_sweep_loop_stopped,
@@ -75,7 +88,8 @@ from store.payments.sweeper import (
 )
 from store.payments import sweeper as sweeper_module
 from store.security import hash_password, token_hash, utcnow
-from store.tools.seed import seed_products, seed_release, seed_settings
+from store.serializers import list_json
+from store.tools.seed import seed_admin, seed_products, seed_release, seed_settings
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CLIENT_CRYPTO_PATH = PROJECT_ROOT / "backend" / "app" / "license" / "crypto.py"
@@ -772,6 +786,621 @@ def check_admin_dom_bindings() -> None:
     )
 
 
+def check_admin_console_resilience() -> None:
+    """后台脚本里那些「出错时界面看不出异常」的地方。
+
+    这一组断言盯的都不是功能缺失，而是**失败被伪装成别的状态**：
+
+    1. 把「数据加载失败」当成「未登录」：运营会反复重输密码，而后端挂了这件事
+       没有任何出口；登录动作成功但数据没拉到时还照样提示「已登录后台」，比
+       不提示更糟 —— 他会在空列表上操作。
+    2. 站点配置读不到时表单是空的，此时保存等于用一次读取失败把支付渠道清空、
+       把「启用支付」关掉，而界面显示「保存成功」。所以必须有一道显式闸门。
+    3. 清理弹窗只有「取消」按钮这条路会 resolve：按 Esc 关闭时等待方永远挂着。
+    4. 调账弹窗在发请求**之前**就关窗清 resolver，接口一失败输入就没了。
+    5. 分页/筛选的乱序响应覆盖新数据，表现为「筛选偶尔没生效」。
+    6. 死按钮（有 id、无监听）与永远不会执行的分支。
+
+    这些都是「点下去也有反应，只是反应错了」的类型，静态检查是唯一能在
+    不改数据的情况下把它们钉住的手段。
+    """
+    html = (STORE_ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+
+    check(
+        "bootstrap 区分「未登录」与「加载失败」（后者不能静默退回登录页）",
+        "async function resolveAdminSession()" in html
+        and "showLogin(error.message)" in html
+        and "Promise.allSettled" in html,
+        "resolveAdminSession + 带原因的 showLogin + allSettled",
+    )
+    # 反方向的一类：把**正常状态**伪装成故障。服务端 /auth/me 在无会话时返回
+    # 401「请先登录。」；若无条件包装成「无法确认登录状态：…」交给 showLogin()，
+    # 每个未登录的访客一打开 /admin 就先看到一条红框报错，而不是一张干净的登录页。
+    # 但也不能反过来把 401 和 5xx 一起吞掉 —— 那会让「后端挂了」变成「你没登录」。
+    check(
+        "401（未登录）按正常状态处理：不弹登录页报错",
+        re.search(r"if \(error\.status === 401\) \{?\s*\n?\s*return null", html) is not None
+        and html.count("error.status === 401") >= 2,
+        f"命中 {html.count('error.status === 401')} 处 401 分支（/auth/me 与 /overview 各一处）",
+    )
+    check(
+        "错误对象带上 HTTP 状态码（否则调用方只能靠文案猜，改文案即失效）",
+        "function httpError(response, data)" in html and "error.status = response.status" in html,
+        "httpError 会写入 response.status",
+    )
+    check(
+        "非 401 的故障仍然照实报出来（5xx / 断网不能静默退回登录页）",
+        "无法确认登录状态：${error.message}" in html,
+        "保留带原因的兜底抛出",
+    )
+    check(
+        "登录成功后按实际加载结果提示（不再无条件说「已登录后台」）",
+        "announce" in html and "toast('已登录后台')" in html and "failed.length" in html,
+        "按 failed 计数分流",
+    )
+    check(
+        "未确认登录态时不去加载面板（否则登录页会被一串 401 的失败提示淹掉）",
+        re.search(r"bootstrap\(\)\.then\(loggedIn => \{\s*\n\s*if \(loggedIn && loaders\[initial\.page\]\)", html)
+        is not None,
+        "初次 activate 以 bootstrap 的返回值为准",
+    )
+
+    # —— 站点配置的保存闸门 ——
+    check(
+        "站点配置有「读到了吗」闸门：读失败时禁止保存",
+        "function setSettingsLoadState(" in html
+        and "state.settingsLoaded = phase === 'ready'" in html
+        and "if (!state.settingsLoaded)" in html,
+        "setSettingsLoadState + 提交处二次校验",
+    )
+    check(
+        "站点配置读取失败时会说明原因（而不是留一个空表单）",
+        "setSettingsLoadState('error', error.message)" in html
+        and "settings-load-status" in html,
+        "错误写入状态芯片并抛出",
+    )
+
+    # —— 接口错误的人话化 ——
+    # 收口改到了 httpError：两个请求函数（api / storeApi）都要走它，它内部把结构化
+    # detail 压成人话并带上状态码。所以断言要盯「两处都调了 httpError」，而不是盯
+    # 某一行字面量出现的次数 —— 后者会被一次正常重构改坏（这条断言本身就这么坏过一次）。
+    check(
+        "422 的结构化 detail 会被压成可读文案（否则 toast 是 [object Object]）",
+        "function describeApiError(" in html
+        and "describeApiError(data && data.detail)" in html
+        and html.count("throw httpError(response, data)") >= 2,
+        f"describeApiError 收口在 httpError；非 ok 响应走 httpError 的有 "
+        f"{html.count('throw httpError(response, data)')} 处（api + storeApi）",
+    )
+
+    # —— 弹窗生命周期 ——
+    check(
+        "清理弹窗在 close 事件里收口（Esc 关闭不再让 await 永远挂着）",
+        "purgeDialog.addEventListener('close'" in html,
+        "有 close 监听" if "purgeDialog.addEventListener('close'" in html else "缺 close 监听",
+    )
+    adjust_block = re.search(r"\$\('#adjust-ok'\)\.addEventListener.*?\n\}\);", html, re.DOTALL)
+    adjust_body = adjust_block.group(0) if adjust_block else ""
+    # 找的是语句本身（带分号）：注释里也会出现 settleAdjust(null) 这个词
+    api_at = adjust_body.find("await api(")
+    settle_at = adjust_body.find("settleAdjust(null);")
+    check(
+        "调账成功后才关窗（失败时保留刚填的金额与备注）",
+        bool(adjust_body) and api_at != -1 and settle_at > api_at,
+        f"api at {api_at} / settleAdjust at {settle_at}",
+    )
+
+    # —— 在途请求的竞态守卫 ——
+    check(
+        "分页/筛选有请求序号守卫（旧响应不覆盖新数据）",
+        "const latestRequest = {}" in html
+        and "if (seq !== cursor.seq) return null;" in html
+        and "while (latestRequest[key] && latestRequest[key].seq !== entry.seq)" in html,
+        "序号 + 以最新一次为准",
+    )
+
+    # —— 死按钮与死分支 ——
+    for button_id in ("coupon-refresh", "release-refresh"):
+        check(
+            f"#{button_id} 已接线（有 id 无监听的按钮点下去毫无反应）",
+            f"$('#{button_id}').addEventListener" in html,
+            "已有监听" if f"$('#{button_id}').addEventListener" in html else "缺少监听",
+        )
+    dead_branch_leftovers = [
+        token
+        for token in ('data-account-off="', 'data-account-on="', "dataset.accountOff", "dataset.accountOn")
+        if token in html
+    ]
+    check(
+        "已删除的账号停用/启用死分支不再出现（模板里没有 data-account-off）",
+        not dead_branch_leftovers,
+        f"残留: {dead_branch_leftovers}" if dead_branch_leftovers else "无残留",
+    )
+    state_block = re.search(r"const state = \{(.*?)\n\};", html, re.DOTALL)
+    state_body = state_block.group(1) if state_block else ""
+    check(
+        "state 里没有只写不读的槽位",
+        bool(state_body)
+        and "orders:" not in state_body
+        and "withdrawals:" not in state_body
+        and "bindings:" not in state_body
+        and "ledger:" not in state_body
+        and "account:" not in state_body,
+        ", ".join(
+            slot for slot in ("orders:", "withdrawals:", "bindings:", "ledger:", "account:")
+            if slot in state_body
+        ) or "已是精简集合",
+    )
+
+    # —— 清理天数必须是整数（小数会被 FastAPI 拦成英文 422） ——
+    check(
+        "审计清理与诊断清理都要求整数天（3.5 天会触发英文 422）",
+        html.count("Number.isInteger(days)") >= 2,
+        f"出现 {html.count('Number.isInteger(days)')} 处",
+    )
+
+    # —— 状态文案必须与后端逐一对应 ——
+    # 前端缺一个 key 不会报错，只会把 snake_case 原样显示在徽标里
+    # （``partially_refunded`` 就是这么漏出去的）；漏斗同理，缺色相就退回域色，
+    # 看不出「这一条是终态」。
+    labels_block = re.search(r"const ORDER_STATUS = \{(.*?)\n\};", html, re.DOTALL)
+    hues_block = re.search(r"const STATUS_HUES = \{(.*?)\n\};", html, re.DOTALL)
+    labels = set(re.findall(r"(\w+):", labels_block.group(1))) if labels_block else set()
+    hues = set(re.findall(r"(\w+):", hues_block.group(1))) if hues_block else set()
+    expected = set(ORDER_STATUS_LABELS)
+    check(
+        "订单状态的文案与色相映射覆盖后端全部状态码",
+        labels == expected and hues == expected,
+        f"后端 {len(expected)} 个 / 文案缺 {sorted(expected - labels)} / 色相缺 {sorted(expected - hues)}",
+    )
+
+
+def check_admin_tab_bindings() -> None:
+    """后台标签页（tab）的静态契约。
+
+    后台把 15 个面板里的 10 个按「列表 / 表单 / …」拆成了 tab。这类重构的特点是
+    **改错了界面也不报错**，只是有一块内容从此再也点不出来：
+
+    1. ``[data-tab]`` 写了、对应的 ``[data-tab-pane]`` 忘了写（或 key 拼错一个字母）：
+       那个标签点下去是**一整片空白**，而且因为没有异常，控制台也干干净净。
+    2. 反过来，pane 的 key 没登记进标签条：内容永远 hidden，等于功能下线。
+    3. ``data-domain`` 拼错（``licensing`` → ``license``）：CSS 里没有这条映射，
+       整块静默退回默认琥珀，五色编码当场失效，而页面上看不出「错」。
+    4. 面板与侧栏分组的域色必须一致 —— 导航把「订单」染成琥珀、点进去面板却是青的，
+       会让人怀疑自己点错了菜单。
+    5. 编辑器回到 ``.hidden = false`` 的老写法：表单在 DOM 里可见了，但用户停在
+       列表 tab 上就是看不到，表现为「点编辑没反应」。所以显隐必须走
+       showEditor / hideEditor。
+
+    浏览器逐页点一遍当然能发现，但那需要人工、而且只在有人真的去点的时候才发生。
+    这里是同一份契约的静态版本，改坏立刻 FAIL。
+    """
+    html = (STORE_ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+    css = (STORE_ROOT / "static" / "admin.css").read_text(encoding="utf-8")
+
+    # —— 面板切分：每片从 <section> 开头切到它自己的 </section> ——
+    # 不能切到「下一个面板开头」：最后一个面板会一路吃到 <script>，
+    # 把 JS 注释里的 [data-tab-pane="key"] 当成真面板的 pane（假 FAIL）。
+    marks = list(
+        re.finditer(
+            r'<section class="admin-panel[^"]*" id="panel-([\w-]+)" data-domain="([\w-]+)">',
+            html,
+        )
+    )
+    panels: dict[str, dict[str, object]] = {}
+    for mark in marks:
+        close = html.find("\n    </section>", mark.end())
+        body = html[mark.end(): close if close != -1 else len(html)]
+        panels[mark.group(1)] = {
+            "domain": mark.group(2),
+            "tabs": re.findall(r'data-tab="([\w-]+)"', body),
+            "panes": re.findall(r'data-tab-pane="([\w-]+)"', body),
+            "strips": body.count("data-tab-strip"),
+        }
+
+    check(
+        "每个 admin-panel 都声明了 data-domain（域色编码靠它，漏一个就退回琥珀）",
+        len(panels) == 15 and all(p["domain"] for p in panels.values()),
+        f"解析到 {len(panels)} 个面板",
+    )
+
+    # 标签条与内容必须一一对上：方向 A 防「点了空白」，方向 B 防「内容永远看不到」
+    orphans = sorted(
+        f"{page}:{key}" for page, p in panels.items()
+        for key in set(p["panes"]) - set(p["tabs"])
+    )
+    empty_tabs = sorted(
+        f"{page}:{key}" for page, p in panels.items()
+        for key in set(p["tabs"]) - set(p["panes"])
+    )
+    check(
+        "每个 tab 都有内容、每块内容都登记进了标签条（两个方向都要对）",
+        not orphans and not empty_tabs,
+        (f"无主的 pane: {orphans} / 空标签: {empty_tabs}") if (orphans or empty_tabs)
+        else f"共核对 {sum(len(set(p['tabs'])) for p in panels.values())} 个 tab",
+    )
+
+    # 一个面板只能有一个标签条：collectTabs 只取第一个 [data-tab-strip]，
+    # 出现第二个的话它下面的 tab 永远不会被初始化（点了也没反应）。
+    multi = sorted(page for page, p in panels.items() if p["strips"] > 1)
+    check(
+        "每个面板最多一个标签条（collectTabs 只认第一个，第二个等于死的）",
+        not multi,
+        f"多标签条: {multi}" if multi else "无",
+    )
+
+    # 重复的 tab key 会让 setTab 只能命中最前面那个（同一 key 的多 pane 是允许的，
+    # 但按钮只会有一个）
+    dup = sorted(
+        f"{page}:{key}" for page, p in panels.items()
+        for key in set(p["tabs"]) if p["tabs"].count(key) > 1
+    )
+    check("同一个面板里 tab 按钮不重复", not dup, f"重复: {dup}" if dup else "无重复")
+
+    tabbed = sorted(page for page, p in panels.items() if p["tabs"])
+    check(
+        "至少 10 个面板已按清单拆出 tab（回退成单页会在这里露出来）",
+        len(tabbed) >= 10,
+        f"{len(tabbed)} 个面板有 tab: {tabbed}",
+    )
+
+    # —— 域色映射：标记里的每个 domain 都必须在 CSS 里有规则，否则静默退回默认色 ——
+    nav_at = html.find('<nav class="admin-nav"')
+    nav_end = html.find("</nav>", nav_at)
+    nav_html = html[nav_at: nav_end] if nav_at != -1 and nav_end != -1 else ""
+    nav_groups = re.findall(r'data-nav-group="([\w-]+)" data-domain="([\w-]+)"', nav_html)
+    declared = {str(p["domain"]) for p in panels.values()} | {domain for _, domain in nav_groups}
+    styled = set(re.findall(r'\[data-domain="([\w-]+)"\]', css))
+    missing = sorted(declared - styled)
+    check(
+        "data-domain 的取值都在 admin.css 里有色相映射（拼错会静默退回琥珀）",
+        not missing,
+        f"缺映射: {missing}" if missing else f"共核对 {sorted(declared)}",
+    )
+    unpainted = sorted(
+        domain for domain in styled
+        if not re.search(
+            r'\[data-domain="%s"\][^{]*\{[^}]*--a-tint-h' % re.escape(domain), css
+        )
+    )
+    check(
+        "每条域色规则都真的给了 --a-tint-h（只写选择器不写色相等于没写）",
+        not unpainted,
+        f"未设色相: {unpainted}" if unpainted else "均已声明色相",
+    )
+
+    # —— 面板域色必须与它所在侧栏分组的域色一致 ——
+    group_of: dict[str, str] = {}
+    group_marks = list(re.finditer(r'data-nav-group="([\w-]+)" data-domain="([\w-]+)"', nav_html))
+    for index, mark in enumerate(group_marks):
+        end = group_marks[index + 1].start() if index + 1 < len(group_marks) else len(nav_html)
+        for page in re.findall(r'data-admin-page="([\w-]+)"', nav_html[mark.end():end]):
+            group_of[page] = mark.group(2)
+    mismatched = sorted(
+        f"{page}: 面板 {panels[page]['domain']} ≠ 分组 {group_of[page]}"
+        for page in panels
+        if page in group_of and group_of[page] != panels[page]["domain"]
+    )
+    check(
+        "面板域色与侧栏分组域色一致（导航与内容不同色会让人以为点错了菜单）",
+        len(group_of) == len(panels) and not mismatched,
+        f"导航覆盖 {len(group_of)}/{len(panels)} 个面板"
+        + (f" / 不一致: {mismatched}" if mismatched else ""),
+    )
+
+    # —— tab 控制器本身 ——
+    for symbol in ("collectTabs", "setTab", "revealTabFor", "showEditor", "hideEditor", "parseHash"):
+        check(
+            f"tab 控制器 {symbol}() 存在（标记里有 tab，但没人切就等于没有）",
+            f"function {symbol}(" in html,
+        )
+    check(
+        "tab 用 hidden 属性切显隐并同步 aria-selected / roving tabindex",
+        "pane.hidden = !on" in html
+        and 'aria-selected' in html
+        and "item.button.tabIndex = on ? 0 : -1" in html,
+    )
+    check(
+        "深链支持 #page/tab（parseHash 按 / 拆分，且同面板内换 tab 不重拉数据）",
+        "function parseHash()" in html
+        and "location.hash || '').replace(/^#/, '').split('/')" in html
+        and re.search(r"setTab\(page, tab, \{ push: true \}\);", html) is not None,
+    )
+
+    # 编辑器显隐必须走 showEditor / hideEditor：直接写 .hidden 会让表单「可见但不在
+    # 当前 tab 上」，从用户视角就是「点了没反应」。
+    writes = re.findall(r"\$\('#([\w-]+)'\)\.hidden = (?:true|false)", html)
+    editor_writes = sorted(name for name in writes if name.endswith("-editor"))
+    check(
+        "编辑器显隐全部走 showEditor/hideEditor（直接写 .hidden 会切不到表单所在 tab）",
+        not editor_writes,
+        f"直接赋值: {editor_writes}" if editor_writes else "无直接赋值",
+    )
+    check(
+        "showEditor 会顺带切到表单所在的 tab",
+        re.search(
+            r"function showEditor\(selector\) \{.*?revealTabFor\(node\);", html, re.DOTALL
+        ) is not None,
+    )
+
+    # 「按需出现」的表单 tab 靠 id 后缀 ``-editor`` 认出来（collectTabs 里
+    # `[id$="-editor"]`）。把编辑器改个名字不会报错，后果是那个 tab 永远留在
+    # 标签条上、点下去一片空白 —— 所以这里把识别标记钉住：编辑器必须在某个
+    # [data-tab-pane] 里面（按 key 切块后能落到某一块里），且一个都不能少。
+    chunks: list[str] = []
+    for mark in marks:
+        close = html.find("\n    </section>", mark.end())
+        body = html[mark.end(): close if close != -1 else len(html)]
+        parts = re.split(r'data-tab-pane="[\w-]+"', body)
+        chunks.extend(parts[1:])
+    editor_ids = re.findall(r'\bid="([\w-]+-editor)"', html)
+    stray = sorted(name for name in editor_ids if not any(f'id="{name}"' in chunk for chunk in chunks))
+    check(
+        "每个编辑器都在 admin-tab-pane 里（按需 tab 靠 -editor 后缀识别，改名会让空表单页常驻）",
+        len(editor_ids) >= 8 and not stray,
+        f"{len(editor_ids)} 个编辑器"
+        + (f" / 不在 tab pane 里: {stray}" if stray else f": {sorted(editor_ids)}"),
+    )
+
+
+def check_admin_grid_tab_layout() -> None:
+    """表单栅格里的标签条与 pane 必须独占整行，且 pane 内再排一遍同样的网格。
+
+    站点配置是**唯一**把标签条与 pane 放进 ``<form class="admin-grid …">`` 的面板
+    （模板注释里写了为什么必须留在 form 内：字段列宽是按 form 的 210px 推的）。
+    在 grid 里这两者都成了网格项，于是缺了 CSS 就会是：
+
+      · 标签条被压进第一列（218px），五个标签挤到要横滑；
+      · 整个 pane 只占第二列（218px），里面的字段一列到底。
+
+    页面上看着像「布局乱成一团」，而 DOM 合法、控制台无话、所有既有断言通过 ——
+    正是必须写死一条断言的那类回归。
+
+    另外两条同样是静默的：
+
+      · pane 内的字段列宽下限必须**与所在 form 同一个口径**，否则字段的换行点
+        与邻居不同（``check_field_label_fit`` 是按 form 的下限算的，两边不一致时
+        它还照样 PASS）。
+      · 给 pane 写 ``display`` 的规则必须带 ``:not([hidden])``：本文件里
+        ``.admin-tab-pane[hidden] { display: none }`` 的优先级与它完全相同，胜负
+        只看源码顺序 —— 晚写的 ``display: grid`` 会让五个 pane 的字段同时铺出来。
+    """
+    html = (STORE_ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+    css = (STORE_ROOT / "static" / "admin.css").read_text(encoding="utf-8")
+
+    def rules_of(text: str) -> list[tuple[str, str]]:
+        """把样式表拆成 (选择器, 声明块) —— 选择器与声明都压成单行便于比对。
+
+        先去掉注释：注释紧贴规则时会被 ``[^{}]+`` 一起吃进选择器，
+        于是 ``sel == ".admin-grid > .admin-tabs"`` 这类精确比对全部落空。
+        """
+        stripped = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
+        return [
+            (re.sub(r"\s+", " ", sel).strip(), re.sub(r"\s+", " ", body).strip())
+            for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", stripped)
+            if "@" not in sel
+        ]
+
+    rules = rules_of(css)
+
+    def floor_of(selector: str) -> str:
+        """取某个栅格规则的列宽下限（``repeat(auto-fit, minmax(NNNpx, 1fr))``）。"""
+        for sel, body in rules:
+            if sel == selector:
+                match = re.search(r"minmax\((\d+)px, 1fr\)", body)
+                if match:
+                    return match.group(1)
+        return ""
+
+    # —— 找出「pane 落在栅格表单里」的那些 form ——
+    gridded: list[tuple[str, int]] = []
+    for match in re.finditer(
+        r'<form\b[^>]*id="([\w-]+)"[^>]*class="([^"]*\badmin-grid\b[^"]*)"', html
+    ):
+        close = html.find("</form>", match.end())
+        body = html[match.end(): close if close != -1 else len(html)]
+        if "admin-tab-pane" not in body:
+            continue
+        floor = floor_of(".admin-grid--wide") if "admin-grid--wide" in match.group(2) else floor_of(".admin-grid")
+        gridded.append((match.group(1), int(floor or 0)))
+
+    check(
+        "站点配置的标签条与 pane 在表单栅格里独占整行（缺了这条标签条会被压进第一列）",
+        bool(gridded)
+        and any(
+            sel.split(",")[0].strip() == ".admin-grid > .admin-tabs"
+            and "grid-column: 1 / -1" in body
+            for sel, body in rules
+        )
+        and any(
+            ".admin-grid > .admin-tab-pane" in sel and "grid-column: 1 / -1" in body
+            for sel, body in rules
+        ),
+        f"含 pane 的栅格表单: {gridded}",
+    )
+
+    # pane 自己那一层的列宽下限必须与 form 同口径（否则字段换行点不一致）
+    mismatched = [
+        f"{name}:{floor}px"
+        for name, floor in gridded
+        if not any(
+            ".admin-tab-pane" in sel and f"minmax({floor}px, 1fr)" in body
+            for sel, body in rules
+        )
+    ]
+    check(
+        "pane 内字段的列宽下限与所在 form 一致（不一致时字段换行点与邻居不同）",
+        not mismatched,
+        f"对不上: {mismatched}" if mismatched else str(gridded),
+    )
+
+    # 给 pane 写 display 的规则必须避开 [hidden]（优先级相同，靠源码顺序定胜负）
+    unguarded = sorted(
+        sel
+        for sel, body in rules
+        if ".admin-tab-pane" in sel
+        and re.search(r"(?<![\w-])display\s*:", body)
+        and ":not([hidden])" not in sel
+        and "[hidden]" not in sel
+    )
+    check(
+        "给 pane 写 display 的规则都避开了 [hidden]（否则隐藏的 pane 会被一起显示）",
+        not unguarded,
+        f"缺 :not([hidden]): {unguarded}" if unguarded else "均已收口",
+    )
+
+
+def check_admin_inline_script_parses() -> None:
+    """admin.html 的内联脚本必须能通过语法检查。
+
+    这一条是**事故复盘**加上的：给 tab 控制器加函数时，粘贴进来的片段里混进了
+    ``  2090|`` 这样的行号前缀（从带行号的代码视图里复制的结果）。整段内联脚本
+    因此解析失败，浏览器里**什么都不执行**——登录按钮点了没反应、面板一块都不显示、
+    控制台只有一条语法错误。而所有静态断言照样通过：元素 id 都在、函数名都在
+    （语法错误的文件里文本仍然存在），连 HTML 都是完好的。
+
+    「整段脚本静默失效」是后台最严重的一类故障，必须有一条真正解析一遍的检查。
+    优先用 ``node --check``（与浏览器同一个引擎家族的解析器）；没有 node 时退化为
+    行号前缀的静态检查，至少能拦住这次的真实成因。
+    """
+    html = (STORE_ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+
+    # 无 node 也能跑的兜底：正文里不该出现「数字 + 竖线」的行首（行号前缀）
+    artifacts = [
+        line.strip()
+        for line in html.splitlines()
+        if re.match(r"^\s{1,8}\d+\|", line)
+    ]
+    check(
+        "模板正文里没有行号前缀残留（`  1234|` 会让整段内联脚本语法错误）",
+        not artifacts,
+        f"残留 {len(artifacts)} 处: {artifacts[:3]}" if artifacts else "无残留",
+    )
+
+    inline = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.DOTALL)
+    check(
+        "admin.html 有且只有一段内联脚本（拆成多段会踩到暂时性死区）",
+        len(inline) == 1,
+        f"内联脚本 {len(inline)} 段",
+    )
+    if not inline:
+        return
+
+    node = shutil.which("node")
+    if node is None:
+        check("跳过 node --check（环境里没有 node，仅做了行号残留检查）", True, "node 不可用")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        script = Path(tmp) / "admin-inline.js"
+        script.write_text(inline[0], encoding="utf-8")
+        proc = subprocess.run(
+            [node, "--check", str(script)], capture_output=True, text=True, timeout=60
+        )
+    detail = (proc.stderr or proc.stdout).strip().splitlines()
+    check(
+        "admin.html 内联脚本通过 node --check（解析失败等于整个后台静默失效）",
+        proc.returncode == 0,
+        "语法通过" if proc.returncode == 0 else " / ".join(detail[:3]),
+    )
+
+
+def check_admin_login_no_prefill() -> None:
+    """后台登录页必须是**空白**表单，且不邀请浏览器/密码管理器替我们填。
+
+    背景：``/admin`` 的输入框以前写的是 ``autocomplete="username"`` /
+    ``"current-password"`` —— 这两个值本身就是给密码管理器的「请填这里」的信号
+    （它们正是「登录表单」的标准语义）。在一台被借用过的机器上打开后台，账号与
+    密码已经填好，点一下「登录后台」就进去了，等于把最高权限的入口白送出去。
+
+    三处一起守，缺一处都可能漏：
+      1. 模板里没有任何写死的 ``value``（服务端也不注入默认账号）；
+      2. 属性层压住自动填充（表单 ``autocomplete="off"``、密码框 ``new-password``
+         ——Chrome/Safari 对 password 字段会忽略 ``off``——以及 LastPass / 1Password
+         / Bitwarden 各自的忽略标记，这些扩展不看 ``autocomplete``）；
+      3. 脚本里保留「加载后清空」的兜底：部分浏览器与扩展是在 ``DOMContentLoaded``
+         之后才灌值的，属性层拦不住。
+    """
+    html = (STORE_ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+
+    # 只截登录表单这一段：后台里还有别的 email / password 输入框（账号编辑、邮箱
+    # 测试、支付宝密钥），拿整份模板去找属性会张冠李戴。
+    match = re.search(r'<form id="admin-login-form".*?</form>', html, re.DOTALL)
+    if not check(
+        "admin.html 里能找到登录表单 form#admin-login-form",
+        match is not None,
+        "未找到" if match is None else "已定位",
+    ):
+        return
+    form = match.group(0)
+
+    # 1. 不许有写死的值
+    hardcoded = re.findall(r'<input\b[^>]*\bvalue="([^"]*)"', form)
+    check(
+        "登录表单里没有写死的默认账号/口令（value 属性）",
+        not hardcoded,
+        f"发现写死的 value: {hardcoded}" if hardcoded else "无",
+    )
+
+    # 2. 属性层：表单关掉自动填充
+    form_off = re.search(r'<form id="admin-login-form"[^>]*\bautocomplete="off"', form) is not None
+    check(
+        '登录表单声明 autocomplete="off"',
+        form_off,
+        "已声明" if form_off else 'form 上没有 autocomplete="off"',
+    )
+
+    # 3. 属性层：两个输入框各自的写法。不用「邀请填充」的那两个值。
+    email_tag = re.search(r'<input\b[^>]*\bname="email"[^>]*>', form)
+    password_tag = re.search(r'<input\b[^>]*\bname="password"[^>]*>', form)
+    if not check(
+        "登录表单的 email / password 输入框都还在",
+        email_tag is not None and password_tag is not None,
+        "" if email_tag is not None and password_tag is not None else "少了输入框",
+    ):
+        return
+    email_html, password_html = email_tag.group(0), password_tag.group(0)
+
+    inviting = [
+        value
+        for value in ('autocomplete="username"', 'autocomplete="current-password"')
+        if value in email_html or value in password_html
+    ]
+    check(
+        "登录框不再用 username / current-password（那是邀请密码管理器填充的信号）",
+        not inviting,
+        f"仍有: {inviting}" if inviting else "无",
+    )
+    password_new = 'autocomplete="new-password"' in password_html
+    check(
+        '密码框用 autocomplete="new-password"（password 字段会忽略 "off"）',
+        password_new,
+        "已使用" if password_new else f'password 框写成: {password_html}',
+    )
+    lp_ignored = all('data-lpignore="true"' in tag for tag in (email_html, password_html))
+    check(
+        "两个输入框都带扩展忽略标记（data-lpignore，1Password/Bitwarden 同样）",
+        lp_ignored,
+        "均已带" if lp_ignored else f"email={email_html} password={password_html}",
+    )
+
+    # 4. 脚本兜底：加载后清空，并且在用户自己动过表单之后停手
+    has_clear = (
+        "function clearAutofilledLogin" in html
+        and "window.addEventListener('pageshow', clearAutofilledLogin)" in html
+    )
+    check(
+        "脚本里有加载后清空自动填充的兜底（clearAutofilledLogin）",
+        has_clear,
+        "已定义并在 pageshow 上调用" if has_clear else "缺少 clearAutofilledLogin 或它的 pageshow 调用",
+    )
+    has_touched = "loginFormTouched = true" in html
+    check(
+        "清空逻辑在用户交互后停手（不抹掉正在输入的内容）",
+        has_touched,
+        "有交互标记" if has_touched else "缺少 loginFormTouched 交互标记",
+    )
+
+
 def check_account_meta_chip_tokens() -> None:
     """账号中心芯片：变体必须写在 theme.css 里，且 store.js 必须带上语义类。
 
@@ -1047,6 +1676,48 @@ def check_alipay_signing() -> None:
     )
 
 
+def check_alipay_sign_type_guard() -> None:
+    """``sign_type`` 只能是 RSA2。
+
+    签名实现写死了 SHA256withRSA（也就是支付宝说的 RSA2），而 ``sign_type`` 是
+    可以配的：配成 ``RSA`` 时请求会**声明** RSA、签名却是 RSA2 的 —— 网关按 SHA1
+    去验一份 SHA256 签名，只回一句笼统的「验签失败」。这种配置错误的代价是
+    「每一笔支付都失败」而报错里看不出原因，所以必须在下单前就拒绝。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-sign-type-"))
+    keys = _alipay_test_keys(workdir)
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        alipay_app_id="2021000000000000",
+        alipay_app_private_key_path=str(keys["app_private"]),
+        alipay_public_key_path=str(keys["alipay_public"]),
+    )
+    provider = alipay_module.AlipayProvider()
+    # 直接用私有方法：``_assert_configured`` 是「能不能下单」的统一闸门，
+    # 走 query_payment/precreate 会真的去连网关（既慢又会因无公网回调而失败）。
+    outcome: dict[str, str | None] = {}
+    for sign_type in ("RSA2", "rsa2", "RSA", "RSA3"):
+        try:
+            provider._assert_configured(replace(settings, alipay_sign_type=sign_type))
+            outcome[sign_type] = None
+        except alipay_module.PaymentError as error:
+            outcome[sign_type] = str(error)
+    check(
+        "sign_type=RSA2 放行（大小写不敏感）",
+        outcome["RSA2"] is None and outcome["rsa2"] is None,
+        str(outcome),
+    )
+    check(
+        "sign_type 非 RSA2 立即报错并指出该怎么改",
+        (outcome["RSA"] or "").startswith("STORE_ALIPAY_SIGN_TYPE=RSA")
+        and "RSA2" in (outcome["RSA"] or "")
+        and (outcome["RSA3"] or "").startswith("STORE_ALIPAY_SIGN_TYPE=RSA3"),
+        str(outcome),
+    )
+
+
 async def check_alipay_notify_flow() -> None:
     """异步通知整条链路：验签 → 金额校验 → 发码 → 幂等。"""
     workdir = Path(tempfile.mkdtemp(prefix="hb-store-alipay-flow-"))
@@ -1212,6 +1883,49 @@ async def check_alipay_notify_flow() -> None:
             and tampered_response.text.strip() == "failure",
             f"{tampered_response.status_code} {tampered_response.text!r}",
         )
+
+        # —— app_id / seller_id：通知「属于哪个商户」的判据 ——
+        # 现实部署里这两项常常只填在后台（环境变量为空）。此时必须拿 provider
+        # **合并后**的凭据去比：用 app.state.settings 那份（只有环境变量）会命中
+        # 「非空才比较」的短路，整段校验被静默跳过 —— 任何人只要签名合法就能把
+        # 通知推进来；反过来，环境变量与后台不一致时又会把正常通知全部拒掉。
+        with app.state.database.session() as session:
+            site_config.update_setting(session, alipay_seller_id="2088000000000000")
+
+        def _notify_with_seller(out_trade_no: str, seller_id: str):
+            fields = _fields(out_trade_no)
+            fields["seller_id"] = seller_id
+            return _sign_notify(fields, alipay_private)
+
+        # 反例在前：seller_id 不符必须拒，且不能入账
+        mismatched = await client.post(
+            notify_url, data=_notify_with_seller(tampered_order, "2088999999999999")
+        )
+        check(
+            "seller_id 与后台配置不符的通知被拒绝",
+            mismatched.status_code == 200 and mismatched.text.strip() == "failure",
+            f"{mismatched.status_code} {mismatched.text!r}",
+        )
+        with app.state.database.session() as session:
+            order = session.scalars(
+                select(Order).where(Order.order_no == tampered_order)
+            ).first()
+            check("seller_id 不符的订单没有被入账", order.status == "pending", str(order.status))
+
+        # 正例：同一笔订单、同样的签名，只把 seller_id 换回后台配置的那个 —— 必须通过
+        matched = await client.post(
+            notify_url, data=_notify_with_seller(tampered_order, "2088000000000000")
+        )
+        check(
+            "seller_id 与后台配置一致时通知通过（凭据按合并后的口径比较）",
+            matched.status_code == 200 and matched.text.strip() == "success",
+            f"{matched.status_code} {matched.text!r}",
+        )
+        with app.state.database.session() as session:
+            order = session.scalars(
+                select(Order).where(Order.order_no == tampered_order)
+            ).first()
+            check("校验通过后订单正常入账", order.status == "fulfilled", str(order.status))
 
     # 0 元订单：支付宝不接受 0 元交易，必须直接开通而不是去下单
     token = "smoke-alipay-free-session"
@@ -1642,6 +2356,250 @@ def check_payment_sweep_flow() -> None:
     app.state.database.dispose()
 
 
+async def check_payment_sweep_edge_cases() -> None:
+    """巡检的边界：过期仍是 pending 的单、查单失败 ≠ 交易不存在。
+
+    这一批位置都是「出错时只在日志里留一行、界面上完全看不出来」的地方：
+
+    1. 过期却仍是 ``pending`` 的单：既不查单也不关单，本地一直占着库存预留与
+       优惠码名额，渠道那笔预交易也一直开着（旧二维码永远能扫、能付）；
+    2. 查单抛 ``PaymentError``（网关抖动）被当成「渠道没有这笔交易」，于是给订单
+       打上 ``channel_closed_at`` —— 那笔交易从此再也不会被关，钱还能被付进来；
+    3. 终态订单复活成交时副作用漏了一半（不置 ``needs_review``、不占回优惠码
+       名额），超卖与名额超发都从这里开始。
+
+    渠道调用全部打桩：真去连支付宝既慢，又没有公网回调。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-sweep-edge-"))
+    keys = _alipay_test_keys(workdir)
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="alipay",
+        alipay_app_id="2021000000000000",
+        alipay_app_private_key_path=str(keys["app_private"]),
+        alipay_public_key_path=str(keys["alipay_public"]),
+        alipay_verify_response_sign=False,
+    )
+    app = create_app(settings)
+    database = app.state.database
+
+    # 订单号带时间戳：``_allow_query`` 的节流表是模块级全局的，同一进程里
+    # 重跑本检查不能撞上上一轮的记录
+    stamp = utcnow().strftime("%H%M%S%f")
+    email = f"sweep-edge-{stamp}@habridge.local"
+
+    with database.session() as session:
+        seed_settings(session)
+        products = seed_products(session)
+        product = products["base"]
+        base_product_id = product.id
+        # 预留是真的占着一件：过期时没归还，就等于这件货永远卖不出去
+        session.execute(
+            Product.__table__.update()
+            .where(Product.id == product.id)
+            .values(reserved_stock=1)
+        )
+        account = Account(
+            email=email,
+            password_hash=hash_password("sweep-password-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        customer = Customer(account_id=account.id, email=email, name=email)
+        session.add(customer)
+        session.flush()
+
+        def _coupon(code: str, redeemed: int) -> str:
+            session.add(
+                Coupon(code=code, description="smoke 巡检边界", percent=5, redeemed_count=redeemed)
+            )
+            session.flush()
+            return code
+
+        # 「过期单占着名额」：进终态时 release_coupon 会减到 0，这里先摆成 1
+        aging_coupon = _coupon(f"SMOKE-EDGE-AGING-{stamp}", 1)
+        # 「复活单」：取消那一刻名额已经还回去了（0），成交后必须重新占回来
+        revive_coupon = _coupon(f"SMOKE-EDGE-REVIVE-{stamp}", 0)
+
+        def _order(suffix: str, status: str, *, expires_at=None, coupon_code=None) -> str:
+            row = Order(
+                order_no=f"HB-EDGE-{stamp}-{suffix}",
+                lookup_token=f"edge-token-{stamp}-{suffix}",
+                account_id=account.id,
+                customer_id=customer.id,
+                email=email,
+                product_id=base_product_id,
+                product_name="smoke 主授权",
+                product_type="base",
+                order_type="base",
+                license_action="issue",
+                original_amount_cents=4990,
+                amount_cents=4990,
+                status=status,
+                fulfillment_mode="automatic",
+                payment_provider="alipay",
+                expires_at=expires_at,
+                coupon_code=coupon_code,
+            )
+            session.add(row)
+            session.flush()
+            return row.order_no
+
+        # 本地已过期、却还是 pending（商店没人访问时没人扫过期）
+        aging_order_no = _order(
+            "aging",
+            "pending",
+            expires_at=utcnow() - timedelta(hours=1),
+            coupon_code=aging_coupon,
+        )
+        # 同上，但渠道**确认没有这笔交易**（预下单就没成功）
+        ghost_order_no = _order("ghost", "pending", expires_at=utcnow() - timedelta(hours=1))
+        # 终态订单 + 网关抖动：绝不能被当成「交易不存在」
+        flaky_order_no = _order("flaky", "cancelled")
+        # 终态订单 + 钱其实付了：必须认回来（复活）
+        revive_order_no = _order("revive", "cancelled", coupon_code=revive_coupon)
+
+    alipay_cls = alipay_module.AlipayProvider
+    real_query = alipay_cls.query_payment
+    real_close = alipay_cls.close_payment
+    calls: list[str] = []
+
+    def stub_query(self, _settings, order):
+        calls.append(f"query:{order.order_no}")
+        if order.order_no == aging_order_no:
+            return {"trade_status": "WAIT_BUYER_PAY", "out_trade_no": order.order_no}
+        if order.order_no == ghost_order_no:
+            return None
+        if order.order_no == flaky_order_no:
+            raise PaymentError("smoke 注入的网关抖动")
+        if order.order_no == revive_order_no:
+            return {
+                "trade_status": "TRADE_SUCCESS",
+                "total_amount": "49.90",
+                "trade_no": "2026EDGE0001",
+                "out_trade_no": order.order_no,
+            }
+        return None
+
+    def stub_close(self, _settings, order):
+        calls.append(f"close:{order.order_no}")
+        return alipay_module.CloseResult(closed=True, reason="smoke 关单")
+
+    raised: Exception | None = None
+    result = None
+    second = None
+    try:
+        alipay_cls.query_payment = stub_query
+        alipay_cls.close_payment = stub_close
+        try:
+            result = sweep_round(database, settings)
+        except Exception as error:  # noqa: BLE001 - 正是要被测出来的那类异常
+            raised = error
+        else:
+            second = sweep_round(database, settings)
+    finally:
+        alipay_cls.query_payment = real_query
+        alipay_cls.close_payment = real_close
+
+    check(
+        "巡检边界用例单轮跑通（不再抛异常）",
+        raised is None,
+        f"{type(raised).__name__}: {raised}" if raised is not None else "",
+    )
+    if raised is not None:
+        app.state.database.dispose()
+        return
+
+    check(
+        "过期仍是 pending 的单被收尾（关单 2 笔：一笔关渠道、一笔渠道无此交易）",
+        result is not None and result.closed == 2,
+        f"closed={getattr(result, 'closed', None)} calls={calls}",
+    )
+    check(
+        "查单失败计入 failed，且不当作「交易不存在」去关单",
+        result is not None
+        and result.failed == 1
+        and calls.count(f"close:{flaky_order_no}") == 0,
+        f"failed={getattr(result, 'failed', None)} calls={calls}",
+    )
+    check(
+        "终态订单收到钱后照常入账（复活）",
+        result is not None and result.settled == 1 and result.settled_orders == [revive_order_no],
+        f"settled={getattr(result, 'settled', None)} "
+        f"settled_orders={getattr(result, 'settled_orders', None)}",
+    )
+
+    with database.session() as session:
+        aging = session.scalars(select(Order).where(Order.order_no == aging_order_no)).first()
+        ghost = session.scalars(select(Order).where(Order.order_no == ghost_order_no)).first()
+        flaky = session.scalars(select(Order).where(Order.order_no == flaky_order_no)).first()
+        revive = session.scalars(select(Order).where(Order.order_no == revive_order_no)).first()
+        reserved_after = int(session.get(Product, base_product_id).reserved_stock or 0)
+        aging_redeemed = session.scalars(
+            select(Coupon).where(Coupon.code == aging_coupon)
+        ).first().redeemed_count
+        revive_redeemed = session.scalars(
+            select(Coupon).where(Coupon.code == revive_coupon)
+        ).first().redeemed_count
+
+        check(
+            "过期仍是 pending 的单被推进终态并写下 channel_closed_at",
+            aging.status == "expired" and aging.channel_closed_at is not None,
+            f"{aging.status} / closed={aging.channel_closed_at}",
+        )
+        check(
+            "过期收尾把库存预留还了回去（不再永久占着那一件）",
+            reserved_after == 0,
+            f"reserved_stock={reserved_after}",
+        )
+        check(
+            "过期收尾把优惠码名额还了回去",
+            int(aging_redeemed or 0) == 0,
+            f"redeemed_count={aging_redeemed}",
+        )
+        check(
+            "渠道确认无此交易时也把本地订单推进终态（本地不再卡 pending）",
+            ghost.status == "expired" and ghost.channel_closed_at is not None,
+            f"{ghost.status} / closed={ghost.channel_closed_at}",
+        )
+        check(
+            "渠道确认无此交易时不去调关单接口（没什么可关的）",
+            calls.count(f"close:{ghost_order_no}") == 0,
+            str(calls),
+        )
+        check(
+            "查单失败不给订单打 channel_closed_at（否则那笔交易再也不会被关）",
+            flaky.status == "cancelled" and flaky.channel_closed_at is None,
+            f"{flaky.status} / closed={flaky.channel_closed_at}",
+        )
+        check(
+            "复活单被认领并履约发码",
+            revive.status == "fulfilled" and revive.license_id is not None,
+            f"{revive.status} / license={revive.license_id}",
+        )
+        check(
+            "复活单标记待人工复核（预留早已还给别人，可能超卖）",
+            bool(revive.needs_review) and "库存预留" in (revive.review_note or ""),
+            f"needs_review={revive.needs_review} note={revive.review_note!r}",
+        )
+        check(
+            "复活单把优惠码名额重新占回来（否则 max_redemptions 能被突破）",
+            int(revive_redeemed or 0) == 1,
+            f"redeemed_count={revive_redeemed}",
+        )
+
+    check(
+        "收尾之后无事可做时返回 None（不会反复关同一笔）",
+        second is None,
+        repr(second),
+    )
+
+    app.state.database.dispose()
+
+
 async def check_payment_sweep_loop_runs() -> None:
     """巡检循环真的被接上了：起一次真实 lifespan，等它自己跑完第一轮。
 
@@ -1935,18 +2893,1894 @@ def _window_error(mail_settings, ttl: int, cooldown: int) -> str | None:
     return None
 
 
+def check_mail_presets() -> None:
+    """默认邮箱必须真的能带出一套可用的 SMTP 预设。
+
+    后台「注册邮件」在**当前没有任何可用配置**时会用默认邮箱反查服务商预设，
+    直接预填服务器 / 加密 / 端口 / 账号 / 发件人（见 admin.html 的 applyMailPreset）。
+    这条链路上任何一环断掉都不会报错：预设查不到只是「没预填」，端口与加密方式
+    配错则要等到点「发送测试邮件」才暴露 —— 而那时运营更可能去怀疑授权码写错了。
+    所以这里把三件事钉死：
+
+    1. 默认邮箱能在预设表里反查出服务商，否则整个预填是死的；
+    2. 每个预设的加密方式合法、端口与加密方式一一对应；
+    3. 域名不重复（重复时 ``preset_for_email`` 只会命中最前面那个，另一条永远选不中），
+       且前端不另抄一份服务商清单 —— 两份清单漂移时，页面会拿旧参数去填一个
+       已经改过接入方式的服务商。
+    """
+    from store import mail_settings
+    from store.models import DEFAULT_SUPPORT_EMAIL
+
+    default_preset = mail_settings.preset_for_email(DEFAULT_SUPPORT_EMAIL)
+    check(
+        "默认邮箱能反查到 SMTP 预设（否则后台的预填是死的）",
+        default_preset is not None and bool(default_preset["smtpHost"]),
+        f"{DEFAULT_SUPPORT_EMAIL} -> {default_preset and default_preset['id']}",
+    )
+    check(
+        "认不出的域名返回 None（自定义邮局刻意不猜）",
+        mail_settings.preset_for_email("nobody@my-company.cn") is None
+        and mail_settings.preset_for_email("not-an-email") is None,
+        "自定义域名 / 非法地址都应有预设为空",
+    )
+
+    mismatched = [
+        f"{item['id']}:{item['smtpSecurity']}/{item['smtpPort']}"
+        for item in mail_settings.SMTP_PRESETS
+        if item["smtpSecurity"] not in mail_settings.SMTP_SECURITY_MODES
+        or int(item["smtpPort"])
+        != mail_settings.DEFAULT_SMTP_PORTS[str(item["smtpSecurity"])]
+    ]
+    check(
+        "每个邮箱预设的加密方式与端口都匹配（配错要到测试邮件才暴露）",
+        not mismatched,
+        f"不匹配: {mismatched}" if mismatched else f"共核对 {len(mail_settings.SMTP_PRESETS)} 家服务商",
+    )
+
+    seen: dict[str, str] = {}
+    duplicated: list[str] = []
+    for item in mail_settings.SMTP_PRESETS:
+        for domain in item["domains"]:  # type: ignore[union-attr]
+            if str(domain) in seen:
+                duplicated.append(f"{domain}（{seen[str(domain)]} / {item['id']}）")
+            seen[str(domain)] = str(item["id"])
+    check("预设域名互不重复（重复的那条永远选不中）", not duplicated, f"重复: {duplicated}")
+
+    html = (STORE_ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+    hosts = [str(item["smtpHost"]) for item in mail_settings.SMTP_PRESETS]
+    hardcoded = sorted(host for host in hosts if host in html)
+    check(
+        "服务商清单只有后端一份（前端硬编码就会和预设表漂移）",
+        "mail.presets" in html and not hardcoded,
+        f"前端硬编码: {hardcoded}" if hardcoded else "前端只消费 mail.presets",
+    )
+
+    summary = mail_settings.mail_delivery_summary(load_settings(), StoreSetting(id=1))
+    check(
+        "邮件概览带上默认邮箱与服务商预设（前端预填的唯一来源）",
+        summary.get("defaultEmail") == DEFAULT_SUPPORT_EMAIL
+        and len(summary.get("presets") or []) == len(mail_settings.SMTP_PRESETS),
+        f"defaultEmail={summary.get('defaultEmail')} presets={len(summary.get('presets') or [])}",
+    )
+
+
+# --------------------------------------------------------------------------- #
+# 站点配置真实连通性诊断 + 本轮业务逻辑修复的专项自检
+#
+# 这些检查各自带一个临时库，因为它们要**故意把配置改坏**（填错公钥、
+# 指向一个关着端口的地址、把订单造成复活态）。塞进主流程会连带后面几千行
+# 「计数类」断言的基线一起偏，所以统一在流程最前面单独跑。
+# --------------------------------------------------------------------------- #
+def _closed_local_port() -> int:
+    """取一个「刚刚还空着、现在已经关掉」的本机端口。
+
+    刻意不写死端口号：写死 1、9 这类低端口在部分系统上会先撞权限错误，
+    报出来的原因就不是「端口上没有服务在听」了 —— 而那正是要复现的故障。
+    """
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
+
+
+def _levels(checks: list[dict]) -> dict[str, str]:
+    """把诊断清单拍成「检查项 id → 级别」，断言时不必关心顺序。"""
+    return {str(item.get("id")): str(item.get("level")) for item in checks}
+
+
+def _admin_login_payload() -> dict[str, str]:
+    return {"email": "admin@habridge.local", "password": "smoke-admin-2026"}
+
+
+async def check_alipay_diagnostics() -> None:
+    """支付凭据自检必须真的用上「支付宝公钥」，且测不了就说测不了。
+
+    过去的自检只做一次 ``require_signature=False`` 的 ``trade.query``：
+    下单、查单全通，而**支付宝公钥从头到尾没被使用过**。于是把它误填成「应用公钥」
+    时界面全绿，每一笔异步通知却都验签失败 —— 用户付了钱、订单永远停在待支付，
+    而这是运营最难自查的一类故障。这里覆盖三条互不重叠的结论：
+
+    * 模拟渠道（skip，而不是 409 或全绿）；
+    * 公钥填反（``key-pair-distinct`` 判 fail —— 磨数相同就是同一把密钥）；
+    * 网关连不上 / 通知地址填本机（分别判 fail，且都在无外网环境下可复现）。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-alipay-diag-"))
+    keys = _alipay_test_keys(workdir)
+    # ``openapi.invalid`` 是 RFC 2606 的保留域名，DNS 必然失败：既能在没有外网的
+    # 环境里稳定复现「连不上网关」，又不会真的把请求打到支付宝去。
+    unreachable = "https://openapi.invalid/gateway.do"
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="alipay",
+        alipay_app_id="2021000000000000",
+        alipay_gateway_url=unreachable,
+        alipay_app_private_key_path=str(keys["app_private"]),
+        alipay_public_key_path=str(keys["alipay_public"]),
+    )
+    app = create_app(settings)
+    database = app.state.database
+    with database.session() as session:
+        seed_settings(session)
+        seed_admin(session, "admin@habridge.local", "smoke-admin-2026")
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        await client.post("/store/v1/auth/login", json=_admin_login_payload())
+
+        # ---- (a) 模拟渠道：按钮必须可用，且如实说「没有凭据可校验」 ---- #
+        with database.session() as session:
+            session.get(StoreSetting, 1).payment_provider = "mock"
+        mock_response = await client.post("/store-admin/v1/settings/alipay/test")
+        mock_data = mock_response.json() if mock_response.status_code == 200 else {}
+        mock_levels = _levels(mock_data.get("checks") or [])
+        check(
+            "模拟渠道下的支付自检不再 409（本地联调时这个按钮必须能用）",
+            mock_response.status_code == 200,
+            f"{mock_response.status_code} {mock_data.get('message', '')}",
+        )
+        check(
+            "模拟渠道如实报 skip + 不通过，而不是把「没测到」渲染成绿色",
+            mock_levels.get("provider") == "skip" and mock_data.get("ok") is False,
+            str(mock_levels),
+        )
+
+        # ---- (b) 「支付宝公钥」填成应用公钥：最隐蔽、损失最直接的配置错误 ---- #
+        with database.session() as session:
+            setting = session.get(StoreSetting, 1)
+            setting.payment_provider = "alipay"
+            setting.alipay_public_key = keys["app_public"].read_text(encoding="utf-8")
+            setting.alipay_notify_url = (
+                "https://127.0.0.1:18080/store/v1/payments/alipay/notify"
+            )
+        swapped_response = await client.post("/store-admin/v1/settings/alipay/test")
+        swapped_data = (
+            swapped_response.json() if swapped_response.status_code == 200 else {}
+        )
+        swapped_levels = _levels(swapped_data.get("checks") or [])
+        check(
+            "把「支付宝公钥」填成应用公钥必须判 fail（后台自己就能发现）",
+            swapped_levels.get("key-pair-distinct") == "fail"
+            and swapped_data.get("ok") is False,
+            f"{swapped_levels.get('key-pair-distinct')} / ok={swapped_data.get('ok')}",
+        )
+        check(
+            "网关 DNS 打不通时「网关连通性」判 fail（不是静默跳过）",
+            swapped_levels.get("network") == "fail",
+            str(swapped_levels.get("network")),
+        )
+        check(
+            "异步通知地址填本机/内网时直接判 fail（必然收不到回调）",
+            swapped_levels.get("notify-url") == "fail",
+            str(swapped_levels.get("notify-url")),
+        )
+
+        # ---- (c) 填对公钥后同一项必须转绿：证明它不是写死的 ---- #
+        with database.session() as session:
+            session.get(StoreSetting, 1).alipay_public_key = keys["alipay_public"].read_text(
+                encoding="utf-8"
+            )
+        correct_response = await client.post("/store-admin/v1/settings/alipay/test")
+        correct_levels = _levels(
+            (correct_response.json() if correct_response.status_code == 200 else {}).get(
+                "checks"
+            )
+            or []
+        )
+        check(
+            "换成真正的「支付宝公钥」后该项转 pass（检查项不是写死的）",
+            correct_levels.get("key-pair-distinct") == "pass",
+            str(correct_levels.get("key-pair-distinct")),
+        )
+
+
+async def check_payment_provider_fail_closed() -> None:
+    """支付渠道必须 fail-closed：未配置渠道、或模拟收银台未显式开启时，都不能建单。
+
+    这是审计里的第一个阻断项。过去 ``payment_provider`` 默认 ``mock``，而
+    ``MockPaymentProvider.is_configured`` 恒为真，于是「照默认配置部署」就等于
+    「0 元下单 → 点一下收银台 → 签发真实授权」。这里守住三条线：声明默认值、
+    渠道解析逻辑、以及端到端下单（含一个「打开开关就能走通」的对照，避免
+    「流程本身走不通导致 0 张授权」这种假绿）。
+    """
+    from dataclasses import fields as dataclass_fields
+
+    declared = {field.name: field.default for field in dataclass_fields(StoreSettings)}
+    check(
+        "payment_provider 的声明默认值是空串（不再是 mock）",
+        declared.get("payment_provider") == "",
+        repr(declared.get("payment_provider")),
+    )
+    check(
+        "allow_mock_payments 声明默认关闭",
+        declared.get("allow_mock_payments") is False,
+        repr(declared.get("allow_mock_payments")),
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-pay-failclosed-"))
+    base = dict(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="log",
+    )
+
+    def resolve_error(**overrides):
+        """返回解析渠道时抛出的错误文案；没抛就返回 None。"""
+        settings = load_settings(**base, **overrides)
+        try:
+            resolve_provider(settings, None)
+        except PaymentError as error:
+            return str(error)
+        return None
+
+    unconfigured = resolve_error(allow_mock_payments=False)
+    check(
+        "未配置渠道时解析支付渠道直接报错（不会回落成 mock）",
+        unconfigured is not None and "尚未配置支付渠道" in unconfigured,
+        str(unconfigured),
+    )
+    disabled = resolve_error(payment_provider="mock", allow_mock_payments=False)
+    check(
+        "渠道选了 mock 但开关没开时同样报错（默认不可用）",
+        disabled is not None and "模拟收银台" in disabled,
+        str(disabled),
+    )
+    mock_settings = load_settings(
+        **base, payment_provider="mock", allow_mock_payments=True
+    )
+    provider = resolve_provider(mock_settings, None)
+    check(
+        "显式打开后 mock 才可用，且 is_configured 为真",
+        isinstance(provider, MockPaymentProvider) and provider.is_configured(mock_settings),
+        type(provider).__name__,
+    )
+    check(
+        "未开启时 mock 自报 is_configured=False（巡检不会把它当成健康渠道）",
+        MockPaymentProvider().is_configured(
+            load_settings(**base, allow_mock_payments=False)
+        )
+        is False,
+        "is_configured",
+    )
+    unknown = resolve_error(payment_provider="wechat", allow_mock_payments=True)
+    check(
+        "未知渠道名依旧报错（不会静默回落 mock）",
+        unknown is not None and "不是受支持的渠道" in unknown,
+        str(unknown),
+    )
+
+    async def run_order_flow(label: str, **overrides) -> tuple[int, str, int]:
+        """下单（能用模拟收银台就付掉），返回 (下单状态码, 说明, 库内授权条数)。
+
+        每个流程用**独立的临时数据目录**：共用同一个 SQLite 会把「对照组签发的授权」
+        带进「被拦截组」的计数里，让「没有留下任何授权」这条断言永远失败。
+        """
+        workdir = Path(tempfile.mkdtemp(prefix=f"hb-store-pay-{label}-"))
+        settings = load_settings(
+            data_dir=workdir / "data",
+            license_keys_dir=workdir / "keys",
+            mail_mode="log",
+            **overrides,
+        )
+        app = create_app(settings)
+        database = app.state.database
+        with database.session() as session:
+            seed_settings(session)
+            products = seed_products(session)
+            seed_admin(session, "admin@habridge.local", "smoke-admin-2026")
+            base_product_id = products["base"].id
+
+        order_status = 0
+        detail = ""
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+        ) as client:
+            await client.post("/store/v1/auth/login", json=_admin_login_payload())
+            response = await client.post(
+                "/store/v1/orders", json={"productId": base_product_id, "couponCode": None}
+            )
+            order_status = response.status_code
+            if order_status == 201:
+                payload = response.json()
+                paid = await client.post(
+                    f"/store/v1/orders/{payload['orderNo']}/mock/pay",
+                    json={"orderToken": payload.get("lookupToken")},
+                )
+                detail = f"pay={paid.status_code}"
+            else:
+                try:
+                    detail = str(response.json().get("detail", ""))
+                except ValueError:
+                    detail = response.text[:120]
+
+        with database.session() as session:
+            licenses = len(session.scalars(select(License)).all())
+        app.state.database.dispose()
+        return order_status, detail, licenses
+
+    # ---- 对照：显式打开开关时，同一条流程必须走得通 ---- #
+    allowed_status, allowed_detail, allowed_licenses = await run_order_flow(
+        "control", payment_provider="mock", allow_mock_payments=True
+    )
+    check(
+        "（对照）显式打开 mock 时：下单 201 + 模拟支付 200",
+        allowed_status == 201 and allowed_detail == "pay=200",
+        f"{allowed_status} {allowed_detail}",
+    )
+    check(
+        "（对照）对照库里确实签发了授权（证明下面的「0 张」不是流程走不通导致的假绿）",
+        allowed_licenses == 1,
+        f"licenses={allowed_licenses}",
+    )
+
+    # ---- 阻断项本身：开关关闭 / 渠道未配置，都拿不到订单 ---- #
+    blocked_status, blocked_detail, blocked_licenses = await run_order_flow(
+        "mock-off", payment_provider="mock", allow_mock_payments=False
+    )
+    check(
+        "mock 未开启时下单直接 503（拿不到订单，也就没有免付款发码的入口）",
+        blocked_status == 503 and blocked_licenses == 0,
+        f"{blocked_status} {blocked_detail} licenses={blocked_licenses}",
+    )
+
+    unset_status, unset_detail, unset_licenses = await run_order_flow(
+        "unset", payment_provider="", allow_mock_payments=False
+    )
+    check(
+        "完全未配置渠道时下单同样 503，文案指向「尚未配置支付渠道」",
+        unset_status == 503 and "尚未配置支付渠道" in unset_detail and unset_licenses == 0,
+        f"{unset_status} {unset_detail} licenses={unset_licenses}",
+    )
+
+    # ---- 联调入口必须成对打开两个开关 ---- #
+    # 打开 fail-closed 之后最容易踩的坑：入口只设了 STORE_PAYMENT_PROVIDER=mock，
+    # 忘了 STORE_ALLOW_MOCK_PAYMENTS=1 —— 表现是「按文档跑联调，下单 503」。
+    # 这类失误不会让自检变红（自检自己设了环境变量），只能靠静态核对钉住。
+    for entry in ("start.py", "store/tools/e2e.py"):
+        source = (PROJECT_ROOT / entry).read_text(encoding="utf-8")
+        wants_mock = "STORE_PAYMENT_PROVIDER" in source
+        check(
+            f"{entry} 指向模拟收银台时必须同时打开它是允许的",
+            not wants_mock or "STORE_ALLOW_MOCK_PAYMENTS" in source,
+            "缺 STORE_ALLOW_MOCK_PAYMENTS，下单会 503" if wants_mock and "STORE_ALLOW_MOCK_PAYMENTS" not in source else "",
+        )
+
+
+def check_seed_requires_credentials() -> None:
+    """seed 不得再提供内置管理员凭据（审计里的第二个阻断项）。
+
+    过去 ``store/tools/seed.py`` 里写死了真实的管理员邮箱与口令，而且口令就公开在
+    ``store/README.md`` 里：照文档部署的实例全都带一个公开后门。这类"回归"最危险，
+    因为它只要被重新加回来一行常量就复活，所以这里同时守住常量、模块属性与默认值。
+    """
+    from store.tools import seed as seed_module
+
+    check(
+        "seed 模块不再暴露 DEFAULT_ADMIN_EMAIL / DEFAULT_ADMIN_PASSWORD",
+        not hasattr(seed_module, "DEFAULT_ADMIN_EMAIL")
+        and not hasattr(seed_module, "DEFAULT_ADMIN_PASSWORD"),
+        f"{[n for n in dir(seed_module) if 'ADMIN' in n]}",
+    )
+    check(
+        "seed 对缺凭据给出了显式退出提示",
+        bool(getattr(seed_module, "MISSING_ADMIN_CREDENTIALS", "")),
+        "MISSING_ADMIN_CREDENTIALS",
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-seed-cred-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="log",
+    )
+    check(
+        "bootstrap 管理员凭据默认是空（必须由部署方显式提供）",
+        settings.bootstrap_admin_email == "" and settings.bootstrap_admin_password == "",
+        f"email={settings.bootstrap_admin_email!r} password={'*' if settings.bootstrap_admin_password else ''!r}",
+    )
+
+    # 真正跑一次「全新目录 + 无凭据」：必须非零退出，且不留下半初始化的数据库。
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(PROJECT_ROOT),
+        "STORE_DATA_DIR": str(workdir / "data"),
+        "STORE_LICENSE_KEYS_DIR": str(workdir / "keys"),
+        "STORE_MAIL_MODE": "log",
+    }
+    env.pop("STORE_ADMIN_EMAIL", None)
+    env.pop("STORE_ADMIN_PASSWORD", None)
+    proc = subprocess.run(
+        [sys.executable, "-m", "store.tools.seed"],
+        cwd=PROJECT_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    check(
+        "全新目录且无凭据时 seed 拒绝执行（非零退出）",
+        proc.returncode != 0,
+        f"exit={proc.returncode}",
+    )
+    check(
+        "被拒绝的 seed 不会留下数据库（避免半初始化状态）",
+        not (workdir / "data" / "store.db").exists(),
+        str(workdir / "data" / "store.db"),
+    )
+    check(
+        "拒绝时打印的指引里包含 STORE_ADMIN_EMAIL（照着就能改好）",
+        "STORE_ADMIN_EMAIL" in (proc.stdout + proc.stderr),
+        "指引文案",
+    )
+
+
+async def check_login_throttle_persists() -> None:
+    """登录失败计数必须真的落库（审计里的第三个阻断项）。
+
+    过去的写法是把失败记录写进**请求会话**，紧接着抛 401 —— 事务随之回滚，记录
+    一起消失，于是限流永远触发不了（审计实测：40 次错误密码一次都没被拦）。这里
+    守住三件事：按账号那一档会拦、**换了邮箱也躲不掉按来源 IP 那一档**、以及记录
+    确实存在于数据库里（而不是「碰巧内存里记着」）。
+
+    两档分别用**独立的数据目录**：按来源 IP 的桶是跨账号共享的，共用同一个库会让
+    第一段的失败提前填满它（第一版就这么写错了一次，得到「22×401 / 11×429」这种
+    看着像 bug、其实是测试算错数的结果）。
+    """
+    from store.api.store import LOGIN_ACCOUNT_MAX_ATTEMPTS, LOGIN_IP_MAX_ATTEMPTS
+
+    def boot(prefix: str):
+        workdir = Path(tempfile.mkdtemp(prefix=f"hb-store-login-{prefix}-"))
+        settings = load_settings(
+            data_dir=workdir / "data",
+            license_keys_dir=workdir / "keys",
+            mail_mode="log",
+            payment_provider="",
+            allow_mock_payments=False,
+        )
+        app = create_app(settings)
+        with app.state.database.session() as session:
+            seed_settings(session)
+            seed_admin(session, "ops@example.com", "Correct-pw-123")
+        return app
+
+    def logged_in_attempt(client):
+        return client.post(
+            "/store/v1/auth/login",
+            json={"email": "ops@example.com", "password": "definitely-wrong"},
+        )
+
+    # ---------------- 第一档：按账号 ---------------- #
+    app = boot("account")
+    database = app.state.database
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        good = await client.post(
+            "/store/v1/auth/login",
+            json={"email": "ops@example.com", "password": "Correct-pw-123"},
+        )
+        check("登录限流未触发时正确密码可以登录", good.status_code == 200, str(good.status_code))
+
+        codes = []
+        response = None
+        for _ in range(LOGIN_ACCOUNT_MAX_ATTEMPTS + 4):
+            response = await logged_in_attempt(client)
+            codes.append(response.status_code)
+        check(
+            f"同一账号错 {LOGIN_ACCOUNT_MAX_ATTEMPTS} 次后被限流（不再是无一被拦）",
+            codes[:LOGIN_ACCOUNT_MAX_ATTEMPTS] == [401] * LOGIN_ACCOUNT_MAX_ATTEMPTS
+            and 429 in codes[LOGIN_ACCOUNT_MAX_ATTEMPTS:],
+            f"{codes.count(401)}×401 / {codes.count(429)}×429",
+        )
+        check(
+            "429 带上 Retry-After（客户端知道该等多久）",
+            response is not None
+            and response.headers.get("retry-after") is not None
+            and int(response.headers["retry-after"]) > 0,
+            str(response.headers.get("retry-after") if response is not None else None),
+        )
+
+    with database.session() as session:
+        from store.models import LoginAttempt
+
+        account_scopes = {
+            row[0] for row in session.execute(select(LoginAttempt.scope).distinct()).all()
+        }
+    check(
+        "失败记录确实落到 login_attempts 表（回滚不再吃掉计数）",
+        any(scope.startswith("login:ops@example.com") for scope in account_scopes),
+        str(sorted(account_scopes)[:3]),
+    )
+    app.state.database.dispose()
+
+    # ---------------- 第二档：按来源 IP ---------------- #
+    app = boot("ip")
+    database = app.state.database
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        # 每个邮箱只错 1 次：按账号那档永远不会触发，能拦下来只可能是按来源 IP 那档。
+        ip_codes = []
+        for index in range(LOGIN_IP_MAX_ATTEMPTS + 3):
+            response = await client.post(
+                "/store/v1/auth/login",
+                json={"email": f"nobody{index}@example.com", "password": "definitely-wrong"},
+            )
+            ip_codes.append(response.status_code)
+        check(
+            f"换邮箱也躲不掉：第 {LOGIN_IP_MAX_ATTEMPTS + 1} 次起按来源 IP 被拦（每个邮箱只错 1 次）",
+            ip_codes[:LOGIN_IP_MAX_ATTEMPTS] == [401] * LOGIN_IP_MAX_ATTEMPTS
+            and ip_codes[LOGIN_IP_MAX_ATTEMPTS:] == [429] * 3,
+            f"{ip_codes.count(401)}×401 / {ip_codes.count(429)}×429",
+        )
+
+    with database.session() as session:
+        from store.models import LoginAttempt
+
+        scopes = {
+            row[0] for row in session.execute(select(LoginAttempt.scope).distinct()).all()
+        }
+        #: 每个 nobody 邮箱只留下 1 条失败 —— 直接证明拦截来自 IP 档而非账号档。
+        per_account = {
+            scope: len(
+                session.execute(
+                    select(LoginAttempt.id).where(LoginAttempt.scope == scope)
+                ).all()
+            )
+            for scope in scopes
+            if scope.startswith("login:nobody")
+        }
+    check(
+        "限流同时写入按来源 IP 与全局两个维度",
+        any(scope.startswith("login-ip:") for scope in scopes) and "login-global" in scopes,
+        str(sorted(s for s in scopes if not s.startswith("login:"))),
+    )
+    check(
+        "每个被尝试的邮箱都只有 1 条失败记录（拦截确实来自 IP 档，不是账号档）",
+        bool(per_account) and all(count == 1 for count in per_account.values()),
+        f"涉及 {len(per_account)} 个邮箱，计数={sorted(set(per_account.values()))}",
+    )
+    check(
+        "全局维度只计数、不参与拦截（避免任何人打满阈值就锁死所有登录）",
+        "login-global" in scopes,
+        "仅观测，见 _note_login_failure",
+    )
+
+    app.state.database.dispose()
+
+
+async def check_mail_diagnostics() -> None:
+    """邮件自检：连接与登录握手要能单独探，失败原因要落到具体一项。
+
+    「填了 SMTP 但授权码过期 / 端口选错」过去唯一的暴露方式是用户注册不了，
+    而运营在后台看不出任何异常。这里断言两件事：留空收件人时**只诊断不发信**
+    （可以反复点），以及连不上时如实判 fail 并给出能照着改的文案。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-mail-diag-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="log",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+    with database.session() as session:
+        seed_settings(session)
+        seed_admin(session, "admin@habridge.local", "smoke-admin-2026")
+
+    closed_port = _closed_local_port()
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        await client.post("/store/v1/auth/login", json=_admin_login_payload())
+
+        # ---- log 模式：不发信是既定事实，必须报 skip 而不是 pass ---- #
+        log_response = await client.post("/store-admin/v1/settings/mail/test", json={})
+        log_data = log_response.json() if log_response.status_code == 200 else {}
+        log_levels = _levels(log_data.get("checks") or [])
+        check(
+            "留空收件人时只做连接诊断（不产生任何投递尝试）",
+            log_response.status_code == 200 and log_data.get("attempts") == 0,
+            f"{log_response.status_code} attempts={log_data.get('attempts')}",
+        )
+        check(
+            "log 模式下「投递方式」如实报 skip 且整体不通过",
+            log_levels.get("mode") == "skip" and log_data.get("ok") is False,
+            str(log_levels),
+        )
+        check(
+            "log 模式下不做无意义的网络探测（dns / connect 均为 skip）",
+            log_levels.get("dns") == "skip" and log_levels.get("connect") == "skip",
+            str(log_levels),
+        )
+
+        # ---- smtp 模式 + 一个关着端口的本机地址：如实报「连不上」 ---- #
+        with database.session() as session:
+            setting = session.get(StoreSetting, 1)
+            setting.mail_mode = "smtp"
+            setting.smtp_host = "127.0.0.1"
+            setting.smtp_port = closed_port
+            setting.smtp_security = "plain"
+        smtp_response = await client.post("/store-admin/v1/settings/mail/test", json={})
+        smtp_data = smtp_response.json() if smtp_response.status_code == 200 else {}
+        smtp_levels = _levels(smtp_data.get("checks") or [])
+        check(
+            "地址解析成功、连接被拒：结论分别落在 dns=pass 与 connect=fail",
+            smtp_levels.get("dns") == "pass" and smtp_levels.get("connect") == "fail",
+            str(smtp_levels),
+        )
+        check(
+            "连接失败的文案要指出「端口上没有服务在听」这一层，而不是一句网络错误",
+            "连接被拒绝" in str(smtp_data.get("message", "")),
+            str(smtp_data.get("message", ""))[:200],
+        )
+
+
+async def check_upgrade_refund_revert() -> None:
+    """升级单全额退款必须把授权**还原**回升级前，而不是整张作废。
+
+    升级改的是用户此前已经付过钱的那张授权，而 ``License.order_id`` 仍然指着
+    最早那张订单 —— 退款时按 ``License.order_id == 本单`` 是找不到它的，于是
+    「钱退了、永久授权还在手里」。还原而不是作废：作废等于没收了他原来那笔消费。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-upgrade-refund-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+    from store import fulfill
+    from store.api.admin import _revoke_order_entitlements
+
+    started = utcnow() - timedelta(days=5)
+    expired_at = started + timedelta(days=30)
+
+    with database.session() as session:
+        seed_settings(session)
+        module = Product(
+            name="smoke 3D 交互包",
+            product_code="homeos",
+            price_cents=3990,
+            validity_days=None,
+            product_type="module",
+            feature_codes_json=list_json(["module.3d_interaction"]),
+            included_product_ids_json=list_json([]),
+            active=True,
+            fulfillment_mode="automatic",
+        )
+        timed = Product(
+            name="smoke 时限主授权",
+            product_code="homeos",
+            price_cents=2900,
+            validity_days=30,
+            product_type="base",
+            feature_codes_json=list_json(["editor.basic"]),
+            included_product_ids_json=list_json([]),
+            active=True,
+            fulfillment_mode="automatic",
+        )
+        permanent = Product(
+            name="smoke 永久主授权",
+            product_code="homeos",
+            price_cents=7990,
+            validity_days=None,
+            product_type="package",
+            feature_codes_json=list_json(["editor.basic"]),
+            # 套餐自带一个子商品：升级会据此写出 ``product_id == permanent.id``
+            # 的权益行，退款时必须把它们停用（否则「钱退了、功能还在」）。
+            included_product_ids_json=list_json([]),
+            active=True,
+            fulfillment_mode="automatic",
+        )
+        session.add_all([module, timed, permanent])
+        session.flush()
+        permanent.included_product_ids_json = list_json([module.id])
+        session.flush()
+
+        account = Account(
+            email="upgrade-refund@habridge.local",
+            password_hash=hash_password("smoke-upgrade-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        customer = Customer(
+            account_id=account.id, email=account.email, name=account.email
+        )
+        session.add(customer)
+        session.flush()
+
+        # ① 用户此前买过一张 30 天的授权（钱已经付过，退款不该把它收走）
+        base_order = Order(
+            order_no="HB-SMOKE-UPGRADE-BASE",
+            lookup_token="smoke-upgrade-base",
+            account_id=account.id,
+            customer_id=customer.id,
+            email=account.email,
+            product_id=timed.id,
+            product_name=timed.name,
+            product_type="base",
+            order_type="base",
+            license_action="issue",
+            original_amount_cents=2900,
+            amount_cents=2900,
+            status="fulfilled",
+            fulfillment_mode="automatic",
+            payment_provider="mock",
+            paid_at=started,
+            fulfilled_at=started,
+        )
+        session.add(base_order)
+        session.flush()
+        license = License(
+            activation_code="HB-SMOKE-UPGRADE-000000000001",
+            code_hint="SMOKE-UP",
+            customer_id=customer.id,
+            account_id=account.id,
+            product_id=timed.id,
+            order_id=base_order.id,
+            product_name=timed.name,
+            product_type="base",
+            price_cents=2900,
+            validity_days=30,
+            issuance_source="payment_automatic",
+            active=True,
+            issued_at=started,
+            access_started_at=started,
+            access_expires_at=expired_at,
+        )
+        session.add(license)
+        session.flush()
+        base_order.license_id = license.id
+        session.add(
+            Entitlement(
+                customer_id=customer.id,
+                license_id=license.id,
+                product_id=timed.id,
+                product_name=timed.name,
+                product_type="base",
+                feature_code="editor.basic",
+                active=True,
+                starts_at=started,
+            )
+        )
+
+        # ② 升级单就地升级这张授权
+        upgrade = Order(
+            order_no="HB-SMOKE-UPGRADE-0001",
+            lookup_token="smoke-upgrade-token",
+            account_id=account.id,
+            customer_id=customer.id,
+            email=account.email,
+            product_id=permanent.id,
+            product_name=permanent.name,
+            product_type="package",
+            order_type="upgrade",
+            license_action="upgrade",
+            target_license_id=license.id,
+            original_amount_cents=7990,
+            amount_cents=7990,
+            status="paid",
+            fulfillment_mode="automatic",
+            payment_provider="mock",
+            paid_at=utcnow(),
+        )
+        session.add(upgrade)
+        session.flush()
+        upgrade_id = upgrade.id
+
+        fulfill.fulfill_order(session, order=upgrade, setting=session.get(StoreSetting, 1))
+        session.flush()
+        session.refresh(license)
+        check(
+            "升级就地把授权改为永久（保留激活码，不是另发一张）",
+            license.product_id == permanent.id and license.access_expires_at is None,
+            f"{license.product_id} expires={license.access_expires_at}",
+        )
+        snapshot = json.loads(upgrade.license_state_before_json or "{}")
+        check(
+            "升级单记录了「升级前」的授权快照",
+            snapshot.get("product_id") == timed.id
+            and snapshot.get("validity_days") == 30
+            and str(snapshot.get("access_expires_at", "")).startswith(
+                expired_at.isoformat()[:16]
+            ),
+            str(snapshot),
+        )
+        upgrade_entitlements = session.scalars(
+            select(Entitlement).where(
+                Entitlement.license_id == license.id,
+                Entitlement.feature_code == "module.3d_interaction",
+            )
+        ).all()
+        check(
+            "升级带进来的套餐权益已发放",
+            upgrade_entitlements
+            and all(item.product_id == permanent.id for item in upgrade_entitlements),
+            str([(item.feature_code, item.product_id) for item in upgrade_entitlements]),
+        )
+
+        # ③ 全额退款
+        upgrade = session.get(Order, upgrade_id)
+        upgrade.status = "refunded"
+        upgrade.refunded_at = utcnow()
+        _revoke_order_entitlements(session, upgrade)
+        session.flush()
+        session.refresh(license)
+        check(
+            "退款后授权回到升级前的商品（不是整张作废）",
+            license.product_id == timed.id
+            and license.validity_days == 30
+            and license.price_cents == 2900,
+            f"{license.product_id} days={license.validity_days}",
+        )
+        check(
+            "退款后「永久」被收回：到期时间回到升级前那一刻",
+            license.access_expires_at == expired_at,
+            str(license.access_expires_at),
+        )
+        check(
+            "退款后授权仍然有效 —— 用户原来那笔消费不该被没收",
+            license.active is True and license.revoked_at is None,
+            f"active={license.active} revoked={license.revoked_at}",
+        )
+        session.refresh(upgrade_entitlements[0])
+        check(
+            "升级带进来的权益已停用（钱退了、功能不能还在）",
+            upgrade_entitlements[0].active is False,
+            str(upgrade_entitlements[0].active),
+        )
+        original = session.scalars(
+            select(Entitlement).where(
+                Entitlement.license_id == license.id,
+                Entitlement.feature_code == "editor.basic",
+            )
+        ).first()
+        check(
+            "用户原有的权益没有被连带关掉",
+            original is not None and original.active is True,
+            str(original and original.active),
+        )
+
+        # ④ 幂等：退款重试（重推通知、运营重复点）不该把状态改坏
+        _revoke_order_entitlements(session, upgrade)
+        session.flush()
+        session.refresh(license)
+        check(
+            "重复退款是幂等的（授权仍是还原后的样子）",
+            license.product_id == timed.id and license.access_expires_at == expired_at,
+            f"{license.product_id} expires={license.access_expires_at}",
+        )
+
+
+async def check_stock_reservation_flag() -> None:
+    """库存预留的「还占不占」必须只有一个事实来源：``stock_reservation_released_at``。
+
+    过去的判据是调用方各自看 ``order.status`` 反推，而状态与预留的生命周期并不一致
+    —— 复活单（expired 之后才收到钱）的预留早就还了，按状态反推会**再释放一次**，
+    扣掉的是别人待支付订单的预留（等于放开超卖）；``recompute_reserved_stock``
+    还会把复活单算成占用，这个「自愈」动作反而把占用虚增上去。
+
+    顺带覆盖两个相邻缺陷：``expires_at IS NULL`` 的历史单永远扫不到（一直占着预留
+    卡住整个账号下单），以及 ``needs_review`` 只能置位、无法清除（待办永久噪声）。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-reservation-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+        order_ttl_seconds=120,
+    )
+    app = create_app(settings)
+    database = app.state.database
+    from store import fulfill
+    from store.api.store import _expire_stale_orders
+
+    with database.session() as session:
+        seed_settings(session)
+        seed_admin(session, "admin@habridge.local", "smoke-admin-2026")
+        product = Product(
+            name="smoke 限量商品",
+            product_code="homeos",
+            price_cents=990,
+            validity_days=None,
+            product_type="base",
+            feature_codes_json=list_json(["editor.basic"]),
+            included_product_ids_json=list_json([]),
+            active=True,
+            fulfillment_mode="automatic",
+            stock_quantity=5,
+            # 故意写错缓存值：下面靠 ``recompute_reserved_stock`` 把它纠正成 1
+            # （只有 holding 那一笔仍占预留）。按状态反推的老实现会算成 2。
+            reserved_stock=9,
+        )
+        session.add(product)
+        session.flush()
+        account = Account(
+            email="reservation@habridge.local",
+            password_hash=hash_password("smoke-reservation-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        customer = Customer(
+            account_id=account.id, email=account.email, name=account.email
+        )
+        session.add(customer)
+        session.flush()
+
+        def _order(order_no: str, status: str, *, released: bool, expires_at=None):
+            order = Order(
+                order_no=order_no,
+                lookup_token=f"{order_no}-token",
+                account_id=account.id,
+                customer_id=customer.id,
+                email=account.email,
+                product_id=product.id,
+                product_name=product.name,
+                product_type="base",
+                order_type="base",
+                license_action="issue",
+                original_amount_cents=990,
+                amount_cents=990,
+                status=status,
+                fulfillment_mode="automatic",
+                payment_provider="mock",
+                expires_at=expires_at,
+                stock_reservation_released_at=utcnow() if released else None,
+                paid_at=utcnow() if status == "paid" else None,
+            )
+            session.add(order)
+            session.flush()
+            return order
+
+        holding = _order("HB-SMOKE-RESERVE-HOLD", "pending", released=False)
+        # 复活单：钱到账了（paid），但预留早在 expired 那一刻还掉了，需要人工复核
+        revived = _order("HB-SMOKE-RESERVE-REVIVE", "paid", released=True)
+        revived.needs_review = True
+        session.flush()
+
+        changes = fulfill.recompute_reserved_stock(session)
+        check(
+            "重算预留不把复活单算成占用（只认仍占用的那一笔，不是按状态数）",
+            int(product.reserved_stock or 0) == 1 and changes.get(product.id) == -8,
+            f"reserved={product.reserved_stock} changes={changes}",
+        )
+
+        # 复活单履约：不能再释放一次（那会扣掉 holding 那件）
+        fulfill.fulfill_order(session, order=revived, setting=session.get(StoreSetting, 1))
+        session.flush()
+        session.refresh(product)
+        check(
+            "复活单履约不再二次释放预留（别人的预留不被扣掉）",
+            int(product.reserved_stock or 0) == 1,
+            str(product.reserved_stock),
+        )
+        check(
+            "复活单履约照常把这一件从库存里扣掉（发码即售出）",
+            int(product.stock_quantity or 0) == 4,
+            str(product.stock_quantity),
+        )
+        check(
+            "履约没有把「已归还预留」的标记抹掉",
+            revived.stock_reservation_released_at is not None,
+            str(revived.stock_reservation_released_at),
+        )
+
+        # 历史遗留单：expires_at 为 NULL，过去永远扫不到
+        legacy = _order("HB-SMOKE-RESERVE-LEGACY", "pending", released=False)
+        legacy.expires_at = None
+        legacy.created_at = utcnow() - timedelta(seconds=int(settings.order_ttl_seconds) + 60)
+        session.flush()
+        _expire_stale_orders(session, session.get(StoreSetting, 1), settings)
+        session.flush()
+        session.refresh(legacy)
+        check(
+            "expires_at 为 NULL 的历史待支付单也会被扫描过期（不再永久卡住下单）",
+            legacy.status == "expired",
+            str(legacy.status),
+        )
+        check(
+            "过期时同时归还预留并打上标记",
+            legacy.stock_reservation_released_at is not None,
+            str(legacy.stock_reservation_released_at),
+        )
+        session.refresh(holding)
+        check(
+            "到期扫描没有误伤未超时的订单",
+            holding.status == "pending" and holding.stock_reservation_released_at is None,
+            f"{holding.status} {holding.stock_reservation_released_at}",
+        )
+        revived_order_no = revived.order_no
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        await client.post("/store/v1/auth/login", json=_admin_login_payload())
+        review = await client.post(
+            f"/store-admin/v1/orders/{revived_order_no}/review",
+            json={"note": "已确认补货"},
+        )
+        review_data = review.json() if review.status_code == 200 else {}
+        check(
+            "needs_review 有清除路径（否则待办告警是永久噪声）",
+            review.status_code == 200 and review_data.get("needsReview") is False,
+            f"{review.status_code} {review_data.get('needsReview')}",
+        )
+        check(
+            "复核结论追加进备注（保留原始原因，不覆盖）",
+            "已确认补货" in str(review_data.get("reviewNote", "")),
+            str(review_data.get("reviewNote", ""))[:120],
+        )
+        with database.session() as session:
+            pending_order = session.scalars(
+                select(Order).where(Order.order_no == "HB-SMOKE-RESERVE-HOLD")
+            ).first()
+            pending_order.status = "pending"
+        unpayable = await client.post(
+            "/store-admin/v1/orders/HB-SMOKE-RESERVE-HOLD/review", json={}
+        )
+        check(
+            "待支付订单不允许标记「已处理」（钱还没到账）",
+            unpayable.status_code == 409,
+            str(unpayable.status_code),
+        )
+
+
+async def check_referral_wallet_atomic() -> None:
+    """邀请钱包的冻结/审批必须是原子的：并发丢更新等于可以重复套现。
+
+    过去的写法是 ORM 属性「读-改-写」：两个并发提现申请各自基于同一个旧 ``frozen``
+    计算，后写的一方把先写的整个覆盖 —— 账面只冻结一次，却挂着两笔待审提现，
+    两次审批后 ``frozen`` 变负、``withdrawn`` 翻倍。这里用两个**真正独立的会话**
+    复现丢更新的现场（第二个会话先读、再让第一个提交、最后才写）。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-referral-atomic-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+    from store import referrals
+
+    with database.session() as session:
+        seed_settings(session)
+        account = Account(
+            email="wallet-atomic@habridge.local",
+            password_hash=hash_password("smoke-wallet-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        account_id = account.id
+
+    session_a = database.session_factory()
+    session_b = database.session_factory()
+    try:
+        account = session_a.get(Account, account_id)
+        wallet = referrals.get_or_create_wallet(session_a, account)
+        wallet.balance = 100.0
+        wallet.earned = 100.0
+        wallet.frozen = 0.0
+        session_a.commit()
+        wallet_id = wallet.id
+
+        # 会话 B 先读到 frozen=0，然后**主动提交**释放快照 —— 它的内存里仍然是旧值，
+        # 但数据库里已经是新的了。这正是「读 - 改 - 写」丢更新的现场。
+        stale_b = session_b.get(ReferralWallet, wallet_id)
+        stale_b_frozen = float(stale_b.frozen or 0.0)
+        session_b.commit()
+
+        stale_a = session_a.get(ReferralWallet, wallet_id)
+        first = referrals.create_withdrawal(
+            session_a,
+            stale_a,
+            points=60.0,
+            request_key="smoke-atomic-0001",
+            fee_percent=1.0,
+        )
+        session_a.commit()
+
+        conflict = ""
+        try:
+            referrals.create_withdrawal(
+                session_b,
+                stale_b,
+                points=60.0,
+                request_key="smoke-atomic-0002",
+                fee_percent=1.0,
+            )
+        except referrals.WalletConflictError as error:
+            conflict = str(error)
+        session_b.rollback()
+        check(
+            "并发冻结的第二次被条件 UPDATE 抢单挡下（不会各插一条待审提现）",
+            stale_b_frozen == 0.0 and bool(conflict),
+            conflict or "第二次竟然成功了",
+        )
+        session_a.refresh(stale_a)
+        check(
+            "冻结只生效一次：frozen 没有被覆盖成同一个值",
+            float(stale_a.frozen or 0.0) == 60.0,
+            str(stale_a.frozen),
+        )
+        check(
+            "可用积分没有被并发放大（100 - 60 = 40）",
+            referrals.available_points(stale_a) == 40.0,
+            str(referrals.available_points(stale_a)),
+        )
+
+        # 双击审批：两个会话都看到 pending，只有抢到状态迁移的那一次能动账
+        wd_b = session_b.get(ReferralWithdrawal, first.id)
+        wd_b_status = wd_b.status
+        session_b.commit()
+        wd_a = session_a.get(ReferralWithdrawal, first.id)
+        referrals.resolve_withdrawal(session_a, wd_a, approve=True)
+        session_a.commit()
+        referrals.resolve_withdrawal(session_b, wd_b, approve=True)
+        session_b.rollback()
+        session_a.refresh(stale_a)
+        check(
+            "双击审批不把 frozen 扣成负数",
+            wd_b_status == "pending" and float(stale_a.frozen or 0.0) == 0.0,
+            f"status={wd_b_status} frozen={stale_a.frozen}",
+        )
+        check(
+            "双击审批不让 withdrawn 翻倍",
+            float(stale_a.withdrawn or 0.0) == 60.0,
+            str(stale_a.withdrawn),
+        )
+        check(
+            "审批后的余额与账本一致（100 - 60 = 40）",
+            float(stale_a.balance or 0.0) == 40.0,
+            str(stale_a.balance),
+        )
+    finally:
+        session_b.close()
+        session_a.close()
+
+
+async def check_coupon_parity() -> None:
+    """优惠码的预览与下单必须同口径，且预览不能绕过限流。
+
+    人工发卡商品由运营手工核对后发码，折扣没法自动结算 —— 关键是**两条路径都
+    拒绝**。过去下单路径静默忽略优惠码、预览照常打折：界面显示「¥50 → ¥25」，
+    结账按 ¥50 收，用户多付了钱且没有任何提示。预览还是一个天然判定 oracle
+    （每次都返回精确折扣额），不设限流等于开了一个无限次爆破接口。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-coupon-parity-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+    from store.api.store import _MANUAL_COUPON_DETAIL
+
+    email = "coupon-parity@habridge.local"
+    password = "smoke-coupon-2026"
+    with database.session() as session:
+        seed_settings(session)
+        products = seed_products(session)
+        manual = Product(
+            name="smoke 人工发卡商品",
+            product_code="homeos",
+            price_cents=5000,
+            validity_days=None,
+            product_type="base",
+            feature_codes_json=list_json(["editor.basic"]),
+            included_product_ids_json=list_json([]),
+            active=True,
+            fulfillment_mode="manual",
+        )
+        session.add(manual)
+        session.add(
+            Coupon(
+                code="SMOKE50",
+                description="smoke 五折",
+                discount_type="percent",
+                percent=50.0,
+                active=True,
+                per_account_limit=1,
+            )
+        )
+        account = Account(
+            email=email,
+            password_hash=hash_password(password),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        session.add(Customer(account_id=account.id, email=email, name=email))
+        session.flush()
+        manual_id = manual.id
+        base_id = products["base"].id
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        await client.post(
+            "/store/v1/auth/login", json={"email": email, "password": password}
+        )
+        preview = await client.post(
+            "/store/v1/coupons/preview",
+            json={"productId": manual_id, "couponCode": "SMOKE50"},
+        )
+        try:
+            preview_data = preview.json()
+        except ValueError:
+            preview_data = {}
+        check(
+            "人工发卡商品的预览**拒绝**优惠码（不再显示折后价骗人）",
+            preview.status_code == 422
+            and preview_data.get("detail") == _MANUAL_COUPON_DETAIL,
+            f"{preview.status_code} {preview_data.get('detail')}",
+        )
+        order = await client.post(
+            "/store/v1/orders",
+            json={"productId": manual_id, "couponCode": "SMOKE50"},
+        )
+        try:
+            order_data = order.json()
+        except ValueError:
+            order_data = {}
+        check(
+            "下单与预览同口径：人工发卡商品同样 422（而不是静默按原价收款）",
+            order.status_code == 422 and order_data.get("detail") == _MANUAL_COUPON_DETAIL,
+            f"{order.status_code} {order_data.get('detail')}",
+        )
+
+        # 限流：预览必须复用下单那条同一份计数（否则爆破是免费的）
+        statuses = []
+        for _ in range(9):
+            attempt = await client.post(
+                "/store/v1/coupons/preview",
+                json={"productId": base_id, "couponCode": "NOPE-NOT-A-CODE"},
+            )
+            statuses.append(attempt.status_code)
+        check(
+            "预览也会被优惠码限流拦下（第 9 次起 429，爆破不再免费）",
+            statuses[:8] == [404] * 8 and statuses[8] == 429,
+            str(statuses),
+        )
+
+
+async def check_entitlement_patch_validation() -> None:
+    """后台改功能码必须与创建时同一套校验。
+
+    功能码写错不会报任何错：后台显示已发放、客户端的 ``allows`` 一直拒绝
+    （表现是「功能打不开」）。创建时校验、编辑时不校验，等于给同一条规则留了后门。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-entitlement-patch-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+
+    with database.session() as session:
+        seed_settings(session)
+        products = seed_products(session)
+        seed_admin(session, "admin@habridge.local", "smoke-admin-2026")
+        account = Account(
+            email="entitlement@habridge.local",
+            password_hash=hash_password("smoke-entitlement-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        customer = Customer(account_id=account.id, email=account.email, name=account.email)
+        session.add(customer)
+        session.flush()
+        license = License(
+            activation_code="HB-SMOKE-ENTITLEMENT-00000001",
+            code_hint="SMOKE-ENT",
+            customer_id=customer.id,
+            account_id=account.id,
+            product_id=products["base"].id,
+            product_name=products["base"].name,
+            product_type="base",
+            issuance_source="manual",
+            active=True,
+            issued_at=utcnow(),
+            access_started_at=utcnow(),
+        )
+        session.add(license)
+        session.flush()
+        entry = Entitlement(
+            customer_id=customer.id,
+            license_id=license.id,
+            product_id=products["module"].id,
+            product_name=products["module"].name,
+            product_type="module",
+            feature_code="module.3d_interaction",
+            active=True,
+            starts_at=utcnow(),
+        )
+        session.add(entry)
+        session.flush()
+        entry_id = entry.id
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        await client.post("/store/v1/auth/login", json=_admin_login_payload())
+        invalid = await client.patch(
+            f"/store-admin/v1/entitlements/{entry_id}",
+            json={"featureCode": "smoke.not.a.feature"},
+        )
+        check(
+            "PATCH 传非法功能码必须 422（否则后台显示已发放、客户端打不开）",
+            invalid.status_code == 422,
+            f"{invalid.status_code} {invalid.text[:140]}",
+        )
+        valid = await client.patch(
+            f"/store-admin/v1/entitlements/{entry_id}", json={"featureCode": "display"}
+        )
+        check(
+            "合法功能码仍然可以改（校验不是一刀切）",
+            valid.status_code == 200
+            and valid.json().get("featureCode") == "display",
+            f"{valid.status_code} {valid.text[:140]}",
+        )
+
+
+async def check_echo_exposure_scope() -> None:
+    """``echo`` 模式只在**本机**回显验证码。
+
+    echo 的文案本来就写着「仅本地」，但一旦生产被切到 echo（手滑、或照抄了本地
+    环境变量），它就变成一条账号接管路径：攻击者对受害者邮箱调一次「发送验证码」，
+    响应里直接拿到重置码。非本机一律按 log 处理（验证码仍进服务端日志，运营能捞）。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-echo-scope-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        expose_verification_code=True,
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    with app.state.database.session() as session:
+        seed_settings(session)
+
+    loopback_transport = httpx.ASGITransport(app=app, client=("127.0.0.1", 51234))
+    async with httpx.AsyncClient(
+        transport=loopback_transport, base_url="http://store.test"
+    ) as local_client:
+        response = await local_client.post(
+            "/store/v1/verifications",
+            json={"email": "echo-local@habridge.local", "purpose": "register"},
+        )
+        local_data = response.json() if response.status_code == 200 else {}
+        check(
+            "本机客户端下 echo 仍然回显验证码（本地联调不受影响）",
+            response.status_code == 200 and bool(local_data.get("code")),
+            f"{response.status_code} code={bool(local_data.get('code'))}",
+        )
+
+    remote_transport = httpx.ASGITransport(app=app, client=("203.0.113.9", 51235))
+    async with httpx.AsyncClient(
+        transport=remote_transport, base_url="http://store.test"
+    ) as remote_client:
+        response = await remote_client.post(
+            "/store/v1/verifications",
+            json={"email": "echo-remote@habridge.local", "purpose": "register"},
+        )
+        remote_data = response.json() if response.status_code == 200 else {}
+        check(
+            "非本机客户端下 echo 不再回显验证码（堵掉账号接管路径）",
+            response.status_code == 200 and "code" not in remote_data,
+            f"{response.status_code} {remote_data}",
+        )
+        check(
+            "非本机时不回显的提示要说明验证码去了哪里（运营能去日志里捞）",
+            "本机" in str(remote_data.get("devNotice", "")),
+            str(remote_data.get("devNotice", ""))[:160],
+        )
+
+
+def check_setup_admin_guard() -> None:
+    """首次初始化的守卫必须真的在，且接线顺序正确。
+
+    ``POST /api/v1/setup/admin`` 刻意不要求身份（首次设置时还没有账号可登），
+    所以它天然是「谁能连上，谁就先把自己设成管理员」。修复前的实测路径就是：
+    ``GET /setup/status`` 看到 ``initialized=false`` → 一次 POST 拿到 201 与
+    ``role=admin`` 会话 → 随后可写 HA 连接（含长期令牌）、配对中控、导出日志。
+
+    判定逻辑不好用纯文本断言，所以这里分两层：
+    1. 真跑一遍 SetupGuard（本机 / 远程 / 转发头 / 限流 / 密钥作废）；
+    2. 静态钉住接线位置 —— ``authorize`` 必须排在 ``hash_password`` 之前，否则
+       未授权的请求照样能让服务端烧 argon2（免费打满 CPU 的办法）。
+    """
+    from fastapi import HTTPException
+    from starlette.requests import Request as StarletteRequest
+
+    guard_module = load_module("hb_setup_guard", PROJECT_ROOT / "backend" / "app" / "setup_guard.py")
+    limiter_module = load_module(
+        "hb_setup_limiter", PROJECT_ROOT / "backend" / "app" / "auth_limiter.py"
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-setup-guard-"))
+    limiter = limiter_module.LoginAttemptLimiter()
+    app_state = types.SimpleNamespace(state=types.SimpleNamespace(login_limiter=limiter))
+
+    def build_request(host: str, *extra_headers: tuple[str, str]) -> StarletteRequest:
+        """构造一个真实 Request：authorize 只看对端地址、请求头和 app.state。"""
+        return StarletteRequest(
+            {
+                "type": "http",
+                "http_version": "1.1",
+                "method": "POST",
+                "scheme": "http",
+                "path": "/api/v1/setup/admin",
+                "raw_path": b"/api/v1/setup/admin",
+                "query_string": b"",
+                "headers": [(key.lower().encode(), value.encode()) for key, value in extra_headers],
+                "client": (host, 40123),
+                "server": ("testserver", 80),
+                "app": app_state,
+            }
+        )
+
+    def rejected(call) -> tuple[int | None, str]:
+        """执行一次应被拒绝的授权；返回 (状态码, 文案)。"""
+        try:
+            call()
+        except HTTPException as error:
+            return error.status_code, str(error.detail)
+        return None, ""
+
+    guard = guard_module.SetupGuard(workdir, "", event_log=None)
+    token = guard.ensure_token()
+    token_path = workdir / "setup-token"
+    check(
+        "首次启动生成引导密钥并落到 0600 的 private 文件",
+        token_path.is_file()
+        and stat.S_IMODE(token_path.stat().st_mode) == 0o600
+        and len(token) >= 32,
+        f"{token_path} mode={oct(stat.S_IMODE(token_path.stat().st_mode)) if token_path.is_file() else 'n/a'} len={len(token)}",
+    )
+    check(
+        "密钥文件内容与内存里给出的那份一致（重启后仍可用同一份）",
+        token_path.is_file() and token_path.read_text(encoding="utf-8").strip() == token,
+    )
+    check(
+        "再次 ensure_token 不会换掉密钥（初始化窗口中断重启后运维手上那份仍有效）",
+        guard.ensure_token() == token,
+    )
+
+    # 远程来源：不带密钥、带错密钥都必须 403，且不能因此认为已授权。
+    remote_status, _ = rejected(
+        lambda: guard.authorize(build_request("203.0.113.7"), "")
+    )
+    check("远程来源不带引导密钥 → 403", remote_status == 403, str(remote_status))
+    wrong_status, _ = rejected(
+        lambda: guard.authorize(build_request("203.0.113.7"), "wrong-token")
+    )
+    check("远程来源密钥错误 → 403", wrong_status == 403, str(wrong_status))
+    header_status, _ = rejected(
+        lambda: guard.authorize(build_request("203.0.113.7", ("X-Setup-Token", "wrong")), "")
+    )
+    check("X-Setup-Token 头同样会被校验（错的就是 403）", header_status == 403, str(header_status))
+
+    # 本机直连：放行；但一旦带转发头就说明前面有代理，不能再按本机算。
+    local_status, _ = rejected(lambda: guard.authorize(build_request("127.0.0.1"), ""))
+    check("本机直连（未经代理）无需密钥即放行", local_status is None, str(local_status))
+    rebuilt_proxy = rejected(
+        lambda: guard.authorize(build_request("127.0.0.1", ("X-Forwarded-For", "203.0.113.7")), "")
+    )
+    check(
+        "同机反向代理过来的请求不再算本机（否则公网等于没守卫）",
+        rebuilt_proxy[0] == 403,
+        str(rebuilt_proxy[0]),
+    )
+
+    # 正确密钥：两条投递方式都要能过。
+    body_ok, _ = rejected(lambda: guard.authorize(build_request("203.0.113.7"), token))
+    check("远程来源带正确密钥 → 放行", body_ok is None, str(body_ok))
+    header_ok, _ = rejected(
+        lambda: guard.authorize(build_request("203.0.113.7", ("X-Setup-Token", token)), "")
+    )
+    check("远程来源用 X-Setup-Token 头带正确密钥 → 放行", header_ok is None, str(header_ok))
+
+    # 限流：连续猜密钥要能被拦住，而不是可以无限试。
+    codes = []
+    for _ in range(8):
+        codes.append(rejected(lambda: guard.authorize(build_request("198.51.100.9"), "nope"))[0])
+    check(
+        "同一来源连续猜密钥最终会被限流（出现 429）",
+        429 in codes,
+        "序列=" + ",".join(str(code) for code in codes),
+    )
+    retry_after = ""
+    try:
+        guard.authorize(build_request("198.51.100.9"), "nope")
+    except HTTPException as error:
+        retry_after = str(error.headers.get("Retry-After", ""))
+    check(
+        "429 要带 Retry-After（前端与运维都能知道多久后再试）",
+        retry_after.isdigit() and int(retry_after) > 0,
+        f"Retry-After={retry_after}",
+    )
+
+    # 初始化成功即作废：文件删掉，旧密钥不能再用来抢一次管理员。
+    guard.consume()
+    check(
+        "初始化成功后引导密钥文件被删除",
+        not token_path.exists(),
+    )
+    after_consume, _ = rejected(lambda: guard.authorize(build_request("203.0.113.7"), token))
+    check("初始化成功后旧密钥作废（再用是 403）", after_consume == 403, str(after_consume))
+
+    # 用 APP_SETUP_TOKEN 指定时不该再往磁盘写一份。
+    env_dir = Path(tempfile.mkdtemp(prefix="hb-setup-guard-env-"))
+    env_guard = guard_module.SetupGuard(env_dir, "from-env-token", event_log=None)
+    check(
+        "APP_SETUP_TOKEN 已配置时不再生成文件（部署方自己持有密钥）",
+        env_guard.ensure_token() == "from-env-token" and not (env_dir / "setup-token").exists(),
+    )
+
+    # ---- 静态接线：守卫在，且顺序对 ----
+    auth_source = (PROJECT_ROOT / "backend" / "app" / "api" / "auth.py").read_text(encoding="utf-8")
+    setup_body = auth_source.split("def setup_admin(", 1)[-1].split("def login(", 1)[0]
+    check(
+        "setup_admin 里先过守卫、再算 argon2（未授权请求换不到 CPU）",
+        "setup_guard.authorize(" in setup_body
+        and 0 <= setup_body.index("setup_guard.authorize(") < setup_body.index("hash_password("),
+    )
+    check(
+        "初始化成功后立即作废引导密钥（consume）",
+        "setup_guard.consume()" in setup_body,
+    )
+    main_source = (PROJECT_ROOT / "backend" / "app" / "main.py").read_text(encoding="utf-8")
+    check(
+        "lifespan 里建好守卫，并在未初始化时打印引导密钥",
+        "SetupGuard(" in main_source and "announce_setup_window(" in main_source,
+    )
+    config_source = (PROJECT_ROOT / "backend" / "app" / "config.py").read_text(encoding="utf-8")
+    check(
+        "引导密钥可由 APP_SETUP_TOKEN 指定",
+        "APP_SETUP_TOKEN" in config_source and "setup_token" in config_source,
+    )
+    check(
+        "请求体字段 setupToken 与前端 setup.js 对齐",
+        "setupToken" in (PROJECT_ROOT / "backend" / "app" / "schemas.py").read_text(encoding="utf-8")
+        and "setupToken"
+        in (PROJECT_ROOT / "frontend" / "static" / "setup.js").read_text(encoding="utf-8"),
+    )
+    guard_lines = [
+        line
+        for line in (PROJECT_ROOT / "backend" / "app" / "setup_guard.py")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if ".append(" in line
+    ]
+    check(
+        "引导密钥不写进全局日志正文（全局日志可导出，等于把管理员送出去）",
+        bool(guard_lines) and not any("token" in line for line in guard_lines),
+        "；".join(guard_lines),
+    )
+
+
+def check_global_log_write_amplification() -> None:
+    """全局日志不能把「请求量」放大成「磁盘读写量」（审计 H1）。
+
+    修复前有三个放大器叠在一起，任何匿名客户端都能触发：
+    1. 诊断中间件在事件循环里同步 ``append`` —— 4xx/5xx 当场做磁盘 I/O；
+    2. 去重签名里含 ``requestId`` / ``durationMs``（逐请求变化），刷屏时
+       「5 秒折叠」完全失效，日志文件行数直接等于请求数；
+    3. 文件一旦超过 ``max_bytes``，**每次** append 都触发一次
+       「读全量 + 解析 + 全量重写 + fsync」（实测 5 MiB 文件约 50 ms/次）。
+    于是「先匿名把日志顶到上限，再高频打任意 401 接口」就等于自造的 DoS。
+
+    这里用真实的 GlobalLogStore 钉住修复后的三条性质：append 不碰磁盘、
+    同源刷屏折叠成 1 行、超限期间不再逐次全量重写。
+    """
+    module = load_module("hb_global_log", PROJECT_ROOT / "backend" / "app" / "global_log.py")
+    workdir = Path(tempfile.mkdtemp(prefix="hb-global-log-"))
+
+    def new_store(name: str, *, max_bytes: int = 65536):
+        store = module.GlobalLogStore(workdir / name, max_bytes=max_bytes)
+        # 自检不等人：把刷盘节奏压快，折叠窗口也压到 0.2 秒。
+        store.FLUSH_INTERVAL_SECONDS = 0.01
+        store.FOLD_WINDOW_SECONDS = 0.2
+        store.FOLD_WRITE_INTERVAL_SECONDS = 0.2
+        return store
+
+    def wait_drain(store, timeout: float = 10.0) -> None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            with store._lock:
+                if not store._pending:
+                    return
+            time.sleep(0.005)
+
+    def lines_on_disk(store) -> list[str]:
+        if not store.path.exists():
+            return []
+        return [line for line in store.path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+    # ---------------- 1. append 不做磁盘 I/O ----------------
+    store = new_store("io")
+    store.append("info", "系统后台", "系统", "预热")
+    wait_drain(store)
+    size_before = store.path.stat().st_size
+    # 拿住内部锁 = 把后台写线程挡在门外，此时文件不可能增长。
+    with store._lock:
+        for index in range(50):
+            store.append("warning", "系统后台", "接口", f"接口返回错误：GET /api/v1/hold/{index} · HTTP 401")
+        size_locked = store.path.stat().st_size
+        pending = len(store._pending)
+    check(
+        "append 只入队、不落盘（调用方可能是事件循环里的中间件）",
+        size_locked == size_before and pending == 50,
+        f"{size_before} → {size_locked}，pending={pending}",
+    )
+    visible = store.list_events(limit=None)
+    check(
+        "未落盘的事件也能立刻读到（前端不会觉得日志丢了）",
+        any("hold/49" in str(item.get("message")) for item in visible),
+        f"{len(visible)} 条",
+    )
+    store.stop()
+    check(
+        "stop() 把剩余事件全部刷盘且线程退出",
+        len(store._read_events()) >= 51 and not store._writer.is_alive(),
+        f"{len(store._read_events())} 条",
+    )
+
+    # ---------------- 2. 同源刷屏折叠成一行 ----------------
+    store = new_store("fold")
+    for _ in range(300):
+        store.append(
+            "warning",
+            "系统后台",
+            "接口",
+            "接口返回错误：GET /api/v1/auth/me · HTTP 401",
+            context={"requestId": uuid4().hex, "method": "GET", "path": "/api/v1/auth/me", "status": 401, "durationMs": 1.5},
+        )
+    wait_drain(store)
+    folded_lines = lines_on_disk(store)
+    live = [item for item in store.list_events(limit=None) if "auth/me" in str(item.get("message"))]
+    check(
+        "300 次同源刷屏只落 1 行（修复前 300 行）",
+        len(folded_lines) == 1,
+        f"{len(folded_lines)} 行",
+    )
+    check(
+        "折叠后计数仍准确（读接口立刻看到最新 repeatCount）",
+        len(live) == 1 and live[0].get("repeatCount") == 300,
+        str([item.get("repeatCount") for item in live]),
+    )
+    # 窗口结束后补写最终快照：文件多 1 行，但读到的仍是同一条、计数不变。
+    time.sleep(1.0)
+    store._wake.set()
+    wait_drain(store)
+    final = [item for item in store.list_events(limit=None) if "auth/me" in str(item.get("message"))]
+    check(
+        "窗口结束只补 1 行最终快照（同 id 去重后计数仍是 300）",
+        len(lines_on_disk(store)) == 2 and len(final) == 1 and final[0].get("repeatCount") == 300,
+        f"{len(lines_on_disk(store))} 行 / {[item.get('repeatCount') for item in final]}",
+    )
+    # 反向保护：真的不同的事件不能被折叠掉。
+    for index in range(30):
+        store.append(
+            "warning",
+            "系统后台",
+            "接口",
+            f"接口返回错误：GET /api/v1/other/{index} · HTTP 401",
+            context={"requestId": uuid4().hex, "path": f"/api/v1/other/{index}", "status": 401},
+        )
+    wait_drain(store)
+    check("不同 path 的错误不会被误折叠", len(lines_on_disk(store)) == 32, f"{len(lines_on_disk(store))} 行")
+    store.stop()
+
+    # ---------------- 3. 超限期间不再逐次全量重写 ----------------
+    store = new_store("prune")
+    filler = "x" * 400
+    written = 0
+    while written < 4000:
+        for index in range(100):
+            number = written + index
+            store.append(
+                "warning",
+                "系统后台",
+                "接口",
+                f"接口返回错误：GET /api/v1/flood/{number} · HTTP 401 · {filler}",
+                context={"requestId": uuid4().hex, "path": f"/api/v1/flood/{number}", "status": 401},
+            )
+        written += 100
+        wait_drain(store)
+        if store.path.stat().st_size > store.max_bytes:
+            break
+    check("能把日志灌到超过上限（构造前置条件）", store.path.stat().st_size > store.max_bytes, f"{store.path.stat().st_size} > {store.max_bytes}")
+    store.prune_now()
+    check("裁剪仍然把文件收回上限内", store.path.stat().st_size <= store.max_bytes, f"{store.path.stat().st_size}")
+    prunes_before = store._prune_count
+    size_before = store.path.stat().st_size
+    for index in range(100):
+        store.append(
+            "warning",
+            "系统后台",
+            "接口",
+            f"接口返回错误：GET /api/v1/hammer/{index} · HTTP 401",
+            context={"requestId": uuid4().hex, "path": f"/api/v1/hammer/{index}", "status": 401},
+        )
+        if index % 20 == 0:
+            time.sleep(0.02)
+            wait_drain(store)
+    wait_drain(store)
+    check(
+        "超限期间高频写入不再触发全量重写（修复前每次写入都重写）",
+        store._prune_count == prunes_before,
+        f"pruneCount {prunes_before} → {store._prune_count}",
+    )
+    check(
+        "超限期间文件只按追加量增长，没有重写量",
+        store.path.stat().st_size - size_before < 200 * 1024,
+        f"增长 {store.path.stat().st_size - size_before} 字节",
+    )
+    check("裁剪保留最新事件而不是清空文件", len(store.list_events(limit=None, search="hammer/99")) == 1)
+    store.stop()
+
+    # ---------------- 4. 静态接线：写线程与去抖裁剪必须在 ----------------
+    source = (PROJECT_ROOT / "backend" / "app" / "global_log.py").read_text(encoding="utf-8")
+    check(
+        "落盘走独立写线程（请求路径不做磁盘 I/O）",
+        "global-log-writer" in source and "def _writer_loop" in source and "daemon=True" in source,
+    )
+    check(
+        "裁剪带最小间隔，且 oversized 不能绕过它",
+        "PRUNE_MIN_INTERVAL_SECONDS" in source and "elapsed < timedelta(seconds=self.PRUNE_MIN_INTERVAL_SECONDS)" in source,
+    )
+    check(
+        "去重签名剔除逐请求变化的字段（否则折叠形同虚设）",
+        "_VOLATILE_CONTEXT_KEYS" in source and '"requestId"' in source and '"durationMs"' in source,
+    )
+    main_source = (PROJECT_ROOT / "backend" / "app" / "main.py").read_text(encoding="utf-8")
+    check(
+        "应用关闭时刷盘并回收写线程（否则最后一条日志会丢）",
+        "global_log.stop()" in main_source,
+    )
+
+
+def check_upload_size_cap() -> None:
+    """``POST /api/v1/assets/user`` 必须有请求体字节上限（审计 H3）。
+
+    修复前是 ``async for chunk in request.stream(): descriptor.write(chunk)``：
+    没有任何字节上限，一个请求就能把磁盘写满（连带拖垮 SQLite WAL、日志与导出），
+    而体积校验（Pillow 解析）发生在整段写完之后 —— 那时磁盘已经被占了。
+
+    上面这三种上传（正常图 / 伪造 Content-Length / 分块超限）要真发请求才覆盖得到，
+    这里用静态断言钉住三处关键接线，防止回归时把早拒或逐块计数删掉。
+    """
+    source = (PROJECT_ROOT / "backend" / "app" / "api" / "assets.py").read_text(encoding="utf-8")
+    # 只看真正的上传处理函数体：模块文档里会引用修复前的旧写法，不能拿来判断顺序。
+    body = source[source.index("async def upload_user_asset") :]
+    check("存在统一的字节上限常量", "MAX_UPLOAD_BYTES" in source, "assets.py")
+    check(
+        "超过声明的 Content-Length 时在读体之前就拒绝（413）",
+        "content-length" in body
+        and "status_code = 413" in body
+        and body.index("content-length") < body.index("request.stream()"),
+        "早拒必须排在读流之前",
+    )
+    check(
+        "流式写入按累计字节数兜底（分块传输 / 不带 Content-Length 也拦得住）",
+        "received" in body and "byte_limit" in body,
+    )
+
+
+def check_display_pairing_hardening() -> None:
+    """中控配对码的生命周期与限流（审计 H2）。
+
+    修复前：6 位数字、永不过期、可无限复用；只有按 IP 的失败计数（5/300 秒），
+    换 IP 就能继续穷举；更糟的是拿一个已经在用的配对码再次配对会**顶掉**原来那台
+    平板的令牌（不删行、只覆盖 token_hash 并清掉 revoked_at），等于用一张照片把
+    合法设备挤下线。另外被拦截时走的是 ``limiter.block_seconds(...)``（int 当函数
+    调）→ 抛 TypeError → 返回 500 而不是 429。
+
+    上面这些行为（首次配对、重复配对 409、解绑后重配、旧令牌失效、按 IP 与跨来源
+    两档限流）要真发请求才覆盖得到，这里钉住关键接线。
+    """
+    source = (PROJECT_ROOT / "backend" / "app" / "api" / "displays.py").read_text(encoding="utf-8")
+    check("配对失败有跨来源的全局预算（换 IP 也躲不掉）", "PAIRING_GLOBAL_LIMIT" in source and "PAIRING_GLOBAL_KEY" in source)
+    check(
+        "被限流时返回 429 + Retry-After（block_seconds 是属性，不是方法）",
+        "limiter.block_seconds" in source and "limiter.block_seconds(" not in source and "Retry-After" in source,
+    )
+    check(
+        "正在用的设备不会被同一个配对码顶掉（409 冲突）",
+        "HTTP_409_CONFLICT" in source,
+    )
+    check(
+        "配对前检查授权能力（授权收回后旧码也换不出令牌）",
+        "allows('display')" in source or 'allows("display")' in source,
+    )
+    check(
+        "后台列表提供解绑入口（否则 409 之后没法恢复）",
+        '"DELETE"' in (PROJECT_ROOT / "frontend" / "static" / "home.js").read_text(encoding="utf-8")
+        and '"/displays/"' in (PROJECT_ROOT / "frontend" / "static" / "home.js").read_text(encoding="utf-8"),
+    )
+
+
 async def run() -> int:
     client_crypto = load_module("hb_client_crypto", CLIENT_CRYPTO_PATH)
 
+    # 自检里大量用例刻意走模拟收银台（下单 → 模拟支付 → 拿激活码）。模拟收银台默认
+    # 是关闭的（fail-closed，见 store/payments/__init__.resolve_provider），这里显式
+    # 打开，只作用在本进程内。注意：单个用例若还要覆盖「禁止 mock」的行为，必须自己
+    # 传 allow_mock_payments=False 的 settings，不能依赖这个环境变量。
+    os.environ.setdefault("STORE_ALLOW_MOCK_PAYMENTS", "1")
+
     # 纯静态检查放在流程末尾统一跑（见下面第 11 节），这里只放不需要建库的
     # 单元检查与各自带临时库的流程检查
+    # 注意 await：这类函数是 async 的，漏掉 await 不会报错，只会静默不执行
+    # （Python 仅打一条 RuntimeWarning），整段断言就成了摆设 —— 这里曾经就这样漏过。
+    await check_payment_provider_fail_closed()
+    check_seed_requires_credentials()
+    await check_login_throttle_persists()
     check_alipay_signing()
+    check_alipay_sign_type_guard()
     check_mail_settings_merge()
+    check_mail_presets()
     await check_verification_isolation()
     await check_smtp_degrades_without_credentials()
     await check_alipay_notify_flow()
     check_payment_sweep_flow()
+    await check_payment_sweep_edge_cases()
     await check_payment_sweep_loop_runs()
+    # 站点配置的真实连通性诊断，以及本轮业务逻辑修复的专项断言。
+    # 放在主流程之前：它们各自建临时库、且要故意把配置改坏。
+    await check_alipay_diagnostics()
+    await check_mail_diagnostics()
+    await check_upgrade_refund_revert()
+    await check_stock_reservation_flag()
+    await check_referral_wallet_atomic()
+    await check_coupon_parity()
+    await check_entitlement_patch_validation()
+    await check_echo_exposure_scope()
+    check_setup_admin_guard()
+    # 第 2 批 High 的专项断言：日志写入放大、上传体积、配对码生命周期。
+    check_global_log_write_amplification()
+    check_upload_size_cap()
+    check_display_pairing_hardening()
 
     workdir = Path(tempfile.mkdtemp(prefix="hb-store-smoke-"))
     settings = load_settings(
@@ -2362,6 +5196,18 @@ async def run() -> int:
             str(addon_channel["release"]),
         )
 
+        # 绑定列表按激活码搜：客户报过来的是激活码（或提示码），而绑定行上没有
+        # 这个字段 —— 条件必须经 License 反查，否则排障时只能一页页翻。
+        bound_search = await client.get(
+            "/store-admin/v1/bindings", params={"keyword": activation_code}
+        )
+        check(
+            "绑定列表可按激活码搜到（激活码不在绑定行上，必须反查授权）",
+            bound_search.status_code == 200
+            and binding_id in [item["bindingId"] for item in bound_search.json()["items"]],
+            f"{bound_search.status_code} {len(bound_search.json().get('items', []))} 条",
+        )
+
         release_binding = await client.post(
             f"/store-admin/v1/bindings/{binding_id}/release",
             json={"note": "smoke 强制解绑"},
@@ -2582,11 +5428,49 @@ async def run() -> int:
             "name": "smoke 临时商品",
             "productType": "module",
             "priceCents": 1990,
-            "featureCodes": ["module.smoke"],
+            # 必须用能力目录里的真代码：接口会拒绝目录外的功能码（见下面的断言），
+            # 而「抄错一个字母」正是这条校验要拦的东西。
+            "featureCodes": ["module.3d_interaction"],
             "active": True,
         },
     )
     check("后台创建商品", created_product.status_code == 200, str(created_product.status_code))
+
+    # 商品类型 / 履约方式 / 功能码都是「写错不报错、但会静默走错路」的字段：
+    # 类型决定下单分支（module 必须挂到已有授权上）、履约方式决定付款后发不发码、
+    # 功能码抄错只会被客户端静默拦截。三者都必须在写库前拒绝非法取值。
+    bad_type = await client.post(
+        "/store-admin/v1/products",
+        json={"name": "smoke 类型错", "productType": "moduel", "featureCodes": ["api"]},
+    )
+    check(
+        "非法商品类型被拒绝（拼错一个字母不能当成基础授权卖）",
+        bad_type.status_code == 422,
+        f"{bad_type.status_code} {bad_type.text[:120]}",
+    )
+    bad_mode = await client.post(
+        "/store-admin/v1/products",
+        json={
+            "name": "smoke 履约错",
+            "productType": "base",
+            "fulfillmentMode": "Manual",
+            "featureCodes": ["api"],
+        },
+    )
+    check(
+        "非法履约方式被拒绝（写错不能静默按自动发码处理）",
+        bad_mode.status_code == 422,
+        f"{bad_mode.status_code} {bad_mode.text[:120]}",
+    )
+    bad_feature = await client.post(
+        "/store-admin/v1/products",
+        json={"name": "smoke 功能码错", "productType": "base", "featureCodes": ["ha.synx"]},
+    )
+    check(
+        "目录外的功能码被拒绝（客户端不会认，等于没发）",
+        bad_feature.status_code == 422,
+        f"{bad_feature.status_code} {bad_feature.text[:120]}",
+    )
     temp_product_id = created_product.json()["id"]
     patched = await client.patch(
         f"/store-admin/v1/products/{temp_product_id}", json={"priceCents": 2990, "badgeText": "限时"}
@@ -2675,7 +5559,7 @@ async def run() -> int:
         "GET /settings 带邮件配置概览且不回显授权码明文",
         {"mode", "smtpHost", "smtpPort", "smtpPasswordConfigured", "smtpReady",
          "verificationTtlSeconds", "verificationCooldownSeconds",
-         "exposeVerificationCode"} <= set(mail_payload),
+         "exposeVerificationCode", "defaultEmail", "presets"} <= set(mail_payload),
         str(sorted(mail_payload)),
     )
 
@@ -2940,6 +5824,102 @@ async def run() -> int:
         cancelled.status_code == 200 and cancelled.json()["status"] == "cancelled",
         str(cancelled.status_code),
     )
+
+    # —— 用户自助取消（POST /orders/{order_no}/cancel）——
+    # 这条路与后台取消、模拟收银台取消的关键区别：它在改本地状态**之前**先关掉渠道
+    # 侧的预下单交易（否则用户手里那张二维码还能继续扫、继续付），所以三段副作用
+    # ——订单状态、库存预留、优惠码名额——必须都收干净，重复取消和他人取消都要挡住。
+    self_cancel_coupon = f"SMOKE-SELF-{utcnow().strftime('%H%M%S%f')}"
+    with database.session() as session:
+        session.add(
+            Coupon(
+                code=self_cancel_coupon,
+                description="smoke 用户自助取消",
+                percent=5,
+                max_redemptions=1,
+                per_account_limit=1,
+            )
+        )
+    self_cancel_order = (
+        await client.post(
+            "/store/v1/orders",
+            json={"productId": base_product_id, "couponCode": self_cancel_coupon},
+        )
+    ).json()
+    with database.session() as session:
+        before_coupon = session.scalars(
+            select(Coupon).where(Coupon.code == self_cancel_coupon)
+        ).first()
+    check(
+        "自助取消前：下单确实占用了优惠码名额",
+        before_coupon is not None and before_coupon.redeemed_count == 1,
+        str(before_coupon.redeemed_count if before_coupon is not None else None),
+    )
+
+    self_cancelled = await client.post(
+        f"/store/v1/orders/{self_cancel_order['orderNo']}/cancel"
+    )
+    check(
+        "本人可自助取消待支付订单",
+        self_cancelled.status_code == 200 and self_cancelled.json()["status"] == "cancelled",
+        f"{self_cancelled.status_code} {self_cancelled.text[:80]!r}",
+    )
+    with database.session() as session:
+        after_coupon = session.scalars(
+            select(Coupon).where(Coupon.code == self_cancel_coupon)
+        ).first()
+        after_order = session.scalars(
+            select(Order).where(Order.order_no == self_cancel_order["orderNo"])
+        ).first()
+    check(
+        "自助取消归还优惠码名额（漏掉会让名额被永久占用）",
+        after_coupon is not None and after_coupon.redeemed_count == 0,
+        str(after_coupon.redeemed_count if after_coupon is not None else None),
+    )
+    check(
+        "自助取消归还库存预留",
+        after_order is not None and after_order.stock_reservation_released_at is not None,
+        str(getattr(after_order, "stock_reservation_released_at", None)),
+    )
+
+    repeat_cancel = await client.post(
+        f"/store/v1/orders/{self_cancel_order['orderNo']}/cancel"
+    )
+    check(
+        "已取消的订单不能再取消（409）",
+        repeat_cancel.status_code == 409,
+        f"{repeat_cancel.status_code} {repeat_cancel.text[:80]!r}",
+    )
+
+    # 访客不能拿订单号取消别人的单：这是唯一一条「不花钱就能把别人占用的库存释放掉」
+    # 的路径，授权口径必须与 GET 订单一致 —— 凭证对了才放行（扫码收银台那条路径）。
+    async with httpx.AsyncClient(
+        transport=transport_http, base_url="http://store.test", follow_redirects=False
+    ) as guest:
+        stranger_order = (
+            await client.post(
+                "/store/v1/orders", json={"productId": base_product_id, "couponCode": None}
+            )
+        ).json()
+        stranger_cancel = await guest.post(
+            f"/store/v1/orders/{stranger_order['orderNo']}/cancel",
+            headers={"x-order-token": "not-the-token"},
+        )
+        check(
+            "凭证不对的访客不能取消他人订单（403）",
+            stranger_cancel.status_code == 403,
+            f"{stranger_cancel.status_code} {stranger_cancel.text[:80]!r}",
+        )
+        tokened_cancel = await guest.post(
+            f"/store/v1/orders/{stranger_order['orderNo']}/cancel",
+            headers={"x-order-token": stranger_order["lookupToken"]},
+        )
+        check(
+            "持订单凭证的访客可取消该订单（与查单授权口径一致）",
+            tokened_cancel.status_code == 200
+            and tokened_cancel.json()["status"] == "cancelled",
+            f"{tokened_cancel.status_code} {tokened_cancel.text[:80]!r}",
+        )
 
     expiring_order = (
         await client.post("/store/v1/orders", json={"productId": base_product_id, "couponCode": None})
@@ -3270,6 +6250,8 @@ async def run() -> int:
         pending_order_no = f"HB-SMOKE-PEND-{stamp}"
         junk_order_no = f"HB-SMOKE-JUNK-{stamp}"
         linked_order_no = f"HB-SMOKE-LINK-{stamp}"
+        addon_order_no = f"HB-SMOKE-ADDON-{stamp}"
+        snapshot_order_no = f"HB-SMOKE-SNAP-{stamp}"
         _smoke_order("pending", pending_order_no)
         _smoke_order("cancelled", junk_order_no)
         linked_order = _smoke_order("cancelled", linked_order_no)
@@ -3290,6 +6272,33 @@ async def run() -> int:
         session.flush()
         linked_order.license_id = linked_license.id
 
+        # 增量包 / 升级单在**下单时**就写上 target_license_id（表达「这单打算改谁」），
+        # 但从未履约的单既没发码、也没动过那张授权，不该被删除守卫拦住 —— 过去
+        # 守卫把这一列当成「已关联授权」，让所有增购垃圾单在后台永远删不掉。
+        addon_order = _smoke_order("cancelled", addon_order_no)
+        addon_order.order_type = "addon"
+        addon_order.license_action = "patch"
+        addon_order.target_license_id = linked_license.id
+
+        # 履约过的升级/增量包单会留下「改前快照」（退款要靠它还原），那种单永远不能删。
+        snapshot_order = _smoke_order("cancelled", snapshot_order_no)
+        snapshot_order.order_type = "addon"
+        snapshot_order.license_action = "patch"
+        snapshot_order.target_license_id = linked_license.id
+        snapshot_order.license_state_before_json = '{"active": true}'
+
+        # 支付宝单在渠道确认关单之前不能删：本地过期 ≠ 远端那笔交易结束，用户手上
+        # 那个旧二维码还能付款，删了订单这笔钱就没有凭证（异步通知按订单号找不到）。
+        payable_order_no = f"HB-SMOKE-PAYABLE-{stamp}"
+        payable_order = _smoke_order("expired", payable_order_no)
+        payable_order.payment_provider = "alipay"
+        payable_order.channel_closed_at = None
+        # 关单后（或已超出巡检回看窗口）就是普通的可删垃圾单。
+        closed_order_no = f"HB-SMOKE-CLOSED-{stamp}"
+        closed_order = _smoke_order("expired", closed_order_no)
+        closed_order.payment_provider = "alipay"
+        closed_order.channel_closed_at = utcnow()
+
     blocked_pending = await client.delete(f"/store-admin/v1/orders/{pending_order_no}")
     check(
         "待支付订单不可删除（提示先取消）",
@@ -3307,6 +6316,32 @@ async def run() -> int:
         "已取消且未发码的订单可删除",
         deleted_junk.status_code == 200 and deleted_junk.json().get("deleted") is True,
         str(deleted_junk.json()),
+    )
+    # 「指向某张授权」≠「关联授权」：增量包/升级单下单时就写 target_license_id，
+    # 用它当判据会让这类终态垃圾单永远删不掉（后台操作列整列空白）。
+    deleted_addon = await client.delete(f"/store-admin/v1/orders/{addon_order_no}")
+    check(
+        "已取消的增量包单（只有 target_license_id、未履约）可删除",
+        deleted_addon.status_code == 200 and deleted_addon.json().get("deleted") is True,
+        str(deleted_addon.json()),
+    )
+    blocked_snapshot = await client.delete(f"/store-admin/v1/orders/{snapshot_order_no}")
+    check(
+        "改动过已有授权的订单不可删除（提示走退款）",
+        blocked_snapshot.status_code == 409,
+        str(blocked_snapshot.status_code),
+    )
+    blocked_payable = await client.delete(f"/store-admin/v1/orders/{payable_order_no}")
+    check(
+        "支付宝交易未关单的订单不可删除（延迟到账的钱会失去凭证）",
+        blocked_payable.status_code == 409,
+        str(blocked_payable.status_code),
+    )
+    deleted_closed = await client.delete(f"/store-admin/v1/orders/{closed_order_no}")
+    check(
+        "渠道已确认关单的终态订单可删除",
+        deleted_closed.status_code == 200 and deleted_closed.json().get("deleted") is True,
+        str(deleted_closed.json()),
     )
 
     # —— 授权：必须先停用、且无活跃绑定，才允许彻底删除 ——
@@ -3601,6 +6636,370 @@ async def run() -> int:
         ),
     )
 
+    # ------------------------------------------------------------------ #
+    # 9c. 资金路径：退款的原子性、无资金变动的空退款、累计值必须锁内落库
+    # ------------------------------------------------------------------ #
+    # 这一段动的都是「钱」：账面错了的时候界面反而一切正常（状态、流水、
+    # 提示都在），只有数字对不上，所以必须有断言盯着。
+    def _paid_order(suffix: str, amount_cents: int) -> str:
+        """造一笔**已付款**的订单。
+
+        预留刻意加 1：退款要把这件预留还回去，漏了等于这件货再也卖不出去。
+        """
+        with database.session() as session:
+            product_row = session.get(Product, base_product_id)
+            product_row.reserved_stock = int(product_row.reserved_stock or 0) + 1
+            customer_row = session.scalars(
+                select(Customer).where(Customer.account_id == account_id)
+            ).first()
+            row = Order(
+                order_no=f"HB-SMOKE-REFUND-{suffix}-{utcnow().strftime('%H%M%S%f')}",
+                lookup_token=f"refund-token-{suffix}-{utcnow().strftime('%H%M%S%f')}",
+                account_id=account_id,
+                customer_id=customer_row.id,
+                email=email,
+                product_id=product_row.id,
+                product_name=product_row.name,
+                product_type=product_row.product_type,
+                order_type="base",
+                license_action="issue",
+                original_amount_cents=amount_cents,
+                amount_cents=amount_cents,
+                status="paid",
+                fulfillment_mode="automatic",
+                payment_provider="mock",
+                paid_at=utcnow(),
+            )
+            session.add(row)
+            session.flush()
+            return row.order_no
+
+    with database.session() as session:
+        reserved_baseline = int(session.get(Product, base_product_id).reserved_stock or 0)
+
+    revenue_before = (await client.get("/store-admin/v1/overview")).json()["revenue"]
+
+    # —— 部分退款：营收要按「收款 − 实退」记，既不能整单消失也不能当没退 ——
+    partial_order_no = _paid_order("partial", 10000)
+    partial = await client.post(
+        f"/store-admin/v1/orders/{partial_order_no}/refund",
+        json={"amountCents": 3000, "note": "smoke 部分退款"},
+    )
+    check(
+        "支持部分退款（不再是一退就退全款）",
+        partial.status_code == 200,
+        f"{partial.status_code} {partial.text[:200]}",
+    )
+    partial_data = partial.json() if partial.status_code == 200 else {}
+    check(
+        "部分退款后订单进入「部分已退」且写下累计退款额",
+        partial_data.get("status") == "partially_refunded"
+        and int(partial_data.get("refundAmountCents") or 0) == 3000
+        and int(partial_data.get("refundableCents") or 0) == 7000,
+        str(
+            {
+                key: partial_data.get(key)
+                for key in ("status", "refundAmountCents", "refundableCents")
+            }
+        ),
+    )
+
+    revenue_after = (await client.get("/store-admin/v1/overview")).json()["revenue"]
+    check(
+        "部分退款订单按「收款 − 实退」计入营收（10000 − 3000 = 7000）",
+        int(revenue_after["totalGrossCents"]) - int(revenue_before["totalGrossCents"]) == 10000
+        and int(revenue_after["totalRefundCents"])
+        - int(revenue_before["totalRefundCents"])
+        == 3000,
+        f"gross {revenue_before['totalGrossCents']}→{revenue_after['totalGrossCents']} "
+        f"refund {revenue_before['totalRefundCents']}→{revenue_after['totalRefundCents']}",
+    )
+
+    with database.session() as session:
+        reserved_after_partial = int(session.get(Product, base_product_id).reserved_stock or 0)
+    check(
+        "退款把订单占的库存预留还了回去（离开 paid 就再没人负责这一步）",
+        reserved_after_partial == reserved_baseline,
+        f"reserved={reserved_after_partial} baseline={reserved_baseline}",
+    )
+
+    # —— 超出可退余额要拒绝，且绝不能改动账面 ——
+    too_much = await client.post(
+        f"/store-admin/v1/orders/{partial_order_no}/refund",
+        json={"amountCents": 8000, "note": "smoke 超额退款"},
+    )
+    check(
+        "退款超过可退余额时 422（可退只剩 7000）",
+        too_much.status_code == 422,
+        f"{too_much.status_code} {too_much.text[:200]}",
+    )
+    after_reject = (await client.get(f"/store-admin/v1/orders/{partial_order_no}/refunds")).json()
+    check(
+        "被拒的退款不留任何流水痕迹",
+        too_much.status_code == 422
+        and len(after_reject["items"]) == 1
+        and int(after_reject["refundedCents"]) == 3000,
+        f"{len(after_reject['items'])} 条 / 累计 {after_reject['refundedCents']}",
+    )
+
+    # —— 第二次部分退款：幂等号不能复用，否则渠道会把第二笔当成重复请求 ——
+    remainder = await client.post(
+        f"/store-admin/v1/orders/{partial_order_no}/refund",
+        json={"amountCents": 7000, "note": "smoke 退完剩余"},
+    )
+    check(
+        "退完剩余金额后订单进入全额已退",
+        remainder.status_code == 200
+        and remainder.json().get("status") == "refunded"
+        and int(remainder.json().get("refundAmountCents") or 0) == 10000,
+        f"{remainder.status_code} {remainder.text[:200]}",
+    )
+    refund_rows = (
+        await client.get(f"/store-admin/v1/orders/{partial_order_no}/refunds")
+    ).json()["items"]
+    check(
+        "两次部分退款各留一条流水，且渠道单号（幂等号）互不相同",
+        len(refund_rows) == 2
+        and len({row["outRequestNo"] for row in refund_rows}) == 2
+        and len({row["tradeNo"] for row in refund_rows}) == 2,
+        str([(row["amountCents"], row["outRequestNo"], row["tradeNo"]) for row in refund_rows]),
+    )
+    already_done = await client.post(
+        f"/store-admin/v1/orders/{partial_order_no}/refund", json={"note": "smoke 再退一次"}
+    )
+    check(
+        "已全额退款的订单再退返回 409（没有可退余额）",
+        already_done.status_code == 409,
+        f"{already_done.status_code} {already_done.text[:200]}",
+    )
+
+    # —— 并发退款：进程内锁 + 累计值抢单，钱只能退一次 ——
+    # 过去这里两句 UPDATE 是「读-改-写」：两个请求都读到累计 0，各自把渠道退款
+    # 发出去，钱多退一倍而账面只加一次。锁还必须在**提交之前**拿住 ——
+    # 请求会话的 commit 在依赖 teardown 里，那时锁已释放，第二笔照样读到旧值。
+    race_order_no = _paid_order("race", 10000)
+    race = await asyncio.gather(
+        client.post(f"/store-admin/v1/orders/{race_order_no}/refund", json={"note": "smoke 并发 A"}),
+        client.post(f"/store-admin/v1/orders/{race_order_no}/refund", json={"note": "smoke 并发 B"}),
+        return_exceptions=True,
+    )
+    race_codes = sorted(
+        item.status_code if hasattr(item, "status_code") else 599 for item in race
+    )
+    check(
+        "同一订单的并发退款只有一笔成功，另一笔 409（不会重复退钱）",
+        race_codes == [200, 409],
+        str(race_codes),
+    )
+    with database.session() as session:
+        race_order = session.scalars(
+            select(Order).where(Order.order_no == race_order_no)
+        ).first()
+        check(
+            "并发退款后累计退款额恰好等于订单金额（不多记也不少记）",
+            int(race_order.refund_amount_cents or 0) == 10000,
+            f"refund_amount_cents={race_order.refund_amount_cents}",
+        )
+    race_rows = (
+        await client.get(f"/store-admin/v1/orders/{race_order_no}/refunds")
+    ).json()["items"]
+    check(
+        "并发退款只留下一条成功流水（没有第二条渠道退款）",
+        len(race_rows) == 1 and int(race_rows[0]["amountCents"]) == 10000,
+        str([(row["amountCents"], row["status"]) for row in race_rows]),
+    )
+
+    # —— 渠道确认「本次没有新增资金变动」：不是一次成功退款 ——
+    # （支付宝 refund_fee=0 / fund_change=N 就是这个形状：钱早就退过了）
+    zero_order_no = _paid_order("zero", 5000)
+    real_mock_refund = MockPaymentProvider.refund_payment
+
+    def stub_refund_nothing(self, *, order, amount_cents, reason, out_request_no, settings, setting):
+        return RefundResult(
+            ok=True,
+            trade_no="MOCK-NOFUND",
+            unrefunded_cents=int(amount_cents),
+            detail="渠道确认本次无新增资金变动",
+        )
+
+    try:
+        MockPaymentProvider.refund_payment = stub_refund_nothing
+        zero = await client.post(
+            f"/store-admin/v1/orders/{zero_order_no}/refund", json={"note": "smoke 空退款"}
+        )
+    finally:
+        MockPaymentProvider.refund_payment = real_mock_refund
+
+    check(
+        "渠道确认无资金变动时按 200 返回（不是失败）",
+        zero.status_code == 200,
+        f"{zero.status_code} {zero.text[:200]}",
+    )
+    zero_data = zero.json() if zero.status_code == 200 else {}
+    check(
+        "无资金变动的退款不推进订单状态（不能显示成退过钱）",
+        zero_data.get("status") == "paid" and int(zero_data.get("refundAmountCents") or 0) == 0,
+        str({key: zero_data.get(key) for key in ("status", "refundAmountCents")}),
+    )
+    zero_rows = (await client.get(f"/store-admin/v1/orders/{zero_order_no}/refunds")).json()["items"]
+    check(
+        "无资金变动仍留下一条金额为 0 的流水（对账要看得见这次尝试）",
+        len(zero_rows) == 1
+        and int(zero_rows[0]["amountCents"]) == 0
+        and zero_rows[0]["status"] == "succeeded",
+        str([(row["amountCents"], row["status"]) for row in zero_rows]),
+    )
+    with database.session() as session:
+        zero_audit = session.scalars(
+            select(AuditLog)
+            .where(AuditLog.action == "order.refund")
+            .where(AuditLog.target == zero_order_no)
+            .order_by(AuditLog.created_at.desc())
+        ).first()
+    check(
+        "无资金变动的退款在审计里写明原因（否则「退了几次都没动钱」查不出来）",
+        zero_audit is not None and "未产生资金变动" in (zero_audit.detail or ""),
+        zero_audit.detail if zero_audit is not None else "没有审计记录",
+    )
+
+    # ------------------------------------------------------------------ #
+    # 9d. 后台加固：无凭证的收银台、审计不落明文、优惠码作用域、管理员自锁、商品图
+    # ------------------------------------------------------------------ #
+    # 这一段查的是「出问题时界面完全看不出来」的几处：收银台能白拿授权、审计日志
+    # 变成激活码的第二份副本、优惠码作用域被写坏（谁都可用）、管理员把自己锁在
+    # 门外、SVG 变成同源 XSS 落点。
+
+    # —— 模拟收银台：订单号可枚举，页面本身绝不能无鉴权可达 ——
+    seeded = (await client.get("/store-admin/v1/orders?limit=1")).json()["items"]
+    check("取到一笔订单用于收银台鉴权检查", bool(seeded), str(seeded)[:120])
+    if seeded:
+        sample_no = seeded[0]["orderNo"]
+        sample_token = seeded[0]["lookupToken"]
+        async with httpx.AsyncClient(
+            transport=transport_http, base_url="http://store.test", follow_redirects=False
+        ) as guest:
+            anon_page = await guest.get(f"/store/mock/pay/{sample_no}")
+            check(
+                "未登录且无订单凭证时收银台不可达（订单号是可枚举的）",
+                anon_page.status_code == 404,
+                f"{anon_page.status_code} {anon_page.text[:80]!r}",
+            )
+            tokened = await guest.get(f"/store/mock/pay/{sample_no}?token={sample_token}")
+            check(
+                "带上订单凭证后收银台可打开（扫码支付的正常路径）",
+                tokened.status_code == 200 and "cashier" in tokened.text,
+                f"{tokened.status_code}",
+            )
+            bad_token = await guest.post(
+                f"/store/v1/orders/{sample_no}/mock/pay",
+                json={"orderToken": "not-the-token"},
+            )
+            check(
+                "凭证错误的模拟支付被拒绝（否则凑出订单号就能免费发码）",
+                bad_token.status_code == 403,
+                f"{bad_token.status_code} {bad_token.text[:80]!r}",
+            )
+
+    # —— 审计日志不该成为激活码的第二份副本 ——
+    issued = await client.post(
+        "/store-admin/v1/licenses",
+        json={"email": email, "productId": base_product_id, "validityDays": 1},
+    )
+    check("后台签发授权成功", issued.status_code == 200, str(issued.status_code))
+    if issued.status_code == 200:
+        issued_data = issued.json()
+        full_code = issued_data["activationCode"]
+        with database.session() as session:
+            audit_row = session.scalars(
+                select(AuditLog)
+                .where(AuditLog.action == "license.issue")
+                .where(AuditLog.target == issued_data["activationCodeId"])
+            ).first()
+            check(
+                "签发审计只记提示码，不落激活码明文",
+                audit_row is not None
+                and full_code not in (audit_row.detail or "")
+                and (audit_row.detail or "").strip(),
+                audit_row.detail if audit_row is not None else "没有审计记录",
+            )
+
+    # —— 优惠码作用域：写入的适用商品必须原样读回 ——
+    scoped = await client.post(
+        "/store-admin/v1/coupons",
+        json={
+            "code": f"SMOKE-SCOPE-{utcnow().strftime('%H%M%S%f')}",
+            "description": "smoke 作用域",
+            "percent": 5,
+            "applicableProductIds": [base_product_id],
+        },
+    )
+    check("带适用商品范围的优惠码创建成功", scoped.status_code == 200, str(scoped.status_code))
+    if scoped.status_code == 200:
+        scope_row = next(
+            (
+                item
+                for item in (await client.get("/store-admin/v1/coupons")).json()["items"]
+                if item["id"] == scoped.json()["id"]
+            ),
+            None,
+        )
+        check(
+            "优惠码的适用商品范围能原样读回（作用域不被写坏成「全场可用」）",
+            scope_row is not None and scope_row.get("applicableProductIds") == [base_product_id],
+            str(scope_row and scope_row.get("applicableProductIds")),
+        )
+
+    # —— 管理员不能把自己锁在门外 ——
+    admin_me = (await client.get("/store-admin/v1/accounts?role=admin")).json()["items"]
+    admin_id = next((item["id"] for item in admin_me if item["email"] == "admin@habridge.local"), "")
+    check("取到管理员自己的账号", bool(admin_id), str(admin_me)[:160])
+    if admin_id:
+        self_off = await client.patch(
+            f"/store-admin/v1/accounts/{admin_id}", json={"isActive": False}
+        )
+        check(
+            "管理员不能停用自己（否则下一秒就再也登不进后台）",
+            self_off.status_code == 409,
+            f"{self_off.status_code} {self_off.text[:120]}",
+        )
+        self_demote = await client.patch(
+            f"/store-admin/v1/accounts/{admin_id}", json={"isAdmin": False}
+        )
+        check(
+            "管理员不能摘掉自己的管理员权限（同样是把自己锁在门外）",
+            self_demote.status_code == 409,
+            f"{self_demote.status_code} {self_demote.text[:120]}",
+        )
+
+    # —— 商品图：SVG 必须被挡在「按原 Content-Type 回源」之外 ——
+    if seeded:
+        product_for_image = (await client.get("/store-admin/v1/products?limit=1")).json()["items"]
+        check("取到一件商品用于商品图检查", bool(product_for_image), "")
+        if product_for_image:
+            image_product_id = product_for_image[0]["id"]
+            uploaded = await client.post(
+                f"/store-admin/v1/products/{image_product_id}/image",
+                files={"file": ("evil.svg", b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>", "image/svg+xml")},
+            )
+            check("商品图上传完成", uploaded.status_code == 200, str(uploaded.status_code))
+            if uploaded.status_code == 200:
+                served = await client.get(uploaded.json()["imageUrl"])
+                content_type = served.headers.get("content-type", "")
+                check(
+                    "上传的 SVG 不会按 svg 回源（能内嵌脚本，等于同源 XSS 落点）",
+                    "svg" not in content_type,
+                    f"content-type={content_type!r} url={uploaded.json()['imageUrl']}",
+                )
+            rejected = await client.post(
+                f"/store-admin/v1/products/{image_product_id}/image",
+                files={"file": ("big.png", b"x" * (8 * 1024 * 1024 + 1), "image/png")},
+            )
+            check(
+                "超过 8MB 的商品图被拒绝（不是悄悄写进磁盘）",
+                rejected.status_code == 413,
+                f"{rejected.status_code} {rejected.text[:80]}",
+            )
+
     await client.aclose()
 
     # ------------------------------------------------------------------ #
@@ -3773,6 +7172,11 @@ async def run() -> int:
     check_field_label_fit()
     check_stat_card_fit()
     check_admin_dom_bindings()
+    check_admin_console_resilience()
+    check_admin_tab_bindings()
+    check_admin_grid_tab_layout()
+    check_admin_inline_script_parses()
+    check_admin_login_no_prefill()
     check_addon_card_layout()
     check_account_meta_chip_tokens()
 
@@ -3794,10 +7198,21 @@ async def run() -> int:
 
 
 def main() -> None:
-    try:
-        code = asyncio.run(run())
-    except Exception:  # noqa: BLE001
-        traceback.print_exc()
+    # 捕获「协程没被 await」这类静默失效：Python 只打一条 RuntimeWarning，
+    # 自检照样全绿，但整段断言从没执行过（payment fail-closed 那批就这么漏过一次）。
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        try:
+            code = asyncio.run(run())
+        except Exception:  # noqa: BLE001
+            traceback.print_exc()
+            code = 1
+    unawaited = [str(item.message) for item in caught if "never awaited" in str(item.message)]
+    if unawaited:
+        print()
+        print("有自检用的协程没有被 await（这些断言其实没跑）：")
+        for message in unawaited:
+            print(f"  - {message}")
         code = 1
     raise SystemExit(code)
 

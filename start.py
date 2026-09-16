@@ -66,7 +66,19 @@ def main() -> None:
     # 本地联调：验证码回显到接口响应（并同步写入日志），否则默认 log 模式会让注册流程
     # 卡在「收不到验证码」。.env 里写了 STORE_MAIL_MODE=smtp 就会走真实发信。
     store_environment.setdefault('STORE_MAIL_MODE', 'echo')
+    # 本地联调：模拟收银台（点一下就发码）需要**两个**变量同时显式打开 ——
+    # 光选渠道不够，服务端还必须允许 mock。这个「双开关」是刻意的：默认配置下
+    # 未配置渠道或配成 mock 都无法建单，避免照文档部署就等于白送授权。
+    # 生产部署绝不要设置这两个变量（该用 STORE_PAYMENT_PROVIDER=alipay）。
+    store_environment.setdefault('STORE_PAYMENT_PROVIDER', 'mock')
+    store_environment.setdefault('STORE_ALLOW_MOCK_PAYMENTS', '1')
 
+    # 主应用的重载范围必须收窄到 backend/：不给 --reload-dir 时 uvicorn 会监听整个
+    # 仓库根目录，前端 JS / 样式与 store/ 只要落盘就会重启主应用；重启窗口里在途请求
+    # 要么被拒要么排队，前端 5 秒硬超时的 /api/v1/modules/interaction3d/access 会
+    # 直接报「暂时无法验证授权」，渲染缓存请求也会被连带中断。
+    # 这些静态文件本来就是按请求现读的（FileResponse / StaticFiles），不需要重启进程；
+    # 后端也没有任何从 backend/ 之外动态加载 Python 的逻辑，收窄不会漏掉真正的热更。
     processes = [
         spawn([python, '-m', 'store.run'], store_environment),
         spawn(
@@ -80,6 +92,8 @@ def main() -> None:
                 '--port',
                 APP_PORT,
                 '--reload',
+                '--reload-dir',
+                str(ROOT / 'backend'),
             ],
             app_environment,
         ),

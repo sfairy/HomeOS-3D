@@ -28,71 +28,71 @@
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../static/modules/interaction3d/popup-placement.js?v=20260916080154",
+        "../../static/modules/interaction3d/popup-placement.js?v=20260916230552",
         import.meta.url
       )
     )
-  : import("/static/modules/interaction3d/popup-placement.js?v=20260916080154"));
+  : import("/static/modules/interaction3d/popup-placement.js?v=20260916230552"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "./presence-scene.js?v=20260916080154";
-import { createBackgroundTheme } from "./background-theme.js?v=20260916080154";
-import { floorNavigationChoices } from "./floor-navigation.js?v=20260916080154";
+} from "./presence-scene.js?v=20260916230552";
+import { createBackgroundTheme } from "./background-theme.js?v=20260916230552";
+import { floorNavigationChoices } from "./floor-navigation.js?v=20260916230552";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "./vacuum-motion.js?v=20260916080154";
+} from "./vacuum-motion.js?v=20260916230552";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=20260916080154";
-import { televisionState } from "./television-state.js?v=20260916080154";
-import { createTelevisionPanel } from "./television-panel.js?v=20260916080154";
-import { createTelevisionScreens } from "./television-screen.js?v=20260916080154";
+} from "./vacuum-map.js?v=20260916230552";
+import { televisionState } from "./television-state.js?v=20260916230552";
+import { createTelevisionPanel } from "./television-panel.js?v=20260916230552";
+import { createTelevisionScreens } from "./television-screen.js?v=20260916230552";
 import { createNasPanel } from "./nas-panel.js";
-import { createNasStatus, nasDeviceState } from "./nas-status.js?v=20260916080154";
+import { createNasStatus, nasDeviceState } from "./nas-status.js?v=20260916230552";
 import { createCameraStatus, cameraOnline } from "./camera-status.js";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "./cover-state.js?v=20260916080154";
-import { createCoverFeedback } from "./cover-feedback.js?v=20260916080154";
-import { createCoverPanel } from "./cover-panel.js?v=20260916080154";
-import { createCurtainMotion } from "./curtain-motion.js?v=20260916080154";
-import { createEnvironmentAirflow } from "./environment-airflow.js?v=20260916080154";
-import { createScreenOutlines } from "./environment-halos.js?v=20260916080154";
-import { mountRegionRangeEditor } from "./light-range-editor.js?v=20260916080154";
-import { climateState } from "./climate-state.js?v=20260916080154";
-import { createClimatePanel } from "./climate-panel.js?v=20260916080154";
+} from "./cover-state.js?v=20260916230552";
+import { createCoverFeedback } from "./cover-feedback.js?v=20260916230552";
+import { createCoverPanel } from "./cover-panel.js?v=20260916230552";
+import { createCurtainMotion } from "./curtain-motion.js?v=20260916230552";
+import { createEnvironmentAirflow } from "./environment-airflow.js?v=20260916230552";
+import { createScreenOutlines } from "./environment-halos.js?v=20260916230552";
+import { mountRegionRangeEditor } from "./light-range-editor.js?v=20260916230552";
+import { climateState } from "./climate-state.js?v=20260916230552";
+import { createClimatePanel } from "./climate-panel.js?v=20260916230552";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "./environment-scene.js?v=20260916080154";
-import { startSceneSync } from "./scene-sync.js?v=20260916080154";
+} from "./environment-scene.js?v=20260916230552";
+import { startSceneSync } from "./scene-sync.js?v=20260916230552";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "./light-state.js?v=20260916080154";
+} from "./light-state.js?v=20260916230552";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "./camera-motion.js?v=20260916080154";
+} from "./camera-motion.js?v=20260916230552";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=20260916080154";
+} from "./idle-rotation.js?v=20260916230552";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -2844,6 +2844,21 @@ export function mountStage(stageOptions) {
     }
     updateMarkerPositions(true);
   }
+  // layoutStage 会写回它自己观察的几个元素的样式（缩放变量、偏移、尺寸），在
+  // ResizeObserver 回调里同步执行时会再次触发观察通知，浏览器随即抛出
+  // 「ResizeObserver loop completed with undelivered notifications」。
+  // 这里把观察器触发的重排推迟到下一帧并合并同一帧内的多次请求：既避开该提示，
+  // 也避免连续 resize 时重复重排。pendingLayoutFrameId 同时充当「已排程」标记。
+  let pendingLayoutFrameId = 0;
+  function scheduleLayoutStage() {
+    if (pendingLayoutFrameId) {
+      return;
+    }
+    pendingLayoutFrameId = requestAnimationFrame(() => {
+      pendingLayoutFrameId = 0;
+      layoutStage();
+    });
+  }
   // 焦点管理：焦点已在目标容器内就不搬动，否则把焦点移进容器
   // （tabindex=-1 + preventScroll，避免键盘操作时页面被滚动）。
   function moveFocusInto(targetElement, focusElement = canvasElement) {
@@ -5327,7 +5342,8 @@ export function mountStage(stageOptions) {
   if (!unsubscribeCameraChange) {
     orbitControls.addEventListener("change", updateMarkerPositions);
   }
-  const layoutResizeObserver = new ResizeObserver(layoutStage);
+  // 观察器的回调只做排程：布局写入必须离开通知投递过程，否则会自激成循环。
+  const layoutResizeObserver = new ResizeObserver(scheduleLayoutStage);
   layoutResizeObserver.observe(containerElement);
   layoutResizeObserver.observe(lightPanelElement);
   layoutResizeObserver.observe(navigationElement);
@@ -5672,6 +5688,11 @@ export function mountStage(stageOptions) {
       orbitControls.removeEventListener("change", updateMarkerPositions);
     }
     layoutResizeObserver.disconnect();
+    // 已排程但未执行的那一帧布局要一并取消：dispose 后 DOM 可能已被拆掉。
+    if (pendingLayoutFrameId) {
+      cancelAnimationFrame(pendingLayoutFrameId);
+      pendingLayoutFrameId = 0;
+    }
     lightRequestsById.forEach(pendingLightRequestTimer =>
       clearTimeout(pendingLightRequestTimer.timeout)
     );

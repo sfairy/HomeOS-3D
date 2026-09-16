@@ -5,24 +5,32 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>HomeOS 授权商店 · 管理后台</title>
-<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260916013557">
-<link rel="stylesheet" href="/store-static/theme.css?v=20260916013557">
-<link rel="stylesheet" href="/store-static/admin.css?v=20260916013557">
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260916230552">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260916230552">
+<link rel="stylesheet" href="/store-static/admin.css?v=20260916230552">
 </head>
 <body>
 
 <div id="admin-login" class="login-wrap">
   <div class="login-card">
     <div class="login-card__head">
-      <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260916013557" alt=""></span>
+      <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260916230552" alt=""></span>
       <div>
         <strong>HomeOS 授权商店</strong>
         <small>管理后台 · 请使用管理员账号登录</small>
       </div>
     </div>
-    <form id="admin-login-form" class="login-form">
-      <label class="hb-field"><span>管理员邮箱</span><input class="hb-input" type="email" name="email" autocomplete="username" required></label>
-      <label class="hb-field"><span>密码</span><input class="hb-input" type="password" name="password" autocomplete="current-password" required></label>
+    <!-- 后台登录表单刻意**不做任何预填**，也不要浏览器替我们填：
+         · 表单与邮箱框写 autocomplete="off"；
+         · 密码框写 autocomplete="new-password" —— Chrome/Safari 对 password 字段会忽略
+           "off"，只有 "new-password" 能真正压住「按已保存凭据自动填充」；
+         · data-lpignore / data-1p-ignore / data-bwignore 分别让 LastPass、1Password、
+           Bitwarden 的扩展别插手（它们不看 autocomplete）；
+         · 仍有浏览器在 DOMContentLoaded 之后才灌值，所以脚本里还有一次加载后清空
+           （见下方 clearAutofilledLogin）。-->
+    <form id="admin-login-form" class="login-form" autocomplete="off" data-form-type="other">
+      <label class="hb-field"><span>管理员邮箱</span><input class="hb-input" type="email" name="email" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore data-bwignore required></label>
+      <label class="hb-field"><span>密码</span><input class="hb-input" type="password" name="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore data-bwignore required></label>
       <button class="hb-button hb-button--primary hb-button--block" type="submit">登录后台</button>
     </form>
     <div id="admin-login-error" class="admin-alert" hidden></div>
@@ -32,14 +40,14 @@
 <div id="admin-app" class="admin-shell" hidden>
   <aside class="admin-side">
     <div class="brand">
-      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=20260916013557" alt=""></span>
+      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=20260916230552" alt=""></span>
       <div class="brand__text">
         <strong>HomeOS</strong>
         <small>授权商店后台</small>
       </div>
     </div>
     <nav class="admin-nav" id="admin-nav">
-      <div class="nav-group open" data-nav-group="operations">
+      <div class="nav-group open" data-nav-group="operations" data-domain="operations">
         <button class="nav-group__toggle" type="button" aria-expanded="true">
           <span class="nav-group__text">业务运营</span>
           <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
@@ -65,7 +73,7 @@
           </div>
         </div>
       </div>
-      <div class="nav-group open" data-nav-group="catalog">
+      <div class="nav-group open" data-nav-group="catalog" data-domain="catalog">
         <button class="nav-group__toggle" type="button" aria-expanded="true">
           <span class="nav-group__text">商品营销</span>
           <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
@@ -91,7 +99,7 @@
           </div>
         </div>
       </div>
-      <div class="nav-group open" data-nav-group="licensing">
+      <div class="nav-group open" data-nav-group="licensing" data-domain="licensing">
         <button class="nav-group__toggle" type="button" aria-expanded="true">
           <span class="nav-group__text">授权用户</span>
           <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
@@ -117,7 +125,7 @@
           </div>
         </div>
       </div>
-      <div class="nav-group open" data-nav-group="records">
+      <div class="nav-group open" data-nav-group="records" data-domain="data">
         <button class="nav-group__toggle" type="button" aria-expanded="true">
           <span class="nav-group__text">数据资产</span>
           <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
@@ -148,7 +156,7 @@
           </div>
         </div>
       </div>
-      <div class="nav-group open" data-nav-group="system">
+      <div class="nav-group open" data-nav-group="system" data-domain="system">
         <button class="nav-group__toggle" type="button" aria-expanded="true">
           <span class="nav-group__text">系统设置</span>
           <span class="nav-badge nav-group__badge" data-nav-group-badge></span>
@@ -185,229 +193,256 @@
 
   <main class="admin-main">
     <!-- 概览 -->
-    <section class="admin-panel active" id="panel-overview">
+    <section class="admin-panel active" id="panel-overview" data-domain="operations">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>运营概览</h2>
           <p>营收、订单漏斗、待办与风险项目的经营看板</p>
         </div>
         <div class="panel-head__actions">
+          <span class="panel-head__domain">运营</span>
           <span class="overview-stamp" id="overview-stamp"></span>
           <button class="hb-button hb-button--secondary hb-button--sm" id="overview-refresh">刷新</button>
         </div>
       </header>
 
-      <!-- 支付巡检存活状态。
-           这块刻意常驻显示（不像待办那样为 0 就隐藏）：巡检坏掉时订单不会报错、
-           钱照收、单只是停在待支付，界面上没有任何别的信号。等它「看起来有问题」
-           再显示就来不及了，所以平时也要能看到「上次成功 xx 秒前」。
-           文案与配色由后端 health 决定，见 loadOverview()。 -->
-      <div class="hb-card" id="overview-sweep">
-        <div class="hb-card__body">
-          <div class="setting-row">
-            <div>
-              <strong>支付巡检 <span class="hb-tag" id="overview-sweep-pill">—</span></strong>
-              <p id="overview-sweep-detail">正在读取巡检状态…</p>
-            </div>
-          </div>
-        </div>
+      <!-- 概览原本一屏到底，滚三屏才看得到「维护模式」。按「看数 / 处理 / 干活」
+      切成三段：日常巡检只看第一段，出问题才切后面两段。 -->
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="概览分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="dashboard">经营看板</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="risk">风险与待办</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="tools">维护工具</button>
       </div>
 
-      <!-- 待办：没有待办时整块隐藏，避免满屏 0 让「有东西要处理」变得看不出来 -->
-      <div class="hb-card overview-todos" id="overview-todos" hidden>
-        <div class="hb-card__head">
-          <h3>需要处理</h3>
-          <p>点任意一项跳到对应列表并带好筛选条件</p>
-        </div>
-        <div class="hb-card__body">
-          <div class="overview-todos__grid" id="overview-todos-grid"></div>
-        </div>
-      </div>
-
-      <div class="hb-card">
-        <div class="hb-card__head">
-          <h3>营收</h3>
-          <p>按<b>付款时间</b>归属；净营收 = 实付合计 − 已退款。时间窗是滚动的（近 24 小时 / 近 7 天 / 近 30 天），与服务端时区无关。</p>
-        </div>
-        <div class="hb-card__body">
-          <div class="stat-grid" id="overview-revenue"></div>
-        </div>
-      </div>
-
-      <div class="hb-card">
-        <div class="hb-card__head">
-          <h3>订单漏斗</h3>
-          <p>各状态订单数与金额合计（含未付款订单，所以金额不等于营收）</p>
-        </div>
-        <div class="hb-card__body">
-          <div class="funnel-grid" id="overview-funnel"></div>
-        </div>
-      </div>
-
-      <div class="overview-cols">
+      <div class="admin-tab-pane" data-tab-pane="dashboard" role="tabpanel">
         <div class="hb-card">
           <div class="hb-card__head">
-            <h3>库存预警</h3>
-            <p>可售 = 库存 − 已占用预留；已售罄或即将售罄的商品排在最前</p>
+            <h3>营收</h3>
+            <p>按<b>付款时间</b>归属；净营收 = 实付合计 − 已退款。时间窗是滚动的（近 24 小时 / 近 7 天 / 近 30 天），与服务端时区无关。</p>
           </div>
-          <div class="table-wrap">
-            <table class="hb-table" id="overview-stock-table">
-              <thead><tr><th>商品</th><th class="nowrap">库存</th><th class="nowrap">预留</th><th class="nowrap">可售</th></tr></thead>
-              <tbody id="overview-stock-rows"></tbody>
-            </table>
+          <div class="hb-card__body">
+            <div class="stat-grid" id="overview-revenue"></div>
           </div>
         </div>
+
         <div class="hb-card">
           <div class="hb-card__head">
-            <h3>30 天内到期授权</h3>
-            <p>永久授权不在其中；列出最近到期的 20 条，供提前提醒续费</p>
+            <h3>订单漏斗</h3>
+            <p>各状态订单数与金额合计（含未付款订单，所以金额不等于营收）</p>
           </div>
-          <div class="table-wrap">
-            <table class="hb-table" id="overview-expiring-table">
-              <thead><tr><th>授权</th><th>商品</th><th class="nowrap">到期</th></tr></thead>
-              <tbody id="overview-expiring-rows"></tbody>
-            </table>
+          <div class="hb-card__body">
+            <div class="funnel-grid" id="overview-funnel"></div>
+          </div>
+        </div>
+
+        <div class="hb-card">
+          <div class="hb-card__head">
+            <h3>累计</h3>
+            <p>站点开通至今的总量。营收为净营收（已减退款）</p>
+          </div>
+          <div class="hb-card__body">
+            <div class="stat-grid" id="overview-stats"></div>
           </div>
         </div>
       </div>
 
-      <div class="hb-card">
-        <div class="hb-card__head">
-          <h3>累计</h3>
-          <p>站点开通至今的总量。营收为净营收（已减退款）</p>
+      <div class="admin-tab-pane" data-tab-pane="risk" role="tabpanel">
+        <!-- 支付巡检存活状态。
+        这块刻意常驻显示（不像待办那样为 0 就隐藏）：巡检坏掉时订单不会报错、
+        钱照收、单只是停在待支付，界面上没有任何别的信号。等它「看起来有问题」
+        再显示就来不及了，所以平时也要能看到「上次成功 xx 秒前」。
+        文案与配色由后端 health 决定，见 loadOverview()。 -->
+        <div class="hb-card" id="overview-sweep">
+          <div class="hb-card__body">
+            <div class="setting-row">
+              <div>
+                <strong>支付巡检 <span class="hb-tag" id="overview-sweep-pill">—</span></strong>
+                <p id="overview-sweep-detail">正在读取巡检状态…</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="hb-card__body">
-          <div class="stat-grid" id="overview-stats"></div>
+
+        <!-- 待办：没有待办时整块隐藏，避免满屏 0 让「有东西要处理」变得看不出来 -->
+        <div class="hb-card overview-todos" id="overview-todos" hidden>
+          <div class="hb-card__head">
+            <h3>需要处理</h3>
+            <p>点任意一项跳到对应列表并带好筛选条件</p>
+          </div>
+          <div class="hb-card__body">
+            <div class="overview-todos__grid" id="overview-todos-grid"></div>
+          </div>
+        </div>
+
+        <div class="overview-cols">
+          <div class="hb-card">
+            <div class="hb-card__head">
+              <h3>库存预警</h3>
+              <p>可售 = 库存 − 已占用预留；已售罄或即将售罄的商品排在最前</p>
+            </div>
+            <div class="table-wrap">
+              <table class="hb-table" id="overview-stock-table">
+                <thead><tr><th>商品</th><th class="nowrap">库存</th><th class="nowrap">预留</th><th class="nowrap">可售</th></tr></thead>
+                <tbody id="overview-stock-rows"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="hb-card">
+            <div class="hb-card__head">
+              <h3>30 天内到期授权</h3>
+              <p>永久授权不在其中；列出最近到期的 20 条，供提前提醒续费</p>
+            </div>
+            <div class="table-wrap">
+              <table class="hb-table" id="overview-expiring-table">
+                <thead><tr><th>授权</th><th>商品</th><th class="nowrap">到期</th></tr></thead>
+                <tbody id="overview-expiring-rows"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="hb-card">
-        <div class="hb-card__body">
-          <div class="setting-row">
-            <div>
-              <strong>维护模式</strong>
-              <p>开启后商店前台显示维护遮罩，下单会被拒绝。</p>
+      <div class="admin-tab-pane" data-tab-pane="tools" role="tabpanel">
+        <div class="hb-card">
+          <div class="hb-card__body">
+            <div class="setting-row">
+              <div>
+                <strong>维护模式</strong>
+                <p>开启后商店前台显示维护遮罩，下单会被拒绝。</p>
+              </div>
+              <button class="hb-button hb-button--danger hb-button--sm" id="overview-toggle-maintenance">切换维护模式</button>
             </div>
-            <button class="hb-button hb-button--danger hb-button--sm" id="overview-toggle-maintenance">切换维护模式</button>
-          </div>
-          <div class="setting-row">
-            <div>
-              <strong>重算库存预留</strong>
-              <p>按「仍占用库存的订单」重新统计各商品的预留数。历史版本曾重复扣减预留，
-                 导致可用库存虚低甚至误报售罄；发现库存数字对不上时点这里修正。</p>
+            <div class="setting-row">
+              <div>
+                <strong>重算库存预留</strong>
+                <p>按「仍占用库存的订单」重新统计各商品的预留数。历史版本曾重复扣减预留，
+                导致可用库存虚低甚至误报售罄；发现库存数字对不上时点这里修正。</p>
+              </div>
+              <button class="hb-button hb-button--secondary hb-button--sm" id="overview-recompute-stock">重算库存预留</button>
             </div>
-            <button class="hb-button hb-button--secondary hb-button--sm" id="overview-recompute-stock">重算库存预留</button>
           </div>
         </div>
       </div>
     </section>
 
     <!-- 商品 -->
-    <section class="admin-panel" id="panel-products">
+    <section class="admin-panel" id="panel-products" data-domain="catalog">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>商品</h2>
           <p>定价、有效期与库存；有历史授权或订单的商品只能下架</p>
         </div>
         <div class="panel-head__actions">
+          <span class="panel-head__domain">商品</span>
           <button class="hb-button hb-button--primary hb-button--sm" id="product-new">新增商品</button>
         </div>
       </header>
-      <div class="panel-toolbar">
-        <input class="hb-input" id="product-keyword" aria-label="商品名、商品码、功能码或描述关键字" placeholder="商品名 / 商品码 / 功能码">
-        <select class="hb-select" id="product-status" aria-label="按商品状态筛选">
-          <option value="">全部状态</option>
-          <option value="active">已上架</option>
-          <option value="inactive">已下架</option>
-          <option value="soldout">已售罄</option>
-          <option value="lowstock">低库存（可售 ≤ 5）</option>
-        </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" id="product-refresh">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" id="product-reset">重置</button>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="商品分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">商品列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="form">新增 / 编辑</button>
       </div>
-      <div class="table-wrap">
-        <table class="hb-table">
-          <thead><tr><th>名称</th><th>类型</th><th class="nowrap">价格</th><th class="nowrap">有效期</th><th>功能码</th><th class="nowrap">库存</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
-          <tbody id="product-rows"></tbody>
-        </table>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="product-keyword" aria-label="商品名、商品码、功能码或描述关键字" placeholder="商品名 / 商品码 / 功能码">
+          <select class="hb-select" id="product-status" aria-label="按商品状态筛选">
+            <option value="">全部状态</option>
+            <option value="active">已上架</option>
+            <option value="inactive">已下架</option>
+            <option value="soldout">已售罄</option>
+            <option value="lowstock">低库存（可售 ≤ 5）</option>
+          </select>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="product-refresh">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="product-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th>名称</th><th>类型</th><th class="nowrap">价格</th><th class="nowrap">有效期</th><th>功能码</th><th class="nowrap">库存</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="product-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="products"></div>
       </div>
-      <div class="admin-pager" data-pager="products"></div>
-      <div class="hb-card admin-editor" id="product-editor" hidden>
-        <div class="hb-card__body">
-          <h3 class="admin-editor__title" id="product-editor-title">新增商品</h3>
-          <form id="product-form" class="admin-grid">
-            <input type="hidden" name="id">
-            <h4 class="admin-grid__section">基本定义</h4>
-            <label class="hb-field"><span>名称</span><input class="hb-input" name="name" required></label>
-            <label class="hb-field">
-              <span>商品码</span>
-              <input class="hb-input is-mono" name="productCode">
-              <span class="admin-field-hint">写进授权的来源标识；留空自动生成。</span>
-            </label>
-            <label class="hb-field"><span>类型</span>
-              <select class="hb-select" name="productType">
-                <option value="base">base</option><option value="module">module</option><option value="package">package</option>
-              </select>
-            </label>
-            <h4 class="admin-grid__section">定价与有效期</h4>
-            <label class="hb-field"><span>价格（分）</span><input class="hb-input" name="priceCents" type="number" min="0" value="0"></label>
-            <label class="hb-field"><span>划线原价（分，留空不展示）</span><input class="hb-input" name="originalPriceCents" type="number" min="0"></label>
-            <label class="hb-field"><span>有效期（天）</span><input class="hb-input" name="validityDays" type="number" min="1"></label>
-            <label class="hb-field"><span>排序</span><input class="hb-input" name="sortOrder" type="number" value="100"></label>
-            <h4 class="admin-grid__section">能力与交付</h4>
-            <div class="hb-field admin-grid__full">
-              <span>功能码</span>
-              <div class="feature-picker" id="product-features" data-feature-picker data-feature-multiple="true" data-feature-empty="未选择（该商品不发放任何能力）">
-                <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
-                  <span class="feature-picker__value" data-feature-summary>未选择（该商品不发放任何能力）</span>
-                  <span class="feature-picker__caret" aria-hidden="true"></span>
-                </button>
-                <input type="hidden" name="featureCodes" data-feature-value value="">
-                <div class="feature-picker__pop" data-feature-pop hidden>
-                  <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
-                  <div class="feature-picker__list" data-feature-list role="listbox" aria-multiselectable="true"></div>
+      <div class="admin-tab-pane" data-tab-pane="form" role="tabpanel">
+        <div class="hb-card admin-editor" id="product-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title" id="product-editor-title">新增商品</h3>
+            <form id="product-form" class="admin-grid">
+              <input type="hidden" name="id">
+              <h4 class="admin-grid__section">基本定义</h4>
+              <label class="hb-field"><span>名称</span><input class="hb-input" name="name" required></label>
+              <label class="hb-field">
+                <span>商品码</span>
+                <input class="hb-input is-mono" name="productCode">
+                <span class="admin-field-hint">写进授权的来源标识；留空自动生成。</span>
+              </label>
+              <label class="hb-field"><span>类型</span>
+                <select class="hb-select" name="productType">
+                  <option value="base">base</option><option value="module">module</option><option value="package">package</option>
+                </select>
+              </label>
+              <h4 class="admin-grid__section">定价与有效期</h4>
+              <label class="hb-field"><span>价格（分）</span><input class="hb-input" name="priceCents" type="number" min="0" value="0"></label>
+              <label class="hb-field"><span>划线原价（分，留空不展示）</span><input class="hb-input" name="originalPriceCents" type="number" min="0"></label>
+              <label class="hb-field"><span>有效期（天）</span><input class="hb-input" name="validityDays" type="number" min="1"></label>
+              <label class="hb-field"><span>排序</span><input class="hb-input" name="sortOrder" type="number" value="100"></label>
+              <h4 class="admin-grid__section">能力与交付</h4>
+              <div class="hb-field admin-grid__full">
+                <span>功能码</span>
+                <div class="feature-picker" id="product-features" data-feature-picker data-feature-multiple="true" data-feature-empty="未选择（该商品不发放任何能力）">
+                  <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
+                    <span class="feature-picker__value" data-feature-summary>未选择（该商品不发放任何能力）</span>
+                    <span class="feature-picker__caret" aria-hidden="true"></span>
+                  </button>
+                  <input type="hidden" name="featureCodes" data-feature-value value="">
+                  <div class="feature-picker__pop" data-feature-pop hidden>
+                    <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
+                    <div class="feature-picker__list" data-feature-list role="listbox" aria-multiselectable="true"></div>
+                  </div>
                 </div>
+                <small class="admin-field-hint">能力码由主程序逐项校验，勾选才会写进授权；未勾的能力客户端会被拦截。</small>
               </div>
-              <small class="admin-field-hint">能力码由主程序逐项校验，勾选才会写进授权；未勾的能力客户端会被拦截。</small>
-            </div>
-            <label class="hb-field admin-grid__full"><span>套餐包含商品 ID（逗号分隔）</span><input class="hb-input is-mono" name="includedProductIds"></label>
-            <label class="hb-field"><span>角标文案</span><input class="hb-input" name="badgeText"></label>
-            <label class="hb-field"><span>库存（留空=不限量）</span><input class="hb-input" name="stockQuantity" type="number" min="0"></label>
-            <label class="hb-field"><span>履约</span>
-              <select class="hb-select" name="fulfillmentMode">
-                <option value="automatic">automatic</option><option value="manual">manual</option>
-              </select>
-            </label>
-            <h4 class="admin-grid__section">上架开关</h4>
-            <div class="hb-check-group admin-grid__full">
-              <label class="hb-check"><input type="checkbox" name="active" id="product-active" checked> 上架</label>
-              <label class="hb-check"><input type="checkbox" name="featured" id="product-featured"> 推荐</label>
-              <label class="hb-check"><input type="checkbox" name="isFullPrice"> 全价商品</label>
-              <label class="hb-check"><input type="checkbox" name="packageContentsLocked"> 锁定套餐内容</label>
-            </div>
-            <label class="hb-field admin-grid__full">
-              <span>增量包（下单时必须挂到已有授权上）</span>
-              <span class="admin-field-hint">勾上以后客户端下单要选一张已有授权、增量包的功能码写进那张授权，而不是另发一张新码。商品类型选了 module 也等同于此。</span>
-              <input type="checkbox" name="requiresLicense">
-            </label>
-            <h4 class="admin-grid__section">文案备注</h4>
-            <label class="hb-field admin-grid__full"><span>内部备注（仅后台可见）</span><textarea class="hb-textarea" name="note" rows="2"></textarea></label>
-            <label class="hb-field admin-grid__full"><span>展示描述</span><textarea class="hb-textarea" name="displayDescription" rows="2"></textarea></label>
-            <div class="admin-form-actions admin-grid__full">
-              <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
-              <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="product-cancel">取消</button>
-            </div>
-          </form>
+              <label class="hb-field admin-grid__full"><span>套餐包含商品 ID（逗号分隔）</span><input class="hb-input is-mono" name="includedProductIds"></label>
+              <label class="hb-field"><span>角标文案</span><input class="hb-input" name="badgeText"></label>
+              <label class="hb-field"><span>库存（留空=不限量）</span><input class="hb-input" name="stockQuantity" type="number" min="0"></label>
+              <label class="hb-field"><span>履约</span>
+                <select class="hb-select" name="fulfillmentMode">
+                  <option value="automatic">automatic</option><option value="manual">manual</option>
+                </select>
+              </label>
+              <h4 class="admin-grid__section">上架开关</h4>
+              <div class="hb-check-group admin-grid__full">
+                <label class="hb-check"><input type="checkbox" name="active" id="product-active" checked> 上架</label>
+                <label class="hb-check"><input type="checkbox" name="featured" id="product-featured"> 推荐</label>
+                <label class="hb-check"><input type="checkbox" name="isFullPrice"> 全价商品</label>
+                <label class="hb-check"><input type="checkbox" name="packageContentsLocked"> 锁定套餐内容</label>
+              </div>
+              <label class="hb-field admin-grid__full">
+                <span>增量包（下单时必须挂到已有授权上）</span>
+                <span class="admin-field-hint">勾上以后客户端下单要选一张已有授权、增量包的功能码写进那张授权，而不是另发一张新码。商品类型选了 module 也等同于此。</span>
+                <input type="checkbox" name="requiresLicense">
+              </label>
+              <h4 class="admin-grid__section">文案备注</h4>
+              <label class="hb-field admin-grid__full"><span>内部备注（仅后台可见）</span><textarea class="hb-textarea" name="note" rows="2"></textarea></label>
+              <label class="hb-field admin-grid__full"><span>展示描述</span><textarea class="hb-textarea" name="displayDescription" rows="2"></textarea></label>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="product-cancel">取消</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- 订单 -->
-    <section class="admin-panel" id="panel-orders">
+    <section class="admin-panel" id="panel-orders" data-domain="operations">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>订单</h2>
           <p>待支付可取消；已支付请走退款；已取消/已过期且未发码的订单可删除</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">运营</span>
         </div>
       </header>
       <div class="panel-toolbar">
@@ -446,92 +481,107 @@
     </section>
 
     <!-- 激活码 -->
-    <section class="admin-panel" id="panel-licenses">
+    <section class="admin-panel" id="panel-licenses" data-domain="licensing">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>激活码</h2>
           <p>停用后客户端下次心跳即转吊销；彻底删除需先停用且无活跃绑定</p>
         </div>
         <div class="panel-head__actions">
+          <span class="panel-head__domain">授权</span>
           <button class="hb-button hb-button--primary hb-button--sm" id="license-issue">手动签发</button>
         </div>
       </header>
-      <div class="panel-toolbar">
-        <input class="hb-input" id="license-keyword" aria-label="激活码、提示码、商品名或备注关键字" placeholder="激活码 / 提示码 / 商品 / 备注">
-        <select class="hb-select" id="license-status" aria-label="按授权状态筛选">
-          <option value="">全部状态</option>
-          <option value="active">启用中</option>
-          <option value="inactive">已停用</option>
-        </select>
-        <select class="hb-select" id="license-expiring" aria-label="按到期时间筛选">
-          <option value="">不限到期</option>
-          <option value="7">7 天内到期</option>
-          <option value="30">30 天内到期</option>
-          <option value="90">90 天内到期</option>
-        </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" id="license-refresh">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" id="license-reset">重置</button>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="激活码分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">激活码列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="issue">手动签发</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="patch">修正授权</button>
       </div>
-      <div class="table-wrap">
-        <table class="hb-table">
-          <thead><tr><th>激活码</th><th>客户</th><th>商品</th><th class="nowrap">有效期</th><th class="nowrap">来源</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
-          <tbody id="license-rows"></tbody>
-        </table>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="license-keyword" aria-label="激活码、提示码、商品名或备注关键字" placeholder="激活码 / 提示码 / 商品 / 备注">
+          <select class="hb-select" id="license-status" aria-label="按授权状态筛选">
+            <option value="">全部状态</option>
+            <option value="active">启用中</option>
+            <option value="inactive">已停用</option>
+          </select>
+          <select class="hb-select" id="license-expiring" aria-label="按到期时间筛选">
+            <option value="">不限到期</option>
+            <option value="7">7 天内到期</option>
+            <option value="30">30 天内到期</option>
+            <option value="90">90 天内到期</option>
+          </select>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="license-refresh">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="license-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th>激活码</th><th>客户</th><th>商品</th><th class="nowrap">有效期</th><th class="nowrap">来源</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="license-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="licenses"></div>
       </div>
-      <div class="admin-pager" data-pager="licenses"></div>
-      <div class="hb-card admin-editor" id="license-editor" hidden>
-        <div class="hb-card__body">
-          <h3 class="admin-editor__title">手动签发激活码</h3>
-          <form id="license-form" class="admin-grid">
-            <label class="hb-field"><span>账号邮箱</span><input class="hb-input" type="email" name="email" required></label>
-            <label class="hb-field admin-grid__wide"><span>商品</span><select class="hb-select" name="productId" id="license-product"></select></label>
-            <label class="hb-field"><span>有效期（天，留空取商品默认）</span><input class="hb-input" type="number" min="1" name="validityDays"></label>
-            <div class="admin-form-actions admin-grid__full">
-              <button class="hb-button hb-button--primary hb-button--sm" type="submit">签发</button>
-              <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="license-cancel">取消</button>
+      <div class="admin-tab-pane" data-tab-pane="issue" role="tabpanel">
+        <div class="hb-card admin-editor" id="license-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title">手动签发激活码</h3>
+            <form id="license-form" class="admin-grid">
+              <label class="hb-field"><span>账号邮箱</span><input class="hb-input" type="email" name="email" required></label>
+              <label class="hb-field admin-grid__wide"><span>商品</span><select class="hb-select" name="productId" id="license-product"></select></label>
+              <label class="hb-field"><span>有效期（天，留空取商品默认）</span><input class="hb-input" type="number" min="1" name="validityDays"></label>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">签发</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="license-cancel">取消</button>
+              </div>
+            </form>
+            <div class="admin-result" id="license-issue-result" hidden>
+              <div class="admin-result__head"><strong>签发成功</strong><span id="license-issue-target"></span></div>
+              <div class="admin-result__row">
+                <code class="admin-result__code" id="license-issue-code"></code>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" data-copy-target="#license-issue-code">复制</button>
+              </div>
+              <small class="admin-result__note">激活码只会完整显示这一次，请立即交付给客户；账号中心里也能查到。</small>
             </div>
-          </form>
-          <div class="admin-result" id="license-issue-result" hidden>
-            <div class="admin-result__head"><strong>签发成功</strong><span id="license-issue-target"></span></div>
-            <div class="admin-result__row">
-              <code class="admin-result__code" id="license-issue-code"></code>
-              <button class="hb-button hb-button--secondary hb-button--sm" type="button" data-copy-target="#license-issue-code">复制</button>
-            </div>
-            <small class="admin-result__note">激活码只会完整显示这一次，请立即交付给客户；账号中心里也能查到。</small>
           </div>
         </div>
       </div>
-      <div class="hb-card admin-editor" id="license-patch-editor" hidden>
-        <div class="hb-card__body">
-          <h3 class="admin-editor__title">修正授权 <span class="mono" id="license-patch-code"></span></h3>
-          <p class="admin-editor__hint">
-            客服处理「客户要延期」「备注写错」用这里。到期时间的三种给法<b>互斥</b>，
-            一次只填一种；留空则保持原值不变。
-          </p>
-          <form id="license-patch-form" class="admin-grid admin-grid--wide">
-            <input type="hidden" name="licenseId">
-            <label class="hb-field"><span>续期天数（在现有到期时间上顺延）</span><input class="hb-input" type="number" min="1" name="extendDays"></label>
-            <label class="hb-field"><span>新的到期时间（本地时间）</span><input class="hb-input" type="datetime-local" name="accessExpiresAt"></label>
-            <div class="hb-check-group">
-              <label class="hb-check"><input type="checkbox" name="permanent"> 改为永久有效</label>
-            </div>
-            <label class="hb-field"><span>有效天数（按开始时间重算到期）</span><input class="hb-input" type="number" min="1" name="validityDays"></label>
-            <label class="hb-field admin-grid__wide"><span>备注（客户/客服可读，清空即删除备注）</span><input class="hb-input" name="userLabel" maxlength="64"></label>
-            <div class="admin-form-actions admin-grid__full">
-              <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存修正</button>
-              <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="license-patch-cancel">取消</button>
-            </div>
-          </form>
+      <div class="admin-tab-pane" data-tab-pane="patch" role="tabpanel">
+        <div class="hb-card admin-editor" id="license-patch-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title">修正授权 <span class="mono" id="license-patch-code"></span></h3>
+            <p class="admin-editor__hint">
+              客服处理「客户要延期」「备注写错」用这里。到期时间的三种给法<b>互斥</b>，
+              一次只填一种；留空则保持原值不变。
+            </p>
+            <form id="license-patch-form" class="admin-grid admin-grid--wide">
+              <input type="hidden" name="licenseId">
+              <label class="hb-field"><span>续期天数（在现有到期时间上顺延）</span><input class="hb-input" type="number" min="1" name="extendDays"></label>
+              <label class="hb-field"><span>新的到期时间（本地时间）</span><input class="hb-input" type="datetime-local" name="accessExpiresAt"></label>
+              <div class="hb-check-group">
+                <label class="hb-check"><input type="checkbox" name="permanent"> 改为永久有效</label>
+              </div>
+              <label class="hb-field"><span>有效天数（按开始时间重算到期）</span><input class="hb-input" type="number" min="1" name="validityDays"></label>
+              <label class="hb-field admin-grid__wide"><span>备注（客户/客服可读，清空即删除备注）</span><input class="hb-input" name="userLabel" maxlength="64"></label>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存修正</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="license-patch-cancel">取消</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- 设备绑定 -->
-    <section class="admin-panel" id="panel-bindings">
+    <section class="admin-panel" id="panel-bindings" data-domain="licensing">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>设备绑定</h2>
           <p>强制解绑后客户端下次心跳转吊销，冷却期内无法重绑</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">授权</span>
         </div>
       </header>
       <div class="panel-toolbar">
@@ -550,77 +600,89 @@
     </section>
 
     <!-- 优惠码 -->
-    <section class="admin-panel" id="panel-coupons">
+    <section class="admin-panel" id="panel-coupons" data-domain="catalog">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>优惠码</h2>
           <p>「占用」= 此刻仍占着名额（参与上限校验，取消订单会回落）；「历史核销」= 曾占用过的次数（对账凭证，决定能否删除）</p>
         </div>
         <div class="panel-head__actions">
+          <span class="panel-head__domain">商品</span>
           <button class="hb-button hb-button--primary hb-button--sm" id="coupon-new">新增优惠码</button>
         </div>
       </header>
-      <div class="panel-toolbar">
-        <input class="hb-input" id="coupon-keyword" aria-label="优惠码或说明关键字" placeholder="码 / 说明">
-        <select class="hb-select" id="coupon-status" aria-label="按优惠码状态筛选">
-          <option value="">全部状态</option>
-          <option value="active">启用中</option>
-          <option value="inactive">已停用</option>
-          <option value="scheduled">未生效</option>
-          <option value="expired">已失效</option>
-        </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" id="coupon-refresh">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" id="coupon-reset">重置</button>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="优惠码分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">优惠码列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="form">新增 / 编辑</button>
       </div>
-      <div class="table-wrap">
-        <table class="hb-table">
-          <thead><tr><th>码</th><th>说明</th><th class="nowrap">折扣</th><th class="nowrap">门槛</th><th class="nowrap">占用/上限</th><th class="nowrap">历史核销</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
-          <tbody id="coupon-rows"></tbody>
-        </table>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="coupon-keyword" aria-label="优惠码或说明关键字" placeholder="码 / 说明">
+          <select class="hb-select" id="coupon-status" aria-label="按优惠码状态筛选">
+            <option value="">全部状态</option>
+            <option value="active">启用中</option>
+            <option value="inactive">已停用</option>
+            <option value="scheduled">未生效</option>
+            <option value="expired">已失效</option>
+          </select>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="coupon-refresh">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="coupon-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th>码</th><th>说明</th><th class="nowrap">折扣</th><th class="nowrap">门槛</th><th class="nowrap">占用/上限</th><th class="nowrap">历史核销</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="coupon-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="coupons"></div>
       </div>
-      <div class="admin-pager" data-pager="coupons"></div>
-      <div class="hb-card admin-editor" id="coupon-editor" hidden>
-        <div class="hb-card__body">
-          <h3 class="admin-editor__title" id="coupon-editor-title">新增优惠码</h3>
-          <p class="admin-editor__hint" id="coupon-editor-hint">
-            码本身是对外承诺，创建后不可修改；其余字段都能改。时间留空表示不限制。
-          </p>
-          <form id="coupon-form" class="admin-grid">
-            <input type="hidden" name="id">
-            <h4 class="admin-grid__section">识别信息</h4>
-            <label class="hb-field"><span>码（创建后不可改）</span><input class="hb-input is-mono" name="code" required></label>
-            <label class="hb-field"><span>说明</span><input class="hb-input" name="description"></label>
-            <h4 class="admin-grid__section">优惠力度</h4>
-            <label class="hb-field"><span>类型</span>
-              <select class="hb-select" name="discountType"><option value="percent">percent</option><option value="fixed">fixed</option></select>
-            </label>
-            <label class="hb-field"><span>百分比</span><input class="hb-input" type="number" step="0.01" name="percent" value="0"></label>
-            <label class="hb-field"><span>减免(分)</span><input class="hb-input" type="number" name="amountCents" value="0"></label>
-            <label class="hb-field"><span>门槛(分)</span><input class="hb-input" type="number" name="minAmountCents" value="0"></label>
-            <h4 class="admin-grid__section">使用限制</h4>
-            <label class="hb-field"><span>总量上限</span><input class="hb-input" type="number" name="maxRedemptions"></label>
-            <label class="hb-field"><span>每账号</span><input class="hb-input" type="number" name="perAccountLimit" value="1"></label>
-            <label class="hb-field"><span>生效时间（本地时间，空=立即）</span><input class="hb-input" type="datetime-local" name="startsAt"></label>
-            <label class="hb-field"><span>失效时间（本地时间，空=不限）</span><input class="hb-input" type="datetime-local" name="expiresAt"></label>
-            <label class="hb-field admin-grid__full"><span>限定商品 ID（逗号分隔，留空=全部商品）</span><input class="hb-input is-mono" name="applicableProductIds"></label>
-            <div class="hb-check-group admin-grid__full">
-              <label class="hb-check"><input type="checkbox" name="active" id="coupon-active" checked> 启用</label>
-            </div>
-            <div class="admin-form-actions admin-grid__full">
-              <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
-              <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="coupon-cancel">取消</button>
-            </div>
-          </form>
+      <div class="admin-tab-pane" data-tab-pane="form" role="tabpanel">
+        <div class="hb-card admin-editor" id="coupon-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title" id="coupon-editor-title">新增优惠码</h3>
+            <p class="admin-editor__hint" id="coupon-editor-hint">
+              码本身是对外承诺，创建后不可修改；其余字段都能改。时间留空表示不限制。
+            </p>
+            <form id="coupon-form" class="admin-grid">
+              <input type="hidden" name="id">
+              <h4 class="admin-grid__section">识别信息</h4>
+              <label class="hb-field"><span>码（创建后不可改）</span><input class="hb-input is-mono" name="code" required></label>
+              <label class="hb-field"><span>说明</span><input class="hb-input" name="description"></label>
+              <h4 class="admin-grid__section">优惠力度</h4>
+              <label class="hb-field"><span>类型</span>
+                <select class="hb-select" name="discountType"><option value="percent">percent</option><option value="fixed">fixed</option></select>
+              </label>
+              <label class="hb-field"><span>百分比</span><input class="hb-input" type="number" step="0.01" name="percent" value="0"></label>
+              <label class="hb-field"><span>减免(分)</span><input class="hb-input" type="number" name="amountCents" value="0"></label>
+              <label class="hb-field"><span>门槛(分)</span><input class="hb-input" type="number" name="minAmountCents" value="0"></label>
+              <h4 class="admin-grid__section">使用限制</h4>
+              <label class="hb-field"><span>总量上限</span><input class="hb-input" type="number" name="maxRedemptions"></label>
+              <label class="hb-field"><span>每账号</span><input class="hb-input" type="number" name="perAccountLimit" value="1"></label>
+              <label class="hb-field"><span>生效时间（本地时间，空=立即）</span><input class="hb-input" type="datetime-local" name="startsAt"></label>
+              <label class="hb-field"><span>失效时间（本地时间，空=不限）</span><input class="hb-input" type="datetime-local" name="expiresAt"></label>
+              <label class="hb-field admin-grid__full"><span>限定商品 ID（逗号分隔，留空=全部商品）</span><input class="hb-input is-mono" name="applicableProductIds"></label>
+              <div class="hb-check-group admin-grid__full">
+                <label class="hb-check"><input type="checkbox" name="active" id="coupon-active" checked> 启用</label>
+              </div>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="coupon-cancel">取消</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- 提现审核 -->
-    <section class="admin-panel" id="panel-withdrawals">
+    <section class="admin-panel" id="panel-withdrawals" data-domain="operations">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>提现审核</h2>
           <p>待审申请必须通过或驳回以释放冻结积分；已结算的记录可删除</p>
+        </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">运营</span>
         </div>
       </header>
       <div class="panel-toolbar">
@@ -641,188 +703,257 @@
     </section>
 
     <!-- 账号 -->
-    <section class="admin-panel" id="panel-accounts">
+    <section class="admin-panel" id="panel-accounts" data-domain="licensing">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>账号</h2>
           <p>可改邮箱、角色、重置密码；只有未产生过授权/订单/积分的干净账号才能删除</p>
         </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">授权</span>
+        </div>
       </header>
-      <div class="panel-toolbar">
-        <input class="hb-input" id="account-keyword" aria-label="邮箱或邀请码关键字" placeholder="邮箱 / 邀请码">
-        <select class="hb-select" id="account-role" aria-label="按角色筛选">
-          <option value="">全部角色</option>
-          <option value="user">普通用户</option>
-          <option value="admin">管理员</option>
-        </select>
-        <select class="hb-select" id="account-status" aria-label="按账号状态筛选">
-          <option value="">全部状态</option>
-          <option value="active">已启用</option>
-          <option value="inactive">已停用</option>
-          <option value="unverified">邮箱未验证</option>
-        </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" id="account-refresh">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" id="account-reset">重置</button>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="账号分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">账号列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="form">编辑账号</button>
       </div>
-      <div class="table-wrap">
-        <table class="hb-table">
-          <thead><tr><th>邮箱</th><th class="nowrap">角色</th><th class="nowrap">授权数</th><th class="nowrap">余额</th><th class="nowrap">邀请码</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
-          <tbody id="account-rows"></tbody>
-        </table>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="account-keyword" aria-label="邮箱或邀请码关键字" placeholder="邮箱 / 邀请码">
+          <select class="hb-select" id="account-role" aria-label="按角色筛选">
+            <option value="">全部角色</option>
+            <option value="user">普通用户</option>
+            <option value="admin">管理员</option>
+          </select>
+          <select class="hb-select" id="account-status" aria-label="按账号状态筛选">
+            <option value="">全部状态</option>
+            <option value="active">已启用</option>
+            <option value="inactive">已停用</option>
+            <option value="unverified">邮箱未验证</option>
+          </select>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="account-refresh">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="account-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th>邮箱</th><th class="nowrap">角色</th><th class="nowrap">授权数</th><th class="nowrap">余额</th><th class="nowrap">邀请码</th><th class="nowrap">状态</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="account-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="accounts"></div>
       </div>
-      <div class="admin-pager" data-pager="accounts"></div>
-      <div class="hb-card admin-editor" id="account-editor" hidden>
-        <div class="hb-card__body">
-          <h3 class="admin-editor__title">编辑账号 <span class="mono" id="account-editor-email"></span></h3>
-          <p class="admin-editor__hint">
-            改密码会<b>立即踢掉该账号的全部登录会话</b>；审计日志只记录「改过密码」，不记录明文。
-          </p>
-          <form id="account-form" class="admin-grid admin-grid--wide">
-            <input type="hidden" name="id">
-            <label class="hb-field admin-grid__wide"><span>邮箱</span><input class="hb-input" type="email" name="email" required></label>
-            <label class="hb-field"><span>新密码（留空则不改）</span><input class="hb-input" type="password" name="newPassword" minlength="6" autocomplete="new-password" placeholder="至少 6 位"></label>
-            <div class="hb-check-group">
-              <label class="hb-check"><input type="checkbox" name="isAdmin"> 管理员</label>
-              <label class="hb-check"><input type="checkbox" name="isActive"> 启用</label>
-              <label class="hb-check"><input type="checkbox" name="emailVerified"> 邮箱已验证</label>
-            </div>
-            <div class="admin-form-actions admin-grid__full">
-              <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
-              <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="account-cancel">取消</button>
-            </div>
-          </form>
+      <div class="admin-tab-pane" data-tab-pane="form" role="tabpanel">
+        <div class="hb-card admin-editor" id="account-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title">编辑账号 <span class="mono" id="account-editor-email"></span></h3>
+            <p class="admin-editor__hint">
+              改密码会<b>立即踢掉该账号的全部登录会话</b>；审计日志只记录「改过密码」，不记录明文。
+            </p>
+            <form id="account-form" class="admin-grid admin-grid--wide">
+              <input type="hidden" name="id">
+              <label class="hb-field admin-grid__wide"><span>邮箱</span><input class="hb-input" type="email" name="email" required></label>
+              <label class="hb-field"><span>新密码（留空则不改）</span><input class="hb-input" type="password" name="newPassword" minlength="6" autocomplete="new-password" placeholder="至少 6 位"></label>
+              <div class="hb-check-group">
+                <label class="hb-check"><input type="checkbox" name="isAdmin"> 管理员</label>
+                <label class="hb-check"><input type="checkbox" name="isActive"> 启用</label>
+                <label class="hb-check"><input type="checkbox" name="emailVerified"> 邮箱已验证</label>
+              </div>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="account-cancel">取消</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- 站点配置 -->
-    <section class="admin-panel" id="panel-settings">
+    <section class="admin-panel" id="panel-settings" data-domain="system">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>站点配置</h2>
           <p>站点信息、支付渠道、维护模式与邀请规则</p>
         </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">系统</span>
+          <!-- 配置有没有真的读到，必须写在界面上：读到之前表单是空的，而「空表单 + 保存」
+          等于把支付渠道清空、把各个开关关掉。见 setSettingsLoadState。 -->
+          <span class="admin-status-chip is-muted" id="settings-load-status">正在读取配置…</span>
+          <!-- 保存按钮必须常驻在面板头部：五个分区里只有「邀请与解绑」那一屏原来放得下它，
+          站在「站点信息」上改完站点名，屏幕上根本没有保存按钮（要先去点最后一个 tab）。
+          form="settings-form" 让它落在表单外也能提交 —— 头部不在 <form> 里，
+          而字段的列宽又是按 form 的 admin-grid--wide 推断的，不能为了放按钮把头部塞进 form。 -->
+          <button class="hb-button hb-button--primary hb-button--sm" type="submit" form="settings-form" id="settings-save">保存配置</button>
+        </div>
       </header>
       <div class="hb-card">
         <div class="hb-card__body">
           <form id="settings-form" class="admin-grid admin-grid--wide">
-            <h4 class="admin-grid__section">站点信息</h4>
-            <label class="hb-field"><span>站点名</span><input class="hb-input" name="siteName"></label>
-            <label class="hb-field"><span>站点标题</span><input class="hb-input" name="siteTitle"></label>
-            <label class="hb-field"><span>客服邮箱</span><input class="hb-input" name="supportEmail"></label>
-            <label class="hb-field admin-grid__wide"><span>品牌标识 URL（留空回落系统默认标识）</span><input class="hb-input is-mono" name="logoUrl"></label>
-            <label class="hb-field admin-grid__full"><span>站点描述</span><input class="hb-input" name="description"></label>
-            <label class="hb-field admin-grid__full"><span>公告（前台 toast 展示）</span><input class="hb-input" name="announcement"></label>
-            <h4 class="admin-grid__section">支付与维护</h4>
-            <label class="hb-field"><span>支付渠道</span>
-              <select class="hb-select" name="paymentProvider"><option value="">跟随环境变量</option><option value="mock">mock</option><option value="alipay">alipay</option></select>
-            </label>
-            <label class="hb-field"><span>支付显示名</span><input class="hb-input" name="paymentDisplayName"></label>
-            <label class="hb-field admin-grid__full"><span>交易标题（出现在支付宝账单的「商品名称」里，留空跟随环境变量）</span><input class="hb-input" name="paymentTransactionDescription" placeholder="跟随环境变量"></label>
-            <div class="hb-check-group">
-              <label class="hb-check"><input type="checkbox" name="paymentEnabled" id="setting-payment-enabled"> 启用支付</label>
-              <label class="hb-check"><input type="checkbox" name="maintenanceMode" id="setting-maintenance"> 维护模式</label>
+            <!-- 三十来个字段铺在一页上要滚三屏，「保存配置」永远在屏幕外。
+            按用途切五段：改邀请规则的人不必先划过整个支付宝凭据块。
+            tab 条与 pane 都必须留在**同一个 form 内**：字段的列宽是按
+            form 的 admin-grid--wide 推断的（smoke 的 check_field_label_fit），
+            挪出 form 就会按 186px 去算而实际是 210px。 -->
+            <div class="admin-tabs" data-tab-strip role="tablist" aria-label="站点配置分区">
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="site">站点信息</button>
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="payment">支付与维护</button>
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="alipay">支付宝凭据</button>
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="mail">注册邮件</button>
+              <button class="admin-tabs__tab" type="button" role="tab" data-tab="invite">邀请与解绑</button>
             </div>
-            <label class="hb-field admin-grid__full"><span>维护文案</span><input class="hb-input" name="maintenanceMessage"></label>
-            <h4 class="admin-grid__section">支付宝凭据</h4>
-            <p class="admin-hint admin-grid__full">
-              留空即跟随环境变量；填写后立即生效，无需重启。密钥只打码回显，接口响应与审核日志都不落明文。
-            </p>
-            <div class="admin-form-actions admin-grid__full">
-              <span class="admin-status-chip" id="alipay-credential-status">未配置</span>
-              <button class="hb-button hb-button--ghost hb-button--sm" type="button" id="alipay-test-button">测试凭据</button>
-              <span class="admin-hint" id="alipay-test-result"></span>
+            <div class="admin-tab-pane" data-tab-pane="site" role="tabpanel">
+              <h4 class="admin-grid__section">站点信息</h4>
+              <label class="hb-field"><span>站点名</span><input class="hb-input" name="siteName"></label>
+              <label class="hb-field"><span>站点标题</span><input class="hb-input" name="siteTitle"></label>
+              <label class="hb-field"><span>客服邮箱</span><input class="hb-input" name="supportEmail"></label>
+              <label class="hb-field admin-grid__wide"><span>品牌标识 URL（留空回落系统默认标识）</span><input class="hb-input is-mono" name="logoUrl"></label>
+              <label class="hb-field admin-grid__full"><span>站点描述</span><input class="hb-input" name="description"></label>
+              <label class="hb-field admin-grid__full"><span>公告（前台 toast 展示）</span><input class="hb-input" name="announcement"></label>
             </div>
-            <label class="hb-field"><span>AppID</span><input class="hb-input is-mono" name="alipayAppId" placeholder="跟随环境变量"></label>
-            <label class="hb-field"><span>卖家 PID（校验异步通知的收款方）</span><input class="hb-input is-mono" name="alipaySellerId" placeholder="跟随环境变量"></label>
-            <label class="hb-field admin-grid__full"><span>应用私钥（PEM，或密钥工具导出的纯 base64）</span>
-              <input class="hb-input is-mono" type="password" autocomplete="new-password" name="alipayAppPrivateKey" placeholder="留空不改动">
-            </label>
-            <label class="hb-field admin-grid__full"><span>支付宝公钥（开放平台的「支付宝公钥」，不是应用公钥）</span>
-              <input class="hb-input is-mono" type="password" autocomplete="new-password" name="alipayPublicKey" placeholder="留空不改动">
-            </label>
-            <label class="hb-field admin-grid__wide"><span>网关地址（留空跟随沙箱开关 / 环境变量）</span><input class="hb-input is-mono" name="alipayGatewayUrl" placeholder="https://openapi.alipay.com/gateway.do"></label>
-            <p class="admin-hint admin-grid__full" id="alipay-effective-urls"></p>
-            <label class="hb-field admin-grid__full"><span>异步通知地址（支付宝服务器回调的地址，必须是公网可达的 https）</span>
-              <input class="hb-input is-mono" name="alipayNotifyUrl" placeholder="留空跟随环境变量；再没有就按 STORE_BASE_URL 推导">
-            </label>
-            <label class="hb-field admin-grid__full"><span>同步跳转地址（用户付完款后浏览器回到的页面）</span>
-              <input class="hb-input is-mono" name="alipayReturnUrl" placeholder="留空跟随环境变量；再没有就按 STORE_BASE_URL 推导">
-            </label>
-            <div class="hb-check-group admin-grid__full">
-              <label class="hb-check"><input type="checkbox" name="alipaySandbox" id="setting-alipay-sandbox"> 沙箱环境（网关自动切换到沙箱）</label>
-              <label class="hb-check"><input type="checkbox" name="alipayClearPrivateKey" id="setting-alipay-clear-private"> 清除已保存的应用私钥</label>
-              <label class="hb-check"><input type="checkbox" name="alipayClearPublicKey" id="setting-alipay-clear-public"> 清除已保存的支付宝公钥</label>
+            <div class="admin-tab-pane" data-tab-pane="payment" role="tabpanel">
+              <h4 class="admin-grid__section">支付与维护</h4>
+              <label class="hb-field"><span>支付渠道</span>
+                <select class="hb-select" name="paymentProvider"><option value="">跟随环境变量</option><option value="mock">mock（需服务端显式开启）</option><option value="alipay">alipay</option></select>
+              </label>
+              <label class="hb-field"><span>支付显示名</span><input class="hb-input" name="paymentDisplayName"></label>
+              <label class="hb-field admin-grid__full"><span>交易标题（出现在支付宝账单的「商品名称」里，留空跟随环境变量）</span><input class="hb-input" name="paymentTransactionDescription" placeholder="跟随环境变量"></label>
+              <div class="hb-check-group">
+                <label class="hb-check"><input type="checkbox" name="paymentEnabled" id="setting-payment-enabled"> 启用支付</label>
+                <label class="hb-check"><input type="checkbox" name="maintenanceMode" id="setting-maintenance"> 维护模式</label>
+              </div>
+              <label class="hb-field admin-grid__full"><span>维护文案</span><input class="hb-input" name="maintenanceMessage"></label>
             </div>
-            <h4 class="admin-grid__section">注册邮箱验证码</h4>
-            <p class="admin-hint admin-grid__full">
-              留空即跟随环境变量；填写后立即生效，无需重启。SMTP 授权码只打码回显，接口响应与审核日志都不落明文。
-            </p>
-            <div class="admin-form-actions admin-grid__full">
-              <span class="admin-status-chip" id="mail-delivery-status">未配置</span>
-              <button class="hb-button hb-button--ghost hb-button--sm" type="button" id="mail-test-button">发送测试邮件</button>
-              <span class="admin-hint" id="mail-test-result"></span>
+            <div class="admin-tab-pane" data-tab-pane="alipay" role="tabpanel">
+              <h4 class="admin-grid__section">支付宝凭据</h4>
+              <p class="admin-hint admin-grid__full">
+                留空即跟随环境变量；填写后立即生效，无需重启。密钥只打码回显，接口响应与审核日志都不落明文。
+              </p>
+              <div class="admin-form-actions admin-grid__full">
+                <span class="admin-status-chip" id="alipay-credential-status">未配置</span>
+                <button class="hb-button hb-button--ghost hb-button--sm" type="button" id="alipay-test-button">测试凭据</button>
+                <span class="admin-hint" id="alipay-test-result"></span>
+              </div>
+              <!-- 逐项诊断结论。过去这里只有一句「凭据可用」，而它其实从没用过
+                   支付宝公钥 —— 「公钥填成应用公钥」这种故障下单查单全通、异步通知
+                   全部验签失败，用户付了钱订单永远不到账。所以结论必须逐项铺开，
+                   并且明确区分「通过了」与「没测到」。 -->
+              <ul class="admin-diagnostic-list admin-grid__full" id="alipay-diagnostic-list"></ul>
+              <label class="hb-field"><span>AppID</span><input class="hb-input is-mono" name="alipayAppId" placeholder="跟随环境变量"></label>
+              <label class="hb-field"><span>卖家 PID（校验异步通知的收款方）</span><input class="hb-input is-mono" name="alipaySellerId" placeholder="跟随环境变量"></label>
+              <label class="hb-field admin-grid__full"><span>应用私钥（PEM，或密钥工具导出的纯 base64）</span>
+                <input class="hb-input is-mono" type="password" autocomplete="new-password" name="alipayAppPrivateKey" placeholder="留空不改动">
+              </label>
+              <label class="hb-field admin-grid__full"><span>支付宝公钥（开放平台的「支付宝公钥」，不是应用公钥）</span>
+                <input class="hb-input is-mono" type="password" autocomplete="new-password" name="alipayPublicKey" placeholder="留空不改动">
+              </label>
+              <label class="hb-field admin-grid__wide"><span>网关地址（留空跟随沙箱开关 / 环境变量）</span><input class="hb-input is-mono" name="alipayGatewayUrl" placeholder="https://openapi.alipay.com/gateway.do"></label>
+              <p class="admin-hint admin-grid__full" id="alipay-effective-urls"></p>
+              <label class="hb-field admin-grid__full"><span>异步通知地址（支付宝服务器回调的地址，必须是公网可达的 https）</span>
+                <input class="hb-input is-mono" name="alipayNotifyUrl" placeholder="留空跟随环境变量；再没有就按 STORE_BASE_URL 推导">
+              </label>
+              <label class="hb-field admin-grid__full"><span>同步跳转地址（用户付完款后浏览器回到的页面）</span>
+                <input class="hb-input is-mono" name="alipayReturnUrl" placeholder="留空跟随环境变量；再没有就按 STORE_BASE_URL 推导">
+              </label>
+              <div class="hb-check-group admin-grid__full">
+                <label class="hb-check"><input type="checkbox" name="alipaySandbox" id="setting-alipay-sandbox"> 沙箱环境（网关自动切换到沙箱）</label>
+                <label class="hb-check"><input type="checkbox" name="alipayClearPrivateKey" id="setting-alipay-clear-private"> 清除已保存的应用私钥</label>
+                <label class="hb-check"><input type="checkbox" name="alipayClearPublicKey" id="setting-alipay-clear-public"> 清除已保存的支付宝公钥</label>
+              </div>
             </div>
-            <label class="hb-field admin-grid__full"><span>测试收件邮箱（只用于上面的按钮，不会保存）</span>
-              <input class="hb-input is-mono" name="mailTestEmail" placeholder="you@example.com">
-            </label>
-            <label class="hb-field"><span>投递方式</span>
-              <select class="hb-select" name="mailMode">
-                <option value="">跟随环境变量</option>
-                <option value="log">log · 只写日志</option>
-                <option value="echo">echo · 回显明文（仅本地）</option>
-                <option value="smtp">smtp · 真实发信</option>
-              </select>
-            </label>
-            <label class="hb-field"><span>SMTP 加密</span>
-              <select class="hb-select" name="smtpSecurity">
-                <option value="">跟随环境变量</option>
-                <option value="ssl">SSL（端口 465）</option>
-                <option value="starttls">STARTTLS（端口 587）</option>
-                <option value="plain">不加密（端口 25）</option>
-              </select>
-            </label>
-            <label class="hb-field"><span>SMTP 端口</span>
-              <input class="hb-input" type="number" name="smtpPort" placeholder="留空按加密方式">
-            </label>
-            <label class="hb-field"><span>SMTP 服务器</span>
-              <input class="hb-input is-mono" name="smtpHost" placeholder="跟随环境变量">
-            </label>
-            <label class="hb-field"><span>SMTP 用户名</span>
-              <input class="hb-input is-mono" name="smtpUsername" placeholder="跟随环境变量">
-            </label>
-            <label class="hb-field admin-grid__full"><span>发件人（带显示名时写成 <code>HomeOS &lt;no-reply@example.com&gt;</code>）</span>
-              <input class="hb-input is-mono" name="mailFrom" placeholder="跟随环境变量">
-            </label>
-            <label class="hb-field admin-grid__full"><span>SMTP 授权码（一般是邮箱的 SMTP 授权码，不是登录密码）</span>
-              <input class="hb-input is-mono" type="password" autocomplete="new-password" name="smtpPassword" placeholder="留空不改动">
-            </label>
-            <div class="hb-check-group admin-grid__full">
-              <label class="hb-check"><input type="checkbox" name="smtpClearPassword" id="setting-smtp-clear-password"> 清除已保存的 SMTP 授权码</label>
+            <div class="admin-tab-pane" data-tab-pane="mail" role="tabpanel">
+              <h4 class="admin-grid__section">注册邮箱验证码</h4>
+              <p class="admin-hint admin-grid__full">
+                留空即跟随环境变量；填写后立即生效，无需重启。SMTP 授权码只打码回显，接口响应与审核日志都不落明文。
+              </p>
+              <!-- 邮箱预设：填一个邮箱地址，就把服务商那三项（服务器 / 加密 / 端口）反查出来填好。
+                  这三项各自只有唯一正确答案，答案却散落在各家服务商的帮助页上，而填错的表现是
+                  **静默降级成写日志**（用户收不到验证码、注册不了，后台却每一样都填好了）。
+                  清单来自后端 mail.presets（mail_settings.SMTP_PRESETS），不在这里抄第二份。 -->
+              <!-- 三个控件排成一行：两个字段是「标签在上、控件在下」，按钮要对齐**控件**
+                   那一行而不是整块居中 —— 否则它比旁边的下拉框高出半个标签，一行里
+                   三个东西不在一条基线上（.admin-form-actions--fielded 就是干这个的）。 -->
+              <div class="admin-form-actions admin-form-actions--fielded admin-grid__full">
+                <label class="hb-field"><span>邮箱服务商</span>
+                  <select class="hb-select" id="mail-preset-provider">
+                    <option value="">自动识别（按邮箱地址）</option>
+                  </select>
+                </label>
+                <label class="hb-field"><span>邮箱账号</span>
+                  <input class="hb-input is-mono" id="mail-preset-email" placeholder="you@example.com">
+                </label>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="mail-preset-apply">填入预设</button>
+              </div>
+              <p class="admin-hint admin-grid__full" id="mail-preset-hint"></p>
+              <div class="admin-form-actions admin-grid__full">
+                <span class="admin-status-chip" id="mail-delivery-status">未配置</span>
+                <button class="hb-button hb-button--ghost hb-button--sm" type="button" id="mail-test-button">发送测试邮件</button>
+                <span class="admin-hint" id="mail-test-result"></span>
+              </div>
+              <!-- 逐项诊断结论：域名解析、连接与登录握手、授权码是否成对…… 与上面
+                   的支付宝区块同理，「填了 SMTP 但授权码漏了」过去只会静默退化成
+                   写日志，界面上一片正常而用户收不到验证码。 -->
+              <ul class="admin-diagnostic-list admin-grid__full" id="mail-diagnostic-list"></ul>
+              <label class="hb-field admin-grid__full"><span>测试收件邮箱（留空则只做连接诊断，不发信）</span>
+                <input class="hb-input is-mono" name="mailTestEmail" placeholder="you@example.com（留空 = 只诊断，不发信）">
+              </label>
+              <label class="hb-field"><span>投递方式</span>
+                <select class="hb-select" name="mailMode">
+                  <option value="">跟随环境变量</option>
+                  <option value="log">log · 只写日志</option>
+                  <option value="echo">echo · 回显明文（仅本地）</option>
+                  <option value="smtp">smtp · 真实发信</option>
+                </select>
+              </label>
+              <label class="hb-field"><span>SMTP 加密</span>
+                <select class="hb-select" name="smtpSecurity">
+                  <option value="">跟随环境变量</option>
+                  <option value="ssl">SSL（端口 465）</option>
+                  <option value="starttls">STARTTLS（端口 587）</option>
+                  <option value="plain">不加密（端口 25）</option>
+                </select>
+              </label>
+              <label class="hb-field"><span>SMTP 端口</span>
+                <input class="hb-input" type="number" name="smtpPort" placeholder="留空按加密方式">
+              </label>
+              <label class="hb-field"><span>SMTP 服务器</span>
+                <input class="hb-input is-mono" name="smtpHost" placeholder="跟随环境变量">
+              </label>
+              <label class="hb-field"><span>SMTP 用户名</span>
+                <input class="hb-input is-mono" name="smtpUsername" placeholder="跟随环境变量">
+              </label>
+              <label class="hb-field admin-grid__full"><span>发件人（带显示名时写成 <code>HomeOS &lt;no-reply@example.com&gt;</code>）</span>
+                <input class="hb-input is-mono" name="mailFrom" placeholder="跟随环境变量">
+              </label>
+              <label class="hb-field admin-grid__full"><span>SMTP 授权码（一般是邮箱的 SMTP 授权码，不是登录密码）</span>
+                <input class="hb-input is-mono" type="password" autocomplete="new-password" name="smtpPassword" placeholder="留空不改动">
+              </label>
+              <div class="hb-check-group admin-grid__full">
+                <label class="hb-check"><input type="checkbox" name="smtpClearPassword" id="setting-smtp-clear-password"> 清除已保存的 SMTP 授权码</label>
+              </div>
+              <label class="hb-field"><span>验证码有效期（秒）</span>
+                <input class="hb-input" type="number" name="verificationTtlSeconds" placeholder="跟随环境变量">
+              </label>
+              <label class="hb-field"><span>重发冷却（秒）</span>
+                <input class="hb-input" type="number" name="verificationCooldownSeconds" placeholder="跟随环境变量">
+              </label>
+              <label class="hb-field admin-grid__wide"><span>接口回显验证码（仅本地联调）</span>
+                <select class="hb-select" name="exposeVerificationCode">
+                  <option value="">跟随环境变量</option>
+                  <option value="false">关闭（生产必须）</option>
+                  <option value="true">开启（危险）</option>
+                </select>
+              </label>
             </div>
-            <label class="hb-field"><span>验证码有效期（秒）</span>
-              <input class="hb-input" type="number" name="verificationTtlSeconds" placeholder="跟随环境变量">
-            </label>
-            <label class="hb-field"><span>重发冷却（秒）</span>
-              <input class="hb-input" type="number" name="verificationCooldownSeconds" placeholder="跟随环境变量">
-            </label>
-            <label class="hb-field admin-grid__wide"><span>接口回显验证码（仅本地联调）</span>
-              <select class="hb-select" name="exposeVerificationCode">
-                <option value="">跟随环境变量</option>
-                <option value="false">关闭（生产必须）</option>
-                <option value="true">开启（危险）</option>
-              </select>
-            </label>
-            <h4 class="admin-grid__section">邀请与解绑</h4>
-            <div class="hb-check-group">
-              <label class="hb-check"><input type="checkbox" name="referralEnabled" id="setting-referral"> 邀请有礼</label>
-            </div>
-            <label class="hb-field"><span>奖励比例 %</span><input class="hb-input" type="number" step="0.01" name="referralRatePercent"></label>
-            <label class="hb-field"><span>提现手续费 %</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalFeePercent"></label>
-            <label class="hb-field"><span>最低提现积分</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalMinPoints"></label>
-            <label class="hb-field"><span>解绑冷却（秒）</span><input class="hb-input" type="number" name="deviceReleaseCooldownSeconds"></label>
-            <div class="admin-form-actions admin-grid__full">
-              <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存配置</button>
+            <div class="admin-tab-pane" data-tab-pane="invite" role="tabpanel">
+              <h4 class="admin-grid__section">邀请与解绑</h4>
+              <div class="hb-check-group">
+                <label class="hb-check"><input type="checkbox" name="referralEnabled" id="setting-referral"> 邀请有礼</label>
+              </div>
+              <label class="hb-field"><span>奖励比例 %</span><input class="hb-input" type="number" step="0.01" name="referralRatePercent"></label>
+              <label class="hb-field"><span>提现手续费 %</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalFeePercent"></label>
+              <label class="hb-field"><span>最低提现积分</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalMinPoints"></label>
+              <label class="hb-field"><span>解绑冷却（秒）</span><input class="hb-input" type="number" name="deviceReleaseCooldownSeconds"></label>
             </div>
           </form>
         </div>
@@ -830,203 +961,237 @@
     </section>
 
     <!-- 版本发布 -->
-    <section class="admin-panel" id="panel-releases">
+    <section class="admin-panel" id="panel-releases" data-domain="catalog">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>版本发布</h2>
           <p>客户端「检查更新」取最新一条；删除后会自动回退到次新记录</p>
         </div>
+        <div class="panel-head__actions">
+          <span class="panel-head__domain">商品</span>
+          <button class="hb-button hb-button--primary hb-button--sm" id="release-new">发布新版本</button>
+        </div>
       </header>
-      <div class="panel-toolbar">
-        <input class="hb-input" id="release-keyword" aria-label="版本号、发布日期或更新说明关键字" placeholder="版本号 / 日期 / 说明">
-        <input class="hb-input" id="release-product" aria-label="产品标识" placeholder="产品（如 homeos）">
-        <input class="hb-input" id="release-channel" aria-label="发布渠道" placeholder="渠道（如 docker）">
-        <button class="hb-button hb-button--secondary hb-button--sm" id="release-refresh">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" id="release-reset">重置</button>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="版本发布分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">版本列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="form">发布 / 修正</button>
       </div>
-      <div class="table-wrap">
-        <table class="hb-table">
-          <thead><tr><th>产品</th><th>渠道</th><th>版本</th><th>发布日期</th><th>说明</th><th class="nowrap">操作</th></tr></thead>
-          <tbody id="release-rows"></tbody>
-        </table>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="release-keyword" aria-label="版本号、发布日期或更新说明关键字" placeholder="版本号 / 日期 / 说明">
+          <input class="hb-input" id="release-product" aria-label="产品标识" placeholder="产品（如 homeos）">
+          <input class="hb-input" id="release-channel" aria-label="发布渠道" placeholder="渠道（如 docker）">
+          <button class="hb-button hb-button--secondary hb-button--sm" id="release-refresh">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="release-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th>产品</th><th>渠道</th><th>版本</th><th>发布日期</th><th>说明</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="release-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="releases"></div>
       </div>
-      <div class="admin-pager" data-pager="releases"></div>
       <!-- 编辑器放在列表之后：商品 / 优惠码 / 账号 / 激活码 / 功能权益 五个面板都是
-           「列表在上、编辑器在下」，这里过去是反的——同样一个「新增」动作，
-           在版本发布页要先跨过表单才看得到已有记录，位置每页都得重新找。 -->
-      <div class="hb-card admin-editor" id="release-editor">
-        <div class="hb-card__body">
-          <h3 class="admin-editor__title" id="release-editor-title">发布新版本</h3>
-          <form id="release-form" class="admin-grid">
-            <input type="hidden" name="id">
-            <label class="hb-field"><span>产品</span><input class="hb-input" name="product" value="homeos"></label>
-            <label class="hb-field"><span>渠道</span><input class="hb-input" name="channel" value="docker"></label>
-            <label class="hb-field"><span>版本</span><input class="hb-input" name="version" required></label>
-            <label class="hb-field"><span>发布日期</span><input class="hb-input" type="date" name="releaseDate"></label>
-            <label class="hb-field admin-grid__full"><span>更新说明（客户端「检查更新」会原样展示，请写清升级顺序）</span><textarea class="hb-textarea" name="upgradeNotes" rows="4"></textarea></label>
-            <div class="admin-form-actions admin-grid__full">
-              <button class="hb-button hb-button--primary hb-button--sm" type="submit" id="release-submit">发布</button>
-              <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="release-cancel" hidden>取消编辑</button>
-            </div>
-          </form>
+      「列表在上、编辑器在下」，这里过去是反的——同样一个「新增」动作，
+      在版本发布页要先跨过表单才看得到已有记录，位置每页都得重新找。 -->
+      <div class="admin-tab-pane" data-tab-pane="form" role="tabpanel">
+        <div class="hb-card admin-editor" id="release-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title" id="release-editor-title">发布新版本</h3>
+            <form id="release-form" class="admin-grid">
+              <input type="hidden" name="id">
+              <label class="hb-field"><span>产品</span><input class="hb-input" name="product" value="homeos"></label>
+              <label class="hb-field"><span>渠道</span><input class="hb-input" name="channel" value="docker"></label>
+              <label class="hb-field"><span>版本</span><input class="hb-input" name="version" required></label>
+              <label class="hb-field"><span>发布日期</span><input class="hb-input" type="date" name="releaseDate"></label>
+              <label class="hb-field admin-grid__full"><span>更新说明（客户端「检查更新」会原样展示，请写清升级顺序）</span><textarea class="hb-textarea" name="upgradeNotes" rows="4"></textarea></label>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit" id="release-submit">发布</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="release-cancel" hidden>取消编辑</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- 审计日志 -->
-    <section class="admin-panel" id="panel-audits">
+    <section class="admin-panel" id="panel-audits" data-domain="system">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>审计日志</h2>
           <p>后台所有写操作的追溯记录，可单条删除或按时间批量清理</p>
         </div>
         <div class="panel-head__actions">
+          <span class="panel-head__domain">系统</span>
           <button class="hb-button hb-button--secondary hb-button--sm" id="audit-refresh">刷新</button>
         </div>
       </header>
-      <div class="table-wrap">
-        <table class="hb-table">
-          <thead><tr><th class="nowrap">时间</th><th>操作人</th><th>动作</th><th>对象</th><th>详情</th><th class="nowrap">操作</th></tr></thead>
-          <tbody id="audit-rows"></tbody>
-        </table>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="审计日志分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">审计列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="purge">批量清理</button>
       </div>
-      <div class="admin-pager" data-pager="audits"></div>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">时间</th><th>操作人</th><th>动作</th><th>对象</th><th>详情</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="audit-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="audits"></div>
+      </div>
 
-      <div class="danger-zone">
-        <h3>批量清理</h3>
-        <p>
-          按天数清理历史审计日志，用于控制表体积。<strong>清理动作本身也会被记录</strong>，
-          但被清掉的记录无法恢复，请先确认天数再执行。
-        </p>
-        <div class="danger-zone__row">
-          <label class="hb-field">
-            <span>清理多少天之前的记录</span>
-            <input class="hb-input purge-days" id="audit-purge-days" type="number" min="1" value="90">
-          </label>
-          <button class="hb-button hb-button--danger hb-button--sm" id="audit-purge">执行清理</button>
+      <div class="admin-tab-pane" data-tab-pane="purge" role="tabpanel">
+        <div class="danger-zone">
+          <h3>批量清理</h3>
+          <p>
+            按天数清理历史审计日志，用于控制表体积。<strong>清理动作本身也会被记录</strong>，
+            但被清掉的记录无法恢复，请先确认天数再执行。
+          </p>
+          <div class="danger-zone__row">
+            <label class="hb-field">
+              <span>清理多少天之前的记录</span>
+              <input class="hb-input purge-days" id="audit-purge-days" type="number" min="1" step="1" value="90">
+            </label>
+            <button class="hb-button hb-button--danger hb-button--sm" id="audit-purge">执行清理</button>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- 功能权益：决定客户端功能开关的那张表 -->
-    <section class="admin-panel" id="panel-entitlements">
+    <section class="admin-panel" id="panel-entitlements" data-domain="data">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>功能权益</h2>
           <p>客户端按 <code>feature_code</code> 判断功能开关；这张表过去在后台完全看不到</p>
         </div>
         <div class="panel-head__actions">
+          <span class="panel-head__domain">数据</span>
           <button class="hb-button hb-button--secondary hb-button--sm" id="entitlement-refresh">刷新</button>
           <button class="hb-button hb-button--primary hb-button--sm" id="entitlement-new">手工补权益</button>
         </div>
       </header>
-      <div class="panel-toolbar">
-        <input class="hb-input" id="entitlement-feature" aria-label="功能码、商品名或授权 ID 关键字" placeholder="功能码 / 商品 / 授权 ID">
-        <select class="hb-select" id="entitlement-status" aria-label="按生效状态筛选">
-          <option value="">全部</option>
-          <option value="active">实际生效中</option>
-          <option value="inactive">未生效 / 已过期</option>
-        </select>
-        <button class="hb-button hb-button--secondary hb-button--sm" id="entitlement-search">查询</button>
-        <button class="hb-button hb-button--ghost hb-button--sm" id="entitlement-reset">重置</button>
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="功能权益分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">权益列表</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="create">手工补权益</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="patch">改期 / 开关</button>
       </div>
-      <div class="table-wrap">
-        <table class="hb-table">
-          <thead><tr><th class="nowrap">功能码</th><th>商品</th><th class="nowrap">授权</th><th class="nowrap">开始</th><th class="nowrap">到期</th><th class="nowrap">开关</th><th class="nowrap">实际生效</th><th class="nowrap">操作</th></tr></thead>
-          <tbody id="entitlement-rows"></tbody>
-        </table>
+      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
+        <div class="panel-toolbar">
+          <input class="hb-input" id="entitlement-feature" aria-label="功能码、商品名或授权 ID 关键字" placeholder="功能码 / 商品 / 授权 ID">
+          <select class="hb-select" id="entitlement-status" aria-label="按生效状态筛选">
+            <option value="">全部</option>
+            <option value="active">实际生效中</option>
+            <option value="inactive">未生效 / 已过期</option>
+          </select>
+          <button class="hb-button hb-button--secondary hb-button--sm" id="entitlement-search">查询</button>
+          <button class="hb-button hb-button--ghost hb-button--sm" id="entitlement-reset">重置</button>
+        </div>
+        <div class="table-wrap">
+          <table class="hb-table">
+            <thead><tr><th class="nowrap">功能码</th><th>商品</th><th class="nowrap">授权</th><th class="nowrap">开始</th><th class="nowrap">到期</th><th class="nowrap">开关</th><th class="nowrap">实际生效</th><th class="nowrap">操作</th></tr></thead>
+            <tbody id="entitlement-rows"></tbody>
+          </table>
+        </div>
+        <div class="admin-pager" data-pager="entitlements"></div>
       </div>
-      <div class="admin-pager" data-pager="entitlements"></div>
-      <div class="hb-card admin-editor" id="entitlement-editor" hidden>
-        <div class="hb-card__body">
-          <h3 class="admin-editor__title">手工补一条权益</h3>
-          <p class="admin-editor__hint">
-            「开关」是库里的原始值，「实际生效」是叠加有效期后的结果。
-            两者分开看，才能解释「开关明明开着、客户端却没有这个功能」。
-            同一张授权下同一个功能码只能有一条。
-          </p>
-          <form id="entitlement-form" class="admin-grid admin-grid--wide">
-            <label class="hb-field"><span>授权 ID</span><input class="hb-input is-mono" name="licenseId" required></label>
-            <div class="hb-field">
-              <span>功能码</span>
-              <div class="feature-picker" id="entitlement-features" data-feature-picker data-feature-empty="点击选择功能码">
-                <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
-                  <span class="feature-picker__value" data-feature-summary>点击选择功能码</span>
-                  <span class="feature-picker__caret" aria-hidden="true"></span>
-                </button>
-                <input type="hidden" name="featureCode" data-feature-value value="">
-                <div class="feature-picker__pop" data-feature-pop hidden>
-                  <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
-                  <div class="feature-picker__list" data-feature-list role="listbox"></div>
+      <div class="admin-tab-pane" data-tab-pane="create" role="tabpanel">
+        <div class="hb-card admin-editor" id="entitlement-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title">手工补一条权益</h3>
+            <p class="admin-editor__hint">
+              「开关」是库里的原始值，「实际生效」是叠加有效期后的结果。
+              两者分开看，才能解释「开关明明开着、客户端却没有这个功能」。
+              同一张授权下同一个功能码只能有一条。
+            </p>
+            <form id="entitlement-form" class="admin-grid admin-grid--wide">
+              <label class="hb-field"><span>授权 ID</span><input class="hb-input is-mono" name="licenseId" required></label>
+              <div class="hb-field">
+                <span>功能码</span>
+                <div class="feature-picker" id="entitlement-features" data-feature-picker data-feature-empty="点击选择功能码">
+                  <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
+                    <span class="feature-picker__value" data-feature-summary>点击选择功能码</span>
+                    <span class="feature-picker__caret" aria-hidden="true"></span>
+                  </button>
+                  <input type="hidden" name="featureCode" data-feature-value value="">
+                  <div class="feature-picker__pop" data-feature-pop hidden>
+                    <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
+                    <div class="feature-picker__list" data-feature-list role="listbox"></div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <label class="hb-field"><span>商品名（留空取授权上的商品）</span><input class="hb-input" name="productName"></label>
-            <label class="hb-field">
-              <span>开始时间</span>
-              <input class="hb-input" type="datetime-local" name="startsAt">
-              <span class="admin-field-hint">本地时间；留空即现在。</span>
-            </label>
-            <label class="hb-field">
-              <span>到期时间</span>
-              <input class="hb-input" type="datetime-local" name="expiresAt">
-              <span class="admin-field-hint">本地时间；留空即跟随授权。</span>
-            </label>
-            <div class="hb-check-group">
-              <label class="hb-check"><input type="checkbox" name="active" checked> 启用</label>
-            </div>
-            <div class="admin-form-actions admin-grid__full">
-              <button class="hb-button hb-button--primary hb-button--sm" type="submit">创建</button>
-              <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="entitlement-cancel">取消</button>
-            </div>
-          </form>
+              <label class="hb-field"><span>商品名（留空取授权上的商品）</span><input class="hb-input" name="productName"></label>
+              <label class="hb-field">
+                <span>开始时间</span>
+                <input class="hb-input" type="datetime-local" name="startsAt">
+                <span class="admin-field-hint">本地时间；留空即现在。</span>
+              </label>
+              <label class="hb-field">
+                <span>到期时间</span>
+                <input class="hb-input" type="datetime-local" name="expiresAt">
+                <span class="admin-field-hint">本地时间；留空即跟随授权。</span>
+              </label>
+              <div class="hb-check-group">
+                <label class="hb-check"><input type="checkbox" name="active" checked> 启用</label>
+              </div>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">创建</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="entitlement-cancel">取消</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
-      <div class="hb-card admin-editor" id="entitlement-patch-editor" hidden>
-        <div class="hb-card__body">
-          <h3 class="admin-editor__title">改期 / 开关 <span class="mono" id="entitlement-patch-label"></span></h3>
-          <p class="admin-editor__hint">
-            到期时间<b>留空即改为永久有效</b>。功能码改动会即时影响客户端识别，改错等于把功能换了个名字。
-          </p>
-          <form id="entitlement-patch-form" class="admin-grid admin-grid--wide">
-            <input type="hidden" name="id">
-            <div class="hb-field">
-              <span>功能码</span>
-              <div class="feature-picker" id="entitlement-patch-features" data-feature-picker data-feature-empty="点击选择功能码">
-                <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
-                  <span class="feature-picker__value" data-feature-summary>点击选择功能码</span>
-                  <span class="feature-picker__caret" aria-hidden="true"></span>
-                </button>
-                <input type="hidden" name="featureCode" data-feature-value value="">
-                <div class="feature-picker__pop" data-feature-pop hidden>
-                  <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
-                  <div class="feature-picker__list" data-feature-list role="listbox"></div>
+      <div class="admin-tab-pane" data-tab-pane="patch" role="tabpanel">
+        <div class="hb-card admin-editor" id="entitlement-patch-editor" hidden>
+          <div class="hb-card__body">
+            <h3 class="admin-editor__title">改期 / 开关 <span class="mono" id="entitlement-patch-label"></span></h3>
+            <p class="admin-editor__hint">
+              到期时间<b>留空即改为永久有效</b>。功能码改动会即时影响客户端识别，改错等于把功能换了个名字。
+            </p>
+            <form id="entitlement-patch-form" class="admin-grid admin-grid--wide">
+              <input type="hidden" name="id">
+              <div class="hb-field">
+                <span>功能码</span>
+                <div class="feature-picker" id="entitlement-patch-features" data-feature-picker data-feature-empty="点击选择功能码">
+                  <button type="button" class="feature-picker__control" data-feature-toggle aria-haspopup="listbox" aria-expanded="false">
+                    <span class="feature-picker__value" data-feature-summary>点击选择功能码</span>
+                    <span class="feature-picker__caret" aria-hidden="true"></span>
+                  </button>
+                  <input type="hidden" name="featureCode" data-feature-value value="">
+                  <div class="feature-picker__pop" data-feature-pop hidden>
+                    <input class="hb-input feature-picker__search" type="search" placeholder="搜索中文名或功能码" data-feature-search aria-label="搜索功能码">
+                    <div class="feature-picker__list" data-feature-list role="listbox"></div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <label class="hb-field"><span>商品名</span><input class="hb-input" name="productName"></label>
-            <label class="hb-field"><span>开始时间（本地时间）</span><input class="hb-input" type="datetime-local" name="startsAt"></label>
-            <label class="hb-field"><span>到期时间（本地时间）</span><input class="hb-input" type="datetime-local" name="expiresAt"></label>
-            <div class="hb-check-group">
-              <label class="hb-check"><input type="checkbox" name="active"> 启用</label>
-            </div>
-            <div class="admin-form-actions admin-grid__full">
-              <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
-              <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="entitlement-patch-cancel">取消</button>
-            </div>
-          </form>
+              <label class="hb-field"><span>商品名</span><input class="hb-input" name="productName"></label>
+              <label class="hb-field"><span>开始时间（本地时间）</span><input class="hb-input" type="datetime-local" name="startsAt"></label>
+              <label class="hb-field"><span>到期时间（本地时间）</span><input class="hb-input" type="datetime-local" name="expiresAt"></label>
+              <div class="hb-check-group">
+                <label class="hb-check"><input type="checkbox" name="active"> 启用</label>
+              </div>
+              <div class="admin-form-actions admin-grid__full">
+                <button class="hb-button hb-button--primary hb-button--sm" type="submit">保存</button>
+                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="entitlement-patch-cancel">取消</button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- 积分流水 -->
-    <section class="admin-panel" id="panel-ledger">
+    <section class="admin-panel" id="panel-ledger" data-domain="data">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>积分流水</h2>
           <p>余额由流水汇总而来，这张表是对账的唯一依据；人工调账也必须留痕在这里</p>
         </div>
         <div class="panel-head__actions">
+          <span class="panel-head__domain">数据</span>
           <button class="hb-button hb-button--secondary hb-button--sm" id="ledger-refresh">刷新</button>
         </div>
       </header>
@@ -1054,13 +1219,14 @@
     </section>
 
     <!-- 客户档案 -->
-    <section class="admin-panel" id="panel-customers">
+    <section class="admin-panel" id="panel-customers" data-domain="data">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>客户档案</h2>
           <p>下单与开票用的客户记录；账号邮箱变更时这里会同步</p>
         </div>
         <div class="panel-head__actions">
+          <span class="panel-head__domain">数据</span>
           <button class="hb-button hb-button--secondary hb-button--sm" id="customer-refresh">刷新</button>
         </div>
       </header>
@@ -1078,18 +1244,30 @@
     </section>
 
     <!-- 诊断数据 -->
-    <section class="admin-panel" id="panel-diagnostics">
+    <section class="admin-panel" id="panel-diagnostics" data-domain="data">
       <header class="panel-head">
         <div class="panel-head__text">
           <h2>诊断数据</h2>
           <p>排查「是不是被撞库了」「验证码发没发出去」「冷却该不该放行」时看这里。列表可翻页；日志类可按天数清理（只清过期或已消费的记录，当前有效的永不删）</p>
         </div>
         <div class="panel-head__actions">
+          <span class="panel-head__domain">数据</span>
           <button class="hb-button hb-button--secondary hb-button--sm" id="diagnostics-refresh">刷新</button>
         </div>
       </header>
 
-      <div class="admin-block">
+      <!-- 七张表铺一页要滚很久，而且「会话 / 令牌 / 日志 / 核销」四类问题的排查
+      场景互斥：查撞库的人不需要划过设备解绑历史。所以这里的 pane 就是既有的
+      .admin-block 本身（一个 tab 可以拥有多个 pane，ARIA 的 aria-controls
+      本来就是 ID 列表），不额外套一层 div —— 套了反而要重排 DOM 顺序。 -->
+      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="诊断数据分区">
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="sessions">登录会话</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="tokens">令牌与解绑</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="logs">登录与验证码</button>
+        <button class="admin-tabs__tab" type="button" role="tab" data-tab="redeem">优惠码核销</button>
+      </div>
+
+      <div class="admin-block admin-tab-pane" data-tab-pane="sessions" role="tabpanel">
         <div class="admin-block__head">
           <div>
             <h3 class="admin-block-title">登录会话</h3>
@@ -1106,7 +1284,7 @@
         <div class="admin-pager" data-pager="sessions"></div>
       </div>
 
-      <div class="admin-block">
+      <div class="admin-block admin-tab-pane" data-tab-pane="sessions" role="tabpanel">
         <div class="admin-block__head">
           <div>
             <h3 class="admin-block-title">客户端会话</h3>
@@ -1123,7 +1301,7 @@
         <div class="admin-pager" data-pager="license-sessions"></div>
       </div>
 
-      <div class="admin-block">
+      <div class="admin-block admin-tab-pane" data-tab-pane="tokens" role="tabpanel">
         <div class="admin-block__head">
           <div>
             <h3 class="admin-block-title">设备找回令牌</h3>
@@ -1140,7 +1318,7 @@
         <div class="admin-pager" data-pager="recovery-tokens"></div>
       </div>
 
-      <div class="admin-block">
+      <div class="admin-block admin-tab-pane" data-tab-pane="logs" role="tabpanel">
         <div class="admin-block__head">
           <div>
             <h3 class="admin-block-title">登录尝试</h3>
@@ -1157,7 +1335,7 @@
         <div class="admin-pager" data-pager="login-attempts"></div>
       </div>
 
-      <div class="admin-block">
+      <div class="admin-block admin-tab-pane" data-tab-pane="logs" role="tabpanel">
         <div class="admin-block__head">
           <div>
             <h3 class="admin-block-title">邮箱验证码</h3>
@@ -1174,7 +1352,7 @@
         <div class="admin-pager" data-pager="email-verifications"></div>
       </div>
 
-      <div class="admin-block">
+      <div class="admin-block admin-tab-pane" data-tab-pane="tokens" role="tabpanel">
         <div class="admin-block__head">
           <div>
             <h3 class="admin-block-title">设备解绑历史</h3>
@@ -1191,7 +1369,7 @@
         <div class="admin-pager" data-pager="device-release-events"></div>
       </div>
 
-      <div class="admin-block">
+      <div class="admin-block admin-tab-pane" data-tab-pane="redeem" role="tabpanel">
         <div class="admin-block__head">
           <div>
             <h3 class="admin-block-title">
@@ -1270,7 +1448,29 @@
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
-const state = { account: null, products: [], productPage: [], orders: [], licenses: [], bindings: [], coupons: [], withdrawals: [], accounts: [], settings: null, releases: [], entitlements: [], ledger: [], featureCatalog: [], featureGroups: [] };
+// 界面上的跨面板缓存。只放**真的被读过**的东西：
+//   · products     商品目录（签发授权 / 编辑权益的下拉框，API 全量而非当前页）
+//   · productPage  商品列表当前页（编辑时按 id 取整行，分页后拿不到全量）
+//   · licenses / coupons / accounts / releases / entitlements  各列表当前页（同一用途）
+//   · settings     站点配置响应（凭据徽标、邮件徽标要用它判断「来源是后台吗」）
+//   · featureCatalog / featureGroups  功能码目录（中文名渲染 + 选择器分组）
+//   · settingsLoaded  站点配置是否真的读到了，保存闸门读它（见 setSettingsLoadState）
+// 以前这里还挂着 orders / withdrawals / bindings / ledger / account 五个槽位，
+// 它们只被赋值、从没被读过 —— 每次加载都白存一份列表，读代码的人还会以为
+// 别处在依赖它。
+const state = {
+  products: [],
+  productPage: [],
+  licenses: [],
+  coupons: [],
+  accounts: [],
+  settings: null,
+  settingsLoaded: false,
+  releases: [],
+  entitlements: [],
+  featureCatalog: [],
+  featureGroups: [],
+};
 
 function toast(message, kind = 'success') {
   const box = document.createElement('div');
@@ -1278,6 +1478,41 @@ function toast(message, kind = 'success') {
   box.textContent = message;
   $('#admin-toast').appendChild(box);
   setTimeout(() => box.remove(), 3600);
+}
+
+// 把接口返回的 ``detail`` 归一化成人话。
+// FastAPI 的参数校验失败（422）返回的 detail 是**数组**——直接塞进 Error 会变成
+// "[object Object]"，而它恰恰是最常见的一类错误（天数填了小数、金额填了字母），
+// 运营看到的就是一句看不懂的英文/对象。这里把它压成「参数 x 不合法：原因」。
+function describeApiError(detail) {
+  if (!detail) return '请求失败。';
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    const lines = detail
+      .map(entry => {
+        if (typeof entry === 'string') return entry;
+        const field = Array.isArray(entry?.loc) ? entry.loc.filter(part => part !== 'body' && part !== 'query').join('.') : '';
+        const reason = entry?.msg || entry?.message || '取值不合法';
+        return field ? `参数 ${field}：${reason}` : reason;
+      })
+      .filter(Boolean);
+    return lines.length ? lines.join('；') : '请求参数不合法。';
+  }
+  if (typeof detail === 'object' && detail.msg) return String(detail.msg);
+  return '请求失败。';
+}
+
+// 建一个带 HTTP 状态码的错误。调用方**必须**能区分两类失败：
+//   · 401 —— 「还没登录」。这是登录页的正常状态（未登录的访客一打开 /admin 就是
+//     这个结果），把它当故障报出来，每个人看到的都是一条红色报错；
+//   · 其余（500 / 断网 / 参数错误）—— 真的坏了，必须原样报出来，否则运营会以为
+//     只是自己没登录，然后反复重输密码。
+// 只按 message 文案判断是不可靠的：文案随时会改，而且「请先登录。」这句话也可能
+// 出现在别的 4xx 上。所以要带上状态码本身。
+function httpError(response, data) {
+  const error = new Error(describeApiError(data && data.detail));
+  error.status = response.status;
+  return error;
 }
 
 async function api(path, options = {}) {
@@ -1290,11 +1525,13 @@ async function api(path, options = {}) {
   });
   if (response.status === 401 || response.status === 403) {
     showLogin();
-    throw new Error('未登录后台或无权限。');
+    // 403 与 401 共用这条提示，但状态码要留住：调用方据此分辨「没登录」与
+    // 「登录了但不是管理员」——后者必须说出来，不能静默退回登录页。
+    throw httpError(response, { detail: '未登录后台或无权限。' });
   }
   if (options.raw) return response;
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || '请求失败。');
+  if (!response.ok) throw httpError(response, data);
   return data;
 }
 
@@ -1305,7 +1542,7 @@ async function storeApi(path, options = {}) {
     ...options,
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || '请求失败。');
+  if (!response.ok) throw httpError(response, data);
   return data;
 }
 
@@ -1315,21 +1552,27 @@ async function storeApi(path, options = {}) {
 // 用 innerHTML 而不是 textContent 存取原文案：按钮里将来加了图标，
 // textContent 的还原会把那个 <i> 节点一起抹掉。
 async function withBusy(form, task, busyText = '处理中…') {
-  const submit = form.querySelector('button[type="submit"]');
-  const label = submit ? submit.innerHTML : '';
-  if (submit) {
-    submit.disabled = true;
-    submit.setAttribute('aria-busy', 'true');
-    submit.textContent = busyText;
-  }
+  // 提交按钮不一定在表单里面：站点配置的「保存配置」常驻在面板头部，靠
+  // ``form="settings-form"`` 关联（见模板注释）。只按 form.querySelector 找的话，
+  // 它永远不会进入忙状态 —— 运营连点几下，每次都会打一遍接口。
+  const submits = [
+    ...form.querySelectorAll('button[type="submit"]'),
+    ...(form.id ? $$(`button[type="submit"][form="${form.id}"]`) : []),
+  ];
+  const labels = submits.map(button => button.innerHTML);
+  submits.forEach((button) => {
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = busyText;
+  });
   try {
     return await task();
   } finally {
-    if (submit) {
-      submit.disabled = false;
-      submit.removeAttribute('aria-busy');
-      submit.innerHTML = label;
-    }
+    submits.forEach((button, index) => {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      button.innerHTML = labels[index];
+    });
   }
 }
 
@@ -1452,6 +1695,9 @@ const STATUS_TONES = {
   // 这两种状态都是「钱/货卡在中间，必须人工介入」，与「已退款」同属需要盯的红色。
   // 之前漏了它们，落到默认的 muted 灰，反而比「已取消」还不起眼。
   payment_failed: 'danger', fulfillment_failed: 'danger',
+  // 退过钱、但没退完（授权仍有效）。比「已退款」轻一档：订单还活着，
+  // 还能再退第二次，所以给 warning 而不是 danger。
+  partially_refunded: 'warning',
 };
 
 function statusBadge(status, labels = ORDER_STATUS) {
@@ -1465,10 +1711,28 @@ function statusBadge(status, labels = ORDER_STATUS) {
 // payment_failed 是「支付渠道拒单」（预留已归还），不是「下单失败」；
 // fulfillment_failed 是「发货失败、等人工处理」，过去被错译成「处理中」，
 // 与 paid 的语义完全混淆。
+// partially_refunded 之前漏登记，后台会直接把 snake_case 原样显示出来 ——
+// 它也是 check_admin_status_labels 重点盯的一项，加状态时别忘这里。
 const ORDER_STATUS = {
   pending: '待付款', paid: '已付款', fulfilled: '已完成',
   cancelled: '已取消', expired: '已过期',
   payment_failed: '支付失败', fulfillment_failed: '发货失败', refunded: '已退款',
+  partially_refunded: '部分退款',
+};
+
+// 订单漏斗条的颜色：状态本身就是要表达的意思，一屏几条同色的话，
+// 读者得逐个读标签才知道哪一段是「漏掉的」。色相与业务域对齐
+// （琥珀=等钱 / 青=在途 / 翠=已完成 / 灰蓝=已终结），未知状态不给色，走域色。
+const STATUS_HUES = {
+  pending: 'is-tone-amber',
+  paid: 'is-tone-cyan',
+  fulfillment_failed: 'is-tone-amber',
+  fulfilled: 'is-tone-emerald',
+  partially_refunded: 'is-tone-amber',
+  refunded: 'is-tone-slate',
+  cancelled: 'is-tone-slate',
+  expired: 'is-tone-slate',
+  payment_failed: 'is-tone-slate',
 };
 
 // 订单类型 / 授权动作：原始值是 base|addon 与 issue|patch，直接显示英文
@@ -1524,6 +1788,12 @@ function rowMenu(title, ...items) {
 // 菜单项（破坏性操作加 is-danger，红字而非红底，避免满屏红色按钮）
 function menuItem(label, attrs, { danger = false } = {}) {
   return `<button type="button" class="menu__item${danger ? ' is-danger' : ''}" ${attrs}>${esc(label)}</button>`;
+}
+
+// 菜单里的**说明**（不是动作）：用于「本来该有这个动作，但因为某个原因暂时没有」。
+// 例如订单因渠道交易未关单而删不掉时，直接不给入口会让「操作」列变空白，运营只能猜。
+function menuNote(text) {
+  return `<p class="menu__note">${esc(text)}</p>`;
 }
 
 // 长内容只在单元格里附带完整值（title），截断交给「固定列宽 + td 省略号」。
@@ -1613,13 +1883,16 @@ $('#adjust-ok').addEventListener('click', async () => {
   // 校验不通过就保持弹窗打开，让运营接着改，别把输入一起清掉
   if (!note) return toast('人工调账必须填写备注。', 'danger');
   if (!delta && !frozenDelta) return toast('余额与冻结金额不能同时为 0。', 'danger');
-  settleAdjust(null);
+  // 失败之前**不能**关窗、也不能清 resolver：过去这里是「先 settleAdjust(null) 再发请求」，
+  // 于是接口一失败（权限、NaN、账号不存在），刚填好的金额与备注就随窗口一起消失了，
+  // 运营只能凭记忆重填一遍。现在改成「成功才关窗」，失败原地保留输入。
   try {
     const result = await api(`/referral-wallets/${accountId}/adjust`, {
       method: 'POST',
       body: JSON.stringify({ delta, frozenDelta, note }),
     });
     toast(`调账完成，当前余额 ${result.balance} 积分`);
+    settleAdjust(null);
     await Promise.all([loadAccounts(), loadLedger(), loadOverview()]);
   } catch (error) { toast(error.message, 'danger'); }
 });
@@ -1722,11 +1995,50 @@ function setNavBadge(page, count) {
 }
 
 // --------------------------------------------------------------------------- //
-// 登录/会话
+// 登录 / 会话
 // --------------------------------------------------------------------------- //
-function showLogin() {
+// 后台登录页只应该是一张**空白**表单：在一台共用/借用过的机器上，浏览器密码管理器
+// 把上次保存的管理员邮箱与密码灌进输入框，等于「打开 /admin 就已经填好了后台账号」。
+//
+// 属性层已经压了一轮（见 HTML 里的 autocomplete / data-lpignore），但仍有浏览器在
+// ``DOMContentLoaded`` 之后、甚至 ``pageshow``（前进后退恢复页面）之后才写值，所以
+// 这里补一次「加载后清空」。刻意只在用户碰过表单之前清：一旦他自己聚焦或敲了键，
+// 立刻停手，否则会把正在输入的内容一起抹掉。
+const loginForm = $('#admin-login-form');
+let loginFormTouched = false;
+
+function clearAutofilledLogin() {
+  if (!loginForm || loginFormTouched) return;
+  loginForm.elements.email.value = '';
+  loginForm.elements.password.value = '';
+}
+
+// 捕获阶段监听：不打断表单自己的事件处理，也能在冒泡被拦时照样记到「用户已经动过手」。
+['pointerdown', 'keydown', 'input', 'change'].forEach((type) => {
+  loginForm.addEventListener(type, () => { loginFormTouched = true; }, true);
+});
+
+// 自动填充的时机不确定（不同浏览器、不同扩展各写各的），多清几轮。定时器都很短，
+// 且用户一交互就全变成空操作。
+window.addEventListener('DOMContentLoaded', clearAutofilledLogin);
+window.addEventListener('load', clearAutofilledLogin);
+window.addEventListener('pageshow', clearAutofilledLogin);
+[0, 60, 200, 600, 1500].forEach((delay) => setTimeout(clearAutofilledLogin, delay));
+
+// ``message`` 非空时把失败原因写进登录卡片，而不是只在控制台留一句。
+// 这里存在的理由是「加载失败」与「未登录」必须分开：把 500、断网、无权限
+// 一律当成未登录，运营看到的就是一个正常的登录页 —— 他会反复重输密码，
+// 而真正的问题（后端挂了 / 账号被取消了管理员）没有任何出口。
+function showLogin(message = '') {
   $('#admin-login').hidden = false;
   $('#admin-app').hidden = true;
+  const errorBox = $('#admin-login-error');
+  if (message) {
+    errorBox.textContent = message;
+    errorBox.hidden = false;
+  } else if (errorBox) {
+    errorBox.hidden = true;
+  }
 }
 
 function showApp() {
@@ -1734,27 +2046,83 @@ function showApp() {
   $('#admin-app').hidden = false;
 }
 
-async function bootstrap() {
+// 确认「当前浏览器带着一个**管理员**会话」，返回账号。
+// 明确未登录返回 null；其余一切异常照实抛出（由调用方决定怎么提示），
+// 绝不在这里吞成「未登录」。
+async function resolveAdminSession() {
+  let me;
   try {
-    const me = await storeApi('/auth/me');
-    if (!me.account) return showLogin();
-    const account = me.account;
-    // /auth/me 不返回 isAdmin，用后台 overview 探测
+    me = await storeApi('/auth/me');
+  } catch (error) {
+    // 401 就是「还没登录」——这是登录页的正常状态，不是异常。
+    // 服务端的 /auth/me 在无会话时返回 401「请先登录。」，以前这里无条件把它
+    // 包装成「无法确认登录状态：请先登录。」再交给 showLogin() 显示：于是每一个
+    // 未登录的访客一打开 /admin，先看到的是一条红框报错，而不是一张干净的登录页。
+    // 真正需要报出来的故障（500、断网）仍然照实抛，见下面的注释。
+    if (error.status === 401) return null;
+    throw new Error(`无法确认登录状态：${error.message}`);
+  }
+  if (!me.account) return null;
+  // /auth/me 不返回 isAdmin，用后台 overview 探测（401/403 会被 api() 转成异常）。
+  // 这一步**不能**吞掉异常：403 表示「登录了但不是管理员」，必须让运营看到原因，
+  // 否则他会对着一个正常的登录页反复重输密码，而真正的问题没有任何出口。
+  try {
     await api('/overview');
-    state.account = account;
-    $('#admin-identity').textContent = `${account.email}`;
-    $('#admin-avatar').textContent = (account.email || 'A').trim().charAt(0);
-    // 后台所有时间列都按这个时区渲染，写死在界面上比写在文档里靠谱
-    $('#admin-timezone').textContent = `时间按 ${localZoneLabel()} 显示`;
-    showApp();
-    // 商品目录要一并拉：授权签发 / 权益编辑的下拉框依赖它，而分页后的商品列表
-    // 只有当前一页的商品。
-    // 功能码目录必须先到：商品列表要用中文名渲染功能码这一列。
-    await Promise.all([loadOverview(), loadProductCatalog(), loadFeatureCatalog()]);
+  } catch (error) {
+    // 会话恰好在这两次请求之间过期，同样属于「未登录」，按未登录处理。
+    // 只有 401 走这条路：403 是权限问题，必须报出来。
+    if (error.status === 401) return null;
+    throw error;
+  }
+  return me.account;
+}
+
+// ``announce`` 为真时（登录成功后调用）汇报加载结果：登录动作本身成功、
+// 但面板数据拉不动时，必须说清楚是「数据没拉到」而不是含糊地报「已登录后台」，
+// 那样运营会以为一切正常，然后在空列表上操作。
+async function bootstrap({ announce = false } = {}) {
+  let account;
+  try {
+    account = await resolveAdminSession();
+  } catch (error) {
+    showLogin(error.message);
+    return false;
+  }
+  if (!account) {
+    showLogin();
+    return false;
+  }
+  $('#admin-identity').textContent = `${account.email}`;
+  $('#admin-avatar').textContent = (account.email || 'A').trim().charAt(0);
+  // 后台所有时间列都按这个时区渲染，写死在界面上比写在文档里靠谱
+  $('#admin-timezone').textContent = `时间按 ${localZoneLabel()} 显示`;
+  showApp();
+  // 商品目录要一并拉：授权签发 / 权益编辑的下拉框依赖它，而分页后的商品列表
+  // 只有当前一页的商品。
+  // 功能码目录必须先到：商品列表要用中文名渲染功能码这一列。
+  //
+  // 用 allSettled 而不是 all：一个面板拉不动（例如某个接口 500）不该让整页
+  // 卡在登录态，也不该让已经拿到的数据白拿。失败的只记下来，最后如实报出来。
+  const results = await Promise.allSettled([
+    loadOverview(), loadProductCatalog(), loadFeatureCatalog(),
+  ]);
+  const failed = results.filter(item => item.status === 'rejected');
+  let productFailed = false;
+  try {
     await loadProducts();
   } catch (error) {
-    showLogin();
+    productFailed = true;
+    failed.push(error);
   }
+  if (announce) {
+    if (failed.length) {
+      const reason = failed[0].reason ? failed[0].reason.message || String(failed[0].reason) : '';
+      toast(`已登录后台，但有 ${failed.length} 处数据没拉到${reason ? `：${reason}` : ''}。可刷新页面重试。`, 'warning');
+    } else {
+      toast('已登录后台');
+    }
+  }
+  return true;
 }
 
 $('#admin-login-form').addEventListener('submit', async (event) => {
@@ -1767,20 +2135,190 @@ $('#admin-login-form').addEventListener('submit', async (event) => {
       method: 'POST',
       body: JSON.stringify({ email: form.elements.email.value.trim(), password: form.elements.password.value }),
     });
-    await api('/overview');
-    form.reset();
-    await bootstrap();
-    toast('已登录后台');
   } catch (error) {
     errorBox.textContent = error.message;
     errorBox.hidden = false;
+    return;
   }
+  // 会话已经落到 Cookie 上，输入框里的密码没用了，先清掉再继续
+  form.reset();
+  // bootstrap 自己会把失败原因写进登录卡片；这里不能再补一句「已登录后台」——
+  // 那正是「明明进不去，却提示已登录」的来源。
+  await bootstrap({ announce: true });
 });
 
 $('#admin-logout').addEventListener('click', async () => {
   await storeApi('/auth/logout', { method: 'DELETE' }).catch(() => {});
   showLogin();
 });
+
+// --------------------------------------------------------------------------- //
+// 标签页（tab）
+// --------------------------------------------------------------------------- //
+// tab 树完全从 DOM 派生，不手工维护第二份映射：面板里的 [data-tab-strip] 里
+// 每个 [data-tab] 是按钮，同一面板里的 [data-tab-pane="key"] 是它的内容。
+// 一个 key 可以对应**多个** pane（诊断数据就是这样：pane 直接落在既有的
+// .admin-block 上，一个 tab 收两张表），ARIA 的 aria-controls 本来就是
+// ID 列表，所以这不是绕过规范，而是规范允许的形态 —— 好处是不必为了分组
+// 把 DOM 重排一遍。
+//
+// 切换只用 hidden 属性，不引入自定义 class：hidden 同时退出可访问性树与
+// Tab 焦点序列，这正是「这一屏不在眼前」该有的语义。自己写 display:none
+// 很容易漏掉 aria 的同步，而 tab 恰恰是最依赖 aria 的组件。
+const TAB_TREES = new Map(); // page → { items, byKey } / null（该面板没有 tab）
+
+// 首次访问时给按钮与 pane 补齐 id / aria-controls / aria-labelledby 与
+// roving tabindex，之后切 tab 只改 aria-selected 与 hidden。
+function collectTabs(page) {
+  if (TAB_TREES.has(page)) return TAB_TREES.get(page);
+  const panel = $(`#panel-${page}`);
+  const strip = panel && panel.querySelector('[data-tab-strip]');
+  if (!strip) {
+    TAB_TREES.set(page, null);
+    return null;
+  }
+  const panes = $$('[data-tab-pane]', panel);
+  const items = $$('[data-tab]', strip).map(button => {
+    const key = button.dataset.tab;
+    const mine = panes.filter(pane => pane.dataset.tabPane === key);
+    const tabId = `tab-${page}-${key}`;
+    button.id = tabId;
+    button.setAttribute(
+      'aria-controls',
+      mine
+        .map((pane, index) => {
+          pane.id = pane.id || `pane-${page}-${key}-${index + 1}`;
+          pane.setAttribute('aria-labelledby', tabId);
+          return pane.id;
+        })
+        .join(' '),
+    );
+    // 「按需出现」的 tab：内容是编辑器表单，默认整块 hidden。这类按钮要跟着
+    // 编辑器的显隐走（见 syncOnDemandTabs）——列表 tab 是常驻的，表单 tab
+    // 空着留在标签条上，点下去只会得到一片空白，看起来就像坏了。
+    const editors = mine.flatMap(pane => $$('[id$="-editor"]', pane));
+    return { key, button, panes: mine, editors };
+  });
+  const tree = { items, byKey: new Map(items.map(item => [item.key, item])) };
+  TAB_TREES.set(page, tree);
+  return tree;
+}
+
+// tab 此刻有没有东西可看：常驻 tab 永远有，按需 tab 要看它的编辑器是否可见。
+// 深链到 #products/form 但没点过「新增商品」时，它会返回 false，setTab 就
+// 回落到列表 —— 否则屏幕空白、标签条上还看不出选中了谁。
+function tabAvailable(item) {
+  return !item.editors.length || item.editors.some(node => !node.hidden);
+}
+
+// 按需 tab 的按钮跟着编辑器显隐。空按钮留在标签条上会让人点了以后面对一片空白。
+function syncOnDemandTabs(page) {
+  const tree = collectTabs(page);
+  if (!tree) return;
+  for (const item of tree.items) {
+    if (item.editors.length) item.button.hidden = !tabAvailable(item);
+  }
+}
+
+// 切到某个 tab。key 不认识时回落到第一个 —— 深链里写错 key 也该看到点东西，
+// 而不是整块空白。
+function setTab(page, key, { push = false, focus = false } = {}) {
+  const tree = collectTabs(page);
+  if (!tree || !tree.items.length) return '';
+  const wanted = tree.byKey.get(key);
+  const target = wanted && tabAvailable(wanted)
+    ? wanted
+    : tree.items.find(tabAvailable) || tree.items[0];
+  for (const item of tree.items) {
+    const on = item.key === target.key;
+    item.button.setAttribute('aria-selected', on ? 'true' : 'false');
+    // roving tabindex：Tab 键进入标签条只落在选中的那一个上，其余靠左右方向键
+    // 访问，这是 WAI-ARIA 对 tabs 的规定行为（十几个按钮全在焦点序列里会变成
+    // 「想跳过标签条要点十几次」）。
+    item.button.tabIndex = on ? 0 : -1;
+    for (const pane of item.panes) pane.hidden = !on;
+  }
+  syncOnDemandTabs(page);
+  if (push) {
+    const next = `#${page}/${target.key}`;
+    if (location.hash !== next) location.hash = next;
+  }
+  if (focus) target.button.focus();
+  return target.key;
+}
+
+// 让某个元素所在的 tab 显示出来。打开编辑器、从别的页面跳到某张表都需要它：
+// 不做这一步，操作生效了但屏幕上什么都没有，用户只会以为按钮没反应。
+// push 让地址栏跟着走：地址里写的 tab 必须是眼前真能看到的那个，
+// 否则刷新一次就跳到别处，用户会以为界面自己乱跑。
+function revealTabFor(node) {
+  const pane = node && node.closest('[data-tab-pane]');
+  const panel = pane && pane.closest('.admin-panel');
+  if (!panel) return;
+  setTab(panel.id.replace(/^panel-/, ''), pane.dataset.tabPane, { push: true });
+}
+
+// 编辑器的显隐必须和 tab 一起走：表单在 DOM 里可见了，但用户停在列表 tab 上
+// 就是看不到（过去是「往下滚一下」的自然结果，现在不滚也看不到了）。
+function showEditor(selector) {
+  const node = $(selector);
+  if (!node) return;
+  node.hidden = false;
+  revealTabFor(node);
+}
+
+// 收起编辑器并切回列表 tab：留着停在空表单上会让人分不清「保存成功了没有」。
+function hideEditor(selector) {
+  const node = $(selector);
+  if (!node) return;
+  node.hidden = true;
+  const panel = node.closest('.admin-panel');
+  if (!panel) return;
+  const page = panel.id.replace(/^panel-/, '');
+  const tree = collectTabs(page);
+  if (tree && tree.items.length) setTab(page, tree.items[0].key, { push: true });
+}
+
+// 点击与键盘都委派在 .admin-main 上：tab 条是静态的，但这样只需一个监听器，
+// 也不用为将来动态插入的 tab 条补注册。
+function tabPageOf(node) {
+  const strip = node.closest('[data-tab-strip]');
+  const panel = strip && strip.closest('.admin-panel');
+  return panel ? panel.id.replace(/^panel-/, '') : '';
+}
+
+$('.admin-main').addEventListener('click', (event) => {
+  const button = event.target.closest('.admin-tabs__tab');
+  if (!button) return;
+  const page = tabPageOf(button);
+  if (page) setTab(page, button.dataset.tab, { push: true });
+});
+
+$('.admin-main').addEventListener('keydown', (event) => {
+  const button = event.target.closest('.admin-tabs__tab');
+  if (!button) return;
+  const strip = button.closest('[data-tab-strip]');
+  // 只走看得见的按钮：按需 tab（表单）在编辑器收起时是 hidden，方向键落到
+  // 一个 hidden 的按钮上，浏览器不会给焦点，表现成「按了右键没反应」。
+  const buttons = $$('[data-tab]', strip).filter(tab => !tab.hidden);
+  const index = buttons.indexOf(button);
+  let next = -1;
+  if (event.key === 'ArrowRight') next = (index + 1) % buttons.length;
+  else if (event.key === 'ArrowLeft') next = (index - 1 + buttons.length) % buttons.length;
+  else if (event.key === 'Home') next = 0;
+  else if (event.key === 'End') next = buttons.length - 1;
+  else return;
+  event.preventDefault();
+  const page = tabPageOf(button);
+  if (page) setTab(page, buttons[next].dataset.tab, { push: true, focus: true });
+});
+
+// 地址栏格式：#page 或 #page/tab。拆成两段而不是一个字符串，
+// 因为「同一个面板内只换了 tab」不该重新拉一次数据。
+function parseHash() {
+  const [page, tab] = (location.hash || '').replace(/^#/, '').split('/');
+  return { page: page || 'overview', tab: tab || '' };
+}
 
 // --------------------------------------------------------------------------- //
 // 导航
@@ -1828,7 +2366,7 @@ function revealActiveNav() {
   }
 }
 
-function activate(page) {
+function activate(page, tab = '') {
   closeRowMenus();
   $$('#admin-nav a').forEach(link => link.classList.toggle('active', link.dataset.adminPage === page));
   // 展开当前页所在的分组：概览待办、优惠码 → 核销记录这类跳转也要落在看得见的菜单上
@@ -1836,11 +2374,25 @@ function activate(page) {
   if (activeLink) setNavGroupOpen(activeLink.closest('[data-nav-group]'), true);
   revealActiveNav();
   $$('.admin-panel').forEach(panel => panel.classList.toggle('active', panel.id === `panel-${page}`));
+  // tab 立刻切，不等 loader：加载要几百毫秒，等它回来才动标签条的话，
+  // 点击看起来像没反应。loader 里若要落到别的 tab（例如核销记录），
+  // 加载完自己再调 setTab / revealTabFor。
+  const applied = setTab(page, tab);
+  // 深链要把 tab 写回地址栏，否则刷新/前进后退会丢掉「在哪一屏」。
+  // 只有显式给了 tab 才写：点侧栏导航进来时地址栏保持 #page 更干净。
+  if (tab && applied) {
+    const next = `#${page}/${applied}`;
+    if (location.hash !== next) location.hash = next;
+  }
   // 主区是唯一滚动容器，切面板时要把滚动位置复位，
   // 否则从长列表切到短面板会停在半空。
   $('.admin-main').scrollTop = 0;
-  // 返回 Promise：调用方要能在加载完之后再滚动/聚焦（例如从优惠码跳到核销记录）
-  return (loaders[page] || (() => {}))();
+  // 返回 Promise：调用方要能在加载完之后再滚动/聚焦（例如从优惠码跳到核销记录）。
+  // 失败在这一层收口：列表类 loader 已经在表格里渲染了「读取出错 + 重试」，
+  // 再往外抛就只剩一条 unhandled rejection —— 点击导航是同步回调，没人接这个 Promise。
+  return (loaders[page] || (() => {}))().catch(error => {
+    toast(error.message, 'danger');
+  });
 }
 
 $('#admin-nav').addEventListener('click', (event) => {
@@ -1926,8 +2478,12 @@ function jumpFromOverview(target) {
   }
   // 目标面板可能停在别的页码上，不清零会落到空的第 N 页
   resetPage(target.page);
-  location.hash = target.page;
-  activate(target.page);
+  // 落到列表 tab：带 tab 的面板第一个 tab 都是列表，而待办说的都是
+  // 「列表里有哪些行要处理」，落在表单 tab 上等于什么都没告诉他。
+  // 没有 tab 的面板不加 /list 后缀，地址栏保持干净。
+  const tab = collectTabs(target.page) ? 'list' : '';
+  location.hash = tab ? `#${target.page}/${tab}` : `#${target.page}`;
+  activate(target.page, tab);
 }
 
 // 巡检状态 → 徽标语气 + 一句话解释。
@@ -2007,14 +2563,16 @@ async function loadOverview() {
 
 
   // —— 营收 ——
+  // 钱一律用琥珀（运营域的域色）：这一屏里「金额」和「件数」长得一样，
+  // 靠色相把「这几个数字讲的是钱」立起来。
   const windowCards = (revenue.windows || []).map(bucket => [
     REVENUE_WINDOW_LABELS[bucket.key] || bucket.key,
     money(bucket.netCents),
     `${bucket.paidOrders} 单付款`,
-    '',
+    'is-tone-amber',
   ]);
   $('#overview-revenue').innerHTML = [
-    ['净营收（累计）', money(revenue.totalCents), `收款 ${money(revenue.totalGrossCents)} · 退款 ${money(revenue.totalRefundCents)}`, ''],
+    ['净营收（累计）', money(revenue.totalCents), `收款 ${money(revenue.totalGrossCents)} · 退款 ${money(revenue.totalRefundCents)}`, 'is-tone-amber'],
     ...windowCards,
   ].map(([label, value, note, tone]) =>
     `<div class="stat ${tone}"><span class="stat__label">${esc(label)}</span>` +
@@ -2029,7 +2587,8 @@ async function loadOverview() {
   $('#overview-funnel').innerHTML = funnel.map(item => {
     const count = Number(item.count || 0);
     const width = Math.round((count / maxCount) * 100);
-    return `<button class="funnel-item" type="button" data-funnel-status="${esc(item.status)}">` +
+    const hue = STATUS_HUES[item.status];
+    return `<button class="funnel-item${hue ? ` ${hue}` : ''}" type="button" data-funnel-status="${esc(item.status)}">` +
       `<span class="funnel-item__top"><span class="funnel-item__label">${esc(item.label)}</span>` +
       `<span class="funnel-item__count">${count}</span></span>` +
       `<span class="funnel-item__track"><span class="funnel-item__fill" style="width:${width}%"></span></span>` +
@@ -2071,22 +2630,25 @@ async function loadOverview() {
   // 每张卡是 [标签, 主数字, 补充说明, 语气]。主数字只放一个量级（不塞「x 可用 / y 冻结」
   // 这种复合串），拆解一律走 note：卡宽只有 ~186px、主数字 25px，复合串必折行，
   // 折行后同排卡片被撑高，数字也读不出量级。note 的排版见 .stat__note。
+  // 语气里的 is-tone-* 只表示「这个数字属于哪一族」（紫=商品、青=授权、蓝=账号），
+  // 让一屏 9 张卡能按色相分堆；真正的告警语气（is-alert / is-danger）排在后面，
+  // 权重相同靠源码顺序压过语义色。
   const referral = data.referral || {};
   // 积分负债 = 全部未兑付的积分 = balance（可用 + 冻结）。只给「可用」会低估要付的账，
   // 只给 balance 又看不出多少已申请提现，所以主数字给总额、note 给拆解。
   const pointsTotal = Number(referral.balancePoints || 0);
   const cards = [
-    ['账号', data.accounts, '', ''],
-    ['商品', data.products, '', ''],
-    ['有效授权', `${data.activeLicenses}/${data.licenses}`, '', ''],
-    ['权限项', `${data.activeEntitlements}/${data.entitlements}`, '', ''],
-    ['待支付订单', data.pendingOrders, '', data.pendingOrders ? 'is-alert' : ''],
-    ['已履约订单', data.fulfilledOrders, '', ''],
-    ['在线设备', data.deviceBindings, '', ''],
-    ['积分负债', num(pointsTotal), `可用 ${num(referral.availablePoints)} · 冻结 ${num(referral.frozenPoints)}`, ''],
+    ['账号', data.accounts, '', 'is-tone-blue'],
+    ['商品', data.products, '', 'is-tone-violet'],
+    ['有效授权', `${data.activeLicenses}/${data.licenses}`, '', 'is-tone-cyan'],
+    ['权限项', `${data.activeEntitlements}/${data.entitlements}`, '', 'is-tone-violet'],
+    ['待支付订单', data.pendingOrders, '', data.pendingOrders ? 'is-alert' : 'is-tone-cyan'],
+    ['已履约订单', data.fulfilledOrders, '', 'is-tone-emerald'],
+    ['在线设备', data.deviceBindings, '', 'is-tone-cyan'],
+    ['积分负债', num(pointsTotal), `可用 ${num(referral.availablePoints)} · 冻结 ${num(referral.frozenPoints)}`, 'is-tone-blue'],
     ['维护模式', data.maintenanceMode ? '开启' : '关闭',
       data.maintenanceMode ? '前台已拦截下单' : '前台正常营业',
-      data.maintenanceMode ? 'is-danger' : ''],
+      data.maintenanceMode ? 'is-danger' : 'is-tone-emerald'],
   ];
   $('#overview-stats').innerHTML = cards.map(([label, value, note, tone]) =>
     `<div class="stat ${tone}"><span class="stat__label">${esc(label)}</span>` +
@@ -2482,7 +3044,7 @@ function openProductEditor(product) {
   }
   renderFeatureOptions(picker);
   syncFeatureSummary(picker);
-  $('#product-editor').hidden = false;
+  showEditor('#product-editor');
   form.elements.name.focus();
 }
 
@@ -2536,7 +3098,7 @@ function findProduct(id) {
 
 $('#product-new').addEventListener('click', () => openProductEditor(null));
 $('#product-refresh').addEventListener('click', () => { resetPage('products'); loadProducts(); });
-$('#product-cancel').addEventListener('click', () => { $('#product-editor').hidden = true; });
+$('#product-cancel').addEventListener('click', () => { hideEditor('#product-editor'); });
 
 $('#product-rows').addEventListener('click', async (event) => {
   const editId = event.target.dataset.productEdit;
@@ -2616,7 +3178,7 @@ $('#product-form').addEventListener('submit', async (event) => {
         await api('/products', { method: 'POST', body: JSON.stringify(payload) });
         toast('商品已创建');
       }
-      $('#product-editor').hidden = true;
+      hideEditor('#product-editor');
       await Promise.all([loadProductCatalog(), loadProducts(), loadOverview()]);
     }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
@@ -2648,7 +3210,20 @@ async function loadOrders() {
     const canFulfill = ['pending', 'paid'].includes(order.status);
     const canRefund = ['paid', 'fulfilled'].includes(order.status);
     const canCancel = order.status === 'pending';
-    const canDelete = ['cancelled', 'expired'].includes(order.status) && !order.licenseId && !order.targetLicenseId;
+    // 「标记已处理」只在订单确实挂着待复核时出现（needsReview 由后端返回），
+    // 且未支付的单谈不上「已处理」。清标记刻意不自动发生：复活单的价值就在于
+    // 让人看见「这单超卖过」，必须由人确认。
+    const canReview = Boolean(order.needsReview) && order.status !== 'pending';
+    // 删除守卫与后端 admin_delete_order 逐条对齐：终态 + 没发过码（licenseId）+
+    // 没改过别人的授权（targetLicenseModified）+ 渠道交易已关单（channelPayable）。
+    // **不能**用 targetLicenseId 判：增量包/升级单在下单时就写上它（「打算改谁」），
+    // 用它会让这类垃圾单永远删不掉。
+    const terminalOrder = ['cancelled', 'expired'].includes(order.status);
+    const untouchedLicense = !order.licenseId && !order.targetLicenseModified;
+    const canDelete = terminalOrder && untouchedLicense && !order.channelPayable;
+    // 只因「渠道那笔交易还没确认关闭」而删不了时，把原因写在菜单里。直接藏掉入口
+    // 会让「操作」列变成空白 —— 运营只能靠猜，这比一句说明糟糕得多。
+    const deleteHeldByChannel = terminalOrder && untouchedLicense && order.channelPayable;
     const primaryPaid = canMarkPaid;
     const primary = primaryPaid
       ? `<button class="hb-button hb-button--primary hb-button--sm" data-order-paid="${esc(order.orderNo)}">标记支付</button>`
@@ -2673,8 +3248,13 @@ async function loadOrders() {
             ? menuItem('退款', `data-order-refund="${esc(order.orderNo)}"`, { danger: true }) : '',
           canCancel
             ? menuItem('取消订单', `data-order-cancel="${esc(order.orderNo)}"`) : '',
+          canReview
+            ? menuItem('标记已处理', `data-order-review="${esc(order.orderNo)}"`) : '',
           canDelete
-            ? menuItem('删除订单', `data-order-delete="${esc(order.orderNo)}"`, { danger: true }) : '',
+            ? menuItem('删除订单', `data-order-delete="${esc(order.orderNo)}"`, { danger: true })
+            : deleteHeldByChannel
+              ? menuNote('渠道交易未关闭，暂不可删除')
+              : '',
         ),
       )}</td>
     </tr>`;
@@ -2687,9 +3267,31 @@ $('#order-reset').addEventListener('click', () => resetFilters(
   ['#order-status', '#order-keyword', '#order-date-from', '#order-date-to', '#order-review'], 'orders',
 ));
 $('#order-rows').addEventListener('click', async (event) => {
-  const { orderPaid, orderFulfill, orderRefund, orderCancel, orderDelete } = event.target.dataset;
-  const orderNo = orderPaid || orderFulfill || orderRefund || orderCancel || orderDelete;
+  const { orderPaid, orderFulfill, orderRefund, orderCancel, orderDelete, orderReview } = event.target.dataset;
+  const orderNo = orderPaid || orderFulfill || orderRefund || orderCancel || orderDelete || orderReview;
   if (!orderNo) return;
+
+  if (orderReview) {
+    // 刻意不自动清除待复核：复活单的价值就在于让人看见「这单超卖过」，
+    // 必须由人确认（哪怕结论是「无需处理」）。所以这里是与其它动作一致的确认框。
+    const ok = await askConfirm({
+      title: '标记复核完成',
+      message: `确认订单 ${orderNo} 的待复核事项已处理？`,
+      impact: '清除后台概览页的待办提醒，并记录处理时间与操作人。<b>不影响</b>订单与授权本身。',
+      tone: 'success',
+      okText: '标记已处理',
+    });
+    if (!ok) return;
+    try {
+      await api(`/orders/${orderNo}/review`, {
+        method: 'POST',
+        body: JSON.stringify({ note: '后台标记为已处理' }),
+      });
+      toast('已标记为处理完成');
+      await Promise.all([loadOrders(), loadOverview()]);
+    } catch (error) { toast(error.message, 'danger'); }
+    return;
+  }
 
   if (orderDelete) {
     const ok = await askConfirm({
@@ -2778,10 +3380,10 @@ async function loadLicenses() {
 
 $('#license-refresh').addEventListener('click', () => { resetPage('licenses'); loadLicenses(); });
 $('#license-issue').addEventListener('click', () => {
-  $('#license-editor').hidden = false;
+  showEditor('#license-editor');
   $('#license-issue-result').hidden = true;
 });
-$('#license-cancel').addEventListener('click', () => { $('#license-editor').hidden = true; });
+$('#license-cancel').addEventListener('click', () => { hideEditor('#license-editor'); });
 
 // 签发结果落在编辑器里的常驻面板：激活码是这一屏唯一的产出，toast 三秒消失后
 // 运营就没法再核对/复制了。同一次会话内重新点「签发」会先清掉上一次的结果。
@@ -2821,7 +3423,7 @@ $('#license-form').addEventListener('submit', async (event) => {
 
 // 修正授权：客服处理「客户要延期 / 备注写错了」。
 // 三种到期时间给法互斥，前端先挡一道，后端 admin_patch_license 还会再校验一次。
-$('#license-patch-cancel').addEventListener('click', () => { $('#license-patch-editor').hidden = true; });
+$('#license-patch-cancel').addEventListener('click', () => { hideEditor('#license-patch-editor'); });
 
 $('#license-patch-form').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -2846,7 +3448,7 @@ $('#license-patch-form').addEventListener('submit', async (event) => {
     await withBusy(form, async () => {
       const result = await api(`/licenses/${licenseId}`, { method: 'PATCH', body: JSON.stringify(payload) });
       toast(`授权已修正，到期时间：${result.accessExpiresAt ? dt(result.accessExpiresAt) : '永久'}`);
-      $('#license-patch-editor').hidden = true;
+      hideEditor('#license-patch-editor');
       await loadLicenses();
     }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
@@ -2862,7 +3464,7 @@ $('#license-rows').addEventListener('click', (event) => {
   form.elements.licenseId.value = licenseId;
   form.elements.userLabel.value = license.userLabel || '';
   $('#license-patch-code').textContent = license.activationCode || '';
-  $('#license-patch-editor').hidden = false;
+  showEditor('#license-patch-editor');
 });
 
 $('#license-rows').addEventListener('click', async (event) => {
@@ -2915,7 +3517,6 @@ async function loadBindings() {
   const keyword = $('#binding-keyword').value.trim();
   if (keyword) params.set('keyword', keyword);
   const data = await pagedFetch('bindings', '/bindings', Object.fromEntries(params));
-  state.bindings = data.items;
   $('#binding-rows').innerHTML = data.items.length ? data.items.map(binding => `
     <tr>
       <td class="mono">${cell(binding.instanceId)}</td>
@@ -3019,7 +3620,7 @@ function openCouponEditor(coupon) {
   $('#coupon-editor-title').textContent = coupon ? `编辑优惠码 ${coupon.code}` : '新增优惠码';
   // 码是对外承诺，改掉等于让已发出去的码失效，所以只有新增时能填
   form.elements.code.readOnly = Boolean(coupon);
-  if (!coupon) { $('#coupon-editor').hidden = false; return; }
+  if (!coupon) { showEditor('#coupon-editor'); return; }
   form.elements.id.value = coupon.id;
   form.elements.code.value = coupon.code || '';
   form.elements.description.value = coupon.description || '';
@@ -3033,11 +3634,11 @@ function openCouponEditor(coupon) {
   form.elements.expiresAt.value = localInput(coupon.expiresAt);
   form.elements.applicableProductIds.value = (coupon.applicableProductIds || []).join(', ');
   form.elements.active.checked = Boolean(coupon.active);
-  $('#coupon-editor').hidden = false;
+  showEditor('#coupon-editor');
 }
 
 $('#coupon-new').addEventListener('click', () => openCouponEditor(null));
-$('#coupon-cancel').addEventListener('click', () => { $('#coupon-editor').hidden = true; });
+$('#coupon-cancel').addEventListener('click', () => { hideEditor('#coupon-editor'); });
 
 $('#coupon-form').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -3068,7 +3669,7 @@ $('#coupon-form').addEventListener('submit', async (event) => {
         await api('/coupons', { method: 'POST', body: JSON.stringify({ ...body, code: form.elements.code.value.trim() }) });
         toast('优惠码已创建');
       }
-      $('#coupon-editor').hidden = true;
+      hideEditor('#coupon-editor');
       // 新建的优惠码按 created_at desc 排最前，回到第 1 页才看得到
       if (!couponId) resetPage('coupons');
       await Promise.all([loadCoupons(), loadOverview()]);
@@ -3092,7 +3693,9 @@ $('#coupon-rows').addEventListener('click', async (event) => {
   if (redemptionsFor) {
     redemptionFilter = { couponId: redemptionsFor, couponCode: event.target.dataset.couponCode || redemptionsFor };
     pageState('coupon-redemptions').offset = 0;
-    await activate('diagnostics');
+    // 落到「优惠码核销」那个 tab：核销表不在默认 tab 上，停在默认 tab 的话
+    // 下面那句 scrollIntoView 会对着一个 hidden 元素做无效滚动。
+    await activate('diagnostics', 'redeem');
     $('#redemption-rows').scrollIntoView({ block: 'center' });
     return;
   }
@@ -3249,12 +3852,12 @@ function openAccountEditor(account) {
   form.elements.isActive.checked = Boolean(account.isActive);
   form.elements.emailVerified.checked = Boolean(account.emailVerifiedAt);
   $('#account-editor-email').textContent = account.email || '';
-  $('#account-editor').hidden = false;
+  showEditor('#account-editor');
   form.elements.email.focus();
 }
 
 $('#account-refresh').addEventListener('click', () => { resetPage('accounts'); loadAccounts(); });
-$('#account-cancel').addEventListener('click', () => { $('#account-editor').hidden = true; });
+$('#account-cancel').addEventListener('click', () => { hideEditor('#account-editor'); });
 
 $('#account-form').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -3272,19 +3875,22 @@ $('#account-form').addEventListener('submit', async (event) => {
     await withBusy(form, async () => {
       await api(`/accounts/${accountId}`, { method: 'PATCH', body: JSON.stringify(payload) });
       toast(password ? '账号已更新，该账号的登录会话已全部失效' : '账号已更新');
-      $('#account-editor').hidden = true;
+      hideEditor('#account-editor');
       await loadAccounts();
     }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
 });
 
 $('#account-rows').addEventListener('click', async (event) => {
-  const off = event.target.dataset.accountOff;
-  const on = event.target.dataset.accountOn;
   const editId = event.target.dataset.accountEdit;
   const deleteId = event.target.dataset.accountDelete;
   const ledgerId = event.target.dataset.accountLedger;
   const adjustId = event.target.dataset.accountAdjust;
+  // 停用 / 启用不在这里：它走「编辑」里的「启用」勾选框（PATCH /accounts/{id}），
+  // 服务端在那条路径上有「不能停用自己」「不能停用最后一个管理员」两道守卫。
+  // 这里过去还维护着一对 data-account-off / data-account-on 分支，而模板里
+  // 根本没有元素带这两个属性 —— 一段永远不会执行的代码，读的人却会以为
+  // 停用走的是另一条（没有守卫的）接口。
 
   if (editId) {
     const account = state.accounts.find(item => item.id === editId);
@@ -3326,29 +3932,65 @@ $('#account-rows').addEventListener('click', async (event) => {
     } catch (error) { toast(error.message, 'danger'); }
     return;
   }
-
-  if (!off && !on) return;
-  if (off) {
-    const ok = await askConfirm({
-      title: '停用账号',
-      message: '停用后该账号将无法登录商店，已有授权也会一并失效。',
-      impact: '账号与其授权、钱包账本都会保留，随时可以再启用。<br>该账号的<b>登录会话会被立即清空</b>。',
-      okText: '停用',
-    });
-    if (!ok) return;
-  }
-  try {
-    await api(`/accounts/${off || on}/${off ? 'deactivate' : 'activate'}`, { method: 'POST', body: JSON.stringify({}) });
-    toast(off ? '账号已停用' : '账号已启用');
-    await loadAccounts();
-  } catch (error) { toast(error.message, 'danger'); }
 });
 
 // --------------------------------------------------------------------------- //
 // 站点配置
 // --------------------------------------------------------------------------- //
+/**
+ * 站点配置的「读到了吗」闸门。
+ *
+ * 表单是一屏扁平输入框，读失败时它既不是空的也不是对的 —— 只是**没有回填**。
+ * 运营此时点「保存配置」，提交出去的就是一篇空值（支付渠道清空、启用支付变 false、
+ * 冻结的凭据被写空），一次读取失败会连带把线上支付关掉，而界面上只会显示
+ * 「保存成功」。所以读不到就把保存按钮彻底闸住，并说清楚为什么。
+ */
+function setSettingsLoadState(phase, message = '') {
+  const chip = $('#settings-load-status');
+  // 保存按钮常驻在面板头部、落在表单之外（``form="settings-form"``），所以不能按
+  // ``'#settings-form button[type="submit"]'`` 找 —— 那样一个都找不到，闸门形同虚设。
+  const submit = $('#settings-save');
+  state.settingsLoaded = phase === 'ready';
+  state.settingsLoadPhase = phase;
+  state.settingsLoadMessage = message;
+  if (submit) {
+    submit.disabled = phase !== 'ready';
+    submit.title = phase === 'ready' ? '' : '配置未读到，暂时不能保存';
+  }
+  if (!chip) return;
+  if (phase === 'loading') {
+    chip.textContent = '正在读取配置…';
+    chip.className = 'admin-status-chip is-muted';
+  } else if (phase === 'error') {
+    chip.textContent = `配置读取失败：${message || '未知原因'}（已禁用保存）`;
+    chip.className = 'admin-status-chip is-danger';
+  } else {
+    chip.textContent = '配置已就绪';
+    chip.className = 'admin-status-chip';
+  }
+}
+
+/**
+ * 按**上一次**的结论把闸门重新落到界面上。
+ *
+ * 存在的原因是「忙状态」这一层会把按钮重新启用：保存成功后要重载配置，而重载失败
+ * 时 ``loadSettings`` 已经关上了闸门（按钮 disabled），提交动作的 finally 再无条件
+ * 放行一次，就等于用一次保存把闸门顶开了 —— 页面上是一份没回填的表单，
+ * 而按钮亮着。
+ */
+function syncSettingsGate() {
+  setSettingsLoadState(state.settingsLoadPhase || 'loading', state.settingsLoadMessage || '');
+}
+
 async function loadSettings() {
-  const data = await api('/settings');
+  setSettingsLoadState('loading');
+  let data;
+  try {
+    data = await api('/settings');
+  } catch (error) {
+    setSettingsLoadState('error', error.message);
+    throw error;
+  }
   state.settings = data;
   const form = $('#settings-form');
   const store = data.store || {};
@@ -3361,7 +4003,9 @@ async function loadSettings() {
   form.elements.logoUrl.value = store.logoUrl || '';
   form.elements.description.value = store.description || '';
   form.elements.announcement.value = data.announcement || '';
-  form.elements.paymentProvider.value = payment.provider || 'mock';
+  // 不再回填成 'mock'：空串是「跟随环境变量」，把它写成 mock 等于运营随手保存一次
+  // 就把渠道固化成了模拟收银台（而它默认是被禁用的，下单会 503）。
+  form.elements.paymentProvider.value = payment.provider || '';
   form.elements.paymentDisplayName.value = payment.displayName || '';
   // 交易标题只在「来源是后台」时回填：留空即跟随环境变量（与支付宝凭据同款口径）。
   form.elements.paymentTransactionDescription.value = payment.transactionDescriptionFromDatabase
@@ -3377,6 +4021,48 @@ async function loadSettings() {
   form.elements.deviceReleaseCooldownSeconds.value = data.deviceReleaseCooldownSeconds ?? 28800;
   loadAlipayCredentials(data.alipay || {});
   loadMailSettings(data.mail || {});
+  setSettingsLoadState('ready');
+}
+
+/**
+ * 渲染逐项诊断清单。
+ *
+ * 这个函数的全部意义在于**不把 `skip` / `warn` 渲染成绿色**。后端刻意把
+ * 「通过」「没测到」「需要留意」「失败」分成四级，前端如果只做「ok ? 绿 : 红」，
+ * 那么「投递方式是 log，压根没测」就会显示成和「SMTP 全通」一样的绿 —— 这正是
+ * 整个站点配置改造要消灭的那个谎言。
+ *
+ * 每一条都带 title（浏览器悬停可见），因为有些说明比较长，塞进列表会把版面撑破。
+ */
+function renderDiagnostics(selector, checks) {
+  const list = $(selector);
+  list.textContent = '';
+  if (!Array.isArray(checks) || !checks.length) return;
+  const LEVEL_CLASS = { pass: 'is-pass', warn: 'is-warn', fail: 'is-fail', skip: 'is-skip' };
+  const LEVEL_ICON = { pass: '✓', warn: '!', fail: '×', skip: '·' };
+  checks.forEach((item) => {
+    const level = LEVEL_CLASS[item.level] ? item.level : 'skip';
+    const row = document.createElement('li');
+    row.className = `admin-diagnostic ${LEVEL_CLASS[level]}`;
+    const icon = document.createElement('span');
+    icon.className = 'admin-diagnostic__icon';
+    icon.textContent = LEVEL_ICON[level];
+    const label = document.createElement('strong');
+    label.className = 'admin-diagnostic__label';
+    label.textContent = item.label || item.id || '';
+    const detail = document.createElement('span');
+    detail.className = 'admin-diagnostic__detail';
+    detail.textContent = item.detail || '';
+    row.title = `${item.label || ''}：${item.detail || ''}`;
+    row.append(icon, label, detail);
+    list.append(row);
+  });
+}
+
+/** 清空诊断清单（重新加载配置时用，避免上一轮的结论挂在界面上误导人）。 */
+function clearDiagnostics(selector) {
+  const list = $(selector);
+  if (list) list.textContent = '';
 }
 
 /**
@@ -3412,6 +4098,7 @@ function loadAlipayCredentials(alipay) {
   renderAlipayEffectiveUrls(alipay);
   $('#alipay-test-result').textContent = '';
   $('#alipay-test-result').className = 'admin-hint';
+  clearDiagnostics('#alipay-diagnostic-list');
 }
 
 /**
@@ -3436,11 +4123,22 @@ function renderAlipayEffectiveUrls(alipay) {
  *
  * 有效期 / 冷却的 placeholder 直接写出**当前生效的数值**：这两个值可能来自后台，
  * 也可能来自环境变量，不写出来的话运营面对一个空输入框根本不知道现在是多少。
+ *
+ * 在三条铁律之外，这里还有两件事：
+ *
+ * 1. 「测试收件邮箱」从不落库，所以每次加载都按默认邮箱补齐 —— 否则每保存一次
+ *    配置就重载一次，刚填的收件人被清掉，运营以为是自己没填上。
+ * 2. 当前**完全没有可用配置**时，按默认邮箱的服务商预设预填 SMTP 那一整块
+ *    （服务商 / 加密 / 端口 / 账号 / 发件人）。判据见 ``mailLooksUnconfigured``：
+ *    只有「预填不会覆盖掉任何现有配置」时才动手。
  */
 function loadMailSettings(mail) {
   const form = $('#settings-form');
   const envText = (fromDatabase, value) =>
     fromDatabase ? value || '' : '';
+  const defaultEmail = mail.defaultEmail || '';
+  renderMailPresetOptions(mail);
+  if (!$('#mail-preset-email').value.trim()) $('#mail-preset-email').value = defaultEmail;
   form.elements.mailMode.value = mail.modeFromDatabase ? mail.mode || '' : '';
   form.elements.smtpSecurity.value = mail.smtpSecurityFromDatabase ? mail.smtpSecurity || '' : '';
   form.elements.smtpHost.value = envText(mail.smtpHostFromDatabase, mail.smtpHost);
@@ -3471,9 +4169,17 @@ function loadMailSettings(mail) {
     ? String(Boolean(mail.exposeVerificationCode))
     : '';
   syncMailSecretInput();
-  renderMailBadge(mail);
+  if (!form.elements.mailTestEmail.value.trim()) {
+    form.elements.mailTestEmail.value = defaultEmail;
+  }
+  if (mailLooksUnconfigured(mail)) {
+    applyMailPreset(presetForEmail(defaultEmail, mail), mail, { overwrite: false });
+  }
+  syncMailPresetHint(mail);
+  refreshMailBadge();
   $('#mail-test-result').textContent = '';
   $('#mail-test-result').className = 'admin-hint';
+  clearDiagnostics('#mail-diagnostic-list');
 }
 
 /**
@@ -3482,29 +4188,33 @@ function loadMailSettings(mail) {
  * 这个徽标存在的唯一理由是「填了 SMTP 但授权码漏了」这种配置**不会报错**：
  * 系统会安静地退化成写日志，用户收不到验证码、注册不了，而后台每一样看起来
  * 都填好了。所以这里必须把「能不能真的发出去」直接说出来。
+ *
+ * ``unsaved`` 表示徽标此刻描述的是**表单里刚改完、还没保存**的组合：不追加这一句，
+ * 运营把投递方式切到 smtp 的当下就会看到「SMTP 就绪」，以为已经生效了。
  */
-function renderMailBadge(mail) {
+function renderMailBadge(mail, unsaved = false) {
   const badge = $('#mail-delivery-status');
   const mode = mail.mode || 'log';
+  const suffix = unsaved ? '（表单已改，未保存）' : '';
+  let text;
+  let tone = '';
   if (mail.smtpMisconfigured) {
-    badge.textContent = 'smtp 凭据不全 · 验证码只会写日志，用户收不到';
-    badge.className = 'admin-status-chip is-danger';
-    return;
+    text = 'smtp 凭据不全 · 验证码只会写日志，用户收不到';
+    tone = 'is-danger';
+  } else if (mode === 'smtp' && mail.smtpReady) {
+    text = `SMTP 就绪 · ${mail.smtpHost}:${mail.smtpPort}`;
+  } else if (mode === 'smtp') {
+    text = 'smtp 模式但缺少服务器地址，验证码只会写日志';
+    tone = 'is-danger';
+  } else if (mode === 'echo') {
+    text = 'echo 模式 · 验证码在接口响应里回显，仅限本地';
+    tone = 'is-warning';
+  } else {
+    text = 'log 模式 · 验证码不会真正发出（生产请切到 smtp）';
+    tone = 'is-muted';
   }
-  if (mode === 'smtp' && mail.smtpReady) {
-    badge.textContent = `SMTP 就绪 · ${mail.smtpHost}:${mail.smtpPort}`;
-    badge.className = 'admin-status-chip';
-    return;
-  }
-  if (mode === 'smtp') {
-    badge.textContent = 'smtp 模式但缺少服务器地址，验证码只会写日志';
-    badge.className = 'admin-status-chip is-danger';
-    return;
-  }
-  badge.textContent = mode === 'echo'
-    ? 'echo 模式 · 验证码在接口响应里回显，仅限本地'
-    : 'log 模式 · 验证码不会真正发出（生产请切到 smtp）';
-  badge.className = `admin-status-chip is-${mode === 'echo' ? 'warning' : 'muted'}`;
+  badge.textContent = text + suffix;
+  badge.className = `admin-status-chip${tone ? ` ${tone}` : ''}`;
 }
 
 /** 勾了「清除授权码」就把输入框禁掉，避免「又填又清」这种自相矛盾的提交。 */
@@ -3516,11 +4226,211 @@ function syncMailSecretInput() {
   if (clear.checked) input.value = '';
 }
 
-$('#settings-form').elements.smtpClearPassword.addEventListener('change', syncMailSecretInput);
-$('#settings-form').elements.mailMode.addEventListener('change', () => {
-  // 下拉框改了但还没保存：先用「当前已保存」的结论兜底，保存后会重新加载。
+// --------------------------------------------------------------------------- //
+// 邮箱服务商预设
+// --------------------------------------------------------------------------- //
+/**
+ * 清单随 ``/settings`` 的 ``mail.presets`` 一起下发（后端
+ * ``mail_settings.SMTP_PRESETS``）。**刻意不在这里抄一份**：服务器 / 端口 / 加密
+ * 这三项各自只有唯一正确答案，而两份清单漂移之后，页面会拿旧参数去填一个
+ * 已经改过接入方式的服务商 —— 界面上看不出任何异常，只有「测试邮件」会失败。
+ */
+function mailPresets(mail) {
+  return Array.isArray(mail && mail.presets) ? mail.presets : [];
+}
+
+function presetById(id, mail) {
+  const wanted = String(id || '').trim().toLowerCase();
+  if (!wanted) return null;
+  return mailPresets(mail).find(item => item.id === wanted) || null;
+}
+
+/** 取邮箱的域名部分（小写）。 */
+function presetEmailDomain(email) {
+  const address = String(email || '').trim();
+  const at = address.lastIndexOf('@');
+  return at > 0 ? address.slice(at + 1).trim().toLowerCase() : '';
+}
+
+/**
+ * 按邮箱域名反查预设。自定义域名（企业邮局、自有域名）返回 ``null`` ——
+ * 刻意不猜：猜错的话运营会照着填完、点了「测试凭据」才发现登录被拒，
+ * 而正确参数只有他们自己的邮箱管理员知道。
+ */
+function presetForEmail(email, mail) {
+  const domain = presetEmailDomain(email);
+  if (!domain) return null;
+  return mailPresets(mail).find(item => (item.domains || []).includes(domain)) || null;
+}
+
+/** 当前该用哪个预设：优先运营在下拉框里的显式选择，其次按邮箱地址识别。 */
+function selectedMailPreset(mail) {
+  const select = $('#mail-preset-provider');
+  return presetById(select.value, mail) || presetForEmail($('#mail-preset-email').value, mail);
+}
+
+/** 把预设清单灌进下拉框（保留第一项「自动识别」，重复加载不会越堆越多）。 */
+function renderMailPresetOptions(mail) {
+  const select = $('#mail-preset-provider');
+  const current = select.value;
+  $$('option', select).slice(1).forEach(option => option.remove());
+  mailPresets(mail).forEach((preset) => {
+    const option = document.createElement('option');
+    option.value = preset.id;
+    option.textContent = `${preset.label} · ${preset.smtpHost}:${preset.smtpPort}`;
+    select.append(option);
+  });
+  select.value = current;
+}
+
+/**
+ * 只更新「选中哪个服务商」与一行提示，**不写任何表单字段**。
+ *
+ * 打字过程中就把预设念出来，运营才知道「填入预设」到底会写进去什么；
+ * 直接把地址认成某个服务商并静默覆盖他手填的服务器，是更糟的行为。
+ */
+function syncMailPresetHint(mail) {
+  const select = $('#mail-preset-provider');
+  const email = $('#mail-preset-email').value.trim();
+  const explicit = presetById(select.value, mail);
+  const preset = explicit || presetForEmail(email, mail);
+  if (preset && !explicit) select.value = preset.id;
+  const hint = $('#mail-preset-hint');
+  if (!preset) {
+    hint.textContent = email
+      ? `没认出 ${email} 用的哪家邮局（自有域名刻意不猜）：请手动填服务器、加密方式与端口，参数问邮箱管理员。`
+      : '填一个邮箱地址就能带出服务器 / 加密 / 端口；也可以直接选服务商。';
+    return;
+  }
+  hint.textContent =
+    `${preset.label}：${preset.smtpHost} · 端口 ${preset.smtpPort} · ${String(preset.smtpSecurity || '').toUpperCase()}。${preset.hint || ''}`;
+}
+
+/** 发件人的显示名：站点名（去掉邮件头里有特殊含义的字符），没填就用 HomeOS。 */
+function mailFromDisplayName(form) {
+  const raw = (form.elements.siteName.value || '').trim() || 'HomeOS';
+  return raw.replace(/[<>",;:]/g, '').trim() || 'HomeOS';
+}
+
+/**
+ * 把服务商预设写进表单。
+ *
+ * ``overwrite=false`` 时只补**空着**的字段，用于页面首次加载时的预填：那时候
+ * 输入框里可能已经有运营正在编辑的内容，重新加载一次配置不该把它冲掉。
+ *
+ * 写入的字段刻意包含「投递方式 = smtp」：预填的目的就是让这套配置**能真的发信**，
+ * 少这一项的话地址填好了、验证码还是只进日志，运营会以为预设没生效。
+ */
+function applyMailPreset(preset, mail, { overwrite = true } = {}) {
+  if (!preset) return false;
+  const form = $('#settings-form');
+  const email = $('#mail-preset-email').value.trim() || (mail.defaultEmail || '').trim();
+  const set = (name, value) => {
+    const field = form.elements[name];
+    if (!field) return;
+    if (!overwrite && String(field.value || '').trim()) return;
+    field.value = value;
+  };
+  set('mailMode', 'smtp');
+  set('smtpHost', preset.smtpHost);
+  set('smtpSecurity', preset.smtpSecurity);
+  set('smtpPort', preset.smtpPort);
+  if (email) {
+    set('smtpUsername', email);
+    set('mailFrom', `${mailFromDisplayName(form)} <${email}>`);
+    // 客服邮箱（在「站点信息」分区）**只在它空着时**才补上，且不受 overwrite 影响：
+    // 它是给用户回信用的地址，和 SMTP 账号不一定是同一个信箱 —— 运营拿
+    // no-reply@qq.com 当发信账号，不该顺手把客服邮箱也改成它。
+    const support = form.elements.supportEmail;
+    if (!String(support.value || '').trim()) support.value = email;
+  }
+  if (!form.elements.mailTestEmail.value.trim() && email) {
+    form.elements.mailTestEmail.value = email;
+  }
+  refreshMailBadge();
+  syncMailPresetHint(mail);
+  return true;
+}
+
+/**
+ * 按**当前表单**重算徽标。
+ *
+ * 徽标原本只说「已保存的配置怎么样」，而「切到 smtp 但授权码没填」这个组合会直接
+ * 让用户收不到验证码，必须在切换的当下就变色提醒，不能等保存之后才刷新。
+ * 所以这里把表单里还没保存的值也算进来，再用一句「（表单已改，未保存）」
+ * 说清当前结论描述的是**保存之后**的样子 —— 少了这一句，运营会以为已经生效了。
+ *
+ * 就绪判定与后端 ``StoreSettings.smtp_ready`` 同一口径：
+ * smtp 模式 + 有服务器 + （用户名与授权码成对）。
+ */
+function refreshMailBadge() {
+  const form = $('#settings-form');
   const saved = (state.settings || {}).mail || {};
-  renderMailBadge({ ...saved, mode: $('#settings-form').elements.mailMode.value || saved.mode });
+  const mode = form.elements.mailMode.value || saved.mode || 'log';
+  const host = form.elements.smtpHost.value.trim() || saved.smtpHost || '';
+  const username = form.elements.smtpUsername.value.trim() || saved.smtpUsername || '';
+  const passwordConfigured = Boolean(saved.smtpPasswordConfigured)
+    || Boolean(form.elements.smtpPassword.value.trim());
+  const ready = mode === 'smtp' && Boolean(host) && (!username || passwordConfigured);
+  const dirty = mode !== (saved.mode || 'log')
+    || host !== (saved.smtpHost || '')
+    || username !== (saved.smtpUsername || '')
+    || Boolean(form.elements.smtpPassword.value.trim());
+  renderMailBadge(
+    {
+      ...saved,
+      mode,
+      smtpHost: host,
+      smtpPort: form.elements.smtpPort.value || saved.smtpPort,
+      smtpReady: ready,
+      smtpMisconfigured: mode === 'smtp' && !ready,
+    },
+    dirty,
+  );
+}
+
+/** 当前有没有「一份可能真的能发信」的邮件配置。 */
+function mailLooksUnconfigured(mail) {
+  // 判据刻意保守：只要环境变量或后台配置里出现过任何一个 SMTP 字段，就不再预填 ——
+  // 预填的值会随下一次保存落库，静默覆盖掉一份本来能用的配置。
+  return !mail.modeFromDatabase
+    && !mail.smtpHostFromDatabase
+    && !mail.smtpPortFromDatabase
+    && !mail.smtpUsernameFromDatabase
+    && !mail.fromAddressFromDatabase
+    && !mail.smtpPasswordConfigured
+    && !mail.smtpHost
+    && !mail.smtpUsername
+    && (mail.mode || 'log') !== 'smtp';
+}
+
+$('#settings-form').elements.smtpClearPassword.addEventListener('change', syncMailSecretInput);
+$('#settings-form').elements.mailMode.addEventListener('change', refreshMailBadge);
+
+$('#mail-preset-apply').addEventListener('click', () => {
+  const mail = (state.settings || {}).mail || {};
+  const preset = selectedMailPreset(mail);
+  if (!preset) {
+    toast('先填一个邮箱地址，或在下拉框里选一个服务商。', 'danger');
+    return;
+  }
+  applyMailPreset(preset, mail, { overwrite: true });
+  toast(`已按 ${preset.label} 填入预设，保存后生效；还差 SMTP 授权码。`, 'success');
+});
+
+$('#mail-preset-provider').addEventListener('change', (event) => {
+  const mail = (state.settings || {}).mail || {};
+  const preset = presetById(event.target.value, mail);
+  if (preset) applyMailPreset(preset, mail, { overwrite: true });
+  else syncMailPresetHint(mail);
+});
+
+$('#mail-preset-email').addEventListener('input', () => {
+  // 手输了地址 = 「按这个地址重新识别」，所以要把下拉框上的**显式选择**清掉：
+  // 不清的话，上一次识别出的服务商会一直粘着 —— 界面提示写着 QQ，运营以为
+  // 「填入预设」会填 Gmail，点下去才发现填的是 QQ。
+  $('#mail-preset-provider').value = '';
+  syncMailPresetHint((state.settings || {}).mail || {});
 });
 
 /** 组装 SMTP 授权码：空输入 = 不改动（否则改个站点名就会顺手清掉授权码）。 */
@@ -3540,10 +4450,29 @@ function mailPasswordPayload(form) {
 function renderAlipayBadge(alipay) {
   const form = $('#settings-form');
   const badge = $('#alipay-credential-status');
-  const provider = form.elements.paymentProvider.value;
+  // 下拉框为空表示「跟随环境变量」，此时以后端回报的**实际生效**渠道为准。
+  const effective = form.elements.paymentProvider.value || alipay.provider || '';
+  const mockAllowed = Boolean(alipay.mockPaymentsAllowed);
+
+  // 模拟收银台单独判：它的问题从来不是「凭据没配」，而是「服务端有没有显式打开」。
+  // 打开时它点一下就发码，必须一直是黄色告警；没打开时下单直接 503，要报红。
+  if (effective === 'mock') {
+    badge.textContent = mockAllowed
+      ? '模拟收银台已启用 · 无需真实付款即发码，切勿用于生产收款'
+      : '模拟收银台已被服务端禁用 · 下单会失败（需 STORE_ALLOW_MOCK_PAYMENTS=1）';
+    badge.className = `admin-status-chip${mockAllowed ? ' is-warning' : ' is-danger'}`;
+    return;
+  }
+
+  if (!effective) {
+    badge.textContent = '未配置支付渠道 · 下单会失败';
+    badge.className = 'admin-status-chip is-danger';
+    return;
+  }
+
   if (!alipay.configured) {
-    badge.textContent = provider === 'alipay' ? '未配置 · 渠道选了 alipay，下单会失败' : '未配置';
-    badge.className = `admin-status-chip${provider === 'alipay' ? ' is-danger' : ' is-muted'}`;
+    badge.textContent = effective === 'alipay' ? '未配置 · 渠道选了 alipay，下单会失败' : '未配置';
+    badge.className = `admin-status-chip${effective === 'alipay' ? ' is-danger' : ' is-muted'}`;
     return;
   }
   const source = alipay.appIdFromDatabase ? '后台配置' : '环境变量';
@@ -3593,6 +4522,12 @@ function alipaySecretPayload(form) {
 $('#settings-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.target;
+  // 第二道闸：按钮已经禁用了，但回车提交、脚本触发都不看 disabled。
+  // 配置没读到就提交，等于用一次「读取失败」把支付渠道和几个开关一起清掉。
+  if (!state.settingsLoaded) {
+    toast('站点配置还没读到，保存已被拦下。请先点侧栏的「站点配置」重新加载。', 'danger');
+    return;
+  }
   try {
     await withBusy(form, async () => {
       await api('/settings', {
@@ -3645,6 +4580,12 @@ $('#settings-form').addEventListener('submit', async (event) => {
       await Promise.all([loadSettings(), loadOverview()]);
     }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
+  finally {
+    // 忙状态结束后必须按闸门重新校准：上面的 loadSettings() 失败时已经关掉了保存
+    // 按钮（表单没回填），而 withBusy 的收尾会无条件把它重新启用 —— 一次失败的
+    // 重载就这样被一次保存「顶开」了，页面上是一份空表单加一个亮着的保存按钮。
+    syncSettingsGate();
+  }
 });
 
 /**
@@ -3661,6 +4602,7 @@ $('#alipay-test-button').addEventListener('click', async (event) => {
   const label = button.textContent;
   output.textContent = '';
   output.className = 'admin-hint';
+  clearDiagnostics('#alipay-diagnostic-list');
   // 这个按钮不是 submit，withBusy 抓不到它（它只会找表单里的 submit 按钮），
   // 所以忙状态在这里自己管。
   button.disabled = true;
@@ -3670,6 +4612,7 @@ $('#alipay-test-button').addEventListener('click', async (event) => {
     const result = await api('/settings/alipay/test', { method: 'POST' });
     output.textContent = result.message;
     output.className = `admin-hint ${result.ok ? 'is-success' : 'is-danger'}`;
+    renderDiagnostics('#alipay-diagnostic-list', result.checks);
     toast(result.ok ? '凭据可用' : '凭据不可用', result.ok ? 'success' : 'danger');
   } catch (error) {
     output.textContent = error.message;
@@ -3683,11 +4626,15 @@ $('#alipay-test-button').addEventListener('click', async (event) => {
 });
 
 /**
- * 发送测试邮件：按**已保存**的邮件配置真发一封到指定地址。
+ * 邮件诊断 / 发送测试邮件：按**已保存**的邮件配置先做连接诊断，给了收件人再真发一封。
  *
  * 与「测试凭据」同一套立场（先保存、再测试）。它要回答的问题很具体：
  * 「用户注册时到底收不收得到邮件」—— 这个答案过去只能靠问用户，而 SMTP
  * 填错时的表现是静默降级成写日志，后台一切正常。
+ *
+ * 收件人留空时只做连接诊断（域名解析 + TCP/TLS + 登录握手，不发信）：这一半可以
+ * 反复点、不会往别人邮箱塞东西，而且能在「授权码错 / 端口与加密方式不匹配」这类
+ * 故障上给到最具体的原因。
  */
 $('#mail-test-button').addEventListener('click', async (event) => {
   const button = event.currentTarget;
@@ -3696,23 +4643,23 @@ $('#mail-test-button').addEventListener('click', async (event) => {
   const email = form.elements.mailTestEmail.value.trim();
   output.textContent = '';
   output.className = 'admin-hint';
-  if (!email) {
-    output.textContent = '请先填写测试收件邮箱。';
-    output.className = 'admin-hint is-danger';
-    return;
-  }
+  clearDiagnostics('#mail-diagnostic-list');
   const label = button.textContent;
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
-  button.textContent = '发送中…';
+  button.textContent = '检测中…';
   try {
     const result = await api('/settings/mail/test', {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email: email || null }),
     });
     output.textContent = result.message;
     output.className = `admin-hint ${result.ok ? 'is-success' : 'is-danger'}`;
-    toast(result.ok ? '测试邮件已投递' : '测试邮件未投递', result.ok ? 'success' : 'danger');
+    renderDiagnostics('#mail-diagnostic-list', result.checks);
+    toast(
+      result.ok ? (result.email ? '测试邮件已投递' : '连接诊断通过') : '邮件链路未通过',
+      result.ok ? 'success' : 'danger',
+    );
   } catch (error) {
     output.textContent = error.message;
     output.className = 'admin-hint is-danger';
@@ -3754,6 +4701,8 @@ async function loadReleases() {
 
 // 版本记录一旦发布就代表对外承诺，但「渠道填错 / 版本号打错 / 说明写错」
 // 是真实会发生的，所以给一个修正入口；产品与渠道会决定客户端能否查到这条记录。
+// 这个函数只管表单状态，不管显隐：提交成功后要复用同一次重置再收起表单，
+// 把 showEditor 塞进来会变成「先亮出来再立刻藏起来」。
 function openReleaseEditor(release) {
   const form = $('#release-form');
   form.reset();
@@ -3775,13 +4724,23 @@ function openReleaseEditor(release) {
   }
 }
 
-$('#release-cancel').addEventListener('click', () => openReleaseEditor(null));
+$('#release-new').addEventListener('click', () => {
+  openReleaseEditor(null);
+  showEditor('#release-editor');
+});
+
+$('#release-cancel').addEventListener('click', () => hideEditor('#release-editor'));
 
 $('#release-rows').addEventListener('click', async (event) => {
   const editId = event.target.dataset.releaseEdit;
   if (editId) {
     const release = state.releases.find(item => item.id === editId);
-    if (release) openReleaseEditor(release);
+    if (release) {
+      openReleaseEditor(release);
+      // 行内「编辑」要落到表单所在的 tab，否则表单亮在别的 tab 上，
+      // 用户看到的是「点了没反应」。
+      showEditor('#release-editor');
+    }
     return;
   }
   const releaseId = event.target.dataset.releaseDelete;
@@ -3822,9 +4781,12 @@ $('#release-form').addEventListener('submit', async (event) => {
         toast('版本已发布');
       }
       openReleaseEditor(null);
+      // 保存成功就把表单收起来并回到列表：留着停在填好的表单上，
+      // 会让人分不清「发布成功了没有」，而列表里那条新记录才是凭证。
+      hideEditor('#release-editor');
       resetPage('releases');
       await loadReleases();
-    }, '发布中…');
+    }, releaseId ? '保存中…' : '发布中…');
   } catch (error) { toast(error.message, 'danger'); }
 });
 
@@ -3879,7 +4841,10 @@ $('#audit-rows').addEventListener('click', async (event) => {
 
 $('#audit-purge').addEventListener('click', async () => {
   const days = Number($('#audit-purge-days').value || 0);
-  if (!Number.isFinite(days) || days < 1) { toast('请填写至少 1 天。', 'warning'); return; }
+  // 必须是不小于 1 的**整数**：后端按整数天解析，3.5 会被 FastAPI 直接挡在
+  // 参数校验那层，前端只能收到一条英文 422，运营看不懂也不知道该怎么改。
+  // 诊断面板的清理对话框（runPurge）用的是同一套校验，两边必须一致。
+  if (!Number.isInteger(days) || days < 1) { toast('清理天数必须是不小于 1 的整数。', 'warning'); return; }
   const ok = await askConfirm({
     title: '批量清理审计日志',
     message: `将删除 ${days} 天之前的所有审计记录。`,
@@ -3938,7 +4903,7 @@ function openEntitlementEditor(entry) {
   $('#entitlement-patch-label').textContent = entry.featureCode || '';
   renderFeatureOptions(picker);
   syncFeatureSummary(picker);
-  $('#entitlement-patch-editor').hidden = false;
+  showEditor('#entitlement-patch-editor');
 }
 
 $('#entitlement-refresh').addEventListener('click', loadEntitlements);
@@ -3953,10 +4918,10 @@ $('#entitlement-new').addEventListener('click', () => {
   setFeaturePickerValue(picker, []);
   renderFeatureOptions(picker);
   syncFeatureSummary(picker);
-  $('#entitlement-editor').hidden = false;
+  showEditor('#entitlement-editor');
 });
-$('#entitlement-cancel').addEventListener('click', () => { closeFeaturePickers(); $('#entitlement-editor').hidden = true; });
-$('#entitlement-patch-cancel').addEventListener('click', () => { closeFeaturePickers(); $('#entitlement-patch-editor').hidden = true; });
+$('#entitlement-cancel').addEventListener('click', () => { closeFeaturePickers(); hideEditor('#entitlement-editor'); });
+$('#entitlement-patch-cancel').addEventListener('click', () => { closeFeaturePickers(); hideEditor('#entitlement-patch-editor'); });
 
 $('#entitlement-form').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -3978,7 +4943,7 @@ $('#entitlement-form').addEventListener('submit', async (event) => {
         }),
       });
       toast('权益已创建');
-      $('#entitlement-editor').hidden = true;
+      hideEditor('#entitlement-editor');
       await loadEntitlements();
     }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
@@ -4003,7 +4968,7 @@ $('#entitlement-patch-form').addEventListener('submit', async (event) => {
         }),
       });
       toast('权益已更新');
-      $('#entitlement-patch-editor').hidden = true;
+      hideEditor('#entitlement-patch-editor');
       await loadEntitlements();
     }, '保存中…');
   } catch (error) { toast(error.message, 'danger'); }
@@ -4050,7 +5015,6 @@ async function loadLedger() {
     toast(error.message, 'danger');
     return;
   }
-  state.ledger = data.items;
   $('#ledger-rows').innerHTML = data.items.length ? data.items.map(entry => `
     <tr>
       <td class="nowrap">${dt(entry.createdAt)}</td>
@@ -4118,10 +5082,12 @@ $('#customer-search').addEventListener('click', () => {
 // 每张表各自记一份游标。诊断数据是「翻旧账」用的，过去一律 limit<=500 且无 offset，
 // 第 501 条之后的记录在界面上永远看不到。
 const paging = {};
+//: 每个 key 最近一次发出的请求（{seq, promise}），pagedFetch 用它判定「我的响应是不是过期了」
+const latestRequest = {};
 const PAGE_SIZE = 50;
 
 function pageState(key) {
-  if (!paging[key]) paging[key] = { limit: PAGE_SIZE, offset: 0, total: 0 };
+  if (!paging[key]) paging[key] = { limit: PAGE_SIZE, offset: 0, total: 0, seq: 0 };
   return paging[key];
 }
 
@@ -4175,24 +5141,45 @@ function setTableState(key, state, message = '') {
 }
 
 // 带回 {items, total, limit, offset}，并把游标落在 paging[key] 上
+//
+// 竞态守卫（每个 key 一个递增序号）：筛选框是 ``input`` 事件触发的，连打两个字
+// 就是两个在途请求，而它们的返回顺序**不保证** —— 后发的可能先回。没有守卫时，
+// 先发后到的那个旧响应会把 tbody 覆盖成上一次筛选的结果，看上去就是「筛选没生效」，
+// 换一个筛选再切回来又对了。这里做两件事：
+//   1. 只有「最新那个请求」才允许写游标与表格状态（旧响应一律不落 UI）；
+//   2. 被取代的调用方拿到的是**最新那次**的返回值（而不是自己那份旧数据），
+//      所以各 loader 后面的 ``data.items`` 渲染也自动是新数据，不必改 19 个调用点。
 async function pagedFetch(key, path, params = {}) {
   const cursor = pageState(key);
   const query = new URLSearchParams({ ...params, limit: String(cursor.limit), offset: String(cursor.offset) });
-  // 先占位再发请求：后台的列表查询偶尔要一两秒，没有占位用户会以为按钮坏了。
-  setTableState(key, 'loading');
-  let data;
-  try {
-    data = await api(`${path}?${query.toString()}`);
-  } catch (error) {
-    setTableState(key, 'error', error.message);
-    throw error;
+  const seq = ++cursor.seq;
+  const run = async () => {
+    // 先占位再发请求：后台的列表查询偶尔要一两秒，没有占位用户会以为按钮坏了。
+    setTableState(key, 'loading');
+    let data;
+    try {
+      data = await api(`${path}?${query.toString()}`);
+    } catch (error) {
+      if (seq === cursor.seq) setTableState(key, 'error', error.message);
+      throw error;
+    }
+    // 拿到数据就把压暗去掉；行内容由各 loader 自己填（它们才知道列怎么排）。
+    // 这里只清「忙」标记，是因为 loader 紧接着就会覆写 tbody。
+    if (seq !== cursor.seq) return null;  // 已被更新的请求取代，不写游标也不清状态
+    setTableState(key, 'ready');
+    cursor.total = Number(data.total || 0);
+    cursor.limit = Number(data.limit || cursor.limit);
+    cursor.offset = Number(data.offset || 0);
+    return data;
+  };
+  latestRequest[key] = { seq, promise: run() };
+  let entry = latestRequest[key];
+  let data = await entry.promise;
+  // 等待期间又发了新请求：改用最新那次的返回值。序号严格递增，循环必然收敛。
+  while (latestRequest[key] && latestRequest[key].seq !== entry.seq) {
+    entry = latestRequest[key];
+    data = await entry.promise;
   }
-  // 拿到数据就把压暗去掉；行内容由各 loader 自己填（它们才知道列怎么排）。
-  // 这里只清「忙」标记，是因为 loader 紧接着就会覆写 tbody。
-  setTableState(key, 'ready');
-  cursor.total = Number(data.total || 0);
-  cursor.limit = Number(data.limit || cursor.limit);
-  cursor.offset = Number(data.offset || 0);
   return data;
 }
 
@@ -4371,10 +5358,17 @@ function askPurge({ title, message, impact }) {
   return new Promise(resolve => { purgeResolver = resolve; });
 }
 
-$('#purge-cancel').addEventListener('click', () => {
-  purgeDialog.close();
-  if (purgeResolver) purgeResolver(null);
+$('#purge-cancel').addEventListener('click', () => purgeDialog.close());
+
+// <dialog> 的原生关闭路径不止「取消」按钮：Esc、以及部分浏览器上的点遮罩都会
+// 直接关掉它，而 ``close()`` 不会去动 purgeResolver。少了这条监听，await
+// askPurge() 的调用方（runPurge）就此挂住，表现是「点了清理没反应」，而且
+// 下次打开弹窗时上一轮的 promise 还在等 —— 每次清理都多留一个悬空回调。
+// 统一在 close 事件里收口：无论谁关的窗，等待方都能拿到「取消」。
+purgeDialog.addEventListener('close', () => {
+  const resolve = purgeResolver;
   purgeResolver = null;
+  if (resolve) resolve(null);
 });
 
 $('#purge-ok').addEventListener('click', () => {
@@ -4383,9 +5377,12 @@ $('#purge-ok').addEventListener('click', () => {
     toast('清理天数必须是不小于 1 的整数。', 'danger');
     return;
   }
-  purgeDialog.close();
-  if (purgeResolver) purgeResolver(days);
+  // 先摘 resolver 再关窗：close 监听会把「还没人接」当成取消，
+  // 不摘的话这里刚算好的天数会被 null 覆盖掉。
+  const resolve = purgeResolver;
   purgeResolver = null;
+  purgeDialog.close();
+  if (resolve) resolve(days);
 });
 
 async function runPurge(key) {
@@ -4662,9 +5659,11 @@ function bindPanelFilters() {
   $('#entitlement-reset').addEventListener('click', () => resetFilters(['#entitlement-feature', '#entitlement-status'], 'entitlements'));
   $('#binding-reset').addEventListener('click', () => resetFilters(['#binding-keyword', '#binding-active-only'], 'bindings'));
   $('#coupon-reset').addEventListener('click', () => resetFilters(['#coupon-keyword', '#coupon-status'], 'coupons'));
+  $('#coupon-refresh').addEventListener('click', () => { resetPage('coupons'); loadCoupons(); });
   $('#withdrawal-reset').addEventListener('click', () => resetFilters(['#withdrawal-status', '#withdrawal-keyword'], 'withdrawals'));
   $('#account-reset').addEventListener('click', () => resetFilters(['#account-keyword', '#account-role', '#account-status'], 'accounts'));
   $('#release-reset').addEventListener('click', () => resetFilters(['#release-keyword', '#release-product', '#release-channel'], 'releases'));
+  $('#release-refresh').addEventListener('click', () => { resetPage('releases'); loadReleases(); });
 }
 
 $('#diagnostics-refresh').addEventListener('click', () => {
@@ -4767,19 +5766,30 @@ $('#panel-diagnostics').addEventListener('click', async (event) => {
 // resetPage（提前注册会踩到暂时性死区）。
 bindPanelFilters();
 
-const initialPage = (location.hash || '#overview').replace('#', '');
-bootstrap().then(() => {
-  if (loaders[initialPage]) activate(initialPage);
+const initial = parseHash();
+// 只有确认拿到了管理员会话才去加载面板：未登录时照样 activate 会打出一串 401，
+// 每个 401 又会把登录卡片重新渲染一遍，登录页上的报错会被自己的失败淹掉。
+bootstrap().then(loggedIn => {
+  if (loggedIn && loaders[initial.page]) activate(initial.page, initial.tab);
 });
 
 // 点导航走 activate()，但浏览器前进/后退、以及手工改地址栏只改 hash，不会调 activate。
 // 没有这个监听就会出现「地址栏是 #orders、画面还停在概览」的错位——刷新一下才对得上，
 // 用户会以为后台卡住了。点击导航时 hash 与面板同时变化，这里用面板 id 去重，避免重复加载。
 window.addEventListener('hashchange', () => {
-  const page = (location.hash || '#overview').replace('#', '');
+  const { page, tab } = parseHash();
   if (!loaders[page]) return;
-  if (document.querySelector('.admin-panel.active')?.id === `panel-${page}`) return;
-  activate(page);
+  const active = document.querySelector('.admin-panel.active');
+  // 换了面板：整页重新加载（数据也重拉）
+  if (!active || active.id !== `panel-${page}`) {
+    activate(page, tab);
+    return;
+  }
+  // 同一个面板只换了 tab：只切显示，不重新请求。
+  // 切 tab 是纯前端动作，重拉一遍数据既慢又会把筛选/翻页状态冲掉。
+  // push 是为了让地址栏说真话：深链里的 tab 可能已经被收起（表单编辑器关掉了），
+  // 这时 setTab 会回落，回落结果要写回地址，否则「地址写 form、画面是 list」。
+  setTab(page, tab, { push: true });
 });
 </script>
 </body>

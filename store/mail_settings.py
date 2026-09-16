@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from store.config import StoreSettings
-from store.models import StoreSetting
+from store.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
 from store.secret_fields import mask_secret
 
 #: 后台可选的邮件投递方式。``""`` 表示跟随环境变量，不是投递方式。
@@ -38,6 +38,141 @@ SMTP_SECURITY_MODES = ("ssl", "starttls", "plain")
 #: 否则会沿用环境变量的 465，于是「STARTTLS + 465」这种连不上的组合
 #: 会以一个笼统的超时表现出来，运营想不到问题出在端口上。
 DEFAULT_SMTP_PORTS: dict[str, int] = {"ssl": 465, "starttls": 587, "plain": 25}
+
+
+#: 常见邮箱服务商的 SMTP 接入参数（后台「注册邮箱验证码 → 邮箱预设」的一键填充源）。
+#:
+#: 为什么值得做成一张表：SMTP 那四个字段（服务器 / 加密 / 端口 / 账号）各自只有
+#: 唯一正确答案，而答案散落在各家服务商的帮助页上。填错的表现是**静默降级成写日志**
+#: （见 ``mailer.send_verification_email`` 的 ``smtp_misconfigured`` 分支）：
+#: 用户收不到验证码、注册不了，而后台每一样看起来都填好了。
+#:
+#: ``domains`` 让「填一个邮箱地址」就能反查出其余三项（``preset_for_email``），
+#: 所以这张表同时是默认值的唯一来源 —— 前端只负责渲染与回填，不再自己维护一份
+#: 迟早会漂移的服务商清单。
+#:
+#: 取值必须是 ``SMTP_SECURITY_MODES`` 里的成员，端口按 ``DEFAULT_SMTP_PORTS`` 走。
+SMTP_PRESETS: tuple[dict[str, object], ...] = (
+    {
+        "id": "qq",
+        "label": "QQ 邮箱 / Foxmail",
+        "domains": ("qq.com", "vip.qq.com", "foxmail.com"),
+        "smtpHost": "smtp.qq.com",
+        "smtpPort": 465,
+        "smtpSecurity": "ssl",
+        "hint": "先在 QQ 邮箱「设置 → 账户」开启 SMTP 服务，授权码用开启时发的那串，不是登录密码。",
+    },
+    {
+        "id": "163",
+        "label": "网易 163 邮箱",
+        "domains": ("163.com", "vip.163.com"),
+        "smtpHost": "smtp.163.com",
+        "smtpPort": 465,
+        "smtpSecurity": "ssl",
+        "hint": "在「设置 → POP3/SMTP/IMAP」开启服务后生成授权码，登录密码在这里不生效。",
+    },
+    {
+        "id": "126",
+        "label": "网易 126 邮箱",
+        "domains": ("126.com", "yeah.net", "vip.126.com"),
+        "smtpHost": "smtp.126.com",
+        "smtpPort": 465,
+        "smtpSecurity": "ssl",
+        "hint": "yeah.net 请把服务器改成 smtp.yeah.net；授权码在「设置 → POP3/SMTP/IMAP」里生成。",
+    },
+    {
+        "id": "aliyun",
+        "label": "阿里云邮箱",
+        "domains": ("aliyun.com", "mxhichina.com"),
+        "smtpHost": "smtp.aliyun.com",
+        "smtpPort": 465,
+        "smtpSecurity": "ssl",
+        "hint": "企业邮箱（自有域名）的服务器是 smtp.mxhichina.com，账号要填完整邮箱地址。",
+    },
+    {
+        "id": "exmail",
+        "label": "腾讯企业邮箱",
+        "domains": ("exmail.qq.com",),
+        "smtpHost": "smtp.exmail.qq.com",
+        "smtpPort": 465,
+        "smtpSecurity": "ssl",
+        "hint": "用自己的域名接进来时，域名不会命中预设，请手动把服务器改成 smtp.exmail.qq.com。",
+    },
+    {
+        "id": "sina",
+        "label": "新浪邮箱",
+        "domains": ("sina.com", "sina.cn"),
+        "smtpHost": "smtp.sina.com",
+        "smtpPort": 465,
+        "smtpSecurity": "ssl",
+        "hint": "需要先在网页版开启 SMTP 服务，否则连接会成功但登录被拒。",
+    },
+    {
+        "id": "gmail",
+        "label": "Gmail",
+        "domains": ("gmail.com", "googlemail.com"),
+        "smtpHost": "smtp.gmail.com",
+        "smtpPort": 465,
+        "smtpSecurity": "ssl",
+        "hint": "账号要开两步验证并生成「应用专用密码」，直接用网页登录密码会被拒。",
+    },
+    {
+        "id": "outlook",
+        "label": "Outlook / Hotmail",
+        "domains": ("outlook.com", "hotmail.com", "live.com", "outlook.cn"),
+        "smtpHost": "smtp.office365.com",
+        "smtpPort": 587,
+        "smtpSecurity": "starttls",
+        "hint": "发件人必须是同一个账号；企业版 365 可能需要管理员先开启 SMTP AUTH。",
+    },
+)
+
+
+def email_domain(email: str | None) -> str:
+    """取出邮箱的域名部分（小写）；不像邮箱就返回空串。"""
+    address = (email or "").strip()
+    if "@" not in address:
+        return ""
+    return address.rsplit("@", 1)[1].strip().lower()
+
+
+def preset_for_email(email: str | None) -> dict[str, object] | None:
+    """按邮箱域名反查 SMTP 预设；没有对应服务商时返回 ``None``。
+
+    自定义域名（企业邮箱、自建邮局）刻意不猜：猜错的代价是运营照着填完、
+    点「测试凭据」才发现登录被拒，而正确参数只有他们自己的管理员知道。
+    """
+    domain = email_domain(email)
+    if not domain:
+        return None
+    for preset in SMTP_PRESETS:
+        if domain in tuple(preset["domains"]):  # type: ignore[arg-type]
+            return preset
+    return None
+
+
+def preset_by_id(preset_id: str | None) -> dict[str, object] | None:
+    wanted = (preset_id or "").strip().lower()
+    for preset in SMTP_PRESETS:
+        if preset["id"] == wanted:
+            return preset
+    return None
+
+
+def mail_presets_payload() -> list[dict]:
+    """预设清单的 JSON 形态（供后台渲染下拉框 / 填充表单）。"""
+    return [
+        {
+            "id": str(preset["id"]),
+            "label": str(preset["label"]),
+            "domains": [str(domain) for domain in preset["domains"]],  # type: ignore[union-attr]
+            "smtpHost": str(preset["smtpHost"]),
+            "smtpPort": int(preset["smtpPort"]),  # type: ignore[call-overload]
+            "smtpSecurity": str(preset["smtpSecurity"]),
+            "hint": str(preset["hint"]),
+        }
+        for preset in SMTP_PRESETS
+    ]
 
 #: 验证码有效期的上下限（秒）。下限 60 秒是「用户来得及复制粘贴」的底线；
 #: 上限 1 小时是因为再长就等于给了一个长期有效的口令。
@@ -199,4 +334,10 @@ def mail_delivery_summary(
         "smtpReady": bool(merged.smtp_ready),
         "smtpMisconfigured": bool(merged.smtp_misconfigured),
         "deliveryEnabled": bool(merged.mail_delivery_enabled),
+        #: 本部署的默认邮箱。后台拿它预填「测试收件邮箱」、SMTP 账号与发件人，
+        #: 并据此反查服务商预设（QQ 邮箱 → smtp.qq.com:465/SSL）。
+        "defaultEmail": DEFAULT_SUPPORT_EMAIL,
+        #: 服务商预设清单。放在**服务端**而不是前端硬编码：这张表同时是默认值的
+        #: 唯一来源，抄成两份的话，改了一边另一边就开始说旧话，而且不会有任何报错。
+        "presets": mail_presets_payload(),
     }

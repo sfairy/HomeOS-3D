@@ -7,8 +7,10 @@
 
 1. **订单已超时关闭但钱确实收到了，仍然照常发码。** 钱在用户那边已经扣了，
    如果这里把订单当过期丢掉，用户就得走人工客服。这类「复活」单的库存预留
-   在进入终态时就已经释放过，所以必须给 ``fulfill_order`` 传
-   ``release_stock=False``——否则会扣掉其它待支付订单的预留额度。
+   在进入终态时就已经释放过，所以不能再释放一次 —— 否则会扣掉其它待支付订单的
+   预留额度。判据不再是「调用方读到的订单状态」，而是订单上持久化的
+   ``stock_reservation_released_at``（唯一的「这单还占不占预留」来源，见
+   ``fulfill.release_order_reservation``）。
 2. **用条件 UPDATE 做幂等。** 支付宝会重复推送通知，而查单可能和通知同时到达；
    两个线程各自读到「未履约」就会重复发码。所以状态流转交给带条件的
    UPDATE，谁抢到谁入账。
@@ -21,9 +23,9 @@ import logging
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from store import fulfill
+from store import coupons, fulfill
 from store.models import Order, StoreSetting
-from store.order_status import ORDER_STATUS_LABELS
+from store.order_status import ORDER_STATUS_LABELS, RESERVING_STATUSES
 from store.security import utcnow
 
 logger = logging.getLogger("store.payments.settlement")
@@ -39,6 +41,18 @@ _SETTLEABLE_STATUSES = (
     "payment_failed",
     "fulfillment_failed",
 )
+
+#: 允许被标记为「发货失败」的状态。刻意收得很窄：
+#:
+#: * ``paid`` —— 入账刚把状态改到 paid，履约抛异常时就是这个状态；
+#: * ``fulfillment_failed`` —— 人工重试又失败，保持原状并刷新原因。
+#:
+#: 过去这里只排除 ``refunded``，于是并发的**成功**履约（状态已是 ``fulfilled``）
+#: 或一笔部分退款（``partially_refunded``）都会被这句 UPDATE 覆盖成
+#: ``fulfillment_failed``，连 ``fulfilled_at`` 也被清空 —— 码已经发给用户了，
+#: 账面却显示「发货失败、待重试」，重试闸门（``fulfilled_at IS NULL``）还被打开，
+#: 再点一次重试就会**重复发码**。
+_FAILURE_MARKABLE_STATUSES = ("paid", "fulfillment_failed")
 
 
 def settle_paid_order(
@@ -83,13 +97,33 @@ def settle_paid_order(
         return {"changed": False, "alreadyFulfilled": True, "licenseId": order.license_id}
 
     session.refresh(order)
-    if original_status in {"expired", "cancelled"}:
+    #: 「复活单」的判据必须与库存预留的**实际**状态一致，而不是入账前那一刻读到
+    #: 的 ``original_status``：那个值可能已经过期（读到 pending、期间被过期扫描
+    #: 改成 expired），此时按它判断会漏掉复核标记，而这正是最需要人看到的一类单。
+    #: ``stock_reservation_released_at`` 非空 ⟺ 这张单此前进过终态（预留已还），
+    #: 也就是「复活单」本身 —— 两个判断合成一个事实来源。
+    #: 存量订单该列为 NULL（列是后加的），此时回落到原来的状态比较，保持旧行为。
+    revived = order.stock_reservation_released_at is not None or (
+        original_status not in RESERVING_STATUSES
+    )
+    if revived:
         # 钱在用户那边已经扣了，码照发（否则用户只能找人工客服）。但这件库存
         # 的预留早已在订单进终态时还给别人，属于刻意保留的例外 —— 必须打上
         # 「待人工复核」标记并在后台告警，否则没人知道发生了超卖。
+        #
+        # 优惠码名额同理：进终态时 ``release_coupon`` 已经把它还回去了，但核销
+        # 记录还在（记录要留着回答「这个账号用没用过这个码」）。现在这单复活成交，
+        # 名额必须重新占回来，否则该码的 ``redeemed_count`` 少算一次，
+        # ``max_redemptions`` 会被后来的人突破。
+        if order.coupon_code and not coupons.reoccupy_coupon(session, order):
+            logger.warning(
+                "复活单未能重新占用优惠码名额（名额已满）order=%s code=%s",
+                order.order_no,
+                order.coupon_code,
+            )
         order.needs_review = True
         order.review_note = (
-            f"订单已{_status_text(original_status)}后支付才到账（{source}），"
+            f"订单{_status_text(original_status)}后才收到支付（{source}），"
             "库存预留此前已释放，请核对是否需要补货或退款。"
         )
         session.flush()
@@ -104,7 +138,10 @@ def settle_paid_order(
     if order.fulfillment_mode != "manual":
         # expired / cancelled / payment_failed 在进入终态时已经释放过库存预留，
         # 这里是「钱到账了所以补发」，不能再扣一次预留（否则等于偷走其它待支付
-        # 订单占的额度，直接放开超卖）。
+        # 订单占的额度，直接放开超卖）。这个判断不再由这里传参，而是交给
+        # ``fulfill_order`` 去读订单上持久化的 ``stock_reservation_released_at`` ——
+        # 同一件事（这张单还占不占预留）在两处用两套写法，迟早会漂移成
+        # 「标记了复核却没释放」或反之。
         try:
             # SAVEPOINT 包住履约：失败时只回滚这一段的写入（发出去的半张授权、
             # 扣掉的库存、记上的邀请奖励），「已入账」这一状态本身保留 ——
@@ -114,8 +151,6 @@ def settle_paid_order(
                     session,
                     order=order,
                     setting=setting,
-                    release_stock=original_status
-                    not in {"expired", "cancelled", "payment_failed"},
                 )
         except Exception as error:  # noqa: BLE001
             # 不能把 500 抛给支付宝：那会让它无限重推通知，而每次重推都会再走
@@ -137,11 +172,18 @@ def settle_paid_order(
 
 
 def _mark_fulfillment_failed(session: Session, *, order_id: str, error: Exception) -> None:
-    """把订单标记为发货失败并请求人工介入（独立事务段，不再受失败的履约影响）。"""
+    """把订单标记为发货失败并请求人工介入（独立事务段，不再受失败的履约影响）。
+
+    状态守卫必须收窄（见 ``_FAILURE_MARKABLE_STATUSES``）：履约抛异常时，另一个
+    线程/另一次重推可能**已经把这单履约成功了**，或者运营已经退了款。无条件
+    （或只排除 ``refunded``）地写 ``fulfillment_failed`` 会把这些结果覆盖掉，
+    并顺手清空 ``fulfilled_at`` —— 那正是重试的幂等闸门，闸门被打开意味着
+    下一次重试会重复发码。
+    """
     session.execute(
         update(Order)
         .where(Order.id == order_id)
-        .where(Order.status != "refunded")
+        .where(Order.status.in_(_FAILURE_MARKABLE_STATUSES))
         .values(
             status="fulfillment_failed",
             # 履约中途抛异常时 fulfilled_at 可能已被抢单语句写上，必须清掉，

@@ -310,6 +310,11 @@ def order_payload(order: Order) -> dict:
         "refundTradeNo": order.refund_trade_no,
         "needsReview": bool(order.needs_review),
         "reviewNote": order.review_note or "",
+        #: 这一单是否改过一张**已有**授权（升级 / 增量包履约前留下的快照非空）。
+        #: 后台「删除订单」的守卫之一：前端必须用同一口径，否则会出现「按钮能点但
+        #: 后端 409」的错位。注意与 ``targetLicenseId`` 的区别——后者在下单时就写入，
+        #: 只表示「打算改谁」，不能当删除判据（见 admin_delete_order）。
+        "targetLicenseModified": bool(order.license_state_before_json),
         "codeHint": order.license.code_hint if order.license is not None else None,
         "createdAt": iso_z(order.created_at),
         "expiresAt": iso_z(order.expires_at),
@@ -330,6 +335,7 @@ def account_center_payload(
     license_meta: dict[str, dict],
     entitlements: list[Entitlement],
     orders: list[Order],
+    orders_total: int | None = None,
     has_used_trial: bool = False,
     now: datetime | None = None,
 ) -> dict:
@@ -354,6 +360,10 @@ def account_center_payload(
         "licenses": license_items,
         "entitlements": [entitlement_payload(item, now=moment) for item in entitlements],
         "orders": [order_payload(order) for order in orders],
+        #: 订单总数与 ``orders`` 的长度可能不同：账号中心只取最近若干单，
+        #: 没有这个数字前端就只能显示「已加载的」条数，用户看到第 50 单封顶
+        #: 会以为更早的订单丢了（过去连「还有更多」的提示都没有）。
+        "ordersTotal": int(orders_total if orders_total is not None else len(orders)),
         # 前台靠它决定「试用还能不能买」。这个字段过去从来没人赋值，
         # 于是 store.js 里那条规则是死代码。
         "hasUsedTrial": bool(has_used_trial),

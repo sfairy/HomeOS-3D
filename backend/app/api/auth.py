@@ -6,15 +6,23 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import delete, select, text
 
 from ..admin_account import EXTERNAL_PASSWORD_SENTINEL
 from ..dependencies import CurrentUser, DatabaseSession
+from ..http_security import resolve_client_ip, secure_cookies_enabled
 from ..models import LoginSession, User
-from ..schemas import LoginRequest, SetupAdminRequest, SetupStatusResponse, UserResponse
+from ..schemas import (
+    LoginRequest,
+    LoginSessionListResponse,
+    LoginSessionResponse,
+    SetupAdminRequest,
+    SetupStatusResponse,
+    UserResponse,
+)
 from ..security import (
     hash_password,
     new_session_token,
@@ -33,15 +41,66 @@ def public_user(user: User) -> UserResponse:
     return UserResponse(id=user.id, username=user.username, role=user.role)
 
 
+def _aware(value: datetime) -> datetime:
+    """SQLite 取回的 datetime 可能不带时区，统一按 UTC 补齐再比较。"""
+    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+
+
+def require_admin_account(user: User) -> None:
+    """确认当前账号是管理员，否则 403「仅管理员可以管理登录会话。」。
+
+    登录会话列表里能看到 IP 与 UA，撤销会踢人下线，属于管理动作。
+    虽然当前设置流程只会建出管理员账号，但角色是数据字段：接口自己再确认一次，
+    不依赖「目前只有管理员」这个假设。
+    """
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="仅管理员可以管理登录会话。")
+    return None
+
+
 def request_metadata(request: Request) -> tuple[str, str]:
     """取出用于审计与限流的请求元信息。
 
     返回:
         (客户端 IP, User-Agent) 二元组；按数据库列宽上限截断
         （IP 截 64、UA 截 512），防止超长请求头把审计字段撑爆。
+
+    客户端 IP 由 :func:`http_security.resolve_client_ip` 解析：配了可信反向代理时
+    取真实来源地址，没配或对端不可信时一律用 TCP 对端地址（转发头在这两种情况下
+    都不可信，信了就等于让攻击者自选 IP）。
     """
-    ip_address = request.client.host if request.client else ""
+    ip_address = resolve_client_ip(request).ip
     return (ip_address[:64], request.headers.get("user-agent", "")[:512])
+
+
+def login_limiter_scopes(request: Request, username: str) -> list[tuple]:
+    """列出本次登录要检查 / 累加的限流档位。
+
+    三档，各挡一类攻击：
+    - 账号档（``login_account_limiter``，**不含 IP**）：换 IP 也躲不掉，这是
+      按 IP 限流被绕开后的兜底；
+    - 按 IP 档（``login_limiter``）：挡单机爆破；
+    - 按 IP + 账号档（``login_limiter``）：挡同一台机器换账号试。
+
+    后两档只在「来源地址真的代表一个客户端」时启用：反代后面没配可信代理时，
+    所有人共用代理那一个地址，用它计数会让任何一个人失败几次就锁掉所有人
+    （包括管理员自己），还不如不统计。账号档不受影响，因此并非无保护。
+    """
+    limiter = getattr(request.app.state, "login_limiter", None)
+    account_limiter = getattr(request.app.state, "login_account_limiter", None)
+    scopes: list[tuple] = []
+    if account_limiter is not None:
+        scopes.append((account_limiter, f"account:{username.casefold()}"))
+    address = resolve_client_ip(request)
+    if limiter is not None and address.per_client and address.ip:
+        scopes.append((limiter, f"ip:{address.ip}"))
+        scopes.append((limiter, f"account-ip:{address.ip}:{username.casefold()}"))
+    return scopes
+
+
+def _retry_after_seconds(scopes: list[tuple]) -> str:
+    """被拦时回带的 Retry-After：取所有命中档里最长的封禁时长，避免提示偏乐观。"""
+    return str(max((limiter.block_seconds for limiter, _key in scopes), default=600))
 
 
 def create_login_session(request: Request, database: DatabaseSession, user: User) -> str:
@@ -70,6 +129,9 @@ def set_session_cookie(request: Request, response: Response, token: str) -> None
 
     httponly 防脚本读取，samesite=lax 允许同源跳转带上，
     path=/ 保证 /api/* 与页面请求都能携带。
+
+    Secure 由 :func:`secure_cookies_enabled` 按请求自动判定（https 基址 / 可信代理
+    转发的 https / 本连接 https 都算），因此漏配 APP_COOKIE_SECURE 也不会明文下发。
     """
     settings = request.app.state.settings
     response.set_cookie(
@@ -77,7 +139,7 @@ def set_session_cookie(request: Request, response: Response, token: str) -> None
         value=token,
         max_age=settings.session_max_age_seconds,
         httponly=True,
-        secure=settings.cookie_secure,
+        secure=secure_cookies_enabled(request),
         samesite="lax",
         path="/",
     )
@@ -109,20 +171,37 @@ def setup_admin(
 ) -> UserResponse:
     """首次初始化管理员账号，或在账号文件丢失后重新设置。
 
-    请求字段：username、password（见 SetupAdminRequest）。
+    请求字段：username、password、setupToken（见 SetupAdminRequest）。
     返回：管理员 UserResponse，同时直接下发登录 Cookie（设置完即为登录态）。
     会抛的中文错误文案：
+    - 403「首次设置需要引导密钥。…」：远程来源没带（或带错）引导密钥；
+    - 429「初始化尝试次数过多，请稍后再试。」：同一来源失败次数超限；
     - 409「系统已经完成初始化。」：账号文件已生效，禁止二次设置；
     - 409「这个账号名已被使用。」：重建时应与库内其它账号重名；
     - 409「现有账号无法安全重置，请检查账号文件。」：库里有账号但找不到待重置的那一行。
+
+    访问控制：这个端点刻意不要求身份（首次设置时还没有账号可登），所以「谁能连上
+    就先到先得」的窗口必须由别的东西关上 —— 见 setup_guard：本机直连放行，其余来源
+    必须带对启动日志里给出的引导密钥，失败会计入限流并写审计。顺序是「已初始化 →
+    409，再看引导密钥，最后才 argon2」，未授权的请求连一次哈希都换不到。
 
     事务与回滚：先 BEGIN IMMEDIATE 取写锁，避免并发初始化；
     账号文件用 stage 先落盘、activate 等库提交成功后才生效，
     任何一步失败都回滚数据库并 abort 掉已落盘的凭据文件。
     """
+    account_store = request.app.state.admin_account
+    # 廉价预检放最前：已初始化时对**所有**来源都只会是 409（端点已关闭），
+    # 先答完这件事就不必再去碰引导密钥、更不必算 argon2 —— 未认证请求换不到 CPU。
+    if account_store.initialized:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="系统已经完成初始化。",
+        )
+    # 再过守卫：这是「先到先得拿管理员」的唯一屏障，且必须排在 argon2 之前。
+    # 本机直连放行；其余来源必须带对引导密钥（见 setup_guard 模块说明）。
+    request.app.state.setup_guard.authorize(request, payload.setup_token)
     # 口令哈希在事务外先算好：argon2 很慢，不该占着写锁算。
     password_hash = hash_password(payload.password)
-    account_store = request.app.state.admin_account
     # 记录已落盘的临时凭据文件，异常分支要靠它回滚。
     staged_credentials = None
     # BEGIN IMMEDIATE 立即取写锁：两个初始化请求同时到达时，只有一个能通过 initialized 检查。
@@ -183,6 +262,8 @@ def setup_admin(
         database.commit()
         # 库事务提交成功后才让账号文件生效，避免出现「文件已生效、库里却没有对应行」的中间态。
         account_store.activate(staged_credentials)
+        # 初始化完成：作废这次窗口用的引导密钥（生成的那份文件会立刻删掉）。
+        request.app.state.setup_guard.consume()
         set_session_cookie(request, response, token)
         action = "重新设置" if recovery_user else "首次初始化"
         request.app.state.global_log.append(
@@ -217,19 +298,14 @@ def login(
     """
     # 先去掉首尾空白再比较：避免「 admin」与「admin」被当成两个账号绕过计数。
     username = payload.username.strip()
-    ip_address, _user_agent = request_metadata(request)
-    # 双维度限流：IP 维度挡单机爆破，「IP + 账号」维度挡换 IP 撞同一个账号；
-    # 账号部分做 casefold，改大小写也重置不了计数。
-    limiter_keys = (
-        f"ip:{ip_address}",
-        f"account:{ip_address}:{username.casefold()}",
-    )
-    limiter = request.app.state.login_limiter
-    if any(limiter.blocked(key) for key in limiter_keys):
+    # 多维限流：账号档（换 IP 也躲不掉）+ 按 IP / IP+账号档（仅当来源地址可信时）。
+    scopes = login_limiter_scopes(request, username)
+    blocked = [(limiter, key) for limiter, key in scopes if limiter.blocked(key)]
+    if blocked:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="登录失败次数过多，请稍后再试。",
-            headers={"Retry-After": str(limiter.block_seconds)},
+            headers={"Retry-After": _retry_after_seconds(blocked)},
         )
     # 凭据只取自账号文件快照：users 表里的 password_hash 是哨兵值，不参与校验。
     credentials = request.app.state.admin_account.credentials
@@ -243,14 +319,14 @@ def login(
         and verify_password(credentials.password_hash, payload.password)
     ):
         # 只有失败才累加计数，成功路径统一 reset，避免正常登录把计数越推越高。
-        for key in limiter_keys:
+        for limiter, key in scopes:
             limiter.record_failure(key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="账号或密码错误。",
         )
-    # 登录成功即清零两个维度的计数。
-    for key in limiter_keys:
+    # 登录成功即清零所有档位的计数。
+    for limiter, key in scopes:
         limiter.reset(key)
     token = create_login_session(request, database, user)
     database.commit()
@@ -301,3 +377,118 @@ def logout(
 def me(user: CurrentUser) -> UserResponse:
     """返回当前登录用户，供前端刷新页面时确认登录态（未登录由依赖层直接 401）。"""
     return public_user(user)
+
+
+def session_payload(record: LoginSession, settings, current_hash: str) -> dict:
+    """把一条会话行拼成对外的 JSON。
+
+    只暴露会话元信息，不带任何能用于认证的东西：`id` 是令牌的 sha256，
+    不可逆也当不了凭据。
+    """
+    hard_max_age = int(getattr(settings, "session_hard_max_age_seconds", 0) or 0)
+    return {
+        "id": record.id_hash,
+        "current": record.id_hash == current_hash,
+        "createdAt": record.created_at,
+        "lastSeenAt": record.last_seen_at,
+        "expiresAt": record.expires_at,
+        "absoluteExpiresAt": (
+            record.created_at + timedelta(seconds=hard_max_age) if hard_max_age > 0 else None
+        ),
+        "ipAddress": record.ip_address,
+        "userAgent": record.user_agent,
+    }
+
+
+def _current_session_hash(request: Request) -> str:
+    """本次请求所用会话的哈希；没有 Cookie 时为空串。"""
+    token = request.cookies.get(request.app.state.settings.cookie_name, "")
+    return session_token_hash(token) if token else ""
+
+
+@router.get("/auth/sessions", response_model=LoginSessionListResponse)
+def list_sessions(
+    request: Request,
+    database: DatabaseSession,
+    user: CurrentUser,
+) -> LoginSessionListResponse:
+    """列出当前管理员的全部登录会话（最近活跃在前）。
+
+    用途：让主人能看见「有哪些设备登录着」，并在怀疑被盗用时一键踢掉。
+    只列自己的会话，别人的（多管理员场景）与中控设备令牌都不在这里管。
+    已过期的行顺手删掉，否则列表会随使用时间越来越长。
+    """
+    require_admin_account(user)
+    now = datetime.now(timezone.utc)
+    settings = request.app.state.settings
+    records = list(
+        database.scalars(
+            select(LoginSession)
+            .where(LoginSession.user_id == user.id)
+            .order_by(LoginSession.last_seen_at.desc())
+        )
+    )
+    expired = [record for record in records if _aware(record.expires_at) <= now]
+    if expired:
+        for record in expired:
+            database.delete(record)
+        database.commit()
+        records = [record for record in records if record not in expired]
+    current_hash = _current_session_hash(request)
+    items = [
+        LoginSessionResponse(**session_payload(record, settings, current_hash))
+        for record in records
+    ]
+    return LoginSessionListResponse(items=items, total=len(items))
+
+
+@router.delete("/auth/sessions", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_other_sessions(
+    request: Request,
+    database: DatabaseSession,
+    user: CurrentUser,
+) -> None:
+    """退出其他所有设备，只保留当前这条会话，返回 204。
+
+    比「改密码」轻，但足以把被盗 Cookie 踢下线；当前会话保留，避免操作者自己掉线。
+    """
+    require_admin_account(user)
+    current_hash = _current_session_hash(request)
+    database.execute(
+        delete(LoginSession).where(
+            LoginSession.user_id == user.id,
+            LoginSession.id_hash != current_hash,
+        )
+    )
+    database.commit()
+    request.app.state.global_log.append("info", "系统后台", "账号", f"{user.username} 已退出其他所有设备的登录会话")
+
+
+@router.delete("/auth/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_session(
+    session_id: str,
+    request: Request,
+    response: Response,
+    database: DatabaseSession,
+    user: CurrentUser,
+) -> None:
+    """撤销指定的登录会话，返回 204（幂等：不存在也算成功）。
+
+    撤销自己当前这条时会一并清掉浏览器 Cookie，等于原地登出。
+    `session_id` 是会话令牌的 sha256（列表接口给出的那个 id）。
+    """
+    require_admin_account(user)
+    record = database.scalar(
+        select(LoginSession).where(
+            LoginSession.id_hash == session_id,
+            # 限定在自己的会话里：别人的会话 id 猜到了也删不掉。
+            LoginSession.user_id == user.id,
+        )
+    )
+    if record is None:
+        return None
+    database.delete(record)
+    database.commit()
+    if session_id == _current_session_hash(request):
+        response.delete_cookie(request.app.state.settings.cookie_name, path="/")
+    request.app.state.global_log.append("info", "系统后台", "账号", f"{user.username} 撤销了一条登录会话")

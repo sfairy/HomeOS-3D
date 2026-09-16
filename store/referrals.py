@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import math
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from store.models import (
@@ -23,6 +23,18 @@ from store.models import (
 from store.security import new_referral_code, new_uuid
 
 logger = logging.getLogger("store.referrals")
+
+
+class WalletConflictError(RuntimeError):
+    """并发改动同一本钱包时的冲突（调用方应当提示重试，而不是当成 500）。
+
+    为什么需要一个专门的异常：钱包的 ``balance`` / ``frozen`` 是**读-改-写**的
+    聚合值，而提现是「先校验可用积分、再冻结」的两步动作。两个请求各自读到
+    ``frozen = 0`` 就会各自冻结成功，而第二次写入会把第一次的冻结覆盖掉 ——
+    账面上冻结了 100，实际却挂着两笔各 100 的待审提现，两次审批后 ``frozen``
+    变成 -100、``withdrawn`` 翻倍，而且 ``available_points`` 用
+    ``max(0, balance - frozen)`` 还会把额度「还」回来，可以反复刷。
+    """
 
 
 def _floor2(value: float) -> float:
@@ -93,6 +105,47 @@ def is_self_referral(session: Session, referrer: Account | None, account: Accoun
     return bool(referrer_email) and referrer_email == account_email
 
 
+def _apply_wallet_delta(
+    session: Session,
+    wallet: ReferralWallet,
+    *,
+    delta: float,
+    frozen_delta: float,
+) -> tuple[float, float]:
+    """把余额变动写成**一条 SQL** 并返回改动后的 ``(balance, frozen)``。
+
+    为什么不能用 ``wallet.balance = wallet.balance + delta``：那是「读-改-写」，
+    两个并发请求（两笔订单同时结算、提现申请与退款回退交叠）会各自基于同一个旧值
+    计算，后写的一方把先写的一方整个覆盖掉 —— 账本少记一笔，且没有任何报错。
+
+    这里交给 SQLite 在一条语句里完成「读当前值 + 加 delta」，并用 ``COALESCE``
+    兜住历史数据里的 NULL（``NULL + 1`` 在 SQL 里是 NULL，漏掉会让钱包余额直接
+    变成空值）。
+
+    刻意**不**在这里夹到非负：能不能扣、扣多少是业务规则（见
+    ``reverse_order_reward`` 的「可扣上限 = 余额 - 冻结」），账本层擅自夹会让
+    「该扣的没扣到」变成静默发生的事，而那正是需要被记进流水备注去追偿的。
+    """
+    values: dict[str, object] = {}
+    if delta:
+        values["balance"] = func.round(
+            func.coalesce(ReferralWallet.balance, 0.0) + float(delta), 2
+        )
+    if frozen_delta:
+        values["frozen"] = func.round(
+            func.coalesce(ReferralWallet.frozen, 0.0) + float(frozen_delta), 2
+        )
+    if values:
+        session.execute(
+            update(ReferralWallet)
+            .where(ReferralWallet.id == wallet.id)
+            .values(**values)
+            .execution_options(synchronize_session=False)
+        )
+        session.refresh(wallet)
+    return float(wallet.balance or 0.0), float(wallet.frozen or 0.0)
+
+
 def ledger_entry(
     session: Session,
     wallet: ReferralWallet,
@@ -104,16 +157,19 @@ def ledger_entry(
     reference: str | None = None,
     order_id: str | None = None,
 ) -> ReferralLedger:
-    wallet.balance = round(float(wallet.balance or 0.0) + float(delta), 2)
-    wallet.frozen = round(float(wallet.frozen or 0.0) + float(frozen_delta), 2)
+    balance, frozen = _apply_wallet_delta(
+        session, wallet, delta=delta, frozen_delta=frozen_delta
+    )
     entry = ReferralLedger(
         wallet_id=wallet.id,
         account_id=wallet.account_id,
         kind=kind,
         delta=round(float(delta), 2),
         frozen_delta=round(float(frozen_delta), 2),
-        balance_after=wallet.balance,
-        frozen_after=wallet.frozen,
+        #: 记的是**数据库里算出来的**结果，而不是本地推导的期望值。两者不一致时
+        #: 这个字段就是发现「有人绕过账本直接改钱包」的唯一线索。
+        balance_after=balance,
+        frozen_after=frozen,
         note=note,
         reference=reference,
         order_id=order_id,
@@ -236,11 +292,46 @@ def create_withdrawal(
     request_key: str,
     fee_percent: float,
 ) -> ReferralWithdrawal:
+    """新建提现申请，并把对应积分**原子地**冻结。
+
+    冻结这一步刻意用条件 UPDATE 抢单（``where frozen == 读到的值``）而不是
+    直接用 ``ledger_entry`` 累加。原因是「可用积分够不够」是调用方基于读到的
+    ``frozen`` 做的判断，与写入之间存在窗口：
+
+    ｜ 请求 A 读到 frozen=0，算出可用 100，申请提现 100 ｜ 请求 B 同样读到 frozen=0 ｜
+    ｜ 两次都通过校验、各插一条 pending 流水，而 frozen 被覆盖成同一个值 ｜
+
+    结果账面只冻结了 100，却挂着两笔 100 的待审提现；两次审批后 ``frozen`` 变负、
+    ``withdrawn`` 翻倍，而 ``available_points`` 用 ``max(0, balance - frozen)``
+    还会把额度「还」回来 —— 可以反复套现。
+
+    条件 UPDATE 把「校验」与「写入」压进同一条语句：``rowcount == 0`` 说明
+    期间有人改过钱包，直接抛 :class:`WalletConflictError` 让调用方提示重试。
+    这与 ``_claim_refund_amount`` 是同一套写法。
+    """
     existing = session.scalars(
         select(ReferralWithdrawal).where(ReferralWithdrawal.request_key == request_key)
     ).first()
     if existing is not None:
         return existing
+
+    frozen_before = round(float(wallet.frozen or 0.0), 2)
+    claimed = session.execute(
+        update(ReferralWallet)
+        .where(
+            ReferralWallet.id == wallet.id,
+            #: 用 round 后的值比对，避免浮点误差让「没人改过」也被判成冲突
+            func.round(func.coalesce(ReferralWallet.frozen, 0.0), 2) == frozen_before,
+        )
+        .values(
+            frozen=func.round(
+                func.coalesce(ReferralWallet.frozen, 0.0) + round(float(points), 2), 2
+            )
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount == 0:
+        raise WalletConflictError("钱包刚刚被其它操作改过，请重试。")
 
     fee_points, net_points = withdraw_fee(points, fee_percent)
     withdrawal = ReferralWithdrawal(
@@ -257,11 +348,13 @@ def create_withdrawal(
     session.add(withdrawal)
     session.flush()
 
+    #: 抢单已经把钱加进 frozen 了，这里只补一条流水（frozen_delta=0 避免加两次），
+    #: 用 ``session.refresh`` 取到数据库里的真实值写进 balance_after/frozen_after。
+    session.refresh(wallet)
     ledger_entry(
         session,
         wallet,
         kind="freeze",
-        frozen_delta=withdrawal.points,
         note="提现申请冻结",
         reference=withdrawal.id,
     )
@@ -275,10 +368,32 @@ def resolve_withdrawal(
     approve: bool,
     note: str = "",
 ) -> ReferralWithdrawal:
+    """审批一笔待处理提现。**抢单式**：只有把状态从 pending 改走的那一次才动钱包。
+
+    双击审批（或运营两个标签页同时点）在过去会把同一笔提现结算两次：
+    ``frozen`` 被扣两次、``withdrawn`` 加两次。这里的条件 UPDATE 保证
+    「状态迁移」与「记账」是同一个原子动作，``rowcount == 0`` 说明别人已经处理过，
+    直接返回即可（重复点击对用户表现为「已处理」，不会再动账）。
+    """
     if withdrawal.status != "pending":
         return withdrawal
     wallet = session.get(ReferralWallet, withdrawal.wallet_id)
     if wallet is None:
+        return withdrawal
+
+    target_status = "paid" if approve else "rejected"
+    claimed = session.execute(
+        update(ReferralWithdrawal)
+        .where(
+            ReferralWithdrawal.id == withdrawal.id,
+            ReferralWithdrawal.status == "pending",
+        )
+        .values(status=target_status, note=note, resolved_at=utcnow())
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount == 0:
+        #: 别人刚刚处理完这笔；刷新一次让调用方看到真实终态，但绝不再记账。
+        session.refresh(withdrawal)
         return withdrawal
 
     if approve:
@@ -291,8 +406,17 @@ def resolve_withdrawal(
             note=note or "提现完成",
             reference=withdrawal.id,
         )
-        wallet.withdrawn = round(float(wallet.withdrawn or 0.0) + withdrawal.points, 2)
-        withdrawal.status = "paid"
+        #: ``withdrawn`` 也是聚合值，必须原子自增：两次审批并发时会互相覆盖。
+        session.execute(
+            update(ReferralWallet)
+            .where(ReferralWallet.id == wallet.id)
+            .values(
+                withdrawn=func.round(
+                    func.coalesce(ReferralWallet.withdrawn, 0.0) + withdrawal.points, 2
+                )
+            )
+            .execution_options(synchronize_session=False)
+        )
     else:
         ledger_entry(
             session,
@@ -302,9 +426,7 @@ def resolve_withdrawal(
             note=note or "提现未通过，积分退回",
             reference=withdrawal.id,
         )
-        withdrawal.status = "rejected"
 
-    withdrawal.note = note
-    withdrawal.resolved_at = utcnow()
+    session.refresh(withdrawal)
     session.flush()
     return withdrawal

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -29,6 +30,9 @@ class SetupAdminRequest(BaseModel):
     username: str = Field(min_length=3, max_length=64)
     password: str = Field(min_length=8, max_length=256)
     password_confirmation: str = Field(alias='passwordConfirmation', min_length=8, max_length=256)
+    #: 首次初始化窗口的引导密钥。从本机（loopback）直连时可以留空；
+    #: 其余来源必须与服务端启动日志里给出的那份一致，否则 403。
+    setup_token: str = Field(default='', alias='setupToken', max_length=256)
 
     @model_validator(mode='after')
     def validate_setup(self) -> 'SetupAdminRequest':
@@ -151,6 +155,37 @@ class SetupStatusResponse(BaseModel):
     version: str
 
 
+class LoginSessionResponse(BaseModel):
+    """一条管理员登录会话（供「登录会话」列表展示与撤销）。
+
+    `id` 用的是会话令牌的 sha256（库里存的就是它）：它不可逆、也不能当凭据用，
+    但足以在撤销时唯一定位一行 —— 这样就不必为了「有个人可读的 id」再加一列。
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    #: 是否就是发起本次请求的那条会话（前端把它排在最前并标注「本机」）。
+    current: bool
+    created_at: datetime = Field(alias='createdAt')
+    last_seen_at: datetime = Field(alias='lastSeenAt')
+    #: 滑动有效期：活跃会往后推。
+    expires_at: datetime = Field(alias='expiresAt')
+    #: 绝对寿命上限（created_at + 硬上限）；配成 0（不设上限）时为 None。
+    absolute_expires_at: datetime | None = Field(default=None, alias='absoluteExpiresAt')
+    ip_address: str = Field(alias='ipAddress')
+    user_agent: str = Field(alias='userAgent')
+
+
+class LoginSessionListResponse(BaseModel):
+    """登录会话列表。"""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    items: list[LoginSessionResponse]
+    total: int
+
+
 class HAConnectionInput(BaseModel):
     """HA 连接配置；测试连接与保存连接共用这一套字段。"""
 
@@ -160,6 +195,9 @@ class HAConnectionInput(BaseModel):
     access_token: str | None = Field(default=None, alias='accessToken', max_length=4096)
     verify_tls: bool = Field(default=True, alias='verifyTls')
     name: str = Field(default='Home Assistant', min_length=1, max_length=128)
+    #: 换地址时是否确认「继续复用已保存的令牌」。默认 False：把 HA 地址换成另一个
+    #: 主机（哪怕是攻击者搭的同名服务）时，旧的长期令牌不能被静默送到新地址去。
+    reuse_token_for_new_url: bool = Field(default=False, alias='reuseTokenForNewUrl')
 
     @field_validator('base_url')
     @classmethod

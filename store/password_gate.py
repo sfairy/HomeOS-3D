@@ -31,10 +31,22 @@ def _count_recent(session: Session, scope: str) -> int:
     return int(session.execute(statement).scalar_one() or 0)
 
 
-def retry_after_seconds(session: Session, scope: str) -> int:
-    """超限时返回需要等待的秒数，未超限返回 0。"""
+def recent_failures(session: Session, scope: str) -> int:
+    """返回该 scope 在窗口内的失败次数（只读，供告警/观测用）。"""
+    return _count_recent(session, scope)
+
+
+def retry_after_seconds(
+    session: Session, scope: str, *, max_attempts: int = MAX_ATTEMPTS
+) -> int:
+    """超限时返回需要等待的秒数，未超限返回 0。
+
+    ``max_attempts`` 允许不同 scope 用不同阈值：例如「按账号」必须卡得很紧（保护
+    单个账号），而「按来源 IP」要放宽（同一个出口 NAT 后面可能坐着整间办公室）。
+    阈值放在**判断时**而不是记录时，是因为同一张表要服务多档策略。
+    """
     failures = _count_recent(session, scope)
-    if failures < MAX_ATTEMPTS:
+    if failures < max_attempts:
         return 0
     since = utcnow() - timedelta(minutes=WINDOW_MINUTES)
     oldest = session.execute(

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timedelta
 
@@ -31,6 +32,117 @@ from store.security import (
 from store.serializers import json_list
 
 logger = logging.getLogger("store.fulfill")
+
+
+#: ``Order.license_state_before_json`` 里记录的授权字段。顺序无所谓，但必须是
+#: 一份**白名单**：快照要能被原样写回去，多记一个不该还原的字段（比如 ``active``）
+#: 就会在退款时把「用户自己停用过的授权」重新点亮。
+_LICENSE_SNAPSHOT_FIELDS = (
+    "product_id",
+    "product_name",
+    "product_type",
+    "price_cents",
+    "validity_days",
+    "issuance_source",
+    "access_started_at",
+)
+
+#: 快照里按时间还原的字段。JSON 存的是 ISO **字符串**，写回 ORM 前必须转回
+#: ``datetime`` —— SQLite 的 DateTime 列只接受 datetime/date，直接写字符串会在
+#: 退款那一刻抛 TypeError，而那时钱已经退给用户了（漏掉这一步的代价是
+#: 「退款成功、后台报 500、授权状态停在半路」）。
+_LICENSE_MOMENT_FIELDS = frozenset({"access_started_at", "access_expires_at"})
+
+
+def _snapshot_license(license: License) -> str:
+    """把一张授权的可还原字段序列化成 JSON（时间统一用 ISO 字符串）。"""
+    payload: dict[str, object] = {}
+    for field in _LICENSE_SNAPSHOT_FIELDS:
+        value = getattr(license, field)
+        payload[field] = value.isoformat() if isinstance(value, datetime) else value
+    payload["access_expires_at"] = (
+        license.access_expires_at.isoformat() if license.access_expires_at else None
+    )
+    return json.dumps(payload, ensure_ascii=False)
+
+
+def _capture_license_state(session: Session, order: Order, license: License) -> None:
+    """首次改动这张授权时留下快照。**幂等**：已经拍过就不覆盖。
+
+    不覆盖是关键：升级单被重复履约（重推通知、后台重试）时第二次会拿到一张
+    已经改过的授权，用它覆盖快照等于把「升级前」记成了「升级后」，
+    退款就再也还原不回去了。
+    """
+    if (order.license_state_before_json or "").strip():
+        return
+    order.license_state_before_json = _snapshot_license(license)
+
+
+def _parse_moment(value: object) -> datetime | None:
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def revert_license_change(session: Session, *, order: Order, license: License) -> bool:
+    """把升级 / 增量包改过的授权还原成快照里的样子。返回是否真的还原过。
+
+    退款时必须走这一步，而不是「把授权作废」：被改的这张授权是用户**此前已经付过钱**
+    的（他是买升级，不是买新码），整张作废等于没收了他原来那笔消费。
+    还原的粒度是：
+
+    * 恢复商品、价格、有效期与签发来源 —— 时限授权回到原来的到期时间，
+      永久授权收回「永久」；
+    * 停用**本单**带进来的权益（``product_id`` 是升级商品的那些行）；
+    * 若还原后的商品是套餐，按套餐重新发放一次权益，把升级时被覆盖掉的
+      ``product_id`` / ``expires_at`` 拉回来。
+
+    幂等：重复调用只会重复做同一件事（快照不会被清空），所以退款重试是安全的。
+    """
+    snapshot = json.loads(order.license_state_before_json or "{}")
+    if not isinstance(snapshot, dict) or not snapshot:
+        return False
+
+    for entitlement in session.scalars(
+        select(Entitlement).where(Entitlement.license_id == license.id)
+    ):
+        if entitlement.product_id == order.product_id:
+            entitlement.active = False
+
+    for field in (*_LICENSE_SNAPSHOT_FIELDS, "access_expires_at"):
+        if field not in snapshot:
+            continue
+        value = snapshot[field]
+        if field in _LICENSE_MOMENT_FIELDS:
+            value = _parse_moment(value)
+        setattr(license, field, value)
+
+    # 套餐权益要按**还原后**的商品重新展开：升级时 grant_bundled_entitlements 会把
+    # 命中的权益行改写成升级商品的 product_id，光靠上面那轮「停用本单权益」
+    # 会把用户原本就有的套餐功能一起关掉。此处必须在还原完字段之后再做。
+    restored = session.get(Product, license.product_id) if license.product_id else None
+    if (
+        restored is not None
+        and restored.id != order.product_id
+        and bundled_feature_codes(session, restored)
+    ):
+        customer = session.get(Customer, license.customer_id) if license.customer_id else None
+        if customer is not None:
+            grant_bundled_entitlements(
+                session, license=license, product=restored, customer=customer
+            )
+
+    logger.warning(
+        "订单 %s 退款：已把授权 %s 还原为升级前的状态（%s）",
+        order.order_no,
+        license.code_hint or license.id,
+        snapshot.get("product_name") or snapshot.get("product_id"),
+    )
+    session.flush()
+    return True
 
 
 def _unique_activation_code(session: Session) -> str:
@@ -131,6 +243,9 @@ def upgrade_license_in_place(
     """
     moment = now or utcnow()
     validity_days = product.validity_days
+    #: 先留快照再动字段 —— 顺序反了就等于把「升级前」记成了「升级后」，
+    #: 退款时再也还原不回去（这正是「退了钱、永久授权还在」的根因）。
+    _capture_license_state(session, order, license)
     license.product_id = product.id
     license.product_name = product.name
     license.product_type = product.product_type
@@ -207,6 +322,9 @@ def apply_addon_to_license(
         moment + timedelta(days=int(validity_days)) if validity_days else None
     )
     created = 0
+    #: 增量包对授权本身的影响只有「续期」（下面按 validity_days 延后到期时间），
+    #: 但退款必须能把这段延长收回去，所以同样要留快照。
+    _capture_license_state(session, order, license)
     for feature_code in json_list(product.feature_codes_json):
         feature_code = str(feature_code)
         existing = session.scalars(
@@ -361,17 +479,57 @@ def consume_stock(session: Session, product: Product | None, quantity: int = 1) 
 RESERVING_STATUSES = RESERVING_STATUS_FROM_ORDER
 
 
+def release_order_reservation(
+    session: Session, *, order: Order, product: Product | None, quantity: int = 1
+) -> bool:
+    """归还这一单占用的预留，并在订单上打上「已归还」的标记。返回本次是否真的归还。
+
+    **所有释放点都必须走这里**（下单超时、用户取消、渠道关单、后台核销……）：
+    过去每处都直接调 ``release_reserved_stock``，而「这一单此刻还占不占预留」
+    没有任何记录，于是调用方只能各自按 ``order.status`` 反推 —— 复活单
+    （expired 之后才收到支付）的预留其实早已释放，按状态反推会再释放一次，
+    扣掉的是**别人**的预留，直接把超卖放开。
+
+    标记与释放顺序很重要：先打标记再扣减。极端情况下（进程在两者之间崩掉）
+    留下的是「标记已释放、计数没减」，``recompute_reserved_stock`` 会把它纠正回来；
+    反过来则会重复扣减 —— 那正是会放开超卖的方向。
+    """
+    if order.stock_reservation_released_at is not None:
+        return False
+    claim = session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        #: 用数据库里的当前值做比较并交换，而不是信内存里的对象：这些调用点刚刚
+        #: 用条件 UPDATE 抢过订单状态（``synchronize_session=False``），
+        #: 内存里的字段本来就是旧值，据此判断等于没判断。
+        .where(Order.stock_reservation_released_at.is_(None))
+        .values(stock_reservation_released_at=utcnow())
+        .execution_options(synchronize_session=False)
+    )
+    if claim.rowcount == 0:
+        return False
+    release_reserved_stock(session, product, quantity)
+    session.expire(order, ["stock_reservation_released_at"])
+    session.flush()
+    return True
+
+
 def recompute_reserved_stock(session: Session) -> dict[str, int]:
     """按订单表重算每个商品的 ``reserved_stock``，返回「商品 id → 修正量」。
 
     历史上「对已取消订单履约」会重复释放预留，把计数扣低并直接放开超卖；
     这里以订单表为准把缓存拉回真实值，用于自愈存量数据。
+
+    计数条件必须带上 ``stock_reservation_released_at IS NULL``：只看状态会把
+    **复活单**算成仍然占着预留（它们从 expired 复活成 paid，预留那时就已经还了），
+    于是这个「自愈」动作反而把占用虚增上去，让本来还能下单的商品被误判成售罄。
     """
     counted = {
         product_id: int(count or 0)
         for product_id, count in session.execute(
             select(Order.product_id, func.count(Order.id))
             .where(Order.status.in_(RESERVING_STATUSES))
+            .where(Order.stock_reservation_released_at.is_(None))
             .group_by(Order.product_id)
         ).all()
     }
@@ -393,15 +551,19 @@ def fulfill_order(
     setting: StoreSetting,
     settings: StoreSettings | None = None,
     now: datetime | None = None,
-    release_stock: bool = True,
+    release_stock: bool | None = None,
 ) -> dict:
     """履约。幂等：已履约的订单直接返回。
 
-    ``release_stock`` 由调用方**显式声明**「这张订单此刻是否还占着库存预留」。
-    不能用订单状态反推：``settle_paid_order`` 会把 expired / cancelled /
-    payment_failed 的订单复活成 paid 再履约（钱确实到账了），而这些状态在
-    进入终态时预留早已释放。若此时再扣一次，扣掉的其实是**其它待支付订单**
-    的预留，会把 ``reserved_stock`` 算低并直接放开超卖。
+    ``release_stock`` 表示「这张订单此刻是否还占着库存预留」，默认由
+    ``order.stock_reservation_released_at is None`` **推导** —— 这是唯一的事实来源。
+    过去它由调用方按订单状态声明，而状态与预留的生命周期并不一致：
+    ``settle_paid_order`` 会把 expired / cancelled / payment_failed 的订单复活成
+    paid 再履约（钱确实到账了），而这些状态在进入终态时预留早已释放。若此时再扣
+    一次，扣掉的其实是**其它待支付订单**的预留，会把 ``reserved_stock`` 算低并直接
+    放开超卖。
+
+    仍保留显式传参的口子给确实知道更多的调用方，但默认值不再是猜测。
     """
     moment = now or utcnow()
     if order.status == "fulfilled" or order.fulfilled_at is not None:
@@ -459,8 +621,14 @@ def fulfill_order(
 
     order.status = "fulfilled"
     order.fulfilled_at = moment
-    if release_stock:
-        release_reserved_stock(session, product, 1)
+    #: 默认按「这一单还占不占预留」的真实来源推导，而不是让调用方按状态猜。
+    should_release = (
+        release_stock
+        if release_stock is not None
+        else order.stock_reservation_released_at is None
+    )
+    if should_release:
+        release_order_reservation(session, order=order, product=product, quantity=1)
     # 发码即售出：无论走哪条路径（正常支付 / 关单后复活补发），都要把这一件
     # 从 stock_quantity 里扣掉，否则"预留释放"会把可用量还回去，等于白送一件。
     consume_stock(session, product, 1)

@@ -1973,23 +1973,355 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   margin-top: 22px;
 }
 
-/* 支付对话框：二维码是白底方块（扫码要求高对比），
-   倒计时、状态、订单号沿用 theme.css 的对话框组件 */
+/* 站内统一的确认框（#confirm-dialog）。全站的「要不要做这一步」都走它，不再用
+   window.confirm —— 系统框会跟着操作系统主题走（暗色页面里跳出一个浅色框），
+   按钮名字、语气、换行都改不了，也不吃设计系统的配色与圆角。 */
+.hb-confirm-dialog {
+  width: min(400px, calc(100vw - 28px));
+}
+
+.hb-confirm-dialog .hb-dialog__head {
+  padding: 24px 24px 0;
+}
+
+.hb-confirm-dialog .hb-dialog__body {
+  padding: 14px 24px 0;
+  gap: 0;
+}
+
+.hb-confirm-dialog .hb-dialog__foot {
+  padding: 20px 24px 22px;
+}
+
+/* 补充说明（「想升级该去哪」这类）用一个左侧竖线的引用块，和正文分离开：
+   它答的是「点确认之前还该知道什么」，不是标题的延续。 */
+.hb-confirm-dialog .hb-dialog__status {
+  margin-top: 0;
+  padding: 10px 12px;
+  border-left: 2px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-xs);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+/* 没有 showModal 的老 WebView：open 属性挂出来的 dialog 不在顶层，也没有
+   ::backdrop，自己把它摆成居中浮层，用超大投影压暗身后的页面。 */
+.hb-confirm-dialog.is-fallback {
+  position: fixed;
+  z-index: 1300;
+  inset: 0;
+  margin: auto;
+  box-shadow: 0 0 0 100vmax rgba(5, 8, 11, 0.72), var(--hb-shadow-lg);
+}
+
+/* 收款台类弹窗：付款码弹窗（#payment-dialog）与待支付订单弹窗（#pending-order-dialog）
+   共用一套骨架与信息块——宽度、三段式固定布局、金额行、倒计时行、订单号行，
+   两者只差一个二维码。写在一起是为了避免「改了一个忘了另一个」。
+
+   它们原来是「一列等宽文本」：金额、倒计时、状态、订单号四个兄弟节点之间既没有
+   边界也没有主次，金额和倒计时都很响，状态与订单号却缩在左下角像页脚；待支付
+   订单弹窗更极端——一个孤零零的大号倒计时靠左摆着，和居中的标题不在同一条轴线
+   上，下面空出一大块，而金额和订单号（报客服时最需要的两条信息）压根没显示。
+   现在按「先扫码 / 先核对 → 再等结果」分三段：
+   · 白底二维码 + 琥珀辉光，视线先落在最需要操作的地方；
+   · 金额和倒计时各占一条带边框的行，形成同一组待确认信息；
+   · 订单号贴底、用分隔线断开，方便对客服报单号。 */
+:is(.hb-payment-dialog, .hb-pending-dialog) {
+  width: min(404px, calc(100vw - 28px));
+}
+
+/* 三段式固定布局：头尾不滚、只有中间内容滚。手机（640px 高左右）上内容比
+   可用高度多出几十像素，若整张弹窗滚动，底部两个按钮会被推出屏幕；
+   这里改成 flex 列 + 中段 overflow，按钮永远贴在底部。
+   [open] 必须写在选择器里：.hb-dialog 没有 display 声明，直接写
+   :is(...) { display:flex } 会盖过 UA 的 dialog:not([open]) { display:none }，
+   未打开的弹窗会一直可见。 */
+:is(.hb-payment-dialog, .hb-pending-dialog)[open] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:is(.hb-payment-dialog, .hb-pending-dialog) :is(.hb-dialog__head, .hb-dialog__foot) {
+  flex: none;
+}
+
+:is(.hb-payment-dialog, .hb-pending-dialog) .hb-dialog__head {
+  padding: 22px 24px 0;
+}
+
+:is(.hb-payment-dialog, .hb-pending-dialog) .hb-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 16px 24px 0;
+  gap: 11px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+:is(.hb-payment-dialog, .hb-pending-dialog) .hb-dialog__foot {
+  padding: 18px 24px 20px;
+}
+
+/* 二维码必须白底（扫码要求高对比），外圈两层琥珀只作引导，不参与识别 */
+.hb-pay-scan {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
 .hb-payment-dialog #payment-qr {
   display: grid;
-  width: 216px;
-  height: 216px;
-  margin: 0 auto;
+  width: 200px;
+  height: 200px;
   place-items: center;
-  border: 1px solid var(--hb-line-strong);
-  border-radius: var(--hb-radius-md);
+  border-radius: var(--hb-radius-lg);
   background: #fff;
   overflow: hidden;
+  box-shadow: 0 0 0 1px var(--hb-accent-line), 0 0 0 7px var(--hb-accent-faint),
+    0 18px 40px -22px rgba(0, 0, 0, 0.9);
 }
 
 .hb-payment-dialog #payment-qr canvas,
 .hb-payment-dialog #payment-qr img {
   display: block;
+}
+
+.hb-pay-scan__hint {
+  display: flex;
+  margin: 0;
+  align-items: center;
+  gap: 6px;
+  color: var(--hb-muted);
+  font-size: 12px;
+}
+
+.hb-pay-scan__hint i {
+  color: var(--hb-accent-bright);
+  font-size: 12px;
+}
+
+/* 金额：左标签右数值，¥ 比数字小一号，读数时先认符号再认位数 */
+.hb-pay-amount {
+  display: flex;
+  padding: 11px 14px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-md);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.hb-pay-amount > span {
+  color: var(--hb-muted);
+  font-size: 12px;
+}
+
+.hb-pay-amount__value {
+  color: var(--hb-accent-bright);
+  font-family: var(--hb-font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.hb-pay-amount__value i {
+  margin-right: 2px;
+  font-size: 14px;
+  font-style: normal;
+}
+
+/* 倒计时条：左边是付款状态（圆点脉动＝还在轮询结果），右边是剩余时间 */
+.hb-pay-timer {
+  display: flex;
+  padding: 10px 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-md);
+  background: var(--hb-accent-faint);
+}
+
+.hb-pay-timer__status {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--hb-ink-soft);
+  font-size: 12.5px;
+}
+
+/* 状态文案由 JS 改写（「正在自动关闭订单…」等），这里只保证不撑破这一行 */
+.hb-pay-timer__status b {
+  overflow: hidden;
+  font: inherit;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hb-pay-timer__dot {
+  position: relative;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hb-accent);
+}
+
+/* 「还在等结果」的脉动用**只走合成层**的两个属性（opacity + transform）画在伪元素上。
+   不要用 box-shadow / background-position 之类的属性做无限动画：它们每帧都要重新
+   计算样式并重绘（实测：弹窗打开时 RecalcStyleCount ≈ 350 次/秒，整页跟着卡），
+   而 opacity + transform 由合成线程直接处理，不碰主线程。
+   这一层独立出来还顺便解决了另一个问题——脉动不再让二维码所在的这一块反复重绘。 */
+.hb-pay-timer__dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--hb-accent);
+  opacity: 0.5;
+  will-change: transform, opacity;
+  animation: hb-pay-pulse 1.9s ease-out infinite;
+}
+
+/* 支付成功后状态文字转绿（连同 theme.css 的 #payment-status.done），圆点跟着停 */
+.hb-pay-timer__status:has(#payment-status.done) .hb-pay-timer__dot::after {
+  animation: none;
+  opacity: 0;
+}
+
+.hb-pay-timer__status:has(#payment-status.done) .hb-pay-timer__dot {
+  background: var(--hb-success);
+}
+
+.hb-pay-timer__clock {
+  display: flex;
+  flex: none;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--hb-accent-bright);
+}
+
+.hb-pay-timer__clock i {
+  font-size: 12px;
+}
+
+/* 等宽数字：秒数跳动时整行不会左右抖 */
+.hb-pay-timer__clock b {
+  font-family: var(--hb-font-mono);
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+/* 只动 transform 与 opacity：两个属性都在合成线程上跑，不触发主线程重排/重绘。
+   缩放从 1 到 2.8 时透明度同步衰减到 0，视觉上就是一圈扩散的水波。 */
+@keyframes hb-pay-pulse {
+  0% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(2.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hb-pay-timer__dot::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.hb-pay-note {
+  margin: -4px 0 0;
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* 「订单已关闭」的补充说明：只在弹窗进入 .is-closed 时出现。
+   文案位置紧贴倒计时条，是为了回答用户在超时那一刻最可能的疑问——
+   「我刚付过钱，钱去哪了」。 */
+.hb-pay-closed {
+  display: none;
+  margin: -2px 0 0;
+  padding: 9px 12px;
+  border: 1px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink-soft);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+
+/* 订单作废（超时 / 取消 / 支付失败）：二维码失去意义——渠道侧的交易随后会被
+   关单，扫出来的结果只会是「订单已关闭」。这里把白底高对比的码压暗去彩，
+   连同琥珀辉光和脉动圆点一起收掉，避免继续诱导扫码；信息与按钮保持可用。 */
+.hb-payment-dialog.is-closed #payment-qr {
+  filter: grayscale(1);
+  opacity: 0.34;
+  box-shadow: none;
+}
+
+.hb-payment-dialog.is-closed .hb-pay-timer {
+  border-color: var(--hb-line-strong);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hb-payment-dialog.is-closed .hb-pay-timer__status {
+  color: var(--hb-muted);
+}
+
+.hb-payment-dialog.is-closed .hb-pay-timer__clock {
+  color: var(--hb-muted);
+}
+
+.hb-payment-dialog.is-closed .hb-pay-timer__dot {
+  background: var(--hb-muted-dim);
+}
+
+/* 订单已关闭：脉动的指针也一起收掉（它现在长在 ::after 上）。 */
+.hb-payment-dialog.is-closed .hb-pay-timer__dot::after {
+  animation: none;
+  opacity: 0;
+}
+
+.hb-payment-dialog.is-closed .hb-pay-closed {
+  display: block;
+}
+
+/* 订单号：与上面两块用分隔线隔开，右侧等宽数字方便抄给客服 */
+.hb-pay-order {
+  display: flex;
+  padding-top: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--hb-line-soft);
+}
+
+.hb-pay-order > span {
+  flex: none;
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+}
+
+.hb-pay-order code {
+  color: var(--hb-muted);
+  font-family: var(--hb-font-mono);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+  text-align: right;
 }
 
 .hb-payment-dialog #payment-status.done {
@@ -2457,6 +2789,14 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 .hb-account-list {
   display: grid;
   gap: 12px;
+}
+
+/* 「加载更多订单」：居中一行，视觉上明确是列表的延续而不是一张订单卡片。
+   订单列表按页返回（默认 20 单），这个按钮是用户唯一能看到「后面还有」的地方。 */
+.hb-account-more {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
 }
 
 /* 卡片外壳：只负责边框、底色和悬停琥珀条，内边距与排列交给两种版式变体。
