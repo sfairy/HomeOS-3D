@@ -6105,7 +6105,7 @@ function drawPlanDoor(door, doorOptions = {}) {
     );
     const openingLengthPx = distance(doorPlacement.start, doorPlacement.end);
     const hingeDirection = door.hinge === "right" ? 1 : -1;
-    // The two panels sit on opposite faces of the wall; 内外翻转 swaps which face each one is on.
+    // 两扇门板分别贴在墙的两个面上；「内外翻转」就是交换哪一扇在哪个面。
     const panelFlipSign = door.swing === -1 ? -1 : 1;
     const panelCenters = slidingDoorPanelCenters(openingLengthPx, hingeDirection);
     const panelHalfWidthPx = openingLengthPx * 0.27;
