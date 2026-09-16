@@ -1658,6 +1658,10 @@
   pointer-events: none;
   animation: hb-camera-device-arrive 0.62s cubic-bezier(0.2, 0.78, 0.28, 1) 0.08s 1 both;
 }
+/* 挂架底座：整台摄像机完全用 CSS 画，自下而上是底座、支臂、球机身、镜头、指示灯。
+   104×54 是按外层 .hb-camera-device-visual（190×122）的比例定的，改尺寸需同步调其它件。
+   圆角写成 48%/36% 的两段式，是为了让顶部呈穹顶、底部仍接近方形，像真实的云台底座；
+   168deg 的金属渐变刻意让高光偏右上，与机身 36% 25% 的径向高光保持同一光源方向。 */
 .hb-camera-device-mount {
   position: absolute;
   z-index: 1;
@@ -1674,6 +1678,8 @@
     0 10px 19px #00000057;
   transform: translate(-50%);
 }
+/* 底座的两处细部：:before 是上下壳的分模缝（1px 暗线 + 1px 白投影）；
+   :after 是底部的椭圆接地阴影（blur 0.4px 做柔化），避免底座看着悬浮在面板上。 */
 .hb-camera-device-mount:before {
   position: absolute;
   right: 13px;
@@ -1696,6 +1702,8 @@
   filter: blur(0.4px);
   content: "";
 }
+/* 支臂：76×8 的深色竖直渐变，z-index 2 夹在底座（1）与机身（3）之间，
+   从而做出「机身被支架托起」的前后遮挡关系。 */
 .hb-camera-device-arm {
   position: absolute;
   z-index: 2;
@@ -1710,6 +1718,9 @@
     0 3px 6px #00000042;
   transform: translate(-50%);
 }
+/* 球机身：径向渐变把高光中心放在 36% 25%，与底座光源同向，形成一颗金属球。
+   preserve-3d 与 transform-origin: 50% 88% 是为 JS 的 Web Animations 服务——
+   以底部为轴做 rotateY，镜头才会像云台一样摆动，而不是整颗球原地自转。 */
 .hb-camera-device-body {
   position: absolute;
   z-index: 3;
@@ -1728,6 +1739,8 @@
   transform-origin: 50% 88%;
   transform-style: preserve-3d;
 }
+/* 机身正面的镜头面板：inset 左右各留 27px，留出的 42px 宽度正好容纳下面 34px 的镜头外圈；
+   :after 是面板左上角一块旋转 18deg 的高光贴片，用来表现玻璃罩的反光。 */
 .hb-camera-device-body:before {
   position: absolute;
   inset: 10px 27px 9px;
@@ -1750,6 +1763,10 @@
   transform: rotate(18deg);
   content: "";
 }
+/* 镜头：5px 深色镜圈 + 四段径向渐变模拟镜片从反射到漆黑的过渡。
+   --hb-camera-lens-shift 由 renderer.js 按扫视目标写成 px 偏移（见 renderer.js 的
+   setProperty("--hb-camera-lens-shift", ...)），配 0.48s 缓动让每次移动是滑动而非瞬移；
+   变量默认 0px，所以没有 JS 驱动时镜头也保持居中。 */
 .hb-camera-device-lens {
   --hb-camera-lens-shift: 0px;
   position: absolute;
@@ -1773,6 +1790,8 @@
   transform: translate(calc(-50% + var(--hb-camera-lens-shift)), -50%);
   transition: transform 0.48s cubic-bezier(0.2, 0.72, 0.22, 1);
 }
+/* 镜圈外的 1px 描边环与机身顶部的 5px 指示灯：默认只有轮廓（描边透明 / 灯是灰的），
+   颜色统一留到下面的 .is-live / .is-unavailable 状态里给，避免静态时抢视觉。 */
 .hb-camera-device-lens:after {
   position: absolute;
   inset: -5px;
@@ -1795,6 +1814,8 @@
     background 0.25s ease,
     box-shadow 0.25s ease;
 }
+/* is-live（在线）：镜头加绿色内描边与外发光，并跑 3.4s 的呼吸动画；
+   描边环只点亮一次（1 次、不循环），作用是提示「刚连上」，而不是持续闪烁。 */
 .hb-camera-device-visual.is-live .hb-camera-device-lens {
   box-shadow:
     inset 0 0 0 2px #cddee642,
@@ -1806,6 +1827,8 @@
   border-color: #68cc3e8f;
   animation: hb-camera-device-lens-ready 0.66s ease-out 1;
 }
+/* 指示灯状态色：绿=在线、红=不可用，各配一圈与灯色同源的 box-shadow 当光晕。
+   不可用时镜头再加 grayscale + brightness 压暗，明确表达「有设备但没画面」。 */
 .hb-camera-device-visual.is-live .hb-camera-device-led {
   background: #68cc3e;
   box-shadow: 0 0 9px #68cc3ed1;
@@ -1817,6 +1840,9 @@
 .hb-camera-device-visual.is-unavailable .hb-camera-device-lens {
   filter: grayscale(1) brightness(0.65);
 }
+/* 预览舞台：grid + place-items 让 <video> 或占位图始终居中。
+   min-width / min-height 归零，是为了让它在 flex 父容器里能被压缩而不撑破外框
+   （flex 子项默认 min-width: auto，会拒绝收缩到内容尺寸以下）。 */
 .hb-camera-preview-stage {
   position: relative;
   display: grid;
@@ -1832,6 +1858,9 @@
   box-sizing: border-box;
   place-items: center;
 }
+/* 舞台衬底：径向渐变把画面中心略微提亮，避免纯 #080b0e 显得死黑；
+   圆角用 inherit 跟随舞台，防止边框与底色出现一圈错位；pointer-events: none
+   保证它压不住 <video> 的点击与悬停。 */
 .hb-camera-preview-stage:before {
   position: absolute;
   z-index: 0;
@@ -1854,6 +1883,8 @@
   clip-path: inset(0 0 0 0);
   pointer-events: none;
 }
+/* 扫描线：2px 高的横向亮带（两端透明、中点最亮），默认 opacity: 0 完全隐形，
+   只在下面的 .is-connecting / .is-revealing 状态里被 @keyframes hb-camera-scan-line 驱动。 */
 .hb-camera-preview-scan-line {
   position: absolute;
   z-index: 6;
@@ -1877,6 +1908,8 @@
   opacity: 0;
   pointer-events: none;
 }
+/* 动画由状态类驱动，且主舞台与弹窗舞台共用同一套规则（选择器成对出现）：
+   is-connecting 时扫描线无限循环（等流），is-revealing 时遮罩与扫描线各跑一次收尾。 */
 .hb-camera-preview-stage.is-revealing .hb-camera-preview-reveal-veil,
 .hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-reveal-veil {
   animation: hb-camera-reveal-veil 1.05s cubic-bezier(0.22, 0.61, 0.36, 1) 1 forwards;
@@ -1889,6 +1922,8 @@
 .hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-scan-line {
   animation: hb-camera-scan-line 1.05s cubic-bezier(0.22, 0.61, 0.36, 1) 1 forwards;
 }
+/* 连接完成的收尾：遮罩隐藏、扫描线移除，二者都必须彻底消失，
+   否则 backdrop-filter 会一直压着视频画面发暗。 */
 .hb-camera-preview-stage.is-ready .hb-camera-preview-reveal-veil,
 .hb-camera-preview-stage.is-unavailable .hb-camera-preview-reveal-veil,
 .hb-custom-popup-camera-stage.is-ready .hb-camera-preview-reveal-veil,
@@ -1902,6 +1937,7 @@
 .hb-custom-popup-camera-stage.is-unavailable .hb-camera-preview-scan-line {
   display: none;
 }
+/* 弹窗按媒体宽高比自适应时，舞台改由宽度推导高度（width: 100%; height: auto）。 */
 .hb-camera-preview-dialog.fit-media-ratio .hb-camera-preview-stage {
   width: 100%;
   height: auto;
@@ -2270,6 +2306,8 @@
   transform: none;
   isolation: isolate;
 }
+/* 球体的高光与投影：高光中心 38% 27%，与摄像机机身 36% 25% 共用一套光源方向；
+   三层阴影中两层 inset（一白一黑）做出外壳的圆弧转折，最外的投影让机器人离开背景。 */
 .hb-vacuum-robot:before {
   position: absolute;
   z-index: 2;
@@ -2283,6 +2321,7 @@
     0 15px 24px #0006;
   content: "";
 }
+/* 顶部盖板：inset 15px 的内圈描边，模拟可掀开的尘盒盖分缝。 */
 .hb-vacuum-robot:after {
   position: absolute;
   z-index: 2;
@@ -2292,6 +2331,8 @@
   box-shadow: inset 0 0 0 2px #fff3;
   content: "";
 }
+/* 激光雷达凸起：43px 圆台加自身投影，做出高于机身的层次；
+   is-working 时它顶面的小圆点会亮成主题色当工作指示。 */
 .hb-vacuum-robot-lidar {
   position: absolute;
   z-index: 3;
@@ -2307,6 +2348,7 @@
     0 5px 7px #00000059;
   transform: translate(-50%);
 }
+/* 雷达盖顶的小圆点：常态灰，只有 is-working 时才由下方状态规则改成主题色并加光晕。 */
 .hb-vacuum-robot-lidar:after {
   position: absolute;
   top: 7px;
@@ -2318,6 +2360,7 @@
   content: "";
   transform: translate(-50%);
 }
+/* 前向传感器条：50×8 的横向深色渐变（两头暗、中间亮），像一圈超声波/沿墙传感器窗口。 */
 .hb-vacuum-robot-sensor {
   position: absolute;
   z-index: 3;
@@ -2330,9 +2373,12 @@
   box-shadow: inset 0 1px #ffffff29;
   transform: translate(-50%);
 }
+/* 防撞条占位：DOM 里保留这个节点以便后续启用，当前 display: none 不参与渲染。 */
 .hb-vacuum-robot-bumper {
   display: none;
 }
+/* 边刷：repeating-conic-gradient 以 27deg 为周期重复，画出六簇刷毛；
+   默认 opacity 0 + scale 0.45，只有 is-sweeping 时显出并旋转，避免扫地模式下多两个动效。 */
 .hb-vacuum-robot-brush {
   position: absolute;
   z-index: 1;
@@ -2353,6 +2399,8 @@
     opacity 0.26s ease,
     scale 0.32s ease;
 }
+/* 抹布：径向渐变按 10/18/21/31px 四个半径分段，做出内圈压边 + 外圈绒面的层次；
+   与边刷同样默认透明、缩到 0.55，只在 is-mopping 时出现。 */
 .hb-vacuum-robot-mop {
   position: absolute;
   z-index: 1;
@@ -2379,6 +2427,7 @@
     opacity 0.26s ease,
     scale 0.32s ease;
 }
+/* 抹布中心的轴心圆盘，暗示这块布是自转着擦的。 */
 .hb-vacuum-robot-mop:after {
   position: absolute;
   top: 50%;
@@ -2392,6 +2441,7 @@
   content: "";
   transform: translate(-50%, -50%);
 }
+/* 左右两块抹布共用上一条规则的尺寸，仅靠 .left / .right 决定贴哪一侧（左右各留 9px）。 */
 .hb-vacuum-robot-mop.left {
   left: 9px;
 }
@@ -2460,6 +2510,7 @@
 .hb-vacuum-visual.is-working.is-mopping .hb-vacuum-robot-mop.right {
   animation: hb-vacuum-mop-right 1.8s linear infinite;
 }
+/* 工作中的三项状态：雷达顶灯亮成主题色、回充时电池环发光、暂停时机器人降饱和压暗。 */
 .hb-vacuum-visual.is-working .hb-vacuum-robot-lidar:after {
   background: var(--hb-vacuum-accent);
   box-shadow: 0 0 9px #f4a816c2;
@@ -2470,11 +2521,14 @@
 .hb-vacuum-visual.is-paused .hb-vacuum-robot {
   filter: saturate(0.5) brightness(0.8);
 }
+/* 详情区统计网格：固定两列等宽，minmax(0, 1fr) 是为了让列可以被压缩到 0，
+   否则里面的长数字会把列撑开、省略号（text-overflow）也就永远不会触发。 */
 .hb-vacuum-details-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
 }
+/* 单个统计卡片：内层 grid 居中，min-height 58px 与右侧动作按钮的高度节奏对齐。 */
 .hb-vacuum-details-stats > div {
   display: grid;
   min-width: 0;
@@ -2488,6 +2542,7 @@
   background: #ffffff06;
   box-sizing: border-box;
 }
+/* 卡片里的数值行：图标（i）与主数值并排居中；主数值与下方单位都强制单行省略。 */
 .hb-vacuum-details-stat-value {
   display: flex;
   min-width: 0;
@@ -2500,6 +2555,7 @@
   font: 15px/1 sans-serif;
   text-align: center;
 }
+/* 主数值与单位：两者都禁止换行，空间不足时统一走省略号，保证两列卡片高度一致。 */
 .hb-vacuum-details-stats strong {
   overflow: hidden;
   color: #dfe5e6;
@@ -2565,6 +2621,9 @@
     background 0.2s ease,
     transform 0.12s ease;
 }
+/* 末行补齐与紧凑模式：is-last-row-pair / is-last-row-single 把最后一行的按钮扩成
+   3 列 / 6 列，避免出现「贴左边留两个空位」的残缺行；has-many-actions（能力项偏多时
+   由 JS 加上）整体降高到 62px 并缩小图标与标题，让一屏能放下更多按钮。 */
 .hb-vacuum-details-actions button[hidden] {
   display: none;
 }
@@ -2582,9 +2641,11 @@
   width: 28px;
   height: 28px;
 }
+/* 紧凑模式下标题再降到 13px，与 28px 的图标圈、62px 的行高配套。 */
 .hb-vacuum-details-actions.has-many-actions button strong {
   font-size: 13px;
 }
+/* 图标圈：32px 圆形徽标，14px 字号靠 place-items 居中；与上方紧凑模式的 28px 版本同源。 */
 .hb-vacuum-details-actions button > i {
   display: grid;
   width: 32px;
@@ -2594,12 +2655,14 @@
   font: 14px/1 sans-serif;
   place-items: center;
 }
+/* 文案列：纵向两行（标题 + 说明），min-width: 0 是让长文案能真正触发省略号的前提。 */
 .hb-vacuum-details-actions button > span {
   display: grid;
   min-width: 0;
   gap: 4px;
   text-align: left;
 }
+/* 标题 16px 单行不折行、说明 10px 单行省略，两者都限一行，保证同一排按钮高度一致。 */
 .hb-vacuum-details-actions button strong {
   color: #dce2e4;
   font-size: 16px;
@@ -2616,6 +2679,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 交互四态：悬停与 .active（当前模式）用主题色描边 + 淡主题底；按下时下沉 1px 做触感反馈；
+   禁用（该能力档位不支持）只降不透明度并去掉手型光标，避免用户以为可以点。 */
 .hb-vacuum-details-actions button:hover:not(:disabled),
 .hb-vacuum-details-actions button.active {
   border-color: #f4a8166b;
@@ -2633,6 +2698,7 @@
   cursor: default;
   opacity: 0.5;
 }
+/* 选项组外壳：flex: 1 1 0 让它平分控制列剩余高度；标题行两端对齐（名称 / 当前值）。 */
 .hb-vacuum-details-option-group {
   display: grid;
   flex: 1 1 0;
@@ -2644,6 +2710,8 @@
   background: linear-gradient(145deg, #ffffff09, #ffffff03);
   box-shadow: inset 0 1px #ffffff06;
 }
+/* 选项组标题行：左名称右当前值，baseline 对齐让不同字号看起来在同一基线上；
+   右侧的当前值单行省略，避免长档位名把名称挤走。 */
 .hb-vacuum-details-option-group > div:first-child {
   display: flex;
   align-items: baseline;
@@ -2907,9 +2975,12 @@
     inset 0 1px #e2eaef13,
     inset 0 0 46px #6f849209;
 }
+/* 弹窗外框已限高，卡片再按 vh 限一次，避免小屏或移动端地址栏伸缩时标题被裁掉。 */
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-card {
   max-height: min(580px, calc(100vh - 60px));
 }
+/* 标题区排版：名称 34px 带字距、副文案 16px 灰色；
+   副文案非空时由 :before 补一个 8px 状态点，空字符串不会留下孤立的圆点。 */
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading > div {
   display: grid;
   min-width: 0;
@@ -2939,9 +3010,11 @@
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading span:not(:empty) {
   color: #8b969b;
 }
+/* 电动床弹窗不显示右上角关闭按钮，改由遮罩点击与返回操作关闭。 */
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading button {
   display: none;
 }
+/* 床体视图：只负责建立定位包含块并把内容居中，实际比例由内部绝对定位的各块床板决定。 */
 .hb-electric-bed-visual {
   position: relative;
   display: grid;
@@ -2975,6 +3048,7 @@
     transform 0.55s cubic-bezier(0.2, 0.78, 0.25, 1),
     filter 0.3s ease;
 }
+/* 床垫：左右各留 20px 铺满整幅，固定 58deg 倾角参与透视，不随姿态变量变化。 */
 .hb-electric-bed-mattress {
   z-index: 2;
   right: 20px;
@@ -2989,6 +3063,7 @@
     0 12px 18px #00000059;
   transform: perspective(520px) rotateX(58deg);
 }
+/* 背板：以底边为轴抬升，角度用 calc(34deg - --hb-bed-backrest-angle) 叠加 JS 写入的状态值。 */
 .hb-electric-bed-back {
   z-index: 1;
   top: 34px;
@@ -3002,6 +3077,7 @@
     0 8px 13px #00000052;
   transform: rotateX(calc(34deg - var(--hb-bed-backrest-angle)));
 }
+/* 腰托（z-index 3，最上层）：基准 58deg 与床垫同角以保证贴合，再叠加 --hb-bed-waist-angle。 */
 .hb-electric-bed-waist {
   z-index: 3;
   right: 92px;
@@ -3015,6 +3091,7 @@
     0 8px 12px #00000047;
   transform: perspective(520px) rotateX(calc(58deg - var(--hb-bed-waist-angle)));
 }
+/* 腿板：基准 63deg，注意这里是「加」--hb-bed-leg-angle——腿板向下折，与背板方向相反。 */
 .hb-electric-bed-legs {
   z-index: 1;
   right: 20px;
@@ -3028,6 +3105,7 @@
     0 8px 12px #0000004d;
   transform: rotateX(calc(63deg + var(--hb-bed-leg-angle)));
 }
+/* 底座：不参与姿态，固定 70deg 当最底层的透视面，z-index 0 保证被所有床板盖住。 */
 .hb-electric-bed-base {
   z-index: 0;
   right: 43px;
@@ -3042,6 +3120,8 @@
     inset 0 1px #ffffff1f;
   transform: perspective(440px) rotateX(70deg);
 }
+/* 角度读数：绝对定位在对应部位旁，tabular-nums 让数字变化时宽度不抖动；
+   整块 pointer-events: none，避免盖住下方的滑杆与按钮。 */
 .hb-electric-bed-angle-readout {
   position: absolute;
   z-index: 4;
@@ -3053,6 +3133,7 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+/* 读数主值 22px、单位 10px，两行用 gap: 2px 紧贴成一组。 */
 .hb-electric-bed-angle-readout strong {
   font-size: 22px;
   font-weight: 520;
@@ -3075,6 +3156,7 @@
   border-radius: 50%;
   content: "";
 }
+/* 背板读数贴床体左下角，上方那条虚线圆弧再旋转 -28deg 指向背板方向。 */
 .hb-electric-bed-angle-readout.back {
   top: 54px;
   left: 22px;
@@ -3084,6 +3166,8 @@
   left: 29px;
   transform: rotate(-28deg);
 }
+/* 腰托读数居中；标尺换成一条竖虚线（宽高重写、border 只留左边），
+   因为它量的是腰部抬升的水平位移而不是转角。 */
 .hb-electric-bed-angle-readout.waist {
   top: 30px;
   left: 50%;
@@ -3099,6 +3183,7 @@
   border-radius: 0;
   transform: translate(-50%);
 }
+/* 腿板读数贴右下角，与背板左右镜像：scaleX(-1) 先翻转再旋转，省掉一条正向重复规则。 */
 .hb-electric-bed-angle-readout.legs {
   top: 54px;
   right: 22px;
@@ -3108,6 +3193,8 @@
   right: 29px;
   transform: scaleX(-1) rotate(-28deg);
 }
+/* 控制列与卡片外壳：选项卡（control）与记忆卡（memory）共用同一套描边与淡底；
+   align-content: start 让卡片从顶部依次排，不被容器高度拉伸。 */
 .hb-electric-bed-controls {
   display: grid;
   min-width: 0;
@@ -3124,6 +3211,7 @@
   background: linear-gradient(145deg, #ffffff0b, #ffffff04);
   box-shadow: inset 0 1px #ffffff06;
 }
+/* 卡片小标题：13px / 650 字重，作为下面滑杆或选项组的组标题，与内容同为左对齐。 */
 .hb-electric-bed-control > strong,
 .hb-electric-bed-memory > strong {
   color: #d6dcde;
@@ -3133,9 +3221,13 @@
 /* 床的能力项直接复用通用能力控件（滑杆 / 下拉），下面几条规则只做「剥壳」：
    去掉它自带的外框与标题文字，因为外层 .hb-electric-bed-control 已经画了卡片，
    两层框叠在一起会出现双边框。 */
+/* 床的能力项直接复用通用能力控件（滑杆 / 下拉 / 选项按钮），下面几条规则只做「剥壳」：
+   去掉通用控件自带的外框、底色与标题文字，因为外层 .hb-electric-bed-control 已经画了卡片，
+   两层框叠在一起会出现双边框。 */
 .hb-electric-bed-capability {
   min-width: 0;
 }
+/* 剥掉滑杆组的外壳：gap / padding / 边框 / 底色 / 阴影全部归零，只留内容。 */
 .hb-electric-bed-capability .hb-capability-range-group {
   gap: 7px;
   padding: 0;
@@ -3143,6 +3235,7 @@
   background: transparent;
   box-shadow: none;
 }
+/* 隐藏通用控件的标题文字，只保留右侧的数值输出 output（它才是用户看的角度值）。 */
 .hb-electric-bed-capability .hb-capability-range-heading strong {
   display: none;
 }
@@ -3151,12 +3244,14 @@
   font-size: 14px;
   font-weight: 650;
 }
+/* 滑杆本体：8px 圆角轨道 + accent-color 跟随床的主题色，省掉自绘 thumb 的成本。 */
 .hb-electric-bed-capability .hb-capability-range-group input[type="range"] {
   width: 100%;
   height: 8px;
   border-radius: 99px;
   accent-color: var(--hb-bed-accent);
 }
+/* 选项组同样剥壳（保留 7px 间距），按钮列宽交给下面的 grid 规则统一决定。 */
 .hb-electric-bed-capability .hb-capability-option-group {
   gap: 7px;
   padding: 0;
@@ -3164,9 +3259,11 @@
   background: transparent;
   box-shadow: none;
 }
+/* 隐藏选项组自带的标题，外层卡片标题已经表达了同一信息。 */
 .hb-electric-bed-capability .hb-capability-option-group > strong {
   display: none;
 }
+/* 原生 select 也套同一套外观，右侧 34px 内边距给系统下拉箭头留位（不是自绘箭头）。 */
 .hb-electric-bed-capability .hb-capability-select {
   width: 100%;
   min-height: 38px;
@@ -3179,6 +3276,8 @@
   font-weight: 620;
   cursor: pointer;
 }
+/* select 的三态：focus-visible 用主题色描边 + outline（键盘可见又不改变盒子尺寸）；
+   disabled 只降不透明度；option 必须显式写底色，否则深色页面上会冒出系统白底。 */
 .hb-electric-bed-capability .hb-capability-select:focus-visible {
   border-color: color-mix(in srgb, var(--hb-bed-accent) 72%, transparent);
   outline: 2px solid color-mix(in srgb, var(--hb-bed-accent) 35%, transparent);
@@ -3192,10 +3291,12 @@
   color: #e1e6e7;
   background: #20282d;
 }
+/* 自绘下拉的定位容器：原生 select 无法做出弹窗内的一致外观，故部分场景改用这套。 */
 .hb-electric-bed-select {
   position: relative;
   min-width: 0;
 }
+/* 触发器：两列网格（当前值 / 18px 箭头），min-height 44px 满足触摸目标最小尺寸。 */
 .hb-electric-bed-select-trigger {
   position: relative;
   display: grid;
@@ -3221,18 +3322,22 @@
     background 0.18s ease,
     box-shadow 0.18s ease;
 }
+/* 当前值文本：单行省略，min-width: 0 是让省略号真正生效的前提。 */
 .hb-electric-bed-select-trigger > span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 箭头容器：18×18 的占位盒，真正的箭头由 :after 画（见下一条）。 */
 .hb-electric-bed-select-trigger > i {
   position: relative;
   display: block;
   width: 18px;
   height: 18px;
 }
+/* 箭头本体：只留右边与下边两条边再旋转 45deg，用一个方块拼出 chevron，
+   上下位移与旋转都带 0.18s 过渡，展开/收起时是连续翻转而不是跳变。 */
 .hb-electric-bed-select-trigger > i:after {
   position: absolute;
   top: 4px;
@@ -3247,10 +3352,13 @@
     top 0.18s ease,
     transform 0.18s ease;
 }
+/* 悬停：主题色描边 + 稍亮底色，只改颜色不改尺寸，避免鼠标移入移出时抖动。 */
 .hb-electric-bed-select-trigger:hover:not(:disabled) {
   border-color: #d3a56c7a;
   background: linear-gradient(145deg, #ffffff16, #ffffff06);
 }
+/* 展开态直接用 aria-expanded 属性驱动（而不是额外加类名），样式与无障碍状态天然同步；
+   下面那条把箭头下移 3px 并旋转 225deg，形成向上翻的视觉。 */
 .hb-electric-bed-select-trigger[aria-expanded="true"] {
   border-color: color-mix(in srgb, var(--hb-bed-accent, #d3a56c) 72%, transparent);
   color: #f4eee8;
@@ -3262,10 +3370,12 @@
   top: 7px;
   transform: rotate(225deg);
 }
+/* 键盘聚焦环用 outline（不占布局），再靠 outline-offset 与描边留出 2px 间隙。 */
 .hb-electric-bed-select-trigger:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--hb-bed-accent, #d3a56c) 34%, transparent);
   outline-offset: 2px;
 }
+/* 禁用：去掉手型光标并降不透明度表示不可操作。 */
 .hb-electric-bed-select-trigger:disabled {
   cursor: default;
   opacity: 0.5;
@@ -3292,12 +3402,15 @@
   box-sizing: border-box;
   scrollbar-color: rgba(211, 165, 108, 0.42) transparent;
 }
+/* [hidden] 与 ::backdrop：关闭时整体 display: none；backdrop 置透明是为了让「点外部关闭」
+   不被系统默认的半透明黑遮罩附加上去（那会让弹窗外的页面整体变暗）。 */
 .hb-electric-bed-select-menu[hidden] {
   display: none;
 }
 .hb-electric-bed-select-menu::backdrop {
   background: transparent;
 }
+/* 菜单项：29px 最小高度 + 单行省略；hover / 键盘 focus / 当前选中三态都用主题色系表达。 */
 .hb-electric-bed-select-option {
   width: 100%;
   min-width: 0;
@@ -3316,6 +3429,8 @@
   white-space: nowrap;
   cursor: pointer;
 }
+/* 菜单项的三态高亮：悬停与键盘聚焦共用一套（outline: 0 是因为这里用底色 + 描边
+   表达焦点，避免再套一圈系统焦点框形成双重描边）；.active 额外加一层内发光。 */
 .hb-electric-bed-select-option:hover,
 .hb-electric-bed-select-option:focus-visible {
   border-color: #96a2aa3d;
@@ -3329,10 +3444,12 @@
   background: color-mix(in srgb, var(--hb-bed-accent, #d3a56c) 17%, transparent);
   box-shadow: inset 0 0 12px #d3a56c14;
 }
+/* 选项按钮组：auto-fit + minmax(70px) 让 2~4 个档位自动均分成一到两行，不用 JS 算列数。 */
 .hb-electric-bed-capability .hb-capability-options {
   grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
   gap: 6px;
 }
+/* 选项按钮：35px 高度比弹窗外的同类按钮矮一点，因为卡片内已经有一层留白。 */
 .hb-electric-bed-capability .hb-capability-options button {
   min-height: 35px;
   padding: 6px 8px;
@@ -3341,17 +3458,21 @@
   background: #ffffff05;
   font-size: 12px;
 }
+/* 选中档位：主题色描边 + 半透明主题底 + 外发光，与上方动作按钮的选中语言保持一致。 */
 .hb-electric-bed-capability .hb-capability-options button.active {
   border-color: color-mix(in srgb, var(--hb-bed-accent) 64%, transparent);
   color: #f3eadf;
   background: color-mix(in srgb, var(--hb-bed-accent) 15%, transparent);
   box-shadow: 0 0 12px #d3a56c1f;
 }
+/* 记忆位：两列等宽网格，按钮单行省略，长名称不会把网格撑歪。 */
 .hb-electric-bed-memory-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
 }
+/* 记忆按钮：42px 高度以容纳"保存/调用"两字标题；hover 与保存成功（.is-success）
+   共用主题色高亮，按下下沉 1px，等待写回期间（.is-pending）换成 wait 光标防重复点击。 */
 .hb-electric-bed-memory-button {
   min-height: 42px;
   padding: 8px 10px;
@@ -3385,11 +3506,13 @@
 .hb-electric-bed-memory-button.is-pending {
   cursor: wait;
 }
+/* 记忆位为空时的占位文案：与记忆按钮同字号，去掉段落默认的上下外边距。 */
 .hb-electric-bed-empty {
   margin: 0;
   color: #88959a;
   font-size: 13px;
 }
+/* 副文案为空时整行隐藏，避免标题下方留下一段无内容的空白。 */
 .hb-entity-details-dialog.electric-bed-details .hb-entity-details-heading span:empty {
   display: none;
 }
@@ -3712,6 +3835,7 @@
   display: grid;
   gap: 4px;
 }
+/* 名称 34px / 副文案 16px，与其它详情弹窗共用同一套标题字号与字距。 */
 .hb-entity-details-dialog.light-details .hb-entity-details-heading strong {
   color: #f4f5f6;
   font-size: 34px;
@@ -3726,12 +3850,14 @@
   font-weight: 540;
   line-height: 1.2;
 }
+/* 副文案带 .is-on（灯处于开启）时换成暖金色，这是「当前为开」的唯一文字提示。 */
 .hb-entity-details-dialog.light-details .hb-entity-details-heading span.is-on {
   color: #c9a26d;
 }
 .hb-entity-details-dialog.light-details .hb-entity-details-heading button {
   display: none;
 }
+/* 关闭按钮已被上面的 display: none 隐藏，这条 hover 规则因此不会命中，保留仅为结构兼容。 */
 .hb-entity-details-dialog.light-details .hb-entity-details-heading button:hover {
   border-color: #f4a8167a;
   color: #f4a816;
@@ -3815,6 +3941,9 @@
 .hb-light-details-panel .hb-light-details-slider input::-webkit-slider-runnable-track {
   height: 14px;
 }
+/* WebKit 滑块：43px 圆钮（拖动时涨到 49px）；margin-top 取 −14.5px ≈ −(43−14)/2，
+   让滑块在 14px 的轨道上垂直居中；border 5px transparent 配 background-clip: padding-box，
+   是为了在不撑大盒子的前提下留出一圈描边位（纯色渐变只填充到 padding 边界）。 */
 .hb-light-details-panel .hb-light-details-slider input::-webkit-slider-thumb {
   width: 43px;
   height: 43px;
@@ -3833,9 +3962,12 @@
   height: 49px;
   margin-top: -17.5px;
 }
+/* Firefox 分支：轨道高度与 WebKit 对齐（同样 14px）。 */
 .hb-light-details-panel .hb-light-details-slider input::-moz-range-track {
   height: 14px;
 }
+/* Firefox 滑块 41px（拖动 47px），比 WebKit 的 43/49 各小 2px：
+   两个引擎对 border 与 margin 的算法不同，这样两边视觉尺寸才一致。 */
 .hb-light-details-panel .hb-light-details-slider input::-moz-range-thumb {
   width: 41px;
   height: 41px;
@@ -3851,6 +3983,7 @@
   width: 47px;
   height: 47px;
 }
+/* 刻度说明文字：11px 灰字，与滑杆同列（grid-column: 2），落在滑杆下方一行。 */
 .hb-light-details-panel .hb-light-details-slider-legend {
   grid-column: 2;
   grid-row: 2;
@@ -10210,6 +10343,8 @@
   min-height: 56px;
   gap: 10px;
 }
+/* 3D 弹窗里再放大一档：返回键做成 ≥42px 的触摸高度；
+   所有字号都写成 calc(px / --hb-runtime-dialog-scale)，用来抵消弹窗外层的整体 CSS 缩放。 */
 .hb-custom-popup-dialog
   > :is(.hb-custom-popup-card)
   > .hb-media-browser-panel
@@ -10229,6 +10364,7 @@
   font-size: 32px;
   font-weight: 650;
 }
+/* 路径与状态文字同样按缩放系数反算字号，保证缩放下视觉尺寸一致。 */
 .hb-custom-popup-dialog
   > :is(.hb-custom-popup-card)
   > .hb-media-browser-panel
@@ -10241,6 +10377,7 @@
   .hb-media-browser-status {
   font-size: calc(17px / var(--hb-runtime-dialog-scale, 1));
 }
+/* 条目行：加大图标与文字的间距、放宽内边距，适应放大后的字号。 */
 .hb-custom-popup-dialog
   > :is(.hb-custom-popup-card)
   > .hb-media-browser-panel
@@ -10254,6 +10391,7 @@
   .hb-media-browser-item-title {
   font-size: calc(19px / var(--hb-runtime-dialog-scale, 1));
 }
+/* 条目内的操作按钮放大到 ≥48px 触摸高度；空态文案的上下外边距同步收到 6px。 */
 .hb-custom-popup-dialog
   > :is(.hb-custom-popup-card)
   > .hb-media-browser-panel
@@ -12528,6 +12666,7 @@
       var(--hb-presence-orbit-y-steep-negative, -12.01px)
     );
   }
+  /* 右上弧的后半段（45°→67.5°）：x 由 22.62px 增到 29.56px，y 由 −9.19px 收到 −4.98px。 */
   12.5% {
     transform: translate(
       var(--hb-presence-orbit-x-diagonal, 22.62px),
@@ -12543,6 +12682,7 @@
   25% {
     transform: translate(var(--hb-presence-orbit-x, 32px));
   }
+  /* 右下弧（112.5°→157.5°）：x 由 29.56px 收到 12.25px，y 由 4.98px 增到 12.01px。 */
   31.25% {
     transform: translate(
       var(--hb-presence-orbit-x-steep, 29.56px),
@@ -12564,6 +12704,7 @@
   50% {
     transform: translateY(var(--hb-presence-orbit-y, 13px));
   }
+  /* 左下弧（202.5°→247.5°）：x 由 −12.25px 递减到 −29.56px，y 由 12.01px 收到 4.98px。 */
   56.25% {
     transform: translate(
       var(--hb-presence-orbit-x-shallow-negative, -12.25px),
@@ -12585,6 +12726,7 @@
   75% {
     transform: translate(var(--hb-presence-orbit-x-negative, -32px));
   }
+  /* 左上弧（292.5°→337.5°）：x 由 −29.56px 收到 −12.25px，y 由 −4.98px 增到 −12.01px。 */
   81.25% {
     transform: translate(
       var(--hb-presence-orbit-x-steep-negative, -29.56px),
