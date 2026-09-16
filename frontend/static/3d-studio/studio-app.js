@@ -60,60 +60,60 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "./studio-curtain-track.js?v=20260916230552";
-import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260916230552";
+} from "./studio-curtain-track.js?v=20260916235816";
+import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260916235816";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "./studio-surface-textures.js?v=20260916230552";
-import { createOverviewStack } from "./studio-overview-stack.js?v=20260916230552";
-import { windowGeometryParts } from "./studio-window-geometry.js?v=20260916230552";
+} from "./studio-surface-textures.js?v=20260916235816";
+import { createOverviewStack } from "./studio-overview-stack.js?v=20260916235816";
+import { windowGeometryParts } from "./studio-window-geometry.js?v=20260916235816";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=20260916230552";
-import { addSecurityModel } from "./studio-security-models.js?v=20260916230552";
-import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260916230552";
-import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260916230552";
-import { createFloorTransition } from "./studio-floor-transition.js?v=20260916230552";
-import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260916230552";
-import { createGroundReflections } from "./studio-ground-reflections.js?v=20260916230552";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260916230552";
+} from "./studio-camera-constraints.js?v=20260916235816";
+import { addSecurityModel } from "./studio-security-models.js?v=20260916235816";
+import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260916235816";
+import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260916235816";
+import { createFloorTransition } from "./studio-floor-transition.js?v=20260916235816";
+import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260916235816";
+import { createGroundReflections } from "./studio-ground-reflections.js?v=20260916235816";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260916235816";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances,
   mergeWallBands
-} from "./studio-wall-materials.js?v=20260916230552";
+} from "./studio-wall-materials.js?v=20260916235816";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../modules/interaction3d/render-cache.js?v=20260916230552";
-import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260916230552";
-import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260916230552";
-import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260916230552";
-import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260916230552";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=20260916230552";
+} from "../modules/interaction3d/render-cache.js?v=20260916235816";
+import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260916235816";
+import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260916235816";
+import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260916235816";
+import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260916235816";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=20260916235816";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260916230552";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260916235816";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260916230552";
-import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260916230552";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260916235816";
+import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260916235816";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../modules/interaction3d/light-motion.js?v=20260916230552";
+} from "../modules/interaction3d/light-motion.js?v=20260916235816";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -153,7 +153,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "./geometry.js?v=20260916230552";
+} from "./geometry.js?v=20260916235816";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -162,32 +162,32 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "./export-utils.js?v=20260916230552";
+} from "./export-utils.js?v=20260916235816";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "./export-presets.js?v=20260916230552";
-import { reorderFloors } from "./floor-order.js?v=20260916230552";
-import { syncControlValue } from "./ui-controls.js?v=20260916230552";
+} from "./export-presets.js?v=20260916235816";
+import { reorderFloors } from "./floor-order.js?v=20260916235816";
+import { syncControlValue } from "./ui-controls.js?v=20260916235816";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=20260916230552";
+} from "./studio-widgets.js?v=20260916235816";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "./studio-external-models.js?v=20260916230552";
+} from "./studio-external-models.js?v=20260916235816";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "./studio-plan-drawing.js?v=20260916230552";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260916230552";
-import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260916230552";
-import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260916230552";
+} from "./studio-plan-drawing.js?v=20260916235816";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260916235816";
+import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260916235816";
+import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260916235816";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -200,7 +200,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "./studio-normalization.js?v=20260916230552";
+} from "./studio-normalization.js?v=20260916235816";
 window.__haBridgeStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 /**
@@ -1379,7 +1379,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/draco-decoder-worker.js?v=20260916230552"
+  "/static/3d-studio/draco-decoder-worker.js?v=20260916235816"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -29828,7 +29828,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/stage.js?v=20260916230552");
+        await import("/api/v1/modules/interaction3d/stage.js?v=20260916235816");
       mountStage(createStageController());
       return;
     }

@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260916230552";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260916235816";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -51,9 +51,9 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260916230552";
-import { randomUuid } from "../utils/random-id.js?v=20260916230552";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260916230552";
+} from "./registry.js?v=20260916235816";
+import { randomUuid } from "../utils/random-id.js?v=20260916235816";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260916235816";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -72,11 +72,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260916230552";
+} from "./climate.js?v=20260916235816";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260916230552";
+} from "./device-profiles.js?v=20260916235816";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -85,25 +85,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260916230552";
+} from "../related-entities.js?v=20260916235816";
+import { confirmAction } from "../ui-confirm.js?v=20260916235816";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260916230552";
+} from "./entity-power.js?v=20260916235816";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260916230552";
-import { componentActionIsSupported } from "../action-rules.js?v=20260916230552";
+} from "../virtual-entities.js?v=20260916235816";
+import { componentActionIsSupported } from "../action-rules.js?v=20260916235816";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260916230552";
+} from "./transform-geometry.js?v=20260916235816";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -113,7 +114,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260916230552";
+} from "./effect-geometry.js?v=20260916235816";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -132,14 +133,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260916230552";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260916230552";
+} from "./light-runtime.js?v=20260916235816";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260916235816";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260916230552";
+} from "./vacuum-runtime.js?v=20260916235816";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -172,13 +173,13 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260916230552";
+} from "./cover-runtime.js?v=20260916235816";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260916230552";
+} from "./runtime-dialog-motion.js?v=20260916235816";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -188,13 +189,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260916230552";
+} from "./runtime-caches.js?v=20260916235816";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260916230552";
+} from "./runtime-document.js?v=20260916235816";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -17390,22 +17391,34 @@ export class PanelRenderer {
         };
         actionButtonElement.addEventListener("click", async () => {
           if (
-            !!extensionsInteractive &&
-            !isActionPending &&
-            !actionButtonElement.disabled &&
-            (!relatedEntityNeedsConfirmation(relatedEntityRecord) ||
-              !!window.confirm("确认执行“" + relatedEntityLabelText + "”吗？"))
+            !extensionsInteractive ||
+            isActionPending ||
+            actionButtonElement.disabled
           ) {
-            isActionPending = true;
-            renderActionButton(getExtensionEntityState(relatedEntityId));
-            try {
-              await this.callEntityService("button", "press", relatedEntityId);
-            } catch (actionRequestError) {
-              this.options.onError?.(actionRequestError);
-            } finally {
-              isActionPending = false;
-              renderActionButton(getExtensionEntityState(relatedEntityId));
+            return;
+          }
+          if (relatedEntityNeedsConfirmation(relatedEntityRecord)) {
+            const confirmedAction = await confirmAction({
+              kicker: "DANGER ZONE",
+              title: "确认执行",
+              message: "确认执行「" + relatedEntityLabelText + "」吗？",
+              detail: "这是一项可能不可逆的操作，请确认后再继续。",
+              confirmLabel: "确认执行",
+              tone: "danger"
+            });
+            if (!confirmedAction) {
+              return;
             }
+          }
+          isActionPending = true;
+          renderActionButton(getExtensionEntityState(relatedEntityId));
+          try {
+            await this.callEntityService("button", "press", relatedEntityId);
+          } catch (actionRequestError) {
+            this.options.onError?.(actionRequestError);
+          } finally {
+            isActionPending = false;
+            renderActionButton(getExtensionEntityState(relatedEntityId));
           }
         });
         renderActionButton(getExtensionEntityState(relatedEntityId));

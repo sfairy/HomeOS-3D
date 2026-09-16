@@ -8,6 +8,7 @@
  * 约定：接口路径由注入的 api 拼接（相对 /api/v1），本模块不直接 fetch；
  *   每页 200 条，翻到「查看历史」时暂停自动刷新，避免覆盖用户正在看的内容。
  */
+import { confirmAction } from "./ui-confirm.js?v=20260916235816";
 
 // 日志等级的中文名，与后端 global_log.py 的等级枚举一致。
 const LEVEL_LABELS = {
@@ -332,18 +333,27 @@ export function setupGlobalLog({ api: apiRequest }) {
   });
   clearButton.addEventListener("click", async () => {
     // 清空不可恢复，必须二次确认。
-    if (window.confirm("确定清空当前全局日志吗？清空后无法恢复。")) {
-      clearButton.disabled = true;
-      try {
-        await apiRequest("/logs", {
-          method: "DELETE"
-        });
-        await loadEntries();
-      } catch (clearError) {
-        statusElement.textContent = clearError.message || "日志清空失败。";
-      } finally {
-        clearButton.disabled = false;
-      }
+    const confirmedClear = await confirmAction({
+      kicker: "DANGER ZONE",
+      title: "清空全局日志",
+      message: "确定清空当前全局日志吗？",
+      detail: "清空后无法恢复。",
+      confirmLabel: "确认清空",
+      tone: "danger"
+    });
+    if (!confirmedClear) {
+      return;
+    }
+    clearButton.disabled = true;
+    try {
+      await apiRequest("/logs", {
+        method: "DELETE"
+      });
+      await loadEntries();
+    } catch (clearError) {
+      statusElement.textContent = clearError.message || "日志清空失败。";
+    } finally {
+      clearButton.disabled = false;
     }
   });
   return {

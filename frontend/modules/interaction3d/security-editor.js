@@ -16,18 +16,19 @@
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "./presence-motion.js?v=20260916230552";
-import { mountInteraction3d } from "./runtime.js?v=20260916230552";
-import { openPresenceEditor } from "./presence-editor.js?v=20260916230552";
+} from "./presence-motion.js?v=20260916235816";
+import { mountInteraction3d } from "./runtime.js?v=20260916235816";
+import { openPresenceEditor } from "./presence-editor.js?v=20260916235816";
 import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
-} from "./editor-save-status.js?v=20260916230552";
+} from "./editor-save-status.js?v=20260916235816";
+import { confirmAction } from "/static/ui-confirm.js?v=20260916235816";
 import { randomUuid } from "/static/utils/random-id.js";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/modules/interaction3d/bridge.js?v=20260916230552";
+} from "/static/modules/interaction3d/bridge.js?v=20260916235816";
 import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js";
 /**
  * 打开 3D 安防配置编辑器。
@@ -83,7 +84,7 @@ export async function openSecurityEditor({
   const styleSheetLinkElement = createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260916230552";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260916235816";
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D 安防配置");
   // 标记预览作用域：宿主据此识别「哪些弹窗会遮挡 3D 预览」，
@@ -362,9 +363,20 @@ export async function openSecurityEditor({
   saveButtonElement.disabled = true;
   // 关闭编辑器：有未保存改动先确认；随后释放子编辑器、选择器、预览运行时与观察者，
   // 移除注入的样式，并把焦点还给打开它的元素。
-  function closeEditor() {
+  async function closeEditor() {
     if (!isDisposed) {
-      if (isDirty && !window.confirm(EDITOR_SAVE_STATUS.dirtyExitConfirm)) {
+      if (
+        isDirty &&
+        !(await confirmAction({
+          kicker: "UNSAVED",
+          title: "退出编辑",
+          message: EDITOR_SAVE_STATUS.dirtyExitConfirm,
+          detail: "未保存的改动会丢失。",
+          confirmLabel: "退出",
+          cancelLabel: "继续编辑",
+          tone: "warning"
+        }))
+      ) {
         return;
       }
       isDisposed = true;

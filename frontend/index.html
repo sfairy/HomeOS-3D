@@ -16,7 +16,7 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/client-log.js?v=20260916230552"></script>
+    <script src="/static/client-log.js?v=20260916235816"></script>
     <!-- 编辑器是桌面级布局，固定按 1020px 逻辑宽度出图，小屏靠缩放而不是响应式重排。 -->
     <meta name="viewport" content="width=1020,user-scalable=yes" />
     <meta name="theme-color" content="#172029" />
@@ -25,26 +25,26 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>HomeOS全屋智能管家</title>
-    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916230552" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916230552" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916230552" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916230552" sizes="180x180" />
-    <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260916230552" />
-    <link rel="stylesheet" href="/static/global-log.css?v=20260916230552" />
+    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260916235816" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260916235816" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260916235816" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260916235816" sizes="180x180" />
+    <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260916235816" />
+    <link rel="stylesheet" href="/static/global-log.css?v=20260916235816" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；app.css、renderer.css 与 home.js
          内部 import 的模块必须共用同一枚时间戳，否则样式与运行时会对不上版本。 -->
     <link
       rel="stylesheet"
-      href="/static/app.css?v=20260916230552"
+      href="/static/app.css?v=20260916235816"
     />
-    <link rel="stylesheet" href="/static/renderer/renderer.css?v=20260916230552" />
-    <link rel="stylesheet" href="/static/modules/interaction3d/bridge.css?v=20260916230552" />
+    <link rel="stylesheet" href="/static/renderer/renderer.css?v=20260916235816" />
+    <link rel="stylesheet" href="/static/modules/interaction3d/bridge.css?v=20260916235816" />
   </head>
   <body>
     <!-- ===== 顶部工具条：四个入口按钮的状态点都由脚本按轮询结果着色 ===== -->
     <header class="editor-header">
       <div class="brand-lockup">
-        <img class="brand-icon" src="/static/homeos-mark-white-orange.svg?v=20260916230552" alt="" /><strong
+        <img class="brand-icon" src="/static/homeos-mark-white-orange.svg?v=20260916235816" alt="" /><strong
           >HomeOS</strong
         ><span class="version">0.5.5</span>
       </div>
@@ -3535,6 +3535,57 @@
         <div id="sessions-message" class="settings-message" hidden></div>
       </div>
     </dialog>
+    <!-- 退出其他所有设备：叠在登录会话弹窗之上；确认后只保留本机会话。 -->
+    <dialog id="sessions-revoke-others-dialog" class="settings-dialog delete-dialog">
+      <div class="dialog-heading">
+        <div>
+          <span>DANGER ZONE</span>
+          <h2>退出其他设备</h2>
+        </div>
+        <button
+          id="sessions-revoke-others-close"
+          class="icon-button"
+          type="button"
+          aria-label="关闭退出其他设备确认"
+        >
+          &times;
+        </button>
+      </div>
+      <div class="settings-form">
+        <div class="delete-warning">
+          <strong>确认退出其他所有设备的登录会话？</strong>
+          <p>只有当前这个浏览器会保持登录，其余都需要重新输入密码。</p>
+        </div>
+        <div id="sessions-revoke-others-message" class="settings-message" hidden></div>
+        <div class="dialog-actions">
+          <button id="sessions-revoke-others-cancel" type="button">取消</button
+          ><button id="sessions-revoke-others-confirm" class="danger" type="button">确认退出</button>
+        </div>
+      </div>
+    </dialog>
+    <!-- 撤销单条登录会话：叠在登录会话弹窗之上；确认后该设备立即掉线。 -->
+    <dialog id="sessions-revoke-dialog" class="settings-dialog delete-dialog">
+      <div class="dialog-heading">
+        <div>
+          <span>DANGER ZONE</span>
+          <h2>撤销登录会话</h2>
+        </div>
+        <button id="sessions-revoke-close" class="icon-button" type="button" aria-label="关闭撤销会话确认">
+          &times;
+        </button>
+      </div>
+      <div class="settings-form">
+        <div class="delete-warning">
+          <strong>确认撤销「<b id="sessions-revoke-label"></b>」这条登录会话？</strong>
+          <p>该设备会立即掉线，需要重新输入密码才能再次进入后台。</p>
+        </div>
+        <div id="sessions-revoke-message" class="settings-message" hidden></div>
+        <div class="dialog-actions">
+          <button id="sessions-revoke-cancel" type="button">取消</button
+          ><button id="sessions-revoke-confirm" class="danger" type="button">确认撤销</button>
+        </div>
+      </div>
+    </dialog>
     <!-- 中控设备：列出已配对展示端并生成新的配对码；配对成功后新增设备仍需后端 license 能力放行。 -->
     <dialog id="display-devices-dialog" class="settings-dialog display-devices-dialog">
       <div class="dialog-heading">
@@ -4374,11 +4425,11 @@
         </div>
       </div>
     </dialog>
-    <script type="module" src="/static/global-log-boot.js?v=20260916230552"></script>
+    <script type="module" src="/static/global-log-boot.js?v=20260916235816"></script>
     <script src="/static/vendor/hls.js/1.6.16/hls.min.js"></script>
     <script
       type="module"
-      src="/static/home.js?v=20260916230552"
+      src="/static/home.js?v=20260916235816"
     ></script>
   </body>
 </html>

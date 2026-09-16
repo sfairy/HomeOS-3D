@@ -21,7 +21,7 @@
  *   7. 编辑历史、草稿保存与崩溃恢复；
  *   8. 拖拽 / 缩放 / 对齐等画布手势，以及文件末尾的初始化与事件绑定。
  *
- * 版本戳约定：本文件内部所有 `import ... ?v=20260916230552` 必须使用同一条版本戳，
+ * 版本戳约定：本文件内部所有 `import ... ?v=20260916235816` 必须使用同一条版本戳，
  * 与 renderer/renderer.js 引用 renderer/registry.js 的 `?v=` 完全一致 ——
  * 两条路径都指向同一份控件注册表，版本戳一旦不同就会加载出两份注册表，
  * 表现为控件类型在某些视图里"找不到"。改动静态资源后由
@@ -42,17 +42,17 @@
  *   - 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260916230552";
+import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260916235816";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "./renderer/renderer.js?v=20260916230552";
+} from "./renderer/renderer.js?v=20260916235816";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "./renderer/registry.js?v=20260916230552";
+} from "./renderer/registry.js?v=20260916235816";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -60,7 +60,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "./templates/component-templates.js?v=20260916230552";
+} from "./templates/component-templates.js?v=20260916235816";
 import {
   clone,
   newId,
@@ -72,21 +72,21 @@ import {
   roundField,
   clampNumber,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260916230552";
+} from "./editor-utils.js?v=20260916235816";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "./popup-layout.js?v=20260916230552";
+} from "./popup-layout.js?v=20260916235816";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260916230552";
+} from "./dashboard-resize.js?v=20260916235816";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260916230552";
+} from "./component-page-copy.js?v=20260916235816";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -98,24 +98,25 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "./related-entities.js?v=20260916230552";
-import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260916230552";
-import { createButtonSound } from "./sound-effects.js?v=20260916230552";
+} from "./related-entities.js?v=20260916235816";
+import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260916235816";
+import { createButtonSound } from "./sound-effects.js?v=20260916235816";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260916230552";
-import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260916230552";
+} from "./editor-dialogs.js?v=20260916235816";
+import { confirmAction } from "./ui-confirm.js?v=20260916235816";
+import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260916235816";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./editor-picker-pagination.js?v=20260916230552";
-import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260916230552";
-import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260916230552";
-import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260916230552";
-import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260916230552";
-import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260916230552";
+} from "./editor-picker-pagination.js?v=20260916235816";
+import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260916235816";
+import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260916235816";
+import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260916235816";
+import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260916235816";
+import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260916235816";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -123,13 +124,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "./action-rules.js?v=20260916230552";
+} from "./action-rules.js?v=20260916235816";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260916230552";
+} from "./component-tree.js?v=20260916235816";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -139,13 +140,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260916230552";
+} from "./editor-component-collections.js?v=20260916235816";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260916230552";
+} from "./editor-basic-inspectors.js?v=20260916235816";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -156,7 +157,7 @@ import {
   popupModuleTypeLabel,
   reorderedPopupModules,
   uniquePagePath
-} from "./editor-document-management.js?v=20260916230552";
+} from "./editor-document-management.js?v=20260916235816";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -164,18 +165,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260916230552";
+} from "./editor-history.js?v=20260916235816";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "./3d-studio/studio-normalization.js?v=20260916230552";
-import { createLicenseCard } from "./license-card.js?v=20260916230552";
+} from "./3d-studio/studio-normalization.js?v=20260916235816";
+import { createLicenseCard } from "./license-card.js?v=20260916235816";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "./modules/interaction3d/editor.js?v=20260916230552";
+} from "./modules/interaction3d/editor.js?v=20260916235816";
 /**
  * 按选择器取单个 DOM 节点的简写。
  *
@@ -375,6 +376,17 @@ const sessionsOpenButtonElement = findElement("#sessions-open");
 const sessionsDialogElement = findElement("#sessions-dialog");
 const sessionsCloseButtonElement = findElement("#sessions-close");
 const sessionsRevokeOthersButtonElement = findElement("#sessions-revoke-others");
+const sessionsRevokeOthersDialogElement = findElement("#sessions-revoke-others-dialog");
+const sessionsRevokeOthersCloseButtonElement = findElement("#sessions-revoke-others-close");
+const sessionsRevokeOthersCancelButtonElement = findElement("#sessions-revoke-others-cancel");
+const sessionsRevokeOthersConfirmButtonElement = findElement("#sessions-revoke-others-confirm");
+const sessionsRevokeOthersMessageElement = findElement("#sessions-revoke-others-message");
+const sessionsRevokeDialogElement = findElement("#sessions-revoke-dialog");
+const sessionsRevokeCloseButtonElement = findElement("#sessions-revoke-close");
+const sessionsRevokeCancelButtonElement = findElement("#sessions-revoke-cancel");
+const sessionsRevokeConfirmButtonElement = findElement("#sessions-revoke-confirm");
+const sessionsRevokeLabelElement = findElement("#sessions-revoke-label");
+const sessionsRevokeMessageElement = findElement("#sessions-revoke-message");
 const sessionCountElement = findElement("#session-count");
 const sessionListElement = findElement("#session-list");
 const sessionsMessageElement = findElement("#sessions-message");
@@ -2294,19 +2306,26 @@ async function loadDisplayPairingCodes() {
     displayDeviceDeleteButtonElement.className = "danger";
     displayDeviceDeleteButtonElement.textContent = "删除";
     displayDeviceDeleteButtonElement.addEventListener("click", async () => {
-      if (
-        window.confirm("确认删除“" + pairingCodeEntry.name + "”的固定配对码？绑定设备会立即失效。")
-      ) {
-        displayDeviceDeleteButtonElement.disabled = true;
-        try {
-          await requestJson("/displays/pairing-codes/" + encodeURIComponent(pairingCodeEntry.id), {
-            method: "DELETE"
-          });
-          await loadDisplayPairingCodes();
-        } catch (deletePairingCodeError) {
-          setSettingsMessage(displayDevicesMessageElement, deletePairingCodeError.message, "error");
-          displayDeviceDeleteButtonElement.disabled = false;
-        }
+      const confirmedDelete = await confirmAction({
+        kicker: "DANGER ZONE",
+        title: "删除配对码",
+        message: "确认删除「" + pairingCodeEntry.name + "」的固定配对码？",
+        detail: "绑定设备会立即失效。",
+        confirmLabel: "确认删除",
+        tone: "danger"
+      });
+      if (!confirmedDelete) {
+        return;
+      }
+      displayDeviceDeleteButtonElement.disabled = true;
+      try {
+        await requestJson("/displays/pairing-codes/" + encodeURIComponent(pairingCodeEntry.id), {
+          method: "DELETE"
+        });
+        await loadDisplayPairingCodes();
+      } catch (deletePairingCodeError) {
+        setSettingsMessage(displayDevicesMessageElement, deletePairingCodeError.message, "error");
+        displayDeviceDeleteButtonElement.disabled = false;
       }
     });
     displayDeviceCopyElement.append(displayDeviceNameElement, displayDeviceMetaElement);
@@ -2326,13 +2345,16 @@ async function loadDisplayPairingCodes() {
       displayDeviceUnbindButtonElement.type = "button";
       displayDeviceUnbindButtonElement.textContent = "解绑";
       displayDeviceUnbindButtonElement.addEventListener("click", async () => {
-        if (
-          !window.confirm(
-            "确认解绑“" +
-              pairingCodeEntry.name +
-              "”？该设备会立即失去控制权；要重新配对，请在那台设备上再输入一次配对码。"
-          )
-        ) {
+        const confirmedUnbind = await confirmAction({
+          kicker: "DANGER ZONE",
+          title: "解绑中控设备",
+          message: "确认解绑「" + pairingCodeEntry.name + "」？",
+          detail:
+            "该设备会立即失去控制权；要重新配对，请在那台设备上再输入一次配对码。",
+          confirmLabel: "确认解绑",
+          tone: "danger"
+        });
+        if (!confirmedUnbind) {
           return;
         }
         displayDeviceUnbindButtonElement.disabled = true;
@@ -2444,20 +2466,8 @@ async function loadLoginSessions() {
       sessionRevokeButtonElement.type = "button";
       sessionRevokeButtonElement.className = "danger";
       sessionRevokeButtonElement.textContent = "撤销";
-      sessionRevokeButtonElement.addEventListener("click", async () => {
-        if (!window.confirm("确认撤销这条登录会话？该设备会立即掉线。")) {
-          return;
-        }
-        sessionRevokeButtonElement.disabled = true;
-        try {
-          await requestJson("/auth/sessions/" + encodeURIComponent(sessionEntry.id), {
-            method: "DELETE"
-          });
-          await loadLoginSessions();
-        } catch (revokeSessionError) {
-          setSettingsMessage(sessionsMessageElement, revokeSessionError.message, "error");
-          sessionRevokeButtonElement.disabled = false;
-        }
+      sessionRevokeButtonElement.addEventListener("click", () => {
+        openSessionsRevokeDialog(sessionEntry);
       });
       sessionActionsElement.append(sessionRevokeButtonElement);
       sessionItemElement.append(sessionActionsElement);
@@ -2483,6 +2493,39 @@ async function openSessionsDialog() {
     await loadLoginSessions();
   } catch (sessionsLoadError) {
     setSettingsMessage(sessionsMessageElement, sessionsLoadError.message, "error");
+  }
+}
+/**
+ * 打开「撤销单条登录会话」确认弹窗。
+ *
+ * 叠在登录会话列表之上；确认按钮把会话 id 存在 dataset 里，
+ * 避免闭包持有整份条目。
+ *
+ * @param {{ id: string, current?: boolean, ipAddress?: string }} sessionEntry 待撤销的会话。
+ * @returns {void}
+ */
+function openSessionsRevokeDialog(sessionEntry) {
+  if (!sessionEntry?.id || sessionEntry.current) {
+    return;
+  }
+  sessionsRevokeDialogElement.dataset.sessionId = sessionEntry.id;
+  sessionsRevokeLabelElement.textContent = sessionEntry.ipAddress || "未知来源";
+  setSettingsMessage(sessionsRevokeMessageElement, "");
+  sessionsRevokeConfirmButtonElement.disabled = false;
+  if (!sessionsRevokeDialogElement.open) {
+    sessionsRevokeDialogElement.showModal();
+  }
+}
+/**
+ * 打开「退出其他所有设备」确认弹窗。
+ *
+ * @returns {void}
+ */
+function openSessionsRevokeOthersDialog() {
+  setSettingsMessage(sessionsRevokeOthersMessageElement, "");
+  sessionsRevokeOthersConfirmButtonElement.disabled = false;
+  if (!sessionsRevokeOthersDialogElement.open) {
+    sessionsRevokeOthersDialogElement.showModal();
   }
 }
 /**
@@ -4698,7 +4741,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260916230552";
+          ".jpg?v=20260916235816";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -14140,12 +14183,16 @@ haFormElement.addEventListener("submit", async haSubmitEvent => {
       if (haUrlChangeError.code !== "HA_URL_CHANGED_TOKEN_REUSE") {
         throw haUrlChangeError;
       }
-      const confirmed = window.confirm(
-        "你改了 Home Assistant 地址，但仍使用已保存的令牌。\n\n" +
-          "继续保存会把旧令牌发送到新的地址去验证。只有在新地址确实是你自己的 Home Assistant 时才确认。\n\n" +
-          "也可以直接在上面的 Token 输入框里重新输入令牌。\n\n确认继续？"
-      );
-      if (!confirmed) {
+      const confirmedUrlReuse = await confirmAction({
+        kicker: "CAUTION",
+        title: "确认新的 Home Assistant 地址",
+        message: "你改了 Home Assistant 地址，但仍使用已保存的令牌。",
+        detail:
+          "继续保存会把旧令牌发送到新的地址去验证。只有在新地址确实是你自己的 Home Assistant 时才确认。\n也可以直接在上面的 Token 输入框里重新输入令牌。",
+        confirmLabel: "确认继续",
+        tone: "warning"
+      });
+      if (!confirmedUrlReuse) {
         throw new Error("已取消：请确认新地址可信，或重新输入 Token。");
       }
       haConnectionInfo = await requestJson("/ha/connection", {
@@ -29452,24 +29499,64 @@ displayDevicesCloseButtonElement.addEventListener("click", () =>
 );
 sessionsOpenButtonElement.addEventListener("click", openSessionsDialog);
 sessionsCloseButtonElement.addEventListener("click", () => sessionsDialogElement.close());
-sessionsRevokeOthersButtonElement.addEventListener("click", async () => {
-  if (
-    !window.confirm(
-      "确认退出其他所有设备的登录会话？只有当前这个浏览器会保持登录，其余都需要重新输入密码。"
-    )
-  ) {
-    return;
-  }
-  sessionsRevokeOthersButtonElement.disabled = true;
+sessionsRevokeOthersButtonElement.addEventListener("click", openSessionsRevokeOthersDialog);
+sessionsRevokeOthersCloseButtonElement.addEventListener("click", () =>
+  sessionsRevokeOthersDialogElement.close()
+);
+sessionsRevokeOthersCancelButtonElement.addEventListener("click", () =>
+  sessionsRevokeOthersDialogElement.close()
+);
+sessionsRevokeOthersConfirmButtonElement.addEventListener("click", async () => {
+  sessionsRevokeOthersConfirmButtonElement.disabled = true;
+  setSettingsMessage(sessionsRevokeOthersMessageElement, "");
   setSettingsMessage(sessionsMessageElement, "");
   try {
     await requestJson("/auth/sessions", { method: "DELETE" });
+    sessionsRevokeOthersDialogElement.close();
     await loadLoginSessions();
-    setSettingsMessage(sessionsMessageElement, "已退出其他所有设备的登录会话。", "success");
+    setSettingsMessage(
+      sessionsMessageElement,
+      "已退出其他所有设备的登录会话。",
+      "success"
+    );
   } catch (revokeOtherSessionsError) {
-    setSettingsMessage(sessionsMessageElement, revokeOtherSessionsError.message, "error");
-  } finally {
-    sessionsRevokeOthersButtonElement.disabled = false;
+    setSettingsMessage(
+      sessionsRevokeOthersMessageElement,
+      revokeOtherSessionsError.message,
+      "error"
+    );
+    sessionsRevokeOthersConfirmButtonElement.disabled = false;
+  }
+});
+sessionsRevokeCloseButtonElement.addEventListener("click", () =>
+  sessionsRevokeDialogElement.close()
+);
+sessionsRevokeCancelButtonElement.addEventListener("click", () =>
+  sessionsRevokeDialogElement.close()
+);
+sessionsRevokeConfirmButtonElement.addEventListener("click", async () => {
+  const revokedSessionId = sessionsRevokeDialogElement.dataset.sessionId;
+  if (!revokedSessionId) {
+    setSettingsMessage(
+      sessionsRevokeMessageElement,
+      "会话已经不存在，请刷新后重试。",
+      "error"
+    );
+    return;
+  }
+  sessionsRevokeConfirmButtonElement.disabled = true;
+  setSettingsMessage(sessionsRevokeMessageElement, "");
+  setSettingsMessage(sessionsMessageElement, "");
+  try {
+    await requestJson("/auth/sessions/" + encodeURIComponent(revokedSessionId), {
+      method: "DELETE"
+    });
+    sessionsRevokeDialogElement.close();
+    delete sessionsRevokeDialogElement.dataset.sessionId;
+    await loadLoginSessions();
+  } catch (revokeSessionError) {
+    setSettingsMessage(sessionsRevokeMessageElement, revokeSessionError.message, "error");
+    sessionsRevokeConfirmButtonElement.disabled = false;
   }
 });
 displayPairingCustomCodeTextInputElement.addEventListener("input", () => {

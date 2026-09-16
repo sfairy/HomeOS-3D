@@ -28,11 +28,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../static/3d-studio/studio-curtain-track.js?v=20260916230552",
+        "../../static/3d-studio/studio-curtain-track.js?v=20260916235816",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/studio-curtain-track.js?v=20260916230552"));
+  : import("/static/3d-studio/studio-curtain-track.js?v=20260916235816"));
 /** 允许的开合方向：left 只开左幅、right 只开右幅、split 对开。 */
 const DIRECTION_SET = new Set(["left", "right", "split"]);
 /** 会被本模块接管（隐藏）的局部：cloth 是布料面，band 是帘头装饰带。 */

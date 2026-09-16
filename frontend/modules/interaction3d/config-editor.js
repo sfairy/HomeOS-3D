@@ -8,7 +8,7 @@
  * 职责划分：
  *   - 草稿：所有编辑都只改 draftProperties；保存时把整份快照交给 onSave 回调
  *     （真正的落库与 revision 冲突处理在宿主侧，本模块不直接发保存请求）；
- *   - 脏标记：isDirty = 草稿签名 ≠ 已保存签名，退出前用 confirm 拦一次；
+ *   - 脏标记：isDirty = 草稿签名 ≠ 已保存签名，退出前用站内确认框拦一次；
  *   - 权限：通过 bridge 的 requestInteraction3dAccess / subscribeInteraction3dAccess 取
  *     编辑授权，未授权时面板 inert 且不可保存。
  *
@@ -19,29 +19,30 @@
  * 字段约定：草稿结构与后端下发的 component.properties 完全一致（camelCase），
  * 落库后由后端的面板文档校验层把关；本模块只负责收集、不做合法性兜底。
  */
-import { vacuumMapIdentity } from "./vacuum-map.js?v=20260916230552";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260916230552";
-import { mountInteraction3d } from "./runtime.js?v=20260916230552";
-import { lightState } from "./light-state.js?v=20260916230552";
-import { openVacuumMapEditor } from "./vacuum-map-editor.js?v=20260916230552";
+import { vacuumMapIdentity } from "./vacuum-map.js?v=20260916235816";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260916235816";
+import { mountInteraction3d } from "./runtime.js?v=20260916235816";
+import { lightState } from "./light-state.js?v=20260916235816";
+import { openVacuumMapEditor } from "./vacuum-map-editor.js?v=20260916235816";
 import { nasGroups } from "./nas-panel.js";
-import { randomUuid } from "/static/utils/random-id.js?v=20260916230552";
-import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260916230552";
+import { randomUuid } from "/static/utils/random-id.js?v=20260916235816";
+import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260916235816";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   subscribeInteraction3dAccess
-} from "/static/modules/interaction3d/bridge.js?v=20260916230552";
-import { normalizeInteraction3dLightingMode } from "/static/modules/interaction3d/definition.js?v=20260916230552";
+} from "/static/modules/interaction3d/bridge.js?v=20260916235816";
+import { normalizeInteraction3dLightingMode } from "/static/modules/interaction3d/definition.js?v=20260916235816";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "/static/3d-studio/studio-normalization.js?v=20260916230552";
+} from "/static/3d-studio/studio-normalization.js?v=20260916235816";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "./editor-save-status.js?v=20260916230552";
+} from "./editor-save-status.js?v=20260916235816";
+import { confirmAction } from "/static/ui-confirm.js?v=20260916235816";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
@@ -208,7 +209,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260916230552";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260916235816";
   document.head.append(styleSheetLinkElement);
   // 建元素小工具，文本一律走 textContent，不拼 HTML。
   const createElement = (tagName, classNames, initialText) => {
@@ -1100,8 +1101,19 @@ export async function openInteraction3dEditor({
   };
   // 关闭前拦截未保存改动；确认文案取自 EDITOR_SAVE_STATUS，
   // 与保存状态提示共用一套措辞。
-  const requestCloseEditor = () => {
-    if (isDirty && !window.confirm(EDITOR_SAVE_STATUS.dirtyExitConfirm)) {
+  const requestCloseEditor = async () => {
+    if (
+      isDirty &&
+      !(await confirmAction({
+        kicker: "UNSAVED",
+        title: "退出编辑",
+        message: EDITOR_SAVE_STATUS.dirtyExitConfirm,
+        detail: "未保存的改动会丢失。",
+        confirmLabel: "退出",
+        cancelLabel: "继续编辑",
+        tone: "warning"
+      }))
+    ) {
       return;
     }
     disposeEditor();
@@ -3667,7 +3679,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260916230552";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260916235816";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   // 与上面带类名的 createElement 区分开，避免传一堆空字符串。

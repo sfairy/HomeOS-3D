@@ -10,7 +10,7 @@
  *   改动会影响既有弹窗的显示；③ 候选排序稳定：不可用项最后、再按域优先级、
  *   最后按实体 ID 字典序。
  */
-import { resolveXiaomiDeviceProfile } from "./renderer/device-profiles.js?v=20260916230552";
+import { resolveXiaomiDeviceProfile } from "./renderer/device-profiles.js?v=20260916235816";
 
 // 显式勾选模式的标识值，与文档里 properties.relatedEntities.mode 对应。
 export const RELATED_ENTITY_MODE_SELECTED = "selected";
