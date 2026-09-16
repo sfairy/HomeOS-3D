@@ -108,12 +108,14 @@ html.editor-viewport-fit body {
   background: #171d22;
   box-shadow: 0 3px 18px #0000003d;
 }
+/* 品牌区：图标 + 站点名 + 版本号横向排布；min-width: 0 让长名称可收缩而不撑破顶栏。 */
 .brand-lockup {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 12px;
 }
+/* 图标固定 30px 见方（顶栏 52px 上下各留 11px）；object-fit: contain 兜住非正方形 logo。 */
 .brand-icon {
   display: block;
   width: 30px;
@@ -126,6 +128,7 @@ html.editor-viewport-fit body {
   font-weight: 680;
   letter-spacing: 0.015em;
 }
+/* 版本号小字：只作安装识别，10px 弱色，不与站点名争视觉。 */
 .version {
   color: #77828a;
   font-size: 10px;
@@ -139,6 +142,7 @@ html.editor-viewport-fit body {
   color: #718089;
   font-size: 10px;
 }
+/* 有未保存改动时把状态文字点亮为强调色；saving 态另用浅灰表示请求进行中。 */
 .save-state.dirty {
   color: var(--accent-bright);
 }
@@ -154,6 +158,7 @@ html.editor-viewport-fit body {
   background: #20262b;
   cursor: default;
 }
+/* 检查器里的保存动作行：状态文字 + 保存按钮并排，左对齐贴住栏宽。 */
 .inspector-save-actions {
   display: flex;
   min-width: 0;
@@ -189,6 +194,7 @@ html.editor-viewport-fit body {
   background: #68737b;
   content: "";
 }
+/* 以下三个修饰类只替换圆点颜色与光晕；胶囊本身的尺寸/内边距保持不变。 */
 .ha-status.connected i {
   background: var(--success);
   box-shadow: 0 0 8px #54bd7885;
@@ -234,6 +240,7 @@ html.editor-viewport-fit body {
   line-height: 1.6;
   overflow-wrap: anywhere;
 }
+/* 卡片底部说明文字：授权限制/生效条件的补充，11px 弱色、行高 1.7 便于长句阅读。 */
 .license-card-note {
   margin: 10px 0 0;
   color: var(--muted);
@@ -251,6 +258,7 @@ html.editor-viewport-fit body {
   font-size: 12px;
   font-weight: 600;
 }
+/* 权益清单：grid + gap 12px 逐行排布，去掉原生项目符号改用 <i> 图标占位。 */
 .license-rights ul {
   display: grid;
   gap: 12px;
@@ -265,6 +273,7 @@ html.editor-viewport-fit body {
   color: var(--muted);
   font-size: 13px;
 }
+/* 行首图标位固定 18px 并居中，保证不同图标的文字起始位置对齐。 */
 .license-rights li i {
   width: 18px;
   text-align: center;
@@ -282,6 +291,7 @@ html.editor-viewport-fit body {
 .license-rights li.enabled small {
   color: var(--success);
 }
+/* 底部动作区：单独的 footer 容器，24px 水平缩进 + 20px 下边距贴住卡片圆角。 */
 .license-actions {
   display: flex;
   justify-content: flex-end;
@@ -298,6 +308,7 @@ html.editor-viewport-fit body {
   background: var(--accent-soft);
   font-size: 12px;
 }
+/* hover 同时加深描边与文字色，禁用态由 :not(:disabled) 挡掉，避免出现假反馈。 */
 .license-actions button:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent-bright);
@@ -329,6 +340,7 @@ button {
     background 0.15s ease,
     color 0.15s ease;
 }
+/* hover 统一提亮描边与底色；颜色变化走上方的 transition，不触发布局重排。 */
 button:hover {
   border-color: #515d67;
   background: #293139;
@@ -346,6 +358,7 @@ button.danger {
   background: #9d403d;
   font-weight: 700;
 }
+/* 危险按钮 hover：底色由 #9d403d 提亮到 #b94c48，保持白字对比度 ≥ 4.5:1。 */
 button.danger:hover {
   border-color: #e17873;
   background: #b94c48;
@@ -418,9 +431,11 @@ h2 {
   font-weight: 680;
   letter-spacing: 0.03em;
 }
+/* 仪表盘分组块（项目 / 页面 / 弹窗各一组），组间距 15px。 */
 .dashboard-control {
   margin-bottom: 15px;
 }
+/* 分组标题行：左标题 + 右「新建」按钮；11px 小字，颜色比正文更弱以形成层级。 */
 .dashboard-control-heading {
   display: flex;
   align-items: center;
@@ -441,6 +456,8 @@ h2 {
   background: #f2a20d0f;
   font-size: 11px;
 }
+/* hover 加强：描边提到实色橙，用 box-shadow 画 2px 外发光而非 outline，
+   避免按下瞬间外圈出现/消失造成 1px 视觉抖动。 */
 .dashboard-control-heading #project-new:hover,
 .dashboard-control-heading #page-new:hover,
 .dashboard-control-heading #popup-new:hover {
@@ -481,6 +498,7 @@ h2 {
   font-size: 10px;
   white-space: nowrap;
 }
+/* 页签 hover：只轻微提亮，避免与 .active 的橙底撞色。 */
 .editor-content-tabs button:hover {
   color: #e2e7ea;
   background: #ffffff09;
@@ -519,6 +537,8 @@ h2 {
   font-size: 12px;
   box-shadow: inset 0 1px 2px #00000038;
 }
+/* 聚焦态：橙色描边 + 3px 半透明外圈（--accent-soft 即 12% 橙），
+   外圈用 box-shadow 而非 outline，展开时不改变元素占位、不引发重排。 */
 .page-select-row select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
@@ -538,6 +558,7 @@ h2 {
   font-size: 16px;
   letter-spacing: 1px;
 }
+/* 禁用态（如未选中页面）：降为灰字灰底，并把光标还原成默认箭头。 */
 #page-actions-button:disabled,
 #project-actions-button:disabled {
   color: #59636b;
@@ -556,6 +577,7 @@ h2 {
   background: #20272e;
   font-size: 10px;
 }
+/* hover / 禁用两态：hover 借用主题橙（与页签选中同色），禁用时底色透明、不抢注意力。 */
 .project-floorplan-open:hover:not(:disabled) {
   border-color: var(--accent);
   color: #fff3d8;
@@ -582,6 +604,7 @@ h2 {
   background: #20272d;
   box-shadow: 0 14px 34px #0000008c;
 }
+/* 必须显式写 display: none：上面的 display: grid 会盖过浏览器对 [hidden] 的默认样式。 */
 .page-actions-menu[hidden] {
   display: none;
 }
@@ -593,6 +616,7 @@ h2 {
   background: transparent;
   font-size: 11px;
 }
+/* 项目菜单与页面菜单的条目统一居中；.danger 只改文字颜色，不画危险色边框。 */
 #project-actions-menu button,
 #page-actions-menu button {
   text-align: center;
@@ -610,6 +634,7 @@ h2 {
   width: 100%;
   min-width: 0;
 }
+/* 同上：display: block 会压过 [hidden]，只能靠 !important 复位（也要盖过内联 display）。 */
 .custom-select[hidden] {
   display: none !important;
 }
@@ -629,6 +654,8 @@ h2 {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+/* 下拉的可见按钮：右侧留 30px 给箭头，配合 text-overflow: ellipsis 截断超长选项名；
+   高度 34px 与它替换掉的原生 select 完全一致，避免换控件时布局跳动。 */
 .custom-select-button {
   position: relative;
   width: 100%;
@@ -660,6 +687,7 @@ h2 {
   transform: rotate(45deg);
   content: "";
 }
+/* hover 只抬一档边框与底色、不做位移，菜单展开时按钮才不会上下抖。 */
 .custom-select-button:hover:not(:disabled) {
   border-color: #46515b;
   background: #1b2228;
@@ -672,6 +700,7 @@ h2 {
   margin-top: -1px;
   transform: rotate(225deg);
 }
+/* 禁用态：文字与箭头一起变灰，光标还原成默认箭头，避免误以为仍可展开。 */
 .custom-select-button:disabled {
   color: #727e86;
   background: var(--field);
@@ -718,6 +747,8 @@ h2 {
   white-space: nowrap;
   font-size: 12px;
 }
+/* 「选项 + 删除」两列行：选项列用 minmax(0, 1fr) 才能让超长名称走省略号；
+   删除位固定 29px（27px 圆钮 + 2px 间隙）。 */
 .custom-select-option-row {
   display: grid;
   min-width: 0;
@@ -738,6 +769,7 @@ h2 {
   font-size: 17px;
   line-height: 1;
 }
+/* 删除按钮只在 hover 时亮红底，平时保持透明，避免整列都是红点抢注意力。 */
 .custom-select-option-delete:hover {
   border-color: #e178739e;
   color: #fff;
@@ -752,6 +784,8 @@ h2 {
   line-height: 1;
   text-align: center;
 }
+/* 选中项：橙色 border 加 inset 阴影双重描边、字体加粗；用 border 而不是加大 padding，
+   保证选中前后文字位置完全一致，列表不会左右跳。 */
 .custom-select-option.active {
   color: #f3f5f6;
   border-color: var(--accent);
@@ -766,6 +800,7 @@ h2 {
   box-shadow: none;
   font-weight: 620;
 }
+/* 不可选项（如已被占用的分组）：灰字 + 默认光标；仍保留可聚焦性，读屏能播报禁用原因。 */
 .custom-select-option:disabled {
   color: #66727a;
   cursor: default;
@@ -791,6 +826,7 @@ h2 {
   background: transparent;
   font-size: 12px;
 }
+/* hover 用 8% 橙底作「可点」反馈，不画下划线，避免与选中态的橙条混淆。 */
 .element-list-tabs button:hover {
   color: #fff4dc;
   background: #f2a20d14;
@@ -824,6 +860,7 @@ h2 {
   color: #fff0d4;
   background: #f2a20d1a;
 }
+/* 达到组件上限或未选页面时禁用：彻底去掉橙色，避免看起来仍可添加。 */
 .add-element-button:disabled {
   color: #67727a;
   border-color: #343d44;
@@ -846,6 +883,7 @@ h2 {
   font-size: 10px;
   line-height: 1.55;
 }
+/* 卡片网格默认四列；minmax(0, 1fr) 让卡片可被压缩，超长标题不会顶破列宽。 */
 .component-template-list {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -861,6 +899,7 @@ h2 {
   background: #171d22;
   text-align: left;
 }
+/* hover：橙色描边 + 同色 2px 外圈；用 box-shadow 不占位，卡片之间不会被挤动。 */
 .component-template-card:hover {
   border-color: var(--accent-bright);
   background: #f2a20d14;
@@ -896,6 +935,7 @@ h2 {
   color: #f0f3f5;
   font-size: 12px;
 }
+/* 描述文案压到 9px：已是中文可读下限，再小会明显吃力，因此不再继续缩。 */
 .component-template-copy > span {
   color: #7f8a92;
   font-size: 9px;
@@ -908,6 +948,7 @@ h2 {
   text-align: center;
   font-size: 10px;
 }
+/* 窄视口把模板卡片四列降为三列 / 两列（两道断点），防止缩略图被压得过小。 */
 @media (max-width: 720px) {
   .component-template-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -922,6 +963,7 @@ h2 {
   display: grid;
   gap: 0;
 }
+/* .element-list 被设成 display: grid，会盖过 [hidden] 的默认样式，这里补回 none。 */
 .element-list[hidden] {
   display: none;
 }
@@ -949,6 +991,7 @@ h2 {
   font-size: 11px;
   cursor: pointer;
 }
+/* hover：文字提亮到接近白，底色只加 2% 白，避免鼠标扫过列表时整片闪烁。 */
 .element-item:hover {
   color: #e7ebee;
   background: #ffffff06;
@@ -971,6 +1014,7 @@ h2 {
   color: #f0c36a;
   font-weight: 650;
 }
+/* 「返回上级」行：无边框，只用 1px 半透明下边线与列表分隔；金色 10px 文字强调它是导航项。 */
 .element-group-back {
   width: 100%;
   min-height: 31px;
@@ -983,6 +1027,7 @@ h2 {
   text-align: left;
   cursor: pointer;
 }
+/* hover 提亮成亮金色，并叠 7% 橙底作为可点反馈。 */
 .element-group-back:hover {
   color: #ffd678;
   background: #f2a20d12;
@@ -1020,6 +1065,8 @@ h2 {
   color: currentColor;
   opacity: 0.86;
 }
+/* 图标是描边式 SVG（fill: none + stroke: currentColor），颜色随列表项文字色；
+   1.55 的描边宽度是 14px 尺寸下笔画不糊的下限。 */
 .element-group-icon svg {
   display: block;
   width: 14px;
@@ -1044,6 +1091,8 @@ h2 {
   background: var(--element-label-color);
   box-shadow: 0 0 5px var(--element-label-color);
 }
+/* 三档强调：hover 把光晕从 5px 提到 7px，选中再提到 8px 并把圆点放大 1px，
+   全部只改 shadow / 尺寸、不改位置，列表项之间不会互相挤动。 */
 .element-item.group-item.has-color-label:hover .element-group-icon:after {
   box-shadow: 0 0 7px var(--element-label-color);
 }
@@ -1058,6 +1107,7 @@ h2 {
   opacity: 0.82;
   visibility: visible;
 }
+/* 左侧色标沿用同一套强调规则：hover 7px / 选中 8px 光晕，透明度 0.82 → 0.94 → 1。 */
 .element-item.has-color-label:hover .element-label-color {
   box-shadow: 0 0 7px var(--element-label-color);
   opacity: 0.94;
@@ -1082,6 +1132,7 @@ h2 {
   color: #dce2e6;
   background: #ffffff0a;
 }
+/* 隐藏态：眼睛图标压到 #4e5961 低对比灰，表示「当前不可见」，但仍可点击切回。 */
 .element-visibility.hidden-element {
   color: #4e5961;
 }
@@ -1113,6 +1164,7 @@ h2 {
 .component-context-menu[hidden] {
   display: none;
 }
+/* 菜单首行是被右键组件的名称，11px 弱色，只作上下文提示、不可点。 */
 .component-context-menu > strong {
   display: block;
   margin: 1px 3px 8px;
@@ -1127,6 +1179,7 @@ h2 {
   padding-bottom: 9px;
   border-bottom: 1px solid #39434b;
 }
+/* 两列等宽网格按钮；min-height 30px 在 11px 小字下也留足点击高度。 */
 .component-context-actions button {
   min-width: 0;
   min-height: 30px;
@@ -1140,6 +1193,7 @@ h2 {
   cursor: default;
   opacity: 1;
 }
+/* 显式写 auto 覆盖下面「复制到页面」那条 grid-column: 1 / -1，让显示/隐藏只占一格。 */
 .component-context-actions [data-component-action="visibility"] {
   grid-column: auto;
 }
@@ -1158,6 +1212,7 @@ h2 {
   background: #ef535024;
   box-shadow: 0 0 0 2px #ef53501a;
 }
+/* 标签色板：两列网格，每格 = 颜色方块 + 标签名；色块尺寸由下面的 span 统一控制。 */
 .component-label-options {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1173,6 +1228,7 @@ h2 {
   font-size: 11px;
   text-align: left;
 }
+/* 色块 12px 见方，flex: 0 0 auto 防止被长标签名压缩；42% 白描边保证深色块在深底上仍有轮廓。 */
 .component-label-options button span {
   width: 12px;
   height: 12px;
@@ -1194,6 +1250,8 @@ h2 {
 .component-label-options button[data-label-color="#45b86b"] span {
   background: #45b86b;
 }
+/* 色板后半段（青 / 蓝 / 靛 / 紫 / 粉 / 灰蓝）与 JS 色板数组顺序一一对应，
+   增删颜色必须同时改两侧，否则按钮会显示成无底色的空方块。 */
 .component-label-options button[data-label-color="#26b6b6"] span {
   background: #26b6b6;
 }
@@ -1223,6 +1281,7 @@ h2 {
   background: #ffffff0e;
   box-shadow: none;
 }
+/* 「清除标签」占满整行并居中，作为色板之后收尾的次级操作。 */
 .component-label-options .clear-label {
   grid-column: 1 / -1;
   justify-content: center;
@@ -1250,6 +1309,7 @@ h2 {
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
+/* 标题条左侧内容（标题 + 分辨率 + 声音开关）横排；min-width: 0 让内部省略号能生效。 */
 .workspace-heading-copy {
   display: flex;
   min-width: 0;
@@ -1274,6 +1334,7 @@ h2 {
 .workspace-resolution[hidden] {
   display: none;
 }
+/* 声音开关默认无边框透明底，只有开启（aria-pressed="true"）才点亮橙色，不跟主操作抢视线。 */
 .workspace-sound-toggle {
   display: inline-flex;
   width: auto;
@@ -1288,6 +1349,7 @@ h2 {
   color: #8d989f;
   background: transparent;
 }
+/* 开启态：半透明橙描边 + 12% 橙底，与 aria-pressed 一起表达「声音已开」。 */
 .workspace-sound-toggle[aria-pressed="true"] {
   border-color: #f2a20d47;
   color: #f2b23b;
@@ -1302,6 +1364,7 @@ h2 {
   opacity: 0.38;
   cursor: default;
 }
+/* 图标是描边式 SVG，颜色随 currentColor；1.7 的描边让 17px 图标与旁边 10px 文字视觉等重。 */
 .workspace-sound-toggle .sound-icon {
   width: 17px;
   height: 17px;
@@ -1334,6 +1397,7 @@ h2 {
   font-size: 10px;
   white-space: nowrap;
 }
+/* display: flex 会盖过 [hidden] 的默认样式，这里显式补回。 */
 .dashboard-display-hint[hidden] {
   display: none;
 }
@@ -1352,6 +1416,7 @@ h2 {
   color: #ffc45b;
   text-decoration: underline;
 }
+/* 复制按钮压到 26px 高：它整条提示都塞在 42px 的标题条里，用全局 32px 会顶满。 */
 .dashboard-display-hint button {
   min-height: 26px;
   margin-left: 4px;
@@ -1381,6 +1446,7 @@ h2 {
   gap: 8px;
   margin-left: auto;
 }
+/* 右侧保存组（状态文字 + 保存按钮）不参与弹性收缩，保证按钮宽度恒定 64px。 */
 .workspace-save-actions {
   display: flex;
   flex: 0 0 auto;
@@ -1412,6 +1478,7 @@ h2 {
   color: #9ba5ac;
   background: transparent;
 }
+/* 撤销/重做图标：18px 描边式 SVG；2.15 的描边宽度是为了在 28px 按钮里保持箭头辨识度。 */
 .history-toolbar-button svg {
   width: 18px;
   height: 18px;
@@ -1426,6 +1493,7 @@ h2 {
   color: #fff;
   background: #252d33;
 }
+/* 没有可撤销 / 重做的历史时：透明底 + 暗灰图标，光标还原成默认。 */
 .history-toolbar-button:disabled {
   border-color: transparent;
   color: #505b63;
@@ -1447,6 +1515,8 @@ h2 {
   grid-template-columns: minmax(0, 1fr);
   gap: 7px;
 }
+/* DOM 里模式标签排在数值输入之后，用 order: -1 把它提到视觉上方；
+   调整 DOM 顺序后这条必须同步删除，否则顺序会反过来。 */
 .line-chart-thresholds > div > label:last-child {
   order: -1;
 }
@@ -1461,6 +1531,7 @@ h2 {
   min-width: 0;
   gap: 6px;
 }
+/* 阈值模式说明：10px / 行高 1.35，可折行；父级 min-width: 0 保证长说明不会撑宽这一格。 */
 .line-chart-threshold-mode-row .inspector-help {
   min-width: 0;
   margin: 0;
@@ -1496,6 +1567,7 @@ h2 {
   font-weight: 560;
   line-height: 1;
 }
+/* 最后一段去掉右边框，否则会与容器自身的边框叠成 2px 粗线。 */
 .workspace-modes button:last-child {
   border-right: 0;
 }
@@ -1526,6 +1598,7 @@ h2 {
     linear-gradient(90deg, rgba(111, 126, 137, 0.035) 1px, transparent 1px);
   background-size: 24px 24px;
 }
+/* 空状态（无项目 / 无页面）去掉 18px 内边距，让占位卡片能铺满整个画布。 */
 .workspace.empty {
   padding: 0;
 }
@@ -1543,6 +1616,7 @@ h2 {
 .workspace-mode-surface[hidden] {
   display: none !important;
 }
+/* 仪表盘画布的定位容器：relative 供内部绝对定位层做参照，place-items: center 居中渲染视口。 */
 .dashboard-preview {
   position: relative;
   display: grid;
@@ -1560,6 +1634,7 @@ h2 {
   overflow: hidden;
   place-items: center;
 }
+/* 空状态标题压成 11px / 450 细体低对比灰，不让它比真正的画布内容更抢眼。 */
 .workspace-empty-state .canvas-message strong {
   margin: 0;
   color: #707b83;
@@ -1572,6 +1647,7 @@ h2 {
   font-size: 11px;
   font-weight: 450;
 }
+/* 编辑器里的画布占位框：1px 描边 + 145° 深色渐变 + 大范围投影，营造「悬浮画布」的观感。 */
 .canvas-placeholder {
   position: relative;
   display: grid;
@@ -1587,6 +1663,7 @@ h2 {
   max-width: 440px;
   text-align: center;
 }
+/* 占位文案主标题：16px 白字与下方 12px 说明形成层级；440px 限宽控制每行字数便于阅读。 */
 .canvas-message strong {
   display: block;
   margin-bottom: 9px;
@@ -1599,6 +1676,7 @@ h2 {
   font-size: 12px;
   line-height: 1.65;
 }
+/* 标题上方的胶囊徽标（如「预览」）：99px 圆角即胶囊化；0.08em 字距让全大写字母不挤。 */
 .canvas-badge {
   display: inline-flex;
   margin-bottom: 18px;
@@ -1630,6 +1708,7 @@ h2 {
   font-size: 11px;
   line-height: 1.6;
 }
+/* 检查器空态：去掉 .property-section 的下分割线，避免空面板底部多出一条横线。 */
 .inspector-empty {
   border-bottom: 0;
 }
@@ -1652,6 +1731,7 @@ h2 {
   margin-bottom: 15px;
   border-bottom: 0;
 }
+/* 同上：display: grid 会盖过 [hidden] 的默认样式，这里显式补回。 */
 .inspector-section[hidden] {
   display: none;
 }
@@ -1672,6 +1752,7 @@ h2 {
   font-size: 11px;
   font-weight: 700;
 }
+/* 表单项标签：grid 竖排「文字 + 控件」，9px 小字，控件占满整行宽度。 */
 .inspector-section label {
   display: grid;
   min-width: 0;
@@ -1698,6 +1779,8 @@ h2 {
   background: #171d22;
   font-size: 11px;
 }
+/* 多行文本框：高度自适应内容，min-height 52px（约三行）保证空值也有足够点击区；
+   resize: vertical 只放开纵向拉伸，避免用户横向拖拽破坏侧栏布局。 */
 .inspector-section textarea {
   height: auto;
   min-height: 52px;
@@ -1719,6 +1802,8 @@ h2 {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
+/* 内层两行输入去掉边框与自身聚焦阴影，聚焦效果统一由外层 :focus-within 表现，
+   这里的 box-shadow: none 必须存在，才能盖住上面 .inspector-section input:focus 的规则。 */
 .inspector-section .title-button-secondary-lines-field input {
   height: 27px;
   padding: 0 8px;
@@ -1731,6 +1816,7 @@ h2 {
   border: 0;
   box-shadow: none;
 }
+/* 两行输入之间的细分隔线：只占 68% 宽并居中，视觉上弱化「这里其实是两个字段」。 */
 .title-button-secondary-lines-field > i {
   display: block;
   width: 68%;
@@ -1745,6 +1831,7 @@ h2 {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
+/* 只读输入（如自动生成的组件 ID）：文字与底色一起压暗，表示可复制但不可改。 */
 .inspector-section input[readonly] {
   color: #76828a;
   background: #151a1f;
@@ -1770,6 +1857,7 @@ h2 {
   appearance: textfield;
   -moz-appearance: textfield;
 }
+/* 再关一次 WebKit 的原生上下箭头：appearance: textfield 主要对 Firefox / 标准写法生效。 */
 .inspector-section .inspector-number-control input[type="number"]::-webkit-inner-spin-button,
 .inspector-section .inspector-number-control input[type="number"]::-webkit-outer-spin-button {
   margin: 0;
@@ -1790,6 +1878,7 @@ h2 {
   border-left: 1px solid #343e46;
   border-radius: 0 3px 3px 0;
 }
+/* 单格步进按钮：撑满 22px 宽的一行，无边框透明底，只靠图标与 hover 表达可点。 */
 .inspector-number-stepper {
   display: grid;
   width: 100%;
@@ -1816,6 +1905,7 @@ h2 {
   color: #171006;
   background: #f2a20d;
 }
+/* 步进箭头：8×5 的纯描边折线三角形，1.25 的描边宽度保证小尺寸下不糊。 */
 .inspector-number-stepper svg {
   display: block;
   width: 8px;
@@ -1847,6 +1937,7 @@ h2 {
   border: 0;
   border-radius: 4px;
 }
+/* Firefox 分支：内部结构与 WebKit 不同，圆角要单独再写一遍，两浏览器才一致。 */
 .inspector-section input[type="color"]::-moz-color-swatch {
   border: 0;
   border-radius: 4px;
@@ -1868,6 +1959,7 @@ h2 {
   background: #292f34;
   box-shadow: 0 22px 58px #000000b8;
 }
+/* display: grid 会盖过 [hidden] 的默认样式，必须显式关掉。 */
 .global-color-picker[hidden] {
   display: none;
 }
@@ -1899,6 +1991,7 @@ h2 {
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
+/* 色相条：高 14px、圆角 7px（即完全胶囊化）；appearance: none 才能去掉浏览器默认滑轨。 */
 .global-color-picker-hue {
   width: 100%;
   height: 14px;
@@ -1911,6 +2004,7 @@ h2 {
   appearance: none;
   -webkit-appearance: none;
 }
+/* 色相滑块：透明填充 + 白圈 + 1px 黑描边，在任意色相背景上都看得清。 */
 .global-color-picker-hue::-webkit-slider-thumb {
   width: 15px;
   height: 15px;
@@ -1944,6 +2038,7 @@ h2 {
   background: var(--picker-color, #fff);
   box-shadow: inset 0 0 0 1px #ffffff14;
 }
+/* HEX 输入用等宽字体 + uppercase，让 #a1b2c3 这类值在视觉上对齐、易读。 */
 .global-color-picker-value-row input {
   width: 100%;
   min-width: 0;
@@ -1958,6 +2053,7 @@ h2 {
   font-size: 12px;
   text-transform: uppercase;
 }
+/* 聚焦态与其它输入统一：橙色描边 + 2px 半透明外圈。 */
 .global-color-picker-value-row input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
@@ -1970,6 +2066,7 @@ h2 {
   place-items: center;
   border-radius: 7px;
 }
+/* 复制 / 重置按钮里的图标：15px 描边 SVG，1.25 描边与旁边 12px 文字视觉重量相当。 */
 .global-color-picker-value-row button svg {
   width: 15px;
   fill: none;
@@ -1992,6 +2089,7 @@ h2 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
 }
+/* RGB 三项等宽；标签在数值下方居中（10px），数值框也居中对齐。 */
 .global-color-picker-rgb label {
   display: grid;
   gap: 4px;
@@ -2032,6 +2130,7 @@ h2 {
   min-width: 0;
   gap: 6px;
 }
+/* 选择器字段的小标题，与 .inspector-section label 同档：9px 弱色。 */
 .inspector-picker-title {
   color: #8d989f;
   font-size: 9px;
@@ -2051,6 +2150,8 @@ h2 {
   font-size: 11px;
   font-weight: 400;
 }
+/* 按钮内展示当前值：pointer-events: none 让点击穿透到按钮本身，
+   否则 JS 读到的 event.target 会是这个 span 而不是按钮。 */
 .inspector-picker-value {
   display: block;
   width: 100%;
@@ -2073,6 +2174,7 @@ h2 {
   transform: rotate(45deg);
   content: "";
 }
+/* 展开态：橙色描边 + 2px 外圈，配合 :after 转到 225° 表示「已展开」。 */
 .inspector-picker-button[aria-expanded="true"] {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
@@ -2101,6 +2203,7 @@ h2 {
   background: #20272d;
   box-shadow: 0 18px 42px #0000009e;
 }
+/* 与 .custom-select 同理：display: grid 会盖过 [hidden]，需显式关闭。 */
 .inspector-picker-menu[hidden] {
   display: none;
 }
@@ -2113,6 +2216,7 @@ h2 {
 #image-asset-menu,
 #ibe-asset-menu,
 #ibe-icon-menu,
+/* 列表尾部的这组 id 同样与各自的选择器实例一一对应；新增选择器类型时要一并补进来。 */
 #icon-button-entity-menu,
 #vacuum-map-entity-menu,
 #camera-entity-menu,
@@ -2144,6 +2248,7 @@ h2 {
   background: #171d22;
   font-size: 11px;
 }
+/* 菜单内输入框 / 下拉的聚焦态，与检查器里其它表单控件保持一致。 */
 .inspector-picker-menu input:focus,
 .inspector-picker-menu select:focus {
   border-color: var(--accent);
@@ -2164,6 +2269,7 @@ h2 {
   background: #f2a20d12;
   font-size: 9px;
 }
+/* 上传按钮 hover 加强橙色；9px 字号是「一行塞下两个按钮」的代价。 */
 .asset-upload-button:hover:not(:disabled) {
   border-color: var(--accent-bright);
   color: #fff0d0;
@@ -2193,6 +2299,7 @@ h2 {
   color: #fff;
   background: #9d403db8;
 }
+/* 与工具栏其它按钮同为 flex/grid 布局，只有 !important 才压得住 [hidden]。 */
 .asset-folder-delete[hidden] {
   display: none !important;
 }
@@ -2241,6 +2348,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 实体名行：11px / 行高 15px 定值，加上下面 ID 行的 13px 正好落在 46px 行高内。 */
 .inspector-entity-name-line {
   font-size: 11px;
   font-weight: 560;
@@ -2260,6 +2368,7 @@ h2 {
   gap: 5px;
   box-sizing: border-box;
 }
+/* 选择按钮吃满剩余宽度，右侧复制按钮固定 34px；两者高度靠 align-items: stretch 对齐。 */
 .entity-picker-field-row > .inspector-picker-button {
   flex: 1 1 auto;
   min-width: 0;
@@ -2288,6 +2397,7 @@ h2 {
   color: #fff4dc;
   background: #f2a20d1a;
 }
+/* hover 时把类型标签与 ID 一并提亮，保证整行在橙底上的对比度。 */
 .inspector-entity-option:hover .inspector-entity-kind {
   color: #ffe3aa;
 }
@@ -2300,6 +2410,7 @@ h2 {
   background: #252c32;
   box-shadow: inset 0 0 0 1px #f2a20d2e;
 }
+/* 当前组件不支持的实体（例如把 climate 放进只收 light 的槽位）：降到 58% 透明度但仍可选。 */
 .inspector-entity-option.unsupported {
   opacity: 0.58;
 }
@@ -2343,6 +2454,7 @@ h2 {
   background: #171d22;
   text-align: left;
 }
+/* 缩略图用 object-fit: contain 保留完整图形（图标类素材不能被裁切），留白由深底色补足。 */
 .inspector-asset-option img {
   display: block;
   width: 100%;
@@ -2361,6 +2473,7 @@ h2 {
   font-size: 9px;
   line-height: 13px;
 }
+/* hover 与实体列表一致：橙色描边 + 10% 橙底。 */
 .inspector-asset-option:hover {
   border-color: var(--accent-bright);
   color: #fff4dc;
@@ -2375,6 +2488,7 @@ h2 {
   position: relative;
   min-width: 0;
 }
+/* 再声明一次 94px：外层多了删除角标，需与普通素材卡等高，两列网格才对得齐。 */
 .user-asset-option-wrap .inspector-asset-option {
   height: 94px;
 }
@@ -2396,6 +2510,7 @@ h2 {
   font-size: 15px;
   line-height: 1;
 }
+/* hover 才变实心红底表示「即将删除」，平时是半透明暗红，降低误触概率。 */
 .user-asset-delete:hover {
   border-color: #e17873;
   color: #fff;
@@ -2414,6 +2529,7 @@ h2 {
   font-size: 10px;
   text-align: center;
 }
+/* 与实体列表的「清除选择」同款虚线按钮，hover 只轻微提亮边框与文字。 */
 .inspector-asset-clear:hover {
   border-color: #65717a;
   color: #edf0f2;
@@ -2444,6 +2560,7 @@ h2 {
   box-shadow: 0 20px 48px #000000a6;
   pointer-events: none;
 }
+/* fixed 浮层同样要显式关掉显示，[hidden] 的默认样式在这里已被 display 值覆盖。 */
 .image-asset-large-preview[hidden] {
   display: none;
 }
@@ -2464,6 +2581,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 选择器列表空态：占满整行（grid-column: 1 / -1），10px 居中灰字。 */
 .inspector-picker-empty {
   grid-column: 1 / -1;
   padding: 15px 7px;
@@ -2519,6 +2637,7 @@ h2 {
   padding: 16px 18px 13px;
   border-bottom: 1px solid rgba(126, 141, 153, 0.15);
 }
+/* 标题区左侧：大标题 + 副标题竖排；min-width: 0 让长副标题走省略号而不撑破标题栏。 */
 .editor-paged-picker-heading > div {
   display: grid;
   min-width: 0;
@@ -2533,6 +2652,7 @@ h2 {
   min-width: 0;
   flex: 1 1 auto;
 }
+/* 弹窗主标题 14px / 650，与侧栏 h2 同号但更亮——弹窗才是当前焦点区域。 */
 .editor-paged-picker-heading strong {
   color: #edf1f3;
   font-size: 14px;
@@ -2545,6 +2665,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 关闭按钮：30px 正圆、弱描边半透明底，在标题栏内与 14px 标题视觉居中对齐。 */
 .editor-paged-picker-close {
   flex: 0 0 30px;
   width: 30px;
@@ -2557,6 +2678,7 @@ h2 {
   font-size: 19px;
   line-height: 1;
 }
+/* hover 提亮成白字 + 6% 白底，不做位移，标题栏其它元素不会跟着抖动。 */
 .editor-paged-picker-close:hover {
   color: #e4e8ea;
   background: #ffffff0f;
@@ -2585,6 +2707,7 @@ h2 {
   background: #10161a;
   font-size: 10px;
 }
+/* 文件夹选择 + 删除按钮一行两列；删除按钮由下面规则收紧到 44px。 */
 .editor-paged-picker-folder-row {
   display: grid;
   min-width: 0;
@@ -2601,6 +2724,7 @@ h2 {
   margin: 0 auto;
   padding: 11px 0 0;
 }
+/* 搜索框 36px 高 / 6px 圆角，边框与底色沿用文件夹选择框那一套。 */
 .editor-paged-picker-search input {
   width: 100%;
   height: 36px;
@@ -2612,6 +2736,7 @@ h2 {
   background: #10161a;
   font-size: 11px;
 }
+/* 搜索框与文件夹下拉共用聚焦样式：橙描边 + 2px 极淡外圈（弹窗内刻意压低对比度）。 */
 .editor-paged-picker-search input:focus,
 .editor-paged-picker-folder:focus {
   border-color: #f2a20da6;
@@ -2629,6 +2754,7 @@ h2 {
   border-radius: 5px;
   background: #ffffff05;
 }
+/* flex 会盖过 [hidden] 的默认样式，需要显式关掉。 */
 .editor-paged-picker-selected[hidden] {
   display: none;
 }
@@ -2644,6 +2770,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 带操作按钮时的修饰类：显式写回 flex，与 JS 整块隐藏 / 显示选择条的切换配套。 */
 .editor-paged-picker-selected.has-actions {
   display: flex;
 }
@@ -2661,6 +2788,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* hover 与选中共用一套橙色高亮，因此选中态不需要额外的描边或勾选标记。 */
 .editor-paged-picker-selected-action:hover,
 .editor-paged-picker-selected-action.selected {
   border-color: var(--accent);
@@ -2690,6 +2818,7 @@ h2 {
   font-size: 11px;
   font-weight: 560;
 }
+/* 当前实体的 ID：10px 弱色跟在名称之后，省略号规则由上面那条共用选择器提供。 */
 .editor-paged-picker-current-entity-id {
   color: #849199;
   font-size: 10px;
@@ -2710,6 +2839,7 @@ h2 {
   max-width: min(520px, 58%);
   gap: 10px;
 }
+/* 实体变体下当前实体名 / ID 一起提到 13px，与弹窗内其它文字同档，便于快速核对。 */
 .editor-paged-picker-dialog[data-editor-picker-kind="entity"]
   .editor-paged-picker-current-entity-name,
 .editor-paged-picker-dialog[data-editor-picker-kind="entity"]
@@ -2721,11 +2851,13 @@ h2 {
   padding: 0 10px;
   font-size: 13px;
 }
+/* 用兄弟选择器把操作按钮推到行尾：只有「当前实体」之后的同级按钮才靠右。 */
 .editor-paged-picker-dialog[data-editor-picker-kind="entity"]
   .editor-paged-picker-current-entity
   ~ .editor-paged-picker-selected-action {
   margin-left: auto;
 }
+/* 素材变体下的当前素材条（缩略图 + 文件名），与实体条的布局保持一致。 */
 .editor-paged-picker-current-asset {
   display: inline-flex;
   min-width: 0;
@@ -2740,6 +2872,7 @@ h2 {
   object-fit: contain;
   background: #10161a;
 }
+/* 当前素材文件名：13px / 560，超长走省略号，与当前实体名共用一套排版规则。 */
 .editor-paged-picker-current-asset-name {
   overflow: hidden;
   color: #cbd2d6;
@@ -2753,6 +2886,7 @@ h2 {
   width: min(920px, calc(100vw - 32px));
   height: min(760px, calc(100vh - 32px));
 }
+/* 素材变体的当前标签 / 文件名 / 操作按钮统一放大到 11~13px，与实体变体对齐。 */
 .editor-paged-picker-dialog[data-editor-picker-kind="image-asset"]
   .editor-paged-picker-current-label,
 .editor-paged-picker-dialog[data-editor-picker-kind="ibe-asset"]
@@ -2765,6 +2899,7 @@ h2 {
   .editor-paged-picker-current-asset-name {
   font-size: 13px;
 }
+/* 素材变体的操作按钮：同样 28px 高、13px 字，保证三种弹窗内按钮尺寸一致。 */
 .editor-paged-picker-dialog[data-editor-picker-kind="image-asset"]
   .editor-paged-picker-selected-action,
 .editor-paged-picker-dialog[data-editor-picker-kind="ibe-asset"]
@@ -2781,6 +2916,7 @@ h2 {
   ~ .editor-paged-picker-selected-action {
   margin-left: auto;
 }
+/* 图标变体下的当前图标条：图标用 mask 上色，因此这里只需管宽度与间距。 */
 .editor-paged-picker-current-icon {
   display: inline-flex;
   min-width: 0;
@@ -2805,6 +2941,7 @@ h2 {
   -webkit-mask-size: contain;
   pointer-events: none;
 }
+/* 当前图标名：9px 弱色、超长省略；图标变体下由后面的规则放大到 13px。 */
 .editor-paged-picker-current-icon-name {
   overflow: hidden;
   font-size: 9px;
@@ -2815,6 +2952,7 @@ h2 {
 .editor-paged-picker-current-icon ~ .editor-paged-picker-selected-action {
   margin-left: auto;
 }
+/* 图标变体：当前图标条同样放大，并把 24px 图标与 13px 名称对齐。 */
 .editor-paged-picker-dialog[data-editor-picker-kind="icon"] .editor-paged-picker-selected {
   gap: 10px;
   padding: 7px 9px;
@@ -2878,6 +3016,7 @@ h2 {
   min-height: 45px;
   padding: 4px 10px;
 }
+/* 三列网格里每格更窄，实体名与 ID 相应放大一档（12px / 10px）并重算行高。 */
 .editor-paged-picker-items.entity-list .inspector-entity-name-line {
   font-size: 12px;
   line-height: 16px;
@@ -2890,6 +3029,7 @@ h2 {
   min-height: 40px;
   font-size: 11px;
 }
+/* 图标网格：12 列等宽，靠下面那条 aspect-ratio 把每格压成正方形。 */
 .editor-paged-picker-items.icon-grid {
   display: grid;
   width: min(100%, 876px);
@@ -2916,6 +3056,7 @@ h2 {
   width: 54%;
   height: 54%;
 }
+/* 素材网格：四列；卡片高 112px，比侧栏里的 94px 更高，给缩略图更多空间。 */
 .editor-paged-picker-items.asset-grid {
   display: grid;
   width: min(100%, 876px);
@@ -2931,6 +3072,7 @@ h2 {
   height: 112px;
   min-height: 112px;
 }
+/* 弹窗内素材文件名放大到 11px（侧栏里是 9px），与更高的卡片相称。 */
 .editor-paged-picker-items.asset-grid .inspector-asset-option span {
   font-size: 11px;
   line-height: 16px;
@@ -2947,6 +3089,7 @@ h2 {
   font-size: 10px;
   text-align: center;
 }
+/* 「清除选择」的 hover 与选中态共用橙色高亮，虚线边框同时转为实色。 */
 .editor-paged-picker-clear:hover,
 .editor-paged-picker-clear.selected {
   border-color: var(--accent);
@@ -2960,6 +3103,7 @@ h2 {
   text-align: center;
   font-size: 10px;
 }
+/* 加载失败的空态改用红字，与「暂无数据」的灰字区分开。 */
 .editor-paged-picker-empty.error {
   color: #d9918b;
 }
@@ -2975,6 +3119,7 @@ h2 {
   color: #748089;
   font-size: 9px;
 }
+/* 分页控件（上一页 / 页码输入 / 下一页）横排；按钮 58px、输入框 44px 决定整块宽度。 */
 .editor-paged-picker-pagination {
   display: flex;
   align-items: center;
@@ -2989,6 +3134,7 @@ h2 {
   background: #ffffff06;
   font-size: 9px;
 }
+/* 只在按钮可用时给 hover 反馈；禁用态保持原样，避免误导用户以为能翻页。 */
 .editor-paged-picker-pagination button:not(:disabled):hover {
   border-color: #f2a20d80;
   color: #fff1d6;
@@ -3006,6 +3152,7 @@ h2 {
   font-size: 10px;
   text-align: center;
 }
+/* 「第 N / M 页」文字：min-width 30px 让页码位数变化时两侧按钮不左右平移。 */
 .editor-paged-picker-pagination span {
   min-width: 30px;
   color: #748089;
@@ -3024,6 +3171,7 @@ h2 {
   .editor-paged-picker-folder-row {
     grid-column: 1 / -1;
   }
+  /* 窄屏下实体列表仍保持三列，图标网格从 12 列降到 6 列。 */
   .editor-paged-picker-items.entity-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -3036,6 +3184,7 @@ h2 {
     min-height: 72px;
   }
 }
+/* 「待添加统计实体」提示条：橙色系描边 + 7% 橙底，右侧配「添加」按钮。 */
 .light-statistics-entity-pending {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -3049,6 +3198,7 @@ h2 {
 .light-statistics-entity-pending[hidden] {
   display: none;
 }
+/* 左侧文字区：实体名 + 副标题竖排；min-width: 0 让两行都能走省略号。 */
 .light-statistics-entity-pending > div {
   display: grid;
   min-width: 0;
@@ -3064,6 +3214,7 @@ h2 {
   color: #dce2e6;
   font-size: 10px;
 }
+/* 副标题压到 8px：这块只是状态提示，不承载关键信息。 */
 .light-statistics-entity-pending small {
   color: #7b878f;
   font-size: 8px;
@@ -3076,6 +3227,7 @@ h2 {
   background: #f2a20d17;
   font-size: 9px;
 }
+/* 统计提示条：默认琥珀色（提醒），.error 变体由下一段切成红色（失败）。 */
 .light-statistics-entity-message {
   margin: 0;
   padding: 7px 8px;
@@ -3090,6 +3242,7 @@ h2 {
   color: #e2a09a;
   background: #cd463e12;
 }
+/* 统计实体列表：单列纵向排列，行间距 5px。 */
 .light-statistics-entity-list {
   display: grid;
   min-width: 0;
@@ -3120,6 +3273,7 @@ h2 {
   border-radius: 6px;
   background: #ffffff05;
 }
+/* 实体在 HA 里已不存在（missing）：整行转红，提示需要重新选择。 */
 .light-statistics-entity-row.missing {
   border-color: #e0665e57;
   background: #cd463e0b;
@@ -3135,6 +3289,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 实体名 10px / 620；紧随其后的 small 是 8px 的实体 ID。 */
 .light-statistics-entity-row strong {
   color: #cbd2d6;
   font-size: 10px;
@@ -3147,6 +3302,7 @@ h2 {
 .light-statistics-entity-row.missing strong {
   color: #e2aaa5;
 }
+/* 行尾操作按钮组（重新选择 / 移除）横排，间距 4px。 */
 .light-statistics-entity-actions {
   display: flex;
   align-items: center;
@@ -3161,6 +3317,7 @@ h2 {
   background: transparent;
   font-size: 8px;
 }
+/* hover 借用危险色（红）：这些按钮的实际动作都是移除 / 替换，提前预告后果。 */
 .light-statistics-entity-row button:hover {
   border-color: #e0665e75;
   color: #efb2ad;
@@ -3202,6 +3359,7 @@ h2 {
   justify-content: space-between;
   gap: 10px;
 }
+/* 属性组小标题：9px 弱色；右侧常配一个操作按钮，因此用 flex 两端对齐。 */
 .navigation-property-heading strong {
   margin: 0;
   color: #aeb8be;
@@ -3216,6 +3374,7 @@ h2 {
   font-size: 11px;
   line-height: 1.4;
 }
+/* 弹窗里的「关联实体」设置块：两列网格（标题 + 右侧按钮），说明文字跨整行。 */
 .popup-related-entity-settings {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -3230,6 +3389,7 @@ h2 {
 .popup-related-entity-settings[hidden] {
   display: none;
 }
+/* 左侧标题单行省略：实体名可能很长，不能撑破这一格。 */
 .popup-related-entity-settings > strong {
   overflow: hidden;
   color: #dce1e5;
@@ -3245,6 +3405,7 @@ h2 {
   font-size: 8px;
   line-height: 1.4;
 }
+/* 「打开关联设置」按钮：25px 高、绿色系（与橙色主操作区分），表示这是跳转类动作。 */
 .popup-related-entity-open {
   display: flex;
   align-items: center;
@@ -3257,6 +3418,7 @@ h2 {
   background: #ffffff06;
   font-size: 8px;
 }
+/* hover 一起加深绿色描边与底色，保持「跳转」而非「危险」的语义。 */
 .popup-related-entity-open:hover {
   border-color: #76b79370;
   color: #c8e1d1;
@@ -3269,6 +3431,8 @@ h2 {
   color: #69767e;
   font: 15px/1 sans-serif;
 }
+/* 关联实体选择弹窗：宽 520px、最高 680px（同时受 84vh 约束）；
+   max-width: none 用来覆盖 <dialog> 的 UA 默认值，否则上不到 520px。 */
 .popup-related-entity-dialog {
   width: min(520px, 86vw);
   max-width: none;
@@ -3282,6 +3446,7 @@ h2 {
   background: #151c21;
   box-shadow: 0 24px 70px #0000008c;
 }
+/* 遮罩层：深色半透明 + 5px 模糊，让底下的 3D 画布退到背景中。 */
 .popup-related-entity-dialog::backdrop {
   background: #04080bb8;
   backdrop-filter: blur(5px);
@@ -3299,6 +3464,7 @@ h2 {
   padding: 16px 18px 13px;
   border-bottom: 1px solid rgba(126, 141, 153, 0.15);
 }
+/* 标题区左侧（标题 + 副标题竖排）；右侧固定留一个 28px 的关闭按钮。 */
 .popup-related-entity-dialog-heading > div {
   display: grid;
   gap: 4px;
@@ -3312,6 +3478,7 @@ h2 {
   color: #75828a;
   font-size: 9px;
 }
+/* 关闭按钮：28px 正圆，尺寸与标题栏（上下内边距 16px / 13px）配平。 */
 .popup-related-entity-dialog-heading > button {
   width: 28px;
   height: 28px;
@@ -3327,6 +3494,7 @@ h2 {
   color: #e4e8ea;
   background: #ffffff0f;
 }
+/* 搜索栏容器：左右内边距与弹窗内容区一致（18px）。 */
 .popup-related-entity-dialog-search {
   display: block;
   padding: 11px 18px 0;
@@ -3342,6 +3510,7 @@ h2 {
   background: #10161a;
   font-size: 10px;
 }
+/* 聚焦态用绿色：这个弹窗的交互主色是绿（关联 / 跳转语义），与编辑器的橙色区分开。 */
 .popup-related-entity-dialog-search input:focus {
   border-color: #66b5899e;
   box-shadow: 0 0 0 2px #4291641f;
@@ -3369,6 +3538,7 @@ h2 {
   text-align: left;
   cursor: pointer;
 }
+/* hover 加深绿色边框与底色，与选中态的实心绿方块呼应。 */
 .popup-related-entity-option:hover {
   border-color: #76b79375;
   background: #222d2abf;
@@ -3381,6 +3551,7 @@ h2 {
   border-radius: 4px;
   background: #141a1e;
 }
+/* 选中：方框填成绿色实心，对勾由紧接的 :after 用两条边框拼出。 */
 .popup-related-entity-option.selected > i {
   border-color: #70bd91;
   background: #70bd91;
@@ -3400,6 +3571,7 @@ h2 {
   transform: rotate(45deg);
   content: "";
 }
+/* 右侧文字区：实体名 + ID 竖排；min-width: 0 让两行都能省略。 */
 .popup-related-entity-option > span {
   display: grid;
   min-width: 0;
@@ -3416,6 +3588,7 @@ h2 {
   font-size: 11px;
   font-weight: 650;
 }
+/* 实体 ID 行：9px 弱色；不可选状态（unavailable / limit-reached）由下面注释说明。 */
 .popup-related-entity-option small {
   color: #65737b;
   font-size: 9px;
@@ -3434,6 +3607,7 @@ h2 {
 .popup-related-entity-option[hidden] {
   display: none;
 }
+/* 搜索无结果时的空态：虚线边框 + 8.5px 居中灰字。 */
 .popup-related-entity-empty {
   padding: 7px;
   color: #65737b;
@@ -3448,6 +3622,7 @@ h2 {
   padding: 11px 18px 14px;
   border-top: 1px solid rgba(126, 141, 153, 0.15);
 }
+/* 底部「确定」按钮：绿色实心（与弹窗交互色一致），最小宽 76px 保证中文不折行。 */
 .popup-related-entity-dialog-footer button {
   min-width: 76px;
   min-height: 31px;
@@ -3461,6 +3636,7 @@ h2 {
 .popup-related-entity-dialog-footer button:hover {
   background: #42916447;
 }
+/* 导航属性控件容器：单列网格，标签 9px 弱色（与 .inspector-section label 同档）。 */
 .navigation-property-control {
   display: grid;
   min-width: 0;
@@ -3490,6 +3666,7 @@ h2 {
 .navigation-segmented-options.three-columns {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
+/* 四列变体（如门 / 窗 / 帘的朝向选择）；列宽同样用 minmax(0, 1fr) 以便随侧栏压缩。 */
 .navigation-segmented-options.four-columns {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -3503,6 +3680,7 @@ h2 {
   background: transparent;
   font-size: 9px;
 }
+/* hover 只提亮文字与底色、不用橙色，避免与 .active 的橙色选中态混淆。 */
 .navigation-segmented-options button:hover {
   color: #dce2e6;
   background: #ffffff0b;
@@ -3517,6 +3695,7 @@ h2 {
   padding-bottom: 12px;
   margin-bottom: 12px;
 }
+/* 紧凑帘幕设置的网格：行距压到 5px，让四行控件挤进侧栏一屏。 */
 .cover-settings-compact-grid {
   display: grid;
   gap: 5px;
@@ -3559,6 +3738,8 @@ h2 {
   background: #171d22;
   font-size: 9px;
 }
+/* 紧凑档：宽度自适应、最小 44px（接近无障碍最小点击区），默认无边框透明底；
+   只有「已隐藏」（aria-pressed="false"）才亮橙，用颜色表达「当前是异常的隐藏状态」。 */
 .inspector-visibility-toggle.compact {
   width: auto;
   min-width: 44px;
@@ -3573,6 +3754,7 @@ h2 {
   color: var(--accent-bright);
   background: #f2a20d12;
 }
+/* 键盘聚焦时才画外框（outline 留 2px 间隙，不与橙色描边重叠）。 */
 .inspector-visibility-toggle.compact[aria-pressed="false"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -3588,6 +3770,7 @@ h2 {
   background: #f2a20d24;
   box-shadow: 0 0 0 2px #f2a20d1a;
 }
+/* 紧凑档的状态圆点：4px 灰点，比标准档的 5px 橙点更弱，侧栏里不会到处是亮点。 */
 .inspector-visibility-toggle.compact:before {
   display: inline-block;
   width: 4px;
@@ -3600,6 +3783,7 @@ h2 {
   content: "";
   vertical-align: 1px;
 }
+/* 显示态（aria-pressed="true"）：浅色文字 + 抬升底色，表示「当前可见」。 */
 .inspector-visibility-toggle[aria-pressed="true"] {
   border-color: #5b6670;
   color: #dce2e6;
@@ -3616,6 +3800,7 @@ h2 {
   content: "";
   vertical-align: 1px;
 }
+/* 紧凑档的显示态回到「无边框透明」，只在 hover 时给反馈；圆点保留 4px 橙色。 */
 .inspector-visibility-toggle.compact[aria-pressed="true"] {
   border-color: transparent;
   color: #8d989f;
@@ -3634,6 +3819,7 @@ h2 {
   box-shadow: 0 0 4px #f2a20d52;
   opacity: 0.9;
 }
+/* 显示 / 隐藏开关组：两列等宽；最后一项「全部显示 / 全部隐藏」跨整行。 */
 .navigation-visibility-options {
   align-items: stretch;
 }
@@ -3657,6 +3843,7 @@ h2 {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
+/* 外框内的图标 + 名称按钮：自身去掉边框与阴影，聚焦表现交给外框 :focus-within。 */
 .navigation-icon-button {
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr);
@@ -3671,6 +3858,7 @@ h2 {
   border-color: transparent;
   box-shadow: none;
 }
+/* 图标用 mask 上色（background-color 即图标颜色），18px 见方；标准属性与 -webkit- 成对写。 */
 .navigation-icon-button > i {
   display: block;
   width: 18px;
@@ -3684,6 +3872,7 @@ h2 {
   -webkit-mask-size: contain;
   pointer-events: none;
 }
+/* 图标名：单行省略；pointer-events: none 让点击穿透到外框按钮。 */
 .navigation-icon-button > span {
   display: block;
   min-width: 0;
@@ -3705,6 +3894,7 @@ h2 {
   color: #7f8b93;
   background: transparent;
 }
+/* hover 提亮图标与底色；按钮无边框，仅靠左侧 1px 分隔线与选择器区分。 */
 .navigation-icon-copy:hover {
   color: #dce2e6;
   background: #ffffff0b;
@@ -3740,6 +3930,7 @@ h2 {
     opacity 0.12s ease,
     transform 0.12s ease;
 }
+/* 复制成功后：原图标淡出、对勾淡入并放大到 1，120ms 完成、不打断操作节奏。 */
 .navigation-icon-copy.copied svg {
   opacity: 0;
 }
@@ -3775,6 +3966,7 @@ h2 {
   content-visibility: auto;
   contain-intrinsic-size: 51px;
 }
+/* 格子里的图标：24px mask 上色，颜色随 currentColor（hover / 选中时自动变橙）。 */
 .navigation-icon-option i {
   display: block;
   width: 24px;
@@ -3788,6 +3980,7 @@ h2 {
   -webkit-mask-size: contain;
   pointer-events: none;
 }
+/* hover / 选中：与其它选择列表一致——hover 走灰、选中走橙。 */
 .navigation-icon-option:hover {
   border-color: #65717a;
   color: #edf0f2;
@@ -3806,6 +3999,7 @@ h2 {
   border-style: dashed;
   font-size: 10px;
 }
+/* 图标加载中 / 失败提示：跨整行、居中、9px 弱色，占用图标网格所在的那块区域。 */
 .navigation-icon-load-state {
   grid-column: 1 / -1;
   min-height: 30px;
@@ -3827,6 +4021,7 @@ h2 {
   box-shadow: none;
   font-weight: 400;
 }
+/* 统一 hover：三个「清除选择」按钮都只留极淡描边 + 2% 白底。 */
 .inspector-entity-clear:hover,
 .inspector-asset-clear:hover,
 .navigation-icon-clear:hover {
@@ -3857,6 +4052,7 @@ h2 {
   font-size: 9px;
   font-weight: 500;
 }
+/* 批量应用按钮：整行宽、橙色描边 + 13% 橙底，是这一区的主操作。 */
 .navigation-batch-section > button {
   width: 100%;
   min-height: 34px;
@@ -3889,6 +4085,7 @@ h2 {
   overflow: auto;
   padding: 20px;
 }
+/* 顶部摘要：本次批量应用会影响多少个组件 / 页面，11px / 行高 1.65。 */
 .navigation-style-apply-summary {
   margin: 0;
   color: #96a1a8;
@@ -3907,6 +4104,7 @@ h2 {
   border-radius: 6px;
   background: #151b20;
 }
+/* 分组卡片头：左侧标题 + 右侧统计（如「已选 3 项」），底边线与内容分隔。 */
 .navigation-style-apply-heading {
   display: flex;
   min-height: 38px;
@@ -3921,6 +4119,7 @@ h2 {
   color: #d7dde1;
   font-size: 11px;
 }
+/* 右侧统计文字 9px 弱色，只作数量提示不参与交互。 */
 .navigation-style-apply-heading span {
   color: #75818a;
   font-size: 9px;
@@ -3940,6 +4139,7 @@ h2 {
   gap: 8px;
   padding: 8px;
 }
+/* 作用域分组（如「当前页面」「所有页面」）竖排；第二个起由下面规则加顶部分隔线。 */
 .navigation-style-apply-scope {
   display: grid;
   min-width: 0;
@@ -3958,6 +4158,7 @@ h2 {
   font-size: 11px;
   font-weight: 680;
 }
+/* 单个页面分组卡片：再嵌一层边框，与外层 section 形成两级层次。 */
 .navigation-style-apply-page-group {
   min-width: 0;
   overflow: hidden;
@@ -3975,6 +4176,7 @@ h2 {
   border-bottom: 1px solid #303a42;
   background: #182026;
 }
+/* 页面组标题 10px / 680，比外层 section 标题（11px）低一档。 */
 .navigation-style-apply-page-heading strong {
   color: #d6dde1;
   font-size: 10px;
@@ -3990,6 +4192,7 @@ h2 {
   align-items: center;
   gap: 8px;
 }
+/* 「全选 / 全不选」小按钮：最小宽 52px、橙描边，24px 高与页面组标题同高。 */
 .navigation-style-apply-page-toggle {
   min-width: 52px;
   min-height: 24px;
@@ -4004,6 +4207,7 @@ h2 {
   color: #fff0cf;
   background: #f2a20d21;
 }
+/* 页面组内的选项网格：三列紧密排布（gap 仅 1px），靠 hover 底色区分条目。 */
 .navigation-style-apply-page-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4022,6 +4226,7 @@ h2 {
   font-size: 10px;
   cursor: pointer;
 }
+/* hover 只提亮文字 + 4% 白底：条目排得很密，底色太重会糊成一片。 */
 .navigation-style-apply-option:hover {
   color: #eef1f3;
   background: #ffffff0a;
@@ -4038,6 +4243,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 选项副标题（说明文字）：9px 弱色，与主标题同用省略号截断防止撑破两列网格。 */
 .navigation-style-apply-option small {
   display: block;
   margin-top: 3px;
@@ -4056,6 +4262,9 @@ h2 {
   background: #e26b670f;
   font-size: 10px;
 }
+/* ===== 效果图对齐对话框 ===== */
+
+/* 620px 定宽上限，窄屏时退为「视口宽 - 40px」两侧各留 20px。 */
 .effect-image-align-dialog {
   width: min(620px, calc(100vw - 40px));
 }
@@ -4070,6 +4279,7 @@ h2 {
   font-size: 11px;
   line-height: 1.65;
 }
+/* 对齐方式两列网格；高度上限 min(420px, 52vh)，方案多时内部滚动而不拉长弹窗。 */
 .effect-image-align-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4091,6 +4301,7 @@ h2 {
   background: #151b20;
   cursor: pointer;
 }
+/* hover 仅提亮描边与底色，不改变选中态的橙色描边，两者视觉上不会互相污染。 */
 .effect-image-align-option:hover {
   border-color: #53616b;
   background: #192127;
@@ -4136,6 +4347,7 @@ h2 {
   background: var(--accent);
   font-weight: 800;
 }
+/* 左侧预览图槽：72×56 定框，object-fit: contain 保证不同比例的效果图都不被裁切。 */
 .effect-image-align-option-preview {
   display: grid;
   width: 72px;
@@ -4152,6 +4364,7 @@ h2 {
   height: 100%;
   object-fit: contain;
 }
+/* 右侧文案列：min-width: 0 让网格列可收缩，内部 strong/small 才能触发省略号截断。 */
 .effect-image-align-option-copy {
   min-width: 0;
 }
@@ -4162,6 +4375,7 @@ h2 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 主标题 12px 亮色，说明文字 9px 弱色并留 6px 上边距；两者都在一行内截断。 */
 .effect-image-align-option-copy strong {
   color: #e2e6e9;
   font-size: 12px;
@@ -4191,6 +4405,7 @@ h2 {
   display: grid;
   gap: 9px;
 }
+/* 动作分区标题行：标题靠左，「预览」按钮靠右，两端对齐。 */
 .inspector-action-heading {
   display: flex;
   align-items: center;
@@ -4200,6 +4415,7 @@ h2 {
 .inspector-action-heading h3 {
   margin: 0;
 }
+/* 「预览」按钮做成浅橙提示片，与普通次要按钮区分，暗示它是只读预览入口。 */
 .inspector-action-preview {
   min-height: 26px;
   padding: 4px 8px;
@@ -4213,6 +4429,7 @@ h2 {
   color: #fff0cf;
   background: #f2a20d26;
 }
+/* 门窗透视方向：固定三列等宽（俯视/正视/侧视），窄栏下靠 9px 字挤压适配。 */
 .door-window-perspective-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4271,6 +4488,7 @@ h2 {
   font-size: 10px;
   white-space: nowrap;
 }
+/* 未选中段 hover 才补上描边与浅底，平时保持透明以突出当前激活项。 */
 .component-action-options button:hover:not(:disabled) {
   border-color: #47525b;
   color: #b9c2c8;
@@ -4284,6 +4502,7 @@ h2 {
     inset 0 1px #ffffff12,
     0 1px 2px #00000038;
 }
+/* 不可用段（例如该动作类型无目标可选）压暗到 #4e5961，并去掉 hover 反馈。 */
 .component-action-options button:disabled {
   border-color: transparent;
   color: #4e5961;
@@ -4296,6 +4515,7 @@ h2 {
   align-items: center;
   gap: 7px;
 }
+/* 该动作类型不需要目标选择时由脚本加上 hidden，显式盖回 grid 的 display。 */
 .component-action-target[hidden] {
   display: none;
 }
@@ -4332,6 +4552,7 @@ h2 {
   background: var(--field);
   box-shadow: inset 0 1px 2px #00000038;
 }
+/* 排列方式两个选项（横排/竖排）等宽平分，内部只用描边区分激活态。 */
 .image-layout-options button {
   min-width: 0;
   min-height: 26px;
@@ -4341,6 +4562,7 @@ h2 {
   background: transparent;
   font-size: 11px;
 }
+/* hover 与激活态用同一套描边/底色，只是激活色更深，避免 hover 时视觉跳空。 */
 .image-layout-options button:hover {
   border-color: #47525b;
   color: #b9c2c8;
@@ -4363,6 +4585,7 @@ h2 {
   align-items: stretch;
   gap: 6px;
 }
+/* 「对齐方式…」入口做成同排的方形触发按钮，与左侧选择器顶底对齐（36px 高）。 */
 .effect-image-align-trigger {
   min-height: 36px;
   padding: 4px 11px;
@@ -4455,6 +4678,7 @@ h2 {
   user-select: none;
   touch-action: none;
 }
+/* strong 只做语义加粗，字重与字号完全继承标题栏，避免与按钮对比失衡。 */
 .floorplan-auto-lighting-header strong {
   font: inherit;
 }
@@ -4473,6 +4697,7 @@ h2 {
   background: transparent;
   font-size: 9px;
 }
+/* 面板正文滚动区：上限 min(480px, 视口高 - 150px)，保证弹窗整体不超出屏幕。 */
 .floorplan-auto-lighting-body {
   max-height: min(480px, calc(100vh - 150px));
   padding: 0 10px 10px;
@@ -4491,6 +4716,7 @@ h2 {
   font-weight: 700;
   letter-spacing: 0.08em;
 }
+/* 参数两列网格；minmax(0, 1fr) 允许列收缩到 0，防止窄面板时被输入框撑破。 */
 .floorplan-auto-lighting-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4526,6 +4752,7 @@ h2 {
 .floorplan-auto-lighting-grid input:focus {
   border-color: #ffa73a8f;
 }
+/* 状态行固定 14px 最小高，避免出现/清除提示文字时面板高度跳动。 */
 .floorplan-auto-lighting-status {
   min-height: 14px;
   margin: 7px 0;
@@ -4538,10 +4765,13 @@ h2 {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
+/* 面板很窄，按钮统一 9px 字与 28px 高，两列等宽平分。 */
 .floorplan-auto-lighting-actions button {
   min-height: 28px;
   font-size: 9px;
 }
+/* 宽屏（≥1181px）放宽组件模板弹窗：1536px 定宽 + 6 列网格，
+   并用 --component-template-dialog-scale 整体缩放以适配不同 DPI。 */
 @media (min-width: 1181px) {
   .settings-dialog.component-template-dialog {
     width: 1536px;
@@ -4552,6 +4782,7 @@ h2 {
   .component-template-dialog .dialog-heading h2 {
     font-size: 20px;
   }
+  /* 弹窗放大后各元素字号同步上一档，保持原先的字号层级比例。 */
   .component-template-dialog .dialog-heading span {
     font-size: 10px;
   }
@@ -4565,6 +4796,7 @@ h2 {
   .component-template-dialog .component-template-body > p {
     font-size: 12px;
   }
+  /* 宽屏下模板卡改为 6 列铺满，卡片间距 14px，一屏基本能看完全部模板。 */
   .component-template-dialog .component-template-list {
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 14px;
@@ -4597,6 +4829,7 @@ h2 {
   font-weight: 800;
   letter-spacing: 0.15em;
 }
+/* 标题主行；上方 9px 小字只占 12px 行高，这里再用 margin-top 5px 拉开两行层级。 */
 .dialog-heading h2 {
   margin-top: 5px;
   font-size: 16px;
@@ -4608,6 +4841,7 @@ h2 {
   border-radius: 50%;
   font-size: 20px;
 }
+/* 通用表单：15px 行距 + 20px 内边距，弹窗内的设置表单统一走这一套间距。 */
 .settings-form {
   display: grid;
   gap: 15px;
@@ -4616,12 +4850,15 @@ h2 {
 .settings-form[hidden] {
   display: none;
 }
+/* 标签与控件竖排：标签 11px，和输入框保持 7px 间距。 */
 .settings-form label {
   display: grid;
   gap: 7px;
   color: #b7c0c6;
   font-size: 11px;
 }
+/* 文本类输入统一 38px 高，与 .settings-form .custom-select-button 对齐；
+   :not([type="checkbox"]) 排除复选行里的方形控件。 */
 .settings-form input:not([type="checkbox"]) {
   width: 100%;
   height: 38px;
@@ -4650,6 +4887,7 @@ h2 {
   font-size: 10px;
   line-height: 1.5;
 }
+/* 设备类型分组默认显示；不适用时脚本加 hidden，需要显式改回 none。 */
 .popup-module-device-type {
   display: grid;
   gap: 7px;
@@ -4766,9 +5004,11 @@ h2 {
 .project-canvas-fields.name-only .project-details-grid {
   grid-template-columns: minmax(0, 1fr);
 }
+/* 「仅名称」模式下画布宽高/比例整块隐藏，只留下名称字段。 */
 .project-canvas-fields.name-only .project-canvas-control {
   display: none;
 }
+/* 画布内容锁定开关组：5px 紧凑行距，勾选项与说明文字构成一个整体。 */
 .project-content-lock-fields {
   display: grid;
   gap: 5px;
@@ -4783,6 +5023,7 @@ h2 {
 .project-content-lock-fields small {
   padding-left: 24px;
 }
+/* 缩小画布会裁剪已有内容，因此弹窗宽度略窄（540px）、文案行高放宽便于阅读。 */
 .project-resize-warning-dialog {
   width: min(540px, calc(100vw - 40px));
 }
@@ -6156,6 +6397,8 @@ h2 {
     0 10px 22px #0000002e,
     inset 0 1px #ffffff06;
 }
+/* 滑条标题行：图标列固定 36px、名称列弹性、右侧读数取内容宽；
+   预览尺度下所有字号都比主界面放大一档。 */
 .hb-custom-popup-module--light .hb-light-details-slider-heading {
   grid-template-columns: 36px minmax(0, 1fr) auto;
   gap: 11px;
