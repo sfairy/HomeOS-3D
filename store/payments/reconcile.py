@@ -12,9 +12,12 @@
 
    - 用户扫完码直接关掉页面：没人再轮询，订单会永远停在 pending；
    - 本地订单已过期/取消，但支付宝那笔预下单交易**还开着**，旧二维码仍可付款；
-   - 本地订单**过了期却还是 pending**（``_expire_stale_orders`` 只在有流量的
-     接口里顺带调用，商店没人访问时它根本不会跑），既不查单也不关单：
-     渠道那笔交易一直开着，本地订单又卡在 pending 占着库存预留与优惠码名额。
+   - 本地订单**过了期却还是 pending**（本地过期收尾只在有流量的接口 + 本巡检里
+     跑，商店没人访问时它根本不会跑），既不查单也不关单：渠道那笔交易一直开着，
+     本地订单又卡在 pending 占着库存预留与优惠码名额。
+
+   最后一条与渠道无关，因此由 ``reconcile_due_orders`` 在渠道对账**之后**无条件
+   执行（``store.expiry``）：没配支付宝的站点也得清理超时单，否则巡检等于空转。
 
 网络调用与写库刻意分两段执行（先收集动作、再统一落库），因为 SQLite 的写锁
 会跨整个事务持有，而 ``busy_timeout`` 只有 5 秒：在写事务里等一次 15 秒的
@@ -34,6 +37,7 @@ from sqlalchemy.orm import Session
 
 from store import coupons, fulfill
 from store.config import StoreSettings
+from store.expiry import expire_stale_orders
 from store.models import Order, Product, StoreSetting, utcnow
 from store.payments import resolve_provider
 from store.payments.alipay import SUCCESS_TRADE_STATUSES, cents_from_yuan
@@ -185,11 +189,14 @@ class SweepResult:
     settled: int = 0
     closed: int = 0
     failed: int = 0
+    #: 与渠道无关的那部分：本地超时单被推进终态的笔数。未配渠道的站点也会有值，
+    #: 后台「巡检在干活吗」看的就是它 —— 不能只有 queried 非零才算跑过。
+    expired: int = 0
     settled_orders: list[str] = field(default_factory=list)
 
     @property
     def changed(self) -> bool:
-        return bool(self.settled or self.closed)
+        return bool(self.settled or self.closed or self.expired)
 
 
 def _confirm_paid_after_close(
@@ -239,7 +246,7 @@ def _confirm_paid_after_close(
 def _expire_local_order(session: Session, order: Order) -> bool:
     """把「已过期但仍是 pending」的订单推进终态，归还预留与优惠码名额。
 
-    条件 UPDATE 抢单（与 ``_expire_stale_orders`` 同一套路）：支付回调可能正好在
+    条件 UPDATE 抢单（与 ``expire_stale_orders`` 同一套路）：支付回调可能正好在
     巡检这一瞬间把钱认了，谁先把状态从 ``pending`` 改走谁负责副作用。返回本次
     调用是否真的完成了过期。
     """
@@ -266,9 +273,41 @@ def reconcile_due_orders(
     setting: StoreSetting,
     limit: int = 25,
 ) -> SweepResult:
+    """巡检一次：先做渠道对账，再做**与渠道无关**的本地过期收尾。
+
+    两件事的**顺序与耦合**是这里的要点（S20）：
+
+    - 渠道对账在前。已过期却还是 pending 的支付宝单必须先有机会被查单认领
+      （钱可能已经付了、只是通知丢了），确认没付款才轮到关单 / 本地过期。
+      反过来先本地过期的话，一笔「钱已到账」的单会先被释放库存预留，
+      再走复活路径补回来 —— 中间那段时间别的用户可能已经把它买走了。
+    - 本地过期收尾在后，且**不受渠道配置约束**。这曾经是个真实的坑：
+      站点没配支付宝（或凭据不全）时，整个巡检在这里第一步就 ``return``，
+      连本地超时单都不清理。于是那些单永远占着库存预留与优惠码名额 ——
+      而它的主人还会被「有未完成订单」挡住不能下单。见 ``store.expiry``。
+    """
+    result = _sweep_channel_orders(session, settings=settings, setting=setting, limit=limit)
+    expired = expire_stale_orders(session, settings)
+    if expired:
+        result.expired = expired
+        logger.info(
+            "支付巡检：本地过期收尾 %d 笔（已归还库存预留与优惠码名额）", expired
+        )
+    return result
+
+
+def _sweep_channel_orders(
+    session: Session,
+    *,
+    settings: StoreSettings,
+    setting: StoreSetting,
+    limit: int = 25,
+) -> SweepResult:
     """巡检一次：认领「已付款但本地还是待支付」的单，并关闭过期未付的渠道交易。
 
     只处理支付宝订单；模拟渠道没有真实资金流，也没有需要关闭的远端交易。
+    未配置渠道时**直接返回空结果** —— 本地过期收尾由 ``reconcile_due_orders``
+    在调用方完成，不能因为这里返回就把那件事也一起跳过。
     """
     result = SweepResult()
     provider = _alipay_provider(settings, setting)

@@ -11,6 +11,7 @@ import secrets
 import threading
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Iterator
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
@@ -20,12 +21,12 @@ from sqlalchemy.orm import Session, aliased
 from store import coupons, features, fulfill, money, referrals, site_settings as site_config
 from store import catalog, mail_settings, mailer
 from store.api.store import (
-    _expire_stale_orders,
     _image_map,
     _license_meta,
     _product_stats,
 )
 from store.deps import AdminAccount, DbSession, SettingsDep
+from store.expiry import expire_stale_orders
 from store.order_status import ORDER_STATUS_LABELS, ORDER_STATUS_CHOICES, order_status_label
 from store.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
@@ -305,7 +306,7 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
     要看一眼的数字都应该在这里出现，而不是让人自己去各分页里数。
     """
     setting = site_config.get_setting(session)
-    _expire_stale_orders(session, setting, settings)
+    expire_stale_orders(session, settings)
     moment = utcnow()
 
     def count(statement) -> int:
@@ -956,8 +957,7 @@ def admin_list_orders(
     日期区间按 ``created_at`` 过滤，边界都含。时间参数由前端按本地时区算好再转
     UTC 传出，服务端只做 naive UTC 归一（见 ``_naive_utc``）。
     """
-    setting = site_config.get_setting(session)
-    _expire_stale_orders(session, setting, settings)
+    expire_stale_orders(session, settings)
     base = select(Order)
     wanted = [part.strip() for part in (status_filter or "").split(",") if part.strip()]
     if wanted:
@@ -1211,7 +1211,7 @@ def _claim_refund_amount(
 ) -> bool:
     """把本次退款金额并进累计值，条件是「累计值仍是本次读到的那个」。
 
-    与 ``_expire_stale_orders`` 同一套抢单套路：只有还能看到 ``seen_cents`` 的
+    与 ``expire_stale_orders`` 同一套抢单套路：只有还能看到 ``seen_cents`` 的
     一方才有资格写。``refund_amount_cents`` 是可空列，用 ``coalesce`` 兜住历史
     数据里的 NULL（``NULL = 0`` 在 SQL 里不成立，漏掉会让老订单永远抢不到）。
     """
@@ -1572,7 +1572,7 @@ def admin_cancel(
             status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
         )
     fulfill.release_order_reservation(session, order=order, product=product)
-    # 与 _expire_stale_orders 对齐：取消要同时归还优惠码名额。漏掉这一步会让
+    # 与 expire_stale_orders 对齐：取消要同时归还优惠码名额。漏掉这一步会让
     # redeemed_count 只增不减，而它参与 max_redemptions 校验，名额会被永久占用，
     # 用户之后下单会收到「优惠码已被领完」。
     coupons.release_coupon(session, order)

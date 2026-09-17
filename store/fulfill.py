@@ -380,7 +380,7 @@ def release_reserved_stock(session: Session, product: Product | None, quantity: 
     )
     if result.rowcount == 0:
         # 预留本来就是 0：只可能是「同一次预留被归还了两次」（例如订单已被
-        # _expire_stale_orders 归还，后续取消/退款路径又归还一次）。负数预留会
+        # expire_stale_orders 归还，后续取消/退款路径又归还一次）。负数预留会
         # 让 available = stock - reserved 虚高，直接放开超卖，所以这里夹到 0
         # 并留一条告警 —— 不报错，但必须能被发现。
         clamped = session.execute(

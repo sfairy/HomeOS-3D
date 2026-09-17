@@ -1,4 +1,4 @@
-"""后台支付巡检：定时对账 + 关闭过期交易。
+"""后台支付巡检：定时对账 + 关闭过期交易 + 本地超时单收尾。
 
 为什么必须由服务端定时跑，而不能只靠前端轮询：
 
@@ -7,9 +7,12 @@
   而那可能是好几天之后。
 - 本地订单过期/取消只是我们自己的状态，支付宝那边那笔预下单交易仍然开着，
   旧二维码还能扫、还能付。
+- 商店整天没人访问（或站点压根没配支付渠道）时，超时单连**本地**都不会被清理：
+  库存预留与优惠码名额一直挂着，用户本人还被「有未完成订单」挡着不能下单。
 
-巡检把这两件事收尾。它跑在独立的线程里（``asyncio.to_thread``），因为对渠道的
-调用是阻塞 I/O：直接在事件循环里 await 一个同步的 httpx 请求会把整个服务卡住。
+巡检把这三件事收尾。后一件与渠道无关，所以即使没配支付宝也照跑（``store.expiry``）。
+它运行在独立的线程里（``asyncio.to_thread``），因为对渠道的调用是阻塞 I/O：
+直接在事件循环里 await 一个同步的 httpx 请求会把整个服务卡住。
 """
 
 from __future__ import annotations
@@ -137,6 +140,7 @@ def _record_success(result: SweepResult | None, generation: int | None = None) -
             "settled": int(result.settled) if result else 0,
             "closed": int(result.closed) if result else 0,
             "failed": int(result.failed) if result else 0,
+            "expired": int(result.expired) if result else 0,
         }
 
 
@@ -255,12 +259,13 @@ def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | Non
             setting=setting,
             limit=max(1, int(settings.payment_sweep_batch or 25)),
         )
-    if result.queried:
+    if result.queried or result.expired:
         logger.info(
-            "支付巡检：查单 %d 笔，入账 %d 笔，关单 %d 笔，失败 %d 笔",
+            "支付巡检：查单 %d 笔，入账 %d 笔，关单 %d 笔，本地过期 %d 笔，失败 %d 笔",
             result.queried,
             result.settled,
             result.closed,
+            result.expired,
             result.failed,
         )
     return result if result.changed else None

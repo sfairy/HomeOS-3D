@@ -7,8 +7,8 @@ import contextlib
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from store import __version__
@@ -33,9 +33,13 @@ from store.payments.sweeper import (
 from store.bootstrap import ensure_default_products, ensure_default_settings
 from store.release_info import CURRENT_VERSION, ensure_current_release
 from store.request_security import (
+    error_page_html,
     forwarded_headers_present,
+    new_csp_nonce,
     parse_trusted_proxies,
+    prefers_html,
     same_origin_request,
+    security_headers,
 )
 from store.schema_guard import ensure_schema
 from store.points_migration import migrate_points
@@ -276,6 +280,27 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             )
         return await call_next(request)
 
+    # 安全头中间件必须**最后**注册：``@app.middleware`` 是往栈顶插，
+    # 最后注册的那层才在最外层。正因为它最外层，上面那道同源闸门提前返回的 403
+    # 也会被它补上头 —— 那是一个「不经过路由」的响应，最容易漏。
+    @app.middleware("http")
+    async def attach_security_headers(request: Request, call_next):
+        """给所有响应补上安全头（S16）。
+
+        用中间件而不是逐个端点加：这是**全局**性质，挂在唯一入口上才能保证
+        「以后新加的端点自动带上」。这个商店里有大量 ``innerHTML`` 拼装，
+        真正兜住它们的不是「记得转义」，而是这一层。
+
+        nonce 必须在 ``call_next`` **之前**生成 —— 路由里渲染模板时就要读它。
+        """
+        request.state.csp_nonce = new_csp_nonce()
+        response = await call_next(request)
+        # setdefault：端点自己设过的同名头以端点的为准（例如某个页面要放宽
+        # Referrer-Policy），这里只负责「没有就补上」。
+        for name, value in security_headers(request).items():
+            response.headers.setdefault(name, value)
+        return response
+
     def resolve_payment_provider(setting=None, *, name: str | None = None):
         """解析支付渠道。
 
@@ -330,8 +355,32 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         }
 
     @app.exception_handler(Exception)
-    async def unhandled_exception(_request: Request, error: Exception) -> JSONResponse:
+    async def unhandled_exception(request: Request, error: Exception) -> Response:
+        """未处理异常统一出口（S18：按调用方想要的格式回答）。
+
+        这个 handler 挂在 ``ServerErrorMiddleware`` 上，也就是**用户中间件之外**，
+        所以：
+
+        * 它拿不到 ``attach_security_headers`` 补的头，必须自己补 —— 否则一个 500
+          页面就成了全站唯一没有 CSP 的响应，而它偏偏是「已经出问题」时返回的那个；
+        * 它也不能假手路由层，只能自己判断该回页面还是回 JSON。
+
+        判断依据是 ``Accept``（见 ``prefers_html``）：浏览器显式偏好 ``text/html``，
+        就回一个不含任何异常细节的静态页面；其余（fetch/axios/curl/监控）回 JSON，
+        保持既有契约不变。
+
+        HTML 分支**不落任何异常内容**：500 可能是任意内部状态出错，把异常文本或
+        栈帧渲染进页面等于把一个「内部实现泄漏面」做成公开页面。
+        """
         logger.exception("未处理的异常：%s", error)
+        if prefers_html(request):
+            request.state.csp_nonce = new_csp_nonce()
+            response: Response = HTMLResponse(
+                error_page_html(), status_code=500, headers={"Cache-Control": "no-store"}
+            )
+            for name, value in security_headers(request).items():
+                response.headers.setdefault(name, value)
+            return response
         return JSONResponse({"detail": "服务器内部错误，请稍后重试。"}, status_code=500)
 
     return app

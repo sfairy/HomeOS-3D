@@ -11,7 +11,7 @@ from datetime import timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
@@ -27,6 +27,7 @@ from store import (
 )
 from store.config import StoreSettings
 from store.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
+from store.expiry import expire_stale_orders
 from store.models import (
     Account,
     AccountSession,
@@ -45,7 +46,6 @@ from store.models import (
     ReferralWallet,
     ReferralWithdrawal,
     Release,
-    StoreSetting,
     utcnow,
 )
 from store.limiter import SlidingWindowLimiter
@@ -326,7 +326,7 @@ def _customer_for(session, account: Account) -> Customer:
     customer = Customer(account_id=account.id, email=account.email, name=account.email)
     try:
         # 用 SAVEPOINT 而非整个事务回滚：失败时只丢掉这一条 INSERT，
-        # 调用方在本事务里已完成的其它写入（例如 _expire_stale_orders 关掉的过期单）
+        # 调用方在本事务里已完成的其它写入（例如 expire_stale_orders 关掉的过期单）
         # 不该被这次撞车连累。本仓的 SQLite 驱动下 SAVEPOINT 语义已实测正确
         # （内层失败后外层写入仍在、会话仍可用）。
         with session.begin_nested():
@@ -398,54 +398,6 @@ def _product_item(session, product: Product) -> dict:
         customer_count=int(stats["customer"].get(product.id, 0)),
         purchase_count=int(stats["purchase"].get(product.id, 0)),
     )
-
-
-def _expire_stale_orders(session, setting: StoreSetting, settings: StoreSettings) -> None:
-    """把超时的待支付订单置为 expired，并释放占用的库存与优惠码。
-
-    这里同样用**条件 UPDATE 抢单**：账号中心轮询、后台列表、下单前的自查都会
-    调用本函数，两个并发调用会读到同一批 stale 订单，各自释放一次预留 ——
-    预留被还了两遍（同类商品立刻虚增可售量）。
-    顺带把「读 - 改 - 写」换成一条语句，避免下单瞬间该订单被标记超时后又被
-    改成 paid 导致状态回退。
-
-    超时判据必须带 ``expires_at IS NULL`` 的兜底：``NULL <= moment`` 在 SQL 里
-    永远是 NULL（不是 true），那些历史遗留、没写进过 ``expires_at`` 的待支付单
-    会**永远**扫不到、永远停在 pending 占着预留，而用户本人还会被
-    「有未完成订单」挡住不能再下单。对这类单只用 ``created_at`` 按同一套
-    TTL 兜底，语义上等价于「它在下单时就该有的那个过期时间」。
-    """
-    moment = utcnow()
-    ttl = timedelta(seconds=max(0, int(settings.order_ttl_seconds or 0)))
-    legacy_before = moment - ttl
-    stale = session.scalars(
-        select(Order)
-        .where(Order.status == "pending")
-        .where(
-            or_(
-                Order.expires_at <= moment,
-                and_(Order.expires_at.is_(None), Order.created_at <= legacy_before),
-            )
-        )
-    ).all()
-    expired_any = False
-    for order in stale:
-        claimed = session.execute(
-            update(Order)
-            .where(Order.id == order.id)
-            .where(Order.status == "pending")
-            .values(status="expired", cancelled_at=moment)
-            .execution_options(synchronize_session=False)
-        )
-        if claimed.rowcount == 0:
-            # 已被别的路径处理（支付/取消/其它线程的扫描），副作用由它负责。
-            continue
-        expired_any = True
-        product = session.get(Product, order.product_id) if order.product_id else None
-        fulfill.release_order_reservation(session, order=order, product=product)
-        coupons.release_coupon(session, order)
-    if expired_any:
-        session.flush()
 
 
 def _evaluate_coupon(
@@ -677,7 +629,7 @@ def _account_orders_total(session, account: Account) -> int:
 
 def _center_payload(session, request: Request, account: Account) -> dict:
     setting = site_config.get_setting(session)
-    _expire_stale_orders(session, setting, request.app.state.settings)
+    expire_stale_orders(session, request.app.state.settings)
     licenses = _account_licenses(session, account)
     entitlements = list(
         session.scalars(
@@ -1642,7 +1594,7 @@ def list_orders(
     与账号中心首屏用同一口径（都过滤 ``archived_at``）。
     """
     _require_verified(account)
-    _expire_stale_orders(session, site_config.get_setting(session), settings)
+    expire_stale_orders(session, settings)
     size = max(1, min(int(limit or ACCOUNT_ORDER_PAGE_SIZE), 100))
     skip = max(0, int(offset or 0))
     orders = _account_orders(session, account, limit=size, offset=skip)
@@ -1677,7 +1629,7 @@ def create_order(
             detail="当前暂未开放支付，请稍后再试或联系客服。",
         )
 
-    _expire_stale_orders(session, setting, settings)
+    expire_stale_orders(session, settings)
 
     pending = session.scalars(
         select(Order)
@@ -1931,7 +1883,7 @@ def get_order(
     if not authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该订单。")
 
-    _expire_stale_orders(session, site_config.get_setting(session), request.app.state.settings)
+    expire_stale_orders(session, request.app.state.settings)
     session.refresh(order)
     # 前端每 3 秒轮询一次；顺带向支付宝查单对账，兜住「异步通知没收到」的情况
     _reconcile_payment(session, request, order)

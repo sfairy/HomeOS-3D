@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 from pathlib import Path
@@ -20,6 +21,7 @@ from store.deps import CurrentAccount, DbSession
 from store.models import Account, Order, Product
 from store.order_status import order_status_label
 from store.payments.base import PaymentError
+from store.request_security import render_template
 from store.security import token_matches, utcnow
 from store.serializers import order_payload
 
@@ -36,8 +38,11 @@ def _render_store_page(request: Request) -> HTMLResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="商店页面模板缺失。",
         )
-    html = template_path.read_text(encoding="utf-8")
-    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+    # 变量名刻意不叫 ``html``：本模块顶部有一处 ``import html``（转义用），
+    # 同名局部变量会把它在这个函数里遮掉 —— 现在没问题，但下一个人在这里
+    # 加一句 ``html.escape(...)`` 就会撞上 AttributeError。
+    template = template_path.read_text(encoding="utf-8")
+    return HTMLResponse(render_template(template, request), headers={"Cache-Control": "no-store"})
 
 
 def _home(request: Request, session: DbSession) -> Response:
@@ -83,7 +88,8 @@ def admin_page(request: Request, session: DbSession) -> HTMLResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="管理后台模板缺失。"
         )
     return HTMLResponse(
-        template_path.read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"}
+        render_template(template_path.read_text(encoding="utf-8"), request),
+        headers={"Cache-Control": "no-store"},
     )
 
 
@@ -95,7 +101,8 @@ def setup_page(request: Request) -> HTMLResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="初始化页面模板缺失。"
         )
     return HTMLResponse(
-        template_path.read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"}
+        render_template(template_path.read_text(encoding="utf-8"), request),
+        headers={"Cache-Control": "no-store"},
     )
 
 
@@ -126,17 +133,57 @@ def product_image(product_id: str, request: Request, session: DbSession) -> File
 # --------------------------------------------------------------------------- #
 # 模拟收银台
 # --------------------------------------------------------------------------- #
-def _cashier_html(order: Order, product: Product | None) -> str:
+#: 嵌进 ``<script>`` 的 JSON 里必须转义成 ``\uXXXX`` 的字符。
+#:
+#: ``json.dumps`` **只保证 JSON 合法，不保证 HTML 安全**：``<`` 是普通字符，
+#: 于是 ``</script>`` 会原样出现在 HTML 里并**提前结束脚本块**，后面的内容被当成
+#: 标记解析 —— 这就是最经典的「JSON 进 script」注入。``>`/``&`` 同理（``<!--``、
+#: 实体解码），U+2028/2029 则是历史上 JS 字符串字面量的换行符。
+#:
+#: 转义成 ``\u003c`` 之后，JSON 解析仍会还原出同一个字符串，而 HTML 解析器
+#: 永远看不到字面的 ``</script``。
+_JSON_SCRIPT_ESCAPES = {
+    "<": "\\u003c",
+    ">": "\\u003e",
+    "&": "\\u0026",
+    "\u2028": "\\u2028",
+    "\u2029": "\\u2029",
+}
+
+
+def _json_for_script(payload: dict) -> str:
+    r"""把字典序列化成可以安全放进 ``<script>`` 的 JSON 字面量。
+
+    不用 ``html.escape``：那会产出 ``&lt;`` 这类 HTML 实体，而 ``<script>`` 里的
+    内容是**原始文本**（不解实体），结果是页面上真的显示出 ``&lt;``。
+    ``\uXXXX`` 才是这个上下文里唯一正确的转义。
+    """
+    text = json.dumps(payload, ensure_ascii=False)
+    for raw, escaped in _JSON_SCRIPT_ESCAPES.items():
+        text = text.replace(raw, escaped)
+    return text
+
+
+def _cashier_html(order: Order, product: Product | None, *, request: Request) -> str:
     payload = order_payload(order)
     amount = payload["amountCents"] / 100
-    safe = json.dumps(payload, ensure_ascii=False)
+    safe = _json_for_script(payload)
+    # 内联脚本必须带本次响应的 nonce，否则会被自身的 CSP（``script-src`` 无
+    # ``'unsafe-inline'``）挡下 —— 见 ``store/request_security.csp_header``。
+    nonce = html.escape(str(getattr(request.state, "csp_nonce", "") or ""), quote=True)
+    # 文本上下文单独转义：``<title>`` 与 ``<dd>`` 里出现 ``<`` 会被当成标签，
+    # 而这里的数据有用户可控的部分（邮箱），不转义就是存储型 XSS。
+    order_no = html.escape(str(payload["orderNo"]))
+    product_name = html.escape(str(payload["productName"]))
+    email = html.escape(str(payload["email"]))
+    status_text = html.escape(str(payload["status"]))
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#151a1f">
-<title>模拟收银台 · {payload['orderNo']}</title>
+<title>模拟收银台 · {order_no}</title>
 <link rel="stylesheet" href="/store-static/theme.css?v=20260917022019">
 <link rel="stylesheet" href="/store-static/store.css?v=20260917022019">
 <link rel="icon" href="/store-static/favicon-rounded.png?v=20260917022019">
@@ -150,12 +197,12 @@ def _cashier_html(order: Order, product: Product | None) -> str:
     </div>
     <div>
       <div class="hb-cashier__amount">¥{amount:.2f}</div>
-      <div class="hb-cashier__product">{payload['productName']}</div>
+      <div class="hb-cashier__product">{product_name}</div>
     </div>
     <dl class="hb-cashier__meta">
-      <div><dt>订单号</dt><dd>{payload['orderNo']}</dd></div>
-      <div><dt>下单邮箱</dt><dd>{payload['email']}</dd></div>
-      <div><dt>状态</dt><dd>{payload['status']}</dd></div>
+      <div><dt>订单号</dt><dd>{order_no}</dd></div>
+      <div><dt>下单邮箱</dt><dd>{email}</dd></div>
+      <div><dt>状态</dt><dd>{status_text}</dd></div>
     </dl>
     <p id="cashier-message" class="hb-cashier__message">确认支付后将立即发码，请勿关闭本页。</p>
     <div class="hb-cashier__actions">
@@ -165,7 +212,7 @@ def _cashier_html(order: Order, product: Product | None) -> str:
     <a class="hb-cashier__back" href="/user/dashboard/index">返回账号中心</a>
   </div>
 </div>
-<script>
+<script nonce="{nonce}">
 const ORDER = {safe};
 const message = document.getElementById('cashier-message');
 const confirmButton = document.getElementById('cashier-confirm');
@@ -227,7 +274,10 @@ def mock_cashier(
         # 与「订单不存在」返回同一个状态码：不给「这个单号存在」的旁路信息
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
     product = session.get(Product, order.product_id) if order.product_id else None
-    return HTMLResponse(_cashier_html(order, product), headers={"Cache-Control": "no-store"})
+    return HTMLResponse(
+        _cashier_html(order, product, request=request),
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 def _order_or_404(session, order_no: str) -> Order:

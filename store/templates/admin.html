@@ -1504,7 +1504,10 @@
 
 <div id="admin-toast"></div>
 
-<script>
+<!-- 内联脚本必须带 nonce 占位符：服务端每响应替换成一次性随机值，
+     否则会被自身的 CSP（script-src 无 'unsafe-inline'）挡下。
+     见 store/request_security.py 的 CSP_NONCE_PLACEHOLDER。 -->
+<script nonce="{{NONCE}}">
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));

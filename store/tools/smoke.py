@@ -2723,7 +2723,8 @@ async def check_payment_sweep_loop_runs() -> None:
         )
         check(
             "本轮无事可做也记下结果（全 0，不是缺失）",
-            snapshot["lastResult"] == {"queried": 0, "settled": 0, "closed": 0, "failed": 0},
+            snapshot["lastResult"]
+            == {"queried": 0, "settled": 0, "closed": 0, "failed": 0, "expired": 0},
             str(snapshot["lastResult"]),
         )
 
@@ -3866,7 +3867,7 @@ async def check_stock_reservation_flag() -> None:
     app = create_app(settings)
     database = app.state.database
     from store import fulfill
-    from store.api.store import _expire_stale_orders
+    from store.expiry import expire_stale_orders
 
     with database.session() as session:
         seed_settings(session)
@@ -3987,7 +3988,7 @@ async def check_stock_reservation_flag() -> None:
         legacy.expires_at = None
         legacy.created_at = utcnow() - timedelta(seconds=int(settings.order_ttl_seconds) + 60)
         session.flush()
-        _expire_stale_orders(session, session.get(StoreSetting, 1), settings)
+        expire_stale_orders(session, settings)
         session.flush()
         session.refresh(legacy)
         check(
@@ -6876,6 +6877,423 @@ async def check_enumeration_and_quota_hardening(client_crypto) -> None:
     authority_app.state.database.dispose()
 
 
+def check_page_hardening_and_error_format() -> None:
+    """页面必须自带防线，不能靠「记得转义」（审计 S15、S16、S18）。
+
+    三条是三个层次，合起来才是完整的一层：
+
+    * **S15** 单个页面把不可信数据拼进 HTML —— 这一处修的是**源头**；
+    * **S16** 全站安全头 —— 这一处是**兜底**，因为「记得转义」这件事靠不住：
+      这个商店里有大量 ``innerHTML`` 拼装，而 CSP 挡的是注入的**执行**，
+      不依赖任何一处调用点写对；
+    * **S18** 500 该按调用方要的格式回答 —— 出问题的那条路径也得有防线，
+      否则 500 页面就成了全站唯一没有 CSP 的响应。
+
+    用 ``TestClient`` 而不是真起进程：这里验的是响应头与响应体的**关系**
+    （CSP 里的 nonce 必须与页面里那个一致），跨进程反而要重新解析一遍。
+    """
+    from starlette.testclient import TestClient
+    from types import SimpleNamespace
+
+    from store.api import pages as pages_api
+
+    # ------------------------------------------------------------------ #
+    # S15：模拟收银台的拼接
+    # ------------------------------------------------------------------ #
+    # 邮箱是**用户可控**的（注册时只校验「含 @」），所以它是这里最现实的注入载体。
+    hostile_email = '</script><img src=x onerror=alert(1)><script>alert(2)</script>@habridge.local'
+    order = SimpleNamespace(
+        order_no="HB202609170000",
+        lookup_token="lookup-token-for-test",
+        email=hostile_email,
+        customer_id="cust-1",
+        product_name="<b>基础版</b>",
+        product_type="base",
+        order_type="purchase",
+        license_action="issue",
+        license_id=None,
+        target_license_id=None,
+        original_amount_cents=4990,
+        discount_cents=0,
+        amount_cents=4990,
+        coupon_code=None,
+        status="pending",
+        fulfillment_mode="auto",
+        payment_payload_json="{}",
+        refund_amount_cents=0,
+        refund_trade_no=None,
+        needs_review=False,
+        review_note="",
+        license_state_before_json=None,
+        license=None,
+        created_at=None,
+        expires_at=None,
+        paid_at=None,
+        fulfilled_at=None,
+        cancelled_at=None,
+        refunded_at=None,
+        archived_at=None,
+    )
+    fake_request = SimpleNamespace(state=SimpleNamespace(csp_nonce="test-nonce-value"))
+    page = pages_api._cashier_html(order, None, request=fake_request)
+
+    check(
+        "S15 收银台把订单数据塞进 <script> 时不产生第二个脚本块"
+        "（json.dumps 只保证 JSON 合法，</script> 仍会提前结束脚本）",
+        page.count("<script") == 1 and page.count("</script>") == 1,
+        f"<script x{page.count('<script')} /script x{page.count('</script>')}",
+    )
+    check(
+        "S15 注入的 </script> 被转义成 \\u003c 而不是原样出现",
+        "\\u003c/script\\u003e" in page and "</script><img" not in page,
+        page[page.find("const ORDER") :][:160],
+    )
+    check(
+        "S15 文本上下文的邮箱被 HTML 转义（否则 <img onerror> 直接执行）",
+        "&lt;img src=x onerror=alert(1)&gt;" in page and "<img src=x" not in page,
+        page[page.find("下单邮箱") :][:120],
+    )
+    check(
+        "S15 商品名同理（后台可编辑，不等于可信）",
+        "&lt;b&gt;基础版&lt;/b&gt;" in page,
+        page[page.find("hb-cashier__product") :][:90],
+    )
+    check(
+        "S15 内联脚本带上本次响应的 nonce（否则会被自家的 CSP 挡下，页面直接不可用）",
+        'nonce="test-nonce-value"' in page,
+        "nonce=\"test-nonce-value\" in page" if 'nonce="test-nonce-value"' in page else "缺失",
+    )
+
+    # ------------------------------------------------------------------ #
+    # S16 / S18：真实响应上的头与分流
+    # ------------------------------------------------------------------ #
+    def build(**overrides):
+        workdir = Path(tempfile.mkdtemp(prefix="hb-store-headers-"))
+        settings = load_settings(
+            data_dir=workdir / "data",
+            license_keys_dir=workdir / "keys",
+            mail_mode="echo",
+            payment_provider="mock",
+            **overrides,
+        )
+        return create_app(settings)
+
+    app = build()
+    real_database = app.state.database
+    with real_database.session() as session:
+        seed_settings(session)
+        session.add(
+            Account(
+                email="header-admin@habridge.local",
+                password_hash=hash_password("header-admin-pw"),
+                email_verified_at=utcnow(),
+                is_admin=True,
+            )
+        )
+
+    nonces = {}
+    with TestClient(app, raise_server_exceptions=False) as client:
+        for path in ("/admin", "/", "/setup"):
+            response = client.get(path, headers={"accept": "text/html"})
+            nonces[path] = response
+
+        admin = nonces["/admin"]
+        csp = admin.headers.get("content-security-policy", "")
+        match = re.search(r"'nonce-([^']+)'", csp)
+
+        check(
+            "S16 页面响应带上 X-Content-Type-Options: nosniff"
+            "（否则被上传的「图片」可能按 HTML 解析并执行脚本）",
+            admin.headers.get("x-content-type-options") == "nosniff",
+            str(admin.headers.get("x-content-type-options")),
+        )
+        check(
+            "S16 页面响应带上 X-Frame-Options: DENY（点击劫持兜底）",
+            admin.headers.get("x-frame-options") == "DENY",
+            str(admin.headers.get("x-frame-options")),
+        )
+        check(
+            "S16 CSP 没有 'unsafe-inline' / 'unsafe-eval' 出现在 script-src 里"
+            "（这一条是重点：有它则注入的内联脚本与 onerror= 照样执行）",
+            "'unsafe-inline'" not in csp.split("script-src")[1].split(";")[0]
+            and "'unsafe-eval'" not in csp,
+            csp,
+        )
+        check(
+            "S16 CSP 含 frame-ancestors / object-src / base-uri / form-action 四项收口"
+            "（点击劫持、插件脚本、<base> 劫持、表单外送）",
+            all(
+                directive in csp
+                for directive in (
+                    "frame-ancestors 'none'",
+                    "object-src 'none'",
+                    "base-uri 'self'",
+                    "form-action 'self'",
+                )
+            ),
+            csp,
+        )
+        check(
+            "S16 CSP 里的 nonce 与页面内联脚本上的 nonce 一致"
+            "（不一致就等于 script-src 形同虚设：页面自己的脚本会被挡下）",
+            bool(match) and f'nonce="{match.group(1)}"' in admin.text,
+            f"csp_nonce={match.group(1) if match else None}",
+        )
+        check(
+            "S16 三个 HTML 页面都不残留 {{NONCE}} 占位符"
+            "（漏替换会同时暴露模板实现并让脚本被 CSP 挡下）",
+            all("{{NONCE}}" not in response.text for response in nonces.values()),
+            str([path for path, response in nonces.items() if "{{NONCE}}" in response.text]),
+        )
+        store_page_csp = nonces["/"].headers.get("content-security-policy", "")
+        store_page_match = re.search(r"'nonce-([^']+)'", store_page_csp)
+        check(
+            "S16 nonce 逐响应不同"
+            "（复用同一个值等于把 nonce 变成常量，注入的脚本只要读到它就能通过校验）",
+            bool(store_page_match)
+            and bool(match)
+            and store_page_match.group(1) != match.group(1),
+            f"{store_page_match.group(1) if store_page_match else None} vs {match.group(1) if match else None}",
+        )
+        check(
+            "S16 纯 http 下发 HSTS 会把之后所有 http 访问改写成 https 并直接失败 —— 不能发",
+            "strict-transport-security" not in admin.headers,
+            str(admin.headers.get("strict-transport-security")),
+        )
+
+        api = client.get("/store/v1/configuration")
+        check(
+            "S16 API 响应同样带头（安全头挂全局入口，不是只给页面）",
+            api.headers.get("x-content-type-options") == "nosniff"
+            and "frame-ancestors 'none'" in api.headers.get("content-security-policy", ""),
+            str(api.headers.get("x-content-type-options")),
+        )
+
+        # 中间件**提前返回**的响应最容易被漏掉：它不经过路由，是安全头中间件
+        # 「注册在最外层」这件事的唯一可观测证据。
+        csrf = client.post(
+            "/store/v1/auth/login",
+            json={"email": "x@habridge.local", "password": "whatever"},
+            headers={"origin": "https://evil.example"},
+        )
+        check(
+            "S16 同源闸门提前返回的 403 也带着安全头（证明安全头中间件在最外层）",
+            csrf.status_code == 403
+            and csrf.headers.get("x-content-type-options") == "nosniff"
+            and "frame-ancestors 'none'" in csrf.headers.get("content-security-policy", ""),
+            f"{csrf.status_code} nosniff={csrf.headers.get('x-content-type-options')}",
+        )
+
+        # ---- S18：500 按 Accept 分流 ----
+        html_error = client.get("/admin", headers={"accept": "text/html,application/xhtml+xml"})
+        check(
+            "S18 前置：正常请求能拿到页面（下面的 500 才有对照）",
+            html_error.status_code == 200 and "text/html" in html_error.headers.get("content-type", ""),
+            str(html_error.status_code),
+        )
+
+    # 把数据库换成一个必定失败的替身，让「任何碰库的路由」都 500 ——
+    # 比去构造某个特定的数据异常稳，也不会因为业务校验提前返回而漏测。
+    class _BrokenDatabase:
+        def session(self):  # noqa: D401 - 测试替身
+            raise RuntimeError("smoke 注入的数据库故障")
+
+        def dispose(self) -> None:
+            pass
+
+    app.state.database = _BrokenDatabase()
+    with TestClient(app, raise_server_exceptions=False) as client:
+        page_error = client.get("/admin", headers={"accept": "text/html,application/xhtml+xml"})
+        check(
+            "S18 浏览器（Accept 显式偏好 text/html）拿到的是页面而不是 JSON",
+            page_error.status_code == 500
+            and "text/html" in page_error.headers.get("content-type", ""),
+            f"{page_error.status_code} {page_error.headers.get('content-type')}",
+        )
+        check(
+            "S18 该 500 页面不含任何异常细节（把异常文本渲染出去等于开了个公开的泄漏面）",
+            "RuntimeError" not in page_error.text and "smoke 注入的数据库故障" not in page_error.text,
+            page_error.text[:120],
+        )
+        check(
+            "S18 500 页面同样带 CSP（它不经过用户中间件，必须自己补头）",
+            "frame-ancestors 'none'" in page_error.headers.get("content-security-policy", ""),
+            str(page_error.headers.get("content-security-policy"))[:80],
+        )
+
+        json_error = client.get("/store/v1/configuration", headers={"accept": "application/json"})
+        check(
+            "S18 程序化调用方（Accept: application/json）拿到的仍是既有 JSON 契约",
+            json_error.status_code == 500
+            and json_error.json().get("detail") == "服务器内部错误，请稍后重试。",
+            f"{json_error.status_code} {json_error.text[:80]}",
+        )
+        wildcard = client.get("/store/v1/configuration", headers={"accept": "*/*"})
+        check(
+            "S18 Accept: */*（curl / fetch 默认）按 API 客户端处理，回 JSON",
+            wildcard.status_code == 500
+            and wildcard.json().get("detail") == "服务器内部错误，请稍后重试。",
+            f"{wildcard.status_code} {wildcard.text[:80]}",
+        )
+
+    real_database.dispose()
+
+
+def check_sweep_local_expiry_decoupled() -> None:
+    """本地过期收尾必须与支付渠道解耦（审计 S20）。
+
+    曾经的形状：``reconcile_due_orders`` 第一件事就是
+    ``if not provider.is_configured(settings): return``。站点没配支付宝时 ——
+    而这正是自托管最常见的第一步状态 —— 整个巡检等于**空转**：连本地超时单
+    都不清理。于是那笔单永远占着库存预留与优惠码名额（别的用户看到「已售罄」），
+    它的主人还被「有未完成订单」挡着不能下单，而两条日志里都看不出问题。
+
+    这里用一个**没配支付宝**的站点跑一轮真实巡检，验证本地收尾照样发生；
+    再断言「渠道对账在前、本地收尾在后」的调用顺序：顺序反了的话，一笔
+    「钱已到账但通知丢了」的单会先被释放预留（别人可能当场买走），
+    再走复活路径补回来 —— 见 ``reconcile_due_orders`` 的说明。
+    """
+    import inspect
+
+    from store.payments import reconcile as reconcile_module
+    from store.payments.reconcile import reconcile_due_orders
+
+    # —— 静态断言：顺序与去重 ——
+    source = inspect.getsource(reconcile_due_orders)
+    channel_at = source.find("_sweep_channel_orders(")
+    expiry_at = source.find("expire_stale_orders(")
+    check(
+        "S20 巡检里渠道对账排在本地区间收尾之前（先给「已付款未认领」的单机会）",
+        0 <= channel_at < expiry_at,
+        f"channel@{channel_at} expiry@{expiry_at}",
+    )
+    check(
+        "S20 本地过期收尾不受渠道配置约束（``is_configured`` 的早退只存在于渠道那一段）",
+        "is_configured" not in source
+        and "is_configured" in inspect.getsource(reconcile_module._sweep_channel_orders),
+        "is_configured 出现在 reconcile_due_orders 里" if "is_configured" in source else "",
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-s20-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        # 关键：站点只用模拟收银台，没有任何支付宝凭据 —— 巡检的渠道那一段必然早退
+        payment_provider="mock",
+        order_ttl_seconds=60,
+    )
+    app = create_app(settings)
+    database = app.state.database
+
+    with database.session() as session:
+        seed_settings(session)
+        product = Product(
+            name="sweep-s20 限量商品",
+            product_code="homeos",
+            price_cents=990,
+            validity_days=None,
+            product_type="base",
+            feature_codes_json=list_json(["editor.basic"]),
+            included_product_ids_json=list_json([]),
+            active=True,
+            fulfillment_mode="automatic",
+            stock_quantity=1,
+            reserved_stock=1,
+        )
+        session.add(product)
+        session.flush()
+        coupon = Coupon(
+            code="S20HALF",
+            description="smoke S20 名额归还",
+            discount_type="percent",
+            percent=50.0,
+            max_redemptions=1,
+            per_account_limit=1,
+            active=True,
+            # 名额已被这笔待付单占着：巡检把它收尾后必须还回来，
+            # 否则这个只剩一个名额的码就永久卖不出去了。
+            redeemed_count=1,
+        )
+        session.add(coupon)
+        session.flush()
+        account = Account(
+            email="s20@habridge.local",
+            password_hash=hash_password("smoke-s20-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        customer = Customer(account_id=account.id, email=account.email, name=account.email)
+        session.add(customer)
+        session.flush()
+        order = Order(
+            order_no="HOMEOS-S20-STALE",
+            lookup_token="s20-stale-token",
+            account_id=account.id,
+            customer_id=customer.id,
+            email=account.email,
+            product_id=product.id,
+            product_name=product.name,
+            product_type="base",
+            order_type="base",
+            license_action="issue",
+            original_amount_cents=990,
+            discount_cents=495,
+            amount_cents=495,
+            coupon_code=coupon.code,
+            status="pending",
+            fulfillment_mode="automatic",
+            payment_provider="mock",
+            expires_at=utcnow() - timedelta(minutes=5),
+        )
+        session.add(order)
+        session.flush()
+        session.add(
+            CouponRedemption(coupon_id=coupon.id, account_id=account.id, order_id=order.id)
+        )
+        session.flush()
+
+        result = reconcile_due_orders(
+            session, settings=settings, setting=session.get(StoreSetting, 1), limit=25
+        )
+        session.flush()
+        session.refresh(order)
+        session.refresh(product)
+        redeemed = session.scalars(
+            select(Coupon.redeemed_count).where(Coupon.id == coupon.id)
+        ).one()
+
+        check(
+            "S20 没配支付渠道时巡检仍然把本地超时单推进终态（不再整体空转）",
+            order.status == "expired",
+            str(order.status),
+        )
+        check(
+            "S20 同时归还库存预留（否则这件商品永远显示售罄）",
+            order.stock_reservation_released_at is not None
+            and int(product.reserved_stock or 0) == 0,
+            f"released={order.stock_reservation_released_at} reserved={product.reserved_stock}",
+        )
+        check(
+            "S20 同时归还优惠码名额（名额被永久占住＝这个码再也用不了）",
+            int(redeemed or 0) == 0,
+            str(redeemed),
+        )
+        check(
+            "S20 本轮结果记下「本地过期 N 笔」，否则后台看不出巡检到底有没有干活",
+            result.expired == 1 and result.changed is True,
+            f"expired={result.expired} changed={result.changed}",
+        )
+        check(
+            "S20 渠道侧一笔都没查（没配渠道时本来就不该发请求）",
+            result.queried == 0 and result.settled == 0,
+            f"queried={result.queried} settled={result.settled}",
+        )
+
+    database.dispose()
+
+
 async def run() -> int:
     client_crypto = load_module("hb_client_crypto", CLIENT_CRYPTO_PATH)
 
@@ -6924,6 +7342,8 @@ async def run() -> int:
     check_refund_serialization_guards()
     check_anonymous_surface_disclosure()
     await check_enumeration_and_quota_hardening(client_crypto)
+    check_page_hardening_and_error_format()
+    check_sweep_local_expiry_decoupled()
     check_store_setup_authorization()
     # 第 2 批 High 的专项断言：日志写入放大、上传体积、配对码生命周期。
     check_global_log_write_amplification()
