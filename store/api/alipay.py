@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import html
 import logging
-import secrets
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -23,6 +22,7 @@ from store.payments.base import PaymentError
 from store.payments.reconcile import reconcile_alipay_order
 from store.payments.settlement import settle_paid_order
 from store.request_security import resolve_client_ip
+from store.security import token_matches
 
 logger = logging.getLogger("store.api.alipay")
 
@@ -226,9 +226,7 @@ def alipay_return(
     if provider is not None and provider.is_configured(settings):
         setting = site_config.get_setting(session)
         token = (request.query_params.get("token") or "").strip()
-        owns_order = bool(token) and secrets.compare_digest(
-            token, order.lookup_token or ""
-        )
+        owns_order = token_matches(token, order.lookup_token)
         source_ip = resolve_client_ip(request).ip or "unknown"
         if _RETURN_QUERY_LIMITER.allow(f"payment-return:{source_ip}"):
             try:

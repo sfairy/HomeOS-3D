@@ -828,8 +828,9 @@ def admin_delete_product(
 
     # 物理删除：数据库里 product_images 是 ON DELETE CASCADE，但磁盘上的图片文件
     # 不会被连带清理，这里先把路径收集出来，删完行之后再把文件删掉。
+    # 路径必须过 _safe_image_target —— 这是本函数原先唯一漏掉边界校验的文件操作。
     image_paths = [
-        settings.product_images_dir / image.path
+        image.path
         for image in session.scalars(
             select(ProductImage).where(ProductImage.product_id == product.id)
         )
@@ -838,11 +839,16 @@ def admin_delete_product(
 
     session.delete(product)
     session.flush()
-    for path in image_paths:
+    image_root = settings.product_images_dir.resolve()
+    for raw_path in image_paths:
+        target = _safe_image_target(image_root, raw_path)
+        if target is None:
+            logger.warning("商品图片路径越界，跳过文件删除：%s", raw_path)
+            continue
         try:
-            path.unlink(missing_ok=True)
+            target.unlink(missing_ok=True)
         except OSError:  # pragma: no cover - 文件被占用/权限问题时不该影响删除结果
-            logger.warning("商品图文件删除失败：%s", path)
+            logger.warning("商品图文件删除失败：%s", target)
 
     _audit(session, _admin_actor(admin), "product.delete", product.id, product.name)
     return {"id": product_id, "deleted": True, "deactivated": False}
@@ -3464,6 +3470,29 @@ def admin_adjust_wallet(
 # --------------------------------------------------------------------------- #
 # 商品图片 / 设备绑定 / 版本发布：删除与修正
 # --------------------------------------------------------------------------- #
+def _safe_image_target(root: Path, raw: str) -> Path | None:
+    """把库里的商品图相对路径解析成绝对路径；越界返回 ``None``。
+
+    防目录穿越：``path`` 是上传时自己拼出来的文件名，但不排除被改过，也不排除历史
+    数据里就有 ``../``。越界的路径绝不能落到文件系统调用上 —— ``admin_delete_product``
+    过去把 ``product_images_dir / path`` 直接 ``unlink``，等于「能改库就能删任意文件」。
+    两处删除点（删单图、删商品）原先各写各的，这里收成一份。
+
+    内部对 ``root`` 也做一次 ``resolve()``：调用方本来就传的是已解析路径，但
+    macOS 上 ``/var`` 是指向 ``/private/var`` 的符号链接 —— 一旦谁传了未解析的
+    ``root``，下面那句 ``root not in target.parents`` 会对**所有**路径成立，
+    函数就变成「永远返回 None」，静默跳过全部文件删除。失败方向是安全的，
+    但会让人以为删除逻辑坏了。
+    """
+    base = root.resolve()
+    if not raw:
+        return None
+    target = (base / raw).resolve()
+    if target == base or base not in target.parents:
+        return None
+    return target
+
+
 @router.delete("/products/{product_id}/image")
 def admin_delete_product_image(
     product_id: str, request: Request, session: DbSession, admin: AdminAccount
@@ -3483,10 +3512,10 @@ def admin_delete_product_image(
     removed: list[str] = []
     missing: list[str] = []
     for image in images:
-        target = (root / image.path).resolve()
+        target = _safe_image_target(root, image.path)
         # 防目录穿越：库里的 path 是上传时自己拼的文件名，但不排除被改过，
         # 越界的路径只清记录、不碰文件。
-        if target != root and root not in target.parents:
+        if target is None:
             logger.warning("商品图片路径越界，跳过文件删除：%s", image.path)
             missing.append(image.path)
         elif target.is_file():
@@ -3648,17 +3677,31 @@ def _purge_rows(
     return {"deleted": len(ids), "detail": detail}
 
 
+#: ``id_hash`` 是 ``sha256`` 的 hexdigest，合法前缀只可能是这些字符。
+_HEX_CHARS = frozenset("0123456789abcdef")
+
+
 def _resolve_by_hash_hint(session: Session, model, hint: str, label: str):
     """按「令牌哈希前缀」定位一行。
 
     列表接口只下发哈希前 12 位（48 bit）——足够做标识，又不至于把完整哈希（可用来
     在别处比对/冒用）暴露到浏览器里。删除/撤销时用同一个前缀回查：命中多行就要求
     调用方给更长的前缀，绝不猜。
+
+    前缀**必须是纯十六进制**：``id_hash`` 是 ``sha256`` 的 hexdigest，所以这不是
+    收窄、而是精确描述。顺带堵掉 LIKE 的通配符注入 —— 直接把输入拼进 ``like(f"{p}%")``
+    时，``%`` 会匹配任意内容（8 个下划线 ``________`` 即可命中全表，把一个「按标识
+    定位一行」的接口变成「批量命中」）；换成白名单校验比转义 ``ESCAPE`` 更不容易漏。
     """
     prefix = (hint or "").strip().lower()
     if len(prefix) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=f"{label}标识至少 8 位字符。"
+        )
+    if not set(prefix) <= _HEX_CHARS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{label}标识只能是十六进制字符（0-9a-f）。",
         )
     rows = list(
         session.scalars(select(model).where(model.id_hash.like(f"{prefix}%")).limit(2))

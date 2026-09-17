@@ -72,6 +72,7 @@ from store.security import (
     new_token,
     new_verification_code,
     token_hash,
+    token_matches,
     utcnow,
     verify_password,
 )
@@ -1810,7 +1811,7 @@ def lookup_order(
     order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
     if order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
-    if not token or token != order.lookup_token:
+    if not token_matches(token, order.lookup_token):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="查询凭证不正确。")
     return order_payload(order)
 
@@ -1826,7 +1827,7 @@ def get_order(
     order_token = request.headers.get("x-order-token")
     authorized = (
         (account is not None and order.account_id == account.id)
-        or (bool(order_token) and order_token == order.lookup_token)
+        or token_matches(order_token, order.lookup_token)
     )
     if not authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看该订单。")
@@ -1873,7 +1874,7 @@ def cancel_order(
     order_token = request.headers.get("x-order-token")
     authorized = (
         (account is not None and order.account_id == account.id)
-        or (bool(order_token) and order_token == order.lookup_token)
+        or token_matches(order_token, order.lookup_token)
     )
     if not authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权操作该订单。")

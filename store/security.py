@@ -91,6 +91,24 @@ def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def token_matches(candidate: str | None, expected: str | None) -> bool:
+    """恒定时间比较两个令牌；任一为空即 ``False``。
+
+    订单查询凭证（``lookup_token``）是可以直接换到订单内容的 bearer 凭据，
+    用 ``==`` 比较会**逐字节提前返回** —— 把一个「猜不中」的问题变成「按字节
+    逐个试出来」的问题（48 字节的 token 只需约 48×256 次试探，而不是 256^48）。
+    项目里已有 ``secrets.compare_digest`` 的正确用法散在几个文件里，但都各写一遍
+    「非空 + 比较」，于是新加的调用点很容易漏掉。统一收在这里。
+
+    先把两侧编码成 bytes 再比：``compare_digest`` 传入非 ASCII 的 ``str`` 会抛
+    ``TypeError``（不是返回 False），而 candidate 来自攻击者可完全控制的查询串/请求头，
+    抛异常就等于多了一个 500 面。
+    """
+    if not candidate or not expected:
+        return False
+    return secrets.compare_digest(candidate.encode("utf-8"), expected.encode("utf-8"))
+
+
 def new_verification_code() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 

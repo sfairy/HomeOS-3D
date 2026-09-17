@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-import secrets
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -21,7 +20,7 @@ from store.deps import CurrentAccount, DbSession
 from store.models import Account, Order, Product
 from store.order_status import order_status_label
 from store.payments.base import PaymentError
-from store.security import utcnow
+from store.security import token_matches, utcnow
 from store.serializers import order_payload
 
 logger = logging.getLogger("store.pages")
@@ -223,9 +222,7 @@ def mock_cashier(
     order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
     if order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
-    authorized = bool(token) and secrets.compare_digest(
-        str(token), order.lookup_token or ""
-    )
+    authorized = token_matches(token, order.lookup_token)
     if not authorized and not (account is not None and order.account_id == account.id):
         # 与「订单不存在」返回同一个状态码：不给「这个单号存在」的旁路信息
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
@@ -243,8 +240,7 @@ def _order_or_404(session, order_no: str) -> Order:
 def _authorize_mock(order: Order, order_token: str | None) -> None:
     """校验订单凭证。用常量时间比较：这是可以换取「免费发码」的 bearer 凭证，
     普通 ``!=`` 会在第一个不同的字符上短路，泄漏出可被逐字节爆破的时间差。"""
-    candidate = str(order_token or "")
-    if not candidate or not secrets.compare_digest(candidate, order.lookup_token or ""):
+    if not token_matches(order_token, order.lookup_token):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="订单凭证不正确。")
 
 

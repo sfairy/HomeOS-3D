@@ -5110,6 +5110,148 @@ def check_order_no_unique_by_construction() -> None:
     )
 
 
+def check_p2_credential_and_path_hardening() -> None:
+    """S12 / S54 / S55 —— 三处「小改动、真漏洞」的凭据与路径防护。
+
+    - **S12** 订单查询凭证（``lookup_token``）是可换取订单内容的 bearer 凭据。
+      项目里其它地方已经在用 ``secrets.compare_digest``，但 ``store/api/store.py``
+      有三处仍是 ``==``／``!=``：会逐字节提前返回，把爆破成本从 256^48 降到约
+      48×256。且 ``compare_digest`` 传入非 ASCII 的 ``str`` 会**抛 TypeError**
+      （不是返回 False），而 candidate 完全来自攻击者可控的查询串/请求头。
+    - **S54** ``admin_delete_product`` 删磁盘图片时没有路径边界校验，而同一个文件里
+      的另一处删除点有 —— 库里的 ``image.path`` 若含 ``../`` 就能删到图片目录之外。
+    - **S55** ``_resolve_by_hash_hint`` 把管理端输入直接拼进 ``LIKE``；``%``/``_``
+      未转义，8 个下划线即可命中全表，把「按标识定位一行」变成「批量命中」。
+    """
+    from store.security import token_matches
+
+    # ---- S12：比较语义 ----
+    token = "abc123XYZ-_token"
+    cases = [
+        ("相同令牌判等", token_matches(token, token), True),
+        ("不同令牌判否", token_matches("abc123XYZ-_tokeM", token), False),
+        ("候选为空判否（compare_digest 不接受 None）", token_matches(None, token), False),
+        ("期望为空判否（订单没有凭证时不能放行）", token_matches(token, None), False),
+        ("两者都空判否（不能把「都没有」当成相等）", token_matches("", ""), False),
+        #: 非 ASCII 必须返回 False 而不是抛 TypeError —— 否则一个畸形查询串就是 500
+        ("非 ASCII 候选不抛异常且判否", token_matches("令牌", token), False),
+        ("非 ASCII 期望值也不抛异常", token_matches(token, "令牌"), False),
+    ]
+    for name, actual, expected in cases:
+        check(f"S12 {name}", actual is expected, f"得到 {actual!r}，期望 {expected!r}")
+
+    # 静态：store 的生产模块里不该再有拿 lookup_token 直接比的地方。
+    # 用正则而不是 `"==" in line`：后者会命中本文件自己（这里就写着这些字面量），
+    # 也会命中 `lookup_token=x` 这类赋值。只扫 store 包、排除 tools（测试自身）。
+    import re as _re
+
+    comparison = _re.compile(r"lookup_token\s*(?:==|!=)|(?:==|!=)\s*\S*lookup_token")
+    store_package = Path(__file__).resolve().parent.parent
+    offenders = []
+    for path in store_package.rglob("*.py"):
+        if "tools" in path.parts:
+            continue
+        for number, line in enumerate(path.read_text("utf-8").splitlines(), 1):
+            if comparison.search(line):
+                offenders.append(f"{path.relative_to(store_package)}:{number}")
+    check(
+        "S12 store 生产代码里不再有 lookup_token 的非恒定时间比较",
+        not offenders,
+        "、".join(offenders) or "全部走 security.token_matches",
+    )
+
+    # ---- S54：图片路径边界 ----
+    from store.api.admin import _safe_image_target
+
+    root = Path(tempfile.mkdtemp(prefix="hb-img-root-"))
+    (root / "sub").mkdir()
+    inside = _safe_image_target(root, "cover.png")
+    check(
+        "S54 图片目录内的正常路径解析通过",
+        inside is not None and inside == (root / "cover.png").resolve(),
+        f"{inside}",
+    )
+    for raw, label in (
+        ("../escape.png", "上级目录"),
+        ("../../etc/passwd", "多级上级目录"),
+        ("sub/../../escape.png", "夹在中间的上级目录"),
+        ("", "空路径"),
+    ):
+        check(
+            f"S54 越界路径被拒（{label}）",
+            _safe_image_target(root, raw) is None,
+            f"{raw!r} -> {_safe_image_target(root, raw)}",
+        )
+    check(
+        "S54 绝对路径不会绕过 root 前缀判断",
+        _safe_image_target(root, "/etc/passwd") is None,
+        f"'/etc/passwd' -> {_safe_image_target(root, '/etc/passwd')}",
+    )
+    admin_source = (Path(__file__).resolve().parent.parent / "api" / "admin.py").read_text("utf-8")
+    delete_product = admin_source.split("def admin_delete_product(")[1].split("\ndef ")[0]
+    check(
+        "S54 删商品时走同一份边界校验（原先这里是裸 unlink）",
+        "_safe_image_target" in delete_product and "product_images_dir / image.path" not in delete_product,
+        "admin_delete_product 已改用 _safe_image_target",
+    )
+
+    # ---- S55：LIKE 前缀白名单 ----
+    from fastapi import HTTPException
+
+    from store.api.admin import _resolve_by_hash_hint
+    from store.models import AccountSession
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-hint-"))
+    engine = create_store_engine(
+        load_settings(data_dir=workdir / "data", license_keys_dir=workdir / "keys")
+    )
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(
+            Account(id="acc", email="hint@x.local", password_hash="x", created_at=utcnow())
+        )
+        session.flush()
+        session.add(
+            AccountSession(
+                id_hash="a" * 64,
+                account_id="acc",
+                expires_at=utcnow() + timedelta(hours=1),
+                created_at=utcnow(),
+            )
+        )
+        session.commit()
+        wildcard_rejected = ""
+        try:
+            _resolve_by_hash_hint(session, AccountSession, "________", "登录会话")
+        except HTTPException as error:
+            wildcard_rejected = f"{error.status_code}"
+        except Exception as error:  # noqa: BLE001 - 非 400 也算失败，下面断言会暴露
+            wildcard_rejected = f"{type(error).__name__}"
+        check(
+            "S55 LIKE 通配符前缀被拒（8 个下划线原先可命中全表）",
+            wildcard_rejected == "400",
+            f"得到 {wildcard_rejected!r}，期望 '400'",
+        )
+        percent_rejected = ""
+        try:
+            _resolve_by_hash_hint(session, AccountSession, "%" * 8, "登录会话")
+        except HTTPException as error:
+            percent_rejected = f"{error.status_code}"
+        except Exception as error:  # noqa: BLE001
+            percent_rejected = f"{type(error).__name__}"
+        check(
+            "S55 LIKE 百分号前缀被拒",
+            percent_rejected == "400",
+            f"得到 {percent_rejected!r}，期望 '400'",
+        )
+        found = _resolve_by_hash_hint(session, AccountSession, "a" * 12, "登录会话")
+        check(
+            "S55 合法十六进制前缀仍能定位到那一行",
+            getattr(found, "id_hash", None) == "a" * 64,
+            f"{getattr(found, 'id_hash', None)}",
+        )
+
+
 def check_points_integer_precision() -> None:
     """邀请积分的分币运算与「积分→厘」迁移（审计 S6）。
 
@@ -5764,6 +5906,7 @@ async def run() -> int:
     check_points_integer_precision()
     check_pending_order_single_flight()
     check_order_no_unique_by_construction()
+    check_p2_credential_and_path_hardening()
     check_store_setup_authorization()
     # 第 2 批 High 的专项断言：日志写入放大、上传体积、配对码生命周期。
     check_global_log_write_amplification()
