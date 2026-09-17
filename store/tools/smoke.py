@@ -7074,6 +7074,369 @@ def check_expiry_batch_cap() -> None:
         database.dispose()
 
 
+def check_key_rotation_overlap() -> None:
+    """S52：keyId 由公钥派生，且轮换支持「上一代」重叠窗口。
+
+    以前的 keyId 是配置里的静态字符串：重新生成密钥后它**不变**，于是客户端那张
+    「keyId → 公钥 + 指纹」的表里，同一个名字指向的是旧指纹 —— 新密钥被报成
+    「指纹不匹配」（听起来像被篡改），而轮换本身在配置上无法表达成「多了一个新身份，
+    旧的还能用一段时间」。改成派生之后换密钥必然换 id，再加上服务端保留上一代
+    （按请求里的 keyId 选代解密**与签名**），就能重着来。
+
+    这里盯四件事：
+
+    1. 派生实现两边一致（服务端 ``store.licensing.keys`` 与客户端
+       ``backend/app/config`` 各一份，没有共享模块，只能靠断言钉住）；
+    2. 换了密钥字节，派生 id 必须变（否则等于没修）；
+    3. 旧客户端（上一代的传输密钥 + 只信上一代的签名公钥）在窗口内能完整走通：
+       请求解得开、租约签的是**上一代**的密钥；
+    4. 窗口关掉（删掉上一代四件套）后同一个旧客户端必须失败 —— 否则「窗口」
+       就没有语义；并且四件套缺一件不算窗口开着。
+    """
+    from store.licensing import keys as license_keys
+    from store.licensing.crypto import KeyGeneration, KeyRegistry, LeaseSigner, TransportCipher
+
+    client_config = load_module("hb_rotation_client_config", CLIENT_CONFIG_PATH)
+    client_crypto = load_module("hb_rotation_client_crypto", CLIENT_CRYPTO_PATH)
+    from store.api import license as license_api
+
+    # ---------------- 1. 派生口径两边一致 ----------------
+    with tempfile.TemporaryDirectory(prefix="hb-keyid-derive-") as tmp:
+        sample = Path(tmp) / "license-public.pem"
+        sample.write_bytes(b"not-a-real-key-but-bytes-matter\n")
+        store_id = license_keys.key_id_from_public(sample)
+        check(
+            "S52 服务端与客户端的 keyId 派生实现一致",
+            store_id == client_config._derive_key_id(sample),
+            f"store={store_id} client={client_config._derive_key_id(sample)}",
+        )
+        check(
+            "S52 派生 id 走客户端允许的字符集（否则传输层构造就会抛错）",
+            store_id.startswith("hb-")
+            and len(store_id) <= 64
+            and all(char.isalnum() or char in "-_." for char in store_id),
+            store_id,
+        )
+        sample.write_bytes(b"another-key-material\n")
+        check(
+            "S52 公钥字节一变，派生 id 就变（静态 id 正是这里不变的毛病）",
+            license_keys.key_id_from_public(sample) != store_id,
+            license_keys.key_id_from_public(sample),
+        )
+        check(
+            "S52 派生 id 不可能再等于那两个静态常量",
+            store_id != client_config.DEFAULT_LICENSE_KEY_ID
+            and store_id != client_config.DEFAULT_LICENSE_TRANSPORT_KEY_ID,
+        )
+
+    # ---------------- 2. 密钥环的选择语义 ----------------
+    with tempfile.TemporaryDirectory(prefix="hb-keyring-") as tmp:
+        root = Path(tmp)
+        pairs = []
+        for index in (0, 1):
+            pair_dir = root / f"gen{index}"
+            signing = license_keys.generate_ed25519(
+                license_keys.KeyPairPaths(pair_dir / "s.pem", pair_dir / "s-pub.pem")
+            )
+            transport = license_keys.generate_x25519(
+                license_keys.KeyPairPaths(pair_dir / "t.pem", pair_dir / "t-pub.pem")
+            )
+            pairs.append((signing, transport))
+
+        def generation(index: int, *, suffix: str = "") -> KeyGeneration:
+            signing, transport = pairs[index]
+            return KeyGeneration(
+                transport=TransportCipher(
+                    transport.private_path,
+                    license_keys.key_id_from_public(transport.public_path) + suffix,
+                ),
+                signer=LeaseSigner(
+                    signing.private_path,
+                    license_keys.key_id_from_public(signing.public_path),
+                ),
+            )
+
+        active, previous = generation(1), generation(0)
+        registry = KeyRegistry([active, previous])
+        check("S52 密钥环的 active 是第一代", registry.active is active)
+        check("S52 密钥环的 previous 是第二代", registry.previous is previous)
+        check(
+            "S52 按请求里的传输 keyId 选代",
+            registry.find(previous.transport_key_id) is previous
+            and registry.find(active.transport_key_id) is active,
+            str(registry.key_ids()),
+        )
+        check(
+            "S52 不认识的 keyId 选不到代（调用方据此回 400）",
+            registry.find("hb-0000000000000000") is None
+            and registry.find(None) is None
+            and registry.find(123) is None,
+        )
+        try:
+            KeyRegistry([previous, generation(0)])
+            duplicate_rejected = False
+        except ValueError:
+            duplicate_rejected = True
+        check(
+            "S52 同一 keyId 出现两次时直接拒绝（否则选代结果随机）",
+            duplicate_rejected,
+        )
+        try:
+            KeyRegistry([])
+            empty_rejected = False
+        except ValueError:
+            empty_rejected = True
+        check("S52 空密钥环直接拒绝", empty_rejected)
+
+    # ---------------- 3. 上一代在窗口内完整可用 ----------------
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-rotation-"))
+    keys_dir = workdir / "keys"
+    signing_paths = license_keys.KeyPairPaths(
+        keys_dir / "license-private.pem", keys_dir / "license-public.pem"
+    )
+    transport_paths = license_keys.KeyPairPaths(
+        keys_dir / "license-transport-private.pem",
+        keys_dir / "license-transport-public.pem",
+    )
+    # 第一代（= 旧客户端信任的那一代）
+    license_keys.generate_ed25519(signing_paths)
+    license_keys.generate_x25519(transport_paths)
+    old_lease_id = license_keys.key_id_from_public(signing_paths.public_path)
+    old_transport_id = license_keys.key_id_from_public(transport_paths.public_path)
+    old_public = signing_paths.public_path.read_bytes()
+
+    # 轮换：先留上一代，再生成新一代（与 `gen_keys --rotate` 走同一组调用）
+    check(
+        "S52 轮换会把当前密钥搬成上一代",
+        license_keys.rotate_pair(signing_paths) and license_keys.rotate_pair(transport_paths),
+    )
+    license_keys.generate_ed25519(signing_paths)
+    license_keys.generate_x25519(transport_paths)
+
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=keys_dir,
+        mail_mode="echo",
+        base_url="http://store.test",
+    )
+    app = create_app(settings)
+    authority = app.state.license_authority
+    registry = authority.keyring
+    new_lease_id = settings.license_key_id
+    new_transport_id = settings.license_transport_key_id
+    check(
+        "S52 服务端自动装进两代密钥（当前的在前）",
+        registry.key_ids() == (new_transport_id, old_transport_id),
+        str(registry.key_ids()),
+    )
+    check(
+        "S52 新旧 keyId 不相同（轮换真的换了身份）",
+        new_transport_id != old_transport_id and new_lease_id != old_lease_id,
+        f"{new_lease_id} / {old_lease_id}",
+    )
+    check(
+        "S52 上一代的签名 keyId 仍能被解析出来",
+        registry.previous is not None and registry.previous.signer.key_id == old_lease_id,
+        str(registry.previous and registry.previous.signer.key_id),
+    )
+
+    # 旧客户端：用上一代传输密钥加密，只信上一代签名公钥
+    old_transport = client_crypto.LicenseTransportCipher(
+        keys_dir / license_keys.previous_path(transport_paths.public_path).name,
+        old_transport_id,
+        client_crypto.hashlib.sha256(
+            license_keys.previous_path(transport_paths.public_path).read_bytes()
+        ).hexdigest(),
+    )
+    previous_public_path = license_keys.previous_path(signing_paths.public_path)
+    old_verifier = client_crypto.LeaseVerifier(
+        trusted_keys={old_lease_id: (previous_public_path, None)},
+        default_key_id=old_lease_id,
+    )
+    new_only_verifier = client_crypto.LeaseVerifier(
+        trusted_keys={new_lease_id: (signing_paths.public_path, None)},
+        default_key_id=new_lease_id,
+    )
+
+    envelope, _ = old_transport.encrypt_request({"sessionToken": "nope"}, "/v2/heartbeat")
+    _, error, stage = license_api._run_in_worker(
+        authority, "heartbeat", envelope, "/v2/heartbeat", None
+    )
+    check(
+        "S52 旧客户端的请求在窗口内解得开（业务层 401，而不是解密 400）",
+        stage == "dispatch" and error is not None and error.status_code == 401,
+        f"stage={stage} error={getattr(error, 'status_code', None)}",
+    )
+    _, unknown_error, unknown_stage = license_api._run_in_worker(
+        authority, "heartbeat", {**envelope, "keyId": "hb-ffffffffffffffff"}, "/v2/heartbeat", None
+    )
+    check(
+        "S52 完全不在环里的 keyId 仍按解密失败处理",
+        unknown_stage == "decrypt" and unknown_error is not None and unknown_error.status_code == 400,
+        f"stage={unknown_stage} detail={getattr(unknown_error, 'detail', None)}",
+    )
+
+    # 签名那一半：直接签一张租约，验证用的是哪一代
+    with app.state.database.session() as session:
+        session.add(
+            Account(
+                id="rot-acc",
+                email="rot@example.com",
+                password_hash=hash_password("rot-secret-1"),
+            )
+        )
+        session.flush()
+        session.add(
+            Customer(id="rot-cust", account_id="rot-acc", email="rot@example.com", name="轮换")
+        )
+        session.flush()
+        license_row = License(
+            id="rot-lic",
+            customer_id="rot-cust",
+            account_id="rot-acc",
+            activation_code="ROTATE-CODE-0001",
+            active=True,
+            lease_sequence=0,
+        )
+        session.add(license_row)
+        session.flush()
+        session.add(
+            Entitlement(
+                id="rot-ent",
+                license_id="rot-lic",
+                customer_id="rot-cust",
+                feature_code="module.3d_interaction",
+                active=True,
+                starts_at=utcnow(),
+            )
+        )
+        binding = DeviceBinding(
+            id="rot-bind",
+            license_id="rot-lic",
+            instance_id=INSTANCE_ID,
+            active=True,
+        )
+        session.add(binding)
+        session.flush()
+        issued = authority.issue(
+            session,
+            license=license_row,
+            binding=binding,
+            session_id="rot-session",
+            now=utcnow(),
+            session_token="rot-token",
+            recovery_token="",
+            generation=registry.previous,
+        )
+
+    payload = old_verifier.verify(issued["signedLease"], INSTANCE_ID)
+    check(
+        "S52 旧客户端的租约由上一代密钥签发（keyId 与签名都对得上）",
+        payload.get("keyId") == old_lease_id,
+        f"lease keyId={payload.get('keyId')} 期望={old_lease_id}",
+    )
+    check(
+        "S52 上一代租约不会被「只信新公钥」的表误判为可信",
+        _verify_rejected(lambda: new_only_verifier.verify(issued["signedLease"], INSTANCE_ID)),
+    )
+
+    # 牙齿：固定用当前一代签发（改动前的行为）→ 旧客户端立刻验不过
+    with app.state.database.session() as session:
+        license_row = session.get(License, "rot-lic")
+        binding = session.get(DeviceBinding, "rot-bind")
+        active_only = authority.issue(
+            session,
+            license=license_row,
+            binding=binding,
+            session_id="rot-session",
+            now=utcnow(),
+            session_token="rot-token",
+            recovery_token="",
+            generation=registry.active,
+        )
+    check(
+        "S52 牙齿：固定用 active 签发时旧客户端的验签会失败（这就是要修的 bug）",
+        _verify_rejected(lambda: old_verifier.verify(active_only["signedLease"], INSTANCE_ID)),
+    )
+
+    # ---------------- 4. 窗口关闭 / 四件套缺一不可 ----------------
+    check(
+        "S52 四件套齐全时才认为窗口开着",
+        settings.previous_key_paths is not None,
+        str(settings.previous_key_paths),
+    )
+    previous_signing_private = license_keys.previous_path(signing_paths.private_path)
+    stashed = previous_signing_private.read_bytes()
+    previous_signing_private.unlink()
+    closed_settings = load_settings(
+        data_dir=workdir / "data", license_keys_dir=keys_dir, mail_mode="echo"
+    )
+    check(
+        "S52 缺了上一代私钥就不算窗口开着（只留公钥会让人以为还能用）",
+        closed_settings.previous_key_paths is None,
+    )
+    closed_app = create_app(closed_settings)
+    _, closed_error, closed_stage = license_api._run_in_worker(
+        closed_app.state.license_authority, "heartbeat", envelope, "/v2/heartbeat", None
+    )
+    check(
+        "S52 牙齿：窗口关掉后同一个旧客户端请求就解不开了",
+        closed_stage == "decrypt"
+        and closed_error is not None
+        and closed_error.status_code == 400,
+        f"stage={closed_stage} detail={getattr(closed_error, 'detail', None)}",
+    )
+    check(
+        "S52 关窗后新客户端照旧可用",
+        closed_app.state.license_authority.keyring.key_ids() == (new_transport_id,),
+        str(closed_app.state.license_authority.keyring.key_ids()),
+    )
+    previous_signing_private.write_bytes(stashed)
+    check(
+        "S52 旧公钥文件与老客户端持有的那份逐字节一致（否则指纹校验先失败）",
+        previous_public_path.read_bytes() == old_public,
+    )
+
+    # ---------------- 5. 「把当前密钥复制成上一代」要被拦住 ----------------
+    # 这是最容易犯的误配：想开窗口却直接 cp 了当前公钥，于是两代同 id —— 密钥环
+    # 会因重复 keyId 拒绝启动，报错却发生在装配阶段，与原因隔了好几层。
+    twin_dir = Path(tempfile.mkdtemp(prefix="hb-store-rotation-twin-"))
+    twin_keys = twin_dir / "keys"
+    twin_signing = license_keys.KeyPairPaths(
+        twin_keys / "license-private.pem", twin_keys / "license-public.pem"
+    )
+    twin_transport = license_keys.KeyPairPaths(
+        twin_keys / "license-transport-private.pem",
+        twin_keys / "license-transport-public.pem",
+    )
+    license_keys.generate_ed25519(twin_signing)
+    license_keys.generate_x25519(twin_transport)
+    for path in (twin_signing.private_path, twin_signing.public_path):
+        license_keys.previous_path(path).write_bytes(path.read_bytes())
+    for path in (twin_transport.private_path, twin_transport.public_path):
+        license_keys.previous_path(path).write_bytes(path.read_bytes())
+    try:
+        load_settings(
+            data_dir=twin_dir / "data", license_keys_dir=twin_keys, mail_mode="echo"
+        )
+        twin_rejected = False
+    except ValueError as error:
+        twin_rejected = "上一代" in str(error)
+    check(
+        "S52 上一代与当前是同一把密钥时，配置校验直接拒绝并说清原因",
+        twin_rejected,
+    )
+
+
+def _verify_rejected(call) -> bool:
+    """``LeaseVerifier.verify`` 在验签失败时抛错；这里只关心「有没有被拒」。"""
+    try:
+        call()
+    except Exception:  # noqa: BLE001 - 客户端各类失败都算拒绝
+        return True
+    return False
+
+
 def check_product_stats_scoped() -> None:
     """S50：商品统计按需取数，售罄判据只有一份。
 
@@ -9447,6 +9810,7 @@ async def run() -> int:
     await check_admin_list_query_budget()
     check_expiry_batch_cap()
     check_product_stats_scoped()
+    check_key_rotation_overlap()
     await check_release_unique_conflict_paths()
     check_config_validation_strictness()
     check_order_id_indexes()
@@ -11762,25 +12126,27 @@ async def run() -> int:
             str(default.license_server_batches),
         )
         check(
-            "未设置 env 时签名公钥指纹为自建默认",
+            "未设置 env 时签名 keyId 由公钥派生（而不是那个静态常量）",
             default.license_public_key_sha256
             == client_config.DEFAULT_LICENSE_PUBLIC_KEY_SHA256
             and default.license_key_id
-            == client_config.DEFAULT_LICENSE_KEY_ID,
-            default.license_key_id,
+            == client_config._derive_key_id(default.license_public_key_path)
+            and default.license_key_id != client_config.DEFAULT_LICENSE_KEY_ID,
+            f"{default.license_key_id} vs 常量 {client_config.DEFAULT_LICENSE_KEY_ID}",
         )
         check(
-            "未设置 env 时传输公钥指纹为自建默认",
+            "未设置 env 时传输 keyId 由公钥派生",
             default.license_transport_public_key_sha256
             == client_config.DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
             and default.license_transport_key_id
-            == client_config.DEFAULT_LICENSE_TRANSPORT_KEY_ID,
+            == client_config._derive_key_id(default.license_transport_public_key_path)
+            and default.license_transport_key_id
+            != client_config.DEFAULT_LICENSE_TRANSPORT_KEY_ID,
             default.license_transport_key_id,
         )
         check(
             "未设置 env 时可信公钥表指仓库 keys/ 镜像",
-            set(default.license_trusted_public_keys)
-            == {client_config.DEFAULT_LICENSE_KEY_ID}
+            default.license_key_id in default.license_trusted_public_keys
             and default.license_public_key_path.name
             == client_config.DEFAULT_LICENSE_PUBLIC_KEY_FILENAME,
             str(default.license_public_key_path),

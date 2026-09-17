@@ -98,7 +98,8 @@ STORE_SMTP_USE_SSL=true
 ## 三、客户端默认已指向自建授权服务器（零配置）
 
 客户端默认值写在 `backend/app/config.py`：端点 `http://127.0.0.1:18082`、公钥镜像
-`keys/`、keyId 与指纹均为自建默认。**不设任何环境变量**，起服务后即可在 `/license`
+`keys/`、指纹为自建默认，**keyId 由公钥文件派生**（两侧各自从自己那份镜像算出同一个
+值，因此不必人工同步字符串）。**不设任何环境变量**，起服务后即可在 `/license`
 页用「激活码 + 购买邮箱」激活（授权码来自账号中心）：
 
 ```bash
@@ -111,13 +112,26 @@ python start.py                         # 终端 B：客户端
 ```bash
 export APP_DATA_DIR=/tmp/hb-client-dev
 export APP_LICENSE_SERVER_URL=https://license.example.com
-export APP_LICENSE_KEY_ID=hb-local-2026
 export APP_LICENSE_PUBLIC_KEY_FILE=/path/to/license-public.pem
 export APP_LICENSE_PUBLIC_KEY_SHA256=<gen_keys 打印的签名公钥 sha256>
-export APP_LICENSE_TRANSPORT_KEY_ID=hb-local-transport-2026
 export APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE=/path/to/license-transport-public.pem
 export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 sha256>
 ```
+
+**密钥轮换（S52）**：`keyId` 是从公钥文件字节派生的 `hb-<16 位十六进制>`，所以
+`gen_keys --force`（直接覆盖）会让所有旧客户端**当场失效**。要让存量客户端平滑过渡，
+用：
+
+```bash
+.venv-store/bin/python -m store.tools.gen_keys --rotate
+```
+
+它把当前密钥改名成 `*.previous.pem` 再生成新的，并把上一代公钥一并镜像到仓库根
+`keys/`。服务端发现上一代四件套齐全就把两代都装进密钥环，**按请求里的 keyId 选代
+解密、并用同一代签名** —— 旧客户端在窗口内照旧心跳；客户端的可信表也会自动多登记
+一条上一代记录（`keys/license-public.previous.pem` 存在就登记），所以「客户端先升级、
+服务端后轮换」也不会中断。窗口长度是一次轮换：再 `--rotate` 一次，上一代被新的前任
+覆盖。想立刻关闭窗口就删掉 `*.previous.pem` 四件套（四个缺一不可，只留公钥不算开窗）。
 
 说明：
 

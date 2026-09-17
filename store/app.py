@@ -21,7 +21,12 @@ from store.api import store as store_api
 from store.config import STORE_ROOT, StoreSettings, load_settings
 from store.database import Database
 from store.licensing import keys
-from store.licensing.crypto import LeaseSigner, TransportCipher
+from store.licensing.crypto import (
+    KeyGeneration,
+    KeyRegistry,
+    LeaseSigner,
+    TransportCipher,
+)
 from store.licensing.service import LicenseAuthority
 from store.payments import resolve_provider
 from store.payments.sweeper import (
@@ -63,6 +68,8 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
         "（会生成 store/keys/local 私钥并同步公钥到仓库根 keys/；"
         "若轮换了密钥，还需把打印的 sha256 写入 APP_LICENSE_*_PUBLIC_KEY_SHA256"
         " 或 backend/app/config.py 的 DEFAULT_LICENSE_* 常量）。"
+        "要让旧客户端在轮换后继续可用一段时间，改用 --rotate（保留上一代，"
+        "keyId 由公钥派生所以会自动变成新值）。"
     )
 
     missing_signing = (
@@ -109,6 +116,48 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
             raise RuntimeError(
                 f"客户端公钥镜像与商店密钥不一致：{mirror}。{gen_keys_hint}"
             )
+
+
+def build_key_registry(settings: StoreSettings):
+    """按当前密钥 +（可选的）上一代密钥组装密钥环。
+
+    上一代四件套齐全时窗口自动开启，没有任何开关：少配一件（比如只留了公钥）
+    只会让「以为窗口开着」的人白等，所以 ``previous_key_paths`` 要求四件齐全，
+    这里也就不必再判断。
+
+    这个函数不放进 ``store/licensing/``：配置模块要 import 密钥工具
+    （``key_id_from_public``），而密钥环又要 import 配置 —— 放进去就是一个
+    循环。放在装配层（本文件）两边都能看见，且谁也不会反向 import 它。
+    """
+    active = KeyGeneration(
+        transport=TransportCipher(
+            settings.transport_private_key_path,
+            settings.license_transport_key_id,
+        ),
+        signer=LeaseSigner(settings.private_key_path, settings.license_key_id),
+    )
+    generations = [active]
+    previous_paths = settings.previous_key_paths
+    if previous_paths is not None:
+        previous_private, previous_public, previous_transport_private, previous_transport_public = previous_paths
+        generations.append(
+            KeyGeneration(
+                transport=TransportCipher(
+                    previous_transport_private,
+                    keys.key_id_from_public(previous_transport_public),
+                ),
+                signer=LeaseSigner(
+                    previous_private, keys.key_id_from_public(previous_public)
+                ),
+            )
+        )
+        logger.warning(
+            "授权密钥重叠窗口开启：新签发的租约用 %s，旧客户端仍可用 %s。"
+            "窗口结束（删除 *.previous.pem）后它们会立即失效。",
+            active.lease_key_id,
+            generations[-1].lease_key_id,
+        )
+    return KeyRegistry(generations)
 
 
 def create_app(settings: StoreSettings | None = None) -> FastAPI:
@@ -159,11 +208,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     if released:
         logger.info("已补写 %s 渠道 %s 发布记录。", "docker", CURRENT_VERSION)
 
-    signer = LeaseSigner(settings.private_key_path, settings.license_key_id)
-    transport = TransportCipher(
-        settings.transport_private_key_path, settings.license_transport_key_id
-    )
-    authority = LicenseAuthority(settings, database, signer, transport)
+    authority = LicenseAuthority(settings, database, build_key_registry(settings))
     setup_guard = SetupGuard(settings.data_dir, settings.setup_token)
 
     async def _payment_sweep_loop() -> None:

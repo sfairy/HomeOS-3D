@@ -13,8 +13,9 @@ from __future__ import annotations
 import base64
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
@@ -159,6 +160,77 @@ class LeaseSigner:
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
         )
+
+
+@dataclass(frozen=True)
+class KeyGeneration:
+    """一代密钥：一对传输密钥 + 一对签名密钥，两者成对轮换。
+
+    两把密钥的 keyId 是**各自**从公钥派生的，所以这里不假设它们同字符串：
+    客户端用自己那份 ``transport`` id 发请求，用租约里的 ``keyId`` 去可信表里
+    找验签公钥，两条链各自独立。
+    """
+
+    transport: TransportCipher
+    signer: LeaseSigner
+
+    @property
+    def transport_key_id(self) -> str:
+        return self.transport.key_id
+
+    @property
+    def lease_key_id(self) -> str:
+        return self.signer.key_id
+
+
+class KeyRegistry:
+    """当前一代 + 至多一代上一代，按请求里的**传输** keyId 选择。
+
+    存在的理由是轮换要能「重着来」：
+
+    * 服务端先换新密钥、客户端还是旧的 —— 旧客户端发上来的 ``keyId`` 命中上一代，
+      用上一代的传输私钥解开、用上一代的签名密钥签租约，客户端照旧验得过；
+    * 客户端先更新、服务端还是旧的 —— 客户端可信表里同时登记新旧两把公钥
+      （见 ``backend/app/config.py``），旧的照样能用。
+
+    没有这张表时这两种状态都会硬失败：报「keyId 不匹配」（传输层）或
+    「不受信任的授权公钥」（验签层）—— 两种都很像被攻击，实际只是在轮换。
+
+    选中的那一代**同时决定签名密钥**：不能固定用 active 签。旧客户端的可信表里
+    只有旧公钥，用新密钥签出来的租约它一律不认。
+    """
+
+    def __init__(self, generations: Sequence[KeyGeneration]) -> None:
+        if not generations:
+            raise ValueError("KeyRegistry 至少需要一代密钥。")
+        table: dict[str, KeyGeneration] = {}
+        for generation in generations:
+            key_id = generation.transport_key_id
+            if not key_id:
+                raise ValueError("传输密钥的 keyId 不能为空。")
+            if key_id in table:
+                raise ValueError(f"密钥环里出现重复的传输 keyId：{key_id}")
+            table[key_id] = generation
+        self._generations = tuple(generations)
+        self._by_transport = table
+
+    @property
+    def active(self) -> KeyGeneration:
+        """新签发用的一代（列表第一项）。"""
+        return self._generations[0]
+
+    @property
+    def previous(self) -> KeyGeneration | None:
+        """重叠窗口里的上一代；没有上一代时为 ``None``。"""
+        return self._generations[1] if len(self._generations) > 1 else None
+
+    def key_ids(self) -> tuple[str, ...]:
+        return tuple(generation.transport_key_id for generation in self._generations)
+
+    def find(self, transport_key_id: Any) -> KeyGeneration | None:
+        if not isinstance(transport_key_id, str):
+            return None
+        return self._by_transport.get(transport_key_id)
 
 
 def verify_lease(signed_lease: str, public_key_pem: bytes, *, product: str = PRODUCT) -> dict[str, Any]:

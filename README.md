@@ -266,7 +266,7 @@ SameSite=Lax + 只收 JSON 是第一道闸，代码里另有一道显式的 Orig
 
 ### 零配置指向自建授权服务器
 
-客户端默认值写在 `backend/app/config.py`：端点 `http://127.0.0.1:18082`、密钥 id `hb-local-2026` / `hb-local-transport-2026`、公钥镜像 `keys/` 及其 sha256。**不设任何环境变量**，起服务后即可在 `/license` 激活。厂商生产节点与生产公钥已从代码中彻底移除，`store.tools.smoke` 用断言锁住「零配置指向自建」与「生产残留为零」。
+客户端默认值写在 `backend/app/config.py`：端点 `http://127.0.0.1:18082`、公钥镜像 `keys/` 及其 sha256，**密钥 id 由公钥文件字节派生**（形如 `hb-3f2a…`；服务端与客户端各自从自己那份镜像算出同一个值，因此不需要人工同步字符串）。**不设任何环境变量**，起服务后即可在 `/license` 激活。厂商生产节点与生产公钥已从代码中彻底移除，`store.tools.smoke` 用断言锁住「零配置指向自建」与「生产残留为零」。
 
 整个体系是「服务端签发 Ed25519 签名租约 → 客户端离线验签 → 定期心跳续租」：租约 7 天有效，客户端每 300 秒续租一次；传输层为 X25519 ECDH → HKDF-SHA256 → AES-256-GCM，端点路径本身也参与派生与认证。
 
@@ -274,10 +274,8 @@ SameSite=Lax + 只收 JSON 是第一道闸，代码里另有一道显式的 Orig
 
 ```bash
 export APP_LICENSE_SERVER_URL=https://license.example.com
-export APP_LICENSE_KEY_ID=hb-local-2026
 export APP_LICENSE_PUBLIC_KEY_FILE=/path/to/license-public.pem
 export APP_LICENSE_PUBLIC_KEY_SHA256=<gen_keys 打印的签名公钥 sha256>
-export APP_LICENSE_TRANSPORT_KEY_ID=hb-local-transport-2026
 export APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE=/path/to/license-transport-public.pem
 export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 sha256>
 ```
@@ -285,6 +283,12 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 - 只设 `APP_LICENSE_SERVER_URL` 时，客户端会把批次收敛为单条 `direct`，不会散到其它节点。
 - 需要多批次时用 `APP_LICENSE_SERVER_BATCHES='esa=;eo=;direct=http://127.0.0.1:18082|http://127.0.0.1:18083'`（`;` 分隔批次，`|` 分隔组内地址，空组表示禁用）。
 - `APP_LICENSE_TRUSTED_PUBLIC_KEYS='keyId:公钥路径:sha256|keyId2:路径:sha256'` 可整体替换可信公钥表。
+
+#### 密钥轮换与重叠窗口
+
+`keyId` 由公钥文件派生，所以**重新生成密钥一定会换 id**（这正是要修的：静态 id 不变时，客户端会把新公钥报成「指纹不匹配」，听起来像被篡改，而轮换在配置上也无法表达成「多了一个新身份，旧的还能用一段时间」）。
+
+`gen_keys --force` 直接覆盖，旧客户端当场全部失效。要平滑过渡用 `--rotate`：它把当前密钥留成 `*.previous.pem`，服务端据此把两代都装进密钥环，**按请求里的 keyId 选代解密并用同一代签名** —— 旧客户端在窗口内照旧心跳；客户端也会自动多信任一条上一代记录（`keys/license-public.previous.pem` 存在才登记），因此「客户端先升级、服务端后轮换」也不中断。窗口是一次轮换的长度，删掉四个 `*.previous.pem`（缺一不可）即立即关闭。
 
 ### 能力码
 
@@ -529,7 +533,7 @@ Compose 还可选：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`（覆盖镜像名）�
 | `APP_DISPLAY_TOKEN_TTL_SECONDS` | `15552000` | 中控令牌滑动有效期（活跃即续期） |
 | `APP_DISPLAY_TOKEN_HARD_TTL_SECONDS` | `0` | 中控令牌硬上限；`0` = 不设 |
 | `APP_UPDATE_CHANNEL` | `docker` | 更新检查渠道 |
-| `APP_LICENSE_KEY_ID` / `APP_LICENSE_TRANSPORT_KEY_ID` | `hb-local-2026` / `hb-local-transport-2026` | 公钥 keyId |
+| `APP_LICENSE_KEY_ID` / `APP_LICENSE_TRANSPORT_KEY_ID` | 留空（由公钥派生） | 显式钉住 keyId；默认派生，轮换（`gen_keys --rotate`）后自动改变 |
 | `APP_LICENSE_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/`（容器由共享卷注入） | 签名公钥 |
 | `APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE` · `_SHA256` | 仓库 `keys/` | 传输公钥 |
 | `APP_HA_CREDENTIAL_FILE` 等 | 数据目录内默认路径 | HA / 中控 / 授权凭据密钥文件 |
@@ -543,7 +547,8 @@ Compose 还可选：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`（覆盖镜像名）�
 | `STORE_HOST` / `STORE_PORT` | `0.0.0.0` / `18082` | 监听地址（`start.py` 下为 `127.0.0.1`） |
 | `STORE_DATA_DIR` | `store/data`（容器 `/data`） | SQLite 与商品图目录 |
 | `STORE_LICENSE_KEYS_DIR` | `store/keys/local`（容器 `/data/license-keys`） | 授权私钥目录 |
-| `STORE_LICENSE_KEY_ID` / `STORE_LICENSE_TRANSPORT_KEY_ID` | 与主应用对应 | 签发租约与传输密钥的 keyId |
+| `STORE_LICENSE_KEY_ID` / `STORE_LICENSE_TRANSPORT_KEY_ID` | 留空（由公钥派生） | 显式钉住签发租约与传输密钥的 keyId；默认由公钥文件派生，轮换后自动改变 |
+| （轮换窗口） | 无 | 目录里存在 `license-*.previous.pem` 四件套即自动开启：旧客户端在窗口内仍可解密与验签。用 `gen_keys --rotate` 生成 |
 | `STORE_COOKIE_NAME` | `ha_bridge_store_session` | 商店会话 Cookie 名 |
 | `STORE_LEASE_TTL_SECONDS` | `259200` | 租约有效期（72 小时）。⚠ 该值同时是「离线可用时长」与「吊销生效上界」：对持续离线的客户端，停用授权最慢要等这么久才生效 |
 | `STORE_HEARTBEAT_INTERVAL_SECONDS` | `300` | 下发给客户端的 `heartbeatIn` |
@@ -742,7 +747,7 @@ node tools/bump_static_cache_versions.mjs
     - 授权服务器提供 `/v2/activate`、`/v2/heartbeat`、`/v2/recover`：Ed25519 签名租约、X25519 + HKDF-SHA256 + AES-256-GCM 加密传输，租约 7 天、心跳 300 秒续租。
     - 运营后台 `/admin` + `/store-admin/v1/*`：概览、商品、订单、授权、设备绑定、优惠码、提现审核、账号、站点配置、版本发布与审计日志；暗色 + 琥珀统一主题。
     - 支付渠道 `mock`（本地收银台）与 `alipay`（当面付扫码）可切换；异步通知验签 + 主动查单兜底，统一入账且重复通知只发一次码。
-- 客户端默认零配置指向自建授权服务器（`backend/app/config.py` 内置端点、keyId 与公钥 sha256），厂商生产节点与生产公钥已彻底移除。
+- 客户端默认零配置指向自建授权服务器（`backend/app/config.py` 内置端点、由公钥派生的 keyId 与公钥 sha256），厂商生产节点与生产公钥已彻底移除。
 - 仓库根 `keys/` 作为客户端信任锚公钥镜像，由 `store.tools.gen_keys` 从 `store/keys/local/` 自动同步，二者逐字节一致。
 - 新增 `.env` 本地配置（SMTP 授权码、支付宝私钥等只落在被 gitignore 的 `.env` 里，随仓库分发的 `.env.example` 只含占位符）与 `store/env.py` 极简加载器。
 - 新增 `tools/bump_static_cache_versions.mjs`（统一静态资源 `?v=YYYYMMDDHHMMSS`）。

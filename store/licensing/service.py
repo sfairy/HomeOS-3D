@@ -18,7 +18,13 @@ from sqlalchemy.orm import Session
 
 from store import site_settings as site_config
 from store.config import StoreSettings
-from store.licensing.crypto import LeaseSigner, LicenseServerError, TransportCipher
+from store.licensing.crypto import (
+    KeyGeneration,
+    KeyRegistry,
+    LeaseSigner,
+    LicenseServerError,
+    TransportCipher,
+)
 from store.models import (
     Customer,
     DeviceBinding,
@@ -44,25 +50,38 @@ logger = logging.getLogger("store.license")
 RECOVERY_TOKEN_TTL_SECONDS = 180 * 24 * 3600
 
 class LicenseAuthority:
-    """持有签名密钥与传输密钥，负责全部租约签发逻辑。"""
+    """持有密钥环，负责全部租约签发逻辑。"""
 
     def __init__(
         self,
         settings: StoreSettings,
         database,
-        signer: LeaseSigner,
-        transport: TransportCipher,
+        keyring: KeyRegistry,
     ) -> None:
         self.settings = settings
         self.database = database
-        self.signer = signer
-        self.transport = transport
+        self.keyring = keyring
+
+    @property
+    def signer(self) -> LeaseSigner:
+        """当前一代签名器。只应在「不确定请求用哪一代」的内部路径上使用。"""
+        return self.keyring.active.signer
+
+    @property
+    def transport(self) -> TransportCipher:
+        """当前一代传输密钥。同上；请求路径应按 keyId 选代。"""
+        return self.keyring.active.transport
 
     # ------------------------------------------------------------------ #
     # 端点
     # ------------------------------------------------------------------ #
     def activate(
-        self, payload: dict, *, ip: str | None = None, user_agent: str | None = None
+        self,
+        payload: dict,
+        *,
+        ip: str | None = None,
+        user_agent: str | None = None,
+        generation: KeyGeneration | None = None,
     ) -> dict:
         code = str(payload.get("activationCode") or "").strip().upper()
         instance_id = str(payload.get("instanceId") or "").strip()
@@ -119,6 +138,7 @@ class LicenseAuthority:
                 now=now,
                 session_token=session_token,
                 recovery_token=recovery_token,
+                generation=generation,
             )
             logger.info(
                 "激活成功 code=%s instance=%s version=%s", code, instance_id, client_version
@@ -126,7 +146,12 @@ class LicenseAuthority:
             return response
 
     def heartbeat(
-        self, payload: dict, *, ip: str | None = None, user_agent: str | None = None
+        self,
+        payload: dict,
+        *,
+        ip: str | None = None,
+        user_agent: str | None = None,
+        generation: KeyGeneration | None = None,
     ) -> dict:
         token = str(payload.get("sessionToken") or "")
         client_version = str(payload.get("clientVersion") or "").strip()
@@ -180,10 +205,16 @@ class LicenseAuthority:
                 now=now,
                 session_token=token,
                 recovery_token="",
+                generation=generation,
             )
 
     def recover(
-        self, payload: dict, *, ip: str | None = None, user_agent: str | None = None
+        self,
+        payload: dict,
+        *,
+        ip: str | None = None,
+        user_agent: str | None = None,
+        generation: KeyGeneration | None = None,
     ) -> dict:
         token = str(payload.get("recoveryToken") or "")
         instance_id = str(payload.get("instanceId") or "").strip()
@@ -225,6 +256,7 @@ class LicenseAuthority:
                 now=now,
                 session_token=session_token,
                 recovery_token=token,
+                generation=generation,
             )
 
     # ------------------------------------------------------------------ #
@@ -420,7 +452,17 @@ class LicenseAuthority:
         now: datetime,
         session_token: str,
         recovery_token: str,
+        generation: KeyGeneration | None = None,
     ) -> dict:
+        """签一张租约。
+
+        ``generation`` 必须与**本次请求所用的传输密钥**是同一代（由调用方从请求
+        里的 keyId 解析，见 ``store/api/license.py``）。用当前一代固定签发会漏掉
+        重叠窗口：旧客户端的可信表里只有旧公钥，拿到新密钥签的租约只会回
+        「不受信任的授权公钥」—— 明明窗口开着，旧客户端却全部失联。
+        """
+        active = generation or self.keyring.active
+        signer = active.signer
         sequence = int(license.lease_sequence or 0) + 1
         lease_id = new_uuid()
         license.lease_sequence = sequence
@@ -432,8 +474,8 @@ class LicenseAuthority:
             "sessionId": session_id,
             "activationCodeId": license.id,
             "instanceId": binding.instance_id,
-            "product": self.signer.product,
-            "keyId": self.signer.key_id,
+            "product": signer.product,
+            "keyId": signer.key_id,
             "features": self.features_for(session, license, now),
             "leaseSequence": sequence,
             "issuedAt": iso_z(now),
@@ -442,7 +484,7 @@ class LicenseAuthority:
             ),
         }
         response = {
-            "signedLease": self.signer.sign(lease_payload),
+            "signedLease": signer.sign(lease_payload),
             "heartbeatIn": max(30, int(self.settings.heartbeat_interval_seconds)),
             "sessionToken": session_token,
         }

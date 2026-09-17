@@ -159,16 +159,20 @@ def _stop_server(process: subprocess.Popen) -> None:
 # 客户端侧：真实授权栈
 # ---------------------------------------------------------------------- #
 def _install_client_env(workdir: Path, keys_dir: Path, port: int) -> dict:
-    """把客户端指向本机端口：环境变量覆盖（默认已指向自建 18082，这里换成随机端口与临时密钥）。"""
+    """把客户端指向本机端口：环境变量覆盖（默认已指向自建 18082，这里换成随机端口与临时密钥）。
+
+    这里**不**再钉 ``APP_LICENSE_KEY_ID`` / ``APP_LICENSE_TRANSPORT_KEY_ID``：
+    e2e 用的是临时密钥目录，两边的 keyId 都应由各自的公钥文件派生，正好覆盖
+    「零配置下客户端与服务端各自派生、必须得出同一个 id」这条真实路径（S52）。
+    显式钉住 id 的老写法由 smoke 里那条 ``APP_LICENSE_KEY_ID`` 用例覆盖。
+    """
     public_key = keys_dir / "license-public.pem"
     transport_key = keys_dir / "license-transport-public.pem"
     values = {
         "APP_DATA_DIR": str(workdir / "client-data"),
         "APP_LICENSE_SERVER_URL": f"http://127.0.0.1:{port}",
-        "APP_LICENSE_KEY_ID": "hb-local-2026",
         "APP_LICENSE_PUBLIC_KEY_FILE": str(public_key),
         "APP_LICENSE_PUBLIC_KEY_SHA256": _fingerprint(public_key),
-        "APP_LICENSE_TRANSPORT_KEY_ID": "hb-local-transport-2026",
         "APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE": str(transport_key),
         "APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256": _fingerprint(transport_key),
         "APP_LICENSE_REQUEST_TIMEOUT_SECONDS": "10",
@@ -295,9 +299,10 @@ async def run(port: int, workdir: Path, admin_email: str, admin_password: str) -
             str(settings.effective_license_server_batches),
         )
         check(
-            "客户端使用本地签名公钥",
-            settings.license_trusted_public_keys["hb-local-2026"][1]
+            "客户端使用本地签名公钥（keyId 由该公钥派生，两边各自算出来的必须一致）",
+            settings.license_trusted_public_keys[settings.license_key_id][1]
             == os.environ["APP_LICENSE_PUBLIC_KEY_SHA256"],
+            f"keyId={settings.license_key_id} 表={sorted(settings.license_trusted_public_keys)}",
         )
 
         settings.data_dir.mkdir(parents=True, exist_ok=True)

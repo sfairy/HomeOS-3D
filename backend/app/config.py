@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +23,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SELF_HOSTED_LICENSE_SERVER_URL = 'http://127.0.0.1:18082'
 # 单条 direct 批次：只访问自建服务器，不会散到其它节点。
 DEFAULT_LICENSE_SERVER_BATCHES = (('direct', (SELF_HOSTED_LICENSE_SERVER_URL,)),)
+# keyId **由公钥文件派生**（见 `_derive_key_id`），不再是身份真相源。这两个常量
+# 只在公钥文件读不到时兜底 —— 那种情况下真正的失败发生在加载密钥那一步，这里
+# 给的只是「不编造一个谁也对不上的名字」。
 DEFAULT_LICENSE_KEY_ID = 'hb-local-2026'
 DEFAULT_LICENSE_PUBLIC_KEY_FILENAME = 'license-public.pem'
 # 签名公钥的文件字节 sha256；必须与 store/keys/local/ 下的私钥配对，
@@ -36,8 +40,31 @@ DEFAULT_LICENSE_PUBLIC_KEY_SHA256 = 'a53d869318a3d9005431b0296b9f0d1d7f7b2523e08
 DEFAULT_LICENSE_TRANSPORT_KEY_ID = 'hb-local-transport-2026'
 DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_FILENAME = 'license-transport-public.pem'
 DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256 = '1dd4a0a822b9227ebd1032fabd992342f7fb52630cdf2fedfc30db54191b2b19'
-# 可信公钥表：keyId -> (文件名, 期望 sha256)，租约头里的 keyId 靠它找到验签公钥。
-DEFAULT_LICENSE_TRUSTED_PUBLIC_KEYS = ((DEFAULT_LICENSE_KEY_ID, DEFAULT_LICENSE_PUBLIC_KEY_FILENAME, DEFAULT_LICENSE_PUBLIC_KEY_SHA256),)
+#: 可信公钥表 **不在这里写死**：见 ``Settings.license_trusted_public_keys`` ——
+#: keyId 由公钥文件派生，写死的话轮换后会指向**旧**指纹，于是同一把新公钥既被
+#: 报成「不受信任的公钥」（名字不对）又被报成「指纹不匹配」（指纹不对）。
+#: 上一代签名公钥镜像的文件名：存在就一并登记 —— 这样「客户端先升级、服务端后
+#: 轮换」这段时间里，服务端用上一代密钥签发的租约仍然验得过。服务端侧的重叠窗口
+#: 见 ``store/tools/gen_keys.py --rotate`` 与 ``store.app.build_key_registry``。
+DEFAULT_LICENSE_PREVIOUS_PUBLIC_KEY_FILENAME = 'license-public.previous.pem'
+
+
+def _derive_key_id(public_key_path: Path) -> str | None:
+    '''由公钥**文件字节**派生 keyId；读不到文件时返回 None。
+
+    必须与 ``store/licensing/keys.key_id_from_public`` 逐字符一致：两边各读自己
+    那份镜像（仓库根 ``keys/`` ↔ ``store/keys/local/``），靠 gen_keys 保证两份
+    字节相同，从而派生出同一个 id。smoke 里有一条断言专门盯着这两个实现不许漂移
+    （它们是同一个仓库里的两份代码，没有共享模块可用）。
+
+    为什么是文件字节而不是公钥本身：客户端校验指纹用的就是文件字节的 sha256，
+    复用同一份素材可以少一种「两边算法一致但输入不同」的失败模式。
+    '''
+    try:
+        payload = public_key_path.read_bytes()
+    except OSError:
+        return None
+    return f'hb-{hashlib.sha256(payload).hexdigest()[:16]}'
 
 
 def _environment_bool(name: str, default: bool = False) -> bool:
@@ -153,11 +180,13 @@ class Settings:
     license_clock_skew_seconds: int = 300
     license_public_key_path_override: Path | None = None
     license_public_key_sha256: str | None = None
-    license_key_id: str = DEFAULT_LICENSE_KEY_ID
+    #: 留空 = keyId 由公钥文件派生（见 ``license_key_id`` 属性）。显式赋值仍然生效
+    #: （联调脚本与老部署这么用），但那种配置下服务端轮换必须两边同步改名。
+    license_key_id_override: str = ''
     license_trusted_public_keys_override: tuple[tuple[str, Path, str | None], ...] = ()
     license_transport_public_key_path_override: Path | None = None
     license_transport_public_key_sha256: str = DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
-    license_transport_key_id: str = DEFAULT_LICENSE_TRANSPORT_KEY_ID
+    license_transport_key_id_override: str = ''
     # 硬件指纹覆盖项：容器里拿不到真实机器信息时用于人工指定。
     hardware_machine_id_override: str = ''
     hardware_board_id_override: str = ''
@@ -261,6 +290,26 @@ class Settings:
         return self.license_transport_public_key_path_override or self.project_root / 'keys' / DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_FILENAME
 
     @property
+    def license_key_id(self) -> str:
+        """签名 keyId：显式配置优先，否则由公钥文件派生。
+
+        租约里的 ``keyId`` 靠它去可信表里找验签公钥，所以这个值必须与服务端写进
+        租约的那个一致 —— 两边都是从**同一份公钥字节**派生的，不需要人工同步字符串。
+        文件读不到时退回老常量：那时的失败原因（读不到公钥）比「keyId 对不上」
+        更靠前也更清楚。
+        """
+        if self.license_key_id_override:
+            return self.license_key_id_override
+        return _derive_key_id(self.license_public_key_path) or DEFAULT_LICENSE_KEY_ID
+
+    @property
+    def license_transport_key_id(self) -> str:
+        """传输 keyId：参与 HKDF 与 AAD，必须与服务端一字不差。"""
+        if self.license_transport_key_id_override:
+            return self.license_transport_key_id_override
+        return _derive_key_id(self.license_transport_public_key_path) or DEFAULT_LICENSE_TRANSPORT_KEY_ID
+
+    @property
     def license_trusted_public_keys(self) -> dict[str, tuple[Path, str | None]]:
         """可信公钥表 keyId -> (路径, 期望 sha256)。
 
@@ -272,16 +321,25 @@ class Settings:
         默认表也会尊重 ``APP_LICENSE_PUBLIC_KEY_SHA256``（写入
         ``license_public_key_sha256``）：本地 ``start.py`` 只覆盖指纹、不改路径，
         用来对准 ``store/keys/local`` 生成的开发密钥，而不改发布版常量。
+
+        第 3 条会把 ``license-public.previous.pem`` 一并登记（存在才登记）：这就是
+        客户端侧的轮换重叠窗口 —— 服务端还在用上一代密钥签发时，客户端照样验得过。
+        keyId 一律由文件派生，所以两张表条目之间不会撞名。
         """
         if self.license_trusted_public_keys_override:
             return {key_id: (path, expected_sha256) for key_id, path, expected_sha256 in self.license_trusted_public_keys_override}
         if self.license_public_key_path_override is not None:
             return {self.license_key_id: (self.license_public_key_path_override, self.license_public_key_sha256)}
-        trusted: dict[str, tuple[Path, str | None]] = {}
-        for key_id, filename, expected_sha256 in DEFAULT_LICENSE_TRUSTED_PUBLIC_KEYS:
-            if key_id == self.license_key_id and self.license_public_key_sha256:
-                expected_sha256 = self.license_public_key_sha256
-            trusted[key_id] = (self.project_root / 'keys' / filename, expected_sha256)
+        trusted: dict[str, tuple[Path, str | None]] = {
+            self.license_key_id: (
+                self.project_root / 'keys' / DEFAULT_LICENSE_PUBLIC_KEY_FILENAME,
+                self.license_public_key_sha256 or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
+            )
+        }
+        previous = self.project_root / 'keys' / DEFAULT_LICENSE_PREVIOUS_PUBLIC_KEY_FILENAME
+        previous_key_id = _derive_key_id(previous)
+        if previous_key_id:
+            trusted[previous_key_id] = (previous, None)
         return trusted
 
     @property
@@ -351,11 +409,12 @@ def load_settings() -> Settings:
         'license_request_timeout_seconds': float(os.getenv('APP_LICENSE_REQUEST_TIMEOUT_SECONDS', '10')),
         'license_public_key_path_override': _environment_path('APP_LICENSE_PUBLIC_KEY_FILE'),
         'license_public_key_sha256': os.getenv('APP_LICENSE_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
-        'license_key_id': os.getenv('APP_LICENSE_KEY_ID', '').strip() or DEFAULT_LICENSE_KEY_ID,
+        # 留空 = keyId 由公钥文件派生（推荐）；显式设置走老路径，轮换需两边同步改。
+        'license_key_id_override': os.getenv('APP_LICENSE_KEY_ID', '').strip(),
         'license_trusted_public_keys_override': _environment_trusted_keys('APP_LICENSE_TRUSTED_PUBLIC_KEYS'),
         'license_transport_public_key_path_override': _environment_path('APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE'),
         'license_transport_public_key_sha256': os.getenv('APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256,
-        'license_transport_key_id': os.getenv('APP_LICENSE_TRANSPORT_KEY_ID', '').strip() or DEFAULT_LICENSE_TRANSPORT_KEY_ID,
+        'license_transport_key_id_override': os.getenv('APP_LICENSE_TRANSPORT_KEY_ID', '').strip(),
         # 容器里用环境变量指向挂载的密钥文件（/run/secrets/*）。
         'credential_key_path_override': Path(ha_key_path).expanduser().resolve() if ha_key_path else None,
         'display_pairing_key_path_override': Path(display_pairing_key_path).expanduser().resolve() if display_pairing_key_path else None,

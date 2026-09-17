@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from store.env import load_dotenv
+from store.licensing import keys as license_keys
 
 logger = logging.getLogger("store.config")
 
@@ -233,8 +234,13 @@ class StoreSettings:
     # 授权签发
     #: 注意：仓库根的 keys/ 是客户端默认读取的公钥镜像（由 gen_keys 自动同步），私钥留在服务自己的目录
     license_keys_dir: Path = STORE_ROOT / "keys" / "local"
-    license_key_id: str = "hb-local-2026"
-    license_transport_key_id: str = "hb-local-transport-2026"
+    #: 留空 = 按公钥文件派生 keyId（推荐，见 ``license_key_id`` 属性）；显式赋值
+    #: 仍然生效，但那时轮换要服务端与客户端同步改名 —— 静态名字不会随密钥变，
+    #: 重新生成密钥后客户端只会看到「指纹不匹配」（见 ``keys.key_id_from_public``）。
+    #: 字段名带 ``_override`` 是为了让下面那个同名属性成为唯一入口：读到
+    #: ``settings.license_key_id`` 的人拿到的永远是**实际生效**的 id。
+    license_key_id_override: str = ""
+    license_transport_key_id_override: str = ""
     lease_ttl_seconds: int = DEFAULT_LEASE_TTL_SECONDS
     heartbeat_interval_seconds: int = DEFAULT_HEARTBEAT_INTERVAL_SECONDS
 
@@ -280,6 +286,61 @@ class StoreSettings:
     @property
     def transport_public_key_path(self) -> Path:
         return self.license_keys_dir / "license-transport-public.pem"
+
+    @property
+    def previous_private_key_path(self) -> Path:
+        """上一代签名私钥；存在即开启轮换重叠窗口。"""
+        return license_keys.previous_path(self.private_key_path)
+
+    @property
+    def previous_public_key_path(self) -> Path:
+        return license_keys.previous_path(self.public_key_path)
+
+    @property
+    def previous_transport_private_key_path(self) -> Path:
+        return license_keys.previous_path(self.transport_private_key_path)
+
+    @property
+    def previous_transport_public_key_path(self) -> Path:
+        return license_keys.previous_path(self.transport_public_key_path)
+
+    @property
+    def license_key_id(self) -> str:
+        """实际写进租约的签名 keyId：显式配置优先，否则由公钥文件派生。
+
+        派生而不是给个默认字符串，是为了让「换密钥」在协议上可见：同名的静态
+        id 配上客户端那张指纹表，轮换后新密钥会被报成「指纹不匹配」。
+        公钥文件缺失时退回显式值/空串，把失败留给真正加载密钥的那一步报，
+        而不是在这里编一个谁也对不上的 id。
+        """
+        if self.license_key_id_override:
+            return self.license_key_id_override
+        return license_keys.key_id_from_public(self.public_key_path) if self.public_key_path.is_file() else ""
+
+    @property
+    def license_transport_key_id(self) -> str:
+        if self.license_transport_key_id_override:
+            return self.license_transport_key_id_override
+        if not self.transport_public_key_path.is_file():
+            return ""
+        return license_keys.key_id_from_public(self.transport_public_key_path)
+
+    @property
+    def previous_key_paths(self) -> tuple[Path, Path, Path, Path] | None:
+        """上一代四件套（签名/传输 × 公/私）；只要有一件缺失就返回 ``None``。
+
+        四件必须齐全：只留了公钥没有私钥，服务端既解不开旧客户端的请求、也签不出
+        旧客户端认的租约，留着只会让人误以为窗口开着。
+        """
+        paths = (
+            self.previous_private_key_path,
+            self.previous_public_key_path,
+            self.previous_transport_private_key_path,
+            self.previous_transport_public_key_path,
+        )
+        if not all(path.is_file() for path in paths):
+            return None
+        return paths  # type: ignore[return-value]
 
     @property
     def public_base_url(self) -> str:
@@ -394,8 +455,10 @@ def load_settings(**overrides) -> StoreSettings:
         "alipay_sign_type": (_env_str("STORE_ALIPAY_SIGN_TYPE", "RSA2") or "RSA2").upper(),
         "alipay_verify_response_sign": _env_bool("STORE_ALIPAY_VERIFY_RESPONSE", True),
         "license_keys_dir": _env_path("STORE_LICENSE_KEYS_DIR", STORE_ROOT / "keys" / "local"),
-        "license_key_id": _env_str("STORE_LICENSE_KEY_ID", "hb-local-2026") or "hb-local-2026",
-        "license_transport_key_id": _env_str("STORE_LICENSE_TRANSPORT_KEY_ID", "hb-local-transport-2026") or "hb-local-transport-2026",
+        #: 留空 = 由公钥文件派生 keyId（见 ``license_key_id`` 属性）。
+        #: 不再给静态默认值：静态名字在轮换后不变，客户端会把新公钥报成指纹不匹配。
+        "license_key_id_override": _env_str("STORE_LICENSE_KEY_ID"),
+        "license_transport_key_id_override": _env_str("STORE_LICENSE_TRANSPORT_KEY_ID"),
         #: 没有上界：调大是**合法的可用性取舍**（见 ``_warn_lease_revocation_bound``），
         #: 只在启动时把「吊销生效上界」的代价打进日志。下界与心跳频率的交叉校验见
         #: ``_validate_settings``。
@@ -485,6 +548,41 @@ def _validate_settings(settings: StoreSettings) -> None:
             f"（≥{floor} 秒）：否则租约会在下一次心跳之前过期，客户端会反复进入"
             "「租约已过期」，看起来像网络正常但功能时有时无。"
         )
+    _validate_rotation(settings)
+
+
+def _validate_rotation(settings: StoreSettings) -> None:
+    """检查轮换重叠窗口的配置自洽性（S52）。
+
+    上一代密钥四件套齐全时窗口就是开着的，这里只拦「开了但没用」的组合：
+
+    * 显式 keyId 且上一代派生出**同一个** id —— 比如把当前密钥直接复制成
+      ``*.previous.pem``，或者（更常见）两边都用静态 ``STORE_LICENSE_KEY_ID``。
+      此时 ``KeyRegistry`` 会因 id 重复直接拒绝启动，与其等到构建密钥环时才炸，
+      不如在这里说清楚原因。
+    * 上一代存在但显式配置只改了其中一个 id：不影响启动，但会在日志里点明
+      「旧客户端仍按上一代 id 验签」，省得运维以为换了 id 就等于吊销了旧客户端。
+    """
+    previous_paths = settings.previous_key_paths
+    if previous_paths is None:
+        return
+    previous_public, previous_transport_public = previous_paths[1], previous_paths[3]
+    active_transport_id = settings.license_transport_key_id
+    previous_transport_id = license_keys.key_id_from_public(previous_transport_public)
+    if active_transport_id and previous_transport_id == active_transport_id:
+        raise ValueError(
+            "轮换重叠窗口里的上一代传输公钥与当前公钥相同"
+            f"（派生 keyId 都是 {previous_transport_id}）：这通常是直接把当前密钥"
+            "复制成了 *.previous.pem。请删掉上一代四件套，或改用真正的前一代密钥 ——"
+            "同 id 的两代密钥在密钥环里会直接冲突。"
+        )
+    logger.warning(
+        "检测到上一代授权密钥（重叠窗口开启）：旧客户端仍可用 keyId=%s 验签，"
+        "上一代签名 keyId=%s。要结束窗口请删除 store 密钥目录下的 *.previous.pem "
+        "四件套 —— 删掉后旧客户端会立刻失效。",
+        previous_transport_id,
+        license_keys.key_id_from_public(previous_public),
+    )
 
 
 def _warn_insecure_verification_exposure(settings: StoreSettings) -> None:

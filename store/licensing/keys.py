@@ -30,6 +30,37 @@ class GeneratedKeyPair:
     created: bool
 
 
+#: 上一代密钥的文件名后缀。轮换时把当前那对改名成 ``*<后缀>.pem`` 并保留在原地：
+#: 授权服务按请求里的 keyId 在其中选择（见 ``store/licensing/crypto.py`` 的
+#: ``KeyRegistry``），于是「服务端已换新密钥、客户端还没更新完」这段时间里
+#: 两边都能用。只保留一代 —— 再轮换一次就覆盖它，窗口是「一次轮换」。
+PREVIOUS_KEY_SUFFIX = ".previous"
+
+
+def previous_path(path: Path) -> Path:
+    """``license-private.pem`` → ``license-private.previous.pem``（后缀在扩展名前）。"""
+    return path.with_name(f"{path.stem}{PREVIOUS_KEY_SUFFIX}{path.suffix}")
+
+
+def key_id_from_public(public_path: Path) -> str:
+    """由公钥**文件字节**派生 keyId。
+
+    为什么不让它是个配置字符串：静态 keyId 不会随密钥变 —— 重新生成密钥后，
+    服务端仍在用 ``hb-local-2026`` 这个名字签发租约。客户端那张
+    「keyId → 公钥文件 + 指纹」的表里，同名的条目会指向**旧指纹**，于是新密钥
+    被报成「指纹不匹配」（听起来像被篡改），而轮换也无法在配置上表达成
+    「多了一个新身份，旧的还能用一段时间」。
+
+    改成从公钥文件字节派生之后：换密钥 ⇒ keyId 必然改变；同一份公钥在任何地方
+    派生出同一个 id（服务端与客户端各自读自己那份镜像即可，不必人工同步字符串）。
+    客户端本地校验指纹的口径本来就是 sha256(公钥文件字节)，这里复用同一份素材。
+
+    显式配置仍然优先（``STORE_LICENSE_KEY_ID`` / ``APP_LICENSE_KEY_ID``）：
+    老部署与联调脚本靠它固定名字，那种情况下轮换要两边同步改。
+    """
+    return f"hb-{public_key_sha256(public_path)[:16]}"
+
+
 def _write_private(path: Path, private_key) -> None:
     payload = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
@@ -55,6 +86,21 @@ def _write_public(path: Path, public_key) -> None:
 def public_key_sha256(path: Path) -> str:
     """公钥 PEM 文件字节的 sha256（十六进制小写），与客户端校验口径一致。"""
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def rotate_pair(paths: KeyPairPaths) -> bool:
+    """把当前密钥对改名成「上一代」，为写入新密钥腾出位置。返回是否真的搬了。
+
+    只有在当前私钥/公钥都存在时才搬；搬之前先删掉更早的那一对（只留一代）。
+    """
+    if not (paths.private_path.exists() and paths.public_path.exists()):
+        return False
+    for path in (paths.private_path, paths.public_path):
+        target = previous_path(path)
+        if target.exists():
+            target.unlink()
+        path.rename(target)
+    return True
 
 
 def _generate(paths: KeyPairPaths, private_key, *, force: bool) -> GeneratedKeyPair:

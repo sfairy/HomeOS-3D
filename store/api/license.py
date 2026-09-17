@@ -59,10 +59,20 @@ def _run_in_worker(
     根本看不到它（这正是协议的设计）。所以解密之后立刻配额，超限就以
     ``LicenseServerError`` 的形式返回 —— 不在这里抛 ``HTTPException``，
     因为上面那层 ``except Exception`` 会把它吞成 500。
+
+    **S52：先按请求里的 keyId 选代，再解密**。选中的那一代既用来解密，也用来签
+    本次的租约（``generation`` 透传给业务方法）。不选代而固定用当前一代，重叠窗口
+    就形同虚设：旧客户端送的是上一代 keyId，响应却由新密钥签发，它只会回
+    「不受信任的授权公钥」。
     """
     stage = "decrypt"
     try:
-        payload, key = authority.transport.decrypt_request(body, path)
+        generation = authority.keyring.find((body or {}).get("keyId"))
+        if generation is None:
+            # 与 ``TransportCipher.decrypt_request`` 里那条同文案：对客户端来说
+            # 「keyId 不认识」与「解不开」是同一类问题，没必要区分。
+            raise LicenseServerError("授权传输 keyId 不匹配。", status_code=400)
+        payload, key = generation.transport.decrypt_request(body, path)
         stage = "dispatch"
         code = str((payload or {}).get("activationCode") or "").strip().upper()
         if code and not _LICENSE_CODE_LIMITER.allow(f"code:{code}"):
@@ -72,14 +82,14 @@ def _run_in_worker(
                 LicenseServerError("请求过于频繁，请稍后再试。", status_code=429),
                 "dispatch",
             )
-        result = getattr(authority, method)(payload, ip=client_ip)
+        result = getattr(authority, method)(payload, ip=client_ip, generation=generation)
     except LicenseServerError as error:
         return None, error, stage
     except Exception:  # noqa: BLE001 - 见 docstring：解密阶段的意外异常按「格式无效」处理
         if stage == "decrypt":
             return None, None, "invalid"
         raise
-    return authority.transport.encrypt_response(result, path, key), None, ""
+    return generation.transport.encrypt_response(result, path, key), None, ""
 
 
 async def _dispatch(request: Request, method: str) -> Response:
