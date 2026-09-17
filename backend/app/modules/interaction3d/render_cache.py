@@ -14,7 +14,6 @@
 """
 from __future__ import annotations
 
-import fcntl
 import hashlib
 import io
 import os
@@ -26,6 +25,32 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 from PIL import Image, UnidentifiedImageError
+
+if os.name == 'nt':
+    import msvcrt
+
+    @contextmanager
+    def _locked_region(handle):
+        """Windows 下对锁文件首字节加排他锁，等价于 POSIX 的 flock(LOCK_EX)。"""
+        handle.seek(0)
+        # LK_RLCK 抢不到时会重试约 10 次再抛 OSError；缓存锁竞争都在毫秒级，足够。
+        # 文件为空也没关系：Windows 允许锁定越过 EOF 的字节区间。
+        msvcrt.locking(handle.fileno(), msvcrt.LK_RLCK, 1)
+        try:
+            yield
+        finally:
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+else:
+    import fcntl
+
+    @contextmanager
+    def _locked_region(handle):
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
 
 # 单条 10 MiB / 单张 2M 像素：纯粹是防滥用的闸门，不是业务上预期的图片大小。
 MAX_ENTRY_BYTES = 10485760
@@ -66,12 +91,9 @@ def cache_lock(root: Path):
     root.mkdir(parents=True, exist_ok=True)
     # 锁文件常驻且用 'a+b'（不截断）：它只作为加锁句柄，不存内容。
     with (root / '.lock').open('a+b') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        try:
+        with _locked_region(lock):
+            # 异常路径也要解锁：_locked_region 的 finally 会负责释放。
             yield
-        finally:
-            # 异常路径也要解锁：with 块抛错时若漏了这一步，进程会一直持着锁。
-            fcntl.flock(lock, fcntl.LOCK_UN)
 
 
 def read_cache(path: Path) -> bytes | None:
