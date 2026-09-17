@@ -3728,14 +3728,48 @@ def _count_rows(session: Session, base) -> int:
 def _page(session: Session, base, order_by, *, limit: int, offset: int, render) -> dict:
     """给一个未加 limit/order 的 select 加排序与分页，并附上总数。
 
-    需要「先拿到本页行、再批量补关联数据」（例如激活码要带账号与绑定）的场景
-    不要用它——``render`` 是逐行的。那种情况自己调 ``_page_bounds`` / ``_count_rows``，
-    把本页的行一次性交给关联查询，避免每行一次 N+1。
+    ``render`` 是**逐行**调用的，所以只适合「载荷完全来自本行字段」的表
+    （登录尝试、验证码、审计日志这类）。凡是每行还要去查关联对象（账号、授权、
+    订单……），一律改用 :func:`_page_items` —— 逐行 ``session.get`` 就是 N+1：
+    500 行会产生 500~1500 条独立查询，而列表页的响应时间因此随数据量线性增长。
     """
     size, skip = _page_bounds(limit, offset)
     total = _count_rows(session, base)
     rows = session.scalars(base.order_by(*order_by).limit(size).offset(skip)).all()
     return {"items": [render(row) for row in rows], "total": total, "limit": size, "offset": skip}
+
+
+def _page_items(session: Session, base, order_by, *, limit: int, offset: int, build) -> dict:
+    """``_page`` 的两段式版本：先把**本页的行**整批交给 ``build(rows)``。
+
+    存在的唯一理由是让「先取本页行、再一次性补关联数据」成为顺手写法。逐行
+    ``session.get`` 的代价不是「多几条 SQL」那么轻：每一条都是一次独立的
+    SQLite 往返，页大小 500 时是 500~1500 次，而这几张表（会话、令牌、核销记录）
+    恰恰是**越积越多**的运维表 —— 出问题时要去翻的正是它们的旧记录。
+
+    约定：``build`` 只能看到本页的行，所需的关联对象自己用 :func:`_by_ids`
+    批量取，然后按行拼装。
+    """
+    size, skip = _page_bounds(limit, offset)
+    total = _count_rows(session, base)
+    rows = session.scalars(base.order_by(*order_by).limit(size).offset(skip)).all()
+    return {"items": build(rows), "total": total, "limit": size, "offset": skip}
+
+
+def _by_ids(session: Session, model, ids) -> dict[str, object]:
+    """按主键批量取行，返回 ``{主键: 行}``；空集合直接返回空字典。
+
+    ``ids`` 里可以有 None 与重复值（调用方通常是 ``{row.license_id for row in rows}``），
+    这里统一过滤。找不到的主键不进结果，调用方用 ``.get()`` 落到兜底值 ——
+    与原来逐行 ``session.get`` 返回 None 的语义一致。
+    """
+    wanted = {item for item in ids if item}
+    if not wanted:
+        return {}
+    return {
+        row.id: row
+        for row in session.scalars(select(model).where(model.id.in_(wanted)))
+    }
 
 
 
@@ -3831,28 +3865,34 @@ def admin_list_sessions(
         base = base.where(AccountSession.account_id == account_id)
     moment = utcnow()
 
-    def render(record: AccountSession) -> dict:
-        account = session.get(Account, record.account_id)
-        return {
-            "ref": (record.id_hash or "")[:12],
-            "accountId": record.account_id,
-            "accountEmail": account.email if account else "",
-            "isAdminSession": bool(record.is_admin_session),
-            "ipAddress": record.ip_address,
-            "userAgent": record.user_agent,
-            "createdAt": iso(record.created_at),
-            "lastSeenAt": iso(record.last_seen_at),
-            "expiresAt": iso(record.expires_at),
-            "expired": record.expires_at <= moment,
-        }
+    def build(rows) -> list[dict]:
+        #: 账号映射整批取（原先每行一次 ``session.get``，500 行就是 500 次往返）。
+        account_map = _by_ids(session, Account, (record.account_id for record in rows))
+        return [
+            {
+                "ref": (record.id_hash or "")[:12],
+                "accountId": record.account_id,
+                "accountEmail": account_map[record.account_id].email
+                if record.account_id in account_map
+                else "",
+                "isAdminSession": bool(record.is_admin_session),
+                "ipAddress": record.ip_address,
+                "userAgent": record.user_agent,
+                "createdAt": iso(record.created_at),
+                "lastSeenAt": iso(record.last_seen_at),
+                "expiresAt": iso(record.expires_at),
+                "expired": record.expires_at <= moment,
+            }
+            for record in rows
+        ]
 
-    return _page(
+    return _page_items(
         session,
         base,
         (AccountSession.last_seen_at.desc(),),
         limit=limit,
         offset=offset,
-        render=render,
+        build=build,
     )
 
 
@@ -3909,31 +3949,36 @@ def admin_list_referral_ledger(
     if kind:
         base = base.where(ReferralLedger.kind == kind)
 
-    def render(entry: ReferralLedger) -> dict:
-        account = session.get(Account, entry.account_id)
-        return {
-            "id": entry.id,
-            "accountId": entry.account_id,
-            "accountEmail": account.email if account else "",
-            "walletId": entry.wallet_id,
-            "kind": entry.kind,
-            "delta": money.format_centi(entry.delta_centi),
-            "frozenDelta": money.format_centi(entry.frozen_delta_centi),
-            "balanceAfter": money.format_centi(entry.balance_after_centi),
-            "frozenAfter": money.format_centi(entry.frozen_after_centi),
-            "note": entry.note,
-            "reference": entry.reference,
-            "orderId": entry.order_id,
-            "createdAt": iso(entry.created_at),
-        }
+    def build(rows) -> list[dict]:
+        accounts = _by_ids(session, Account, (entry.account_id for entry in rows))
+        return [
+            {
+                "id": entry.id,
+                "accountId": entry.account_id,
+                "accountEmail": accounts[entry.account_id].email
+                if entry.account_id in accounts
+                else "",
+                "walletId": entry.wallet_id,
+                "kind": entry.kind,
+                "delta": money.format_centi(entry.delta_centi),
+                "frozenDelta": money.format_centi(entry.frozen_delta_centi),
+                "balanceAfter": money.format_centi(entry.balance_after_centi),
+                "frozenAfter": money.format_centi(entry.frozen_after_centi),
+                "note": entry.note,
+                "reference": entry.reference,
+                "orderId": entry.order_id,
+                "createdAt": iso(entry.created_at),
+            }
+            for entry in rows
+        ]
 
-    return _page(
+    return _page_items(
         session,
         base,
         (ReferralLedger.created_at.desc(),),
         limit=limit,
         offset=offset,
-        render=render,
+        build=build,
     )
 
 
@@ -3958,37 +4003,46 @@ def admin_list_coupon_redemptions(
     if account_id:
         base = base.where(CouponRedemption.account_id == account_id)
 
-    def render(record: CouponRedemption) -> dict:
-        coupon = session.get(Coupon, record.coupon_id)
-        account = session.get(Account, record.account_id)
-        order = session.get(Order, record.order_id) if record.order_id else None
-        return {
-            "id": record.id,
-            "couponId": record.coupon_id,
-            "couponCode": coupon.code if coupon else "",
-            "accountId": record.account_id,
-            "accountEmail": account.email if account else "",
-            "orderId": record.order_id,
-            "orderNo": order.order_no if order else "",
-            # 订单进了 RELEASED_STATUSES、名额已归还的核销记录，只是历史凭证；
-            # 其余状态（含 fulfilled / refunded）都仍占着名额。界面据此区分。
-            "orderStatus": order.status if order else "",
-            # 判据与 SQL 侧同源（coupons.holds_slot），不要再在这里写第二份规则：
-            # 两边不一致时，界面显示「占用中」而实际上名额已经放开了。
-            "holding": coupons.holds_slot(record, order),
-            "voidedAt": iso(record.voided_at) if record.voided_at else "",
-            "voidReason": record.void_reason or "",
-            "discountCents": int(record.discount_cents or 0),
-            "createdAt": iso(record.created_at),
-        }
+    def build(rows) -> list[dict]:
+        #: 三张关联表各取一次，而不是每行三次（500 行时是 1500 → 3）。
+        coupon_map = _by_ids(session, Coupon, (record.coupon_id for record in rows))
+        account_map = _by_ids(session, Account, (record.account_id for record in rows))
+        order_map = _by_ids(session, Order, (record.order_id for record in rows))
+        items: list[dict] = []
+        for record in rows:
+            coupon = coupon_map.get(record.coupon_id)
+            account = account_map.get(record.account_id)
+            order = order_map.get(record.order_id) if record.order_id else None
+            items.append(
+                {
+                    "id": record.id,
+                    "couponId": record.coupon_id,
+                    "couponCode": coupon.code if coupon else "",
+                    "accountId": record.account_id,
+                    "accountEmail": account.email if account else "",
+                    "orderId": record.order_id,
+                    "orderNo": order.order_no if order else "",
+                    # 订单进了 RELEASED_STATUSES、名额已归还的核销记录，只是历史凭证；
+                    # 其余状态（含 fulfilled / refunded）都仍占着名额。界面据此区分。
+                    "orderStatus": order.status if order else "",
+                    # 判据与 SQL 侧同源（coupons.holds_slot），不要再在这里写第二份规则：
+                    # 两边不一致时，界面显示「占用中」而实际上名额已经放开了。
+                    "holding": coupons.holds_slot(record, order),
+                    "voidedAt": iso(record.voided_at) if record.voided_at else "",
+                    "voidReason": record.void_reason or "",
+                    "discountCents": int(record.discount_cents or 0),
+                    "createdAt": iso(record.created_at),
+                }
+            )
+        return items
 
-    return _page(
+    return _page_items(
         session,
         base,
         (CouponRedemption.created_at.desc(),),
         limit=limit,
         offset=offset,
-        render=render,
+        build=build,
     )
 
 
@@ -4083,34 +4137,45 @@ def admin_list_customers(
         like = f"%{keyword.strip()}%"
         base = base.where(or_(Customer.email.like(like), Customer.name.like(like)))
 
-    def render(customer: Customer) -> dict:
-        return {
-            "id": customer.id,
-            "accountId": customer.account_id,
-            "email": customer.email,
-            "name": customer.name,
-            "createdAt": iso(customer.created_at),
-            "orderCount": int(
-                session.execute(
-                    select(func.count(Order.id)).where(Order.customer_id == customer.id)
-                ).scalar_one()
-                or 0
-            ),
-            "licenseCount": int(
-                session.execute(
-                    select(func.count(License.id)).where(License.customer_id == customer.id)
-                ).scalar_one()
-                or 0
-            ),
-        }
+    def build(rows) -> list[dict]:
+        #: 两个计数改成**每页两条**聚合查询（``GROUP BY customer_id``），而不是每行两条：
+        #: 页大小 500 时原来要发 1000 条 ``SELECT count(*)``，客户表越大越慢。
+        customer_ids = {row.id for row in rows}
+        scope_ids = customer_ids or {""}
+        order_counts = dict(
+            session.execute(
+                select(Order.customer_id, func.count(Order.id))
+                .where(Order.customer_id.in_(scope_ids))
+                .group_by(Order.customer_id)
+            ).all()
+        )
+        license_counts = dict(
+            session.execute(
+                select(License.customer_id, func.count(License.id))
+                .where(License.customer_id.in_(scope_ids))
+                .group_by(License.customer_id)
+            ).all()
+        )
+        return [
+            {
+                "id": customer.id,
+                "accountId": customer.account_id,
+                "email": customer.email,
+                "name": customer.name,
+                "createdAt": iso(customer.created_at),
+                "orderCount": int(order_counts.get(customer.id, 0) or 0),
+                "licenseCount": int(license_counts.get(customer.id, 0) or 0),
+            }
+            for customer in rows
+        ]
 
-    return _page(
+    return _page_items(
         session,
         base,
         (Customer.created_at.desc(),),
         limit=limit,
         offset=offset,
-        render=render,
+        build=build,
     )
 
 
@@ -4244,25 +4309,30 @@ def admin_list_device_release_events(
     if license_id:
         base = base.where(DeviceReleaseEvent.license_id == license_id)
 
-    def render(event: DeviceReleaseEvent) -> dict:
-        license = session.get(License, event.license_id)
-        return {
-            "id": event.id,
-            "licenseId": event.license_id,
-            "codeHint": license.code_hint if license else "",
-            "accountId": event.account_id,
-            "instanceId": event.instance_id,
-            "source": event.source,
-            "createdAt": iso(event.created_at),
-        }
+    def build(rows) -> list[dict]:
+        licenses = _by_ids(session, License, (event.license_id for event in rows))
+        return [
+            {
+                "id": event.id,
+                "licenseId": event.license_id,
+                "codeHint": licenses[event.license_id].code_hint
+                if event.license_id in licenses
+                else "",
+                "accountId": event.account_id,
+                "instanceId": event.instance_id,
+                "source": event.source,
+                "createdAt": iso(event.created_at),
+            }
+            for event in rows
+        ]
 
-    return _page(
+    return _page_items(
         session,
         base,
         (DeviceReleaseEvent.created_at.desc(),),
         limit=limit,
         offset=offset,
-        render=render,
+        build=build,
     )
 
 
@@ -4330,30 +4400,39 @@ def admin_list_license_sessions(
     if active_only:
         base = base.where(LicenseSession.expires_at > moment)
 
-    def render(record: LicenseSession) -> dict:
-        binding = session.get(DeviceBinding, record.binding_id)
-        license_ = session.get(License, record.license_id)
-        return {
-            "ref": (record.id_hash or "")[:12],
-            "sessionId": record.session_id,
-            "licenseId": record.license_id,
-            "codeHint": license_.code_hint if license_ else "",
-            "bindingId": record.binding_id,
-            "instanceId": binding.instance_id if binding else None,
-            "bindingActive": bool(binding.active) if binding else False,
-            "createdAt": iso(record.created_at),
-            "lastUsedAt": iso(record.last_used_at),
-            "expiresAt": iso(record.expires_at),
-            "expired": record.expires_at <= moment,
-        }
+    def build(rows) -> list[dict]:
+        bindings = _by_ids(session, DeviceBinding, (record.binding_id for record in rows))
+        licenses = _by_ids(session, License, (record.license_id for record in rows))
+        return [
+            {
+                "ref": (record.id_hash or "")[:12],
+                "sessionId": record.session_id,
+                "licenseId": record.license_id,
+                "codeHint": licenses[record.license_id].code_hint
+                if record.license_id in licenses
+                else "",
+                "bindingId": record.binding_id,
+                "instanceId": bindings[record.binding_id].instance_id
+                if record.binding_id in bindings
+                else None,
+                "bindingActive": bool(bindings[record.binding_id].active)
+                if record.binding_id in bindings
+                else False,
+                "createdAt": iso(record.created_at),
+                "lastUsedAt": iso(record.last_used_at),
+                "expiresAt": iso(record.expires_at),
+                "expired": record.expires_at <= moment,
+            }
+            for record in rows
+        ]
 
-    return _page(
+    return _page_items(
         session,
         base,
         (LicenseSession.last_used_at.desc(),),
         limit=limit,
         offset=offset,
-        render=render,
+        build=build,
     )
 
 
@@ -4414,27 +4493,34 @@ def admin_list_recovery_tokens(
     if binding_id:
         base = base.where(RecoveryToken.binding_id == binding_id)
 
-    def render(record: RecoveryToken) -> dict:
-        binding = session.get(DeviceBinding, record.binding_id)
-        license_ = session.get(License, record.license_id)
-        return {
-            "ref": (record.id_hash or "")[:12],
-            "licenseId": record.license_id,
-            "codeHint": license_.code_hint if license_ else "",
-            "bindingId": record.binding_id,
-            "instanceId": binding.instance_id if binding else None,
-            "createdAt": iso(record.created_at),
-            "expiresAt": iso(record.expires_at),
-            "expired": record.expires_at <= moment,
-        }
+    def build(rows) -> list[dict]:
+        bindings = _by_ids(session, DeviceBinding, (record.binding_id for record in rows))
+        licenses = _by_ids(session, License, (record.license_id for record in rows))
+        return [
+            {
+                "ref": (record.id_hash or "")[:12],
+                "licenseId": record.license_id,
+                "codeHint": licenses[record.license_id].code_hint
+                if record.license_id in licenses
+                else "",
+                "bindingId": record.binding_id,
+                "instanceId": bindings[record.binding_id].instance_id
+                if record.binding_id in bindings
+                else None,
+                "createdAt": iso(record.created_at),
+                "expiresAt": iso(record.expires_at),
+                "expired": record.expires_at <= moment,
+            }
+            for record in rows
+        ]
 
-    return _page(
+    return _page_items(
         session,
         base,
         (RecoveryToken.created_at.desc(),),
         limit=limit,
         offset=offset,
-        render=render,
+        build=build,
     )
 
 

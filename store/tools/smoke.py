@@ -6631,6 +6631,238 @@ async def check_coupon_redemption_ledger() -> None:
     )
 
 
+async def check_admin_list_query_budget() -> None:
+    """S9：后台列表的查询数**不能随页大小增长**。
+
+    这几张表（登录会话、授权会话、找回令牌、解绑事件、核销记录、积分流水、客户）
+    过去在 render 里逐行 ``session.get`` 关联对象，客户列表甚至每行两条 ``COUNT``：
+    页大小 500 时是 500~1500 条独立查询。代价不是「多几条 SQL」—— 每一条都是一次
+    独立的 SQLite 往返，而列表页的响应时间因此随数据量线性增长，偏偏这些表都是
+    「越积越多」的运维表，出问题时要去翻的正是它们的旧记录。
+
+    这里不写死「必须 ≤ N 条」这种会随时间失效的预算，而是直接测**斜率**：
+    同一张表分别取 12 行与 1 行，比较两者消耗的语句数。修好后差值是个位数
+    （每张关联表一条 ``IN``），逐行 ``session.get`` 的写法会差出 11 条（客户列表 22 条）。
+
+    夹具里 12 行必须各自引用**不同的**关联对象（12 个账号、12 张授权、12 个设备）。
+    否则 12 行指向同一个对象，逐行 ``session.get`` 全被 identity map 接住、
+    一条 SQL 都不发，这个用例就会对着坏代码假绿 —— 这一点是实测出来的：
+    最初用「一个账号 12 条会话」做夹具，把旧写法改回去时用例照样通过。
+    """
+    from sqlalchemy import event
+
+    from store import referrals
+    from store.models import (
+        DeviceReleaseEvent,
+        LicenseSession,
+        RecoveryToken,
+        ReferralLedger,
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-list-query-budget-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+
+    #: 两个分组：``a`` 有 12 行（大页），``b`` 有 1 行（基线）。
+    roster: dict[str, list[str]] = {"a": [], "b": []}
+    with database.session() as session:
+        seed_settings(session)
+        products = seed_products(session)
+        seed_admin(session, "admin@habridge.local", "smoke-admin-2026")
+        product = products["base"]
+        now = utcnow()
+        for group, count in (("a", 12), ("b", 1)):
+            #: 每个客户需要一个**独立账号**（``customers.account_id`` 唯一），订单的
+            #: 「每账号仅一笔待付单」部分索引也要求 12 笔订单分属 12 个账号。
+            #: 每行还必须引用**不同的**关联对象：逐行 ``session.get`` 的代价只有在
+            #: 关联对象各不相同时才暴露得出来（同一对象第二次 get 会命中 identity map，
+            #: 一条 SQL 都不发 —— 用共享账号来测，这个用例会假绿）。
+            offset = 0 if group == "a" else 200
+            coupon = Coupon(
+                code=f"SMOKE-QB-{group.upper()}",
+                description="smoke S9",
+                discount_type="fixed",
+                amount_cents=100,
+                max_redemptions=100,
+            )
+            session.add(coupon)
+            session.flush()
+            for index in range(count):
+                account = Account(
+                    email=f"query-budget-{group}-{index}@habridge.local",
+                    password_hash=hash_password("smoke-query-budget-2026"),
+                    email_verified_at=now,
+                )
+                session.add(account)
+                session.flush()
+                customer = Customer(
+                    account_id=account.id,
+                    email=f"query-budget-{group}-{index}@habridge.local",
+                    name=f"query-budget-{group}-{index}",
+                )
+                session.add(customer)
+                session.flush()
+                license_row = License(
+                    activation_code=f"SMOKE-QB-CODE-{group.upper()}-{index}",
+                    code_hint=f"HOMEOS-****-{offset + index:0>4}",
+                    account_id=account.id,
+                    customer_id=customer.id,
+                    product_id=product.id,
+                    product_name=product.name,
+                    product_type="base",
+                    active=True,
+                )
+                session.add(license_row)
+                session.flush()
+                binding = DeviceBinding(
+                    license_id=license_row.id,
+                    instance_id=f"query-budget-{group}-{index}",
+                    active=True,
+                )
+                session.add(binding)
+                session.flush()
+                wallet = referrals.get_or_create_wallet(session, account)
+                session.flush()
+                order = Order(
+                    order_no=f"HOMEOS-QB-{group.upper()}-{index:04d}",
+                    lookup_token=f"qb-token-{group}-{index:04d}",
+                    account_id=account.id,
+                    customer_id=customer.id,
+                    email=account.email,
+                    product_id=product.id,
+                    product_name=product.name,
+                    product_type="base",
+                    order_type="base",
+                    license_action="issue",
+                    original_amount_cents=1000,
+                    amount_cents=900,
+                    coupon_code=coupon.code,
+                    status="pending",
+                    fulfillment_mode="automatic",
+                    payment_provider="mock",
+                )
+                session.add(order)
+                session.flush()
+                session.add(
+                    CouponRedemption(
+                        coupon_id=coupon.id,
+                        account_id=account.id,
+                        order_id=order.id,
+                        discount_cents=100,
+                    )
+                )
+                session.add(
+                    AccountSession(
+                        id_hash=f"{'%02x' % (offset + index)}" * 32,
+                        account_id=account.id,
+                        is_admin_session=False,
+                        ip_address="127.0.0.1",
+                        user_agent="smoke",
+                        expires_at=now + timedelta(hours=1),
+                        last_seen_at=now,
+                    )
+                )
+                session.add(
+                    ReferralLedger(
+                        wallet_id=wallet.id,
+                        account_id=account.id,
+                        kind="reward",
+                        delta_centi=100,
+                        frozen_delta_centi=0,
+                        balance_after_centi=index * 100 + 100,
+                        frozen_after_centi=0,
+                        note=f"smoke {group} #{index}",
+                    )
+                )
+                session.add(
+                    DeviceReleaseEvent(
+                        license_id=license_row.id,
+                        account_id=account.id,
+                        instance_id=binding.instance_id,
+                        source="self-service",
+                    )
+                )
+                session.add(
+                    LicenseSession(
+                        id_hash=f"{'%02x' % (offset + index + 40)}" * 32,
+                        session_id=f"qb-{group}-{index}",
+                        license_id=license_row.id,
+                        binding_id=binding.id,
+                        expires_at=now + timedelta(hours=1),
+                        last_used_at=now,
+                    )
+                )
+                session.add(
+                    RecoveryToken(
+                        id_hash=f"{'%02x' % (offset + index + 60)}" * 32,
+                        license_id=license_row.id,
+                        binding_id=binding.id,
+                        expires_at=now + timedelta(hours=1),
+                    )
+                )
+                roster[group].append(account.id)
+        session.flush()
+
+    check(
+        "S9 夹具确实造出了 12 行的分组（否则下面的斜率断言会假绿）",
+        len(roster["a"]) == 12 and len(roster["b"]) == 1,
+        f"a={len(roster['a'])} b={len(roster['b'])}",
+    )
+
+    counter = {"statements": 0}
+
+    def _count(*_args, **_kwargs):
+        counter["statements"] += 1
+
+    #: 只在测量窗口内挂：其他地方（启动自检、schema_check）的查询不该计入。
+    event.listen(database.engine, "before_cursor_execute", _count)
+
+    #: 不按分组过滤：**每行引用不同的关联对象**才是暴露逐行 ``session.get`` 的前提。
+    #: 若按 ``account_id``/``license_id`` 过滤，12 行会指向同一个关联对象，
+    #: 逐行 get 都会被 identity map 接住，一条 SQL 都不发，用例会假绿。
+    cases = [
+        "/sessions",
+        "/referral-ledger",
+        "/coupon-redemptions",
+        "/customers",
+        "/device-release-events",
+        "/license-sessions",
+        "/recovery-tokens",
+    ]
+    admin_prefix = "/store-admin/v1"
+
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+        ) as client:
+            await client.post("/store/v1/auth/login", json=_admin_login_payload())
+
+            async def measure(path: str) -> int:
+                counter["statements"] = 0
+                response = await client.get(path)
+                if response.status_code != 200:
+                    raise AssertionError(f"{path} → {response.status_code} {response.text[:120]}")
+                return counter["statements"]
+
+            for path in cases:
+                big = await measure(f"{admin_prefix}{path}?limit=12")
+                small = await measure(f"{admin_prefix}{path}?limit=1")
+                check(
+                    f"S9 {path}：12 行与 1 行的查询数基本持平（差值 {big - small}，旧写法是 +11）",
+                    big - small <= 3,
+                    f"12 行={big} 条查询，1 行={small} 条",
+                )
+    finally:
+        event.remove(database.engine, "before_cursor_execute", _count)
+        database.dispose()
+
+
 async def check_release_unique_conflict_paths() -> None:
     """S23：后台建版本的**两条**冲突路径都要给可读的 409，而且都不能污染会话。
 
@@ -8749,6 +8981,7 @@ async def run() -> int:
     check_wallet_adjust_guard()
     await check_manual_refund_stays_offline()
     await check_coupon_redemption_ledger()
+    await check_admin_list_query_budget()
     await check_release_unique_conflict_paths()
     check_config_validation_strictness()
     check_order_id_indexes()
