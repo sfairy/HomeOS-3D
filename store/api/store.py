@@ -48,6 +48,7 @@ from store.models import (
     StoreSetting,
     utcnow,
 )
+from store.limiter import SlidingWindowLimiter
 from store.request_security import resolve_client_ip, secure_cookies_required
 from store.schemas import (
     ChangeEmailRequest,
@@ -95,6 +96,74 @@ HISTORY_PAGE_SIZE = 20
 
 #: 同一邮箱一小时内最多能索取多少次验证码（含注册与找回密码）。
 MAX_VERIFICATION_SENDS_PER_HOUR = 10
+
+#: S14：发信配额的另外两个维度。已有那条只按**邮箱**算，挡得住「把一个邮箱炸爆」，
+#: 挡不住「用脚本给上万个**不同**邮箱各发一封」—— 那是把本站当发信机去轰炸第三方。
+#: 发件域信誉一旦因此毁掉，之后**正常用户**的验证码会成批进垃圾箱，且基本不可逆；
+#: 顺带还有 SMTP 配额与成本。所以再补两条：
+#:
+#: * 按**来源 IP**：脚本通常来自同一批地址。真实用户每小时 1~3 封足够，
+#:   20 是很宽松的上限。
+#: * 按**全站**：兜住换 IP 的分布式来源。这条做成可配置的，因为它的合理值随站点
+#:   规模变化（小站 500/小时绰绰有余，大促期间可能需要调高）；上限由
+#:   ``STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT`` 控制，触发时会打一条明确的告警，
+#:   让运营知道该往上调而不是对着「收不到验证码」干着急。
+#:
+#: 与 ``store/limiter.py`` 里的其它限流器同一个实现、同一套取舍（进程内计数，
+#: 单进程部署够用；多进程时额度会翻倍，见该模块 docstring）。
+_VERIFICATION_IP_LIMITER = SlidingWindowLimiter(limit=20, window_seconds=3600.0)
+
+#: 全站配额按 ``limit`` 缓存实例（见下）。
+_VERIFICATION_GLOBAL_LIMITERS: dict[int, SlidingWindowLimiter] = {}
+
+
+def _verification_global_limiter(limit: int) -> SlidingWindowLimiter:
+    """全站发信配额。上限来自配置，所以按 ``limit`` 缓存一份实例 ——
+    ``SlidingWindowLimiter`` 的计数在内部持有，每次请求都新建一个等于没有限流。
+
+    缓存不会无限增长：``limit`` 来自进程启动时解析的环境变量，一个进程里只有一个值。
+    """
+    cached = _VERIFICATION_GLOBAL_LIMITERS.get(limit)
+    if cached is None:
+        cached = SlidingWindowLimiter(limit=limit, window_seconds=3600.0)
+        _VERIFICATION_GLOBAL_LIMITERS[limit] = cached
+    return cached
+
+
+def _enforce_verification_send_quota(
+    request: Request, settings: StoreSettings, *, email: str
+) -> None:
+    """按来源 IP 与全站总量限制发信（S14）。超限抛 429。
+
+    IP 取 ``resolve_client_ip`` 的解析结果（只在可信代理后面才采信转发头），
+    与验证码回显、登录限流用的是同一个来源判定 —— 各写一份就会出现「限流按 A
+    计算、回显按 B 计算」这类漂移，而伪造 ``X-Forwarded-For`` 正是绕过它们的手法。
+    """
+    address = resolve_client_ip(request)
+    if address.per_client and address.ip:
+        if not _VERIFICATION_IP_LIMITER.allow(f"ip:{address.ip}"):
+            retry_after = max(1, int(_VERIFICATION_IP_LIMITER.retry_after(f"ip:{address.ip}")) or 1)
+            logger.warning("发信配额：来源 IP 触顶 ip=%s", address.ip)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="当前网络获取验证码过于频繁，请 1 小时后再试。",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+    limit = max(1, int(settings.verification_global_hourly_limit or 500))
+    global_limiter = _verification_global_limiter(limit)
+    if not global_limiter.allow("global"):
+        retry_after = max(1, int(global_limiter.retry_after("global")) or 1)
+        logger.error(
+            "发信配额：全站小时上限 %d 已触顶，所有用户都将暂时收不到验证码。"
+            "如属正常业务量，请调高 STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT。",
+            limit,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="暂时无法发送验证码，请稍后再试。",
+            headers={"Retry-After": str(retry_after)},
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -765,18 +834,21 @@ def _assert_purpose_allowed(
         select(Account).where(func.lower(Account.email) == email)
     ).first()
 
-    if purpose == "register":
-        if existing is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="该邮箱已注册，请直接登录。"
-            )
-        return
-
-    if purpose == "reset":
-        if existing is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="该邮箱尚未注册。"
-            )
+    # ---- S13：``register`` / ``reset`` 的「邮箱是否已存在」不再在这里回答 ---- #
+    #
+    # 这两个用途此前会给出「该邮箱已注册」(409) 与「该邮箱尚未注册」(404)，
+    # 而这个端点**匿名可达、不需要邮箱里的验证码**。于是它就是一个随时可用的
+    # 账号枚举探针：一次请求问一个地址，拿到的状态码直接就是答案。被枚举出来的
+    # 是登录名，配合撞库/钓鱼这一步的价值远高于「知道某人注册过」。
+    #
+    # 现在两个分支一律按正常流程发码并返回同样的 200。真相挪到**用码的那一步**
+    # 才说（见 ``register`` / ``reset_password``）—— 那时对方已经证明自己能收到
+    # 该邮箱的邮件，告知归属不再构成泄漏。
+    #
+    # 代价是「用已注册邮箱去注册」会真发一封验证码邮件，而不是当场被拒。
+    # 这是标准取舍（所有不做枚举的注册流程都是这样），发信量由
+    # :func:`_enforce_verification_send_quota`、单邮箱小时上限与冷却共同封顶。
+    if purpose in {"register", "reset"}:
         return
 
     if purpose == "verify":
@@ -823,6 +895,14 @@ def send_verification(
         request.app.state.settings, setting
     )
     purpose = payload.purpose
+
+    # ---- S14：按来源 IP 与全站的发信配额 ---- #
+    # 放在最前面是刻意的：这一步之下要写库、要连 SMTP，都是每秒几次量级的开销，
+    # 而上面的入口只需要一次内存计数。更关键的是，这个端点匿名可达、又能给
+    # **任意**地址发信，是天然的「邮件轰炸第三方」放大器；配额不前置，前面的
+    # 参数校验分支就成了绕过配额的免费通道。
+    _enforce_verification_send_quota(request, settings, email=email)
+
     _assert_purpose_allowed(session, purpose=purpose, email=email, account=account)
 
     cooldown_scope = f"verify:{email}"
@@ -1024,11 +1104,19 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     if payload.confirm_password and payload.confirm_password != payload.password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="两次输入的密码不一致。")
 
+    # S13：先消费验证码，再回答「这个邮箱是否已注册」。
+    #
+    # 反过来的话，任何人都能拿一个瞎编的验证码去 POST：拿 409 = 该邮箱有账号，
+    # 拿「请先获取邮箱验证码」= 没有。那就等于把 :func:`_assert_purpose_allowed`
+    # 里刚堵上的枚举口又原样挪到了这里。
+    #
+    # 换到「先验码」之后，能走到 409 的只有**确实持有该邮箱**（验证码是发到那里、
+    # 且只在那里）的人，告知归属不再泄漏任何东西。未持有邮箱者两条分支所见完全一致。
+    _consume_verification(session, email=email, purpose="register", code=payload.code)
+
     existing = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
     if existing is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该邮箱已注册，请直接登录。")
-
-    _consume_verification(session, email=email, purpose="register", code=payload.code)
 
     account = Account(
         email=email,
@@ -1284,11 +1372,15 @@ def reset_password(payload: PasswordResetRequest, request: Request, session: DbS
     email = payload.email.strip().lower()
     if payload.confirm_password and payload.confirm_password != payload.password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="两次输入的密码不一致。")
+    # S13：同 ``register`` —— 先消费验证码，再表态邮箱是否存在。
+    # 「尚未注册」这个回答只该给到已经证明持有该邮箱的人；否则这里就是一个
+    # 一次请求一个答案的枚举探针（而且它连验证码都不用去拿）。
+    _consume_verification(session, email=email, purpose="reset", code=payload.code)
+
     account = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
     if account is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="该邮箱尚未注册。")
 
-    _consume_verification(session, email=email, purpose="reset", code=payload.code)
     account.password_hash = hash_password(payload.password)
     # 重置密码后强制所有会话下线
     for record in session.scalars(
@@ -1359,8 +1451,17 @@ def change_account_email(
     if (account.email or "").strip().lower() == email:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。")
 
-    # 发码时校验过一次，但用户填验证码的这段时间里该地址可能已被别的账号占用
-    # （TOCTOU），这里必须再查一遍 —— 否则两台账号会撞到同一个登录名上。
+    # S13：占用校验挪到**消费验证码之后**。
+    #
+    # 位置不能随意的两个理由：
+    # 1. 安全性 —— 放在前面就是个「该邮箱有没有账号」的探针，任何登录用户都能
+    #    拿一个瞎编的验证码逐条问出来（409 有账号 / 「请先获取邮箱验证码」没有）。
+    #    挪到后面，只有能收到该地址验证码的人才会看到 409，而 409 要保护的
+    #    「两台账号撞名」是登录名的归属问题，对地址主人公开并不越界。
+    # 2. 正确性 —— TOCTOU 的窗口是「发码 → 落库」，校验必须紧贴写库那次查询。
+    #    挪到消费之后仍是「查完即写、同一事务」，窗口反而更小。
+    _consume_verification(session, email=email, purpose="change_email", code=payload.code)
+
     taken = session.scalars(
         select(Account).where(func.lower(Account.email) == email)
     ).first()
@@ -1368,8 +1469,6 @@ def change_account_email(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="该邮箱已被其它账号使用。"
         )
-
-    _consume_verification(session, email=email, purpose="change_email", code=payload.code)
 
     previous = account.email
     account.email = email

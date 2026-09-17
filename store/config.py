@@ -145,6 +145,10 @@ class StoreSettings:
     smtp_retry_backoff_seconds: float = 1.0
     verification_ttl_seconds: int = DEFAULT_VERIFICATION_TTL_SECONDS
     verification_cooldown_seconds: int = DEFAULT_VERIFICATION_COOLDOWN_SECONDS
+    #: S14：全站每小时的发信上限，兜住换 IP 的分布式滥用（按 IP 的那条是常量，
+    #: 见 ``store/api/store.py`` 的 ``_VERIFICATION_IP_LIMITER``）。做成可配置是因为
+    #: 合理值随站点规模变化；触发时会打 error 级日志提示运营调高。
+    verification_global_hourly_limit: int = 500
     #: 仅当 mail_mode=echo 时，接口才回显验证码明文（本地联调用）
     expose_verification_code: bool = False
     #: 是否公开 ``/store-api-docs``（S26）。默认**关闭**：那两个页面会把全部商店与
@@ -304,6 +308,7 @@ def load_settings(**overrides) -> StoreSettings:
         "smtp_retry_backoff_seconds": _env_float("STORE_SMTP_RETRY_BACKOFF_SECONDS", 1.0),
         "verification_ttl_seconds": _env_int("STORE_VERIFICATION_TTL_SECONDS", DEFAULT_VERIFICATION_TTL_SECONDS),
         "verification_cooldown_seconds": _env_int("STORE_VERIFICATION_COOLDOWN_SECONDS", DEFAULT_VERIFICATION_COOLDOWN_SECONDS),
+        "verification_global_hourly_limit": max(1, _env_int("STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT", 500)),
         "expose_verification_code": _env_bool("STORE_EXPOSE_VERIFICATION_CODE"),
         "expose_api_docs": _env_bool("STORE_EXPOSE_API_DOCS"),
         "payment_provider": (_env_str("STORE_PAYMENT_PROVIDER", "") or "").lower(),

@@ -6434,6 +6434,448 @@ def check_anonymous_surface_disclosure() -> None:
     )
 
 
+async def check_enumeration_and_quota_hardening(client_crypto) -> None:
+    """匿名面不能变成枚举探针，发信与授权端点必须有配额（审计 S13、S14、S22）。
+
+    三件事的共性是「反复问就能把服务当查询机用」：
+
+    * **S13** 问「这个邮箱有没有账号」—— 注册/重置两步都在回答它；
+    * **S22** 问「这个激活码存不存在、这个邮箱配不配得上它」—— 激活码即授权凭据；
+    * **S14** 不是探针，而是反过来把商店当**发信机**，给任意第三方地址发信。
+
+    这里钉的不是「某个分支返回什么」，而是**同一输入在两个真实状态下的回答必须逐字节
+    相同**。只要回答随真实状态变化，哪怕它是个常量，接口就仍是探针。
+
+    ``client_crypto`` 由调用方传入（``run`` 里已经加载过客户端 crypto，
+    见文件顶部说明：本自检刻意用客户端自己的实现来验字节级对齐）。
+    """
+    from store.api import license as license_api
+    from store.api import store as store_api
+
+    registered = "enum-registered@habridge.local"
+    unregistered = "enum-unregistered@habridge.local"
+    probe_password = "enum-probe-password-2026"
+
+    def build(**overrides):
+        workdir = Path(tempfile.mkdtemp(prefix="hb-store-enum-"))
+        settings = load_settings(
+            data_dir=workdir / "data",
+            license_keys_dir=workdir / "keys",
+            mail_mode="echo",
+            payment_provider="mock",
+            # 本函数会为同一个邮箱反复发码（每一步都要一份独立记录），把冷却关掉，
+            # 否则后一条断言拿到的是 429 而不是我们要观察的那个回答。
+            verification_cooldown_seconds=0,
+            **overrides,
+        )
+        return create_app(settings)
+
+    def normalized(response) -> tuple[int, dict]:
+        """状态码 + 去掉 ``email`` 的响应体。
+
+        只去掉 ``email``：它是请求里就有的输入，两端本就必须不同；除它之外的任何
+        差异都只能来自「这个邮箱到底是什么状态」。
+        """
+        body = response.json()
+        if isinstance(body, dict):
+            body = {key: value for key, value in body.items() if key != "email"}
+        return response.status_code, body
+
+    # ------------------------------------------------------------------ #
+    # S13：发码与用码两步都不能回答「这个邮箱有没有账号」
+    # ------------------------------------------------------------------ #
+    # 用独立的来源地址：默认 ``TestClient`` 的 ``testclient`` 与 ``127.0.0.1``
+    # 桶被其它用例共用，这里要连着发若干封，混进去会让那些用例莫名其妙触顶。
+    app = build()
+    with app.state.database.session() as session:
+        seed_settings(session)
+        session.add(
+            Account(
+                email=registered,
+                password_hash=hash_password(probe_password),
+                email_verified_at=utcnow(),
+            )
+        )
+
+    async with httpx.AsyncClient(
+        # 刻意不用回环地址：本函数不需要「回显验证码」那条特权通道，
+        # 而回环会让它共享 ``check_echo_exposure_scope`` 的配额桶。
+        transport=httpx.ASGITransport(app=app, client=("198.51.100.11", 40111)),
+        base_url="http://store.test",
+    ) as client:
+
+        async def send_code(email: str, purpose: str):
+            return await client.post(
+                "/store/v1/verifications", json={"email": email, "purpose": purpose}
+            )
+
+        # ---- 第一步：发码接口 ----
+        # 未注册邮箱刻意选一个**干净**的地址（没发过任何码），已注册的那个也没发过，
+        # 两边状态唯一差别就是「账号在不在」，可比性最强。
+        fresh = "enum-fresh@habridge.local"
+        send_registered = await send_code(registered, "register")
+        send_fresh = await send_code(fresh, "register")
+        check(
+            "S13 发码接口对「已注册邮箱」与「未注册邮箱」回答逐字节相同"
+            "（此前一个是 409「该邮箱已注册」、一个是 200，等于免费枚举）",
+            normalized(send_registered) == normalized(send_fresh),
+            f"{normalized(send_registered)} vs {normalized(send_fresh)}",
+        )
+
+        send_reset_registered = await send_code(registered, "reset")
+        send_reset_fresh = await send_code(fresh, "reset")
+        check(
+            "S13 reset 用途同样不区分（此前未注册直接 404「该邮箱尚未注册」）",
+            normalized(send_reset_registered) == normalized(send_reset_fresh),
+            f"{normalized(send_reset_registered)} vs {normalized(send_reset_fresh)}",
+        )
+
+        # ---- 第二步：用码接口 ----
+        # 关键场景：**两边都持有验证码记录、但都没输对**。此时唯一还能区别它们的
+        # 信息就只剩「账号在不在」—— 修复前注册那一步会先答 409，重置那一步会先答 404。
+        async def try_reset(email: str, code: str):
+            response = await client.post(
+                "/store/v1/auth/password/reset",
+                json={
+                    "email": email,
+                    "code": code,
+                    "password": probe_password,
+                    "confirmPassword": probe_password,
+                },
+            )
+            return normalized(response)
+
+        async def try_register(email: str, code: str):
+            response = await client.post(
+                "/store/v1/auth/register",
+                json={
+                    "email": email,
+                    "code": code,
+                    "password": probe_password,
+                    "confirmPassword": probe_password,
+                },
+            )
+            return normalized(response)
+
+        wrong_code = "000000"
+        reset_registered = await try_reset(registered, wrong_code)
+        reset_fresh = await try_reset(fresh, wrong_code)
+        check(
+            "S13 重置接口在「码不对」时不泄漏账号是否存在"
+            "（先消费验证码再查账号；此前 404「该邮箱尚未注册」会抢在验证码之前回答）",
+            reset_registered == reset_fresh,
+            f"{reset_registered} vs {reset_fresh}",
+        )
+        check(
+            "S13 该回答确实来自「验证码不正确」这条分支（不是两边一起 500 之类的假相等）",
+            reset_registered[0] == 400 and "验证码" in str(reset_registered[1]),
+            str(reset_registered),
+        )
+
+        register_registered = await try_register(registered, wrong_code)
+        register_fresh = await try_register(fresh, wrong_code)
+        check(
+            "S13 注册接口在「码不对」时不泄漏账号是否存在"
+            "（此前 409「该邮箱已注册」会抢在验证码之前回答）",
+            register_registered == register_fresh,
+            f"{register_registered} vs {register_fresh}",
+        )
+        check(
+            "S13 注册这条同样落在「验证码不正确」分支上",
+            register_registered[0] == 400 and "验证码" in str(register_registered[1]),
+            str(register_registered),
+        )
+
+        # 持有正确验证码的人仍必须拿到真相：否则「已注册」这个事实就永远说不出口，
+        # 用户只能对着一个收不到码的表单干等 —— 这一组断言见下面回环客户端那段，
+        # 它与上面那两条是一对：少了它，把两个分支都改成同一个常量也能让上面全绿。
+
+    # 回环来源才会回显验证码（见 ``_is_loopback_client``），所以「说真话」这一组换一个
+    # 客户端；它共享 ``127.0.0.1`` 的配额桶，用完前后各清一次。
+    store_api._VERIFICATION_IP_LIMITER.reset()
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app, client=("127.0.0.1", 40911)),
+        base_url="http://store.test",
+    ) as client:
+
+        async def real_code(email: str, purpose: str) -> str:
+            response = await client.post(
+                "/store/v1/verifications", json={"email": email, "purpose": purpose}
+            )
+            return str(response.json().get("code") or "")
+
+        register_code = await real_code(registered, "register")
+        check(
+            "S13 前置：回环客户端能取到真实验证码（后面的「说真话」才有意义）",
+            bool(register_code),
+            repr(bool(register_code)),
+        )
+        claimed = await client.post(
+            "/store/v1/auth/register",
+            json={
+                "email": registered,
+                "code": register_code,
+                "password": probe_password,
+                "confirmPassword": probe_password,
+            },
+        )
+        check(
+            "S13 证明邮箱归属之后，「已注册」仍会如实告知（否则用户被永久卡在收不到码的表单上）",
+            claimed.status_code == 409 and "已注册" in claimed.text,
+            f"{claimed.status_code} {claimed.text[:120]}",
+        )
+
+        reset_code = await real_code(unregistered, "reset")
+        unresolved = await client.post(
+            "/store/v1/auth/password/reset",
+            json={
+                "email": unregistered,
+                "code": reset_code,
+                "password": probe_password,
+                "confirmPassword": probe_password,
+            },
+        )
+        check(
+            "S13 同理，「尚未注册」也只对持有该邮箱验证码的人说（不再是个随便问的探针）",
+            unresolved.status_code == 404 and "尚未注册" in unresolved.text,
+            f"{unresolved.status_code} {unresolved.text[:120]}",
+        )
+    store_api._VERIFICATION_IP_LIMITER.reset()
+
+    # ------------------------------------------------------------------ #
+    # S14：发信配额（按来源 IP 与全站）
+    # ------------------------------------------------------------------ #
+    # 配额是进程内单例，直接调低上限来验行为，比连打 20 次快两个数量级；
+    # 默认值本身另外断言，避免「改成 3 了还以为守的是 20」。
+    check(
+        "S14 按来源 IP 的发信额度默认是小时级 20 次",
+        store_api._VERIFICATION_IP_LIMITER.limit == 20
+        and store_api._VERIFICATION_IP_LIMITER.window_seconds == 3600.0,
+        f"limit={store_api._VERIFICATION_IP_LIMITER.limit} window={store_api._VERIFICATION_IP_LIMITER.window_seconds}",
+    )
+
+    original_ip_limit = store_api._VERIFICATION_IP_LIMITER.limit
+    store_api._VERIFICATION_IP_LIMITER.reset()
+    store_api._VERIFICATION_IP_LIMITER.limit = 3
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, client=("198.51.100.21", 40211)),
+            base_url="http://store.test",
+        ) as client:
+            per_ip = []
+            for index in range(4):
+                response = await client.post(
+                    "/store/v1/verifications",
+                    json={
+                        # 每个请求换一个地址：单邮箱冷却与单邮箱小时上限都在下面，
+                        # 这里要单独观察「来源」这一个维度。
+                        "email": f"quota-probe-{index}@habridge.local",
+                        "purpose": "register",
+                    },
+                )
+                per_ip.append((response.status_code, response.headers.get("retry-after")))
+    finally:
+        store_api._VERIFICATION_IP_LIMITER.limit = original_ip_limit
+        store_api._VERIFICATION_IP_LIMITER.reset()
+
+    check(
+        "S14 同一来源在前 3 次放行（配额之内的正常用户不受影响）",
+        [item[0] for item in per_ip[:3]] == [200, 200, 200],
+        str(per_ip),
+    )
+    check(
+        "S14 同一来源第 4 次触顶（把商店当发信机必须先过这道闸）",
+        per_ip[3][0] == 429,
+        str(per_ip[3]),
+    )
+    check(
+        "S14 触顶时给出 Retry-After（前端据此解锁按钮，而不是让用户瞎试）",
+        per_ip[3][1] is not None and int(per_ip[3][1]) >= 1,
+        str(per_ip[3][1]),
+    )
+
+    # 全站配额：换来源也拦得住（IP 维度挡不住分布式刷信）。
+    global_app = build(verification_global_hourly_limit=3)
+    with global_app.state.database.session() as session:
+        seed_settings(session)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=global_app, client=("198.51.100.31", 40311)),
+        base_url="http://store.test",
+    ) as client:
+        global_statuses = []
+        for index in range(4):
+            response = await client.post(
+                "/store/v1/verifications",
+                json={
+                    "email": f"quota-global-{index}@habridge.local",
+                    "purpose": "register",
+                },
+                # 每次换一个来源：证明拦下来的是全站闸门而不是 IP 闸门
+                headers={"x-forwarded-for": f"198.51.100.4{index}"},
+            )
+            global_statuses.append((response.status_code, response.text[:80]))
+        check(
+            "S14 全站小时配额触顶后，即便每次换来源也不再放行"
+            "（换 IP 刷信这条路必须被单独堵死）",
+            [item[0] for item in global_statuses[:3]] == [200, 200, 200]
+            and global_statuses[3][0] == 429,
+            str(global_statuses),
+        )
+        check(
+            "S14 全站触顶的文案与「当前网络过于频繁」区分开"
+            "（否则运营会以为是用户在刷，实际是全局额度用完了）",
+            "暂时无法发送验证码" in global_statuses[3][1],
+            str(global_statuses[3][1]),
+        )
+
+    # ------------------------------------------------------------------ #
+    # S22：/v2/* 的激活码枚举与限流
+    # ------------------------------------------------------------------ #
+    authority_app = build()
+    with authority_app.state.database.session() as session:
+        seed_settings(session)
+        probe_account = Account(
+            email="enum-owner@habridge.local",
+            password_hash=hash_password(probe_password),
+            email_verified_at=utcnow(),
+        )
+        session.add(probe_account)
+        session.flush()
+        customer = Customer(
+            account_id=probe_account.id,
+            email="enum-owner@habridge.local",
+            name="enum-owner",
+        )
+        session.add(customer)
+        session.flush()
+        session.add(
+            License(
+                activation_code="SMOKE-ENUM-0001",
+                code_hint="0001",
+                customer_id=customer.id,
+                product_name="基础版",
+                product_type="base",
+                price_cents=4990,
+                active=True,
+            )
+        )
+    session_settings = authority_app.state.settings
+    transport = client_crypto.LicenseTransportCipher(
+        session_settings.transport_public_key_path,
+        session_settings.license_transport_key_id,
+        client_crypto.hashlib.sha256(
+            session_settings.transport_public_key_path.read_bytes()
+        ).hexdigest(),
+    )
+
+    def activation_payload(code: str, email: str) -> dict:
+        return {
+            "activationCode": code,
+            "instanceId": "enum-probe-instance-0000000001",
+            "email": email,
+            "clientVersion": "0.0.1",
+            "product": "homeos",
+        }
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=authority_app, client=("198.51.100.51", 40511)),
+        base_url="http://store.test",
+    ) as client:
+        license_api._LICENSE_IP_LIMITER.reset()
+        license_api._LICENSE_CODE_LIMITER.reset()
+
+        async def activate(code: str, email: str):
+            envelope, _key = transport.encrypt_request(
+                activation_payload(code, email), "/v2/activate"
+            )
+            response = await client.post("/v2/activate", json=envelope)
+            try:
+                return response.status_code, response.json()
+            except ValueError:  # pragma: no cover - 正常不会走到
+                return response.status_code, {"detail": response.text[:120]}
+
+        missing_code = await activate("SMOKE-ENUM-9999", "nobody@habridge.local")
+        wrong_email = await activate("SMOKE-ENUM-0001", "attacker@habridge.local")
+
+        check(
+            "S22 「激活码不存在」与「激活码存在但邮箱不对」状态码与响应体完全一致"
+            "（分开回答就是两台现成的预言机：404 枚举真实激活码，403 逐位试邮箱）",
+            missing_code == wrong_email,
+            f"{missing_code} vs {wrong_email}",
+        )
+        check(
+            "S22 该失败落在统一的 404 文案上，不回显「激活码存在与否」",
+            missing_code[0] == 404 and "激活码或邮箱不正确" in str(missing_code[1]),
+            str(missing_code),
+        )
+
+        # 激活码在**加密载荷内部**，HTTP 层看不到它 —— 所以这条限流只能解密之后做。
+        check(
+            "S22 按激活码维度的配额默认是小时级 30 次",
+            license_api._LICENSE_CODE_LIMITER.limit == 30
+            and license_api._LICENSE_CODE_LIMITER.window_seconds == 3600.0,
+            f"limit={license_api._LICENSE_CODE_LIMITER.limit}",
+        )
+        check(
+            "S22 按来源 IP 的配额默认是小时级 60 次（心跳是常态路径，额度要放得比发信宽）",
+            license_api._LICENSE_IP_LIMITER.limit == 60
+            and license_api._LICENSE_IP_LIMITER.window_seconds == 3600.0,
+            f"limit={license_api._LICENSE_IP_LIMITER.limit}",
+        )
+
+        # ---- 来源 IP 维度：明文 429，且发生在读请求体之前 ----
+        original_ip_limit = license_api._LICENSE_IP_LIMITER.limit
+        license_api._LICENSE_IP_LIMITER.limit = 2
+        license_api._LICENSE_IP_LIMITER.reset()
+        try:
+            flood = []
+            for _ in range(3):
+                # 刻意发一个**不是封套**的 JSON：限流若生效，第 3 次连解析都不会走到
+                response = await client.post("/v2/activate", json={"probe": True})
+                flood.append((response.status_code, response.json()))
+        finally:
+            license_api._LICENSE_IP_LIMITER.limit = original_ip_limit
+            license_api._LICENSE_IP_LIMITER.reset()
+        check(
+            "S22 单来源狂打 /v2/activate 会被挡（前 2 次按格式无效 400，第 3 次直接 429）",
+            [item[0] for item in flood] == [400, 400, 429],
+            str(flood),
+        )
+        check(
+            "S22 429 的响应体与业务错误同一形状（明文 {\"detail\": ...}），"
+            "客户端只认结构化字段，不能因为限流就改协议",
+            flood[2][1].get("detail") == "请求过于频繁，请稍后再试。",
+            str(flood[2][1]),
+        )
+
+        # ---- 激活码维度：每次清掉 IP 桶，证明拦下来的是激活码那一层 ----
+        original_code_limit = license_api._LICENSE_CODE_LIMITER.limit
+        license_api._LICENSE_CODE_LIMITER.limit = 2
+        # 上面那两次「激活码不存在」的探测已经给同一个码记了一笔（当时上限还是 30），
+        # 这里必须清零，否则观察到的触顶其实是前面那次探针的残留。
+        license_api._LICENSE_CODE_LIMITER.reset()
+        try:
+            per_code = []
+            for _ in range(3):
+                license_api._LICENSE_IP_LIMITER.reset()
+                code_attempt = await activate("SMOKE-ENUM-9999", "nobody@habridge.local")
+                per_code.append(code_attempt)
+        finally:
+            license_api._LICENSE_CODE_LIMITER.limit = original_code_limit
+            license_api._LICENSE_CODE_LIMITER.reset()
+            license_api._LICENSE_IP_LIMITER.reset()
+        check(
+            "S22 同一个激活码被反复猜时，即便每次都换来源也会触顶"
+            "（IP 维度挡不住「换 IP 集中猜同一个码」）",
+            [item[0] for item in per_code] == [404, 404, 429],
+            str(per_code),
+        )
+
+    app.state.database.dispose()
+    global_app.state.database.dispose()
+    authority_app.state.database.dispose()
+
+
 async def run() -> int:
     client_crypto = load_module("hb_client_crypto", CLIENT_CRYPTO_PATH)
 
@@ -6481,6 +6923,7 @@ async def run() -> int:
     await check_smtp_send_wall_budget()
     check_refund_serialization_guards()
     check_anonymous_surface_disclosure()
+    await check_enumeration_and_quota_hardening(client_crypto)
     check_store_setup_authorization()
     # 第 2 批 High 的专项断言：日志写入放大、上传体积、配对码生命周期。
     check_global_log_write_amplification()

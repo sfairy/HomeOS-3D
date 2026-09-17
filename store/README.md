@@ -166,6 +166,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `STORE_ORDER_TTL_SECONDS` | `120` | 订单有效期。**真实收款必须调大**，见下节 |
 | `STORE_DEVICE_RELEASE_COOLDOWN_SECONDS` | `28800` | 解绑冷却（8 小时） |
 | `STORE_VERIFICATION_TTL_SECONDS` / `_COOLDOWN_SECONDS` | `600` / `60` | 验证码有效期 / 重发冷却 |
+| `STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT` | `500` | 验证码发信的**全站**小时上限（所有来源合计）。防「拿商店当发信机轰炸第三方」的兜底闸门；额度之内还按来源 IP（20/小时）、单邮箱（10/小时）各限一层。触顶时日志打 ERROR，并按正常业务量调高 |
 | `STORE_SESSION_MAX_AGE_SECONDS` | `2592000` | 商店会话有效期 |
 | `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` | —（**必填**） | `seed` 初始化管理员；缺失时任一项都会让 `seed` 直接退出，不再有内置默认值 |
 

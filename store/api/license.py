@@ -14,11 +14,26 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
 from store.licensing.crypto import LicenseServerError
+from store.limiter import SlidingWindowLimiter
 from store.request_security import resolve_client_ip
 
 logger = logging.getLogger("store.license.api")
 
 router = APIRouter(tags=["license"])
+
+#: S22：``/v2/*`` 是**匿名可达**的，且每一步都要做 RSA/X25519 运算 —— 不限流的话
+#: 既是 CPU 耗尽的放大器，也让「猜激活码」变得廉价（激活码就是授权凭据本身）。
+#:
+#: 两个维度，对应两种攻击：
+#: * **按来源 IP**：兜住单机暴力跑
+#: * **按激活码**：兜住换 IP 集中猜同一个码（IP 维度挡不住）
+#:
+#: 每次心跳都会走这三个端点，所以额度必须比「发信」类接口宽松得多：
+#: 一台已激活的客户端按 300s 心跳间隔算，一小时也就 12 次。取 60/IP/小时
+#: 与 30/激活码/小时，对正常使用绰绰有余（含重试与多台同网设备）。
+#: 与其它限流器一样是进程内计数，见 ``store/limiter.py`` 的取舍说明。
+_LICENSE_IP_LIMITER = SlidingWindowLimiter(limit=60, window_seconds=3600.0)
+_LICENSE_CODE_LIMITER = SlidingWindowLimiter(limit=30, window_seconds=3600.0)
 
 
 def _run_in_worker(
@@ -29,7 +44,7 @@ def _run_in_worker(
     为什么必须挪出事件循环：这三步全是**同步阻塞**的 —— 解封套与签名是 RSA/X25519
     运算，业务里还要开 SQLite 会话，而 SQLite 写锁争用时 ``busy_timeout`` 会一直阻塞
     到 5 秒。``async def`` 端点跑在事件循环上，这 5 秒内**整个服务**（包括其它端点的
-    健康检查与静态资源）一起冻结。这三个端点又是匿名可达的，且当前没有限流（S22），
+    健康检查与静态资源）一起冻结。这三个端点又是匿名可达的（限流见 S22），
     天然适合用来把服务刷停。
 
     用 ``asyncio.to_thread`` 而不是改写成同步 ``def`` 端点：请求体是 **JSON**，
@@ -39,11 +54,24 @@ def _run_in_worker(
 
     ``stage`` 让调用方复现与改动前一致的日志与状态码 —— 解密阶段与业务阶段的失败
     语义并不相同（前者一律 400「格式无效」，后者按业务状态码）。
+
+    **S22 里的「按激活码限流」只能在这里做**：激活码在**加密载荷内部**，HTTP 层
+    根本看不到它（这正是协议的设计）。所以解密之后立刻配额，超限就以
+    ``LicenseServerError`` 的形式返回 —— 不在这里抛 ``HTTPException``，
+    因为上面那层 ``except Exception`` 会把它吞成 500。
     """
     stage = "decrypt"
     try:
         payload, key = authority.transport.decrypt_request(body, path)
         stage = "dispatch"
+        code = str((payload or {}).get("activationCode") or "").strip().upper()
+        if code and not _LICENSE_CODE_LIMITER.allow(f"code:{code}"):
+            logger.warning("授权端点限流：激活码维度触顶 path=%s", path)
+            return (
+                None,
+                LicenseServerError("请求过于频繁，请稍后再试。", status_code=429),
+                "dispatch",
+            )
         result = getattr(authority, method)(payload, ip=client_ip)
     except LicenseServerError as error:
         return None, error, stage
@@ -57,6 +85,21 @@ def _run_in_worker(
 async def _dispatch(request: Request, method: str) -> Response:
     authority = request.app.state.license_authority
     path = request.url.path
+
+    # S22：按来源 IP 限流。放在读请求体之前，这样「连解析都不做」就能挡掉洪水。
+    # IP 用 resolve_client_ip 的解析结果（只在可信代理后面才采信转发头）——
+    # 与验证码回显、登录限流共用同一套来源判定，避免「限流按 A 算、其它按 B 算」
+    # 这类漂移，而伪造 X-Forwarded-For 正是绕开它们的手法。
+    try:
+        address = resolve_client_ip(request)
+    except Exception:  # noqa: BLE001 - 解析异常不该让授权端点整体不可用
+        address = None
+    if address is not None and address.per_client and address.ip:
+        if not _LICENSE_IP_LIMITER.allow(f"ip:{address.ip}"):
+            logger.warning("授权端点限流：来源 IP 触顶 path=%s ip=%s", path, address.ip)
+            return JSONResponse(
+                {"detail": "请求过于频繁，请稍后再试。"}, status_code=429
+            )
 
     try:
         body = await request.json()

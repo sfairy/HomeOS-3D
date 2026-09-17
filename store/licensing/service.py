@@ -84,14 +84,18 @@ class LicenseAuthority:
             license = session.scalars(
                 select(License).where(License.activation_code == code)
             ).first()
-            if license is None:
+            customer = session.get(Customer, license.customer_id) if license is not None else None
+            # S22：**「激活码不存在」与「激活码存在但邮箱不匹配」必须给出完全相同的
+            # 回答**。分开回答等于对外提供两台现成的预言机：先用 404 枚举出真实存在的
+            # 激活码（它就是产品的授权凭据），再拿 403 把邮箱一位位试出来。两段并成
+            # 一个分支之后，攻击者从响应里只能得到「这组组合不对」。
+            #
+            # 状态码取 404 而不是 403：403 在语义上暗示「凭据存在但你没权限」，
+            # 那本身就是泄漏。
+            if license is None or customer is None or (customer.email or "").strip().lower() != email:
                 raise LicenseServerError(
-                    "激活码无效或不存在，请核对后重试。", status_code=404
-                )
-            customer = session.get(Customer, license.customer_id)
-            if customer is None or (customer.email or "").strip().lower() != email:
-                raise LicenseServerError(
-                    "激活码与邮箱不匹配，请填写购买授权时使用的邮箱。", status_code=403
+                    "激活码或邮箱不正确，请核对购买授权时收到的信息后重试。",
+                    status_code=404,
                 )
             self.assert_usable(license, now)
 
