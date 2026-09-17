@@ -5705,9 +5705,11 @@ async function loadRedemptions() {
       <td>${cell(row.accountEmail || row.accountId)}</td>
       <td class="nowrap">${money(row.discountCents)}</td>
       <td class="nowrap mono">${cell(row.orderNo || row.orderId)}</td>
-      <td class="nowrap">${row.holding ? pill('占用中', 'warning') : pill('已归还', 'muted')}</td>
+      <td class="nowrap">${row.voidedAt ? pill('已作废', 'muted') : (row.holding ? pill('占用中', 'warning') : pill('已归还', 'muted'))}</td>
       <td class="nowrap">${actions(
-        `<button class="hb-button hb-button--secondary hb-button--sm" data-redemption-void="${esc(row.id)}" data-redemption-code="${esc(row.couponCode)}" data-redemption-email="${esc(row.accountEmail || row.accountId)}">作废</button>`,
+        row.voidedAt
+          ? `<span class="hb-muted" title="${esc(row.voidReason || '已作废')}">—</span>`
+          : `<button class="hb-button hb-button--secondary hb-button--sm" data-redemption-void="${esc(row.id)}" data-redemption-code="${esc(row.couponCode)}" data-redemption-email="${esc(row.accountEmail || row.accountId)}">作废</button>`,
       )}</td>
     </tr>`).join('') : emptyRow(7, cursor.offset > 0 ? '本页无数据' : '暂无优惠码核销记录');
   renderPager('coupon-redemptions');
@@ -5892,13 +5894,13 @@ $('#panel-diagnostics').addEventListener('click', async (event) => {
     const ok = await askConfirm({
       title: '作废核销记录',
       message: `将作废「${voidRow.dataset.redemptionCode}」的一条核销记录（账号 ${voidRow.dataset.redemptionEmail}）。`,
-      impact: '该账号会因此<b>重新获得一个名额</b>，优惠码的「已占用名额」也会重新统计。如果这条记录对应的订单还在成交状态，等于凭空放出了一个名额 —— 请只在重复核销、测试单或误发折扣时使用。',
+      impact: '该账号会因此<b>重新获得一个名额</b>，优惠码的「已占用名额」也会重新统计。如果这条记录对应的订单还在成交状态，等于凭空放出了一个名额 —— 请只在重复核销、测试单或误发折扣时使用。记录本身会保留（标记为已作废），审计与对账仍可追溯。',
       okText: '作废',
     });
     if (!ok) return;
     try {
       const result = await api(`/coupon-redemptions/${voidRow.dataset.redemptionVoid}`, { method: 'DELETE' });
-      toast(`已作废，该优惠码当前占用 ${result.redeemedCount} 个名额`);
+      toast(result.alreadyVoided ? '该记录此前已作废过' : `已作废，该优惠码当前占用 ${result.redeemedCount} 个名额`);
       await Promise.all([loadRedemptions(), loadCoupons()]);
     } catch (error) { toast(error.message, 'danger'); }
     return;

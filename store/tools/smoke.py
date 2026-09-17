@@ -6191,6 +6191,446 @@ async def check_manual_refund_stays_offline() -> None:
     )
 
 
+def check_wallet_adjust_guard() -> None:
+    """S10：调账的「余额不可为负」必须由**数据库**守卫，不能只在 Python 里读-改-写。
+
+    原实现是「先 SELECT 出余额 → Python 算出结果 → 判断是否小于 0 → 再 UPDATE」。
+    判断与写入之间那个窗口里，另一个请求可以把余额改掉，于是两个请求各自基于同一份
+    旧快照算出「不会为负」、各自通过校验，而后写的一方把先写的整个覆盖 —— 结果
+    余额变成 0，账本里却有两笔各 -100 的流水，差额永远对不上，且全程没有任何报错。
+
+    这里用两个独立会话把那一刻确定性地复现出来：守卫在 ``WHERE`` 里时，第二次
+    UPDATE 匹配不到行（``rowcount == 0``），直接抛 :class:`WalletGuardError`，
+    余额与流水因此始终满足「流水合计 == 余额」。
+    """
+    from store.models import ReferralLedger, ReferralWallet
+
+    from store import referrals
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-wallet-guard-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+
+    with database.session() as session:
+        seed_settings(session)
+        seed_admin(session, "admin@habridge.local", "smoke-admin-2026")
+        account = Account(
+            email="wallet-guard@habridge.local",
+            password_hash=hash_password("smoke-wallet-guard-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        wallet = referrals.get_or_create_wallet(session, account)
+        session.flush()
+        wallet_id = wallet.id
+
+    session_a = database.session_factory()
+    session_b = database.session_factory()
+    try:
+        seed_wallet = session_a.get(ReferralWallet, wallet_id)
+        referrals.ledger_entry(
+            session_a,
+            seed_wallet,
+            kind="reward",
+            delta_centi=100,
+            earned_delta_centi=100,
+            note="smoke 底金",
+        )
+        session_a.commit()
+
+        # 两个会话各自把余额读进内存（都是 100）——这正是「两个调账请求同时进来」。
+        stale_a = session_a.get(ReferralWallet, wallet_id)
+        stale_b = session_b.get(ReferralWallet, wallet_id)
+        check(
+            "S10 两个会话读到的是同一份旧快照（并发调账的前提）",
+            int(stale_a.balance_centi or 0) == int(stale_b.balance_centi or 0) == 100,
+            f"a={stale_a.balance_centi} b={stale_b.balance_centi}",
+        )
+
+        referrals.ledger_entry(
+            session_a,
+            stale_a,
+            kind="manual_adjust",
+            delta_centi=-100,
+            note="smoke 调账 A",
+            min_balance_centi=0,
+        )
+        session_a.commit()
+
+        # B 手上仍是那个「余额 100」的旧快照，按 Python 预检它会算出 100-100=0 并放行；
+        # 数据库侧的真实余额已经是 0，守卫必须在这一步拦住它。
+        rejected = False
+        try:
+            referrals.ledger_entry(
+                session_b,
+                stale_b,
+                kind="manual_adjust",
+                delta_centi=-100,
+                note="smoke 调账 B",
+                min_balance_centi=0,
+            )
+            session_b.commit()
+        except referrals.WalletGuardError:
+            rejected = True
+            session_b.rollback()
+        check(
+            "S10 第二笔调账被数据库守卫拒绝（旧的读-改-写会静默把余额写成负数/双花）",
+            rejected,
+            "没有被拒绝：守卫没有生效",
+        )
+
+        session_a.expire_all()
+        final = session_a.get(ReferralWallet, wallet_id)
+        manual_sum = int(
+            session_a.scalar(
+                select(func.coalesce(func.sum(ReferralLedger.delta_centi), 0)).where(
+                    ReferralLedger.wallet_id == wallet_id,
+                    ReferralLedger.kind == "manual_adjust",
+                )
+            )
+            or 0
+        )
+        rows = session_a.scalars(
+            select(ReferralLedger).where(ReferralLedger.wallet_id == wallet_id)
+        ).all()
+        check(
+            "S10 被拒的那笔调账没有留下流水（不能既不记账又写流水）",
+            manual_sum == -100 and len([r for r in rows if r.kind == "manual_adjust"]) == 1,
+            f"manual_sum={manual_sum} 行数={len(rows)}",
+        )
+        ledger_total = int(
+            session_a.scalar(
+                select(func.coalesce(func.sum(ReferralLedger.delta_centi), 0)).where(
+                    ReferralLedger.wallet_id == wallet_id
+                )
+            )
+            or 0
+        )
+        check(
+            "S10 余额始终等于流水合计（守卫的核心不变量）",
+            int(final.balance_centi or 0) == 0 and ledger_total == 0,
+            f"balance={final.balance_centi} 流水合计={ledger_total}",
+        )
+
+        # 守卫只在该列真的被改动时才生效：一条「只动冻结额」的写入不该被已经为负的
+        # 历史余额连累（否则故障面会从「余额为负」扩散到「这个钱包什么都写不了」）。
+        untouched = False
+        try:
+            referrals.ledger_entry(
+                session_a,
+                final,
+                kind="freeze",
+                frozen_delta_centi=50,
+                note="smoke 只动冻结",
+                min_balance_centi=0,
+            )
+            session_a.commit()
+            untouched = True
+        except referrals.WalletGuardError:
+            session_a.rollback()
+        check(
+            "S10 只改冻结额时不会被余额守卫误伤（守卫按列生效）",
+            untouched,
+            "只动 frozen 的写入被余额守卫拒绝了",
+        )
+    finally:
+        session_b.close()
+        session_a.close()
+
+    # 端点把守卫失败翻译成 409（可重试 vs 不可重试的区别就在这里：4xx 而不是 500）。
+    from fastapi import HTTPException
+
+    from store.api import admin as admin_api
+    from store.schemas import AdminWalletAdjustRequest
+
+    original = referrals.ledger_entry
+
+    def _reject(*args, **kwargs):
+        raise referrals.WalletGuardError("smoke 注入的守卫失败")
+
+    referrals.ledger_entry = _reject
+    try:
+        with database.session() as session:
+            admin = session.scalars(
+                select(Account).where(Account.is_admin.is_(True))
+            ).first()
+            status_code = 200
+            try:
+                admin_api.admin_adjust_wallet(
+                    account.id,
+                    AdminWalletAdjustRequest(delta="10.00", note="smoke 守卫映射"),
+                    session,
+                    admin,
+                )
+            except HTTPException as error:
+                status_code = error.status_code
+    finally:
+        referrals.ledger_entry = original
+    check(
+        "S10 守卫失败被翻译成 409（而不是 500，也不是静默成功）",
+        status_code == 409,
+        f"status={status_code}",
+    )
+
+
+async def check_coupon_redemption_ledger() -> None:
+    """S11：核销记录「占不占名额」必须只有一个判据，作废不能删行，删单不能钉死名额。
+
+    三个缺陷合起来是一条完整的资金链：
+
+    1. ``admin_void_coupon_redemption`` 直接 ``session.delete`` —— 这张表既是
+       ``per_account_limit`` 的判据，又是「谁用哪个码减了多少钱」的唯一凭证，
+       删掉之后审计里只剩一句「作废了某条记录」，折扣额和账号都查不回来；
+    2. 判据里 ``order_id IS NULL`` 被算成「仍占用」—— 而 ``admin_delete_order``
+       在删单时正是把这一列置空（``ON DELETE SET NULL``），且它只允许删除
+       ``cancelled`` / ``expired`` 的单（这两种状态**早已归还名额**）。于是
+       「清理一张垃圾单」会把一个名额永久钉死：``per_account_limit=1`` 的账号
+       从此再也用不了这个码，后台显示的占用数还是对的，没有任何线索。
+    3. 判据在四处各写一遍（读时校验、原子占用、后台重算、界面渲染），改一处漏三处
+       就会出现「读时放行、写时拒绝」或反过来超发折扣。
+
+    这里把三个都钉住：状态矩阵逐格对比 SQL 判据与 Python 判据、作废是软删除、
+    重复作废幂等、删单后名额不再被占（并把「旧判据会算成占用」显式打出来当作对照）。
+    """
+    from store import coupons as coupon_rules
+    from store.models import Coupon, CouponRedemption
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-coupon-ledger-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+
+    #: (订单状态, 期望「仍占用名额」)。``None`` 表示不给这一行挂订单（订单已被删除）。
+    matrix = [
+        ("pending", True),
+        ("paid", True),
+        ("fulfilled", True),
+        ("refunded", True),
+        ("cancelled", False),
+        ("expired", False),
+        ("payment_failed", False),
+        (None, False),
+    ]
+
+    with database.session() as session:
+        seed_settings(session)
+        seed_products(session)
+        seed_admin(session, "admin@habridge.local", "smoke-admin-2026")
+        coupon = Coupon(
+            code="SMOKE-S11",
+            description="smoke S11",
+            discount_type="fixed",
+            amount_cents=100,
+            per_account_limit=1,
+            max_redemptions=50,
+            redeemed_count=0,
+        )
+        session.add(coupon)
+        session.flush()
+        coupon_id = coupon.id
+        product = session.scalars(select(Product)).first()
+        cases: list[tuple[str, str, str | None]] = []
+        for index, (order_status, _expected) in enumerate(matrix):
+            account = Account(
+                email=f"coupon-ledger-{index}@habridge.local",
+                password_hash=hash_password("smoke-coupon-ledger-2026"),
+                email_verified_at=utcnow(),
+            )
+            session.add(account)
+            session.flush()
+            customer = Customer(
+                account_id=account.id, email=account.email, name=account.email
+            )
+            session.add(customer)
+            session.flush()
+            order_id: str | None = None
+            if order_status is not None:
+                order = Order(
+                    order_no=f"HOMEOS-S11-{index:04d}",
+                    lookup_token=f"s11-token-{index:04d}",
+                    account_id=account.id,
+                    customer_id=customer.id,
+                    email=account.email,
+                    product_id=product.id,
+                    product_name=product.name,
+                    product_type="base",
+                    order_type="base",
+                    license_action="issue",
+                    original_amount_cents=1000,
+                    amount_cents=900,
+                    coupon_code=coupon.code,
+                    status=order_status,
+                    fulfillment_mode="automatic",
+                    payment_provider="mock",
+                )
+                session.add(order)
+                session.flush()
+                order_id = order.id
+            record = CouponRedemption(
+                coupon_id=coupon.id,
+                account_id=account.id,
+                order_id=order_id,
+                discount_cents=100,
+            )
+            session.add(record)
+            session.flush()
+            cases.append((account.id, order_status or "", record.id))
+
+    with database.session() as session:
+        coupon_row = session.get(Coupon, coupon_id, populate_existing=True)
+        for account_id, order_status, record_id in cases:
+            record = session.get(CouponRedemption, record_id, populate_existing=True)
+            order = (
+                session.get(Order, record.order_id, populate_existing=True)
+                if record.order_id
+                else None
+            )
+            sql_holds = coupon_rules.active_redemption_count(
+                session, coupon_id=coupon_id, account_id=account_id
+            )
+            py_holds = 1 if coupon_rules.holds_slot(record, order) else 0
+            expected = 1 if dict(matrix)[order_status or None] else 0
+            check(
+                f"S11 状态 {order_status or '订单已删除'}：SQL 判据、Python 判据、期望值三者一致",
+                sql_holds == py_holds == expected,
+                f"sql={sql_holds} py={py_holds} 期望={expected}",
+            )
+        # 旧判据的对照：``order_id IS NULL`` 曾经被算成「仍占用」，删单就会钉死名额。
+        deleted_account_id = next(
+            account_id for account_id, order_status, _rid in cases if not order_status
+        )
+        legacy_null_page = int(
+            session.scalar(
+                select(func.count(CouponRedemption.id)).where(
+                    CouponRedemption.order_id.is_(None),
+                    CouponRedemption.coupon_id == coupon_id,
+                )
+            )
+            or 0
+        )
+        new_count = coupon_rules.active_redemption_count(
+            session, coupon_id=coupon_id, account_id=deleted_account_id
+        )
+        check(
+            "S11 对照：旧判据把「订单已删除」的那条算成占用（1），新判据不再算（0）",
+            legacy_null_page == 1 and new_count == 0,
+            f"旧判据={legacy_null_page} 新判据={new_count}",
+        )
+
+    # 通过接口删除那张 cancelled 的订单：核销记录应变成 order_id=NULL，且不再占名额。
+    cancelled_order_no = "HOMEOS-S11-0004"
+    pending_void_id = next(
+        record_id for account_id, order_status, record_id in cases if order_status == "pending"
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        await client.post("/store/v1/auth/login", json=_admin_login_payload())
+        deleted = await client.delete(f"/store-admin/v1/orders/{cancelled_order_no}")
+        check(
+            "S11 前置：公众号只允许删除 cancelled/expired 订单（这里删掉 cancelled 那张）",
+            deleted.status_code == 200,
+            f"{deleted.status_code} {deleted.text[:120]}",
+        )
+
+        voided = await client.delete(f"/store-admin/v1/coupon-redemptions/{pending_void_id}")
+        voided_body = voided.json() if voided.status_code == 200 else {}
+        voided_again = await client.delete(
+            f"/store-admin/v1/coupon-redemptions/{pending_void_id}"
+        )
+        repeated_body = voided_again.json() if voided_again.status_code == 200 else {}
+        refund = await client.get(
+            f"/store-admin/v1/coupon-redemptions?coupon_id={coupon_id}"
+        )
+        listed = refund.json().get("items", []) if refund.status_code == 200 else []
+
+    check(
+        "S11 作废核销记录返回 200（原来也是 200，但换成了软删除）",
+        voided.status_code == 200 and voided_body.get("voided") is True,
+        f"{voided.status_code} {voided_body}",
+    )
+    check(
+        "S11 重复作废是幂等的（不会覆盖掉第一次的作废时间/作废人）",
+        voided_again.status_code == 200 and repeated_body.get("alreadyVoided") is True,
+        f"{voided_again.status_code} {repeated_body}",
+    )
+
+    with database.session() as session:
+        record = session.get(CouponRedemption, pending_void_id, populate_existing=True)
+        vanished = session.get(CouponRedemption, pending_void_id) is None
+        coupon_row = session.get(Coupon, coupon_id, populate_existing=True)
+        voided_emails = {item["id"]: item for item in listed}
+        record_after_delete = session.scalars(
+            select(CouponRedemption).where(
+                CouponRedemption.order_id.is_(None),
+                CouponRedemption.coupon_id == coupon_id,
+            )
+        ).all()
+
+    check(
+        "S11 作废是软删除：行还在（折扣额、账号、订单号可复查），没有被物理删掉",
+        (not vanished) and record is not None and record.voided_at is not None,
+        f"vanished={vanished} voided_at={getattr(record, 'voided_at', None)}",
+    )
+    check(
+        "S11 作废原因写下了作废人（事后能回答「这个名额是谁放开的」）",
+        bool(record is not None and record.void_reason.strip()),
+        str(getattr(record, "void_reason", "")),
+    )
+    check(
+        "S11 作废后名额被放开：pending 那笔不再计入，剩余占用从 5 降到 3",
+        int(coupon_row.redeemed_count or 0) == 3,
+        str(coupon_row.redeemed_count),
+    )
+    #: 两行 ``order_id IS NULL``：矩阵里那条「订单已删除」的用例，以及刚被删掉的
+    #: cancelled 订单的那条。两条都还在（没有被级联删除），且都不是「已作废」。
+    check(
+        "S11 删掉的订单对应的核销记录仍在，只是 order_id 被置空（不是级联删除）",
+        len(record_after_delete) == 2
+        and all(item.voided_at is None for item in record_after_delete),
+        f"行数={len(record_after_delete)}",
+    )
+    voided_item = voided_emails.get(pending_void_id, {})
+    check(
+        "S11 列表如实返回作废状态与原因（界面据此显示「已作废」而不是「占用中」）",
+        voided_item.get("holding") is False
+        and bool(voided_item.get("voidedAt"))
+        and bool(voided_item.get("voidReason")),
+        f"holding={voided_item.get('holding')} voidedAt={voided_item.get('voidedAt')!r}",
+    )
+
+    # 判据同源：生产代码里不允许再出现「各写一遍」的 or_(order_id.is_(None), ...)。
+    # 先剥掉字符串字面量（docstring 里正好引用了这行旧写法，不能当成真代码命中）。
+    import inspect as _inspect
+
+    raw_source = _inspect.getsource(coupon_rules)
+    stripped = re.sub(r'"""(?:.|\n)*?"""', "", raw_source)
+    stripped = re.sub(r"'''(?:.|\n)*?'''", "", stripped)
+    duplicated = [
+        line.strip()
+        for line in stripped.splitlines()
+        if "order_id.is_(None)" in line
+    ]
+    check(
+        "S11 coupons.py 里不再有第二份「order_id IS NULL 也算占用」的判据",
+        not duplicated,
+        "；".join(duplicated[:2]),
+    )
+
+
 async def check_release_unique_conflict_paths() -> None:
     """S23：后台建版本的**两条**冲突路径都要给可读的 409，而且都不能污染会话。
 
@@ -8306,7 +8746,9 @@ async def run() -> int:
     check_sweep_local_expiry_decoupled()
     check_unique_index_repair()
     check_wallet_aggregate_atomic()
+    check_wallet_adjust_guard()
     await check_manual_refund_stays_offline()
+    await check_coupon_redemption_ledger()
     await check_release_unique_conflict_paths()
     check_config_validation_strictness()
     check_order_id_indexes()

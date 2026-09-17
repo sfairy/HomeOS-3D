@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from store.models import Account, Coupon, CouponRedemption, Order
@@ -37,11 +37,52 @@ class CouponUnavailable(RuntimeError):
     """名额在「校验」与「占用」之间被别的请求抢光了。"""
 
 
+def holds_slot_conditions() -> tuple:
+    """「此刻仍占着名额」的 SQL 判据 —— 所有判定点的**唯一来源**。
+
+    四个地方要回答同一个问题（读时校验、原子占用、后台重算、自检），过去各写
+    一遍 ``or_(order_id.is_(None), status.notin_(RELEASED))``。任何一处写歪都会
+    产生「读时放行、写时拒绝」的莫名 400，或者反过来超发折扣，所以收在这里。
+
+    三个条件缺一不可：
+
+    * ``voided_at IS NULL`` —— 作废过的记录不占名额；
+    * ``order_id IS NOT NULL`` —— **订单已被删除的记录不占名额**。这一条曾经是
+      反过来的（``order_id IS NULL`` 也算占用，理由是「订单没了不代表没用过」），
+      但能走到 ``order_id IS NULL`` 的路径只有 ``admin_delete_order``，而它只允许
+      删除 ``cancelled`` / ``expired`` 的订单 —— 这两种状态在归还名额时就已经
+      调用过 ``release_coupon``。把删除后的记录重新算成「占用」，等于「清理一张
+      垃圾单就会把一个名额永久钉死」：``per_account_limit=1`` 的账号从此再也用不了
+      这个码，而且后台界面显示的占用数是对的、没有任何线索指向那次删除。
+    * 订单不在 ``RELEASED_STATUSES`` 里 —— 取消/超时/失败后名额已归还。
+    """
+    return (
+        CouponRedemption.voided_at.is_(None),
+        CouponRedemption.order_id.is_not(None),
+        Order.status.notin_(RELEASED_STATUSES),
+    )
+
+
+def holds_slot(record: CouponRedemption, order: Order | None) -> bool:
+    """:func:`holds_slot_conditions` 的 Python 版（后台列表逐行渲染用）。
+
+    两份实现必须同口径 —— ``smoke.py::check_coupon_redemption_ledger`` 用一张
+    状态矩阵把两边逐格对比，任何一边改了规则都会立刻变红。
+    """
+    if record.voided_at is not None:
+        return False
+    if record.order_id is None:
+        return False
+    #: 外键是 ``ON DELETE SET NULL``，所以 ``order_id`` 非空就必然能查到订单；
+    #: 真查不到时按「证明不了它占名额」处理（失败方向是宽松的，与 SQL 侧的
+    #: 内连接语义一致 —— 连不上的行不会出现在结果里）。
+    return order is not None and order.status not in RELEASED_STATUSES
+
+
 def active_redemption_count(session: Session, *, coupon_id: str, account_id: str) -> int:
     """该账号在这个码上**仍占着名额**的核销记录数。
 
-    「仍占着」= 订单未进入 ``RELEASED_STATUSES``（取消/超时/支付失败后名额已归还），
-    口径与 ``_evaluate_coupon`` 的读时校验、以及下面 ``redeem_coupon`` 的原子守卫
+    「仍占着」的判据见 :func:`holds_slot_conditions`，与读时校验、原子占用
     完全一致 —— 三处必须同一口径，否则会出现「读时放行、写时拒绝」的莫名 400。
     """
     return int(
@@ -51,12 +92,7 @@ def active_redemption_count(session: Session, *, coupon_id: str, account_id: str
             .outerjoin(Order, Order.id == CouponRedemption.order_id)
             .where(CouponRedemption.coupon_id == coupon_id)
             .where(CouponRedemption.account_id == account_id)
-            .where(
-                or_(
-                    CouponRedemption.order_id.is_(None),
-                    Order.status.notin_(RELEASED_STATUSES),
-                )
-            )
+            .where(*holds_slot_conditions())
         ).scalar_one()
         or 0
     )
@@ -103,12 +139,7 @@ def redeem_coupon(
             .outerjoin(Order, Order.id == CouponRedemption.order_id)
             .where(CouponRedemption.coupon_id == Coupon.id)
             .where(CouponRedemption.account_id == account.id)
-            .where(
-                or_(
-                    CouponRedemption.order_id.is_(None),
-                    Order.status.notin_(RELEASED_STATUSES),
-                )
-            )
+            .where(*holds_slot_conditions())
             .scalar_subquery()
         )
         statement = statement.where(used_subquery < int(coupon.per_account_limit))

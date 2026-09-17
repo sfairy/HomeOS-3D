@@ -3526,15 +3526,31 @@ def admin_adjust_wallet(
             ),
         )
 
-    entry = referrals.ledger_entry(
-        session,
-        wallet,
-        kind="manual_adjust",
-        delta_centi=delta_centi,
-        frozen_delta_centi=frozen_delta_centi,
-        note=note,
-        reference=_admin_actor(admin),
-    )
+    try:
+        #: 上面那次判断只是**为了给出带数字的文案**，它自己挡不住并发：两个调账
+        #: 请求各自读到同一份余额、各自算出「不会为负」、再各自把结果写回去 ——
+        #: 后写的一方覆盖先写的，负余额就这么落库（而接口返回 200，没有任何异常）。
+        #: 真正的守卫传进 ``ledger_entry``，与加法压在同一条 UPDATE 的 ``WHERE`` 里，
+        #: 匹配不到行即拒绝（见 ``referrals._apply_wallet_delta``）。
+        entry = referrals.ledger_entry(
+            session,
+            wallet,
+            kind="manual_adjust",
+            delta_centi=delta_centi,
+            frozen_delta_centi=frozen_delta_centi,
+            note=note,
+            reference=_admin_actor(admin),
+            min_balance_centi=0,
+            min_frozen_centi=0,
+        )
+    except referrals.WalletGuardError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "钱包余额刚刚被其它操作改动，这次调账会让余额或冻结额为负，已拒绝。"
+                "请刷新后按最新余额重算。"
+            ),
+        ) from None
     _audit(
         session,
         _admin_actor(admin),
@@ -3957,10 +3973,11 @@ def admin_list_coupon_redemptions(
             # 订单进了 RELEASED_STATUSES、名额已归还的核销记录，只是历史凭证；
             # 其余状态（含 fulfilled / refunded）都仍占着名额。界面据此区分。
             "orderStatus": order.status if order else "",
-            "holding": bool(
-                record.order_id is None
-                or (order is not None and order.status not in coupons.RELEASED_STATUSES)
-            ),
+            # 判据与 SQL 侧同源（coupons.holds_slot），不要再在这里写第二份规则：
+            # 两边不一致时，界面显示「占用中」而实际上名额已经放开了。
+            "holding": coupons.holds_slot(record, order),
+            "voidedAt": iso(record.voided_at) if record.voided_at else "",
+            "voidReason": record.void_reason or "",
             "discountCents": int(record.discount_cents or 0),
             "createdAt": iso(record.created_at),
         }
@@ -3978,12 +3995,12 @@ def admin_list_coupon_redemptions(
 def _recount_coupon_redemptions(session: Session, coupon: Coupon | None) -> int:
     """把 ``coupon.redeemed_count`` 按「仍占用名额」的核销记录重算。
 
-    核销记录的增删会改变「此刻还被占用多少名额」，而这个计数参与
+    核销记录的作废会改变「此刻还被占用多少名额」，而这个计数参与
     ``max_redemptions`` 校验，所以任何一次作废之后都必须跟着重算，
     否则会出现「名额看着还有、下单却说领完」。
 
-    谓词与下单校验（``store/api/store.py``）保持同一份来源：订单进了
-    ``coupons.RELEASED_STATUSES`` 就等于名额已归还，不再计入。
+    谓词与下单校验（``store/api/store.py``）同源：``coupons.holds_slot_conditions()``
+    —— 订单进了 ``RELEASED_STATUSES``、记录被作废、或订单已被删除，都不再计入。
     """
     if coupon is None:
         return 0
@@ -3992,12 +4009,7 @@ def _recount_coupon_redemptions(session: Session, coupon: Coupon | None) -> int:
             select(func.count(CouponRedemption.id))
             .outerjoin(Order, Order.id == CouponRedemption.order_id)
             .where(CouponRedemption.coupon_id == coupon.id)
-            .where(
-                or_(
-                    CouponRedemption.order_id.is_(None),
-                    Order.status.notin_(coupons.RELEASED_STATUSES),
-                )
-            )
+            .where(*coupons.holds_slot_conditions())
         ).scalar_one()
         or 0
     )
@@ -4012,8 +4024,14 @@ def admin_void_coupon_redemption(
 ) -> dict:
     """作废一条核销记录（仅供纠错：重复核销、测试单、误发折扣）。
 
-    会连带重算 ``coupon.redeemed_count``；这条记录的账号也因此重新获得一个名额。
-    这两件事都会写进审计，事后可追。
+    **软删除**：置 ``voided_at`` 而不是删行。这张表有两个身份 —— 它既是
+    ``per_account_limit`` 的判定依据（所以作废必须真的放开名额），又是
+    「谁在什么时候用哪个码减了多少钱」的唯一凭证。过去直接 ``session.delete``
+    等于把凭证本身删掉：审计日志里只剩一句「作废了某条记录」，被作废的折扣额、
+    账号、订单号全部查不回来，对账时无法复核这次作废是否该做。
+
+    作废后连带重算 ``coupon.redeemed_count``；这条记录的账号也因此重新获得一个
+    名额。两件事都写进审计，事后可追。
     """
     record = session.get(CouponRedemption, redemption_id)
     if record is None:
@@ -4022,19 +4040,31 @@ def admin_void_coupon_redemption(
     account = session.get(Account, record.account_id)
     code = coupon.code if coupon else record.coupon_id
 
-    session.delete(record)
-    session.flush()
+    #: 已作废的记录再点一次（双击、两个标签页）不再重复记账：置空时间会覆盖掉
+    #: 第一次的作废人与时间，审计里就会出现两条「作废」却只有一个时间戳。
+    already = record.voided_at is not None
+    if not already:
+        record.voided_at = utcnow()
+        record.void_reason = f"后台作废（{_admin_actor(admin)}）"
+        session.flush()
     used = _recount_coupon_redemptions(session, coupon)
-    _audit(
-        session,
-        _admin_actor(admin),
-        "coupon.redemption.void",
-        code,
-        f"账号 {account.email if account else record.account_id}，剩余占用名额 {used}",
-    )
+    if not already:
+        _audit(
+            session,
+            _admin_actor(admin),
+            "coupon.redemption.void",
+            code,
+            (
+                f"账号 {account.email if account else record.account_id}，"
+                f"折扣 {int(record.discount_cents or 0) / 100:.2f} 元，"
+                f"剩余占用名额 {used}"
+            ),
+        )
     return {
         "id": redemption_id,
         "deleted": True,
+        "voided": not already,
+        "alreadyVoided": already,
         "couponCode": code,
         "redeemedCount": used,
     }

@@ -44,6 +44,15 @@ class WalletConflictError(RuntimeError):
     """
 
 
+class WalletGuardError(RuntimeError):
+    """写入会让钱包违反业务不变式（如余额为负），**不可重试**。
+
+    与 :class:`WalletConflictError` 的区别在语义：那个是「有人抢先了，重来一次
+    可能就成了」；这个是「这次请求本身不合法」—— 无论重试多少次，只要结果会
+    变成负数就永远失败，所以调用方必须转成 4xx 而不是 503。
+    """
+
+
 def get_or_create_wallet(session: Session, account: Account) -> ReferralWallet:
     """取（必要时建）该账号的积分钱包。
 
@@ -147,6 +156,8 @@ def _apply_wallet_delta(
     frozen_delta_centi: int,
     earned_delta_centi: int = 0,
     withdrawn_delta_centi: int = 0,
+    min_balance_centi: int | None = None,
+    min_frozen_centi: int | None = None,
 ) -> tuple[int, int]:
     """把余额变动写成**一条 SQL** 并返回改动后的 ``(balance_centi, frozen_centi)``。
 
@@ -166,6 +177,18 @@ def _apply_wallet_delta(
     「该扣的没扣到」变成静默发生的事，而那正是需要被记进流水备注去追偿的。
     累计获得 ``earned_centi`` 是例外：它只是个计数器，负值没有业务含义，所以在 SQL 里
     直接夹到 0（与原先 ``max(0, ...)`` 的语义一致）。
+
+    ``min_balance_centi`` / ``min_frozen_centi`` 是**可选的下界守卫**，语义是
+    「写完必须 ≥ 这个值，否则这次写入整个作废」，实现方式是把判断塞进同一条
+    UPDATE 的 ``WHERE``（见 :func:`ledger_entry` 的调用方 admin 调账）：
+
+    ｜ 请求 A 读到 余额=10，算出 10-20=-10 → 拒绝 ｜
+    ｜ 请求 B 同时读到 余额=10，也拒绝 ｜  ← 但其实 B 那笔本该成功（A 已放弃）
+
+    真正危险的是相反的读序：A 读到 10 通过、B 读到 10 通过，各自写
+    ``balance = 10 + delta`` —— 后写的一方把先写的覆盖掉。把守卫放进 ``WHERE``
+    之后，无论读到的是哪个版本，「结果会变成负数」的那一次都匹配不到行，
+    ``rowcount == 0`` 即失败，不可能两个都通过。
     """
     values: dict[str, object] = {}
     if delta_centi:
@@ -190,15 +213,36 @@ def _apply_wallet_delta(
         values["withdrawn_centi"] = func.coalesce(
             ReferralWallet.withdrawn_centi, 0
         ) + int(withdrawn_delta_centi)
-    if values:
-        session.execute(
-            update(ReferralWallet)
-            .where(ReferralWallet.id == wallet.id)
-            .values(**values)
-            .execution_options(synchronize_session=False)
+    if not values:
+        return int(wallet.balance_centi or 0), int(wallet.frozen_centi or 0)
+
+    conditions = [ReferralWallet.id == wallet.id]
+    #: 只在**这一列真的要被改动**时才加守卫：否则「余额本来就是负的」这种历史数据
+    #: 会让一条与余额无关的写入（比如只改 frozen）也被拒绝，故障面凭空扩大。
+    if delta_centi and min_balance_centi is not None:
+        conditions.append(
+            func.coalesce(ReferralWallet.balance_centi, 0) + int(delta_centi)
+            >= int(min_balance_centi)
         )
-        session.refresh(wallet)
+    if frozen_delta_centi and min_frozen_centi is not None:
+        conditions.append(
+            func.coalesce(ReferralWallet.frozen_centi, 0) + int(frozen_delta_centi)
+            >= int(min_frozen_centi)
+        )
+    result = session.execute(
+        update(ReferralWallet)
+        .where(*conditions)
+        .values(**values)
+        .execution_options(synchronize_session=False)
+    )
+    if result.rowcount == 0:
+        #: 唯一能走到这里的原因是守卫不成立（``id`` 一定存在，调用方刚拿到这本钱包）。
+        raise WalletGuardError(
+            "这次记账会让钱包余额或冻结额变成负数，已拒绝写入。"
+        )
+    session.refresh(wallet)
     return int(wallet.balance_centi or 0), int(wallet.frozen_centi or 0)
+
 
 def ledger_entry(
     session: Session,
@@ -212,7 +256,15 @@ def ledger_entry(
     note: str = "",
     reference: str | None = None,
     order_id: str | None = None,
+    min_balance_centi: int | None = None,
+    min_frozen_centi: int | None = None,
 ) -> ReferralLedger:
+    """记一条流水并原子更新钱包。
+
+    ``min_balance_centi`` / ``min_frozen_centi`` 透传给 :func:`_apply_wallet_delta`
+    作为**下界守卫**：不满足时整个写入不生效并抛 :class:`WalletGuardError`，
+    流水也不会被插入（两条语句在同一个事务里，调用方转成 4xx 即可）。
+    """
     balance, frozen = _apply_wallet_delta(
         session,
         wallet,
@@ -220,6 +272,8 @@ def ledger_entry(
         frozen_delta_centi=frozen_delta_centi,
         earned_delta_centi=earned_delta_centi,
         withdrawn_delta_centi=withdrawn_delta_centi,
+        min_balance_centi=min_balance_centi,
+        min_frozen_centi=min_frozen_centi,
     )
     entry = ReferralLedger(
         wallet_id=wallet.id,

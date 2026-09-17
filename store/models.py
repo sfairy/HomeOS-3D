@@ -327,6 +327,13 @@ class CouponRedemption(Base):
         String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True
     )
     discount_cents: Mapped[int] = mapped_column(Integer, default=0)
+    #: 作废时间（软删除）。这张表既是 ``per_account_limit`` 的判定依据，也是
+    #: 「谁在什么时候用掉了哪个码、减了多少钱」的唯一凭证 —— 物理删除会把凭证本身
+    #: 删掉，审计里只剩一句「作废了某条记录」，连折扣额和账号都查不回来。
+    #: 非空表示这条记录已作废、不再占名额；记录本体留在原位供对账。
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime)
+    #: 作废人/来源。不写就无法回答「这个名额是谁放开的」。
+    void_reason: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

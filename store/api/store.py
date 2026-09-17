@@ -11,7 +11,7 @@ from datetime import timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
@@ -420,23 +420,15 @@ def _evaluate_coupon(
     if coupon.max_redemptions is not None and int(coupon.redeemed_count or 0) >= coupon.max_redemptions:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="优惠码已被领完。")
     if coupon.per_account_limit:
-        # 「这个账号用过没有」不能只看有没有核销记录：订单取消/超时/支付失败时
-        # release_coupon 已经把名额还回去了（见 store/coupons.py 的 RELEASED_STATUSES），
-        # 但核销记录会作为历史凭证永久保留。如果这里把所有记录都算成「已使用」，
-        # per_account_limit=1 的用户只要有一单被取消，就永久失去这个优惠码 ——
-        # 名额明明还在，却永远提示「你已使用过」。
-        # 反过来说，refunded（已退款）不在 RELEASED_STATUSES 里：码确实被用掉了，不还名额。
+        # 「这个账号还用没用过该码」的判据收在 coupons.holds_slot_conditions()：
+        # 读时校验、下单时的原子占用、后台重算三处必须同一口径，否则会出现
+        # 「读时放行、写时拒绝」或反过来超发折扣（详见该函数注释）。
         used = session.execute(
             select(func.count(CouponRedemption.id))
             .outerjoin(Order, Order.id == CouponRedemption.order_id)
             .where(CouponRedemption.coupon_id == coupon.id)
             .where(CouponRedemption.account_id == account.id)
-            .where(
-                or_(
-                    CouponRedemption.order_id.is_(None),
-                    Order.status.notin_(coupons.RELEASED_STATUSES),
-                )
-            )
+            .where(*coupons.holds_slot_conditions())
         ).scalar_one()
         if int(used or 0) >= int(coupon.per_account_limit):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="你已使用过该优惠码。")
