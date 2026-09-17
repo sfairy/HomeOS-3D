@@ -165,11 +165,14 @@ class AdminAccountStore:
             final_path_created = True
             os.chmod(self.path, 0o600)
             # 再 fsync 一次目录项，确保 rename 本身也落盘。
-            directory_descriptor = os.open(self.path.parent, os.O_RDONLY)
-            try:
-                os.fsync(directory_descriptor)
-            finally:
-                os.close(directory_descriptor)
+            # Windows 不允许把目录当文件描述符打开（PermissionError），
+            # os.replace 已通过 MoveFileEx 的 WRITE_THROUGH 保证原子性与持久化。
+            if os.name != 'nt':
+                directory_descriptor = os.open(self.path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(directory_descriptor)
+                finally:
+                    os.close(directory_descriptor)
         except Exception:
             # 走到 rename 之后才失败：把已成型的正式文件删掉，
             # 否则下一次启动会认为"账号文件已存在"，卡在拒绝覆盖上。
