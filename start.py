@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import signal
 import subprocess
@@ -38,6 +39,11 @@ VENV_PYTHON = (
 )
 REQUIREMENTS = ROOT / 'store' / 'requirements.txt'
 
+# 客户端默认读取的公钥镜像目录；gen_keys 会把 store/keys/local/ 的公钥同步到这里。
+CLIENT_KEYS_DIR = ROOT / 'keys'
+LICENSE_PUBLIC_KEY = CLIENT_KEYS_DIR / 'license-public.pem'
+LICENSE_TRANSPORT_PUBLIC_KEY = CLIENT_KEYS_DIR / 'license-transport-public.pem'
+
 
 def ensure_venv() -> str:
     """返回用于启动两个服务的 Python 解释器。"""
@@ -46,6 +52,35 @@ def ensure_venv() -> str:
     subprocess.check_call([sys.executable, '-m', 'venv', str(VENV_DIR)])
     subprocess.check_call([str(VENV_PYTHON), '-m', 'pip', 'install', '-r', str(REQUIREMENTS)])
     return str(VENV_PYTHON)
+
+
+def ensure_license_keys(python: str) -> dict[str, str]:
+    """生成并镜像本地授权密钥，返回主应用需要的环境变量覆盖项。
+
+    config.py 里钉死的公钥指纹是正式发布版本的，本地开发生成的密钥指纹不同；
+    这里用环境变量把主应用的指纹校验对准本地密钥，避免改动发布版常量。
+    gen_keys 幂等：已存在则复用、缺失则生成，同时把公钥镜像到 keys/。
+    """
+    source = ROOT / 'store' / 'keys' / 'local' / 'license-transport-public.pem'
+    need_generate = not source.is_file()
+    # 镜像缺失或与真相源不一致时重新同步：避免占位公钥让指纹校验失败。
+    need_mirror = not LICENSE_TRANSPORT_PUBLIC_KEY.is_file() or (
+        source.is_file()
+        and LICENSE_TRANSPORT_PUBLIC_KEY.read_bytes() != source.read_bytes()
+    )
+    if need_generate or need_mirror:
+        # 抑制 gen_keys 的常规输出（仅首次生成时有用）；失败时 check_call 会抛错。
+        subprocess.check_call(
+            [python, '-m', 'store.tools.gen_keys'],
+            stdout=subprocess.DEVNULL,
+        )
+    overrides = {}
+    for env_name, key_path in (
+        ('APP_LICENSE_PUBLIC_KEY_SHA256', LICENSE_PUBLIC_KEY),
+        ('APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256', LICENSE_TRANSPORT_PUBLIC_KEY),
+    ):
+        overrides[env_name] = hashlib.sha256(key_path.read_bytes()).hexdigest()
+    return overrides
 
 
 def spawn(command: list[str], environment: dict[str, str]) -> subprocess.Popen:
@@ -68,13 +103,20 @@ def terminate(process: subprocess.Popen) -> None:
 
 def main() -> None:
     python = ensure_venv()
+    # 本地密钥指纹覆盖：把主应用的指纹校验对准本地生成的密钥，
+    # 而不是 config.py 里钉死的正式发布版指纹。
+    license_overrides = ensure_license_keys(python)
     # .env 提供 SMTP 授权码等本地配置；已存在的真实环境变量优先
     load_dotenv()
     base_environment = os.environ.copy()
+    # PYTHONHOME 会覆盖 venv 的 site-packages 搜索路径，导致子进程去系统
+    # Python 目录找包而非 venv。start.py 用的是 venv 的 python，必须清掉它。
+    base_environment.pop('PYTHONHOME', None)
 
     app_environment = base_environment.copy()
     app_environment['APP_DATA_DIR'] = str(ROOT / 'data')
     app_environment['PYTHONPATH'] = str(ROOT / 'backend' / 'app')
+    app_environment.update(license_overrides)
 
     store_environment = base_environment.copy()
     store_environment['STORE_DATA_DIR'] = str(ROOT / 'store' / 'data')
