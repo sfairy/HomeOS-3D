@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from store.models import Release
@@ -31,37 +32,63 @@ CURRENT_UPGRADE_NOTES = (
 )
 
 
-def ensure_current_release(session: Session) -> bool:
-    """确保 docker 渠道存在当前版本的发布记录（幂等；已存在则同步升级说明）。"""
-    existing = session.scalars(
+def _load_current_release(session: Session) -> Release | None:
+    """读 docker 渠道当前版本的发布记录（``None`` 表示还没有）。"""
+    return session.scalars(
         select(Release).where(
             Release.product == "homeos",
             Release.channel == "docker",
             Release.version == CURRENT_VERSION,
         )
     ).first()
+
+
+def _sync_release_fields(release: Release) -> bool:
+    """把已存在的记录对齐到常量；返回是否改动了内容。"""
+    changed = False
+    if release.release_date != CURRENT_RELEASE_DATE:
+        release.release_date = CURRENT_RELEASE_DATE
+        changed = True
+    if release.upgrade_notes != CURRENT_UPGRADE_NOTES:
+        release.upgrade_notes = CURRENT_UPGRADE_NOTES
+        changed = True
+    return changed
+
+
+def ensure_current_release(session: Session) -> bool:
+    """确保 docker 渠道存在当前版本的发布记录（幂等；已存在则同步升级说明）。"""
+    existing = _load_current_release(session)
     if existing is not None:
-        changed = False
-        if existing.release_date != CURRENT_RELEASE_DATE:
-            existing.release_date = CURRENT_RELEASE_DATE
-            changed = True
-        if existing.upgrade_notes != CURRENT_UPGRADE_NOTES:
-            existing.upgrade_notes = CURRENT_UPGRADE_NOTES
-            changed = True
-        if changed:
+        if _sync_release_fields(existing):
             session.flush()
             logger.info("已同步 %s 渠道 %s 发布记录。", "docker", CURRENT_VERSION)
-        return changed
+            return True
+        return False
 
-    session.add(
-        Release(
-            product="homeos",
-            channel="docker",
-            version=CURRENT_VERSION,
-            release_date=CURRENT_RELEASE_DATE,
-            upgrade_notes=CURRENT_UPGRADE_NOTES,
-        )
-    )
-    session.flush()
+    # ``releases`` 上 (product, channel, version) 是唯一索引，于是「查不到就插」在多个
+    # 实例同时启动时会撞索引 —— 而这是**启动路径**，一次竞争就会让容器起不来。
+    # 用 SAVEPOINT 兜住：撞了说明别处刚插好，回滚这一条重查、按「已存在」处理即可。
+    # flush 放在 SAVEPOINT 内并关掉自动 flush（见 ``store/api/admin.py`` 同款写法）。
+    try:
+        with session.no_autoflush, session.begin_nested():
+            session.add(
+                Release(
+                    product="homeos",
+                    channel="docker",
+                    version=CURRENT_VERSION,
+                    release_date=CURRENT_RELEASE_DATE,
+                    upgrade_notes=CURRENT_UPGRADE_NOTES,
+                )
+            )
+            session.flush()
+    except IntegrityError:
+        existing = _load_current_release(session)
+        if existing is None:
+            # 撞的不是这条唯一性（不该发生）：让启动照旧失败，别把结构问题藏起来。
+            raise
+        changed = _sync_release_fields(existing)
+        session.flush()
+        logger.info("并发写入撞上唯一索引，已复用既有的 %s 发布记录。", CURRENT_VERSION)
+        return changed
     logger.info("已补写 %s 渠道 %s 发布记录。", "docker", CURRENT_VERSION)
     return True

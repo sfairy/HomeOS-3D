@@ -11,6 +11,7 @@ import logging
 from datetime import datetime, timedelta
 
 from sqlalchemy import func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from store import referrals
@@ -181,6 +182,90 @@ def bundled_feature_codes(session: Session, product: Product) -> list[str]:
     return codes
 
 
+def _entitlement_for(
+    session: Session, license_id: str, feature_code: str
+) -> Entitlement | None:
+    """读该授权上某个功能码的权益（``None`` 表示还没有）。"""
+    return session.scalars(
+        select(Entitlement)
+        .where(Entitlement.license_id == license_id)
+        .where(Entitlement.feature_code == feature_code)
+    ).first()
+
+
+def _apply_grant(
+    entry: Entitlement,
+    *,
+    product: Product,
+    starts_at: datetime,
+    expires_at: datetime | None,
+) -> None:
+    """刷新一条既有权益：重新点亮并指向本次发放的商品与有效期。"""
+    entry.active = True
+    entry.product_id = product.id
+    entry.product_name = product.name
+    entry.product_type = product.product_type
+    entry.starts_at = starts_at
+    entry.expires_at = expires_at
+
+
+def _upsert_entitlement(
+    session: Session,
+    *,
+    customer: Customer,
+    license: License,
+    product: Product,
+    feature_code: str,
+    starts_at: datetime,
+    expires_at: datetime | None,
+) -> bool:
+    """确保该授权上存在 ``feature_code`` 的权益并刷新有效期；返回是否**新建**。
+
+    之所以收成一处：套餐捆绑（:func:`grant_bundled_entitlements`）与增量包
+    （:func:`apply_addon_to_license`）原先各抄了一遍「查 → 有则更新 / 无则插入」，
+    字段清单一改就得改两处，漏一处就会出现「同一种权益、两条路径给不同默认值」。
+
+    插入放在 SAVEPOINT 内并关掉自动 flush：``(license_id, feature_code)`` 上有唯一
+    索引，两笔并发履约（重复支付回调、多 worker 同时处理同一订单）可能都走完「查不到」
+    这一步，此时撞索引不该让整单履约失败 —— 撞了说明别处刚插好，回滚这一条、改成
+    「更新既有行」即可，与「查得到」分支语义完全一致。
+
+    flush 必须**在 SAVEPOINT 内**（先建 SAVEPOINT 再显式 flush）：提前 flush 会把会话
+    打成 needs-rollback，之后连读都读不了。
+    """
+    existing = _entitlement_for(session, license.id, feature_code)
+    if existing is not None:
+        _apply_grant(existing, product=product, starts_at=starts_at, expires_at=expires_at)
+        return False
+
+    entry = Entitlement(
+        customer_id=customer.id,
+        license_id=license.id,
+        product_id=product.id,
+        product_name=product.name,
+        product_type=product.product_type,
+        feature_code=feature_code,
+        active=True,
+        starts_at=starts_at,
+        expires_at=expires_at,
+    )
+    try:
+        with session.no_autoflush, session.begin_nested():
+            session.add(entry)
+            session.flush()
+    except IntegrityError:
+        # 失败的那条不能留在会话里：否则提交时会再插一次、再次撞索引。
+        if entry in session:
+            session.expunge(entry)
+        existing = _entitlement_for(session, license.id, feature_code)
+        if existing is None:
+            # 撞的不是这条唯一性：让上层看见真实错误，别把结构问题藏起来。
+            raise
+        _apply_grant(existing, product=product, starts_at=starts_at, expires_at=expires_at)
+        return False
+    return True
+
+
 def grant_bundled_entitlements(
     session: Session,
     *,
@@ -193,33 +278,16 @@ def grant_bundled_entitlements(
     moment = now or utcnow()
     created = 0
     for feature_code in bundled_feature_codes(session, product):
-        existing = session.scalars(
-            select(Entitlement)
-            .where(Entitlement.license_id == license.id)
-            .where(Entitlement.feature_code == feature_code)
-        ).first()
-        if existing is not None:
-            existing.active = True
-            existing.product_id = product.id
-            existing.product_name = product.name
-            existing.product_type = product.product_type
-            existing.starts_at = moment
-            existing.expires_at = license.access_expires_at
-            continue
-        session.add(
-            Entitlement(
-                customer_id=customer.id,
-                license_id=license.id,
-                product_id=product.id,
-                product_name=product.name,
-                product_type=product.product_type,
-                feature_code=feature_code,
-                active=True,
-                starts_at=moment,
-                expires_at=license.access_expires_at,
-            )
-        )
-        created += 1
+        if _upsert_entitlement(
+            session,
+            customer=customer,
+            license=license,
+            product=product,
+            feature_code=feature_code,
+            starts_at=moment,
+            expires_at=license.access_expires_at,
+        ):
+            created += 1
     if created:
         session.flush()
     return created
@@ -326,32 +394,15 @@ def apply_addon_to_license(
     _capture_license_state(session, order, license)
     for feature_code in json_list(product.feature_codes_json):
         feature_code = str(feature_code)
-        existing = session.scalars(
-            select(Entitlement)
-            .where(Entitlement.license_id == license.id)
-            .where(Entitlement.feature_code == feature_code)
-        ).first()
-        if existing is not None:
-            existing.active = True
-            existing.product_id = product.id
-            existing.product_name = product.name
-            existing.product_type = product.product_type
-            existing.starts_at = moment
-            existing.expires_at = expires_at
-        else:
-            session.add(
-                Entitlement(
-                    customer_id=customer.id,
-                    license_id=license.id,
-                    product_id=product.id,
-                    product_name=product.name,
-                    product_type=product.product_type,
-                    feature_code=feature_code,
-                    active=True,
-                    starts_at=moment,
-                    expires_at=expires_at,
-                )
-            )
+        _upsert_entitlement(
+            session,
+            customer=customer,
+            license=license,
+            product=product,
+            feature_code=feature_code,
+            starts_at=moment,
+            expires_at=expires_at,
+        )
         created += 1
     # 追加购买视为续期：若授权本身有时限，一并延后
     if validity_days and license.access_expires_at is not None:

@@ -3379,7 +3379,7 @@ async function loadOrders() {
           canFulfill && primaryPaid
             ? menuItem('履约', `data-order-fulfill="${esc(order.orderNo)}"`) : '',
           canRefund
-            ? menuItem('退款', `data-order-refund="${esc(order.orderNo)}"`, { danger: true }) : '',
+            ? menuItem('退款', `data-order-refund="${esc(order.orderNo)}" data-order-provider="${esc(order.paymentProvider || '')}"`, { danger: true }) : '',
           canCancel
             ? menuItem('取消订单', `data-order-cancel="${esc(order.orderNo)}"`) : '',
           canReview
@@ -3401,7 +3401,7 @@ $('#order-reset').addEventListener('click', () => resetFilters(
   ['#order-status', '#order-keyword', '#order-date-from', '#order-date-to', '#order-review'], 'orders',
 ));
 $('#order-rows').addEventListener('click', async (event) => {
-  const { orderPaid, orderFulfill, orderRefund, orderCancel, orderDelete, orderReview } = event.target.dataset;
+  const { orderPaid, orderFulfill, orderRefund, orderCancel, orderDelete, orderReview, orderProvider } = event.target.dataset;
   const orderNo = orderPaid || orderFulfill || orderRefund || orderCancel || orderDelete || orderReview;
   if (!orderNo) return;
 
@@ -3459,18 +3459,32 @@ $('#order-rows').addEventListener('click', async (event) => {
   }
 
   const action = orderPaid ? 'mark-paid' : orderFulfill ? 'fulfill' : 'refund';
+  let offlineRefund = false;
   if (action === 'refund') {
+    // 人工标记支付的订单（paymentProvider=manual）在渠道侧没有交易，服务端会按
+    // **线下退款**记账。这里必须把话说全，否则运营以为「系统会去退钱」，
+    // 点完就把订单记成已退款、用户却没收到钱。
+    // 渠道名由订单行上的 data-order-provider 带过来（列表渲染时就写进了 DOM）。
+    const provider = String(orderProvider || '').toLowerCase();
+    offlineRefund = !['', 'mock', 'alipay'].includes(provider);
     const ok = await askConfirm({
-      title: '订单退款',
+      title: offlineRefund ? '订单退款（线下）' : '订单退款',
       message: `确认对订单 ${orderNo} 退款？`,
-      impact: '将同时<b>停用</b>该订单产生的激活码与权益，并退回邀请奖励。',
-      okText: '确认退款',
+      impact: offlineRefund
+        ? '该订单是<b>后台人工标记支付</b>的：渠道侧没有交易，系统不会（也无法）把钱退回去。'
+          + '确认后按<b>线下退款</b>记账 —— 请先自行在渠道外把钱退给用户。'
+          + '同时会<b>停用</b>该订单产生的激活码与权益，并退回邀请奖励。'
+        : '将同时<b>停用</b>该订单产生的激活码与权益，并退回邀请奖励。',
+      okText: offlineRefund ? '确认已线下退款' : '确认退款',
     });
     if (!ok) return;
   }
   try {
-    await api(`/orders/${orderNo}/${action}`, { method: 'POST', body: JSON.stringify({ note: '后台操作' }) });
-    toast(`订单已${action === 'mark-paid' ? '标记支付' : action === 'fulfill' ? '履约' : '退款'}`);
+    await api(`/orders/${orderNo}/${action}`, {
+      method: 'POST',
+      body: JSON.stringify({ note: '后台操作', offline: offlineRefund }),
+    });
+    toast(`订单已${action === 'mark-paid' ? '标记支付' : action === 'fulfill' ? '履约' : offlineRefund ? '按线下退款记账' : '退款'}`);
     await Promise.all([loadOrders(), loadOverview()]);
   } catch (error) { toast(error.message, 'danger'); }
 });

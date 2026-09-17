@@ -19,13 +19,24 @@ store 的库不走 Alembic：结构由 ``create_all`` 建立，但 ``create_all`
   重建整张表、要么会静默丢数据。
 - 表级 ``UniqueConstraint`` 无法通过 ``ALTER TABLE`` 追加；这类差异同样只报
   warning。（新表由 ``create_all`` 建全，不受影响。）
+- **唯一性约束一律声明成 ``Index(..., unique=True)`` 而不是 ``UniqueConstraint``**：
+  前者能在这里用 ``CREATE UNIQUE INDEX IF NOT EXISTS`` 补到存量库上，后者补不了，
+  只能年复一年地打「请人工重建该表」。代价是存量库里**已经有重复行**时建索引会失败，
+  于是有了 ``_DEDUPE_BEFORE_UNIQUE``：登记过的索引在补建前先按「合并后可见权限不减少」
+  的规则合并重复行（并先整份备份数据库文件），没登记的（如 ``orders``）仍旧只告警 ——
+  订单重复行各自代表一笔真实交易，没有「哪一行是冗余」的定义。
 """
 
 from __future__ import annotations
 
 import logging
+import shutil
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Mapping
 
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import Column
 
@@ -63,6 +74,190 @@ _RETIRED_COLUMNS: dict[str, tuple[str, ...]] = {
 #: ``ALTER TABLE ... DROP COLUMN`` 自 SQLite 3.35.0（2021-03-12）起可用。
 #: 官方镜像 ``python:3.12-slim`` 带的是 3.40+，本地 Python 3.14 带 3.50+，都在范围内。
 _MIN_SQLITE_DROP_COLUMN = (3, 35, 0)
+
+
+@dataclass(frozen=True)
+class _UniqueIndexRepair:
+    """补唯一索引前如何合并重复行。
+
+    ``key`` 是索引的列（唯一性按它判定），``keep`` 是保留哪一行的 ``ORDER BY``
+    片段（排在前的当基准行，其余列从它继承），``merge`` 是 ``{列名: 合并方式}``。
+
+    合并方式只有三种，全部满足同一条不变量 —— **合并后客户端可见的权限不减少**：
+
+    - ``any_true``：任一为真则为真（布尔 OR）。用于 ``active``：把两条重复权益里
+      生效的那条并进来，绝不因为去重而把已经放行的功能关掉。
+    - ``earliest`` / ``latest``：取最早/最晚；**任一为 NULL 即为 NULL**（NULL 在这两列
+      上的语义是「无起止限制」，也就是最宽松的那一端）。
+
+    为什么只能白名单式合并：合并会**删数据**。``orders`` 上的部分唯一索引建不起来时
+    同样只告警（订单重复行各自代表一笔真实交易，没有「哪一行是冗余」的定义），这条
+    规则只对「同一组键上的重复行表达同一件事」的表成立。
+    """
+
+    key: tuple[str, ...]
+    keep: str
+    merge: Mapping[str, str]
+
+
+#: 补唯一索引前先合并重复行的索引：``{索引名: 规则}``。
+_DEDUPE_BEFORE_UNIQUE: dict[str, _UniqueIndexRepair] = {
+    # 同一张授权下同一个功能码只能有一条（后台新增权益时也是这么判的，但那是
+    # check-then-act：并发/历史数据都能留下重复行，而 ``features_for`` 是「任一
+    # 条生效就放行」，重复行会让「这条功能到底什么时候到期」失去唯一答案）。
+    "uq_entitlements_license_feature": _UniqueIndexRepair(
+        key=("license_id", "feature_code"),
+        # 优先留生效的那条，其次留最近改过的。
+        keep="active DESC, created_at DESC, id DESC",
+        merge={"active": "any_true", "starts_at": "earliest", "expires_at": "latest"},
+    ),
+    # 同一个 (product, channel, version) 只应有一条：客户端查更新时不该看到
+    # 同一版本的两种说法。留最近创建的那条（运维最后一次编辑的结果）。
+    "uq_releases_product_channel_version": _UniqueIndexRepair(
+        key=("product", "channel", "version"),
+        keep="created_at DESC, id DESC",
+        merge={},
+    ),
+    # 同一台设备在同一张授权下只应有一条绑定；重复绑定的后果是「同一台机器占两个
+    # 名额」，解绑时又只解掉一条。留最近心跳的那条，并按最宽松合并 active/released_at：
+    # 被删的那条若有活跃会话，FK CASCADE 会一并清掉，客户端下次请求即重新激活。
+    "uq_device_bindings_license_instance": _UniqueIndexRepair(
+        key=("license_id", "instance_id"),
+        keep="active DESC, last_heartbeat_at DESC, created_at DESC, id DESC",
+        merge={"active": "any_true", "released_at": "latest"},
+    ),
+}
+
+#: 合并方式白名单，顺序即语义（见 ``_UniqueIndexRepair``）。
+_MERGE_MODES = ("any_true", "earliest", "latest")
+
+
+def backup_database(
+    engine: Engine, *, directory: Path | None = None, label: str = "backup"
+) -> Path | None:
+    """改动数据前把 SQLite 库文件整份复制一份，返回备份路径。
+
+    只对「文件型 SQLite」有效：内存库（测试里常用）没有可复制的文件，直接返回
+    ``None``；其它方言（运维自己换了库）也不做文件级备份，返回 ``None`` 并在日志里
+    说明 —— 调用方仍是「先验证后销毁」，备份只是额外的一层保险。
+
+    ``label`` 进文件名（``<库名>.pre-<label>-<时间戳>.bak``），便于运维一眼看出这份
+    快照是哪个动作之前留的。
+    """
+    if engine.dialect.name != "sqlite":
+        logger.info("方言 %s 不做文件级备份：请自行确认已有可还原的备份。", engine.dialect.name)
+        return None
+
+    database_path = str(engine.url.database or "")
+    if not database_path or database_path == ":memory:":
+        return None
+
+    source = Path(database_path)
+    if not source.is_file():
+        return None
+
+    target_dir = Path(directory) if directory is not None else source.parent
+    #: 目标目录可能不存在（CLI 允许把快照放到独立目录）。这里必须自己建：
+    #: ``shutil.copy2`` 不会建目录，只会以 FileNotFoundError 失败。
+    target_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    destination = target_dir / f"{source.name}.pre-{label}-{stamp}.bak"
+    shutil.copy2(source, destination)
+    logger.warning(
+        "改动数据前已备份数据库：%s（确认结果无误后可自行删除）", destination
+    )
+    return destination
+
+
+def _merge_values(mode: str, values: list) -> object:
+    """按 ``mode`` 合并一组重复行的同名列取值（语义见 ``_UniqueIndexRepair``）。"""
+    if mode == "any_true":
+        return 1 if any(bool(value) for value in values) else 0
+    if mode == "earliest":
+        return None if any(value is None for value in values) else min(values)
+    if mode == "latest":
+        return None if any(value is None for value in values) else max(values)
+    raise ValueError(f"未知的合并方式：{mode}")
+
+
+def _repair_duplicates(engine: Engine, table_name: str, index_name: str) -> int:
+    """合并 ``index_name`` 对应的重复行，返回被合并掉（删除）的行数。
+
+    只在 ``_DEDUPE_BEFORE_UNIQUE`` 登记过的索引上动作；表不存在、表没有主键、或
+    规则里出现了不认识的合并方式时**什么都不做**并告警 —— 结构修复失败不该让服务
+    起不来，但也不能静默地删错东西。
+    """
+    repair = _DEDUPE_BEFORE_UNIQUE.get(index_name)
+    if repair is None:
+        return 0
+
+    table = Base.metadata.tables.get(table_name)
+    if table is None or not set(repair.key) <= set(table.columns.keys()):
+        logger.warning("表 %s 上没有 %s 需要的列，跳过重复行合并。", table_name, index_name)
+        return 0
+    primary_key = [column.name for column in table.primary_key.columns]
+    if not primary_key:
+        logger.warning("表 %s 没有主键，无法安全合并重复行（跳过）。", table_name)
+        return 0
+
+    unknown = sorted(set(repair.merge.values()) - set(_MERGE_MODES))
+    if unknown:
+        logger.warning("索引 %s 的合并规则含未知方式 %s，跳过合并。", index_name, "、".join(unknown))
+        return 0
+
+    with engine.connect() as connection:
+        rows = connection.execute(select(table).order_by(*_order_by(table, repair.keep))).mappings().all()
+
+    groups: dict[tuple, list] = {}
+    for row in rows:
+        groups.setdefault(tuple(row[name] for name in repair.key), []).append(row)
+    duplicated = {key: group for key, group in groups.items() if len(group) > 1}
+    if not duplicated:
+        return 0
+
+    removed = 0
+    #: 备份必须在删除之前：这是唯一一步会**删用户数据**的结构修复。
+    backup = backup_database(engine, label=f"merge-{index_name}")
+    with engine.begin() as connection:
+        for group in duplicated.values():
+            base = group[0]
+            values = {}
+            for column, mode in repair.merge.items():
+                merged = _merge_values(mode, [row[column] for row in group])
+                if merged != base[column]:
+                    values[column] = merged
+            if values:
+                connection.execute(
+                    table.update()
+                    .where(*[table.c[name] == base[name] for name in primary_key])
+                    .values(**values)
+                )
+            for row in group[1:]:
+                connection.execute(
+                    table.delete().where(*[table.c[name] == row[name] for name in primary_key])
+                )
+                removed += 1
+
+    logger.warning(
+        "表 %s 有 %d 组重复行，已按「合并后权限不减少」合并掉 %d 行，以便建立唯一索引 %s"
+        "（合并前备份：%s）。请检查是否有业务上的意外。",
+        table_name,
+        len(duplicated),
+        removed,
+        index_name,
+        backup if backup is not None else "内存库/非文件库，无文件级备份",
+    )
+    return removed
+
+
+def _order_by(table, clause: str) -> list:
+    """把 ``ORDER BY`` 片段（形如 ``"active DESC, created_at DESC"``）解析成表达式列表。"""
+    expressions = []
+    for part in clause.split(","):
+        tokens = part.split()
+        column = table.columns[tokens[0]]
+        expressions.append(column.desc() if "DESC" in (tokens[1:2] or []) else column.asc())
+    return expressions
 
 
 def _literal(value: object) -> str | None:
@@ -266,6 +461,19 @@ def ensure_schema(engine: Engine) -> list[str]:
         for index in table.indexes:
             if index.name in existing_indexes:
                 continue
+            if index.unique and index.name in _DEDUPE_BEFORE_UNIQUE:
+                # 唯一索引建不起来的最常见原因就是存量重复行。登记过的表先把重复行
+                # 合并成一行（合并前后客户端可见的权限一致），否则这个索引永远建不上，
+                # 「保护」只停留在文档里。
+                merged = _repair_duplicates(engine, table.name, index.name)
+                if merged:
+                    # 只记明细、不重复记 applied：索引建成功后下面还会记一次，
+                    # 两个都记会让「已补齐 N 项」凭空翻倍。
+                    details.append(
+                        f"{table.name}.{index.name}（索引，合并 {merged} 行重复数据）"
+                    )
+                    # 合并改了数据也改了表，缓存必须清掉再建索引。
+                    inspector.clear_cache()
             ddl = _index_ddl(table.name, index, engine.dialect)
             try:
                 with engine.begin() as connection:

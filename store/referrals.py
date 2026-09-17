@@ -113,6 +113,8 @@ def _apply_wallet_delta(
     *,
     delta_centi: int,
     frozen_delta_centi: int,
+    earned_delta_centi: int = 0,
+    withdrawn_delta_centi: int = 0,
 ) -> tuple[int, int]:
     """把余额变动写成**一条 SQL** 并返回改动后的 ``(balance_centi, frozen_centi)``。
 
@@ -127,9 +129,11 @@ def _apply_wallet_delta(
     整数列不需要 ``round()``：整数加法本身精确，早先 SQL 侧那次 ``round(..., 2)``
     正是「两处舍入规则不一致」的来源。
 
-    刻意**不**在这里夹到非负：能不能扣、扣多少是业务规则（见
+    刻意**不**给余额夹到非负：能不能扣、扣多少是业务规则（见
     ``reverse_order_reward`` 的「可扣上限 = 余额 - 冻结」），账本层擅自夹会让
     「该扣的没扣到」变成静默发生的事，而那正是需要被记进流水备注去追偿的。
+    累计获得 ``earned_centi`` 是例外：它只是个计数器，负值没有业务含义，所以在 SQL 里
+    直接夹到 0（与原先 ``max(0, ...)`` 的语义一致）。
     """
     values: dict[str, object] = {}
     if delta_centi:
@@ -140,6 +144,20 @@ def _apply_wallet_delta(
         values["frozen_centi"] = func.coalesce(ReferralWallet.frozen_centi, 0) + int(
             frozen_delta_centi
         )
+    if earned_delta_centi:
+        #: 累计获得同样是读-改-写的老问题：两笔奖励并发结算时后写的一方会把先写的
+        #: 整个覆盖掉，``earned`` 因此**少于**流水里 reward 的合计 —— 对账时表现为
+        #: 「有人绕过账本改了钱包」，实际只是这里丢了更新。改成一条 SQL 里的加法，
+        #: 并夹到非负（退回奖励时可能把累计值扣到 0 以下）。
+        values["earned_centi"] = func.max(
+            0,
+            func.coalesce(ReferralWallet.earned_centi, 0) + int(earned_delta_centi),
+        )
+    if withdrawn_delta_centi:
+        #: 累计提现同理：放在这条语句里，钱包的三个聚合值就只有一个写入点。
+        values["withdrawn_centi"] = func.coalesce(
+            ReferralWallet.withdrawn_centi, 0
+        ) + int(withdrawn_delta_centi)
     if values:
         session.execute(
             update(ReferralWallet)
@@ -150,7 +168,6 @@ def _apply_wallet_delta(
         session.refresh(wallet)
     return int(wallet.balance_centi or 0), int(wallet.frozen_centi or 0)
 
-
 def ledger_entry(
     session: Session,
     wallet: ReferralWallet,
@@ -158,6 +175,8 @@ def ledger_entry(
     kind: str,
     delta_centi: int = 0,
     frozen_delta_centi: int = 0,
+    earned_delta_centi: int = 0,
+    withdrawn_delta_centi: int = 0,
     note: str = "",
     reference: str | None = None,
     order_id: str | None = None,
@@ -167,6 +186,8 @@ def ledger_entry(
         wallet,
         delta_centi=delta_centi,
         frozen_delta_centi=frozen_delta_centi,
+        earned_delta_centi=earned_delta_centi,
+        withdrawn_delta_centi=withdrawn_delta_centi,
     )
     entry = ReferralLedger(
         wallet_id=wallet.id,
@@ -232,11 +253,13 @@ def grant_order_reward(
         wallet,
         kind="reward",
         delta_centi=points_centi,
+        #: 累计获得与余额在同一条 SQL 里更新：分成两次写就会丢掉并发下的更新
+        #: （见 ``_apply_wallet_delta``）。
+        earned_delta_centi=points_centi,
         note=f"好友订单 {order.order_no} 实付奖励",
         reference=order.order_no,
         order_id=order.id,
     )
-    wallet.earned_centi = int(wallet.earned_centi or 0) + points_centi
     order.referral_reward_points_centi = points_centi
     session.flush()
     return points_centi
@@ -275,11 +298,13 @@ def reverse_order_reward(
         wallet,
         kind="reversal",
         delta_centi=-deductible,
+        #: 累计获得按**整笔**奖励回退（不是按实际扣回的 deductible）：退款后这笔奖励
+        #: 就不存在了，counted 值应回到发放前的口径。夹到 0 由 SQL 完成。
+        earned_delta_centi=-points_centi,
         note=detail,
         reference=order.order_no,
         order_id=order.id,
     )
-    wallet.earned_centi = max(0, int(wallet.earned_centi or 0) - points_centi)
     order.referral_reward_points_centi = 0
     session.flush()
     return deductible
@@ -412,18 +437,11 @@ def resolve_withdrawal(
             kind="withdrawal",
             delta_centi=-points_centi,
             frozen_delta_centi=-points_centi,
+            #: ``withdrawn`` 也是聚合值：走同一个写入点（原先在这里另发一条
+            #: UPDATE，等价但把「钱包聚合值只有一个写入点」这件事拆散了）。
+            withdrawn_delta_centi=points_centi,
             note=note or "提现完成",
             reference=withdrawal.id,
-        )
-        #: ``withdrawn`` 也是聚合值，必须原子自增：两次审批并发时会互相覆盖。
-        session.execute(
-            update(ReferralWallet)
-            .where(ReferralWallet.id == wallet.id)
-            .values(
-                withdrawn_centi=func.coalesce(ReferralWallet.withdrawn_centi, 0)
-                + points_centi
-            )
-            .execution_options(synchronize_session=False)
         )
     else:
         ledger_entry(

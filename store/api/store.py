@@ -46,7 +46,6 @@ from store.models import (
     ReferralWallet,
     ReferralWithdrawal,
     Release,
-    utcnow,
 )
 from store.limiter import SlidingWindowLimiter
 from store.request_security import resolve_client_ip, secure_cookies_required

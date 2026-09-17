@@ -16,6 +16,7 @@ from typing import Iterator
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import and_, delete, func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from store import coupons, features, fulfill, money, referrals, site_settings as site_config
@@ -73,7 +74,6 @@ from store.models import (
     ReferralWithdrawal,
     Release,
     StoreSetting,
-    utcnow,
 )
 from store.schemas import (
     AdminAccountPatch,
@@ -983,7 +983,13 @@ def admin_list_orders(
         offset=offset,
         # 删除守卫的第三条判据（渠道交易是否已确认关闭）前端拿不到，这里补进列表，
         # 让「能不能删」只有一个口径 —— 否则按钮会照常显示、点下去才 409。
-        render=lambda row: {**order_payload(row), "channelPayable": channel_still_payable(row)},
+        # ``paymentProvider`` 同理：人工标记支付的订单（manual）只能线下退款，前端要靠
+        # 它把退款确认框的文案换成「线下退款」，不能只说「确认退款」就把钱记成已退。
+        render=lambda row: {
+            **order_payload(row),
+            "channelPayable": channel_still_payable(row),
+            "paymentProvider": row.payment_provider or "",
+        },
     )
 
 
@@ -1281,6 +1287,18 @@ def _refund_order(
 
     refund_reason = (payload.note or f"订单 {order.order_no} 后台退款")[:255]
 
+    #: 人工标记支付的订单（以及没记渠道 / 渠道名已失效的老订单）在渠道侧没有可退的
+    #: 交易：必须按**线下退款**记账，绝不能回落到「当前站点配置的渠道」——配模拟收银台
+    #: 时会「退成功」却分文未动（S47）。这里不抛 409：这类订单本来就只能线下退，
+    #: 拒绝只会让运营在后台点不动退款按钮。改为自动改走线下，并把原因写进审计与流水。
+    forced_offline = _offline_refund_reason(order)
+    offline_refund = bool(payload.offline) or bool(forced_offline)
+    if forced_offline and not payload.offline:
+        logger.warning(
+            "退款按线下处理 order=%s：%s（未走任何支付渠道）", order.order_no, forced_offline
+        )
+        refund_reason = f"{refund_reason}｜{forced_offline}，按线下退款记账"[:255]
+
     # 幂等键必须**每次退款动作都不同**。写成 RF{订单号} 的话，支付宝会把第二次
     # 部分退款当成「同一笔退款」直接返回上次结果 —— 钱没退出去，本地却记成已退。
     out_request_no = f"RF{order.order_no}-{new_uuid()[:8]}"[:128]
@@ -1290,7 +1308,7 @@ def _refund_order(
         out_request_no=out_request_no,
         amount_cents=amount_cents,
         reason=refund_reason,
-        offline=bool(payload.offline),
+        offline=offline_refund,
         operator=_admin_actor(admin),
         status="failed",
     )
@@ -1303,7 +1321,7 @@ def _refund_order(
     #: 记账必须按实际数字，否则账面营收会被多减。
     settled_cents = amount_cents
 
-    if amount_cents > 0 and not payload.offline:
+    if amount_cents > 0 and not offline_refund:
         # 关键：退款必须真的把钱退回去。这里过去只改本地状态，界面显示「已退款」
         # 而钱仍在商户账户：账面上营收消失了，用户却没收到退款。
         # 网关/渠道失败一律 409 且**不改任何状态**，绝不出现「状态改了、钱没退」。
@@ -1359,8 +1377,8 @@ def _refund_order(
             "order.refund",
             order.order_no,
             f"未产生资金变动（{refund_detail or '该笔可能已退过款'}）"
-            + ("（线下退款）" if payload.offline else "")
-            + (f" 幂等号 {out_request_no}" if not payload.offline else "")
+            + ("（线下退款）" if offline_refund else "")
+            + (f" 幂等号 {out_request_no}" if not offline_refund else "")
             + (f" 渠道单号 {refund_trade_no}" if refund_trade_no else ""),
         )
         session.refresh(order)
@@ -1440,11 +1458,11 @@ def _refund_order(
         (
             f"退款 ¥{settled_cents / 100:.2f}（累计 ¥{cumulative_cents / 100:.2f}"
             f" / 订单 ¥{total_cents / 100:.2f}）"
-            + ("（线下退款）" if payload.offline else "")
-            + (f" 幂等号 {out_request_no}" if not payload.offline else "")
+            + ("（线下退款）" if offline_refund else "")
+            + (f" 幂等号 {out_request_no}" if not offline_refund else "")
             + (f" 渠道单号 {refund_trade_no}" if refund_trade_no else "")
             + (f" {refund_detail}" if refund_detail else "")
-            + (f" 备注：{payload.note}" if payload.note else "")
+            + (f" 备注：{refund_reason}" if (payload.note or forced_offline) else "")
         ),
     )
     session.refresh(order)
@@ -1495,12 +1513,41 @@ def request_provider(request):
     return request.app.state.resolve_payment_provider
 
 
+def _offline_refund_reason(order: Order) -> str:
+    """这笔退款为什么**只能**按线下处理（渠道侧没有可退的交易）；无需强制时返回空串。
+
+    后台「标记支付」的订单（:func:`admin_mark_paid`）把 ``payment_provider`` 记成
+    ``manual``。这类订单在渠道侧**根本不存在交易**，过去却会回落到「当前站点配置的
+    渠道」去退：
+
+    * 配支付宝 → 报「交易不存在」，运营看到一条看不懂的 409；
+    * 配模拟收银台 → 直接「退成功」，于是账面上凭空多出一笔已退款、还写上了渠道单号，
+      而钱一分没动 —— 这正是审计里那条「假称已退款却无资金流动」。
+
+    没记下单渠道、或渠道名已不在受支持列表里的老订单同理：无从判断该打哪个网关，
+    只能按线下退款如实记账。
+    """
+    from store.payments import PROVIDER_NAMES, normalize_provider_name
+
+    provider = normalize_provider_name(order.payment_provider)
+    if provider == "manual":
+        return "该订单是后台人工标记支付的（渠道侧没有这笔交易）"
+    if not provider:
+        return "该订单没有记录下单渠道，无从判断该退到哪个渠道"
+    if provider not in PROVIDER_NAMES:
+        return f"该订单的下单渠道「{provider}」不是受支持的渠道"
+    return ""
+
+
 def _refund_provider(resolver, *, order: Order, setting):
     """按**订单下单时**的渠道退款，而不是当前站点配置的渠道。
 
     运营中途把渠道从支付宝切到模拟收银台（或反过来）后，用当前渠道去退老订单
     会打到错误的网关：要么报「交易不存在」，要么（模拟渠道）直接「退成功」。
     所以优先按 ``order.payment_provider`` 找渠道实现。
+
+    能走到这里的订单，渠道名必然在受支持列表内：``manual`` / 未知渠道由
+    :func:`_offline_refund_reason` 提前拦下、改走线下退款，不会再落到「当前渠道」。
     """
     from store.payments import PROVIDER_NAMES, normalize_provider_name
 
@@ -2837,15 +2884,45 @@ def admin_list_releases(
 def admin_create_release(
     payload: AdminReleaseRequest, session: DbSession, admin: AdminAccount
 ) -> dict:
+    product = payload.product or "homeos"
+    channel = payload.channel or "docker"
+    version = payload.version
+    # (product, channel, version) 上有唯一索引：同一个版本只能有一条记录，否则客户端
+    # 「检查更新」会在同一版本的两条说法之间随机挑一条（升级说明、发布日期都可能不同）。
+    # 先查一次给出可读的 409，别让用户看见裸的 IntegrityError。
+    duplicate = session.scalars(
+        select(Release).where(
+            Release.product == product,
+            Release.channel == channel,
+            Release.version == version,
+        )
+    ).first()
+    if duplicate is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{product}/{channel} {version} 已存在，请直接编辑那条记录。",
+        )
+
     release = Release(
-        product=payload.product or "homeos",
-        channel=payload.channel or "docker",
-        version=payload.version,
+        product=product,
+        channel=channel,
+        version=version,
         release_date=payload.release_date or "",
         upgrade_notes=payload.upgrade_notes or "",
     )
     session.add(release)
-    session.flush()
+    # 上面那次查询挡不住并发（两个管理员同时提交）：唯一索引是最终防线，撞上时同样
+    # 翻译成 409 —— 否则前端只会看到一个没有解释的 500。flush 必须**在 SAVEPOINT 内**
+    # 且关掉自动 flush：先建 SAVEPOINT 再显式 flush，失败时只回滚这一次插入，会话仍可
+    # 正常提交（提前 flush 会把会话打成 needs-rollback，之后连读都读不了）。
+    try:
+        with session.no_autoflush, session.begin_nested():
+            session.flush()
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{product}/{channel} {version} 已存在，请直接编辑那条记录。",
+        ) from None
     _audit(session, _admin_actor(admin), "release.create", release.id, release.version)
     return {
         "id": release.id,

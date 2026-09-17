@@ -190,6 +190,24 @@ def _load_public_key(raw: str) -> rsa.RSAPublicKey:
 MIN_RSA_BITS = 2048
 
 
+class ResponseSignatureMissing(PaymentError):
+    """响应里没有 ``sign``：支付宝在「app_id / 私钥不对」这类错误上**不签名**
+    （它没有一把已知的公钥可用于签），所以此时**测不了**公钥对不对。
+
+    单独成类是为了让自检能把它判成「无法判定」而不是「通过」—— 过去自检靠
+    ``"缺少 sign" in str(error)`` 这样的**字符串匹配**来区分，那么只要有人改了
+    那句报错文案，判定就会静默退化成最宽松的那一支（WARN，永不 FAIL）。
+    """
+
+
+class ResponseSignatureInvalid(PaymentError):
+    """响应带了签名但验不过：配置的那把「支付宝公钥」是错的。
+
+    这是最该判 FAIL 的一支（典型成因：把「应用公钥」填成了「支付宝公钥」），
+    同样不能靠匹配报错文案来判断。
+    """
+
+
 def private_key_error(text: str) -> str:
     """应用私钥的校验结论；合法时返回空串。
 
@@ -534,7 +552,8 @@ class AlipayProvider:
     ) -> tuple[dict, str]:
         """调用一个 OpenAPI 方法，返回 (响应节点, 原始响应文本)。
 
-        ``require_signature=False`` 只给凭据自检用（见 ``verify_credentials``）：
+        ``require_signature=False`` 只给凭据自检的**探活那一步**用
+        （见 ``_probe_gateway_credentials``）：
         支付宝在「app_id 不存在 / 验签失败」这类错误上**不会签名**（它没法用一把
         未知的公钥去签），开启验签就会在读到 sub_code 之前先抛「响应缺少 sign」，
         把「app_id 填错了」误报成「响应没签名」。
@@ -608,12 +627,14 @@ class AlipayProvider:
     ) -> None:
         settings = self._resolve(settings)
         if not isinstance(signature, str) or not signature:
-            raise PaymentError("支付宝响应缺少 sign，已拒绝该响应（可关闭响应验签开关）。")
+            raise ResponseSignatureMissing(
+                "支付宝响应缺少 sign，已拒绝该响应（可关闭响应验签开关）。"
+            )
         content = extract_raw_node(raw, node_key)
         if not content:
             raise PaymentError("无法从支付宝响应中定位待验签内容。")
         if not verify_content(content, signature, settings.alipay_public_key_text):
-            raise PaymentError("支付宝响应验签失败，已拒绝该响应。")
+            raise ResponseSignatureInvalid("支付宝响应验签失败，已拒绝该响应。")
 
     # ------------------------------------------------------------------ #
     # 下单
@@ -787,8 +808,15 @@ class AlipayProvider:
     # ------------------------------------------------------------------ #
     # 凭据自检
     # ------------------------------------------------------------------ #
-    def verify_credentials(self, settings: StoreSettings) -> tuple[bool, str]:
+    def _probe_gateway_credentials(self, settings: StoreSettings) -> tuple[bool, str]:
         """用一笔**不存在的交易**探活，判断这套凭据到底能不能用。
+
+        这是自检里的**一步**，不是自检本身：对外入口是 ``diagnose_credentials``
+        （后台「测试凭据」按钮走的就是它）。名字从 ``verify_credentials`` 改成私有 +
+        更具体的说法，正是因为审计里出现过「凭据自检从不使用支付宝公钥」这条结论 ——
+        把这一步当成了全部自检。它确实不用公钥，而它**不该**被当成「都验过了」。
+        这里只回答「网关认不认这套 app_id + 私钥」；「公钥能不能验通」由
+        ``diagnose_credentials`` 的 ``public-key-verified`` 一项负责。
 
         为什么需要一个专门的探测：凭据填错的反馈极其滞后 —— 私钥不对时签名会失败，
         但报错只在「用户点下单」的那一刻出现，而且是一句笼统的「验签失败」。
@@ -799,8 +827,8 @@ class AlipayProvider:
         「交易不存在」这个回答，就说明网关已经认可了我们的 app_id 并验签通过 ——
         这正是我们要验证的事，且不产生任何资金动作。
 
-        返回 ``(可用?, 说明文案)``，不抛异常：这是给后台的「测试凭据」按钮用的，
-        失败原因要原样展示给人看，而不是变成一个 500。
+        返回 ``(可用?, 说明文案)``，不抛异常：结论要原样念给管理员听，
+        变成一个 500 就失去了全部意义。
 
         这里刻意**关掉响应验签**（``require_signature=False``）：凭据填错时支付宝
         的错误响应根本不带 ``sign``（它没有可用的公钥来签），开启验签会先抛
@@ -840,7 +868,7 @@ class AlipayProvider:
     ) -> tuple[bool, str, list[dict]]:
         """逐项自检当前凭据与回调配置，返回 ``(是否全部通过, 一句话结论, 结论列表)``。
 
-        与 ``verify_credentials`` 的关系：后者只回答「网关认不认这套 app_id + 私钥」，
+        与 ``_probe_gateway_credentials`` 的关系：后者只回答「网关认不认这套 app_id + 私钥」，
         用的是 `require_signature=False` 的探活 —— 也就是说它**从来没有用过支付宝
         公钥**。而线上最难自查、损失最直接的两个故障恰好都落在它测不到的地方：
 
@@ -943,7 +971,7 @@ class AlipayProvider:
             )
 
         # ---- 网关是否认可这套凭据（探活，无资金动作） ---- #
-        accepted, accepted_detail = self.verify_credentials(settings)
+        accepted, accepted_detail = self._probe_gateway_credentials(settings)
         checks.append(
             check_result(
                 "credentials-accepted",
@@ -955,6 +983,10 @@ class AlipayProvider:
 
         # ---- 支付宝公钥能不能真的验通（响应验签） ---- #
         # 这一步是整套诊断里唯一真正使用「支付宝公钥」的地方。
+        #
+        # 判定按**异常类型**而不是报错文案：文案改一个字，字符串匹配就会静默落进
+        # 最宽松的那一支（WARN），而它恰恰是「没测到」的伪装。见
+        # ``ResponseSignatureMissing`` / ``ResponseSignatureInvalid``。
         probe_no = f"HOMEOS-PROBE-{uuid4().hex[:12]}"
         try:
             self._call(
@@ -964,34 +996,32 @@ class AlipayProvider:
                 require_signature=False,
                 force_signature_check=True,
             )
+        except ResponseSignatureMissing:
+            # 支付宝在「app_id/私钥不对」这类错误上不签名，此时无法判定公钥；
+            # 这是「测不了」，不是「通过」。
+            checks.append(
+                check_result(
+                    "public-key-verified",
+                    "响应验签",
+                    LEVEL_WARN,
+                    "网关本次响应未带签名，无法据此判定支付宝公钥是否正确"
+                    "（先修好上面的凭据项再复测）。",
+                )
+            )
+        except ResponseSignatureInvalid:
+            checks.append(
+                check_result(
+                    "public-key-verified",
+                    "响应验签",
+                    LEVEL_FAIL,
+                    "响应验签失败：支付宝公钥不正确。最常见的原因是填成了自己的"
+                    "「应用公钥」，请改成开放平台里的「支付宝公钥」。",
+                )
+            )
         except PaymentError as error:
-            message = str(error)
-            if "缺少 sign" in message:
-                # 支付宝在「app_id/私钥不对」这类错误上不签名，此时无法判定公钥；
-                # 这是「测不了」，不是「通过」。
-                checks.append(
-                    check_result(
-                        "public-key-verified",
-                        "响应验签",
-                        LEVEL_WARN,
-                        "网关本次响应未带签名，无法据此判定支付宝公钥是否正确"
-                        "（先修好上面的凭据项再复测）。",
-                    )
-                )
-            elif "验签失败" in message:
-                checks.append(
-                    check_result(
-                        "public-key-verified",
-                        "响应验签",
-                        LEVEL_FAIL,
-                        "响应验签失败：支付宝公钥不正确。最常见的原因是填成了自己的"
-                        "「应用公钥」，请改成开放平台里的「支付宝公钥」。",
-                    )
-                )
-            else:
-                checks.append(
-                    check_result("public-key-verified", "响应验签", LEVEL_WARN, message)
-                )
+            checks.append(
+                check_result("public-key-verified", "响应验签", LEVEL_WARN, str(error))
+            )
         else:
             checks.append(
                 check_result(

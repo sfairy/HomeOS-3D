@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import importlib.util
+import inspect
 import io
 import json
 import logging
@@ -54,7 +55,8 @@ from cryptography.hazmat.primitives.serialization import (
     PrivateFormat,
     PublicFormat,
 )
-from sqlalchemy import Column, MetaData, String, func, inspect, select
+from sqlalchemy import Column, MetaData, String, func, select
+from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from store.app import create_app
@@ -76,7 +78,6 @@ from store.models import (
     Product,
     ReferralWallet,
     ReferralWithdrawal,
-    Release,
     StoreSetting,
 )
 from store.order_status import ORDER_STATUS_LABELS
@@ -250,7 +251,7 @@ def check_retired_columns() -> None:
 
         problems: list[str] = []
         for table_name, columns in _RETIRED_COLUMNS.items():
-            actual = {column["name"] for column in inspect(engine).get_columns(table_name)}
+            actual = {column["name"] for column in sa_inspect(engine).get_columns(table_name)}
             expected = {column.name for column in Base.metadata.tables[table_name].columns}
             problems.extend(f"{table_name}.{name}" for name in columns if name in actual)
             if actual != expected:
@@ -3160,6 +3161,67 @@ async def check_alipay_diagnostics() -> None:
             str(correct_levels.get("key-pair-distinct")),
         )
 
+        # ---- (d) S19：自检必须真的把「支付宝公钥」用上一次 ---- #
+        #
+        # 这一项是整套自检里唯一会用公钥去验签的地方，也是审计 S19 的要点：
+        # `_probe_gateway_credentials` 那次探活刻意不验签（否则「app_id 填错」
+        # 会被误报成「响应没签名」），所以「自检通过」必须由这一项来保证 ——
+        # 一旦它被删掉或被改成永远不 FAIL，界面就会回到「全绿但通知全挂」的状态。
+        #
+        # 本场景里网关是 DNS 打不通的保留域名，所以它只能判 warn（测不了），
+        # 这就同时钉住了两件事：项**存在**，且「测不了」没有被渲染成 pass。
+        check(
+            "S19 自检清单里必须有「响应验签」项（删掉它＝回到「没测到却全绿」）",
+            "public-key-verified" in correct_levels,
+            ",".join(sorted(correct_levels)),
+        )
+        check(
+            "S19 网关够不着时该项判 warn 而不是 pass/缺失（测不了 ≠ 通过）",
+            correct_levels.get("public-key-verified") == "warn",
+            str(correct_levels.get("public-key-verified")),
+        )
+
+        # ---- (e) S19：判定靠异常类型，不靠报错文案 ---- #
+        from store.payments import alipay as alipay_module
+
+        provider = alipay_module.AlipayProvider(settings)
+        missing: Exception | None = None
+        invalid: Exception | None = None
+        try:
+            provider._verify_response("{}", "alipay_trade_query_response", "", settings)
+        except Exception as error:  # noqa: BLE001 - 正在测它抛什么
+            missing = error
+        try:
+            provider._verify_response(
+                '{"alipay_trade_query_response":{"code":"10000"}}',
+                "alipay_trade_query_response",
+                "not-a-real-signature",
+                settings,
+            )
+        except Exception as error:  # noqa: BLE001
+            invalid = error
+        check(
+            "S19 响应没带 sign 时抛 ResponseSignatureMissing（自检据此判「测不了」）",
+            isinstance(missing, alipay_module.ResponseSignatureMissing),
+            f"{type(missing).__name__}: {missing}",
+        )
+        check(
+            "S19 签名验不过时抛 ResponseSignatureInvalid（自检据此判「公钥错了」）",
+            isinstance(invalid, alipay_module.ResponseSignatureInvalid),
+            f"{type(invalid).__name__}: {invalid}",
+        )
+        check(
+            "S19 两个异常都是 PaymentError 子类（既有 except PaymentError 的调用点不会漏接）",
+            isinstance(missing, PaymentError) and isinstance(invalid, PaymentError),
+            f"{type(missing).__name__} / {type(invalid).__name__}",
+        )
+        diagnose_source = inspect.getsource(alipay_module.AlipayProvider.diagnose_credentials)
+        check(
+            "S19 自检不再用报错文案分支判断（改一句文案就会静默降级成 warn）",
+            '"缺少 sign" in' not in diagnose_source and '"验签失败" in' not in diagnose_source,
+            "diagnose_credentials 里仍有字符串匹配分支" if '"缺少 sign" in' in diagnose_source else "",
+        )
+
 
 async def check_payment_provider_fail_closed() -> None:
     """支付渠道必须 fail-closed：未配置渠道、或模拟收银台未显式开启时，都不能建单。
@@ -5624,6 +5686,627 @@ def check_store_setup_authorization() -> None:
         )
 
 
+def check_unique_index_repair() -> None:
+    """S23：存量库上的唯一索引补建 + 重复行合并。
+
+    三张表的唯一性原先只靠应用层「查一次再插」（check-then-act），并发/历史数据都能
+    留下重复行；而表级 ``UniqueConstraint`` 在 SQLite 上补不进存量库，于是保护只在
+    新库上存在。修复方式是把唯一性声明成 ``Index(..., unique=True)``（能被
+    ``CREATE UNIQUE INDEX IF NOT EXISTS`` 补到存量库），并在补建前按「合并后可见权限
+    不减少」的规则合并重复行（``_DEDUPE_BEFORE_UNIQUE``）。
+    """
+    import store.schema_guard as schema_guard
+    from store.models import DeviceBinding, Entitlement, License, Release
+    from store.licensing.service import LicenseAuthority  # noqa: F401 - 仅用于说明读取路径
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-unique-repair-"))
+    engine = create_store_engine(
+        load_settings(data_dir=workdir / "data", license_keys_dir=workdir / "keys")
+    )
+    Base.metadata.create_all(engine)
+
+    # 全新库上三个索引都该由 create_all 建出来（否则「新库受保护」就是空话）。
+    fresh = {
+        item["name"]: bool(item["unique"]) for item in sa_inspect(engine).get_indexes("entitlements")
+    }
+    fresh_update = {
+        item["name"]: bool(item["unique"]) for item in sa_inspect(engine).get_indexes("releases")
+    }
+    fresh_binding = {
+        item["name"]: bool(item["unique"])
+        for item in sa_inspect(engine).get_indexes("device_bindings")
+    }
+    check(
+        "S23 新库上三个唯一索引都由 create_all 建出（Entitlement / Release / DeviceBinding）",
+        all(
+            fresh.get(name) and fresh_update.get(name_r) and fresh_binding.get(name_b)
+            for name, name_r, name_b in (
+                (
+                    "uq_entitlements_license_feature",
+                    "uq_releases_product_channel_version",
+                    "uq_device_bindings_license_instance",
+                ),
+            )
+        ),
+        f"entitlements={fresh} releases={fresh_update} device_bindings={fresh_binding}",
+    )
+
+    # 模拟存量库：把索引删掉，再塞进重复行（历史数据/并发都可能是这么来的）。
+    with engine.begin() as connection:
+        for name in (
+            "uq_entitlements_license_feature",
+            "uq_releases_product_channel_version",
+            "uq_device_bindings_license_instance",
+        ):
+            connection.exec_driver_sql(f"DROP INDEX {name}")
+
+    day1 = utcnow()
+    day2 = day1 + timedelta(days=1)
+    year = day1 + timedelta(days=365)
+    with Session(engine) as session:
+        # 客户档案（licenses.customer_id 是外键，必须有对应行）
+        session.add(Account(id="rep-acc", email="repair@x.local", password_hash="x"))
+        session.flush()
+        session.add(
+            Customer(id="rep-cust", account_id="rep-acc", email="repair@x.local", name="repair")
+        )
+        session.add(
+            License(
+                id="rep-lic",
+                activation_code="SMOKE-REPAIR-0001",
+                code_hint="REPAIR",
+                customer_id="rep-cust",
+                product_name="基础版",
+                product_type="base",
+                active=True,
+            )
+        )
+        session.add(Product(id="rep-prod", name="增量包", product_type="module", price_cents=100))
+        session.flush()
+        # 权益重复：一条已停用但到期更晚、一条启用但更早 —— 合并规则是
+        # active 取 OR、starts 取最早、expires 取最晚，且 NULL 代表「无限制」优先。
+        session.add(
+            Entitlement(
+                id="rep-ent-a",
+                customer_id="rep-cust",
+                license_id="rep-lic",
+                product_id="rep-prod",
+                product_name="增量包",
+                product_type="module",
+                feature_code="module.3d_interaction",
+                active=False,
+                starts_at=day2,
+                expires_at=year,
+                created_at=day1,
+            )
+        )
+        session.add(
+            Entitlement(
+                id="rep-ent-b",
+                customer_id="rep-cust",
+                license_id="rep-lic",
+                product_id="rep-prod",
+                product_name="增量包",
+                product_type="module",
+                feature_code="module.3d_interaction",
+                active=True,
+                starts_at=day1,
+                expires_at=None,
+                created_at=day2,
+            )
+        )
+        # 版本记录重复：留最近创建的那条（运维最后一次编辑的结果）。
+        session.add(
+            Release(
+                id="rep-rel-old",
+                product="homeos",
+                channel="docker",
+                version="9.9.9",
+                release_date="2020-01-01",
+                upgrade_notes="旧说法",
+                created_at=day1,
+            )
+        )
+        session.add(
+            Release(
+                id="rep-rel-new",
+                product="homeos",
+                channel="docker",
+                version="9.9.9",
+                release_date="2026-01-01",
+                upgrade_notes="新说法",
+                created_at=day2,
+            )
+        )
+        # 设备绑定重复：留最近心跳的那条，并按最宽松合并 active/released_at。
+        session.add(
+            DeviceBinding(
+                id="rep-bind-old",
+                license_id="rep-lic",
+                instance_id="inst-1",
+                active=False,
+                released_at=day1,
+                created_at=day1,
+            )
+        )
+        session.add(
+            DeviceBinding(
+                id="rep-bind-new",
+                license_id="rep-lic",
+                instance_id="inst-1",
+                active=True,
+                released_at=None,
+                last_heartbeat_at=day2,
+                created_at=day2,
+            )
+        )
+        session.commit()
+
+    applied = schema_guard.ensure_schema(engine)
+
+    def _index_names(table: str) -> dict[str, bool]:
+        return {
+            item["name"]: bool(item["unique"]) for item in sa_inspect(engine).get_indexes(table)
+        }
+
+    check(
+        "S23 存量库删掉索引后能幂等补回（三张表都是唯一索引）",
+        _index_names("entitlements").get("uq_entitlements_license_feature") is True
+        and _index_names("releases").get("uq_releases_product_channel_version") is True
+        and _index_names("device_bindings").get("uq_device_bindings_license_instance") is True,
+        f"applied={applied[:4]}",
+    )
+
+    with Session(engine) as session:
+        entries = session.scalars(
+            select(Entitlement).where(Entitlement.license_id == "rep-lic")
+        ).all()
+        releases = session.scalars(select(Release).where(Release.version == "9.9.9")).all()
+        bindings = session.scalars(
+            select(DeviceBinding).where(DeviceBinding.license_id == "rep-lic")
+        ).all()
+
+    check(
+        "S23 重复权益被合并成一条，且合并规则保证「可见权限不减少」"
+        "（active 取 OR、starts 取最早、expires 的 NULL 优先）",
+        len(entries) == 1
+        and bool(entries[0].active) is True
+        and entries[0].starts_at == day1
+        and entries[0].expires_at is None,
+        f"rows={len(entries)} active={entries[0].active if entries else '-'} "
+        f"starts={entries[0].starts_at if entries else '-'} "
+        f"expires={entries[0].expires_at if entries else '-'}",
+    )
+    check(
+        "S23 重复版本记录只留最近创建的那条（同一版本不该有两种升级说明）",
+        len(releases) == 1 and releases[0].id == "rep-rel-new",
+        f"rows={[row.id for row in releases]}",
+    )
+    check(
+        "S23 重复设备绑定合并后仍处于可用状态（active 取 OR、released_at 的 NULL 优先）",
+        len(bindings) == 1
+        and bool(bindings[0].active) is True
+        and bindings[0].released_at is None,
+        f"rows={[row.id for row in bindings]}",
+    )
+
+    backups = sorted(workdir.glob("**/*.pre-merge-*.bak"))
+    check(
+        "S23 合并会删数据，因此必须先整份备份数据库文件（可人工还原）",
+        len(backups) >= 1,
+        f"备份={[path.name for path in backups][:3]}",
+    )
+
+    # 幂等：再跑一次不该再删任何行。
+    again = schema_guard.ensure_schema(engine)
+    with Session(engine) as session:
+        counts = (
+            len(session.scalars(select(Entitlement).where(Entitlement.license_id == "rep-lic")).all()),
+            len(session.scalars(select(Release).where(Release.version == "9.9.9")).all()),
+            len(session.scalars(select(DeviceBinding).where(DeviceBinding.license_id == "rep-lic")).all()),
+        )
+    check(
+        "S23 再跑一次 ensure_schema 不再改动数据（合并是幂等的，不会越删越多）",
+        counts == (1, 1, 1) and not [item for item in again if "合并" in item],
+        f"counts={counts} applied={again[:3]}",
+    )
+
+    # 牙齿：把登记表里的规则摘掉，同样一份重复数据就会「索引建不上、行还在」——
+    # 说明上面那几条断言确实依赖合并逻辑，而不是别的路径顺手把活干了。
+    teeth_dir = Path(tempfile.mkdtemp(prefix="hb-unique-teeth-"))
+    teeth_engine = create_store_engine(
+        load_settings(data_dir=teeth_dir / "data", license_keys_dir=teeth_dir / "keys")
+    )
+    Base.metadata.create_all(teeth_engine)
+    with teeth_engine.begin() as connection:
+        connection.exec_driver_sql("DROP INDEX uq_releases_product_channel_version")
+    with Session(teeth_engine) as session:
+        for index in (1, 2):
+            session.add(
+                Release(
+                    id=f"teeth-{index}",
+                    product="homeos",
+                    channel="docker",
+                    version="8.8.8",
+                    created_at=day1 + timedelta(hours=index),
+                )
+            )
+        session.commit()
+    saved = schema_guard._DEDUPE_BEFORE_UNIQUE.pop("uq_releases_product_channel_version")
+    try:
+        schema_guard.ensure_schema(teeth_engine)
+    finally:
+        schema_guard._DEDUPE_BEFORE_UNIQUE["uq_releases_product_channel_version"] = saved
+    with Session(teeth_engine) as session:
+        teeth_rows = len(session.scalars(select(Release).where(Release.version == "8.8.8")).all())
+    check(
+        "S23 牙齿：没有合并规则时重复行原样保留、索引建不上（断言确实测的是合并逻辑）",
+        teeth_rows == 2
+        and sa_inspect(teeth_engine).get_indexes("releases")
+        and "uq_releases_product_channel_version"
+        not in {item["name"] for item in sa_inspect(teeth_engine).get_indexes("releases")},
+        f"rows={teeth_rows}",
+    )
+
+
+def check_wallet_aggregate_atomic() -> None:
+    """S46：钱包聚合值（earned / withdrawn）必须和 balance 一样是**一条 SQL** 更新。
+
+    ``balance``/``frozen`` 早就改成了原子写法，``earned`` 却还留在 ORM 属性上做
+    「读-改-写」：两个会话各自基于同一个旧值相加，后写的那个把先写的整个覆盖 ——
+    账本里有两条 reward 流水，``earned`` 只加了一次，对账时看起来像「有人绕过账本
+    改了钱包」。这里用两个真正独立的会话复现丢更新的现场。
+    """
+    from store import referrals
+    from store.models import ReferralLedger
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-wallet-aggregate-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+
+    with database.session() as session:
+        account = Account(
+            email="wallet-aggregate@habridge.local",
+            password_hash=hash_password("smoke-wallet-aggregate-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        wallet = referrals.get_or_create_wallet(session, account)
+        session.flush()
+        wallet_id = wallet.id
+
+    session_a = database.session_factory()
+    session_b = database.session_factory()
+    try:
+        # 两个会话都先把钱包读进内存（identity map 里都是 0）——旧写法正是在这里
+        # 各自算出一个绝对值，再由后写的那一方覆盖掉前一方。
+        wallet_a = session_a.get(ReferralWallet, wallet_id)
+        wallet_b = session_b.get(ReferralWallet, wallet_id)
+        referrals.ledger_entry(
+            session_a, wallet_a, kind="reward", delta_centi=1000, earned_delta_centi=1000,
+            note="smoke 奖励 A",
+        )
+        session_a.commit()
+        referrals.ledger_entry(
+            session_b, wallet_b, kind="reward", delta_centi=2000, earned_delta_centi=2000,
+            note="smoke 奖励 B",
+        )
+        session_b.commit()
+
+        session_a.expire_all()
+        final = session_a.get(ReferralWallet, wallet_id)
+        ledger_sum = int(
+            session_a.scalar(
+                select(func.coalesce(func.sum(ReferralLedger.delta_centi), 0)).where(
+                    ReferralLedger.wallet_id == wallet_id,
+                    ReferralLedger.kind == "reward",
+                )
+            )
+            or 0
+        )
+        check(
+            "S46 两次奖励后 earned 与账本合计一致（旧的读-改-写会少记一次）",
+            int(final.earned_centi or 0) == ledger_sum == 3000,
+            f"earned={final.earned_centi} 账本={ledger_sum}",
+        )
+        check(
+            "S46 余额与累计获得同步增长（3000 厘）",
+            int(final.balance_centi or 0) == 3000,
+            str(final.balance_centi),
+        )
+
+        # 退回奖励把累计值扣到 0 以下时要夹到 0（旧实现的 max(0, ...) 语义）。
+        referrals.ledger_entry(
+            session_a, final, kind="reversal", delta_centi=-100, earned_delta_centi=-5000,
+            note="smoke 退款扣回",
+        )
+        session_a.commit()
+        session_a.expire_all()
+        floored = session_a.get(ReferralWallet, wallet_id)
+        check(
+            "S46 退回奖励时 earned 夹到 0（不会出现负的累计值）",
+            int(floored.earned_centi or 0) == 0,
+            str(floored.earned_centi),
+        )
+
+        # 静态断言：钱包聚合值不允许再出现 ORM 属性上的自增/自减（那就是读-改-写）。
+        import inspect as _inspect
+
+        source = _inspect.getsource(referrals)
+        offenders = [
+            line.strip()
+            for line in source.splitlines()
+            if re.search(r"\.(?:earned|withdrawn)_centi\s*=[^=]", line)
+        ]
+        check(
+            "S46 referrals.py 里没有对 earned/withdrawn 的读-改-写赋值（只有 SQL 侧加法）",
+            not offenders,
+            "；".join(offenders[:3]),
+        )
+    finally:
+        session_b.close()
+        session_a.close()
+
+
+async def check_manual_refund_stays_offline() -> None:
+    """S47：人工标记支付的订单只能按**线下退款**记账，不能回落到当前站点渠道。
+
+    ``manual`` 不在 ``PROVIDER_NAMES`` 里，过去会回落到「当前配置的渠道」：配支付宝
+    时报「交易不存在」（看不懂的 409），配模拟收银台则直接「退成功」——账面上凭空
+    多出一笔已退款、还写着渠道单号，钱一分没动。这里在 mock 渠道下复现：修好之后
+    这笔退款必须不碰渠道（``refund_trade_no`` 为空）、流水标记 ``offline=True``。
+    """
+    from store.api import admin as admin_api
+    from store.models import OrderRefund
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-manual-refund-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+
+    with database.session() as session:
+        seed_settings(session)
+        products = seed_products(session)
+        seed_admin(session, "admin@habridge.local", "smoke-admin-2026")
+        account = Account(
+            email="manual-refund@habridge.local",
+            password_hash=hash_password("smoke-manual-refund-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        customer = Customer(account_id=account.id, email=account.email, name=account.email)
+        session.add(customer)
+        session.flush()
+        # 下单时没有任何渠道（``payment_provider`` 留空）——后台「标记支付」会把它记成
+        # ``manual``，这正是运营线下收款、事后补录的场景。
+        order = Order(
+            order_no="HOMEOS-SMOKE-MANUAL-REFUND-0001",
+            lookup_token="manual-refund-token-0001",
+            account_id=account.id,
+            customer_id=customer.id,
+            email=account.email,
+            product_id=products["base"].id,
+            product_name=products["base"].name,
+            product_type="base",
+            order_type="base",
+            license_action="issue",
+            original_amount_cents=8800,
+            amount_cents=8800,
+            status="pending",
+            fulfillment_mode="automatic",
+            payment_provider="",
+        )
+        session.add(order)
+        session.flush()
+        order_no = order.order_no
+        order_id = order.id
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        await client.post("/store/v1/auth/login", json=_admin_login_payload())
+        await client.post(f"/store-admin/v1/orders/{order_no}/mark-paid", json={})
+        with database.session() as session:
+            provider_after_mark = session.get(Order, order_id, populate_existing=True)
+        check(
+            "S47 前置：后台「标记支付」把订单渠道记成 manual（渠道侧没有交易）",
+            provider_after_mark.payment_provider == "manual",
+            str(provider_after_mark.payment_provider),
+        )
+
+        # 关键：**不**传 offline。修好之前这会去打 mock 渠道并「退成功」。
+        refunded = await client.post(
+            f"/store-admin/v1/orders/{order_no}/refund",
+            json={"note": "smoke 人工标记订单退款"},
+        )
+        result = refunded.json() if refunded.status_code == 200 else {}
+
+        # 响应体必须**已经是退款后的状态**：后台点完退款还要再拉一次列表才知道退了多少，
+        # 是「按钮已生效但界面没变」的老毛病。这里顺带把「渠道单号必须为空」也钉在响应上。
+        check(
+            "S47 退款响应直接带回线下退款结果（累计已退 8800，且没有渠道单号）",
+            result.get("refundAmountCents") == 8800 and not result.get("refundTradeNo"),
+            f"refundAmountCents={result.get('refundAmountCents')} trade_no={result.get('refundTradeNo')!r}",
+        )
+
+    with database.session() as session:
+        row = session.get(Order, order_id, populate_existing=True)
+        refund = session.scalars(
+            select(OrderRefund).where(OrderRefund.order_no == order_no)
+        ).all()
+        audit = session.scalars(
+            select(AuditLog).where(AuditLog.action == "order.refund").order_by(AuditLog.created_at.desc())
+        ).first()
+
+    check(
+        "S47 人工标记支付的订单能正常退款（不会报「交易不存在」而卡死）",
+        refunded.status_code == 200 and row.status == "refunded",
+        f"{refunded.status_code} status={row.status}",
+    )
+    check(
+        "S47 退款**没有触达渠道**（mock 会返回 RF 单号，这里必须为空）",
+        bool(refund) and not row.refund_trade_no,
+        f"trade_no={row.refund_trade_no}",
+    )
+    check(
+        "S47 流水如实标记为线下退款（账面不能假装渠道退过）",
+        bool(refund) and all(bool(item.offline) for item in refund),
+        f"offline={[item.offline for item in refund]}",
+    )
+    check(
+        "S47 审计日志写明「线下退款」与原因（运营事后能看出钱不是系统退的）",
+        audit is not None
+        and "线下退款" in (audit.detail or "")
+        and "人工标记支付" in (audit.detail or ""),
+        (audit.detail or "")[:120] if audit is not None else "无审计记录",
+    )
+
+    # 静态断言：退款路径必须真的用「是否只能线下退」这个判断来决定要不要打渠道。
+    import inspect as _inspect
+
+    source = _inspect.getsource(admin_api._refund_order)
+    matched = [
+        line.strip()
+        for line in source.splitlines()
+        if "offline_refund" in line or "forced_offline" in line
+    ]
+    check(
+        "S47 退款路径用 offline_refund 决定是否调用渠道（而不是原样信 payload.offline）",
+        any("not offline_refund" in line for line in matched)
+        and any("forced_offline" in line for line in matched),
+        "；".join(matched[:3]),
+    )
+
+
+async def check_release_unique_conflict_paths() -> None:
+    """S23：后台建版本的**两条**冲突路径都要给可读的 409，而且都不能污染会话。
+
+    ``releases`` 上有 ``(product, channel, version)`` 唯一索引，冲突有两条来路：
+
+    1. 同一个版本被重复提交 —— 函数开头「先查一次」接住，给可读的 409；
+    2. 两个管理员**同时**提交 —— 先查那一次看不到对方尚未提交的行，唯一索引是
+       最后防线，撞上时必须翻译成同样的 409，而不是 500。
+
+    第 2 条是和索引一起写的，但当时没有任何用例真的走到过那个 ``except``，于是
+    ``IntegrityError`` 连 import 都没有也没人发现（静态检查 F821 才把它报出来）。
+    这里用 ``before_flush`` 钩子在「先查之后、ORM 真正 INSERT 之前」插入冲突行，
+    把第 2 条路径确定性地复现出来；钩子借的是同一条连接，所以它落在同一个
+    SAVEPOINT 里，回滚时一起消失，不会真的多留下一行。
+    """
+    from sqlalchemy import event, insert
+
+    from store.api import admin as admin_api
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-release-conflict-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+
+    with database.session() as session:
+        seed_settings(session)
+        seed_admin(session, "admin@habridge.local", "smoke-admin-2026")
+
+    # 只有走到 ``except IntegrityError`` 才会解析这个名字；修复前它没被 import，
+    # 所以这条断言专门盯住「罕见分支里引用了不存在的名字」这类 F821。
+    check(
+        "S23 admin_create_release 引用的 IntegrityError 在模块里真的可解析（F821 回归）",
+        isinstance(getattr(admin_api, "IntegrityError", None), type),
+        repr(getattr(admin_api, "IntegrityError", None)),
+    )
+
+    payload = {"product": "homeos", "channel": "docker", "version": "1.2.3"}
+    target = "9.9.9"
+    fired = {"count": 0}
+
+    def _inject_conflict(sess, _flush_context, _instances):  # noqa: ANN001 - 测试替身
+        if fired["count"]:
+            return
+        fired["count"] += 1
+        sess.execute(
+            insert(admin_api.Release.__table__).values(
+                product="homeos", channel="docker", version=target
+            )
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        await client.post("/store/v1/auth/login", json=_admin_login_payload())
+
+        first = await client.post("/store-admin/v1/releases", json=payload)
+        check(
+            "S23 新版本正常创建（后面两条冲突用例的前置）",
+            first.status_code == 200,
+            f"{first.status_code} {first.text[:120]}",
+        )
+
+        # 路径 1：先查一次就该接住
+        repeat = await client.post("/store-admin/v1/releases", json=payload)
+        check(
+            "S23 重复提交同一版本 → 409 且文案可读（不是裸的 IntegrityError）",
+            repeat.status_code == 409 and "已存在" in repeat.text,
+            f"{repeat.status_code} {repeat.text[:120]}",
+        )
+
+        # 路径 2：让「先查」扑空，逼出唯一索引兜底
+        event.listen(Session, "before_flush", _inject_conflict)
+        try:
+            raced = await client.post(
+                "/store-admin/v1/releases",
+                json={"product": "homeos", "channel": "docker", "version": target},
+            )
+        finally:
+            event.remove(Session, "before_flush", _inject_conflict)
+
+        check(
+            "S23 并发抢建同一版本 → 唯一索引兜底成 409（不是 500）",
+            raced.status_code == 409 and "已存在" in raced.text,
+            f"{raced.status_code} {raced.text[:120]}",
+        )
+        check(
+            "S23 并发用例确实走到了唯一索引那条路径（钩子必须触发且只触发一次）",
+            fired["count"] == 1,
+            f"fired={fired['count']}",
+        )
+
+        # 冲突之后应用必须还能正常写库：会话若被打成 needs-rollback，这里就会 500。
+        after = await client.post(
+            "/store-admin/v1/releases",
+            json={"product": "homeos", "channel": "docker", "version": "2.0.0"},
+        )
+        check(
+            "S23 冲突之后应用仍可写（同一进程后续请求不受影响）",
+            after.status_code == 200,
+            f"{after.status_code} {after.text[:120]}",
+        )
+
+    with database.session() as session:
+        versions = sorted(row.version for row in session.scalars(select(admin_api.Release)))
+    check(
+        "S23 失败那次插入被回滚干净（9.9.9 没留下，正常的两条都在）",
+        "9.9.9" not in versions and {"1.2.3", "2.0.0"} <= set(versions),
+        f"versions={versions}",
+    )
+
+
 def check_global_log_write_amplification() -> None:
     """全局日志不能把「请求量」放大成「磁盘读写量」（审计 H1）。
 
@@ -5897,11 +6580,8 @@ async def check_blocking_endpoints_offloaded() -> None:
     from store.api import alipay as alipay_api
     from store.api import license as license_api
 
-    # 模块顶层的 ``inspect`` 是 SQLAlchemy 的那个（``from sqlalchemy import inspect``），
-    # 会遮蔽标准库。这里显式取标准库的，别依赖顶层名字。
     import ast
     import textwrap
-    from inspect import getsource, iscoroutinefunction
 
     def _router_endpoint(router, path: str, method: str):
         """在**路由自己**的 ``routes`` 上查端点。
@@ -5930,12 +6610,12 @@ async def check_blocking_endpoints_offloaded() -> None:
             continue
         check(
             f"S24 {label} 是同步端点（FastAPI 走线程池，不占事件循环）",
-            not iscoroutinefunction(endpoint),
+            not inspect.iscoroutinefunction(endpoint),
             getattr(endpoint, "__name__", "?"),
         )
         # 同步端点里不能有 await。用 AST 精确判定，别做字符串搜索 ——
         # docstring 里出现「同步端点不能 await」这种说明就会被误报。
-        tree = ast.parse(textwrap.dedent(getsource(endpoint)))
+        tree = ast.parse(textwrap.dedent(inspect.getsource(endpoint)))
         awaits = [node for node in ast.walk(tree) if isinstance(node, ast.Await)]
         check(
             f"S24 {label} 函数体里没有 await（同步端点不能 await）",
@@ -6132,10 +6812,8 @@ def check_refund_serialization_guards() -> None:
     from store.api import admin as admin_api
     from store.models import Order
 
-    # 顶层 ``inspect`` 被 SQLAlchemy 遮蔽（见 check_blocking_endpoints_offloaded）
     import ast
     import textwrap
-    from inspect import getsource
 
     # ---- 1) 前提：单进程。锁是进程内的，多进程即失效 ---- #
     run_source = (PROJECT_ROOT / "store" / "run.py").read_text(encoding="utf-8")
@@ -6243,7 +6921,7 @@ def check_refund_serialization_guards() -> None:
     )
 
     # ---- 4) commit 必须在锁之内（挪出去就静默失效，见 docstring）---- #
-    tree = ast.parse(textwrap.dedent(getsource(admin_api.admin_refund)))
+    tree = ast.parse(textwrap.dedent(inspect.getsource(admin_api.admin_refund)))
     lock_body: list[ast.AST] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.With) and "_refund_lock" in ast.unparse(node.items[0].context_expr):
@@ -7153,7 +7831,6 @@ def check_sweep_local_expiry_decoupled() -> None:
     「钱已到账但通知丢了」的单会先被释放预留（别人可能当场买走），
     再走复活路径补回来 —— 见 ``reconcile_due_orders`` 的说明。
     """
-    import inspect
 
     from store.payments import reconcile as reconcile_module
     from store.payments.reconcile import reconcile_due_orders
@@ -7344,6 +8021,10 @@ async def run() -> int:
     await check_enumeration_and_quota_hardening(client_crypto)
     check_page_hardening_and_error_format()
     check_sweep_local_expiry_decoupled()
+    check_unique_index_repair()
+    check_wallet_aggregate_atomic()
+    await check_manual_refund_stays_offline()
+    await check_release_unique_conflict_paths()
     check_store_setup_authorization()
     # 第 2 批 High 的专项断言：日志写入放大、上传体积、配对码生命周期。
     check_global_log_write_amplification()

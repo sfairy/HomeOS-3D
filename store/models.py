@@ -16,7 +16,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -537,6 +536,18 @@ class Entitlement(Base):
 
     license: Mapped[License] = relationship(back_populates="entitlements")
 
+    __table_args__ = (
+        # 同一张授权下同一个功能码只能有一条：``features_for`` 是「任一条生效就放行」，
+        # 允许重复行会让「这条功能什么时候到期」失去唯一答案。后台新增权益时也查重，
+        # 但那是 check-then-act（并发下挡不住），唯一性必须由库来兜。
+        Index(
+            "uq_entitlements_license_feature",
+            "license_id",
+            "feature_code",
+            unique=True,
+        ),
+    )
+
 
 # --------------------------------------------------------------------------- #
 # 设备绑定与租约
@@ -561,7 +572,15 @@ class DeviceBinding(Base):
     license: Mapped[License] = relationship(back_populates="binding")
 
     __table_args__ = (
-        UniqueConstraint("license_id", "instance_id", name="uq_device_bindings_license_instance"),
+        # 用 unique Index 而不是 UniqueConstraint：表级约束在存量库上补不了
+        # （SQLite 不支持 ALTER 追加），而 ``CREATE UNIQUE INDEX IF NOT EXISTS``
+        # 能补 —— 见 ``store/schema_guard.py`` 顶部的说明。语义相同，可维护性差很多。
+        Index(
+            "uq_device_bindings_license_instance",
+            "license_id",
+            "instance_id",
+            unique=True,
+        ),
     )
 
 
@@ -696,7 +715,18 @@ class Release(Base):
     upgrade_notes: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
-    __table_args__ = (Index("ix_releases_product_channel_created", "product", "channel", "created_at"),)
+    __table_args__ = (
+        Index("ix_releases_product_channel_created", "product", "channel", "created_at"),
+        # 同一个 (product, channel, version) 只应有一条：客户端查更新时不该看到同一
+        # 版本的两种说法（换了 upgrade_notes / release_date 的「半新半旧」行）。
+        Index(
+            "uq_releases_product_channel_version",
+            "product",
+            "channel",
+            "version",
+            unique=True,
+        ),
+    )
 
 
 class AuditLog(Base):

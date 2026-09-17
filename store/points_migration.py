@@ -38,15 +38,14 @@ SQLite 虽然支持事务性 DDL，但 ``DROP COLUMN`` 内部要走「建新表 
 from __future__ import annotations
 
 import logging
-import shutil
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 
 from store import money
+from store.schema_guard import backup_database as _backup_database
 from store.schema_guard import drop_column_ddl
 
 logger = logging.getLogger("store.points_migration")
@@ -142,33 +141,11 @@ def _legacy_shown(value: object) -> str:
 def backup_database(engine: Engine, *, directory: Path | None = None) -> Path | None:
     """迁移前把 SQLite 库文件整份复制一份，返回备份路径。
 
-    只对「文件型 SQLite」有效：内存库（测试里常用）没有可复制的文件，直接返回
-    ``None``；其它方言（运维自己换了库）也不做文件级备份，返回 ``None`` 并在日志里
-    说明 —— 迁移本身仍是「先验证后销毁」，备份只是额外的一层保险。
+    实现已挪到 :func:`store.schema_guard.backup_database`：``schema_guard`` 合并重复行
+    前也要备份（同一件事只留一份实现）。这里保留同名包装只是为了不动既有调用方
+    （``store/tools/migrate_points.py``、smoke），文件名前缀仍是 ``pre-centi-``。
     """
-    if engine.dialect.name != "sqlite":
-        logger.info("方言 %s 不做文件级备份：请自行确认已有可还原的备份。", engine.dialect.name)
-        return None
-
-    database_path = str(engine.url.database or "")
-    if not database_path or database_path == ":memory:":
-        return None
-
-    source = Path(database_path)
-    if not source.is_file():
-        return None
-
-    target_dir = Path(directory) if directory is not None else source.parent
-    #: 目标目录可能不存在（CLI 允许把快照放到独立目录）。这里必须自己建：
-    #: ``shutil.copy2`` 不会建目录，只会以 FileNotFoundError 失败。
-    target_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    destination = target_dir / f"{source.name}.pre-centi-{stamp}.bak"
-    shutil.copy2(source, destination)
-    logger.warning(
-        "积分迁移前已备份数据库：%s（确认迁移结果无误后可自行删除）", destination
-    )
-    return destination
+    return _backup_database(engine, directory=directory, label="centi")
 
 
 def _table_columns(engine: Engine, table: str) -> set[str]:

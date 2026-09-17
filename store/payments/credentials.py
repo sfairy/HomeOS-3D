@@ -39,6 +39,7 @@ __all__ = [
     "mask_secret",
     "merge_alipay_settings",
     "resolve_secret_input",
+    "validate_callback_url",
     "validate_gateway_url",
     "validate_private_key_text",
     "validate_public_key_text",
