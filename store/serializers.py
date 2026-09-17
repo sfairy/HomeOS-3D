@@ -63,6 +63,25 @@ def list_json(values) -> str:
 # --------------------------------------------------------------------------- #
 # 商品
 # --------------------------------------------------------------------------- #
+def available_stock_units(product: Product) -> int | None:
+    """可售数量；``None`` 表示不限量（未设库存）。"""
+    if product.stock_quantity is None:
+        return None
+    return max(0, int(product.stock_quantity) - int(product.reserved_stock or 0))
+
+
+def is_sold_out(product: Product) -> bool:
+    """是否售罄 —— **全站唯一**的售罄判据。
+
+    单独抽出来是因为它被下单热路径用到，而那里过去为了拿到这一位，把
+    ``_product_stats``（对全表 fulfilled 订单 ``GROUP BY``）和 ``_bundled_map``
+    （全表商品）都算了一遍 —— 那两个数只用于商品卡片展示，与售罄无关（审计 S50）。
+    判据留一份，也不会出现「前台显示可买、后端判定售罄」这种两侧各写一遍的偏差。
+    """
+    stock = available_stock_units(product)
+    return stock is not None and stock <= 0
+
+
 def product_payload(
     product: Product,
     image: ProductImage | None = None,
@@ -89,12 +108,8 @@ def product_payload(
         )
 
     reserved = int(product.reserved_stock or 0)
-    if product.stock_quantity is None:
-        available_stock = None
-        sold_out = False
-    else:
-        available_stock = max(0, int(product.stock_quantity) - reserved)
-        sold_out = available_stock <= 0
+    available_stock = available_stock_units(product)
+    sold_out = is_sold_out(product)
 
     image_url = None
     if image is not None and image.path:

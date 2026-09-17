@@ -80,6 +80,7 @@ from store.security import (
 from store.serializers import (
     account_center_payload,
     account_state_payload,
+    is_sold_out,
     order_payload,
     product_payload,
 )
@@ -357,20 +358,44 @@ def _product_or_404(session, product_id: str) -> Product:
     return product
 
 
-def _product_stats(session) -> dict[str, dict]:
+def _product_stats(session, product_ids=None) -> dict[str, dict]:
+    """商品的「已售份数 / 拥有客户数」。
+
+    这两个数只在商品卡片上做展示，**不参与任何判定**（``soldOut`` 看的是
+    ``stock_quantity - reserved_stock``，见 ``product_payload``），所以调用方
+    可以按需缩小范围。
+
+    ``product_ids`` 就是为此而加：不传时对**全表** fulfilled 订单 ``GROUP BY``、
+    对全表活跃授权 ``COUNT(DISTINCT)``，而这段聚合过去同时挂在商品列表、商品详情
+    与**下单热路径**上 —— 销售历史越长，下单接口越慢。传了 ``product_ids`` 之后
+    条件收窄成 ``product_id IN (...)``，只有该商品自己的历史被扫到；详情页只问
+    一张商品，就不再替其它商品的销售历史买单。
+
+    这里刻意**不做**进程内缓存，也刻意不加增量计数列：
+
+    - 没有缓存是可行的前提 —— 这两个数没有时效承诺，但也没有 UI 消费者
+      （前台只把它们放进响应体），缓存带来的只有「陈旧值」这一类新故障；
+    - 计数列对 ``purchase_count`` 可行，对 ``customer_count`` 不可行：后者是
+      ``COUNT(DISTINCT customer_id)``，一个整数加不出来，要再建一张辅助表并在
+      履约/退款/停用/删除订单四处同步更新，代价与漂移风险都远超一个展示字段。
+    """
+    purchase_query = select(Order.product_id, func.count(Order.id)).where(
+        Order.status == "fulfilled"
+    )
+    customer_query = select(
+        License.product_id, func.count(func.distinct(License.customer_id))
+    ).where(License.active.is_(True))
+    if product_ids is not None:
+        wanted = {item for item in product_ids if item}
+        if not wanted:
+            return {"purchase": {}, "customer": {}}
+        purchase_query = purchase_query.where(Order.product_id.in_(wanted))
+        customer_query = customer_query.where(License.product_id.in_(wanted))
     purchase_counts = dict(
-        session.execute(
-            select(Order.product_id, func.count(Order.id))
-            .where(Order.status == "fulfilled")
-            .group_by(Order.product_id)
-        ).all()
+        session.execute(purchase_query.group_by(Order.product_id)).all()
     )
     customer_counts = dict(
-        session.execute(
-            select(License.product_id, func.count(func.distinct(License.customer_id)))
-            .where(License.active.is_(True))
-            .group_by(License.product_id)
-        ).all()
+        session.execute(customer_query.group_by(License.product_id)).all()
     )
     return {
         "purchase": purchase_counts,
@@ -390,7 +415,8 @@ def _bundled_map(session) -> dict[str, Product]:
 
 
 def _product_item(session, product: Product) -> dict:
-    stats = _product_stats(session)
+    #: 只问这一张商品的统计（S50）：详情页不该替其它商品的销售历史买单。
+    stats = _product_stats(session, {product.id})
     return product_payload(
         product,
         _image_map(session).get(product.id),
@@ -661,12 +687,14 @@ def configuration(session: DbSession, settings: SettingsDep) -> dict:
 
 @router.get("/products")
 def list_products(session: DbSession) -> dict:
-    stats = _product_stats(session)
     images = _image_map(session)
     bundled = _bundled_map(session)
     products = session.scalars(
         select(Product).where(Product.active.is_(True)).order_by(Product.sort_order, Product.created_at)
-    )
+    ).all()
+    #: 只统计**本页要渲染的**商品：下架商品的历史不该被算进来，也让聚合条件
+    #: 从「全表」收窄成 ``product_id IN (...)``（S50）。
+    stats = _product_stats(session, [product.id for product in products])
     return {
         "items": [
             product_payload(
@@ -1638,16 +1666,9 @@ def create_order(
         )
 
     product = _product_or_404(session, payload.product_id)
-    image = _image_map(session).get(product.id)
-    stats = _product_stats(session)
-    product_view = product_payload(
-        product,
-        image,
-        bundled=_bundled_map(session),
-        customer_count=int(stats["customer"].get(product.id, 0)),
-        purchase_count=int(stats["purchase"].get(product.id, 0)),
-    )
-    if product_view["soldOut"]:
+    #: 只判售罄，不再为了这一位去算「已售份数 / 拥有客户数」与整张商品表
+    #: （S50：那两个数只用于商品卡片展示，而这段是下单热路径）。
+    if is_sold_out(product):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
 
     # 判定订单类型：module / template 之类的功能增量包属于 addon

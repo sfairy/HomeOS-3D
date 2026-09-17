@@ -550,11 +550,16 @@ def _product_delete_refs(session) -> tuple[dict[str, int], dict[str, int]]:
     return licenses, orders
 
 
-def _admin_product_context(session) -> dict:
-    """一次性查出列表渲染所需的所有辅助数据，避免逐行 N+1。"""
+def _admin_product_context(session, product_ids=None) -> dict:
+    """一次性查出列表渲染所需的所有辅助数据，避免逐行 N+1。
+
+    ``product_ids`` 只影响 ``stats``：它的聚合条件可以收窄成 ``IN (...)``（S50），
+    而 ``licenses`` / ``orders`` 这两个计数是**删除守卫**的依据，必须全表统计、
+    不能按需裁剪 —— 见 :func:`_product_delete_refs` 的说明。
+    """
     licenses, orders = _product_delete_refs(session)
     return {
-        "stats": _product_stats(session),
+        "stats": _product_stats(session, product_ids),
         "images": _image_map(session),
         "bundled": {item.id: item for item in session.scalars(select(Product))},
         "licenses": licenses,
@@ -563,7 +568,8 @@ def _admin_product_context(session) -> dict:
 
 
 def _product_admin_payload(session, product: Product, context: dict | None = None) -> dict:
-    context = context or _admin_product_context(session)
+    #: 单商品路径（新建/更新返回）也只统计这一张商品。
+    context = context or _admin_product_context(session, [product.id])
     payload = product_payload(
         product,
         context["images"].get(product.id),
@@ -644,7 +650,7 @@ def admin_list_products(
             base.order_by(Product.sort_order, Product.created_at).limit(size).offset(skip)
         )
     )
-    context = _admin_product_context(session)
+    context = _admin_product_context(session, [product.id for product in rows])
     return {
         "items": [_product_admin_payload(session, product, context) for product in rows],
         "total": total,

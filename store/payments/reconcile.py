@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 
 from store import coupons, fulfill
 from store.config import StoreSettings
-from store.expiry import expire_stale_orders
+from store.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders
 from store.models import Order, Product, StoreSetting, utcnow
 from store.payments import resolve_provider
 from store.payments.alipay import SUCCESS_TRADE_STATUSES, cents_from_yuan
@@ -55,6 +55,11 @@ _MAX_TRACKED_ORDERS = 1024
 #: 巡检只处理多久以内创建的订单。更早的订单早就该人工介入了，
 #: 反复去查只会白白消耗网关配额。
 SWEEP_LOOKBACK_HOURS = 24
+
+#: 巡检一轮最多做多少笔本地过期收尾。比请求路径的
+#: :data:`store.expiry.EXPIRE_BATCH_LIMIT` 大一截：这段不在用户请求里，
+#: 而且一轮巡检本来就要等渠道查单，多一点本地清理不增加用户可见延迟。
+SWEEP_EXPIRE_LIMIT = EXPIRE_BATCH_LIMIT * 5
 
 #: 巡检里「关单」环节的回溯窗口。比查单更长：过期订单可能过几个小时
 #: 才被重新扫到（例如服务刚重启）。
@@ -287,7 +292,9 @@ def reconcile_due_orders(
       而它的主人还会被「有未完成订单」挡住不能下单。见 ``store.expiry``。
     """
     result = _sweep_channel_orders(session, settings=settings, setting=setting, limit=limit)
-    expired = expire_stale_orders(session, settings)
+    #: 本地过期一次多清一些：这段不在用户请求里，而且巡检间隔以分钟计。
+    #: 渠道那段仍是 ``limit``（默认 25）：它的每一笔都要一次网络查单，代价高得多。
+    expired = expire_stale_orders(session, settings, limit=SWEEP_EXPIRE_LIMIT)
     if expired:
         result.expired = expired
         logger.info(

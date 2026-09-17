@@ -362,6 +362,18 @@ class Order(Base):
             unique=True,
             sqlite_where=text("status = 'pending' AND account_id IS NOT NULL"),
         ),
+        #: 过期批扫要按 ``status='pending'`` 找行、按 ``expires_at`` 从最老的开始取
+        #: 前 N 条（``store/expiry.py`` 的 ``ORDER BY expires_at LIMIT n``）。
+        #: 有了它，这个 LIMIT 才是真的「取够就走」；只靠 ``status`` 的单列索引，
+        #: SQLite 得先把全部 pending 行读出来排序。同 S50 的商品统计一样，
+        #: 这是把「随历史变慢」变成「与要处理的那几行成正比」。
+        Index("ix_orders_status_expires", "status", "expires_at"),
+        #: 商品统计 ``WHERE status='fulfilled' GROUP BY product_id`` 的覆盖索引：
+        #: 索引里同时有过滤列与分组列，聚合就是一次索引内扫描，不必回表。
+        #: 不替换 ``product_id`` 的单列索引 —— 存量库上删索引不是 ``schema_guard``
+        #: 的职责（它只做 ``CREATE INDEX IF NOT EXISTS``），两边保留同一套索引，
+        #: 新库与老库的结构才一致。
+        Index("ix_orders_status_product", "status", "product_id"),
     )
 
     #: pending | paid | fulfilled | expired | cancelled | refunded | payment_failed
@@ -525,6 +537,15 @@ class License(Base):
     access_expires_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+    __table_args__ = (
+        #: 商品统计里的「拥有客户数」是
+        #: ``WHERE active = 1 GROUP BY product_id`` 上的 ``COUNT(DISTINCT customer_id)``。
+        #: ``product_id`` 是外键却没有单列索引，这条聚合过去只能全表扫；这个复合索引
+        #: 让过滤列与分组列都在索引里（回表只剩 ``customer_id``），按需收窄的
+        #: ``product_id IN (...)`` 也能直接定位。
+        Index("ix_licenses_product_active", "product_id", "active"),
+    )
 
     binding: Mapped["DeviceBinding | None"] = relationship(
         back_populates="license", uselist=False, cascade="all, delete-orphan"

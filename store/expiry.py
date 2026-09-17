@@ -31,8 +31,32 @@ from store.models import Order, Product, utcnow
 
 logger = logging.getLogger("store.expiry")
 
+#: 单次调用最多处理多少笔超时单。
+#:
+#: 请求路径上的调用是「顺带清理」，而积压可能是「一整天（或一整个周末）没人访问」
+#: 攒出来的：不设上限的话，第一个打开的页面就要在自己的请求事务里逐条 UPDATE
+#: 并归还预留，一个页面加载被拖成分钟级 —— 而且账号中心、订单历史、下单前自查、
+#: 订单轮询这四条**公开**路径都会各自扛一遍。
+#:
+#: 200 笔足够清掉日常零散积压，又把单次请求的最坏代价封住。完整清理由
+#: ``payments.sweeper`` 反复轮转完成 —— 它无流量、未配渠道也照跑（见模块顶部）。
+EXPIRE_BATCH_LIMIT = 200
 
-def expire_stale_orders(session: Session, settings: StoreSettings) -> int:
+
+def _products_in(session: Session, product_ids) -> dict[str, Product]:
+    """按主键批量取商品；批内商品一次取回，避免逐条 ``session.get``。"""
+    wanted = {item for item in product_ids if item}
+    if not wanted:
+        return {}
+    return {
+        product.id: product
+        for product in session.scalars(select(Product).where(Product.id.in_(wanted)))
+    }
+
+
+def expire_stale_orders(
+    session: Session, settings: StoreSettings, *, limit: int = EXPIRE_BATCH_LIMIT
+) -> int:
     """把超时的待支付订单置为 expired，并释放占用的库存与优惠码。
 
     返回本次真正完成的过期笔数（``0`` 表示没有需要处理的单）。调用方据此决定
@@ -49,11 +73,16 @@ def expire_stale_orders(session: Session, settings: StoreSettings) -> int:
     会**永远**扫不到、永远停在 pending 占着预留，而用户本人还会被
     「有未完成订单」挡住不能再下单。对这类单只用 ``created_at`` 按同一套
     TTL 兜底，语义上等价于「它在下单时就该有的那个过期时间」。
+
+    ``limit`` 是**单次调用**的上限（见 :data:`EXPIRE_BATCH_LIMIT`）：请求路径上
+    它是「顺带清理」，不该被积压量拖成分钟级；巡检可以把一次清理的量调大，
+    因为那不在用户请求里。无论哪种调用，超出上限的旧单只是留给下一次 ——
+    按 ``expires_at`` 推进保证不会饿死。
     """
     moment = utcnow()
     ttl = timedelta(seconds=max(0, int(settings.order_ttl_seconds or 0)))
     legacy_before = moment - ttl
-    stale = session.scalars(
+    query = (
         select(Order)
         .where(Order.status == "pending")
         .where(
@@ -62,7 +91,15 @@ def expire_stale_orders(session: Session, settings: StoreSettings) -> int:
                 and_(Order.expires_at.is_(None), Order.created_at <= legacy_before),
             )
         )
-    ).all()
+        #: 按过期时间正序 + 批内主键定序有**两个**作用：一是「每轮都从最老的开始」，
+        #: 有上限也不会让某笔老单永远排在后面挨饿；二是顺序确定，重复调用结果可复现
+        #: （不加 ORDER BY 时 SQLite 的返回顺序是实现细节，测试会写出飘忽的断言）。
+        #: ``expires_at`` 为 NULL 的遗留单在 SQLite 的 ASC 里排最前 —— 正合语义。
+        .order_by(Order.expires_at.asc(), Order.id.asc())
+        .limit(max(0, int(limit)))
+    )
+    stale = session.scalars(query).all()
+    products = _products_in(session, (order.product_id for order in stale))
     expired = 0
     for order in stale:
         claimed = session.execute(
@@ -76,7 +113,7 @@ def expire_stale_orders(session: Session, settings: StoreSettings) -> int:
             # 已被别的路径处理（支付/取消/其它线程的扫描），副作用由它负责。
             continue
         expired += 1
-        product = session.get(Product, order.product_id) if order.product_id else None
+        product = products.get(order.product_id or "")
         fulfill.release_order_reservation(session, order=order, product=product)
         coupons.release_coupon(session, order)
     if expired:

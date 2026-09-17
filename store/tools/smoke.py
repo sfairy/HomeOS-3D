@@ -6863,6 +6863,469 @@ async def check_admin_list_query_budget() -> None:
         database.dispose()
 
 
+def check_expiry_batch_cap() -> None:
+    """S49：超时单批扫必须有单次上限，并且按最老的先处理。
+
+    ``expire_stale_orders`` 过去没有 ``LIMIT``，却被**四条公开路径**调用
+    （账号中心、订单历史、下单前自查、订单轮询），巡检那条路也一样无上限。
+    积压的来源恰恰是「没人访问」：一整天没人来，第一个打开的页面就要在自己的
+    请求事务里逐条 UPDATE 并归还预留 —— 几百上千笔串起来能把一次页面加载拖到
+    分钟级，而且它和积分、优惠码共用同一把写锁，别人一起被挡住。
+
+    加了上限还不够，**推进方向**同样重要：批扫要按 ``expires_at`` 从最老的开始，
+    否则被截断的那一批可能一直选中同样几行，老单永远轮不到（饿死），
+    而它们的主人会持续看到「你有一笔待支付订单」。
+    """
+    from inspect import getsource, signature
+
+    from sqlalchemy import event
+
+    from store.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders
+
+    source = getsource(expire_stale_orders)
+    check(
+        "S49 批扫显式带上限与「最老的先」的排序（而不是取到多少算多少）",
+        ".limit(" in source and "order_by(Order.expires_at.asc()" in source,
+        "缺 limit / order_by" if ".limit(" not in source or "order_by(Order.expires_at.asc()" not in source else "",
+    )
+    check(
+        "S49 默认上限是有限正整数，且真的就是这个默认值（请求路径不传 limit 时也受约束）",
+        isinstance(EXPIRE_BATCH_LIMIT, int)
+        and 0 < EXPIRE_BATCH_LIMIT <= 1000
+        and signature(expire_stale_orders).parameters["limit"].default == EXPIRE_BATCH_LIMIT,
+        f"EXPIRE_BATCH_LIMIT={EXPIRE_BATCH_LIMIT!r} "
+        f"默认={signature(expire_stale_orders).parameters['limit'].default!r}",
+    )
+
+    #: 巡检的批量应当比请求路径更大：它不在用户请求里、间隔以分钟计。
+    from store.payments import reconcile as reconcile_module
+
+    check(
+        "S49 巡检用更大的批量（本地清理不在用户请求里，可以一次多清一些）",
+        reconcile_module.SWEEP_EXPIRE_LIMIT > EXPIRE_BATCH_LIMIT
+        and "limit=SWEEP_EXPIRE_LIMIT" in getsource(reconcile_module.reconcile_due_orders),
+        f"SWEEP_EXPIRE_LIMIT={reconcile_module.SWEEP_EXPIRE_LIMIT}",
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-expiry-cap-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+        order_ttl_seconds=60,
+    )
+    app = create_app(settings)
+    database = app.state.database
+    now = utcnow()
+
+    #: 6 笔超时单分属 6 个账号（``orders`` 的部分唯一索引限定每账号一笔待付单），
+    #: 分属 6 张商品：这样「批内商品一次取回」与「逐条 get」的查询数差得出来。
+    #: 插入顺序**故意打乱**（不是 0,1,2,3,4,5）：否则 SQLite 的 rowid 顺序恰好等于
+    #: 「最老在前」，把 ``order_by`` 删掉用例照样通过 —— 顺序断言就成了摆设。
+    plans: list[tuple[str, str]] = []
+    with database.session() as session:
+        seed_settings(session)
+        for index in (3, 1, 5, 0, 4, 2):
+            product = Product(
+                name=f"expiry-cap-{index}",
+                product_code="homeos",
+                price_cents=1000,
+                product_type="base",
+                feature_codes_json=list_json(["editor.basic"]),
+                stock_quantity=10,
+                reserved_stock=1,
+                active=True,
+            )
+            account = Account(
+                email=f"expiry-cap-{index}@habridge.local",
+                password_hash=hash_password("smoke-expiry-cap-2026"),
+                email_verified_at=now,
+            )
+            session.add_all([product, account])
+            session.flush()
+            order = Order(
+                order_no=f"HOMEOS-EXPIRE-{index:04d}",
+                lookup_token=f"expire-token-{index:04d}",
+                account_id=account.id,
+                email=account.email,
+                product_id=product.id,
+                product_name=product.name,
+                product_type="base",
+                order_type="base",
+                license_action="issue",
+                original_amount_cents=1000,
+                amount_cents=1000,
+                status="pending",
+                fulfillment_mode="automatic",
+                payment_provider="mock",
+                #: index 越大越新 —— 最老的是 index=0。
+                expires_at=now - timedelta(minutes=10 - index),
+            )
+            session.add(order)
+            session.flush()
+            plans.append((product.id, order.order_no))
+
+    counter = {"statements": 0}
+    counted_sql: list[str] = []
+
+    def _count(_conn, _cursor, statement, *_args, **_kwargs):
+        counter["statements"] += 1
+        counted_sql.append(statement)
+
+    def expired_order_nos(session) -> list[str]:
+        return sorted(
+            session.scalars(select(Order.order_no).where(Order.status == "expired")).all()
+        )
+
+    try:
+        with database.session() as session:
+            first = expire_stale_orders(session, settings, limit=4)
+            session.commit()
+        with database.session() as session:
+            done = expired_order_nos(session)
+        check(
+            "S49 单次只处理到上限（6 笔积压 + limit=4 → 只清 4 笔）",
+            first == 4 and len(done) == 4,
+            f"返回={first} 已过期={len(done)}",
+        )
+        check(
+            "S49 截断时先清最老的 4 笔（不会把老单永远留在队尾饿死）",
+            done == sorted(f"HOMEOS-EXPIRE-{i:04d}" for i in range(4)),
+            str(done),
+        )
+
+        event.listen(database.engine, "before_cursor_execute", _count)
+        try:
+            with database.session() as session:
+                second = expire_stale_orders(session, settings, limit=4)
+                session.commit()
+        finally:
+            event.remove(database.engine, "before_cursor_execute", _count)
+        check(
+            "S49 下一轮继续推进（剩余 2 笔清完，返回 2 而不是 0）",
+            second == 2,
+            f"返回={second}",
+        )
+        product_queries = [sql for sql in counted_sql if "FROM products" in sql]
+        check(
+            "S49 批内商品一次取回（2 笔不同商品只发 1 条 products 查询，不是逐条 get）",
+            len(product_queries) == 1,
+            f"products 查询 {len(product_queries)} 条：{[sql[:60] for sql in product_queries[:3]]}",
+        )
+
+        with database.session() as session:
+            third = expire_stale_orders(session, settings, limit=4)
+            session.commit()
+        check("S49 清空后再调用是空转（返回 0，不写日志）", third == 0, f"返回={third}")
+
+        #: 上限为 0 应当什么都不做 —— 调用方把批量算错时是「不清理」，而不是「不设限」。
+        with database.session() as session:
+            session.add(
+                Order(
+                    order_no="HOMEOS-EXPIRE-9999",
+                    lookup_token="expire-token-9999",
+                    email="expiry-cap-zero@habridge.local",
+                    product_id=plans[0][0],
+                    product_name="expiry-cap-0",
+                    product_type="base",
+                    order_type="base",
+                    license_action="issue",
+                    original_amount_cents=1000,
+                    amount_cents=1000,
+                    status="pending",
+                    fulfillment_mode="automatic",
+                    payment_provider="mock",
+                    expires_at=now - timedelta(minutes=30),
+                )
+            )
+            session.commit()
+        with database.session() as session:
+            zero = expire_stale_orders(session, settings, limit=0)
+        with database.session() as session:
+            still_pending = session.scalars(
+                select(Order.status).where(Order.order_no == "HOMEOS-EXPIRE-9999")
+            ).one()
+        check(
+            "S49 limit=0 表示「这次不处理」，而不是「不设上限」",
+            zero == 0 and still_pending == "pending",
+            f"返回={zero} 状态={still_pending}",
+        )
+
+        #: 预留归还的账要平：6 张商品各预留 1，清完之后必须都是 0。
+        with database.session() as session:
+            reserved = session.scalars(
+                select(func.sum(Product.reserved_stock)).where(
+                    Product.name.like("expiry-cap-%")
+                )
+            ).one()
+            released = session.scalars(
+                select(func.count(Order.id)).where(
+                    Order.order_no.like("HOMEOS-EXPIRE-%"),
+                    Order.stock_reservation_released_at.is_not(None),
+                )
+            ).one()
+        check(
+            "S49 批扫仍然逐笔归还库存预留（限量不是「少还几笔」的借口）",
+            int(reserved or 0) == 0 and int(released or 0) == 6,
+            f"剩余预留={reserved} 已归还={released}",
+        )
+    finally:
+        database.dispose()
+
+
+def check_product_stats_scoped() -> None:
+    """S50：商品统计按需取数，售罄判据只有一份。
+
+    ``purchaseCount`` / ``customerCount`` 只在商品卡片上展示，**不参与任何判定** ——
+    ``soldOut`` 看的是 ``stock_quantity - reserved_stock``。可它们过去在商品列表、
+    商品详情和**下单热路径**上各算一遍，且是两条**全表**聚合（fulfilled 订单
+    ``GROUP BY``、活跃授权 ``COUNT(DISTINCT)``）：销售历史越长，下单接口越慢，
+    而热路径拿到的那两个数最后只用来建一个没人读的 payload。
+
+    修法是让调用方交出「我要哪几张商品」，聚合条件收窄成 ``product_id IN (...)``；
+    下单路径则连 payload 都不再建，只调唯一的售罄判据 ``is_sold_out``。
+    """
+    from inspect import getsource
+
+    import store.schema_guard as schema_guard
+    from store.api.store import create_order
+    from store.serializers import is_sold_out, product_payload
+
+    create_order_source = getsource(create_order)
+    check(
+        "S50 下单热路径不再算全表统计 / 不再建商品 payload，只判售罄",
+        "is_sold_out(" in create_order_source
+        and not any(
+            token in create_order_source
+            for token in ("_product_stats(", "product_payload(", "_bundled_map(", "_image_map(")
+        ),
+        "；".join(
+            token
+            for token in ("_product_stats(", "product_payload(", "_bundled_map(", "_image_map(")
+            if token in create_order_source
+        )
+        or "缺 is_sold_out",
+    )
+    check(
+        "S50 售罄判据同源：商品 payload 也走 is_sold_out，不留第二份规则",
+        "is_sold_out(" in getsource(product_payload),
+        "",
+    )
+
+    #: 判据本身（含「预留超过库存」这种历史脏数据）的分支矩阵。
+    def _product(stock, reserved):
+        return Product(
+            name="stats-matrix",
+            product_code="homeos",
+            price_cents=0,
+            product_type="base",
+            stock_quantity=stock,
+            reserved_stock=reserved,
+        )
+
+    matrix = [
+        (None, 0, False),
+        (5, 0, False),
+        (5, 4, False),
+        (5, 5, True),
+        (5, 9, True),
+        (0, 0, True),
+    ]
+    mismatched = [
+        (stock, reserved)
+        for stock, reserved, expected in matrix
+        if is_sold_out(_product(stock, reserved)) is not expected
+        or bool(product_payload(_product(stock, reserved))["soldOut"]) is not expected
+    ]
+    check(
+        "S50 售罄判据的六个分支全部正确（含未设库存 = 不限量、预留超库存）",
+        not mismatched,
+        f"不符={mismatched}",
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-product-stats-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+    now = utcnow()
+
+    products: dict[str, str] = {}
+    with database.session() as session:
+        seed_settings(session)
+        for name in ("stats-a", "stats-b"):
+            product = Product(
+                name=name,
+                product_code="homeos",
+                price_cents=1000,
+                product_type="base",
+                feature_codes_json=list_json(["editor.basic"]),
+                stock_quantity=None,
+                active=True,
+            )
+            session.add(product)
+            session.flush()
+            products[name] = product.id
+        #: 3 个客户：a 商品 2 个（同一客户重复购买只算一次），b 商品 1 个。
+        customers: list[Customer] = []
+        for index in range(3):
+            account = Account(
+                email=f"stats-{index}@habridge.local",
+                password_hash=hash_password("smoke-product-stats-2026"),
+                email_verified_at=now,
+            )
+            session.add(account)
+            session.flush()
+            customer = Customer(
+                account_id=account.id,
+                email=account.email,
+                name=f"stats-{index}",
+            )
+            session.add(customer)
+            session.flush()
+            customers.append(customer)
+
+        def _order(customer, product_id, status, serial):
+            return Order(
+                order_no=f"HOMEOS-STATS-{serial:04d}",
+                lookup_token=f"stats-token-{serial:04d}",
+                account_id=customer.account_id,
+                customer_id=customer.id,
+                email=customer.email,
+                product_id=product_id,
+                product_name="stats",
+                product_type="base",
+                order_type="base",
+                license_action="issue",
+                original_amount_cents=1000,
+                amount_cents=1000,
+                status=status,
+                fulfillment_mode="automatic",
+                payment_provider="mock",
+            )
+
+        #: a：3 笔 fulfilled + 1 笔 pending（pending 不该计入）；b：1 笔 fulfilled。
+        session.add_all(
+            [
+                _order(customers[0], products["stats-a"], "fulfilled", 1),
+                _order(customers[0], products["stats-a"], "fulfilled", 2),
+                _order(customers[1], products["stats-a"], "fulfilled", 3),
+                _order(customers[1], products["stats-a"], "pending", 4),
+                _order(customers[2], products["stats-b"], "fulfilled", 5),
+            ]
+        )
+        session.add_all(
+            [
+                #: a：2 张活跃（客户 0/1）+ 1 张已停用（不该计入）
+                License(
+                    activation_code="STATS-A-1",
+                    customer_id=customers[0].id,
+                    product_id=products["stats-a"],
+                    product_name="stats-a",
+                    product_type="base",
+                    active=True,
+                ),
+                License(
+                    activation_code="STATS-A-2",
+                    customer_id=customers[1].id,
+                    product_id=products["stats-a"],
+                    product_name="stats-a",
+                    product_type="base",
+                    active=True,
+                ),
+                License(
+                    activation_code="STATS-A-3",
+                    customer_id=customers[2].id,
+                    product_id=products["stats-a"],
+                    product_name="stats-a",
+                    product_type="base",
+                    active=False,
+                ),
+                License(
+                    activation_code="STATS-B-1",
+                    customer_id=customers[2].id,
+                    product_id=products["stats-b"],
+                    product_name="stats-b",
+                    product_type="base",
+                    active=True,
+                ),
+            ]
+        )
+        session.commit()
+
+    from store.api.store import _product_stats
+
+    with database.session() as session:
+        everything = _product_stats(session)
+        scoped = _product_stats(session, {products["stats-a"]})
+        empty = _product_stats(session, set())
+        unknown = _product_stats(session, {"no-such-product"})
+    check(
+        "S50 不带范围时统计仍然正确（列表页口径不变：fulfilled 订单数 / 活跃授权客户数）",
+        everything["purchase"].get(products["stats-a"]) == 3
+        and everything["customer"].get(products["stats-a"]) == 2
+        and everything["purchase"].get(products["stats-b"]) == 1
+        and everything["customer"].get(products["stats-b"]) == 1,
+        str(everything),
+    )
+    check(
+        "S50 带范围时只返回被问到的商品（其它商品的销售历史不参与聚合）",
+        set(scoped["purchase"]) == {products["stats-a"]}
+        and set(scoped["customer"]) == {products["stats-a"]}
+        and scoped["purchase"][products["stats-a"]] == 3
+        and scoped["customer"][products["stats-a"]] == 2,
+        str(scoped),
+    )
+    check(
+        "S50 空集合与未知商品都返回空统计（不报错、也不退化成全表查询）",
+        empty == {"purchase": {}, "customer": {}}
+        and unknown == {"purchase": {}, "customer": {}},
+        f"empty={empty} unknown={unknown}",
+    )
+
+    #: 覆盖索引：聚合的过滤列与分组列都要在索引里（否则仍是全表扫 + 回表）。
+    engine = create_store_engine(
+        load_settings(data_dir=workdir / "idx", license_keys_dir=workdir / "keys")
+    )
+    Base.metadata.create_all(engine)
+
+    expected = {
+        ("orders", "ix_orders_status_product"),
+        ("orders", "ix_orders_status_expires"),
+        ("licenses", "ix_licenses_product_active"),
+    }
+
+    def index_names() -> set[tuple[str, str]]:
+        return {
+            (table, index["name"])
+            for table, _ in sorted(expected)
+            for index in sa_inspect(engine).get_indexes(table)
+        }
+
+    check(
+        "S50 新库上建了统计与批扫要用的覆盖索引（create_all 口径）",
+        expected <= index_names(),
+        str(sorted(index_names())),
+    )
+    with engine.begin() as connection:
+        for _, name in sorted(expected):
+            connection.exec_driver_sql(f"DROP INDEX {name}")
+    applied = schema_guard.ensure_schema(engine)
+    check(
+        "S50 存量库会自动补回这些索引（升级不需要人工执行 DDL）",
+        expected <= index_names()
+        and all(f"{table}.{name}" in applied for table, name in sorted(expected)),
+        f"applied={applied}",
+    )
+    engine.dispose()
+    database.dispose()
+
+
 async def check_release_unique_conflict_paths() -> None:
     """S23：后台建版本的**两条**冲突路径都要给可读的 409，而且都不能污染会话。
 
@@ -8982,6 +9445,8 @@ async def run() -> int:
     await check_manual_refund_stays_offline()
     await check_coupon_redemption_ledger()
     await check_admin_list_query_budget()
+    check_expiry_batch_cap()
+    check_product_stats_scoped()
     await check_release_unique_conflict_paths()
     check_config_validation_strictness()
     check_order_id_indexes()
