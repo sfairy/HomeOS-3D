@@ -35,6 +35,19 @@ class ChangeEmailRequest(_Camel):
     password: str = Field(default="", min_length=0, max_length=128)
 
 
+class ChangePasswordRequest(_Camel):
+    """已登录账号修改密码。
+
+    必须凭当前登录密码确认身份（这是挡住「会话被劫持」的最后一道锁 ——
+    任何拿到一次会话的人，改密时都会被旧密码挡住）。改密后其它设备上的会话
+    全部踢下线，只保留当前这一个。
+    """
+
+    old_password: str = Field(min_length=1, max_length=128, alias="oldPassword")
+    new_password: str = Field(min_length=8, max_length=128, alias="newPassword")
+    confirm_password: str = Field(min_length=8, max_length=128, alias="confirmPassword")
+
+
 class VerifyEmailRequest(_Camel):
     """用验证码把「当前账号绑定的邮箱」标记为已验证。"""
 

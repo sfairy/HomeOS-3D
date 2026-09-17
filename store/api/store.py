@@ -43,6 +43,7 @@ from store.models import (
 from store.request_security import resolve_client_ip, secure_cookies_required
 from store.schemas import (
     ChangeEmailRequest,
+    ChangePasswordRequest,
     CouponPreviewRequest,
     CreateOrderRequest,
     LabelRequest,
@@ -1130,6 +1131,46 @@ def me(request: Request, session: DbSession, account: CurrentAccount) -> Respons
         )
     )
     return response
+
+
+@router.post("/auth/change-password")
+def change_password(
+    payload: ChangePasswordRequest,
+    request: Request,
+    session: DbSession,
+    account: AuthedAccount,
+) -> dict:
+    """已登录账号修改密码。
+
+    安全约束：
+    - 必须凭**当前密码**确认身份（挡住会话被劫持场景）
+    - 新密码 ≥ 8 位（与注册一致）
+    - 改密后踢掉其它设备的会话，只保留当前这一个
+    """
+    if not verify_password(payload.old_password, account.password_hash):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前密码不正确。")
+
+    if payload.new_password != payload.confirm_password:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="两次输入的新密码不一致。")
+
+    if verify_password(payload.new_password, account.password_hash):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="新密码与当前密码相同。")
+
+    account.password_hash = hash_password(payload.new_password)
+
+    # 踢掉其它设备的会话，只保留当前这一个。改密码就是为了止损，
+    # 不这么做的话——会话被偷了，改完密码攻击者依然保持登录。
+    settings: StoreSettings = request.app.state.settings
+    current = token_hash(request.cookies.get(settings.cookie_name) or "")
+    for record in session.scalars(
+        select(AccountSession).where(AccountSession.account_id == account.id)
+    ):
+        if record.id_hash != current:
+            session.delete(record)
+
+    session.flush()
+    logger.info("密码已修改 account=%s", account.id)
+    return {"success": True}
 
 
 @router.post("/auth/password/reset")

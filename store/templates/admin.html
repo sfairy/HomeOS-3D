@@ -210,6 +210,7 @@
       </div>
       <p class="admin-side__tz" id="admin-timezone"></p>
       <div class="admin-side__actions">
+        <button class="hb-button hb-button--ghost hb-button--sm" id="admin-change-pw">修改密码</button>
         <a class="hb-button hb-button--secondary hb-button--sm" href="/" target="_blank" rel="noreferrer">查看商店</a>
         <button class="hb-button hb-button--ghost hb-button--sm" id="admin-logout">退出登录</button>
       </div>
@@ -1467,6 +1468,32 @@
   </div>
 </dialog>
 
+<!-- 修改密码弹窗 -->
+<dialog class="confirm-dialog" id="change-pw-dialog">
+  <div class="confirm-dialog__body">
+    <div class="confirm-dialog__icon">🔒</div>
+    <h2>修改密码</h2>
+    <p>改密后会踢掉其它设备上的登录会话，只保留当前这个。</p>
+    <label class="hb-field">
+      <span>当前密码</span>
+      <input class="hb-input" type="password" id="pw-old" autocomplete="current-password" placeholder="请输入当前密码">
+    </label>
+    <label class="hb-field">
+      <span>新密码（至少 8 位）</span>
+      <input class="hb-input" type="password" id="pw-new" autocomplete="new-password" placeholder="至少 8 位">
+    </label>
+    <label class="hb-field">
+      <span>确认新密码</span>
+      <input class="hb-input" type="password" id="pw-confirm" autocomplete="new-password" placeholder="再次输入新密码">
+    </label>
+    <div class="admin-alert" id="pw-error" hidden></div>
+  </div>
+  <div class="confirm-dialog__actions">
+    <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="pw-cancel">取消</button>
+    <button class="hb-button hb-button--primary hb-button--sm" type="button" id="pw-submit">确认修改</button>
+  </div>
+</dialog>
+
 <div id="admin-toast"></div>
 
 <script>
@@ -1920,6 +1947,60 @@ $('#adjust-ok').addEventListener('click', async () => {
     settleAdjust(null);
     await Promise.all([loadAccounts(), loadLedger(), loadOverview()]);
   } catch (error) { toast(error.message, 'danger'); }
+});
+
+// --------------------------------------------------------------------------- //
+// 修改密码弹窗
+// --------------------------------------------------------------------------- //
+const changePwDialog = $('#change-pw-dialog');
+
+function openChangePw() {
+  $('#pw-old').value = '';
+  $('#pw-new').value = '';
+  $('#pw-confirm').value = '';
+  const err = $('#pw-error'); err.hidden = true; err.textContent = '';
+  changePwDialog.showModal();
+  setTimeout(() => $('#pw-old').focus(), 50);
+}
+
+function closeChangePw() {
+  if (changePwDialog.open) changePwDialog.close();
+}
+
+$('#admin-change-pw').addEventListener('click', openChangePw);
+$('#pw-cancel').addEventListener('click', closeChangePw);
+changePwDialog.addEventListener('cancel', (event) => { event.preventDefault(); closeChangePw(); });
+changePwDialog.addEventListener('click', (event) => { if (event.target === changePwDialog) closeChangePw(); });
+
+$('#pw-submit').addEventListener('click', async () => {
+  const oldPw = $('#pw-old').value.trim();
+  const newPw = $('#pw-new').value.trim();
+  const confirmPw = $('#pw-confirm').value.trim();
+  const err = $('#pw-error');
+
+  if (!oldPw) { err.textContent = '请输入当前密码。'; err.hidden = false; return; }
+  if (newPw.length < 8) { err.textContent = '新密码至少 8 位。'; err.hidden = false; return; }
+  if (newPw !== confirmPw) { err.textContent = '两次输入的新密码不一致。'; err.hidden = false; return; }
+  if (newPw === oldPw) { err.textContent = '新密码与当前密码相同。'; err.hidden = false; return; }
+  err.hidden = true;
+
+  const btn = $('#pw-submit');
+  btn.disabled = true;
+  btn.textContent = '正在修改…';
+  try {
+    await storeApi('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ oldPassword: oldPw, newPassword: newPw, confirmPassword: confirmPw }),
+    });
+    toast('密码修改成功。其它设备上的会话已被踢出。');
+    closeChangePw();
+  } catch (error) {
+    err.textContent = error.message || '修改失败，请稍后重试。';
+    err.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '确认修改';
+  }
 });
 
 // --------------------------------------------------------------------------- //
