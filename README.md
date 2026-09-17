@@ -456,8 +456,8 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | --- | --- |
 | `app.db` | 主应用 SQLite 主库 |
 | `admin-account.json` | 独立管理员账号 |
-| `instance-id` | 安装 UUID |
-| `hardware-fallback-id` | 硬件指纹回退标识 |
+| `instance-id` | 当前硬件派生的安装实例 ID（缓存；真相源是硬件指纹） |
+| `hardware-fallback-id` | 硬件不全时的本机封印兜底熵（拷到别的机器会失效） |
 | `secrets/` | HA、配对、授权密钥 |
 | `assets/` | 用户上传图片 |
 | `studio3d/` | 3D 草稿 |

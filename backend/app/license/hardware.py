@@ -9,9 +9,13 @@
    挂载进来的宿主机文件才是稳定来源。
 4. 拼接时加版本前缀与 \x00 分隔符再哈希：既避免字段拼接的歧义碰撞，
    又让「算法前缀变更」等价于让全部旧 ID 失效（需要重新绑定时用）。
+5. ``data/hardware-fallback-id`` 只是熵补充，必须用本机宿主信号（不在 data/ 内）
+   封印；整盘拷贝 data/ 到另一台机器时封印校验失败，会换新秘密并改变
+   instance_id，从而强制重新激活。
 """
 from __future__ import annotations
 import hashlib
+import json
 import os
 import platform
 import re
@@ -126,51 +130,131 @@ def _board_identity(override: str = '') -> str:
     return '|'.join(sorted({value for value in values if value}))
 
 
-def _persistent_fallback_identity(path: Path) -> str:
-    """兜底身份：所有硬件标识都拿不到时，在本地生成并持久化一个随机 ID。
+# 虚拟/临时网卡名前缀：它们在容器重建后会变，不能进宿主封印。
+_VIRTUAL_NET_PREFIXES = (
+    'lo', 'docker', 'br-', 'veth', 'virbr', 'tun', 'tap', 'fw', 'awdl', 'llw', 'utun', 'bridge',
+)
 
-    参数:
-        path: 存放随机 ID 的文件路径。
 
-    返回:
-        32 字节的十六进制随机串；首次生成后写入 path，之后每次都复用它。
+def _network_identity() -> str:
+    """本机网卡 MAC 聚合（排除虚拟网卡）；不在 APP_DATA_DIR 内，整盘拷贝 data/ 带不走。"""
+    macs: set[str] = set()
+    sys_net = Path('/sys/class/net')
+    if sys_net.is_dir():
+        for entry in sys_net.iterdir():
+            name = entry.name.lower()
+            if name == 'lo' or any(name.startswith(prefix) for prefix in _VIRTUAL_NET_PREFIXES):
+                continue
+            # 没有 device 软链的多半是虚拟接口，跳过。
+            if not (entry / 'device').exists():
+                continue
+            mac = _read(str(entry / 'address'))
+            if mac and mac != '00:00:00:00:00:00':
+                macs.add(mac)
+    if platform.system() == 'Darwin':
+        ifconfig = _command('/sbin/ifconfig', '-a')
+        current_name = ''
+        for line in ifconfig.splitlines():
+            header = re.match(r'^([a-zA-Z0-9]+):', line)
+            if header:
+                current_name = header.group(1).lower()
+                continue
+            if not current_name or current_name == 'lo0' or any(
+                current_name.startswith(prefix) for prefix in _VIRTUAL_NET_PREFIXES
+            ):
+                continue
+            match = re.search(r'ether\s+([0-9a-f:]+)', line, re.IGNORECASE)
+            if match:
+                mac = _clean(match.group(1))
+                if mac and mac != '00:00:00:00:00:00':
+                    macs.add(mac)
+    return '|'.join(sorted(macs))
 
-    异常:
-        OSError: 文件系统不可写，无法创建兜底标识。
-    """
-    try:
-        existing = _clean(path.read_text(encoding='utf-8'))
-    except OSError:
-        existing = ''
-    if existing:
-        # 已有值就直接复用 —— 这正是「持久化」的意义：
-        # 重新生成会让授权绑定立刻失效，把设备变成未激活状态。
-        # 384 == 0o600，顺手把权限收紧到只允许运行账号读写。
-        os.chmod(path, 384)
-        return existing
-    # 448 == 0o700：父目录同样只给运行账号访问。
-    path.parent.mkdir(parents=True, exist_ok=True, mode=448)
-    # 32 字节熵：兜底 ID 要承担绑定职责，必须不可猜测。
-    fallback = secrets.token_hex(32)
-    # 随机后缀的临时文件：并发启动时两个进程不会踩到同一个中间文件名。
+
+def _host_binding_seal(machine: str, board: str) -> str:
+    """本机宿主封印：只含 data/ 之外的信号，用于校验兜底文件是否被拷到别的机器。"""
+    parts = [
+        f'machine={machine}',
+        f'board={board}',
+        f'net={_network_identity()}',
+        f'node={_clean(platform.node())}',
+        f'system={_clean(platform.system())}',
+        f'machine_type={_clean(platform.machine())}',
+    ]
+    return hashlib.sha256('\x00'.join(parts).encode('utf-8')).hexdigest()
+
+
+def _write_private_text(path: Path, content: str) -> None:
+    """以 0600 权限原子写入文本文件。"""
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     temporary = path.with_name(f'.{path.name}.{secrets.token_hex(8)}.tmp')
-    # O_EXCL 独占创建防止互相覆盖；384 == 0o600 从创建瞬间就是私有权限。
-    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 384)
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
         with os.fdopen(descriptor, 'w', encoding='utf-8') as output:
-            output.write(fallback + '\n')
-        # 同目录 rename 是原子的：读取方要么看到旧内容，要么看到完整的新内容，
-        # 不会读到写了一半的文件。
+            output.write(content)
         os.replace(temporary, path)
-        os.chmod(path, 384)
+        os.chmod(path, 0o600)
     finally:
         try:
-            # 正常路径下临时文件已被 rename 走，这里只清理异常残留；
-            # 「已不存在」属预期情况，直接忽略。
             temporary.unlink()
         except FileNotFoundError:
             pass
-    return fallback
+
+
+def _persistent_fallback_identity(path: Path, host_seal: str) -> str:
+    """兜底熵：硬件字段不全时生成随机秘密，并用本机宿主封印绑定。
+
+    封印与当前机器不一致（典型：整盘拷贝 data/ 到另一台机器）时丢弃旧秘密、
+    生成新秘密，从而改变 instance_id，迫使重新激活。
+
+    参数:
+        path: 存放兜底文件的路径（位于 data/ 内，可被拷贝）。
+        host_seal: 当前机器的宿主封印（不在 data/ 内计算）。
+
+    返回:
+        32 字节十六进制随机串。
+
+    异常:
+        OSError: 文件系统不可写，无法创建兜底标识。
+        RuntimeError: 宿主封印为空，无法安全建立不可拷贝绑定。
+    """
+    if not host_seal:
+        raise RuntimeError('无法计算本机宿主封印，拒绝使用可拷贝的兜底设备标识。')
+
+    secret = ''
+    stored_seal = ''
+    try:
+        raw = path.read_text(encoding='utf-8').strip()
+    except OSError:
+        raw = ''
+    if raw:
+        os.chmod(path, 0o600)
+        if raw.startswith('{'):
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                payload = {}
+            if isinstance(payload, dict):
+                secret = _clean(str(payload.get('secret') or ''))
+                stored_seal = _clean(str(payload.get('host_seal') or ''))
+        # 旧版纯文本秘密没有本机封印：直接作废，避免拷贝 data/ 后被迁移成合法绑定。
+
+    if (
+        secret
+        and stored_seal
+        and len(secret) >= 32
+        and len(stored_seal) == len(host_seal)
+        and secrets.compare_digest(stored_seal, host_seal)
+    ):
+        return secret
+
+    # 封印不匹配、格式非法或旧版无封印文件：轮换秘密。
+    secret = secrets.token_hex(32)
+    _write_private_text(
+        path,
+        json.dumps({'secret': secret, 'host_seal': host_seal}, separators=(',', ':')) + '\n',
+    )
+    return secret
 
 
 def hardware_identity(*, machine_override: str = '', board_override: str = '', required: bool = True, fallback_path: Path | None = None) -> HardwareIdentity:
@@ -190,9 +274,12 @@ def hardware_identity(*, machine_override: str = '', board_override: str = '', r
     """
     machine = _machine_identity(machine_override)
     board = _board_identity(board_override)
+    used_fallback = False
+    host_extra = ''
     if required and (not machine or not board) and fallback_path is not None:
+        host_seal = _host_binding_seal(machine, board)
         try:
-            fallback = _persistent_fallback_identity(fallback_path)
+            fallback = _persistent_fallback_identity(fallback_path, host_seal)
         except OSError as error:
             raise RuntimeError('无法读取完整硬件 ID，也无法创建持久化兜底设备标识。') from error
         # 只要缺一项就补齐：两项缺口共用同一个兜底值，保证 instance_id 至少唯一。
@@ -200,6 +287,9 @@ def hardware_identity(*, machine_override: str = '', board_override: str = '', r
             machine = f'fallback-machine:{fallback}'
         if not board:
             board = f'fallback-board:{fallback}'
+        used_fallback = True
+        # 把 data/ 外的宿主信号编进材料：即使有人手工改封印文件，只要宿主不同，ID 仍变。
+        host_extra = host_seal
     if required and (not machine or not board):
         # 走到这里至少缺一项：machine 有值说明缺的是主板，否则报告机器缺失。
         # 这是兜底路径不可用时的最后一道门禁 —— 宁可启动失败，
@@ -214,7 +304,12 @@ def hardware_identity(*, machine_override: str = '', board_override: str = '', r
         board = f'development-board:{platform.node()}'
     # \x00 分隔 + 带版本前缀：避免字段拼接产生歧义碰撞（如 machine='a\x00board=b' 之类的组合），
     # 前缀一旦变更就等于让所有旧 ID 失效，用于需要强制重新绑定的场合。
-    material = f'homeos-hardware-v1\x00machine={machine}\x00board={board}'.encode('utf-8')
+    if used_fallback:
+        material = (
+            f'homeos-hardware-v2\x00machine={machine}\x00board={board}\x00host={host_extra}'
+        ).encode('utf-8')
+    else:
+        material = f'homeos-hardware-v1\x00machine={machine}\x00board={board}'.encode('utf-8')
     return HardwareIdentity(
         # 组合哈希：机器或主板任一变化都会改变实例 ID，从而触发重新绑定。
         instance_id=hashlib.sha256(material).hexdigest(),

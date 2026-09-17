@@ -311,8 +311,9 @@ class LicenseService:
         """取出本机硬件指纹派生的安装实例 ID，并持久化到 data/instance-id。
 
         身份以硬件为准（见 ``hardware.hardware_instance_id``），不再使用可拷贝的
-        uuid4 安装文件。迁移策略：升级后若库里仍是旧 UUID 绑定，``_state`` 会
-        判为 ``INSTANCE_MISMATCH``，用户需在商店解绑后用同一激活码重新激活。
+        uuid4 安装文件。``data/`` 整盘拷贝到另一台机器时：真实硬件不同，或兜底
+        文件的本机封印不匹配，都会得到新的 instance_id；``_state`` 随之判为
+        ``INSTANCE_MISMATCH``，用户需在商店解绑后用同一激活码重新激活。
 
         返回:
             合法的硬件派生实例 ID。
@@ -327,8 +328,11 @@ class LicenseService:
             saved = path.read_text(encoding='utf-8').strip()
         except OSError:
             saved = ''
-        # 硬件指纹是唯一真相源；读不到真实硬件时走持久化兜底文件，避免空身份。
+        # 硬件指纹是唯一真相源；读不到真实硬件时走「本机封印 + data/ 内熵」兜底，
+        # 单独拷贝 data/ 不能把绑定带到另一台机器。
         value = hardware_instance_id(
+            machine_override=self.settings.hardware_machine_id_override,
+            board_override=self.settings.hardware_board_id_override,
             required=True,
             fallback_path=self.settings.hardware_fallback_id_path,
         )

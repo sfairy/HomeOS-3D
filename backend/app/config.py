@@ -262,12 +262,21 @@ class Settings:
         1. 显式覆盖表（APP_LICENSE_TRUSTED_PUBLIC_KEYS），可整体替换；
         2. 只覆盖了单个公钥文件路径时，收敛成一条以 license_key_id 为名的记录；
         3. 默认使用仓库 keys/ 下的内置镜像。
+
+        默认表也会尊重 ``APP_LICENSE_PUBLIC_KEY_SHA256``（写入
+        ``license_public_key_sha256``）：本地 ``start.py`` 只覆盖指纹、不改路径，
+        用来对准 ``store/keys/local`` 生成的开发密钥，而不改发布版常量。
         """
         if self.license_trusted_public_keys_override:
             return {key_id: (path, expected_sha256) for key_id, path, expected_sha256 in self.license_trusted_public_keys_override}
         if self.license_public_key_path_override is not None:
             return {self.license_key_id: (self.license_public_key_path_override, self.license_public_key_sha256)}
-        return {key_id: (self.project_root / 'keys' / filename, expected_sha256) for key_id, filename, expected_sha256 in DEFAULT_LICENSE_TRUSTED_PUBLIC_KEYS}
+        trusted: dict[str, tuple[Path, str | None]] = {}
+        for key_id, filename, expected_sha256 in DEFAULT_LICENSE_TRUSTED_PUBLIC_KEYS:
+            if key_id == self.license_key_id and self.license_public_key_sha256:
+                expected_sha256 = self.license_public_key_sha256
+            trusted[key_id] = (self.project_root / 'keys' / filename, expected_sha256)
+        return trusted
 
     @property
     def effective_license_server_batches(self) -> tuple[tuple[str, tuple[str, ...]], ...]:
