@@ -468,6 +468,23 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 
 授权商店数据在 `store/data/`：`store.db` 与商品图。授权私钥在 `store/keys/local/`。**不要提交这些文件。**
 
+### 升级：积分口径迁移会自动完成
+
+邀请积分的存储从 `FLOAT`（积分）改成了 `INTEGER` **厘**（1 积分 = 100 厘）——原先靠
+`round(x, 2)` 维持两位小数，而 SQLite 的 `round()` 是 half-away、Python 的是 half-even，
+落在 `.xx5` 上时两边给出不同分币值，会让提现的并发比对误报冲突、并让余额与流水差 1 厘。
+
+**升级到本版本不需要手工执行任何命令**：商店启动时自动按
+`ensure_schema`（补 `*_centi` 列）→ 回填 + **逐行对账**（迁移前后用户看到的数字必须一模一样）
+→ 退役旧 `FLOAT` 列 的顺序完成，动手前先备份一份 `store.db.pre-centi-<时间戳>.bak`。
+对账有任何一行不一致就只保留不销毁（新旧列并存）并打印差异，不会丢数据。
+
+需要人工介入时用 CLI：`python -m store.tools.migrate_points --check-only`（只读预检）、
+`--check`（回填但对账不删列）、`--rollback`（退回旧版本程序前把厘还原成 `FLOAT`）。
+对外 JSON 契约没变（仍是 `"10.05"` 这样的两位小数字符串），前端与客户端无需跟着改。
+详见 [store/README.md](store/README.md) 的「升级与迁移」。
+
+
 ## 环境变量
 
 主应用与商店的变量统一写进仓库根目录的 `.env`：把 [.env.example](.env.example) 复制成 `.env` 再按需取消注释（`.env` 已被 gitignore）。优先级：**真实环境变量 > `.env` > 代码 / `start.py` 默认值**。

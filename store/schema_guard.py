@@ -152,8 +152,13 @@ def _index_ddl(table_name: str, index, dialect=None) -> str:
     return clause
 
 
-def _drop_column_ddl(table_name: str, column_name: str) -> str:
+def drop_column_ddl(table_name: str, column_name: str) -> str:
+    """``ALTER TABLE ... DROP COLUMN`` 的 DDL（积分迁移也要用同一份，别再抄一遍）。"""
     return f'ALTER TABLE "{table_name}" DROP COLUMN "{column_name}"'
+
+
+def _drop_column_ddl(table_name: str, column_name: str) -> str:
+    return drop_column_ddl(table_name, column_name)
 
 
 def _drop_retired_columns(engine: Engine, table_name: str, columns: list[str]) -> list[str]:

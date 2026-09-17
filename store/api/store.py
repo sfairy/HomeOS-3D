@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-import math
 from datetime import timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
@@ -22,6 +21,7 @@ from store import (
     fulfill,
     mail_settings,
     mailer,
+    money,
     password_gate,
     referrals,
 )
@@ -435,8 +435,10 @@ def _evaluate_coupon(
     if coupon.discount_type == "fixed":
         discount = min(int(coupon.amount_cents or 0), price)
     else:
-        discount = int(math.floor(price * float(coupon.percent or 0.0) / 100.0))
-        discount = min(discount, price)
+        # 走整数基点运算：原写法 `int(math.floor(price * float(percent) / 100.0))`
+        # 在 price 很大（万元分级别）时会落到无法精确表示的浮点上，恰好差一个 ULP
+        # 时 floor 会少算一分。折扣少算一分用户吃亏，多算一分平台吃亏。
+        discount = min(money.discount_centi(price, coupon.percent), price)
     return coupon, max(0, discount)
 
 
@@ -1980,12 +1982,14 @@ def preview_coupon(
 def _wallet_payload(wallet: ReferralWallet | None) -> dict | None:
     if wallet is None:
         return None
+    #: 对外仍是「两位小数字符串」，与改动之前**逐字节一致** —— 厘正好是 1/100，
+    #: 两位小数无损，所以前端与调用方都不用改（契约兼容）。
     return {
         "code": wallet.code,
-        "balance": f"{float(wallet.balance or 0.0):.2f}",
-        "frozen": f"{float(wallet.frozen or 0.0):.2f}",
-        "earned": f"{float(wallet.earned or 0.0):.2f}",
-        "withdrawn": f"{float(wallet.withdrawn or 0.0):.2f}",
+        "balance": money.format_centi(wallet.balance_centi),
+        "frozen": money.format_centi(wallet.frozen_centi),
+        "earned": money.format_centi(wallet.earned_centi),
+        "withdrawn": money.format_centi(wallet.withdrawn_centi),
     }
 
 
@@ -2047,10 +2051,10 @@ def referral_history(
         items = [
             {
                 "id": row.id,
-                "points": f"{float(row.points or 0.0):.2f}",
-                "feePoints": f"{float(row.fee_points or 0.0):.2f}",
-                "feePercent": f"{float(row.fee_percent or 0.0):.2f}".rstrip("0").rstrip("."),
-                "netPoints": f"{float(row.net_points or 0.0):.2f}",
+                "points": money.format_centi(row.points_centi),
+                "feePoints": money.format_centi(row.fee_points_centi),
+                "feePercent": money.format_centi(row.fee_bps).rstrip("0").rstrip("."),
+                "netPoints": money.format_centi(row.net_points_centi),
                 "status": row.status,
                 "note": row.note,
                 "createdAt": iso(row.created_at),
@@ -2077,10 +2081,10 @@ def referral_history(
         {
             "id": row.id,
             "kind": row.kind,
-            "delta": f"{float(row.delta or 0.0):.2f}",
-            "frozenDelta": f"{float(row.frozen_delta or 0.0):.2f}",
-            "balanceAfter": f"{float(row.balance_after or 0.0):.2f}",
-            "frozenAfter": f"{float(row.frozen_after or 0.0):.2f}",
+            "delta": money.format_centi(row.delta_centi),
+            "frozenDelta": money.format_centi(row.frozen_delta_centi),
+            "balanceAfter": money.format_centi(row.balance_after_centi),
+            "frozenAfter": money.format_centi(row.frozen_after_centi),
             "note": row.note,
             "reference": row.reference,
             "createdAt": iso(row.created_at),
@@ -2093,10 +2097,10 @@ def referral_history(
 def _withdrawal_payload(withdrawal: ReferralWithdrawal) -> dict:
     return {
         "id": withdrawal.id,
-        "points": f"{float(withdrawal.points or 0.0):.2f}",
-        "feePoints": f"{float(withdrawal.fee_points or 0.0):.2f}",
-        "feePercent": f"{float(withdrawal.fee_percent or 0.0):.2f}".rstrip("0").rstrip("."),
-        "netPoints": f"{float(withdrawal.net_points or 0.0):.2f}",
+        "points": money.format_centi(withdrawal.points_centi),
+        "feePoints": money.format_centi(withdrawal.fee_points_centi),
+        "feePercent": money.format_centi(withdrawal.fee_bps).rstrip("0").rstrip("."),
+        "netPoints": money.format_centi(withdrawal.net_points_centi),
         "status": withdrawal.status,
         "createdAt": iso(withdrawal.created_at),
     }
@@ -2126,22 +2130,25 @@ def request_withdrawal(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该请求号已被占用，请重试。")
         return _withdrawal_payload(existing)
 
-    minimum = float(setting.referral_withdrawal_min_points or 100.0)
-    points = float(payload.points)
-    if points < minimum:
+    minimum_centi = money.to_centi(setting.referral_withdrawal_min_points or 100.0)
+    points_centi = money.to_centi(payload.points)
+    if points_centi < minimum_centi:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"最低提现 {minimum:.2f} 积分。",
+            detail=f"最低提现 {money.format_centi(minimum_centi)} 积分。",
         )
     # 「可用积分」口径必须与前端展示一致（余额 - 冻结）。过去这里只比 balance，
     # 于是「可用 0 元」的用户照样能提交申请，一路走到后台才被人工拒绝。
-    available = referrals.available_points(wallet)
-    if points > available:
+    available_centi = referrals.available_points_centi(wallet)
+    if points_centi > available_centi:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"可用积分不足（当前可用 {available:.2f}，已被提现申请冻结 {float(wallet.frozen or 0.0):.2f}）。",
+            detail=(
+                f"可用积分不足（当前可用 {money.format_centi(available_centi)}，"
+                f"已被提现申请冻结 {money.format_centi(wallet.frozen_centi)}）。"
+            ),
         )
-    if float(wallet.frozen or 0.0) > 0:
+    if int(wallet.frozen_centi or 0) > 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="你有正在处理中的提现申请，请等待处理完成。"
         )
@@ -2149,9 +2156,11 @@ def request_withdrawal(
     # 手续费在用户确认那一刻可能是 1%，等运营改成 5% 后才提交 —— 用户看到的
     # 到账金额与实际不符，只能事后投诉。前端已经在发 expectedFeePercent，
     # 这里真正校验它：不一致就让用户重新确认一次。
-    if payload.expected_fee_percent is not None and abs(
-        float(payload.expected_fee_percent) - fee_percent
-    ) > 1e-6:
+    # 比对用基点整数：浮点的 abs(a-b) > 1e-6 对「1% vs 1.0000001%」判不出来，
+    # 而这两个值在前端显示成同一个数字。
+    if payload.expected_fee_percent is not None and money.percent_to_bps(
+        payload.expected_fee_percent
+    ) != money.percent_to_bps(fee_percent):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
@@ -2163,7 +2172,7 @@ def request_withdrawal(
         withdrawal = referrals.create_withdrawal(
             session,
             wallet,
-            points=points,
+            points_centi=points_centi,
             request_key=payload.request_key,
             fee_percent=fee_percent,
         )

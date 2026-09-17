@@ -4076,23 +4076,24 @@ async def check_referral_wallet_atomic() -> None:
     try:
         account = session_a.get(Account, account_id)
         wallet = referrals.get_or_create_wallet(session_a, account)
-        wallet.balance = 100.0
-        wallet.earned = 100.0
-        wallet.frozen = 0.0
+        #: 单位是厘：100.00 积分 → 10000 厘。
+        wallet.balance_centi = 10000
+        wallet.earned_centi = 10000
+        wallet.frozen_centi = 0
         session_a.commit()
         wallet_id = wallet.id
 
         # 会话 B 先读到 frozen=0，然后**主动提交**释放快照 —— 它的内存里仍然是旧值，
         # 但数据库里已经是新的了。这正是「读 - 改 - 写」丢更新的现场。
         stale_b = session_b.get(ReferralWallet, wallet_id)
-        stale_b_frozen = float(stale_b.frozen or 0.0)
+        stale_b_frozen = int(stale_b.frozen_centi or 0)
         session_b.commit()
 
         stale_a = session_a.get(ReferralWallet, wallet_id)
         first = referrals.create_withdrawal(
             session_a,
             stale_a,
-            points=60.0,
+            points_centi=6000,
             request_key="smoke-atomic-0001",
             fee_percent=1.0,
         )
@@ -4103,7 +4104,7 @@ async def check_referral_wallet_atomic() -> None:
             referrals.create_withdrawal(
                 session_b,
                 stale_b,
-                points=60.0,
+                points_centi=6000,
                 request_key="smoke-atomic-0002",
                 fee_percent=1.0,
             )
@@ -4112,19 +4113,19 @@ async def check_referral_wallet_atomic() -> None:
         session_b.rollback()
         check(
             "并发冻结的第二次被条件 UPDATE 抢单挡下（不会各插一条待审提现）",
-            stale_b_frozen == 0.0 and bool(conflict),
+            stale_b_frozen == 0 and bool(conflict),
             conflict or "第二次竟然成功了",
         )
         session_a.refresh(stale_a)
         check(
             "冻结只生效一次：frozen 没有被覆盖成同一个值",
-            float(stale_a.frozen or 0.0) == 60.0,
-            str(stale_a.frozen),
+            int(stale_a.frozen_centi or 0) == 6000,
+            str(stale_a.frozen_centi),
         )
         check(
             "可用积分没有被并发放大（100 - 60 = 40）",
-            referrals.available_points(stale_a) == 40.0,
-            str(referrals.available_points(stale_a)),
+            referrals.available_points_centi(stale_a) == 4000,
+            str(referrals.available_points_centi(stale_a)),
         )
 
         # 双击审批：两个会话都看到 pending，只有抢到状态迁移的那一次能动账
@@ -4139,18 +4140,18 @@ async def check_referral_wallet_atomic() -> None:
         session_a.refresh(stale_a)
         check(
             "双击审批不把 frozen 扣成负数",
-            wd_b_status == "pending" and float(stale_a.frozen or 0.0) == 0.0,
-            f"status={wd_b_status} frozen={stale_a.frozen}",
+            wd_b_status == "pending" and int(stale_a.frozen_centi or 0) == 0,
+            f"status={wd_b_status} frozen={stale_a.frozen_centi}",
         )
         check(
             "双击审批不让 withdrawn 翻倍",
-            float(stale_a.withdrawn or 0.0) == 60.0,
-            str(stale_a.withdrawn),
+            int(stale_a.withdrawn_centi or 0) == 6000,
+            str(stale_a.withdrawn_centi),
         )
         check(
             "审批后的余额与账本一致（100 - 60 = 40）",
-            float(stale_a.balance or 0.0) == 40.0,
-            str(stale_a.balance),
+            int(stale_a.balance_centi or 0) == 4000,
+            str(stale_a.balance_centi),
         )
     finally:
         session_b.close()
@@ -5109,6 +5110,248 @@ def check_order_no_unique_by_construction() -> None:
     )
 
 
+def check_points_integer_precision() -> None:
+    """邀请积分的分币运算与「积分→厘」迁移（审计 S6）。
+
+    原实现把积分以 ``FLOAT`` 存库、靠 ``round(x, 2)`` 维持两位小数，正确性建立在
+    「SQL 侧 ``round()`` 与 Python 侧 ``round()`` 结果一致」这个**不成立**的前提上：
+    SQLite 是 half-away-from-zero、Python 是 half-even，落在 ``.xx5`` 上时给出不同的
+    分币值（``0.125`` → SQLite ``0.13`` / Python ``0.12``）。两处后果：
+
+    - ``create_withdrawal`` 那条「用 round 后的值比对冻结额有没有被并发改过」的条件
+      UPDATE 会把**没有并发**的情况判成冲突，用户莫名收到「请重试」；
+    - 余额与流水之和能差 1 厘，对账时无法解释。
+
+    这里同时钉住三件事：舍入口径确如所料（所以整数化是必要的）、整数化之后比较是
+    **精确**的（所以问题消失了）、以及迁移「先验证后销毁」且可回滚（所以存量数据安全）。
+    """
+    from decimal import Decimal
+
+    from sqlalchemy import Float, Integer
+
+    from store import money as money_module
+    from store import points_migration
+    from store.models import ReferralLedger, ReferralWallet
+    from store.schema_guard import ensure_schema
+
+    # ---- 1) 舍入口径的分歧是真实存在的（整数化的理由）----
+    import sqlite3
+    with sqlite3.connect(":memory:") as probe:
+        sqlite_values = {
+            raw: probe.execute("SELECT round(?, 2)", (raw,)).fetchone()[0]
+            for raw in ("0.125", "0.005", "-0.125", "2.675", "1.005")
+        }
+    diverged = [
+        raw
+        for raw, sqlite_rounded in sqlite_values.items()
+        if f"{float(sqlite_rounded):.2f}" != f"{round(float(raw), 2):.2f}"
+    ]
+    check(
+        "SQLite round 与 Python round 确实会在 .xx5 上给出不同结果（这是必须整数化的原因）",
+        bool(diverged),
+        f"出现分歧的输入：{'、'.join(diverged) or '无'}；"
+        f"示例 0.125 → SQLite {sqlite_values['0.125']} / Python {round(0.125, 2)}",
+    )
+    check(
+        "money.to_centi 采用与 SQLite 同向的 half-up（迁移回填口径与库侧一致）",
+        money_module.to_centi("0.125") == 13 and money_module.to_centi("0.005") == 1,
+        f"0.125→{money_module.to_centi('0.125')} 0.005→{money_module.to_centi('0.005')}",
+    )
+
+    # ---- 2) 整数化之后，「是否被并发改过」是精确相等，不再经过任何 round ----
+    #: 旧实现下 $0.125 这类值会让 SQLite 与 Python 各舍到 0.13 / 0.12，条件 UPDATE
+    #: 便在没有并发时也返回 rowcount=0，用户收到凭空的「钱包刚刚被改过，请重试」。
+    stored_centi = money_module.to_centi("0.125")
+    check(
+        "冻结额用整数厘比较是精确的（旧实现下 .xx5 会误报并发冲突）",
+        stored_centi == 13 and int(Decimal("0.125") * 100) == 12,
+        f"0.125 → {stored_centi} 厘；整数相等比较不经过 round，"
+        f"因此 half-away/half-even 的分歧不再有机会发生",
+    )
+
+    # ---- 3) ORM 里不能再出现浮点金额列（防止回潮）----
+    float_columns: list[str] = []
+    for model in (ReferralWallet, ReferralLedger):
+        for column in model.__table__.columns:
+            if isinstance(column.type, Float):
+                float_columns.append(f"{model.__tablename__}.{column.name}")
+    check(
+        "钱包/流水/提现表里没有任何 FLOAT 金额列（防止有人再加回浮点）",
+        not float_columns,
+        "、".join(float_columns) or "全部为 INTEGER 厘",
+    )
+    integer_columns = {
+        column.name
+        for model in (ReferralWallet, ReferralLedger)
+        for column in model.__table__.columns
+        if isinstance(column.type, Integer)
+    }
+    check(
+        "关键聚合列已整数化且命名带 _centi（漏改点会在编译期暴露）",
+        {
+            "balance_centi", "frozen_centi", "earned_centi", "withdrawn_centi",
+            "delta_centi", "balance_after_centi", "frozen_after_centi",
+        }
+        <= integer_columns,
+        f"整数列：{'、'.join(sorted(integer_columns))}",
+    )
+
+    # ---- 4) 迁移：存量 FLOAT 库 → 回填 → 对账 → 退役旧列，逐行无损 ----
+    workdir = Path(tempfile.mkdtemp(prefix="hb-points-migration-"))
+    engine = create_store_engine(
+        load_settings(data_dir=workdir / "data", license_keys_dir=workdir / "keys")
+    )
+    #: 造一个「旧版」库：只有 FLOAT 列、没有 *_centi。刻意混入 0.00 / 两位小数 /
+    #: 四位数金额，并让两行余额落在 Python 与 SQLite 舍入会分歧的 .xx5 形态上。
+    legacy_rows = [
+        ("w1", 10.05, 0.00, 4.99, 0.00),
+        ("w2", 1234.56, 12.34, 5000.00, 100.00),
+        ("w3", 0.00, 0.00, 0.00, 0.00),
+    ]
+    with engine.begin() as connection:
+        for statement in _LEGACY_POINTS_SCHEMA.split(";"):
+            if statement.strip():
+                connection.exec_driver_sql(statement)
+        connection.exec_driver_sql("INSERT INTO accounts (id, email) VALUES ('a1', 'a@x')")
+        connection.exec_driver_sql("INSERT INTO orders (id, order_no, referral_reward_points) VALUES ('o1', 'N1', 4.99)")
+        for wallet_id, balance, frozen, earned, withdrawn in legacy_rows:
+            connection.exec_driver_sql(
+                "INSERT INTO referral_wallets VALUES (?,?,?,?,?,?,?,?,?)",
+                (wallet_id, "a1", wallet_id.upper(), balance, frozen, earned, withdrawn,
+                 utcnow(), utcnow()),
+            )
+        connection.exec_driver_sql(
+            "INSERT INTO referral_ledger VALUES ('l1','w1','a1','reward',4.99,0.0,4.99,0.0,'','N1','o1',?)",
+            (utcnow(),),
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO referral_withdrawals VALUES ('d1','w2','a1','rk1',100.0,5.0,5.0,95.0,'pending','',?,NULL)",
+            (utcnow(),),
+        )
+
+    before_display = {
+        wallet_id: (f"{balance:.2f}", f"{frozen:.2f}", f"{earned:.2f}", f"{withdrawn:.2f}")
+        for wallet_id, balance, frozen, earned, withdrawn in legacy_rows
+    }
+
+    #: 新列必须先由 ensure_schema 补出来（模拟真实启动顺序）。
+    ensure_schema(engine)
+    check(
+        "存量 FLOAT 库补列后，新旧列同时存在（此时旧程序仍可运行）",
+        {"balance", "balance_centi"} <= table_columns(engine, "referral_wallets"),
+        "、".join(sorted(table_columns(engine, "referral_wallets"))),
+    )
+
+    report = points_migration.migrate_points(engine, backup=False)
+    check(
+        "迁移对账全部通过（对账基准是「迁移前后用户看到的数字不变」）",
+        report.ok,
+        "；".join(f"{t.table}:{t.problems[:2]}" for t in report.tables if t.problems) or "无差异",
+    )
+
+    #: 逐行核对：迁移后渲染值必须与迁移前 f"{旧值:.2f}" 完全一致。
+    with engine.begin() as connection:
+        mismatches = []
+        for wallet_id, _, _, _, _ in legacy_rows:
+            row = connection.exec_driver_sql(
+                "SELECT balance_centi, frozen_centi, earned_centi, withdrawn_centi "
+                "FROM referral_wallets WHERE id = ?",
+                (wallet_id,),
+            ).fetchone()
+            after = tuple(money_module.format_centi(value) for value in row)
+            if after != before_display[wallet_id]:
+                mismatches.append(f"{wallet_id}: {before_display[wallet_id]} → {after}")
+    check(
+        "逐行核对：迁移后显示值与迁移前完全一致（用户看到的一分钱都没变）",
+        not mismatches,
+        "；".join(mismatches) or "、".join(f"{k}={v[0]}" for k, v in before_display.items()),
+    )
+
+    check(
+        "对账通过后旧 FLOAT 列被真正退役（不删会让后续 INSERT 以 NOT NULL 失败）",
+        not ({"balance", "frozen", "earned", "withdrawn"}
+             & table_columns(engine, "referral_wallets")),
+        "、".join(sorted(table_columns(engine, "referral_wallets"))),
+    )
+    check(
+        "orders / ledger / withdrawals 的旧列同样退役",
+        not ({"referral_reward_points"} & table_columns(engine, "orders"))
+        and not ({"delta", "frozen_delta"} & table_columns(engine, "referral_ledger"))
+        and not ({"points", "fee_percent"} & table_columns(engine, "referral_withdrawals")),
+        "、".join(sorted(table_columns(engine, "referral_ledger"))),
+    )
+    check(
+        "迁移是幂等的：再跑一次不再改动任何行",
+        points_migration.migrate_points(engine, backup=False).changed is False,
+        "第二次报告 changed=False",
+    )
+
+    # ---- 5) 回滚能把整数厘无损还原成 FLOAT（退回旧版本程序用）----
+    rollback = points_migration.rollback_points(engine)
+    restored_ok = rollback.ok and "balance" in table_columns(engine, "referral_wallets")
+    restored_mismatch = []
+    if restored_ok:
+        with engine.begin() as connection:
+            for wallet_id, _, _, _, _ in legacy_rows:
+                row = connection.exec_driver_sql(
+                    "SELECT balance, frozen, earned, withdrawn FROM referral_wallets WHERE id = ?",
+                    (wallet_id,),
+                ).fetchone()
+                after = tuple(f"{float(value or 0.0):.2f}" for value in row)
+                if after != before_display[wallet_id]:
+                    restored_mismatch.append(f"{wallet_id}: {after}")
+    check(
+        "回滚把整数厘无损还原成 FLOAT（可退回旧版本程序）",
+        restored_ok and not restored_mismatch,
+        "；".join(restored_mismatch)
+        or f"还原 {sum(t.backfilled for t in rollback.tables)} 行，逐行与迁移前一致",
+    )
+
+    # ---- 6) 迁移会先备份再动手 ----
+    #: 备份是「先验证后销毁」之外的另一层保险，因此必须**真的**产生文件。
+    backup_dir = Path(tempfile.mkdtemp(prefix="hb-points-backup-"))
+    backup_source = backup_dir / "store.db"
+    backup_source.write_bytes(b"SQLite format 3\x00probe")
+    backup_engine = create_store_engine(
+        load_settings(data_dir=backup_dir, license_keys_dir=backup_dir / "keys")
+    )
+    made = points_migration.backup_database(backup_engine, directory=backup_dir / "snapshots")
+    check(
+        "迁移前会整份备份数据库文件（确认结果无误前可据此还原）",
+        made is not None and made.is_file() and made.read_bytes() == b"SQLite format 3\x00probe",
+        str(made) if made is not None else "未生成备份（不该发生）",
+    )
+
+
+def table_columns(engine, table: str) -> set[str]:
+    """读取某张表的现有列名。"""
+    from sqlalchemy import inspect as _inspect
+
+    return {column["name"] for column in _inspect(engine).get_columns(table)}
+
+
+#: 旧版（迁移前）的积分相关表结构：只有 FLOAT 列，没有 *_centi / *_bps。
+_LEGACY_POINTS_SCHEMA = """
+CREATE TABLE accounts (id VARCHAR(36) NOT NULL, email VARCHAR(255) NOT NULL, PRIMARY KEY (id));
+CREATE TABLE orders (id VARCHAR(36) NOT NULL, order_no VARCHAR(32) NOT NULL,
+  referral_reward_points FLOAT NOT NULL, PRIMARY KEY (id));
+CREATE TABLE referral_wallets (id VARCHAR(36) NOT NULL, account_id VARCHAR(36) NOT NULL,
+  code VARCHAR(16) NOT NULL, balance FLOAT NOT NULL, frozen FLOAT NOT NULL,
+  earned FLOAT NOT NULL, withdrawn FLOAT NOT NULL, created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL, PRIMARY KEY (id));
+CREATE TABLE referral_ledger (id VARCHAR(36) NOT NULL, wallet_id VARCHAR(36) NOT NULL,
+  account_id VARCHAR(36) NOT NULL, kind VARCHAR(32) NOT NULL, delta FLOAT NOT NULL,
+  frozen_delta FLOAT NOT NULL, balance_after FLOAT NOT NULL, frozen_after FLOAT NOT NULL,
+  note VARCHAR(255) NOT NULL, reference VARCHAR(128), order_id VARCHAR(36),
+  created_at DATETIME NOT NULL, PRIMARY KEY (id));
+CREATE TABLE referral_withdrawals (id VARCHAR(36) NOT NULL, wallet_id VARCHAR(36) NOT NULL,
+  account_id VARCHAR(36) NOT NULL, request_key VARCHAR(64) NOT NULL, points FLOAT NOT NULL,
+  fee_percent FLOAT NOT NULL, fee_points FLOAT NOT NULL, net_points FLOAT NOT NULL,
+  status VARCHAR(32) NOT NULL, note VARCHAR(255) NOT NULL, created_at DATETIME NOT NULL,
+  resolved_at DATETIME, PRIMARY KEY (id), UNIQUE (request_key));
+"""
+
+
 def check_store_setup_authorization() -> None:
     """商店自己的首次初始化也要有守卫（审计 S1）。
 
@@ -5518,6 +5761,7 @@ async def run() -> int:
     await check_verification_code_not_logged_in_smtp_fallback()
     check_setup_admin_guard()
     check_store_lease_revocation_bound()
+    check_points_integer_precision()
     check_pending_order_single_flight()
     check_order_no_unique_by_construction()
     check_store_setup_authorization()
@@ -7344,8 +7588,8 @@ async def run() -> int:
                 wallet_id=holder_wallet.id,
                 account_id=account_id,
                 request_key=f"smoke-delete-pending-{utcnow().strftime('%H%M%S%f')}",
-                points=1.0,
-                net_points=1.0,
+                points_centi=100,
+                net_points_centi=100,
                 status="pending",
             )
         )

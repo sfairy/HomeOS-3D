@@ -38,6 +38,7 @@ from store.request_security import (
     same_origin_request,
 )
 from store.schema_guard import ensure_schema
+from store.points_migration import migrate_points
 from store.setup_guard import SetupGuard, announce_setup_window
 from store.site_settings import get_setting
 
@@ -129,6 +130,19 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     applied = ensure_schema(database.engine)
     if applied:
         logger.info("已补齐 %d 项库结构变更：%s", len(applied), "、".join(applied))
+
+    # 邀请积分从 FLOAT（积分）迁到 INTEGER（厘）。必须排在 ensure_schema **之后**：
+    # 新列由 ensure_schema 按 ORM 元数据补出来，这里负责回填、对账，并在对账全通过后
+    # 退役旧列。旧列是 NOT NULL 且没有 DDL 默认值，ORM 已经不再映射它 —— 不删掉的话
+    # 之后每次插入都会以 NOT NULL constraint failed 失败，且**只在存量库上**失败。
+    # 先备份再迁移；对账有任何一行不一致就整表跳过删列（保留旧列、数据不丢）。
+    migration = migrate_points(database.engine)
+    if migration.changed:
+        logger.warning("邀请积分口径迁移完成：%s", migration.summary())
+    if not migration.ok:
+        for table in migration.tables:
+            for problem in table.problems:
+                logger.error("积分迁移问题 %s：%s", table.table, problem)
 
     # 确保 docker 渠道存在当前版本的发布记录：「检查更新」查的正是这张表，
     # 缺了它客户端就没有可升级的目标版本。

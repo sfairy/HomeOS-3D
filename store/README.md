@@ -264,6 +264,36 @@ APPID 和密钥都换成沙箱的。
 | 日志刷「通知验签未通过」 | 支付宝公钥填错，或把「应用公钥」当成了「支付宝公钥」 |
 | 日志刷「金额不符，拒绝入账」 | 站点里改过价格导致订单金额与实付不一致，需人工核对这笔订单 |
 
+### 5.4.1 升级与迁移：积分口径 FLOAT → 整数厘
+
+邀请积分原先以 `FLOAT` 存「积分」、靠 `round(x, 2)` 维持两位小数。正确性建立在
+「SQL 侧 `round()` 与 Python 侧 `round()` 结果一致」这个**不成立**的前提上：SQLite 是
+half-away-from-zero、Python 是 half-even，落在 `.xx5` 上时给出不同分币值
+（`0.125` → SQLite `0.13` / Python `0.12`）。后果是提现那条「用 round 后的值比对冻结额
+有没有被并发改过」的条件 UPDATE 会把**没有并发**的情况判成冲突，以及余额与流水之和
+能差 1 厘。
+
+现已全部改为 `INTEGER` **厘**（1 积分 = 100 厘），运算集中在 `store/money.py`。
+**升级不需要手工执行任何命令**：`app.py` 启动时按
+`ensure_schema`（补新列）→ `migrate_points`（回填 + 逐行对账 → 退役旧列）自动完成。
+
+| 想做的事 | 命令 |
+| --- | --- |
+| 只看看会影响哪些表、多少行（只读） | `python -m store.tools.migrate_points --check-only` |
+| 先回填 + 对账、**暂不删旧列** | `python -m store.tools.migrate_points --check` |
+| 正式迁移（默认先备份数据库文件） | `python -m store.tools.migrate_points` |
+| 退回旧版本程序前，把厘还原成 FLOAT | `python -m store.tools.migrate_points --rollback` |
+
+**三条要知道的规则**：
+
+1. **对账基准是「用户看到的数字」**——`format_centi(新值) == f"{旧值:.2f}"`。
+   任何一行不符就**整表跳过删列**并打印前 10 处差异，此时库是「新旧并存」的安全状态。
+2. **旧列必须删掉，不能留着不管**。旧列是 `NOT NULL` 且没有 DDL 默认值，ORM 已不再映射它，
+   于是新的 `INSERT` 会以 `NOT NULL constraint failed` 失败——**且只在存量库上失败**
+   （全新库本就没有这一列），本地与 CI 全绿。所以 `--check` 之后请尽快补跑正式迁移。
+3. 对外 JSON 契约**没变**：仍是 `"10.05"` 这样的两位小数字符串（厘正好是 1/100，无损），
+   所以前端与客户端都不需要跟着改。
+
 ### 5.5 巡检还活着吗：后台概览的卡片与 `/healthz`
 
 支付巡检（`payments/sweeper.py`）跑在 `app.py` 的 `try/except Exception` 里，坏掉时的
@@ -342,8 +372,12 @@ store/
   site_settings.py     # 站点/支付/邀请 运行时配置
   mailer.py            # 验证码投递：log | echo | smtp
   password_gate.py     # 登录失败限流
+  money.py             # ★ 积分/金额的分币运算唯一口径（Decimal，整数厘）
+  points_migration.py  # 邀请积分 FLOAT→整数厘 的回填/对账/退役/回滚
   fulfill.py           # 订单履约：发码 / 追加增量包 / 库存 / 邀请奖励
   referrals.py         # 邀请钱包与积分账本、提现
+  limiter.py           # 进程内滑动窗口限流（初始化守卫、支付跳转页查单）
+  setup_guard.py       # 首次初始化窗口的访问守卫（本机放行 + 远程引导密钥 + 限流）
   features.py          # 客户端能力码目录（中文名 + 说明），与主项目 BASE_FEATURES 对齐
   payments/            # base 接口 + mock 收银台 + 支付宝（签名/下单/验签/查单）+ 统一入账
   payments/sweeper.py  # 后台巡检：认领「已付款但通知丢了」的单、关闭过期渠道交易 + 状态登记（概览 / healthz）
@@ -360,6 +394,7 @@ store/
   static/admin.css     # ★ 后台页面布局：窄侧栏、面板骨架、统计卡、表格
   tools/gen_keys.py    # 生成密钥对，并同步公钥镜像到客户端 keys/ 与指纹常量
   tools/seed.py        # 初始化管理员 + 商品 + 版本
+  tools/migrate_points.py  # 积分口径迁移 CLI（--check / --no-drop / --rollback）
   tools/smoke.py       # 协议级自检
   tools/e2e.py         # 真实链路端到端（44 项）
 ```

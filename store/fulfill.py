@@ -650,5 +650,9 @@ def fulfill_order(
     return {
         "alreadyFulfilled": False,
         "licenseId": order.license_id,
-        "referralRewardPoints": reward,
+        #: 单位是**厘**（1 积分 = 100 厘）——与 ``ReferralLedger`` / 钱包同口径。
+        #: 目前没有调用方读这个字段（``fulfill_order`` 的返回值被各处忽略），
+        #: 保留它只是为了不改变既有返回结构；键名带 Centi 是为了不让后来人
+        #: 误以为它是「积分」而按元/点去用。
+        "referralRewardPointsCenti": reward,
     }

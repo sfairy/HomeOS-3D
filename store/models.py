@@ -401,7 +401,12 @@ class Order(Base):
     #: 码也发了，但这件库存早已还给别人，属于刻意保留的例外，必须让运营看到。
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
     review_note: Mapped[str] = mapped_column(String(255), default="")
-    referral_reward_points: Mapped[float] = mapped_column(default=0.0)
+    #: 这笔订单给邀请人发的奖励，单位**厘**（1 积分 = 100 厘）。
+    #: 与钱包/流水同一口径；旧列 ``referral_reward_points``（FLOAT）由
+    #: ``store.points_migration`` 回填后退役。
+    referral_reward_points_centi: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -615,10 +620,20 @@ class ReferralWallet(Base):
         String(36), ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, index=True
     )
     code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
-    balance: Mapped[float] = mapped_column(default=0.0)
-    frozen: Mapped[float] = mapped_column(default=0.0)
-    earned: Mapped[float] = mapped_column(default=0.0)
-    withdrawn: Mapped[float] = mapped_column(default=0.0)
+    #: 以下四个聚合值单位都是**厘**（1 积分 = 100 厘），整数存储。
+    #:
+    #: 原先是 ``Float``，正确性依赖「SQL 侧 round 与 Python 侧 round 结果一致」，
+    #: 而 SQLite 是 half-away、Python 是 half-even，落在 .xx5 上时两边给出不同的
+    #: 分币值 —— 提现的「比对冻结额是否被并发改过」会因此误报冲突，余额与流水之和
+    #: 也会差 1 厘。改整数后加减天然精确，那个前提不再需要。
+    #: 列名带 ``_centi`` 是为了让旧代码里每一处 ``wallet.balance`` 都在评审时暴露出来
+    #: （改名会让漏改点直接以 AttributeError 炸在测试里，而不是静默按旧单位算）。
+    balance_centi: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
+    frozen_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    earned_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    withdrawn_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -633,10 +648,11 @@ class ReferralLedger(Base):
     account_id: Mapped[str] = mapped_column(String(36), ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
     #: reward | freeze | withdrawal | release | reversal
     kind: Mapped[str] = mapped_column(String(32), index=True)
-    delta: Mapped[float] = mapped_column(default=0.0)
-    frozen_delta: Mapped[float] = mapped_column(default=0.0)
-    balance_after: Mapped[float] = mapped_column(default=0.0)
-    frozen_after: Mapped[float] = mapped_column(default=0.0)
+    #: 单位同钱包：厘。``*_after`` 记的是**数据库里算出来的**结果。
+    delta_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    frozen_delta_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    balance_after_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    frozen_after_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     note: Mapped[str] = mapped_column(String(255), default="")
     reference: Mapped[str | None] = mapped_column(String(128))
     order_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("orders.id", ondelete="SET NULL"))
@@ -652,10 +668,13 @@ class ReferralWithdrawal(Base):
     )
     account_id: Mapped[str] = mapped_column(String(36), ForeignKey("accounts.id", ondelete="CASCADE"), index=True)
     request_key: Mapped[str] = mapped_column(String(64), unique=True)
-    points: Mapped[float] = mapped_column(default=0.0)
-    fee_percent: Mapped[float] = mapped_column(default=0.0)
-    fee_points: Mapped[float] = mapped_column(default=0.0)
-    net_points: Mapped[float] = mapped_column(default=0.0)
+    #: 申请金额，单位厘。
+    points_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    #: 手续费**比例**，单位基点（5.0% → 500）。比例不是金额，不适用千分位口径，
+    #: 用 bps 整数是为了让 ``gross_centi * bps // 10000`` 全程整数运算。
+    fee_bps: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    fee_points_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    net_points_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     #: pending | paid | rejected
     status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
     note: Mapped[str] = mapped_column(String(255), default="")

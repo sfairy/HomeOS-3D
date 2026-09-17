@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import logging
-import math
 import secrets
 import threading
 from contextlib import contextmanager
@@ -18,7 +17,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
-from store import coupons, features, fulfill, referrals, site_settings as site_config
+from store import coupons, features, fulfill, money, referrals, site_settings as site_config
 from store import catalog, mail_settings, mailer
 from store.api.store import (
     _expire_stale_orders,
@@ -209,7 +208,7 @@ def _account_payload(session, account: Account) -> dict:
         "lastLoginAt": iso(account.last_login_at),
         "createdAt": iso(account.created_at),
         "referralCode": wallet.code if wallet else account.referral_code,
-        "balance": f"{float(wallet.balance or 0.0):.2f}" if wallet else "0.00",
+        "balance": money.format_centi(wallet.balance_centi) if wallet else "0.00",
         "licenseCount": int(
             session.execute(
                 select(func.count(License.id)).where(License.account_id == account.id)
@@ -404,15 +403,15 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
     pending_withdrawal_rows = session.execute(
         select(
             func.count(ReferralWithdrawal.id),
-            func.coalesce(func.sum(ReferralWithdrawal.net_points), 0),
+            func.coalesce(func.sum(ReferralWithdrawal.net_points_centi), 0),
         ).where(ReferralWithdrawal.status == "pending")
     ).one()
 
     wallet_row = session.execute(
         select(
             func.count(ReferralWallet.id),
-            func.coalesce(func.sum(ReferralWallet.balance), 0.0),
-            func.coalesce(func.sum(ReferralWallet.frozen), 0.0),
+            func.coalesce(func.sum(ReferralWallet.balance_centi), 0),
+            func.coalesce(func.sum(ReferralWallet.frozen_centi), 0),
         )
     ).one()
 
@@ -495,10 +494,14 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
             # 所以可用 = balance - frozen。三者都要摆出来，只给 balance 会让
             # 运营以为要付的钱比实际多。
             "wallets": int(wallet_row[0] or 0),
-            "balancePoints": round(float(wallet_row[1] or 0.0), 2),
-            "frozenPoints": round(float(wallet_row[2] or 0.0), 2),
-            "availablePoints": round(float(wallet_row[1] or 0.0) - float(wallet_row[2] or 0.0), 2),
-            "pendingWithdrawalPoints": round(float(pending_withdrawal_rows[1] or 0.0), 2),
+            #: 对外仍是「两位小数字符串」，与改动前一致（厘是 1/100，无损）。
+            #: 聚合值在库侧以厘求和（整数求和精确），只在出口渲染一次。
+            "balancePoints": money.format_centi(wallet_row[1] or 0),
+            "frozenPoints": money.format_centi(wallet_row[2] or 0),
+            "availablePoints": money.format_centi(
+                int(wallet_row[1] or 0) - int(wallet_row[2] or 0)
+            ),
+            "pendingWithdrawalPoints": money.format_centi(pending_withdrawal_rows[1] or 0),
         },
     }
 
@@ -2246,10 +2249,10 @@ def admin_list_withdrawals(
             "id": row.id,
             "accountId": row.account_id,
             "email": emails.get(row.account_id),
-            "points": f"{float(row.points or 0.0):.2f}",
-            "feePoints": f"{float(row.fee_points or 0.0):.2f}",
-            "feePercent": float(row.fee_percent or 0.0),
-            "netPoints": f"{float(row.net_points or 0.0):.2f}",
+            "points": money.format_centi(row.points_centi),
+            "feePoints": money.format_centi(row.fee_points_centi),
+            "feePercent": float(money.from_centi(row.fee_bps)),
+            "netPoints": money.format_centi(row.net_points_centi),
             "status": row.status,
             "note": row.note,
             "createdAt": iso_z(row.created_at),
@@ -2306,7 +2309,7 @@ def admin_delete_withdrawal(
         )
 
     status_label = withdrawal.status
-    points = float(withdrawal.points or 0.0)
+    points = money.format_centi(withdrawal.points_centi)
     session.delete(withdrawal)
     session.flush()
     _audit(
@@ -2314,7 +2317,7 @@ def admin_delete_withdrawal(
         _admin_actor(admin),
         "withdrawal.delete",
         withdrawal_id,
-        f"{status_label} · {points:.2f} 积分",
+        f"{status_label} · {points} 积分",
     )
     return {"id": withdrawal_id, "deleted": True}
 
@@ -3405,34 +3408,40 @@ def admin_adjust_wallet(
             status_code=status.HTTP_400_BAD_REQUEST, detail="人工调账必须填写备注。"
         )
 
-    delta = round(float(payload.delta), 2)
-    frozen_delta = round(float(payload.frozen_delta), 2)
-    if not (math.isfinite(delta) and math.isfinite(frozen_delta)):
-        # JSON 标准里没有 NaN/Infinity，但 Python 的 ``json`` 默认**接受**这三个
-        # 字面量，所以构造出来的请求体能把 nan / inf 一路写进钱包余额：
-        # ``nan == 0`` 与 ``nan < 0`` 全为假，下面两道守卫都会被绕过，落库之后
-        # 该账号的余额永远算不回正常值（所有加减都是 nan）。
+    #: NaN / Infinity 必须在这里被挡掉。JSON 标准里没有这两个字面量，但 Python 的
+    #: ``json`` 默认**接受**它们，所以构造出来的请求体能把 nan 一路写进钱包余额：
+    #: ``nan == 0`` 与 ``nan < 0`` 全为假，后面两道守卫都会被绕过，落库之后该账号
+    #: 的余额永远算不回正常值（所有加减都是 nan）。``money.to_centi`` 对非有限数
+    #: 直接抛 ``ValueError``，这里翻译成 400 而不是让它变成 500。
+    try:
+        delta_centi = money.to_centi(payload.delta)
+        frozen_delta_centi = money.to_centi(payload.frozen_delta)
+    except ValueError as error:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="变动金额必须是有限数字。"
-        )
-    if delta == 0 and frozen_delta == 0:
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"变动金额必须是有限数字（{error}）。"
+        ) from None
+    if delta_centi == 0 and frozen_delta_centi == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="变动金额不能为 0。")
 
     wallet = referrals.get_or_create_wallet(session, account)
-    next_balance = round(float(wallet.balance or 0.0) + delta, 2)
-    next_frozen = round(float(wallet.frozen or 0.0) + frozen_delta, 2)
-    if next_balance < 0 or next_frozen < 0:
+    next_balance_centi = int(wallet.balance_centi or 0) + delta_centi
+    next_frozen_centi = int(wallet.frozen_centi or 0) + frozen_delta_centi
+    if next_balance_centi < 0 or next_frozen_centi < 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"调账后余额或冻结金额不能为负（余额 {next_balance:.2f} / 冻结 {next_frozen:.2f}）。",
+            detail=(
+                f"调账后余额或冻结金额不能为负（余额 "
+                f"{money.format_centi(next_balance_centi)} / 冻结 "
+                f"{money.format_centi(next_frozen_centi)}）。"
+            ),
         )
 
     entry = referrals.ledger_entry(
         session,
         wallet,
         kind="manual_adjust",
-        delta=delta,
-        frozen_delta=frozen_delta,
+        delta_centi=delta_centi,
+        frozen_delta_centi=frozen_delta_centi,
         note=note,
         reference=_admin_actor(admin),
     )
@@ -3441,12 +3450,13 @@ def admin_adjust_wallet(
         _admin_actor(admin),
         "wallet.adjust",
         account.id,
-        f"余额 {delta:+.2f} / 冻结 {frozen_delta:+.2f}，备注：{note}",
+        f"余额 {money.format_centi(delta_centi)} / 冻结 "
+        f"{money.format_centi(frozen_delta_centi)}，备注：{note}",
     )
     return {
         "accountId": account.id,
-        "balance": f"{float(wallet.balance or 0.0):.2f}",
-        "frozen": f"{float(wallet.frozen or 0.0):.2f}",
+        "balance": money.format_centi(wallet.balance_centi),
+        "frozen": money.format_centi(wallet.frozen_centi),
         "ledgerId": entry.id,
     }
 
@@ -3764,10 +3774,10 @@ def admin_list_referral_ledger(
             "accountEmail": account.email if account else "",
             "walletId": entry.wallet_id,
             "kind": entry.kind,
-            "delta": f"{float(entry.delta or 0.0):.2f}",
-            "frozenDelta": f"{float(entry.frozen_delta or 0.0):.2f}",
-            "balanceAfter": f"{float(entry.balance_after or 0.0):.2f}",
-            "frozenAfter": f"{float(entry.frozen_after or 0.0):.2f}",
+            "delta": money.format_centi(entry.delta_centi),
+            "frozenDelta": money.format_centi(entry.frozen_delta_centi),
+            "balanceAfter": money.format_centi(entry.balance_after_centi),
+            "frozenAfter": money.format_centi(entry.frozen_after_centi),
             "note": entry.note,
             "reference": entry.reference,
             "orderId": entry.order_id,
