@@ -514,6 +514,7 @@ body {
      留了间距就会在表头上方露出空档，让表格内容从缝里穿过去。 */
   padding: 0 26px 30px;
   overscroll-behavior: contain;
+}
 
 /* 全局顶部条——用户身份 + 快捷操作按钮，始终贴在主工作区顶部 */
 .admin-topbar {
