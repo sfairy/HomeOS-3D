@@ -13,14 +13,18 @@ const form = document.querySelector("#login-form"),
 /**
  * 计算登录成功后的跳转地址。
  *
- * @returns {string} 站内路径；next 缺失或不合法时回退到 "/"。
+ * @returns {string} 站内路径；next 缺失或不合法时先走 /license。
+ *   授权有效时 /license 会 303 回首页；失效则留在激活页。
+ *   带明确 next（如 /3d-studio）时仍直达目标页，由目标页自身做授权门禁。
  */
 function loginDestination() {
   const destinationPath = new URLSearchParams(window.location.search).get("next") || "/";
   // 以 // 开头会被浏览器当成协议相对 URL 跳到外站，必须过滤。
-  return destinationPath.startsWith("/") && !destinationPath.startsWith("//")
-    ? destinationPath
-    : "/";
+  const safePath =
+    destinationPath.startsWith("/") && !destinationPath.startsWith("//")
+      ? destinationPath
+      : "/";
+  return safePath === "/" ? "/license" : safePath;
 }
 
 form.addEventListener("submit", async submitEvent => {

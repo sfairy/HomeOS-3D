@@ -7,6 +7,7 @@
 - 授权商店（store）             http://127.0.0.1:18082
 
 两者共享项目根目录下的 ``.venv-store`` 虚拟环境。
+可在 macOS / Linux / Windows 上直接运行：``python start.py``。
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ from pathlib import Path
 from store.env import load_dotenv
 
 ROOT = Path(__file__).resolve().parent
+IS_WINDOWS = sys.platform == 'win32'
 
 # 端口
 APP_PORT = '18081'
@@ -28,7 +30,12 @@ HOST = '127.0.0.1'
 
 # 共享虚拟环境（缺失时自动创建并按商店依赖安装）
 VENV_DIR = ROOT / '.venv-store'
-VENV_PYTHON = VENV_DIR / 'bin' / 'python'
+# Unix: .venv-store/bin/python ；Windows: .venv-store/Scripts/python.exe
+VENV_PYTHON = (
+    VENV_DIR / 'Scripts' / 'python.exe'
+    if IS_WINDOWS
+    else VENV_DIR / 'bin' / 'python'
+)
 REQUIREMENTS = ROOT / 'store' / 'requirements.txt'
 
 
@@ -42,7 +49,21 @@ def ensure_venv() -> str:
 
 
 def spawn(command: list[str], environment: dict[str, str]) -> subprocess.Popen:
-    return subprocess.Popen(command, cwd=ROOT, env=environment)
+    kwargs: dict = {'cwd': str(ROOT), 'env': environment}
+    if IS_WINDOWS:
+        # 独立进程组，便于父进程接管 Ctrl+C 后干净终止子进程。
+        kwargs['creationflags'] = subprocess.CREATE_NEW_PROCESS_GROUP
+    return subprocess.Popen(command, **kwargs)
+
+
+def terminate(process: subprocess.Popen) -> None:
+    if process.poll() is not None:
+        return
+    if IS_WINDOWS:
+        # Windows 上 SIGTERM 不可靠；terminate() 映射为 TerminateProcess。
+        process.terminate()
+        return
+    process.send_signal(signal.SIGTERM)
 
 
 def main() -> None:
@@ -101,11 +122,13 @@ def main() -> None:
 
     def stop(_signum=None, _frame=None) -> None:
         for process in processes:
-            if process.poll() is None:
-                process.send_signal(signal.SIGTERM)
+            terminate(process)
 
     signal.signal(signal.SIGINT, stop)
-    signal.signal(signal.SIGTERM, stop)
+    # SIGTERM 在 Windows 上通常不可用 / 无意义，仅在 POSIX 注册。
+    if hasattr(signal, 'SIGTERM') and not IS_WINDOWS:
+        signal.signal(signal.SIGTERM, stop)
+
     print(f'主应用  http://{HOST}:{APP_PORT}/setup')
     print(f'授权商店  http://{HOST}:{STORE_PORT}/')
     try:
@@ -114,7 +137,11 @@ def main() -> None:
     finally:
         stop()
         for process in processes:
-            process.wait()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
 
 
 if __name__ == '__main__':

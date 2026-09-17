@@ -13961,9 +13961,9 @@ function renderLicenseStatus(licenseState) {
     CONNECTION_WARNING: "授权连接异常",
     STARTUP_VALIDATION_REQUIRED: "等待启动校验",
     LEASE_EXPIRED: "租约已到期",
-    INSTANCE_MISMATCH: "实例不匹配",
+    INSTANCE_MISMATCH: "硬件绑定不匹配",
     INVALID: "租约无效",
-    DEACTIVATED: "后台已释放",
+    DEACTIVATED: "授权已停用",
     REVOKED: "授权已撤销",
     CLOCK_ROLLBACK: "系统时间异常"
   };
@@ -13976,8 +13976,15 @@ function renderLicenseStatus(licenseState) {
     "LEASE_EXPIRED",
     "INSTANCE_MISMATCH",
     "INVALID",
+    "DEACTIVATED",
     "REVOKED",
     "CLOCK_ROLLBACK"
+  ].includes(licenseStatusCode);
+  const hideReactivate = [
+    "UNACTIVATED",
+    "INSTANCE_MISMATCH",
+    "REVOKED",
+    "DEACTIVATED"
   ].includes(licenseStatusCode);
   licenseOpenButtonElement.classList.toggle("connected", licenseActive);
   licenseOpenButtonElement.classList.toggle("warning", licenseWarning);
@@ -14003,6 +14010,18 @@ function renderLicenseStatus(licenseState) {
   licenseCardController.render(licenseState);
   licenseDetailErrorElement.hidden = !licenseState?.lastError;
   licenseDetailErrorElement.textContent = licenseState?.lastError || "";
+  const recoveryHintElement = document.querySelector("#license-recovery-hint");
+  if (recoveryHintElement) {
+    if (licenseStatusCode === "INSTANCE_MISMATCH") {
+      recoveryHintElement.hidden = false;
+      recoveryHintElement.textContent =
+        "换机、升级或硬件变更后会出现此状态。请到商店账号中心解除设备绑定，冷却结束后用商店购买邮箱与激活码重新激活。";
+    } else {
+      recoveryHintElement.hidden = true;
+      recoveryHintElement.textContent = "";
+    }
+  }
+  licenseReactivateButtonElement.hidden = hideReactivate;
   // 「重新激活」失败会要求用户自己填激活码，此时即使状态允许无感续租也必须留着表单，
   // 否则 15 秒一次的状态轮询会在用户输到一半时把它收回去。
   licenseFormElement.hidden = !(

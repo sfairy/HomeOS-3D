@@ -22,7 +22,6 @@ import secrets
 import threading
 import time
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 
 import httpx
 from sqlalchemy import select
@@ -33,6 +32,11 @@ from ..global_log import GlobalLogStore
 from ..models import LicenseState
 from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
 from .endpoints import LicenseEndpointPool
+from .hardware import hardware_instance_id
+from .trust import verify_license_trust_anchors
+
+#: 服务端结构化吊销码；仅凭 ``code`` / ``revoked`` 判定「确认吊销」。
+CONFIRMED_REVOCATION_CODES = frozenset({'REVOKED', 'LICENSE_REVOKED'})
 
 
 class LicenseClientError(RuntimeError):
@@ -46,7 +50,7 @@ class LicenseClientError(RuntimeError):
         """参数:
             message: 面向用户的错误文案。
             status_code: 授权服务返回的 HTTP 状态码；本地错误为 None。
-            code: 业务错误码，例如 MANUAL_ACTIVATION_REQUIRED，前端据此切换界面。
+            code: 业务错误码，例如 MANUAL_ACTIVATION_REQUIRED / REVOKED，前端据此切换界面。
         """
         super().__init__(message)
         self.status_code = status_code
@@ -58,15 +62,14 @@ class LicenseClientError(RuntimeError):
 
         401/403 也可能是会话过期、恢复令牌失效，或授权节点同步过程中的瞬时竞态；
         这些情况必须保留本地授权，让客户端还有机会自动重试恢复。
-        因此除了状态码，还要求响应文案命中明确的吊销短语 ——
-        授权后台的停用文案是双方约定死的，靠它把「确认吊销」与「临时失败」分开。
+
+        仅认结构化 ``code``（``REVOKED`` / ``LICENSE_REVOKED``）；
+        ``revoked: true`` 无 code 时由 ``_parse_error_response`` 注入 ``REVOKED``。
         """
         # 只有 401/403 才可能是吊销；网络错误、5xx 一律不算。
         if self.status_code not in frozenset({401, 403}):
             return False
-        detail = str(self)
-        # 这些短语与授权服务的返回文案逐字对齐（停用/到期接口），改动需双端同步。
-        return any(message in detail for message in ('实例绑定已停用', '客户授权或激活码已停用', '客户、激活码或实例绑定已停用', '商品授权有效期已结束'))
+        return self.code in CONFIRMED_REVOCATION_CODES
 
 
 # 租约已到期时的重试间隔：比常规心跳更密，尽量缩短功能不可用的窗口。
@@ -118,6 +121,8 @@ class LicenseService:
         self.settings = settings
         self.database = database
         self.event_log = event_log
+        # 启动期先钉死信任锚：指纹错了立刻失败并提示 gen_keys，不拖到首次激活。
+        verify_license_trust_anchors(settings)
         # 事件去重状态可能被心跳协程与请求线程同时访问，用可重入锁保护。
         self._event_lock = threading.RLock()
         # 记住上一次对外可见的状态：只在状态真正变化时写事件日志，避免刷屏。
@@ -125,7 +130,7 @@ class LicenseService:
         # 按操作名累计失败次数，用于「恢复成功」时汇报此前失败了多少次。
         self._event_failures = {}
         # 验签器构造失败（配置里没有可用公钥）会在启动期直接抛错，属于快速失败。
-        self.verifier = LeaseVerifier(trusted_keys=settings.license_trusted_public_keys, legacy_key_id=settings.license_legacy_key_id)
+        self.verifier = LeaseVerifier(trusted_keys=settings.license_trusted_public_keys, default_key_id=settings.license_key_id)
         self.cipher = SecretCipher(settings.license_secret_key_path)
         # 传输公钥的指纹在构造时即校验：配置错了不会拖到第一次请求才暴露。
         self.transport_cipher = LicenseTransportCipher(settings.license_transport_public_key_path, settings.license_transport_key_id, settings.license_transport_public_key_sha256)
@@ -140,10 +145,58 @@ class LicenseService:
         self._stop = asyncio.Event()
         # 语义是「计划可能变了，立即重算等待时间」：激活成功后用它打断当前长等待。
         self._schedule_changed = asyncio.Event()
-        # 实例 ID 读一次就缓存：它由文件决定，运行期不会变。
+        # 实例 ID 读一次就缓存：硬件指纹运行期不变。
         self._cached_instance_id = None
         # 本次进程启动后是否还没完成联网确认；为真时门禁暂不放行。
         self._startup_validation_pending = False
+        # 最近一次 confirm_binding 的单调时钟；用于非强制调用的节流。
+        self._last_binding_confirm_at = 0.0
+
+    #: 打开编辑器等入口强制联网确认；状态轮询走节流，避免打爆授权服务。
+    BINDING_CONFIRM_THROTTLE_SECONDS = 15.0
+
+    async def confirm_binding(self, *, force: bool = False) -> None:
+        """联网确认设备绑定仍有效；商店解绑 / 停用后清空本地授权。
+
+        打开编辑器、读取授权状态前调用：不能只靠离线签名租约继续放行，
+        否则解绑后最长要等心跳间隔（默认 300 秒）才能跳转到激活页。
+
+        参数:
+            force: True 时忽略节流（页面入口）；False 时最多每
+                ``BINDING_CONFIRM_THROTTLE_SECONDS`` 确认一次（状态轮询）。
+
+        网络失败不清空本地租约（保持离线可用）；仅「确认吊销」会 ``_mark_revoked``。
+        """
+        if not self.settings.license_required or not self._endpoint_pool.configured:
+            return
+        now = time.monotonic()
+        if (
+            not force
+            and self._last_binding_confirm_at
+            and (now - self._last_binding_confirm_at) < self.BINDING_CONFIRM_THROTTLE_SECONDS
+        ):
+            return
+        with self.database.session_factory() as database:
+            state = self._state(database)
+            needs_confirm = bool(
+                state.license_id
+                and state.signed_lease
+                and state.status
+                in frozenset({'ACTIVE', 'CONNECTION_WARNING', 'STARTUP_VALIDATION_REQUIRED', 'LEASE_EXPIRED'})
+            )
+        if not needs_confirm:
+            self._last_binding_confirm_at = time.monotonic()
+            return
+        try:
+            # heartbeat 在 401 时会转 recover；确认吊销时内部已清空本地凭证。
+            await self.heartbeat()
+        except LicenseClientError as error:
+            if error.is_confirmed_revocation:
+                # 本地已是 REVOKED；调用方随后 allows() / status() 会拦截并引导重激活。
+                self._log_event('warning', f'联网确认绑定失败（已吊销）：{error}')
+            # 网络 / 临时故障：保留离线租约，等心跳循环重试。
+        finally:
+            self._last_binding_confirm_at = time.monotonic()
 
     def _log_event(self, level: str, message: str) -> None:
         """写一条授权事件日志。
@@ -169,7 +222,7 @@ class LicenseService:
             'LEASE_EXPIRED': '租约已到期',
             'REVOKED': '已吊销',
             'INVALID': '校验无效',
-            'INSTANCE_MISMATCH': '安装标识不匹配',
+            'INSTANCE_MISMATCH': '硬件指纹不匹配',
             'CLOCK_ROLLBACK': '系统时间异常',
             'DEACTIVATED': '已停用',
             'STARTUP_VALIDATION_REQUIRED': '等待启动联网验证'}
@@ -248,22 +301,23 @@ class LicenseService:
     def _valid_instance_id(value: str) -> bool:
         """校验实例 ID 的字符集与长度。
 
-        16~64 的长度下限来自 uuid4（32 位十六进制）—— 短于此几乎必然是占位值或手填值；
-        上限 64 为服务端字段留出余量。
+        硬件指纹为 SHA-256 十六进制（64 字符）；下限 16 挡住占位/手填短串，
+        上限 64 与服务端字段对齐。
         """
-        # 允许 ':'，兼容 sha256:xxx 之类的派生格式。
+        # 允许 ':'，兼容 fallback-machine:xxx 派生格式的诊断片段（正式 ID 仍是纯 hex）。
         return 16 <= len(value) <= 64 and all(character.isalnum() or character in '-_.:' for character in value)
 
-    def _instance_id(self, preferred_instance_id: str | None = None) -> str:
-        """取出（必要时生成并持久化）本机安装实例 ID。
+    def _instance_id(self) -> str:
+        """取出本机硬件指纹派生的安装实例 ID，并持久化到 data/instance-id。
 
-        参数:
-            preferred_instance_id: 数据库里已保存的实例 ID，优先于文件内容。
+        身份以硬件为准（见 ``hardware.hardware_instance_id``），不再使用可拷贝的
+        uuid4 安装文件。迁移策略：升级后若库里仍是旧 UUID 绑定，``_state`` 会
+        判为 ``INSTANCE_MISMATCH``，用户需在商店解绑后用同一激活码重新激活。
 
         返回:
-            合法的实例 ID：客户端生成的 uuid4，或沿用授权服务回填的值。
+            合法的硬件派生实例 ID。
         """
-        # 缓存命中直接返回，避免每次门禁判定都读一次文件。
+        # 缓存命中直接返回，避免每次门禁判定都重读硬件标识。
         if self._cached_instance_id:
             return self._cached_instance_id
         path = self.settings.instance_id_path
@@ -273,15 +327,13 @@ class LicenseService:
             saved = path.read_text(encoding='utf-8').strip()
         except OSError:
             saved = ''
-        preferred = (preferred_instance_id or '').strip()
-        # 优先级：本次传入 > 文件里已保存 > 新生成。
-        # 前两者都要过合法性校验，防止手工写入的脏值被长期沿用。
-        if self._valid_instance_id(preferred):
-            value = preferred
-        elif self._valid_instance_id(saved):
-            value = saved
-        else:
-            value = str(uuid4())
+        # 硬件指纹是唯一真相源；读不到真实硬件时走持久化兜底文件，避免空身份。
+        value = hardware_instance_id(
+            required=True,
+            fallback_path=self.settings.hardware_fallback_id_path,
+        )
+        if not self._valid_instance_id(value):
+            raise RuntimeError('硬件指纹派生的实例标识无效，无法建立设备绑定。')
         # 只在内容真的变了才写盘，避免每次启动都做无谓的写入与 rename。
         if saved != value:
             temporary = path.with_name(f'''.{path.name}.tmp''')
@@ -299,11 +351,10 @@ class LicenseService:
         """取（或初始化）单行授权状态，并处理实例 ID 变化。
 
         单例表：全库只有一行 LicenseState，因此直接 limit(1) 取。
-        若实例 ID 变了（换机 / 换了数据卷），清空全部租约相关字段并要求重新绑定。
+        若实例 ID 变了（换机 / 硬件指纹升级替换旧 UUID），清空全部租约相关字段并要求重新绑定。
         """
         state = database.scalar(select(LicenseState).limit(1))
-        # 只在「已激活」时才把库里的实例 ID 当作首选值：未激活时以本地文件为准。
-        instance_id = self._instance_id(state.instance_id if state and state.license_id else None)
+        instance_id = self._instance_id()
         if state is None:
             # 首次运行：建一行空状态。
             state = LicenseState(id=1, instance_id=instance_id)
@@ -324,7 +375,12 @@ class LicenseService:
             state.lease_expires_at = None
             # 已激活却被判不匹配 → 需要重新绑定；本来就未激活 → 只是一个新安装。
             state.status = 'INSTANCE_MISMATCH' if state.license_id else 'UNACTIVATED'
-            state.last_error = '检测到安装 UUID 与授权记录不一致，请重新绑定当前安装。' if state.license_id else None
+            state.last_error = (
+                '检测到硬件指纹与授权绑定不一致（含从安装 UUID 升级到硬件绑定），'
+                '请先在商店账号中心解绑后重新激活。'
+                if state.license_id
+                else None
+            )
             database.commit()
             self._record_status(state.status, state.last_error)
         return state
@@ -441,11 +497,13 @@ class LicenseService:
                 if response.status_code >= 500:
                     # 5xx 视为服务端暂时故障：换候选的同时拉黑，避免每次都先撞同一台坏机器。
                     self._endpoint_pool.mark_failed(endpoint.base_url)
-                    last_failure = LicenseClientError(self._response_error_detail(response), status_code=response.status_code)
+                    detail, code = self._parse_error_response(response)
+                    last_failure = LicenseClientError(detail, status_code=response.status_code, code=code)
                     continue
                 if response.status_code >= 400:
                     # 4xx 是业务拒绝（激活码错误、确认吊销等），换地址也不会变，直接抛出。
-                    raise LicenseClientError(self._response_error_detail(response), status_code=response.status_code)
+                    detail, code = self._parse_error_response(response)
+                    raise LicenseClientError(detail, status_code=response.status_code, code=code)
                 # 204 / 空响应是合法的成功返回（个别接口无 body）。
                 if not response.content:
                     return {}
@@ -474,17 +532,27 @@ class LicenseService:
         raise last_failure or LicenseClientError('无法连接授权服务器。')
 
     @staticmethod
-    def _response_error_detail(response: httpx.Response) -> str:
-        """从错误响应里取出 detail 字段（FastAPI 的默认错误体约定）。"""
+    def _parse_error_response(response: httpx.Response) -> tuple[str, str | None]:
+        """从错误响应取出 detail 与可选业务 code。
+
+        协议：``{"detail": "...", "code": "REVOKED", "revoked": true}``。
+        ``revoked: true`` 且无 code 时补 ``REVOKED``（现行字段，非旧版 detail 兼容）。
+        """
         try:
             # 非 JSON 或顶层不是字典时统一回落到通用文案，
             # 绝不把原始 body 直接透传给用户。
             parsed = response.json()
-            detail = parsed.get('detail', '授权服务器拒绝请求。') if isinstance(parsed, dict) else '授权服务器拒绝请求。'
+            if not isinstance(parsed, dict):
+                return '授权服务器拒绝请求。', None
+            detail = str(parsed.get('detail', '授权服务器拒绝请求。'))
+            code = parsed.get('code')
+            if isinstance(code, str) and code.strip():
+                return detail, code.strip()
+            if parsed.get('revoked') is True:
+                return detail, 'REVOKED'
+            return detail, None
         except ValueError:
-            detail = '授权服务器拒绝请求。'
-        # detail 可能是结构化对象，统一转字符串再交给上层。
-        return str(detail)
+            return '授权服务器拒绝请求。', None
 
     def _apply_response(self, response: dict, *, activation_code_hint: str | None = None, activation_code: str | None = None, email: str | None = None) -> dict:
         """把一次成功的授权响应落库（验签通过后才算成功）。
@@ -650,7 +718,7 @@ class LicenseService:
            安装」的授权是幂等放行的（``ensure_binding`` 命中 ``already_bound_here``
            时不消耗解绑冷却），会重新签发会话与恢复凭证。
 
-        确认吊销（403 + 吊销短语）不属于可自愈的故障：那种情况下本地授权已被清空，
+        确认吊销（403 + ``code=REVOKED`` / 吊销短语）不属于可自愈的故障：那种情况下本地授权已被清空，
         且自动重激活会把厂商刚释放的绑定悄悄抢回来，因此直接上抛由用户处理。
         本机没有可用激活凭证时返回 ``MANUAL_ACTIVATION_REQUIRED``，前端据此展开
         激活表单让用户手动输入。
@@ -717,14 +785,14 @@ class LicenseService:
             # 401 视为会话过期：立刻用恢复令牌换新会话，对调用方透明。
             if isinstance(error, LicenseClientError) and error.status_code == 401:
                 return await self._recover_unlocked()
-            # 确认吊销：清空本地授权后原样上抛（保留状态码，reactivate 据此判定不可自愈）。
+            # 确认吊销：清空本地授权后原样上抛（保留状态码与 code，reactivate 据此判定不可自愈）。
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
                 self._mark_revoked(str(error))
-                raise LicenseClientError(str(error), status_code=error.status_code) from error
+                raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
             # 其它失败（网络不可达、5xx）：按租约剩余有效期降级为
             # CONNECTION_WARNING 或 LEASE_EXPIRED，等下一轮心跳重试。
             self._mark_failure(str(error))
-            raise LicenseClientError(str(error)) from error
+            raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=getattr(error, 'code', None)) from error
 
     async def recover(self) -> dict:
         """对外恢复入口：串行化，与心跳共用同一把锁。"""
@@ -760,9 +828,9 @@ class LicenseService:
             self._record_failure('租约恢复', error, sensitive_values=(recovery_token, encrypted))
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
                 self._mark_revoked(str(error))
-                raise LicenseClientError(str(error), status_code=error.status_code) from error
+                raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
             self._mark_failure(str(error))
-            raise LicenseClientError(str(error)) from error
+            raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=getattr(error, 'code', None)) from error
 
     def _mark_revoked(self, message: str) -> None:
         """确认吊销后的清理：清空所有本地凭证并把状态置为 REVOKED。
@@ -792,8 +860,15 @@ class LicenseService:
             state.max_projects = 0
             state.max_displays = 0
             state.status = 'REVOKED'
-            # 截断到 1000 字符：文案会进数据库并展示在界面上，防止超长内容撑爆字段。
-            state.last_error = message[:1000]
+            # 解绑场景服务端文案是「实例绑定已停用」；统一成可操作的重激活说明。
+            detail = (message or '').strip()
+            if '实例绑定已停用' in detail:
+                state.last_error = (
+                    '设备绑定已解除，本地授权已失效。请使用商店购买邮箱与激活码重新激活。'
+                )
+            else:
+                # 截断到 1000 字符：文案会进数据库并展示在界面上，防止超长内容撑爆字段。
+                state.last_error = (detail or '授权已吊销，请重新激活。')[:1000]
             state.deactivated_at = datetime.now(timezone.utc)
             database.commit()
             self._record_status(state.status)
@@ -1107,7 +1182,7 @@ class LicenseService:
             state = database.scalar(select(LicenseState).limit(1))
             # 实例 ID 与本地不一致时直接拒绝，连验签都不必做 ——
             # 那份租约必然不属于当前安装。
-            if state is None or state.instance_id != self._instance_id(state.instance_id if state.license_id else None):
+            if state is None or state.instance_id != self._instance_id():
                 return False
             return self._verified_access(state, feature)
         with self.database.session_factory() as database:

@@ -43,9 +43,6 @@ logger = logging.getLogger("store.license")
 #: 恢复凭证有效期（比会话长，保证会话失效后仍能救回来）
 RECOVERY_TOKEN_TTL_SECONDS = 180 * 24 * 3600
 
-REQUIRED_FEATURES_FALLBACK = ("api", "assets", "editor", "display", "projects.write")
-
-
 class LicenseAuthority:
     """持有签名密钥与传输密钥，负责全部租约签发逻辑。"""
 
@@ -343,6 +340,7 @@ class LicenseAuthority:
         return session_token, session_id
 
     def features_for(self, session: Session, license: License, now: datetime) -> list[str]:
+        """汇总商品功能码与权益；两者皆空时拒绝签发（fail-closed）。"""
         features: set[str] = set()
         if license.product_id:
             product = session.get(Product, license.product_id)
@@ -357,7 +355,10 @@ class LicenseAuthority:
                 continue
             features.add(entitlement.feature_code)
         if not features:
-            features.update(REQUIRED_FEATURES_FALLBACK)
+            raise LicenseServerError(
+                "该授权未配置任何功能码，请联系商店管理员检查商品功能配置。",
+                status_code=422,
+            )
         return sorted(features)
 
     def issue(

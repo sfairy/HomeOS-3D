@@ -163,8 +163,7 @@ def bundled_feature_codes(session: Session, product: Product) -> list[str]:
     **完全没有人发放它**：``create_license_for_order`` 只认商品自己的
     ``feature_codes``，``LicenseAuthority.features_for`` 也只读商品自己的功能码。
     于是运营在后台把三个商品的 id 填进套餐、却没把功能码再抄一遍，用户付款后
-    什么也没拿到（甚至因为功能码为空，落进 ``REQUIRED_FEATURES_FALLBACK`` 的
-    兜底分支，看起来「能用」但其实是走了失败放行）。
+    什么也没拿到；激活时 ``features_for`` 会因空功能集以 422 拒绝签发。
 
     这里把包含商品的功能码展开出来，由履约写入 ``Entitlement``，从而与增量包
     走同一套「权益叠加」机制。

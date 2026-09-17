@@ -293,12 +293,14 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
     if origin.scheme not in frozenset({'http', 'https'}) or origin.netloc.casefold() != request.headers.get('host', '').casefold():
         raise HTTPException(status_code=403, detail='日志只允许同源页面上报。')
     # 未登录页面只允许上报异常：正常信息没有上报价值，也堵住刷日志的水位。
+    # 直接 204 丢掉，而不是 422：日志通道是 fire-and-forget，打回 422 只会让
+    # 浏览器控制台刷红，对运营与排障都没有帮助（旧版客户端偶发会误投 info）。
     if payload.level not in frozenset({'error', 'warning'}):
-        raise HTTPException(status_code=422, detail='未登录页面只能上报异常。')
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     # 先剥掉查询串与哈希、再去尾部斜杠，防止用 ?x 之类的小把戏绕过页面白名单。
     page = str(payload.context.get('page') or '').split('?', 1)[0].split('#', 1)[0].rstrip('/') or '/'
     if page not in PUBLIC_PAGES and not page.startswith(('/display/', '/3d-studio/')):
-        raise HTTPException(status_code=422, detail='不支持的页面。')
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     _limit_client_log(request, anonymous=True)
     try:
         viewer = authenticated_viewer(request, response, database)

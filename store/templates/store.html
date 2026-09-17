@@ -288,7 +288,7 @@
     <ul class="hb-trust">
       <li class="hb-trust__item"><i class="fa-duotone fa-regular fa-database"></i><strong>数据留在本机</strong><small>授权校验走自建服务器，家庭数据不上传第三方云。</small></li>
       <li class="hb-trust__item"><i class="fa-duotone fa-regular fa-bolt"></i><strong>支付确认即发码</strong><small>订单由服务端确认，到账后自动签发激活码，无需等人工。</small></li>
-      <li class="hb-trust__item"><i class="fa-duotone fa-regular fa-arrows-rotate"></i><strong>设备可自助解绑</strong><small>换机不用找客服，每份授权独立计算解绑冷却。</small></li>
+      <li class="hb-trust__item"><i class="fa-duotone fa-regular fa-arrows-rotate"></i><strong>设备可自助解绑</strong><small>换机或升级后硬件指纹变化时，可在账号中心自助解绑，每份授权独立计算冷却。</small></li>
       <li class="hb-trust__item"><i class="fa-duotone fa-regular fa-receipt"></i><strong>订单与授权可查</strong><small>历史订单、激活码、绑定设备与积分流水在账号中心随时可查。</small></li>
     </ul>
   </section>
@@ -310,7 +310,7 @@
       </details>
       <details class="hb-faq__item">
         <summary>一台授权能绑几台设备？换设备怎么办？</summary>
-        <div class="hb-faq__body"><p>每份授权对应一个激活码，绑定的设备会列在账号中心的设备绑定里。换设备时可以在线自助解绑，解绑后原设备下次心跳即转吊销，冷却期内不能重新绑定。</p></div>
+        <div class="hb-faq__body"><p>每份授权对应一个激活码，按本机硬件指纹一对一绑定，设备会列在账号中心。换设备时可在线自助解绑；解绑后原设备下次心跳即转吊销，冷却期内不能重新绑定。系统大版本升级后若提示「硬件绑定不匹配」，同样先在账号中心解绑，再回 HomeOS 用原激活码重新激活。</p></div>
       </details>
       <details class="hb-faq__item">
         <summary>买了基础版，之后想升级可以吗？</summary>
@@ -406,7 +406,7 @@
               <div class="hb-form-section__head">
                 <div><strong>选择原授权</strong><small>增量包将直接添加到选中的激活码</small></div>
               </div>
-              <select name="customerId" class="hb-select" aria-label="选择要添加增量包的授权"></select>
+              <select name="targetLicenseId" class="hb-select" aria-label="选择要添加增量包的授权"></select>
               <small id="addon-target-confirmation" class="hb-form-help" hidden></small>
               <small id="addon-target-empty" class="hb-form-help" hidden>当前账号没有可添加增量包的永久主授权。</small>
             </section>
@@ -841,8 +841,9 @@
     <div class="hb-dialog__body">
       <p id="release-device-target"></p>
       <p id="release-device-policy" class="hb-form-hint">正在读取解绑设置…</p>
+      <p class="hb-form-hint">解绑后原设备授权会失效。若因升级/换机出现「硬件绑定不匹配」，解绑完成后再回 HomeOS 激活页重新激活。</p>
       <p id="release-device-status" class="hb-dialog__status" hidden></p>
-      <label class="hb-field" id="release-device-password"><span>登录密码</span><span class="hb-password-field"><input type="password" name="password" autocomplete="current-password" required><button type="button" data-password-toggle aria-label="显示密码">显示</button></span></label>
+      <label class="hb-field" id="release-device-password"><span>商店登录密码</span><span class="hb-password-field"><input type="password" name="password" autocomplete="current-password" required><button type="button" data-password-toggle aria-label="显示密码">显示</button></span><small class="hb-form-hint">请输入商店账号密码，不是 HomeOS 本机管理员密码。</small></label>
       <small class="hb-release-error hb-form-error" hidden></small>
     </div>
     <div class="hb-dialog__foot hb-dialog__foot--split">

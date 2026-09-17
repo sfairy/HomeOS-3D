@@ -396,6 +396,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         '/static/client-log.js',
         '/static/pair.js',
         '/static/auth.css',
+        '/static/setup.css',
         '/static/login.js',
         '/static/setup.js',
         '/static/license.js',
@@ -601,21 +602,30 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             connection.execute(text('SELECT 1'))
         return {'status': 'ready', 'initialized': initialized(request), 'version': app_settings.version}
 
-    @app.get('/setup', include_in_schema = False)
-    def setup_page(request: Request):
-        """设置页：已初始化就不允许再进来，按登录状态分流。"""
-        if initialized(request):
-            return RedirectResponse('/' if signed_in(request) else '/login', status_code = 303)
-        return FileResponse(app_settings.frontend_dir / 'setup.html')
-
     @app.get('/login', include_in_schema = False)
     def login_page(request: Request):
-        """登录页：未初始化先去设置；已登录直接去目标页。"""
+        """登录页：未初始化先去设置；已登录先过授权门再进目标页。"""
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         if signed_in(request):
-            return RedirectResponse(safe_next_path(request), status_code = 303)
+            destination = safe_next_path(request)
+            # 默认进首页时先走 /license：失效留在激活页，有效由该页 303 回 /
+            if destination == '/':
+                destination = '/license'
+            return RedirectResponse(destination, status_code = 303)
         return FileResponse(app_settings.frontend_dir / 'login.html')
+
+    @app.get('/setup', include_in_schema = False)
+    def setup_page(request: Request):
+        """设置页：已初始化就不允许再进来，按登录状态分流。
+
+        已登录时同样先过授权门（/license），与首次设置成功后的跳转一致。
+        """
+        if initialized(request):
+            if signed_in(request):
+                return RedirectResponse('/license', status_code = 303)
+            return RedirectResponse('/login', status_code = 303)
+        return FileResponse(app_settings.frontend_dir / 'setup.html')
 
     @app.get('/pair', include_in_schema = False)
     def pair_page(request: Request):
@@ -641,38 +651,52 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         return FileResponse(app_settings.frontend_dir / 'pair.html')
 
     @app.get('/', include_in_schema = False)
-    def home_page(request: Request):
-        """编辑器主页：未初始化 → 设置页；未登录 → 登录页；无编辑能力 → 授权页。
+    async def home_page(request: Request):
+        """编辑器主页：未初始化 → 设置页；未登录 → 登录页；授权非 ACTIVE → 授权页。
 
-        三道门禁顺序固定，跳转目标不同，前端据此给出不同引导。
+        三道门禁顺序固定。进入前强制联网确认绑定。
+        仅 ``ACTIVE`` 可进编辑器：``CONNECTION_WARNING`` 等宽限态虽然离线验签
+        仍可能通过，但必须先经过授权页（展示告警 / 重新激活），避免「未激活
+        却直接进主页」。心跳恢复为 ACTIVE 后授权页轮询会自动放行。
         """
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         if not signed_in(request):
             return RedirectResponse('/login', status_code = 303)
-        if not request.app.state.license_service.allows('editor'):
+        await request.app.state.license_service.confirm_binding(force=True)
+        license_status = request.app.state.license_service.status()
+        if license_status.get('status') != 'ACTIVE' or not license_status.get('editorAllowed'):
             return RedirectResponse('/license', status_code = 303)
         return FileResponse(app_settings.frontend_dir / 'index.html')
 
     @app.get('/license', include_in_schema = False)
-    def license_page(request: Request):
-        """授权页：已经能编辑了就说明无需激活，直接回首页。"""
+    async def license_page(request: Request):
+        """授权页：仅在状态为 ACTIVE 且具备 editor 时回首页。
+
+        CONNECTION_WARNING / STARTUP_VALIDATION_REQUIRED 等「离线宽限」状态
+        仍可能 allows(editor)=True，但授权页必须留下来展示告警与重新激活入口——
+        否则首次设置 / 登录后会被立刻 303 踢进编辑器，用户看不到「请重新激活」。
+        """
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         if not signed_in(request):
             return RedirectResponse('/login', status_code = 303)
-        if request.app.state.license_service.allows('editor'):
+        await request.app.state.license_service.confirm_binding(force=True)
+        license_status = request.app.state.license_service.status()
+        if license_status.get('status') == 'ACTIVE' and license_status.get('editorAllowed'):
             return RedirectResponse('/', status_code = 303)
         return FileResponse(app_settings.frontend_dir / 'license.html')
 
     @app.get('/3d-studio', include_in_schema = False)
-    def three_d_studio_page(request: Request):
+    async def three_d_studio_page(request: Request):
         """3D 户型工作室：需要登录 + editor 能力。"""
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
         if not signed_in(request):
             return login_redirect(request)
-        if not request.app.state.license_service.allows('editor'):
+        await request.app.state.license_service.confirm_binding(force=True)
+        license_status = request.app.state.license_service.status()
+        if license_status.get('status') != 'ACTIVE' or not license_status.get('editorAllowed'):
             return RedirectResponse('/license', status_code = 303)
         return FileResponse(app_settings.frontend_dir / '3d-studio.html')
 

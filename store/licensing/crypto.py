@@ -47,8 +47,13 @@ class LicenseServerError(Exception):
         self.status_code = status_code
         self.revoked = revoked
 
-    def as_body(self) -> dict[str, str]:
-        return {"detail": self.detail}
+    def as_body(self) -> dict[str, object]:
+        """明文错误体：detail 给人看；revoked/code 给客户端做结构化吊销判定。"""
+        body: dict[str, object] = {"detail": self.detail}
+        if self.revoked:
+            body["revoked"] = True
+            body["code"] = "REVOKED"
+        return body
 
 
 def b64url_encode(value: bytes) -> str:

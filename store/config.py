@@ -95,7 +95,7 @@ class StoreSettings:
 
     # 会话
     cookie_name: str = "ha_bridge_store_session"
-    hint_cookie_name: str = "ha_bridge_store_hint"
+    hint_cookie_name: str = "homeos_store_hint"
     #: HTTPS 部署时置 True；默认 False 不代表「只有显式开启才安全」——
     #: 请求级判定会自动按 https 给 Cookie 加 Secure，见 request_security。
     cookie_secure: bool = False

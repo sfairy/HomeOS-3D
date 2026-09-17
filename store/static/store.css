@@ -2988,6 +2988,8 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   color: var(--hb-muted);
   font-family: var(--hb-font-mono);
   font-size: 11.5px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .hb-account-manual-note {

@@ -253,12 +253,24 @@ def delete_project(project_id: str, payload: ProjectDeleteRequest, request: Requ
 
 
 @router.get('/{project_id}/draft')
-def get_project_draft(project_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
+async def get_project_draft(project_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """读取项目草稿：文档本体 + schemaVersion / revision / 全局弹窗版本。
 
+    打开项目前强制联网确认绑定：商店解绑后不能继续用离线租约读草稿。
     中控设备只能读自己绑定的项目，越权 403「该中控设备未绑定此仪表盘。」；
     草稿不存在抛 404「项目草稿不存在。」。
     """
+    await request.app.state.license_service.confirm_binding(force=True)
+    if not request.app.state.license_service.allows('api'):
+        license_status = request.app.state.license_service.status()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                'code': 'LICENSE_RESTRICTED',
+                'message': '设备绑定已解除或授权不可用，请重新激活。',
+                'licenseStatus': license_status['status'],
+            },
+        )
     require_viewer_project(viewer, project_id)
     draft = database.get(ProjectDraft, project_id)
     if draft is None:

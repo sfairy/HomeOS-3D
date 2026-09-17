@@ -1,21 +1,17 @@
 <!doctype html>
 <!--
   首次设置页（/setup）：创建本机唯一的超级管理员账号。
-  后端只在「尚未初始化」时下发本页，其余情况一律 303：已初始化时按登录状态去 / 或 /login。
-  表单里的 minlength / maxlength 与后端 SetupAdminRequest 的字段约束一一对应
-  （账号 3 至 64 位、密码 8 至 256 位）；前端只是为了先拦一道，真正把关仍在后端。
-  引导密钥（setupToken）一栏默认隐藏：本机直连后端直接放行，从其它地址打开时由
-  setup.js 显式显示并改成必填，否则任何能连上的人都可能抢先建掉管理员账号。
-  入口脚本：/static/auth-shell.js（形象动画与密码显隐）、/static/setup.js（两次密码比对后提交）。
-  与登录页共用 /static/auth.css，DOM 结构（.login-shell / .login-showcase / .login-panel）不可改动，否则样式失配。
+  视觉对齐商店认证页（暗色琥珀 + 左栏说明 / 右栏表单）。
+  表单约束与后端 SetupAdminRequest 一致：账号 3–64、密码 8–256。
+  引导密钥默认隐藏；非本机打开时由 setup.js 显示并改为必填。
 -->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/client-log.js?v=20260917022019"></script>
+    <script src="/static/client-log.js?v=20260917122000"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#172029" />
+    <meta name="theme-color" content="#151a1f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -26,119 +22,106 @@
     <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260917022019" sizes="180x180" />
     <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260917022019" sizes="180x180" />
     <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260917022019" />
-    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
-    <link rel="stylesheet" href="/static/auth.css?v=20260917022019" />
+    <link rel="stylesheet" href="/static/setup.css?v=20260917123500" />
   </head>
   <body>
-    <!-- ===== 左侧品牌展示区（纯装饰） ===== -->
-    <main class="login-shell">
-      <section class="login-showcase" aria-label="HomeOS介绍">
-        <div class="showcase-grid" aria-hidden="true"></div>
-        <div class="showcase-orb orb-one" aria-hidden="true"></div>
-        <div class="showcase-orb orb-two" aria-hidden="true"></div>
-        <div class="showcase-brand">
-          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260917022019" alt="" /><span
-            >HomeOS</span
-          >
+    <header class="hb-setup-topbar">
+      <div class="hb-container hb-setup-topbar__inner">
+        <a class="hb-setup-brand" href="/setup" aria-label="HomeOS">
+          <span class="hb-setup-brand__mark">
+            <img src="/static/homeos-mark-white-orange.svg?v=20260917022019" alt="" />
+          </span>
+          <span class="hb-setup-brand__text">
+            <strong>HomeOS</strong>
+            <small>本机初始化</small>
+          </span>
+        </a>
+        <span class="hb-setup-topbar__meta">FIRST SETUP · 0.5.6</span>
+      </div>
+    </header>
+
+    <main class="hb-setup-main">
+      <div class="hb-container">
+        <div class="hb-auth-shell">
+          <aside class="hb-auth-aside">
+            <span class="hb-kicker">First Setup</span>
+            <h2>先设置<strong>本机管理员</strong></h2>
+            <p>
+              这是安装后的第一步：创建本机唯一的超级管理员账号。完成后即可登录编辑器、连接
+              Home Assistant，并用商店激活码完成授权绑定。
+            </p>
+            <ul>
+              <li><span class="hb-check" aria-hidden="true">✓</span>账号与密码保存在本机，不经过第三方云</li>
+              <li><span class="hb-check" aria-hidden="true">✓</span>创建成功后自动登录，并先检查授权状态</li>
+              <li><span class="hb-check" aria-hidden="true">✓</span>远程打开时需启动日志里的引导密钥</li>
+            </ul>
+          </aside>
+
+          <section class="hb-auth-card">
+            <div class="hb-auth-brand">
+              <strong>设置管理员</strong>
+              <p>首次安装或重置账号后，在这里设置管理员账号和密码。</p>
+            </div>
+            <form id="setup-form" class="hb-auth-form">
+              <label>
+                管理员账号
+                <input
+                  name="username"
+                  placeholder="输入管理员账号"
+                  autocomplete="username"
+                  minlength="3"
+                  maxlength="64"
+                  required
+                />
+              </label>
+              <label>
+                密码
+                <span class="hb-password-field">
+                  <input
+                    id="setup-password"
+                    name="password"
+                    type="password"
+                    placeholder="至少 8 个字符"
+                    autocomplete="new-password"
+                    minlength="8"
+                    maxlength="256"
+                    required
+                  />
+                  <button type="button" data-password-toggle aria-label="显示密码">显示</button>
+                </span>
+              </label>
+              <label>
+                再次输入密码
+                <span class="hb-password-field">
+                  <input
+                    id="setup-password-confirmation"
+                    name="passwordConfirmation"
+                    type="password"
+                    placeholder="再次输入密码"
+                    autocomplete="new-password"
+                    minlength="8"
+                    maxlength="256"
+                    required
+                  />
+                  <button type="button" data-password-toggle aria-label="显示密码">显示</button>
+                </span>
+              </label>
+              <label id="setup-token-field" hidden>
+                引导密钥
+                <input name="setupToken" placeholder="见服务启动日志" autocomplete="off" maxlength="256" />
+                <small>非本机访问必须填写；密钥在服务启动日志或 APP_SETUP_TOKEN 中。</small>
+              </label>
+              <p id="message" class="hb-setup-error" role="alert" hidden></p>
+              <button class="hb-button hb-button--primary hb-button--lg hb-button--block" type="submit">
+                保存账号并继续
+              </button>
+            </form>
+            <p class="hb-auth-switch">本页仅用于首次初始化；完成后会先检查授权，未激活将进入激活页。</p>
+          </section>
         </div>
-        <div class="home-characters" aria-hidden="true">
-          <div class="character character-orange"><i></i><i></i></div>
-          <div class="character character-purple"><i></i><i></i></div>
-          <div class="character character-dark"><i></i><i></i></div>
-          <div class="character character-yellow"><i></i><i></i><span class="character-mouth yellow-mouth"></span></div>
-        </div>
-      </section>
-      <!-- ===== 右侧设置表单区 ===== -->
-      <section class="login-panel">
-        <div class="mobile-brand">
-          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260917022019" alt="" /><span
-            >HomeOS</span
-          >
-        </div>
-        <div class="login-card">
-          <header>
-            <p class="eyebrow">FIRST SETUP · 0.5.6</p>
-            <h1>设置管理员</h1>
-            <p>首次安装或重置账号后，在这里设置管理员账号和密码。</p>
-          </header>
-          <form id="setup-form" class="auth-form">
-            <label
-              ><span>管理员账号</span
-              ><input
-                name="username"
-                placeholder="输入管理员账号"
-                autocomplete="username"
-                minlength="3"
-                maxlength="64"
-                required
-            /></label>
-            <label
-              ><span>密码</span
-              ><span class="token-field"
-                ><input
-                  id="setup-password"
-                  name="password"
-                  type="password"
-                  placeholder="至少8个字符"
-                  autocomplete="new-password"
-                  minlength="8"
-                  maxlength="256"
-                  required /><button
-                  data-toggle-password="setup-password"
-                  type="button"
-                  aria-label="显示密码"
-                  title="显示密码"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" />
-                    <circle cx="12" cy="12" r="2.5" />
-                  </svg></button></span
-            ></label>
-            <!-- 两次密码用同一个 data-toggle-password 机制，按钮只会切换自己 id 指向的那个输入框；
-                 autocomplete="new-password" 是为了让浏览器不要拿旧密码去自动填充这一栏。 -->
-            <label
-              ><span>再次输入密码</span
-              ><span class="token-field"
-                ><input
-                  id="setup-password-confirmation"
-                  name="passwordConfirmation"
-                  type="password"
-                  placeholder="再次输入密码"
-                  autocomplete="new-password"
-                  minlength="8"
-                  maxlength="256"
-                  required /><button
-                  data-toggle-password="setup-password-confirmation"
-                  type="button"
-                  aria-label="显示密码"
-                  title="显示密码"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" />
-                    <circle cx="12" cy="12" r="2.5" />
-                  </svg></button></span
-            ></label>
-            <!-- 引导密钥：本机直连（loopback）后端直接放行，所以默认隐藏；从其它地址
-                 打开本页时由 setup.js 显式显示并改成必填。密钥在服务启动日志里（容器
-                 部署看容器日志），也可用 APP_SETUP_TOKEN 指定。
-                 没有它，任何人都能抢在管理员之前把管理员账号建掉。 -->
-            <label id="setup-token-field" hidden
-              ><span>引导密钥</span
-              ><input
-                name="setupToken"
-                placeholder="见服务启动日志"
-                autocomplete="off"
-                maxlength="256"
-            /></label>
-            <p id="message" class="login-error" role="alert" hidden></p>
-            <button class="login-submit" type="submit"><span>保存账号并进入系统</span><b>→</b></button>
-          </form>
-        </div>
-      </section>
+      </div>
     </main>
-    <!-- 两个脚本都是 module：现代浏览器下 module 默认 defer，执行顺序与书写顺序一致；
-         auth-shell.js 先跑是为了让密码显隐按钮在 setup.js 提交失败后依然可用。 -->
-    <script type="module" src="/static/auth-shell.js"></script>
-    <script type="module" src="/static/setup.js"></script>
+
+    <script type="module" src="/static/setup.js?v=20260917123000"></script>
   </body>
 </html>

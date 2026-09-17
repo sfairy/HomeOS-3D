@@ -17,7 +17,7 @@ from store.api import alipay as alipay_api
 from store.api import license as license_api
 from store.api import pages as pages_api
 from store.api import store as store_api
-from store.config import StoreSettings, load_settings
+from store.config import STORE_ROOT, StoreSettings, load_settings
 from store.database import Database
 from store.licensing import keys
 from store.licensing.crypto import LeaseSigner, TransportCipher
@@ -42,18 +42,39 @@ logger = logging.getLogger("store")
 
 
 def _ensure_license_keys(settings: StoreSettings) -> None:
-    """首次启动自动生成本地密钥，并打印指纹供客户端配置使用。"""
-    if not settings.private_key_path.exists() or not settings.public_key_path.exists():
+    """确保商店密钥存在；默认密钥目录下还校验仓库根 keys/ 公钥镜像。
+
+    临时目录（smoke / e2e）仍可自动生成密钥且不强制镜像。
+    默认 ``store/keys/local`` 缺密钥或与 ``keys/`` 不一致时直接失败，
+    引导运行 ``python -m store.tools.gen_keys``，避免「商店一把钥、客户端另一把」的静默激活失败。
+    """
+    default_keys_dir = (STORE_ROOT / "keys" / "local").resolve()
+    using_default = settings.license_keys_dir.resolve() == default_keys_dir
+    gen_keys_hint = (
+        "请在仓库根运行：.venv-store/bin/python -m store.tools.gen_keys"
+        "（会生成 store/keys/local 私钥并同步公钥到仓库根 keys/；"
+        "若轮换了密钥，还需把打印的 sha256 写入 APP_LICENSE_*_PUBLIC_KEY_SHA256"
+        " 或 backend/app/config.py 的 DEFAULT_LICENSE_* 常量）。"
+    )
+
+    missing_signing = (
+        not settings.private_key_path.exists() or not settings.public_key_path.exists()
+    )
+    missing_transport = (
+        not settings.transport_private_key_path.exists()
+        or not settings.transport_public_key_path.exists()
+    )
+    if using_default and (missing_signing or missing_transport):
+        raise RuntimeError(f"缺少商店授权密钥（{settings.license_keys_dir}）。{gen_keys_hint}")
+
+    if missing_signing:
         result = keys.generate_ed25519(
             keys.KeyPairPaths(settings.private_key_path, settings.public_key_path)
         )
         logger.warning(
             "已生成授权签名密钥对：%s（sha256=%s）", result.public_path, result.sha256
         )
-    if (
-        not settings.transport_private_key_path.exists()
-        or not settings.transport_public_key_path.exists()
-    ):
+    if missing_transport:
         result = keys.generate_x25519(
             keys.KeyPairPaths(
                 settings.transport_private_key_path, settings.transport_public_key_path
@@ -62,6 +83,24 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
         logger.warning(
             "已生成授权传输密钥对：%s（sha256=%s）", result.public_path, result.sha256
         )
+
+    if not using_default:
+        return
+
+    client_keys = (settings.project_root / "keys").resolve()
+    for source, name in (
+        (settings.public_key_path, "license-public.pem"),
+        (settings.transport_public_key_path, "license-transport-public.pem"),
+    ):
+        mirror = client_keys / name
+        if not mirror.exists():
+            raise RuntimeError(
+                f"客户端公钥镜像缺失：{mirror}。商店密钥与仓库根 keys/ 必须逐字节一致。{gen_keys_hint}"
+            )
+        if source.read_bytes() != mirror.read_bytes():
+            raise RuntimeError(
+                f"客户端公钥镜像与商店密钥不一致：{mirror}。{gen_keys_hint}"
+            )
 
 
 def create_app(settings: StoreSettings | None = None) -> FastAPI:

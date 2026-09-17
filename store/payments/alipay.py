@@ -813,7 +813,7 @@ class AlipayProvider:
             node, _raw = self._call(
                 settings,
                 "alipay.trade.query",
-                {"out_trade_no": f"HB-PROBE-{uuid4().hex[:12]}"},
+                {"out_trade_no": f"HOMEOS-PROBE-{uuid4().hex[:12]}"},
                 require_signature=False,
             )
         except PaymentError as error:
@@ -955,7 +955,7 @@ class AlipayProvider:
 
         # ---- 支付宝公钥能不能真的验通（响应验签） ---- #
         # 这一步是整套诊断里唯一真正使用「支付宝公钥」的地方。
-        probe_no = f"HB-PROBE-{uuid4().hex[:12]}"
+        probe_no = f"HOMEOS-PROBE-{uuid4().hex[:12]}"
         try:
             self._call(
                 settings,

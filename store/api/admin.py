@@ -665,9 +665,8 @@ def _assert_product_configuration(
        校验的话，抄错的能力码会一路发到客户端，然后被静默拦截。
     2. **可发放性**：履约时功能码有两个来源 —— 商品自己的 ``feature_codes``，
        以及套餐 ``included_product_ids`` 展开出的功能码。两者都为空时，用户付了
-       钱却拿不到任何功能码；更糟的是授权会在服务端落进
-       ``REQUIRED_FEATURES_FALLBACK`` 兜底分支，看起来「能用」，所以这类错配在
-       测试环境里极难发现。
+       钱却拿不到任何功能码；授权会在激活时因空功能集被 422 拒绝，
+       所以这类错配在测试环境里必须尽早拦住。
 
     第 2 条只对 ``package`` 强制：单卖的主授权/增量包在后台允许先建后补功能码
     （运营常常先建商品再配功能），而套餐的卖点就是「包含若干商品」，
@@ -1868,7 +1867,7 @@ def admin_list_bindings(
         like = f"%{keyword.strip()}%"
         # 激活码提示也要能搜到：docstring 与后台搜索框都承诺了这一点，但这里的
         # 条件一直只有实例号 / 版本 / IP。排障时手上拿到的往往正是客户报过来的
-        # 那段提示码（``HB-****-1234``），搜不到就只能一条条翻页。
+        # 那段提示码（``HOMEOS-****-1234``），搜不到就只能一条条翻页。
         hinted_license_ids = select(License.id).where(
             or_(License.activation_code.like(like), License.code_hint.like(like))
         )

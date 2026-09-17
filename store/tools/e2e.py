@@ -276,8 +276,8 @@ async def run(port: int, workdir: Path, admin_email: str, admin_password: str) -
             return
         activation_code = center["licenses"][0]["activationCode"]
         check(
-            "激活码格式 HB-XXXX-…",
-            activation_code.startswith("HB-") and len(activation_code.split("-")) == 7,
+            "激活码格式 HOMEOS-XXXX-…",
+            activation_code.startswith("HOMEOS-") and len(activation_code.split("-")) == 7,
             activation_code,
         )
 

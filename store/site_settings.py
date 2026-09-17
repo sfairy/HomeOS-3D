@@ -2,21 +2,12 @@
 
 from __future__ import annotations
 
-import re
-
 from sqlalchemy.orm import Session
 
 from store.config import StoreSettings
 from store.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
 from store.payments.credentials import merge_alipay_settings
 from store.security import iso, utcnow
-
-#: 图标文件名从 ``ha-bridge-*`` 改为 ``homeos-*`` 后的旧路径映射。
-#: ``logo_url`` 是持久化值，读取时归一化，避免旧记录直接渲染成 404。
-#:
-#: 注意 ``ha-bridge-`` 在这里是**历史数据里的字面量**，不是品牌文案：
-#: 它必须原样保留，否则映射退化成恒等替换。
-_LEGACY_ICON_RE = re.compile(r"ha-bridge-(favicon|icon-|mark)")
 
 #: 默认品牌标识。必须与 ``models.StoreSetting.logo_url`` 的默认值一致：
 #: 后台把该字段留空时回落到这里，而不是写一个空串进库（否则页面上
@@ -41,13 +32,6 @@ def resolve_device_release_cooldown(setting: StoreSetting | None, settings: Stor
 def effective_device_release_cooldown(session: Session, settings: StoreSettings) -> int:
     """按会话内的站点配置解析冷却秒数（供没有现成 setting 对象的调用方使用）。"""
     return resolve_device_release_cooldown(get_setting(session), settings)
-
-
-def normalize_icon_path(path: str | None) -> str | None:
-    """把改名前的旧图标路径映射到新文件名（幂等）。"""
-    if not path:
-        return path
-    return _LEGACY_ICON_RE.sub(r"homeos-\1", path)
 
 
 def get_setting(session: Session) -> StoreSetting:
@@ -80,7 +64,7 @@ def store_configuration_payload(setting: StoreSetting) -> dict:
         # 与 logo_url 同款口径：留空回落到默认值，而不是把空串报给前端 ——
         # 空串在页面上表现为「这个站没有客服邮箱」，而实际生效的默认值一直在那儿。
         "supportEmail": setting.support_email or DEFAULT_SUPPORT_EMAIL,
-        "logoUrl": normalize_icon_path(setting.logo_url),
+        "logoUrl": setting.logo_url,
         "maintenanceMode": bool(setting.maintenance_mode),
         "maintenanceMessage": setting.maintenance_message,
         "updatedAt": iso(setting.updated_at),

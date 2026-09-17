@@ -47,7 +47,7 @@
     // 也不代表业务出错，却会随每次布局抖动重复上报，这里统一识别后丢弃。
     // 真正需要修的是触发它的布局代码，而不是把这条提示记进后台。
     RESIZE_OBSERVER_LOOP_ERROR = /^ResizeObserver loop (?:completed with undelivered notifications|limit exceeded)\.?$/,
-    isPublicPage = /^\/(?:login|setup|pair)(?:\/|$)/.test(bridgeWindow.location.pathname);
+    isPublicPage = /^\/(?:login|setup|pair|license)(?:\/|$)/.test(bridgeWindow.location.pathname);
   // publicMode 可在收到 401 后动态切到 true（会话过期降级为公开上报）。
   let publicMode = isPublicPage,
     eventQueue = [],
@@ -203,14 +203,16 @@
       level: ["info", "success", "warning", "error"].includes(reportLevel) ? reportLevel : "error",
       source: currentSourceName(),
       category: redactSensitive(reportCategory || "\u754C\u9762", 64),
-      message: redactSensitive(reportMessage || "\u672A\u77E5\u5F02\u5E38", 1e3),
-      details: redactSensitive(reportDetails, 8e3),
+      message: redactSensitive(reportMessage || "\u672A\u77E5\u5F02\u5E38", 1e3) || "\u672A\u77E5\u5F02\u5E38",
+      details: redactSensitive(reportDetails, 8e3) || null,
       context: pickContext({
-        page: bridgeWindow.location.pathname,
         userAgent: bridgeWindow.navigator?.userAgent || "",
         // 全局上下文在前，单条事件的上下文可覆盖同名键。
         ...logContext,
-        ...reportContext
+        ...reportContext,
+        // page 必须钉死为当前路径：公开通道用它做白名单门禁，
+        // 不能被 hbLogContext / setContext 里的同名键覆盖成编辑器路径。
+        page: bridgeWindow.location.pathname
       }),
       clientTimestamp: new Date().toISOString()
     };
@@ -261,6 +263,33 @@
     );
   }
 
+  /**
+   * 公开通道发送前规范化：钉死 page、丢掉非法时间戳、保证 message 非空。
+   * 队列可能残留编辑器页的 page（例如会话过期后降级到 public-events），
+   * 不处理就会被服务端以「不支持的页面」422 打回，控制台刷红。
+   *
+   * @param {object} rawEvent 队列里的原始事件。
+   * @returns {object} 可安全 POST 到 public-events 的事件。
+   */
+  function normalizePublicEvent(rawEvent) {
+    const context = { ...(rawEvent?.context || {}) };
+    context.page = String(bridgeWindow.location.pathname || "/")
+      .split(/[?#]/, 1)[0]
+      .replace(/\/+$/, "") || "/";
+    const parsedTimestamp = new Date(rawEvent?.clientTimestamp || Date.now());
+    return {
+      level: ["warning", "error"].includes(rawEvent?.level) ? rawEvent.level : "error",
+      source: redactSensitive(rawEvent?.source || currentSourceName(), 64),
+      category: redactSensitive(rawEvent?.category || "\u754C\u9762", 64),
+      message: redactSensitive(rawEvent?.message || "\u672A\u77E5\u5F02\u5E38", 1e3) || "\u672A\u77E5\u5F02\u5E38",
+      details: rawEvent?.details ? redactSensitive(rawEvent.details, 8e3) : null,
+      context: pickContext(context),
+      clientTimestamp: Number.isFinite(parsedTimestamp.getTime())
+        ? parsedTimestamp.toISOString()
+        : new Date().toISOString()
+    };
+  }
+
   // 把队列里的日志逐条发给后端，失败按退避策略重试。
   async function flushQueue() {
     // 正在发送或明确离线时不发起请求（离线时等待 online 事件唤醒）。
@@ -293,6 +322,8 @@
         const abortController = typeof AbortController == "function" ? new AbortController() : null,
           // 8 秒超时兜底：网络挂起时主动 abort，避免请求队列堆积。
           timeoutId = bridgeWindow.setTimeout(() => abortController?.abort(), 8e3);
+        // 公开通道发送前规范化，避免「不支持的页面 / 空 message / 非法时间」打出 422。
+        const eventBody = publicMode ? normalizePublicEvent(batchEntry.event) : batchEntry.event;
         let sendResponse;
         try {
           sendResponse = await originalFetch(
@@ -303,7 +334,7 @@
               // keepalive 让页面卸载途中也能把日志发出去。
               keepalive: !0,
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(batchEntry.event),
+              body: JSON.stringify(eventBody),
               ...(abortController ? { signal: abortController.signal } : {})
             }
           );
@@ -477,9 +508,18 @@
             category: redactSensitive(storedEvent.category || "\u754C\u9762", 64),
             message: redactSensitive(storedEvent.message || "\u672A\u77E5\u5F02\u5E38", 1e3),
             details: redactSensitive(storedEvent.details, 8e3),
-            context: pickContext(storedEvent.context),
+            context: pickContext({
+              ...(storedEvent.context || {}),
+              // 恢复队列时也钉死为当前页，避免带着旧 page 撞上公开通道白名单。
+              page: bridgeWindow.location.pathname
+            }),
             // 时间用入队时刻，保证补报日志的时间线仍准确。
-            clientTimestamp: new Date(storedEntry.queuedAt).toISOString()
+            clientTimestamp: (() => {
+              const queuedDate = new Date(storedEntry.queuedAt);
+              return Number.isFinite(queuedDate.getTime())
+                ? queuedDate.toISOString()
+                : new Date().toISOString();
+            })()
           }
         });
       }

@@ -147,7 +147,7 @@ class Settings:
     license_clock_skew_seconds: int = 300
     license_public_key_path_override: Path | None = None
     license_public_key_sha256: str | None = None
-    license_legacy_key_id: str = DEFAULT_LICENSE_KEY_ID
+    license_key_id: str = DEFAULT_LICENSE_KEY_ID
     license_trusted_public_keys_override: tuple[tuple[str, Path, str | None], ...] = ()
     license_transport_public_key_path_override: Path | None = None
     license_transport_public_key_sha256: str = DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
@@ -236,7 +236,7 @@ class Settings:
 
     @property
     def instance_id_path(self) -> Path:
-        """安装 UUID 文件，由硬件指纹模块按需生成。"""
+        """硬件指纹派生实例 ID 的缓存文件（由 LicenseService 写入）。"""
         return self.data_dir / 'instance-id'
 
     @property
@@ -260,13 +260,13 @@ class Settings:
 
         三种来源按优先级取其一：
         1. 显式覆盖表（APP_LICENSE_TRUSTED_PUBLIC_KEYS），可整体替换；
-        2. 只覆盖了单个公钥文件路径时，收敛成一条 legacy 记录；
+        2. 只覆盖了单个公钥文件路径时，收敛成一条以 license_key_id 为名的记录；
         3. 默认使用仓库 keys/ 下的内置镜像。
         """
         if self.license_trusted_public_keys_override:
             return {key_id: (path, expected_sha256) for key_id, path, expected_sha256 in self.license_trusted_public_keys_override}
         if self.license_public_key_path_override is not None:
-            return {self.license_legacy_key_id: (self.license_public_key_path_override, self.license_public_key_sha256)}
+            return {self.license_key_id: (self.license_public_key_path_override, self.license_public_key_sha256)}
         return {key_id: (self.project_root / 'keys' / filename, expected_sha256) for key_id, filename, expected_sha256 in DEFAULT_LICENSE_TRUSTED_PUBLIC_KEYS}
 
     @property
@@ -336,7 +336,7 @@ def load_settings() -> Settings:
         'license_request_timeout_seconds': float(os.getenv('APP_LICENSE_REQUEST_TIMEOUT_SECONDS', '10')),
         'license_public_key_path_override': _environment_path('APP_LICENSE_PUBLIC_KEY_FILE'),
         'license_public_key_sha256': os.getenv('APP_LICENSE_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
-        'license_legacy_key_id': os.getenv('APP_LICENSE_KEY_ID', '').strip() or DEFAULT_LICENSE_KEY_ID,
+        'license_key_id': os.getenv('APP_LICENSE_KEY_ID', '').strip() or DEFAULT_LICENSE_KEY_ID,
         'license_trusted_public_keys_override': _environment_trusted_keys('APP_LICENSE_TRUSTED_PUBLIC_KEYS'),
         'license_transport_public_key_path_override': _environment_path('APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE'),
         'license_transport_public_key_sha256': os.getenv('APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256,

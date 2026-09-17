@@ -1,18 +1,20 @@
 <!doctype html>
 <!--
   授权激活页（/license）。
-  后端门禁顺序固定：未初始化先去 /setup；未登录先去 /login；若当前授权已允许 editor（说明无需激活）直接 303 回 /。
-  表单字段与后端激活请求体对齐：email 最长 255 位、activationCode 最长 128 位，改长度必须两边一起改。
-  入口脚本：/static/auth-shell.js、/static/license.js（读 /api/v1/license/status，每 5 秒轮询直到可进编辑器）。
-  #logout 是本页唯一的退出入口，由 /static/license.js 绑定：授权被撤销的用户需要靠它换账号重试。
+  视觉对齐 /setup：暗色琥珀 + 顶栏品牌 + 左栏说明 / 右栏表单。
+  后端门禁：未初始化 → /setup；未登录 → /login；
+  仅当授权状态为 ACTIVE 且具备 editor 时 303 回首页。
+  CONNECTION_WARNING 等宽限态会留在本页展示告警与重新激活。
+  表单字段与后端激活请求体对齐：email 最长 255、activationCode 最长 128。
+  #logout 退出本机管理员会话（不是商店账号）。
 -->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/client-log.js?v=20260917022019"></script>
+    <script src="/static/client-log.js?v=20260917122000"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#172029" />
+    <meta name="theme-color" content="#151a1f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -23,75 +25,85 @@
     <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260917022019" sizes="180x180" />
     <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260917022019" sizes="180x180" />
     <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260917022019" />
-    <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
-    <link rel="stylesheet" href="/static/auth.css?v=20260917022019" />
+    <link rel="stylesheet" href="/static/setup.css?v=20260917123500" />
   </head>
   <body>
-    <!-- ===== 左侧品牌展示区（纯装饰） ===== -->
-    <main class="login-shell">
-      <section class="login-showcase" aria-label="HomeOS介绍">
-        <div class="showcase-grid" aria-hidden="true"></div>
-        <div class="showcase-orb orb-one" aria-hidden="true"></div>
-        <div class="showcase-orb orb-two" aria-hidden="true"></div>
-        <div class="showcase-brand">
-          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260917022019" alt="" /><span
-            >HomeOS</span
-          >
+    <header class="hb-setup-topbar">
+      <div class="hb-container hb-setup-topbar__inner">
+        <a class="hb-setup-brand" href="/license" aria-label="HomeOS">
+          <span class="hb-setup-brand__mark">
+            <img src="/static/homeos-mark-white-orange.svg?v=20260917022019" alt="" />
+          </span>
+          <span class="hb-setup-brand__text">
+            <strong>HomeOS</strong>
+            <small>激活授权</small>
+          </span>
+        </a>
+        <div class="hb-setup-topbar__actions">
+          <span class="hb-setup-topbar__meta">LICENSE · 0.5.6</span>
+          <button id="logout" class="hb-setup-logout" type="button">退出本机登录</button>
         </div>
-        <div class="home-characters" aria-hidden="true">
-          <div class="character character-orange"><i></i><i></i></div>
-          <div class="character character-purple"><i></i><i></i></div>
-          <div class="character character-dark"><i></i><i></i></div>
-          <div class="character character-yellow"><i></i><i></i><span class="character-mouth yellow-mouth"></span></div>
+      </div>
+    </header>
+
+    <main class="hb-setup-main">
+      <div class="hb-container">
+        <div class="hb-auth-shell">
+          <aside class="hb-auth-aside">
+            <span class="hb-kicker">License</span>
+            <h2>用激活码<strong>绑定本机</strong></h2>
+            <p>
+              激活码来自商店购买或管理员签发。绑定后授权跟随本机硬件指纹；换机前请先在商店账号中心解绑。
+            </p>
+            <ul>
+              <li><span class="hb-check" aria-hidden="true">✓</span>一机一码，激活即绑定硬件指纹</li>
+              <li><span class="hb-check" aria-hidden="true">✓</span>邮箱填写商店购买账号，不是本机管理员</li>
+              <li><span class="hb-check" aria-hidden="true">✓</span>解绑后需过冷却期才能在新设备重绑</li>
+            </ul>
+          </aside>
+
+          <section class="hb-auth-card">
+            <div class="hb-auth-brand">
+              <strong>激活 HomeOS</strong>
+              <p id="license-status-text">正在读取授权状态…</p>
+            </div>
+            <p id="license-recovery-hint" class="hb-license-recovery" hidden></p>
+            <form id="license-form" class="hb-auth-form">
+              <label>
+                商店购买邮箱
+                <input
+                  name="email"
+                  type="email"
+                  maxlength="255"
+                  autocomplete="email"
+                  placeholder="下单 / 收码用的商店邮箱"
+                  required
+                />
+                <small>填写商店账号邮箱，不是本机管理员账号。</small>
+              </label>
+              <label>
+                激活码
+                <input
+                  name="activationCode"
+                  maxlength="128"
+                  autocomplete="off"
+                  placeholder="HOMEOS-XXXX-XXXX-XXXX"
+                  spellcheck="false"
+                  required
+                />
+                <small>首次激活绑定本机；换机或硬件变更后需先在商店解绑再激活。</small>
+              </label>
+              <p id="message" class="hb-setup-error" role="alert" hidden></p>
+              <button class="hb-button hb-button--primary hb-button--lg hb-button--block" type="submit">
+                激活并绑定本机
+              </button>
+            </form>
+            <p class="hb-auth-switch">激活成功后将自动进入编辑器。本页右上角可退出本机登录。</p>
+          </section>
         </div>
-      </section>
-      <!-- ===== 右侧激活表单区 ===== -->
-      <section class="login-panel">
-        <!-- 退出按钮放在表单区最前，是为了在授权被撤销时仍能一眼看到换账号入口。 -->
-        <button id="logout" class="license-logout" type="button" aria-label="退出登录">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M14.08 15.59 16.67 13H7v-2h9.67l-2.59-2.59L15.5 7l5 5-5 5-1.42-1.41M19 3a2 2 0 0 1 2 2v4.67l-2-2V5H5v14h14v-2.67l2-2V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14Z"
-            />
-          </svg>
-          <span>退出登录</span>
-        </button>
-        <div class="mobile-brand">
-          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260917022019" alt="" /><span
-            >HomeOS</span
-          >
-        </div>
-        <div class="login-card">
-          <header>
-            <p class="eyebrow">LICENSE INFORMATION · 0.5.6</p>
-            <h1>激活 HomeOS</h1>
-            <!-- 初始文案只是占位，/static/license.js 会按 /api/v1/license/status 的 status 字段改写它。 -->
-            <p id="license-status-text">正在读取授权状态…</p>
-          </header>
-          <form id="license-form" class="auth-form">
-            <label
-              ><span>授权邮箱</span
-              ><input
-                name="email"
-                type="email"
-                maxlength="255"
-                autocomplete="email"
-                placeholder="购买授权时使用的邮箱"
-                required
-            /></label>
-            <label
-              ><span>激活码</span
-              ><input name="activationCode" maxlength="128" autocomplete="off" placeholder="HB-XXXX-XXXX-XXXX" required
-            /></label>
-            <p id="message" class="login-error" role="alert" hidden></p>
-            <button class="login-submit" type="submit"><span>激活当前安装</span><b>→</b></button>
-          </form>
-        </div>
-      </section>
+      </div>
     </main>
-    <!-- 两个脚本都声明为 module，默认 defer 且按书写顺序执行；auth-shell.js 负责密码显隐与形象动画，
-         license.js 负责状态轮询与激活提交，二者没有互相依赖。 -->
-    <script type="module" src="/static/auth-shell.js"></script>
-    <script type="module" src="/static/license.js?v=20260917022019"></script>
+
+    <script type="module" src="/static/license.js?v=20260917123500"></script>
   </body>
 </html>

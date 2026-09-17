@@ -95,13 +95,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CLIENT_CRYPTO_PATH = PROJECT_ROOT / "backend" / "app" / "license" / "crypto.py"
 CLIENT_CONFIG_PATH = PROJECT_ROOT / "backend" / "app" / "config.py"
 
-REVOCATION_PHRASES = (
-    "实例绑定已停用",
-    "客户授权或激活码已停用",
-    "客户、激活码或实例绑定已停用",
-    "商品授权有效期已结束",
-)
-
 INSTANCE_ID = "smoke-client-instance-000000000001"
 CLIENT_VERSION = "0.4.6"
 
@@ -1526,8 +1519,14 @@ def check_frontend_api_contract() -> None:
     )
 
 
-def is_confirmed_revocation(detail: str) -> bool:
-    return any(phrase in detail for phrase in REVOCATION_PHRASES)
+def is_confirmed_revocation(*, body: dict | None = None) -> bool:
+    """与客户端 ``LicenseClientError.is_confirmed_revocation`` 对齐：只认结构化 code/revoked。"""
+    if not body:
+        return False
+    code = body.get("code")
+    if isinstance(code, str) and code.strip() in {"REVOKED", "LICENSE_REVOKED"}:
+        return True
+    return body.get("revoked") is True
 
 
 def _alipay_test_keys(workdir: Path) -> dict[str, Path]:
@@ -1611,9 +1610,9 @@ def check_alipay_signing() -> None:
     alipay_public = keys["alipay_public"].read_text(encoding="utf-8")
     app_private = keys["app_private"].read_text(encoding="utf-8")
 
-    content = "out_trade_no=HB-1&total_amount=49.90&trade_status=TRADE_SUCCESS"
+    content = "out_trade_no=HOMEOS-1&total_amount=49.90&trade_status=TRADE_SUCCESS"
     signature = alipay_module.sign_params(
-        {"out_trade_no": "HB-1", "total_amount": "49.90", "trade_status": "TRADE_SUCCESS"},
+        {"out_trade_no": "HOMEOS-1", "total_amount": "49.90", "trade_status": "TRADE_SUCCESS"},
         alipay_private,
     )
     check(
@@ -1757,7 +1756,7 @@ async def check_alipay_notify_flow() -> None:
 
         def _pending_order(amount_cents: int) -> str:
             order = Order(
-                order_no=f"HB-ALIPAY-{utcnow().strftime('%H%M%S%f')}",
+                order_no=f"HOMEOS-ALIPAY-{utcnow().strftime('%H%M%S%f')}",
                 lookup_token="alipay-token",
                 account_id=account_id,
                 customer_id=customer.id,
@@ -2060,7 +2059,7 @@ def check_payment_sweep_flow() -> None:
 
         def _order(suffix: str, status: str, expires_at) -> str:
             order = Order(
-                order_no=f"HB-SWEEP-{stamp}-{suffix}",
+                order_no=f"HOMEOS-SWEEP-{stamp}-{suffix}",
                 lookup_token=f"sweep-token-{stamp}-{suffix}",
                 account_id=account.id,
                 customer_id=customer.id,
@@ -2181,7 +2180,7 @@ def check_payment_sweep_flow() -> None:
     # 去注入故障，它们会被直接跳过，异常根本不会发生（这条断言就先自己踩过一次）。
     with database.session() as session:
         fresh = Order(
-            order_no=f"HB-SWEEP-{stamp}-boom",
+            order_no=f"HOMEOS-SWEEP-{stamp}-boom",
             lookup_token=f"sweep-token-{stamp}-boom",
             email=email,
             product_id=base_product_id,
@@ -2426,7 +2425,7 @@ async def check_payment_sweep_edge_cases() -> None:
 
         def _order(suffix: str, status: str, *, expires_at=None, coupon_code=None) -> str:
             row = Order(
-                order_no=f"HB-EDGE-{stamp}-{suffix}",
+                order_no=f"HOMEOS-EDGE-{stamp}-{suffix}",
                 lookup_token=f"edge-token-{stamp}-{suffix}",
                 account_id=account.id,
                 customer_id=customer.id,
@@ -3618,7 +3617,7 @@ async def check_upgrade_refund_revert() -> None:
 
         # ① 用户此前买过一张 30 天的授权（钱已经付过，退款不该把它收走）
         base_order = Order(
-            order_no="HB-SMOKE-UPGRADE-BASE",
+            order_no="HOMEOS-SMOKE-UPGRADE-BASE",
             lookup_token="smoke-upgrade-base",
             account_id=account.id,
             customer_id=customer.id,
@@ -3639,7 +3638,7 @@ async def check_upgrade_refund_revert() -> None:
         session.add(base_order)
         session.flush()
         license = License(
-            activation_code="HB-SMOKE-UPGRADE-000000000001",
+            activation_code="HOMEOS-SMOKE-UPGRADE-000000000001",
             code_hint="SMOKE-UP",
             customer_id=customer.id,
             account_id=account.id,
@@ -3673,7 +3672,7 @@ async def check_upgrade_refund_revert() -> None:
 
         # ② 升级单就地升级这张授权
         upgrade = Order(
-            order_no="HB-SMOKE-UPGRADE-0001",
+            order_no="HOMEOS-SMOKE-UPGRADE-0001",
             lookup_token="smoke-upgrade-token",
             account_id=account.id,
             customer_id=customer.id,
@@ -3861,9 +3860,9 @@ async def check_stock_reservation_flag() -> None:
             session.flush()
             return order
 
-        holding = _order("HB-SMOKE-RESERVE-HOLD", "pending", released=False)
+        holding = _order("HOMEOS-SMOKE-RESERVE-HOLD", "pending", released=False)
         # 复活单：钱到账了（paid），但预留早在 expired 那一刻还掉了，需要人工复核
-        revived = _order("HB-SMOKE-RESERVE-REVIVE", "paid", released=True)
+        revived = _order("HOMEOS-SMOKE-RESERVE-REVIVE", "paid", released=True)
         revived.needs_review = True
         session.flush()
 
@@ -3895,7 +3894,7 @@ async def check_stock_reservation_flag() -> None:
         )
 
         # 历史遗留单：expires_at 为 NULL，过去永远扫不到
-        legacy = _order("HB-SMOKE-RESERVE-LEGACY", "pending", released=False)
+        legacy = _order("HOMEOS-SMOKE-RESERVE-LEGACY", "pending", released=False)
         legacy.expires_at = None
         legacy.created_at = utcnow() - timedelta(seconds=int(settings.order_ttl_seconds) + 60)
         session.flush()
@@ -3941,11 +3940,11 @@ async def check_stock_reservation_flag() -> None:
         )
         with database.session() as session:
             pending_order = session.scalars(
-                select(Order).where(Order.order_no == "HB-SMOKE-RESERVE-HOLD")
+                select(Order).where(Order.order_no == "HOMEOS-SMOKE-RESERVE-HOLD")
             ).first()
             pending_order.status = "pending"
         unpayable = await client.post(
-            "/store-admin/v1/orders/HB-SMOKE-RESERVE-HOLD/review", json={}
+            "/store-admin/v1/orders/HOMEOS-SMOKE-RESERVE-HOLD/review", json={}
         )
         check(
             "待支付订单不允许标记「已处理」（钱还没到账）",
@@ -4208,7 +4207,7 @@ async def check_entitlement_patch_validation() -> None:
         session.add(customer)
         session.flush()
         license = License(
-            activation_code="HB-SMOKE-ENTITLEMENT-00000001",
+            activation_code="HOMEOS-SMOKE-ENTITLEMENT-00000001",
             code_hint="SMOKE-ENT",
             customer_id=customer.id,
             account_id=account.id,
@@ -4831,7 +4830,7 @@ async def run() -> int:
                 client_crypto.hashlib.sha256(settings.public_key_path.read_bytes()).hexdigest(),
             )
         },
-        legacy_key_id=settings.license_key_id,
+        default_key_id=settings.license_key_id,
     )
 
     transport_http = httpx.ASGITransport(app=app)
@@ -4982,8 +4981,8 @@ async def run() -> int:
         license_item = center["licenses"][0]
         activation_code = license_item["activationCode"]
         check(
-            "激活码格式 HB-XXXX-…",
-            activation_code.startswith("HB-") and len(activation_code.split("-")) == 7,
+            "激活码格式 HOMEOS-XXXX-…",
+            activation_code.startswith("HOMEOS-") and len(activation_code.split("-")) == 7,
             activation_code,
         )
         check("授权来源为 payment_automatic", license_item["issuanceSource"] == "payment_automatic", license_item["issuanceSource"])
@@ -5003,17 +5002,23 @@ async def run() -> int:
             envelope, response_key = transport.encrypt_request(payload, path)
             response = await client.post(path, json=envelope)
             if response.status_code >= 400:
+                body: dict = {}
                 detail = ""
                 try:
-                    detail = str(response.json().get("detail", ""))
+                    parsed = response.json()
+                    if isinstance(parsed, dict):
+                        body = parsed
+                        detail = str(parsed.get("detail", ""))
+                    else:
+                        detail = str(parsed)
                 except ValueError:
                     detail = response.text
-                return response.status_code, detail
+                return response.status_code, detail, body
             return response.status_code, transport.decrypt_response(
                 response.json(), path, response_key
-            )
+            ), None
 
-        status_code, activate = await call_license(
+        status_code, activate, _ = await call_license(
             "/v2/activate",
             {
                 "activationCode": activation_code,
@@ -5043,7 +5048,7 @@ async def run() -> int:
         recovery_token = activate["recoveryToken"]
         sequence = payload["leaseSequence"]
 
-        status_code, heartbeat = await call_license(
+        status_code, heartbeat, _ = await call_license(
             "/v2/heartbeat",
             {
                 "sessionToken": session_token,
@@ -5062,7 +5067,7 @@ async def run() -> int:
             )
             sequence = heartbeat_payload["leaseSequence"]
 
-        status_code, recovered = await call_license(
+        status_code, recovered, _ = await call_license(
             "/v2/recover",
             {
                 "recoveryToken": recovery_token,
@@ -5083,7 +5088,7 @@ async def run() -> int:
             session_token = recovered["sessionToken"]
 
         # 会话失效必须返回 401，客户端才会走 recover
-        status_code, detail = await call_license(
+        status_code, detail, _ = await call_license(
             "/v2/heartbeat",
             {
                 "sessionToken": "invalid-session-token",
@@ -5099,7 +5104,7 @@ async def run() -> int:
         # -------------------------------------------------------------- #
         addon_order_response = await client.post(
             "/store/v1/orders",
-            json={"productId": module_product_id, "customerId": activation_id},
+            json={"productId": module_product_id, "targetLicenseId": activation_id},
         )
         check("增量包下单成功", addon_order_response.status_code == 201, str(addon_order_response.status_code))
         addon_order = addon_order_response.json()
@@ -5118,7 +5123,7 @@ async def run() -> int:
             and center["entitlements"][0]["featureCode"] == "module.3d_interaction",
             str(center["entitlements"]),
         )
-        status_code, heartbeat = await call_license(
+        status_code, heartbeat, _ = await call_license(
             "/v2/heartbeat",
             {
                 "sessionToken": session_token,
@@ -5214,7 +5219,7 @@ async def run() -> int:
         )
         check("后台强制解绑设备", release_binding.status_code == 200, str(release_binding.status_code))
 
-        status_code, detail = await call_license(
+        status_code, detail, body = await call_license(
             "/v2/heartbeat",
             {
                 "sessionToken": session_token,
@@ -5224,9 +5229,14 @@ async def run() -> int:
             },
         )
         check("解绑后心跳返回 403", status_code == 403, f"{status_code} {detail}")
-        check("错误文案命中客户端吊销短语", is_confirmed_revocation(detail), detail)
+        check("解绑后心跳确认为结构化吊销", is_confirmed_revocation(body=body), str(body))
+        check(
+            "吊销响应含结构化 code=REVOKED",
+            isinstance(body, dict) and body.get("code") == "REVOKED" and body.get("revoked") is True,
+            str(body),
+        )
 
-        status_code, detail = await call_license(
+        status_code, detail, _ = await call_license(
             "/v2/activate",
             {
                 "activationCode": activation_code,
@@ -5245,7 +5255,7 @@ async def run() -> int:
             license_row = session.get(License, activation_id)
             license_row.active = False
             license_row.revoked_at = utcnow()
-        status_code, detail = await call_license(
+        status_code, detail, body = await call_license(
             "/v2/activate",
             {
                 "activationCode": activation_code,
@@ -5257,13 +5267,18 @@ async def run() -> int:
             },
         )
         check("授权被停用后激活返回 403", status_code == 403, f"{status_code} {detail}")
-        check("停用文案命中吊销短语", is_confirmed_revocation(detail), detail)
+        check("停用后激活确认为结构化吊销", is_confirmed_revocation(body=body), str(body))
+        check(
+            "停用响应含结构化 code=REVOKED",
+            isinstance(body, dict) and body.get("code") == "REVOKED" and body.get("revoked") is True,
+            str(body),
+        )
 
         # 邮箱不匹配
-        status_code, detail = await call_license(
+        status_code, detail, _ = await call_license(
             "/v2/activate",
             {
-                "activationCode": "HB-0000-0000-0000-0000-0000-0000",
+                "activationCode": "HOMEOS-0000-0000-0000-0000-0000-0000",
                 "instanceId": INSTANCE_ID,
                 "product": "homeos",
                 "clientVersion": CLIENT_VERSION,
@@ -5518,7 +5533,7 @@ async def run() -> int:
     manual_code = issued.json()["activationCode"]
     check(
         "手动签发来源为 manual 且格式正确",
-        manual_code.startswith("HB-") and len(manual_code.split("-")) == 7,
+        manual_code.startswith("HOMEOS-") and len(manual_code.split("-")) == 7,
         manual_code,
     )
     licenses = (await client.get("/store-admin/v1/licenses")).json()["items"]
@@ -5972,7 +5987,7 @@ async def run() -> int:
     check("冷却期内再次自助解绑被拒", released_again.status_code == 429, str(released_again.status_code))
 
     # 手动签发的授权可直接激活（同一账号、同一邮箱）
-    status_code, manual_activate = await call_license(
+    status_code, manual_activate, _ = await call_license(
         "/v2/activate",
         {
             "activationCode": manual_code,
@@ -6164,7 +6179,7 @@ async def run() -> int:
     with database.session() as session:
         session.add(
             Order(
-                order_no=f"HB-SMOKE-FK-{utcnow().strftime('%H%M%S%f')}",
+                order_no=f"HOMEOS-SMOKE-FK-{utcnow().strftime('%H%M%S%f')}",
                 lookup_token="smoke-fk-token",
                 account_id=account_id,
                 email=email,
@@ -6247,18 +6262,18 @@ async def run() -> int:
             return row
 
         stamp = utcnow().strftime("%H%M%S%f")
-        pending_order_no = f"HB-SMOKE-PEND-{stamp}"
-        junk_order_no = f"HB-SMOKE-JUNK-{stamp}"
-        linked_order_no = f"HB-SMOKE-LINK-{stamp}"
-        addon_order_no = f"HB-SMOKE-ADDON-{stamp}"
-        snapshot_order_no = f"HB-SMOKE-SNAP-{stamp}"
+        pending_order_no = f"HOMEOS-SMOKE-PEND-{stamp}"
+        junk_order_no = f"HOMEOS-SMOKE-JUNK-{stamp}"
+        linked_order_no = f"HOMEOS-SMOKE-LINK-{stamp}"
+        addon_order_no = f"HOMEOS-SMOKE-ADDON-{stamp}"
+        snapshot_order_no = f"HOMEOS-SMOKE-SNAP-{stamp}"
         _smoke_order("pending", pending_order_no)
         _smoke_order("cancelled", junk_order_no)
         linked_order = _smoke_order("cancelled", linked_order_no)
 
         # 给「已关联授权」那笔订单挂一条授权，用于验证删除守卫
         linked_license = License(
-            activation_code=f"HB-SMOKE-LINK-{stamp}",
+            activation_code=f"HOMEOS-SMOKE-LINK-{stamp}",
             code_hint="SMOKE",
             customer_id=holder_customer_id,
             account_id=account_id,
@@ -6289,12 +6304,12 @@ async def run() -> int:
 
         # 支付宝单在渠道确认关单之前不能删：本地过期 ≠ 远端那笔交易结束，用户手上
         # 那个旧二维码还能付款，删了订单这笔钱就没有凭证（异步通知按订单号找不到）。
-        payable_order_no = f"HB-SMOKE-PAYABLE-{stamp}"
+        payable_order_no = f"HOMEOS-SMOKE-PAYABLE-{stamp}"
         payable_order = _smoke_order("expired", payable_order_no)
         payable_order.payment_provider = "alipay"
         payable_order.channel_closed_at = None
         # 关单后（或已超出巡检回看窗口）就是普通的可删垃圾单。
-        closed_order_no = f"HB-SMOKE-CLOSED-{stamp}"
+        closed_order_no = f"HOMEOS-SMOKE-CLOSED-{stamp}"
         closed_order = _smoke_order("expired", closed_order_no)
         closed_order.payment_provider = "alipay"
         closed_order.channel_closed_at = utcnow()
@@ -6653,7 +6668,7 @@ async def run() -> int:
                 select(Customer).where(Customer.account_id == account_id)
             ).first()
             row = Order(
-                order_no=f"HB-SMOKE-REFUND-{suffix}-{utcnow().strftime('%H%M%S%f')}",
+                order_no=f"HOMEOS-SMOKE-REFUND-{suffix}-{utcnow().strftime('%H%M%S%f')}",
                 lookup_token=f"refund-token-{suffix}-{utcnow().strftime('%H%M%S%f')}",
                 account_id=account_id,
                 customer_id=customer_row.id,
@@ -7030,9 +7045,9 @@ async def run() -> int:
             "未设置 env 时签名公钥指纹为自建默认",
             default.license_public_key_sha256
             == client_config.DEFAULT_LICENSE_PUBLIC_KEY_SHA256
-            and default.license_legacy_key_id
+            and default.license_key_id
             == client_config.DEFAULT_LICENSE_KEY_ID,
-            default.license_legacy_key_id,
+            default.license_key_id,
         )
         check(
             "未设置 env 时传输公钥指纹为自建默认",
@@ -7128,7 +7143,7 @@ async def run() -> int:
         )
         local = client_config.load_settings()
         check("批次可被显式覆盖", len(local.license_server_batches) == 3, str(local.license_server_batches))
-        check("本地 keyId 生效", local.license_legacy_key_id == "hb-local-2026")
+        check("本地 keyId 生效", local.license_key_id == "hb-local-2026")
         check(
             "本地传输 keyId 生效",
             local.license_transport_key_id == "hb-local-transport-2026",

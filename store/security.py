@@ -96,10 +96,10 @@ def new_verification_code() -> str:
 
 
 def new_activation_code() -> str:
-    """生成 HB-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX 形式的激活码。"""
+    """生成 HOMEOS-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX 形式的激活码。"""
     alphabet = "0123456789ABCDEF"
     groups = ["".join(secrets.choice(alphabet) for _ in range(4)) for _ in range(6)]
-    return "HB-" + "-".join(groups)
+    return "HOMEOS-" + "-".join(groups)
 
 
 def activation_code_hint(code: str) -> str:
@@ -112,12 +112,12 @@ def code_hash(code: str) -> str:
 
 
 def new_order_no(prefix_email: str, *, now: datetime | None = None) -> str:
-    """参考站格式：HB-20260906224517-156120718（本地时间 + 邮箱 @ 前缀）。"""
+    """参考站格式：HOMEOS-20260906224517-156120718（本地时间 + 邮箱 @ 前缀）。"""
     moment = now or (datetime.now(timezone.utc) + timedelta(hours=8))
     local_prefix = "".join(ch for ch in (prefix_email or "").split("@")[0] if ch.isalnum())
     if not local_prefix:
         local_prefix = "customer"
-    return f"HB-{moment.strftime('%Y%m%d%H%M%S')}-{local_prefix}"
+    return f"HOMEOS-{moment.strftime('%Y%m%d%H%M%S')}-{local_prefix}"
 
 
 #: 邮箱形状校验。刻意写得保守：只拒绝明显不是邮箱的输入（缺 @、带空格、域名没有点等），

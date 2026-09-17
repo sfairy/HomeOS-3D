@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class _Camel(BaseModel):
@@ -85,15 +85,10 @@ class ReleaseDeviceRequest(_Camel):
 class CreateOrderRequest(_Camel):
     product_id: str = Field(alias="productId", min_length=1, max_length=64)
     coupon_code: str | None = Field(default=None, alias="couponCode", max_length=64)
-    #: 增量包需要指定要追加到哪一份授权。
-    #:
-    #: 线上前台曾把 ``License.customer_id``（= ``Customer.id``）当作目标授权发给服务端，
-    #: 而服务端按 ``License.id`` 回查，两边口径不同 —— 结果所有增量包下单都必然 404。
-    #: 现在统一按授权主键传：新字段名 ``targetLicenseId`` 表达真实语义，同时保留旧别名
-    #: ``customerId`` 作兼容（``smoke.py`` 与老客户端仍按旧名传，且它们传的本来就是授权 id）。
+    #: 增量包需要指定要追加到哪一份授权（授权主键 ``License.id``）。
     target_license_id: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("targetLicenseId", "customerId"),
+        alias="targetLicenseId",
         max_length=64,
     )
     #: 「试用授权升级为永久」的既有授权：命中时不再另发新码，而是就地升级这张授权。

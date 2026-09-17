@@ -17,12 +17,13 @@ router = APIRouter(prefix='/license', tags=['license'])
 
 
 @router.get('/status')
-def license_status(request: Request, _user: CurrentUser) -> dict:
+async def license_status(request: Request, _user: CurrentUser) -> dict:
     """读取当前授权状态（需已登录）。
 
-    直接回传 ``license_service.status()`` 的原始结构，字段名由授权模块与前端约定，
-    这里不做加工：包含 status、到期时间、可用能力码等，前端据此决定是否跳 /license。
+    先节流联网确认绑定：商店解绑后，前端轮询到这里会尽快变成 REVOKED，
+    再跳转 /license；字段名由授权模块与前端约定，这里不做加工。
     """
+    await request.app.state.license_service.confirm_binding(force=False)
     return request.app.state.license_service.status()
 
 

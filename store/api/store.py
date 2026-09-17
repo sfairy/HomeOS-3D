@@ -447,7 +447,7 @@ def _evaluate_coupon_limited(
 
 
 def _unique_order_no(session, email: str, moment) -> str:
-    """参考站格式 ``HB-20260906224517-156120718``；同一秒内重复下单时补序号。"""
+    """参考站格式 ``HOMEOS-20260906224517-156120718``；同一秒内重复下单时补序号。"""
     base = new_order_no(email, now=moment)
     candidate = base
     counter = 1

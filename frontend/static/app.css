@@ -216,6 +216,16 @@ html.editor-viewport-fit body {
 .settings-dialog.license-dialog {
   width: min(480px, calc(100vw - 32px));
 }
+.license-dialog .license-recovery {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--warn, #c48a3a) 45%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--warn, #c48a3a) 12%, transparent);
+  color: var(--text, inherit);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
 .license-card-fields {
   display: grid;
   gap: 14px;

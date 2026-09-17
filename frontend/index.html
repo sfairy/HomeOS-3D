@@ -2,7 +2,7 @@
 <!--
   编辑器主页面（/），也就是仪表盘的全部编辑入口。
   后端三道门禁顺序固定：未初始化 → 303 /setup；未登录 → 303 /login；无 editor 能力 → 303 /license。
-  因此本页能打开，就说明初始化、登录与授权三者都已通过；页面自身不做这三项判断。
+  因此本页能打开，就说明初始化、登录与授权状态 ACTIVE 三者都已通过；页面自身不做这三项判断。
   三栏结构共用同一份「仪表盘文档」（字段口径见 backend/app/panel/schema.py）：
   左侧控件图层导航、中间页面画布 / 仪表盘预览 / 组合弹窗编辑、右侧属性检查器。
   入口脚本按顺序：/static/global-log-boot.js（日志面板先就绪，不依赖主脚本）、
@@ -16,7 +16,7 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/client-log.js?v=20260917022019"></script>
+    <script src="/static/client-log.js?v=20260917122000"></script>
     <!-- 编辑器是桌面级布局，固定按 1020px 逻辑宽度出图，小屏靠缩放而不是响应式重排。 -->
     <meta name="viewport" content="width=1020,user-scalable=yes" />
     <meta name="theme-color" content="#172029" />
@@ -3805,35 +3805,37 @@
           </section>
         </div>
         <div id="license-detail-error" class="settings-message error" hidden></div>
+        <p id="license-recovery-hint" class="license-recovery" hidden></p>
       </section>
       <div class="license-actions">
         <button id="license-reactivate" type="button">重新激活</button>
       </div>
-      <!-- 授权激活：邮箱 + 激活码一起送后端做绑定校验（邮箱用于定位租约，激活码证明持有权）；
+      <!-- 授权激活：商店购买邮箱 + 激活码一起送后端做绑定校验；
            激活成功后本对话框切到只读的授权信息视图，不再显示输入框。 -->
       <form id="license-form" class="settings-form">
         <label
-          ><span>授权邮箱</span
+          ><span>商店购买邮箱</span
           ><input
             name="email"
             type="email"
             maxlength="255"
             autocomplete="email"
-            placeholder="购买授权时使用的邮箱"
+            placeholder="下单/收码用的商店邮箱"
             required
-        /></label>
+          /><small>填写商店账号邮箱，不是本机管理员账号。</small></label
+        >
         <label
           ><span>激活码</span
           ><input
             name="activationCode"
             maxlength="128"
             autocomplete="off"
-            placeholder="HB-XXXX-XXXX-XXXX"
+            placeholder="HOMEOS-XXXX-XXXX-XXXX"
             required
-          /><small>首次激活会绑定当前安装；保留数据目录重新部署后可继续使用。</small></label
+          /><small>首次激活绑定本机硬件指纹；换机或硬件变更后，请先在商店账号中心解绑，再用同一激活码激活。</small></label
         >
         <div id="license-message" class="settings-message" hidden></div>
-        <div class="dialog-actions"><button class="primary" type="submit">激活当前实例</button></div>
+        <div class="dialog-actions"><button class="primary" type="submit">激活并绑定本机</button></div>
       </form>
     </dialog>
     <!-- 删除 HA 连接：只解除本机保存的凭证，不动 Home Assistant 侧的任何数据。 -->

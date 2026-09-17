@@ -1,0 +1,583 @@
+/* ==========================================================================
+   HomeOS 首次初始化页 · 与商店认证页同款暗色琥珀风格
+   --------------------------------------------------------------------------
+   令牌与商店 store/static/theme.css 对齐；布局对齐 store 的 hb-auth-*。
+   本文件自包含，不依赖商店静态资源路径（主程序 :18081 独立部署）。
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+  accent-color: var(--hb-accent);
+
+  --hb-bg: #151a1f;
+  --hb-surface: #1a2026;
+  --hb-surface-soft: #1e252c;
+  --hb-surface-raised: #232b33;
+  --hb-field: #171d22;
+  --hb-line: #303840;
+  --hb-line-soft: #262e36;
+  --hb-line-strong: #3b444d;
+
+  --hb-ink: #e8ecef;
+  --hb-ink-soft: #c3ccd3;
+  --hb-muted: #89949d;
+  --hb-muted-dim: #6f7a82;
+
+  --hb-accent: #f2a20d;
+  --hb-accent-bright: #ffb52e;
+  --hb-accent-deep: #ef9900;
+  --hb-accent-soft: rgba(242, 162, 13, 0.12);
+  --hb-accent-faint: rgba(242, 162, 13, 0.06);
+  --hb-accent-line: rgba(242, 162, 13, 0.42);
+  --hb-accent-grad: linear-gradient(180deg, #ffb82e, #ef9900);
+  --hb-accent-glow: 0 10px 26px -14px rgba(242, 162, 13, 0.8);
+  --hb-focus-ring: 0 0 0 1px var(--hb-accent), 0 0 0 4px var(--hb-accent-soft),
+    0 0 20px -10px rgba(242, 162, 13, 0.85);
+
+  --hb-danger: #e26b67;
+  --hb-danger-soft: rgba(226, 107, 103, 0.13);
+  --hb-danger-line: rgba(226, 107, 103, 0.34);
+  --hb-danger-text: #ef9f9b;
+
+  --hb-radius-xs: 6px;
+  --hb-radius-sm: 8px;
+  --hb-radius-md: 10px;
+  --hb-radius-lg: 14px;
+  --hb-radius-xl: 18px;
+
+  --hb-elev-1: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 1px 2px rgba(0, 0, 0, 0.35);
+  --hb-elev-2: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 34px -16px rgba(0, 0, 0, 0.75);
+  --hb-card-bg: linear-gradient(180deg, #1d242b 0%, #191f25 100%);
+
+  --hb-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --hb-transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease,
+    box-shadow 0.16s ease, transform 0.16s ease;
+  --hb-topbar-h: 62px;
+  --hb-container: 1180px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 14px;
+  background: var(--hb-bg);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--hb-ink);
+  background-color: var(--hb-bg);
+  background-image:
+    radial-gradient(circle at 88% -6%, rgba(242, 162, 13, 0.08), transparent 34rem),
+    radial-gradient(circle at 4% 4%, rgba(120, 140, 160, 0.05), transparent 26rem);
+  background-attachment: fixed;
+  font-family: var(--hb-font);
+  font-size: 14px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+img {
+  max-width: 100%;
+  border-style: none;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--hb-accent-bright);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--hb-accent);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--hb-ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--hb-field) inset;
+  caret-color: var(--hb-ink);
+  transition: background-color 9999s ease-out;
+}
+
+::selection {
+  color: #1e1607;
+  background: var(--hb-accent-bright);
+}
+
+:focus-visible {
+  outline: none;
+}
+
+@keyframes hb-setup-drift {
+  from {
+    background-position: 0 0, 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: 46px 46px, 46px 46px, 0 0, 0 0;
+  }
+}
+
+.hb-container {
+  width: min(100% - 40px, var(--hb-container));
+  margin-inline: auto;
+}
+
+.hb-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hb-accent-bright);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hb-kicker::before {
+  width: 18px;
+  height: 1px;
+  background: var(--hb-accent);
+  content: "";
+}
+
+.hb-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink);
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: var(--hb-transition);
+  user-select: none;
+}
+
+.hb-button--primary {
+  border-color: rgba(255, 184, 46, 0.35);
+  color: #1e1607;
+  background: var(--hb-accent-grad);
+  box-shadow: var(--hb-accent-glow);
+}
+
+.hb-button--primary:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.hb-button--primary:active {
+  transform: translateY(0);
+}
+
+.hb-button--lg {
+  min-height: 46px;
+  padding: 0 20px;
+  font-size: 14.5px;
+}
+
+.hb-button--block {
+  width: 100%;
+}
+
+.hb-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+.hb-password-field {
+  position: relative;
+  display: grid;
+}
+
+.hb-password-field input {
+  padding-right: 64px;
+}
+
+.hb-password-field button {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--hb-radius-xs);
+  color: var(--hb-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.hb-password-field button:hover {
+  color: var(--hb-accent-bright);
+}
+
+/* --- 顶栏 --- */
+.hb-setup-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--hb-topbar-h);
+  border-bottom: 1px solid var(--hb-line-soft);
+  background: rgba(21, 26, 31, 0.88);
+  backdrop-filter: blur(14px);
+}
+
+.hb-setup-topbar__inner {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hb-setup-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+}
+
+.hb-setup-brand:hover {
+  color: inherit;
+}
+
+.hb-setup-brand__mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--hb-line);
+  border-radius: 10px;
+  background: var(--hb-surface-raised);
+  box-shadow: var(--hb-elev-1);
+  overflow: hidden;
+}
+
+.hb-setup-brand__mark img {
+  width: 22px;
+  height: 22px;
+}
+
+.hb-setup-brand__text {
+  display: grid;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.hb-setup-brand__text strong {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.hb-setup-brand__text small {
+  color: var(--hb-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.hb-setup-topbar__meta {
+  color: var(--hb-muted);
+  font-size: 12px;
+}
+
+.hb-setup-topbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.hb-setup-logout {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink-soft);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 620;
+  cursor: pointer;
+  transition: var(--hb-transition);
+}
+
+.hb-setup-logout:hover {
+  border-color: var(--hb-accent-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+}
+
+/* --- 主体认证壳 --- */
+.hb-setup-main {
+  padding: 56px 0 84px;
+}
+
+.hb-auth-shell {
+  display: grid;
+  max-width: 1080px;
+  margin: 0 auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 404px);
+  align-items: stretch;
+  gap: 26px;
+}
+
+.hb-auth-aside {
+  position: relative;
+  display: flex;
+  padding: 44px 38px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-xl);
+  background: linear-gradient(150deg, #1f2731 0%, #171c22 58%, #1c222a 100%);
+  box-shadow: var(--hb-elev-2);
+  overflow: hidden;
+}
+
+.hb-auth-aside::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    radial-gradient(120% 150% at 100% 0%, rgba(242, 162, 13, 0.22), transparent 62%),
+    radial-gradient(90% 130% at 0% 100%, rgba(242, 162, 13, 0.09), transparent 56%);
+  background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%;
+  -webkit-mask-image: linear-gradient(258deg, #000 16%, rgba(0, 0, 0, 0.4) 58%, transparent 90%);
+  mask-image: linear-gradient(258deg, #000 16%, rgba(0, 0, 0, 0.4) 58%, transparent 90%);
+  content: "";
+  pointer-events: none;
+  animation: hb-setup-drift 26s linear infinite;
+}
+
+.hb-auth-aside > * {
+  position: relative;
+}
+
+.hb-auth-aside h2 {
+  color: var(--hb-ink);
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 650;
+  letter-spacing: -0.028em;
+  line-height: 1.2;
+}
+
+.hb-auth-aside h2 strong {
+  color: var(--hb-accent-bright);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .hb-auth-aside h2 strong {
+    -webkit-background-clip: text;
+    background-clip: text;
+    background-image: linear-gradient(96deg, #ffc65a 6%, var(--hb-accent) 62%, var(--hb-accent-deep));
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+.hb-auth-aside > p {
+  color: var(--hb-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.hb-auth-aside ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 11px;
+  list-style: none;
+}
+
+.hb-auth-aside li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--hb-ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.hb-auth-aside .hb-check {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  place-items: center;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-xs);
+  background: var(--hb-accent-soft);
+  color: var(--hb-accent-bright);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hb-auth-card {
+  display: flex;
+  padding: 34px 30px;
+  flex-direction: column;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-xl);
+  background: var(--hb-card-bg);
+  box-shadow: var(--hb-elev-2);
+}
+
+.hb-auth-brand {
+  margin-bottom: 22px;
+}
+
+.hb-auth-brand strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 20px;
+  font-weight: 660;
+  letter-spacing: -0.015em;
+}
+
+.hb-auth-brand p {
+  margin-top: 6px;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.hb-auth-form {
+  display: grid;
+  gap: 15px;
+}
+
+.hb-auth-form label {
+  display: grid;
+  gap: 7px;
+  color: #aab4bc;
+  font-size: 12px;
+  font-weight: 620;
+  letter-spacing: 0.02em;
+}
+
+.hb-auth-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 13px;
+  border: 1px solid var(--hb-line-strong);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink);
+  background: var(--hb-field);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  transition: var(--hb-transition);
+}
+
+.hb-auth-form input::placeholder {
+  color: #5d6871;
+}
+
+.hb-auth-form input:focus {
+  border-color: var(--hb-accent);
+  outline: none;
+  box-shadow: var(--hb-focus-ring);
+}
+
+.hb-auth-form small {
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.hb-setup-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--hb-danger-line);
+  border-radius: var(--hb-radius-sm);
+  background: var(--hb-danger-soft);
+  color: var(--hb-danger-text);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.hb-auth-switch {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hb-line-soft);
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* --- 授权页：状态告警 / 解绑引导 --- */
+.hb-auth-brand #license-status-text {
+  margin-top: 6px;
+  color: var(--hb-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.hb-license-recovery {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(232, 168, 88, 0.35);
+  border-radius: var(--hb-radius-md);
+  background: rgba(232, 168, 88, 0.08);
+  color: #d8b07a;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+@media (max-width: 860px) {
+  .hb-setup-main {
+    padding: 28px 0 56px;
+  }
+
+  .hb-auth-shell {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .hb-auth-aside {
+    padding: 28px 22px;
+  }
+
+  .hb-auth-card {
+    padding: 28px 22px;
+  }
+
+  .hb-setup-topbar__meta {
+    display: none;
+  }
+}

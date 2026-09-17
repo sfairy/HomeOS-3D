@@ -3,7 +3,7 @@
  *
  * 位置：未授权 / 授权失效时后端把请求跳转到此页。
  * 职责：轮询 /api/v1/license/status 判断是否已可进入编辑器，处理激活码提交，
- *   并提供退出登录入口。
+ *   并提供退出本机登录入口。
  * 约定：5 秒轮询一次状态，但激活请求进行中（activationPending）或即将跳转
  *   （navigating）时不再发请求，避免竞态；进入编辑器用 location.replace，
  *   防止用户按返回键回到授权页。
@@ -11,6 +11,7 @@
 const form = document.querySelector("#license-form"),
   message = document.querySelector("#message"),
   statusText = document.querySelector("#license-status-text"),
+  recoveryHint = document.querySelector("#license-recovery-hint"),
   submit = form.querySelector('button[type="submit"]'),
   logout = document.querySelector("#logout");
 
@@ -42,6 +43,18 @@ function errorMessage(errorResponse, fallbackMessage) {
       : fallbackMessage;
 }
 
+function setRecoveryHint(statusCode) {
+  if (!recoveryHint) return;
+  if (statusCode === "INSTANCE_MISMATCH") {
+    recoveryHint.hidden = !1;
+    recoveryHint.textContent =
+      "处理步骤：打开商店账号中心 → 解除设备绑定 → 冷却结束后回到本页，用商店购买邮箱与激活码重新激活。本页邮箱是商店账号；顶栏「退出本机登录」只退出本机管理员会话。";
+    return;
+  }
+  recoveryHint.hidden = !0;
+  recoveryHint.textContent = "";
+}
+
 // 读取一次授权状态并更新提示文案；可以进入编辑器时直接跳转。
 async function loadStatus() {
   const statusResponse = await fetch("/api/v1/license/status", { cache: "no-store" });
@@ -52,41 +65,50 @@ async function loadStatus() {
   // 非 JSON 响应按空对象处理，走下方统一错误分支。
   const statusPayload = await statusResponse.json().catch(() => ({}));
   if (!statusResponse.ok)
-    throw new Error(
-      errorMessage(statusPayload, "\u65E0\u6CD5\u8BFB\u53D6\u6388\u6743\u72B6\u6001\u3002")
-    );
-  if (statusPayload.editorAllowed) {
+    throw new Error(errorMessage(statusPayload, "无法读取授权状态。"));
+  if (statusPayload.status === "ACTIVE" && statusPayload.editorAllowed) {
     enterEditor();
+    return;
+  }
+  if (statusPayload.editorAllowed) {
+    // CONNECTION_WARNING 等宽限态：编辑器门禁仍可能放行，但本页要留下
+    // 展示告警与「重新激活」，不能自动跳进首页。
+    statusText.textContent =
+      statusPayload.lastError ||
+      "授权连接异常，请重新激活后再进入编辑器。";
+    setRecoveryHint(statusPayload.status || "");
     return;
   }
   if (statusPayload.allowed) {
     statusText.textContent =
-      "\u5F53\u524D\u6388\u6743\u6709\u6548\uFF0C\u4F46\u672A\u5305\u542B\u7F16\u8F91\u5668\u6743\u76CA\uFF0C\u8BF7\u8054\u7CFB\u6388\u6743\u7BA1\u7406\u5458\u3002";
+      "当前授权有效，但未包含编辑器权益，请联系授权管理员。";
+    setRecoveryHint("");
     return;
   }
   // 各状态码对应一句面向用户的中文说明，与后端 license/service.py 的状态枚举保持一致。
+  // 优先展示服务端 lastError（含硬件指纹升级迁移说明），本地文案仅作兜底。
   const STATUS_MESSAGES = {
-    UNACTIVATED:
-      "\u5F53\u524D\u8BBE\u5907\u5C1A\u672A\u6FC0\u6D3B\uFF0C\u6FC0\u6D3B\u540E\u624D\u80FD\u8FDB\u5165\u7F16\u8F91\u5668\u3002",
-    LEASE_EXPIRED:
-      "\u6388\u6743\u79DF\u7EA6\u5DF2\u7ECF\u5230\u671F\uFF0C\u8BF7\u6062\u590D\u7F51\u7EDC\u540E\u91CD\u65B0\u6FC0\u6D3B\u3002",
+    UNACTIVATED: "当前设备尚未激活，激活后才能进入编辑器。",
+    LEASE_EXPIRED: "授权租约已经到期，请恢复网络后点击重新激活，或重新填写激活码。",
     INSTANCE_MISMATCH:
-      "\u5F53\u524D\u5B89\u88C5 UUID \u4E0E\u6388\u6743\u8BB0\u5F55\u4E0D\u4E00\u81F4\uFF0C\u8BF7\u8054\u7CFB\u6388\u6743\u7BA1\u7406\u5458\u3002",
-    CLOCK_ROLLBACK:
-      "\u68C0\u6D4B\u5230\u7CFB\u7EDF\u65F6\u95F4\u56DE\u62E8\uFF0C\u8BF7\u6821\u51C6\u65F6\u95F4\u540E\u91CD\u65B0\u9A8C\u8BC1\u3002",
+      "本机硬件指纹与授权绑定不一致（升级、换机或硬件变更后常见）。请先在商店账号中心解除设备绑定，冷却结束后用同一激活码在本页重新激活。",
+    CLOCK_ROLLBACK: "检测到系统时间回拨，请校准时间后重新验证。",
     STARTUP_VALIDATION_REQUIRED:
-      "\u670D\u52A1\u91CD\u542F\u540E\u6B63\u5728\u7B49\u5F85\u6388\u6743\u540E\u53F0\u786E\u8BA4\uFF0C\u8BF7\u6062\u590D\u7F51\u7EDC\uFF1B\u6210\u529F\u540E\u4F1A\u81EA\u52A8\u8FDB\u5165\u7CFB\u7EDF\u3002",
-    INVALID:
-      "\u672C\u5730\u6388\u6743\u51ED\u8BC1\u65E0\u6548\uFF0C\u8BF7\u91CD\u65B0\u6FC0\u6D3B\u3002",
-    REVOKED:
-      "\u540E\u53F0\u5DF2\u5220\u9664\u6216\u64A4\u9500\u6B64\u6388\u6743\uFF0C\u8BF7\u8F93\u5165\u65B0\u7684\u6FC0\u6D3B\u7801\u3002"
+      "服务重启后正在等待授权后台确认，请恢复网络；成功后会自动进入系统。",
+    CONNECTION_WARNING: "授权服务器连接异常，请检查网络后点击重新激活。",
+    DEACTIVATED: "授权已在后台停用或释放，请使用有效激活码重新激活。",
+    INVALID: "本地授权凭证无效，请重新激活。",
+    REVOKED: "授权已停用或已在商店解绑，请输入有效激活码重新激活。"
   };
+  const statusCode = statusPayload.status || "";
   statusText.textContent =
-    STATUS_MESSAGES[statusPayload.status] ||
-    "\u5F53\u524D\u6388\u6743\u4E0D\u53EF\u7528\uFF0C\u8BF7\u8F93\u5165\u6FC0\u6D3B\u7801\u3002";
+    (typeof statusPayload.lastError === "string" && statusPayload.lastError.trim()) ||
+    STATUS_MESSAGES[statusCode] ||
+    "当前授权不可用，请输入激活码。";
+  setRecoveryHint(statusCode);
 }
 
-// 一次性挂上三类监听：表单激活、退出登录、以及 5 秒轮询状态。
+// 一次性挂上三类监听：表单激活、退出本机登录、以及 5 秒轮询状态。
 (form.addEventListener("submit", async submitEvent => {
   // 激活中或正在跳转时忽略重复提交。
   if ((submitEvent.preventDefault(), !(activationPending || navigating))) {
@@ -103,13 +125,15 @@ async function loadStatus() {
         }),
         activatePayload = await activateResponse.json().catch(() => ({}));
       if (!activateResponse.ok)
-        throw new Error(errorMessage(activatePayload, "\u6FC0\u6D3B\u5931\u8D25\u3002"));
-      if (!activatePayload.editorAllowed)
+        throw new Error(errorMessage(activatePayload, "激活失败。"));
+      if (activatePayload.status !== "ACTIVE" || !activatePayload.editorAllowed)
         // 区分「授权有效但不含编辑器权益」与「激活尚未生效」，两种提示给用户的动作不同。
         throw new Error(
-          activatePayload.allowed
-            ? "\u6FC0\u6D3B\u6210\u529F\uFF0C\u4F46\u5F53\u524D\u5546\u54C1\u672A\u5305\u542B\u7F16\u8F91\u5668\u6743\u76CA\u3002"
-            : "\u6FC0\u6D3B\u540E\u6388\u6743\u72B6\u6001\u5C1A\u672A\u751F\u6548\uFF0C\u8BF7\u7A0D\u540E\u91CD\u8BD5\u3002"
+          activatePayload.allowed || activatePayload.editorAllowed
+            ? activatePayload.status === "ACTIVE"
+              ? "激活成功，但当前商品未包含编辑器权益。"
+              : "激活后授权仍未就绪，请点击重新激活或稍后再试。"
+            : "激活后授权状态尚未生效，请稍后再试。"
         );
       enterEditor();
     } catch (caughtError) {

@@ -212,29 +212,29 @@ class LeaseVerifier:
     也必须先通过这里对 signedLease 的验签才会被放行。
 
     多公钥支持（trusted_keys）是为了密钥轮换：新公钥上线时旧公钥仍可验签，
-    等所有安装都续租过一轮后再撤下。legacy_key_id 供老租约回落使用。
+    等所有安装都续租过一轮后再撤下。
     """
 
-    def __init__(self, public_key_path: Path | None = None, product: str = 'homeos', expected_sha256: str | None = None, *, trusted_keys: Mapping[str, tuple[Path, str | None]] | None = None, legacy_key_id: str = 'legacy') -> None:
+    def __init__(self, public_key_path: Path | None = None, product: str = 'homeos', expected_sha256: str | None = None, *, trusted_keys: Mapping[str, tuple[Path, str | None]] | None = None, default_key_id: str = 'default') -> None:
         """配置可信公钥集合。
 
         参数:
-            public_key_path: 单公钥模式下的 PEM 路径，会登记到 legacy_key_id 名下。
+            public_key_path: 单公钥模式下的 PEM 路径，会登记到 default_key_id 名下。
             product: 期望的租约产品标识，验签后比对，防止跨产品串用租约。
             expected_sha256: 单公钥模式下的 SHA-256 指纹。
             trusted_keys: 多公钥模式：{keyId: (公钥路径, 指纹或 None)}。
-            legacy_key_id: 租约载荷缺少 keyId 时使用的键名。
+            default_key_id: 单公钥模式下登记用的 keyId。
 
         异常:
             ValueError: 可信公钥集合为空（配置错误，启动期就该失败）。
         """
         self.product = product
-        self.legacy_key_id = legacy_key_id
+        self.default_key_id = default_key_id
         # 显式传入的集合优先于单公钥参数，两者都给时以 trusted_keys 为准。
         if trusted_keys is not None:
             self.trusted_keys = dict(trusted_keys)
         elif public_key_path is not None:
-            self.trusted_keys = {legacy_key_id: (public_key_path, expected_sha256)}
+            self.trusted_keys = {default_key_id: (public_key_path, expected_sha256)}
         else:
             raise ValueError('至少需要配置一个可信授权公钥。')
         # 空集合意味着任何租约都验不过，属于配置失误：在启动期直接报错，
@@ -267,8 +267,7 @@ class LeaseVerifier:
             payload = json.loads(payload_bytes)
         except (UnicodeError, json.JSONDecodeError) as error:
             raise LicenseCryptoError('租约内容无效。') from error
-        # 老租约不带 keyId，回落到 legacy 键名，保证升级后旧租约仍可校验。
-        key_id = payload.get('keyId', self.legacy_key_id)
+        key_id = payload.get('keyId')
         if not isinstance(key_id, str) or not key_id:
             raise LicenseCryptoError('租约 keyId 无效。')
         # 白名单式查找：不在 trusted_keys 里的 keyId 一律拒绝，

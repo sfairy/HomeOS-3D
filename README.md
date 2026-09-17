@@ -304,18 +304,20 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 
 客户端启动时会先做一次 `recover` 联网确认，失败按性质分流：
 
-- **确认吊销**（403 命中吊销短语）→ 保持拦截，清空本地授权，状态 `REVOKED`。
+- **确认吊销**（403 且响应含结构化 `code=REVOKED` / `revoked: true`）→ 保持拦截，清空本地授权，状态 `REVOKED`。
 - **其余失败**（网络不可达、服务端 5xx）→ 不锁死：租约未过期则 `CONNECTION_WARNING`（门禁放行），已过期则 `LEASE_EXPIRED`（拦截）。
 
 心跳循环持续重试，服务器恢复后自动续租回到 `ACTIVE`。
 
 ### 吊销语义（客户端契约）
 
-运营后台「停用设备绑定 / 停用授权」后，端点返回 `403 {"detail": "..."}`，文案必须命中以下之一，客户端才判定为确认吊销并清空本地授权：
+运营后台「停用设备绑定 / 停用授权」后，端点返回
+`403 {"detail": "...", "revoked": true, "code": "REVOKED"}`。
+客户端只认结构化 `code`（`REVOKED` / `LICENSE_REVOKED`）或 `revoked: true`，
+才判定为确认吊销并清空本地授权。
 
-`实例绑定已停用`、`客户授权或激活码已停用`、`客户、激活码或实例绑定已停用`、`商品授权有效期已结束`。
-
-其余 401/403 视为瞬时故障（保留本地授权继续重试）。改文案前先看 `backend/app/license/service.py` 的 `is_confirmed_revocation`。
+其余 401/403（无上述字段）视为瞬时故障（保留本地授权继续重试）。
+详见 `backend/app/license/service.py` 的 `is_confirmed_revocation`。
 
 ## 3D 户型工作室
 
@@ -643,7 +645,7 @@ node tools/bump_static_cache_versions.mjs
 - `migrations/env.py` 必须从 `backend/app` 导入 `database` 和 `models`（`from backend.app.database import Base`），不要写成相对导入，否则会重复注册表。
 - 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename}` 下发，需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
 - 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前，令牌值与 `frontend/static/app.css` 对齐（`smoke.py` 会比对，主程序改色而商店没跟就会 FAIL）。详见 [store/README.md](store/README.md) 的「界面主题」。
-- 改动商店授权端点错误文案前，先核对客户端 `is_confirmed_revocation` 的吊销短语表。
+- 改动商店授权端点吊销响应时，须保留结构化 `code` / `revoked` 字段（客户端只认这些，不再匹配 detail 文案）。
 - Docker 联调改业务代码后需要重新 `docker compose … --build`；镜像内是混淆 / 去源码产物，不能挂载源码热重载。
 
 ## 更新日志

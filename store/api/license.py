@@ -1,7 +1,8 @@
 """授权服务器端点：``/v2/activate``、``/v2/heartbeat``、``/v2/recover``。
 
 这三个端点与 `/store/v1` 的协议完全不同：请求与响应都是加密封套，
-且错误响应是**明文** ``{"detail": "..."}``（客户端在 4xx 时直接读 detail，不解密）。
+且错误响应是**明文** ``{"detail": "..."}``；确认吊销时额外带
+``"revoked": true, "code": "REVOKED"``（客户端只认结构化字段）。
 """
 
 from __future__ import annotations
