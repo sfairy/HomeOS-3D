@@ -15,7 +15,7 @@
      · autocomplete="off" / 密码框 "new-password"（Chrome/Safari 会忽略 off）；
      · data-lpignore / data-1p-ignore / data-bwignore 挡住密码扩展；
      · 脚本里还有一次加载后清空（clearAutofilledLogin）。 -->
-<div id="admin-login" class="login-wrap">
+<div id="admin-login" class="login-wrap" hidden>
   <div class="login-shell">
     <aside class="login-aside">
       <span class="hb-kicker">Admin Console</span>
@@ -53,6 +53,13 @@
       <p class="login-switch"><a href="/">返回商店前台</a></p>
     </section>
   </div>
+</div>
+
+<!-- 启动占位：两个主面板默认都 hidden，bootstrap 异步跑之前显示这个。
+     否则刷新会先闪一下登录表单，等 fetch 回来再切走。 -->
+<div id="admin-boot" class="admin-boot">
+  <div class="admin-boot__spinner"></div>
+  <div class="admin-boot__text">正在加载…</div>
 </div>
 
 <div id="admin-app" class="admin-shell" hidden>
@@ -2061,6 +2068,7 @@ loginForm?.addEventListener('click', (event) => {
 // 一律当成未登录，运营看到的就是一个正常的登录页 —— 他会反复重输密码，
 // 而真正的问题（后端挂了 / 账号被取消了管理员）没有任何出口。
 function showLogin(message = '') {
+  $('#admin-boot').hidden = true;
   $('#admin-login').hidden = false;
   $('#admin-app').hidden = true;
   const errorBox = $('#admin-login-error');
@@ -2073,6 +2081,7 @@ function showLogin(message = '') {
 }
 
 function showApp() {
+  $('#admin-boot').hidden = true;
   $('#admin-login').hidden = true;
   $('#admin-app').hidden = false;
 }

@@ -2933,3 +2933,38 @@ body:has(#admin-login:not([hidden]))::before {
     grid-column: 1 / -1;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   启动占位
+   --------------------------------------------------------------------------- */
+.admin-boot {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--hb-ink-soft);
+}
+
+.admin-boot__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--hb-line-strong);
+  border-top-color: var(--a-tint);
+  border-radius: 50%;
+  animation: admin-boot-spin 0.8s linear infinite;
+}
+
+.admin-boot__text {
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+@keyframes admin-boot-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-boot__spinner { animation-duration: 2.4s; }
+}
