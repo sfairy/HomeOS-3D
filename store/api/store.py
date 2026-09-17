@@ -65,6 +65,7 @@ from store.schemas import (
 )
 from store.security import (
     code_hash,
+    new_code_salt,
     hash_password,
     iso,
     iso_z,
@@ -891,10 +892,12 @@ def send_verification(
         )
 
     code = new_verification_code()
+    salt = new_code_salt()
     record = EmailVerification(
         email=email,
         purpose=purpose,
-        code_hash=code_hash(code),
+        code_hash=code_hash(code, salt),
+        code_salt=salt,
         expires_at=utcnow() + timedelta(seconds=settings.verification_ttl_seconds),
     )
     session.add(record)
@@ -1003,7 +1006,7 @@ def _consume_verification(session, *, email: str, purpose: str, code: str) -> No
     if int(record.attempts or 0) >= MAX_VERIFICATION_CODE_ATTEMPTS:
         _record_verify_failure(session, scope)
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="尝试次数过多，请重新获取验证码。")
-    if record.code_hash != code_hash(code.strip()):
+    if record.code_hash != code_hash(code.strip(), record.code_salt or ""):
         # 先记账再从 ORM 改 attempts：此时本事务还只有 SELECT，没有持有 SQLite
         # 写锁，独立会话的 INSERT 不会被自己挡住。
         _record_verify_failure(session, scope)

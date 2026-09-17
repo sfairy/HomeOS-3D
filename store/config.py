@@ -55,6 +55,14 @@ def _env_str(name: str, default: str = "") -> str:
     return default if value is None else value.strip()
 
 
+#: ``_env_bool`` 接受的写法。**不再用「不在真值集合里就当假」**：部署时把
+#: ``STORE_COOKIE_SECURE`` 敲成 ``ture`` 会让 Cookie 静默丢掉 ``Secure``，
+#: ``STORE_ALLOW_MOCK_PAYMENTS`` 敲错则可能把模拟收银台留在线上 —— 这类拼错的
+#: 唯一正确处置是启动即失败，而不是替运维猜。
+_ENV_TRUE = frozenset({"1", "true", "yes", "on", "y", "t"})
+_ENV_FALSE = frozenset({"0", "false", "no", "off", "n", "f"})
+
+
 def _read_secret_file(path: str) -> str:
     """读取密钥文件内容；读不到就返回空串（由调用方回退到内联值）。"""
     if not path:
@@ -66,30 +74,71 @@ def _read_secret_file(path: str) -> str:
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
-    value = os.getenv(name)
-    if value is None:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
         return default
-    return value.strip().lower() in frozenset({"1", "on", "yes", "true"})
+    text = raw.strip().lower()
+    if text in _ENV_TRUE:
+        return True
+    if text in _ENV_FALSE:
+        return False
+    raise ValueError(f"环境变量 {name} 需要布尔值（true/false/1/0/yes/no/on/off），实际是 {raw!r}")
 
 
-def _env_int(name: str, default: int) -> int:
-    value = os.getenv(name)
-    if value is None or not value.strip():
+def _env_int(
+    name: str,
+    default: int,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    """读一个整数环境变量。
+
+    解析失败**抛错，不回退默认值**。环境变量是部署时的输入，写错一个字符
+    （``STORE_ORDER_TTL_SECONDS=12o``）过去会静默变成「按默认值跑」—— 那正是
+    「改了配置但行为没变」这类事故的来源，而且日志里一个字都不会提。只有
+    「未设置」与「空串」才用默认值。
+
+    范围校验同理由这里做：调用方各自 ``max(1, ...)`` 兜底会把「配错了」变成
+    「悄悄按别的值跑」，例如 ``STORE_ORDER_TTL_SECONDS=-1`` 生成的是
+    「创建即过期」的订单 —— 用户看到的是下单就失败，运维看到的是一切正常。
+    """
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
         return default
+    text = raw.strip()
     try:
-        return int(value.strip())
-    except ValueError:
-        return default
+        value = int(text)
+    except ValueError as exc:
+        raise ValueError(f"环境变量 {name} 需要整数，实际是 {raw!r}") from exc
+    if minimum is not None and value < minimum:
+        raise ValueError(f"环境变量 {name} 不能小于 {minimum}，实际是 {value}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"环境变量 {name} 不能大于 {maximum}，实际是 {value}")
+    return value
 
 
-def _env_float(name: str, default: float) -> float:
-    value = os.getenv(name)
-    if value is None or not value.strip():
+def _env_float(
+    name: str,
+    default: float,
+    *,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float:
+    """读一个浮点环境变量；错误处置与 :func:`_env_int` 一致。"""
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
         return default
+    text = raw.strip()
     try:
-        return float(value.strip())
-    except ValueError:
-        return default
+        value = float(text)
+    except ValueError as exc:
+        raise ValueError(f"环境变量 {name} 需要数字，实际是 {raw!r}") from exc
+    if minimum is not None and value < minimum:
+        raise ValueError(f"环境变量 {name} 不能小于 {minimum}，实际是 {value}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"环境变量 {name} 不能大于 {maximum}，实际是 {value}")
+    return value
 
 
 def _env_path(name: str, default: Path | None = None) -> Path | None:
@@ -284,7 +333,7 @@ def load_settings(**overrides) -> StoreSettings:
     values = {
         "data_dir": _env_path("STORE_DATA_DIR", STORE_ROOT / "data"),
         "host": _env_str("STORE_HOST", DEFAULT_HOST) or DEFAULT_HOST,
-        "port": _env_int("STORE_PORT", DEFAULT_PORT),
+        "port": _env_int("STORE_PORT", DEFAULT_PORT, minimum=1, maximum=65535),
         "base_url": _env_str("STORE_BASE_URL"),
         "cookie_name": _env_str("STORE_COOKIE_NAME", "ha_bridge_store_session") or "ha_bridge_store_session",
         "cookie_secure": _env_bool("STORE_COOKIE_SECURE"),
@@ -293,22 +342,41 @@ def load_settings(**overrides) -> StoreSettings:
             for piece in _env_str("STORE_TRUSTED_PROXIES").split(",")
             if piece.strip()
         ),
-        "session_max_age_seconds": _env_int("STORE_SESSION_MAX_AGE_SECONDS", DEFAULT_SESSION_MAX_AGE_SECONDS),
+        "session_max_age_seconds": _env_int(
+            "STORE_SESSION_MAX_AGE_SECONDS",
+            DEFAULT_SESSION_MAX_AGE_SECONDS,
+            minimum=60,
+            maximum=365 * 24 * 3600,
+        ),
         "setup_token": _env_str("STORE_SETUP_TOKEN", ""),
         "mail_mode": (_env_str("STORE_MAIL_MODE", "log") or "log").lower(),
         "mail_from": _env_str("STORE_MAIL_FROM", "HomeOS <no-reply@habridge.local>") or "HomeOS <no-reply@habridge.local>",
         "smtp_host": _env_str("STORE_SMTP_HOST"),
-        "smtp_port": _env_int("STORE_SMTP_PORT", 465),
+        "smtp_port": _env_int("STORE_SMTP_PORT", 465, minimum=1, maximum=65535),
         "smtp_username": _env_str("STORE_SMTP_USERNAME"),
         "smtp_password": _env_str("STORE_SMTP_PASSWORD"),
         "smtp_use_ssl": _env_bool("STORE_SMTP_USE_SSL", True),
         "smtp_starttls": _env_bool("STORE_SMTP_STARTTLS"),
-        "smtp_timeout_seconds": _env_int("STORE_SMTP_TIMEOUT_SECONDS", 15),
-        "smtp_max_attempts": max(1, _env_int("STORE_SMTP_MAX_ATTEMPTS", 3)),
-        "smtp_retry_backoff_seconds": _env_float("STORE_SMTP_RETRY_BACKOFF_SECONDS", 1.0),
-        "verification_ttl_seconds": _env_int("STORE_VERIFICATION_TTL_SECONDS", DEFAULT_VERIFICATION_TTL_SECONDS),
-        "verification_cooldown_seconds": _env_int("STORE_VERIFICATION_COOLDOWN_SECONDS", DEFAULT_VERIFICATION_COOLDOWN_SECONDS),
-        "verification_global_hourly_limit": max(1, _env_int("STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT", 500)),
+        "smtp_timeout_seconds": _env_int("STORE_SMTP_TIMEOUT_SECONDS", 15, minimum=1, maximum=300),
+        "smtp_max_attempts": _env_int("STORE_SMTP_MAX_ATTEMPTS", 3, minimum=1, maximum=10),
+        "smtp_retry_backoff_seconds": _env_float(
+            "STORE_SMTP_RETRY_BACKOFF_SECONDS", 1.0, minimum=0.0, maximum=60.0
+        ),
+        "verification_ttl_seconds": _env_int(
+            "STORE_VERIFICATION_TTL_SECONDS",
+            DEFAULT_VERIFICATION_TTL_SECONDS,
+            minimum=60,
+            maximum=24 * 3600,
+        ),
+        "verification_cooldown_seconds": _env_int(
+            "STORE_VERIFICATION_COOLDOWN_SECONDS",
+            DEFAULT_VERIFICATION_COOLDOWN_SECONDS,
+            minimum=0,
+            maximum=3600,
+        ),
+        "verification_global_hourly_limit": _env_int(
+            "STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT", 500, minimum=1, maximum=100_000
+        ),
         "expose_verification_code": _env_bool("STORE_EXPOSE_VERIFICATION_CODE"),
         "expose_api_docs": _env_bool("STORE_EXPOSE_API_DOCS"),
         "payment_provider": (_env_str("STORE_PAYMENT_PROVIDER", "") or "").lower(),
@@ -328,17 +396,37 @@ def load_settings(**overrides) -> StoreSettings:
         "license_keys_dir": _env_path("STORE_LICENSE_KEYS_DIR", STORE_ROOT / "keys" / "local"),
         "license_key_id": _env_str("STORE_LICENSE_KEY_ID", "hb-local-2026") or "hb-local-2026",
         "license_transport_key_id": _env_str("STORE_LICENSE_TRANSPORT_KEY_ID", "hb-local-transport-2026") or "hb-local-transport-2026",
-        "lease_ttl_seconds": _env_int("STORE_LEASE_TTL_SECONDS", DEFAULT_LEASE_TTL_SECONDS),
-        "heartbeat_interval_seconds": _env_int("STORE_HEARTBEAT_INTERVAL_SECONDS", DEFAULT_HEARTBEAT_INTERVAL_SECONDS),
-        "order_ttl_seconds": _env_int("STORE_ORDER_TTL_SECONDS", DEFAULT_ORDER_TTL_SECONDS),
-        "device_release_cooldown_seconds": _env_int("STORE_DEVICE_RELEASE_COOLDOWN_SECONDS", DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS),
-        "payment_sweep_interval_seconds": max(0, _env_int("STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30)),
-        "payment_sweep_batch": max(1, _env_int("STORE_PAYMENT_SWEEP_BATCH", 25)),
+        #: 没有上界：调大是**合法的可用性取舍**（见 ``_warn_lease_revocation_bound``），
+        #: 只在启动时把「吊销生效上界」的代价打进日志。下界与心跳频率的交叉校验见
+        #: ``_validate_settings``。
+        "lease_ttl_seconds": _env_int(
+            "STORE_LEASE_TTL_SECONDS", DEFAULT_LEASE_TTL_SECONDS, minimum=60
+        ),
+        "heartbeat_interval_seconds": _env_int(
+            "STORE_HEARTBEAT_INTERVAL_SECONDS",
+            DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+            minimum=5,
+            maximum=24 * 3600,
+        ),
+        "order_ttl_seconds": _env_int(
+            "STORE_ORDER_TTL_SECONDS", DEFAULT_ORDER_TTL_SECONDS, minimum=30, maximum=24 * 3600
+        ),
+        "device_release_cooldown_seconds": _env_int(
+            "STORE_DEVICE_RELEASE_COOLDOWN_SECONDS",
+            DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS,
+            minimum=0,
+            maximum=30 * 24 * 3600,
+        ),
+        "payment_sweep_interval_seconds": _env_int(
+            "STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30, minimum=0, maximum=3600
+        ),
+        "payment_sweep_batch": _env_int("STORE_PAYMENT_SWEEP_BATCH", 25, minimum=1, maximum=500),
         "bootstrap_admin_email": _env_str("STORE_ADMIN_EMAIL"),
         "bootstrap_admin_password": _env_str("STORE_ADMIN_PASSWORD"),
     }
     values.update(overrides)
     settings = StoreSettings(**values)
+    _validate_settings(settings)
     _warn_insecure_verification_exposure(settings)
     _warn_lease_revocation_bound(settings)
     return settings
@@ -346,6 +434,57 @@ def load_settings(**overrides) -> StoreSettings:
 
 #: 本机绑定地址。``0.0.0.0`` / ``::`` 是「监听所有网卡」，不算本机。
 _LOOPBACK_BIND_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
+#: ``(字段, 最小值, 最大值)``：环境变量那侧已经带了范围，这里再对**最终对象**做一遍，
+#: 因为 ``load_settings(**overrides)`` 是绕过 ``_env_int`` 的（工具脚本、自检、以及
+#: 将来任何程序化构造都走这条路），而「负数 TTL」这种配置的后果与来源无关。
+_RANGED_FIELDS: tuple[tuple[str, float | None, float | None], ...] = (
+    ("port", 1, 65535),
+    ("smtp_port", 1, 65535),
+    ("smtp_timeout_seconds", 1, 300),
+    ("smtp_max_attempts", 1, 10),
+    ("smtp_retry_backoff_seconds", 0, 60),
+    ("session_max_age_seconds", 60, 365 * 24 * 3600),
+    ("verification_ttl_seconds", 60, 24 * 3600),
+    ("verification_cooldown_seconds", 0, 3600),
+    ("verification_global_hourly_limit", 1, 100_000),
+    ("lease_ttl_seconds", 60, None),
+    ("heartbeat_interval_seconds", 5, 24 * 3600),
+    ("order_ttl_seconds", 30, 24 * 3600),
+    ("device_release_cooldown_seconds", 0, 30 * 24 * 3600),
+    ("payment_sweep_interval_seconds", 0, 3600),
+    ("payment_sweep_batch", 1, 500),
+)
+
+
+def _validate_settings(settings: StoreSettings) -> None:
+    """启动即校验，配错就抛 —— 不静默纠正、不带着坏值继续跑。
+
+    两类问题：
+
+    1. **单字段越界**（``_RANGED_FIELDS``）。典型是 ``order_ttl_seconds`` 为负或 0：
+       订单 ``expires_at`` 就等于创建时间，用户看到的是「一下单就过期」，而下单
+       接口本身返回 200，日志里没有一处异常 —— 只能靠人对着配置猜。
+    2. **跨字段矛盾**：租约 TTL 必须明显大于心跳间隔。否则一个心跳稍有延迟的健康
+       客户端，会在两次心跳之间就把租约耗到 ``LEASE_EXPIRED``、收回编辑器功能 ——
+       表现为「网络看着好好的，功能却一阵阵消失」，而两个配置项单独看都合法。
+       取 2 倍心跳作为下界：至少要能容忍**漏掉一次**心跳。
+    """
+    for field, minimum, maximum in _RANGED_FIELDS:
+        value = getattr(settings, field)
+        if minimum is not None and value < minimum:
+            raise ValueError(f"配置项 {field}={value!r} 小于允许的最小值 {minimum}")
+        if maximum is not None and value > maximum:
+            raise ValueError(f"配置项 {field}={value!r} 大于允许的最大值 {maximum}")
+
+    floor = 2 * int(settings.heartbeat_interval_seconds)
+    if int(settings.lease_ttl_seconds) < floor:
+        raise ValueError(
+            f"lease_ttl_seconds={settings.lease_ttl_seconds} 应至少是"
+            f" heartbeat_interval_seconds={settings.heartbeat_interval_seconds} 的 2 倍"
+            f"（≥{floor} 秒）：否则租约会在下一次心跳之前过期，客户端会反复进入"
+            "「租约已过期」，看起来像网络正常但功能时有时无。"
+        )
 
 
 def _warn_insecure_verification_exposure(settings: StoreSettings) -> None:

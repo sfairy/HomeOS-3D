@@ -182,6 +182,11 @@ class EmailVerification(Base):
     email: Mapped[str] = mapped_column(String(255), index=True)
     purpose: Mapped[str] = mapped_column(String(32), default="register")
     code_hash: Mapped[str] = mapped_column(String(64))
+    #: 逐条随机盐（十六进制）。验证码只有 6 位（10⁶ 空间），不加盐时「同一个码」
+    #: 在任何行里都是同一个哈希：拿到库读权限的人可以一次算 10⁶ 个哈希、把**所有**
+    #: 近期验证码一次性还原出来。逐条加盐之后必须按行重算，且无法预计算。
+    #: 空串专指「本列引入之前写入的旧记录」，其哈希口径与当时一致（见 ``code_hash``）。
+    code_salt: Mapped[str] = mapped_column(String(32), default="")
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -318,7 +323,9 @@ class CouponRedemption(Base):
     account_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("accounts.id", ondelete="CASCADE"), index=True
     )
-    order_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("orders.id", ondelete="SET NULL"))
+    order_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True
+    )
     discount_cents: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
@@ -489,7 +496,12 @@ class License(Base):
         String(36), ForeignKey("accounts.id", ondelete="SET NULL"), index=True
     )
     product_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("products.id", ondelete="SET NULL"))
-    order_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("orders.id", ondelete="SET NULL"))
+    #: 被这张授权「改过」的那张订单。退款流程按它反查（``License.order_id == order.id``），
+    #: 所以与 ``CouponRedemption`` / ``ReferralLedger`` 的同类列一样需要索引：不加就是
+    #: 每次退款扫一遍全表授权。
+    order_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True
+    )
     product_name: Mapped[str] = mapped_column(String(255), default="")
     product_type: Mapped[str] = mapped_column(String(32), default="base")
     price_cents: Mapped[int] = mapped_column(Integer, default=0)
@@ -674,7 +686,9 @@ class ReferralLedger(Base):
     frozen_after_centi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     note: Mapped[str] = mapped_column(String(255), default="")
     reference: Mapped[str | None] = mapped_column(String(128))
-    order_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("orders.id", ondelete="SET NULL"))
+    order_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orders.id", ondelete="SET NULL"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 

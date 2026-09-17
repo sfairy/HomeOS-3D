@@ -124,9 +124,33 @@ def activation_code_hint(code: str) -> str:
     return code[-9:]
 
 
-def code_hash(code: str) -> str:
-    """验证码在库里只存哈希。"""
-    return hashlib.sha256(f"hb-store-verification:{code}".encode("utf-8")).hexdigest()
+def new_code_salt() -> str:
+    """验证码的逐条随机盐（16 字节十六进制）。"""
+    return secrets.token_hex(16)
+
+
+def code_hash(code: str, salt: str = "") -> str:
+    """验证码在库里只存哈希，且**逐条加盐**。
+
+    为什么需要盐：验证码只有 6 位（10⁶ 空间），不加盐时哈希是全局确定的 ——
+    ``sha256("hb-store-verification:" + code)``。这个口径有三个问题：
+
+    * **可预计算**：10⁶ 个哈希几分钟就能算完并存成表，拿到库之后是查表而不是爆破；
+    * **一次爆破覆盖所有行**：同一个码在任何记录里哈希相同，于是 10⁶ 次哈希能把
+      **所有**近期验证码一起还原出来，而不是一行；
+    * **可对比**：哈希相等即可反推「两个用户拿到过同一个码」。
+
+    加逐条盐之后，攻击者必须**按行**重算（每行一次 10⁶ 量级的爆破），预计算与
+    跨行对比同时失效。
+
+    ``salt`` 为空串表示这是**本列引入之前写入的旧记录**，按旧口径校验 —— 否则升级
+    瞬间正在输入的那些验证码（最多还有 10 分钟寿命）会全部失效，而它们不值得为
+    此做一次回填。
+    """
+    text = (code or "").strip()
+    if not salt:
+        return hashlib.sha256(f"hb-store-verification:{text}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{salt}\x1f{text}".encode("utf-8")).hexdigest()
 
 
 def new_order_no(prefix_email: str, *, now: datetime | None = None) -> str:

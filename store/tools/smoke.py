@@ -6307,6 +6307,289 @@ async def check_release_unique_conflict_paths() -> None:
     )
 
 
+def check_config_validation_strictness() -> None:
+    """S7：配置写错必须启动即失败，而不是静默按默认值跑。
+
+    修复前 ``_env_int`` 解析失败就 ``return default``，``_env_bool`` 则「不在真值
+    集合里就算假」。两种都不是「少了个功能」那么轻：
+
+    * ``STORE_ORDER_TTL_SECONDS=12o`` 会安静地用 120 秒，改动看着「没生效」；
+    * ``STORE_COOKIE_SECURE=ture`` 会让 Cookie 在 HTTPS 部署上**静默丢掉
+      ``Secure``**（拼错的信号恰好等于「显式关闭」）；
+    * 负数更糟：``order_ttl_seconds=-1`` 生成的是「创建即过期」的订单 —— 用户一
+      下单就失败，而接口返回 200、日志里没有一处异常。
+
+    这里对「解析失败」「越界」「跨字段矛盾」三类各钉一条，并确认**合法值不受影响**
+    （含 ``off``/``0`` 这类显式关闭写法与留空的占位值）。
+    """
+    from store import config as config_module
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-config-strict-"))
+    base = {"data_dir": workdir / "data", "license_keys_dir": workdir / "keys"}
+
+    def load(env: dict[str, str], **overrides):
+        """注入环境变量后 ``load_settings``，返回 ``(settings, 异常文本)``。"""
+        saved = {name: os.environ.get(name) for name in env}
+        os.environ.update(env)
+        try:
+            try:
+                return config_module.load_settings(**base, **overrides), ""
+            except ValueError as exc:
+                return None, str(exc)
+        finally:
+            for name, old in saved.items():
+                if old is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = old
+
+    rejected = (
+        ("STORE_ORDER_TTL_SECONDS", "12o", "需要整数"),
+        ("STORE_ORDER_TTL_SECONDS", "-1", "不能小于"),
+        ("STORE_ORDER_TTL_SECONDS", "1", "不能小于"),
+        ("STORE_PORT", "99999", "不能大于"),
+        ("STORE_SMTP_PORT", "0", "不能小于"),
+        ("STORE_COOKIE_SECURE", "ture", "需要布尔值"),
+        ("STORE_PAYMENT_SWEEP_BATCH", "0", "不能小于"),
+        ("STORE_SMTP_RETRY_BACKOFF_SECONDS", "abc", "需要数字"),
+    )
+    for name, value, needle in rejected:
+        settings, error = load({name: value})
+        check(
+            f"S7 {name}={value!r} 启动即失败（修复前会静默回退默认值）",
+            settings is None and needle in error,
+            error or "没有报错：坏值被静默接受了",
+        )
+
+    for name, value, expected in (
+        ("STORE_COOKIE_SECURE", "off", False),
+        ("STORE_ORDER_TTL_SECONDS", "   ", config_module.DEFAULT_ORDER_TTL_SECONDS),
+    ):
+        settings, error = load({name: value})
+        got = getattr(settings, name.removeprefix("STORE_").lower(), None) if settings else None
+        check(
+            f"S7 {name}={value!r} 仍被接受（显式关闭 / 留空占位都是合法写法）",
+            settings is not None and got == expected,
+            error or f"{name.removeprefix('STORE_').lower()}={got!r}",
+        )
+
+    for label, overrides, needle in (
+        ("程序化传入负 order_ttl（工具脚本绕过环境变量也挡得住）", {"order_ttl_seconds": -1}, "order_ttl_seconds"),
+        (
+            "租约 TTL 小于两倍心跳（否则健康客户端会在两次心跳之间丢掉租约）",
+            {"lease_ttl_seconds": 300},
+            "heartbeat_interval_seconds",
+        ),
+    ):
+        settings, error = load({}, **overrides)
+        check(f"S7 {label}", settings is None and needle in error, error or "没有报错")
+
+    # 报错必须点名是哪个变量：只说「配置非法」等于把排查成本推回给运维。
+    _, error = load({"STORE_DATA_DIR": "x", "STORE_ORDER_TTL_SECONDS": "0"})
+    check("S7 报错文案里带环境变量名（可定位到具体那一行配置）", "STORE_ORDER_TTL_SECONDS" in error, error[:100])
+
+
+def check_order_id_indexes() -> None:
+    """S51：被 JOIN / WHERE 用到的 ``order_id`` 外键列必须有索引。
+
+    ``coupon_redemptions.order_id`` 出现在每一次「优惠码预览 / 下单」的 OUTER JOIN
+    里（``store/coupons.py`` 与 ``store/api/store.py``、``store/api/admin.py``），
+    ``referral_ledger.order_id``、``licenses.order_id`` 用于退款时反查订单。
+    同表的相邻列都写了 ``index=True``，偏偏这几列没有 —— 小库上没人看得出来，
+    等订单表长起来就是「每次下单扫一遍全表核销记录」。
+    """
+    import store.schema_guard as schema_guard
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-order-idx-"))
+    engine = create_store_engine(
+        load_settings(data_dir=workdir / "data", license_keys_dir=workdir / "keys")
+    )
+    Base.metadata.create_all(engine)
+
+    expected = {
+        ("coupon_redemptions", "ix_coupon_redemptions_order_id"),
+        ("referral_ledger", "ix_referral_ledger_order_id"),
+        ("licenses", "ix_licenses_order_id"),
+    }
+
+    def index_names() -> set[tuple[str, str]]:
+        return {
+            (table, index["name"])
+            for table, _ in sorted(expected)
+            for index in sa_inspect(engine).get_indexes(table)
+        }
+
+    check(
+        "S51 新库上三张表的 order_id 都建了索引（create_all 口径）",
+        expected <= index_names(),
+        str(sorted(name for _, name in index_names() if name.endswith("order_id"))),
+    )
+
+    # 存量库：把索引删掉，确认升级时会自动补回来（不需要人工执行 DDL）。
+    with engine.begin() as connection:
+        for _, name in sorted(expected):
+            connection.exec_driver_sql(f"DROP INDEX {name}")
+    applied = schema_guard.ensure_schema(engine)
+    check(
+        "S51 存量库缺这几个索引时 ensure_schema 幂等补回（升级不需要人工建索引）",
+        expected <= index_names() and all(f"{table}.{name}" in applied for table, name in sorted(expected)),
+        f"applied={[item for item in applied if item.endswith('order_id')]}",
+    )
+    again = schema_guard.ensure_schema(engine)
+    check(
+        "S51 再跑一次 ensure_schema 不再重复建（幂等，不刷日志）",
+        not [item for item in again if item.endswith("order_id")],
+        f"again={again}",
+    )
+    engine.dispose()
+
+
+async def check_verification_code_salt() -> None:
+    """S57：验证码哈希逐条加盐；旧记录仍按旧口径校验。
+
+    验证码只有 6 位，哈希口径过去是全局确定的（``sha256(固定前缀 + code)``）：
+    拿到库的人花几分钟算完 10⁶ 个哈希，就能把**所有**近期验证码一次性反查出来，
+    还能通过「两行哈希相同」判断两个用户拿到过同一个码。逐条加盐把这两件事都堵掉
+    —— 必须按行重算，且无法预计算。
+
+    另一条同样重要：**旧记录不能被顺手打死**。``code_salt`` 是本列引入后才有的，
+    升级瞬间库里还有最多 10 分钟寿命的在途记录，它们没有盐，必须继续按旧口径校验。
+    """
+    from store.models import EmailVerification
+    from store.security import code_hash, new_code_salt
+
+    salt_a, salt_b = new_code_salt(), new_code_salt()
+    check(
+        "S57 盐是随机且足够长的十六进制串（32 位 = 16 字节）",
+        salt_a != salt_b and len(salt_a) == 32 and all(ch in "0123456789abcdef" for ch in salt_a),
+        f"{salt_a} / {salt_b}",
+    )
+    legacy = code_hash("123456")
+    check(
+        "S57 加盐后的哈希既不同于旧口径、也和别的盐算出的不同（预计算表与跨行对比同时失效）",
+        code_hash("123456", salt_a) != legacy and code_hash("123456", salt_a) != code_hash("123456", salt_b),
+        code_hash("123456", salt_a)[:16],
+    )
+    check(
+        "S57 空盐仍按旧口径计算（升级瞬间正在输入的验证码不会全部失效）",
+        code_hash("123456", "") == legacy and code_hash(" 123456 ", "") == legacy,
+        legacy[:16],
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-code-salt-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+    email = "salt-probe@habridge.local"
+    # 本机来源才回显验证码（否则拿不到明文，下面几条断言就无从谈起）
+    transport = httpx.ASGITransport(app=app, client=("127.0.0.1", 51299))
+    async with httpx.AsyncClient(transport=transport, base_url="http://store.test") as client:
+        sent = await client.post(
+            "/store/v1/verifications", json={"email": email, "purpose": "register"}
+        )
+    code = (sent.json() or {}).get("code") if sent.status_code == 200 else ""
+    check(
+        "S57 前置：本机请求拿到明文验证码（echo 只对本机回显）",
+        isinstance(code, str) and code.isdigit() and len(code) == 6,
+        f"{sent.status_code} {sent.text[:120]}",
+    )
+
+    with database.session() as session:
+        row = session.scalars(
+            select(EmailVerification).where(EmailVerification.email == email)
+        ).first()
+    check(
+        "S57 新写入的验证码记录带逐条盐",
+        row is not None and len(row.code_salt or "") == 32,
+        f"salt={getattr(row, 'code_salt', None)!r}",
+    )
+    check(
+        "S57 库里留的哈希**不是**预计算表里那个值（旧口径下它必然相等）",
+        row is not None and bool(code) and code_hash(code) != row.code_hash,
+        f"legacy={code_hash(code)[:16]} stored={(row.code_hash if row else '')[:16]}",
+    )
+    check(
+        "S57 用行内盐能算回同一个哈希（校验路径没被改坏）",
+        row is not None and bool(code) and code_hash(code, row.code_salt) == row.code_hash,
+        "逐条盐校验一致",
+    )
+    database.dispose()
+
+
+def check_referral_wallet_conflict_retry() -> None:
+    """S57（附带）：邀请码撞号 / 并发建钱包都不能变成 500。
+
+    ``ReferralWallet.account_id`` 与 ``ReferralWallet.code`` 都是唯一的，而
+    ``get_or_create_wallet`` 是「查一次再插」：并发建钱包、或随机 6 位邀请码撞号，
+    都会撞唯一索引。撞上时让整个请求 500（用户点「生成我的邀请码」得到「服务器错误」，
+    原因却只是一个与他无关的随机数碰撞）没有任何意义 —— 该做的是回滚这一次插入，
+    再判断「复用对手建好的」还是「换一个码重试」。
+    """
+    from store import referrals
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-wallet-retry-"))
+    engine = create_store_engine(
+        load_settings(data_dir=workdir / "data", license_keys_dir=workdir / "keys")
+    )
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        owner = Account(id="wc-1", email="wc1@x.local", password_hash="x")
+        session.add(owner)
+        session.flush()
+        wallet = referrals.get_or_create_wallet(session, owner)
+        session.commit()
+        wallet_id, wallet_code = wallet.id, wallet.code
+
+    with Session(engine) as session:
+        same = referrals.get_or_create_wallet(session, session.get(Account, "wc-1"))
+    check(
+        "S57 同一账号重复取钱包返回同一条（不会又建一个新邀请码）",
+        same.id == wallet_id and same.code == wallet_code,
+        f"{same.id} / {same.code}",
+    )
+
+    picked: list[str] = []
+    original_pick = referrals._pick_free_code
+
+    def always_taken(session, account):  # noqa: ANN001 - 测试替身
+        # 模拟「查出来是空位、插进去已被占」的竞态：直接返回一个已被占用的码。
+        picked.append(wallet_code)
+        return wallet_code
+
+    with Session(engine) as session:
+        third = Account(id="wc-3", email="wc3@x.local", password_hash="x")
+        session.add(third)
+        session.commit()
+        referrals._pick_free_code = always_taken
+        try:
+            try:
+                referrals.get_or_create_wallet(session, third)
+                raised = ""
+            except RuntimeError as exc:
+                raised = str(exc)
+            except Exception as exc:  # noqa: BLE001 - 这里就是要区分异常种类
+                raised = f"{type(exc).__name__}: {exc}"
+        finally:
+            referrals._pick_free_code = original_pick
+        check(
+            "S57 邀请码连续撞号时抛可读的 RuntimeError（不是裸的 IntegrityError/500）",
+            raised.startswith("无法创建积分钱包") and len(picked) == 8,
+            raised or "没有抛错",
+        )
+        check(
+            "S57 每次重试都回滚在 SAVEPOINT 里：撞完之后会话仍能正常查库（没有被打成 needs-rollback）",
+            session.scalars(select(Account.id).limit(1)).first() is not None,
+            "会话可用",
+        )
+    engine.dispose()
+
+
 def check_global_log_write_amplification() -> None:
     """全局日志不能把「请求量」放大成「磁盘读写量」（审计 H1）。
 
@@ -8025,6 +8308,10 @@ async def run() -> int:
     check_wallet_aggregate_atomic()
     await check_manual_refund_stays_offline()
     await check_release_unique_conflict_paths()
+    check_config_validation_strictness()
+    check_order_id_indexes()
+    await check_verification_code_salt()
+    check_referral_wallet_conflict_retry()
     check_store_setup_authorization()
     # 第 2 批 High 的专项断言：日志写入放大、上传体积、配对码生命周期。
     check_global_log_write_amplification()

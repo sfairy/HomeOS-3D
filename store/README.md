@@ -170,6 +170,19 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `STORE_SESSION_MAX_AGE_SECONDS` | `2592000` | 商店会话有效期 |
 | `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` | —（**必填**） | `seed` 初始化管理员；缺失时任一项都会让 `seed` 直接退出，不再有内置默认值 |
 
+**写错就起不来（这是刻意的）**：上面这些数值型/布尔型变量在启动时**严格解析** ——
+`STORE_ORDER_TTL_SECONDS=12o`、`STORE_COOKIE_SECURE=ture`、`STORE_PORT=99999`
+都会让进程带着一条点名变量的错误信息拒绝启动，而不是静默回退默认值。只有
+「未设置」与「留空」才使用默认值（部署模板里常见的空占位写法不受影响）。
+布尔值接受 `true/false/1/0/yes/no/on/off`（大小写不限）。
+
+这么做是因为静默回退的后果大多不表现为「少了个功能」：顺序与此相反的例子是
+`STORE_COOKIE_SECURE` 拼错 —— 它恰好等于「显式关闭」，于是 HTTPS 部署上的会话
+Cookie 会丢掉 `Secure` 标记，而服务照常运行、日志里一个字都没有。
+另有几条跨字段校验，例如 `STORE_LEASE_TTL_SECONDS` 必须 ≥ 2×
+`STORE_HEARTBEAT_INTERVAL_SECONDS`，否则健康客户端会在两次心跳之间把租约耗到过期
+（表现为「网络正常但功能一阵阵消失」，两个配置项单独看都合法）。
+
 站点名、公告、客服邮箱、维护模式、邀请比例、提现手续费、解绑冷却等**运行时配置**存在数据库里，直接在 `/admin` 的"站点配置"里改，不需要重启。
 
 邮件与验证码那几项（`STORE_MAIL_MODE` / `STORE_SMTP_*` / `STORE_MAIL_FROM` / `STORE_VERIFICATION_*` / `STORE_EXPOSE_VERIFICATION_CODE`）和支付宝的 `STORE_ALIPAY_*` 也搬进了「站点配置」，同样是 DB 值优先、留空跟随 `.env`，改完免重启。两个顺手加的排障入口：

@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from store import money
@@ -44,21 +45,53 @@ class WalletConflictError(RuntimeError):
 
 
 def get_or_create_wallet(session: Session, account: Account) -> ReferralWallet:
-    wallet = session.scalars(
-        select(ReferralWallet).where(ReferralWallet.account_id == account.id)
-    ).first()
+    """取（必要时建）该账号的积分钱包。
+
+    两次「查一次再插」都在这里，而两条路都会撞唯一索引：
+
+    * ``ReferralWallet.account_id`` 唯一 —— 两个请求同时给同一账号建钱包；
+    * ``ReferralWallet.code`` 唯一 —— 随机 6 位邀请码撞号。
+
+    撞上唯一索引原本会让整个请求 500（例如用户点「生成我的邀请码」得到
+    「服务器错误」，而原因只是一个跟他无关的随机数碰撞）。现在插入放在
+    SAVEPOINT 里：撞了只回滚这一次插入，然后再判断该「复用对手建好的那个」
+    还是「换一个码重试」——并发建钱包属于前者，换码属于后者。
+    """
+    wallet = _wallet_for(session, account)
     if wallet is not None:
         return wallet
-    wallet = ReferralWallet(
-        account_id=account.id,
-        code=account.referral_code or _unique_code(session, account),
-    )
-    session.add(wallet)
-    session.flush()
-    return wallet
+    for _ in range(8):
+        wallet = ReferralWallet(
+            account_id=account.id,
+            code=account.referral_code or _pick_free_code(session, account),
+        )
+        try:
+            with session.no_autoflush, session.begin_nested():
+                session.add(wallet)
+                session.flush()
+        except IntegrityError:
+            if wallet in session:
+                session.expunge(wallet)
+            existing = _wallet_for(session, account)
+            if existing is not None:
+                return existing
+            continue
+        return wallet
+    raise RuntimeError("无法创建积分钱包，请稍后重试。")
 
 
-def _unique_code(session: Session, account: Account) -> str:
+def _wallet_for(session: Session, account: Account) -> ReferralWallet | None:
+    return session.scalars(
+        select(ReferralWallet).where(ReferralWallet.account_id == account.id)
+    ).first()
+
+
+def _pick_free_code(session: Session, account: Account) -> str:
+    """挑一个当前没人占用的邀请码并写回账号；查不出来就抛（不再靠重试硬扛）。
+
+    这里只做「查」，真正的占用判定交给唯一索引（见 :func:`get_or_create_wallet`）：
+    并发下查出来的「空位」随时可能被对手先占，靠查询结果当保证是做不到的。
+    """
     for _ in range(32):
         candidate = new_referral_code()
         taken = session.scalars(
@@ -69,7 +102,6 @@ def _unique_code(session: Session, account: Account) -> str:
         ).first()
         if taken is None and other is None:
             account.referral_code = candidate
-            session.flush()
             return candidate
     raise RuntimeError("无法生成唯一邀请码，请稍后重试。")
 
