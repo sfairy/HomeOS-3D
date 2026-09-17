@@ -768,6 +768,9 @@ class LicenseService:
             state = self._state(database)
             encrypted = state.encrypted_session_token
             lease_sequence = state.lease_sequence
+            # 会话与本地实例的绑定关系要在请求里一并证明：服务端靠它识别
+            # 「同一张授权已经被另一台设备重新激活」的情形（见 store 侧 heartbeat）。
+            instance_id = state.instance_id
         # 没有会话令牌说明从未激活成功或刚被清空，直接走恢复流程。
         if not encrypted:
             return await self._recover_unlocked()
@@ -779,6 +782,11 @@ class LicenseService:
                 'sessionToken': session_token,
                 # 回传本地序号：服务端据此判断客户端是否落后于最新租约。
                 'leaseSequence': lease_sequence,
+                # 回传本机实例 ID：服务端据此拒绝「不属于当前实例」的旧会话。
+                # 少了这一项，管理员刚做的解绑对旧设备等于没生效 —— 另一台设备重新
+                # 激活会复用同一行 DeviceBinding 并改写 instance_id，而旧设备的
+                # session token 仍指向该行，于是能一直续租下去。
+                'instanceId': instance_id,
                 'clientVersion': self.settings.version,
                 'nonce': secrets.token_urlsafe(24)})
             result = self._apply_response(response)

@@ -92,7 +92,8 @@ class MockPaymentProvider:
         base_url: str,
     ) -> PaymentIntent:
         # 页面本身要求带订单凭证（``?token=``）：它会把 lookupToken 交给页面里的
-        # 按钮去调 ``mock/pay``，而订单号是可枚举的，页面绝不能无鉴权可达。
+        # 按钮去调 ``mock/pay``。订单号会出现在邮件、客服工单与 Referer 里，从来不是
+        # 一道授权，所以页面绝不能无鉴权可达 —— 这条判断不依赖订单号是否可枚举。
         pay_url = (
             f"{base_url}/store/mock/pay/{order.order_no}"
             f"?token={quote(order.lookup_token or '', safe='')}"

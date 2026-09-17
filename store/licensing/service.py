@@ -126,6 +126,7 @@ class LicenseAuthority:
     ) -> dict:
         token = str(payload.get("sessionToken") or "")
         client_version = str(payload.get("clientVersion") or "").strip()
+        instance_id = str(payload.get("instanceId") or "").strip()
         if not token:
             raise LicenseServerError("缺少授权会话凭证。", status_code=401)
 
@@ -141,6 +142,23 @@ class LicenseAuthority:
                 raise LicenseServerError("授权会话对应的绑定已不存在。", status_code=401)
             if not binding.active or binding.released_at is not None:
                 raise LicenseServerError("实例绑定已停用。", status_code=403, revoked=True)
+            # 会话必须属于**当前**绑定在这张授权上的实例。
+            #
+            # 少了这一条，管理员刚做的解绑对旧设备等于没生效：设备 A 解绑后，设备 B
+            # 重新激活会复用同一行 DeviceBinding（ensure_binding 里就地改写
+            # instance_id），而 A 手里的 session token 仍指向该行，于是 A 能一直续租。
+            # recover 早就比对 instanceId，heartbeat 却漏了 —— 而心跳才是常态路径。
+            if not instance_id or binding.instance_id != instance_id:
+                logger.warning(
+                    "心跳实例不匹配 license=%s binding=%s 期望=%s 实收=%s：按已吊销处理",
+                    license.id,
+                    binding.id,
+                    binding.instance_id,
+                    instance_id or "(缺省)",
+                )
+                raise LicenseServerError(
+                    "授权会话不属于当前实例，请重新激活。", status_code=403, revoked=True
+                )
             self.assert_usable(license, now)
 
             row.expires_at = now + timedelta(seconds=self.session_ttl_seconds)
@@ -251,8 +269,13 @@ class LicenseAuthority:
         ip: str | None,
         now: datetime,
     ) -> DeviceBinding:
+        # 无 ORDER BY 的 .first() 挑行取决于引擎返回顺序，而同一张授权可能留下多行
+        # 绑定（解绑只是 active=False，行会保留）。优先活跃、其次最近激活，结果才是
+        # 确定的；否则下面「已绑定其他设备」的 409 判定会建立在一个随机结果上。
         binding = session.scalars(
-            select(DeviceBinding).where(DeviceBinding.license_id == license.id)
+            select(DeviceBinding)
+            .where(DeviceBinding.license_id == license.id)
+            .order_by(DeviceBinding.active.desc(), DeviceBinding.activated_at.desc())
         ).first()
 
         if binding is None:
@@ -293,6 +316,28 @@ class LicenseAuthority:
         binding.activated_at = now
         binding.released_at = None
         binding.last_heartbeat_at = now
+        # 换了实例就等于换了设备：把指向这一行的旧会话与旧恢复票据一并作废。
+        # 否则旧设备手里的 session token 仍然有效，可以继续心跳续租 —— 管理员刚刚
+        # 做的解绑对它等于没发生。heartbeat 侧的 instanceId 比对是第二道防线，
+        # 这里是第一道：让旧凭证在库里直接失效，而不是每台旧设备都靠一次请求才发现。
+        stale_sessions = session.scalars(
+            select(LicenseSession).where(LicenseSession.binding_id == binding.id)
+        ).all()
+        for stale in stale_sessions:
+            session.delete(stale)
+        stale_recoveries = session.scalars(
+            select(RecoveryToken).where(RecoveryToken.binding_id == binding.id)
+        ).all()
+        for stale in stale_recoveries:
+            session.delete(stale)
+        if stale_sessions or stale_recoveries:
+            logger.info(
+                "实例变更，已作废旧会话 license=%s binding=%s 会话=%d 恢复票据=%d",
+                license.id,
+                binding.id,
+                len(stale_sessions),
+                len(stale_recoveries),
+            )
         session.flush()
         return binding
 

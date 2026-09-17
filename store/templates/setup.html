@@ -51,6 +51,11 @@
             <button type="button" data-password-toggle aria-label="显示密码">显示</button>
           </span>
         </label>
+        <label class="hb-field">
+          <span>引导密钥（远程访问时必填）</span>
+          <input class="hb-input" type="text" id="setup-token" name="setup_token" placeholder="从服务启动日志中查找" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore data-bwignore>
+        </label>
+        <p class="login-hint">从本机直接访问（未经过反向代理）时无需填写；远程访问请在服务启动日志或容器日志里查找 setup token，也可以用 <code>STORE_SETUP_TOKEN</code> 指定一份后重启。</p>
         <button class="hb-button hb-button--primary hb-button--lg hb-button--block" type="submit" id="setup-submit">创建管理员</button>
       </form>
       <div id="setup-error" class="admin-alert" hidden></div>

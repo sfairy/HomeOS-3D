@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import html
 import logging
 import smtplib
@@ -101,6 +102,21 @@ class MailResult:
     error: str = ""
     #: 仅本地联调：把验证码明文回给接口调用方
     exposed_code: str | None = None
+
+
+def _code_fingerprint(code: str) -> str:
+    """把验证码渲染成可在日志里留痕、但无法据以还原的形式。
+
+    刻意不用 ``123***`` 这类掩码：验证码是定长数字串，掩码会把搜索空间从
+    10^n 降到 10^(n-3)，日志一旦外流就等于替攻击者做完了大部分爆破。
+    这里改用短哈希指纹 —— 仍能用来核对「两条日志是不是同一个码」（排障真正
+    需要的部分），但反推不出任何一位数字。
+    """
+    text = (code or "").strip()
+    if not text:
+        return "(空)"
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()[:10]
+    return f"sha256:{digest}（{len(text)} 位）"
 
 
 def _copy_for(purpose: str) -> _Copy:
@@ -341,9 +357,35 @@ def send_verification_email(
             exposed_code=code if expose else None,
         )
 
-    logger.warning(
-        "[验证码] 收件人=%s 用途=%s 验证码=%s（mail_mode=%s）", email, purpose, code, mode
-    )
+    # 「日志里写不写明文验证码」必须区分两种来由：
+    #
+    # 1. 运营**显式**选了 `log` / `echo` 投递 —— 日志就是投递通道，写明文是设计意图；
+    # 2. 运营选了 `smtp`，但凭据不全（或未配置）而**回退**到日志 —— 这时运营以为
+    #    「我们不打码」，实际每次注册/重置的验证码都留在了日志里。任何能读日志的人
+    #    （包括日志聚合、归档冷备、排障时贴出去的工单附件）都能直接接管账号。
+    #
+    # 所以第 2 种情况默认只记掩码，并在告警里明说「验证码已不可见」；只有运营显式
+    # 打开 `expose_verification_code`（即已接受「验证码可见」这一前提）才写明文 ——
+    # 这样本地联调流程一字未改，而生产上的静默降级不再顺带泄漏凭据。
+    log_plaintext_code = mode in {"log", "echo"} or settings.expose_verification_code
+    if log_plaintext_code:
+        logger.warning(
+            "[验证码] 收件人=%s 用途=%s 验证码=%s（mail_mode=%s）",
+            email,
+            purpose,
+            code,
+            mode,
+        )
+    else:
+        logger.error(
+            "验证码无法投递：mail_mode=%s 但 SMTP 未就绪，本次已回退为日志投递。"
+            "为避免把可用的验证码写进生产日志，这里只记录掩码 %s，"
+            "请尽快补全 SMTP 配置（收件人=%s 用途=%s）。",
+            mode,
+            _code_fingerprint(code),
+            email,
+            purpose,
+        )
     return MailResult(
         delivered=False,
         mode="echo" if mode == "echo" else "log",

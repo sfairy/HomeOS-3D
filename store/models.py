@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -328,6 +329,27 @@ class CouponRedemption(Base):
 # --------------------------------------------------------------------------- #
 class Order(Base):
     __tablename__ = "orders"
+
+    #: **每账号最多一笔待支付订单**，由数据库兜底。
+    #:
+    #: 业务规则（``store/api/store.py:create_order`` 里那段 ``pending`` 检查）过去只是
+    #: 「先 SELECT 再 INSERT」，两个并发请求会同时看到 ``pending`` 为空，于是产生两笔
+    #: 待付单 —— 连带两次 ``reserve_stock`` 与两次 ``redeem_coupon``，这也是
+    #: S40（优惠码按账号限额被绕过）的直接达成路径。
+    #:
+    #: 为什么是**部分**唯一索引：约束只该覆盖 ``status='pending'`` 这一种状态。
+    #: 一个账号当然可以有很多历史订单（paid/fulfilled/expired/cancelled…），
+    #: 对 ``account_id`` 直接加全量唯一索引会把老用户全部挡住。
+    #: 注意 ``account_id`` 可为空（游客单），SQLite 的唯一索引里 NULL 互不相等，
+    #: 所以游客单不受这条约束影响 —— 与该规则「只针对已登录账号」的语义一致。
+    __table_args__ = (
+        Index(
+            "uq_orders_pending_per_account",
+            "account_id",
+            unique=True,
+            sqlite_where=text("status = 'pending' AND account_id IS NOT NULL"),
+        ),
+    )
 
     #: pending | paid | fulfilled | expired | cancelled | refunded | payment_failed
     #: 另有 ``fulfillment_failed``：履约过程中抛异常时由管理端标记，等待人工处理。

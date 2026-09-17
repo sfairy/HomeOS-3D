@@ -13,10 +13,18 @@ from datetime import timedelta, timezone
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-from store import coupons, fulfill, mail_settings, mailer, password_gate, referrals, site_settings
+from store import (
+    coupons,
+    fulfill,
+    mail_settings,
+    mailer,
+    password_gate,
+    referrals,
+)
 from store.config import StoreSettings
 from store.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
 from store.models import (
@@ -229,13 +237,46 @@ def _create_session(session, request: Request, account: Account) -> str:
 
 
 def _customer_for(session, account: Account) -> Customer:
+    """取（必要时创建）账号对应的客户档案行。
+
+    ``customers.account_id`` 上有唯一索引，而这里是「先查后插」—— 两个并发请求
+    会同时查不到、同时插入，后到的那个撞唯一约束并把整个请求打成 500
+    （由 S41 的并发测试当场发现：8 个并发下单里有 1 个是
+    ``UNIQUE constraint failed: customers.account_id``，而不是预期的 409）。
+
+    唯一索引本身就保证了「每个账号至多一行」，所以撞约束时不必报错 ——
+    说明另一个请求刚好抢先建好了，直接把它读回来即可（幂等）。
+    """
     customer = session.scalars(
         select(Customer).where(Customer.account_id == account.id)
     ).first()
-    if customer is None:
-        customer = Customer(account_id=account.id, email=account.email, name=account.email)
-        session.add(customer)
-        session.flush()
+    if customer is not None:
+        return customer
+
+    customer = Customer(account_id=account.id, email=account.email, name=account.email)
+    try:
+        # 用 SAVEPOINT 而非整个事务回滚：失败时只丢掉这一条 INSERT，
+        # 调用方在本事务里已完成的其它写入（例如 _expire_stale_orders 关掉的过期单）
+        # 不该被这次撞车连累。本仓的 SQLite 驱动下 SAVEPOINT 语义已实测正确
+        # （内层失败后外层写入仍在、会话仍可用）。
+        with session.begin_nested():
+            session.add(customer)
+            session.flush()
+    except IntegrityError as error:
+        message = str(getattr(error, "orig", error))
+        if "UNIQUE constraint failed" not in message or "customers.account_id" not in message:
+            raise
+        # 竞争对手先建好了：把自己这条脏对象从会话里摘掉，把已有的读回来。
+        # 先判断再摘：SAVEPOINT 回滚时 SQLAlchemy 已经会把它从会话里清掉，
+        # 此时再 expunge 会抛 ``InvalidRequestError``（实测抓到过）。
+        if customer in session:
+            session.expunge(customer)
+        existing = session.scalars(
+            select(Customer).where(Customer.account_id == account.id)
+        ).first()
+        if existing is None:  # 只可能是对方又把它删了，属于异常状态，不掩盖
+            raise
+        return existing
     return customer
 
 
@@ -447,15 +488,41 @@ def _evaluate_coupon_limited(
     return coupon, discount
 
 
-def _unique_order_no(session, email: str, moment) -> str:
-    """参考站格式 ``HOMEOS-20260906224517-156120718``；同一秒内重复下单时补序号。"""
-    base = new_order_no(email, now=moment)
-    candidate = base
-    counter = 1
-    while session.scalars(select(Order.id).where(Order.order_no == candidate)).first() is not None:
-        counter += 1
-        candidate = f"{base}-{counter}"
-    return candidate
+def _flush_order(session, order: Order) -> str:
+    """插入订单；把唯一索引的裁决翻译成业务语义。
+
+    返回 ``"ok"``（已落库）/ ``"pending"``（该账号已有待付单）/ ``"retry"``（订单号
+    撞车，请调用方重试整个请求）。
+
+    订单号由 :func:`store.security.new_order_no` 末尾的随机段保证**按构造即唯一**，
+    所以这里刻意**不再**「撞号就换一个再插」。那种事后重试在 SQLAlchemy 里是个陷阱：
+    flush 失败会把对象**逐出会话**，于是重试那次 flush 实际什么都没插、却返回成功
+    （实测：换号重试的写法返回 "ok" 但行根本没落库）—— 订单静默丢失，比 500 更糟。
+    真撞上订单号（概率可忽略）就交给上层让客户端重试，绝不假装成功。
+
+    flush 放在 SAVEPOINT 内并关掉自动 flush：先建 SAVEPOINT、再显式 flush，失败时
+    只回滚这一次插入，本事务中此前的改动（``_customer_for`` 建的客户档案等）不受
+    影响，会话也仍可正常提交。
+    """
+    try:
+        with session.no_autoflush, session.begin_nested():
+            session.flush()
+    except IntegrityError as error:
+        # SQLite 的报错只列列名、不带索引名（``UNIQUE constraint failed:
+        # orders.account_id``），所以按列名判断，而不是按索引名。
+        message = str(getattr(error, "orig", error))
+        if "UNIQUE constraint failed" not in message:
+            raise
+        if "orders.account_id" in message:
+            # 待付单唯一索引（``uq_orders_pending_per_account``）挡下并发重复下单：
+            # 上面的 ``pending`` 预检查是「先 SELECT 再 INSERT」，两个并发请求会同时
+            # 看到没有待付单；真正定胜负的是这条索引。翻译成与预检查**完全相同** 的
+            # 409，调用方无从分辨、也无需分辨。
+            return "pending"
+        if "orders.order_no" in message:
+            return "retry"
+        raise
+    return "ok"
 
 
 def _license_meta(session, licenses: list[License]) -> dict[str, dict]:
@@ -641,9 +708,10 @@ def latest_release(request: Request, session: DbSession, channel: str = "docker"
 #: 这个接口就成了免费的邮件群发器（而且发件人是我们自己的域名，会被拉黑）。
 _PURPOSES_REQUIRING_ACCOUNT = frozenset({"verify", "change_email"})
 
-#: 视为「本机」的客户端地址（含 ``testclient``：Starlette 的 TestClient 是进程内
-#: 调用，根本没有网络对端，与 localhost 同级）。只有这些地址才允许看到 echo 回显的
-#: 验证码 —— echo 的假设就是「访问者本身就在这台机器上」。
+#: 视为「本机」的客户端地址（含空串：Starlette 的 TestClient 是进程内调用，
+#: 根本没有网络对端，与 localhost 同级；``testclient`` 是为显式构造的请求保留的）。
+#: 只有这些地址才允许看到 echo 回显的验证码 —— echo 的假设就是「访问者本身就在
+#: 这台机器上」。
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient", ""})
 
 
@@ -653,13 +721,27 @@ def _client_host(request: Request) -> str:
 
 
 def _is_loopback_client(request: Request) -> bool:
-    """请求的 TCP 对端是否是本机。
+    """请求的**真实来源**是否在本机。
 
-    ``client`` 为空视为本机：那只会出现在进程内直接调用 ASGI 应用的场景
-    （自检脚本、TestClient），不存在「谁从网络上打过来」这个问题。
-    反过来误判成非本机只会让本地联调看不到验证码，误判成本很低。
+    刻意用 ``resolve_client_ip`` 而不是直接读 ``request.client.host``：后者只是
+    TCP 对端，而在本机反代（nginx/caddy 与 store 同机）后面，**每一个**外部请求的
+    对端都是 ``127.0.0.1``，直接读对端会把它们全部误判成本机，验证码就回显给了
+    整个互联网。``resolve_client_ip`` 只在「对端确实是配置里的可信代理」时才采信
+    ``X-Forwarded-For``，指向客户端的真实地址；没配 ``STORE_TRUSTED_PROXIES`` 时
+    转发头一律忽略，语义与直接读对端一致（此时本机反代无法区分，靠 ``load_settings``
+    的启动告警提示运营）。
+
+    地址为空或标记 ``per_client=False``（链路全程可信、拿不到具体客户端）时按本机
+    处理：那只会出现在进程内调用与 TestClient 场景，不存在「谁从网络上打过来」。
+    反过来误判成本机才是危险的，所以只有能确定指向本机时才返回真。
     """
-    return _client_host(request) in _LOOPBACK_HOSTS
+    try:
+        address = resolve_client_ip(request)
+    except Exception:  # noqa: BLE001 - 解析异常时按更严格的「非本机」处理
+        return False
+    if not getattr(address, "per_client", False):
+        return _client_host(request) in _LOOPBACK_HOSTS
+    return str(getattr(address, "ip", "") or "").strip().lower() in _LOOPBACK_HOSTS
 
 
 def _assert_purpose_allowed(
@@ -816,19 +898,27 @@ def send_verification(
     if result.error:
         # 发信失败要如实告诉用户「可能收不到」，而不是让他对着收件箱干等
         body["deliveryError"] = "验证码邮件发送失败，请稍后重试或联系客服。"
-    #: echo 模式会把验证码明文写进 HTTP 响应，而这个模式的文案本来就写着「仅本地」。
-    #: 一旦生产被切到 echo（改配置时手滑、或者照抄了本地环境变量），它就变成一条
-    #: 账号接管路径：攻击者对受害者邮箱调一次「发送验证码」，响应里直接拿到重置码。
-    #: 所以回显只认**本机**客户端，非本机一律按 log 处理并告警（验证码仍写进服务端
-    #: 日志，运营能捞到，但不会出现在任何一个跨网络的响应里）。
+    #: 任何把验证码写进 HTTP 响应的路径都只认**本机**客户端。
+    #:
+    #: 这一条必须覆盖所有 mail_mode，而不只是 echo：``result.exposed_code`` 在
+    #: ``mail_mode=log`` 与 ``mail_mode=smtp``（凭据不全或发信重试全失败而回退）下
+    #: 同样会有值 —— 只要 ``STORE_EXPOSE_VERIFICATION_CODE`` 打开。此前这里写的是
+    #: ``settings.mail_mode != "echo" or echo_allowed``，「非 echo」直接短路为真，
+    #: 于是远端请求在 log / smtp 两种模式下都能从响应里拿到验证码，等于给任意账号
+    #: （含管理员）留了接管路径；只有 echo 一个模式恰好被挡住。
+    #:
+    #: 非本机一律按 log 处理并告警：验证码仍写进服务端日志（运营能捞到），
+    #: 但不会出现在任何一个跨网络的响应里。
     echo_allowed = _is_loopback_client(request)
-    if settings.mail_mode == "echo" and not echo_allowed:
+    if result.exposed_code is not None and not echo_allowed:
         logger.warning(
-            "mail_mode=echo 但请求来自 %s（非本机），已按 log 处理：验证码写日志、不回显。"
-            "echo 仅供 localhost 联调，生产请改为 smtp。",
+            "本次验证码本可在响应中回显（mail_mode=%s，expose_verification_code=%s），"
+            "但请求来自 %s（非本机），已按 log 处理：验证码只写服务端日志、不回显。",
+            settings.mail_mode,
+            settings.expose_verification_code,
             _client_host(request) or "未知地址",
         )
-    if result.exposed_code is not None and (settings.mail_mode != "echo" or echo_allowed):
+    if result.exposed_code is not None and echo_allowed:
         body["code"] = result.exposed_code
         if settings.mail_mode == "echo":
             body["devNotice"] = "mail_mode=echo，验证码直接在响应中回显，仅供本地联调。"
@@ -836,8 +926,15 @@ def send_verification(
             # smtp 误配置/发信失败后回退，或显式打开了 STORE_EXPOSE_VERIFICATION_CODE
             body["devNotice"] = (
                 "验证码在响应中回显（mail_mode="
-                f"{settings.mail_mode}，由 STORE_EXPOSE_VERIFICATION_CODE 决定）；仅供本地联调，生产请关闭。"
+                f"{settings.mail_mode}，由 STORE_EXPOSE_VERIFICATION_CODE 决定）；"
+                "仅本机访问才会回显，生产请关闭该开关。"
             )
+    elif result.exposed_code is not None:
+        # 非本机：明确告知验证码去了哪里，避免本地联调时以为发丢了
+        body["devNotice"] = (
+            "验证码未在响应中回显：只有本机访问才允许回显。"
+            "验证码已写入服务端日志，请查阅日志获取。"
+        )
     elif settings.mail_mode == "echo":
         body["devNotice"] = (
             "mail_mode=echo 仅在本机访问时回显验证码；本次请求来自其它地址，"
@@ -1571,7 +1668,7 @@ def create_order(
         license_action = "issue"
     moment = utcnow()
     order = Order(
-        order_no=_unique_order_no(session, account.email, moment),
+        order_no=new_order_no(account.email, now=moment),
         lookup_token=new_token(24),
         account_id=account.id,
         customer_id=_customer_for(session, account).id,
@@ -1592,7 +1689,22 @@ def create_order(
         expires_at=moment + timedelta(seconds=request.app.state.settings.order_ttl_seconds),
     )
     session.add(order)
-    session.flush()
+    outcome = _flush_order(session, order)
+    if outcome == "pending":
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="你有一笔待支付订单，请先完成或等待其超时关闭。",
+        )
+    if outcome != "ok":
+        #: 订单号撞车。``new_order_no`` 末尾的随机段已经让这件事的概率可忽略，但真撞上
+        #: 也不能把订单发出去 —— 返回可重试的 503 而不是 500。
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="下单请求过于频繁，请稍后重试。",
+            headers={"Retry-After": "1"},
+        )
 
     if coupon is not None:
         try:

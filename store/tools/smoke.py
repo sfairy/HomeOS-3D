@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import importlib.util
+import io
 import json
 import logging
 import os
@@ -39,7 +40,7 @@ import traceback
 import warnings
 import types
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -52,11 +53,13 @@ from cryptography.hazmat.primitives.serialization import (
     PrivateFormat,
     PublicFormat,
 )
-from sqlalchemy import Column, MetaData, String, inspect, select
+from sqlalchemy import Column, MetaData, String, func, inspect, select
+from sqlalchemy.orm import Session
 
 from store.app import create_app
 from store.config import STORE_ROOT, StoreSettings, load_settings
 from store import site_settings as site_config
+from store import mailer
 from store.database import Base, create_store_engine
 from store.models import (
     Account,
@@ -1737,30 +1740,43 @@ async def check_alipay_notify_flow() -> None:
     )
     app = create_app(settings)
 
-    email = "alipay@habridge.local"
     with app.state.database.session() as session:
         seed_settings(session)
         products = seed_products(session)
         base_product_id = products["base"].id
-        account = Account(
-            email=email,
-            password_hash=hash_password("alipay-password-2026"),
-            email_verified_at=utcnow(),
-        )
-        session.add(account)
-        session.flush()
-        customer = Customer(account_id=account.id, email=email, name=email)
-        session.add(customer)
-        session.flush()
-        account_id = account.id
 
-        def _pending_order(amount_cents: int) -> str:
+        def _new_account(tag: str) -> tuple[str, str, str]:
+            """每个通知场景各用一个独立账号。
+
+            ``orders`` 上有 ``uq_orders_pending_per_account``（每账号至多一笔待付单，
+            见 S41），而本测试需要 4 笔**同时处于 pending** 的订单来分别验证
+            「验签失败 / 签名后被篡改 / 金额不符 / 正常入账」。这四个场景与「归属哪个
+            账号」无关，各用一个账号既能满足约束，也更贴近现实 —— 真实部署里
+            每个账号本来就只可能有一笔待付单，同一账号并存 4 笔是不可能出现的状态。
+            """
+            account_email = f"alipay-{tag}@habridge.local"
+            account = Account(
+                email=account_email,
+                password_hash=hash_password("alipay-password-2026"),
+                email_verified_at=utcnow(),
+            )
+            session.add(account)
+            session.flush()
+            customer = Customer(
+                account_id=account.id, email=account_email, name=account_email
+            )
+            session.add(customer)
+            session.flush()
+            return account.id, customer.id, account_email
+
+        def _pending_order(tag: str, amount_cents: int) -> tuple[str, str]:
+            owner_id, customer_id, owner_email = _new_account(tag)
             order = Order(
-                order_no=f"HOMEOS-ALIPAY-{utcnow().strftime('%H%M%S%f')}",
+                order_no=f"HOMEOS-ALIPAY-{tag.upper()}-{utcnow().strftime('%H%M%S%f')}",
                 lookup_token="alipay-token",
-                account_id=account_id,
-                customer_id=customer.id,
-                email=email,
+                account_id=owner_id,
+                customer_id=customer_id,
+                email=owner_email,
                 product_id=base_product_id,
                 product_name="smoke 主授权",
                 product_type="base",
@@ -1775,12 +1791,14 @@ async def check_alipay_notify_flow() -> None:
             )
             session.add(order)
             session.flush()
-            return order.order_no
+            return order.order_no, owner_id
 
-        valid_order = _pending_order(4990)
-        tampered_order = _pending_order(4990)
-        wrong_amount_order = _pending_order(4990)
-        wrong_key_order = _pending_order(4990)
+        # ``account_id`` 保持指向**正常入账那笔**的账号：后面用它核对发码数量，
+        # 并用它下一笔 0 元订单。其余三个场景只需订单号。
+        valid_order, account_id = _pending_order("valid", 4990)
+        tampered_order, _ = _pending_order("tampered", 4990)
+        wrong_amount_order, _ = _pending_order("amount", 4990)
+        wrong_key_order, _ = _pending_order("key", 4990)
 
     transport = httpx.ASGITransport(app=app)
     notify_url = alipay_module.AlipayProvider().notify_url(settings, "http://store.test")
@@ -1929,9 +1947,10 @@ async def check_alipay_notify_flow() -> None:
     # 0 元订单：支付宝不接受 0 元交易，必须直接开通而不是去下单
     token = "smoke-alipay-free-session"
     with app.state.database.session() as session:
-        # 上面几个通知用例会留下仍是 pending 的订单（被拒绝的篡改/错金额通知，
-        # 以及签名错误那笔）。它们会命中下单接口的「已有待支付订单」409 守卫，
-        # 所以先在这里收尾，让 0 元下单走的是「无待支付订单」这条正常路径。
+        # 正常入账那笔已经转 fulfilled，所以这个账号此刻本就没有待付单；
+        # 这里仍然兜一遍，避免日后调整上面的场景时踩到下单接口的
+        # 「已有待支付订单」409 守卫（几个被拒绝的通知场景各自挂在**独立账号**上，
+        # 不会影响这里）。
         for stale in session.scalars(
             select(Order).where(Order.account_id == account_id, Order.status == "pending")
         ):
@@ -2046,24 +2065,39 @@ def check_payment_sweep_flow() -> None:
         seed_settings(session)
         products = seed_products(session)
         base_product_id = products["base"].id
-        account = Account(
-            email=email,
-            password_hash=hash_password("sweep-password-2026"),
-            email_verified_at=utcnow(),
-        )
-        session.add(account)
-        session.flush()
-        customer = Customer(account_id=account.id, email=email, name=email)
-        session.add(customer)
-        session.flush()
 
-        def _order(suffix: str, status: str, expires_at) -> str:
+        def _owner(tag: str) -> tuple[Account, Customer]:
+            """建一个「账号 + 客户档案」，供下面造单使用。"""
+            owner_email = f"sweep-{stamp}-{tag}@habridge.local"
+            account_row = Account(
+                email=owner_email,
+                password_hash=hash_password("sweep-password-2026"),
+                email_verified_at=utcnow(),
+            )
+            session.add(account_row)
+            session.flush()
+            customer_row = Customer(
+                account_id=account_row.id, email=owner_email, name=owner_email
+            )
+            session.add(customer_row)
+            session.flush()
+            return account_row, customer_row
+
+        # ``orders`` 上有 ``uq_orders_pending_per_account``（S41：每账号至多一笔待付单），
+        # 而本测试需要两笔**同时 pending** 的订单（``paid`` 与 ``waiting``）来分别验证
+        # 「渠道已成功 → 必须补入账」与「渠道还在等 → 不许入账」两种巡检走向，
+        # 所以它们必须挂在**不同账号**上。这也正是真实部署里唯一可能出现的样子：
+        # 同一账号不会并存两笔待付单。
+        rescue_account, rescue_customer = _owner("rescue")
+        waiting_account, waiting_customer = _owner("wait")
+
+        def _order(suffix: str, status: str, expires_at, owner, owner_customer) -> str:
             order = Order(
                 order_no=f"HOMEOS-SWEEP-{stamp}-{suffix}",
                 lookup_token=f"sweep-token-{stamp}-{suffix}",
-                account_id=account.id,
-                customer_id=customer.id,
-                email=email,
+                account_id=owner.id,
+                customer_id=owner_customer.id,
+                email=owner.email,
                 product_id=base_product_id,
                 product_name="smoke 主授权",
                 product_type="base",
@@ -2081,11 +2115,20 @@ def check_payment_sweep_flow() -> None:
             return order.order_no
 
         # 钱付了、异步通知丢了：本地还是 pending，渠道侧已经是 TRADE_SUCCESS
-        paid_order_no = _order("paid", "pending", utcnow() + timedelta(minutes=30))
+        paid_order_no = _order(
+            "paid", "pending", utcnow() + timedelta(minutes=30),
+            rescue_account, rescue_customer,
+        )
         # 本地已过期，但渠道侧那笔预下单交易还开着（旧二维码还能扫、还能付）
-        stale_order_no = _order("stale", "expired", utcnow() - timedelta(hours=1))
+        stale_order_no = _order(
+            "stale", "expired", utcnow() - timedelta(hours=1),
+            rescue_account, rescue_customer,
+        )
         # 用户放着不付：既不该入账，也不该被反复查单
-        waiting_order_no = _order("waiting", "pending", utcnow() + timedelta(minutes=30))
+        waiting_order_no = _order(
+            "waiting", "pending", utcnow() + timedelta(minutes=30),
+            waiting_account, waiting_customer,
+        )
 
     alipay_cls = alipay_module.AlipayProvider
     real_query = alipay_cls.query_payment
@@ -2423,13 +2466,15 @@ async def check_payment_sweep_edge_cases() -> None:
         # 「复活单」：取消那一刻名额已经还回去了（0），成交后必须重新占回来
         revive_coupon = _coupon(f"SMOKE-EDGE-REVIVE-{stamp}", 0)
 
-        def _order(suffix: str, status: str, *, expires_at=None, coupon_code=None) -> str:
+        def _order(suffix: str, status: str, *, expires_at=None, coupon_code=None,
+                   owner=None) -> str:
+            owner_account, owner_customer = owner or (account, customer)
             row = Order(
                 order_no=f"HOMEOS-EDGE-{stamp}-{suffix}",
                 lookup_token=f"edge-token-{stamp}-{suffix}",
-                account_id=account.id,
-                customer_id=customer.id,
-                email=email,
+                account_id=owner_account.id,
+                customer_id=owner_customer.id,
+                email=owner_account.email,
                 product_id=base_product_id,
                 product_name="smoke 主授权",
                 product_type="base",
@@ -2454,8 +2499,28 @@ async def check_payment_sweep_edge_cases() -> None:
             expires_at=utcnow() - timedelta(hours=1),
             coupon_code=aging_coupon,
         )
-        # 同上，但渠道**确认没有这笔交易**（预下单就没成功）
-        ghost_order_no = _order("ghost", "pending", expires_at=utcnow() - timedelta(hours=1))
+        # 同上，但渠道**确认没有这笔交易**（预下单就没成功）。
+        # ``orders`` 上的「每账号至多一笔待付单」索引（S41）意味着「一个账号同时挂
+        # 两笔过期 pending」这种**历史遗留**状态不会再产生；这两笔分别验证
+        # 「过期单要归还预留」与「渠道确认没有该交易要释放」，各挂一个账号即可。
+        ghost_account = Account(
+            email=f"sweep-edge-{stamp}-ghost@habridge.local",
+            password_hash=hash_password("sweep-password-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(ghost_account)
+        session.flush()
+        ghost_customer = Customer(
+            account_id=ghost_account.id,
+            email=ghost_account.email,
+            name=ghost_account.email,
+        )
+        session.add(ghost_customer)
+        session.flush()
+        ghost_order_no = _order(
+            "ghost", "pending", expires_at=utcnow() - timedelta(hours=1),
+            owner=(ghost_account, ghost_customer),
+        )
         # 终态订单 + 网关抖动：绝不能被当成「交易不存在」
         flaky_order_no = _order("flaky", "cancelled")
         # 终态订单 + 钱其实付了：必须认回来（复活）
@@ -3835,13 +3900,15 @@ async def check_stock_reservation_flag() -> None:
         session.add(customer)
         session.flush()
 
-        def _order(order_no: str, status: str, *, released: bool, expires_at=None):
+        def _order(order_no: str, status: str, *, released: bool, expires_at=None,
+                   owner=None):
+            owner_account, owner_customer = owner or (account, customer)
             order = Order(
                 order_no=order_no,
                 lookup_token=f"{order_no}-token",
-                account_id=account.id,
-                customer_id=customer.id,
-                email=account.email,
+                account_id=owner_account.id,
+                customer_id=owner_customer.id,
+                email=owner_account.email,
                 product_id=product.id,
                 product_name=product.name,
                 product_type="base",
@@ -3893,8 +3960,29 @@ async def check_stock_reservation_flag() -> None:
             str(revived.stock_reservation_released_at),
         )
 
-        # 历史遗留单：expires_at 为 NULL，过去永远扫不到
-        legacy = _order("HOMEOS-SMOKE-RESERVE-LEGACY", "pending", released=False)
+        # 历史遗留单：expires_at 为 NULL，过去永远扫不到。
+        # ``orders`` 上的「每账号至多一笔待付单」索引（S41）让「同一账号并存
+        # holding 与 legacy 两笔 pending」只可能来自历史数据，所以这里给 legacy
+        # 单独一个账号 —— 本用例要验证的是「按预留标记重算」而不是「按状态数」，
+        # 与订单挂在哪个账号无关。
+        legacy_account = Account(
+            email="reservation-legacy@habridge.local",
+            password_hash=hash_password("smoke-reservation-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(legacy_account)
+        session.flush()
+        legacy_customer = Customer(
+            account_id=legacy_account.id,
+            email=legacy_account.email,
+            name=legacy_account.email,
+        )
+        session.add(legacy_customer)
+        session.flush()
+        legacy = _order(
+            "HOMEOS-SMOKE-RESERVE-LEGACY", "pending", released=False,
+            owner=(legacy_account, legacy_customer),
+        )
         legacy.expires_at = None
         legacy.created_at = utcnow() - timedelta(seconds=int(settings.order_ttl_seconds) + 60)
         session.flush()
@@ -4260,58 +4348,166 @@ async def check_entitlement_patch_validation() -> None:
 
 
 async def check_echo_exposure_scope() -> None:
-    """``echo`` 模式只在**本机**回显验证码。
+    """验证码回显**只对本机**生效，且与投递模式无关。
 
     echo 的文案本来就写着「仅本地」，但一旦生产被切到 echo（手滑、或照抄了本地
     环境变量），它就变成一条账号接管路径：攻击者对受害者邮箱调一次「发送验证码」，
     响应里直接拿到重置码。非本机一律按 log 处理（验证码仍进服务端日志，运营能捞）。
+
+    ``mail_mode=log`` 与 ``smtp`` 同样危险，而这两条路径曾经**完全没有**被挡住：
+    早先的判定写作「非 echo 即放行」，于是只要开了
+    ``STORE_EXPOSE_VERIFICATION_CODE``，log / smtp 两种模式下远端请求都能拿到明文
+    验证码（smtp 凭据不全或发信重试全失败回退时也一样）。所以这里对三种模式逐一断言，
+    而不是只测 echo。
     """
-    workdir = Path(tempfile.mkdtemp(prefix="hb-store-echo-scope-"))
+    for mode in ("echo", "log", "smtp"):
+        workdir = Path(tempfile.mkdtemp(prefix=f"hb-store-expose-{mode}-"))
+        settings = load_settings(
+            data_dir=workdir / "data",
+            license_keys_dir=workdir / "keys",
+            mail_mode=mode,
+            expose_verification_code=True,
+            payment_provider="mock",
+        )
+        app = create_app(settings)
+        with app.state.database.session() as session:
+            seed_settings(session)
+
+        loopback_transport = httpx.ASGITransport(app=app, client=("127.0.0.1", 51234))
+        async with httpx.AsyncClient(
+            transport=loopback_transport, base_url="http://store.test"
+        ) as local_client:
+            response = await local_client.post(
+                "/store/v1/verifications",
+                json={"email": f"expose-local-{mode}@habridge.local", "purpose": "register"},
+            )
+            local_data = response.json() if response.status_code == 200 else {}
+            check(
+                f"mail_mode={mode} 本机客户端仍回显验证码（本地联调不受影响）",
+                response.status_code == 200 and bool(local_data.get("code")),
+                f"{response.status_code} code={bool(local_data.get('code'))}",
+            )
+
+        remote_transport = httpx.ASGITransport(app=app, client=("203.0.113.9", 51235))
+        async with httpx.AsyncClient(
+            transport=remote_transport, base_url="http://store.test"
+        ) as remote_client:
+            response = await remote_client.post(
+                "/store/v1/verifications",
+                json={"email": f"expose-remote-{mode}@habridge.local", "purpose": "register"},
+            )
+            remote_data = response.json() if response.status_code == 200 else {}
+            check(
+                f"mail_mode={mode} 非本机客户端不回显验证码（堵掉账号接管路径）",
+                response.status_code == 200 and "code" not in remote_data,
+                f"{response.status_code} {remote_data}",
+            )
+            check(
+                f"mail_mode={mode} 非本机时不回显的提示要说明验证码去了哪里（运营能去日志里捞）",
+                "本机" in str(remote_data.get("devNotice", "")),
+                str(remote_data.get("devNotice", ""))[:160],
+            )
+
+    # 同机反代：对端是 127.0.0.1，但配了可信代理后应能识别出真实远端地址。
+    # 这正是「直接读 request.client.host」会漏掉的场景 —— 不配可信代理时
+    # 无法区分（靠 load_settings 的启动告警提示运营），配了就必须挡住。
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-expose-proxy-"))
     settings = load_settings(
         data_dir=workdir / "data",
         license_keys_dir=workdir / "keys",
         mail_mode="echo",
         expose_verification_code=True,
         payment_provider="mock",
+        trusted_proxies=("127.0.0.1",),
     )
     app = create_app(settings)
     with app.state.database.session() as session:
         seed_settings(session)
 
-    loopback_transport = httpx.ASGITransport(app=app, client=("127.0.0.1", 51234))
+    proxied_transport = httpx.ASGITransport(app=app, client=("127.0.0.1", 51236))
     async with httpx.AsyncClient(
-        transport=loopback_transport, base_url="http://store.test"
-    ) as local_client:
-        response = await local_client.post(
+        transport=proxied_transport, base_url="http://store.test"
+    ) as proxied_client:
+        response = await proxied_client.post(
             "/store/v1/verifications",
-            json={"email": "echo-local@habridge.local", "purpose": "register"},
+            json={"email": "expose-via-proxy@habridge.local", "purpose": "register"},
+            headers={"x-forwarded-for": "203.0.113.9"},
         )
-        local_data = response.json() if response.status_code == 200 else {}
+        proxied_data = response.json() if response.status_code == 200 else {}
         check(
-            "本机客户端下 echo 仍然回显验证码（本地联调不受影响）",
-            response.status_code == 200 and bool(local_data.get("code")),
-            f"{response.status_code} code={bool(local_data.get('code'))}",
+            "同机可信反代转发头指向远端时不回显（按真实来源判定，而非 TCP 对端）",
+            response.status_code == 200 and "code" not in proxied_data,
+            f"{response.status_code} {proxied_data}",
         )
 
-    remote_transport = httpx.ASGITransport(app=app, client=("203.0.113.9", 51235))
-    async with httpx.AsyncClient(
-        transport=remote_transport, base_url="http://store.test"
-    ) as remote_client:
-        response = await remote_client.post(
-            "/store/v1/verifications",
-            json={"email": "echo-remote@habridge.local", "purpose": "register"},
+
+async def check_verification_code_not_logged_in_smtp_fallback() -> None:
+    """``smtp`` 静默降级时，验证码不得以明文进日志。
+
+    回显被 S2 挡在回环之后，剩下最容易被忽略的一条泄漏是**日志**：运营把
+    ``STORE_MAIL_MODE`` 填成 ``smtp``，却漏了 host/凭据，于是 ``smtp_ready``
+    为假、走到「回退为日志投递」这一支并顺手把明文验证码写进日志。运营的认知是
+    「我们走 SMTP、不打码」，而日志聚合、归档冷备、排障时贴出去的工单附件里
+    其实躺着可直接使用的注册/重置码 —— 这是最难被发现的账号接管路径。
+
+    判定按「运营是否显式接受验证码可见」分档：
+    - ``log`` / ``echo``：日志本就是投递通道，写明文是设计意图；
+    - ``smtp`` 且未开 ``expose_verification_code``：只留不可逆指纹；
+    - ``smtp`` 且显式开了 ``expose_verification_code``：视为已接受，写明文。
+    """
+    import logging as _logging
+
+    cases = (
+        ("log", False, True),
+        ("echo", False, True),
+        ("smtp", False, False),
+        ("smtp", True, True),
+    )
+    for mode, expose, expect_plaintext in cases:
+        workdir = Path(tempfile.mkdtemp(prefix=f"hb-store-logcode-{mode}-{int(expose)}-"))
+        settings = load_settings(
+            data_dir=workdir / "data",
+            license_keys_dir=workdir / "keys",
+            mail_mode=mode,
+            expose_verification_code=expose,
+            payment_provider="mock",
         )
-        remote_data = response.json() if response.status_code == 200 else {}
+        # smtp 模式刻意不给 host/凭据：这正是「静默降级到日志」的触发条件。
+        app = create_app(settings)
+        with app.state.database.session() as session:
+            setting = seed_settings(session)
+
+        code = "135790"
+        stream = io.StringIO()
+        handler = _logging.StreamHandler(stream)
+        handler.setLevel(_logging.DEBUG)
+        logger = _logging.getLogger("store.mailer")
+        previous_level = logger.level
+        logger.addHandler(handler)
+        logger.setLevel(_logging.DEBUG)
+        try:
+            mailer.send_verification_email(
+                settings, setting, email="logcode@habridge.local",
+                code=code, purpose="register",
+            )
+        finally:
+            logger.removeHandler(handler)
+            logger.setLevel(previous_level)
+
+        output = stream.getvalue()
+        leaked = code in output
+        label = f"mail_mode={mode} expose={expose}"
         check(
-            "非本机客户端下 echo 不再回显验证码（堵掉账号接管路径）",
-            response.status_code == 200 and "code" not in remote_data,
-            f"{response.status_code} {remote_data}",
+            f"{label} 日志里的验证码明文与否符合预期（smtp 静默降级不得泄漏）",
+            leaked is expect_plaintext,
+            f"明文={'有' if leaked else '无'} 期望={'有' if expect_plaintext else '无'}",
         )
-        check(
-            "非本机时不回显的提示要说明验证码去了哪里（运营能去日志里捞）",
-            "本机" in str(remote_data.get("devNotice", "")),
-            str(remote_data.get("devNotice", ""))[:160],
-        )
+        if not expect_plaintext:
+            check(
+                f"{label} 未写明文时要留下可核对的不可逆指纹（便于排障，且反推不出验证码）",
+                "sha256:" in output,
+                next((line for line in output.splitlines() if "sha256:" in line), "")[:160],
+            )
 
 
 def check_setup_admin_guard() -> None:
@@ -4495,6 +4691,550 @@ def check_setup_admin_guard() -> None:
         bool(guard_lines) and not any("token" in line for line in guard_lines),
         "；".join(guard_lines),
     )
+
+
+def check_store_lease_revocation_bound() -> None:
+    """租约 TTL 的「另一重身份」要有告警与文档兜住（审计 S43）。
+
+    租约 TTL 在实现上同时是两个东西：客户端**离线可用时长**，以及**吊销生效上界**
+    （管理后台停用授权/解绑设备时，客户端要等下一次成功心跳才知道；对持续离线的
+    客户端就是撑到租约到期）。这两件事只有一处配置，而变量名只像前者 —— 运营为了
+    「让断网用户更从容」把它调到 30 天时，多半没意识到停用一张授权也要等 30 天。
+
+    这里钉住三件事：
+    1. 默认值就是文档承诺的 72 小时，且不超过告警阈值；
+    2. 调大时 ``load_settings`` 必须打告警，调小时不能打（否则告警会被忽略）；
+    3. README / store/README / .env.example 里写的默认值与常量一致，防止漂移。
+    """
+    from store.config import DEFAULT_LEASE_TTL_SECONDS
+
+    check(
+        "租约 TTL 默认为 72 小时（离线可用与吊销上界的折中）",
+        DEFAULT_LEASE_TTL_SECONDS == 72 * 3600,
+        f"{DEFAULT_LEASE_TTL_SECONDS}s = {DEFAULT_LEASE_TTL_SECONDS / 3600:.0f} 小时",
+    )
+
+    def warnings_for(ttl: int) -> str:
+        workdir = Path(tempfile.mkdtemp(prefix="hb-lease-ttl-"))
+        stream = io.StringIO()
+        handler = logging.StreamHandler(stream)
+        logger = logging.getLogger("store.config")
+        logger.addHandler(handler)
+        try:
+            load_settings(
+                data_dir=workdir / "data",
+                license_keys_dir=workdir / "keys",
+                lease_ttl_seconds=ttl,
+            )
+        finally:
+            logger.removeHandler(handler)
+        return stream.getvalue()
+
+    big = warnings_for(30 * 24 * 3600)
+    check(
+        "TTL 配到 30 天时启动告警，并把它换算成「吊销生效上界」说清楚",
+        "吊销生效上界" in big and "30.0 天" in big,
+        next((line.strip()[:150] for line in big.splitlines() if "吊销生效上界" in line), ""),
+    )
+    check(
+        "TTL 在合理范围内时不告警（否则告警会被当成噪音忽略）",
+        "吊销生效上界" not in warnings_for(DEFAULT_LEASE_TTL_SECONDS),
+        "默认值下无告警",
+    )
+
+    docs = {
+        "README.md": (PROJECT_ROOT / "README.md").read_text(encoding="utf-8"),
+        "store/README.md": (PROJECT_ROOT / "store" / "README.md").read_text(encoding="utf-8"),
+        ".env.example": (PROJECT_ROOT / ".env.example").read_text(encoding="utf-8"),
+    }
+    for name, text in docs.items():
+        check(
+            f"{name} 里记的租约 TTL 默认值与常量一致（文档漂移等于运营照抄错值）",
+            str(DEFAULT_LEASE_TTL_SECONDS) in text and "604800" not in text,
+            f"含 {DEFAULT_LEASE_TTL_SECONDS}={str(DEFAULT_LEASE_TTL_SECONDS) in text}",
+        )
+    check(
+        "文档写明该值同时是吊销生效上界（否则调大它的人看不到代价）",
+        all("吊销生效上界" in text for text in docs.values()),
+        "；".join(f"{name}={'有' if '吊销生效上界' in text else '无'}" for name, text in docs.items()),
+    )
+
+
+def check_pending_order_single_flight() -> None:
+    """「每账号最多一笔待付单」要由数据库兜底，而不是靠一次 SELECT（审计 S41）。
+
+    原实现是「先 SELECT 数待付单，再 INSERT」，两个并发请求会同时看到没有待付单。
+    后果不只是多一笔单：``reserve_stock`` 与 ``redeem_coupon`` 都会各跑一遍，后者
+    正是 S40（优惠码 ``per_account_limit`` 被绕过）的直接达成路径 —— 100% 折扣码
+    可以借此刷出免费授权。
+
+    正确做法是让数据库定胜负：``orders(account_id) WHERE status='pending'`` 上一条
+    **部分**唯一索引。这里钉住四件事：
+
+    1. 索引确实是「唯一」且「带 WHERE 条件」—— 少了 WHERE 会连历史订单一起判重，
+       老用户第二单直接失败；少了 UNIQUE 则等于没约束；
+    2. ``schema_guard`` 能在存量库上补建它（且渲染出 WHERE），并且在存量库已有
+       重复待付单时**只告警、不炸启动**（建唯一索引失败是启动期最危险的失败模式）；
+    3. 真并发下恰好一笔成功、其余全部 409，且不出现 500；
+    4. 作用域正确：同账号的历史单与 ``account_id`` 为空的游客单都不受约束。
+    """
+    import threading
+
+    from store import schema_guard
+    from store.models import Order
+
+    index = next(
+        (item for item in Order.__table__.indexes if item.name == "uq_orders_pending_per_account"),
+        None,
+    )
+    check(
+        "orders 上有「每账号一笔待付单」的部分唯一索引",
+        index is not None and bool(index.unique),
+        f"index={'有' if index is not None else '无'} unique={getattr(index, 'unique', None)}",
+    )
+    where_clause = (getattr(index, "dialect_kwargs", None) or {}).get("sqlite_where")
+    predicate = (
+        str(where_clause.compile(compile_kwargs={"literal_binds": True}))
+        if where_clause is not None
+        else ""
+    )
+    check(
+        "该索引带 WHERE 条件（只约束 pending，不能连历史订单一起判重）",
+        "status = 'pending'" in predicate and "account_id IS NOT NULL" in predicate,
+        predicate,
+    )
+
+    # schema_guard 渲染部分索引时不能丢掉 WHERE —— 第一版就是只渲染列名，
+    # 会把「部分唯一索引」建成「全量唯一索引」，正好把老用户的第二单全挡掉。
+    engine_work = Path(tempfile.mkdtemp(prefix="hb-pending-idx-"))
+    engine = create_store_engine(
+        load_settings(data_dir=engine_work / "data", license_keys_dir=engine_work / "keys")
+    )
+    Base.metadata.create_all(engine)
+    with engine.begin() as connection:
+        connection.exec_driver_sql("DROP INDEX uq_orders_pending_per_account")
+
+    from sqlalchemy import inspect as _inspect
+
+    before = {item["name"] for item in _inspect(engine).get_indexes("orders")}
+    schema_guard.ensure_schema(engine)
+    after = {item["name"] for item in _inspect(engine).get_indexes("orders")}
+    ddl = ""
+    with engine.connect() as connection:
+        ddl = str(
+            connection.exec_driver_sql(
+                "SELECT sql FROM sqlite_master WHERE type='index' "
+                "AND name='uq_orders_pending_per_account'"
+            ).scalar()
+            or ""
+        )
+    check(
+        "存量库缺该索引时 schema_guard 会补建，且 DDL 里带 WHERE（补不回条件就等于建错索引）",
+        "uq_orders_pending_per_account" not in before
+        and "uq_orders_pending_per_account" in after
+        and "WHERE" in ddl.upper(),
+        ddl[:160],
+    )
+
+    # 存量库已有重复待付单：建唯一索引必然失败，此时**绝不能**让服务起不来。
+    duplicate_work = Path(tempfile.mkdtemp(prefix="hb-pending-dup-"))
+    dup_engine = create_store_engine(
+        load_settings(data_dir=duplicate_work / "data", license_keys_dir=duplicate_work / "keys")
+    )
+    Base.metadata.create_all(dup_engine)
+    with dup_engine.begin() as connection:
+        connection.exec_driver_sql("DROP INDEX uq_orders_pending_per_account")
+    with Session(dup_engine) as session:
+        session.add(Account(id="dup-acc", email="dup@x.local", password_hash="x"))
+        session.add(Product(id="dup-prod", product_type="base", name="base", price_cents=1))
+        session.flush()
+        for n in (1, 2):
+            session.add(
+                Order(order_no=f"DUP-{n}", account_id="dup-acc", email="dup@x.local",
+                      product_id="dup-prod", status="pending")
+            )
+        session.commit()
+
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    schema_logger = logging.getLogger("store.schema")
+    schema_logger.addHandler(handler)
+    try:
+        schema_guard.ensure_schema(dup_engine)
+        crashed = False
+    except Exception as error:  # noqa: BLE001 - 这里就是要确认它不会抛
+        crashed = f"{type(error).__name__}: {error}"
+    finally:
+        schema_logger.removeHandler(handler)
+    check(
+        "存量库已有重复待付单时，建索引失败只告警、不炸启动（启动失败比缺保护更糟）",
+        crashed is False and "已有重复值" in stream.getvalue(),
+        f"crash={crashed} 告警={'有' if '已有重复值' in stream.getvalue() else '无'}",
+    )
+
+    # 真并发：8 个请求同时下单，只能有一笔成功。
+    workdir = Path(tempfile.mkdtemp(prefix="hb-pending-race-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+        allow_mock_payments=True,
+    )
+    app = create_app(settings)
+    with app.state.database.session() as session:
+        seed_settings(session)
+        seed_products(session)
+        account = Account(
+            email="pending-race@habridge.local",
+            password_hash=hash_password("pending-race-pw"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        product = session.scalars(
+            select(Product).where(Product.product_type == "base")
+        ).first()
+        account_id, product_id = account.id, product.id
+
+    from starlette.testclient import TestClient
+
+    with TestClient(app) as client:
+        login = client.post(
+            "/store/v1/auth/login",
+            json={"email": "pending-race@habridge.local", "password": "pending-race-pw"},
+        )
+        cookies = login.cookies
+        statuses: list[int] = []
+        errors: list[str] = []
+        barrier = threading.Barrier(8)
+
+        def place_order(_index: int) -> None:
+            barrier.wait()
+            try:
+                response = client.post(
+                    "/store/v1/orders", json={"productId": product_id}, cookies=cookies
+                )
+                statuses.append(response.status_code)
+            except Exception as error:  # noqa: BLE001 - 线程内异常计为 0，下面断言会暴露
+                #: 记下异常类型与文案：并发用例失败时，「0 个 201」本身没有诊断价值，
+                #: 需要知道是 SQLite 锁等待、连接池耗尽，还是别的。
+                errors.append(f"{type(error).__name__}: {error}")
+                statuses.append(0)
+
+        threads = [threading.Thread(target=place_order, args=(n,)) for n in range(1, 9)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        with app.state.database.session() as session:
+            pending = session.scalar(
+                select(func.count()).select_from(Order).where(
+                    Order.account_id == account_id, Order.status == "pending"
+                )
+            )
+            customers = session.scalar(
+                select(func.count()).select_from(Customer).where(Customer.account_id == account_id)
+            )
+
+    check(
+        "同账号 8 个并发下单只有一笔落库（其余 409，不能出现 500）",
+        statuses.count(201) == 1 and pending == 1 and all(s in (201, 409) for s in statuses),
+        f"201={statuses.count(201)} 409={statuses.count(409)} "
+        f"其它={[s for s in statuses if s not in (201, 409)]} 待付单={pending}"
+        + (f" 线程内异常：{' | '.join(errors[:3])}" if errors else ""),
+    )
+    check(
+        "并发下单不会把客户档案撞成 500（customers.account_id 也有先查后插）",
+        customers == 1,
+        f"客户档案数={customers}（须为 1）",
+    )
+
+    # 作用域：部分索引不该影响历史单与游客单。
+    scope_error = ""
+    try:
+        with Session(dup_engine) as session:
+            session.add(Order(order_no="H-PAID", account_id="dup-acc", email="x",
+                             product_id="dup-prod", status="paid"))
+            session.add(Order(order_no="G1", account_id=None, email="g@x",
+                             product_id="dup-prod", status="pending"))
+            session.add(Order(order_no="G2", account_id=None, email="g@x",
+                             product_id="dup-prod", status="pending"))
+            session.commit()
+    except Exception as error:  # noqa: BLE001 - 这里就是要确认它不会抛
+        scope_error = f"{type(error).__name__}: {error}"
+    check(
+        "同账号历史单与游客（account_id 为空）待付单都不受该索引约束",
+        not scope_error,
+        scope_error or "同账号已付单 1 笔 + 游客待付单 2 笔均已写入",
+    )
+
+
+def check_order_no_unique_by_construction() -> None:
+    """订单号必须**按构造即唯一**，不能靠「插进去撞了再换号」（审计 S41 附带发现）。
+
+    ``new_order_no`` 的时间精度只到秒，第三段又是邮箱 ``@`` 前缀，于是「同一秒 +
+    同一邮箱前缀」必然算出同一个号。两条路径真实可达：
+
+    - 同一账号同一秒连点两次「购买」；
+    - **两个不同账号**的邮箱前缀相同（``a@x.com`` 与 ``a@y.com``）且同一秒下单。
+
+    后者尤其关键：它跟「每账号一笔待付单」这条业务规则毫无关系，S41 的部分唯一索引
+    根本拦不到，直接以 ``UNIQUE constraint failed: orders.order_no`` 抛成 500。
+    实测修复前 8 线程 × 40 轮有 32 轮复现；同一个 bug 也是待付单并发用例那个
+    「偶发 flake」的另一副面孔（SQLite 先报哪条唯一索引不确定）。
+
+    修复方式是给订单号补一段 ``secrets`` 随机尾缀，让撞号不再成为常态。这里同时钉住
+    「为什么不能用事后重试」：SQLAlchemy 在 flush 失败后会把对象**逐出会话**，换号
+    重试的那次 flush 实际什么都没插却返回成功 —— 订单静默丢失比 500 更糟，所以
+    ``_flush_order`` 里不该再出现重试循环。
+    """
+    import threading
+
+    from store.security import new_order_no
+
+    moment = utcnow()
+    same_second = [new_order_no("shared@x.com", now=moment) for _ in range(200)]
+    check(
+        "同一秒、同一邮箱前缀连续生成的订单号互不重复（随机尾缀）",
+        len(set(same_second)) == len(same_second),
+        f"200 次生成得到 {len(set(same_second))} 个不同值",
+    )
+    differing_accounts = {
+        new_order_no(email, now=moment) for email in ("shared@x.com", "shared@y.com")
+    }
+    check(
+        "同一秒内、前缀相同的**不同账号**订单号互不重复（这条 S41 索引拦不到）",
+        len(differing_accounts) == 2,
+        f"a@x.com / a@y.com 同秒 → {sorted(differing_accounts)}",
+    )
+    sample = same_second[0]
+    check(
+        "订单号仍保留可读前缀（HOMEOS- + 14 位本地时间 + 邮箱前缀）",
+        sample.startswith(f"HOMEOS-{moment.strftime('%Y%m%d%H%M%S')}-shared-"),
+        f"示例 {sample}",
+    )
+
+    # 静态钉住实现选择：不能退回「撞号换号重试」。
+    source = (Path(__file__).resolve().parent.parent / "api" / "store.py").read_text("utf-8")
+    check(
+        "_flush_order 不再包含撞号换号重试（重试会静默丢单，实测返回 ok 但行未落库）",
+        "_ORDER_NO_MAX_ATTEMPTS" not in source,
+        "源码里已无重试上限常量与重试循环",
+    )
+    check(
+        "订单号在构造 Order 时就已生成（插入前必须非空，否则撞 NOT NULL）",
+        "order_no=new_order_no(" in source,
+        "create_order 里 order_no=new_order_no(...)",
+    )
+
+    # 端到端：每轮 6 个**全新**账号、**共用同一个邮箱前缀**、同秒并发下单。
+    # 前缀必须相同 —— 撞号的条件就是「同一秒 + 同一邮箱前缀」，前缀不同则永远撞不上，
+    # 用例会变成永远通过的空壳。每轮换新账号：待付单唯一索引会让旧账号第二轮必得 409。
+    workdir = Path(tempfile.mkdtemp(prefix="hb-orderno-race-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+        allow_mock_payments=True,
+    )
+    app = create_app(settings)
+    with app.state.database.session() as session:
+        seed_settings(session)
+        seed_products(session)
+        product_id = session.scalars(select(Product).where(Product.product_type == "base")).first().id
+
+    from starlette.testclient import TestClient
+
+    rounds, per_round = 3, 6
+    password = "orderno-race-pw"
+    worst = ""
+    ok_rounds = 0
+    with TestClient(app) as client:
+        for round_index in range(rounds):
+            #: 同前缀、不同域名 —— 于是这 6 个账号算出的订单号前缀完全一样。
+            emails = [f"clash@r{round_index}{chr(ord('a') + n)}.local" for n in range(per_round)]
+            with app.state.database.session() as session:
+                for email in emails:
+                    session.add(
+                        Account(
+                            email=email,
+                            password_hash=hash_password(password),
+                            email_verified_at=utcnow(),
+                        )
+                    )
+            jars = [
+                client.post("/store/v1/auth/login", json={"email": e, "password": password}).cookies
+                for e in emails
+            ]
+            statuses: list[int] = []
+            errors: list[str] = []
+            barrier = threading.Barrier(len(jars))
+
+            def place(cookies, _statuses=statuses, _errors=errors, _barrier=barrier) -> None:
+                _barrier.wait()
+                try:
+                    _statuses.append(
+                        client.post(
+                            "/store/v1/orders", json={"productId": product_id}, cookies=cookies
+                        ).status_code
+                    )
+                except Exception as error:  # noqa: BLE001 - 线程内异常计为 0，断言会暴露
+                    _errors.append(f"{type(error).__name__}: {error}")
+                    _statuses.append(0)
+
+            threads = [threading.Thread(target=place, args=(jar,)) for jar in jars]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+            with app.state.database.session() as session:
+                numbers = list(session.scalars(select(Order.order_no)))
+            distinct = len(set(numbers)) == len(numbers)
+            if statuses.count(201) == per_round and distinct and not errors:
+                ok_rounds += 1
+            else:
+                worst = (
+                    f"201={statuses.count(201)}/{per_round} 号唯一={distinct} "
+                    f"其它={[s for s in statuses if s != 201]}"
+                    + (f" 线程内异常：{errors[0]}" if errors else "")
+                )
+    check(
+        f"前缀相同的 {per_round} 个不同账号同秒并发下单：全部成功且订单号唯一（{rounds} 轮）",
+        ok_rounds == rounds,
+        worst or f"{rounds}/{rounds} 轮全绿",
+    )
+
+
+def check_store_setup_authorization() -> None:
+    """商店自己的首次初始化也要有守卫（审计 S1）。
+
+    ``store/api/setup.py`` 与主应用的 ``backend/app/setup_guard.py`` 是两块**独立**的
+    代码：上一项检查只钉住了主应用那一份，而商店这份当时**完全没有**守卫 ——
+    唯一的保护是同源中间件，它在请求不带 ``Origin``/``Referer`` 时放行，``curl``
+    默认就不带，于是未初始化的商店实例对公网是「先到先得」，一次 POST 就能拿到
+    管理员会话（可读订单与账号、改价格、导出/吊销授权码）。
+
+    这里钉住四件事：
+    1. 非本机直连（带转发头）无密钥 / 密钥错误 → 403，且库里不留下管理员；
+    2. 带对密钥 → 201，且引导密钥文件被一次性删除；
+    3. 已有管理员之后再请求 → 409（而不是让人困惑的「缺少引导密钥」）；
+    4. 并发抢注只有一个能成功（``INSERT ... WHERE NOT EXISTS`` 的原子性）。
+    """
+    import threading
+
+    remote_headers = {"x-forwarded-for": "203.0.113.9"}
+
+    def build() -> tuple:
+        workdir = Path(tempfile.mkdtemp(prefix="hb-store-setup-guard-"))
+        settings = load_settings(
+            data_dir=workdir / "data",
+            license_keys_dir=workdir / "keys",
+            mail_mode="echo",
+            payment_provider="mock",
+        )
+        return create_app(settings), workdir
+
+    def admin_count(app) -> int:
+        with app.state.database.session() as session:
+            return int(
+                session.scalar(
+                    select(func.count()).select_from(Account).where(Account.is_admin == True)  # noqa: E712
+                )
+                or 0
+            )
+
+    from starlette.testclient import TestClient
+
+    app, workdir = build()
+    with TestClient(app) as client:
+        token = app.state.setup_guard.token
+        check(
+            "启动时若库里没有管理员，会备好引导密钥并提示来源",
+            bool(token) and app.state.setup_guard.source in {"generated", "env", "file"},
+            f"有密钥={bool(token)} 来源={app.state.setup_guard.source}",
+        )
+
+        for label, body in (
+            ("不提供", {"email": "attacker@evil.local", "password": "pw-12345678", "confirm_password": "pw-12345678"}),
+            ("瞎猜", {"email": "attacker@evil.local", "password": "pw-12345678", "confirm_password": "pw-12345678", "setup_token": "wrong-token-guess"}),
+        ):
+            response = client.post("/store/v1/setup/admin", json=body, headers=remote_headers)
+            check(
+                f"非本机直连、引导密钥{label}时拒绝初始化（列表代码里最容易被漏掉的那道闸）",
+                response.status_code == 403,
+                f"{response.status_code} {response.json().get('detail', '')[:60]}",
+            )
+        check(
+            "被拒绝的抢注不会在库里留下任何管理员",
+            admin_count(app) == 0,
+            f"管理员数={admin_count(app)}",
+        )
+
+        response = client.post(
+            "/store/v1/setup/admin",
+            json={"email": "owner@remote.local", "password": "pw-12345678",
+                  "confirm_password": "pw-12345678", "setup_token": token},
+            headers=remote_headers,
+        )
+        check(
+            "非本机直连带对引导密钥时初始化成功",
+            response.status_code == 201 and admin_count(app) == 1,
+            f"{response.status_code} 管理员数={admin_count(app)}",
+        )
+        check(
+            "引导密钥是一次性的：用完即删文件",
+            not (workdir / "data" / "setup-token").exists(),
+            str(workdir / "data" / "setup-token"),
+        )
+
+        response = client.post(
+            "/store/v1/setup/admin",
+            json={"email": "attacker2@evil.local", "password": "pw-12345678",
+                  "confirm_password": "pw-12345678", "setup_token": token},
+            headers=remote_headers,
+        )
+        check(
+            "已有管理员后再抢注返回 409（而不是「缺少引导密钥」这种误导性 403）",
+            response.status_code == 409,
+            f"{response.status_code} {response.json().get('detail', '')[:60]}",
+        )
+
+    # 并发抢注：修复前每个请求都会读到 admin_count=0 并各自创建成功。
+    race_app, _ = build()
+    with TestClient(race_app) as client:
+        race_token = race_app.state.setup_guard.token
+        results: list[int] = []
+        barrier = threading.Barrier(6)
+
+        def attempt(index: int) -> None:
+            body = {"email": f"claim-{index}@evil.local", "password": "pw-12345678",
+                    "confirm_password": "pw-12345678", "setup_token": race_token}
+            barrier.wait()
+            try:
+                response = client.post(
+                    "/store/v1/setup/admin", json=body,
+                    headers={"x-forwarded-for": f"203.0.113.{index}"},
+                )
+                results.append(response.status_code)
+            except Exception:  # noqa: BLE001 - 线程内异常计为失败结果
+                results.append(0)
+
+        threads = [threading.Thread(target=attempt, args=(n,)) for n in range(1, 7)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        winners = sum(1 for status in results if status == 201)
+        check(
+            "并发抢注只有一个请求成功（判空与写入在同一条 SQL 里，由数据库定胜负）",
+            winners == 1 and admin_count(race_app) == 1,
+            f"201 数量={winners} 管理员数={admin_count(race_app)} 全部结果={sorted(results)}",
+        )
 
 
 def check_global_log_write_amplification() -> None:
@@ -4775,7 +5515,12 @@ async def run() -> int:
     await check_coupon_parity()
     await check_entitlement_patch_validation()
     await check_echo_exposure_scope()
+    await check_verification_code_not_logged_in_smtp_fallback()
     check_setup_admin_guard()
+    check_store_lease_revocation_bound()
+    check_pending_order_single_flight()
+    check_order_no_unique_by_construction()
+    check_store_setup_authorization()
     # 第 2 批 High 的专项断言：日志写入放大、上传体积、配对码生命周期。
     check_global_log_write_amplification()
     check_upload_size_cap()
@@ -5035,7 +5780,19 @@ async def run() -> int:
             check("租约可通过客户端验签", payload["activationCodeId"] == activation_id)
             check("租约含 9 个基础功能码", len(payload["features"]) == 9, str(payload["features"]))
             check("租约序号从 1 开始", payload["leaseSequence"] == 1, str(payload["leaseSequence"]))
-            check("租约 7 天有效", payload["expiresAt"].endswith("Z"), payload["expiresAt"])
+            # 租约时长必须**逐秒**等于配置里的 lease_ttl_seconds，而不只是「有个
+            # 合法的 ISO 时间戳」：这个值同时是「离线可用时长」和「吊销生效上界」
+            # （停用授权对一台持续离线的客户端最慢要等租约到期才生效），
+            # 早先这里只断言结尾是 "Z"，等于没测。
+            issued = datetime.fromisoformat(payload["issuedAt"].replace("Z", "+00:00"))
+            expires = datetime.fromisoformat(payload["expiresAt"].replace("Z", "+00:00"))
+            lease_seconds = (expires - issued).total_seconds()
+            check(
+                "租约时长逐秒等于 STORE_LEASE_TTL_SECONDS（它同时是吊销生效上界）",
+                lease_seconds == settings.lease_ttl_seconds,
+                f"租约={lease_seconds:.0f}s 配置={settings.lease_ttl_seconds}s "
+                f"（{settings.lease_ttl_seconds / 3600:.0f} 小时）",
+            )
             check("心跳间隔 300s", activate["heartbeatIn"] == 300, str(activate["heartbeatIn"]))
             check(
                 "首激活返回双凭证",
@@ -5052,6 +5809,9 @@ async def run() -> int:
             "/v2/heartbeat",
             {
                 "sessionToken": session_token,
+                # 心跳必须同时声明本机实例：服务端据此拒绝「已被别的设备重新激活」
+                # 的旧会话，否则解绑对旧设备等于没生效。
+                "instanceId": INSTANCE_ID,
                 "leaseSequence": sequence,
                 "clientVersion": CLIENT_VERSION,
                 "nonce": "smoke-nonce-heartbeat",
@@ -5066,6 +5826,31 @@ async def run() -> int:
                 f"{sequence} -> {heartbeat_payload['leaseSequence']}",
             )
             sequence = heartbeat_payload["leaseSequence"]
+
+        # 同一张授权的会话必须绑定在激活它的那个实例上。少了这一条，设备 A 被解绑后
+        # 设备 B 重新激活会复用同一行 DeviceBinding（就地改写 instance_id），而 A 手里
+        # 的 session token 仍指向该行 —— A 能一直续租，管理员刚做的解绑对 A 等于没生效。
+        status_code, detail, _ = await call_license(
+            "/v2/heartbeat",
+            {
+                "sessionToken": session_token,
+                # 换一个合法的实例 ID：格式正确，但不是这张授权绑定的那个
+                "instanceId": "smoke-other-instance-000000000002",
+                "leaseSequence": sequence,
+                "clientVersion": CLIENT_VERSION,
+                "nonce": "smoke-nonce-wrong-instance",
+            },
+        )
+        check(
+            "心跳携带不属于本机的 instanceId 时被拒（403 且判为确认吊销）",
+            status_code == 403,
+            f"{status_code} {detail}",
+        )
+        check(
+            "实例不匹配的提示指向「不属于当前实例」",
+            "不属于当前实例" in str(detail),
+            str(detail)[:160],
+        )
 
         status_code, recovered, _ = await call_license(
             "/v2/recover",
@@ -5092,6 +5877,7 @@ async def run() -> int:
             "/v2/heartbeat",
             {
                 "sessionToken": "invalid-session-token",
+                "instanceId": INSTANCE_ID,
                 "leaseSequence": 99,
                 "clientVersion": CLIENT_VERSION,
                 "nonce": "smoke-nonce-bad",
@@ -5127,6 +5913,7 @@ async def run() -> int:
             "/v2/heartbeat",
             {
                 "sessionToken": session_token,
+                "instanceId": INSTANCE_ID,
                 "leaseSequence": 0,
                 "clientVersion": CLIENT_VERSION,
                 "nonce": "smoke-nonce-addon",
@@ -5223,6 +6010,7 @@ async def run() -> int:
             "/v2/heartbeat",
             {
                 "sessionToken": session_token,
+                "instanceId": INSTANCE_ID,
                 "leaseSequence": 0,
                 "clientVersion": CLIENT_VERSION,
                 "nonce": "smoke-nonce-revoked",
@@ -6884,7 +7672,7 @@ async def run() -> int:
     # 变成激活码的第二份副本、优惠码作用域被写坏（谁都可用）、管理员把自己锁在
     # 门外、SVG 变成同源 XSS 落点。
 
-    # —— 模拟收银台：订单号可枚举，页面本身绝不能无鉴权可达 ——
+    # —— 模拟收银台：订单号只是标识、不是凭证，页面本身绝不能无鉴权可达 ——
     seeded = (await client.get("/store-admin/v1/orders?limit=1")).json()["items"]
     check("取到一笔订单用于收银台鉴权检查", bool(seeded), str(seeded)[:120])
     if seeded:
@@ -6895,7 +7683,7 @@ async def run() -> int:
         ) as guest:
             anon_page = await guest.get(f"/store/mock/pay/{sample_no}")
             check(
-                "未登录且无订单凭证时收银台不可达（订单号是可枚举的）",
+                "未登录且无订单凭证时收银台不可达（订单号只是标识，不是授权凭证）",
                 anon_page.status_code == 404,
                 f"{anon_page.status_code} {anon_page.text[:80]!r}",
             )
@@ -7114,6 +7902,50 @@ async def run() -> int:
                 if marker in text
             )
         check("生产授权端点/公钥已彻底移除", not leftovers, "；".join(leftovers[:4]))
+
+        # ------------------------------------------------------------------ #
+        # 限流器与「匿名查单」的边界
+        # ------------------------------------------------------------------ #
+        # store/limiter.py 是 S5（跳转页查单风暴）与后续按 IP/邮箱配额的基础件，
+        # 它的语义必须自己立得住：滑窗、独立 key、有界 key 表。
+        from store.limiter import SlidingWindowLimiter
+
+        probe = SlidingWindowLimiter(limit=3, window_seconds=10.0, max_keys=4)
+        check(
+            "限流器：配额内放行、超出即拒绝",
+            [probe.allow("a", now=100.0) for _ in range(3)] == [True, True, True]
+            and probe.allow("a", now=100.0) is False,
+        )
+        check(
+            "限流器：窗口滑过后重新放行",
+            probe.allow("a", now=111.0) is True,
+        )
+        check(
+            "限流器：不同 key 各自计数，互不影响",
+            probe.allow("b", now=100.0) is True,
+        )
+        check(
+            "限流器：retry_after 给出还需等待的秒数",
+            abs(probe.retry_after("b", now=100.0) - 10.0) < 0.01
+            or probe.retry_after("b", now=100.0) == 0.0,
+            str(probe.retry_after("b", now=100.0)),
+        )
+        for index in range(20):
+            probe.allow(f"k{index}", now=100.0)
+        check(
+            "限流器：key 表有上限（键来自请求，不限量就是内存耗尽路径）",
+            len(probe._hits) <= probe.max_keys,
+            f"{len(probe._hits)} > {probe.max_keys}",
+        )
+
+        # 跳转页是匿名 GET 且订单号可猜，绝不能无条件 force 查单 —— 否则换订单号
+        # 就能绕过节流，把渠道 API 打成风暴并占满线程池。
+        return_source = (STORE_ROOT / "api" / "alipay.py").read_text(encoding="utf-8")
+        check(
+            "匿名跳转页不再对查单无条件 force（S5）",
+            "force=True" not in return_source,
+            "store/api/alipay.py 仍出现 force=True",
+        )
 
         os.environ["APP_LICENSE_SERVER_URL"] = "http://127.0.0.1:18082"
         local_only = client_config.load_settings()

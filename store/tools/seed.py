@@ -23,7 +23,7 @@ from store.app import create_app
 from store.bootstrap import ensure_default_products, ensure_default_settings
 from store.config import load_settings
 from store.release_info import ensure_current_release
-from store.models import Account
+from store.models import Account, Product, StoreSetting
 from store.security import hash_password, utcnow
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)-7s %(message)s")
@@ -70,6 +70,33 @@ def existing_admin(session: Session) -> Account | None:
     return session.scalars(
         select(Account).where(Account.is_admin.is_(True)).limit(1)
     ).first()
+
+
+# --------------------------------------------------------------------------- #
+# 供脚本调用的「补齐 + 取回」包装
+# --------------------------------------------------------------------------- #
+# 真正的写入逻辑只有 ``store.bootstrap`` 一份（连同 ``app.py`` 启动流程一起用），
+# 这里不再重复定义，只负责在同一次事务里把结果取回来。smoke 需要商品 id 才能下单，
+# 而 ``ensure_default_products`` 按幂等契约不返回任何东西，所以包一层。
+# 历史上这三份逻辑在 seed.py 与 bootstrap.py 各写了一遍，改一处漏一处（38c6658），
+# 才收敛成现在这样：写入永远只有 bootstrap 一个来源。
+
+
+def seed_settings(session: Session) -> StoreSetting | None:
+    """幂等补齐站点配置并返回该行（不存在则为 None）。"""
+    ensure_default_settings(session)
+    return session.get(StoreSetting, 1)
+
+
+def seed_products(session: Session) -> dict[str, Product]:
+    """幂等补齐默认商品并返回 ``{product_type: Product}``。"""
+    ensure_default_products(session)
+    return {product.product_type: product for product in session.scalars(select(Product))}
+
+
+def seed_release(session: Session) -> None:
+    """幂等补齐 docker 渠道的当前版本记录。"""
+    ensure_current_release(session)
 
 
 def main() -> None:

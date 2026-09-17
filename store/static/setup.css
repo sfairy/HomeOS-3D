@@ -39,3 +39,23 @@
   vertical-align: middle;
   margin-left: 0.5em;
 }
+
+/* 引导密钥那一栏的说明。字段本身是可选的（本机直连留空即可），所以文案要贴着
+   输入框而不是做成报错样式 —— 否则部署者会以为「没填就会失败」，从本机访问时
+   白折腾一趟。颜色一律用 theme.css 里的既有令牌（--hb-muted / --hb-ink / --hb-line）。 */
+.login-hint {
+  margin: -2px 0 4px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--hb-muted);
+}
+
+.login-hint code {
+  padding: 1px 5px;
+  border: 1px solid var(--hb-line);
+  border-radius: 4px;
+  font-family: var(--hb-font-mono);
+  font-size: 12px;
+  background: var(--hb-field);
+  color: var(--hb-ink);
+}

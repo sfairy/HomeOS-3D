@@ -161,7 +161,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `STORE_ALIPAY_NOTIFY_URL` / `STORE_ALIPAY_RETURN_URL` | 由 `STORE_BASE_URL` 推导 | 可选：用内网穿透时指向穿透域名 |
 | `STORE_ALIPAY_TRANSACTION_DESCRIPTION` | `HomeOS 授权` | 交易标题（出现在支付宝账单里） |
 | `STORE_ALIPAY_VERIFY_RESPONSE` | `true` | 是否校验支付宝响应签名，除排障外不要关 |
-| `STORE_LEASE_TTL_SECONDS` | `604800` | 租约有效期（7 天），心跳 300s 续租 |
+| `STORE_LEASE_TTL_SECONDS` | `259200` | 租约有效期（72 小时），心跳 300s 续租。⚠ 该值同时是「离线可用时长」与「吊销生效上界」—— 对持续离线的客户端，停用授权/解绑设备最慢要等这么久才生效 |
 | `STORE_HEARTBEAT_INTERVAL_SECONDS` | `300` | 下发给客户端的 `heartbeatIn` |
 | `STORE_ORDER_TTL_SECONDS` | `120` | 订单有效期。**真实收款必须调大**，见下节 |
 | `STORE_DEVICE_RELEASE_COOLDOWN_SECONDS` | `28800` | 解绑冷却（8 小时） |
@@ -358,7 +358,7 @@ store/
   static/theme.css     # ★ 唯一设计系统：令牌 / 重置 / 排版 / 组件（前台 + 后台 + 收银台共用）
   static/store.css     # ★ 前台页面布局：外壳 + 首页落地页/商品/结算/认证/账号/邀请
   static/admin.css     # ★ 后台页面布局：窄侧栏、面板骨架、统计卡、表格
-  tools/gen_keys.py    # 生成密钥对，并同步公钥镜像到客户端 keys/
+  tools/gen_keys.py    # 生成密钥对，并同步公钥镜像到客户端 keys/ 与指纹常量
   tools/seed.py        # 初始化管理员 + 商品 + 版本
   tools/smoke.py       # 协议级自检
   tools/e2e.py         # 真实链路端到端（44 项）

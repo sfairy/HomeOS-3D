@@ -112,12 +112,26 @@ def code_hash(code: str) -> str:
 
 
 def new_order_no(prefix_email: str, *, now: datetime | None = None) -> str:
-    """参考站格式：HOMEOS-20260906224517-156120718（本地时间 + 邮箱 @ 前缀）。"""
+    """生成订单号：``HOMEOS-<本地时间14位>-<邮箱前缀>-<随机6位>``。
+
+    参考站格式是 ``HOMEOS-20260906224517-156120718``（本地时间 + 9 位数字）。
+    本实现把第三段换成可读的邮箱前缀，于是**必须在末尾再补一段随机值**：
+
+    时间精度只到秒 + 后缀只取邮箱本地部分，意味着「同一秒 + 同一邮箱前缀」必然
+    算出同一个号。而同账号连点两次、或 ``a@x.com`` 与 ``a@y.com`` 两个不同账号
+    在同一秒下单，都会落进这个窗口 —— 唯一索引一撞就是 500（实测 8 线程 × 40 轮里
+    有 32 轮复现）。补上随机段后订单号**按构造即唯一**，不再依赖「插进去撞了再换号」
+    这种事后重试。
+
+    ``secrets`` 而非 ``random``：订单号会出现在查询链接与邮件里，能被猜到就没有
+    意义了。6 字节（12 个十六进制字符）在单秒内撞号的概率可以忽略。
+    """
     moment = now or (datetime.now(timezone.utc) + timedelta(hours=8))
     local_prefix = "".join(ch for ch in (prefix_email or "").split("@")[0] if ch.isalnum())
     if not local_prefix:
         local_prefix = "customer"
-    return f"HOMEOS-{moment.strftime('%Y%m%d%H%M%S')}-{local_prefix}"
+    suffix = secrets.token_hex(6)
+    return f"HOMEOS-{moment.strftime('%Y%m%d%H%M%S')}-{local_prefix}-{suffix}"
 
 
 #: 邮箱形状校验。刻意写得保守：只拒绝明显不是邮箱的输入（缺 @、带空格、域名没有点等），

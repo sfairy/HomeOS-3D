@@ -49,6 +49,8 @@
     var email = document.getElementById('email').value.trim();
     var password = document.getElementById('password').value;
     var confirmPassword = document.getElementById('confirm-password').value;
+    // 引导密钥只对「远程访问」是必需的；本机直连时留空即可（服务端按对端地址判定）。
+    var setupToken = document.getElementById('setup-token').value.trim();
 
     if (!email) {
       showError('请输入管理员邮箱。');
@@ -73,6 +75,7 @@
         email: email,
         password: password,
         confirm_password: confirmPassword,
+        setup_token: setupToken,
       }),
     })
       .then(function (r) {

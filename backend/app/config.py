@@ -26,10 +26,16 @@ DEFAULT_LICENSE_KEY_ID = 'hb-local-2026'
 DEFAULT_LICENSE_PUBLIC_KEY_FILENAME = 'license-public.pem'
 # 签名公钥的文件字节 sha256；必须与 store/keys/local/ 下的私钥配对，
 # 不匹配时验签会失败，因此 keys/ 镜像与真相源必须逐字节一致。
-DEFAULT_LICENSE_PUBLIC_KEY_SHA256 = 'ce077c3c077f0420167f1c7c4a0593025c56b6d1013ae85f32e2051f276802e4'
+#
+# 这两个常量在轮换密钥时由 ``python -m store.tools.gen_keys`` 自动改写（仅在公钥
+# 镜像写回仓库根 keys/ 时），不要手抄：0985d3d 就是手抄时把新旧指纹抄反了 ——
+# 公钥文件换成新的、常量却写成旧的，于是**默认配置**下的离线验签全部失败。
+# 而 start.py / e2e 都会显式设 APP_LICENSE_*_PUBLIC_KEY_SHA256，恰好绕过默认值，
+# 所以这个错误只在 smoke 的镜像一致性断言里暴露。
+DEFAULT_LICENSE_PUBLIC_KEY_SHA256 = 'a53d869318a3d9005431b0296b9f0d1d7f7b2523e088f0ede322f88c882e0c28'
 DEFAULT_LICENSE_TRANSPORT_KEY_ID = 'hb-local-transport-2026'
 DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_FILENAME = 'license-transport-public.pem'
-DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256 = 'ee39f2183c75fe532c8f75e348eb1859e72d5bacdd97b73a11b1e73b4a60ad00'
+DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256 = '1dd4a0a822b9227ebd1032fabd992342f7fb52630cdf2fedfc30db54191b2b19'
 # 可信公钥表：keyId -> (文件名, 期望 sha256)，租约头里的 keyId 靠它找到验签公钥。
 DEFAULT_LICENSE_TRUSTED_PUBLIC_KEYS = ((DEFAULT_LICENSE_KEY_ID, DEFAULT_LICENSE_PUBLIC_KEY_FILENAME, DEFAULT_LICENSE_PUBLIC_KEY_SHA256),)
 

@@ -14,7 +14,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from store import coupons, fulfill, site_settings as site_config
 from store.deps import CurrentAccount, DbSession
@@ -208,9 +208,13 @@ def mock_cashier(
     """模拟收银台页面。
 
     **必须带订单凭证**（``?token=``）或者是该订单所属账号已登录。这个页面会把
-    ``lookupToken`` 写进 HTML 供页面里的按钮调用 ``mock/pay``，而订单号是可枚举
-    的 —— 形如 ``HOMEOS-20260916214500-<邮箱前缀>``，只差「哪一秒下单」。过去页面
-    无鉴权，任何人凑出一个订单号就能拿到那张「免付款发码」的凭证。
+    ``lookupToken`` 写进 HTML 供页面里的按钮调用 ``mock/pay``，而订单号本身
+    **从来不是一道授权** —— 它会出现在邮件、客服工单、截图与 Referer 里。过去页面
+    无鉴权，任何人拿到一个订单号（从别处漏出来的）都能得到那张「免付款发码」的凭证。
+
+    注意：订单号现在带随机尾缀（见 ``store.security.new_order_no``），已经**猜不出来**了，
+    但这**不构成**去掉鉴权的理由 —— 可枚举性本来就不是这里的安全边界，凭据才是。
+    真正决定这个页面能不能被匿名打开的，是下面这条 ``token`` / 登录态校验。
 
     ``?token=`` 是主路径（二维码是拿手机扫的，扫码方没有登录态）；登录态兜底
     只是为了让升级前落库、``payment_payload_json`` 里还没有 token 的旧订单，
@@ -250,6 +254,7 @@ def mock_pay(order_no: str, request: Request, session: DbSession, payload: dict 
     order = _order_or_404(session, order_no)
     token = (payload or {}).get("orderToken") or request.headers.get("x-order-token")
     _authorize_mock(order, token)
+    _ensure_mock_order(order)
     setting = site_config.get_setting(session)
 
     if order.status == "fulfilled":
@@ -301,6 +306,7 @@ def mock_cancel(order_no: str, request: Request, session: DbSession, payload: di
     order = _order_or_404(session, order_no)
     token = (payload or {}).get("orderToken") or request.headers.get("x-order-token")
     _authorize_mock(order, token)
+    _ensure_mock_order(order)
     if order.status != "pending":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
     product = session.get(Product, order.product_id) if order.product_id else None
@@ -339,4 +345,25 @@ def _ensure_mock_provider(request: Request, session) -> None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="当前支付渠道不是模拟支付，该端点不可用。",
+        )
+
+
+def _ensure_mock_order(order: Order) -> None:
+    """订单自身必须也是模拟渠道。
+
+    只校验「当前渠道是 mock」并不够 —— 下单时渠道是**冻结在订单行上**的
+    （``Order.payment_provider``），而当前渠道是站点配置，两者可以不一致：
+
+    · 一笔支付宝订单还挂着（pending），运维因为任何原因把站点渠道切回 mock
+      （联调、排障、误操作），持有自己 ``lookupToken`` 的下单方就能把这笔**真实
+      渠道**的订单标记为已支付并触发发码，而钱一分没到；
+    · 取消同理：真渠道的单被模拟收银台取消并归还库存/优惠名额后，支付宝侧仍可能
+      支付成功，账实不符。
+
+    所以模拟收银台的入口必须同时满足「当前渠道是 mock」与「订单渠道是 mock」。
+    """
+    if (order.payment_provider or "") != "mock":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="该订单不是模拟支付订单，不能在模拟收银台操作。",
         )

@@ -6,9 +6,9 @@
     python -m store.tools.gen_keys --force
 
 私钥写入 ``store/keys/local/``（**不要提交到公开仓库**），公钥会自动镜像到
-客户端默认读取的 ``keys/`` 目录。两个 PEM 的 sha256 按**文件字节**计算，
-用于客户端指纹校验：默认值写在 ``backend/app/config.py`` 的
-``DEFAULT_LICENSE_*`` 常量里；轮换密钥后需同步更新，或改用下面两个环境变量覆盖::
+客户端默认读取的 ``keys/`` 目录，并同步改写 ``backend/app/config.py`` 里的
+``DEFAULT_LICENSE_*`` 常量。两个 PEM 的 sha256 按**文件字节**计算，用于客户端
+指纹校验。若要临时用别的密钥而不改代码，可用环境变量覆盖::
 
     APP_LICENSE_PUBLIC_KEY_SHA256 / APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
 """
@@ -16,10 +16,14 @@
 from __future__ import annotations
 
 import argparse
+import re
 from pathlib import Path
 
 from store.config import PROJECT_ROOT, STORE_ROOT
 from store.licensing import keys
+
+#: 客户端默认指纹常量的所在文件。轮换密钥后由本脚本直接改写（见下）。
+CLIENT_CONFIG_PATH = PROJECT_ROOT / "backend" / "app" / "config.py"
 
 
 def _sync_client_keys(sync_dir: Path, sources: tuple[tuple[Path, str], ...]) -> None:
@@ -38,6 +42,51 @@ def _sync_client_keys(sync_dir: Path, sources: tuple[tuple[Path, str], ...]) -> 
         target.write_bytes(source.read_bytes())
         target.chmod(0o644)
         print(f"  已同步: {target}")
+
+
+def _update_client_config(
+    signing_sha256: str,
+    transport_sha256: str,
+    *,
+    config_path: Path = CLIENT_CONFIG_PATH,
+) -> bool:
+    """把新指纹写回 ``backend/app/config.py`` 的两个默认常量。
+
+    这一步以前是「脚本打印、人工手抄」，0985d3d 就是手抄时把新旧两个指纹抄反了：
+    公钥文件换成了新的、常量却写成旧的，于是**默认配置**（不设
+    ``APP_LICENSE_*_PUBLIC_KEY_SHA256`` 的路径）下离线验签全部失败。而 start.py /
+    e2e 都会显式设这两个环境变量，恰好绕过默认值，所以这个错误在带环境变量的
+    路径上完全看不出来，只有 smoke 的镜像一致性断言能发现。
+
+    所以改成脚本直接改写：只替换那两个常量的赋值行，其余内容一律不动。
+    返回是否真的发生了改动。
+    """
+    if not config_path.is_file():
+        print(f"  [警告] 未找到 {config_path}，指纹常量需手动同步。")
+        return False
+
+    original = config_path.read_text(encoding="utf-8")
+    updated = original
+    for constant, value in (
+        ("DEFAULT_LICENSE_PUBLIC_KEY_SHA256", signing_sha256),
+        ("DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256", transport_sha256),
+    ):
+        # 用 ^ 锚定行首 + 精确常量名 + 64 位十六进制，保证既不误伤 transport 行
+        # （前缀 DEFAULT_LICENSE_ 之后紧跟 TRANSPORT），也不会碰到注释里的示例。
+        pattern = re.compile(
+            rf"^({constant}\s*=\s*')[0-9a-fA-F]{{64}}(')$", re.MULTILINE
+        )
+        if not pattern.search(updated):
+            print(f"  [警告] 在 {config_path.name} 里没找到 {constant} 的赋值行，跳过。")
+            continue
+        updated = pattern.sub(rf"\g<1>{value}\g<2>", updated)
+
+    if updated == original:
+        print(f"  指纹常量已是当前值，无需改动：{config_path}")
+        return False
+    config_path.write_text(updated, encoding="utf-8")
+    print(f"  已改写指纹常量：{config_path}")
+    return True
 
 
 def _mirror_directory(args, out_dir: Path) -> Path | None:
@@ -119,6 +168,9 @@ def main() -> None:
                 (transport.public_path, "license-transport-public.pem"),
             ),
         )
+        # 镜像与默认指纹常量必须同时更新：只改一个就会让默认配置的离线验签失败。
+        print("同步客户端默认指纹常量：")
+        _update_client_config(signing.sha256, transport.sha256)
     print()
     print("客户端默认配置（backend/app/config.py）：")
     print("  SELF_HOSTED_LICENSE_SERVER_URL = 'http://127.0.0.1:18082'")
@@ -126,6 +178,8 @@ def main() -> None:
     print(f"  DEFAULT_LICENSE_PUBLIC_KEY_SHA256 = '{signing.sha256}'")
     print("  DEFAULT_LICENSE_TRANSPORT_KEY_ID = 'hb-local-transport-2026'")
     print(f"  DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256 = '{transport.sha256}'")
+    if mirror_dir is None:
+        print("  （本次未同步镜像目录，以上常量需手动同步）")
     print()
     print("或改用环境变量覆盖（无需改代码）：")
     print("  APP_LICENSE_KEY_ID=hb-local-2026")

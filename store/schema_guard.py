@@ -123,10 +123,33 @@ def _add_column_ddl(table_name: str, column: Column, dialect) -> str | None:
     return clause
 
 
-def _index_ddl(table_name: str, index) -> str:
+def _index_ddl(table_name: str, index, dialect=None) -> str:
+    """生成 ``CREATE [UNIQUE] INDEX``；部分索引会带上 ``WHERE``。
+
+    SQLAlchemy 把「部分索引」的条件放在方言方言关键字里（``sqlite_where`` /
+    ``postgresql_where``），而不是 ``index.columns`` —— 早先这里只渲染列名，
+    于是带条件的索引会被**建成不带条件的普通唯一索引**：那正好是 `orders` 上
+    「每账号只允许一笔待付单」反过来的效果（会把同一个账号的历史订单也一起判重）。
+    所以这里必须把条件一起渲染出来。
+    """
     unique = "UNIQUE " if index.unique else ""
     columns = ", ".join(column.name for column in index.columns)
-    return f"CREATE {unique}INDEX IF NOT EXISTS {index.name} ON {table_name} ({columns})"
+    clause = f"CREATE {unique}INDEX IF NOT EXISTS {index.name} ON {table_name} ({columns})"
+
+    if dialect is None:
+        return clause
+
+    for key in ("sqlite_where", "postgresql_where"):
+        where = (getattr(index, "dialect_kwargs", None) or {}).get(key)
+        if where is None:
+            continue
+        rendered = str(
+            where.compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+        ).strip()
+        if rendered:
+            clause += f" WHERE {rendered}"
+            break
+    return clause
 
 
 def _drop_column_ddl(table_name: str, column_name: str) -> str:
@@ -180,7 +203,6 @@ def _drop_retired_columns(engine: Engine, table_name: str, columns: list[str]) -
             )
             continue
         dropped.append(f"{table_name}.{column}（已删除）")
-        logger.info("已删除退役列 %s.%s", table_name, column)
     return dropped
 
 
@@ -194,6 +216,9 @@ def ensure_schema(engine: Engine) -> list[str]:
     inspector = inspect(engine)
     existing_tables = set(inspector.get_table_names())
     applied: list[str] = []
+    #: 逐列/逐索引的明细先攒起来，最后按表汇总成一行 —— 存量库首次升级时这里
+    #: 会有几十条，逐条 INFO 会把真正值得看的告警（建索引失败、退役列失败）淹掉。
+    details: list[str] = []
 
     for table in Base.metadata.tables.values():
         if table.name not in existing_tables:
@@ -230,16 +255,32 @@ def ensure_schema(engine: Engine) -> list[str]:
             with engine.begin() as connection:
                 connection.exec_driver_sql(ddl)
             applied.append(f"{table.name}.{column.name}")
-            logger.info("已补齐列 %s.%s", table.name, column.name)
+            details.append(f"{table.name}.{column.name}")
 
         existing_indexes = {index["name"] for index in inspector.get_indexes(table.name)}
         for index in table.indexes:
             if index.name in existing_indexes:
                 continue
-            with engine.begin() as connection:
-                connection.exec_driver_sql(_index_ddl(table.name, index))
+            ddl = _index_ddl(table.name, index, engine.dialect)
+            try:
+                with engine.begin() as connection:
+                    connection.exec_driver_sql(ddl)
+            except Exception as error:  # noqa: BLE001
+                # 建索引失败绝不能炸掉启动。最容易失败的一类正是**唯一索引**：
+                # 存量库里已经有违反唯一性的数据时，CREATE UNIQUE INDEX 会直接抛错，
+                # 而这是个结构清理步骤，不该让整个服务起不来（与删列的处理一致）。
+                # 只报警，并把「怎么修」写清楚 —— 沉默地跳过会让保护看起来是生效的。
+                logger.warning(
+                    "建索引 %s.%s 失败（%s）：该索引未生效。"
+                    "若这是唯一索引，通常是存量数据里已有重复值，请先清理重复行再重启。DDL=%s",
+                    table.name,
+                    index.name,
+                    error,
+                    ddl,
+                )
+                continue
             applied.append(f"{table.name}.{index.name}")
-            logger.info("已补齐索引 %s.%s", table.name, index.name)
+            details.append(f"{table.name}.{index.name}（索引）")
 
         # 表级唯一约束查得出、却补不上（SQLite 不支持 ALTER 追加），只报警。
         # 注意 get_unique_constraints 返回的是 dict 列表，不是 Constraint 对象。
@@ -258,5 +299,15 @@ def ensure_schema(engine: Engine) -> list[str]:
                     constraint.name or "",
                     columns,
                 )
+
+    if details:
+        #: 一条汇总，明细降级到 DEBUG：存量库首次升级时这里几十条，逐条 INFO 会把
+        #: 真正要看的两类告警（建索引失败、退役列失败）淹掉。
+        logger.info(
+            "已对齐存量库结构 %d 项：%s",
+            len(details),
+            "、".join(details) if len(details) <= 12 else "、".join(details[:12]) + " …",
+        )
+        logger.debug("结构对齐明细：%s", "、".join(details))
 
     return applied

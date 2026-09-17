@@ -6,11 +6,14 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
 from store.env import load_dotenv
+
+logger = logging.getLogger("store.config")
 
 STORE_ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = STORE_ROOT.parent
@@ -22,8 +25,23 @@ DEFAULT_HOST = "0.0.0.0"
 DEFAULT_ORDER_TTL_SECONDS = 120
 #: 解除设备绑定冷却（与参考站一致：28800 秒 = 8 小时）
 DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS = 28800
-#: 签发租约的有效期；客户端默认 300 秒心跳一次
-DEFAULT_LEASE_TTL_SECONDS = 7 * 24 * 3600
+#: 签发租约的有效期；客户端默认 300 秒心跳一次。
+#:
+#: ⚠ 这个值**同时**决定两件事，改它等于同时改这两件事：
+#:
+#: 1. **离线可用时长**：客户端把签名租约存进本地库，签名有效期内即使连不上商店也
+#:    照常放行（状态降为 ``CONNECTION_WARNING``）；租约一过就转 ``LEASE_EXPIRED``
+#:    并收回编辑器功能（见 ``backend/app/license/service.py`` 的 ``_payload``）。
+#: 2. **吊销生效上界**：管理后台停用授权/解绑设备时，客户端要等**下一次成功心跳**
+#:    才会知道。对一台**持续离线**的客户端，最坏情况就是撑到租约到期 —— 所以
+#:    「吊销最慢多久生效」在数值上就等于这个 TTL。
+#:
+#: 这两个需求是反向的：TTL 越长，断网与「商店本身故障/停机」越从容，但吊销越慢。
+#: 这里取 72 小时作为折中 —— 吊销最多 3 天生效，同时商店整体停摆 3 天内不会
+#: 把全部已付费客户锁在门外（早先的 7 天对吊销来说太慢；而审计初稿建议的
+#: 「心跳间隔 + 宽限期」（约 1 小时）会让商店故障 1 小时即锁死所有客户）。
+#: 误配成很大的值时 ``load_settings`` 会打启动告警提醒吊销上界。
+DEFAULT_LEASE_TTL_SECONDS = 72 * 3600
 DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 300
 #: 邮箱验证码有效期与重发间隔
 DEFAULT_VERIFICATION_TTL_SECONDS = 600
@@ -103,6 +121,11 @@ class StoreSettings:
     #: 此时限流与审计按 TCP 对端地址统计（直连部署下就是真实客户端）。
     trusted_proxies: tuple[str, ...] = ()
     session_max_age_seconds: int = DEFAULT_SESSION_MAX_AGE_SECONDS
+
+    #: 首次初始化（创建第一个管理员）的引导密钥。
+    #: 为空时由 ``store/setup_guard.py`` 自动生成一份并落到 ``data_dir/setup-token``，
+    #: 同时打印到启动日志（stderr）。本机直连访问无需填写。
+    setup_token: str = ""
 
     # 邮箱验证码
     mail_mode: str = "log"
@@ -263,6 +286,7 @@ def load_settings(**overrides) -> StoreSettings:
             if piece.strip()
         ),
         "session_max_age_seconds": _env_int("STORE_SESSION_MAX_AGE_SECONDS", DEFAULT_SESSION_MAX_AGE_SECONDS),
+        "setup_token": _env_str("STORE_SETUP_TOKEN", ""),
         "mail_mode": (_env_str("STORE_MAIL_MODE", "log") or "log").lower(),
         "mail_from": _env_str("STORE_MAIL_FROM", "HomeOS <no-reply@habridge.local>") or "HomeOS <no-reply@habridge.local>",
         "smtp_host": _env_str("STORE_SMTP_HOST"),
@@ -304,4 +328,68 @@ def load_settings(**overrides) -> StoreSettings:
         "bootstrap_admin_password": _env_str("STORE_ADMIN_PASSWORD"),
     }
     values.update(overrides)
-    return StoreSettings(**values)
+    settings = StoreSettings(**values)
+    _warn_insecure_verification_exposure(settings)
+    _warn_lease_revocation_bound(settings)
+    return settings
+
+
+#: 本机绑定地址。``0.0.0.0`` / ``::`` 是「监听所有网卡」，不算本机。
+_LOOPBACK_BIND_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
+
+def _warn_insecure_verification_exposure(settings: StoreSettings) -> None:
+    """验证码回显 + 非本机绑定 → 大声告警。
+
+    回显（``mail_mode=echo`` 或 ``STORE_EXPOSE_VERIFICATION_CODE``）是本地联调用的，
+    一旦部署同时监听非本机网卡，就必须确认访问者真的到不了这个进程：请求侧只对
+    能确定来自本机的来源回显（见 ``store/api/store.py:_is_loopback_client``），
+    但如果前面挂了**同机反代且没配** ``STORE_TRUSTED_PROXIES``，每个外部请求的对端
+    都是 127.0.0.1，请求侧就无从区分了 —— 那正是这里要提醒的场景。
+
+    刻意只告警不抛错：docker 默认是 ``STORE_HOST=0.0.0.0``，而大量自检与工具脚本
+    也都在回显开启下跑（它们用 ASGITransport，没有真实网络对端）。硬失败会把
+    「本机联调」这一合法用法一起挡掉，而它恰恰是 echo 存在的理由。
+    """
+    exposure_on = bool(settings.expose_verification_code) or settings.mail_mode == "echo"
+    bind_host = (settings.host or "").strip().lower()
+    if not exposure_on or bind_host in _LOOPBACK_BIND_HOSTS:
+        return
+    logger.warning(
+        "验证码回显已开启（mail_mode=%s, expose_verification_code=%s），但服务监听 %s"
+        "（非本机网卡）。回显只对可确认来自本机的请求生效；若前置了**同机**反向代理"
+        "又未配置 STORE_TRUSTED_PROXIES，外部请求的对端会被误认成本机 —— 请改为"
+        " mail_mode=smtp 并关闭 STORE_EXPOSE_VERIFICATION_CODE，或把服务绑到 127.0.0.1。",
+        settings.mail_mode,
+        settings.expose_verification_code,
+        settings.host,
+    )
+
+
+#: 租约 TTL 超过这个值时给启动告警：此时「吊销最慢多久生效」已经慢到不像话，
+#: 但又不至于明显是笔误 —— 属于「运营可能没意识到自己配了什么」的区间。
+_LEASE_TTL_WARN_SECONDS = 7 * 24 * 3600
+
+
+def _warn_lease_revocation_bound(settings: StoreSettings) -> None:
+    """把「吊销生效上界」在启动日志里说清楚。
+
+    租约 TTL 在实现上同时是两个东西：离线可用时长，以及**吊销最慢多久生效**。
+    这两件事只有一处配置，而常量名 ``STORE_LEASE_TTL_SECONDS`` 读起来只像前者 ——
+    运营出于「让断网用户更从容」把它调到 30 天时，多半没意识到停用一张授权也要
+    等 30 天才能对一台离线设备生效。所以这里把耦合关系换算成天数摆到日志里。
+
+    刻意只告警不拦：TTL 调大是合法的可用性取舍（例如商店本身要长期停机维护），
+    该由运营自己权衡；这里只保证他做选择时看得见代价。
+    """
+    seconds = int(settings.lease_ttl_seconds or 0)
+    if seconds <= _LEASE_TTL_WARN_SECONDS:
+        return
+    logger.warning(
+        "STORE_LEASE_TTL_SECONDS=%d（约 %.1f 天）偏大：该值同时是「离线可用时长」"
+        "与「吊销生效上界」—— 对一台持续离线的客户端，停用授权/解绑设备最慢要等"
+        "这么久才会真正生效。若这不是有意为之，请调小（默认 %d 秒 = 72 小时）。",
+        seconds,
+        seconds / 86400,
+        DEFAULT_LEASE_TTL_SECONDS,
+    )

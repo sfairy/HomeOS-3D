@@ -38,6 +38,7 @@ from store.request_security import (
     same_origin_request,
 )
 from store.schema_guard import ensure_schema
+from store.setup_guard import SetupGuard, announce_setup_window
 from store.site_settings import get_setting
 
 logger = logging.getLogger("store")
@@ -145,6 +146,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         settings.transport_private_key_path, settings.license_transport_key_id
     )
     authority = LicenseAuthority(settings, database, signer, transport)
+    setup_guard = SetupGuard(settings.data_dir, settings.setup_token)
 
     async def _payment_sweep_loop() -> None:
         """后台支付巡检循环。
@@ -183,6 +185,15 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         logger.info(
             "授权商店服务已启动：%s（数据目录 %s）", settings.public_base_url, settings.data_dir
         )
+        # 首次初始化窗口：库里还没有管理员时，把引导密钥打印到启动日志（stderr），
+        # 之后的 POST /store/v1/setup/admin 必须带上它（本机直连除外）。已初始化的
+        # 实例上顺手清掉可能残留的密钥文件 —— 那时它只是一枚死凭证。
+        with database.session() as session:
+            if not setup_api.admin_exists(session):
+                setup_guard.ensure_token()
+                announce_setup_window(setup_guard)
+            else:
+                setup_guard.discard_file()
         sweep_task = asyncio.create_task(_payment_sweep_loop())
         try:
             yield
@@ -204,6 +215,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.database = database
     app.state.license_authority = authority
+    app.state.setup_guard = setup_guard
 
     @app.middleware("http")
     async def require_same_origin_for_writes(request: Request, call_next):

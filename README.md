@@ -528,7 +528,7 @@ Compose 还可选：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`（覆盖镜像名）�
 | `STORE_LICENSE_KEYS_DIR` | `store/keys/local`（容器 `/data/license-keys`） | 授权私钥目录 |
 | `STORE_LICENSE_KEY_ID` / `STORE_LICENSE_TRANSPORT_KEY_ID` | 与主应用对应 | 签发租约与传输密钥的 keyId |
 | `STORE_COOKIE_NAME` | `ha_bridge_store_session` | 商店会话 Cookie 名 |
-| `STORE_LEASE_TTL_SECONDS` | `604800` | 租约有效期（7 天） |
+| `STORE_LEASE_TTL_SECONDS` | `259200` | 租约有效期（72 小时）。⚠ 该值同时是「离线可用时长」与「吊销生效上界」：对持续离线的客户端，停用授权最慢要等这么久才生效 |
 | `STORE_HEARTBEAT_INTERVAL_SECONDS` | `300` | 下发给客户端的 `heartbeatIn` |
 | `STORE_ORDER_TTL_SECONDS` | `120` | 订单有效期（真实收款须调大） |
 | `STORE_PAYMENT_SWEEP_INTERVAL_SECONDS` / `_BATCH` | `30` / `25` | 支付巡检间隔与每轮上限 |

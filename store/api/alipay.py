@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import html
 import logging
+import secrets
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
@@ -15,13 +16,24 @@ from sqlalchemy import select
 
 from store import site_settings as site_config
 from store.deps import DbSession
+from store.limiter import SlidingWindowLimiter
 from store.models import Order
 from store.payments.alipay import cents_from_yuan
 from store.payments.base import PaymentError
 from store.payments.reconcile import reconcile_alipay_order
 from store.payments.settlement import settle_paid_order
+from store.request_security import resolve_client_ip
 
 logger = logging.getLogger("store.api.alipay")
+
+#: 同步跳转页的**按来源**查单预算。
+#:
+#: 这个端点是匿名 GET，且 ``out_trade_no`` 是**调用方直接给的**（不是我们先发出去、
+#: 只能被猜到的值）。它会对处于 ``pending`` 的订单**真的发出一次渠道查单**（阻塞
+#: 网络往返），所以只靠「按订单号节流」挡不住 —— 攻击者换订单号即可绕过，把跳转页
+#: 变成对渠道的查单风暴，并占满 AnyIO 线程池。
+#: 这里按来源给一个粗粒度总预算，把所有查询都算进去（包括下面 force 的那条路径）。
+_RETURN_QUERY_LIMITER = SlidingWindowLimiter(limit=20, window_seconds=60.0)
 
 router = APIRouter(tags=["alipay"])
 
@@ -207,15 +219,35 @@ def alipay_return(
             headers={"Cache-Control": "no-store"},
         )
 
-    # 用户刚付完款就跳回来，此刻查单命中率很高——force 绕过节流
+    # 用户刚付完款就跳回来，此刻查单命中率很高 —— 但「跳回来」这件事无法证明身份，
+    # 所以 force 只在**持订单凭证**时生效：否则任何人枚举订单号都能绕过节流，把这里
+    # 变成对渠道的查单风暴。不持凭证时走按订单号的常规节流，对真实用户没有影响
+    # （他这笔订单通常还没被查过，第一次必然放行）。
     if provider is not None and provider.is_configured(settings):
         setting = site_config.get_setting(session)
-        try:
-            reconcile_alipay_order(
-                session, order=order, settings=settings, setting=setting, force=True
+        token = (request.query_params.get("token") or "").strip()
+        owns_order = bool(token) and secrets.compare_digest(
+            token, order.lookup_token or ""
+        )
+        source_ip = resolve_client_ip(request).ip or "unknown"
+        if _RETURN_QUERY_LIMITER.allow(f"payment-return:{source_ip}"):
+            try:
+                reconcile_alipay_order(
+                    session,
+                    order=order,
+                    settings=settings,
+                    setting=setting,
+                    force=owns_order,
+                )
+            except Exception:  # noqa: BLE001 - 对账失败不能挡住跳转页
+                logger.exception("同步跳转页对账失败 order=%s", order.order_no)
+        else:
+            logger.info(
+                "同步跳转页查单超出按来源预算，跳过本次对账 order=%s ip=%s"
+                "（异步通知与巡检仍会入账）",
+                order.order_no,
+                source_ip,
             )
-        except Exception:  # noqa: BLE001 - 对账失败不能挡住跳转页
-            logger.exception("同步跳转页对账失败 order=%s", order.order_no)
 
     if order.status in {"paid", "fulfilled"}:
         title = "支付成功"

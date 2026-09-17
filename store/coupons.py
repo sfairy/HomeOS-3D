@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from store.models import Account, Coupon, CouponRedemption, Order
@@ -37,6 +37,31 @@ class CouponUnavailable(RuntimeError):
     """名额在「校验」与「占用」之间被别的请求抢光了。"""
 
 
+def active_redemption_count(session: Session, *, coupon_id: str, account_id: str) -> int:
+    """该账号在这个码上**仍占着名额**的核销记录数。
+
+    「仍占着」= 订单未进入 ``RELEASED_STATUSES``（取消/超时/支付失败后名额已归还），
+    口径与 ``_evaluate_coupon`` 的读时校验、以及下面 ``redeem_coupon`` 的原子守卫
+    完全一致 —— 三处必须同一口径，否则会出现「读时放行、写时拒绝」的莫名 400。
+    """
+    return int(
+        session.execute(
+            select(func.count(CouponRedemption.id))
+            .select_from(CouponRedemption)
+            .outerjoin(Order, Order.id == CouponRedemption.order_id)
+            .where(CouponRedemption.coupon_id == coupon_id)
+            .where(CouponRedemption.account_id == account_id)
+            .where(
+                or_(
+                    CouponRedemption.order_id.is_(None),
+                    Order.status.notin_(RELEASED_STATUSES),
+                )
+            )
+        ).scalar_one()
+        or 0
+    )
+
+
 def redeem_coupon(
     session: Session, order: Order, coupon: Coupon, account: Account, discount: int
 ) -> None:
@@ -44,9 +69,15 @@ def redeem_coupon(
 
     名额校验（``_evaluate_coupon``）与本函数之间隔着「创建订单」等若干次读写，
     两个并发请求会同时看到「还有名额」。所以这里用**带条件的原子 UPDATE** 占用：
-    把 ``max_redemptions`` 的判断和自增放进同一条语句，由数据库决定谁抢到。
-    抢不到就抛 :class:`CouponUnavailable`，由调用方转成 400 —— 绝不能出现
-    ``redeemed_count`` 超过 ``max_redemptions`` 的情况（那意味着超发优惠）。
+    把 ``max_redemptions`` 与 ``per_account_limit`` 的判断都和自增放进同一条语句，
+    由数据库决定谁抢到。抢不到就抛 :class:`CouponUnavailable`，由调用方转成 400 ——
+    绝不能出现 ``redeemed_count`` 超过 ``max_redemptions`` 的情况（那意味着超发优惠）。
+
+    ``per_account_limit`` 必须在这里也拦一道，不能只靠读时那次 ``SELECT COUNT``：
+    ``redeem_coupon`` 的原子条件过去只覆盖 ``max_redemptions``，对 ``account_id``
+    没有任何约束，于是同账号两个并发 ``POST /orders`` 各自读到
+    ``used=0`` 并双双通过 —— ``per_account_limit=1`` 形同虚设，100% 折扣码
+    可以直接刷出免费授权（而 S41 的待付单竞态正好提供了这条并发路径）。
     """
     statement = (
         update(Coupon)
@@ -58,8 +89,38 @@ def redeem_coupon(
         statement = statement.where(
             func.coalesce(Coupon.redeemed_count, 0) < int(coupon.max_redemptions)
         )
+    if coupon.per_account_limit:
+        # 该账号仍占用中的核销记录数，作为**相关标量子查询**参与 WHERE。
+        # 整个判断与自增在同一条 UPDATE 里完成，并发下只有一个能成功。
+        #
+        # 这里刻意不用 ``EXISTS(... HAVING count(...) >= limit)``：没有 GROUP BY 时
+        # SQLite 会判定为「非聚合查询」并直接报
+        # ``OperationalError: HAVING clause on a non-aggregate query``。
+        # 标量子查询既避开这个方言坑，读起来也更直接：count < limit 才放行。
+        used_subquery = (
+            select(func.count(CouponRedemption.id))
+            .select_from(CouponRedemption)
+            .outerjoin(Order, Order.id == CouponRedemption.order_id)
+            .where(CouponRedemption.coupon_id == Coupon.id)
+            .where(CouponRedemption.account_id == account.id)
+            .where(
+                or_(
+                    CouponRedemption.order_id.is_(None),
+                    Order.status.notin_(RELEASED_STATUSES),
+                )
+            )
+            .scalar_subquery()
+        )
+        statement = statement.where(used_subquery < int(coupon.per_account_limit))
     result = session.execute(statement)
     if result.rowcount == 0:
+        # 走到这里说明名额在「读时校验」之后被抢走了。区分两种原因只是为了给出
+        # 可操作的文案：错误路径上多查一次不影响正确性。
+        if coupon.per_account_limit and (
+            active_redemption_count(session, coupon_id=coupon.id, account_id=account.id)
+            >= int(coupon.per_account_limit)
+        ):
+            raise CouponUnavailable("你已使用过该优惠码。")
         raise CouponUnavailable("优惠码已被领完。")
     session.expire(coupon, ["redeemed_count"])
     session.add(
