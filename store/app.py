@@ -16,6 +16,7 @@ from store.api import admin as admin_api
 from store.api import alipay as alipay_api
 from store.api import license as license_api
 from store.api import pages as pages_api
+from store.api import setup as setup_api
 from store.api import store as store_api
 from store.config import STORE_ROOT, StoreSettings, load_settings
 from store.database import Database
@@ -279,6 +280,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.include_router(store_api.router)
     app.include_router(alipay_api.router)
     app.include_router(admin_api.router)
+    app.include_router(setup_api.router)
     app.include_router(pages_api.router)
 
     @app.get("/healthz", include_in_schema=False)

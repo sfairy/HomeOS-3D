@@ -13,12 +13,12 @@ import secrets
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import FileResponse, HTMLResponse
-from sqlalchemy import select, update
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from sqlalchemy import func, select
 
 from store import coupons, fulfill, site_settings as site_config
 from store.deps import CurrentAccount, DbSession
-from store.models import Order, Product
+from store.models import Account, Order, Product
 from store.order_status import order_status_label
 from store.payments.base import PaymentError
 from store.security import utcnow
@@ -65,11 +65,29 @@ router.add_api_route("/user/referrals", _home, methods=["GET"], include_in_schem
 
 
 @router.get("/admin", include_in_schema=False)
-def admin_page(request: Request) -> HTMLResponse:
+def admin_page(request: Request, session: DbSession) -> HTMLResponse:
+    # 无管理员时跳初始化页：部署者直接访问 /admin 不会看到一个用不了的登录表单。
+    admin_count = session.scalar(
+        select(func.count()).select_from(Account).where(Account.is_admin == True)  # noqa: E712
+    )
+    if (admin_count or 0) == 0:
+        return RedirectResponse(url="/setup", status_code=302)
     template_path: Path = request.app.state.settings.templates_dir / "admin.html"
     if not template_path.exists():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="管理后台模板缺失。"
+        )
+    return HTMLResponse(
+        template_path.read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"}
+    )
+
+
+@router.get("/setup", include_in_schema=False)
+def setup_page(request: Request) -> HTMLResponse:
+    template_path: Path = request.app.state.settings.templates_dir / "setup.html"
+    if not template_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="初始化页面模板缺失。"
         )
     return HTMLResponse(
         template_path.read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"}

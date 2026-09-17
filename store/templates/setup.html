@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#151a1f">
+<title>HomeOS 授权商店 · 首次初始化</title>
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260917121000">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260917121000">
+<link rel="stylesheet" href="/store-static/setup.css?v=20260917121000">
+</head>
+<body>
+
+<div id="setup-page" class="login-wrap">
+  <div class="login-shell">
+    <aside class="login-aside">
+      <span class="hb-kicker">Initial Setup</span>
+      <h2>首次部署，<strong>设置管理员账号</strong></h2>
+      <p>这是商店首次启动后的初始化操作。请设置管理员邮箱与密码，创建后将以管理员身份自动登录后台。</p>
+      <ul>
+        <li><span class="login-check" aria-hidden="true">✓</span>此页面仅在无管理员时可用</li>
+        <li><span class="login-check" aria-hidden="true">✓</span>初始化后请妥善保管密码</li>
+        <li><span class="login-check" aria-hidden="true">✓</span>生产环境请确保通过 HTTPS 访问</li>
+      </ul>
+    </aside>
+    <section class="login-card">
+      <div class="login-card__brand">
+        <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260917121000" alt=""></span>
+        <div>
+          <strong>商店初始化</strong>
+          <p>设置管理员邮箱与密码。</p>
+        </div>
+      </div>
+      <form id="setup-form" class="login-form" autocomplete="off" data-form-type="other">
+        <label class="hb-field">
+          <span>管理员邮箱</span>
+          <input class="hb-input" type="email" id="email" name="email" placeholder="admin@example.com" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore data-bwignore required>
+        </label>
+        <label class="hb-field">
+          <span>密码</span>
+          <span class="hb-password-field">
+            <input class="hb-input" type="password" id="password" name="password" placeholder="至少 8 位" autocomplete="new-password" data-lpignore="true" data-1p-ignore data-bwignore required>
+            <button type="button" data-password-toggle aria-label="显示密码">显示</button>
+          </span>
+        </label>
+        <label class="hb-field">
+          <span>确认密码</span>
+          <span class="hb-password-field">
+            <input class="hb-input" type="password" id="confirm-password" name="confirm_password" placeholder="再次输入密码" autocomplete="new-password" data-lpignore="true" data-1p-ignore data-bwignore required>
+            <button type="button" data-password-toggle aria-label="显示密码">显示</button>
+          </span>
+        </label>
+        <button class="hb-button hb-button--primary hb-button--lg hb-button--block" type="submit" id="setup-submit">创建管理员</button>
+      </form>
+      <div id="setup-error" class="admin-alert" hidden></div>
+    </section>
+  </div>
+</div>
+
+<div id="setup-redirect" class="login-wrap" hidden>
+  <div class="login-shell">
+    <section class="login-card">
+      <div class="login-card__brand">
+        <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260917121000" alt=""></span>
+        <div>
+          <strong>管理员已存在</strong>
+          <p>商店已完成初始化，正在跳转到登录页…</p>
+        </div>
+      </div>
+      <p class="login-switch"><a href="/admin">前往管理员登录</a></p>
+    </section>
+  </div>
+</div>
+
+<script src="/store-static/setup.js?v=20260917121000"></script>
+</body>
+</html>

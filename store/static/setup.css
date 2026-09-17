@@ -1,0 +1,41 @@
+/* setup.css — 商店首次初始化页面样式
+   复用 admin.css 的 login-wrap / login-shell / login-card 布局，
+   仅补充 setup 页面特有的提示与过渡态。 */
+
+#setup-redirect .login-card {
+  text-align: center;
+}
+
+.setup-progress {
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  border: 2px solid var(--hb-border, #2a3138);
+  border-top-color: var(--hb-primary, #4a9eff);
+  border-radius: 50%;
+  animation: setup-spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 0.5em;
+}
+
+@keyframes setup-spin {
+  to { transform: rotate(360deg); }
+}
+
+#setup-submit.is-loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+#setup-submit.is-loading::after {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: setup-spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-left: 0.5em;
+}
