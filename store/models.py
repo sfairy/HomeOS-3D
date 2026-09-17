@@ -654,6 +654,39 @@ class RecoveryToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class CashierTicket(Base):
+    """模拟收银台的短时票据（S53）。
+
+    为什么需要它：收银台页面地址是要被**扫码打开**的（二维码/邮件里的链接），
+    扫码方没有登录态，所以页面凭证只能跟着 URL 走。过去那个凭证是订单的
+    ``lookup_token`` —— 一枚长期有效、还能查订单详情的 bearer 凭据。它会进访问
+    日志、``Referer`` 与浏览器历史；一旦从任何一处漏出，泄漏的就**不只是这张
+    收银台页面**，而是整个订单查询入口。
+
+    所以 URL 里改成只放这张票据：与订单绑定、有效期 30 分钟，且除了「打开这笔
+    订单的收银台」之外没有任何用途（不是订单查询凭证，不能换授权，不能调后台）。
+    页面加载后立刻用 ``history.replaceState`` 把查询串从地址栏与历史记录里抹掉，
+    因此后续跳转的 ``Referer`` 也是干净的。
+
+    **刻意没有做成「兑换一次即作废」**：这张票据的唯一入口是二维码，作废会让
+    「扫完关掉再扫一次」「按 F5」「同一张单第二次打开」全部失效，而可重复使用的
+    代价只是一个 30 分钟、限定单笔订单、且只在模拟渠道下存在的窗口 —— 真正的
+    收益来自「URL 里不再是长期凭据」，而不是这一层。真实渠道不需要这张表：
+    支付页由渠道自己签名，链接里没有本店凭据。
+    """
+
+    __tablename__ = "cashier_tickets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
+    order_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("orders.id", ondelete="CASCADE"), index=True
+    )
+    #: 票据本身的 SHA-256（库里不留明文：日志/备份漏出也换不回票据）
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class DeviceReleaseEvent(Base):
     __tablename__ = "device_release_events"
 

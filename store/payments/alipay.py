@@ -646,7 +646,12 @@ class AlipayProvider:
         settings: StoreSettings,
         setting: StoreSetting,
         base_url: str,
+        pay_token: str | None = None,
     ) -> PaymentIntent:
+        # ``pay_token`` 是给「页面凭证必须跟着 URL 走」的渠道用的（见 S53 与
+        # ``store/payments/base.py``）：真实渠道的支付页由支付宝自己按 app_id +
+        # 私钥签名，链接里没有本店凭据，所以这里收下不用。
+        del pay_token
         settings = self._resolve(settings)
         self._assert_configured(settings)
 

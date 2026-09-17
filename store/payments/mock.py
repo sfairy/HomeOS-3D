@@ -90,14 +90,19 @@ class MockPaymentProvider:
         settings: StoreSettings,
         setting: StoreSetting,
         base_url: str,
+        pay_token: str | None = None,
     ) -> PaymentIntent:
-        # 页面本身要求带订单凭证（``?token=``）：它会把 lookupToken 交给页面里的
-        # 按钮去调 ``mock/pay``。订单号会出现在邮件、客服工单与 Referer 里，从来不是
-        # 一道授权，所以页面绝不能无鉴权可达 —— 这条判断不依赖订单号是否可枚举。
-        pay_url = (
-            f"{base_url}/store/mock/pay/{order.order_no}"
-            f"?token={quote(order.lookup_token or '', safe='')}"
-        )
+        # 页面凭证**不再是** ``lookup_token``（S53）：那是一枚长期有效、还能查订单
+        # 详情的 bearer 凭据，写在 URL 里会进访问日志、Referer 与浏览器历史 ——
+        # 漏出一次就不只是丢掉这张收银台页面。这里换成短时票据（30 分钟、与订单
+        # 绑定、只能打开这笔订单的收银台）；页面加载后立刻用 ``history.replaceState``
+        # 把查询串从地址栏与历史记录里抹掉（见 ``store/api/pages.py``）。
+        #
+        # 因此链接里没有任何长期凭据；订单号现在带随机尾缀（``new_order_no``），
+        # 猜不出来 —— 但可枚举性从来不是这里的边界，凭据才是。
+        ticket = pay_token or ""
+        query = f"?t={quote(ticket, safe='')}" if ticket else ""
+        pay_url = f"{base_url}/store/mock/pay/{order.order_no}{query}"
         return PaymentIntent(
             provider=self.name,
             payload={

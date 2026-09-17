@@ -17,6 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 from store import (
+    cashier,
     coupons,
     fulfill,
     mail_settings,
@@ -1825,11 +1826,17 @@ def create_order(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error))
 
     try:
+        # S53：模拟收银台的页面凭证用短时票据（见 ``store/cashier.py``），
+        # 而不是把订单的 ``lookup_token`` 拼进 URL。真实渠道不需要它：支付页由
+        # 渠道自己签名，链接里没有本店凭据 —— 这里按渠道判一次，纯粹是不给
+        # 用不上的渠道白写一行票据。
+        pay_token = cashier.issue_ticket(session, order) if provider.name == "mock" else None
         intent = provider.create_payment(
             order=order,
             settings=request.app.state.settings,
             setting=setting,
             base_url=_base_url(request),
+            pay_token=pay_token,
         )
     except PaymentError as error:
         order.status = "payment_failed"

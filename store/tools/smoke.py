@@ -60,14 +60,17 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
 from store.app import create_app
+from store.api import pages as pages_api
 from store.config import STORE_ROOT, StoreSettings, load_settings
 from store import site_settings as site_config
+from store import cashier
 from store import mailer
 from store.database import Base, create_store_engine
 from store.models import (
     Account,
     AccountSession,
     AuditLog,
+    CashierTicket,
     Coupon,
     CouponRedemption,
     Customer,
@@ -9354,8 +9357,6 @@ def check_page_hardening_and_error_format() -> None:
     from starlette.testclient import TestClient
     from types import SimpleNamespace
 
-    from store.api import pages as pages_api
-
     # ------------------------------------------------------------------ #
     # S15：模拟收银台的拼接
     # ------------------------------------------------------------------ #
@@ -11968,27 +11969,97 @@ async def run() -> int:
     # 变成激活码的第二份副本、优惠码作用域被写坏（谁都可用）、管理员把自己锁在
     # 门外、SVG 变成同源 XSS 落点。
 
-    # —— 模拟收银台：订单号只是标识、不是凭证，页面本身绝不能无鉴权可达 ——
+    # —— 模拟收银台：订单号只是标识、不是凭证；URL 里也不再放长期凭据（S53）——
     seeded = (await client.get("/store-admin/v1/orders?limit=1")).json()["items"]
     check("取到一笔订单用于收银台鉴权检查", bool(seeded), str(seeded)[:120])
     if seeded:
         sample_no = seeded[0]["orderNo"]
         sample_token = seeded[0]["lookupToken"]
+        fake_request = types.SimpleNamespace(
+            state=types.SimpleNamespace(csp_nonce="cashier-ticket-nonce")
+        )
+        with database.session() as session:
+            sample_order = session.scalars(
+                select(Order).where(Order.order_no == sample_no)
+            ).first()
+            maybe_order = session.scalars(
+                select(Order).where(Order.order_no != sample_no).limit(1)
+            ).first()
+            setting_row = site_config.get_setting(session)
+            ticket = cashier.issue_ticket(session, sample_order)
+            foreign_ticket = (
+                cashier.issue_ticket(session, maybe_order) if maybe_order is not None else None
+            )
+            expired_ticket = cashier.issue_ticket(session, sample_order)
+            expired_row = session.scalars(
+                select(CashierTicket).where(
+                    CashierTicket.token_hash == token_hash(expired_ticket)
+                )
+            ).first()
+            expired_row.expires_at = utcnow() - timedelta(seconds=1)
+            intent = MockPaymentProvider().create_payment(
+                order=sample_order,
+                settings=app.state.settings,
+                setting=setting_row,
+                base_url="http://store.test",
+                pay_token=ticket,
+            )
+            check(
+                "S53 收银台地址只带短时票据，不再带长期 lookupToken",
+                f"?t={ticket}" in intent.pay_url and sample_token not in intent.pay_url,
+                str(intent.pay_url),
+            )
+            check(
+                "S53 页面脚本会把 ?t= 从地址栏与历史里抹掉（否则 Referer/历史里仍留凭据）",
+                "history.replaceState"
+                in pages_api._cashier_html(sample_order, None, request=fake_request),
+            )
         async with httpx.AsyncClient(
             transport=transport_http, base_url="http://store.test", follow_redirects=False
         ) as guest:
             anon_page = await guest.get(f"/store/mock/pay/{sample_no}")
             check(
-                "未登录且无订单凭证时收银台不可达（订单号只是标识，不是授权凭证）",
+                "未登录且无票据时收银台不可达（订单号只是标识，不是授权凭证）",
                 anon_page.status_code == 404,
                 f"{anon_page.status_code} {anon_page.text[:80]!r}",
             )
-            tokened = await guest.get(f"/store/mock/pay/{sample_no}?token={sample_token}")
+            ticketed = await guest.get(f"/store/mock/pay/{sample_no}?t={ticket}")
             check(
-                "带上订单凭证后收银台可打开（扫码支付的正常路径）",
-                tokened.status_code == 200 and "cashier" in tokened.text,
-                f"{tokened.status_code}",
+                "带上短时票据后收银台可打开（扫码支付的正常路径）",
+                ticketed.status_code == 200 and "cashier" in ticketed.text,
+                f"{ticketed.status_code}",
             )
+            replay = await guest.get(f"/store/mock/pay/{sample_no}?t={ticket}")
+            check(
+                "S53 票据在有效期内可重复打开（二维码是这个页面唯一的入口，作废会让 F5/再扫失效）",
+                replay.status_code == 200,
+                f"{replay.status_code}",
+            )
+            legacy = await guest.get(f"/store/mock/pay/{sample_no}?token={sample_token}")
+            check(
+                "S53 牙齿：老的 ?token= 长期凭据形式不再被接受",
+                legacy.status_code == 404,
+                f"{legacy.status_code}",
+            )
+            garbage = await guest.get(f"/store/mock/pay/{sample_no}?t=not-a-ticket")
+            check(
+                "S53 伪造/随机票据打不开",
+                garbage.status_code == 404,
+                f"{garbage.status_code}",
+            )
+            stale = await guest.get(f"/store/mock/pay/{sample_no}?t={expired_ticket}")
+            check(
+                "S53 过期票据打不开（有效期不是摆设）",
+                stale.status_code == 404,
+                f"{stale.status_code}",
+            )
+            if foreign_ticket:
+                foreign = await guest.get(f"/store/mock/pay/{sample_no}?t={foreign_ticket}")
+                check(
+                    "S53 绑定校验：别的订单的票据打不开这一单（否则票据等于万能钥匙）",
+                    foreign.status_code == 404,
+                    f"{foreign.status_code}",
+                )
             bad_token = await guest.post(
                 f"/store/v1/orders/{sample_no}/mock/pay",
                 json={"orderToken": "not-the-token"},

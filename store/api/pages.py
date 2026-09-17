@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import func, select, update
 
-from store import coupons, fulfill, site_settings as site_config
+from store import cashier, coupons, fulfill, site_settings as site_config
 from store.deps import CurrentAccount, DbSession
 from store.models import Account, Order, Product
 from store.order_status import order_status_label
@@ -215,6 +215,12 @@ def _cashier_html(order: Order, product: Product | None, *, request: Request) ->
 <script nonce="{nonce}">
 const ORDER = {safe};
 const message = document.getElementById('cashier-message');
+// S53：把地址栏里的 ?t= 票据抹掉。放在最前面：后面 act() 会发请求，这一句执行过后，
+// 那些请求的 Referer 与「浏览器历史里的这条记录」都不再带凭据。
+// 用 replaceState（而不是 pushState）才能改写当前这条历史记录，而不是再压一条。
+if (location.search) {{
+  history.replaceState(null, '', location.pathname + location.hash);
+}}
 const confirmButton = document.getElementById('cashier-confirm');
 const cancelButton = document.getElementById('cashier-cancel');
 async function act(action) {{
@@ -249,30 +255,35 @@ def mock_cashier(
     request: Request,
     session: DbSession,
     account: CurrentAccount,
-    token: str | None = None,
+    t: str | None = None,
 ) -> HTMLResponse:
     """模拟收银台页面。
 
-    **必须带订单凭证**（``?token=``）或者是该订单所属账号已登录。这个页面会把
-    ``lookupToken`` 写进 HTML 供页面里的按钮调用 ``mock/pay``，而订单号本身
+    **必须能证明对这笔订单的访问权**：短时票据（``?t=``）或者该订单所属账号已登录。
+    这个页面会把 ``lookupToken`` 写进 HTML 供按钮调用 ``mock/pay``，而订单号本身
     **从来不是一道授权** —— 它会出现在邮件、客服工单、截图与 Referer 里。过去页面
     无鉴权，任何人拿到一个订单号（从别处漏出来的）都能得到那张「免付款发码」的凭证。
 
-    注意：订单号现在带随机尾缀（见 ``store.security.new_order_no``），已经**猜不出来**了，
-    但这**不构成**去掉鉴权的理由 —— 可枚举性本来就不是这里的安全边界，凭据才是。
-    真正决定这个页面能不能被匿名打开的，是下面这条 ``token`` / 登录态校验。
+    **S53：URL 里不再放 ``lookup_token``**。那是长期有效、还能查订单详情的
+    bearer 凭据，跟随 URL 会进访问日志、``Referer`` 与浏览器历史 —— 漏出一次就
+    不只是丢掉这张页面。现在跟 URL 走的是一张短时票据（30 分钟、与订单绑定、
+    只能打开这笔订单的收银台，见 ``store/cashier.py``）；页面加载后立刻用
+    ``history.replaceState`` 把查询串从地址栏与历史记录里抹掉，所以后续跳转的
+    ``Referer`` 不带它，历史里也不会留下一条「带凭据的地址」。
 
-    ``?token=`` 是主路径（二维码是拿手机扫的，扫码方没有登录态）；登录态兜底
-    只是为了让升级前落库、``payment_payload_json`` 里还没有 token 的旧订单，
-    在账号中心点「继续支付」时不至于打到 404。
+    登录态兜底是给账号中心「继续支付」这类同浏览器路径用的：它不需要票据，
+    地址栏里自然什么都没有。旧订单里存的 ``?token=`` 链接从此不再被接受 ——
+    这正是这条修复的目的（那种 URL 就是长期凭据的第二份副本）。
     """
     order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
     if order is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
-    authorized = token_matches(token, order.lookup_token)
-    if not authorized and not (account is not None and order.account_id == account.id):
-        # 与「订单不存在」返回同一个状态码：不给「这个单号存在」的旁路信息
+
+    signed_in = account is not None and order.account_id == account.id
+    if not signed_in and cashier.find_ticket(session, order, t) is None:
+        # 与「订单不存在」同一个状态码：不给出「这个单号存在」的旁路信息
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
+
     product = session.get(Product, order.product_id) if order.product_id else None
     return HTMLResponse(
         _cashier_html(order, product, request=request),

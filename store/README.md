@@ -213,6 +213,13 @@ Cookie 会丢掉 `Secure` 标记，而服务照常运行、日志里一个字都
 本地联调要同时设 `STORE_PAYMENT_PROVIDER=mock` 与 `STORE_ALLOW_MOCK_PAYMENTS=1`
 （`start.py` 会自动带上这两个变量）；正式收款请按下面的步骤切到支付宝。
 
+模拟收银台页面地址形如 `/store/mock/pay/{order_no}?t=<短时票据>`：票据与订单绑定、
+30 分钟有效、只能打开这笔订单的收银台，页面加载后立刻把查询串从地址栏与历史里抹掉
+（`history.replaceState`）。**这里不再放订单的 `lookupToken`** —— 那是长期有效、
+还能查订单详情的 bearer 凭据，写在 URL 里会进访问日志、`Referer` 与浏览器历史，
+漏出一次等于交出订单查询入口（详见审计记录 S53）。因此升级后**旧的 `?token=` 链接
+一律 404**，在账号中心点「继续支付」（走登录态）或重新下单即可。
+
 ### 5.1 先决条件
 
 1. **企业支付宝**账号，并签约 **当面付**（`alipay.trade.precreate` 扫码收款）。

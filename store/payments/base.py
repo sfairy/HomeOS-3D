@@ -31,6 +31,11 @@ class PaymentProvider(Protocol):
         settings: StoreSettings,
         setting: StoreSetting,
         base_url: str,
+        #: S53：给「页面凭证要跟着 URL 走」的渠道准备的短时票据（见 ``store/cashier.py``）。
+        #: 真实渠道的支付页由渠道自己签名、不携带本店凭据，因此收下也不用（``alipay``
+        #: 里显式 ``del`` 掉）；放进协议是为了让渠道自己决定用不用，而不是让调用层
+        #: 按渠道去挑不同签名。
+        pay_token: str | None = None,
     ) -> PaymentIntent: ...
 
     def refund_payment(

@@ -448,7 +448,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `/v2/activate` · `/v2/heartbeat` · `/v2/recover` | 授权服务器端点（加密封套） |
 | `/store-admin/v1/*` | 运营后台 API |
 | `/store/v1/payments/alipay/notify` · `/store/payment/return` | 支付宝异步通知与同步跳转 |
-| `/store/mock/pay/{order_no}?token=…` | 模拟收银台（仅 `mock` 渠道，需订单凭证） |
+| `/store/mock/pay/{order_no}?t=…` | 模拟收银台（仅 `mock` 渠道，需短时票据或登录态） |
 | `/store-static/*` · `/fonts/*` | 商店静态资源与图标字体 |
 | `/healthz` · `/store-api-docs` | 存活检查 · OpenAPI 文档 |
 
