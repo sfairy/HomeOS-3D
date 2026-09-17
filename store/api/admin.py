@@ -855,13 +855,20 @@ def admin_delete_product(
 
 
 @router.post("/products/{product_id}/image")
-async def admin_upload_product_image(
+def admin_upload_product_image(
     product_id: str,
     request: Request,
     session: DbSession,
     admin: AdminAccount,
     file: UploadFile = File(...),
 ) -> dict:
+    """上传商品自定义图片（同步端点，跑在线程池里）。
+
+    写成同步 ``def``：读文件、校验大小、落盘、写库全是阻塞操作，而这个端点的
+    上传上限是 8MB —— 放事件循环上，一次慢盘写入就能卡住整个服务。
+    同步端点里用 ``file.file``（底层 SpooledTemporaryFile）同步读取即可，
+    不需要 ``await file.read()``。
+    """
     product = _product_or_404(session, product_id)
     settings = request.app.state.settings
     suffix = ""
@@ -876,7 +883,7 @@ async def admin_upload_product_image(
     folder.mkdir(parents=True, exist_ok=True)
     relative = f"{product.id}{suffix}"
     target = folder / relative
-    content = await file.read()
+    content = file.file.read()
     if len(content) > 8 * 1024 * 1024:
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="图片不能超过 8MB。")
 
@@ -884,11 +891,11 @@ async def admin_upload_product_image(
         select(ProductImage).where(ProductImage.product_id == product.id)
     ).first()
     # 换扩展名（png → jpg）时旧文件名不再被引用，先删掉，否则磁盘上会留孤儿文件。
-    # 路径是上传时自己按 product.id + 白名单后缀拼的，但仍然按目录边界校验一次。
+    # 路径是上传时自己按 product.id + 白名单后缀拼的，但仍然按目录边界校验一次
+    # （与另外两处删除点共用同一份判定，见 _safe_image_target）。
     if image is not None and image.path != relative:
-        root = folder.resolve()
-        stale = (root / image.path).resolve()
-        if stale != root and root in stale.parents and stale.is_file():
+        stale = _safe_image_target(folder, image.path)
+        if stale is not None and stale.is_file():
             try:
                 stale.unlink()
             except OSError as exc:

@@ -35,6 +35,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import traceback
 import warnings
@@ -5864,6 +5865,449 @@ def check_display_pairing_hardening() -> None:
     )
 
 
+async def check_blocking_endpoints_offloaded() -> None:
+    """S24：匿名可达的阻塞端点必须跑在线程池，不能占着事件循环。
+
+    为什么这条重要：这些端点的每一步（RSA 验签、SQLite 会话、8MB 落盘）都是同步
+    阻塞的，SQLite 写锁争用下 ``busy_timeout`` 会阻塞到 5 秒。跑在事件循环上，
+    这 5 秒内**整个服务**一起冻结 —— 而它们是匿名可达的，很容易被刷。
+
+    「跑在线程池」有两种实现，验证手段也不同：
+
+    1. **同步 ``def`` 端点** —— FastAPI 自己就会丢进线程池。可静态断言
+       ``inspect.iscoroutinefunction(route.endpoint) is False``：这正是 FastAPI
+       做分流时看的那个属性，改回 ``async def`` 会立刻失败。
+    2. **``async def`` + ``asyncio.to_thread`` 转交**（``/v2/*``）—— 它们的请求体是
+       JSON，而 ``Body(bytes)`` 只对非 JSON 生效，改签名会连带改掉「非法 JSON 返回
+       400 且带固定 detail」这条客户端依赖的契约。这类只能**行为**验证：把
+       ``_run_in_worker`` 包一层记录执行线程，发一个请求，断言它不在事件循环线程上。
+    """
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-offload-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        expose_verification_code=True,
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+
+    from store.api import admin as admin_api
+    from store.api import alipay as alipay_api
+    from store.api import license as license_api
+
+    # 模块顶层的 ``inspect`` 是 SQLAlchemy 的那个（``from sqlalchemy import inspect``），
+    # 会遮蔽标准库。这里显式取标准库的，别依赖顶层名字。
+    import ast
+    import textwrap
+    from inspect import getsource, iscoroutinefunction
+
+    def _router_endpoint(router, path: str, method: str):
+        """在**路由自己**的 ``routes`` 上查端点。
+
+        不查 ``app.routes``：当前 FastAPI 把 ``include_router`` 的结果包在
+        ``_IncludedRouter`` 里，``app.routes`` 既拿不到 ``path`` 也下钻不到子路由，
+        照它断言只会得到「端点不存在」的假失败。
+        """
+        for route in router.routes:
+            if getattr(route, "path", None) != path:
+                continue
+            if method in (getattr(route, "methods", None) or set()):
+                return route.endpoint
+        return None
+
+    # ---- 1) 同步 def 端点：FastAPI 会走线程池 ---- #
+    sync_endpoints = [
+        (alipay_api.router, alipay_api.NOTIFY_PATH, "POST"),
+        (admin_api.router, "/store-admin/v1/products/{product_id}/image", "POST"),
+    ]
+    for router, path, method in sync_endpoints:
+        endpoint = _router_endpoint(router, path, method)
+        label = f"{method} {path}"
+        check(f"S24 {label} 存在", endpoint is not None)
+        if endpoint is None:
+            continue
+        check(
+            f"S24 {label} 是同步端点（FastAPI 走线程池，不占事件循环）",
+            not iscoroutinefunction(endpoint),
+            getattr(endpoint, "__name__", "?"),
+        )
+        # 同步端点里不能有 await。用 AST 精确判定，别做字符串搜索 ——
+        # docstring 里出现「同步端点不能 await」这种说明就会被误报。
+        tree = ast.parse(textwrap.dedent(getsource(endpoint)))
+        awaits = [node for node in ast.walk(tree) if isinstance(node, ast.Await)]
+        check(
+            f"S24 {label} 函数体里没有 await（同步端点不能 await）",
+            not awaits,
+            f"{len(awaits)} 处",
+        )
+
+    # ---- 2) /v2/* ：async def + to_thread 转交，用真实请求验证线程 ---- #
+    v2_endpoints = {"/v2/activate", "/v2/heartbeat", "/v2/recover"}
+    v2_paths = {
+        getattr(route, "path", None) for route in license_api.router.routes
+    }
+    check(
+        "S24 /v2/activate 与 /v2/heartbeat 与 /v2/recover 都已挂载",
+        v2_endpoints <= v2_paths,
+        str(sorted(v2_endpoints - v2_paths)),
+    )
+
+    observed: dict[str, object] = {}
+    original = license_api._run_in_worker
+
+    def _spy(*args, **kwargs):
+        observed["thread"] = threading.current_thread()
+        return original(*args, **kwargs)
+
+    license_api._run_in_worker = _spy
+    try:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://store.test") as client:
+            # 顶层不是 dict 的 JSON：``decrypt_request`` 会判「格式无效」并给 400。
+            # 我们只关心「这一步有没有被挪出事件循环」，所以不必构造真信封。
+            response = await client.post("/v2/activate", json=["not", "an-envelope"])
+        check(
+            "S24 /v2/* 收到非信封体后走统一错误路径（400 + 固定 detail）",
+            response.status_code == 400
+            and response.json().get("detail") == "授权请求格式无效。",
+            f"{response.status_code} {response.text[:80]!r}",
+        )
+        check(
+            "S24 /v2/* 的解密/业务/加密确实在线程池里跑（不是事件循环线程）",
+            observed.get("thread") is not None
+            and observed["thread"].name != threading.current_thread().name,
+            f"执行线程={observed.get('thread')!r} 事件循环线程={threading.current_thread().name!r}",
+        )
+    finally:
+        license_api._run_in_worker = original
+
+    app.state.database.dispose()
+
+
+async def check_smtp_send_wall_budget() -> None:
+    """S25：单次发信必须有**总墙钟上限**，不能指望「超时 × 次数 + 退避」自己收敛。
+
+    背景：发信走同步端点（见 S24），全程占着一个线程池工作线程。三个配置旋钮
+    （单次超时 15s、重试次数、线性退避）单独看每个取值都合理，乘起来最坏 ~50 秒；
+    而 ``/store/v1/verifications`` 是匿名可达的，并发刷几十次就能把线程池占满，
+    于是整个商店前端（端点几乎全是同步 ``def``）一起失去响应。
+
+    测试手法：``MAX_SEND_WALL_SECONDS`` 是模块级常量，真实代码路径读的就是这个名字，
+    所以临时改小它就能在**不改动被测代码**的前提下把「等 20 秒」压缩成「等 50 毫秒」。
+    参数取 ``max_attempts=6 / backoff=0.15``：旧实现（无总预算）会老老实实重试 6 次、
+    累计睡 2.25 秒后返回 —— 既能在断言上被区分出来，又不会把用例拖成几分钟。
+    """
+    import smtplib
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-smtp-budget-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="smtp",
+        smtp_host="smtp.invalid",
+        smtp_port=2525,
+        smtp_timeout_seconds=15,
+        smtp_use_ssl=False,
+        smtp_max_attempts=6,
+        smtp_retry_backoff_seconds=0.15,
+    )
+
+    budget = getattr(mailer, "MAX_SEND_WALL_SECONDS", None)
+    check(
+        "S25 存在发信总墙钟上限，且量级合理（0 < 上限 <= 30s）",
+        isinstance(budget, (int, float)) and 0 < budget <= 30,
+        repr(budget),
+    )
+
+    # ---- 1) 超预算即停：不把 6 次重试跑完 ---- #
+    calls: list[float] = []
+    real_once = mailer._send_smtp_once
+    real_budget = mailer.MAX_SEND_WALL_SECONDS
+
+    def _always_transient(*_args, **_kwargs):
+        calls.append(time.monotonic())
+        raise smtplib.SMTPServerDisconnected("smoke: 模拟瞬时故障")
+
+    mailer._send_smtp_once = _always_transient
+    mailer.MAX_SEND_WALL_SECONDS = 0.05
+    try:
+        started = time.monotonic()
+        ok, attempts, error = mailer._send_smtp(
+            settings,
+            email="budget@habridge.local",
+            subject="预算用例",
+            plain="body",
+            rich="<p>body</p>",
+        )
+        elapsed = time.monotonic() - started
+    finally:
+        mailer._send_smtp_once = real_once
+        mailer.MAX_SEND_WALL_SECONDS = real_budget
+
+    check("S25 超预算后如实报失败（不假装成功）", ok is False, f"ok={ok}")
+    check(
+        "S25 超预算后立刻收手，不跑完 6 次重试",
+        len(calls) < 6,
+        f"实际尝试 {len(calls)} 次",
+    )
+    check(
+        "S25 退避不会睡过总预算（否则线程白占：旧实现要 2.25s）",
+        elapsed < 0.9,
+        f"耗时 {elapsed:.2f}s",
+    )
+    check(
+        "S25 返回的是**实际**尝试次数，不是配置值 6",
+        attempts == len(calls) and attempts < 6,
+        f"返回 attempts={attempts}，实际调用 {len(calls)} 次",
+    )
+    check("S25 失败原因如实带出（不是空串）", bool(error.strip()), repr(error[:60]))
+
+    # ---- 2) 单次连接超时被压进总预算：一次卡死的连接不能突破总时限 ---- #
+    captured: dict[str, object] = {}
+
+    class _FakeSMTP:
+        def __init__(self, host, port, timeout=None, **_kwargs):
+            captured["timeout"] = timeout
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+        def ehlo(self):
+            pass
+
+    def _probe(deadline):
+        captured.clear()
+        with mailer._connect_smtp(settings, deadline=deadline):
+            pass
+        return captured.get("timeout")
+
+    real_smtp = smtplib.SMTP
+    smtplib.SMTP = _FakeSMTP
+    try:
+        unbounded = _probe(None)
+        bounded = _probe(time.monotonic() + 3)
+    finally:
+        smtplib.SMTP = real_smtp
+
+    check(
+        "S25 不传总预算时保持配置的超时（后台「连接诊断」按钮不受影响）",
+        unbounded == 15,
+        repr(unbounded),
+    )
+    check(
+        "S25 传了总预算后，单次连接超时被压进剩余预算（15s → <=3s）",
+        isinstance(bounded, int) and 1 <= bounded <= 3,
+        repr(bounded),
+    )
+
+
+def check_refund_serialization_guards() -> None:
+    """退款串行化的兜底必须真的存在，且「单进程」这个前提必须成立（审计 S48）。
+
+    **先纠正审计原文**：S48 写的是「``refund_amount_cents`` 无条件 UPDATE、无
+    ``out_request_no`` 唯一约束」——这两条都与代码不符。实际是：
+
+    * ``_claim_refund_amount`` 就是比较并交换（CAS）式的**条件** UPDATE，
+      且全仓库只有它一处写 ``refund_amount_cents``（``rg`` 可证）；
+    * ``OrderRefund.out_request_no`` 带 ``unique=True, index=True``。
+
+    两者都来自 ``243d16e``（2026-09-16），**早于**本次审计。所以 S48 不需要再补
+    「DB 级兜底」——它已经有了。真正剩下的是一个**前提**问题：进程内锁之所以够用，
+    是因为 ``store/run.py`` 只起一个进程。这条前提过去是隐式的、没人钉住；
+    哪天有人加上 ``workers=4`` 或横向扩容，同一订单就能被两条进程同时退到渠道，
+    而代码不会有任何提示。所以这里把「前提」本身变成断言。
+
+    另外钉住两个「一改就静默失效」的细节：
+
+    * ``admin_refund`` 里的 ``session.commit()`` 必须在锁**之内**。挪到依赖 teardown
+      （锁早释放）后，第二笔并发退款会读到同一个旧累计值，于是两笔渠道退款都发出去、
+      两次抢单也都成立——钱多退一倍，且没有任何测试会失败。这是本函数存在的首要理由。
+    * ``_refund_lock`` 的互斥与引用计数行为本身。
+    """
+    from store.api import admin as admin_api
+    from store.models import Order
+
+    # 顶层 ``inspect`` 被 SQLAlchemy 遮蔽（见 check_blocking_endpoints_offloaded）
+    import ast
+    import textwrap
+    from inspect import getsource
+
+    # ---- 1) 前提：单进程。锁是进程内的，多进程即失效 ---- #
+    run_source = (PROJECT_ROOT / "store" / "run.py").read_text(encoding="utf-8")
+    check(
+        "S48 store 以单进程启动（进程内退款锁的全部有效性都建立在这条前提上）",
+        "workers" not in run_source,
+        "run.py 里出现了 workers= —— 进程内锁随即失效，退款需改成 DB 级抢单",
+    )
+
+    # ---- 2) DB 级兜底：确实是 CAS，不是无条件 UPDATE ---- #
+    workdir = Path(tempfile.mkdtemp(prefix="hb-refund-cas-"))
+    engine = create_store_engine(
+        load_settings(data_dir=workdir / "data", license_keys_dir=workdir / "keys")
+    )
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(Account(id="cas-acc", email="cas@x.local", password_hash="x"))
+        session.add(Product(id="cas-prod", product_type="base", name="base", price_cents=1))
+        session.flush()
+        order = Order(
+            order_no="CAS-1",
+            account_id="cas-acc",
+            email="cas@x.local",
+            product_id="cas-prod",
+            status="paid",
+            amount_cents=1000,
+            refund_amount_cents=0,
+        )
+        null_order = Order(
+            order_no="CAS-NULL",
+            account_id="cas-acc",
+            email="cas@x.local",
+            product_id="cas-prod",
+            status="paid",
+            amount_cents=1000,
+            refund_amount_cents=None,
+        )
+        session.add_all([order, null_order])
+        session.commit()
+        order_id, null_order_id = order.id, null_order.id
+
+        first = admin_api._claim_refund_amount(session, order, seen_cents=0, add_cents=300)
+        session.commit()
+        session.expire_all()
+        check("S48 第一次抢单成功", first is True, f"rowcount 判定={first}")
+
+        second = admin_api._claim_refund_amount(session, order, seen_cents=0, add_cents=300)
+        session.commit()
+        session.expire_all()
+        check(
+            "S48 同一 seen_cents 的第二次抢单必须失败（CAS 生效，否则同一笔钱会被记两次）",
+            second is False,
+            f"rowcount 判定={second}",
+        )
+        check(
+            "S48 抢单失败时累计值保持不变（没被覆盖）",
+            int(session.get(Order, order_id).refund_amount_cents or 0) == 300,
+            str(session.get(Order, order_id).refund_amount_cents),
+        )
+        check(
+            "S48 基于新累计值可以继续抢单（部分退款可叠加）",
+            admin_api._claim_refund_amount(session, order, seen_cents=300, add_cents=200)
+            is True,
+        )
+        session.commit()
+        session.expire_all()
+        check(
+            "S48 累计值正确叠加",
+            int(session.get(Order, order_id).refund_amount_cents or 0) == 500,
+            str(session.get(Order, order_id).refund_amount_cents),
+        )
+
+        # 历史数据的 NULL：coalesce 兜住，否则老订单永远抢不到（NULL = 0 在 SQL 里不成立）
+        null_claim = admin_api._claim_refund_amount(
+            session, session.get(Order, null_order_id), seen_cents=0, add_cents=100
+        )
+        session.commit()
+        session.expire_all()
+        check(
+            "S48 refund_amount_cents 为 NULL 的历史订单也能抢单（coalesce 兜住）",
+            null_claim is True,
+            f"rowcount 判定={null_claim}",
+        )
+
+    # ---- 3) out_request_no 唯一约束（幂等键不能重复）---- #
+    from store.models import OrderRefund
+
+    unique_cols = {
+        tuple(sorted(column.name for column in constraint.columns))
+        for constraint in OrderRefund.__table__.constraints
+        if constraint.__class__.__name__ == "UniqueConstraint"
+    }
+    indexes = {
+        index.name for index in OrderRefund.__table__.indexes
+    }
+    check(
+        "S48 out_request_no 有唯一约束（支付宝以它为幂等键，重复即「退过但本地没记」）",
+        ("out_request_no",) in unique_cols or "out_request_no" in {
+            column.name
+            for index in OrderRefund.__table__.indexes
+            if index.unique
+            for column in index.columns
+        },
+        f"unique={sorted(unique_cols)} indexes={sorted(indexes)}",
+    )
+
+    # ---- 4) commit 必须在锁之内（挪出去就静默失效，见 docstring）---- #
+    tree = ast.parse(textwrap.dedent(getsource(admin_api.admin_refund)))
+    lock_body: list[ast.AST] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.With) and "_refund_lock" in ast.unparse(node.items[0].context_expr):
+            lock_body.extend(node.body)
+    commits_inside = [
+        node
+        for node in ast.walk(ast.Module(body=lock_body, type_ignores=[]))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "commit"
+    ]
+    check(
+        "S48 admin_refund 的 session.commit() 在 _refund_lock 之内"
+        "（挪到 teardown 后并发退款会各退一次，且无测试会失败）",
+        bool(commits_inside),
+        f"锁内 commit 数={len(commits_inside)}",
+    )
+
+    # ---- 5) 锁本身：同号互斥、异号不阻塞、用完即删 ---- #
+    inside = threading.Event()
+    release = threading.Event()
+    overlap: list[str] = []
+
+    def _holder():
+        with admin_api._refund_lock("SMOKE-LOCK-A"):
+            inside.set()
+            release.wait(10)
+
+    def _waiter(no: str):
+        inside.wait(10)
+        with admin_api._refund_lock(no):
+            overlap.append(no)
+
+    holder = threading.Thread(target=_holder, daemon=True)
+    same = threading.Thread(target=_waiter, args=("SMOKE-LOCK-A",), daemon=True)
+    other = threading.Thread(target=_waiter, args=("SMOKE-LOCK-B",), daemon=True)
+    holder.start()
+    same.start()
+    other.start()
+    time.sleep(0.2)
+    check(
+        "S48 同一订单号上第二个持有者被挡住（互斥生效）",
+        "SMOKE-LOCK-A" not in overlap,
+        f"overlap={overlap}",
+    )
+    check(
+        "S48 不同订单号互不阻塞（锁按订单号分片，不是一把全局锁）",
+        "SMOKE-LOCK-B" in overlap,
+        f"overlap={overlap}",
+    )
+    release.set()
+    holder.join(10)
+    same.join(10)
+    other.join(10)
+    check("S48 释放后等待者能拿到锁（不是死锁）", "SMOKE-LOCK-A" in overlap, f"overlap={overlap}")
+    check(
+        "S48 锁用完即从表里删除（引用计数归零，不长成内存泄漏）",
+        "SMOKE-LOCK-A" not in admin_api._refund_locks
+        and "SMOKE-LOCK-B" not in admin_api._refund_locks,
+        str(sorted(admin_api._refund_locks)),
+    )
+
+    engine.dispose()
+
+
 async def run() -> int:
     client_crypto = load_module("hb_client_crypto", CLIENT_CRYPTO_PATH)
 
@@ -5907,6 +6351,9 @@ async def run() -> int:
     check_pending_order_single_flight()
     check_order_no_unique_by_construction()
     check_p2_credential_and_path_hardening()
+    await check_blocking_endpoints_offloaded()
+    await check_smtp_send_wall_budget()
+    check_refund_serialization_guards()
     check_store_setup_authorization()
     # 第 2 批 High 的专项断言：日志写入放大、上传体积、配对码生命周期。
     check_global_log_write_amplification()

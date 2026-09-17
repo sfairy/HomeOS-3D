@@ -220,7 +220,9 @@ def _is_transient(error: BaseException) -> bool:
 
 
 @contextmanager
-def _connect_smtp(settings: StoreSettings) -> Iterator[smtplib.SMTP]:
+def _connect_smtp(
+    settings: StoreSettings, *, deadline: float | None = None
+) -> Iterator[smtplib.SMTP]:
     """建立到 SMTP 服务器的连接并完成 TLS / 登录握手，**不发送任何邮件**。
 
     抽成独立的一段，是为了让后台的「连接诊断」能复用**真正发信时的同一条**连接
@@ -230,8 +232,14 @@ def _connect_smtp(settings: StoreSettings) -> Iterator[smtplib.SMTP]:
 
     ``login`` 只在配了用户名时调用：部分内网 SMTP 允许匿名投递，
     强行带空用户名登录会得到一个与配置无关的认证失败。
+
+    ``deadline``（``time.monotonic()`` 时刻）用于把单次连接超时压进总预算内：
+    不压的话，一次卡死的连接就能把 ``MAX_SEND_WALL_SECONDS`` 整个突破，
+    总时限就只是装饰。
     """
     timeout = max(1, int(settings.smtp_timeout_seconds or 15))
+    if deadline is not None:
+        timeout = max(1, min(timeout, int(deadline - time.monotonic())))
     if settings.smtp_use_ssl:
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL(
@@ -253,17 +261,37 @@ def _connect_smtp(settings: StoreSettings) -> Iterator[smtplib.SMTP]:
 
 
 def _send_smtp_once(
-    settings: StoreSettings, *, message: EmailMessage, email: str
+    settings: StoreSettings, *, message: EmailMessage, email: str, deadline: float | None = None
 ) -> None:
     """一次投递尝试；失败时抛异常，由调用方决定是否重试。"""
-    with _connect_smtp(settings) as client:
+    with _connect_smtp(settings, deadline=deadline) as client:
         client.send_message(message)
+
+
+#: 一次发信的**总**墙钟预算（秒）。
+#:
+#: 为什么必须有这个上限：单次连接超时（``smtp_timeout_seconds``，默认 15s）乘以
+#: 重试次数（``smtp_max_attempts``），再加上线性退避，最坏情况能到 ~50 秒。
+#: 而发信走的是**同步端点**（见 S24），全程占着一个线程池工作线程不放。
+#: ``/store/v1/verifications`` 又是匿名可达的，并发刷几十次就能把线程池占满，
+#: 于是整个商店前端（端点几乎全是同步 ``def``）一起失去响应。
+#:
+#: 靠配置项约束不住这件事：三个旋钮（超时/次数/退避）单独看每个取值都「合理」，
+#: 乘起来才是灾难。所以这里放一条**安全上限**而不是又一个可调策略 ——
+#: 调大它只会让线程被占更久，没有场景需要更久。
+#: 代价是极端网络下可能少重试一两次；但验证码本来就是「没收到就再点一次」，
+#: 让用户干等 50 秒是更糟的体验。
+MAX_SEND_WALL_SECONDS = 20.0
 
 
 def _send_smtp(
     settings: StoreSettings, *, email: str, subject: str, plain: str, rich: str
 ) -> tuple[bool, int, str]:
-    """带重试的投递，返回 ``(是否成功, 尝试次数, 错误文本)``。"""
+    """带重试的投递，返回 ``(是否成功, 尝试次数, 错误文本)``。
+
+    整段受 ``MAX_SEND_WALL_SECONDS`` 约束：预算耗尽就立刻放弃并如实返回
+    **实际**尝试次数，绝不为了一次重试把线程再占 15 秒。
+    """
     message = _build_message(
         mail_from=settings.mail_from,
         email=email,
@@ -274,10 +302,18 @@ def _send_smtp(
     max_attempts = max(1, int(settings.smtp_max_attempts or 1))
     backoff = max(0.0, float(settings.smtp_retry_backoff_seconds or 0.0))
     last_error = ""
+    deadline = time.monotonic() + MAX_SEND_WALL_SECONDS
+    tries = 0
 
     for attempt in range(1, max_attempts + 1):
+        if time.monotonic() >= deadline:
+            logger.warning(
+                "SMTP 投递已超出总时限 %.0fs，放弃剩余重试 收件人=%s", MAX_SEND_WALL_SECONDS, email
+            )
+            break
+        tries = attempt
         try:
-            _send_smtp_once(settings, message=message, email=email)
+            _send_smtp_once(settings, message=message, email=email, deadline=deadline)
         except Exception as error:  # noqa: BLE001 - 需要覆盖 smtplib 与 socket 的全部异常
             last_error = f"{error.__class__.__name__}: {error}"[:250]
             logger.warning(
@@ -289,15 +325,22 @@ def _send_smtp(
             )
             if attempt >= max_attempts or not _is_transient(error):
                 break
-            # 线性退避：重试之间给对端一点恢复时间，避免被当成轰炸
+            # 线性退避：重试之间给对端一点恢复时间，避免被当成轰炸。
+            # 但不能睡过总预算 —— 睡过去等于白白占着线程。
             if backoff:
-                time.sleep(backoff * attempt)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                time.sleep(min(backoff * attempt, remaining))
             continue
         if attempt > 1:
             logger.info("SMTP 第 %d 次尝试成功，收件人=%s", attempt, email)
         return True, attempt, ""
 
-    return False, max_attempts, last_error
+    if not last_error:
+        # 一次都没发出去、也不是被异常打断：只可能是进循环时预算就已耗尽
+        last_error = f"SMTP 总时限（{MAX_SEND_WALL_SECONDS:.0f}s）内未能完成投递"
+    return False, max(1, tries), last_error
 
 
 def send_verification_email(

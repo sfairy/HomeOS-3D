@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import html
 import logging
+from urllib.parse import parse_qsl
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Body, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from sqlalchemy import select
 
@@ -62,20 +63,40 @@ def _alipay_provider(request: Request, session=None):
 
 
 @router.post(NOTIFY_PATH, include_in_schema=False)
-async def alipay_notify(request: Request, session: DbSession) -> PlainTextResponse:
+def alipay_notify(
+    request: Request, session: DbSession, body: bytes = Body(b"")
+) -> PlainTextResponse:
+    """支付宝异步通知（同步端点，跑在线程池里）。
+
+    刻意写成同步 ``def`` 而不是 ``async def``：这个端点的每一步都是同步阻塞的 ——
+    验签是 RSA 运算，后面还要开 SQLite 会话并写入订单。而它是**匿名可达**的，
+    支付宝自己也会在失败时不断重推（实测重推节奏很密）。放在事件循环上跑，
+    攻击者只要持续 POST 就能把整个服务卡住（SQLite 写锁争用下 ``busy_timeout``
+    会阻塞到 5 秒）。FastAPI 会把同步端点丢进线程池，阻塞只影响这一个请求。
+
+    请求体自己按 ``application/x-www-form-urlencoded`` 解析：原来用
+    ``await request.form()``，而同步端点不能 await。这没有放宽什么 ——
+    真正的闸门是下面的 ``verify_notification`` 验签，格式不对的一样过不了。
+    """
     settings = request.app.state.settings
     provider = _alipay_provider(request, session)
     if provider is None:
         logger.warning("收到支付宝异步通知，但当前支付渠道不是支付宝，已忽略")
         return PlainTextResponse("failure")
 
+    # 支付宝的通知固定是 urlencoded；其它形态直接拒掉，不去猜。
+    content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
+    if content_type != "application/x-www-form-urlencoded":
+        logger.error("支付宝异步通知的 Content-Type 不是表单：%s", content_type or "(空)")
+        return PlainTextResponse("failure")
+
     try:
-        form = await request.form()
-    except Exception:  # noqa: BLE001 - 请求体异常不应抛出 500，否则支付宝会重推到天亮
+        pairs = parse_qsl(body.decode("utf-8"), keep_blank_values=True)
+    except (UnicodeDecodeError, ValueError):  # pragma: no cover - 畸形字节
         logger.error("支付宝异步通知解析失败")
         return PlainTextResponse("failure")
 
-    form_fields = {str(key): str(value) for key, value in form.items()}
+    form_fields = {str(key): str(value) for key, value in pairs}
 
     if not provider.is_configured(settings):
         logger.error("收到支付宝异步通知，但收款凭据未配置，无法验签")
