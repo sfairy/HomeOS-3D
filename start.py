@@ -112,6 +112,14 @@ def main() -> None:
     # PYTHONHOME 会覆盖 venv 的 site-packages 搜索路径，导致子进程去系统
     # Python 目录找包而非 venv。start.py 用的是 venv 的 python，必须清掉它。
     base_environment.pop('PYTHONHOME', None)
+    # httpx / requests / urllib 会自动读 HTTP_PROXY / HTTPS_PROXY / ALL_PROXY /
+    # SOCKS_PROXY / NO_PROXY 等环境变量；开发机如果挂了代理，主应用连商店就会
+    # 走代理（甚至被 SOCKS 代理拖崩），两者本应是 localhost 直连。
+    for proxy_key in (
+        'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'SOCKS_PROXY',
+        'http_proxy', 'https_proxy', 'all_proxy', 'socks_proxy',
+    ):
+        base_environment.pop(proxy_key, None)
 
     app_environment = base_environment.copy()
     app_environment['APP_DATA_DIR'] = str(ROOT / 'data')
