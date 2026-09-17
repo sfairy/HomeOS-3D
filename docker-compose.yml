@@ -1,8 +1,9 @@
 # HomeOS 自托管部署（双容器：主应用 + 授权商店）
 #
 # 用法：
-#   cp .env.example .env   # 填写 A 区与首次 STORE_ADMIN_*
+#   cp .env.example .env   # 按需填写 A 区（域名 / 反代）
 #   docker compose up -d
+#   # 首次部署后，在浏览器打开 http://<商店地址>/setup 设置管理员
 #
 # 本地构建：
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
@@ -24,9 +25,7 @@ services:
       STORE_COOKIE_SECURE: ${STORE_COOKIE_SECURE:-false}
       STORE_TRUSTED_PROXIES: ${STORE_TRUSTED_PROXIES:-}
       STORE_ALLOW_MOCK_PAYMENTS: ${STORE_ALLOW_MOCK_PAYMENTS:-0}
-      # 首次启动用于 seed；之后可从 .env 去掉，改密码请走后台
-      STORE_ADMIN_EMAIL: ${STORE_ADMIN_EMAIL:-}
-      STORE_ADMIN_PASSWORD: ${STORE_ADMIN_PASSWORD:-}
+      # 管理员首次部署请通过浏览器 /setup 页面设置（不支持环境变量 seed）
     volumes:
       - homeos-3d-store-data:/data
       - homeos-3d-license-keys:/data/license-keys
