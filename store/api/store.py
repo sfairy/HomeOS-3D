@@ -963,6 +963,8 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
                     session.flush()
 
     token = _create_session(session, request, account)
+    # 显式 commit —— 同 login handler 的原因
+    session.commit()
     state = _account_license_state(session, account)
     body = account_state_payload(
         account,
@@ -1085,6 +1087,10 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
     password_gate.record_attempt(session, account_scope, succeeded=True)
 
     token = _create_session(session, request, account)
+    # 显式 commit —— 依赖里的 context manager 会在 response **发送完毕后**才 commit，
+    # Set-Cookie 里的 token 在 commit 前查不到。浏览器拿到 200 后立刻发 /auth/me，
+    # 就会撞进「上一个请求还没 commit」的窗口。
+    session.commit()
     permanent, temporary = _account_license_state(session, account)
     response = JSONResponse(
         account_state_payload(
@@ -1168,7 +1174,7 @@ def change_password(
         if record.id_hash != current:
             session.delete(record)
 
-    session.flush()
+    session.commit()
     logger.info("密码已修改 account=%s", account.id)
     return {"success": True}
 
@@ -1189,7 +1195,7 @@ def reset_password(payload: PasswordResetRequest, request: Request, session: DbS
         select(AccountSession).where(AccountSession.account_id == account.id)
     ):
         session.delete(record)
-    session.flush()
+    session.commit()
     return {"email": email, "reset": True}
 
 
@@ -1287,7 +1293,7 @@ def change_account_email(
         if record.id_hash != current:
             session.delete(record)
 
-    session.flush()
+    session.commit()
     logger.info("账号邮箱变更 account=%s %s -> %s", account.id, previous, email)
     return {"email": email, "previousEmail": previous, "verified": True}
 
