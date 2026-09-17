@@ -30,6 +30,7 @@ from store.payments.sweeper import (
     sweep_round,
     sweep_status,
 )
+from store.bootstrap import ensure_default_products, ensure_default_settings
 from store.release_info import CURRENT_VERSION, ensure_current_release
 from store.request_security import (
     forwarded_headers_present,
@@ -132,6 +133,10 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     # 缺了它客户端就没有可升级的目标版本。
     with database.session() as session:
         released = ensure_current_release(session)
+        # 商品目录、站点配置——首次部署就该就位的默认数据，
+        # 幂等补齐，不覆盖运营在后台改过的字段。
+        ensure_default_settings(session)
+        ensure_default_products(session)
     if released:
         logger.info("已补写 %s 渠道 %s 发布记录。", "docker", CURRENT_VERSION)
 

@@ -20,11 +20,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from store.app import create_app
+from store.bootstrap import ensure_default_products, ensure_default_settings
 from store.config import load_settings
 from store.release_info import ensure_current_release
-from store.models import Account, Product, ProductImage, Release, StoreSetting
+from store.models import Account
 from store.security import hash_password, utcnow
-from store.serializers import list_json
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)-7s %(message)s")
 logger = logging.getLogger("store.seed")
@@ -40,21 +40,6 @@ MISSING_ADMIN_CREDENTIALS = (
     "      若库里已经有管理员账号，可以不带凭据重复执行本命令（只补商品与站点配置）。"
 )
 
-#: 与参考站 pay.habridge.cn 实测完全一致的功能码清单
-BASE_PRODUCT_FEATURES = [
-    "api",
-    "assets",
-    "display",
-    "editor",
-    "ha.configure",
-    "ha.control",
-    "ha.sync",
-    "projects.write",
-    "runtime.websocket",
-]
-MODULE_3D_FEATURES = ["module.3d_interaction"]
-
-
 def seed_admin(session: Session, email: str, password: str) -> Account:
     account = session.scalars(
         select(Account).where(func.lower(Account.email) == email.lower())
@@ -62,9 +47,6 @@ def seed_admin(session: Session, email: str, password: str) -> Account:
     if account is not None:
         if not account.is_admin:
             account.is_admin = True
-        # 管理员是运营在服务端直接建出来的，邮箱归属早已确定：留空会让这个账号
-        # 被 ``_require_verified`` 挡在「看订单 / 下单」之外，而它自己又没有任何
-        # 触发验证码的入口（注册走不到、后台建号也不发码）。
         if account.email_verified_at is None:
             account.email_verified_at = utcnow()
         session.flush()
@@ -75,99 +57,12 @@ def seed_admin(session: Session, email: str, password: str) -> Account:
         password_hash=hash_password(password),
         is_admin=True,
         is_active=True,
-        # 同上：服务端建号即视为已验证，否则新装出来的管理员一步都走不动
         email_verified_at=utcnow(),
     )
     session.add(account)
     session.flush()
     logger.info("已创建管理员：%s", email)
     return account
-
-
-def seed_products(session: Session) -> dict[str, Product]:
-    """写入三条与参考站对齐的商品。返回 {'base','module','package': Product}。"""
-    existing = {product.product_type: product for product in session.scalars(select(Product))}
-    if {"base", "module", "package"}.issubset(existing.keys()):
-        logger.info("商品目录已存在，跳过。")
-        return existing
-
-    base = existing.get("base")
-    if base is None:
-        base = Product(
-            name="编辑器+绘制工具",
-            product_code="homeos",
-            price_cents=4990,
-            validity_days=None,
-            product_type="base",
-            feature_codes_json=list_json(BASE_PRODUCT_FEATURES),
-            included_product_ids_json=list_json([]),
-            active=True,
-            display_description="如需3D交互可后续再账号中心升级",
-            sort_order=100,
-            fulfillment_mode="automatic",
-        )
-        session.add(base)
-        session.flush()
-
-    module = existing.get("module")
-    if module is None:
-        module = Product(
-            name="3D交互包",
-            product_code="homeos",
-            price_cents=3990,
-            validity_days=None,
-            product_type="module",
-            feature_codes_json=list_json(MODULE_3D_FEATURES),
-            included_product_ids_json=list_json([]),
-            active=True,
-            sort_order=100,
-            fulfillment_mode="automatic",
-            requires_license=True,
-        )
-        session.add(module)
-        session.flush()
-
-    package = existing.get("package")
-    if package is None:
-        package = Product(
-            name="编辑器+绘制工具+3D交互",
-            product_code="homeos",
-            price_cents=7990,
-            validity_days=None,
-            product_type="package",
-            feature_codes_json=list_json(BASE_PRODUCT_FEATURES + MODULE_3D_FEATURES),
-            included_product_ids_json=list_json([module.id]),
-            active=True,
-            sort_order=100,
-            fulfillment_mode="automatic",
-        )
-        session.add(package)
-        session.flush()
-
-    logger.info(
-        "已写入商品：%s / %s / %s", base.name, module.name, package.name
-    )
-    return {"base": base, "module": module, "package": package}
-
-
-def seed_release(session: Session) -> None:
-    """写入当前版本的发布记录。
-
-    记录内容（版本号、日期、升级说明）统一由 ``store.release_info`` 维护，
-    这里只负责在初始化脚本里触发一次，避免同一个版本号写两处、seed 与启动
-    时的兜底补写各说各话。
-    """
-    ensure_current_release(session)
-
-
-def seed_settings(session: Session) -> StoreSetting:
-    setting = session.get(StoreSetting, 1)
-    if setting is None:
-        setting = StoreSetting(id=1)
-        session.add(setting)
-        session.flush()
-        logger.info("已写入站点默认配置。")
-    return setting
 
 
 def existing_admin(session: Session) -> Account | None:
@@ -192,11 +87,11 @@ def main() -> None:
     with app.state.database.session() as session:
         admin = existing_admin(session)
         if not has_credentials and admin is None:
-            # 库在、但没有任何管理员：仍然拒绝建号。这里不能有「新建库就放宽」的
-            # 分支，否则一次误删账号文件就能把实例变回「无主」状态。
             raise SystemExit(MISSING_ADMIN_CREDENTIALS)
 
-        seed_settings(session)
+        ensure_default_settings(session)
+        ensure_default_products(session)
+        ensure_current_release(session)
         if has_credentials:
             admin = seed_admin(session, admin_email, admin_password)
         else:
@@ -205,8 +100,6 @@ def main() -> None:
                 "跳过管理员初始化（只补商品与站点配置）。",
                 admin.email,
             )
-        seed_products(session)
-        seed_release(session)
 
     print()
     print("初始化完成。")
