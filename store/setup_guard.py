@@ -170,6 +170,21 @@ class SetupGuard:
         except OSError:
             pass
 
+    def has_setup_privilege(self, request: Request, setup_token: str = "") -> bool:
+        """本次请求是否有资格初始化（只判断，不抛错、不消耗限流配额）。
+
+        判据与 :meth:`authorize` 完全一致：本机直连，或带了正确的引导密钥。
+        刻意让两者共用这一份实现，而不是各写一套 —— 两套判据一旦漂移，结果就是
+        「状态页说可以初始化，真点下去却 403」。
+
+        ``/setup/status`` 用它决定「能不能如实回答尚未初始化」（审计 S17）。
+        """
+        if is_direct_local(request):
+            return True
+        supplied = (setup_token or request.headers.get("x-setup-token") or "").strip()
+        # 常量时间比对：密钥是定长随机串，用 != 会泄漏前缀匹配长度。
+        return bool(self._token and supplied and secrets.compare_digest(supplied, self._token))
+
     def authorize(self, request: Request, setup_token: str = "") -> None:
         """校验本次初始化请求；无权限抛 403，超限抛 429。
 
@@ -188,12 +203,7 @@ class SetupGuard:
                 headers={"Retry-After": str(retry_after)},
             )
 
-        if is_direct_local(request):
-            return
-
-        supplied = (setup_token or request.headers.get("x-setup-token") or "").strip()
-        # 常量时间比对：密钥是定长随机串，用 != 会泄漏前缀匹配长度。
-        if self._token and supplied and secrets.compare_digest(supplied, self._token):
+        if self.has_setup_privilege(request, setup_token):
             return
 
         logger.warning(

@@ -9,11 +9,34 @@
   var redirectBox = document.getElementById('setup-redirect');
   var pageBox = document.getElementById('setup-page');
 
-  // 页面加载时检查是否已有管理员
-  fetch('/store/v1/setup/status', { method: 'GET' })
+  // 引导密钥可以从 URL 片段带进来（``#token=xxx``）。刻意用片段而不是查询串：
+  // 片段不会被发到服务器、不会进访问日志与 Referer。远程首次部署时运营从容器日志
+  // 里抄到密钥，直接以 ``/store-setup#token=xxx`` 打开本页即可，不必先看到表单。
+  function tokenFromFragment() {
+    var m = /(?:^|[#&])token=([^&]+)/.exec(location.hash || '');
+    if (!m) return '';
+    try { return decodeURIComponent(m[1]).trim(); } catch (e) { return ''; }
+  }
+
+  var fragmentToken = tokenFromFragment();
+  if (fragmentToken) {
+    var tokenInput = document.getElementById('setup-token');
+    if (tokenInput && !tokenInput.value) tokenInput.value = fragmentToken;
+  }
+
+  // 页面加载时检查是否已有管理员。
+  //
+  // S17：``/store/v1/setup/status`` 对**无权限**的调用方恒回 ``{initialized:true}``
+  // （否则它就成了一条免费探针：``false`` = 「这家店还没管理员，来抢」）。
+  // 因此这里只在「确实带了引导密钥」时才把 ``initialized`` 当定论并跳去登录；
+  // 拿不到权限时照常显示表单，由提交结果（403 无权限 / 409 已初始化）给出确定答案。
+  fetch('/store/v1/setup/status', {
+    method: 'GET',
+    headers: fragmentToken ? { 'X-Setup-Token': fragmentToken } : {},
+  })
     .then(function (r) { return r.json(); })
     .then(function (data) {
-      if (data && data.initialized) {
+      if (data && data.initialized && fragmentToken) {
         pageBox.hidden = true;
         redirectBox.hidden = false;
         setTimeout(function () { location.href = '/admin'; }, 1500);
@@ -86,6 +109,15 @@
       .then(function (result) {
         if (result.status === 201) {
           location.href = '/admin';
+          return;
+        }
+        // 409 = 库里已经有管理员了。这是 S17 之后**无权限**调用方唯一能确定
+        // 「其实已经初始化过」的途径（``/status`` 对他们恒回 true），所以这里
+        // 直接把他送回登录页，而不是抛一句看不懂的报错。
+        if (result.status === 409) {
+          pageBox.hidden = true;
+          redirectBox.hidden = false;
+          setTimeout(function () { location.href = '/admin'; }, 1500);
           return;
         }
         var detail = (result.body && result.body.detail) || '初始化失败，请重试。';

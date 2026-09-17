@@ -59,9 +59,26 @@ def admin_exists(session) -> bool:
 
 
 @router.get("/status", include_in_schema=False)
-def setup_status(session: DbSession) -> dict:
-    """检查是否需要初始化管理员。"""
-    return {"initialized": admin_exists(session)}
+def setup_status(request: Request, session: DbSession) -> dict:
+    """检查是否需要初始化管理员。
+
+    **S17**：这个接口过去对任何人如实回答「初始化了没有」，等于免费提供了一个探针 ——
+    ``false`` 就是在对全网宣告「这家店还没有管理员，来抢」。而它唯一的正当用途
+    （首次设置页决定要不要显示表单）只对**本来就有资格初始化**的调用方有意义。
+
+    所以现在只对这类调用方（本机直连，或带了正确的 ``X-Setup-Token``）回答真相，
+    其余一律回 ``true``。回 ``true`` 而不是 ``false`` 是刻意的：前端拿到 ``true``
+    会退到登录入口，这是安全默认，且两种真实状态下回答完全相同，不泄漏任何信息。
+
+    代价：**未初始化**的远程部署必须带上引导密钥才能看到设置表单 —— 但那本来就是
+    ``setup_admin`` 的要求（见 ``SetupGuard.authorize``），并没有新增门槛。
+    """
+    if admin_exists(session):
+        return {"initialized": True}
+    guard = request.app.state.setup_guard
+    if guard.has_setup_privilege(request):
+        return {"initialized": False}
+    return {"initialized": True}
 
 
 @router.post("/admin", status_code=status.HTTP_201_CREATED)

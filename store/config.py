@@ -147,6 +147,10 @@ class StoreSettings:
     verification_cooldown_seconds: int = DEFAULT_VERIFICATION_COOLDOWN_SECONDS
     #: 仅当 mail_mode=echo 时，接口才回显验证码明文（本地联调用）
     expose_verification_code: bool = False
+    #: 是否公开 ``/store-api-docs``（S26）。默认**关闭**：那两个页面会把全部商店与
+    #: 后台端点、参数结构、鉴权方式一次性列给任何人 —— 等于给攻击者一份现成的目录。
+    #: 本地联调时用 STORE_EXPOSE_API_DOCS=1 打开。
+    expose_api_docs: bool = False
 
     # 支付
     #: 空串表示「尚未配置渠道」。**绝不能默认 mock**：模拟收银台点一下按钮就把订单
@@ -301,6 +305,7 @@ def load_settings(**overrides) -> StoreSettings:
         "verification_ttl_seconds": _env_int("STORE_VERIFICATION_TTL_SECONDS", DEFAULT_VERIFICATION_TTL_SECONDS),
         "verification_cooldown_seconds": _env_int("STORE_VERIFICATION_COOLDOWN_SECONDS", DEFAULT_VERIFICATION_COOLDOWN_SECONDS),
         "expose_verification_code": _env_bool("STORE_EXPOSE_VERIFICATION_CODE"),
+        "expose_api_docs": _env_bool("STORE_EXPOSE_API_DOCS"),
         "payment_provider": (_env_str("STORE_PAYMENT_PROVIDER", "") or "").lower(),
         "allow_mock_payments": _env_bool("STORE_ALLOW_MOCK_PAYMENTS"),
         "alipay_app_id": _env_str("STORE_ALIPAY_APP_ID"),

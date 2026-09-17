@@ -6308,6 +6308,132 @@ def check_refund_serialization_guards() -> None:
     engine.dispose()
 
 
+def check_anonymous_surface_disclosure() -> None:
+    """匿名可达面不能变成探针或端点目录（审计 S17、S26）。
+
+    两条都是「不需要认证的信息泄漏」，但泄漏的东西不同：
+
+    * **S26** ``/store-api-docs`` 会把全部商店与后台端点、参数结构、鉴权方式一次性
+      列出来（含 ``/v2/*`` 授权协议）。这是攻击者做侦察最省事的一份清单。
+    * **S17** ``/store/v1/setup/status`` 如实回答「初始化了没有」—— ``false`` 就是
+      在对全网宣告「这家店还没有管理员，来抢」，正好替 S1 那条抢注路径指路。
+
+    这里钉住的关键性质不是「某个接口回什么」，而是：**没有权限的调用方，在两种真实
+    状态下拿到的回答必须逐字节相同**。否则哪怕它回的是常量，只要那个常量随真实状态
+    变化，接口就还是探针。
+    """
+    from starlette.testclient import TestClient
+
+    # 带转发头 = 非本机直连（``is_direct_local`` 见转发头即判否）
+    remote = {"x-forwarded-for": "203.0.113.9"}
+
+    def build(**overrides):
+        workdir = Path(tempfile.mkdtemp(prefix="hb-store-anon-"))
+        settings = load_settings(
+            data_dir=workdir / "data",
+            license_keys_dir=workdir / "keys",
+            mail_mode="echo",
+            payment_provider="mock",
+            **overrides,
+        )
+        return create_app(settings)
+
+    # ---- S26：文档默认关闭，显式开启才可用 ---- #
+    app = build()
+    with TestClient(app) as client:
+        docs = client.get("/store-api-docs")
+        schema = client.get("/store-api-docs/openapi.json")
+    check(
+        "S26 默认不公开 API 文档页（否则等于给攻击者一份现成的端点目录）",
+        docs.status_code == 404,
+        str(docs.status_code),
+    )
+    check(
+        "S26 默认不公开 openapi.json（文档页关了，schema 也必须一起关）",
+        schema.status_code == 404,
+        str(schema.status_code),
+    )
+
+    app = build(expose_api_docs=True)
+    with TestClient(app) as client:
+        docs = client.get("/store-api-docs")
+        schema = client.get("/store-api-docs/openapi.json")
+    check(
+        "S26 显式打开 STORE_EXPOSE_API_DOCS 后两个都可用（本地联调不受影响）",
+        docs.status_code == 200 and schema.status_code == 200,
+        f"{docs.status_code}/{schema.status_code}",
+    )
+
+    # ---- S17：未初始化这个状态不能泄漏给无权限者 ---- #
+    app = build()
+    with TestClient(app) as client:
+        token = app.state.setup_guard.token
+        check(
+            "S17 未初始化实例启动时会生成引导密钥（否则远程首次设置无从进行）",
+            bool(token),
+            repr(bool(token)),
+        )
+        before_unprivileged = client.get("/store/v1/setup/status", headers=remote)
+        wrong_key = client.get(
+            "/store/v1/setup/status", headers={**remote, "x-setup-token": "definitely-wrong"}
+        )
+        with_key = client.get(
+            "/store/v1/setup/status", headers={**remote, "x-setup-token": token}
+        )
+        local = client.get("/store/v1/setup/status")
+
+        check(
+            "S17 无权限调用方拿不到「尚未初始化」这个信号",
+            before_unprivileged.json() == {"initialized": True},
+            str(before_unprivileged.json()),
+        )
+        check(
+            "S17 密钥错误时同样不泄漏（错误密钥与没带密钥回答一致）",
+            wrong_key.json() == before_unprivileged.json(),
+            f"{wrong_key.json()} vs {before_unprivileged.json()}",
+        )
+        check(
+            "S17 带对引导密钥的调用方能拿到真相（远程首次设置页要能用）",
+            with_key.json() == {"initialized": False},
+            str(with_key.json()),
+        )
+        check(
+            "S17 本机直连能看到真相（本地首次设置不受影响）",
+            local.json() == {"initialized": False},
+            str(local.json()),
+        )
+
+        # 现在把库置成「已初始化」，再问一次无权限的那个问题
+        with app.state.database.session() as session:
+            session.add(
+                Account(
+                    email="anon-admin@habridge.local",
+                    password_hash=hash_password("anon-admin-pw"),
+                    email_verified_at=utcnow(),
+                    is_admin=True,
+                )
+            )
+        after_unprivileged = client.get("/store/v1/setup/status", headers=remote)
+
+    check(
+        "S17 关键性质：无权限调用方在「未初始化」与「已初始化」下拿到完全相同的回答"
+        "（否则接口本身又成了一个探针）",
+        after_unprivileged.json() == before_unprivileged.json(),
+        f"之前={before_unprivileged.json()} 之后={after_unprivileged.json()}",
+    )
+
+    # 无权限者也不该通过「提交初始化」反推出状态码差异带来的信息 —— 409 那次
+    # 是既有 S1 行为，这里只确认它没被本次改动破坏。
+    app = build()
+    with TestClient(app) as client:
+        recheck = client.get("/store/v1/setup/status", headers=remote)
+    check(
+        "S17 全新的另一个实例上，无权限回答仍与已初始化实例一致（换实例也探不出）",
+        recheck.json() == after_unprivileged.json(),
+        f"{recheck.json()} vs {after_unprivileged.json()}",
+    )
+
+
 async def run() -> int:
     client_crypto = load_module("hb_client_crypto", CLIENT_CRYPTO_PATH)
 
@@ -6354,6 +6480,7 @@ async def run() -> int:
     await check_blocking_endpoints_offloaded()
     await check_smtp_send_wall_budget()
     check_refund_serialization_guards()
+    check_anonymous_surface_disclosure()
     check_store_setup_authorization()
     # 第 2 批 High 的专项断言：日志写入放大、上传体积、配对码生命周期。
     check_global_log_write_amplification()

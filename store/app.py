@@ -217,12 +217,16 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 await sweep_task
             database.dispose()
 
+    #: S26：文档页默认关闭。它会把全部商店与后台端点、参数结构、鉴权方式一次性
+    #: 列给任何人 —— 等于给攻击者一份现成的端点目录（含 ``/v2/*`` 授权协议）。
+    #: 关掉的方式是把 ``docs_url``/``openapi_url`` 置 None（FastAPI 的开关就是 None）。
+    _docs_enabled = bool(settings.expose_api_docs)
     app = FastAPI(
         title="HomeOS 授权商店与授权服务器",
         version=__version__,
-        docs_url="/store-api-docs",
+        docs_url="/store-api-docs" if _docs_enabled else None,
         redoc_url=None,
-        openapi_url="/store-api-docs/openapi.json",
+        openapi_url="/store-api-docs/openapi.json" if _docs_enabled else None,
         lifespan=lifespan,
     )
 
