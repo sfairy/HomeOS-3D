@@ -701,6 +701,7 @@ node tools/bump_static_cache_versions.mjs
 - HA 换址的令牌复用确认（M5）：改 `baseUrl` 但不重输令牌时返回 409 `HA_URL_CHANGED_TOKEN_REUSE`，需显式 `reuseTokenForNewUrl: true`；云元数据地址（`169.254.169.254`，含 IPv4 映射写法）在 `/api/v1/ha/test` 直接拒绝。
 - 商店商品字段取值收敛（`store/catalog.py`）：`product_type` / `fulfillment_mode` 此前完全没有校验，拼错一个字母会让「手工发卡」静默变成自动发卡、或让增量包被当成基础授权买走；现由服务端唯一来源校验，并与后台两个 `<select>` 对齐。
 - 商店订单：`cancelled` / `expired` / `refunded` 的终态订单不能再被标记支付或履约；「超时关闭后款项才到账」的复活单打上 `needs_review`，后台新增 `POST /store-admin/v1/orders/{order_no}/review` 标记已处理，结论追加进 `review_note` 而不覆盖原原因。
+- 商店营收口径：后台「标记支付」只放行订单、**不再计入营收**（新增 `orders.manual_settlement`，存量库自动补列且历史数字不变）；人工确认钱已收到走新的 `POST /store-admin/v1/orders/{order_no}/settle-offline`，渠道随后确认收款会自动清掉标记。概览营收卡单列「人工补记」金额，订单列表带芯片标注 —— 详见 [store/README.md](store/README.md) 的「人工补记与营收口径」。
 
 清理
 

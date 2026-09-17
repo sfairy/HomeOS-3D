@@ -67,7 +67,15 @@ def settle_paid_order(
     original_status = order.status
     moment = utcnow()
 
-    values: dict[str, object] = {"status": "paid", "paid_at": order.paid_at or moment}
+    values: dict[str, object] = {
+        "status": "paid",
+        "paid_at": order.paid_at or moment,
+        # 走到这里就是**渠道**说钱收到了（异步通知 / 主动查单 / 同步跳转），这是这个
+        # 系统里最强的证据。因此顺手清掉人工补记标记（S8）：先被人工补记放行、钱随后
+        # 真的到账的订单，从这里起就计入营收 —— 否则「补记过」会永久把真实收入挡在
+        # KPI 之外，而运营没有任何办法把它加回来。
+        "manual_settlement": False,
+    }
     if trade_no:
         values["payment_trade_no"] = trade_no
 

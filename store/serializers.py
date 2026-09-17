@@ -325,6 +325,9 @@ def order_payload(order: Order) -> dict:
         "refundTradeNo": order.refund_trade_no,
         "needsReview": bool(order.needs_review),
         "reviewNote": order.review_note or "",
+        #: 这笔订单的「已支付」是人工补记的（S8）：照常发码，但**不计入营收**。
+        #: 后台必须能看见它，否则「营收比订单少」就成了一处没有解释的偏差。
+        "manualSettlement": bool(order.manual_settlement),
         #: 这一单是否改过一张**已有**授权（升级 / 增量包履约前留下的快照非空）。
         #: 后台「删除订单」的守卫之一：前端必须用同一口径，否则会出现「按钮能点但
         #: 后端 409」的错位。注意与 ``targetLicenseId`` 的区别——后者在下单时就写入，

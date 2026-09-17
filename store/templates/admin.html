@@ -2699,14 +2699,20 @@ async function loadOverview() {
   // —— 营收 ——
   // 钱一律用琥珀（运营域的域色）：这一屏里「金额」和「件数」长得一样，
   // 靠色相把「这几个数字讲的是钱」立起来。
+  // 「人工补记」单独写进注脚（S8）：营收把人工补记（未收到钱就放行的单）排除在外，
+  // 这个差额必须摆在数字旁边 —— 否则运营看到「订单不少、营收偏低」只能靠猜。
+  const manualNote = revenue.totalManualCents
+    ? ` · 人工补记 ${money(revenue.totalManualCents)} 不计营收`
+    : '';
   const windowCards = (revenue.windows || []).map(bucket => [
     REVENUE_WINDOW_LABELS[bucket.key] || bucket.key,
     money(bucket.netCents),
-    `${bucket.paidOrders} 单付款`,
+    `${bucket.paidOrders} 单付款`
+      + (bucket.manualOrders ? ` · 人工补记 ${bucket.manualOrders} 单不计营收` : ''),
     'is-tone-amber',
   ]);
   $('#overview-revenue').innerHTML = [
-    ['净营收（累计）', money(revenue.totalCents), `收款 ${money(revenue.totalGrossCents)} · 退款 ${money(revenue.totalRefundCents)}`, 'is-tone-amber'],
+    ['净营收（累计）', money(revenue.totalCents), `收款 ${money(revenue.totalGrossCents)} · 退款 ${money(revenue.totalRefundCents)}${manualNote}`, 'is-tone-amber'],
     ...windowCards,
   ].map(([label, value, note, tone]) =>
     `<div class="stat ${tone}"><span class="stat__label">${esc(label)}</span>` +
@@ -3364,6 +3370,11 @@ async function loadOrders() {
       : canFulfill
         ? `<button class="hb-button hb-button--secondary hb-button--sm" data-order-fulfill="${esc(order.orderNo)}">履约</button>`
         : '';
+    // 人工补记的标记（S8）：这类订单的「已支付」是人写的、钱还没确认收到，因此
+    // **不计入营收**。必须在列表上看得见，否则运营会拿订单数去对营收，越对越糊涂。
+    const manualBadge = order.manualSettlement
+      ? ' <span class="hb-meta-chip hb-meta-chip--warning" title="人工补记：钱未经渠道确认，不计入营收">人工补记</span>'
+      : '';
     return `
     <tr>
       <td class="mono">${cell(order.orderNo)}</td>
@@ -3371,13 +3382,17 @@ async function loadOrders() {
       <td>${cell(order.productName)}</td>
       <td class="nowrap">${esc(ORDER_TYPE[order.orderType] || order.orderType)} · ${esc(LICENSE_ACTION[order.licenseAction] || order.licenseAction)}</td>
       <td class="nowrap">${money(order.amountCents)}</td>
-      <td class="nowrap">${statusBadge(order.status)}</td>
+      <td class="nowrap">${statusBadge(order.status)}${manualBadge}</td>
       <td class="nowrap">${dt(order.createdAt)}</td>
       <td class="nowrap">${actions(
         primary,
         rowMenu('更多操作',
           canFulfill && primaryPaid
             ? menuItem('履约', `data-order-fulfill="${esc(order.orderNo)}"`) : '',
+          // 人工补记（不计营收）与线下收款入账（计营收）分成两个入口：一个布尔参数
+          // 藏在请求体里的话，「这一下算不算营收」就没人看得见（S8）。
+          primaryPaid
+            ? menuItem('线下收款入账', `data-order-offline-settle="${esc(order.orderNo)}"`) : '',
           canRefund
             ? menuItem('退款', `data-order-refund="${esc(order.orderNo)}" data-order-provider="${esc(order.paymentProvider || '')}"`, { danger: true }) : '',
           canCancel
@@ -3401,9 +3416,28 @@ $('#order-reset').addEventListener('click', () => resetFilters(
   ['#order-status', '#order-keyword', '#order-date-from', '#order-date-to', '#order-review'], 'orders',
 ));
 $('#order-rows').addEventListener('click', async (event) => {
-  const { orderPaid, orderFulfill, orderRefund, orderCancel, orderDelete, orderReview, orderProvider } = event.target.dataset;
-  const orderNo = orderPaid || orderFulfill || orderRefund || orderCancel || orderDelete || orderReview;
+  const { orderPaid, orderFulfill, orderRefund, orderCancel, orderDelete, orderReview, orderProvider, orderOfflineSettle } = event.target.dataset;
+  const orderNo = orderPaid || orderFulfill || orderRefund || orderCancel || orderDelete || orderReview || orderOfflineSettle;
   if (!orderNo) return;
+
+  if (orderOfflineSettle) {
+    // 线下收款入账：钱确实收到了（转账/现金），人工确认后计入营收。
+    const ok = await askConfirm({
+      title: '线下收款入账',
+      message: `确认订单 ${orderNo} 的款项已经收到（银行转账 / 现金等）？`,
+      impact: '这笔金额将<b>计入营收</b>，并记录操作人。'
+        + '若钱还没到账、只是先把订单放行，请改用<b>标记支付</b> —— 那样照常发码但不计营收。',
+      tone: 'warning',
+      okText: '确认已收到钱',
+    });
+    if (!ok) return;
+    try {
+      await api(`/orders/${orderNo}/settle-offline`, { method: 'POST', body: JSON.stringify({}) });
+      toast('已按线下收款入账');
+      await Promise.all([loadOrders(), loadOverview()]);
+    } catch (error) { toast(error.message, 'danger'); }
+    return;
+  }
 
   if (orderReview) {
     // 刻意不自动清除待复核：复活单的价值就在于让人看见「这单超卖过」，
@@ -3460,6 +3494,21 @@ $('#order-rows').addEventListener('click', async (event) => {
 
   const action = orderPaid ? 'mark-paid' : orderFulfill ? 'fulfill' : 'refund';
   let offlineRefund = false;
+  if (action === 'mark-paid') {
+    // S8：这个按钮**只**放行订单，不认钱。「客户催单先给码」「赠送/补偿」都走它，
+    // 所以它必须明确说出「不计营收」—— 用户以为在记账、系统却没记，比按钮点不动
+    // 危险得多。钱真收到了就用 ⋯ 里的「线下收款入账」。
+    const ok = await askConfirm({
+      title: '标记支付',
+      message: `确认订单 ${orderNo} 已支付并放行？`,
+      impact: '订单照常发码 / 进入待履约，但<b>不计入营收</b>（营收只统计渠道确认收款'
+        + '与人工线下入账）。若这笔钱确实已经收到（转账 / 现金），'
+        + '请改用 ⋯ 菜单里的<b>线下收款入账</b>。',
+      tone: 'warning',
+      okText: '标记支付（不计营收）',
+    });
+    if (!ok) return;
+  }
   if (action === 'refund') {
     // 人工标记支付的订单（paymentProvider=manual）在渠道侧没有交易，服务端会按
     // **线下退款**记账。这里必须把话说全，否则运营以为「系统会去退钱」，
@@ -3484,7 +3533,7 @@ $('#order-rows').addEventListener('click', async (event) => {
       method: 'POST',
       body: JSON.stringify({ note: '后台操作', offline: offlineRefund }),
     });
-    toast(`订单已${action === 'mark-paid' ? '标记支付' : action === 'fulfill' ? '履约' : offlineRefund ? '按线下退款记账' : '退款'}`);
+    toast(`订单已${action === 'mark-paid' ? '标记支付（不计营收）' : action === 'fulfill' ? '履约' : offlineRefund ? '按线下退款记账' : '退款'}`);
     await Promise.all([loadOrders(), loadOverview()]);
   } catch (error) { toast(error.message, 'danger'); }
 });

@@ -95,6 +95,7 @@ from store.payments.sweeper import (
     sweep_status,
 )
 from store.payments import sweeper as sweeper_module
+from store.payments import settlement as settlement_module
 from store.security import hash_password, token_hash, utcnow
 from store.serializers import list_json
 from store.tools.seed import seed_admin, seed_products, seed_release, seed_settings
@@ -9384,6 +9385,7 @@ def check_page_hardening_and_error_format() -> None:
         refund_trade_no=None,
         needs_review=False,
         review_note="",
+        manual_settlement=False,
         license_state_before_json=None,
         license=None,
         created_at=None,
@@ -11960,6 +11962,151 @@ async def run() -> int:
         "无资金变动的退款在审计里写明原因（否则「退了几次都没动钱」查不出来）",
         zero_audit is not None and "未产生资金变动" in (zero_audit.detail or ""),
         zero_audit.detail if zero_audit is not None else "没有审计记录",
+    )
+
+    # ------------------------------------------------------------------ #
+    # 9e. S8 人工补记与营收口径：点一下按钮不能凭空多出营收
+    # ------------------------------------------------------------------ #
+    # 「标记支付」是后台最顺手的一下（客户催单、先放行、赠送），而它会给还没收到钱的
+    # 订单盖上 paid_at —— 营收按 paid_at 汇总，于是点一下就多一笔营收。这里要钉住的是
+    # 「这一下不算钱」以及「钱真的到账时有路把它算回来」。
+    def _pending_order(suffix: str, amount_cents: int) -> str:
+        """造一笔待支付、且**手动发卡**的订单：不会顺带发码，断言只看账面。
+
+        每笔自带一个账号：``uq_orders_pending_per_account``（S41）限定每个账号至多
+        一笔待付单，而本段要连着建两笔，共用账号会在第二笔上撞索引。预留 +1 与
+        ``_paid_order`` 同理：这两笔单一直占着库存预留，不记上会让后来的断言算不平。
+        """
+        with database.session() as session:
+            owner = Account(
+                email=f"smoke-s8-{suffix}-{utcnow().strftime('%H%M%S%f')}@habridge.local",
+                password_hash=hash_password("smoke-s8-secret"),
+                email_verified_at=utcnow(),
+            )
+            session.add(owner)
+            session.flush()
+            customer_row = Customer(account_id=owner.id, email=owner.email, name=owner.email)
+            session.add(customer_row)
+            product_row = session.get(Product, base_product_id)
+            product_row.reserved_stock = int(product_row.reserved_stock or 0) + 1
+            session.flush()
+            row = Order(
+                order_no=f"HOMEOS-SMOKE-MANUAL-{suffix}-{utcnow().strftime('%H%M%S%f')}",
+                lookup_token=f"manual-token-{suffix}-{utcnow().strftime('%H%M%S%f')}",
+                account_id=owner.id,
+                customer_id=customer_row.id,
+                email=owner.email,
+                product_id=product_row.id,
+                product_name=product_row.name,
+                product_type=product_row.product_type,
+                order_type="base",
+                license_action="issue",
+                original_amount_cents=amount_cents,
+                amount_cents=amount_cents,
+                status="pending",
+                fulfillment_mode="manual",
+                payment_provider="manual",
+            )
+            session.add(row)
+            session.flush()
+            return row.order_no
+
+    manual_no = _pending_order("record", 6600)
+    revenue_s8 = (await client.get("/store-admin/v1/overview")).json()["revenue"]
+
+    recorded = await client.post(
+        f"/store-admin/v1/orders/{manual_no}/mark-paid", json={"note": "客户催单，先放行"}
+    )
+    check(
+        "标记支付仍然放行订单，但打上人工补记标记",
+        recorded.status_code == 200
+        and recorded.json()["status"] == "paid"
+        and recorded.json()["manualSettlement"] is True,
+        f"{recorded.status_code} {recorded.text[:160]}",
+    )
+    revenue_after_record = (await client.get("/store-admin/v1/overview")).json()["revenue"]
+    check(
+        "**牙齿**：人工补记不进营收（6600 分不能出现在 gross / net 里）",
+        int(revenue_after_record["totalGrossCents"])
+        == int(revenue_s8["totalGrossCents"])
+        and int(revenue_after_record["totalCents"]) == int(revenue_s8["totalCents"]),
+        f"gross {revenue_s8['totalGrossCents']}→{revenue_after_record['totalGrossCents']} "
+        f"net {revenue_s8['totalCents']}→{revenue_after_record['totalCents']}",
+    )
+    check(
+        "人工补记的金额单列出来（排除不等于看不见，否则「营收怎么少了」无法解释）",
+        int(revenue_after_record["totalManualCents"])
+        - int(revenue_s8["totalManualCents"])
+        == 6600,
+        f"{revenue_s8['totalManualCents']}→{revenue_after_record['totalManualCents']}",
+    )
+    window_24h = next(
+        bucket
+        for bucket in revenue_after_record["windows"]
+        if bucket["key"] == "last24h"
+    )
+    check(
+        "时间窗里也把补记单列（含单数），且不混进 paidOrders",
+        int(window_24h["manualCents"]) >= 6600 and int(window_24h["manualOrders"]) >= 1,
+        f"manual={window_24h['manualCents']}/{window_24h['manualOrders']} 单",
+    )
+
+    # S41 的「同账号只允许一笔待支付订单」部分唯一索引决定了：另一笔待支付单必须在
+    # 上一笔离开 pending 之后再建（这本身也是那条索引在真实流量里的形状）。
+    offline_no = _pending_order("offline", 7700)
+    settled = await client.post(f"/store-admin/v1/orders/{offline_no}/settle-offline", json={})
+    revenue_after_settle = (await client.get("/store-admin/v1/overview")).json()["revenue"]
+    check(
+        "线下收款入账走得通、不带补记标记，并计入营收",
+        settled.status_code == 200
+        and settled.json()["status"] == "paid"
+        and settled.json()["manualSettlement"] is False
+        and int(revenue_after_settle["totalGrossCents"])
+        - int(revenue_after_record["totalGrossCents"])
+        == 7700,
+        f"{settled.status_code} gross {revenue_after_record['totalGrossCents']}"
+        f"→{revenue_after_settle['totalGrossCents']}",
+    )
+
+    with database.session() as session:
+        manual_audit = session.scalars(
+            select(AuditLog)
+            .where(AuditLog.action == "order.mark_paid")
+            .where(AuditLog.target == manual_no)
+        ).first()
+        offline_audit = session.scalars(
+            select(AuditLog)
+            .where(AuditLog.action == "order.settle_offline")
+            .where(AuditLog.target == offline_no)
+        ).first()
+    check(
+        "两个入口留下**不同**的审计动作（事后查账不用去翻请求体）",
+        manual_audit is not None and offline_audit is not None,
+        f"mark_paid={bool(manual_audit)} settle_offline={bool(offline_audit)}",
+    )
+
+    # 渠道随后真的收到了钱：补记标记必须被清掉，否则这笔真实收入会被永久挡在 KPI 外，
+    # 而运营没有任何办法把它加回来。
+    with database.session() as session:
+        manual_row = session.scalars(
+            select(Order).where(Order.order_no == manual_no)
+        ).first()
+        settlement_module.settle_paid_order(
+            session,
+            order=manual_row,
+            setting=site_config.get_setting(session),
+            trade_no="smoke-s8-trade-0001",
+            source="alipay",
+        )
+    confirmed = (await client.get("/store-admin/v1/overview")).json()["revenue"]
+    check(
+        "渠道确认收款后补记标记被清掉，金额转为营收（补记不会永久压住真实收入）",
+        int(confirmed["totalGrossCents"])
+        - int(revenue_after_settle["totalGrossCents"])
+        == 6600
+        and int(confirmed["totalManualCents"]) == int(revenue_s8["totalManualCents"]),
+        f"gross {revenue_after_settle['totalGrossCents']}→{confirmed['totalGrossCents']} "
+        f"manual {revenue_after_settle['totalManualCents']}→{confirmed['totalManualCents']}",
     )
 
     # ------------------------------------------------------------------ #

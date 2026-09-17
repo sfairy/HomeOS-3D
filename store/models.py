@@ -426,6 +426,14 @@ class Order(Base):
     #: 码也发了，但这件库存早已还给别人，属于刻意保留的例外，必须让运营看到。
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
     review_note: Mapped[str] = mapped_column(String(255), default="")
+    #: 这笔订单的「已支付」是**人拍的板**，不是渠道确认的钱（S8）。
+    #:
+    #: 后台上「标记支付 / 履约」会给一张还没收到钱的订单盖上 ``paid_at``；只要
+    #: 营收口径按 ``paid_at`` 汇总，点一下就凭空多出一笔营收 —— 而这一下恰恰是
+    #: 最常见的操作（客户催单、先放行）。置位后该订单仍照常发码，但**不计入营收**
+    #: KPI（见 ``store/api/admin.py:_billable_money_filter``），并在后台列表上标注，
+    #: 于是「为什么营收比订单少」有据可查，而不是一个沉默的偏差。
+    manual_settlement: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     #: 这笔订单给邀请人发的奖励，单位**厘**（1 积分 = 100 厘）。
     #: 与钱包/流水同一口径；旧列 ``referral_reward_points``（FLOAT）由
     #: ``store.points_migration`` 回填后退役。

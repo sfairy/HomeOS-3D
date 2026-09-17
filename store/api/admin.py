@@ -265,6 +265,20 @@ PAID_MONEY_STATUSES: tuple[str, ...] = (
 OVERVIEW_EXPIRING_DAYS = 30
 
 
+def _billable_money_clause():
+    """营收口径的过滤条件：**排除人工补记**（S8）。
+
+    为什么需要一个条件而不是「按时长」：后台上「标记支付 / 履约」会给一张还没收到
+    钱的订单盖上 ``paid_at``（客户催单、先放行、赠送补记都会走这一下），而营收按
+    ``paid_at`` 汇总 —— 点一下就凭空空出一笔营收。所以人工补记的订单单独打标
+    （``Order.manual_settlement``），照常发码但不计入营收。
+
+    返回的是「可用在 ``.where()`` 里的子句」而不是一个布尔开关常量，是为了让
+    三处 KPI（累计 gross/refund、时间窗、概览 netCents）不会各自漏掉它。
+    """
+    return Order.manual_settlement.is_(False)
+
+
 def _window_money(session: Session, since: datetime) -> dict:
     """统计 ``[since, now)`` 内的收款、退款与付款订单数。
 
@@ -275,6 +289,8 @@ def _window_money(session: Session, since: datetime) -> dict:
     * ``grossCents`` 是**订单实付**（已减优惠码），不是商品原价。
     * ``refundCents`` 是 ``refund_amount_cents``，支持部分退款，所以不能用
       「refunded 订单的实付额」来代替，否则部分退款会被当成全额退货。
+    * 人工补记的订单不进 gross/refund，而是单列成 ``manualCents`` / ``manualOrders``
+      （S8）：直接丢掉会让运营看不到「有多少单是人工放行的」，那才是真查不出来。
     """
     row = session.execute(
         select(
@@ -285,6 +301,18 @@ def _window_money(session: Session, since: datetime) -> dict:
             Order.paid_at.is_not(None),
             Order.paid_at >= since,
             Order.status.in_(PAID_MONEY_STATUSES),
+            _billable_money_clause(),
+        )
+    ).one()
+    manual_row = session.execute(
+        select(
+            func.coalesce(func.sum(Order.amount_cents), 0),
+            func.count(Order.id),
+        ).where(
+            Order.paid_at.is_not(None),
+            Order.paid_at >= since,
+            Order.status.in_(PAID_MONEY_STATUSES),
+            Order.manual_settlement.is_(True),
         )
     ).one()
     gross = int(row[0] or 0)
@@ -294,6 +322,8 @@ def _window_money(session: Session, since: datetime) -> dict:
         "refundCents": refunded,
         "netCents": gross - refunded,
         "paidOrders": int(row[2] or 0),
+        "manualCents": int(manual_row[0] or 0),
+        "manualOrders": int(manual_row[1] or 0),
     }
 
 
@@ -317,18 +347,29 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         select(func.coalesce(func.sum(Order.amount_cents), 0)).where(
             Order.paid_at.is_not(None),
             Order.status.in_(PAID_MONEY_STATUSES),
+            _billable_money_clause(),
         )
     )
     total_refunded = count(
         select(func.coalesce(func.sum(Order.refund_amount_cents), 0)).where(
             Order.paid_at.is_not(None),
             Order.status.in_(PAID_MONEY_STATUSES),
+            _billable_money_clause(),
+        )
+    )
+    # 人工补记（未收到钱）单独统计：不进营收，但必须看得见（S8）。
+    total_manual = count(
+        select(func.coalesce(func.sum(Order.amount_cents), 0)).where(
+            Order.paid_at.is_not(None),
+            Order.status.in_(PAID_MONEY_STATUSES),
+            Order.manual_settlement.is_(True),
         )
     )
 
     # —— 时间窗营收 ——
     revenue = {"totalCents": total_gross - total_refunded, "totalGrossCents": total_gross,
-               "totalRefundCents": total_refunded, "currency": "CNY", "windows": []}
+               "totalRefundCents": total_refunded, "totalManualCents": total_manual,
+               "currency": "CNY", "windows": []}
     for key, span in _OVERVIEW_WINDOWS:
         bucket = _window_money(session, moment - span)
         bucket["key"] = key
@@ -1046,6 +1087,43 @@ def _fulfill_with_failure_state(
 def admin_mark_paid(
     order_no: str, session: DbSession, admin: AdminAccount
 ) -> dict:
+    """人工补记：把订单放行（发码），但**不计入营收**（S8）。
+
+    这个按钮最常见的用法是「客户催单、钱还没到，先放行」和「赠送/补偿」，这几种
+    情况下账上并没有钱。以前它会盖上 ``paid_at``，而营收按 ``paid_at`` 汇总 ——
+    点一下就凭空多出一笔营收，且事后分不清哪些是人工补的。现在它同时置
+    ``manual_settlement``，营收口径（``_billable_money_clause``）把这类订单排除，
+    概览里单列成 ``manualCents`` / ``manualOrders``，订单行上也会标注。
+
+    **钱确实收到了**（线下转账、现金）请用 ``settle-offline``：那才是把人工收到的
+    钱计入营收的入口。两个入口分开而不是加一个布尔参数，是为了让「这一下算不算
+    营收」写在 URL 与审计动作里，事后查账不用去翻请求体。
+    """
+    return _manual_payment(session, order_no, admin=admin, manual_settlement=True)
+
+
+@router.post("/orders/{order_no}/settle-offline")
+def admin_settle_offline(
+    order_no: str, session: DbSession, admin: AdminAccount
+) -> dict:
+    """线下收款入账：人工确认这笔钱**已经收到**（转账/现金），计入营收。
+
+    与 ``mark-paid`` 的唯一差别是营收口径：``manual_settlement=False``。金额仍按
+    订单实付记，审计动作是独立的 ``order.settle_offline``，所以「某笔营收是人确认过
+    的」在审计日志里查得到 —— 渠道确认过钱的订单不会留下这条动作。
+    """
+    return _manual_payment(session, order_no, admin=admin, manual_settlement=False)
+
+
+def _manual_payment(
+    session: Session, order_no: str, *, admin: AdminAccount, manual_settlement: bool
+) -> dict:
+    """``mark-paid`` / ``settle-offline`` 的共用实现。
+
+    两处必须逐字节一致：状态守卫、条件 UPDATE 抢单、履约分流（``manual`` 模式停在
+    ``paid`` 等人核对）—— 任何一处只改一个入口，就会出现「同样一张单，从哪个按钮点
+    进去行为不同」。
+    """
     setting = site_config.get_setting(session)
     order = _order_or_404(session, order_no)
     if order.status == "fulfilled":
@@ -1064,6 +1142,7 @@ def admin_mark_paid(
             status="paid",
             paid_at=order.paid_at or utcnow(),
             payment_provider=order.payment_provider or "manual",
+            manual_settlement=manual_settlement,
         )
         .execution_options(synchronize_session=False)
     )
@@ -1072,7 +1151,13 @@ def admin_mark_paid(
         logger.info("标记支付重复提交，已忽略 order=%s status=%s", order.order_no, order.status)
         return order_payload(order)
     session.refresh(order)
-    _audit(session, _admin_actor(admin), "order.mark_paid", order.order_no)
+    _audit(
+        session,
+        _admin_actor(admin),
+        "order.mark_paid" if manual_settlement else "order.settle_offline",
+        order.order_no,
+        "" if manual_settlement else "人工确认已收到钱（线下），计入营收",
+    )
     # 自动发卡商品立刻履约（发码 / 追加增量包 / 邀请奖励）。
     # 手动发卡商品只标记已支付，把发码留给「履约」按钮——两条支付路径必须一致：
     # 真实支付宝到账（settle_paid_order）也是见到 manual 就停在 paid 等人核对，
@@ -1103,11 +1188,14 @@ def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dic
         )
     if order.paid_at is None:
         # 只补时间戳，不碰状态：状态流转与幂等由 fulfill_order 的条件 UPDATE 负责。
+        # 同时置人工补记标记（S8）：这里也是「没收到钱就放行」的一条路 —— 例如
+        # 手动发卡的订单直接点「履约」。不标记的话，一笔钱根本没到的订单会因为
+        # 这个按钮进入营收。
         session.execute(
             update(Order)
             .where(Order.id == order.id)
             .where(Order.paid_at.is_(None))
-            .values(paid_at=utcnow())
+            .values(paid_at=utcnow(), manual_settlement=True)
             .execution_options(synchronize_session=False)
         )
         session.refresh(order)
