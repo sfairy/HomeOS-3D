@@ -514,6 +514,55 @@ body {
      留了间距就会在表头上方露出空档，让表格内容从缝里穿过去。 */
   padding: 0 26px 30px;
   overscroll-behavior: contain;
+
+/* 全局顶部条——用户身份 + 快捷操作按钮，始终贴在主工作区顶部 */
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0 10px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  margin-bottom: 18px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: transparent;
+  backdrop-filter: blur(4px);
+}
+
+.admin-topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-subtle, #9aa3b2);
+}
+
+.admin-topbar__left .who__avatar {
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+}
+
+.admin-topbar__email {
+  color: var(--text, #e6e8ee);
+  font-weight: 500;
+}
+
+.admin-topbar__tz {
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+.admin-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* admin-main 背景氛围层 */
+.admin-main {
   /* 氛围层：五个业务域的色相各来一圈极淡的辉光（alpha ~0.05），铺在工作区底下。
      它随面板域色一起给页面「有深度」的观感，但亮度必须低于 0.06 ——
      再高一点就会和卡片背景抢对比度，正文小字开始发灰。

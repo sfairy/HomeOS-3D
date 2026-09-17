@@ -205,19 +205,27 @@
     </nav>
     <div class="admin-side__foot">
       <div class="who">
-        <span class="who__avatar" id="admin-avatar">A</span>
-        <span class="who__email" id="admin-identity"></span>
-      </div>
-      <p class="admin-side__tz" id="admin-timezone"></p>
-      <div class="admin-side__actions">
-        <button class="hb-button hb-button--ghost hb-button--sm" id="admin-change-pw">修改密码</button>
-        <a class="hb-button hb-button--ghost hb-button--sm" href="/" target="_blank" rel="noreferrer">查看商店</a>
-        <button class="hb-button hb-button--ghost hb-button--sm" id="admin-logout">退出登录</button>
+        <span class="who__avatar" id="admin-avatar-side">A</span>
+        <span class="who__email" id="admin-identity-side"></span>
       </div>
     </div>
   </aside>
 
   <main class="admin-main">
+    <!-- 全局顶部条：用户身份 + 快捷操作 -->
+    <header class="admin-topbar">
+      <div class="admin-topbar__left">
+        <span class="who__avatar" id="admin-avatar">A</span>
+        <span class="admin-topbar__email" id="admin-identity"></span>
+        <span class="admin-topbar__tz" id="admin-timezone"></span>
+      </div>
+      <div class="admin-topbar__right">
+        <button class="hb-button hb-button--ghost hb-button--sm" id="admin-change-pw">修改密码</button>
+        <a class="hb-button hb-button--ghost hb-button--sm" href="/" target="_blank" rel="noreferrer">查看商店</a>
+        <button class="hb-button hb-button--ghost hb-button--sm" id="admin-logout">退出登录</button>
+      </div>
+    </header>
+
     <!-- 概览 -->
     <section class="admin-panel active" id="panel-overview" data-domain="operations">
       <header class="panel-head">
@@ -2215,6 +2223,8 @@ async function bootstrap({ announce = false } = {}) {
   }
   $('#admin-identity').textContent = `${account.email}`;
   $('#admin-avatar').textContent = (account.email || 'A').trim().charAt(0);
+  $('#admin-identity-side').textContent = `${account.email}`;
+  $('#admin-avatar-side').textContent = (account.email || 'A').trim().charAt(0);
   // 后台所有时间列都按这个时区渲染，写死在界面上比写在文档里靠谱
   $('#admin-timezone').textContent = `时间按 ${localZoneLabel()} 显示`;
   showApp();
