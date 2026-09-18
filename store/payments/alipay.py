@@ -382,44 +382,141 @@ def verify_content(content: str, signature: str, public_key_text: str) -> bool:
         return False
 
 
-def extract_raw_node(raw: str, key: str) -> str | None:
-    """从原始响应文本里抠出某个 JSON 节点的**原始子串**。
+def _skip_ws(raw: str, index: int) -> int:
+    """跳过空白，返回第一个非空白字符的位置（越界返回 ``-1``）。"""
+    length = len(raw)
+    while index < length and raw[index].isspace():
+        index += 1
+    return index if index < length else -1
 
-    验签必须用原始字节，重新 ``json.dumps`` 会因为空格/转义差异导致验签失败。
+
+def _skip_json_string(raw: str, index: int) -> int:
+    """``raw[index]`` 必须是引号：返回**闭合引号之后**的位置（未闭合返回 ``-1``）。
+
+    必须按转义规则走，不能找下一个引号了事：``"sub_msg":"他说：\\"ok\\""`` 这种值里
+    就有被转义的引号，草率地找下一个引号会把字符串截断在中间，后面整段结构全都错位。
     """
-    needle = f'"{key}"'
-    index = raw.find(needle)
-    if index < 0:
-        return None
-    colon = raw.find(":", index + len(needle))
-    if colon < 0:
-        return None
-    start = raw.find("{", colon)
-    if start < 0:
-        return None
-
-    depth = 0
-    in_string = False
-    escaped = False
-    for position in range(start, len(raw)):
-        char = raw[position]
-        if in_string:
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == '"':
-                in_string = False
+    index += 1
+    length = len(raw)
+    while index < length:
+        char = raw[index]
+        if char == "\\":
+            index += 2
             continue
         if char == '"':
-            in_string = True
-        elif char == "{":
-            depth += 1
-        elif char == "}":
-            depth -= 1
-            if depth == 0:
-                return raw[start : position + 1]
-    return None
+            return index + 1
+        index += 1
+    return -1
+
+
+def _skip_json_value(raw: str, index: int) -> int:
+    """返回一个 JSON 值结束之后的位置（``-1`` 表示结构损坏）。
+
+    只做「跳过」不做解析：这里要的不是值本身，而是它在**原文里占哪一段** ——
+    验签必须对着原始字节算，重新 ``json.dumps`` 会因为空格与转义差异而验不过。
+    """
+    start = _skip_ws(raw, index)
+    if start < 0:
+        return -1
+    char = raw[start]
+    if char == '"':
+        return _skip_json_string(raw, start)
+    if char in "{[":
+        depth = 0
+        index = start
+        length = len(raw)
+        while index < length:
+            current = raw[index]
+            if current == '"':
+                index = _skip_json_string(raw, index)
+                if index < 0:
+                    return -1
+                continue
+            if current in "{[":
+                depth += 1
+            elif current in "}]":
+                depth -= 1
+                if depth == 0:
+                    return index + 1
+            index += 1
+        return -1
+    # 数字 / true / false / null：吃到结构分隔符为止，再把尾部空白剪掉。
+    index = start
+    length = len(raw)
+    while index < length and raw[index] not in ",}]":
+        index += 1
+    if index == start:
+        return -1
+    while index > start and raw[index - 1].isspace():
+        index -= 1
+    return index
+
+
+def extract_raw_node(raw: str, key: str) -> str | None:
+    """从原始响应文本里抠出**顶层** ``key`` 节点的原始子串（S32）。
+
+    验签必须用原始字节，重新 ``json.dumps`` 会因为空格/转义差异导致验签失败。
+
+    为什么不能「在全文里找 ``"key"`` 再从后面第一个 ``{`` 配对括号」：验签用的字节
+    必须与**调用方实际执行的那份数据**是同一段，而调用方执行的是 ``json.loads(raw)
+    [node_key]``。字符串扫描在两种情形下会与解析器分叉：
+
+    * **重复顶层键**。``json.loads`` 保留最后一个，而「找第一次出现」的扫描拿第一个
+      —— 于是验的是 A、执行的是 B。合法响应里不存在重复键，所以这不是「兼容一下」，
+      而是「有人改过这段字节」的信号。
+    * 键后面的值不是对象时（例如 ``"node": null``），扫描会把**下一个**节点的 ``{``
+      当成它的起点。
+
+    所以这里按 JSON 结构走一遍：逐层跳过键、值、分隔符，只在顶层按 ``json.dumps(key)``
+    （带引号与转义）比较键名，并且要求命中**恰好一次**。命中 0 次、命中多次、骨架
+    损坏、顶层对象没有正常闭合，一律返回 ``None`` —— 调用方必须当成「不能验签」
+    处理，绝不能退化成「跳过验签」。
+    """
+    target = json.dumps(key, ensure_ascii=False)
+    index = _skip_ws(raw, 0)
+    if index < 0 or raw[index] != "{":
+        return None
+    index += 1
+    found: str | None = None
+    while True:
+        index = _skip_ws(raw, index)
+        if index < 0:
+            return None
+        char = raw[index]
+        if char == "}":
+            # 顶层对象正常闭合。命中多次会在这里之前就返回 None。
+            return found
+        if char != '"':
+            return None
+        name_end = _skip_json_string(raw, index)
+        if name_end < 0:
+            return None
+        name = raw[index:name_end]
+        index = _skip_ws(raw, name_end)
+        if index < 0 or raw[index] != ":":
+            return None
+        value_start = _skip_ws(raw, index + 1)
+        if value_start < 0:
+            return None
+        value_end = _skip_json_value(raw, value_start)
+        if value_end < 0:
+            return None
+        if name == target:
+            if found is not None:
+                # 同名顶层键出现第二次：该验哪一段没有正确答案（解析器取最后一个，
+                # 「先到先得」取第一个），而这种报文本来就不该出现。
+                return None
+            found = raw[value_start:value_end]
+        index = _skip_ws(raw, value_end)
+        if index < 0:
+            return None
+        if raw[index] == ",":
+            index += 1
+            continue
+        if raw[index] == "}":
+            return found
+        # 既不是 `,` 也不是 `}`：骨架不对，宁可返回「定位不到」也不猜。
+        return None
 
 
 def alipay_timestamp(moment: datetime | None = None) -> str:

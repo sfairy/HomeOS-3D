@@ -1277,16 +1277,8 @@ def admin_review_order(
     )
     session.refresh(order)
     return order_payload(order)
-#: 同一订单的退款必须串行执行。渠道退款是**不可逆的资金动作**，而退款接口是
-#: 「读累计值 → 调渠道 → 写累计值」的形状：两个并发请求（双击按钮、两个标签页、
-#: 两位客服同时操作）会各自读到同一个 ``refund_amount_cents``、各自把同一笔钱
-#: 退给用户，而累计值只加一次 —— 钱多退一倍，账面却显示只退了一笔。
-#:
-#: 为什么不用「条件 UPDATE 抢单」当闸门：闸门必须在**调渠道之前**取得，而那一刻
-#: 请求事务还没写过任何东西；条件 UPDATE 会把 SQLite 的写锁一直攥到请求结束，
-#: 也就是在整个网络往返期间阻塞所有下单。放到调渠道之后又拦不住第二次调用。
-#: 所以用进程内锁把同一订单串起来：不占数据库写锁，正好覆盖「同一进程内并发」这个
-#: 真实场景；跨进程的残余窗口由下面的 ``_claim_refund_amount`` 兜住（不静默吞掉）。
+
+
 # --------------------------------------------------------------------------- #
 # 退款串行化与记账抢单
 # --------------------------------------------------------------------------- #
@@ -3918,6 +3910,14 @@ def _cutoff_days(older_than_days: int) -> datetime:
     return utcnow() - timedelta(days=days)
 
 
+#: 批量清理时每批取多少行（S30）。
+#:
+#: 500 这个量级的依据是 SQLite 的两条硬约束：一条 ``IN (...)`` 的变量数上限，
+#: 以及「一批的写锁占用时间」要小到不会被用户感知。老版本 SQLite 的变量上限是 999，
+#: 500 留了一半余量；再大的批次只会把写锁拉长，而清理本来就不急。
+_PURGE_BATCH = 500
+
+
 def _purge_rows(
     session: Session,
     admin: AdminAccount,
@@ -3929,13 +3929,33 @@ def _purge_rows(
     action: str,
     detail: str,
 ) -> dict:
-    """按给定谓词批量删除。返回删除前的命中主键数，并写一条审计。"""
-    ids = list(session.scalars(select(pk).where(where)))
-    if ids:
-        session.execute(delete(model).where(where))
+    """按给定谓词分批删除。返回删除行数，并写一条审计（S30）。
+
+    过去的写法是「先把命中的主键**全部**读进内存，再发一条 ``DELETE ... WHERE``」。
+    后台这些清理按钮点的正是最容易攒出量的表：``account_sessions``、``license_sessions``、
+    ``recovery_tokens``、``email_verifications``。运维勾「清理 0 天前的会话」时，
+    命中数可能是几十万 —— 内存里先堆出等量的 Python 字符串，再让 SQLite 在一个事务
+    里删掉它们，期间全站的写请求都被这把写锁挡住，而后台只看到按钮转圈。
+
+    现在按 :data:`_PURGE_BATCH` 一批一批删：每批一个 ``DELETE``、批间 ``flush()``，
+    写锁有机会在批与批之间让出去。删不完的下一轮继续 —— 端点本身是幂等的。
+
+    批内用主键 ``IN`` 而不是把 ``where`` 再跑一遍：``where`` 是时间谓词，
+    在长事务里重跑会扩大命中（``expires_at < cutoff`` 的 cutoff 是固定的，所以
+    其实等价）—— 但按主键删**不依赖**这个等价性，语义更硬：删掉的正是刚读到的那些行。
+    """
+    total = 0
+    while True:
+        ids = list(session.scalars(select(pk).where(where).limit(_PURGE_BATCH)))
+        if not ids:
+            break
+        session.execute(delete(model).where(pk.in_(ids)))
         session.flush()
-    _audit(session, _admin_actor(admin), action, label, f"{detail}，共 {len(ids)} 条")
-    return {"deleted": len(ids), "detail": detail}
+        total += len(ids)
+        if len(ids) < _PURGE_BATCH:
+            break
+    _audit(session, _admin_actor(admin), action, label, f"{detail}，共 {total} 条")
+    return {"deleted": total, "detail": detail}
 
 
 #: ``id_hash`` 是 ``sha256`` 的 hexdigest，合法前缀只可能是这些字符。

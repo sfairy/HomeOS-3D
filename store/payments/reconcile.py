@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 
 from store import coupons, fulfill
 from store.config import StoreSettings
-from store.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders
+from store.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders, prune_expired_sessions
 from store.models import Order, Product, StoreSetting, utcnow
 from store.payments import resolve_provider
 from store.payments.alipay import SUCCESS_TRADE_STATUSES, cents_from_yuan
@@ -300,6 +300,14 @@ def reconcile_due_orders(
         logger.info(
             "支付巡检：本地过期收尾 %d 笔（已归还库存预留与优惠码名额）", expired
         )
+    #: 过期登录会话（S28）。这件清理原本在认证依赖里做，而那是读路径 —— 每个带旧
+    #: Cookie 的 GET 都会开写事务并持有 SQLite 写锁到请求结束。搬到巡检里之后它
+    #: 仍然会发生（无流量、未配渠道也照跑），但只发生在一个后台线程里。
+    #: 不并进 ``result``：它不是订单动作，混进 ``expired`` 会让「本地过期 N 笔」
+    #: 这个给运营看的数字含义漂移（后台直接展示``lastResult``）。
+    pruned = prune_expired_sessions(session)
+    if pruned:
+        logger.info("支付巡检：清理过期登录会话 %d 条", pruned)
     return result
 
 

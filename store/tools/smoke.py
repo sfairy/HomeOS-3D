@@ -1685,6 +1685,58 @@ def check_alipay_signing() -> None:
         str(node),
     )
 
+    # S32：验签用的字节必须与 ``json.loads`` 解析出的那个节点是**同一段**。
+    # 两者唯一会分叉的地方是**重复顶层键**：``json.loads`` 保留最后一个，而
+    # 「在全文里找第一次出现」的字符串扫描拿第一个 —— 旧写法于是「验 A、执行 B」。
+    # 合法响应里不存在重复键，所以遇到就直接拒绝定位，而不是猜哪一段该验。
+    dup = (
+        '{"alipay_trade_query_response":{"trade_status":"WAIT_BUYER_PAY"},'
+        '"alipay_trade_query_response":{"trade_status":"TRADE_SUCCESS"},"sign":"S"}'
+    )
+    parsed_dup = json.loads(dup)["alipay_trade_query_response"]
+    check(
+        "S32 重复顶层键时拒绝定位（不猜该验哪一段）",
+        alipay_module.extract_raw_node(dup, "alipay_trade_query_response") is None,
+    )
+    # 牙齿：把旧写法会拿去验签的那一段写死，证明它与 json.loads 执行的那一段
+    # 不是同一个节点 —— 这正是「验签通过、执行的却是另一段数据」的形状。
+    legacy_node = '{"trade_status":"WAIT_BUYER_PAY"}'
+    check(
+        "S32 牙齿：旧写法验的是第一段，而执行的是最后一段",
+        dup.startswith('{"alipay_trade_query_response":' + legacy_node)
+        and parsed_dup == {"trade_status": "TRADE_SUCCESS"},
+    )
+
+    # 键名出现在**值里**时不算命中（合法 JSON 里它只能是 ``\"...\"`` 这种转义形式，
+    # 所以旧写法其实也匹配不到；这条是防回归，不是牙齿）。
+    check(
+        "S32 只在值里出现键名时不认（顶层没有这个键）",
+        alipay_module.extract_raw_node(
+            '{"note":"\\"alipay_trade_query_response\\" 见上"}',
+            "alipay_trade_query_response",
+        )
+        is None,
+    )
+    # 结构损坏 / 顶层对象没闭合 / 根本没有这个键：一律 None。调用方据此报
+    # 「无法定位待验签内容」，绝不能退化成「跳过验签」。
+    check(
+        "S32 结构损坏或键不存在时返回 None",
+        alipay_module.extract_raw_node("not json", "k") is None
+        and alipay_module.extract_raw_node('{"k":', "k") is None
+        and alipay_module.extract_raw_node('{"k":{"a":1}', "k") is None
+        and alipay_module.extract_raw_node('{"k" 1}', "k") is None
+        and alipay_module.extract_raw_node('{"k":{"a":1}}', "missing") is None,
+    )
+    # 值里带转义引号 / 值后紧跟兄弟键 / 标量值：都按原始字节切
+    tricky = '{"a": {"n":"\\"q\\""}, "k": {"b": 1}, "c": "x", "sign": "S"}'
+    check(
+        "S32 转义引号与前后兄弟键都不影响切片",
+        alipay_module.extract_raw_node(tricky, "k") == '{"b": 1}'
+        and alipay_module.extract_raw_node(tricky, "c") == '"x"'
+        and alipay_module.extract_raw_node(tricky, "a") == '{"n":"\\"q\\""}',
+        str(alipay_module.extract_raw_node(tricky, "k")),
+    )
+
 
 def check_alipay_sign_type_guard() -> None:
     """``sign_type`` 只能是 RSA2。
@@ -7811,6 +7863,341 @@ async def check_release_unique_conflict_paths() -> None:
     )
 
 
+def check_bootstrap_defaults_single_flight() -> None:
+    """S29：默认数据（商品目录 / 站点配置）的补齐必须「判断与插入同一条语句」。
+
+    为什么不能用线程复现：GIL 会把「查一遍 → 逐条插 → 提交」这一小段完整跑完才
+    切到下一个线程，于是旧写法在自检里也「看起来是对的」。所以这里把竞争摆成
+    **确定的顺序**，不依赖调度：
+
+    1. 会话 B 先读一遍（读到「库里什么都没有」——这正是旧写法会相信的那个前提）；
+    2. 会话 A 把默认数据补齐并提交；
+    3. 会话 B 拿着过期前提跑同一段逻辑。
+
+    新写法第 3 步一条都不插（``NOT EXISTS`` 在数据库里现算），旧写法会照着过期前提
+    再插一份。真进程下的对照（12 个进程同时启动，见审计文档）：旧写法 36 行商品，
+    新写法 3 行。
+    """
+    from sqlalchemy import func
+
+    from store import bootstrap
+    from store.models import Product, Release, StoreSetting
+    from store.release_info import ensure_current_release
+
+    import ast
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-bootstrap-defaults-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    # 刻意**不** create_app：``create_app`` 会在 lifespan 里把这批默认数据补齐，
+    # 那样就没有「补之前」这个状态可测了。这里只要一个空库。
+    from store.database import Database
+
+    database = Database(settings)
+    database.create_all()
+
+    session_a = database.session_factory()
+    session_b = database.session_factory()
+    try:
+        # 会话 B 的「过期前提」：此刻库里确实什么都没有。
+        stale_types = list(session_b.scalars(select(Product.product_type)))
+        stale_settings = session_b.get(StoreSetting, 1)
+        check(
+            "S29 前置：补默认数据之前，库里确实没有商品与站点配置",
+            stale_types == [] and stale_settings is None,
+            f"types={stale_types} setting={stale_settings}",
+        )
+
+        ensure_current_release(session_a)
+        bootstrap.ensure_default_settings(session_a)
+        bootstrap.ensure_default_products(session_a)
+        session_a.commit()
+
+        # 拿着过期前提再跑一遍：必须一条都不插。
+        ensure_current_release(session_b)
+        bootstrap.ensure_default_settings(session_b)
+        bootstrap.ensure_default_products(session_b)
+        session_b.commit()
+    finally:
+        session_a.close()
+        session_b.close()
+
+    with database.session() as session:
+        by_type = dict(
+            session.execute(
+                select(Product.product_type, func.count()).group_by(Product.product_type)
+            ).all()
+        )
+        settings_rows = list(session.scalars(select(StoreSetting)))
+        releases = session.scalars(select(Release)).all()
+        package = session.scalars(
+            select(Product).where(Product.product_type == "package")
+        ).first()
+        module = session.scalars(
+            select(Product).where(Product.product_type == "module")
+        ).first()
+        all_ids = set(session.scalars(select(Product.id)))
+
+    check(
+        "S29 拿着过期前提重跑也不会插重复（判断在语句内部完成）",
+        by_type == {"base": 1, "module": 1, "package": 1},
+        str(by_type),
+    )
+    check(
+        "S29 站点配置与发布记录同样只补一份",
+        len(settings_rows) == 1 and len(releases) == 1,
+        f"settings={len(settings_rows)} releases={len(releases)}",
+    )
+    check(
+        "S29 套餐指向的 module 是真实存在的那一行",
+        package is not None
+        and module is not None
+        and json.loads(package.included_product_ids_json) == [module.id]
+        and set(json.loads(package.included_product_ids_json)) <= all_ids,
+        f"package={None if package is None else package.included_product_ids_json}",
+    )
+    check(
+        "S29 站点配置的默认值仍然由列默认值补齐（不是一片 NULL）",
+        bool(settings_rows and settings_rows[0].site_name),
+        "" if not settings_rows else str(settings_rows[0].site_name),
+    )
+
+    # 牙齿（结构）：整段逻辑里不能再出现 ORM 的逐条 ``session.add`` ——
+    # 「先查再加」这个形状只要还在，竞争窗口就还在。
+    source = (PROJECT_ROOT / "store" / "bootstrap.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    calls = {
+        ast.unparse(node.func).rsplit(".", 1)[-1]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    }
+    check(
+        "S29 牙齿：默认数据不再用 ORM 逐条 add，而是 insert().from_select() + exists()",
+        "from_select" in calls and "exists" in calls and "add" not in calls,
+        f"命中 {sorted(c for c in calls if c in {'from_select', 'exists', 'add'})}",
+    )
+
+
+def check_auth_dependency_stays_read_only() -> None:
+    """S28：认证依赖不许在**读请求**里写库。
+
+    写锁的影响范围不是「这一行」，而是「这次请求剩下的全部时间」：SQLite 从第一条
+    写语句开始持有写锁，直到事务提交，而提交排在请求收尾。所以一个带旧 Cookie 的
+    GET 只要写一行，就能把全站的下单串起来。
+
+    这里直接驱动依赖函数（不经过 HTTP），只为了把「读」与「写」两种方法分开断言。
+    """
+    from store import deps, expiry
+    from store.models import Account, AccountSession
+    from store.security import token_hash
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-auth-readonly-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    engine = create_store_engine(settings)
+    Base.metadata.create_all(engine)
+
+    active_token = "smoke-session-token-readonly"
+    expired_token = "smoke-session-token-expired"
+    long_ago = utcnow() - timedelta(minutes=10)
+
+    def _request(method: str, token: str):
+        return types.SimpleNamespace(
+            method=method,
+            cookies={settings.cookie_name: token},
+            app=types.SimpleNamespace(state=types.SimpleNamespace(settings=settings)),
+        )
+
+    def _row_exists(session, token: str) -> bool:
+        # 用 SQL 查而不是 ``session.get``：对象已经在会话的 identity map 里，
+        # ``get`` 会直接命中内存副本，看不到 Core 语句删掉的行。
+        return (
+            session.scalar(
+                select(AccountSession.id_hash).where(
+                    AccountSession.id_hash == token_hash(token)
+                )
+            )
+            is not None
+        )
+
+    with Session(engine) as session:
+        session.add(
+            Account(id="acc-readonly", email="readonly@habridge.local", password_hash="x")
+        )
+        session.flush()
+        session.add(
+            AccountSession(
+                id_hash=token_hash(active_token),
+                account_id="acc-readonly",
+                expires_at=utcnow() + timedelta(hours=1),
+                created_at=long_ago,
+                last_seen_at=long_ago,
+            )
+        )
+        session.add(
+            AccountSession(
+                id_hash=token_hash(expired_token),
+                account_id="acc-readonly",
+                expires_at=utcnow() - timedelta(seconds=1),
+                created_at=long_ago,
+                last_seen_at=long_ago,
+            )
+        )
+        session.commit()
+
+        account = deps.current_account(_request("GET", active_token), session)
+        check(
+            "S28 前置：认证依赖能认出登录态（后面两条对比才有意义）",
+            account is not None and account.id == "acc-readonly",
+            repr(account),
+        )
+        seen_after_get = session.scalar(
+            select(AccountSession.last_seen_at).where(
+                AccountSession.id_hash == token_hash(active_token)
+            )
+        )
+        check(
+            "S28 GET 不刷 last_seen_at（读路径不写库）",
+            seen_after_get == long_ago,
+            f"{seen_after_get}",
+        )
+
+        deps.current_account(_request("POST", active_token), session)
+        seen_after_post = session.scalar(
+            select(AccountSession.last_seen_at).where(
+                AccountSession.id_hash == token_hash(active_token)
+            )
+        )
+        check(
+            "S28 POST 仍然刷 last_seen_at（写方法本来就要写库，边际成本为零）",
+            seen_after_post is not None and seen_after_post > long_ago,
+            f"{seen_after_post}",
+        )
+
+        check(
+            "S28 过期会话按未登录处理",
+            deps.current_account(_request("GET", expired_token), session) is None,
+        )
+        check(
+            "S28 过期行不再由读路径删掉（那是每个 GET 一个写事务的来源）",
+            _row_exists(session, expired_token),
+        )
+        # 清理没有被取消，只是换了执行者：挂到「无流量、未配渠道也照跑」的巡检上。
+        check(
+            "S28 例行清理删掉过期行",
+            expiry.prune_expired_sessions(session) == 1,
+        )
+        check(
+            "S28 没有过期行时清理不再开写事务（先 SELECT 判空）",
+            expiry.prune_expired_sessions(session) == 0,
+        )
+        check(
+            "S28 清理之后过期行真的没了",
+            not _row_exists(session, expired_token) and _row_exists(session, active_token),
+        )
+
+
+def check_admin_purge_is_batched() -> None:
+    """S30：后台批量清理要分批删，不能把命中主键全读进内存。
+
+    后台这四个清理按钮（会话 / 授权会话 / 找回凭证 / 邮箱验证码）点的正是最容易
+    攒出量的表。旧写法是「先 ``list(select(pk))`` 把命中的主键全部读进内存，
+    再一条 ``DELETE ... WHERE``」：几十万行先在内存里堆出等量的 Python 字符串，
+    再让 SQLite 在一个事务里删完，期间全站写请求都被这把写锁挡住。
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    from sqlalchemy import func
+
+    from store.api import admin as admin_api
+    from store.models import AccountSession
+    from store.security import token_hash
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-purge-batched-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    engine = create_store_engine(settings)
+    Base.metadata.create_all(engine)
+
+    total = admin_api._PURGE_BATCH + 400  # 跨过至少一个批次边界
+    with Session(engine) as session:
+        session.add(
+            Account(id="acc-purge", email="purge@habridge.local", password_hash="x")
+        )
+        session.flush()
+        long_ago = utcnow() - timedelta(days=30)
+        session.bulk_save_objects(
+            [
+                AccountSession(
+                    id_hash=token_hash(f"purge-token-{index}"),
+                    account_id="acc-purge",
+                    expires_at=long_ago,
+                    created_at=long_ago,
+                    last_seen_at=long_ago,
+                )
+                for index in range(total)
+            ]
+        )
+        session.commit()
+
+        result = admin_api._purge_rows(
+            session,
+            types.SimpleNamespace(email="smoke-admin@habridge.local", id="smoke"),
+            model=AccountSession,
+            pk=AccountSession.id_hash,
+            where=AccountSession.expires_at < utcnow(),
+            label="登录会话",
+            action="session.purge",
+            detail="冒烟用例",
+        )
+        session.commit()
+        remaining = session.scalar(select(func.count()).select_from(AccountSession))
+        check(
+            "S30 一次调用清空跨批次的全部命中行，并如实返回总数",
+            result["deleted"] == total and remaining == 0,
+            f"deleted={result['deleted']} remaining={remaining} total={total}",
+        )
+        check(
+            "S30 单批上限小于 SQLite 的 IN 变量上限（老版本 999）",
+            admin_api._PURGE_BATCH < 999,
+            str(admin_api._PURGE_BATCH),
+        )
+
+    # 牙齿（形状）：删除必须在 `while` 循环里按批取、按批删 —— 这个形状一丢，
+    # 「全部主键读进内存」的老问题就回来了，而功能测试照样全绿。
+    tree = ast.parse(textwrap.dedent(inspect.getsource(admin_api._purge_rows)))
+    loops = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.While)
+        and any(
+            isinstance(inner, ast.Call)
+            and isinstance(inner.func, ast.Attribute)
+            and inner.func.attr == "limit"
+            for inner in ast.walk(node)
+        )
+    ]
+    check(
+        "S30 牙齿：_purge_rows 是 while 循环里按 limit(_PURGE_BATCH) 取一批删一批",
+        bool(loops),
+        f"命中 {len(loops)} 个带 limit 的 while 循环",
+    )
+
+
 def check_config_validation_strictness() -> None:
     """S7：配置写错必须启动即失败，而不是静默按默认值跑。
 
@@ -10569,6 +10956,9 @@ async def run() -> int:
     check_product_stats_scoped()
     check_key_rotation_overlap()
     await check_release_unique_conflict_paths()
+    check_bootstrap_defaults_single_flight()
+    check_auth_dependency_stays_read_only()
+    check_admin_purge_is_batched()
     check_config_validation_strictness()
     check_order_id_indexes()
     await check_verification_code_salt()

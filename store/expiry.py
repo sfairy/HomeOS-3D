@@ -1,4 +1,4 @@
-"""本地待支付订单的过期收尾（与支付渠道无关）。
+"""本地例行收尾：待支付订单的过期处理 + 过期登录会话的清理（都与支付渠道无关）。
 
 为什么单独成模块
 ----------------
@@ -15,6 +15,11 @@
 所以这份逻辑必须同时被两条路径复用：请求路径（顺带清理）与后台巡检
 （``payments.sweeper``，无流量、未配渠道也照样跑）。放在这里是为了让两边**共用
 同一份实现** —— 各写一份条件 UPDATE 迟早会在某一边漏掉归还预留那一步。
+
+同一个理由让 :func:`prune_expired_sessions` 也住在这里，而且**只**挂在巡检上：
+过期登录会话的删除原本藏在认证依赖里（每个带旧 Cookie 的请求顺手删一行），
+那正是 S28 —— 读请求变成写热点。它是同一类「没人访问也要发生」的收尾，所以换了
+一个执行者，而不是被取消。
 """
 
 from __future__ import annotations
@@ -22,12 +27,12 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.orm import Session
 
 from store import coupons, fulfill
 from store.config import StoreSettings
-from store.models import Order, Product, utcnow
+from store.models import AccountSession, Order, Product, utcnow
 
 logger = logging.getLogger("store.expiry")
 
@@ -41,6 +46,11 @@ logger = logging.getLogger("store.expiry")
 #: 200 笔足够清掉日常零散积压，又把单次请求的最坏代价封住。完整清理由
 #: ``payments.sweeper`` 反复轮转完成 —— 它无流量、未配渠道也照跑（见模块顶部）。
 EXPIRE_BATCH_LIMIT = 200
+
+#: 单次最多删多少条过期登录会话（见 :func:`prune_expired_sessions`）。
+#: 与 ``EXPIRE_BATCH_LIMIT`` 同一个理由：一次清空整表可能是几十万行，
+#: 而它占用的写锁会把同时段的下单一起挡住。删不完的留给下一轮，反正巡检一直在跑。
+SESSION_PRUNE_BATCH = 500
 
 
 def _products_in(session: Session, product_ids) -> dict[str, Product]:
@@ -119,3 +129,36 @@ def expire_stale_orders(
     if expired:
         session.flush()
     return expired
+
+
+def prune_expired_sessions(
+    session: Session, *, now=None, limit: int = SESSION_PRUNE_BATCH
+) -> int:
+    """删掉已经过期的登录会话行，返回删除条数（S28）。
+
+    这些行的删除原本在认证依赖里（``deps._resolve_session``）顺手做，而那是**读
+    路径**：每个带着过期 Cookie 的 GET 都会开一个写事务，并在请求剩下的整个生命
+    周期里持有 SQLite 的写锁 —— 一份浏览器一直带在身上的旧 Cookie 就能把全站的写
+    请求串起来。认证依赖现在只回答「这个会话不能用」，清理搬到这里，由支付巡检
+    定时执行：它无流量、未配渠道也照跑（见模块顶部），正好是「没人访问也要发生」
+    这件事的正确执行者。
+
+    先 ``SELECT`` 再决定要不要 ``DELETE``：稳态下绝大多数轮次是「没有过期的」，
+    而一条无匹配的 ``DELETE`` 在 SQLite 里同样会开写事务 —— 那会把「巡检每 30 秒
+    一次」变成「每 30 秒抢一次写锁」。一次带索引的 ``SELECT`` 只读，值得。
+    """
+    moment = now or utcnow()
+    ids = list(
+        session.scalars(
+            select(AccountSession.id_hash)
+            .where(AccountSession.expires_at <= moment)
+            .limit(max(1, int(limit)))
+        )
+    )
+    if not ids:
+        return 0
+    deleted = session.execute(
+        delete(AccountSession).where(AccountSession.id_hash.in_(ids))
+    ).rowcount
+    session.flush()
+    return int(deleted or 0)

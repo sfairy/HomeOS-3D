@@ -15,6 +15,18 @@ from store.security import token_hash, utcnow
 #: 但每个请求都写一次会把 SQLite 变成写热点，所以最多每分钟落一次盘。
 LAST_SEEN_REFRESH_SECONDS = 60
 
+#: 只有这些方法算「用户做了点什么」，才值得刷 ``last_seen_at``（S28）。
+#:
+#: 为什么按方法分而不是按路径分：SQLite 的写锁从**第一条写语句**开始持有，直到事务
+#: 提交 —— 而事务提交在请求收尾。于是在读路径上写一行，等于让这个 GET 在它剩下的
+#: 全部生命周期里占着写锁；一个用户把账号中心刷十遍，就把全站下单串起来十次。
+#: 反过来，写方法（POST/PUT/PATCH/DELETE）本来就要写库，多这一行的边际成本是零。
+#:
+#: 代价是「只在浏览、不做任何操作」的会话，它的 ``last_seen_at`` 会停在最后一次
+#: 操作上。这个字段回答的是「这个会话还有人在用吗」，而浏览页面本身不改变这个
+#: 答案 —— 把「打过一次招呼」与「正在下单」记成同一件事，才是更贵的失真。
+ACTIVITY_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
 
 def get_session(request: Request) -> Iterator[Session]:
     database = request.app.state.database
@@ -37,6 +49,18 @@ DbSession = Annotated[Session, Depends(get_session, scope="function")]
 
 
 def _resolve_session(request: Request, session: Session) -> AccountSession | None:
+    """按 Cookie 找回当前会话。**这个函数不写库**（S28）。
+
+    它过去会做两件写操作，两件都在读路径上：
+
+    * **删掉已过期的会话行**。返回「没登录」本来就是正确的回答，删除只是顺手清理；
+      但代价是每个带着旧 Cookie 的 GET 都会开一个写事务（见 ``ACTIVITY_METHODS``
+      的说明）。过期行现在由例行维护收拾（``expiry.prune_expired_sessions``，
+      挂在支付巡检上 —— 它与巡检里那笔「本地超时单收尾」是同一类：不依赖流量、
+      不依赖渠道配置，没人访问也该发生），后台的「清理过期会话」也照旧可用。
+    * **刷 ``last_seen_at``**。这件事仍然做，但只在**用户确实做了点什么**的请求上
+      （见 ``ACTIVITY_METHODS``）。
+    """
     token = request.cookies.get(request.app.state.settings.cookie_name)
     if not token:
         return None
@@ -45,14 +69,14 @@ def _resolve_session(request: Request, session: Session) -> AccountSession | Non
         return None
     moment = utcnow()
     if record.expires_at <= moment:
-        session.delete(record)
-        session.flush()
+        # 只回答「这个会话不能用」，不做任何清理。
         return None
     # 会话活跃时间：不更新的话诊断里永远显示成登录时间，判断不出"还在用 / 早就不用了"。
-    seen = record.last_seen_at or record.created_at
-    if seen is None or (moment - seen).total_seconds() >= LAST_SEEN_REFRESH_SECONDS:
-        record.last_seen_at = moment
-        session.flush()
+    if request.method in ACTIVITY_METHODS:
+        seen = record.last_seen_at or record.created_at
+        if seen is None or (moment - seen).total_seconds() >= LAST_SEEN_REFRESH_SECONDS:
+            record.last_seen_at = moment
+            session.flush()
     return record
 
 
