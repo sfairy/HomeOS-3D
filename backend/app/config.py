@@ -153,8 +153,14 @@ class Settings:
     # 可信反向代理的 IP / CIDR 列表。为空表示不信任任何转发头，
     # 此时限流按 TCP 对端地址统计（直连部署下就是真实客户端）。
     trusted_proxies: tuple[str, ...] = ()
+    # 更新检查：默认关闭。开启后每 6 小时向发布端点上报本机版本与渠道，
+    # 属于可选的发布发现，见 updates.py（B31）。
     update_checks_enabled: bool = False
     update_channel: str = 'docker'
+    # 发布端点；留空用 updates.RELEASE_ENDPOINTS 里的内置厂商端点。
+    update_endpoints: tuple[str, ...] = ()
+    # 更新说明页地址；留空用 updates.WIKI_URL 的内置地址。
+    update_wiki_url: str = ''
     # Cookie 名沿用历史前缀 ha_bridge_*：改名会让已登录用户全部掉线，故保持不变。
     cookie_name: str = 'ha_bridge_session'
     display_cookie_name: str = 'ha_bridge_display'
@@ -386,6 +392,13 @@ def load_settings() -> Settings:
         for piece in os.getenv('APP_TRUSTED_PROXIES', '').split(',')
         if piece.strip()
     )
+    # 更新检查的发布端点：留空用内置的厂商端点（见 updates.RELEASE_ENDPOINTS）。
+    # 自托管部署想自己掌控这条外发请求时，指向自建节点即可（B31）。
+    update_endpoints = tuple(
+        piece.strip()
+        for piece in os.getenv('APP_UPDATE_ENDPOINTS', '').split(',')
+        if piece.strip()
+    )
     return Settings(**{
         'data_dir': data_dir,
         'app_base_url': os.getenv('APP_BASE_URL', '').strip().rstrip('/'),
@@ -396,9 +409,13 @@ def load_settings() -> Settings:
         'display_cookie_max_age_seconds': int(os.getenv('APP_DISPLAY_COOKIE_MAX_AGE_SECONDS', '15552000')),
         'display_token_ttl_seconds': int(os.getenv('APP_DISPLAY_TOKEN_TTL_SECONDS', '15552000')),
         'display_token_hard_ttl_seconds': int(os.getenv('APP_DISPLAY_TOKEN_HARD_TTL_SECONDS', '0')),
-        # 更新检查在本项目中固定开启，不提供环境变量开关。
-        'update_checks_enabled': True,
+        # 更新检查默认**关闭**（B31）：它要走外网、按固定周期向发布端点上报本机版本与
+        # 渠道，属于「可选的发布发现」，不该在自托管部署里默认发生。想开就显式设
+        # APP_UPDATE_CHECKS=1；端点也能换成自建（APP_UPDATE_ENDPOINTS）。
+        'update_checks_enabled': _environment_bool('APP_UPDATE_CHECKS'),
         'update_channel': os.getenv('APP_UPDATE_CHANNEL', 'docker').strip().lower(),
+        'update_endpoints': update_endpoints,
+        'update_wiki_url': os.getenv('APP_UPDATE_WIKI_URL', '').strip(),
         'ha_request_timeout_seconds': float(os.getenv('APP_HA_REQUEST_TIMEOUT_SECONDS', '10')),
         'ha_reconcile_interval_seconds': int(os.getenv('APP_HA_RECONCILE_INTERVAL_SECONDS', '1800')),
         'ha_websocket_max_size_bytes': int(os.getenv('APP_HA_WEBSOCKET_MAX_SIZE_BYTES', str(67108864))),

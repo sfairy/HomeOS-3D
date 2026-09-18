@@ -142,6 +142,104 @@ def safe_context(value: dict[str, Any] | None) -> dict[str, Any]:
     return result
 
 
+class RepeatedErrorTally:
+    """把「同形态的 4xx」合并成计数，只在窗口边界各写一条。
+
+    背景（审计 B62）：诊断中间件原先对每个 ``>= 400`` 的 ``/api/`` 响应写一条日志，
+    说明里带完整请求路径。而 4xx 的两大来源恰好都是「路径由外部随手编」——目录扫描
+    与接口探测。于是「一次请求一行」把外部扫描量直接放大成磁盘写入量：日志文件
+    5 MB 上限被这些条目占满，真正的业务错误反而被裁剪掉。
+
+    合并规则「按形态」而不是「按原路径」：``/api/v1/hls/abc123`` 与
+    ``/api/v1/hls/def456`` 是同一类错误（访问了不存在的资源），归并成一个键才不会
+    让攻击者用「每次编一个新 id」绕开合并。键上限 64：键本身也是外部可控的输入，
+    不封顶就是另一条内存放大路径；键满之后的形态统一进「其他形态」这一个键。
+
+    计数语义：窗口内第一次出现立刻写一条（运维要马上看见），之后只累加不落盘，
+    窗口滚动时把上一个窗口的最终次数补写一条。窗口 300 秒，因此最坏情况下的写入
+    量是「64 个形态 + 1 条其他」/ 5 分钟，与请求量无关。
+
+    刻意不做「识别已登录请求」：中间件跑在路由之前，拿不到身份，靠 Cookie 是否存在
+    判断等于让外部自己声明（伪造一个 Cookie 就能恢复「一次请求一行」）。
+    代价是业务侧 4xx 也只剩计数与形态 —— 上下文里仍有 requestId 与状态码，
+    真要逐请求排查时把中间件日志级别调低比放开写入放大更划算。
+    """
+
+    #: 同一形态多久滚动一次窗口（秒）。
+    WINDOW_SECONDS = 300
+    #: 记忆的形态数上限；超出后统一记进 `_OVERFLOW_KEY`。
+    MAX_KEYS = 64
+    #: 路径参与归并的段数上限（更深的段一律丢弃）。
+    MAX_SEGMENTS = 5
+    #: 段内被视作「标识符」的段：整段由 8 位以上十六进制（uuid / 哈希 / 长数字）或纯数字组成。
+    #: 用整段匹配（不是段内替换）：否则 ``/api/v1/v2/things`` 这种版本号段会被误折叠成
+    #: ``v{id}``，把本该区分的路径合成同一个形态。
+    _IDENTIFIER = re.compile(r"[0-9a-fA-F]{8,}|[0-9]+")
+    _OVERFLOW_KEY = ("*", 0, "*")
+
+    def __init__(self, clock=time.monotonic) -> None:
+        """初始化形态表与保护它的锁。
+
+        参数:
+            clock: 时间源，默认 monotonic；注入后自检可以控制窗口滚动。
+        """
+        self.clock = clock
+        # 键 -> [窗口起点, 窗口内次数, 该键的展示标签]；键与标签都只由形态派生。
+        self._entries: dict[tuple[str, int, str], list] = {}
+        self._lock = threading.Lock()
+
+    @classmethod
+    def shape_path(cls, path: str) -> str:
+        """把请求路径归一成「形态」：数字与长十六进制段替换成占位符。
+
+        参数:
+            path: 原始请求路径（已去掉查询串）。
+
+        返回:
+            形如 ``/api/v1/projects/{id}`` 的形态；根路径返回 ``/``。
+        """
+        segments = [segment for segment in path.split("/") if segment][: cls.MAX_SEGMENTS]
+        if not segments:
+            return "/"
+        return "/" + "/".join(
+            "{id}" if cls._IDENTIFIER.fullmatch(segment) else segment for segment in segments
+        )
+
+    def note(self, method: str, status: int, path: str) -> str | None:
+        """记一次 4xx，返回该写入日志的说明；None 表示本窗口内不再写。
+
+        参数:
+            method: HTTP 方法。
+            status: 响应状态码（4xx）。
+            path: 原始请求路径。
+
+        返回:
+            该写的说明文本，或 None（同形态同窗口内已写过）。
+        """
+        shaped = self.shape_path(path)
+        label = f"{method} {shaped}"
+        key = (method, status, shaped)
+        now = self.clock()
+        with self._lock:
+            if key not in self._entries and len(self._entries) >= self.MAX_KEYS:
+                # 形态表已满：新形态一律并进「其他形态」这一条，标签也随之泛化，
+                # 免得把「其他」里的累计次数记到某个具体路径名下。
+                key = ("*", 0, "*")
+                label = "其他形态的请求"
+            entry = self._entries.get(key)
+            if entry is None:
+                self._entries[key] = [now, 1, label]
+                return f"接口返回错误：{label} · HTTP {status}（本窗口内后续只计数）"
+            if now - entry[0] >= self.WINDOW_SECONDS:
+                (previous, entry[0], entry[1]) = (entry[1], now, 1)
+                return (
+                    f"接口返回错误：{entry[2]} · HTTP {status}"
+                    f"（上一个 {self.WINDOW_SECONDS} 秒窗口内累计 {previous} 次）"
+                )
+            entry[1] += 1
+            return None
+
+
 class GlobalLogStore:
     """事件日志存储：JSONL 文件 + 内存兜底，无需数据库迁移。
 

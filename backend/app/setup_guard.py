@@ -34,28 +34,14 @@ from pathlib import Path
 
 from fastapi import HTTPException, Request, status
 
+from .http_security import FORWARDED_HEADERS, _peer_host, is_direct_local
+
 #: 生成密钥的长度（``token_urlsafe(32)`` 约 43 个字符）。
 TOKEN_BYTES = 32
 #: 读回既有文件时的最短长度：明显被截断/写脏的文件不当作有效凭证，重新生成。
 MIN_TOKEN_LENGTH = 16
-
-#: 判定「本机直连」时可信的对端地址。
-LOOPBACK_HOSTS = frozenset({'127.0.0.1', '::1', 'localhost'})
-#: 出现任一转发头即视为「前面还有代理」，此时不再按本机放行。
-FORWARDED_HEADERS = ('x-forwarded-for', 'x-forwarded-proto', 'x-real-ip', 'forwarded')
-
-
-def _peer_host(request: Request) -> str:
-    """TCP 对端地址（小写、去空白）；拿不到时返回空串。"""
-    client = getattr(request, 'client', None)
-    return str(getattr(client, 'host', '') or '').strip().lower()
-
-
-def _is_direct_local(request: Request) -> bool:
-    """是否是「本机直连」：loopback 对端，且没有任何转发头。"""
-    if any(request.headers.get(name) for name in FORWARDED_HEADERS):
-        return False
-    return _peer_host(request) in LOOPBACK_HOSTS
+# 「本机直连」的判据与转发头清单统一放在 http_security：健康探针（B61）与这里要
+# 用同一份判断，两处各写一份迟早会有一处漏掉某个转发头。这里只留下引用。
 
 
 def _looks_like_forwarded(request: Request) -> bool:
@@ -186,7 +172,7 @@ class SetupGuard:
                 headers={'Retry-After': str(limiter.block_seconds)},
             )
 
-        if _is_direct_local(request):
+        if is_direct_local(request):
             return
 
         supplied = (setup_token or request.headers.get('x-setup-token') or '').strip()

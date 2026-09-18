@@ -38,7 +38,12 @@ from .access import (
 from .admin_account import AdminAccountStore
 from .api.auth import router as auth_router
 from .api.assets import AssetCatalog, read_builtin_asset, router as assets_router
-from .api.displays import PAIRING_GLOBAL_LIMIT, router as displays_router
+from .api.displays import (
+    PAIRING_CODE_KEYS,
+    PAIRING_CODE_LIMIT,
+    PAIRING_GLOBAL_LIMIT,
+    router as displays_router,
+)
 from .api.ha import router as ha_router, runtime_router
 from .api.ha_proxy import router as ha_proxy_router
 from .api.global_logs import router as global_logs_router
@@ -47,21 +52,22 @@ from .api.license import router as license_router
 from .modules.interaction3d.api import router as interaction3d_router
 from .api.projects import router as projects_router
 from .api.studio3d import router as studio3d_router
-from .auth_limiter import LoginAttemptLimiter
+from .auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
 from .config import Settings, load_settings
 from .database import Database
 from .ha.service import HAConnectorService
 from .http_security import (
     forwarded_allow_ips_warning,
     forwarded_headers_present,
+    is_direct_local,
     parse_trusted_proxies,
     same_origin_request,
 )
 from .license import LicenseService
-from .updates import UpdateChecker, router as updates_router
+from .updates import UpdateChecker, endpoint_hosts, router as updates_router
 from .migrations import run_migrations
 from .display_access import active_display_device, display_path
-from .global_log import GlobalLogStore, _safe_text, event_context
+from .global_log import GlobalLogStore, RepeatedErrorTally, _safe_text, event_context
 from .models import DisplayDevice, Project
 from .security import set_display_cookie
 from .setup_guard import SetupGuard, announce_setup_window
@@ -181,6 +187,13 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.login_account_limiter = LoginAttemptLimiter(10, 900, 900)
             # 中控配对的跨来源失败预算（按 IP 那一档在 login_limiter 里，见 displays.py）。
             app.state.pairing_limiter = LoginAttemptLimiter(*PAIRING_GLOBAL_LIMIT)
+            # 第三档：按被尝试的码记账（B48）。键是外部可控输入，因此用带键上限的一层
+            # 包装 —— 否则「每次换一个码来试」就成了一条内存放大路径。
+            app.state.pairing_code_limiter = BoundedAttemptLimiter(*PAIRING_CODE_LIMIT, max_keys = PAIRING_CODE_KEYS)
+            # 匿名 4xx 的形态合并计数（B62）：诊断中间件据此把「一次请求一行」压成
+            # 「每形态每窗口一行」。放在这里而不是模块级全局，是为了让 create_app()
+            # 多次调用（自检里就是这么做的）互不共享状态。
+            app.state.error_tally = RepeatedErrorTally()
             # 首次初始化的守卫：没带引导密钥的远程请求不允许抢建管理员账号。
             app.state.setup_guard = SetupGuard(app_settings.data_dir, app_settings.setup_token, event_log = app.state.global_log)
             if account_state in ('empty', 'reset_required'):
@@ -195,8 +208,22 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.ha_connector = HAConnectorService(app_settings, app.state.database, event_log = app.state.global_log)
             # HA 同步是同步方法，内部自己起线程 / 任务，因此这里不 await。
             app.state.ha_connector.start()
-            app.state.update_checker = UpdateChecker(app_settings.data_dir, app_settings.version, app_settings.update_channel, enabled = app_settings.update_checks_enabled)
+            app.state.update_checker = UpdateChecker(
+                app_settings.data_dir,
+                app_settings.version,
+                app_settings.update_channel,
+                enabled = app_settings.update_checks_enabled,
+                endpoints = app_settings.update_endpoints,
+                wiki_url = app_settings.update_wiki_url,
+            )
             app.state.update_checker.start()
+            if app_settings.update_checks_enabled:
+                # 打开外发检查就在启动日志里说清「发给谁、发什么」：这是本应用唯一一条
+                # 主动外发的周期性请求，运维有权在启动输出里看到它（B31）。
+                app.state.global_log.append(
+                    'info', '系统后台', '配置',
+                    f'更新检查已开启：每 6 小时向 {endpoint_hosts(app.state.update_checker.endpoints)} 上报本机版本与更新渠道；不需要时设 APP_UPDATE_CHECKS=0 关闭。',
+                )
         except Exception as error:
             _record_lifecycle_failure(app, 'startup', error)
             # 逆序回滚：只关闭真正启动成功的那些服务，
@@ -323,15 +350,26 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 if isinstance(detail, dict) and isinstance(detail.get('code'), str):
                     context['code'] = detail['code']
                 if response.status_code >= 400 and not getattr(request.state, 'diagnostic_error_logged', False):
-                    # 4xx 记 warning、5xx 记 error；已经自行记录过的接口不重复记。
-                    log.append(
-                        'error' if response.status_code >= 500 else 'warning',
-                        '系统后台',
-                        '接口',
-                        f'接口返回错误：{request.method} {diagnostic_path} · HTTP {response.status_code}',
-                        context = context,
-                        details = detail if isinstance(detail, str) else (json.dumps(detail, ensure_ascii = False) if detail is not None else None),
-                    )
+                    if response.status_code >= 500:
+                        # 5xx 是我们的问题：逐条记 error 并带上细节，便于按 requestId 定位。
+                        log.append(
+                            'error',
+                            '系统后台',
+                            '接口',
+                            f'接口返回错误：{request.method} {diagnostic_path} · HTTP {response.status_code}',
+                            context = context,
+                            details = detail if isinstance(detail, str) else (json.dumps(detail, ensure_ascii = False) if detail is not None else None),
+                        )
+                    else:
+                        # 4xx 走形态合并计数（B62）：路径是外部可以随手编的，逐条写等于
+                        # 把扫描量放大成磁盘写入量。只在窗口首次出现时写一条，窗口滚动时
+                        # 补写累计次数 —— 按形态归并（数字/id 段替换成占位符）是为了不让
+                        # 「每次都编一个新 id」绕开合并。已自行记录过错误的接口不重复记。
+                        summary = request.app.state.error_tally.note(
+                            request.method, response.status_code, request.url.path
+                        )
+                        if summary is not None:
+                            log.append('warning', '系统后台', '接口', summary, context = context)
                 elif response.status_code < 400 and context['durationMs'] >= SLOW_REQUEST_MILLISECONDS:
                     log.append('warning', '系统后台', '性能', f'接口响应缓慢：{request.method} {diagnostic_path} · {context["durationMs"]} 毫秒', context = context)
             return response
@@ -604,8 +642,15 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         return RedirectResponse(f'/login?next={quote(destination, safe = "")}', status_code = 303)
 
     @app.get('/health/live', include_in_schema = False)
-    async def health_live() -> dict[str, str]:
-        """存活探针：只要进程能响应就算存活，不检查任何依赖。"""
+    async def health_live(request: Request) -> dict[str, str]:
+        """存活探针：只要进程能响应就算存活，不检查任何依赖。
+
+        只有本机直连才回版本号（B61）：探活机器只需要一个 2xx，而精确版本对
+        外部扫描者是「这个部署值不值得打」的第一手情报 —— 配合 setup_guard 的
+        初始化窗口，匿名可读的版本号就是选靶子用的。
+        """
+        if not is_direct_local(request):
+            return {'status': 'ok'}
         return {'status': 'ok', 'version': app_settings.version}
 
     @app.get('/favicon.ico', include_in_schema = False)
@@ -633,9 +678,17 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     @app.get('/health/ready', include_in_schema = False)
     def health_ready(request: Request) -> dict[str, str | bool]:
-        """就绪探针：真的连一次数据库，连不上就返回 500 让编排器不转发流量。"""
+        """就绪探针：真的连一次数据库，连不上就返回 500 让编排器不转发流量。
+
+        非本机直连只回 ``status``（B61）：``initialized`` 告诉扫描者「这台还没建
+        管理员」—— 那正是 setup_guard 的初始化窗口最怕被挑出来的时刻；精确版本号
+        同理。编排器的探测本来就是从容器内回环发起的（见 Dockerfile 与
+        docker-compose 的 healthcheck），因此它照旧拿得到详情。
+        """
         with request.app.state.database.engine.connect() as connection:
             connection.execute(text('SELECT 1'))
+        if not is_direct_local(request):
+            return {'status': 'ready'}
         return {'status': 'ready', 'initialized': initialized(request), 'version': app_settings.version}
 
     @app.get('/login', include_in_schema = False)

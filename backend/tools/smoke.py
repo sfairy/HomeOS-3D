@@ -27,7 +27,7 @@ import tempfile
 import threading
 import time
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -3534,6 +3534,603 @@ def check_export_rollback_error_chain() -> None:
     )
 
 
+def _app_with_recording_log(tmp: Path, *, tally_keys: int | None = None):
+    """拼一个真应用，把全局日志换成内存记录器（B62 的两条路径都要看它写没写）。
+
+    参数:
+        tmp: 临时目录（数据库落在这里）。
+        tally_keys: 覆盖 ``RepeatedErrorTally.MAX_KEYS``，好在几个请求内看到键上限生效。
+
+    返回:
+        (app, 记录器)。记录器有 ``entries``（按写入顺序）与 ``_lock``（限流器要用）。
+    """
+    from backend.app.global_log import RepeatedErrorTally
+    from backend.app.main import create_app
+
+    class _RecordingLog:
+        """只记不落盘的 global_log 替身：断言「写了什么」比断言磁盘更直接。"""
+
+        def __init__(self) -> None:
+            self.entries: list[dict] = []
+            self._lock = threading.Lock()
+            self.retention_days = 7
+
+        def append(self, level, source, category, message, **kwargs):
+            """记一条事件；返回形状与真实现一致（调用方会读 id/timestamp）。"""
+            event = {
+                'level': level,
+                'source': source,
+                'category': category,
+                'message': message,
+                **kwargs,
+            }
+            self.entries.append(event)
+            return event
+
+        def list_events(self, **kwargs) -> list:
+            """读回记录（真实现支持筛选，这里只需要全量）。"""
+            return list(self.entries)
+
+        def storage_status(self) -> dict:
+            """存储状态桩。"""
+            return {}
+
+        def stop(self) -> None:
+            """无需收尾。"""
+
+    app = create_app()
+    log = _RecordingLog()
+    app.state.global_log = log
+    app.state.error_tally = RepeatedErrorTally()
+    if tally_keys is not None:
+        app.state.error_tally.MAX_KEYS = tally_keys
+    # 免得「检测到转发头但没配可信代理」那条一次性告警混进断言。
+    app.state.proxy_warning_logged = True
+    if not hasattr(app.state, 'database'):
+        from backend.app.database import Base, Database
+
+        database = Database(f'sqlite:///{tmp / "app.db"}')
+        Base.metadata.create_all(database.engine)
+        app.state.database = database
+    return (app, log)
+
+
+async def check_anonymous_4xx_merged() -> None:
+    """B62：匿名 4xx 与 5xx 的写入量必须分开对待。
+
+    这两条路径原先都被写成「一次请求一行，说明里带完整路径」，而 4xx 恰恰是外部
+    能随手编路径的场景：一次目录扫描就把日志文件（上限 5 MB）写满，把真正的业务
+    错误挤掉。修复后 4xx 按「路径形态」合并计数，5xx 仍逐条记（那是我们自己的
+    bug，要按 requestId 定位）。这条检查真的发请求，因此同时验证了接线。
+    """
+    from fastapi import HTTPException
+
+    from backend.app.global_log import RepeatedErrorTally
+
+    # 1) 形态归一：纯数字段与长十六进制段（uuid / 哈希）整段折成占位符，别的不动；
+    #    段数超上限（5 段）后截断，让「一路编更深的路径」也归到同一个形态。
+    shapes = {
+        '/api/v1/hls/abc123def456': '/api/v1/hls/{id}',
+        '/api/v1/projects/42': '/api/v1/projects/{id}',
+        '/api/v1/v2/things': '/api/v1/v2/things',
+        '/': '/',
+        '/api/v1/a/b/c/d/e/f': '/api/v1/a/b/c',
+    }
+    wrong = {
+        path: RepeatedErrorTally.shape_path(path)
+        for path, expected in shapes.items()
+        if RepeatedErrorTally.shape_path(path) != expected
+    }
+    check(
+        'B62 路径形态归一：数字与长十六进制段折叠，版本号一类短段不受影响',
+        not wrong,
+        f'不符 {wrong}' if wrong else f'{len(shapes)} 条样例全部符合',
+    )
+
+    # 2) 窗口语义：首次写一条，窗口内只计数，窗口滚动时把累计次数补写出来。
+    now = [1000.0]
+    tally = RepeatedErrorTally(clock=lambda: now[0])
+    first = tally.note('GET', 404, '/api/v1/scan/1')
+    merged = [tally.note('GET', 404, f'/api/v1/scan/{index}') for index in range(2, 20)]
+    now[0] += RepeatedErrorTally.WINDOW_SECONDS
+    rollover = tally.note('GET', 404, '/api/v1/scan/20')
+    check(
+        'B62 同形态首次立刻写一条（运维要马上看见，不是攒到最后）',
+        isinstance(first, str) and '后续只计数' in first,
+        f'{first!r}',
+    )
+    check(
+        'B62 同窗口内的重复只计数、不再落盘（这就是「降级为计数」）',
+        18 <= len(merged) <= 19 and all(item is None for item in merged),
+        f'19 次重复里写了 {sum(1 for item in merged if item is not None)} 条',
+    )
+    check(
+        'B62 窗口滚动时补写累计次数（计数不会随窗口一起丢掉）',
+        bool(rollover) and '累计 19 次' in str(rollover),
+        f'{rollover!r}',
+    )
+
+    # 3) 键上限：形态再多也只留「每个形态一条 + 一条其他」。
+    limited = RepeatedErrorTally(clock=lambda: now[0])
+    limited.MAX_KEYS = 3
+    written = [
+        limited.note('GET', 404, f'/api/v1/{name}')
+        for name in ('alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta')
+    ]
+    check(
+        'B62 形态数不随请求量增长：超出上限后并进「其他形态」一条',
+        sum(1 for item in written if item is not None) == 4
+        and sum(1 for item in written if item is not None and '其他形态' in item) == 1,
+        f'6 种形态写了 {sum(1 for item in written if item is not None)} 条：{[item for item in written if item]}',
+    )
+
+    # 4) 端到端：真应用 + 真中间件，20 次扫描只落一条、5xx 仍是逐条。
+    with tempfile.TemporaryDirectory(prefix='hb-tally-') as tmp:
+        (app, log) = _app_with_recording_log(Path(tmp), tally_keys=3)
+
+        class _BrokenDatabase:
+            """一碰就炸的数据库替身：用来制造真实的 500（而不是伪造一个 500 响应）。
+
+            抛的是 ``HTTPException(500)``：它会被应用交给异常处理器变成**响应**，
+            因此走的是「诊断中间件看到 5xx 响应」那条路径 —— 与「异常直接穿过中间件」
+            那条路不同，这里要验证的正是前者不被合并计数。
+            """
+
+            def __getattr__(self, name):
+                """依赖取任何属性（会话工厂 / 引擎）都抛 500 → 中间件记成一条 5xx。"""
+                raise HTTPException(status_code = 500, detail = f'自检用的假故障（取 {name}）')
+
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            for index in range(20):
+                await client.get(f'/api/v1/scan/{index}')
+            for name in ('alpha', 'beta', 'gamma', 'delta', 'epsilon'):
+                await client.get(f'/api/v1/{name}')
+            # 5xx：把依赖弄炸，让服务端真的自己出错三次。
+            # 用配对接口（匿名可访问、又不是日志端点本身 —— 日志端点不写自己的日志）。
+            app.state.database = _BrokenDatabase()
+            boom_status = [
+                (
+                    await client.post(
+                        '/api/v1/displays/pair',
+                        headers={'origin': 'http://app.test'},
+                        json={'code': '123456'},
+                    )
+                ).status_code
+                for _ in range(3)
+            ]
+
+    warnings = [entry for entry in log.entries if entry['level'] == 'warning' and '接口返回错误' in entry['message']]
+    # 5xx 走的是「未捕获异常」分支：一条一条记，且带堆栈（与 4xx 的合并计数相对）。
+    errors = [entry for entry in log.entries if entry['level'] == 'error' and 'displays/pair' in entry['message']]
+    scan_warnings = [entry for entry in warnings if 'scan/{id}' in entry['message']]
+    check(
+        'B62 20 次同形态扫描只落一条日志（修复前是 20 条）',
+        len(scan_warnings) == 1 and any('其他形态' in entry['message'] for entry in warnings),
+        f'{len(scan_warnings)} 条扫描形态 / 共 {len(warnings)} 条：{[entry["message"][:40] for entry in warnings]}',
+    )
+    check(
+        'B62 5xx 仍逐条记且带堆栈（合并只针对 4xx，服务端自己的错不许被折叠成计数）',
+        boom_status == [500, 500, 500]
+        and len(errors) == 3
+        and all('自检用的假故障' in str(entry.get('details') or '') for entry in errors),
+        f'{boom_status}，{len(errors)} 条 5xx 日志，带堆栈 {sum(1 for entry in errors if entry.get("details"))} 条',
+    )
+
+
+async def check_public_events_marked_and_capped() -> None:
+    """B62：无需登录的日志通道要能一眼认出「这条是外部上报的」。
+
+    ``/logs/public-events`` 收的是未登录页面写的文本，却进的是后台审计日志。
+    修复后统一加来源标记、把长度上限收紧到「够定位异常」的量级，并把匿名配额压到
+    10 条/分钟。这条检查跑真路由 + 真日志存储，避免只验证常量。
+    """
+    from fastapi import FastAPI
+
+    from backend.app.api.global_logs import (
+        ANONYMOUS_CLIENT_LOG_PER_MINUTE,
+        PUBLIC_EVENT_DETAILS_LIMIT,
+        PUBLIC_EVENT_MARKER,
+        PUBLIC_EVENT_MESSAGE_LIMIT,
+    )
+    from backend.app.api.global_logs import router as global_logs_router
+    from backend.app.config import load_settings
+    from backend.app.database import Base, Database
+    from backend.app.global_log import GlobalLogStore
+
+    with tempfile.TemporaryDirectory(prefix='hb-public-log-') as tmp:
+        root = Path(tmp)
+        database = Database(f'sqlite:///{root / "app.db"}')
+        Base.metadata.create_all(database.engine)
+        store = GlobalLogStore(root / 'data')
+        app = FastAPI()
+        app.include_router(global_logs_router, prefix='/api/v1')
+        app.state.database = database
+        app.state.global_log = store
+        # 身份解析要读管理员账号文件的状态（这里只要「已初始化」）。
+        app.state.admin_account = SimpleNamespace(user_id='u1', initialized=True)
+        # 真 settings（要 cookie_name / display_cookie_name 这类字段判身份），
+        # 只把可信代理清空，让来源解析按 TCP 对端计数。Settings 是 frozen 的，
+        # 因此用 replace 造一份改了字段的副本。
+        app.state.settings = replace(load_settings(), trusted_proxies=())
+        transport = httpx.ASGITransport(app=app)
+        headers = {'origin': 'http://app.test'}
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            posted = await client.post(
+                '/api/v1/logs/public-events',
+                headers=headers,
+                json={
+                    'level': 'error',
+                    'source': '登录页',
+                    'category': '界面',
+                    'message': '伪造的中文说明' * 60,
+                    'details': '堆栈细节' * 400,
+                    'context': {'page': '/login'},
+                },
+            )
+            anonymous_events = await client.post(
+                '/api/v1/logs/public-events', headers=headers, json={'level': 'info', 'message': '不该被记录'}
+            )
+            # 另一条通道必须仍然要登录：加标记不是「放宽」，别把两条通道混成一档。
+            authed = await client.post('/api/v1/logs/events', headers=headers, json={'level': 'error', 'message': 'x'})
+        all_events = store.list_events(limit=None)
+        events = [event for event in all_events if event.get('message', '').startswith(PUBLIC_EVENT_MARKER)]
+        store.stop()
+
+    check(
+        'B62 公开通道的条目带来源标记（后台一眼能认出是外部上报）',
+        posted.status_code == 204
+        and len(events) == 1
+        # 关键性质是「没有漏标的」：只要写了日志就必须带标记。
+        and len(all_events) == len(events),
+        f'status={posted.status_code}，带标记 {len(events)} 条 / 全部 {len(all_events)} 条',
+    )
+    if events:
+        entry = events[0]
+        check(
+            'B62 公开通道的正文与细节按更紧的上限截断',
+            len(entry['message']) <= len(PUBLIC_EVENT_MARKER) + PUBLIC_EVENT_MESSAGE_LIMIT
+            and len(entry.get('details') or '') <= PUBLIC_EVENT_DETAILS_LIMIT,
+            f'正文 {len(entry["message"])} 字符（上限 {len(PUBLIC_EVENT_MARKER) + PUBLIC_EVENT_MESSAGE_LIMIT}）、'
+            f'细节 {len(entry.get("details") or "")} 字符（上限 {PUBLIC_EVENT_DETAILS_LIMIT}）',
+        )
+        check(
+            'B62 公开通道的身份标注仍是「未登录页面 / 未登录」',
+            entry['source'] == '未登录页面' and (entry.get('context') or {}).get('actor') == '未登录',
+            f'source={entry["source"]}，actor={(entry.get("context") or {}).get("actor")}',
+        )
+    check(
+        'B62 非 warning/error 的公开上报照旧直接 204 丢掉（不写日志）',
+        anonymous_events.status_code == 204,
+        f'status={anonymous_events.status_code}',
+    )
+    # 匿名配额单独起一个实例：上面对标记/截断的调用也算进这个限流器，混在一起就数不准。
+    with tempfile.TemporaryDirectory(prefix='hb-public-quota-') as tmp:
+        quota_root = Path(tmp)
+        quota_database = Database(f'sqlite:///{quota_root / "app.db"}')
+        Base.metadata.create_all(quota_database.engine)
+        quota_store = GlobalLogStore(quota_root / 'data')
+        quota_app = FastAPI()
+        quota_app.include_router(global_logs_router, prefix='/api/v1')
+        quota_app.state.database = quota_database
+        quota_app.state.global_log = quota_store
+        quota_app.state.admin_account = SimpleNamespace(user_id='u1', initialized=True)
+        quota_app.state.settings = replace(load_settings(), trusted_proxies=())
+        quota_transport = httpx.ASGITransport(app=quota_app)
+        async with httpx.AsyncClient(transport=quota_transport, base_url='http://app.test') as client:
+            statuses = [
+                (
+                    await client.post(
+                        '/api/v1/logs/public-events',
+                        headers=headers,
+                        json={'level': 'error', 'message': f'第 {index} 次匿名上报'},
+                    )
+                ).status_code
+                for index in range(ANONYMOUS_CLIENT_LOG_PER_MINUTE + 2)
+            ]
+        quota_store.stop()
+    check(
+        'B62 匿名配额压到 10 条/分钟（第 11 条起 429）',
+        # 断言里写死 10，不去比 ANONYMOUS_CLIENT_LOG_PER_MINUTE：拿常量当期望值等于
+        # 自己证明自己（把常量改回 30，这条会跟着「通过」）。
+        statuses[:10] == [204] * 10 and statuses[10:] == [429, 429],
+        f'{statuses}（常量={ANONYMOUS_CLIENT_LOG_PER_MINUTE}）',
+    )
+    check(
+        'B62 已认证通道仍然要求登录（收紧公开通道不等于放宽另一条）',
+        authed.status_code == 401,
+        f'status={authed.status_code}',
+    )
+
+
+async def check_health_probe_details_local_only() -> None:
+    """B61：健康探针的细节只给本机直连，外部来访者只拿到一个 2xx。
+
+    ``/health/ready`` 原先匿名返回 ``initialized`` 与精确版本号：前者正好把
+    ``setup_guard`` 那个「还没建管理员」的窗口标出来，后者是选靶子的第一手情报。
+    编排器的探测从容器内回环发起（见 Dockerfile / docker-compose），因此不损功能。
+    """
+    from backend.app.database import Base, Database
+    from backend.app.main import create_app
+
+    with tempfile.TemporaryDirectory(prefix='hb-health-') as tmp:
+        app = create_app()
+        database = Database(f'sqlite:///{Path(tmp) / "app.db"}')
+        Base.metadata.create_all(database.engine)
+        app.state.database = database
+        app.state.admin_account = SimpleNamespace(user_id='u1', initialized=True)
+        version = app.state.settings.version
+
+        local = httpx.ASGITransport(app=app, client=('127.0.0.1', 41234))
+        remote = httpx.ASGITransport(app=app, client=('203.0.113.9', 51234))
+        async with httpx.AsyncClient(transport=local, base_url='http://app.test') as client:
+            ready_local = (await client.get('/health/ready')).json()
+            live_local = (await client.get('/health/live')).json()
+            proxied = (await client.get('/health/ready', headers={'x-forwarded-for': '203.0.113.9'})).json()
+        async with httpx.AsyncClient(transport=remote, base_url='http://app.test') as client:
+            ready_remote = (await client.get('/health/ready')).json()
+            live_remote = (await client.get('/health/live')).json()
+
+    check(
+        'B61 本机直连照旧拿得到 initialized 与版本（容器内探针不受影响）',
+        ready_local.get('initialized') is True and ready_local.get('version') == version and live_local.get('version') == version,
+        f'ready={ready_local}，live={live_local}',
+    )
+    check(
+        'B61 外部来访者只拿到 status，没有 initialized 与版本',
+        ready_remote == {'status': 'ready'} and live_remote == {'status': 'ok'},
+        f'ready={ready_remote}，live={live_remote}',
+    )
+    check(
+        'B61 带了转发头的回环请求也不算本机直连（反代同机部署时不能误放详情）',
+        proxied == {'status': 'ready'},
+        f'{proxied}',
+    )
+
+
+def check_update_checks_opt_in() -> None:
+    """B31：更新检查必须是显式开启的外发行为，且端点可换成自建。
+
+    原先加载器把开关**硬编码成 True**（dataclass 默认却是 False，形成不可达分支），
+    于是自托管部署默认每 6 小时向厂商端点上报版本与渠道，与「可选」的文档相反。
+    这条检查同时盯住三件事：默认关闭、开关真的能开、端点能换（并让界面看得出
+    「本部署关掉了外发检查」）。
+    """
+    import os
+
+    from backend.app.config import load_settings
+    from backend.app.updates import RELEASE_ENDPOINTS, UpdateChecker, endpoint_hosts
+
+    saved = {
+        name: os.environ.get(name)
+        for name in ('APP_UPDATE_CHECKS', 'APP_UPDATE_ENDPOINTS', 'APP_UPDATE_WIKI_URL', 'APP_UPDATE_CHANNEL')
+    }
+    try:
+        for name in saved:
+            os.environ.pop(name, None)
+        default = load_settings()
+        os.environ['APP_UPDATE_CHECKS'] = '1'
+        os.environ['APP_UPDATE_ENDPOINTS'] = 'https://updates.internal/api/latest, https://mirror.internal/api/latest'
+        os.environ['APP_UPDATE_WIKI_URL'] = 'https://docs.internal/updates.html'
+        os.environ['APP_UPDATE_CHANNEL'] = 'docker'
+        opted_in = load_settings()
+    finally:
+        for (name, value) in saved.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+    with tempfile.TemporaryDirectory(prefix='hb-updates-') as tmp:
+        disabled = UpdateChecker(Path(tmp), '1.0.0', 'docker', enabled=default.update_checks_enabled, endpoints=default.update_endpoints)
+        disabled.start()
+        enabled = UpdateChecker(
+            Path(tmp),
+            '1.0.0',
+            'docker',
+            enabled=opted_in.update_checks_enabled,
+            endpoints=opted_in.update_endpoints,
+            wiki_url=opted_in.update_wiki_url,
+        )
+        fallback = UpdateChecker(Path(tmp), '1.0.0', 'docker', endpoints=())
+        stopped = disabled.task is None
+        status = disabled.status()
+        enabled_status = enabled.status()
+        enabled_task = enabled.task
+        if enabled_task is not None:
+            enabled_task.cancel()
+
+    check(
+        'B31 更新检查默认关闭（加载器不再硬编码 True）',
+        default.update_checks_enabled is False and disabled.endpoints == RELEASE_ENDPOINTS,
+        f'enabled={default.update_checks_enabled}，端点={disabled.endpoints[0]}',
+    )
+    check(
+        'B31 关闭时不起后台任务（也就不会有任何外发请求）',
+        stopped,
+        f'task={disabled.task}',
+    )
+    check(
+        'B31 APP_UPDATE_CHECKS=1 才开启，且端点与说明页可指向自建',
+        opted_in.update_checks_enabled is True
+        and enabled.endpoints == ('https://updates.internal/api/latest', 'https://mirror.internal/api/latest')
+        and enabled_status['logUrl'].startswith('https://docs.internal/updates.html'),
+        f'端点={enabled.endpoints}，logUrl={enabled_status["logUrl"]}',
+    )
+    check(
+        'B31 未配置端点时回落到内置厂商端点（而不是空列表空转）',
+        fallback.endpoints == RELEASE_ENDPOINTS and bool(endpoint_hosts(fallback.endpoints)),
+        f'端点={fallback.endpoints}，主机={endpoint_hosts(fallback.endpoints)}',
+    )
+    check(
+        'B31 状态里回传 enabled，界面能区分「没查到」与「本部署关掉了」',
+        # 用 .get：缺键时要「变红」，而不是抛 KeyError 把整轮自检打断（那样连红项都看不到）。
+        status.get('enabled') is False and enabled_status.get('enabled') is True,
+        f'关闭时 {status.get("enabled")}、开启时 {enabled_status.get("enabled")}',
+    )
+    # 写法门：上面证明了「UpdateChecker 拿到端点会用」，这里证明「应用真的把配置传进去了」。
+    # 只测类的话，main.py 里写成 endpoints=() 也照样全绿 —— 开关就成了摆设。
+    from backend.app.main import create_app  # noqa: F401 —— 确保被检查的模块可导入
+
+    keywords = _update_checker_keywords()
+    check(
+        'B31 开关 / 端点 / 说明页确实从配置接到 UpdateChecker（写法门）',
+        keywords.get('enabled') == 'app_settings.update_checks_enabled'
+        and keywords.get('endpoints') == 'app_settings.update_endpoints'
+        and keywords.get('wiki_url') == 'app_settings.update_wiki_url',
+        f'{keywords}',
+    )
+
+
+def _update_checker_keywords() -> dict[str, str]:
+    """把 ``create_app`` 里构造 ``UpdateChecker`` 时传的关键字参数取出来（源码级的写法门）。
+
+    只做一件事：确认这三个参数接的是 ``app_settings`` 上的对应字段。运行期的结果门
+    （``UpdateChecker(endpoints=...)`` 真的生效）由 :func:`check_update_checks_opt_in`
+    里的类级断言负责；两者缺一，都可能出现「配置改了但没人读」或「读了但改错了」。
+    """
+    source = (Path(__file__).resolve().parents[1] / 'app' / 'main.py').read_text(encoding = 'utf-8')
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'UpdateChecker':
+            return {keyword.arg: ast.unparse(keyword.value) for keyword in node.keywords if keyword.arg}
+    return {}
+
+
+def check_bounded_attempt_limiter() -> None:
+    """B48：按码计数器的键空间必须有上限，且淘汰要连失败记录一起清掉。
+
+    键是「被尝试的配对码」的哈希 —— 外部可以随便造，不封顶就是一条内存放大路径。
+    这条检查盯住淘汰语义本身：键上限生效、最久未用的那个被淘汰、被淘汰的键不再是
+    封禁状态（少清一步就等于「记住了但不清」，淘汰只是把内存让出来而已）。
+    """
+    from backend.app.auth_limiter import BoundedAttemptLimiter
+
+    limiter = BoundedAttemptLimiter(5, 900, 900, max_keys=2)
+    for _ in range(5):
+        limiter.record_failure('code-a')
+    blocked_before = limiter.blocked('code-a')
+    limiter.record_failure('code-b')
+    limiter.record_failure('code-c')
+    tracked = limiter.tracked_keys()
+    blocked_after = limiter.blocked('code-a')
+    check(
+        'B48 同一码错满阈值即封禁（这一档要做的事）',
+        blocked_before is True and limiter.block_seconds == 900,
+        f'blocked={blocked_before}，block_seconds={limiter.block_seconds}',
+    )
+    check(
+        'B48 键空间有上限：超出后淘汰最久未用的键',
+        tracked == 2,
+        f'记住 {tracked} 个键（上限 2）',
+    )
+    check(
+        'B48 被淘汰的键连封禁记录一起清掉（不是只把内存让出来）',
+        blocked_after is False,
+        f'淘汰后 code-a blocked={blocked_after}',
+    )
+    for _index in range(4):
+        limiter.record_failure('code-a')
+    check(
+        'B48 淘汰会重置该键的计数：重新开始记，而不是一进来就立刻再封',
+        limiter.blocked('code-a') is False,
+        f'被淘汰的键重新错 4 次后 blocked={limiter.blocked("code-a")}（旧计数没清的话这里就已经被封）',
+    )
+    limiter.record_failure('code-a')
+    check(
+        'B48 重置后照旧要错满 5 次才封（不是「再也不封」）',
+        limiter.blocked('code-a') is True,
+        f'第 5 次后 blocked={limiter.blocked("code-a")}',
+    )
+
+
+async def check_pairing_code_attempt_budget() -> None:
+    """B48：按码的那一档限流必须真的挂在配对路由上（且是按码，不是按全局）。
+
+    前两档（按 IP、跨来源）管的是「谁来试」，盯不住「拿着一个码反复磨」：共享预算
+    是大家平摊的，而按 IP 那档换个网络就重置。这条检查在真应用里发真请求：同一个码
+    错满预算后该码被锁，而**另一个码照样会被受理** —— 后者是「按码」与「全局」的
+    分界线，也防止把这一档写成又一个全局开关。
+
+    来源地址构造成「可信代理但没传转发头」（``per_client=False``）：这样按 IP 那一档
+    会被跳过，才看得到按码那一档自己的 429。这在真实部署里对应「反代没配转发头」，
+    恰恰是按 IP 限流最弱、最需要按码兜底的形态。
+    """
+    from backend.app.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
+    from backend.app.global_log import RepeatedErrorTally
+    from backend.app.database import Base, Database
+    from backend.app.main import create_app
+    from backend.app.models import DisplayPairingCode, Project, User
+    from backend.app.security import session_token_hash
+
+    with tempfile.TemporaryDirectory(prefix='hb-pair-limit-') as tmp:
+        app = create_app()
+        database = Database(f'sqlite:///{Path(tmp) / "app.db"}')
+        Base.metadata.create_all(database.engine)
+        with database.session_factory() as session:
+            session.add(User(id='u1', username='admin', password_hash='x', role='admin'))
+            session.commit()
+            # 分两次提交：projects.created_by 有外键，同一个 commit 里的插入顺序不保证。
+            session.add(Project(id='proj-a', name='甲项目', slug='proj-a', created_by='u1'))
+            session.commit()
+            session.add(
+                DisplayPairingCode(
+                    id='pair-a',
+                    project_id='proj-a',
+                    created_by='u1',
+                    code_hash=session_token_hash('654321'),
+                    encrypted_code='encrypted',
+                    name='走廊平板',
+                )
+            )
+            session.commit()
+        app.state.database = database
+        app.state.admin_account = SimpleNamespace(user_id='u1', initialized=True)
+        app.state.license_service = SimpleNamespace(allows=lambda _code: True)
+        # 配对成功要写审计日志；这条检查只看限流，日志收下丢掉即可。
+        app.state.global_log = SimpleNamespace(append=lambda *_args, **_kwargs: None)
+        # 被拒的配对请求会走诊断中间件的 4xx 合并计数（B62），同样给个真实例。
+        app.state.error_tally = RepeatedErrorTally()
+        app.state.pairing_code_limiter = BoundedAttemptLimiter(5, 900, 900, max_keys=64)
+        app.state.pairing_limiter = LoginAttemptLimiter(30, 60, 60)
+        app.state.login_limiter = LoginAttemptLimiter()
+        # 让 resolve_client_ip 认定「对端是可信代理但没带转发头」→ per_client=False。
+        # Settings 是 frozen 的，用 replace 造副本。
+        app.state.settings = replace(app.state.settings, trusted_proxies=('127.0.0.1',))
+
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            wrong_code = [
+                (await client.post('/api/v1/displays/pair', json={'code': '111111'})).status_code
+                for _ in range(5)
+            ]
+            blocked = await client.post('/api/v1/displays/pair', json={'code': '111111'})
+            other_code = await client.post('/api/v1/displays/pair', json={'code': '222222'})
+            paired = await client.post('/api/v1/displays/pair', json={'code': '654321'})
+
+    check(
+        'B48 同一码连错 5 次仍是 422（预算没用完之前不误伤）',
+        wrong_code == [422] * 5,
+        f'{wrong_code}',
+    )
+    check(
+        'B48 第 6 次同一个码被按码那一档拦下（429 + Retry-After）',
+        blocked.status_code == 429
+        and '该配对码尝试次数过多' in blocked.json().get('detail', '')
+        and blocked.headers.get('retry-after') == '900',
+        f'{blocked.status_code} {blocked.json().get("detail")} retry-after={blocked.headers.get("retry-after")}',
+    )
+    check(
+        'B48 另一个码照旧受理（按码记账，不是又一个全局开关）',
+        other_code.status_code == 422,
+        f'{other_code.status_code} {other_code.json().get("detail")}',
+    )
+    check(
+        'B48 正确的码照旧能配对成功（修好之后别把正常配对挡了）',
+        paired.status_code in (200, 201) and bool(paired.json().get('targetUrl')),
+        f'{paired.status_code} {paired.json().get("targetUrl")}',
+    )
+
+
 def check_every_check_is_wired() -> None:
     """每个 ``check_*`` 都必须被调用过（忘了接线的话，全绿是没有意义的）。
 
@@ -3601,6 +4198,12 @@ async def run() -> int:
     await check_binding_confirm_single_flight()
     await check_page_routes_throttled_confirm()
     check_export_rollback_error_chain()
+    await check_anonymous_4xx_merged()
+    await check_public_events_marked_and_capped()
+    await check_health_probe_details_local_only()
+    check_update_checks_opt_in()
+    check_bounded_attempt_limiter()
+    await check_pairing_code_attempt_budget()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

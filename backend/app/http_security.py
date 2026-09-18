@@ -28,6 +28,9 @@ from .config import Settings
 #: 转发头：出现任一即说明「前面还有代理」。用于提示运维去配 APP_TRUSTED_PROXIES。
 FORWARDED_HEADERS = ('x-forwarded-for', 'x-forwarded-proto', 'x-real-ip', 'forwarded')
 
+#: 能代表「本机」的对端地址。用于区分「本机运维」与「外部来访者」。
+LOOPBACK_HOSTS = frozenset({'127.0.0.1', '::1', 'localhost'})
+
 #: uvicorn 的 ``--forwarded-allow-ips`` 里，这些写法等同于「任何对端都可以自称客户端」。
 #:
 #: 要把它和本模块的 ``APP_TRUSTED_PROXIES`` 区分开：两者是**两层独立配置**。
@@ -117,6 +120,26 @@ def _normalize_ip(value: str) -> str:
         return str(ipaddress.ip_address(candidate))
     except ValueError:
         return ''
+
+
+def is_direct_local(request: Request) -> bool:
+    """是否是「本机直连」：loopback 对端，且请求没带任何转发头。
+
+    两个条件缺一不可，且各自都不够：
+
+    - 只看对端地址不够：反向代理与主应用同机部署（compose 的默认形态）时，
+      所有外部请求经代理进来，对端同样是 127.0.0.1；
+    - 只看有没有转发头也不够：那正是客户端自己就能写的字段。
+
+    它回答的是「这次请求是不是本机运维亲手发的」，因此只能用于**放宽**本机操作的
+    门槛（首次初始化窗口放行、健康探针回详情），绝不能用来放宽任何认证判定。
+
+    用途见 ``setup_guard.SetupGuard.authorize`` 与 ``main.create_app`` 里的
+    ``/health/*``：前者靠它区分本机运维与远程抢建，后者靠它决定要不要回版本号（B61）。
+    """
+    if any(request.headers.get(name) for name in FORWARDED_HEADERS):
+        return False
+    return _peer_host(request) in LOOPBACK_HOSTS
 
 
 def _is_trusted(host: str, networks) -> bool:

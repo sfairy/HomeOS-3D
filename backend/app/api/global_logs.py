@@ -76,6 +76,17 @@ PUBLIC_PAGES = {
     '/3d-studio',
 }
 
+#: 公开通道（无需登录）的事件在落库前统一加这个来源标记（B62）：这条文本来自
+#: 外部上报，没有身份背书，必须与系统自身记录一眼可分。
+PUBLIC_EVENT_MARKER = '[公开上报] '
+#: 公开通道的长度上限：比已认证通道紧得多。正文短到「够定位异常」即可，
+#: 细节留给已认证通道 —— 审计日志的存储不该由未登录页面决定。
+PUBLIC_EVENT_MESSAGE_LIMIT = 300
+PUBLIC_EVENT_DETAILS_LIMIT = 1200
+#: 匿名通道每分钟允许的上报条数（已认证通道 120）。匿名通道是「异常上报」，
+#: 正常页面的 15 分钟窗口里到不了这个数；而刷日志的成本被压到 10 条/分钟/IP。
+ANONYMOUS_CLIENT_LOG_PER_MINUTE = 10
+
 
 class ClientLogLimiter:
     """客户端日志上报的双层限流器。
@@ -116,8 +127,9 @@ class ClientLogLimiter:
                     queue.popleft()
                     if not queue:
                         break
-            # 匿名 30 次/分、已登录 120 次/分，全局 600 次/分。
-            if len(bucket) >= (30 if anonymous else 120) or len(self._all) >= 600:
+            # 匿名每分钟 10 条（见 ANONYMOUS_CLIENT_LOG_PER_MINUTE）、已登录 120 条，
+            # 全局 600 条：全局那一档兜住「不停换 IP 上报」。
+            if len(bucket) >= (ANONYMOUS_CLIENT_LOG_PER_MINUTE if anonymous else 120) or len(self._all) >= 600:
                 return False
             bucket.append(now)
             self._all.append(now)
@@ -143,13 +155,22 @@ def _limit_client_log(request: Request, *, anonymous: bool) -> None:
         raise HTTPException(status_code=429, detail='日志上报过于频繁，请稍后重试。', headers={'Retry-After': '60'})
 
 
-def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None) -> None:
+def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None, *, public: bool = False) -> None:
     """把一条客户端事件整理成日志条目写入全局日志。
 
     身份三选一决定 source 与 actor：管理员沿用上报自带的 source、中控设备标注
     设备与项目、未登录页面统一记为「未登录页面 / 未登录」。
     上下文先按白名单过滤键，再交给 safe_context 做敏感值遮盖。
+
+    ``public=True`` 表示这条走的是「无需登录」的公开通道（B62）：内容没有任何身份
+    背书，因此统一加来源标记并收窄长度上限 —— 未登录页面能写进后台审计日志的文本，
+    必须一眼能认出「这是外部上报的」，而不是混在系统自身的记录里。
     """
+    message = payload.message
+    details = payload.details
+    if public:
+        message = PUBLIC_EVENT_MARKER + message[:PUBLIC_EVENT_MESSAGE_LIMIT]
+        details = details[:PUBLIC_EVENT_DETAILS_LIMIT] if details else None
     context = safe_context({
         key: value
         for key, value in payload.context.items()
@@ -177,9 +198,9 @@ def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None)
             payload.level,
             source,
             payload.category,
-            payload.message,
+            message,
             context=context,
-            details=payload.details,
+            details=details,
             client_timestamp=payload.clientTimestamp.isoformat() if payload.clientTimestamp else None,
         )
     finally:
@@ -309,7 +330,8 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
         if error.status_code != 401:
             raise
         viewer = None
-    _append_client_event(payload, request, viewer)
+    # public=True：这条来自「无需登录」的通道，落库前加来源标记并收窄长度（B62）。
+    _append_client_event(payload, request, viewer, public=True)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

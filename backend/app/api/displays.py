@@ -38,6 +38,17 @@ router = APIRouter(prefix='/displays', tags=['displays'])
 #: 不了」的拥堵，短窗口把这种 DoS 的代价压到「刷新几次就好」，而不是长期瘫痪。
 PAIRING_GLOBAL_LIMIT = (30, 60, 60)
 PAIRING_GLOBAL_KEY = 'display-pair-global'
+#: 同一个配对码的失败预算 (max_failures, window_seconds, block_seconds)（B48）。
+#:
+#: 前两档管的是「谁来试」：按 IP 一档挡单点爆破，跨来源一档挡换 IP（共享预算 30 次/分钟，
+#: 6 位码全空间约 23 天）。它们都管不住「盯着一个码磨」—— 共享预算是大家平摊的，
+#: 一个从低清二维码、肩窥或旧截图里拿到码但拿不准的人，可以在预算内一直对同一个码试，
+#: 自己那一档只按 IP 计（换个网络就重置）。这一档按**码**记账：同一码 15 分钟错 5 次
+#: 就锁该码 15 分钟，把「磨一个码」与「扫全空间」分开计价。
+#: 它不替代另两档：换着码扫全空间仍然由跨来源预算承担。
+PAIRING_CODE_LIMIT = (5, 900, 900)
+#: 按码计数器的键上限：键是「被尝试的码」的哈希，属外部可控输入，必须封顶。
+PAIRING_CODE_KEYS = 1024
 
 
 def require_admin(user: User) -> None:
@@ -77,11 +88,20 @@ def enforce_pair_rate_limit(request: Request, ip_address: str, per_client: bool 
     return (ip_limiter, ip_key)
 
 
-def note_pair_failure(request: Request, ip_limiter, ip_key: str) -> None:
-    """把一次配对失败同时记进两档限流：按 IP 的（若启用）与跨来源的。"""
+def note_pair_failure(request: Request, ip_limiter, ip_key: str, code_key: str | None = None) -> None:
+    """把一次配对失败同时记进三档限流：按 IP 的（若启用）、跨来源的、按码的。
+
+    参数:
+        request: 当前请求（取 app.state 上的限流器）。
+        ip_limiter: 按 IP 那一档的限流器；per_client=False 时为 None。
+        ip_key: 按 IP 那一档的键。
+        code_key: 被尝试的配对码哈希；None 表示这次失败与码无关（例如码有效但项目已删）。
+    """
     if ip_limiter is not None:
         ip_limiter.record_failure(ip_key)
     request.app.state.pairing_limiter.record_failure(PAIRING_GLOBAL_KEY)
+    if code_key is not None:
+        request.app.state.pairing_code_limiter.record_failure(code_key)
 
 
 def device_payload(device: DisplayDevice, project: Project, settings=None) -> dict:
@@ -382,7 +402,7 @@ def pair_display_device(
     刻意不需要登录，因此门禁全靠限流与「同一配对码不重复发放令牌」这两条。
     请求字段：code、device_name（可选，覆盖配对码上的名字）。
     返回 {device: {...}, targetUrl: ...}，并下发中控设备 Cookie。
-    会抛的错误：429「配对失败次数过多 / 配对尝试过于频繁」、
+    会抛的错误：429「配对失败次数过多 / 配对尝试过于频繁 / 该配对码尝试次数过多」、
     403「当前授权不允许添加中控设备。」、
     409「该配对码已绑定一台在用设备…」、
     422「配对码无效或已停用。」、404「配对的仪表盘已不存在。」。
@@ -401,6 +421,15 @@ def pair_display_device(
     ip_address = address.ip
     # 免登录接口的第一道护栏：按 IP + 跨来源两档限流。
     (ip_limiter, ip_key) = enforce_pair_rate_limit(request, ip_address, address.per_client)
+    # 第三档按「被尝试的码」记账（B48）：前两档管「谁来试」，这一档管「盯着一个码磨」。
+    # 用与会话令牌同一套哈希（也是 code_hash 那一列用的），键里不留明文码。
+    code_key = session_token_hash(payload.code)
+    if request.app.state.pairing_code_limiter.blocked(code_key):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail='该配对码尝试次数过多，请稍后再试。',
+            headers={'Retry-After': str(request.app.state.pairing_code_limiter.block_seconds)},
+        )
     # 能力码：页面侧（/pair 路由）已经拦过一次，API 自己也得拦 —— 授权收回 display 后
     # 不能还能凭一个旧配对码换出新令牌。
     if not request.app.state.license_service.allows('display'):
@@ -412,11 +441,11 @@ def pair_display_device(
     )
     # 无效与已停用合并成同一条文案：不向外暴露「这个码存在但被停用了」。
     if not (pairing and pairing.is_enabled):
-        note_pair_failure(request, ip_limiter, ip_key)
+        note_pair_failure(request, ip_limiter, ip_key, code_key)
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='配对码无效或已停用。')
     project = database.get(Project, pairing.project_id)
     if project is None:
-        note_pair_failure(request, ip_limiter, ip_key)
+        note_pair_failure(request, ip_limiter, ip_key, code_key)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='配对的仪表盘已不存在。')
     # 同一配对码下已有在用设备：拒绝，避免后来者把原来那台顶掉。
     live_device = database.scalar(
@@ -459,6 +488,8 @@ def pair_display_device(
     if ip_limiter is not None:
         ip_limiter.reset(ip_key)
     request.app.state.pairing_limiter.reset(PAIRING_GLOBAL_KEY)
+    # 三档一起清：配对成功说明这个码确实是持有者本人在用，不该把它上一轮的失败带进下一轮。
+    request.app.state.pairing_code_limiter.reset(code_key)
     # Secure 按请求自动判定：配了 https 反代却忘开 APP_COOKIE_SECURE 时，
     # 十年期的中控令牌也不至于明文下发。
     set_display_cookie(

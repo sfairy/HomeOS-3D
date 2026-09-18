@@ -13,6 +13,7 @@ import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 from uuid import UUID
 
 import httpx
@@ -21,6 +22,9 @@ from fastapi import APIRouter, Request, Response
 from .dependencies import CurrentUser
 
 router = APIRouter()
+# 内置的发布端点与说明页地址：这是**厂商运营**的地址。更新检查默认关闭（见
+# settings.update_checks_enabled），只有显式打开才会用到它们；自托管部署想自己
+# 掌控这条外发请求，用 APP_UPDATE_ENDPOINTS / APP_UPDATE_WIKI_URL 指向自建节点（B31）。
 # 两个候选端点按顺序尝试：第一个不通就试第二个，都失败则本轮放弃。
 RELEASE_ENDPOINTS = (
     "https://pay.habridge.cn/store/v1/updates/latest",
@@ -81,6 +85,19 @@ def release_value(payload: dict, channel: str) -> dict | None:
     return {"id": entry_id, "version": release["version"]}
 
 
+def endpoint_hosts(endpoints=RELEASE_ENDPOINTS) -> str:
+    """把发布端点收敛成主机名列表，供启动日志说明「这条外发请求发给谁」。
+
+    只取主机名：日志会导出与上报，完整 URL（可能带自建节点的路径）没必要进去。
+    """
+    hosts = []
+    for endpoint in endpoints:
+        host = urlsplit(endpoint).hostname
+        if host and host not in hosts:
+            hosts.append(host)
+    return ", ".join(hosts)
+
+
 class UpdateChecker:
     """后台更新检查器：定时拉取发布信息，缓存到数据目录。
 
@@ -96,6 +113,7 @@ class UpdateChecker:
         enabled=True,
         transport=None,
         endpoints=RELEASE_ENDPOINTS,
+        wiki_url=WIKI_URL,
         clock=time.time,
     ):
         """初始化检查器并尝试读取上一次的缓存结果。
@@ -107,10 +125,14 @@ class UpdateChecker:
             enabled: 为 False 时完全不联网，只保留缓存里的结果。
             transport: HTTP 传输实现，测试时注入桩以避免真实请求。
             endpoints: 发布接口地址列表，按顺序尝试直到有一个可用。
+            wiki_url: 更新说明页地址，status() 用它拼直达链接。
             clock: 时间源，默认 time.time；注入后可控制节流与过期判定。
         """
         self.version, self.channel, self.enabled = version, channel, enabled
-        self.transport, self.endpoints, self.clock = transport, endpoints, clock
+        # 端点留空即回落到内置厂商端点：配置层与调用层都不必各写一份默认值。
+        self.transport, self.clock = transport, clock
+        self.endpoints = tuple(endpoints) or RELEASE_ENDPOINTS
+        self.wiki_url = wiki_url or WIKI_URL
         self.path = data_dir / "cache" / "update-check.json"
         self.release = None
         self.checked_at = 0
@@ -228,14 +250,17 @@ class UpdateChecker:
         return {
             "currentVersion": self.version,
             "channel": self.channel,
+            # enabled 也返回：界面据此区分「服务端暂时没查到」与「本部署关掉了外发检查」，
+            # 否则关掉开关后界面会一直显示「尚未检查」，看上去像坏了（B31）。
+            "enabled": bool(self.enabled),
             "updateAvailable": available,
             "latestVersion": release["version"] if release else None,
             "checkedAt": datetime.fromtimestamp(self.checked_at, timezone.utc).isoformat()
             if fresh
             else None,
-            "logUrl": f"{WIKI_URL}?release={release['id']}#changelog"
+            "logUrl": f"{self.wiki_url}?release={release['id']}#changelog"
             if available
-            else f"{WIKI_URL}#changelog",
+            else f"{self.wiki_url}#changelog",
         }
 
 
