@@ -41,7 +41,6 @@ CLIENT_APP_DIR = APP_ROOT / "backend" / "app"
 DEFAULT_PORT = 18082
 DEFAULT_ADMIN_EMAIL = "admin@habridge.local"
 DEFAULT_ADMIN_PASSWORD = "e2e-admin-2026"
-CLIENT_VERSION_FALLBACK = "0.4.6"
 
 RESULTS: list[tuple[str, bool, str]] = []
 

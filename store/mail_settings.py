@@ -151,14 +151,6 @@ def preset_for_email(email: str | None) -> dict[str, object] | None:
     return None
 
 
-def preset_by_id(preset_id: str | None) -> dict[str, object] | None:
-    wanted = (preset_id or "").strip().lower()
-    for preset in SMTP_PRESETS:
-        if preset["id"] == wanted:
-            return preset
-    return None
-
-
 def mail_presets_payload() -> list[dict]:
     """预设清单的 JSON 形态（供后台渲染下拉框 / 填充表单）。"""
     return [

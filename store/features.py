@@ -88,9 +88,6 @@ FEATURE_CATALOG: tuple[dict[str, str], ...] = (
 #: 全部已知代码，供校验/判重使用
 FEATURE_CODES: frozenset[str] = frozenset(item["code"] for item in FEATURE_CATALOG)
 
-#: code → 中文名
-FEATURE_LABELS: dict[str, str] = {item["code"]: item["label"] for item in FEATURE_CATALOG}
-
 #: 按分组拆出的代码集合。**只有这里能写死代码清单**（写死的其实是「哪些项目录
 #: 里」这件事）：新增能力码时改的是上面的目录，下面这些集合会自动跟上。
 #:

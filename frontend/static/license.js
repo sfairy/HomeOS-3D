@@ -11,7 +11,7 @@
  *   一对：只有闩没有超时，一次弱网就把轮询永久冻住；只有超时没有闩，弱网下每 5 秒
  *   就再叠一个同源请求上去，把本来就差的网络压得更差。
  */
-import { apiFetch } from "./utils/api-fetch.js?v=20260918224928";
+import { apiFetch } from "./utils/api-fetch.js?v=20260918233037";
 
 const form = document.querySelector("#license-form"),
   message = document.querySelector("#message"),

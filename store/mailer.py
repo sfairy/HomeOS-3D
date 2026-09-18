@@ -84,9 +84,6 @@ PURPOSE_COPY: dict[str, _Copy] = {
     ),
 }
 
-#: 兼容旧调用点（``PURPOSE_LABELS[purpose]``）的简单映射。
-PURPOSE_LABELS = {purpose: copy.label for purpose, copy in PURPOSE_COPY.items()}
-
 
 @dataclass(frozen=True)
 class MailResult:

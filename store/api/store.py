@@ -97,7 +97,6 @@ logger = logging.getLogger("store.api")
 
 router = APIRouter(prefix="/store/v1", tags=["store"])
 
-PENDING_ORDER_LIMIT = 20
 HISTORY_PAGE_SIZE = 20
 
 #: 同一邮箱一小时内最多能索取多少次验证码（含注册与找回密码）。
@@ -175,10 +174,6 @@ def _enforce_verification_send_quota(
 # --------------------------------------------------------------------------- #
 # 公共工具
 # --------------------------------------------------------------------------- #
-def _smtp_setting(request: Request) -> StoreSettings:
-    return request.app.state.settings
-
-
 def _base_url(request: Request) -> str:
     return request.app.state.settings.public_base_url
 

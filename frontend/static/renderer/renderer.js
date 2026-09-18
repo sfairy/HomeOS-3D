@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918224928";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918233037";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -51,9 +51,9 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260918224928";
-import { randomUuid } from "../utils/random-id.js?v=20260918224928";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260918224928";
+} from "./registry.js?v=20260918233037";
+import { randomUuid } from "../utils/random-id.js?v=20260918233037";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260918233037";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -72,11 +72,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260918224928";
+} from "./climate.js?v=20260918233037";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260918224928";
+} from "./device-profiles.js?v=20260918233037";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -85,26 +85,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260918224928";
-import { confirmAction } from "../ui-confirm.js?v=20260918224928";
+} from "../related-entities.js?v=20260918233037";
+import { confirmAction } from "../ui-confirm.js?v=20260918233037";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260918224928";
+} from "./entity-power.js?v=20260918233037";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260918224928";
-import { componentActionIsSupported } from "../action-rules.js?v=20260918224928";
+} from "../virtual-entities.js?v=20260918233037";
+import { componentActionIsSupported } from "../action-rules.js?v=20260918233037";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260918224928";
+} from "./transform-geometry.js?v=20260918233037";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -114,7 +114,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260918224928";
+} from "./effect-geometry.js?v=20260918233037";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -133,14 +133,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260918224928";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918224928";
+} from "./light-runtime.js?v=20260918233037";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918233037";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260918224928";
+} from "./vacuum-runtime.js?v=20260918233037";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -173,13 +173,13 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260918224928";
+} from "./cover-runtime.js?v=20260918233037";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260918224928";
+} from "./runtime-dialog-motion.js?v=20260918233037";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -189,13 +189,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260918224928";
+} from "./runtime-caches.js?v=20260918233037";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260918224928";
+} from "./runtime-document.js?v=20260918233037";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -8600,8 +8600,13 @@ export class PanelRenderer {
    * 为什么要自己补模态语义：原生 `<dialog>` 只有走 `showModal()` 才是模态，而这里的层
    * 挂在画布容器里（`this.container` / 3D 呈现根），弹窗坐标是**画布坐标** ——
    * `showModal()` 会把弹窗提到顶层（top layer），它会脱离画布坐标空间，在整体缩放的展示页上
-   * 尺寸与位置都会走样；同时相机/实体详情那两条已有的 `::backdrop` 规则会和层自带的遮罩叠加，
-   * 遮罩由 82% 变到约 97%。所以这里保留 `show()` 的坐标空间，把模态该有的四件事自己做掉：
+   * 尺寸与位置都会走样；而且 `showModal()` 会额外生成 `::backdrop`，与层自带的遮罩
+   * （`background: #040609d1` + `blur(5px)`）叠在一起，遮罩由 82% 变到约 97%。
+   * 所以这里保留 `show()` 的坐标空间，把模态该有的四件事自己做掉：
+   *
+   * 遮罩一律由承载层给（`.hb-renderer-runtime-dialog-layer`）：`show()` 不把元素送进
+   * 顶层，`::backdrop` 就不会生成，**在这一层里写 `::backdrop` 等于没写**（P9 已删掉
+   * 相机预览与实体详情那两条从未生效的规则）。新增弹窗时不要再补 `::backdrop`。
    *
    * 1. `aria-modal="true"` + `aria-labelledby` 指向标题（读屏据此知道「弹窗出现了、叫什么、
    *    背景不可用」）—— 弹窗标题一律是标题行里的 `<strong>`；

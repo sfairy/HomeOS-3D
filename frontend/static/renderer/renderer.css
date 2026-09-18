@@ -1524,8 +1524,10 @@
 
 /* ===== 摄像头预览弹窗 ===== */
 
-/* 原生 <dialog>：遮罩由浏览器画在顶层（::backdrop），不受画布 scale 影响，
-   所以这一块不走 .hb-renderer-runtime-dialog-layer。
+/* 原生 <dialog>：由 presentRuntimeDialog 用 show() 打开，挂在下方的
+   .hb-renderer-runtime-dialog-layer 里 —— 遮罩/模糊由那一层提供（见文件开头的
+   .hb-renderer-runtime-dialog-layer），所以这里不要写 ::backdrop：
+   show() 不会把弹窗送进顶层，::backdrop 根本不会生成（P9 删除）。
    宽度 / 高度用 min() 夹住，窄屏时也保证至少留 24px / 20px 边距。 */
 .hb-camera-preview-dialog {
   position: relative;
@@ -1549,10 +1551,6 @@
 .hb-camera-preview-dialog.fit-media-ratio {
   height: auto;
   max-height: min(680px, calc(100% - 20px));
-}
-.hb-camera-preview-dialog::backdrop {
-  background: #040609d1;
-  backdrop-filter: blur(5px);
 }
 /* 行高用 minmax(0, 1fr) 而不是 1fr：配合子项 min-height: 0，
    画面内容再大也不会把弹窗撑高到溢出视口。 */
@@ -2895,10 +2893,11 @@
     animation: none;
   }
 }
-.hb-entity-details-dialog::backdrop {
-  background: #05080bbd;
-  backdrop-filter: blur(4px);
-}
+
+/* 与摄像头预览同理：本弹窗也由 presentRuntimeDialog 用 show() 打开，
+   ::backdrop 不会生成 —— 遮罩由 .hb-renderer-runtime-dialog-layer 提供。
+   （P9 删掉了这里原有的 ::backdrop 规则，它写的是 #05080bbd + blur(4px)，
+   与层的 #040609d1 + blur(5px) 不一致，且从未生效。） */
 /* 卡片本体：竖向 flex，标题固定、内容区滚动；max-height 与弹窗一致，
    两者不同步会出现内容溢出圆角的情况。 */
 .hb-entity-details-card {
@@ -3402,8 +3401,12 @@
   box-sizing: border-box;
   scrollbar-color: rgba(211, 165, 108, 0.42) transparent;
 }
-/* [hidden] 与 ::backdrop：关闭时整体 display: none；backdrop 置透明是为了让「点外部关闭」
-   不被系统默认的半透明黑遮罩附加上去（那会让弹窗外的页面整体变暗）。 */
+/* [hidden] 与 ::backdrop：菜单本体是 <div popover="auto">（不是 <dialog>），
+   隐藏状态由 JS 两手维护 —— 打 hidden 属性 + hidePopover()；不支持 popover 的浏览器
+   退回纯定位方案，那时只有 hidden 这一道，所以这里必须显式 display: none。
+   popover 展开时元素会进顶层，**它真的会生成 ::backdrop**（默认透明）：写明透明是防
+   别的 UA 把顶层遮罩改成半透明黑（那会让弹窗外的页面整体变暗）。
+   （真正的死代码是 <dialog> + show() 那一类，见文件开头摄像头预览的说明。） */
 .hb-electric-bed-select-menu[hidden] {
   display: none;
 }
@@ -6423,7 +6426,8 @@
     inset 0 1px #ffffff09;
   box-sizing: border-box;
 }
-/* 与空调下拉同理：原生 dialog 需要显式隐藏，::backdrop 保持透明（见下一条）。 */
+/* 与空调下拉同理：菜单本体是 <div popover="auto">（不是 <dialog>），需要显式隐藏；
+   ::backdrop 保持透明（见下一条）。 */
 .hb-related-select-menu[hidden] {
   display: none;
 }
@@ -7495,7 +7499,7 @@
 
 /* ===== 空调自定义下拉框 ===== */
 
-/* 容器只需撑开宽度：弹层是原生 <dialog> + fixed 定位，不挂在它下面。 */
+/* 容器只需撑开宽度：弹层是 <div popover> + fixed 定位，不挂在它下面。 */
 .hb-climate-select {
   position: relative;
   min-width: 0;
@@ -7582,7 +7586,7 @@
   cursor: default;
   opacity: 0.5;
 }
-/* 下拉菜单用原生 <dialog> 承载：position: fixed + z-index 取 32 位上限，
+/* 下拉菜单用 <div popover="auto"> 承载（不是 <dialog>）：position: fixed + z-index 取 32 位上限，
    保证菜单始终盖在详情弹窗之上（[hidden] 与 ::backdrop 的处理见后面几条）。 */
 .hb-climate-select-menu {
   position: fixed;
@@ -7606,13 +7610,16 @@
     transparent;
   scrollbar-width: thin;
 }
-/* 下拉菜单是原生 <dialog>（见上面的 .hb-climate-select-menu）：
-   [hidden] 必须显式 display: none，因为 dialog 默认是块级。 */
+/* 下拉菜单是 <div popover="auto">（见上面的 .hb-climate-select-menu）：
+   [hidden] 在两条路径上都要用 —— 支持 popover 的浏览器由 UA 规则隐藏，不支持的浏览器
+   退回「hidden=false + dataset.open」自己定位，那时没有 UA 规则，必须显式 display: none。 */
 .hb-climate-select-menu[hidden] {
   display: none;
 }
-/* 遮罩透明：这里只是借 <dialog> 的顶层能力让菜单浮在弹窗之上，
-   点击外部关闭由 JS 处理，不靠浏览器默认行为。 */
+/* 遮罩透明：支持 popover 的浏览器里菜单展开时会进顶层，**它真的会生成 ::backdrop**，
+   顶层层级正是「菜单盖在详情弹窗之上」的依据；点击外部关闭由 JS 处理，不靠浏览器默认行为。
+   写明透明是为了不被 UA 改成半透明黑遮罩（popover 的默认值本来就是透明）。
+   注意别把这条当死代码删掉：死的是 <dialog> + show() 那一类，见摄像头预览的说明。 */
 .hb-climate-select-menu::backdrop {
   background: transparent;
 }

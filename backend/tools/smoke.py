@@ -2754,6 +2754,103 @@ def check_closure_scope_writes() -> None:
     )
 
 
+def _module_level_definition_names(tree: ast.Module) -> list[str]:
+    """列出模块最外层「绑定了一个名字」的定义：函数、类、常量赋值。
+
+    带装饰器的定义跳过：``@router.get`` / ``@pytest.fixture`` 是把函数对象交给框架，
+    名字不会再在代码里出现第二次，那是正常写法而不是死代码。
+    只取 ``tree.body``（不再往 ``if`` / ``try`` 里递归）：块内定义各有各的条件，
+    按「模块级」一刀切会把条件定义误判成死的。
+    """
+    names: list[str] = []
+    for node in tree.body:
+        if getattr(node, 'decorator_list', None):
+            continue
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.append(node.name)
+        elif isinstance(node, ast.Assign):
+            names.extend(target.id for target in node.targets if isinstance(target, ast.Name))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names.append(node.target.id)
+    return names
+
+
+def check_no_dead_module_level_symbols() -> None:
+    """P9：模块级不许再有「定义了却零引用」的名字（4.2 那一类的回归闸）。
+
+    为什么不能交给 ruff：``F841`` 只管函数内的赋值、``F401`` 只管 import；一个没人
+    调用的模块级函数或没人读的常量，ruff 默认**不报** —— 这正是 4.2 要人工清点的原因。
+    而人工清单本身会过时：P9 复查时发现清单里的 ``require_document_changes``（早被
+    ``projects.py`` 以别名导入）与 ``ORDER_ATTENTION_STATUSES`` 其实活着、``SESSION_COOKIE``
+    与 4 处未使用导入早已不存在；反倒是清单外的 ``ACTION_TYPES``、``_ORDER_STATUS_LABELS``、
+    ``floor_centi``、``CLIENT_VERSION_FALLBACK`` 是死的。清单会漂，这条断言不会。
+
+    判据：把每个模块级名字拿去全仓 AST 里找引用。要同时认三种形态，少一种就会误杀：
+
+    - ``ast.Name``（``Load``）—— 普通的名字使用；
+    - ``ast.Attribute.attr`` —— ``money.to_centi(...)`` 里名字是**字符串**而不是 Name 节点；
+    - ``ast.alias`` —— ``from x import y as z`` 同样只有字符串（``require_document_changes``
+      正是靠这一条才算活的，否则会被误判成死代码）。
+
+    注释与 docstring 里的同名文字不算引用，于是「唯一引用是自身 docstring」这种假活代码
+    会当场现形。口径偏保守：同名**局部变量**的读也会被算成引用，宁可漏报也不误报。
+
+    刻意的豁免（都在下面 ``exempt`` 里逐条写明理由）。
+    """
+    roots = [PROJECT_ROOT / name for name in ('backend', 'store', 'migrations', 'tools', 'docker')]
+    paths = [path for root in roots if root.exists() for path in sorted(root.rglob('*.py'))]
+
+    references: dict[str, int] = {}
+
+    def count_reference(name: str) -> None:
+        references[name] = references.get(name, 0) + 1
+
+    definitions: list[tuple[str, str]] = []
+    for path in paths:
+        try:
+            tree = ast.parse(path.read_text(encoding='utf-8'))
+        except (SyntaxError, UnicodeDecodeError):  # 语法问题交给语法检查去报
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                count_reference(node.id)
+            elif isinstance(node, ast.Attribute):
+                count_reference(node.attr)
+            elif isinstance(node, ast.alias):
+                count_reference(node.name.split('.')[-1])
+                if node.asname:
+                    count_reference(node.asname)
+            elif isinstance(node, (ast.Global, ast.Nonlocal)):
+                for name in node.names:
+                    count_reference(name)
+        relative = path.relative_to(PROJECT_ROOT).as_posix()
+        definitions.extend((relative, name) for name in _module_level_definition_names(tree))
+
+    exempt = {
+        # alembic：upgrade / downgrade 由迁移框架按名字取，revision 那几个是它的元数据。
+        'revision', 'down_revision', 'branch_labels', 'depends_on', 'upgrade', 'downgrade',
+        # 各脚本的命令行入口（`python -m ...` / 直接执行时按名字取）。
+        'main',
+        # studio3d.py 里有注释说明的**有意保留**：空清单等将来要校验固定文件时再用，
+        # 现在删掉反而要改接口契约。不是漏删。
+        'REQUIRED_EXPORT_FILES',
+    }
+    offenders = [
+        f'{path}:{name}'
+        for path, name in definitions
+        if name not in exempt
+        and not (name.startswith('__') and name.endswith('__'))
+        and not references.get(name)
+    ]
+    check(
+        'P9 模块级没有「定义了却零引用」的名字（注释 / docstring 里的同名文字不算引用）',
+        not offenders,
+        '；'.join(offenders[:6])
+        if offenders
+        else f'扫过 {len(paths)} 份 Python，{len(definitions)} 个模块级名字都有真实引用',
+    )
+
+
 def check_access_criteria_single_source() -> None:
     """B32：三处入口必须共用同一套判据，不许再各写一份。
 
@@ -9201,15 +9298,20 @@ def check_frontend_operation_feedback() -> None:
 
 
 def check_frontend_dialog_modal_semantics() -> None:
-    """W11：运行时弹窗的模态语义与焦点（行为探针 + 接线与「唯一主人」断言）。
+    """W11 + W21：运行时弹窗的模态语义、焦点，以及「遮罩只有一个来源」。
 
     为什么这一条不是「换个 showModal() 就完事」：弹窗层挂在画布容器里（`this.container` /
     3D 呈现根），弹窗坐标是画布坐标。`showModal()` 会把弹窗提到顶层，于是
     （一）在整体缩放的展示页上它脱离画布坐标系，尺寸位置走样；
-    （二）相机与实体详情那两条已有的 `::backdrop` 规则会和层自带的遮罩叠加，遮罩从 82% 变到约 97%。
+    （二）它还会额外生成 `::backdrop`，与层自带的遮罩叠在一起。
     所以这里保留 `show()` 的坐标空间，把模态该有的四件事（`aria-modal` + `aria-labelledby`、
     焦点交接、Tab 循环、关闭还焦点）收在 `presentRuntimeDialog` 里 ——
     「十条弹窗都走它、且没有第二条 `show()`」正是只能静态看的那一半。
+
+    W21 是这条决定的下半句：``show()`` 不把元素送进顶层，所以**这些弹窗的 ``::backdrop``
+    从来不会生成** —— 文件里原本那两条规则（相机预览、实体详情）是死代码，P9 已删除，
+    遮罩从此只有承载层一个来源。反过来，三条下拉菜单的 ``::backdrop`` 是**活的**：
+    它们是 ``div[popover]``，展开时进顶层。这一段把两边的边界都钉住。
     """
     _run_frontend_probe('dialog-a11y')
 
@@ -9258,6 +9360,54 @@ def check_frontend_dialog_modal_semantics() -> None:
         and '[tabindex]:not([tabindex="-1"])' in focusable_selector,
         f'selector={focusable_selector!r}',
     )
+
+    # ---- W21：::backdrop 的死 / 活边界 ----
+    renderer_css = (FRONTEND_ROOT / 'static' / 'renderer' / 'renderer.css').read_text(encoding='utf-8')
+    backdrop_selectors = [
+        selector
+        for rule_selector, _ in _css_rules(renderer_css)
+        for selector in [item.strip() for item in rule_selector.split(',')]
+        if '::backdrop' in selector
+    ]
+    show_opened_backdrops = [
+        selector
+        for selector in backdrop_selectors
+        if selector.startswith(('.hb-camera-preview-dialog', '.hb-entity-details-dialog'))
+    ]
+    check(
+        'W21 两个用 show() 打开的弹窗不再写 ::backdrop（show() 不进顶层，写了也永不生成；P9 已删）',
+        not show_opened_backdrops,
+        f'仍在={show_opened_backdrops}'
+        if show_opened_backdrops
+        else f'渲染器里剩下的 ::backdrop 全是 popover 的（{len(backdrop_selectors)} 条）',
+    )
+    layer_declarations = _css_rule_declarations(renderer_css, '.hb-renderer-runtime-dialog-layer')
+    check(
+        'W21 弹窗外的暗色遮罩只剩承载层一个来源（删掉那两条 ::backdrop 之后它是唯一的）',
+        bool(layer_declarations.get('background')) and bool(layer_declarations.get('backdrop-filter')),
+        f"background={layer_declarations.get('background')!r} "
+        f"backdrop-filter={layer_declarations.get('backdrop-filter')!r}",
+    )
+    popover_menu_classes = (
+        'hb-electric-bed-select-menu',
+        'hb-related-select-menu',
+        'hb-climate-select-menu',
+    )
+    not_popover_menus = [
+        name
+        for name in popover_menu_classes
+        if not re.search(
+            r'createElement\("div"\);\s*\n\s*\w+\.className =\s*"' + re.escape(name) + r'"',
+            renderer_source,
+        )
+    ]
+    popover_attribute_count = renderer_source.count('setAttribute("popover", "auto")')
+    check(
+        'W21 三条 ::backdrop 是活的：下拉菜单是 div[popover]（展开时进顶层），别按上面的口径删掉',
+        not not_popover_menus and popover_attribute_count >= len(popover_menu_classes),
+        f'不是 div+popover 形态的={not_popover_menus}；popover 属性出现 {popover_attribute_count} 次',
+    )
+
 
 def _css_rules(css_text: str) -> list[tuple[str, str]]:
     """把 CSS 切成 ``(选择器, 声明块)`` 列表。
@@ -10365,6 +10515,7 @@ async def run() -> int:
     await check_display_binding_guard()
     await check_runtime_task_relay()
     check_closure_scope_writes()
+    check_no_dead_module_level_symbols()
     check_access_criteria_single_source()
     check_login_password_verification_cost()
     await check_revoke_other_sessions_requires_valid_session()

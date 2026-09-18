@@ -27,7 +27,7 @@ Python 内建 ``round()`` 是 half-even（``round(0.125, 2) = 0.12``）。一旦
 
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation, ROUND_FLOOR, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 #: 1 积分 = 100 厘。
 CENTI_PER_POINT = 100
@@ -90,17 +90,6 @@ def to_centi(value: object) -> int:
     return int(scaled.quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
-def floor_centi(value: object) -> int:
-    """解析成整数厘，**向下取整**（不足一厘的部分直接舍去）。
-
-    奖励计算的口径是「不足 0.01 的部分直接舍去」（与参考站说明一致），
-    因此那一条路径必须用这个，而不是 :func:`to_centi`：两者在正数上只差
-    「是否进位」，但「舍去」是产品规则，不能悄悄换成四舍五入。
-    """
-    scaled = _decimal(value).scaleb(2)
-    return int(scaled.quantize(Decimal(1), rounding=ROUND_FLOOR))
-
-
 def from_centi(centi: int) -> Decimal:
     """整数厘 → ``Decimal`` 积分（如 ``1005`` → ``Decimal("10.05")``）。"""
     if isinstance(centi, bool) or not isinstance(centi, int):
@@ -132,6 +121,11 @@ def apply_rate_floor_cents(amount_cents: int, rate_percent: object) -> int:
     ``amount_cents`` 是订单实付的**元分**。推导：奖励积分 = 实付元 × 比例%，
     换成厘即 ``(amount_cents / 100) × (bps / 100) × 100 = amount_cents × bps / 10000``。
     全程整数乘除，避免 ``float(amount_cents) / 100.0`` 那一步引入的二进制误差。
+
+    「不足一厘舍去」是**产品规则**（与参考站说明一致），不是随手选的取整方式：
+    换成四舍五入会变成「每笔奖励都可能多给一点」，而账面上看不出异常。
+    这条理由是 P9 从已删除的 ``floor_centi`` 那里搬过来的 —— 那个函数曾是这份口径
+    的载体，但奖励路径实际走的一直是这里。
     """
     base = int(amount_cents)
     if base <= 0:

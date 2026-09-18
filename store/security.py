@@ -42,13 +42,6 @@ def iso_z(value: datetime | None) -> str | None:
     return None if text is None else f"{text}Z"
 
 
-def parse_iso(value: str) -> datetime:
-    parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    if parsed.tzinfo is not None:
-        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
-    return parsed
-
-
 def hash_password(password: str) -> str:
     salt = secrets.token_bytes(16)
     digest = hashlib.pbkdf2_hmac(

@@ -1056,7 +1056,9 @@ _FULFILLABLE_STATUSES = ORDER_FULFILLABLE_STATUSES
 
 #: 订单状态中文口径统一来自 ``store.order_status``（服务端唯一来源），
 #: 避免「后台弹窗说 cancelled、页面显示已取消」这种同一状态两套说法。
-_ORDER_STATUS_LABELS = ORDER_STATUS_LABELS
+#: 取文案一律走 ``order_status_label()`` 或 ``ORDER_STATUS_LABELS``（后者用于
+#: 批量拼列表），不要在后台再留一份「本地副本」——P9 删掉的 `_ORDER_STATUS_LABELS`
+#: 就是那样一份没人读的别名。
 
 
 def _status_label(status: str) -> str:
@@ -1672,11 +1674,6 @@ def _revoke_order_entitlements(session, order: Order) -> None:
     ):
         if entitlement.license_id and entitlement.license_id == order.license_id:
             entitlement.active = False
-
-
-def request_provider(request):
-    """拿当前配置的支付渠道解析器（``app.state`` 上的那个）。"""
-    return request.app.state.resolve_payment_provider
 
 
 def _offline_refund_reason(order: Order) -> str:

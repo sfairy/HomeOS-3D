@@ -115,10 +115,6 @@ class CouponPreviewRequest(_Camel):
     coupon_code: str = Field(alias="couponCode", min_length=1, max_length=64)
 
 
-class OrderLookupRequest(_Camel):
-    order_no: str = Field(alias="orderNo", min_length=4, max_length=64)
-
-
 # --------------------------------------------------------------------------- #
 # 邀请
 # --------------------------------------------------------------------------- #

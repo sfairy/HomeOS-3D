@@ -1,4 +1,4 @@
-"""全局组合弹窗：跨项目共享的弹窗定义，与项目文档的合并 / 剥离。
+"""全局组合弹窗：跨项目共享的弹窗定义，与项目文档之间的水合 / 剥离。
 
 背景：组合弹窗有两个来源 —— 项目私有的存在文档里，全局的存在
 `GlobalCustomPopupState` 单行表里（所有项目共享）。
@@ -8,27 +8,31 @@
 - 保存文档时「剥离」：文档里只留项目私有的，全局的交给全局表维护。
 
 这样前端始终只看到一份完整列表，不必关心弹窗的归属。
+
+P9 清理时删掉了 `merge_document_popups`（连同它专用的 `_canonical` /
+`remap_popup_references`）与 `popup_reference_projects`：前者是「把文档里的弹窗
+并入全局表」的旧路径，而现在的保存流程已经把全局弹窗作为独立的一份提交
+（`payload.global_popups_dirty`），并由 `strip_document_popups` 从文档里剔除，
+两者不会再在同一个入口上争着改全局表；后者用于「删除全局弹窗前提示影响面」，
+但它**从来没有调用点**（没有路由、没有 UI 去要这份清单），也就是说那个提示从来
+不存在，删掉它不改变任何行为。
+
+**遗留缺口（不是本模块能修的，记在这里免得下次重新发现）**：删除一个被别的项目
+引用的全局弹窗时，服务端只在**当前**文档里把引用改成 `type:"none"`
+（`projects.py` 的 `clear_popup_references`），别的项目草稿里的动作会一直悬空到
+那个项目下次保存为止（读的时候 `referenced_only=True` 只会把找不到的全局弹窗
+略过，不会报错也不会提示）。要补的话，正确做法是在同一个事务里扫过所有草稿一起清，
+而不是只把这份「列出受影响项目」的查询接回去 —— 后者只提示不修，用户点完确认
+仍然留下悬空引用。
 """
 from __future__ import annotations
 
 import json
 from copy import deepcopy
-from uuid import uuid4
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .models import GlobalCustomPopupState, Project, ProjectDraft
-from .panel.documents import parse_document
-
-
-def _canonical(value) -> str:
-    """把值序列化成稳定的比较用字符串。
-
-    排序键并去掉空格，保证「同一份内容」无论键序如何都得到相同结果 ——
-    合并弹窗时靠它判断内容是否真的变了。
-    """
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+from .models import GlobalCustomPopupState
 
 
 def global_popup_state(database: Session) -> GlobalCustomPopupState:
@@ -69,22 +73,6 @@ def popup_reference_ids(value) -> set[str]:
         for item in value:
             result.update(popup_reference_ids(item))
     return result
-
-
-def remap_popup_references(value, replacements: dict[str, str]) -> None:
-    """就地改写文档里指向弹窗的动作，按 replacements 换 id。
-
-    用于合并时给冲突弹窗分配了新 id 之后同步更新引用，
-    否则文档里的动作会指向一个不存在的弹窗。
-    """
-    if isinstance(value, dict):
-        if value.get("popupSource") == "custom" and value.get("popupId") in replacements:
-            value["popupId"] = replacements[value["popupId"]]
-        for item in value.values():
-            remap_popup_references(item, replacements)
-    elif isinstance(value, list):
-        for item in value:
-            remap_popup_references(item, replacements)
 
 
 def clear_popup_references(value, popup_ids: set[str]) -> int:
@@ -144,101 +132,10 @@ def hydrate_document_popups(
 def strip_document_popups(document: dict) -> dict:
     """入库前清空 customPopups，全局弹窗不重复存进项目文档。
 
-    返回深拷贝；文档里的弹窗定义已经通过 merge_document_popups
-    归并到全局表，这里只需留空占位。
+    返回深拷贝；全局弹窗由 `GlobalCustomPopupState` 那份独立提交流程维护，
+    项目文档里只留空占位，读取时再由 `hydrate_document_popups` 合回来 ——
+    同一条弹窗不会在两处各存一份，也就不存在「以谁为准」的问题。
     """
     stored = deepcopy(document)
     stored["customPopups"] = []
     return stored
-
-
-def merge_document_popups(
-    database: Session,
-    document: dict,
-    *,
-    updated_by: str | None = None,
-) -> dict:
-    """把文档里的弹窗并入全局表，并解决 id 冲突。
-
-    冲突处理：若文档里某个弹窗的 id 在全局表已存在但内容不同，
-    说明它和别的项目定义的弹窗撞了 id —— 这时给它分配一个新 id，
-    并回写文档中所有指向它的引用，而不是覆盖全局表里的那条。
-
-    只有真正新增了弹窗才会写库并递增 revision。
-
-    参数:
-        database: 数据库会话。
-        document: 待保存的文档。
-        updated_by: 记录本次变更的用户 id。
-
-    返回:
-        弹窗已补齐（含全局已有的与本次新增的）的文档副本。
-    """
-    state = global_popup_state(database)
-    current = global_popups(database)
-    by_id = {popup.get("id"): popup for popup in current if isinstance(popup, dict)}
-    # 旧的弹窗 id -> 新分配的 id，用于最后统一改写文档引用。
-    replacements = {}
-    changed = False
-    for source in document.get("customPopups") or []:
-        if not (isinstance(source, dict) and isinstance(source.get("id"), str)):
-            continue
-        popup = deepcopy(source)
-        popup_id = popup["id"]
-        existing = by_id.get(popup_id)
-        # 同 id 但内容不同：视为跨项目的 id 冲突，换新 id 而不是覆盖。
-        if existing is not None and _canonical(existing) != _canonical(popup):
-            replacement = f"custom-popup-global-{uuid4()}"
-            popup["id"] = replacement
-            replacements[popup_id] = replacement
-            popup_id = replacement
-            existing = None
-        if existing is not None:
-            continue
-        current.append(popup)
-        by_id[popup_id] = popup
-        changed = True
-    merged = deepcopy(document)
-    # 先改写引用再拼回弹窗列表：顺序反了会让改动落在被丢弃的副本上。
-    if replacements:
-        remap_popup_references(merged, replacements)
-    merged["customPopups"] = deepcopy(current)
-    if changed:
-        state.popups_json = _canonical(current)
-        state.revision += 1
-        state.updated_by = updated_by
-    return merged
-
-
-def popup_reference_projects(
-    database: Session,
-    popup_ids: set[str],
-    *,
-    exclude_project_id: str | None = None,
-) -> list[str]:
-    """列出引用了给定弹窗的项目名称。
-
-    用于删除全局弹窗前的提示：先告诉用户哪些仪表盘会受影响。
-
-    参数:
-        popup_ids: 待删除的弹窗 id 集合。
-        exclude_project_id: 排除某个项目（通常是当前正在编辑的那个）。
-
-    返回:
-        项目名称列表；草稿损坏或未引用该弹窗的项目会被跳过。
-    """
-    if not popup_ids:
-        return []
-    names = {project.id: project.name for project in database.scalars(select(Project))}
-    result = []
-    for draft in database.scalars(select(ProjectDraft)):
-        if draft.project_id == exclude_project_id:
-            continue
-        # 单份草稿损坏时跳过：它引用不到任何弹窗，不必连累这次统计（B54）。
-        document = parse_document(draft.document_json)
-        if document is None:
-            continue
-        if not popup_reference_ids(document) & popup_ids:
-            continue
-        result.append(names.get(draft.project_id, draft.project_id))
-    return result

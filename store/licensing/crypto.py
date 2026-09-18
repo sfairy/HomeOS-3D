@@ -17,9 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
-from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -231,34 +229,3 @@ class KeyRegistry:
         if not isinstance(transport_key_id, str):
             return None
         return self._by_transport.get(transport_key_id)
-
-
-def verify_lease(signed_lease: str, public_key_pem: bytes, *, product: str = PRODUCT) -> dict[str, Any]:
-    """自检用：按客户端逻辑校验租约。"""
-    try:
-        encoded_payload, encoded_signature = signed_lease.split(".", 1)
-    except ValueError as error:
-        raise LicenseServerError("签名租约格式无效。") from error
-    payload_bytes = b64url_decode(encoded_payload)
-    payload = json.loads(payload_bytes)
-    key = serialization.load_pem_public_key(public_key_pem)
-    if not isinstance(key, Ed25519PublicKey):
-        raise LicenseServerError("授权公钥必须是 Ed25519。")
-    try:
-        key.verify(b64url_decode(encoded_signature), payload_bytes)
-    except InvalidSignature as error:
-        raise LicenseServerError("租约签名无效。") from error
-    required = {
-        "leaseId",
-        "features",
-        "issuedAt",
-        "expiresAt",
-        "sessionId",
-        "leaseSequence",
-        "activationCodeId",
-    }
-    if not required.issubset(payload):
-        raise LicenseServerError("租约缺少必要字段。")
-    if payload.get("product") != product:
-        raise LicenseServerError("租约产品标识不匹配。")
-    return payload
