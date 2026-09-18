@@ -3,11 +3,16 @@
  *
  * 位置：编辑器各模块共用的纯函数集合，被 inspector、history、picker 等引用。
  * 职责：克隆文档、生成带前缀的 ID、把标题转为 URL 片段、颜色空间互转
- *   （HEX / RGB / HSV）、以及面板字段的取整与夹取。
+ *   （HEX / RGB / HSV）、以及面板字段的取整。
  * 约定：ID 依赖 randomUuid（utils/random-id.js），同一版本戳必须与
  *   home.js 引用的一致；颜色一律先归一成小写 6 位 HEX 再计算。
+ *   夹取（clampNumber）与颜色归一（原 normalizedHexColor）**不在**这里定义：
+ *   它们是编辑器、3D 工作室与渲染器共用的契约，唯一实现在 utils/numbers.js
+ *   与 utils/colors.js（P10 B 类收敛，原先各处各有一份同名但不同义的实现）。
  */
 import { randomUuid } from "./utils/random-id.js?v=20260918233037";
+import { clampNumber } from "./utils/numbers.js?v=20260918233037";
+import { hexColorOrEmpty } from "./utils/colors.js?v=20260918233037";
 
 /**
  * 深拷贝一个值。
@@ -49,34 +54,13 @@ export function slugify(text) {
 }
 
 /**
- * 把各种写法的颜色归一成小写 6 位 HEX。
- *
- * @param {string} colorInput 颜色输入，可带或不带 "#"，支持 3 位缩写。
- * @returns {string} #rrggbb；无法识别时返回空串。
- */
-export function normalizedHexColor(colorInput) {
-  const trimmedColor = String(colorInput || "").trim();
-  const hexColor = trimmedColor.startsWith("#") ? trimmedColor : "#" + trimmedColor;
-  if (/^#[\da-f]{6}$/i.test(hexColor)) {
-    return hexColor.toLowerCase();
-  } else if (/^#[\da-f]{3}$/i.test(hexColor)) {
-    // 3 位缩写按位展开：每个字符重复一次得到 6 位。
-    return (
-      "#" + [...hexColor.slice(1)].map(hexDigit => hexDigit.repeat(2)).join("")
-    ).toLowerCase();
-  } else {
-    return "";
-  }
-}
-
-/**
  * HEX 转 RGB。
  *
  * @param {string} hexColorInput HEX 颜色。
  * @returns {{r: number, g: number, b: number}} 0~255 的三通道值；非法输入按黑色处理。
  */
 export function hexToRgb(hexColorInput) {
-  const normalizedColor = normalizedHexColor(hexColorInput) || "#000000";
+  const normalizedColor = hexColorOrEmpty(hexColorInput) || "#000000";
   return {
     r: Number.parseInt(normalizedColor.slice(1, 3), 16),
     g: Number.parseInt(normalizedColor.slice(3, 5), 16),
@@ -185,18 +169,6 @@ export function roundField(fieldValue) {
   } else {
     return "0";
   }
-}
-
-/**
- * 把数值夹到 [min, max] 区间。
- *
- * @param {number} inputValue 输入值。
- * @param {number} minValue 下限。
- * @param {number} maxValue 上限。
- * @returns {number} 夹取后的值。
- */
-export function clampNumber(inputValue, minValue, maxValue) {
-  return Math.max(minValue, Math.min(maxValue, inputValue));
 }
 
 /**

@@ -66,15 +66,18 @@ import {
 import {
   clone,
   newId,
-  normalizedHexColor,
   hexToRgb,
   rgbToHex,
   rgbToHsv,
   hsvToRgb,
   roundField,
-  clampNumber,
   normalizedFontWeight
 } from "./editor-utils.js?v=20260918233037";
+import { clampNumber } from "./utils/numbers.js?v=20260918233037";
+import {
+  hexColorOrEmpty,
+  strictHexColorOrEmpty
+} from "./utils/colors.js?v=20260918233037";
 import {
   packPopupModules,
   popupLayoutColumns,
@@ -1745,7 +1748,7 @@ function enhanceNativeSelectsIn(selectRootNode = document) {
  * @returns {void}
  */
 function syncColorPickerFromHex(hexColorValue, shouldDispatchInput = false) {
-  const normalizedHex = normalizedHexColor(hexColorValue);
+  const normalizedHex = hexColorOrEmpty(hexColorValue);
   if (!normalizedHex || !activeColorInputElement) {
     return;
   }
@@ -1835,7 +1838,7 @@ function openColorPickerForInput(colorInputElement) {
     closeColorPicker();
   }
   activeColorInputElement = colorInputElement;
-  activeColorHex = normalizedHexColor(colorInputElement.value) || "#000000";
+  activeColorHex = hexColorOrEmpty(colorInputElement.value) || "#000000";
   const inputHsvColor = rgbToHsv(hexToRgb(activeColorHex));
   colorPickerHue = inputHsvColor.h;
   colorPickerSaturation = inputHsvColor.s;
@@ -1857,7 +1860,7 @@ function closeColorPicker() {
     return;
   }
   const closingColorInput = activeColorInputElement;
-  const colorValueChanged = normalizedHexColor(closingColorInput.value) !== activeColorHex;
+  const colorValueChanged = hexColorOrEmpty(closingColorInput.value) !== activeColorHex;
   globalColorPickerElement.hidden = true;
   activeColorInputElement = null;
   colorPickerDragPointerId = null;
@@ -3154,25 +3157,6 @@ function removeComponent(removalDocument, removedComponentId) {
   return removedComponent;
 }
 /**
- * 把输入的十六进制色值归一成小写 #rrggbb。
- *
- * 与导入的 normalizedHexColor 不同，这里只接受 6 位写法且非法时返回空串，
- * 调用方据此判断「用户输入还不可用」而不是得到一个近似颜色。
- *
- * @param {string} hexColorInput 原始色值。
- * @returns {string} 归一后的色值，非法时为空串。
- */
-function normalizeHexColor(hexColorInput) {
-  const normalizedHexValue = String(hexColorInput || "")
-    .trim()
-    .toLowerCase();
-  if (/^#[\da-f]{6}$/.test(normalizedHexValue)) {
-    return normalizedHexValue;
-  } else {
-    return "";
-  }
-}
-/**
  * 取当前单选中的控件对象。
  *
  * @returns {object|null} 控件对象；未选中或已被删除时返回 null。
@@ -3896,7 +3880,7 @@ function openComponentContextMenu(contextMenuEvent, openedContextMenuComponentId
       activeProject?.document,
       labelColorComponentId
     )?.component;
-    return normalizeHexColor(labelColorComponent?.style?.editorLabelColor);
+    return strictHexColorOrEmpty(labelColorComponent?.style?.editorLabelColor);
   });
   const sharedLabelColor = labelColorValues.every(
     labelColorValue => labelColorValue === labelColorValues[0]
@@ -4347,7 +4331,7 @@ function setComponentsLabelColor(labelColorComponentIds, newLabelColorValue) {
   if (!labelColorTargetIds.length) {
     return;
   }
-  const normalizedLabelColor = normalizeHexColor(newLabelColorValue);
+  const normalizedLabelColor = strictHexColorOrEmpty(newLabelColorValue);
   mutateDocument(labelColorDocument => {
     for (const sortedLabelColorComponentId of labelColorTargetIds) {
       const targetLabelColorComponent = findComponent(
@@ -4405,7 +4389,7 @@ function renderComponentList(componentListElement, listComponents, listEmptyText
       listComponent.id === selectedComponentId
     );
     componentItemElement.classList.toggle("group-item", listComponent.type === "group");
-    const itemLabelColor = normalizeHexColor(listComponent.style?.editorLabelColor);
+    const itemLabelColor = strictHexColorOrEmpty(listComponent.style?.editorLabelColor);
     componentItemElement.classList.toggle("has-color-label", !!itemLabelColor);
     if (itemLabelColor) {
       componentItemElement.style.setProperty("--element-label-color", itemLabelColor);
@@ -29715,13 +29699,13 @@ globalColorPickerHueRangeInputElement.addEventListener("input", () => {
   }
 });
 globalColorPickerHexTextInputElement.addEventListener("input", () => {
-  const hexColorInputValue = normalizedHexColor(globalColorPickerHexTextInputElement.value);
+  const hexColorInputValue = hexColorOrEmpty(globalColorPickerHexTextInputElement.value);
   if (hexColorInputValue) {
     syncColorPickerFromHex(hexColorInputValue, true);
   }
 });
 globalColorPickerHexTextInputElement.addEventListener("change", () => {
-  const hexColorChangeInput = normalizedHexColor(globalColorPickerHexTextInputElement.value);
+  const hexColorChangeInput = hexColorOrEmpty(globalColorPickerHexTextInputElement.value);
   if (hexColorChangeInput) {
     syncColorPickerFromHex(hexColorChangeInput, true);
   } else if (activeColorInputElement) {
@@ -29776,7 +29760,7 @@ globalColorPickerPasteButtonElement.addEventListener("click", async () => {
   if (activeColorInputElement) {
     try {
       const clipboardRawText = await navigator.clipboard.readText();
-      const clipboardHexColor = normalizedHexColor(clipboardRawText);
+      const clipboardHexColor = hexColorOrEmpty(clipboardRawText);
       if (!clipboardHexColor) {
         throw new Error("剪贴板中没有可用的十六进制颜色值。");
       }

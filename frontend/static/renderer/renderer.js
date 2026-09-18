@@ -53,6 +53,9 @@ import {
   vacuumMapImageSource
 } from "./registry.js?v=20260918233037";
 import { randomUuid } from "../utils/random-id.js?v=20260918233037";
+// 颜色解析统一走 utils/colors.js（P10 B 类收敛）：本文件原先在 mixHexColors 里
+// 又写了一份 normalizeHexColor，与 home.js 那份同名但失败值不同（null vs 空串）。
+import { expandHexColorOrNull } from "../utils/colors.js?v=20260918233037";
 import { popupLayoutMetrics } from "../popup-layout.js?v=20260918233037";
 import {
   bathHeaterModeUsesAirflow,
@@ -708,25 +711,10 @@ function createSwitchVisual({
  * @returns {string} 插值结果色（#RRGGBB）；入参不是合法 hex 时原样返回 startColor。
  */
 function mixHexColors(startColor, endColor, blendRatio = 0) {
-  // 三位简写先展开成六位：HA 里用户手写的颜色常是 #abc，直接按六位解析会得到错值。
-  const normalizeHexColor = colorValue => {
-    const trimmedColor = String(colorValue || "").trim();
-    const expandedColor = /^#[0-9a-f]{3}$/i.test(trimmedColor)
-      ? "#" +
-        trimmedColor
-          .slice(1)
-          .split("")
-          .map(hexDigit => "" + hexDigit + hexDigit)
-          .join("")
-      : trimmedColor;
-    if (/^#[0-9a-f]{6}$/i.test(expandedColor)) {
-      return expandedColor;
-    } else {
-      return null;
-    }
-  };
-  const normalizedStartColor = normalizeHexColor(startColor);
-  const normalizedEndColor = normalizeHexColor(endColor);
+  // 三位简写先展开成六位（utils/colors.js 的唯一实现）：HA 里用户手写的颜色常是 #abc，
+  // 直接按六位解析会得到错值。
+  const normalizedStartColor = expandHexColorOrNull(startColor);
+  const normalizedEndColor = expandHexColorOrNull(endColor);
   // 任一端不是 hex（例如 rgb() 写法或主题变量名）就放弃插值，原样返回起点色 ——
   // 返回一个算错的颜色比返回未混合的颜色更糟。
   if (!normalizedStartColor || !normalizedEndColor) {

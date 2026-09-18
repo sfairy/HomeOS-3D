@@ -5,9 +5,11 @@
  * 职责：切换「显示 / 隐藏」按钮态、归一特效层参数、把组件对齐到目标尺寸，
  *   以及把像素坐标换算成面板展示用的百分比与缩放值。
  * 约定：画布默认尺寸 2778×1940 与后端 schema 一致；百分比一律保留
- *   editor-utils 的 roundField 精度并对越界值做 clamp。
+ *   editor-utils 的 roundField 精度并对越界值做 clamp
+ *   （clampNumber 的唯一实现在 utils/numbers.js，见那里的契约对照表）。
  */
-import { clampNumber, roundField } from "./editor-utils.js?v=20260918233037";
+import { roundField } from "./editor-utils.js?v=20260918233037";
+import { clampNumber } from "./utils/numbers.js?v=20260918233037";
 
 /**
  * 同步「显示 / 隐藏」切换按钮的按压态与文案。

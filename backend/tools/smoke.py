@@ -3008,6 +3008,155 @@ def check_no_duplicated_helper_implementations() -> None:
     )
 
 
+#: P10 B 类（同名但语义不同）：全前端只允许在这些文件里**定义**这些助手。
+#: 键是唯一实现所在的文件，值是它拥有的名字 —— 契约对照表写在 numbers.js / colors.js 的
+#: 模块头里，这里只钉「定义点唯一」。
+FRONTEND_HELPER_SINGLE_SOURCE = {
+    'frontend/static/utils/numbers.js': (
+        'clampNumber',
+        'clampCoercedNumber',
+        'clampOptionalNumber',
+        'clampTypedNumber',
+    ),
+    'frontend/static/utils/colors.js': (
+        'hexColorOrEmpty',
+        'strictHexColorOrEmpty',
+        'expandHexColorOrNull',
+    ),
+}
+
+#: 被收敛掉的旧名字：**定义**不许再出现（注释里提它们是可以的 —— 注释不会被复制去调用）。
+#: `clampNumber` 不在这个名单里：它作为「纯夹取」的唯一契约仍然存在，只是只准定义在
+#: `utils/numbers.js`（见上面那张表）。
+FRONTEND_RETIRED_HELPER_NAMES = ('clampNumberOr', 'normalizeHexColor', 'normalizedHexColor')
+
+#: 定义点的四种写法：`function name(`、`const name =`、行首赋值 `name = (`、
+#: 对象属性 `{ name: (`（把助手塞进对象字面量也是一份新实现）。
+#: 只认这四种，是为了不被注释、字符串与调用点误伤（`clampNumber(1, 2, 3)` 不会命中）。
+_FRONTEND_DEFINITION_PATTERNS = (
+    r'(?:^|[^.\w])function\s+{name}\s*\(',
+    r'(?:^|[^.\w])(?:const|let|var)\s+{name}\s*=',
+    r'^\s*{name}\s*=\s*(?:async\s*)?(?:\(|function)',
+    r'(?:^|[,{]\s*){name}\s*:\s*(?:async\s*)?(?:\(|function)',
+)
+
+
+def _frontend_helper_definitions(source: str, name: str) -> bool:
+    """这段前端源码里有没有对 ``name`` 的定义（不是调用、不是注释里的提及）。"""
+    # 用 replace 而不是 format：模式里带 `[,{]` 这类正则字符，format 会把它们当占位符。
+    return any(
+        re.search(pattern.replace('{name}', re.escape(name)), source, re.MULTILINE)
+        for pattern in _FRONTEND_DEFINITION_PATTERNS
+    )
+
+
+def check_frontend_helper_contract_single_source() -> None:
+    """P10-B：夹取与颜色归一的契约全前端只有一份实现，调用方只能 import。
+
+    为什么需要这条闸：4.3 B 类记的是「同名但语义不同」—— ``clampNumber`` 原先在前端有
+    五份（编辑器、3D 工作室两份、渲染器、导出预设）、``normalizeHexColor`` 有两份，
+    名字一样而参数顺序与非法值口径不同。这类重复的危害不在「代码多」，而在**照名字换一份
+    去调用不会报错**：`clampNumber(v, 0, 100)` 落到四参那份上就是把下限当兜底。
+    收敛之后，两点必须长期成立：
+
+    * **定义点唯一**：七个契约助手各自只在 ``utils/numbers.js`` / ``utils/colors.js``
+      里定义一次，别处再抄一份就红（点名，能发现「换个文件抄回来」）；
+    * **只能 import**：任何文件要用手册里的名字，import 路径必须指向这两个模块 ——
+      挡住「在 editor-utils 里转一手再导出」这种绕法（那是把定义点又拉回两份的常见形态）。
+
+    另外还跑两条活体探针（``number-helpers`` / ``color-helpers``）：静态闸只能证明
+    「只有一份」，「这一份的语义还是不是契约里写的那样」要靠把输入矩阵摆出来跑一遍 ——
+    把两份合并成一份、或者把参数顺序改回去，探针会红。
+    """
+    frontend_root = PROJECT_ROOT / 'frontend'
+    expected = {
+        name: relative
+        for relative, names in FRONTEND_HELPER_SINGLE_SOURCE.items()
+        for name in names
+    }
+    locations: dict[str, list[str]] = {name: [] for name in expected}
+    retired: list[str] = []
+    import_paths: list[str] = []
+    dangling: list[str] = []
+    owners = set(FRONTEND_HELPER_SINGLE_SOURCE)
+    scanned = 0
+
+    for path in sorted(frontend_root.rglob('*.js')):
+        if '/vendor/' in path.as_posix():
+            continue
+        try:
+            source = path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:  # 前端资源里的二进制伪装交给语法门去报
+            continue
+        relative = path.relative_to(PROJECT_ROOT).as_posix()
+        scanned += 1
+        for name in expected:
+            if _frontend_helper_definitions(source, name):
+                locations[name].append(relative)
+        for name in FRONTEND_RETIRED_HELPER_NAMES:
+            if _frontend_helper_definitions(source, name):
+                retired.append(f'{name} → {relative}')
+        imported_here: set[str] = set()
+        # import { a, b } from "../../utils/numbers.js?v=..."：只查手册里的名字。
+        # 连 `export { ... } from ...`（转手再导出）一起管 —— 那是把定义点拉回两份的常见形态。
+        for imported_names, specifier in re.findall(
+            r'(?:import|export)\s*\{([^}]*)\}\s*from\s*["\']([^"\']+)["\']', source, re.DOTALL
+        ):
+            for imported_name in imported_names.split(','):
+                imported_name = imported_name.strip()
+                if imported_name not in expected:
+                    continue
+                imported_here.add(imported_name)
+                owner = expected[imported_name].rsplit('/', 1)[-1]
+                if owner not in specifier:
+                    import_paths.append(f'{relative}：{imported_name} ← {specifier}')
+        # 调用点必须自己 import：删掉定义时最容易漏的就是调用方的 import 行，
+        # 而那种代码在浏览器里是一句 ReferenceError（静态闸不查就一路静默到页面上）。
+        if relative not in owners:
+            for name in expected:
+                if name in imported_here:
+                    continue
+                if re.search(rf'(?<![\w.]){re.escape(name)}\s*\(', source):
+                    dangling.append(f'{relative}：调用 {name}() 但没有 import 它')
+
+    # 1) 定义点唯一且落在手册指定的文件里。
+    misplaced = [
+        f'{name} → {sorted(set(places))}（应为 {expected[name]}）'
+        for name, places in locations.items()
+        if sorted(set(places)) != [expected[name]]
+    ]
+    check(
+        'P10-B 夹取与颜色归一的契约各只有一份实现，且只在 utils/numbers.js 与 utils/colors.js 里',
+        not misplaced,
+        '；'.join(misplaced) if misplaced else f'{len(expected)} 个契约助手各一处定义（扫过 {scanned} 份前端脚本）',
+    )
+
+    # 2) 旧名字的定义不许复活。
+    check(
+        'P10-B 被收敛掉的旧定义名（clampNumberOr / normalizeHexColor / normalizedHexColor）没有再加回来',
+        not retired,
+        '；'.join(retired) if retired else '；'.join(FRONTEND_RETIRED_HELPER_NAMES),
+    )
+
+    # 3) 调用方只能从这两个模块 import，不许转手导出。
+    check(
+        'P10-B 这些助手的 import 只能指向 utils/numbers.js 与 utils/colors.js（不许在别处转手导出）',
+        not import_paths,
+        '；'.join(import_paths[:6]) if import_paths else '所有 import 都指向唯一实现',
+    )
+
+    # 4) 调用点必须自己 import（删定义时最容易漏的那一行，漏了就是页面上的 ReferenceError）。
+    check(
+        'P10-B 每个调用点都 import 了它调用的契约助手（删定义时漏改调用方 = 页面 ReferenceError）',
+        not dangling,
+        '；'.join(dangling[:6]) if dangling else '所有调用点都有对应的 import',
+    )
+
+    # 5) 活体探针：语义是否仍是契约里那一套。
+    _run_frontend_probe('number-helpers')
+    _run_frontend_probe('color-helpers')
+
+
 def check_access_criteria_single_source() -> None:
     """B32：三处入口必须共用同一套判据，不许再各写一份。
 
@@ -9307,6 +9456,8 @@ FRONTEND_PROBE_SUITES = {
     'studio-history': 'W22 撤销 / 重做的互斥闩与长按自动重复（studio-app.js）',
     'debug-log': 'W23 生产控制台的诊断开关（utils/debug-log.js）',
     'runtime-caches': 'W19 历史序列缓存的上限常量（renderer/runtime-caches.js）',
+    'number-helpers': 'P10-B 四份「夹取」契约的语义与参数顺序（utils/numbers.js）',
+    'color-helpers': 'P10-B 三份「颜色归一」契约的差异（utils/colors.js）',
     'setup': 'W6 初始化页提交按钮与超时（setup.js）',
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
     'home-boot': 'W8 编辑器启动分片（home.js 启动序列）',
@@ -9352,6 +9503,10 @@ FRONTEND_SYNTAX_FILES = (
     # 语法错会一路静默到浏览器控制台，所以在自检里补一次解析。
     'frontend/static/utils/debug-log.js',
     'frontend/static/renderer/runtime-caches.js',
+    # P10-B：这两份是「同名不同义」收敛后的唯一实现，探针只 import 它们，
+    # 页面脚本 import 它们 —— 语法错会一路静默到浏览器控制台。
+    'frontend/static/utils/numbers.js',
+    'frontend/static/utils/colors.js',
     'frontend/static/renderer/registry.js',
     'frontend/static/3d-studio/studio-shadow-atlas.js',
     'frontend/static/3d-studio/studio-external-models.js',
@@ -10802,6 +10957,7 @@ async def run() -> int:
     check_closure_scope_writes()
     check_no_dead_module_level_symbols()
     check_no_duplicated_helper_implementations()
+    check_frontend_helper_contract_single_source()
     check_access_criteria_single_source()
     check_login_password_verification_cost()
     await check_revoke_other_sessions_requires_valid_session()

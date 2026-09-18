@@ -26,6 +26,9 @@
 import { randomUuid } from "../utils/random-id.js?v=20260918233037";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
 import { debugLog } from "../utils/debug-log.js?v=20260918233037";
+// 数值夹取统一走 utils/numbers.js（P10 B 类收敛）：本文件原先那份也叫 clampNumber，
+// 但它是四参、且会把空串换算成 0 —— 与编辑器那份同名不同义，最容易调用错的形态。
+import { clampCoercedNumber } from "../utils/numbers.js?v=20260918233037";
 import {
   climateDefaultIcon,
   climateEffectMode,
@@ -263,24 +266,6 @@ export function staticAssetImageSource(imageAssetId) {
   return resolveAssetUrl(imageAssetId);
 }
 /**
- * 把数值夹到区间内，非法值用兜底值替代。
- *
- * 注意兜底值本身不参与夹取：它可能是区间外的哨兵值。
- *
- * @param {*} numericValue 待处理的值。
- * @param {number} minimumValue 下界。
- * @param {number} maximumValue 上界。
- * @param {number} fallbackValue 非法时使用的值。
- * @returns {number} 处理后的数值。
- */
-function clampNumber(numericValue, minimumValue, maximumValue, fallbackValue) {
-  const parsedValue = Number(numericValue);
-  return Math.max(
-    minimumValue,
-    Math.min(maximumValue, Number.isFinite(parsedValue) ? parsedValue : fallbackValue)
-  );
-}
-/**
  * 校验 CSS 颜色字符串，非法时用兜底色。
  *
  * 颜色值来自文档数据并会被写进内联样式，白名单正则只放行十六进制与 rgb / hsl 系列函数，
@@ -314,8 +299,8 @@ function applyFontWeight(targetElement, fontWeightValue, fontSizeValue) {
   const weightNumber = Number(fontWeightValue);
   const normalizedWeight =
     Number.isFinite(weightNumber) && weightNumber > 1
-      ? clampNumber((weightNumber - 1) / 899, 0, 1, 0.4)
-      : clampNumber(weightNumber, 0, 1, 0.4);
+      ? clampCoercedNumber((weightNumber - 1) / 899, 0, 1, 0.4)
+      : clampCoercedNumber(weightNumber, 0, 1, 0.4);
   const strokeFontSize = Math.max(1, Number(fontSizeValue || 16));
   const strokeWidthPx = normalizedWeight * strokeFontSize * 0.05;
   targetElement.style.fontWeight = "100";
@@ -1139,20 +1124,20 @@ function buildAirflowSvg(airflowProperties = {}, airflowClimateMode = "other") {
       : airflowClimateMode === "heat"
         ? resolveColor(airflowProperties.airflowHeatColor, "#ff8a65")
         : resolveColor(airflowProperties.airflowOtherColor, "#ffffff");
-  const airflowAngleDeg = clampNumber(airflowProperties.airflowAngle, -360, 360, 7);
-  const airflowLengthRatio = clampNumber(airflowProperties.airflowLength, 10, 300, 200) / 100;
-  const airflowFadeRatio = clampNumber(airflowProperties.airflowFadePosition, 15, 100, 50) / 100;
-  const airflowSpreadValue = clampNumber(airflowProperties.airflowSpread, 10, 300, 100);
+  const airflowAngleDeg = clampCoercedNumber(airflowProperties.airflowAngle, -360, 360, 7);
+  const airflowLengthRatio = clampCoercedNumber(airflowProperties.airflowLength, 10, 300, 200) / 100;
+  const airflowFadeRatio = clampCoercedNumber(airflowProperties.airflowFadePosition, 15, 100, 50) / 100;
+  const airflowSpreadValue = clampCoercedNumber(airflowProperties.airflowSpread, 10, 300, 100);
   const airflowCurveValue = Math.tanh(
-    clampNumber(airflowProperties.airflowCurve, -200, 200, 20) / 140
+    clampCoercedNumber(airflowProperties.airflowCurve, -200, 200, 20) / 140
   );
-  const airflowDensityRatio = clampNumber(airflowProperties.airflowDensity, 20, 200, 60) / 100;
+  const airflowDensityRatio = clampCoercedNumber(airflowProperties.airflowDensity, 20, 200, 60) / 100;
   const airflowIrregularityRatio =
-    clampNumber(airflowProperties.airflowIrregularity, 0, 200, 50) / 100;
-  const airflowThicknessRatio = clampNumber(airflowProperties.airflowThickness, 5, 300, 40) / 100;
-  const airflowStrengthRatio = clampNumber(airflowProperties.airflowStrength, 0, 500, 200) / 100;
-  const airflowBlurPx = clampNumber(airflowProperties.airflowBlur, 0, 30, 6);
-  const airflowSpeedSeconds = clampNumber(airflowProperties.airflowSpeed, 0.3, 12, 1);
+    clampCoercedNumber(airflowProperties.airflowIrregularity, 0, 200, 50) / 100;
+  const airflowThicknessRatio = clampCoercedNumber(airflowProperties.airflowThickness, 5, 300, 40) / 100;
+  const airflowStrengthRatio = clampCoercedNumber(airflowProperties.airflowStrength, 0, 500, 200) / 100;
+  const airflowBlurPx = clampCoercedNumber(airflowProperties.airflowBlur, 0, 30, 6);
+  const airflowSpeedSeconds = clampCoercedNumber(airflowProperties.airflowSpeed, 0.3, 12, 1);
   const airflowTopY = 6;
   const airflowBottomY = airflowTopY + (228 - airflowTopY) * airflowFadeRatio;
   const airflowMidY = airflowTopY + (airflowBottomY - airflowTopY) * 0.63;
@@ -1456,7 +1441,7 @@ function buildHistorySeries(historyContext, historyEntityId, currentStateValue, 
     return [];
   }
   // 窗口夹在 1 小时到 168 小时（一周）：再长的话每小时一个桶的曲线已经没有信息量。
-  const sampleBucketCount = Math.round(clampNumber(historyHours, 1, 168, 24));
+  const sampleBucketCount = Math.round(clampCoercedNumber(historyHours, 1, 168, 24));
   const MILLISECONDS_PER_HOUR = 3600000;
   const windowStartTimestamp = nowTimestamp - sampleBucketCount * MILLISECONDS_PER_HOUR;
   const bucketedSamples = [];
@@ -1574,7 +1559,7 @@ function attachChartTooltip(
     }
     // 指针落在根元素内的横向比例（0~1）；先取屏幕比例，再用 valueRange 折算到数据区间。
     const relativePointerX = (pointerEvent.clientX - rootRect.left) / rootRect.width;
-    const rangeRatio = clampNumber(
+    const rangeRatio = clampCoercedNumber(
       (relativePointerX - valueRange.start) / Math.max(0.001, valueRange.end - valueRange.start),
       0,
       1,
@@ -1701,13 +1686,13 @@ function buildNavigationEffects(
   const navFramePanelWidth = Math.max(1, Number(navFrameComponent.position?.width || 236));
   const navFramePanelHeight = Math.max(1, Number(navFrameComponent.position?.height || 100));
   const navFrameViewBoxHeight = Math.max(8, (navFramePanelHeight * 236) / navFramePanelWidth);
-  const navFrameWidth = clampNumber(navFrameProperties.frameWidth, 0, 20, 2);
+  const navFrameWidth = clampCoercedNumber(navFrameProperties.frameWidth, 0, 20, 2);
   const navFrameInset = Math.max(0.5, navFrameWidth / 2 + 0.5);
   const navFrameInnerWidth = Math.max(1, 236 - navFrameInset * 2);
   const navFrameInnerHeight = Math.max(1, navFrameViewBoxHeight - navFrameInset * 2);
   const navFrameCornerRadius =
     Math.min(navFrameInnerWidth, navFrameInnerHeight) *
-    clampNumber(navFrameProperties.radius, 0, 0.5, 0.5);
+    clampCoercedNumber(navFrameProperties.radius, 0, 0.5, 0.5);
   const navGlowOpacity = Math.min(1, navGlowStrength * 0.38);
   const navGlowStrokeWidth = Math.max(
     0,
@@ -1721,8 +1706,8 @@ function buildNavigationEffects(
   const navGradientCenterY = navFrameViewBoxHeight / 2;
   const navFrameColorValue = resolveColor(navFrameProperties.frameColor, "#d9e0e6");
   const navGlowColorValue = resolveColor(navFrameProperties.glowColor, "#f2f6fa");
-  const navFrameAngleValue = clampNumber(navFrameProperties.frameAngle, 0, 360, 45);
-  const navGlowAngleValue = clampNumber(navFrameProperties.glowAngle, 0, 360, 45);
+  const navFrameAngleValue = clampCoercedNumber(navFrameProperties.frameAngle, 0, 360, 45);
+  const navGlowAngleValue = clampCoercedNumber(navFrameProperties.glowAngle, 0, 360, 45);
   const navOpacityDivisor = isNavFrameActive ? 0.98 : 0.48;
   // 把设计稿的透明度档位折算到当前控件的透明度：先乘 navFrameOpacity，再除以档位
   // 上限 navOpacityDivisor（活动 0.98 / 非活动 0.48），让最亮的 stop 恰好落在控件
@@ -2102,10 +2087,10 @@ export function renderIconButtonEffectLayer(effectLayerComponent, effectLayerCon
     (isEffectAwaiting ? " awaiting-light-visual" : "");
   effectLayerElement.style.setProperty(
     "--hb-effect-image-opacity",
-    String(clampNumber(effectLayerProperties.effectOpacity, 0, 1, 1) * effectVisualState.opacity)
+    String(clampCoercedNumber(effectLayerProperties.effectOpacity, 0, 1, 1) * effectVisualState.opacity)
   );
   // 视觉参数（透明度 / 滤镜）的变化过渡至少 0.45 秒：低于这个时长会看出跳变。
-  const effectFadeDuration = clampNumber(effectLayerProperties.effectFadeDuration, 0, 3, 0.52);
+  const effectFadeDuration = clampCoercedNumber(effectLayerProperties.effectFadeDuration, 0, 3, 0.52);
   effectLayerElement.style.setProperty("--hb-effect-fade-duration", effectFadeDuration + "s");
   effectLayerElement.style.setProperty(
     "--hb-effect-visual-transition-duration",
@@ -2159,7 +2144,7 @@ registerComponent("icon-button-effect", {
     );
     effectButtonElement.style.setProperty(
       "--effect-button-opacity",
-      clampNumber(effectButtonProperties.buttonOpacity, 0, 1, 0.92) * 100 + "%"
+      clampCoercedNumber(effectButtonProperties.buttonOpacity, 0, 1, 0.92) * 100 + "%"
     );
     effectButtonElement.style.setProperty(
       "--effect-frame-color",
@@ -2167,21 +2152,21 @@ registerComponent("icon-button-effect", {
     );
     effectButtonElement.style.setProperty(
       "--effect-frame-width",
-      clampNumber(effectButtonProperties.frameWidth, 0, 20, 1.5) + "px"
+      clampCoercedNumber(effectButtonProperties.frameWidth, 0, 20, 1.5) + "px"
     );
     effectButtonElement.style.setProperty(
       "--effect-frame-opacity",
-      clampNumber(effectButtonProperties.frameOpacity, 0, 1, 0.72) * 100 + "%"
+      clampCoercedNumber(effectButtonProperties.frameOpacity, 0, 1, 0.72) * 100 + "%"
     );
     effectButtonElement.style.setProperty(
       "--effect-radius",
-      clampNumber(effectButtonProperties.radius, 0, 50, 50) + "%"
+      clampCoercedNumber(effectButtonProperties.radius, 0, 50, 50) + "%"
     );
     effectButtonElement.style.setProperty(
       "--effect-glow-color",
       resolveColor(effectButtonProperties.glowColor, "#43c8f0")
     );
-    const effectGlowStrength = clampNumber(
+    const effectGlowStrength = clampCoercedNumber(
       isEffectButtonActive
         ? effectButtonProperties.glowOnStrength
         : effectButtonProperties.glowOffStrength,
@@ -2215,9 +2200,9 @@ registerComponent("icon-button-effect", {
         isEffectButtonActive ? "#ffffff" : "#9aa5ad"
       );
       effectIconElement.style.width =
-        clampNumber(effectButtonProperties.iconSize, 1, 100, 44) + "%";
+        clampCoercedNumber(effectButtonProperties.iconSize, 1, 100, 44) + "%";
       effectIconElement.style.height =
-        clampNumber(effectButtonProperties.iconSize, 1, 100, 44) + "%";
+        clampCoercedNumber(effectButtonProperties.iconSize, 1, 100, 44) + "%";
       effectIconElement.style.maskImage = 'url("' + effectIconSource + '")';
       effectIconElement.style.webkitMaskImage = 'url("' + effectIconSource + '")';
       effectButtonElement.append(effectIconElement);
@@ -2241,87 +2226,87 @@ registerComponent("title-button", {
     );
     titleElement.style.setProperty(
       "--title-frame-width",
-      clampNumber(titleProperties.frameWidth, 0, 12, 1.5) + "px"
+      clampCoercedNumber(titleProperties.frameWidth, 0, 12, 1.5) + "px"
     );
     titleElement.style.setProperty(
       "--title-frame-offset-x",
-      clampNumber(titleProperties.frameOffsetX, -100, 100, 0) + "%"
+      clampCoercedNumber(titleProperties.frameOffsetX, -100, 100, 0) + "%"
     );
     titleElement.style.setProperty(
       "--title-frame-offset-y",
-      clampNumber(titleProperties.frameOffsetY, -100, 100, 0) + "%"
+      clampCoercedNumber(titleProperties.frameOffsetY, -100, 100, 0) + "%"
     );
     titleElement.style.setProperty(
       "--title-main-size",
-      clampNumber(titleProperties.mainSize, 8, 200, 34) * titleUnitPx + "px"
+      clampCoercedNumber(titleProperties.mainSize, 8, 200, 34) * titleUnitPx + "px"
     );
     titleElement.style.setProperty(
       "--title-secondary-size",
-      clampNumber(titleProperties.secondarySize, 6, 100, 12) * titleUnitPx + "px"
+      clampCoercedNumber(titleProperties.secondarySize, 6, 100, 12) * titleUnitPx + "px"
     );
     titleElement.style.setProperty(
       "--title-main-spacing",
-      clampNumber(titleProperties.mainSpacing, -20, 100, 1) * titleUnitPx + "px"
+      clampCoercedNumber(titleProperties.mainSpacing, -20, 100, 1) * titleUnitPx + "px"
     );
     titleElement.style.setProperty(
       "--title-secondary-spacing",
-      clampNumber(titleProperties.secondarySpacing, -20, 100, 2) * titleUnitPx + "px"
+      clampCoercedNumber(titleProperties.secondarySpacing, -20, 100, 2) * titleUnitPx + "px"
     );
     titleElement.style.setProperty(
       "--title-secondary-line-gap",
-      clampNumber(titleProperties.secondaryLineGap, 0, 100, 2) * titleUnitPx + "px"
+      clampCoercedNumber(titleProperties.secondaryLineGap, 0, 100, 2) * titleUnitPx + "px"
     );
     titleElement.style.setProperty(
       "--title-main-left",
-      clampNumber(titleProperties.mainTextLeft, -100, 200, 5.5) + "%"
+      clampCoercedNumber(titleProperties.mainTextLeft, -100, 200, 5.5) + "%"
     );
     titleElement.style.setProperty(
       "--title-main-top",
-      clampNumber(titleProperties.mainTextTop, -100, 200, 45) + "%"
+      clampCoercedNumber(titleProperties.mainTextTop, -100, 200, 45) + "%"
     );
     titleElement.style.setProperty(
       "--title-secondary-left",
-      clampNumber(titleProperties.secondaryTextLeft, -100, 200, 54) + "%"
+      clampCoercedNumber(titleProperties.secondaryTextLeft, -100, 200, 54) + "%"
     );
     titleElement.style.setProperty(
       "--title-secondary-top",
-      clampNumber(titleProperties.secondaryTextTop, -100, 200, 43) + "%"
+      clampCoercedNumber(titleProperties.secondaryTextTop, -100, 200, 43) + "%"
     );
     titleElement.style.setProperty(
       "--title-icon-size",
-      clampNumber(titleProperties.iconSize, 1, 100, 30) * titleUnitPx + "px"
+      clampCoercedNumber(titleProperties.iconSize, 1, 100, 30) * titleUnitPx + "px"
     );
     titleElement.style.setProperty(
       "--title-icon-left",
-      clampNumber(titleProperties.iconLeft, -100, 200, 50) + "%"
+      clampCoercedNumber(titleProperties.iconLeft, -100, 200, 50) + "%"
     );
     titleElement.style.setProperty(
       "--title-icon-top",
-      clampNumber(titleProperties.iconTop, -100, 200, 45) + "%"
+      clampCoercedNumber(titleProperties.iconTop, -100, 200, 45) + "%"
     );
     titleElement.style.setProperty(
       "--title-marker-left",
-      clampNumber(titleProperties.markerLeft, -100, 200, 1.8) + "%"
+      clampCoercedNumber(titleProperties.markerLeft, -100, 200, 1.8) + "%"
     );
     titleElement.style.setProperty(
       "--title-marker-top",
-      clampNumber(titleProperties.markerTop, -100, 200, 84) + "%"
+      clampCoercedNumber(titleProperties.markerTop, -100, 200, 84) + "%"
     );
     if (titleProperties.frameVisible !== false || isHiddenContentClickable) {
-      const titleFrameSizeRatio = clampNumber(titleProperties.frameSize, 10, 300, 100) / 100;
+      const titleFrameSizeRatio = clampCoercedNumber(titleProperties.frameSize, 10, 300, 100) / 100;
       const titleFrameHalfHeight = titleHeight * 0.45 * titleFrameSizeRatio;
       const titleFrameOffsetXPx =
-        (titleWidth * clampNumber(titleProperties.frameOffsetX, -100, 100, 0)) / 100;
+        (titleWidth * clampCoercedNumber(titleProperties.frameOffsetX, -100, 100, 0)) / 100;
       const titleFrameOffsetYPx =
-        (titleHeight * clampNumber(titleProperties.frameOffsetY, -100, 100, 0)) / 100;
+        (titleHeight * clampCoercedNumber(titleProperties.frameOffsetY, -100, 100, 0)) / 100;
       const titleFrameHalfSpacing =
-        (titleWidth * clampNumber(titleProperties.frameSpacing, 0, 300, 100)) / 200;
+        (titleWidth * clampCoercedNumber(titleProperties.frameSpacing, 0, 300, 100)) / 200;
       const titleFrameCenterX = titleWidth / 2 + titleFrameOffsetXPx;
       const titleFrameCenterY = titleHeight / 2 + titleFrameOffsetYPx;
       const titleFrameTop = titleFrameCenterY - titleFrameHalfHeight / 2;
       const titleFrameBottom = titleFrameCenterY + titleFrameHalfHeight / 2;
       const titleBracketLength = titleHeight * 0.12;
-      const titleFrameHalfWidth = clampNumber(titleProperties.frameWidth, 0, 12, 1.5) / 2;
+      const titleFrameHalfWidth = clampCoercedNumber(titleProperties.frameWidth, 0, 12, 1.5) / 2;
       const titleLeftBracketX = titleFrameCenterX - titleFrameHalfSpacing + titleFrameHalfWidth;
       const titleRightBracketX = titleFrameCenterX + titleFrameHalfSpacing - titleFrameHalfWidth;
       const titleBracketsElement = appendSvgElement(titleElement, "svg", {
@@ -2336,7 +2321,7 @@ registerComponent("title-button", {
       const titleBracketAttributes = {
         fill: "none",
         stroke: resolveColor(titleProperties.frameColor, "#60636a"),
-        "stroke-width": clampNumber(titleProperties.frameWidth, 0, 12, 1.5),
+        "stroke-width": clampCoercedNumber(titleProperties.frameWidth, 0, 12, 1.5),
         "stroke-opacity": 1,
         "stroke-linecap": "butt",
         "stroke-linejoin": "miter",
@@ -2382,7 +2367,7 @@ registerComponent("title-button", {
       applyFontWeight(
         titleMainTextElement,
         titleProperties.mainWeight,
-        clampNumber(titleProperties.mainSize, 8, 200, 34)
+        clampCoercedNumber(titleProperties.mainSize, 8, 200, 34)
       );
       titleElement.append(titleMainTextElement);
     }
@@ -2407,7 +2392,7 @@ registerComponent("title-button", {
       applyFontWeight(
         titleSecondaryTextElement,
         titleProperties.secondaryWeight,
-        clampNumber(titleProperties.secondarySize, 6, 100, 12)
+        clampCoercedNumber(titleProperties.secondarySize, 6, 100, 12)
       );
       titleElement.append(titleSecondaryTextElement);
     }
@@ -2438,7 +2423,7 @@ registerComponent("title-button", {
       );
       titleMarkerElement.style.setProperty(
         "--title-marker-size",
-        clampNumber(titleProperties.markerSize, 2, 60, 10) * titleUnitPx + "px"
+        clampCoercedNumber(titleProperties.markerSize, 2, 60, 10) * titleUnitPx + "px"
       );
       titleElement.append(titleMarkerElement);
     }
@@ -2468,31 +2453,31 @@ registerComponent("light-statistics", {
     statisticsElement.dataset.abnormal = String(lightSummary.abnormal);
     statisticsElement.style.setProperty(
       "--light-statistics-icon-size",
-      clampNumber(statisticsProperties.iconSize, 1, 100, 42) * statisticsHeight + "px"
+      clampCoercedNumber(statisticsProperties.iconSize, 1, 100, 42) * statisticsHeight + "px"
     );
     statisticsElement.style.setProperty(
       "--light-statistics-title-size",
-      clampNumber(statisticsProperties.titleSize, 8, 200, 32) * statisticsHeight + "px"
+      clampCoercedNumber(statisticsProperties.titleSize, 8, 200, 32) * statisticsHeight + "px"
     );
     statisticsElement.style.setProperty(
       "--light-statistics-title-spacing",
-      clampNumber(statisticsProperties.titleSpacing, -20, 100, 1.2) * statisticsHeight + "px"
+      clampCoercedNumber(statisticsProperties.titleSpacing, -20, 100, 1.2) * statisticsHeight + "px"
     );
     statisticsElement.style.setProperty(
       "--light-statistics-count-size",
-      clampNumber(statisticsProperties.countSize, 8, 200, 34) * statisticsHeight + "px"
+      clampCoercedNumber(statisticsProperties.countSize, 8, 200, 34) * statisticsHeight + "px"
     );
     statisticsElement.style.setProperty(
       "--light-statistics-count-spacing",
-      clampNumber(statisticsProperties.countSpacing, -20, 100, 0) * statisticsHeight + "px"
+      clampCoercedNumber(statisticsProperties.countSpacing, -20, 100, 0) * statisticsHeight + "px"
     );
     statisticsElement.style.setProperty(
       "--light-statistics-icon-gap",
-      clampNumber(statisticsProperties.iconGap, 0, 40, 4.5) * statisticsWidth + "px"
+      clampCoercedNumber(statisticsProperties.iconGap, 0, 40, 4.5) * statisticsWidth + "px"
     );
     statisticsElement.style.setProperty(
       "--light-statistics-count-gap",
-      clampNumber(statisticsProperties.countGap, 0, 40, 4.5) * statisticsWidth + "px"
+      clampCoercedNumber(statisticsProperties.countGap, 0, 40, 4.5) * statisticsWidth + "px"
     );
     statisticsElement.style.setProperty(
       "--light-statistics-icon-color",
@@ -2538,7 +2523,7 @@ registerComponent("light-statistics", {
       applyFontWeight(
         statisticsTitleElement,
         statisticsProperties.titleWeight,
-        clampNumber(statisticsProperties.titleSize, 8, 200, 32)
+        clampCoercedNumber(statisticsProperties.titleSize, 8, 200, 32)
       );
       statisticsElement.append(statisticsTitleElement);
     }
@@ -2550,7 +2535,7 @@ registerComponent("light-statistics", {
       applyFontWeight(
         statisticsCountValueElement,
         statisticsProperties.countWeight,
-        clampNumber(statisticsProperties.countSize, 8, 200, 34)
+        clampCoercedNumber(statisticsProperties.countSize, 8, 200, 34)
       );
       statisticsCountElement.append(statisticsCountValueElement);
       if (lightSummary.total) {
@@ -2584,11 +2569,11 @@ const buttonRenderer = {
     );
     const deviceButtonCutCorner =
       (Math.min(deviceButtonWidth, deviceButtonHeight) *
-        clampNumber(deviceButtonProperties.cutCorner, 0, 50, 20)) /
+        clampCoercedNumber(deviceButtonProperties.cutCorner, 0, 50, 20)) /
       100;
-    const deviceButtonFrameWidth = clampNumber(deviceButtonProperties.frameWidth, 0, 12, 1);
-    const deviceButtonFrameAngle = clampNumber(deviceButtonProperties.frameAngle, 0, 360, 45);
-    const deviceButtonFrameOpacity = clampNumber(
+    const deviceButtonFrameWidth = clampCoercedNumber(deviceButtonProperties.frameWidth, 0, 12, 1);
+    const deviceButtonFrameAngle = clampCoercedNumber(deviceButtonProperties.frameAngle, 0, 360, 45);
+    const deviceButtonFrameOpacity = clampCoercedNumber(
       isDeviceButtonActive
         ? deviceButtonProperties.frameOnOpacity
         : deviceButtonProperties.frameOffOpacity,
@@ -2600,23 +2585,23 @@ const buttonRenderer = {
       deviceButtonProperties.softLightColor,
       "#ffffff"
     );
-    const deviceButtonSoftLightStrength = clampNumber(
+    const deviceButtonSoftLightStrength = clampCoercedNumber(
       deviceButtonProperties.softLightStrength,
       0,
       5,
       1
     );
-    const deviceButtonSoftLightSize = clampNumber(deviceButtonProperties.softLightSize, 0, 3, 1);
-    const deviceButtonSoftLightAngle = clampNumber(
+    const deviceButtonSoftLightSize = clampCoercedNumber(deviceButtonProperties.softLightSize, 0, 3, 1);
+    const deviceButtonSoftLightAngle = clampCoercedNumber(
       deviceButtonProperties.softLightAngle,
       0,
       360,
       45
     );
     const deviceButtonGlowColor = resolveColor(deviceButtonProperties.glowColor, "#ffffff");
-    const deviceButtonGlowStrength = clampNumber(deviceButtonProperties.glowStrength, 0, 5, 1);
-    const deviceButtonGlowSize = clampNumber(deviceButtonProperties.glowSize, 0, 3, 1);
-    const deviceButtonGlowAngle = clampNumber(deviceButtonProperties.glowAngle, 0, 360, 220);
+    const deviceButtonGlowStrength = clampCoercedNumber(deviceButtonProperties.glowStrength, 0, 5, 1);
+    const deviceButtonGlowSize = clampCoercedNumber(deviceButtonProperties.glowSize, 0, 3, 1);
+    const deviceButtonGlowAngle = clampCoercedNumber(deviceButtonProperties.glowAngle, 0, 360, 220);
     const deviceButtonCenterX = deviceButtonWidth / 2;
     const deviceButtonCenterY = deviceButtonHeight / 2;
     // 光晕按角度定位到控件一侧：先换成弧度，再沿该方向按宽高的固定比例（16% / 18%）偏移，
@@ -2634,27 +2619,27 @@ const buttonRenderer = {
     deviceButtonElement.className = "hb-icon-button" + (isDeviceButtonActive ? " active" : "");
     deviceButtonElement.style.setProperty(
       "--icon-button-main-left",
-      clampNumber(deviceButtonProperties.mainTextLeft, -100, 200, 9) + "%"
+      clampCoercedNumber(deviceButtonProperties.mainTextLeft, -100, 200, 9) + "%"
     );
     deviceButtonElement.style.setProperty(
       "--icon-button-main-top",
-      clampNumber(deviceButtonProperties.mainTextTop, -100, 200, 78) + "%"
+      clampCoercedNumber(deviceButtonProperties.mainTextTop, -100, 200, 78) + "%"
     );
     deviceButtonElement.style.setProperty(
       "--icon-button-secondary-left",
-      clampNumber(deviceButtonProperties.secondaryTextLeft, -100, 200, 9) + "%"
+      clampCoercedNumber(deviceButtonProperties.secondaryTextLeft, -100, 200, 9) + "%"
     );
     deviceButtonElement.style.setProperty(
       "--icon-button-secondary-top",
-      clampNumber(deviceButtonProperties.secondaryTextTop, -100, 200, 91) + "%"
+      clampCoercedNumber(deviceButtonProperties.secondaryTextTop, -100, 200, 91) + "%"
     );
     deviceButtonElement.style.setProperty(
       "--icon-button-icon-left",
-      clampNumber(deviceButtonProperties.iconLeft, -100, 200, 50) + "%"
+      clampCoercedNumber(deviceButtonProperties.iconLeft, -100, 200, 50) + "%"
     );
     deviceButtonElement.style.setProperty(
       "--icon-button-icon-top",
-      clampNumber(deviceButtonProperties.iconTop, -100, 200, 34) + "%"
+      clampCoercedNumber(deviceButtonProperties.iconTop, -100, 200, 34) + "%"
     );
     deviceButtonElement.style.setProperty(
       "--icon-button-icon-glow-size",
@@ -2670,7 +2655,7 @@ const buttonRenderer = {
     );
     deviceButtonElement.style.setProperty(
       "--hb-on-fill-fade-duration",
-      clampNumber(deviceButtonProperties.onFillFadeDuration, 0, 3, 0.3) + "s"
+      clampCoercedNumber(deviceButtonProperties.onFillFadeDuration, 0, 3, 0.3) + "s"
     );
     if (!isDeviceButton) {
       const deviceButtonFrameSvg = appendSvgElement(deviceButtonElement, "svg", {
@@ -2805,7 +2790,7 @@ const buttonRenderer = {
           class: "hb-icon-button-on-fill",
           points: deviceButtonPolygonPoints,
           fill: resolveColor(deviceButtonProperties.onFillColor, "#dfb64f"),
-          "fill-opacity": clampNumber(deviceButtonProperties.onFillStrength, 0, 1, 1)
+          "fill-opacity": clampCoercedNumber(deviceButtonProperties.onFillStrength, 0, 1, 1)
         });
       }
       if (deviceButtonProperties.softLightVisible !== false && deviceButtonSoftLightSize > 0) {
@@ -2852,9 +2837,9 @@ const buttonRenderer = {
         : "hb-icon-button-icon";
       if (!isDeviceButton) {
         deviceButtonIconElement.style.width =
-          clampNumber(deviceButtonProperties.iconSize, 1, 100, 42) + "%";
+          clampCoercedNumber(deviceButtonProperties.iconSize, 1, 100, 42) + "%";
         deviceButtonIconElement.style.height =
-          clampNumber(deviceButtonProperties.iconSize, 1, 100, 42) + "%";
+          clampCoercedNumber(deviceButtonProperties.iconSize, 1, 100, 42) + "%";
       }
       deviceButtonIconElement.style.backgroundColor =
         isDeviceButton && isDeviceButtonActive
@@ -2868,7 +2853,7 @@ const buttonRenderer = {
       deviceButtonIconElement.style.opacity = isDeviceButton
         ? "1"
         : String(
-            clampNumber(
+            clampCoercedNumber(
               isDeviceButtonActive
                 ? deviceButtonProperties.iconOnOpacity
                 : deviceButtonProperties.iconOffOpacity,
@@ -2880,20 +2865,20 @@ const buttonRenderer = {
       deviceButtonIconElement.style.maskImage = 'url("' + deviceButtonIconSource + '")';
       deviceButtonIconElement.style.webkitMaskImage = 'url("' + deviceButtonIconSource + '")';
       if (isDeviceButton) {
-        const deviceButtonIconSize = clampNumber(deviceButtonProperties.iconSize, 1, 100, 28);
-        const deviceButtonBadgeSize = clampNumber(
+        const deviceButtonIconSize = clampCoercedNumber(deviceButtonProperties.iconSize, 1, 100, 28);
+        const deviceButtonBadgeSize = clampCoercedNumber(
           deviceButtonProperties.badgeSize ?? deviceButtonIconSize,
           1,
           100,
           deviceButtonIconSize
         );
-        const deviceButtonSymbolSize = clampNumber(
+        const deviceButtonSymbolSize = clampCoercedNumber(
           deviceButtonProperties.symbolSize ?? deviceButtonIconSize * 0.5,
           1,
           100,
           deviceButtonIconSize * 0.5
         );
-        const deviceButtonSymbolPercent = clampNumber(
+        const deviceButtonSymbolPercent = clampCoercedNumber(
           (deviceButtonSymbolSize / deviceButtonBadgeSize) * 100,
           1,
           100,
@@ -2915,7 +2900,7 @@ const buttonRenderer = {
         );
         deviceButtonBadgeElement.style.setProperty(
           "--device-badge-opacity",
-          clampNumber(deviceButtonProperties.badgeOpacity, 0, 1, 0.58) * 100 + "%"
+          clampCoercedNumber(deviceButtonProperties.badgeOpacity, 0, 1, 0.58) * 100 + "%"
         );
         deviceButtonBadgeElement.append(deviceButtonIconElement);
         deviceButtonElement.append(deviceButtonBadgeElement);
@@ -2925,7 +2910,7 @@ const buttonRenderer = {
     }
     const deviceButtonTextElement = document.createElement("span");
     deviceButtonTextElement.className = "hb-icon-button-text";
-    const deviceButtonMainTextSize = clampNumber(deviceButtonProperties.mainSize, 6, 120, 25);
+    const deviceButtonMainTextSize = clampCoercedNumber(deviceButtonProperties.mainSize, 6, 120, 25);
     const deviceButtonMainTextElement = document.createElement("strong");
     deviceButtonMainTextElement.textContent = isDeviceButton
       ? String(deviceButtonProperties.mainText || "").trim() ||
@@ -2944,7 +2929,7 @@ const buttonRenderer = {
     deviceButtonMainTextElement.style.opacity = isDeviceButton
       ? "1"
       : String(
-          clampNumber(
+          clampCoercedNumber(
             isDeviceButtonActive
               ? deviceButtonProperties.mainOnOpacity
               : deviceButtonProperties.mainOffOpacity,
@@ -2956,7 +2941,7 @@ const buttonRenderer = {
     deviceButtonMainTextElement.style.fontSize =
       deviceButtonMainTextSize * deviceButtonUnitPx + "px";
     deviceButtonMainTextElement.style.letterSpacing =
-      clampNumber(deviceButtonProperties.mainSpacing, -20, 100, 1) * deviceButtonUnitPx + "px";
+      clampCoercedNumber(deviceButtonProperties.mainSpacing, -20, 100, 1) * deviceButtonUnitPx + "px";
     applyFontWeight(
       deviceButtonMainTextElement,
       deviceButtonProperties.mainWeight,
@@ -2973,7 +2958,7 @@ const buttonRenderer = {
     ) {
       deviceButtonMainTextElement.style.visibility = "hidden";
     }
-    const deviceButtonSecondaryTextSize = clampNumber(
+    const deviceButtonSecondaryTextSize = clampCoercedNumber(
       deviceButtonProperties.secondarySize,
       5,
       80,
@@ -2998,7 +2983,7 @@ const buttonRenderer = {
     deviceButtonSecondaryTextElement.style.opacity = isDeviceButton
       ? "1"
       : String(
-          clampNumber(
+          clampCoercedNumber(
             isDeviceButtonActive
               ? deviceButtonProperties.secondaryOnOpacity
               : deviceButtonProperties.secondaryOffOpacity,
@@ -3010,7 +2995,7 @@ const buttonRenderer = {
     deviceButtonSecondaryTextElement.style.fontSize =
       deviceButtonSecondaryTextSize * deviceButtonUnitPx + "px";
     deviceButtonSecondaryTextElement.style.letterSpacing =
-      clampNumber(deviceButtonProperties.secondarySpacing, -20, 100, 0.7) * deviceButtonUnitPx +
+      clampCoercedNumber(deviceButtonProperties.secondarySpacing, -20, 100, 0.7) * deviceButtonUnitPx +
       "px";
     applyFontWeight(
       deviceButtonSecondaryTextElement,
@@ -3310,16 +3295,16 @@ registerComponent("presence-sensor", {
     presenceElement.dataset.presenceState = sensorPresentationData.key;
     presenceElement.style.setProperty("--hb-presence-occupied", presenceAccentColor);
     presenceElement.style.setProperty("--hb-presence-clear", presenceIdleColor);
-    const animationStrength = clampNumber(presenceProperties.animationStrength, 0, 1, 0.72);
-    const haloScale = clampNumber(presenceProperties.haloScale, 0.2, 3, 1);
-    const haloScaleX = clampNumber(presenceProperties.haloScaleX, 0.2, 3, haloScale);
-    const haloScaleY = clampNumber(presenceProperties.haloScaleY, 0.2, 3, haloScale);
-    const haloRotation = clampNumber(presenceProperties.haloRotation, -360, 360, 0);
-    const haloOpacity = clampNumber(presenceProperties.haloOpacity, 0, 1, 1);
-    const personScale = clampNumber(presenceProperties.personScale, 0.2, 3, 1);
-    const personRotation = clampNumber(presenceProperties.personRotation, -360, 360, 0);
-    const personOpacity = clampNumber(presenceProperties.personOpacity, 0, 1, 1);
-    const orbitDuration = clampNumber(presenceProperties.orbitDuration, 2, 60, 8);
+    const animationStrength = clampCoercedNumber(presenceProperties.animationStrength, 0, 1, 0.72);
+    const haloScale = clampCoercedNumber(presenceProperties.haloScale, 0.2, 3, 1);
+    const haloScaleX = clampCoercedNumber(presenceProperties.haloScaleX, 0.2, 3, haloScale);
+    const haloScaleY = clampCoercedNumber(presenceProperties.haloScaleY, 0.2, 3, haloScale);
+    const haloRotation = clampCoercedNumber(presenceProperties.haloRotation, -360, 360, 0);
+    const haloOpacity = clampCoercedNumber(presenceProperties.haloOpacity, 0, 1, 1);
+    const personScale = clampCoercedNumber(presenceProperties.personScale, 0.2, 3, 1);
+    const personRotation = clampCoercedNumber(presenceProperties.personRotation, -360, 360, 0);
+    const personOpacity = clampCoercedNumber(presenceProperties.personOpacity, 0, 1, 1);
+    const orbitDuration = clampCoercedNumber(presenceProperties.orbitDuration, 2, 60, 8);
     presenceElement.style.setProperty("--hb-presence-motion", String(animationStrength));
     const waveDuration = Number((3.2 - animationStrength * 0.8).toFixed(2));
     presenceElement.style.setProperty("--hb-presence-wave-duration", waveDuration + "s");
@@ -3503,27 +3488,27 @@ registerComponent("air-conditioner", {
       "hb-air-conditioner" + (isAirConditionerActive ? " active" : "");
     airConditionerElement.style.setProperty(
       "--climate-icon-left",
-      clampNumber(airConditionerProperties.iconLeft, -100, 200, 20) + "%"
+      clampCoercedNumber(airConditionerProperties.iconLeft, -100, 200, 20) + "%"
     );
     airConditionerElement.style.setProperty(
       "--climate-icon-top",
-      clampNumber(airConditionerProperties.iconTop, -100, 200, 50) + "%"
+      clampCoercedNumber(airConditionerProperties.iconTop, -100, 200, 50) + "%"
     );
     airConditionerElement.style.setProperty(
       "--climate-main-left",
-      clampNumber(airConditionerProperties.mainTextLeft, -100, 200, 39) + "%"
+      clampCoercedNumber(airConditionerProperties.mainTextLeft, -100, 200, 39) + "%"
     );
     airConditionerElement.style.setProperty(
       "--climate-main-top",
-      clampNumber(airConditionerProperties.mainTextTop, -100, 200, 40) + "%"
+      clampCoercedNumber(airConditionerProperties.mainTextTop, -100, 200, 40) + "%"
     );
     airConditionerElement.style.setProperty(
       "--climate-secondary-left",
-      clampNumber(airConditionerProperties.secondaryTextLeft, -100, 200, 39) + "%"
+      clampCoercedNumber(airConditionerProperties.secondaryTextLeft, -100, 200, 39) + "%"
     );
     airConditionerElement.style.setProperty(
       "--climate-secondary-top",
-      clampNumber(airConditionerProperties.secondaryTextTop, -100, 200, 67) + "%"
+      clampCoercedNumber(airConditionerProperties.secondaryTextTop, -100, 200, 67) + "%"
     );
     airConditionerElement.style.setProperty(
       "--climate-badge-color",
@@ -3531,7 +3516,7 @@ registerComponent("air-conditioner", {
     );
     airConditionerElement.style.setProperty(
       "--climate-badge-opacity",
-      clampNumber(airConditionerProperties.badgeOpacity, 0, 1, 0.58) * 100 + "%"
+      clampCoercedNumber(airConditionerProperties.badgeOpacity, 0, 1, 0.58) * 100 + "%"
     );
     const airConditionerIconColor = resolveColor(
       isAirConditionerActive
@@ -3544,8 +3529,8 @@ registerComponent("air-conditioner", {
       "--climate-icon-glow-size",
       airConditionerUnitPx * 7 + "px"
     );
-    const airConditionerBadgeSize = clampNumber(airConditionerProperties.badgeSize, 1, 100, 28);
-    const airConditionerSymbolSize = clampNumber(airConditionerProperties.symbolSize, 1, 100, 14);
+    const airConditionerBadgeSize = clampCoercedNumber(airConditionerProperties.badgeSize, 1, 100, 28);
+    const airConditionerSymbolSize = clampCoercedNumber(airConditionerProperties.symbolSize, 1, 100, 14);
     if (airConditionerProperties.iconVisible !== false) {
       const airConditionerBadgeElement = document.createElement("span");
       airConditionerBadgeElement.className = "hb-air-conditioner-icon-badge";
@@ -3563,7 +3548,7 @@ registerComponent("air-conditioner", {
       if (airConditionerIconSource) {
         const airConditionerIconElement = document.createElement("i");
         airConditionerIconElement.className = "hb-air-conditioner-icon";
-        const airConditionerSymbolPercent = clampNumber(
+        const airConditionerSymbolPercent = clampCoercedNumber(
           (airConditionerSymbolSize / airConditionerBadgeSize) * 100,
           1,
           100,
@@ -3580,7 +3565,7 @@ registerComponent("air-conditioner", {
     }
     const airConditionerTextElement = document.createElement("span");
     airConditionerTextElement.className = "hb-air-conditioner-text";
-    const airConditionerMainTextSize = clampNumber(airConditionerProperties.mainSize, 6, 120, 21);
+    const airConditionerMainTextSize = clampCoercedNumber(airConditionerProperties.mainSize, 6, 120, 21);
     const airConditionerMainTextElement = document.createElement("strong");
     airConditionerMainTextElement.textContent =
       String(airConditionerProperties.mainText || "").trim() ||
@@ -3596,14 +3581,14 @@ registerComponent("air-conditioner", {
     airConditionerMainTextElement.style.fontSize =
       airConditionerMainTextSize * airConditionerUnitPx + "px";
     airConditionerMainTextElement.style.letterSpacing =
-      clampNumber(airConditionerProperties.mainSpacing, -20, 100, 0.5) * airConditionerUnitPx +
+      clampCoercedNumber(airConditionerProperties.mainSpacing, -20, 100, 0.5) * airConditionerUnitPx +
       "px";
     applyFontWeight(
       airConditionerMainTextElement,
       airConditionerProperties.mainWeight,
       airConditionerMainTextSize
     );
-    const airConditionerSecondaryTextSize = clampNumber(
+    const airConditionerSecondaryTextSize = clampCoercedNumber(
       airConditionerProperties.secondarySize,
       5,
       80,
@@ -3620,7 +3605,7 @@ registerComponent("air-conditioner", {
     airConditionerSecondaryTextElement.style.fontSize =
       airConditionerSecondaryTextSize * airConditionerUnitPx + "px";
     airConditionerSecondaryTextElement.style.letterSpacing =
-      clampNumber(airConditionerProperties.secondarySpacing, -20, 100, 0.3) * airConditionerUnitPx +
+      clampCoercedNumber(airConditionerProperties.secondarySpacing, -20, 100, 0.3) * airConditionerUnitPx +
       "px";
     applyFontWeight(
       airConditionerSecondaryTextElement,
@@ -3652,7 +3637,7 @@ registerComponent("air-conditioner", {
 export function cameraRadiusRatio(radiusValue, fallbackRadiusRatio = 0.04) {
   const parsedRadius = Number(radiusValue);
   if (Number.isFinite(parsedRadius)) {
-    return clampNumber(
+    return clampCoercedNumber(
       parsedRadius > 0.5 ? parsedRadius / 100 : parsedRadius,
       0,
       0.5,
@@ -3691,7 +3676,7 @@ export function appendCameraFrame(
     20,
     Number(frameComponent?.position?.height || frameContainerElement.clientHeight || 180)
   );
-  const cameraFrameBorderWidth = clampNumber(frameProperties.frameWidth, 0, 20, 1);
+  const cameraFrameBorderWidth = clampCoercedNumber(frameProperties.frameWidth, 0, 20, 1);
   if (cameraFrameBorderWidth <= 0) {
     return null;
   }
@@ -3701,7 +3686,7 @@ export function appendCameraFrame(
   const cameraFrameRadiusRatio = cameraRadiusRatio(frameProperties.radius);
   const cameraFrameCornerRadius =
     Math.min(cameraFrameInnerWidth, cameraFrameInnerHeight) * cameraFrameRadiusRatio;
-  const cameraFrameOpacity = clampNumber(frameProperties.frameOpacity, 0, 1, 0.9);
+  const cameraFrameOpacity = clampCoercedNumber(frameProperties.frameOpacity, 0, 1, 0.9);
   const cameraFrameColor = resolveColor(frameProperties.frameColor, "#d4d4d4");
   const cameraFrameId =
     frameNamespace +
@@ -3723,7 +3708,7 @@ export function appendCameraFrame(
     y2: cameraFrameHeight / 2,
     gradientTransform:
       "rotate(" +
-      clampNumber(frameProperties.frameAngle, 0, 360, 45) +
+      clampCoercedNumber(frameProperties.frameAngle, 0, 360, 45) +
       " " +
       cameraFrameWidth / 2 +
       " " +
@@ -4369,7 +4354,7 @@ registerComponent("vacuum-map", {
     const vacuumBindingEntityId = vacuumComponent.bindings?.entity?.entityId || "";
     const vacuumElement = document.createElement("div");
     vacuumElement.className = "hb-vacuum-map-component";
-    vacuumElement.style.opacity = String(clampNumber(vacuumProperties.opacity, 0, 1, 0.5));
+    vacuumElement.style.opacity = String(clampCoercedNumber(vacuumProperties.opacity, 0, 1, 0.5));
     vacuumElement.setAttribute("aria-label", vacuumProperties.label || "扫地机器人实时地图");
     if (!vacuumBindingEntityId) {
       if (vacuumContext.editable) {
@@ -4529,14 +4514,14 @@ registerComponent("vacuum-map", {
 registerComponent("time", {
   render(timeComponent, timeContext) {
     const timeProperties = timeComponent.properties || {};
-    const timeFontSize = clampNumber(timeProperties.fontSize, 12, 500, 96);
+    const timeFontSize = clampCoercedNumber(timeProperties.fontSize, 12, 500, 96);
     const timeElement = document.createElement("time");
     timeElement.className = "hb-time-component";
     timeElement.style.color = resolveColor(timeProperties.color, "#248eb2");
     timeElement.style.fontSize = timeFontSize + "px";
     timeElement.style.letterSpacing =
-      clampNumber(timeProperties.letterSpacing, -20, 100, 2.2) + "px";
-    timeElement.style.opacity = String(clampNumber(timeProperties.opacity, 0, 1, 1));
+      clampCoercedNumber(timeProperties.letterSpacing, -20, 100, 2.2) + "px";
+    timeElement.style.opacity = String(clampCoercedNumber(timeProperties.opacity, 0, 1, 1));
     const timeValueElement = document.createElement("span");
     timeValueElement.className = "hb-time-value";
     applyFontWeight(timeValueElement, timeProperties.fontWeight, timeFontSize);
@@ -4569,27 +4554,27 @@ registerComponent("date", {
     const dateProperties = dateComponent.properties || {};
     const dateElement = document.createElement("div");
     dateElement.className = "hb-date-component";
-    dateElement.style.opacity = String(clampNumber(dateProperties.opacity, 0, 1, 1));
-    dateElement.style.gap = clampNumber(dateProperties.lineGap, 0, 200, 8) + "px";
+    dateElement.style.opacity = String(clampCoercedNumber(dateProperties.opacity, 0, 1, 1));
+    dateElement.style.gap = clampCoercedNumber(dateProperties.lineGap, 0, 200, 8) + "px";
     const datePrimaryElement = document.createElement("strong");
     datePrimaryElement.className = "hb-date-primary";
     datePrimaryElement.style.color = resolveColor(dateProperties.primaryColor, "#8d9296");
-    const datePrimarySize = clampNumber(dateProperties.primarySize, 12, 500, 36);
+    const datePrimarySize = clampCoercedNumber(dateProperties.primarySize, 12, 500, 36);
     datePrimaryElement.style.fontSize = datePrimarySize + "px";
     applyFontWeight(datePrimaryElement, dateProperties.primaryWeight, datePrimarySize);
     datePrimaryElement.style.letterSpacing =
-      clampNumber(dateProperties.primarySpacing, -20, 100, 1) + "px";
+      clampCoercedNumber(dateProperties.primarySpacing, -20, 100, 1) + "px";
     dateElement.append(datePrimaryElement);
     let lunarElement = null;
     if (dateProperties.showLunar === true) {
       lunarElement = document.createElement("small");
       lunarElement.className = "hb-date-lunar";
       lunarElement.style.color = resolveColor(dateProperties.lunarColor, "#7f878c");
-      const dateLunarSize = clampNumber(dateProperties.lunarSize, 10, 500, 24);
+      const dateLunarSize = clampCoercedNumber(dateProperties.lunarSize, 10, 500, 24);
       lunarElement.style.fontSize = dateLunarSize + "px";
       applyFontWeight(lunarElement, dateProperties.lunarWeight, dateLunarSize);
       lunarElement.style.letterSpacing =
-        clampNumber(dateProperties.lunarSpacing, -20, 100, 1) + "px";
+        clampCoercedNumber(dateProperties.lunarSpacing, -20, 100, 1) + "px";
       dateElement.append(lunarElement);
     }
     // 刷新日期文案。30 秒一次足够：日期与农历都以「天」为最小变化单位，
@@ -4622,21 +4607,21 @@ registerComponent("weather", {
     );
     const weatherElement = document.createElement("div");
     weatherElement.className = "hb-weather-component";
-    weatherElement.style.gap = clampNumber(weatherProperties.iconGap, 0, 300, 22) + "px";
-    weatherElement.style.opacity = String(clampNumber(weatherProperties.opacity, 0, 1, 1));
+    weatherElement.style.gap = clampCoercedNumber(weatherProperties.iconGap, 0, 300, 22) + "px";
+    weatherElement.style.opacity = String(clampCoercedNumber(weatherProperties.opacity, 0, 1, 1));
     if (weatherProperties.iconVisible !== false) {
       const weatherIconElement = document.createElement("img");
       weatherIconElement.className = "hb-weather-icon";
       weatherIconElement.src = meteoconUrl(weatherIconName);
       weatherIconElement.alt = weatherConditionLabel;
       weatherIconElement.draggable = false;
-      weatherIconElement.style.width = clampNumber(weatherProperties.iconSize, 12, 500, 64) + "px";
-      weatherIconElement.style.height = clampNumber(weatherProperties.iconSize, 12, 500, 64) + "px";
+      weatherIconElement.style.width = clampCoercedNumber(weatherProperties.iconSize, 12, 500, 64) + "px";
+      weatherIconElement.style.height = clampCoercedNumber(weatherProperties.iconSize, 12, 500, 64) + "px";
       weatherElement.append(weatherIconElement);
     }
     const weatherContentElement = document.createElement("span");
     weatherContentElement.className = "hb-weather-content";
-    weatherContentElement.style.gap = clampNumber(weatherProperties.lineGap, 0, 200, 7) + "px";
+    weatherContentElement.style.gap = clampCoercedNumber(weatherProperties.lineGap, 0, 200, 7) + "px";
     if (weatherProperties.temperatureVisible !== false) {
       const weatherTemperatureElement = document.createElement("strong");
       const temperatureValue = Number(weatherAttributes.temperature);
@@ -4650,7 +4635,7 @@ registerComponent("weather", {
         weatherProperties.temperatureColor,
         "#aeb3b7"
       );
-      const temperatureFontSize = clampNumber(weatherProperties.temperatureSize, 12, 500, 32);
+      const temperatureFontSize = clampCoercedNumber(weatherProperties.temperatureSize, 12, 500, 32);
       weatherTemperatureElement.style.fontSize = temperatureFontSize + "px";
       applyFontWeight(
         weatherTemperatureElement,
@@ -4658,7 +4643,7 @@ registerComponent("weather", {
         temperatureFontSize
       );
       weatherTemperatureElement.style.letterSpacing =
-        clampNumber(weatherProperties.temperatureSpacing, -20, 100, 1) + "px";
+        clampCoercedNumber(weatherProperties.temperatureSpacing, -20, 100, 1) + "px";
       weatherContentElement.append(weatherTemperatureElement);
     }
     if (
@@ -4681,7 +4666,7 @@ registerComponent("weather", {
         weatherProperties.secondaryColor,
         "#8d9296"
       );
-      const weatherSecondaryFontSize = clampNumber(weatherProperties.secondarySize, 10, 500, 18);
+      const weatherSecondaryFontSize = clampCoercedNumber(weatherProperties.secondarySize, 10, 500, 18);
       weatherSecondaryElement.style.fontSize = weatherSecondaryFontSize + "px";
       applyFontWeight(
         weatherSecondaryElement,
@@ -4689,7 +4674,7 @@ registerComponent("weather", {
         weatherSecondaryFontSize
       );
       weatherSecondaryElement.style.letterSpacing =
-        clampNumber(weatherProperties.secondarySpacing, -20, 100, 1) + "px";
+        clampCoercedNumber(weatherProperties.secondarySpacing, -20, 100, 1) + "px";
       weatherContentElement.append(weatherSecondaryElement);
     }
     if (weatherContentElement.childElementCount) {
@@ -4719,7 +4704,7 @@ registerComponent("line-chart", {
     );
     const chartElement = document.createElement("div");
     chartElement.className = "hb-line-chart-component";
-    chartElement.style.borderRadius = clampNumber(chartProperties.cornerRadius, 0, 50, 10) + "%";
+    chartElement.style.borderRadius = clampCoercedNumber(chartProperties.cornerRadius, 0, 50, 10) + "%";
     const chartValueElement = document.createElement("span");
     chartValueElement.className = "hb-line-chart-value";
     chartValueElement.hidden = chartProperties.valueVisible === false;
@@ -4729,12 +4714,12 @@ registerComponent("line-chart", {
         10,
         (Number(chartComponent.position?.height || 300) *
           0.12 *
-          clampNumber(chartProperties.valueScale, 10, 500, 100)) /
+          clampCoercedNumber(chartProperties.valueScale, 10, 500, 100)) /
           100
       ) + "px";
     chartValueElement.style.left =
-      95 + clampNumber(chartProperties.valueOffsetX, -100, 100, 0) + "%";
-    chartValueElement.style.top = 8 + clampNumber(chartProperties.valueOffsetY, -100, 100, 0) + "%";
+      95 + clampCoercedNumber(chartProperties.valueOffsetX, -100, 100, 0) + "%";
+    chartValueElement.style.top = 8 + clampCoercedNumber(chartProperties.valueOffsetY, -100, 100, 0) + "%";
     const chartValueTextElement = document.createElement("strong");
     chartValueTextElement.textContent = formatLineChartValue(
       chartCurrentValue,
@@ -4802,7 +4787,7 @@ registerComponent("line-chart", {
       )) {
         appendSvgElement(chartLineGradient, "stop", {
           offset:
-            clampNumber(((chartMaximum - chartThresholdStop.value) / chartSpan) * 100, 0, 100, 0) +
+            clampCoercedNumber(((chartMaximum - chartThresholdStop.value) / chartSpan) * 100, 0, 100, 0) +
             "%",
           "stop-color": chartThresholdStop.color
         });
@@ -4947,7 +4932,7 @@ export function renderLineChartDetails(detailsComponent, detailsContext) {
   )) {
     appendSvgElement(detailsLineGradient, "stop", {
       offset:
-        clampNumber(
+        clampCoercedNumber(
           ((detailsGeometry.maximum - detailsThresholdStop.value) / detailsGeometry.span) * 100,
           0,
           100,
@@ -5087,16 +5072,16 @@ registerComponent("panel-frame", {
     const panelFrameProperties = panelFrameComponent.properties || {};
     const panelFrameWidth = Math.max(20, Number(panelFrameComponent.position?.width || 528));
     const panelFrameHeight = Math.max(20, Number(panelFrameComponent.position?.height || 300));
-    const panelEdgeWidth = clampNumber(panelFrameProperties.edgeWidth, 0, 20, 0.9);
+    const panelEdgeWidth = clampCoercedNumber(panelFrameProperties.edgeWidth, 0, 20, 0.9);
     const panelInset = Math.max(0.5, panelEdgeWidth / 2 + 0.5);
     const panelInnerWidth = Math.max(1, panelFrameWidth - panelInset * 2);
     const panelInnerHeight = Math.max(1, panelFrameHeight - panelInset * 2);
     const panelCornerRadius =
       Math.min(panelInnerWidth, panelInnerHeight) *
-      clampNumber(panelFrameProperties.radius, 0, 0.5, 0.195);
-    const panelEdgeOpacity = clampNumber(panelFrameProperties.edgeOpacity, 0, 1, 1);
-    const panelGlowStrength = clampNumber(panelFrameProperties.glowStrength, 0, 5, 0.5);
-    const panelGlowSize = clampNumber(panelFrameProperties.glowSize, 0, 3, 1.5);
+      clampCoercedNumber(panelFrameProperties.radius, 0, 0.5, 0.195);
+    const panelEdgeOpacity = clampCoercedNumber(panelFrameProperties.edgeOpacity, 0, 1, 1);
+    const panelGlowStrength = clampCoercedNumber(panelFrameProperties.glowStrength, 0, 5, 0.5);
+    const panelGlowSize = clampCoercedNumber(panelFrameProperties.glowSize, 0, 3, 1.5);
     const panelGlowStrokeWidth = Math.min(panelInnerWidth, panelInnerHeight) * 0.22 * panelGlowSize;
     const panelGlowBlur = Math.min(panelInnerWidth, panelInnerHeight) * 0.06 * panelGlowSize;
     const panelEdgeColor = resolveColor(panelFrameProperties.edgeColor, "#d4d4d4");
@@ -5144,7 +5129,7 @@ registerComponent("panel-frame", {
       y2: panelFrameHeight / 2,
       gradientTransform:
         "rotate(" +
-        clampNumber(panelFrameProperties.edgeAngle, 0, 360, 45) +
+        clampCoercedNumber(panelFrameProperties.edgeAngle, 0, 360, 45) +
         " " +
         panelFrameWidth / 2 +
         " " +
@@ -5173,7 +5158,7 @@ registerComponent("panel-frame", {
       y2: panelFrameHeight / 2,
       gradientTransform:
         "rotate(" +
-        clampNumber(panelFrameProperties.glowAngle, 0, 360, 242) +
+        clampCoercedNumber(panelFrameProperties.glowAngle, 0, 360, 242) +
         " " +
         panelFrameWidth / 2 +
         " " +
@@ -5250,31 +5235,31 @@ registerComponent("panel-frame", {
         "stroke-width": panelEdgeWidth
       });
     }
-    const panelTextLeft = clampNumber(panelFrameProperties.textLeft, -100, 200, 5.2);
-    const panelTextTop = clampNumber(panelFrameProperties.textTop, -100, 200, 28);
+    const panelTextLeft = clampCoercedNumber(panelFrameProperties.textLeft, -100, 200, 5.2);
+    const panelTextTop = clampCoercedNumber(panelFrameProperties.textTop, -100, 200, 28);
     const panelMainTextX =
-      (panelFrameWidth * clampNumber(panelFrameProperties.mainTextLeft, -100, 200, panelTextLeft)) /
+      (panelFrameWidth * clampCoercedNumber(panelFrameProperties.mainTextLeft, -100, 200, panelTextLeft)) /
       100;
     const panelMainTextY =
       (panelFrameHeight *
-        clampNumber(
+        clampCoercedNumber(
           panelFrameProperties.mainTextTop,
           -100,
           200,
           panelTextTop -
-            (clampNumber(panelFrameProperties.lineGap, 0, 500, 24) / panelFrameHeight) * 100
+            (clampCoercedNumber(panelFrameProperties.lineGap, 0, 500, 24) / panelFrameHeight) * 100
         )) /
       100;
     const panelSecondaryTextX =
       (panelFrameWidth *
-        clampNumber(panelFrameProperties.secondaryTextLeft, -100, 200, panelTextLeft)) /
+        clampCoercedNumber(panelFrameProperties.secondaryTextLeft, -100, 200, panelTextLeft)) /
       100;
     const panelSecondaryTextY =
       (panelFrameHeight *
-        clampNumber(panelFrameProperties.secondaryTextTop, -100, 200, panelTextTop)) /
+        clampCoercedNumber(panelFrameProperties.secondaryTextTop, -100, 200, panelTextTop)) /
       100;
-    const panelMainTextOpacity = clampNumber(panelFrameProperties.mainOpacity, 0, 1, 0.72);
-    const panelSecondaryTextOpacity = clampNumber(
+    const panelMainTextOpacity = clampCoercedNumber(panelFrameProperties.mainOpacity, 0, 1, 0.72);
+    const panelSecondaryTextOpacity = clampCoercedNumber(
       panelFrameProperties.secondaryOpacity,
       0,
       1,
@@ -5288,11 +5273,11 @@ registerComponent("panel-frame", {
         fill: resolveColor(panelFrameProperties.mainColor, "#ffffff"),
         "fill-opacity": panelMainTextOpacity,
         "font-family": "PingFang SC,Noto Sans SC,Microsoft YaHei,sans-serif",
-        "font-size": clampNumber(panelFrameProperties.mainSize, 8, 500, 30),
+        "font-size": clampCoercedNumber(panelFrameProperties.mainSize, 8, 500, 30),
         "font-weight": 300,
-        "letter-spacing": clampNumber(panelFrameProperties.mainSpacing, -20, 100, 2)
+        "letter-spacing": clampCoercedNumber(panelFrameProperties.mainSpacing, -20, 100, 2)
       });
-      const panelMainTextStrokeWidth = clampNumber(panelFrameProperties.mainWeight, 0, 3, 0);
+      const panelMainTextStrokeWidth = clampCoercedNumber(panelFrameProperties.mainWeight, 0, 3, 0);
       if (panelMainTextStrokeWidth > 0) {
         Object.entries({
           stroke: resolveColor(panelFrameProperties.mainColor, "#ffffff"),
@@ -5313,11 +5298,11 @@ registerComponent("panel-frame", {
         fill: resolveColor(panelFrameProperties.secondaryColor, "#ffffff"),
         "fill-opacity": panelSecondaryTextOpacity,
         "font-family": "Helvetica Neue,Arial,sans-serif",
-        "font-size": clampNumber(panelFrameProperties.secondarySize, 6, 500, 15),
+        "font-size": clampCoercedNumber(panelFrameProperties.secondarySize, 6, 500, 15),
         "font-weight": 300,
-        "letter-spacing": clampNumber(panelFrameProperties.secondarySpacing, -20, 100, 2.1)
+        "letter-spacing": clampCoercedNumber(panelFrameProperties.secondarySpacing, -20, 100, 2.1)
       });
-      const panelSecondaryTextStrokeWidth = clampNumber(
+      const panelSecondaryTextStrokeWidth = clampCoercedNumber(
         panelFrameProperties.secondaryWeight,
         0,
         3,
@@ -5404,7 +5389,7 @@ registerComponent("navigation-button", {
       entityActive: isNavigationTargetEntityActive,
       previewState: navigationButtonPreviewState
     });
-    const navigationTextOpacity = clampNumber(
+    const navigationTextOpacity = clampCoercedNumber(
       isNavigationButtonActive
         ? (navigationProperties.textActiveOpacity ?? navigationProperties.activeOpacity)
         : (navigationProperties.textIdleOpacity ?? navigationProperties.idleOpacity),
@@ -5412,7 +5397,7 @@ registerComponent("navigation-button", {
       1,
       isNavigationButtonActive ? 0.96 : 0.3
     );
-    const navigationIconOpacity = clampNumber(
+    const navigationIconOpacity = clampCoercedNumber(
       isNavigationButtonActive
         ? (navigationProperties.iconActiveOpacity ?? navigationProperties.activeOpacity)
         : (navigationProperties.iconIdleOpacity ?? navigationProperties.idleOpacity),
@@ -5420,7 +5405,7 @@ registerComponent("navigation-button", {
       1,
       isNavigationButtonActive ? 0.96 : 0.3
     );
-    const navigationButtonFrameOpacity = clampNumber(
+    const navigationButtonFrameOpacity = clampCoercedNumber(
       isNavigationButtonActive
         ? navigationProperties.frameActiveOpacity
         : navigationProperties.frameIdleOpacity,
@@ -5428,7 +5413,7 @@ registerComponent("navigation-button", {
       1,
       isNavigationButtonActive ? 0.98 : 0.48
     );
-    const navigationButtonGlowStrength = clampNumber(
+    const navigationButtonGlowStrength = clampCoercedNumber(
       isNavigationButtonActive
         ? navigationProperties.glowActiveStrength
         : navigationProperties.glowIdleStrength,
@@ -5436,7 +5421,7 @@ registerComponent("navigation-button", {
       5,
       isNavigationButtonActive ? 2.2 : 0.5
     );
-    const navigationButtonGlowSize = clampNumber(
+    const navigationButtonGlowSize = clampCoercedNumber(
       isNavigationButtonActive
         ? navigationProperties.glowActiveSize
         : navigationProperties.glowIdleSize,
@@ -5448,27 +5433,27 @@ registerComponent("navigation-button", {
     const navigationSecondaryColor = resolveColor(navigationProperties.secondaryColor, "#e9edf0");
     const navigationLineHeightRatio = 100 / 64.36;
     const navigationUnitPx = navigationContentUnitPx(navigationComponent, navigationContext);
-    const navigationTextLeft = clampNumber(navigationProperties.textLeft, -100, 200, 27.5);
-    const navigationTextTop = clampNumber(navigationProperties.textTop, -100, 200, 81.5);
-    const navigationMainLeft = clampNumber(
+    const navigationTextLeft = clampCoercedNumber(navigationProperties.textLeft, -100, 200, 27.5);
+    const navigationTextTop = clampCoercedNumber(navigationProperties.textTop, -100, 200, 81.5);
+    const navigationMainLeft = clampCoercedNumber(
       navigationProperties.mainTextLeft,
       -100,
       200,
       navigationTextLeft
     );
-    const navigationMainTop = clampNumber(
+    const navigationMainTop = clampCoercedNumber(
       navigationProperties.mainTextTop,
       -100,
       200,
       navigationTextTop - navigationLineHeightRatio * 18
     );
-    const navigationSecondaryLeft = clampNumber(
+    const navigationSecondaryLeft = clampCoercedNumber(
       navigationProperties.secondaryTextLeft,
       -100,
       200,
       navigationTextLeft
     );
-    const navigationSecondaryTop = clampNumber(
+    const navigationSecondaryTop = clampCoercedNumber(
       navigationProperties.secondaryTextTop,
       -100,
       200,
@@ -5482,31 +5467,31 @@ registerComponent("navigation-button", {
     navigationElement.style.setProperty("--navigation-icon-opacity", String(navigationIconOpacity));
     navigationElement.style.setProperty(
       "--navigation-icon-size",
-      clampNumber(navigationProperties.iconSize, 1, 500, 50) * navigationUnitPx + "px"
+      clampCoercedNumber(navigationProperties.iconSize, 1, 500, 50) * navigationUnitPx + "px"
     );
     navigationElement.style.setProperty(
       "--navigation-icon-left",
-      clampNumber(navigationProperties.iconLeft, -100, 200, 14) + "%"
+      clampCoercedNumber(navigationProperties.iconLeft, -100, 200, 14) + "%"
     );
     navigationElement.style.setProperty(
       "--navigation-icon-top",
-      clampNumber(navigationProperties.iconTop, -100, 200, 50) + "%"
+      clampCoercedNumber(navigationProperties.iconTop, -100, 200, 50) + "%"
     );
     navigationElement.style.setProperty(
       "--navigation-main-size",
-      clampNumber(navigationProperties.mainSize, 1, 500, 30) * navigationUnitPx + "px"
+      clampCoercedNumber(navigationProperties.mainSize, 1, 500, 30) * navigationUnitPx + "px"
     );
     navigationElement.style.setProperty(
       "--navigation-secondary-size",
-      clampNumber(navigationProperties.secondarySize, 1, 500, 11) * navigationUnitPx + "px"
+      clampCoercedNumber(navigationProperties.secondarySize, 1, 500, 11) * navigationUnitPx + "px"
     );
     navigationElement.style.setProperty(
       "--navigation-main-spacing",
-      clampNumber(navigationProperties.mainSpacing, -20, 100, 8) * navigationUnitPx + "px"
+      clampCoercedNumber(navigationProperties.mainSpacing, -20, 100, 8) * navigationUnitPx + "px"
     );
     navigationElement.style.setProperty(
       "--navigation-secondary-spacing",
-      clampNumber(navigationProperties.secondarySpacing, -20, 100, 3) * navigationUnitPx + "px"
+      clampCoercedNumber(navigationProperties.secondarySpacing, -20, 100, 3) * navigationUnitPx + "px"
     );
     navigationElement.style.setProperty("--navigation-main-left", navigationMainLeft + "%");
     navigationElement.style.setProperty(
@@ -5552,7 +5537,7 @@ registerComponent("navigation-button", {
       navigationMainTextElement.style.color = navigationMainColor;
       navigationMainTextElement.style.webkitTextStrokeColor = navigationMainColor;
       navigationMainTextElement.style.webkitTextStrokeWidth =
-        clampNumber(navigationProperties.mainWeight, 0, 3, 0) * navigationUnitPx + "px";
+        clampCoercedNumber(navigationProperties.mainWeight, 0, 3, 0) * navigationUnitPx + "px";
       navigationTextElement.append(navigationMainTextElement);
     }
     if (navigationProperties.secondaryTextVisible !== false) {
@@ -5562,7 +5547,7 @@ registerComponent("navigation-button", {
       navigationSecondaryTextElement.style.color = navigationSecondaryColor;
       navigationSecondaryTextElement.style.webkitTextStrokeColor = navigationSecondaryColor;
       navigationSecondaryTextElement.style.webkitTextStrokeWidth =
-        clampNumber(navigationProperties.secondaryWeight, 0, 3, 0) * navigationUnitPx + "px";
+        clampCoercedNumber(navigationProperties.secondaryWeight, 0, 3, 0) * navigationUnitPx + "px";
       navigationTextElement.append(navigationSecondaryTextElement);
     }
     if (navigationTextElement.childElementCount) {

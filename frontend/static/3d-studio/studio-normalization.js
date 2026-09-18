@@ -7,19 +7,11 @@
  *   以及默认基础照明与照明归一化。
  * 约定：长度单位一律米，角度单位度；相机位置 / 注视点用世界坐标；
  *   色温用开尔文。所有函数都是纯函数，不持有状态、不写回入参。
+ *   夹取用 utils/numbers.js 的 clampNumber（唯一实现，P10 B 类收敛）——
+ *   本模块原先那份的嵌套顺序与其余各处相反，区间上下限写反时结果会静默不同，
+ *   收敛时按唯一实现的口径统一。
  */
-
-/**
- * 把数字限制在闭区间内。
- *
- * @param {number} inputValue 原始值。
- * @param {number} minimum 下限。
- * @param {number} maximum 上限。
- * @returns {number} 钳制后的值。
- */
-function clampNumber(inputValue, minimum, maximum) {
-  return Math.min(maximum, Math.max(minimum, inputValue));
-}
+import { clampNumber } from "../utils/numbers.js?v=20260918233037";
 
 /**
  * 转成有限数字，失败时用兜底值。

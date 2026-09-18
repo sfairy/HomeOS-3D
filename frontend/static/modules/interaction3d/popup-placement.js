@@ -8,13 +8,8 @@
  *   这是有意义的合法取值，不能用 0 或其它数字代替。
  * 副作用：无，纯函数（参数解构后会被局部重新赋值，但都是基本类型拷贝）。
  */
+import { clampTypedNumber } from "../../utils/numbers.js?v=20260918233037";
 
-// 只接受真正的 number（不认数字字符串），非法值一律回落；
-// 与 finiteOr 的差别是这里还顺带夹到 [min, max]。
-const clampNumberOr = (candidate, fallback, minValue, maxValue) =>
-  typeof candidate == "number" && Number.isFinite(candidate)
-    ? Math.max(minValue, Math.min(maxValue, candidate))
-    : fallback;
 /**
  * 计算弹窗的缩放与位置。
  *
@@ -46,9 +41,9 @@ export function popupPlacement({
   viewportHeight = Math.max(1, viewportHeight);
   panelWidth = Math.max(1, panelWidth);
   panelHeight = Math.max(1, panelHeight);
-  const scaleFactor = clampNumberOr(settings?.scale, 1, 0.5, 2);
-  const xPercent = clampNumberOr(settings?.x, null, 0, 100);
-  const yPercent = clampNumberOr(settings?.y, null, 0, 100);
+  const scaleFactor = clampTypedNumber(settings?.scale, 0.5, 2, 1);
+  const xPercent = clampTypedNumber(settings?.x, 0, 100, null);
+  const yPercent = clampTypedNumber(settings?.y, 0, 100, null);
   // 三项都没被自定义时直接给默认值走人：这是绝大多数用户的路径，
   // 也保证默认观感不会因为下面的自适应缩放而改变。
   if (scaleFactor === 1 && xPercent === null && yPercent === null) {

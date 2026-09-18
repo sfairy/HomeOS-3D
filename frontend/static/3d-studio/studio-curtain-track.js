@@ -9,26 +9,10 @@
  * 坐标与单位：长度一律米；轨道在水平面上用 x / z 描述（y 为竖直方向），
  *   帘布底边离地 0.06 米、顶边离地 height - 0.06 米。
  * 约定：curtainMeet 为两片帘布的搭接百分比，curtainPreview 为开合预览百分比。
+ *   参数夹取用 utils/numbers.js 的 clampOptionalNumber（唯一实现，P10 B 类收敛）：
+ *   这里的值来自文档，空串 / null 表示「未设置」，不能按 0 用。
  */
-
-/**
- * 把值夹到 [min, max]，非法（null / 空串 / 非数字）时返回兜底值。
- *
- * @param {*} rawValue 原始值。
- * @param {number} fallbackValue 兜底值。
- * @param {number} minValue 下限。
- * @param {number} maxValue 上限。
- * @returns {number} 夹取后的数字。
- */
-const clampNumber = (rawValue, fallbackValue, minValue, maxValue) => {
-  // 空串与 null 都视为「未设置」：Number("") 会得到 0，那是个合法但错误的默认值。
-  const parsedValue = rawValue == null || rawValue === "" ? NaN : Number(rawValue);
-  if (Number.isFinite(parsedValue)) {
-    return Math.max(minValue, Math.min(maxValue, parsedValue));
-  } else {
-    return fallbackValue;
-  }
-};
+import { clampOptionalNumber } from "../utils/numbers.js?v=20260918233037";
 
 /**
  * 归一化窗帘轨道参数。
@@ -45,11 +29,11 @@ export function normalizeCurtainTrack(inputOptions = {}) {
     // 拐角方向默认朝右，与常见户型主窗的布置一致。
     curtainCorner: inputOptions.curtainCorner === "left" ? "left" : "right",
     // 回折段限制在 0.2~7.8 米：太短看不出拐角，太长会超出常见的房间进深。
-    curtainLeftLength: clampNumber(inputOptions.curtainLeftLength, 1.2, 0.2, 7.8),
-    curtainRightLength: clampNumber(inputOptions.curtainRightLength, 1.2, 0.2, 7.8),
+    curtainLeftLength: clampOptionalNumber(inputOptions.curtainLeftLength, 0.2, 7.8, 1.2),
+    curtainRightLength: clampOptionalNumber(inputOptions.curtainRightLength, 0.2, 7.8, 1.2),
     // 搭接百分比限制在 5%~95%，两端留出余量避免两片帘布完全分开或完全重叠。
-    curtainMeet: clampNumber(inputOptions.curtainMeet, 50, 5, 95),
-    curtainPreview: clampNumber(inputOptions.curtainPreview, 0, 0, 100),
+    curtainMeet: clampOptionalNumber(inputOptions.curtainMeet, 5, 95, 50),
+    curtainPreview: clampOptionalNumber(inputOptions.curtainPreview, 0, 100, 0),
     // 面料是可选字段：未给出时不下发该键，由上层按默认面料处理。
     ...(inputOptions.curtainFabric === "cloth" || inputOptions.curtainFabric === "sheer"
       ? {
@@ -72,7 +56,7 @@ export function curtainFootprintDepth(trackConfig) {
   const trackModel = normalizeCurtainTrack(trackConfig);
   if (trackModel.curtainTrack === "straight") {
     // 直轨的进深由调用方给出，默认 0.18 米（轨道厚度 + 帘布褶皱所需余量）。
-    return clampNumber(trackConfig.depth, 0.18, 0.05, 8);
+    return clampOptionalNumber(trackConfig.depth, 0.05, 8, 0.18);
   } else {
     return (
       0.18 +
@@ -96,7 +80,7 @@ export function curtainFootprintDepth(trackConfig) {
  */
 export function createCurtainTrack(options = {}) {
   const normalizedTrack = normalizeCurtainTrack(options);
-  const width = clampNumber(options.width ?? options.curtainWidth, 1.8, 0.2, 8);
+  const width = clampOptionalNumber(options.width ?? options.curtainWidth, 0.2, 8, 1.8);
   // 回折段只有 L 型（且拐角在对应一侧）与 U 型才有，其余情况长度为 0。
   const leftReturnLength =
     normalizedTrack.curtainTrack === "u" ||
@@ -230,7 +214,7 @@ export function createCurtainTrack(options = {}) {
     vertices: vertices,
     sample(distance) {
       // 距离先夹到 [0, 总长]，再由所在段完成具体采样。
-      const clampedDistance = clampNumber(distance, 0, 0, totalLength);
+      const clampedDistance = clampOptionalNumber(distance, 0, totalLength, 0);
       // 找不到（浮点误差落在末尾之外）时退回最后一段。
       const activeSegment =
         segments.find(segment => clampedDistance <= segment.start + segment.length) ||
@@ -253,7 +237,7 @@ export function createCurtainTrack(options = {}) {
 export function curtainPanelRanges(panelTrack, previewPercent = 0, position = "split") {
   // 预览开合按 0.88 的系数收缩而不是 1:1：即使拉到 100%，也要留一成多的帘布，
   // 否则帘布会缩成一条线，看起来像凭空消失。
-  const coverageScale = 1 - (clampNumber(previewPercent, 0, 0, 100) * 0.88) / 100;
+  const coverageScale = 1 - (clampOptionalNumber(previewPercent, 0, 100, 0) * 0.88) / 100;
   const trackLength = panelTrack.length;
   // 搭接点：两片帘布在轨道的这个位置重叠，由 curtainMeet 百分比决定。
   const meetOffset = (trackLength * panelTrack.curtainMeet) / 100;
@@ -384,7 +368,7 @@ export function poseTrackCloth(clothGeometry, posedTrack, panel) {
  */
 export function addTrackCurtain(three, rigRoot, curtainOptions, colorOverrides = {}) {
   const curtainTrack = createCurtainTrack(curtainOptions);
-  const curtainHeight = clampNumber(curtainOptions.height, 2.4, 0.2, 6);
+  const curtainHeight = clampOptionalNumber(curtainOptions.height, 0.2, 6, 2.4);
   const curtainFabric = curtainOptions.curtainFabric || "cloth";
   // 标记与基准尺寸：上层用它判断该节点的类型并做归一化缩放。
   rigRoot.userData.curtainRigRoot = true;
@@ -550,7 +534,7 @@ export function poseDreamBlades(bladeStripGeometry, dreamTrack, dreamPanel, tilt
     )
   );
   // 旋转角度：50% 对应 90°（叶片正对视线），0% 与 100% 对应展开与完全闭合。
-  const tiltAngle = (clampNumber(tiltPercent, 50, 0, 100) * Math.PI) / 100;
+  const tiltAngle = (clampOptionalNumber(tiltPercent, 0, 100, 50) * Math.PI) / 100;
   for (let bladeCursor = 0; bladeCursor < bladeTotal; bladeCursor++) {
     // 用「序号 + 0.5」的中心采样，叶片才会均匀铺满区间而不是挤在起止点。
     const bladeTrackPoint = dreamTrack.sample(

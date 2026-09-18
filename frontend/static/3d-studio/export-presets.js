@@ -8,7 +8,9 @@
  *   normalizeActiveExportPresetSlot（当前槽下标）、exportPresetIsEmpty 与 exportPresetSummary。
  * 约定：预设内部版本固定写 1；尺寸单位为像素，楼层间距单位为米；
  *   字段名与前端 JSON 的 camelCase 对齐。本模块纯函数、不做持久化。
+ *   夹取用 utils/numbers.js 的 clampNumber（唯一实现，P10 B 类收敛）。
  */
+import { clampNumber } from "../utils/numbers.js?v=20260918233037";
 
 // 默认 4 个预设槽、最多 8 个；上限与导出面板的按钮禁用条件绑定。
 export const DEFAULT_EXPORT_PRESET_COUNT = 4;
@@ -40,18 +42,6 @@ function toFiniteNumber(value, fallback = 0) {
   } else {
     return fallback;
   }
-}
-
-/**
- * 把数字限制在闭区间内。
- *
- * @param {number} inputValue 原始值。
- * @param {number} minimum 下限。
- * @param {number} maximum 上限。
- * @returns {number} 钳制后的值。
- */
-function clampNumber(inputValue, minimum, maximum) {
-  return Math.max(minimum, Math.min(maximum, inputValue));
 }
 
 /**

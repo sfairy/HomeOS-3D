@@ -4145,6 +4145,215 @@ async function runRuntimeCachesSuite() {
   }
 }
 
+/**
+ * 跑 `utils/numbers.js`：四份「夹取」契约必须各自成立，且不许再退化成同名一份。
+ *
+ * 为什么值得一条活体探针：4.3 B 类里最危险的就是这几个同名函数 —— 名字一样、参数顺序
+ * 不一样、对非法值的处理三种。它们在源码上「看起来都一样」，只有把输入按矩阵摆出来
+ * （空串 / null / 数字字符串 / NaN）才能看出谁是谁。这条探针就是那张契约对照表本身：
+ * 以后谁把两份合并成一份，或者把参数顺序改回去，都会在这里红。
+ */
+async function runNumberHelpersSuite() {
+  const { clampNumber, clampCoercedNumber, clampOptionalNumber, clampTypedNumber } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/utils/numbers.js")).href
+  );
+
+  // 纯夹取：不做换算、不兜底。NaN 必须原样传出去 —— 静默换个数比冒出 NaN 更难查。
+  check(
+    "P10-B clampNumber 是纯夹取：越界夹回、区间内原样、NaN 原样传播",
+    clampNumber(5, 0, 1) === 1 &&
+      clampNumber(-5, 0, 1) === 0 &&
+      clampNumber(0.5, 0, 1) === 0.5 &&
+      Number.isNaN(clampNumber(NaN, 0, 1)) &&
+      Number.isNaN(clampNumber(undefined, 0, 1)),
+    JSON.stringify({
+      上界: clampNumber(5, 0, 1),
+      下界: clampNumber(-5, 0, 1),
+      区间内: clampNumber(0.5, 0, 1),
+      NaN: String(clampNumber(NaN, 0, 1)),
+      undefined: String(clampNumber(undefined, 0, 1))
+    })
+  );
+
+  // 空串 / null 会走进 Math 的换算（→ 0），这是纯夹取的既有语义，不是「兜底」。
+  check(
+    "P10-B clampNumber 不认「未设置」：空串与 null 按 Math 规则当 0（要回落请用 clampOptionalNumber）",
+    clampNumber("", 0, 1) === 0 &&
+      clampNumber(null, 0, 1) === 0 &&
+      clampNumber("5", 0, 10) === 5 &&
+      Number.isNaN(clampNumber("abc", 0, 10)),
+    JSON.stringify({
+      空串: clampNumber("", 0, 1),
+      null: clampNumber(null, 0, 1),
+      数字字符串: clampNumber("5", 0, 10),
+      非数字字符串: String(clampNumber("abc", 0, 10))
+    })
+  );
+
+  // 先 Number() 再夹：空串与 null 按 0 用（渲染器注册表原来那份的语义）。
+  check(
+    "P10-B clampCoercedNumber 先换算再夹：空串 / null 都按 0 用",
+    clampCoercedNumber("", 0, 1, 0.5) === 0 &&
+      clampCoercedNumber(null, 0, 1, 0.5) === 0 &&
+      clampCoercedNumber("5", 0, 10, 0.5) === 5 &&
+      clampCoercedNumber("abc", 0, 1, 0.5) === 0.5 &&
+      clampCoercedNumber(120, 0, 100, 0.5) === 100,
+    JSON.stringify({
+      空串: clampCoercedNumber("", 0, 1, 0.5),
+      null: clampCoercedNumber(null, 0, 1, 0.5),
+      数字字符串: clampCoercedNumber("5", 0, 10, 0.5),
+      非数字: clampCoercedNumber("abc", 0, 1, 0.5),
+      越界: clampCoercedNumber(120, 0, 100, 0.5)
+    })
+  );
+
+  // 空值感知：空串 / null / undefined 是「未设置」，不能变成合法的 0（窗帘参数靠这条）。
+  check(
+    "P10-B clampOptionalNumber 认「未设置」：空串 / null / undefined 一律回落兜底（不许当成 0）",
+    clampOptionalNumber("", 0, 100, 50) === 50 &&
+      clampOptionalNumber(null, 0, 100, 50) === 50 &&
+      clampOptionalNumber(undefined, 0, 100, 50) === 50 &&
+      clampOptionalNumber("30", 0, 100, 50) === 30 &&
+      clampOptionalNumber(120, 0, 100, 50) === 100,
+    JSON.stringify({
+      空串: clampOptionalNumber("", 0, 100, 50),
+      null: clampOptionalNumber(null, 0, 100, 50),
+      undefined: clampOptionalNumber(undefined, 0, 100, 50),
+      数字字符串: clampOptionalNumber("30", 0, 100, 50),
+      越界: clampOptionalNumber(120, 0, 100, 50)
+    })
+  );
+
+  // 只认真正的 number：数字字符串算「文档坏了」（弹窗设置里存的就是自己写的 number）。
+  check(
+    "P10-B clampTypedNumber 只认真正的 number：数字字符串算非法、用兜底",
+    clampTypedNumber("1.5", 0, 2, 1) === 1 &&
+      clampTypedNumber(1.5, 0, 2, 1) === 1.5 &&
+      clampTypedNumber(9, 0, 2, 1) === 2 &&
+      clampTypedNumber(NaN, 0, 2, 1) === 1 &&
+      clampTypedNumber(undefined, 0, 2, 1) === 1,
+    JSON.stringify({
+      数字字符串: clampTypedNumber("1.5", 0, 2, 1),
+      数字: clampTypedNumber(1.5, 0, 2, 1),
+      越界: clampTypedNumber(9, 0, 2, 1),
+      NaN: clampTypedNumber(NaN, 0, 2, 1),
+      undefined: clampTypedNumber(undefined, 0, 2, 1)
+    })
+  );
+
+  // 兜底值的口径两份不同（这是各自原有的运行语义，本批只收敛名字、不动行为）：
+  // 注册表那份的兜底会跟着夹一次，可选 / 严格那两份原样返回（`null` 哨兵靠这条）。
+  // 钉在这里，是为了让「以后统一口径」变成一个显式决定，而不是某次重构的副产品。
+  check(
+    "P10-B 兜底值口径按下表钉住：clampCoercedNumber 会夹兜底，另两份原样返回",
+    clampCoercedNumber(NaN, 0, 1, 2) === 1 &&
+      clampOptionalNumber(undefined, 0, 1, -1) === -1 &&
+      clampTypedNumber(undefined, 0, 100, null) === null,
+    JSON.stringify({
+      注册表_上界外兜底: clampCoercedNumber(NaN, 0, 1, 2),
+      可选_下界外兜底: clampOptionalNumber(undefined, 0, 1, -1),
+      严格_null哨兵: clampTypedNumber(undefined, 0, 100, null)
+    })
+  );
+
+  // 参数顺序统一为 (值, 下限, 上限[, 兜底])：错位时不会报错，只会把下限当兜底静默用下去 ——
+  // 这是 4.3 B 类「同名不同义」的实际危害，所以顺序本身也要钉住。
+  const helperList = [
+    ["clampNumber", clampNumber, 3],
+    ["clampCoercedNumber", clampCoercedNumber, 4],
+    ["clampOptionalNumber", clampOptionalNumber, 4],
+    ["clampTypedNumber", clampTypedNumber, 4]
+  ];
+  const parameterShapes = helperList.map(([name, helper, arity]) => {
+    const declaration = String(helper);
+    const parameters = /\(([^)]*)\)/.exec(declaration)?.[1]?.trim() || "";
+    return `${name}(${parameters}) 形参 ${arity} 个=${helper.length === arity} 顺序=${
+      parameters.startsWith("value, minimum, maximum") ? "ok" : "错位"
+    }`;
+  });
+  check(
+    "P10-B 四个函数参数顺序一致（值, 下限, 上限[, 兜底]）：错位会把下限当兜底",
+    parameterShapes.every(line => line.includes("顺序=ok") && !line.includes("=false")),
+    parameterShapes.join(" / ")
+  );
+}
+
+/**
+ * 跑 `utils/colors.js`：三份颜色「归一」契约的差异是刻意的，必须逐条钉住。
+ *
+ * 为什么值得一条活体探针：这里原本有两份同名（`normalizeHexColor`）与一份近名
+ *   （`normalizedHexColor`）的实现，差别只在「认不认三位缩写、失败给空串还是 null、
+ *   保不保留大小写」。这些差异在源码上要看几个字符才能分辨，只有把输入摆成矩阵才看得见。
+ */
+async function runColorHelpersSuite() {
+  const { hexColorOrEmpty, strictHexColorOrEmpty, expandHexColorOrNull } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/utils/colors.js")).href
+  );
+
+  check(
+    "P10-B hexColorOrEmpty 容错归一：可省 #、认三位缩写、输出小写、失败空串",
+    hexColorOrEmpty("#AABBCC") === "#aabbcc" &&
+      hexColorOrEmpty("aabbcc") === "#aabbcc" &&
+      hexColorOrEmpty("#abc") === "#aabbcc" &&
+      hexColorOrEmpty("  #AABBCC  ") === "#aabbcc" &&
+      hexColorOrEmpty("#ab") === "" &&
+      hexColorOrEmpty("") === "" &&
+      hexColorOrEmpty("rgb(1,2,3)") === "",
+    JSON.stringify({
+      六位大写: hexColorOrEmpty("#AABBCC"),
+      省略井号: hexColorOrEmpty("aabbcc"),
+      三位缩写: hexColorOrEmpty("#abc"),
+      带空白: hexColorOrEmpty("  #AABBCC  "),
+      半截输入: hexColorOrEmpty("#ab"),
+      空串: hexColorOrEmpty(""),
+      rgb写法: hexColorOrEmpty("rgb(1,2,3)")
+    })
+  );
+
+  check(
+    "P10-B strictHexColorOrEmpty 只认完整 #rrggbb：三位缩写与省略井号都算「还不算一个颜色」",
+    strictHexColorOrEmpty("#AABBCC") === "#aabbcc" &&
+      strictHexColorOrEmpty("#abc") === "" &&
+      strictHexColorOrEmpty("aabbcc") === "" &&
+      strictHexColorOrEmpty("#ab") === "" &&
+      strictHexColorOrEmpty(undefined) === "",
+    JSON.stringify({
+      六位: strictHexColorOrEmpty("#AABBCC"),
+      三位缩写: strictHexColorOrEmpty("#abc"),
+      省略井号: strictHexColorOrEmpty("aabbcc"),
+      半截输入: strictHexColorOrEmpty("#ab"),
+      undefined: strictHexColorOrEmpty(undefined)
+    })
+  );
+
+  // 「两位归一」的差异是刻意的：一个为相等性比较服务，一个为取值服务。合并成一个函数，
+  // 必然有一边要迁就另一边 —— 这条断言就是「不要合并」的理由。
+  check(
+    "P10-B 两份归一的差异是刻意的：三位缩写 hexColorOrEmpty 展开、strictHexColorOrEmpty 拒绝",
+    hexColorOrEmpty("#abc") === "#aabbcc" && strictHexColorOrEmpty("#abc") === "",
+    JSON.stringify({
+      hexColorOrEmpty: hexColorOrEmpty("#abc"),
+      strictHexColorOrEmpty: strictHexColorOrEmpty("#abc")
+    })
+  );
+
+  check(
+    "P10-B expandHexColorOrNull 展开三位缩写但保留大小写，非法给 null（插值只要通道值）",
+    expandHexColorOrNull("#AbC") === "#AAbbCC" &&
+      expandHexColorOrNull("#AABBCC") === "#AABBCC" &&
+      expandHexColorOrNull("#abcd") === null &&
+      expandHexColorOrNull("") === null &&
+      expandHexColorOrNull(null) === null,
+    JSON.stringify({
+      三位混合大小写: expandHexColorOrNull("#AbC"),
+      六位: expandHexColorOrNull("#AABBCC"),
+      四位非法: expandHexColorOrNull("#abcd"),
+      空串: expandHexColorOrNull(""),
+      null: expandHexColorOrNull(null)
+    })
+  );
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,
   login: runLoginSuite,
@@ -4167,7 +4376,9 @@ const suites = {
   "renderer-resize": runRendererResizeSuite,
   "studio-history": runStudioHistorySuite,
   "debug-log": runDebugLogSuite,
-  "runtime-caches": runRuntimeCachesSuite
+  "runtime-caches": runRuntimeCachesSuite,
+  "number-helpers": runNumberHelpersSuite,
+  "color-helpers": runColorHelpersSuite
 };
 
 /**
