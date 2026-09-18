@@ -6,6 +6,9 @@
 
 - 注入服务端持有的 Bearer Token，并剥掉浏览器的 Cookie / Origin / 转发头；
 - 只放行上述路径前缀，同时拒绝路径归一化绕过（'.' / '..' / 反斜杠）；
+- **每条路径都必须给出实体归属**，且该实体属于当前主体（见
+  :func:`require_media_proxy_scope`）—— 代理会注入 HA 令牌，没有这道校验时，
+  绑在项目 A 的中控只要写下项目 B 的实体 ID 就能把别人的摄像头画面拉出来；
 - 快照类请求走带 TTL 的进程内缓存，避免多个看板同时刷新把 HA 打满；
 - HLS 播放地址由 /api/camera_hls/{entity_id} 换取，拿到后同样走本代理。
 
@@ -18,10 +21,10 @@ import asyncio
 from collections.abc import Mapping
 from dataclasses import dataclass
 from time import monotonic
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from ..database import Database
@@ -80,6 +83,30 @@ CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES = 64
 # HA 摄像头实体 supported_features 的 bit 2 表示支持 STREAM（可转 HLS）。
 CAMERA_FEATURE_STREAM = 2
 
+#: 五条通配媒体前缀里「第一段路径就是实体 ID」的四条。
+#:
+#: ``/api/hls/`` 刻意不在其中：HA 把 HLS 播放地址给成 ``/api/hls/<流令牌>/...``，
+#: 令牌是 HA 生成的随机串，**里面没有实体信息**，所以那一条只能靠本服务在发放
+#: 播放地址时记账（见 :func:`remember_hls_stream`）。
+ENTITY_PATH_MEDIA_PREFIXES = (
+    '/api/camera_proxy/',
+    '/api/camera_proxy_stream/',
+    '/api/image_proxy/',
+    '/api/media_player_proxy/',
+)
+#: HLS 播放地址的前缀；路径形态固定为 ``/api/hls/<令牌>/<剩下的片段路径>``。
+HLS_MEDIA_PREFIX = '/api/hls/'
+#: HLS 令牌的记账有效期：一次播放（含长暂停）通常远短于它；命中时滑动续期。
+HLS_STREAM_SCOPE_TTL_SECONDS = 12 * 3600
+#: 记账条数上限，超限淘汰最早到期的一条（同快照缓存的「淘汰最旧」口径）。
+HLS_STREAM_SCOPE_MAX_ENTRIES = 128
+#: 同一个项目对同一个 HLS 令牌的归属结论，多久之内不必重查数据库。
+#:
+#: HLS 的片段请求是「每个分片一次」（几秒一个），逐次查库会把这个接口的数据库
+#: 开销抬到与实际收益不相称的高度；而令牌 ↔ 实体的对应关系在一次播放里不会变。
+#: 窗口取得很短（一分钟），这样即使仪表盘刚好改了绑定，漏放也不会超过一分钟。
+HLS_SCOPE_RECHECK_SECONDS = 60
+
 
 @dataclass
 class CameraSnapshotCacheEntry:
@@ -94,6 +121,28 @@ class CameraSnapshotCacheEntry:
 camera_snapshot_cache: dict[str, CameraSnapshotCacheEntry] = {}
 # 正在后台刷新的任务，按同一个 key 去重：同一张图不会同时发起多次回源。
 camera_snapshot_refreshes: dict[str, asyncio.Task[None]] = {}
+
+
+@dataclass
+class HlsStreamScope:
+    """一条 HLS 播放地址的归属：属于哪个实体、记账何时过期、谁校验过。
+
+    ``verified_project`` / ``verified_at`` 是「最近一次通过校验的项目与时刻」，
+    用来把片段级请求的查库开销压到每分钟一次（见 HLS_SCOPE_RECHECK_SECONDS）。
+    """
+
+    entity_id: str
+    expires_at: float = 0.0
+    verified_project: str = ''
+    verified_at: float = 0.0
+
+    def __post_init__(self) -> None:
+        if not self.expires_at:
+            self.expires_at = monotonic() + HLS_STREAM_SCOPE_TTL_SECONDS
+
+
+#: HLS 令牌 → 归属。令牌由本服务在 /api/camera_hls 发放播放地址时登记。
+hls_stream_scopes: dict[str, HlsStreamScope] = {}
 
 
 def upstream_path(request: Request) -> str:
@@ -125,6 +174,127 @@ def allowed_media_proxy_path(path: str) -> bool:
     # 逐段检查：出现 '.' / '..' 时可以用 /api/hls/../xxx 之类的写法
     # 绕过前缀检查打到别的 HA 接口，所以这里必须再拦一道。
     return all(segment not in {'.', '..'} for segment in path.split('/'))
+
+
+def media_proxy_entity_id(path: str) -> str | None:
+    """从「路径里带实体」的媒体前缀取出实体 ID；不是那四条前缀时返回 None。
+
+    路径形态是 ``<前缀>/<实体 ID>[/...]``，实体 ID 由前端 ``encodeURIComponent``
+    编码，所以这里要解码一次再比对 —— 不解码的话 ``camera.%78`` 这类写法会与
+    可见集合里的真实 ID 对不上，校验变成了「拼写恰好一致才拦」。
+    """
+    for prefix in ENTITY_PATH_MEDIA_PREFIXES:
+        if path.startswith(prefix):
+            segment = path[len(prefix):].split('/', 1)[0]
+            entity_id = unquote(segment).strip()
+            return entity_id or None
+    return None
+
+
+def hls_stream_token(path: str) -> str:
+    """取出 ``/api/hls/<令牌>/...`` 里的令牌；不是 HLS 路径时返回空串。"""
+    if not path.startswith(HLS_MEDIA_PREFIX):
+        return ''
+    return path[len(HLS_MEDIA_PREFIX):].split('/', 1)[0].strip()
+
+
+def remember_hls_stream(stream_url: str, entity_id: str) -> None:
+    """记账「这条 HLS 播放地址是给哪个实体的」，供后续片段请求做归属校验。
+
+    这是 HLS 唯一的归属来源：令牌里没有实体信息，只能在**发放时**记下来。
+    记账是滑动的（每次命中续期），所以一次正常播放不会中途失效；淘汰只在
+    并发播放数超过上限时发生，那种情况下前端会回落到带实体校验的 MJPEG 通道。
+    """
+    token = hls_stream_token(stream_url)
+    if not token:
+        return
+    if token not in hls_stream_scopes and len(hls_stream_scopes) >= HLS_STREAM_SCOPE_MAX_ENTRIES:
+        oldest = min(hls_stream_scopes, key=lambda item: hls_stream_scopes[item].expires_at)
+        hls_stream_scopes.pop(oldest, None)
+    hls_stream_scopes[token] = HlsStreamScope(entity_id=entity_id)
+
+
+def hls_stream_entity_id(path: str) -> str | None:
+    """查询 HLS 令牌的归属实体；过期即清除，命中则滑动续期。"""
+    token = hls_stream_token(path)
+    if not token:
+        return None
+    scope = hls_stream_scopes.get(token)
+    if scope is None:
+        return None
+    if monotonic() >= scope.expires_at:
+        # 过期即失效：这条记账是「一次播放」的凭据，不该无限期有效。
+        hls_stream_scopes.pop(token, None)
+        return None
+    # 命中即续期（滑动窗口）：正常播放期间不会中途被判成「未登记」而断流。
+    scope.expires_at = monotonic() + HLS_STREAM_SCOPE_TTL_SECONDS
+    return scope.entity_id
+
+
+def _viewer_can_see_entity(database_manager: Database, viewer: ViewerPrincipal, entity_id: str) -> None:
+    """在独立会话里做一次实体归属校验；不可见时由 require_viewer_entity 抛 403。
+
+    独立会话是必需的：校验会在 ``asyncio.to_thread`` 的线程里跑，而请求级的
+    会话绑定在事件循环所在线程，跨线程使用会踩 SQLAlchemy 的会话线程约束。
+    """
+    with database_manager.session_factory() as database:
+        require_viewer_entity(database, viewer, entity_id)
+
+
+async def require_media_proxy_scope(
+    request: Request, viewer: ShortLivedLicensedViewer
+) -> None:
+    """媒体代理的归属门禁：请求路径必须能定位到一个当前主体可见的实体。
+
+    过去的门禁只有「已认证 + 授权允许 api」，而本代理会**注入 HA 令牌**回源 ——
+    于是一台绑在项目 A 的中控只要请求 ``/api/camera_proxy/camera.front_door``
+    （实体 ID 是可读名字，不是保密的随机串）就能把项目 B 的画面拉出来。同类
+    HLS 端点一直在做实体校验，媒体代理这两条路径却漏了，这是跨项目 IDOR。
+
+    做成**路由级依赖**而不是处理器里的一行：新增媒体路由时，`Depends` 写在
+    路由签名上，漏掉它会一眼看出来；写在函数体里则很容易「新路由忘了抄」。
+    """
+    path = request.url.path
+    if not allowed_media_proxy_path(path):
+        # 路径不合规的请求交给处理器统一回 404（不在这里回答「这个前缀存不存在」）。
+        return
+    entity_id = media_proxy_entity_id(path)
+    if entity_id is None:
+        # HLS 分支：令牌查不到归属就拒绝（fail closed）。令牌只可能由本服务的
+        # /api/camera_hls 在实体校验之后记账，所以「查不到」= 不是本服务发的；
+        # 前端在流被拒后会回落到带实体校验的 MJPEG 通道，不会一直黑屏。
+        token = hls_stream_token(path)
+        scope = hls_stream_scopes.get(token) if token else None
+        entity_id = hls_stream_entity_id(path) if scope is not None else None
+        if entity_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='这段媒体流不属于当前中控仪表盘。',
+            )
+        # 管理员会话不受限（viewer.project_id is None），没有可缓存的「已校验」结论；
+        # 中控设备则在短窗口内复用上一次结论，避免每个 HLS 分片都查一次库。
+        project_key = viewer.project_id or ''
+        if (
+            project_key
+            and scope is not None
+            and scope.verified_project == project_key
+            and monotonic() - scope.verified_at < HLS_SCOPE_RECHECK_SECONDS
+        ):
+            return
+        await asyncio.to_thread(
+            _viewer_can_see_entity, request.app.state.database, viewer, entity_id
+        )
+        if scope is not None:
+            scope.verified_project = project_key
+            scope.verified_at = monotonic()
+        return
+    if viewer.project_id is None:
+        # 管理员会话可见全部实体：require_viewer_entity 也会直接放行，
+        # 这里省掉的是一次跨线程的建会话开销（快照请求是热路径）。
+        return
+    await asyncio.to_thread(
+        _viewer_can_see_entity, request.app.state.database, viewer, entity_id
+    )
 
 
 def rewrite_location(value: str, base_url: str) -> str:
@@ -503,6 +673,9 @@ async def camera_hls_stream(
     # 改写后的地址必须仍落在媒体白名单内，防止被诱导到其它 HA 接口。
     if not allowed_media_proxy_path(stream_url.split('?', 1)[0]):
         return mjpeg_fallback
+    # 记账这条播放地址的归属：HLS 令牌里没有实体信息，片段请求的归属校验
+    # 只能靠这里记下来的「令牌 → 实体」（B50）。
+    remember_hls_stream(stream_url, entity_id)
     return JSONResponse({'url': stream_url})
 
 
@@ -512,11 +685,14 @@ async def camera_hls_stream(
 @router.api_route('/api/media_player_proxy/{path:path}', methods=['GET', 'HEAD'])
 @router.api_route('/api/hls/{path:path}', methods=['GET', 'HEAD'])
 async def proxy_home_assistant_media(
-    request: Request, _viewer: ShortLivedLicensedViewer
+    request: Request,
+    _viewer: ShortLivedLicensedViewer,
+    _scope: None = Depends(require_media_proxy_scope),
 ) -> Response:
-    """五条媒体路径共用的代理入口（需已认证且授权允许 api）。
+    """五条媒体路径共用的代理入口（需已认证、授权允许 api、且实体对当前主体可见）。
 
     路由用通配路径覆盖 HA 的几种媒体前缀，具体的白名单判定在 proxy_http 里做；
-    身份与授权由 _viewer 依赖完成，本函数只负责转发。
+    认证与授权由 _viewer 依赖完成，实体归属由 _scope 依赖完成（B50：这两条路径
+    过去只查前者），本函数只负责转发。
     """
     return await proxy_http(request)
