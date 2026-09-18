@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from store import __version__
+from store import incidents
 from store.api import admin as admin_api
 from store.api import alipay as alipay_api
 from store.api import license as license_api
@@ -392,11 +393,16 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     def healthz() -> dict:
         # status 依然只表示「进程活着」，外部探活的机器不会被巡检状态带偏；
         # 巡检单独给一个子对象，让监控可以按 paymentSweep.health 报警。
+        #
+        # incidents 是第二类「不会自己报错」的状态（S36）：资金/履约路径上被刻意
+        # 吞掉的异常。它同样只放在子对象里，不参与 status —— 否则探活机器会把
+        # 「有订单履约失败」当成进程不健康，进而重启一个本来能自愈的服务。
         return {
             "status": "ok",
             "version": __version__,
             "port": settings.port,
             "paymentSweep": sweep_status(),
+            "incidents": incidents.status(),
         }
 
     @app.exception_handler(Exception)

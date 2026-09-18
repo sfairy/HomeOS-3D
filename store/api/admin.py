@@ -19,7 +19,7 @@ from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
-from store import coupons, features, fulfill, money, referrals, site_settings as site_config
+from store import coupons, features, fulfill, incidents, money, referrals, site_settings as site_config
 from store import catalog, mail_settings, mailer
 from store.api.store import (
     _image_map,
@@ -486,6 +486,9 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         # 后台巡检（查单对账 / 关闭过期渠道交易）的存活状态。它坏掉时没有任何
         # 接口会报错——钱照收、单停在待支付——所以必须由概览主动把它摆出来。
         "paymentSweep": sweep_status(),
+        # 被刻意吞掉的资金/履约异常计数（S36）。与巡检同理：这些异常不会让任何接口
+        # 报错，只会让「钱收了、码没发」悄悄发生，所以必须主动摆出来。
+        "incidents": incidents.status(),
         # —— 营收（含时间窗）——
         "revenue": revenue,
         # —— 订单漏斗 ——
@@ -563,6 +566,29 @@ def admin_recompute_stock(session: DbSession, admin: AdminAccount) -> dict:
     detail = "、".join(f"{pid} {delta:+d}" for pid, delta in changes.items()) or "无变化"
     _audit(session, _admin_actor(admin), "maintenance.recompute_stock", "", detail)
     return {"updated": len(changes), "changes": changes, "detail": detail}
+
+
+@router.post("/incidents/ack")
+def admin_ack_incidents(session: DbSession, admin: AdminAccount) -> dict:
+    """确认（清零）资金/履约异常计数（S36）。
+
+    为什么需要这个入口：这些计数是给监控报警用的，一次性的抖动会把它点亮，而它是
+    进程内的 —— 除了重启服务没有别的办法按灭。按不灭的灯等于没有灯，所以给后台
+    一个「我看到了、已处理」的按钮：清零计数，并把**清零前**的次数写进审计。
+    """
+    before = incidents.clear(actor=_admin_actor(admin))
+    detail = (
+        "、".join(f"{item['label']} {item['count']} 次" for item in before["kinds"])
+        or "无异常"
+    )
+    _audit(
+        session,
+        _admin_actor(admin),
+        "incidents.ack",
+        "",
+        f"清零 {before['total']} 次：{detail}",
+    )
+    return {"cleared": before["total"], "detail": detail, "incidents": incidents.status()}
 
 
 # --------------------------------------------------------------------------- #
@@ -1869,29 +1895,34 @@ def admin_issue_license(
         session.add(customer)
         session.flush()
 
-    from store.fulfill import _unique_activation_code
+    from store.fulfill import insert_license_with_unique_code
 
     moment = utcnow()
     validity_days = payload.validity_days if payload.validity_days is not None else product.validity_days
-    code = _unique_activation_code(session)
-    license = License(
-        activation_code=code,
-        code_hint=activation_code_hint(code),
-        customer_id=customer.id,
-        account_id=account.id,
-        product_id=product.id,
-        product_name=product.name,
-        product_type=product.product_type,
-        price_cents=product.price_cents,
-        validity_days=validity_days,
-        issuance_source="manual",
-        active=True,
-        issued_at=moment,
-        access_started_at=moment,
-        access_expires_at=(moment + timedelta(days=int(validity_days)) if validity_days else None),
-    )
-    session.add(license)
-    session.flush()
+
+    def build(code: str) -> License:
+        return License(
+            activation_code=code,
+            code_hint=activation_code_hint(code),
+            customer_id=customer.id,
+            account_id=account.id,
+            product_id=product.id,
+            product_name=product.name,
+            product_type=product.product_type,
+            price_cents=product.price_cents,
+            validity_days=validity_days,
+            issuance_source="manual",
+            active=True,
+            issued_at=moment,
+            access_started_at=moment,
+            access_expires_at=(
+                moment + timedelta(days=int(validity_days)) if validity_days else None
+            ),
+        )
+
+    # 与订单履约走同一条「撞码重试」路径（S35），否则同一种冲突在这里是 500、
+    # 在那里是自动重试，两个入口的可靠性不一样。
+    license = insert_license_with_unique_code(session, build)
     # 审计只记 id + 提示码，**绝不落激活码明文**：激活码就是这张授权的凭证，
     # 审计日志会在后台列表里长期展示、也常被导出/转发，等于把它抄了一份到
     # 一个没有访问控制的地方。列表页自己也只用 code_hint。
@@ -1906,7 +1937,9 @@ def admin_issue_license(
     # 一并返回，省得前端再发一次列表查询去凑（列表还带分页，不一定含这一条）。
     return {
         "activationCodeId": license.id,
-        "activationCode": code,
+        # 明文取自这一行本身（``activation_code`` 列存的就是明文，激活要按它查；
+        # 脱敏提示码另存 ``code_hint``）。后台签发是一次性展示，返回它是刻意的。
+        "activationCode": license.activation_code,
         "email": email,
         "productName": license.product_name,
         "accessExpiresAt": iso_z(license.access_expires_at),

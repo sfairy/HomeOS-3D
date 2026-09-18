@@ -20,6 +20,7 @@ from store import (
     cashier,
     coupons,
     fulfill,
+    incidents,
     mail_settings,
     mailer,
     money,
@@ -1873,7 +1874,10 @@ def _reconcile_payment(session, request: Request, order: Order) -> None:
             settings=request.app.state.settings,
             setting=setting,
         )
-    except Exception:  # noqa: BLE001 - 对账出问题绝不能把轮询接口打成 500
+    except Exception as error:  # noqa: BLE001 - 对账出问题绝不能把轮询接口打成 500
+        # 查单失败不影响这一轮响应（用户下次轮询还会再查），但它是「订单可能永远
+        # 停在待支付」的早期信号，所以除了日志也计入计数（S36）。
+        incidents.note("reconcile.poll", order_no=order.order_no, error=error)
         logger.exception("订单查单对账失败 order=%s", order.order_no)
 
 

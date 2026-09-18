@@ -77,8 +77,10 @@ from store.models import (
     DeviceBinding,
     Entitlement,
     License,
+    LicenseSession,
     Order,
     Product,
+    RecoveryToken,
     ReferralWallet,
     ReferralWithdrawal,
     StoreSetting,
@@ -9755,6 +9757,755 @@ def check_sweep_local_expiry_decoupled() -> None:
     database.dispose()
 
 
+def check_license_credential_hygiene_and_lease_sequence() -> None:
+    """S33 会话/恢复凭证的有界性 + S34 租约序号的原子自增。
+
+    S33 的原状是「只发不吊销」：每次激活都新建一份会话 + 一枚恢复凭证，``recover``
+    也只新增会话，过期行永远不删。这带来两个后果：
+
+    * **仍然有效的凭据会堆积**。客户端手里只剩最新那一份，但旧的会话 token 照样能
+      调心跳续租 —— 一次 activate 的响应被日志/备份/中间人拿到，就是一份永久有效的
+      通行证。恢复凭证更重（它本身就能换一份新会话），而且过去 180 天不轮换。
+    * **死行只增不减**。每次激活留两行，一台长期在用的客户端几个月就能攒出一堆，
+      让「这张库里到底有几枚还能用的凭据」越来越难看清楚。
+
+    代码里的规则因此收敛成三句：同一个绑定只保留一份有效会话；激活时把旧凭据整体
+    换成新的（客户端刚拿到新的两份）；恢复时沿用恢复凭证，但**活过 30 天**的凭证要
+    轮换，被换下的旧凭证留 24 小时宽限 —— 宽限是为了「响应丢在路上」这一次意外，
+    而不是让一枚凭证永远有效。
+
+    S34 的原状是「读内存里的 lease_sequence，加一，写回」。两个并发心跳会读到同一个
+    值，于是发出两张**序号相同**的租约；客户端的单调性检查把后到的那张当重放丢掉，
+    用户突然变回「未授权」，而服务端日志里没有任何异常。改成
+    ``UPDATE ... SET lease_sequence = lease_sequence + 1 RETURNING`` 后，读与写由数据库
+    放在同一条语句里完成。
+    """
+    from store.licensing.crypto import LicenseServerError
+    from store.licensing.service import (
+        RECOVERY_TOKEN_GRACE_SECONDS,
+        RECOVERY_TOKEN_ROTATE_AFTER_SECONDS,
+        RECOVERY_TOKEN_TTL_SECONDS,
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-license-creds-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+        lease_ttl_seconds=3600,
+    )
+    app = create_app(settings)
+    database = app.state.database
+    authority = app.state.license_authority
+    instance = "smoke-instance-0000000000000001"
+    email = "license-creds@habridge.local"
+
+    with database.session() as session:
+        seed_settings(session)
+        product = seed_products(session)["base"]
+        account = Account(
+            email=email,
+            password_hash=hash_password("smoke-license-creds-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        customer = Customer(account_id=account.id, email=email, name=email)
+        session.add(customer)
+        session.flush()
+        license_row = License(
+            activation_code="HOMEOS-0000-0000-0000-0000-0000-0001",
+            code_hint="0000-0001",
+            customer_id=customer.id,
+            account_id=account.id,
+            product_id=product.id,
+            product_name=product.name,
+            product_type=product.product_type,
+            price_cents=9900,
+            active=True,
+            issued_at=utcnow(),
+        )
+        session.add(license_row)
+        session.flush()
+        license_id = license_row.id
+        activation_code = license_row.activation_code
+    check(
+        "S33 前置：默认商品带功能码（否则签发会因空功能集被 422 拒绝）",
+        bool(product.feature_codes_json),
+        str(product.feature_codes_json)[:80],
+    )
+
+    def claims() -> dict:
+        return {
+            "activationCode": activation_code,
+            "instanceId": instance,
+            "email": email,
+            "clientVersion": "smoke",
+            "product": "homeos",
+        }
+
+    def credential_counts() -> tuple[int, int, str]:
+        with database.session() as session:
+            binding = session.scalars(
+                select(DeviceBinding).where(DeviceBinding.license_id == license_id)
+            ).first()
+            if binding is None:
+                return (0, 0, "")
+            sessions = session.scalar(
+                select(func.count(LicenseSession.id_hash)).where(
+                    LicenseSession.binding_id == binding.id
+                )
+            )
+            tokens = session.scalar(
+                select(func.count(RecoveryToken.id_hash)).where(
+                    RecoveryToken.binding_id == binding.id
+                )
+            )
+            return (int(sessions or 0), int(tokens or 0), binding.id)
+
+    first = authority.activate(claims())
+    check(
+        "S33 首次激活：一份会话 + 一枚恢复凭证",
+        credential_counts()[:2] == (1, 1),
+        str(credential_counts()),
+    )
+
+    second = authority.activate(claims())
+    check(
+        "S33 重复激活不再累加凭据（旧会话与旧恢复凭证被换掉，而不是留下继续能续租）",
+        credential_counts()[:2] == (1, 1),
+        str(credential_counts()),
+    )
+
+    def heartbeat_status(token: str) -> str:
+        try:
+            authority.heartbeat(
+                {"sessionToken": token, "instanceId": instance, "clientVersion": "smoke"}
+            )
+        except LicenseServerError as error:
+            return f"{error.status_code}"
+        return "200"
+
+    check(
+        "S33 被换下的旧会话立刻失效（它是客户端已经不再持有的通行证）",
+        heartbeat_status(first["sessionToken"]) == "401",
+        f"旧会话心跳={heartbeat_status(first['sessionToken'])}，新会话心跳={heartbeat_status(second['sessionToken'])}",
+    )
+    check(
+        "S33 新会话可以正常心跳（换凭据没有把当前设备换掉）",
+        heartbeat_status(second["sessionToken"]) == "200",
+        heartbeat_status(second["sessionToken"]),
+    )
+
+    #: 恢复凭证未到轮换阈值时应原样返回（客户端本地存储不会因为一次 recover 就失效）。
+    recovered = authority.recover(
+        {"recoveryToken": second["recoveryToken"], "instanceId": instance, "clientVersion": "smoke"}
+    )
+    check(
+        "S33 恢复时续用同一枚恢复凭证（响应丢失也不至于把客户端锁在外面）",
+        recovered.get("recoveryToken") == second["recoveryToken"],
+        f"轮换={'是' if recovered.get('recoveryToken') != second['recoveryToken'] else '否'}",
+    )
+    check(
+        "S33 恢复只留新会话：旧会话被吊销，凭据总数仍是 1 + 1",
+        credential_counts()[:2] == (1, 1)
+        and heartbeat_status(second["sessionToken"]) == "401",
+        str(credential_counts()),
+    )
+
+    #: 过期行应当被顺手删掉，否则「只发不删」会让凭据表随时间单调增长。
+    binding_id = credential_counts()[2]
+    with database.session() as session:
+        session.add_all(
+            [
+                LicenseSession(
+                    id_hash="dead-session-hash",
+                    session_id="dead-session",
+                    binding_id=binding_id,
+                    license_id=license_id,
+                    expires_at=utcnow() - timedelta(hours=1),
+                ),
+                RecoveryToken(
+                    id_hash="dead-token-hash",
+                    binding_id=binding_id,
+                    license_id=license_id,
+                    expires_at=utcnow() - timedelta(hours=1),
+                ),
+            ]
+        )
+    check(
+        "S33 前置：塞进两条已过期的凭据（模拟长期运行后留下的死行）",
+        credential_counts()[:2] == (2, 2),
+        str(credential_counts()),
+    )
+    authority.recover(
+        {
+            "recoveryToken": recovered.get("recoveryToken") or second["recoveryToken"],
+            "instanceId": instance,
+            "clientVersion": "smoke",
+        }
+    )
+    check(
+        "S33 恢复时顺手清掉已过期的凭据（死行不再无限堆积）",
+        credential_counts()[:2] == (1, 1),
+        str(credential_counts()),
+    )
+
+    #: 把在用的那枚凭证改成「30 天前签发」，验证轮换与宽限。
+    with database.session() as session:
+        live = session.scalars(
+            select(RecoveryToken).where(RecoveryToken.binding_id == binding_id)
+        ).first()
+        live.created_at = utcnow() - timedelta(
+            seconds=RECOVERY_TOKEN_ROTATE_AFTER_SECONDS + 3600
+        )
+    with database.session() as session:
+        live = session.scalars(
+            select(RecoveryToken).where(RecoveryToken.binding_id == binding_id)
+        ).first()
+        ttl_before = (live.expires_at - utcnow()).total_seconds()
+    check(
+        "S33 前置：轮换前这枚凭证的有效期还是完整的 180 天量级",
+        ttl_before > RECOVERY_TOKEN_TTL_SECONDS - 600,
+        f"{ttl_before / 86400:.1f} 天",
+    )
+
+    #: 需要明文才能调用 recover：``recovered`` 里带回来的那枚就是库里的在用品。
+    live_token = recovered.get("recoveryToken") or second["recoveryToken"]
+    rotated = authority.recover(
+        {"recoveryToken": live_token, "instanceId": instance, "clientVersion": "smoke"}
+    )
+    check(
+        "S33 超过轮换阈值的恢复凭证会被换新（并把新凭证放进响应，客户端才能存下来）",
+        rotated.get("recoveryToken") and rotated["recoveryToken"] != live_token,
+        f"新凭证={'有' if rotated.get('recoveryToken') else '无'}",
+    )
+    with database.session() as session:
+        rows = session.scalars(
+            select(RecoveryToken).where(RecoveryToken.binding_id == binding_id)
+        ).all()
+        superseded = [row for row in rows if row.id_hash == token_hash(live_token)]
+        grace = (superseded[0].expires_at - utcnow()).total_seconds() if superseded else -1
+    check(
+        "S33 被轮换下来的旧凭证只留宽限窗口（而不是继续有效到 180 天）",
+        len(rows) == 2 and 0 < grace <= RECOVERY_TOKEN_GRACE_SECONDS + 5,
+        f"旧凭证剩余 {grace / 3600:.2f} 小时、共 {len(rows)} 枚",
+    )
+    check(
+        "S33 宽限期内旧凭证仍能救回来（响应丢在路上时客户端手里只有它）",
+        authority.recover(
+            {"recoveryToken": live_token, "instanceId": instance, "clientVersion": "smoke"}
+        ).get("sessionToken")
+        is not None,
+        "旧凭证在宽限期内可用",
+    )
+    check(
+        "S33 新凭证才是长期有效的那一枚",
+        authority.recover(
+            {
+                "recoveryToken": rotated["recoveryToken"],
+                "instanceId": instance,
+                "clientVersion": "smoke",
+            }
+        ).get("sessionToken")
+        is not None,
+        "新凭证可用",
+    )
+
+    #: S34：两个会话各持一份「陈旧的」授权行，依次取序号。
+    with database.session() as ahead, database.session() as behind:
+        license_ahead = ahead.get(License, license_id)
+        license_behind = behind.get(License, license_id)
+        stale = int(license_behind.lease_sequence or 0)
+        sequence_first = authority.next_lease_sequence(ahead, license_ahead)
+        ahead.commit()
+        sequence_second = authority.next_lease_sequence(behind, license_behind)
+        behind.commit()
+    check(
+        "S34 并发（两个会话各持陈旧副本）取到的序号不同，且严格递增",
+        sequence_second == sequence_first + 1,
+        f"{sequence_first} → {sequence_second}",
+    )
+    check(
+        "S34 牙齿：旧的「读陈旧值 + 1」写法算出来正好等于先发出的那个序号 —— 重复是必然的",
+        stale + 1 == sequence_first,
+        f"陈旧值={stale}，旧写法={stale + 1}，实际先发={sequence_first}",
+    )
+    database.dispose()
+
+
+def check_activation_code_collision_retry() -> None:
+    """S35：激活码撞上唯一约束不能变成 500，而**非**碰撞的完整性错误必须照常抛出。
+
+    原状是「先 SELECT 查有没有人用，再 INSERT」。两个并发请求可以同时查到「没人用」，
+    然后一起去插 —— 一个成功，另一个撞 ``licenses.activation_code`` 唯一约束。这个
+    异常会一路冒到接口层：支付入账的路径上，用户付过钱的订单就停在 ``fulfillment_failed``
+    等人工处理，而原因只是一次随机数碰撞。
+
+    这里把「碰撞」在单线程里造出来（把 ``_unique_activation_code`` 第一次调用强行返回
+    一个已被占用的码），验证两件事：
+
+    1. 重试后能拿到新码、订单拿到授权，且**失败的那次插入没有留下任何痕迹** ——
+       SAVEPOINT 只回滚这一次插入，外层事务（订单状态、库存、邀请奖励）不受影响；
+    2. 非碰撞的 ``IntegrityError`` 必须原样抛出。把真正的 bug 当碰撞来重试，只会换来
+       8 次同样的失败 + 一句「连续 8 次生成的激活码都已被占用」的误导性报错。
+    """
+    from sqlalchemy.exc import IntegrityError as SAIntegrityError
+
+    from store import fulfill as fulfill_module
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-code-collision-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+    now = utcnow()
+
+    with database.session() as session:
+        seed_settings(session)
+        product = seed_products(session)["base"]
+        account = Account(
+            email="code-collision@habridge.local",
+            password_hash=hash_password("smoke-code-collision-2026"),
+            email_verified_at=now,
+        )
+        session.add(account)
+        session.flush()
+        customer = Customer(account_id=account.id, email=account.email, name=account.email)
+        session.add(customer)
+        session.flush()
+        #: 这个码就当作「别人抢先插进去的那一个」。
+        taken = "HOMEOS-AAAA-BBBB-CCCC-DDDD-EEEE-FFFF"
+        session.add(
+            License(
+                activation_code=taken,
+                code_hint="EEE-FFFF",
+                customer_id=customer.id,
+                account_id=account.id,
+                product_id=product.id,
+                product_name=product.name,
+                product_type=product.product_type,
+                price_cents=product.price_cents or 100,
+                active=True,
+                issued_at=now,
+            )
+        )
+        session.flush()
+        order = Order(
+            order_no="HOMEOS-SMOKE-COLLIDE-0001",
+            lookup_token="collide-lookup-token",
+            account_id=account.id,
+            customer_id=customer.id,
+            email=account.email,
+            product_id=product.id,
+            product_name=product.name,
+            product_type="base",
+            order_type="base",
+            license_action="issue",
+            original_amount_cents=9900,
+            amount_cents=9900,
+            status="paid",
+            fulfillment_mode="automatic",
+            payment_provider="mock",
+            expires_at=now + timedelta(minutes=30),
+        )
+        session.add(order)
+        session.flush()
+        order_id = order.id
+        customer_id = customer.id
+
+    original_unique = fulfill_module._unique_activation_code
+    calls = {"n": 0}
+
+    def racy_once(session) -> str:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return taken
+        return original_unique(session)
+
+    fulfill_module._unique_activation_code = racy_once
+    try:
+        with database.session() as session:
+            stored_order = session.get(Order, order_id)
+            license = fulfill_module.create_license_for_order(
+                session,
+                order=stored_order,
+                product=session.get(Product, product.id),
+                customer=session.get(Customer, customer_id),
+            )
+            created_code = license.activation_code
+            created_id = license.id
+            order_license_id = stored_order.license_id
+    finally:
+        fulfill_module._unique_activation_code = original_unique
+
+    check(
+        "S35 撞码后自动换一个码重试，而不是把 IntegrityError 变成 500",
+        created_code and created_code != taken,
+        f"{created_code}（撞的是 {taken}）",
+    )
+    check(
+        "S35 只重试一次就成功（不是把 32 个候选码挨个试一遍）",
+        calls["n"] == 2,
+        f"取码次数={calls['n']}",
+    )
+    check(
+        "S35 订单拿到了这次新发的授权（重试路径把结果交给了调用方）",
+        order_license_id == created_id and bool(created_id),
+        f"order.license_id={order_license_id}",
+    )
+
+    with database.session() as session:
+        codes = sorted(
+            row.activation_code for row in session.scalars(select(License))
+        )
+    check(
+        "S35 失败的那次插入没有留下任何痕迹（SAVEPOINT 只回滚这一次插入）",
+        codes == sorted([taken, created_code]),
+        str(codes),
+    )
+
+    #: 非碰撞的完整性错误必须抛出：这里用 「customer_id 非空但传 None」制造 NOT NULL
+    #: 违反（它的消息里也含 ``activation_code`` 之外的列名，且**不含** UNIQUE）。
+    def broken_build(code: str):
+        return License(
+            activation_code=code,
+            code_hint="none",
+            customer_id=None,
+            product_id=product.id,
+            product_name=product.name,
+            active=True,
+            issued_at=now,
+        )
+
+    raised = ""
+    with database.session() as session:
+        try:
+            fulfill_module.insert_license_with_unique_code(session, broken_build)
+        except SAIntegrityError as error:
+            raised = str(getattr(error, "orig", error))
+        except Exception as error:  # pragma: no cover - 非 IntegrityError 也说明行为不对
+            raised = f"{type(error).__name__}: {error}"
+    check(
+        "S35 非碰撞的 IntegrityError 原样抛出（把真 bug 当碰撞重试只会掩盖它）",
+        "NOT NULL" in raised.upper(),
+        raised[:160] or "（没有抛异常 —— 这条最危险）",
+    )
+
+    def collision_messages() -> tuple[bool, bool]:
+        unique = SAIntegrityError("stmt", {}, Exception("UNIQUE constraint failed: licenses.activation_code"))
+        not_null = SAIntegrityError("stmt", {}, Exception("NOT NULL constraint failed: licenses.activation_code"))
+        return (
+            fulfill_module._is_activation_code_collision(unique),
+            fulfill_module._is_activation_code_collision(not_null),
+        )
+
+    unique_hit, not_null_hit = collision_messages()
+    check(
+        "S35 「撞码」判据同时要求 UNIQUE 与列名（非空约束的消息里也有 activation_code）",
+        unique_hit and not not_null_hit,
+        f"UNIQUE→{unique_hit}，NOT NULL→{not_null_hit}",
+    )
+    database.dispose()
+
+
+async def check_incident_counters() -> None:
+    """S36：资金/履约路径上被刻意吞掉的异常，必须留下能被接口读到的计数。
+
+    这三处 ``except Exception`` 都有正当理由（对账失败不能把用户的支付页打成 500；
+    入账后履约失败不能给渠道回失败，否则它会无限重推），但它们过去只往日志写一行
+    traceback：服务照常、后台一片正常，而真实发生的事情是「钱收了、授权没发出去」。
+    日志是写给已经在翻日志的人看的，不是告警。
+
+    这里钉住四件事：
+    1. 计数能累积、能读出「最近一次错在哪笔单上」，且**永远不会抛异常**（它唯一的
+       调用场合就是 except 块内部，再抛一次等于把刻意吞下的失败变成 500）；
+    2. 三个吞异常的位置确实各自调用了 ``incidents.note``（用 AST 看，不接受「文档里
+       写了」）；
+    3. 一次真实的履约失败会把计数点亮，而一次成功的履约不会（计数只跟失败走）；
+    4. ``/healthz`` 与后台概览都能读到它 —— 否则这个计数只是另一个没人看的日志。
+    """
+    import ast
+
+    from store import incidents
+    from store.api import admin as admin_api
+    from store.payments import settlement as settlement_module
+
+    incidents.reset_for_tests()
+    initial = incidents.status()
+    check(
+        "S36 初始为「无异常」，且字段与巡检状态同风格（前端可复用同一套渲染）",
+        initial["health"] == "ok"
+        and initial["total"] == 0
+        and initial["kinds"] == []
+        and set(initial) >= {"health", "total", "kinds", "clearedAt", "clearedBy", "clearedTotal"},
+        str(initial),
+    )
+
+    incidents.note("fulfillment", order_no="HOMEOS-SMOKE-INCIDENT-0001", error=ValueError("磁盘写满"))
+    incidents.note("fulfillment", order_no="HOMEOS-SMOKE-INCIDENT-0002", error="第二次也失败")
+    incidents.note("reconcile.poll", order_no="HOMEOS-SMOKE-INCIDENT-0003")
+    status = incidents.status()
+    check(
+        "S36 计数按类别累积，health 立刻变 degraded（监控只需要看 total 是否为零）",
+        status["health"] == "degraded" and status["total"] == 3 and len(status["kinds"]) == 2,
+        f"{status['health']} total={status['total']}",
+    )
+    top = status["kinds"][0]
+    check(
+        "S36 类别标签来自后端登记表（避免前端、healthz、日志各写一套中文）",
+        top["kind"] == "fulfillment" and top["label"] == incidents.KINDS["fulfillment"],
+        f"{top['kind']} → {top['label']}",
+    )
+    check(
+        "S36 记住最近一次发生在哪笔订单、错误是什么（排障要落到具体订单上）",
+        top["lastOrderNo"] == "HOMEOS-SMOKE-INCIDENT-0002"
+        and top["lastError"] == "第二次也失败"
+        and bool(top["lastAt"]),
+        f"{top['lastOrderNo']} / {top['lastError']}",
+    )
+    check(
+        "S36 次数多的类别排在前面（同一条路径反复失败比三条各失败一次更急）",
+        top["count"] == 2,
+        str([(item["kind"], item["count"]) for item in status["kinds"]]),
+    )
+
+    def note_never_raises() -> str:
+        try:
+            incidents.note("未登记的类别")
+            incidents.note("fulfillment", error=SystemError("奇数参数"))
+            return "ok"
+        except Exception as error:  # pragma: no cover - 出现即失败
+            return f"{type(error).__name__}: {error}"
+
+    check(
+        "S36 note() 绝不抛异常（未登记类别、奇怪错误对象都只会被记账）",
+        note_never_raises() == "ok",
+        note_never_raises(),
+    )
+
+    def swallowed_kinds(relative: str) -> list[str]:
+        tree = ast.parse((PROJECT_ROOT / relative).read_text(encoding="utf-8"))
+        found: list[str] = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ExceptHandler):
+                continue
+            for inner in ast.walk(node):
+                if not isinstance(inner, ast.Call) or not isinstance(inner.func, ast.Attribute):
+                    continue
+                if inner.func.attr != "note" or not ast.unparse(inner.func.value).endswith("incidents"):
+                    continue
+                if inner.args and isinstance(inner.args[0], ast.Constant):
+                    found.append(str(inner.args[0].value))
+        return found
+
+    expected_sites = {
+        "store/payments/settlement.py": "fulfillment",
+        "store/api/alipay.py": "reconcile.return",
+        "store/api/store.py": "reconcile.poll",
+    }
+    for relative, kind in expected_sites.items():
+        found = swallowed_kinds(relative)
+        check(
+            f"S36 {relative} 的 except 块里确实记了计数（{kind}）",
+            kind in found,
+            f"记到的类别={found}",
+        )
+
+    #: 端到端：一次真实的履约失败必须点亮计数，而正常履约不能（计数只跟失败走）。
+    from store import fulfill as fulfill_module
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-incidents-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    app = create_app(settings)
+    database = app.state.database
+    order_no = "HOMEOS-SMOKE-INCIDENT-9001"
+    with database.session() as session:
+        seed_settings(session)
+        product = seed_products(session)["base"]
+        account = Account(
+            email="incident-probe@habridge.local",
+            password_hash=hash_password("smoke-incident-2026"),
+            email_verified_at=utcnow(),
+        )
+        session.add(account)
+        session.flush()
+        customer = Customer(account_id=account.id, email=account.email, name=account.email)
+        session.add(customer)
+        session.flush()
+        order = Order(
+            order_no=order_no,
+            lookup_token="incident-lookup-token",
+            account_id=account.id,
+            customer_id=customer.id,
+            email=account.email,
+            product_id=product.id,
+            product_name=product.name,
+            product_type="base",
+            order_type="base",
+            license_action="issue",
+            original_amount_cents=9900,
+            amount_cents=9900,
+            status="pending",
+            fulfillment_mode="automatic",
+            payment_provider="mock",
+            expires_at=utcnow() + timedelta(minutes=30),
+        )
+        session.add(order)
+        session.flush()
+        setting = site_config.get_setting(session)
+        order_id = order.id
+
+    before = incidents.status()["total"]
+    original_fulfill = fulfill_module.fulfill_order
+
+    def exploding(*_args, **_kwargs):
+        raise RuntimeError("smoke 注入的履约故障")
+
+    try:
+        fulfill_module.fulfill_order = exploding
+        with database.session() as session:
+            result = settlement_module.settle_paid_order(
+                session, order=session.get(Order, order_id), setting=setting
+            )
+    finally:
+        fulfill_module.fulfill_order = original_fulfill
+
+    after = incidents.status()
+    with database.session() as session:
+        stored = session.get(Order, order_id)
+        stored_status = stored.status
+        stored_note = stored.review_note or ""
+        stored_needs_review = bool(stored.needs_review)
+    check(
+        "S36 履约失败仍然只回「已入账、未履约」而不是抛异常（渠道不能收到失败）",
+        result.get("changed") is True and result.get("alreadyFulfilled") is False,
+        str(result),
+    )
+    check(
+        "S36 失败被推进 fulfillment_failed 并留下复核原因（钱到账了，单不能被当成没付过）",
+        stored_status == "fulfillment_failed" and stored_needs_review and "履约" in stored_note,
+        f"{stored_status} needs_review={stored_needs_review}",
+    )
+    check(
+        "S36 这次失败点亮了计数，并挂在那笔订单上（这是唯一能主动报警的信号）",
+        after["total"] == before + 1
+        and after["health"] == "degraded"
+        and any(item["kind"] == "fulfillment" and item["lastOrderNo"] == order_no for item in after["kinds"]),
+        str(after),
+    )
+
+    #: 反向：正常履约不能点亮计数，否则这盏灯会因为「有订单成交」而亮。
+    with database.session() as session:
+        healthy = Order(
+            order_no="HOMEOS-SMOKE-INCIDENT-9002",
+            lookup_token="incident-lookup-token-2",
+            account_id=account.id,
+            customer_id=customer.id,
+            email=account.email,
+            product_id=product.id,
+            product_name=product.name,
+            product_type="base",
+            order_type="base",
+            license_action="issue",
+            original_amount_cents=9900,
+            amount_cents=9900,
+            status="pending",
+            fulfillment_mode="automatic",
+            payment_provider="mock",
+            expires_at=utcnow() + timedelta(minutes=30),
+        )
+        session.add(healthy)
+        session.flush()
+        healthy_id = healthy.id
+    with database.session() as session:
+        settlement_module.settle_paid_order(
+            session, order=session.get(Order, healthy_id), setting=setting
+        )
+    check(
+        "S36 正常履约不会点亮计数（计数只跟失败走，不是「履约次数」）",
+        incidents.status()["total"] == before + 1,
+        f"total={incidents.status()['total']}",
+    )
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://store.test") as client:
+        body = (await client.get("/healthz")).json()
+    check(
+        "S36 /healthz 带上计数（监控可以直接按 incidents.health 报警）",
+        body.get("incidents", {}).get("total") == before + 1
+        and body.get("incidents", {}).get("health") == "degraded",
+        str(body.get("incidents"))[:200],
+    )
+    check(
+        "S36 status 字段不受影响（探活机器不会因为一次履约失败去重启能自愈的服务）",
+        body.get("status") == "ok",
+        str(body.get("status")),
+    )
+
+    with database.session() as session:
+        overview = admin_api.overview(
+            session=session, _admin=None, settings=settings
+        )
+    check(
+        "S36 后台概览也带上计数（否则运维只有去翻日志才知道出过事）",
+        overview.get("incidents", {}).get("total") == before + 1,
+        str(overview.get("incidents"))[:200],
+    )
+
+    #: 后台「确认已处理」按钮走的是同一个 clear()，但必须连审计一起记：否则事后
+    #: 只剩一句「某人点过确认」，看不出当时确认掉的是几次、发生在哪笔单上。
+    incidents.reset_for_tests()
+    incidents.note("reconcile.return", order_no="HOMEOS-SMOKE-INCIDENT-9003", error="跳转页查单失败")
+    with database.session() as session:
+        ack = admin_api.admin_ack_incidents(
+            session=session,
+            admin=types.SimpleNamespace(email="smoke-admin@habridge.local", id="smoke"),
+        )
+        audits = session.scalars(
+            select(AuditLog).where(AuditLog.action == "incidents.ack")
+        ).all()
+    check(
+        "S36 后台「确认」入口清零计数、并把「确认掉几次」与操作人写进审计",
+        ack["cleared"] == 1
+        and incidents.status()["total"] == 0
+        and incidents.status()["clearedBy"] == "smoke-admin@habridge.local"
+        and len(audits) == 1
+        and "1 次" in (audits[0].detail or "")
+        and audits[0].actor == "smoke-admin@habridge.local",
+        f"{ack['cleared']} / {audits[0].detail if audits else '无审计'}",
+    )
+
+    incidents.note("fulfillment", order_no="HOMEOS-SMOKE-INCIDENT-9004", error="再出一次")
+    cleared = incidents.clear(actor="smoke@habridge.local")
+    check(
+        "S36 clear() 返回清零前的快照（调用方/审计要能记下「确认掉了什么」）",
+        cleared["total"] == 1 and incidents.status()["total"] == 0,
+        str(cleared)[:160],
+    )
+    after_clear = incidents.status()
+    check(
+        "S36 清零后仍能看出「刚确认过」，否则运维分不清「从没出过事」与「刚清过」",
+        after_clear["health"] == "ok"
+        and after_clear["clearedBy"] == "smoke@habridge.local"
+        and after_clear["clearedTotal"] == 1
+        and bool(after_clear["clearedAt"]),
+        str(after_clear),
+    )
+    incidents.reset_for_tests()
+    database.dispose()
+
+
 async def run() -> int:
     client_crypto = load_module("hb_client_crypto", CLIENT_CRYPTO_PATH)
 
@@ -9805,6 +10556,9 @@ async def run() -> int:
     await check_enumeration_and_quota_hardening(client_crypto)
     check_page_hardening_and_error_format()
     check_sweep_local_expiry_decoupled()
+    check_license_credential_hygiene_and_lease_sequence()
+    check_activation_code_collision_retry()
+    await check_incident_counters()
     check_unique_index_repair()
     check_wallet_aggregate_atomic()
     check_wallet_adjust_guard()

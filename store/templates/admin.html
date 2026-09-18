@@ -297,6 +297,24 @@
           </div>
         </div>
 
+        <!-- 资金/履约异常计数（S36）。
+        与巡检同一理由常驻显示：这几处异常是**刻意吞掉**的（对账失败不能把用户的
+        支付页打成 500、入账后履约失败不能给渠道回失败），所以没有任何接口会报错，
+        只有这里能看见「钱收了、码没发出去」。没有异常时也要显示，否则运维不知道
+        这项功能存在；有异常时多出一个「确认」按钮把灯按灭（计数是进程内的，
+        没有这个按钮就只能重启服务才能清零）。 -->
+        <div class="hb-card" id="overview-incidents">
+          <div class="hb-card__body">
+            <div class="setting-row">
+              <div>
+                <strong>入账异常 <span class="hb-tag" id="overview-incidents-pill">—</span></strong>
+                <p id="overview-incidents-detail">正在读取异常计数…</p>
+              </div>
+              <button class="hb-button hb-button--secondary hb-button--sm" id="overview-incidents-ack" hidden>确认已处理</button>
+            </div>
+          </div>
+        </div>
+
         <!-- 待办：没有待办时整块隐藏，避免满屏 0 让「有东西要处理」变得看不出来 -->
         <div class="hb-card overview-todos" id="overview-todos" hidden>
           <div class="hb-card__head">
@@ -2688,12 +2706,53 @@ function renderPaymentSweep(sweep) {
   detail.textContent = text;
 }
 
+// 资金/履约异常计数（S36）。文案的重点是「这些异常不会自己报错」——运维看到
+// 非零时该去处理订单（重试发码 / 退款），而不是去查服务是不是挂了。
+function renderIncidents(incidents) {
+  const pillNode = $('#overview-incidents-pill');
+  const detail = $('#overview-incidents-detail');
+  const ackButton = $('#overview-incidents-ack');
+  if (!pillNode || !detail || !ackButton) return;
+  if (!incidents) {
+    pillNode.className = 'hb-tag hb-tag--warning';
+    pillNode.textContent = '未知';
+    detail.textContent = '这个版本的服务端没有上报异常计数。';
+    ackButton.hidden = true;
+    return;
+  }
+  const total = Number(incidents.total || 0);
+  const kinds = incidents.kinds || [];
+  pillNode.className = `hb-tag ${total ? 'hb-tag--danger' : 'hb-tag--success'}`;
+  pillNode.textContent = total ? `${num(total)} 次` : '无异常';
+  ackButton.hidden = total === 0;
+
+  if (!total) {
+    const clearedNote = incidents.clearedAt
+      ? `上次确认在 ${humanAge((Date.now() - Date.parse(incidents.clearedAt)) / 1000)}`
+        + `（当时 ${num(incidents.clearedTotal)} 次）`
+      : '本进程启动以来没有出现过。';
+    detail.textContent = `${clearedNote}这些异常会被服务刻意吞掉：对账失败不能把用户的支付页打成 500，`
+      + '入账后履约失败不能给渠道回失败（否则渠道会无限重推）。所以它们不会体现在任何报错里，只能靠这里看。';
+    return;
+  }
+
+  const lines = kinds.map((item) => {
+    const when = item.lastAt ? humanAge((Date.now() - Date.parse(item.lastAt)) / 1000) : '（无时间记录）';
+    const order = item.lastOrderNo ? `订单 ${item.lastOrderNo}` : '（没有关联订单）';
+    const error = item.lastError || '（没有记录错误信息）';
+    return `${item.label} ${num(item.count)} 次，最近一次 ${when}，${order}：${error}`;
+  });
+  detail.textContent = `${lines.join('；')}。这些异常不会让接口报错：钱可能已经收到，`
+    + '但发码 / 查单没有走完。请到「订单」里按状态 fulfillment_failed 处理（重试履约或退款）。';
+}
+
 async function loadOverview() {
   const data = await api('/overview');
   const revenue = data.revenue || {};
   const attention = data.attention || {};
 
   renderPaymentSweep(data.paymentSweep);
+  renderIncidents(data.incidents);
 
 
   // —— 营收 ——
@@ -2845,6 +2904,25 @@ $('#overview-recompute-stock').addEventListener('click', async () => {
       result.updated ? 'success' : 'warning',
     );
     await Promise.all([loadOverview(), loadProducts()]);
+  } catch (error) { toast(error.message, 'danger'); }
+});
+
+// 确认（清零）入账异常计数（S36）。文案要说清这是「我已经处理过了」而不是
+// 「问题消失了」：清零只按灭这盏灯，订单本身还在 fulfillment_failed 上等人工处理。
+$('#overview-incidents-ack').addEventListener('click', async () => {
+  const ok = await askConfirm({
+    title: '确认已处理',
+    message: '把「入账异常」计数清零。清零前会记进审计日志（谁确认的、确认掉了几次）。',
+    impact: '这只是把计数器归零：<b>不会</b>修复任何订单。请先确认那些「入账后履约失败」的订单'
+      + '已经重试发码或退款，否则真正的失败就不再显眼了。',
+    okText: '清零计数',
+    tone: 'warning',
+  });
+  if (!ok) return;
+  try {
+    const result = await api('/incidents/ack', { method: 'POST', body: JSON.stringify({}) });
+    toast(result.cleared ? `已清零 ${result.cleared} 次异常计数：${result.detail}` : '本来就没有异常计数', result.cleared ? 'success' : 'warning');
+    renderIncidents(result.incidents);
   } catch (error) { toast(error.message, 'danger'); }
 });
 

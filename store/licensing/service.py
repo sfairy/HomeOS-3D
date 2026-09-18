@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from store import site_settings as site_config
@@ -48,6 +48,19 @@ logger = logging.getLogger("store.license")
 
 #: 恢复凭证有效期（比会话长，保证会话失效后仍能救回来）
 RECOVERY_TOKEN_TTL_SECONDS = 180 * 24 * 3600
+
+#: 恢复凭证的轮换阈值（S33）：一枚凭证活过这么久之后，下一次 ``recover`` 就换新的。
+#: 为什么不是「每次 recover 都换」：客户端只在响应里带回 ``recoveryToken`` 时才更新
+#: 本地存储，而它恰恰是在「会话已经失效」时才走 recover —— 如果换了新凭证而响应
+#: 在路上丢了，客户端手里只剩一枚**已经作废**的凭证，就彻底失联了。所以轮换要保守：
+#: 绝大多数会话失效发生在几周内，轮换由「这枚凭证已经用了很久」触发，而不是每次触发。
+RECOVERY_TOKEN_ROTATE_AFTER_SECONDS = 30 * 24 * 3600
+
+#: 被轮换下来的恢复凭证还留多久（S33）。这就是上面那个「响应丢失」问题的兜底：
+#: 旧凭证不是立刻作废，而是在宽限窗口内仍然可用 —— 客户端拿着旧凭证再试一次仍然能
+#: 换到新凭证，而一旦它成功换过（或窗口过去），旧凭证就彻底失效。窗口取 1 天，
+#: 远大于客户端的重试节奏，同时把「一枚凭证的有效期」从 180 天收敛到 30 天 + 1 天。
+RECOVERY_TOKEN_GRACE_SECONDS = 24 * 3600
 
 class LicenseAuthority:
     """持有密钥环，负责全部租约签发逻辑。"""
@@ -239,7 +252,17 @@ class LicenseAuthority:
                 raise LicenseServerError("实例绑定已停用。", status_code=403, revoked=True)
             self.assert_usable(license, now)
 
-            # 轮换会话，但保持恢复凭证稳定，避免「响应丢失后彻底失联」
+            # 轮换会话，恢复凭证默认保持不变 —— 但活太久的要换新的（S33，见
+            # RECOVERY_TOKEN_ROTATE_AFTER_SECONDS：轮换太激进会在响应丢失时把客户端
+            # 彻底锁在外面，所以只在凭证「已经用了很久」时才换）。
+            recovery_token, rotated = self.rotate_recovery_if_stale(
+                session,
+                token=token,
+                record=record,
+                binding=binding,
+                license=license,
+                now=now,
+            )
             session_token, session_id = self.rotate_session(
                 session, license=license, binding=binding, now=now
             )
@@ -247,6 +270,13 @@ class LicenseAuthority:
             binding.last_ip = ip
             if client_version:
                 binding.client_version = client_version
+            if rotated:
+                logger.info(
+                    "恢复凭证已轮换 license=%s binding=%s（旧的留 %d 秒宽限）",
+                    license.id,
+                    binding.id,
+                    RECOVERY_TOKEN_GRACE_SECONDS,
+                )
 
             return self.issue(
                 session,
@@ -255,7 +285,7 @@ class LicenseAuthority:
                 session_id=session_id,
                 now=now,
                 session_token=session_token,
-                recovery_token=token,
+                recovery_token=recovery_token,
                 generation=generation,
             )
 
@@ -294,6 +324,62 @@ class LicenseAuthority:
         cooldown = site_config.effective_device_release_cooldown(session, self.settings)
         allowed = last + timedelta(seconds=cooldown)
         return int(max(0, (allowed - now).total_seconds()))
+
+    def _prune_expired_credentials(self, session: Session, binding_id: str, now: datetime) -> None:
+        """删掉这个绑定上**已经过期**的会话与恢复凭证（S33）。
+
+        为什么要主动删：过期的行在库里没有任何用处 —— 心跳与 recover 都会先看
+        ``expires_at`` 直接拒掉，后台列表默认也只列未过期的。可它们过去只增不减：
+        每次激活都会留下两行，一台长期在用的客户端反复激活/恢复几个月就能攒出一堆
+        死凭证，既让备份越来越胖，也让「这张库里到底有几枚还能用的凭据」越来越难看清。
+        """
+        session.execute(
+            delete(LicenseSession).where(
+                LicenseSession.binding_id == binding_id, LicenseSession.expires_at <= now
+            )
+        )
+        session.execute(
+            delete(RecoveryToken).where(
+                RecoveryToken.binding_id == binding_id, RecoveryToken.expires_at <= now
+            )
+        )
+
+    def rotate_recovery_if_stale(
+        self,
+        session: Session,
+        *,
+        token: str,
+        record: RecoveryToken,
+        binding: DeviceBinding,
+        license: License,
+        now: datetime,
+    ) -> tuple[str, bool]:
+        """必要时换一枚恢复凭证，返回 ``(要发给客户端的凭证, 是否轮换过)``。
+
+        传进来的 ``token`` 是客户端这枚凭证的**明文**（``record`` 是按它的哈希查出来的
+        行）—— 不轮换时原样返回，调用方就不必再想办法把明文找回来（库里只存哈希，
+        找不回来）。
+
+        轮换规则与理由见 ``RECOVERY_TOKEN_ROTATE_AFTER_SECONDS`` /
+        ``RECOVERY_TOKEN_GRACE_SECONDS``：旧凭证降到宽限窗口，新的按完整 TTL 生效，
+        这样「响应丢失」只是重试一次，而「一枚凭证用到天荒地老」不再可能。
+        """
+        self._prune_expired_credentials(session, binding.id, now)
+        age = (now - (record.created_at or now)).total_seconds()
+        if age < RECOVERY_TOKEN_ROTATE_AFTER_SECONDS:
+            return token, False
+        fresh = new_token(32)
+        record.expires_at = now + timedelta(seconds=RECOVERY_TOKEN_GRACE_SECONDS)
+        session.add(
+            RecoveryToken(
+                id_hash=token_hash(fresh),
+                binding_id=binding.id,
+                license_id=license.id,
+                expires_at=now + timedelta(seconds=RECOVERY_TOKEN_TTL_SECONDS),
+            )
+        )
+        session.flush()
+        return fresh, True
 
     def ensure_binding(
         self,
@@ -380,6 +466,17 @@ class LicenseAuthority:
     def open_session(
         self, session: Session, *, license: License, binding: DeviceBinding, now: datetime
     ) -> tuple[str, str, str]:
+        """开一份新会话（激活路径），并把这份绑定上的旧凭据清干净（S33）。
+
+        为什么激活时可以把旧的直接删掉：激活的响应里就带着新的会话与恢复凭证，
+        客户端会用新的那两份；旧会话若继续有效，等于同一台设备上多留一枚没人再用、
+        却仍然能续租的 bearers token —— 而恢复凭证更敏感（它是「另开一份会话」的
+        凭证，180 天有效）。带上激活码才可能走到这里，而激活码客户端自己存着，
+        所以即使这枚新恢复凭证的响应丢在路上，客户端也能再激活一次。
+        """
+        self._prune_expired_credentials(session, binding.id, now)
+        session.execute(delete(LicenseSession).where(LicenseSession.binding_id == binding.id))
+        session.execute(delete(RecoveryToken).where(RecoveryToken.binding_id == binding.id))
         session_token = new_token(32)
         recovery_token = new_token(32)
         session_id = new_uuid()
@@ -406,6 +503,16 @@ class LicenseAuthority:
     def rotate_session(
         self, session: Session, *, license: License, binding: DeviceBinding, now: datetime
     ) -> tuple[str, str]:
+        """恢复路径的换会话。
+
+        同样把该绑定上的**其它**会话删掉（S33）：过去这里只新增不吊销，于是客户端
+        每恢复一次就多留下一枚仍在有效期内的会话 token —— 客户端早就不再持有它，
+        但它照样能调心跳续租。恢复的语义本来就是「原会话已经不可用，重新拿一份」，
+        留下旧的那份不是在保护谁，只是多开了一扇门。恢复凭证不在这里删：它由
+        ``rotate_recovery_if_stale`` 决定是沿用还是轮换。
+        """
+        self._prune_expired_credentials(session, binding.id, now)
+        session.execute(delete(LicenseSession).where(LicenseSession.binding_id == binding.id))
         session_token = new_token(32)
         session_id = new_uuid()
         session.add(
@@ -419,6 +526,33 @@ class LicenseAuthority:
         )
         session.flush()
         return session_token, session_id
+
+    def next_lease_sequence(self, session: Session, license: License) -> int:
+        """原子地取下一个租约序号（S34）。
+
+        过去是「读 ``license.lease_sequence`` → 加一 → 写回」。这在并发下会漏：两个
+        请求各自读到同一个值，于是**两张不同的租约带着同一个序号**发出去。客户端的
+        单调性检查（``leaseSequence <= state.lease_sequence`` 且内容不同即判为重放）
+        会把后到的那张丢掉 —— 用户突然回到「未授权」，而服务端日志里什么都看不到：
+        这不是崩溃，是静默的重复。
+
+        改成一条 ``UPDATE ... SET lease_sequence = lease_sequence + 1 RETURNING ...``：
+        读与写在同一条语句里，由数据库保证互斥，并发请求拿到的一定是不同的值。
+        用表级（core）语句而不是 ORM 的批量 update，是为了把 ORM 的「同步 session」
+        语义摘掉 —— 这里要的就是「绕过内存里的那个值，直接问库」。
+
+        拿到序号后写回 ORM 对象，是为了让随后 flush 出去的 ``UPDATE licenses``
+        （带着 ``lease_id``）与库里保持一致，而不是把过期值再盖回去。
+        """
+        table = License.__table__
+        sequence = session.execute(
+            table.update()
+            .where(table.c.id == license.id)
+            .values(lease_sequence=func.coalesce(table.c.lease_sequence, 0) + 1)
+            .returning(table.c.lease_sequence)
+        ).scalar_one()
+        license.lease_sequence = int(sequence)
+        return int(sequence)
 
     def features_for(self, session: Session, license: License, now: datetime) -> list[str]:
         """汇总商品功能码与权益；两者皆空时拒绝签发（fail-closed）。"""
@@ -463,9 +597,8 @@ class LicenseAuthority:
         """
         active = generation or self.keyring.active
         signer = active.signer
-        sequence = int(license.lease_sequence or 0) + 1
+        sequence = self.next_lease_sequence(session, license)
         lease_id = new_uuid()
-        license.lease_sequence = sequence
         license.lease_id = lease_id
         session.flush()
 

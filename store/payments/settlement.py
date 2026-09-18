@@ -23,7 +23,7 @@ import logging
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from store import coupons, fulfill
+from store import coupons, fulfill, incidents
 from store.models import Order, StoreSetting
 from store.order_status import ORDER_STATUS_LABELS, RESERVING_STATUSES
 from store.security import utcnow
@@ -165,6 +165,10 @@ def settle_paid_order(
             # 一遍同样的失败。这里把订单显式推到 fulfillment_failed 交后台人工
             # 处理（重试或退款），并把失败原因写进复核备注。
             _mark_fulfillment_failed(session, order_id=order.id, error=error)
+            # 除了日志，还要留下**能被接口读到**的计数（S36）：这一条是本文件里最重
+            # 的失败 —— 钱已经入账，授权却没发出去。只写日志时它和「巡检一切正常」
+            # 在后台长得一模一样，运维得先知道去翻日志才可能发现。
+            incidents.note("fulfillment", order_no=order.order_no, error=error)
             logger.exception("订单入账后履约失败 order=%s source=%s", order.order_no, source)
             return {"changed": True, "alreadyFulfilled": False, "licenseId": None}
 

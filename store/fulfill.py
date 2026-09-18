@@ -157,6 +157,66 @@ def _unique_activation_code(session: Session) -> str:
     raise RuntimeError("无法生成唯一激活码。")
 
 
+def _is_activation_code_collision(error: IntegrityError) -> bool:
+    """这个 ``IntegrityError`` 是不是「激活码撞了唯一约束」。
+
+    刻意不只看列名：``activation_code`` 这个字符串也会出现在**非空约束**的消息里
+    （``NOT NULL constraint failed: licenses.activation_code``），只按列名判断的话，
+    一个恒为 NULL 的 bug 会被当成碰撞重试 8 次，最后报「连续 8 次生成的激活码都已
+    被占用」—— 把真正的缺陷藏得严严实实。所以要求同时命中 ``UNIQUE``。
+    """
+    text = str(getattr(error, "orig", error)).upper()
+    return "UNIQUE" in text and "ACTIVATION_CODE" in text
+
+
+def insert_license_with_unique_code(
+    session: Session, build, *, attempts: int = 8
+) -> License:
+    """插入一行授权，激活码撞唯一约束就换一个码重试（S35）。
+
+    为什么不能只靠上面那次「先查后插」：两个请求可以同时查到「这个码没人用」，
+    然后一起去插 —— 一个成功，另一个撞上 ``licenses.activation_code`` 的唯一约束。
+    过去这个异常会一路冒到接口层变成 500，而调用方（支付入账 / 后台发码）都是
+    「失败就要人来收拾」的路径：用户付过钱的订单停在 ``fulfillment_failed``。
+
+    现在把插入包在 SAVEPOINT 里：撞了就回滚到保存点、换一个码重试。SAVEPOINT 的
+    关键作用是**只撤销这一次插入**，不牵连外层事务已经写好的东西（订单状态、
+    库存、邀请奖励都还在同一个事务里）。
+
+    只对「激活码重复」重试：其它 ``IntegrityError``（外键、非空、别的唯一约束）
+    换再多个码也没用，直接抛出去 —— 把真正的 bug 当成碰撞来重试，只会换来 8 次
+    同样的失败和一份看不出原因的日志。
+
+    ``build`` 是「拿到码之后怎么造这一行」，必须在重试时重新调用：上一轮那个
+    License 对象已经随保存点回滚了，继续往上加等于往一个作废的对象上写。
+    """
+    for _ in range(attempts):
+        code = _unique_activation_code(session)
+        savepoint = session.begin_nested()
+        try:
+            license = build(code)
+            session.add(license)
+            session.flush()
+        except IntegrityError as error:
+            savepoint.rollback()
+            if not _is_activation_code_collision(error):
+                raise
+            # 96 位随机码撞车在实践中几乎不可能，但它是唯一约束在替我们兜底 ——
+            # 真的撞上了就重试，而不是把一次「运气不好」变成一次人工工单。
+            logger.warning(
+                "激活码 %s 撞上唯一约束，换一个码重试", activation_code_hint(code)
+            )
+            continue
+        else:
+            # 主键是 flush 时生成的。少了这一句，``build`` 忘了 ``session.add``
+            # 也不会报错，只会让调用方拿到一个 id 为 None 的授权 —— 表现是「订单已经
+            # 履约、却没有发码」，而且整条链路上没有任何异常。这种静默失败比崩溃难查得多。
+            if license.id is None:
+                raise RuntimeError("授权插入后没有主键：build 必须把对象加进 session。")
+            return license
+    raise RuntimeError(f"连续 {attempts} 次生成的激活码都已被占用。")
+
+
 def bundled_feature_codes(session: Session, product: Product) -> list[str]:
     """套餐 ``included_product_ids`` 展开出的功能码。
 
@@ -341,29 +401,31 @@ def create_license_for_order(
     now: datetime | None = None,
 ) -> License:
     moment = now or utcnow()
-    code = _unique_activation_code(session)
     validity_days = product.validity_days
-    license = License(
-        activation_code=code,
-        code_hint=activation_code_hint(code),
-        customer_id=customer.id,
-        account_id=order.account_id,
-        product_id=product.id,
-        order_id=order.id,
-        product_name=product.name,
-        product_type=product.product_type,
-        price_cents=order.amount_cents,
-        validity_days=validity_days,
-        issuance_source="manual" if product.fulfillment_mode == "manual" else "payment_automatic",
-        active=True,
-        issued_at=moment,
-        access_started_at=moment,
-        access_expires_at=(
-            moment + timedelta(days=int(validity_days)) if validity_days else None
-        ),
-    )
-    session.add(license)
-    session.flush()
+
+    def build(code: str) -> License:
+        return License(
+            activation_code=code,
+            code_hint=activation_code_hint(code),
+            customer_id=customer.id,
+            account_id=order.account_id,
+            product_id=product.id,
+            order_id=order.id,
+            product_name=product.name,
+            product_type=product.product_type,
+            price_cents=order.amount_cents,
+            validity_days=validity_days,
+            issuance_source="manual" if product.fulfillment_mode == "manual" else "payment_automatic",
+            active=True,
+            issued_at=moment,
+            access_started_at=moment,
+            access_expires_at=(
+                moment + timedelta(days=int(validity_days)) if validity_days else None
+            ),
+        )
+
+    # 激活码撞车在这里被吃成一次重试（S35），而不是把异常甩给「钱已经收了」的调用方。
+    license = insert_license_with_unique_code(session, build)
     order.license_id = license.id
     # 套餐包含的商品必须在这里落成权益，否则「套餐」只是一张价格牌。
     grant_bundled_entitlements(

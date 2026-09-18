@@ -14,7 +14,7 @@ from fastapi import APIRouter, Body, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from sqlalchemy import select
 
-from store import site_settings as site_config
+from store import incidents, site_settings as site_config
 from store.deps import DbSession
 from store.limiter import SlidingWindowLimiter
 from store.models import Order
@@ -258,7 +258,10 @@ def alipay_return(
                     setting=setting,
                     force=owns_order,
                 )
-            except Exception:  # noqa: BLE001 - 对账失败不能挡住跳转页
+            except Exception as error:  # noqa: BLE001 - 对账失败不能挡住跳转页
+                # 用户就站在这张页面上等结果，所以这里不能失败；但要留下计数（S36），
+                # 否则「跳转页查单一直失败、订单一直停在待支付」在后台没有任何痕迹。
+                incidents.note("reconcile.return", order_no=order.order_no, error=error)
                 logger.exception("同步跳转页对账失败 order=%s", order.order_no)
         else:
             logger.info(
