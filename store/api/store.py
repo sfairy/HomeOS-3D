@@ -754,6 +754,12 @@ _PURPOSES_REQUIRING_ACCOUNT = frozenset({"verify", "change_email"})
 #: 根本没有网络对端，与 localhost 同级；``testclient`` 是为显式构造的请求保留的）。
 #: 只有这些地址才允许看到 echo 回显的验证码 —— echo 的假设就是「访问者本身就在
 #: 这台机器上」。
+#:
+#: 注意与 ``store/setup_guard.LOOPBACK_HOSTS`` 的区别：那一份**刻意更严**（既不含空串
+#: 也不含 ``testclient``），因为它守的是首次初始化窗口 —— 未初始化的实例对公网是
+#: 「先到先得」，把「拿不到对端」当本机会直接放行匿名创建管理员。这里多收那两个值
+#: 只服务于进程内调用与测试，而多回显一枚验证码的代价远小于多一个管理员。
+#: 两处各自的取舍都由自检钉住（``check_setup_guard_privilege_scope``）。
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient", ""})
 
 

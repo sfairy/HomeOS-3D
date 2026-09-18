@@ -63,7 +63,14 @@ GENERATED_MARKER_FILE = "setup-token.generated"
 FINGERPRINT_PREFIX = "sha256:"
 
 #: 判定「本机直连」时可信的对端地址。
-LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient", ""})
+#:
+#: **必须与主应用的 ``http_security.LOOPBACK_HOSTS`` 逐元素相同**：两份实现是刻意重复的
+#: 同一套规则，而这条规则是首次初始化窗口唯一的闸门。这里刻意**不收** ``testclient``
+#: （那是 ``TestClient`` 造出来的非 IP 对端名，让它等于「本机」等于把测试脚手架带进生产）
+#: 也**不收空串**（``client`` 缺失只说明「拿不到对端」——unix socket 部署就是这种形态 ——
+#: 而不说明对端就在本机；把「拿不到」当「本机」放行，等于给同机反代的 unix socket 部署
+#: 重新打开「先到先得」）。两条都由自检里的两服务对照断言钉住。
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 
 #: 初始化尝试的限流预算：每来源 10 次 / 15 分钟。
 _SETUP_ATTEMPT_LIMIT = 10

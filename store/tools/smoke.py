@@ -110,6 +110,14 @@ CLIENT_CONFIG_PATH = PROJECT_ROOT / "backend" / "app" / "config.py"
 INSTANCE_ID = "smoke-client-instance-000000000001"
 CLIENT_VERSION = "0.4.6"
 
+#: 用 ``TestClient`` 表达「本机运维亲手发的请求」时，必须显式给的对端。
+#:
+#: ``SetupGuard`` 的「本机直连」判据只认回环地址（与主应用那份逐元素相同，见
+#: ``store/setup_guard.LOOPBACK_HOSTS`` 的注释），而 ``TestClient`` 默认的对端名是**非 IP**
+#: 的 ``testclient`` —— 那是脚手架，不是一台机器。想测「本机直连」就得显式给回环对端，
+#: 否则测到的其实是「TestClient」这个形态；这两者被刻意区分开了：前者放行、后者不放行。
+LOCAL_CLIENT = {"client": ("127.0.0.1", 41234)}
+
 RESULTS: list[tuple[str, bool, str]] = []
 
 
@@ -10572,7 +10580,7 @@ def check_anonymous_surface_disclosure() -> None:
 
     # ---- S17：未初始化这个状态不能泄漏给无权限者 ---- #
     app = build()
-    with TestClient(app) as client:
+    with TestClient(app, **LOCAL_CLIENT) as client:
         token = app.state.setup_guard.token
         check(
             "S17 未初始化实例启动时会生成引导密钥（否则远程首次设置无从进行）",
@@ -11433,6 +11441,82 @@ def check_same_origin_scheme_pinning() -> None:
         "S16/B28 _origin_allowed 里不再出现「用 Origin 的 scheme 拼白名单」的写法",
         "expected_request_scheme(request)" in body and "{parsed.scheme}://{host}" not in body,
         "命中点已改为 expected_request_scheme(request)",
+    )
+
+
+def check_setup_guard_privilege_scope() -> None:
+    """4.3 C 类（商店侧）：首次初始化窗口的「本机直连」判据逐条钉死。
+
+    与 ``backend/app/http_security.is_direct_local`` 是同一条规则的两份实现（两个服务
+    独立部署、互不 import）。规则只有两句 —— 「对端在回环表里」且「没有任何转发头」
+    —— 但它是**先到先得窗口里唯一的闸门**：放行就等于允许匿名创建管理员，所以这里
+    既比对绝对期望，也把主应用那一份按路径加载回来逐条对照（单跑商店自检也能发现
+    自己这份被改坏；反向的对照在主应用的 ``check_setup_guard_privilege_parity`` 里）。
+
+    用例里有两行是**历史坑**，都曾经放行过：
+    - 空对端 / 根本没有 client（unix socket 部署、进程内调用）—— 「拿不到对端」被
+      当成了「对端就是本机」，而同机反代的 unix socket 部署正是这样暴露出去的；
+    - ``testclient`` —— 只在测试里出现的非 IP 对端名，被写进生产代码的回环表。
+    """
+    from starlette.requests import Request
+
+    from store.setup_guard import LOOPBACK_HOSTS, is_direct_local
+
+    backend_mod = load_module(
+        "hb_http_security", PROJECT_ROOT / "backend" / "app" / "http_security.py"
+    )
+
+    def request_for(peer: str | None, headers: dict[str, str] | None = None) -> Request:
+        header_list = [(b"host", b"store.test")]
+        for name, value in (headers or {}).items():
+            header_list.append((name.encode("latin-1"), value.encode("latin-1")))
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/store/v1/setup/admin",
+            "query_string": b"",
+            "scheme": "http",
+            "server": ("store.test", 80),
+            "headers": header_list,
+            "client": None if peer is None else (peer, 4321),
+            "app": types.SimpleNamespace(state=types.SimpleNamespace(settings=types.SimpleNamespace())),
+        }
+        return Request(scope)
+
+    cases: list[tuple[str, str | None, dict[str, str] | None, bool]] = [
+        ("回环 IPv4 直连", "127.0.0.1", None, True),
+        ("回环 IPv6 直连", "::1", None, True),
+        ("字面 localhost 直连", "localhost", None, True),
+        ("回环但带 X-Forwarded-For（同机反代）", "127.0.0.1", {"x-forwarded-for": "203.0.113.9"}, False),
+        ("回环但带 Forwarded", "127.0.0.1", {"forwarded": "for=203.0.113.9"}, False),
+        ("回环但带 X-Real-IP", "127.0.0.1", {"x-real-ip": "203.0.113.9"}, False),
+        ("回环但带 X-Forwarded-Proto", "127.0.0.1", {"x-forwarded-proto": "https"}, False),
+        ("局域网对端", "192.168.1.50", None, False),
+        ("公网对端", "203.0.113.9", None, False),
+        ("公网对端自称转发头", "203.0.113.9", {"x-forwarded-for": "127.0.0.1"}, False),
+        ("拿得到 client 但没有主机名", "", None, False),
+        ("根本没有 client（unix socket / 进程内调用）", None, None, False),
+        ("非 IP 的对端名（TestClient 的默认值）", "testclient", None, False),
+    ]
+
+    mismatches = []
+    for label, peer, headers, expected in cases:
+        actual = bool(is_direct_local(request_for(peer, headers)))
+        backend_actual = bool(backend_mod.is_direct_local(request_for(peer, headers)))
+        if actual != expected:
+            mismatches.append(f"{label}：期望 {expected} 实际 {actual}")
+        elif backend_actual != actual:
+            mismatches.append(f"{label}：商店={actual} 主应用={backend_actual}")
+    check(
+        "4.3-C 商店侧「本机直连」判定逐条符合，且与主应用那份一致",
+        not mismatches,
+        "；".join(mismatches) if mismatches else f"{len(cases)} 条来源矩阵全部一致",
+    )
+
+    check(
+        "4.3-C 商店侧回环主机表与主应用逐元素相同（不夹带测试用的对端名）",
+        set(LOOPBACK_HOSTS) == set(backend_mod.LOOPBACK_HOSTS),
+        f"store={sorted(LOOPBACK_HOSTS)} backend={sorted(backend_mod.LOOPBACK_HOSTS)}",
     )
 
 
@@ -12389,6 +12473,7 @@ async def run() -> int:
     await check_enumeration_and_quota_hardening(client_crypto)
     check_page_hardening_and_error_format()
     check_same_origin_scheme_pinning()
+    check_setup_guard_privilege_scope()
     check_sweep_local_expiry_decoupled()
     check_license_credential_hygiene_and_lease_sequence()
     check_activation_code_collision_retry()

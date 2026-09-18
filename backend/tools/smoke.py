@@ -3620,6 +3620,98 @@ def check_request_security_parity() -> None:
     )
 
 
+def _setup_privilege_request(peer: str | None, headers: dict[str, str] | None = None):
+    """造一个只带「本机直连」判定所需字段的请求。
+
+    ``peer=None`` 表示 ASGI scope 里**根本没有 client**（unix socket 部署、
+    进程内调用）；``peer=''`` 表示有 client 对象但拿不到主机名。两者都要能摆出来，
+    因为「拿不到对端」与「对端是本机」是两件事，而把前者当后者放行就是一个洞。
+    """
+    from starlette.requests import Request
+
+    header_list = [(b'host', b'homeos.test')]
+    for name, value in (headers or {}).items():
+        header_list.append((name.encode('latin-1'), value.encode('latin-1')))
+    scope = {
+        'type': 'http',
+        'method': 'POST',
+        'path': '/api/v1/setup/admin',
+        'query_string': b'',
+        'scheme': 'http',
+        'server': ('homeos.test', 80),
+        'headers': header_list,
+        'client': None if peer is None else (peer, 4321),
+        'app': SimpleNamespace(state=SimpleNamespace(settings=SimpleNamespace())),
+    }
+    return Request(scope)
+
+
+#: 「本机直连」判定的对照矩阵：(说明, 对端, 转发头, 期望放行)。
+#:
+#: 这一列是**安全承重**的：两个服务的首次初始化窗口（``SetupGuard.authorize``）都靠它
+#: 决定「要不要引导密钥」，而它是「先到先得」窗口里唯一挡住匿名管理员创建的闸门。
+#: 两侧各写一份实现（刻意互不 import），所以这里既比对两侧是否一致，也比对绝对期望 ——
+#: 只比「双方一样」不够：两份一起错成同一个样子时，互比是绿的。
+SETUP_PRIVILEGE_CASES: list[tuple[str, str | None, dict[str, str] | None, bool]] = [
+    ('回环 IPv4 直连', '127.0.0.1', None, True),
+    ('回环 IPv6 直连', '::1', None, True),
+    ('字面 localhost 直连', 'localhost', None, True),
+    ('回环但带 X-Forwarded-For（同机反代）', '127.0.0.1', {'x-forwarded-for': '203.0.113.9'}, False),
+    ('回环但带 Forwarded', '127.0.0.1', {'forwarded': 'for=203.0.113.9'}, False),
+    ('回环但带 X-Real-IP', '127.0.0.1', {'x-real-ip': '203.0.113.9'}, False),
+    ('回环但带 X-Forwarded-Proto', '127.0.0.1', {'x-forwarded-proto': 'https'}, False),
+    ('局域网对端', '192.168.1.50', None, False),
+    ('公网对端', '203.0.113.9', None, False),
+    ('公网对端自称转发头', '203.0.113.9', {'x-forwarded-for': '127.0.0.1'}, False),
+    ('拿得到 client 但没有主机名', '', None, False),
+    ('根本没有 client（unix socket / 进程内调用）', None, None, False),
+    ('非 IP 的对端名（TestClient 的默认值）', 'testclient', None, False),
+]
+
+
+def check_setup_guard_privilege_parity() -> None:
+    """4.3 C 类（``setup_guard``）：两套「本机直连」判定必须同口径。
+
+    ``backend/app/http_security.is_direct_local`` 与 ``store/setup_guard.is_direct_local``
+    是同一套规则的两份实现（两个服务独立部署、互不 import）。规则本身只有两句话
+    ——「对端在回环表里，且没有任何转发头」—— 但它的**每一处出入都等于把匿名管理员
+    创建重新开放给某类来源**，所以这里逐条比对，而不是靠「两份看起来一样」。
+
+    ``store.setup_guard`` 的模块 docstring 早就写了「会用同步测试钉住两侧的行为一致」，
+    B34（标记文件与指纹的出处判定）钉的是另一半；这一条补上承重的那半。
+
+    顺带钉住两处**常量**：回环主机表与转发头清单。两份表若不一致，上面那条矩阵会在
+    某一行变红，但红的是「行为」；这里让「表本身」也有一条独立的、说明更直白的断言。
+    """
+    from backend.app import http_security as backend_mod
+    from store import request_security as store_security_mod
+    from store import setup_guard as store_mod
+
+    mismatches: list[str] = []
+    for label, peer, headers, expected in SETUP_PRIVILEGE_CASES:
+        request = _setup_privilege_request(peer, headers)
+        backend_verdict = bool(backend_mod.is_direct_local(request))
+        store_verdict = bool(store_mod.is_direct_local(_setup_privilege_request(peer, headers)))
+        if backend_verdict != store_verdict:
+            mismatches.append(f'{label}：backend={backend_verdict} store={store_verdict}')
+        elif backend_verdict != expected:
+            mismatches.append(f'{label}：两侧一致但都是 {backend_verdict}，期望 {expected}')
+
+    check(
+        '4.3-C 两服务的「本机直连」判定逐条一致，且都不把「拿不到对端」当本机',
+        not mismatches,
+        '；'.join(mismatches) if mismatches else f'{len(SETUP_PRIVILEGE_CASES)} 条来源矩阵全部一致',
+    )
+
+    check(
+        '4.3-C 两服务的回环主机表与转发头清单是同一份知识',
+        set(backend_mod.LOOPBACK_HOSTS) == set(store_mod.LOOPBACK_HOSTS)
+        and tuple(backend_mod.FORWARDED_HEADERS) == tuple(store_security_mod.FORWARDED_HEADERS),
+        f'回环 backend={sorted(backend_mod.LOOPBACK_HOSTS)} store={sorted(store_mod.LOOPBACK_HOSTS)}；'
+        f'转发头 backend={backend_mod.FORWARDED_HEADERS} store={store_security_mod.FORWARDED_HEADERS}',
+    )
+
+
 # --------------------------------------------------------------------------- #
 # 自检自身
 # --------------------------------------------------------------------------- #
@@ -7890,6 +7982,12 @@ def check_migration_lock_and_backup() -> None:
     且在桩内另开句柄抢锁必须失败（说明临界区里真的持着锁）。快照则同时验三件事：
     恰好一份（不需要迁移时不写）、``integrity_check`` 通过、**WAL 里刚提交的行在里面**
     （copy2 的做法读不到它）。夹具全程握着一条连接，就是为了让那行留在 WAL 里。
+
+    本批（P10）在这里多了一条观测：**迁移不许把迁移之前建好的 logger 关掉**。
+    alembic 的 ``env.py`` 会 ``fileConfig``，而它的 ``disable_existing_loggers`` 默认
+    为 True；我们又在应用进程内跑迁移，于是各模块的 logger（import 阶段就建好了）
+    会被永久置 ``disabled`` —— 日志整个消失，且不报错。断言只是「迁移前建一个 logger、
+    迁移后问它还能不能发 WARNING」，但这是这类静默失效唯一能被看见的形态。
     """
     import logging
     import sqlite3
@@ -7898,6 +7996,9 @@ def check_migration_lock_and_backup() -> None:
     from alembic import command
 
     from backend.app import migrations
+
+    #: 迁移**之前**就存在的一个 logger。它必须活过整段迁移 —— 见函数末尾那条断言。
+    migration_logger_probe = logging.getLogger('hb.smoke.migration-logger-probe')
 
     try:
         import fcntl
@@ -8031,6 +8132,20 @@ def check_migration_lock_and_backup() -> None:
         and {'projects', 'project_drafts', 'project_path_aliases'} <= migrated_tables
         and fresh_snapshots == [],
         f'revision {migrated_revision}，表 {len(migrated_tables)} 张，空库启动留下 {len(fresh_snapshots)} 份快照',
+    )
+    # alembic 的 ``env.py`` 每次 upgrade 都会 ``fileConfig`` 一次，而 ``fileConfig`` 的
+    # ``disable_existing_loggers`` 默认是 True —— 它会把「此刻已存在、又没写进
+    # alembic.ini 的 logger」逐个置 ``disabled``。我们恰恰是在**应用进程内**跑迁移
+    # （``create_app`` 启动时调 ``run_migrations``），此时各模块的 logger 早在 import
+    # 阶段就建好了，于是启动一次就把它们**永久静默**：``logger.warning(...)`` 从此不写
+    # 任何东西，全局日志跟着空掉。症状是「日志整个消失」而不是报错，所以只有
+    # 「迁移前先建一个 logger、迁移后再问它还能不能用」这一种观测看得见它。
+    check(
+        '迁移不会把迁移之前创建的 logger 关掉（alembic 的 fileConfig 不许静默应用日志）',
+        not migration_logger_probe.disabled
+        and migration_logger_probe.isEnabledFor(logging.WARNING),
+        f'disabled={migration_logger_probe.disabled} '
+        f'可发 WARNING={migration_logger_probe.isEnabledFor(logging.WARNING)}',
     )
 
 
@@ -10692,6 +10807,7 @@ async def run() -> int:
     await check_revoke_other_sessions_requires_valid_session()
     check_same_origin_scheme_pinning()
     check_request_security_parity()
+    check_setup_guard_privilege_parity()
     await check_stream_writes_offloaded()
     await check_export_route_offloads_work()
     await check_upload_route_offloads_work()
