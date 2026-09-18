@@ -8919,6 +8919,8 @@ FRONTEND_PROBE_SUITES = {
     'login': 'W3 登录按钮与超时（login.js）',
     'display-boot': 'W4/W5 展示页运行期横幅（display-boot.js）',
     'pair': 'W6 配网页提交按钮与超时（pair.js）',
+    'pair-scan': 'W27 扫码带入配对码后的焦点与退路（pair.js 扫码分支）',
+    'auth-shell': 'W25/W26 鉴权壳页的角色区守卫与指针几何缓存（auth-shell.js）',
     'setup': 'W6 初始化页提交按钮与超时（setup.js）',
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
     'home-boot': 'W8 编辑器启动分片（home.js 启动序列）',
@@ -8929,6 +8931,11 @@ FRONTEND_PROBE_SUITES = {
     'interaction3d-mount': 'W13 3D 运行时挂载失败的兜底（bridge.js）',
     'studio-conflict': 'W15 保存冲突的三条出路与稍后处理（studio-app.js）',
 }
+
+#: 真的被 ``_run_frontend_probe`` 调用过的套件。登记表只是一张名单，
+#: 调用点是各处硬编码的元组 —— 两者会脱节，脱节的后果是「套件不跑」，
+#: 而「不跑」在自检里和「全绿」长得一模一样。
+_PROBE_SUITES_RUN: set[str] = set()
 
 #: W3/W6：四个「未激活页面」的提交复位语句 —— 都写在同一个表单提交处理器里，
 #: 也都必须落在 finally 块体内。为什么用结构断言而不是只看行为：探针里的「悬挂」
@@ -8956,6 +8963,8 @@ FRONTEND_SYNTAX_FILES = (
     'frontend/static/utils/api-fetch.js',
     'frontend/static/utils/request-timeout.js',
     'frontend/static/pair.js',
+    'frontend/static/auth-shell.js',
+    'frontend/static/pairing-entry.js',
     'frontend/static/setup.js',
     'frontend/static/license.js',
 )
@@ -8968,6 +8977,9 @@ def _run_frontend_probe(suite: str) -> None:
     探针自己崩了（退出码 2 或没吐出 JSON）时登记一条失败而不是抛栈 —— 那种情况
     等于「这一套断言一条都没跑」，必须是红的。
     """
+    # 记账放在最前面：``check_frontend_probe_suites_all_ran`` 要拦的是「登记了却
+    # 没有调用点」，与 node 在不在无关 —— 后者本来就该是 skip 而不是红。
+    _PROBE_SUITES_RUN.add(suite)
     purpose = FRONTEND_PROBE_SUITES[suite]
     if shutil.which('node') is None:
         check(f'前端探针 {suite}（{purpose}）', True, 'skipped：环境里没有 node')
@@ -9542,6 +9554,157 @@ def check_frontend_form_resets_guarded() -> None:
             )
 
 
+def check_frontend_auth_shell_guards() -> None:
+    """W25/W26：鉴权壳页的空值守卫与「指针事件里不读几何」（结构断言）。
+
+    探针用假 DOM 跑出了行为，但两件事只有静态看才作数：
+
+    - **守卫写没写进结构**。把 ``if (!characters) return;`` 从 ``syncPasswordState``
+      里删掉，探针只有在「角色区缺席」那个场景才会红；而这段逻辑以后被复制到别处
+      （或守卫被内联成 ``characters?.classList`` 却漏掉几何那几行）时不再有人挡。
+      同理，密码框的 id 来自 HTML，配错一个字母就是运行时 null。
+    - **失效回调里不许测量**。``resize`` 在拖动窗口时连着来，把测量写在事件里等于
+      每个 resize 事件强制一次同步布局 —— 这正是 W26 要治的病，只是换了个事件名。
+    """
+    source_path = FRONTEND_ROOT / 'static/auth-shell.js'
+    if not source_path.is_file():
+        check('W25/W26 auth-shell.js 存在（否则这条链上的断言全部无从谈起）', False, '文件不存在')
+        return
+    source = source_path.read_text(encoding='utf-8')
+    characters_guard = 'if (!characters) return;'
+    check(
+        'W25 syncPasswordState 开头判角色区缺席（不靠调用方自觉，/pair 页真的没有它）',
+        characters_guard in source,
+        '有守卫' if characters_guard in source else f'没找到 {characters_guard!r}',
+    )
+    password_guard = 'if (!passwordInput) return;'
+    check(
+        'W25 密码框用 getElementById 取并判空（按钮指向的 id 可以不存在）',
+        'getElementById(' in source and password_guard in source,
+        f'getElementById={"getElementById(" in source} 判空={password_guard in source}',
+    )
+    # 用 find 而不是 index：结构断言面对的是「被改坏的文件」，找不到子串时必须
+    # 报红，而不是抛 ValueError 把整份自检打断（那会让 656 条结果一条都不报）。
+    toggle_marker = source.find('[data-toggle-password]')
+    characters_block = source.find('if (characters) {')
+    check(
+        'W25 密码显隐接线排在角色块之前（缺角色区不连累与它无关的接线）',
+        -1 not in (toggle_marker, characters_block) and toggle_marker < characters_block,
+        f'按钮接线 @{toggle_marker} 角色块 @{characters_block}',
+    )
+
+    pointermove_body = _js_block_body(source, 'document.addEventListener("pointermove"')
+    pointermove_red = (
+        pointermove_body is not None and 'getBoundingClientRect' in pointermove_body
+    )
+    check(
+        'W26 pointermove 回调里不读几何、只记坐标并排一帧（读 rect 会强制同步布局）',
+        pointermove_body is not None and not pointermove_red and 'requestAnimationFrame' in pointermove_body,
+        '回调体里出现了 getBoundingClientRect'
+        if pointermove_red
+        else ('没取到回调体' if pointermove_body is None else '回调体只记坐标并排一帧'),
+    )
+    missing_invalidations = [
+        name
+        for name in ('resize', 'orientationchange', 'scroll')
+        if f'window.addEventListener("{name}"' not in source
+    ]
+    check(
+        'W26 resize / 屏幕方向 / 滚动三处都让缓存失效（漏一处就会出现偏移算错）',
+        not missing_invalidations,
+        f'缺：{"、".join(missing_invalidations)}' if missing_invalidations else '三处齐全',
+    )
+    invalidate_body = _js_block_body(source, 'const invalidateLookBounds = () =>')
+    invalidate_red = invalidate_body is not None and 'getBoundingClientRect' in invalidate_body
+    check(
+        'W26 失效回调只作废缓存、不当场测量（拖动窗口时 resize 连着来，测量搬不得）',
+        invalidate_body is not None and not invalidate_red,
+        '失效回调里在测量'
+        if invalidate_red
+        else ('没取到 invalidateLookBounds 函数体' if invalidate_body is None else '只作废缓存'),
+    )
+
+    _run_frontend_probe('auth-shell')
+
+
+def check_frontend_pair_scan_focus() -> None:
+    """W27：扫码带入配对码后不许把输入口藏起来，必须主动交焦点（结构断言）。
+
+    行为断言只覆盖「正常路径」，而这两条都是**反向**要求 —— 少了它页面照样能连，
+    只有键盘 / 读屏用户会掉到 body 上：探针能证明「焦点现在给对了」，证明不了
+    「以后没人再把 label 藏起来」。所以把「不许出现」的写法和「必须出现」的写法
+    都钉在结构上。
+    """
+    source_path = FRONTEND_ROOT / 'static/pair.js'
+    if not source_path.is_file():
+        check('W27 pair.js 存在（否则这条链上的断言全部无从谈起）', False, '文件不存在')
+        return
+    source = source_path.read_text(encoding='utf-8')
+    hidden_label = [
+        pattern
+        for pattern in ('closest("label").hidden', "closest('label').hidden")
+        if pattern in source
+    ]
+    check(
+        'W27 不再把扫码带入的输入口藏起来（藏聚焦中的元素会把焦点甩回 body）',
+        not hidden_label,
+        f'又出现了：{"、".join(hidden_label)}' if hidden_label else '没有隐藏 label 的写法',
+    )
+    focus_call = re.search(r'submitButton\.focus\(', source)
+    check(
+        'W27 扫码成功后主动把焦点交给主按钮（键盘用户按 Enter 就能连）',
+        focus_call is not None,
+        f'@{focus_call.start()} 有 submitButton.focus(' if focus_call else '没找到 submitButton.focus(',
+    )
+
+    _run_frontend_probe('pair-scan')
+
+
+def check_frontend_static_cache_stamps() -> None:
+    """W18：HTML 引用的 ``/static`` 资源必须带**一致**的缓存戳。
+
+    为什么值得一条自检：同一个模块被多页共用时，带戳与不带戳会各下载一份 ——
+    两份模块实例、各自一份模块级状态。表现是「改了一页生效、另一页像没改」，
+    服务端日志里连请求都看不出异常。这里同时钉两件事：一个都不许漏、
+    以及全站只许有一个戳（换戳必须整站一起换）。
+    """
+    tag_pattern = re.compile(
+        r'<(?:script|link)\b[^>]*?(?:src|href)="(/static/[^"]+)"',
+        re.IGNORECASE,
+    )
+    stamps: set[str] = set()
+    missing: list[str] = []
+    for html_path in sorted(FRONTEND_ROOT.glob('**/*.html')):
+        text = html_path.read_text(encoding='utf-8')
+        for url in tag_pattern.findall(text):
+            # vendor 的版本号写在路径里（/static/vendor/hls.js/1.6.16/...），
+            # 再叠一层戳只会让升级 vendor 时多一处要改。
+            if url.startswith('/static/vendor/'):
+                continue
+            if '?v=' not in url:
+                missing.append(f'{html_path.name}: {url}')
+            else:
+                stamps.add(url.split('?v=', 1)[1])
+    check(
+        'W18 每个 /static 资源都带缓存戳（漏一个就会多出第二份模块实例）',
+        not missing,
+        '；'.join(missing) or '全部带戳',
+    )
+    check(
+        'W18 全站缓存戳一致（各页各带一个戳时，模块会在页面间重复实例化）',
+        len(stamps) == 1,
+        '、'.join(sorted(stamps)),
+    )
+    for page in ('login.html', 'pair.html'):
+        page_text = (FRONTEND_ROOT / page).read_text(encoding='utf-8')
+        stamped = re.search(r'auth-shell\.js\?v=', page_text)
+        check(
+            f'W18 {page} 里的 auth-shell.js 带缓存戳（它被两页共用，戳不一致即两份实例）',
+            stamped is not None,
+            f'@{stamped.start()} 带戳' if stamped else '没找到 auth-shell.js?v=',
+        )
+
+
 def check_frontend_pending_page_submits() -> None:
     """W6/W7：配网 / 初始化 / 授权三页的按钮与轮询闩（活体探针）。
 
@@ -9832,6 +9995,25 @@ def check_every_check_is_wired() -> None:
     )
 
 
+def check_frontend_probe_suites_all_ran() -> None:
+    """登记的探针套件必须都有调用点（否则「新断言全绿」是假象）。
+
+    为什么值得一条自检：``FRONTEND_PROBE_SUITES`` 只是名单，真正的调用散在各个
+    ``check_frontend_*`` 里（每处自带自己那几套，元组是硬编码的）。往名单里加一行
+    却忘了加调用点时，套件**不报错，它只是不跑** —— 自检总数只涨了结构断言的量，
+    而结构断言恰恰是「不依赖探针」的那一半，于是看起来一切正常。
+
+    P8 第一批就踩了这个坑：两条新套件登记完，631 项全绿，但一条行为断言都没执行。
+    这类脱节只能靠记账发现。
+    """
+    missing = sorted(set(FRONTEND_PROBE_SUITES) - _PROBE_SUITES_RUN)
+    check(
+        '登记的前端探针套件都真的跑过（只登记不调用 = 断言全绿也是假的）',
+        not missing,
+        f'没有调用点：{missing}' if missing else f'{len(FRONTEND_PROBE_SUITES)} 个套件全部跑过',
+    )
+
+
 async def run() -> int:
     """跑完所有自检，返回进程退出码。"""
     await check_media_proxy_entity_scope()
@@ -9910,6 +10092,9 @@ async def run() -> int:
     check_frontend_api_request_timeouts()
     check_frontend_login_submit_recovers()
     check_frontend_form_resets_guarded()
+    check_frontend_auth_shell_guards()
+    check_frontend_pair_scan_focus()
+    check_frontend_static_cache_stamps()
     check_frontend_pending_page_submits()
     check_frontend_editor_boot_and_snapshot()
     check_frontend_operation_feedback()
@@ -9919,6 +10104,7 @@ async def run() -> int:
     check_frontend_display_notice_wiring()
     check_frontend_scripts_parse()
     check_public_static_import_closure()
+    check_frontend_probe_suites_all_ran()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

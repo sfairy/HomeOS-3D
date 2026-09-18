@@ -1291,14 +1291,29 @@ function createFormPageStub(options) {
   } = options;
 
   // 四个页面的按钮都是「提交期间禁用 + 文案可能被改写」，垫片跟着带这两样。
-  const submitButton = { disabled: false, textContent: "", setAttribute() {} };
+  // focus 要记账：W27 的修复点是「扫码之后把焦点交给主按钮」，
+  // 不记账的话「有没有真的交」完全不可观测。
+  const submitButton = {
+    disabled: false,
+    textContent: "",
+    focused: false,
+    focusCalls: 0,
+    focus() {
+      this.focused = true;
+      this.focusCalls += 1;
+    },
+    setAttribute() {}
+  };
+  // 按钮里的文案节点必须是同一个对象：pair.js 扫码模式会改写它，
+  // 每次 querySelector 返回新对象的话「文案有没有改成『连接』」就断言不了。
+  const submitLabel = { textContent: "" };
   const listeners = new Map();
   const form = {
     fields: { ...formFields },
     elements: formElements,
     querySelector(selector) {
       // pair.js 在扫码模式下会改按钮里那个 span 的文案，所以两者都要认。
-      if (selector.includes("span")) return { textContent: "" };
+      if (selector.includes("span")) return submitLabel;
       return selector.includes('button[type="submit"]') ? submitButton : null;
     },
     querySelectorAll: () => [],
@@ -1357,6 +1372,7 @@ function createFormPageStub(options) {
     listeners,
     form,
     submitButton,
+    submitLabel,
     window: windowStub,
     assignedLocations,
     replacedLocations,
@@ -1541,6 +1557,100 @@ async function runPairSuite() {
       "W6 配对成功后按钮也复位（不是只在失败分支里复位）",
       stub.submitButton.disabled === false,
       `disabled=${stub.submitButton.disabled}`
+    );
+  } finally {
+    restore();
+  }
+}
+
+/**
+ * W27：扫码带入配对码之后，焦点不能掉到 body 上。
+ *
+ * 为什么单独一个套件：模块只能 import 一次（Node 的模块缓存），而扫码分支是在
+ * 模块加载时执行的，所以它必须和 runPairSuite 分开跑、各占一个进程。
+ *
+ * 三件事一起测，因为缺陷正是「少做了一件」：
+ *  1. 配对码要填进输入框；
+ *  2. **手输入口不能隐藏** —— 把焦点所在的元素藏起来，浏览器会把焦点甩回 body，
+ *     键盘 / 读屏用户直接落到页面顶部，等于失去了「改一下再连」的退路；
+ *  3. 焦点要交给主操作按钮，用户按 Enter 就能连。
+ *
+ * @returns {Promise<void>}
+ */
+async function runPairScanSuite() {
+  installFakeClock();
+  installFakeFetch();
+  // 常驻的 label 节点：pair.js 若又去藏它，这里看得见。
+  const labelStub = { hidden: false };
+  const stub = createFormPageStub({
+    formSelector: "#pair-form",
+    formElements: {
+      code: { value: "", addEventListener() {}, closest: () => labelStub }
+    },
+    selectors: {
+      "#message": {},
+      "#apple-pair-note": {},
+      "#pair-title": { hidden: false },
+      "#pair-description": { hidden: false }
+    },
+    // 扫码链接的固定落点是 /pair?scan=1#code=...，解析器会逐项校验路径与查询串。
+    location: { search: "?scan=1", pathname: "/pair" },
+    windowExtra: {
+      __HA_BRIDGE_PAIRING_HASH__: "#code=135790&type=homeos-pair&version=1"
+    }
+  });
+  const restore = stub.install();
+  try {
+    await import(pathToFileURL(path.join(ROOT, "frontend/static/pair.js")).href);
+
+    check(
+      "W27 扫码带入的配对码填进了输入框",
+      stub.form.elements.code.value === "135790",
+      `code=${stub.form.elements.code.value}`
+    );
+    check(
+      "W27 扫码后手机输入口仍然可见（藏起聚焦中的元素会把焦点甩回 body，用户也没法改码）",
+      labelStub.hidden === false,
+      `labelHidden=${labelStub.hidden}`
+    );
+    check(
+      "W27 扫码后焦点交给主操作按钮（键盘 / 读屏用户不用自己找，按 Enter 就能连）",
+      stub.submitButton.focused === true && stub.submitButton.focusCalls === 1,
+      JSON.stringify({
+        focused: stub.submitButton.focused,
+        focusCalls: stub.submitButton.focusCalls
+      })
+    );
+    check(
+      "W27 扫码后主按钮文案改成「连接」（保留手输入口，文案要说明这一步是连接）",
+      stub.submitLabel.textContent === "连接",
+      JSON.stringify(stub.submitLabel.textContent)
+    );
+    check(
+      "W27 扫码后标题与说明同步改成连接引导（否则页面还写着「输入 6 位配对码」）",
+      stub.element("#pair-title").textContent === "连接 HomeOS" &&
+        /已识别配对二维码/.test(stub.element("#pair-description").textContent),
+      JSON.stringify({
+        title: stub.element("#pair-title").textContent,
+        description: stub.element("#pair-description").textContent
+      })
+    );
+
+    // 无效哈希（配对码只有 2 位）：只提示原因，不许抢焦点、不许把输入口藏起来。
+    stub.window.__HA_BRIDGE_PAIRING_HASH__ = "#code=12&type=homeos-pair&version=1";
+    const hashListener = stub.listeners.get("window:homeos-pairing-link");
+    check("W27 扫码事件被接上了（否则下面这条断言是空跑）", typeof hashListener === "function");
+    hashListener?.();
+    check(
+      "W27 无效二维码只提示原因，输入口仍可见、仍可编辑（保留退路）",
+      labelStub.hidden === false &&
+        stub.form.elements.code.value === "" &&
+        /配对链接无效/.test(stub.element("#message").textContent),
+      JSON.stringify({
+        labelHidden: labelStub.hidden,
+        code: stub.form.elements.code.value,
+        message: stub.element("#message").textContent
+      })
     );
   } finally {
     restore();
@@ -3099,6 +3209,293 @@ async function runDialogA11ySuite() {
   );
 }
 
+/**
+ * W25/W26：鉴权壳页（login / pair 共用）的密码显隐与指针几何缓存。
+ *
+ * auth-shell.js 没有导出、且顶层就摸 DOM，所以按 display-boot 那套做法：
+ * 铺一层最小 DOM 之后整份 `vm.runInContext` 跑，观测量由垫片自己记账
+ * （几何读了几次、样式写了几个值、类名加了哪些）。
+ *
+ * @param {object} [options] 场景开关。
+ * @param {boolean} [options.withCharacters] 页面上有没有角色区（/pair 没有）。
+ * @param {string[]} [options.toggleTargets] 每个显隐按钮指向的输入框 id。
+ * @returns {object} 沙箱与观测量。
+ */
+function makeAuthShellSandbox(options = {}) {
+  const { withCharacters = true, toggleTargets = ["password"] } = options;
+  const classes = new Set();
+  const styleWrites = [];
+  const box = { width: 100, height: 50, left: 0, top: 0 };
+  let boundsReads = 0;
+
+  const characters = withCharacters
+    ? {
+        classList: {
+          add: (...names) => names.forEach(name => classes.add(name)),
+          remove: (...names) => names.forEach(name => classes.delete(name)),
+          toggle: (name, force) => (force ? classes.add(name) : classes.delete(name)),
+          contains: name => classes.has(name)
+        },
+        style: {
+          setProperty: (name, value) => styleWrites.push([name, value])
+        },
+        getBoundingClientRect() {
+          boundsReads += 1;
+          return {
+            width: box.width,
+            height: box.height,
+            left: box.left,
+            top: box.top,
+            right: box.left + box.width,
+            bottom: box.top + box.height
+          };
+        }
+      }
+    : null;
+
+  const passwordFields = [
+    {
+      value: "",
+      type: "password",
+      dataset: {},
+      addEventListener() {}
+    }
+  ];
+  const fieldsById = new Map([["password", passwordFields[0]]]);
+  const toggles = toggleTargets.map(targetId => ({
+    dataset: { togglePassword: targetId },
+    title: "",
+    labels: [],
+    handlers: [],
+    setAttribute(name, value) {
+      this.labels.push([name, value]);
+    },
+    addEventListener(type, handler) {
+      this.handlers.push([type, handler]);
+    }
+  }));
+  const formInputs = [{ name: "username", addEventListener() {} }];
+  const windowListeners = new Map();
+  const documentListeners = new Map();
+
+  const frameQueue = [];
+  const context = vm.createContext({
+    Math,
+    document: {
+      querySelector: selector => (selector === ".home-characters" ? characters : null),
+      querySelectorAll(selector) {
+        if (selector.includes('input[type="password"]')) return passwordFields;
+        if (selector === "[data-toggle-password]") return toggles;
+        if (selector === ".auth-form input") return formInputs;
+        return [];
+      },
+      getElementById: id => fieldsById.get(id) || null,
+      addEventListener(type, handler) {
+        if (!documentListeners.has(type)) documentListeners.set(type, []);
+        documentListeners.get(type).push(handler);
+      }
+    },
+    window: {
+      addEventListener(type, handler) {
+        if (!windowListeners.has(type)) windowListeners.set(type, []);
+        windowListeners.get(type).push(handler);
+      },
+      // 接到假时钟上，眨眼与入场那两级 setTimeout 才能被推着走。
+      setTimeout: (callback, delay) => globalThis.setTimeout(callback, delay)
+    },
+    requestAnimationFrame: callback => {
+      frameQueue.push(callback);
+      return frameQueue.length;
+    }
+  });
+
+  return {
+    context,
+    characters,
+    classes,
+    styleWrites,
+    box,
+    boundsReads: () => boundsReads,
+    passwordFields,
+    toggles,
+    formInputs,
+    windowListeners,
+    documentListeners,
+    frameQueue,
+    /** 同步跑完当前排队的所有 rAF 回调（含回调里新排的）。 */
+    flushFrames() {
+      for (let step = 0; step < 50 && frameQueue.length; step += 1) frameQueue.shift()();
+    },
+    dispatch(type, event) {
+      for (const handler of documentListeners.get(type) || []) handler(event);
+    },
+    fireWindow(type, event) {
+      for (const handler of windowListeners.get(type) || []) handler(event);
+    }
+  };
+}
+
+/**
+ * W25/W26：角色区缺失不能拖垮密码显隐，指针跟随不能每帧强制重排。
+ *
+ * @returns {Promise<void>}
+ */
+async function runAuthShellSuite() {
+  const source = fs.readFileSync(path.join(ROOT, "frontend/static/auth-shell.js"), "utf8");
+  const clock = installFakeClock();
+
+  // ---- W25：/pair 页没有角色区，密码显隐按钮必须照常工作 ----
+  const bare = makeAuthShellSandbox({
+    withCharacters: false,
+    // 第二个按钮故意指向一个不存在的 id（线上就是一处 id 笔误）。
+    toggleTargets: ["password", "password-typo"]
+  });
+  let loadThrew = null;
+  try {
+    vm.runInContext(source, bare.context, { filename: "auth-shell.js" });
+  } catch (error) {
+    loadThrew = error;
+  }
+  check(
+    "W25 页面没有角色区时脚本照样加载完（以前顶层解引用会在这里抛错并中断后面全部接线）",
+    loadThrew === null,
+    loadThrew ? String(loadThrew.message) : "无异常"
+  );
+  check(
+    "W25 与角色无关的接线排在角色块之前（缺角色区不会连累密码显隐按钮）",
+    source.indexOf("[data-toggle-password]") < source.indexOf("if (characters) {"),
+    JSON.stringify({
+      toggleAt: source.indexOf("[data-toggle-password]"),
+      charactersBlockAt: source.indexOf("if (characters) {")
+    })
+  );
+
+  const goodToggle = bare.toggles[0];
+  const goodClick = goodToggle.handlers.find(([type]) => type === "click");
+  check("W25 密码显隐按钮挂上了 click（脚本确实执行到底）", Boolean(goodClick));
+  goodClick?.[1]();
+  check(
+    "W25 点一下就把密码框切成明文，并打上 data-password-field 标记",
+    bare.passwordFields[0].type === "text" && bare.passwordFields[0].dataset.passwordField === "true",
+    JSON.stringify({ type: bare.passwordFields[0].type, dataset: bare.passwordFields[0].dataset })
+  );
+  check(
+    "W25 切显隐后按钮的无障碍名称同步（读屏要知道按下去是显示还是隐藏）",
+    goodToggle.labels.some(([name, value]) => name === "aria-label" && value === "隐藏密码"),
+    JSON.stringify(goodToggle.labels)
+  );
+  check(
+    "W25 无角色区时不碰角色节点（不该为了动效把密码显隐一起赔进去）",
+    bare.styleWrites.length === 0,
+    JSON.stringify(bare.styleWrites)
+  );
+
+  const typoToggle = bare.toggles[1];
+  const typoClick = typoToggle.handlers.find(([type]) => type === "click");
+  let typoThrew = null;
+  try {
+    typoClick?.[1]();
+  } catch (error) {
+    typoThrew = error;
+  }
+  check(
+    "W25 按钮指向不存在的 id 时只让这一个按钮失效，不抛错",
+    typoThrew === null,
+    typoThrew ? String(typoThrew.message) : "无异常"
+  );
+
+  // ---- W26：指针跟随的几何按需缓存，事件回调里不做同步布局 ----
+  const shell = makeAuthShellSandbox({ withCharacters: true });
+  // 密码框的内容与可见状态必须在脚本跑之前就位：模块末尾那次 syncPasswordState
+  // 就是「自动填充后直接进页面」这个场景，值晚一步设等于什么都没测。
+  shell.passwordFields[0].value = "hunter2";
+  shell.passwordFields[0].type = "text";
+  vm.runInContext(source, shell.context, { filename: "auth-shell.js" });
+  check(
+    "W26 角色区在时密码状态同步照旧（has-password + is-password-visible 都得上）",
+    shell.classes.has("has-password") && shell.classes.has("is-password-visible"),
+    JSON.stringify([...shell.classes])
+  );
+
+  // 让入场动画先落定（它会作废缓存，但不测量）。
+  shell.flushFrames();
+  shell.flushFrames();
+  clock.advance(1251);
+  shell.flushFrames();
+  check(
+    "W26 入场动画只作废缓存、不当场测量（动画里的位置本来就不算数）",
+    shell.boundsReads() === 0,
+    `reads=${shell.boundsReads()}`
+  );
+
+  // 冷缓存：三次移动只该量一次。
+  shell.dispatch("pointermove", { clientX: 10, clientY: 20 });
+  shell.dispatch("pointermove", { clientX: 30, clientY: 40 });
+  shell.dispatch("pointermove", { clientX: 100, clientY: 25 });
+  check(
+    "W26 三次指针移动期间一次几何都不量（指针事件里读 rect 会强制同步布局）",
+    shell.boundsReads() === 0,
+    `reads=${shell.boundsReads()}`
+  );
+  shell.flushFrames();
+  check(
+    "W26 冷缓存下三次移动合并成一次测量（事件只记坐标，活儿留到下一帧）",
+    shell.boundsReads() === 1,
+    `reads=${shell.boundsReads()}`
+  );
+  check(
+    "W26 三次移动只写一次（合并到一帧里，不是每个事件写一遍样式）",
+    shell.styleWrites.length === 2,
+    JSON.stringify(shell.styleWrites)
+  );
+  // 几何：left=0 / width=100 → 中心 50；clientX=100 → (100-50)/50 = 1.00；clientY=25 → 0.00。
+  check(
+    "W26 用的是最后一次指针位置（不是第一帧那个，否则眼珠会跟着旧坐标抖）",
+    JSON.stringify(shell.styleWrites.slice(-2)) ===
+      JSON.stringify([
+        ["--look-x", "1.00"],
+        ["--look-y", "0.00"]
+      ]),
+    JSON.stringify(shell.styleWrites.slice(-2))
+  );
+
+  // 热缓存：继续移动不该再量。
+  shell.dispatch("pointermove", { clientX: 50, clientY: 25 });
+  shell.flushFrames();
+  check(
+    "W26 缓存热的时候继续移动连一次都不量（否则每帧都重排）",
+    shell.boundsReads() === 1 && shell.styleWrites.length === 4,
+    JSON.stringify({ reads: shell.boundsReads(), writes: shell.styleWrites.length })
+  );
+
+  // 失效路径：resize / orientationchange / scroll 三个都要作废缓存。
+  for (const [eventName, expected] of [
+    ["resize", 2],
+    ["orientationchange", 3],
+    ["scroll", 4]
+  ]) {
+    shell.fireWindow(eventName);
+    shell.dispatch("pointermove", { clientX: 50, clientY: 25 });
+    shell.flushFrames();
+    check(
+      `W26 ${eventName} 之后重新量一次（窗口 / 屏幕方向 / 滚动都会让缓存的位置过时）`,
+      shell.boundsReads() === expected,
+      `reads=${shell.boundsReads()} 期望 ${expected}`
+    );
+  }
+
+  shell.box.width = 0;
+  shell.box.height = 0;
+  shell.fireWindow("resize");
+  shell.dispatch("pointermove", { clientX: 100, clientY: 25 });
+  shell.flushFrames();
+  check(
+    "W26 角色区没渲染出来（宽高为 0）时不把 NaN 写进 CSS 变量",
+    shell.styleWrites.slice(-2).every(([, value]) => value !== "NaN"),
+    JSON.stringify(shell.styleWrites.slice(-2))
+  );
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,
   login: runLoginSuite,
@@ -3106,6 +3503,7 @@ const suites = {
   "request-json": runRequestJsonSuite,
   "studio-request": runStudioRequestSuite,
   pair: runPairSuite,
+  "pair-scan": runPairScanSuite,
   setup: runSetupSuite,
   license: runLicenseSuite,
   "home-boot": runHomeBootSuite,
@@ -3114,7 +3512,9 @@ const suites = {
   "dialog-escape": runDialogEscapeSuite,
   "dialog-a11y": runDialogA11ySuite,
   "interaction3d-mount": runInteraction3dMountSuite,
-  "studio-conflict": runStudioConflictSuite
+  "studio-conflict": runStudioConflictSuite,
+  "pair-scan": runPairScanSuite,
+  "auth-shell": runAuthShellSuite
 };
 
 /**

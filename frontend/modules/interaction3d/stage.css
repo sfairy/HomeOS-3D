@@ -12,10 +12,10 @@
  *   - 状态一律用类名或 [hidden] 表达，JS 只负责切类名；
  *   - 每段动画都配一份 prefers-reduced-motion 兜底，尊重系统的「减少动态效果」。
  */
-@import "/static/modules/interaction3d/controls.css?v=20260918191243";
-@import "./nas-panel.css?v=20260918191243";
-@import "./climate-panel.css?v=20260918191243";
-@import "./cover-panel.css?v=20260918191243";
+@import "/static/modules/interaction3d/controls.css?v=20260918195608";
+@import "./nas-panel.css?v=20260918195608";
+@import "./climate-panel.css?v=20260918195608";
+@import "./cover-panel.css?v=20260918195608";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
