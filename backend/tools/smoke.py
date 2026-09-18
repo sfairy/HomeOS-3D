@@ -3510,7 +3510,9 @@ async def check_upload_route_offloads_work() -> None:
             assets.validate_uploaded_image = original_validate
 
         stored = sorted(item.name for item in root.iterdir())
-        stored_bytes = (root / stored[0] / '图.png').read_bytes() if stored else b''
+        # 从返回的 assetId 反推目录名：按名字排序取第一个会踩到 uuid 的随机顺序
+        # （失败路径的目录若没被清掉，就可能排在前面）。
+        stored_bytes = (root / uploaded['assetId'].removeprefix('user:') / '图.png').read_bytes()
 
     check(
         'B6 素材解码校验与登记都跑在工作线程（不在事件循环线程上）',
@@ -5064,6 +5066,7 @@ def check_render_cache_read_lock() -> None:
     import re
     from PIL import Image
 
+    from backend.app import file_lock as file_lock_module
     from backend.app.modules.interaction3d import render_cache
 
     def path_of(data_dir: Path, seed: str) -> Path:
@@ -5080,8 +5083,9 @@ def check_render_cache_read_lock() -> None:
         render_cache.write_cache(first, png)
 
         # —— 锁的类型：写排他、读共享 ——
+        # 平台分支现在只有一份（file_lock 模块），因此 spy 挂在它引用的 fcntl 上。
         flags: list[str] = []
-        fcntl_module = getattr(render_cache, 'fcntl', None)
+        fcntl_module = getattr(file_lock_module, 'fcntl', None)
         if fcntl_module is not None:
             real_flock = fcntl_module.flock
 
@@ -6793,6 +6797,550 @@ async def check_declared_input_constraints() -> None:
     )
 
 
+# --------------------------------------------------------------------------- #
+# B36 / B47：连接级设置与跨线程换手的前提
+# --------------------------------------------------------------------------- #
+def check_database_connection_settings() -> None:
+    """B36：写锁等待、池子上限，以及「库级 PRAGMA 只在新池子的第一条连接上设一次」。
+
+    原先这三点分别是：没有任何写锁等待（另一个连接正写着，本连接**立刻**失败）、
+    池子参数从未被显式定过（默认值恰好也能跑，但没人知道上限是多少），以及
+    ``PRAGMA journal_mode=WAL`` 挂在**每个**新连接上 —— 最后一条最隐蔽：库正被写住时
+    这条库级 PRAGMA 会失败，于是「池子要造一条新连接」这件与被改数据无关的事，变成
+    一次请求失败。
+
+    观测方式：连接级设置直接查 PRAGMA；「只设一次」把 ``Database._enable_wal`` 换成
+    计数桩，之后开三条连接看它涨几次；池子上限则把常量临时压到 1/0/0.2 秒，占着唯一一
+    条连接再要第二条 —— 必须等到超时，这才是「有界」的可观测含义。
+    """
+    from contextlib import ExitStack
+
+    from sqlalchemy import text
+
+    from backend.app import database as database_module
+    from backend.app.database import (
+        BUSY_TIMEOUT_SECONDS,
+        MAX_OVERFLOW,
+        POOL_SIZE,
+        POOL_TIMEOUT_SECONDS,
+        Database,
+    )
+
+    with tempfile.TemporaryDirectory(prefix='hb-db-') as tmp:
+        wal_calls: list[int] = []
+        real_enable_wal = Database._enable_wal
+
+        def counting_enable_wal(connection, record) -> None:
+            wal_calls.append(1)
+            return real_enable_wal(connection, record)
+
+        Database._enable_wal = staticmethod(counting_enable_wal)
+        try:
+            database = Database(f'sqlite:///{Path(tmp) / "app.db"}')
+        finally:
+            # 必须还原成 staticmethod：直接赋回裸函数的话，类属性查找会把它变成绑定方法，
+            # 后面的 Database() 就会给 first_connect 监听器多塞一个 self。
+            Database._enable_wal = staticmethod(real_enable_wal)
+        try:
+            # 同时占住三条连接：池子必须各自新建一条 DBAPI 连接 —— 顺序 connect 会被池子
+            # 复用同一条，「库级 PRAGMA 只设一次」根本观测不出来（两种情况都只设一次）。
+            with ExitStack() as stack:
+                connections = [stack.enter_context(database.engine.connect()) for _ in range(3)]
+                pragmas = {
+                    'busy_timeout': connections[0].execute(text('PRAGMA busy_timeout')).scalar(),
+                    'journal_mode': connections[0].execute(text('PRAGMA journal_mode')).scalar(),
+                    'foreign_keys': connections[0].execute(text('PRAGMA foreign_keys')).scalar(),
+                }
+                for connection in connections:
+                    connection.execute(text('SELECT 1'))
+            pool = database.engine.pool
+            # SQLAlchemy 没给 max_overflow/timeout 的公开读取口，这里直接读属性值。
+            pool_shape = (type(pool).__name__, pool.size(), pool._max_overflow, pool._timeout)
+        finally:
+            database.dispose()
+
+        # 池子上限是真的在起作用（而不只是常量写对了）：临时压到 1/0/0.2 秒，
+        # 占着唯一一条连接之后，第二条必须等超时。
+        real_pool_settings = (
+            database_module.POOL_SIZE,
+            database_module.MAX_OVERFLOW,
+            database_module.POOL_TIMEOUT_SECONDS,
+        )
+        (
+            database_module.POOL_SIZE,
+            database_module.MAX_OVERFLOW,
+            database_module.POOL_TIMEOUT_SECONDS,
+        ) = (1, 0, 0.2)
+        try:
+            squeezed = Database(f'sqlite:///{Path(tmp) / "squeezed.db"}')
+            try:
+                held = squeezed.engine.connect()
+                try:
+                    started = time.monotonic()
+                    squeezed_error = ''
+                    try:
+                        squeezed.engine.connect()
+                    except Exception as error:  # noqa: BLE001 - 观测值
+                        squeezed_error = type(error).__name__
+                    squeezed_wait = time.monotonic() - started
+                finally:
+                    held.close()
+            finally:
+                squeezed.dispose()
+        finally:
+            (
+                database_module.POOL_SIZE,
+                database_module.MAX_OVERFLOW,
+                database_module.POOL_TIMEOUT_SECONDS,
+            ) = real_pool_settings
+
+    check(
+        'B36 连接级设置：写锁等待、外键开启、库是 WAL',
+        pragmas
+        == {'busy_timeout': BUSY_TIMEOUT_SECONDS * 1000, 'journal_mode': 'wal', 'foreign_keys': 1},
+        f'实际 {pragmas}',
+    )
+    check(
+        'B36 库级 WAL 只在新池子的第一条连接上设一次（三条连接之后仍是一次）',
+        wal_calls == [1],
+        f'_enable_wal 被调用 {len(wal_calls)} 次',
+    )
+    check(
+        'B36 连接池显式有界（池类型/池大小/溢出上限/等待上限都来自常量）',
+        pool_shape == ('QueuePool', POOL_SIZE, MAX_OVERFLOW, POOL_TIMEOUT_SECONDS),
+        f'实际 {pool_shape}，期望 {("QueuePool", POOL_SIZE, MAX_OVERFLOW, POOL_TIMEOUT_SECONDS)}',
+    )
+    check(
+        'B36 池子上限真的会拦住第 N+1 个请求（等超时，而不是无上限开连接）',
+        squeezed_error == 'TimeoutError' and squeezed_wait < 5,
+        f'第 2 条连接：{squeezed_error or "没报错"}，等了 {squeezed_wait:.2f}s',
+    )
+
+
+def check_session_thread_handoff() -> None:
+    """B47：请求级会话的跨线程换手要能跑通，且它的前提被显式检查过。
+
+    会话由同步依赖产出、被 ``async def`` 路由拿去（放进线程池）查库、最后由线程池关闭
+    —— 同一个会话先后落在不同线程上。原先没有任何东西记录这个前提：``connect_args`` 里
+    的 ``check_same_thread`` 无条件下把 sqlite3 自己的同线程检查关了（SQLAlchemy 对文件库
+    本来也默认关），换个 ``SQLITE_THREADSAFE=0`` 编译的构建就是未定义行为，而症状是随机
+    崩溃或读到脏数据，不是一条清楚的报错。
+
+    观测三件事：低等级构建必须明确报错（把 ``sqlite3.threadsafety`` 临时改小）；一个会话
+    按「取会话+首次查库 → 换线程再查库 → 再换线程关闭」走通（把 ``check_same_thread`` 设成
+    True 就会在这里红 —— 这正说明它测的是「跨线程换手」这个属性本身）；最后发 12 个真请求
+    看端到端是否全 200，并**证明**夹具里确实发生了换手 —— 记下每个会话出现过的线程号，
+    要求至少有一个会话在 ≥2 个线程上被取用（否则这条检查什么也没测）。会话对象本身当
+    字典键，是刻意的：用 ``id()`` 会在会话被回收后撞上地址复用，观测数据就成了假的。
+    """
+    from sqlalchemy import event, text
+
+    from backend.app import database as database_module
+    from backend.app.database import (
+        REQUIRED_SQLITE_THREADSAFETY,
+        Database,
+        DatabaseConfigurationError,
+    )
+
+    with tempfile.TemporaryDirectory(prefix='hb-handoff-') as tmp:
+        # —— 前提：低线程安全等级的构建必须在构造时就拒绝 ——
+        # 用文件库而不是 ':memory:'：内存库在 SQLAlchemy 里走 SingletonThreadPool，
+        # 与池子参数不兼容，会先炸在 create_engine 上，测不到这条断言本身。
+        real_threadsafety = database_module.sqlite3.threadsafety
+        database_module.sqlite3.threadsafety = REQUIRED_SQLITE_THREADSAFETY - 1
+        try:
+            try:
+                Database(f'sqlite:///{Path(tmp) / "refused.db"}')
+                refusal = '没有拒绝'
+            except DatabaseConfigurationError as error:
+                refusal = str(error)
+        finally:
+            database_module.sqlite3.threadsafety = real_threadsafety
+
+        # —— 顺序换手的真实形状：三个线程先后碰同一个会话 ——
+        # 三条线程必须**同时活着**、用事件排序：线程跑完就退出的话，操作系统会把线程 id
+        # 复用给下一个线程，sqlite3 的「同线程检查」看到的还是一样的 id，这个夹具就什么
+        # 都测不到了（本轮实现踩过这个坑）。
+        handoff_database = Database(f'sqlite:///{Path(tmp) / "handoff.db"}')
+        holder: list = []
+        steps: list[str] = []
+        handoff_error: list[str] = []
+        taken = threading.Event()
+        used = threading.Event()
+
+        def take_session() -> None:
+            """T1：取出会话并首次查库（DBAPI 连接就是在这里建立的）。"""
+            try:
+                generator = handoff_database.sessions()
+                session = next(generator)
+                holder.append(generator)
+                holder.append(session)
+                session.execute(text('CREATE TABLE probe(value INTEGER)'))
+                session.execute(text('INSERT INTO probe VALUES (7)'))
+                session.commit()
+                steps.append('take')
+            except Exception as error:  # noqa: BLE001 - 观测值
+                handoff_error.append(f'take: {type(error).__name__}: {error}')
+            finally:
+                taken.set()
+
+        def second_use() -> None:
+            """T2：换一个线程接着用同一个会话查库。"""
+            taken.wait(timeout=30)
+            try:
+                value = holder[1].execute(text('SELECT value FROM probe')).scalar()
+                steps.append(f'second:{value}')
+            except Exception as error:  # noqa: BLE001 - 观测值
+                handoff_error.append(f'second: {type(error).__name__}: {error}')
+            finally:
+                used.set()
+
+        def close_session() -> None:
+            """T3：再换一个线程让依赖收尾（关闭会话、归还连接）。"""
+            used.wait(timeout=30)
+            try:
+                generator = holder[0]
+                try:
+                    next(generator)
+                except StopIteration:
+                    pass
+                steps.append('close')
+            except Exception as error:  # noqa: BLE001 - 观测值
+                handoff_error.append(f'close: {type(error).__name__}: {error}')
+
+        handoff_threads = [
+            threading.Thread(target=step, name=f'handoff-{step.__name__}')
+            for step in (take_session, second_use, close_session)
+        ]
+        for thread in handoff_threads:
+            thread.start()
+        for thread in handoff_threads:
+            thread.join(timeout=60)
+        handoff_database.dispose()
+
+        # —— 端到端：4 个线程各发 3 个真请求 ——
+        (app, database, cookie) = _projects_app(Path(tmp))
+        _seed_project(database, 'p1', '客厅', document_json='{"pages": []}')
+        thread_by_session: dict[object, set[int]] = {}
+
+        def note(session) -> None:
+            thread_by_session.setdefault(session, set()).add(threading.get_ident())
+
+        class RecordingDatabase:
+            """只多记一件事：会话是在哪个线程上被取出来的。
+
+            必须是生成器而不是上下文管理器：``dependencies.get_database_session``
+            用的是 ``yield from``。
+            """
+
+            def __init__(self, inner) -> None:
+                self._inner = inner
+
+            def sessions(self):
+                for session in self._inner.sessions():
+                    note(session)
+                    yield session
+
+            def __getattr__(self, name):
+                return getattr(self._inner, name)
+
+        event.listen(database.session_factory, 'do_orm_execute', lambda state: note(state.session))
+        app.state.database = RecordingDatabase(database)
+        statuses: list[int] = []
+
+        def drive() -> None:
+            async def request_draft() -> None:
+                transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+                async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+                    for _ in range(3):
+                        response = await client.get('/api/v1/projects/p1/draft', cookies=cookie)
+                        statuses.append(response.status_code)
+
+            asyncio.run(request_draft())
+
+        threads = [threading.Thread(target=drive, name=f'handoff-{index}') for index in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=60)
+        threads_per_session = sorted(len(item) for item in thread_by_session.values())
+        database.dispose()
+
+    check(
+        'B47 低线程安全等级的 sqlite3 构建在启动时被明确拒绝（不是「凑巧能跑」）',
+        refusal != '没有拒绝' and '线程安全等级' in refusal,
+        refusal if refusal == '没有拒绝' else refusal.split('：')[0],
+    )
+    check(
+        'B47 一个会话跨三个线程顺序换手（取会话+查库 → 换线程查库 → 换线程关闭）都成功',
+        handoff_error == [] and steps == ['take', 'second:7', 'close'],
+        f'步骤 {steps}，错误 {handoff_error}',
+    )
+    check(
+        'B47 12 个真请求全部成功（同步依赖查库 + async 路由换线程查库）',
+        statuses == [200] * 12,
+        f'共 {len(statuses)} 个响应，状态码 {sorted(set(statuses))}',
+    )
+    check(
+        'B47 夹具确实制造了跨线程换手（至少一个会话被 ≥2 个线程取用）',
+        bool(threads_per_session) and threads_per_session[-1] >= 2,
+        f'每个会话见过的线程数 {threads_per_session}',
+    )
+
+
+# --------------------------------------------------------------------------- #
+# B37 / B40 / B41：迁移的串行化与上传的「半成品状态」
+# --------------------------------------------------------------------------- #
+def check_migration_lock_and_backup() -> None:
+    """B37：迁移要串行化，动结构之前要留一份**真的能还原**的快照。
+
+    原先两点都没有：启动是并发的（编排器可能同时拉起两个实例、运维也可能手滑双击），
+    两个进程会同时 ``upgrade``；而留在手边的「备份」如果只是 ``shutil.copy2`` 主库文件，
+    在 WAL 模式下它就是一份打不开的空壳 —— 文件名对、大小不为零，看起来完全正常。
+    「以为有备份」比「知道自己没有备份」危险得多。
+
+    观测方式：两条线程同时跑 ``run_migrations``，把 ``command.upgrade`` 换成「先睡
+    0.25s 再跑真的 upgrade」的桩，记录每段的进入/退出时刻 —— 串行化生效时两段不重叠，
+    且在桩内另开句柄抢锁必须失败（说明临界区里真的持着锁）。快照则同时验三件事：
+    恰好一份（不需要迁移时不写）、``integrity_check`` 通过、**WAL 里刚提交的行在里面**
+    （copy2 的做法读不到它）。夹具全程握着一条连接，就是为了让那行留在 WAL 里。
+    """
+    import logging
+    import sqlite3
+    from itertools import pairwise
+
+    from alembic import command
+
+    from backend.app import migrations
+
+    try:
+        import fcntl
+    except ImportError:  # pragma: no cover - Windows 上没有 fcntl，锁探测随之跳过
+        fcntl = None
+
+    settings = SimpleNamespace(
+        project_root=PROJECT_ROOT,
+        database_path=None,
+        database_url=None,
+    )
+    with tempfile.TemporaryDirectory(prefix='hb-migrate-') as tmp:
+        database_path = Path(tmp) / 'homeos.db'
+        # 先在 WAL 里放一行：commit 之后它还只在 <库名>-wal 里，主库文件没 checkpoint 过。
+        keep_open = sqlite3.connect(database_path)
+        keep_open.execute('PRAGMA journal_mode=WAL')
+        keep_open.execute('CREATE TABLE premigration_probe(marker TEXT)')
+        keep_open.execute("INSERT INTO premigration_probe VALUES ('迁移之前就在的行')")
+        keep_open.commit()
+        settings.database_path = database_path
+        settings.database_url = f'sqlite:///{database_path}'
+
+        intervals: list[tuple[float, float]] = []
+        lock_probe: list[str] = []
+        lock_path = Path(tmp) / f'{database_path.name}{migrations.MIGRATION_LOCK_SUFFIX}'
+        real_upgrade = command.upgrade
+
+        def slow_upgrade(config, revision, *args, **kwargs):
+            entered = time.monotonic()
+            time.sleep(0.25)
+            # 临界区内再抢一次锁：同进程另一个句柄也拿不到，说明锁确实被持着。
+            if fcntl is not None:
+                handle = lock_path.open('a+b')
+                try:
+                    try:
+                        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        lock_probe.append('没锁住')
+                        fcntl.flock(handle, fcntl.LOCK_UN)
+                    except OSError:
+                        lock_probe.append('已持锁')
+                finally:
+                    handle.close()
+            try:
+                return real_upgrade(config, revision, *args, **kwargs)
+            finally:
+                intervals.append((entered, time.monotonic()))
+
+        results: list[str] = []
+
+        def migrate() -> None:
+            try:
+                migrations.run_migrations(settings)
+                results.append('ok')
+            except Exception as error:  # noqa: BLE001 - 观测值
+                results.append(f'{type(error).__name__}: {error}')
+
+        command.upgrade = slow_upgrade
+        # Alembic 的 env.py 每次 upgrade 都会 fileConfig 一次，把 INFO 日志打到 stdout、
+        # 混进自检的 PASS/FAIL 里。setLevel 会被 fileConfig 覆盖，只有全局 disable 挡得住。
+        logging.disable(logging.INFO)
+        try:
+            threads = [threading.Thread(target=migrate, name=f'migrate-{index}') for index in range(2)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=60)
+        finally:
+            logging.disable(logging.NOTSET)
+            command.upgrade = real_upgrade
+        keep_open.close()
+
+        ordered = sorted(intervals)
+        overlaps = [
+            (first, second) for (first, second) in pairwise(ordered) if second[0] < first[1]
+        ]
+        snapshots = sorted(Path(tmp).glob('*.bak'))
+        snapshot_rows: list[str] = []
+        snapshot_integrity: list[str] = []
+        for snapshot in snapshots:
+            copied = sqlite3.connect(f'file:{snapshot}?mode=ro', uri=True)
+            try:
+                snapshot_integrity.append(copied.execute('PRAGMA integrity_check').fetchone()[0])
+                snapshot_rows.append(
+                    copied.execute('SELECT marker FROM premigration_probe').fetchone()[0]
+                )
+            except sqlite3.Error as error:
+                snapshot_rows.append(f'{type(error).__name__}: {error}')
+            finally:
+                copied.close()
+        with sqlite3.connect(database_path) as connection:
+            migrated_tables = {
+                row[0]
+                for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            }
+            migrated_revision = connection.execute('SELECT version_num FROM alembic_version').fetchone()
+
+        # 库文件不存在时不该留下空壳快照。
+        fresh = Path(tmp) / 'fresh' / 'homeos.db'
+        fresh.parent.mkdir()
+        fresh_settings = SimpleNamespace(
+            project_root=PROJECT_ROOT,
+            database_path=fresh,
+            database_url=f'sqlite:///{fresh}',
+        )
+        logging.disable(logging.INFO)
+        try:
+            migrations.run_migrations(fresh_settings)
+        finally:
+            logging.disable(logging.NOTSET)
+        fresh_snapshots = sorted(fresh.parent.glob('*.bak'))
+    check(
+        'B37 两个进程同时迁移：都成功，且临界区不重叠（串行化生效）',
+        results == ['ok', 'ok'] and not overlaps,
+        f'结果 {results}，区间 {[(round(a, 2), round(b, 2)) for (a, b) in ordered]}',
+    )
+    check(
+        'B37 迁移体内确实持着迁移锁（另一个句柄抢不到）',
+        fcntl is None or lock_probe == ['已持锁', '已持锁'],
+        f'两次探测 {lock_probe}' if fcntl is not None else '平台无 fcntl，跳过锁探测',
+    )
+    check(
+        'B37 动结构前留快照，且快照带 WAL 里刚提交的行（copy2 主库文件读不到它）',
+        len(snapshots) == 1 and snapshot_rows == ['迁移之前就在的行'] and snapshot_integrity == ['ok'],
+        f'{len(snapshots)} 份快照，行 {snapshot_rows}，完整性 {snapshot_integrity}',
+    )
+    check(
+        'B37 迁移后库结构到位，且不需要迁移时不写快照',
+        migrated_revision == ('0002',)
+        and {'projects', 'project_drafts'} <= migrated_tables
+        and fresh_snapshots == [],
+        f'revision {migrated_revision}，表 {len(migrated_tables)} 张，空库启动留下 {len(fresh_snapshots)} 份快照',
+    )
+
+
+async def check_upload_half_written_state() -> None:
+    """B40/B41：上传的中间态不许被看见，清理也不许把真正的失败换掉。
+
+    - B41：原先直接写最终文件名，「文件已存在」与「已登记」之间有一段窗口：首次
+      ``GET /assets/user`` 会扫盘建索引，它可能在这段窗口里（甚至在我们即将因校验失败
+      而删掉这个文件之后）把 ``user:<id>`` 记进内存目录 —— 目录里于是留下一条指向不
+      存在文件的条目，删素材、算版本、发 URL 都会跟着它走；
+    - B40：失败路径原先用 ``directory.rmdir()`` 清理，目录非空时它抛 ``OSError``，
+      把真正的 422（图片不合格）顶成一条与客户端无关的 500。
+
+    观测方式：把 ``validate_uploaded_image`` 换成桩，在**校验失败的那一刻**调一次
+    ``user_items()``（就是扫盘，模拟并发的列表请求），并顺手在目录里留个文件模拟
+    「目录非空」；断言原始 422 没被顶掉、扫盘看不到未校验的文件、失败后目录干净。
+    再用一张真图走成功路径：最终文件名在、登记条目在、没有残留的临时名。
+    """
+    from fastapi import HTTPException
+    from PIL import Image
+
+    from backend.app.api import assets
+
+    with tempfile.TemporaryDirectory(prefix='hb-upload-') as tmp:
+        root = Path(tmp) / 'user'
+        root.mkdir()
+        catalog = assets.AssetCatalog(Path(tmp) / 'builtin', root, None, Path(tmp) / 'variants')
+        source = Path(tmp) / 'source.png'
+        Image.new('RGB', (8, 8), (1, 2, 3)).save(source, format='PNG')
+        body = source.read_bytes()
+        app = SimpleNamespace(
+            state=SimpleNamespace(
+                settings=SimpleNamespace(user_assets_dir=root),
+                asset_catalog=catalog,
+            )
+        )
+        seen_mid_upload: list[list[str]] = []
+        real_validate = assets.validate_uploaded_image
+
+        def reject_after_scan(_suffix: str, path: Path) -> tuple[int, int]:
+            seen_mid_upload.append([item['assetId'] for item in catalog.user_items()])
+            # 目录里留个文件，模拟「清理时目录并非空」：rmdir 会在这里炸。
+            (path.parent / 'leftover.bin').write_bytes(b'x')
+            raise ValueError('图片文件已损坏或无法完整解码。')
+
+        assets.validate_uploaded_image = reject_after_scan
+        try:
+            failure: object = None
+            try:
+                await assets.upload_user_asset(
+                    _request_with_chunks(
+                        app, '/api/v1/assets/user', {'x-file-name': quote('坏图.png')}, [body]
+                    ),
+                    None,
+                )
+            except Exception as error:  # noqa: BLE001 - 观测值
+                failure = error
+        finally:
+            assets.validate_uploaded_image = real_validate
+        after_failure = [item['assetId'] for item in catalog.user_items()]
+        leftovers = sorted(item.name for item in root.iterdir())
+
+        uploaded = await assets.upload_user_asset(
+            _request_with_chunks(
+                app, '/api/v1/assets/user', {'x-file-name': quote('好图.png')}, [body]
+            ),
+            None,
+        )
+        registered = [item['assetId'] for item in catalog.user_items()]
+        written = sorted((root / uploaded['assetId'].removeprefix('user:')).iterdir())
+        temporary = sorted(item.name for item in root.rglob('.upload-*'))
+
+    check(
+        'B40 校验失败仍是 422 + 原始文案（清理失败不得顶掉原异常）',
+        isinstance(failure, HTTPException)
+        and failure.status_code == 422
+        and '损坏' in str(failure.detail),
+        f'实际 {type(failure).__name__}: {failure}',
+    )
+    check(
+        'B41 校验进行中的扫盘看不到未校验的文件（写的是临时名）',
+        seen_mid_upload == [[]],
+        f'扫盘看到 {seen_mid_upload}',
+    )
+    check(
+        'B41 失败后不留下指向缺失文件的目录条目，目录也清干净了',
+        after_failure == [] and leftovers == [],
+        f'条目 {after_failure}，残留 {leftovers}',
+    )
+    check(
+        'B41 成功路径：真名落盘、已登记、没有残留临时名',
+        [item.name for item in written] == ['好图.png']
+        and registered == [uploaded['assetId']]
+        and temporary == [],
+        f'落盘 {[item.name for item in written]}，登记 {registered}，临时名 {temporary}',
+    )
+
+
 def check_every_check_is_wired() -> None:
     """每个 ``check_*`` 都必须被调用过（忘了接线的话，全绿是没有意义的）。
 
@@ -6885,6 +7433,10 @@ async def run() -> int:
     await check_log_events_snapshot_cached()
     await check_panel_document_validation()
     await check_declared_input_constraints()
+    check_database_connection_settings()
+    check_session_thread_handoff()
+    check_migration_lock_and_backup()
+    await check_upload_half_written_state()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

@@ -26,39 +26,9 @@ from uuid import uuid4
 from fastapi import HTTPException
 from PIL import Image, UnidentifiedImageError
 
-if os.name == 'nt':
-    import msvcrt
+from ...file_lock import file_lock
 
-    @contextmanager
-    def _locked_region(handle, *, shared: bool = False):
-        """Windows 下对锁文件首字节加锁。
-
-        LK_RLCK 是**共享**读锁（可被多个持有者同时拿到），LK_LOCK 才是排他
-        （抢不到时每 1 秒重试一次，约 10 次后抛 OSError）。原先无论读写都用
-        LK_RLCK —— 那等于 Windows 上从来没有排他，淘汰与写入可以同时动同一批文件，
-        与 POSIX 分支的口径不一致（B26 的一半）。
-        """
-        handle.seek(0)
-        # 文件为空也没关系：Windows 允许锁定越过 EOF 的字节区间。
-        msvcrt.locking(handle.fileno(), msvcrt.LK_RLCK if shared else msvcrt.LK_LOCK, 1)
-        try:
-            yield
-        finally:
-            handle.seek(0)
-            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-else:
-    import fcntl
-
-    @contextmanager
-    def _locked_region(handle, *, shared: bool = False):
-        """POSIX 下加 flock：读共享、写排他（可被 flock(LOCK_SH) 并存）。"""
-        fcntl.flock(handle, fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
-
-# 单条 10 MiB / 单张 2M 像素：纯粹是防滥用的闸门，不是业务上预期的图片大小。
+#: 单条 10 MiB / 单张 2M 像素：纯粹是防滥用的闸门，不是业务上预期的图片大小。
 MAX_ENTRY_BYTES = 10485760
 MAX_PIXELS = 2097152
 # 整目录上限 256 MiB / 2048 条，超出即按 mtime 最老（最久未访问）淘汰。
@@ -101,8 +71,8 @@ def cache_lock(root: Path, *, shared: bool = False):
     root.mkdir(parents=True, exist_ok=True)
     # 锁文件常驻且用 'a+b'（不截断）：它只作为加锁句柄，不存内容。
     with (root / '.lock').open('a+b') as lock:
-        with _locked_region(lock, shared=shared):
-            # 异常路径也要解锁：_locked_region 的 finally 会负责释放。
+        with file_lock(lock, shared=shared):
+            # 异常路径也要解锁：file_lock 的 finally 会负责释放。
             yield
 
 

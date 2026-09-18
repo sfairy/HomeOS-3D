@@ -13,7 +13,9 @@ import asyncio
 import json
 import hashlib
 import math
+import os
 import re
+import shutil
 import warnings
 from xml.etree import ElementTree
 from pathlib import Path
@@ -864,11 +866,17 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
     directory = root / asset_id
     directory.mkdir(mode = 448)
     path = directory / filename
+    # 落到临时名、校验通过后再改名为真名（B41）。直接写最终文件名的话，「文件已存在」
+    # 与「文件已登记」之间有一段窗口：首次 GET /assets/user 会扫盘建索引，它可能在这段
+    # 窗口里（甚至在我们即将因为校验失败而删掉这个文件之后）把 user:<id> 登记进内存目录 ——
+    # 于是目录里留下一条指向不存在文件的条目，删素材、算版本、发 URL 都会跟着它走。
+    # 临时名以点开头，而扫描端本来就跳过隐藏文件（见 user_asset_file）。
+    temporary = directory / f'.upload-{asset_id}{suffix}'
     try:
         # 流式落盘：不把整个上传体读进内存，也不预先信任 Content-Length。
         # 写盘分批放进线程池（见 streaming.write_stream_in_batches）：留在事件循环里
         # 的话，一次 64 MB 上传的几十次 write 系统调用会串在所有请求前面。
-        with path.open('xb') as descriptor:
+        with temporary.open('xb') as descriptor:
             def _reject_oversized(received: int) -> None:
                 # 逐块累计：Content-Length 可以是假的，分块传输则干脆没有它。
                 if received > byte_limit:
@@ -883,15 +891,18 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
         # 解码最大 64 MB / 1000 万像素的位图、解析 5 MB XML 都是 CPU 与 IO 重活，
         # 放进线程池（B6）：放在事件循环里，一张大图就能让整个应用停摆几百毫秒。
         try:
-            dimensions = await asyncio.to_thread(validate_uploaded_image, suffix, path)
+            dimensions = await asyncio.to_thread(validate_uploaded_image, suffix, temporary)
         except ValueError as error:
             raise HTTPException(status_code = 422, detail = str(error)) from error
+        # 同目录内改名是原子的：扫盘方看到的要么没有这个文件，要么是一份已校验的文件。
+        os.replace(temporary, path)
         path.chmod(384)
     # 任何失败都要把刚建的目录删干净，否则素材目录里会留下空目录与半截文件。
     except Exception:
-        if path.exists():
-            path.unlink()
-        directory.rmdir()
+        # 清理本身绝不能再抛（B40）：原先这里调 directory.rmdir()，目录非空时它抛
+        # OSError，把真正的失败原因（422/413/校验文案）顶成一条与客户端无关的 500 ——
+        # 上传人看到的是「目录不是空的」，而实际原因是他的图片不合格。
+        shutil.rmtree(directory, ignore_errors = True)
         raise
     # 登记同样要进线程池：内部会为这张图生成透明裁剪变体（另一次完整的 Pillow
     # 解码 + PNG 编码），与上面的校验是同一类同步重活。
