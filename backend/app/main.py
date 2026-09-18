@@ -37,7 +37,7 @@ from .access import (
 )
 from .admin_account import AdminAccountStore
 from .api.auth import router as auth_router
-from .api.assets import AssetCatalog, read_builtin_asset, router as assets_router
+from .api.assets import AssetCatalog, read_builtin_asset, router as assets_router, sweep_user_assets_for_app
 from .api.displays import (
     PAIRING_CODE_KEYS,
     PAIRING_CODE_LIMIT,
@@ -68,7 +68,7 @@ from .http_security import (
 from .license import LicenseService
 from .updates import UpdateChecker, endpoint_hosts, router as updates_router
 from .migrations import run_migrations
-from .display_access import active_display_device, display_path
+from .display_access import active_display_device, display_path, resolve_display_project
 from .global_log import GlobalLogStore, RepeatedErrorTally, _safe_text, event_context
 from .models import DisplayDevice, Project
 from .security import set_display_cookie
@@ -211,6 +211,14 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.license_service = LicenseService(app_settings, app.state.database, transport = license_transport, endpoint_pool = license_endpoint_pool, event_log = app.state.global_log)
             await app.state.license_service.start()
             app.state.asset_catalog = AssetCatalog(app_settings.built_in_assets_dir, app_settings.user_assets_dir, app_settings.studio3d_exports_dir, app_settings.effect_variants_dir)
+            # 用户素材目录巡检（B42）：回收崩溃残留的空壳目录、散落临时文件与孤儿变体缓存，
+            # 并把用量报进全局日志。放启动时机是因为「上传中断 / 进程被杀」留下的残渣只在这
+            # 一刻才能被确定地认定（正在进行的上传有宽限期，见 sweep_user_asset_storage）。
+            # 扫盘 + 遍历草稿都是同步重活，进线程池；失败只记日志，绝不阻断启动。
+            try:
+                await asyncio.to_thread(sweep_user_assets_for_app, app)
+            except Exception as error:  # noqa: BLE001 - 巡检是附加工作，启动不能因它失败
+                app.state.global_log.append('warning', '系统后台', '存储', f'用户素材巡检失败：{error}')
             app.state.ha_connector = HAConnectorService(app_settings, app.state.database, event_log = app.state.global_log)
             # HA 同步是同步方法，内部自己起线程 / 任务，因此这里不 await。
             app.state.ha_connector.start()
@@ -816,12 +824,17 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         if not request.app.state.license_service.allows('display'):
             raise HTTPException(status_code = 403, detail = '当前授权状态不允许打开正式显示页面。')
         with request.app.state.database.session_factory() as database:
-            project = database.scalar(select(Project).where(Project.name == project_name))
+            (project, alias_name) = resolve_display_project(database, project_name)
         if project is None:
             raise HTTPException(status_code = 404, detail = '仪表盘不存在。')
         # 设备只能看自己绑定的项目；管理员会话不受此项限制。
         if not viewer_signed_in and (device is None or device.project_id != project.id):
             return pairing_redirect(request)
+        # 用的是改名前的旧地址（B38）：跳到当前地址，并保留设备手里的书签可用。
+        # 放在鉴权之后，未配对的匿名请求仍走配对页，不会因为这里多一条跳转而暴露
+        # 「某个旧名称曾经存在」。
+        if alias_name is not None:
+            return RedirectResponse(display_path(project.name), status_code = 303)
         response = FileResponse(app_settings.frontend_dir / 'display.html')
         if device is not None:
             # 打开展示页即顺带续期 Cookie，减少设备因长期不活跃而掉配对。

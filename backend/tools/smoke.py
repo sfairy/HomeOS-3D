@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import ast
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -3192,6 +3193,42 @@ class _LoopTicker:
         self._task = None
 
 
+def _migration_head_revision() -> str:
+    """从 ``migrations/versions`` 现算迁移链尾（head revision）。
+
+    解析每个脚本自己声明的那两行 ``revision`` / ``down_revision``，取「没有任何脚本把它
+    当上家」的那一个。刻意不写死字面量：那样每新增一个迁移，检查就会因为版本号过时而
+    假红一次，而它真正要守的是「迁移跑到了链尾」。链尾不唯一（分支 / 多 head）时直接
+    抛错 —— 含糊状态下给一个「通过」比红掉更糟。
+    """
+    import re
+
+    versions_dir = PROJECT_ROOT / 'migrations' / 'versions'
+    revisions: dict[str, str | None] = {}
+    for path in sorted(versions_dir.glob('*.py')):
+        text = path.read_text(encoding = 'utf-8')
+        revision = re.search(r"^revision = '([^']+)'", text, re.MULTILINE)
+        down_revision = re.search(r"^down_revision = (?:'([^']+)'|None)", text, re.MULTILINE)
+        if revision is None or down_revision is None:
+            continue
+        revisions[revision.group(1)] = down_revision.group(1)
+    parents = {value for value in revisions.values() if value is not None}
+    heads = sorted(item for item in revisions if item not in parents)
+    if len(heads) != 1:
+        raise AssertionError(f'迁移链尾不唯一：{heads}')
+    return heads[0]
+
+
+def _background_tasks():
+    """构造一个 ``BackgroundTasks`` 容器，给需要它的路由调用用。
+
+    直接调路由函数时 FastAPI 不会替我们注入它（B42 的素材水位巡检就挂在它上面），
+    因此这里显式给一个；容器本身是空的，不跑任何任务。
+    """
+    from fastapi import BackgroundTasks
+    return BackgroundTasks()
+
+
 def _request_with_chunks(
     app: Any,
     path: str,
@@ -3200,6 +3237,7 @@ def _request_with_chunks(
     *,
     method: str = 'POST',
     query_string: str = '',
+    no_content_length: bool = False,
 ):
     """拼一个真的 ``Request``（含可迭代的请求体），用来直接调路由函数。
 
@@ -3208,10 +3246,15 @@ def _request_with_chunks(
 
     ``method`` / ``query_string`` 是给媒体代理那几条检查用的：它们走 GET，
     且要看查询串（``hb_live``）对缓存分支的影响。
+
+    ``no_content_length=True`` 用来模拟分块传输（或长度头撒谎）的请求：这类请求上
+    「按声明长度预判」的那道闸看不到任何长度，只能靠逐块累计兜住（B42 的总量配额）。
     """
     from starlette.requests import Request
 
     pending = list(chunks)
+    if no_content_length:
+        headers = {key: value for (key, value) in headers.items() if key.lower() != 'content-length'}
 
     async def receive() -> dict[str, Any]:
         if pending:
@@ -3473,7 +3516,8 @@ async def check_upload_route_offloads_work() -> None:
         root.mkdir()
         app = SimpleNamespace(state=SimpleNamespace(
             settings=SimpleNamespace(user_assets_dir=root),
-            asset_catalog=SimpleNamespace(register_user=register_user),
+            # user_asset_bytes 是 B42 的总量配额要用的：桩目录永远是空的，返回 0。
+            asset_catalog=SimpleNamespace(register_user=register_user, user_asset_bytes=lambda: 0),
         ))
 
         original_validate = assets.validate_uploaded_image
@@ -3489,7 +3533,7 @@ async def check_upload_route_offloads_work() -> None:
             )
             ticker = _LoopTicker()
             ticker.start()
-            uploaded = await assets.upload_user_asset(request, None)
+            uploaded = await assets.upload_user_asset(request, _background_tasks(), None)
             await ticker.stop()
 
             # 校验失败时的清理路径：目录与半截文件都不能留下。
@@ -3503,7 +3547,7 @@ async def check_upload_route_offloads_work() -> None:
             )
             reject_status = None
             try:
-                await assets.upload_user_asset(bad_request, None)
+                await assets.upload_user_asset(bad_request, _background_tasks(), None)
             except Exception as error:  # noqa: BLE001 - 这里就是要看路由抛出的那个 4xx
                 reject_status = getattr(error, 'status_code', None)
         finally:
@@ -5820,6 +5864,17 @@ def _seed_project(database, project_id: str, name: str, *, document_json: str) -
             session.commit()
 
 
+def _alias_rows(database) -> list[tuple[str, str]]:
+    """读出旧地址别名表（按写入顺序），供 B38 的断言直接比对。"""
+    from backend.app.models import ProjectPathAlias
+
+    with database.session_factory() as session:
+        return [
+            (row.name, row.project_id)
+            for row in session.query(ProjectPathAlias).order_by(ProjectPathAlias.id)
+        ]
+
+
 async def check_duplicate_dirty_document_is_422() -> None:
     """B9：源文档脏掉的项目要能「报错」，而不是「永远复制不出来」。
 
@@ -7461,8 +7516,10 @@ def check_migration_lock_and_backup() -> None:
     )
     check(
         'B37 迁移后库结构到位，且不需要迁移时不写快照',
-        migrated_revision == ('0002',)
-        and {'projects', 'project_drafts'} <= migrated_tables
+        # 头号从迁移脚本现算（见 _migration_head_revision）：写死 '0002' 的话，每新增
+        # 一个迁移这条检查都会红一次，而它真正要守的是「跑到链尾了」。
+        migrated_revision == (_migration_head_revision(),)
+        and {'projects', 'project_drafts', 'project_path_aliases'} <= migrated_tables
         and fresh_snapshots == [],
         f'revision {migrated_revision}，表 {len(migrated_tables)} 张，空库启动留下 {len(fresh_snapshots)} 份快照',
     )
@@ -7518,6 +7575,7 @@ async def check_upload_half_written_state() -> None:
                     _request_with_chunks(
                         app, '/api/v1/assets/user', {'x-file-name': quote('坏图.png')}, [body]
                     ),
+                    _background_tasks(),
                     None,
                 )
             except Exception as error:  # noqa: BLE001 - 观测值
@@ -7531,6 +7589,7 @@ async def check_upload_half_written_state() -> None:
             _request_with_chunks(
                 app, '/api/v1/assets/user', {'x-file-name': quote('好图.png')}, [body]
             ),
+            _background_tasks(),
             None,
         )
         registered = [item['assetId'] for item in catalog.user_items()]
@@ -7560,6 +7619,705 @@ async def check_upload_half_written_state() -> None:
         and registered == [uploaded['assetId']]
         and temporary == [],
         f'落盘 {[item.name for item in written]}，登记 {registered}，临时名 {temporary}',
+    )
+
+
+def check_cover_capability_fallback() -> None:
+    """B27：设备从不报 ``supported_features`` 时，不能再给一个「永远重试」的 409。
+
+    原实现把「读不到能力位」一律当成「能力尚未载入，请稍后重试」并回 409。但
+    ``supported_features`` 是 HA 集成自愿上报的，一部分网关从不给这个字段 —— 那是
+    **永久**条件，不是「稍后就好」：前端会无限重试，用户看到一条永远不消失的提示，
+    而且这条提示给不出任何自救动作。
+
+    修复分成三种情形，这条检查逐一钉住：
+
+    1. 状态里连 ``attributes`` 都没有 → 仍是 409（确实还没载入，值得重试）；
+    2. 有 ``attributes`` 但缺能力位 → 按设备**已经上报的状态**推断能力（开/关/停恒可用，
+       位置/叶片看有没有对应的反馈属性），被拒时给的是能自救的 422 文案；
+    3. 有明确能力位 → 一切照旧以它为准，推断不得放宽它。
+    """
+    from fastapi import HTTPException
+
+    from backend.app.modules.interaction3d import cover
+
+    def attempt(service: str, data: dict, state, *, dream: bool = False):
+        """调一次校验：通过返回 None，被拒返回 (状态码, 文案)。"""
+        try:
+            cover.validate_cover_command(service, data, state, dream = dream)
+            return None
+        except HTTPException as error:
+            return (error.status_code, error.detail)
+
+    def message(outcome) -> str:
+        """取被拒时的文案；放行（None）或形态不是 (码, 文案) 时回空串。
+
+        直接写 ``outcome[1]`` 的话，一旦有回归让某个本该被拒的调用放行（``None``），
+        检查会以 TypeError 崩掉而不是干净地判失败 —— 崩掉时后面的断言一条都不会执行，
+        「哪一条被违反」也就无从知晓。
+        """
+        return outcome[1] if isinstance(outcome, tuple) and len(outcome) > 1 else ''
+
+    # 报过位置反馈的设备：缺能力位时定位操作照旧可用（修复前这里恒为 409）。
+    positional = {'state': 'open', 'attributes': {'current_position': 30}}
+    # 什么反馈都没有的设备：开/关/停仍可用，定位与叶片无法判断（回可自救的 422）。
+    bare: dict = {'state': 'open', 'attributes': {}}
+    tiltable = {'state': 'open', 'attributes': {'current_position': 30, 'current_tilt_position': 60}}
+    open_position = attempt('set_cover_position', {'position': 50}, positional)
+    open_close = attempt('close_cover', {}, positional)
+    bare_position = attempt('set_cover_position', {'position': 50}, bare)
+    bare_stop = attempt('stop_cover', {}, bare)
+    bare_tilt = attempt('set_cover_tilt_position', {'tilt_position': 50}, bare)
+    tilt_position = attempt('set_cover_tilt_position', {'tilt_position': 50}, tiltable)
+    missing_attributes = attempt('open_cover', {}, {'state': 'open'})
+    # 明确上报了能力位：即使状态里没有位置反馈也用它的说法（设备说了算）。
+    declared_without_feedback = attempt(
+        'set_cover_position', {'position': 50},
+        {'state': 'open', 'attributes': {'supported_features': 4}},
+    )
+    # 明确上报了「只支持开」的设备：位置操作仍要被拒，不能被推断放宽。
+    declared_open_only = attempt(
+        'set_cover_position', {'position': 50},
+        {'state': 'open', 'attributes': {'supported_features': 1, 'current_position': 30}},
+    )
+    invalid_features = attempt(
+        'open_cover', {}, {'state': 'open', 'attributes': {'supported_features': '4'}},
+    )
+    bool_features = attempt(
+        'open_cover', {}, {'state': 'open', 'attributes': {'supported_features': True}},
+    )
+    inferred_empty = cover.inferred_cover_features({})
+    inferred_positional = cover.inferred_cover_features({'current_position': '30'})
+
+    check(
+        'B27 缺能力位但报过位置反馈 → 定位放行（不再是永久 409「稍后重试」）',
+        open_position is None and open_close is None,
+        f'定位={open_position}，关={open_close}',
+    )
+    check(
+        'B27 缺能力位时开/关/停恒可用，定位与叶片按已上报的反馈判断',
+        bare_stop is None
+        and isinstance(bare_position, tuple) and bare_position[0] == 422
+        and isinstance(bare_tilt, tuple) and bare_tilt[0] == 422
+        and tilt_position is None,
+        f'停={bare_stop}，定位={bare_position}，叶片={bare_tilt}，有叶片反馈={tilt_position}',
+    )
+    check(
+        'B27 被拒时给的是能自救的说明（指向设备能力，而不是「稍后重试」）',
+        'Home Assistant' in message(bare_position) and '稍后重试' not in message(bare_position)
+        and 'current_tilt_position' in message(bare_tilt),
+        f'定位文案 {message(bare_position)}',
+    )
+    check(
+        'B27 状态里连 attributes 都没有时仍是 409（这一种确实值得重试）',
+        isinstance(missing_attributes, tuple)
+        and missing_attributes[0] == 409
+        and '稍后重试' in missing_attributes[1],
+        f'{missing_attributes}',
+    )
+    check(
+        'B27 有明确能力位时以它为准：够用的放行、不够的照旧拒绝',
+        declared_without_feedback is None
+        and isinstance(declared_open_only, tuple)
+        and declared_open_only[0] == 422
+        and declared_open_only[1] == '窗帘当前不支持此操作。',
+        f'声明支持定位={declared_without_feedback}，声明只支持开={declared_open_only}',
+    )
+    check(
+        'B27 能力位值不可用时按「上报有问题」回 422（布尔不算整数，不许被当成 1）',
+        isinstance(invalid_features, tuple) and invalid_features[0] == 422
+        and isinstance(bool_features, tuple) and bool_features[0] == 422
+        and '能力值' in bool_features[1],
+        f'字符串={invalid_features}，布尔={bool_features}',
+    )
+    check(
+        'B27 推断出的能力不夸大：空属性只有开/关/停，位置反馈才加定位',
+        inferred_empty == cover.COVER_SERVICES['open_cover'] | cover.COVER_SERVICES['close_cover'] | cover.COVER_SERVICES['stop_cover']
+        and inferred_positional == inferred_empty | cover.COVER_SERVICES['set_cover_position'],
+        f'空={inferred_empty}，有位置反馈={inferred_positional}',
+    )
+
+
+async def check_display_alias_redirect() -> None:
+    """B38：项目改名后，已经配对的中控设备手里那份旧地址必须还能打开。
+
+    展示地址由**名称**派生（``/display/{项目名称}``），而名称可以在编辑器里随手改。
+    修复前改名等于把在用的平板全部踢掉：它们只会一直收到 404，页面上没有任何提示，
+    用户唯一能想到的办法是把平板拆下来重新配对。
+
+    修复后改名会把旧名称记进 ``project_path_aliases``，展示页在「没有现存项目占用该
+    名称」时 303 跳到当前地址。这条检查同时钉住三件容易走偏的事：
+
+    1. 现存名称优先 —— 别的项目后来取了这个名字，地址就该指向它，不能跳到别名；
+    2. 未配对的匿名请求不会被别名跳转泄漏信息（仍走配对页）；
+    3. 项目删除后旧地址变成干净的 404，而不是跳到一个不存在的展示页。
+    """
+    from datetime import datetime, timezone
+
+    from backend.app.api.projects import serialize_document
+    from backend.app.display_access import display_path, resolve_display_project
+    from backend.app.models import DisplayDevice, Project, ProjectPathAlias
+    from backend.app.panel.documents import create_blank_project
+    from backend.app.security import session_token_hash
+
+    now = datetime.now(timezone.utc)
+    with tempfile.TemporaryDirectory(prefix='hb-alias-') as tmp:
+        (app, database, cookie) = _projects_app(Path(tmp))
+        _seed_project(
+            database, 'proj-a', '客厅',
+            document_json=serialize_document(create_blank_project('proj-a', '客厅')),
+        )
+        _seed_project(
+            database, 'proj-b', '影音室',
+            document_json=serialize_document(create_blank_project('proj-b', '影音室')),
+        )
+        with database.session_factory() as session:
+            # 两台平板各自绑一个项目：别名是否被误用，看它拿到 200 还是被踢去配对页。
+            session.add_all([
+                DisplayDevice(
+                    id='disp-a', token_hash=session_token_hash('tok-a'), project_id='proj-a',
+                    name='客厅平板', created_at=now, last_seen_at=now,
+                ),
+                DisplayDevice(
+                    id='disp-b', token_hash=session_token_hash('tok-b'), project_id='proj-b',
+                    name='影音室平板', created_at=now, last_seen_at=now,
+                ),
+            ])
+            session.commit()
+        settings = app.state.settings
+        display_cookie = settings.display_cookie_name
+        # 保存 / 删除项目都会顺手把「新绑定的实体」丢给 HA 连接器刷新（后台任务）。
+        # 不跑 lifespan 的话这个名字不存在，路由会在**已经提交之后**炸出 500 ——
+        # 写进去的东西还在，响应却是失败，那不是我们要观测的现象。
+        refreshed: list[dict] = []
+        app.state.ha_connector = SimpleNamespace(
+            refresh_persistent_entity_ids=lambda **kwargs: refreshed.append(kwargs)
+        )
+
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            # 1) 走真实保存接口改名：别名必须由这一笔事务顺手落库。
+            renamed = await client.put(
+                '/api/v1/projects/proj-a/draft',
+                cookies=cookie,
+                json={
+                    'revision': 1,
+                    'globalPopupsDirty': False,
+                    'document': create_blank_project('proj-a', '客厅（新）'),
+                },
+            )
+            old_page = await client.get(display_path('客厅'), cookies={display_cookie: 'tok-a'})
+            new_page = await client.get(display_path('客厅（新）'), cookies={display_cookie: 'tok-a'})
+            unknown_page = await client.get(display_path('并不存在'), cookies={display_cookie: 'tok-a'})
+            aliases_after_rename = _alias_rows(database)
+            # 2) 现存名称优先：给 proj-b 造一条「同名别名」，它不该抢走 proj-b 的地址。
+            with database.session_factory() as session:
+                session.add(ProjectPathAlias(name='影音室', project_id='proj-a'))
+                session.commit()
+            shadowed = await client.get(display_path('影音室'), cookies={display_cookie: 'tok-b'})
+        # 3) 删掉项目：旧地址随外键级联失效，回到干净的 404。
+        # httpx 的 delete() 不收 json=，而通用 request() 上加 per-request cookies 会触发
+        # 弃用警告（cookie 归属含糊），所以这一段单独开一个带管理员 Cookie 的 client。
+        async with httpx.AsyncClient(transport = transport, base_url = 'http://app.test', cookies = cookie) as admin_client:
+            deleted = await admin_client.request(
+                'DELETE',
+                '/api/v1/projects/proj-a',
+                json={'confirmation': '客厅（新）'},
+            )
+            deleted_page = await admin_client.get(display_path('客厅（新）'))
+        # 匿名探针要用一个新的 client：上面那个 client 的 Cookie 罐已经被展示页续期时
+        # 下发的 Set-Cookie 写进去了，拿它发「无 Cookie」请求根本不是匿名请求。
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as anonymous_client:
+            anonymous = await anonymous_client.get(display_path('客厅'))
+
+        aliases_after_delete = _alias_rows(database)
+
+    check(
+        'B38 改名后旧地址 303 跳到新地址（平板不用重新配对）',
+        renamed.status_code == 200
+        and old_page.status_code == 303
+        and old_page.headers.get('location') == display_path('客厅（新）')
+        and new_page.status_code == 200,
+        f'改名={renamed.status_code}，旧={old_page.status_code} {old_page.headers.get("location")}，新={new_page.status_code}',
+    )
+    check(
+        'B38 别名由改名那一笔事务落库，方向是「旧名称 → 该项目」',
+        aliases_after_rename == [('客厅', 'proj-a')],
+        f'改名后别名表 {aliases_after_rename}，删除后 {aliases_after_delete}',
+    )
+    check(
+        'B38 未配对的匿名请求只看得到配对页（不因别名跳转而泄漏项目名）',
+        anonymous.status_code == 303
+        and anonymous.headers.get('location', '').startswith('/pair'),
+        f'{anonymous.status_code} {anonymous.headers.get("location")}',
+    )
+    check(
+        'B38 别名也不掩盖未知地址：既不是现存名称也没有别名时回 404',
+        unknown_page.status_code == 404,
+        f'{unknown_page.status_code}',
+    )
+    check(
+        'B38 现存名称优先于同名别名（被占用时以现存项目为准，不跳走）',
+        shadowed.status_code == 200,
+        f'{shadowed.status_code}（若是 303 说明别名抢走了现存项目的地址）',
+    )
+    check(
+        'B38 项目删除后旧地址回到 404（别名不指向不存在的展示页）',
+        deleted.status_code == 204 and deleted_page.status_code == 404 and not aliases_after_delete,
+        f'删除={deleted.status_code}，删除后访问={deleted_page.status_code}，剩余别名 {aliases_after_delete}',
+    )
+
+    # 解析函数的分支要单独走一遍：真库里造不出「别名指向已删项目」（外键会级联），
+    # 而这个分支正是「外键没生效的库」上的兜底。
+    class _StubDatabase:
+        def __init__(self, project, alias, alias_project):
+            self.project = project
+            self.alias = alias
+            self.alias_project = alias_project
+            self.lookups: list[str] = []
+
+        def scalar(self, statement):
+            self.lookups.append('alias' if 'project_path_aliases' in str(statement) else 'project')
+            return self.alias if self.lookups[-1] == 'alias' else self.project
+
+        def get(self, _model, _key):
+            return self.alias_project
+
+    live = SimpleNamespace(id='p1', name='甲')
+    dangle = _StubDatabase(None, SimpleNamespace(project_id='gone'), None)
+    dangled = resolve_display_project(dangle, '旧名')
+    direct = resolve_display_project(_StubDatabase(live, None, None), '甲')
+
+    check(
+        'B38 现存名称命中时不去查别名（一次查询就够，也避免别名抢名）',
+        direct == (live, None) and dangle.lookups == ['project', 'alias'],
+        f'现存命中 {direct[0] is live}/{direct[1]}，别名分支查了 {dangle.lookups}',
+    )
+    check(
+        'B38 别名指不到项目时当作没有这个地址（外键没生效的库上也不跳空）',
+        dangled == (None, None),
+        f'{dangled}',
+    )
+
+
+def check_user_asset_quota_and_sweep() -> None:
+    """B42：用户素材目录要有总量上限，散落的残留也要有人来收。
+
+    修复前这里有两条缺口，合起来就是「磁盘只增不减」：
+
+    1. 只有**单文件**上限（64 MB），没有总量上限 —— 反复上传就能把盘填满，而盘满之后
+       先坏掉的不是上传接口，是数据库与日志（它们写同一块盘）；
+    2. 只删原图不管别的 —— 上传中断留下的空壳目录 / 临时文件、素材删除或版本更新后
+       留在变体缓存里的孤儿文件，谁也选不中、谁也删不掉，用户根本没有办法意识到它们
+       占着盘。
+
+    这条检查盯住三件事：配额在**写盘之前**就拦住、巡检只收真残留（且在用的、以及
+    还没过宽限期的都不动）、以及「没有任何仪表盘引用的图片**不**自动删」（那是用户的
+    素材，不是缓存）。
+    """
+    from PIL import Image
+
+    from backend.app.api import assets
+
+    with tempfile.TemporaryDirectory(prefix='hb-asset-sweep-') as tmp:
+        root = Path(tmp) / 'user'
+        variants = Path(tmp) / 'variants'
+        root.mkdir()
+        variants.mkdir()
+        catalog = assets.AssetCatalog(Path(tmp) / 'builtin', root, None, variants)
+        now = time.time()
+
+        def add_asset(asset_id: str) -> Path:
+            """造一张真的用户素材（落盘 + 登记），返回它的目录。
+
+            图片四角透明、中间不透明：这样 ``_attach_effect_variant`` 才会真的生成
+            透明裁剪变体 —— 「巡检用的键」与「生成侧用的键」是不是同一个算法，只有
+            在图片真的产出了变体时才能验。
+            """
+            directory = root / asset_id
+            directory.mkdir()
+            path = directory / '图.png'
+            canvas = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+            canvas.paste(Image.new('RGBA', (16, 16), (9, 9, 9, 255)), (24, 24))
+            canvas.save(path, format='PNG')
+            catalog.register_user(asset_id, path, (64, 64))
+            return directory
+
+        live_dir = add_asset('a' * 32)
+        # 一个目录里留下两张图（历史原因 / 迁移残留）：``user_asset_file`` 会判它非法、
+        # 前端谁也选不中它，但它**仍然装着用户的图片** —— 巡检绝不能顺手删掉。
+        duplicated_dir = add_asset('d' * 32)
+        (duplicated_dir / '另一张.png').write_bytes(b'x' * 128)
+        # 空壳目录：上传中断 / 被手工删掉文件之后留下的样子。
+        stale_shell = root / ('b' * 32)
+        stale_shell.mkdir()
+        fresh_shell = root / ('c' * 32)
+        fresh_shell.mkdir()
+        # 根目录上不该有散落文件（临时文件都在素材目录内）。
+        stale_stray = root / 'leftover.tmp'
+        stale_stray.write_bytes(b'x' * 4096)
+        fresh_stray = root / '.upload-half.png'
+        fresh_stray.write_bytes(b'y' * 2048)
+        # 变体缓存：一个在用（键来自素材的当前版本，由生成侧写下），一个新（没过宽限期），一个孤儿。
+        live_id = 'user:' + 'a' * 32
+        live_version = next(item['version'] for item in catalog.user_items() if item['assetId'] == live_id)
+        live_key = assets.effect_variant_cache_key(live_id, live_version)
+        # 生成侧落盘了才算数：文件名就是「生成侧算出来的键」。
+        generated_variant = catalog.effect_variant_path(live_id)
+        orphan_key = 'f' * 64
+        (variants / f'{orphan_key}.png').write_bytes(b'orphan')
+        (variants / f'{orphan_key}.json').write_text('{}', encoding='utf-8')
+        fresh_key = 'e' * 64
+        (variants / f'{fresh_key}.png').write_bytes(b'fresh')
+
+        old = now - assets.USER_ASSET_ORPHAN_GRACE_SECONDS - 60
+        old_variant = now - assets.EFFECT_VARIANT_GRACE_SECONDS - 60
+        os.utime(stale_shell, (old, old))
+        os.utime(stale_stray, (old, old))
+        os.utime(duplicated_dir, (old, old))
+        os.utime(variants / f'{orphan_key}.png', (old_variant, old_variant))
+        os.utime(variants / f'{orphan_key}.json', (old_variant, old_variant))
+        os.utime(variants / f'{fresh_key}.png', (now, now))
+        # 在用的那份变体按**生成侧写的文件名**调时间戳，而不是按下面那个键重算的路径：
+        # 两处算法一旦分家，重算出来的路径根本不存在，这里就会以 FileNotFoundError 崩掉 ——
+        # 而这条检查要的恰恰是「干净地变红」，不是「把整套自检带崩」。
+        if generated_variant is not None:
+            os.utime(generated_variant, (old_variant, old_variant))
+            os.utime(generated_variant.with_suffix('.json'), (old_variant, old_variant))
+        os.utime(live_dir, (old, old))
+
+        stats = assets.sweep_user_asset_storage(root, variants, catalog.effect_variant_keys(), now = now)
+
+        check(
+            'B42 巡检收掉过期的空壳目录与被手工删空的残骸，且在用的素材目录不动',
+            stats['directories'] == 1
+            and not stale_shell.exists()
+            and live_dir.is_dir()
+            and fresh_shell.is_dir(),
+            f"统计 {stats['directories']} 个目录，空壳还在={stale_shell.exists()}，在用的={live_dir.is_dir()}，未过期的={fresh_shell.is_dir()}",
+        )
+        check(
+            'B42 目录里还有图片就绝不回收（哪怕 user_asset_file 已判它非法）',
+            duplicated_dir.is_dir()
+            and sorted(item.name for item in duplicated_dir.iterdir()) == sorted(['图.png', '另一张.png']),
+            f'目录还在={duplicated_dir.is_dir()}，内容 {sorted(item.name for item in duplicated_dir.iterdir()) if duplicated_dir.is_dir() else "已删"}',
+        )
+        check(
+            'B42 未过宽限期的空壳不动（正在进行的上传长的就是这个样子）',
+            fresh_shell.is_dir() and stats['kept'] > 0,
+            f'未过期目录在={fresh_shell.is_dir()}，保留计数 {stats["kept"]}',
+        )
+        check(
+            'B42 根目录下的散落残留按过期与否处理',
+            not stale_stray.exists() and fresh_stray.exists() and stats['files'] == 1,
+            f'过期残留还在={stale_stray.exists()}，新鲜残留={fresh_stray.exists()}，回收文件 {stats["files"]} 个',
+        )
+        # 「在用的变体还在不在」按**生成侧写的那个文件**问，不按巡检键重算路径：
+        # 两处算法分家时，重算出来的路径本来就不存在，问它等于什么都没问。
+        live_variant_alive = generated_variant is not None and generated_variant.exists()
+        check(
+            'B42 变体缓存：孤儿收掉、在用与未过期的不动（键必须与生成侧同源）',
+            not (variants / f'{orphan_key}.png').exists()
+            and not (variants / f'{orphan_key}.json').exists()
+            and live_variant_alive
+            and (variants / f'{fresh_key}.png').exists()
+            and stats['variants'] == 2,
+            f"回收变体 {stats['variants']} 个，在用还在={live_variant_alive}，"
+            f"未过期还在={(variants / f'{fresh_key}.png').exists()}",
+        )
+        check(
+            'B42 释放量如实统计（等于真被删掉的字节，不虚报）',
+            stats['released'] == 4096 + len(b'orphan') + len('{}'),
+            f"released={stats['released']}（期望 {4096 + len(b'orphan') + 2}）",
+        )
+
+        # 在用素材的变体键与生成侧必须一致：各写一份哈希的话，巡检会把在用的变体当垃圾删掉。
+        live_path = catalog.effect_variant_path('user:' + 'a' * 32)
+        check(
+            'B42 素材的变体路径与巡检用的键同源（不一致就会删掉正在用的缓存）',
+            live_path is not None and live_path.stem == live_key,
+            f'变体路径 {live_path}，巡检键 {live_key}',
+        )
+
+        # remove_user：删素材时缓存也要走，否则它会永远留在这块盘上。
+        discarded_path = catalog.effect_variant_path('user:' + 'a' * 32)
+        released_variant = catalog.remove_user('user:' + 'a' * 32)
+        check(
+            'B42 摘掉素材时连带删掉它的变体与元数据（不是只删原图）',
+            released_variant > 0
+            and not discarded_path.exists()
+            and not discarded_path.with_suffix('.json').exists()
+            and catalog.effect_variant_path('user:' + 'a' * 32) is None,
+            f'释放 {released_variant} 字节，文件还在={discarded_path.exists()}',
+        )
+
+        # 引用关系：三处来源都要算上，否则会在巡检里把在用的图片当成没人要。
+        from backend.app.database import Base, Database
+        from backend.app.models import GlobalCustomPopupState, Project, ProjectDraft, User
+        from backend.app.global_popups import global_popups
+
+        database = Database(f'sqlite:///{Path(tmp) / "refs.db"}')
+        Base.metadata.create_all(database.engine)
+        with database.session_factory() as session:
+            # 项目要挂在用户上（created_by 是 RESTRICT 外键），先建一行属主。
+            session.add(User(id='u1', username='admin', password_hash='x', role='admin'))
+            session.commit()
+            session.add(Project(id='p1', name='甲', slug='p1', created_by='u1'))
+            session.commit()
+            session.add(ProjectDraft(
+                project_id='p1', schema_version=1, revision=1, updated_by='u1',
+                document_json=json.dumps({
+                    'schemaVersion': 1, 'name': '甲', 'projectId': 'p1',
+                    'widgets': [{'assetId': 'user:' + 'a' * 32}],
+                    'customPopups': [],
+                }),
+            ))
+            session.add(GlobalCustomPopupState(
+                id=1, revision=1,
+                popups_json=json.dumps([{'id': 'pop-1', 'assetId': 'user:' + 'd' * 32}]),
+            ))
+            session.commit()
+        studio_draft = Path(tmp) / 'studio.json'
+        studio_draft.write_text(
+            json.dumps({'scene': {'items': [{'assetId': 'user:' + 'e' * 32}]}}), encoding='utf-8'
+        )
+        # referenced_user_asset_ids 收的是会话（与请求路径同一个签名）：这里自己开一个短会话。
+        with database.session_factory() as session:
+            referenced = assets.referenced_user_asset_ids(session, studio_draft)
+        # 未被引用的图片**不**在巡检的回收范围里（素材库允许「先传进来、以后再用」）。
+        unreferenced_dir = add_asset('9' * 32)
+        os.utime(unreferenced_dir, (old, old))
+        assets.sweep_user_asset_storage(root, variants, catalog.effect_variant_keys(), now = now)
+        unreferenced_survived = unreferenced_dir.is_dir()
+
+        # 路由级接线：删素材这条路径真的要顺手删掉变体。只有 discard 方法、没人调用等于没修，
+        # 而「有没有调用」只有把路由跑一遍才算数（直接调方法是测不到的）。
+        route_id = '7' * 32
+        route_dir = add_asset(route_id)
+        route_variant = catalog.effect_variant_path(f'user:{route_id}')
+        route_request = _request_with_chunks(
+            SimpleNamespace(state=SimpleNamespace(
+                settings=SimpleNamespace(
+                    user_assets_dir=root,
+                    # 3D 草稿文件的路径也要有：删除路径会顺带查一次户型图里的引用。
+                    studio3d_draft_path=Path(tmp) / 'nonexistent-studio.json',
+                ),
+                asset_catalog=catalog,
+            )),
+            f'/api/v1/assets/user/{route_id}',
+            {},
+            [],
+            method='DELETE',
+        )
+        with database.session_factory() as session:
+            # 鉴权依赖（LicensedUser）在直接调函数时不参与，这里给一个占位主体。
+            route_response = assets.delete_user_asset(
+                route_id, route_request, session, SimpleNamespace(role='admin')
+            )
+        route_state = (
+            route_response.status_code,
+            route_variant is not None and route_variant.exists(),
+            route_variant is not None and route_variant.with_suffix('.json').exists(),
+            route_dir.is_dir(),
+            catalog.effect_variant_path(f'user:{route_id}'),
+        )
+
+    check(
+        'B42 引用关系三处来源（项目草稿 / 全局弹窗 / 3D 草稿）都算上',
+        referenced == {'a' * 32, 'd' * 32, 'e' * 32},
+        f'引用集合 {sorted(referenced)}',
+    )
+    check(
+        'B42 未被引用的图片不自动删（先传进来以后再用是合法用法，删它等于弄丢用户的图）',
+        unreferenced_survived,
+        f'未被引用的素材目录还在={unreferenced_survived}',
+    )
+    check(
+        'B42 删素材这条路由真的会连带删掉变体（接线，不只是有个 discard 方法）',
+        route_state == (204, False, False, False, None),
+        f'状态码/变体还在/元数据还在/目录还在/缓存条目 = {route_state}',
+    )
+
+
+async def check_user_asset_total_quota() -> None:
+    """B42（请求路径）：总量配额要在**写盘之前**生效，并按实收字节兜住假长度头。
+
+    只测纯函数不够：配额的两道闸分别在「读请求头之后、建目录之前」与「流式写盘的每一批
+    之前」，前者省下一次落盘，后者是唯一能挡住「不带长度头 / 长度头撒谎」那一路的判据。
+    """
+    from fastapi import HTTPException
+    from PIL import Image
+
+    from backend.app.api import assets
+
+    with tempfile.TemporaryDirectory(prefix='hb-asset-quota-') as tmp:
+        root = Path(tmp) / 'user'
+        root.mkdir()
+        catalog = assets.AssetCatalog(Path(tmp) / 'builtin', root, None, Path(tmp) / 'variants')
+        source = Path(tmp) / 'source.png'
+        Image.new('RGB', (16, 16), (4, 4, 4)).save(source, format='PNG')
+        body = source.read_bytes()
+        used = {'bytes': 0}
+        app = SimpleNamespace(state=SimpleNamespace(
+            settings=SimpleNamespace(user_assets_dir=root),
+            asset_catalog=SimpleNamespace(
+                register_user=lambda *_args: {'assetId': 'user:x'},
+                user_asset_bytes=lambda: used['bytes'],
+            ),
+            global_log=SimpleNamespace(append=lambda *_args, **_kwargs: None),
+            database=None,
+        ))
+
+        # 已用量顶到上限：第一次请求必须直接 413，且一个目录都不该被建出来。
+        used['bytes'] = assets.MAX_USER_ASSET_TOTAL_BYTES
+        rejected_status = None
+        try:
+            await assets.upload_user_asset(
+                _request_with_chunks(app, '/api/v1/assets/user', {'x-file-name': quote('图.png')}, [body]),
+                _background_tasks(),
+                None,
+            )
+        except HTTPException as error:
+            rejected_status = error.status_code
+        leftovers = sorted(item.name for item in root.iterdir())
+
+        # 长度头预判那道闸要独立生效：已用量故意压到「差一点点到上限」，声明长度刚刚越过
+        # 上限。三个数刻意分开 —— 单文件上限（64 MB）远大于它，所以不是那条闸拒的；
+        # 实收字节又远小于总量上限，所以流式那道闸也不会响。413 只可能来自总量预判。
+        used['bytes'] = assets.MAX_USER_ASSET_TOTAL_BYTES - 1000
+        declared_status = None
+        try:
+            await assets.upload_user_asset(
+                _request_with_chunks(
+                    app,
+                    '/api/v1/assets/user',
+                    {
+                        'x-file-name': quote('图.png'),
+                        'Content-Length': '2000',
+                    },
+                    [body],
+                ),
+                _background_tasks(),
+                None,
+            )
+        except HTTPException as error:
+            declared_status = error.status_code
+        declared_dirs = sorted(item.name for item in root.iterdir())
+
+        # 没有长度头（分块传输）时靠逐块累计兜住：上限以下放行、以上拒绝。
+        used['bytes'] = assets.MAX_USER_ASSET_TOTAL_BYTES - len(body) // 2
+        chunked_status = None
+        try:
+            await assets.upload_user_asset(
+                _request_with_chunks(
+                    app, '/api/v1/assets/user', {'x-file-name': quote('图.png')}, [body], no_content_length = True
+                ),
+                _background_tasks(),
+                None,
+            )
+        except HTTPException as error:
+            chunked_status = error.status_code
+        chunked_dirs = sorted(item.name for item in root.iterdir())
+
+        # 用量正常时照旧放行（配额不能变成「谁都传不上去」）。
+        used['bytes'] = 0
+        try:
+            await assets.upload_user_asset(
+                _request_with_chunks(
+                    app, '/api/v1/assets/user', {'x-file-name': quote('图.png')}, [body], no_content_length = True
+                ),
+                _background_tasks(),
+                None,
+            )
+            allowed_status = 201
+        except HTTPException as error:
+            allowed_status = error.status_code
+
+    check(
+        'B42 用量顶到上限时上传直接 413，且不留下任何目录 / 半截文件',
+        rejected_status == 413 and leftovers == [],
+        f'{rejected_status}，残留 {leftovers}',
+    )
+    check(
+        'B42 声明长度就超限时靠长度头第一道闸拒掉（不用先落盘再发现）',
+        declared_status == 413 and declared_dirs == [],
+        f'{declared_status}，残留 {declared_dirs}',
+    )
+    check(
+        'B42 没有长度头时按实收字节兜住（第一道闸判不了的那种请求）',
+        chunked_status == 413 and chunked_dirs == [],
+        f'{chunked_status}，残留 {chunked_dirs}',
+    )
+    check(
+        'B42 用量正常时上传照旧通过（配额不是「谁都传不上去」）',
+        allowed_status == 201,
+        f'{allowed_status}',
+    )
+
+
+def check_user_asset_sweep_is_wired() -> None:
+    """B42（接线）：巡检必须在**启动**时也跑一遍，否则它只在有人上传时才可能发生。
+
+    为什么必须静态断言：上传触发的那一轮只在「用量超过告警线」时才排后台任务，而
+    「盘上已经堆了一堆残留、但接下来没人再上传」恰恰是这台设备最可能的处境 ——
+    启动那一轮是这个场景下唯一的清理机会。它不写返回值、不影响任何响应，功能上完全
+    看不出来（素材库照旧能用），所以只能钉住调用关系。
+    """
+    tree = ast.parse((PROJECT_ROOT / 'backend/app/main.py').read_text(encoding='utf-8'))
+
+    def function(name: str) -> ast.AST | None:
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name:
+                return node
+        return None
+
+    def sweep_references(node: ast.AST) -> list[ast.AST]:
+        """lifespan 里所有提到巡检函数的地方。
+
+        必须同时认「作为参数传出去的函数名」：启动那一轮是同步重活，写法是
+        ``await asyncio.to_thread(sweep_user_assets_for_app, app)`` —— 函数是 ``to_thread``
+        的参数，不是被调用的 ``func``，只看 ``ast.Call.func`` 会一条都找不到。
+        """
+        found = []
+        for inner in ast.walk(node):
+            if isinstance(inner, ast.Name) and inner.id.endswith('sweep_user_assets_for_app'):
+                found.append(inner)
+            elif isinstance(inner, ast.Attribute) and inner.attr.endswith('sweep_user_assets_for_app'):
+                found.append(inner)
+        return found
+
+    lifespan = function('lifespan')
+    references = sweep_references(lifespan) if lifespan is not None else []
+    swept = bool(references)
+
+    # 巡检失败必须只记日志：清理是附加工作，把启动搞失败等于整个应用起不来。
+    guarded = False
+    if references:
+        for parent in ast.walk(lifespan):
+            if not isinstance(parent, ast.Try):
+                continue
+            covered = {
+                id(inner)
+                for statement in parent.body
+                for inner in ast.walk(statement)
+            }
+            if not any(id(reference) in covered for reference in references):
+                continue
+            re_raises = any(
+                isinstance(inner, ast.Raise) and inner.exc is None
+                for handler in parent.handlers
+                for inner in ast.walk(handler)
+            )
+            guarded = guarded or not re_raises
+    check(
+        'B42 启动时也跑一轮素材巡检（没人再上传时这是唯一的清理机会）',
+        swept,
+        'lifespan 里调用了巡检' if swept else 'lifespan 没有调用巡检',
+    )
+    check(
+        'B42 启动巡检失败只记日志，不让应用起不来',
+        guarded,
+        'try/except 包住且不重新抛出' if guarded else '启动巡检没有容错包住',
     )
 
 
@@ -7663,6 +8421,11 @@ async def run() -> int:
     check_session_thread_handoff()
     check_migration_lock_and_backup()
     await check_upload_half_written_state()
+    check_cover_capability_fallback()
+    await check_display_alias_redirect()
+    check_user_asset_quota_and_sweep()
+    await check_user_asset_total_quota()
+    check_user_asset_sweep_is_wired()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

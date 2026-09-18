@@ -15,8 +15,53 @@ COVER_SERVICES = {
     'close_cover': 2,
     'set_cover_position': 4,
     'stop_cover': 8,
-    'set_cover_tilt_position': 128,
+    'set_cover_tilt_position': 128 }
+# 没有能力位时按状态推断放行，被拒时要说清「为什么推断不出这项能力」，不能让用户以为
+# 再等等就会好（B27 的原始问题正是「请稍后重试」这种不可自救的提示）。
+INFERRED_FEATURE_HINT = {
+    'set_cover_position': '设备未上报能力位，且状态里没有位置反馈（current_position），无法确定它支持定位操作，请在 Home Assistant 中确认设备能力。',
+    'set_cover_tilt_position': '设备未上报能力位，且状态里没有叶片角度（current_tilt_position），无法确定它支持调整叶片，请在 Home Assistant 中确认设备能力。',
 }
+
+
+def _reported_number(value) -> bool:
+    """判断上报值是否是一个可用的数值（bool / 空串 / 非数字都不算）。
+
+    HA 常把位置上报成数字字符串，因此这里既认 int / float 也认能转成数字的字符串；
+    非有限值（NaN / inf）不算「有值」—— 拿它做判断会得出无意义的结论。
+    """
+    if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+        return False
+    try:
+        return isfinite(float(value))
+    except ValueError:
+        return False
+
+
+def inferred_cover_features(attributes: dict) -> int:
+    """设备**从不**上报 supported_features 时，按它已经上报的状态推断能力位。
+
+    背景（B27）：``supported_features`` 是 HA 集成「自愿」上报的，一部分集成（尤其
+    是只暴露基础实体的网关）从不给这个字段。修复前凡是读不到能力位就直接 409
+    「窗帘能力尚未载入，请稍后重试。」—— 而这是**永久**条件，不是「稍后就好」：
+    前端会无限重试，用户看到一条永远不消失的「请稍后重试」，且没有任何自救办法。
+
+    推断规则刻意保守，只认「设备自己已经报出来的东西」：
+
+    * 开 / 关 / 停：cover 实体天然具备，一律放行（HA 侧不支持时会自己报错）；
+    * 调位置：只有上报过 ``current_position``（位置反馈）才认为它支持定位；
+    * 调叶片：只有上报过 ``current_tilt_position`` 才认为它有叶片。
+
+    「没报过」不等于「不支持」，所以这只是一个不会再放大的下限：真正不支持的操作
+    仍由 HA 拒绝，而不会在这里被无限期地挡死。
+    """
+    features = COVER_SERVICES['open_cover'] | COVER_SERVICES['close_cover'] | COVER_SERVICES['stop_cover']
+    if _reported_number(attributes.get('current_position')):
+        features |= COVER_SERVICES['set_cover_position']
+    if _reported_number(attributes.get('current_tilt_position')):
+        features |= COVER_SERVICES['set_cover_tilt_position']
+    return features
+
 
 
 def require_curtain_model(bindings: list, entity_id: str, scene: dict) -> None:
@@ -75,12 +120,25 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
     if not isinstance(state, dict) or state.get('available') is False or state.get('state') in (None, '', 'unknown', 'unavailable'):
         raise HTTPException(status_code=409, detail='窗帘状态暂不可用，请等待设备重新连接。')
     attributes = state.get('attributes')
-    # 拿不到 supported_features 就无法判断能力，宁可让前端稍后重试也不盲目透传。
-    features = attributes.get('supported_features') if isinstance(attributes, dict) else None
-    if not isinstance(features, int) or isinstance(features, bool) or features < 0:
+    # 区分「真的还没载入」与「这个设备从不声明能力位」（B27）：
+    # 前者是瞬时状态（实体刚建立、属性还没到），值得让前端稍后重试；后者是永久条件，
+    # 再报 409 只会让前端无限重试。判据用 attributes 本身在不在 —— 状态里连属性都没有
+    # 时我们确实无从判断；有属性、只是缺 supported_features，就是设备不给这个字段。
+    if not isinstance(attributes, dict):
         raise HTTPException(status_code=409, detail='窗帘能力尚未载入，请稍后重试。')
+    features = attributes.get('supported_features')
+    inferred = features is None
+    if inferred:
+        features = inferred_cover_features(attributes)
+    elif not isinstance(features, int) or isinstance(features, bool) or features < 0:
+        # 上报了但值不可用（字符串、负数、布尔）同样是永久条件：说清是设备上报的问题，
+        # 不要用「请稍后重试」把用户困在重试循环里。
+        raise HTTPException(status_code=422, detail='窗帘上报的能力值无法识别，请检查设备配置。')
     # 位掩码比对：请求的服务必须出现在设备声明支持的能力位里。
     if not features & required_feature:
+        # 推断出来的「不支持」要给出可自救的说明；设备明确上报的能力位则只需一句结论。
+        if inferred and service in INFERRED_FEATURE_HINT:
+            raise HTTPException(status_code=422, detail=INFERRED_FEATURE_HINT[service])
         raise HTTPException(status_code=422, detail='窗帘当前不支持此操作。')
     if dream and service in ('set_cover_position', 'set_cover_tilt_position'):
 

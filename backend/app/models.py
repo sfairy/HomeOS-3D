@@ -269,6 +269,31 @@ class ProjectDraft(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
 
 
+class ProjectPathAlias(Base):
+    """项目改名后保留的旧展示地址（B38）。
+
+    展示地址 `/display/{项目名称}` 由**名称**派生，而名称可以改 —— 改完之后，已经
+    配对、书签里存着旧地址的墙面平板就再也打不开这一页了，且没有任何提示：它只会
+    一直收到 404，用户唯一能想到的办法是把平板拆下来重新配对。
+
+    这里按「旧名称 → 项目」记一行：`/display/{旧名称}` 在**没有**任何现存项目占用
+    该名称时 303 跳到当前地址。名称在被别的项目占用时以现存项目为准（旧别名只是
+    兜底），因此不会出现「两个仪表盘抢一个地址」。
+
+    刻意不存 id 而存名称：地址本来就从名称算出来，存名称才能保证别名与地址一致。
+    每个项目的别名数量有上限（见 ``api/projects.PROJECT_PATH_ALIAS_LIMIT``）：
+    反复改名不会让它无限增长，而平板也不会落后几十个名字。
+    """
+
+    __tablename__ = 'project_path_aliases'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # 旧名称全局唯一：一个地址只可能指向一个项目，撞名时后来者接管（见 projects.py）。
+    name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey('projects.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
 class GlobalCustomPopupState(Base):
     """全局组合弹窗的单行状态表（固定 id=1）。
 

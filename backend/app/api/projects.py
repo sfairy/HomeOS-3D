@@ -13,13 +13,13 @@ from contextlib import nullcontext
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 
 from ..conflicts import is_unique_violation
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
 from ..global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
-from ..models import GlobalCustomPopupState, Project, ProjectDraft
+from ..models import GlobalCustomPopupState, Project, ProjectDraft, ProjectPathAlias
 from ..modules.interaction3d.scene_store import sweep_scenes_for_app
 from ..panel.documents import create_blank_project, parse_document, require_document
 from ..panel.schema import validate_panel_document
@@ -37,6 +37,10 @@ NAME_CONFLICT_DETAIL = '仪表盘名称已存在。'
 #: 因此正常情况下第二轮就能拿到空闲后缀。上限只是兜底：不封顶的重试在病态输入下
 #: 会变成一个迟迟不返回的请求。
 SLUG_CONFLICT_ATTEMPTS = 5
+
+#: 每个项目最多保留几条旧展示地址（B38）。旧地址是给「已经配对、书签里还是老地址」
+#: 的平板用的，正常只会落后一两个名字；设上限是为了让反复改名不会把别名表撑大。
+PROJECT_PATH_ALIAS_LIMIT = 20
 
 
 def require_project_write(request: Request) -> None:
@@ -143,6 +147,36 @@ def ensure_unique_project_name(database: DatabaseSession, name: str, exclude_pro
         query = query.where(Project.id != exclude_project_id)
     if database.scalar(query):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NAME_CONFLICT_DETAIL)
+
+
+def record_project_path_alias(database: DatabaseSession, project_id: str, previous_name: str) -> None:
+    """记下改名前的展示地址，让已经配对的中控设备继续打得开（B38）。
+
+    展示地址由名称派生，改名会让旧地址永久 404，而平板手里存的正是旧地址。
+    这里按「旧名称 → 项目」记一行，展示页在没有现存项目占用该名称时 303 跳转。
+
+    两处细节：
+    - 先删同名别名再插入：那个名字可能属于**另一个**项目（它先放弃了这个名字，现在
+      又被本项目放弃一次）。同一时刻只能有一个解释，取最近一次放弃者 —— 平板手里
+      那个地址最可能指的就是刚刚放弃它的项目。删除+插入在同一笔事务里，靠唯一索引兜底。
+    - 每项目只保留最近 ``PROJECT_PATH_ALIAS_LIMIT`` 条：反复改名不该让别名表无界增长，
+      而平板也不会落后几十个名字（真落后那么多，重新配对是更合理的期望）。
+    """
+    database.execute(delete(ProjectPathAlias).where(ProjectPathAlias.name == previous_name))
+    database.add(ProjectPathAlias(name=previous_name, project_id=project_id))
+    # flush 一下，下面的清理才能看见刚插入的这一行（同一事务内可见，但 ORM 需要它进 SQL）。
+    database.flush()
+    # 多取一条就能判断「是否超限」，同时把扫描量钉在常数级（不用 offset：SQLite 的
+    # OFFSET 需要配合 LIMIT，写 limit+1 更直白也更好读）。
+    recent_ids = database.scalars(
+        select(ProjectPathAlias.id)
+        .where(ProjectPathAlias.project_id == project_id)
+        .order_by(ProjectPathAlias.id.desc())
+        .limit(PROJECT_PATH_ALIAS_LIMIT + 1)
+    ).all()
+    stale_ids = recent_ids[PROJECT_PATH_ALIAS_LIMIT:]
+    if stale_ids:
+        database.execute(delete(ProjectPathAlias).where(ProjectPathAlias.id.in_(stale_ids)))
 
 
 def validate_document_or_422(document: dict) -> dict:
@@ -593,10 +627,19 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
                 'message': '草稿已被其他页面更新。',
                 'currentRevision': current_revision})
         # 文档名即项目名：草稿保存成功后同步到项目表，列表页才会显示新名字。
+        renamed = False
+        previous_name = None
         try:
+            # 改名前的名称要留着给展示地址做别名（B38），所以先读一次再用 UPDATE 覆盖。
+            previous_name = database.scalar(select(Project.name).where(Project.id == project_id))
             # UPDATE 与 commit 都要包住：唯一约束在语句执行时就检查，不是等到 commit
             # 才报 —— 只包 commit 的话异常照样会冒到接口层变成 500。
             database.execute(update(Project).where(Project.id == project_id).values(name=document['name']))
+            # 旧地址也要跟着留下：已经配对、书签里存着旧地址的平板不该因为改名而打不开。
+            # 与改名放在同一笔事务里 —— 要么「新名字 + 旧地址别名」一起生效，要么都不生效。
+            renamed = previous_name is not None and previous_name != document['name']
+            if renamed:
+                record_project_path_alias(database, project_id, previous_name)
             database.commit()
         except IntegrityError as error:
             # 上面的 ensure_unique_project_name 是「先查后写」：并发下另一个请求可能
@@ -607,6 +650,14 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
             if not is_unique_violation(error, 'projects.name'):
                 raise
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NAME_CONFLICT_DETAIL) from error
+    if renamed:
+        # 改名要让用户知道旧地址仍然可用：平板不会因为这次改名失联，但也不必一直
+        # 停在旧地址上（每次打开多一次跳转），提示里给出「可以直接用新地址」的出路。
+        request.app.state.global_log.append(
+            'info', '仪表盘编辑器', '配置',
+            f'仪表盘已改名：{previous_name} → {document["name"]}；旧地址 /display/{previous_name} '
+            '仍然可用（会自动跳转到新地址），正在使用它的中控设备无需重新配对。',
+        )
     # 文档里新绑定的实体也要进持久集合：同样丢到后台，不在请求里同步刷新。
     background_tasks.add_task(request.app.state.ha_connector.refresh_persistent_entity_ids, ensure_states=False)
     # 清掉会话缓存，下面重新查一次草稿才能读到刚提交的新 revision。

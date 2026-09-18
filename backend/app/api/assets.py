@@ -20,14 +20,16 @@ import warnings
 from xml.etree import ElementTree
 from pathlib import Path
 from threading import RLock
+from time import time
 from urllib.parse import quote, unquote
 from uuid import uuid4
-from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, Response, status
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_viewer_studio3d_asset, require_viewer_user_asset, viewer_user_asset_ids
 from ..panel.documents import parse_document
+from ..panel.entity_refs import document_keyed_values
 from ..models import Project, ProjectDraft
 from ..global_popups import global_popups
 from ..streaming import write_stream_in_batches
@@ -70,6 +72,19 @@ MAX_UPLOAD_BYTES = 64 * 1000 * 1000
 # SVG 是文本，另限体积与元素数量，避免海量节点把解析与渲染拖垮。
 MAX_UPLOAD_SVG_BYTES = 5000000
 MAX_UPLOAD_SVG_ELEMENTS = 20000
+# 用户素材目录的**总量**上限（B42）：单文件上限只挡得住「一张图」，挡不住「一直传」——
+# 反复上传 64 MB 的图就能把盘填满，而盘满之后先坏掉的不是上传接口，是数据库与日志
+# （它们写同一块盘）。1 GiB 对家庭部署够放几百张仪表盘图片，同时把上限写进给用户看的
+# 文案里，所以和 MAX_UPLOAD_BYTES 一样用十进制 MB 表述。
+MAX_USER_ASSET_TOTAL_BYTES = 1000 * 1000 * 1000
+# 用量超过这个水位就记一条警告（不自动删任何图片：素材库本来就有「先传进来、以后再用」
+# 的用法，未被引用不等于没人要，删它等于把用户的图弄丢）。
+USER_ASSET_WARN_BYTES = MAX_USER_ASSET_TOTAL_BYTES * 4 // 5
+# 「目录里已经没有合法图片」的空壳目录保留多久再回收。上传是「先建目录、写完临时文件、
+# 校验通过后改名」，正在进行的上传长的就是这个样子，因此不能一看见就删。
+USER_ASSET_ORPHAN_GRACE_SECONDS = 3600
+# 变体缓存里对不上任何现存素材版本的键保留多久再回收（缓存可以随时重算）。
+EFFECT_VARIANT_GRACE_SECONDS = 24 * 3600
 # 透明裁剪后向外多留 2 像素：避免缩放采样时边缘出现一圈锯齿。
 EFFECT_VARIANT_PADDING = 2
 # 裁剪后面积几乎等于原图就不生成变体：省下一份没有意义的缓存文件。
@@ -154,6 +169,73 @@ def user_asset_payload(root: Path, asset_id: str, path: Path, dimensions: tuple[
         (payload['width'], payload['height']) = dimensions
     return payload
 
+def effect_variant_cache_key(full_asset_id: str, version: str) -> str:
+    """变体缓存的键：素材 ID 与版本号的哈希。
+
+    生成（:func:`effect_variant_payload`）与回收（:func:`sweep_user_asset_storage`）
+    必须用同一个算法 —— 各写一遍的话，巡检算出来的键与生成时不一致，就会把**正在用的**
+    变体当成垃圾删掉（表现为运行时渲染悄悄退回整图，或者干脆报缺文件）。
+    """
+    return hashlib.sha256(f'{full_asset_id}\x00{version}'.encode('utf-8')).hexdigest()
+
+
+def directory_bytes(directory: Path) -> int:
+    """递归统计目录占用的字节数；读不到的条目按 0 计。
+
+    与 ``scene_store.scene_folder_bytes`` 不同：那个只数目录**第一层**的文件（户型快照
+    目录是平铺的），而用户素材目录是「一层目录一个素材」，因此必须递归。
+    """
+    total = 0
+    for path in directory.rglob('*'):
+        try:
+            if path.is_file():
+                total += path.stat().st_size
+        except OSError:
+            continue
+    return total
+
+
+def directory_holds_asset(directory: Path) -> bool:
+    """目录里是否还有「像素材」的文件 —— 判定刻意放宽，宁可漏收也不删用户的图。
+
+    巡检把「没有素材的目录」当残留回收，因此这个判定是**唯一**的分界线，必须偏保守：
+    与 ``user_asset_file`` 的严格判定（恰好一个非隐藏图片文件才有效）不同，这里只要
+    目录里还有任何一层存在图片文件就算「有素材」。两者的差别正是事故隐患所在 ——
+    比如一个目录里因历史原因留下了两个图片文件（``user_asset_file`` 会判它非法、
+    谁也选不中），若照那个判定回收，用户的图片就会被删掉。宁可留着这个目录（它至多
+    继续占几 MB），也不能删掉可能还有用的东西。
+    """
+    for path in directory.rglob('*'):
+        try:
+            if path.is_file() and not path.name.startswith('.') and path.suffix.lower() in UPLOAD_IMAGE_SUFFIXES:
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def _discard_variant_files(variant_path: Path | None) -> int:
+    """删掉一张变体缓存（PNG + 同名 JSON 元数据），返回释放的字节数。
+
+    变体是缓存，删掉最多让它重算一次；查不到路径（没生成过、或已经被清理）返回 0。
+    删不掉的条目按 0 计而不是抛错：清理是附加工作，不该让「删素材」这条路径失败。
+    """
+    if variant_path is None:
+        return 0
+    released = 0
+    for path in (variant_path, variant_path.with_suffix('.json')):
+        try:
+            size = path.stat().st_size
+        except OSError:
+            continue
+        try:
+            path.unlink()
+        except OSError:
+            continue
+        released += size
+    return released
+
+
 def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_root: Path) -> tuple[dict, Path] | None:
     '''按 alpha 包围盒生成透明裁剪后的 PNG 变体，供运行时渲染器使用。
 
@@ -171,7 +253,7 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
     if path.suffix.lower() not in frozenset({'.png', '.webp'}):
         return None
     # 缓存键 = 素材 ID + 版本号：内容变了键就变，无需主动失效旧文件。
-    cache_key = hashlib.sha256(f'{full_asset_id}\x00{version}'.encode('utf-8')).hexdigest()
+    cache_key = effect_variant_cache_key(full_asset_id, version)
     variant_path = cache_root / f'{cache_key}.png'
     metadata_path = cache_root / f'{cache_key}.json'
     # 命中缓存还要校验元数据自洽：裁剪矩形必须落在原图范围内，否则当作脏缓存重新生成。
@@ -745,13 +827,19 @@ class AssetCatalog:
             self._user_revision = uuid4().hex
         return dict(payload)
 
-    def remove_user(self, full_asset_id: str) -> None:
-        """从内存目录里摘掉一个用户素材（含它的效果变体路径）。"""
+    def remove_user(self, full_asset_id: str) -> int:
+        """从内存目录里摘掉一个用户素材，同时删掉它的效果变体缓存，返回释放的字节数。
+
+        两件事必须同一个动作里做完（B42）：变体的路径记录就在下面这张表里，先摘条目的话
+        路径就再也查不到了 —— 缓存文件会永远留在这块盘上，谁也看不见、谁也删不掉。
+        合成一个动作，调用方就没有「先调哪个」这种可以搞错的余地。
+        """
         self._load_user()
         with self.mutation_lock:
+            variant_path = self._effect_variant_paths.pop(full_asset_id, None)
             self._user_items.pop(full_asset_id, None)
-            self._effect_variant_paths.pop(full_asset_id, None)
             self._user_revision = uuid4().hex
+        return _discard_variant_files(variant_path)
 
     def remove_studio3d_folder(self, folder_name: str) -> None:
         """按前缀摘掉某个 3D 导出文件夹下的全部素材。"""
@@ -774,6 +862,204 @@ class AssetCatalog:
             path = self._effect_variant_paths.get(asset_id)
         # 缓存文件可能被外部清理掉，因此这里再确认一次存在性。
         return path if path is not None and path.is_file() else None
+
+    def user_asset_bytes(self) -> int:
+        """用户素材目录当前占用的字节数（含尚未改名的临时文件）。
+
+        直接扫盘，不维护累加计数：手工删文件、上传中断、外部工具都改得动这个目录，计数一旦
+        漂移配额就失效（少算 → 盘被填满；多算 → 用户明明删了却传不上去）。代价是每次上传
+        前多一次目录遍历，而上传本来就要做一次完整的图片解码。
+        """
+        return directory_bytes(self.user_root) if self.user_root.is_dir() else 0
+
+    def effect_variant_keys(self) -> set[str]:
+        """现存素材版本对应的变体缓存键，供巡检判断缓存里哪些文件是孤儿。
+
+        只列「当前版本」的键：版本变了旧键就作废（URL 里带版本号，旧变体没有任何人再请求）。
+        """
+        return {
+            effect_variant_cache_key(str(item.get('assetId') or ''), str(item.get('version') or ''))
+            for item in self.user_items()
+        }
+
+def referenced_user_asset_ids(database, studio3d_draft_path: Path) -> set[str]:
+    """此刻仍被引用的用户素材 ID（不含 ``user:`` 前缀）集合。
+
+    引用来源有三处，缺一处就会把在用的图片当成没人要的：项目草稿文档、全局组合弹窗
+    （独立于项目存放）、3D 户型草稿（不在数据库里，单独读盘）。
+
+    键名扫描复用 :func:`panel.entity_refs.document_keyed_values`，与「哪些实体 / 场景
+    还有人用」是同一套启发式（前端加字段不用改这里）；不另写一份递归扫描，是因为
+    「同一个约束有第二个主人」正是上一批吃过的教训。
+    """
+    def is_user_asset(value: str) -> bool:
+        """只收用户上传的图片：内置素材不会出现在这个目录里。"""
+        return value.startswith('user:')
+
+    referenced: set[str] = set()
+    for document_json in database.scalars(select(ProjectDraft.document_json)):
+        # 损坏的草稿跳过：它的读取路径自会报错，不该连累巡检（与删素材同一口径）。
+        document = parse_document(document_json)
+        if document is None:
+            continue
+        referenced.update(
+            value.removeprefix('user:')
+            for value in document_keyed_values(document, 'assetId', keep = is_user_asset)
+        )
+    referenced.update(
+        value.removeprefix('user:')
+        for value in document_keyed_values({'customPopups': global_popups(database)}, 'assetId', keep = is_user_asset)
+    )
+    if studio3d_draft_path.is_file():
+        try:
+            studio_draft = json.loads(studio3d_draft_path.read_text(encoding = 'utf-8'))
+        except (OSError, json.JSONDecodeError):
+            studio_draft = { }
+        referenced.update(
+            value.removeprefix('user:')
+            for value in document_keyed_values(studio_draft.get('scene', { }), 'assetId', keep = is_user_asset)
+        )
+    return referenced
+
+
+def sweep_user_asset_storage(
+    root: Path,
+    variants_root: Path,
+    active_variant_keys: set[str],
+    *,
+    now: float | None = None,
+    orphan_grace: int = USER_ASSET_ORPHAN_GRACE_SECONDS,
+    variant_grace: int = EFFECT_VARIANT_GRACE_SECONDS,
+) -> dict[str, int]:
+    """回收用户素材目录里那些**看不见的**残留，返回本轮统计。
+
+    只收两类「谁也选不中、谁也删不掉」的东西：
+
+    1. **空壳目录 / 散落文件**：目录里已经没有合法图片（上传中断留下的临时文件、被手工
+       删掉的文件、崩溃残留）。它们不会出现在素材列表里（``user_asset_file`` 返回 None），
+       因此用户根本没有办法意识到它们占着盘，更没有办法删掉它们；
+    2. **对不上任何现存素材版本的变体缓存**：素材已删、或版本已变（版本号进缓存键），
+       这些文件是纯缓存，删掉最多重算一次。
+
+    **刻意不回收「没有被引用的图片」**：素材库本来就有「先传进来、以后再用」的用法，
+    未被引用不等于没人要 —— 删它等于把用户的图片弄丢，这与户型快照不同（快照没人引用就
+    真的没人再会打开）。未被引用的用量改为在 :func:`sweep_user_assets_for_app` 里报出来，
+    由人来决定删不删。
+
+    参数:
+        root: 用户素材根目录。
+        variants_root: 效果变体缓存目录。
+        active_variant_keys: 现存素材版本对应的缓存键（见 ``AssetCatalog.effect_variant_keys``）。
+        now: 当前时间戳（秒，便于测试注入）；默认取系统时间。
+        orphan_grace: 空壳目录保留多久再回收。
+        variant_grace: 孤儿缓存文件保留多久再回收。
+
+    返回:
+        ``{'directories': 回收的空壳目录数, 'files': 回收的散落文件数,
+        'variants': 回收的缓存文件数, 'released': 释放的字节数, 'kept': 未动的条目数}``。
+    """
+    moment = time() if now is None else now
+    stats = {'directories': 0, 'files': 0, 'variants': 0, 'released': 0, 'kept': 0}
+    # 先归一成绝对路径：``user_asset_file`` 内部会 resolve 再判「还在根目录之下」，
+    # 根目录自己带符号链接（如 macOS 的 /var → /private/var）时两边口径必须一致，
+    # 否则每个素材目录都会被判成非法目录 —— 而这里的判定后果是**删掉它**。
+    root = root.resolve()
+    if root.is_dir():
+        for entry in sorted(root.iterdir()):
+            if entry.is_dir() and not entry.is_symlink():
+                # 还有图片文件的目录一律不动：它是不是「没人用」不由这里判断（见函数说明），
+                # 而「目录里到底还有没有东西」用的是放宽的判定（见 directory_holds_asset）。
+                if directory_holds_asset(entry):
+                    stats['kept'] += 1
+                    continue
+                counter = 'directories'
+            else:
+                # 根目录下不该有任何散落文件（临时文件名都在素材目录内），一律按残留处理。
+                counter = 'files'
+            try:
+                modified = entry.stat().st_mtime
+            except OSError:
+                continue
+            if moment - modified <= orphan_grace:
+                # 没到宽限期：可能是正在进行中的上传（先建目录、写完临时文件才改名）。
+                stats['kept'] += 1
+                continue
+            stats['released'] += directory_bytes(entry) if entry.is_dir() else entry.stat().st_size
+            if entry.is_dir():
+                shutil.rmtree(entry, ignore_errors = True)
+            else:
+                try:
+                    entry.unlink()
+                except OSError:
+                    pass
+            # 以「真的不在了」判定回收成功：删不掉（权限 / 占用）时不能算成已回收，
+            # 否则统计会骗人（这里与户型快照巡检同一口径）。
+            if entry.exists():
+                stats['kept'] += 1
+            else:
+                stats[counter] += 1
+    if variants_root.is_dir():
+        for path in sorted(variants_root.iterdir()):
+            if not path.is_file() or path.name.startswith('.'):
+                continue
+            # 键是文件名去掉后缀：``<key>.png`` 与它的 ``<key>.json`` 元数据同名不同后缀。
+            if path.stem in active_variant_keys:
+                stats['kept'] += 1
+                continue
+            try:
+                info = path.stat()
+            except OSError:
+                continue
+            if moment - info.st_mtime <= variant_grace:
+                stats['kept'] += 1
+                continue
+            try:
+                path.unlink()
+            except OSError:
+                stats['kept'] += 1
+                continue
+            stats['released'] += info.st_size
+            stats['variants'] += 1
+    return stats
+
+
+def sweep_user_assets_for_app(app) -> dict[str, int]:
+    """请求路径 / 启动流程用的薄封装：自己开短会话算引用关系，再巡检并汇总用量。
+
+    顺带把「该由人来看一眼」的两件事写进全局日志：用量过水位、以及存在没有任何仪表盘
+    引用的图片（给出张数与字节）。不自动删它们，理由见 :func:`sweep_user_asset_storage`。
+    """
+    root = app.state.settings.user_assets_dir
+    variants_root = app.state.asset_catalog.effect_variants_root
+    with app.state.database.session_factory() as database:
+        referenced = referenced_user_asset_ids(database, app.state.settings.studio3d_draft_path)
+        items = app.state.asset_catalog.user_items()
+    active_keys = app.state.asset_catalog.effect_variant_keys()
+    stats = sweep_user_asset_storage(root, variants_root, active_keys)
+    used_bytes = app.state.asset_catalog.user_asset_bytes()
+    if stats['released']:
+        app.state.global_log.append(
+            'info', '系统后台', '存储',
+            f'用户素材巡检：回收空壳目录 {stats["directories"]} 个、散落文件 {stats["files"]} 个、'
+            f'孤儿变体 {stats["variants"]} 个，释放 {stats["released"] / 1048576:.1f} MiB。',
+        )
+    # 「未被引用」的用量单独算：这是唯一一类「用户看得见、但不知道该不该删」的占用。
+    unused_bytes = sum(
+        int(item.get('size') or 0)
+        for item in items
+        if str(item.get('assetId') or '').removeprefix('user:') not in referenced
+    )
+    if used_bytes > USER_ASSET_WARN_BYTES:
+        app.state.global_log.append(
+            'warning', '系统后台', '存储',
+            f'用户素材目录已占用 {used_bytes / 1048576:.0f} MiB（超过上限的 '
+            f'{USER_ASSET_WARN_BYTES * 100 // MAX_USER_ASSET_TOTAL_BYTES}%，'
+            f'上限 {MAX_USER_ASSET_TOTAL_BYTES / 1000000:.0f} MB）；'
+            f'其中没有任何仪表盘引用的图片约 {unused_bytes / 1048576:.0f} MiB，'
+            '请在素材库中删除不再需要的图片。',
+        )
+    return {**stats, 'usedBytes': used_bytes, 'unusedBytes': unused_bytes}
+
 
 def document_uses_asset(value, asset_id: str) -> bool:
     """递归判断一份文档（任意嵌套的 dict/list）里是否引用了指定素材 ID。
@@ -809,18 +1095,23 @@ def list_user_assets(request: Request, database: DatabaseSession, viewer: Licens
     """列出用户素材（含 3D 导出）。
 
     中控设备身份只会看到自己仪表盘文档里引用过的图片；管理员不受限。
-    返回 {items, total, maxUploadPixels, catalogVersion}，前端用 maxUploadPixels 做上传前预校验。
+    返回 {items, total, maxUploadPixels, usageBytes, maxTotalBytes, catalogVersion}：
+    前端用 maxUploadPixels 做上传前预校验，用 usageBytes / maxTotalBytes 显示「已用多少」
+    （B42 的总量配额到了之后上传会 413，用户得先知道该删什么）。
     """
-    items = request.app.state.asset_catalog.user_items()
+    catalog = request.app.state.asset_catalog
+    items = catalog.user_items()
     allowed_asset_ids = viewer_user_asset_ids(database, viewer)
     # 可见范围为 None 表示管理员（不受限）；否则只保留文档引用过的那些图片。
     if allowed_asset_ids is not None:
         items = [item for item in items if item['assetId'].removeprefix('user:') in allowed_asset_ids]
-    versions = request.app.state.asset_catalog.versions()
+    versions = catalog.versions()
     return {
         'items': items,
         'total': len(items),
         'maxUploadPixels': MAX_UPLOAD_PIXELS,
+        'usageBytes': catalog.user_asset_bytes(),
+        'maxTotalBytes': MAX_USER_ASSET_TOTAL_BYTES,
         'catalogVersion': versions['user'] }
 
 @router.get('/version')
@@ -829,7 +1120,7 @@ def asset_catalog_version(request: Request, _viewer: LicensedViewer) -> dict:
     return request.app.state.asset_catalog.versions()
 
 @router.post('/user', status_code = status.HTTP_201_CREATED)
-async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
+async def upload_user_asset(request: Request, background_tasks: BackgroundTasks, _user: LicensedUser) -> dict:
     """上传一张用户图片，返回登记后的素材条目（201）。
 
     身份与能力码：LicensedUser（认证 + api）。
@@ -861,6 +1152,17 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
     if declared_length.isdigit() and int(declared_length) > byte_limit:
         raise HTTPException(status_code = 413, detail = f'图片不能超过 {size_hint}，请压缩后重试。')
     root = request.app.state.settings.user_assets_dir.resolve()
+    # 总量配额（B42）：单文件上限只挡得住「一张图」，挡不住「一直传」。先按声明的长度粗判
+    # （省下一次落盘），流式写入时再按已收字节精判（分块传输压根没有长度头）。
+    # 这一档是**软上限**：两次并发上传可能同时通过检查，真正的兜底是单文件上限与巡检告警。
+    catalog = request.app.state.asset_catalog
+    used_bytes = await asyncio.to_thread(catalog.user_asset_bytes)
+    quota_detail = (
+        f'素材总容量已达上限（{MAX_USER_ASSET_TOTAL_BYTES // 1000000} MB），'
+        '请先在素材库中删除不再使用的图片。'
+    )
+    if used_bytes + (int(declared_length) if declared_length.isdigit() else 0) > MAX_USER_ASSET_TOTAL_BYTES:
+        raise HTTPException(status_code = 413, detail = quota_detail)
     # 目录名用随机 ID 而不是原文件名：避免重名与不可控字符，URL 里也不暴露文件名。
     asset_id = uuid4().hex
     directory = root / asset_id
@@ -881,6 +1183,9 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
                 # 逐块累计：Content-Length 可以是假的，分块传输则干脆没有它。
                 if received > byte_limit:
                     raise HTTPException(status_code = 413, detail = f'图片不能超过 {size_hint}，请压缩后重试。')
+                # 总量配额也要按实收字节再判一次：没有长度头时上面那一档判不了。
+                if used_bytes + received > MAX_USER_ASSET_TOTAL_BYTES:
+                    raise HTTPException(status_code = 413, detail = quota_detail)
 
             received = await write_stream_in_batches(request.stream(), descriptor, before_write = _reject_oversized)
             # 最后留在 Python 缓冲里的不足一批（至多 BATCH_BYTES），同样别占着事件循环。
@@ -906,7 +1211,12 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
         raise
     # 登记同样要进线程池：内部会为这张图生成透明裁剪变体（另一次完整的 Pillow
     # 解码 + PNG 编码），与上面的校验是同一类同步重活。
-    return await asyncio.to_thread(request.app.state.asset_catalog.register_user, asset_id, path, dimensions)
+    item = await asyncio.to_thread(request.app.state.asset_catalog.register_user, asset_id, path, dimensions)
+    if used_bytes + received > USER_ASSET_WARN_BYTES:
+        # 越过水位才巡检：它要扫盘、遍历所有草稿，没必要每次上传都做。
+        # 放到后台任务里（不是请求路径上）：用户拿到 201 不该等这次扫盘。
+        background_tasks.add_task(sweep_user_assets_for_app, request.app)
+    return item
 
 @router.get('/user/{asset_id}')
 def read_user_asset(asset_id: str, request: Request, viewer: LicensedViewer) -> FileResponse:
@@ -1035,6 +1345,8 @@ def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession
             if document_uses_asset(studio_draft.get('scene', { }), full_asset_id):
                 raise HTTPException(status_code = status.HTTP_409_CONFLICT, detail = { 'code': 'ASSET_IN_USE', 'message': '图片正在被户型图绘制使用，请先替换或移除后再删除。' })
         # 先删磁盘文件、再从内存目录摘掉：两步都成功才算删除完成。
+        # remove_user 会连带删掉这张图的效果变体缓存（B42）—— 变体路径记录只在目录里，
+        # 摘掉条目之后就再也查不到它了，所以两件事必须在同一个动作里完成。
         path.unlink()
         catalog.remove_user(full_asset_id)
         try:

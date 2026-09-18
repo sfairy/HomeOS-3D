@@ -10,7 +10,7 @@ from urllib.parse import quote
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from .models import DisplayDevice, DisplayPairingCode
+from .models import DisplayDevice, DisplayPairingCode, Project, ProjectPathAlias
 from .security import session_token_hash
 
 
@@ -22,6 +22,30 @@ def display_path(project_name: str) -> str:
     后再拼进路径，否则浏览器会把它们当成路径分隔符或查询串。
     """
     return '/display/' + quote(project_name, safe = '')
+
+
+def resolve_display_project(database: Session, project_name: str) -> tuple[Project | None, str | None]:
+    """把展示地址里的路径段解析成项目；返回 ``(项目, 命中的旧名称)``。
+
+    先按当前名称精确匹配（**现存名称永远优先**：别的项目后来取了这个名字时，地址就
+    该指向它）。没有命中时再查改名留下的别名 —— 这就是 B38：改名之后，已经配对、
+    手里握着旧地址的平板会永久 404，而且没有任何提示，用户只能重新配对。
+
+    第二个返回值是「这个项目是通过哪个旧名称找到的」：调用方据此 303 跳转到当前地址，
+    顺带能在日志里说清「还有设备在用旧地址」。没走别名时为 None。
+    """
+    project = database.scalar(select(Project).where(Project.name == project_name))
+    if project is not None:
+        return (project, None)
+    alias = database.scalar(select(ProjectPathAlias).where(ProjectPathAlias.name == project_name))
+    if alias is None:
+        return (None, None)
+    project = database.get(Project, alias.project_id)
+    # 项目已被删除（别名会随外键级联消失，这里兜住外键未生效的库）：当作没有这个地址，
+    # 而不是跳到一个不存在的展示页上（那会让平板在重定向与 404 之间来回弹）。
+    if project is None:
+        return (None, None)
+    return (project, project_name)
 
 
 def active_display_device(
