@@ -12,22 +12,22 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/client-log.js?v=20260918175732"></script>
+    <script src="/static/client-log.js?v=20260918181612"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#111820" />
     <title>户型图绘制</title>
-    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260918175732" type="image/svg+xml" />
+    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260918181612" type="image/svg+xml" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
     <link
       rel="stylesheet"
-      href="/static/3d-studio/studio.css?v=20260918175732"
+      href="/static/3d-studio/studio.css?v=20260918181612"
     />
   </head>
   <body>
     <!-- ===== 顶部工作流条（六个步骤只是进度指示，点击不生效；data-step 供脚本高亮当前阶段） ===== -->
     <header class="studio-header">
       <div class="header-leading">
-        <img class="brand-logo" src="/static/homeos-mark-white-orange.svg?v=20260918175732" alt="HomeOS" />
+        <img class="brand-logo" src="/static/homeos-mark-white-orange.svg?v=20260918181612" alt="HomeOS" />
         <div class="header-title">
           <p>HOMEOS · DESKTOP CREATOR</p>
           <div class="header-title-row">
@@ -49,6 +49,11 @@
       <div class="header-actions">
         <!-- 保存状态：自动保存是防抖 + revision 乐观并发，这里只反映结果（载入中 / 已保存 / 冲突）。 -->
         <span id="save-state" class="save-state"><i></i>正在载入…</span>
+        <!-- 冲突的常驻入口：选了「稍后处理」之后对话框会收起来，没有这颗按钮就再也回不去，
+             只能刷新页面重来（保存也会一直撞 409）。默认隐藏，有未处理冲突时才出现。 -->
+        <button id="save-conflict-reopen" class="save-conflict-reopen" type="button" hidden>
+          处理保存冲突
+        </button>
       </div>
     </header>
     <!-- ===== 三栏工作区：左侧素材库、中间绘图台、右侧预览与属性 ===== -->
@@ -1800,16 +1805,20 @@
     </dialog>
     <!-- 保存冲突：PUT /api/v1/studio3d 返回 409（revision 与服务器不一致）时弹出。
          这里刻意不给「自动合并」选项 —— 两个页面都在改同一份户型，静默合并必然覆盖掉一方的改动。 -->
-    <!-- 保存冲突（revision 不一致）：另一处已改过户型，自动保存暂停，只给两条明确出路——
-         加载服务器版本（丢弃本地）或用当前页面覆盖（丢弃远端），不做自动合并。 -->
+    <!-- 保存冲突（revision 不一致）：另一处已改过户型，只给两条明确的出路 ——
+         加载服务器版本（丢弃本地）或用当前页面覆盖（丢弃远端），不做自动合并。
+         第三条「稍后处理」是唯一的非破坏性出口：内容一点不丢，冲突记录留着，
+         本地编辑继续跑（会撞 409），状态栏与顶栏「处理保存冲突」按钮一直挂着提醒。 -->
     <dialog id="save-conflict-dialog" class="scale-dialog export-notice-dialog save-conflict-dialog">
       <form method="dialog">
         <span class="dialog-index">SAVE CONFLICT</span>
         <h2>其他页面已经修改了户型</h2>
-        <p>为避免覆盖另一处修改，自动保存已暂停。请选择加载服务器版本，或明确使用当前页面覆盖。</p>
+        <p>为避免覆盖另一处修改，自动保存需要你选一次。可以加载服务器版本、明确用当前页面覆盖，
+          或者稍后处理（先继续编辑，内容不会丢）。</p>
         <div class="export-notice-summary"><span>当前页面内容</span><strong>仍保留，尚未丢失</strong></div>
         <div class="dialog-actions">
           <button id="save-conflict-load" type="button">加载服务器版本</button
+          ><button id="save-conflict-later" type="button">稍后处理</button
           ><button id="save-conflict-overwrite" class="primary-action" type="button">使用当前页面覆盖</button>
         </div>
       </form>
@@ -2102,11 +2111,11 @@
       <button type="button" data-floor-action="rename">重命名</button
       ><button type="button" data-floor-action="delete">删除楼层</button>
     </div>
-    <!-- 入口脚本：本页唯一的 module。它与 studio.css 必须共用同一条 ?v=20260918175732
+    <!-- 入口脚本：本页唯一的 module。它与 studio.css 必须共用同一条 ?v=20260918181612
          否则浏览器会缓存两份模块实例，出现两套注册表与缓存版本号。 -->
     <script
       type="module"
-      src="/static/3d-studio/studio-app.js?v=20260918175732"
+      src="/static/3d-studio/studio-app.js?v=20260918181612"
     ></script>
   </body>
 </html>

@@ -14,9 +14,9 @@
  * 副作用：模块级持有单个授权监视器与两张按组件 ID 索引的 Map；挂载时会插入 link / div / iframe，
  *   并在组件卸载（cleanup 回调）时全部移除。
  */
-import { createAccessMonitor } from "./access-monitor.js?v=20260918175732";
-import { createInteraction3dCover } from "./cover.js?v=20260918175732";
-import { createInteraction3dFocusLayout } from "./focus-layout.js?v=20260918175732";
+import { createAccessMonitor } from "./access-monitor.js?v=20260918181612";
+import { createInteraction3dCover } from "./cover.js?v=20260918181612";
+import { createInteraction3dFocusLayout } from "./focus-layout.js?v=20260918181612";
 /**
  * 向后端确认当前浏览器是否可以运行 3D 交互。
  *
@@ -74,6 +74,62 @@ const waitersByComponentId = new Map();
 function notifyViewReady(componentId, error) {
   for (const waiter of waitersByComponentId.get(componentId) || []) {
     waiter(error);
+  }
+}
+/**
+ * 把挂载失败的原因压成一句能进占位文案的短句。
+ *
+ * 只认「Error 的非空 message」与「非空字符串」两种形状：抛出来的东西可能是任何值
+ * （`throw {}`、`Promise.reject(undefined)`、事件对象…），`String(值)` 会把它变成
+ * `[object Object]` 写进用户可见的文案里 —— 那比没有原因更糟。
+ *
+ * @param {unknown} loadError 捕获到的原始错误。
+ * @returns {string} 短原因；取不到时返回空串（调用方退回通用文案，不留半截括号）。
+ */
+function interaction3dLoadFailureReason(loadError) {
+  const rawReason =
+    typeof loadError?.message === "string" && loadError.message
+      ? loadError.message
+      : typeof loadError === "string"
+        ? loadError
+        : "";
+  const normalizedReason = rawReason.replace(/\s+/g, " ").trim();
+  if (!normalizedReason) {
+    return "";
+  }
+  // 运行时抛出的栈可能很长（甚至带打包后的路径），占位文案只留一句能读的。
+  return normalizedReason.length > 60 ? normalizedReason.slice(0, 60) + "…" : normalizedReason;
+}
+/**
+ * 3D 运行时挂载失败时的兜底：说明原因、切回待授权态、通知等待者。
+ *
+ * 三件事缺一不可：**原因要出现在占位文案里**（原先这里是裸 `catch {}`，动态 import
+ * 404 / 授权被撤 / 运行时抛栈在页面上长得一模一样，排查只能靠猜），**原始错误要进
+ * 全局日志**（日志面板是唯一能事后取证的通道），**编辑态的等待者要当场被拒**
+ * （否则编辑器只能干等到 25 秒超时，用户对着空控件等半分钟）。
+ *
+ * @param {HTMLElement} hostElement 组件宿主元素。
+ * @param {object} component 组件定义（只用到 id）。
+ * @param {object} context 渲染上下文，`editable` 为真时才通知等待者。
+ * @param {unknown} loadError 捕获到的原始错误。
+ * @returns {void}
+ */
+function showInteraction3dLoadFailure(hostElement, component, context, loadError) {
+  const loadFailureReason = interaction3dLoadFailureReason(loadError);
+  const loadFailureElement = document.createElement("div");
+  loadFailureElement.className = "i3d-access-pending";
+  loadFailureElement.textContent = loadFailureReason
+    ? "户型暂时无法载入（原因：" + loadFailureReason + "），请稍候重试。"
+    : "户型暂时无法载入，请稍候重试。";
+  loadFailureElement.setAttribute("role", "status");
+  hostElement.replaceChildren(loadFailureElement);
+  hostElement.dataset.access = "pending";
+  window.HABridgeLog?.error?.(loadError, {
+    phase: "interaction3d-mount",
+    componentId: component?.id || ""
+  });
+  if (context?.editable) {
+    notifyViewReady(component.id, new Error(loadFailureElement.textContent));
   }
 }
 /**
@@ -301,7 +357,7 @@ export function renderInteraction3d(component, context = {}) {
     try {
       // 动态 import 带 ?v= 缓存戳，必须与后端静态资源戳同步，否则会加载到旧运行时。
       const runtimeModule =
-        await import("/api/v1/modules/interaction3d/runtime.js?v=20260918175732");
+        await import("/api/v1/modules/interaction3d/runtime.js?v=20260918181612");
       // 三个丢弃条件：组件已销毁、已有更新的一轮加载、页面已切走（回来时会重新走一遍）。
       if (isDisposed || currentLoadToken !== loadToken || document.hidden) {
         return;
@@ -310,7 +366,7 @@ export function renderInteraction3d(component, context = {}) {
       stylesheetElement = document.createElement("link");
       stylesheetElement.rel = "stylesheet";
       stylesheetElement.href =
-        "/api/v1/modules/interaction3d/runtime.css?v=20260918175732";
+        "/api/v1/modules/interaction3d/runtime.css?v=20260918181612";
       // 先单独 append 让浏览器尽早开始下载，等运行时容器建好后再一次性替换成最终结构。
       hostElement.append(stylesheetElement);
       const runtimeContainerElement = document.createElement("div");
@@ -343,20 +399,12 @@ export function renderInteraction3d(component, context = {}) {
       hostElement.dataset.access = "allowed";
       hostElement.setAttribute("aria-busy", "false");
       isMounted = true;
-    } catch {
+    } catch (loadError) {
       // 加载失败也要给出可读提示并显式通知等待者，否则编辑器只能干等到 25 秒超时。
       if (!isDisposed && currentLoadToken === loadToken) {
         stylesheetElement?.remove();
         stylesheetElement = null;
-        const loadFailureElement = document.createElement("div");
-        loadFailureElement.className = "i3d-access-pending";
-        loadFailureElement.textContent = "户型暂时无法载入，请稍候重试。";
-        loadFailureElement.setAttribute("role", "status");
-        hostElement.replaceChildren(loadFailureElement);
-        hostElement.dataset.access = "pending";
-        if (context.editable) {
-          notifyViewReady(component.id, new Error(loadFailureElement.textContent));
-        }
+        showInteraction3dLoadFailure(hostElement, component, context, loadError);
       }
     } finally {
       // 只有在本次 token 仍然有效时才复位：否则会误清掉新一轮加载的「进行中」标记。

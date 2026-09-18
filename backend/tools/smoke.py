@@ -695,8 +695,6 @@ async def check_media_cache_invalidated_on_reconnect() -> None:
     （上游只被回源一次），清空之后必须再回源一次 —— 「换了一台 HA 却继续发上一台的
     画面」在用户侧就是这一步没发生。
     """
-    from backend.app.api import ha_proxy
-
     with tempfile.TemporaryDirectory(prefix='hb-media-reconnect-') as tmp:
         fixture = await _build_media_proxy_fixture(Path(tmp))
         path = '/api/camera_proxy/camera.a'
@@ -8000,7 +7998,7 @@ async def check_display_alias_redirect() -> None:
 
     from backend.app.api.projects import serialize_document
     from backend.app.display_access import display_path, resolve_display_project
-    from backend.app.models import DisplayDevice, Project, ProjectPathAlias
+    from backend.app.models import DisplayDevice, ProjectPathAlias
     from backend.app.panel.documents import create_blank_project
     from backend.app.security import session_token_hash
 
@@ -8298,7 +8296,6 @@ def check_user_asset_quota_and_sweep() -> None:
         # 引用关系：三处来源都要算上，否则会在巡检里把在用的图片当成没人要。
         from backend.app.database import Base, Database
         from backend.app.models import GlobalCustomPopupState, Project, ProjectDraft, User
-        from backend.app.global_popups import global_popups
 
         database = Database(f'sqlite:///{Path(tmp) / "refs.db"}')
         Base.metadata.create_all(database.engine)
@@ -8397,7 +8394,6 @@ async def check_user_asset_total_quota() -> None:
     with tempfile.TemporaryDirectory(prefix='hb-asset-quota-') as tmp:
         root = Path(tmp) / 'user'
         root.mkdir()
-        catalog = assets.AssetCatalog(Path(tmp) / 'builtin', root, None, Path(tmp) / 'variants')
         source = Path(tmp) / 'source.png'
         Image.new('RGB', (16, 16), (4, 4, 4)).save(source, format='PNG')
         body = source.read_bytes()
@@ -8927,6 +8923,10 @@ FRONTEND_PROBE_SUITES = {
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
     'home-boot': 'W8 编辑器启动分片（home.js 启动序列）',
     'home-snapshot': 'W9 草稿恢复快照的内容与失败告警（home.js）',
+    'optimistic-toggle': 'W10 乐观开关的确认超时回滚与提示（renderer.js）',
+    'dialog-escape': 'W12 ESC 逐层收口（renderer.js 运行时弹窗）',
+    'interaction3d-mount': 'W13 3D 运行时挂载失败的兜底（bridge.js）',
+    'studio-conflict': 'W15 保存冲突的三条出路与稍后处理（studio-app.js）',
 }
 
 #: W3/W6：四个「未激活页面」的提交复位语句 —— 都写在同一个表单提交处理器里，
@@ -9038,6 +9038,141 @@ def check_frontend_api_request_timeouts() -> None:
         bare_fetch is None and 'apiFetch(' in log_boot_source,
         log_boot_detail,
         )
+
+
+def _js_block_body(source: str, marker: str) -> str | None:
+    """取出 ``marker`` 之后第一对花括号之间的源码。
+
+    为什么需要它：「这个方法体里不许再出现裸 8000」「这个调用点必须先看保存结论」
+    这类要求必须只看目标函数体 —— 扫全文会被同一文件里无关的 8000（重连退避、
+    其它模块的排期）或其它调用点的结论判断误判成红。括号配对扫描，因此函数体里
+    嵌套的块、字符串里的花括号都不会把结果带偏。
+
+    @param source 文件全文。
+    @param marker 定位用的片段（例如 ``applyOptimisticToggle(toggleEntityIdInput``）。
+    @returns 块体源码；找不到 marker 或括号不配对时返回 None（调用方据此判红）。
+    """
+    marker_index = source.find(marker)
+    if marker_index == -1:
+        return None
+    body_open = source.find('{', marker_index)
+    if body_open == -1:
+        return None
+    depth = 0
+    for cursor in range(body_open, len(source)):
+        if source[cursor] == '{':
+            depth += 1
+        elif source[cursor] == '}':
+            depth -= 1
+            if depth == 0:
+                return source[body_open + 1:cursor]
+    return None
+
+
+def check_frontend_operation_feedback() -> None:
+    """W10/W12/W13/W15：操作之后的反馈必须存在、唯一、且不许谎报。
+
+    这几处的共同点曾经都是「用户看不见」：回滚静默、ESC 被里层吞掉整层照样关、
+    3D 挂载失败只剩一句「无法载入」、保存冲突把自动保存锁死。行为断言（探针四个
+    套件）能证明修好的路径跑起来对，但证明不了**接线与唯一性**：
+    「十条弹窗都走同一个 ESC 助手、没有第二处手写」「常驻入口真的接上了事件」
+    「两个会说『已保存』的调用点都先看结论」只能静态看。
+    """
+    for suite in (
+        'optimistic-toggle',
+        'dialog-escape',
+        'interaction3d-mount',
+        'studio-conflict',
+    ):
+        _run_frontend_probe(suite)
+
+    renderer_source = (FRONTEND_ROOT / 'static' / 'renderer' / 'renderer.js').read_text(encoding='utf-8')
+    bridge_source = (
+        FRONTEND_ROOT / 'static' / 'modules' / 'interaction3d' / 'bridge.js'
+    ).read_text(encoding='utf-8')
+    studio_source = (FRONTEND_ROOT / 'static' / '3d-studio' / 'studio-app.js').read_text(encoding='utf-8')
+    studio_html = (FRONTEND_ROOT / '3d-studio.html').read_text(encoding='utf-8')
+
+    # W10：确认超时只能有一个主人，且回滚必须挂了提示。
+    optimistic_body = _js_block_body(renderer_source, 'applyOptimisticToggle(toggleEntityIdInput')
+    check(
+        'W10 乐观开关的确认超时只有一个主人（方法体里不再有裸 8000）',
+        optimistic_body is not None
+        and '8000' not in optimistic_body
+        and optimistic_body.count('OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS') == 2,
+        f'body={optimistic_body if optimistic_body is None else optimistic_body[:200]!r}',
+    )
+    check(
+        'W10 回滚路径挂着 onError（回滚不吭声 = 用户以为按钮坏了，会反复点）',
+        optimistic_body is not None
+        and 'this.options.onError?.(createOptimisticToggleTimeoutError(' in optimistic_body,
+        '回滚分支没有把超时错误交给 onError',
+    )
+
+    # W12：没有第二处手写的「关闭整层」，十条弹窗全部走助手。
+    hand_rolled_escapes = re.findall(
+        r'if \(\w+\.key === "Escape"\) \{\s*\n\s*\w+\.close\(\);',
+        renderer_source,
+    )
+    check(
+        'W12 运行时弹窗不再各写一份「Escape 就关整层」（全部收口到同一个助手）',
+        not hand_rolled_escapes
+        and renderer_source.count('this.bindRuntimeDialogEscapeClose(') == 10,
+        f'手写份数={len(hand_rolled_escapes)} 助手调用={renderer_source.count("this.bindRuntimeDialogEscapeClose(")}',
+    )
+    check(
+        'W12 ESC 助手看 defaultPrevented（里层下拉/展开面板处理过就不再关这一层）',
+        '!escapeKeyEvent.defaultPrevented' in renderer_source,
+        '助手里没有 defaultPrevented 判断 —— 等于把收口又退回到「谁都能关」',
+    )
+
+    # W13：失败原因不许被丢掉，且要同时进文案、日志与等待者。
+    # 只看真正的裸 catch 子句（`} catch {`）：文档注释里会写「原先这里是裸 catch {}」，
+    # 拿它当命中就是被打注释假红。
+    check(
+        'W13 bridge 里不再有裸 catch（吞掉 import 失败的原因）',
+        not re.search(r'\}\s*catch\s*\{', bridge_source),
+        'bridge.js 仍有裸 catch —— 挂载失败的原因会被再次吞掉',
+    )
+    load_failure_body = _js_block_body(bridge_source, 'function showInteraction3dLoadFailure(')
+    check(
+        'W13 挂载失败的兜底三件事都在：占位文案带原因、原始错误进日志、等待者当场被拒',
+        load_failure_body is not None
+        and 'loadFailureReason' in load_failure_body
+        and 'window.HABridgeLog?.error?.' in load_failure_body
+        and "phase: \"interaction3d-mount\"" in load_failure_body
+        and 'notifyViewReady(' in load_failure_body,
+        f'body={load_failure_body if load_failure_body is None else load_failure_body[:200]!r}',
+    )
+
+    # W15：冲突必须留出口，且不许把「没落盘」说成「已保存」。
+    check(
+        'W15 冲突弹窗有「稍后处理」、顶栏有常驻入口、ESC 等同稍后处理',
+        all(
+            marker in studio_html
+            for marker in ('id="save-conflict-later"', 'id="save-conflict-reopen"')
+        )
+        and 'saveConflictLaterButton.addEventListener("click", deferSaveConflict)' in studio_source
+        and 'saveConflictReopenButton.addEventListener("click"' in studio_source
+        and 'dialogCancelEvent.preventDefault();\n  deferSaveConflict();' in studio_source,
+        '三条出路里的某一条没有接线（按钮在 HTML 里、事件没接上）',
+    )
+    base_lighting_body = _js_block_body(studio_source, 'function saveBaseLighting()')
+    check(
+        'W15 基础光保存先看结论再说话（冲突/失败时不再谎报「已保存」）',
+        base_lighting_body is not None
+        and '"saved"' in base_lighting_body
+        and '"blocked-by-conflict"' in base_lighting_body,
+        f'body={base_lighting_body if base_lighting_body is None else base_lighting_body[:200]!r}',
+    )
+    camera_view_body = _js_block_body(studio_source, 'function saveCurrentCameraView()')
+    check(
+        'W15 机位保存先看结论再说话（冲突/失败时不再谎报「已保存」）',
+        camera_view_body is not None
+        and '"blocked-by-conflict"' in camera_view_body
+        and '"failed"' in camera_view_body,
+        f'body={camera_view_body if camera_view_body is None else camera_view_body[:200]!r}',
+    )
 
 
 def _reset_statement_in_finally(source: str, reset_statement: str) -> tuple[bool, str]:
@@ -9476,6 +9611,7 @@ async def run() -> int:
     check_frontend_form_resets_guarded()
     check_frontend_pending_page_submits()
     check_frontend_editor_boot_and_snapshot()
+    check_frontend_operation_feedback()
     check_frontend_display_runtime_notice()
     check_frontend_display_notice_wiring()
     check_frontend_scripts_parse()

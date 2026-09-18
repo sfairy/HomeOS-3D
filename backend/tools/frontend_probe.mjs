@@ -204,7 +204,7 @@ function extractAsyncFunction(source, functionName) {
  * @param {string} label 报错里用的名字。
  * @returns {string} 函数源码。
  */
-function sliceFunctionDeclaration(source, start, label) {
+function sliceFunctionDeclaration(source, start, label, prefix = "") {
   const parameterOpen = source.indexOf("(", start);
   const parameterClose = findClosing(source, parameterOpen, "(", ")");
   const bodyOpen = source.indexOf("{", parameterClose);
@@ -213,7 +213,8 @@ function sliceFunctionDeclaration(source, start, label) {
   if (!extracted.trimEnd().endsWith("}")) {
     throw new Error(`${label} 的切分没有停在右花括号上`);
   }
-  new vm.Script(extracted); // 解析不过会抛，避免把半截函数当成「探针通过」
+  // prefix 只用于解析校验：类方法的切片本身不是合法语句，要补个 `function` 才解析得动。
+  new vm.Script(prefix + extracted); // 解析不过会抛，避免把半截函数当成「探针通过」
   return extracted;
 }
 
@@ -243,20 +244,51 @@ function extractFunction(source, functionName) {
 }
 
 /**
- * 从源码里切出一行 `let <name> = …;` 声明（用于把状态变量一起搬进沙箱）。
+ * 从源码里切出一个类方法，并转成可独立调用的函数。
+ *
+ * 为什么需要它：`applyOptimisticToggle` / `bindRuntimeDialogEscapeClose` 都是类方法，
+ * 而 `extractFunction` 只认顶格的 `function name(`；把方法体原样搬进沙箱也不行
+ * （`name(…) {` 不是合法的顶层语句）。这里切成源码后再加一个 `function` 关键字，
+ * 沙箱里就能用 `fn.call(替身 this, …)` 调它 —— 测的仍然是磁盘上那一份实现。
+ *
+ * 定位用的是「行首缩进 + 名字 + 参数 + 紧接 `{`」：这样不会把 `this.applyOptimisticToggle(`
+ * 这类调用点认成方法定义（调用点后面跟的是实参列表与 `;`，不是函数体）。
+ *
+ * @param {string} source 文件全文。
+ * @param {string} methodName 方法名。
+ * @returns {string} `function <name>(…) { … }` 形式的源码。
+ */
+function extractClassMethod(source, methodName) {
+  const declaration = new RegExp(
+    String.raw`\n[ \t]+${methodName}\s*\([^)]*\)\s*\{`
+  ).exec(source);
+  if (!declaration) {
+    throw new Error(`源码里找不到类方法 ${methodName}`);
+  }
+  const sliced = sliceFunctionDeclaration(
+    source,
+    declaration.index + 1,
+    methodName,
+    "function "
+  );
+  return "function " + sliced;
+}
+
+/**
+ * 从源码里切出一行 `<let|const> <name> = …;` 声明（用于把常量与状态变量一起搬进沙箱）。
  *
  * 只认单行：多行初值的变量不该用这个助手取，宁可在沙箱里显式建一个。
  *
  * @param {string} source 文件全文。
  * @param {string} variableName 变量名。
- * @returns {string} 声明源码（含 `let` 与分号）。
+ * @returns {string} 声明源码（含 `let`/`const` 与分号）。
  */
 function extractVariableDeclaration(source, variableName) {
   const declaration = new RegExp(
-    String.raw`(?<![\w$.])let\s+${variableName}\s*=\s*[^;\n]*;`
+    String.raw`(?<![\w$.])(?:let|const)\s+${variableName}\s*=\s*[^;\n]*;`
   ).exec(source);
   if (!declaration) {
-    throw new Error(`源码里找不到单行的 let ${variableName} = …;`);
+    throw new Error(`源码里找不到单行的 let/const ${variableName} = …;`);
   }
   new vm.Script(declaration[0]);
   return declaration[0];
@@ -2110,6 +2142,618 @@ async function runHomeSnapshotSuite() {
   );
 }
 
+/**
+ * W10：乐观开关等不到状态确认时的回滚与提示。
+ *
+ * `applyOptimisticToggle` 按源码切出来（类方法 → `fn.call(替身 this)`），计时器交给
+ * 桩接管 —— 于是「8 秒后回滚」可以精确摆出来，而不是真的等 8 秒。
+ *
+ * 这一条测的是「界面自己变色又自己变回去」这个形态：用户唯一的解释是「点了没反应」，
+ * 于是会反复点；修复后回滚必须带一条一次性提示。反向也要测 ——
+ * **已经有人处理过**（手动撤销 / HA 推送到达）时不许报错，否则正常操作也会弹提示。
+ *
+ * @returns {Promise<void>}
+ */
+async function runOptimisticToggleSuite() {
+  const source = fs.readFileSync(path.join(ROOT, "frontend/static/renderer/renderer.js"), "utf8");
+  const toggleSource = [
+    extractVariableDeclaration(source, "OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS"),
+    extractFunction(source, "createOptimisticToggleTimeoutError"),
+    extractClassMethod(source, "applyOptimisticToggle")
+  ].join("\n\n");
+
+  const fixedNow = 1_700_000_000_000;
+  const scheduledTimers = [];
+  const reportedErrors = [];
+  const context = vm.createContext({
+    console,
+    // 只换成可拨的「现在」：被测代码用 Date.now() 记 expiresAt，探针要给得出确定值。
+    Date: { now: () => fixedNow },
+    window: {
+      setTimeout: (callback, delayMs) => {
+        scheduledTimers.push({ callback, delayMs });
+        return scheduledTimers.length;
+      },
+      clearTimeout: timerId => {
+        if (scheduledTimers[timerId - 1]) {
+          scheduledTimers[timerId - 1].cancelled = true;
+        }
+      }
+    },
+    // 覆盖域实体才走的三个助手：本例用 light. 实体，真被调用就说明分支判断错了。
+    coverComponentIsDream: () => {
+      throw new Error("非 cover 实体不该走 cover 分支");
+    },
+    runtimeEntityStateIsActive: () => {
+      throw new Error("非 cover 实体不该走 cover 分支");
+    },
+    runtimeCoverStateIsActive: () => {
+      throw new Error("非 cover 实体不该走 cover 分支");
+    },
+    entityPowerIsOn: (entityId, entityState, powerComponent) => !!powerComponent?.on,
+    optimisticToggleState: (entityId, entityState, powerComponent) => ({
+      ...entityState,
+      state: powerComponent?.on ? "on" : "off"
+    })
+  });
+  vm.runInContext(toggleSource, context);
+
+  const makeRendererStub = () => ({
+    states: new Map([["light.kitchen", { entityId: "light.kitchen", state: "off" }]]),
+    entityMetadata: new Map(),
+    pendingOptimisticStates: new Map(),
+    visualUpdates: [],
+    powerEntityId: () => "light.kitchen",
+    runtimePowerComponent: powerComponent => powerComponent,
+    cachedLightVisualState: () => null,
+    updateOptimisticToggleVisuals(entityId) {
+      this.visualUpdates.push(entityId);
+    },
+    options: {
+      onError: error => reportedErrors.push(error)
+    }
+  });
+
+  // 1) 交互先变色，并把回滚排进定时器（两处必须用同一个值，这里比对的就是这一点）。
+  scheduledTimers.length = 0;
+  reportedErrors.length = 0;
+  const renderer = makeRendererStub();
+  const rollbackOptimistic = context.applyOptimisticToggle.call(renderer, "light.kitchen", {
+    on: true
+  });
+  const pendingEntry = renderer.pendingOptimisticStates.get("light.kitchen");
+  const expiryTimer = scheduledTimers[0];
+  check(
+    "W10 乐观态先落界面（等 HA 推送再变色会有明显延迟）",
+    renderer.states.get("light.kitchen")?.state === "on" &&
+      renderer.visualUpdates.length === 1,
+    JSON.stringify({ state: renderer.states.get("light.kitchen"), updates: renderer.visualUpdates })
+  );
+  check(
+    "W10 回滚排期与 expiresAt 是同一个值（8 秒，改一处必须同步改另一处）",
+    expiryTimer?.delayMs === 8000 && pendingEntry?.expiresAt === fixedNow + 8000,
+    JSON.stringify({ delayMs: expiryTimer?.delayMs, expiresAt: pendingEntry?.expiresAt })
+  );
+
+  // 2) 8 秒内没有确认：回滚到上报值，并且必须说出来。
+  expiryTimer.callback();
+  check(
+    "W10 超时回滚到设备上报的状态",
+    renderer.states.get("light.kitchen")?.state === "off" &&
+      !renderer.pendingOptimisticStates.has("light.kitchen"),
+    JSON.stringify(renderer.states.get("light.kitchen") || null)
+  );
+  check(
+    "W10 回滚必须给用户一条提示（否则「点了没反应」会被解释成按钮坏了，反复点）",
+    reportedErrors.length === 1 && reportedErrors[0]?.name === "OptimisticToggleTimeoutError",
+    JSON.stringify(reportedErrors.map(error => error?.name))
+  );
+  check(
+    "W10 提示文案说清「多久没确认」与「哪个实体」",
+    reportedErrors[0]?.message.includes("8 秒") &&
+      reportedErrors[0]?.message.includes("light.kitchen") &&
+      reportedErrors[0]?.message.includes("已恢复"),
+    reportedErrors[0]?.message || ""
+  );
+
+  // 3) 已经手动撤销过（双击 / 长按抢走手势、或调用失败回滚）：定时器再跑也不许报错。
+  reportedErrors.length = 0;
+  const manualRenderer = makeRendererStub();
+  const manualRollback = context.applyOptimisticToggle.call(manualRenderer, "light.kitchen", {
+    on: true
+  });
+  const manualExpiryTimer = scheduledTimers[scheduledTimers.length - 1];
+  manualRollback();
+  manualExpiryTimer.callback();
+  check(
+    "W10 已经撤销过的乐观态不再报错（手动回滚 / 失败的路径不该弹提示）",
+    reportedErrors.length === 0,
+    JSON.stringify(reportedErrors.map(error => error?.message))
+  );
+
+  // 4) HA 推送按时到达（推送路径会清掉 pending 并写入新状态）：也不许报错。
+  reportedErrors.length = 0;
+  const ackedRenderer = makeRendererStub();
+  context.applyOptimisticToggle.call(ackedRenderer, "light.kitchen", { on: true });
+  const ackedExpiryTimer = scheduledTimers[scheduledTimers.length - 1];
+  ackedRenderer.pendingOptimisticStates.delete("light.kitchen");
+  const confirmedState = { entityId: "light.kitchen", state: "on" };
+  ackedRenderer.states.set("light.kitchen", confirmedState);
+  ackedExpiryTimer.callback();
+  check(
+    "W10 设备按时回报时一句提示都不出（正常操作不该被当成故障）",
+    reportedErrors.length === 0 && ackedRenderer.states.get("light.kitchen") === confirmedState,
+    JSON.stringify(reportedErrors.map(error => error?.message))
+  );
+
+  // 5) 返回的回滚函数仍然还原「确认过的」那一份状态（既有语义不许被这次改动带偏）。
+  const restoreRenderer = makeRendererStub();
+  const restoreRollback = context.applyOptimisticToggle.call(restoreRenderer, "light.kitchen", {
+    on: true
+  });
+  restoreRollback();
+  check(
+    "W10 调用方拿到的回滚函数仍然还原确认过的状态（失败时由它兜底）",
+    restoreRenderer.states.get("light.kitchen")?.state === "off" &&
+      restoreRenderer.pendingOptimisticStates.size === 0,
+    JSON.stringify(restoreRenderer.states.get("light.kitchen") || null)
+  );
+}
+
+/**
+ * W12：ESC 逐层收口。
+ *
+ * `bindRuntimeDialogEscapeClose` 按源码切出来跑，用假层元素与假弹窗驱动：
+ * 里层没处理过的 ESC 要关掉这一层，里层处理过（`defaultPrevented`）的不许再关。
+ *
+ * 「所有弹窗都走这个助手」探针看不见（它是十次接线），由 smoke 侧的结构断言钉住。
+ *
+ * @returns {Promise<void>}
+ */
+async function runDialogEscapeSuite() {
+  const source = fs.readFileSync(path.join(ROOT, "frontend/static/renderer/renderer.js"), "utf8");
+  const context = vm.createContext({ console });
+  vm.runInContext(extractClassMethod(source, "bindRuntimeDialogEscapeClose"), context);
+
+  const makeLayerElement = () => {
+    const handlers = {};
+    return {
+      handlers,
+      addEventListener(eventType, handler) {
+        handlers[eventType] = handler;
+      }
+    };
+  };
+  const makeDialogElement = () => {
+    const closeCalls = [];
+    return { closeCalls, close: () => closeCalls.push("close") };
+  };
+
+  const layerElement = makeLayerElement();
+  const dialogElement = makeDialogElement();
+  context.bindRuntimeDialogEscapeClose(layerElement, dialogElement);
+  check(
+    "W12 挂的是 keydown（ESC 是键盘事件）",
+    typeof layerElement.handlers.keydown === "function" && !layerElement.handlers.click,
+    JSON.stringify(Object.keys(layerElement.handlers))
+  );
+
+  layerElement.handlers.keydown({ key: "Escape", defaultPrevented: false });
+  check(
+    "W12 没人处理过 ESC 时，这一层照常关掉（不能因为加守卫就把关闭也弄丢）",
+    dialogElement.closeCalls.length === 1,
+    JSON.stringify(dialogElement.closeCalls)
+  );
+
+  dialogElement.closeCalls.length = 0;
+  layerElement.handlers.keydown({ key: "Escape", defaultPrevented: true });
+  check(
+    "W12 里层已经处理过 ESC（下拉菜单/展开面板）时不再关掉整个弹窗",
+    dialogElement.closeCalls.length === 0,
+    JSON.stringify(dialogElement.closeCalls)
+  );
+
+  layerElement.handlers.keydown({ key: "Enter", defaultPrevented: false });
+  layerElement.handlers.keydown({ key: "ArrowDown", defaultPrevented: false });
+  check(
+    "W12 其它按键不影响弹窗（守卫只针对 ESC）",
+    dialogElement.closeCalls.length === 0,
+    JSON.stringify(dialogElement.closeCalls)
+  );
+}
+
+/**
+ * W13：3D 运行时挂载失败的兜底。
+ *
+ * `showInteraction3dLoadFailure` 按源码切出来跑：占位文案要带原因、原始错误要进全局日志、
+ * 编辑态的等待者要当场被拒（不是干等 25 秒）。原先这里是裸 `catch {}`，
+ * 动态 import 404 / 授权被撤 / 运行时抛栈在页面上长得一模一样。
+ *
+ * @returns {Promise<void>}
+ */
+async function runInteraction3dMountSuite() {
+  const source = fs.readFileSync(
+    path.join(ROOT, "frontend/static/modules/interaction3d/bridge.js"),
+    "utf8"
+  );
+  const mountSource = [
+    extractFunction(source, "interaction3dLoadFailureReason"),
+    extractFunction(source, "showInteraction3dLoadFailure")
+  ].join("\n\n");
+
+  const logEntries = [];
+  const notifiedWaiters = [];
+  const context = vm.createContext({
+    console,
+    document: {
+      createElement: () => ({
+        className: "",
+        textContent: "",
+        attributes: {},
+        setAttribute(name, value) {
+          this.attributes[name] = value;
+        }
+      })
+    },
+    window: {
+      HABridgeLog: {
+        error: (errorObject, logContext) => logEntries.push({ errorObject, ...logContext })
+      }
+    },
+    notifyViewReady: (componentId, error) => notifiedWaiters.push({ componentId, error })
+  });
+  vm.runInContext(mountSource, context);
+
+  const makeHostElement = () => ({
+    dataset: {},
+    children: [],
+    replaceChildren(child) {
+      this.children = [child];
+    }
+  });
+
+  const hostElement = makeHostElement();
+  context.showInteraction3dLoadFailure(
+    hostElement,
+    { id: "component-3d" },
+    { editable: true },
+    new Error("Failed to fetch dynamically imported module: /api/v1/modules/interaction3d/runtime.js")
+  );
+  const placeholderElement = hostElement.children[0];
+  check(
+    "W13 挂载失败的占位文案带原因（原先只剩一句「无法载入」，排查只能靠猜）",
+    placeholderElement?.textContent.includes("Failed to fetch") &&
+      placeholderElement?.textContent.includes("户型暂时无法载入"),
+    placeholderElement?.textContent || ""
+  );
+  check(
+    "W13 占位元素是 role=status 且宿主回到待授权态",
+    placeholderElement?.attributes?.role === "status" && hostElement.dataset.access === "pending",
+    JSON.stringify({ role: placeholderElement?.attributes?.role, access: hostElement.dataset.access })
+  );
+  check(
+    "W13 原始错误进全局日志（日志面板是唯一能事后取证的通道）",
+    logEntries.length === 1 &&
+      logEntries[0].errorObject?.message.includes("Failed to fetch") &&
+      logEntries[0].phase === "interaction3d-mount" &&
+      logEntries[0].componentId === "component-3d",
+    JSON.stringify(logEntries.map(entry => entry.phase))
+  );
+  check(
+    "W13 编辑态的等待者当场被拒（不必干等到 25 秒超时）",
+    notifiedWaiters.length === 1 &&
+      notifiedWaiters[0].componentId === "component-3d" &&
+      notifiedWaiters[0].error?.message.includes("Failed to fetch"),
+    JSON.stringify(notifiedWaiters.map(waiter => waiter.componentId))
+  );
+
+  // 展示态（非编辑）：不登记视图，但原因照样要写进占位文案。
+  const displayHostElement = makeHostElement();
+  context.showInteraction3dLoadFailure(
+    displayHostElement,
+    { id: "component-3d" },
+    { editable: false },
+    new Error("403 明确拒绝")
+  );
+  check(
+    "W13 展示态不通知等待者，但占位文案仍然带原因",
+    notifiedWaiters.length === 1 && displayHostElement.children[0]?.textContent.includes("403"),
+    displayHostElement.children[0]?.textContent || ""
+  );
+
+  // 取不到原因（非 Error、空 message）时退回通用文案，不留半截括号。
+  const reasonlessHostElement = makeHostElement();
+  context.showInteraction3dLoadFailure(reasonlessHostElement, { id: "component-3d" }, {}, {});
+  check(
+    "W13 拿不到原因时退回通用文案（不出现「（原因：undefined）」这种半截话）",
+    reasonlessHostElement.children[0]?.textContent === "户型暂时无法载入，请稍候重试。",
+    reasonlessHostElement.children[0]?.textContent || ""
+  );
+
+  // 很长的运行期栈只留一句能读的。
+  const longReasonHostElement = makeHostElement();
+  context.showInteraction3dLoadFailure(
+    longReasonHostElement,
+    { id: "component-3d" },
+    {},
+    new Error("x".repeat(200))
+  );
+  check(
+    "W13 过长的原因截断（占位块不能被一整段栈撑爆）",
+    longReasonHostElement.children[0]?.textContent.includes("…") &&
+      longReasonHostElement.children[0]?.textContent.length < 120,
+    String(longReasonHostElement.children[0]?.textContent.length)
+  );
+}
+
+/**
+ * W15：保存冲突的三条出路与「稍后处理」。
+ *
+ * `saveStudioDraft` / `handleSaveConflict` / `deferSaveConflict` / `resolveSaveConflict`
+ * 按源码切出来跑，`requestStudioApi` 换成可编程的假实现（409 / 成功都能摆），
+ * 弹窗与状态栏换成替身。要证明的是三件事：
+ *
+ *   1. 「稍后处理」不丢东西（不加载、不覆盖）且**不再停掉自动保存**；
+ *   2. 冲突期间界面一直有出口（状态栏 + 常驻的「处理保存冲突」按钮），
+ *      而且用户已经选了稍后处理时不再拿同一个冲突反复弹窗；
+ *   3. 保存结论要能传到调用方 —— 冲突/失败时不再有「已保存」这种假消息。
+ *
+ * @returns {Promise<void>}
+ */
+async function runStudioConflictSuite() {
+  const source = fs.readFileSync(
+    path.join(ROOT, "frontend/static/3d-studio/studio-app.js"),
+    "utf8"
+  );
+  const saveSource = [
+    "setSaveState",
+    "setSaveConflictPendingUi",
+    "openSaveConflictDialog",
+    "handleSaveConflict",
+    "deferSaveConflict",
+    "resolveSaveConflict",
+    "saveStudioDraft"
+  ]
+    .map(functionName => extractFunction(source, functionName))
+    .join("\n\n");
+
+  const toasts = [];
+  const logEntries = [];
+  const scheduledTimers = [];
+  const saveStateElement = { className: "", innerHTML: "" };
+  const reopenButtonElement = { hidden: true };
+  const dialogElement = {
+    open: false,
+    showModalCalls: 0,
+    closeCalls: 0,
+    showModal() {
+      this.open = true;
+      this.showModalCalls += 1;
+    },
+    close() {
+      this.open = false;
+      this.closeCalls += 1;
+    }
+  };
+  const putResponses = [];
+  const requestCalls = [];
+  // 请求期间用户继续编辑的开关：用来验「成功后把尾巴追上」这条既有语义。
+  let bumpRevisionDuringPut = false;
+  const context = vm.createContext({
+    console,
+    saveStateElement,
+    saveConflictReopenButton: reopenButtonElement,
+    saveConflictDialogElement: dialogElement,
+    showToast: (toastMessage, tone) => toasts.push({ toastMessage, tone: tone || "" }),
+    window: {
+      HABridgeLog: { error: (errorObject, logContext) => logEntries.push({ errorObject, ...logContext }) },
+      setTimeout: (callback, delayMs) => {
+        scheduledTimers.push({ callback, delayMs });
+        return scheduledTimers.length;
+      },
+      clearTimeout: () => {}
+    },
+    requestStudioApi: async (requestPath, requestOptions = {}) => {
+      requestCalls.push({ requestPath, method: requestOptions.method || "GET" });
+      if (bumpRevisionDuringPut && requestOptions.method === "PUT") {
+        context.changeRevision += 1;
+      }
+      const nextResponse = putResponses.shift();
+      if (nextResponse?.error) {
+        throw nextResponse.error;
+      }
+      return nextResponse?.payload ?? { revision: 1 };
+    },
+    snapshotDocumentForSave: () => ({ pages: [{ path: "/overview" }] }),
+    // 模块级状态：在沙箱里就是全局变量，被测代码读写的就是它们。
+    isStageViewerMode: false,
+    savedSceneRecord: { revision: 1, scene: { pages: [] } },
+    isSaving: false,
+    saveConflict: null,
+    saveConflictDeferred: false,
+    changeRevision: 2,
+    savedRevision: 1,
+    autosaveTimer: null
+  });
+  vm.runInContext(saveSource, context);
+
+  const conflictError = () => Object.assign(new Error("版本冲突"), { name: "StudioRequestError", status: 409 });
+  const remoteRecord = { revision: 5, scene: { pages: [{ path: "/overview", remote: true }] } };
+  const resetScene = () => {
+    context.savedSceneRecord = { revision: 1, scene: { pages: [] } };
+    context.isSaving = false;
+    context.saveConflict = null;
+    context.saveConflictDeferred = false;
+    context.changeRevision = 2;
+    context.savedRevision = 1;
+    context.autosaveTimer = null;
+    dialogElement.open = false;
+    reopenButtonElement.hidden = true;
+    toasts.length = 0;
+    logEntries.length = 0;
+    requestCalls.length = 0;
+    scheduledTimers.length = 0;
+    putResponses.length = 0;
+  };
+
+  // 1) 首次 409：拉取服务器版本 → 弹窗 + 常驻入口，且绝不自动覆盖。
+  resetScene();
+  putResponses.push({ error: conflictError() }, { payload: remoteRecord });
+  const conflictOutcome = await context.saveStudioDraft();
+  check(
+    "W15 收到 409 时拉取服务器版本并弹窗（绝不静默覆盖）",
+    requestCalls.length === 2 &&
+      requestCalls[0].method === "PUT" &&
+      requestCalls[1].method === "GET" &&
+      dialogElement.open &&
+      context.saveConflict?.latest === remoteRecord,
+    JSON.stringify(requestCalls)
+  );
+  check(
+    "W15 冲突期间状态栏与「处理保存冲突」按钮都在（界面必须留出口）",
+    saveStateElement.innerHTML.includes("等待处理保存冲突") && reopenButtonElement.hidden === false,
+    JSON.stringify({ state: saveStateElement.innerHTML, hidden: reopenButtonElement.hidden })
+  );
+  check(
+    "W15 冲突时的保存结论是 blocked-by-conflict（调用方据此不再说「已保存」）",
+    conflictOutcome === "blocked-by-conflict",
+    String(conflictOutcome)
+  );
+  check(
+    "W15 冲突挂着时不再排下一次自动保存（否则就是每 500ms 撞一次 409 的空转）",
+    scheduledTimers.filter(timer => timer.delayMs === 500).length === 0,
+    JSON.stringify(scheduledTimers.map(timer => timer.delayMs))
+  );
+
+  // 2) 冲突未处理且用户没选稍后处理：跳过保存（避免把同一个冲突反复撞上去）。
+  requestCalls.length = 0;
+  putResponses.length = 0;
+  const blockedOutcome = await context.saveStudioDraft();
+  check(
+    "W15 未处理的冲突仍然会挡住自动保存（不重复撞同一个 409）",
+    blockedOutcome === "blocked-by-conflict" && requestCalls.length === 0,
+    JSON.stringify({ outcome: blockedOutcome, calls: requestCalls.length })
+  );
+
+  // 3) 「稍后处理」：收起对话框、记录留着、本地内容一点不丢、入口继续挂着。
+  const localSceneBeforeDefer = JSON.stringify(context.saveConflict.localScene);
+  context.deferSaveConflict();
+  check(
+    "W15 稍后处理收起对话框但保留冲突记录与入口（三条出路里唯一不丢东西的一条）",
+    context.saveConflict !== null &&
+      context.saveConflictDeferred === true &&
+      dialogElement.open === false &&
+      reopenButtonElement.hidden === false &&
+      JSON.stringify(context.saveConflict.localScene) === localSceneBeforeDefer,
+    JSON.stringify({
+      hasConflict: context.saveConflict !== null,
+      deferred: context.saveConflictDeferred,
+      open: dialogElement.open,
+      hidden: reopenButtonElement.hidden
+    })
+  );
+  check(
+    "W15 稍后处理之后自动保存不再被停掉（修复前这里一次请求都不发，界面却毫无异样）",
+    await (async () => {
+      requestCalls.length = 0;
+      putResponses.push({ error: conflictError() }, { payload: remoteRecord });
+      const deferredOutcome = await context.saveStudioDraft();
+      return requestCalls.length === 2 && deferredOutcome === "blocked-by-conflict";
+    })(),
+    JSON.stringify(requestCalls)
+  );
+  check(
+    "W15 稍后处理之后同一个冲突不再反复弹窗（记录照刷新，但不打扰用户）",
+    dialogElement.showModalCalls === 1 && context.saveConflict?.latest === remoteRecord,
+    JSON.stringify({ showModalCalls: dialogElement.showModalCalls })
+  );
+
+  // 4) 冲突被处理掉之后：入口收起、deferred 复位，下一次 409 会重新弹窗。
+  context.saveConflict = { latest: remoteRecord, localScene: { pages: [] }, targetVersion: 2 };
+  context.saveConflictDeferred = true;
+  reopenButtonElement.hidden = false;
+  context.resolveSaveConflict();
+  check(
+    "W15 处理掉冲突后撤掉常驻入口、复位稍后处理标记并关掉对话框",
+    context.saveConflict === null &&
+      context.saveConflictDeferred === false &&
+      reopenButtonElement.hidden === true &&
+      dialogElement.open === false,
+    JSON.stringify({
+      hasConflict: context.saveConflict !== null,
+      deferred: context.saveConflictDeferred,
+      hidden: reopenButtonElement.hidden
+    })
+  );
+  putResponses.push({ error: conflictError() }, { payload: remoteRecord });
+  await context.saveStudioDraft();
+  check(
+    "W15 处理掉之后的下一次冲突仍然会弹窗（不因为「用过一次稍后处理」就永久静音）",
+    dialogElement.showModalCalls === 2,
+    JSON.stringify({ showModalCalls: dialogElement.showModalCalls })
+  );
+
+  // 5) 保存成功的结论与状态；失败时不许说「已保存」。
+  resetScene();
+  putResponses.push({ payload: { revision: 2, scene: { pages: [] } } });
+  const savedOutcome = await context.saveStudioDraft();
+  check(
+    "W15 保存成功返回 saved 且状态栏给出「已自动保存」",
+    savedOutcome === "saved" && saveStateElement.innerHTML.includes("已自动保存"),
+    JSON.stringify({ outcome: savedOutcome, state: saveStateElement.innerHTML })
+  );
+  check(
+    "W15 保存期间没有新改动时不必再排一次（已经干净落盘）",
+    scheduledTimers.filter(timer => timer.delayMs === 500).length === 0,
+    JSON.stringify(scheduledTimers.map(timer => timer.delayMs))
+  );
+
+  // 请求期间用户继续编辑：成功后要把尾巴追上（既有语义，不许被这次改动带偏）。
+  resetScene();
+  bumpRevisionDuringPut = true;
+  putResponses.push({ payload: { revision: 2, scene: { pages: [] } } });
+  const tailOutcome = await context.saveStudioDraft();
+  bumpRevisionDuringPut = false;
+  check(
+    "W15 保存期间有新改动时仍然排下一次保存追尾巴（既有语义不许回退）",
+    tailOutcome === "saved" &&
+      scheduledTimers.filter(timer => timer.delayMs === 500).length === 1 &&
+      context.changeRevision === 3,
+    JSON.stringify({ outcome: tailOutcome, timers: scheduledTimers.map(timer => timer.delayMs) })
+  );
+
+  resetScene();
+  putResponses.push({ error: Object.assign(new Error("服务器错误"), { status: 500 }) });
+  const failedOutcome = await context.saveStudioDraft();
+  check(
+    "W15 保存失败返回 failed 并给出可见提示（不静默）",
+    failedOutcome === "failed" &&
+      saveStateElement.innerHTML.includes("保存失败") &&
+      toasts.some(toast => toast.tone === "error") &&
+      logEntries.some(entry => entry.phase === "studio-save"),
+    JSON.stringify({ outcome: failedOutcome, toasts: toasts.map(toast => toast.toastMessage) })
+  );
+
+  resetScene();
+  context.changeRevision = 1;
+  const noChangeOutcome = await context.saveStudioDraft();
+  check(
+    "W15 没有改动时不发请求（手动点保存也安静返回）",
+    noChangeOutcome === "no-changes" && requestCalls.length === 0,
+    JSON.stringify({ outcome: noChangeOutcome, calls: requestCalls.length })
+  );
+
+  resetScene();
+  context.isStageViewerMode = true;
+  const viewerOutcome = await context.saveStudioDraft();
+  check(
+    "W15 只读视图仍然一次都不写（既有守卫不许被这次改动放松）",
+    viewerOutcome === "skipped" && requestCalls.length === 0,
+    JSON.stringify({ outcome: viewerOutcome, calls: requestCalls.length })
+  );
+  context.isStageViewerMode = false;
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,
   login: runLoginSuite,
@@ -2120,7 +2764,11 @@ const suites = {
   setup: runSetupSuite,
   license: runLicenseSuite,
   "home-boot": runHomeBootSuite,
-  "home-snapshot": runHomeSnapshotSuite
+  "home-snapshot": runHomeSnapshotSuite,
+  "optimistic-toggle": runOptimisticToggleSuite,
+  "dialog-escape": runDialogEscapeSuite,
+  "interaction3d-mount": runInteraction3dMountSuite,
+  "studio-conflict": runStudioConflictSuite
 };
 
 /**

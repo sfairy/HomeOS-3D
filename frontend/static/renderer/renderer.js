@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918175732";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918181612";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -51,9 +51,9 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260918175732";
-import { randomUuid } from "../utils/random-id.js?v=20260918175732";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260918175732";
+} from "./registry.js?v=20260918181612";
+import { randomUuid } from "../utils/random-id.js?v=20260918181612";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260918181612";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -72,11 +72,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260918175732";
+} from "./climate.js?v=20260918181612";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260918175732";
+} from "./device-profiles.js?v=20260918181612";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -85,26 +85,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260918175732";
-import { confirmAction } from "../ui-confirm.js?v=20260918175732";
+} from "../related-entities.js?v=20260918181612";
+import { confirmAction } from "../ui-confirm.js?v=20260918181612";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260918175732";
+} from "./entity-power.js?v=20260918181612";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260918175732";
-import { componentActionIsSupported } from "../action-rules.js?v=20260918175732";
+} from "../virtual-entities.js?v=20260918181612";
+import { componentActionIsSupported } from "../action-rules.js?v=20260918181612";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260918175732";
+} from "./transform-geometry.js?v=20260918181612";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -114,7 +114,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260918175732";
+} from "./effect-geometry.js?v=20260918181612";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -133,14 +133,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260918175732";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918175732";
+} from "./light-runtime.js?v=20260918181612";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918181612";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260918175732";
+} from "./vacuum-runtime.js?v=20260918181612";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -173,13 +173,13 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260918175732";
+} from "./cover-runtime.js?v=20260918181612";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260918175732";
+} from "./runtime-dialog-motion.js?v=20260918181612";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -189,13 +189,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260918175732";
+} from "./runtime-caches.js?v=20260918181612";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260918175732";
+} from "./runtime-document.js?v=20260918181612";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -287,6 +287,10 @@ const MAX_DIALOG_PREFERRED_SCALE = 1.6;
 const FILL_DIALOG_SCALE_LIMIT = 2;
 // tightFill（紧凑内容填满）模式的上限，再高一档，用于单行控件这类小体量内容。
 const TIGHT_FILL_DIALOG_SCALE_LIMIT = 2.12;
+// 乐观开关的确认等待上限：交互时先本地变色、等 HA 推送确认，超过这个时间没等到就回滚。
+// 取 8 秒是「慢设备也给够余量」与「不让界面长期停在错误状态」之间的折中；
+// 这个值同时用于写下 expiresAt 与排回滚定时器，提成常量是为了不让两处各写一个 8000。
+const OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS = 8000;
 /**
  * 计算运行期弹窗的可用尺寸与缩放比例。
  *
@@ -425,6 +429,25 @@ export function runtimeDialogViewport({
     centerX: overlapLeftPx - viewportLeftPx + visibleWidthPx / 2,
     centerY: overlapTopPx - viewportTopPx + visibleHeightPx / 2
   };
+}
+/**
+ * 乐观开关等不到状态确认时的错误对象。
+ *
+ * 单独抽出来是为了让文案与实体 id 的组装可测，也避免这段文字在两处漂。
+ *
+ * @param {string} entityId 实体 ID。
+ * @returns {Error} 错误对象的 `name` 固定为 `OptimisticToggleTimeoutError`，调用方按 name 分支。
+ */
+function createOptimisticToggleTimeoutError(entityId) {
+  const timeoutError = new Error(
+    "设备没有在 " +
+      OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS / 1000 +
+      " 秒内回报状态，开关已恢复为设备上报的状态（" +
+      entityId +
+      "）。请确认设备在线，或稍后重试。"
+  );
+  timeoutError.name = "OptimisticToggleTimeoutError";
+  return timeoutError;
 }
 /**
  * 递归给组件及其子组件补上运行期 ID（`component-` + 随机 UUID）。
@@ -4148,23 +4171,40 @@ export class PanelRenderer {
     const optimisticEntityKey = String(resolvedPowerTargetEntityId || "");
     const pendingOptimisticEntry = {
       desiredActive: optimisticActiveState,
-      // 8000ms 与下面的回滚定时器是同一个值，改一处必须同步改另一处。
-      expiresAt: Date.now() + 8000
+      expiresAt: Date.now() + OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS
     };
     this.pendingOptimisticStates.set(optimisticEntityKey, pendingOptimisticEntry);
-    const expiryTimer = window.setTimeout(() => {
-      if (this.pendingOptimisticStates.get(optimisticEntityKey) === pendingOptimisticEntry) {
-        this.pendingOptimisticStates.delete(optimisticEntityKey);
-        if (this.states.get(resolvedPowerTargetEntityId) === nextStoredState) {
-          if (coverEntityState === undefined) {
-            this.states.delete(resolvedPowerTargetEntityId);
-          } else {
-            this.states.set(resolvedPowerTargetEntityId, coverEntityState);
-          }
-          this.updateOptimisticToggleVisuals(resolvedPowerTargetEntityId);
-        }
+    /**
+     * 把界面与状态缓存还原成「确认过的那一份」（`undefined` = 本来就没有这条状态）。
+     *
+     * @returns {void}
+     */
+    const restoreConfirmedState = () => {
+      if (coverEntityState === undefined) {
+        this.states.delete(resolvedPowerTargetEntityId);
+      } else {
+        this.states.set(resolvedPowerTargetEntityId, coverEntityState);
       }
-    }, 8000);
+      this.updateOptimisticToggleVisuals(resolvedPowerTargetEntityId);
+    };
+    const expiryTimer = window.setTimeout(() => {
+      if (this.pendingOptimisticStates.get(optimisticEntityKey) !== pendingOptimisticEntry) {
+        return;
+      }
+      this.pendingOptimisticStates.delete(optimisticEntityKey);
+      if (this.states.get(resolvedPowerTargetEntityId) !== nextStoredState) {
+        return;
+      }
+      restoreConfirmedState();
+      // 回滚必须说出来。界面自己变色、又自己变回去，用户唯一的解释是「点了没反应」，
+      // 于是会反复点同一下（每次都在 8 秒后再来一遍）；而真正的事实是「命令发出去了，
+      // 但设备 / HA 一直没回报状态」。这条一次性提示就是那个事实的唯一出口 ——
+      // 编辑器的错误弹窗与展示页的横幅都挂在这个回调上。
+      //
+      // 只在**真的回滚了**这一支上报（上面两个 return 都是「已经有人处理过」）：
+      // 手动撤销或 HA 推送到达时回滚函数会被清掉，那条路径不该报错。
+      this.options.onError?.(createOptimisticToggleTimeoutError(resolvedPowerTargetEntityId));
+    }, OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS);
     this.states.set(resolvedPowerTargetEntityId, nextStoredState);
     this.updateOptimisticToggleVisuals(resolvedPowerTargetEntityId);
     return () => {
@@ -4173,12 +4213,7 @@ export class PanelRenderer {
         this.pendingOptimisticStates.delete(optimisticEntityKey);
       }
       if (this.states.get(resolvedPowerTargetEntityId) === nextStoredState) {
-        if (coverEntityState === undefined) {
-          this.states.delete(resolvedPowerTargetEntityId);
-        } else {
-          this.states.set(resolvedPowerTargetEntityId, coverEntityState);
-        }
-        this.updateOptimisticToggleVisuals(resolvedPowerTargetEntityId);
+        restoreConfirmedState();
       }
     };
   }
@@ -8513,6 +8548,30 @@ export class PanelRenderer {
     });
   }
   /**
+   * 给一层运行时弹窗挂「按 ESC 关闭」。
+   *
+   * 为什么必须看 `defaultPrevented`：这一层里会嵌下拉菜单与展开面板（气候模式、扩展项、
+   * 电动床档位…），它们按 ESC 只该收起自己 —— 但键盘事件会继续冒泡到层上，
+   * 于是「想关下拉」变成「把整个设备弹窗也关掉」，用户得重新点开设备再找到刚才那个下拉。
+   * 里层处理 ESC 时都调过 `preventDefault()`，所以「冒泡到这里还带 preventDefault」
+   * 就等于「已经有人处理过」，此时不再关这一层。
+   *
+   * 十条弹窗（摄像头 / 能力 / 净化器 / 播放器 / 自定义弹层 / 电动床两个 / 晾衣机 /
+   * 存在检测 / 实体详情）走的都是这条，新增弹窗也必须走它 ——
+   * 各自手写一份 `if (key === "Escape") dialog.close()` 正是这条缺陷的来源。
+   *
+   * @param {HTMLElement} escapeLayerElement 承载弹窗的那一层。
+   * @param {HTMLDialogElement} escapeDialogElement 要关闭的弹窗。
+   * @returns {void}
+   */
+  bindRuntimeDialogEscapeClose(escapeLayerElement, escapeDialogElement) {
+    escapeLayerElement.addEventListener("keydown", escapeKeyEvent => {
+      if (escapeKeyEvent.key === "Escape" && !escapeKeyEvent.defaultPrevented) {
+        escapeDialogElement.close();
+      }
+    });
+  }
+  /**
    * 从 3D 舞台打开摄像头预览弹窗（带上舞台侧的关闭回调与预览参数）。
    *
    * @param {object} previewCameraComponent 摄像头组件。
@@ -9028,11 +9087,7 @@ export class PanelRenderer {
       cameraDialogElement,
       cameraCardElement
     );
-    cameraLayerElement.addEventListener("keydown", cameraKeyEvent => {
-      if (cameraKeyEvent.key === "Escape") {
-        cameraDialogElement.close();
-      }
-    });
+    this.bindRuntimeDialogEscapeClose(cameraLayerElement, cameraDialogElement);
     cameraDialogElement.addEventListener(
       "close",
       () => {
@@ -10071,11 +10126,7 @@ export class PanelRenderer {
       capabilityDialogElement,
       capabilityCardElement
     );
-    capabilityLayerElement.addEventListener("keydown", capabilityKeyEvent => {
-      if (capabilityKeyEvent.key === "Escape") {
-        capabilityDialogElement.close();
-      }
-    });
+    this.bindRuntimeDialogEscapeClose(capabilityLayerElement, capabilityDialogElement);
     capabilityDialogElement.addEventListener(
       "close",
       () => {
@@ -10687,11 +10738,7 @@ export class PanelRenderer {
       purifierDialogElement,
       purifierCardElement
     );
-    purifierLayerElement.addEventListener("keydown", purifierKeyEvent => {
-      if (purifierKeyEvent.key === "Escape") {
-        purifierDialogElement.close();
-      }
-    });
+    this.bindRuntimeDialogEscapeClose(purifierLayerElement, purifierDialogElement);
     purifierDialogElement.addEventListener(
       "close",
       () => {
@@ -11135,11 +11182,7 @@ export class PanelRenderer {
       mediaPlayerDialogElement,
       mediaPlayerCardElement
     );
-    mediaPlayerLayerElement.addEventListener("keydown", mediaPlayerKeyEvent => {
-      if (mediaPlayerKeyEvent.key === "Escape") {
-        mediaPlayerDialogElement.close();
-      }
-    });
+    this.bindRuntimeDialogEscapeClose(mediaPlayerLayerElement, mediaPlayerDialogElement);
     let speakerEntranceAnimation = null;
     mediaPlayerDialogElement.addEventListener(
       "close",
@@ -13798,11 +13841,7 @@ export class PanelRenderer {
       popupDialogElement,
       popupCardElement
     );
-    popupDialogLayerElement.addEventListener("keydown", dialogKeyEvent => {
-      if (dialogKeyEvent.key === "Escape") {
-        popupDialogElement.close();
-      }
-    });
+    this.bindRuntimeDialogEscapeClose(popupDialogLayerElement, popupDialogElement);
     popupDialogElement.addEventListener(
       "close",
       () => {
@@ -17637,11 +17676,7 @@ export class PanelRenderer {
     this.detailsDialog = bedDialogElement;
     this.registerRuntimeDialogScale(bedDialogLayerElement, bedDialogElement, 760, 420);
     this.bindRuntimeDialogOutsideDismiss(bedDialogLayerElement, bedDialogElement, bedCardElement);
-    bedDialogLayerElement.addEventListener("keydown", bedDialogKeyEvent => {
-      if (bedDialogKeyEvent.key === "Escape") {
-        bedDialogElement.close();
-      }
-    });
+    this.bindRuntimeDialogEscapeClose(bedDialogLayerElement, bedDialogElement);
     bedDialogElement.addEventListener(
       "close",
       () => {
@@ -18095,11 +18130,7 @@ export class PanelRenderer {
     this.registerRuntimeDialogScale(bedDialogLayer, bedDetailsDialog, 760, 560);
     bedCloseButton.addEventListener("click", () => bedDetailsDialog.close());
     this.bindRuntimeDialogOutsideDismiss(bedDialogLayer, bedDetailsDialog, bedDetailsCard);
-    bedDialogLayer.addEventListener("keydown", bedLayerKeyEvent => {
-      if (bedLayerKeyEvent.key === "Escape") {
-        bedDetailsDialog.close();
-      }
-    });
+    this.bindRuntimeDialogEscapeClose(bedDialogLayer, bedDetailsDialog);
     bedDetailsDialog.addEventListener(
       "close",
       () => {
@@ -19230,11 +19261,7 @@ export class PanelRenderer {
     }
     vacuumCloseButton.addEventListener("click", () => vacuumDialogElement.close());
     this.bindRuntimeDialogOutsideDismiss(vacuumDialogLayer, vacuumDialogElement, vacuumCardElement);
-    vacuumDialogLayer.addEventListener("keydown", layerKeyEvent => {
-      if (layerKeyEvent.key === "Escape") {
-        vacuumDialogElement.close();
-      }
-    });
+    this.bindRuntimeDialogEscapeClose(vacuumDialogLayer, vacuumDialogElement);
     vacuumDialogElement.addEventListener(
       "close",
       () => {
@@ -19730,11 +19757,7 @@ export class PanelRenderer {
     this.registerRuntimeDialogScale(presenceDialogLayer, presenceDialog, 760, 560);
     presenceCloseButton.addEventListener("click", () => presenceDialog.close());
     this.bindRuntimeDialogOutsideDismiss(presenceDialogLayer, presenceDialog, presenceCard);
-    presenceDialogLayer.addEventListener("keydown", presenceLayerKeyEvent => {
-      if (presenceLayerKeyEvent.key === "Escape") {
-        presenceDialog.close();
-      }
-    });
+    this.bindRuntimeDialogEscapeClose(presenceDialogLayer, presenceDialog);
     presenceDialog.addEventListener(
       "close",
       () => {
@@ -21495,11 +21518,7 @@ export class PanelRenderer {
     }
     entityCloseButton.addEventListener("click", () => entityDialog.close());
     this.bindRuntimeDialogOutsideDismiss(entityDialogLayer, entityDialog, entityDialogCard);
-    entityDialogLayer.addEventListener("keydown", entityLayerKeyEvent => {
-      if (entityLayerKeyEvent.key === "Escape") {
-        entityDialog.close();
-      }
-    });
+    this.bindRuntimeDialogEscapeClose(entityDialogLayer, entityDialog);
     entityDialog.addEventListener(
       "close",
       () => {

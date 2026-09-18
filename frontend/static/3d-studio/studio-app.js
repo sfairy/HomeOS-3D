@@ -60,67 +60,67 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "./studio-curtain-track.js?v=20260918175732";
-import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260918175732";
+} from "./studio-curtain-track.js?v=20260918181612";
+import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260918181612";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "./studio-surface-textures.js?v=20260918175732";
-import { createOverviewStack } from "./studio-overview-stack.js?v=20260918175732";
-import { windowGeometryParts } from "./studio-window-geometry.js?v=20260918175732";
+} from "./studio-surface-textures.js?v=20260918181612";
+import { createOverviewStack } from "./studio-overview-stack.js?v=20260918181612";
+import { windowGeometryParts } from "./studio-window-geometry.js?v=20260918181612";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=20260918175732";
-import { addSecurityModel } from "./studio-security-models.js?v=20260918175732";
-import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260918175732";
-import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260918175732";
-import { createFloorTransition } from "./studio-floor-transition.js?v=20260918175732";
-import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260918175732";
-import { createGroundReflections } from "./studio-ground-reflections.js?v=20260918175732";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260918175732";
+} from "./studio-camera-constraints.js?v=20260918181612";
+import { addSecurityModel } from "./studio-security-models.js?v=20260918181612";
+import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260918181612";
+import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260918181612";
+import { createFloorTransition } from "./studio-floor-transition.js?v=20260918181612";
+import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260918181612";
+import { createGroundReflections } from "./studio-ground-reflections.js?v=20260918181612";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260918181612";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances,
   mergeWallBands
-} from "./studio-wall-materials.js?v=20260918175732";
+} from "./studio-wall-materials.js?v=20260918181612";
 import {
   WARM_WOOD_STYLE,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=20260918175732";
-import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260918175732";
+} from "./studio-scene-style.js?v=20260918181612";
+import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260918181612";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../modules/interaction3d/render-cache.js?v=20260918175732";
-import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260918175732";
-import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260918175732";
-import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260918175732";
-import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260918175732";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=20260918175732";
+} from "../modules/interaction3d/render-cache.js?v=20260918181612";
+import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260918181612";
+import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260918181612";
+import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260918181612";
+import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260918181612";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=20260918181612";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260918175732";
+import { apiFetch } from "../utils/api-fetch.js?v=20260918181612";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260918175732";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260918181612";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260918175732";
-import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260918175732";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260918181612";
+import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260918181612";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../modules/interaction3d/light-motion.js?v=20260918175732";
+} from "../modules/interaction3d/light-motion.js?v=20260918181612";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -160,7 +160,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "./geometry.js?v=20260918175732";
+} from "./geometry.js?v=20260918181612";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -169,32 +169,32 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "./export-utils.js?v=20260918175732";
+} from "./export-utils.js?v=20260918181612";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "./export-presets.js?v=20260918175732";
-import { reorderFloors } from "./floor-order.js?v=20260918175732";
-import { syncControlValue } from "./ui-controls.js?v=20260918175732";
+} from "./export-presets.js?v=20260918181612";
+import { reorderFloors } from "./floor-order.js?v=20260918181612";
+import { syncControlValue } from "./ui-controls.js?v=20260918181612";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=20260918175732";
+} from "./studio-widgets.js?v=20260918181612";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "./studio-external-models.js?v=20260918175732";
+} from "./studio-external-models.js?v=20260918181612";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "./studio-plan-drawing.js?v=20260918175732";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260918175732";
-import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260918175732";
-import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260918175732";
+} from "./studio-plan-drawing.js?v=20260918181612";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260918181612";
+import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260918181612";
+import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260918181612";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -207,7 +207,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "./studio-normalization.js?v=20260918175732";
+} from "./studio-normalization.js?v=20260918181612";
 window.__haBridgeStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 /**
@@ -363,6 +363,8 @@ const floorDeleteNameElement = selectElement("#floor-delete-name");
 const saveConflictDialogElement = selectElement("#save-conflict-dialog");
 const saveConflictLoadButton = selectElement("#save-conflict-load");
 const saveConflictOverwriteButton = selectElement("#save-conflict-overwrite");
+const saveConflictLaterButton = selectElement("#save-conflict-later");
+const saveConflictReopenButton = selectElement("#save-conflict-reopen");
 const globalWallHeightInput = selectElement("#global-wall-height");
 const globalWallThicknessInput = selectElement("#global-wall-thickness");
 const globalWallOpacityInput = selectElement("#global-wall-opacity");
@@ -1392,7 +1394,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/draco-decoder-worker.js?v=20260918175732"
+  "/static/3d-studio/draco-decoder-worker.js?v=20260918181612"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -1949,6 +1951,10 @@ let savedRevision = 0;
 let autosaveTimer = null;
 let isSaving = false;
 let saveConflict = null;
+// 「稍后处理」：用户先不当场二选一。冲突记录留着（本地内容一点不丢、也绝不静默覆盖），
+// 但它不再停掉自动保存 —— 停掉之后界面一切正常，用户会一直以为在存，
+// 直到刷新页面才发现这一段的改动没了。
+let saveConflictDeferred = false;
 let toastTimer = null;
 let isSceneUpdateQueued = false;
 let isForcedSceneUpdate = false;
@@ -5505,49 +5511,122 @@ async function loadStudioRecord(record) {
   }
 }
 /**
- * 记录 409 保存冲突，并弹出处理对话框。
+ * 打开保存冲突对话框（幂等：已经开着时不再 `showModal()`，重复调用会抛异常）。
+ *
+ * @returns {void}
+ */
+function openSaveConflictDialog() {
+  if (!saveConflictDialogElement.open) {
+    saveConflictDialogElement.showModal();
+  }
+}
+/**
+ * 把「有未处理冲突」这件事挂在界面上：状态栏文案 + 一颗常驻的「处理保存冲突」按钮。
+ *
+ * 为什么需要这颗按钮：用户一旦选了「稍后处理」，对话框就收起来了 ——
+ * 没有第二条入口的话，冲突就再也处理不了，只能刷新页面重来。
+ *
+ * @param {boolean} hasPendingConflict 是否还有未处理的冲突。
+ * @returns {void}
+ */
+function setSaveConflictPendingUi(hasPendingConflict) {
+  saveConflictReopenButton.hidden = !hasPendingConflict;
+}
+/**
+ * 记录 409 保存冲突，并按需弹出处理对话框。
  *
  * 三方信息都留在 saveConflict 里：服务器最新场景、本地待保存场景、以及本次要匹配的
- * 目标 revision。冲突未处理期间 saveStudioDraft 会一直跳过自动保存，
- * 避免把同一个冲突反复撞上去。对话框已打开时不再 showModal（重复调用会抛异常）。
+ * 目标 revision。冲突未处理期间（且用户没有选「稍后处理」）saveStudioDraft 会跳过
+ * 自动保存，避免把同一个冲突反复撞上去。界面上的「处理保存冲突」按钮始终可见，
+ * 所以「跳过保存」不是一个用户看不见的状态。
  *
  * @param {object} conflictingServerScene 服务器上的最新场景。
  * @param {object} localScene 本地即将覆盖上去的场景。
  * @param {number} serverRevision 服务器当前 revision。
+ * @param {object} [conflictOptions={}] 选项。
+ * @param {boolean} [conflictOptions.reopenDialog=true] 是否把对话框弹出来。
+ *   用户已经选了「稍后处理」时传 false：记录照样刷新（`latest` 要跟得上服务器），
+ *   但不再拿同一个冲突反复打扰他。
  * @returns {void}
  */
-function handleSaveConflict(conflictingServerScene, localScene, serverRevision) {
+function handleSaveConflict(
+  conflictingServerScene,
+  localScene,
+  serverRevision,
+  { reopenDialog = true } = {}
+) {
   saveConflict = {
     latest: conflictingServerScene,
     localScene: localScene,
     targetVersion: serverRevision
   };
   setSaveState("等待处理保存冲突", "error");
-  if (!saveConflictDialogElement.open) {
-    saveConflictDialogElement.showModal();
+  setSaveConflictPendingUi(true);
+  if (reopenDialog) {
+    openSaveConflictDialog();
   }
+}
+/**
+ * 「稍后处理」：收起对话框，但冲突记录留着。
+ *
+ * 这是三条出路里唯一不丢东西的一条 —— 不加载服务器版本（丢本地），也不覆盖（丢远端）。
+ * 本地文档仍然完整，后续编辑照常进自动保存（会撞 409，但状态栏与按钮一直挂着），
+ * 用户想处理时点一下「处理保存冲突」就能回到这个对话框。
+ *
+ * @returns {void}
+ */
+function deferSaveConflict() {
+  if (!saveConflict) {
+    saveConflictDialogElement.close();
+    return;
+  }
+  saveConflictDeferred = true;
+  setSaveState("等待处理保存冲突", "error");
+  setSaveConflictPendingUi(true);
+  saveConflictDialogElement.close();
+}
+/**
+ * 冲突已按用户选择处理掉：清记录、撤掉界面上的常驻入口、关对话框。
+ *
+ * @returns {void}
+ */
+function resolveSaveConflict() {
+  saveConflict = null;
+  saveConflictDeferred = false;
+  setSaveConflictPendingUi(false);
+  saveConflictDialogElement.close();
 }
 /**
  * 自动 / 手动保存草稿到 PUT /api/v1/studio3d（携带 revision 做乐观并发）。
  *
- * 五个前置条件任一成立即跳过：只读视图、尚未读到过记录、正在保存、存在未处理的
- * 保存冲突、changeRevision 与 savedRevision 相等（无改动）—— 最后一条让「手动点保存」
+ * 前置条件：只读视图、尚未读到过记录、正在保存、存在**未处理且用户没有选「稍后处理」**
+ * 的保存冲突、changeRevision 与 savedRevision 相等（无改动）—— 最后一个让「手动点保存」
  * 在无改动时也安静返回。进入时先把本次要提交的 revision 固化在局部变量里，
  * 请求期间用户继续编辑不会被算进这一次提交；收到 409 时拉取服务器版本并交给
- * handleSaveConflict 让用户二选一，绝不静默覆盖。finally 里若仍有新改动，
+ * handleSaveConflict 让用户处理，绝不静默覆盖。finally 里若仍有新改动，
  * 会再排一次 500ms 后的保存把尾巴追上。
  *
- * @returns {Promise<void>} 无返回值。
+ * 返回值是给调用方用的**结论**：`"saved"` / `"no-changes"` / `"skipped"`（只读视图、
+ * 没有记录、已有一次保存在飞）/ `"blocked-by-conflict"`（有未处理的冲突）/ `"failed"`。
+ * 之所以不能只回 void：三个调用点会在之后弹「已保存」，而在冲突或失败时那句提示是假的
+ * —— 用户据此以为改动落盘了，实际没有。
+ *
+ * @returns {Promise<string>} 上方约定的一种结论。
  */
 async function saveStudioDraft() {
-  if (
-    isStageViewerMode ||
-    !savedSceneRecord ||
-    isSaving ||
-    saveConflict ||
-    changeRevision === savedRevision
-  ) {
-    return;
+  if (isStageViewerMode || !savedSceneRecord) {
+    return "skipped";
+  }
+  if (isSaving) {
+    return "skipped";
+  }
+  // 冲突未处理期间跳过（避免把同一个冲突反复撞上去），但「稍后处理」之后不再跳过：
+  // 那时把保存停掉，用户看不到任何异样，会一直以为改动在存。
+  if (saveConflict && !saveConflictDeferred) {
+    return "blocked-by-conflict";
+  }
+  if (changeRevision === savedRevision) {
+    return "no-changes";
   }
   isSaving = true;
   const revision = changeRevision;
@@ -5581,35 +5660,51 @@ async function saveStudioDraft() {
         throw saveRequestError;
       }
       const remoteScene = await requestStudioApi("/studio3d");
-      handleSaveConflict(remoteScene, snapshotDocumentForSave(), revision);
-      return;
+      handleSaveConflict(remoteScene, snapshotDocumentForSave(), revision, {
+        // 用户已经选了「稍后处理」时不再弹窗：记录照样刷新（latest 跟得上服务器），
+        // 但不用同一个冲突反复打断他 —— 状态栏与「处理保存冲突」按钮一直挂着。
+        reopenDialog: !saveConflictDeferred
+      });
+      return "blocked-by-conflict";
     }
     savedRevision = revision;
     if (changeRevision === savedRevision) {
       setSaveState("已自动保存", "saved");
     }
+    return "saved";
   } catch (saveFailureError) {
     window.HABridgeLog?.error(saveFailureError, {
       phase: "studio-save"
     });
     setSaveState("保存失败", "error");
     showToast(saveFailureError.message || "3D 草稿保存失败。", "error");
+    return "failed";
   } finally {
     isSaving = false;
+    // 冲突挂着时不再重排：等用户处理完（或者他改了下一笔，由 markDocumentDirty 触发），
+    // 否则就是一个每 500ms 撞一次 409 的空转循环。
     if (!saveConflict && changeRevision !== savedRevision) {
       window.clearTimeout(autosaveTimer);
       autosaveTimer = window.setTimeout(saveStudioDraft, 500);
     }
   }
 }
-saveConflictDialogElement.addEventListener("cancel", dialogCancelEvent =>
-  dialogCancelEvent.preventDefault()
-);
+saveConflictDialogElement.addEventListener("cancel", dialogCancelEvent => {
+  // ESC 不再是「按了没反应」：它等同于「稍后处理」—— 内容一点不丢、也不静默覆盖，
+  // 状态栏与「处理保存冲突」按钮继续留在界面上。
+  dialogCancelEvent.preventDefault();
+  deferSaveConflict();
+});
+saveConflictLaterButton.addEventListener("click", deferSaveConflict);
+saveConflictReopenButton.addEventListener("click", () => {
+  if (saveConflict) {
+    openSaveConflictDialog();
+  }
+});
 saveConflictLoadButton.addEventListener("click", async () => {
   const conflict = saveConflict;
   if (conflict) {
-    saveConflict = null;
-    saveConflictDialogElement.close();
+    resolveSaveConflict();
     try {
       await loadStudioRecord(conflict.latest);
       savedRevision = changeRevision;
@@ -5628,8 +5723,7 @@ saveConflictOverwriteButton.addEventListener("click", () => {
     activeFloorId = studioDocument.activeFloorId;
     activeScene = getCurrentFloor().scene;
     savedSceneRecord = overwriteConflict.latest;
-    saveConflict = null;
-    saveConflictDialogElement.close();
+    resolveSaveConflict();
     setSaveState("正在确认覆盖…", "saving");
     window.clearTimeout(autosaveTimer);
     autosaveTimer = window.setTimeout(saveStudioDraft, 0);
@@ -9967,8 +10061,15 @@ function saveBaseLighting() {
     type: "base-lighting-saved",
     lighting: normalizedLighting
   });
-  saveStudioDraft();
-  showToast("基础光设置已保存，导图和自动化控件已同步。", "success");
+  // 不能用「调用过 saveStudioDraft」当成功：冲突挂着或请求失败时它并不会落盘，
+  // 那时弹「已保存」就是在骗用户。
+  saveStudioDraft().then(baseLightingSaveOutcome => {
+    if (baseLightingSaveOutcome === "saved") {
+      showToast("基础光设置已保存，导图和自动化控件已同步。", "success");
+    } else if (baseLightingSaveOutcome === "blocked-by-conflict") {
+      showToast("基础光设置已记录，但户型草稿还在等保存冲突处理。", "error");
+    }
+  });
 }
 /**
  * 处理基础光面板里单个控件的输入事件。
@@ -12964,17 +13065,26 @@ async function saveCurrentCameraView() {
   syncCameraViewControls();
   if (exportRenderState) {
     exportStatusElement.textContent = viewLabel + "已保存";
-    await saveStudioDraft();
-    showToast(viewLabel + "已保存。");
+    const exportViewSaveOutcome = await saveStudioDraft();
+    showToast(
+      exportViewSaveOutcome === "saved" || exportViewSaveOutcome === "no-changes"
+        ? viewLabel + "已保存。"
+        : viewLabel + "已记录，等保存冲突处理后再落盘。"
+    );
     return;
   }
   markDocumentDirty();
   window.clearTimeout(autosaveTimer);
   autosaveTimer = null;
-  await saveStudioDraft();
-  showToast(
-    changeRevision === savedRevision ? viewLabel + "已保存。" : viewLabel + "已记录，正在保存…"
-  );
+  const cameraViewSaveOutcome = await saveStudioDraft();
+  // 冲突 / 失败时不能说「已保存」：那正是用户以为改动落盘了、实际没有的那种情况。
+  if (cameraViewSaveOutcome === "blocked-by-conflict" || cameraViewSaveOutcome === "failed") {
+    showToast(viewLabel + "已记录，等保存冲突处理后再落盘。", "error");
+  } else if (changeRevision === savedRevision) {
+    showToast(viewLabel + "已保存。");
+  } else {
+    showToast(viewLabel + "已记录，正在保存…");
+  }
 }
 /**
  * 恢复已保存机位，并可选记录历史与提示。
@@ -29928,7 +30038,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/stage.js?v=20260918175732");
+        await import("/api/v1/modules/interaction3d/stage.js?v=20260918181612");
       mountStage(createStageController());
       return;
     }

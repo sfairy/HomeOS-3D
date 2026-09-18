@@ -385,6 +385,20 @@ button:disabled {
 .save-state.error i {
   background: var(--danger);
 }
+/* 冲突的常驻入口：只在有未处理冲突时出现，跟状态栏同色系但更醒目一点，
+   因为它是一条出路（用户可能已经把对话框收起来了）。 */
+.save-conflict-reopen {
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 141, 146, 0.55);
+  border-radius: 6px;
+  background: rgba(255, 141, 146, 0.12);
+  color: #ff8d92;
+  font-size: 11px;
+  cursor: pointer;
+}
+.save-conflict-reopen:hover {
+  background: rgba(255, 141, 146, 0.22);
+}
 /* 自动保存进行中只做透明度呼吸，不做位移动画：顶栏在视口固定位置，
    位移动画会持续触发重绘。 */
 @keyframes pulse {

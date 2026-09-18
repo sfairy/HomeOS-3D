@@ -12,7 +12,7 @@
  *   需要按类型分支的调用方请判 `error.name === "TimeoutError"`，不要匹配文案。
  */
 
-import { withRequestTimeout } from "./request-timeout.js?v=20260918175732";
+import { withRequestTimeout } from "./request-timeout.js?v=20260918181612";
 
 /**
  * 普通 JSON 接口的超时预算（毫秒）。
