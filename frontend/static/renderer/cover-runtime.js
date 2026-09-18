@@ -16,6 +16,9 @@
  */
 import { coverComponentIsDream } from "./registry.js?v=20260918233037";
 import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918233037";
+// 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
+// 本文件与 registry.js 都要用，而 registry.js 是本文件的上游，不能再反向 import 它。
+import { coverPhysicalStateForReversedMotor } from "./cover-direction.js?v=20260918233037";
 /**
  * 通用「实体是否处于活动态」判定。
  *
@@ -919,62 +922,13 @@ export function relatedCoverMotorReverseEntity(motorReverseEntitiesById, reverse
   );
 }
 /**
- * 判断状态是否为「真」。
- *
- * 比通用开关判定更宽：除了 on / true，还认 1 / enabled 与中文的 开启 / 打开，
- * 因为「电机反向」这类配置开关在各固件里写法很杂。
- *
- * @param {object} truthyStateInput 状态对象或变更对象。
- * @returns {boolean} 是否为真。
- */
-function stateIsTruthy(truthyStateInput) {
-  const lowercasedState = String(truthyStateInput?.newState?.state ?? truthyStateInput?.state ?? "")
-    .trim()
-    .toLowerCase();
-  return ["on", "true", "1", "enabled", "开启", "打开"].includes(lowercasedState);
-}
-/**
- * 通过读取「电机反向」实体判断电机是否反接。
- *
- * @param {Map<string, object>} motorEntitiesById 实体元数据索引。
- * @param {Map<string, object>} coverStateByEntityId 状态索引。
- * @param {string} motorEntityId 当前实体 ID。
- * @returns {boolean} 电机是否反转。
- */
-function isCoverMotorReversed(motorEntitiesById, coverStateByEntityId, motorEntityId) {
-  const motorReverseEntity = relatedCoverMotorReverseEntity(motorEntitiesById, motorEntityId);
-  return (
-    !!motorReverseEntity?.entityId &&
-    !!stateIsTruthy(coverStateByEntityId.get(motorReverseEntity.entityId))
-  );
-}
-/**
  * 取控件级的电机方向设置。
  *
- * 只看控件的 coverMotorDirection 属性：normal 为不反转，reversed 为反转，
- * 其余值（含未设置）都按不反转处理。
- * 后三个参数是为兼容旧调用签名保留的，当前实现不再读取它们，也不要去掉——
- * 调用方仍在按完整签名传参。
- *
- * @param {object} directionComponent 控件对象。
- * @param {Map<string, object>} componentStatesByEntityId 状态索引（当前未使用）。
- * @param {Map<string, object>} componentEntitiesById 实体元数据索引（当前未使用）。
- * @param {string} componentTargetEntityId 目标实体 ID（当前未使用）。
- * @returns {boolean} 是否反转。
+ * 这一份知识（读 `properties.coverMotorDirection`）与「反转时的四态互换」都收在
+ * `cover-direction.js` —— 那是叶子模块，本文件与 `registry.js` 都 import 它，
+ * 因此注册表不必再留一份本地副本（见该文件模块头）。
  */
-export function coverMotorIsReversedForComponent(
-  directionComponent,
-  componentStatesByEntityId,
-  componentEntitiesById,
-  componentTargetEntityId
-) {
-  const motorDirection = directionComponent?.properties?.coverMotorDirection;
-  if (motorDirection === "normal") {
-    return false;
-  } else {
-    return motorDirection === "reversed";
-  }
-}
+export { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260918233037";
 /**
  * 按电机方向把展示状态还原成物理状态。
  *
@@ -987,16 +941,7 @@ export function coverMotorIsReversedForComponent(
  */
 export function physicalCoverState(stateInput, reverseOverride = false) {
   const stateName = String(stateInput || "");
-  return (
-    (reverseOverride &&
-      {
-        open: "closed",
-        closed: "open",
-        opening: "closing",
-        closing: "opening"
-      }[stateName]) ||
-    stateName
-  );
+  return reverseOverride ? coverPhysicalStateForReversedMotor(stateName) : stateName;
 }
 /**
  * 取窗帘用于展示的状态名。

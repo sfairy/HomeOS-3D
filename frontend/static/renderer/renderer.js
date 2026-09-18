@@ -152,7 +152,6 @@ import {
   airerReportedPosition,
   airerVisualDrop,
   coverComponentIsAirer,
-  coverMotorIsReversedForComponent,
   coverPendingDisplayPosition,
   coverPositionReachedTarget,
   coverPresentationState,
@@ -177,6 +176,9 @@ import {
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
 } from "./cover-runtime.js?v=20260918233037";
+// 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
+// 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
+import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260918233037";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
@@ -3863,12 +3865,7 @@ export class PanelRenderer {
           : componentPreviewState === "off"
             ? false
             : isCoverEntity &&
-                coverMotorIsReversedForComponent(
-                  componentRecord,
-                  this.entityMetadata,
-                  this.states,
-                  resolvedPowerEntityId
-                )
+                coverMotorIsReversedForComponent(componentRecord)
               ? !isActiveState
               : isActiveState;
       const toggleHostElement = this.componentHosts.get(componentId);
@@ -12758,14 +12755,9 @@ export class PanelRenderer {
         const airerFeedbackState =
           airerFeedbackStateRecord?.newState || airerFeedbackStateRecord || null;
         const supportsCoverTiltControl = isDreamCurtainCover && supportsCoverTilt;
-        const isCoverMotorReversed = coverMotorIsReversedForComponent(
-          resolvedPopupModule,
-          this.entityMetadata,
-          this.states,
-          moduleResolvedEntityId
-        );
-        const closeCoverService = isCoverMotorReversed ? "open_cover" : "close_cover";
-        const openCoverService = isCoverMotorReversed ? "close_cover" : "open_cover";
+        const coverMotorIsReversed = coverMotorIsReversedForComponent(resolvedPopupModule);
+        const closeCoverService = coverMotorIsReversed ? "open_cover" : "close_cover";
+        const openCoverService = coverMotorIsReversed ? "close_cover" : "open_cover";
         const coverDirection = ["left", "right"].includes(
           resolvedPopupModule.properties?.coverDirection
         )
@@ -12894,11 +12886,11 @@ export class PanelRenderer {
                 current_position: coverPositionValue
               }
             },
-            isCoverMotorReversed
+            coverMotorIsReversed
           );
           const resolvedPhysicalState = physicalCoverState(
             coverStateText || popupCoverState?.state,
-            isCoverMotorReversed
+            coverMotorIsReversed
           );
           const isCoverOpeningOrOpen =
             resolvedPhysicalState === "open" || resolvedPhysicalState === "opening";
@@ -12950,7 +12942,7 @@ export class PanelRenderer {
             popupModuleStatusElement.textContent = dreamCurtainStatusText(
               coverStateText || popupCoverState?.state,
               coverPositionValue,
-              isCoverMotorReversed
+              coverMotorIsReversed
             );
           } else {
             popupModuleStatusElement.textContent =
@@ -12976,7 +12968,7 @@ export class PanelRenderer {
                     dreamCurtainStatusText(
                       coverStateText || popupCoverState?.state,
                       coverPositionValue,
-                      isCoverMotorReversed
+                      coverMotorIsReversed
                     )
                 : "" +
                     popupModuleTitleElement.textContent +
@@ -12994,7 +12986,7 @@ export class PanelRenderer {
             dream: isDreamCurtainCover,
             airer: isAirerCover,
             tilt: supportsCoverTiltControl,
-            motorReversed: isCoverMotorReversed,
+            motorReversed: coverMotorIsReversed,
             positionState: airerFeedbackState,
             positionCommandEntityId: airerPositionEntityId,
             positionCommandState: airerPositionState,
@@ -20149,13 +20141,7 @@ export class PanelRenderer {
     const airerPositionSensorCurrentState =
       airerPositionSensorState?.newState || airerPositionSensorState || null;
     const isCoverMotorPolarityReversed =
-      isCover &&
-      coverMotorIsReversedForComponent(
-        detailsComponent,
-        this.entityMetadata,
-        this.states,
-        resolvedDetailsEntityId
-      );
+      isCover && coverMotorIsReversedForComponent(detailsComponent);
     const coverPrimaryService = isCoverMotorPolarityReversed ? "open_cover" : "close_cover";
     const coverSecondaryService = isCoverMotorPolarityReversed ? "close_cover" : "open_cover";
     const coverSplitDirection = ["left", "right"].includes(

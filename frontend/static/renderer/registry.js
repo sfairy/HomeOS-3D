@@ -44,6 +44,12 @@ import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=202609
 // 状态条目归一统一走 utils/state-entry.js。本文件原先自带一份同内容实现，
 // 而 vacuum-runtime.js / presence-runtime.js 各有一份同内容但换了名字的副本 —— 现在只有一份。
 import { resolveStateEntry } from "../utils/state-entry.js?v=20260918233037";
+// 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
+// 本文件原先各留一份本地实现，只因为 cover-runtime.js 已经 import 本文件、反向 import 会成环。
+import {
+  coverMotorIsReversedForComponent,
+  coverPhysicalStateForReversedMotor
+} from "./cover-direction.js?v=20260918233037";
 // 控件类型注册表。用 Map 而不是对象字面量：控件类型来自文档数据，
 // Map 不受原型链影响，查 "constructor" 之类的键也不会拿到奇怪的结果。
 const componentsByType = new Map();
@@ -345,18 +351,6 @@ function isEntityActiveState(entityStateEntry) {
 // 窗帘「已打开」的位置阈值（%）：小于等于 1% 视为关闭，避免设备残值导致状态抖动。
 const COVER_ACTIVE_POSITION_THRESHOLD = 1;
 /**
- * registry 侧读取控件的电机方向设置。
- *
- * 与 cover-runtime.js 的 coverMotorIsReversedForComponent 同义，
- * 这里保持本地实现以免注册表反向依赖 cover-runtime（cover-runtime 已经 import 本文件）。
- *
- * @param {object} motorComponentConfig 控件对象。
- * @returns {boolean} 是否反转。
- */
-function isCoverMotorReversed(motorComponentConfig) {
-  return motorComponentConfig?.properties?.coverMotorDirection === "reversed";
-}
-/**
  * 判断窗帘控件是否应按梦幻帘渲染。
  *
  * 优先级：控件显式配置的 coverKind → 状态里有 current_tilt_position 属性 →
@@ -417,16 +411,10 @@ function isCoverActive(coverComponent, coverActiveEntityId, coverActiveState, co
   const coverStateText = String(coverResolvedState.state || "")
     .trim()
     .toLowerCase();
-  const isCoverReversed = isCoverMotorReversed(coverComponent);
-  const coverEffectiveState =
-    (isCoverReversed &&
-      {
-        open: "closed",
-        closed: "open",
-        opening: "closing",
-        closing: "opening"
-      }[coverStateText]) ||
-    coverStateText;
+  const isCoverReversed = coverMotorIsReversedForComponent(coverComponent);
+  const coverEffectiveState = isCoverReversed
+    ? coverPhysicalStateForReversedMotor(coverStateText)
+    : coverStateText;
   if (coverEffectiveState === "opening") {
     return true;
   }
@@ -804,7 +792,7 @@ export function formatEntityState(rawState, formattedEntityId = "", formatContex
     "未知";
   const coverStateOverride =
     String(formattedEntityId || "").startsWith("cover.") &&
-    isCoverMotorReversed(formatContext.component)
+    coverMotorIsReversedForComponent(formatContext.component)
       ? {
           open: "关闭",
           closed: "打开",
