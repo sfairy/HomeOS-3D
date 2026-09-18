@@ -20,6 +20,7 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import vm from "node:vm";
@@ -3881,6 +3882,269 @@ async function runStudioHistorySuite() {
   );
 }
 
+/**
+ * 跑 `utils/debug-log.js`：开关关着的时候必须真的不出声。
+ *
+ * 为什么值得一条活体探针：`debugLog` 的两半（判断开关、转发 console）分开看源码都没问题，
+ * 但「关着时到底有没有调用 console」只有把 console 换成桩才看得见 —— 这正是 W23 的缺陷
+ * 形态：同一条错误既走 `HABridgeLog` 上报、又在控制台里响一遍，而且没有任何开关能关掉它。
+ * 同理，`isFrontendDebugMode` 的取值口径（只认 `1` / `true`）也只能按输入摆出来。
+ */
+async function runDebugLogSuite() {
+  const { debugLog, isFrontendDebugMode, FRONTEND_DEBUG_QUERY_PARAM } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/utils/debug-log.js")).href
+  );
+
+  // 开关读的是调用时刻的 `globalThis.location`（默认参数在每次调用时求值），
+  // 所以换掉这个全局就能摆出各种地址栏；探针结束后必须原样还回去。
+  const originalLocationDescriptor = Object.getOwnPropertyDescriptor(globalThis, "location");
+  const originalConsole = globalThis.console;
+  const setSearch = search => {
+    globalThis.location = { search };
+  };
+  const consoleCalls = [];
+  const installConsoleStub = () => {
+    const stub = {};
+    for (const level of ["debug", "info", "log", "warn", "error"]) {
+      stub[level] = (...args) => consoleCalls.push({ level, args });
+    }
+    globalThis.console = stub;
+  };
+
+  try {
+    check(
+      "W23 开关只看查询参数 debug（常量对外可用，断言引的就是它）",
+      FRONTEND_DEBUG_QUERY_PARAM === "debug",
+      `FRONTEND_DEBUG_QUERY_PARAM=${FRONTEND_DEBUG_QUERY_PARAM}`
+    );
+
+    const opened = ["?debug=1", "?debug=true", "?foo=1&debug=1"];
+    const closed = ["", "?", "?debug=0", "?debug=false", "?debug=", "?debug=yes", "?debug", "?other=1"];
+    setSearch("?debug=1");
+    check(
+      "W23 显式开启才算打开：?debug=1 / ?debug=true",
+      opened.every(search => {
+        setSearch(search);
+        return isFrontendDebugMode() === true;
+      }),
+      opened.join("、")
+    );
+    check(
+      "W23 其余取值一律算关闭（?debug=0 / ?debug=false / ?debug=yes / 只有键名都不算打开）",
+      closed.every(search => {
+        setSearch(search);
+        return isFrontendDebugMode() === false;
+      }),
+      closed.map(search => JSON.stringify(search)).join("、")
+    );
+
+    // 显式传参这条路也要成立：它不依赖全局，是排查时按单个对象判定的入口。
+    check(
+      "W23 开关可直接对给定 location 判定（不依赖全局）",
+      isFrontendDebugMode({ search: "?debug=1" }) === true &&
+        isFrontendDebugMode({ search: "?debug=0" }) === false,
+      JSON.stringify({
+        on: isFrontendDebugMode({ search: "?debug=1" }),
+        off: isFrontendDebugMode({ search: "?debug=0" })
+      })
+    );
+
+    // 开关自己不能成为故障源：没有 location、search 抛错、search 类型不对，都要安静地返回 false。
+    let malformedThrew = false;
+    let malformedResult = null;
+    try {
+      delete globalThis.location;
+      const noLocation = isFrontendDebugMode();
+      const throwingSearch = isFrontendDebugMode({
+        get search() {
+          throw new Error("search 读不出来");
+        }
+      });
+      const nonStringSearch = isFrontendDebugMode({ search: { toString: null } });
+      malformedResult = { noLocation, throwingSearch, nonStringSearch };
+    } catch (malformedError) {
+      malformedThrew = true;
+      malformedResult = String(malformedError?.message || malformedError);
+    }
+    check(
+      "W23 没有 location / search 抛错 / search 不是字符串时都按关闭处理且不抛",
+      !malformedThrew &&
+        malformedResult?.noLocation === false &&
+        malformedResult?.throwingSearch === false &&
+        malformedResult?.nonStringSearch === false,
+      JSON.stringify(malformedResult)
+    );
+
+    // ---- 关着的时候必须一点动静都没有 ----
+    installConsoleStub();
+    setSearch("?debug=0");
+    debugLog("error", "不该出现", { entityId: "light.kitchen" });
+    debugLog("debug", "也不该出现");
+    debugLog("warn");
+    check(
+      "W23 开关关闭时 debugLog 一次 console 都不碰（生产控制台不该有第二份）",
+      consoleCalls.length === 0,
+      `console 调用 ${consoleCalls.length} 次：${JSON.stringify(consoleCalls.slice(0, 3))}`
+    );
+
+    // ---- 打开的时候要原样转发 ----
+    setSearch("?debug=1");
+    consoleCalls.length = 0;
+    const errorPayload = { phase: "studio-export" };
+    debugLog("error", "导出失败", errorPayload);
+    debugLog("warn", "阴影图集: 单灯阴影烘焙失败，已按无阴影处理。", "spot-light-1");
+    check(
+      "W23 开关打开时按级别转发 console，参数原样透传（诊断信息没有被改写）",
+      consoleCalls.length === 2 &&
+        consoleCalls[0].level === "error" &&
+        consoleCalls[0].args.length === 2 &&
+        consoleCalls[0].args[0] === "导出失败" &&
+        consoleCalls[0].args[1] === errorPayload &&
+        consoleCalls[1].level === "warn" &&
+        consoleCalls[1].args[1] === "spot-light-1",
+      JSON.stringify(consoleCalls)
+    );
+
+    // 级别名不存在（拼错）时不许抛：日志本身不该把调用方带崩。
+    let unknownLevelThrew = false;
+    try {
+      debugLog("not-a-console-level", "x");
+    } catch {
+      unknownLevelThrew = true;
+    }
+    check(
+      "W23 级别名不存在时不抛（日志不该成为调用方的崩溃源）",
+      !unknownLevelThrew && consoleCalls.length === 2,
+      `抛错=${unknownLevelThrew}，console 调用 ${consoleCalls.length} 次`
+    );
+
+    // console 本身缺失（极早期的启动脚本里可能还没装）时同样不许抛。
+    let missingConsoleThrew = false;
+    try {
+      globalThis.console = undefined;
+      debugLog("error", "控制台不在");
+    } catch {
+      missingConsoleThrew = true;
+    }
+    check(
+      "W23 console 缺失时不抛（启动早期也要能安全调用）",
+      !missingConsoleThrew,
+      `抛错=${missingConsoleThrew}`
+    );
+  } finally {
+    if (originalLocationDescriptor) {
+      Object.defineProperty(globalThis, "location", originalLocationDescriptor);
+    } else {
+      delete globalThis.location;
+    }
+    globalThis.console = originalConsole;
+  }
+}
+
+/**
+ * 跑 `renderer/runtime-caches.js` 的历史序列缓存（W19）。
+ *
+ * W19 的形态是「常量与淘汰循环里的字面量各写一份」：调常量不生效，而**不生效在行为上
+ * 与没调过一模一样**。所以这里不能只断言「插到上限就不再涨」（写死 512 也能通过），
+ * 必须把常量改小、加载那份改过的模块、看淘汰上限有没有跟着变 —— 这才是「常量是唯一上限」。
+ *
+ * 改小后的模块写到临时目录再 import，被测的仍然是磁盘上那一份原文（只换常量值）。
+ */
+async function runRuntimeCachesSuite() {
+  const runtimeCachesPath = path.join(ROOT, "frontend/static/renderer/runtime-caches.js");
+  const runtimeCachesSource = fs.readFileSync(runtimeCachesPath, "utf8");
+  const { cacheHistorySeries, historySeriesCacheKey, MAX_HISTORY_SERIES_CACHE_SIZE } = await import(
+    pathToFileURL(runtimeCachesPath).href
+  );
+
+  const makeSeries = (hours, pointCount = 1) => ({
+    hours,
+    points: Array.from({ length: pointCount }, (ignored, index) => index)
+  });
+  const fillFrom = (cache, startIndex, count) => {
+    for (let index = 0; index < count; index += 1) {
+      cacheHistorySeries(cache, `entity-${startIndex + index}`, makeSeries(1));
+    }
+  };
+
+  check(
+    "W19 上限常量是对外可见的那一个（断言引的就是模块自己导出的常量）",
+    MAX_HISTORY_SERIES_CACHE_SIZE === 512,
+    `MAX_HISTORY_SERIES_CACHE_SIZE=${MAX_HISTORY_SERIES_CACHE_SIZE}`
+  );
+
+  // ---- 到达上限前一个都不淘汰；越界后从最旧的开始丢 ----
+  const cache = new Map();
+  fillFrom(cache, 0, MAX_HISTORY_SERIES_CACHE_SIZE);
+  const sizeAtLimit = cache.size;
+  fillFrom(cache, MAX_HISTORY_SERIES_CACHE_SIZE, 3);
+  check(
+    "W19 刚好到上限时不淘汰、越界后按插入顺序丢最旧的",
+    sizeAtLimit === MAX_HISTORY_SERIES_CACHE_SIZE &&
+      cache.size === MAX_HISTORY_SERIES_CACHE_SIZE &&
+      !cache.has(historySeriesCacheKey("entity-0", 1)) &&
+      !cache.has(historySeriesCacheKey("entity-1", 1)) &&
+      cache.has(historySeriesCacheKey(`entity-${MAX_HISTORY_SERIES_CACHE_SIZE + 2}`, 1)),
+    JSON.stringify({
+      sizeAtLimit,
+      sizeAfter: cache.size,
+      oldestStillThere: cache.has(historySeriesCacheKey("entity-0", 1))
+    })
+  );
+
+  // 空序列不写：请求失败会得到空数组，写进去会把上一次的好数据顶掉。
+  const beforeEmpty = cache.size;
+  cacheHistorySeries(cache, "entity-empty", makeSeries(1, 0));
+  check(
+    "W19 空序列不写进缓存（失败的空结果不该顶掉上一次的好数据）",
+    cache.size === beforeEmpty && !cache.has(historySeriesCacheKey("entity-empty", 1)),
+    `size ${beforeEmpty} → ${cache.size}`
+  );
+
+  // ---- 常量真的是唯一的上限：改小它，淘汰上限必须跟着变 ----
+  const variantDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "homeos-runtime-caches-"));
+  try {
+    const loadVariant = async limit => {
+      const variantSource = runtimeCachesSource.replace(
+        /export const MAX_HISTORY_SERIES_CACHE_SIZE = \d+;/,
+        `export const MAX_HISTORY_SERIES_CACHE_SIZE = ${limit};`
+      );
+      if (variantSource === runtimeCachesSource) {
+        return null;
+      }
+      const variantPath = path.join(variantDirectory, `runtime-caches-limit-${limit}.mjs`);
+      fs.writeFileSync(variantPath, variantSource, "utf8");
+      return import(pathToFileURL(variantPath).href);
+    };
+
+    for (const limit of [1, 3, 7]) {
+      const variant = await loadVariant(limit);
+      if (!variant) {
+        check(
+          `W19 能定位到上限常量声明（改小到 ${limit} 用）`,
+          false,
+          "源码里找不到 `export const MAX_HISTORY_SERIES_CACHE_SIZE = <数字>;`"
+        );
+        continue;
+      }
+      const variantCache = new Map();
+      const variantFill = count => {
+        for (let index = 0; index < count; index += 1) {
+          variant.cacheHistorySeries(variantCache, `entity-${index}`, makeSeries(1));
+        }
+      };
+      variantFill(limit + 4);
+      check(
+        `W19 上限改成 ${limit} 后淘汰跟着变（淘汰循环里不能再写死数字）`,
+        variant.MAX_HISTORY_SERIES_CACHE_SIZE === limit && variantCache.size === limit,
+        JSON.stringify({ 常量: variant.MAX_HISTORY_SERIES_CACHE_SIZE, 实际条数: variantCache.size, 期望: limit })
+      );
+    }
+  } finally {
+    fs.rmSync(variantDirectory, { recursive: true, force: true });
+  }
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,
   login: runLoginSuite,
@@ -3901,7 +4165,9 @@ const suites = {
   "pair-scan": runPairScanSuite,
   "auth-shell": runAuthShellSuite,
   "renderer-resize": runRendererResizeSuite,
-  "studio-history": runStudioHistorySuite
+  "studio-history": runStudioHistorySuite,
+  "debug-log": runDebugLogSuite,
+  "runtime-caches": runRuntimeCachesSuite
 };
 
 /**

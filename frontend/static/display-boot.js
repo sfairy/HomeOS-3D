@@ -11,6 +11,7 @@
  *   场景不需要遮罩，也不该出现提示横幅）。
  */
 (() => {
+  "use strict";
   const documentElement = document.documentElement,
     // capturePreview 用于截图与预览，跳过启动遮罩，避免截到引导层。
     isCapturePreview = new URLSearchParams(location.search).get("capturePreview") === "1",

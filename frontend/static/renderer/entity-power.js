@@ -18,7 +18,7 @@ import {
   climateIsPoweredOn,
   climatePowerCommand,
   resolveClimateDeviceType
-} from "./climate.js?v=20260918202529";
+} from "./climate.js?v=20260918224928";
 /**
  * 兼容两种入参形态：HA 推送的变更对象（含 newState）与直接的状态对象。
  *

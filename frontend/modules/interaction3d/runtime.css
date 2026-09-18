@@ -12,7 +12,7 @@
  *   - 弹窗一律用原生 dialog + ::backdrop，遮罩与焦点陷阱交给浏览器；
  *   - 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/modules/interaction3d/controls.css?v=20260918202529";
+@import "/static/modules/interaction3d/controls.css?v=20260918224928";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;

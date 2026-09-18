@@ -8,6 +8,7 @@
  *   宿主通过监听 homeos-pairing-link 事件读取 __HA_BRIDGE_PAIRING_HASH__。
  */
 (() => {
+  "use strict";
   /**
    * 把地址栏上的配对哈希转发给宿主应用。
    *

@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918202529";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918224928";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -51,9 +51,9 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260918202529";
-import { randomUuid } from "../utils/random-id.js?v=20260918202529";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260918202529";
+} from "./registry.js?v=20260918224928";
+import { randomUuid } from "../utils/random-id.js?v=20260918224928";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260918224928";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -72,11 +72,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260918202529";
+} from "./climate.js?v=20260918224928";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260918202529";
+} from "./device-profiles.js?v=20260918224928";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -85,26 +85,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260918202529";
-import { confirmAction } from "../ui-confirm.js?v=20260918202529";
+} from "../related-entities.js?v=20260918224928";
+import { confirmAction } from "../ui-confirm.js?v=20260918224928";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260918202529";
+} from "./entity-power.js?v=20260918224928";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260918202529";
-import { componentActionIsSupported } from "../action-rules.js?v=20260918202529";
+} from "../virtual-entities.js?v=20260918224928";
+import { componentActionIsSupported } from "../action-rules.js?v=20260918224928";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260918202529";
+} from "./transform-geometry.js?v=20260918224928";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -114,7 +114,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260918202529";
+} from "./effect-geometry.js?v=20260918224928";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -133,14 +133,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260918202529";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918202529";
+} from "./light-runtime.js?v=20260918224928";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918224928";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260918202529";
+} from "./vacuum-runtime.js?v=20260918224928";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -173,13 +173,13 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260918202529";
+} from "./cover-runtime.js?v=20260918224928";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260918202529";
+} from "./runtime-dialog-motion.js?v=20260918224928";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -189,13 +189,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260918202529";
+} from "./runtime-caches.js?v=20260918224928";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260918202529";
+} from "./runtime-document.js?v=20260918224928";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。

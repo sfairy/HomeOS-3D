@@ -11,6 +11,9 @@
  * 约定：类型名、错误文案、以及 taskConfig 里的 attributeIDs / useUniqueIDs /
  *   vertexColorSpace 字段名都沿用 three.js DRACOLoader 的既有约定，方便对照上游实现。
  */
+"use strict";
+// 经典 Worker 没有模块作用域：靠这条指令把「给未声明变量赋值」从静默变成报错。
+// 解码结果要按转移对象回传给主线程，写错的属性名不该被悄悄挂到 self 上。
 
 // 解码器 WASM 模块的加载 Promise：只初始化一次，后续解码请求复用同一实例。
 let decoderPending = null;

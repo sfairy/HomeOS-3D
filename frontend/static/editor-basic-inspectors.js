@@ -7,7 +7,7 @@
  * 约定：画布默认尺寸 2778×1940 与后端 schema 一致；百分比一律保留
  *   editor-utils 的 roundField 精度并对越界值做 clamp。
  */
-import { clampNumber, roundField } from "./editor-utils.js?v=20260918202529";
+import { clampNumber, roundField } from "./editor-utils.js?v=20260918224928";
 
 /**
  * 同步「显示 / 隐藏」切换按钮的按压态与文案。

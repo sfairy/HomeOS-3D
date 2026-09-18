@@ -60,67 +60,70 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "./studio-curtain-track.js?v=20260918202529";
-import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260918202529";
+} from "./studio-curtain-track.js?v=20260918224928";
+import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260918224928";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "./studio-surface-textures.js?v=20260918202529";
-import { createOverviewStack } from "./studio-overview-stack.js?v=20260918202529";
-import { windowGeometryParts } from "./studio-window-geometry.js?v=20260918202529";
+} from "./studio-surface-textures.js?v=20260918224928";
+import { createOverviewStack } from "./studio-overview-stack.js?v=20260918224928";
+import { windowGeometryParts } from "./studio-window-geometry.js?v=20260918224928";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=20260918202529";
-import { addSecurityModel } from "./studio-security-models.js?v=20260918202529";
-import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260918202529";
-import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260918202529";
-import { createFloorTransition } from "./studio-floor-transition.js?v=20260918202529";
-import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260918202529";
-import { createGroundReflections } from "./studio-ground-reflections.js?v=20260918202529";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260918202529";
+} from "./studio-camera-constraints.js?v=20260918224928";
+import { addSecurityModel } from "./studio-security-models.js?v=20260918224928";
+import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260918224928";
+import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260918224928";
+import { createFloorTransition } from "./studio-floor-transition.js?v=20260918224928";
+import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260918224928";
+import { createGroundReflections } from "./studio-ground-reflections.js?v=20260918224928";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260918224928";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances,
   mergeWallBands
-} from "./studio-wall-materials.js?v=20260918202529";
+} from "./studio-wall-materials.js?v=20260918224928";
 import {
   WARM_WOOD_STYLE,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=20260918202529";
-import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260918202529";
+} from "./studio-scene-style.js?v=20260918224928";
+import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260918224928";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../modules/interaction3d/render-cache.js?v=20260918202529";
-import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260918202529";
-import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260918202529";
-import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260918202529";
-import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260918202529";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=20260918202529";
+} from "../modules/interaction3d/render-cache.js?v=20260918224928";
+import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260918224928";
+import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260918224928";
+import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260918224928";
+import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260918224928";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=20260918224928";
+// 生产控制台的诊断输出与「开发 / 诊断入口」开关统一走 utils/debug-log.js：
+// debugLog 默认静默（只在 ?debug=1 时输出），isFrontendDebugMode 用来把测试钩子拦在生产之外。
+import { debugLog, isFrontendDebugMode } from "../utils/debug-log.js?v=20260918224928";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260918202529";
+import { apiFetch } from "../utils/api-fetch.js?v=20260918224928";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260918202529";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260918224928";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260918202529";
-import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260918202529";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260918224928";
+import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260918224928";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../modules/interaction3d/light-motion.js?v=20260918202529";
+} from "../modules/interaction3d/light-motion.js?v=20260918224928";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -160,7 +163,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "./geometry.js?v=20260918202529";
+} from "./geometry.js?v=20260918224928";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -169,32 +172,32 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "./export-utils.js?v=20260918202529";
+} from "./export-utils.js?v=20260918224928";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "./export-presets.js?v=20260918202529";
-import { reorderFloors } from "./floor-order.js?v=20260918202529";
-import { syncControlValue } from "./ui-controls.js?v=20260918202529";
+} from "./export-presets.js?v=20260918224928";
+import { reorderFloors } from "./floor-order.js?v=20260918224928";
+import { syncControlValue } from "./ui-controls.js?v=20260918224928";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=20260918202529";
+} from "./studio-widgets.js?v=20260918224928";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "./studio-external-models.js?v=20260918202529";
+} from "./studio-external-models.js?v=20260918224928";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "./studio-plan-drawing.js?v=20260918202529";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260918202529";
-import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260918202529";
-import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260918202529";
+} from "./studio-plan-drawing.js?v=20260918224928";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260918224928";
+import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260918224928";
+import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260918224928";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -207,7 +210,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "./studio-normalization.js?v=20260918202529";
+} from "./studio-normalization.js?v=20260918224928";
 window.__haBridgeStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 /**
@@ -1394,7 +1397,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/draco-decoder-worker.js?v=20260918202529"
+  "/static/3d-studio/draco-decoder-worker.js?v=20260918224928"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -12637,7 +12640,8 @@ async function buildLightCache() {
     window.HABridgeLog?.error(lightCacheBuildError, {
       phase: "studio-light-cache"
     });
-    console.error(lightCacheBuildError);
+    // 上面已经上报过一份；这里只在 ?debug=1 时补一份到控制台，避免生产里同一错误响两遍。
+    debugLog("error", lightCacheBuildError);
     isLightCacheReady = !lightCacheCanvasElement.hidden;
   } finally {
     for (const [restoredObject, restoredVisibility] of gridVisibilityByObject) {
@@ -13721,7 +13725,8 @@ function initializeStudioStage() {
     window.HABridgeLog?.error(webglInitError, {
       phase: "studio-webgl-init"
     });
-    console.error(webglInitError);
+    // 失败本身已经写在 #webgl-message 与 HABridgeLog 里，控制台这份只在 ?debug=1 时出现。
+    debugLog("error", webglInitError);
   }
 }
 /**
@@ -16289,7 +16294,8 @@ async function runStudioExport() {
       phase: "studio-export",
       componentId: autoDiagramComponentId || ""
     });
-    console.error(exportError);
+    // 导出失败已经通过 toast / 状态文案与 HABridgeLog 两处告知，控制台这份只在 ?debug=1 时出现。
+    debugLog("error", exportError);
     exportStatusElement.textContent = exportError?.message || "导出失败，请重试。";
     showToast(exportError?.message || "导图失败。", "error");
     if (isAutoDiagramEmbed && autoDiagramComponentId && window.parent !== window) {
@@ -25804,7 +25810,8 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
           }
         } catch (precompileError) {
           capturedRenderer.domElement.dataset.lightPrecompileState = "fallback";
-          console.debug("3D first-light precompile skipped", precompileError);
+          // 预编译只是优化，跳过不是故障；状态已经写在 dataset 上，控制台这份只在 ?debug=1 时出现。
+          debugLog("debug", "3D first-light precompile skipped", precompileError);
         } finally {
           isLightPrecompileRunning = false;
           publishExternalMaterialStats();
@@ -25884,7 +25891,8 @@ function scheduleModelPrecompile(modelPrecompileDelayMs = 0) {
           renderer.domElement.dataset.externalPrecompileState = "ready";
         } catch (modelPrecompileError) {
           renderer.domElement.dataset.externalPrecompileState = "fallback";
-          console.debug("3D model precompile skipped", modelPrecompileError);
+          // 与首帧预编译同理：跳过只是落到 fallback，控制台这份只在 ?debug=1 时出现。
+          debugLog("debug", "3D model precompile skipped", modelPrecompileError);
         } finally {
           isExternalPrecompileRunning = false;
           publishExternalMaterialStats();
@@ -30075,7 +30083,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/stage.js?v=20260918202529");
+        await import("/api/v1/modules/interaction3d/stage.js?v=20260918224928");
       mountStage(createStageController());
       return;
     }
@@ -32300,7 +32308,10 @@ document.addEventListener("visibilitychange", () => {
     invalidateRender();
   }
 });
-if (new URLSearchParams(window.location.search).has("model-export")) {
+// 离线模型导出是**开发期诊断入口**（给模型核对脚本用的：把某类家具的 three.js JSON 吐到页面上）。
+// 它此前只看 ?model-export=，于是生产包里的任何访问者都能挂上 window.__haBridgeExportFurnitureJson；
+// 现在要求诊断开关也打开（?debug=1），hook 不再进入生产运行时。
+if (isFrontendDebugMode() && new URLSearchParams(window.location.search).has("model-export")) {
   window.__haBridgeExportFurnitureJson = (furnitureTypeKey, furnitureOverrideValues = {}) => {
     const furnitureTypeDefinition = ITEM_TYPE_DEFINITIONS[furnitureTypeKey];
     if (!furnitureTypeDefinition) {

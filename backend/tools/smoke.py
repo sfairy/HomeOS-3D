@@ -8923,6 +8923,8 @@ FRONTEND_PROBE_SUITES = {
     'auth-shell': 'W25/W26 鉴权壳页的角色区守卫与指针几何缓存（auth-shell.js）',
     'renderer-resize': 'W20 resize 的先读后写与一帧一遍（renderer.js）',
     'studio-history': 'W22 撤销 / 重做的互斥闩与长按自动重复（studio-app.js）',
+    'debug-log': 'W23 生产控制台的诊断开关（utils/debug-log.js）',
+    'runtime-caches': 'W19 历史序列缓存的上限常量（renderer/runtime-caches.js）',
     'setup': 'W6 初始化页提交按钮与超时（setup.js）',
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
     'home-boot': 'W8 编辑器启动分片（home.js 启动序列）',
@@ -8964,6 +8966,14 @@ FRONTEND_SYNTAX_FILES = (
     'frontend/static/3d-studio/studio-app.js',
     'frontend/static/utils/api-fetch.js',
     'frontend/static/utils/request-timeout.js',
+    # P8：这几个是「诊断收口」时改过的文件 —— 它们只在探针里被 import（或压根不 import），
+    # 语法错会一路静默到浏览器控制台，所以在自检里补一次解析。
+    'frontend/static/utils/debug-log.js',
+    'frontend/static/renderer/runtime-caches.js',
+    'frontend/static/renderer/registry.js',
+    'frontend/static/3d-studio/studio-shadow-atlas.js',
+    'frontend/static/3d-studio/studio-external-models.js',
+    'frontend/static/3d-studio/draco-decoder-worker.js',
     'frontend/static/pair.js',
     'frontend/static/auth-shell.js',
     'frontend/static/pairing-entry.js',
@@ -9770,6 +9780,259 @@ def check_frontend_studio_history_guard() -> None:
         )
 
 
+# --------------------------------------------------------------------------- #
+# 前端低危项（P8）：诊断开关、经典脚本、缓存上限、开发期钩子
+# --------------------------------------------------------------------------- #
+#: W23：已经改走 ``utils/debug-log.js`` 的文件 -> 它们各自那条诊断的用途。
+#: 断言「清理过了」时**同时**要求这里仍然调用 ``debugLog``：把 console 那行删掉也能让
+#: 「全站 console 只剩一处」变绿，但那是丢诊断，不是收口。
+DEBUG_LOG_CONSUMERS = {
+    'static/3d-studio/studio-app.js': '灯光缓存 / WebGL 初始化 / 导出 / 两次预编译',
+    'static/3d-studio/studio-shadow-atlas.js': '单灯烘焙失败、未出图灯清单、图集重建失败、几何刷新',
+    'static/3d-studio/studio-external-models.js': '外部模型加载超时与非超时失败',
+    'static/renderer/registry.js': 'HLS 播放失败（已由 HABridgeLog 上报）',
+}
+
+#: 生产代码里 ``console`` 的合法主人；其余一律走 ``debugLog``。
+CONSOLE_OWNER = 'static/utils/debug-log.js'
+
+#: 真正会调用 console 的方法名。用它而不是裸 ``console`` 一词：注释里提到
+#: ``console.*`` 是在说这件事，不是在干这件事，否则这条断言会逼着人绕开词本身说话。
+CONSOLE_CALL_PATTERN = re.compile(
+    r'\bconsole\s*\.\s*(?:log|warn|error|info|debug|trace|table|assert|dir|group'
+    r'|groupEnd|time|timeEnd|count|profile)\b'
+)
+
+#: W23：``debugLog`` 必须是被 import 进来的，不能被当成源码里的注释或字符串。
+IMPORT_DEBUG_LOG_PATTERN = re.compile(
+    r'^import\s*\{[^}]*\bdebugLog\b[^}]*\}\s*from\s*"[^"]*utils/debug-log\.js\?v=[^"]*";',
+    re.MULTILINE,
+)
+
+#: 调用 ``debugLog``（排掉 ``window.debugLog`` 这类同名成员）。
+DEBUG_LOG_CALL_PATTERN = re.compile(r'(?<![\w.$])debugLog\(')
+
+
+def _strict_directive_position(source: str) -> int | None:
+    """定位 ``"use strict"`` 指令；不在最前面时返回 None。
+
+    指令序言要生效，必须出现在任何语句之前。经典脚本里有
+    ``(() => { ... })()`` 与 ``(function (w) { ... })(window)`` 两种包裹，
+    指令写在其函数体开头同样有效 —— 所以判据是「剥掉注释后，前面要么是空的，
+    要么以 ``{`` 收尾」。一旦前面还有 ``;`` 或别的语句，它就退化成一句
+    没人看的字符串字面量：脚本照跑，错字照旧静默变成全局变量。
+    """
+    code_only = re.sub(r'/\*[\s\S]*?\*/', '', source)
+    code_only = re.sub(r'^\s*//.*$', '', code_only, flags=re.MULTILINE)
+    match = re.search("[\"']use strict[\"']", code_only)
+    if match is None:
+        return None
+    prefix = code_only[:match.start()].strip()
+    if prefix == '' or prefix.endswith('{'):
+        return match.start()
+    return None
+
+
+def _frontend_js_sources() -> list[tuple[str, str]]:
+    """列出 ``frontend/static`` 下所有 JS（vendor 除外）：(相对仓库根路径, 源码)。"""
+    sources: list[tuple[str, str]] = []
+    for source_path in sorted((FRONTEND_ROOT / 'static').rglob('*.js')):
+        if 'vendor' in source_path.parts:
+            continue
+        sources.append(
+            (
+                source_path.relative_to(FRONTEND_ROOT).as_posix(),
+                source_path.read_text(encoding='utf-8'),
+            )
+        )
+    return sources
+
+
+def _frontend_classic_scripts() -> dict[str, str]:
+    """从**装载方式**推出哪些 JS 是经典脚本（经典 ``<script>`` 与经典 Worker）。
+
+    为什么不按「文件里有没有 import/export」判：``auth-shell.js`` 一个 import 也
+    没有，但 login / pair 两页都用 ``type="module"`` 引它 —— 它是模块，本来就跑在
+    严格模式里，给它要求一条指令只是噪声。所以模块性必须认页面与 Worker 的装载方式。
+
+    Worker 的地址可能来自变量（draco-loader 就是 ``this.sameOriginWorkerUrl``），
+    无法从 ``new Worker(...)`` 那行反推出文件，因此判据反过来取：只有**明确以
+    ``type: "module"`` 构造**的 worker 才免检，其余 ``*-worker.js`` 一律按经典算 ——
+    判错的代价只是多要求一条无害的指令，漏判的代价是缺陷从此没人守。
+
+    @returns 相对仓库根的路径 -> 这条判定的出处（写进断言详情，便于核对）。
+    """
+    classic: dict[str, str] = {}
+    script_tag_pattern = re.compile(r'<script\b(?P<attributes>[^>]*)>', re.IGNORECASE)
+    src_pattern = re.compile(r'src="(?P<url>[^"]+)"')
+    for html_path in sorted(FRONTEND_ROOT.glob('*.html')):
+        page_source = html_path.read_text(encoding='utf-8')
+        for tag in script_tag_pattern.finditer(page_source):
+            attributes = tag.group('attributes')
+            src_match = src_pattern.search(attributes)
+            if src_match is None or 'type="module"' in attributes:
+                continue
+            url = src_match.group('url')
+            if url.startswith('/static/vendor/'):
+                continue
+            relative_path = 'static/' + url.removeprefix('/static/').split('?', 1)[0]
+            classic[relative_path] = f'{html_path.name} 的经典 <script>'
+
+    combined_js = '\n'.join(source for _, source in _frontend_js_sources())
+    module_workers: set[str] = set()
+    for worker_match in re.finditer(r'new Worker\(', combined_js):
+        call_window = combined_js[worker_match.start():worker_match.start() + 400]
+        if 'type: "module"' in call_window:
+            module_workers.update(re.findall(r'([\w.-]+-worker\.js)', call_window))
+
+    for worker_path in sorted((FRONTEND_ROOT / 'static').rglob('*-worker.js')):
+        if 'vendor' in worker_path.parts or worker_path.name in module_workers:
+            continue
+        classic[worker_path.relative_to(FRONTEND_ROOT).as_posix()] = '经典 Worker（非 type: "module"）'
+    return classic
+
+
+def check_frontend_console_routed_through_debug_log() -> None:
+    """W23：生产控制台只许由 ``utils/debug-log.js`` 说话（结构断言 + 活体探针）。
+
+    两条腿缺一不可：
+
+    - **行为**（探针 ``debug-log``）：开关关着时 ``debugLog`` 真的一次 console 都不碰，
+      开着时按级别原样透传。只写结构断言的话，「把开关判断写反 / 删掉」照样全绿；
+    - **结构**（这里）：全 frontend（vendor 除外）除 ``debug-log.js`` 外不许出现
+      ``console.<方法>``，且这次清理掉的那几份诊断必须还在（改走 ``debugLog``）。
+      只写行为断言的话，「干脆把那几行删了」会变绿 —— 那是丢诊断，不是收口。
+    """
+    _run_frontend_probe('debug-log')
+
+    offenders: list[str] = []
+    for relative_path, source in _frontend_js_sources():
+        if relative_path == CONSOLE_OWNER:
+            continue
+        for line_number, line in enumerate(source.splitlines(), 1):
+            stripped = line.strip()
+            # 注释里提到 ``console.xxx`` 是在说这件事，不是在干这件事。
+            if stripped.startswith(('//', '*', '/*')):
+                continue
+            if CONSOLE_CALL_PATTERN.search(line):
+                offenders.append(f'{relative_path}:{line_number}')
+    check(
+        'W23 生产代码里的 console 只出自 utils/debug-log.js'
+        '（同一条错误不该在上报之外再响一份，且要有关得掉的开关）',
+        not offenders,
+        '；'.join(offenders) or f'仅 {CONSOLE_OWNER} 持有 console',
+    )
+
+    for relative_path, purpose in DEBUG_LOG_CONSUMERS.items():
+        source = (FRONTEND_ROOT / relative_path).read_text(encoding='utf-8')
+        imported = IMPORT_DEBUG_LOG_PATTERN.search(source) is not None
+        called = DEBUG_LOG_CALL_PATTERN.search(source) is not None
+        check(
+            f'W23 {relative_path} 的「{purpose}」改走 debugLog（清理不等于丢诊断）',
+            imported and called,
+            f'import={imported} 调用 debugLog={called}',
+        )
+
+
+def check_frontend_classic_scripts_use_strict() -> None:
+    """W28：经典脚本必须带 ``"use strict"``，且要在最前面（结构断言）。
+
+    模块脚本本来就跑在严格模式里，加不加一样；缺口在经典脚本：``<script src>`` 不带
+    ``type`` 时按 sloppy 模式跑，「给未声明的变量赋值」不报错，只把变量静默挂上
+    ``window`` —— 而这几份恰好是启动路径上最早执行的（配对入口、展示页引导、
+    Draco 解码 Worker）。Worker 里这一条更值钱：解码结果要按转移对象回传，
+    属性名写错会被静默挂到 ``self`` 上而不是当场报错。
+    """
+    classic_scripts = _frontend_classic_scripts()
+    check(
+        'W28 能从装载方式推出经典脚本清单（HTML script 标签 + 非 module 的 Worker）',
+        bool(classic_scripts),
+        '、'.join(sorted(classic_scripts)) or '一个都没推出来',
+    )
+
+    for relative_path, origin in sorted(classic_scripts.items()):
+        source_path = FRONTEND_ROOT / relative_path
+        if not source_path.is_file():
+            check(f'W28 {relative_path} 存在（{origin}）', False, '文件不存在')
+            continue
+        position = _strict_directive_position(source_path.read_text(encoding='utf-8'))
+        check(
+            f'W28 {relative_path} 的 "use strict" 在任何语句之前（{origin}）'
+            '（写在别的语句之后只是一句没人看的字符串）',
+            position is not None,
+            f'指令位置={position}' if position is not None else '没找到有效的 "use strict" 指令',
+        )
+
+
+def check_frontend_studio_export_hook_is_dev_gated() -> None:
+    """W24：离线模型导出的测试钩子必须挂在开发开关后面（结构断言）。
+
+    钩子是给模型核对脚本用的：按类型构造一类家具，把 three.js 的 JSON 塞进页面里的
+    一个隐藏 textarea。它此前只认 ``?model-export=``，于是生产包里任何访问者加一个
+    查询参数就能让页面挂上 ``window.__haBridgeExportFurnitureJson``。断言三件事：
+    赋值只有一处、外层 ``if`` 里有 ``isFrontendDebugMode()``、以及 ``model-export``
+    这个入口本身没有被顺手删掉（加了开关不等于把工具关掉）。
+    """
+    source = (FRONTEND_ROOT / 'static' / '3d-studio' / 'studio-app.js').read_text(encoding='utf-8')
+    hook = 'window.__haBridgeExportFurnitureJson ='
+    occurrences = source.count(hook)
+    check(
+        'W24 测试钩子只在装载点赋值一次（多一处赋值就多一个绕过开关的口子）',
+        occurrences == 1,
+        f'出现 {occurrences} 次',
+    )
+    hook_index = source.find(hook)
+    if hook_index == -1:
+        check('W24 能定位钩子赋值并检查它的守卫', False, f'没找到 {hook}')
+        return
+    guard_index = source.rfind('\nif (', 0, hook_index)
+    guard = source[guard_index:hook_index] if guard_index != -1 else ''
+    check(
+        'W24 钩子的外层 if 里判开发开关（否则生产包里谁都能挂上它）',
+        'isFrontendDebugMode()' in guard,
+        guard.strip()[:200] or '赋值前面没有 if 守卫',
+    )
+    check(
+        'W24 ?model-export= 入口本身保留（加开关不等于把核对工具一起关掉）',
+        'has("model-export")' in guard,
+        guard.strip()[:200] or '赋值前面没有 if 守卫',
+    )
+
+
+def check_frontend_runtime_cache_limit_single_source() -> None:
+    """W19：历史序列缓存的上限只许有一个来源（结构断言 + 活体探针）。
+
+    探针把上限常量改小、加载那份改过的模块，证明「淘汰上限真的跟着常量走」——
+    这是 W19 唯一防得住的做法：只断言「插到上限就不再涨」的话，写死 512 一样能通过，
+    而「调参不生效」在行为上与「没调过」一模一样。这里再静态钉住淘汰循环里不许
+    出现数字字面量：探针只看它改的那一处，将来在同一个函数里再写一个数字
+    （第二处淘汰、或给上限另加一条条件）它看不见。
+    """
+    _run_frontend_probe('runtime-caches')
+
+    relative_path = 'static/renderer/runtime-caches.js'
+    source = (FRONTEND_ROOT / relative_path).read_text(encoding='utf-8')
+    cache_body = _js_block_body(source, 'export function cacheHistorySeries(')
+    check(
+        'W19 淘汰循环里不出现数字字面量（上限只有一个主人，调参不会只改半边）',
+        cache_body is not None
+        and 'MAX_HISTORY_SERIES_CACHE_SIZE' in cache_body
+        # 负向断言排掉箭头函数（`=> 1` 里的 `>` 后面也跟数字）。
+        and re.search(r'(?<![=>])>\s*\d', cache_body) is None,
+        '淘汰循环只认常量'
+        if cache_body is not None and re.search(r'(?<![=>])>\s*\d', cache_body) is None
+        else (cache_body or '没取到 cacheHistorySeries 函数体').strip()[:220],
+    )
+    limit_declaration = re.search(r'export const MAX_HISTORY_SERIES_CACHE_SIZE\s*=\s*\d+;', source)
+    check(
+        'W19 上限常量对外可见（探针靠改小它再加载，改名 / 去掉 export 都会红）',
+        limit_declaration is not None,
+        limit_declaration.group(0)
+        if limit_declaration is not None
+        else '没找到 `export const MAX_HISTORY_SERIES_CACHE_SIZE = <数字>;`',
+    )
+
+
 def check_frontend_pending_page_submits() -> None:
     """W6/W7：配网 / 初始化 / 授权三页的按钮与轮询闩（活体探针）。
 
@@ -10162,6 +10425,10 @@ async def run() -> int:
     check_frontend_static_cache_stamps()
     check_frontend_resize_batching()
     check_frontend_studio_history_guard()
+    check_frontend_runtime_cache_limit_single_source()
+    check_frontend_console_routed_through_debug_log()
+    check_frontend_classic_scripts_use_strict()
+    check_frontend_studio_export_hook_is_dev_gated()
     check_frontend_pending_page_submits()
     check_frontend_editor_boot_and_snapshot()
     check_frontend_operation_feedback()

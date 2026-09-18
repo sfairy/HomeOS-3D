@@ -11,7 +11,7 @@
  * 各缓存的构造参数都允许注入 createImage / setTimer / clearTimer，便于测试替换。
  *
  * 缓存键与失效时机（改动前务必确认）：
- * - 历史序列：键是「实体ID:小时数」，写入时按插入顺序淘汰到 512 条；
+ * - 历史序列：键是「实体ID:小时数」，写入时按插入顺序淘汰到 MAX_HISTORY_SERIES_CACHE_SIZE 条；
  * - 静态图：键是完整图片地址，setSources 整体替换需求集合，切页即回收旧位图；
  * - 特效图：键是图片地址，但状态记在 img 元素的 dataset 上，元素移除即自然失效；
  * - 扫地机地图：键是「去掉 ?query 的地址」，这样版本 token 变化仍视为同一张图，
@@ -20,7 +20,7 @@
  * 约定：异步结果是否还该被采用由 historyRequestStillRelevant 判定，
  * 上下文里的 documentGeneration / popupGeneration 由文档与弹窗的生命周期维护。
  */
-const MAX_HISTORY_SERIES_CACHE_SIZE = 512;
+export const MAX_HISTORY_SERIES_CACHE_SIZE = 512;
 // 历史数据的请求超时：超过 12 秒即视为失败，调用方按空序列处理，而不是一直挂着。
 export const HISTORY_FETCH_TIMEOUT_MS = 12000;
 /**
@@ -45,8 +45,11 @@ export function historySeriesCacheKey(cacheEntityId, hours) {
  */
 export function cacheHistorySeries(cache, entityId, series) {
   if (!!Array.isArray(series?.points) && series.points.length !== 0) {
-    // Map 保持插入顺序，取第一个键即最久未更新的条目；循环到容量回到上限（与常量同为 512）为止。
-    for (cache.set(historySeriesCacheKey(entityId, series.hours), series); cache.size > 512;) {
+    // Map 保持插入顺序，取第一个键即最久未更新的条目；循环到容量回到上限为止。
+    // 上限只认 MAX_HISTORY_SERIES_CACHE_SIZE 一处：这里再写一个字面量会让调参只改半边，
+    // 而「改了没生效」在行为上与「没改」长得一模一样。
+    cache.set(historySeriesCacheKey(entityId, series.hours), series);
+    while (cache.size > MAX_HISTORY_SERIES_CACHE_SIZE) {
       const oldestKey = cache.keys().next().value;
       if (!oldestKey) {
         break;

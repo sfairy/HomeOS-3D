@@ -16,7 +16,9 @@
  *   - 整块图集只在一次完整烘焙成功后才替换旧图集；中途失败保留旧图集，避免闪黑。
  */
 
-import { createRenderLightIndex } from "../modules/interaction3d/render-light-index.js?v=20260918202529";
+import { createRenderLightIndex } from "../modules/interaction3d/render-light-index.js?v=20260918224928";
+// 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
+import { debugLog } from "../utils/debug-log.js?v=20260918224928";
 // tile 之间的留白：紧贴会因线性过滤在边缘互相渗色。
 const DEFAULT_TILE_GUTTER = 1;
 
@@ -857,7 +859,9 @@ export function createSpotShadowAtlasController({
         }
         if (shadowBakeError) {
           // 单盏灯失败不算致命：它只是没有阴影，其余灯照常进图集。
-          console.warn(
+          // 失败灯数已经写进 dataset.spotShadowMissedLights（浏览器里排查用），控制台这份只在 ?debug=1 时出现。
+          debugLog(
+            "warn",
             "阴影图集: 单灯阴影烘焙失败，已按无阴影处理。",
             spotLightKey(activeLight),
             shadowBakeError
@@ -922,7 +926,9 @@ export function createSpotShadowAtlasController({
       domElement.dataset.spotShadowAtlasLights = String(entryByLightKey.size);
       domElement.dataset.spotShadowMissedLights = String(missingLightKeys.length);
       if (missingLightKeys.length) {
-        console.warn(
+        // 未生成阴影的灯清单：dataset 里只留条数，明细放控制台，且只在 ?debug=1 时输出。
+        debugLog(
+          "warn",
           "阴影图集: " + missingLightKeys.length + " 盏灯未生成阴影贴图，已按无阴影处理。",
           missingLightKeys
         );
@@ -978,7 +984,8 @@ export function createSpotShadowAtlasController({
               if (!isDisposed) {
                 // 重建整体失败（例如图集放不下）时记录原因并标记回退，
                 // 各灯在着色器里按无阴影渲染，功能不至于中断。
-                console.error(error);
+                // dataset.spotShadowMode = "fallback" 是用户可见的状态，控制台这份只在 ?debug=1 时出现。
+                debugLog("error", error);
                 renderer.domElement.dataset.spotShadowMode = "fallback";
               }
             });
@@ -1117,7 +1124,9 @@ export function createSpotShadowAtlasController({
           update.texture = refreshLight.shadow.map.texture;
           update.matrix.copy(refreshLight.shadow.matrix);
         } catch (refreshError) {
-          console.warn(
+          // 这盏灯这次没烘出来，保持旧图集内容不动（调用方按 false 处理），控制台这份只在 ?debug=1 时出现。
+          debugLog(
+            "warn",
             "阴影图集: 几何刷新烘焙失败。",
             spotLightKey(refreshLight),
             refreshError

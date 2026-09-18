@@ -23,7 +23,9 @@
  * - 渲染器只负责产出 DOM，不修改文档数据；编辑器预览通过 context.editable 与
  *   context.previewState 表达，不要另开旁路。
  */
-import { randomUuid } from "../utils/random-id.js?v=20260918202529";
+import { randomUuid } from "../utils/random-id.js?v=20260918224928";
+// 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
+import { debugLog } from "../utils/debug-log.js?v=20260918224928";
 import {
   climateDefaultIcon,
   climateEffectMode,
@@ -32,10 +34,10 @@ import {
   climatePresentationMode,
   normalizeClimateCapabilities,
   resolveClimateDeviceType
-} from "./climate.js?v=20260918202529";
-import { entityPowerIsOn } from "./entity-power.js?v=20260918202529";
-import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260918202529";
-import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260918202529";
+} from "./climate.js?v=20260918224928";
+import { entityPowerIsOn } from "./entity-power.js?v=20260918224928";
+import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260918224928";
+import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260918224928";
 // 控件类型注册表。用 Map 而不是对象字面量：控件类型来自文档数据，
 // Map 不受原型链影响，查 "constructor" 之类的键也不会拿到奇怪的结果。
 const componentsByType = new Map();
@@ -45,7 +47,7 @@ registerComponent("interaction3d", {
   render: renderInteraction3d
 });
 // 内置资源的三个索引：版本戳、显式 URL、特效裁剪变体。
-// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=20260918202529
+// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=20260918224928
 // 特效变体记录裁剪矩形与原图尺寸，渲染时写进 dataset 供 effect-geometry 使用。
 const assetVersionByAssetId = new Map();
 const assetUrlByAssetId = new Map();
@@ -642,18 +644,18 @@ import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport,
   lightStatisticsSummary
-} from "./light-statistics-runtime.js?v=20260918202529";
+} from "./light-statistics-runtime.js?v=20260918224928";
 import {
   automaticNumericPrecision,
   formatLineChartValue,
   formatNumericValue,
   lineChartGeometry,
   normalizedStatePrecision
-} from "./line-chart-runtime.js?v=20260918202529";
+} from "./line-chart-runtime.js?v=20260918224928";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix
-} from "./door-window-runtime.js?v=20260918202529";
+} from "./door-window-runtime.js?v=20260918224928";
 import {
   automaticThresholds,
   meteoconUrl,
@@ -662,12 +664,12 @@ import {
   smoothChartPath,
   thresholdColor,
   weatherVisual
-} from "./weather-chart-runtime.js?v=20260918202529";
+} from "./weather-chart-runtime.js?v=20260918224928";
 import {
   formatLocalDate,
   formatLocalTime,
   formatLunarDate
-} from "./date-time-runtime.js?v=20260918202529";
+} from "./date-time-runtime.js?v=20260918224928";
 // 统一再导出各 runtime 的纯函数：页面脚本只 import registry.js 一处即可，
 // 也保证注册表与这些工具用的是同一份模块实例（版本戳不一致会出现两份）。
 export {
@@ -699,7 +701,7 @@ import {
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "./presence-runtime.js?v=20260918202529";
+} from "./presence-runtime.js?v=20260918224928";
 export {
   formatPresenceDuration as formatPresenceDuration,
   presenceAnimationPhase as presenceAnimationPhase,
@@ -4216,7 +4218,9 @@ export function mountCameraMedia({
                   path: hlsEventData.url || hlsEventData.response?.url || ""
                 }
               );
-              console.warn("[HomeOS camera] HLS playback failed", {
+              // HABridgeLog 已经把「会话历史」那份错误上报过了（含 entityId / type / details）；
+              // 控制台这份只在 ?debug=1 时输出，避免生产里同一次失败响两份。
+              debugLog("warn", "[HomeOS camera] HLS playback failed", {
                 entityId: mediaEntityId,
                 type: hlsEventData.type,
                 details: hlsEventData.details,
