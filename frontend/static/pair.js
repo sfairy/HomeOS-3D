@@ -7,11 +7,15 @@
  * 约定：pairing-entry.js 会把二维码哈希暂存在 window.__HA_BRIDGE_PAIRING_HASH__，
  *   本模块优先读它；配对码只允许 6 位数字；返回的 targetUrl 必须与当前站点
  *   同源且以 /display/ 开头，否则视为非法响应拒绝跳转。
+ * 约定：配对请求走 utils/api-fetch.js（带 20 秒超时），且按钮的恢复放在 finally 里
+ *   —— 弱网下「请求永远不结算」与「按钮永久灰掉」是同一件事的两半，缺一半用户
+ *   就只能刷新页面重来。
  */
 import {
   parsePairingLink as parseScanLink,
   needsAppleInstallGuide as shouldShowInstallGuide
-} from "./pairing-link.js";
+} from "./pairing-link.js?v=20260918174425";
+import { apiFetch } from "./utils/api-fetch.js?v=20260918174425";
 
 const formElement = document.querySelector("#pair-form"),
   messageElement = document.querySelector("#message"),
@@ -66,7 +70,7 @@ function applyPairingHash() {
     submitButton.disabled = !0;
     try {
       // 非 JSON 响应按空对象处理，走统一错误文案。
-      const response = await fetch("/api/v1/displays/pair", {
+      const response = await apiFetch("/api/v1/displays/pair", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ code: codeInput.value })
@@ -97,7 +101,12 @@ function applyPairingHash() {
       );
     } catch (submitError) {
       ((messageElement.textContent = submitError.message),
-        (messageElement.hidden = !1),
-        (submitButton.disabled = !1));
+        (messageElement.hidden = !1));
+    } finally {
+      // 成功、失败、超时三条路径都要把按钮放回来：以前只在 catch 里复位，而
+      // apiFetch 的超时/取消也会进 catch，但「成功跳转」与「异常穿透」两条路径
+      // 一旦漏掉，按钮就永久灰掉（用户只能刷新页面重来）。放在 finally 里，
+      // 以后无论加多少条 return 都不会漏。
+      submitButton.disabled = !1;
     }
   }));

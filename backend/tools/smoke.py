@@ -8922,9 +8922,24 @@ FRONTEND_PROBE_SUITES = {
     'studio-request': 'W2 舞台页唯一接口出入口（studio-app.js requestStudioApi）',
     'login': 'W3 登录按钮与超时（login.js）',
     'display-boot': 'W4/W5 展示页运行期横幅（display-boot.js）',
+    'pair': 'W6 配网页提交按钮与超时（pair.js）',
+    'setup': 'W6 初始化页提交按钮与超时（setup.js）',
+    'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
 }
 
-#: 语法门覆盖的文件：P6 改过的页面脚本，加上它们新引入的两个工具模块。
+#: W3/W6：四个「未激活页面」的提交复位语句 —— 都写在同一个表单提交处理器里，
+#: 也都必须落在 finally 块体内。为什么用结构断言而不是只看行为：探针里的「悬挂」
+#: 最终会被超时那一刀切开，于是把复位挪回 catch 分支仍然能通过行为断言；可一旦
+#: 超时预算被去掉（或以后新增一条 return 路径），catch 分支就再也兜不住了。
+FORM_SUBMIT_RESET_STATEMENTS = {
+    'static/login.js': ('submit.disabled = !1',),
+    'static/pair.js': ('submitButton.disabled = !1',),
+    'static/setup.js': ('submit.disabled = false',),
+    # 授权页多一条：activationPending 是「防重复提交」的闩，漏放同样会锁死按钮。
+    'static/license.js': ('submit.disabled = !1', 'activationPending = !1'),
+}
+
+#: 语法门覆盖的文件：P6/P7 改过的页面脚本，加上它们新引入的工具模块。
 #: 为什么不扫整个 frontend/：全量扫要一两百次 node 启动，太重；全仓语法门属于
 #: CI 的事（P9），这里只保证「这批改过的文件不会因为截断 / 括号错位静默失效」。
 FRONTEND_SYNTAX_FILES = (
@@ -8937,6 +8952,9 @@ FRONTEND_SYNTAX_FILES = (
     'frontend/static/3d-studio/studio-app.js',
     'frontend/static/utils/api-fetch.js',
     'frontend/static/utils/request-timeout.js',
+    'frontend/static/pair.js',
+    'frontend/static/setup.js',
+    'frontend/static/license.js',
 )
 
 
@@ -9016,29 +9034,33 @@ def check_frontend_api_request_timeouts() -> None:
         )
 
 
-def check_frontend_login_submit_recovers() -> None:
-    """W3：登录请求悬挂时按钮也必须恢复（超时 + finally 两件都要有）。
+def _reset_statement_in_finally(source: str, reset_statement: str) -> tuple[bool, str]:
+    """判断 ``reset_statement`` 是否落在文件中某个 ``} finally {`` 块体内。
 
-    ``frontend/static/login.js`` 是模块，探针直接用真实 import 加载磁盘上那一份，
-    配假 DOM / 假时钟 / 假 fetch 驱动 submit。
+    为什么要遍历所有 finally 块而不是只看第一个：license.js 里 ``refreshStatus`` 的
+    ``finally``（放的是状态请求的在飞闩）排在提交处理器的 ``finally`` 之前 —— 只看
+    第一个会把「复位其实在后面的 finally 里」误判成红。
 
-    探针只能证明「超时之后按钮恢复了」；超时本身若是以后被去掉，悬挂的请求会让
-    按钮一直禁用，而 `finally` 才是与「这次会不会超时」无关的那道保险。所以这里
-    再做一条结构断言：复位语句必须落在 ``finally {`` 块体内。
+    为什么要括号配平地扫块体：块里可能有更深的一层花括号（license.js 的复位是
+    `((submit.disabled = !1), (activationPending = !1));`），只找「下一行」的写法
+    会在第一次嵌套就报假红。
+
+    @param source 文件全文。
+    @param reset_statement 要查找的复位语句。
+    @returns (是否在某个 finally 里, 该语句现在所处的那一行文本)。
     """
-    _run_frontend_probe('login')
-
-    login_source = (FRONTEND_ROOT / 'static' / 'login.js').read_text(encoding='utf-8')
     finally_marker = '} finally {'
-    reset_statement = 'submit.disabled = !1'
-    finally_start = login_source.find(finally_marker)
-    reset_in_finally = False
-    if finally_start != -1:
+    in_finally = False
+    search_from = 0
+    while not in_finally:
+        finally_start = source.find(finally_marker, search_from)
+        if finally_start == -1:
+            break
+        search_from = finally_start + len(finally_marker)
+        cursor = search_from
         depth = 0
-        cursor = finally_start + len(finally_marker)
-        body_start = cursor
-        while cursor < len(login_source):
-            character = login_source[cursor]
+        while cursor < len(source):
+            character = source[cursor]
             if character == '{':
                 depth += 1
             elif character == '}':
@@ -9046,22 +9068,66 @@ def check_frontend_login_submit_recovers() -> None:
                     break
                 depth -= 1
             cursor += 1
-        reset_in_finally = reset_statement in login_source[body_start:cursor]
-    reset_line = next(
+        in_finally = reset_statement in source[search_from:cursor]
+    location = next(
         (
             line.strip()
-            for line in login_source.splitlines()
+            for line in source.splitlines()
             if reset_statement in line
         ),
         f'全文找不到 {reset_statement!r}',
     )
-    check(
-        'W3 按钮复位在 finally 里（任何退出路径都要恢复，含以后新增的分支）',
-        reset_in_finally,
-        f'复位语句现在的位置：{reset_line}'
-        if not reset_in_finally
-        else reset_line,
-    )
+    return in_finally, location
+
+
+def check_frontend_form_resets_guarded() -> None:
+    """W6：四个未激活页面的提交按钮复位必须写在 ``finally`` 里（结构断言）。
+
+    探针能证明「超时之后按钮恢复」，但证明不了「复位不依赖超时」—— 悬挂请求最终
+    会被 20 秒那一刀切开，于是把复位挪回 ``catch`` 分支依然能通过行为断言。而
+    `catch` 分支在「超时预算被去掉」「以后新增一条 return 路径」两种情况下都会漏掉
+    复位。所以这里逐个文件做结构断言：复位语句必须落在 ``finally`` 块体内。
+    """
+    for relative_path, statements in FORM_SUBMIT_RESET_STATEMENTS.items():
+        source = (FRONTEND_ROOT / relative_path).read_text(encoding='utf-8')
+        for statement in statements:
+            in_finally, location = _reset_statement_in_finally(source, statement)
+            check(
+                f'W6 {relative_path} 的「{statement}」在 finally 里'
+                '（成功 / 失败 / 超时三条路径都要复位）',
+                in_finally,
+                location,
+            )
+
+
+def check_frontend_pending_page_submits() -> None:
+    """W6/W7：配网 / 初始化 / 授权三页的按钮与轮询闩（活体探针）。
+
+    这三页都发生在「还没有编辑器、也没有登录态」的阶段，是用户唯一能操作的东西：
+    按钮一旦永久灰掉、轮询一旦永久冻住，用户除了刷新页面没有别的出路。探针用真实
+    import + 假 DOM + 假时钟 + 假 fetch 驱动提交与轮询，断言：
+
+    - pair / setup / license 的提交请求都带 20 秒预算（弱网下一定有结论）；
+    - 超时之后按钮恢复可用（并且能再次提交）；
+    - 授权页 5 秒轮询在上一次状态请求还没回来时整拍跳过（不叠加同源请求），
+      而超时又保证闩一定会被放掉（轮询不会被守卫锁死）；
+    - 这几页原有的安全分支没有被顺手改松（配对 targetUrl 的同源校验、
+      setup 的前端密码比对、license 的 401 回登录页）。
+    """
+    for suite in ('pair', 'setup', 'license'):
+        _run_frontend_probe(suite)
+
+
+def check_frontend_login_submit_recovers() -> None:
+    """W3：登录请求悬挂时按钮也必须恢复（超时 + finally 两件都要有）。
+
+    ``frontend/static/login.js`` 是模块，探针直接用真实 import 加载磁盘上那一份，
+    配假 DOM / 假时钟 / 假 fetch 驱动 submit。
+
+    复位语句是否落在 ``finally`` 里由 ``check_frontend_form_resets_guarded`` 统一
+    覆盖（那条断言对 login / pair / setup / license 四个页面一视同仁）。
+    """
+    _run_frontend_probe('login')
 
 
 def check_frontend_display_runtime_notice() -> None:
@@ -9358,6 +9424,8 @@ async def run() -> int:
     check_license_flag_default_matches_loader()
     check_frontend_api_request_timeouts()
     check_frontend_login_submit_recovers()
+    check_frontend_form_resets_guarded()
+    check_frontend_pending_page_submits()
     check_frontend_display_runtime_notice()
     check_frontend_display_notice_wiring()
     check_frontend_scripts_parse()

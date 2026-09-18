@@ -1130,12 +1130,535 @@ async function runDisplayBootSuite() {
   );
 }
 
+/* ------------------------------------------------------------------------- */
+/* W6/W7：三个未激活页面（配网 / 初始化 / 授权）的提交与轮询                    */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * 造一个「表单页」垫片。
+ *
+ * 为什么抽成一处：login / setup / pair / license 四个未激活页面结构相同 —— 模块顶层
+ * 抓若干元素、给 form 挂 submit、从 window 上取跳转入口。所以只能先铺好垫片再真的
+ * import 磁盘上那一份，而垫片必须留到断言跑完（提交处理器在提交那一刻才
+ * `new FormData(form)`）。四个页面各写一份垫片必然漂移，抽成一处只维护一份。
+ *
+ * @param {object} options
+ * @param {string} options.formSelector form 的选择器（如 `#pair-form`）。
+ * @param {object} [options.formFields={}] `FormData` 替身读的字段值。
+ * @param {object} [options.formElements={}] `form.elements.<name>`（pair 页直接读 `elements.code`）。
+ * @param {object} [options.selectors={}] 其余选择器 → 元素替身的初始属性（默认 `hidden: true`）。
+ * @param {object} [options.location] 覆盖 location 垫片上的字段（如 `hash`、`hostname`）。
+ * @param {object} [options.windowExtra={}] 附加到 window 垫片上的属性（如 setInterval）。
+ * @returns {object} 垫片句柄：`listeners` / `submitButton` / `element(selector)` /
+ *   `window` / `assignedLocations` / `replacedLocations` / `install()`（返回还原函数）。
+ */
+function createFormPageStub(options) {
+  const {
+    formSelector,
+    formFields = {},
+    formElements = {},
+    selectors = {},
+    location: locationOverrides = {},
+    windowExtra = {}
+  } = options;
+
+  // 四个页面的按钮都是「提交期间禁用 + 文案可能被改写」，垫片跟着带这两样。
+  const submitButton = { disabled: false, textContent: "", setAttribute() {} };
+  const listeners = new Map();
+  const form = {
+    fields: { ...formFields },
+    elements: formElements,
+    querySelector(selector) {
+      // pair.js 在扫码模式下会改按钮里那个 span 的文案，所以两者都要认。
+      if (selector.includes("span")) return { textContent: "" };
+      return selector.includes('button[type="submit"]') ? submitButton : null;
+    },
+    querySelectorAll: () => [],
+    get(name) {
+      return this.fields[name];
+    },
+    addEventListener(type, handler) {
+      listeners.set("form:" + type, handler);
+    }
+  };
+
+  const elements = new Map();
+  const makeElement = initial => ({
+    hidden: true,
+    textContent: "",
+    required: false,
+    addEventListener(type, handler) {
+      listeners.set("element:" + type, handler);
+    },
+    querySelector: () => ({ required: false }),
+    ...initial
+  });
+  const documentStub = {
+    querySelector(selector) {
+      if (selector === formSelector) return form;
+      if (!elements.has(selector)) elements.set(selector, makeElement(selectors[selector]));
+      return elements.get(selector);
+    }
+  };
+
+  const assignedLocations = [];
+  const replacedLocations = [];
+  const windowStub = {
+    location: {
+      origin: "http://127.0.0.1:18081",
+      pathname: "/probe",
+      search: "",
+      hash: "",
+      hostname: "127.0.0.1",
+      assign(url) {
+        assignedLocations.push(String(url));
+      },
+      replace(url) {
+        replacedLocations.push(String(url));
+      },
+      ...locationOverrides
+    },
+    matchMedia: () => ({ matches: false }),
+    addEventListener(type, handler) {
+      listeners.set("window:" + type, handler);
+    },
+    ...windowExtra
+  };
+
+  return {
+    listeners,
+    form,
+    submitButton,
+    window: windowStub,
+    assignedLocations,
+    replacedLocations,
+    element: selector => documentStub.querySelector(selector),
+    /**
+     * 装上垫片（并返回还原函数）。
+     *
+     * navigator 用 defineProperty 覆盖：pair.js 会通过 pairing-link.js 读它的 UA
+     * 判断要不要弹「添加到主屏」引导，而宿主 Node 的 platform 是当前系统（macOS 上
+     * 就是 "MacIntel"），不固定下来的话探针的结论会随机器变。
+     */
+    install() {
+      const saved = {
+        document: globalThis.document,
+        window: globalThis.window,
+        location: globalThis.location,
+        history: globalThis.history,
+        navigator: globalThis.navigator,
+        FormData: globalThis.FormData
+      };
+      globalThis.document = documentStub;
+      globalThis.window = windowStub;
+      // pair.js 读的是裸 location（不是 window.location），两个名字都得铺。
+      globalThis.location = windowStub.location;
+      globalThis.history = { replaceState() {}, state: null };
+      Object.defineProperty(globalThis, "navigator", {
+        value: {
+          userAgent: "Mozilla/5.0 (Macintosh) HomeOS-frontend-probe",
+          platform: "MacIntel",
+          maxTouchPoints: 0,
+          standalone: false
+        },
+        configurable: true,
+        writable: true
+      });
+      globalThis.FormData = class FormData {
+        constructor(formElement) {
+          this.formElement = formElement;
+        }
+        get(name) {
+          return this.formElement.get(name);
+        }
+      };
+      return () => {
+        Object.assign(globalThis, {
+          document: saved.document,
+          window: saved.window,
+          location: saved.location,
+          history: saved.history,
+          FormData: saved.FormData
+        });
+        Object.defineProperty(globalThis, "navigator", {
+          value: saved.navigator,
+          configurable: true,
+          writable: true
+        });
+      };
+    }
+  };
+}
+
+/**
+ * 把 window 上的 setInterval / clearInterval 接到假时钟上。
+ *
+ * license.js 用的是 `window.setInterval`，而假时钟只替换了全局的 `setTimeout`；
+ * 用真实定时器会让整个套件变成「等 5 秒真的过去」，而假时钟下的轮询又根本不会走。
+ *
+ * @param {object} windowStub 表单页垫片上的 window。
+ * @returns {{handles: object[], pending: () => number}} 已排上的间隔句柄。
+ */
+function installFakeIntervals(windowStub) {
+  const handles = [];
+  windowStub.setInterval = (callback, delay) => {
+    const handle = { timerId: null, cleared: false };
+    const arm = () => {
+      handle.timerId = setTimeout(() => {
+        if (handle.cleared) return;
+        callback();
+        arm();
+      }, delay);
+    };
+    arm();
+    handles.push(handle);
+    return handle;
+  };
+  windowStub.clearInterval = handle => {
+    handle.cleared = true;
+    clearTimeout(handle.timerId);
+  };
+  return {
+    handles,
+    pending: () => handles.filter(handle => !handle.cleared).length
+  };
+}
+
+/**
+ * W6：配网页（/pair）的提交按钮必须恢复，请求必须带超时。
+ *
+ * @returns {Promise<void>}
+ */
+async function runPairSuite() {
+  const clock = installFakeClock();
+  const fakeFetch = installFakeFetch();
+  const stub = createFormPageStub({
+    formSelector: "#pair-form",
+    formElements: {
+      code: { value: "135790", addEventListener() {}, closest: () => ({ hidden: false }) }
+    },
+    selectors: {
+      "#message": {},
+      "#apple-pair-note": {},
+      "#pair-title": { hidden: false },
+      "#pair-description": { hidden: false }
+    }
+  });
+  const restore = stub.install();
+  try {
+    await import(pathToFileURL(path.join(ROOT, "frontend/static/pair.js")).href);
+    const submitHandler = stub.listeners.get("form:submit");
+    check("W6 pair.js 注册了 submit 监听（脚本确实加载完成）", typeof submitHandler === "function");
+    if (typeof submitHandler !== "function") return;
+
+    // 1) 悬挂：按钮先禁用（防重复配对），到点必须恢复。
+    fakeFetch.hang();
+    const hangingSubmit = Promise.resolve(submitHandler({ preventDefault() {} })).catch(() => null);
+    await flush();
+    check(
+      "W6 配对提交期间按钮被禁用（防重复配对同一台设备）",
+      stub.submitButton.disabled === true,
+      `disabled=${stub.submitButton.disabled}`
+    );
+    check(
+      "W6 配对请求的定时器预算是 2e4 毫秒（弱网下按钮不会永久灰掉）",
+      clock.delays().includes(20000),
+      JSON.stringify(clock.delays())
+    );
+    clock.advance(20001);
+    await hangingSubmit;
+    check(
+      "W6 配对请求悬挂 20 秒后按钮恢复可用",
+      stub.submitButton.disabled === false,
+      `disabled=${stub.submitButton.disabled}`
+    );
+    check(
+      "W6 配对超时给出可读提示（用户知道该重试而不是刷新页面）",
+      /请求超时：\/displays\/pair/.test(stub.element("#message").textContent),
+      stub.element("#message").textContent
+    );
+
+    // 2) 非 2xx：后端 detail 原样成为错误文案（文案归后端所有）。
+    fakeFetch.response(400, '{"detail":"配对码无效或已过期。"}', { ok: false });
+    await submitHandler({ preventDefault() {} });
+    check(
+      "W6 配对失败文案仍取后端 detail（没有被超时层改写）",
+      stub.element("#message").textContent === "配对码无效或已过期。",
+      stub.element("#message").textContent
+    );
+    check(
+      "W6 配对失败后按钮同样恢复可用",
+      stub.submitButton.disabled === false,
+      `disabled=${stub.submitButton.disabled}`
+    );
+
+    // 3) 跨站的 targetUrl 必须被拒（服务端被污染也不能把用户带去外站）。
+    fakeFetch.response(200, '{"targetUrl":"https://evil.example/display/x"}');
+    await submitHandler({ preventDefault() {} });
+    check(
+      "W6 跨站的 targetUrl 仍然被拒（同源守卫没被这次改动松开）",
+      stub.replacedLocations.length === 0 && /面板地址无效/.test(stub.element("#message").textContent),
+      `replaced=${JSON.stringify(stub.replacedLocations)} message=${stub.element("#message").textContent}`
+    );
+
+    // 4) 成功：跳到自己站点的展示页，按钮也复位（成功路径不能被 finally 之外的写法漏掉）。
+    fakeFetch.response(200, '{"targetUrl":"/display/abc123"}');
+    await submitHandler({ preventDefault() {} });
+    check(
+      "W6 配对成功后跳转到同源展示页",
+      stub.replacedLocations.length === 1 && stub.replacedLocations[0] === "/display/abc123",
+      JSON.stringify(stub.replacedLocations)
+    );
+    check(
+      "W6 配对成功后按钮也复位（不是只在失败分支里复位）",
+      stub.submitButton.disabled === false,
+      `disabled=${stub.submitButton.disabled}`
+    );
+  } finally {
+    restore();
+  }
+}
+
+/**
+ * W6：初始化页（/setup）的提交按钮必须恢复，请求必须带超时。
+ *
+ * @returns {Promise<void>}
+ */
+async function runSetupSuite() {
+  const clock = installFakeClock();
+  const fakeFetch = installFakeFetch();
+  const stub = createFormPageStub({
+    formSelector: "#setup-form",
+    formFields: {
+      username: "pcskycn",
+      password: "hunter2hunter2",
+      passwordConfirmation: "hunter2hunter2",
+      setupToken: ""
+    },
+    selectors: { "#message": {}, "#setup-token-field": { hidden: true } }
+  });
+  const restore = stub.install();
+  try {
+    await import(pathToFileURL(path.join(ROOT, "frontend/static/setup.js")).href);
+    const submitHandler = stub.listeners.get("form:submit");
+    check("W6 setup.js 注册了 submit 监听（脚本确实加载完成）", typeof submitHandler === "function");
+    if (typeof submitHandler !== "function") return;
+
+    // 1) 两次密码不一致：纯前端校验，必须立刻提示且不发请求（也不该把按钮禁用）。
+    stub.form.fields.passwordConfirmation = "mismatch";
+    fakeFetch.calls.length = 0;
+    await submitHandler({ preventDefault() {} });
+    check(
+      "W6 两次密码不一致时不发请求（前端校验先拦住）",
+      fakeFetch.calls.length === 0,
+      `calls=${fakeFetch.calls.length}`
+    );
+    check(
+      "W6 早退分支不让按钮进入禁用态（否则用户改完密码也点不动）",
+      stub.submitButton.disabled === false,
+      `disabled=${stub.submitButton.disabled}`
+    );
+    stub.form.fields.passwordConfirmation = "hunter2hunter2";
+
+    // 2) 悬挂：按钮禁用 → 20 秒超时 → 必须恢复。
+    fakeFetch.hang();
+    const hangingSubmit = Promise.resolve(submitHandler({ preventDefault() {} })).catch(() => null);
+    await flush();
+    check(
+      "W6 初始化提交期间按钮被禁用",
+      stub.submitButton.disabled === true,
+      `disabled=${stub.submitButton.disabled}`
+    );
+    check(
+      "W6 初始化请求的定时器预算是 2e4 毫秒",
+      clock.delays().includes(20000),
+      JSON.stringify(clock.delays())
+    );
+    clock.advance(20001);
+    await hangingSubmit;
+    check(
+      "W6 初始化请求悬挂 20 秒后按钮恢复可用",
+      stub.submitButton.disabled === false,
+      `disabled=${stub.submitButton.disabled}`
+    );
+
+    // 3) FastAPI 校验错误是数组：必须取 detail[0].msg（否则用户看到「初始化失败」）。
+    fakeFetch.response(422, '{"detail":[{"msg":"密码长度至少 10 位"}]}', { ok: false });
+    await submitHandler({ preventDefault() {} });
+    check(
+      "W6 后端数组形态的校验错误仍然取出可读文案",
+      stub.element("#message").textContent === "密码长度至少 10 位",
+      stub.element("#message").textContent
+    );
+
+    // 4) 成功：跳去授权页，按钮复位。
+    fakeFetch.response(200, '{"ok":true}');
+    await submitHandler({ preventDefault() {} });
+    check(
+      "W6 初始化成功后跳转到授权页",
+      stub.assignedLocations.length === 1 && stub.assignedLocations[0] === "/license",
+      JSON.stringify(stub.assignedLocations)
+    );
+    check(
+      "W6 初始化成功后按钮也复位",
+      stub.submitButton.disabled === false,
+      `disabled=${stub.submitButton.disabled}`
+    );
+  } finally {
+    restore();
+  }
+}
+
+/**
+ * W6/W7：授权页（/license）的激活提交与 5 秒轮询。
+ *
+ * @returns {Promise<void>}
+ */
+async function runLicenseSuite() {
+  const clock = installFakeClock();
+  const fakeFetch = installFakeFetch();
+  const stub = createFormPageStub({
+    formSelector: "#license-form",
+    formFields: { email: "buyer@example.com", activationCode: "ABC-123" },
+    selectors: {
+      "#message": {},
+      "#license-status-text": { hidden: false },
+      "#license-recovery-hint": {},
+      "#logout": { hidden: false }
+    }
+  });
+  const intervals = installFakeIntervals(stub.window);
+  const restore = stub.install();
+  try {
+    // 初始那一次状态请求就挂住：轮询守卫与「闩会不会永久卡住」都在这上面看。
+    fakeFetch.hang();
+    await import(pathToFileURL(path.join(ROOT, "frontend/static/license.js")).href);
+    const submitHandler = stub.listeners.get("form:submit");
+    check("W6 license.js 注册了 submit 监听（脚本确实加载完成）", typeof submitHandler === "function");
+    const statusCalls = () => fakeFetch.calls.filter(call => call.url.includes("/license/status")).length;
+
+    check(
+      "W7 初始状态请求的定时器预算是 2e4 毫秒（没有预算的轮询会越堆越多）",
+      clock.delays().includes(20000),
+      JSON.stringify(clock.delays())
+    );
+    check("W7 初始状态请求发了且只发了一次", statusCalls() === 1, `calls=${statusCalls()}`);
+    check(
+      "W7 授权页排上了 5 秒轮询",
+      intervals.pending() === 1,
+      `pending=${intervals.pending()}`
+    );
+
+    // 1) 5 秒那一拍：上一次还挂着 → 必须跳过（W7 的核心：不叠加悬挂请求）。
+    clock.advance(5001);
+    await flush();
+    check(
+      "W7 上一次状态请求还没回来时，下一拍跳过（悬挂请求不叠加在同源连接上）",
+      statusCalls() === 1,
+      `calls=${statusCalls()}`
+    );
+
+    // 2) 20 秒超时：闩必须释放，否则一次弱网就把轮询永久冻住（这正是不加守卫的另一半风险）。
+    clock.advance(20001);
+    await flush();
+    check(
+      "W7 状态请求超时后给出提示（用户知道是授权服务没应声）",
+      /请求超时：\/license\/status/.test(stub.element("#license-status-text").textContent),
+      stub.element("#license-status-text").textContent
+    );
+    clock.advance(5001);
+    await flush();
+    check(
+      "W7 超时后轮询闩释放：下一拍真的重新发请求（有超时兜底，守卫不会把轮询锁死）",
+      statusCalls() === 2,
+      `calls=${statusCalls()}`
+    );
+
+    // 3) 401：必须回登录页（而不是把「无法读取授权状态」摆给用户）。
+    //    注意 advance() 是同步的：它一口气把定时器全部跑完，但「闩释放」发生在
+    //    await 的续体（微任务）里。所以要先 flush 让上一拍那个悬挂请求的超时落地，
+    //    再推进下一拍 —— 否则下一拍看到的闩还是 held（这不是被测代码的问题，
+    //    是假时钟的固有性质，探针必须照它的规则来）。
+    fakeFetch.response(401, "{}", { ok: false });
+    clock.advance(20001);
+    await flush();
+    clock.advance(5001);
+    await flush();
+    check(
+      "W7 状态接口 401 时回登录页",
+      stub.replacedLocations.includes("/login"),
+      JSON.stringify({ replaced: stub.replacedLocations, calls: statusCalls() })
+    );
+
+    // 4) 激活提交：悬挂 → 超时 → 按钮与 activationPending 都要复位（否则用户改完激活码点不动）。
+    fakeFetch.hang();
+    const hangingActivate = Promise.resolve(submitHandler({ preventDefault() {} })).catch(() => null);
+    await flush();
+    check(
+      "W6 激活提交期间按钮被禁用（防重复提交）",
+      stub.submitButton.disabled === true,
+      `disabled=${stub.submitButton.disabled}`
+    );
+    check(
+      "W6 激活请求的定时器预算是 2e4 毫秒（没有预算，激活中按钮就再也回不来）",
+      clock.delays().includes(20000),
+      JSON.stringify(clock.delays())
+    );
+    clock.advance(20001);
+    await hangingActivate;
+    check(
+      "W6 激活请求悬挂 20 秒后按钮恢复可用",
+      stub.submitButton.disabled === false,
+      `disabled=${stub.submitButton.disabled}`
+    );
+    check(
+      "W6 激活超时给出可读提示",
+      /请求超时：\/license\/activate/.test(stub.element("#message").textContent),
+      stub.element("#message").textContent
+    );
+
+    // 5) 激活成功但不含编辑器权益：文案必须区分开（两种情况的下一步动作不同）。
+    fakeFetch.response(200, '{"status":"ACTIVE","allowed":true,"editorAllowed":false}');
+    await submitHandler({ preventDefault() {} });
+    check(
+      "W6 「授权有效但不含编辑器权益」有专门文案",
+      stub.element("#message").textContent === "激活成功，但当前商品未包含编辑器权益。",
+      stub.element("#message").textContent
+    );
+
+    // 6) 激活成功：这一次能真的发出去（证明上一步的超时把 activationPending 复位了），并跳转。
+    fakeFetch.calls.length = 0;
+    fakeFetch.response(200, '{"status":"ACTIVE","allowed":true,"editorAllowed":true}');
+    await submitHandler({ preventDefault() {} });
+    check(
+      "W6 超时之后能再次提交激活（activationPending 已在 finally 里复位）",
+      fakeFetch.calls.some(call => call.url.includes("/license/activate")),
+      `calls=${JSON.stringify(fakeFetch.calls.map(call => call.url))}`
+    );
+    check(
+      "W6 激活成功即进入编辑器（location.replace，返回键回不到授权页）",
+      stub.replacedLocations.includes("/"),
+      JSON.stringify(stub.replacedLocations)
+    );
+    check(
+      "W7 进入编辑器时停掉轮询（跳转瞬间不再多发一次状态请求）",
+      intervals.pending() === 0,
+      `pending=${intervals.pending()}`
+    );
+  } finally {
+    restore();
+  }
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,
   login: runLoginSuite,
   "display-boot": runDisplayBootSuite,
   "request-json": runRequestJsonSuite,
-  "studio-request": runStudioRequestSuite
+  "studio-request": runStudioRequestSuite,
+  pair: runPairSuite,
+  setup: runSetupSuite,
+  license: runLicenseSuite
 };
 
 /**

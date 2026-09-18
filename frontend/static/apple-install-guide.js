@@ -30,7 +30,7 @@ if (
   ((guideDialog.className = "apple-install-dialog"),
     guideDialog.setAttribute("aria-labelledby", "apple-install-title"),
     (guideDialog.innerHTML = `
-    <img class="apple-install-icon" src="/static/homeos-icon-180-h5.png?v=20260918171600" alt="">
+    <img class="apple-install-icon" src="/static/homeos-icon-180-h5.png?v=20260918174425" alt="">
     <p class="apple-install-eyebrow">IPHONE \xB7 IPAD</p>
     <h2 id="apple-install-title">\u628A HomeOS \u653E\u5230\u4E3B\u5C4F\u5E55</h2>
     <p class="apple-install-intro">\u6DFB\u52A0\u540E\u50CF App \u4E00\u6837\u4ECE\u684C\u9762\u5168\u5C4F\u6253\u5F00\uFF0C\u9762\u677F\u529F\u80FD\u4E0E App \u76F8\u540C\u3002</p>

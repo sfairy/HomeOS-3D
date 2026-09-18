@@ -4,10 +4,15 @@
  * 位置：未授权 / 授权失效时后端把请求跳转到此页。
  * 职责：轮询 /api/v1/license/status 判断是否已可进入编辑器，处理激活码提交，
  *   并提供退出本机登录入口。
- * 约定：5 秒轮询一次状态，但激活请求进行中（activationPending）或即将跳转
- *   （navigating）时不再发请求，避免竞态；进入编辑器用 location.replace，
- *   防止用户按返回键回到授权页。
+ * 约定：5 秒轮询一次状态，但满足任一条件就跳过这一拍 —— 激活请求进行中
+ *   （activationPending）、即将跳转（navigating）、或上一次状态请求还在飞
+ *   （isLoadingStatus）。进入编辑器用 location.replace，防止用户按返回键回到授权页。
+ * 约定：状态与激活请求都走 utils/api-fetch.js（20 秒超时）。这把「在飞闩」与超时是
+ *   一对：只有闩没有超时，一次弱网就把轮询永久冻住；只有超时没有闩，弱网下每 5 秒
+ *   就再叠一个同源请求上去，把本来就差的网络压得更差。
  */
+import { apiFetch } from "./utils/api-fetch.js?v=20260918174425";
+
 const form = document.querySelector("#license-form"),
   message = document.querySelector("#message"),
   statusText = document.querySelector("#license-status-text"),
@@ -15,9 +20,11 @@ const form = document.querySelector("#license-form"),
   submit = form.querySelector('button[type="submit"]'),
   logout = document.querySelector("#logout");
 
-// activationPending 防止重复提交激活码；navigating 防止跳转前重复发轮询请求。
+// activationPending 防止重复提交激活码；navigating 防止跳转前重复发轮询请求；
+// isLoadingStatus 防止「上一次还没回来就再发一次」（弱网下会越堆越多）。
 let activationPending = !1,
   navigating = !1,
+  isLoadingStatus = !1,
   statusTimer = null;
 
 // 已确定可以进入编辑器：停掉轮询再跳转，避免跳转瞬间又发一次状态请求。
@@ -57,7 +64,7 @@ function setRecoveryHint(statusCode) {
 
 // 读取一次授权状态并更新提示文案；可以进入编辑器时直接跳转。
 async function loadStatus() {
-  const statusResponse = await fetch("/api/v1/license/status", { cache: "no-store" });
+  const statusResponse = await apiFetch("/api/v1/license/status", { cache: "no-store" });
   if (statusResponse.status === 401) {
     window.location.replace("/login");
     return;
@@ -108,6 +115,26 @@ async function loadStatus() {
   setRecoveryHint(statusCode);
 }
 
+/**
+ * 带「在飞去重闩」地查一次授权状态。
+ *
+ * 为什么闩必须在这里而不是在定时器回调里：初始加载与 5 秒轮询是同一个入口的两种
+ * 触发方式，闩只加在定时器那一支，初始那次就会和第一拍叠在一起（也正是本页最早的
+ * 形态）。超时会由 apiFetch 抛出，所以「闩 + 超时」一起才成立：闩保证不叠加，
+ * 超时保证闩一定会被放掉（否则一次弱网就把轮询永久冻住）。
+ *
+ * @returns {Promise<void>} 请求结束即返回；失败时抛出可读错误，由调用方写进状态栏。
+ */
+async function refreshStatus() {
+  if (isLoadingStatus || navigating) return;
+  isLoadingStatus = !0;
+  try {
+    await loadStatus();
+  } finally {
+    isLoadingStatus = !1;
+  }
+}
+
 // 一次性挂上三类监听：表单激活、退出本机登录、以及 5 秒轮询状态。
 (form.addEventListener("submit", async submitEvent => {
   // 激活中或正在跳转时忽略重复提交。
@@ -115,7 +142,7 @@ async function loadStatus() {
     ((activationPending = !0), (message.hidden = !0), (submit.disabled = !0));
     try {
       // 非 JSON 响应按空对象处理，走统一错误文案。
-      const activateResponse = await fetch("/api/v1/license/activate", {
+      const activateResponse = await apiFetch("/api/v1/license/activate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -137,28 +164,28 @@ async function loadStatus() {
         );
       enterEditor();
     } catch (caughtError) {
-      // 失败时重置全部标志位，让用户可以修改激活码重试。
-      ((message.textContent = caughtError.message),
-        (message.hidden = !1),
-        (submit.disabled = !1),
-        (activationPending = !1));
+      ((message.textContent = caughtError.message), (message.hidden = !1));
+    } finally {
+      // 失败要复位让用户改激活码重试；成功/超时/异常穿透也都复位（跳转已发生，
+      // 复位无副作用）。激活请求是「防重复提交」的闩，漏放一次按钮就永久灰掉。
+      ((submit.disabled = !1), (activationPending = !1));
     }
   }
 }),
   logout.addEventListener("click", async () => {
     // 退出失败（网络异常）也照样跳登录页，避免用户卡在授权页。
-    (await fetch("/api/v1/auth/logout", { method: "POST" }).catch(() => {}),
+    (await apiFetch("/api/v1/auth/logout", { method: "POST" }).catch(() => {}),
       window.location.replace("/login"));
   }),
-  loadStatus().catch(loadError => {
-    ((statusText.textContent = loadError.message), (submit.disabled = !1));
+  refreshStatus().catch(loadError => {
+    statusText.textContent = loadError.message;
   }),
   // 5e3 = 5 秒；轮询间隔固定，不用退避，因为授权页通常很快被离开。
   (statusTimer = window.setInterval(() => {
-    // 激活请求进行中或即将跳转时不再轮询，避免状态互相覆盖。
+    // 激活请求进行中不再轮询，避免状态互相覆盖；上一次状态请求还没回来则整拍跳过
+    // （重发由 refreshStatus 自己的闩拦下，这里省掉一次无谓的调用）。
     activationPending ||
-      navigating ||
-      loadStatus().catch(refreshError => {
+      refreshStatus().catch(refreshError => {
         statusText.textContent = refreshError.message;
       });
   }, 5e3)));
