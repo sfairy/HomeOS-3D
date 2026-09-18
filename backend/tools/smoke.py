@@ -8925,6 +8925,8 @@ FRONTEND_PROBE_SUITES = {
     'pair': 'W6 配网页提交按钮与超时（pair.js）',
     'setup': 'W6 初始化页提交按钮与超时（setup.js）',
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
+    'home-boot': 'W8 编辑器启动分片（home.js 启动序列）',
+    'home-snapshot': 'W9 草稿恢复快照的内容与失败告警（home.js）',
 }
 
 #: W3/W6：四个「未激活页面」的提交复位语句 —— 都写在同一个表单提交处理器里，
@@ -8989,9 +8991,13 @@ def _run_frontend_probe(suite: str) -> None:
         probe_results = payload['results']
         assert isinstance(probe_results, list) and probe_results
     except (ValueError, KeyError, AssertionError):
+        # 顺手报出 stdout 长度：结果 JSON 被截断时（探针用 process.exit 丢掉还没落盘的
+        # 异步写、管道缓冲区刚好 64 KiB）从「长度 = 65536 的整数倍附近」一眼可辨，
+        # 比只盯尾部那段乱码有用得多。
         check(
             f'前端探针 {suite} 吐出了完整结果（{purpose}）',
             False,
+            f'stdout {len(probe.stdout)} 字节；'
             f'stdout={probe.stdout.strip()[-300:]!r} stderr={probe.stderr.strip()[-300:]!r}',
         )
         return
@@ -9116,6 +9122,49 @@ def check_frontend_pending_page_submits() -> None:
     """
     for suite in ('pair', 'setup', 'license'):
         _run_frontend_probe(suite)
+
+
+def check_frontend_editor_boot_and_snapshot() -> None:
+    """W8/W9：编辑器启动分片与草稿恢复快照（活体探针 + 接线断言）。
+
+    两条都在 `frontend/static/home.js` 里，都用「按源码把函数切出来、在 vm 里配桩驱动」
+    的办法测（这个文件几万行、模块顶层就摸 DOM，整份 import 需要一整套编辑器 DOM）：
+
+    - W8：六个启动分片（会话 / 授权 / HA 连接 / 项目 / 素材 / 实体）各自失败一次，
+      断言面板照样渲染、失败片的名字进得了报错文案、六片同时失败也只合成一条告警；
+    - W9：快照内容里不许出现撤销/重做栈（哪怕内存里堆了 20 份大文档），配额爆掉时
+      必须给出可读告警且同一项目只提醒一次，成功写过之后要能重新提醒，
+      页面不可见（pageleave 那一跳）时只记日志。
+
+    **探针证明不了的两处接线**由源码断言补：探针是**按名字把函数切出来自己调用**的，
+    所以「顶层启动有没有真的用它」「写入器有没有真的由它驱动」它一无所知 —— 删掉调用点
+    它照样全绿。这类「有人用它」只能静态看（与 P5 第十三批给 AST 划的边界一致）。
+    """
+    for suite in ('home-boot', 'home-snapshot'):
+        _run_frontend_probe(suite)
+
+    home_source = (FRONTEND_ROOT / 'static' / 'home.js').read_text(encoding='utf-8')
+    check(
+        'W8 顶层启动真的调用了分片加载器（探针是自己调它，不证明它被用上）',
+        'loadEditorBootSlices().catch(handleOperationError)' in home_source,
+        '顶层没有 loadEditorBootSlices() 的调用点 —— 分片逻辑等于死代码',
+    )
+    check(
+        'W9 恢复写入器仍然由 persistRecoverySnapshot 驱动（探针是直接调它）',
+        'const recoveryWriter = createRecoveryWriter(persistRecoverySnapshot)' in home_source,
+        'createRecoveryWriter 的入参不再是 persistRecoverySnapshot，探针测的就不是线上那条路',
+    )
+    check(
+        'W9 快照仍然挂在「有未保存改动」这个唯一触发点上',
+        '  if (hasUnsavedChanges) {\n    scheduleRecoverySnapshot();' in home_source,
+        'refreshDirtyState 里的触发点不见了 —— 快照再也不会被排入队列',
+    )
+    check(
+        'W9 除了 scheduleRecoverySnapshot 之外没有第二个地方把历史栈带上（快照只留文档本体）',
+        'undo: [...historyState.undo]' not in home_source
+        and 'redo: [...historyState.redo]' not in home_source,
+        '仍有地方把撤销/重做栈塞进快照 —— 大文档下 200ms 一节流会重新开始卡',
+    )
 
 
 def check_frontend_login_submit_recovers() -> None:
@@ -9426,6 +9475,7 @@ async def run() -> int:
     check_frontend_login_submit_recovers()
     check_frontend_form_resets_guarded()
     check_frontend_pending_page_submits()
+    check_frontend_editor_boot_and_snapshot()
     check_frontend_display_runtime_notice()
     check_frontend_display_notice_wiring()
     check_frontend_scripts_parse()

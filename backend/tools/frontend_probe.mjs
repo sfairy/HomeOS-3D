@@ -193,17 +193,113 @@ function extractAsyncFunction(source, functionName) {
   if (!declaration) {
     throw new Error(`源码里找不到 async function ${functionName}`);
   }
-  const start = declaration.index;
-  const parameterOpen = source.indexOf("(", declaration.index);
+  return sliceFunctionDeclaration(source, declaration.index, functionName);
+}
+
+/**
+ * 按「声明起点」切出一个函数体：括号与花括号各配平一次，再自检能解析。
+ *
+ * @param {string} source 文件全文。
+ * @param {number} start 声明起点（`async` 或 `function` 关键字的第一个字符）。
+ * @param {string} label 报错里用的名字。
+ * @returns {string} 函数源码。
+ */
+function sliceFunctionDeclaration(source, start, label) {
+  const parameterOpen = source.indexOf("(", start);
   const parameterClose = findClosing(source, parameterOpen, "(", ")");
   const bodyOpen = source.indexOf("{", parameterClose);
   const bodyClose = findClosing(source, bodyOpen, "{", "}");
   const extracted = source.slice(start, bodyClose + 1);
   if (!extracted.trimEnd().endsWith("}")) {
-    throw new Error(`${functionName} 的切分没有停在右花括号上`);
+    throw new Error(`${label} 的切分没有停在右花括号上`);
   }
   new vm.Script(extracted); // 解析不过会抛，避免把半截函数当成「探针通过」
   return extracted;
+}
+
+/**
+ * 从源码里切出一个函数，同步或异步都认（`function f()` / `async function f()`）。
+ *
+ * 为什么先按 async 找：反过来写（`(async\s+)?function`）会把 `async` 关键字切掉，
+ * 留下一段还带 `await` 的函数体 —— 一进 vm 就报语法错，表现成「探针自己崩了」，
+ * 看不出这是在读被测代码。
+ *
+ * @param {string} source 文件全文。
+ * @param {string} functionName 函数名。
+ * @returns {string} 函数源码（异步时含 `async` 关键字）。
+ */
+function extractFunction(source, functionName) {
+  try {
+    return extractAsyncFunction(source, functionName);
+  } catch {
+    const declaration = new RegExp(
+      String.raw`(?<![\w$])function\s+${functionName}\s*\(`
+    ).exec(source);
+    if (!declaration) {
+      throw new Error(`源码里找不到 function ${functionName}`);
+    }
+    return sliceFunctionDeclaration(source, declaration.index, functionName);
+  }
+}
+
+/**
+ * 从源码里切出一行 `let <name> = …;` 声明（用于把状态变量一起搬进沙箱）。
+ *
+ * 只认单行：多行初值的变量不该用这个助手取，宁可在沙箱里显式建一个。
+ *
+ * @param {string} source 文件全文。
+ * @param {string} variableName 变量名。
+ * @returns {string} 声明源码（含 `let` 与分号）。
+ */
+function extractVariableDeclaration(source, variableName) {
+  const declaration = new RegExp(
+    String.raw`(?<![\w$.])let\s+${variableName}\s*=\s*[^;\n]*;`
+  ).exec(source);
+  if (!declaration) {
+    throw new Error(`源码里找不到单行的 let ${variableName} = …;`);
+  }
+  new vm.Script(declaration[0]);
+  return declaration[0];
+}
+
+/**
+ * 造一个带配额的 sessionStorage 替身。
+ *
+ * 为什么不能只是「永远成功」：W9 的一半正是「写不进去的时候用户能不能知道」，
+ * 没有失败路径就没有那条断言。`attempts` 记录每一次 `setItem` 的内容 ——
+ * 「是不是先写一版大的、失败再写一版小的」只能从尝试次数上看出来。
+ *
+ * @param {object} [options] 选项。
+ * @param {number} [options.quotaBytes] 初始配额（按字符串长度计）。
+ * @returns {object} 替身（含 `attempts` / `setQuota` / `entries`）。
+ */
+function makeQuotaStorage({ quotaBytes = Number.MAX_SAFE_INTEGER } = {}) {
+  const entries = new Map();
+  const attempts = [];
+  let quota = quotaBytes;
+  return {
+    attempts,
+    entries,
+    setQuota(nextQuotaBytes) {
+      quota = nextQuotaBytes;
+    },
+    getItem(key) {
+      return entries.has(key) ? entries.get(key) : null;
+    },
+    removeItem(key) {
+      entries.delete(key);
+    },
+    setItem(key, value) {
+      const storedText = String(value);
+      attempts.push(storedText);
+      if (storedText.length > quota) {
+        const quotaError = new Error("The quota has been exceeded.");
+        quotaError.name = "QuotaExceededError";
+        throw quotaError;
+      }
+      entries.set(key, storedText);
+    }
+  };
 }
 
 /**
@@ -1650,6 +1746,370 @@ async function runLicenseSuite() {
   }
 }
 
+/* ------------------------------------------------------------------------- */
+/* W8/W9：编辑器启动分片与草稿恢复快照                                        */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * W8：启动分片加载（一片失败不该让整块面板空白）。
+ *
+ * 这三个函数从 `home.js` 按源码切出来在 vm 里跑，六个加载动作换成受控桩 ——
+ * 「哪几片失败」由探针摆出来。测的是三件事：失败片的**名字**能不能进报错文案、
+ * 面板是不是**照样渲染**、以及「一片失败」与「六片失败」是不是都被合成一条告警。
+ *
+ * @returns {Promise<void>}
+ */
+async function runHomeBootSuite() {
+  const source = fs.readFileSync(path.join(ROOT, "frontend/static/home.js"), "utf8");
+  const bootSource = ["editorBootSlices", "loadEditorBootSlices", "reportBootFailures"]
+    .map(functionName => extractFunction(source, functionName))
+    .join("\n\n");
+
+  const loaderCalls = [];
+  const renderCalls = [];
+  const logEntries = [];
+  const dialogs = [];
+  let failingSliceNames = new Set();
+  const makeLoader = sliceName => () => {
+    loaderCalls.push(sliceName);
+    return failingSliceNames.has(sliceName)
+      // 故意用一个**不含分片名**的失败原因：真实的网络失败（TypeError: Failed to
+      // fetch）不会替我们说出是哪一分片坏了。第一版垫片写的是 `${sliceName}读取失败`，
+      // 于是「告警文案点出是哪一片」这条断言在「聚合文案被删掉」时仍然是绿的 ——
+      // 分片名从失败原因里漏进去了，断言测到的就不是它该测的东西。
+      ? Promise.reject(new Error("Failed to fetch"))
+      : Promise.resolve(sliceName);
+  };
+  const context = vm.createContext({
+    console,
+    activeProject: null,
+    refreshAuthSession: makeLoader("会话"),
+    refreshLicenseStatus: makeLoader("授权状态"),
+    refreshHaConnection: makeLoader("Home Assistant 连接"),
+    loadProjects: makeLoader("项目列表"),
+    reloadAssetCatalog: makeLoader("素材目录"),
+    ensureEntitiesLoaded: makeLoader("实体清单"),
+    renderComponentLists: () => renderCalls.push("render"),
+    handleOperationError: (operationError, options) =>
+      dialogs.push({
+        message: operationError?.message || "",
+        name: operationError?.name || "",
+        phase: options?.phase || ""
+      }),
+    window: {
+      HABridgeLog: {
+        error: (operationError, logContext) =>
+          logEntries.push({ message: operationError?.message || "", ...logContext })
+      }
+    }
+  });
+  vm.runInContext(bootSource, context);
+
+  const reset = () => {
+    loaderCalls.length = 0;
+    renderCalls.length = 0;
+    logEntries.length = 0;
+    dialogs.length = 0;
+    failingSliceNames = new Set();
+  };
+
+  const bootSlices = context.editorBootSlices();
+  check(
+    "W8 启动分片清单每片都有名字（名字是报错能指认是哪一片的前提）",
+    bootSlices.length === 6 &&
+      bootSlices.every(
+        ([sliceName, loadSlice]) =>
+          typeof sliceName === "string" && sliceName.length > 0 && typeof loadSlice === "function"
+      ),
+    JSON.stringify(bootSlices.map(([sliceName]) => sliceName))
+  );
+
+  // 1) 一片失败：面板必须照样画出来（修复前 renderComponentLists 整段被跳过）。
+  failingSliceNames = new Set(["项目列表"]);
+  await context.loadEditorBootSlices();
+  check(
+    "W8 一片失败时组件面板照样渲染（修复前是整块面板空白）",
+    renderCalls.length === 1,
+    `render=${renderCalls.length}`
+  );
+  check(
+    "W8 一片失败时六片照样全部发出（一片失败不该让另外五片的成果作废）",
+    loaderCalls.length === 6,
+    JSON.stringify(loaderCalls)
+  );
+  check(
+    "W8 告警文案点出是哪一片失败（不是一句「操作失败」）",
+    dialogs.length === 1 &&
+      dialogs[0].message.includes("项目列表") &&
+      !dialogs[0].message.includes("素材目录"),
+    JSON.stringify(dialogs)
+  );
+  check(
+    "W8 失败片的日志带 phase=editor-boot 与 slice 名字（后台能按片归因）",
+    logEntries.some(entry => entry.phase === "editor-boot" && entry.slice === "项目列表"),
+    JSON.stringify(logEntries)
+  );
+
+  // 2) 全部成功：不许弹任何告警（修复不能变成「处处告警」）。
+  reset();
+  await context.loadEditorBootSlices();
+  check(
+    "W8 全部成功时不弹告警（否则这条提示会被用户当成噪声关掉）",
+    dialogs.length === 0 && logEntries.length === 0,
+    JSON.stringify({ dialogs, logEntries })
+  );
+  check("W8 全部成功时面板也只渲染一次", renderCalls.length === 1, `render=${renderCalls.length}`);
+
+  // 3) 六片全失败：只合成一条告警，但把六片都列出来；且绝不抛。
+  reset();
+  failingSliceNames = new Set(bootSlices.map(([sliceName]) => sliceName));
+  let allFailedThrew = false;
+  await context.loadEditorBootSlices().catch(() => {
+    allFailedThrew = true;
+    return null;
+  });
+  check("W8 六片同时失败也不抛（allSettled 的语义：没有「第一个 rejection」）", !allFailedThrew);
+  check(
+    "W8 六片同时失败只弹一条告警（弹六次等于什么都没说）",
+    dialogs.length === 1 && dialogs[0].name === "EditorBootSliceError",
+    JSON.stringify(dialogs)
+  );
+  check(
+    "W8 六片同时失败的文案把六片都列出来",
+    bootSlices.every(([sliceName]) => dialogs[0]?.message.includes(sliceName)),
+    dialogs[0]?.message || ""
+  );
+  check(
+    "W8 六片同时失败时面板仍然渲染（用户至少还能看见自己有的东西）",
+    renderCalls.length === 1,
+    `render=${renderCalls.length}`
+  );
+  check(
+    "W8 告警走的是带阶段名的通道（phase=editor-boot，便于日志归因）",
+    dialogs[0]?.phase === "editor-boot",
+    JSON.stringify(dialogs[0] || null)
+  );
+}
+
+/**
+ * W9：草稿恢复快照的内容与失败告警。
+ *
+ * `scheduleRecoverySnapshot` / `persistRecoverySnapshot` / `notifyRecoveryWriteFailure`
+ * 三个函数按源码切出来跑，`recoveryWriter` 用的是 `editor-history.js` 里**真的**那一个
+ * （只把定时器换成受控的），存储换成带配额的替身 —— 「配额爆了会怎样」是这一条的一半，
+ * 没有失败路径就测不到。
+ *
+ * 断言详情一律走 `summarizeSnapshot`：快照里可能躺着 400 KB 的填充数据，把整份快照塞进
+ * detail 会把探针的结果 JSON 撑到管道缓冲区之外（见 `writeSync` 的说明）。
+ *
+ * @returns {Promise<void>}
+ */
+function summarizeSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return String(snapshot);
+  }
+  return JSON.stringify({
+    keys: Object.keys(snapshot),
+    revision: snapshot.revision ?? null,
+    documentPages: Array.isArray(snapshot.document?.pages) ? snapshot.document.pages.length : null,
+    selectedPath: snapshot.selectedPath ?? null,
+    selectedComponentCount: Array.isArray(snapshot.selectedComponentIds)
+      ? snapshot.selectedComponentIds.length
+      : null,
+    historyBytes: snapshot.undo || snapshot.redo ? JSON.stringify(snapshot).length : 0
+  });
+}
+
+async function runHomeSnapshotSuite() {
+  const source = fs.readFileSync(path.join(ROOT, "frontend/static/home.js"), "utf8");
+  const recoverySource = [
+    extractVariableDeclaration(source, "recoveryFailureNotifiedProjectId"),
+    extractFunction(source, "scheduleRecoverySnapshot"),
+    extractFunction(source, "persistRecoverySnapshot"),
+    extractFunction(source, "notifyRecoveryWriteFailure")
+  ].join("\n\n");
+  const { createRecoveryWriter, recoveryStorageKey } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/editor-history.js")).href
+  );
+
+  const storage = makeQuotaStorage();
+  const dialogs = [];
+  const logEntries = [];
+  const documentStub = { visibilityState: "visible" };
+  const scheduledTimers = [];
+  const context = vm.createContext({
+    console,
+    sessionStorage: storage,
+    document: documentStub,
+    recoveryStorageKey,
+    RECOVERY_STORAGE_PREFIX: "homeos:unsaved:",
+    activeProject: null,
+    hasUnsavedChanges: false,
+    pageSelectElement: { value: "/overview" },
+    selectedComponentId: "component-1",
+    selectedComponentIds: new Set(["component-1"]),
+    historyState: { undo: [], redo: [], busy: false },
+    handleOperationError: (operationError, options) =>
+      dialogs.push({
+        message: operationError?.message || "",
+        name: operationError?.name || "",
+        phase: options?.phase || ""
+      }),
+    window: {
+      HABridgeLog: {
+        error: (operationError, logContext) =>
+          logEntries.push({ message: operationError?.message || "", ...logContext })
+      }
+    }
+  });
+  vm.runInContext(recoverySource, context);
+  // 写入器用真的那一个（editor-history.js）：节流/合并/切项目先落盘这些语义都在它身上，
+  // 探针要证明的是「排进去的内容」与「真写进去的内容」，不是等 200 毫秒。
+  context.recoveryWriter = createRecoveryWriter(
+    recoveryState => context.persistRecoverySnapshot(recoveryState),
+    {
+      delay: 200,
+      setTimer: callback => {
+        scheduledTimers.push(callback);
+        return scheduledTimers.length;
+      },
+      clearTimer: () => {}
+    }
+  );
+
+  const flushSnapshot = () => {
+    context.recoveryWriter.flush();
+  };
+
+  // 一份「未保存的文档 + 很胖的历史栈」：历史栈在内存里（撤销还要用），但绝不该进快照。
+  context.activeProject = {
+    projectId: "project-1",
+    revision: 3,
+    document: { pages: [{ path: "/overview", components: [{ id: "component-1" }] }] }
+  };
+  context.hasUnsavedChanges = true;
+  context.historyState.undo = Array.from({ length: 20 }, (_, index) => ({
+    kind: "edit",
+    document: { filler: "x".repeat(20000), index }
+  }));
+  context.historyState.redo = [{ kind: "edit", document: { filler: "y".repeat(20000) } }];
+
+  context.scheduleRecoverySnapshot();
+  flushSnapshot();
+  const storedSnapshot = JSON.parse(storage.getItem("homeos:unsaved:project-1") || "null");
+  check(
+    "W9 快照里不再带撤销/重做栈（历史栈是 200ms 一节流里最贵的那一项）",
+    storedSnapshot !== null && storedSnapshot.undo === undefined && storedSnapshot.redo === undefined,
+    summarizeSnapshot(storedSnapshot)
+  );
+  check(
+    "W9 快照仍然带着文档本体、revision 与选择集（去掉历史栈不能把要救的东西也去掉）",
+    storedSnapshot?.document?.pages?.[0]?.components?.[0]?.id === "component-1" &&
+      storedSnapshot?.revision === 3 &&
+      storedSnapshot?.selectedPath === "/overview" &&
+      storedSnapshot?.selectedComponentId === "component-1" &&
+      storedSnapshot?.selectedComponentIds?.[0] === "component-1",
+    summarizeSnapshot(storedSnapshot)
+  );
+  check(
+    "W9 配额充足时成功写入不弹告警",
+    dialogs.length === 0,
+    JSON.stringify(dialogs)
+  );
+
+  // 1) 配额爆掉：必须让用户知道，而且只尝试写一次。
+  storage.setQuota(64);
+  storage.attempts.length = 0;
+  context.activeProject = { ...context.activeProject, revision: 4 };
+  context.scheduleRecoverySnapshot();
+  flushSnapshot();
+  context.activeProject = { ...context.activeProject, revision: 5 };
+  context.scheduleRecoverySnapshot();
+  flushSnapshot();
+  context.activeProject = { ...context.activeProject, revision: 6 };
+  context.scheduleRecoverySnapshot();
+  flushSnapshot();
+  check(
+    "W9 写不进去时给出告警（草稿恢复失效而页面毫无异样，用户会一直以为有兜底）",
+    dialogs.length === 1 && dialogs[0].name === "RecoverySnapshotError",
+    JSON.stringify(dialogs)
+  );
+  check(
+    "W9 告警文案说清后果与下一步（让用户改成手动保存）",
+    dialogs[0]?.message.includes("草稿恢复快照") && dialogs[0]?.message.includes("手动保存"),
+    dialogs[0]?.message || ""
+  );
+  check(
+    "W9 连续失败只提醒一次（写入是 200ms 一节流的，不去重就是反复弹同一个框）",
+    dialogs.length === 1,
+    `dialogs=${dialogs.length}`
+  );
+  check(
+    "W9 写不进去时也只尝试一次（不再「先序列化一版大的、失败再写一版小的」）",
+    storage.attempts.length === 3,
+    `attempts=${storage.attempts.length}`
+  );
+  check(
+    "W9 每次失败都进日志（同一项目只弹一次，但每一次都要留痕）",
+    logEntries.filter(entry => entry.phase === "recovery-snapshot").length === 3,
+    JSON.stringify(logEntries.map(entry => entry.phase))
+  );
+
+  // 2) 空间腾出来之后：下一次失败必须能重新提醒。
+  storage.setQuota(Number.MAX_SAFE_INTEGER);
+  context.activeProject = { ...context.activeProject, revision: 7 };
+  context.scheduleRecoverySnapshot();
+  flushSnapshot();
+  storage.setQuota(64);
+  context.activeProject = { ...context.activeProject, revision: 8 };
+  context.scheduleRecoverySnapshot();
+  flushSnapshot();
+  check(
+    "W9 写入成功过之后再失败要能重新提醒（否则用户腾出空间也永远听不到第二次）",
+    dialogs.length === 2,
+    `dialogs=${dialogs.length}`
+  );
+
+  // 3) 页面不可见（pagehide / beforeunload 那一跳）：只记日志，不弹对话框。
+  //    先写成功一次，把「已提醒过」的闩复位 —— 否则上一段的去重会替可见性判断兜底，
+  //    这一条即使在可见性分支被删掉之后也照样是绿的（去重把缺陷藏起来了）。
+  storage.setQuota(Number.MAX_SAFE_INTEGER);
+  context.activeProject = { ...context.activeProject, revision: 9 };
+  context.scheduleRecoverySnapshot();
+  flushSnapshot();
+  documentStub.visibilityState = "hidden";
+  storage.setQuota(64);
+  dialogs.length = 0;
+  logEntries.length = 0;
+  context.activeProject = { ...context.activeProject, revision: 10 };
+  context.scheduleRecoverySnapshot();
+  flushSnapshot();
+  check(
+    "W9 页面不可见时不弹对话框（那时弹窗既看不见也没意义）",
+    dialogs.length === 0,
+    JSON.stringify(dialogs)
+  );
+  check(
+    "W9 页面不可见时仍然记日志（离开页面那一刻的失败同样是事实）",
+    logEntries.some(entry => entry.phase === "recovery-snapshot"),
+    JSON.stringify(logEntries)
+  );
+
+  // 4) 没有未保存改动：不写快照（别用一份「等于已保存内容」的快照盖掉更有价值的旧快照）。
+  documentStub.visibilityState = "visible";
+  storage.setQuota(Number.MAX_SAFE_INTEGER);
+  storage.attempts.length = 0;
+  context.hasUnsavedChanges = false;
+  context.activeProject = { ...context.activeProject, revision: 11 };
+  context.scheduleRecoverySnapshot();
+  flushSnapshot();
+  check(
+    "W9 没有未保存改动时不写快照（保留旧快照里的未保存内容）",
+    storage.attempts.length === 0,
+    `attempts=${storage.attempts.length}`
+  );
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,
   login: runLoginSuite,
@@ -1658,7 +2118,9 @@ const suites = {
   "studio-request": runStudioRequestSuite,
   pair: runPairSuite,
   setup: runSetupSuite,
-  license: runLicenseSuite
+  license: runLicenseSuite,
+  "home-boot": runHomeBootSuite,
+  "home-snapshot": runHomeSnapshotSuite
 };
 
 /**
@@ -1675,12 +2137,41 @@ const suites = {
 const SUITE_WATCHDOG_MS = 20000;
 
 /**
+ * 同步写 fd（这是给「马上要 process.exit」用的）。
+ *
+ * 为什么不用 `process.stdout.write`：往**管道**写是异步的，紧接着 `process.exit()`
+ * 会把还没落盘的字节直接丢掉。管道缓冲区一格刚好 64 KiB，所以后果是「结果 JSON 恰好
+ * 在 65536 字节处被切断、后面的断言全丢」—— 自检那边只会看到一句「探针没吐出完整
+ * 结果」，看不出是哪一条断言变红了（P7-T2 的 W9 回退就是这个形态：一条断言的详情里
+ * 带了 400 KB 的快照，于是整份 JSON 被截断，真正的红项反而不见了）。
+ *
+ * 非阻塞管道下 `fs.writeSync` 可能抛 EAGAIN（缓冲区满），所以循环重写。
+ *
+ * @param {number} fd 1 = stdout，2 = stderr。
+ * @param {string} text 要写出的文本。
+ * @returns {void}
+ */
+function writeSync(fd, text) {
+  const buffer = Buffer.from(text, "utf8");
+  let written = 0;
+  while (written < buffer.length) {
+    try {
+      written += fs.writeSync(fd, buffer, written, buffer.length - written);
+    } catch (writeError) {
+      if (writeError?.code !== "EAGAIN") {
+        throw writeError;
+      }
+    }
+  }
+}
+
+/**
  * 吐出结果并退出（注意：不能叫 flush —— 那个名字已经被「排空微任务」的助手占了）。
  *
  * @param {number} exitCode 0 = 全绿，1 = 有红，2 = 探针自己崩了。
  */
 function reportAndExit(exitCode) {
-  process.stdout.write(JSON.stringify({ results }) + "\n");
+  writeSync(1, JSON.stringify({ results }) + "\n");
   process.exit(exitCode);
 }
 
@@ -1721,6 +2212,6 @@ async function main() {
 }
 
 main().catch(error => {
-  process.stderr.write(String(error?.stack || error) + "\n");
+  writeSync(2, String(error?.stack || error) + "\n");
   process.exit(2);
 });

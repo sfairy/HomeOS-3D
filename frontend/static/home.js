@@ -21,7 +21,7 @@
  *   7. 编辑历史、草稿保存与崩溃恢复；
  *   8. 拖拽 / 缩放 / 对齐等画布手势，以及文件末尾的初始化与事件绑定。
  *
- * 版本戳约定：本文件内部所有 `import ... ?v=20260918174425` 必须使用同一条版本戳，
+ * 版本戳约定：本文件内部所有 `import ... ?v=20260918175732` 必须使用同一条版本戳，
  * 与 renderer/renderer.js 引用 renderer/registry.js 的 `?v=` 完全一致 ——
  * 两条路径都指向同一份控件注册表，版本戳一旦不同就会加载出两份注册表，
  * 表现为控件类型在某些视图里"找不到"。改动静态资源后由
@@ -42,19 +42,19 @@
  *   - 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260918174425";
+import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260918175732";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "./utils/api-fetch.js?v=20260918174425";
+import { apiFetch } from "./utils/api-fetch.js?v=20260918175732";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "./renderer/renderer.js?v=20260918174425";
+} from "./renderer/renderer.js?v=20260918175732";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "./renderer/registry.js?v=20260918174425";
+} from "./renderer/registry.js?v=20260918175732";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -62,7 +62,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "./templates/component-templates.js?v=20260918174425";
+} from "./templates/component-templates.js?v=20260918175732";
 import {
   clone,
   newId,
@@ -74,21 +74,21 @@ import {
   roundField,
   clampNumber,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260918174425";
+} from "./editor-utils.js?v=20260918175732";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "./popup-layout.js?v=20260918174425";
+} from "./popup-layout.js?v=20260918175732";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260918174425";
+} from "./dashboard-resize.js?v=20260918175732";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260918174425";
+} from "./component-page-copy.js?v=20260918175732";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -100,25 +100,25 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "./related-entities.js?v=20260918174425";
-import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260918174425";
-import { createButtonSound } from "./sound-effects.js?v=20260918174425";
+} from "./related-entities.js?v=20260918175732";
+import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260918175732";
+import { createButtonSound } from "./sound-effects.js?v=20260918175732";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260918174425";
-import { confirmAction } from "./ui-confirm.js?v=20260918174425";
-import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260918174425";
+} from "./editor-dialogs.js?v=20260918175732";
+import { confirmAction } from "./ui-confirm.js?v=20260918175732";
+import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260918175732";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./editor-picker-pagination.js?v=20260918174425";
-import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260918174425";
-import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260918174425";
-import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260918174425";
-import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260918174425";
-import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260918174425";
+} from "./editor-picker-pagination.js?v=20260918175732";
+import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260918175732";
+import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260918175732";
+import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260918175732";
+import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260918175732";
+import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260918175732";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -126,13 +126,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "./action-rules.js?v=20260918174425";
+} from "./action-rules.js?v=20260918175732";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260918174425";
+} from "./component-tree.js?v=20260918175732";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -142,13 +142,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260918174425";
+} from "./editor-component-collections.js?v=20260918175732";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260918174425";
+} from "./editor-basic-inspectors.js?v=20260918175732";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -159,7 +159,7 @@ import {
   popupModuleTypeLabel,
   reorderedPopupModules,
   uniquePagePath
-} from "./editor-document-management.js?v=20260918174425";
+} from "./editor-document-management.js?v=20260918175732";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -167,18 +167,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260918174425";
+} from "./editor-history.js?v=20260918175732";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "./3d-studio/studio-normalization.js?v=20260918174425";
-import { createLicenseCard } from "./license-card.js?v=20260918174425";
+} from "./3d-studio/studio-normalization.js?v=20260918175732";
+import { createLicenseCard } from "./license-card.js?v=20260918175732";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "./modules/interaction3d/editor.js?v=20260918174425";
+} from "./modules/interaction3d/editor.js?v=20260918175732";
 /**
  * 按选择器取单个 DOM 节点的简写。
  *
@@ -1451,13 +1451,16 @@ function setSettingsMessage(messageElement, messageText, toneClass = "") {
  * 编辑期操作的统一兜底错误处理：优先走全局日志桥，再退回控制台。
  *
  * @param {Error} operationError 捕获到的异常。
+ * @param {object} [options] 选项。
+ * @param {string} [options.phase="editor-operation"] 日志里的阶段标记。启动分片与草稿快照
+ *   这类「后台动作」各有自己的名字，排查时才能一眼分出是谁在报错。
  * @returns {void}
  */
-function handleOperationError(operationError) {
+function handleOperationError(operationError, { phase: errorPhase = "editor-operation" } = {}) {
   window.HABridgeLog?.error(operationError, {
     projectId: activeProject?.projectId || "",
     componentId: selectedComponentId || "",
-    phase: "editor-operation"
+    phase: errorPhase
   });
   errorDialogMessageElement.textContent = operationError?.message || "操作失败。";
   if (!errorDialogElement.open) {
@@ -4745,7 +4748,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260918174425";
+          ".jpg?v=20260918175732";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -12943,31 +12946,41 @@ document.addEventListener("visibilitychange", () => {
  *
  * 没有未保存改动时不写，避免用一份「等于已保存内容」的快照覆盖掉更有价值的旧快照。
  *
+ * 快照里**刻意不带撤销 / 重做栈**：那两个栈各自是「最多 MAX_HISTORY_ENTRIES 份完整文档
+ * 快照」，一次序列化就是几百 KB 到几 MB，而写入是 200ms 一节流的 —— 大文档下这一项
+ * 就是「拖控件时一顿一顿」的来源。恢复快照要救的是**未保存的文档内容**，历史栈跨会话
+ * 恢复的价值有限（恢复之后照样能继续编辑与保存）；恢复侧本来就容忍这两个键缺失
+ * （`Array.isArray(recoveredSnapshot.undo) ? ... : []`），老的带栈快照也仍然读得进来。
+ *
  * @returns {void}
  */
 function scheduleRecoverySnapshot() {
   if (!activeProject || !hasUnsavedChanges) {
     return;
   }
-  const recoveryPayload = {
+  recoveryWriter.schedule({
     projectId: activeProject.projectId,
     revision: activeProject.revision,
     document: activeProject.document,
     selectedPath: pageSelectElement.value,
     selectedComponentId: selectedComponentId,
     selectedComponentIds: [...selectedComponentIds],
-    undo: [...historyState.undo],
-    redo: [...historyState.redo],
     savedAt: new Date().toISOString()
-  };
-  recoveryWriter.schedule(recoveryPayload);
+  });
 }
+
+//: 已经为哪个项目提醒过「快照写不进去」。每次页面加载、每个项目只提醒一次 ——
+//: 不去重就是在用户编辑时每 200 毫秒弹一次同一个对话框，比不提示更糟。
+let recoveryFailureNotifiedProjectId = null;
+
 /**
  * 真正把恢复快照写进 sessionStorage。
  *
- * sessionStorage 有配额限制，大文档（组件多、撤销栈深）可能写入失败，
- * 因此失败后降级为「不带撤销/重做栈」的精简快照再试一次；再失败就静默放弃，
- * 恢复能力属于尽力而为，不能反过来阻塞编辑。
+ * 只有**一次**写入：原先这里是「失败后降级为不带撤销/重做栈的精简快照再试一次」，
+ * 而降级的那份内容（去掉 undo / redo）现在**就是**唯一会写的那一份 —— 重试再也不可能
+ * 「第一次失败、第二次成功」，留着只是让人以为还有一层保险。写不进去就是真的写不进去
+ * （sessionStorage 配额满、隐私模式），这时唯一有意义的事是让用户知道（见
+ * notifyRecoveryWriteFailure），而不是自己悄悄放弃。
  *
  * @param {object} recoveryState 快照内容。
  * @returns {void}
@@ -12978,24 +12991,46 @@ function persistRecoverySnapshot(recoveryState) {
       recoveryStorageKey(RECOVERY_STORAGE_PREFIX, recoveryState.projectId),
       JSON.stringify(recoveryState)
     );
-  } catch {
-    try {
-      sessionStorage.setItem(
-        recoveryStorageKey(RECOVERY_STORAGE_PREFIX, recoveryState.projectId),
-        JSON.stringify({
-          projectId: recoveryState.projectId,
-          revision: recoveryState.revision,
-          document: recoveryState.document,
-          selectedPath: recoveryState.selectedPath,
-          selectedComponentId: recoveryState.selectedComponentId,
-          selectedComponentIds: recoveryState.selectedComponentIds,
-          undo: [],
-          redo: [],
-          savedAt: recoveryState.savedAt
-        })
-      );
-    } catch {}
+    // 写成功即解除「已提醒」：空间被腾出来之后，下一次失败要能重新提醒。
+    recoveryFailureNotifiedProjectId = null;
+  } catch (writeError) {
+    notifyRecoveryWriteFailure(recoveryState, writeError);
   }
+}
+
+/**
+ * 恢复快照写不进去时给用户一次可见告警。
+ *
+ * 为什么必须说出来：草稿恢复是「崩溃 / 误关页面之后唯一能找回未保存内容」的通道，
+ * 它失效时页面本身毫无异样 —— 用户会一直以为有兜底，直到真的需要它的那一刻。
+ *
+ * 两处克制：①同一个项目每次页面加载只提醒一次（写入是 200ms 一节流的，配额满时每次都会
+ * 失败）；②页面不可见时不弹对话框（`pagehide` / `beforeunload` 也走这条写入路径，那时
+ * 弹窗既看不见也没意义），但日志照记。
+ *
+ * @param {object} recoveryState 写失败的那份快照。
+ * @param {Error} writeError 底层异常（配额超出、隐私模式等）。
+ * @returns {void}
+ */
+function notifyRecoveryWriteFailure(recoveryState, writeError) {
+  window.HABridgeLog?.error(writeError, {
+    projectId: recoveryState.projectId,
+    phase: "recovery-snapshot"
+  });
+  if (recoveryFailureNotifiedProjectId === recoveryState.projectId) {
+    return;
+  }
+  recoveryFailureNotifiedProjectId = recoveryState.projectId;
+  if (document.visibilityState !== "visible") {
+    return;
+  }
+  const snapshotWriteError = new Error(
+    "无法保存草稿恢复快照（浏览器存储空间不足或处于隐私模式）：" +
+      (writeError?.message || "写入失败") +
+      "。请先手动保存，避免刷新或崩溃后丢失未保存的改动。"
+  );
+  snapshotWriteError.name = "RecoverySnapshotError";
+  handleOperationError(snapshotWriteError, { phase: "recovery-snapshot" });
 }
 /**
  * 重新计算「是否有未保存改动」，并联动保存按钮与恢复快照。
@@ -28632,6 +28667,8 @@ recoveryRestoreButtonElement.addEventListener("click", () => {
         : []
   );
   selectionAnchorComponentId = selectedComponentId;
+  // 现在的快照不带历史栈（见 scheduleRecoverySnapshot），所以这里通常拿到 undefined
+  // 并落成空栈；老快照（带 undo / redo）也仍然按原样恢复。
   historyState.undo = Array.isArray(recoveredSnapshot.undo) ? clone(recoveredSnapshot.undo) : [];
   historyState.redo = Array.isArray(recoveredSnapshot.redo) ? clone(recoveredSnapshot.redo) : [];
   recoveryDialogElement.close();
@@ -29833,15 +29870,85 @@ document.addEventListener("visibilitychange", () => {
     refreshLicenseStatus().catch(() => {});
   }
 });
-Promise.all([
-  refreshAuthSession(),
-  refreshLicenseStatus(),
-  refreshHaConnection({
-    preserveForm: false
-  }),
-  loadProjects(),
-  reloadAssetCatalog(),
-  ensureEntitiesLoaded()
-])
-  .then(() => renderComponentLists())
-  .catch(handleOperationError);
+/**
+ * 启动阶段的分片加载清单：每一项是「一个可以独立失败的加载动作 + 它在报错里的名字」。
+ *
+ * 名字不是装饰：`Promise.allSettled` 只会告诉你「第 3 片失败了」，而用户看到的必须是
+ * 「实体清单没读出来」—— 少了名字，报错就退化成一句「操作失败」，与修复前没有区别。
+ *
+ * 写成函数而不是常量，是为了让这份清单能被整份取出来驱动（探针按源码文本取函数，
+ * 不去解析数组字面量），同时保证「谁属于启动阶段」只有这一个出处。
+ *
+ * @returns {Array<[string, function(): Promise<*>]>} 名称与加载动作。
+ */
+function editorBootSlices() {
+  return [
+    ["会话", () => refreshAuthSession()],
+    ["授权状态", () => refreshLicenseStatus()],
+    ["Home Assistant 连接", () => refreshHaConnection({ preserveForm: false })],
+    ["项目列表", () => loadProjects()],
+    ["素材目录", () => reloadAssetCatalog()],
+    ["实体清单", () => ensureEntitiesLoaded()]
+  ];
+}
+
+/**
+ * 汇总启动分片的失败：逐片进日志，再一次性给用户一句能指认的提示。
+ *
+ * 为什么不是「哪片失败就弹哪个」：六片同源失败（后端刚起来、网关没就绪、断网）时弹六次
+ * 等于什么都没说。这里合成一条，带上失败片的名字 —— 用户截图就能定位，日志里每片各有一条
+ * 带 `slice` 上下文的记录。
+ *
+ * @param {PromiseSettledResult<*>[]} bootResults 与 editorBootSlices() 一一对应。
+ * @returns {void}
+ */
+function reportBootFailures(bootResults) {
+  const failedSliceNames = [];
+  let firstFailureReason = null;
+  const bootSlices = editorBootSlices();
+  bootResults.forEach((sliceResult, sliceIndex) => {
+    if (sliceResult.status !== "rejected") return;
+    const [sliceName] = bootSlices[sliceIndex];
+    failedSliceNames.push(sliceName);
+    firstFailureReason ??= sliceResult.reason;
+    window.HABridgeLog?.error(sliceResult.reason, {
+      projectId: activeProject?.projectId || "",
+      phase: "editor-boot",
+      slice: sliceName
+    });
+  });
+  if (!failedSliceNames.length) return;
+  const bootFailureError = new Error(
+    "以下内容没能加载：" +
+      failedSliceNames.join("、") +
+      "。" +
+      (firstFailureReason?.message ? "（" + firstFailureReason.message + "）" : "") +
+      "其余功能仍可使用，可刷新页面重试。"
+  );
+  bootFailureError.name = "EditorBootSliceError";
+  handleOperationError(bootFailureError, { phase: "editor-boot" });
+}
+
+/**
+ * 逐个加载启动分片：一片失败不影响其它片，也不影响面板渲染。
+ *
+ * 为什么不用 `Promise.all`：这六片互相独立（会话 / 授权 / HA 连接 / 项目 / 素材 / 实体），
+ * 一片失败没有任何理由让另外五片的结果作废 —— 而 `Promise.all` 的第一个 rejection 会把
+ * `renderComponentLists()` 整段跳过，表现是**左侧组件面板一片空白**，右下角只留一句
+ * 「操作失败」：用户既不知道坏的是哪一片，也分不出是不是自己没登录。`allSettled` 之后
+ * 面板照画（没读到的那片自然是空的），失败的片各自进日志，再一次性把清单摆给用户。
+ *
+ * @returns {Promise<PromiseSettledResult<*>[]>} 分片结果，便于调用方继续处理。
+ */
+async function loadEditorBootSlices() {
+  const bootResults = await Promise.allSettled(
+    editorBootSlices().map(([, loadSlice]) => loadSlice())
+  );
+  // 先画面板：能让用户操作的部分要尽快可用；渲染本身崩了由外层 catch 报（那比
+  // 「某一片没读到」严重得多，也更该被看见）。
+  renderComponentLists();
+  reportBootFailures(bootResults);
+  return bootResults;
+}
+
+loadEditorBootSlices().catch(handleOperationError);
