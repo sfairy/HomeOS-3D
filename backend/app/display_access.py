@@ -24,8 +24,20 @@ def display_path(project_name: str) -> str:
     return '/display/' + quote(project_name, safe = '')
 
 
-def active_display_device(database: Session, token: str) -> DisplayDevice | None:
-    """用中控令牌查找仍然有效的设备，同时尊重配对码的启停开关。
+def active_display_device(
+    database: Session, settings, token: str, *, now: datetime | None = None
+) -> DisplayDevice | None:
+    """用中控令牌查找**当前仍然有效**的设备。
+
+    有效性 = 令牌哈希匹配 + 设备未被吊销 + 配对码仍启用（若有关联）+ 令牌未过期。
+
+    有效期判定刻意收在这里，而不是留给调用方 —— 这正是 B2：判定原本只写在 HTTP
+    依赖里，展示页路由与实时连接握手各自查了一遍库却都没查有效期，于是这两条路
+    完全绕过了 display_token_ttl_seconds / display_token_hard_ttl_seconds。
+    ``settings`` 因此是必填参数：新调用方没有办法「忘了传」而悄悄退回旧行为，
+    漏传会立刻 TypeError。
+
+    过期设备只判「不该放行」，不删行 —— 管理员列表里还要能看到它并手动解绑。
 
     判定条件：令牌哈希匹配、设备未被吊销，且满足以下之一 ——
     - 设备没有关联配对码（早期版本创建的设备），
@@ -33,6 +45,16 @@ def active_display_device(database: Session, token: str) -> DisplayDevice | None
     也就是说停用某个配对码即可让这一批设备同时失效，
     而历史设备在没有配对码时依然有效，直到管理员显式吊销。
     """
+    device = _display_device_by_token(database, token)
+    if device is None:
+        return None
+    if display_token_expired(device, settings, now):
+        return None
+    return device
+
+
+def _display_device_by_token(database: Session, token: str) -> DisplayDevice | None:
+    """按令牌哈希查设备（含吊销与配对码启停判定），不判有效期。"""
     if not token:
         return None
     return database.scalar(

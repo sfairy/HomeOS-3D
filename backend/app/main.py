@@ -16,7 +16,6 @@ import sys
 import time
 import traceback
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 from uuid import uuid4
@@ -29,6 +28,13 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from .access import (
+    admin_token_from,
+    check_admin_session,
+    discard_expired_session,
+    display_token_from,
+    resolve_principal,
+)
 from .admin_account import AdminAccountStore
 from .api.auth import router as auth_router
 from .api.assets import AssetCatalog, read_builtin_asset, router as assets_router
@@ -56,8 +62,8 @@ from .updates import UpdateChecker, router as updates_router
 from .migrations import run_migrations
 from .display_access import active_display_device, display_path
 from .global_log import GlobalLogStore, _safe_text, event_context
-from .models import DisplayDevice, LoginSession, Project, User
-from .security import session_token_hash, set_display_cookie
+from .models import DisplayDevice, Project
+from .security import set_display_cookie
 from .setup_guard import SetupGuard, announce_setup_window
 
 # 超过这个耗时的接口会在全局日志里记一条"响应缓慢"的警告。
@@ -364,42 +370,58 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     def signed_in(request: Request) -> bool:
         """是否为已登录的有效管理员会话。
 
-        这里独立实现了一遍会话校验（而非复用 dependencies），
-        因为页面路由需要「未登录就跳转」而不是抛 401。
+        与 API 侧共用 ``access.check_admin_session``（B32）。这里原先独立实现了
+        一遍校验，而独立实现的那一版少了绝对寿命判定：滑动有效期能被续期一直
+        往后推，于是被盗 Cookie 只要还在被使用，就能一直打开页面、取
+        ``/static/*`` 与 ``/assets/builtin/*``（B3）。
+
+        页面路由要的是「未登录就跳转」而不是抛 401，所以这里只返回布尔值；
+        副作用与 API 侧一致 —— 顺手清掉命中的过期会话行。
         """
-        account_user_id = request.app.state.admin_account.user_id
-        if account_user_id is None:
-            return False
-        token = request.cookies.get(app_settings.cookie_name, '')
-        if not token:
-            return False
         with request.app.state.database.session_factory() as database:
-            record = database.scalar(select(LoginSession).where(LoginSession.id_hash == session_token_hash(token)))
-            if record is None or record.expires_at.replace(tzinfo = timezone.utc) <= datetime.now(timezone.utc):
-                return False
-            if record.user_id != account_user_id:
-                return False
-            user = database.get(User, record.user_id)
-            return user is not None and user.is_active
+            session = check_admin_session(
+                database,
+                app_settings,
+                admin_token_from(request.cookies, app_settings),
+                account_user_id=request.app.state.admin_account.user_id,
+            )
+            discard_expired_session(database, session)
+        return session.ok
 
     def active_display(request: Request) -> DisplayDevice | None:
-        """从 Cookie 解析已配对的中控设备，并把对象 detachment 出会话。
+        """从 Cookie 解析已配对且未过期的中控设备，并把对象 detachment 出会话。
 
         expunge 是为了让调用方拿到游离对象后连接即可归还连接池。
+        令牌有效期由 ``active_display_device`` 判定（B2）：这里原先只查「配没配过」，
+        于是展示页完全绕过了 display_token_ttl / hard_ttl。
         """
-        token = request.cookies.get(app_settings.display_cookie_name, '')
+        token = display_token_from(request.cookies, app_settings)
         if not token:
             return None
         with request.app.state.database.session_factory() as database:
-            device = active_display_device(database, token)
+            device = active_display_device(database, app_settings, token)
             if device is None:
                 return None
             database.expunge(device)
             return device
 
     def browser_authorized(request: Request) -> bool:
-        """页面级访问条件：管理员已登录，或是一台已配对的中控设备。"""
-        return signed_in(request) or active_display(request) is not None
+        """页面级访问条件：管理员已登录，或是一台已配对且未过期的中控设备。
+
+        两种身份由同一个解析入口给出（B32）。原先写的是
+        ``signed_in(request) or active_display(request) is not None``：
+        两条路一次请求要开两个数据库会话，而两边的判据又各自不完整。
+        """
+        with request.app.state.database.session_factory() as database:
+            resolution = resolve_principal(
+                database,
+                app_settings,
+                admin_token=admin_token_from(request.cookies, app_settings),
+                display_token=display_token_from(request.cookies, app_settings),
+                account_user_id=request.app.state.admin_account.user_id,
+            )
+            discard_expired_session(database, resolution.admin)
+            return resolution.authenticated
 
     # 匿名可访问的静态资源白名单。
     # 这些是「未初始化 / 未登录 / 未激活」时也必须能加载的页面入口脚本与图标：
@@ -740,7 +762,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         response = FileResponse(app_settings.frontend_dir / 'display.html')
         if device is not None:
             # 打开展示页即顺带续期 Cookie，减少设备因长期不活跃而掉配对。
-            set_display_cookie(response, app_settings, request.cookies[app_settings.display_cookie_name])
+            token = display_token_from(request.cookies, app_settings)
+            if token:
+                set_display_cookie(response, app_settings, token)
         return response
 
     @app.api_route('/api/v1/{unknown_path:path}', methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'], include_in_schema = False)

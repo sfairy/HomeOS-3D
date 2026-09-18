@@ -26,16 +26,16 @@ from anyio import create_task_group
 from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import func, or_, select
 
+from ..access import admin_token_from, discard_expired_session, display_token_from, resolve_principal
 from ..database import Database
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, ViewerPrincipal, require_viewer_entity, viewer_entity_ids
 from ..display_access import active_display_device
 from ..global_log import event_context
 from ..ha.client import HAClient, HAClientError, link_local_address
 from ..ha.crypto import CredentialCipherError
-from ..models import DisplayDevice, HAArea, HAConnection, HADevice, HAEntity, HASyncState, LoginSession, User
+from ..models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, User
 from ..panel.action_rules import TOGGLE_ENTITY_DOMAINS
 from ..schemas import HABrowseMediaRequest, HAConnectionInput, HAServiceCallRequest, HATestRequest
-from ..security import session_token_hash
 
 router = APIRouter(prefix='/ha', tags=['home-assistant'])
 # 实时连接单独一个 router：不带 /ha 前缀，挂在 /api/v1/ws/runtime 下。
@@ -881,31 +881,121 @@ async def browse_media(
 def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
     """从 WebSocket 握手的 Cookie 解析访问主体。
 
-    与 HTTP 侧的 authenticated_viewer 同口径，但只能独立实现：WebSocket 不走
-    FastAPI 依赖注入，需要自己读 Cookie、查会话与中控配对。
+    与 HTTP 侧共用 ``access.resolve_principal``（B32）。这里原先独立实现了一遍：
+    WebSocket 不走 FastAPI 依赖注入，所以当时"自己读 Cookie、查会话与中控配对"
+    看着合理 —— 但那一版既不查会话的绝对寿命、也不查中控令牌的有效期，于是实时
+    连接同时成了这两道限制的旁路（B2/B3）。判据现在只有一处实现，这里只负责
+    读 Cookie、detach 对象与清理过期会话行。
+
     管理员会话优先；两者都拿不到返回 None，由调用方以 4401 关闭连接。
     """
     settings = websocket.app.state.settings
-    token = websocket.cookies.get(settings.cookie_name, '')
     with websocket.app.state.database.session_factory() as database:
-        if token:
-            record = database.scalar(select(LoginSession).where(LoginSession.id_hash == session_token_hash(token)))
-            now = datetime.now(timezone.utc)
-            # SQLite 取回的时间没有时区，比较前统一按 UTC 解释。
-            if record is not None and record.expires_at.replace(tzinfo=timezone.utc) > now:
-                user = database.get(User, record.user_id)
-                if user is not None and user.is_active:
-                    # 解析完就 detach：这条连接可能挂很久，不能把数据库连接占住。
-                    database.expunge(user)
-                    return ViewerPrincipal(user=user)
-        display_token = websocket.cookies.get(settings.display_cookie_name, '')
-        if not display_token:
+        resolution = resolve_principal(
+            database,
+            settings,
+            admin_token=admin_token_from(websocket.cookies, settings),
+            display_token=display_token_from(websocket.cookies, settings),
+            account_user_id=websocket.app.state.admin_account.user_id,
+        )
+        discard_expired_session(database, resolution.admin)
+        viewer = resolution.viewer
+        if not resolution.authenticated:
             return None
-        device = active_display_device(database, display_token)
-        if device is None:
+        # 解析完就 detach：这条连接可能挂很久，不能把数据库连接占住。
+        if viewer.user is not None:
+            database.expunge(viewer.user)
+        else:
+            database.expunge(viewer.display)
+        return viewer
+
+
+class DisplayBindingGuard:
+    """实时连接期间复查「中控配对是否仍然有效」，结果带短缓存。
+
+    配对可能在连接期间被解绑或改绑到别的项目，因此推送循环每轮都要确认；
+    心跳是秒级的，不缓存就等于每秒查一次库。
+
+    这段逻辑原先写在路由里，是个给外层 ``display_binding_cache`` 赋值却漏了
+    ``nonlocal`` 的闭包：赋值落在闭包自己的局部作用域，于是这个名字在闭包内是
+    局部的，第一次调用走到"缓存命中判断"就抛 ``UnboundLocalError``。异常又被
+    推送循环外层的 ``except Exception`` 收走且不记日志，现象是"展示设备推送一会儿
+    就断、日志里什么都没有"（4.2b）。
+
+    缓存挂在实例上，既不再依赖作用域规则，也能单独测「第二次调用真的没查库」。
+    """
+
+    def __init__(self, websocket: WebSocket, viewer: ViewerPrincipal) -> None:
+        self._websocket = websocket
+        self._viewer = viewer
+        self._cached: tuple[float, bool] | None = None
+
+    async def matches(self) -> bool:
+        """配对是否仍然有效；管理员连接恒为 True（没有配对可言）。"""
+        if self._viewer.display is None:
+            return True
+        moment = time.monotonic()
+        if self._cached is not None and moment - self._cached[0] < DISPLAY_BINDING_CACHE_SECONDS:
+            return self._cached[1]
+        matches = await asyncio.to_thread(self._load)
+        self._cached = (time.monotonic(), matches)
+        return matches
+
+    def _load(self) -> bool:
+        """重新读 Cookie 解析当前配对，确认设备与项目都没被改。
+
+        走的是与 HTTP 侧同一个 active_display_device：令牌过期在这里也是
+        「不一致」，连接会按改绑处理（4401 关闭）。
+        """
+        settings = self._websocket.app.state.settings
+        with self._websocket.app.state.database.session_factory() as database:
+            current = active_display_device(
+                database,
+                settings,
+                display_token_from(self._websocket.cookies, settings),
+            )
+            return bool(
+                current is not None
+                and current.id == self._viewer.display.id
+                and current.project_id == self._viewer.display.project_id
+            )
+
+
+async def run_tasks_until_first_completes(*operations) -> None:
+    """并行跑几路任务，任一路结束后取消其余，并把真正的异常原样抛出。
+
+    实时连接有两路任务（感知断开、推送状态），谁先结束都要收掉另一路；同时不能
+    吞掉真正的异常 —— 原来的实现把这套逻辑写在路由的闭包里，给外层 ``failure``
+    赋值却没声明 ``nonlocal``，赋值只落在闭包自己的局部作用域，``raise failure``
+    于是永远等不到东西：两路任务里的真实异常被完全丢弃，而 ``except
+    WebSocketDisconnect`` / ``except TimeoutError`` 两个分支成了死代码（4.2b）。
+
+    ``WebSocketDisconnect`` 原样抛出（由调用方按关闭码决定记不记警告 —— 1000/1001/1005
+    是刷新页面与正常关闭，其余异常码例如 1006 要留一条日志）。谁先结束谁先到：
+    后一路在这个点已经被取消，所以它此后不会再产生异常，不存在「该报哪个」的问题。
+    """
+    failure: Exception | None = None
+
+    async with create_task_group() as tasks:
+
+        async def run(operation) -> None:
+            nonlocal failure
+            try:
+                await operation()
+            except Exception as error:  # noqa: BLE001 - 要按类型分流，不能直接往外抛
+                # 真正的异常要保留，先到的优先（后到的那一路此刻已被取消）。
+                if failure is None:
+                    failure = error
+            finally:
+                tasks.cancel_scope.cancel()
             return None
-        database.expunge(device)
-        return ViewerPrincipal(display=device)
+
+        for operation in operations:
+            tasks.start_soon(run, operation)
+    # 异常在任务组退出后再抛出：此时两路任务都已收尾，不会有并发写入。
+    if failure is not None:
+        raise failure
+    return None
 
 
 def websocket_origin_allowed(websocket: WebSocket) -> bool:
@@ -1078,37 +1168,8 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
     entity_ids = set()
     # 标记是否已登记监听：决定收尾时要不要撤销，避免撤销未登记过的订阅。
     watching = False
-    display_binding_cache = None
-
-    async def display_binding_matches() -> bool:
-        """复查中控配对是否仍然有效（管理员连接恒为 True）。
-
-        配对可能在连接期间被解绑或改绑到别的项目，因此要周期性确认；
-        查库结果按 DISPLAY_BINDING_CACHE_SECONDS 缓存 —— 心跳是秒级的，
-        不缓存就等于每秒查一次库。
-        """
-        if viewer.display is None:
-            return True
-        now = time.monotonic()
-        if display_binding_cache is not None and now - display_binding_cache[0] < DISPLAY_BINDING_CACHE_SECONDS:
-            return display_binding_cache[1]
-
-        def load_binding_match() -> bool:
-            """重新读 Cookie 解析当前配对，确认设备与项目都没被改。"""
-            with websocket.app.state.database.session_factory() as database:
-                current_display = active_display_device(
-                    database,
-                    websocket.cookies.get(websocket.app.state.settings.display_cookie_name, ''),
-                )
-                return bool(
-                    current_display is not None
-                    and current_display.id == viewer.display.id
-                    and current_display.project_id == viewer.display.project_id
-                )
-
-        matches = await asyncio.to_thread(load_binding_match)
-        display_binding_cache = (time.monotonic(), matches)
-        return matches
+    # 配对复查器：内部做短缓存，见 DisplayBindingGuard（原先是个漏了 nonlocal 的闭包）。
+    binding_guard = DisplayBindingGuard(websocket, viewer)
 
     try:
         # 30 秒内必须订阅：否则按超时关闭，防止空连接长期占着资源。
@@ -1147,19 +1208,19 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
                 await _runtime_send_json(websocket, {'type': 'snapshot', 'states': hydrated_snapshot})
             while True:
                 # 每次循环都确认配对没变；改绑后立即断开，避免旧屏继续看到别的项目数据。
-                if not await display_binding_matches():
+                if not await binding_guard.matches():
                     await close_with_log(4401, 'display pairing changed')
                     return None
                 try:
                     # 展示设备用 5 秒心跳（要更快发现改绑），编辑器用 25 秒减少无意义唤醒。
                     event = await asyncio.wait_for(queue.get(), timeout=5 if viewer.display else 25)
                 except TimeoutError:
-                    if not await display_binding_matches():
+                    if not await binding_guard.matches():
                         await close_with_log(4401, 'display pairing changed')
                         return None
                     await _runtime_send_json(websocket, {'type': 'ping'})
                     continue
-                if not await display_binding_matches():
+                if not await binding_guard.matches():
                     await close_with_log(4401, 'display pairing changed')
                     return None
                 await _runtime_send_json(websocket, event)
@@ -1172,27 +1233,9 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
                 if message['type'] == 'websocket.disconnect':
                     raise WebSocketDisconnect(code=message.get('code', 1000))
 
-        failure = None
-        # 两路任务谁先结束就取消另一路，避免留下悬挂的接收循环。
-        async with create_task_group() as tasks:
-
-            async def run_until_closed(operation) -> None:
-                """执行一路任务；结束后取消整组并把异常留下来上报。"""
-                try:
-                    await operation()
-                except Exception as error:
-                    # 正常断连不作为错误上报；真正的异常要保留（先到的优先）。
-                    if failure is None or not isinstance(error, WebSocketDisconnect):
-                        failure = error
-                finally:
-                    tasks.cancel_scope.cancel()
-                return None
-
-            tasks.start_soon(run_until_closed, receive_disconnect)
-            tasks.start_soon(run_until_closed, send_updates)
-        # 异常在任务组退出后再抛出：此时两路任务都已收尾，不会有并发写入。
-        if failure is not None:
-            raise failure
+        # 两路任务谁先结束就取消另一路，避免留下悬挂的接收循环；
+        # 真正的异常由它原样抛回这里，交给下面的 except 分支分流（B1）。
+        await run_tasks_until_first_completes(receive_disconnect, send_updates)
     except WebSocketDisconnect as error:
         # 1000/1001/1005 是正常关闭码，不记警告 —— 否则刷新一次页面就刷出一条告警。
         if error.code not in {1000, 1001, 1005}:

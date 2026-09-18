@@ -1335,6 +1335,858 @@ async def check_scene_snapshot_route() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# B1 / B2 / B3 / B32：凭据解析的唯一实现、闭包作用域与任务收尾
+# --------------------------------------------------------------------------- #
+#: 固定装置里用的两种凭据原文（明文只出现在这里，库里存哈希）。
+_ADMIN_TOKEN = 'tok-admin'
+_DISPLAY_TOKEN = 'tok-display'
+
+
+def _access_settings(**overrides) -> SimpleNamespace:
+    """一份够用的 settings 桩：只带凭据解析真正会读到的字段。"""
+    values = {
+        'cookie_name': 'ha_bridge_session',
+        'display_cookie_name': 'ha_bridge_display',
+        'session_max_age_seconds': 28800,
+        'session_hard_max_age_seconds': 2592000,
+        'display_token_ttl_seconds': 15552000,
+        'display_token_hard_ttl_seconds': 0,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
+@dataclass
+class AccessFixture:
+    """最小应用库：一个管理员账号 + 一个项目 + 一台已配对的中控。"""
+
+    database: Any
+    settings: Any
+    account: Any
+
+
+def _build_access_fixture(workdir: Path, **setting_overrides) -> AccessFixture:
+    """搭好 B2/B3/B32 需要的库、管理员账号与一台中控设备。"""
+    from datetime import datetime, timezone
+
+    from backend.app.database import Base, Database
+    from backend.app.models import DisplayDevice, Project, User
+    from backend.app.security import session_token_hash
+
+    database = Database(f'sqlite:///{workdir / "access.db"}')
+    Base.metadata.create_all(database.engine)
+    now = datetime.now(timezone.utc)
+    with database.session_factory() as session:
+        session.add(User(id='u1', username='admin', password_hash='x', role='admin'))
+        # u2 用来构造「会话不属于当前管理员」的情形（同一个表里可能有别人的会话）。
+        session.add(User(id='u2', username='other', password_hash='x', role='admin'))
+        session.commit()
+        session.add(Project(id='proj-a', name='甲项目', slug='proj-a', created_by='u1'))
+        session.commit()
+        session.add(
+            DisplayDevice(
+                id='disp-a',
+                token_hash=session_token_hash(_DISPLAY_TOKEN),
+                project_id='proj-a',
+                name='甲项目中控',
+                created_at=now,
+                last_seen_at=now,
+            )
+        )
+        session.commit()
+    return AccessFixture(
+        database=database,
+        settings=_access_settings(**setting_overrides),
+        account=SimpleNamespace(user_id='u1'),
+    )
+
+
+def _insert_admin_session(
+    fixture: AccessFixture,
+    *,
+    token: str = _ADMIN_TOKEN,
+    user_id: str = 'u1',
+    created_ago: int = 0,
+    expires_in: int = 3600,
+    last_seen_ago: int = 0,
+) -> None:
+    """插一条会话行：直接用相对秒数表达「过期 / 刚活跃」，避免测试里算时间。"""
+    from datetime import datetime, timedelta, timezone
+
+    from backend.app.models import LoginSession
+    from backend.app.security import session_token_hash
+
+    now = datetime.now(timezone.utc)
+    with fixture.database.session_factory() as session:
+        session.add(
+            LoginSession(
+                id_hash=session_token_hash(token),
+                user_id=user_id,
+                created_at=now - timedelta(seconds=created_ago),
+                last_seen_at=now - timedelta(seconds=last_seen_ago),
+                expires_at=now + timedelta(seconds=expires_in),
+            )
+        )
+        session.commit()
+
+
+def _session_snapshot(fixture: AccessFixture, token: str = _ADMIN_TOKEN) -> dict | None:
+    """会话行的关键字段；行不存在返回 None。
+
+    刻意在 with 块内取好字段：离开会话后 ORM 对象是游离的，读属性可能抛错。
+    """
+    from backend.app.models import LoginSession
+    from backend.app.security import session_token_hash
+
+    with fixture.database.session_factory() as session:
+        row = session.get(LoginSession, session_token_hash(token))
+        if row is None:
+            return None
+        return {
+            'created_at': row.created_at,
+            'last_seen_at': row.last_seen_at,
+            'expires_at': row.expires_at,
+        }
+
+
+def _age_display_device(
+    fixture: AccessFixture, *, created_ago: int = 0, last_seen_ago: int = 0, revoked: bool = False
+) -> None:
+    """把中控设备的时间戳推到过去（用来构造「过期」与「硬上限到期」）。"""
+    from datetime import datetime, timedelta, timezone
+
+    from backend.app.models import DisplayDevice
+
+    now = datetime.now(timezone.utc)
+    with fixture.database.session_factory() as session:
+        device = session.get(DisplayDevice, 'disp-a')
+        device.created_at = now - timedelta(seconds=created_ago)
+        device.last_seen_at = now - timedelta(seconds=last_seen_ago)
+        device.revoked_at = now if revoked else None
+        session.commit()
+
+
+def _disable_pairing_code(fixture: AccessFixture) -> None:
+    """给设备挂一个**已停用**的配对码（停用即让这一批设备同时失效）。"""
+    from backend.app.models import DisplayDevice, DisplayPairingCode
+
+    with fixture.database.session_factory() as session:
+        session.add(
+            DisplayPairingCode(
+                id='code-1',
+                code_hash='disabled-code-hash',
+                encrypted_code='x',
+                name='已停用的配对码',
+                project_id='proj-a',
+                created_by='u1',
+                is_enabled=False,
+            )
+        )
+        session.commit()
+        device = session.get(DisplayDevice, 'disp-a')
+        device.pairing_code_id = 'code-1'
+        session.commit()
+
+
+def _fake_websocket(fixture: AccessFixture, cookies: dict[str, str]) -> SimpleNamespace:
+    """WebSocket 握手阶段被读到的全部东西：cookies + app.state 三件套。"""
+    return SimpleNamespace(
+        cookies=cookies,
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                settings=fixture.settings,
+                database=fixture.database,
+                admin_account=fixture.account,
+            )
+        ),
+    )
+
+
+def check_admin_session_criteria() -> None:
+    """B3：会话校验必须含绝对寿命，且「判断」与「续期」严格分开。
+
+    ``signed_in`` 原先在页面路由里独立实现了一遍校验，少的就是绝对寿命那一条：
+    滑动续期会把 expires_at 一直往后推，于是被盗 Cookie 只要还在被使用就一直有效，
+    页面、``/static/*``、``/assets/builtin/*`` 全部照旧放行。
+    """
+    from datetime import datetime, timezone
+
+    from backend.app.access import check_admin_session, discard_expired_session
+    from backend.app.models import User
+
+    now = datetime.now(timezone.utc)
+    with tempfile.TemporaryDirectory(prefix='hb-b3-') as tmp:
+        fixture = _build_access_fixture(Path(tmp))
+        _insert_admin_session(fixture, last_seen_ago=10)
+
+        def resolve(account_user_id: str = 'u1', *, refresh: bool = False, token: str = _ADMIN_TOKEN):
+            with fixture.database.session_factory() as database:
+                return check_admin_session(
+                    database,
+                    fixture.settings,
+                    token,
+                    account_user_id=account_user_id,
+                    refresh=refresh,
+                    now=now,
+                )
+
+        session = resolve()
+        check(
+            'B3 有效会话解析出管理员本人（且不算失效）',
+            session.ok and session.user.username == 'admin' and not session.expired,
+            f'ok={session.ok} user={getattr(session.user, "username", None)} expired={session.expired}',
+        )
+        before = _session_snapshot(fixture)
+        resolve()
+        after = _session_snapshot(fixture)
+        check(
+            'B3 只读调用不产生任何写（页面与实时连接不该因为"看一眼"就写库）',
+            before == after,
+            f'last_seen_at 变化={before["last_seen_at"] != after["last_seen_at"]}',
+        )
+
+        # 绝对寿命：滑动有效期还有 1 小时，但 created_at 已经超过硬上限。
+        _insert_admin_session(fixture, token='tok-hard', created_ago=2592000 + 60, expires_in=3600)
+        stale = resolve(token='tok-hard')
+        check(
+            'B3 超过绝对寿命的会话判为失效（滑动续期不能无限续命）',
+            not stale.ok and stale.expired,
+            f'ok={stale.ok} expired={stale.expired}（这正是页面路由原先漏掉的一条）',
+        )
+
+        # 关掉绝对寿命时不该误伤：硬上限为 0 表示不设限。
+        fixture.settings.session_hard_max_age_seconds = 0
+        check(
+            'B3 绝对寿命关成 0 时不设限（配置仍然是权威）',
+            resolve(token='tok-hard').ok,
+            'session_hard_max_age_seconds=0',
+        )
+        fixture.settings.session_hard_max_age_seconds = 2592000
+
+        # 滑动有效期已过：失效，且调用方拿到的记录要能清掉这一行。
+        _insert_admin_session(fixture, token='tok-slide', expires_in=-60)
+        slipped = resolve(token='tok-slide')
+        with fixture.database.session_factory() as database:
+            discard_expired_session(database, slipped)
+        check(
+            'B3 滑动过期的会话行会被清理（过期行不会一直攒着）',
+            not slipped.ok and slipped.expired and _session_snapshot(fixture, 'tok-slide') is None,
+            f'ok={slipped.ok} expired={slipped.expired} 行还在={_session_snapshot(fixture, "tok-slide") is not None}',
+        )
+
+        # 归属校验：不是当前管理员的会话既不通过、也不该被删。
+        _insert_admin_session(fixture, token='tok-other', user_id='u2')
+        check(
+            'B3 会话不属于当前管理员时拒绝，但不动别人的会话行',
+            not resolve(account_user_id='u1', token='tok-other').ok
+            and _session_snapshot(fixture, 'tok-other') is not None,
+            '同一张表里可能存在其它用户的会话，不能被这条入口顺手删掉',
+        )
+
+        # 续期只发生在显式要求续期的调用方（HTTP 路径），且真的写库。
+        _insert_admin_session(fixture, token='tok-renew', last_seen_ago=10000)
+        stale_snapshot = _session_snapshot(fixture, 'tok-renew')
+        idle = resolve(token='tok-renew')
+        check(
+            'B3 未要求续期时不写库（页面/实时连接侧只读）',
+            not idle.renewed and _session_snapshot(fixture, 'tok-renew') == stale_snapshot,
+            f'renewed={idle.renewed}',
+        )
+        renewed = resolve(token='tok-renew', refresh=True)
+        after_snapshot = _session_snapshot(fixture, 'tok-renew')
+        check(
+            'B3 显式要求续期时才把滑动有效期推到当前时间，并回报 renewed',
+            renewed.renewed
+            and renewed.ok
+            and after_snapshot['last_seen_at'] > stale_snapshot['last_seen_at']
+            and after_snapshot['expires_at'] > stale_snapshot['expires_at'],
+            f'renewed={renewed.renewed}',
+        )
+
+        # 用户被停用：会话再新也不放行。
+        with fixture.database.session_factory() as database:
+            database.get(User, 'u1').is_active = False
+            database.commit()
+        _insert_admin_session(fixture, token='tok-inactive')
+        check(
+            'B3 账号被停用后会话立即失效',
+            not resolve(token='tok-inactive').ok,
+            'is_active=False',
+        )
+
+
+def check_display_token_expiry() -> None:
+    """B2：中控令牌的有效期判定必须收在 ``active_display_device`` 内部。
+
+    原先它只查「令牌匹配、未吊销、配对码启用」，有效期判定写在 HTTP 依赖里，
+    于是另外两处入口（展示页路由、实时连接握手）各自查库时都没查过期 ——
+    一条早已过期的令牌仍能打开展示页、建立实时连接并拿到项目数据。
+    """
+    import inspect
+    from datetime import datetime, timezone
+
+    from backend.app.display_access import active_display_device
+
+    now = datetime.now(timezone.utc)
+    with tempfile.TemporaryDirectory(prefix='hb-b2-') as tmp:
+        fixture = _build_access_fixture(Path(tmp))
+
+        def lookup():
+            with fixture.database.session_factory() as database:
+                return active_display_device(database, fixture.settings, _DISPLAY_TOKEN, now=now)
+
+        fresh = lookup()
+        check(
+            'B2 有效中控令牌解析出设备',
+            fresh is not None and fresh.id == 'disp-a',
+            f'device={getattr(fresh, "id", None)}',
+        )
+
+        # 滑动有效期：最近一次活跃已超过 display_token_ttl_seconds。
+        _age_display_device(fixture, last_seen_ago=fixture.settings.display_token_ttl_seconds + 60)
+        check(
+            'B2 滑动有效期已过的中控令牌不再放行（展示页与实时连接同样受限）',
+            lookup() is None,
+            f'last_seen 超期 {60} 秒',
+        )
+
+        # 硬上限：最近还在活跃，但创建时间已超过 display_token_hard_ttl_seconds。
+        fixture.settings.display_token_hard_ttl_seconds = 600
+        _age_display_device(fixture, created_ago=1200, last_seen_ago=0)
+        check(
+            'B2 硬上限到期的中控令牌不再放行（即使一直在活跃）',
+            lookup() is None,
+            'display_token_hard_ttl_seconds=600，created_at 已过 1200 秒',
+        )
+        fixture.settings.display_token_hard_ttl_seconds = 0
+
+        # 硬上限关成 0（默认）：一直活跃的墙面平板不该被判过期。
+        check(
+            'B2 硬上限关成 0 时只看滑动有效期（默认配置不打扰长期挂机的平板）',
+            lookup() is not None,
+            'display_token_hard_ttl_seconds=0',
+        )
+
+        # 吊销与配对码停用两道老闸门不能被有效期改动带坏。
+        _age_display_device(fixture, revoked=True)
+        check('B2 已吊销的设备照旧不放行', lookup() is None, 'revoked_at 已写')
+        _age_display_device(fixture)
+        _disable_pairing_code(fixture)
+        check('B2 配对码停用后设备照旧不放行', lookup() is None, 'pairing_code.is_enabled=False')
+
+        signature = inspect.signature(active_display_device)
+        parameter = signature.parameters.get('settings')
+        check(
+            'B2 settings 在 active_display_device 里是必填参数（新调用方没法"忘了传"而绕过有效期）',
+            parameter is not None and parameter.default is inspect.Parameter.empty,
+            str(signature),
+        )
+
+
+def check_websocket_viewer_credentials() -> None:
+    """B2/B3/B32：实时连接握手必须与 HTTP 侧共用同一套判据。
+
+    WebSocket 不走 FastAPI 依赖注入，当时因此"再写一遍"：那一版不查会话绝对寿命、
+    也不查中控令牌有效期 —— 两条限制都能靠一条实时连接绕过去。
+    """
+    from backend.app.api.ha import websocket_viewer
+
+    with tempfile.TemporaryDirectory(prefix='hb-ws-') as tmp:
+        fixture = _build_access_fixture(Path(tmp))
+        cookies = {
+            fixture.settings.cookie_name: _ADMIN_TOKEN,
+            fixture.settings.display_cookie_name: _DISPLAY_TOKEN,
+        }
+
+        _insert_admin_session(fixture, last_seen_ago=10)
+        viewer = websocket_viewer(_fake_websocket(fixture, cookies))
+        check(
+            'B32/实时连接：有效管理员会话解析出管理员（管理员优先于中控）',
+            viewer is not None and viewer.user is not None and viewer.user.username == 'admin',
+            f'user={getattr(getattr(viewer, "user", None), "username", None)}',
+        )
+
+        # 绝对寿命（B3）：只有会话、没有中控令牌，超期就必须 4401。
+        _insert_admin_session(fixture, token='tok-hard', created_ago=2592000 + 60, expires_in=3600)
+        hard_cookies = {fixture.settings.cookie_name: 'tok-hard'}
+        check(
+            'B3 实时连接不再绕过会话绝对寿命',
+            websocket_viewer(_fake_websocket(fixture, hard_cookies)) is None,
+            '超期会话 + 无中控令牌 → None（调用方以 4401 关闭）',
+        )
+
+        # 会话滑动过期：拒绝并顺手清掉那一行。
+        _insert_admin_session(fixture, token='tok-slide', expires_in=-60)
+        slide_cookies = {fixture.settings.cookie_name: 'tok-slide'}
+        check(
+            'B3 实时连接拒绝滑动过期的会话，并清理该行',
+            websocket_viewer(_fake_websocket(fixture, slide_cookies)) is None
+            and _session_snapshot(fixture, 'tok-slide') is None,
+            '过期行应被清理',
+        )
+
+        # 中控令牌（B2）：有效 → 通过；过期 → 拒绝。
+        display_cookies = {fixture.settings.display_cookie_name: _DISPLAY_TOKEN}
+        display_viewer = websocket_viewer(_fake_websocket(fixture, display_cookies))
+        check(
+            'B32/实时连接：有效中控令牌解析出设备',
+            display_viewer is not None
+            and display_viewer.display is not None
+            and display_viewer.display.id == 'disp-a',
+            f'display={getattr(getattr(display_viewer, "display", None), "id", None)}',
+        )
+        _age_display_device(fixture, last_seen_ago=fixture.settings.display_token_ttl_seconds + 60)
+        check(
+            'B2 实时连接不再绕过中控令牌有效期',
+            websocket_viewer(_fake_websocket(fixture, display_cookies)) is None,
+            '过期中控令牌 → None（调用方以 4401 关闭）',
+        )
+        check('B32/实时连接：没有凭据时返回 None', websocket_viewer(_fake_websocket(fixture, {})) is None)
+
+
+async def check_page_gates_end_to_end() -> None:
+    """B2/B3：把两道门走一遍真实路由（含静态资源中间件）。
+
+    上面几条检查验证的是「判据」本身，这条验证「接线」：页面路由与 ``/static/*``
+    的鉴权中间件真的用上了那个判据。B3 的现象正是「API 侧拦住了，页面与静态资源
+    照旧放行」，只有真发一次请求才能看出这个差别 —— 所以这里拼的是真应用
+    （``create_app``）而不是最小路由，只把数据库与授权服务换成桩。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from backend.app.database import Base, Database
+    from backend.app.display_access import display_path
+    from backend.app.main import create_app
+    from backend.app.models import DisplayDevice, LoginSession, Project, User
+    from backend.app.security import session_token_hash
+
+    now = datetime.now(timezone.utc)
+    with tempfile.TemporaryDirectory(prefix='hb-page-') as tmp:
+        # 真应用：页面路由与 /static 的鉴权中间件都在，只换掉状态与授权服务。
+        app = create_app()
+        database = Database(f'sqlite:///{Path(tmp) / "app.db"}')
+        Base.metadata.create_all(database.engine)
+        with database.session_factory() as session:
+            session.add(User(id='u1', username='admin', password_hash='x', role='admin'))
+            session.commit()
+            session.add(Project(id='proj-a', name='甲项目', slug='proj-a', created_by='u1'))
+            session.commit()
+            session.add(
+                LoginSession(
+                    id_hash=session_token_hash('tok-live'),
+                    user_id='u1',
+                    created_at=now - timedelta(days=1),
+                    last_seen_at=now,
+                    expires_at=now + timedelta(hours=1),
+                )
+            )
+            # 滑动有效期还在，但绝对寿命已过：页面侧原先就是从这里漏过去的。
+            session.add(
+                LoginSession(
+                    id_hash=session_token_hash('tok-hard'),
+                    user_id='u1',
+                    created_at=now - timedelta(days=30, seconds=60),
+                    last_seen_at=now,
+                    expires_at=now + timedelta(hours=1),
+                )
+            )
+            session.add_all(
+                [
+                    DisplayDevice(
+                        id='disp-live',
+                        token_hash=session_token_hash('tok-display-live'),
+                        project_id='proj-a',
+                        name='在线中控',
+                        created_at=now,
+                        last_seen_at=now,
+                    ),
+                    DisplayDevice(
+                        id='disp-dead',
+                        token_hash=session_token_hash('tok-display-dead'),
+                        project_id='proj-a',
+                        name='过期中控',
+                        created_at=now,
+                        last_seen_at=now - timedelta(days=400),
+                    ),
+                ]
+            )
+            session.commit()
+        app.state.database = database
+        app.state.admin_account = SimpleNamespace(user_id='u1', initialized=True)
+        app.state.license_service = SimpleNamespace(
+            allows=lambda _code: True, status=lambda: {'status': 'ACTIVE'}
+        )
+        settings = app.state.settings
+        admin_cookie = {settings.cookie_name: 'tok-live'}
+        hard_cookie = {settings.cookie_name: 'tok-hard'}
+        display_page = display_path('甲项目')
+
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            live_login = await client.get('/login', cookies=admin_cookie)
+            hard_login = await client.get('/login', cookies=hard_cookie)
+            hard_asset = await client.get('/static/home.js', cookies=hard_cookie)
+            live_asset = await client.get('/static/home.js', cookies=admin_cookie)
+            live_display = await client.get(
+                display_page, cookies={settings.display_cookie_name: 'tok-display-live'}
+            )
+            dead_display = await client.get(
+                display_page, cookies={settings.display_cookie_name: 'tok-display-dead'}
+            )
+            admin_display = await client.get(display_page, cookies=admin_cookie)
+
+        check(
+            'B3 有效管理员会话在页面路由上照旧放行（跳 /license）',
+            live_login.status_code == 303 and live_login.headers.get('location') == '/license',
+            f'{live_login.status_code} {live_login.headers.get("location")}',
+        )
+        check(
+            'B3 超过绝对寿命的会话在页面路由上被当成未登录（不再是 303 跳转）',
+            hard_login.status_code == 200,
+            f'{hard_login.status_code}（修复前这里会因为只查滑动过期而 303）',
+        )
+        check(
+            'B3 超过绝对寿命的会话拿不到 /static 下的受保护资源',
+            hard_asset.status_code == 401,
+            f'{hard_asset.status_code}（修复前是 200：被盗 Cookie 能一直取静态资源）',
+        )
+        check(
+            'B3 有效会话仍能取受保护静态资源（别把所有人都挡了）',
+            live_asset.status_code == 200,
+            f'{live_asset.status_code}',
+        )
+        check(
+            'B2 有效中控令牌能打开展示页',
+            live_display.status_code == 200,
+            f'{live_display.status_code}',
+        )
+        check(
+            'B2 过期中控令牌打不开展示页（跳配对页，且带上 next）',
+            dead_display.status_code == 303 and dead_display.headers.get('location', '').startswith('/pair'),
+            f'{dead_display.status_code} {dead_display.headers.get("location")}',
+        )
+        check(
+            'B2 管理员会话不受中控令牌限制（展示页仍可打开）',
+            admin_display.status_code == 200,
+            f'{admin_display.status_code}',
+        )
+
+
+async def check_display_binding_guard() -> None:
+    """4.2b：配对复查器的缓存必须真的命中。
+
+    旧写法是路由里的闭包，给外层 ``display_binding_cache`` 赋值却没写
+    ``nonlocal`` —— 那个名字在闭包内是局部的，第一次调用读到它就
+    ``UnboundLocalError``：异常被上层 ``except Exception`` 收走且不记日志，
+    现象是「展示设备推送一会儿就断、日志里什么都没有」。
+    """
+    from backend.app.access import ViewerPrincipal
+    from backend.app.api import ha as ha_api
+    from backend.app.api.ha import DisplayBindingGuard
+    from backend.app.models import DisplayDevice
+
+    with tempfile.TemporaryDirectory(prefix='hb-guard-') as tmp:
+        fixture = _build_access_fixture(Path(tmp))
+        with fixture.database.session_factory() as database:
+            device = database.get(DisplayDevice, 'disp-a')
+            database.expunge(device)
+        websocket = _fake_websocket(fixture, {fixture.settings.display_cookie_name: _DISPLAY_TOKEN})
+
+        calls = {'count': 0}
+        real_lookup = ha_api.active_display_device
+
+        def counting_lookup(database, settings, token, *, now=None):
+            calls['count'] += 1
+            return real_lookup(database, settings, token, now=now)
+
+        ha_api.active_display_device = counting_lookup
+        try:
+            guard = DisplayBindingGuard(websocket, ViewerPrincipal(display=device))
+            first = await guard.matches()
+            calls_after_first = calls['count']
+            # 旧实现在这一行就抛 UnboundLocalError：能让下面两条断言跑完，就已经修好了。
+            second = await guard.matches()
+        finally:
+            ha_api.active_display_device = real_lookup
+        check(
+            '4.2b 配对复查不再抛 UnboundLocalError（第一次调用就走完整条路径）',
+            first is True,
+            f'first={first}',
+        )
+        check(
+            '4.2b 复查结果按窗口缓存：连续两次调用只查一次库',
+            second is True and calls_after_first == 1 and calls['count'] == 1,
+            f'查库次数={calls["count"]}（首次后={calls_after_first}）',
+        )
+
+        calls['count'] = 0
+        ha_api.active_display_device = counting_lookup
+        try:
+            admin_viewer = ViewerPrincipal(user=SimpleNamespace(username='admin'))
+            admin_match = await DisplayBindingGuard(websocket, admin_viewer).matches()
+            stale_viewer = ViewerPrincipal(display=SimpleNamespace(id='disp-a', project_id='proj-b'))
+            stale_match = await DisplayBindingGuard(websocket, stale_viewer).matches()
+        finally:
+            ha_api.active_display_device = real_lookup
+        check(
+            '4.2b 管理员连接恒为 True 且不查库；改绑到别的项目判为不一致',
+            admin_match is True and stale_match is False and calls['count'] == 1,
+            f'admin={admin_match} 改绑={stale_match} 查库次数={calls["count"]}（应为 1）',
+        )
+
+
+async def check_runtime_task_relay() -> None:
+    """B1：两路任务收尾时必须把真正的异常抛回调用方。
+
+    旧写法在闭包里给外层 ``failure`` 赋值却没声明 ``nonlocal``：赋值只落在闭包
+    自己的局部作用域，``raise failure`` 永远等不到东西（还因为读到未绑定的局部名
+    抛 UnboundLocalError），于是两路任务里的真实异常被完全丢弃，而
+    ``except WebSocketDisconnect`` / ``except TimeoutError`` 两个分支成了死代码。
+    """
+    from fastapi import WebSocketDisconnect
+
+    from backend.app.api.ha import run_tasks_until_first_completes
+
+    async def forever() -> None:
+        await asyncio.sleep(3600)
+
+    async def boom(message: str = '上游炸了') -> None:
+        raise ValueError(message)
+
+    async def normal_close() -> None:
+        raise WebSocketDisconnect(code=1000)
+
+    async def abnormal_close() -> None:
+        raise WebSocketDisconnect(code=1006)
+
+    async def slow_boom() -> None:
+        await asyncio.sleep(0.05)
+        raise RuntimeError('来晚了')
+
+    async def observe_cancel(flag: dict) -> None:
+        try:
+            await asyncio.sleep(3600)
+        except asyncio.CancelledError:
+            flag['cancelled'] = True
+            raise
+
+    async def outcome(*operations: Any) -> str:
+        """跑一轮并归纳「抛出了什么」，避免用例里到处 try/except。"""
+        try:
+            await asyncio.wait_for(run_tasks_until_first_completes(*operations), timeout=5)
+            return '没有抛出'
+        except WebSocketDisconnect as error:
+            return f'WebSocketDisconnect: {error.code}'
+        except BaseException as error:  # noqa: BLE001 - 这里要的就是类型名
+            if isinstance(error, Exception):
+                return f'{type(error).__name__}: {error}'
+            return type(error).__name__
+
+    check(
+        'B1 一路任务的真实异常原样抛回调用方（不再被吞成 UnboundLocalError）',
+        await outcome(boom, forever) == 'ValueError: 上游炸了',
+        await outcome(boom, forever),
+    )
+    check(
+        'B1 正常断连原样抛出且关闭码不丢（上层据此决定记不记警告）',
+        await outcome(normal_close, forever) == 'WebSocketDisconnect: 1000',
+        await outcome(normal_close, forever),
+    )
+    check(
+        'B1 异常关闭码原样抛出（1006 这类要在日志里留下一条）',
+        await outcome(abnormal_close, forever) == 'WebSocketDisconnect: 1006',
+        await outcome(abnormal_close, forever),
+    )
+    check(
+        'B1 两路都报真实异常时先到的优先（后续报错不覆盖第一个）',
+        await outcome(boom, slow_boom) == 'ValueError: 上游炸了',
+        await outcome(boom, slow_boom),
+    )
+    cancelled: dict = {}
+    relay_outcome = await outcome(normal_close, lambda: observe_cancel(cancelled))
+    check(
+        'B1 一路结束后另一路被取消（不会留下悬挂的接收循环）',
+        cancelled.get('cancelled') is True,
+        f'抛出={relay_outcome} 被取消={cancelled.get("cancelled")}',
+    )
+
+
+def _closure_scope_offenders(root: Path) -> list[str]:
+    """找出「函数内先读后写同一个名字」的地方。
+
+    这类写法在闭包里就是漏写 ``nonlocal``：那个名字在闭包内成为局部名，
+    闭包内之前的读直接 ``UnboundLocalError``，而外层变量永远不变。
+    推导式在 Python 3 有自己的作用域，因此整段剪掉，避免把
+    ``[x for x in ...]`` 里的目标名当成外层函数的绑定。
+    """
+    function_nodes = (ast.FunctionDef, ast.AsyncFunctionDef)
+    all_functions = (*function_nodes, ast.Lambda)
+    comprehensions = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+
+    def pruned(node: ast.AST):
+        """子节点，但不进入嵌套函数体与推导式。"""
+        return [
+            child
+            for child in ast.iter_child_nodes(node)
+            if not isinstance(child, (*all_functions, *comprehensions))
+        ]
+
+    def own_body_nodes(function: ast.AST):
+        body = function.body if not isinstance(function, ast.Lambda) else [function.body]
+        for statement in body:
+            # def / class 只在本作用域绑定名字，它们的体属于另一个作用域。
+            if isinstance(statement, (*all_functions, ast.ClassDef)):
+                continue
+            yield statement
+            stack = list(pruned(statement))
+            while stack:
+                node = stack.pop()
+                yield node
+                stack.extend(pruned(node))
+
+    def name_positions(function: ast.AST):
+        reads: dict[str, tuple[int, int]] = {}
+        writes: dict[str, tuple[int, int]] = {}
+        for node in own_body_nodes(function):
+            if not isinstance(node, ast.Name):
+                continue
+            where = (node.lineno, node.col_offset)
+            bucket = reads if isinstance(node.ctx, ast.Load) else writes
+            if node.id not in bucket or where < bucket[node.id]:
+                bucket[node.id] = where
+        return reads, writes
+
+    def local_names(function: ast.AST) -> set[str]:
+        args = function.args
+        names = {
+            arg.arg
+            for arg in [*args.posonlyargs, *args.args, *args.kwonlyargs, args.vararg, args.kwarg]
+            if arg is not None
+        }
+        for node in own_body_nodes(function):
+            if isinstance(node, (ast.Nonlocal, ast.Global)):
+                names.update(node.names)
+        return names
+
+    def nested_functions(function: ast.AST) -> list[ast.AST]:
+        found: list[ast.AST] = []
+
+        def walk(node: ast.AST) -> None:
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
+                    found.append(child)
+                else:
+                    walk(child)
+
+        walk(function)
+        return found
+
+    offenders: list[str] = []
+    for path in sorted(root.rglob('*.py')):
+        try:
+            tree = ast.parse(path.read_text(encoding='utf-8'))
+        except SyntaxError as error:  # 语法本来就有问题：交给语法检查去报，这里跳过
+            offenders.append(f'{path}: 解析失败（{error}）')
+            continue
+        for top in [node for node in tree.body if isinstance(node, function_nodes)]:
+            pending = [top]
+            while pending:
+                function = pending.pop()
+                pending.extend(nested_functions(function))
+                reads, writes = name_positions(function)
+                declared = local_names(function)
+                for name, first_write in writes.items():
+                    if name in declared or name not in reads or reads[name] >= first_write:
+                        continue
+                    offenders.append(
+                        f'{path}:{function.lineno} 函数 {getattr(function, "name", "<lambda>")} 里 '
+                        f'{name!r} 先读（{reads[name][0]} 行）后写（{first_write[0]} 行）'
+                    )
+    return offenders
+
+
+def check_closure_scope_writes() -> None:
+    """4.2b：不许再出现「闭包里给外层变量赋值却没写 nonlocal」。
+
+    两个真实缺陷（配对复查缓存、任务收尾的 ``failure``）都是这个形态：ruff 把它
+    报成 F841（赋值后未使用），后果却远超 lint 噪声 —— 闭包内之前的读直接
+    ``UnboundLocalError``，而异常又被上层 ``except Exception`` 收走，现象是
+    「推送一会儿就断、日志里什么都没有」。所以这里用 AST 把整类写法挡住：
+    函数内出现「先读后写同一个名字」就报出来（合法遮蔽都是先写后读）。
+    """
+    roots = [PROJECT_ROOT / name for name in ('backend', 'store', 'migrations', 'docker', 'tools')]
+    offenders = [item for root in roots if root.exists() for item in _closure_scope_offenders(root)]
+    check(
+        '4.2b 没有「先读后写」的局部名（闭包里漏写 nonlocal 的那一类写法）',
+        not offenders,
+        '；'.join(offenders[:5]) if offenders else f'扫过 {len(roots)} 棵树，未发现',
+    )
+
+
+def check_access_criteria_single_source() -> None:
+    """B32：三处入口必须共用同一套判据，不许再各写一份。
+
+    凭据解析此前在 HTTP 依赖、页面路由、实时连接握手各有一份独立实现，
+    而其中两份漏了绝对寿命与中控令牌有效期（B2/B3）。这条静态断言盯住
+    「入口只做组装、判据只在 access/display_access 里」这一点：
+
+    - 判据的唯一实现：``access.check_admin_session`` 与
+      ``display_access.active_display_device``；
+    - 入口只允许调用它们，函数体里不许再出现自己查 `expires_at` / 直接查
+      ``LoginSession`` 或 ``session_token_hash`` 的痕迹。
+    """
+    targets = {
+        (PROJECT_ROOT / 'backend' / 'app' / 'main.py'): {
+            'signed_in': (['check_admin_session'], ['expires_at', 'LoginSession', 'session_token_hash']),
+            'active_display': (['active_display_device'], ['expires_at', 'display_token_expired']),
+            'browser_authorized': (['resolve_principal'], ['expires_at', 'LoginSession']),
+        },
+        (PROJECT_ROOT / 'backend' / 'app' / 'dependencies.py'): {
+            '_admin_session': (['check_admin_session'], ['expires_at', 'session_token_hash']),
+            '_display_device': (['active_display_device'], ['expires_at', 'display_token_expired']),
+        },
+        (PROJECT_ROOT / 'backend' / 'app' / 'api' / 'ha.py'): {
+            'websocket_viewer': (['resolve_principal'], ['expires_at', 'LoginSession', 'session_token_hash']),
+        },
+    }
+    problems: list[str] = []
+    checked = 0
+    for path, functions in targets.items():
+        tree = ast.parse(path.read_text(encoding='utf-8'))
+        found = {
+            node.name: node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        for name, (required, forbidden) in functions.items():
+            node = found.get(name)
+            if node is None:
+                problems.append(f'{path.name} 里找不到 {name}')
+                continue
+            checked += 1
+            used = {
+                child.id for child in ast.walk(node)
+                if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load)
+            }
+            used.update(
+                getattr(child.func, 'id', getattr(child.func, 'attr', ''))
+                for child in ast.walk(node)
+                if isinstance(child, ast.Call)
+            )
+            missing = [item for item in required if item not in used]
+            leaked = sorted(item for item in forbidden if item in used)
+            if missing:
+                problems.append(f'{name} 没有走 {missing}')
+            if leaked:
+                problems.append(f'{name} 里又出现了自己实现校验的痕迹 {leaked}')
+    check(
+        'B32 三处凭据入口都只做组装，判据只来自 access / display_access',
+        not problems,
+        '；'.join(problems) if problems else f'{checked} 个入口全部符合',
+    )
+
+
+# --------------------------------------------------------------------------- #
 # 自检自身
 # --------------------------------------------------------------------------- #
 def check_every_check_is_wired() -> None:
@@ -1385,6 +2237,14 @@ async def run() -> int:
     check_scene_snapshot_hooks()
     check_scene_snapshot_sweep()
     await check_scene_snapshot_route()
+    check_admin_session_criteria()
+    check_display_token_expiry()
+    check_websocket_viewer_credentials()
+    await check_page_gates_end_to_end()
+    await check_display_binding_guard()
+    await check_runtime_task_relay()
+    check_closure_scope_writes()
+    check_access_criteria_single_source()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

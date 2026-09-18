@@ -12,7 +12,6 @@ from __future__ import annotations
 
 # 导入顺序保持原有分组：标准库 / 第三方 / 本项目，便于对照改动。
 import json
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -20,19 +19,25 @@ from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from .display_access import active_display_device, display_token_expired
+from .access import (
+    ViewerPrincipal,
+    admin_token_from,
+    check_admin_session,
+    discard_expired_session,
+    display_token_from,
+)
+from .display_access import active_display_device
 from .global_popups import hydrate_document_popups
-from .http_security import resolve_client_ip, secure_cookies_enabled
+from .http_security import secure_cookies_enabled
 from .models import (
     DisplayDevice,
     HAConnection,
     HAEntity,
-    LoginSession,
     ProjectDraft,
     User,
 )
 from .panel.entity_refs import document_entity_ids
-from .security import session_token_hash, set_display_cookie
+from .security import set_display_cookie
 
 
 def get_database_session(request: Request):
@@ -66,57 +71,34 @@ def _admin_session(
 ) -> User | None:
     """解析管理员会话 Cookie，返回当前登录用户；不满足条件返回 None。
 
-    校验顺序：账号已初始化 → Cookie 存在 → 会话记录存在且未过期 →
-    会话归属当前管理员 → 用户仍启用。任一步不通过都返回 None，
-    由调用方决定是 401 还是回落到中控身份。
+    判定口径全部在 ``access.check_admin_session`` 里（含绝对寿命与归属校验），
+    这里只负责它需要的副作用：清理失效会话行、滑动续期并重写 Cookie，
+    以及把身份写进日志上下文。
 
     副作用：会话过半程后会滑动续期（更新 last_seen_at / expires_at）并重写
     Cookie，让长时间开着编辑器的用户不会中途掉线。
     """
-    account_user_id = request.app.state.admin_account.user_id
-    if account_user_id is None:
-        return None
-    # 库里只存令牌哈希，这里用原文算出哈希再去查，明文令牌不落库。
-    token = request.cookies.get(request.app.state.settings.cookie_name, "")
-    if not token:
-        return None
-    record = database.scalar(
-        select(LoginSession).where(
-            LoginSession.id_hash == session_token_hash(token)
-        )
-    )
-    now = datetime.now(timezone.utc)
     settings = request.app.state.settings
-    if record is None or _aware(record.expires_at) <= now:
-        if record is not None:
-            # 顺手删除过期会话行，否则登录会话表会随使用时间无限增长。
-            database.delete(record)
-            database.commit()
+    token = admin_token_from(request.cookies, settings)
+    session = check_admin_session(
+        database,
+        settings,
+        token,
+        account_user_id=request.app.state.admin_account.user_id,
+        refresh=True,
+    )
+    if session.expired:
+        discard_expired_session(database, session)
         return None
-    # 绝对寿命：滑动续期只能把 expires_at 往前推，不能突破 created_at + 硬上限。
-    # 少了这一条，一枚被盗 Cookie 只要还在被使用就永远不会失效。
-    hard_max_age = int(getattr(settings, "session_hard_max_age_seconds", 0) or 0)
-    if hard_max_age > 0 and now >= _aware(record.created_at) + timedelta(seconds=hard_max_age):
-        database.delete(record)
-        database.commit()
+    user = session.user
+    if user is None:
         return None
-    if record.user_id != account_user_id:
-        return None
-    user = database.get(User, record.user_id)
-    if user is None or not user.is_active:
-        return None
-    max_age = settings.session_max_age_seconds
-    # 续期节流：最多每 300 秒写库一次，且不超过会话寿命的一半。
-    # 不做节流的话，展示页每秒一次的轮询会把每次请求都变成一次写事务。
-    refresh_interval = min(300, max(1, max_age // 2))
-    if now - _aware(record.last_seen_at) >= timedelta(seconds=refresh_interval):
-        record.last_seen_at = now
-        record.expires_at = now + timedelta(seconds=max_age)
-        database.commit()
+    if session.renewed:
+        # 续期回写与 Cookie 重发必须同时发生，否则浏览器侧会比服务端先过期。
         response.set_cookie(
-            key=request.app.state.settings.cookie_name,
+            key=settings.cookie_name,
             value=token,
-            max_age=max_age,
+            max_age=settings.session_max_age_seconds,
             httponly=True,
             secure=secure_cookies_enabled(request),
             samesite="lax",
@@ -186,26 +168,8 @@ def licensed_user(request: Request, user: CurrentUser) -> User:
 LicensedUser = Annotated[User, Depends(licensed_user)]
 
 
-@dataclass(frozen=True)
-class ViewerPrincipal:
-    """一次请求的访问主体：管理员账号，或一台已配对的中控设备。
-
-    两个字段互斥（管理员登录优先），因此判断「是谁在看」时
-    一律用 is_admin_session / project_id 这两个属性，不要直接看字段。
-    """
-
-    user: User | None = None
-    display: DisplayDevice | None = None
-
-    @property
-    def project_id(self) -> str | None:
-        """该主体被限定到的项目 ID；None 表示不受限（管理员会话）。"""
-        return self.display.project_id if self.display is not None else None
-
-    @property
-    def is_admin_session(self) -> bool:
-        """是否为管理员会话（中控设备为 False）。"""
-        return self.user is not None
+# ViewerPrincipal 的唯一实现在 access 里（与本模块的解析入口同源），
+# 这里保留导入名是为了不改动各路由的 `from ..dependencies import ViewerPrincipal`。
 
 
 def _display_device(
@@ -217,21 +181,19 @@ def _display_device(
     因此有效期按 last_seen_at + display_token_ttl_seconds 判定 ——
     长期不用的平板与只在攻击者手里的令牌会自己过期，而正常挂机的墙面平板
     只要还在轮询就一直有效。另有一个可选的硬上限（默认关闭），见 config。
+    两道有效期都由 ``display_access.active_display_device`` 判定（B2），
+    这里不再自己查一遍，也不再自己判断有没有查过。
 
     副作用：同样做了心跳节流 —— 设备超过 5 分钟没活跃才写一次库并刷新
     Cookie，因为展示页会长期挂机、每次请求都写库会拖慢整个看板。
     """
     settings = request.app.state.settings
-    token = request.cookies.get(settings.display_cookie_name, "")
+    token = display_token_from(request.cookies, settings)
     if not token:
         return None
-    device = active_display_device(database, token)
-    if device is None:
-        return None
     now = datetime.now(timezone.utc)
-    if display_token_expired(device, settings, now):
-        # 过期就当未配对处理：不删行（管理员列表里还能看到这台设备并手动解绑），
-        # 但不再放行任何请求，前端会回到配对页。
+    device = active_display_device(database, settings, token, now=now)
+    if device is None:
         return None
     # 5 分钟节流窗口：只有设备"冷下来"才回写活跃时间并续期 Cookie。
     if now - _aware(device.last_seen_at) >= timedelta(minutes=5):
@@ -257,6 +219,9 @@ def authenticated_viewer(
 
     优先级：管理员会话优先。这样管理员在已配对的平板上打开页面时，
     看到的仍是完整权限，而不是被降级成单项目视角。
+
+    与页面路由、实时连接共用 access.resolve_principal 这一个入口（B32）：
+    三处各写一遍时，其中两处漏查了绝对寿命与中控令牌有效期（B2/B3）。
     """
     user = _admin_session(request, response, database)
     if user is not None:
