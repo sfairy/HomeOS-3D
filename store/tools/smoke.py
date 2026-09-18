@@ -875,6 +875,9 @@ def check_admin_console_resilience() -> None:
     不改数据的情况下把它们钉住的手段。
     """
     html = (STORE_ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+    # 错误归一化的唯一实现在 static/api-error.js：后台的 httpError 只是它的薄包装，
+    # 所以「状态码」「422 明细」这些承诺要连那份实现一起看（P10，4.3 D 类）。
+    api_error_source = (STORE_ROOT / "static" / "api-error.js").read_text(encoding="utf-8")
 
     check(
         "bootstrap 区分「未登录」与「加载失败」（后者不能静默退回登录页）",
@@ -895,8 +898,9 @@ def check_admin_console_resilience() -> None:
     )
     check(
         "错误对象带上 HTTP 状态码（否则调用方只能靠文案猜，改文案即失效）",
-        "function httpError(response, data)" in html and "error.status = response.status" in html,
-        "httpError 会写入 response.status",
+        "const httpError = (response, data) => ApiError.fromResponse(response, data);" in html
+        and "error.status = response.status" in api_error_source,
+        "httpError 委托给 api-error.js 的 fromResponse（状态码在那份唯一实现里写入）",
     )
     check(
         "非 401 的故障仍然照实报出来（5xx / 断网不能静默退回登录页）",
@@ -936,10 +940,10 @@ def check_admin_console_resilience() -> None:
     # 某一行字面量出现的次数 —— 后者会被一次正常重构改坏（这条断言本身就这么坏过一次）。
     check(
         "422 的结构化 detail 会被压成可读文案（否则 toast 是 [object Object]）",
-        "function describeApiError(" in html
-        and "describeApiError(data && data.detail)" in html
+        "function describeApiError(" not in html
+        and "ApiError.fromResponse" in html
         and html.count("throw httpError(response, data)") >= 2,
-        f"describeApiError 收口在 httpError；非 ok 响应走 httpError 的有 "
+        f"归一化只有 api-error.js 一份；非 ok 响应走 httpError 的有 "
         f"{html.count('throw httpError(response, data)')} 处（api + storeApi）",
     )
 
@@ -8982,6 +8986,16 @@ def check_product_image_upload_whitelist() -> None:
     )
 
 
+def _strip_js_comments(text: str) -> str:
+    """去掉 JS/HTML 里的注释，只留下会执行的代码。
+
+    用于「写法禁令」类断言：注释里提到某个被禁的写法（解释为什么不用它）是允许的，
+    只有真的写进逻辑才算违规。
+    """
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    return "\n".join(line.split("//", 1)[0] for line in text.splitlines())
+
+
 def check_single_escaper() -> None:
     """S38：HTML 转义**只有一份实现**，而且转义集完整（单引号也在内）。
 
@@ -9036,8 +9050,7 @@ def check_single_escaper() -> None:
     def _code_only(text: str) -> str:
         # 注释里提到 &apos; 是允许的（htmlsafe.js 自己就在解释为什么不用它），
         # 只有真的写进拼接逻辑才算违规。
-        text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
-        return "\n".join(line.split("//", 1)[0] for line in text.splitlines())
+        return _strip_js_comments(text)
 
     check(
         "S38 不用 &apos;（旧版 HTML 解析器不认，会原样显示出来）",
@@ -9066,6 +9079,199 @@ def check_single_escaper() -> None:
         "S38 store.html 先加载 htmlsafe.js 再跑 referrals.js / store.js",
         -1 < store_module < first_consumer,
         f"module={store_module} consumer={first_consumer}",
+    )
+
+
+def check_shared_api_error_helper() -> None:
+    """P10（4.3 D 类）：接口失败的「归一化成人话」只此一份，且三个消费方都真的接上了。
+
+    修复前同一段知识散在三处，能力还不一致：
+
+    * ``admin.html`` 的 ``describeApiError()`` 认全了 FastAPI 422 的 ``detail`` 数组；
+    * ``store.js`` 只认字符串，其余一律退回通用文案 —— 顾客看得到失败、看不到为什么；
+    * ``setup.js`` 把 ``detail`` 直接交给 ``textContent`` —— 数组渲染成 ``[object Object]``，
+      而初始化页最常见的那几类失败（邮箱格式、密码长度、引导密钥）恰好全走这条。
+
+    写成三份不会有任何报错：只是在某一个页面上，某类错误变成一句看不懂的话，而同一个
+    错误在后台可读。所以这里钉的不是「某一行写得对」，而是「实现只有一份、消费方都接这一份」，
+    外加一条**加载顺序**：少了 ``api-error.js``，失败路径会变成未捕获的 ``ReferenceError``
+    ——页面什么都不显示，比原来的 ``[object Object]`` 更难查。三页还必须带**同一个**缓存戳：
+    一页带、一页不带就是两份模块实例，缺陷会在一页上「修好了、另一页照旧」。
+
+    行为另由 node 实测：``api_error_probe.cjs`` 把 ``setup.js`` 整份跑起来断言屏上那行字，
+    ``render_probe.cjs`` 走后台真的 ``api()``；``check_api_error_payload_matches_frontend``
+    再把**真实** 422 载荷喂给同一份实现，防止探针的输入与生产者脱钩。
+    """
+    static_dir = STORE_ROOT / "static"
+    templates_dir = STORE_ROOT / "templates"
+    module_source = (static_dir / "api-error.js").read_text(encoding="utf-8")
+    consumers = {
+        "admin.html": (templates_dir / "admin.html").read_text(encoding="utf-8"),
+        "store.js": (static_dir / "store.js").read_text(encoding="utf-8"),
+        "setup.js": (static_dir / "setup.js").read_text(encoding="utf-8"),
+    }
+
+    check(
+        "P10 错误归一化只在 api-error.js 里定义（describe 一份）",
+        module_source.count("function describe(") == 1
+        and module_source.count("function describeEntry(") == 1,
+        f"describe={module_source.count('function describe(')} "
+        f"describeEntry={module_source.count('function describeEntry(')}",
+    )
+
+    # 自带实现的码型：自己判 detail 的形态、或自己去解 FastAPI 的 loc 数组。
+    # 只看代码、不看注释（三处注释都在解释这个缺陷，提到「数组」是正常的）。
+    homemade = {
+        label: token
+        for label, text in consumers.items()
+        for token in ("Array.isArray(detail)", "body?.detail === 'string'", "entry.loc.filter", "entry?.loc")
+        if token in _strip_js_comments(text)
+    }
+    check("P10 消费方不再自带「把 detail 变成人话」的实现", not homemade, str(homemade))
+
+    missing = [label for label, text in consumers.items() if "ApiError." not in text]
+    check("P10 三个消费方都接的是同一份实现（ApiError.describe / fromResponse）", not missing, str(missing))
+
+    # 换名换文件的等价实现：这段知识必然要读 FastAPI 的 ``loc`` / ``msg``（改用别的
+    # 变量名也躲不掉），所以扫「store 前端里除 api-error.js 之外还有谁同时碰这两个词」。
+    # 边界如实写在这里：这是**码型**匹配、不是语义等价判定 —— 有人把两份都改写成不读
+    # ``loc`` 的形态（比如只回一句「参数不合法」）时它认不出来，那属于「换了一套知识」，
+    # 得靠人读。JS 侧目前没有函数体哈希闸（Python 侧才有），所以这条是最外圈的兜底。
+    suspects = []
+    for path in sorted((*static_dir.glob("*.js"), *templates_dir.glob("*.html"))):
+        if path.name == "api-error.js":
+            continue
+        code = _strip_js_comments(path.read_text(encoding="utf-8"))
+        if ".loc" in code and "msg" in code:
+            suspects.append(path.relative_to(STORE_ROOT).as_posix())
+    check("P10 错误归一化没有第二份等价实现（换文件、换变量名照样点名）", not suspects, str(suspects))
+
+    # 加载顺序：api-error.js 必须在消费方脚本之前。缺了它不是渲染出错，而是失败路径
+    # 抛 ReferenceError —— 屏幕上连一句「请求失败」都不会出现。
+    admin_module = consumers["admin.html"].find("/store-static/api-error.js")
+    admin_inline = consumers["admin.html"].find("<script nonce=")
+    check(
+        "P10 admin.html 先加载 api-error.js 再跑内联脚本",
+        -1 < admin_module < admin_inline,
+        f"module={admin_module} inline={admin_inline}",
+    )
+    store_source = (templates_dir / "store.html").read_text(encoding="utf-8")
+    setup_source = (templates_dir / "setup.html").read_text(encoding="utf-8")
+    store_module = store_source.find("/store-static/api-error.js")
+    store_consumer = store_source.find("/store-static/store.js")
+    setup_module = setup_source.find("/store-static/api-error.js")
+    setup_consumer = setup_source.find("/store-static/setup.js")
+    check(
+        "P10 store.html 先加载 api-error.js 再跑 store.js",
+        -1 < store_module < store_consumer,
+        f"module={store_module} consumer={store_consumer}",
+    )
+    check(
+        "P10 setup.html 先加载 api-error.js 再跑 setup.js",
+        -1 < setup_module < setup_consumer,
+        f"module={setup_module} consumer={setup_consumer}",
+    )
+
+    # 缓存戳：这三页共用同一个模块。一页带戳、另一页不带（或两页戳不同）浏览器会各下载
+    # 一份 —— 两份模块实例、各自一份模块级状态，表现是「一页修好了、另一页还显示
+    # [object Object]」，而服务端日志里两次请求都正常。前端的同类闸是 W18（全站一个戳），
+    # store/templates 这边原先没有闸：漏戳不会报错，只会让一个已修好的缺陷在某一页上重演。
+    # 这里只钉这一份刚抽出来的共享模块，不顺手扩成全站闸（那属于另一批的口径）。
+    page_sources = {
+        "admin.html": consumers["admin.html"],
+        "store.html": store_source,
+        "setup.html": setup_source,
+    }
+    stamped = {
+        label: re.findall(r"/store-static/api-error\.js\?v=(\d{14})", text)
+        for label, text in page_sources.items()
+    }
+    unstamped = [label for label, found in stamped.items() if len(found) != 1]
+    check(
+        "P10 三个页面都用带缓存戳的地址加载 api-error.js（漏戳会各存一份旧副本）",
+        not unstamped,
+        str(stamped),
+    )
+    check(
+        "P10 三个页面加载 api-error.js 的缓存戳一致（两页两个戳 = 两份模块实例）",
+        len({found[0] for found in stamped.values() if len(found) == 1}) <= 1,
+        str(stamped),
+    )
+
+    # 行为：真跑一遍页面脚本，断言「屏上那行字」而不是源码里写了什么。
+    if shutil.which("node") is None:
+        check("P10 接口错误归一化行为探针（node 不可用，跳过）", True, "skipped")
+        return
+    probe = STORE_ROOT / "tools" / "api_error_probe.cjs"
+    proc = subprocess.run(  # noqa: S603
+        ["node", str(probe), str(PROJECT_ROOT)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    check(
+        "P10 422 在初始化页显示为字段级原因（原先显示 [object Object]）",
+        proc.returncode == 0,
+        (proc.stderr.strip() or proc.stdout.strip())[:400],
+    )
+
+
+async def check_api_error_payload_matches_frontend(app) -> None:
+    """P10（4.3 D 类）：前端那份归一化认的形态，必须与**真实** 422 对得上。
+
+    上面那条探针里的 422 载荷是手写的。生产者的形态一旦漂掉（pydantic 大版本升级改了
+    ``loc`` / ``msg`` 的写法、有人加了一层异常处理器把 ``detail`` 变成字符串或别的键名），
+    前端会静默退回通用文案 —— 探针自己不会红，因为它的输入不来自生产者。这跟「垫片的
+    失败原因漏进被测信息」同源：**载荷与生产者脱钩之后，断言测的就不是它该测的东西了**。
+
+    所以这里真发一次请求取 422，断言两件事：
+    1. 形态是 ``detail: [{loc: [...], msg: "..."}]``；
+    2. 把这份**真实载荷**交给前端那份实现（``api_error_probe.cjs`` 的第二个参数），
+       压出来的文案里要出现每条明细的字段名与原因。
+    """
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://store.test"
+    ) as client:
+        # 类型错误：pydantic 在进入业务处理之前就会拒绝，所以不受「已初始化 / 限流」影响。
+        response = await client.post(
+            "/store/v1/auth/register",
+            json={"email": 123, "password": []},
+        )
+    payload = response.json() if response.status_code == 422 else {}
+    detail = payload.get("detail") if isinstance(payload, dict) else None
+    entries = detail if isinstance(detail, list) else []
+    shape_ok = bool(entries) and all(
+        isinstance(entry, dict)
+        and isinstance(entry.get("msg"), str)
+        and isinstance(entry.get("loc"), list)
+        for entry in entries
+    )
+    check(
+        "P10 真实 422 的 detail 是 [{loc, msg}]（前端归一化认的就是这个形态）",
+        shape_ok,
+        f"{response.status_code} {json.dumps(payload, ensure_ascii=False)[:220]}",
+    )
+    if not shape_ok or shutil.which("node") is None:
+        return
+
+    handle = tempfile.NamedTemporaryFile(
+        "w", suffix=".json", prefix="hb-422-payload-", delete=False, encoding="utf-8"
+    )
+    try:
+        with handle:
+            json.dump(payload, handle, ensure_ascii=False)
+        proc = subprocess.run(  # noqa: S603
+            ["node", str(STORE_ROOT / "tools" / "api_error_probe.cjs"), str(PROJECT_ROOT), handle.name],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    finally:
+        Path(handle.name).unlink(missing_ok=True)
+    check(
+        "P10 真实 422 载荷被前端压成「参数 x：原因」（字段名与原因都在）",
+        proc.returncode == 0,
+        (proc.stderr.strip() or proc.stdout.strip())[:400],
     )
 
 
@@ -12508,6 +12714,7 @@ async def run() -> int:
     check_escaper_behaviour()
     check_markup_templates_escape_data()
     check_admin_render_inertness()
+    check_shared_api_error_helper()
     check_display_pairing_hardening()
 
     workdir = Path(tempfile.mkdtemp(prefix="hb-store-smoke-"))
@@ -12544,6 +12751,9 @@ async def run() -> int:
         account_id = account.id
         base_product_id = products["base"].id
         module_product_id = products["module"].id
+
+    # 前端那份「把 detail 变成人话」的实现认的形态，必须与真实 422 对得上（P10，D 类）。
+    await check_api_error_payload_matches_frontend(app)
 
     transport = client_crypto.LicenseTransportCipher(
         settings.transport_public_key_path,
