@@ -24,11 +24,14 @@ import ast
 import json
 import sys
 import tempfile
+import threading
+import time
 import traceback
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from urllib.parse import quote
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 #: 直跑 ``python backend/tools/smoke.py`` 时 ``backend`` 还不在导入路径上。
@@ -2738,6 +2741,799 @@ def check_request_security_parity() -> None:
 # --------------------------------------------------------------------------- #
 # 自检自身
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# P5 第二批：同步重活不许占着事件循环（B4 / B5 / B6 / B55）+ 导出回滚的异常链（B39）
+# --------------------------------------------------------------------------- #
+#: 事件循环的线程 id：所有「这段同步工作必须离事件循环」的断言都比对它。
+LOOP_THREAD = threading.get_ident()
+
+
+class _RecordingDatabase:
+    """把 ``Database`` 包一层，记录每次开会话时的线程。
+
+    断言用的就是它：修复前 ``async def`` 路由与授权服务直接
+    ``with database.session_factory()``，记下来的线程必然等于事件循环线程；
+    转线程池之后必然是别的线程。
+    """
+
+    def __init__(self, database: Any) -> None:
+        self.inner = database
+        self.threads: list[int] = []
+
+    def session_factory(self):
+        self.threads.append(threading.get_ident())
+        return self.inner.session_factory()
+
+    def __getattr__(self, name: str) -> Any:
+        # engine / dispose 等其余成员照旧代理：这层包装不该改变被包对象的语义。
+        return getattr(self.inner, name)
+
+    def all_off_loop(self) -> bool:
+        """是否至少开过一次会话，且每一次都不在事件循环线程上。"""
+        return bool(self.threads) and all(thread != LOOP_THREAD for thread in self.threads)
+
+
+class _LoopTicker:
+    """后台计时器：观测事件循环有没有被同步工作掐住。
+
+    每 5 毫秒自增一次。跑一段同步睡 250 毫秒的桩时：计时器还在涨（≥5 次）说明
+    那段同步工作在工作线程里；留在事件循环里则整段睡眠期间一次都涨不了。
+    """
+
+    def __init__(self) -> None:
+        self.ticks = 0
+        self._task: asyncio.Task | None = None
+
+    async def _run(self) -> None:
+        while True:
+            self.ticks += 1
+            await asyncio.sleep(0.005)
+
+    def start(self) -> None:
+        self._task = asyncio.create_task(self._run())
+
+    async def stop(self) -> None:
+        if self._task is None:
+            return
+        self._task.cancel()
+        try:
+            await self._task
+        except asyncio.CancelledError:
+            pass
+        self._task = None
+
+
+def _request_with_chunks(app: Any, path: str, headers: dict[str, str], chunks: list[bytes]):
+    """拼一个真的 ``Request``（含可迭代的请求体），用来直接调路由函数。
+
+    不经过 ASGI 应用是刻意的：这几条检查要观测「同步工作跑在哪个线程」，
+    起一个完整的应用只会多出无关的中间件与生命周期，反而看不清。
+    """
+    from starlette.requests import Request
+
+    pending = list(chunks)
+
+    async def receive() -> dict[str, Any]:
+        if pending:
+            body = pending.pop(0)
+            return {'type': 'http.request', 'body': body, 'more_body': bool(pending)}
+        return {'type': 'http.request', 'body': b'', 'more_body': False}
+
+    scope = {
+        'type': 'http',
+        'http_version': '1.1',
+        'method': 'POST',
+        'scheme': 'http',
+        'path': path,
+        'raw_path': path.encode(),
+        'query_string': b'',
+        'root_path': '',
+        'headers': [(key.lower().encode(), value.encode()) for (key, value) in headers.items()],
+        'client': ('127.0.0.1', 40000),
+        'server': ('app.test', 80),
+        'app': app,
+    }
+    return Request(scope, receive)
+
+
+async def check_stream_writes_offloaded() -> None:
+    """B5/B6 共用件：请求体落盘必须批量、且写盘不在事件循环线程上。
+
+    这是两个上传端点共同依赖的那段逻辑，坏掉会同时影响导出包与素材上传，
+    因此单独测它：批量（写入调用数远少于分块数）、逐块转线程、超限在落盘前拦下、
+    写出的字节与收到的完全一致。
+    """
+    from backend.app.streaming import BATCH_BYTES, write_stream_in_batches
+
+    chunk = b'x' * 65536
+    chunks = [chunk] * 24  # 1.5 MiB：足以触发一次批量落盘，又远小于任何上限。
+    writes: list[int] = []
+
+    class _RecordingFile:
+        """记录每次 write 的线程与字节数；真实内容落到临时文件里。"""
+
+        def __init__(self, handle: Any) -> None:
+            self.handle = handle
+            self.bytes = 0
+
+        def write(self, data: bytes) -> int:
+            writes.append(threading.get_ident())
+            self.bytes += len(data)
+            return self.handle.write(data)
+
+    async def stream():
+        for item in chunks:
+            yield item
+
+    with tempfile.TemporaryDirectory(prefix='hb-stream-') as tmp:
+        path = Path(tmp) / 'upload.bin'
+        with path.open('xb') as handle:
+            recording = _RecordingFile(handle)
+            received = await write_stream_in_batches(stream(), recording)
+        written = path.read_bytes()
+
+    check(
+        'B5/B6 请求体字节数与写出的文件完全一致',
+        received == len(chunk) * len(chunks) and written == chunk * len(chunks),
+        f'收到 {received}，文件 {len(written)}',
+    )
+    check(
+        'B5/B6 每批写盘都在工作线程里（不在事件循环线程上）',
+        bool(writes) and all(thread != LOOP_THREAD for thread in writes),
+        f'写入线程 {sorted(set(writes))[:3]}（事件循环线程 {LOOP_THREAD}）',
+    )
+    check(
+        'B5/B6 攒批生效：1.5 MiB 至少合并成远少于分块数的 write',
+        len(writes) <= 3,
+        f'{len(chunks)} 块 → {len(writes)} 次 write（BATCH_BYTES={BATCH_BYTES}）',
+    )
+
+    # 超限判定必须在落盘之前：否则「限 128 KiB」的上传会先把整批 1 MiB 写进磁盘再报错。
+    # 这一条刻意只给一块、且刚好攒够一批：判定若挪到落盘之后，盘上就会留下 1 MiB。
+    async def one_full_batch():
+        yield chunk * (BATCH_BYTES // len(chunk))
+
+    limit = 2 * len(chunk)
+    with tempfile.TemporaryDirectory(prefix='hb-stream-') as tmp:
+        path = Path(tmp) / 'too-big.bin'
+        over_limit = False
+        try:
+            with path.open('xb') as handle:
+                def _reject_first_batch(received_total: int) -> None:
+                    if received_total > limit:
+                        raise ValueError('超限')
+
+                await write_stream_in_batches(one_full_batch(), handle, before_write=_reject_first_batch)
+        except ValueError:
+            over_limit = True
+        on_disk = path.stat().st_size
+
+    check(
+        'B5/B6 超限时抛错且一个字节都没落盘（判定在写盘之前）',
+        over_limit and on_disk == 0,
+        f'抛错={over_limit}，落盘 {on_disk} 字节（上限 {limit}；判在写盘之后会留下 {BATCH_BYTES} 字节）',
+    )
+
+    # 限内已落盘的数据要留着（不是「一超限就整份丢弃」）：限 2 MiB、收 2.5 MiB → 盘上 2 MiB。
+    async def many_chunks():
+        for _ in range(40):
+            yield chunk
+
+    with tempfile.TemporaryDirectory(prefix='hb-stream-') as tmp:
+        path = Path(tmp) / 'partial.bin'
+        caught = False
+        try:
+            with path.open('xb') as handle:
+                def _reject_inner(received_total: int) -> None:
+                    if received_total > 32 * len(chunk):
+                        raise ValueError('超限')
+
+                await write_stream_in_batches(many_chunks(), handle, before_write=_reject_inner)
+        except ValueError:
+            caught = True
+        kept = path.stat().st_size
+
+    check(
+        'B5/B6 超限前已收下的数据保留在盘上，且不超过上限',
+        caught and kept == 32 * len(chunk),
+        f'抛错={caught}，落盘 {kept} 字节（期望 {32 * len(chunk)}）',
+    )
+
+
+async def check_export_route_offloads_work() -> None:
+    """B5：导出上传的校验、解压、登记都必须在工作线程里跑。
+
+    实测而不是读源码：把 _validate_archive / _install_export / 素材登记换成
+    「记下线程 + 同步睡 250 毫秒」的桩，然后真的走一遍路由体，同时用计时器观测
+    事件循环。修复前这三段直接写在 ``async def`` 里，睡的这一下会把循环掐住
+    （计时器一次都涨不了），现象就是一次大导出冻结整个应用。
+    """
+    from backend.app.api import studio3d
+
+    payload = b'PK\x03\x04' + b'y' * 70000
+    calls: list[tuple[str, int]] = []
+    captured: list[bytes] = []
+
+    with tempfile.TemporaryDirectory(prefix='hb-export-') as tmp:
+        exports_dir = Path(tmp)
+        app = SimpleNamespace(state=SimpleNamespace(
+            settings=SimpleNamespace(studio3d_exports_dir=exports_dir),
+            global_log=SimpleNamespace(append=lambda *_args, **_kwargs: None),
+            # 素材目录缺省不存在：这条检查只关心三段重活各自跑在哪个线程。
+            asset_catalog=SimpleNamespace(
+                register_studio3d_export=lambda *_args: calls.append(('register', threading.get_ident())),
+            ),
+        ))
+
+        original_validate = studio3d._validate_archive
+        original_install = studio3d._install_export
+        try:
+            def fake_validate(archive_path: Path):
+                calls.append(('validate', threading.get_ident()))
+                captured.append(archive_path.read_bytes())
+                time.sleep(0.25)
+                # 真返回一份条目清单（形状与 _validate_archive 一致）：解压与素材
+                # 登记都靠它驱动，返回空清单就等于那两段重活根本没被走到。
+                return [
+                    SimpleNamespace(filename='scene.json'),
+                    SimpleNamespace(filename='沙发.png'),
+                ]
+
+            def fake_install(_settings, _folder, _archive, entries, _overwrite):
+                calls.append(('install', threading.get_ident()))
+                time.sleep(0.25)
+                return False
+
+            studio3d._validate_archive = fake_validate
+            studio3d._install_export = fake_install
+            request = _request_with_chunks(
+                # 请求头按前端约定传 URL 编码值：裸中文会按 latin-1 解出乱码。
+                app, '/api/v1/studio3d/exports', {'x-export-folder': quote('户型图')}, [payload]
+            )
+            ticker = _LoopTicker()
+            ticker.start()
+            result = await studio3d.save_studio3d_export(request, None)
+            await ticker.stop()
+        finally:
+            studio3d._validate_archive = original_validate
+            studio3d._install_export = original_install
+
+        leftovers = [item.name for item in exports_dir.glob('.upload-*.zip')]
+
+        # 空请求体仍要 422（重构后「空 ZIP」的判定不能丢）。
+        empty_request = _request_with_chunks(
+            app, '/api/v1/studio3d/exports', {'x-export-folder': quote('空包')}, []
+        )
+        empty_status = None
+        try:
+            await studio3d.save_studio3d_export(empty_request, None)
+        except Exception as error:  # noqa: BLE001 - 这里就是要看路由抛出的那个 4xx
+            empty_status = getattr(error, 'status_code', None)
+
+    check(
+        'B5 导出上传的校验 / 解压 / 登记全部跑在工作线程（不在事件循环线程上）',
+        {name for (name, _thread) in calls} == {'validate', 'install', 'register'}
+        and all(thread != LOOP_THREAD for (_name, thread) in calls),
+        f'调用点 {calls}（事件循环线程 {LOOP_THREAD}）',
+    )
+    check(
+        'B5 三段同步重活期间事件循环照常转（计时器仍在自增）',
+        ticker.ticks >= 5,
+        f'500 毫秒的同步桩里计时器涨了 {ticker.ticks} 次（被掐住时为 0～1）',
+    )
+    check(
+        'B5 上传的字节经批量落盘后与请求体一致',
+        captured == [payload],
+        f'校验时读到的字节数 {[len(item) for item in captured]}，期望 {len(payload)}',
+    )
+    check(
+        'B5 上传临时文件无论成败都不留在导出目录里',
+        not leftovers,
+        f'遗留 {leftovers}',
+    )
+    check(
+        'B5 空 ZIP 仍然 422（重构没把「空包」判定丢掉）',
+        empty_status == 422,
+        f'status={empty_status}',
+    )
+    check(
+        'B5 返回体把原 ZIP 一并列进导出结果',
+        result.get('files') == ['scene.json', '沙发.png', '户型图.zip']
+        and result.get('overwritten') is False,
+        f'{result.get("files")}',
+    )
+
+
+async def check_upload_route_offloads_work() -> None:
+    """B6：素材上传的解码校验与登记必须在工作线程里跑。
+
+    用的是**真的** ``validate_uploaded_image``（真 Pillow 解码）：桩只在外面套一层
+    「记线程 + 睡 250 毫秒」把耗时放大到可观测，解码本身照常执行 —— 这样断言的是
+    「真实的解码路径被搬到了工作线程」，而不是「某个桩被调用了」。
+    """
+    from PIL import Image
+    from backend.app.api import assets
+
+    body = bytearray()
+    with tempfile.TemporaryDirectory(prefix='hb-upload-') as tmp:
+        png_path = Path(tmp) / 'source.png'
+        Image.new('RGB', (8, 8), (12, 34, 56)).save(png_path, format='PNG')
+        body = png_path.read_bytes()
+
+    calls: list[tuple[str, int]] = []
+    returns: list[dict] = []
+
+    def register_user(asset_id: str, path: Path, dimensions: tuple[int, int]) -> dict:
+        calls.append(('register', threading.get_ident()))
+        returns.append({'assetId': f'user:{asset_id}', 'name': path.name, 'dimensions': list(dimensions)})
+        return returns[-1]
+
+    with tempfile.TemporaryDirectory(prefix='hb-upload-') as tmp:
+        root = Path(tmp) / 'user-assets'
+        root.mkdir()
+        app = SimpleNamespace(state=SimpleNamespace(
+            settings=SimpleNamespace(user_assets_dir=root),
+            asset_catalog=SimpleNamespace(register_user=register_user),
+        ))
+
+        original_validate = assets.validate_uploaded_image
+        try:
+            def recording_validate(suffix: str, path: Path):
+                calls.append(('validate', threading.get_ident()))
+                time.sleep(0.25)
+                return original_validate(suffix, path)
+
+            assets.validate_uploaded_image = recording_validate
+            request = _request_with_chunks(
+                app, '/api/v1/assets/user', {'x-file-name': quote('图.png')}, [body[: 100], body[100:]]
+            )
+            ticker = _LoopTicker()
+            ticker.start()
+            uploaded = await assets.upload_user_asset(request, None)
+            await ticker.stop()
+
+            # 校验失败时的清理路径：目录与半截文件都不能留下。
+            def rejecting_validate(_suffix: str, _path: Path):
+                calls.append(('validate-reject', threading.get_ident()))
+                raise ValueError('图片文件已损坏或无法完整解码。')
+
+            assets.validate_uploaded_image = rejecting_validate
+            bad_request = _request_with_chunks(
+                app, '/api/v1/assets/user', {'x-file-name': quote('坏图.png')}, [b'not-an-image']
+            )
+            reject_status = None
+            try:
+                await assets.upload_user_asset(bad_request, None)
+            except Exception as error:  # noqa: BLE001 - 这里就是要看路由抛出的那个 4xx
+                reject_status = getattr(error, 'status_code', None)
+        finally:
+            assets.validate_uploaded_image = original_validate
+
+        stored = sorted(item.name for item in root.iterdir())
+        stored_bytes = (root / stored[0] / '图.png').read_bytes() if stored else b''
+
+    check(
+        'B6 素材解码校验与登记都跑在工作线程（不在事件循环线程上）',
+        {name for (name, _thread) in calls} >= {'validate', 'register'}
+        and all(thread != LOOP_THREAD for (_name, thread) in calls),
+        f'调用点 {calls}（事件循环线程 {LOOP_THREAD}）',
+    )
+    check(
+        'B6 解码期间事件循环照常转（计时器仍在自增）',
+        ticker.ticks >= 5,
+        f'250 毫秒的同步桩里计时器涨了 {ticker.ticks} 次（被掐住时为 0～1）',
+    )
+    check(
+        'B6 上传的字节分批落盘后与请求体一致',
+        stored_bytes == bytes(body),
+        f'落盘 {len(stored_bytes)} 字节，期望 {len(body)}',
+    )
+    check(
+        'B6 上传成功返回登记后的素材条目（含真实解码出的尺寸）',
+        uploaded.get('dimensions') == [8, 8],
+        f'{uploaded}',
+    )
+    check(
+        'B6 校验失败仍是 422，且不留下空目录或半截文件',
+        reject_status == 422 and len(stored) == 1,
+        f'status={reject_status}，素材目录里只剩 {stored}',
+    )
+
+
+def _bare_license_service(database: Any, instance_id: str) -> Any:
+    """拼一个只装了必要字段的 ``LicenseService``（绕开构造器的信任锚校验）。
+
+    这条检查只关心「同步查库跑在哪个线程」，不需要真密钥与验签器，而构造器会的
+    读 PEM、算指纹、校验配置，与本检查无关且会挡住它（自检环境没有那些密钥文件）。
+    因此直接 ``__new__`` 再注入最小属性 —— 注入的属性与构造器会设的是同一套。
+
+    验签器与密文器换成桩（真实现要真密钥），但 ``_apply_response`` 用的是**真**方法：
+    它才是「心跳成功后把租约写进库」的那段同步落库，用桩替代就等于这条断言没覆盖它。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from backend.app.license.service import LicenseService
+
+    now = datetime.now(timezone.utc)
+    payload = {
+        'expiresAt': (now + timedelta(hours=1)).isoformat(),
+        'issuedAt': now.isoformat(),
+        'leaseSequence': 4,
+        'activationCodeId': 'lic-1',
+        'leaseId': 'lease-1',
+        'sessionId': 'sess-1',
+        'features': ['all'],
+    }
+    service = object.__new__(LicenseService)
+    service.settings = SimpleNamespace(
+        license_required=True, license_clock_skew_seconds=30, version='smoke'
+    )
+    service.database = database
+    service.event_log = None
+    service._event_lock = threading.RLock()
+    service._observed_status = None
+    service._event_failures = {}
+    service._startup_validation_pending = False
+    service._last_binding_confirm_at = 0.0
+    service._heartbeat_lock = asyncio.Lock()
+    service._stop = asyncio.Event()
+    service._schedule_changed = asyncio.Event()
+    service._endpoint_pool = SimpleNamespace(
+        configured=True, candidates=lambda: [], mark_failed=lambda *_args: None
+    )
+    service.verifier = SimpleNamespace(verify=lambda _lease, _instance: dict(payload))
+    service.cipher = SimpleNamespace(
+        decrypt=lambda _value: 'token', encrypt=lambda _value: 'encrypted'
+    )
+    service._transport = None
+    service._task = None
+    # 实例 ID 直接给缓存值：真实取值要读硬件指纹，与「在哪个线程查库」无关。
+    service._cached_instance_id = instance_id
+    return service
+
+
+def _license_fixture(tmp: Path) -> tuple[Any, str]:
+    """建一个只含单行 LicenseState 的库，返回 (记录线程的 Database, 实例 ID)。"""
+    from backend.app.database import Base, Database
+    from backend.app.models import LicenseState
+
+    instance_id = 'a' * 64
+    inner = Database(f'sqlite:///{tmp / "license.db"}')
+    Base.metadata.create_all(inner.engine)
+    with inner.session_factory() as session:
+        session.add(
+            LicenseState(
+                id=1,
+                instance_id=instance_id,
+                license_id='lic-1',
+                lease_id='lease-1',
+                session_id='sess-1',
+                signed_lease='signed-lease',
+                lease_sequence=3,
+                status='ACTIVE',
+                encrypted_session_token='enc-session',
+                encrypted_recovery_token='enc-recovery',
+                feature_set='[]',
+                heartbeat_interval_seconds=300,
+            )
+        )
+        session.commit()
+    return (_RecordingDatabase(inner), instance_id)
+
+
+async def check_license_database_offloaded() -> None:
+    """B4：授权服务的同步查库必须都在工作线程里。
+
+    心跳、恢复、吊销清理、确认绑定这几条路径都会被请求 ``await``，其中任何一次
+    ``session_factory()`` 留在事件循环线程上，就是「一次 WAL 提交拖住所有请求」。
+    这里真的走一遍成功、失败（降级）、被吊销三条路径，把每一次开会话的线程记下来。
+    """
+    from backend.app.license.service import LicenseClientError
+
+    with tempfile.TemporaryDirectory(prefix='hb-license-') as tmp:
+        (database, instance_id) = _license_fixture(Path(tmp))
+        service = _bare_license_service(database, instance_id)
+
+        async def ok_post(_path: str, _payload: dict) -> dict:
+            # 形状与真响应一致：_apply_response 是**真**方法，会真的验签（桩）、
+            # 真的把租约写进 LicenseState 那一行。
+            return {'signedLease': 'signed-lease-2', 'sessionToken': 'session-token', 'recoveryToken': 'recovery-token'}
+
+        service._post = ok_post
+
+        result = await service.heartbeat()
+        check(
+            'B4 心跳成功路径真的执行了并落库（不是提前返回）',
+            bool(result.get('status')) and result.get('status') == 'ACTIVE',
+            f'status={result.get("status")}',
+        )
+        def read_stored() -> tuple[int, str]:
+            # 自检自己也要守规矩：这段读库放线程池，否则记录里会多一个事件循环线程的
+            # 开会话，把「授权服务的写库都不在事件循环上」这条断言自己搞红。
+            from backend.app.models import LicenseState
+            from sqlalchemy import select
+
+            with database.session_factory() as session:
+                stored = session.scalar(select(LicenseState).limit(1))
+                return (stored.lease_sequence, stored.status)
+
+        (stored_sequence, stored_status) = await asyncio.to_thread(read_stored)
+        check(
+            'B4 心跳把新租约真的写进了库（序号推进、状态转 ACTIVE）',
+            stored_sequence == 4 and stored_status == 'ACTIVE',
+            f'序号={stored_sequence}，状态={stored_status}',
+        )
+
+        async def failing_post(_path: str, _payload: dict) -> dict:
+            raise LicenseClientError('无法连接授权服务器。')
+
+        service._post = failing_post
+        try:
+            await service.heartbeat()
+        except LicenseClientError:
+            pass
+
+        async def revoked_post(_path: str, _payload: dict) -> dict:
+            raise LicenseClientError('设备绑定已解除。', status_code=403, code='REVOKED')
+
+        service._post = revoked_post
+        try:
+            await service.heartbeat()
+        except LicenseClientError:
+            pass
+        # 被吊销后本地凭证已清空，恢复路径会走到「没有可用的恢复凭证」这一步。
+        try:
+            await service.recover()
+        except LicenseClientError:
+            pass
+        # 确认绑定：读一次本地状态，再看要不要联网（节流窗口已过）。
+        service._last_binding_confirm_at = 0.0
+        await service.confirm_binding(force=True)
+
+        threads = list(database.threads)
+
+    check(
+        'B4 授权路径的每一次同步查库都不在事件循环线程上（心跳成功/失败/吊销/恢复/确认绑定）',
+        database.all_off_loop() and len(threads) >= 6,
+        f'{len(threads)} 次开会话，线程 {sorted(set(threads))}（事件循环线程 {LOOP_THREAD}）',
+    )
+
+
+async def check_binding_confirm_single_flight() -> None:
+    """B55：确认绑定的节流窗口必须「先占位再联网」，并发调用只发一次请求。
+
+    修复前时间戳是在 ``finally`` 里补记的，因此十个并发调用会全部通过节流判定，
+    一起排在 ``_heartbeat_lock`` 后面 —— 等待时间随标签页数量增长，这就是
+    「多刷几下页面就卡住」的成因。这里用十个并发调用把差别测出来。
+    """
+    with tempfile.TemporaryDirectory(prefix='hb-confirm-') as tmp:
+        (database, instance_id) = _license_fixture(Path(tmp))
+        service = _bare_license_service(database, instance_id)
+        calls: list[float] = []
+
+        async def counting_heartbeat() -> dict:
+            calls.append(time.monotonic())
+            await asyncio.sleep(0.05)
+            return {'status': 'ACTIVE'}
+
+        service.heartbeat = counting_heartbeat
+
+        # 窗口在联网之前就占住：任务跑到第一个 await 时时间戳已经更新。
+        task = asyncio.create_task(service.confirm_binding())
+        await asyncio.sleep(0)
+        claimed_early = service._last_binding_confirm_at > 0
+        await task
+
+        await asyncio.gather(*[service.confirm_binding() for _ in range(9)])
+        after_burst = len(calls)
+
+        # 窗口推远一点后应当重新联网：证明节流不是「一次之后就再也不确认」。
+        service._last_binding_confirm_at = 0.0
+        await service.confirm_binding()
+        after_window = len(calls)
+
+        # 不需要联网时（未激活）不能白白占掉窗口。
+        service._binding_needs_confirm = lambda: False
+        service._last_binding_confirm_at = 0.0
+        await service.confirm_binding()
+        no_license_calls = len(calls)
+
+    check(
+        'B55 节流窗口在发起联网之前就被占住（并发调用不会一起排队）',
+        claimed_early,
+        f'联网前时间戳={service._last_binding_confirm_at:.3f}',
+    )
+    check(
+        'B55 10 个并发确认只发一次联网请求',
+        after_burst == 1,
+        f'10 个并发调用发了 {after_burst} 次网络请求（修复前是 10 次）',
+    )
+    check(
+        'B55 过了节流窗口后重新联网（节流不是「只确认这一次」）',
+        after_window == 2,
+        f'窗口推远后累计 {after_window} 次',
+    )
+    check(
+        'B55 无需联网时（未激活）不占用后续窗口',
+        no_license_calls == 2,
+        f'累计 {no_license_calls} 次（不应新增）',
+    )
+
+
+async def check_page_routes_throttled_confirm() -> None:
+    """B55：页面路由不得索要免节流的强制确认，同步查库也不许留在事件循环上。
+
+    拼的是真应用（``create_app``），只把数据库与授权服务换成记录桩：三个页面各
+    发一次请求，看授权服务是被怎么调的（有没有 force），以及会话校验开在哪个线程。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from backend.app.database import Base, Database
+    from backend.app.main import create_app
+    from backend.app.models import LoginSession, User
+    from backend.app.security import session_token_hash
+
+    now = datetime.now(timezone.utc)
+    with tempfile.TemporaryDirectory(prefix='hb-page-confirm-') as tmp:
+        inner = Database(f'sqlite:///{Path(tmp) / "app.db"}')
+        Base.metadata.create_all(inner.engine)
+        with inner.session_factory() as session:
+            session.add(User(id='u1', username='admin', password_hash='x', role='admin'))
+            session.commit()
+            session.add(
+                LoginSession(
+                    id_hash=session_token_hash('tok-live'),
+                    user_id='u1',
+                    created_at=now - timedelta(hours=1),
+                    last_seen_at=now,
+                    expires_at=now + timedelta(hours=1),
+                )
+            )
+            session.commit()
+        recording = _RecordingDatabase(inner)
+
+        app = create_app()
+        app.state.database = recording
+        app.state.admin_account = SimpleNamespace(user_id='u1', initialized=True)
+        confirms: list[dict] = []
+
+        async def fake_confirm(**kwargs) -> None:
+            confirms.append(kwargs)
+
+        def make_status(recording_db: _RecordingDatabase):
+            """造一个像真实现那样「要开一次同步会话」的 status 桩。
+
+            真 ``LicenseService.status()`` 会开一个短会话读 LicenseState 那一行；
+            桩若只返回一个常量，路由即使把它留在事件循环上也无从观测。
+            """
+            from sqlalchemy import select
+
+            from backend.app.models import LicenseState
+
+            def status() -> dict:
+                with recording_db.session_factory() as session:
+                    session.scalar(select(LicenseState).limit(1))
+                return {'status': 'ACTIVE', 'editorAllowed': True}
+
+            return status
+
+        app.state.license_service = SimpleNamespace(
+            confirm_binding=fake_confirm,
+            # status 照着真实现的样子读一次 LicenseState：它本身是同步查库，
+            # 路由若在原地调用，记录里就会多出一个「事件循环线程」的开会话。
+            status=make_status(recording),
+        )
+        cookie = {app.state.settings.cookie_name: 'tok-live'}
+
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            home = await client.get('/', cookies=cookie)
+            license_page = await client.get('/license', cookies=cookie)
+            studio = await client.get('/3d-studio', cookies=cookie)
+
+        forced = [item for item in confirms if item.get('force')]
+
+    check(
+        'B55 三个页面路由各确认一次，且都不要免节流的强制确认',
+        len(confirms) == 3 and not forced,
+        f'{len(confirms)} 次调用，其中带 force 的 {forced}',
+    )
+    check(
+        'B55 页面路由照常放行（修好后不该把页面挡掉）',
+        (home.status_code, license_page.status_code, studio.status_code) == (200, 303, 200),
+        f'/{home.status_code} /license={license_page.status_code} /3d-studio={studio.status_code}',
+    )
+    check(
+        'B55 页面路由的会话校验与状态读取都不在事件循环线程上',
+        recording.all_off_loop(),
+        f'开会话线程 {sorted(set(recording.threads))}（事件循环线程 {LOOP_THREAD}）',
+    )
+
+
+def check_export_rollback_error_chain() -> None:
+    """B39：覆盖导出时「回滚也失败」，原始异常不能被顶掉。
+
+    真的调 ``_install_export``（真目录、真 ZIP），把 ``_atomic_swap`` 换成
+    「本目录内第 2、3 次替换失败」的桩：第 1 次是旧目录改名成 backup（成功），
+    第 2 次是新目录就位（失败），第 3 次是回滚（也失败）。修复前抛出去的是回滚
+    的 OSError，真正的原因与备份位置都查不到。
+    """
+    import zipfile
+
+    from backend.app.api import studio3d
+
+    with tempfile.TemporaryDirectory(prefix='hb-rollback-') as tmp:
+        exports_dir = Path(tmp)
+        settings = SimpleNamespace(studio3d_exports_dir=exports_dir)
+        target = exports_dir / '户型图'
+        target.mkdir()
+        (target / 'old.png').write_bytes(b'old')
+
+        archive = exports_dir / '.upload-test.zip'
+        png_bytes = b'\x89PNG\r\n\x1a\n' + b'png-body'
+        with zipfile.ZipFile(archive, 'w') as handle:
+            handle.writestr('scene.json', '{}')
+            handle.writestr('new.png', png_bytes)
+        entries = list(studio3d._validate_archive(archive))
+        if entries:
+            # 先跑一次成功路径：证明这套装置本身是通的（不然失败断言没意义）。
+            ok_dir = exports_dir / 'ok'
+            ok_dir.mkdir()
+            installed = studio3d._install_export(
+                SimpleNamespace(studio3d_exports_dir=ok_dir), '户型图', archive, entries, False
+            )
+            check(
+                'B39 正常覆盖导出照旧成功（装置本身可用）',
+                installed is False and (ok_dir / '户型图' / 'new.png').read_bytes() == png_bytes,
+                f'installed={installed}',
+            )
+
+        real_swap = studio3d._atomic_swap
+        swaps: list[str] = []
+
+        def flaky_swap(source: Path, destination: Path) -> None:
+            if Path(destination).parent == exports_dir and Path(source).parent == exports_dir:
+                swaps.append(Path(destination).name)
+                if len(swaps) == 2:
+                    raise OSError('模拟：新目录就位失败')
+                if len(swaps) == 3:
+                    raise OSError('模拟：回滚也失败')
+            real_swap(source, destination)
+
+        try:
+            studio3d._atomic_swap = flaky_swap
+            raised = None
+            try:
+                studio3d._install_export(settings, '户型图', archive, entries, True)
+            except Exception as error:  # noqa: BLE001 - 这里就是要看抛出的那个异常
+                raised = error
+        finally:
+            studio3d._atomic_swap = real_swap
+
+        backups = [item for item in exports_dir.iterdir() if item.name.startswith('.previous-')]
+        backup_kept = bool(backups) and (backups[0] / 'old.png').read_bytes() == b'old'
+        message = str(raised)
+        cause_ok = isinstance(getattr(raised, '__cause__', None), OSError) and '新目录就位失败' in str(raised.__cause__)
+
+    check(
+        'B39 回滚失败时抛出的是「替换失败 + 回滚失败」的合并错误（原始原因没被顶掉）',
+        isinstance(raised, RuntimeError)
+        and '新目录就位失败' in message
+        and '回滚也失败' in message,
+        f'{type(raised).__name__}: {message[:120]}',
+    )
+    check(
+        'B39 异常链上保留原始异常（__cause__ 是那个 OSError）',
+        cause_ok,
+        f'cause={getattr(raised, "__cause__", None)!r}',
+    )
+    check(
+        'B39 回滚失败时旧目录仍在隐藏备份里（数据没丢，提示里给出备份名）',
+        backup_kept and '请手工恢复' in message,
+        f'备份 {[item.name for item in backups]}，提示里带备份名={".previous-" in message}',
+    )
+
+
 def check_every_check_is_wired() -> None:
     """每个 ``check_*`` 都必须被调用过（忘了接线的话，全绿是没有意义的）。
 
@@ -2798,6 +3594,13 @@ async def run() -> int:
     await check_revoke_other_sessions_requires_valid_session()
     check_same_origin_scheme_pinning()
     check_request_security_parity()
+    await check_stream_writes_offloaded()
+    await check_export_route_offloads_work()
+    await check_upload_route_offloads_work()
+    await check_license_database_offloaded()
+    await check_binding_confirm_single_flight()
+    await check_page_routes_throttled_confirm()
+    check_export_rollback_error_chain()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

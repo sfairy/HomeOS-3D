@@ -690,17 +690,21 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     async def home_page(request: Request):
         """编辑器主页：未初始化 → 设置页；未登录 → 登录页；授权非 ACTIVE → 授权页。
 
-        三道门禁顺序固定。进入前强制联网确认绑定。
+        三道门禁顺序固定。进入前联网确认绑定（走节流窗口，见 confirm_binding）。
         仅 ``ACTIVE`` 可进编辑器：``CONNECTION_WARNING`` 等宽限态虽然离线验签
         仍可能通过，但必须先经过授权页（展示告警 / 重新激活），避免「未激活
         却直接进主页」。心跳恢复为 ACTIVE 后授权页轮询会自动放行。
+
+        这一条是 ``async def`` 里的同步查库（会话校验、读授权状态），一律转线程池：
+        修复前它还会 ``confirm_binding(force=True)`` 跳过全部节流，于是「刷新几下
+        面板」就能让多个请求一起排在并发的网络往返后面（B55）。
         """
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
-        if not signed_in(request):
+        if not await asyncio.to_thread(signed_in, request):
             return RedirectResponse('/login', status_code = 303)
-        await request.app.state.license_service.confirm_binding(force=True)
-        license_status = request.app.state.license_service.status()
+        await request.app.state.license_service.confirm_binding()
+        license_status = await asyncio.to_thread(request.app.state.license_service.status)
         if license_status.get('status') != 'ACTIVE' or not license_status.get('editorAllowed'):
             return RedirectResponse('/license', status_code = 303)
         return FileResponse(app_settings.frontend_dir / 'index.html')
@@ -715,10 +719,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         """
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
-        if not signed_in(request):
+        if not await asyncio.to_thread(signed_in, request):
             return RedirectResponse('/login', status_code = 303)
-        await request.app.state.license_service.confirm_binding(force=True)
-        license_status = request.app.state.license_service.status()
+        await request.app.state.license_service.confirm_binding()
+        license_status = await asyncio.to_thread(request.app.state.license_service.status)
         if license_status.get('status') == 'ACTIVE' and license_status.get('editorAllowed'):
             return RedirectResponse('/', status_code = 303)
         return FileResponse(app_settings.frontend_dir / 'license.html')
@@ -728,10 +732,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         """3D 户型工作室：需要登录 + editor 能力。"""
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
-        if not signed_in(request):
+        if not await asyncio.to_thread(signed_in, request):
             return login_redirect(request)
-        await request.app.state.license_service.confirm_binding(force=True)
-        license_status = request.app.state.license_service.status()
+        await request.app.state.license_service.confirm_binding()
+        license_status = await asyncio.to_thread(request.app.state.license_service.status)
         if license_status.get('status') != 'ACTIVE' or not license_status.get('editorAllowed'):
             return RedirectResponse('/license', status_code = 303)
         return FileResponse(app_settings.frontend_dir / '3d-studio.html')

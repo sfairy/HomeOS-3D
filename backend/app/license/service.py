@@ -155,6 +155,21 @@ class LicenseService:
     #: 打开编辑器等入口强制联网确认；状态轮询走节流，避免打爆授权服务。
     BINDING_CONFIRM_THROTTLE_SECONDS = 15.0
 
+    def _binding_needs_confirm(self) -> bool:
+        """读本地凭证判断这次调用是否真需要联网（同步，调用方放进工作线程）。
+
+        条件：已激活、有签名租约、且状态处在「心跳还在续租」的那几个值上。
+        终态（未激活 / 已停用）不需要也不该联网。
+        """
+        with self.database.session_factory() as database:
+            state = self._state(database)
+            return bool(
+                state.license_id
+                and state.signed_lease
+                and state.status
+                in frozenset({'ACTIVE', 'CONNECTION_WARNING', 'STARTUP_VALIDATION_REQUIRED', 'LEASE_EXPIRED'})
+            )
+
     async def confirm_binding(self, *, force: bool = False) -> None:
         """联网确认设备绑定仍有效；商店解绑 / 停用后清空本地授权。
 
@@ -166,26 +181,20 @@ class LicenseService:
                 ``BINDING_CONFIRM_THROTTLE_SECONDS`` 确认一次（状态轮询）。
 
         网络失败不清空本地租约（保持离线可用）；仅「确认吊销」会 ``_mark_revoked``。
+
+        并发语义：节流窗口在**发起联网之前**就被占住，因此窗口期内的并发调用
+        （多标签页同时刷新、页面与轮询一起到）里只有一个真的发请求，其余立刻
+        带着本地状态返回。否则它们会一起排在 ``_heartbeat_lock`` 后面，
+        等待时间随标签页数量无界增长 —— 这正是 B55 里「刷新几下面板就卡住」的成因。
         """
         if not self.settings.license_required or not self._endpoint_pool.configured:
             return
         now = time.monotonic()
-        if (
-            not force
-            and self._last_binding_confirm_at
-            and (now - self._last_binding_confirm_at) < self.BINDING_CONFIRM_THROTTLE_SECONDS
-        ):
+        if not force and (now - self._last_binding_confirm_at) < self.BINDING_CONFIRM_THROTTLE_SECONDS:
             return
-        with self.database.session_factory() as database:
-            state = self._state(database)
-            needs_confirm = bool(
-                state.license_id
-                and state.signed_lease
-                and state.status
-                in frozenset({'ACTIVE', 'CONNECTION_WARNING', 'STARTUP_VALIDATION_REQUIRED', 'LEASE_EXPIRED'})
-            )
-        if not needs_confirm:
-            self._last_binding_confirm_at = time.monotonic()
+        self._last_binding_confirm_at = now
+        # 同步查库放线程池：SQLAlchemy 的同步会话跑在事件循环上会拖住所有请求（B4）。
+        if not await asyncio.to_thread(self._binding_needs_confirm):
             return
         try:
             # heartbeat 在 401 时会转 recover；确认吊销时内部已清空本地凭证。
@@ -195,8 +204,6 @@ class LicenseService:
                 # 本地已是 REVOKED；调用方随后 allows() / status() 会拦截并引导重激活。
                 self._log_event('warning', f'联网确认绑定失败（已吊销）：{error}')
             # 网络 / 临时故障：保留离线租约，等心跳循环重试。
-        finally:
-            self._last_binding_confirm_at = time.monotonic()
 
     def _log_event(self, level: str, message: str) -> None:
         """写一条授权事件日志。
@@ -389,19 +396,68 @@ class LicenseService:
             self._record_status(state.status, state.last_error)
         return state
 
-    async def start(self) -> None:
-        """启动授权服务：离线校验本地状态，必要时联网确认，然后拉起心跳循环。
+    # ------------------------------------------------------------------ #
+    # 下列方法都只做同步查库 / 落库，供 async 调用方用 asyncio.to_thread 转交。
+    # SQLAlchemy 的同步会话跑在事件循环上会阻塞所有请求（B4），因此授权路径里
+    # 每一段「读状态 → 联网 → 写状态」之间的同步部分都收敛成这些私有方法。
+    # ------------------------------------------------------------------ #
+    def _activation_instance_id(self) -> str:
+        """取当前实例 ID（同步，供 ``activate`` 放线程池）。"""
+        with self.database.session_factory() as database:
+            return self._state(database).instance_id
 
-        副作用:
-            可能修改数据库中的状态字段；会创建后台心跳任务。
+    def _activation_credentials(self) -> tuple[bool, str | None, str]:
+        """取自动重激活要用的本地凭证（同步，供 ``reactivate`` 放线程池）。
+
+        返回: (是否已激活, 加密的激活码, 授权邮箱)。
+        """
+        with self.database.session_factory() as database:
+            state = self._state(database)
+            return (bool(state.license_id), state.encrypted_activation_code, state.activation_email or '')
+
+    def _heartbeat_credentials(self) -> tuple[str | None, int, str]:
+        """取心跳要用的本地凭证（同步，供 ``_heartbeat_unlocked`` 放线程池）。
+
+        返回: (加密的会话令牌, 本地租约序号, 实例 ID)。
+
+        实例 ID 是必须回传的一项：服务端靠它识别「同一张授权已被另一台设备重新
+        激活」，少了它就认不出旧会话，解绑对旧设备等于没生效。
+        """
+        with self.database.session_factory() as database:
+            state = self._state(database)
+            return (state.encrypted_session_token, state.lease_sequence, state.instance_id)
+
+    def _recovery_credentials(self) -> tuple[str | None, str, int]:
+        """取租约恢复要用的本地凭证（同步，供 ``_recover_unlocked`` 放线程池）。
+
+        返回: (加密的恢复令牌, 实例 ID, 本地租约序号)。
+        """
+        with self.database.session_factory() as database:
+            state = self._state(database)
+            return (state.encrypted_recovery_token, state.instance_id, state.lease_sequence)
+
+    def _begin_startup_validation(self) -> bool:
+        """启动期离线校验（同步，调用方放进工作线程）；返回是否还需联网确认。
+
+        副作用: 可能修改数据库中的状态字段。
         """
         with self.database.session_factory() as database:
             state = self._state(database)
             self._validate_saved_state(state, database)
             # 三个条件同时成立才要求联网确认：配置要求授权、已有激活记录、且本地有签名租约。
             # 纯离线部署（未激活）不受影响。
-            self._startup_validation_pending = bool(self.settings.license_required and state.license_id and state.signed_lease)
-            self._record_status('STARTUP_VALIDATION_REQUIRED' if self._startup_validation_pending else state.status)
+            pending = bool(self.settings.license_required and state.license_id and state.signed_lease)
+            self._record_status('STARTUP_VALIDATION_REQUIRED' if pending else state.status)
+            return pending
+
+    async def start(self) -> None:
+        """启动授权服务：离线校验本地状态，必要时联网确认，然后拉起心跳循环。
+
+        副作用:
+            可能修改数据库中的状态字段；会创建后台心跳任务。
+        """
+        # 离线校验要读写 LicenseState：放线程池，别在事件循环里做同步查库（B4）。
+        self._startup_validation_pending = await asyncio.to_thread(self._begin_startup_validation)
         # 没配置端点就没法联网确认，直接跳过（保持离线验签给出的判定）。
         if self._startup_validation_pending and self._endpoint_pool.configured:
             try:
@@ -413,7 +469,7 @@ class LicenseService:
                 # 租约未过期 → CONNECTION_WARNING（门禁放行），已过期 → LEASE_EXPIRED（拦截）。
                 # 心跳循环会持续重试，服务器恢复后自动续租回到 ACTIVE。
                 if not error.is_confirmed_revocation:
-                    self._clear_startup_validation()
+                    await asyncio.to_thread(self._clear_startup_validation)
         if self._endpoint_pool.configured:
             # 复位停信号：先 stop() 再 start() 时要能重新工作。
             self._stop.clear()
@@ -673,9 +729,8 @@ class LicenseService:
         异常:
             LicenseClientError: 邮箱缺失（422）、激活码被拒或租约校验失败。
         """
-        with self.database.session_factory() as database:
-            state = self._state(database)
-            instance_id = state.instance_id
+        # 同步查库（可能新建那一行状态）放线程池，别占着事件循环（B4）。
+        instance_id = await asyncio.to_thread(self._activation_instance_id)
         payload = {
             # 归一化激活码：去掉空白并转大写，容忍用户输入的格式差异。
             'activationCode': activation_code.strip().upper(),
@@ -693,7 +748,9 @@ class LicenseService:
         payload['email'] = normalized_email
         try:
             response = await self._post('/v2/activate', payload)
-            result = self._apply_response(
+            # 落库要验签、写多个字段并 commit：一并放线程池。
+            result = await asyncio.to_thread(
+                self._apply_response,
                 response,
                 # 只保留前段作为界面提示：截掉后 9 位，界面上不暴露完整激活码。
                 activation_code_hint = activation_code.strip()[:-9],
@@ -727,11 +784,8 @@ class LicenseService:
         本机没有可用激活凭证时返回 ``MANUAL_ACTIVATION_REQUIRED``，前端据此展开
         激活表单让用户手动输入。
         '''
-        with self.database.session_factory() as database:
-            state = self._state(database)
-            licensed = bool(state.license_id)
-            encrypted_activation_code = state.encrypted_activation_code
-            email = state.activation_email or ''
+        # 同步查库放线程池（B4）：授权路径上的每一段同步读写都不留在事件循环里。
+        (licensed, encrypted_activation_code, email) = await asyncio.to_thread(self._activation_credentials)
         if not licensed:
             raise LicenseClientError('当前安装尚未激活，请填写激活码完成激活。', status_code=409, code=MANUAL_ACTIVATION_REQUIRED)
         try:
@@ -764,13 +818,9 @@ class LicenseService:
         优先用会话令牌续租；没有会话令牌或服务端回 401 时回落到恢复令牌；
         确认吊销则清空本地授权；其余失败只降级状态（保留租约，等待重试）。
         """
-        with self.database.session_factory() as database:
-            state = self._state(database)
-            encrypted = state.encrypted_session_token
-            lease_sequence = state.lease_sequence
-            # 会话与本地实例的绑定关系要在请求里一并证明：服务端靠它识别
-            # 「同一张授权已经被另一台设备重新激活」的情形（见 store 侧 heartbeat）。
-            instance_id = state.instance_id
+        # 同步查库放线程池（B4）：心跳是请求路径也会 await 的（confirm_binding /
+        # activate / 页面门禁），不能让这段读写占着事件循环。
+        (encrypted, lease_sequence, instance_id) = await asyncio.to_thread(self._heartbeat_credentials)
         # 没有会话令牌说明从未激活成功或刚被清空，直接走恢复流程。
         if not encrypted:
             return await self._recover_unlocked()
@@ -789,7 +839,7 @@ class LicenseService:
                 'instanceId': instance_id,
                 'clientVersion': self.settings.version,
                 'nonce': secrets.token_urlsafe(24)})
-            result = self._apply_response(response)
+            result = await asyncio.to_thread(self._apply_response, response)
             self._record_online_success('心跳')
             return result
         except (LicenseClientError, LicenseCryptoError) as error:
@@ -799,11 +849,11 @@ class LicenseService:
                 return await self._recover_unlocked()
             # 确认吊销：清空本地授权后原样上抛（保留状态码与 code，reactivate 据此判定不可自愈）。
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
-                self._mark_revoked(str(error))
+                await asyncio.to_thread(self._mark_revoked, str(error))
                 raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
             # 其它失败（网络不可达、5xx）：按租约剩余有效期降级为
             # CONNECTION_WARNING 或 LEASE_EXPIRED，等下一轮心跳重试。
-            self._mark_failure(str(error))
+            await asyncio.to_thread(self._mark_failure, str(error))
             raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=getattr(error, 'code', None)) from error
 
     async def recover(self) -> dict:
@@ -813,11 +863,7 @@ class LicenseService:
 
     async def _recover_unlocked(self) -> dict:
         """用恢复令牌重新换取租约（调用方须已持有 _heartbeat_lock）。"""
-        with self.database.session_factory() as database:
-            state = self._state(database)
-            encrypted = state.encrypted_recovery_token
-            instance_id = state.instance_id
-            lease_sequence = state.lease_sequence
+        (encrypted, instance_id, lease_sequence) = await asyncio.to_thread(self._recovery_credentials)
         if not encrypted:
             # 连恢复令牌都没有：本地已无任何可用凭证，只能让用户重新激活。
             self._record_failure('租约恢复', '没有可用的租约恢复凭证，请重新激活。')
@@ -833,15 +879,15 @@ class LicenseService:
                 'leaseSequence': lease_sequence,
                 'clientVersion': self.settings.version,
                 'nonce': secrets.token_urlsafe(24)})
-            result = self._apply_response(response)
+            result = await asyncio.to_thread(self._apply_response, response)
             self._record_online_success('租约恢复')
             return result
         except (LicenseClientError, LicenseCryptoError) as error:
             self._record_failure('租约恢复', error, sensitive_values=(recovery_token, encrypted))
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
-                self._mark_revoked(str(error))
+                await asyncio.to_thread(self._mark_revoked, str(error))
                 raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
-            self._mark_failure(str(error))
+            await asyncio.to_thread(self._mark_failure, str(error))
             raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=getattr(error, 'code', None)) from error
 
     def _mark_revoked(self, message: str) -> None:
@@ -948,6 +994,21 @@ class LicenseService:
         # 不允许负等待；到期时间比间隔更近时提前唤醒。
         return max(0, min(interval, remaining))
 
+    def _heartbeat_wait(self) -> float | None:
+        """读库算出本轮该等多久（同步，供心跳循环放线程池）。"""
+        with self.database.session_factory() as database:
+            return self._heartbeat_wait_seconds(self._state(database))
+
+    def _due_state(self) -> tuple[bool, str, bool]:
+        """超时醒来后重新读一次状态（同步，供心跳循环放线程池）。
+
+        返回: (是否仍有授权, 状态, 租约是否已到期)。
+        """
+        with self.database.session_factory() as database:
+            state = self._state(database)
+            expires = aware(state.lease_expires_at)
+            return (bool(state.license_id), state.status, bool(expires and expires <= datetime.now(timezone.utc)))
+
     async def _heartbeat_loop(self) -> None:
         """心跳主循环：等一个「计划变更」或超时，然后续租或恢复。
 
@@ -956,21 +1017,16 @@ class LicenseService:
         while not self._stop.is_set():
             # 先清后等：清掉上一轮遗留的信号，避免本轮空转。
             self._schedule_changed.clear()
-            with self.database.session_factory() as database:
-                state = self._state(database)
-                wait_seconds = self._heartbeat_wait_seconds(state)
+            # 每轮都要读库，同样放线程池：这是常驻后台任务，占住事件循环就是
+            # 让所有请求为它让路（B4）。
+            wait_seconds = await asyncio.to_thread(self._heartbeat_wait)
             try:
                 # 用事件等待代替 sleep：激活成功后能立刻打断长等待。
                 # wait_seconds 为 None 表示一直等到有变更为止。
                 await asyncio.wait_for(self._schedule_changed.wait(), timeout=wait_seconds)
             except TimeoutError:
                 # 超时才是「该续租了」；被事件唤醒则说明计划已变，直接进入下一轮重算。
-                with self.database.session_factory() as database:
-                    state = self._state(database)
-                    status = state.status
-                    has_license = bool(state.license_id)
-                    expires = aware(state.lease_expires_at)
-                    lease_expired = bool(expires and expires <= datetime.now(timezone.utc))
+                (has_license, status, lease_expired) = await asyncio.to_thread(self._due_state)
                 # 状态可能在等待期间被清空（吊销 / 重新激活），此时无需联网。
                 if not has_license:
                     continue

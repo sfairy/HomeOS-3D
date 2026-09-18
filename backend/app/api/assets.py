@@ -9,6 +9,7 @@
 上传的 SVG 先做白名单式清洗再落盘；读取一律带长期缓存头，靠 URL 里的版本参数失效。
 '''
 from __future__ import annotations
+import asyncio
 import json
 import hashlib
 import math
@@ -26,6 +27,7 @@ from sqlalchemy import select
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_viewer_studio3d_asset, require_viewer_user_asset, viewer_user_asset_ids
 from ..models import Project, ProjectDraft
 from ..global_popups import global_popups
+from ..streaming import write_stream_in_batches
 
 router = APIRouter(prefix = '/assets', tags = [
     'assets'])
@@ -863,24 +865,24 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
     path = directory / filename
     try:
         # 流式落盘：不把整个上传体读进内存，也不预先信任 Content-Length。
-        has_content = False
-        received = 0
+        # 写盘分批放进线程池（见 streaming.write_stream_in_batches）：留在事件循环里
+        # 的话，一次 64 MB 上传的几十次 write 系统调用会串在所有请求前面。
         with path.open('xb') as descriptor:
-            async for chunk in request.stream():
-                if not chunk:
-                    continue
-                received += len(chunk)
+            def _reject_oversized(received: int) -> None:
                 # 逐块累计：Content-Length 可以是假的，分块传输则干脆没有它。
                 if received > byte_limit:
                     raise HTTPException(status_code = 413, detail = f'图片不能超过 {size_hint}，请压缩后重试。')
-                has_content = True
-                descriptor.write(chunk)
-            descriptor.flush()
-        if not has_content:
+
+            received = await write_stream_in_batches(request.stream(), descriptor, before_write = _reject_oversized)
+            # 最后留在 Python 缓冲里的不足一批（至多 BATCH_BYTES），同样别占着事件循环。
+            await asyncio.to_thread(descriptor.flush)
+        if received == 0:
             raise HTTPException(status_code = 422, detail = '请选择需要上传的图片。')
         # 先落盘再校验：Pillow 与 XML 解析都要文件路径；不通过就在下面把文件与目录清理掉。
+        # 解码最大 64 MB / 1000 万像素的位图、解析 5 MB XML 都是 CPU 与 IO 重活，
+        # 放进线程池（B6）：放在事件循环里，一张大图就能让整个应用停摆几百毫秒。
         try:
-            dimensions = validate_uploaded_image(suffix, path)
+            dimensions = await asyncio.to_thread(validate_uploaded_image, suffix, path)
         except ValueError as error:
             raise HTTPException(status_code = 422, detail = str(error)) from error
         path.chmod(384)
@@ -890,7 +892,9 @@ async def upload_user_asset(request: Request, _user: LicensedUser) -> dict:
             path.unlink()
         directory.rmdir()
         raise
-    return request.app.state.asset_catalog.register_user(asset_id, path, dimensions)
+    # 登记同样要进线程池：内部会为这张图生成透明裁剪变体（另一次完整的 Pillow
+    # 解码 + PNG 编码），与上面的校验是同一类同步重活。
+    return await asyncio.to_thread(request.app.state.asset_catalog.register_user, asset_id, path, dimensions)
 
 @router.get('/user/{asset_id}')
 def read_user_asset(asset_id: str, request: Request, viewer: LicensedViewer) -> FileResponse:

@@ -324,7 +324,8 @@ async def save_connection(
         403 授权不足或非管理员；422 试连失败、首次连接缺 Token、旧 Token 解密失败。
     """
     # ha.configure 是最高一档能力码：改 HA 地址与 Token 等于交出控制面。
-    if not request.app.state.license_service.allows('ha.configure'):
+    # 同步查库的门禁：async 路由里一律转线程池（B4），别在事件循环上开连接。
+    if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.configure'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
     require_admin(user)
     connector = request.app.state.ha_connector
@@ -699,7 +700,7 @@ async def run_sync(request: Request, _database: DatabaseSession, user: LicensedU
     异常:
         403 授权不足或非管理员；409 未配置 HA；502 HA 侧错误或凭证解密失败。
     """
-    if not request.app.state.license_service.allows('ha.sync'):
+    if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.sync'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许同步 Home Assistant。')
     require_admin(user)
     connection = await asyncio.to_thread(load_active_connection_snapshot, request.app.state.database)
@@ -754,7 +755,7 @@ async def call_service(
         403 授权不足或服务不在白名单；422 参数不允许、域不匹配；
         409 未配置 HA；404 实体不存在 / 禁用 / 失联；502 调用失败。
     """
-    if not request.app.state.license_service.allows('ha.control'):
+    if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.control'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
     # 白名单里没有这个 (domain, service) 就直接拒绝，不做任何回源尝试。
     allowed_fields = ALLOWED_SERVICES.get((payload.domain, payload.service))
@@ -848,7 +849,7 @@ async def browse_media(
         403 授权不足；422 实体不是媒体播放器；409 未配置 HA；
         404 实体不存在 / 禁用 / 失联；502 HA 侧错误。
     """
-    if not request.app.state.license_service.allows('ha.control'):
+    if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.control'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
     entity_domain = payload.entity_id.partition('.')[0]
     # 媒体浏览只对媒体播放器有意义，其它域直接拒绝，不必回源。

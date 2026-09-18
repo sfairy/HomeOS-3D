@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from contextlib import nullcontext
@@ -260,13 +261,19 @@ def delete_project(project_id: str, payload: ProjectDeleteRequest, request: Requ
 async def get_project_draft(project_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """读取项目草稿：文档本体 + schemaVersion / revision / 全局弹窗版本。
 
-    打开项目前强制联网确认绑定：商店解绑后不能继续用离线租约读草稿。
+    打开项目前联网确认绑定（走节流窗口）：商店解绑后不能继续用离线租约读草稿。
+    节流窗口是 15 秒，比心跳间隔（默认 300 秒）短得多，因此解绑最多 15 秒就反映到
+    这里，而请求路径上不再有「每打开一次项目就一次网络往返」的等待。
+
     中控设备只能读自己绑定的项目，越权 403「该中控设备未绑定此仪表盘。」；
     草稿不存在抛 404「项目草稿不存在。」。
+
+    同步查库与文档水合都在工作线程里做（B4）：这条路由是 ``async def``（要 await
+    联网确认），而 SQLAlchemy 的同步会话与整份文档的 JSON 解析都不该留在事件循环上。
     """
-    await request.app.state.license_service.confirm_binding(force=True)
-    if not request.app.state.license_service.allows('api'):
-        license_status = request.app.state.license_service.status()
+    await request.app.state.license_service.confirm_binding()
+    if not await asyncio.to_thread(request.app.state.license_service.allows, 'api'):
+        license_status = await asyncio.to_thread(request.app.state.license_service.status)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -276,9 +283,21 @@ async def get_project_draft(project_id: str, request: Request, database: Databas
             },
         )
     require_viewer_project(viewer, project_id)
+    payload = await asyncio.to_thread(_draft_payload, database, project_id, viewer)
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+    return payload
+
+
+def _draft_payload(database: DatabaseSession, project_id: str, viewer: LicensedViewer) -> dict | None:
+    """读取草稿并组装响应体（同步，调用方放进工作线程）。
+
+    草稿不存在返回 None，由调用方转 404 —— 把「有没有草稿」与「怎么回响应」分开，
+    工作线程里就不必抛 HTTPException。
+    """
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目草稿不存在。')
+        return None
     # 中控设备视角只水合文档真正引用到的组合弹窗，避免把整个弹窗库下发到墙面屏。
     document = hydrate_document_popups(database, json.loads(draft.document_json), referenced_only=viewer.project_id is not None)
     return {
