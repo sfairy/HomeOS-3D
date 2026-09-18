@@ -27,6 +27,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from .time_utils import ensure_aware
+
 # 请求级上下文：由中间件写入 requestId / method / path 等，
 # 这样深层代码 append 日志时不必一路透传这些字段。
 #
@@ -666,8 +668,8 @@ class GlobalLogStore:
                 timestamp = datetime.fromisoformat(
                     str(event.get("lastTimestamp") or event["timestamp"])
                 )
-                if timestamp.tzinfo is None:
-                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+                # 落库/落盘时间没有时区，按 UTC 解释后再与 cutoff 比较。
+                timestamp = ensure_aware(timestamp)
                 if timestamp < cutoff:
                     continue
             except (TypeError, ValueError, KeyError):
@@ -872,8 +874,7 @@ class GlobalLogStore:
                 timestamp = datetime.fromisoformat(
                     str(event.get("lastTimestamp") or event.get("timestamp"))
                 )
-                if timestamp.tzinfo is None:
-                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+                timestamp = ensure_aware(timestamp)
                 if timestamp < cutoff:
                     continue
             except (TypeError, ValueError):

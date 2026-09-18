@@ -26,7 +26,7 @@ from store.api.store import (
     _license_meta,
     _product_stats,
 )
-from store.deps import AdminAccount, DbSession, SettingsDep
+from store.deps import AdminAccount, DbSession, SettingsDep, order_or_404
 from store.expiry import expire_stale_orders
 from store.order_status import (
     ORDER_ATTENTION_STATUSES,
@@ -188,13 +188,6 @@ def _product_or_404(session, product_id: str) -> Product:
     if product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="商品不存在。")
     return product
-
-
-def _order_or_404(session, order_no: str) -> Order:
-    order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
-    if order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
-    return order
 
 
 def _account_payload(session, account: Account) -> dict:
@@ -1207,7 +1200,7 @@ def _manual_payment(
     进去行为不同」。
     """
     setting = site_config.get_setting(session)
-    order = _order_or_404(session, order_no)
+    order = order_or_404(session, order_no)
     if order.status == "fulfilled":
         return order_payload(order)
     # payment_failed 不在这里补标记：该状态在支付失败时已释放库存预留与优惠码
@@ -1255,7 +1248,7 @@ def _manual_payment(
 @router.post("/orders/{order_no}/fulfill")
 def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dict:
     setting = site_config.get_setting(session)
-    order = _order_or_404(session, order_no)
+    order = order_or_404(session, order_no)
     if order.status == "fulfilled":
         return order_payload(order)
     # 终态订单不能履约：cancelled / expired 的库存与优惠码名额早已释放，
@@ -1304,7 +1297,7 @@ def admin_review_order(
     清标记同时把复核结论追加进 ``review_note``（保留原因，不覆盖）：事后复盘
     「这单当时为什么放行」只能靠它。
     """
-    order = _order_or_404(session, order_no)
+    order = order_or_404(session, order_no)
     if order.status == "pending":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1426,7 +1419,7 @@ def _refund_order(
     admin: AdminAccount,
 ) -> dict:
     setting = site_config.get_setting(session)
-    order = _order_or_404(session, order_no)
+    order = order_or_404(session, order_no)
     if order.status not in ORDER_REFUNDABLE_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1725,7 +1718,7 @@ def admin_list_order_refunds(
     支持多次部分退款之后，「这张单到底退了几次、每次多少钱」必须能一眼查到，
     否则对账只能靠翻审计日志里的自由文本。
     """
-    order = _order_or_404(session, order_no)
+    order = order_or_404(session, order_no)
     rows = session.scalars(
         select(OrderRefund)
         .where(OrderRefund.order_id == order.id)
@@ -1760,7 +1753,7 @@ def admin_list_order_refunds(
 def admin_cancel(
     order_no: str, payload: AdminOrderActionRequest, session: DbSession, admin: AdminAccount
 ) -> dict:
-    order = _order_or_404(session, order_no)
+    order = order_or_404(session, order_no)
     if order.status != "pending":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
     product = session.get(Product, order.product_id) if order.product_id else None
@@ -1811,7 +1804,7 @@ def admin_delete_order(order_no: str, session: DbSession, admin: AdminAccount) -
     用户手机上那个旧二维码仍然能付款。这种单删掉，延迟到账的钱就再也没有凭证
     （异步通知按订单号查不到，只会打一条 error 日志；巡检的回看窗口也已经过去）。
     """
-    order = _order_or_404(session, order_no)
+    order = order_or_404(session, order_no)
 
     if order.status not in {"cancelled", "expired"}:
         raise HTTPException(

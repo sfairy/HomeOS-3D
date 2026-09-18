@@ -24,6 +24,39 @@ from .ha.client import HAClientError, normalize_base_url
 CONTROL_CHARACTERS = re.compile('[\\x00-\\x1f\\x7f]')
 
 
+def _validated_device_name(value: str | None) -> str | None:
+    """设备名去首尾空白并挡住控制字符；去空白后为空视为非法。
+
+    P10 之前这段判断在 `schemas.py` 里写了**四份**（`DisplayPairingCodeRequest`、
+    `DisplayPairingCodeUpdateRequest`、`DisplayPairRequest`、`DisplayDeviceUpdateRequest`），
+    逐字节相同，只是方法名不同（`trim_pairing_name` / `trim_device_name` /
+    `trim_display_name`）—— 按名字搜只能找到其中两份，另外两份是靠「函数体逐字节
+    比对」才现形的。
+
+    合并的理由不只是少几行：这四条路径在改同一台设备的同一个字段，口径一旦漂开，
+    就会出现「生成配对码时能取的名字，改设备名时被拒」这种自相矛盾的报错。
+    """
+    if value is None:
+        return None
+    value = value.strip()
+    if not value or CONTROL_CHARACTERS.search(value):
+        raise ValueError('设备名称无效。')
+    return value
+
+
+def _validated_project_name(value: str) -> str:
+    """项目名去首尾空白；全空白视为非法。
+
+    P10 之前 `ProjectCreateRequest`（新建）与 `ProjectDuplicateRequest`（复制）
+    各有一份相同实现。项目名是正式展示地址的路径段（见 `display_path`），
+    两处口径必须一致，否则复制出来的项目可能带一个新建时不允许的名字。
+    """
+    value = value.strip()
+    if not value:
+        raise ValueError('项目名称不能为空。')
+    return value
+
+
 class SetupAdminRequest(BaseModel):
     """首次初始化管理员的请求体。"""
 
@@ -72,13 +105,8 @@ class DisplayPairingCodeRequest(BaseModel):
     @field_validator('name')
     @classmethod
     def trim_pairing_name(cls, value: str | None) -> str | None:
-        """去掉首尾空白后校验设备名；去空白后为空视为非法。"""
-        if value is None:
-            return None
-        value = value.strip()
-        if not value or CONTROL_CHARACTERS.search(value):
-            raise ValueError('设备名称无效。')
-        return value
+        """设备名去空白校验（口径见模块级 `_validated_device_name`）。"""
+        return _validated_device_name(value)
 
 
 class DisplayPairingCodeUpdateRequest(BaseModel):
@@ -93,13 +121,8 @@ class DisplayPairingCodeUpdateRequest(BaseModel):
     @field_validator('name')
     @classmethod
     def trim_pairing_name(cls, value: str | None) -> str | None:
-        """去空白后校验设备名；去空白后为空视为非法。"""
-        if value is None:
-            return None
-        value = value.strip()
-        if not value or CONTROL_CHARACTERS.search(value):
-            raise ValueError('设备名称无效。')
-        return value
+        """设备名去空白校验（口径见模块级 `_validated_device_name`）。"""
+        return _validated_device_name(value)
 
 
 class DisplayPairRequest(BaseModel):
@@ -113,13 +136,8 @@ class DisplayPairRequest(BaseModel):
     @field_validator('device_name')
     @classmethod
     def trim_device_name(cls, value: str | None) -> str | None:
-        """去空白后校验设备名；去空白后为空视为非法。"""
-        if value is None:
-            return None
-        value = value.strip()
-        if not value or CONTROL_CHARACTERS.search(value):
-            raise ValueError('设备名称无效。')
-        return value
+        """设备名去空白校验（口径见模块级 `_validated_device_name`）。"""
+        return _validated_device_name(value)
 
 
 class DisplayDeviceUpdateRequest(BaseModel):
@@ -133,13 +151,8 @@ class DisplayDeviceUpdateRequest(BaseModel):
     @field_validator('name')
     @classmethod
     def trim_display_name(cls, value: str | None) -> str | None:
-        """去空白后校验设备名；去空白后为空视为非法。"""
-        if value is None:
-            return None
-        value = value.strip()
-        if not value or CONTROL_CHARACTERS.search(value):
-            raise ValueError('设备名称无效。')
-        return value
+        """设备名去空白校验（口径见模块级 `_validated_device_name`）。"""
+        return _validated_device_name(value)
 
 
 class UserResponse(BaseModel):
@@ -276,11 +289,8 @@ class ProjectCreateRequest(BaseModel):
     @field_validator('name')
     @classmethod
     def trim_project_name(cls, value: str) -> str:
-        """去空白后校验项目名；全空白视为非法。"""
-        value = value.strip()
-        if not value:
-            raise ValueError('项目名称不能为空。')
-        return value
+        """项目名去空白校验（口径见模块级 `_validated_project_name`）。"""
+        return _validated_project_name(value)
 
 
 class ProjectDraftUpdate(BaseModel):
@@ -309,11 +319,8 @@ class ProjectDuplicateRequest(BaseModel):
     @field_validator('name')
     @classmethod
     def trim_project_name(cls, value: str) -> str:
-        """去空白后校验新项目名；全空白视为非法。"""
-        value = value.strip()
-        if not value:
-            raise ValueError('项目名称不能为空。')
-        return value
+        """项目名去空白校验（口径见模块级 `_validated_project_name`）。"""
+        return _validated_project_name(value)
 
 
 class ProjectDeleteRequest(BaseModel):

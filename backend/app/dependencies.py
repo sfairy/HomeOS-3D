@@ -38,6 +38,7 @@ from .models import (
 from .panel.documents import parse_document
 from .panel.entity_refs import document_entity_ids
 from .security import set_display_cookie
+from .time_utils import ensure_aware
 
 
 def get_database_session(request: Request):
@@ -51,19 +52,6 @@ def get_database_session(request: Request):
 
 # 路由函数标注 DatabaseSession 即可拿到可用会话，不必感知工厂细节。
 DatabaseSession = Annotated[Session, Depends(get_database_session)]
-
-
-def _aware(value: datetime) -> datetime:
-    """把可能缺失时区的时间统一成 UTC aware。
-
-    SQLite 取回的 datetime 常常没有 tzinfo，直接与 aware 时间比较会抛
-    TypeError，所以所有落库时间在比较前都要过这一层。
-    """
-    return (
-        value
-        if value.tzinfo is not None
-        else value.replace(tzinfo=timezone.utc)
-    )
 
 
 def _admin_session(
@@ -196,7 +184,7 @@ def _display_device(
     if device is None:
         return None
     # 5 分钟节流窗口：只有设备"冷下来"才回写活跃时间并续期 Cookie。
-    if now - _aware(device.last_seen_at) >= timedelta(minutes=5):
+    if now - ensure_aware(device.last_seen_at) >= timedelta(minutes=5):
         device.last_seen_at = now
         database.commit()
         # 重新下发 Cookie 是为了刷新浏览器侧的有效期，值不变。

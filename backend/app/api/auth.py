@@ -31,6 +31,7 @@ from ..security import (
     session_token_hash,
     verify_password,
 )
+from ..time_utils import ensure_aware
 
 # 整组路由不带 prefix：路径里的 /setup/* 与 /auth/* 是与前端约定死的，别改。
 # 单例限流器挂在 app.state.login_limiter 上，本模块只读取与累加计数。
@@ -40,11 +41,6 @@ router = APIRouter(tags=["authentication"])
 def public_user(user: User) -> UserResponse:
     """把 User 行裁剪成对外字段（不含口令哈希与 auth_externalized 等内部标记）。"""
     return UserResponse(id=user.id, username=user.username, role=user.role)
-
-
-def _aware(value: datetime) -> datetime:
-    """SQLite 取回的 datetime 可能不带时区，统一按 UTC 补齐再比较。"""
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
 def require_admin_account(user: User) -> None:
@@ -455,7 +451,7 @@ def list_sessions(
             .order_by(LoginSession.last_seen_at.desc())
         )
     )
-    expired = [record for record in records if _aware(record.expires_at) <= now]
+    expired = [record for record in records if ensure_aware(record.expires_at) <= now]
     if expired:
         for record in expired:
             database.delete(record)

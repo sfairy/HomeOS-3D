@@ -30,6 +30,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from ..secret_key_file import load_or_create_secret_key
+from ..time_utils import ensure_aware
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 
@@ -193,10 +194,8 @@ def parse_timestamp(value: str) -> datetime:
         raise LicenseCryptoError('租约时间格式无效。') from error
     # 没有时区信息时按 UTC 解释：服务端始终以 UTC 签发，
     # 缺失时区不能理解成本机时区，否则跨时区部署会误判租约到期。
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    # 统一折算到 UTC，保证后续所有比较都在同一时区上进行。
-    return parsed.astimezone(timezone.utc)
+    # 再统一折算到 UTC，保证后续所有比较都在同一时区上进行。
+    return ensure_aware(parsed).astimezone(timezone.utc)
 
 
 def _decode(value: str) -> bytes:

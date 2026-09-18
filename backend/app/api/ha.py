@@ -123,6 +123,10 @@ def load_active_connection_snapshot(database_manager: Database) -> HAConnection 
     """在独立会话里取活跃连接并在返回前 detach，供 async 路由用 to_thread 调用。
 
     async 路由不能在事件循环里做同步查库，这个函数就是给 asyncio.to_thread 用的入口。
+
+    **本函数是全仓唯一一份**：同目录的 ``ha_proxy.py`` 原先也有一份逐字节相同的
+    ``load_active_connection``（P10 合并），两处调用点同形，只有名字不同。
+    ``ha_proxy`` 从本模块导入即可 —— 它本来就依赖这里的 ``active_connection``。
     """
     with database_manager.session_factory() as database:
         connection = active_connection(database)

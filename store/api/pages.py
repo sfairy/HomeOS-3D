@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import func, select, update
 
 from store import cashier, coupons, fulfill, site_settings as site_config
-from store.deps import CurrentAccount, DbSession
+from store.deps import CurrentAccount, DbSession, order_or_404
 from store.models import Account, Order, Product, ProductImage
 from store.order_status import order_status_label
 from store.payments.base import PaymentError
@@ -273,9 +273,7 @@ def mock_cashier(
     地址栏里自然什么都没有。旧订单里存的 ``?token=`` 链接从此不再被接受 ——
     这正是这条修复的目的（那种 URL 就是长期凭据的第二份副本）。
     """
-    order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
-    if order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
+    order = order_or_404(session, order_no)
 
     signed_in = account is not None and order.account_id == account.id
     if not signed_in and cashier.find_ticket(session, order, t) is None:
@@ -289,13 +287,6 @@ def mock_cashier(
     )
 
 
-def _order_or_404(session, order_no: str) -> Order:
-    order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
-    if order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
-    return order
-
-
 def _authorize_mock(order: Order, order_token: str | None) -> None:
     """校验订单凭证。用常量时间比较：这是可以换取「免费发码」的 bearer 凭证，
     普通 ``!=`` 会在第一个不同的字符上短路，泄漏出可被逐字节爆破的时间差。"""
@@ -306,7 +297,7 @@ def _authorize_mock(order: Order, order_token: str | None) -> None:
 @router.post("/store/v1/orders/{order_no}/mock/pay", include_in_schema=False)
 def mock_pay(order_no: str, request: Request, session: DbSession, payload: dict | None = None) -> dict:
     _ensure_mock_provider(request, session)
-    order = _order_or_404(session, order_no)
+    order = order_or_404(session, order_no)
     token = (payload or {}).get("orderToken") or request.headers.get("x-order-token")
     _authorize_mock(order, token)
     _ensure_mock_order(order)
@@ -358,7 +349,7 @@ def mock_pay(order_no: str, request: Request, session: DbSession, payload: dict 
 @router.post("/store/v1/orders/{order_no}/mock/cancel", include_in_schema=False)
 def mock_cancel(order_no: str, request: Request, session: DbSession, payload: dict | None = None) -> dict:
     _ensure_mock_provider(request, session)
-    order = _order_or_404(session, order_no)
+    order = order_or_404(session, order_no)
     token = (payload or {}).get("orderToken") or request.headers.get("x-order-token")
     _authorize_mock(order, token)
     _ensure_mock_order(order)

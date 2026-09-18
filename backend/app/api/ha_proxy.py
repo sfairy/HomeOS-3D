@@ -31,7 +31,7 @@ from ..database import Database
 from ..dependencies import ShortLivedLicensedViewer, ViewerPrincipal, require_viewer_entity
 from ..ha.client import HAClientError
 from ..ha.crypto import CredentialCipherError
-from .ha import active_connection
+from .ha import active_connection, load_active_connection_snapshot
 
 router = APIRouter(include_in_schema=False)
 # 允许代理的 HA 媒体路径前缀。代理是通配路由，这份白名单就是唯一的门禁：
@@ -534,18 +534,6 @@ def _camera_snapshot_response(entry: CameraSnapshotCacheEntry) -> Response:
     return Response(content=entry.content, media_type=entry.content_type, headers={'cache-control': 'private, no-store'})
 
 
-def load_active_connection(database_manager: Database):
-    """在独立会话里取当前活跃 HA 连接，并在返回前 detach。
-
-    代理是长连接场景，会话必须随取随还，不能把连接池占在请求生命周期上。
-    """
-    with database_manager.session_factory() as database:
-        connection = active_connection(database)
-        if connection is not None:
-            database.expunge(connection)
-        return connection
-
-
 def load_authorized_camera_connection(
     database_manager: Database, viewer: ViewerPrincipal, entity_id: str
 ):
@@ -577,7 +565,7 @@ async def proxy_http(request: Request) -> Response:
     if request.method not in {'GET', 'HEAD'} or not allowed_media_proxy_path(request.url.path):
         # 路径不合规统一回 404 而不是 403：不向扫描者暴露哪些前缀存在。
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='媒体资源不存在。')
-    connection = await asyncio.to_thread(load_active_connection, request.app.state.database)
+    connection = await asyncio.to_thread(load_active_connection_snapshot, request.app.state.database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')
     try:

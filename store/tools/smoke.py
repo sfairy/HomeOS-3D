@@ -9061,6 +9061,140 @@ def check_single_escaper() -> None:
     )
 
 
+def check_no_duplicated_store_helpers() -> None:
+    """P10：商店侧合并过的助手只此一份，且不许再长回各自的副本。
+
+    与主应用侧的 ``check_no_duplicated_helper_implementations`` 是一对：
+    那条闸扫的是全仓（含商店），但它在主应用的进程里跑 —— 单跑商店自检时
+    不会执行。这里补上商店侧自己能看见的那部分，两边各守一摊。
+
+    盯两件事：
+
+    * ``order_or_404`` 只在 ``store/deps.py`` 里定义（原先 admin 与 pages 各一份，
+      逐字节相同）；
+    * 路由模块里不许再出现自己那份取单实现 —— 无论是同名函数，还是内联的
+      「按单号查单 + 判 None」。
+
+    第 2 条不是从清单抄来的，而是这条断言**自己发现的**：4.3 的 A 类只按函数名比对，
+    所以记下了两份具名 ``_order_or_404``，却漏了同一段知识的 5 份内联副本
+    （``pages.py`` 1 处、``store.py`` 4 处）。这也是为什么 P10 的通扫口径要按
+    「函数体」而不是按「名字」。
+    """
+    deps_source = (PROJECT_ROOT / "store" / "deps.py").read_text(encoding="utf-8")
+    routers = {
+        name: (PROJECT_ROOT / "store" / "api" / name).read_text(encoding="utf-8")
+        for name in ("admin.py", "pages.py", "store.py", "alipay.py")
+    }
+
+    check(
+        "P10 order_or_404 只有一份实现（store/deps.py）",
+        deps_source.count("def order_or_404(") == 1
+        and not [
+            name
+            for name, text in routers.items()
+            if "def order_or_404(" in text or "def _order_or_404(" in text
+        ],
+        "deps=" + str(deps_source.count("def order_or_404(")),
+    )
+
+    # 内联形态：自己查订单号再判 None。收敛前这里另有 5 处（pages.py 1、store.py 4），
+    # 与两份具名函数是同一段知识 —— 4.3 的清单只按名字比对，所以一处都没记。
+    # 只钉「按 order_no 查单 + 紧跟判 None」这一种码型：alipay.py 按 out_trade_no
+    # 查单但**不是** 404（它渲染「未找到订单」页面），那是另一回事，不该被卷进来。
+    inlined = {
+        name: len(re.findall(r"where\(Order\.order_no == order_no\)\)\.first\(\)\s*\n\s*if order is None", text))
+        for name, text in routers.items()
+    }
+    inlined = {name: count for name, count in inlined.items() if count}
+    check(
+        "P10 路由模块不再内联「按单号查单 + 判 None」（只允许调用 order_or_404）",
+        not inlined,
+        str(inlined),
+    )
+
+
+def check_store_database_connection_settings() -> None:
+    """P10：商店侧的连接级设置与「库级 PRAGMA 只设一次」（搬自主应用 B36）。
+
+    三点各对应一个曾经的坑：
+
+    * 没有写锁等待 —— 别的连接正在写时，本连接**立刻**失败；
+    * ``PRAGMA journal_mode=WAL`` 挂在**每个**新连接上 —— 这条最隐蔽：库正被写住时
+      库级 PRAGMA 会失败，于是「池子要造一条新连接」这件与被改数据无关的事，变成
+      一次请求失败。主应用侧在 B36 修掉了，商店侧一直没跟着改（这就是 P10 的 A7）；
+    * 上限只是一个写死在 ``cursor.execute`` 里的字面量 5000，没有名字也就没人知道
+      它和驱动层 ``timeout`` 是同一个值。
+
+    观测方式与主应用那条同形：把 ``_enable_wal`` 换成计数桩，之后连开三条连接看它
+    涨几次（顺序 connect 会被池子复用同一条，观测不出来）；连接级设置直接查 PRAGMA。
+    """
+    from contextlib import ExitStack
+
+    from sqlalchemy import text
+
+    from store import database as database_module
+    from store.database import BUSY_TIMEOUT_SECONDS
+
+    with tempfile.TemporaryDirectory(prefix="hb-store-db-") as tmp:
+        settings = load_settings(data_dir=Path(tmp) / "data", license_keys_dir=Path(tmp) / "keys")
+        wal_calls: list[int] = []
+        real_enable_wal = database_module._enable_wal
+
+        def counting_enable_wal(connection, record) -> None:
+            wal_calls.append(1)
+            return real_enable_wal(connection, record)
+
+        database_module._enable_wal = counting_enable_wal
+        try:
+            engine = create_store_engine(settings)
+        finally:
+            database_module._enable_wal = real_enable_wal
+        try:
+            # 三条连接同时占住：池子必须各自新建一条 DBAPI 连接，否则
+            # 「库级 PRAGMA 只设一次」与「每条连接都设了连接级 PRAGMA」都观测不出来。
+            with ExitStack() as stack:
+                connections = [stack.enter_context(engine.connect()) for _ in range(3)]
+                pragmas = {
+                    "busy_timeout": connections[0].execute(text("PRAGMA busy_timeout")).scalar(),
+                    "journal_mode": connections[0].execute(text("PRAGMA journal_mode")).scalar(),
+                    "foreign_keys": connections[0].execute(text("PRAGMA foreign_keys")).scalar(),
+                }
+                for connection in connections:
+                    connection.execute(text("SELECT 1"))
+        finally:
+            engine.dispose()
+
+    check(
+        "P10 商店连接级设置：写锁等待、外键开启、库是 WAL",
+        pragmas == {
+            "busy_timeout": BUSY_TIMEOUT_SECONDS * 1000,
+            "journal_mode": "wal",
+            "foreign_keys": 1,
+        },
+        f"实际 {pragmas}",
+    )
+    check(
+        "P10 商店的库级 WAL 只在新池子的第一条连接上设一次（三条连接之后仍是一次）",
+        wal_calls == [1],
+        f"_enable_wal 被调用 {len(wal_calls)} 次",
+    )
+
+    # 上面那条计数桩只能证明 first_connect 只触发一次，却证明不了「没有第二条路径也在
+    # 设库级 PRAGMA」：若有人把 journal_mode 又加回逐连接那条，PRAGMA 读出来仍是
+    # 'wal'、计数也仍是 1，两条断言会全绿 —— 而池子扩容失败的老毛病就回来了。
+    #
+    # 口径说明：数的是模块源码里 ``PRAGMA journal_mode`` 出现的次数。写成别样的等价
+    # 语句（例如大小写变化）会让这条漏报，但「又抄一份」这种最常见的回退一定抓得到。
+    database_source = (PROJECT_ROOT / "store" / "database.py").read_text(encoding="utf-8")
+    wal_statements = database_source.count("PRAGMA journal_mode")
+    check(
+        "P10 商店全仓只有一条设置库级 journal_mode 的语句（计数桩抓不到这条）",
+        wal_statements == 1,
+        f"store/database.py 里出现 {wal_statements} 次；收敛前它挂在逐连接监听器里，"
+        "现在只允许出现在 first_connect",
+    )
+
+
 def check_escaper_behaviour() -> None:
     """S38：转义实现的行为由 node 实测，而不只看源码里写了哪几个字符。
 
@@ -15035,6 +15169,8 @@ async def run() -> int:
     # ------------------------------------------------------------------ #
     check_static_assets()
     check_retired_columns()
+    check_no_duplicated_store_helpers()
+    check_store_database_connection_settings()
     check_frontend_api_contract()
     check_theme_matches_app()
     check_legacy_stylesheets_removed()

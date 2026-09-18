@@ -30,6 +30,7 @@ from ..config import Settings
 from ..database import Database
 from ..global_log import GlobalLogStore
 from ..models import LicenseState
+from ..time_utils import ensure_aware
 from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
 from .endpoints import LicenseEndpointPool
 from .hardware import hardware_instance_id
@@ -88,18 +89,6 @@ BASE_FEATURES = {
     'ha.configure',
     'projects.write',
     'runtime.websocket'}
-
-
-def aware(value: datetime | None) -> datetime | None:
-    """给缺少时区的 datetime 补上 UTC。
-
-    SQLite 取回的 datetime 常常没有 tzinfo，直接与带时区的 now 比较会抛 TypeError；
-    统一按 UTC 解释，与写库时的假设保持一致。
-    """
-    # 已有 tzinfo 或本身是 None 时原样返回，避免重复转换。
-    if value is None or value.tzinfo is not None:
-        return value
-    return value.replace(tzinfo=timezone.utc)
 
 
 class LicenseService:
@@ -539,7 +528,7 @@ class LicenseService:
                 raise LicenseCryptoError('本地签名租约的序号比记录更旧，授权记录可能被回滚或替换过。')
             expires = parse_timestamp(payload['expiresAt'])
             now = datetime.now(timezone.utc)
-            last_verified = aware(state.last_verified_at)
+            last_verified = ensure_aware(state.last_verified_at)
             # 时钟回拨检测：本机时间比上次校验时间还早，会让已过期的租约「复活」，必须拦下。
             if last_verified and now + timedelta(seconds=self.settings.license_clock_skew_seconds) < last_verified:
                 state.status = 'CLOCK_ROLLBACK'
@@ -977,7 +966,7 @@ class LicenseService:
         """非吊销类失败：按租约剩余有效期把状态降级为「连接异常」或「已到期」。"""
         with self.database.session_factory() as database:
             state = self._state(database)
-            expires = aware(state.lease_expires_at)
+            expires = ensure_aware(state.lease_expires_at)
             # 租约还没到期就只是「联系不上服务器」，功能继续可用；
             # 已经到期则必须拦截，等恢复或重新激活。
             state.status = 'CONNECTION_WARNING' if expires and expires > datetime.now(timezone.utc) else 'LEASE_EXPIRED'
@@ -1001,7 +990,7 @@ class LicenseService:
         with self.database.session_factory() as database:
             state = self._state(database)
             if state.license_id and state.signed_lease:
-                expires = aware(state.lease_expires_at)
+                expires = ensure_aware(state.lease_expires_at)
                 state.status = 'CONNECTION_WARNING' if expires and expires > datetime.now(timezone.utc) else 'LEASE_EXPIRED'
                 database.commit()
             self._record_status(state.status)
@@ -1025,7 +1014,7 @@ class LicenseService:
             return float(EXPIRED_LEASE_RETRY_SECONDS)
         # 再兜一次 30 秒下限：库里的值可能被手工改小。
         interval = float(max(30, state.heartbeat_interval_seconds))
-        expires = aware(state.lease_expires_at)
+        expires = ensure_aware(state.lease_expires_at)
         if expires is None:
             return interval
         remaining = (expires - (now or datetime.now(timezone.utc))).total_seconds()
@@ -1044,7 +1033,7 @@ class LicenseService:
         """
         with self.database.session_factory() as database:
             state = self._state(database)
-            expires = aware(state.lease_expires_at)
+            expires = ensure_aware(state.lease_expires_at)
             now = datetime.now(timezone.utc)
             # 是否到期用同一个带容差的判据（B29）：这里决定「下来是续租还是走恢复令牌」，
             # 用硬比会让本机时钟稍快时多走一次恢复分支。
@@ -1099,8 +1088,8 @@ class LicenseService:
         effective_status = state.status
         effective_error = state.last_error
         now = datetime.now(timezone.utc)
-        last_verified = aware(state.last_verified_at)
-        lease_expires = aware(state.lease_expires_at)
+        last_verified = ensure_aware(state.last_verified_at)
+        lease_expires = ensure_aware(state.lease_expires_at)
         if last_verified and now + timedelta(seconds=self.settings.license_clock_skew_seconds) < last_verified:
             # 时钟回拨时租约到期判断不可信，直接覆盖为 CLOCK_ROLLBACK。
             effective_status = 'CLOCK_ROLLBACK'
@@ -1181,10 +1170,10 @@ class LicenseService:
             'products': visible_products if state.license_id else [],
             # 心跳间隔（秒），前端据此展示刷新节奏。
             'heartbeatIn': state.heartbeat_interval_seconds,
-            'leaseIssuedAt': aware(state.lease_issued_at),
-            'leaseExpiresAt': aware(state.lease_expires_at),
-            'lastHeartbeatAt': aware(state.last_heartbeat_at),
-            'lastVerifiedAt': aware(state.last_verified_at),
+            'leaseIssuedAt': ensure_aware(state.lease_issued_at),
+            'leaseExpiresAt': ensure_aware(state.lease_expires_at),
+            'lastHeartbeatAt': ensure_aware(state.last_heartbeat_at),
+            'lastVerifiedAt': ensure_aware(state.last_verified_at),
             'lastError': effective_error}
 
     def status(self) -> dict:
@@ -1222,7 +1211,7 @@ class LicenseService:
             self._record_failure('本地校验', error, sensitive_values=(state.signed_lease,))
             return False
         now = datetime.now(timezone.utc)
-        last_verified = aware(state.last_verified_at)
+        last_verified = ensure_aware(state.last_verified_at)
         # 时钟回拨会让已过期的租约重新「有效」，必须拒绝。
         if last_verified and now + timedelta(seconds=self.settings.license_clock_skew_seconds) < last_verified:
             self._record_failure('本地校验', '检测到系统时间回拨，请校准系统时间后重新验证授权。')

@@ -1,13 +1,14 @@
-"""API 层公共依赖：数据库会话与登录态。"""
+"""API 层公共依赖：数据库会话、登录态，以及按主键取行的几个共用查询。"""
 
 from __future__ import annotations
 
 from typing import Annotated, Iterator
 
 from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from store.models import Account, AccountSession
+from store.models import Account, AccountSession, Order
 from store.config import StoreSettings
 from store.security import token_hash, utcnow
 
@@ -120,3 +121,18 @@ def get_settings(request: Request) -> StoreSettings:
 
 
 SettingsDep = Annotated[StoreSettings, Depends(get_settings)]
+
+
+def order_or_404(session: Session, order_no: str) -> Order:
+    """按订单号取订单；取不到就 404「订单不存在。」。
+
+    放在这里而不是各自的 API 模块：后台（``api/admin.py``）与顾客前台
+    （``api/pages.py``）都要按同一个单号取单，P10 之前两边各写了一份**逐字节
+    相同**的 ``_order_or_404``。合并的理由不只是少几行 —— 这条 404 文案是对
+    「这个单号不存在」的表述，前台和后台不该有两套说法，否则改一处漏一处就会
+    让同一个事实在两个界面上长得不一样。
+    """
+    order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
+    if order is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
+    return order

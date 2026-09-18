@@ -23,9 +23,10 @@ from typing import Mapping
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from .display_access import _aware, active_display_device
+from .display_access import active_display_device
 from .models import DisplayDevice, LoginSession, User
 from .security import session_token_hash
+from .time_utils import ensure_aware
 
 #: 会话滑动续期的写库节流窗口（秒）。展示页与编辑器的轮询是秒级的，
 #: 不做节流的话每个请求都会变成一次写事务，因此最多每 300 秒回写一次。
@@ -140,11 +141,11 @@ def check_admin_session(
     )
     if record is None:
         return AdminSessionCheck()
-    if _aware(record.expires_at) <= moment:
+    if ensure_aware(record.expires_at) <= moment:
         # 滑动有效期已过：记录还在（管理员列表里还能看到并手动退出），但不再放行。
         return AdminSessionCheck(record=record, expired=True)
     hard_max_age = _positive_seconds(getattr(settings, 'session_hard_max_age_seconds', 0))
-    if hard_max_age and moment >= _aware(record.created_at) + timedelta(seconds=hard_max_age):
+    if hard_max_age and moment >= ensure_aware(record.created_at) + timedelta(seconds=hard_max_age):
         # 绝对寿命先到：滑动续期不能突破它。
         return AdminSessionCheck(record=record, expired=True)
     if record.user_id != account_user_id:
@@ -157,7 +158,7 @@ def check_admin_session(
     if refresh:
         max_age = _positive_seconds(getattr(settings, 'session_max_age_seconds', 0))
         interval = min(SESSION_REFRESH_INTERVAL_SECONDS, max(1, max_age // 2))
-        if moment - _aware(record.last_seen_at) >= timedelta(seconds=interval):
+        if moment - ensure_aware(record.last_seen_at) >= timedelta(seconds=interval):
             record.last_seen_at = moment
             record.expires_at = moment + timedelta(seconds=max_age)
             database.commit()

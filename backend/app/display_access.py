@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from .models import DisplayDevice, DisplayPairingCode, Project, ProjectPathAlias
 from .security import session_token_hash
+from .time_utils import ensure_aware
 
 
 def display_path(project_name: str) -> str:
@@ -98,11 +99,6 @@ def _display_device_by_token(database: Session, token: str) -> DisplayDevice | N
     )
 
 
-def _aware(value: datetime) -> datetime:
-    """SQLite 取回的 datetime 可能不带时区，统一按 UTC 补齐再比较。"""
-    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
-
-
 def display_token_expires_at(device: DisplayDevice, settings) -> datetime | None:
     """算出这台设备令牌的失效时刻；不设有效期时返回 None。
 
@@ -116,9 +112,9 @@ def display_token_expires_at(device: DisplayDevice, settings) -> datetime | None
     hard_ttl = int(getattr(settings, 'display_token_hard_ttl_seconds', 0) or 0)
     candidates = []
     if ttl > 0:
-        candidates.append(_aware(device.last_seen_at) + timedelta(seconds=ttl))
+        candidates.append(ensure_aware(device.last_seen_at) + timedelta(seconds=ttl))
     if hard_ttl > 0:
-        candidates.append(_aware(device.created_at) + timedelta(seconds=hard_ttl))
+        candidates.append(ensure_aware(device.created_at) + timedelta(seconds=hard_ttl))
     return min(candidates) if candidates else None
 
 

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import ast
+import hashlib
 import json
 import logging
 import os
@@ -2848,6 +2849,162 @@ def check_no_dead_module_level_symbols() -> None:
         '；'.join(offenders[:6])
         if offenders
         else f'扫过 {len(paths)} 份 Python，{len(definitions)} 个模块级名字都有真实引用',
+    )
+
+
+def _is_overload_stub(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """``@overload`` 声明只有签名、没有实现，不算「又抄了一份」。
+
+    它是给类型检查器看的重载表（``ensure_aware`` 就有两条：``datetime`` 进
+    ``datetime`` 出、``None`` 进 ``None`` 出）。按「有几处 def」机械计数会把它
+    当成三份实现，于是闸自己先红 —— 所以只数**有实现**的那一份。
+    """
+    for decorator in node.decorator_list:
+        target = decorator.func if isinstance(decorator, ast.Call) else decorator
+        name = target.attr if isinstance(target, ast.Attribute) else getattr(target, 'id', '')
+        if name == 'overload':
+            return True
+    return False
+
+
+def _function_body_statements(source: str, node: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
+    """函数体（去掉 docstring）的源码文本；语句不足 3 条时返回 None。
+
+    为什么要去掉 docstring：两侧对**同一件事**的解释常常写得不一样，而 P10 关心的是
+    「行为是不是同一份实现」。docstring 参与比对会让真重复漏网 —— 实测
+    ``http_security._is_trusted`` 与商店那份的说明文字就不同，只有去掉它才认得出来。
+
+    阈值取 3 条语句，是为了放过**收敛完成后的正常形态**：合并过的校验器与
+    ``@property`` 都只剩「docstring + 一行 return」，它们同名或不同名都不该再被点名。
+    """
+    body = list(node.body)
+    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
+            and isinstance(body[0].value.value, str):
+        body = body[1:]
+    if len(body) < 3:
+        return None
+    segments = [ast.get_source_segment(source, statement) for statement in body]
+    if any(segment is None for segment in segments):
+        return None
+    return '\n'.join(segment.strip() for segment in segments)
+
+
+#: P10 合并后必须**全仓只定义一次**的名字，以及它替代了哪几份。
+DEDUPLICATED_SYMBOLS = {
+    'ensure_aware': 'B58/A2：原 dependencies / api/auth / display_access / license.service 各一份，'
+                    '另有 global_log 两处与 license.crypto 一处的内联同形判断',
+    'load_active_connection_snapshot': 'A1：原 api/ha.py 与 api/ha_proxy.py 两份逐字节相同',
+    'order_or_404': 'A3：原 store/api/admin.py 与 store/api/pages.py 两份逐字节相同',
+    '_validated_device_name': 'A5：原 schemas.py 内四份（方法名 trim_pairing_name ×2 / '
+                              'trim_device_name / trim_display_name），逐字节相同',
+    '_validated_project_name': 'A5：原 schemas.py 内两份（ProjectCreateRequest / ProjectDuplicateRequest）',
+}
+
+#: P10 删掉的旧定义名。它们各自对应上面某个新名字，不许再加回来 ——
+#: 换个文件抄一份纯文本搜不一定抓到，按名字查 AST 一定能。
+REMOVED_DUPLICATE_SYMBOLS = ('_aware', '_order_or_404', 'load_active_connection')
+
+#: 「函数体逐字节相同」口径下**允许**存在的重复：跨项目刻意重复（C 类）。
+#: 两个服务独立部署、互不 import，合并才是错的；它们另有一致性测试兜底
+#: （``check_request_security_parity``）。
+EXACT_BODY_DUPLICATE_EXEMPT = (
+    frozenset({'backend/app/http_security.py', 'store/request_security.py'}),
+)
+
+
+def _duplicate_locations_are_exempt(locations: list[str]) -> bool:
+    """这组同体函数的定义点是否全部落在某个「刻意重复」的文件对里。"""
+    files = {location.rsplit(':', 1)[0] for location in locations}
+    return any(files <= pair for pair in EXACT_BODY_DUPLICATE_EXEMPT)
+
+
+def check_no_duplicated_helper_implementations() -> None:
+    """P10：合并过的助手全仓只此一份，且生产代码里不再有「函数体逐字节相同」的两份。
+
+    为什么需要这条闸：4.3 的 A 类清单是人工按**名字**搜出来的，因此有两类会漏 ——
+    不同名但同体（``trim_device_name`` / ``trim_display_name`` 就是，清单里完全没记），
+    以及名字被别名绕开。更重要的是清单会漂：P10 复核时 A 类八项里，
+    两项根本不是重复（``_product_or_404`` 两侧一个判 ``active`` 一个不判，
+    ``number()`` 一个是 bool 校验器一个是 float 解析器）、一项是缺陷遗留而非重复
+    （``_configure_sqlite``）、一项的前提已过期（``requestJson`` 的「两份都没超时」
+    在 W1 之后不再成立）。清单会漂，这条断言不会。
+
+    两个口径各管一段：
+
+    * **点名**：``DEDUPLICATED_SYMBOLS`` 里的名字必须恰好一个 ``def``。抓住
+      「把合并掉的实现又抄回来」，包括换个文件抄。
+    * **通扫**：``backend`` / ``store`` 生产代码里，任意两个函数去掉 docstring 后
+      函数体逐字节相同且至少 3 条语句，就算重复。这正是 4.4 给 A 类定的口径，
+      也是唯一能发现上面那对**不同名**重复的办法。
+
+    豁免只有 ``EXACT_BODY_DUPLICATE_EXEMPT`` 一处（C 类跨项目刻意重复，逐条写了理由）。
+    ``tools/`` 目录不参与通扫：那里的桩与辅助函数天然长得像，且不进生产。
+    """
+    roots = [PROJECT_ROOT / name for name in ('backend', 'store')]
+    paths = [
+        path
+        for root in roots
+        if root.exists()
+        for path in sorted(root.rglob('*.py'))
+        if '/tools/' not in path.as_posix()
+    ]
+
+    definitions: dict[str, list[str]] = {}
+    bodies: dict[str, list[str]] = {}
+    for path in paths:
+        source = path.read_text(encoding='utf-8')
+        try:
+            tree = ast.parse(source)
+        except (SyntaxError, UnicodeDecodeError):  # 语法问题交给语法检查去报
+            continue
+        relative = path.relative_to(PROJECT_ROOT).as_posix()
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if _is_overload_stub(node):
+                continue
+            definitions.setdefault(node.name, []).append(f'{relative}:{node.lineno}')
+            text = _function_body_statements(source, node)
+            if text is not None:
+                bodies.setdefault(hashlib.sha256(text.encode('utf-8')).hexdigest(), []).append(
+                    f'{relative}:{node.lineno}'
+                )
+
+    # 1) 点名闸：合并过的名字必须还在，且只有一份。
+    missing = [
+        name for name in DEDUPLICATED_SYMBOLS
+        if len(definitions.get(name, [])) != 1
+    ]
+    check(
+        'P10 合并过的助手全仓只有一份实现（换个文件抄回来也会被发现）',
+        not missing,
+        '；'.join(f'{name} → {definitions.get(name) or "未找到"}' for name in missing)
+        if missing
+        else f'{len(DEDUPLICATED_SYMBOLS)} 个名字各只有一处定义',
+    )
+
+    # 2) 旧名字不许复活。
+    resurrected = sorted(
+        f'{name} → {definitions[name]}' for name in REMOVED_DUPLICATE_SYMBOLS if definitions.get(name)
+    )
+    check(
+        'P10 被合并掉的旧定义名没有再加回来',
+        not resurrected,
+        '；'.join(resurrected) if resurrected else '；'.join(REMOVED_DUPLICATE_SYMBOLS),
+    )
+
+    # 3) 通扫：同体函数（去掉 docstring、≥3 条语句）不许有两份。
+    duplicated = [
+        locations
+        for locations in bodies.values()
+        if len(locations) > 1 and not _duplicate_locations_are_exempt(locations)
+    ]
+    check(
+        'P10 生产代码里没有「去掉 docstring 后函数体逐字节相同」的两份实现',
+        not duplicated,
+        '；'.join('/'.join(locations) for locations in duplicated[:4])
+        if duplicated
+        else f'扫过 {len(paths)} 份 Python，{len(bodies)} 组函数体互不相同',
     )
 
 
@@ -7427,7 +7584,9 @@ def check_database_connection_settings() -> None:
 
     观测方式：连接级设置直接查 PRAGMA；「只设一次」把 ``Database._enable_wal`` 换成
     计数桩，之后开三条连接看它涨几次；池子上限则把常量临时压到 1/0/0.2 秒，占着唯一一
-    条连接再要第二条 —— 必须等到超时，这才是「有界」的可观测含义。
+    条连接再要第二条 —— 必须等到超时，这才是「有界」的可观测含义。计数桩之外还数一遍
+    ``PRAGMA journal_mode`` 在源码里出现的次数（P10 补）：桩只能证明 first_connect
+    触发一次，证明不了「没有另一条路径也在设库级 PRAGMA」。
     """
     from contextlib import ExitStack
 
@@ -7520,6 +7679,17 @@ def check_database_connection_settings() -> None:
         'B36 库级 WAL 只在新池子的第一条连接上设一次（三条连接之后仍是一次）',
         wal_calls == [1],
         f'_enable_wal 被调用 {len(wal_calls)} 次',
+    )
+    # 上面那条计数桩只能证明 first_connect 只触发一次，证明不了「没有第二条路径也在
+    # 设库级 PRAGMA」：若有人把 journal_mode 又加回逐连接那条 `_configure_sqlite`，
+    # PRAGMA 读出来仍是 'wal'、计数也仍是 1，上面两条会全绿 —— 老毛病就回来了。
+    # （P10 给商店侧补断言时发现的同一个口径缺口，这里一并堵上。）
+    database_module_source = (PROJECT_ROOT / 'backend' / 'app' / 'database.py').read_text(encoding='utf-8')
+    wal_statements = database_module_source.count('PRAGMA journal_mode')
+    check(
+        'B36 全仓只有一条设置库级 journal_mode 的语句（计数桩抓不到这条）',
+        wal_statements == 1,
+        f'backend/app/database.py 里出现 {wal_statements} 次',
     )
     check(
         'B36 连接池显式有界（池类型/池大小/溢出上限/等待上限都来自常量）',
@@ -10516,6 +10686,7 @@ async def run() -> int:
     await check_runtime_task_relay()
     check_closure_scope_writes()
     check_no_dead_module_level_symbols()
+    check_no_duplicated_helper_implementations()
     check_access_criteria_single_source()
     check_login_password_verification_cost()
     await check_revoke_other_sessions_requires_valid_session()

@@ -29,7 +29,7 @@ from store import (
     referrals,
 )
 from store.config import StoreSettings
-from store.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep
+from store.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
 from store.expiry import expire_stale_orders
 from store.models import (
     Account,
@@ -1875,9 +1875,7 @@ def _reconcile_payment(session, request: Request, order: Order) -> None:
 def lookup_order(
     order_no: str, session: DbSession, token: str | None = None
 ) -> dict:
-    order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
-    if order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
+    order = order_or_404(session, order_no)
     if not token_matches(token, order.lookup_token):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="查询凭证不正确。")
     return order_payload(order)
@@ -1887,9 +1885,7 @@ def lookup_order(
 def get_order(
     order_no: str, request: Request, session: DbSession, account: CurrentAccount
 ) -> Response:
-    order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
-    if order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
+    order = order_or_404(session, order_no)
 
     order_token = request.headers.get("x-order-token")
     authorized = (
@@ -1934,9 +1930,7 @@ def cancel_order(
     取消的前提，会把还没验证邮箱却已经占到库存的用户卡在一张他既不能付、也退不掉
     的单上。
     """
-    order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
-    if order is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
+    order = order_or_404(session, order_no)
 
     order_token = request.headers.get("x-order-token")
     authorized = (
@@ -2013,8 +2007,9 @@ def archive_order(order_no: str, session: DbSession, account: AuthedAccount) -> 
     #: 少这一道并不会泄露什么，但会让「未验证邮箱」的账号多出一条可写路径 ——
     #: 权限判断散落成「有的接口查了、有的没查」时，下一个接口照抄哪一份全凭运气。
     _require_verified(account)
-    order = session.scalars(select(Order).where(Order.order_no == order_no)).first()
-    if order is None or order.account_id != account.id:
+    order = order_or_404(session, order_no)
+    # 越权访问与「订单不存在」回同一个 404：不给出「这个单号存在」的旁路信息。
+    if order.account_id != account.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
     order.archived_at = utcnow()
     session.flush()
