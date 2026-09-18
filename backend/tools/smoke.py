@@ -3029,6 +3029,14 @@ FRONTEND_HELPER_SINGLE_SOURCE = {
         'entityDomainOf',
     ),
     'frontend/static/utils/apple-device.js': ('isAppleMobile',),
+    # P10-B 第三批（4.3 B 类剩余）：状态条目归一。原先 5 份具名副本用了 3 个名字
+    # （unwrapStateChange ×3、resolveEventState、resolveStateEntry），其中一份还是
+    # 两个形参的容器版 —— 同名不同签名是这一族最危险的地方（见模块头契约表）。
+    'frontend/static/utils/state-entry.js': (
+        'readFromMapOrRecord',
+        'resolveStateEntry',
+        'resolveStateEntryIn',
+    ),
 }
 
 #: 被收敛掉的旧名字：**定义**不许再出现（注释里提它们是可以的 —— 注释不会被复制去调用）。
@@ -3037,7 +3045,16 @@ FRONTEND_HELPER_SINGLE_SOURCE = {
 #: `flattenComponents` 同理不在名单里：`home.js` 那份仍然叫这个名字（展平控件树的
 #: children），被改名的是 `dashboard-resize.js` 那份（展平文档顶层清单）——
 #: 两份是**不同的知识**，改名的目的是让名字不再互相冒充，不是消掉其中一个。
-FRONTEND_RETIRED_HELPER_NAMES = ('clampNumberOr', 'normalizeHexColor', 'normalizedHexColor')
+#: `resolveStateEntry` 也不在名单里（它是活下来的那个名字，登记在上面那张表里）；
+#: 进名单的是它那两个被合并掉的别名 —— `unwrapStateChange` 曾同时指「一个形参的宽松版」
+#: 与「两个形参的容器版」，`resolveEventState` 则是同一份知识的第三个名字。
+FRONTEND_RETIRED_HELPER_NAMES = (
+    'clampNumberOr',
+    'normalizeHexColor',
+    'normalizedHexColor',
+    'unwrapStateChange',
+    'resolveEventState',
+)
 
 #: 4.3 B 类里**改判为「两份不同的知识」**的同名族：各自只许在这些文件里定义。
 #: 它们不是供 import 的助手，所以不参与上表的 import 规则 —— 这里钉的是「名字不再互相冒充」：
@@ -3079,21 +3096,30 @@ def check_frontend_helper_contract_single_source() -> None:
     这类重复的危害不在「代码多」，而在**照名字换一份去调用不会报错**：
     `clampNumber(v, 0, 100)` 落到四参那份上就是把下限当兜底；`entitySearchText` 换一份
     就漏掉小写化（调用方正则写着 `/i` 的那些不受影响，所以谁都没坏，直到有人照着名字
-    换到不带 `i` 的调用点上）。收敛之后，两点必须长期成立：
+    换到不带 `i` 的调用点上）。``unwrapStateChange`` 是这条危害最直白的一例：它在渲染器里
+    同时指「一个形参（状态 / 变更对象）」与「两个形参（状态容器 + 实体 ID）」，把后者那份的
+    调用搬到前者身上不会报错 —— 传进去的 Map 被原样当作状态对象返回，下游读 ``.state``
+    得到 ``undefined``，静默显示成「未知」。收敛之后，两点必须长期成立：
 
     * **定义点唯一**：手册里的助手各自只在 ``utils/`` 下对应的那份文件里定义一次，
       别处再抄一份就红（点名，能发现「换个文件抄回来」）；
     * **只能 import**：任何文件要用手册里的名字，import 路径必须指向那份唯一实现 ——
       挡住「在 editor-utils 里转一手再导出」这种绕法（那是把定义点又拉回两份的常见形态）。
 
-    另外还跑四条活体探针（``number-helpers`` / ``color-helpers`` / ``entity-helpers`` /
-    ``apple-device``）：静态闸只能证明「只有一份」，「这一份的语义还是不是契约里写的那样」
-    要靠把输入矩阵摆出来跑一遍 —— 把两份合并成一份、或者把参数顺序改回去，探针会红。
+    另外还跑六条活体探针（``number-helpers`` / ``color-helpers`` / ``entity-helpers`` /
+    ``apple-device`` / ``state-entry`` / ``light-statistics``）：静态闸只能证明「只有一份」，
+    「这一份的语义还是不是契约里写的那样」要靠把输入矩阵摆出来跑一遍 —— 把两份合并成一份、
+    或者把参数顺序改回去，探针会红。``light-statistics`` 是这一批里唯一被**换掉判定口径**的
+    消费方（严格 ``hasOwnProperty`` → 宽松真值判定），所以它单独有一条端到端探针。
 
-    边界如实写在这里：这条闸只认**登记在册的名字**。同名但以局部变量形态出现的知识
-    （例如 ``renderer/*.js`` 里六处 ``const entityDomain = ...``）不在覆盖范围内 ——
-    定义模式匹配分不出「局部变量」与「助手定义」，把它们登记进来会直接产生六条假红。
-    那一族要不要合并是单独一项（见审计文档 4.3 B 类末尾）。
+    边界如实写在这里：这条闸只认**登记在册的名字**。同名但以局部变量或内联表达式形态出现的
+    知识不在覆盖范围内 —— 定义模式匹配分不出「局部变量」与「助手定义」，把它们登记进来会
+    直接产生一堆假红。两族留在范围外（见审计文档 4.3 B 类末尾）：
+
+    * ``renderer/*.js`` 里六处 ``const entityDomain = ...``；
+    * 全前端 70 余处内联的 ``x?.newState || x`` / ``(x?.newState || x)?.attributes`` 取用
+      —— 其中约 30 处落在 3D 运行时树（``frontend/modules/interaction3d/*``，由后端按
+      ``/api/v1/modules/interaction3d/`` 提供），与 ``/static/`` 是两个独立的加载边界。
     """
     frontend_root = PROJECT_ROOT / 'frontend'
     expected = {
@@ -3157,14 +3183,14 @@ def check_frontend_helper_contract_single_source() -> None:
         if sorted(set(places)) != [expected[name]]
     ]
     check(
-        'P10-B 契约型助手各只有一份实现，且只在 utils/ 下登记的那份文件里（夹取 / 颜色归一 / 实体文本与域 / 苹果设备判定）',
+        'P10-B 契约型助手各只有一份实现，且只在 utils/ 下登记的那份文件里（夹取 / 颜色归一 / 实体文本与域 / 苹果设备判定 / 状态条目归一）',
         not misplaced,
         '；'.join(misplaced) if misplaced else f'{len(expected)} 个契约助手各一处定义（扫过 {scanned} 份前端脚本）',
     )
 
     # 2) 旧名字的定义不许复活。
     check(
-        'P10-B 被收敛掉的旧定义名（clampNumberOr / normalizeHexColor / normalizedHexColor）没有再加回来',
+        f'P10-B 被收敛掉的旧定义名（{" / ".join(FRONTEND_RETIRED_HELPER_NAMES)}）没有再加回来',
         not retired,
         '；'.join(retired) if retired else '；'.join(FRONTEND_RETIRED_HELPER_NAMES),
     )
@@ -3188,6 +3214,8 @@ def check_frontend_helper_contract_single_source() -> None:
     _run_frontend_probe('color-helpers')
     _run_frontend_probe('entity-helpers')
     _run_frontend_probe('apple-device')
+    _run_frontend_probe('state-entry')
+    _run_frontend_probe('light-statistics')
 
     # 6) 改判登记：这两份是**不同的知识**（不是同一份知识的两份副本），所以只改名、不合并。
     #    这条钉住「名字不再互相冒充」：任一名字被抄到别处、或有人把一份改成另一份的语义
@@ -9509,6 +9537,8 @@ FRONTEND_PROBE_SUITES = {
     'color-helpers': 'P10-B 三份「颜色归一」契约的差异（utils/colors.js）',
     'entity-helpers': 'P10-B 实体检索文本与实体域的边界（utils/entities.js）',
     'apple-device': 'P10-B 苹果移动端判定的设备矩阵（utils/apple-device.js）',
+    'state-entry': 'P10-B 状态条目归一：两种形态 × 两种容器的边界（utils/state-entry.js）',
+    'light-statistics': 'P10-B 统计卡片的汇总口径：形态混合 / 容器两种 / 被删除实体（light-statistics-runtime.js）',
     'setup': 'W6 初始化页提交按钮与超时（setup.js）',
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
     'home-boot': 'W8 编辑器启动分片（home.js 启动序列）',
@@ -9561,6 +9591,8 @@ FRONTEND_SYNTAX_FILES = (
     # P10-B 第二批：实体文本 / 实体域与苹果设备判定的唯一实现，同样只被 import。
     'frontend/static/utils/entities.js',
     'frontend/static/utils/apple-device.js',
+    # P10-B 第三批：状态条目归一的唯一实现（原先 5 份具名副本 / 3 个名字）。
+    'frontend/static/utils/state-entry.js',
     'frontend/static/renderer/registry.js',
     'frontend/static/3d-studio/studio-shadow-atlas.js',
     'frontend/static/3d-studio/studio-external-models.js',

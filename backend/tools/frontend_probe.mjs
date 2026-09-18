@@ -4494,9 +4494,214 @@ async function runAppleDeviceSuite() {
   );
 }
 
+/**
+ * 跑 `utils/state-entry.js`：把「变更对象 / 状态对象」两种形态与两种容器摆成矩阵。
+ *
+ * 为什么值得一条活体探针：这一族原先有 5 份具名副本、3 个名字、2 套契约，而差别全在
+ *   「缺失时返回什么」与「怎么判断这是个变更对象」上 —— 源码上只差几个字符，
+ *   失效时的表现又都不是报错，而是「状态读不到」：下拉框停在未知、电量显示空白、
+ *   统计卡片把可控实体算成异常。矩阵里每一格都对应一个真实调用方的兜底需求。
+ */
+async function runStateEntrySuite() {
+  const { readFromMapOrRecord, resolveStateEntry, resolveStateEntryIn } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/utils/state-entry.js")).href
+  );
+
+  // 形态矩阵：变更对象 → 剥壳；状态对象 → 原样；空 → 兜底（默认 null）。
+  const stateObject = { state: "on", attributes: { friendly_name: "灯" } };
+  const changeObject = { newState: stateObject, old_state: null };
+  check(
+    "P10-B resolveStateEntry 形态矩阵：变更对象剥壳、状态对象原样、缺失给默认兜底 null",
+    resolveStateEntry(changeObject) === stateObject &&
+      resolveStateEntry(stateObject) === stateObject &&
+      resolveStateEntry(null) === null &&
+      resolveStateEntry(undefined) === null,
+    JSON.stringify({
+      变更对象: resolveStateEntry(changeObject),
+      状态对象: resolveStateEntry(stateObject),
+      null: resolveStateEntry(null)
+    })
+  );
+
+  // 兜底是调用方给的：entity-power 依赖它保证下游读 .state / .attributes 不抛。
+  // 这里刻意断言「兜底只在两者皆空时才出现」—— 若实现把兜底写成无条件返回，
+  // entity-power 的实体开关判定会全部读成空状态（按钮永远显示关闭）。
+  const placeholder = { state: "", attributes: {} };
+  check(
+    "P10-B resolveStateEntry 的兜底只在输入为空时生效，不会盖掉真实状态",
+    resolveStateEntry(null, placeholder) === placeholder &&
+      resolveStateEntry(undefined, placeholder) === placeholder &&
+      resolveStateEntry(stateObject, placeholder) === stateObject &&
+      resolveStateEntry(changeObject, placeholder) === stateObject,
+    JSON.stringify({
+      空输入给兜底: resolveStateEntry(null, placeholder),
+      有状态时不被兜底盖掉: resolveStateEntry(stateObject, placeholder)
+    })
+  );
+
+  // newState 为假值时返回变更对象本身：这是「真值判定」这条口径的边界，
+  // 也是与那份被合并掉的 hasOwnProperty 严格版**唯一**会分歧的地方。
+  // 钉住它是为了让口径变化必须显式改这里，而不是被无意改掉（HA 删除实体时
+  // new_state 就是 null，此时两条口径在现有三个消费点上结果相同）。
+  const removedEntityChange = { newState: null, old_state: stateObject };
+  check(
+    "P10-B newState 为假值时返回变更对象本身（真值判定口径；与严格 hasOwnProperty 版唯一的分歧点）",
+    resolveStateEntry(removedEntityChange) === removedEntityChange &&
+      resolveStateEntry({ newState: "" }) !== null,
+    JSON.stringify({
+      newState为null: resolveStateEntry(removedEntityChange)
+    })
+  );
+
+  // 容器矩阵：Map 与普通对象都要能取到；取不到给 null（不抛）。
+  const statesMap = new Map([["light.a", changeObject]]);
+  const statesRecord = { "light.a": changeObject };
+  check(
+    "P10-B resolveStateEntryIn 同时认 Map 与普通对象两种容器，取不到返回 null",
+    resolveStateEntryIn(statesMap, "light.a") === stateObject &&
+      resolveStateEntryIn(statesRecord, "light.a") === stateObject &&
+      resolveStateEntryIn(statesMap, "light.missing") === null &&
+      resolveStateEntryIn(statesRecord, "light.missing") === null &&
+      resolveStateEntryIn(null, "light.a") === null &&
+      resolveStateEntryIn(undefined, "light.a") === null,
+    JSON.stringify({
+      Map: resolveStateEntryIn(statesMap, "light.a"),
+      普通对象: resolveStateEntryIn(statesRecord, "light.a"),
+      未命中: resolveStateEntryIn(statesMap, "light.missing")
+    })
+  );
+
+  // readFromMapOrRecord 是上面那步的一半，单独钉一次：它是「兼容两种容器」这条知识的
+  // 唯一入口（原先 light-statistics-runtime 里还有一份局部实现）。
+  check(
+    "P10-B readFromMapOrRecord：Map 走 get、对象走键、其它类型与未命中都返回 null",
+    readFromMapOrRecord(statesMap, "light.a") === changeObject &&
+      readFromMapOrRecord(statesRecord, "light.a") === changeObject &&
+      readFromMapOrRecord(statesRecord, "light.missing") === null &&
+      readFromMapOrRecord(42, "light.a") === null &&
+      readFromMapOrRecord("light.a", "light.a") === null &&
+      readFromMapOrRecord(null, "light.a") === null,
+    JSON.stringify({
+      Map: readFromMapOrRecord(statesMap, "light.a"),
+      数字容器: readFromMapOrRecord(42, "light.a"),
+      字符串容器: readFromMapOrRecord("light.a", "light.a")
+    })
+  );
+
+  // 状态条目里的属性取用：`resolveStateEntry(x)?.attributes || {}` 是各 runtime 的惯用写法，
+  // 这里钉住「两种形态取到的属性一致、缺失时给空对象而不是 undefined」。
+  check(
+    "P10-B 两种形态取属性结果一致，缺失时给空对象（调用方的 `|| {}` 才有意义）",
+    (resolveStateEntry(changeObject)?.attributes || {}).friendly_name === "灯" &&
+      (resolveStateEntry(stateObject)?.attributes || {}).friendly_name === "灯" &&
+      Object.keys(resolveStateEntry(null)?.attributes || {}).length === 0,
+    JSON.stringify({
+      变更对象: resolveStateEntry(changeObject)?.attributes,
+      缺失: resolveStateEntry(null)?.attributes || {}
+    })
+  );
+}
+
+/**
+ * 跑 `renderer/light-statistics-runtime.js` 的汇总口径。
+ *
+ * 为什么这一套值得单独跑：这一批把它的局部 `unwrapStateChange`（较严的
+ *   `hasOwnProperty` 判定 + 容器取值两步）换成了 `utils/state-entry.js` 的宽松口径。
+ *   换的地方正好是它唯一的状态入口，而表现全是「卡片上的数字不对」——不报错。
+ *   矩阵里三件事各钉一格：变更对象要被剥壳（剥壳丢了就全算异常）、
+ *   容器两种形态结果一致、以及被删除实体（`newState: null`）必须算异常而不是算「开」。
+ */
+async function runLightStatisticsSuite() {
+  const { lightStatisticsSummary } = await import(
+    pathToFileURL(
+      path.join(ROOT, "frontend/static/renderer/light-statistics-runtime.js")
+    ).href
+  );
+  const descriptors = new Map([
+    ["light.a", { entityId: "light.a", domain: "light", name: "客厅灯" }],
+    ["light.b", { entityId: "light.b", domain: "light", name: "卧室灯" }],
+    ["sensor.c", { entityId: "sensor.c", domain: "sensor", name: "空气质量" }]
+  ]);
+  const entityIds = ["light.a", "light.b", "sensor.c"];
+
+  // 状态对象与变更对象混着放：这就是运行时真实的样子（HA 推的是变更对象，
+  // 首次快照是状态对象）。若共享助手不再剥壳，两条 light 都会掉进 abnormal。
+  const summaryWithChange = lightStatisticsSummary(
+    entityIds,
+    new Map([
+      ["light.a", { newState: { state: "on", attributes: { friendly_name: "客厅灯" } }, old_state: null }],
+      ["light.b", { state: "off", attributes: { friendly_name: "卧室灯" } }],
+      ["sensor.c", { state: "42", attributes: {} }]
+    ]),
+    descriptors
+  );
+  check(
+    "P10-B 统计卡片：变更对象与状态对象混放时判定一致（on/off 各 1，不因形态不同算成异常）",
+    summaryWithChange.total === 3 &&
+      summaryWithChange.on === 1 &&
+      summaryWithChange.off === 1 &&
+      summaryWithChange.abnormal === 1 &&
+      summaryWithChange.items[0].state === "on" &&
+      summaryWithChange.items[0].label === "客厅灯",
+    JSON.stringify({
+      on: summaryWithChange.on,
+      off: summaryWithChange.off,
+      abnormal: summaryWithChange.abnormal,
+      首条: summaryWithChange.items[0]
+    })
+  );
+
+  // 容器两种形态（Map / 普通对象）结果必须逐项一致：这原本是两份局部实现拼起来的，
+  // 现在两步（取容器 + 剥壳）都在共享模块里，任何一步漏掉都会让其中一种容器全体异常。
+  const summaryWithRecord = lightStatisticsSummary(
+    entityIds,
+    {
+      "light.a": { newState: { state: "on", attributes: { friendly_name: "客厅灯" } }, old_state: null },
+      "light.b": { state: "off", attributes: { friendly_name: "卧室灯" } },
+      "sensor.c": { state: "42", attributes: {} }
+    },
+    descriptors
+  );
+  check(
+    "P10-B 统计卡片：Map 与普通对象两种容器给出完全相同的汇总",
+    JSON.stringify(summaryWithChange) === JSON.stringify(summaryWithRecord),
+    JSON.stringify({
+      Map版: {
+        on: summaryWithChange.on,
+        off: summaryWithChange.off,
+        abnormal: summaryWithChange.abnormal
+      },
+      对象版: {
+        on: summaryWithRecord.on,
+        off: summaryWithRecord.off,
+        abnormal: summaryWithRecord.abnormal
+      }
+    })
+  );
+
+  // 被删除的实体（HA 的变更对象里 new_state 就是 null）：必须算异常。
+  // 这是宽松口径与严格口径唯一会分歧的输入 —— 换个判定方式就可能从「异常」变成
+  // 「拿到外层对象、读出 undefined、仍旧算异常」以外的结果，所以在这里钉住。
+  const summaryWithRemoval = lightStatisticsSummary(
+    ["light.a"],
+    new Map([["light.a", { newState: null, old_state: { state: "on", attributes: {} } }]]),
+    descriptors
+  );
+  check(
+    "P10-B 统计卡片：被删除实体（newState 为 null）算异常，不会误算成「开」",
+    summaryWithRemoval.on === 0 &&
+      summaryWithRemoval.abnormal === 1 &&
+      summaryWithRemoval.items[0].state === "",
+    JSON.stringify({
+      on: summaryWithRemoval.on,
+      abnormal: summaryWithRemoval.abnormal,
+      首条: summaryWithRemoval.items[0]
+    })
+  );
+}
+
 const suites = {
-  "api-fetch": runApiFetchSuite,
-  login: runLoginSuite,
+  "api-fetch": runApiFetchSuite,  login: runLoginSuite,
   "display-boot": runDisplayBootSuite,
   "request-json": runRequestJsonSuite,
   "studio-request": runStudioRequestSuite,
@@ -4520,7 +4725,9 @@ const suites = {
   "number-helpers": runNumberHelpersSuite,
   "color-helpers": runColorHelpersSuite,
   "entity-helpers": runEntityHelpersSuite,
-  "apple-device": runAppleDeviceSuite
+  "apple-device": runAppleDeviceSuite,
+  "state-entry": runStateEntrySuite,
+  "light-statistics": runLightStatisticsSuite
 };
 
 /**
