@@ -15,6 +15,15 @@ from threading import Lock
 # 用 monotonic 而非 time.time：系统时间被校准时不会让封禁窗口提前结束或永久卡死。
 from time import monotonic
 
+#: ``LoginAttemptLimiter`` 内部两张表合计保留的键数量上限。
+#: 键常常来自外部（被猜的用户名、被试的配对码、请求对端地址），不封顶就是一条
+#: 内存放大路径：每换一个新键只留一条记录，攒够就吃满内存，而且它们**永不清理**
+#: —— 清理只发生在「同一个键被再次查询」的时候（B33）。
+MAX_TRACKED_KEYS = 4096
+#: 清扫的摊还步长：攒够 ``max_keys / 8`` 个新键才再扫一次。清扫本身是 O(n)，
+#: 但只在越过阈值的那一刻付一次代价，不会「稳定在阈值上时每个请求都全表扫一遍」。
+TRIM_STEP_RATIO = 8
+
 
 class BoundedAttemptLimiter:
     """带键上限的失败计数器：包一层 ``LoginAttemptLimiter`` 并管理键空间。
@@ -99,6 +108,10 @@ class LoginAttemptLimiter:
 
     默认策略：300 秒窗口内失败 5 次，封禁 600 秒。达到阈值时清空窗口计数，
     这样解封后是重新开始计数，而不是一进来就又被立刻封禁。
+
+    键空间有上限（``max_keys``，见 ``_trim``）：键由调用方给定，而调用方常常把
+    外部输入（用户名、配对码、对端地址）直接当键用，不封顶就是一条内存放大路径
+    （B33）。
     """
 
     def __init__(
@@ -106,6 +119,8 @@ class LoginAttemptLimiter:
         max_failures: int = 5,
         window_seconds: int = 300,
         block_seconds: int = 600,
+        *,
+        max_keys: int = MAX_TRACKED_KEYS,
     ) -> None:
         """记录阈值。
 
@@ -113,13 +128,17 @@ class LoginAttemptLimiter:
             max_failures: 窗口内允许的失败次数上限。
             window_seconds: 统计窗口长度（秒）。
             block_seconds: 超限后的封禁时长（秒）。
+            max_keys: 内部两张表合计保留的键数量上限（见 ``_trim``）。
         """
         self.max_failures = max_failures
         self.window_seconds = window_seconds
         self.block_seconds = block_seconds
+        self.max_keys = max(1, int(max_keys))
         self._failures = defaultdict(deque)
         self._blocked_until = {}
         self._lock = Lock()
+        # 下一次清扫的触发线：每次清扫后抬一个步长，见 _trim。
+        self._trim_threshold = self.max_keys
 
     def blocked(self, key: str) -> bool:
         """判断该 key 当前是否处于封禁中；顺带清理已过期的记录。"""
@@ -145,12 +164,67 @@ class LoginAttemptLimiter:
                 self._blocked_until[key] = now + self.block_seconds
                 # 清空窗口：解封后重新计数，避免刚解封就被一次失败再次封禁。
                 failures.clear()
+            # 记账是唯一会让内部状态增长的动作，压回上限也放在这里（B33）。
+            self._trim(now, keep_key=key)
 
     def reset(self, key: str) -> None:
         """登录成功后清空该 key 的失败与封禁记录。"""
         with self._lock:
             self._failures.pop(key, None)
             self._blocked_until.pop(key, None)
+
+    def tracked_keys(self) -> int:
+        """当前记账的键数量（失败窗口与封禁表合计），自检用。"""
+        with self._lock:
+            return len(self._failures) + len(self._blocked_until)
+
+    def _trim(self, now: float, *, keep_key: str | None = None) -> None:
+        """把内部状态压回 ``max_keys`` 以内；调用方必须已持有 ``_lock``。
+
+        为什么需要这一步：键来自外部（被猜的用户名、被试的配对码、对端地址），
+        每换一个新键只留一条记录，而清理**只发生在同一个键被再次查询时** ——
+        攻击者只要一直换新键，这些记录就再也不会被访问、也就永远不会被清掉，
+        于是内存只涨不落（B33）。
+
+        丢谁按「损失最小」排，三步：
+
+        1. 清掉窗口外的失败记录与已到期的封禁（它们本来就等于不存在）；
+        2. 再丢**没有封禁**的键（只丢计数，顶多多放过几次失败）；
+        3. 最后才动封禁中的键，丢**最快要解封**的那些（少的是最短的一段保护），
+           且绝不动 ``keep_key``（本次正在记账的那个键）—— 否则等于自己给自己解封。
+        """
+        if len(self._failures) + len(self._blocked_until) <= self._trim_threshold:
+            return
+        # 第 1 步：到期的先清掉。
+        for key, blocked_until in list(self._blocked_until.items()):
+            if blocked_until <= now:
+                del self._blocked_until[key]
+        for key in list(self._failures):
+            self._prune(key, now)
+        overflow = len(self._failures) + len(self._blocked_until) - self.max_keys
+        # 第 2 步：dict 保持插入顺序，从头丢等于先丢最早来的那些。
+        if overflow > 0:
+            for key in list(self._failures):
+                if overflow <= 0:
+                    break
+                if key in self._blocked_until:
+                    continue
+                del self._failures[key]
+                overflow -= 1
+        # 第 3 步：剩下的全是封禁中的键时，只能按「最快解封」丢。
+        if overflow > 0:
+            for key in sorted(
+                self._blocked_until, key=lambda candidate: self._blocked_until[candidate]
+            ):
+                if overflow <= 0:
+                    break
+                if key == keep_key:
+                    continue
+                del self._blocked_until[key]
+                self._failures.pop(key, None)
+                overflow -= 1
+        # 抬高触发线：攒够一个步长的新键才再扫一次，清扫成本因此是摊还的。
+        self._trim_threshold = self.max_keys + max(1, self.max_keys // TRIM_STEP_RATIO)
 
     def retry_after(self, key: str) -> int:
         """该 key 还要等多少秒才能再试（未封禁时返回 0）。

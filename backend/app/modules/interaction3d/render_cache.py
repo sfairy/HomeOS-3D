@@ -30,12 +30,17 @@ if os.name == 'nt':
     import msvcrt
 
     @contextmanager
-    def _locked_region(handle):
-        """Windows 下对锁文件首字节加排他锁，等价于 POSIX 的 flock(LOCK_EX)。"""
+    def _locked_region(handle, *, shared: bool = False):
+        """Windows 下对锁文件首字节加锁。
+
+        LK_RLCK 是**共享**读锁（可被多个持有者同时拿到），LK_LOCK 才是排他
+        （抢不到时每 1 秒重试一次，约 10 次后抛 OSError）。原先无论读写都用
+        LK_RLCK —— 那等于 Windows 上从来没有排他，淘汰与写入可以同时动同一批文件，
+        与 POSIX 分支的口径不一致（B26 的一半）。
+        """
         handle.seek(0)
-        # LK_RLCK 抢不到时会重试约 10 次再抛 OSError；缓存锁竞争都在毫秒级，足够。
         # 文件为空也没关系：Windows 允许锁定越过 EOF 的字节区间。
-        msvcrt.locking(handle.fileno(), msvcrt.LK_RLCK, 1)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_RLCK if shared else msvcrt.LK_LOCK, 1)
         try:
             yield
         finally:
@@ -45,8 +50,9 @@ else:
     import fcntl
 
     @contextmanager
-    def _locked_region(handle):
-        fcntl.flock(handle, fcntl.LOCK_EX)
+    def _locked_region(handle, *, shared: bool = False):
+        """POSIX 下加 flock：读共享、写排他（可被 flock(LOCK_SH) 并存）。"""
+        fcntl.flock(handle, fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
         try:
             yield
         finally:
@@ -81,17 +87,21 @@ def cache_path(data_dir: Path, scene_id: str, project_id: str, key: str) -> Path
 
 
 @contextmanager
-def cache_lock(root: Path):
-    """对缓存根目录加排他文件锁，串行化读、写与淘汰。
+def cache_lock(root: Path, *, shared: bool = False):
+    """对缓存根目录加文件锁，串行化同目录的读、写与淘汰。
 
-    多个进程或线程同时写缓存时，清理逻辑可能删掉别人正在读的文件，
-    因此三件事都在同一把锁内完成。锁粒度取整目录，因为淘汰要看全量条目，
-    按子目录分锁无法保证计数与总量准确。
+    ``shared=True`` 加共享锁：多个读者可以同时持有，只有写路径（含淘汰）会与它们
+    互斥。读缓存是高频路径，写缓存只在舞台页重新渲染后发生一次，因此读不该被读挡住
+    （B26）。
+
+    参数:
+        root: 缓存根目录。
+        shared: 读路径传 True；写入与淘汰必须用排他（默认）。
     """
     root.mkdir(parents=True, exist_ok=True)
     # 锁文件常驻且用 'a+b'（不截断）：它只作为加锁句柄，不存内容。
     with (root / '.lock').open('a+b') as lock:
-        with _locked_region(lock):
+        with _locked_region(lock, shared=shared):
             # 异常路径也要解锁：_locked_region 的 finally 会负责释放。
             yield
 
@@ -101,20 +111,28 @@ def read_cache(path: Path) -> bytes | None:
 
     返回 None 而不抛异常：调用方只关心「有没有可用缓存」，
     统一按未命中处理（HTTP 204）即可。
+
+    读路径只持共享锁，且**只碰这一个文件**（B26）：命中时是「stat + 读」，不扫
+    全目录、不算淘汰、也不删任何东西。原先读也抢整目录排他锁，于是每一张缓存图
+    命中都要把它之后的所有读与写排成一队，而它同时还做了一次全量 glob + stat。
+    过期与超限的条目在这里只判不删 —— 删除是写操作，交给下一次 ``write_cache``
+    的淘汰顺带完成（它本来就先清过期条目），代价是过期条目可能多留一格时间，
+    而缓存随时可以丢。
     """
     root = path.parent.parent
     if not root.exists():
         return None
-    with cache_lock(root):
+    with cache_lock(root, shared=True):
         try:
             stat = path.stat()
-            # 单条超限（可能被写脏）与整体过期的条目在这里顺手删掉，按未命中返回。
+            # 单条超限（可能被写脏）与整体过期的条目在这里按未命中返回，删除留给写路径。
             if time.time() - stat.st_mtime > MAX_AGE_SECONDS or stat.st_size > MAX_ENTRY_BYTES:
-                path.unlink(missing_ok=True)
                 return None
             content = path.read_bytes()
             # 触摸节流：60 秒内读多次只更新一次 mtime，既少写元数据，
             # 又保证「经常被读」的条目不会在 LRU 淘汰时被误伤。
+            # 在共享锁里写元数据是安全的：淘汰持排他锁，与共享锁互斥，
+            # 因此不会出现「刚 stat 到、正要 utime，文件已被删」。
             if time.time() - stat.st_mtime > 60:
                 os.utime(path, None)
             return content
@@ -172,8 +190,16 @@ def write_cache(path: Path, content: bytes) -> None:
                 continue
             entries.append((stat.st_mtime, stat.st_size, candidate))
         total, count = sum(item[1] for item in entries), len(entries)
-        # sorted 默认按元组首项（mtime）升序，最久未访问的排在最前，先删它们。
-        for _, size, candidate in sorted(entries):
+        # 排序键显式写成 (mtime, size, 完整路径字符串)（B59）。mtime 与 size 都可能完全
+        # 相同（同一批写进来的条目，或被对齐过时间戳的文件），那时「淘汰谁」就完全由
+        # 第三个分量决定，它因此必须**一定唯一**：同一个 glob 出来的路径天然唯一，按
+        # 路径字符串比也就一定排得出确定顺序，不会掉进「所有分量都相等」的稳定排序里
+        # 听凭目录顺序。审计原文说这里「退化成比较 Path 对象会抛 TypeError」——实测
+        # 不成立（CPython 给 PurePath 定义了全序，旧写法在这台机器上排得好好的），
+        # 改成显式 key 图的是把判据写在明面上、不依赖语言实现细节。
+        for _, size, candidate in sorted(
+            entries, key=lambda item: (item[0], item[1], str(item[2]))
+        ):
             if total <= MAX_CACHE_BYTES and count <= MAX_ENTRIES:
                 break
             candidate.unlink(missing_ok=True)

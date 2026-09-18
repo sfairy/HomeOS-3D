@@ -243,6 +243,44 @@ class LeaseVerifier:
         # 而不是运行期静默把每个请求都判成「校验无效」。
         if not self.trusted_keys:
             raise ValueError('可信授权公钥集合不能为空。')
+        # 已解析的验签公钥：{keyId: Ed25519PublicKey}，见 _public_key（B8）。
+        self._parsed_keys: dict[str, Ed25519PublicKey] = {}
+
+    def _public_key(self, key_id: str) -> Ed25519PublicKey:
+        """取出（并缓存）某个 keyId 对应的 Ed25519 公钥。
+
+        读文件、核指纹、解析 PEM 这三件事每把钥每进程只做一次：它们原先出现在
+        **每次** verify 里，而 verify 落在每个带会话 Cookie 的请求上（B8）。
+        信任锚在运行期不变 —— 公钥随发行版打包，启动期已由
+        ``license/trust.verify_license_trust_anchors`` 核过存在性与指纹，换钥等于
+        换发布版本（会重启服务）。顺带一个好性质：运行期有人替换 keys/ 下的公钥
+        文件也不会改变已加载的信任锚，换钥必须重启才生效。
+
+        异常:
+            LicenseCryptoError: 公钥读不到、指纹不符，或不是 Ed25519。
+        """
+        cached = self._parsed_keys.get(key_id)
+        if cached is not None:
+            return cached
+        public_key_path, expected_fingerprint = self.trusted_keys[key_id]
+        try:
+            key_data = public_key_path.read_bytes()
+        except OSError as error:
+            raise LicenseCryptoError(f'无法读取授权公钥：{public_key_path}') from error
+        # 指纹可空：多公钥模式允许只按 keyId 选择公钥，但配了指纹就必须核对。
+        if expected_fingerprint:
+            actual_sha256 = hashlib.sha256(key_data).hexdigest()
+            if not hmac.compare_digest(actual_sha256, expected_fingerprint):
+                raise LicenseCryptoError('授权公钥指纹与正式发布版本不匹配。')
+        # 这里不捕获解析异常：公钥是随发行版一起打包的，
+        # 格式错属于发布事故，应在启动/首次校验时立刻暴露。
+        key = serialization.load_pem_public_key(key_data)
+        # 只接受 Ed25519：公钥类型决定了签名算法，必须显式拒绝而不是尝试兼容。
+        if not isinstance(key, Ed25519PublicKey):
+            raise LicenseCryptoError('授权公钥必须是 Ed25519。')
+        # 并发首次验签时可能两个线程各解析一遍，结果相同，覆盖即可。
+        self._parsed_keys[key_id] = key
+        return key
 
     def verify(self, signed_lease: str, instance_id: str) -> dict[str, Any]:
         """校验签名租约并返回其载荷。
@@ -274,25 +312,10 @@ class LeaseVerifier:
             raise LicenseCryptoError('租约 keyId 无效。')
         # 白名单式查找：不在 trusted_keys 里的 keyId 一律拒绝，
         # 绝不会尝试用未知公钥验签。
-        trusted_key = self.trusted_keys.get(key_id)
-        if trusted_key is None:
+        if key_id not in self.trusted_keys:
             raise LicenseCryptoError(f'租约使用了不受信任的授权公钥：{key_id}')
-        public_key_path, expected_fingerprint = trusted_key
-        try:
-            key_data = public_key_path.read_bytes()
-        except OSError as error:
-            raise LicenseCryptoError(f'无法读取授权公钥：{public_key_path}') from error
-        # 指纹可空：多公钥模式允许只按 keyId 选择公钥，但配了指纹就必须核对。
-        if expected_fingerprint:
-            actual_sha256 = hashlib.sha256(key_data).hexdigest()
-            if not hmac.compare_digest(actual_sha256, expected_fingerprint):
-                raise LicenseCryptoError('授权公钥指纹与正式发布版本不匹配。')
-        # 这里不捕获解析异常：公钥是随发行版一起打包的，
-        # 格式错属于发布事故，应在启动/首次校验时立刻暴露。
-        key = serialization.load_pem_public_key(key_data)
-        # 只接受 Ed25519：公钥类型决定了签名算法，必须显式拒绝而不是尝试兼容。
-        if not isinstance(key, Ed25519PublicKey):
-            raise LicenseCryptoError('授权公钥必须是 Ed25519。')
+        # 公钥按 keyId 缓存（B8）：读文件 + 核指纹 + 解析 PEM 每进程每把钥只做一次。
+        key = self._public_key(key_id)
         try:
             # 先验签再比对业务字段：确认载荷确实出自授权服务，再谈内容是否可用。
             key.verify(_decode(encoded_signature), payload_bytes)
@@ -333,11 +356,13 @@ class SecretCipher:
         self.key_path = key_path
 
     def _key(self) -> bytes:
-        """读取或首次生成 Fernet 密钥。
+        """取本机 Fernet 密钥；进程内只碰一次文件（B8）。
 
         目录 0700、文件 O_EXCL + 0600 的原子创建与「只对并发抢占重试」都在
         ``..secret_key_file`` 里，与 HA 凭据密钥共用一份实现 —— 这两处原本各写
         一遍，写法还不一致（这边没接住并发抢占，输家会直接抛 FileExistsError）。
+        缓存也在那里：密钥文件一旦存在就是这个部署的加密身份，运行期不会变，
+        因此第二次起不再走「mkdir + chmod + exists + read」。
 
         返回:
             32 字节 urlsafe base64 的 Fernet 密钥。

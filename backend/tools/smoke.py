@@ -4770,6 +4770,430 @@ def check_bounded_attempt_limiter() -> None:
     )
 
 
+# --------------------------------------------------------------------------- #
+# B33：限流器的键空间必须有上限
+# --------------------------------------------------------------------------- #
+def check_limiter_key_bound() -> None:
+    """B33：限流器内部的键空间必须封顶，键就是外部输入时尤其如此。
+
+    键常常直接来自外部（被猜的用户名、被磨的配对码、请求对端地址），而清理原先只
+    发生在「同一个键被再次查询」的时候：攻击者一直换新键，这些记录就再也不会被
+    访问、也就永远不会被清掉，内存只涨不落。这里用可拨的时钟盯四件事：数量封顶、
+    封禁中的键优先保留、过期记录会被扫掉、以及**最新的封禁不会被更早的封禁挤掉**
+    （丢的是最快解封的那个，保护损失最小）。
+    """
+    from backend.app import auth_limiter
+    from backend.app.auth_limiter import (
+        MAX_TRACKED_KEYS,
+        TRIM_STEP_RATIO,
+        LoginAttemptLimiter,
+    )
+
+    # 允许临时多攒一个步长才会再扫一次，因此上限是 max_keys + 一个步长。
+    bound = 8 + max(1, 8 // TRIM_STEP_RATIO)
+    clock = {'now': 1000.0}
+    real_monotonic = auth_limiter.monotonic
+    auth_limiter.monotonic = lambda: clock['now']
+    try:
+        flood = LoginAttemptLimiter(3, 900, 900, max_keys=8)
+        for index in range(400):
+            flood.record_failure(f'user-{index}')
+        flooded = flood.tracked_keys()
+
+        # 「只错一次」的键（未封禁）不该挤掉封禁中的键。
+        victim = LoginAttemptLimiter(5, 900, 900, max_keys=8)
+        for _ in range(5):
+            victim.record_failure('victim')
+        for index in range(200):
+            victim.record_failure(f'single-{index}')
+        victim_blocked = victim.blocked('victim')
+
+        # 窗口过了的记录等于不存在，清扫时应当被丢掉。
+        expired = LoginAttemptLimiter(5, 60, 60, max_keys=8)
+        for index in range(40):
+            expired.record_failure(f'old-{index}')
+        clock['now'] += 600
+        for index in range(40, 60):
+            expired.record_failure(f'old-{index}')
+        expired_tracked = expired.tracked_keys()
+
+        # 全是封禁中的键时：按「最快解封」丢，刚封上的那个因此留得住。
+        all_blocked = LoginAttemptLimiter(1, 900, 900, max_keys=4)
+        for index in range(30):
+            all_blocked.record_failure(f'blocked-{index}')
+        latest_blocked = all_blocked.blocked('blocked-29')
+        all_blocked_tracked = all_blocked.tracked_keys()
+        default_keys = LoginAttemptLimiter().max_keys
+    finally:
+        auth_limiter.monotonic = real_monotonic
+
+    check(
+        'B33 限流器键数量封顶（一直换新键不再是无界增长）',
+        flooded <= bound,
+        f'记了 400 个键后仍只留 {flooded} 个（上限 {bound}）',
+    )
+    check(
+        'B33 封禁中的键不会被「只错一次」的新键挤掉（淘汰优先丢没封禁的）',
+        victim_blocked is True,
+        f'200 个新键之后 victim blocked={victim_blocked}',
+    )
+    check(
+        'B33 窗口外的记录在清扫时被丢掉（过期即不存在）',
+        expired_tracked <= bound,
+        f'40 个键过了 10 倍窗口后剩 {expired_tracked} 个（上限 {bound}）',
+    )
+    check(
+        'B33 全是封禁键时丢最快解封的：刚封上的那个留得住',
+        latest_blocked is True and all_blocked_tracked <= 4 + max(1, 4 // TRIM_STEP_RATIO),
+        f'最新封禁 blocked={latest_blocked}，留了 {all_blocked_tracked} 个键',
+    )
+    check(
+        'B33 默认上限取自模块常量（默认构造出的限流器同样有界）',
+        default_keys == MAX_TRACKED_KEYS,
+        f'默认 max_keys={default_keys}，常量={MAX_TRACKED_KEYS}',
+    )
+
+
+# --------------------------------------------------------------------------- #
+# B8：信任锚与加密身份每进程只读一次
+# --------------------------------------------------------------------------- #
+def check_trust_anchor_memory() -> None:
+    """B8：公钥与 Fernet 密钥只允许在进程内读一次。
+
+    原先每个请求都要重读并重新解析签名公钥 PEM（验签落在每个带会话 Cookie 的请求
+    上），每个加解密还要走一遍「mkdir + chmod + exists + read」。缓存本身不好直接
+    断言，于是用行为来观测：**把磁盘上的公钥换掉**，已加载的锚必须照旧有效 ——
+    反过来说，用新钥签的租约必须验不过（运行期换钥不生效，换钥要重启）。
+    """
+
+    import base64
+    import re
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    from backend.app import secret_key_file
+    from backend.app.ha.crypto import CredentialCipher
+    from backend.app.license.crypto import LeaseVerifier, LicenseCryptoError, SecretCipher
+
+    def public_pem(private_key: Ed25519PrivateKey) -> bytes:
+        return private_key.public_key().public_bytes(
+            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+
+    def signed_lease(private_key: Ed25519PrivateKey, body: dict) -> str:
+        payload_bytes = json.dumps(body).encode('utf-8')
+        encoded = base64.urlsafe_b64encode(payload_bytes).rstrip(b'=').decode('ascii')
+        signature = base64.urlsafe_b64encode(private_key.sign(payload_bytes)).rstrip(b'=').decode('ascii')
+        return f'{encoded}.{signature}'
+
+    def outcome(verifier: LeaseVerifier, lease: str) -> str:
+        try:
+            verifier.verify(lease, 'instance-1')
+        except LicenseCryptoError as error:
+            return f'拒绝（{error}）'
+        return '通过'
+
+    body = {
+        'keyId': 'test-key',
+        'product': 'homeos',
+        'instanceId': 'instance-1',
+        'leaseId': 'lease-1',
+        'features': ['api'],
+        'products': [],
+        'issuedAt': '2026-09-18T00:00:00Z',
+        'expiresAt': '2030-09-18T00:00:00Z',
+        'sessionId': 'session-1',
+        'leaseSequence': 3,
+        'activationCodeId': 'code-1',
+    }
+
+    with tempfile.TemporaryDirectory(prefix='hb-b8-') as tmp:
+        root = Path(tmp)
+        anchor = root / 'anchor.pem'
+        original = Ed25519PrivateKey.generate()
+        anchor.write_bytes(public_pem(original))
+        verifier = LeaseVerifier(trusted_keys={'test-key': (anchor, None)}, product='homeos')
+        lease = signed_lease(original, body)
+        first = outcome(verifier, lease)
+
+        # 换掉磁盘上的公钥文件：内存里那把锚不受影响，新钥签的租约也不该被接受。
+        replacement = Ed25519PrivateKey.generate()
+        anchor.write_bytes(public_pem(replacement))
+        after_swap = outcome(verifier, lease)
+        forged = outcome(verifier, signed_lease(replacement, body))
+
+        # Fernet 密钥：两个不同实例、两种用途，每个路径只允许碰一次盘。
+        seen: dict[str, int] = {}
+        real_read = secret_key_file._read_or_create_secret_key
+
+        def counted(path, *, error_factory, empty_message):
+            seen[str(path)] = seen.get(str(path), 0) + 1
+            return real_read(path, error_factory=error_factory, empty_message=empty_message)
+
+        credential_path = root / 'ha' / 'credential.key'
+        secret_path = root / 'license.key'
+        secret_key_file._read_or_create_secret_key = counted
+        try:
+            secret = SecretCipher(secret_path)
+            sealed = secret.encrypt('session-token')
+            for _ in range(5):
+                secret.decrypt(sealed)
+            reopened = SecretCipher(secret_path).decrypt(sealed)
+            credential = CredentialCipher(credential_path)
+            credential_sealed = credential.encrypt('ha-token')
+            credential_reopened = CredentialCipher(credential_path).decrypt(credential_sealed)
+        finally:
+            secret_key_file._read_or_create_secret_key = real_read
+        secret_reads = seen.get(str(secret_path), 0)
+        credential_reads = seen.get(str(credential_path), 0)
+
+    check(
+        'B8 信任锚首次验签照常通过（缓存不改变验签结果）',
+        first == '通过',
+        f'结果 {first}',
+    )
+    check(
+        'B8 公钥按 keyId 缓存在内存里：磁盘上的文件被换掉后，原租约照旧验过',
+        after_swap == '通过',
+        f'换文件之后结果 {after_swap}',
+    )
+    check(
+        'B8 缓存同时挡住「运行期换钥」：换钥必须重启才生效（否则换得掉 keys/ 里的文件就能伪造租约）',
+        forged.startswith('拒绝'),
+        f'用新公钥签的租约结果 {forged}',
+    )
+    check(
+        'B8 落库凭证密钥每进程只读一次（第二个 cipher 实例也不再碰盘）',
+        secret_reads == 1 and reopened == 'session-token',
+        f'碰盘 {secret_reads} 次；跨实例解密结果 {reopened!r}',
+    )
+    check(
+        'B8 HA 凭据密钥路径同样只读一次',
+        credential_reads == 1 and credential_reopened == 'ha-token',
+        f'碰盘 {credential_reads} 次；跨实例解密结果 {credential_reopened!r}',
+    )
+
+    # 结构面：两个 cipher 都必须走共享的带缓存入口，密钥文件本身不再被直接读。
+    # 用负向后顾排除 public_key_path（那是公钥，读法不同、也不该被这条断言管）。
+    for relative in ('backend/app/ha/crypto.py', 'backend/app/license/crypto.py'):
+        source = (PROJECT_ROOT / relative).read_text(encoding='utf-8')
+        direct_read = re.search(r'(?<![\w.])key_path\.read_bytes', source)
+        check(
+            f'B8 加解密走共享的带缓存加载入口，密钥文件不再被直接读（{relative}）',
+            'load_or_create_secret_key(' in source and direct_read is None,
+            f'第 {direct_read.start() if direct_read else "?"} 行仍在直接读 key_path',
+        )
+
+
+# --------------------------------------------------------------------------- #
+# B20：图标库元数据缓存要跟着文件走
+# --------------------------------------------------------------------------- #
+def check_icon_metadata_refresh() -> None:
+    """B20：图标库元数据的缓存必须跟着文件内容走，原地更新要能立刻生效。
+
+    缓存键原先只有路径，于是「换掉 meta.json」这件事永远看不见 —— 症状是
+    「新图标搜不到、旧图标搜得到」，而磁盘上明明已经是新文件。这里盯三件事：内容
+    不变时命中缓存（不重复解析）、文件变了必须重新解析（大小变了、以及**大小相同
+    只有内容变**）、缓存表按路径只有一格（更新是替换而不是不断累积）。
+    """
+    import os
+
+    from backend.app.api import icons as icons_module
+
+    def write_meta(path: Path, names: list[str]) -> None:
+        path.write_text(
+            json.dumps([{'name': name, 'aliases': [], 'tags': []} for name in names]),
+            encoding='utf-8',
+        )
+
+    with tempfile.TemporaryDirectory(prefix='hb-icons-') as tmp:
+        meta = Path(tmp) / 'meta.json'
+        write_meta(meta, ['home', 'home-outline'])
+        first = icons_module._mdi_metadata(meta)
+        again = icons_module._mdi_metadata(meta)
+        slots_when_cached = len(icons_module._mdi_metadata_cache)
+
+        # 原地更新，名字更长 → 字节数也变。
+        write_meta(meta, ['home', 'home-outline', 'home-plus'])
+        grown = [item['name'] for item in icons_module._mdi_metadata(meta)]
+
+        # 大小完全相同、只有内容不同（home-plus → home-minus）：只能靠 mtime 看出来。
+        write_meta(meta, ['home', 'home-outline', 'home-minus'])
+        stamp = time.time() + 5
+        os.utime(meta, ns=(int(stamp * 10**9), int(stamp * 10**9)))
+        replaced = [item['name'] for item in icons_module._mdi_metadata(meta)]
+        slots_after_updates = len(icons_module._mdi_metadata_cache)
+
+    check(
+        'B20 内容不变时命中缓存（同一个对象，没有重复解析）',
+        first is again and slots_when_cached == 1,
+        f'两次取到同一对象={first is again}，缓存格数={slots_when_cached}',
+    )
+    check(
+        'B20 文件被原地更新（字节数变化）后重新解析',
+        grown == ['home', 'home-outline', 'home-plus'],
+        f'结果 {grown}',
+    )
+    check(
+        'B20 字节数相同、只有内容与 mtime 变了也要重新解析',
+        replaced == ['home', 'home-outline', 'home-minus'],
+        f'结果 {replaced}',
+    )
+    check(
+        'B20 缓存按路径只留一格（原地更新是替换，不随更新次数累积）',
+        slots_after_updates == 1,
+        f'更新两次之后缓存格数={slots_after_updates}',
+    )
+
+
+# --------------------------------------------------------------------------- #
+# B26 / B59：渲染缓存读路径不加排他锁、淘汰排序在任何并列下都成立
+# --------------------------------------------------------------------------- #
+def check_render_cache_read_lock() -> None:
+    """B26/B59：渲染缓存的读路径与淘汰排序。
+
+    读缓存原先也抢整目录**排他**锁，而且顺手做了一次全量 glob + stat：任何一张缓存
+    图命中都要把它之后的读与写排成一队，写路径的淘汰（O(n) 扫目录）也让读者陪等。
+    这里盯两件事：锁的类型（写排他、读共享）与读路径的动作（只 stat + 读一个文件，
+    不扫全目录、不删文件）；另外盯淘汰排序在**并列条目**（同 mtime 同 size）下的
+    行为 —— 原先那种情况会拿 Path 对象比大小，抛 TypeError，让触发淘汰的那次写入
+    变成 500（B59）。
+    """
+    import os
+    import re
+    from PIL import Image
+
+    from backend.app.modules.interaction3d import render_cache
+
+    def path_of(data_dir: Path, seed: str) -> Path:
+        """造一条形态合法的缓存路径（键必须是 64 位十六进制）。"""
+        return render_cache.cache_path(data_dir, _scene_id(seed), 'project-1', (seed * 64)[:64])
+
+    with tempfile.TemporaryDirectory(prefix='hb-render-cache-') as tmp:
+        data_dir = Path(tmp) / 'data'
+        source = Path(tmp) / 'layer.png'
+        Image.new('RGB', (8, 8), (12, 34, 56)).save(source, format='PNG')
+        png = source.read_bytes()
+
+        first = path_of(data_dir, 'a1')
+        render_cache.write_cache(first, png)
+
+        # —— 锁的类型：写排他、读共享 ——
+        flags: list[str] = []
+        fcntl_module = getattr(render_cache, 'fcntl', None)
+        if fcntl_module is not None:
+            real_flock = fcntl_module.flock
+
+            def spy(handle, operation):
+                if operation == fcntl_module.LOCK_SH:
+                    flags.append('SH')
+                elif operation == fcntl_module.LOCK_EX:
+                    flags.append('EX')
+                # 解锁（LOCK_UN）不计入：这里要观测的是「谁用哪种锁」。
+                return real_flock(handle, operation)
+
+            fcntl_module.flock = spy
+            try:
+                render_cache.write_cache(path_of(data_dir, 'a2'), png)
+                render_cache.read_cache(first)
+            finally:
+                fcntl_module.flock = real_flock
+
+        # —— 读路径不许扫全目录 ——
+        glob_calls = {'count': 0}
+        real_glob = Path.glob
+
+        def counting_glob(self, *args, **kwargs):
+            glob_calls['count'] += 1
+            return real_glob(self, *args, **kwargs)
+
+        Path.glob = counting_glob
+        try:
+            hit = render_cache.read_cache(first)
+        finally:
+            Path.glob = real_glob
+
+        # —— 过期条目：按未命中返回，且读路径不删它（删除交给写路径的淘汰） ——
+        stale = path_of(data_dir, 'b1')
+        render_cache.write_cache(stale, png)
+        long_ago = time.time() - render_cache.MAX_AGE_SECONDS - 10
+        os.utime(stale, (long_ago, long_ago))
+        stale_miss = render_cache.read_cache(stale)
+        stale_kept = stale.exists()
+        render_cache.write_cache(path_of(data_dir, 'b2'), png)
+        stale_reclaimed = not stale.exists()
+
+        # —— B59：并列条目（同 mtime、同 size）触发淘汰 ——
+        # 单独用一个干净的缓存目录，好让淘汰顺序完全由并列怎么比决定：三条并列
+        # （c1/c2/c3，mtime 与字节数完全相同）+ 一条更旧（c0），上限压到 3，再写入
+        # 一条触发淘汰 —— 要淘汰两条：先淘汰最旧的 c0，再淘汰并列里的第一条。
+        # 旧写法在第二步就会拿 Path 对象比大小、抛 TypeError（B59），新写法按
+        # 完整路径字符串收尾，留下并列里路径较大的那两条。
+        tie_dir = Path(tmp) / 'data-ties'
+        tied = []
+        for seed in ('c1', 'c2', 'c3'):
+            candidate = path_of(tie_dir, seed)
+            render_cache.write_cache(candidate, png)
+            tied.append(candidate)
+        oldest = path_of(tie_dir, 'c0')
+        render_cache.write_cache(oldest, png)
+        pinned = int(time.time()) - 100
+        for candidate in [*tied, oldest]:
+            os.utime(candidate, ns=(pinned * 10**9, pinned * 10**9))
+        trigger = path_of(tie_dir, 'c9')
+        real_entries, real_bytes = render_cache.MAX_ENTRIES, render_cache.MAX_CACHE_BYTES
+        render_cache.MAX_ENTRIES, render_cache.MAX_CACHE_BYTES = 3, 1024**3
+        evicted = '通过'
+        try:
+            render_cache.write_cache(trigger, png)
+        except Exception as error:  # noqa: BLE001 - 崩栈也折成观测量，否则牙齿测试看不见 [FAIL]
+            evicted = f'崩：{type(error).__name__}'
+        finally:
+            render_cache.MAX_ENTRIES, render_cache.MAX_CACHE_BYTES = real_entries, real_bytes
+        survivors = sorted(item.name for item in trigger.parent.parent.glob('*/*.png'))
+        # 期望：最旧的 c0 先走，再走并列里按**完整路径字符串**排最小的那条；
+        # 并列里路径较大的两条留下（第三键就是完整路径，见 render_cache 里的注释）。
+        expected_survivors = sorted([trigger.name, *(item.name for item in sorted(tied, key=str)[1:])])
+
+    if fcntl_module is not None:
+        check(
+            'B26 写缓存持排他锁、读缓存只持共享锁（读不再与读互斥）',
+            flags == ['EX', 'SH'],
+            f'加锁依次为 {flags}（期望写 EX、读 SH）',
+        )
+    check(
+        'B26 读路径命中时只 stat + 读一个文件：不扫全目录、不删文件',
+        hit == png and glob_calls['count'] == 0 and stale_kept,
+        f'命中={hit == png}，glob 调用 {glob_calls["count"]} 次，过期文件还在={stale_kept}',
+    )
+    check(
+        'B26 过期条目按未命中返回，并交给下一次写入的淘汰收走（不在盘上赖着）',
+        stale_miss is None and stale_reclaimed,
+        f'读结果={stale_miss}，随后的写入把它清掉了={stale_reclaimed}',
+    )
+    check(
+        'B59 并列条目（同 mtime 同 size）触发淘汰时，留下的是最新的那几条（顺序确定）',
+        evicted == '通过' and survivors == expected_survivors,
+        f'{evicted}；幸存 {survivors}（期望 {expected_survivors}）',
+    )
+    # 结构面：并列时的判据必须写在明面上。审计原文说旧写法会抛 TypeError —— 实测
+    # 不成立（CPython 给 PurePath 定义了全序），所以这条断言的可观测内容是「显式
+    # key」这件事本身：把判据退回隐式的元组比较就报红（牙齿测试以此为据）。
+    render_source = (PROJECT_ROOT / 'backend/app/modules/interaction3d/render_cache.py').read_text(
+        encoding='utf-8'
+    )
+    explicit_key = re.search(
+        r'sorted\(\s*entries,\s*key=lambda item: \(item\[0\], item\[1\], str\(item\[2\]\)\)\s*\)',
+        render_source,
+    )
+    check(
+        'B59 淘汰排序显式给出第三键（完整路径字符串唯一，并列时不会掉进目录顺序）',
+        explicit_key is not None,
+        f'第 {explicit_key.start() if explicit_key else "?"} 行的淘汰排序没有显式 key',
+    )
+
+
 async def check_pairing_code_attempt_budget() -> None:
     """B48：按码的那一档限流必须真的挂在配对路由上（且是按码，不是按全局）。
 
@@ -6363,7 +6787,9 @@ async def check_declared_input_constraints() -> None:
     check(
         'B60 连接名的去空白只有 schema 一处（路由不再自己 strip）',
         'payload.name.strip()' not in Path('backend/app/api/ha.py').read_text(encoding='utf-8'),
-        '路由里仍在 strip',
+        '路由里仍在 strip payload.name'
+        if 'payload.name.strip()' in Path('backend/app/api/ha.py').read_text(encoding='utf-8')
+        else '只有 schema 一处',
     )
 
 
@@ -6443,6 +6869,10 @@ async def run() -> int:
     await check_health_probe_details_local_only()
     check_update_checks_opt_in()
     check_bounded_attempt_limiter()
+    check_limiter_key_bound()
+    check_trust_anchor_memory()
+    check_icon_metadata_refresh()
+    check_render_cache_read_lock()
     await check_pairing_code_attempt_budget()
     check_pair_shared_address_bucket()
     check_unique_violation_predicate()

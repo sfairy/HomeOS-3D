@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import json
-from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, Query, Request
@@ -16,17 +15,40 @@ from ..dependencies import LicensedUser
 router = APIRouter(prefix='/icons', tags=['icons'])
 
 
-# 元数据文件随发行版固定不变，整体缓存一份：进程内只解析一次。
-@lru_cache(maxsize=1)
-def _mdi_metadata(path: str) -> tuple[dict, ...]:
-    """读取并过滤 MDI 元数据，返回只含 name/aliases/tags 的元组。
+#: 已解析的元数据：{路径: (mtime_ns, 字节数, 条目)}。
+#: 键里为什么不只有路径（B20）：meta.json 会被**原地更新**（重新发布图标库、运维
+#: 替换 vendor 目录、开发时换一份 meta.json），只按路径缓存的话永远读回第一次那份，
+#: 表现为「新图标搜不到、旧图标搜得到」，而磁盘上明明已经是新文件。
+#: 存快照而不是用 lru_cache 是为了让「文件变没变」这件事可观测：自检直接看这张表。
+_mdi_metadata_cache: dict[str, tuple[int, int, tuple[dict, ...]]] = {}
+
+
+def _mdi_metadata(meta_path: Path) -> tuple[dict, ...]:
+    """取（必要时重新解析）MDI 元数据。
+
+    每次先看 mtime 与字节数：没变就直接回上次解析的结果（省掉读盘 + 解析），
+    变了就重新解析并覆盖。判断依据只有「文件本身变没变」，与请求参数无关，
+    因此按路径缓存是安全的（不同版本目录的路径本来就不同）。
 
     参数:
-        path: meta.json 路径。
+        meta_path: meta.json 路径。
+
     返回:
         已过滤的条目元组，顺序保持文件里的原始顺序。
     """
-    raw = json.loads(Path(path).read_text(encoding='utf-8'))
+    stat = meta_path.stat()
+    stamp = (stat.st_mtime_ns, stat.st_size)
+    cached = _mdi_metadata_cache.get(str(meta_path))
+    if cached is not None and cached[:2] == stamp:
+        return cached[2]
+    parsed = _parse_mdi_metadata(meta_path)
+    _mdi_metadata_cache[str(meta_path)] = (stamp[0], stamp[1], parsed)
+    return parsed
+
+
+def _parse_mdi_metadata(meta_path: Path) -> tuple[dict, ...]:
+    """读取并过滤 MDI 元数据，返回只含 name/aliases/tags 的元组。"""
+    raw = json.loads(meta_path.read_text(encoding='utf-8'))
     return tuple(
         {
             'name': item['name'],
@@ -60,7 +82,7 @@ def icons(
     # 允许直接粘贴 mdi:home 这种图标名：先剥掉前缀再匹配，同时统一小写。
     normalized = query.strip().lower().removeprefix('mdi:')
     matches = []
-    for item in _mdi_metadata(str(root / 'meta.json')):
+    for item in _mdi_metadata(root / 'meta.json'):
         haystack = [
             item['name'],
             *(str(value).lower() for value in item['aliases']),
