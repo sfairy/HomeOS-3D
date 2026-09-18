@@ -664,6 +664,178 @@ def check_client_ip_spoofing_invariant() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# B52：凭据密钥写入不许无界空转
+# --------------------------------------------------------------------------- #
+def check_credential_key_writes() -> None:
+    """B52：密钥文件的创建只对「并发抢占」重试，其它失败立刻报错。
+
+    原来的写法是 ``while True: … except OSError: continue``，且循环里没有 sleep：
+    只读挂载（EACCES/EROFS）、磁盘满（ENOSPC）、路径被目录占住（EISDIR）这些**永久
+    失败**都会让它原地空转，而调用方是 ``asyncio.to_thread`` —— 表现不是「密钥写
+    不进去」这种能查到原因的报错，而是「HA 相关接口陆续全卡死」（线程池被占满）。
+    所以这里的断言分两类：行为（永久失败立刻抛、抢占才重试、重试有上限与退避）
+    与结构（密钥写入路径上不存在无界循环）。
+    """
+    import os
+    import stat
+    import tempfile
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    from cryptography.fernet import Fernet
+
+    from backend.app import secret_key_file
+    from backend.app.ha.crypto import CredentialCipher, CredentialCipherError
+
+    with tempfile.TemporaryDirectory(prefix='hb-b52-') as tmp:
+        key_path = Path(tmp) / 'nested' / 'credential.key'
+        cipher = CredentialCipher(key_path)
+        sealed = cipher.encrypt('token-value')
+        check(
+            'B52 密钥文件按需生成并能解回原值',
+            cipher.decrypt(sealed) == 'token-value',
+            f'密文长度={len(sealed)}',
+        )
+        check(
+            'B52 密钥文件权限 0600、目录 0700',
+            stat.S_IMODE(key_path.stat().st_mode) == 0o600
+            and stat.S_IMODE(key_path.parent.stat().st_mode) == 0o700,
+            f'file={oct(stat.S_IMODE(key_path.stat().st_mode))} '
+            f'dir={oct(stat.S_IMODE(key_path.parent.stat().st_mode))}',
+        )
+        check(
+            'B52 复用已存在的密钥（不会每次重新生成、把旧密文变成解不开）',
+            CredentialCipher(key_path).decrypt(sealed) == 'token-value',
+            '同一路径的第二个实例解开了旧密文',
+        )
+
+        # 空文件 = 损坏，必须报错而不是静默重新生成。
+        empty_path = Path(tmp) / 'empty.key'
+        empty_path.write_bytes(b'')
+        try:
+            CredentialCipher(empty_path).encrypt('x')
+            empty_outcome = '没有报错'
+        except CredentialCipherError:
+            empty_outcome = '报 CredentialCipherError'
+        check(
+            'B52 空密钥文件视为损坏并显式报错（不静默重建）',
+            empty_outcome == '报 CredentialCipherError',
+            empty_outcome,
+        )
+
+        # 永久失败（EACCES/EROFS/ENOSPC 这一类）：必须只尝试一次就抛。
+        calls = {'count': 0}
+        real_open = os.open
+
+        def deny(*args, **kwargs):
+            calls['count'] += 1
+            raise PermissionError(13, 'Permission denied')
+
+        os.open = deny
+        try:
+            denied_path = Path(tmp) / 'denied.key'
+            try:
+                CredentialCipher(denied_path).encrypt('x')
+                denied_outcome = '没有报错'
+            except CredentialCipherError as error:
+                denied_outcome = f'报 CredentialCipherError（{error}）'
+        finally:
+            os.open = real_open
+        check(
+            'B52 永久性 OSError 立刻报错（不是无界重试）',
+            denied_outcome.startswith('报 CredentialCipherError') and calls['count'] == 1,
+            f'{denied_outcome}；os.open 尝试 {calls["count"]} 次（应为 1 次）',
+        )
+
+        # 并发抢占（FileExistsError）：重试一次后读到赢家写好的密钥。
+        race_calls = {'count': 0}
+        win_path = Path(tmp) / 'race.key'
+
+        def lose_once(*args, **kwargs):
+            race_calls['count'] += 1
+            if race_calls['count'] == 1:
+                # 模拟「另一个进程刚好先创建成功」。
+                win_path.write_bytes(Fernet.generate_key() + b'\n')
+                raise FileExistsError(17, 'File exists')
+            return real_open(*args, **kwargs)
+
+        os.open = lose_once
+        try:
+            race_key = secret_key_file.load_or_create_secret_key(
+                win_path,
+                error_factory=CredentialCipherError,
+                empty_message='空。',
+            )
+        finally:
+            os.open = real_open
+        check(
+            'B52 并发抢占的输家改为读取赢家的密钥（不重复创建、不空转）',
+            race_key == win_path.read_bytes().strip() and race_calls['count'] == 1,
+            f'拿到赢家的密钥={None if race_key is None else len(race_key)} 字节；'
+            f'os.open 尝试 {race_calls["count"]} 次（应为 1 次）',
+        )
+
+        # 一直抢占：重试到上限就抛错，不能死循环。
+        always_calls = {'count': 0}
+        sleeps: list[float] = []
+
+        def always_lose(*args, **kwargs):
+            always_calls['count'] += 1
+            raise FileExistsError(17, 'File exists')
+
+        real_sleep = secret_key_file.time.sleep
+        os.open = always_lose
+        # 只替换模块里的 time 引用，别去改全局 time 模块（那会影响整轮自检）。
+        secret_key_file.time = SimpleNamespace(sleep=sleeps.append)
+        try:
+            try:
+                secret_key_file.load_or_create_secret_key(
+                    Path(tmp) / 'always.key',
+                    error_factory=CredentialCipherError,
+                    empty_message='空。',
+                )
+                always_outcome = '没有报错'
+            except CredentialCipherError:
+                always_outcome = '报 CredentialCipherError'
+        finally:
+            secret_key_file.time = SimpleNamespace(sleep=real_sleep)
+            os.open = real_open
+        check(
+            'B52 一直抢占会重试到上限后报错（有界，不会挂死）',
+            always_outcome == '报 CredentialCipherError'
+            and always_calls['count'] == secret_key_file.SECRET_KEY_CREATE_ATTEMPTS,
+            f'{always_outcome}；尝试 {always_calls["count"]} 次（上限 '
+            f'{secret_key_file.SECRET_KEY_CREATE_ATTEMPTS}）',
+        )
+        check(
+            'B52 每次重试之间有退避（不是无 sleep 空转烧 CPU）',
+            len(sleeps) == secret_key_file.SECRET_KEY_CREATE_ATTEMPTS - 1
+            and all(delay > 0 for delay in sleeps),
+            f'退避 {sleeps}',
+        )
+
+    # 结构面：密钥写入路径上不许出现无界循环。
+    for relative in (
+        'backend/app/secret_key_file.py',
+        'backend/app/ha/crypto.py',
+        'backend/app/license/crypto.py',
+    ):
+        module_tree = ast.parse((PROJECT_ROOT / relative).read_text(encoding='utf-8'))
+        unbounded = [
+            node.lineno
+            for node in ast.walk(module_tree)
+            if isinstance(node, ast.While)
+            and isinstance(node.test, ast.Constant)
+            and node.test.value is True
+        ]
+        check(
+            f'B52 密钥写入路径没有无界循环（{relative}）',
+            not unbounded,
+            f'第 {unbounded} 行有 while True' if unbounded else '没有 while True',
+        )
+
+
+# --------------------------------------------------------------------------- #
 # 自检自身
 # --------------------------------------------------------------------------- #
 def check_every_check_is_wired() -> None:
@@ -701,6 +873,7 @@ async def run() -> int:
     check_hls_stream_registration()
     check_forwarded_allow_ips_defaults()
     check_client_ip_spoofing_invariant()
+    check_credential_key_writes()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

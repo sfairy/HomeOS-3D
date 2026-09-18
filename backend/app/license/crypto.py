@@ -28,6 +28,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+from ..secret_key_file import load_or_create_secret_key
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 
@@ -333,31 +335,21 @@ class SecretCipher:
     def _key(self) -> bytes:
         """读取或首次生成 Fernet 密钥。
 
+        目录 0700、文件 O_EXCL + 0600 的原子创建与「只对并发抢占重试」都在
+        ``..secret_key_file`` 里，与 HA 凭据密钥共用一份实现 —— 这两处原本各写
+        一遍，写法还不一致（这边没接住并发抢占，输家会直接抛 FileExistsError）。
+
         返回:
             32 字节 urlsafe base64 的 Fernet 密钥。
 
         异常:
-            LicenseCryptoError: 密钥文件已存在但内容为空。
+            LicenseCryptoError: 密钥文件已存在但内容为空，或密钥文件/目录不可写。
         """
-        # 目录权限 0700：密钥只允许运行账号本身读写。
-        self.key_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        if self.key_path.exists():
-            value = self.key_path.read_bytes().strip()
-            # 空文件视为损坏而不是「未生成」：静默重新生成会让已落库的密文
-            # 全部无法解密，宁可显式报错让人来确认。
-            if not value:
-                raise LicenseCryptoError('授权凭证密钥为空。')
-            return value
-        # 冗余的局部导入，保留原写法：与模块顶部的 import os 等价（历史遗留）。
-        import os
-        key = Fernet.generate_key()
-        # O_EXCL + 0600 原子独占创建：并发启动时只有一个进程能写入，
-        # 避免两个进程各写一把密钥导致后写的那把覆盖前者、已加密数据解不开。
-        descriptor = os.open(self.key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(descriptor, 'wb') as output:
-            # 末尾补换行便于人工 cat 查看，Fernet 读取时会 strip 掉。
-            output.write(key + b'\n')
-        return key
+        return load_or_create_secret_key(
+            self.key_path,
+            error_factory=LicenseCryptoError,
+            empty_message='授权凭证密钥为空。',
+        )
 
     def encrypt(self, value: str) -> str:
         """加密字符串，返回可直接入库的 ASCII 密文。"""

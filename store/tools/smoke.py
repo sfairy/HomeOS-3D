@@ -124,12 +124,69 @@ def check(name: str, condition: bool, detail: str = "") -> bool:
 
 
 def load_module(name: str, path: Path):
-    spec = importlib.util.spec_from_file_location(name, path)
+    """按文件路径加载模块（不要求被加载方是可导入的包）。
+
+    被加载的模块可能**自己用了相对导入**（例如 ``backend/app/license/crypto.py`` 会
+    ``from ..secret_key_file import ...``），纯按路径加载会因为「没有父包」直接 ImportError。
+    这里的做法是按仓库内的相对路径给它搭一串**空壳包**：``__path__`` 指向真实目录、
+    但刻意不执行任何 ``__init__.py``（保持「只加载这一个文件」的语义），于是相对导入
+    能落到真实文件上，解析方式与生产环境一致。不在仓库内的文件退回原来的纯路径加载。
+    """
+    package = _shell_package_for(path)
+    full_name = f"{package}.{name}" if package else name
+    spec = importlib.util.spec_from_file_location(full_name, path)
     module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
+    sys.modules[full_name] = module
     assert spec.loader is not None
     spec.loader.exec_module(module)
     return module
+
+
+#: 空壳包链的根名。固定前缀是为了不与真实包名撞车（``backend`` 是命名空间包）。
+SHELL_PACKAGE_ROOT = "_hb_smoke_shell"
+
+
+def _shell_package_for(path: Path) -> str | None:
+    """按仓库内相对路径搭好空壳包链，返回文件所属的包名；不在仓库内则返回 None。"""
+    try:
+        relative = path.resolve().relative_to(PROJECT_ROOT)
+    except ValueError:
+        return None
+    directories = list(relative.parent.parts)
+    if not directories or directories == ["."]:
+        return None
+    if SHELL_PACKAGE_ROOT not in sys.modules:
+        root = types.ModuleType(SHELL_PACKAGE_ROOT)
+        root.__path__ = []  # 只为让子包有父级可挂，本身不参与查找
+        sys.modules[SHELL_PACKAGE_ROOT] = root
+    current = SHELL_PACKAGE_ROOT
+    for index, part in enumerate(directories):
+        current = f"{current}.{part}"
+        if current in sys.modules:
+            continue
+        shell = types.ModuleType(current)
+        # __init__.py 刻意不执行：被加载的模块要的是同目录的兄弟文件，不是整包初始化。
+        shell.__path__ = [str(PROJECT_ROOT.joinpath(*directories[:index + 1]))]
+        sys.modules[current] = shell
+    return current
+
+
+def check_backend_modules_load_by_path() -> None:
+    """按文件路径加载的 backend 模块必须能用相对导入（B52 之后的新前提）。
+
+    两棵树是**独立部署**的，所以这里一直是按文件路径加载、不走 `import`。而 B52 把
+    「密钥文件写入」抽成共享模块 `backend/app/secret_key_file.py` 之后，
+    `license/crypto.py` 与 `ha/crypto.py` 都改成了 `from ..secret_key_file import ...`
+    —— 没有父包的纯路径加载会直接 ImportError，**整轮自检连启动都做不到**。
+    这条断言很小，却是后面所有检查能不能跑起来的前提，所以单独钉一条。
+    """
+    client_crypto = load_module("hb_path_load_crypto", CLIENT_CRYPTO_PATH)
+    loader = getattr(client_crypto, "load_or_create_secret_key", None)
+    check(
+        "B52 分享的密钥写入实现能按相对导入被加载（否则按文件加载 backend 模块整体失效）",
+        callable(loader) and str(getattr(loader, "__module__", "")).endswith("secret_key_file"),
+        f"load_or_create_secret_key 来自 {getattr(loader, '__module__', None)}",
+    )
 
 
 def _parse_with_node(path: Path) -> tuple[bool, str]:
@@ -11998,6 +12055,7 @@ async def check_incident_counters() -> None:
 
 async def run() -> int:
     client_crypto = load_module("hb_client_crypto", CLIENT_CRYPTO_PATH)
+    check_backend_modules_load_by_path()
 
     # 自检里大量用例刻意走模拟收银台（下单 → 模拟支付 → 拿激活码）。模拟收银台默认
     # 是关闭的（fail-closed，见 store/payments/__init__.resolve_provider），这里显式
