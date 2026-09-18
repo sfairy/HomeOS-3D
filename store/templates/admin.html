@@ -1525,6 +1525,7 @@
 <!-- 内联脚本必须带 nonce 占位符：服务端每响应替换成一次性随机值，
      否则会被自身的 CSP（script-src 无 'unsafe-inline'）挡下。
      见 store/request_security.py 的 CSP_NONCE_PLACEHOLDER。 -->
+<script src="/store-static/htmlsafe.js?v=20260917121000"></script>
 <script nonce="{{NONCE}}">
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -1682,10 +1683,10 @@ function valueSize(value) {
   return '';
 }
 
-function esc(value) {
-  return String(value === null || value === undefined ? '' : value)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+// HTML 转义。实现在 store/static/htmlsafe.js（唯一一份，S38）：
+// 这里只取别名，不再自己维护转义集 —— 两处实现并存时，少转一个字符不会有任何
+// 报错，只会让某个拼接点变成注入点。
+const esc = HtmlSafe.esc;
 
 // --------------------------------------------------------------------------- //
 // 时间口径：后端一律存 naive UTC，界面一律按浏览器本地时区显示与输入
@@ -2798,7 +2799,7 @@ async function loadOverview() {
   const todos = OVERVIEW_TODOS.filter(todo => Number(attention[todo.key] || 0) > 0);
   $('#overview-todos').hidden = todos.length === 0;
   $('#overview-todos-grid').innerHTML = todos.map(todo =>
-    `<button class="overview-todo ${todo.tone}" type="button" data-overview-todo="${esc(todo.key)}">` +
+    `<button class="overview-todo ${esc(todo.tone)}" type="button" data-overview-todo="${esc(todo.key)}">` +
     `<span class="overview-todo__count">${Number(attention[todo.key] || 0)}</span>` +
     `<span class="overview-todo__label">${esc(todo.label)}</span>` +
     `<span class="overview-todo__hint">${esc(todo.hint)}</span></button>`
@@ -2810,8 +2811,8 @@ async function loadOverview() {
     ? stock.map(item => {
       const available = Number(item.availableStock || 0);
       const tone = available <= 0 ? 'hb-tag--danger' : 'hb-tag--warning';
-      return `<tr><td>${esc(item.name)}</td><td class="is-mono">${item.stockQuantity}</td>` +
-        `<td class="is-mono">${item.reservedStock}</td>` +
+      return `<tr><td>${esc(item.name)}</td><td class="is-mono">${num(item.stockQuantity)}</td>` +
+        `<td class="is-mono">${num(item.reservedStock)}</td>` +
         `<td><span class="hb-tag ${tone}"><b>${available}</b></span></td></tr>`;
     }).join('')
     : emptyRow(4, '没有设置库存的商品，或库存都很充足。');
@@ -3288,9 +3289,9 @@ async function loadProducts() {
       <td>${cell(product.name)}${product.featured ? ` ${pill('推荐', 'warning')}` : ''}${product.requiresLicense ? ` ${pill('增量包', 'info')}` : ''}</td>
       <td>${esc(PRODUCT_TYPE[product.productType] || product.productType)}</td>
       <td class="nowrap">${money(product.priceCents)}</td>
-      <td class="nowrap">${product.validityDays ? `${product.validityDays} 天` : '永久'}</td>
+      <td class="nowrap">${product.validityDays ? `${num(product.validityDays)} 天` : '永久'}</td>
       <td>${featureCell(product.featureCodes || [])}</td>
-      <td class="nowrap">${product.stockQuantity === null ? '不限' : `${product.availableStock}/${product.stockQuantity}`}</td>
+      <td class="nowrap">${product.stockQuantity === null ? '不限' : `${num(product.availableStock)}/${num(product.stockQuantity)}`}</td>
       <td class="nowrap">${product.active ? pill('上架', 'success') : pill('下架', 'muted')}</td>
       <td class="nowrap">${actions(
         `<button class="hb-button hb-button--secondary hb-button--sm" data-product-edit="${esc(product.id)}">编辑</button>`,
@@ -3346,8 +3347,8 @@ $('#product-rows').addEventListener('click', async (event) => {
     // 用后端给的 licenseCount / orderCount（与删除守卫同口径）如实预告结果，
     // 避免管理员以为会真删、结果只是下架。
     const refs = [];
-    if (product?.licenseCount) refs.push(`<b>${product.licenseCount}</b> 条授权`);
-    if (product?.orderCount) refs.push(`<b>${product.orderCount}</b> 笔订单`);
+    if (product?.licenseCount) refs.push(`<b>${num(product.licenseCount)}</b> 条授权`);
+    if (product?.orderCount) refs.push(`<b>${num(product.orderCount)}</b> 笔订单`);
     const ok = await askConfirm({
       title: '删除商品',
       message: `将删除「${product ? product.name : deleteId}」。`,
@@ -3866,10 +3867,10 @@ async function loadCoupons() {
     <tr>
       <td class="mono">${cell(coupon.code)}</td>
       <td>${cell(coupon.description)}</td>
-      <td class="nowrap">${coupon.discountType === 'fixed' ? money(coupon.amountCents) : `${coupon.percent}%`}</td>
+      <td class="nowrap">${coupon.discountType === 'fixed' ? money(coupon.amountCents) : `${num(coupon.percent)}%`}</td>
       <td class="nowrap">${coupon.minAmountCents ? money(coupon.minAmountCents) : '无'}</td>
-      <td class="nowrap">${coupon.redeemedCount}/${coupon.maxRedemptions ?? '∞'}</td>
-      <td class="nowrap">${coupon.redemptionCount ? `<span title="历史上被占用过的次数（含已归还），点击「查看核销记录」可逐条作废">${coupon.redemptionCount} 次</span>` : '—'}</td>
+      <td class="nowrap">${num(coupon.redeemedCount)}/${esc(coupon.maxRedemptions ?? '∞')}</td>
+      <td class="nowrap">${coupon.redemptionCount ? `<span title="历史上被占用过的次数（含已归还），点击「查看核销记录」可逐条作废">${num(coupon.redemptionCount)} 次</span>` : '—'}</td>
       <td class="nowrap">${coupon.active ? pill('启用', 'success') : pill('停用', 'muted')}</td>
       <td class="nowrap">${actions(
         `<button class="hb-button hb-button--secondary hb-button--sm" data-coupon-toggle="${esc(coupon.id)}" data-coupon-active="${coupon.active ? '1' : '0'}">${coupon.active ? '停用' : '启用'}</button>`,
@@ -4102,7 +4103,7 @@ async function loadAccounts() {
     <tr>
       <td class="nowrap">${cell(account.email)}</td>
       <td class="nowrap">${account.isAdmin ? '管理员' : '用户'}</td>
-      <td class="nowrap">${account.licenseCount}</td>
+      <td class="nowrap">${num(account.licenseCount)}</td>
       <td class="nowrap">${esc(account.balance)}</td>
       <td class="nowrap mono">${esc(account.referralCode || '—')}</td>
       <td class="nowrap">${account.isActive ? pill('正常', 'success') : pill('已停用', 'danger')}</td>
@@ -4967,7 +4968,7 @@ async function loadReleases() {
       <td class="nowrap">${actions(
         `<button class="hb-button hb-button--secondary hb-button--sm" data-release-edit="${esc(release.id)}">编辑</button>`,
         rowMenu('更多操作',
-          menuItem('删除', `data-release-delete="${esc(release.id)}" data-release-label="${esc(`${release.product}/${release.channel} ${release.version}`)}"`, { danger: true }),
+          menuItem('删除', `data-release-delete="${esc(release.id)}" data-release-label="${esc(release.product + '/' + release.channel + ' ' + release.version)}"`, { danger: true }),
         ),
       )}</td>
     </tr>`).join('') : emptyRow(6, pageState('releases').offset > 0 ? '本页无数据' : '没有符合条件的版本记录');
@@ -5085,7 +5086,7 @@ async function loadAudits() {
       <td class="mono">${cell(item.target)}</td>
       <td>${cell(item.detail)}</td>
       <td class="nowrap">${actions(
-        `<button class="hb-button hb-button--danger hb-button--sm" data-audit-delete="${esc(item.id)}" data-audit-label="${esc(`${item.action} ${item.target}`.trim())}">删除</button>`,
+        `<button class="hb-button hb-button--danger hb-button--sm" data-audit-delete="${esc(item.id)}" data-audit-label="${esc((item.action + ' ' + item.target).trim())}">删除</button>`,
       )}</td>
     </tr>`).join('') : emptyRow(6, cursor.offset > 0 ? '本页无数据' : '暂无审计记录');
   renderPager('audits');
@@ -5335,8 +5336,8 @@ async function loadCustomers() {
     <tr>
       <td>${cell(customer.email)}</td>
       <td>${cell(customer.name)}</td>
-      <td class="nowrap">${customer.orderCount}</td>
-      <td class="nowrap">${customer.licenseCount}</td>
+      <td class="nowrap">${num(customer.orderCount)}</td>
+      <td class="nowrap">${num(customer.licenseCount)}</td>
       <td class="nowrap">${d(customer.createdAt)}</td>
     </tr>`).join('') : emptyRow(5, cursor.offset > 0 ? '本页无数据' : '暂无客户档案');
   renderPager('customers');
@@ -5479,7 +5480,7 @@ function renderPager(key) {
   const last = pages === 1 ? 0 : (pages - 1) * cursor.limit;
   $$(`[data-pager="${key}"]`).forEach(box => {
     box.innerHTML = `
-      <span class="admin-pager__info">第 ${page}/${pages} 页 · 显示 ${from}–${to} / 共 ${cursor.total} 条</span>
+      <span class="admin-pager__info">第 ${page}/${pages} 页 · 显示 ${from}–${to} / 共 ${num(cursor.total)} 条</span>
       <button class="hb-button hb-button--secondary hb-button--sm" data-page="${key}" data-page-dir="first" ${cursor.offset <= 0 ? 'disabled' : ''}>首页</button>
       <button class="hb-button hb-button--secondary hb-button--sm" data-page="${key}" data-page-dir="prev" ${cursor.offset <= 0 ? 'disabled' : ''}>上一页</button>
       <button class="hb-button hb-button--secondary hb-button--sm" data-page="${key}" data-page-dir="next" ${atLastPage(key) ? 'disabled' : ''}>下一页</button>
@@ -5782,7 +5783,7 @@ async function loadEmailVerifications() {
       <td class="nowrap">${dt(row.createdAt)}</td>
       <td>${cell(row.email)}</td>
       <td class="nowrap">${esc(row.purpose)}</td>
-      <td class="nowrap">${row.attempts}</td>
+      <td class="nowrap">${num(row.attempts)}</td>
       <td class="nowrap">${row.consumedAt ? pill('已使用', 'success') : pill('未使用', 'warning')}</td>
       <td class="nowrap">${dt(row.expiresAt)}</td>
       <td class="nowrap">${row.settled ? pill('可清理', 'muted') : pill('仍在用', 'warning')}</td>

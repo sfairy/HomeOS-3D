@@ -1,6 +1,6 @@
 (() => {
   const $ = s => document.querySelector(s);
-  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc = HtmlSafe.esc;
   const storageKey = 'hb_invite_v1';
   try {
     const code = new URL(location.href).searchParams.get('invite');

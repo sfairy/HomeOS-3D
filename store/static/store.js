@@ -19,7 +19,9 @@
   const money = cents => `¥${(Number(cents || 0) / 100).toFixed(2)}`;
   // 支付弹窗把「¥」单独排成小一号的符号，只取数字部分
   const moneyAmount = cents => (Number(cents || 0) / 100).toFixed(2);
-  const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
+  // HTML 转义。实现在 store/static/htmlsafe.js（唯一一份，S38）；
+  // 这个名字保留是因为下面已有 20+ 处调用点。
+  const escapeHtml = HtmlSafe.esc;
 
   function toast(message) {
     const node = $('#store-toast');
@@ -285,7 +287,7 @@
       ? `<span class="hb-button hb-button--secondary hb-button--sm is-disabled">${state.hasPermanentLicense ? '已有永久授权' : '已购买试用'}</span>`
       : product.soldOut
       ? '<span class="hb-button hb-button--secondary hb-button--sm is-disabled">已售罄</span>'
-      : `<a class="hb-button hb-button--primary hb-button--sm" href="${productHref(product)}">${state.account ? (requestedUpgradeLicenseId() && !isTrialProduct(product) ? '选择升级版本' : '选择此版本') : '查看详情'}</a>`;
+      : `<a class="hb-button hb-button--primary hb-button--sm" href="${escapeHtml(productHref(product))}">${state.account ? (requestedUpgradeLicenseId() && !isTrialProduct(product) ? '选择升级版本' : '选择此版本') : '查看详情'}</a>`;
     const badge = isTrialProduct(product) ? `${product.validityDays} 天试用` : bundle ? '全授权' : product.productType === 'package' ? '自定义套餐' : '主授权';
     // 每个主授权卡都要有一行说明：套餐卡展示所含内容，其余卡展示商品说明（与详情页
     // #store-product-description 同源）。否则「主授权」卡只有徽标+标题，同排被套餐卡拉
@@ -347,7 +349,7 @@
     const description = product.displayDescription || product.note || '购买后追加到现有激活码。';
     const action = product.soldOut
       ? '<span class="hb-button hb-button--secondary hb-button--sm is-disabled">已售罄</span>'
-      : `<a class="hb-button hb-button--primary hb-button--sm" href="${storePageHref(`/item/${encodeURIComponent(product.id)}`)}">${state.account ? '查看并购买' : '查看详情'}</a>`;
+      : `<a class="hb-button hb-button--primary hb-button--sm" href="${escapeHtml(storePageHref(`/item/${encodeURIComponent(product.id)}`))}">${state.account ? '查看并购买' : '查看详情'}</a>`;
     return `<article class="hb-addon-card" data-product-group="addon"><span class="hb-addon-card__badge">${escapeHtml(type)}</span><h3>${escapeHtml(product.name)}</h3><p>${escapeHtml(description)}</p><div class="hb-addon-card__footer"><strong>${money(product.priceCents)}</strong>${action}</div></article>`;
   }
 
@@ -1137,7 +1139,7 @@
       const releasePolicyState = `<p class="hb-release-policy-state" data-release-policy-license="${escapeHtml(item.activationCodeId)}"></p>`;
       const labelAction = `<button class="hb-button hb-button--secondary" data-label-license="${escapeHtml(item.activationCodeId)}" data-current-label="${escapeHtml(item.userLabel || '')}">修改备注</button>`;
       const upgradeAction = item.validityDays && permanentProducts.length
-        ? `<a class="hb-button hb-button--primary" href="${storePageHref('/products')}&upgrade=${encodeURIComponent(item.activationCodeId)}">升级为永久授权</a>`
+        ? `<a class="hb-button hb-button--primary" href="${escapeHtml(storePageHref('/products'))}&upgrade=${encodeURIComponent(item.activationCodeId)}">升级为永久授权</a>`
         : '';
       const actions = `<div class="hb-account-actions">${upgradeAction}${labelAction}${releaseAction}</div>`;
       const source = ({ admin_manual: '后台手动发卡', historical_import: '历史导入', payment_manual: '支付后手动发卡', payment_automatic: '支付后自动发卡' })[item.issuanceSource] || '后台发放';

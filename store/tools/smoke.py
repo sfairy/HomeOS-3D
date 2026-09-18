@@ -8808,6 +8808,557 @@ def check_product_image_upload_whitelist() -> None:
     )
 
 
+def check_single_escaper() -> None:
+    """S38：HTML 转义**只有一份实现**，而且转义集完整（单引号也在内）。
+
+    修复前有三份各写各的实现：后台 ``esc()``（漏单引号）、前台 ``escapeHtml()``、
+    邀请页 ``esc()``。少转一个字符不会有任何报错 —— 只会让某个拼接点变成注入点，
+    而那种点位上写的是别人的邮箱、订单备注、商品名。
+
+    所以这里钉的不是「某一行调用写得对」，而是「实现只有一份、消费方都接这一份」：
+    实现只剩一份时，不一致在物理上就不可能发生。
+    """
+    static_dir = STORE_ROOT / "static"
+    templates_dir = STORE_ROOT / "templates"
+    module_source = (static_dir / "htmlsafe.js").read_text(encoding="utf-8")
+    consumers = {
+        "admin.html": (templates_dir / "admin.html").read_text(encoding="utf-8"),
+        "store.js": (static_dir / "store.js").read_text(encoding="utf-8"),
+        "referrals.js": (static_dir / "referrals.js").read_text(encoding="utf-8"),
+    }
+    expected = {"&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"}
+
+    match = re.search(r"ESCAPE_MAP\s*=\s*\{([^}]*)\}", module_source)
+    pairs = re.findall(r"""(['"])(.*?)\1\s*:\s*(['"])(.*?)\3""", match.group(1)) if match else []
+    escape_map = {key: value for _, key, _, value in pairs}
+    check(
+        "S38 转义表是一份完整映射（含单引号）",
+        escape_map == expected,
+        str(escape_map),
+    )
+    classes = set(re.findall(r"replace\(/\[([^\]]+)\]/g", module_source))
+    classes |= set(re.findall(r"ESCAPE_PATTERN\s*=\s*/\[([^\]]+)\]/g", module_source))
+    check(
+        "S38 正则字符类与转义表同集（少一个字符就等于没转）",
+        any(set(characters) == set(expected) for characters in classes),
+        str(sorted(classes)),
+    )
+
+    # 自带实现的两条码型：一条 .replace 链、或自己声明转义表。
+    homemade = {
+        label: token
+        for label, text in consumers.items()
+        for token in ("replace(/[&<>", "ESCAPE_MAP")
+        if token in text
+    }
+    check(
+        "S38 消费方不再自带转义实现（只允许引用 htmlsafe.js）",
+        not homemade,
+        str(homemade),
+    )
+    missing = [label for label, text in consumers.items() if "HtmlSafe.esc" not in text]
+    check("S38 三个消费方都接的是同一份实现（HtmlSafe.esc）", not missing, str(missing))
+
+    def _code_only(text: str) -> str:
+        # 注释里提到 &apos; 是允许的（htmlsafe.js 自己就在解释为什么不用它），
+        # 只有真的写进拼接逻辑才算违规。
+        text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+        return "\n".join(line.split("//", 1)[0] for line in text.splitlines())
+
+    check(
+        "S38 不用 &apos;（旧版 HTML 解析器不认，会原样显示出来）",
+        all("&apos;" not in _code_only(text) for text in (*consumers.values(), module_source)),
+    )
+
+    # 加载顺序：模块必须在内联脚本 / 消费方脚本之前加载，否则 `HtmlSafe.esc` 是 undefined，
+    # 整个后台在第一次渲染时就静默失效。
+    admin_source = consumers["admin.html"]
+    admin_module = admin_source.find("/store-static/htmlsafe.js")
+    admin_inline = admin_source.find('<script nonce=')
+    check(
+        "S38 admin.html 先加载 htmlsafe.js 再跑内联脚本",
+        -1 < admin_module < admin_inline,
+        f"module={admin_module} inline={admin_inline}",
+    )
+    store_source = (templates_dir / "store.html").read_text(encoding="utf-8")
+    store_module = store_source.find("/store-static/htmlsafe.js")
+    first_consumer = min(
+        position
+        for name in ("referrals.js", "store.js")
+        for position in [store_source.find(f"/store-static/{name}")]
+        if position >= 0
+    )
+    check(
+        "S38 store.html 先加载 htmlsafe.js 再跑 referrals.js / store.js",
+        -1 < store_module < first_consumer,
+        f"module={store_module} consumer={first_consumer}",
+    )
+
+
+def check_escaper_behaviour() -> None:
+    """S38：转义实现的行为由 node 实测，而不只看源码里写了哪几个字符。
+
+    源码扫描只能证明「表里写了单引号」，证明不了 `esc()` 真的把一串带引号、尖括号、
+    脚本的输入变成惰性文本。这个模块不碰 DOM，所以能直接在 node 里 require 它跑
+    断言 —— 而且跑的就是页面加载的那一份文件（同源、同内容）。
+
+    node 不在时跳过（与 check_static_assets 一致），跳过与否都会打印出来。
+    """
+    module_path = STORE_ROOT / "static" / "htmlsafe.js"
+    if shutil.which("node") is None:
+        check("S38 转义行为实测（node 不可用，跳过）", True, "skipped")
+        return
+
+    hostile = "</td><img src=x onerror=\"alert('1')\">&<>'\u0022`${0}`\\"
+    script = f"""
+const {{ esc }} = require({str(module_path)!r});
+const values = {{
+  hostile: esc({json.dumps(hostile)}),
+  attribute: esc('ev"il'),
+  single: esc("it's"),
+  ampersand: esc('a & b'),
+  nullish: esc(null) + '|' + esc(undefined),
+  zero: esc(0),
+  already: esc('&amp;'),
+  tag: esc('<b>'),
+}};
+process.stdout.write(JSON.stringify(values));
+"""
+    proc = subprocess.run(  # noqa: S603
+        ["node", "-e", script],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        check("S38 转义行为实测：node 能加载 htmlsafe.js", False, proc.stderr.strip()[:200])
+        return
+    observed = json.loads(proc.stdout)
+    escaped = observed["hostile"]
+    check(
+        "S38 尖括号、引号、与号全部惰性化（注入串不再含可执行字符）",
+        # 反引号不在 HTML 的转义集里（它只在模板字面量里有意义），所以不要求它变；
+        # 要求的是 HTML 真正在意的那几个字符 —— 注意转义结果自己带 `&`，所以要
+        # 按「不在实体里的裸 &」判。
+        not re.search(r"[<>\"']", escaped)
+        and not re.search(r"&(?!amp;|lt;|gt;|quot;|#39;)", escaped)
+        and "<img" not in escaped
+        and "&lt;/td&gt;" in escaped
+        and "&quot;" in escaped
+        and "&#39;" in escaped,
+        escaped,
+    )
+    check(
+        "S38 属性里的引号被转义（属性逃逸的入口）",
+        observed["attribute"] == "ev&quot;il",
+        observed["attribute"],
+    )
+    check("S38 单引号 → &#39;", observed["single"] == "it&#39;s", observed["single"])
+    check("S38 与号 → &amp;（幂等性不保证，二次转义可见）", observed["ampersand"] == "a &amp; b", observed["ampersand"])
+    check("S38 null / undefined → 空串，调用点不必先判空", observed["nullish"] == "|", observed["nullish"])
+    check("S38 0 不会变成空串", observed["zero"] == "0", observed["zero"])
+    check("S38 已是实体串会被二次转义（&amp;amp;）—— 调用点不要重复转义", observed["already"] == "&amp;amp;", observed["already"])
+    check("S38 标签整体惰性化", observed["tag"] == "&lt;b&gt;", observed["tag"])
+
+
+# 标记模板里「可信」的包装函数：出现在 `${...}` 里时，它**自己**负责把数据变成
+# 安全文本，门就不再要求每个属性读都套一层 esc()。
+# 名单是逐个审过的，新增一个都要说清楚它凭什么安全：
+#   · esc / escapeHtml —— 就是转义本身；
+#   · Number / String / parseInt / parseFloat / Boolean / encodeURIComponent ——
+#     输出只可能是数字/布尔/百分号编码，不含 < > " ' `；
+#   · money / num / moneyAmount —— 金额与计数，输出只有数字、¥、千分位；
+#   · d / dt / date / localParts / orderCountdownText —— 日期格式化，解析后
+#     只输出数字与短横线，解析失败给「—」；
+#   · cell / pill / statusBadge / featureCell / emptyRow / menuItem / menuNote /
+#     actions / rowMenu / featureOptionRow / accountOrderActions —— 标记助手，
+#     内部自己调 esc（见各自定义）；它们的**原始参数**是下一层的标记模板，
+#     那些模板会被本门单独扫到；
+#   · valueSize / addonTypeLabel / productGroup —— 只返回固定常量（类名/标签）；
+#   · tableSpan / atLastPage / isTrialProduct —— 数字或布尔。
+_TRUSTED_MARKUP_CALLS = (
+    "esc|escapeHtml|Number|String|parseInt|parseFloat|Boolean|encodeURIComponent|"
+    "money|num|moneyAmount|d|dt|date|localParts|orderCountdownText|"
+    "cell|pill|statusBadge|featureCell|emptyRow|menuItem|menuNote|actions|rowMenu|"
+    "featureOptionRow|accountOrderActions|valueSize|addonTypeLabel|productGroup|"
+    "tableSpan|atLastPage|isTrialProduct"
+).split("|")
+
+_MARKUP_TAG_RE = re.compile(r"</?[a-zA-Z][a-zA-Z0-9-]*[\s/>]")
+_CONDITION_SUFFIXES = ("?", "&&", "||", "===", "!==", "==", "!=", "<=", ">=", "<", ">")
+
+
+def _js_regions(text: str) -> list[tuple[int, int]]:
+    """文件里会被当作 JS 解析的区间。
+
+    ``.html`` 模板的 HTML 部分带着中英文散文，里面的撇号会让朴素扫描器错位
+    （``don't`` 这种），所以只扫 ``<script>``（无 src）里的内容。
+    """
+    regions = [
+        (match.start(1), match.end(1))
+        for match in re.finditer(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", text, re.DOTALL)
+    ]
+    return regions or [(0, len(text))]
+
+
+def _skip_string_or_regex(text: str, index: int) -> int:
+    """跳过以 ``text[index]`` 开头的字符串 / 注释 / 正则，返回之后的位置。
+
+    调用方保证 ``index`` 落在这些构造的开头；否则返回 ``index + 1``。
+    """
+    character = text[index]
+    if character == "/":
+        if text.startswith("//", index):
+            end = text.find("\n", index)
+            return len(text) if end < 0 else end + 1
+        if text.startswith("/*", index):
+            end = text.find("*/", index + 2)
+            return len(text) if end < 0 else end + 2
+        # 正则：上一个有意义的字符能落在正则前面才算正则，否则是除号
+        previous = index - 1
+        while previous >= 0 and text[previous] in " \t\r\n":
+            previous -= 1
+        if previous < 0 or text[previous] not in "(,=:[!&|?{};+-*%<>~^":
+            return index + 1
+        index += 1
+        in_class = False
+        while index < len(text):
+            if text[index] == "\\":
+                index += 2
+                continue
+            if text[index] == "[":
+                in_class = True
+            elif text[index] == "]":
+                in_class = False
+            elif text[index] == "/" and not in_class:
+                index += 1
+                while index < len(text) and text[index].isalpha():
+                    index += 1
+                return index
+            elif text[index] == "\n":
+                return index
+            index += 1
+        return index
+    if character in "\"'":
+        index += 1
+        while index < len(text):
+            if text[index] == "\\":
+                index += 2
+                continue
+            if text[index] == character:
+                return index + 1
+            index += 1
+        return index
+    return index + 1
+
+
+def _scan_template_literals(text: str) -> list[tuple[int, int]]:
+    """所有模板字面量的 ``(起, 止)`` 区间（含嵌套），按出现顺序。"""
+    spans: list[tuple[int, int]] = []
+    size = len(text)
+
+    def scan(i: int) -> int:
+        while i < size:
+            if text[i] == "/" or text[i] in "\"'":
+                i = _skip_string_or_regex(text, i)
+                continue
+            if text[i] != "`":
+                i += 1
+                continue
+            start = i
+            i += 1
+            while i < size:
+                if text[i] == "\\":
+                    i += 2
+                    continue
+                if text[i] == "`":
+                    spans.append((start, i))
+                    i += 1
+                    break
+                if text[i] == "$" and i + 1 < size and text[i + 1] == "{":
+                    i = scan_expression(i + 2)
+                    continue
+                i += 1
+        return i
+
+    def scan_expression(i: int) -> int:
+        depth = 1
+        while i < size:
+            if text[i] == "/" or text[i] in "\"'":
+                i = _skip_string_or_regex(text, i)
+                continue
+            if text[i] == "`":
+                start = i
+                i += 1
+                while i < size:
+                    if text[i] == "\\":
+                        i += 2
+                        continue
+                    if text[i] == "`":
+                        spans.append((start, i))
+                        i += 1
+                        break
+                    if text[i] == "$" and i + 1 < size and text[i + 1] == "{":
+                        i = scan_expression(i + 2)
+                        continue
+                    i += 1
+                continue
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    return i + 1
+            i += 1
+        return i
+
+    scan(0)
+    return sorted(spans)
+
+
+def _template_interpolations(
+    text: str, span: tuple[int, int], all_spans: list[tuple[int, int]]
+) -> list[tuple[int, int, str]]:
+    """某个模板字面量**自身层级**的 ``${...}``（嵌套字面量由它自己那一轮扫）。"""
+    start, end = span
+    inner = [(s, e) for s, e in all_spans if start < s and e < end]
+    found: list[tuple[int, int, str]] = []
+    i = start + 1
+    while i < end:
+        nested_end = next((e for s, e in inner if s <= i < e), None)
+        if nested_end is not None:
+            i = nested_end + 1
+            continue
+        if text[i] == "$" and i + 1 < end and text[i + 1] == "{":
+            j = i + 2
+            depth = 1
+            while j < end and depth:
+                if text[j] == "/" or text[j] in "\"'":
+                    j = _skip_string_or_regex(text, j)
+                    continue
+                if text[j] == "`":
+                    j = next(e for s, e in all_spans if s == j) + 1
+                    continue
+                if text[j] == "{":
+                    depth += 1
+                elif text[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                j += 1
+            found.append((i + 2, j, text[i + 2 : j]))
+            i = j + 1
+            continue
+        i += 1
+    return found
+
+
+def _blanked(text: str) -> str:
+    """把字符串常量抹成空白，避免 ``'a.b'`` 这种字面量被当成属性读。"""
+    out = []
+    i = 0
+    while i < len(text):
+        if text[i] in "\"'":
+            end = _skip_string_or_regex(text, i)
+            out.append(" " * (end - i))
+            i = end
+            continue
+        if text[i] == "`":
+            end = text.find("`", i + 1)
+            end = len(text) if end < 0 else end + 1
+            out.append(" " * (end - i))
+            i = end
+            continue
+        out.append(text[i])
+        i += 1
+    return "".join(out)
+
+
+def _trusted_spans(expression: str) -> list[tuple[int, int]]:
+    """可信包装调用 / ``new X(...)`` 的区间（含参数括号，从外到内）。"""
+    spans: list[tuple[int, int]] = []
+    pattern = re.compile(r"\b(?:%s)\s*\(|(?:\bnew\s+)([A-Za-z_$][\w$]*)\s*\(" % "|".join(_TRUSTED_MARKUP_CALLS))
+    for match in pattern.finditer(expression):
+        i = match.end() - 1
+        depth = 0
+        while i < len(expression):
+            if expression[i] in "\"'":
+                i = _skip_string_or_regex(expression, i)
+                continue
+            if expression[i] == "`":
+                i += 1
+                while i < len(expression) and expression[i] != "`":
+                    i += 2 if expression[i] == "\\" else 1
+                i += 1
+                continue
+            if expression[i] == "(":
+                depth += 1
+            elif expression[i] == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            i += 1
+        spans.append((match.start(), i + 1))
+    return spans
+
+
+def _paren_end(text: str, open_index: int) -> int:
+    """``text[open_index]`` 是 ``(``，返回与之配对的 ``)`` 之后的位置。"""
+    depth = 0
+    i = open_index
+    while i < len(text):
+        if text[i] in "\"'":
+            i = _skip_string_or_regex(text, i)
+            continue
+        if text[i] == "(":
+            depth += 1
+        elif text[i] == ")":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return i
+
+
+def _markup_template_violations(source: str) -> list[str]:
+    """标记模板里「数据属性直插」的位置。
+
+    规则（S39）：模板里含 HTML 标签时，每个 ``${...}`` 里**要显示出来的数据**
+    必须整体落在一个可信包装调用里。只有三种写法放行：
+
+      · ``${esc(x.y)}`` / ``${Number(x.y)}`` —— 数据过了函数；
+      · ``${x.y ? a : b}`` —— 属性读只当条件（判断用，不进 HTML）；
+      · ``${rows.map(row => ...)}`` —— 数组/字符串方法调用（结构操作，
+        里面的标记模板会被本门单独扫到）。
+
+    已知盲点（写在这里，免得下一个人以为它证明了更多）：
+      · 方法调用链上的数据读（``${user.name.toUpperCase()}``）与局部变量
+        （``${manualBadge}``）不检查 —— 它们不是属性直插；
+      · 拼接出来的字符串参数（``'data-x="' + v + '"'``）不是模板字面量，扫不到。
+    所以它是**绊线**：拦住最常见、也最容易在评审里溜过去的那一类新增写法。
+    """
+    spans: list[tuple[int, int]] = []
+    for region_start, region_end in _js_regions(source):
+        spans.extend(
+            (start + region_start, end + region_start)
+            for start, end in _scan_template_literals(source[region_start:region_end])
+        )
+    spans.sort()
+
+    # 标记上下文：含标签的模板，以及**嵌在**标记插值里的片段模板。
+    # 后者必须一起算 —— `${product.validityDays ? ` ${x} 天` : '永久'}` 里的片段
+    # 不含标签，但它拼出来的字是要显示在页面上的。
+    markup_spans: list[tuple[int, int]] = []
+    for span in spans:
+        if _MARKUP_TAG_RE.search(source[span[0] + 1 : span[1]]) or any(
+            outer_start < span[0] and span[1] < outer_end for outer_start, outer_end in markup_spans
+        ):
+            markup_spans.append(span)
+
+    violations: list[str] = []
+    for start, end in markup_spans:
+        for interpolation_start, interpolation_end, expression in _template_interpolations(
+            source, (start, end), spans
+        ):
+            cleaned = _blanked(expression)
+            holes = _trusted_spans(expression) + [
+                (s - interpolation_start, e - interpolation_start)
+                for s, e in spans
+                if interpolation_start < s and e < interpolation_end
+            ]
+            for hole_start, hole_end in sorted(holes, reverse=True):
+                cleaned = cleaned[:hole_start] + " " * (hole_end - hole_start) + cleaned[hole_end:]
+
+            # ① 不在可信清单里的普通函数调用（成员调用如 .map() 属于结构操作，放行）
+            for match in re.finditer(r"(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(", cleaned):
+                name = match.group(1)
+                if name in {"function", "if", "for", "while", "switch", "return", "catch", "typeof"}:
+                    continue
+                # 只当条件的调用也放行：返回值不进 HTML，只拿来做判断
+                # （例如 `${requestedUpgradeLicenseId() && ... ? a : b}`）。
+                tail = cleaned[_paren_end(cleaned, match.end() - 1) :].lstrip()
+                if tail.startswith(tuple(_CONDITION_SUFFIXES)) or tail.startswith("!"):
+                    continue
+                violations.append(
+                    f"L{source[:interpolation_start].count(chr(10)) + 1} 调用了未加白的 {name}()：{expression.strip()[:60]}"
+                )
+            # ② 数据属性直插
+            for match in re.finditer(
+                r"[A-Za-z_$][\w$]*\s*(?:\?\.|\.)\s*[A-Za-z_$][\w$]*|\[[^\]\s][^\]]*\]", cleaned
+            ):
+                rest = cleaned[match.end() :].lstrip()
+                if rest.startswith("(") or rest.startswith(tuple(_CONDITION_SUFFIXES)):
+                    continue
+                violations.append(
+                    f"L{source[:interpolation_start].count(chr(10)) + 1} 数据未过函数：{expression.strip()[:60]}"
+                )
+    return violations
+
+
+def check_markup_templates_escape_data() -> None:
+    """S39：标记模板里的数据必须过一遍转义/格式化函数。
+
+    这条门防的是「下一行忘了写 esc()」：所有 ``innerHTML`` 的安全都建立在每一行
+    都记得转义上，而漏掉的那一行不会有任何报错，只会在某个运营打开列表页时执行
+    别人写进邮箱/备注里的脚本。
+    """
+    targets = {
+        "admin.html": STORE_ROOT / "templates" / "admin.html",
+        "store.js": STORE_ROOT / "static" / "store.js",
+        "referrals.js": STORE_ROOT / "static" / "referrals.js",
+    }
+    for label, path in targets.items():
+        source = path.read_text(encoding="utf-8")
+        violations = _markup_template_violations(source)
+        check(
+            f"S39 {label} 的标记模板没有数据直插（属性读必须过函数）",
+            not violations,
+            str(violations[:8]),
+        )
+
+    # 门自身也要有牙：造一个「忘了转义」的模板，必须被拦下 —— 一个坏掉（永远返回
+    # 空列表）的检查器会让上面两条永远是绿的。
+    sample = (
+        "<tbody><tr><td>${item.name}</td><td>${esc(item.email)}</td>"
+        "<td>${row.count}</td><td>${Number(row.total) || 0}</td></tr></tbody>"
+    )
+    caught = _markup_template_violations(f"const rows = `{sample}`;\n")
+    check(
+        "S39 牙齿：未转义的数据直插会被拦下，转义过的不会",
+        len(caught) == 2 and any("item.name" in item for item in caught) and any("row.count" in item for item in caught),
+        str(caught),
+    )
+
+
+def check_admin_render_inertness() -> None:
+    """S39：后台渲染层用恶意载荷实测一次（node + 最小 DOM 垫片）。
+
+    静态门拦的是「写法」，拦不住「写法合规、结果仍然漏」。这条把 admin.html 的
+    内联脚本真的跑起来，用带 ``<img onerror=...>`` 的订单/客户载荷驱动两个数据最
+    密的渲染函数，断言产出的标记里没有**真正开起来的**标签、骨架（``<tr>``/胶囊/
+    按钮）也没被当成文本吐出来。
+
+    顺带证明整段内联脚本能加载并执行 —— ``HtmlSafe`` 没接线、``const`` 踩暂时性
+    死区这类问题会让整个后台静默失效，而服务端一切正常。探针本体在
+    ``store/tools/render_probe.cjs``（渲染函数改名时需要同步更新它）。
+    """
+    if shutil.which("node") is None:
+        check("S39 渲染层恶意载荷探针（node 不可用，跳过）", True, "skipped")
+        return
+    probe = STORE_ROOT / "tools" / "render_probe.cjs"
+    proc = subprocess.run(  # noqa: S603
+        ["node", str(probe), str(PROJECT_ROOT)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    check(
+        "S39 渲染层探针：恶意载荷下没有活体标签、骨架完好",
+        proc.returncode == 0,
+        (proc.stderr.strip() or proc.stdout.strip())[:400],
+    )
+
+
 def check_upload_size_cap() -> None:
     """``POST /api/v1/assets/user`` 必须有请求体字节上限（审计 H3）。
 
@@ -11113,6 +11664,10 @@ async def run() -> int:
     check_global_log_write_amplification()
     check_upload_size_cap()
     check_product_image_upload_whitelist()
+    check_single_escaper()
+    check_escaper_behaviour()
+    check_markup_templates_escape_data()
+    check_admin_render_inertness()
     check_display_pairing_hardening()
 
     workdir = Path(tempfile.mkdtemp(prefix="hb-store-smoke-"))
