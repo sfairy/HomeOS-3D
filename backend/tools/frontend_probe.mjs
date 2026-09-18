@@ -4700,6 +4700,197 @@ async function runLightStatisticsSuite() {
   );
 }
 
+/**
+ * 跑 `renderer/cover-direction.js`：窗帘电机方向两份知识的契约矩阵。
+ *
+ * 为什么值得一条活体探针：这一族的危害方向与别的族相反 —— 不是「换一份调用报错」，
+ *   而是**判定太宽松**。把 `=== "reversed"` 写成 `!== "normal"`（或顺手加个大小写归一），
+ *   编译、加载、页面都不报错，只是所有没有配置方向的窗帘（那才是大多数）开合图标反过来。
+ *   所以这里把三档取值与四种状态分别摆出来：predicate 那一半钉「只有 reversed 为真」，
+ *   swap 那一半钉「四态两两互换、认不出的原样返回且不归一」。
+ */
+async function runCoverDirectionSuite() {
+  const { coverMotorIsReversedForComponent, coverPhysicalStateForReversedMotor } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/renderer/cover-direction.js")).href
+  );
+
+  // 判定矩阵：只有严格等于 "reversed" 才是真；"normal"、其它值、缺字段、非对象一律假。
+  const directionMatrix = [
+    ["reversed", { properties: { coverMotorDirection: "reversed" } }, true],
+    ["normal", { properties: { coverMotorDirection: "normal" } }, false],
+    ["大小写变体 Reversed", { properties: { coverMotorDirection: "Reversed" } }, false],
+    ["其它值 auto", { properties: { coverMotorDirection: "auto" } }, false],
+    ["非字符串 1", { properties: { coverMotorDirection: 1 } }, false],
+    ["布尔 true", { properties: { coverMotorDirection: true } }, false],
+    ["properties 里没有这个字段", { properties: {} }, false],
+    ["properties 为 null", { properties: null }, false],
+    ["只有空 properties", {}, false],
+    ["null", null, false],
+    ["undefined", undefined, false]
+  ];
+  const directionMismatched = directionMatrix
+    .map(([label, component, expected]) => {
+      const actual = coverMotorIsReversedForComponent(component);
+      return actual === expected ? null : `${label}: 期望 ${expected} 实得 ${actual}`;
+    })
+    .filter(Boolean);
+  check(
+    "P10-B 电机方向判定：只有 coverMotorDirection 严格等于 reversed 才是反转，其余（含缺字段 / 大小写变体）都是不反转",
+    directionMismatched.length === 0,
+    directionMismatched.length
+      ? directionMismatched.join("；")
+      : `${directionMatrix.length} 种控件形态全部符合`
+  );
+
+  // 互换矩阵：四态两两互换，认不出的原样返回。
+  const swapMatrix = [
+    ["open", "open", "closed"],
+    ["closed", "closed", "open"],
+    ["opening", "opening", "closing"],
+    ["closing", "closing", "opening"],
+    ["unknown", "unknown", "unknown"],
+    ["空串", "", ""],
+    ["OPEN（大写）", "OPEN", "OPEN"],
+    ["open（尾空格）", "open ", "open "],
+    ["中文 打开", "打开", "打开"],
+    ["数字 1（非字符串）", 1, "1"]
+  ];
+  const swapMismatched = swapMatrix
+    .map(([label, input, expected]) => {
+      const actual = coverPhysicalStateForReversedMotor(input);
+      return actual === expected ? null : `${label}: 期望 ${JSON.stringify(expected)} 实得 ${JSON.stringify(actual)}`;
+    })
+    .filter(Boolean);
+  check(
+    "P10-B 反转时的四态互换：open↔closed、opening↔closing 两两互换，认不出的状态原样返回",
+    swapMismatched.length === 0,
+    swapMismatched.length ? swapMismatched.join("；") : `${swapMatrix.length} 种输入全部符合`
+  );
+
+  // 不归一这一条单独钉住：两份旧实现都是严格查表（不 trim、不小写），
+  // 而「顺手归一」正是最容易被写进去的“改进” —— 一旦归一，physicalCoverState 转发本函数，
+  // 非小写输入的行为就跟着变。这里用「互换表里查得到的大写形态」证明它没被归一。
+  check(
+    "P10-B 互换表不做归一：大写 OPEN 不会被当成 open 而互换（顺手小写化会改变 physicalCoverState 的行为）",
+    coverPhysicalStateForReversedMotor("OPEN") === "OPEN" &&
+      coverPhysicalStateForReversedMotor("Open") === "Open" &&
+      coverPhysicalStateForReversedMotor("CLOSING") === "CLOSING",
+    JSON.stringify({
+      OPEN: coverPhysicalStateForReversedMotor("OPEN"),
+      Open: coverPhysicalStateForReversedMotor("Open"),
+      CLOSING: coverPhysicalStateForReversedMotor("CLOSING")
+    })
+  );
+
+  // 空与缺值：`null` / `undefined` 归一成空串（调用方一般已 String() 过，这里兜住直接传原始值的路径）。
+  check(
+    "P10-B 互换表的空值处理：null / undefined 归一成空串，不抛错",
+    coverPhysicalStateForReversedMotor(null) === "" &&
+      coverPhysicalStateForReversedMotor(undefined) === "" &&
+      coverPhysicalStateForReversedMotor() === "",
+    JSON.stringify({
+      null: coverPhysicalStateForReversedMotor(null),
+      undefined: coverPhysicalStateForReversedMotor(undefined)
+    })
+  );
+}
+
+/**
+ * 跑两个**消费方**：`registry.js` 的开合判定与 `cover-runtime.js` 的物理状态还原。
+ *
+ * 为什么这两条必须在同一个套件里、且跑真实导出函数：本批把两份本地实现换成共享叶子模块，
+ *   「契约没变」这句话只有跑真实调用链才算证明 —— registry 那边原本是内联的互换表
+ *   （先 trim + 小写再查表），cover-runtime 那边是 `physicalCoverState` 里的另一份。
+ *   两条路径对同一个输入必须给出彼此自洽的结果：
+ *   展示 "open" + 反转 → 物理上其实是关闭（判定为不活动、物理状态为 closed）。
+ */
+async function runCoverReversalSuite() {
+  const registry = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/renderer/registry.js")).href
+  );
+  const coverRuntime = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/renderer/cover-runtime.js")).href
+  );
+  const reversedComponent = { properties: { coverMotorDirection: "reversed" } };
+  const normalComponent = { properties: { coverMotorDirection: "normal" } };
+  const unsetComponent = {};
+
+  // 开合判定：反转时展示状态与物理状态相反，所以「看到 open」= 判定不活动，「看到 closed」= 活动。
+  const activeMatrix = [
+    ["反转 + 展示 open", reversedComponent, { state: "open" }, false],
+    ["反转 + 展示 closed", reversedComponent, { state: "closed" }, true],
+    ["反转 + 展示 opening", reversedComponent, { state: "opening" }, false],
+    ["反转 + 展示 closing", reversedComponent, { state: "closing" }, true],
+    ["不反转 + 展示 open", normalComponent, { state: "open" }, true],
+    ["不反转 + 展示 closed", normalComponent, { state: "closed" }, false],
+    ["不反转 + 展示 opening", normalComponent, { state: "opening" }, true],
+    ["不反转 + 展示 closing", normalComponent, { state: "closing" }, false],
+    ["未配置方向 + 展示 open", unsetComponent, { state: "open" }, true],
+    ["未配置方向 + 展示 closed", unsetComponent, { state: "closed" }, false],
+    // 位置路径也要跟着反：反转 + 位置 80% 其实是「开了 20%」，用 100-80 判活动。
+    ["反转 + 位置 80（物理 20）", reversedComponent, { state: "closed", attributes: { current_position: 80 } }, true],
+    ["反转 + 位置 20（物理 80）", reversedComponent, { state: "open", attributes: { current_position: 20 } }, true],
+    // 变更对象形态：判定入口同样要先剥壳（与本批的 state-entry 收敛接得上）。
+    ["反转 + 变更对象 open", reversedComponent, { newState: { state: "open" } }, false]
+  ];
+  const activeMismatched = activeMatrix
+    .map(([label, component, state, expected]) => {
+      const actual = registry.coverComponentIsActive(component, "cover.a", state, {});
+      return actual === expected ? null : `${label}: 期望 ${expected} 实得 ${actual}`;
+    })
+    .filter(Boolean);
+  check(
+    "P10-B 消费方：开合判定按电机方向还原物理状态（反转时展示 open 判为不活动、closed 判为活动，位置取 100-位置）",
+    activeMismatched.length === 0,
+    activeMismatched.length ? activeMismatched.join("；") : `${activeMatrix.length} 组输入全部符合`
+  );
+
+  // 物理状态还原：这是 renderer.js 五处 + cover-runtime 内部六处共用的取用面。
+  const physicalMatrix = [
+    ["open + 反转", "open", true, "closed"],
+    ["closed + 反转", "closed", true, "open"],
+    ["opening + 反转", "opening", true, "closing"],
+    ["closing + 反转", "closing", true, "opening"],
+    ["open + 不反转", "open", false, "open"],
+    ["unknown + 反转", "unknown", true, "unknown"],
+    ["缺省反转参数", "open", undefined, "open"]
+  ];
+  const physicalMismatched = physicalMatrix
+    .map(([label, stateInput, reverseOverride, expected]) => {
+      const actual = coverRuntime.physicalCoverState(stateInput, reverseOverride);
+      return actual === expected ? null : `${label}: 期望 ${expected} 实得 ${actual}`;
+    })
+    .filter(Boolean);
+  check(
+    "P10-B 消费方：physicalCoverState 与方向判定共用同一份互换表（反转时互换、不反转时原样、认不出原样）",
+    physicalMismatched.length === 0,
+    physicalMismatched.length ? physicalMismatched.join("；") : `${physicalMatrix.length} 组输入全部符合`
+  );
+
+  // 两条路径必须自洽：同一个「展示状态 + 反转」下，判定为活动的那些状态，
+  // 其物理状态必须是 open 侧（而不是各读各的表、给出互相矛盾的结论）。
+  const consistencyFailures = ["open", "closed", "opening", "closing"]
+    .map(shownState => {
+      const physicalState = coverRuntime.physicalCoverState(shownState, true);
+      const isActive = registry.coverComponentIsActive(
+        reversedComponent,
+        "cover.a",
+        { state: shownState },
+        {}
+      );
+      const physicallyOpen = physicalState === "open" || physicalState === "opening";
+      return isActive === physicallyOpen
+        ? null
+        : `${shownState}: 判定 ${isActive} 但物理状态 ${physicalState}`;
+    })
+    .filter(Boolean);
+  check(
+    "P10-B 消费方：开合判定与物理状态还原对同一输入自洽（判定为活动 ⟺ 物理状态在 open 侧）",
+    consistencyFailures.length === 0,
+    consistencyFailures.length ? consistencyFailures.join("；") : "四种状态两条路径结论一致"
+  );
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,  login: runLoginSuite,
   "display-boot": runDisplayBootSuite,
@@ -4727,7 +4918,9 @@ const suites = {
   "entity-helpers": runEntityHelpersSuite,
   "apple-device": runAppleDeviceSuite,
   "state-entry": runStateEntrySuite,
-  "light-statistics": runLightStatisticsSuite
+  "light-statistics": runLightStatisticsSuite,
+  "cover-direction": runCoverDirectionSuite,
+  "cover-reversal": runCoverReversalSuite
 };
 
 /**

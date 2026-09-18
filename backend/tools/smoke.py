@@ -3037,6 +3037,15 @@ FRONTEND_HELPER_SINGLE_SOURCE = {
         'resolveStateEntry',
         'resolveStateEntryIn',
     ),
+    # P10-B 第四批（4.3 B 类末条）：窗帘电机方向。这一族复核为「3 份定义 / 2 份知识 / 1 份死代码」：
+    # 实体推导那份是死代码（连同它唯一的下游 stateIsTruthy 一起删掉），
+    # 活着的是「读控件配置」这份知识 —— 它在 registry.js 与 cover-runtime.js 各有一份本地实现，
+    # 原因只是两者之间有 import 环（cover-runtime 已经 import registry）。
+    # 因此唯一实现放在**叶子模块** renderer/cover-direction.js（不 import 任何东西），两边都 import 它。
+    'frontend/static/renderer/cover-direction.js': (
+        'coverMotorIsReversedForComponent',
+        'coverPhysicalStateForReversedMotor',
+    ),
 }
 
 #: 被收敛掉的旧名字：**定义**不许再出现（注释里提它们是可以的 —— 注释不会被复制去调用）。
@@ -3048,12 +3057,18 @@ FRONTEND_HELPER_SINGLE_SOURCE = {
 #: `resolveStateEntry` 也不在名单里（它是活下来的那个名字，登记在上面那张表里）；
 #: 进名单的是它那两个被合并掉的别名 —— `unwrapStateChange` 曾同时指「一个形参的宽松版」
 #: 与「两个形参的容器版」，`resolveEventState` 则是同一份知识的第三个名字。
+#: `isCoverMotorReversed` 进名单的理由不同：这个名字在删之前同时指两种东西
+#: （一份读控件配置、一份靠设备上的「电机反向」实体推导），后者是死代码；
+#: 删掉后活下来的那份改叫 `coverMotorIsReversedForComponent`。`stateIsTruthy` 是
+#: 那份死代码唯一的下游（只服务「电机反向」这种写法很杂的配置开关），随它一起退役。
 FRONTEND_RETIRED_HELPER_NAMES = (
     'clampNumberOr',
     'normalizeHexColor',
     'normalizedHexColor',
     'unwrapStateChange',
     'resolveEventState',
+    'isCoverMotorReversed',
+    'stateIsTruthy',
 )
 
 #: 4.3 B 类里**改判为「两份不同的知识」**的同名族：各自只许在这些文件里定义。
@@ -3099,18 +3114,21 @@ def check_frontend_helper_contract_single_source() -> None:
     换到不带 `i` 的调用点上）。``unwrapStateChange`` 是这条危害最直白的一例：它在渲染器里
     同时指「一个形参（状态 / 变更对象）」与「两个形参（状态容器 + 实体 ID）」，把后者那份的
     调用搬到前者身上不会报错 —— 传进去的 Map 被原样当作状态对象返回，下游读 ``.state``
-    得到 ``undefined``，静默显示成「未知」。收敛之后，两点必须长期成立：
+    得到 ``undefined``，静默显示成「未知」；``isCoverMotorReversed`` 同理，一处是「控件的
+    方向配置」、一处是「设备上那个电机反向开关的状态」。收敛之后，两点必须长期成立：
 
-    * **定义点唯一**：手册里的助手各自只在 ``utils/`` 下对应的那份文件里定义一次，
+    * **定义点唯一**：手册里的助手各自只在登记的那份文件里定义一次（前五族在 ``utils/`` 下、
+      窗帘电机方向那一族在 ``renderer/cover-direction.js`` 这个叶子模块里），
       别处再抄一份就红（点名，能发现「换个文件抄回来」）；
     * **只能 import**：任何文件要用手册里的名字，import 路径必须指向那份唯一实现 ——
       挡住「在 editor-utils 里转一手再导出」这种绕法（那是把定义点又拉回两份的常见形态）。
 
-    另外还跑六条活体探针（``number-helpers`` / ``color-helpers`` / ``entity-helpers`` /
-    ``apple-device`` / ``state-entry`` / ``light-statistics``）：静态闸只能证明「只有一份」，
-    「这一份的语义还是不是契约里写的那样」要靠把输入矩阵摆出来跑一遍 —— 把两份合并成一份、
-    或者把参数顺序改回去，探针会红。``light-statistics`` 是这一批里唯一被**换掉判定口径**的
-    消费方（严格 ``hasOwnProperty`` → 宽松真值判定），所以它单独有一条端到端探针。
+    另外还跑八条活体探针（``number-helpers`` / ``color-helpers`` / ``entity-helpers`` /
+    ``apple-device`` / ``state-entry`` / ``light-statistics`` / ``cover-direction`` /
+    ``cover-reversal``）：静态闸只能证明「只有一份」，「这一份的语义还是不是契约里写的那样」
+    要靠把输入矩阵摆出来跑一遍 —— 把两份合并成一份、或者把参数顺序改回去，探针会红。
+    ``light-statistics`` 与 ``cover-reversal`` 是**消费方**的端到端探针（那一批里判定口径
+    被换掉 / 实现被换掉的消费方各一条），它们跑的是真实导出函数，不是复刻的逻辑。
 
     边界如实写在这里：这条闸只认**登记在册的名字**。同名但以局部变量或内联表达式形态出现的
     知识不在覆盖范围内 —— 定义模式匹配分不出「局部变量」与「助手定义」，把它们登记进来会
@@ -3183,7 +3201,7 @@ def check_frontend_helper_contract_single_source() -> None:
         if sorted(set(places)) != [expected[name]]
     ]
     check(
-        'P10-B 契约型助手各只有一份实现，且只在 utils/ 下登记的那份文件里（夹取 / 颜色归一 / 实体文本与域 / 苹果设备判定 / 状态条目归一）',
+        'P10-B 契约型助手各只有一份实现，且只在登记的那份文件里（夹取 / 颜色归一 / 实体文本与域 / 苹果设备判定 / 状态条目归一 / 窗帘电机方向）',
         not misplaced,
         '；'.join(misplaced) if misplaced else f'{len(expected)} 个契约助手各一处定义（扫过 {scanned} 份前端脚本）',
     )
@@ -3197,7 +3215,7 @@ def check_frontend_helper_contract_single_source() -> None:
 
     # 3) 调用方只能从唯一实现所在的模块 import，不许转手导出。
     check(
-        'P10-B 这些助手的 import 只能指向唯一实现所在的 utils/ 模块（不许在别处转手导出）',
+        'P10-B 这些助手的 import 只能指向唯一实现所在的那份模块（不许在别处转手导出）',
         not import_paths,
         '；'.join(import_paths[:6]) if import_paths else '所有 import 都指向唯一实现',
     )
@@ -3216,6 +3234,8 @@ def check_frontend_helper_contract_single_source() -> None:
     _run_frontend_probe('apple-device')
     _run_frontend_probe('state-entry')
     _run_frontend_probe('light-statistics')
+    _run_frontend_probe('cover-direction')
+    _run_frontend_probe('cover-reversal')
 
     # 6) 改判登记：这两份是**不同的知识**（不是同一份知识的两份副本），所以只改名、不合并。
     #    这条钉住「名字不再互相冒充」：任一名字被抄到别处、或有人把一份改成另一份的语义
@@ -9539,6 +9559,8 @@ FRONTEND_PROBE_SUITES = {
     'apple-device': 'P10-B 苹果移动端判定的设备矩阵（utils/apple-device.js）',
     'state-entry': 'P10-B 状态条目归一：两种形态 × 两种容器的边界（utils/state-entry.js）',
     'light-statistics': 'P10-B 统计卡片的汇总口径：形态混合 / 容器两种 / 被删除实体（light-statistics-runtime.js）',
+    'cover-direction': 'P10-B 窗帘电机方向两份知识的契约矩阵（renderer/cover-direction.js）',
+    'cover-reversal': 'P10-B 电机反转的消费方端到端：控件属性 → 开合判定与物理状态还原（registry.js / cover-runtime.js）',
     'setup': 'W6 初始化页提交按钮与超时（setup.js）',
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
     'home-boot': 'W8 编辑器启动分片（home.js 启动序列）',
@@ -9593,6 +9615,10 @@ FRONTEND_SYNTAX_FILES = (
     'frontend/static/utils/apple-device.js',
     # P10-B 第三批：状态条目归一的唯一实现（原先 5 份具名副本 / 3 个名字）。
     'frontend/static/utils/state-entry.js',
+    # P10-B 第四批：窗帘电机方向的唯一实现。它是叶子模块（不 import 任何东西），
+    # 位置在 renderer/ 而不是 utils/ —— 因为它是「控件属性约定」这类域内知识，
+    # 又必须能被 registry.js 与 cover-runtime.js 同时 import（后者已经 import 前者）。
+    'frontend/static/renderer/cover-direction.js',
     'frontend/static/renderer/registry.js',
     'frontend/static/3d-studio/studio-shadow-atlas.js',
     'frontend/static/3d-studio/studio-external-models.js',
