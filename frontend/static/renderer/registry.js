@@ -41,6 +41,9 @@ import {
 import { entityPowerIsOn } from "./entity-power.js?v=20260918233037";
 import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260918233037";
 import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260918233037";
+// 状态条目归一统一走 utils/state-entry.js。本文件原先自带一份同内容实现，
+// 而 vacuum-runtime.js / presence-runtime.js 各有一份同内容但换了名字的副本 —— 现在只有一份。
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260918233037";
 // 控件类型注册表。用 Map 而不是对象字面量：控件类型来自文档数据，
 // Map 不受原型链影响，查 "constructor" 之类的键也不会拿到奇怪的结果。
 const componentsByType = new Map();
@@ -509,15 +512,6 @@ function isComponentEntityActive(
       ? powerAwareState
       : powerAwareContext.states?.get(runtimePowerEntityId);
   return entityPowerIsOn(runtimePowerEntityId, runtimePowerState, powerAwareComponent);
-}
-/**
- * 兼容「变更对象（含 newState）」与「状态对象」两种形态。
- *
- * @param {object} stateSource 状态或变更对象。
- * @returns {object|null} 状态对象。
- */
-function resolveStateEntry(stateSource) {
-  return stateSource?.newState || stateSource || null;
 }
 /**
  * 判断灯光特效是否在「等待实时视觉参数」。

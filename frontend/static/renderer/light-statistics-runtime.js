@@ -7,8 +7,14 @@
  * 位置：纯计算模块，不发起请求；实时状态由调用方（控件 runtime）从状态中心取出后传进来。
  *
  * 约定：状态来源同时兼容 Map 与普通对象两种容器（后端下发与前端缓存用的形态不同），
- * 也兼容「状态对象」与「变更对象（含 newState）」两种入参形态。
+ * 也兼容「状态对象」与「变更对象（含 newState）」两种入参形态 —— 这两件事都收在
+ * `utils/state-entry.js` 里一份（P10 第六批）。
  */
+
+import {
+  readFromMapOrRecord,
+  resolveStateEntryIn
+} from "../utils/state-entry.js?v=20260918233037";
 
 // 这些域的「开 / 关」语义天然成立，直接按 state 判定。
 const ON_OFF_DOMAINS_SET = new Set([
@@ -111,45 +117,6 @@ export function lightStatisticsEntityStateStatus(entityInput, stateLike) {
   }
 }
 /**
- * 从 Map 或普通对象里取一项，取不到返回 null。
- *
- * @param {Map|object} source 状态 / 描述容器。
- * @param {string} key 实体 ID。
- * @returns {*} 命中的值或 null。
- */
-function readFromMapOrRecord(source, key) {
-  if (typeof source?.get == "function") {
-    return source.get(key) || null;
-  } else {
-    return (source && typeof source == "object" && source[key]) || null;
-  }
-}
-/**
- * 剥掉变更对象的外壳，取出真正的状态对象。
- *
- * 用 hasOwnProperty 判断而非取值判空：状态对象本身也可能带 newState 字段，
- * 只有「自己拥有该键」时才说明这确实是变更事件。
- *
- * @param {Map|object} statesByEntityId 以实体 ID 为键的状态容器。
- * @param {string} entityIdKey 实体 ID。
- * @returns {object|null} 状态对象，缺失返回 null。
- */
-function unwrapStateChange(statesByEntityId, entityIdKey) {
-  const stateOrChange =
-    typeof statesByEntityId?.get == "function"
-      ? statesByEntityId.get(entityIdKey)
-      : statesByEntityId?.[entityIdKey];
-  if (
-    stateOrChange &&
-    typeof stateOrChange == "object" &&
-    Object.prototype.hasOwnProperty.call(stateOrChange, "newState")
-  ) {
-    return stateOrChange.newState || null;
-  } else {
-    return stateOrChange || null;
-  }
-}
-/**
  * 汇总一批实体的开关统计。
  *
  * @param {string[]} entityIds 参与统计的实体 ID，允许重复与空项。
@@ -175,7 +142,7 @@ export function lightStatisticsSummary(
   }
   const items = orderedEntityIds.map(currentEntityId => {
     const descriptor = readFromMapOrRecord(descriptorsByEntityId, currentEntityId) || {};
-    const stateChange = unwrapStateChange(liveStatesByEntityId, currentEntityId);
+    const stateChange = resolveStateEntryIn(liveStatesByEntityId, currentEntityId);
     const normalizedStateEntry = String(stateChange?.state || "")
       .trim()
       .toLowerCase();

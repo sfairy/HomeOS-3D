@@ -15,12 +15,14 @@
  * `device-profiles.js` / `home.js` 里那两份口径不同；现在三处共用一份（小写 + 单空格）。
  * 本文件的匹配正则全部带 `i`，所以小写化不影响命中；空段压成单空格只可能把
  * `no  motion` 补成 `no motion`，方向上是少漏判、不会多漏判。
+ *
+ * 依赖：状态条目归一走 `utils/state-entry.js` 的 `resolveStateEntry`（P10 第六批收敛）。
+ * 本文件原先那份 `resolveEventState` 与 `registry.js` 的 `resolveStateEntry`、
+ * `vacuum-runtime.js` 的 `unwrapStateChange` 是同一份知识，只是名字各不相同。
  */
 import { entitySearchTextOf } from "../utils/entities.js?v=20260918233037";
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260918233037";
 
-function resolveEventState(event) {
-  return event?.newState || event || null;
-}
 /**
  * 把带单位的时长状态换算成秒。
  *
@@ -29,7 +31,7 @@ function resolveEventState(event) {
  * @returns {number|null} 秒数；状态不是非负有限数时返回 null（表示「这条信息不可用」）。
  */
 function durationSecondsFromState(stateEntity, defaultUnit = "s") {
-  const entityState = resolveEventState(stateEntity) || {};
+  const entityState = resolveStateEntry(stateEntity) || {};
   const rawSeconds = Number(entityState.state);
   if (!Number.isFinite(rawSeconds) || rawSeconds < 0) {
     return null;
@@ -110,7 +112,7 @@ export function presenceMotionEventConfig(
   eventOptions = {}
 ) {
   const registryEntry = entityRegistry?.get?.(entityId) || {};
-  const stateObject = resolveEventState(eventState) || {};
+  const stateObject = resolveStateEntry(eventState) || {};
     // 判定条件同时看实体 ID 前缀（必须是 event.）、实体命名与状态自带的 device_class / event_type，
     // 三者任一方向命中即可，目的是尽量不把确实是人体感应的实体漏掉。
   const searchText = entitySearchTextOf(
@@ -201,7 +203,7 @@ export function presenceSensorPresentation(
       available: true
     };
   }
-  const rawState = resolveEventState(stateSource);
+  const rawState = resolveStateEntry(stateSource);
   if (!rawState) {
     return {
       key: "unknown",
@@ -357,7 +359,7 @@ export function presenceSensorPresentation(
  * @returns {number|null} 毫秒时间戳或 null。
  */
 export function presenceStateTimestamp(stateRecord) {
-  const resolvedState = resolveEventState(stateRecord) || {};
+  const resolvedState = resolveStateEntry(stateRecord) || {};
   const rawTimestamp =
     resolvedState.lastChanged ||
     resolvedState.last_changed ||
@@ -496,7 +498,7 @@ export function presenceHistoryBuckets(
   if (currentState && Number.isFinite(currentTimestamp)) {
     entries.push({
       timestamp: currentTimestamp,
-      state: resolveEventState(currentState)
+      state: resolveStateEntry(currentState)
     });
   }
   entries.sort((leftEntry, rightEntry) => leftEntry.timestamp - rightEntry.timestamp);

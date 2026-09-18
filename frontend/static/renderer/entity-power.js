@@ -19,21 +19,13 @@ import {
   climatePowerCommand,
   resolveClimateDeviceType
 } from "./climate.js?v=20260918233037";
-/**
- * 兼容两种入参形态：HA 推送的变更对象（含 newState）与直接的状态对象。
- *
- * @param {object} [stateOrChange] 变更对象或状态对象。
- * @returns {object} 状态对象；两者皆空时返回占位状态，保证下游取值不会抛错。
- */
-function unwrapStateChange(stateOrChange) {
-  return (
-    stateOrChange?.newState ||
-    stateOrChange || {
-      state: "",
-      attributes: {}
-    }
-  );
-}
+// 状态条目归一（变更对象 / 状态对象两种形态）统一走 utils/state-entry.js：
+// 本文件原先那份 unwrapStateChange 与另外四处是同一份知识，只是缺失时的兜底不同。
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260918233037";
+
+// 兜底占位状态：本文件的下游要直接读 `.state` 与 `.attributes`（还有 `delete attributes.x`），
+// 传 null 会让「状态还没到」变成页面上的 TypeError。三处调用点都只读或 spread 出去，不修改它。
+const EMPTY_ENTITY_STATE = { state: "", attributes: {} };
 /**
  * 解析控件「开关」语义真正落在哪个实体上。
  *
@@ -73,7 +65,7 @@ export function entityPowerTarget(runtimeEntityId, component = {}, deviceProfile
  * @returns {boolean} 是否处于开启状态。
  */
 export function entityPowerIsOn(entityId, stateInput, ownerComponent = {}) {
-  const stateObject = unwrapStateChange(stateInput);
+  const stateObject = resolveStateEntry(stateInput, EMPTY_ENTITY_STATE);
   const domain = String(entityId || "").split(".", 1)[0];
   // 状态统一小写去空格再比较，HA 侧偶发带空格或大小写不一致时不会误判。
   const normalizedState = String(stateObject.state || "")
@@ -111,7 +103,7 @@ export function entityPowerIsOn(entityId, stateInput, ownerComponent = {}) {
  * @returns {{domain: string, service: string, data: object}} 可直接发给后端的服务调用描述。
  */
 export function entityToggleCommand(targetEntityId, stateSource, toggleComponent = {}) {
-  const entityState = unwrapStateChange(stateSource);
+  const entityState = resolveStateEntry(stateSource, EMPTY_ENTITY_STATE);
   const toggleDomain = String(targetEntityId || "").split(".", 1)[0];
   if (toggleDomain === "button") {
     return {
@@ -169,7 +161,7 @@ export function entityToggleCommand(targetEntityId, stateSource, toggleComponent
  * @returns {object} 推测出的新状态对象（未与后端确认真伪）。
  */
 export function optimisticToggleState(sourceEntityId, stateValue, sourceComponent = {}) {
-  const currentState = unwrapStateChange(stateValue);
+  const currentState = resolveStateEntry(stateValue, EMPTY_ENTITY_STATE);
   const entityDomain = String(sourceEntityId || "").split(".", 1)[0];
   const isPoweredOn = entityPowerIsOn(sourceEntityId, currentState, sourceComponent);
   if (entityDomain === "media_player") {

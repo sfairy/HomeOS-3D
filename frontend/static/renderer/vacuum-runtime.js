@@ -12,6 +12,10 @@
  */
 
 import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918233037";
+// 状态条目归一统一走 utils/state-entry.js：本文件原先那份 unwrapStateChange 与
+// registry.js 的 resolveStateEntry、presence-runtime.js 的 resolveEventState 是同一份
+// 知识（只是名字不同，这里少写一个「缺失时怎么办」的约定就会被当成新实现再抄一份）。
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260918233037";
 // HA vacuum 集成的能力位定义。数值来自官方 constant，不能改；只用到其中一部分。
 const VACUUM_FEATURE_FLAGS = Object.freeze({
   turn_on: 1,
@@ -103,21 +107,6 @@ export function vacuumActionService(vacuumEntity, actionName) {
     return actionName;
   }
 }
-/**
- * 兼容变更对象与状态对象两种形态。
- *
- * @param {object} stateOrChange 状态对象或变更对象。
- * @returns {object|null} 状态对象，缺失返回 null。
- */
-function unwrapStateChange(stateOrChange) {
-  return stateOrChange?.newState || stateOrChange || null;
-}
-/**
- * 解析百分比数值。
- *
- * @param {*} rawPercent 原始值，可能是数字、带百分号的字符串或空值。
- * @returns {number|null} 夹在 0~100 的数值；空值或不可解析时返回 null。
- */
 function parsePercent(rawPercent) {
   if (rawPercent == null || String(rawPercent).trim() === "") {
     return null;
@@ -140,7 +129,7 @@ function parsePercent(rawPercent) {
  * @returns {number|null} 0~100 的电量；始终取不到时返回 null。
  */
 export function vacuumBatteryPercent(vacuumStateOrChange, batterySensor = null) {
-  const attributes = unwrapStateChange(vacuumStateOrChange)?.attributes || {};
+  const attributes = resolveStateEntry(vacuumStateOrChange)?.attributes || {};
   for (const batteryAttribute of [
     attributes.battery_level,
     attributes.battery_percentage,
@@ -151,7 +140,7 @@ export function vacuumBatteryPercent(vacuumStateOrChange, batterySensor = null) 
       return batteryPercent;
     }
   }
-  return parsePercent(unwrapStateChange(batterySensor)?.state);
+  return parsePercent(resolveStateEntry(batterySensor)?.state);
 }
 /**
  * 在同一个设备下挑出最可能是「电量」的传感器实体。
@@ -186,7 +175,7 @@ export function relatedVacuumBatteryEntity(metadataByEntityId, statesByEntityId,
             entityMetadataIsAvailable(sensorMetadata)
         )
         .map(candidateMetadata => {
-          const candidateState = unwrapStateChange(
+          const candidateState = resolveStateEntry(
             statesByEntityId.get(candidateMetadata.entityId)
           );
           const candidateAttributes = candidateState?.attributes || {};

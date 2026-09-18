@@ -1,0 +1,88 @@
+/**
+ * 状态条目归一：把 HA 推送的「变更对象」与「状态对象」两种形态收成一种。
+ *
+ * 位置：`utils/` 下的纯函数工具，被渲染器（`renderer/registry.js`、`renderer/entity-power.js`、
+ *   `renderer/vacuum-runtime.js`、`renderer/presence-runtime.js`、`renderer/light-statistics-runtime.js`）
+ *   引用。不碰 DOM、不发请求。
+ *
+ * 为什么要有这个文件：这份知识原先在前端有 **5 份具名副本、3 个不同的函数名、2 种不同的契约** ——
+ *
+ *   | 副本 | 名字 | 契约差异 |
+ *   | --- | --- | --- |
+ *   | `renderer/entity-power.js` | `unwrapStateChange` | 缺失时给**占位状态对象** `{state:"",attributes:{}}` |
+ *   | `renderer/vacuum-runtime.js` | `unwrapStateChange` | 缺失时给 `null` |
+ *   | `renderer/presence-runtime.js` | `resolveEventState` | 缺失时给 `null`（换个名字，同一份知识） |
+ *   | `renderer/registry.js` | `resolveStateEntry` | 缺失时给 `null`（同上，第三个名字） |
+ *   | `renderer/light-statistics-runtime.js` | `unwrapStateChange` | **两个形参**（容器 + 键），且用 `hasOwnProperty` 判定 |
+ *
+ *   危害不在「代码多」，而在**同名不同签名**：`unwrapStateChange` 在一处是 `(状态)`、
+ *   在另一处是 `(容器, 实体ID)`。照着名字把调用搬过来不会报错 —— 传进来的是个 Map 时
+ *   `Map.newState` 是 `undefined`，函数会把整个 Map 原样返回，下游读 `.state` 得到 `undefined`，
+ *   静默当成「未知状态」。`resolveEventState` / `resolveStateEntry` 那两个名字更隐蔽：
+ *   它们是同一份知识，但谁也不知道另外两个名字存在，改口径时必然漏改。
+ *
+ * 契约（探针 `state-entry` 按这张表逐格断言）：
+ *
+ *   | 输入 | `resolveStateEntry` 的结果 |
+ *   | --- | --- |
+ *   | `{newState: {state:"on"}}`（变更对象） | `{state:"on"}` |
+ *   | `{newState: null}`（变更对象，被删除的实体） | 变更对象本身（见下面「为什么用真值判定」） |
+ *   | `{state:"on"}`（状态对象） | 原样返回 |
+ *   | `null` / `undefined` | 第 2 个参数（默认 `null`） |
+ *
+ * **为什么用真值判定（`?.newState || x`）而不是 `hasOwnProperty`**：本仓库里 `newState` 的
+ *   生产者只有一处（`renderer/renderer.js` 的乐观更新，产出 `{...原变更对象, newState: 乐观状态}`），
+ *   所以「一个对象同时带 `state` 与假值 `newState`」这种混合形态不存在。两种判定的分歧恰好只在
+ *   这种形态上，而真值判定是 5 份副本里 4 份的口径，因此统一到它 —— 被合并掉的那份严格判定
+ *   （`light-statistics-runtime`）的调用点也已逐处核对：它在 `.state`、`.attributes.friendly_name`
+ *   与 `lightStatisticsEntityStateStatus` 三处消费，`null` 与「变更对象本身」在这三处的结果相同，
+ *   因为变更对象既没有 `.state` 也没有 `.attributes`。
+ */
+
+/**
+ * 从 Map 或普通对象里取一项，取不到返回 `null`。
+ *
+ * 为什么要同时认两种容器：运行时状态是 `Map`（`states.get(entityId)`），而从文档 / 接口来的
+ * 描述表常是普通对象（`descriptors[entityId]`）。混用一处会让「明明有数据却查不到」变成静默的
+ * 空状态，所以取用方式收在这里一份。
+ *
+ * 注意：**取到的值是假值时也返回 `null`**（`""` / `0` / `false`）—— 调用方要的是「有没有这一条」，
+ * 不是「值本身」。这也是下面 `resolveStateEntryIn` 能直接串起来的原因。
+ *
+ * @param {Map|object} source 以实体 ID 为键的容器。
+ * @param {string} key 实体 ID。
+ * @returns {*} 命中的值或 `null`。
+ */
+export function readFromMapOrRecord(source, key) {
+  if (typeof source?.get == "function") {
+    return source.get(key) || null;
+  } else {
+    return (source && typeof source == "object" && source[key]) || null;
+  }
+}
+
+/**
+ * 剥掉变更对象的外壳，取出真正的状态对象。
+ *
+ * @param {object} [stateOrChange] 变更对象（含 `newState`）或状态对象本身。
+ * @param {*} [fallback] 两者皆空时的返回值，默认 `null`。
+ *   需要「保证下游取值不抛」的调用点传一个占位状态对象（见 `entity-power.js`）。
+ * @returns {object|*} 状态对象，或 `fallback`。
+ */
+export function resolveStateEntry(stateOrChange, fallback = null) {
+  return stateOrChange?.newState || stateOrChange || fallback;
+}
+
+/**
+ * 从「实体 ID → 状态 / 变更」容器里取出并剥离成状态对象。
+ *
+ * 把两步（取容器里的一项 + 剥变更外壳）合成一个名字，是因为这两步总是连着出现：
+ * 分开写时最容易漏掉第二步，而漏掉的表现是「状态里读不到东西」——不报错。
+ *
+ * @param {Map|object} statesByEntityId 以实体 ID 为键的状态容器。
+ * @param {string} entityIdKey 实体 ID。
+ * @returns {object|null} 状态对象，缺失返回 `null`。
+ */
+export function resolveStateEntryIn(statesByEntityId, entityIdKey) {
+  return resolveStateEntry(readFromMapOrRecord(statesByEntityId, entityIdKey));
+}
