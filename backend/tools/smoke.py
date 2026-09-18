@@ -1337,6 +1337,395 @@ async def check_scene_snapshot_route() -> None:
         )
 
 
+def _write_user_asset(assets: Path, asset_id: str) -> bytes:
+    """造一份「只有一个图片文件」的用户素材（user_asset_file 认这个形状）。"""
+    folder = assets / asset_id
+    folder.mkdir(parents=True, exist_ok=True)
+    content = b'\x89PNG\r\n\x1a\n' + b'a' * 32
+    (folder / 'plan.png').write_bytes(content)
+    return content
+
+
+async def check_interaction3d_scoping() -> None:
+    """B24/B25/B64：3D 舞台的两条兜底分支与设备改绑，都不能信「全局」那份状态。
+
+    B24（背景图回退）：过去只问「全局 studio 草稿引用过这个 assetId 吗」。那份草稿是
+    全机共用的一份，此刻编辑的可能是**别的项目**的户型 —— 绑项目 A 的展示页只要猜中或
+    枚举 assetId 就能把别的项目的底图取走。现在只认本场景（快照 JSON 自己引用的，
+    或随快照冻结的副本）；管理员额外保留草稿这条（它本来就不受素材可见范围限制）。
+
+    B25（灯光/开关控制）：过去直接转发 HA，不校验实体是否真配在该控件上 —— 凡是这块屏
+    可见的实体（同一设备上的兄弟实体、别的控件配的灯）都能被控制。现在与电视/空调/
+    窗帘同一口径：中控设备必须给出项目与控件，且实体在该控件的灯光表里；管理员不受
+    这道限制（编辑器预览未必带这两个字段，而它本来就是全权主体）。
+
+    B64（改绑设备）：POST /pair 校验 display 能力，PATCH 不校验 —— 授权收回 display 后
+    仍能把一台在用设备改绑到别的仪表盘（它的令牌还有效）。现在两边同一口径；但**吊销
+    不受限**，那是回收动作，卡住只会让人没法收拾。
+    """
+    from fastapi import HTTPException
+
+    from backend.app.access import ViewerPrincipal
+    from backend.app.api import displays as displays_api
+    from backend.app.database import Base, Database
+    from backend.app.models import DisplayDevice, DisplayPairingCode, Project, ProjectDraft, User
+    from backend.app.modules.interaction3d import api as scene_api
+    from backend.app.modules.interaction3d.api import Interaction3dControlRequest
+    from backend.app.schemas import DisplayDeviceUpdateRequest
+
+    #: 设备名与项目 ID 都按真实约束来（projectId 在 schema 里是定长 36）。
+    project_id = 'p' * 36
+    other_project_id = 'q' * 36
+    #: 草稿文档是脏数据的项目（B9 的同一类输入落到控制路径上）。
+    dirty_project_id = 'r' * 36
+    scene_id = _scene_id('1')
+    component_id = 'c' * 36
+    bound_entity = 'light.kitchen'
+    sibling_entity = 'light.kitchen_2'
+    own_asset = _scene_id('b')
+    other_asset = _scene_id('c')
+    frozen_asset = _scene_id('d')
+    orphan_asset = _scene_id('e')
+
+    class FlipFlopLicense:
+        """可开关的授权桩：只对 display 这一档可拨，其余一律放行。"""
+
+        def __init__(self) -> None:
+            self.display_allowed = True
+
+        def allows(self, code, database=None) -> bool:
+            return self.display_allowed if code == 'display' else True
+
+    with tempfile.TemporaryDirectory(prefix='hb-i3d-scope-') as tmp:
+        root = Path(tmp)
+        data_dir = root / 'data'
+        assets = data_dir / 'user-assets'
+        (data_dir / 'modules' / 'interaction3d' / 'scenes').mkdir(parents=True, exist_ok=True)
+        _write_user_asset(assets, own_asset)
+        _write_user_asset(assets, other_asset)
+        _write_user_asset(assets, frozen_asset)
+        _write_user_asset(assets, orphan_asset)
+
+        # 场景快照：引用 A（自己的底图），其中一份另有一个「随快照冻结的副本」C。
+        scene_path = data_dir / 'modules' / 'interaction3d' / 'scenes' / f'{scene_id}.json'
+        scene_path.write_text(
+            json.dumps({'scene': {'floors': [{'scene': {'background': {'assetId': f'user:{own_asset}'}}}]}}),
+            encoding='utf-8',
+        )
+        scene_path.with_name(f'{scene_id}-{frozen_asset}.png').write_bytes(b'\x89PNG\r\n\x1a\n' + b'c' * 32)
+        # 老格式快照（没有 floors，整份 scene 就是唯一一层）：helper 必须兼容它，
+        # 否则老快照的底图会被判成「没被引用」而 404。
+        legacy_scene_id = _scene_id('2')
+        (scene_path.parent / f'{legacy_scene_id}.json').write_text(
+            json.dumps({'scene': {'background': {'assetId': f'user:{own_asset}'}}}),
+            encoding='utf-8',
+        )
+        # 全局草稿：引用的是**别的项目**的底图（B24 的攻击面）。
+        draft_path = data_dir / 'studio3d' / 'draft.json'
+        draft_path.parent.mkdir(parents=True, exist_ok=True)
+        draft_path.write_text(
+            json.dumps({'scene': {'floors': [{'scene': {'background': {'assetId': f'user:{other_asset}'}}}]}}),
+            encoding='utf-8',
+        )
+
+        database = Database(f'sqlite:///{root / "app.db"}')
+        Base.metadata.create_all(database.engine)
+        component = {
+            'id': component_id,
+            'type': 'interaction3d',
+            'properties': {
+                'sceneId': scene_id,
+                'lights': [
+                    {'id': 'lamp-1', 'entityId': bound_entity},
+                    # 纯装饰的灯：entityId 为空，不该因此放行任何实体。
+                    {'id': 'lamp-2', 'entityId': ''},
+                ],
+            },
+        }
+        document = {
+            'projectId': project_id,
+            'pages': [
+                {
+                    'panels': [
+                        component,
+                        # 老格式快照同样要挂在这个项目的文档里，否则连归属校验都过不了
+                        # （那条门禁与背景来源无关，这里只是把读取路径摆出来）。
+                        {
+                            'id': 'legacy-panel',
+                            'type': 'interaction3d',
+                            'properties': {'sceneId': legacy_scene_id, 'lights': []},
+                        },
+                    ]
+                }
+            ],
+        }
+        with database.session_factory() as session:
+            session.add(User(id='u1', username='admin', password_hash='x', role='admin'))
+            session.commit()
+        with database.session_factory() as session:
+            session.add(Project(id=project_id, name='示例', slug='proj-a', created_by='u1'))
+            session.add(Project(id=other_project_id, name='别的', slug='proj-b', created_by='u1'))
+            session.add(Project(id=dirty_project_id, name='坏了', slug='proj-c', created_by='u1'))
+            session.commit()
+        with database.session_factory() as session:
+            session.add(ProjectDraft(project_id=project_id, updated_by='u1', document_json=json.dumps(document)))
+            session.add(
+                ProjectDraft(
+                    project_id=other_project_id,
+                    updated_by='u1',
+                    document_json=json.dumps({'projectId': other_project_id, 'pages': []}),
+                )
+            )
+            # 脏草稿：不是合法 JSON。控制路径不该因此回 500（B9 的同一类问题）。
+            session.add(ProjectDraft(project_id=dirty_project_id, updated_by='u1', document_json='{"projectId": '))
+            session.add(
+                DisplayPairingCode(
+                    id='pairing-1',
+                    code_hash='h',
+                    encrypted_code='e',
+                    name='客厅中控',
+                    project_id=project_id,
+                    created_by='u1',
+                    is_enabled=True,
+                )
+            )
+            session.add(
+                DisplayDevice(
+                    id='device-1',
+                    pairing_code_id='pairing-1',
+                    token_hash='t',
+                    name='客厅中控',
+                    project_id=project_id,
+                )
+            )
+            session.commit()
+
+        license_stub = FlipFlopLicense()
+        settings = SimpleNamespace(
+            data_dir=data_dir,
+            user_assets_dir=assets,
+            studio3d_draft_path=draft_path,
+            license_required=False,
+            # 配对码密文要用到这把钥匙；给个临时路径，创建路径才走得完 ——
+            # 否则「能力码没接上」的变异只会把路由炸成异常，观测不到断言变红。
+            display_pairing_key_path=root / 'pairing.key',
+        )
+        app_state = SimpleNamespace(
+            database=database,
+            license_service=license_stub,
+            settings=settings,
+            # 创建配对码成功路径会往全局日志里写一条；能力码变异时也要能走完整条路，
+            # 这样断言才会以「通过了」变红，而不是被属性错误炸成崩栈。
+            global_log=SimpleNamespace(append=lambda *args, **kwargs: None),
+        )
+        request = SimpleNamespace(app=SimpleNamespace(state=app_state))
+        display_viewer = ViewerPrincipal(display=SimpleNamespace(project_id=project_id))
+        admin_viewer = ViewerPrincipal(user=SimpleNamespace(id='u1'))
+        dirty_viewer = ViewerPrincipal(display=SimpleNamespace(project_id=dirty_project_id))
+
+        def fetch(asset_id: str, viewer, scene: str = scene_id) -> str:
+            """调一次背景路由，返回「取到了什么」（HTTPException 折成状态码）。"""
+            try:
+                response = scene_api.get_background(
+                    scene_id=scene, asset_id=asset_id, request=request, viewer=viewer, projectId=project_id
+                )
+                return Path(response.path).name
+            except HTTPException as error:
+                return f'{error.status_code}'
+
+        # ① 本场景自己引用的底图：副本缺失时从素材库回源，照旧可取。
+        own_result = fetch(own_asset, display_viewer)
+        # ② 随快照冻结的副本：与草稿/引用无关，仍然直接给（它是这个场景自己的文件）。
+        frozen_result = fetch(frozen_asset, display_viewer)
+        # ③ 老格式快照（无 floors）：同样认本场景引用的底图。
+        legacy_result = fetch(own_asset, display_viewer, scene=legacy_scene_id)
+        # ④ 只在**全局草稿**里出现的底图：中控设备拿不到（修复前会拿到）。
+        other_result = fetch(other_asset, display_viewer)
+        # ⑤ 管理员保留草稿这条：编辑器刚换、还没冻结的底图照旧能显示。
+        other_admin_result = fetch(other_asset, admin_viewer)
+        # ⑥ 谁都没引用的素材：两个身份都不给。
+        orphan_result = fetch(orphan_asset, display_viewer)
+        orphan_admin_result = fetch(orphan_asset, admin_viewer)
+
+        real_call_service = scene_api.call_service
+        ha_calls: list[str] = []
+
+        async def fake_call_service(payload, request, database, viewer) -> dict:
+            ha_calls.append(payload.entity_id)
+            return {'ok': True, 'entity': payload.entity_id}
+
+        scene_api.call_service = fake_call_service
+        try:
+
+            async def control(entity_id: str, viewer, target_project: str, target_component: str) -> str:
+                """调一次控制路由，把结果折成「通过」或状态码。"""
+                payload = Interaction3dControlRequest(
+                    domain='light',
+                    service='turn_on',
+                    entityId=entity_id,
+                    projectId=target_project,
+                    componentId=target_component,
+                )
+                with database.session_factory() as session:
+                    try:
+                        await scene_api.control_light(
+                            payload=payload, request=request, database=session, viewer=viewer
+                        )
+                        return '通过'
+                    except HTTPException as error:
+                        return f'{error.status_code}'
+                    # 兜底：把意外异常也折成观测值。否则「本该 403 的那条路崩了」只会
+                    # 以崩栈收场，牙齿测试看不到断言变红（崩栈只说明路径炸了）。
+                    except Exception as error:  # noqa: BLE001
+                        return f'崩:{type(error).__name__}'
+
+            bound_result = await control(bound_entity, display_viewer, project_id, component_id)
+            sibling_result = await control(sibling_entity, display_viewer, project_id, component_id)
+            cross_project_result = await control(bound_entity, display_viewer, other_project_id, component_id)
+            missing_location_result = await control(bound_entity, display_viewer, '', '')
+            unknown_component_result = await control(bound_entity, display_viewer, project_id, 'z' * 36)
+            admin_preview_result = await control(bound_entity, admin_viewer, '', '')
+            dirty_draft_result = await control(bound_entity, dirty_viewer, dirty_project_id, component_id)
+        finally:
+            scene_api.call_service = real_call_service
+
+        def patch_device(allowed: bool, target_project: str) -> str:
+            """调一次改绑路由，返回结果状态。"""
+            license_stub.display_allowed = allowed
+            payload = DisplayDeviceUpdateRequest(projectId=target_project)
+            with database.session_factory() as session:
+                user = session.get(User, 'u1')
+                try:
+                    displays_api.update_display_device(
+                        device_id='device-1',
+                        payload=payload,
+                        request=request,
+                        database=session,
+                        user=user,
+                    )
+                    return '通过'
+                except HTTPException as error:
+                    return f'{error.status_code}'
+
+        rebind_without_license = patch_device(False, other_project_id)
+        with database.session_factory() as session:
+            project_after_blocked = session.get(DisplayDevice, 'device-1').project_id
+        rebind_with_license = patch_device(True, other_project_id)
+        with database.session_factory() as session:
+            project_after_allowed = session.get(DisplayDevice, 'device-1').project_id
+        # 吊销动作不受能力码限制：授权收回后仍要能清掉一台设备。
+        license_stub.display_allowed = False
+        with database.session_factory() as session:
+            displays_api.revoke_display_device('device-1', database=session, user=session.get(User, 'u1'))
+            revoked_at = session.get(DisplayDevice, 'device-1').revoked_at
+
+        # 创建配对码那一处（同一档能力码）也钉一下：三处「把中控链路往外开」的动作
+        # 必须同一口径，否则牙齿测试里那条变异替换的是哪一处都分不清。
+        license_stub.display_allowed = False
+        with database.session_factory() as session:
+            try:
+                displays_api.create_pairing_code(
+                    payload=displays_api.DisplayPairingCodeRequest(projectId=project_id, name='测试码'),
+                    request=request,
+                    database=session,
+                    user=session.get(User, 'u1'),
+                )
+                create_pairing_result = '通过'
+            except HTTPException as error:
+                create_pairing_result = f'{error.status_code}'
+        license_stub.display_allowed = True
+        check(
+            'B64 创建配对码同样要求 display 能力（创建/改绑/配对三处一条口径）',
+            create_pairing_result == '403',
+            f'结果 {create_pairing_result}',
+        )
+        check(
+            'B24 本场景自己引用的底图（副本缺失）仍从素材库回源',
+            own_result == 'plan.png',
+            f'取到 {own_result}',
+        )
+        check(
+            'B24 随快照冻结的副本照旧直接给（它属于这个场景）',
+            frozen_result == f'{scene_id}-{frozen_asset}.png',
+            f'取到 {frozen_result}',
+        )
+        check(
+            'B24 老格式快照（无 floors）的底图也认（读取端两代结构都兼容）',
+            legacy_result == 'plan.png',
+            f'取到 {legacy_result}',
+        )
+        check(
+            'B24 只在全局草稿里出现的底图，中控设备拿不到（跨项目的那条路被堵上）',
+            other_result == '404',
+            f'取到 {other_result}（修复前会拿到别的项目的底图）',
+        )
+        check(
+            'B24 管理员仍可取草稿里引用过的底图（编辑器刚换、还没冻结时不误伤）',
+            other_admin_result == 'plan.png',
+            f'取到 {other_admin_result}',
+        )
+        check(
+            'B24 谁都没引用的素材两个身份都不给',
+            orphan_result == '404' and orphan_admin_result == '404',
+            f'中控={orphan_result} 管理员={orphan_admin_result}',
+        )
+        check(
+            'B25 配在这个控件上的灯照旧可以控制',
+            bound_result == '通过',
+            f'结果 {bound_result}',
+        )
+        check(
+            'B25 同一设备上的兄弟实体（没配到这个控件）被拒 403',
+            sibling_result == '403',
+            f'结果 {sibling_result}（修复前会直接转发给 HA）',
+        )
+        check(
+            'B25 声明别的仪表盘直接被拒 403（改不掉项目就换不到别的屏）',
+            cross_project_result == '403',
+            f'结果 {cross_project_result}',
+        )
+        check(
+            'B25 中控设备不带项目/控件信息回 422（不是悄悄退回「只看可见范围」）',
+            missing_location_result == '422',
+            f'结果 {missing_location_result}',
+        )
+        check(
+            'B25 控件 ID 不存在时同样按「没配到这个控件」拒绝',
+            unknown_component_result == '403',
+            f'结果 {unknown_component_result}',
+        )
+        check(
+            'B25 管理员预览不带定位字段照旧放行（不误伤编辑器）',
+            admin_preview_result == '通过',
+            f'结果 {admin_preview_result}',
+        )
+        check(
+            'B25 脏草稿（document_json 不是合法 JSON）下回 403 而不是 500',
+            dirty_draft_result == '403',
+            f'结果 {dirty_draft_result}',
+        )
+        check(
+            'B25 只有灯光表里真正绑定的那一条实体进了 HA（空 entityId 的装饰灯没被当成通配）',
+            ha_calls == [bound_entity, bound_entity],
+            f'HA 调用 {ha_calls}',
+        )
+        check(
+            'B64 授权收回 display 后改绑被拒 403，且设备绑定没被改动',
+            rebind_without_license == '403' and project_after_blocked == project_id,
+            f'结果 {rebind_without_license}，绑定={project_after_blocked}',
+        )
+        check(
+            'B64 授权正常时改绑照旧成功（不是一刀切拒绝）',
+            rebind_with_license == '通过' and project_after_allowed == other_project_id,
+            f'结果 {rebind_with_license}，绑定={project_after_allowed}',
+        )
+        check(
+            'B64 吊销不受能力码限制（回收动作不该被卡住）',
+            revoked_at is not None,
+            f'revoked_at={revoked_at}',
+        )
+
+
 # --------------------------------------------------------------------------- #
 # B1 / B2 / B3 / B32：凭据解析的唯一实现、闭包作用域与任务收尾
 # --------------------------------------------------------------------------- #
@@ -5691,6 +6080,7 @@ async def run() -> int:
     check_scene_snapshot_hooks()
     check_scene_snapshot_sweep()
     await check_scene_snapshot_route()
+    await check_interaction3d_scoping()
     check_admin_session_criteria()
     check_display_token_expiry()
     check_websocket_viewer_credentials()

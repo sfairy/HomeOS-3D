@@ -139,6 +139,42 @@ def require_scene_transfer(request, viewer, scene_id, project_id):
     return None
 
 
+def control_component(database, project_id: str, component_id: str) -> dict:
+    """取出某个 3D 交互控件的配置块（电视 / 空调窗帘 / 灯光开关三个分支共用）。
+
+    取不到一律回空 ``dict``（项目草稿不存在、`document_json` 是脏数据、控件已被删掉），
+    让调用方按「这个实体没配到这个控件」拒绝：脏数据回 500 会把一条本该是 403 的拒绝
+    变成 5xx（B9 的同一类问题），而这里要的答案是拒绝，不是崩。
+    """
+    draft = database.get(ProjectDraft, project_id) if project_id else None
+    if draft is None:
+        return {}
+    try:
+        document = json.loads(draft.document_json)
+    except (TypeError, ValueError):
+        return {}
+    return next((item for _, item in module_components(document) if item.get('id') == component_id), {}) or {}
+
+
+def _background_asset_ids(scene: object) -> set[str]:
+    """收集一份场景里所有楼层背景引用过的素材 ID（已去掉 ``user:`` 前缀）。
+
+    楼层结构有两代：新版是 ``scene.floors[].scene.background``，老版没有 floors，
+    整份 scene 就是唯一一层。读取端一律兼容两代 —— 这里漏掉老格式，会把老快照的
+    底图判成「没被引用」，从而把本该能显示的底图挡成 404。
+    """
+    if not isinstance(scene, dict):
+        return set()
+    floors = scene.get('floors', [{'scene': scene}])
+    if not isinstance(floors, list):
+        return set()
+    return {
+        str((floor.get('scene', {}).get('background') or {}).get('assetId', '')).removeprefix('user:')
+        for floor in floors
+        if isinstance(floor, dict)
+    }
+
+
 @router.post('/scenes', status_code=201)
 def snapshot_scene(request: Request, _user: LicensedUser):
     """把 studio 的户型草稿冻结成一个不可变快照，返回 sceneId。
@@ -274,29 +310,42 @@ def get_current_scene(scene_id: str, request: Request, viewer: LicensedViewer, p
 def get_background(scene_id: str, asset_id: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
     """读取户型快照的底图。
 
-    先找随快照一起冻结的本地副本（<sceneId>-<assetId><后缀>）；副本缺失时才回退到
-    用户素材库，并额外确认该素材仍被当前草稿引用 —— 避免猜中 asset_id 就拿到别人的图片。
+    两个来源，都以**本场景**为准：先找随快照一起冻结的本地副本
+    （``<sceneId>-<assetId><后缀>``）；副本缺失（冻结时复制失败、素材后来才补上）时，
+    再回退到用户素材库，此时要求该素材是本场景自己引用过的底图。
+
+    回退路径过去信的是全局草稿（``studio3d_draft_path``）——那份文件是全机共用的，
+    它此刻编辑的可能是**别的项目**的户型，于是绑项目 A 的展示页只要猜中/枚举
+    ``asset_id`` 就能把别的项目的底图取走（B24）。改为只认本场景：
+
+    - 快照 JSON 自己记着每个楼层的 ``assetId``，因此「复制失败」这个真实场景依然可取；
+    - 管理员会话额外保留「当前草稿引用过就放行」这条：管理员本来就不受素材可见范围
+      限制（``viewer_user_asset_ids`` 对它返回 None），这条只让编辑器刚换、还没冻结的
+      底图也能显示，不会让它多拿到任何东西。
 
     异常:
         HTTPException: 404，两种来源都取不到底图。
     """
     require_scene_transfer(request, viewer, scene_id, projectId)
-    folder = scene_path(request, scene_id).parent
+    path = scene_path(request, scene_id)
+    folder = path.parent
     # 只接受 32 位十六进制（user: 前缀后的哈希），排除路径穿越与任意文件名猜测。
     if re.fullmatch('[0-9a-f]{32}', asset_id):
         for suffix, media_type in UPLOAD_CONTENT_TYPES.items():
-            path = folder / f'{scene_id}-{asset_id}{suffix}'
-            if not path.is_file():
+            copy_path = folder / f'{scene_id}-{asset_id}{suffix}'
+            if not copy_path.is_file():
                 continue
-            return FileResponse(path, media_type=media_type, headers={'Cache-Control': 'no-store'})
+            return FileResponse(copy_path, media_type=media_type, headers={'Cache-Control': 'no-store'})
     try:
         # 回退路径：快照建立时复制失败，或素材是后来才补上的，就从用户素材库直读。
-        scene = json.loads(request.app.state.settings.studio3d_draft_path.read_text(encoding='utf-8'))['scene']
-        # 必须仍被草稿的某个楼层背景引用才放行，等于「底图跟着户型走」。
-        referenced = any(
-            str((floor.get('scene', {}).get('background') or {}).get('assetId', '')).removeprefix('user:') == asset_id
-            for floor in scene.get('floors', [{'scene': scene}])
-        )
+        scene = json.loads(path.read_text(encoding='utf-8'))['scene']
+        # 必须被**本场景**的某个楼层背景引用才放行，等于「底图跟着这个户型走」。
+        referenced = asset_id in _background_asset_ids(scene)
+        if not referenced and viewer.is_admin_session:
+            draft_payload = json.loads(
+                request.app.state.settings.studio3d_draft_path.read_text(encoding='utf-8')
+            )
+            referenced = asset_id in _background_asset_ids(draft_payload.get('scene', {}))
         asset = user_asset_file(request.app.state.settings.user_assets_dir.resolve(), asset_id) if referenced else None
         if asset:
             return FileResponse(asset, headers={'Cache-Control': 'no-store'})
@@ -335,10 +384,9 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         if not (payload.project_id and payload.component_id):
             raise HTTPException(422, detail='电视控制缺少仪表盘或控件信息。')
         require_viewer_project(viewer, payload.project_id)
-        draft = database.get(ProjectDraft, payload.project_id)
-        component = next((item for _, item in module_components(json.loads(draft.document_json)) if item.get('id') == payload.component_id), None) if draft else None
-        # 取出该控件配置的电视列表（properties.devices.televisions）。
-        bindings = (component or {}).get('properties', {}).get('devices', {}).get('televisions', [])
+        # 取控件配置：实体必须真配在这个控件的电视列表里（properties.devices.televisions）。
+        component = control_component(database, payload.project_id, payload.component_id)
+        bindings = component.get('properties', {}).get('devices', {}).get('televisions', [])
         # 开关机走 powerEntityId 字段：电视的电源实体常常与媒体播放器不是同一个。
         power_command = payload.service in {'turn_on', 'turn_off'}
         matches = [
@@ -409,9 +457,8 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
         if not (payload.project_id and payload.component_id):
             raise HTTPException(422, detail=f'{name}控制缺少仪表盘或控件信息。')
         require_viewer_project(viewer, payload.project_id)
-        draft = database.get(ProjectDraft, payload.project_id)
-        component = next((item for _, item in module_components(json.loads(draft.document_json)) if item.get('id') == payload.component_id), None) if draft else None
-        properties = component.get('properties', {}) if component else {}
+        component = control_component(database, payload.project_id, payload.component_id)
+        properties = component.get('properties', {})
         # 窗帘与空调分别放在 properties.environment.curtains / airConditioners 下。
         bindings = properties.get('environment', {}).get('curtains' if is_cover else 'airConditioners', [])
         # 实体必须真的配在该控件的环境列表里，配置之外的一律拒绝。
@@ -458,6 +505,22 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             'turn_on',
             'turn_off'}:
             raise HTTPException(422, detail='3D 交互控制只支持已配置的灯光、开关、空调或窗帘。')
+        # 与前三个分支同一口径：中控设备必须证明这个实体**真的配在当前控件上**（B25）。
+        # 少了这一步，凡是这块屏可见的实体都能被控制 —— 同一设备上的兄弟实体（灯具的
+        # 第二路、窗帘电机的反向开关等由 viewer_entity_ids 按设备放行的那些）、别的控件
+        # 配的灯，全都可以用。前端 runtime 也做了同样的比对，但那只是体验（省一次往返），
+        # 不是边界：直接调接口就能绕过。
+        #
+        # 管理员会话不设这道：它本来就是全权主体（可以直接调 /ha/service 控制任意实体），
+        # 而编辑器里的 3D 预览挂载未必带上项目与控件标识，卡在这里只会误伤预览。
+        if not viewer.is_admin_session:
+            if not (payload.project_id and payload.component_id):
+                raise HTTPException(422, detail='设备控制缺少仪表盘或控件信息。')
+            require_viewer_project(viewer, payload.project_id)
+            component = control_component(database, payload.project_id, payload.component_id)
+            # 灯光表里 entityId 可以为空（纯装饰的灯），因此这里比的是「有没有一条绑到它」。
+            if not any(item.get('entityId') == payload.entity_id for item in component.get('properties', {}).get('lights', [])):
+                raise HTTPException(403, detail='此设备未配置到当前 3D 交互控件。')
         return await call_service(payload, request, database, viewer)
 
 

@@ -1296,13 +1296,11 @@ export function mountInteraction3d(
           },
           body: JSON.stringify({
             ...incomingMessage.command,
-            ...(["climate", "cover"].includes(incomingMessage.command?.domain) ||
-            incomingMessage.command?.deviceKind === "television"
-              ? {
-                  projectId: projectId,
-                  componentId: componentDescriptor.id
-                }
-              : {})
+            // 定位字段一律带上（不再只给空调/窗帘/电视带）：后端四个分支都要用它
+            // 反查「实体是不是真配在这个控件上」，灯光/开关那条也不例外（B25）。
+            // 少了它后端会回 422，而不是悄悄退回「只校验实体可见范围」。
+            projectId: projectId,
+            componentId: componentDescriptor.id
           }),
           signal: controlAbortController.signal
         });

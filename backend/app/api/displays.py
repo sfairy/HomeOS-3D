@@ -578,9 +578,15 @@ def update_display_device(
     仅管理员可调用。两个字段可选，只更新传了的那些；
     同时把改动同步回它的配对码，保持两处一致。
     返回更新后的设备 JSON。设备不存在或已吊销抛 404「中控设备不存在。」；
-    目标仪表盘不存在抛 404「仪表盘不存在。」。
+    目标仪表盘不存在抛 404「仪表盘不存在。」；
+    授权已收回 ``display`` 时抛 403（与创建/配对同一条口径，B64）。
     """
     require_admin(user)
+    # 能力码：与 POST /pair 同一条口径。授权收回 display 之后还能改绑/改名，
+    # 等于留着一条「继续把设备往仪表盘上挂」的通道 —— 虽然改的是已有设备，
+    # 但它同样是在运营一条授权之外的中控链路。
+    if not request.app.state.license_service.allows('display'):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许管理展示设备。')
     device = database.get(DisplayDevice, device_id)
     if device is None or device.revoked_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='中控设备不存在。')
