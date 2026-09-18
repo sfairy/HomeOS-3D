@@ -233,15 +233,18 @@ class HASyncState(Base):
 class Project(Base):
     """一个仪表盘项目。
 
-    `name` 全局唯一（校验在 api/projects.py），因为它同时被用作展示地址
-    `/display/{项目名称}` 的路径段；`slug` 则是给内部与文件命名用的 ASCII 形式。
+    `name` 全局唯一，因为它同时被用作展示地址 `/display/{项目名称}` 的路径段；
+    `slug` 则是给内部与文件命名用的 ASCII 形式。
+    两条唯一性都由数据库的唯一索引兜底（应用层那次「先查后写」只是为了让常见错误
+    尽早返回中文提示，并发下挡不住）：`name` 的冲突回 409 让用户改名，
+    `slug` 的冲突换一个后缀重试，见 `api/projects.insert_project_with_draft`。
     `created_by` 用 RESTRICT：只要还有项目引用，就不允许删除该用户行。
     """
 
     __tablename__ = 'projects'
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
     slug: Mapped[str] = mapped_column(String(128), nullable=False, unique=True, index=True)
     description: Mapped[str] = mapped_column(Text, nullable=False, default='')
     created_by: Mapped[str] = mapped_column(ForeignKey('users.id', ondelete='RESTRICT'), nullable=False, index=True)

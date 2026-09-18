@@ -12,8 +12,10 @@ from urllib.parse import quote
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 
+from ..conflicts import is_unique_violation
 from ..dependencies import DatabaseSession, LicensedUser
 from ..display_access import display_path, display_token_expired, display_token_expires_at
 from ..http_security import resolve_client_ip, secure_cookies_enabled
@@ -28,6 +30,16 @@ from ..schemas import (
 from ..security import new_session_token, session_token_hash, set_display_cookie
 
 router = APIRouter(prefix='/displays', tags=['displays'])
+
+#: 「配对码已经绑了一台在用设备」的文案。两处会用到它：读到在用设备时提前拒绝，
+#: 以及并发下唯一约束/条件更新失败时兜底 —— 同一件事不能有两种说法。
+DEVICE_ALREADY_BOUND_DETAIL = '该配对码已绑定一台在用设备。要在这台设备上重新配对，请先在管理端的显示设备列表里解绑原设备。'
+
+
+def device_already_bound() -> HTTPException:
+    """构造「该配对码已绑定一台在用设备」的 409。"""
+    return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=DEVICE_ALREADY_BOUND_DETAIL)
+
 
 #: /pair 的**跨来源**失败预算 (max_failures, window_seconds, block_seconds)。
 #:
@@ -459,30 +471,57 @@ def pair_display_device(
         request.app.state.global_log.append(
             'warning', '展示设备', '中控设备', f'配对码「{pairing.name}」已绑定在用设备，拒绝了重复配对请求'
         )
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail='该配对码已绑定一台在用设备。要在这台设备上重新配对，请先在管理端的显示设备列表里解绑原设备。',
-        )
+        raise device_already_bound()
     now = datetime.now(timezone.utc)
     token = new_session_token()
+    token_hash = session_token_hash(token)
     # 复用已被管理员解绑的那一行（pairing_code_id 上有唯一约束，不能再插一行）。
     device = database.scalar(
         select(DisplayDevice).where(DisplayDevice.pairing_code_id == pairing.id)
     )
-    if device is None:
-        device = DisplayDevice(id=str(uuid4()), pairing_code_id=pairing.id)
-        database.add(device)
-    device.token_hash = session_token_hash(token)
-    device.project_id = project.id
+    # 要写进去的新值先攒成一份：插入与条件更新两条路径共用同一组字段，
+    # 免得改了一处忘了另一处（这个函数过去正是「先读后写」被并发钻空子的地方）。
+    fields = {
+        'token_hash': token_hash,
+        'project_id': project.id,
+        'name': payload.device_name if payload.device_name is not None else pairing.name,
+        'ip_address': ip_address[:64],
+        'user_agent': request.headers.get('user-agent', '')[:512],
+        'last_seen_at': now,
+        # 管理员解绑过（revoked_at 有值）才会走到这里：清除吊销时间等于「重新配对成功」。
+        'revoked_at': None,
+    }
     if payload.device_name is not None:
         pairing.name = payload.device_name
-    device.name = pairing.name
-    device.ip_address = ip_address[:64]
-    device.user_agent = request.headers.get('user-agent', '')[:512]
-    device.last_seen_at = now
-    # 管理员解绑过（revoked_at 有值）才会走到这里：清除吊销时间等于「重新配对成功」。
-    device.revoked_at = None
     pairing.updated_at = now
+    if device is None:
+        device = DisplayDevice(id=str(uuid4()), pairing_code_id=pairing.id, **fields)
+        database.add(device)
+        try:
+            # 在这里 flush 而不是等最后的 commit：唯一约束要在「还没下发 Cookie」之前裁决。
+            # 两个平板同时扫同一个码时都读到「没有设备」，于是都去插 —— 输的那一个会撞上
+            # display_devices.pairing_code_id 上的唯一约束。那必须是 409（码没错，只是被
+            # 别人抢先绑定了），不是 500（B12）。
+            database.flush()
+        except IntegrityError as error:
+            database.rollback()
+            if not is_unique_violation(error, 'display_devices.pairing_code_id'):
+                raise
+            raise device_already_bound() from error
+    else:
+        # 这一行是被管理员解绑过的，两个请求会同时读到它并都想复用 —— 先读后写的话，
+        # 后提交的那个会静默顶掉先配对成功的那台设备，而先拿到的 Cookie 立刻失效
+        # （用户看到的是「配对了但打不开」）。所以用读到的 token_hash 做条件更新（CAS）：
+        # 只有第一个请求能把令牌换成自己的，另一个 rowcount 为 0，按「已被占用」拒绝。
+        updated = database.execute(
+            update(DisplayDevice)
+            .where(DisplayDevice.id == device.id, DisplayDevice.token_hash == device.token_hash)
+            .values(**fields)
+            .execution_options(synchronize_session=False)
+        )
+        if updated.rowcount != 1:
+            database.rollback()
+            raise device_already_bound()
     database.commit()
     database.refresh(device)
     if ip_limiter is not None:

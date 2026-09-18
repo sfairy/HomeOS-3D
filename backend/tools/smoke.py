@@ -4131,6 +4131,583 @@ async def check_pairing_code_attempt_budget() -> None:
     )
 
 
+def _detail_of(response) -> str:
+    """取响应里的 ``detail`` 文案；取不到就退回响应体原文。
+
+    诊断信息是**无条件求值**的：回归一旦发生（比如又变回 500），响应体是纯文本，
+    直接 ``.json()`` 会在这里抛异常，断言本身还没判、整份自检就先中断了 ——
+    那样后续所有检查都不会跑，一个回归会伪装成「整个自检崩了」。
+    """
+    try:
+        payload = response.json()
+    except ValueError:
+        return response.text.replace('\n', ' ')[:120]
+    if isinstance(payload, dict):
+        return str(payload.get('detail'))[:120]
+    return str(payload)[:120]
+
+
+def _field_of(response, key: str):
+    """取响应 JSON 里的某个字段；响应不是 JSON 时回 None。"""
+    try:
+        payload = response.json()
+    except ValueError:
+        return None
+    return payload.get(key) if isinstance(payload, dict) else None
+
+
+def check_unique_violation_predicate() -> None:
+    """``is_unique_violation`` 必须两个条件都看：UNIQUE 与「带表名的列名」。
+
+    这个判据本身错一次，上层的两套退让就全错：太宽 → 把「name 恒为 NULL」这种缺陷
+    当成「重名」报给用户（听起来很合理，于是没人去查真原因）；太窄 → 真正的并发
+    重名漏回 500，等于 B10/B11 没修。
+
+    这里直接喂 SQLAlchemy 真实会产出的那几句消息（``str(orig)``），不经过数据库 ——
+    判断逻辑只依赖那句文本，单独测它最省事也最准。
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from backend.app.conflicts import is_unique_violation
+
+    def error(message: str) -> IntegrityError:
+        """造一个 ``orig`` 为 sqlite3 异常的 IntegrityError，与真实形状一致。"""
+
+        class _Origin(Exception):
+            pass
+
+        return IntegrityError('INSERT INTO projects ...', {}, _Origin(message))
+
+    cases = [
+        (
+            'UNIQUE constraint failed: projects.name',
+            'projects.name',
+            True,
+            '唯一约束命中',
+        ),
+        (
+            'NOT NULL constraint failed: projects.name',
+            'projects.name',
+            False,
+            '非空约束里也有列名，但绝不能当成重名（那会把真正的缺陷藏起来）',
+        ),
+        (
+            'UNIQUE constraint failed: display_pairing_codes.name',
+            'projects.name',
+            False,
+            '别的表上的同名列不算（所以必须带表名）',
+        ),
+        (
+            'UNIQUE constraint failed: projects.slug',
+            'projects.name',
+            False,
+            '同表上的另一列不算（name 与 slug 的退让方式不同）',
+        ),
+        (
+            'UNIQUE constraint failed: projects.slug',
+            'projects.slug',
+            True,
+            'slug 命中',
+        ),
+    ]
+    wrong = [
+        (message, column, wanted, why)
+        for (message, column, wanted, why) in cases
+        if is_unique_violation(error(message), column) is not wanted
+    ]
+    check(
+        'B10/B11 冲突判据同时看 UNIQUE 与带表名的列名（喂进真实的约束消息）',
+        not wrong,
+        f'判错的用例={wrong}' if wrong else f'{len(cases)} 个用例全部判对',
+    )
+
+
+class RivalWriteSession:
+    """在「已经查过一遍」与「真正写下去」之间，让竞争对手抢先提交。
+
+    B10/B11/B12 是同一个形状的缺陷 —— **先查后写**：
+
+        SELECT（没人占用） → …… → INSERT / UPDATE
+
+    两个请求都能查到「没人占用」，于是唯一约束成了真正的裁决者。要在进程内确定性地
+    复现它，不必真的开两条线程赛跑（那种测试会随机飘，红了也不知道是真缺陷还是调度），
+    只需要把「对手提交」这件事精确地插在那两步之间：**调度顺序是模拟的，而冲突本身
+    全是真的** —— 真的唯一索引、真的 ``IntegrityError``、真的重试与 409。
+
+    做法是包一层会话：在被测请求**写下第一个字节之前**，先让 ``rival`` 用另一条连接
+    写完并提交。这个时点选得有讲究：
+
+    - 必须晚于请求里那些「先查」的 SELECT ── 否则对手会被那道「尽早给中文提示」的
+      检查先一步拦下，真正要验证的并发处理（唯一约束 + 409）根本走不到；
+    - 又必须早于请求自己第一次写 ── SQLite 的写锁是排他的，等我们开始写之后对手就
+      再也提交不进来了，「两个请求同时写」在测试里会退化成「一个先一个后」。
+
+    为什么对手的提交在一条已经查过的会话里看得见：pysqlite 默认隔离级别下 SELECT
+    不显式开事务（DML 才开），因此这里没有「读到旧快照」的问题 —— 与真实并发一致。
+
+    ``fired`` 用来断言「这个对手确实在窗口里出现过」：没出现的话，测试其实什么都没测到。
+    """
+
+    def __init__(self, session, rival) -> None:
+        """包装一个真会话，并记下「对手怎么提交」这段动作。"""
+        self._session = session
+        self._rival = rival
+        self._fired = False
+
+    @property
+    def fired(self) -> bool:
+        """对手是否已经在窗口里提交过。"""
+        return self._fired
+
+    def _fire(self) -> None:
+        """跑一次对手写入（只跑一次）。"""
+        if self._fired:
+            return
+        self._fired = True
+        self._rival()
+
+    def flush(self, *args, **kwargs):
+        """真正的 flush 之前先让对手提交。"""
+        self._fire()
+        return self._session.flush(*args, **kwargs)
+
+    def execute(self, statement, *args, **kwargs):
+        """第一条写语句之前先让对手提交（INSERT / UPDATE / DELETE 都算）。"""
+        from sqlalchemy.sql.dml import Delete, Insert, Update
+
+        if isinstance(statement, (Insert, Update, Delete)):
+            self._fire()
+        return self._session.execute(statement, *args, **kwargs)
+
+    def __getattr__(self, name):
+        """其余属性一律透传给真会话。"""
+        return getattr(self._session, name)
+
+
+def _projects_app(workdir: Path):
+    """拼一个真应用：真路由 + 真通知，只换掉数据库、授权服务与素材目录。
+
+    返回 (app, database, admin_cookie)。真实路由是这几个缺陷的关键 ——
+    「409 还是 500」的差别只存在于路由的错误处理里，直接调底层函数测不到。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from backend.app.database import Base, Database
+    from backend.app.global_log import RepeatedErrorTally
+    from backend.app.main import create_app
+    from backend.app.models import LoginSession, User
+    from backend.app.security import session_token_hash
+
+    app = create_app()
+    database = Database(f'sqlite:///{workdir / "app.db"}')
+    Base.metadata.create_all(database.engine)
+    now = datetime.now(timezone.utc)
+    with database.session_factory() as session:
+        session.add(User(id='u1', username='admin', password_hash='x', role='admin'))
+        session.commit()
+        session.add(
+            LoginSession(
+                id_hash=session_token_hash('tok-admin'),
+                user_id='u1',
+                created_at=now,
+                last_seen_at=now,
+                expires_at=now + timedelta(hours=1),
+            )
+        )
+        session.commit()
+    app.state.database = database
+    app.state.admin_account = SimpleNamespace(user_id='u1', initialized=True)
+    app.state.license_service = SimpleNamespace(allows=lambda _code: True, status=lambda: {'status': 'ACTIVE'})
+    app.state.asset_catalog = SimpleNamespace(asset_exists=lambda _asset_id: True, mutation_lock=threading.Lock())
+    app.state.global_log = SimpleNamespace(append=lambda *_args, **_kwargs: None)
+    # 诊断中间件在 4xx 上会调它（B62）；不跑 lifespan 的话这些状态得自己补上。
+    app.state.error_tally = RepeatedErrorTally()
+    cookie = {app.state.settings.cookie_name: 'tok-admin'}
+    return (app, database, cookie)
+
+
+def _seed_project(database, project_id: str, name: str, *, document_json: str) -> None:
+    """插一个项目与它的草稿；``document_json`` 由调用方给（可以故意给坏内容）。
+
+    顺带把全局弹窗状态那一行也建好：不建的话，保存路径里 ``global_popup_state``
+    会在名称校验**之前**顺手插一行并 flush，那条 DML 会先一步拿走 SQLite 的写锁 ——
+    于是 ``RivalWriteSession`` 的对手再也提交不进来，「并发改名」根本复现不出来。
+    真实部署里这一行早就存在（第一次保存就建了），所以这不是为测试而造的假状态。
+    """
+    from backend.app.models import GlobalCustomPopupState, Project, ProjectDraft
+
+    with database.session_factory() as session:
+        session.add(Project(id=project_id, name=name, slug=project_id, created_by='u1'))
+        session.commit()
+        session.add(
+            ProjectDraft(
+                project_id=project_id,
+                schema_version=1,
+                revision=1,
+                document_json=document_json,
+                updated_by='u1',
+            )
+        )
+        session.commit()
+        if session.get(GlobalCustomPopupState, 1) is None:
+            session.add(GlobalCustomPopupState(id=1, revision=1, popups_json='[]'))
+            session.commit()
+
+
+async def check_duplicate_dirty_document_is_422() -> None:
+    """B9：源文档脏掉的项目要能「报错」，而不是「永远复制不出来」。
+
+    ``duplicate_project`` 里的 ``json.loads`` 与 ``validate_panel_document`` 都没接住
+    ``ValueError``：一份被截断或结构不合规的源文档会让复制接口 500，而用户看到的只是
+    「服务器内部错误」—— 这个项目从此再也复制不出来，也没有任何提示告诉他为什么。
+    修复后两条路径都按 422 回一句能读懂的话。
+    """
+    from backend.app.api.projects import serialize_document
+    from backend.app.models import Project
+    from backend.app.panel.documents import create_blank_project
+
+    with tempfile.TemporaryDirectory(prefix='hb-dup-') as tmp:
+        (app, database, cookie) = _projects_app(Path(tmp))
+        valid = serialize_document(create_blank_project('proj-ok', '正常项目'))
+        _seed_project(database, 'proj-ok', '正常项目', document_json=valid)
+        # 写盘时被截断的 JSON。
+        _seed_project(database, 'proj-cut', '截断项目', document_json=valid[: len(valid) // 2])
+        # 合法 JSON，但字段类型不合文档结构。
+        _seed_project(database, 'proj-bad', '脏字段项目', document_json='{"schemaVersion": "一", "name": "脏字段项目"}')
+
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            cut = await client.post('/api/v1/projects/proj-cut/duplicate', cookies=cookie, json={'name': '截断副本'})
+            bad = await client.post('/api/v1/projects/proj-bad/duplicate', cookies=cookie, json={'name': '脏字段副本'})
+            good = await client.post('/api/v1/projects/proj-ok/duplicate', cookies=cookie, json={'name': '正常副本'})
+
+        with database.session_factory() as session:
+            names = sorted(row.name for row in session.query(Project).all())
+
+    check(
+        'B9 截断的源文档回 422 并说明原因（修复前是 500）',
+        cut.status_code == 422 and _field_of(cut, 'detail') == '源仪表盘的草稿内容已损坏，无法复制。',
+        f'{cut.status_code} {_detail_of(cut)}',
+    )
+    check(
+        'B9 结构不合规的源文档回 422（复用保存路径那套校验文案）',
+        bad.status_code == 422 and isinstance(_field_of(bad, 'detail'), str) and _field_of(bad, 'detail'),
+        f'{bad.status_code} {_detail_of(bad)}',
+    )
+    check(
+        'B9 失败时不会留下半个副本（只有成功的那个新项目）',
+        names == sorted(['正常项目', '截断项目', '脏字段项目', '正常副本']),
+        f'{names}',
+    )
+    check(
+        'B9 正常的源文档照旧能复制（修好之后别把复制功能整个挡了）',
+        good.status_code == 201 and _field_of(good, 'name') == '正常副本' and _field_of(good, 'slug') == 'dashboard',
+        f'{good.status_code} {_field_of(good, "name")} slug={_field_of(good, "slug")}',
+    )
+
+
+async def check_project_conflicts_resolve_to_409() -> None:
+    """B10/B11：项目名与 slug 的唯一约束在并发下要变成 409 / 重试，而不是 500。
+
+    名称与 slug 都是「先查后写」：查询与插入之间的窗口里，另一个请求可以抢先提交。
+    修复前那个 ``IntegrityError`` 一路冒到接口层变成 500，而用户只是又点了一次
+    「新建」，或者另一个标签页刚建过同名项目。
+
+    两条约束的退让方式不同，因此断言也分开：
+
+    - 同名 → 409（名称是用户区分仪表盘的唯一依据，也是展示地址的路径段，不能悄悄改名）；
+    - 同 slug → 换一个后缀重试成功（slug 只是内部形式，随便加后缀）。
+    """
+    from backend.app.models import Project
+    from backend.app.dependencies import get_database_session
+
+    with tempfile.TemporaryDirectory(prefix='hb-conflict-') as tmp:
+        (app, database, cookie) = _projects_app(Path(tmp))
+        ok_cookie = cookie
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            # 1) 不带并发：重名走「尽早给中文提示」那一档（先查后写的第一道）。
+            first = await client.post('/api/v1/projects', cookies=ok_cookie, json={'name': '客厅'})
+            sequential = await client.post('/api/v1/projects', cookies=ok_cookie, json={'name': '客厅'})
+
+            # 2) 并发下重名：查询时还没人用，插入前对手提交了同名项目。
+            def insert_rival_project(name: str, slug: str) -> None:
+                with database.session_factory() as rival_session:
+                    rival_session.add(Project(id=f'rival-{slug}', name=name, slug=slug, created_by='u1'))
+                    rival_session.commit()
+
+            name_rival = RivalWriteSession(
+                database.session_factory(),
+                lambda: insert_rival_project('书房', 'rival-study'),
+            )
+            app.dependency_overrides[get_database_session] = lambda: name_rival
+            try:
+                raced_name = await client.post('/api/v1/projects', cookies=ok_cookie, json={'name': '书房'})
+                fired_name = name_rival.fired
+            finally:
+                app.dependency_overrides.pop(get_database_session, None)
+                name_rival.close()
+
+            # 3) 并发下同 slug：对手的名字不同（不撞名称），但 slug 与我们要生成的一样。
+            #    请求名 'study 房间' 折出来的 base slug 是 'study'（全中文以外的部分保留），
+            #    对手先占掉这个 slug。注意这一步必须在对手那一行真的建起来之后再看结果 ——
+            #    对手自己撞了唯一约束的话，那条 IntegrityError 会被当成我们的冲突，
+            #    断言就会因为错误的理由变绿。
+            slug_rival = RivalWriteSession(
+                database.session_factory(),
+                lambda: insert_rival_project('另一个房间', 'study'),
+            )
+            app.dependency_overrides[get_database_session] = lambda: slug_rival
+            try:
+                raced_slug = await client.post('/api/v1/projects', cookies=ok_cookie, json={'name': 'study 房间'})
+                fired_slug = slug_rival.fired
+            finally:
+                app.dependency_overrides.pop(get_database_session, None)
+                slug_rival.close()
+
+        with database.session_factory() as session:
+            rows = {row.name: row.slug for row in session.query(Project).all()}
+
+    check(
+        'B10 顺序提交的重名仍然是 409「仪表盘名称已存在。」（第一道没被绕过）',
+        first.status_code == 201 and sequential.status_code == 409 and _field_of(sequential, 'detail') == '仪表盘名称已存在。',
+        f'{first.status_code}/{sequential.status_code} {_detail_of(sequential)}',
+    )
+    check(
+        'B10 并发下撞名称唯一约束回 409 而不是 500（对手确实在窗口里提交过）',
+        fired_name and raced_name.status_code == 409 and _field_of(raced_name, 'detail') == '仪表盘名称已存在。',
+        f'对手提交={fired_name}，{raced_name.status_code} {_detail_of(raced_name)}',
+    )
+    check(
+        'B10 失败的创建没有留下行（同名项目只有一个）',
+        list(rows).count('书房') == 1 and rows.get('书房') == 'rival-study',
+        f'{rows}',
+    )
+    check(
+        'B11 并发下撞 slug 唯一约束自动换后缀重试（对手确实在窗口里提交过）',
+        fired_slug and raced_slug.status_code == 201 and _field_of(raced_slug, 'slug') == 'study-2',
+        f'对手提交={fired_slug}，{raced_slug.status_code} slug={_field_of(raced_slug, "slug")}',
+    )
+    check(
+        'B11 重试成功的那一行真的落了库，对手那一行没被动',
+        rows.get('study 房间') == 'study-2' and rows.get('另一个房间') == 'study',
+        f'{rows}',
+    )
+
+
+async def check_rename_conflict_is_409_atomic() -> None:
+    """B10（保存路径）：改名撞上并发创建的同名项目时回 409，且整笔保存一起回滚。
+
+    保存接口会把「文档名」同步写进项目表，所以改名的唯一性也落在同一条事务里。
+    这里要断言两件事：状态码不能是 500（那正是修复前的样子），以及**原子性** ——
+    名字没改成的时候文档也不能已经写进去。否则用户看到「保存失败」，刷新后内容却变了，
+    下一次保存又会撞上 revision 冲突，比直接报错更难查。
+    """
+    from backend.app.api.projects import NAME_CONFLICT_DETAIL, serialize_document
+    from backend.app.dependencies import get_database_session
+    from backend.app.models import Project, ProjectDraft
+    from backend.app.panel.documents import create_blank_project
+
+    with tempfile.TemporaryDirectory(prefix='hb-rename-') as tmp:
+        (app, database, cookie) = _projects_app(Path(tmp))
+        _seed_project(database, 'proj-a', '甲项目', document_json=serialize_document(create_blank_project('proj-a', '甲项目')))
+        # 保存成功后会把新绑定的实体丢给 HA 连接器刷新；这里只记下它被叫过。
+        refreshed: list[dict] = []
+        app.state.ha_connector = SimpleNamespace(refresh_persistent_entity_ids=lambda **kwargs: refreshed.append(kwargs))
+
+        def insert_rival_project() -> None:
+            with database.session_factory() as rival_session:
+                rival_session.add(Project(id='rival-living', name='客厅', slug='rival-living', created_by='u1'))
+                rival_session.commit()
+
+        rival = RivalWriteSession(database.session_factory(), insert_rival_project)
+        app.dependency_overrides[get_database_session] = lambda: rival
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        try:
+            async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+                renamed = await client.put(
+                    '/api/v1/projects/proj-a/draft',
+                    cookies=cookie,
+                    json={
+                        'revision': 1,
+                        'globalPopupsDirty': False,
+                        'document': create_blank_project('proj-a', '客厅'),
+                    },
+                )
+            fired = rival.fired
+        finally:
+            app.dependency_overrides.pop(get_database_session, None)
+            rival.close()
+
+        with database.session_factory() as session:
+            stored = session.get(ProjectDraft, 'proj-a')
+            project_name = session.get(Project, 'proj-a').name
+            revision_after = stored.revision
+            document_name = json.loads(stored.document_json)['name']
+
+    check(
+        'B10 保存时改名撞上唯一约束回 409（对手确实在窗口里提交过）',
+        fired and renamed.status_code == 409 and _field_of(renamed, 'detail') == NAME_CONFLICT_DETAIL,
+        f'对手提交={fired}，{renamed.status_code} {_detail_of(renamed)}',
+    )
+    check(
+        'B10 改名失败时整笔保存回滚：文档没写进去，revision 没推进',
+        revision_after == 1 and document_name == '甲项目' and project_name == '甲项目',
+        f'revision={revision_after} 文档名={document_name} 项目名={project_name}',
+    )
+    check(
+        'B10 保存失败时不会去扰动 HA 连接（后台任务不该被排上）',
+        refreshed == [],
+        f'刷新调用={refreshed}',
+    )
+
+
+async def check_pairing_race_returns_409() -> None:
+    """B12：同一个配对码被两个平板同时扫，输的那个要拿到 409，且不能顶掉先配好的那台。
+
+    配对是免登录接口，门禁全靠「同一配对码只发一个令牌」这条。修复前「查有没有在用设备」
+    与「插入/更新设备行」不是一个原子动作，因此存在两种坏结局：
+
+    1. 两个请求都读到「没有设备」，都去插 → 撞 ``display_devices.pairing_code_id``
+       唯一约束 → 500（用户看到「服务器内部错误」，而不是「这码已经被绑了」）；
+    2. 两个请求都读到同一行**已解绑**的设备，都去复用 → 后提交的那个静默把令牌换掉，
+       先配对成功的那台设备立刻失效（现象是「配对了但打不开」）。
+
+    修复后用唯一约束裁决第 1 种，用「读到的 token_hash 做条件更新」裁决第 2 种：
+    两种情况都回 409，且失败方不留下任何痕迹（不下发 Cookie、不改库）。
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy import update as sa_update
+
+    from backend.app.api.displays import DEVICE_ALREADY_BOUND_DETAIL
+    from backend.app.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
+    from backend.app.dependencies import get_database_session
+    from backend.app.global_log import RepeatedErrorTally
+    from backend.app.models import DisplayDevice, DisplayPairingCode, Project
+    from backend.app.security import session_token_hash
+
+    now = datetime.now(timezone.utc)
+    with tempfile.TemporaryDirectory(prefix='hb-pair-race-') as tmp:
+        (app, database, _cookie) = _projects_app(Path(tmp))
+        with database.session_factory() as session:
+            session.add(Project(id='proj-a', name='甲项目', slug='proj-a', created_by='u1'))
+            session.commit()
+            session.add(
+                DisplayPairingCode(
+                    id='pair-a',
+                    code_hash=session_token_hash('654321'),
+                    encrypted_code='encrypted',
+                    name='走廊平板',
+                    project_id='proj-a',
+                    created_by='u1',
+                )
+            )
+            session.commit()
+        # 免登录接口的三档限流器都要在（这条检查只看并发裁决，但缺了状态会直接报错）。
+        app.state.pairing_limiter = LoginAttemptLimiter(30, 60, 60)
+        app.state.pairing_code_limiter = BoundedAttemptLimiter(5, 900, 900, max_keys=64)
+        app.state.login_limiter = LoginAttemptLimiter()
+        app.state.error_tally = RepeatedErrorTally()
+        app.state.settings = replace(app.state.settings, trusted_proxies=())
+
+        def rival_device(token: str):
+            """对手「配对成功」：把设备行绑到这个码上（令牌与赢家不同）。"""
+
+            def write() -> None:
+                with database.session_factory() as rival_session:
+                    rival_session.add(
+                        DisplayDevice(
+                            id='rival-device',
+                            token_hash=session_token_hash(token),
+                            pairing_code_id='pair-a',
+                            project_id='proj-a',
+                            name='对手平板',
+                            created_at=now,
+                            last_seen_at=now,
+                        )
+                    )
+                    rival_session.commit()
+
+            return write
+
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            # 1) 两边都读到「没有设备」，都去插：唯一约束裁决，输的那个拿 409。
+            insert_rival = RivalWriteSession(database.session_factory(), rival_device('tok-rival'))
+            app.dependency_overrides[get_database_session] = lambda: insert_rival
+            try:
+                lost = await client.post('/api/v1/displays/pair', json={'code': '654321'})
+                fired_insert = insert_rival.fired
+            finally:
+                app.dependency_overrides.pop(get_database_session, None)
+                insert_rival.close()
+
+            with database.session_factory() as session:
+                bound_after_insert = session.get(DisplayDevice, 'rival-device').token_hash
+                device_rows = session.query(DisplayDevice).count()
+
+            # 2) 两边都读到「同一行已解绑的设备」，都去复用：条件更新裁决，输的那个拿 409。
+            with database.session_factory() as session:
+                device = session.get(DisplayDevice, 'rival-device')
+                device.revoked_at = now
+                session.commit()
+                stale_hash = device.token_hash
+
+            def rebind_rival() -> None:
+                """对手把那一行重新绑到自己的令牌上（模拟「同时解绑后又同时配对」）。"""
+                with database.session_factory() as rival_session:
+                    rival_session.execute(
+                        sa_update(DisplayDevice)
+                        .where(DisplayDevice.id == 'rival-device')
+                        .values(token_hash=session_token_hash('tok-rival-2'), revoked_at=None)
+                    )
+                    rival_session.commit()
+
+            cas_rival = RivalWriteSession(database.session_factory(), rebind_rival)
+            app.dependency_overrides[get_database_session] = lambda: cas_rival
+            try:
+                lost_cas = await client.post('/api/v1/displays/pair', json={'code': '654321'})
+                fired_cas = cas_rival.fired
+            finally:
+                app.dependency_overrides.pop(get_database_session, None)
+                cas_rival.close()
+
+            with database.session_factory() as session:
+                final_hash = session.get(DisplayDevice, 'rival-device').token_hash
+                final_revoked = session.get(DisplayDevice, 'rival-device').revoked_at
+
+        cookie_name = app.state.settings.display_cookie_name
+
+    check(
+        'B12 两个平板同时插同一配对码：输的那个回 409 而不是 500（对手确实在窗口里提交过）',
+        fired_insert
+        and lost.status_code == 409
+        and _field_of(lost, 'detail') == DEVICE_ALREADY_BOUND_DETAIL,
+        f'对手提交={fired_insert}，{lost.status_code} {_detail_of(lost)[:40]}',
+    )
+    check(
+        'B12 输的那个没有下发中控 Cookie（没配对成功就不该拿到令牌）',
+        not lost.cookies.get(cookie_name) and not lost.headers.get('set-cookie'),
+        f'cookies={dict(lost.cookies)} header={lost.headers.get("set-cookie")}',
+    )
+    check(
+        'B12 库里的令牌仍是赢家那一枚（输的那个没顶掉先配好的设备）',
+        bound_after_insert == session_token_hash('tok-rival') and device_rows == 1,
+        f'落库令牌={bound_after_insert[:16]}… 设备行数={device_rows}',
+    )
+    check(
+        'B12 复用已解绑那一行时用条件更新裁决：输的那个同样回 409',
+        fired_cas and lost_cas.status_code == 409 and _field_of(lost_cas, 'detail') == DEVICE_ALREADY_BOUND_DETAIL,
+        f'对手提交={fired_cas}，{lost_cas.status_code} {_detail_of(lost_cas)[:40]}',
+    )
+    check(
+        'B12 条件更新失败后没有把令牌改回去（静默顶掉正是要避免的那件事）',
+        final_hash == session_token_hash('tok-rival-2') and final_revoked is None and stale_hash != final_hash,
+        f'最终令牌={final_hash[:16]}… 读到的旧令牌={stale_hash[:16]}… revoked={final_revoked}（应等于对手那一枚）',
+    )
+
+
 def check_every_check_is_wired() -> None:
     """每个 ``check_*`` 都必须被调用过（忘了接线的话，全绿是没有意义的）。
 
@@ -4204,6 +4781,11 @@ async def run() -> int:
     check_update_checks_opt_in()
     check_bounded_attempt_limiter()
     await check_pairing_code_attempt_budget()
+    check_unique_violation_predicate()
+    await check_duplicate_dirty_document_is_422()
+    await check_project_conflicts_resolve_to_409()
+    await check_rename_conflict_is_409_atomic()
+    await check_pairing_race_returns_409()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

@@ -14,7 +14,9 @@ from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 
+from ..conflicts import is_unique_violation
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
 from ..global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
 from ..models import GlobalCustomPopupState, Project, ProjectDraft
@@ -25,6 +27,16 @@ from ..modules.interaction3d.access import require_document_changes as require_i
 from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
 
 router = APIRouter(prefix='/projects', tags=['projects'])
+
+#: 项目名冲突时给用户看的文案。创建、复制、改名三处共用一份，
+#: 免得同一个错误在不同入口说成不同的话。
+NAME_CONFLICT_DETAIL = '仪表盘名称已存在。'
+
+#: slug 撞唯一约束时最多重试几次（B11）。
+#: 每轮都用当时的库状态重新生成 slug（``unique_slug`` 会看到对手已经提交的那一行），
+#: 因此正常情况下第二轮就能拿到空闲后缀。上限只是兜底：不封顶的重试在病态输入下
+#: 会变成一个迟迟不返回的请求。
+SLUG_CONFLICT_ATTEMPTS = 5
 
 
 def require_project_write(request: Request) -> None:
@@ -122,12 +134,118 @@ def ensure_unique_project_name(database: DatabaseSession, name: str, exclude_pro
 
     名称与 slug 分开校验：名称是用户看到并用来区分仪表盘的唯一依据，
     不能因为 slug 能自动加后缀就允许重名。
+
+    这只是「尽早给中文提示」的那一道。并发下两个请求可以同时查到「没人用」，
+    真正裁决的是 ``projects.name`` 上的唯一约束 —— 见 :func:`insert_project_with_draft`。
     """
     query = select(Project.id).where(Project.name == name)
     if exclude_project_id:
         query = query.where(Project.id != exclude_project_id)
     if database.scalar(query):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='仪表盘名称已存在。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NAME_CONFLICT_DETAIL)
+
+
+def validate_document_or_422(document: dict) -> dict:
+    """校验一份要落库的文档；失败按 422 回带校验层写好的中文文案。
+
+    保存与复制共用这一处映射。校验层抛的是 ``ValueError``，不接住就是 500 加一段堆栈
+    （B9）—— 复制那条路径上更糟：源文档一旦脏了，这个项目就**永远复制不出来**，
+    而用户看到的只是「服务器内部错误」。
+    """
+    try:
+        return validate_panel_document(document)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
+
+
+def parse_stored_document(draft: ProjectDraft, *, on_error: str) -> dict:
+    """读出草稿里的文档 JSON，损坏时按 422 回 ``on_error``。
+
+    草稿可能来自更早的版本（字段已下线）或在写盘时被截断，``json.loads`` 抛的
+    ``JSONDecodeError`` 是 ``ValueError`` 的子类：不接住就是 500 加堆栈（B9）。
+    ``on_error`` 由调用方给，因为「复制不出来」与「保存不了」对用户是两件不同的事。
+    """
+    try:
+        return json.loads(draft.document_json)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=on_error) from error
+
+
+def insert_project_with_draft(
+    database: DatabaseSession,
+    *,
+    project_id: str,
+    name: str,
+    description: str,
+    created_by: str,
+    document: dict,
+) -> tuple[Project, ProjectDraft]:
+    """插入项目与其首版草稿，返回两行（只 flush，不提交）。
+
+    ``ensure_unique_project_name`` 与 ``unique_slug`` 都是「先查后写」：两个请求可以
+    同时查到「这个名字 / 这个 slug 没人用」，然后一起去插 —— 唯一约束成了真正的
+    裁决者，撞上的那个拿到 ``IntegrityError``（B10 / B11）。过去这意味着 500，
+    而用户只是又点了一次「新建」，或者另一个标签页刚建过同名项目。
+
+    两条约束的退让方式不同，因此分开处理：
+
+    - 名称是用户区分仪表盘的唯一依据，也是展示地址 ``/display/{名称}`` 的路径段，
+      不能悄悄改名 —— 撞了就 409，让用户自己换一个。
+    - slug 只是内部用的 ASCII 形式，可以随便加后缀，因此换一个后缀重试。
+
+    插入包在 SAVEPOINT 里：撞了就回滚到保存点，只撤销这一次插入，不牵连外层事务
+    已经写好的东西。重试时会重新构造两行 —— 上一轮的对象已经随保存点作废，
+    继续往上写等于往一个作废的对象上写。
+
+    参数:
+        database: 请求级会话。
+        project_id: 已经生成好的项目 id（项目与草稿必须共用同一个）。
+        name: 项目名（调用方已查过一次，这里是并发下的第二道）。
+        description: 项目描述。
+        created_by: 创建者的 user id，同时作为草稿的 updated_by。
+        document: 已校验过的文档；落库时会去掉弹窗部分。
+
+    返回:
+        (项目行, 草稿行)，两行都已 flush 到当前事务。
+
+    Raises:
+        HTTPException: 名称撞唯一约束时 409；连续多轮都只撞 slug 时 409。
+        IntegrityError: 不是这两条可退让的约束（外键、非空、别的唯一约束）时原样抛出。
+    """
+    for _ in range(SLUG_CONFLICT_ATTEMPTS):
+        project = Project(
+            id=project_id,
+            name=name,
+            slug=unique_slug(database, name),
+            description=description,
+            created_by=created_by,
+        )
+        draft = ProjectDraft(
+            project_id=project_id,
+            schema_version=document['schemaVersion'],
+            revision=1,
+            document_json=serialize_document(strip_document_popups(document)),
+            updated_by=created_by,
+        )
+        savepoint = database.begin_nested()
+        try:
+            database.add_all([project, draft])
+            database.flush()
+        except IntegrityError as error:
+            savepoint.rollback()
+            if is_unique_violation(error, 'projects.name'):
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NAME_CONFLICT_DETAIL) from error
+            if not is_unique_violation(error, 'projects.slug'):
+                # 外键、非空、别的唯一约束：换多少个 slug 都是同样的失败，
+                # 把真正的缺陷当碰撞重试只会藏住原因。
+                raise
+            continue
+        else:
+            return (project, draft)
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail='仪表盘地址生成失败，请换一个名称后重试。',
+    )
 
 
 @router.get('')
@@ -163,14 +281,20 @@ def create_project(payload: ProjectCreateRequest, request: Request, database: Da
     """
     require_project_write(request)
     # 命名冲突属于最常见的输入错误，先查一次以便尽早返回中文提示。
+    # 并发下真正裁决的是 projects.name 上的唯一约束，见 insert_project_with_draft。
     ensure_unique_project_name(database, payload.name)
     # id 在本进程先生成：项目与草稿必须共用同一个 id，不能等 flush 之后再取。
     project_id = str(uuid4())
     document = create_blank_project(project_id, payload.name, payload.canvas_width, payload.canvas_height)
-    project = Project(id=project_id, name=payload.name, slug=unique_slug(database, payload.name), description=payload.description.strip(), created_by=user.id)
-    draft = ProjectDraft(project_id=project_id, schema_version=document['schemaVersion'], revision=1, document_json=serialize_document(strip_document_popups(document)), updated_by=user.id)
+    (project, draft) = insert_project_with_draft(
+        database,
+        project_id = project_id,
+        name = payload.name,
+        description = payload.description.strip(),
+        created_by = user.id,
+        document = document,
+    )
     # 项目与草稿同事务写入：只有项目没有草稿的中间态会让编辑器打不开。
-    database.add_all([project, draft])
     database.commit()
     database.refresh(project)
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'已创建仪表盘：{project.name}')
@@ -208,7 +332,10 @@ def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='项目或草稿不存在。')
     ensure_unique_project_name(database, payload.name)
     duplicate_id = str(uuid4())
-    document = hydrate_document_popups(database, json.loads(source_draft.document_json))
+    document = hydrate_document_popups(
+        database,
+        parse_stored_document(source_draft, on_error='源仪表盘的草稿内容已损坏，无法复制。'),
+    )
     # 3D 场景不随复制走：户型图与导出的图片属于原项目，复制过去会指向不存在的素材。
     document.pop('studio3d', None)
     # 目标文档若含 3D 内容，同样要过 3D 模块的授权校验。
@@ -217,10 +344,15 @@ def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request
     document['projectId'] = duplicate_id
     document['name'] = payload.name
     # 改名后的副本走一遍完整校验，避免源文档里的历史脏字段被原样带过去。
-    document = validate_panel_document(document)
-    duplicate = Project(id=duplicate_id, name=payload.name, slug=unique_slug(database, payload.name), description=source.description, created_by=user.id)
-    duplicate_draft = ProjectDraft(project_id=duplicate_id, schema_version=document['schemaVersion'], revision=1, document_json=serialize_document(strip_document_popups(document)), updated_by=user.id)
-    database.add_all([duplicate, duplicate_draft])
+    document = validate_document_or_422(document)
+    (duplicate, duplicate_draft) = insert_project_with_draft(
+        database,
+        project_id = duplicate_id,
+        name = payload.name,
+        description = source.description,
+        created_by = user.id,
+        document = document,
+    )
     database.commit()
     database.refresh(duplicate)
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f'已复制仪表盘：{source.name} → {duplicate.name}')
@@ -380,11 +512,16 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     # studio3d 内容由 3D 模块单独存盘，不进仪表盘文档。
     document_value.pop('studio3d', None)
     # 校验失败按 422 返回校验层写好的中文文案，前端直接展示。
-    try:
-        document = validate_panel_document(document_value)
-    except ValueError as error:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
-    require_interaction3d_changes(request, document, hydrate_document_popups(database, json.loads(draft.document_json)), database=database)
+    document = validate_document_or_422(document_value)
+    require_interaction3d_changes(
+        request,
+        document,
+        hydrate_document_popups(
+            database,
+            parse_stored_document(draft, on_error='当前草稿内容已损坏，无法保存，请从备份恢复。'),
+        ),
+        database = database,
+    )
     user_asset_ids = validate_document_assets(request, document)
     # 防止把 A 项目的文档保存到 B 项目：文档里的 projectId 必须与路径一致。
     if document['projectId'] != project_id:
@@ -461,8 +598,20 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
                 'message': '草稿已被其他页面更新。',
                 'currentRevision': current_revision})
         # 文档名即项目名：草稿保存成功后同步到项目表，列表页才会显示新名字。
-        database.execute(update(Project).where(Project.id == project_id).values(name=document['name']))
-        database.commit()
+        try:
+            # UPDATE 与 commit 都要包住：唯一约束在语句执行时就检查，不是等到 commit
+            # 才报 —— 只包 commit 的话异常照样会冒到接口层变成 500。
+            database.execute(update(Project).where(Project.id == project_id).values(name=document['name']))
+            database.commit()
+        except IntegrityError as error:
+            # 上面的 ensure_unique_project_name 是「先查后写」：并发下另一个请求可能
+            # 在这之间把同名项目抢先建成，唯一约束随之成为真正的裁决者（B10）。
+            # 改名不该被悄悄改成别的名字，回 409 让用户自己选；整笔保存一起回滚，
+            # 免得留下「文档存进去了、项目名没改」的半成品。
+            database.rollback()
+            if not is_unique_violation(error, 'projects.name'):
+                raise
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=NAME_CONFLICT_DETAIL) from error
     # 文档里新绑定的实体也要进持久集合：同样丢到后台，不在请求里同步刷新。
     background_tasks.add_task(request.app.state.ha_connector.refresh_persistent_entity_ids, ensure_states=False)
     # 清掉会话缓存，下面重新查一次草稿才能读到刚提交的新 revision。
