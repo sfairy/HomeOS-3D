@@ -8663,6 +8663,151 @@ def check_global_log_write_amplification() -> None:
     )
 
 
+def check_product_image_upload_whitelist() -> None:
+    """S37：商品图白名单前后端必须对齐，而且判定依据是**内容**不是文件名。
+
+    修复前：前端 ``accept`` 多列了 ``image/svg+xml``，后端只认后缀白名单
+    （``.png/.jpg/.jpeg/.webp/.gif``）且**不匹配就静默改成 ``.png``**。于是运营
+    在文件选择器里能选中一张 SVG，上传不报错，落盘却是一份「后缀叫 png、内容是
+    XML」的文件 —— 商品图永远显示不出来，而两端都说自己没错。更根本的问题是
+    只看文件名：把 SVG 改名成 ``.png`` 就绕过白名单，而静态目录是按**后缀**回
+    ``Content-Type`` 的。
+    """
+    import io
+
+    from fastapi import HTTPException, UploadFile
+
+    from store.api import admin as admin_api
+    from store.models import Product
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-product-image-"))
+    settings = load_settings(
+        data_dir=workdir / "data",
+        license_keys_dir=workdir / "keys",
+        mail_mode="echo",
+        payment_provider="mock",
+    )
+    engine = create_store_engine(settings)
+    Base.metadata.create_all(engine)
+
+    def _upload(session, product_id: str, content: bytes, filename: str):
+        request = types.SimpleNamespace(
+            app=types.SimpleNamespace(state=types.SimpleNamespace(settings=settings))
+        )
+        file = UploadFile(filename=filename, file=io.BytesIO(content))
+        return admin_api.admin_upload_product_image(
+            product_id,
+            request,
+            session=session,
+            admin=types.SimpleNamespace(email="smoke-admin@habridge.local", id="smoke"),
+            file=file,
+        )
+
+    def _reject(session, product_id: str, content: bytes, filename: str) -> tuple[int, str]:
+        try:
+            _upload(session, product_id, content, filename)
+        except HTTPException as error:
+            return error.status_code, str(error.detail)
+        return 0, ""
+
+    png = b"\x89PNG\r\n\x1a\n" + b"fake-png-body"
+    jpeg = b"\xff\xd8\xff\xe0" + b"fake-jpeg-body"
+    webp = b"RIFF\x00\x00\x00\x00WEBPVP8 " + b"fake-webp-body"
+    gif = b"GIF89a" + b"fake-gif-body"
+    svg = b'<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"></svg>'
+
+    def _stored_files(folder, product_id: str) -> list[str]:
+        return sorted(
+            item.name for item in folder.iterdir() if item.name.startswith(product_id)
+        )
+
+    with Session(engine) as session:
+        product = Product(name="图片用例商品", product_type="base")
+        session.add(product)
+        session.commit()
+        product_id = product.id
+        folder = settings.product_images_dir
+
+        result = _upload(session, product_id, png, "whatever.bin")
+        check(
+            "S37 落盘后缀由内容决定（文件名是 .bin 也存成 .png）",
+            result["imageUrl"].startswith(f"/store/v1/product-images/{product_id}?v=")
+            and _stored_files(folder, product_id) == [f"{product_id}.png"]
+            and (folder / f"{product_id}.png").read_bytes() == png,
+            f"{result} files={_stored_files(folder, product_id)}",
+        )
+
+        for label, content, expected in (
+            ("JPEG", jpeg, ".jpg"),
+            ("WebP", webp, ".webp"),
+            ("GIF", gif, ".gif"),
+        ):
+            _upload(session, product_id, content, f"photo{expected}")
+            # 换格式时旧文件要清掉，否则磁盘上留孤儿（也是这条修复原有的契约）
+            check(
+                f"S37 {label} 内容被认出来，按真实格式落盘且不留旧格式孤儿文件",
+                _stored_files(folder, product_id) == [f"{product_id}{expected}"]
+                and (folder / f"{product_id}{expected}").read_bytes() == content,
+                str(_stored_files(folder, product_id)),
+            )
+
+        status_code, detail = _reject(session, product_id, svg, "icon.svg")
+        check(
+            "S37 SVG 被明确拒绝（422 + 可读文案），而不是静默存成坏图",
+            status_code == 422 and "SVG" in detail,
+            f"{status_code} {detail[:80]}",
+        )
+        # 牙齿：把 SVG 改名成 .png 也拦得住 —— 旧实现看的正是这个后缀，
+        # 于是它会把这份 XML 写进 <id>.png，而白名单「看起来」生效了。
+        status_code, _ = _reject(session, product_id, svg, "icon.png")
+        check(
+            "S37 牙齿：SVG 改名成 .png 也拦得住（旧实现按后缀放行）",
+            status_code == 422,
+            f"{status_code}",
+        )
+        check(
+            "S37 上传被拒时磁盘上不留半成品",
+            not (folder / f"{product_id}.svg").exists()
+            and _stored_files(folder, product_id) == [f"{product_id}.gif"],
+            str(_stored_files(folder, product_id)),
+        )
+        # 大小上限仍然生效，而且这次读的时候就不会把整份文件吃进内存
+        status_code, detail = _reject(
+            session, product_id, png + b"\x00" * admin_api.IMAGE_MAX_BYTES, "big.png"
+        )
+        check(
+            "S37 超限仍然是 413（读的是上限 + 1 字节）",
+            status_code == 413 and "8MB" in detail,
+            f"{status_code} {detail[:60]}",
+        )
+        check(
+            "S37 大小上限与判定用的常量同源",
+            admin_api.IMAGE_MAX_BYTES == 8 * 1024 * 1024,
+            str(admin_api.IMAGE_MAX_BYTES),
+        )
+
+    # 前端 accept 与后端认的格式必须说的是同一件事。
+    from store.api.admin import IMAGE_ACCEPT_ATTR
+
+    template = (PROJECT_ROOT / "store" / "templates" / "admin.html").read_text(encoding="utf-8")
+    accept_attr = re.search(r'accept="([^"]+)"[^>]*data-product-image-upload', template)
+    check(
+        "S37 accept 只列后端认的四种格式（多一个类型就等于给用户一个必然失败的选项）",
+        accept_attr is not None and accept_attr.group(1) == IMAGE_ACCEPT_ATTR,
+        "" if accept_attr is None else accept_attr.group(1),
+    )
+    check(
+        "S37 牙齿：accept 里不再出现 image/svg+xml",
+        accept_attr is not None and "svg" not in accept_attr.group(1).lower(),
+        "" if accept_attr is None else accept_attr.group(1),
+    )
+    check(
+        "S37 商品图上传入口仍然只此一处（前后端对齐的前提）",
+        len(re.findall(r"data-product-image-upload=", template)) == 1,
+        f"{len(re.findall(r'data-product-image-upload=', template))}",
+    )
+
+
 def check_upload_size_cap() -> None:
     """``POST /api/v1/assets/user`` 必须有请求体字节上限（审计 H3）。
 
@@ -10967,6 +11112,7 @@ async def run() -> int:
     # 第 2 批 High 的专项断言：日志写入放大、上传体积、配对码生命周期。
     check_global_log_write_amplification()
     check_upload_size_cap()
+    check_product_image_upload_whitelist()
     check_display_pairing_hardening()
 
     workdir = Path(tempfile.mkdtemp(prefix="hb-store-smoke-"))
@@ -13432,28 +13578,47 @@ async def run() -> int:
             f"{self_demote.status_code} {self_demote.text[:120]}",
         )
 
-    # —— 商品图：SVG 必须被挡在「按原 Content-Type 回源」之外 ——
+    # —— 商品图：格式按**内容**判定，SVG 直接拒绝（S37）——
     if seeded:
         product_for_image = (await client.get("/store-admin/v1/products?limit=1")).json()["items"]
         check("取到一件商品用于商品图检查", bool(product_for_image), "")
         if product_for_image:
             image_product_id = product_for_image[0]["id"]
+            evil_svg = b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>"
+            rejected_svg = await client.post(
+                f"/store-admin/v1/products/{image_product_id}/image",
+                files={"file": ("evil.svg", evil_svg, "image/svg+xml")},
+            )
+            check(
+                "S37 SVG 商品图被拒绝（422 + 可读文案，不再静默存成一张永远显示不出来的坏图）",
+                rejected_svg.status_code == 422 and "SVG" in rejected_svg.text,
+                f"{rejected_svg.status_code} {rejected_svg.text[:100]}",
+            )
+            rejected_renamed = await client.post(
+                f"/store-admin/v1/products/{image_product_id}/image",
+                files={"file": ("evil.png", evil_svg, "image/png")},
+            )
+            check(
+                "S37 改名成 .png 的 SVG 同样被拒（判定看内容，不看文件名）",
+                rejected_renamed.status_code == 422,
+                f"{rejected_renamed.status_code} {rejected_renamed.text[:100]}",
+            )
             uploaded = await client.post(
                 f"/store-admin/v1/products/{image_product_id}/image",
-                files={"file": ("evil.svg", b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>", "image/svg+xml")},
+                files={"file": ("shot.png", b"\x89PNG\r\n\x1a\n" + b"smoke-png", "image/png")},
             )
-            check("商品图上传完成", uploaded.status_code == 200, str(uploaded.status_code))
+            check("商品图上传完成（合法 PNG）", uploaded.status_code == 200, str(uploaded.status_code))
             if uploaded.status_code == 200:
                 served = await client.get(uploaded.json()["imageUrl"])
                 content_type = served.headers.get("content-type", "")
                 check(
-                    "上传的 SVG 不会按 svg 回源（能内嵌脚本，等于同源 XSS 落点）",
-                    "svg" not in content_type,
+                    "按内容判定的格式与回源的 Content-Type 一致（不会按 svg 回源）",
+                    "png" in content_type and "svg" not in content_type,
                     f"content-type={content_type!r} url={uploaded.json()['imageUrl']}",
                 )
             rejected = await client.post(
                 f"/store-admin/v1/products/{image_product_id}/image",
-                files={"file": ("big.png", b"x" * (8 * 1024 * 1024 + 1), "image/png")},
+                files={"file": ("big.png", b"\x89PNG\r\n\x1a\n" + b"x" * (8 * 1024 * 1024), "image/png")},
             )
             check(
                 "超过 8MB 的商品图被拒绝（不是悄悄写进磁盘）",

@@ -3295,7 +3295,7 @@ async function loadProducts() {
       <td class="nowrap">${actions(
         `<button class="hb-button hb-button--secondary hb-button--sm" data-product-edit="${esc(product.id)}">编辑</button>`,
         rowMenu('更多操作',
-          `<label class="menu__item">上传商品图<input type="file" hidden accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" data-product-image-upload="${esc(product.id)}"></label>`,
+          `<label class="menu__item">上传商品图<input type="file" hidden accept="image/png,image/jpeg,image/webp,image/gif" data-product-image-upload="${esc(product.id)}"></label>`,
           product.imageUrl
             ? menuItem('移除商品图', `data-product-image="${esc(product.id)}" data-product-name="${esc(product.name)}"`)
             : '',

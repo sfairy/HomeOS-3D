@@ -928,6 +928,43 @@ def admin_delete_product(
     return {"id": product_id, "deleted": True, "deactivated": False}
 
 
+#: 商品图上传的体积上限。
+IMAGE_MAX_BYTES = 8 * 1024 * 1024
+
+
+def _image_suffix(content: bytes) -> str | None:
+    """按**字节**判断图片格式，返回落盘用的后缀（不认识就 ``None``）。
+
+    为什么不能只看文件名后缀（S37）：后缀是调用方随便写的，把 SVG 改名成 ``.png``
+    就绕过了白名单；而落盘之后静态目录是**按后缀**回 ``Content-Type`` 的，
+    于是「白名单」和「实际回给浏览器的类型」说的不是一件事。
+
+    为什么是「按内容派生后缀」而不是「校验后缀与内容一致」：后者会把「一张 JPEG
+    存成了 logo.png」变成一次报错，而用户并不关心文件名叫什么。内容是什么就存成
+    什么，静态目录的 ``Content-Type`` 才与字节一致（改名换格式的场景由调用方
+    清理旧文件）。
+
+    只认四种有明确签名的格式。刻意**不含 SVG**：它是能内嵌 ``<script>`` 的 XML，
+    而商品图是按原样回给浏览器的同源资源 —— 上传一个 SVG 就等于在商店域下拿到一个
+    可执行的 XSS 落点。图标需求用 PNG。
+    """
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if content.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if content[:6] in {b"GIF87a", b"GIF89a"}:
+        return ".gif"
+    # WebP 是 RIFF 容器：0-4 是 "RIFF"，8-12 是 "WEBP"（中间 4 字节是长度）
+    if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return ".webp"
+    return None
+
+
+#: 前端 ``accept`` 必须与 :func:`_image_suffix` 认的格式一致（S37）：
+#: 前后端各写一份白名单时，多写一个类型不会报错 —— 只会让用户挑中一个必然失败的文件。
+IMAGE_ACCEPT_ATTR = "image/png,image/jpeg,image/webp,image/gif"
+
+
 @router.post("/products/{product_id}/image")
 def admin_upload_product_image(
     product_id: str,
@@ -945,26 +982,36 @@ def admin_upload_product_image(
     """
     product = _product_or_404(session, product_id)
     settings = request.app.state.settings
-    suffix = ""
-    if file.filename and "." in file.filename:
-        suffix = "." + file.filename.rsplit(".", 1)[1].lower()[:8]
-    # 白名单刻意不含 ``.svg``：SVG 是能内嵌 ``<script>`` 的 XML，而商品图是直接
-    # 按原 Content-Type 回给浏览器的同源静态资源 —— 上传一个 SVG 就等于在商店
-    # 域下拿到一个可执行的 XSS 落点（能偷后台会话、伪造下单）。图标需求用 PNG。
-    if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
-        suffix = ".png"
     folder = settings.product_images_dir
     folder.mkdir(parents=True, exist_ok=True)
+
+    # 先按上限 + 1 字节读：超限时我们已经知道「超了」，不需要把整个文件读进内存。
+    # 读满上限才可能落盘，所以这一次 read 的内存占用被硬封顶。
+    content = file.file.read(IMAGE_MAX_BYTES + 1)
+    if len(content) > IMAGE_MAX_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="图片不能超过 8MB。",
+        )
+
+    # 格式**按内容判定**（S37），不看文件名 —— 见 ``_image_suffix`` 的说明。
+    suffix = _image_suffix(content)
+    if suffix is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "只支持 PNG / JPEG / WebP / GIF 图片（按文件内容识别，与文件名无关）。"
+                "SVG 不支持：它是能内嵌脚本的 XML，而商品图是按原样回给浏览器的同源资源。"
+            ),
+        )
+
     relative = f"{product.id}{suffix}"
     target = folder / relative
-    content = file.file.read()
-    if len(content) > 8 * 1024 * 1024:
-        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="图片不能超过 8MB。")
 
     image = session.scalars(
         select(ProductImage).where(ProductImage.product_id == product.id)
     ).first()
-    # 换扩展名（png → jpg）时旧文件名不再被引用，先删掉，否则磁盘上会留孤儿文件。
+    # 换格式（png → jpg）时旧文件名不再被引用，先删掉，否则磁盘上会留孤儿文件。
     # 路径是上传时自己按 product.id + 白名单后缀拼的，但仍然按目录边界校验一次
     # （与另外两处删除点共用同一份判定，见 _safe_image_target）。
     if image is not None and image.path != relative:
