@@ -4572,6 +4572,228 @@ async def check_public_events_marked_and_capped() -> None:
     )
 
 
+async def check_anonymous_log_limit_before_filter() -> None:
+    """B19：匿名日志的限流必须排在两个「直接 204 丢掉」的过滤之前。
+
+    过滤是外部可控输入上的一道判断，而过滤之后的 204 意味着这条请求不消耗任何配额：
+    只要把 level 填成 info（或把 page 填成白名单外的值），同一个来源就能无限次地调这个
+    接口，限流器连一次都不会看到 —— 匿名通道的 10 条/分钟对这条路径等于不存在。
+
+    两个出口各测一遍（level 被过滤 / page 被过滤）：前 10 次仍是 204（契约不变），
+    第 11 次必须是 429；同时两个案例都不得写下任何一条日志 —— 先限流不等于放行。
+    """
+    from fastapi import FastAPI
+
+    from backend.app.api.global_logs import router as global_logs_router
+    from backend.app.config import load_settings
+    from backend.app.database import Base, Database
+    from backend.app.global_log import GlobalLogStore
+
+    def build(root: Path):
+        """拼一个只装日志路由的最小应用，返回 (app, store)。"""
+        database = Database(f'sqlite:///{root / "app.db"}')
+        Base.metadata.create_all(database.engine)
+        store = GlobalLogStore(root / 'data')
+        app = FastAPI()
+        app.include_router(global_logs_router, prefix='/api/v1')
+        app.state.database = database
+        app.state.global_log = store
+        app.state.admin_account = SimpleNamespace(user_id='u1', initialized=True)
+        # 真 settings（判身份要用 cookie_name 这类字段），只清空可信代理让来源按 TCP 对端计。
+        app.state.settings = replace(load_settings(), trusted_proxies=())
+        return app, store
+
+    async def post_eleven(app, payload: dict[str, Any]) -> tuple[list[int], list[dict[str, Any]]]:
+        """同一来源连发 11 次，返回状态码序列与最终写下的日志条目。"""
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            statuses = [
+                (
+                    await client.post(
+                        '/api/v1/logs/public-events',
+                        headers={'origin': 'http://app.test'},
+                        json=payload,
+                    )
+                ).status_code
+                for _ in range(11)
+            ]
+        return statuses, list(app.state.global_log.list_events(limit=None))
+
+    with tempfile.TemporaryDirectory(prefix='hb-log-level-') as tmp:
+        level_app, level_store = build(Path(tmp))
+        # 案例一：level 过得了 schema（info）却不在公开通道允许的 error/warning 内。
+        level_statuses, level_events = await post_eleven(
+            level_app, {'level': 'info', 'message': '不该被记录的公开上报'}
+        )
+        level_store.stop()
+    with tempfile.TemporaryDirectory(prefix='hb-log-page-') as tmp:
+        page_app, page_store = build(Path(tmp))
+        # 案例二：level 合规，但 page 不在白名单里 —— 同一个漏洞的第二个出口。
+        page_statuses, page_events = await post_eleven(
+            page_app, {'level': 'error', 'message': '页面不在白名单', 'context': {'page': '/admin'}}
+        )
+        page_store.stop()
+    # 断言里写死 10 而不是引常量：拿常量当期望值等于自己证明自己。
+    check(
+        'B19 被 level 过滤掉的匿名上报照样消耗配额（第 11 次 429，而不是永远 204）',
+        level_statuses == [204] * 10 + [429],
+        f'{level_statuses}',
+    )
+    check(
+        'B19 被 page 白名单过滤掉的匿名上报照样消耗配额（同一漏洞的第二个出口）',
+        page_statuses == [204] * 10 + [429],
+        f'{page_statuses}',
+    )
+    check(
+        'B19 先限流不等于放行：被过滤的两种上报一条日志都没写',
+        not level_events and not page_events,
+        f'level 案例 {len(level_events)} 条、page 案例 {len(page_events)} 条',
+    )
+
+
+def check_empty_log_store_health() -> None:
+    """空日志（一条都没写过）不是存储故障。
+
+    写线程每次醒来都会进裁剪，而裁剪走的是 `_read_events(strict=True)` —— 日志文件还
+    不存在时它会抛 FileNotFoundError，落到写线程的兜底 except 里被记成一次存储故障：
+    `storage_status()['healthy']` 变 false、stderr 每 30 秒告警一次，直到第一条事件落盘
+    （`/api/v1/logs` 的运维视图会一直显示「存储不可用」，而实际上一切正常）。
+
+    观测：真起一个存储，等到写线程至少跑过一轮裁剪，再看健康状态 —— 修复前 healthy 是
+    false 且 writeFailures 为 1。
+    """
+    from backend.app.global_log import GlobalLogStore
+
+    failure = ''
+    ran_prune = False
+    healthy: dict[str, Any] = {}
+    with tempfile.TemporaryDirectory(prefix='hb-log-empty-') as tmp:
+        # 整段生命周期都包起来：这类缺陷的症状就是「某个环节抛出来」，崩栈不该中断自检
+        # （崩栈只说明路径炸了，变成一条红断言才说明这条不变量被观察着）。
+        try:
+            store = GlobalLogStore(Path(tmp) / 'data')
+            # 写线程每 0.5 秒醒一次（空队列时只是空转，之后仍会进裁剪）。
+            deadline = time.monotonic() + 2.0
+            while store._last_pruned_at is None and time.monotonic() < deadline:
+                time.sleep(0.01)
+            ran_prune = store._last_pruned_at is not None
+            healthy = store.storage_status()
+            store.stop()
+        except Exception as error:  # noqa: BLE001 —— 见上：异常要变成断言，不要中断自检
+            failure = f'{type(error).__name__}: {error}'
+    check(
+        '空日志的裁剪只是空转，不是存储故障（healthy 为 true、告警计数为 0）',
+        not failure
+        and ran_prune
+        and healthy.get('healthy') is True
+        and healthy.get('writeFailures') == 0
+        and healthy.get('lastError') is None,
+        f'跑过裁剪 {ran_prune}，状态 {healthy}，异常 [{failure}]',
+    )
+
+
+def check_log_context_default_is_not_shared() -> None:
+    """B44：``event_context`` 的默认值不能是可变对象。
+
+    ContextVar 的默认值是**同一个对象**，`.get()` 会把它直接交到调用方手里。默认写成
+    `{}` 时，任何一处「拿到就原地改」（`event_context.get()['phase'] = ...`）都会改掉这份
+    共享字典 —— 而它正是所有没 set 过的上下文（别的请求、后台线程、后台任务）看到的那一份，
+    症状是某次请求的字段出现在另一条无关日志上，且全程没有任何报错。默认改成 None 之后，
+    那种写法会当场 TypeError（声音大、位置准），读处统一 ``or {}``。
+
+    观测：全空上下文里取到的是 None、顺手原地改会抛而不是悄悄生效、改完别的上下文依旧干净；
+    再跑真 append 确认「没有请求上下文」与「有请求上下文」两条读路径都正常。
+    """
+    import contextvars
+
+    from backend.app import global_log as global_log_module
+    from backend.app.global_log import GlobalLogStore
+
+    # 用全新空 Context 而不是 copy_context()：要观察的正是「从没 set 过的上下文看到什么」。
+    view = contextvars.Context().run(global_log_module.event_context.get)
+    mutation = ''
+    try:
+        view['phase'] = 'boot'  # type: ignore[index] —— 这正是要拦住的写法
+        mutation = '写入成功'
+    except TypeError as error:
+        mutation = type(error).__name__
+    still_clean = contextvars.Context().run(global_log_module.event_context.get) is None
+    check(
+        'B44 没有共享的可变默认值：空上下文取到 None，顺手原地改会当场抛错',
+        view is None and mutation == 'TypeError' and still_clean,
+        f'取到 {view!r}，原地改的结果 {mutation}，另一个上下文仍然干净 {still_clean}',
+    )
+
+    with tempfile.TemporaryDirectory(prefix='hb-log-context-') as tmp:
+        store = GlobalLogStore(Path(tmp) / 'data')
+        bare = store.append('error', '自检', '并发', '没有请求上下文也要能写')
+        token = global_log_module.event_context.set({'phase': 'boot', 'actor': '自检'})
+        try:
+            wrapped = store.append('error', '自检', '并发', '带上请求上下文')
+        finally:
+            global_log_module.event_context.reset(token)
+        store.stop()
+    check(
+        'B44 读处统一 or {}：没上下文与有上下文两条路径都照常写入',
+        bare.get('message') == '没有请求上下文也要能写'
+        and 'phase' not in (bare.get('context') or {})
+        and (wrapped.get('context') or {}).get('phase') == 'boot',
+        f'无上下文 {bare.get("context")}，有上下文 {wrapped.get("context")}',
+    )
+
+
+def check_folded_snapshot_reuses_queue_slot() -> None:
+    """B45：折叠窗口收尾时的最终快照要「原地替换」队列里同 id 的那条。
+
+    待写队列是带 maxlen 的 deque，追加会挤掉最旧一条。而折叠出来的最终快照与队列里那条
+    是**同一个 id**（折叠沿用首次的 id），追加进去等于用一格位置换一份同 id 的旧快照：
+    刷盘按 id 去重取最新，多出来的那份根本不会写进文件，却把一条**别的**真实事件永久挤掉，
+    同时 `_dropped_events` 还把这次丢弃记成「这条折叠事件被丢」，与事实相反 —— 磁盘上的
+    repeatCount 偏低就是这么来的（该写的那份没占到位，别的先走了）。
+
+    观测：把队列缩到 2 格并停掉写线程，塞进 A、B 两条（B 再折叠一次使同 id 的快照变新），
+    再按「窗口已过期」交给收尾逻辑。修复后队列仍是 {A, B}、A 的消息真的落到文件里、
+    B 的计数是最终值、丢弃计数为 0；修复前 A 会消失且丢弃计数为 1。
+    """
+    from collections import deque
+    from datetime import timedelta
+
+    from backend.app.global_log import GlobalLogStore
+
+    with tempfile.TemporaryDirectory(prefix='hb-log-queue-') as tmp:
+        store = GlobalLogStore(Path(tmp) / 'data')
+        # 停掉后台写线程：否则它每 0.5 秒就把队列刷空，观察不到队列本身。
+        store.stop()
+        store._pending = deque(maxlen=2)
+        store._dropped_events = 0
+        store.append('error', '自检队列', '并发', 'A 的消息')
+        folded = store.append('error', '自检队列', '并发', 'B 的消息')
+        # 同签名 5 秒内再来一次：折叠沿用首次 id，且节流让它不再入队（队列里是旧快照）。
+        again = store.append('error', '自检队列', '并发', 'B 的消息')
+        same_id = folded['id'] == again['id'] and again.get('repeatCount') == 2
+        with store._lock:
+            # 把折叠表整体按「窗口已过期」交给收尾逻辑（真流程里由写线程按 5 秒窗口调用）。
+            store._recent_events = {
+                signature: (seen_at - timedelta(seconds=store.FOLD_WINDOW_SECONDS + 1), event)
+                for signature, (seen_at, event) in store._recent_events.items()
+            }
+            store._expire_recent_locked()
+            store._flush_locked()
+        on_disk = {str(item.get('message')): item for item in store.list_events(limit=None)}
+        dropped = store._dropped_events
+        store.stop()
+    check(
+        'B45 折叠收尾是替换同 id 那条，不是追加（不挤掉别的真实事件）',
+        set(on_disk) == {'A 的消息', 'B 的消息'} and dropped == 0,
+        f'磁盘上的消息 {sorted(on_disk)}，丢弃计数 {dropped}，折叠沿用了同一 id {same_id}',
+    )
+    check(
+        'B45 最终快照进了队列：磁盘上的 repeatCount 就是窗口内的真实次数',
+        (on_disk.get('B 的消息') or {}).get('repeatCount') == 2,
+        f"B 的 repeatCount={(on_disk.get('B 的消息') or {}).get('repeatCount')}",
+    )
+
+
 async def check_health_probe_details_local_only() -> None:
     """B61：健康探针的细节只给本机直连，外部来访者只拿到一个 2xx。
 
@@ -7414,6 +7636,10 @@ async def run() -> int:
     check_export_rollback_error_chain()
     await check_anonymous_4xx_merged()
     await check_public_events_marked_and_capped()
+    await check_anonymous_log_limit_before_filter()
+    check_empty_log_store_health()
+    check_log_context_default_is_not_shared()
+    check_folded_snapshot_reuses_queue_slot()
     await check_health_probe_details_local_only()
     check_update_checks_opt_in()
     check_bounded_attempt_limiter()

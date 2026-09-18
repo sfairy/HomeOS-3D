@@ -307,14 +307,22 @@ def create_client_log_event(payload: ClientLogEvent, request: Request, viewer: C
 def create_public_client_log_event(payload: ClientLogEvent, request: Request, response: Response, database: DatabaseSession) -> Response:
     """接收未登录页面上报的日志事件（无需登录，但必须同源）。
 
-    门禁顺序：同源校验 → 只收 warning / error → 页面路径必须在 PUBLIC_PAGES
-    或其子路径内 → 匿名限流 → 尝试解析身份（解析不到就按匿名记录）。
+    门禁顺序：同源校验 → 匿名限流 → 只收 warning / error → 页面路径必须在
+    PUBLIC_PAGES 或其子路径内 → 尝试解析身份（解析不到就按匿名记录）。
     身份解析失败不算错误：未登录页面上报本来就是这个接口的常态。
+
+    限流必须排在两个「直接 204 丢掉」的过滤**之前**（B19）：过滤不是免费的，
+    它是外部可控输入上的一道判断，而过滤之后的 204 意味着这条请求不消耗任何配额
+    —— 只要把 level 填成 info（或把 page 填成任意不在白名单里的值），同一个来源就能
+    无限次地调这个接口，限流器连一次都不会看到。先限流后过滤，配额数的是「调了几次」，
+    与这条最终写不写日志无关。
     """
     # Origin 必须与 Host 完全一致，避免被跨站页面当成日志注入通道。
+    # 这条放在限流之前：它是纯判断、不改任何状态，垃圾请求在这里就结束，不必占配额。
     origin = urlsplit(request.headers.get('origin', ''))
     if origin.scheme not in frozenset({'http', 'https'}) or origin.netloc.casefold() != request.headers.get('host', '').casefold():
         raise HTTPException(status_code=403, detail='日志只允许同源页面上报。')
+    _limit_client_log(request, anonymous=True)
     # 未登录页面只允许上报异常：正常信息没有上报价值，也堵住刷日志的水位。
     # 直接 204 丢掉，而不是 422：日志通道是 fire-and-forget，打回 422 只会让
     # 浏览器控制台刷红，对运营与排障都没有帮助（旧版客户端偶发会误投 info）。
@@ -324,7 +332,6 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
     page = str(payload.context.get('page') or '').split('?', 1)[0].split('#', 1)[0].rstrip('/') or '/'
     if page not in PUBLIC_PAGES and not page.startswith(('/display/', '/3d-studio/')):
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    _limit_client_log(request, anonymous=True)
     try:
         viewer = authenticated_viewer(request, response, database)
     except HTTPException as error:

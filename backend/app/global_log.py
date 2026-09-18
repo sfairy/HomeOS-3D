@@ -29,7 +29,13 @@ from uuid import uuid4
 
 # 请求级上下文：由中间件写入 requestId / method / path 等，
 # 这样深层代码 append 日志时不必一路透传这些字段。
-event_context: ContextVar[dict[str, Any]] = ContextVar("global_log_context", default={})
+#
+# 默认值必须是 None，不能是 {}（B44）：ContextVar 的默认值是**同一个对象**，
+# 任何一处「拿到就原地改」（``event_context.get()['phase'] = ...``）都会把这个
+# 共享字典改掉，而它正是所有没有 set 过的上下文（其他任务的请求、后台线程）看到的那份
+# —— 表现为某次请求的字段出现在另一条无关日志上，且没有任何报错。
+# 返回 None 之后这种写法会立刻抛 TypeError（声音大、位置准），读处统一 ``or {}``。
+event_context: ContextVar[dict[str, Any] | None] = ContextVar("global_log_context", default=None)
 
 # 去重签名里要剔除的「每次都不同」的上下文字段：
 # requestId / durationMs 逐请求变化，留着会让同一处刷屏的日志永远算「不重复」，
@@ -364,10 +370,32 @@ class GlobalLogStore:
             _seen_at, event = self._recent_events.pop(signature)
             if event.get("repeatCount", 1) <= 1:
                 continue
-            if len(self._pending) == self._pending.maxlen:
-                self._dropped_events += 1
-            self._pending.append(event)
+            # 走统一的入队口：这一条常常与队列里那条同 id（同一签名的首个快照），
+            # 原地替换才不会在队列满时挤掉另一条真实事件（B45）。
+            self._queue_event_locked(event)
             self._last_queued_at[event["id"]] = _utc_now()
+
+    def _queue_event_locked(self, event: dict[str, Any]) -> None:
+        """把一条事件放进待写队列；同 id 已在队列里就**原地替换**。调用方必须已持锁。
+
+        为什么不是一律 append（B45）：折叠出来的最终快照与队列里那条是**同一个 id**
+        （折叠沿用的是首次的 id），追加进去只会让队列里多一份同 id 的旧快照。刷盘按 id
+        去重取最新，所以多出来的那份不会写进文件，却会占掉一格：队列已满时它把最旧的一条
+        **别的**事件挤掉（永久丢失，而且 `_dropped_events` 还把它记成「本条被丢」，
+        与事实相反）。替换则既不丢别人，也让磁盘上的 repeatCount 就是最终值。
+
+        参数:
+            event: 待写入的事件字典（同 id 以最后传入的为准）。
+        """
+        for index, pending in enumerate(self._pending):
+            if pending.get("id") == event.get("id"):
+                # deque 支持按下标赋值，长度不变 → 不会触发 maxlen 淘汰。
+                self._pending[index] = event
+                return
+        if len(self._pending) == self._pending.maxlen:
+            # 队列已满：deque 会自动丢弃最旧一条，这里只统计丢弃数量。
+            self._dropped_events += 1
+        self._pending.append(event)
 
     def stop(self, *, timeout: float = 2.0) -> None:
         """停止后台写线程并把队列里剩下的事件刷盘（进程关闭 / 测试收尾时调用）。
@@ -527,7 +555,7 @@ class GlobalLogStore:
             "repeatCount": 1,
         }
         # 调用方传入的 context 优先于请求级上下文（同名键以后者为准的反面）。
-        metadata = safe_context({**event_context.get(), **(context or {})})
+        metadata = safe_context({**(event_context.get() or {}), **(context or {})})
         if metadata:
             event["context"] = metadata
         if details:
@@ -595,10 +623,7 @@ class GlobalLogStore:
                 self._last_queued_at[event["id"]] = now
                 while len(self._last_queued_at) > self.MAX_TRACKED_IDS:
                     self._last_queued_at.pop(next(iter(self._last_queued_at)))
-                if len(self._pending) == self._pending.maxlen:
-                    # 队列已满：deque 会自动丢弃最旧一条，这里只统计丢弃数量。
-                    self._dropped_events += 1
-                self._pending.append(event)
+                self._queue_event_locked(event)
                 # 请求路径到此为止：这里只入队并唤醒后台写线程，不做任何磁盘 I/O
                 # （调用方可能是事件循环里的中间件，绝不能在这里等磁盘）。
                 self._wake.set()
@@ -813,6 +838,12 @@ class GlobalLogStore:
 
         裁剪从最新往旧保留，累计字节超限即停止 —— 也就是宁可多留新事件，
         也要保证文件不超上限。
+
+        日志文件还不存在时（进程起来后一条都没写过）不是故障：没有可裁的内容。
+        这里必须自己吞掉 FileNotFoundError —— `_read_events(strict=True)` 会把它抛出来，
+        而调用链的上游是写线程的兜底 except，那会把「空日志」记成一次存储故障：
+        `storage_status()['healthy']` 变 false、stderr 每 30 秒告警一次，直到第一条事件落盘。
+        顺手记下这次时间，免得每次唤醒（0.5 秒）都去读一个不存在的文件。
         """
         now = _utc_now()
         # 首次（_last_pruned_at 为 None）允许立刻裁一次，清掉超过保留期的旧数据。
@@ -830,7 +861,13 @@ class GlobalLogStore:
         cutoff = now - timedelta(days=self.retention_days)
         retained = []
         retained_bytes = 0
-        for event in reversed(self._read_events(strict=True)):
+        try:
+            events = list(reversed(self._read_events(strict=True)))
+        except FileNotFoundError:
+            # 文件不存在（还没写过，或刚被清空）：空日志不需要裁剪，更不是存储故障。
+            self._last_pruned_at = now
+            return
+        for event in events:
             try:
                 timestamp = datetime.fromisoformat(
                     str(event.get("lastTimestamp") or event.get("timestamp"))
