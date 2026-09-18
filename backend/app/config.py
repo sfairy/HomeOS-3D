@@ -177,8 +177,13 @@ class Settings:
     ha_reconcile_interval_seconds: int = 1800
     # 64 MiB：HA 在实体很多时单条状态推送会很大，默认值容易触发断连。
     ha_websocket_max_size_bytes: int = 67108864
-    # 字段默认 False，但 load_settings 始终传 True：授权校验不可通过环境变量关闭。
-    license_required: bool = False
+    # 授权校验是否开启。**默认值必须与 load_settings 的取值一致（都是 True）**：
+    # 这个字段在 6 处被读（启动校验、心跳、状态接口、3D 交互的授权判定等），默认值一旦
+    # 是 False，直接构造 Settings 的工具或自检拿到的就是「另一种产品」—— 差异只会在某条
+    # 分支上才看得出来。此前正是 False vs 加载器写死 True（B46）。
+    # README 承诺「不能通过环境变量关闭」，因此 load_settings 不读任何相关变量；
+    # 显式传 False 是自检与内部工具的唯一入口（它们本来就不该被授权流程挡住）。
+    license_required: bool = True
     license_server_url: str = SELF_HOSTED_LICENSE_SERVER_URL
     license_server_batches: tuple[tuple[str, tuple[str, ...]], ...] = DEFAULT_LICENSE_SERVER_BATCHES
     license_request_timeout_seconds: float = 10
@@ -419,7 +424,8 @@ def load_settings() -> Settings:
         'ha_request_timeout_seconds': float(os.getenv('APP_HA_REQUEST_TIMEOUT_SECONDS', '10')),
         'ha_reconcile_interval_seconds': int(os.getenv('APP_HA_RECONCILE_INTERVAL_SECONDS', '1800')),
         'ha_websocket_max_size_bytes': int(os.getenv('APP_HA_WEBSOCKET_MAX_SIZE_BYTES', str(67108864))),
-        # 硬编码 True：授权校验始终开启，README 明确不能用环境变量关闭。
+        # 硬编码 True：授权校验始终开启，README 明确不能用环境变量关闭（B46 的另一半：
+        # 字段默认值也是 True，两处一致，字段不会撒谎）。自检与内部工具可以显式传 False。
         'license_required': True,
         'license_server_url': custom_license_url or SELF_HOSTED_LICENSE_SERVER_URL,
         'license_server_batches': license_batches,

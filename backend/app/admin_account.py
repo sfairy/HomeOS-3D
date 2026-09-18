@@ -35,6 +35,22 @@ class AdminAccountCredentials:
     password_hash: str
 
 
+class AdminAccountConflict(RuntimeError):
+    """账号文件的当前状态不允许这次初始化。
+
+    与 ``RuntimeError`` 的分界是「谁该处理」：这一类表示**这次请求不成立** ——
+    并发的初始化请求先赢了，或盘上出现了一份不属于本次初始化的账号文件。状态是可预期
+    的，重试或刷新页面就能看清，因此调用方应当把它映射成 409，而不是让它逃逸成 500
+    带着堆栈进全局日志（B35）。``RuntimeError`` 留给「文件损坏 / 权限写不进去」这类
+    需要人工介入或属于服务器侧的问题。
+    """
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        #: 可以直接回给调用方的话术（不含文件路径等服务器侧细节）。
+        self.detail = detail
+
+
 class AdminAccountStore:
     """管理员凭据文件的读写与状态机。
 
@@ -143,8 +159,13 @@ class AdminAccountStore:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(self.path.parent, 0o700)
         # 已存在就报错：初始化只能发生一次，避免静默覆盖掉正在使用的凭据。
+        # 这是**可预期的冲突**（这份文件在本次启动之后才出现，或来自另一次初始化），
+        # 因此用 AdminAccountConflict 让路由回 409，而不是 500（B35）。
         if self.path.exists():
-            raise RuntimeError(f"管理员账号文件 {self.path} 已存在，拒绝覆盖。")
+            raise AdminAccountConflict(
+                '数据目录里出现了一份管理员账号文件，拒绝覆盖；请刷新页面确认状态，'
+                '若确认它不该存在，删除后重启再试。'
+            )
         # 随机后缀的临时文件，避免并发初始化时互相踩到同一个中间文件名。
         temporary_path = self.path.with_name(
             f".{self.path.name}.{secrets.token_hex(8)}.tmp"
@@ -254,9 +275,14 @@ class AdminAccountStore:
             return "reset_required"
 
     def stage(self, user: User, password_hash: str) -> AdminAccountCredentials:
-        """先落盘新凭据（尚未生效），供后续 activate / abort 二选一。"""
+        """先落盘新凭据（尚未生效），供后续 activate / abort 二选一。
+
+        抛:
+            AdminAccountConflict: 已经初始化（并发请求先赢了），或盘上已有一份账号文件。
+                两种都是可预期冲突，调用方应回 409。
+        """
         if self.initialized:
-            raise RuntimeError("系统已经完成管理员账号设置。")
+            raise AdminAccountConflict('系统已经完成初始化，请刷新页面。')
         credentials = AdminAccountCredentials(
             user_id=user.id, username=user.username, password_hash=password_hash
         )

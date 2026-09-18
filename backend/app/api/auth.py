@@ -11,8 +11,8 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import delete, select, text
 
-from ..admin_account import EXTERNAL_PASSWORD_SENTINEL
 from ..access import admin_token_from, check_admin_session
+from ..admin_account import AdminAccountConflict, EXTERNAL_PASSWORD_SENTINEL
 from ..dependencies import CurrentUser, DatabaseSession
 from ..http_security import resolve_client_ip, secure_cookies_enabled
 from ..models import LoginSession, User
@@ -264,7 +264,19 @@ def setup_admin(
         # 清空全部登录会话：换了口令之后旧会话不能继续有效。
         database.execute(delete(LoginSession))
         # 先把新凭据原子落盘（尚未生效）；库提交失败时由 abort 删除该文件。
-        staged_credentials = account_store.stage(user, password_hash)
+        try:
+            staged_credentials = account_store.stage(user, password_hash)
+        except AdminAccountConflict as error:
+            # 两类**可预期**的冲突：并发的初始化请求先赢了（或别处已经把账号补好），
+            # 或盘上出现了一份不属于本次初始化的账号文件。都不是「服务器坏了」，
+            # 所以回 409 并让人刷新页面，而不是 500 带堆栈进全局日志（B35）。
+            # 事务必须在这里回滚：外层的 HTTPException 分支刻意不回滚（它假定抛出处
+            # 已经处理过），而这里刚刚 add / flush 过用户行并删过会话。
+            database.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=error.detail,
+            ) from error
         # 库内哈希改回哨兵值：认证只认账号文件，这一行只是「凭据已外置」的标记。
         user.password_hash = EXTERNAL_PASSWORD_SENTINEL
         user.auth_externalized = True

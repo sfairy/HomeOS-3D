@@ -4754,7 +4754,20 @@ def check_setup_admin_guard() -> None:
     )
     check(
         "密钥文件内容与内存里给出的那份一致（重启后仍可用同一份）",
-        token_path.is_file() and token_path.read_text(encoding="utf-8").strip() == token,
+        token_path.is_file()
+        and guard_module.read_token_file(token_path.read_text(encoding="utf-8")) == token,
+    )
+    check(
+        "自动生成的那份仍是「一行一枚密钥」（README 教的方式：cat 它）",
+        token_path.is_file() and len(token_path.read_text(encoding="utf-8").splitlines()) == 1,
+        repr(token_path.read_text(encoding="utf-8")) if token_path.is_file() else "缺文件",
+    )
+    check(
+        "出处另记在标记文件里（指纹对得上才算自己生成的）",
+        guard.marker_path.is_file()
+        and guard_module.token_fingerprint(token)
+        in guard.marker_path.read_text(encoding="utf-8"),
+        str(guard.marker_path),
     )
     check(
         "再次 ensure_token 不会换掉密钥（初始化窗口中断重启后运维手上那份仍有效）",
@@ -4823,6 +4836,48 @@ def check_setup_admin_guard() -> None:
     )
     after_consume, _ = rejected(lambda: guard.authorize(build_request("203.0.113.7"), token))
     check("初始化成功后旧密钥作废（再用是 403）", after_consume == 403, str(after_consume))
+
+    # 运维预置的那份不该被当成「我们自己生成的」删掉（B34）：
+    # 盘上的 setup-token 可能是运维放在这里让实例读的恢复手段，删掉等于把后路掐断。
+    # 两份实现（主应用与商店）共用同一枚标记，这里验的是「有标记才删」这条规则本身。
+    provided_dir = Path(tempfile.mkdtemp(prefix="hb-setup-guard-provided-"))
+    provided_path = provided_dir / "setup-token"
+    provided_token = "operator-provisioned-token-value-1234"
+    provided_path.write_text(f"# 运维自己写的备注\n{provided_token}\n", encoding="utf-8")
+    provided_guard = guard_module.SetupGuard(provided_dir, "", event_log=None)
+    check(
+        "运维预置的密钥文件（无标记）一样读得出来",
+        provided_guard.ensure_token() == provided_token,
+    )
+    check("运维预置的文件不被认成自己生成的", provided_guard.generated is False)
+    provided_guard.discard_file()
+    check("已初始化的实例上不清掉运维预置的文件", provided_path.is_file(), str(provided_path))
+    provided_guard.consume()
+    check(
+        "初始化成功后也不清掉运维预置的文件（否则运维准备好的恢复手段没了）",
+        provided_path.is_file(),
+        str(provided_path),
+    )
+    generated_marker_file = getattr(guard_module, "GENERATED_MARKER_FILE", "")
+    check(
+        "标记另放一个文件，密钥文件保持一行（cat 它拿到的就是密钥本身）",
+        bool(generated_marker_file) and "setup-token" in generated_marker_file,
+        repr(generated_marker_file),
+    )
+
+    # 标记还在、密钥被换成人放的另一枚：只有指纹能分辨，只看「标记在不在」会误删。
+    swapped_dir = Path(tempfile.mkdtemp(prefix="hb-setup-guard-swapped-"))
+    swapped = guard_module.SetupGuard(swapped_dir, "", event_log=None)
+    swapped.ensure_token()
+    swapped.path.write_text("replaced-by-the-operator-token-9999\n", encoding="utf-8")
+    swapped_reread = guard_module.SetupGuard(swapped_dir, "", event_log=None)
+    check(
+        "标记还在但密钥被换过 → 认指纹，不认标记文件的存在",
+        swapped_reread.ensure_token() == "replaced-by-the-operator-token-9999"
+        and swapped_reread.generated is False,
+    )
+    swapped_reread.discard_file()
+    check("换过的那一枚不会被误删", swapped.path.is_file(), str(swapped.path))
 
     # 用 APP_SETUP_TOKEN 指定时不该再往磁盘写一份。
     env_dir = Path(tempfile.mkdtemp(prefix="hb-setup-guard-env-"))

@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import ast
 import json
+import logging
 import os
 import sys
 import tempfile
@@ -8561,6 +8562,350 @@ def check_user_asset_sweep_is_wired() -> None:
     )
 
 
+def _attach_log_sink(logger_name: str):
+    """抓一段标准 logging 的输出（商店那套走 logger）。"""
+    records: list[str] = []
+
+    class _Sink(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record.getMessage())
+
+    handler = _Sink()
+    logger = logging.getLogger(logger_name)
+    logger.addHandler(handler)
+    return records, handler, logger
+
+
+def _event_log_sink():
+    """抓一段 ``SetupGuard.event_log.append(...)`` 的调用（主应用那套走回调）。"""
+    messages: list[str] = []
+    sink = SimpleNamespace(
+        append=lambda level, category, scope, message, context=None: messages.append(message)
+    )
+    return messages, sink
+
+
+def check_setup_token_provenance() -> None:
+    """B34：引导令牌文件「是谁放的」决定它该不该被删。
+
+    盘上的 ``setup-token`` 有两个来源：本服务上一次未完成窗口自动生成的（初始化成功后
+    该删，否则它就是一枚落在磁盘上的死凭证），以及运维**预置**的（放在这里让实例读的
+    恢复手段，删掉等于把运维准备好的后路掐断）。内容上无从区分 —— 两者都是同一串
+    高熵字符串、都能通过 ``authorize()`` 的比对 —— 只有写入方知道自己是哪一个，所以
+    判据只能是写入时留下的标记。
+
+    两套实现（``backend/app/setup_guard.py`` 与 ``store/setup_guard.py``）各一份同构
+    代码，这个检查对两边都跑：它们的差异只该是 logger 不同，语义必须一致。
+    """
+    from backend.app import setup_guard as backend_guard
+    from store import setup_guard as store_guard
+
+    check(
+        'B34 两套 setup_guard 用同一份标记文件与同一种指纹记「这是谁放的」',
+        backend_guard.GENERATED_MARKER_FILE == store_guard.GENERATED_MARKER_FILE
+        and backend_guard.FINGERPRINT_PREFIX == store_guard.FINGERPRINT_PREFIX
+        and 'setup-token' in backend_guard.GENERATED_MARKER_FILE,
+        f'marker={backend_guard.GENERATED_MARKER_FILE!r} prefix={backend_guard.FINGERPRINT_PREFIX!r}',
+    )
+
+    operator_token = 'operator-provisioned-token-value-1234'
+
+    for label, module in (('主应用', backend_guard), ('商店', store_guard)):
+        with tempfile.TemporaryDirectory(prefix='hb-b34-provided-') as tmp:
+            workdir = Path(tmp)
+            path = workdir / 'setup-token'
+            # 运维的写法：裸的一行，没有标记（也可能带自己的注释行）。
+            path.write_text(f'# 运维自己写的备注\n{operator_token}\n', encoding='utf-8')
+            if module is backend_guard:
+                # 主应用那套把话写进注入的 event_log 回调，不是标准 logging。
+                records, sink = _event_log_sink()
+                guard = module.SetupGuard(workdir, event_log=sink)
+
+                def detach() -> None:
+                    return None
+
+            else:
+                records, handler, logger = _attach_log_sink('store.setup')
+                guard = module.SetupGuard(workdir)
+
+                def detach() -> None:
+                    logger.removeHandler(handler)
+            token = guard.ensure_token()
+            # 「是不是我们生成的」这一判断本身也要看：它决定了后面两处删不删。
+            mistaken_as_ours = guard.generated
+            try:
+                guard.discard_file()
+                kept_by_discard = path.is_file()
+                told = any('保留' in message for message in records)
+            finally:
+                detach()
+            guard.consume()
+            kept_by_consume = path.is_file()
+
+            check(
+                f'B34 {label}：运维预置的令牌带着注释行也读得出来',
+                token == operator_token,
+                f'读到 {token!r}',
+            )
+            check(
+                f'B34 {label}：运维预置的文件不被认成自己生成的',
+                mistaken_as_ours is False,
+                f'generated={mistaken_as_ours}',
+            )
+            check(
+                f'B34 {label}：已初始化时不清掉运维预置的文件（discard_file）',
+                kept_by_discard,
+                '文件还在' if kept_by_discard else '文件被删了 —— 运维的后路没了',
+            )
+            check(
+                f'B34 {label}：初始化成功后不清掉运维预置的文件（consume）',
+                kept_by_consume,
+                '文件还在' if kept_by_consume else '文件被删了 —— 运维的后路没了',
+            )
+            check(
+                f'B34 {label}：保留预置文件这件事会告诉运维（否则用户以为它被清掉了）',
+                told,
+                '记了 warning 日志' if told else f'没有日志（抓到 {records!r}）',
+            )
+
+        # 自动生成的那份相反：留着就是一枚落在磁盘上的死凭证，两处都必须删。
+        with tempfile.TemporaryDirectory(prefix='hb-b34-generated-') as tmp:
+            workdir = Path(tmp)
+            first = module.SetupGuard(workdir)
+            token = first.ensure_token()
+            on_disk = first.path.read_text(encoding='utf-8')
+            check(
+                f'B34 {label}：自动生成的文件仍是「一行一枚密钥」（README 教的方式：cat 它）',
+                on_disk.strip() == token and len(on_disk.splitlines()) == 1,
+                f'内容={on_disk!r}',
+            )
+            check(
+                f'B34 {label}：出处另外记在一份标记文件里（指纹对得上才算我们的）',
+                first.marker_path.is_file()
+                and module.token_fingerprint(token) in first.marker_path.read_text(encoding='utf-8'),
+                f'标记={first.marker_path}',
+            )
+            # 重启后读回同一枚：密钥不该因为一次重启就换掉（运维手上那份会作废）。
+            second = module.SetupGuard(workdir)
+            check(
+                f'B34 {label}：重启读回同一枚密钥，且仍认得是自己生成的',
+                second.ensure_token() == token and second.generated is True,
+                f'token 相同={second.ensure_token() == token} generated={second.generated}',
+            )
+            second.discard_file()
+            check(
+                f'B34 {label}：自动生成的残留在已初始化实例上会被清掉（标记一起走）',
+                not second.path.exists() and not second.marker_path.exists(),
+                f'密钥存在={second.path.exists()} 标记存在={second.marker_path.exists()}',
+            )
+
+        # 最要紧的一种「像但不是」：标记还在，密钥已经被换成人放的另一枚。
+        # 指纹是这里唯一的判据 —— 只看标记在不在，人放的那枚就会被误删。
+        with tempfile.TemporaryDirectory(prefix='hb-b34-swapped-') as tmp:
+            workdir = Path(tmp)
+            generated = module.SetupGuard(workdir)
+            generated.ensure_token()
+            replaced = 'replaced-by-the-operator-token-9999'
+            generated.path.write_text(replaced + '\n', encoding='utf-8')
+            reread = module.SetupGuard(workdir)
+            check(
+                f'B34 {label}：标记还在但密钥被换过 → 认指纹，不认标记文件的存在',
+                reread.ensure_token() == replaced and reread.generated is False,
+                f'generated={reread.generated}',
+            )
+            reread.discard_file()
+            check(
+                f'B34 {label}：换过的那一枚不会被误删（标记文件在也不能当成自己的）',
+                reread.path.is_file(),
+                '文件还在' if reread.path.is_file() else '文件被删了',
+            )
+
+
+async def check_setup_admin_conflicts_are_409() -> None:
+    """B35：``stage()`` 的两类可预期冲突必须回 409，而不是 500 带堆栈。
+
+    ``stage()`` 在落盘账号文件时可能撞上两种「这次请求不成立」：并发的初始化请求先赢了
+    （``initialized`` 是进程内状态，后到的那个读到的是别人翻过去的那个 True），以及盘上
+    出现了一份不属于本次初始化的账号文件。两种都是可预期状态 —— 正确回话是「刷新页面
+    看状态」，不是「服务器坏了」。过去它们逃逸成 500：用户看不懂，全局日志里多一段
+    堆栈，而 reset 之后连「谁赢的」都看不出来。
+
+    观测点是**回给客户端的响应**加上**库里有没有留下半成品**：只测「抛了
+    AdminAccountConflict」不够 —— 那正是它以前的样子（异常类型换了个名字，500 照旧）。
+    """
+    import httpx
+    from fastapi import FastAPI
+
+    from backend.app import setup_guard
+    from backend.app.admin_account import AdminAccountConflict, AdminAccountStore
+    from backend.app.api import auth
+    from backend.app.config import load_settings
+    from backend.app.database import Base, Database
+    from backend.app.models import LoginSession, User
+
+    payload = {
+        'username': 'ops-admin',
+        'password': 'correct-horse-battery',
+        'passwordConfirmation': 'correct-horse-battery',
+    }
+
+    class RivalStore(AdminAccountStore):
+        """第 3 次读 ``initialized`` 时才翻成 True。
+
+        那一次读发生在 ``stage()`` 里面，也就是「另一个请求已经把账号写好了」这一刻：
+        路由的前两次读（入口闸门、BEGIN IMMEDIATE 之后各一次）必须都还是 False，
+        否则走不到被测的那条分支上。
+        """
+
+        def __init__(self, path: Path) -> None:
+            super().__init__(path)
+            self.reads = 0
+
+        @property
+        def initialized(self) -> bool:
+            self.reads += 1
+            return self.reads > 2
+
+    def build(workdir: Path, store: AdminAccountStore):
+        database = Database(f'sqlite:///{workdir / "app.db"}')
+        Base.metadata.create_all(database.engine)
+        app = FastAPI()
+        # 前缀跟 main.py 一致：路由表是照着真实挂载点验的，不然 404 会冒充成「闸门生效」。
+        app.include_router(auth.router, prefix='/api/v1')
+        app.state.database = database
+        app.state.settings = load_settings()
+        app.state.admin_account = store
+        app.state.setup_guard = setup_guard.SetupGuard(workdir / 'data')
+        app.state.global_log = SimpleNamespace(append=lambda *a, **k: None)
+        return app, database
+
+    async def call(app) -> httpx.Response:
+        # raise_app_exceptions=False：让「逃逸成 500」表现为 500 响应而不是把异常抛进
+        # 测试进程 —— 否则一条未来的回归会让整套自检崩掉，而不是干净地红一条。
+        # 默认对端就是 loopback：本机直连那条放行分支成立，不必再带引导令牌。
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app, raise_app_exceptions=False),
+            base_url='http://homeos.test',
+        ) as client:
+            return await client.post('/api/v1/setup/admin', json=payload)
+
+    def leftovers(database) -> tuple[int, int]:
+        from sqlalchemy import select
+
+        with database.session_factory() as session:
+            return (
+                len(session.scalars(select(User.id)).all()),
+                len(session.scalars(select(LoginSession.id_hash)).all()),
+            )
+
+    # 情形一：并发的初始化请求先赢了。
+    with tempfile.TemporaryDirectory(prefix='hb-b35-race-') as tmp:
+        workdir = Path(tmp)
+        store = RivalStore(workdir / 'admin-account.json')
+        app, database = build(workdir, store)
+        response = await call(app)
+        users, sessions = leftovers(database)
+        check(
+            'B35 被并发请求抢先时回 409（而不是 500 带堆栈）',
+            response.status_code == 409,
+            f'status={response.status_code} body={response.text[:120]}',
+        )
+        check(
+            'B35 抢先后告诉用户刷新页面（而不是只说「服务器错误」）',
+            response.status_code == 409 and '刷新' in response.text,
+            response.text[:160],
+        )
+        check(
+            'B35 抢先后不留半成品用户与会话（回滚真的发生了）',
+            users == 0 and sessions == 0,
+            f'users={users} sessions={sessions}',
+        )
+        check(
+            'B35 抢先后不落盘账号文件（否则这枚凭据是谁的说不清）',
+            not store.path.exists(),
+            f'文件存在={store.path.exists()}',
+        )
+
+    # 情形二：盘上已经有一份账号文件（另一次初始化/别处补进来的），拒绝覆盖。
+    with tempfile.TemporaryDirectory(prefix='hb-b35-rogue-') as tmp:
+        workdir = Path(tmp)
+        store = AdminAccountStore(workdir / 'admin-account.json')
+        store.path.parent.mkdir(parents=True, exist_ok=True)
+        planted = json.dumps({'schemaVersion': 1, 'generation': 7})
+        store.path.write_text(planted, encoding='utf-8')
+        app, database = build(workdir, store)
+        response = await call(app)
+        users, sessions = leftovers(database)
+        check(
+            'B35 账号文件已存在时回 409（而不是 500）',
+            response.status_code == 409,
+            f'status={response.status_code} body={response.text[:120]}',
+        )
+        check(
+            'B35 账号文件已存在时不覆盖它（内容一个字节都没变）',
+            store.path.read_text(encoding='utf-8') == planted,
+            store.path.read_text(encoding='utf-8')[:120],
+        )
+        check(
+            'B35 账号文件已存在时也不留半成品用户与会话',
+            users == 0 and sessions == 0,
+            f'users={users} sessions={sessions}',
+        )
+
+    check(
+        'B35 stage() 的冲突类型是专门的一类（可被路由精确映射成 409）',
+        issubclass(AdminAccountConflict, RuntimeError),
+        'AdminAccountConflict 继承 RuntimeError，未改动既有捕获面',
+    )
+
+
+def check_license_flag_default_matches_loader() -> None:
+    """B46：``license_required`` 的字段默认值必须与 ``load_settings`` 的取值一致。
+
+    这个开关在 6 处被读（启动校验、心跳、状态接口、3D 交互的授权判定……），而
+    dataclass 默认是 False、加载器写死 True —— 直接构造 ``Settings`` 的自检与内部
+    工具拿到的是「另一种产品」：授权闸门在它们那里是关着的。差异只在某条分支上才
+    看得出来，所以只能在这里把两处钉在一起。
+
+    同样重要的一点：**加载器不许读环境变量**。README 承诺「不能用环境变量关掉授权」，
+    一旦有人为了「让默认值与字段一致」而去读 ``APP_LICENSE_REQUIRED``，这个承诺就
+    失守了 —— 所以这里连「环境变量改不动它」也一起钉住。
+    """
+    from backend.app.config import Settings, load_settings
+
+    with tempfile.TemporaryDirectory(prefix='hb-b46-') as tmp:
+        settings = Settings(data_dir=Path(tmp))
+        loaded = load_settings()
+        check(
+            'B46 license_required 的字段默认值与加载器一致（都是 True）',
+            settings.license_required is True and loaded.license_required is True,
+            f'default={settings.license_required} loader={loaded.license_required}',
+        )
+        check(
+            'B46 显式传 False 仍然可用（自检与内部工具的唯一入口）',
+            Settings(data_dir=Path(tmp), license_required=False).license_required is False,
+            '显式 False 被尊重',
+        )
+
+    source = (PROJECT_ROOT / 'backend/app/config.py').read_text(encoding='utf-8')
+    tree = ast.parse(source)
+    loader_mentions_env = False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef) or node.name != 'load_settings':
+            continue
+        loader_mentions_env = any(
+            isinstance(inner, ast.Constant)
+            and isinstance(inner.value, str)
+            and 'LICENSE_REQUIRED' in inner.value
+            for inner in ast.walk(node)
+        )
+    check(
+        'B46 加载器不读任何 license 环境变量（README 承诺关不掉）',
+        not loader_mentions_env,
+        '没读' if not loader_mentions_env else 'load_settings 里出现了 LICENSE_REQUIRED',
+    )
+
+
 def check_every_check_is_wired() -> None:
     """每个 ``check_*`` 都必须被调用过（忘了接线的话，全绿是没有意义的）。
 
@@ -8669,6 +9014,9 @@ async def run() -> int:
     check_user_asset_quota_and_sweep()
     await check_user_asset_total_quota()
     check_user_asset_sweep_is_wired()
+    check_setup_token_provenance()
+    await check_setup_admin_conflicts_are_409()
+    check_license_flag_default_matches_loader()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]
