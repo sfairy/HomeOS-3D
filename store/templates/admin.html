@@ -1526,6 +1526,7 @@
      否则会被自身的 CSP（script-src 无 'unsafe-inline'）挡下。
      见 store/request_security.py 的 CSP_NONCE_PLACEHOLDER。 -->
 <script src="/store-static/htmlsafe.js?v=20260918233037"></script>
+<script src="/store-static/api-error.js?v=20260918233037"></script>
 <script nonce="{{NONCE}}">
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -1562,28 +1563,12 @@ function toast(message, kind = 'success') {
   setTimeout(() => box.remove(), 3600);
 }
 
-// 把接口返回的 ``detail`` 归一化成人话。
-// FastAPI 的参数校验失败（422）返回的 detail 是**数组**——直接塞进 Error 会变成
-// "[object Object]"，而它恰恰是最常见的一类错误（天数填了小数、金额填了字母），
-// 运营看到的就是一句看不懂的英文/对象。这里把它压成「参数 x 不合法：原因」。
-function describeApiError(detail) {
-  if (!detail) return '请求失败。';
-  if (typeof detail === 'string') return detail;
-  if (Array.isArray(detail)) {
-    const lines = detail
-      .map(entry => {
-        if (typeof entry === 'string') return entry;
-        const field = Array.isArray(entry?.loc) ? entry.loc.filter(part => part !== 'body' && part !== 'query').join('.') : '';
-        const reason = entry?.msg || entry?.message || '取值不合法';
-        return field ? `参数 ${field}：${reason}` : reason;
-      })
-      .filter(Boolean);
-    return lines.length ? lines.join('；') : '请求参数不合法。';
-  }
-  if (typeof detail === 'object' && detail.msg) return String(detail.msg);
-  return '请求失败。';
-}
-
+// 把接口返回的 ``detail`` 归一化成人话。实现只有一份：store/static/api-error.js
+// （``ApiError.describe``）—— 原先后台/前台/初始化页各一份，能力还不一致：后台认
+// FastAPI 422 的 detail 数组、前台只认字符串、初始化页直接把数组塞进 textContent
+// （显示 ``[object Object]``）。少认一种形态不会报错，只会让某类错误在某个页面上
+// 变成看不懂的一句话。加载顺序由 smoke.py 的 check_shared_api_error_helper 钉住。
+//
 // 建一个带 HTTP 状态码的错误。调用方**必须**能区分两类失败：
 //   · 401 —— 「还没登录」。这是登录页的正常状态（未登录的访客一打开 /admin 就是
 //     这个结果），把它当故障报出来，每个人看到的都是一条红色报错；
@@ -1591,11 +1576,7 @@ function describeApiError(detail) {
 //     只是自己没登录，然后反复重输密码。
 // 只按 message 文案判断是不可靠的：文案随时会改，而且「请先登录。」这句话也可能
 // 出现在别的 4xx 上。所以要带上状态码本身。
-function httpError(response, data) {
-  const error = new Error(describeApiError(data && data.detail));
-  error.status = response.status;
-  return error;
-}
+const httpError = (response, data) => ApiError.fromResponse(response, data);
 
 async function api(path, options = {}) {
   const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;

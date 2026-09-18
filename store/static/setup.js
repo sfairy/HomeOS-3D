@@ -120,7 +120,11 @@
           setTimeout(function () { location.href = '/admin'; }, 1500);
           return;
         }
-        var detail = (result.body && result.body.detail) || '初始化失败，请重试。';
+        // FastAPI 的参数校验失败（422）里的 ``detail`` 是**数组**，直接交给
+        // ``showError`` 会显示成 ``[object Object]`` —— 初始化页最常见的一类失败
+        // （邮箱格式、密码太短、引导密钥不对）恰好都走这条。归一化只有一份实现，
+        // 与后台/商店前台共用：store/static/api-error.js。
+        var detail = ApiError.describe(result.body && result.body.detail, '初始化失败，请重试。');
         showError(detail);
         submitBtn.classList.remove('is-loading');
         submitBtn.disabled = false;

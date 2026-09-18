@@ -38,9 +38,10 @@
     });
     const body = response.status === 204 ? null : await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(typeof body?.detail === 'string' ? body.detail : '请求失败，请稍后重试。');
-      error.status = response.status;
-      error.payload = body;
+      // 「把 detail 变成人话」只有一份实现（store/static/api-error.js），与后台/初始化页
+      // 共用。过去这里只认字符串形态，于是 FastAPI 422 的参数明细（detail 是数组）被
+      // 整段丢掉 —— 顾客只看到「请求失败」，看不到是哪个字段不合法。
+      const error = ApiError.fromResponse(response, body, '请求失败，请稍后重试。');
       error.retryAfter = Number(response.headers.get('Retry-After') || 0);
       throw error;
     }
