@@ -5,9 +5,10 @@
  * 职责：维护 loading → waiting → leaving → done / error 的启动阶段，等首屏
  *   素材与 3D 交互宿主都就绪后再淡出；把画布背景色推导成明 / 暗主题并写入
  *   localStorage；失败时给出重试与「先进入仪表盘」两种出口。
- * 约定：对外通过 window.HABridgeDisplayBoot 暴露 setDocument / ready / fail
- *   与只读的 pending / failed，渲染脚本据此汇报进度；?capturePreview=1 时
- *   完全跳过启动引导（截图 / 预览场景不需要遮罩）。
+ * 约定：对外通过 window.HABridgeDisplayBoot 暴露 setDocument / ready / fail /
+ *   notice / recovered / setRuntimePush 与只读的 pending / failed，渲染脚本据此
+ *   汇报进度与运行期异常；?capturePreview=1 时完全跳过启动引导（截图 / 预览
+ *   场景不需要遮罩，也不该出现提示横幅）。
  */
 (() => {
   const documentElement = document.documentElement,
@@ -35,6 +36,12 @@
     getSplashElement = () => document.getElementById("display-splash"),
     getSplashMessageElement = () => document.getElementById("display-splash-message"),
     prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // 运行期横幅的三条来源，各自有各自的撤销条件（见各自的 setter）：
+  // 实时推送停止（等重新订阅成功）> 刷新失败（等下一次刷新成功）> 一次性提示（8 秒）。
+  let noticeHideTimer,
+    noticeFlashMessage = "",
+    noticeRefreshMessage = "",
+    noticeRuntimeMessage = "";
 
   // 统一清理四类定时器，进入终态后必须调用，避免残留回调再改状态。
   function clearAllTimers() {
@@ -48,8 +55,7 @@
    * @param {object} dashboardDocument 文档模型，读取 canvas.background 与 theme.name。
    * @returns {void}
    */
-  function applyDocumentTheme(dashboardDocument) {
-    const background = dashboardDocument?.canvas?.background,
+  function applyDocumentTheme(dashboardDocument) {    const background = dashboardDocument?.canvas?.background,
       colorValue = background?.type === "color" ? String(background.color || "") : "";
     let themeName = "";
     // 支持 #rgb / #rrggbb 与 rgb() / rgba()（仅不透明）两类写法。
@@ -97,15 +103,101 @@
   }
 
   /**
+   * 把当前该显示的那条提示写到运行期横幅上，谁都没有时收起。
+   *
+   * 三类提示共用一个元素，按严重程度取一条（见下面三个 setter 的说明）：
+   * 页面顶部只允许出现一条横幅，叠两条会互相盖住、也让读屏重复播报。
+   *
+   * @returns {void}
+   */
+  function renderNotice() {
+    const noticeElement = document.getElementById("display-notice");
+    // 截图 / 预览模式不能出现横幅（会污染截图，也会被误当成系统状态）。
+    if (!noticeElement || isCapturePreview) return;
+    const noticeMessage = noticeRuntimeMessage || noticeRefreshMessage || noticeFlashMessage;
+    // 文案只在非空时写：重复写同一个字符串会让 role="status" 再播报一遍同一件事。
+    noticeMessage && (noticeElement.textContent = noticeMessage);
+    noticeElement.hidden = !noticeMessage;
+  }
+
+  /**
+   * 显示一条一次性提示，8 秒后自动收起。
+   *
+   * 用于「控件操作失败」这类已经过去的事件：它们没有持续状态，留着不走反而
+   * 让人以为画面还在坏着。
+   *
+   * @param {string} message 提示文案。
+   * @returns {void}
+   */
+  function showFlashNotice(message) {
+    clearTimeout(noticeHideTimer);
+    noticeFlashMessage = String(message || "");
+    renderNotice();
+    // 8e3 与启动阶段「换安抚文案」的节奏一致。
+    noticeFlashMessage && (noticeHideTimer = setTimeout(hideFlashNotice, 8e3));
+  }
+
+  /**
+   * 收起一次性提示。
+   *
+   * @returns {void}
+   */
+  function hideFlashNotice() {
+    (clearTimeout(noticeHideTimer),
+      (noticeHideTimer = undefined),
+      (noticeFlashMessage = ""),
+      renderNotice());
+  }
+
+  /**
+   * 设置 / 撤销「无法更新」横幅（断网、超时这类刷新失败）。
+   *
+   * 它跟着「下一次刷新成功」一起撤销（recovered），因为刷新成功正是这句话
+   * 变成假话的时刻 —— 否则恢复联网后横幅会一直挂着，用户再也分不清好坏。
+   *
+   * @param {string} message 提示文案，空串表示撤销。
+   * @returns {void}
+   */
+  function setRefreshNotice(message) {
+    ((noticeRefreshMessage = String(message || "")), renderNotice());
+  }
+
+  /**
+   * 设置 / 撤销「实时推送已停止」横幅。
+   *
+   * 与刷新失败分开记，是因为它的解除条件不同：刷新成功不代表实体状态会恢复，
+   * 只有在渲染层重新订阅成功（收到 available 为 true）时才可以说已经恢复。
+   *
+   * @param {boolean} available 实时推送当前是否可用。
+   * @param {string} [message] 不可用时的文案。
+   * @returns {void}
+   */
+  function setRuntimePushNotice(available, message) {
+    noticeRuntimeMessage = available
+      ? ""
+      : String(message || "\u5B9E\u65F6\u72B6\u6001\u5DF2\u505C\u6B62\u66F4\u65B0\uFF0C\u753B\u9762\u53EF\u80FD\u4E0D\u662F\u6700\u65B0\u7684\u3002");
+    renderNotice();
+  }
+
+  /**
    * 进入错误终态并显示提示。
+   *
+   * 启动层已经摘掉（phase 为 done）时不再有「错误界面」可用，改为挂一条非阻塞
+   * 横幅并保留画面：之前这里直接 return，于是展示页断网后会一直安静地显示
+   * 冻结的旧数据，墙面屏前的人看不出任何异常。
    *
    * @param {Error} error 错误对象，取其 message 作为提示文案。
    * @param {boolean} [canEnter] 是否允许「先进入仪表盘」按钮。
    * @returns {void}
    */
   function showError(error, canEnter = !1) {
+    // 运行期失败：数据可能已经过期，但页面还能用，不要用遮罩把整屏挡住。
+    if (splashPhase === "done") {
+      setRefreshNotice(error?.message || "\u4EEA\u8868\u76D8\u66F4\u65B0\u5931\u8D25\uFF0C\u753B\u9762\u53EF\u80FD\u4E0D\u662F\u6700\u65B0\u7684\u3002");
+      return;
+    }
     // 已是终态时忽略后续错误，防止淡出过程中被又一次失败打断。
-    if (splashPhase === "done" || splashPhase === "error") return;
+    if (splashPhase === "error") return;
     (clearAllTimers(),
       (splashPhase = "error"),
       getSplashElement()?.classList.remove("is-complete", "is-leaving"),
@@ -282,6 +374,12 @@
     setDocument: applyDocumentTheme,
     ready: handleReady,
     fail: showError,
+    // 一次性提示（控件操作失败等）：8 秒后自动收起。
+    notice: showFlashNotice,
+    // 刷新成功：撤销「无法更新」横幅（断网恢复后它必须自己消失）。
+    recovered: () => setRefreshNotice(""),
+    // 实时推送可用性：false 会挂住，直到渲染层再次订阅成功。
+    setRuntimePush: setRuntimePushNotice,
     get pending() {
       return splashPhase !== "done";
     },

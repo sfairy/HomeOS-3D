@@ -10,9 +10,9 @@
  *   ③ 启动遮罩由 display-boot.js 维护，本模块通过 window.HABridgeDisplayBoot
  *   汇报 setDocument / ready / fail；④ 轮询间隔 10 秒，素材版本检查间隔 30 秒。
  */
-import { PanelRenderer } from "./renderer/renderer.js?v=20260917022019";
-import { createButtonSound } from "./sound-effects.js?v=20260917022019";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=20260917022019";
+import { PanelRenderer } from "./renderer/renderer.js?v=20260918171600";
+import { createButtonSound } from "./sound-effects.js?v=20260918171600";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=20260918171600";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");
@@ -140,9 +140,15 @@ async function apiRequest(path) {
     }
     return payload;
   } catch (caughtError) {
-    throw abortController.signal.aborted
-      ? new Error("仪表盘更新请求超时，请检查网络连接。")
-      : caughtError;
+    if (abortController.signal.aborted) {
+      throw new Error("仪表盘更新请求超时，请检查网络连接。");
+    }
+    // fetch 在网络层断掉时抛的是 `TypeError: Failed to fetch`，这句话会原样出现在
+    // 启动层的错误界面和运行期横幅上，对用户没有任何意义，这里换成可读文案。
+    if (caughtError instanceof TypeError) {
+      throw new Error("无法连接服务器，请检查网络连接。");
+    }
+    throw caughtError;
   } finally {
     window.clearTimeout(timeoutId);
   }
@@ -324,10 +330,9 @@ async function refreshDisplay() {
   if (project) {
     return (
       refreshPromise ||
-      ((refreshPromise = (async () => {
+      ((      refreshPromise = (async () => {
         // 目录同步失败不影响主流程，静默忽略。
-        refreshCatalog().catch(() => null);
-        let revisionResponse = null;
+        refreshCatalog().catch(() => null);        let revisionResponse = null;
         // 素材版本可能已被别处更新（如预览），这里先按已记录的版本比对一次。
         let hasAssetsChange = loadedAssetsVersion !== assetsVersion;
         if (panelRenderer) {
@@ -397,6 +402,17 @@ async function refreshDisplay() {
             scaleMode: "contain",
             onRuntimeButtonPress() {
               buttonSound.play();
+            },
+            // 运行期异常必须看得见：展示页没有控制台，之前这里没传 onError，
+            // 于是控件操作失败、订阅被服务端停掉都只写进日志，墙面屏前毫无反馈。
+            // 一次性提示会自动收起（真实状态类问题由下面的实时推送回调负责）。
+            onError(rendererError) {
+              window.HABridgeDisplayBoot?.notice(rendererError?.message || "操作失败。");
+            },
+            // 实时推送可用性：致命关闭码（4400）后渲染层不会自动重连，画面会停在
+            // 最后一帧；此时挂一条常驻横幅，等它重新订阅成功再撤掉。
+            onRuntimeAvailabilityChange(available, unavailableMessage) {
+              window.HABridgeDisplayBoot?.setRuntimePush(available, unavailableMessage);
             }
           });
           pushCatalogToRenderer();
@@ -446,7 +462,12 @@ async function bootstrap() {
 function refreshIfVisible() {
   if (document.visibilityState === "visible") {
     if (!window.HABridgeDisplayBoot?.failed) {
-      refreshDisplay().catch(handleDisplayError);
+      // 这一次刷新整体成功（含「revision 没变，无需重渲染」）就说明网络通了，
+      // 此时必须撤掉「无法更新」横幅 —— 否则恢复联网后它一直挂着。
+      refreshDisplay().then(
+        () => window.HABridgeDisplayBoot?.recovered(),
+        handleDisplayError
+      );
     }
   }
 }

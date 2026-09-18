@@ -272,12 +272,63 @@
   }
 }
 
+/* ===== 运行期提示横幅（非阻塞） ===== */
+
+/* 只在启动层摘掉之后才有机会出现：断网、刷新超时、实时推送被服务端停掉时，
+   用一条横幅说明「画面可能不是最新的」，而不是把过期画面当正常画面继续展示。
+   配色刻意不跟随明暗主题：警示条必须一眼看见，浅色画布上用深橙底反而更醒目。 */
+:root {
+  --display-notice-bg: rgba(154, 52, 18, 0.94);
+  --display-notice-fg: #fff7ed;
+  --display-notice-edge: rgba(255, 247, 237, 0.28);
+}
+
+#display-notice {
+  position: fixed;
+  /* 低于启动层（2147483000）：启动期间横幅被遮住，摘层后再露出。 */
+  z-index: 2147482000;
+  top: 0;
+  right: 0;
+  left: 0;
+  /* 四边留安全区，刘海屏与手势条下文案不会被切。 */
+  padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px
+    max(16px, env(safe-area-inset-left));
+  color: var(--display-notice-fg);
+  background: var(--display-notice-bg);
+  box-shadow: inset 0 -1px 0 var(--display-notice-edge);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    Segoe UI,
+    PingFang SC,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: center;
+  /* 非阻塞：横幅横在画布顶部，墙面屏上的控件可能就在它下面，绝不能吃掉点击。 */
+  pointer-events: none;
+  animation: display-notice-in 0.24s ease both;
+}
+
+/* 从顶部滑入，提示「上面多了一条东西」而不是凭空出现。 */
+@keyframes display-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ===== 减少动态效果 ===== */
 
 /* 用户开启系统「减少动态效果」后：停掉所有动画与过渡，
    并把原本靠动画淡入的元素直接设为不透明，防止内容永远不可见。 */
 @media (prefers-reduced-motion: reduce) {
   #display-splash *,
+  #display-notice,
   #display-splash.is-complete .display-splash-logo {
     animation: none;
     transition: none;

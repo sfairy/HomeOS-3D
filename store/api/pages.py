@@ -182,9 +182,9 @@ def _cashier_html(order: Order, product: Product | None, *, request: Request) ->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>模拟收银台 · {order_no}</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260917022019">
-<link rel="stylesheet" href="/store-static/store.css?v=20260917022019">
-<link rel="icon" href="/store-static/favicon-rounded.png?v=20260917022019">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260918171600">
+<link rel="stylesheet" href="/store-static/store.css?v=20260918171600">
+<link rel="icon" href="/store-static/favicon-rounded.png?v=20260918171600">
 </head>
 <body>
 <div class="hb-cashier">

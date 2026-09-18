@@ -5,20 +5,25 @@
  * 职责：把一个极简的 JSON 请求封装注入 setupGlobalLog，让日志模块可以
  *   上报到 /api/v1 下的日志接口。
  * 约定：请求一律 cache: "no-store"，避免日志接口被缓存；401 视为会话失效
- *   直接跳登录页；只有带 body 时才声明 Content-Type: application/json。
+ *   直接跳登录页；只有带 body 时才声明 Content-Type: application/json；
+ *   超时预算统一由 utils/api-fetch.js 决定（这里不自己写超时）。
  */
-import { setupGlobalLog } from "./global-log.js?v=20260917022019";
+import { setupGlobalLog } from "./global-log.js?v=20260918171600";
+import { apiFetch } from "./utils/api-fetch.js?v=20260918171600";
 
 /**
  * 发送 JSON 请求并做统一的错误处理。
  *
+ * 超时交给 apiFetch（普通 20 秒、上传 3 分钟）：日志上报悬挂时也必须抛错，
+ * 否则调用方会一直停在「正在上报」。
+ *
  * @param {string} path 接口路径，不含 /api/v1 前缀。
  * @param {RequestInit} [init] fetch 配置。
  * @returns {Promise<*>} 解析后的响应体；204 或空响应返回 null。
- * @throws {Error} 会话失效、HTTP 失败或响应不是合法 JSON。
+ * @throws {Error} 会话失效、超时、HTTP 失败或响应不是合法 JSON。
  */
 async function requestJson(path, init = {}) {
-  const response = await fetch("/api/v1" + path, {
+  const response = await apiFetch("/api/v1" + path, {
     cache: "no-store",
     ...init,
     // 只有确实要发 body 时才加 Content-Type，否则会触发预检且语义不符。

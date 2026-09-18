@@ -503,6 +503,12 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         '/static/auth-shell.js',
         '/static/pairing-link.js',
         '/static/pairing-entry.js',
+        # 匿名可访问的页面脚本 import 的工具模块也必须在这里：模块图缺一环，
+        # 整页脚本都不会执行（login/setup/pair/license 全在未激活时就要能打开）。
+        # utils/ 只放与业务无关的纯工具，白名单按文件精确列，改动由
+        # backend/tools/smoke.py 的「白名单 import 闭包」检查兜住。
+        '/static/utils/api-fetch.js',
+        '/static/utils/request-timeout.js',
         '/static/manifest.webmanifest',
         '/static/dashboard.webmanifest',
         '/static/homeos-favicon.ico',

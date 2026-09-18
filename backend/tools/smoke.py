@@ -24,6 +24,9 @@ import ast
 import json
 import logging
 import os
+import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -8906,6 +8909,342 @@ def check_license_flag_default_matches_loader() -> None:
     )
 
 
+# --------------------------------------------------------------------------- #
+# 前端高危项（P6 / W1-W5）：活体探针
+# --------------------------------------------------------------------------- #
+FRONTEND_ROOT = PROJECT_ROOT / 'frontend'
+
+#: 探针文件；套件名 -> 该套件守护的缺陷。交给 node 跑，跑的就是磁盘上那一份前端文件。
+FRONTEND_PROBE = PROJECT_ROOT / 'backend' / 'tools' / 'frontend_probe.mjs'
+FRONTEND_PROBE_SUITES = {
+    'api-fetch': 'W1/W2 接口超时预算的唯一主人（utils/api-fetch.js）',
+    'request-json': 'W1 编辑器唯一接口出入口（home.js requestJson）',
+    'studio-request': 'W2 舞台页唯一接口出入口（studio-app.js requestStudioApi）',
+    'login': 'W3 登录按钮与超时（login.js）',
+    'display-boot': 'W4/W5 展示页运行期横幅（display-boot.js）',
+}
+
+#: 语法门覆盖的文件：P6 改过的页面脚本，加上它们新引入的两个工具模块。
+#: 为什么不扫整个 frontend/：全量扫要一两百次 node 启动，太重；全仓语法门属于
+#: CI 的事（P9），这里只保证「这批改过的文件不会因为截断 / 括号错位静默失效」。
+FRONTEND_SYNTAX_FILES = (
+    'frontend/static/home.js',
+    'frontend/static/global-log-boot.js',
+    'frontend/static/login.js',
+    'frontend/static/display.js',
+    'frontend/static/display-boot.js',
+    'frontend/static/renderer/renderer.js',
+    'frontend/static/3d-studio/studio-app.js',
+    'frontend/static/utils/api-fetch.js',
+    'frontend/static/utils/request-timeout.js',
+)
+
+
+def _run_frontend_probe(suite: str) -> None:
+    """跑一个前端探针套件，把里面每条断言原样登记成自检项。
+
+    node 不在时跳过（与 ``store/tools/smoke.py`` 的静态资源检查同一口径）；
+    探针自己崩了（退出码 2 或没吐出 JSON）时登记一条失败而不是抛栈 —— 那种情况
+    等于「这一套断言一条都没跑」，必须是红的。
+    """
+    purpose = FRONTEND_PROBE_SUITES[suite]
+    if shutil.which('node') is None:
+        check(f'前端探针 {suite}（{purpose}）', True, 'skipped：环境里没有 node')
+        return
+    try:
+        probe = subprocess.run(  # noqa: S603
+            ['node', str(FRONTEND_PROBE), str(PROJECT_ROOT), suite],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        check(f'前端探针 {suite} 能在 120 秒内跑完', False, '超时（多半是探针卡在永远不结算的等待上）')
+        return
+    last_line = next(
+        (line for line in reversed(probe.stdout.strip().splitlines()) if line.strip().startswith('{')),
+        '',
+    )
+    try:
+        payload = json.loads(last_line)
+        probe_results = payload['results']
+        assert isinstance(probe_results, list) and probe_results
+    except (ValueError, KeyError, AssertionError):
+        check(
+            f'前端探针 {suite} 吐出了完整结果（{purpose}）',
+            False,
+            f'stdout={probe.stdout.strip()[-300:]!r} stderr={probe.stderr.strip()[-300:]!r}',
+        )
+        return
+    for probe_result in probe_results:
+        check(f"[{suite}] {probe_result['name']}", probe_result['ok'], probe_result['detail'])
+
+
+def check_frontend_api_request_timeouts() -> None:
+    """W1/W2：所有接口调用都带超时预算，「请求悬挂 → 上层闩永不复位」不许再出现。
+
+    三套探针合起来守一条不变量：预算在 utils/api-fetch.js 里（常量 + 二进制体自动
+    放宽），两个唯一出入口（home.js 的 requestJson、studio-app.js 的
+    requestStudioApi）都真的走它。断言点全是行为：把假时钟推到 20 秒，看它抛不抛、
+    抛的是不是 TimeoutError、中止信号有没有真的落到 fetch 上。
+    """
+    _run_frontend_probe('api-fetch')
+    _run_frontend_probe('request-json')
+    _run_frontend_probe('studio-request')
+
+    # 第四个入口（客户端日志上报引导）没有行为探针：它是引导脚本、模块顶层就摸 DOM，
+    # 整份加载不划算（login.js 那条之所以能整份跑，是因为它短且垫片少）。因此改用
+    # 结构断言把它钉住 —— 该文件里不再出现裸 fetch，且确实引用了 apiFetch。
+    # 与 W1 的「超时预算只有一个主人」是同一类要求：多一个裸 fetch 调用点，就多一处
+    # 没有预算的路径，而这处恰好是「悬挂了就永远停在『正在上报』」的那种。
+    log_boot_source = (FRONTEND_ROOT / 'static' / 'global-log-boot.js').read_text(encoding='utf-8')
+    bare_fetch = re.search(r'(?<![A-Za-z_$])fetch\(', log_boot_source)
+    if 'apiFetch(' not in log_boot_source:
+        log_boot_detail = '文件里没有 apiFetch(（超时预算的唯一入口没被引用）'
+    elif bare_fetch is None:
+        log_boot_detail = '只走 apiFetch，没有裸 fetch 调用点'
+    else:
+        log_boot_detail = (
+            '仍有一处裸 fetch(：第 '
+            f'{log_boot_source.count(chr(10), 0, bare_fetch.start()) + 1} 行'
+        )
+    check(
+        'W1 日志上报引导也走 apiFetch（该文件里不再有裸 fetch）',
+        bare_fetch is None and 'apiFetch(' in log_boot_source,
+        log_boot_detail,
+        )
+
+
+def check_frontend_login_submit_recovers() -> None:
+    """W3：登录请求悬挂时按钮也必须恢复（超时 + finally 两件都要有）。
+
+    ``frontend/static/login.js`` 是模块，探针直接用真实 import 加载磁盘上那一份，
+    配假 DOM / 假时钟 / 假 fetch 驱动 submit。
+
+    探针只能证明「超时之后按钮恢复了」；超时本身若是以后被去掉，悬挂的请求会让
+    按钮一直禁用，而 `finally` 才是与「这次会不会超时」无关的那道保险。所以这里
+    再做一条结构断言：复位语句必须落在 ``finally {`` 块体内。
+    """
+    _run_frontend_probe('login')
+
+    login_source = (FRONTEND_ROOT / 'static' / 'login.js').read_text(encoding='utf-8')
+    finally_marker = '} finally {'
+    reset_statement = 'submit.disabled = !1'
+    finally_start = login_source.find(finally_marker)
+    reset_in_finally = False
+    if finally_start != -1:
+        depth = 0
+        cursor = finally_start + len(finally_marker)
+        body_start = cursor
+        while cursor < len(login_source):
+            character = login_source[cursor]
+            if character == '{':
+                depth += 1
+            elif character == '}':
+                if depth == 0:
+                    break
+                depth -= 1
+            cursor += 1
+        reset_in_finally = reset_statement in login_source[body_start:cursor]
+    reset_line = next(
+        (
+            line.strip()
+            for line in login_source.splitlines()
+            if reset_statement in line
+        ),
+        f'全文找不到 {reset_statement!r}',
+    )
+    check(
+        'W3 按钮复位在 finally 里（任何退出路径都要恢复，含以后新增的分支）',
+        reset_in_finally,
+        f'复位语句现在的位置：{reset_line}'
+        if not reset_in_finally
+        else reset_line,
+    )
+
+
+def check_frontend_display_runtime_notice() -> None:
+    """W4/W5：启动层摘掉之后，断网与实时推送停止都必须看得见。
+
+    探针把 display-boot.js 真的放进 vm 里跑（最小 DOM 垫片 + 假时钟），先推进到
+    ``done``，再分别验证「刷新失败 → 横幅」「刷新成功 → 撤销」「实时推送停止 →
+    常驻且刷新成功撤不掉」「重新订阅成功 → 撤销」「一次性提示 8 秒自收」
+    「capturePreview 不出横幅」。
+    """
+    _run_frontend_probe('display-boot')
+
+
+def check_frontend_display_notice_wiring() -> None:
+    """W4/W5 的接线：横幅本身会动，还要有人把消息送上去、把恢复报下来。
+
+    行为探针只能证明 display-boot 的接口是对的，证明不了展示页与渲染层真的在用
+    它们 —— 那两处都是几万行的页面脚本，无法在自检里整份加载，因此这里做结构
+    断言：语句存在、且落在正确的函数体内。
+    """
+    display_source = (FRONTEND_ROOT / 'static' / 'display.js').read_text(encoding='utf-8')
+    renderer_source = (FRONTEND_ROOT / 'static' / 'renderer' / 'renderer.js').read_text(encoding='utf-8')
+    boot_css = (FRONTEND_ROOT / 'static' / 'display-boot.css').read_text(encoding='utf-8')
+
+    def matched_lines(text: str, needle: str) -> str:
+        """把命中的那几行摘出来当诊断：失败时不用再回读整个文件。"""
+        hits = [line.strip() for line in text.splitlines() if needle in line]
+        return ' | '.join(hits[:3]) or f'没有任何一行包含 {needle!r}'
+
+    renderer_options = re.search(
+        r'new PanelRenderer\(displayRootElement, \{(.*?)\n          \}\);', display_source, re.DOTALL
+    )
+    options_text = renderer_options.group(1) if renderer_options else ''
+    check(
+        'W5 展示页构造渲染器时传了 onError（否则运行期异常只进日志、屏幕前毫无反馈）',
+        'onError(' in options_text,
+        matched_lines(options_text, 'onError')
+        if options_text
+        else '没找到 new PanelRenderer(displayRootElement, {...}) 的选项块',
+    )
+    check(
+        'W5 展示页把实时推送可用性接到了横幅上',
+        'onRuntimeAvailabilityChange(' in options_text and 'setRuntimePush(' in options_text,
+        matched_lines(options_text, 'setRuntimePush'),
+    )
+
+    refresh_if_visible = re.search(r'function refreshIfVisible\(\) \{(.*?)\n\}', display_source, re.DOTALL)
+    refresh_body = refresh_if_visible.group(1) if refresh_if_visible else ''
+    check(
+        'W4 展示页在每次刷新成功后撤销「无法更新」横幅（否则恢复联网后横幅一直挂着）',
+        'recovered()' in refresh_body and '.then(' in refresh_body,
+        matched_lines(refresh_body, 'recovered()')
+        if refresh_body
+        else '没找到 refreshIfVisible() 的函数体',
+    )
+
+    open_handler = re.search(r'addEventListener\("open", \(\) => \{(.*?)\n    \}\);', renderer_source, re.DOTALL)
+    fatal_close = re.search(r'if \(socketCloseEvent\.code === 4400\) \{(.*?)\n      \}', renderer_source, re.DOTALL)
+    check(
+        'W5 渲染层在订阅建立时上报「可用」（宿主机才有机会撤掉横幅）',
+        bool(open_handler) and 'onRuntimeAvailabilityChange?.(true)' in open_handler.group(1),
+        matched_lines(open_handler.group(1), 'onRuntimeAvailabilityChange?.(true)')
+        if open_handler
+        else '没找到 runtime socket 的 open 处理',
+    )
+    check(
+        'W5 渲染层在 4400（永久停止重连）时上报「不可用」并带上原因',
+        bool(fatal_close) and 'onRuntimeAvailabilityChange?.(false' in fatal_close.group(1),
+        matched_lines(fatal_close.group(1), 'onRuntimeAvailabilityChange?.(false')
+        if fatal_close
+        else '没找到 4400 分支',
+    )
+    check(
+        'W4 横幅不吃指针事件（横在画布顶部时不能挡住控件点击）',
+        bool(re.search(r'#display-notice \{[^}]*pointer-events: none', boot_css, re.DOTALL)),
+        matched_lines(boot_css, 'pointer-events: none'),
+    )
+
+
+def check_frontend_scripts_parse() -> None:
+    """改过的前端脚本必须能真解析（截断 / 括号错位会让整页静默失效）。
+
+    这些文件都是 ES 模块，而 ``node --check`` 对 ``.js`` 按 CommonJS 解析，会直接
+    在 `import` 上失败；因此复制成 ``.mjs`` 再检查（扩展名决定解析目标）。
+    """
+    if shutil.which('node') is None:
+        check('前端脚本语法门（node 不可用，跳过）', True, 'skipped')
+        return
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        for relative_path in FRONTEND_SYNTAX_FILES:
+            source = PROJECT_ROOT / relative_path
+            if not source.is_file():
+                check(f'前端脚本存在：{relative_path}', False, '文件不存在')
+                continue
+            copied = Path(temporary_directory) / (source.name + '.mjs')
+            copied.write_bytes(source.read_bytes())
+            parse = subprocess.run(  # noqa: S603
+                ['node', '--check', str(copied)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+            first_error = next(
+                (
+                    line.strip()
+                    for line in parse.stderr.strip().splitlines()
+                    if line.strip() and not line.strip().startswith(str(copied))
+                ),
+                '',
+            )
+            check(f'前端脚本语法可解析：{relative_path}', parse.returncode == 0, first_error)
+
+
+def _public_static_whitelist() -> set[str] | None:
+    """从 ``main.py`` 取出「匿名可访问的静态资源」白名单（字面量集合）。"""
+    main_tree = ast.parse((PROJECT_ROOT / 'backend' / 'app' / 'main.py').read_text(encoding='utf-8'))
+    for node in ast.walk(main_tree):
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Set):
+            continue
+        if not any(
+            isinstance(target, ast.Name) and target.id == 'public_static_files'
+            for target in node.targets
+        ):
+            continue
+        return {
+            element.value
+            for element in node.value.elts
+            if isinstance(element, ast.Constant) and isinstance(element.value, str)
+        }
+    return None
+
+
+def check_public_static_import_closure() -> None:
+    """匿名可访问的页面脚本，其 import 图必须整条都在匿名白名单里。
+
+    为什么值得一条自检：``/static/`` 下不在白名单的资源需要登录 + assets 能力，
+    而未激活 / 未登录时唯一能打开的正是 login / setup / pair / license 四个页面。
+    往 login.js 里加一行 import（P6 给登录请求加超时时就这么干了），模块图就断了
+    一环 —— 表现是整页脚本不执行、登录按钮完全没反应，而服务端日志一切正常。
+    这条检查把「漏加一个文件」从线上事故变成一条红色断言。
+    """
+    whitelist = _public_static_whitelist()
+    if whitelist is None:
+        check('能从 main.py 解析出匿名静态白名单', False, '没找到 public_static_files 集合字面量')
+        return
+    import_pattern = re.compile(r'''(?:^|\n)\s*(?:import|export)[^;\n]*?from\s*["']([^"']+)["']|(?:^|\n)\s*import\s*["']([^"']+)["']''')
+    static_root = (FRONTEND_ROOT / 'static').resolve()
+    pending = [url for url in sorted(whitelist) if url.endswith('.js')]
+    visited: set[str] = set()
+    missing: list[str] = []
+    while pending:
+        url = pending.pop()
+        if url in visited:
+            continue
+        visited.add(url)
+        owner = static_root / url.removeprefix('/static/')
+        if not owner.is_file():
+            missing.append(f'{url}（白名单里有这个文件，但磁盘上不存在）')
+            continue
+        for match in import_pattern.finditer(owner.read_text(encoding='utf-8')):
+            specifier = match.group(1) or match.group(2) or ''
+            # 只跟相对导入：绝对路径（/static/vendor/...）走的是另一套加载约定，
+            # 而且不在匿名页面的 import 图里。
+            if not specifier.startswith('.'):
+                continue
+            target = (owner.parent / specifier.split('?')[0]).resolve()
+            try:
+                target_url = '/static/' + str(target.relative_to(static_root))
+            except ValueError:
+                missing.append(f'{url} → {specifier}（跑到 static/ 之外了）')
+                continue
+            if target_url in whitelist:
+                pending.append(target_url)
+            else:
+                missing.append(f'{url} → {target_url}')
+    check(
+        '匿名页面脚本的 import 图在白名单内闭合',
+        not missing,
+        f'入口文件 {len(visited)} 个；' + ('；'.join(sorted(set(missing))) or '整条 import 图都在白名单里'),
+    )
+
+
 def check_every_check_is_wired() -> None:
     """每个 ``check_*`` 都必须被调用过（忘了接线的话，全绿是没有意义的）。
 
@@ -9017,6 +9356,12 @@ async def run() -> int:
     check_setup_token_provenance()
     await check_setup_admin_conflicts_are_409()
     check_license_flag_default_matches_loader()
+    check_frontend_api_request_timeouts()
+    check_frontend_login_submit_recovers()
+    check_frontend_display_runtime_notice()
+    check_frontend_display_notice_wiring()
+    check_frontend_scripts_parse()
+    check_public_static_import_closure()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

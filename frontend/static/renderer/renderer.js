@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260917022019";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918171600";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -51,9 +51,9 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260917022019";
-import { randomUuid } from "../utils/random-id.js?v=20260917022019";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260917022019";
+} from "./registry.js?v=20260918171600";
+import { randomUuid } from "../utils/random-id.js?v=20260918171600";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260918171600";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -72,11 +72,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260917022019";
+} from "./climate.js?v=20260918171600";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260917022019";
+} from "./device-profiles.js?v=20260918171600";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -85,26 +85,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260917022019";
-import { confirmAction } from "../ui-confirm.js?v=20260917022019";
+} from "../related-entities.js?v=20260918171600";
+import { confirmAction } from "../ui-confirm.js?v=20260918171600";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260917022019";
+} from "./entity-power.js?v=20260918171600";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260917022019";
-import { componentActionIsSupported } from "../action-rules.js?v=20260917022019";
+} from "../virtual-entities.js?v=20260918171600";
+import { componentActionIsSupported } from "../action-rules.js?v=20260918171600";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260917022019";
+} from "./transform-geometry.js?v=20260918171600";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -114,7 +114,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260917022019";
+} from "./effect-geometry.js?v=20260918171600";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -133,14 +133,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260917022019";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260917022019";
+} from "./light-runtime.js?v=20260918171600";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918171600";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260917022019";
+} from "./vacuum-runtime.js?v=20260918171600";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -173,13 +173,13 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260917022019";
+} from "./cover-runtime.js?v=20260918171600";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260917022019";
+} from "./runtime-dialog-motion.js?v=20260918171600";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -189,13 +189,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260917022019";
+} from "./runtime-caches.js?v=20260918171600";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260917022019";
+} from "./runtime-document.js?v=20260918171600";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -744,8 +744,12 @@ export class PanelRenderer {
    * @param {Map} [rendererOptions.runtimeStateCache] 外部共享的实体状态缓存。
    * @param {Map} [rendererOptions.virtualEntityStateCache] 外部共享的虚拟实体状态缓存。
    * @param {Map} [rendererOptions.historySeriesCache] 外部共享的历史曲线缓存。
-   * @param {Function} [rendererOptions.onError] 错误回调。
-   * @param {Function} [rendererOptions.onRuntimeButtonPress] 运行期按钮点击回调。
+ * @param {Function} [rendererOptions.onError] 错误回调。
+ * @param {Function} [rendererOptions.onRuntimeAvailabilityChange] 实时推送可用性回调：
+ *   连接建立并发出订阅时为 `(true)`；服务端以 4400 永久停掉订阅时为
+ *   `(false, message)`（此后不再自动重连）。故意只报「彻底不可用」这一种，
+ *   免得宿主机把每一次自动重连中的抖动都显示成故障。
+ * @param {Function} [rendererOptions.onRuntimeButtonPress] 运行期按钮点击回调。
    * @param {Function} [rendererOptions.onPageChange] 页面切换回调。
    */
   constructor(rootContainer, rendererOptions = {}) {
@@ -21912,6 +21916,8 @@ export class PanelRenderer {
           });
         }
         this.reconnectAttempt = 0;
+        // 订阅请求已发出（服务端仍可能随后以 4400 拒绝，那时会再报一次不可用）。
+        this.options.onRuntimeAvailabilityChange?.(true);
         runtimeSocket.send(
           JSON.stringify({
             type: "subscribe",
@@ -22096,6 +22102,10 @@ export class PanelRenderer {
               RUNTIME_SUBSCRIPTION_ENTITY_LIMIT +
               " 个，已停止重连。请减少统计或控件中绑定的实体。"
             : "实时状态订阅请求无效，已停止自动重连。";
+        // 这一条是「永久停止」：渲染层不会再重连，画面会停在最后一帧。
+        // 除了进日志，还要让宿主页面有机会把「画面可能已过期」显示出来
+        // （展示页据此挂常驻横幅，见 display.js 的 onRuntimeAvailabilityChange）。
+        this.options.onRuntimeAvailabilityChange?.(false, closeReasonMessage);
         this.options.onError?.(new Error(closeReasonMessage));
         return;
       }

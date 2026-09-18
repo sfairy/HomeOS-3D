@@ -5,7 +5,12 @@
  * 职责：提交用户名密码到 /api/v1/auth/login，成功后跳到 next 指定的页面。
  * 约定：next 参数只接受站内绝对路径，且必须拒绝 // 开头的协议相对地址，
  *   否则会被利用做开放重定向。
+ *   提交按钮的禁用状态在 finally 里复位，并且请求带超时（apiFetch）：两者缺一
+ *   都会让「点一次登录后按钮永久灰掉」——请求不返回时用户连重试都点不了。
  */
+
+import { apiFetch } from "./utils/api-fetch.js?v=20260918171600";
+
 const form = document.querySelector("#login-form"),
   message = document.querySelector("#message"),
   submit = form.querySelector('button[type="submit"]');
@@ -34,7 +39,7 @@ form.addEventListener("submit", async submitEvent => {
   submit.disabled = !0;
   try {
     // 非 JSON 响应（网关错误页等）解析失败，按空对象处理走默认错误文案。
-    const response = await fetch("/api/v1/auth/login", {
+    const response = await apiFetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -46,7 +51,9 @@ form.addEventListener("submit", async submitEvent => {
     if (!response.ok) throw new Error(responseBody.detail || "\u767B\u5F55\u5931\u8D25\u3002");
     window.location.assign(loginDestination());
   } catch (error) {
-    // 登录失败后恢复按钮，允许用户修改凭据重试。
-    ((message.textContent = error.message), (message.hidden = !1), (submit.disabled = !1));
+    ((message.textContent = error.message), (message.hidden = !1));
+  } finally {
+    // 无论成功、失败还是超时都要恢复按钮，否则用户只剩刷新页面一条路。
+    submit.disabled = !1;
   }
 });
