@@ -267,16 +267,18 @@ def list_global_logs(
     """
     # 先取出过滤后的全量再在内存里切片：日志本就在内存中，这样 total、hasMore
     # 与当前页结果天然同源，不会出现「总数比翻得到的条数多」的错位。
-    matching = request.app.state.global_log.list_events(level=level, category=category, search=search, limit=None)
+    # 三处都复用同一份快照（B13）：过去这里是三次 list_events，同一个日志文件
+    # 会被整份解析三遍；文件解析结果另有 mtime/size 缓存，重复请求不再重解析。
+    store = request.app.state.global_log
+    snapshot = store.events_snapshot()
+    matching = store.list_events(level=level, category=category, search=search, limit=None, events=snapshot)
     items = matching[offset:offset + limit]
-    all_items = request.app.state.global_log.list_events(limit=None)
     # 分类清单取未过滤的全量日志，否则一旦按 level 筛选，下拉框里的分类会缺项。
     categories = sorted({
         str(item.get('category') or '')
-        for item in all_items
+        for item in snapshot
         if item.get('category')
     })
-    store = request.app.state.global_log
     return {
         'items': items,
         'categories': categories,

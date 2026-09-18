@@ -293,9 +293,16 @@ class GlobalLogStore:
         self._last_error = None
         self._last_warning_at = None
         self._tail_checked = False
+        # 文件解析结果的缓存：(mtime_ns, size, 重写代数) → 事件列表（最旧在前）。
+        # 日志接口一次请求要「筛选后的 + 未筛选的」两份列表，不缓存的话同一个
+        # 文件会被整份解析两三遍（B13）。重写代数由 _write_events 递增，因此
+        # 即使 mtime 精度不够（某些文件系统按秒计）也不会读到过期内容。
+        self._file_cache: tuple[tuple[int, int, int], list[dict[str, Any]]] | None = None
+        self._file_revision = 0
         # 统计量：只用于自检与排障，不对外暴露。
         self._flush_count = 0
         self._prune_count = 0
+        self._parse_count = 0
         try:
             self._prepare_directory()
         except OSError as error:
@@ -605,6 +612,7 @@ class GlobalLogStore:
         search: str | None = None,
         limit: int | None = 500,
         offset: int = 0,
+        events: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
         """按级别 / 分类 / 关键词筛选事件，按时间倒序返回。
 
@@ -614,13 +622,17 @@ class GlobalLogStore:
             search: 在来源、分类、说明、上下文与细节中做子串搜索（大小写不敏感）。
             limit: 返回上限，None 表示不限（实际最多 2000 条）；下限 1。
             offset: 跳过的条数，在筛选之后应用，用于翻页。
+            events: 复用 :meth:`events_snapshot` 的结果。日志列表接口要同时给出
+                「筛选后的」与「未筛选的（分类清单）」，不传这一项就是两次全量解析
+                （B13）；传入同一份快照即可，筛选口径完全一致。
 
         返回:
             事件字典列表，最新的排在最前。
         """
         search_key = _safe_text(search, limit=128).casefold() if search else ""
-        with self._lock:
-            events = self._read_events()
+        if events is None:
+            with self._lock:
+                events = self._read_events()
         result = []
         cutoff = _utc_now() - timedelta(days=self.retention_days)
         # reversed：文件里是追加写的，倒着遍历即最新的在前。
@@ -667,6 +679,67 @@ class GlobalLogStore:
             self._last_queued_at.clear()
             self._pending.clear()
 
+    def events_snapshot(self) -> list[dict[str, Any]]:
+        """一次读出全部事件（含内存里尚未落盘的），按写入顺序（最旧在前）。
+
+        给「一次请求要看好几遍日志」的接口用（见 :meth:`list_events` 的 ``events``
+        参数）：调用方拿这一份快照自己筛选，文件只解析一次。
+        """
+        with self._lock:
+            return self._read_events()
+
+    def _file_events(self, *, strict: bool = False) -> list[dict[str, Any]]:
+        """文件里的事件（按写入顺序，最旧在前），按 mtime/size/重写代数缓存。
+
+        参数:
+            strict: True 时读写失败直接抛出（裁剪路径需要，避免误把
+                读失败当成"没有事件"而清空日志）。
+
+        返回:
+            文件里解析出来的事件列表；调用方不得原地修改其中的条目（它们与缓存
+            共享同一批对象）。
+        """
+        try:
+            info = self.path.stat()
+        except FileNotFoundError:
+            if strict:
+                raise
+            self._file_cache = None
+            return []
+        except OSError as error:
+            if strict:
+                raise
+            self._io_failure(error)
+            return []
+        key = (info.st_mtime_ns, info.st_size, self._file_revision)
+        cached = self._file_cache
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        events: list[dict[str, Any]] = []
+        try:
+            with self.path.open("rb") as source:
+                for line in source:
+                    try:
+                        event = json.loads(line)
+                    except (TypeError, json.JSONDecodeError, UnicodeDecodeError):
+                        # 单行损坏（例如进程被杀留下的半行）不影响其它事件。
+                        continue
+                    if isinstance(event, dict) and isinstance(event.get("timestamp"), str):
+                        events.append(event)
+        except FileNotFoundError:
+            if strict:
+                raise
+            self._file_cache = None
+            return []
+        except OSError as error:
+            if strict:
+                raise
+            self._io_failure(error)
+            return []
+        self._parse_count += 1
+        self._file_cache = (key, events)
+        return events
+
     def _read_events(self, *, strict: bool = False) -> list[dict[str, Any]]:
         """读取全部事件，按 id 去重后返回。
 
@@ -692,22 +765,8 @@ class GlobalLogStore:
             events.pop(event_id, None)
             events[event_id] = event
 
-        try:
-            with self.path.open("rb") as source:
-                for line in source:
-                    try:
-                        event = json.loads(line)
-                    except (TypeError, json.JSONDecodeError, UnicodeDecodeError):
-                        # 单行损坏（例如进程被杀留下的半行）不影响其它事件。
-                        continue
-                    collect(event)
-        except FileNotFoundError:
-            if strict:
-                raise
-        except OSError as error:
-            if strict:
-                raise
-            self._io_failure(error)
+        for event in self._file_events(strict=strict):
+            collect(event)
 
         # 磁盘上还没有的事件必须算进来：否则磁盘不可用期间，
         # 前端刷新日志会完全看不到刚刚发生的问题。
@@ -738,6 +797,10 @@ class GlobalLogStore:
             os.fsync(output.fileno())
         os.replace(temporary, self.path)
         os.chmod(self.path, 0o600)
+        # 重写后文件变了：代数 +1 让旧缓存立刻失效。mtime/size 通常也变了，
+        # 但某些文件系统的 mtime 只到秒级，同秒内的两次重写会撞在一起。
+        self._file_revision += 1
+        self._file_cache = None
 
     def _prune_if_needed(self) -> None:
         """按保留天数与文件上限裁剪日志（只应由后台写线程调用）。

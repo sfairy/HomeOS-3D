@@ -42,6 +42,7 @@ from .api.displays import (
     PAIRING_CODE_KEYS,
     PAIRING_CODE_LIMIT,
     PAIRING_GLOBAL_LIMIT,
+    PAIRING_SHARED_ADDRESS_LIMIT,
     router as displays_router,
 )
 from .api.ha import router as ha_router, runtime_router
@@ -53,6 +54,7 @@ from .modules.interaction3d.api import router as interaction3d_router
 from .api.projects import router as projects_router
 from .api.studio3d import router as studio3d_router
 from .auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
+from .body_guard import DraftBodyGuard
 from .config import Settings, load_settings
 from .database import Database
 from .ha.service import HAConnectorService
@@ -187,6 +189,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.login_account_limiter = LoginAttemptLimiter(10, 900, 900)
             # 中控配对的跨来源失败预算（按 IP 那一档在 login_limiter 里，见 displays.py）。
             app.state.pairing_limiter = LoginAttemptLimiter(*PAIRING_GLOBAL_LIMIT)
+            # 只能拿到共享地址（可信代理没传转发头）时的兜底桶（B16）：按 IP 那一档
+            # 在这种情况下会让位，但不能整个跳过 —— 那样一个来源就能烧完跨来源预算，
+            # 把所有人一起挡在配对页外。
+            app.state.pairing_shared_limiter = LoginAttemptLimiter(*PAIRING_SHARED_ADDRESS_LIMIT)
             # 第三档：按被尝试的码记账（B48）。键是外部可控输入，因此用带键上限的一层
             # 包装 —— 否则「每次换一个码来试」就成了一条内存放大路径。
             app.state.pairing_code_limiter = BoundedAttemptLimiter(*PAIRING_CODE_LIMIT, max_keys = PAIRING_CODE_KEYS)
@@ -844,6 +850,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     # camera / HLS 反向代理自行定义 /api/* 路径，因此不挂 /api/v1 前缀。
     app.include_router(ha_proxy_router)
+    # 草稿类请求体的字节 / 深度上限（B7）。注册在这里意味着它比同源闸门与
+    # 资源鉴权更靠外：FastAPI 是先读全请求体再进依赖与路由的，只有在中间件
+    # 层拦才算拦得住（未登录的匿名请求也能用它把内存打满）。
+    app.add_middleware(DraftBodyGuard)
     # 诊断中间件放在最后注册：它会包住上面所有路由（含 ha_proxy），
     # 从而也能记录代理请求的耗时与错误。
     app.middleware('http')(record_request_diagnostics)

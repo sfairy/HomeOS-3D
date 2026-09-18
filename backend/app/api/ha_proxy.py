@@ -80,6 +80,13 @@ RESPONSE_HEADERS_TO_DROP = {
 CAMERA_SNAPSHOT_CACHE_TTL_SECONDS = 8
 # 缓存条目上限，超限按创建时间淘汰最旧一条，防止长期运行把内存吃满。
 CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES = 64
+# 缓存的**字节**预算（B14）：条数封顶挡不住「64 张 4K 快照」这种组合 ——
+# 按张数算，64 张各 3 MB 就是近 200 MB 常驻内存。超预算同样淘汰最旧的一条，
+# 直到落回预算内；两个上限都生效（先撞哪个按哪个）。
+CAMERA_SNAPSHOT_CACHE_MAX_BYTES = 24 * 1024 * 1024
+# 单张快照**可进缓存**的上限（B14/B15）。超过它的响应照旧原样流给浏览器，
+# 只是不为它攒内存：缓存图的是省下一次回源，不值得为此把一张几十 MB 的图钉住。
+CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES = 6 * 1024 * 1024
 # HA 摄像头实体 supported_features 的 bit 2 表示支持 STREAM（可转 HLS）。
 CAMERA_FEATURE_STREAM = 2
 
@@ -378,14 +385,43 @@ def camera_snapshot_cache_key(base_url: str, path: str) -> str:
     return f'{base_url.rstrip("/")}{path}'
 
 
+def _camera_snapshot_cache_bytes() -> int:
+    """当前快照缓存占用的字节数（自检与预算淘汰都要用）。"""
+    return sum(len(entry.content) for entry in camera_snapshot_cache.values())
+
+
 def _remember_camera_snapshot(key: str, content: bytes, content_type: str) -> None:
-    """写入快照缓存；满员时淘汰最旧的一条。
+    """写入快照缓存；超条数或超字节预算时淘汰最旧的一条。
 
     用「淘汰最旧」而不是 clear()：缓存里都是活跃图片，清空会让紧接着的一轮
     请求全部回源，反过来冲击 HA。
+
+    单张超过 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES`` 的直接不缓存（B14）：
+    这类响应（例如一张几十 MB 的原始快照）一旦缓存，一条就能吃掉整个字节预算，
+    把真正有用的那几十张小图全挤出去，而它自己的命中率并不高。
+
+    预算与单张上限都调得很小时，缓存里至少会留下第一条 —— 与日志裁剪同一口径：
+    宁可短暂超一点，也不要出现「什么都存不下」的空转。
     """
-    # 只在新增键时才考虑淘汰，覆盖已有键不会让条目数增长。
-    if key not in camera_snapshot_cache and len(camera_snapshot_cache) >= CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES:
+    if len(content) > CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES:
+        camera_snapshot_cache.pop(key, None)
+        return None
+    # 淘汰判据是「放进这一条之后」的占用：覆盖已有键时先把它自己那一份算掉。
+    # 旧实现在条数满时就有这层保护（覆盖不会让条数增长），换成字节预算后同样
+    # 需要 —— 否则反复刷新同一张图会被当成新增，每次都白白淘汰一条别的活跃图。
+    while camera_snapshot_cache:
+        replaced = camera_snapshot_cache.get(key)
+        replaced_bytes = len(replaced.content) if replaced is not None else 0
+        over_entries = (
+            replaced is None
+            and len(camera_snapshot_cache) >= CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES
+        )
+        over_bytes = (
+            _camera_snapshot_cache_bytes() - replaced_bytes + len(content)
+            > CAMERA_SNAPSHOT_CACHE_MAX_BYTES
+        )
+        if not (over_entries or over_bytes):
+            break
         oldest_key = min(camera_snapshot_cache, key=lambda item: camera_snapshot_cache[item].created_at)
         camera_snapshot_cache.pop(oldest_key, None)
     camera_snapshot_cache[key] = CameraSnapshotCacheEntry(
@@ -593,18 +629,48 @@ async def proxy_http(request: Request) -> Response:
         return StreamingResponse(
             stream_body(), status_code=upstream.status_code, headers=response_headers
         )
-    content = upstream.content
-    # 回源成功就顺手更新缓存，下一次请求直接命中。
-    if snapshot_request and 200 <= upstream.status_code < 300 and content:
-        _remember_camera_snapshot(
-            snapshot_key,
-            content,
-            upstream.headers.get('content-type', 'image/jpeg'),
-        )
-    # 非流式分支内容已读全，显式关闭两个客户端。
-    await upstream.aclose()
-    await client.aclose()
-    return Response(content=content, status_code=upstream.status_code, headers=response_headers)
+
+    async def pass_through_body():
+        """非流式分支：同样逐块透传，只在「够小且要缓存」时攒一份副本。
+
+        过去这里是 ``content = upstream.content`` —— 上游给多大就占多大内存
+        （B15）：一张几十 MB 的图、或者一个被指向大文件的 image_proxy 路径，
+        都能让一次请求把整包内容钉在内存里。快照路径更吃亏：它本来就要缓存一份，
+        于是同一张图在内存里存在两份。
+
+        攒副本的边界是 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES``：一旦超过就丢掉
+        已攒的部分并停止累积（响应照旧完整透传），因此单条响应额外占用的内存
+        最多就是这一个上限。只有快照请求（``snapshot_request``）才攒 ——
+        其余路径（image_proxy / media_player_proxy / HLS 播放列表）压根不进缓存。
+        """
+        buffered = bytearray()
+        cacheable = snapshot_request
+        try:
+            async for chunk in upstream.aiter_raw():
+                if not chunk:
+                    continue
+                if cacheable:
+                    buffered.extend(chunk)
+                    if len(buffered) > CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES:
+                        # 超限就放弃缓存：清掉已攒的，避免「大图照样钉在内存里」。
+                        cacheable = False
+                        buffered = bytearray()
+                yield chunk
+        finally:
+            await upstream.aclose()
+            await client.aclose()
+        # 走到这里说明上游已经读完（生成器提前关闭时不会执行到这里，
+        # 半截内容绝不能进缓存）。回源成功就顺手更新缓存，下一次请求直接命中。
+        if cacheable and buffered and 200 <= upstream.status_code < 300:
+            _remember_camera_snapshot(
+                snapshot_key,
+                bytes(buffered),
+                upstream.headers.get('content-type', 'image/jpeg'),
+            )
+
+    return StreamingResponse(
+        pass_through_body(), status_code=upstream.status_code, headers=response_headers
+    )
 
 
 @router.get('/api/camera_hls/{entity_id}')

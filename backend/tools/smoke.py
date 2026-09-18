@@ -2803,11 +2803,22 @@ class _LoopTicker:
         self._task = None
 
 
-def _request_with_chunks(app: Any, path: str, headers: dict[str, str], chunks: list[bytes]):
+def _request_with_chunks(
+    app: Any,
+    path: str,
+    headers: dict[str, str],
+    chunks: list[bytes],
+    *,
+    method: str = 'POST',
+    query_string: str = '',
+):
     """拼一个真的 ``Request``（含可迭代的请求体），用来直接调路由函数。
 
     不经过 ASGI 应用是刻意的：这几条检查要观测「同步工作跑在哪个线程」，
     起一个完整的应用只会多出无关的中间件与生命周期，反而看不清。
+
+    ``method`` / ``query_string`` 是给媒体代理那几条检查用的：它们走 GET，
+    且要看查询串（``hb_live``）对缓存分支的影响。
     """
     from starlette.requests import Request
 
@@ -2822,11 +2833,11 @@ def _request_with_chunks(app: Any, path: str, headers: dict[str, str], chunks: l
     scope = {
         'type': 'http',
         'http_version': '1.1',
-        'method': 'POST',
+        'method': method,
         'scheme': 'http',
         'path': path,
         'raw_path': path.encode(),
-        'query_string': b'',
+        'query_string': query_string.encode(),
         'root_path': '',
         'headers': [(key.lower().encode(), value.encode()) for (key, value) in headers.items()],
         'client': ('127.0.0.1', 40000),
@@ -4059,6 +4070,7 @@ async def check_pairing_code_attempt_budget() -> None:
     from backend.app.global_log import RepeatedErrorTally
     from backend.app.database import Base, Database
     from backend.app.main import create_app
+    from backend.app.api.displays import PAIRING_SHARED_ADDRESS_LIMIT
     from backend.app.models import DisplayPairingCode, Project, User
     from backend.app.security import session_token_hash
 
@@ -4092,6 +4104,9 @@ async def check_pairing_code_attempt_budget() -> None:
         app.state.error_tally = RepeatedErrorTally()
         app.state.pairing_code_limiter = BoundedAttemptLimiter(5, 900, 900, max_keys=64)
         app.state.pairing_limiter = LoginAttemptLimiter(30, 60, 60)
+        # per_client=False 时按共享地址记的那一档（B16）：与生产同参数，
+        # 好让「连错 5 次不会误伤」与真实阈值一致。
+        app.state.pairing_shared_limiter = LoginAttemptLimiter(*PAIRING_SHARED_ADDRESS_LIMIT)
         app.state.login_limiter = LoginAttemptLimiter()
         # 让 resolve_client_ip 认定「对端是可信代理但没带转发头」→ per_client=False。
         # Settings 是 frozen 的，用 replace 造副本。
@@ -4128,6 +4143,82 @@ async def check_pairing_code_attempt_budget() -> None:
         'B48 正确的码照旧能配对成功（修好之后别把正常配对挡了）',
         paired.status_code in (200, 201) and bool(paired.json().get('targetUrl')),
         f'{paired.status_code} {paired.json().get("targetUrl")}',
+    )
+
+
+def check_pair_shared_address_bucket() -> None:
+    """B16：拿不到真实客户端地址时，按来源地址那一档必须「换桶」而不是「跳过」。
+
+    两条错误的路都得堵住：
+    - 过去是**整个跳过** —— 剩下只有跨来源那一档（所有人平摊同一份额度），
+      一个从共享地址来的攻击者几分钟就能把它烧光，把所有人一起挡在外面；
+    - 「仍然按共享地址记进真实 IP 那一档」也不行 —— 代理后面是一整栋楼，
+      别人手滑几次就把普通用户的登录预算吃掉一块，还会互相误伤。
+
+    这条检查不看日志、不看文案，直接看函数交出来的是**哪个限流器、哪个键**：
+    换错桶的话，后面两段（共享桶灌满不影响真实 IP、也不影响登录桶）会立刻报红。
+    """
+    from backend.app.api.displays import (
+        PAIRING_GLOBAL_KEY,
+        PAIRING_SHARED_ADDRESS_LIMIT,
+        enforce_pair_rate_limit,
+        note_pair_failure,
+    )
+    from backend.app.auth_limiter import LoginAttemptLimiter
+
+    from fastapi import HTTPException
+    app = SimpleNamespace(
+        state=SimpleNamespace(
+            login_limiter=LoginAttemptLimiter(5, 900, 900),
+            pairing_shared_limiter=LoginAttemptLimiter(*PAIRING_SHARED_ADDRESS_LIMIT),
+            # 跨来源那一档给足额度：这条检查只看「换不换桶」。跨来源本身该不该拦、
+            # 什么时候拦，由 B48 那条走真路由的检查盯。
+            pairing_limiter=LoginAttemptLimiter(1000, 60, 60),
+            pairing_code_limiter=LoginAttemptLimiter(5, 900, 900),
+        )
+    )
+    request = SimpleNamespace(app=app)
+    shared_address = '203.0.113.9'
+
+    (shared_limiter, shared_key) = enforce_pair_rate_limit(request, shared_address, per_client=False)
+    check(
+        'B16 per_client=False 时用共享地址那一档，键单独命名（不与真实 IP 桶混用）',
+        shared_limiter is app.state.pairing_shared_limiter
+        and shared_key == f'display-pair-shared:{shared_address}',
+        f'limiter={"共享桶" if shared_limiter is app.state.pairing_shared_limiter else "非共享桶"} key={shared_key}',
+    )
+
+    for _ in range(PAIRING_SHARED_ADDRESS_LIMIT[0]):
+        note_pair_failure(request, shared_limiter, shared_key, 'code-hash')
+    blocked_status = None
+    blocked_retry_after = None
+    try:
+        enforce_pair_rate_limit(request, shared_address, per_client=False)
+    except HTTPException as error:
+        blocked_status = error.status_code
+        blocked_retry_after = (error.headers or {}).get('Retry-After')
+    check(
+        'B16 共享地址连续失败后会被拦下（不再是一档形同虚设的限额）',
+        blocked_status == 429 and blocked_retry_after == str(PAIRING_SHARED_ADDRESS_LIMIT[2]),
+        f'状态={blocked_status} Retry-After={blocked_retry_after} 配额={PAIRING_SHARED_ADDRESS_LIMIT}',
+    )
+    check(
+        'B16 真实 IP 那一档不受影响（共享地址被锁，不代表所有人都被锁）',
+        enforce_pair_rate_limit(request, '198.51.100.7', per_client=True)[1]
+        == 'display-pair:198.51.100.7',
+        '真实 IP 仍按自己的键计数',
+    )
+    check(
+        'B16 共享地址的失败没记进登录桶（不挤占正常用户的登录预算）',
+        not app.state.login_limiter.blocked(f'display-pair:{shared_address}')
+        and not app.state.login_limiter._failures,
+        f'登录桶键={sorted(app.state.login_limiter._failures)}',
+    )
+    check(
+        'B16 跨来源那一档照旧记账（换桶不等于少记一档）',
+        app.state.pairing_limiter._failures.get(PAIRING_GLOBAL_KEY)
+        or app.state.pairing_limiter._blocked_until.get(PAIRING_GLOBAL_KEY),
+        f'跨来源键={sorted(app.state.pairing_limiter._failures)}',
     )
 
 
@@ -4580,7 +4671,7 @@ async def check_pairing_race_returns_409() -> None:
 
     from sqlalchemy import update as sa_update
 
-    from backend.app.api.displays import DEVICE_ALREADY_BOUND_DETAIL
+    from backend.app.api.displays import DEVICE_ALREADY_BOUND_DETAIL, PAIRING_SHARED_ADDRESS_LIMIT
     from backend.app.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
     from backend.app.dependencies import get_database_session
     from backend.app.global_log import RepeatedErrorTally
@@ -4607,6 +4698,7 @@ async def check_pairing_race_returns_409() -> None:
         # 免登录接口的三档限流器都要在（这条检查只看并发裁决，但缺了状态会直接报错）。
         app.state.pairing_limiter = LoginAttemptLimiter(30, 60, 60)
         app.state.pairing_code_limiter = BoundedAttemptLimiter(5, 900, 900, max_keys=64)
+        app.state.pairing_shared_limiter = LoginAttemptLimiter(*PAIRING_SHARED_ADDRESS_LIMIT)
         app.state.login_limiter = LoginAttemptLimiter()
         app.state.error_tally = RepeatedErrorTally()
         app.state.settings = replace(app.state.settings, trusted_proxies=())
@@ -4708,6 +4800,522 @@ async def check_pairing_race_returns_409() -> None:
     )
 
 
+# --------------------------------------------------------------------------- #
+# B7：草稿类请求体的字节上限与嵌套深度上限
+# --------------------------------------------------------------------------- #
+class _StubAsgiApp:
+    """ASGI 桩：记下自己被调用了几次、读到的请求体是什么。
+
+    中间件那一层要观测的正是「请求有没有进到应用里」，因此桩只需要把收到的
+    体重读出来并回一个 200；重复调用 ``receive`` 的第二次结果也记下来，
+    用来验证重放是幂等的（下游多读一次不该拿到空体）。
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.bodies: list[bytes] = []
+        self.second_reads: list[bytes] = []
+
+    async def __call__(self, scope, receive, send) -> None:
+        self.calls += 1
+        chunks: list[bytes] = []
+        while True:
+            message = await receive()
+            if message['type'] != 'http.request':
+                break
+            chunks.append(message.get('body') or b'')
+            if not message.get('more_body'):
+                break
+        self.bodies.append(b''.join(chunks))
+        # 再读一次：ASGI 允许应用多次调用 receive，中间件的重放必须是幂等的。
+        again = await receive()
+        self.second_reads.append(again.get('body') or b'')
+        await send({'type': 'http.response.start', 'status': 200, 'headers': []})
+        await send({'type': 'http.response.body', 'body': b'ok'})
+
+
+async def _drive_guard(guard, path: str, method: str, chunks: list[bytes]):
+    """直接跑一次 ASGI 调用，返回 (响应状态码, 桩应用, 还没被取走的请求体分块)。
+
+    不经过 httpx：这条检查要数「哪些分块真的被中间件读掉了」，
+    而 HTTP 客户端会把这件事藏起来。
+    """
+    pending = list(chunks)
+    consumed: list[bytes] = []
+
+    async def receive() -> dict[str, Any]:
+        if pending:
+            body = pending.pop(0)
+            consumed.append(body)
+            return {'type': 'http.request', 'body': body, 'more_body': bool(pending)}
+        return {'type': 'http.request', 'body': b'', 'more_body': False}
+
+    sent: list[dict[str, Any]] = []
+
+    async def send(message: dict[str, Any]) -> None:
+        sent.append(message)
+
+    scope = {'type': 'http', 'method': method, 'path': path, 'headers': [], 'query_string': b''}
+    await guard(scope, receive, send)
+    status_code = next((item['status'] for item in sent if item['type'] == 'http.response.start'), None)
+    return (status_code, sent, pending)
+
+
+async def check_draft_body_limits() -> None:
+    """B7：草稿写接口的两道上限都必须在「读进内存 / 解析」之前生效。
+
+    这两件事必须分开测，因为它们是两种完全不同的输入：
+
+    1. 几百 MB 的请求体 —— 修好之前它会被整个读进内存并落进草稿列；
+    2. 只有几 KB 但嵌套几千层 —— 字节上限完全拦不住，``json.loads`` 会先抛
+       ``RecursionError``（未捕获 → 500，堆栈进全局日志）。深度上限必须在解析
+       之前判，因此判据只能是「扫原始字节」，不能是「解析完再遍历」。
+
+    中间件那一层用最直接的观测：请求有没有进到下游应用里（桩的 ``calls``）。
+    进不去就说明拦在了该拦的位置；只断言状态码是不够的 —— 一个「先读全、再回 413」
+    的实现同样能回 413，而内存峰值照样发生。
+    """
+    from backend.app.body_guard import (
+        MAX_JSON_DEPTH,
+        DraftBodyGuard,
+        json_nesting_depth,
+    )
+
+    # —— 深度扫描器本身：括号在字符串里时必须不算深度 ——
+    bracketed_in_string = json.dumps({'a': '[[[[[[[[[[', 'b': [1, [2]]}).encode()
+    escaped_quote = b'{"a": "\\"[[[["}'
+    check(
+        'B7 深度扫描器数的是结构层级，字符串里的括号不算数',
+        json_nesting_depth(bracketed_in_string) == 3
+        and json_nesting_depth(b'[[[]]]') == 3
+        and json_nesting_depth(escaped_quote) == 1,
+        f'含括号字符串={json_nesting_depth(bracketed_in_string)}，'
+        f'转义引号={json_nesting_depth(escaped_quote)}',
+    )
+
+    stub = _StubAsgiApp()
+    guard = DraftBodyGuard(stub)
+    draft_path = '/api/v1/projects/proj-a/draft'
+    body = json.dumps({'revision': 1, 'document': {'a': [1, 2, 3]}}).encode()
+
+    # —— 正常请求：照旧进路由，且请求体被完整重放（可重复读） ——
+    (status, _sent, _left) = await _drive_guard(guard, draft_path, 'PUT', [body])
+    check(
+        'B7 正常草稿照旧放行，且请求体被完整重放给下游',
+        status == 200 and stub.calls == 1 and stub.bodies == [body] and stub.second_reads == [body],
+        f'状态={status} 调用={stub.calls} 重放={len(stub.bodies[0]) if stub.bodies else 0} 字节',
+    )
+
+    # —— 字节上限：分批送来也要拦住（分块传输没有 Content-Length 可看） ——
+    stub_big = _StubAsgiApp()
+    guard_big = DraftBodyGuard(stub_big)
+    oversized = [b'x' * (3 * 1024 * 1024), b'y' * (3 * 1024 * 1024), b'z' * (3 * 1024 * 1024)]
+    (status_big, sent_big, left_big) = await _drive_guard(guard_big, draft_path, 'PUT', oversized)
+    check(
+        'B7 超字节上限的请求回 413，且请求体没进到路由里',
+        status_big == 413 and stub_big.calls == 0,
+        f'状态={status_big} 路由调用={stub_big.calls}',
+    )
+    check(
+        'B7 回 413 之前把剩余分块读完（否则连接上会残留半个请求体）',
+        left_big == [] and '过大' in _detail_of_text(sent_big),
+        f'剩余分块={len(left_big)} {_detail_of_text(sent_big)[:24]}',
+    )
+
+    # —— 深度上限：几 KB 就能打爆解析器，字节上限对此无能为力 ——
+    stub_deep = _StubAsgiApp()
+    guard_deep = DraftBodyGuard(stub_deep)
+    deep = (b'[' * 2000) + (b']' * 2000)
+    (status_deep, sent_deep, _left_deep) = await _drive_guard(guard_deep, draft_path, 'PUT', [deep])
+    check(
+        'B7 深到能打爆解析器的请求回 422（而不是 500 + RecursionError）',
+        status_deep == 422 and stub_deep.calls == 0 and '嵌套' in _detail_of_text(sent_deep),
+        f'状态={status_deep} 路由调用={stub_deep.calls} {_detail_of_text(sent_deep)[:40]}',
+    )
+    check(
+        'B7 深度边界是按常量判的（正好等于上限放行，多一层才拒）',
+        json_nesting_depth(b'[' * MAX_JSON_DEPTH + b']' * MAX_JSON_DEPTH) == MAX_JSON_DEPTH
+        and json_nesting_depth(b'[' * (MAX_JSON_DEPTH + 1) + b']' * (MAX_JSON_DEPTH + 1)) == MAX_JSON_DEPTH + 1,
+        f'上限={MAX_JSON_DEPTH}',
+    )
+
+    # —— 不在清单里的路径不该被缓冲（上传素材、导出 ZIP 要自己按块读） ——
+    stub_other = _StubAsgiApp()
+    guard_other = DraftBodyGuard(stub_other)
+    (status_other, _sent_other, _left_other) = await _drive_guard(
+        guard_other, '/api/v1/assets/user', 'POST', [b'first', b'second']
+    )
+    check(
+        'B7 非草稿路径完全不碰请求体（原样交给调用方自己流式读）',
+        status_other == 200 and stub_other.calls == 1 and stub_other.bodies == [b'firstsecond'],
+        f'状态={status_other} 体={stub_other.bodies}',
+    )
+
+    # —— 接线：真应用里这条中间件真的挂着（在认证之前就拦得住） ——
+    from backend.app.api.projects import serialize_document
+    from backend.app.panel.documents import create_blank_project
+
+    with tempfile.TemporaryDirectory(prefix='hb-body-guard-') as tmp:
+        (app, database, cookie) = _projects_app(Path(tmp))
+        document = create_blank_project('proj-a', '甲项目')
+        _seed_project(database, 'proj-a', '甲项目', document_json=serialize_document(document))
+        app.state.ha_connector = SimpleNamespace(refresh_persistent_entity_ids=lambda **_kwargs: None)
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            # 不带 Cookie：413 照样先出来，说明拦在认证之前（否则会是 401）。
+            anonymous_big = await client.put(draft_path, content=b'x' * (9 * 1024 * 1024))
+            anonymous_deep = await client.put(
+                '/api/v1/studio3d', content=(b'[' * 2000) + (b']' * 2000)
+            )
+            normal = await client.put(
+                draft_path,
+                cookies=cookie,
+                json={'revision': 1, 'globalPopupsDirty': False, 'document': document},
+            )
+    check(
+        'B7 真应用里匿名超大请求回 413（拦在认证与读全请求体之前）',
+        anonymous_big.status_code == 413 and '过大' in _detail_of(anonymous_big),
+        f'{anonymous_big.status_code} {_detail_of(anonymous_big)[:40]}',
+    )
+    check(
+        'B7 3D 草稿同样受深度上限约束（两个入口共用一套判据）',
+        anonymous_deep.status_code == 422 and '嵌套' in _detail_of(anonymous_deep),
+        f'{anonymous_deep.status_code} {_detail_of(anonymous_deep)[:40]}',
+    )
+    check(
+        'B7 正常大小的草稿照旧保存成功（上限没把正常路径挡掉）',
+        normal.status_code == 200 and _field_of(normal, 'revision') == 2,
+        f'{normal.status_code} {_detail_of(normal)[:60]}',
+    )
+
+
+# --------------------------------------------------------------------------- #
+# B14/B15：媒体代理的内存占用（快照缓存预算 + 非流式分支的透传）
+# --------------------------------------------------------------------------- #
+class _ChunkedUpstream:
+    """上游桩：分块吐出内容，并记录「整包是否已经被读完」。
+
+    断言靠的就是这个记录：旧实现先 ``upstream.content`` 读全再回响应，
+    因此在客户端拿到第一个字节之前就已经是「读完」状态；逐块透传则相反。
+    它不是「读源码猜实现」——两条路径在**可观测的时间点**上确实不同。
+    """
+
+    def __init__(self, chunks: list[bytes], status_code: int = 200) -> None:
+        self.chunks = chunks
+        self.status_code = status_code
+        self.headers = {'content-type': 'image/jpeg'}
+        self.finished = False
+
+    async def aiter_raw(self):
+        for chunk in self.chunks:
+            yield chunk
+        self.finished = True
+
+    @property
+    def content(self) -> bytes:
+        """旧实现读的正是这个属性：一次拿到全部（因此这里标记已完成）。"""
+        self.finished = True
+        return b''.join(self.chunks)
+
+    async def aclose(self) -> None:
+        return None
+
+
+class _FixedUpstreamClient(FakeAsyncClient):
+    """``httpx.AsyncClient`` 替身：每次 ``send`` 都回同一个（分块的）上游响应。"""
+
+    def __init__(self, upstream: _ChunkedUpstream, **_kwargs) -> None:
+        super().__init__()
+        self._upstream = upstream
+
+    async def send(self, request, stream: bool = False):
+        FakeAsyncClient.sent.append((request.method, request.url))
+        return self._upstream
+
+
+async def check_media_body_bounded() -> None:
+    """B14/B15：媒体代理占用的内存必须由上限封住，而不是由上游给多大决定。
+
+    两件事：
+    - ``非流式分支``（B15）过去是 ``content = upstream.content``，一张几十 MB 的图
+      或一个被指向大文件的 image_proxy 路径就能让一次请求把整包内容钉在内存里；
+    - 快照缓存（B14）只有条数上限，64 张 4K 快照 ≈ 200 MB 常驻。
+
+    判据刻意用「第一个字节交到客户端时，上游是否已经读完」：这比断言「有没有调
+    aiter_raw」更结实 —— 一个「先读全、再分块 yield」的实现同样调了 aiter_raw，
+    但内存峰值照样发生，而这里会照旧报红。
+    """
+    from backend.app.api import ha_proxy
+    from backend.app.api.ha_proxy import _camera_snapshot_cache_bytes, _remember_camera_snapshot, camera_snapshot_cache
+
+    fixture = await _build_media_proxy_fixture(Path(tempfile.mkdtemp(prefix='hb-media-bounded-')))
+    fixture.app.state.active_viewer = 'a'
+    original_httpx = ha_proxy.httpx
+    saved_cache_bytes = ha_proxy.CAMERA_SNAPSHOT_CACHE_MAX_BYTES
+    saved_cacheable = ha_proxy.CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES
+    camera_snapshot_cache.clear()
+    try:
+        # —— B15：分块透传，不在回响应之前读全 ——
+        chunks = [b'a' * 1000, b'b' * 1000, b'c' * 1000]
+        upstream = _ChunkedUpstream(chunks)
+        ha_proxy.httpx = SimpleNamespace(
+            AsyncClient=lambda **_kwargs: _FixedUpstreamClient(upstream), HTTPError=httpx.HTTPError
+        )
+        request = _request_with_chunks(
+            fixture.app, '/api/camera_proxy/camera.a', {}, [], method='GET'
+        )
+        response = await ha_proxy.proxy_http(request)
+        finished_before_first_read = upstream.finished
+        iterator = response.body_iterator
+        first = await iterator.__anext__()
+        finished_when_first_byte_arrived = upstream.finished
+        rest = b''
+        async for chunk in iterator:
+            rest += chunk
+        body = first + rest
+        check(
+            'B15 非流式分支逐块透传（第一个字节到达客户端时上游还没读完）',
+            not finished_before_first_read and not finished_when_first_byte_arrived,
+            f'取第一块前已读完={finished_before_first_read} 第一块时已读完={finished_when_first_byte_arrived}',
+        )
+        check(
+            'B15 透传的内容与上游完全一致，且读完才写缓存',
+            body == b''.join(chunks) and upstream.finished,
+            f'收到={len(body)} 字节（应为 {sum(len(item) for item in chunks)}）',
+        )
+        snapshot_key = ha_proxy.camera_snapshot_cache_key(
+            'http://ha.test:8123', '/api/camera_proxy/camera.a'
+        )
+        check(
+            'B15 完整读完的小图照旧写进快照缓存（第二次请求不再回源）',
+            camera_snapshot_cache.get(snapshot_key) is not None
+            and len(camera_snapshot_cache[snapshot_key].content) == len(body),
+            f'缓存条目={len(camera_snapshot_cache)}',
+        )
+
+        # —— B14：单张可缓存上限（只能在 _remember_camera_snapshot 这一层观察） ——
+        # 透传路径自己也会因为「攒不下」而放弃缓存，两处防守会互相掩盖：
+        # 只改这里的话端到端看不出差别，所以直接调这一层。
+        camera_snapshot_cache.clear()
+        ha_proxy.CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES = 1024
+        _remember_camera_snapshot('huge', b'x' * 4096, 'image/jpeg')
+        check(
+            'B14 单张超过可缓存上限的图不进缓存（一条大图不会顶掉几十张小图）',
+            camera_snapshot_cache == {},
+            f'条目={sorted(camera_snapshot_cache)}',
+        )
+        _remember_camera_snapshot('exact', b'x' * 1024, 'image/jpeg')
+        check(
+            'B14 单张正好等于上限的图照旧进缓存（判据是「超过」，不是「达到」）',
+            list(camera_snapshot_cache) == ['exact'],
+            f'条目={sorted(camera_snapshot_cache)}',
+        )
+
+        # —— B14：端到端 —— 超限的快照照旧完整送到浏览器，只是不进缓存 ——
+        upstream_big = _ChunkedUpstream([b'z' * 3000, b'y' * 3000])
+        ha_proxy.httpx = SimpleNamespace(
+            AsyncClient=lambda **_kwargs: _FixedUpstreamClient(upstream_big), HTTPError=httpx.HTTPError
+        )
+        camera_snapshot_cache.clear()
+        big_request = _request_with_chunks(
+            fixture.app, '/api/camera_proxy/camera.a', {}, [], method='GET'
+        )
+        big_response = await ha_proxy.proxy_http(big_request)
+        big_body = b''.join([chunk async for chunk in big_response.body_iterator])
+        check(
+            'B14 超过单张可缓存上限的响应照旧完整透传，但不进缓存',
+            big_body == b'z' * 3000 + b'y' * 3000 and camera_snapshot_cache == {},
+            f'收到={len(big_body)} 字节 缓存条目={len(camera_snapshot_cache)}',
+        )
+
+        # —— B14：总字节预算 ——
+        camera_snapshot_cache.clear()
+        ha_proxy.CAMERA_SNAPSHOT_CACHE_MAX_BYTES = 2048
+        for index in range(3):
+            _remember_camera_snapshot(f'key-{index}', b'x' * 1024, 'image/jpeg')
+        check(
+            'B14 总字节预算封住缓存：超预算时淘汰最旧的一条（不是只按条数算）',
+            camera_snapshot_cache.get('key-0') is None
+            and len(camera_snapshot_cache) == 2
+            and _camera_snapshot_cache_bytes() <= 2048,
+            f'条目={sorted(camera_snapshot_cache)} 占用={_camera_snapshot_cache_bytes()} 字节（预算 2048）',
+        )
+        _remember_camera_snapshot('only', b'x' * 1024, 'image/jpeg')
+        check(
+            'B14 预算小于单张上限时至少留一条（不会空转成什么都存不下）',
+            len(camera_snapshot_cache) >= 1,
+            f'条目={sorted(camera_snapshot_cache)}',
+        )
+
+        # —— B14：覆盖已有键不该把别人挤掉 ——
+        # 缓存满时刷新同一张图是常态（TTL 8 秒，看板一直开着），把它算成「新增」
+        # 的话，每次刷新都会顺手淘汰一条别的活跃图，缓存会自己把自己抖空。
+        camera_snapshot_cache.clear()
+        ha_proxy.CAMERA_SNAPSHOT_CACHE_MAX_BYTES = 3072
+        for index in range(3):
+            _remember_camera_snapshot(f'live-{index}', b'x' * 1024, 'image/jpeg')
+        _remember_camera_snapshot('live-2', b'x' * 1024, 'image/jpeg')
+        check(
+            'B14 预算刚好用满时刷新同一张图：只更新它自己，不淘汰别的活跃条目',
+            sorted(camera_snapshot_cache) == ['live-0', 'live-1', 'live-2'],
+            f'条目={sorted(camera_snapshot_cache)} 占用={_camera_snapshot_cache_bytes()} 字节',
+        )
+    finally:
+        ha_proxy.httpx = original_httpx
+        ha_proxy.CAMERA_SNAPSHOT_CACHE_MAX_BYTES = saved_cache_bytes
+        ha_proxy.CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES = saved_cacheable
+        camera_snapshot_cache.clear()
+
+
+# --------------------------------------------------------------------------- #
+# B13：日志接口的「一次快照 + 失效缓存」
+# --------------------------------------------------------------------------- #
+def _log_event(index: int, *, level: str = 'info') -> dict:
+    """造一条形状合法的日志事件（字段与 append 写出的一致）。
+
+    时间用「刚刚减几分钟」而不是写死日期：日志有保留期，写死的日期在别的日子跑
+    自检时会被裁掉，断言就会莫名其妙地变红。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    return {
+        'id': f'ev-{index}',
+        'timestamp': (datetime.now(timezone.utc) - timedelta(minutes=index)).isoformat(),
+        'level': level,
+        'source': '系统后台',
+        'category': '配置' if index % 2 else '接口',
+        'message': f'第 {index} 条',
+        'repeatCount': 1,
+    }
+
+
+def _write_log_file(store, events: list[dict]) -> None:
+    """直接把事件写进日志文件：绕开写入线程，断言才不会受刷盘时机影响。"""
+    store.path.write_text(
+        '\n'.join(json.dumps(event, ensure_ascii=False) for event in events) + '\n',
+        encoding='utf-8',
+    )
+
+
+async def check_log_events_snapshot_cached() -> None:
+    """B13：日志列表一次请求只解析一遍文件，且解析结果带失效缓存。
+
+    修好之前 ``/api/v1/logs`` 一次请求要调三次 ``list_events``（筛选后的全量、
+    未筛选的全量、分类清单），每一次都把整个 JSONL 重解析并物化一遍 —— 日志文件
+    越大，一次翻页的开销就越是随「整个文件」而不是「这一页」增长。
+
+    观测量用 store 自带的 ``_parse_count``（与 ``_flush_count`` 同类的统计量）：
+    它数的正是「文件真的被解析了几次」，命中缓存不算。断言「只有 1 次」比断言
+    「响应内容对」更贴近这条缺陷 —— 内容一直是对的，只是代价随文件大小线性增长。
+    """
+    from backend.app.global_log import GlobalLogStore
+
+    with tempfile.TemporaryDirectory(prefix='hb-log-snapshot-') as tmp:
+        store = GlobalLogStore(Path(tmp))
+        try:
+            _write_log_file(store, [_log_event(index, level='warning' if index == 2 else 'info') for index in (1, 2, 3)])
+            # 手动触发一次裁剪：它的首次调用会全量重写文件（mtime/代数都变），
+            # 先让它跑掉，300 秒的节流窗口就从此开始计时，后台写线程不会再动文件。
+            store.prune_now()
+            baseline = store._parse_count
+
+            snapshot = store.events_snapshot()
+            parsed = store._parse_count - baseline
+            # 同一个请求里的第二、三处查询复用同一份快照：不该再解析文件。
+            filtered = store.list_events(level='warning', limit=None, events=snapshot)
+            check(
+                'B13 一次快照能同时喂给「筛选后的」与「未筛选的」两份结果（不再各解析一遍）',
+                parsed == 1 and len(snapshot) == 3 and [item['id'] for item in filtered] == ['ev-2'],
+                f'解析次数=+{parsed} 快照={len(snapshot)} 条 筛出={[item["id"] for item in filtered]}',
+            )
+            cached = store.events_snapshot()
+            check(
+                'B13 文件没变时重复取快照命中缓存（解析次数不涨）',
+                store._parse_count - baseline == parsed and len(cached) == 3,
+                f'解析次数=+{store._parse_count - baseline} 条数={len(cached)}',
+            )
+
+            with store.path.open('a', encoding='utf-8') as output:
+                output.write(json.dumps(_log_event(4), ensure_ascii=False) + '\n')
+            grown = store.events_snapshot()
+            check(
+                'B13 文件变了（写入线程追加）缓存立刻失效，新事件看得到',
+                store._parse_count - baseline == parsed + 1 and len(grown) == 4,
+                f'解析次数=+{store._parse_count - baseline} 条数={len(grown)}',
+            )
+
+            # 全量重写：mtime 与代数都会变，且缓存必须被丢掉。
+            revision_before = store._file_revision
+            store.clear()
+            cleared = store.events_snapshot()
+            check(
+                'B13 全量重写（clear / 裁剪）后不会读到重写前的旧内容',
+                store._file_revision == revision_before + 1 and cleared == [],
+                f'代数 {revision_before}→{store._file_revision} 条数={len(cleared)}',
+            )
+        finally:
+            store.stop()
+
+        # —— 接线：真路由一次请求只调一次「读全部事件」（而不是三次） ——
+        #
+        # 这里数的是 ``_read_events`` 而不是文件解析次数：文件解析另有 mtime 缓存，
+        # 只数解析次数的话，「不传快照、又调了两遍 list_events」会被缓存掩盖掉
+        # —— 缺陷（同一请求重复干重活）就测不着了。
+        (Path(tmp) / 'app').mkdir()
+        (app, _database, cookie) = _projects_app(Path(tmp) / 'app')
+        route_store = GlobalLogStore(Path(tmp) / 'route')
+        try:
+            _write_log_file(route_store, [_log_event(index) for index in (1, 2, 3)])
+            route_store.prune_now()
+            baseline = route_store._parse_count
+            original_read_events = route_store._read_events
+            reads: list[None] = []
+
+            def counting_read(*, strict: bool = False):
+                reads.append(None)
+                return original_read_events(strict=strict)
+
+            route_store._read_events = counting_read
+            app.state.global_log = route_store
+            transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+            async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+                page = await client.get('/api/v1/logs?limit=2', cookies=cookie)
+                reads_in_first = len(reads)
+                parsed = route_store._parse_count - baseline
+                again = await client.get('/api/v1/logs?limit=2', cookies=cookie)
+            check(
+                'B13 列表接口一次请求只读一遍全部事件（筛选、总数、分类同源）',
+                page.status_code == 200
+                and reads_in_first == 1
+                and _field_of(page, 'total') == 3
+                and len(_field_of(page, 'items') or []) == 2
+                and sorted(_field_of(page, 'categories') or []) == ['接口', '配置'],
+                f'{page.status_code} 读全量={reads_in_first} 次 total={_field_of(page, "total")} '
+                f'分类={_field_of(page, "categories")}',
+            )
+            check(
+                'B13 第二次请求走缓存（文件不再重解析），内容照旧',
+                again.status_code == 200 and route_store._parse_count - baseline == parsed,
+                f'{again.status_code} 解析=+{route_store._parse_count - baseline}',
+            )
+        finally:
+            route_store.stop()
+
+
+def _detail_of_text(messages: list[dict[str, Any]]) -> str:
+    """从一组 ASGI 发送消息里取出 JSON 错误体的 detail（非 JSON 时返回空串）。"""
+    for item in messages:
+        if item['type'] != 'http.response.body':
+            continue
+        try:
+            payload = json.loads(item.get('body') or b'')
+        except (TypeError, ValueError):
+            continue
+        if isinstance(payload, dict):
+            return str(payload.get('detail') or '')
+    return ''
+
+
 def check_every_check_is_wired() -> None:
     """每个 ``check_*`` 都必须被调用过（忘了接线的话，全绿是没有意义的）。
 
@@ -4781,11 +5389,15 @@ async def run() -> int:
     check_update_checks_opt_in()
     check_bounded_attempt_limiter()
     await check_pairing_code_attempt_budget()
+    check_pair_shared_address_bucket()
     check_unique_violation_predicate()
     await check_duplicate_dirty_document_is_422()
     await check_project_conflicts_resolve_to_409()
     await check_rename_conflict_is_409_atomic()
     await check_pairing_race_returns_409()
+    await check_draft_body_limits()
+    await check_media_body_bounded()
+    await check_log_events_snapshot_cached()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

@@ -28,6 +28,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
+from ..body_guard import MAX_SCENE_DOCUMENT_BYTES
 from ..dependencies import DatabaseSession, LicensedUser
 from ..global_popups import global_popups
 from ..models import Project, ProjectDraft
@@ -37,7 +38,10 @@ from ..streaming import flush_and_sync, write_stream_in_batches
 router = APIRouter(prefix='/studio3d', tags=['studio3d'])
 # 各条上限都是「防御性天花板」：正常户型图远小于这些值，
 # 设上限是为了挡住前端 bug 或恶意构造的超大请求把磁盘写满。
-MAX_DRAFT_BYTES = 33554432
+# 草稿那一条与请求体上限同源（body_guard.MAX_SCENE_DOCUMENT_BYTES）：
+# 请求体先被中间件按它拦一道，这里再按序列化后的紧凑形式判一次 ——
+# 两处用同一个数字，免得出现「接口放行、落盘拒收」这种自相矛盾的门槛。
+MAX_DRAFT_BYTES = MAX_SCENE_DOCUMENT_BYTES
 MAX_EXPORT_ARCHIVE_BYTES = 536870912
 MAX_EXPORT_EXPANDED_BYTES = 1073741824
 MAX_EXPORT_FILES = 512

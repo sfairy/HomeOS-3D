@@ -61,6 +61,17 @@ PAIRING_GLOBAL_KEY = 'display-pair-global'
 PAIRING_CODE_LIMIT = (5, 900, 900)
 #: 按码计数器的键上限：键是「被尝试的码」的哈希，属外部可控输入，必须封顶。
 PAIRING_CODE_KEYS = 1024
+#: 只能拿到共享地址（可信代理没传转发头）时的兜底桶 (max_failures, window_seconds, block_seconds)（B16）。
+#:
+#: 按 IP 那一档在这种情形下必须让位：那时的「IP」是代理地址，所有人共用一个桶，
+#: 正常人手滑几次就会把整个配对页锁掉。但**整个跳过**也不对 —— 剩下只有跨来源
+#: 那一档（30 次/分钟，所有人平摊），一个从共享地址来的攻击者几分钟就能把共享
+#: 预算烧光，把所有人一起挡在外面。
+#:
+#: 所以给共享地址单独一档：配额比按真实 IP 那档宽得多（代理后面可能是一整栋楼），
+#: 但足以让「一直是同一个来源在失败」被记账，封禁时间也刻意短（挡爆破节奏，
+#: 不制造长时间拥塞）。
+PAIRING_SHARED_ADDRESS_LIMIT = (40, 300, 120)
 
 
 def require_admin(user: User) -> None:
@@ -76,15 +87,22 @@ def require_admin(user: User) -> None:
 def enforce_pair_rate_limit(request: Request, ip_address: str, per_client: bool = True) -> tuple:
     """检查 /pair 的两档限流；被拦时抛 429。
 
-    返回 (按 IP 的限流器或 None, 它的 key)，调用方记失败时要用同一对。
+    返回 (按来源地址的限流器, 它的 key)，调用方记失败时要用同一对。
     拿不到「能代表一个客户端」的来源地址时（per_client=False，例如可信代理没传
-    转发头）不启用按 IP 那一档：那种情况下所有人共用同一个地址，用它计数等于
-    让任何一个人失败几次就锁掉所有人的配对页；跨来源那一档仍然生效。
+    转发头）不启用按真实 IP 那一档 —— 所有人共用同一个地址，用它计数等于让任何
+    一个人失败几次就锁掉所有人的配对页。但这时改成记**共享地址**那一档宽配额
+    （B16）：不能整个跳过，否则一个来源烧完跨来源预算就等于把所有人挡在外面。
     注意 block_seconds 是 int 属性而不是方法（把它当函数调用会 500 而不是 429）。
     """
-    ip_limiter = request.app.state.login_limiter if per_client else None
-    ip_key = f'display-pair:{ip_address}' if per_client else ''
-    if ip_limiter is not None and ip_limiter.blocked(ip_key):
+    if per_client:
+        ip_limiter = request.app.state.login_limiter
+        ip_key = f'display-pair:{ip_address}'
+    else:
+        # 共享地址的键单独一档、单独一个限流器：与「按真实 IP」的预算互不影响，
+        # 否则代理用户会先把普通用户的登录预算吃掉一部分。
+        ip_limiter = request.app.state.pairing_shared_limiter
+        ip_key = f'display-pair-shared:{ip_address}'
+    if ip_limiter.blocked(ip_key):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail='配对失败次数过多，请稍后再试。',
@@ -101,16 +119,16 @@ def enforce_pair_rate_limit(request: Request, ip_address: str, per_client: bool 
 
 
 def note_pair_failure(request: Request, ip_limiter, ip_key: str, code_key: str | None = None) -> None:
-    """把一次配对失败同时记进三档限流：按 IP 的（若启用）、跨来源的、按码的。
+    """把一次配对失败同时记进三档限流：按来源地址的、跨来源的、按码的。
 
     参数:
         request: 当前请求（取 app.state 上的限流器）。
-        ip_limiter: 按 IP 那一档的限流器；per_client=False 时为 None。
-        ip_key: 按 IP 那一档的键。
+        ip_limiter: 按来源地址那一档的限流器（真实 IP 或共享地址，见
+            :func:`enforce_pair_rate_limit`）。
+        ip_key: 它的键。
         code_key: 被尝试的配对码哈希；None 表示这次失败与码无关（例如码有效但项目已删）。
     """
-    if ip_limiter is not None:
-        ip_limiter.record_failure(ip_key)
+    ip_limiter.record_failure(ip_key)
     request.app.state.pairing_limiter.record_failure(PAIRING_GLOBAL_KEY)
     if code_key is not None:
         request.app.state.pairing_code_limiter.record_failure(code_key)
@@ -427,11 +445,11 @@ def pair_display_device(
     约束），令牌换新，旧令牌随之作废。
     """
     # 来源地址走统一解析：配了可信反向代理时取真实客户端，否则用 TCP 对端地址。
-    # per_client 为 False（只能拿到共享代理地址）时跳过按 IP 那一档，
-    # 否则任何人失败几次就能把所有人挡在配对页外。
+    # per_client 为 False（只能拿到共享代理地址）时按共享地址记一档宽配额（B16），
+    # 而不是整个跳过 —— 跳过等于把所有人的配对页交给「谁先烧完共享预算」。
     address = resolve_client_ip(request)
     ip_address = address.ip
-    # 免登录接口的第一道护栏：按 IP + 跨来源两档限流。
+    # 免登录接口的第一道护栏：按来源地址 + 跨来源两档限流。
     (ip_limiter, ip_key) = enforce_pair_rate_limit(request, ip_address, address.per_client)
     # 第三档按「被尝试的码」记账（B48）：前两档管「谁来试」，这一档管「盯着一个码磨」。
     # 用与会话令牌同一套哈希（也是 code_hash 那一列用的），键里不留明文码。
