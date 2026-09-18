@@ -214,6 +214,37 @@ def _origin_from_referer(referer: str) -> str:
     return f'{parsed.scheme}://{parsed.netloc}'
 
 
+def expected_request_scheme(request: Request) -> str:
+    """本应用**应当**以哪个 scheme 被访问：只按部署形态钉，不看请求头里的 Origin。
+
+    判定顺序与 :func:`secure_cookies_enabled` 一致（配置 → 可信代理转发头 → 本连接）：
+
+    1. 显式配了 ``APP_BASE_URL`` 就以它的 scheme 为准 —— 反代没转发
+       ``X-Forwarded-Proto`` 时，这是唯一知道「对外是 https」的地方；
+    2. 否则若对端是可信代理且它转发了 ``X-Forwarded-Proto``，采信它
+       （浏览器里的脚本改不了这个头：``no-cors`` 下加它会触发 preflight，
+       普通表单更是加不了头；只有我们自己的代理会写它）;
+    3. 再否则看本连接自身的 scheme。
+
+    B28：``_origin_allowed`` 原先拿 **Origin 自己带的 scheme** 去拼白名单
+    （``f'{parsed.scheme}://{host}'``），等于让攻击者页面自己声明「我是 https 同源」。
+    同主机的明文页面（例如劫持了 80 端口的中间人，或同主机上另一个 http 站点）
+    因此能驱动 HTTPS 站点的带 Cookie 写请求。scheme 是攻击者能决定的，Host 不是，
+    所以 scheme 必须由部署形态给出，而不变量在这里集中判定一次。
+    """
+    settings = _settings(request)
+    base_url = str(getattr(settings, 'app_base_url', '') or '').strip().lower()
+    for scheme in ('https', 'http'):
+        if base_url.startswith(f'{scheme}://'):
+            return scheme
+    address = resolve_client_ip(request)
+    if address.via_proxy:
+        forwarded_proto = request.headers.get('x-forwarded-proto', '').split(',')[0].strip().lower()
+        if forwarded_proto in {'http', 'https'}:
+            return forwarded_proto
+    return (request.url.scheme or 'http').lower()
+
+
 def _origin_allowed(request: Request, origin: str) -> bool:
     """给定一个 ``scheme://host`` 形态的来源，判断它是否属于本应用。"""
     parsed = urlsplit(origin)
@@ -233,7 +264,8 @@ def _origin_allowed(request: Request, origin: str) -> bool:
     host = request.headers.get('host', '').strip().lower()
     if host:
         # 浏览器用 Host 寻址，攻击者的页面改不了它，这是最可靠的同源依据。
-        allowed.add(f'{parsed.scheme}://{host}')
+        # scheme 则取自部署形态（B28），不能取 Origin 自己声明的那个。
+        allowed.add(f'{expected_request_scheme(request)}://{host}')
     settings = _settings(request)
     base_origin = _origin_from_referer(str(getattr(settings, 'app_base_url', '') or '').strip())
     if base_origin:

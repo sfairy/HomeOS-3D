@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import delete, select, text
 
 from ..admin_account import EXTERNAL_PASSWORD_SENTINEL
+from ..access import admin_token_from, check_admin_session
 from ..dependencies import CurrentUser, DatabaseSession
 from ..http_security import resolve_client_ip, secure_cookies_enabled
 from ..models import LoginSession, User
@@ -310,13 +311,18 @@ def login(
     # 凭据只取自账号文件快照：users 表里的 password_hash 是哨兵值，不参与校验。
     credentials = request.app.state.admin_account.credentials
     user = database.get(User, credentials.user_id) if credentials else None
+    # 口令校验先无条件算一次，再和其它条件合并（B17）：写进上面的 if 里的话，
+    # 用户名一旦对不上就会短路跳过 argon2，耗时差别本身就回答了「这个用户名存不存在」。
+    # 缺哈希时用哑哈希顶上，因此这条路径与「账号存在但口令错」一样慢。
+    stored_hash = credentials.password_hash if credentials is not None else None
+    password_ok = verify_password(stored_hash, payload.password)
     # 五个条件全过才放行；任一不满足都按同一条 401 文案返回，不给攻击者区分线索。
     if not (
         credentials is not None
         and username == credentials.username
         and user is not None
         and user.is_active
-        and verify_password(credentials.password_hash, payload.password)
+        and password_ok
     ):
         # 只有失败才累加计数，成功路径统一 reset，避免正常登录把计数越推越高。
         for limiter, key in scopes:
@@ -453,7 +459,22 @@ def revoke_other_sessions(
     比「改密码」轻，但足以把被盗 Cookie 踢下线；当前会话保留，避免操作者自己掉线。
     """
     require_admin_account(user)
-    current_hash = _current_session_hash(request)
+    # 「只保留当前这条会话」的前提是知道当前这条是哪条：这里复用与认证依赖
+    # 完全同一个判据，要求它对应库里真实存在、且仍然有效的会话行（B18）。
+    # 不能只看 Cookie 里有没有值 —— 删除条件是 ``id_hash != current_hash``，
+    # 空串或对不上任何行的哈希都会让「不等于」退化成「删掉该用户的全部会话」。
+    session = check_admin_session(
+        database,
+        request.app.state.settings,
+        admin_token_from(request.cookies, request.app.state.settings),
+        account_user_id=request.app.state.admin_account.user_id,
+    )
+    if not session.ok or session.record is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="登录状态已失效，请重新登录。",
+        )
+    current_hash = session.record.id_hash
     database.execute(
         delete(LoginSession).where(
             LoginSession.user_id == user.id,

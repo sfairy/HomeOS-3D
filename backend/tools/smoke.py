@@ -2187,6 +2187,555 @@ def check_access_criteria_single_source() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# B17 / B18：登录口令校验的耗时口径与「退出其他设备」的有效会话前提
+# --------------------------------------------------------------------------- #
+def _auth_settings() -> SimpleNamespace:
+    """登录/会话接口会读到的 settings 字段（在凭据解析那份之上补几个）。"""
+    values = {
+        'trusted_proxies': (),
+        'cookie_secure': False,
+        'app_base_url': '',
+        'version': '0.0.0-test',
+    }
+    values.update(_access_settings().__dict__)
+    return SimpleNamespace(**values)
+
+
+@dataclass
+class LoginFixture:
+    """一次登录调用需要的全部上下文：真库 + 最小 app.state + 假 Request。"""
+
+    database: Any
+    account: Any
+    request: Any
+    response: Any
+    session: Any
+    log: Any
+
+
+class _Argon2Counter:
+    """给 argon2 的校验计数：断言「真的算了一轮」而不是靠读代码猜。"""
+
+    def __init__(self, hasher) -> None:
+        self.hasher = hasher
+        self.count = 0
+
+    def verify(self, encoded: str, password: str) -> bool:
+        self.count += 1
+        return self.hasher.verify(encoded, password)
+
+
+def _build_login_fixture(workdir: Path, credentials, **setting_overrides) -> LoginFixture:
+    """搭好登录接口需要的库与 app.state（不装路由，直接调路由函数）。"""
+    from starlette.requests import Request
+    from starlette.responses import Response
+
+    from backend.app.database import Base, Database
+    from backend.app.models import User
+
+    database = Database(f'sqlite:///{workdir / "login.db"}')
+    Base.metadata.create_all(database.engine)
+    with database.session_factory() as session:
+        session.add(User(id='u1', username='admin', password_hash='sentinel', role='admin'))
+        session.commit()
+    settings = _auth_settings()
+    for key, value in setting_overrides.items():
+        setattr(settings, key, value)
+    log = SimpleNamespace(entries=[], append=lambda *args: log.entries.append(args))
+    app = SimpleNamespace(
+        state=SimpleNamespace(
+            database=database,
+            settings=settings,
+            admin_account=SimpleNamespace(user_id='u1', initialized=True, credentials=credentials),
+            global_log=log,
+        )
+    )
+    scope = {
+        'type': 'http',
+        'method': 'POST',
+        'path': '/api/v1/auth/login',
+        'query_string': b'',
+        'scheme': 'http',
+        'server': ('homeos.test', 80),
+        'headers': [(b'host', b'homeos.test')],
+        'client': ('203.0.113.9', 4321),
+        'app': app,
+    }
+    return LoginFixture(
+        database=database,
+        account=app.state.admin_account,
+        request=Request(scope),
+        response=Response(),
+        session=database.session_factory(),
+        log=log,
+    )
+
+
+def _login_outcome(fixture: LoginFixture, username: str, password: str) -> str:
+    """直接调登录路由函数，把结果压成一行可读文本。"""
+    from fastapi import HTTPException
+
+    from backend.app.api.auth import login
+    from backend.app.schemas import LoginRequest
+
+    try:
+        result = login(
+            payload=LoginRequest(username=username, password=password),
+            request=fixture.request,
+            response=fixture.response,
+            database=fixture.session,
+        )
+        return f'登录成功:{result.username}'
+    except HTTPException as error:
+        return f'{error.status_code}'
+    finally:
+        fixture.session.rollback()
+
+
+def check_login_password_verification_cost() -> None:
+    """B17：口令校验的耗时不能回答「这个用户名存不存在」。
+
+    原先这项校验写在五连 ``and`` 的最后一位，于是「用户名不对」会短路跳过
+    argon2：一次失败请求 22ms、另一次 0.1ms，几次请求就能把用户名枚举出来。
+
+    这里不看源码怎么写，而是把 argon2 的校验次数数下来：无论用户名对不对、
+    账号文件在不在，都必须恰好 **1 次**（多算一轮同样是可观测的差别）。
+    """
+    from backend.app import security
+    from backend.app.admin_account import EXTERNAL_PASSWORD_SENTINEL
+
+    with tempfile.TemporaryDirectory(prefix='hb-login-') as tmp:
+        real = security.password_hasher
+        credentials = SimpleNamespace(
+            user_id='u1',
+            username='admin',
+            password_hash=security.hash_password('correct-horse'),
+        )
+        counts: dict[str, int] = {}
+        try:
+            security.password_hasher = _Argon2Counter(real)
+
+            fixture = _build_login_fixture(Path(tmp), credentials)
+            cases = {
+                '用户名对+口令错': ('admin', 'wrong-horse'),
+                '用户名错+口令错': ('nobody', 'wrong-horse'),
+                '用户名对+口令对（成功路径）': ('admin', 'correct-horse'),
+                '账号文件里没有凭据（未初始化）': ('admin', 'correct-horse'),
+            }
+            outcomes = {}
+            for label, (username, password) in cases.items():
+                security.password_hasher.count = 0
+                if '没有凭据' in label:
+                    fixture.account.credentials = None
+                outcomes[label] = _login_outcome(fixture, username, password)
+                counts[label] = security.password_hasher.count
+                fixture.account.credentials = credentials
+        finally:
+            security.password_hasher = real
+
+    expected = {
+        '用户名对+口令错': '401',
+        '用户名错+口令错': '401',
+        '用户名对+口令对（成功路径）': '登录成功:admin',
+        '账号文件里没有凭据（未初始化）': '401',
+    }
+    check(
+        'B17 前置：四种情形都按预期返回（下面的计数才有意义）',
+        outcomes == expected,
+        f'实际 {outcomes}',
+    )
+    check(
+        'B17 用户名错时也真的算了一轮 argon2（不再靠短路跳过）',
+        counts.get('用户名错+口令错', 0) == 1,
+        f'argon2 校验次数={counts.get("用户名错+口令错")}（修复前是 0）',
+    )
+    check(
+        'B17 账号文件里没有凭据时同样算一轮（否则「未初始化」一眼可辨）',
+        counts.get('账号文件里没有凭据（未初始化）', 0) == 1,
+        f'argon2 校验次数={counts.get("账号文件里没有凭据（未初始化）")}',
+    )
+    check(
+        'B17 四种情形的校验次数一致（耗时差不再是可用的判别信号）',
+        set(counts.values()) == {1},
+        f'各情形次数={counts}',
+    )
+
+    # 兜底函数本身：哈希缺失 / 哈希损坏都必须走满一轮，且都返回 False。
+    original = security.password_hasher
+    counter = _Argon2Counter(original)
+    attempts: dict[str, int] = {}
+    results: dict[str, bool] = {}
+    try:
+        security.password_hasher = counter
+        for label, stored in [
+            ('哈希缺失', None),
+            ('哈希格式非法', 'not-a-hash'),
+            ('哨兵值（凭据已外置）', EXTERNAL_PASSWORD_SENTINEL),
+        ]:
+            counter.count = 0
+            attempts[label] = 0
+            results[label] = security.verify_password(stored, 'x')
+            attempts[label] = counter.count
+    finally:
+        security.password_hasher = original
+    check(
+        'B17 哈希缺失 / 格式非法 / 哨兵值都恒走一轮以上、且结果恒为 False',
+        set(results.values()) == {False} and attempts.get('哈希缺失') == 1 and min(attempts.values()) >= 1,
+        f'结果={results} 各情形 argon2 次数={attempts}（缺失应为 1，其余至少 1）',
+    )
+
+
+@dataclass
+class RevokeFixture:
+    app: Any
+    database: Any
+
+
+def _build_revoke_fixture(workdir: Path, *, sessions: list[tuple[str, int]]) -> RevokeFixture:
+    """只装会话管理路由的最小应用；认证依赖用桩顶掉，让路由体真的跑起来。
+
+    ``sessions`` 给出 (令牌原文, 距现在多少秒后过期)；过期用负数表示。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from fastapi import FastAPI
+
+    from backend.app.api import auth as auth_api
+    from backend.app.database import Base, Database
+    from backend.app.dependencies import authenticated_short_lived_user
+    from backend.app.models import LoginSession, User
+    from backend.app.security import session_token_hash
+
+    database = Database(f'sqlite:///{workdir / "revoke.db"}')
+    Base.metadata.create_all(database.engine)
+    now = datetime.now(timezone.utc)
+    with database.session_factory() as session:
+        session.add(User(id='u1', username='admin', password_hash='sentinel', role='admin'))
+        session.commit()
+        for token, expires_in in sessions:
+            session.add(
+                LoginSession(
+                    id_hash=session_token_hash(token),
+                    user_id='u1',
+                    created_at=now - timedelta(minutes=5),
+                    last_seen_at=now,
+                    expires_at=now + timedelta(seconds=expires_in),
+                )
+            )
+        session.commit()
+    app = FastAPI()
+    log = SimpleNamespace(entries=[], append=lambda *args: log.entries.append(args))
+    app.state.database = database
+    app.state.settings = _auth_settings()
+    app.state.admin_account = SimpleNamespace(user_id='u1', initialized=True)
+    app.state.global_log = log
+    app.include_router(auth_api.router, prefix='/api/v1')
+    # 认证依赖顶成桩：本检查要验的是「路由体在有/无有效会话时各做什么」，
+    # 认证本身另有断言（B2/B3/B32）。桩让「无 Cookie 也进得来」这种情形可测。
+    app.dependency_overrides[authenticated_short_lived_user] = lambda: User(
+        id='u1', username='admin', password_hash='sentinel', role='admin'
+    )
+    return RevokeFixture(app=app, database=database)
+
+
+async def check_revoke_other_sessions_requires_valid_session() -> None:
+    """B18：「退出其他设备」必须先确认当前这条会话真的有效。
+
+    删除条件是 ``id_hash != current_hash``，所以一旦当前会话认不出来
+    （Cookie 缺失、或哈希对不上任何行），「不等于」就退化成「删光该用户的全部
+    会话」—— 包括操作者自己这条，等于凭空登出。这里把认证依赖换成桩，让路由体
+    在没有有效 Cookie 的情况下真的跑起来，断言它拒绝而不是照删。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import select
+
+    from backend.app.models import LoginSession
+    from backend.app.security import session_token_hash
+
+    tokens = ['tok-current', 'tok-old-a', 'tok-old-b']
+
+    with tempfile.TemporaryDirectory(prefix='hb-revoke-') as tmp:
+        fixture = _build_revoke_fixture(Path(tmp), sessions=[(token, 3600) for token in tokens])
+        transport = httpx.ASGITransport(app=fixture.app)
+
+        def hashes() -> list[str]:
+            """当前库里的会话哈希集合（用于断言「一条都没少」）。"""
+            with fixture.database.session_factory() as session:
+                return sorted(session.scalars(select(LoginSession.id_hash)).all())
+
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            # 1) 完全没有 Cookie：必须拒绝，且一条会话都不许少。
+            before = hashes()
+            empty = await client.delete('/api/v1/auth/sessions')
+            check(
+                'B18 没有 Cookie 时拒绝而不是删光（否则等于凭空登出所有设备）',
+                empty.status_code == 401 and hashes() == before,
+                f'{empty.status_code}，剩余会话 {len(hashes())}/{len(before)} 条',
+            )
+
+            # 2) Cookie 存在但对不上任何会话行：同样拒绝。
+            ghost = await client.delete(
+                '/api/v1/auth/sessions',
+                cookies={fixture.app.state.settings.cookie_name: 'tok-ghost'},
+            )
+            check(
+                'B18 Cookie 认不出会话行时同样拒绝，且不动任何行',
+                ghost.status_code == 401 and hashes() == before,
+                f'{ghost.status_code}，剩余 {len(hashes())} 条',
+            )
+
+            # 3) 会话行存在但已过期：认证依赖会拦住，这里桩掉了依赖，路由要自己拒绝。
+            expired_token = 'tok-expired'
+            now = datetime.now(timezone.utc)
+            with fixture.database.session_factory() as session:
+                session.add(
+                    LoginSession(
+                        id_hash=session_token_hash(expired_token),
+                        user_id='u1',
+                        created_at=now - timedelta(hours=9),
+                        last_seen_at=now - timedelta(hours=9),
+                        expires_at=now - timedelta(minutes=1),
+                    )
+                )
+                session.commit()
+            before_expired = hashes()
+            stale = await client.delete(
+                '/api/v1/auth/sessions',
+                cookies={fixture.app.state.settings.cookie_name: expired_token},
+            )
+            check(
+                'B18 已过期的会话不被当作「当前会话」（不能拿它当护身符批量删）',
+                stale.status_code == 401 and hashes() == before_expired,
+                f'{stale.status_code}，剩余 {len(hashes())} 条',
+            )
+
+            # 4) 有效会话：真的只删「其他」那些，当前这条留着。
+            live = await client.delete(
+                '/api/v1/auth/sessions',
+                cookies={fixture.app.state.settings.cookie_name: 'tok-current'},
+            )
+            remaining = hashes()
+            check(
+                'B18 有效会话下只删其他设备（当前这条留着，否则操作者自己掉线）',
+                live.status_code == 204
+                and session_token_hash('tok-current') in remaining
+                and len(remaining) == 1,
+                f'{live.status_code}，剩余 {len(remaining)} 条（应为 1）',
+            )
+
+
+# --------------------------------------------------------------------------- #
+# B28 / 4.3 C 类：同源闸门的 scheme 必须由部署形态钉死
+# --------------------------------------------------------------------------- #
+def _security_request(
+    *,
+    scheme: str = 'https',
+    host: str = 'homeos.test',
+    peer: str = '203.0.113.9',
+    origin: str | None = None,
+    referer: str | None = None,
+    forwarded_proto: str | None = None,
+    base_url: str = '',
+    trusted: tuple[str, ...] = (),
+    base_url_attr: str = 'app_base_url',
+    cookie_secure: bool = False,
+    app: Any = None,
+):
+    """造一个只带安全判定所需字段的请求（不装应用）。"""
+    from starlette.requests import Request
+
+    headers = [(b'host', host.encode())]
+    if origin is not None:
+        headers.append((b'origin', origin.encode()))
+    if referer is not None:
+        headers.append((b'referer', referer.encode()))
+    if forwarded_proto is not None:
+        headers.append((b'x-forwarded-proto', forwarded_proto.encode()))
+    settings = SimpleNamespace(
+        trusted_proxies=trusted, cookie_secure=cookie_secure, **{base_url_attr: base_url}
+    )
+    scope = {
+        'type': 'http',
+        'method': 'POST',
+        'path': '/api/v1/whatever',
+        'query_string': b'',
+        'scheme': scheme,
+        'server': (host, 443),
+        'headers': headers,
+        'client': (peer, 4321),
+        'app': SimpleNamespace(state=SimpleNamespace(settings=settings)),
+    }
+    return Request(scope)
+
+
+def _load_store_request_security():
+    """按路径加载商店那份实现。
+
+    两份实现是**刻意**互不 import 的（两个服务独立部署、独立配置），所以要把它们
+    放在一起对照，只能在自检里按路径加载，而不是让生产代码互相依赖。
+    """
+    import importlib.util
+
+    path = PROJECT_ROOT / 'store' / 'request_security.py'
+    spec = importlib.util.spec_from_file_location('store_request_security_probe', path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+#: 同源判定的对照矩阵：(说明, 请求参数, 期望放行)。
+#:
+#: 第三条尤其重要：它保证这次修复没有把纯 http 部署（局域网里的常见形态）一起挡掉。
+SAME_ORIGIN_CASES: list[tuple[str, dict, bool]] = [
+    ('https 站点上的 http 同主机来源（B28 的攻击形态）', {'scheme': 'https', 'origin': 'http://homeos.test'}, False),
+    ('https 站点上的 https 同主机来源', {'scheme': 'https', 'origin': 'https://homeos.test'}, True),
+    ('纯 http 部署上的 http 同主机来源（局域网照旧可用）', {'scheme': 'http', 'origin': 'http://homeos.test'}, True),
+    ('纯 http 部署上的 https 同主机来源（降级声明同样不认）', {'scheme': 'http', 'origin': 'https://homeos.test'}, False),
+    (
+        '按 APP_BASE_URL 钉死对外 https（反代没转发 proto）',
+        {'scheme': 'http', 'host': 'homeos.local', 'base_url': 'https://home.example', 'origin': 'http://homeos.local'},
+        False,
+    ),
+    (
+        '同上，来源是配置里的公开地址',
+        {'scheme': 'http', 'host': 'homeos.local', 'base_url': 'https://home.example', 'origin': 'https://home.example'},
+        True,
+    ),
+    (
+        '可信代理转发的 https 优先于本连接（反代终止 TLS）',
+        {
+            'scheme': 'http',
+            'peer': '10.0.0.5',
+            'trusted': ('10.0.0.0/8',),
+            'forwarded_proto': 'https',
+            'origin': 'http://homeos.test',
+        },
+        False,
+    ),
+    (
+        '同上，https 来源放行',
+        {
+            'scheme': 'http',
+            'peer': '10.0.0.5',
+            'trusted': ('10.0.0.0/8',),
+            'forwarded_proto': 'https',
+            'origin': 'https://homeos.test',
+        },
+        True,
+    ),
+    (
+        '对端不可信时不信 X-Forwarded-Proto（伪造降级无效）',
+        {
+            'scheme': 'http',
+            'trusted': ('10.0.0.0/8',),
+            'forwarded_proto': 'https',
+            'origin': 'http://homeos.test',
+        },
+        True,
+    ),
+    ('带 userinfo 的伪装来源照旧拒绝', {'scheme': 'https', 'origin': 'http://evil@homeos.test/'}, False),
+    ('只有 Referer 时按同一口径比（老浏览器表单）', {'scheme': 'https', 'referer': 'http://homeos.test/login'}, False),
+    ('两个头都没有时放行（脚本与回调不是浏览器）', {'scheme': 'https'}, True),
+]
+
+
+def check_same_origin_scheme_pinning() -> None:
+    """B28：同源白名单里的 scheme 不能取自 Origin 自己。
+
+    原先 ``allowed`` 里放的是 ``f'{parsed.scheme}://{host}'`` —— 校验的是「来源
+    自称同源」，于是同主机的明文页面能驱动 HTTPS 站点的带 Cookie 写请求。
+    scheme 改由部署形态给出（APP_BASE_URL → 可信代理转发 → 本连接），
+    Host 仍然取自浏览器改不掉的请求头。
+    """
+    from backend.app.http_security import same_origin_request
+
+    mismatches = []
+    for label, kwargs, expected in SAME_ORIGIN_CASES:
+        actual = bool(same_origin_request(_security_request(**kwargs)))
+        if actual != expected:
+            mismatches.append(f'{label}：期望 {expected} 实际 {actual}')
+    check(
+        'B28 同源判定按部署形态钉死 scheme（12 种来源逐条对照）',
+        not mismatches,
+        '；'.join(mismatches) if mismatches else f'{len(SAME_ORIGIN_CASES)} 条全部符合',
+    )
+
+    source = (PROJECT_ROOT / 'backend' / 'app' / 'http_security.py').read_text(encoding='utf-8')
+    body = source.split('def _origin_allowed', 1)[1].split('\ndef ', 1)[0]
+    check(
+        'B28 _origin_allowed 里不再出现「用 Origin 的 scheme 拼白名单」的写法',
+        'expected_request_scheme(request)' in body and '{parsed.scheme}://{host}' not in body,
+        '命中点已改为 expected_request_scheme(request)',
+    )
+
+
+def check_request_security_parity() -> None:
+    """4.3 C 类：``http_security.py`` 与 ``request_security.py`` 必须同口径。
+
+    两份实现刻意重复（两个服务独立部署、互不 import），但「改这里时同步改那边」
+    此前只是一句注释、没有测试兜底 —— 而 B51（转发头信任）与 B28（同源 scheme）
+    恰好都落在这两个文件里，修一处漏一处就是一个安全缺口。
+
+    因此这里把两份实现按同一批请求跑一遍，逐条比对结论。不为消除重复而强行抽象，
+    只把「必须一致」这件事变成可执行的断言。
+    """
+    from backend.app import http_security as backend_mod
+
+    store_mod = _load_store_request_security()
+
+    mismatches: list[str] = []
+    for label, kwargs, expected in SAME_ORIGIN_CASES:
+        store_kwargs = dict(kwargs)
+        if 'base_url' in store_kwargs:
+            store_kwargs['base_url_attr'] = 'public_base_url'
+        backend_verdict = bool(backend_mod.same_origin_request(_security_request(**kwargs)))
+        store_verdict = bool(store_mod.same_origin_request(_security_request(**store_kwargs)))
+        if backend_verdict != store_verdict:
+            mismatches.append(f'{label}：backend={backend_verdict} store={store_verdict}')
+        if store_verdict != expected:
+            mismatches.append(f'{label}：store 期望 {expected} 实际 {store_verdict}')
+
+    # 来源 IP 解析：两侧同样必须一致（这段是 B51 的直接判据）。
+    for label, kwargs in [
+        ('未配置可信代理', {'peer': '203.0.113.9', 'forwarded_proto': None}),
+        ('对端是可信代理', {'peer': '10.0.0.5', 'trusted': ('10.0.0.0/8',)}),
+    ]:
+        backend_address = backend_mod.resolve_client_ip(_security_request(**kwargs))
+        store_address = store_mod.resolve_client_ip(_security_request(**kwargs))
+        if (backend_address.ip, backend_address.per_client, backend_address.via_proxy) != (
+            store_address.ip,
+            store_address.per_client,
+            store_address.via_proxy,
+        ):
+            mismatches.append(f'来源 IP（{label}）：backend={backend_address} store={store_address}')
+
+    # Cookie 的 Secure 判定：两个服务各自的名字不同（app_base_url / public_base_url），
+    # 正是相似度口径才能发现的那种漂移。
+    for label, kwargs in [
+        ('明文部署', {}),
+        ('https 基址', {'base_url': 'https://home.example', 'scheme': 'http'}),
+        ('强制开关', {'cookie_secure': True, 'scheme': 'http'}),
+    ]:
+        backend_secure = bool(backend_mod.secure_cookies_enabled(_security_request(**kwargs)))
+        store_kwargs = dict(kwargs)
+        if 'base_url' in store_kwargs:
+            store_kwargs['base_url_attr'] = 'public_base_url'
+        store_secure = bool(store_mod.secure_cookies_required(_security_request(**store_kwargs)))
+        if backend_secure != store_secure:
+            mismatches.append(f'Secure Cookie（{label}）：backend={backend_secure} store={store_secure}')
+
+    check(
+        '4.3-C 两服务刻意重复的来源判定逐条一致（改一处漏一处会立刻变红）',
+        not mismatches,
+        '；'.join(mismatches)
+        if mismatches
+        else f'同源 {len(SAME_ORIGIN_CASES)} 条 + 来源 IP 2 条 + Secure Cookie 3 条全部一致',
+    )
+
+
+# --------------------------------------------------------------------------- #
 # 自检自身
 # --------------------------------------------------------------------------- #
 def check_every_check_is_wired() -> None:
@@ -2245,6 +2794,10 @@ async def run() -> int:
     await check_runtime_task_relay()
     check_closure_scope_writes()
     check_access_criteria_single_source()
+    check_login_password_verification_cost()
+    await check_revoke_other_sessions_requires_valid_session()
+    check_same_origin_scheme_pinning()
+    check_request_security_parity()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

@@ -11151,6 +11151,99 @@ def check_page_hardening_and_error_format() -> None:
     real_database.dispose()
 
 
+def check_same_origin_scheme_pinning() -> None:
+    """B28（商店侧）：同源白名单里的 scheme 必须由部署形态钉死，不能取 Origin 自己。
+
+    原先 ``_origin_allowed`` 放进去的是 ``f"{parsed.scheme}://{host}"`` —— 校验的
+    是「来源自称同源」，于是同主机的**明文**页面能驱动 HTTPS 商店后台的带 Cookie
+    写请求（改配置、提现这类都在同一道闸后面）。scheme 改由
+    ``public_base_url`` → 可信代理转发 → 本连接三级判定，Host 仍取自浏览器改不掉的
+    请求头。
+
+    与 ``backend/app/http_security.py`` 是同一条不变量、两份刻意重复的实现：
+    这条守着商店这一份，两份之间的对照由主应用自检里的同步断言守着。
+    """
+    from starlette.requests import Request
+
+    from store.request_security import same_origin_request
+
+    def request_for(
+        *,
+        scheme: str,
+        origin: str | None = None,
+        referer: str | None = None,
+        base_url: str = "",
+        forwarded: str | None = None,
+        peer: str = "203.0.113.9",
+        trusted: tuple[str, ...] = (),
+    ) -> Request:
+        headers = [(b"host", b"store.test")]
+        if origin is not None:
+            headers.append((b"origin", origin.encode()))
+        if referer is not None:
+            headers.append((b"referer", referer.encode()))
+        if forwarded is not None:
+            headers.append((b"x-forwarded-proto", forwarded.encode()))
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/store/v1/auth/login",
+            "query_string": b"",
+            "scheme": scheme,
+            "server": ("store.test", 443),
+            "headers": headers,
+            "client": (peer, 4321),
+            "app": types.SimpleNamespace(
+                state=types.SimpleNamespace(
+                    settings=types.SimpleNamespace(
+                        public_base_url=base_url, trusted_proxies=trusted, cookie_secure=False
+                    )
+                )
+            ),
+        }
+        return Request(scope)
+
+    cases = [
+        ("https 站点上的 http 同主机来源（B28 的攻击形态）", {"scheme": "https", "origin": "http://store.test"}, False),
+        ("https 站点上的 https 同主机来源", {"scheme": "https", "origin": "https://store.test"}, True),
+        ("纯 http 部署上的 http 同主机来源（局域网照旧可用）", {"scheme": "http", "origin": "http://store.test"}, True),
+        (
+            "按 STORE_BASE_URL 钉死对外 https（反代没转发 proto）",
+            {"scheme": "http", "base_url": "https://store.example", "origin": "http://store.test"},
+            False,
+        ),
+        (
+            "同上，来源是配置里的公开地址",
+            {"scheme": "http", "base_url": "https://store.example", "origin": "https://store.example"},
+            True,
+        ),
+        (
+            "可信代理转发的 https 优先于本连接",
+            {"scheme": "http", "peer": "10.0.0.5", "trusted": ("10.0.0.0/8",), "forwarded": "https", "origin": "http://store.test"},
+            False,
+        ),
+        ("只有 Referer 时按同一口径比", {"scheme": "https", "referer": "http://store.test/login"}, False),
+    ]
+    mismatches = []
+    for label, kwargs, expected in cases:
+        actual = bool(same_origin_request(request_for(**kwargs)))
+        if actual != expected:
+            mismatches.append(f"{label}：期望 {expected} 实际 {actual}")
+    check(
+        "S16/B28 同源判定按部署形态钉死 scheme（6 种来源逐条对照）",
+        not mismatches,
+        "；".join(mismatches) if mismatches else f"{len(cases)} 条全部符合",
+    )
+
+    source = (Path(__file__).resolve().parents[1] / "request_security.py").read_text(encoding="utf-8")
+    body = source.split("def _origin_allowed", 1)[1].split("\ndef ", 1)[0]
+    check(
+        "S16/B28 _origin_allowed 里不再出现「用 Origin 的 scheme 拼白名单」的写法",
+        "expected_request_scheme(request)" in body and "{parsed.scheme}://{host}" not in body,
+        "命中点已改为 expected_request_scheme(request)",
+    )
+
+
 def check_sweep_local_expiry_decoupled() -> None:
     """本地过期收尾必须与支付渠道解耦（审计 S20）。
 
@@ -12103,6 +12196,7 @@ async def run() -> int:
     check_anonymous_surface_disclosure()
     await check_enumeration_and_quota_hardening(client_crypto)
     check_page_hardening_and_error_format()
+    check_same_origin_scheme_pinning()
     check_sweep_local_expiry_decoupled()
     check_license_credential_hygiene_and_lease_sequence()
     check_activation_code_collision_retry()
