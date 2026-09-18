@@ -8921,6 +8921,8 @@ FRONTEND_PROBE_SUITES = {
     'pair': 'W6 配网页提交按钮与超时（pair.js）',
     'pair-scan': 'W27 扫码带入配对码后的焦点与退路（pair.js 扫码分支）',
     'auth-shell': 'W25/W26 鉴权壳页的角色区守卫与指针几何缓存（auth-shell.js）',
+    'renderer-resize': 'W20 resize 的先读后写与一帧一遍（renderer.js）',
+    'studio-history': 'W22 撤销 / 重做的互斥闩与长按自动重复（studio-app.js）',
     'setup': 'W6 初始化页提交按钮与超时（setup.js）',
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
     'home-boot': 'W8 编辑器启动分片（home.js 启动序列）',
@@ -9705,6 +9707,69 @@ def check_frontend_static_cache_stamps() -> None:
         )
 
 
+def check_frontend_resize_batching() -> None:
+    """W20：resize 的「先读后写 + 一帧一遍」（活体探针 + 两处接线断言）。
+
+    探针能证明 resize 自己先读后写、scheduleResize 能合并，但**证明不了谁调用它** ——
+    `scheduleResize` 在沙箱里被探针直接调用，把构造函数里的两个事件入口改回
+    `this.resize()` 它照样全绿。而「漏掉一个入口」正好是这条修复最容易出的错：
+    ResizeObserver 与 visualViewport 是两个独立的高频来源，只改一个就等于没改。
+    """
+    _run_frontend_probe('renderer-resize')
+
+    source = (FRONTEND_ROOT / 'static' / 'renderer' / 'renderer.js').read_text(encoding='utf-8')
+    observer_wired = 'new ResizeObserver(() => this.scheduleResize())' in source
+    bound_resize_wired = 'this.boundResize = () => this.scheduleResize();' in source
+    check(
+        'W20 两个高频道尺寸入口都走 scheduleResize（只改一个 = 另一半照样每事件跑一遍）',
+        observer_wired and bound_resize_wired,
+        f'ResizeObserver={observer_wired} boundResize={bound_resize_wired}',
+    )
+    check(
+        'W20 destroy 撤掉还没跑的那一帧（否则卸载后回调还会去摸已经清空的容器）',
+        'cancelAnimationFrame(this.resizeFrameId)' in source,
+        '没找到 cancelAnimationFrame(this.resizeFrameId)',
+    )
+
+
+def check_frontend_studio_history_guard() -> None:
+    """W22：撤销 / 重做的互斥与长按挡板（活体探针 + 三处接线断言）。
+
+    「快捷键分支有没有绕开入口」只能静态看：探针调的是 `applyHistoryShortcut`，
+    把 keydown 里那段改回直接 `undo()` 它一样绿 —— 而 `repeat` 挡板正是在那个入口里，
+    绕过去等于挡板失效。
+    """
+    _run_frontend_probe('studio-history')
+
+    source = (FRONTEND_ROOT / 'static' / '3d-studio' / 'studio-app.js').read_text(encoding='utf-8')
+    z_branch = _js_block_body(source, 'windowKeyDownEvent.key.toLowerCase() === "z"')
+    check(
+        'W22 Ctrl+Z 分支走统一入口（绕过 applyHistoryShortcut 就等于绕过 repeat 挡板）',
+        z_branch is not None
+        and 'applyHistoryShortcut(' in z_branch
+        and 'undo();' not in z_branch
+        and 'redo();' not in z_branch,
+        (z_branch or '没取到分支体').strip(),
+    )
+    shortcut_body = _js_block_body(source, 'function applyHistoryShortcut(')
+    check(
+        'W22 入口里挡掉 repeat（长按的补发事件不算数）',
+        shortcut_body is not None and 'shortcutEvent.repeat' in shortcut_body,
+        (shortcut_body or '没取到 applyHistoryShortcut 函数体').strip(),
+    )
+    for function_name in ('undo', 'redo'):
+        history_body = _js_block_body(source, f'async function {function_name}()')
+        check(
+            f'W22 {function_name} 以闩开头、在 finally 里放闩'
+            '（漏了开头等于没闩，漏了 finally 会让一次失败永久锁死撤销）',
+            history_body is not None
+            and 'historyBusy' in history_body
+            and 'finally' in history_body
+            and history_body.count('historyBusy = !1') == 1,
+            (history_body or f'没取到 {function_name} 函数体').strip()[:120],
+        )
+
+
 def check_frontend_pending_page_submits() -> None:
     """W6/W7：配网 / 初始化 / 授权三页的按钮与轮询闩（活体探针）。
 
@@ -10095,6 +10160,8 @@ async def run() -> int:
     check_frontend_auth_shell_guards()
     check_frontend_pair_scan_focus()
     check_frontend_static_cache_stamps()
+    check_frontend_resize_batching()
+    check_frontend_studio_history_guard()
     check_frontend_pending_page_submits()
     check_frontend_editor_boot_and_snapshot()
     check_frontend_operation_feedback()

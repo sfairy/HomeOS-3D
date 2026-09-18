@@ -16,7 +16,7 @@
  *   - 整块图集只在一次完整烘焙成功后才替换旧图集；中途失败保留旧图集，避免闪黑。
  */
 
-import { createRenderLightIndex } from "../modules/interaction3d/render-light-index.js?v=20260918195608";
+import { createRenderLightIndex } from "../modules/interaction3d/render-light-index.js?v=20260918202529";
 // tile 之间的留白：紧贴会因线性过滤在边缘互相渗色。
 const DEFAULT_TILE_GUTTER = 1;
 

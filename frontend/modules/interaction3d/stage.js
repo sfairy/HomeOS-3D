@@ -28,71 +28,71 @@
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../static/modules/interaction3d/popup-placement.js?v=20260918195608",
+        "../../static/modules/interaction3d/popup-placement.js?v=20260918202529",
         import.meta.url
       )
     )
-  : import("/static/modules/interaction3d/popup-placement.js?v=20260918195608"));
+  : import("/static/modules/interaction3d/popup-placement.js?v=20260918202529"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "./presence-scene.js?v=20260918195608";
-import { createSceneBackground } from "./scene-background.js?v=20260918195608";
-import { floorNavigationChoices } from "./floor-navigation.js?v=20260918195608";
+} from "./presence-scene.js?v=20260918202529";
+import { createSceneBackground } from "./scene-background.js?v=20260918202529";
+import { floorNavigationChoices } from "./floor-navigation.js?v=20260918202529";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "./vacuum-motion.js?v=20260918195608";
+} from "./vacuum-motion.js?v=20260918202529";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=20260918195608";
-import { televisionState } from "./television-state.js?v=20260918195608";
-import { createTelevisionPanel } from "./television-panel.js?v=20260918195608";
-import { createTelevisionScreens } from "./television-screen.js?v=20260918195608";
+} from "./vacuum-map.js?v=20260918202529";
+import { televisionState } from "./television-state.js?v=20260918202529";
+import { createTelevisionPanel } from "./television-panel.js?v=20260918202529";
+import { createTelevisionScreens } from "./television-screen.js?v=20260918202529";
 import { createNasPanel } from "./nas-panel.js";
-import { createNasStatus, nasDeviceState } from "./nas-status.js?v=20260918195608";
+import { createNasStatus, nasDeviceState } from "./nas-status.js?v=20260918202529";
 import { createCameraStatus, cameraOnline } from "./camera-status.js";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "./cover-state.js?v=20260918195608";
-import { createCoverFeedback } from "./cover-feedback.js?v=20260918195608";
-import { createCoverPanel } from "./cover-panel.js?v=20260918195608";
-import { createCurtainMotion } from "./curtain-motion.js?v=20260918195608";
-import { createEnvironmentAirflow } from "./environment-airflow.js?v=20260918195608";
-import { createScreenOutlines } from "./environment-halos.js?v=20260918195608";
-import { mountRegionRangeEditor } from "./light-range-editor.js?v=20260918195608";
-import { climateState, createClimateModeHistory } from "./climate-state.js?v=20260918195608";
-import { createClimatePanel } from "./climate-panel.js?v=20260918195608";
+} from "./cover-state.js?v=20260918202529";
+import { createCoverFeedback } from "./cover-feedback.js?v=20260918202529";
+import { createCoverPanel } from "./cover-panel.js?v=20260918202529";
+import { createCurtainMotion } from "./curtain-motion.js?v=20260918202529";
+import { createEnvironmentAirflow } from "./environment-airflow.js?v=20260918202529";
+import { createScreenOutlines } from "./environment-halos.js?v=20260918202529";
+import { mountRegionRangeEditor } from "./light-range-editor.js?v=20260918202529";
+import { climateState, createClimateModeHistory } from "./climate-state.js?v=20260918202529";
+import { createClimatePanel } from "./climate-panel.js?v=20260918202529";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "./environment-scene.js?v=20260918195608";
-import { startSceneSync } from "./scene-sync.js?v=20260918195608";
+} from "./environment-scene.js?v=20260918202529";
+import { startSceneSync } from "./scene-sync.js?v=20260918202529";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "./light-state.js?v=20260918195608";
+} from "./light-state.js?v=20260918202529";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "./camera-motion.js?v=20260918195608";
+} from "./camera-motion.js?v=20260918202529";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=20260918195608";
+} from "./idle-rotation.js?v=20260918202529";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [

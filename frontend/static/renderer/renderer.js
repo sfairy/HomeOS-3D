@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918195608";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918202529";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -51,9 +51,9 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260918195608";
-import { randomUuid } from "../utils/random-id.js?v=20260918195608";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260918195608";
+} from "./registry.js?v=20260918202529";
+import { randomUuid } from "../utils/random-id.js?v=20260918202529";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260918202529";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -72,11 +72,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260918195608";
+} from "./climate.js?v=20260918202529";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260918195608";
+} from "./device-profiles.js?v=20260918202529";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -85,26 +85,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260918195608";
-import { confirmAction } from "../ui-confirm.js?v=20260918195608";
+} from "../related-entities.js?v=20260918202529";
+import { confirmAction } from "../ui-confirm.js?v=20260918202529";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260918195608";
+} from "./entity-power.js?v=20260918202529";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260918195608";
-import { componentActionIsSupported } from "../action-rules.js?v=20260918195608";
+} from "../virtual-entities.js?v=20260918202529";
+import { componentActionIsSupported } from "../action-rules.js?v=20260918202529";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260918195608";
+} from "./transform-geometry.js?v=20260918202529";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -114,7 +114,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260918195608";
+} from "./effect-geometry.js?v=20260918202529";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -133,14 +133,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260918195608";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918195608";
+} from "./light-runtime.js?v=20260918202529";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918202529";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260918195608";
+} from "./vacuum-runtime.js?v=20260918202529";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -173,13 +173,13 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260918195608";
+} from "./cover-runtime.js?v=20260918202529";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260918195608";
+} from "./runtime-dialog-motion.js?v=20260918202529";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -189,13 +189,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260918195608";
+} from "./runtime-caches.js?v=20260918202529";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260918195608";
+} from "./runtime-document.js?v=20260918202529";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -896,9 +896,13 @@ export class PanelRenderer {
     this.pendingOptimisticStates = new Map();
     this.confirmedLightVisualStates = new Map();
     this.destroyed = false;
-    this.resizeObserver = new ResizeObserver(() => this.resize());
+    this.resizeObserver = new ResizeObserver(() => this.scheduleResize());
     this.resizeObserver.observe(rootContainer);
-    this.boundResize = () => this.resize();
+    // 同一帧里的多次尺寸变化只跑一遍 resize：手机滚动时地址栏收起、双指缩放都会
+    // 让 visualViewport 连续派发 resize，而每一遍 resize 都要把全部手柄宿主量一遍
+    // 再写一遍样式。合并不改变「一遍的结果」，只把遍数从「每事件一遍」压到「每帧一遍」。
+    this.resizeFrameId = 0;
+    this.boundResize = () => this.scheduleResize();
     this.boundReconnect = () => {
       if (!this.destroyed && (!this.socket || this.socket.readyState >= WebSocket.CLOSING)) {
         this.connectRuntime();
@@ -2164,7 +2168,7 @@ export class PanelRenderer {
    * @param {HTMLElement} multiBoundsElement 多选框元素。
    * @returns {void}
    */
-  updateMultiSelectionHandleScale(multiBoundsElement) {
+  updateMultiSelectionHandleScale(multiBoundsElement, measuredBoundsRect = null) {
     if (!multiBoundsElement) {
       return;
     }
@@ -2174,9 +2178,12 @@ export class PanelRenderer {
       ? this.componentWorldTransform(ownerComponentId).scale
       : 1;
     const uiScaleFactor = 1 / Math.max(0.001, canvasScale * ownerWorldScale);
+    // 读在写之前：--hb-ui-scale / --hb-handle-outset 只作用于外框的子手柄，
+    // 不改变外框自己的盒子，所以先量后写与先写后量得到同一个矩形 ——
+    // 但先量能避免这次读被上面的写入弄脏而强制一次同步布局。
+    const boundsClientRect = measuredBoundsRect || multiBoundsElement.getBoundingClientRect();
     multiBoundsElement.style.setProperty("--hb-ui-scale", String(uiScaleFactor));
     multiBoundsElement.style.setProperty("--hb-handle-outset", uiScaleFactor * 30 + "px");
-    const boundsClientRect = multiBoundsElement.getBoundingClientRect();
     multiBoundsElement.classList.toggle(
       "handles-outside",
       boundsClientRect.width < 132 || boundsClientRect.height < 112
@@ -7160,9 +7167,15 @@ export class PanelRenderer {
   updateTransformHandleScale(
     transformScaleHostElement,
     transformComponent,
-    transformOverlayElement = null
+    transformOverlayElement = null,
+    measuredBoundsRect = null
   ) {
-    if (!transformScaleHostElement || !transformComponent) {
+    const transformBoundsElement = this.transformHandleBoundsElement(
+      transformScaleHostElement,
+      transformComponent,
+      transformOverlayElement
+    );
+    if (!transformBoundsElement) {
       return;
     }
     const appliedComponentScale = Math.min(this.appliedScaleX || 1, this.appliedScaleY || 1);
@@ -7173,21 +7186,42 @@ export class PanelRenderer {
     const parentTransformScale = this.componentParentTransform(transformComponent.id).scale;
     const inverseHandleScale =
       1 / Math.max(0.001, appliedComponentScale * elementVisualScale * parentTransformScale);
-    const transformBoundsElement =
+    // 读在写之前（理由同 updateMultiSelectionHandleScale）：resize 会把整个页面的
+    // 矩形一次读齐之后再把量好的传进来，只有零散调用点才在这里当场量。
+    const transformBoundsRect = measuredBoundsRect || transformBoundsElement.getBoundingClientRect();
+    transformBoundsElement.style.setProperty("--hb-ui-scale", String(inverseHandleScale));
+    transformBoundsElement.style.setProperty("--hb-handle-outset", inverseHandleScale * 30 + "px");
+    transformBoundsElement.classList.toggle(
+      "handles-outside",
+      transformBoundsRect.width < 132 || transformBoundsRect.height < 112
+    );
+  }
+  /**
+   * 找某个组件的手柄外框元素（选区外框）。
+   *
+   * 为什么单独抽出来：resize 要在「读阶段」先把所有宿主的矩形量齐，就得先能只定位
+   * 不测量。测量与套用分开之后，一遍 resize 的布局解析次数从「每个宿主一次」降到一次。
+   *
+   * @param {HTMLElement} transformScaleHostElement 组件宿主元素。
+   * @param {object} transformComponent 组件记录。
+   * @param {HTMLElement|null} [transformOverlayElement=null] 指定的外框（优先用）。
+   * @returns {HTMLElement|null} 手柄外框元素；定位不到时为 null。
+   */
+  transformHandleBoundsElement(
+    transformScaleHostElement,
+    transformComponent,
+    transformOverlayElement = null
+  ) {
+    if (!transformScaleHostElement || !transformComponent) {
+      return null;
+    }
+    return (
       transformOverlayElement ||
       this.componentSelectionOverlays
         .get(transformComponent.id)
         ?.querySelector(":scope > .hb-selection-bounds") ||
-      transformScaleHostElement.querySelector(":scope > .hb-selection-bounds");
-    if (!transformBoundsElement) {
-      return;
-    }
-    transformBoundsElement.style.setProperty("--hb-ui-scale", String(inverseHandleScale));
-    transformBoundsElement.style.setProperty("--hb-handle-outset", inverseHandleScale * 30 + "px");
-    const transformBoundsRect = transformBoundsElement.getBoundingClientRect();
-    transformBoundsElement.classList.toggle(
-      "handles-outside",
-      transformBoundsRect.width < 132 || transformBoundsRect.height < 112
+      transformScaleHostElement.querySelector(":scope > .hb-selection-bounds") ||
+      null
     );
   }
   /**
@@ -21695,13 +21729,58 @@ export class PanelRenderer {
     this.container.dataset.renderScale = Math.min(appliedScaleXValue, appliedScaleYValue).toFixed(
       4
     );
+    // 先读后写：上面的几处写入已经让布局失效了，所以先把全部手柄外框的矩形一次读齐
+    // （整个 resize 只解析一次布局），再逐个套用。写成「逐个写→读」的话，第二个宿主
+    // 读之前已被前一个宿主的写入弄脏，于是每个宿主都强制一次同步重排 ——
+    // 组件多的页面在手机上滚动时就是每帧 N 次重排。
+    const transformHandleTargets = [];
     for (const [hostRecordId, componentHost] of this.componentHosts) {
-      this.updateTransformHandleScale(componentHost, this.componentRecords.get(hostRecordId));
+      const componentRecord = this.componentRecords.get(hostRecordId);
+      const boundsElement = this.transformHandleBoundsElement(componentHost, componentRecord);
+      if (boundsElement) {
+        transformHandleTargets.push({ componentHost, componentRecord, boundsElement });
+      }
     }
-    this.updateMultiSelectionHandleScale(
-      this.canvas.querySelector(":scope > .hb-multi-selection-bounds")
+    const multiSelectionBoundsElement = this.canvas.querySelector(
+      ":scope > .hb-multi-selection-bounds"
     );
+    for (const transformHandleTarget of transformHandleTargets) {
+      transformHandleTarget.measuredBoundsRect =
+        transformHandleTarget.boundsElement.getBoundingClientRect();
+    }
+    const measuredMultiSelectionRect = multiSelectionBoundsElement
+      ? multiSelectionBoundsElement.getBoundingClientRect()
+      : null;
+    for (const transformHandleTarget of transformHandleTargets) {
+      this.updateTransformHandleScale(
+        transformHandleTarget.componentHost,
+        transformHandleTarget.componentRecord,
+        null,
+        transformHandleTarget.measuredBoundsRect
+      );
+    }
+    this.updateMultiSelectionHandleScale(multiSelectionBoundsElement, measuredMultiSelectionRect);
+    // 收尾这条自己会读弹窗层的矩形（一遍 resize 里就这一次），读在它的写之前。
     this.updateRuntimeDialogScale();
+  }
+  /**
+   * 把 resize 合并到下一帧：同一帧里的多次触发只跑一遍。
+   *
+   * `visualViewport` 的 resize 在手机上每帧都来（滚动时地址栏收起、双指缩放），
+   * ResizeObserver 也可能连着投递；每一步 resize 都要把全部手柄宿主量一遍再写一遍，
+   * 不合并就是一帧跑好几遍。注意只合并**事件**入口：`resize()` 本身仍是同步的，
+   * 渲染完一页之后那次调用（要立刻拿到缩放值）不受影响。
+   *
+   * @returns {void}
+   */
+  scheduleResize() {
+    if (this.resizeFrameId) {
+      return;
+    }
+    this.resizeFrameId = window.requestAnimationFrame(() => {
+      this.resizeFrameId = 0;
+      this.resize();
+    });
   }
   /**
    * 断开运行期订阅并作废当前连接。
@@ -22652,6 +22731,10 @@ export class PanelRenderer {
     this.pendingEntityDetails = null;
     this.runtimeDialogScaleContext = null;
     this.resizeObserver.disconnect();
+    if (this.resizeFrameId) {
+      window.cancelAnimationFrame(this.resizeFrameId);
+      this.resizeFrameId = 0;
+    }
     window.visualViewport?.removeEventListener("resize", this.boundResize);
     window.removeEventListener("orientationchange", this.boundResize);
     window.removeEventListener("online", this.boundReconnect);

@@ -13,8 +13,8 @@
  * 与后端 /api/projects 下发的 JSON 结构一致。
  */
 
-import { selectedRelatedEntityIds } from "../related-entities.js?v=20260918195608";
-import { isVirtualEntityId } from "../virtual-entities.js?v=20260918195608";
+import { selectedRelatedEntityIds } from "../related-entities.js?v=20260918202529";
+import { isVirtualEntityId } from "../virtual-entities.js?v=20260918202529";
 /**
  * 判断状态是否需要从后端补历史 / 详情。
  *

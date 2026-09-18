@@ -15,8 +15,8 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../../editor-picker-pagination.js?v=20260918195608";
-import { createEditorPickerQueries } from "../../editor-picker-queries.js?v=20260918195608";
+} from "../../editor-picker-pagination.js?v=20260918202529";
+import { createEditorPickerQueries } from "../../editor-picker-queries.js?v=20260918202529";
 import { vacuumProfiles } from "./vacuum-catalog.js";
 import { nasProfiles } from "./nas-catalog.js";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。

@@ -60,67 +60,67 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "./studio-curtain-track.js?v=20260918195608";
-import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260918195608";
+} from "./studio-curtain-track.js?v=20260918202529";
+import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260918202529";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "./studio-surface-textures.js?v=20260918195608";
-import { createOverviewStack } from "./studio-overview-stack.js?v=20260918195608";
-import { windowGeometryParts } from "./studio-window-geometry.js?v=20260918195608";
+} from "./studio-surface-textures.js?v=20260918202529";
+import { createOverviewStack } from "./studio-overview-stack.js?v=20260918202529";
+import { windowGeometryParts } from "./studio-window-geometry.js?v=20260918202529";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=20260918195608";
-import { addSecurityModel } from "./studio-security-models.js?v=20260918195608";
-import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260918195608";
-import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260918195608";
-import { createFloorTransition } from "./studio-floor-transition.js?v=20260918195608";
-import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260918195608";
-import { createGroundReflections } from "./studio-ground-reflections.js?v=20260918195608";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260918195608";
+} from "./studio-camera-constraints.js?v=20260918202529";
+import { addSecurityModel } from "./studio-security-models.js?v=20260918202529";
+import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260918202529";
+import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260918202529";
+import { createFloorTransition } from "./studio-floor-transition.js?v=20260918202529";
+import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260918202529";
+import { createGroundReflections } from "./studio-ground-reflections.js?v=20260918202529";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260918202529";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances,
   mergeWallBands
-} from "./studio-wall-materials.js?v=20260918195608";
+} from "./studio-wall-materials.js?v=20260918202529";
 import {
   WARM_WOOD_STYLE,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=20260918195608";
-import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260918195608";
+} from "./studio-scene-style.js?v=20260918202529";
+import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260918202529";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../modules/interaction3d/render-cache.js?v=20260918195608";
-import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260918195608";
-import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260918195608";
-import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260918195608";
-import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260918195608";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=20260918195608";
+} from "../modules/interaction3d/render-cache.js?v=20260918202529";
+import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260918202529";
+import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260918202529";
+import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260918202529";
+import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260918202529";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=20260918202529";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260918195608";
+import { apiFetch } from "../utils/api-fetch.js?v=20260918202529";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260918195608";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260918202529";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260918195608";
-import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260918195608";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260918202529";
+import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260918202529";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../modules/interaction3d/light-motion.js?v=20260918195608";
+} from "../modules/interaction3d/light-motion.js?v=20260918202529";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -160,7 +160,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "./geometry.js?v=20260918195608";
+} from "./geometry.js?v=20260918202529";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -169,32 +169,32 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "./export-utils.js?v=20260918195608";
+} from "./export-utils.js?v=20260918202529";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "./export-presets.js?v=20260918195608";
-import { reorderFloors } from "./floor-order.js?v=20260918195608";
-import { syncControlValue } from "./ui-controls.js?v=20260918195608";
+} from "./export-presets.js?v=20260918202529";
+import { reorderFloors } from "./floor-order.js?v=20260918202529";
+import { syncControlValue } from "./ui-controls.js?v=20260918202529";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=20260918195608";
+} from "./studio-widgets.js?v=20260918202529";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "./studio-external-models.js?v=20260918195608";
+} from "./studio-external-models.js?v=20260918202529";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "./studio-plan-drawing.js?v=20260918195608";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260918195608";
-import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260918195608";
-import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260918195608";
+} from "./studio-plan-drawing.js?v=20260918202529";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260918202529";
+import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260918202529";
+import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260918202529";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -207,7 +207,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "./studio-normalization.js?v=20260918195608";
+} from "./studio-normalization.js?v=20260918202529";
 window.__haBridgeStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 /**
@@ -1394,7 +1394,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/draco-decoder-worker.js?v=20260918195608"
+  "/static/3d-studio/draco-decoder-worker.js?v=20260918202529"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -5344,32 +5344,69 @@ async function applySceneSnapshot(rawScene) {
   markDocumentDirty();
 }
 /**
+ * 历史操作的互斥闩。
+ *
+ * `applySceneSnapshot` 是异步的（要重建几何、等贴图），而它套用期间场景处于半成品
+ * 状态。两下撤销重叠执行时，第二下会在这个中间态上 `cloneSceneForHistory()` ——
+ * 撤销栈与重做栈随即错位：之后撤销回来的不是你以为的那一步，重做也可能把半成品
+ * 又推回去。闩只挡「套用中」的重入，不挡正常的连续操作（一次只套一份快照）。
+ */
+let historyBusy = !1;
+/**
  * 撤销一步：先把当前状态压入重做栈，再取出撤销栈顶快照套用。
  *
  * 必须先 clone 当前状态再 pop，两步顺序颠倒会让栈里存进被改写后的对象。
  *
- * @returns {Promise<void>} 无返回值；撤销栈为空时立即返回。
+ * @returns {Promise<void>} 无返回值；撤销栈为空或正在套用上一份快照时立即返回。
  */
 async function undo() {
-  if (!undoStack.length) {
+  if (historyBusy || !undoStack.length) {
     return;
   }
-  redoStack.push(cloneSceneForHistory());
-  const undoSnapshot = undoStack.pop();
-  await applySceneSnapshot(undoSnapshot);
+  historyBusy = !0;
+  try {
+    redoStack.push(cloneSceneForHistory());
+    const undoSnapshot = undoStack.pop();
+    await applySceneSnapshot(undoSnapshot);
+  } finally {
+    // 套用失败也必须放闩：闩卡住的话之后所有撤销都静默失效，且界面上没有任何提示。
+    historyBusy = !1;
+  }
 }
 /**
  * 重做一步：先把当前状态压回撤销栈，再取出重做栈顶快照套用。
  *
- * @returns {Promise<void>} 无返回值；重做栈为空时立即返回。
+ * @returns {Promise<void>} 无返回值；重做栈为空或正在套用上一份快照时立即返回。
  */
 async function redo() {
-  if (!redoStack.length) {
+  if (historyBusy || !redoStack.length) {
     return;
   }
-  undoStack.push(cloneSceneForHistory());
-  const redoSnapshot = redoStack.pop();
-  await applySceneSnapshot(redoSnapshot);
+  historyBusy = !0;
+  try {
+    undoStack.push(cloneSceneForHistory());
+    const redoSnapshot = redoStack.pop();
+    await applySceneSnapshot(redoSnapshot);
+  } finally {
+    historyBusy = !1;
+  }
+}
+/**
+ * 撤销 / 重做的快捷键入口（Ctrl/Cmd+Z，加 Shift 为重做）。
+ *
+ * 为什么「长按」要在这里挡掉：按住 Ctrl+Z 时浏览器会隔一段补发一次 keydown
+ * （`repeat` 为真），而每一下都要 clone 整份场景再异步套用 —— 排队跑完的效果是
+ * 撤销一次跳好几步，用户看不出跳了几步、也停不下来。方向键推动（nudge）那里早就
+ * 按同一口径忽略 `repeat`，这里保持一致。
+ *
+ * @param {KeyboardEvent} shortcutEvent 触发的键盘事件。
+ * @returns {void}
+ */
+function applyHistoryShortcut(shortcutEvent) {
+  if (shortcutEvent.repeat) {
+    return;
+  }
+  (shortcutEvent.shiftKey ? redo : undo)();
 }
 /**
  * 标记文档有未保存改动：递增版本号、更新状态条，并排一次防抖自动保存。
@@ -30038,7 +30075,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/stage.js?v=20260918195608");
+        await import("/api/v1/modules/interaction3d/stage.js?v=20260918202529");
       mountStage(createStageController());
       return;
     }
@@ -32137,11 +32174,7 @@ window.addEventListener("keydown", windowKeyDownEvent => {
   const hasCommandModifier = windowKeyDownEvent.metaKey || windowKeyDownEvent.ctrlKey;
   if (hasCommandModifier && windowKeyDownEvent.key.toLowerCase() === "z") {
     windowKeyDownEvent.preventDefault();
-    if (windowKeyDownEvent.shiftKey) {
-      redo();
-    } else {
-      undo();
-    }
+    applyHistoryShortcut(windowKeyDownEvent);
     return;
   }
   if (hasCommandModifier && windowKeyDownEvent.key.toLowerCase() === "d") {

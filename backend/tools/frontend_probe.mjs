@@ -3496,6 +3496,391 @@ async function runAuthShellSuite() {
   );
 }
 
+/**
+ * W20：renderer 的 resize 必须「先读后写 + 一帧一遍」。
+ *
+ * 这个方法的病是**排版抖动**而不是结果错误，所以观测手段也得是顺序与次数：
+ * 垫片把每一次 `getBoundingClientRect`（读）与每一次手柄样式写入（写）都记进
+ * 一条流水，然后断言「写之前全部读完了」。旧的「逐个 写→读」写法下，第二个宿主
+ * 的那次读已经排在前一个宿主的写之后，于是每个宿主都强制一次同步布局 ——
+ * 组件多的页面在手机上滚动（visualViewport 每帧派发 resize）时就是每帧 N 次重排。
+ *
+ * @returns {Promise<void>}
+ */
+async function runRendererResizeSuite() {
+  const source = fs.readFileSync(path.join(ROOT, "frontend/static/renderer/renderer.js"), "utf8");
+  const script = [
+    extractClassMethod(source, "resize"),
+    extractClassMethod(source, "scheduleResize"),
+    extractClassMethod(source, "transformHandleBoundsElement"),
+    extractClassMethod(source, "updateTransformHandleScale"),
+    extractClassMethod(source, "updateMultiSelectionHandleScale")
+  ].join("\n\n");
+
+  const operations = [];
+  const makeBoundsElement = (id, box = { width: 200, height: 150 }) => ({
+    id,
+    box,
+    style: {
+      setProperty(name, value) {
+        operations.push({ kind: "write", id, name, value });
+      }
+    },
+    classList: {
+      toggle(name, force) {
+        operations.push({ kind: "write", id, name: `class:${name}`, value: force });
+      }
+    },
+    getBoundingClientRect() {
+      operations.push({ kind: "read", id });
+      return {
+        width: this.box.width,
+        height: this.box.height,
+        left: 0,
+        top: 0,
+        right: this.box.width,
+        bottom: this.box.height
+      };
+    }
+  });
+
+  const frames = [];
+  const context = vm.createContext({
+    Math,
+    window: {
+      requestAnimationFrame: callback => {
+        frames.push(callback);
+        return frames.length;
+      },
+      cancelAnimationFrame: frameId => {
+        if (frames[frameId - 1]) frames[frameId - 1] = null;
+      }
+    }
+  });
+  vm.runInContext(script, context, { filename: "renderer.resize.js" });
+
+  const resetOperations = () => operations.splice(0, operations.length);
+  const readIds = () => operations.filter(entry => entry.kind === "read").map(entry => entry.id);
+  const boundsWriteIndexes = () =>
+    operations
+      .map((entry, index) => (entry.kind === "write" && entry.id !== "canvas" ? index : -1))
+      .filter(index => index !== -1);
+  const lastReadIndex = () =>
+    operations.reduce((found, entry, index) => (entry.kind === "read" ? index : found), -1);
+
+  /**
+   * 造一个可用的渲染器替身。
+   *
+   * @param {number} [hostCount] 带手柄外框的组件宿主数量。
+   * @returns {object} 替身（含 element 查询入口与观测计数）。
+   */
+  const makeReceiver = (hostCount = 3) => {
+    const hostBounds = Array.from({ length: hostCount }, (ignored, index) =>
+      makeBoundsElement(`host-${index + 1}`)
+    );
+    const multiBounds = makeBoundsElement("multi");
+    // 第 4 个宿主没有外框元素：用来覆盖「定位不到就跳过」这条分支。
+    const hostsWithoutBounds = { querySelector: () => null };
+    const receiver = {
+      appliedScaleX: 1,
+      appliedScaleY: 1,
+      resizeFrameId: 0,
+      document: { canvas: { width: 1000, height: 800 } },
+      options: {},
+      container: { clientWidth: 500, clientHeight: 400, dataset: {} },
+      viewport: { style: {} },
+      canvas: {
+        style: {},
+        querySelector: selector =>
+          selector === ":scope > .hb-multi-selection-bounds" ? multiBounds : null
+      },
+      componentHosts: new Map([
+        ...hostBounds.map((bounds, index) => [
+          `comp-${index + 1}`,
+          { querySelector: selector => (selector === ":scope > .hb-selection-bounds" ? bounds : null) }
+        ]),
+        ...(hostCount > 0 ? [["comp-empty", hostsWithoutBounds]] : [])
+      ]),
+      componentRecords: new Map(
+        hostBounds.map((bounds, index) => [`comp-${index + 1}`, { id: `comp-${index + 1}`, style: { scale: 1 } }])
+      ),
+      componentSelectionOverlays: new Map(),
+      componentParentTransform: () => ({ scale: 1 }),
+      runtimeDialogScaleCalls: 0,
+      updateRuntimeDialogScale() {
+        this.runtimeDialogScaleCalls += 1;
+      }
+    };
+    Object.assign(receiver, {
+      resize: context.resize,
+      scheduleResize: context.scheduleResize,
+      transformHandleBoundsElement: context.transformHandleBoundsElement,
+      updateTransformHandleScale: context.updateTransformHandleScale,
+      updateMultiSelectionHandleScale: context.updateMultiSelectionHandleScale
+    });
+    return { receiver, hostBounds, multiBounds };
+  };
+
+  // ---- 先读后写 ----
+  const first = makeReceiver(3);
+  resetOperations();
+  first.receiver.resize();
+  const boundsWrites = boundsWriteIndexes();
+  check(
+    "W20 一遍 resize 里所有手柄矩形先读齐再开始写（写一个读一个 = 每个宿主强制一次同步布局）",
+    boundsWrites.length > 0 && lastReadIndex() < boundsWrites[0],
+    JSON.stringify({
+      ops: operations.map(entry => `${entry.kind}:${entry.id}`),
+      lastRead: lastReadIndex(),
+      firstBoundsWrite: boundsWrites[0] ?? null
+    })
+  );
+  check(
+    "W20 每个手柄外框每遍只量一次（三个宿主 + 多选框 = 4 次，没有外框的宿主跳过）",
+    JSON.stringify(readIds()) === JSON.stringify(["host-1", "host-2", "host-3", "multi"]),
+    JSON.stringify(readIds())
+  );
+  check(
+    "W20 没有外框的宿主不会中断这一遍（定位阶段跳过它，缩放照样算完）",
+    first.receiver.appliedScaleX === 0.5 &&
+      first.receiver.appliedScaleY === 0.5 &&
+      first.receiver.componentHosts.has("comp-empty"),
+    JSON.stringify({
+      scaleX: first.receiver.appliedScaleX,
+      scaleY: first.receiver.appliedScaleY,
+      hosts: [...first.receiver.componentHosts.keys()]
+    })
+  );
+
+  // 先读后写不能改变判定：小外框照样要切到「手柄外置」。
+  first.hostBounds[1].box = { width: 100, height: 90 };
+  resetOperations();
+  first.receiver.resize();
+  const outsideToggles = operations.filter(
+    entry => entry.kind === "write" && entry.name === "class:handles-outside"
+  );
+  check(
+    "W20 先读后写不改变判定：100×90 的宿主仍然切到外置手柄、200×150 的不切",
+    outsideToggles.length === 4 &&
+      outsideToggles[0].value === false &&
+      outsideToggles[1].value === true,
+    JSON.stringify(outsideToggles.map(entry => [entry.id, entry.value]))
+  );
+
+  // ---- 一帧一遍 ----
+  const second = makeReceiver(2);
+  resetOperations();
+  second.receiver.scheduleResize();
+  second.receiver.scheduleResize();
+  second.receiver.scheduleResize();
+  check(
+    "W20 同一帧里的三个尺寸事件只排一帧、当场什么都不读（visualViewport 每帧都在派发）",
+    frames.length === 1 && operations.length === 0,
+    JSON.stringify({ frames: frames.length, ops: operations.length })
+  );
+  while (frames.length) frames.shift()?.();
+  check(
+    "W20 合并后的那一帧只跑一遍完整 resize（两个宿主 + 多选框共 3 次测量）",
+    JSON.stringify(readIds()) === JSON.stringify(["host-1", "host-2", "multi"]) &&
+      second.receiver.runtimeDialogScaleCalls === 1,
+    JSON.stringify({ reads: readIds(), dialogScale: second.receiver.runtimeDialogScaleCalls })
+  );
+  check(
+    "W20 合并只作用于事件入口：直接调 resize() 仍然是同步的（渲染完一页要立刻用缩放值）",
+    (() => {
+      resetOperations();
+      second.receiver.resize();
+      return readIds().length === 3 && second.receiver.runtimeDialogScaleCalls === 2;
+    })(),
+    JSON.stringify({ reads: readIds(), dialogScale: second.receiver.runtimeDialogScaleCalls })
+  );
+
+  // ---- 既有边界不能被顺手改松 ----
+  const third = makeReceiver(1);
+  third.receiver.container.clientWidth = 0;
+  resetOperations();
+  third.receiver.resize();
+  check(
+    "W20 容器宽高为 0 时整遍直接返回（不写样式、也不量手柄）",
+    operations.length === 0,
+    JSON.stringify(operations)
+  );
+}
+
+/**
+ * W22：撤销 / 重做必须互斥，长按的自动重复必须被挡掉。
+ *
+ * 垫片提供两个可摆布的替身：`cloneSceneForHistory`（记录「当前状态」被 clone 了
+ * 几份）与 `applySceneSnapshot`（返回一个由探针决定的 promise）。于是三条性质都能
+ * 观测：套用期间的第二下不生效、套用失败也放闩、`repeat` 的按键不算数。
+ *
+ * @returns {Promise<void>}
+ */
+async function runStudioHistorySuite() {
+  const source = fs.readFileSync(path.join(ROOT, "frontend/static/3d-studio/studio-app.js"), "utf8");
+  const script = [
+    extractVariableDeclaration(source, "historyBusy"),
+    extractVariableDeclaration(source, "undoStack"),
+    extractVariableDeclaration(source, "redoStack"),
+    extractFunction(source, "undo"),
+    extractFunction(source, "redo"),
+    extractFunction(source, "applyHistoryShortcut"),
+    // vm 里的顶层 let 从外面读不到（前面批次已经踩过一次：const 不是沙箱的属性），
+    // 所以由沙箱自己的代码把入口与状态交出来。
+    "globalThis.historyProbe = {",
+    "  undo,",
+    "  redo,",
+    "  applyHistoryShortcut,",
+    "  seed: (undoEntries, redoEntries) => { undoStack = undoEntries; redoStack = redoEntries; },",
+    "  snapshot: () => ({ undo: undoStack.slice(), redo: redoStack.slice() })",
+    "};"
+  ].join("\n");
+
+  const applied = [];
+  const pending = [];
+  const clones = [];
+  const context = vm.createContext({
+    cloneSceneForHistory: () => {
+      const snapshot = { kind: "live", serial: clones.length };
+      clones.push(snapshot);
+      return snapshot;
+    },
+    applySceneSnapshot: snapshot => {
+      applied.push(snapshot);
+      return new Promise((resolve, reject) => pending.push({ resolve, reject }));
+    }
+  });
+  vm.runInContext(script, context, { filename: "studio.history.js" });
+  const probeHandle = context.historyProbe;
+  const settle = async () => {
+    while (pending.length) pending.shift().resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+
+  // ---- 套用期间不许重入 ----
+  probeHandle.seed(["A", "B", "C"], []);
+  const firstPass = probeHandle.undo();
+  await Promise.resolve();
+  const overlapping = probeHandle.undo();
+  await Promise.resolve();
+  check(
+    "W22 快照还在套用时再按撤销不再排队（第二下会在半成品状态上 clone 当前场景）",
+    applied.length === 1,
+    JSON.stringify({ applied: applied.map(entry => entry.kind === "live" ? `live#${entry.serial}` : entry) })
+  );
+  await settle();
+  await firstPass;
+  await overlapping;
+  check(
+    "W22 一趟撤销只动一步：撤销栈 A/B/C → A/B，重做栈拿到被替换掉的当前状态",
+    JSON.stringify(probeHandle.snapshot()) ===
+      JSON.stringify({ undo: ["A", "B"], redo: [{ kind: "live", serial: 0 }] }),
+    JSON.stringify(probeHandle.snapshot())
+  );
+  check(
+    "W22 套用结束后闩必须松开（否则之后所有撤销都静默失效）",
+    (() => {
+      const before = applied.length;
+      probeHandle.undo();
+      return applied.length === before + 1;
+    })(),
+    JSON.stringify({ applied: applied.length, state: probeHandle.snapshot() })
+  );
+  await settle();
+
+  // ---- 套用失败也要放闩 ----
+  probeHandle.seed(["A", "B"], []);
+  const failing = probeHandle.undo();
+  await Promise.resolve();
+  pending.shift().reject(new Error("快照套用失败"));
+  let failureSeen = !1;
+  try {
+    await failing;
+  } catch {
+    failureSeen = !0;
+  }
+  const afterFailure = applied.length;
+  probeHandle.undo();
+  check(
+    "W22 快照套用抛错后同样放闩（卡住的闩会让撤销永久静默失效）",
+    failureSeen && applied.length === afterFailure + 1,
+    JSON.stringify({ failureSeen, applied: applied.length })
+  );
+  await settle();
+
+  // ---- 长按的自动重复不算数 ----
+  probeHandle.seed(["A", "B"], ["R1"]);
+  const beforeRepeat = applied.length;
+  probeHandle.applyHistoryShortcut({ repeat: true, shiftKey: false });
+  probeHandle.applyHistoryShortcut({ repeat: true, shiftKey: true });
+  await Promise.resolve();
+  check(
+    "W22 长按 Ctrl+Z / Ctrl+Shift+Z 的自动重复不算数（一下要 clone 整份场景，排队跑完会跳好几步）",
+    applied.length === beforeRepeat &&
+      JSON.stringify(probeHandle.snapshot()) ===
+        JSON.stringify({ undo: ["A", "B"], redo: ["R1"] }),
+    JSON.stringify({ applied: applied.length, state: probeHandle.snapshot() })
+  );
+  await settle();
+  const beforeShortcut = applied.length;
+  probeHandle.applyHistoryShortcut({ repeat: false, shiftKey: false });
+  probeHandle.applyHistoryShortcut({ repeat: false, shiftKey: true });
+  await Promise.resolve();
+  check(
+    "W22 真按键仍然照做：Ctrl+Z 走撤销、Ctrl+Shift+Z 走重做",
+    applied.length === beforeShortcut + 1 && applied.at(-1) === "B",
+    JSON.stringify({ applied: applied.map(entry => (entry.kind === "live" ? "live" : entry)) })
+  );
+  await settle();
+  const redoTopBeforeRedo = probeHandle.snapshot().redo.at(-1);
+  probeHandle.applyHistoryShortcut({ repeat: false, shiftKey: true });
+  await Promise.resolve();
+  check(
+    "W22 重做套用的是重做栈顶那一份快照（而不是把当前状态又套一遍）",
+    redoTopBeforeRedo !== undefined && applied.at(-1) === redoTopBeforeRedo,
+    JSON.stringify({ last: applied.at(-1), redoTop: redoTopBeforeRedo })
+  );
+  await settle();
+
+  // ---- 重做也走同一把闩（只闩撤销 = 重做这条路径照样能在半成品上重入）----
+  probeHandle.seed([], ["R1", "R2"]);
+  const redoBaseline = applied.length;
+  const clonesBeforeRedo = clones.length;
+  const redoPass = probeHandle.redo();
+  await Promise.resolve();
+  const overlappingRedo = probeHandle.redo();
+  await Promise.resolve();
+  check(
+    "W22 重做套用期间再按重做同样不排队（闩只挡撤销就等于这条路径没保护）",
+    applied.length === redoBaseline + 1,
+    JSON.stringify({ applied: applied.map(entry => (entry.kind === "live" ? "live" : entry)) })
+  );
+  await settle();
+  await redoPass;
+  await overlappingRedo;
+  check(
+    "W22 一趟重做只动一步、结束后放闩（重做栈 R1/R2 → R1，撤销栈只拿到这一下 clone 的当前状态）",
+    JSON.stringify(probeHandle.snapshot()) ===
+      JSON.stringify({ undo: [{ kind: "live", serial: clonesBeforeRedo }], redo: ["R1"] }),
+    JSON.stringify({ state: probeHandle.snapshot(), clonesBeforeRedo })
+  );
+  await settle();
+
+  // ---- 栈空时什么都不做 ----
+  probeHandle.seed([], []);
+  const beforeEmpty = applied.length;
+  const clonesBeforeEmpty = clones.length;
+  probeHandle.undo();
+  probeHandle.redo();
+  await Promise.resolve();
+  check(
+    "W22 栈空时连 clone 都不做（空撤销不该往重做栈里塞一份当前状态）",
+    applied.length === beforeEmpty && clones.length === clonesBeforeEmpty,
+    JSON.stringify({ applied: applied.length, clones: clones.length - clonesBeforeEmpty })
+  );
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,
   login: runLoginSuite,
@@ -3514,7 +3899,9 @@ const suites = {
   "interaction3d-mount": runInteraction3dMountSuite,
   "studio-conflict": runStudioConflictSuite,
   "pair-scan": runPairScanSuite,
-  "auth-shell": runAuthShellSuite
+  "auth-shell": runAuthShellSuite,
+  "renderer-resize": runRendererResizeSuite,
+  "studio-history": runStudioHistorySuite
 };
 
 /**
