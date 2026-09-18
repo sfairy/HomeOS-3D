@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict, defaultdict, deque
+from math import ceil
 from threading import Lock
 # 用 monotonic 而非 time.time：系统时间被校准时不会让封禁窗口提前结束或永久卡死。
 from time import monotonic
@@ -55,6 +56,11 @@ class BoundedAttemptLimiter:
     def block_seconds(self) -> int:
         """超限后的封禁时长（秒）。"""
         return self._limiter.block_seconds
+
+    def retry_after(self, key: str) -> int:
+        """该键还要等多少秒才能再试（未封禁时返回 0）。"""
+        with self._lock:
+            return self._limiter.retry_after(key)
 
     def blocked(self, key: str) -> bool:
         """该键当前是否处于封禁中。"""
@@ -145,6 +151,28 @@ class LoginAttemptLimiter:
         with self._lock:
             self._failures.pop(key, None)
             self._blocked_until.pop(key, None)
+
+    def retry_after(self, key: str) -> int:
+        """该 key 还要等多少秒才能再试（未封禁时返回 0）。
+
+        与 ``block_seconds``（封禁**总**时长）不是一回事，也不要混用（B63）：
+        调用方拿它拼 ``Retry-After`` 时，指的是「从现在起还要等多久」。用总时长
+        会一路偏乐观 —— 一个已经封了 9 分钟的键，客户端会被要求再等满一个窗口
+        （10 分钟），而它其实 1 分钟后就能再试。反过来读太快（比如在封禁第 9 分钟
+        告诉客户端「等 0 秒」）会让客户端立刻重试又立刻被拒，所以这里向上取整、
+        至少 1 秒。
+
+        返回值随多次调用递减（基于 monotonic，不受系统时间校准影响）；
+        顺手清理已到期的封禁标记，与 :meth:`blocked` 同一套清理。
+        """
+        now = monotonic()
+        with self._lock:
+            remaining = self._blocked_until.get(key, 0) - now
+            if remaining <= 0:
+                self._blocked_until.pop(key, None)
+                self._prune(key, now)
+                return 0
+            return max(1, ceil(remaining))
 
     def _prune(self, key: str, now: float) -> None:
         """丢弃窗口外的失败时间戳；窗口清空后连键一起删掉。"""

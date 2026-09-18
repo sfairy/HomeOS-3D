@@ -100,8 +100,14 @@ def login_limiter_scopes(request: Request, username: str) -> list[tuple]:
 
 
 def _retry_after_seconds(scopes: list[tuple]) -> str:
-    """被拦时回带的 Retry-After：取所有命中档里最长的封禁时长，避免提示偏乐观。"""
-    return str(max((limiter.block_seconds for limiter, _key in scopes), default=600))
+    """被拦时回带的 Retry-After：取所有命中档里**剩余等待时间**最长的。
+
+    用剩余时间而不是 ``block_seconds``（封禁总时长）：后者从被封那一刻起算就固定了，
+    而调用方是在封禁中途某刻才被拦下的 —— 回总时长等于让客户端多等「已经等过的那段」
+    （B63）。取最长的一档是为了不自相矛盾：客户端按这个值等满，必然同时越过所有档位。
+    """
+    remaining = [limiter.retry_after(key) for limiter, key in scopes]
+    return str(max(remaining, default=1))
 
 
 def create_login_session(request: Request, database: DatabaseSession, user: User) -> str:

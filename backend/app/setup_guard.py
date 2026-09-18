@@ -165,11 +165,12 @@ class SetupGuard:
         limiter_key = f'setup:{host}'
 
         if limiter is not None and limiter.blocked(limiter_key):
-            # block_seconds 是 int 属性而不是方法（另一处曾把它当函数调用过）。
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail='初始化尝试次数过多，请稍后再试。',
-                headers={'Retry-After': str(limiter.block_seconds)},
+                # 剩余等待时间，而不是整段封禁时长（B63）：回总时长会让客户端白等
+                # 已经过去的那一段。
+                headers={'Retry-After': str(limiter.retry_after(limiter_key))},
             )
 
         if is_direct_local(request):

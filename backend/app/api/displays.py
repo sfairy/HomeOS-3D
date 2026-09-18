@@ -92,7 +92,8 @@ def enforce_pair_rate_limit(request: Request, ip_address: str, per_client: bool 
     转发头）不启用按真实 IP 那一档 —— 所有人共用同一个地址，用它计数等于让任何
     一个人失败几次就锁掉所有人的配对页。但这时改成记**共享地址**那一档宽配额
     （B16）：不能整个跳过，否则一个来源烧完跨来源预算就等于把所有人挡在外面。
-    注意 block_seconds 是 int 属性而不是方法（把它当函数调用会 500 而不是 429）。
+    注意 block_seconds 是 int 属性而不是方法（把它当函数调用会 500 而不是 429）；
+    回带 ``Retry-After`` 用的是 ``retry_after(key)``（剩余时间）而不是它（B63）。
     """
     if per_client:
         ip_limiter = request.app.state.login_limiter
@@ -106,14 +107,16 @@ def enforce_pair_rate_limit(request: Request, ip_address: str, per_client: bool 
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail='配对失败次数过多，请稍后再试。',
-            headers={'Retry-After': str(ip_limiter.block_seconds)},
+            # 剩余等待时间（B63）：block_seconds 是整段封禁时长，回它等于让客户端
+            # 把已经等过的那一段再等一遍。
+            headers={'Retry-After': str(ip_limiter.retry_after(ip_key))},
         )
     global_limiter = request.app.state.pairing_limiter
     if global_limiter.blocked(PAIRING_GLOBAL_KEY):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail='配对尝试过于频繁，请稍后再试。',
-            headers={'Retry-After': str(global_limiter.block_seconds)},
+            headers={'Retry-After': str(global_limiter.retry_after(PAIRING_GLOBAL_KEY))},
         )
     return (ip_limiter, ip_key)
 
@@ -458,7 +461,7 @@ def pair_display_device(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail='该配对码尝试次数过多，请稍后再试。',
-            headers={'Retry-After': str(request.app.state.pairing_code_limiter.block_seconds)},
+            headers={'Retry-After': str(request.app.state.pairing_code_limiter.retry_after(code_key))},
         )
     # 能力码：页面侧（/pair 路由）已经拦过一次，API 自己也得拦 —— 授权收回 display 后
     # 不能还能凭一个旧配对码换出新令牌。

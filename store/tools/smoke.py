@@ -9860,7 +9860,8 @@ def check_display_pairing_hardening() -> None:
     换 IP 就能继续穷举；更糟的是拿一个已经在用的配对码再次配对会**顶掉**原来那台
     平板的令牌（不删行、只覆盖 token_hash 并清掉 revoked_at），等于用一张照片把
     合法设备挤下线。另外被拦截时走的是 ``limiter.block_seconds(...)``（int 当函数
-    调）→ 抛 TypeError → 返回 500 而不是 429。
+    调）→ 抛 TypeError → 返回 500 而不是 429；后来 ``Retry-After`` 改成回**剩余**
+    等待时间（``retry_after(key)``，B63），不再回整段封禁时长。
 
     上面这些行为（首次配对、重复配对 409、解绑后重配、旧令牌失效、按 IP 与跨来源
     两档限流）要真发请求才覆盖得到，这里钉住关键接线。
@@ -9868,8 +9869,10 @@ def check_display_pairing_hardening() -> None:
     source = (PROJECT_ROOT / "backend" / "app" / "api" / "displays.py").read_text(encoding="utf-8")
     check("配对失败有跨来源的全局预算（换 IP 也躲不掉）", "PAIRING_GLOBAL_LIMIT" in source and "PAIRING_GLOBAL_KEY" in source)
     check(
-        "被限流时返回 429 + Retry-After（block_seconds 是属性，不是方法）",
-        "limiter.block_seconds" in source and "limiter.block_seconds(" not in source and "Retry-After" in source,
+        "被限流时返回 429 + Retry-After（回的是剩余时间；block_seconds 是属性，不许当函数调）",
+        "Retry-After" in source
+        and "block_seconds(" not in source
+        and "retry_after(" in source,
     )
     check(
         "正在用的设备不会被同一个配对码顶掉（409 冲突）",

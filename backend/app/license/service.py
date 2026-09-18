@@ -487,10 +487,46 @@ class LicenseService:
         # 置空句柄，避免重复 stop() 时 await 一个已结束的任务。
         self._task = None
 
+    def _lease_expired(self, expires_at: datetime, *, now: datetime) -> bool:
+        """租约是否**确实**已到期（含时钟偏移容差，B29）。
+
+        同一个函数里的 ``issuedAt`` 判定与「时钟回拨」检测都用
+        ``license_clock_skew_seconds`` 留了余量，只有这一半（到期判定）过去是拿
+        ``now`` 硬比的：本机时钟只要快几秒，就会在租约还剩几秒可用时提前判成过期。
+        而心跳间隔是分钟级的（``heartbeatIn`` 下限 30 秒、默认 300 秒），于是出现
+        「服务端认为有效、本机把自己关成完全受限」的窗口，期间所有门禁一口回绝。
+        两侧用同一个容差才对称：容差的意义就是「这台机器的时钟不许比服务端快太多」，
+        既然签发时间用这个容差宽恕，到期时间也该用同一个。
+
+        代价是租约最多被多用 ``license_clock_skew_seconds`` 秒（默认 300 秒），
+        与「时钟回拨容差」是同一笔代价，没有引入新的放宽。
+        """
+        return expires_at <= now - timedelta(seconds=self.settings.license_clock_skew_seconds)
+
+    def _lease_sequence_ok(self, payload_sequence: int, state: LicenseState) -> bool:
+        """租约序号判据：手上这份租约不能比已经记下的更旧（B30）。
+
+        这一处过去要求「与库里的序号**完全相等**」。它要守的性质其实是防重放
+        （不能拿一份更旧的租约顶替现在这份），而写成相等之后，任何让两个字段不同步
+        的状态 —— 库被回滚/恢复、行被外部修过、将来多一条只更新租约的路径 —— 都会
+        变成**终局 INVALID**：界面上没有任何恢复入口，只能清空授权重新激活。
+        序号的权威来源是服务端签名，本地这一列只是「我见过的最新序号」的备忘，
+        因此判据放宽成「不比备忘更旧」，并把更大的值**回写**成新备忘（自愈）；
+        更旧则说明手上这份租约是被换下来的旧货，照旧拒绝。
+
+        回写能否落库取决于调用方会话是否提交：请求级会话会在收尾提交（因此下一次
+        校验就直接相等了），服务自己开的只读会话不提交，交给启动校验那条路径补。
+        """
+        if payload_sequence < state.lease_sequence:
+            return False
+        if payload_sequence > state.lease_sequence:
+            state.lease_sequence = payload_sequence
+        return True
+
     def _validate_saved_state(self, state: LicenseState, database) -> None:
         """启动时的离线校验：只信签名租约，不信库里的 status。
 
-        校验顺序：验签 → 租约序号一致 → 到期时间 → 时钟回拨。
+        校验顺序：验签 → 租约序号不比备忘更旧 → 到期时间 → 时钟回拨。
         任何一步失败都写回明确的状态与中文原因，供前端展示。
         """
         # 没有租约，或已处于终态（停用/未激活）时无需校验。
@@ -498,9 +534,9 @@ class LicenseService:
             return
         try:
             payload = self.verifier.verify(state.signed_lease, state.instance_id)
-            # 序号回落说明库里的记录被改过、或来自一份更旧的租约，属于篡改信号。
-            if payload['leaseSequence'] != state.lease_sequence:
-                raise LicenseCryptoError('本地租约序号与签名租约不一致。')
+            # 序号比备忘更旧：库里的记录被改过，或这份租约是被换下来的旧货（重放）。
+            if not self._lease_sequence_ok(payload['leaseSequence'], state):
+                raise LicenseCryptoError('本地签名租约的序号比记录更旧，授权记录可能被回滚或替换过。')
             expires = parse_timestamp(payload['expiresAt'])
             now = datetime.now(timezone.utc)
             last_verified = aware(state.last_verified_at)
@@ -509,8 +545,8 @@ class LicenseService:
                 state.status = 'CLOCK_ROLLBACK'
                 state.last_error = '检测到系统时间回拨，请校准系统时间后重新验证授权。'
             else:
-                # 验签通过后按租约到期时间给出离线结论。
-                state.status = 'ACTIVE' if expires > now else 'LEASE_EXPIRED'
+                # 验签通过后按租约到期时间给出离线结论（含时钟偏移容差，B29）。
+                state.status = 'LEASE_EXPIRED' if self._lease_expired(expires, now=now) else 'ACTIVE'
                 state.last_verified_at = now
                 state.last_error = None
         except LicenseCryptoError as error:
@@ -648,9 +684,11 @@ class LicenseService:
                 database.commit()
                 self._record_status(state.status, state.last_error)
                 raise LicenseClientError(state.last_error)
-            if expires_at <= now:
+            if self._lease_expired(expires_at, now=now):
                 # 服务端返回一份已过期的租约：不写入可用状态，
                 # 避免刚「激活成功」就拿到一个当场失效的凭证。
+                # 判据含时钟偏移容差（B29）：本机时钟只是比服务端快几秒时，
+                # 一份刚签发的租约不该被判成过期而让激活直接失败。
                 state.status = 'LEASE_EXPIRED'
                 state.last_error = '授权服务器返回了已到期租约。'
                 database.commit()
@@ -1007,7 +1045,10 @@ class LicenseService:
         with self.database.session_factory() as database:
             state = self._state(database)
             expires = aware(state.lease_expires_at)
-            return (bool(state.license_id), state.status, bool(expires and expires <= datetime.now(timezone.utc)))
+            now = datetime.now(timezone.utc)
+            # 是否到期用同一个带容差的判据（B29）：这里决定「下来是续租还是走恢复令牌」，
+            # 用硬比会让本机时钟稍快时多走一次恢复分支。
+            return (bool(state.license_id), state.status, bool(expires and self._lease_expired(expires, now=now)))
 
     async def _heartbeat_loop(self) -> None:
         """心跳主循环：等一个「计划变更」或超时，然后续租或恢复。
@@ -1064,7 +1105,7 @@ class LicenseService:
             # 时钟回拨时租约到期判断不可信，直接覆盖为 CLOCK_ROLLBACK。
             effective_status = 'CLOCK_ROLLBACK'
             effective_error = '检测到系统时间回拨，请校准系统时间后重新验证授权。'
-        elif lease_expires and lease_expires <= now and effective_status in frozenset({'ACTIVE', 'CONNECTION_WARNING'}):
+        elif lease_expires and self._lease_expired(lease_expires, now=now) and effective_status in frozenset({'ACTIVE', 'CONNECTION_WARNING'}):
             # 库里还写着 ACTIVE，但租约按实时时间已经到期：覆盖为 LEASE_EXPIRED，
             # 避免前端显示「正常」而实际请求被门禁拦下。
             effective_status = 'LEASE_EXPIRED'
@@ -1189,7 +1230,7 @@ class LicenseService:
         if issued_at > now + timedelta(seconds=self.settings.license_clock_skew_seconds):
             self._record_failure('本地校验', '授权服务器时间明显晚于本机时间，请先校准系统时间。')
             return False
-        if expires_at <= now:
+        if self._lease_expired(expires_at, now=now):
             self._record_failure('本地校验', '授权租约已到期。')
             return False
         # 逐字段比对库里的关联标识与租约载荷：
@@ -1200,8 +1241,10 @@ class LicenseService:
         if payload['leaseId'] != state.lease_id or payload['sessionId'] != state.session_id:
             self._record_failure('本地校验', '本地租约或会话标识与签名租约不一致。')
             return False
-        if payload['leaseSequence'] != state.lease_sequence:
-            self._record_failure('本地校验', '本地租约序号与签名租约不一致。')
+        # 序号只要求「不比备忘更旧」（B30）：相等是常态，更大则回写自愈；
+        # 更旧说明手上这份租约是被换下来的旧货，拒绝。
+        if not self._lease_sequence_ok(payload['leaseSequence'], state):
+            self._record_failure('本地校验', '本地签名租约的序号比记录更旧，授权记录可能被回滚或替换过。')
             return False
         features = payload.get('features')
         if not isinstance(features, list) or not all(isinstance(item, str) for item in features):
@@ -1224,7 +1267,9 @@ class LicenseService:
                     continue
                 expires_at = entitlement.get('expiresAt')
                 try:
-                    if expires_at and parse_timestamp(expires_at) <= now:
+                    # 权益到期与租约到期是同一类比较（服务端签的时间 vs 本机时钟），
+                    # 因此共用同一个带容差的判据（B29），不在这里另写一套。
+                    if expires_at and self._lease_expired(parse_timestamp(expires_at), now=now):
                         continue
                 except (LicenseCryptoError, TypeError, ValueError):
                     # 时间格式非法的条目直接跳过（视为未授权），

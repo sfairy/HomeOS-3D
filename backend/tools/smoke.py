@@ -3310,6 +3310,333 @@ async def check_license_database_offloaded() -> None:
     )
 
 
+def _license_service_with_lease(tmp: Path, **overrides) -> tuple[Any, Any]:
+    """建一个「租约载荷可定制」的授权服务（真判定逻辑，只换验签器）。
+
+    验签器换成桩是必须的（真实现要真密钥），但被判定的那段代码全是真的；
+    载荷里的时间与序号由调用方给，这样「时钟偏移」「序号更新」这类边界才能被
+    精确摆出来，而不是靠等真实时间流过。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    # 调用方会在同一个临时根目录下开多个子目录（每个用例一份库），先建好 ——
+    # sqlite 不会替我们创建父目录。
+    tmp.mkdir(parents=True, exist_ok=True)
+    (database, instance_id) = _license_fixture(tmp)
+    service = _bare_license_service(database, instance_id)
+    now = datetime.now(timezone.utc)
+    payload = {
+        'expiresAt': (now + timedelta(hours=1)).isoformat(),
+        'issuedAt': now.isoformat(),
+        # 与 _license_fixture 里那一行的备忘（3）刻意不同：B30 那条检查要的就是这个差异。
+        'leaseSequence': 4,
+        'activationCodeId': 'lic-1',
+        'leaseId': 'lease-1',
+        'sessionId': 'sess-1',
+        'features': ['all'],
+    }
+    payload.update(overrides)
+    service.verifier = SimpleNamespace(verify=lambda _lease, _instance: dict(payload))
+    return (database, service)
+
+
+def _stored_lease_sequence(database: Any) -> int:
+    """读一下库里记着的租约序号（自检自己的读库无所谓线程，直接读）。"""
+    from sqlalchemy import select
+
+    from backend.app.models import LicenseState
+
+    with database.session_factory() as session:
+        return int(session.scalar(select(LicenseState.lease_sequence)))
+
+
+def check_lease_expiry_clock_skew() -> None:
+    """B29：租约到期判定必须与签发时间判定用同一个时钟偏移容差。
+
+    只在到期这一半硬比 ``now``，会让本机时钟快几秒的安装提前把租约判成过期：
+    心跳间隔是分钟级（默认 300 秒），于是出现「服务端认为有效、本机把自己关成
+    完全受限」的窗口，期间所有门禁一口回绝（这正是「完全受限」最常见的成因）。
+
+    判据按「偏移量」摆：租约刚过期 10 秒（容差 30 秒内）必须放行，过期 60 秒
+    （超出容差）必须拦下 —— 只放开容差而不封口的话，第二条会红。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    with tempfile.TemporaryDirectory(prefix='hb-lease-skew-') as tmp:
+        (database, service) = _license_service_with_lease(
+            Path(tmp), expiresAt=(now - timedelta(seconds=10)).isoformat()
+        )
+        allowed_within_skew = service.allows()
+        reason_within_skew = (service._event_failures.get('本地校验') or {}).get('reason')
+
+        (database_late, service_late) = _license_service_with_lease(
+            Path(tmp) / 'late', expiresAt=(now - timedelta(seconds=60)).isoformat()
+        )
+        allowed_beyond_skew = service_late.allows()
+        reason_beyond_skew = (service_late._event_failures.get('本地校验') or {}).get('reason')
+
+    check(
+        'B29 租约刚过期几秒（时钟偏移容差内）照旧放行，不再直接「完全受限」',
+        allowed_within_skew is True and reason_within_skew is None,
+        f'allowed={allowed_within_skew} 失败原因={reason_within_skew}',
+    )
+    check(
+        'B29 过期明显超出容差时照旧拦下（容差不是「永不过期」）',
+        allowed_beyond_skew is False and '已到期' in str(reason_beyond_skew),
+        f'allowed={allowed_beyond_skew} 失败原因={reason_beyond_skew}',
+    )
+
+
+def check_lease_sequence_selfheal() -> None:
+    """B30：序号判据是「不比备忘更旧」，更大要回写自愈，更旧才拒绝。
+
+    过去要求与库里的序号**完全相等**。它想守的是「不能拿一份更旧的租约顶替」
+    （防重放），而写成相等之后，任何让两处不同步的状态 —— 库被回滚/恢复、行被
+    外部修过 —— 都变成终局 INVALID：界面上没有任何恢复入口。
+
+    这里把三种关系都摆出来：更新（放行 + 回写）、相等（放行）、更旧（拒绝）。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    with tempfile.TemporaryDirectory(prefix='hb-lease-seq-') as tmp:
+        # ① 签名序号（4）比库里的备忘（3）新：放行，并把备忘对齐（请求级会话收尾提交）。
+        (database, service) = _license_service_with_lease(Path(tmp) / 'newer')
+        with database.session_factory() as session:
+            allowed_newer = service.allows(database=session)
+            session.commit()
+        sequence_after = _stored_lease_sequence(database)
+
+        # ② 启动校验这条路径自己会提交，同样要把备忘对齐。
+        (database_start, service_start) = _license_service_with_lease(
+            Path(tmp) / 'startup', leaseSequence=9
+        )
+        with database_start.session_factory() as session:
+            from sqlalchemy import select
+
+            from backend.app.models import LicenseState
+
+            state = session.scalar(select(LicenseState).limit(1))
+            service_start._validate_saved_state(state, session)
+        sequence_after_startup = _stored_lease_sequence(database_start)
+
+        # ③ 签名序号比备忘更旧：拒绝（手上这份租约是被换下来的旧货）。
+        (database_old, service_old) = _license_service_with_lease(
+            Path(tmp) / 'older', expiresAt=(now + timedelta(hours=1)).isoformat()
+        )
+        with database_old.session_factory() as session:
+            from sqlalchemy import select
+
+            from backend.app.models import LicenseState
+
+            state = session.scalar(select(LicenseState).limit(1))
+            state.lease_sequence = 9
+            session.commit()
+            allowed_older = service_old.allows(database=session)
+        reason_older = (service_old._event_failures.get('本地校验') or {}).get('reason')
+
+    check(
+        'B30 签名序号比备忘更新时照旧放行（不再要求完全相等）',
+        allowed_newer is True,
+        f'allowed={allowed_newer}',
+    )
+    check(
+        'B30 更大的序号会回写成新备忘（请求路径靠会话收尾提交）',
+        sequence_after == 4,
+        f'库里序号={sequence_after}（期望 4）',
+    )
+    check(
+        'B30 启动校验同样回写备忘（下一次校验就直接相等了）',
+        sequence_after_startup == 9,
+        f'库里序号={sequence_after_startup}（期望 9）',
+    )
+    check(
+        'B30 签名序号比备忘更旧时照旧拒绝（防重放这一半没被放宽掉）',
+        allowed_older is False and '更旧' in str(reason_older),
+        f'allowed={allowed_older} 失败原因={reason_older}',
+    )
+
+
+def check_retry_after_counts_down() -> None:
+    """B63：429 回的 ``Retry-After`` 必须是「还要等多久」，不是整段封禁时长。
+
+    ``block_seconds`` 从被封那一刻起就固定了，而调用方是在封禁**中途**某刻被拦下的：
+    回总时长等于让客户端把已经等过的那一段再等一遍（封 10 分钟、已经等了 9 分钟，
+    还被告知「再等 10 分钟」）。这里用可拨的时钟把三个时刻摆出来：刚封上、封了
+    9 分钟、越过封禁 —— 剩余时间必须分别是满额、1 分钟左右、0。
+    """
+    from backend.app import auth_limiter
+    from backend.app.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
+
+    clock = {'now': 1000.0}
+    real_monotonic = auth_limiter.monotonic
+    auth_limiter.monotonic = lambda: clock['now']
+    try:
+        limiter = LoginAttemptLimiter(1, 300, 600)
+        limiter.record_failure('key')
+        at_block = limiter.retry_after('key')
+        clock['now'] += 540
+        near_release = limiter.retry_after('key')
+        clock['now'] += 61
+        after_release = limiter.retry_after('key')
+        block_seconds = limiter.block_seconds
+        untouched = limiter.retry_after('never-seen')
+
+        bounded = BoundedAttemptLimiter(1, 300, 600, max_keys=4)
+        bounded.record_failure('code')
+        bounded_at_block = bounded.retry_after('code')
+        clock['now'] += 540
+        bounded_near_release = bounded.retry_after('code')
+
+        # 真路由：登录被拦时回带的必须是剩余时间，而不是 600。
+        fixture = _build_login_fixture(
+            Path(tempfile.mkdtemp(prefix='hb-retry-after-')),
+            SimpleNamespace(user_id='u1', username='admin', password_hash='sentinel-hash'),
+        )
+        fixture.request.app.state.login_limiter = LoginAttemptLimiter(1, 300, 600)
+        clock['now'] = 5000.0
+
+        def attempt() -> str:
+            from fastapi import HTTPException
+
+            from backend.app.api.auth import login as login_route
+            from backend.app.schemas import LoginRequest
+
+            try:
+                login_route(
+                    payload=LoginRequest(username='admin', password='wrong-horse'),
+                    request=fixture.request,
+                    response=fixture.response,
+                    database=fixture.session,
+                )
+                return '通过'
+            except HTTPException as error:
+                return f'{error.status_code}:{(error.headers or {}).get("Retry-After")}'
+
+        first = attempt()
+        second = attempt()
+        clock['now'] += 540
+        third = attempt()
+        clock['now'] += 61
+        fourth = attempt()
+
+        # 同一个判据的其它调用点：配对路由（三处）与初始化守卫。它们此前各自
+        # 也在回 block_seconds，因此一并断言 —— 只改一处的话，这三条会红。
+        from backend.app.api.displays import (
+            PAIRING_SHARED_ADDRESS_LIMIT,
+            enforce_pair_rate_limit,
+            note_pair_failure,
+        )
+        from backend.app.setup_guard import SetupGuard
+        from starlette.requests import Request
+
+        clock['now'] = 9000.0
+        pairing_app = SimpleNamespace(
+            state=SimpleNamespace(
+                login_limiter=LoginAttemptLimiter(5, 900, 900),
+                pairing_shared_limiter=LoginAttemptLimiter(*PAIRING_SHARED_ADDRESS_LIMIT),
+                pairing_limiter=LoginAttemptLimiter(1000, 60, 60),
+                pairing_code_limiter=LoginAttemptLimiter(5, 900, 900),
+            )
+        )
+        pairing_request = SimpleNamespace(app=pairing_app)
+        (pairing_limiter, pairing_key) = enforce_pair_rate_limit(
+            pairing_request, '203.0.113.9', per_client=False
+        )
+        for _ in range(PAIRING_SHARED_ADDRESS_LIMIT[0]):
+            note_pair_failure(pairing_request, pairing_limiter, pairing_key, 'code-hash')
+        clock['now'] += PAIRING_SHARED_ADDRESS_LIMIT[2] - 20
+
+        def pairing_retry_after() -> str:
+            from fastapi import HTTPException
+
+            try:
+                enforce_pair_rate_limit(pairing_request, '203.0.113.9', per_client=False)
+                return '通过'
+            except HTTPException as error:
+                return str((error.headers or {}).get('Retry-After'))
+
+        pairing_blocked = pairing_retry_after()
+
+        setup_app = SimpleNamespace(
+            state=SimpleNamespace(login_limiter=LoginAttemptLimiter(1, 300, 600))
+        )
+        setup_request = Request(
+            {
+                'type': 'http',
+                'method': 'POST',
+                'path': '/api/v1/setup',
+                'query_string': b'',
+                'scheme': 'http',
+                'server': ('homeos.test', 80),
+                'headers': [(b'host', b'homeos.test')],
+                # 非回环对端：本机直连那条放行分支不生效，才会走到限流。
+                'client': ('203.0.113.9', 4444),
+                'app': setup_app,
+            }
+        )
+        guard = SetupGuard(Path(tempfile.mkdtemp(prefix='hb-setup-guard-')))
+        clock['now'] = 20000.0
+
+        def setup_attempt() -> str:
+            from fastapi import HTTPException
+
+            try:
+                guard.authorize(setup_request, setup_token='not-the-token')
+                return '通过'
+            except HTTPException as error:
+                return f'{error.status_code}:{(error.headers or {}).get("Retry-After")}'
+
+        setup_first = setup_attempt()
+        setup_second = setup_attempt()
+        clock['now'] += 540
+        setup_third = setup_attempt()
+    finally:
+        auth_limiter.monotonic = real_monotonic
+
+    check(
+        'B63 刚封上时剩余时间等于整段时长（此时两者确实一样）',
+        at_block == 600 and block_seconds == 600,
+        f'剩余={at_block} block_seconds={block_seconds}',
+    )
+    check(
+        'B63 封禁中途回的是一分钟左右的剩余时间，不是整段 600 秒',
+        near_release == 60,
+        f'封了 540 秒后剩余={near_release}（旧实现回的是 {block_seconds}）',
+    )
+    check(
+        'B63 越过封禁时刻后剩余时间归零（调用方据此判断「不用再等」）',
+        after_release == 0 and untouched == 0,
+        f'越过封禁={after_release} 从未失败的键={untouched}',
+    )
+    check(
+        'B63 带键上限的那一层（配对码用的就是它）也透传剩余时间',
+        bounded_at_block == 600 and bounded_near_release == 60,
+        f'{bounded_at_block} → {bounded_near_release}',
+    )
+    check(
+        'B63 登录被拦时回带的 Retry-After 是剩余时间（第二次拦下时仍是满额，因为刚封上）',
+        first == '401:None' and second == '429:600',
+        f'第一次={first} 第二次={second}',
+    )
+    check(
+        'B63 客户端按 Retry-After 等满就能过（不是被要求再等一整段）',
+        third == '429:60' and fourth == '401:None',
+        f'封了 540 秒后={third} 再等到期后={fourth}',
+    )
+    check(
+        'B63 配对路由回带的也是剩余时间（共享桶封 120 秒、已过 100 秒 → 20）',
+        pairing_blocked == '20',
+        f'Retry-After={pairing_blocked}（整段是 {PAIRING_SHARED_ADDRESS_LIMIT[2]}）',
+    )
+    check(
+        'B63 初始化守卫回带的也是剩余时间（封 600 秒、已过 540 秒 → 60）',
+        setup_first == '403:None' and setup_second == '429:600' and setup_third == '429:60',
+        f'首次={setup_first} 刚封上={setup_second} 封了 540 秒后={setup_third}',
+    )
+
+
 async def check_binding_confirm_single_flight() -> None:
     """B55：确认绑定的节流窗口必须「先占位再联网」，并发调用只发一次请求。
 
@@ -5380,6 +5707,9 @@ async def run() -> int:
     await check_export_route_offloads_work()
     await check_upload_route_offloads_work()
     await check_license_database_offloaded()
+    check_lease_expiry_clock_skew()
+    check_lease_sequence_selfheal()
+    check_retry_after_counts_down()
     await check_binding_confirm_single_flight()
     await check_page_routes_throttled_confirm()
     check_export_rollback_error_chain()
