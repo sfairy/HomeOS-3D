@@ -267,6 +267,18 @@ SameSite=Lax + 只收 JSON 是第一道闸，代码里另有一道显式的 Orig
   累计成进程内计数，`GET /healthz` 的 `incidents` 与后台概览都能看到（非零即 `degraded`），
   后台还有「确认已处理」把计数清零并记审计。详见 [store/README.md](store/README.md) 的
   「入账异常计数」。
+- **商品图格式按内容判定**：过去只看文件名后缀，且不认识的后缀会被**静默改成 `.png`** ——
+  运营选一张 SVG 上传不报错，落盘的却是一份「后缀叫 png、内容是 XML」的文件，商品图永远
+  显示不出来，而前后端都说自己没错；把 SVG 改名成 `.png` 也能绕过白名单。现在按内容魔数
+  识别 PNG / JPEG / GIF / WebP，SVG 明确 422 并给可读文案（它是能内嵌脚本的 XML，而商品图
+  是按后缀回 `Content-Type` 的同源资源），落盘后缀由真实内容决定、换格式不留孤儿文件，
+  前端 `accept` 与后端白名单由断言钉住不许各写一份。
+- **前端转义只有一份实现**：后台的 `esc()`、前台的 `escapeHtml()`、邀请页的 `esc()` 曾各写
+  一遍，后台那份还漏了单引号 —— 少转一个字符不会有任何报错，只会让某个拼接点变成注入点，
+  而那些位置上写的是别人的邮箱、订单备注、商品名。现统一为 `store/static/htmlsafe.js` 的
+  `HtmlSafe.esc`（用 `&#39;` 而非 `&apos;`：旧版解析器会把后者原样显示）；后台渲染模板里的
+  数据直插由静态门（`smoke.py` 的 `check_markup_templates_escape_data`）拦下，另有一个 node
+  探针（`store/tools/render_probe.cjs`）用恶意载荷实跑渲染函数，确认产出里没有活体标签。
 
 ## 授权体系
 
