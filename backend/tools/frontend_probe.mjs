@@ -4354,6 +4354,146 @@ async function runColorHelpersSuite() {
   );
 }
 
+/**
+ * 跑 `utils/entities.js`：检索文本与实体域两个契约的边界。
+ *
+ * 为什么值得一条活体探针：这两处知识原先各有 2~3 份副本，而副本之间的差别全是
+ * 「某个输入下结果不同」—— 检索文本是「保不保留大小写、空段要不要压」，
+ * 实体域是「domain 带点号 / 不是字符串时返回什么」。这些差别在源码上只看几个字符，
+ * 只有把输入摆成矩阵才看得见；而它们失效的表现都不是报错，是「某台设备认不出来」
+ * 或「某个控件显示兜底文案」。
+ */
+async function runEntityHelpersSuite() {
+  const { entitySearchText, entitySearchTextOf, entityDomainOf } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/utils/entities.js")).href
+  );
+
+  // 检索文本：一律小写 + 单空格 + 丢掉空段（device-profiles 的角色正则不带 i，靠这条）。
+  check(
+    "P10-B entitySearchText 归一：小写、单空格、丢掉空段",
+    entitySearchText("Xiaomi", "Mi", "Air Purifier") === "xiaomi mi air purifier" &&
+      entitySearchText(["A", ""], ["  B  "]) === "a b" &&
+      entitySearchText(null, undefined, "") === "",
+    JSON.stringify({
+      基本: entitySearchText("Xiaomi", "Mi", "Air Purifier"),
+      数组与空段: entitySearchText(["A", ""], ["  B  "]),
+      全空: entitySearchText(null, undefined, "")
+    })
+  );
+
+  // 四个命名字段的标准展开：加字段时只改这一处，调用方不会漏。
+  check(
+    "P10-B entitySearchTextOf 展开实体四个标准字段（entityId / name / originalName / translationKey）",
+    entitySearchTextOf({
+      entityId: "sensor.PM25_A",
+      name: "PM2.5",
+      originalName: "Air Quality",
+      translationKey: "component.x"
+    }) === "sensor.pm25_a pm2.5 air quality component.x" &&
+      entitySearchTextOf({ entityId: "binary_sensor.door" }, "Moisture") ===
+        "binary_sensor.door moisture" &&
+      entitySearchTextOf() === "",
+    JSON.stringify({
+      四字段: entitySearchTextOf({
+        entityId: "sensor.PM25_A",
+        name: "PM2.5",
+        originalName: "Air Quality",
+        translationKey: "component.x"
+      }),
+      额外片段: entitySearchTextOf({ entityId: "binary_sensor.door" }, "Moisture"),
+      空实体: entitySearchTextOf()
+    })
+  );
+
+  // 空段压成单空格：这条是「只可能多命中、不会漏命中」的那一半 —— 原先 presence-runtime /
+  // home.js 是把字段用 " " 拼起来再整串 trim，中间字段为空就会留下双空格，
+  // 而 `no[_ -]?motion` 这类正则匹配不了双空格里的那个词。
+  check(
+    "P10-B 中间字段为空时不留双空格（原先拼字符串的写法会让 no[_ -]?motion 匹配不到）",
+    entitySearchText("no", "", "motion") === "no motion" &&
+      /no[_ -]?motion/.test(entitySearchText("no", "", "motion")) &&
+      !/no[_ -]?motion/.test("no  motion"),
+    JSON.stringify({
+      归一后: entitySearchText("no", "", "motion"),
+      旧写法: "no  motion"
+    })
+  );
+
+  // 实体域：两条路径（domain 字段 / entityId 前缀）都要能取到裸域名。
+  check(
+    "P10-B entityDomainOf 取裸域名：优先 domain，缺失时切 entityId 第一个点号",
+    entityDomainOf({ domain: "light", entityId: "switch.x" }) === "light" &&
+      entityDomainOf({ entityId: "light.kitchen" }) === "light" &&
+      entityDomainOf({ domain: "", entityId: "sensor.pm25" }) === "sensor" &&
+      entityDomainOf({}) === "" &&
+      entityDomainOf(null) === "" &&
+      entityDomainOf(undefined) === "",
+    JSON.stringify({
+      优先domain: entityDomainOf({ domain: "light", entityId: "switch.x" }),
+      从id切: entityDomainOf({ entityId: "light.kitchen" }),
+      空domain回落: entityDomainOf({ domain: "", entityId: "sensor.pm25" }),
+      空对象: entityDomainOf({}),
+      null: entityDomainOf(null)
+    })
+  );
+
+  // 两份旧实现在这里结果不同，这一批刻意统一成「归一后的裸域名」：消费方都是拿去查
+  // ENTITY_DOMAIN_LABELS 这类表、或与 "light" 这类裸域名比较，所以带点号 / 非字符串
+  // 就必须归一 —— 否则是静默查不到（回落到「实体」兜底文案），页面上不报错。
+  check(
+    "P10-B entityDomainOf 对「带点号的 domain」「非字符串 domain」也归一到裸域名（原先两份实现在这里不一致）",
+    entityDomainOf({ domain: "light.x" }) === "light" &&
+      entityDomainOf({ domain: 123 }) === "123",
+    JSON.stringify({
+      带点号domain: entityDomainOf({ domain: "light.x" }),
+      数字domain: entityDomainOf({ domain: 123 })
+    })
+  );
+}
+
+/**
+ * 跑 `utils/apple-device.js`：把设备矩阵摆出来，钉住「两条证据并起来」的判定。
+ *
+ * 为什么值得一条活体探针：这处判定原先有三份实现、两套证据（UA 里的 `Macintosh`
+ *   vs `navigator.platform === "MacIntel"`）。真实 iPadOS 上两条同时成立，所以只看
+ *   「真机结果对不对」是分辨不出用了哪一条的 —— 必须把「只给一条证据」的替身摆出来，
+ *   才能证明两条都还在（其中一条被浏览器收紧时不会立刻失效）。
+ */
+async function runAppleDeviceSuite() {
+  const { isAppleMobile } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/utils/apple-device.js")).href
+  );
+  const deviceMatrix = [
+    // 真机形态：iPadOS 13+ 桌面模式两条证据同时成立。
+    ["iPadOS桌面模式", { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel", maxTouchPoints: 5 }, true],
+    ["iPhone", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", platform: "iPhone", maxTouchPoints: 5 }, true],
+    ["iPad", { userAgent: "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)", platform: "iPad", maxTouchPoints: 5 }, true],
+    ["iPod touch", { userAgent: "Mozilla/5.0 (iPod touch; CPU iPhone OS 15_0 like Mac OS X)", platform: "iPhone", maxTouchPoints: 5 }, true],
+    // 只给一条证据的替身：两条证据都必须还在（否则其中一条被收紧就等于失效）。
+    ["只有UA有Macintosh", { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "", maxTouchPoints: 5 }, true],
+    ["只有platform是MacIntel", { userAgent: "Mozilla/5.0 (X11; Linux x86_64)", platform: "MacIntel", maxTouchPoints: 5 }, true],
+    // 不该误判的：桌面 Mac（无触摸）、Windows 触摸本、安卓平板、ChromeOS 触摸设备。
+    ["桌面Mac无触摸", { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", platform: "MacIntel", maxTouchPoints: 0 }, false],
+    ["Windows触摸本", { userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", platform: "Win32", maxTouchPoints: 10 }, false],
+    ["安卓平板", { userAgent: "Mozilla/5.0 (Linux; Android 13; SM-X700)", platform: "Linux armv8l", maxTouchPoints: 5 }, false],
+    ["ChromeOS触摸设备", { userAgent: "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0)", platform: "Linux x86_64", maxTouchPoints: 10 }, false],
+    // 大小写与缺字段：UA 缩减 / 内嵌浏览器会把 UA 写小写；替身可能什么都不给。
+    ["小写UA", { userAgent: "mozilla/5.0 (ipad; cpu os 17_0 like mac os x)", platform: "", maxTouchPoints: 5 }, true],
+    ["什么都没有", {}, false]
+  ];
+  const mismatched = deviceMatrix
+    .map(([label, navigatorLike, expected]) => {
+      const actual = isAppleMobile(navigatorLike);
+      return actual === expected ? null : `${label}: 期望 ${expected} 实得 ${actual}`;
+    })
+    .filter(Boolean);
+  check(
+    "P10-B 苹果移动端判定的设备矩阵：两条证据（UA 的 Macintosh / platform 的 MacIntel）并列生效，且不误判桌面与非苹果",
+    mismatched.length === 0,
+    mismatched.length ? mismatched.join("；") : `${deviceMatrix.length} 种设备形态全部符合`
+  );
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,
   login: runLoginSuite,
@@ -4378,7 +4518,9 @@ const suites = {
   "debug-log": runDebugLogSuite,
   "runtime-caches": runRuntimeCachesSuite,
   "number-helpers": runNumberHelpersSuite,
-  "color-helpers": runColorHelpersSuite
+  "color-helpers": runColorHelpersSuite,
+  "entity-helpers": runEntityHelpersSuite,
+  "apple-device": runAppleDeviceSuite
 };
 
 /**

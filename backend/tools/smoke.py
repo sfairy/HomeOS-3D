@@ -3009,8 +3009,8 @@ def check_no_duplicated_helper_implementations() -> None:
 
 
 #: P10 B 类（同名但语义不同）：全前端只允许在这些文件里**定义**这些助手。
-#: 键是唯一实现所在的文件，值是它拥有的名字 —— 契约对照表写在 numbers.js / colors.js 的
-#: 模块头里，这里只钉「定义点唯一」。
+#: 键是唯一实现所在的文件，值是它拥有的名字 —— 契约对照表写在各自的模块头里，
+#: 这里只钉「定义点唯一」。
 FRONTEND_HELPER_SINGLE_SOURCE = {
     'frontend/static/utils/numbers.js': (
         'clampNumber',
@@ -3023,12 +3023,32 @@ FRONTEND_HELPER_SINGLE_SOURCE = {
         'strictHexColorOrEmpty',
         'expandHexColorOrNull',
     ),
+    'frontend/static/utils/entities.js': (
+        'entitySearchText',
+        'entitySearchTextOf',
+        'entityDomainOf',
+    ),
+    'frontend/static/utils/apple-device.js': ('isAppleMobile',),
 }
 
 #: 被收敛掉的旧名字：**定义**不许再出现（注释里提它们是可以的 —— 注释不会被复制去调用）。
 #: `clampNumber` 不在这个名单里：它作为「纯夹取」的唯一契约仍然存在，只是只准定义在
 #: `utils/numbers.js`（见上面那张表）。
+#: `flattenComponents` 同理不在名单里：`home.js` 那份仍然叫这个名字（展平控件树的
+#: children），被改名的是 `dashboard-resize.js` 那份（展平文档顶层清单）——
+#: 两份是**不同的知识**，改名的目的是让名字不再互相冒充，不是消掉其中一个。
 FRONTEND_RETIRED_HELPER_NAMES = ('clampNumberOr', 'normalizeHexColor', 'normalizedHexColor')
+
+#: 4.3 B 类里**改判为「两份不同的知识」**的同名族：各自只许在这些文件里定义。
+#: 它们不是供 import 的助手，所以不参与上表的 import 规则 —— 这里钉的是「名字不再互相冒充」：
+#: `home.js` 的 `flattenComponents` 展平的是**控件树的 children**（输入是控件数组），
+#: `dashboard-resize.js` 的 `flattenDocumentComponents` 展平的是**文档顶层清单**（输入是
+#: 整个文档、不下钻 children）。复核结论是两者不能互换，所以只把后者按实际语义改了名；
+#: 谁把其中一个抄到别处、或按另一个的语义改写，这条就红。
+FRONTEND_DISTINCT_HELPER_SITES = {
+    'flattenComponents': 'frontend/static/home.js',
+    'flattenDocumentComponents': 'frontend/static/dashboard-resize.js',
+}
 
 #: 定义点的四种写法：`function name(`、`const name =`、行首赋值 `name = (`、
 #: 对象属性 `{ name: (`（把助手塞进对象字面量也是一份新实现）。
@@ -3051,22 +3071,29 @@ def _frontend_helper_definitions(source: str, name: str) -> bool:
 
 
 def check_frontend_helper_contract_single_source() -> None:
-    """P10-B：夹取与颜色归一的契约全前端只有一份实现，调用方只能 import。
+    """P10-B：契约型助手的实现全前端只有一份，调用方只能 import。
 
     为什么需要这条闸：4.3 B 类记的是「同名但语义不同」—— ``clampNumber`` 原先在前端有
-    五份（编辑器、3D 工作室两份、渲染器、导出预设）、``normalizeHexColor`` 有两份，
-    名字一样而参数顺序与非法值口径不同。这类重复的危害不在「代码多」，而在**照名字换一份
-    去调用不会报错**：`clampNumber(v, 0, 100)` 落到四参那份上就是把下限当兜底。
-    收敛之后，两点必须长期成立：
+    五份（编辑器、3D 工作室两份、渲染器、导出预设）、``normalizeHexColor`` 有两份、
+    ``entitySearchText`` 有三份、苹果移动端判定有三份，名字一样而参数顺序与非法值口径不同。
+    这类重复的危害不在「代码多」，而在**照名字换一份去调用不会报错**：
+    `clampNumber(v, 0, 100)` 落到四参那份上就是把下限当兜底；`entitySearchText` 换一份
+    就漏掉小写化（调用方正则写着 `/i` 的那些不受影响，所以谁都没坏，直到有人照着名字
+    换到不带 `i` 的调用点上）。收敛之后，两点必须长期成立：
 
-    * **定义点唯一**：七个契约助手各自只在 ``utils/numbers.js`` / ``utils/colors.js``
-      里定义一次，别处再抄一份就红（点名，能发现「换个文件抄回来」）；
-    * **只能 import**：任何文件要用手册里的名字，import 路径必须指向这两个模块 ——
+    * **定义点唯一**：手册里的助手各自只在 ``utils/`` 下对应的那份文件里定义一次，
+      别处再抄一份就红（点名，能发现「换个文件抄回来」）；
+    * **只能 import**：任何文件要用手册里的名字，import 路径必须指向那份唯一实现 ——
       挡住「在 editor-utils 里转一手再导出」这种绕法（那是把定义点又拉回两份的常见形态）。
 
-    另外还跑两条活体探针（``number-helpers`` / ``color-helpers``）：静态闸只能证明
-    「只有一份」，「这一份的语义还是不是契约里写的那样」要靠把输入矩阵摆出来跑一遍 ——
-    把两份合并成一份、或者把参数顺序改回去，探针会红。
+    另外还跑四条活体探针（``number-helpers`` / ``color-helpers`` / ``entity-helpers`` /
+    ``apple-device``）：静态闸只能证明「只有一份」，「这一份的语义还是不是契约里写的那样」
+    要靠把输入矩阵摆出来跑一遍 —— 把两份合并成一份、或者把参数顺序改回去，探针会红。
+
+    边界如实写在这里：这条闸只认**登记在册的名字**。同名但以局部变量形态出现的知识
+    （例如 ``renderer/*.js`` 里六处 ``const entityDomain = ...``）不在覆盖范围内 ——
+    定义模式匹配分不出「局部变量」与「助手定义」，把它们登记进来会直接产生六条假红。
+    那一族要不要合并是单独一项（见审计文档 4.3 B 类末尾）。
     """
     frontend_root = PROJECT_ROOT / 'frontend'
     expected = {
@@ -3075,6 +3102,7 @@ def check_frontend_helper_contract_single_source() -> None:
         for name in names
     }
     locations: dict[str, list[str]] = {name: [] for name in expected}
+    distinct_sites: dict[str, list[str]] = {}
     retired: list[str] = []
     import_paths: list[str] = []
     dangling: list[str] = []
@@ -3093,6 +3121,9 @@ def check_frontend_helper_contract_single_source() -> None:
         for name in expected:
             if _frontend_helper_definitions(source, name):
                 locations[name].append(relative)
+        for name in FRONTEND_DISTINCT_HELPER_SITES:
+            if _frontend_helper_definitions(source, name):
+                distinct_sites.setdefault(name, []).append(relative)
         for name in FRONTEND_RETIRED_HELPER_NAMES:
             if _frontend_helper_definitions(source, name):
                 retired.append(f'{name} → {relative}')
@@ -3126,7 +3157,7 @@ def check_frontend_helper_contract_single_source() -> None:
         if sorted(set(places)) != [expected[name]]
     ]
     check(
-        'P10-B 夹取与颜色归一的契约各只有一份实现，且只在 utils/numbers.js 与 utils/colors.js 里',
+        'P10-B 契约型助手各只有一份实现，且只在 utils/ 下登记的那份文件里（夹取 / 颜色归一 / 实体文本与域 / 苹果设备判定）',
         not misplaced,
         '；'.join(misplaced) if misplaced else f'{len(expected)} 个契约助手各一处定义（扫过 {scanned} 份前端脚本）',
     )
@@ -3138,9 +3169,9 @@ def check_frontend_helper_contract_single_source() -> None:
         '；'.join(retired) if retired else '；'.join(FRONTEND_RETIRED_HELPER_NAMES),
     )
 
-    # 3) 调用方只能从这两个模块 import，不许转手导出。
+    # 3) 调用方只能从唯一实现所在的模块 import，不许转手导出。
     check(
-        'P10-B 这些助手的 import 只能指向 utils/numbers.js 与 utils/colors.js（不许在别处转手导出）',
+        'P10-B 这些助手的 import 只能指向唯一实现所在的 utils/ 模块（不许在别处转手导出）',
         not import_paths,
         '；'.join(import_paths[:6]) if import_paths else '所有 import 都指向唯一实现',
     )
@@ -3155,6 +3186,24 @@ def check_frontend_helper_contract_single_source() -> None:
     # 5) 活体探针：语义是否仍是契约里那一套。
     _run_frontend_probe('number-helpers')
     _run_frontend_probe('color-helpers')
+    _run_frontend_probe('entity-helpers')
+    _run_frontend_probe('apple-device')
+
+    # 6) 改判登记：这两份是**不同的知识**（不是同一份知识的两份副本），所以只改名、不合并。
+    #    这条钉住「名字不再互相冒充」：任一名字被抄到别处、或有人把一份改成另一份的语义
+    #    （例如给 dashboard 那份补上递归下钻 children），就会在这里现形。
+    drifted_sites = [
+        f'{name} → {sorted(set(distinct_sites.get(name, [])))}（应为 {[site]}）'
+        for name, site in FRONTEND_DISTINCT_HELPER_SITES.items()
+        if sorted(set(distinct_sites.get(name, []))) != [site]
+    ]
+    check(
+        'P10-B 改判为「两份不同知识」的同名族各守自己的文件（flattenComponents 展平 children、flattenDocumentComponents 展平文档顶层）',
+        not drifted_sites,
+        '；'.join(drifted_sites)
+        if drifted_sites
+        else '；'.join(f'{name} → {site}' for name, site in FRONTEND_DISTINCT_HELPER_SITES.items()),
+    )
 
 
 def check_access_criteria_single_source() -> None:
@@ -9458,6 +9507,8 @@ FRONTEND_PROBE_SUITES = {
     'runtime-caches': 'W19 历史序列缓存的上限常量（renderer/runtime-caches.js）',
     'number-helpers': 'P10-B 四份「夹取」契约的语义与参数顺序（utils/numbers.js）',
     'color-helpers': 'P10-B 三份「颜色归一」契约的差异（utils/colors.js）',
+    'entity-helpers': 'P10-B 实体检索文本与实体域的边界（utils/entities.js）',
+    'apple-device': 'P10-B 苹果移动端判定的设备矩阵（utils/apple-device.js）',
     'setup': 'W6 初始化页提交按钮与超时（setup.js）',
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
     'home-boot': 'W8 编辑器启动分片（home.js 启动序列）',
@@ -9507,6 +9558,9 @@ FRONTEND_SYNTAX_FILES = (
     # 页面脚本 import 它们 —— 语法错会一路静默到浏览器控制台。
     'frontend/static/utils/numbers.js',
     'frontend/static/utils/colors.js',
+    # P10-B 第二批：实体文本 / 实体域与苹果设备判定的唯一实现，同样只被 import。
+    'frontend/static/utils/entities.js',
+    'frontend/static/utils/apple-device.js',
     'frontend/static/renderer/registry.js',
     'frontend/static/3d-studio/studio-shadow-atlas.js',
     'frontend/static/3d-studio/studio-external-models.js',
