@@ -31,7 +31,14 @@ from sqlalchemy import Boolean, DateTime, String, exists, func, insert, literal,
 from store.deps import DbSession
 from store.models import Account, AccountSession
 from store.request_security import resolve_client_ip, secure_cookies_required
-from store.security import hash_password, new_token, new_uuid, token_hash, utcnow
+from store.security import (
+    hash_password,
+    is_valid_email,
+    new_token,
+    new_uuid,
+    token_hash,
+    utcnow,
+)
 
 logger = logging.getLogger("store.setup")
 
@@ -88,6 +95,20 @@ def setup_admin(
     session: DbSession,
 ) -> Response:
     email = payload.email.strip().lower()
+
+    # 邮箱形态校验先于任何状态判断：它只看请求体，与「有没有管理员」「引导密钥
+    # 对不对」都无关，因此不会泄漏任何信息，也不会被用来当探针。
+    # 为什么必须校验：这个值是**管理员账号的登录标识**，而同一个值在其它入口
+    # （后台建账号 ``admin_patch_account``、测试发信的收件人）都是先过
+    # ``is_valid_email`` 再落库的 —— 只有「首次设置」这个入口不过，而它恰恰是
+    # 部署者第一次也可能是最后一次认真输入它的地方。拼错的后果不是报错，而是
+    # 带着一个 `ops@example`（漏了后缀）或 `ops.example.com`（漏了 @）的登录标识
+    # 一路跑下去，直到某天要按它收信/找回时才被发现。
+    if not is_valid_email(email):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="请输入有效的邮箱地址（形如 name@example.com）。",
+        )
 
     if payload.confirm_password != payload.password:
         raise HTTPException(

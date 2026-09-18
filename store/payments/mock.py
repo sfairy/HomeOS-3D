@@ -10,6 +10,7 @@ from urllib.parse import quote
 
 from store.config import StoreSettings
 from store.models import Order, StoreSetting
+from store.net_probe import LEVEL_SKIP, LEVEL_WARN, check_result
 from store.payments.base import PaymentIntent, RefundResult
 
 
@@ -36,8 +37,6 @@ class MockPaymentProvider:
         点一下按钮就能把订单标成已支付。报成通过等于把这件事藏起来，
         报成 409 则让这个按钮在本地联调时完全不可用（而这正是它最常见的场景）。
         """
-        from store.net_probe import LEVEL_SKIP, LEVEL_WARN, check_result
-
         return (
             False,
             "当前支付渠道是模拟收银台（mock），没有真实凭据可校验；"

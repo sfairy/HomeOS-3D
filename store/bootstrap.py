@@ -25,6 +25,7 @@ import logging
 from sqlalchemy import exists, insert, literal, null, select
 from sqlalchemy.orm import Session
 
+from store.features import BASE_PRODUCT_FEATURES, MODULE_3D_FEATURES
 from store.models import Product, StoreSetting
 from store.serializers import list_json
 
@@ -33,12 +34,8 @@ logger = logging.getLogger("store.bootstrap")
 # --------------------------------------------------------------------------- #
 # 商品
 # --------------------------------------------------------------------------- #
-# 与参考站 pay.habridge.cn 实测完全一致的功能码清单
-BASE_PRODUCT_FEATURES = [
-    "api", "assets", "display", "editor", "ha.configure",
-    "ha.control", "ha.sync", "projects.write", "runtime.websocket",
-]
-MODULE_3D_FEATURES = ["module.3d_interaction"]
+#: 功能码清单的唯一出处是 :mod:`store.features`（S58：这里过去另抄了一份，两份顺序
+#: 还不一样）。播种时按目录给的顺序写进 ``feature_codes_json``。
 
 
 def _value(expression):

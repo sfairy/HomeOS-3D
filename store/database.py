@@ -46,7 +46,10 @@ class Database:
         self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False, future=True)
 
     def create_all(self) -> None:
-        # 导入模型以注册元数据
+        # 导入模型以注册元数据。**刻意放在函数里**：`store/models.py` 在模块级
+        # 从本模块取 `Base`，这里若在模块级反向导入就构成循环（database → models
+        # → database），先被导入的那一侧会拿到半初始化的模块。这是全仓唯一一处
+        # 有正当理由的函数内导入，其余都应当在模块顶部。
         from store import models  # noqa: F401
 
         Base.metadata.create_all(self.engine)

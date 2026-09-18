@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import asyncio
+import ast
 import base64
 import importlib.util
 import inspect
@@ -5572,18 +5573,30 @@ def check_points_integer_precision() -> None:
     )
 
     # ---- 6) 迁移会先备份再动手 ----
-    #: 备份是「先验证后销毁」之外的另一层保险，因此必须**真的**产生文件。
+    #: 备份是「先验证后销毁」之外的另一层保险，因此必须**真的**产生一个能打开的库。
+    #: S58 之前这里写的是「把一段假字节塞进 store.db，再比较备份字节是否相同」——
+    #: 它恰好把 WAL 的坑藏住了：只比字节、从不打开，所以复制出来的空壳也能通过。
     backup_dir = Path(tempfile.mkdtemp(prefix="hb-points-backup-"))
-    backup_source = backup_dir / "store.db"
-    backup_source.write_bytes(b"SQLite format 3\x00probe")
     backup_engine = create_store_engine(
         load_settings(data_dir=backup_dir, license_keys_dir=backup_dir / "keys")
     )
+    with backup_engine.begin() as connection:
+        connection.exec_driver_sql("CREATE TABLE probe (id TEXT PRIMARY KEY, value TEXT)")
+        connection.exec_driver_sql("INSERT INTO probe VALUES ('a', 'b')")
     made = points_migration.backup_database(backup_engine, directory=backup_dir / "snapshots")
+    restored: tuple[str, ...] | None = None
+    open_error = ""
+    if made is not None and made.is_file():
+        try:
+            with sqlite3.connect(f"file:{made}?mode=ro", uri=True) as raw:
+                restored = raw.execute("SELECT id, value FROM probe").fetchone()
+        except sqlite3.DatabaseError as error:
+            open_error = str(error)
     check(
-        "迁移前会整份备份数据库文件（确认结果无误前可据此还原）",
-        made is not None and made.is_file() and made.read_bytes() == b"SQLite format 3\x00probe",
-        str(made) if made is not None else "未生成备份（不该发生）",
+        "迁移前会留下一份**能打开、数据在**的库备份（WAL 下按字节复制得到的是空壳）",
+        restored == ("a", "b"),
+        f"{made.name if made is not None else '未生成备份'} → {restored!r}"
+        + (f"（备份打不开：{open_error}）" if open_error else ""),
     )
 
 
@@ -5663,6 +5676,49 @@ def check_store_setup_authorization() -> None:
             "启动时若库里没有管理员，会备好引导密钥并提示来源",
             bool(token) and app.state.setup_guard.source in {"generated", "env", "file"},
             f"有密钥={bool(token)} 来源={app.state.setup_guard.source}",
+        )
+
+        # S58：邮箱形态校验。这里刻意把「除了邮箱以外全都给对」（本机/带对引导
+        # 密钥）再送畸形地址 —— 修复前它会被**创建成管理员**，而这个值是登录标识，
+        # 之后每一次登录都要照着这个拼错的样子输。所以断言不能只看状态码，还要看
+        # 库里确实没多出一个管理员（只看状态码时，一个「先建后校验」的实现也会通过）。
+        for label, bad_email in (
+            ("缺 @", "owner.example.com"),
+            ("域名没有点", "owner@localhost"),
+            ("只有 @", "owner@"),
+            ("带空格", "own er@example.com"),
+        ):
+            response = client.post(
+                "/store/v1/setup/admin",
+                json={
+                    "email": bad_email,
+                    "password": "pw-12345678",
+                    "confirm_password": "pw-12345678",
+                    "setup_token": token,
+                },
+                headers=remote_headers,
+            )
+            check(
+                f"S58 邮箱{label}时拒绝初始化（422 且不落库）",
+                response.status_code == 422 and admin_count(app) == 0,
+                f"{response.status_code} 管理员数={admin_count(app)}"
+                f" {response.json().get('detail', '')[:60]}",
+            )
+        # 形态校验排在「是否已有管理员」之前：它只看请求体，与实例状态无关，
+        # 因此畸形请求无论实例初始化与否都得到同一个答案（否则它会变成一个探针）。
+        check(
+            "S58 畸形邮箱的答复与「有没有管理员」无关（同一请求换状态同一答案）",
+            client.post(
+                "/store/v1/setup/admin",
+                json={
+                    "email": "owner@localhost",
+                    "password": "pw-12345678",
+                    "confirm_password": "pw-12345678",
+                },
+                headers=remote_headers,
+            ).status_code
+            == 422,
+            "未带引导密钥的畸形请求同样是 422（校验先于状态判断）",
         )
 
         for label, body in (
@@ -7884,7 +7940,6 @@ def check_bootstrap_defaults_single_flight() -> None:
     from store.models import Product, Release, StoreSetting
     from store.release_info import ensure_current_release
 
-    import ast
 
     workdir = Path(tempfile.mkdtemp(prefix="hb-bootstrap-defaults-"))
     settings = load_settings(
@@ -8113,7 +8168,6 @@ def check_admin_purge_is_batched() -> None:
     再一条 ``DELETE ... WHERE``」：几十万行先在内存里堆出等量的 Python 字符串，
     再让 SQLite 在一个事务里删完，期间全站写请求都被这把写锁挡住。
     """
-    import ast
     import inspect
     import textwrap
 
@@ -9330,6 +9384,362 @@ def check_markup_templates_escape_data() -> None:
     )
 
 
+def check_probe_target_guard() -> None:
+    """S58：后台自检的探测原语不许碰链路本地地址（云元数据服务那一档）。
+
+    背景：站点配置页的「自检」按钮会让**服务端**去连运营填的主机（SMTP、支付宝
+    网关、异步通知地址），并把结果（可达 / 不可达，以及失败原因区分「连接被拒」
+    「超时」「TLS 握手失败」）回显给调用方。内网地址是合法目标 —— 自建 SMTP 中继、
+    内网反代都长在 ``10./172./192.168.`` 里，探测它们正是这个模块存在的理由，所以
+    **不能**拿 ``_PRIVATE_NETWORKS`` 一刀切。但 ``169.254.0.0/16`` / ``fe80::/10``
+    这一档没有任何正当用途：元数据服务不提供邮件/回调/网关能力，只提供这台机器的
+    临时凭据，而上面那些回显足够把它当内网探针用。
+
+    这里断言两件事，缺一不可：
+      · 判断本身对（含 ``::ffff:`` 映射写法与带方括号的 v6 写法 —— 换个写法就绕过
+        等于没装这道闸），且**不误伤** loopback / 内网 / 公网 / 解析不出来的域名；
+      · 拒绝发生在**建立连接之前**：真去连一次再拒绝，端口探测的目的已经达到了。
+        所以这里把 ``httpx.request`` 与 ``socket.create_connection`` 换成记录器，
+        断言它们**一次都没被调用**；同时用一个 loopback 的对照证明探针本身没被
+        整体关掉（那会让上面两条变成永真的假绿）。
+    """
+    from store import net_probe
+
+    blocked_cases = (
+        "169.254.169.254",  # 云元数据（v4 链路本地）
+        "::ffff:169.254.169.254",  # 同一个地址的 IPv4 映射写法
+        "fe80::1",  # v6 链路本地
+        "[fe80::1]",  # 带方括号的 v6 写法
+    )
+    for host in blocked_cases:
+        reason = net_probe._blocked_probe_reason(host)
+        check(
+            f"S58 链路本地目标被拒绝：{host}",
+            "链路本地" in reason,
+            reason[:80] or "（未拒绝）",
+        )
+
+    allowed_cases = (
+        "127.0.0.1",  # 本机：自检最常见的调试目标
+        "10.0.0.5",  # 内网：自建 SMTP 中继 / 内网反代
+        "192.168.1.10",
+        "0.0.0.0",
+        "example.com",
+        "localhost",
+        "",
+        "no-such-host.invalid",  # 解析不出来：交给连接去失败，报错比猜测准确
+    )
+    for host in allowed_cases:
+        reason = net_probe._blocked_probe_reason(host)
+        check(
+            f"S58 其它目标照旧放行（不误伤）：{host or '（空）'}",
+            reason == "",
+            reason[:80] or "放行",
+        )
+
+    # 域名解析到链路本地的情况必须一起挡住：只看字面量的话，换成一个内网 DNS 记录
+    # 就绕过了。这里不依赖真实 DNS，直接把 resolve_host 换成受控实现。
+    original_resolve = net_probe.resolve_host
+    try:
+        net_probe.resolve_host = lambda host: (True, "受控解析", ("169.254.169.254",))
+        reason = net_probe._blocked_probe_reason("metadata.internal")
+    finally:
+        net_probe.resolve_host = original_resolve
+    check(
+        "S58 解析到链路本地的域名同样被拒绝（换个写法绕不过）",
+        "链路本地" in reason,
+        reason[:80] or "（未拒绝）",
+    )
+
+    # —— 拒绝必须发生在连接之前 —— #
+    import httpx
+
+    calls: list[str] = []
+    original_request = httpx.request
+    original_connect = net_probe.socket.create_connection
+
+    def fake_request(method, url, **kwargs):
+        # 记录并**受控失败**，而不是直接抛断言：万一哪天这道闸退化了，这条检查应当
+        # 如实报红（detail 里能看到「确实去连了」），而不是把整轮自检炸掉。
+        calls.append(f"httpx.request {url}")
+        raise httpx.ConnectError("stub：受控失败")
+
+    def fake_connect(address, *args, **kwargs):
+        calls.append(f"create_connection {address}")
+        raise ConnectionRefusedError("stub：受控失败")
+
+    try:
+        httpx.request = fake_request
+        net_probe.socket.create_connection = fake_connect
+        # 逐次取「这一段新产生的调用」：对照那一次也是 create_connection，混在一起
+        # 看会让「拒绝发生在连接之前」这条断言永远为假（或永远为真）。
+        mark = len(calls)
+        http_result = net_probe.probe_http("http://169.254.169.254/latest/meta-data/")
+        http_calls = calls[mark:]
+        mark = len(calls)
+        tls_result = net_probe.probe_tls("169.254.169.254", 80)
+        tls_calls = calls[mark:]
+        # 对照：loopback 仍然真的去连（证明上面两条不是因为探针被整体关掉才绿的）
+        control = net_probe.probe_tls("127.0.0.1", 9)
+    finally:
+        httpx.request = original_request
+        net_probe.socket.create_connection = original_connect
+
+    check(
+        "S58 probe_http 拒绝元数据地址（HTTP 层，未发出任何请求）",
+        http_result[0] is False and "链路本地" in http_result[1] and not http_calls,
+        f"{http_result[1][:60]} / 这一段发出的调用={http_calls or '无'}",
+    )
+    check(
+        "S58 probe_tls 拒绝元数据地址（TCP 层，未建立任何连接）",
+        tls_result[0] is False and "链路本地" in tls_result[1] and not tls_calls,
+        f"{tls_result[1][:60]} / 这一段发出的调用={tls_calls or '无'}",
+    )
+    check(
+        "S58 对照：loopback 仍然真的去连（不是把探针整体关掉）",
+        calls[-1].startswith("create_connection") if calls else False,
+        f"calls={calls} 结果={control[1][:40]}",
+    )
+
+
+def check_schema_backup_restorable() -> None:
+    """S58：改动数据前的文件级备份必须**真的能还原**（这份备份是数据被毁前唯一的退路）。
+
+    这条检查的由来是一次实测翻车：``backup_database`` 原本用 ``shutil.copy2`` 复制
+    库文件，而 store 的库跑在 **WAL** 模式下（``create_store_engine`` 就是这么开的）——
+    新写入的行先落在 ``store.db-wal`` 里，checkpoint 之前主库文件可能还是「一张表都
+    没有」的状态。于是复制出来的 ``.bak`` 打开就报 ``no such table``，而它看起来一切
+    正常（文件名对、大小不为零）。比「没有备份」更糟：它会让人以为退路存在。
+
+    所以这里不只断言「生成了备份文件」，而是**把它当数据库打开、读出即将被删的那一列
+    的值**。用 ``shutil.copy2`` 的旧实现下这条必然失败（备份里没有那张表）。这同时覆盖
+    S23 的重复行合并路径 —— 它用的是同一个 :func:`store.schema_guard.backup_database`。
+    """
+    import sqlite3
+
+    from store import bootstrap, schema_guard
+    from store.config import load_settings
+    from store.database import Database
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-backup-restore-"))
+    settings = load_settings(data_dir=workdir / "data", license_keys_dir=workdir / "keys")
+    database = Database(settings)
+    database.create_all()
+    #: 站点配置是单例行（``id`` 是整数主键），所以先让程序自己把默认行补齐，再往
+    #: 「即将被删的那一列」里写值 —— 手工拼 INSERT 会在 id 类型上翻车（实测）。
+    with database.session() as session:
+        bootstrap.ensure_default_settings(session)
+
+    # 造一个「升级前」的库：把退役列加回去，并写入一行真实数据（备份的意义就是它）。
+    with sqlite3.connect(settings.database_path) as raw:
+        raw.execute("ALTER TABLE store_settings ADD COLUMN referral_qq_group VARCHAR(64)")
+        raw.execute(
+            "UPDATE store_settings SET referral_qq_group = ? WHERE id = 1",
+            ("QQ-GROUP-123456",),
+        )
+        raw.commit()
+
+    # 删列的结果分两处可见：变更清单回给启动流程（每列一条），日志里额外说明「删了
+    # 什么、备份在哪、这是不可逆操作」。后者是运维唯一能看到备份路径的地方，所以要
+    # 连它一起断言 —— 只断言「生成了 .bak」而不断言「有人知道它在哪」是不够的。
+    log_lines: list[str] = []
+
+    class Capture(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            log_lines.append(record.getMessage())
+
+    schema_logger = logging.getLogger("store.schema")
+    handler = Capture()
+    schema_logger.addHandler(handler)
+    try:
+        changes = schema_guard.ensure_schema(database.engine)
+    finally:
+        schema_logger.removeHandler(handler)
+    logged = "\n".join(log_lines)
+
+    backups = sorted(settings.data_dir.glob("*.pre-drop-store_settings-*.bak"))
+    if not check(
+        "S58 删除退役列之前留下了一份库文件备份",
+        bool(backups),
+        f"data 目录里的备份：{[p.name for p in settings.data_dir.glob('*.bak')]}",
+    ):
+        return
+    check(
+        "S58 删列后日志点名备份路径与「不可逆」（运维要能找到那份退路）",
+        backups[-1].name in logged and "不可逆" in logged,
+        logged.splitlines()[-1][:160] if log_lines else "（没有日志）",
+    )
+
+    #: 备份打不开（WAL 空壳的典型症状是 ``no such table``）要被判成**失败**而不是
+    #: 让自检崩掉：崩掉会让后面的检查全部跳过，运维看到的是一段 traceback 而不是
+    #: 那句「备份是空的」—— 诊断信息比栈更容易读懂，也更容易被相信。
+    tables: set[str] = set()
+    value: str | None = None
+    open_error = ""
+    try:
+        with sqlite3.connect(f"file:{backups[-1]}?mode=ro", uri=True) as raw:
+            tables = {
+                name
+                for (name,) in raw.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            }
+            if "store_settings" in tables:
+                row = raw.execute(
+                    "SELECT referral_qq_group FROM store_settings WHERE id = 1"
+                ).fetchone()
+                value = row[0] if row else None
+    except sqlite3.DatabaseError as error:
+        open_error = str(error)
+
+    check(
+        "S58 备份是完整可还原的库（WAL 下直接复制文件会得到空壳）",
+        not open_error and "store_settings" in tables and len(tables) > 10,
+        f"打开失败：{open_error}" if open_error else f"备份里的表数量={len(tables)}",
+    )
+    check(
+        "S58 备份里能读到**即将被删的那一列**的原值（这才是备份的意义）",
+        value == "QQ-GROUP-123456",
+        f"备份中 referral_qq_group={value!r}"
+        + (f"（备份打不开：{open_error}）" if open_error else ""),
+    )
+    check(
+        "S58 变更清单里如实记下这次删列（启动日志按它汇报）",
+        any("store_settings.referral_qq_group" in item and "已删除" in item for item in changes),
+        str(changes),
+    )
+
+
+def check_every_check_is_wired() -> None:
+    """自检项自己也要被点名：写在文件里、却没人调用的 ``check_*`` 等于没写。
+
+    S58 实测踩到：``check_schema_backup_restorable`` 定义完忘了接进 :func:`run`，
+    整轮 983 项照旧全绿，而那一条从未执行过 —— 和当初 payment fail-closed 那批
+    「协程没 await」是同一类静默失效：检查本身没问题，问题在它没上场。
+
+    判定方式是「有没有被引用过」，因此允许 ``check_a`` 内部调用 ``check_b`` 这种
+    合法的嵌套（只要链条最终接在 :func:`run` 上）：真正被判死的只有「整份文件里
+    没有任何地方提到这个名字」，那无论怎么接线都跑不到。
+    """
+    if ast is None:  # pragma: no cover - ast 恒可用，仅为类型收窄
+        return
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    definitions = {
+        node.name
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("check_")
+    }
+    referenced = {
+        child.id
+        for node in tree.body
+        if not (isinstance(node, ast.FunctionDef) and node.name in definitions)
+        for child in ast.walk(node)
+        if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load)
+    }
+    dead = sorted(definitions - referenced)
+    check(
+        "每个 check_* 自检项都被调用过（忘了接线的话，全绿是没有意义的）",
+        not dead,
+        f"没人调用：{dead}" if dead else f"{len(definitions)} 个自检项全部接线",
+    )
+
+
+def check_feature_codes_single_source() -> None:
+    """S58：能力码清单只能有一处定义，而且必须与主项目对得上。
+
+    过去同一份 9 项基础能力存在**三份**：``store/features.py`` 的目录、
+    ``store/serializers.py:BASE_FEATURES``（死代码，没人引用）、
+    ``store/bootstrap.py:BASE_PRODUCT_FEATURES``（顺序还与前两份不同）。
+    「抄错一个字母不会报错 —— 履约照发，客户端只是静默拦截」，所以分叉的代价是
+    运营勾了一个发不出去的能力，且没有任何报错可查。
+
+    这条检查守两件事：
+    1. 除 ``features.py`` 外，**任何模块级常量都不许再列一遍能力码**（静态扫描）；
+    2. 目录本身与主项目 ``backend/`` 里的定义同集（同一仓库里就能对账，不必靠记性）。
+    """
+    import store.features as feature_module
+
+    store_root = Path(feature_module.__file__).parent
+    known = set(feature_module.FEATURE_CODES)
+    duplicates: list[str] = []
+    for path in sorted(store_root.rglob("*.py")):
+        if path.name == "features.py" or "tools" in path.parts:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:  # pragma: no cover - 语法错误轮不到这里报
+            continue
+        for node in tree.body:
+            if not isinstance(node, ast.Assign | ast.AnnAssign) or node.value is None:
+                continue
+            literal = node.value
+            if not isinstance(literal, ast.Set | ast.Tuple | ast.List):
+                continue
+            strings = [
+                element.value
+                for element in literal.elts
+                if isinstance(element, ast.Constant) and isinstance(element.value, str)
+            ]
+            hit = [code for code in strings if code in known]
+            if len(hit) >= 5:
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                names = ", ".join(
+                    target.id for target in targets if isinstance(target, ast.Name)
+                )
+                duplicates.append(f"{path.relative_to(store_root)}:{names}（{len(hit)} 项）")
+    check(
+        "S58 能力码清单只有 features.py 一份（别处再抄一遍会被这里点名）",
+        not duplicates,
+        "；".join(duplicates) if duplicates else f"{len(known)} 个能力码只有一处定义",
+    )
+
+    check(
+        "S58 播种用的功能码顺序与目录同集（改了目录忘了改播种就会分叉）",
+        frozenset(feature_module.BASE_PRODUCT_FEATURES) == feature_module.BASE_FEATURES
+        and frozenset(feature_module.MODULE_3D_FEATURES) == feature_module.MODULE_FEATURES,
+        f"播种 {sorted(feature_module.BASE_PRODUCT_FEATURES)} vs 目录 {sorted(feature_module.BASE_FEATURES)}",
+    )
+
+    # 与主项目对账。store 可以单独部署（docker-compose 只挂 store/），那时没有
+    # backend/ 可读，如实报「跳过」而不是假装通过。
+    main_service = PROJECT_ROOT / "backend" / "app" / "license" / "service.py"
+    main_module = PROJECT_ROOT / "backend" / "app" / "modules" / "interaction3d" / "access.py"
+    if not main_service.is_file() or not main_module.is_file():
+        check("S58 与主项目能力码对账（store 独立部署，无 backend/ 源码，跳过）", True, "skipped")
+        return
+
+    from_main: set[str] = set()
+    for path, name in ((main_service, "BASE_FEATURES"), (main_module, "FEATURE")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        value = next(
+            (
+                node.value
+                for node in tree.body
+                if isinstance(node, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == name
+                    for target in node.targets
+                )
+            ),
+            None,
+        )
+        if value is None:
+            check("S58 主项目里仍能读到能力码定义（改名要同步这条检查）", False, f"{path.name}:{name}")
+            return
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            from_main.add(value.value)
+        else:
+            from_main |= {
+                element.value
+                for element in getattr(value, "elts", [])
+                if isinstance(element, ast.Constant) and isinstance(element.value, str)
+            }
+    check(
+        "S58 目录与主项目的能力码同集（对不上 = 运营勾了发不出去的能力）",
+        from_main == known,
+        f"主项目有而目录没有：{sorted(from_main - known)}；"
+        f"目录有而主项目没有：{sorted(known - from_main)}",
+    )
+
+
 def check_admin_render_inertness() -> None:
     """S39：后台渲染层用恶意载荷实测一次（node + 最小 DOM 垫片）。
 
@@ -9450,7 +9860,6 @@ async def check_blocking_endpoints_offloaded() -> None:
     from store.api import alipay as alipay_api
     from store.api import license as license_api
 
-    import ast
     import textwrap
 
     def _router_endpoint(router, path: str, method: str):
@@ -9682,7 +10091,6 @@ def check_refund_serialization_guards() -> None:
     from store.api import admin as admin_api
     from store.models import Order
 
-    import ast
     import textwrap
 
     # ---- 1) 前提：单进程。锁是进程内的，多进程即失效 ---- #
@@ -11313,7 +11721,6 @@ async def check_incident_counters() -> None:
     3. 一次真实的履约失败会把计数点亮，而一次成功的履约不会（计数只跟失败走）；
     4. ``/healthz`` 与后台概览都能读到它 —— 否则这个计数只是另一个没人看的日志。
     """
-    import ast
 
     from store import incidents
     from store.api import admin as admin_api
@@ -11664,6 +12071,10 @@ async def run() -> int:
     check_global_log_write_amplification()
     check_upload_size_cap()
     check_product_image_upload_whitelist()
+    check_probe_target_guard()
+    check_schema_backup_restorable()
+    check_feature_codes_single_source()
+    check_every_check_is_wired()
     check_single_escaper()
     check_escaper_behaviour()
     check_markup_templates_escape_data()
@@ -12251,6 +12662,27 @@ async def run() -> int:
     )
     check("后台营收已累计", int(overview_data["revenueCents"]) > 0, str(overview_data["revenueCents"]))
 
+    # 待办区必须把 ORDER_ATTENTION_STATUSES 的**每一项**都算出来并露在响应里：
+    # 新增一个待办状态时，只改 order_status 那份清单而忘了概览，界面不会报错，
+    # 只是少了一个「必须有人看一眼」的数字。
+    #
+    # 字段名按 camelCase 约定（fulfillment_failed → fulfillmentFailed），
+    # 下划线转驼峰在这里写死一次，比让响应结构去迁就常量名更安全。
+    from store.order_status import ORDER_ATTENTION_STATUSES
+
+    attention = overview_data.get("attention", {})
+    missing_attention = [
+        status
+        for status in ORDER_ATTENTION_STATUSES
+        if f"{status.split('_')[0]}{''.join(part.title() for part in status.split('_')[1:])}"
+        not in attention
+    ]
+    check(
+        "S58 待办区覆盖 order_status 里的每个需人工介入状态（漏一个就是个不报警的洞）",
+        not missing_attention,
+        f"缺字段：{missing_attention}（响应里只有 {sorted(attention)}）",
+    )
+
     # 看板的时间维度与漏斗：营收必须给出 24 小时 / 7 天 / 30 天三个滚动窗口，
     # 且窗口越大金额越大（同一批付款订单，30 天必然覆盖 24 小时）。
     revenue_windows = {item["key"]: item for item in overview_data["revenue"]["windows"]}
@@ -12355,13 +12787,14 @@ async def run() -> int:
     check("GET /store-admin/v1/feature-codes", feature_catalog.status_code == 200, str(feature_catalog.status_code))
     catalog_data = feature_catalog.json()
     catalog_codes = {item["code"] for item in catalog_data.get("items", [])}
+    from store.features import FEATURE_CODES
+
+    # 与主项目同集这件事由 check_feature_codes_single_source 负责（它直接读
+    # backend/ 的源码对账）；这里只需要接口真的把整份目录发出来了。
     check(
-        "功能码目录覆盖主程序全部能力码",
-        {
-            "api", "assets", "editor", "display", "ha.sync", "ha.configure", "ha.control",
-            "projects.write", "runtime.websocket", "module.3d_interaction",
-        } == catalog_codes,
-        str(sorted(catalog_codes)),
+        "功能码目录完整下发（内容与主项目对账见 check_feature_codes_single_source）",
+        catalog_codes == set(FEATURE_CODES) and len(catalog_data.get("items", [])) == len(FEATURE_CODES),
+        f"接口 {sorted(catalog_codes)} vs 目录 {sorted(FEATURE_CODES)}",
     )
     check(
         "功能码目录每项都有中文名与分组",

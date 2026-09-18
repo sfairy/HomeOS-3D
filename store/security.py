@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import re
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 
 PBKDF2_ITERATIONS = 240_000
@@ -203,6 +204,4 @@ def new_referral_code() -> str:
 
 
 def new_uuid() -> str:
-    import uuid
-
     return str(uuid.uuid4())

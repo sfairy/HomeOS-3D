@@ -16,6 +16,14 @@
 只对内网监听的边界、公司防火墙都可能让这里探测通过、而支付宝始终够不着。
 所以调用方要把「探测成功」标成提示而不是结论 —— 这个模块的返回值只描述
 「从本进程出发的可达性」，不承诺更多。
+
+**另一条边界（S58）**：内网地址是**合法**的探测目标（自建 SMTP 中继、内网反代、
+内网网关都长在 ``10./172./192.168.`` 里，探测它们正是这个模块存在的理由），
+但**链路本地这一档直接拒绝**（``169.254.0.0/16`` 与 ``fe80::/10``，云厂商的元数据
+服务就在里面）。理由是用途：元数据服务不提供邮件/回调/网关能力，只提供这台机器
+的临时凭据，而本模块的返回值（可达/不可达、以及失败原因区分「拒绝」「超时」
+「TLS 握手失败」）足以把它当成一个内网端口探针用。所以这一档不连、直接判不可达
+并说明原因，其余地址照旧如实探测 —— 本模块**从不回显响应体**，只回答可达性。
 """
 
 from __future__ import annotations
@@ -65,6 +73,18 @@ _PRIVATE_NETWORKS = (
     ipaddress.ip_network("fe80::/10"),  # link-local
 )
 
+#: **绝不允许**探测的那一档：链路本地（v4 的 ``169.254.0.0/16``、v6 的 ``fe80::/10``）。
+#: 刻意与 :data:`_PRIVATE_NETWORKS` 分开（S58）：内网地址是**合法**目标 ——
+#: 自建 SMTP 中继、内网反代、内网网关都长在 ``10./172./192.168.`` 里，探测它们正是
+#: 本模块存在的理由；而云厂商的**元数据服务**（``169.254.169.254`` 等）在这一档里，
+#: 它不提供邮件/回调/网关能力，只提供这台机器的临时凭据。本模块的返回值（可达性，
+#: 以及失败原因区分「连接被拒」「超时」「TLS 握手失败」）足够把它当成一个内网端口与
+#: 凭据服务的探针，而它没有任何正当用途。所以这一档不连。
+_BLOCKED_NETWORKS = (
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("fe80::/10"),
+)
+
 
 def host_from_url(url: str) -> str:
     """从 URL 里取出主机名（小写）。URL 不合法时返回空串。"""
@@ -96,6 +116,14 @@ def is_private_host(host: str) -> bool:
     return any(address in network for network in _PRIVATE_NETWORKS)
 
 
+#: 拒绝探测的说明文案。调用方原样放进 ``detail``，所以要把「为什么不」写清楚。
+_BLOCKED_MESSAGE = (
+    "{host} 是链路本地地址（云厂商的元数据服务就在这一档），不探测：它不提供"
+    "邮件/回调/网关能力，只提供这台机器的临时凭据，而本模块会回报可达性与失败原因，"
+    "足够把它当内网探针用。请换成一个真实的外部可达地址。"
+)
+
+
 def resolve_host(host: str) -> tuple[bool, str, tuple[str, ...]]:
     """解析主机名，返回 ``(是否成功, 说明文案, 解析到的地址)``。
 
@@ -118,6 +146,46 @@ def resolve_host(host: str) -> tuple[bool, str, tuple[str, ...]]:
     return True, "解析到 " + "、".join(addresses), addresses
 
 
+def _blocked_probe_reason(host: str) -> str:
+    """目标是否落在「绝不允许探测」那一档（S58）；返回原因文案（空串表示放行）。
+
+    主机名会先解析一次再判断：``metadata.google.internal`` 这类写法解析出来的就是
+    链路本地地址，只看字面量等于把这条路留着。解析失败时**放行**（返回空串）——
+    解析不出来这件事本身由连接的失败去报告，那时的报错比「我猜它是元数据」更准确，
+    也不会把一次 DNS 抖动变成「目标被拒绝」。
+    """
+    text = (host or "").strip().strip("[]").lower()
+    if not text:
+        return ""
+
+    def blocked(value: str) -> bool:
+        try:
+            address = ipaddress.ip_address(value.strip().strip("[]"))
+        except ValueError:
+            return False
+        # ``::ffff:169.254.169.254`` 是 IPv4 映射写法，必须折回 IPv4 再比：
+        # 换个写法就绕过的话，这道闸等于没装（v4 地址与 v6 网段本来也不可比）。
+        mapped = getattr(address, "ipv4_mapped", None)
+        if mapped is not None:
+            address = mapped
+        return any(
+            address.version == network.version and address in network
+            for network in _BLOCKED_NETWORKS
+        )
+
+    if blocked(text):
+        return _BLOCKED_MESSAGE.format(host=text)
+
+    try:
+        ipaddress.ip_address(text)
+    except ValueError:
+        # 是域名：按解析结果判断（与后面真正连接时会连到的地址一致）。
+        resolved, _detail, addresses = resolve_host(text)
+        if resolved and any(blocked(item) for item in addresses):
+            return _BLOCKED_MESSAGE.format(host=text)
+    return ""
+
+
 def probe_http(
     url: str,
     *,
@@ -137,6 +205,9 @@ def probe_http(
     target = (url or "").strip()
     if not target:
         return False, "未填写地址。"
+    blocked = _blocked_probe_reason(host_from_url(target))
+    if blocked:
+        return False, blocked
     try:
         response = httpx.request(
             method,
@@ -168,6 +239,9 @@ def probe_tls(
     text = (host or "").strip()
     if not text:
         return False, "未填写主机名。"
+    blocked = _blocked_probe_reason(text)
+    if blocked:
+        return False, blocked
     try:
         with socket.create_connection((text, int(port)), timeout=timeout) as raw:
             context = ssl.create_default_context()

@@ -316,7 +316,7 @@ half-away-from-zero、Python 是 half-even，落在 `.xx5` 上时给出不同分
 | --- | --- |
 | 只看看会影响哪些表、多少行（只读） | `python -m store.tools.migrate_points --check-only` |
 | 先回填 + 对账、**暂不删旧列** | `python -m store.tools.migrate_points --check` |
-| 正式迁移（默认先备份数据库文件） | `python -m store.tools.migrate_points` |
+| 正式迁移（默认先备份数据库文件，用 `VACUUM INTO` 取一致快照） | `python -m store.tools.migrate_points` |
 | 退回旧版本程序前，把厘还原成 FLOAT | `python -m store.tools.migrate_points --rollback` |
 
 **三条要知道的规则**：
@@ -483,7 +483,7 @@ store/
   referrals.py         # 邀请钱包与积分账本、提现
   limiter.py           # 进程内滑动窗口限流（初始化守卫、支付跳转页查单）
   setup_guard.py       # 首次初始化窗口的访问守卫（本机放行 + 远程引导密钥 + 限流）
-  features.py          # 客户端能力码目录（中文名 + 说明），与主项目 BASE_FEATURES 对齐
+  features.py          # 客户端能力码目录（中文名 + 说明），**唯一出处**：主项目 BASE_FEATURES 同集、播种顺序也由它派生
   payments/            # base 接口 + mock 收银台 + 支付宝（签名/下单/验签/查单）+ 统一入账
   payments/sweeper.py  # 后台巡检：认领「已付款但通知丢了」的单、关闭过期渠道交易 + 状态登记（概览 / healthz）
   licensing/           # 服务端 TransportCipher + LeaseSigner + 三端点业务

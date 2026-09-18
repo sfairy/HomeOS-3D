@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import timedelta, timezone
 
@@ -82,7 +83,9 @@ from store.security import (
 from store.serializers import (
     account_center_payload,
     account_state_payload,
+    binding_version,
     is_sold_out,
+    json_list,
     order_payload,
     product_payload,
 )
@@ -460,8 +463,6 @@ def _evaluate_coupon(
         ).scalar_one()
         if int(used or 0) >= int(coupon.per_account_limit):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="你已使用过该优惠码。")
-
-    from store.serializers import json_list
 
     applicable = [str(item) for item in json_list(coupon.applicable_product_ids_json)]
     if applicable and product.id not in applicable:
@@ -1587,8 +1588,6 @@ def _release_snapshot_conflict(payload: ReleaseDeviceRequest, binding) -> str | 
         if actual is None or abs((actual - normalized).total_seconds()) > 1:
             return "授权绑定的设备已变更，请刷新后重新确认。"
     if payload.expected_binding_version:
-        from store.serializers import binding_version
-
         if payload.expected_binding_version != binding_version(binding):
             return "授权绑定的设备已变更，请刷新后重新确认。"
     return None
@@ -1790,14 +1789,12 @@ def create_order(
         # 并发下单：更早那一次 soldOut 检查是「读」，这里是「原子占位」。
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
 
-    import json as _json
-
     # 优惠后应付 0 元：支付宝不接受 0 元交易，直接按免费订单开通
     if amount <= 0:
         order.status = "paid"
         order.paid_at = utcnow()
         order.payment_trade_no = f"FREE{order.order_no[-10:]}"
-        order.payment_payload_json = _json.dumps(
+        order.payment_payload_json = json.dumps(
             {
                 "type": "free",
                 "displayName": "0 元订单",
@@ -1811,8 +1808,6 @@ def create_order(
         session.refresh(order)
         logger.info("0 元订单直接开通 order=%s", order.order_no)
         return JSONResponse(order_payload(order), status_code=status.HTTP_201_CREATED)
-
-    from store.payments.base import PaymentError
 
     try:
         provider = request.app.state.resolve_payment_provider(setting)
@@ -1846,7 +1841,7 @@ def create_order(
         session.flush()
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error))
 
-    order.payment_payload_json = _json.dumps(intent.payload, ensure_ascii=False)
+    order.payment_payload_json = json.dumps(intent.payload, ensure_ascii=False)
     session.flush()
 
     return JSONResponse(order_payload(order), status_code=status.HTTP_201_CREATED)

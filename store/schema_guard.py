@@ -30,7 +30,6 @@ store 的库不走 Alembic：结构由 ``create_all`` 建立，但 ``create_all`
 from __future__ import annotations
 
 import logging
-import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -135,11 +134,13 @@ _MERGE_MODES = ("any_true", "earliest", "latest")
 def backup_database(
     engine: Engine, *, directory: Path | None = None, label: str = "backup"
 ) -> Path | None:
-    """改动数据前把 SQLite 库文件整份复制一份，返回备份路径。
+    """改动数据前把 SQLite 库备份成一份可还原的快照，返回备份路径。
 
     只对「文件型 SQLite」有效：内存库（测试里常用）没有可复制的文件，直接返回
     ``None``；其它方言（运维自己换了库）也不做文件级备份，返回 ``None`` 并在日志里
     说明 —— 调用方仍是「先验证后销毁」，备份只是额外的一层保险。
+    备份**失败**同样返回 ``None``（不抛），但会以 ERROR 记录下来：调用方（退役列、
+    积分迁移）都是不可逆动作，运维需要知道这次是「没有网」在走钢丝。
 
     ``label`` 进文件名（``<库名>.pre-<label>-<时间戳>.bak``），便于运维一眼看出这份
     快照是哪个动作之前留的。
@@ -158,14 +159,31 @@ def backup_database(
 
     target_dir = Path(directory) if directory is not None else source.parent
     #: 目标目录可能不存在（CLI 允许把快照放到独立目录）。这里必须自己建：
-    #: ``shutil.copy2`` 不会建目录，只会以 FileNotFoundError 失败。
+    #: ``VACUUM INTO`` 不会建目录，只会以「unable to open database file」失败。
     target_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     destination = target_dir / f"{source.name}.pre-{label}-{stamp}.bak"
-    shutil.copy2(source, destination)
-    logger.warning(
-        "改动数据前已备份数据库：%s（确认结果无误后可自行删除）", destination
-    )
+
+    #: **不能直接 ``shutil.copy2(store.db)``**（S58 实测踩到）：库跑在 WAL 模式下
+    #: （:func:`store.database.create_store_engine` 就是这么开的），新写入的行先在
+    #: ``store.db-wal`` 里，checkpoint 之前主库文件可能还是「一张表都没有」的状态。
+    #: 于是复制出来的 .bak 打不开、也没法还原 —— 而它看起来完全正常（文件名对、
+    #: 大小不为零），是最坏的一类保险：「以为有备份」比「知道自己没有备份」危险得多。
+    #: 换成 `VACUUM INTO`：由 SQLite 自己写出一份一致的快照，落盘的是完整数据，
+    #: 顺带压掉空闲页。`VACUUM` 不能在事务里跑，所以这条连接要 AUTOCOMMIT。
+    try:
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+            connection.exec_driver_sql("VACUUM INTO ?", (str(destination),))
+    except Exception as error:  # noqa: BLE001 - 备份失败不能带走调用方，但要留痕
+        #: 半截文件比没有文件更危险（文件名、大小都像那么回事）。宁可删掉让运维确认。
+        destination.unlink(missing_ok=True)
+        logger.error(
+            "备份数据库失败（%s）：本次没有文件级快照，接下来的不可逆动作没有退路 —— %s",
+            source,
+            error,
+        )
+        return None
+    logger.warning("改动数据前已备份数据库：%s（确认结果无误后可自行删除）", destination)
     return destination
 
 
@@ -387,6 +405,14 @@ def _drop_retired_columns(engine: Engine, table_name: str, columns: list[str]) -
         return []
 
     dropped: list[str] = []
+    deleted: list[str] = []
+    #: 备份必须在删列之前：与重复行合并同理，这是会**毁掉数据**的一步，而且比那次
+    #: 更彻底 —— 合并只是把重复行并成一行，删列是整列消失（SQLite 的 DROP COLUMN
+    #: 会重建整张表，数据不再存在于任何地方）。`_RETIRED_COLUMNS` 白名单保证了「删
+    #: 的是登记过的那几列」，但白名单解决的是「该不该删」，不解决「删错了怎么回头」。
+    #: 一次表级备份（同名同表的多列共用一份）成本是复制一个库文件，而误删一列
+    #: 是没有任何别的补救手段的。
+    backup = backup_database(engine, label=f"drop-{table_name}")
     for column in columns:
         try:
             with engine.begin() as connection:
@@ -403,6 +429,15 @@ def _drop_retired_columns(engine: Engine, table_name: str, columns: list[str]) -
             )
             continue
         dropped.append(f"{table_name}.{column}（已删除）")
+        deleted.append(column)
+    if deleted:
+        logger.warning(
+            "表 %s 的退役列 %s 已从库中删除（删除前备份：%s）。这是不可逆操作，"
+            "确认服务一切正常后可以自行删除该备份。",
+            table_name,
+            "、".join(deleted),
+            backup if backup is not None else "内存库/非文件库，无文件级备份",
+        )
     return dropped
 
 

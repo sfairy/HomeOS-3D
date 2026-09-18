@@ -22,23 +22,8 @@ from store.models import (
     StoreSetting,
 )
 from store.order_status import order_status_label, refundable_cents
-from store.security import iso, iso_z
+from store.security import iso, iso_z, utcnow
 from store.site_settings import resolve_device_release_cooldown
-
-BASE_FEATURES = frozenset(
-    {
-        "api",
-        "assets",
-        "editor",
-        "display",
-        "ha.sync",
-        "ha.control",
-        "ha.configure",
-        "projects.write",
-        "runtime.websocket",
-    }
-)
-
 
 def json_list(value: str | None) -> list:
     if not value:
@@ -51,8 +36,6 @@ def json_list(value: str | None) -> list:
 
 
 def _now(reference: datetime | None = None) -> datetime:
-    from store.security import utcnow
-
     return reference or utcnow()
 
 

@@ -91,6 +91,41 @@ FEATURE_CODES: frozenset[str] = frozenset(item["code"] for item in FEATURE_CATAL
 #: code → 中文名
 FEATURE_LABELS: dict[str, str] = {item["code"]: item["label"] for item in FEATURE_CATALOG}
 
+#: 按分组拆出的代码集合。**只有这里能写死代码清单**（写死的其实是「哪些项目录
+#: 里」这件事）：新增能力码时改的是上面的目录，下面这些集合会自动跟上。
+#:
+#: S58 之前同一份清单在三个地方各存了一份（本文件、``serializers.BASE_FEATURES``、
+#: ``bootstrap.BASE_PRODUCT_FEATURES``），其中 ``serializers`` 那份是死代码、另外
+#: 两份的顺序还不一样；「抄错一个字母只会被客户端静默拦截」，所以这三份迟早会分叉。
+FEATURE_CODES_BY_GROUP: dict[str, frozenset[str]] = {
+    group: frozenset(item["code"] for item in FEATURE_CATALOG if item["group"] == group)
+    for group, _ in FEATURE_GROUPS
+}
+
+#: 基础能力集合（主项目 ``license/service.py`` 的 ``BASE_FEATURES`` 同集）
+BASE_FEATURES: frozenset[str] = FEATURE_CODES_BY_GROUP["base"]
+
+#: 增量模块集合（主项目各模块 ``access.py`` 里的 ``FEATURE`` 同集）
+MODULE_FEATURES: frozenset[str] = FEATURE_CODES_BY_GROUP["module"]
+
+#: 播种商品时写进 ``feature_codes_json`` 的**顺序**（与参考站 pay.habridge.cn 实测一致，
+#: 换顺序会让新装站点的商品功能码顺序与老站点不同 —— 内容由目录决定，顺序只是展示）。
+#: 与目录同集这件事由 ``smoke.py`` 的对账断言钉住。
+BASE_PRODUCT_FEATURES: tuple[str, ...] = (
+    "api",
+    "assets",
+    "display",
+    "editor",
+    "ha.configure",
+    "ha.control",
+    "ha.sync",
+    "projects.write",
+    "runtime.websocket",
+)
+
+#: 增量包商品的播种顺序（同上）
+MODULE_3D_FEATURES: tuple[str, ...] = ("module.3d_interaction",)
+
 
 def feature_catalog_payload() -> dict:
     """后台下拉多选直接渲染这个结构。"""

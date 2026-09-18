@@ -28,7 +28,12 @@ from store.api.store import (
 )
 from store.deps import AdminAccount, DbSession, SettingsDep
 from store.expiry import expire_stale_orders
-from store.order_status import ORDER_STATUS_LABELS, ORDER_STATUS_CHOICES, order_status_label
+from store.order_status import (
+    ORDER_ATTENTION_STATUSES,
+    ORDER_STATUS_LABELS,
+    ORDER_STATUS_CHOICES,
+    order_status_label,
+)
 from store.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
 )
@@ -400,19 +405,21 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
     ]
 
     # —— 待办：需要人工介入的东西 ——
-    # 「待发货」= 钱已到账但还没发出去。fulfillment_failed 单列出来，因为它不是
-    # 「排队等自动发货」，而是「自动发货炸了、必须人工重试或退款」。
+    # 「待发货」= 钱已到账但还没发出去。失败状态逐项单列，因为它们不是「排队等自动
+    # 发货」，而是「自动发货炸了 / 付款没成、必须人工重试或退款」。
+    # 清单来自 order_status.ORDER_ATTENTION_STATUSES（唯一定义）：这里按它计数，
+    # 新增一个待办状态就不必记得回来改这一段。
     awaiting_fulfillment = count(
         select(func.count(Order.id)).where(
             Order.status == "paid", Order.fulfillment_mode == "automatic"
         )
     )
-    fulfillment_failed = count(
-        select(func.count(Order.id)).where(Order.status == "fulfillment_failed")
-    )
-    payment_failed = count(
-        select(func.count(Order.id)).where(Order.status == "payment_failed")
-    )
+    attention_counts = {
+        status: count(select(func.count(Order.id)).where(Order.status == status))
+        for status in ORDER_ATTENTION_STATUSES
+    }
+    fulfillment_failed = attention_counts["fulfillment_failed"]
+    payment_failed = attention_counts["payment_failed"]
     needs_review = count(
         select(func.count(Order.id)).where(Order.needs_review.is_(True))
     )
@@ -1686,8 +1693,6 @@ def _offline_refund_reason(order: Order) -> str:
     没记下单渠道、或渠道名已不在受支持列表里的老订单同理：无从判断该打哪个网关，
     只能按线下退款如实记账。
     """
-    from store.payments import PROVIDER_NAMES, normalize_provider_name
-
     provider = normalize_provider_name(order.payment_provider)
     if provider == "manual":
         return "该订单是后台人工标记支付的（渠道侧没有这笔交易）"
@@ -1708,8 +1713,6 @@ def _refund_provider(resolver, *, order: Order, setting):
     能走到这里的订单，渠道名必然在受支持列表内：``manual`` / 未知渠道由
     :func:`_offline_refund_reason` 提前拦下、改走线下退款，不会再落到「当前渠道」。
     """
-    from store.payments import PROVIDER_NAMES, normalize_provider_name
-
     order_provider = normalize_provider_name(order.payment_provider)
     if order_provider in PROVIDER_NAMES:
         return resolver(setting, name=order_provider)
@@ -1934,8 +1937,6 @@ def admin_issue_license(
         session.add(customer)
         session.flush()
 
-    from store.fulfill import insert_license_with_unique_code
-
     moment = utcnow()
     validity_days = payload.validity_days if payload.validity_days is not None else product.validity_days
 
@@ -1961,7 +1962,7 @@ def admin_issue_license(
 
     # 与订单履约走同一条「撞码重试」路径（S35），否则同一种冲突在这里是 500、
     # 在那里是自动重试，两个入口的可靠性不一样。
-    license = insert_license_with_unique_code(session, build)
+    license = fulfill.insert_license_with_unique_code(session, build)
     # 审计只记 id + 提示码，**绝不落激活码明文**：激活码就是这张授权的凭证，
     # 审计日志会在后台列表里长期展示、也常被导出/转发，等于把它抄了一份到
     # 一个没有访问控制的地方。列表页自己也只用 code_hint。

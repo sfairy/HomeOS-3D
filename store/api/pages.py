@@ -18,7 +18,7 @@ from sqlalchemy import func, select, update
 
 from store import cashier, coupons, fulfill, site_settings as site_config
 from store.deps import CurrentAccount, DbSession
-from store.models import Account, Order, Product
+from store.models import Account, Order, Product, ProductImage
 from store.order_status import order_status_label
 from store.payments.base import PaymentError
 from store.request_security import render_template
@@ -111,8 +111,6 @@ def setup_page(request: Request) -> HTMLResponse:
 # --------------------------------------------------------------------------- #
 @router.get("/store/v1/product-images/{product_id}", include_in_schema=False)
 def product_image(product_id: str, request: Request, session: DbSession) -> FileResponse:
-    from store.models import ProductImage
-
     image = session.scalars(
         select(ProductImage).where(ProductImage.product_id == product_id)
     ).first()

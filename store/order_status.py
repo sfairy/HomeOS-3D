@@ -83,7 +83,11 @@ ORDER_STATUS_LABELS: dict[str, str] = {
 #: 可在后台筛选器里选择的状态（保持与状态机的展示顺序一致）。
 ORDER_STATUS_CHOICES: tuple[str, ...] = tuple(ORDER_STATUS_LABELS)
 
-#: 需要人工介入的状态，后台概览的「待办」区据此聚合。
+#: 需要人工介入的状态 —— 「必须有人看一眼」的唯一定义。
+#:
+#: 后台概览的「待办」区按它逐项计数（``fulfillment_failed`` = 自动发货炸了、
+#: ``payment_failed`` = 付款没成功但要核对渠道账单），``smoke.py`` 会断言每一项
+#: 都在概览响应里露了面 —— 否则新增一个状态就只改了这里，界面照旧岁月静好。
 ORDER_ATTENTION_STATUSES: tuple[str, ...] = ("payment_failed", "fulfillment_failed")
 
 
