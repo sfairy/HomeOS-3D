@@ -46,7 +46,7 @@ from .api.displays import (
     router as displays_router,
 )
 from .api.ha import router as ha_router, runtime_router
-from .api.ha_proxy import router as ha_proxy_router
+from .api.ha_proxy import MediaProxyCaches, router as ha_proxy_router
 from .api.global_logs import router as global_logs_router
 from .api.icons import router as icons_router
 from .api.license import router as license_router
@@ -219,7 +219,15 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 await asyncio.to_thread(sweep_user_assets_for_app, app)
             except Exception as error:  # noqa: BLE001 - 巡检是附加工作，启动不能因它失败
                 app.state.global_log.append('warning', '系统后台', '存储', f'用户素材巡检失败：{error}')
-            app.state.ha_connector = HAConnectorService(app_settings, app.state.database, event_log = app.state.global_log)
+            app.state.ha_connector = HAConnectorService(
+                app_settings,
+                app.state.database,
+                event_log = app.state.global_log,
+                # 连接被重建 / 删除时作废媒体代理的两份记账（B57）：快照缓存里是上一台 HA 的
+                # 画面，HLS 归属记的是上一台 HA 发的令牌。地址可以不变而实例已经换了一台，
+                # 所以这件事只能由「连接被重建」这个事件告诉它。
+                on_reconnect = app.state.media_proxy.clear,
+            )
             # HA 同步是同步方法，内部自己起线程 / 任务，因此这里不 await。
             app.state.ha_connector.start()
             app.state.update_checker = UpdateChecker(
@@ -295,6 +303,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     # 关掉 docs / redoc / openapi：本项目不对外暴露接口文档。
     app = FastAPI(title = 'HomeOS', version = app_settings.version, lifespan = lifespan, docs_url = None, redoc_url = None, openapi_url = None)
     app.state.settings = app_settings
+    # 媒体代理的两份进程内记账（快照缓存 + HLS 归属）挂在应用上而不是模块级（B57）：
+    # create_app() 调两次时模块级的那一份会被两个应用共享（缓存串台、刷新任务绑在
+    # 另一个事件循环上），而进程内单实例只是自检之外的习惯，不是保证。
+    app.state.media_proxy = MediaProxyCaches()
 
     @app.exception_handler(Exception)
     async def unhandled_error_response(request: Request, _error: Exception):

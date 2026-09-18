@@ -124,12 +124,6 @@ class CameraSnapshotCacheEntry:
     created_at: float
 
 
-# 进程内快照缓存：key 为「HA 基址 + 代理路径」，值见 CameraSnapshotCacheEntry。
-camera_snapshot_cache: dict[str, CameraSnapshotCacheEntry] = {}
-# 正在后台刷新的任务，按同一个 key 去重：同一张图不会同时发起多次回源。
-camera_snapshot_refreshes: dict[str, asyncio.Task[None]] = {}
-
-
 @dataclass
 class HlsStreamScope:
     """一条 HLS 播放地址的归属：属于哪个实体、记账何时过期、谁校验过。
@@ -148,8 +142,182 @@ class HlsStreamScope:
             self.expires_at = monotonic() + HLS_STREAM_SCOPE_TTL_SECONDS
 
 
-#: HLS 令牌 → 归属。令牌由本服务在 /api/camera_hls 发放播放地址时登记。
-hls_stream_scopes: dict[str, HlsStreamScope] = {}
+class MediaProxyCaches:
+    """媒体代理的两份进程内记账：快照缓存与 HLS 归属（B57）。
+
+    挂在 ``app.state.media_proxy`` 而**不是**模块级字典。模块级那一版建立在「一个
+    进程里只有一个应用实例」这个假设上，而它在三处都不成立：
+
+    - ``create_app()`` 调两次（自检就是这么做的）就会共享同一份缓存 —— 第二个应用
+      直接读到第一个应用缓存的画面；
+    - 刷新任务表里存的是 ``asyncio.Task``，而任务属于**某一个**事件循环：另一个应用
+      去 await 它会抛「attached to a different loop」；
+    - 换了一条 HA 连接时没有任何东西能让它失效 —— 地址可以不变而实例已经换了一台
+      （重装、恢复备份、同一地址换了另一套系统），此时缓存里是**上一台** HA 的画面。
+
+    因此快照键里带连接身份（换连接后旧条目不可能被命中），两份记账另有一处显式清空
+    （连接被重建时，见 :meth:`clear`）。
+    """
+
+    def __init__(self) -> None:
+        #: 快照缓存：key 为「连接身份 + HA 基址 + 代理路径」，见 camera_snapshot_cache_key。
+        self.snapshots: dict[str, CameraSnapshotCacheEntry] = {}
+        #: 正在后台刷新的任务，按同一个 key 去重：同一张图不会同时发起多次回源。
+        self.refreshes: dict[str, asyncio.Task[None]] = {}
+        #: HLS 令牌 → 归属。令牌由本服务在 /api/camera_hls 发放播放地址时登记。
+        self.hls_scopes: dict[str, HlsStreamScope] = {}
+
+    def clear(self) -> None:
+        """丢掉两份记账 —— 连接被重建或删除时调用（见 ``HAConnectorService.restart``）。
+
+        在途的刷新任务**不取消**：取消会让正在等它完成的那次请求（``hb_live=1`` 会
+        ``asyncio.shield`` 它）收到 CancelledError。它自己会结束，而它写回的是**旧连接**
+        的键，清理之后不会被任何请求命中。
+        """
+        self.snapshots.clear()
+        self.hls_scopes.clear()
+        self.refreshes.clear()
+
+    # —— 快照缓存 ——
+
+    def snapshot(self, key: str) -> CameraSnapshotCacheEntry | None:
+        """取一张缓存的快照；没有则为 None。"""
+        return self.snapshots.get(key)
+
+    def snapshot_bytes(self) -> int:
+        """当前快照缓存占用的字节数（自检与预算淘汰都要用）。"""
+        return sum(len(entry.content) for entry in self.snapshots.values())
+
+    def remember_snapshot(self, key: str, content: bytes, content_type: str) -> None:
+        """写入快照缓存；超条数或超字节预算时淘汰最旧的一条。
+
+        用「淘汰最旧」而不是 clear()：缓存里都是活跃图片，清空会让紧接着的一轮
+        请求全部回源，反过来冲击 HA。
+
+        单张超过 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES`` 的直接不缓存（B14）：
+        这类响应（例如一张几十 MB 的原始快照）一旦缓存，一条就能吃掉整个字节预算，
+        把真正有用的那几十张小图全挤出去，而它自己的命中率并不高。
+
+        预算与单张上限都调得很小时，缓存里至少会留下第一条 —— 与日志裁剪同一口径：
+        宁可短暂超一点，也不要出现「什么都存不下」的空转。
+        """
+        if len(content) > CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES:
+            self.snapshots.pop(key, None)
+            return None
+        # 淘汰判据是「放进这一条之后」的占用：覆盖已有键时先把它自己那一份算掉。
+        # 旧实现在条数满时就有这层保护（覆盖不会让条数增长），换成字节预算后同样
+        # 需要 —— 否则反复刷新同一张图会被当成新增，每次都白白淘汰一条别的活跃图。
+        while self.snapshots:
+            replaced = self.snapshots.get(key)
+            replaced_bytes = len(replaced.content) if replaced is not None else 0
+            over_entries = (
+                replaced is None
+                and len(self.snapshots) >= CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES
+            )
+            over_bytes = (
+                self.snapshot_bytes() - replaced_bytes + len(content)
+                > CAMERA_SNAPSHOT_CACHE_MAX_BYTES
+            )
+            if not (over_entries or over_bytes):
+                break
+            oldest_key = min(self.snapshots, key=lambda item: self.snapshots[item].created_at)
+            self.snapshots.pop(oldest_key, None)
+        self.snapshots[key] = CameraSnapshotCacheEntry(
+            content=content,
+            # HA 偶尔不回 content-type，按最常见的 JPEG 兜底。
+            content_type=content_type or 'image/jpeg',
+            created_at=monotonic(),
+        )
+        return None
+
+    def pending_refresh(self, key: str) -> asyncio.Task[None] | None:
+        """同一个 key 正在跑的刷新任务；没有则 None。"""
+        return self.refreshes.get(key)
+
+    def schedule_refresh(
+        self,
+        key: str,
+        target: str,
+        headers: Mapping[str, str],
+        verify_tls: bool,
+        timeout: float,
+    ) -> None:
+        """安排一次后台快照刷新（同一个 key 去重：多个看板同时请求只回源一次）。"""
+        existing = self.refreshes.get(key)
+        if existing and not existing.done():
+            return None
+        self.refreshes[key] = asyncio.create_task(
+            self._refresh_snapshot(key, target, headers, verify_tls, timeout)
+        )
+        return None
+
+    async def _refresh_snapshot(
+        self,
+        key: str,
+        target: str,
+        headers: Mapping[str, str],
+        verify_tls: bool,
+        timeout: float,
+    ) -> None:
+        """后台回源刷新一张快照并写进缓存。
+
+        失败被静默吞掉：调用方此时通常已经把旧图返回给浏览器了，
+        为了刷新失败去中断这次看板渲染并不值得。
+        """
+        try:
+            async with httpx.AsyncClient(
+                verify=verify_tls, timeout=timeout, follow_redirects=False
+            ) as client:
+                upstream = await client.get(target, headers=dict(headers))
+            # 只有完整成功才覆盖缓存，失败时旧图继续服务。
+            if 200 <= upstream.status_code < 300 and upstream.content:
+                self.remember_snapshot(
+                    key,
+                    upstream.content,
+                    upstream.headers.get('content-type', 'image/jpeg'),
+                )
+        except httpx.HTTPError:
+            pass
+        finally:
+            # 无论成败都要摘掉任务登记，否则这个 key 再也不会被安排刷新。
+            self.refreshes.pop(key, None)
+
+    # —— HLS 归属记账 ——
+
+    def hls_scope(self, token: str) -> HlsStreamScope | None:
+        """取一条 HLS 归属（不含过期判定，调用方按自己的语义处理）。"""
+        return self.hls_scopes.get(token) if token else None
+
+    def remember_hls_stream(self, stream_url: str, entity_id: str) -> None:
+        """记账「这条 HLS 播放地址是给哪个实体的」，供后续片段请求做归属校验。
+
+        这是 HLS 唯一的归属来源：令牌里没有实体信息，只能在**发放时**记下来。
+        记账是滑动的（每次命中续期），所以一次正常播放不会中途失效；淘汰只在
+        并发播放数超过上限时发生，那种情况下前端会回落到带实体校验的 MJPEG 通道。
+        """
+        token = hls_stream_token(stream_url)
+        if not token:
+            return
+        if token not in self.hls_scopes and len(self.hls_scopes) >= HLS_STREAM_SCOPE_MAX_ENTRIES:
+            oldest = min(self.hls_scopes, key=lambda item: self.hls_scopes[item].expires_at)
+            self.hls_scopes.pop(oldest, None)
+        self.hls_scopes[token] = HlsStreamScope(entity_id=entity_id)
+
+    def hls_entity_id(self, path: str) -> str | None:
+        """查询 HLS 令牌的归属实体；过期即清除，命中则滑动续期。"""
+        token = hls_stream_token(path)
+        if not token:
+            return None
+        scope = self.hls_scopes.get(token)
+        if scope is None:
+            return None
+        if monotonic() >= scope.expires_at:
+            # 过期即失效：这条记账是「一次播放」的凭据，不该无限期有效。
+            self.hls_scopes.pop(token, None)
+            return None
+        # 命中即续期（滑动窗口）：正常播放期间不会中途被判成「未登记」而断流。
+        scope.expires_at = monotonic() + HLS_STREAM_SCOPE_TTL_SECONDS
+        return scope.entity_id
 
 
 def upstream_path(request: Request) -> str:
@@ -205,39 +373,6 @@ def hls_stream_token(path: str) -> str:
     return path[len(HLS_MEDIA_PREFIX):].split('/', 1)[0].strip()
 
 
-def remember_hls_stream(stream_url: str, entity_id: str) -> None:
-    """记账「这条 HLS 播放地址是给哪个实体的」，供后续片段请求做归属校验。
-
-    这是 HLS 唯一的归属来源：令牌里没有实体信息，只能在**发放时**记下来。
-    记账是滑动的（每次命中续期），所以一次正常播放不会中途失效；淘汰只在
-    并发播放数超过上限时发生，那种情况下前端会回落到带实体校验的 MJPEG 通道。
-    """
-    token = hls_stream_token(stream_url)
-    if not token:
-        return
-    if token not in hls_stream_scopes and len(hls_stream_scopes) >= HLS_STREAM_SCOPE_MAX_ENTRIES:
-        oldest = min(hls_stream_scopes, key=lambda item: hls_stream_scopes[item].expires_at)
-        hls_stream_scopes.pop(oldest, None)
-    hls_stream_scopes[token] = HlsStreamScope(entity_id=entity_id)
-
-
-def hls_stream_entity_id(path: str) -> str | None:
-    """查询 HLS 令牌的归属实体；过期即清除，命中则滑动续期。"""
-    token = hls_stream_token(path)
-    if not token:
-        return None
-    scope = hls_stream_scopes.get(token)
-    if scope is None:
-        return None
-    if monotonic() >= scope.expires_at:
-        # 过期即失效：这条记账是「一次播放」的凭据，不该无限期有效。
-        hls_stream_scopes.pop(token, None)
-        return None
-    # 命中即续期（滑动窗口）：正常播放期间不会中途被判成「未登记」而断流。
-    scope.expires_at = monotonic() + HLS_STREAM_SCOPE_TTL_SECONDS
-    return scope.entity_id
-
-
 def _viewer_can_see_entity(database_manager: Database, viewer: ViewerPrincipal, entity_id: str) -> None:
     """在独立会话里做一次实体归属校验；不可见时由 require_viewer_entity 抛 403。
 
@@ -265,14 +400,15 @@ async def require_media_proxy_scope(
     if not allowed_media_proxy_path(path):
         # 路径不合规的请求交给处理器统一回 404（不在这里回答「这个前缀存不存在」）。
         return
+    caches = request.app.state.media_proxy
     entity_id = media_proxy_entity_id(path)
     if entity_id is None:
         # HLS 分支：令牌查不到归属就拒绝（fail closed）。令牌只可能由本服务的
         # /api/camera_hls 在实体校验之后记账，所以「查不到」= 不是本服务发的；
         # 前端在流被拒后会回落到带实体校验的 MJPEG 通道，不会一直黑屏。
         token = hls_stream_token(path)
-        scope = hls_stream_scopes.get(token) if token else None
-        entity_id = hls_stream_entity_id(path) if scope is not None else None
+        scope = caches.hls_scope(token)
+        entity_id = caches.hls_entity_id(path) if scope is not None else None
         if entity_id is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -380,57 +516,17 @@ def versioned_image_proxy_cache_control(path: str, query: str, status_code: int)
     return None
 
 
-def camera_snapshot_cache_key(base_url: str, path: str) -> str:
-    """快照缓存键：HA 基址 + 代理路径，保证不同实例 / 不同路径不会互相串图。"""
-    return f'{base_url.rstrip("/")}{path}'
+def camera_snapshot_cache_key(connection_id: str, base_url: str, path: str) -> str:
+    """快照缓存键：连接身份 + HA 基址 + 代理路径。
 
+    三个部分各挡一类串图：连接身份挡「换了一台 HA 却继续发上一台的画面」（B57，
+    地址可以不变而实例已经换了）；基址挡「同一进程里配过多个地址」；路径挡
+    「同一台 HA 上不同摄像头互相串」。
 
-def _camera_snapshot_cache_bytes() -> int:
-    """当前快照缓存占用的字节数（自检与预算淘汰都要用）。"""
-    return sum(len(entry.content) for entry in camera_snapshot_cache.values())
-
-
-def _remember_camera_snapshot(key: str, content: bytes, content_type: str) -> None:
-    """写入快照缓存；超条数或超字节预算时淘汰最旧的一条。
-
-    用「淘汰最旧」而不是 clear()：缓存里都是活跃图片，清空会让紧接着的一轮
-    请求全部回源，反过来冲击 HA。
-
-    单张超过 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES`` 的直接不缓存（B14）：
-    这类响应（例如一张几十 MB 的原始快照）一旦缓存，一条就能吃掉整个字节预算，
-    把真正有用的那几十张小图全挤出去，而它自己的命中率并不高。
-
-    预算与单张上限都调得很小时，缓存里至少会留下第一条 —— 与日志裁剪同一口径：
-    宁可短暂超一点，也不要出现「什么都存不下」的空转。
+    连接身份必须在这里而不是靠清缓存：换连接与清缓存是两件事，任何一条没走清缓存
+    的路径（以及清理之后才回来的在途刷新）都不该让旧画面被命中。
     """
-    if len(content) > CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES:
-        camera_snapshot_cache.pop(key, None)
-        return None
-    # 淘汰判据是「放进这一条之后」的占用：覆盖已有键时先把它自己那一份算掉。
-    # 旧实现在条数满时就有这层保护（覆盖不会让条数增长），换成字节预算后同样
-    # 需要 —— 否则反复刷新同一张图会被当成新增，每次都白白淘汰一条别的活跃图。
-    while camera_snapshot_cache:
-        replaced = camera_snapshot_cache.get(key)
-        replaced_bytes = len(replaced.content) if replaced is not None else 0
-        over_entries = (
-            replaced is None
-            and len(camera_snapshot_cache) >= CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES
-        )
-        over_bytes = (
-            _camera_snapshot_cache_bytes() - replaced_bytes + len(content)
-            > CAMERA_SNAPSHOT_CACHE_MAX_BYTES
-        )
-        if not (over_entries or over_bytes):
-            break
-        oldest_key = min(camera_snapshot_cache, key=lambda item: camera_snapshot_cache[item].created_at)
-        camera_snapshot_cache.pop(oldest_key, None)
-    camera_snapshot_cache[key] = CameraSnapshotCacheEntry(
-        content=content,
-        # HA 偶尔不回 content-type，按最常见的 JPEG 兜底。
-        content_type=content_type or 'image/jpeg',
-        created_at=monotonic(),
-    )
-    return None
+    return f'{connection_id}|{base_url.rstrip("/")}{path}'
 
 
 def _camera_snapshot_response(entry: CameraSnapshotCacheEntry) -> Response:
@@ -464,54 +560,6 @@ def load_authorized_camera_connection(
         if connection is not None:
             database.expunge(connection)
         return connection
-
-
-async def _refresh_camera_snapshot(
-    key: str,
-    target: str,
-    headers: Mapping[str, str],
-    verify_tls: bool,
-    timeout: float,
-) -> None:
-    """后台回源刷新一张快照并写进缓存。
-
-    失败被静默吞掉：调用方此时通常已经把旧图返回给浏览器了，
-    为了刷新失败去中断这次看板渲染并不值得。
-    """
-    try:
-        async with httpx.AsyncClient(
-            verify=verify_tls, timeout=timeout, follow_redirects=False
-        ) as client:
-            upstream = await client.get(target, headers=dict(headers))
-        # 只有完整成功才覆盖缓存，失败时旧图继续服务。
-        if 200 <= upstream.status_code < 300 and upstream.content:
-            _remember_camera_snapshot(
-                key,
-                upstream.content,
-                upstream.headers.get('content-type', 'image/jpeg'),
-            )
-    except httpx.HTTPError:
-        pass
-    finally:
-        # 无论成败都要摘掉任务登记，否则这个 key 再也不会被安排刷新。
-        camera_snapshot_refreshes.pop(key, None)
-
-
-def _schedule_camera_snapshot_refresh(
-    key: str,
-    target: str,
-    headers: Mapping[str, str],
-    verify_tls: bool,
-    timeout: float,
-) -> None:
-    """安排一次后台快照刷新（同一个 key 去重）。"""
-    existing = camera_snapshot_refreshes.get(key)
-    # 已有在跑的任务就不再发起：多个看板在同一时刻请求，HA 只会被回源一次。
-    if existing and not existing.done():
-        return None
-    task = asyncio.create_task(_refresh_camera_snapshot(key, target, headers, verify_tls, timeout))
-    camera_snapshot_refreshes[key] = task
-    return None
 
 
 async def proxy_http(request: Request) -> Response:
@@ -549,19 +597,20 @@ async def proxy_http(request: Request) -> Response:
     stream_response = request.url.path.startswith('/api/camera_proxy_stream/')
     # 静态快照才进缓存；HEAD 没有响应体可存，因此不算快照请求。
     snapshot_request = request.method == 'GET' and request.url.path.startswith('/api/camera_proxy/')
+    caches = request.app.state.media_proxy
     snapshot_key = (
-        camera_snapshot_cache_key(client_config.base_url, request.url.path)
+        camera_snapshot_cache_key(connection.id, client_config.base_url, request.url.path)
         if snapshot_request
         else ''
     )
     if snapshot_request:
-        cached = camera_snapshot_cache.get(snapshot_key)
+        cached = caches.snapshot(snapshot_key)
         if cached is not None:
             # hb_live=1 是前端「立即刷新」的语义：TTL 压到 1 秒，并等待刷新完成。
             live_map = parse_qs(request.url.query).get('hb_live') == ['1']
             ttl = 1 if live_map else CAMERA_SNAPSHOT_CACHE_TTL_SECONDS
             if monotonic() - cached.created_at >= ttl:
-                _schedule_camera_snapshot_refresh(
+                caches.schedule_refresh(
                     snapshot_key,
                     f'{client_config.base_url}{request.url.path}',
                     headers,
@@ -569,11 +618,11 @@ async def proxy_http(request: Request) -> Response:
                     client_config.timeout,
                 )
                 if live_map:
-                    pending = camera_snapshot_refreshes.get(snapshot_key)
+                    pending = caches.pending_refresh(snapshot_key)
                     if pending is not None:
                         # shield：外层被取消时刷新任务照常跑完，缓存不会留空洞。
                         await asyncio.shield(pending)
-                    cached = camera_snapshot_cache.get(snapshot_key, cached)
+                    cached = caches.snapshot(snapshot_key) or cached
             # 过期时也先把旧图给出去，不让看板等一次完整的 HA 往返。
             return _camera_snapshot_response(cached)
     client = httpx.AsyncClient(
@@ -662,7 +711,7 @@ async def proxy_http(request: Request) -> Response:
         # 走到这里说明上游已经读完（生成器提前关闭时不会执行到这里，
         # 半截内容绝不能进缓存）。回源成功就顺手更新缓存，下一次请求直接命中。
         if cacheable and buffered and 200 <= upstream.status_code < 300:
-            _remember_camera_snapshot(
+            caches.remember_snapshot(
                 snapshot_key,
                 bytes(buffered),
                 upstream.headers.get('content-type', 'image/jpeg'),
@@ -741,7 +790,7 @@ async def camera_hls_stream(
         return mjpeg_fallback
     # 记账这条播放地址的归属：HLS 令牌里没有实体信息，片段请求的归属校验
     # 只能靠这里记下来的「令牌 → 实体」（B50）。
-    remember_hls_stream(stream_url, entity_id)
+    request.app.state.media_proxy.remember_hls_stream(stream_url, entity_id)
     return JSONResponse({'url': stream_url})
 
 

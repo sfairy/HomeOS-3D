@@ -20,6 +20,7 @@ import logging
 import time
 import traceback
 from collections import Counter
+from collections.abc import Callable
 from contextvars import copy_context
 from typing import Any
 from sqlalchemy import func, select
@@ -93,16 +94,26 @@ class HAConnectorService:
     内存状态与各类锁；配置变更（地址、令牌、TLS）走 `restart` 重建连接。
     """
 
-    def __init__(self, settings: Settings, database: Database, event_log: GlobalLogStore | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        database: Database,
+        event_log: GlobalLogStore | None = None,
+        on_reconnect: Callable[[], None] | None = None,
+    ) -> None:
         """参数：
 
         settings: 全局配置，取 HA 相关超时、对账间隔与凭证密钥路径。
         database: 数据库封装，所有落库操作都经它开 session。
         event_log: 可选的事件日志（界面「全局日志」面板），为 None 时只写进程日志。
+        on_reconnect: 连接被重建 / 删除时的回调，用来作废**从连接派生出来的**进程内
+            状态（目前是媒体代理的快照缓存与 HLS 归属记账，B57）。用回调而不是直接
+            引用：连接器不该知道有哪些派生状态，而派生状态那边也不该 import 它。
         """
         self.settings = settings
         self.database = database
         self.event_log = event_log
+        self._on_reconnect = on_reconnect
         # 令牌加解密器：数据库里存的是密文，密钥文件由 crypto 自行管理。
         self.cipher = CredentialCipher(settings.credential_key_path)
         self.state_hub = StateHub()
@@ -195,9 +206,14 @@ class HAConnectorService:
         self._connected = False
 
     async def restart(self) -> None:
-        """按新配置重建连接；清掉上一次的错误状态。"""
+        """按新配置重建连接；清掉上一次的错误状态与从连接派生的进程内状态。"""
         await self.stop()
         self._runtime_error = None
+        # 连接换了，媒体代理的两份记账就都作废了（B57）：快照缓存里是**上一台** HA 的
+        # 画面，HLS 归属记的是上一台 HA 发的令牌。地址可以不变而实例已经换了一台
+        # （重装、恢复备份、同一地址换了另一套系统），缓存自己没有别的办法发现这件事。
+        if self._on_reconnect is not None:
+            self._on_reconnect()
         self.start()
 
     def active_connection(self) -> HAConnection | None:

@@ -218,6 +218,9 @@ async def _build_media_proxy_fixture(workdir: Path) -> MediaProxyFixture:
     app.include_router(ha_proxy.router)
     app.state.database = database
     app.state.ha_connector = _StubConnector()
+    # 媒体代理的记账挂在应用上（B57）：最小装置也必须自己建一份，否则路由会
+    # AttributeError —— 这本身就是「它不再是模块级全局」的一个侧面证据。
+    app.state.media_proxy = ha_proxy.MediaProxyCaches()
 
     def display_principal(device_id: str):
         with database.session_factory() as session:
@@ -329,14 +332,14 @@ async def check_media_proxy_entity_scope() -> None:
         )
 
         # 甲项目的令牌，甲项目可用。
-        ha_proxy.remember_hls_stream('/api/hls/token-a/master.m3u8', 'camera.a')
+        app.state.media_proxy.remember_hls_stream('/api/hls/token-a/master.m3u8', 'camera.a')
         response = await _request(fixture, 'a', '/api/hls/token-a/segment/1.m4s')
         check(
             'B50 自己换来的 HLS 播放地址照旧可用（含片段请求）',
             response.status_code == 200,
             f'{response.status_code}',
         )
-        scope = ha_proxy.hls_stream_scopes.get('token-a')
+        scope = app.state.media_proxy.hls_scopes.get('token-a')
         check(
             'B50 HLS 的归属结论按项目缓存（避免每个分片都查库）',
             scope is not None and scope.verified_project == 'proj-a',
@@ -344,7 +347,7 @@ async def check_media_proxy_entity_scope() -> None:
         )
 
         # 乙项目的令牌，甲项目不可用 —— 这正是「重放别人播放地址」的攻击面。
-        ha_proxy.remember_hls_stream('/api/hls/token-b/master.m3u8', 'camera.b')
+        app.state.media_proxy.remember_hls_stream('/api/hls/token-b/master.m3u8', 'camera.b')
         response = await _request(fixture, 'a', '/api/hls/token-b/master.m3u8')
         check(
             'B50 别的项目的 HLS 播放地址无法被重放（令牌 → 实体 → 归属）',
@@ -361,24 +364,24 @@ async def check_media_proxy_entity_scope() -> None:
         # 记账是滑动的：命中一次就续期，正常播放不会中途失效。
         from time import monotonic as _monotonic
 
-        ha_proxy.hls_stream_scopes['token-a'].expires_at = _monotonic() + 1
-        before = ha_proxy.hls_stream_entity_id('/api/hls/token-a/master.m3u8')
-        renewed = ha_proxy.hls_stream_scopes['token-a'].expires_at - _monotonic()
+        app.state.media_proxy.hls_scopes['token-a'].expires_at = _monotonic() + 1
+        before = app.state.media_proxy.hls_entity_id('/api/hls/token-a/master.m3u8')
+        renewed = app.state.media_proxy.hls_scopes['token-a'].expires_at - _monotonic()
         check(
             'B50 HLS 记账命中即续期（长播放不会中途被判成未登记）',
             before == 'camera.a' and renewed > ha_proxy.HLS_STREAM_SCOPE_TTL_SECONDS - 5,
             f'entity={before!r} 续期后剩余={renewed:.0f}s',
         )
         # 伪造一个已过期的登记，必须查不到（过期即失效）。
-        ha_proxy.hls_stream_scopes['token-expired'] = ha_proxy.HlsStreamScope(
+        app.state.media_proxy.hls_scopes['token-expired'] = ha_proxy.HlsStreamScope(
             entity_id='camera.a', expires_at=0.0001, verified_project='', verified_at=0.0
         )
         check(
             'B50 HLS 记账过期后查不到（不会无限期放行旧令牌）',
-            ha_proxy.hls_stream_entity_id('/api/hls/token-expired/x.m3u8') is None,
+            app.state.media_proxy.hls_entity_id('/api/hls/token-expired/x.m3u8') is None,
             '过期登记已清除',
         )
-        ha_proxy.hls_stream_scopes.pop('token-expired', None)
+        app.state.media_proxy.hls_scopes.pop('token-expired', None)
 
         # 路径不给归属时依赖直接放行，交给处理器统一 404（不回答「前缀存不存在」）。
         rogue = SimpleNamespace(
@@ -471,19 +474,20 @@ def check_media_proxy_entity_parsing() -> None:
     check('B50 HLS 令牌的取出规则正确', not wrong_tokens, '；'.join(wrong_tokens))
 
     # 记账上限：不能无限增长（同快照缓存的「淘汰最旧」口径）。
-    saved = dict(ha_proxy.hls_stream_scopes)
+    caches = ha_proxy.MediaProxyCaches()
+    saved = dict(caches.hls_scopes)
     try:
-        ha_proxy.hls_stream_scopes.clear()
+        caches.hls_scopes.clear()
         for index in range(ha_proxy.HLS_STREAM_SCOPE_MAX_ENTRIES + 10):
-            ha_proxy.remember_hls_stream(f'/api/hls/tok{index}/master.m3u8', 'camera.a')
+            caches.remember_hls_stream(f'/api/hls/tok{index}/master.m3u8', 'camera.a')
         check(
             'B50 HLS 记账有条数上限（长期运行不会无限增长）',
-            len(ha_proxy.hls_stream_scopes) <= ha_proxy.HLS_STREAM_SCOPE_MAX_ENTRIES,
-            f'当前 {len(ha_proxy.hls_stream_scopes)} 条，上限 {ha_proxy.HLS_STREAM_SCOPE_MAX_ENTRIES}',
+            len(caches.hls_scopes) <= ha_proxy.HLS_STREAM_SCOPE_MAX_ENTRIES,
+            f'当前 {len(caches.hls_scopes)} 条，上限 {ha_proxy.HLS_STREAM_SCOPE_MAX_ENTRIES}',
         )
     finally:
-        ha_proxy.hls_stream_scopes.clear()
-        ha_proxy.hls_stream_scopes.update(saved)
+        caches.hls_scopes.clear()
+        caches.hls_scopes.update(saved)
 
 
 def check_hls_stream_registration() -> None:
@@ -514,13 +518,245 @@ def check_hls_stream_registration() -> None:
         child
         for child in ast.walk(target)
         if isinstance(child, ast.Call)
-        and isinstance(child.func, ast.Name)
-        and child.func.id == 'remember_hls_stream'
+        # 记账方法挂在应用自己的记账实例上（B57：``app.state.media_proxy.remember_hls_stream``），
+        # 所以这里认属性调用；只认 Name 会在记账搬家之后变成一条永远为真的空断言。
+        and isinstance(child.func, ast.Attribute)
+        and child.func.attr == 'remember_hls_stream'
     ]
     check(
         'B50 发放 HLS 播放地址时登记了归属（漏了会让 HLS 静默回落成 MJPEG）',
         bool(calls),
         f'remember_hls_stream 调用点 {len(calls)} 处',
+    )
+
+
+# --------------------------------------------------------------------------- #
+# B56 / B57：HA 请求级状态到底挂在谁身上
+# --------------------------------------------------------------------------- #
+async def check_media_proxy_state_ownership() -> None:
+    """B57：媒体代理的两份记账必须跟着**应用实例**走，并在换连接时作废。
+
+    模块级字典建立在「一个进程只有一个应用实例」这个假设上，而它在自检里就不成立
+    —— ``create_app()`` 调两次（本文件好几处都这么干）会共享同一份缓存：第二个应用
+    直接读到第一个应用缓存的画面。另外两处后果（刷新任务表里存的是绑在**另一个**事件
+    循环上的 ``asyncio.Task``；换了一台 HA 之后仍发上一台的画面）没法在进程内直接
+    观测，只能靠三件事的组合排除：记账挂在应用上、键里带连接身份、换连接时清空。
+    因此这里逐条钉住，并在最后用真实路由观测「清空之后不再命中」。
+
+    判定刻度用「上游被回源几次」而不是「有没有缓存对象」：用户看得见的现象是
+    「换了一台 HA，看板还显示上一台的画面」，而不是某个 dict 存不存在。
+    """
+    from backend.app.api import ha_proxy
+    from backend.app.main import create_app
+
+    # —— 1) 模块级不能再留着那三份字典：它们存在本身就代表那个假设还在 ——
+    leftovers = sorted(
+        name
+        for name in ('camera_snapshot_cache', 'camera_snapshot_refreshes', 'hls_stream_scopes')
+        if hasattr(ha_proxy, name)
+    )
+    check(
+        'B57 媒体代理记账不再是模块级字典（否则两个应用实例共享同一份缓存）',
+        not leftovers,
+        '只剩应用级记账' if not leftovers else f'仍是模块级：{leftovers}',
+    )
+
+    # —— 2) 两个应用实例各自持有一份，互不可见 ——
+    first = create_app()
+    second = create_app()
+    check(
+        'B57 两个应用实例各自持有一份媒体代理记账',
+        first.state.media_proxy is not second.state.media_proxy,
+        '两份独立记账' if first.state.media_proxy is not second.state.media_proxy else '共享同一份',
+    )
+    key = ha_proxy.camera_snapshot_cache_key(
+        'conn-1', 'http://ha.test:8123', '/api/camera_proxy/camera.a'
+    )
+    first.state.media_proxy.remember_snapshot(key, b'\xff\xd8first', 'image/jpeg')
+    first.state.media_proxy.remember_hls_stream('/api/hls/tok-first/master.m3u8', 'camera.a')
+    leaked = (
+        second.state.media_proxy.snapshot(key) is not None
+        or second.state.media_proxy.hls_scope('tok-first') is not None
+    )
+    check(
+        'B57 一个应用写入的快照与 HLS 归属不会被另一个应用读到',
+        not leaked,
+        '互不可见' if not leaked else '另一个应用读到了别人的画面 / 令牌归属',
+    )
+
+    # —— 3) 快照键带连接身份：换了一台 HA（地址可以不变）旧条目不可能被命中 ——
+    same_address_other_instance = ha_proxy.camera_snapshot_cache_key(
+        'conn-2', 'http://ha.test:8123', '/api/camera_proxy/camera.a'
+    )
+    check(
+        'B57 换连接后旧快照条目不可能被命中（键里带连接身份）',
+        same_address_other_instance != key,
+        '键不同' if same_address_other_instance != key else '地址相同 + 键相同 = 会发上一台的画面',
+    )
+
+    # —— 4) 换连接时三份记账一起作废 ——
+    caches = first.state.media_proxy
+    caches.refreshes['k'] = SimpleNamespace(done=lambda: False)  # type: ignore[assignment]
+    caches.remember_snapshot(key, b'\xff\xd8first', 'image/jpeg')
+    caches.remember_hls_stream('/api/hls/tok-first/master.m3u8', 'camera.a')
+    caches.clear()
+    empty = not caches.snapshots and not caches.hls_scopes and not caches.refreshes
+    check(
+        'B57 连接被重建时清空快照、HLS 归属与刷新任务表',
+        empty,
+        '三份记账都空了' if empty else f'残留 {len(caches.snapshots)}/{len(caches.hls_scopes)}/{len(caches.refreshes)}',
+    )
+
+    # —— 5) 换连接真的会作废记账：调一次真实的 restart() ——
+    # start()/stop() 换成桩：真跑会拉起常驻主循环（连 HA、轮询），自检里既慢又会留下
+    # 孤儿任务；要观测的是「重建连接这条路径有没有碰到记账」，与主循环无关。
+    invalidated = await _restart_invalidates_caches(first)
+    check(
+        'B57 连接器重建连接时作废记账（换了一台 HA 之后不再发上一台的画面）',
+        invalidated,
+        '重建后三份记账都空了' if invalidated else '重建后记账还在',
+    )
+
+    # —— 6) 接线：应用必须把「作废记账」这件事交给连接器 ——
+    # 这条只能静态断言：连接器是在 lifespan 里造的，而整套 lifespan（HA 同步、更新
+    # 检查）刻意不跑。守住的是「main.py 传了 on_reconnect = 记账的 clear」这个事实。
+    problems = _reconnect_wiring_problems()
+    check(
+        'B57 main.py 把记账的 clear 接到了连接器的重建回调上',
+        not problems,
+        '接线完整' if not problems else '；'.join(problems),
+    )
+
+
+async def _restart_invalidates_caches(app: Any) -> bool:
+    """调一次真实的 ``HAConnectorService.restart()``，看记账是否被清空。
+
+    只把 ``start`` / ``stop`` 换掉（它们负责常驻主循环），``restart`` 本身按原样执行
+    ——包括它调用回调的那一段。这样「重建连接 → 作废记账」是一条真实的执行路径，
+    而不是「源码里还写着那句话」：写在死分支里的调用同样能通过静态断言。
+    """
+    from backend.app.database import Database
+    from backend.app.ha.service import HAConnectorService
+
+    caches = app.state.media_proxy
+    caches.remember_snapshot(
+        'conn-1|http://ha.test:8123/api/camera_proxy/camera.a', b'\xff\xd8old', 'image/jpeg'
+    )
+    caches.remember_hls_stream('/api/hls/tok-old/master.m3u8', 'camera.a')
+    caches.refreshes['conn-1|pending'] = SimpleNamespace(done=lambda: False)  # type: ignore[assignment]
+    # 连接器要一个数据库句柄，但 start/stop 被换掉之后它连一次都不会用到；
+    # app.state.database 是 lifespan 才建的，这里自己开一个空库即可。
+    with tempfile.TemporaryDirectory(prefix='hb-b57-reconnect-') as tmp:
+        database = Database(f'sqlite:///{Path(tmp) / "app.db"}')
+        connector = HAConnectorService(app.state.settings, database, on_reconnect=caches.clear)
+        connector.start = lambda: None  # type: ignore[method-assign]
+        stopped: list[bool] = []
+
+        async def stop() -> None:
+            stopped.append(True)
+
+        connector.stop = stop  # type: ignore[method-assign]
+        await connector.restart()
+    return bool(stopped) and not caches.snapshots and not caches.hls_scopes and not caches.refreshes
+
+
+def _reconnect_wiring_problems() -> list[str]:
+    """检查 B57 的接线：``main.py`` 传给连接器的是**记账的** ``clear``。"""
+    problems: list[str] = []
+    for path in sorted((PROJECT_ROOT / 'backend' / 'app').rglob('*.py')):
+        tree = ast.parse(path.read_text(encoding='utf-8'))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            if not (isinstance(node.func, ast.Name) and node.func.id == 'HAConnectorService'):
+                continue
+            for keyword in node.keywords:
+                if keyword.arg != 'on_reconnect':
+                    continue
+                if (
+                    isinstance(keyword.value, ast.Attribute)
+                    and keyword.value.attr == 'clear'
+                    and isinstance(keyword.value.value, ast.Attribute)
+                    and keyword.value.value.attr == 'media_proxy'
+                ):
+                    return problems
+    problems.append('没有任何地方把 media_proxy.clear 作为 on_reconnect 传给连接器')
+    return problems
+
+
+async def check_media_cache_invalidated_on_reconnect() -> None:
+    """B57（用户看得见的那一半）：记账被清掉之后，下一次请求必须真的回源。
+
+    前一条断言只说「字典空了」。这里走真实路由：同一张快照在 TTL 内必须命中缓存
+    （上游只被回源一次），清空之后必须再回源一次 —— 「换了一台 HA 却继续发上一台的
+    画面」在用户侧就是这一步没发生。
+    """
+    from backend.app.api import ha_proxy
+
+    with tempfile.TemporaryDirectory(prefix='hb-media-reconnect-') as tmp:
+        fixture = await _build_media_proxy_fixture(Path(tmp))
+        path = '/api/camera_proxy/camera.a'
+        before = len(FakeAsyncClient.sent)
+        first = await _request(fixture, 'a', path)
+        after_first = len(FakeAsyncClient.sent)
+        second = await _request(fixture, 'a', path)
+        after_second = len(FakeAsyncClient.sent)
+        check(
+            'B57 快照在 TTL 内命中缓存（同一次播放不会反复回源 HA）',
+            first.status_code == 200 and second.status_code == 200 and after_second == after_first,
+            f'{first.status_code}/{second.status_code}，回源 {after_first - before} → {after_second - before} 次',
+        )
+        # 连接被重建（换了一台 HA）之后：缓存必须不再命中，下次请求回源。
+        fixture.app.state.media_proxy.clear()
+        third = await _request(fixture, 'a', path)
+        after_third = len(FakeAsyncClient.sent)
+        check(
+            'B57 连接被重建后旧画面不再被命中（清空记账 → 重新回源）',
+            third.status_code == 200 and after_third == after_second + 1,
+            f'{third.status_code}，清空前 {after_second - before} 次 → 清空后 {after_third - before} 次',
+        )
+
+
+def check_request_sessions_are_used() -> None:
+    """B56：请求级 ``DatabaseSession`` 参数必须真的被用到。
+
+    这个参数不是「顺便注入的句柄」：FastAPI 为它在每次请求上开一个会话并开启事务，
+    请求结束再提交 —— 一个从不碰它的路由，等于给每个请求（含被前端高频轮询的
+    ``/setup/status``，以及 media 代理这种长连接路由）白加一次事务、一条连接与一份
+    写锁竞争；下游换了连接池上限之后，症状会是「什么都没做也把池占满」。
+
+    用 AST 而不是逐个改：这类参数以 ``_`` 开头时语法上完全正常，评审也看不出问题，
+    只有「它有没有被读过」这个事实能判定，而这件事机器比人可靠。
+    """
+    problems: list[str] = []
+    for path in sorted((PROJECT_ROOT / 'backend' / 'app').rglob('*.py')):
+        tree = ast.parse(path.read_text(encoding='utf-8'))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            arguments = list(node.args.posonlyargs) + list(node.args.args) + list(node.args.kwonlyargs)
+            sessions = [
+                argument.arg
+                for argument in arguments
+                if argument.annotation is not None
+                and 'DatabaseSession' in ast.unparse(argument.annotation)
+            ]
+            if not sessions:
+                continue
+            read = {
+                inner.id
+                for inner in ast.walk(node)
+                if isinstance(inner, ast.Name) and isinstance(inner.ctx, ast.Load)
+            }
+            problems.extend(
+                f'{path.relative_to(PROJECT_ROOT)}:{node.lineno} {node.name}() 的 {name} 从未被使用'
+                for name in sessions
+                if name not in read
+            )
+    check(
+        'B56 没有「声明了请求级数据库会话却从不使用」的路由',
+        not problems,
+        '全部被使用' if not problems else '；'.join(problems[:6]),
     )
 
 
@@ -6487,14 +6723,18 @@ async def check_media_body_bounded() -> None:
     但内存峰值照样发生，而这里会照旧报红。
     """
     from backend.app.api import ha_proxy
-    from backend.app.api.ha_proxy import _camera_snapshot_cache_bytes, _remember_camera_snapshot, camera_snapshot_cache
 
     fixture = await _build_media_proxy_fixture(Path(tempfile.mkdtemp(prefix='hb-media-bounded-')))
     fixture.app.state.active_viewer = 'a'
+    # B14 的几条只能在「写入缓存的唯一入口」这一层观察：透传路径自己也会因为
+    # 「攒不下」而放弃缓存，两处防守会互相掩盖，端到端看不出差别。但被观察的必须
+    # 是**路由真正在用的那一份**记账（app.state.media_proxy），否则断言的是另一个
+    # 对象，B57 想让两条测试互相独立都做不到。
+    caches = fixture.app.state.media_proxy
     original_httpx = ha_proxy.httpx
     saved_cache_bytes = ha_proxy.CAMERA_SNAPSHOT_CACHE_MAX_BYTES
     saved_cacheable = ha_proxy.CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES
-    camera_snapshot_cache.clear()
+    caches.snapshots.clear()
     try:
         # —— B15：分块透传，不在回响应之前读全 ——
         chunks = [b'a' * 1000, b'b' * 1000, b'c' * 1000]
@@ -6525,31 +6765,31 @@ async def check_media_body_bounded() -> None:
             f'收到={len(body)} 字节（应为 {sum(len(item) for item in chunks)}）',
         )
         snapshot_key = ha_proxy.camera_snapshot_cache_key(
-            'http://ha.test:8123', '/api/camera_proxy/camera.a'
+            'conn-1', 'http://ha.test:8123', '/api/camera_proxy/camera.a'
         )
         check(
             'B15 完整读完的小图照旧写进快照缓存（第二次请求不再回源）',
-            camera_snapshot_cache.get(snapshot_key) is not None
-            and len(camera_snapshot_cache[snapshot_key].content) == len(body),
-            f'缓存条目={len(camera_snapshot_cache)}',
+            caches.snapshot(snapshot_key) is not None
+            and len(caches.snapshots[snapshot_key].content) == len(body),
+            f'缓存条目={len(caches.snapshots)}',
         )
 
-        # —— B14：单张可缓存上限（只能在 _remember_camera_snapshot 这一层观察） ——
+        # —— B14：单张可缓存上限（只能在 remember_snapshot 这一层观察） ——
         # 透传路径自己也会因为「攒不下」而放弃缓存，两处防守会互相掩盖：
         # 只改这里的话端到端看不出差别，所以直接调这一层。
-        camera_snapshot_cache.clear()
+        caches.snapshots.clear()
         ha_proxy.CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES = 1024
-        _remember_camera_snapshot('huge', b'x' * 4096, 'image/jpeg')
+        caches.remember_snapshot('huge', b'x' * 4096, 'image/jpeg')
         check(
             'B14 单张超过可缓存上限的图不进缓存（一条大图不会顶掉几十张小图）',
-            camera_snapshot_cache == {},
-            f'条目={sorted(camera_snapshot_cache)}',
+            caches.snapshots == {},
+            f'条目={sorted(caches.snapshots)}',
         )
-        _remember_camera_snapshot('exact', b'x' * 1024, 'image/jpeg')
+        caches.remember_snapshot('exact', b'x' * 1024, 'image/jpeg')
         check(
             'B14 单张正好等于上限的图照旧进缓存（判据是「超过」，不是「达到」）',
-            list(camera_snapshot_cache) == ['exact'],
-            f'条目={sorted(camera_snapshot_cache)}',
+            list(caches.snapshots) == ['exact'],
+            f'条目={sorted(caches.snapshots)}',
         )
 
         # —— B14：端到端 —— 超限的快照照旧完整送到浏览器，只是不进缓存 ——
@@ -6557,7 +6797,7 @@ async def check_media_body_bounded() -> None:
         ha_proxy.httpx = SimpleNamespace(
             AsyncClient=lambda **_kwargs: _FixedUpstreamClient(upstream_big), HTTPError=httpx.HTTPError
         )
-        camera_snapshot_cache.clear()
+        caches.snapshots.clear()
         big_request = _request_with_chunks(
             fixture.app, '/api/camera_proxy/camera.a', {}, [], method='GET'
         )
@@ -6565,47 +6805,47 @@ async def check_media_body_bounded() -> None:
         big_body = b''.join([chunk async for chunk in big_response.body_iterator])
         check(
             'B14 超过单张可缓存上限的响应照旧完整透传，但不进缓存',
-            big_body == b'z' * 3000 + b'y' * 3000 and camera_snapshot_cache == {},
-            f'收到={len(big_body)} 字节 缓存条目={len(camera_snapshot_cache)}',
+            big_body == b'z' * 3000 + b'y' * 3000 and caches.snapshots == {},
+            f'收到={len(big_body)} 字节 缓存条目={len(caches.snapshots)}',
         )
 
         # —— B14：总字节预算 ——
-        camera_snapshot_cache.clear()
+        caches.snapshots.clear()
         ha_proxy.CAMERA_SNAPSHOT_CACHE_MAX_BYTES = 2048
         for index in range(3):
-            _remember_camera_snapshot(f'key-{index}', b'x' * 1024, 'image/jpeg')
+            caches.remember_snapshot(f'key-{index}', b'x' * 1024, 'image/jpeg')
         check(
             'B14 总字节预算封住缓存：超预算时淘汰最旧的一条（不是只按条数算）',
-            camera_snapshot_cache.get('key-0') is None
-            and len(camera_snapshot_cache) == 2
-            and _camera_snapshot_cache_bytes() <= 2048,
-            f'条目={sorted(camera_snapshot_cache)} 占用={_camera_snapshot_cache_bytes()} 字节（预算 2048）',
+            caches.snapshots.get('key-0') is None
+            and len(caches.snapshots) == 2
+            and caches.snapshot_bytes() <= 2048,
+            f'条目={sorted(caches.snapshots)} 占用={caches.snapshot_bytes()} 字节（预算 2048）',
         )
-        _remember_camera_snapshot('only', b'x' * 1024, 'image/jpeg')
+        caches.remember_snapshot('only', b'x' * 1024, 'image/jpeg')
         check(
             'B14 预算小于单张上限时至少留一条（不会空转成什么都存不下）',
-            len(camera_snapshot_cache) >= 1,
-            f'条目={sorted(camera_snapshot_cache)}',
+            len(caches.snapshots) >= 1,
+            f'条目={sorted(caches.snapshots)}',
         )
 
         # —— B14：覆盖已有键不该把别人挤掉 ——
         # 缓存满时刷新同一张图是常态（TTL 8 秒，看板一直开着），把它算成「新增」
         # 的话，每次刷新都会顺手淘汰一条别的活跃图，缓存会自己把自己抖空。
-        camera_snapshot_cache.clear()
+        caches.snapshots.clear()
         ha_proxy.CAMERA_SNAPSHOT_CACHE_MAX_BYTES = 3072
         for index in range(3):
-            _remember_camera_snapshot(f'live-{index}', b'x' * 1024, 'image/jpeg')
-        _remember_camera_snapshot('live-2', b'x' * 1024, 'image/jpeg')
+            caches.remember_snapshot(f'live-{index}', b'x' * 1024, 'image/jpeg')
+        caches.remember_snapshot('live-2', b'x' * 1024, 'image/jpeg')
         check(
             'B14 预算刚好用满时刷新同一张图：只更新它自己，不淘汰别的活跃条目',
-            sorted(camera_snapshot_cache) == ['live-0', 'live-1', 'live-2'],
-            f'条目={sorted(camera_snapshot_cache)} 占用={_camera_snapshot_cache_bytes()} 字节',
+            sorted(caches.snapshots) == ['live-0', 'live-1', 'live-2'],
+            f'条目={sorted(caches.snapshots)} 占用={caches.snapshot_bytes()} 字节',
         )
     finally:
         ha_proxy.httpx = original_httpx
         ha_proxy.CAMERA_SNAPSHOT_CACHE_MAX_BYTES = saved_cache_bytes
         ha_proxy.CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES = saved_cacheable
-        camera_snapshot_cache.clear()
+        caches.snapshots.clear()
 
 
 # --------------------------------------------------------------------------- #
@@ -8363,6 +8603,9 @@ async def run() -> int:
     check_media_proxy_entity_parsing()
     check_media_routes_carry_scope()
     check_hls_stream_registration()
+    await check_media_proxy_state_ownership()
+    check_request_sessions_are_used()
+    await check_media_cache_invalidated_on_reconnect()
     check_forwarded_allow_ips_defaults()
     check_client_ip_spoofing_invariant()
     check_credential_key_writes()

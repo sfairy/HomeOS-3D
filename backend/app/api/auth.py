@@ -153,11 +153,14 @@ def set_session_cookie(request: Request, response: Response, token: str) -> None
 
 
 @router.get("/setup/status", response_model=SetupStatusResponse)
-def setup_status(request: Request, database: DatabaseSession) -> SetupStatusResponse:
+def setup_status(request: Request) -> SetupStatusResponse:
     """查询系统是否已完成初始化，供前端决定进设置页还是登录页。
 
     刻意不要求任何身份：未初始化时必须能匿名访问，否则首次设置无从下手。
     返回 initialized（账号文件是否生效）与 version（当前版本号）。
+
+    也不开数据库会话：这两项都来自进程内状态，而这个端点会被前端反复轮询，
+    每次请求白开一个会话（含一次事务）只是为轮询增加写锁竞争。
     """
     return SetupStatusResponse(
         initialized=request.app.state.admin_account.initialized,

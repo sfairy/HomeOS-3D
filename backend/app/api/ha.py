@@ -497,7 +497,6 @@ def list_entities(
 @router.get('/translations')
 async def entity_translations(
     request: Request,
-    _database: DatabaseSession,
     _viewer: LicensedViewer,
 ) -> dict[str, Any]:
     """拉取实体枚举值的简体中文翻译（需已认证 + 授权允许 api）。
@@ -524,7 +523,6 @@ async def entity_translations(
 @router.get('/history')
 async def entity_history(
     request: Request,
-    _database: DatabaseSession,
     viewer: LicensedViewer,
     entity_id: str = Query(alias='entityId', min_length=3, max_length=255),
     hours: int = Query(24, ge=1, le=168),
@@ -692,7 +690,7 @@ def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedVi
 
 
 @router.post('/sync')
-async def run_sync(request: Request, _database: DatabaseSession, user: LicensedUser) -> dict[str, Any]:
+async def run_sync(request: Request, user: LicensedUser) -> dict[str, Any]:
     """触发一次全量同步（需管理员 + 授权允许 api 与 ha.sync）。
 
     ha.sync 会批量改库（新增/更新/回收实体、设备、区域），风险高于 ha.control，
@@ -739,7 +737,6 @@ def ha_health(request: Request, database: DatabaseSession, _viewer: LicensedView
 async def call_service(
     payload: HAServiceCallRequest,
     request: Request,
-    _database: DatabaseSession,
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
     """调用 HA 服务控制设备（需已认证 + 授权允许 api 与 ha.control）。
@@ -839,7 +836,6 @@ async def call_service(
 async def browse_media(
     payload: HABrowseMediaRequest,
     request: Request,
-    _database: DatabaseSession,
     viewer: LicensedViewer,
 ) -> dict[str, Any]:
     """浏览媒体播放器的可播放内容（需已认证 + 授权允许 api 与 ha.control）。
