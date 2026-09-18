@@ -372,7 +372,8 @@ async def save_connection(
     previous_base_url = connection.base_url if connection is not None else None
     if connection is None:
         connection = HAConnection(
-            name=payload.name.strip(),
+            # name 的去空白与下限校验在 schema 里做完（B60），这里不再补一次 strip。
+            name=payload.name,
             base_url=payload.base_url,
             encrypted_access_token=connector.cipher.encrypt(token),
             verify_tls=payload.verify_tls,
@@ -381,7 +382,7 @@ async def save_connection(
         )
         database.add(connection)
     else:
-        connection.name = payload.name.strip()
+        connection.name = payload.name
         connection.base_url = payload.base_url
         connection.verify_tls = payload.verify_tls
         connection.ha_version = tested.get('version')

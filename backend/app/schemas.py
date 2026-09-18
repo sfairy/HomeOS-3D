@@ -10,12 +10,14 @@
 """
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .body_guard import MAX_JSON_DEPTH, MAX_SCENE_DOCUMENT_BYTES, json_nesting_depth
 from .ha.client import HAClientError, normalize_base_url
 
 # 禁止出现在用户名 / 设备名里的控制字符（含 NUL 与 DEL）。
@@ -199,6 +201,20 @@ class HAConnectionInput(BaseModel):
     #: 主机（哪怕是攻击者搭的同名服务）时，旧的长期令牌不能被静默送到新地址去。
     reuse_token_for_new_url: bool = Field(default=False, alias='reuseTokenForNewUrl')
 
+    @field_validator('name')
+    @classmethod
+    def trim_connection_name(cls, value: str) -> str:
+        """去空白后再校验连接名。
+
+        ``min_length=1`` 判的是**未去空白**的原值，所以 ``" "`` 能过长度这一关，
+        再被路由里的 ``.strip()`` 存成空串 —— 库里就会出现没有名字的连接（B60）。
+        去掉首尾空白之后再判一次下限，与设备名 / 账号名那几处同一口径。
+        """
+        value = value.strip()
+        if not value or CONTROL_CHARACTERS.search(value):
+            raise ValueError('连接名称无效。')
+        return value
+
     @field_validator('base_url')
     @classmethod
     def validate_base_url(cls, value: str) -> str:
@@ -317,6 +333,31 @@ class Studio3DDraftUpdate(BaseModel):
 
     revision: int = Field(ge=0)
     scene: dict[str, Any]
+
+    @field_validator('scene')
+    @classmethod
+    def validate_scene_size(cls, value: dict[str, Any]) -> dict[str, Any]:
+        """在类型边界上声明场景的体积与嵌套深度上限（B49）。
+
+        这两条限制原先只存在于**这条路由**上：字节数写在 ASGI 中间件
+        （``body_guard.DraftBodyGuard``）与写盘函数（``studio3d._atomic_json_write``）里，
+        深度只写在中间件里。中间件只在装了它的应用上生效 —— 直接把路由器挂到别的
+        FastAPI 应用上（自检就是这么做的，将来别的入口也可能）时，一个几 KB 的深层
+        嵌套 JSON 就能把 ``json.loads`` 打爆成 500。所以契约要声明在 schema 这一层：
+        无论谁调用这个模型，边界都成立。
+
+        判据用的是**同一批常量**（与中间件、写盘共用一个数字），因此不会出现
+        「接口放行、落盘拒收」这种自相矛盾的门槛；序列化方式也取写盘时那一套
+        （排序 + 去空格），两处算出来的字节数一致。
+        """
+        encoded = json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(',', ':')
+        ).encode('utf-8')
+        if len(encoded) > MAX_SCENE_DOCUMENT_BYTES:
+            raise ValueError('户型图数据过大，无法保存。')
+        if json_nesting_depth(encoded) > MAX_JSON_DEPTH:
+            raise ValueError(f'户型图的嵌套层级超过 {MAX_JSON_DEPTH} 层，无法保存。')
+        return value
 
 
 class LicenseActivateRequest(BaseModel):

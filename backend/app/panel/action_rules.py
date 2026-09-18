@@ -10,10 +10,14 @@ import re
 from typing import Any
 
 # Home Assistant 原生实体 ID：域 + 点 + 对象 ID，两段都只允许小写字母、数字与下划线。
-ENTITY_ID = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+$")
+# 每段都加上长度上限：没有上限时 `"a" * 一千万 + ".b"` 这种「合法实体 ID」会被
+# 静默收进可见范围、订阅集与日志（B23）。200 是仓库既有约定（interaction3d/config.py
+# 的实体校验用的是同一个数），两段各限 200 比只限其中一段更严密 —— 只限对象 ID 时
+# 域那一段仍然可以无限长。
+ENTITY_ID = re.compile(r"^[a-z0-9_]{1,200}\.[a-z0-9_]{1,200}$")
 # 渲染器自造的虚拟实体：在原生格式前多一段固定的 virtual 前缀，
 # 例如 virtual.light.abc，用于把同一个 HA 实体在不同页面作用域下区分开。
-VIRTUAL_ENTITY_ID = re.compile(r"^virtual\.[a-z0-9_]+\.[a-z0-9_]+$")
+VIRTUAL_ENTITY_ID = re.compile(r"^virtual\.[a-z0-9_]{1,200}\.[a-z0-9_]{1,200}$")
 
 # 控件动作的全部合法类型：none 表示无动作，由各模型自己的默认值决定是否出现。
 ACTION_TYPES = frozenset({"toggle", "navigate", "more-info"})

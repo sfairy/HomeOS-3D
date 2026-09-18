@@ -24,6 +24,7 @@ from sqlalchemy import select
 
 from ...dependencies import DatabaseSession, LicensedViewer, LicensedUser, require_viewer_project
 from ...models import HAEntity, ProjectDraft
+from ...panel.documents import parse_document, require_document
 from ...schemas import HAServiceCallRequest
 from ...api.ha import active_connection, call_service
 from ...api.assets import user_asset_file, UPLOAD_CONTENT_TYPES
@@ -119,9 +120,12 @@ def require_scene_viewer(request, database, viewer, scene_id, project_id):
     # 关键一步：快照文件躺在共享目录里，必须确认当前项目的文档确实引用了它，
     # 否则任一已配对设备换掉 URL 里的 sceneId 就能读到别人的户型。
     draft = database.get(ProjectDraft, project_id)
-    if draft is None or not any(
+    # 草稿损坏时按「没配到」拒绝（403）而不是 500：这是一道门禁，脏数据的答案
+    # 只能是「不放行」（B54 的统一入口）。
+    document = parse_document(draft.document_json) if draft is not None else None
+    if not any(
         c.get('properties', {}).get('sceneId') == scene_id
-        for _, c in module_components(json.loads(draft.document_json))
+        for _, c in module_components(document or {})
     ):
         raise HTTPException(403, detail='此户型未配置到当前仪表盘。')
     return None
@@ -149,11 +153,14 @@ def control_component(database, project_id: str, component_id: str) -> dict:
     draft = database.get(ProjectDraft, project_id) if project_id else None
     if draft is None:
         return {}
-    try:
-        document = json.loads(draft.document_json)
-    except (TypeError, ValueError):
-        return {}
-    return next((item for _, item in module_components(document) if item.get('id') == component_id), {}) or {}
+    return next(
+        (
+            item
+            for _, item in module_components(parse_document(draft.document_json) or {})
+            if item.get('id') == component_id
+        ),
+        {},
+    ) or {}
 
 
 def _background_asset_ids(scene: object) -> set[str]:
@@ -614,7 +621,16 @@ def get_config(project_id: str, component_id: str, request: Request, database: D
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
         raise HTTPException(404, detail='仪表盘不存在。')
-    component = next((item for _, item in module_components(json.loads(draft.document_json)) if item.get('id') == component_id), None)
+    component = next(
+        (
+            item
+            for _, item in module_components(
+                require_document(draft, on_error='当前仪表盘草稿内容已损坏，无法读取控件配置。')
+            )
+            if item.get('id') == component_id
+        ),
+        None,
+    )
     if component is None:
         raise HTTPException(404, detail='3D 交互控件不存在。')
     return {'projectId': project_id, 'componentId': component_id, 'phase': 'authorization-shell', 'component': component}

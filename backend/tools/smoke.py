@@ -5124,7 +5124,16 @@ def _projects_app(workdir: Path):
         session.commit()
     app.state.database = database
     app.state.admin_account = SimpleNamespace(user_id='u1', initialized=True)
-    app.state.license_service = SimpleNamespace(allows=lambda _code: True, status=lambda: {'status': 'ACTIVE'})
+
+    async def confirm_binding() -> None:
+        """读草稿前的那次联网确认：测试里直接放行（B4 起的节流窗口不在这里测）。"""
+        return None
+
+    app.state.license_service = SimpleNamespace(
+        allows=lambda _code: True,
+        status=lambda: {'status': 'ACTIVE'},
+        confirm_binding=confirm_binding,
+    )
     app.state.asset_catalog = SimpleNamespace(asset_exists=lambda _asset_id: True, mutation_lock=threading.Lock())
     app.state.global_log = SimpleNamespace(append=lambda *_args, **_kwargs: None)
     # 诊断中间件在 4xx 上会调它（B62）；不跑 lifespan 的话这些状态得自己补上。
@@ -5187,6 +5196,10 @@ async def check_duplicate_dirty_document_is_422() -> None:
             cut = await client.post('/api/v1/projects/proj-cut/duplicate', cookies=cookie, json={'name': '截断副本'})
             bad = await client.post('/api/v1/projects/proj-bad/duplicate', cookies=cookie, json={'name': '脏字段副本'})
             good = await client.post('/api/v1/projects/proj-ok/duplicate', cookies=cookie, json={'name': '正常副本'})
+            # B54：读路径也走同一个解析入口 —— 损坏草稿要报错而不是回一份空文档
+            # （空文档会让编辑器照着空白项目继续编辑，下一次保存就把坏数据盖掉了）。
+            cut_draft = await client.get('/api/v1/projects/proj-cut/draft', cookies=cookie)
+            ok_draft = await client.get('/api/v1/projects/proj-ok/draft', cookies=cookie)
 
         with database.session_factory() as session:
             names = sorted(row.name for row in session.query(Project).all())
@@ -5200,6 +5213,13 @@ async def check_duplicate_dirty_document_is_422() -> None:
         'B9 结构不合规的源文档回 422（复用保存路径那套校验文案）',
         bad.status_code == 422 and isinstance(_field_of(bad, 'detail'), str) and _field_of(bad, 'detail'),
         f'{bad.status_code} {_detail_of(bad)}',
+    )
+    check(
+        'B54 读草稿也走同一个入口：损坏时回 422 而不是一份空文档',
+        cut_draft.status_code == 422
+        and _field_of(cut_draft, 'detail') == '当前草稿内容已损坏，请从备份恢复。'
+        and ok_draft.status_code == 200,
+        f'坏草稿={cut_draft.status_code} {_detail_of(cut_draft)[:24]}，好草稿={ok_draft.status_code}',
     )
     check(
         'B9 失败时不会留下半个副本（只有成功的那个新项目）',
@@ -6032,6 +6052,321 @@ def _detail_of_text(messages: list[dict[str, Any]]) -> str:
     return ''
 
 
+async def check_panel_document_validation() -> None:
+    """B21 / B22 / B23：文档里的「引用」必须真的存在，且实体 ID 与写入端同一把尺子。
+
+    这三项都在同一个地方出错：**读取端与写入端的判据不一致**。
+
+    - B21：``defaultPagePath`` 只判了长度，没判它指向的页面是否存在，于是能存下
+      「打开就是空白」的默认页；
+    - B22：读取端收实体用的是「含点即算实体」的宽松判据，于是任何带点的字符串
+      （标题、说明文案、自定义字段）都会进入 `document_entity_ids` —— 而这个集合
+      同时决定中控设备**能看到哪些实体**与**要订阅哪些状态**，放宽一格就是放宽一格
+      可见范围；
+    - B23：实体 ID 正则没有长度上限，``"a" * 一千万 + ".b"`` 这种「合法实体 ID」
+      会被收进同一个集合。
+
+    因此这里的断言刻意**成对**：写入端拒绝的值，读取端也必须不认；长度在边界内
+    的照旧认得（避免修成「一律不认」把正常实体挡在门外）。
+    """
+    from backend.app.panel.action_rules import valid_entity_id, valid_ha_entity_id
+    from backend.app.panel.entity_refs import document_entity_ids
+    from backend.app.panel.schema import validate_panel_document
+
+    def document(**extra) -> dict:
+        """一份最小合法文档，用来只改动要测的那个字段。"""
+        return {
+            'schemaVersion': 1,
+            'projectId': 'p1',
+            'name': '示例',
+            'pages': [
+                {'id': 'home', 'name': '首页', 'path': 'home'},
+                {'id': 'room', 'name': '房间', 'path': 'room'},
+            ],
+            **extra,
+        }
+
+    # —— B21 默认页：指向不存在的路径必须拒绝，空白归一成「没设」 ——
+    def stored_default_page(value: str) -> str:
+        """存一次默认页，把结果折成观测值：路径本身 / 拒绝 / 未设。"""
+        try:
+            saved = validate_panel_document(document(defaultPagePath=value))
+        except ValueError as error:
+            return '拒绝' if '默认页' in str(error) else f'别的原因：{error}'
+        return saved.get('defaultPagePath', '未设')
+
+    check(
+        'B21 默认页指向不存在的页面时拒绝保存（否则展示页打开即空白）',
+        stored_default_page('gone') == '拒绝',
+        f'结果 {stored_default_page("gone")}',
+    )
+    check(
+        'B21 默认页指向存在的页面时照旧保存',
+        stored_default_page('room') == 'room',
+        f'结果 {stored_default_page("room")}',
+    )
+    check(
+        'B21 空白默认页归一成「没设」并剔除（清空默认页这个动作要能保存）',
+        stored_default_page('   ') == '未设',
+        f'结果 {stored_default_page("   ")}',
+    )
+
+    # —— B22 实体判据：与写入端（EntityBinding 校验）同一把尺子 ——
+    # 「客厅.主灯」是那个必须成对的样本：写入端一直拒绝它（不是合法 HA 实体 ID），
+    # 而读取端过去会因为「含点」把它收进可见范围。
+    # 脏值必须挂在「键名以 entityId 结尾」的字段下 —— 那才是扫描真正会看的位置
+    # （挂在 title / version 下，宽松判据也扫不到，等于没测着）。
+    junk_document = {
+        'pages': [
+            {
+                'panels': [
+                    {
+                        'bindings': {'main': {'entityId': 'light.kitchen'}},
+                        'properties': {
+                            'titleEntityId': '客厅.主灯',
+                            'noteEntityIds': ['v1.2.3', 'light.kitchen_2'],
+                        },
+                    }
+                ]
+            }
+        ]
+    }
+    bound = document_entity_ids(junk_document)
+    check(
+        'B22 含点但不是实体 ID 的字符串不再进可见范围 / 订阅集（客厅.主灯 / v1.2.3）',
+        bound == {'light.kitchen', 'light.kitchen_2'},
+        f'结果 {sorted(bound)}',
+    )
+    rejected_by_writer = False
+    try:
+        validate_panel_document(
+            document(
+                pages=[
+                    {
+                        'id': 'home',
+                        'name': '首页',
+                        'path': 'home',
+                        'components': [
+                            {
+                                'id': 'c1',
+                                'type': 'light',
+                                'bindings': {'main': {'entityId': '客厅.主灯'}},
+                            }
+                        ],
+                    }
+                ]
+            )
+        )
+    except ValueError:
+        rejected_by_writer = True
+    check(
+        'B22 写入端拒绝的实体 ID，读取端也不认（两端同一把尺子）',
+        rejected_by_writer and '客厅.主灯' not in document_entity_ids({'a': {'entityId': '客厅.主灯'}}),
+        f'写入端拒绝={rejected_by_writer}',
+    )
+    virtual_and_empty = document_entity_ids(
+        {'a': {'entityId': 'virtual.light.abc'}, 'b': {'entityId': ''}}
+    )
+    check(
+        'B22 虚拟实体与空值照旧不收（渲染器自维护的 scope 不是 HA 实体）',
+        virtual_and_empty == set(),
+        f'结果 {sorted(virtual_and_empty)}',
+    )
+
+    # —— B22 隐式 sun：天气控件必须有太阳实体，但绑定值不合法时不能照抄 ——
+    unbound_sun = document_entity_ids({'x': [{'type': 'weather'}]})
+    bound_sun = document_entity_ids(
+        {'x': [{'type': 'weather', 'bindings': {'sun': {'entityId': 'sun.mine'}}}]}
+    )
+    junk_sun = document_entity_ids(
+        {'x': [{'type': 'weather', 'bindings': {'sun': {'entityId': '客厅.太阳'}}}]}
+    )
+    check(
+        'B22 天气控件的隐式 sun：未绑用 sun.sun，绑了合法用绑定的，绑了垃圾退回 sun.sun',
+        unbound_sun == {'sun.sun'} and bound_sun == {'sun.mine'} and junk_sun == {'sun.sun'},
+        f'{sorted(unbound_sun)} / {sorted(bound_sun)} / {sorted(junk_sun)}',
+    )
+
+    # —— B23 长度上限：两段都要限住，且不能把正常长度误伤 ——
+    max_length = 200
+    boundary = (
+        valid_ha_entity_id('light.' + 'a' * max_length),
+        valid_ha_entity_id('light.' + 'a' * (max_length + 1)),
+        valid_ha_entity_id('a' * max_length + '.light'),
+        valid_ha_entity_id('a' * (max_length + 1) + '.light'),
+    )
+    check(
+        'B23 实体 ID 的长度上限是按常量判的（200 放行、201 拒绝）',
+        boundary == (True, False, True, False),
+        f'对象段 {max_length}/{max_length + 1}={boundary[0]}/{boundary[1]}，域段={boundary[2]}/{boundary[3]}',
+    )
+    virtual_boundary = (
+        valid_entity_id('virtual.light.' + 'a' * max_length),
+        valid_entity_id('virtual.light.' + 'a' * (max_length + 1)),
+    )
+    check(
+        'B23 虚拟实体同样限长（两段都是 200）',
+        virtual_boundary == (True, False),
+        f'{max_length}/{max_length + 1}={virtual_boundary[0]}/{virtual_boundary[1]}',
+    )
+    huge = {'a': {'entityId': 'light.' + 'x' * 100000}}
+    check(
+        'B23 超长实体 ID 不再被收进可见范围 / 订阅集',
+        document_entity_ids(huge) == set(),
+        f'结果 {len(document_entity_ids(huge))} 条',
+    )
+
+
+async def check_declared_input_constraints() -> None:
+    """B49 / B54 / B60：输入边界与「草稿解析」都要收在一个入口里。
+
+    - B49：3D 草稿的体积与嵌套深度上限原先只写在这条路由上（ASGI 中间件 + 写盘函数），
+      直接挂路由器的应用没有这层保护 —— 几 KB 的深层嵌套就能把 ``json.loads`` 打爆；
+    - B54：``json.loads(draft.document_json)`` 在十几个地方各抄一遍，兜底各不相同；
+    - B60：``min_length=1`` 判的是未去空白前的原值，``" "`` 能过，随后被存成空名字。
+
+    断言按「可观测」写：B49 用**没有中间件**的裸应用发真请求；B54 先用源码扫描钉住
+    「全仓库只有一处解析入口」，再验证那个入口的两种语义；B60 直接看校验结果。
+    """
+    from fastapi import FastAPI, HTTPException
+
+    from backend.app import body_guard
+    from backend.app import schemas
+    from backend.app.api import studio3d
+    from backend.app.dependencies import licensed_user
+
+    # —— B49 常量同源：中间件、schema、写盘三处必须是同一个数字 ——
+    check(
+        'B49 草稿上限只有一个定义（schema 与中间件/写盘共用同一批常量）',
+        schemas.MAX_SCENE_DOCUMENT_BYTES is body_guard.MAX_SCENE_DOCUMENT_BYTES
+        and schemas.MAX_JSON_DEPTH is body_guard.MAX_JSON_DEPTH
+        and studio3d.MAX_DRAFT_BYTES == body_guard.MAX_SCENE_DOCUMENT_BYTES
+        and body_guard.draft_body_limit('/api/v1/studio3d', 'PUT')
+        == body_guard.MAX_SCENE_DOCUMENT_BYTES,
+        f'schema={schemas.MAX_SCENE_DOCUMENT_BYTES} 中间件='
+        f'{body_guard.draft_body_limit("/api/v1/studio3d", "PUT")} 写盘={studio3d.MAX_DRAFT_BYTES}',
+    )
+
+    # —— B49 裸应用（没有 DraftBodyGuard）：深度与体积都要由 schema 挡住 ——
+    app = FastAPI()
+    app.include_router(studio3d.router, prefix='/api/v1')
+    app.dependency_overrides[licensed_user] = lambda: SimpleNamespace(id='u1')
+    with tempfile.TemporaryDirectory(prefix='hb-declared-') as tmp:
+        draft_path = Path(tmp) / 'draft.json'
+        app.state.settings = SimpleNamespace(studio3d_draft_path=draft_path)
+        app.state.global_log = SimpleNamespace(append=lambda *_args, **_kwargs: None)
+        deep_scene: dict = {}
+        cursor = deep_scene
+        for _ in range(body_guard.MAX_JSON_DEPTH + 8):
+            nxt: dict = {}
+            cursor['a'] = nxt
+            cursor = nxt
+
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            deep = await client.put('/api/v1/studio3d', json={'revision': 0, 'scene': deep_scene})
+            shallow = await client.put('/api/v1/studio3d', json={'revision': 0, 'scene': {'floors': []}})
+        check(
+            'B49 没挂中间件的应用里，深层嵌套草稿也回 422（不是 500 / RecursionError）',
+            deep.status_code == 422,
+            f'结果 {deep.status_code} {_detail_of(deep)[:40]}',
+        )
+        check(
+            'B49 合法草稿照旧保存（边界收紧没有误伤正常请求）',
+            shallow.status_code == 200 and json.loads(draft_path.read_text(encoding='utf-8'))['revision'] == 1,
+            f'结果 {shallow.status_code}',
+        )
+
+        # 体积上限：把常量拨小再发，避免真的造一份 32 MiB 的请求（「可拨的边界」）。
+        original_limit = schemas.MAX_SCENE_DOCUMENT_BYTES
+        schemas.MAX_SCENE_DOCUMENT_BYTES = 1024
+        try:
+            async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+                oversize = await client.put(
+                    '/api/v1/studio3d',
+                    json={'revision': 1, 'scene': {'blob': 'x' * 4096}},
+                )
+        finally:
+            schemas.MAX_SCENE_DOCUMENT_BYTES = original_limit
+        check(
+            'B49 体积上限也由 schema 判（拨小上限后同样的请求被拒）',
+            oversize.status_code == 422 and '过大' in str(_detail_of(oversize)),
+            f'结果 {oversize.status_code} {_detail_of(oversize)[:40]}',
+        )
+
+    # —— B54 唯一解析入口：源码扫描 + 两种语义 ——
+    import re
+
+    from backend.app.panel.documents import parse_document, require_document
+
+    entry = Path('backend/app/panel/documents.py').resolve()
+    raw_parsers: list[str] = []
+    for source in sorted(Path('backend/app').rglob('*.py')):
+        if source.resolve() == entry:
+            continue
+        text = source.read_text(encoding='utf-8')
+        # 同一行、或紧跟着换个行续写参数都算「自己在解析」。
+        if re.search(r'json\.loads\([^;]{0,80}?document_json', text):
+            raw_parsers.append(str(source))
+    check(
+        'B54 草稿文档只有一处解析入口（其它模块不再自己 json.loads(document_json)）',
+        not raw_parsers,
+        f'仍在自己解析：{raw_parsers}',
+    )
+    parsed = (
+        parse_document('{"a": '),
+        parse_document('[]'),
+        parse_document('"x"'),
+        parse_document(None),
+        parse_document('{"a": 1}'),
+    )
+    check(
+        'B54 解析入口对损坏 / 非对象 / 非字符串一律回 None（不抛异常）',
+        parsed == (None, None, None, None, {'a': 1}),
+        f'五种输入={parsed}',
+    )
+    broken_draft = SimpleNamespace(document_json='{"a": ')
+    try:
+        require_document(broken_draft, on_error='这份草稿坏了。')
+        required = '通过'
+    except HTTPException as error:
+        required = f'{error.status_code}:{error.detail}'
+    check(
+        'B54 写路径读损坏草稿回 422 并带上调用方给的文案（不是 500）',
+        required == '422:这份草稿坏了。',
+        f'结果 {required}',
+    )
+
+    # —— B60 连接名：先去空白再判下限 ——
+    from backend.app.schemas import HAConnectionInput
+
+    def build_name(raw: str | None) -> str:
+        """按接口的写法构造一次请求体，返回结果或校验错误类型。"""
+        payload = {'baseUrl': 'http://ha.local:8123'}
+        if raw is not None:
+            payload['name'] = raw
+        try:
+            return HAConnectionInput(**payload).name
+        except ValueError as error:
+            return f'拒绝:{type(error).__name__}'
+
+    check(
+        'B60 全空白的连接名被拒（min_length 判的是去空白前的原值，单靠它拦不住）',
+        build_name(' ') == '拒绝:ValidationError' and build_name('\t\n') == '拒绝:ValidationError',
+        f"结果 {build_name(' ')}",
+    )
+    check(
+        'B60 正常连接名去掉首尾空白后保存，默认名照旧',
+        build_name('  客厅 HA  ') == '客厅 HA' and build_name(None) == 'Home Assistant',
+        f"结果 {build_name('  客厅 HA  ')} / {build_name(None)}",
+    )
+    check(
+        'B60 连接名的去空白只有 schema 一处（路由不再自己 strip）',
+        'payload.name.strip()' not in Path('backend/app/api/ha.py').read_text(encoding='utf-8'),
+        '路由里仍在 strip',
+    )
+
+
 def check_every_check_is_wired() -> None:
     """每个 ``check_*`` 都必须被调用过（忘了接线的话，全绿是没有意义的）。
 
@@ -6118,6 +6453,8 @@ async def run() -> int:
     await check_draft_body_limits()
     await check_media_body_bounded()
     await check_log_events_snapshot_cached()
+    await check_panel_document_validation()
+    await check_declared_input_constraints()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

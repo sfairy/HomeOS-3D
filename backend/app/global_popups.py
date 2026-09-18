@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import GlobalCustomPopupState, Project, ProjectDraft
+from .panel.documents import parse_document
 
 
 def _canonical(value) -> str:
@@ -233,9 +234,9 @@ def popup_reference_projects(
     for draft in database.scalars(select(ProjectDraft)):
         if draft.project_id == exclude_project_id:
             continue
-        try:
-            document = json.loads(draft.document_json)
-        except (TypeError, json.JSONDecodeError):
+        # 单份草稿损坏时跳过：它引用不到任何弹窗，不必连累这次统计（B54）。
+        document = parse_document(draft.document_json)
+        if document is None:
             continue
         if not popup_reference_ids(document) & popup_ids:
             continue

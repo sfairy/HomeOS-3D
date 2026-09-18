@@ -32,6 +32,7 @@ from ..body_guard import MAX_SCENE_DOCUMENT_BYTES
 from ..dependencies import DatabaseSession, LicensedUser
 from ..global_popups import global_popups
 from ..models import Project, ProjectDraft
+from ..panel.documents import parse_document
 from ..schemas import Studio3DDraftUpdate
 from ..streaming import flush_and_sync, write_stream_in_batches
 
@@ -127,9 +128,9 @@ def _migrate_legacy_scene(request: Request, database: DatabaseSession) -> dict |
     # 按更新时间倒序：优先采用最近编辑过的那份场景。
     drafts = database.scalars(select(ProjectDraft).order_by(ProjectDraft.updated_at.desc())).all()
     for draft in drafts:
-        try:
-            document = json.loads(draft.document_json)
-        except (TypeError, json.JSONDecodeError):
+        # 单份草稿损坏时跳过（B54 的统一入口）：迁移不该因为一份坏文档整个失败。
+        document = parse_document(draft.document_json)
+        if document is None:
             continue
         # pop 而非 get：迁走之后要把它从文档里彻底移除，避免下次再被扫到。
         scene = document.pop('studio3d', None)
@@ -481,10 +482,9 @@ def delete_studio3d_export_folder(request: Request, database: DatabaseSession, _
     projects = {item.id: item.name for item in database.scalars(select(Project))}
     usages = []
     for draft in database.scalars(select(ProjectDraft)):
-        try:
-            document = json.loads(draft.document_json)
-        except (TypeError, json.JSONDecodeError):
-            # 单份草稿损坏时跳过：它的读取路径自会报错，不该连累删除流程。
+        # 单份草稿损坏时跳过：它的读取路径自会报错，不该连累删除流程（B54）。
+        document = parse_document(draft.document_json)
+        if document is None:
             continue
         if not _document_uses_asset_prefix(document, asset_prefix):
             continue

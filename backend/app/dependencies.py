@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 # 导入顺序保持原有分组：标准库 / 第三方 / 本项目，便于对照改动。
-import json
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -36,6 +35,7 @@ from .models import (
     ProjectDraft,
     User,
 )
+from .panel.documents import parse_document
 from .panel.entity_refs import document_entity_ids
 from .security import set_display_cookie
 
@@ -322,16 +322,11 @@ def _display_document(database: DatabaseSession, viewer: ViewerPrincipal) -> dic
     draft = database.get(ProjectDraft, viewer.project_id)
     if draft is None:
         return {}
-    try:
-        value = json.loads(draft.document_json)
-    except (TypeError, json.JSONDecodeError):
-        # 草稿损坏时静默降级：展示页宁可空白，也不该整页报错。
+    # 草稿损坏时静默降级：展示页宁可空白，也不该整页报错（B54 的统一入口）。
+    value = parse_document(draft.document_json)
+    if value is None:
         return {}
-    return (
-        hydrate_document_popups(database, value, referenced_only=True)
-        if isinstance(value, dict)
-        else {}
-    )
+    return hydrate_document_popups(database, value, referenced_only=True)
 
 
 def _document_bound_values(value, suffix: str) -> set[str]:

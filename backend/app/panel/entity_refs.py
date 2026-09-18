@@ -9,10 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-
-def is_virtual_entity_id(value: str) -> bool:
-    """判断是否为渲染器自造的虚拟实体 ID（virtual. 前缀）。"""
-    return value.startswith("virtual.")
+from .action_rules import valid_ha_entity_id
 
 
 def document_keyed_values(
@@ -79,7 +76,14 @@ def document_entity_ids(value: Any) -> set[str]:
     4. 其余键继续向下递归。
 
     虚拟实体（`virtual.*`）由渲染器自行维护，不属于 HA，全部剔除；
-    值里必须含点才像实体 ID，避免把普通字符串（如标题）误判成实体。
+    值必须是**合法的原生实体 ID**（域 + 点 + 对象 ID，见
+    `action_rules.valid_ha_entity_id`）。
+
+    这里过去用的是「含点即算实体」的宽松判据，于是任何带点的字符串 —— 标题、
+    说明文案、自定义字段里随手写的文本 —— 都会被当成实体收进这个集合。这个集合
+    同时决定了**中控设备能看到哪些实体**与**要订阅哪些状态**：放宽一格就是放宽
+    一格可见范围（B22）。判据改成与写入端（`panel/schema.py` 的绑定校验）同一把尺子，
+    写入时不允许存的 ID，读取时也不该被认成实体。
 
     参数:
         value: 任意文档片段，通常是整个仪表盘文档字典。
@@ -87,25 +91,26 @@ def document_entity_ids(value: Any) -> set[str]:
     返回:
         去重后的实体 ID 集合；文档没有引用任何实体时返回空集合。
     """
-
-    def looks_like_entity_id(candidate: str) -> bool:
-        """含点才像实体 ID；虚拟实体由渲染器维护，不算 HA 实体。"""
-        return "." in candidate and not is_virtual_entity_id(candidate)
-
-    result = document_keyed_values(value, "entityId", keep=looks_like_entity_id)
+    result = document_keyed_values(value, "entityId", keep=valid_ha_entity_id)
 
     def walk_for_implicit_sun(item: Any) -> None:
         """补上天气控件隐式依赖的太阳实体。
 
         没显式绑定 sun 时按约定用 sun.sun，否则日出日落、昼夜图标会因为漏订阅
-        而停在初始值。
+        而停在初始值。绑了但绑定值不合法（写坏的自定义字段）时同样退回 sun.sun ——
+        这里不能像别的分支那样「不合格式就丢掉」，天气控件必须有个太阳实体可用。
         """
         if isinstance(item, dict):
             if item.get("type") == "weather":
-                sun_id = ((item.get("bindings") or {}).get("sun") or {}).get(
+                bound_sun = ((item.get("bindings") or {}).get("sun") or {}).get(
                     "entityId"
                 )
-                result.add(str(sun_id or "sun.sun"))
+                sun_id = (
+                    bound_sun
+                    if isinstance(bound_sun, str) and valid_ha_entity_id(bound_sun)
+                    else "sun.sun"
+                )
+                result.add(sun_id)
             for child in item.values():
                 walk_for_implicit_sun(child)
         elif isinstance(item, list):

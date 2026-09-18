@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .action_rules import POPUP_SOURCES, valid_entity_id, valid_ha_entity_id
 
@@ -261,6 +261,18 @@ class PanelDocument(ExtensibleModel):
     )
     pages: list[PanelPage] = Field(default_factory=list)
 
+    @field_validator("default_page_path")
+    @classmethod
+    def normalize_default_page_path(cls, value: str | None) -> str | None:
+        """空串归一成 None：前端用空值表示「没设默认页」。
+
+        不归一的话，``""`` 会被当成一个路径去参加下面那条「必须存在于 pages」的校验，
+        于是「清空默认页」这个动作反而保存不了。
+        """
+        if value is None:
+            return None
+        return value.strip() or None
+
     @model_validator(mode="after")
     def validate_structure(self) -> 'PanelDocument':
         """跨字段的引用完整性校验。
@@ -281,6 +293,11 @@ class PanelDocument(ExtensibleModel):
             raise ValueError("页面 ID 不能重复。")
         if len(page_paths) != len(set(page_paths)):
             raise ValueError("页面路径不能重复。")
+        # 默认页必须真的存在：指向一个不存在的路径，展示页打开就落在空白页上
+        # （前端虽然有「兜底到第一页」的容错，但把打不开的默认页存进库里本身就是脏数据，
+        # 而且它会让「默认页」这个设置在别的读取路径上继续骗人）。
+        if self.default_page_path is not None and self.default_page_path not in page_paths:
+            raise ValueError(f"默认页 {self.default_page_path} 不存在。")
         popup_ids = [popup.id for popup in self.custom_popups]
         if len(popup_ids) != len(set(popup_ids)):
             raise ValueError("组合弹窗 ID 不能重复。")

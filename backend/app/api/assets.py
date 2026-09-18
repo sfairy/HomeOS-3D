@@ -25,6 +25,7 @@ from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_viewer_studio3d_asset, require_viewer_user_asset, viewer_user_asset_ids
+from ..panel.documents import parse_document
 from ..models import Project, ProjectDraft
 from ..global_popups import global_popups
 from ..streaming import write_stream_in_batches
@@ -1000,9 +1001,9 @@ def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession
         projects = {item.id: item.name for item in database.scalars(select(Project))}
         usages = []
         for draft in database.scalars(select(ProjectDraft)):
-            try:
-                document = json.loads(draft.document_json)
-            except (TypeError, json.JSONDecodeError):
+            # 单份草稿损坏时跳过：它的读取路径自会报错，不该连累删除流程（B54）。
+            document = parse_document(draft.document_json)
+            if document is None:
                 continue
             if not document_uses_asset(document, full_asset_id):
                 continue

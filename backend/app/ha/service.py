@@ -28,6 +28,7 @@ from ..database import Database
 from ..models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft, utc_now
 from ..global_popups import global_popups
 from ..global_log import GlobalLogStore, _safe_text, event_context
+from ..panel.documents import parse_document
 from ..panel.entity_refs import document_entity_ids
 from .client import HAClient, HAClientError, HASnapshot
 from .crypto import CredentialCipher
@@ -226,11 +227,11 @@ class HAConnectorService:
             popup_document = {
                 'customPopups': global_popups(database) }
             for document_json in documents:
-                try:
-                    result.update(document_entity_ids(json.loads(document_json)))
-                except (TypeError, ValueError):
-                    # 单份草稿 JSON 损坏不该拖垮整次同步，跳过它继续收集。
+                # 单份草稿 JSON 损坏不该拖垮整次同步，跳过它继续收集（B54）。
+                document = parse_document(document_json)
+                if document is None:
                     continue
+                result.update(document_entity_ids(document))
             result.update(document_entity_ids(popup_document))
         return result
 

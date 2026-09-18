@@ -21,7 +21,7 @@ from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, requir
 from ..global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
 from ..models import GlobalCustomPopupState, Project, ProjectDraft
 from ..modules.interaction3d.scene_store import sweep_scenes_for_app
-from ..panel.documents import create_blank_project
+from ..panel.documents import create_blank_project, parse_document, require_document
 from ..panel.schema import validate_panel_document
 from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
 from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
@@ -156,19 +156,6 @@ def validate_document_or_422(document: dict) -> dict:
         return validate_panel_document(document)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
-
-
-def parse_stored_document(draft: ProjectDraft, *, on_error: str) -> dict:
-    """读出草稿里的文档 JSON，损坏时按 422 回 ``on_error``。
-
-    草稿可能来自更早的版本（字段已下线）或在写盘时被截断，``json.loads`` 抛的
-    ``JSONDecodeError`` 是 ``ValueError`` 的子类：不接住就是 500 加堆栈（B9）。
-    ``on_error`` 由调用方给，因为「复制不出来」与「保存不了」对用户是两件不同的事。
-    """
-    try:
-        return json.loads(draft.document_json)
-    except ValueError as error:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=on_error) from error
 
 
 def insert_project_with_draft(
@@ -334,7 +321,7 @@ def duplicate_project(project_id: str, payload: ProjectDuplicateRequest, request
     duplicate_id = str(uuid4())
     document = hydrate_document_popups(
         database,
-        parse_stored_document(source_draft, on_error='源仪表盘的草稿内容已损坏，无法复制。'),
+        require_document(source_draft, on_error='源仪表盘的草稿内容已损坏，无法复制。'),
     )
     # 3D 场景不随复制走：户型图与导出的图片属于原项目，复制过去会指向不存在的素材。
     document.pop('studio3d', None)
@@ -424,14 +411,22 @@ async def get_project_draft(project_id: str, request: Request, database: Databas
 def _draft_payload(database: DatabaseSession, project_id: str, viewer: LicensedViewer) -> dict | None:
     """读取草稿并组装响应体（同步，调用方放进工作线程）。
 
-    草稿不存在返回 None，由调用方转 404 —— 把「有没有草稿」与「怎么回响应」分开，
-    工作线程里就不必抛 HTTPException。
+    草稿不存在返回 None，由调用方转 404 —— 把「有没有草稿」与「怎么回响应」分开。
+
+    文档损坏这一个例外在**这里**就抛 422（B54 之后走统一入口 `require_document`）：
+    它不能像别的读路径那样降级成空文档，因为编辑器会照着「空白项目」继续编辑，
+    下一次保存就把坏掉的草稿盖掉了（studio3d 的 ``_read_draft`` 出于同样的理由
+    拒绝静默降级）。异常从工作线程穿回来仍由 FastAPI 正常转成 422 响应。
     """
     draft = database.get(ProjectDraft, project_id)
     if draft is None:
         return None
     # 中控设备视角只水合文档真正引用到的组合弹窗，避免把整个弹窗库下发到墙面屏。
-    document = hydrate_document_popups(database, json.loads(draft.document_json), referenced_only=viewer.project_id is not None)
+    document = hydrate_document_popups(
+        database,
+        require_document(draft, on_error='当前草稿内容已损坏，请从备份恢复。'),
+        referenced_only=viewer.project_id is not None,
+    )
     return {
         'projectId': project_id,
         'schemaVersion': draft.schema_version,
@@ -518,7 +513,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
         document,
         hydrate_document_popups(
             database,
-            parse_stored_document(draft, on_error='当前草稿内容已损坏，无法保存，请从备份恢复。'),
+            require_document(draft, on_error='当前草稿内容已损坏，无法保存，请从备份恢复。'),
         ),
         database = database,
     )
@@ -562,9 +557,9 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
             # 级联更新其它草稿：同样用行级 revision 做条件更新，失败就整笔回滚。
             if removed_popup_ids:
                 for referenced_draft in database.scalars(select(ProjectDraft).where(ProjectDraft.project_id != project_id)):
-                    try:
-                        referenced_document = json.loads(referenced_draft.document_json)
-                    except (TypeError, json.JSONDecodeError):
+                    # 单份草稿损坏时跳过：它清理不掉引用，但也不该让整笔删除回滚（B54）。
+                    referenced_document = parse_document(referenced_draft.document_json)
+                    if referenced_document is None:
                         continue
                     if not clear_popup_references(referenced_document, removed_popup_ids):
                         continue
@@ -619,7 +614,10 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     draft = database.get(ProjectDraft, project_id)
     request.app.state.global_log.append('success', '仪表盘编辑器', '配置', f"仪表盘已保存：{document['name']}（修订 {draft.revision}）")
     # 回给编辑器的文档带完整弹窗：编辑器要能编辑所有组合弹窗，而不只是被引用到的那些。
-    hydrated_document = hydrate_document_popups(database, json.loads(draft.document_json))
+    # 刚写进去的文档，读不回来就是我们自己的 bug：按 422 报出来而不是回一份空文档。
+    hydrated_document = hydrate_document_popups(
+        database, require_document(draft, on_error='当前草稿内容已损坏，无法读取。')
+    )
     result = {
         'projectId': project_id,
         'schemaVersion': draft.schema_version,
