@@ -7,7 +7,13 @@
  * 约定：二维码内容由编辑器生成，链接形态固定为
  *   <origin>/pair?scan=1#code=xxxxxx&type=homeos-pair&version=1，
  *   任一环节不符即视为无效，宁可报错也不降级接受。
+ *   「是不是苹果移动端」由 utils/apple-device.js 统一判定（这里原先另有一份，
+ *   看的是 navigator.platform，与展示页那两份的证据不是同一个）。
  */
+import { isAppleMobile } from "./utils/apple-device.js?v=20260918233037";
+
+// 重新导出保持本模块的公开面不变（apple-install-guide.js 经 needsAppleInstallGuide 使用它）。
+export { isAppleMobile };
 
 /**
  * 解析并严格校验配对链接。
@@ -42,20 +48,6 @@ export function parsePairingLink(rawLink) {
       "配对链接无效，请重新扫描编辑器中的二维码。"
     );
   return { server: parsedUrl.origin, code: hashParams.get("code") };
-}
-
-/**
- * 判断是否为苹果移动端设备。
- *
- * @param {object} [navigatorLike] navigator 对象或替身，便于测试注入。
- * @returns {boolean} iPhone / iPad / iPadOS 桌面模式时为 true。
- */
-export function isAppleMobile(navigatorLike = navigator) {
-  // iPadOS 13+ 的 UA 与桌面 Mac 相同，用 platform 加触摸点数还原判断。
-  return (
-    /iPhone|iPad|iPod/.test(navigatorLike.userAgent) ||
-    (navigatorLike.platform === "MacIntel" && navigatorLike.maxTouchPoints > 1)
-  );
 }
 
 /**

@@ -13,6 +13,7 @@
 import { PanelRenderer } from "./renderer/renderer.js?v=20260918233037";
 import { createButtonSound } from "./sound-effects.js?v=20260918233037";
 import { syncAppleDisplaySurface } from "./display-surface.js?v=20260918233037";
+import { isAppleMobile } from "./utils/apple-device.js?v=20260918233037";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");
@@ -38,14 +39,9 @@ let lastCatalogFingerprint = null;
 let lastAssetsCheckAt = 0;
 let assetsVersion = null;
 
-// 与 display-surface.js 同源的苹果设备判定，用于决定视口尺寸取屏幕还是 visualViewport。
-function isAppleMobile() {
-  const userAgent = navigator.userAgent || "";
-  return (
-    /iPad|iPhone|iPod/i.test(userAgent) ||
-    (/Macintosh/i.test(userAgent) && Number(navigator.maxTouchPoints || 0) > 1)
-  );
-}
+// 苹果移动端判定统一走 utils/apple-device.js：原先这里与 display-surface.js 各一份
+// （都看 UA 里的 Macintosh），而 pairing-link.js 那第三份看 navigator.platform —— 两套证据
+// 都会被浏览器收紧，哪一份先失效只是时间问题，所以合并成一处、把两条证据并起来用。
 
 /**
  * 把展示根节点尺寸同步成真实可视区域尺寸。

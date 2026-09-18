@@ -509,6 +509,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         # backend/tools/smoke.py 的「白名单 import 闭包」检查兜住。
         '/static/utils/api-fetch.js',
         '/static/utils/request-timeout.js',
+        # 配对页的引导判定经 pairing-link.js → utils/apple-device.js（P10-B 收敛后
+        # 苹果移动端判定只有这一份实现），所以它也在匿名图里。
+        '/static/utils/apple-device.js',
         '/static/manifest.webmanifest',
         '/static/dashboard.webmanifest',
         '/static/homeos-favicon.ico',

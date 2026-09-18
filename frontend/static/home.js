@@ -74,6 +74,7 @@ import {
   normalizedFontWeight
 } from "./editor-utils.js?v=20260918233037";
 import { clampNumber } from "./utils/numbers.js?v=20260918233037";
+import { entityDomainOf, entitySearchTextOf } from "./utils/entities.js?v=20260918233037";
 import {
   hexColorOrEmpty,
   strictHexColorOrEmpty
@@ -4796,17 +4797,9 @@ const ENTITY_DOMAIN_LABELS = {
   weather: "天气",
   zone: "区域"
 };
-/**
- * 取实体所属域。
- *
- * 优先用后端给出的 domain 字段，缺失时从 entityId（形如 light.xxx）里切出前缀兜底。
- *
- * @param {object} entityDomainSource 实体对象。
- * @returns {string} 域名字符串，可能为空。
- */
-function entityDomain(entityDomainSource) {
-  return entityDomainSource?.domain || String(entityDomainSource?.entityId || "").split(".")[0];
-}
+// 取实体域统一走 utils/entities.js 的 entityDomainOf（P10 B 类收敛）：本文件原先那份返回
+// `domain` 原值，related-entities.js 那份会 String 之后切第一个点号 —— 带点号或非字符串的
+// domain 下两者结果不同，而两边的消费方都是拿去查标签表 / 与裸域名比较。
 /**
  * 取实体在界面上展示的种类标签（如「灯光」「辅助元素」「虚拟实体」）。
  *
@@ -4814,7 +4807,7 @@ function entityDomain(entityDomainSource) {
  * @returns {string} 中文种类名。
  */
 function entityKindLabel(entityForLabel) {
-  const entityDomainName = entityDomain(entityForLabel);
+  const entityDomainName = entityDomainOf(entityForLabel);
   if (entityForLabel?.virtual) {
     return "虚拟实体";
   } else if (HELPER_ENTITY_DOMAINS.has(entityDomainName)) {
@@ -5058,15 +5051,15 @@ function renderLightStatisticsEntityOptions(entitySearchQuery = "") {
     .filter(
       ({ entity: statisticsEntityItem }) =>
         !normalizedEntityQuery ||
-        (entityOptionLabel(statisticsEntityItem) + " " + entityDomain(statisticsEntityItem))
+        (entityOptionLabel(statisticsEntityItem) + " " + entityDomainOf(statisticsEntityItem))
           .toLocaleLowerCase("zh-CN")
           .includes(normalizedEntityQuery)
     )
     .sort(
       (statisticsOptionA, statisticsOptionB) =>
         Number(statisticsOptionB.support.supported) - Number(statisticsOptionA.support.supported) ||
-        +(entityDomain(statisticsOptionB.entity) === "light") -
-          +(entityDomain(statisticsOptionA.entity) === "light") ||
+        +(entityDomainOf(statisticsOptionB.entity) === "light") -
+          +(entityDomainOf(statisticsOptionA.entity) === "light") ||
         statisticsOptionA.index - statisticsOptionB.index
     )
     .map(({ entity: statisticsOptionEntity, support: statisticsOptionSupport }) => {
@@ -6660,7 +6653,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       except: "light-statistics-action-entity",
       relatedSettings: false,
       recommended: lightStatisticsEntity =>
-        TOGGLE_ENTITY_DOMAINS.has(entityDomain(lightStatisticsEntity)) ? 2 : 0
+        TOGGLE_ENTITY_DOMAINS.has(entityDomainOf(lightStatisticsEntity)) ? 2 : 0
     };
   } else if (entityPickerComponentType === "navigation-button") {
     return {
@@ -6673,7 +6666,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       recommended: navigationEntity =>
         navigationEntity?.virtual
           ? 3
-          : TOGGLE_ENTITY_DOMAINS.has(entityDomain(navigationEntity))
+          : TOGGLE_ENTITY_DOMAINS.has(entityDomainOf(navigationEntity))
             ? 2
             : 0
     };
@@ -6688,7 +6681,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       recommended: titleButtonEntity =>
         titleButtonEntity?.virtual
           ? 3
-          : TOGGLE_ENTITY_DOMAINS.has(entityDomain(titleButtonEntity))
+          : TOGGLE_ENTITY_DOMAINS.has(entityDomainOf(titleButtonEntity))
             ? 2
             : 0
     };
@@ -6701,7 +6694,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       options: vacuumMapEntityOptionsElement,
       except: "vacuum-map-entity",
       recommended: vacuumMapEntity =>
-        ["camera", "image"].includes(entityDomain(vacuumMapEntity))
+        ["camera", "image"].includes(entityDomainOf(vacuumMapEntity))
           ? /(?:^|[_.\s-])map(?:$|[_.\s-])|地图/i.test(
               (vacuumMapEntity.entityId || "") + " " + (vacuumMapEntity.name || "")
             )
@@ -6717,7 +6710,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       search: cameraEntitySearchInputElement,
       options: cameraEntityOptionsElement,
       except: "camera-entity",
-      recommended: cameraEntity => entityDomain(cameraEntity) === "camera"
+      recommended: cameraEntity => entityDomainOf(cameraEntity) === "camera"
     };
   } else if (entityPickerComponentType === "air-conditioner") {
     return {
@@ -6728,9 +6721,9 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       options: airConditionerEntityOptionsElement,
       except: "air-conditioner-entity",
       recommended: airConditionerEntity =>
-        entityDomain(airConditionerEntity) === "climate"
+        entityDomainOf(airConditionerEntity) === "climate"
           ? 2
-          : entityDomain(airConditionerEntity) === "fan"
+          : entityDomainOf(airConditionerEntity) === "fan"
             ? 1
             : 0
     };
@@ -6742,7 +6735,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       search: iconButtonEntitySearchInputElement,
       options: iconButtonEntityOptionsElement,
       except: "icon-button-entity",
-      recommended: deviceButtonEntity => TOGGLE_ENTITY_DOMAINS.has(entityDomain(deviceButtonEntity))
+      recommended: deviceButtonEntity => TOGGLE_ENTITY_DOMAINS.has(entityDomainOf(deviceButtonEntity))
     };
   } else if (entityPickerComponentType === "presence-sensor") {
     return {
@@ -6753,20 +6746,16 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       options: iconButtonEntityOptionsElement,
       except: "icon-button-entity",
       recommended: presenceSensorEntity => {
-        const entitySearchText =
-          (presenceSensorEntity.entityId || "") +
-          " " +
-          (presenceSensorEntity.name || "") +
-          " " +
-          (presenceSensorEntity.originalName || "") +
-          " " +
-          (presenceSensorEntity.translationKey || "");
+        // 这四个字段的拼接原先在这里手写了一遍（与 presence-runtime.js 那份逐字相同），
+        // 现在统一走 utils/entities.js 的 entitySearchTextOf：字段清单只有一处定义，
+        // 加字段时不会再漏掉某一个调用点（漏了的表现为「这台设备认不出来」）。
+        const entitySearchBlob = entitySearchTextOf(presenceSensorEntity);
         const sensorKind = selectedComponent()?.properties?.sensorKind || "presence";
-        const entityDomainValue = entityDomain(presenceSensorEntity);
+        const entityDomainValue = entityDomainOf(presenceSensorEntity);
         if (entityDomainValue === "event") {
           if (
             sensorKind === "presence" &&
-            /motion|occupancy|presence|pir|moving|移动|运动|人体|有人/i.test(entitySearchText)
+            /motion|occupancy|presence|pir|moving|移动|运动|人体|有人/i.test(entitySearchBlob)
           ) {
             return 4;
           } else {
@@ -6775,32 +6764,32 @@ function entityPickerConfig(entityPickerComponentType = "image") {
         } else if (entityDomainValue !== "binary_sensor") {
           return 0;
         } else if (sensorKind === "water-leak") {
-          if (/moisture|water|leak|flood|wet|水浸|漏水|积水|湿/i.test(entitySearchText)) {
+          if (/moisture|water|leak|flood|wet|水浸|漏水|积水|湿/i.test(entitySearchBlob)) {
             return 3;
           } else {
             return 1;
           }
         } else if (sensorKind === "smoke") {
-          if (/smoke|fire|烟雾|烟感|火警/i.test(entitySearchText)) {
+          if (/smoke|fire|烟雾|烟感|火警/i.test(entitySearchBlob)) {
             return 3;
           } else {
             return 1;
           }
         } else if (sensorKind === "natural-gas") {
-          if (/natural[_ -]?gas|combustible|gas|燃气|天然气|可燃气/i.test(entitySearchText)) {
+          if (/natural[_ -]?gas|combustible|gas|燃气|天然气|可燃气/i.test(entitySearchBlob)) {
             return 3;
           } else {
             return 1;
           }
         } else if (sensorKind === "door-window") {
-          if (/door|window|contact|opening|门|窗|接触/i.test(entitySearchText)) {
+          if (/door|window|contact|opening|门|窗|接触/i.test(entitySearchBlob)) {
             return 3;
           } else {
             return 1;
           }
-        } else if (/presence|occupancy|人在|有人|存在|人体/i.test(entitySearchText)) {
+        } else if (/presence|occupancy|人在|有人|存在|人体/i.test(entitySearchBlob)) {
           return 3;
-        } else if (/motion|移动|运动/i.test(entitySearchText)) {
+        } else if (/motion|移动|运动/i.test(entitySearchBlob)) {
           return 1;
         } else {
           return 2;
@@ -6815,7 +6804,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       search: iconButtonEntitySearchInputElement,
       options: iconButtonEntityOptionsElement,
       except: "icon-button-entity",
-      recommended: iconButtonEntity => entityDomain(iconButtonEntity) === "light"
+      recommended: iconButtonEntity => entityDomainOf(iconButtonEntity) === "light"
     };
   } else if (entityPickerComponentType === "icon-button-effect") {
     return {
@@ -6825,7 +6814,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       search: iconButtonEffectEntitySearchInputElement,
       options: iconButtonEffectEntityOptionsElement,
       except: "ibe-entity",
-      recommended: iconButtonEffectEntity => entityDomain(iconButtonEffectEntity) === "light"
+      recommended: iconButtonEffectEntity => entityDomainOf(iconButtonEffectEntity) === "light"
     };
   } else if (entityPickerComponentType === "weather") {
     return {
@@ -6835,7 +6824,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       search: weatherEntitySearchInputElement,
       options: weatherEntityOptionsElement,
       except: "weather-entity",
-      recommended: weatherEntity => entityDomain(weatherEntity) === "weather"
+      recommended: weatherEntity => entityDomainOf(weatherEntity) === "weather"
     };
   } else if (entityPickerComponentType === "line-chart") {
     return {
@@ -6845,7 +6834,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       search: lineChartEntitySearchInputElement,
       options: lineChartEntityOptionsElement,
       except: "line-chart-entity",
-      recommended: lineChartEntity => entityDomain(lineChartEntity) === "sensor"
+      recommended: lineChartEntity => entityDomainOf(lineChartEntity) === "sensor"
     };
   } else {
     return {
@@ -6855,7 +6844,7 @@ function entityPickerConfig(entityPickerComponentType = "image") {
       search: imageEntitySearchInputElement,
       options: imageEntityOptionsElement,
       except: "entity",
-      recommended: imageEntity => ["image", "camera"].includes(entityDomain(imageEntity))
+      recommended: imageEntity => ["image", "camera"].includes(entityDomainOf(imageEntity))
     };
   }
 }
@@ -6885,7 +6874,7 @@ function renderEntityPickerOptions(searchQuery = "", componentType = "image") {
     .filter(
       ({ entity: filteredEntity }) =>
         !normalizedQuery ||
-        (entityOptionLabel(filteredEntity) + " " + entityDomain(filteredEntity))
+        (entityOptionLabel(filteredEntity) + " " + entityDomainOf(filteredEntity))
           .toLocaleLowerCase("zh-CN")
           .includes(normalizedQuery)
     )
@@ -10562,7 +10551,7 @@ function syncInspector() {
             : "载入3D画面";
     floorplanAutoDiagramBindingsElement.hidden = lightLayerCount === 0;
     const lightEntities = entities.filter(
-      lightEntityRecord => entityDomain(lightEntityRecord) === "light"
+      lightEntityRecord => entityDomainOf(lightEntityRecord) === "light"
     );
     /**
      * 为 3D 导图的每个灯组生成一行「灯组 → 灯实体」绑定下拉框。
@@ -27803,7 +27792,7 @@ function openLightStatisticsEntityPicker() {
       .filter(
         ({ entity: statisticsEntry }) =>
           !lightStatisticsQueryText ||
-          (entityOptionLabel(statisticsEntry) + " " + entityDomain(statisticsEntry))
+          (entityOptionLabel(statisticsEntry) + " " + entityDomainOf(statisticsEntry))
             .toLocaleLowerCase("zh-CN")
             .includes(lightStatisticsQueryText)
       )
@@ -27811,8 +27800,8 @@ function openLightStatisticsEntityPicker() {
         (firstStatisticsEntry, secondStatisticsEntry) =>
           Number(secondStatisticsEntry.support.supported) -
             Number(firstStatisticsEntry.support.supported) ||
-          +(entityDomain(secondStatisticsEntry.entity) === "light") -
-            +(entityDomain(firstStatisticsEntry.entity) === "light") ||
+          +(entityDomainOf(secondStatisticsEntry.entity) === "light") -
+            +(entityDomainOf(firstStatisticsEntry.entity) === "light") ||
           firstStatisticsEntry.index - secondStatisticsEntry.index
       )
       .map(({ entity: statisticsMatchedEntity }) => statisticsMatchedEntity);

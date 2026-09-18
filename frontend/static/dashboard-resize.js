@@ -93,8 +93,13 @@ function scaleComponentSubtree(
     );
 }
 
-// 摊平共享组件与各页面顶层组件，作为缩放 / 越界检查的统一输入。
-function flattenComponents(dashboardDocument) {
+// 摊平「文档级共享组件 + 各页面顶层组件」，作为缩放 / 越界检查的统一输入。
+// 名字从 flattenComponents 改成 flattenDocumentComponents（P10 B 类复核）：`home.js` 里那份
+// 同名函数展平的是**控件树的 children**，输入是一个控件数组；这份展平的是**文档的顶层清单**，
+// 输入是整个文档且不下钻 children。两者不是同一份知识的两种写法 —— 一个 `flattenComponents`
+// 的名字会让人以为可以互换着调用，而换过去的结果是漏掉嵌套子控件。这里按实际语义改名，
+// 不再与 home.js 那份共用名字。
+function flattenDocumentComponents(dashboardDocument) {
   return [
     ...(dashboardDocument.sharedComponents || []),
     ...(dashboardDocument.pages || []).flatMap(page => page.components || [])
@@ -138,7 +143,7 @@ export function countComponentsOutsideCanvas(documentModel, documentWidth, docum
     canvasHeight = Number(documentHeight);
   return !Number.isFinite(limitWidth) || !Number.isFinite(canvasHeight)
     ? 0
-    : flattenComponents(documentModel).filter(component =>
+    : flattenDocumentComponents(documentModel).filter(component =>
         isComponentOutsideCanvas(component, limitWidth, canvasHeight)
       ).length;
 }
@@ -186,7 +191,7 @@ export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeigh
   // 3D 控件是唯一例外：它的外框必须跟着画布比例走，否则 fill 模式下的
   // 渲染尺寸会与画布对不上，缩放时出现内容拉伸或黑边。
   if (options.lockContent) {
-    for (const flatComponent of flattenComponents(resizedDocument)) {
+    for (const flatComponent of flattenDocumentComponents(resizedDocument)) {
       if (flatComponent.type === "interaction3d") {
         scaleComponentSubtree(
           flatComponent,
@@ -213,7 +218,7 @@ export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeigh
     scaleRatioY = heightPx / baseHeight,
     nextContentScale = Math.min(widthPx / resizeBaseWidth, heightPx / resizeBaseHeight),
     scaleDelta = nextContentScale / resizeContentScale,
-    components = flattenComponents(resizedDocument);
+    components = flattenDocumentComponents(resizedDocument);
   for (const flatComponent of components)
     scaleComponentSubtree(flatComponent, scaleRatioX, scaleRatioY, scaleDelta, !0);
   return (

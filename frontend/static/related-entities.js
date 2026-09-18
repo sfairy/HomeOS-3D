@@ -11,6 +11,7 @@
  *   最后按实体 ID 字典序。
  */
 import { resolveXiaomiDeviceProfile } from "./renderer/device-profiles.js?v=20260918233037";
+import { entityDomainOf } from "./utils/entities.js?v=20260918233037";
 
 // 显式勾选模式的标识值，与文档里 properties.relatedEntities.mode 对应。
 export const RELATED_ENTITY_MODE_SELECTED = "selected";
@@ -142,10 +143,9 @@ export const RELATED_ENTITY_DOMAIN_LABELS = Object.freeze({
   binary_sensor: "状态"
 });
 
-// 取实体域：优先用 domain 字段，缺失时从 entityId 前缀推导（只切第一个点号）。
-function entityDomain(entity) {
-  return String(entity?.domain || entity?.entityId || "").split(".", 1)[0];
-}
+// 取实体域：统一走 utils/entities.js 的 entityDomainOf（P10 B 类收敛）。本文件原先那份
+// 与 home.js 那份对「domain 带点号」「domain 不是字符串」两种输入的结果不同 —— 两边的
+// 消费方都是拿去查标签表或与裸域名比较，所以这类输入下会静默认错域。
 
 /**
  * 判断实体当前是否可用（未被禁用、未被删除）。
@@ -178,7 +178,7 @@ function findEntityByDomain(entities, domain) {
   return (
     entities.find(
       matchedEntity =>
-        entityDomain(matchedEntity) === domain && relatedEntityIsAvailable(matchedEntity)
+        entityDomainOf(matchedEntity) === domain && relatedEntityIsAvailable(matchedEntity)
     ) || null
   );
 }
@@ -244,7 +244,7 @@ export function relatedPopupContext(
     statesByEntityId
   );
   const configuredDeviceType = String(component?.properties?.deviceType || "");
-  const configuredDomain = entityDomain(sourceEntity);
+  const configuredDomain = entityDomainOf(sourceEntity);
   const climateEntityId = deviceProfile?.roles?.climate || deviceProfile?.roles?.fan || "";
   // 只有绑定实体本身就是气候主实体时才按浴霸判断，防止附属实体误判。
   const isClimatePrimary = !!climateEntityId && configuredEntityId === climateEntityId;
@@ -353,7 +353,7 @@ export function relatedPopupCandidates(
       candidate =>
         // 排除主实体自身；域必须在白名单内。
         candidate.entityId !== context.primaryEntityId &&
-        allowedDomains.has(entityDomain(candidate)) &&
+        allowedDomains.has(entityDomainOf(candidate)) &&
         // 已勾选的实体即使当前不可用也保留，否则用户会「看不到自己选过的东西」。
         (relatedEntityIsAvailable(candidate) || selectedEntityIdSet.has(candidate.entityId))
     )
@@ -363,8 +363,8 @@ export function relatedPopupCandidates(
       const rightUnavailable = relatedEntityIsAvailable(right) ? 0 : 1;
       return (
         leftUnavailable - rightUnavailable ||
-        (DOMAIN_SORT_ORDER.get(entityDomain(left)) ?? 99) -
-          (DOMAIN_SORT_ORDER.get(entityDomain(right)) ?? 99) ||
+        (DOMAIN_SORT_ORDER.get(entityDomainOf(left)) ?? 99) -
+          (DOMAIN_SORT_ORDER.get(entityDomainOf(right)) ?? 99) ||
         String(left.entityId || "").localeCompare(String(right.entityId || ""))
       );
     });
@@ -405,7 +405,7 @@ export function legacyRelatedEntityIds(
     return candidates
       .filter(
         legacyCandidate =>
-          ["switch", "select", "number", "button"].includes(entityDomain(legacyCandidate)) &&
+          ["switch", "select", "number", "button"].includes(entityDomainOf(legacyCandidate)) &&
           relatedEntityIsAvailable(legacyCandidate)
       )
       .map(pickedCandidate => pickedCandidate.entityId);
@@ -436,7 +436,7 @@ export function legacyRelatedEntityIds(
       relatedContext.profile?.roles?.light ||
       candidates.find(
         lightCandidate =>
-          entityDomain(lightCandidate) === "light" && relatedEntityIsAvailable(lightCandidate)
+          entityDomainOf(lightCandidate) === "light" && relatedEntityIsAvailable(lightCandidate)
       )?.entityId;
     if (lightEntityId) {
       return [lightEntityId];
@@ -448,7 +448,7 @@ export function legacyRelatedEntityIds(
     // 扫地机只默认带清扫模式（可选 select 或带 cleaning_mode 翻译键的实体）。
     const modeCandidate = candidates.find(
       modeOptionCandidate =>
-        entityDomain(modeOptionCandidate) === "select" &&
+        entityDomainOf(modeOptionCandidate) === "select" &&
         (/cleaning_mode/i.test(String(modeOptionCandidate.entityId || "")) ||
           modeOptionCandidate.translationKey === "cleaning_mode")
     );
@@ -510,7 +510,7 @@ export function relatedEntityLabel(popupContext, entityTarget) {
  * @returns {boolean} 域为 button 且名称 / ID / 翻译键含危险词时为 true。
  */
 export function relatedEntityNeedsConfirmation(confirmationCandidate) {
-  if (entityDomain(confirmationCandidate) !== "button") {
+  if (entityDomainOf(confirmationCandidate) !== "button") {
     return false;
   }
   // 中英文危险词表；中文与英文都要覆盖，因为实体名可能来自 HA 或翻译资源。
@@ -562,7 +562,7 @@ export function relatedEntityOptions(componentSpec, entityState) {
  */
 export function relatedEntitySelectService(domainOrEntity) {
   const resolvedDomain =
-    typeof domainOrEntity == "string" ? domainOrEntity : entityDomain(domainOrEntity);
+    typeof domainOrEntity == "string" ? domainOrEntity : entityDomainOf(domainOrEntity);
   if (["select", "input_select"].includes(resolvedDomain)) {
     return {
       domain: resolvedDomain,

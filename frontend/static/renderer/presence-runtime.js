@@ -9,21 +9,17 @@
  *
  * 约定：返回的 key 只有 occupied / clear / unknown / unavailable 四种，
  * 界面文案（有人 / 无人 / 未知 / 离线）与 key 一一对应且会直接上屏。
+ *
+ * 依赖：关键词检索文本走 `utils/entities.js` 的 `entitySearchTextOf`（P10 B 类收敛）。
+ * 本文件原先自带一份 `entitySearchText`（四个固定字段、保留原大小写），与
+ * `device-profiles.js` / `home.js` 里那两份口径不同；现在三处共用一份（小写 + 单空格）。
+ * 本文件的匹配正则全部带 `i`，所以小写化不影响命中；空段压成单空格只可能把
+ * `no  motion` 补成 `no motion`，方向上是少漏判、不会多漏判。
  */
+import { entitySearchTextOf } from "../utils/entities.js?v=20260918233037";
+
 function resolveEventState(event) {
   return event?.newState || event || null;
-}
-// 把实体的几个命名字段拼成一段用于关键词匹配的文本（此处保持原大小写，正则自带 i 标志）。
-function entitySearchText(entity = {}) {
-  return (
-    (entity.entityId || "") +
-    " " +
-    (entity.name || "") +
-    " " +
-    (entity.originalName || "") +
-    " " +
-    (entity.translationKey || "")
-  ).trim();
 }
 /**
  * 把带单位的时长状态换算成秒。
@@ -80,13 +76,13 @@ function findMotionCompanionSensors(entitiesById, targetEntityId) {
   const timeoutSensor =
     deviceSensorEntities.find(timeoutCandidate =>
       /custom[_ -]?no[_ -]?motion[_ -]?time|no[_ -]?motion[_ -]?timeout|自定义超时无人移动时间/i.test(
-        entitySearchText(timeoutCandidate)
+        entitySearchTextOf(timeoutCandidate)
       )
     ) || null;
     // 模式与上面一致，只是换成「无移动持续时间」的口径。
   const noMotionSensor =
     deviceSensorEntities.find(noMotionCandidate =>
-      /no[_ -]?motion[_ -]?duration|无移动状态持续时间/i.test(entitySearchText(noMotionCandidate))
+      /no[_ -]?motion[_ -]?duration|无移动状态持续时间/i.test(entitySearchTextOf(noMotionCandidate))
     ) || null;
   return {
     timeout: timeoutSensor,
@@ -117,15 +113,11 @@ export function presenceMotionEventConfig(
   const stateObject = resolveEventState(eventState) || {};
     // 判定条件同时看实体 ID 前缀（必须是 event.）、实体命名与状态自带的 device_class / event_type，
     // 三者任一方向命中即可，目的是尽量不把确实是人体感应的实体漏掉。
-  const searchText =
-    entitySearchText({
-      ...registryEntry,
-      entityId: entityId
-    }) +
-    " " +
-    (stateObject.attributes?.device_class || "") +
-    " " +
-    (stateObject.attributes?.event_type || "");
+  const searchText = entitySearchTextOf(
+    { ...registryEntry, entityId: entityId },
+    stateObject.attributes?.device_class,
+    stateObject.attributes?.event_type
+  );
   if (
     !String(entityId || "").startsWith("event.") ||
     !/motion|occupancy|presence|pir|moving|移动|运动|人体|有人/i.test(searchText)

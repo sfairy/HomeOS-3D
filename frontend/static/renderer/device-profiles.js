@@ -11,26 +11,16 @@
  * 约定：档案里的 roles 键名（climate / cover / fan / light / power / mode / temperature /
  * humidity / pm25 / pm10 / hcho / filterLife / filterLeftTime / airQuality / primary）
  * 与各控件 runtime 读取的字段名一一对应，改键名会同时改到多个控件。
+ *
+ * 依赖：检索文本走 `utils/entities.js`（P10 B 类收敛）—— 本文件原先自带一份
+ * `entitySearchText`，与 `presence-runtime.js` / `home.js` 里那两份口径不同
+ * （那两份保留原大小写、不压空格，靠调用方正则带 `i` 兜着）。现在三处共用一份，
+ * 语义与原先本文件这份一致（小写 + 过滤空段），因此本文件的判定不受影响。
  */
+import { entitySearchText } from "../utils/entities.js?v=20260918233037";
+
 // 认定为小米生态的 HA 集成平台名：分别是旧版 MIoT 与新版 Xiaomi Home 集成。
 const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);
-/**
- * 把若干字段拼成一段用于关键词匹配的小写文本。
- *
- * 参数接受任意层级的数组（调用方常直接传实体字段数组），flat() 后统一成空格分隔的字符串：
- * 下面所有角色判定都靠正则匹配这段文本，因此字段越全，识别越准。
- *
- * @param {...*} searchParts 参与匹配的字段片段，可以是字符串或数组。
- * @returns {string} 小写、空格分隔的检索文本。
- */
-function entitySearchText(...searchParts) {
-  return searchParts
-    .flat()
-    .map(part => String(part || "").trim())
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-}
 /**
  * 判断实体是否可用于档案匹配。
  *

@@ -6,7 +6,10 @@
  *   meta[theme-color]，让状态栏与页面底色一致，避免全屏下露出黑边。
  * 约定：只有「已添加到主屏并以 standalone 运行」的设备才处理；普通浏览器
  *   标签页交给页面自身背景，不改主题色。win 参数可注入，便于测试。
+ *   「是不是苹果移动端」由 utils/apple-device.js 统一判定（原先这里与 display.js 各抄一份，
+ *   而 pairing-link.js 那第三份用的是另一套证据）。
  */
+import { isAppleMobile } from "./utils/apple-device.js?v=20260918233037";
 
 /**
  * 按画布背景色更新苹果全屏设备的表面颜色。
@@ -17,10 +20,7 @@
  */
 export function syncAppleDisplaySurface(docModel, win = window) {
   const { document: doc, navigator: nav } = win;
-  // iPadOS 13+ 默认伪装成 Macintosh，只能用 maxTouchPoints > 1 与桌面 Mac 区分。
-  const isApple =
-    /iPad|iPhone|iPod/i.test(nav.userAgent || "") ||
-    (/Macintosh/i.test(nav.userAgent || "") && Number(nav.maxTouchPoints || 0) > 1);
+  const isApple = isAppleMobile(nav);
   const isStandalone =
     nav.standalone === true || win.matchMedia?.("(display-mode: standalone)").matches === true;
   if (!isApple || !isStandalone) {
