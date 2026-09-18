@@ -7,7 +7,7 @@
  * 约定：ID 依赖 randomUuid（utils/random-id.js），同一版本戳必须与
  *   home.js 引用的一致；颜色一律先归一成小写 6 位 HEX 再计算。
  */
-import { randomUuid } from "./utils/random-id.js?v=20260918181612";
+import { randomUuid } from "./utils/random-id.js?v=20260918191243";
 
 /**
  * 深拷贝一个值。

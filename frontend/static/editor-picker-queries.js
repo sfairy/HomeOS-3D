@@ -70,20 +70,20 @@ export function createEditorPickerQueries({
   function editorPickerComponentTypeLabel(pickerComponentType) {
     return (
       {
-        image: "\u56FE\u7247",
-        weather: "\u5929\u6C14",
-        "line-chart": "\u6298\u7EBF\u56FE",
-        "title-button": "\u6807\u9898\u6309\u94AE",
-        "light-statistics": "\u6570\u91CF\u7EDF\u8BA1",
-        "icon-button-effect": "\u56FE\u6807\u6309\u94AE\uFF08\u6548\u679C\uFF09",
-        "icon-button": "\u56FE\u6807\u6309\u94AE",
-        "device-button": "\u8BBE\u5907\u6309\u94AE",
-        "presence-sensor": "\u4F20\u611F\u5668",
-        "vacuum-map": "\u626B\u5730\u673A\u5730\u56FE",
-        camera: "\u6444\u50CF\u5934",
-        "air-conditioner": "\u7A7A\u8C03",
-        "navigation-button": "\u5BFC\u822A\u6309\u94AE"
-      }[pickerComponentType] || "\u63A7\u4EF6"
+        image: "图片",
+        weather: "天气",
+        "line-chart": "折线图",
+        "title-button": "标题按钮",
+        "light-statistics": "数量统计",
+        "icon-button-effect": "图标按钮（效果）",
+        "icon-button": "图标按钮",
+        "device-button": "设备按钮",
+        "presence-sensor": "传感器",
+        "vacuum-map": "扫地机地图",
+        camera: "摄像头",
+        "air-conditioner": "空调",
+        "navigation-button": "导航按钮"
+      }[pickerComponentType] || "控件"
     );
   }
   return Object.freeze({

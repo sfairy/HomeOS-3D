@@ -98,7 +98,7 @@ export function copyComponentTargets(pageSourceDocument, sourceComponentId) {
   }));
   // 源组件属于某个页面时才允许复制到共享侧边栏，避免共享组件自我复制。
   return targetLocation.scope === "page"
-    ? [{ key: "shared", name: "\u4FA7\u8FB9\u680F", scope: "shared" }, ...pageTargets]
+    ? [{ key: "shared", name: "侧边栏", scope: "shared" }, ...pageTargets]
     : pageTargets;
 }
 // 递归给组件及其子树换新 ID；createComponentId 由调用方注入（便于测试）。
@@ -111,17 +111,17 @@ function assignFreshComponentIds(componentNode, createComponentId) {
 // 生成不重名的副本名：先剥掉旧的后缀，再依次尝试 _副本、_副本2、_副本3……
 function uniqueCopyLabel(labelSourceComponent, siblingComponents, labelOf) {
   const baseLabel =
-      String(labelOf(labelSourceComponent) || "\u63A7\u4EF6")
+      String(labelOf(labelSourceComponent) || "控件")
         .trim()
-        .replace(/_副本\d*$/, "") || "\u63A7\u4EF6",
+        .replace(/_副本\d*$/, "") || "控件",
     existingLabels = new Set(
       (siblingComponents || []).map(existingComponent => String(labelOf(existingComponent)).trim())
     );
-  let candidateLabel = `${baseLabel}_\u526F\u672C`,
+  let candidateLabel = `${baseLabel}_副本`,
     copyIndex = 2;
   // 只有 init / test 两段，自增放在循环体里。
   for (; existingLabels.has(candidateLabel);)
-    ((candidateLabel = `${baseLabel}_\u526F\u672C${copyIndex}`), (copyIndex += 1));
+    ((candidateLabel = `${baseLabel}_副本${copyIndex}`), (copyIndex += 1));
   return candidateLabel;
 }
 // 按数组顺序重排 zIndex：数组越靠后层级越高。
@@ -255,7 +255,7 @@ export function copyComponentsAcrossDocuments(
     cloneValue: cloneValue = clonedValue => structuredClone(clonedValue),
     createId: createId,
     componentLabel: componentLabelOf = labelComponent =>
-      labelComponent?.properties?.label || labelComponent?.type || "\u63A7\u4EF6",
+      labelComponent?.properties?.label || labelComponent?.type || "控件",
     scaleMode: scaleMode = "none",
     onInvalidAction: handleInvalidAction
   } = {}
@@ -358,7 +358,7 @@ export function copyComponentToPage(
     cloneValue: cloneValueForPage = pageCloneValue => structuredClone(pageCloneValue),
     createId: createPageComponentId,
     componentLabel: componentLabelForPage = pageLabelComponent =>
-      pageLabelComponent?.properties?.label || pageLabelComponent?.type || "\u63A7\u4EF6"
+      pageLabelComponent?.properties?.label || pageLabelComponent?.type || "控件"
   } = {}
 ) {
   if (

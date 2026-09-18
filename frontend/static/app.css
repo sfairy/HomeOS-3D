@@ -421,6 +421,52 @@ button.danger-quiet {
     -webkit-overflow-scrolling: touch;
   }
 }
+/* ===== 关键控件的命中区兜底 ===== */
+
+/* 编辑器按 1020px 逻辑宽度出图，装不下时由 --editor-viewport-scale 整体等比缩放
+   （手机约 0.38）：设计空间里 28~35px 的控件落到屏幕上只剩 11~13px，手指点不准。
+   视觉尺寸动不得 —— 左侧列表的 28px 就是网格列宽、工具栏靠紧凑排布塞进 52px 顶栏 ——
+   所以只把**可点区域**外扩：最小的 28px 控件外扩 8px 后是 44×44（设计空间），
+   视觉上一行不变，点起来变大。外扩用 ::before 而不是 ::after：
+   .element-list-tabs button.active 的橙色下划线占着 ::after（right/bottom/left 全是 0），
+   同一伪元素上写 inset 会把那条线拉成 8px 高。
+
+   这里刻意**不**按 --editor-viewport-scale 反算外扩量：缩放 0.38 时反算要外扩 17px 以上，
+   而图标按钮之间只有 5px 间距，相邻控件的命中区会互相盖住 —— 点错比点不中更难排查。
+   手机端真正的出路是不整体缩放（见文档 W17 备注），不是把命中区撑到互相重叠。 */
+.element-list-tabs button,
+.add-element-button,
+.workspace-sound-toggle,
+.history-toolbar-button,
+.icon-button,
+.component-context-actions button,
+.component-label-options button {
+  position: relative;
+}
+.element-list-tabs button:before,
+.add-element-button:before,
+.workspace-sound-toggle:before,
+.history-toolbar-button:before,
+.icon-button:before,
+.component-context-actions button:before,
+.component-label-options button:before {
+  position: absolute;
+  inset: -8px;
+  content: "";
+}
+/* 平板与触屏再放宽一档（48×48 起）。这一档不按宽度猜设备，而是直接问指针 ——
+   「点不准」的原因是触屏；≤1180px 那半边则正是编辑器解除整页锁死、交给触屏滚动的分支。 */
+@media (max-width: 1180px), (pointer: coarse) {
+  .element-list-tabs button:before,
+  .add-element-button:before,
+  .workspace-sound-toggle:before,
+  .history-toolbar-button:before,
+  .icon-button:before,
+  .component-context-actions button:before,
+  .component-label-options button:before {
+    inset: -10px;
+  }
+}
 /* ===== 面板标题与仪表盘控件 ===== */
 
 /* margin 的负值用来抵消 .panel 的左右 16px 内边距，让标题栏底色铺满整个侧栏。 */
@@ -1129,6 +1175,7 @@ h2 {
 }
 /* 28px 是元素列表第三列的宽度，与 .element-item 的网格列成对出现。 */
 .element-visibility {
+  position: relative;
   width: 28px;
   min-width: 28px;
   min-height: 28px;
@@ -1138,13 +1185,25 @@ h2 {
   background: transparent;
   font-size: 14px;
 }
+/* 命中区 44×44：28px 是网格列宽，直接加宽会挤掉标签列，所以用 ::after 把可点区域
+   向四周各外扩 8px（28 + 8×2 = 44）。外扩出来的那一圈是隐形的，视觉一行不变；
+   向左吃掉的 8px 落在标签列尾部（标签左对齐、右端本就是空白），不会盖住文字。
+   纵向靠 .element-item 的 37px 行高再加 8px 到 45px，同样过线。 */
+.element-visibility:after {
+  position: absolute;
+  inset: -8px;
+  content: "";
+}
 .element-visibility:hover {
   color: #dce2e6;
   background: #ffffff0a;
 }
-/* 隐藏态：眼睛图标压到 #4e5961 低对比灰，表示「当前不可见」，但仍可点击切回。 */
+/* 隐藏态：眼睛图标用「带斜杠」的另一种形状表示「当前不可见」（形状本身就与可见态不同，
+   aria-label 也切换成「显示X」），所以这里不需要再叠一层非颜色标记；
+   颜色只负责「次要」这一层语义，取 #6b757d：在侧栏底色 --surface(#1a2026) 上对比度 3.5:1，
+   过 WCAG 1.4.11 对图形对象的 3:1 线，同时明显暗于可见态的 #77838b（4.2:1），状态仍分得清。 */
 .element-visibility.hidden-element {
-  color: #4e5961;
+  color: #6b757d;
 }
 .element-visibility svg {
   display: block;

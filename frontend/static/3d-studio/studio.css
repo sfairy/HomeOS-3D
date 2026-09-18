@@ -1690,6 +1690,15 @@ button:disabled {
     transform: rotate(360deg);
   }
 }
+/* 系统开启「减少动效」时：状态点的脉冲与加载转环都停在原处。
+   两处都是无限动画，而它们承载的信息不靠动画 —— 状态点仍按 saved / saving / error
+   着色，转环仍是一个带缺口的圆、旁边还有加载文案，所以直接停掉不丢信息。 */
+@media (prefers-reduced-motion: reduce) {
+  .save-state.saving i,
+  .model-loading-spinner {
+    animation: none;
+  }
+}
 /* 分隔条本身只有 14px 高、默认不可拖（cursor: default），真正的拖拽把手是
    叠在上面的 .details-resizer 小方块，所以命中的是把手而不是整条线。 */
 .details-divider {

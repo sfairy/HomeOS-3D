@@ -2754,6 +2754,351 @@ async function runStudioConflictSuite() {
   context.isStageViewerMode = false;
 }
 
+/**
+ * W11：运行时弹窗的模态语义（aria-modal / aria-labelledby）与焦点管理。
+ *
+ * 为什么被测的是这一段源码：`showModal()` 在这里用不了 —— 弹窗层挂在画布容器里，
+ * 弹窗坐标是画布坐标，提到顶层会在整体缩放的展示页上走样，相机/实体详情那两条
+ * `::backdrop` 规则还会和层自带的遮罩叠加。所以模态该有的四件事由
+ * `presentRuntimeDialog` 自己做，这里就按「浏览器会怎么配合」把 DOM 桩铺出来验它。
+ *
+ * 桩的边界写在两处注释里：`getClientRects()` 是代码真的会读的可见性判据（按真实语义桩），
+ * 而选择器匹配只实现本文件用到的两种形态 —— 它不是选择器引擎，具体的
+ * `:not([disabled])` 写法由自检那侧的结构断言盯着。
+ *
+ * @returns {Promise<void>} 无（断言直接进全局结果表）。
+ */
+async function runDialogA11ySuite() {
+  const source = fs.readFileSync(path.join(ROOT, "frontend/static/renderer/renderer.js"), "utf8");
+  const focusableSelectorSource = source.match(
+    /const RUNTIME_DIALOG_FOCUSABLE_SELECTOR = \[[\s\S]*?\]\.join\(', '\);/
+  )?.[0];
+  if (!focusableSelectorSource) {
+    throw new Error("找不到 RUNTIME_DIALOG_FOCUSABLE_SELECTOR 的声明（写法变了就要同步探针）");
+  }
+
+  const context = vm.createContext({ console });
+  vm.runInContext(extractVariableDeclaration(source, "runtimeDialogTitleSerial"), context);
+  vm.runInContext(focusableSelectorSource, context);
+  vm.runInContext(extractClassMethod(source, "presentRuntimeDialog"), context);
+  // `const` 声明落在脚本的词法作用域里，不会变成沙箱对象的属性，
+  // 所以这里求值取出它（顺带证明那段声明真的求出了一个非空选择器串）。
+  const focusableSelector = vm.runInContext("RUNTIME_DIALOG_FOCUSABLE_SELECTOR", context);
+  check(
+    "W11 焦点可及性的选择器取到了值（否则后面几条断言测的其实是空选择器）",
+    typeof focusableSelector === "string" && focusableSelector.includes("button"),
+    JSON.stringify(focusableSelector)
+  );
+
+  /**
+   * 只认本文件用到的选择器形态：`tag:not([disabled])` 与 `[tabindex]:not([tabindex="-1"])`。
+   *
+   * @param {object} element 桩元素。
+   * @param {string} selector RUNTIME_DIALOG_FOCUSABLE_SELECTOR 的值。
+   * @returns {boolean} 是否命中。
+   */
+  const matchesFocusableSelector = (element, selector) =>
+    selector
+      .split(",")
+      .map(part => part.trim())
+      .some(part => {
+        if (part.startsWith("[tabindex]")) {
+          return element.tabIndex !== undefined && !(element.tabIndex === -1 && part.includes("-1"));
+        }
+        const [tagName] = part.split(":");
+        if (tagName !== element.tagName.toLowerCase()) {
+          return false;
+        }
+        return !(part.includes("[disabled]") && element.disabled);
+      });
+
+  const createFocusableElement = (label, options = {}) => {
+    const element = {
+      label,
+      tagName: options.tagName || "BUTTON",
+      disabled: options.disabled === true,
+      visible: options.visible !== false,
+      // 真实 DOM 元素默认都在文档里；只有「切项目 / 刷新」那种时序才不在。
+      isConnected: options.isConnected !== false,
+      focusCalls: 0,
+      getClientRects: () => (element.visible ? [{}] : []),
+      focus: () => {
+        element.focusCalls += 1;
+        context.document.activeElement = element;
+      }
+    };
+    return element;
+  };
+
+  const createLayerStub = () => {
+    const handlers = new Map();
+    return {
+      handlers,
+      addEventListener: (type, handler) => {
+        handlers.set(type, [...(handlers.get(type) || []), handler]);
+      },
+      removeEventListener: (type, handler) => {
+        handlers.set(type, (handlers.get(type) || []).filter(item => item !== handler));
+      },
+      dispatchKeydown: keyEvent => {
+        for (const handler of handlers.get("keydown") || []) {
+          handler(keyEvent);
+        }
+      }
+    };
+  };
+
+  const createDialogStub = (focusableElements, titleText) => {
+    const handlers = new Map();
+    const attributes = new Map();
+    const titleElement = { id: "", textContent: titleText };
+    const dialogElement = {
+      open: false,
+      tabIndex: undefined,
+      focusCalls: 0,
+      showCalls: 0,
+      closeCalls: 0,
+      querySelector: selector => (selector === "strong" ? titleElement : null),
+      querySelectorAll: selector =>
+        focusableElements.filter(element => matchesFocusableSelector(element, selector)),
+      setAttribute: (name, value) => attributes.set(name, value),
+      getAttribute: name => attributes.get(name) || null,
+      contains: element => focusableElements.includes(element) || element === dialogElement,
+      addEventListener: (type, handler) => handlers.set(type, handler),
+      focus: () => {
+        dialogElement.focusCalls += 1;
+        context.document.activeElement = dialogElement;
+      },
+      show: () => {
+        dialogElement.open = true;
+        dialogElement.showCalls += 1;
+      },
+      close: () => {
+        dialogElement.open = false;
+        dialogElement.closeCalls += 1;
+        handlers.get("close")?.();
+      }
+    };
+    return { dialogElement, titleElement };
+  };
+
+  const createTabKeyEvent = shiftKey => ({
+    key: "Tab",
+    shiftKey,
+    defaultPrevented: false,
+    preventDefault() {
+      this.defaultPrevented = true;
+    }
+  });
+
+  // ---- 1) 打开：模态语义 + 焦点交接 ----
+  const openTrigger = createFocusableElement("打开弹窗的按钮");
+  context.document = { activeElement: openTrigger };
+  const layer = createLayerStub();
+  const firstButton = createFocusableElement("第一个");
+  const middleButton = createFocusableElement("中间");
+  const lastButton = createFocusableElement("最后");
+  const { dialogElement, titleElement } = createDialogStub(
+    [firstButton, middleButton, lastButton],
+    "客厅灯"
+  );
+  context.presentRuntimeDialog(layer, dialogElement);
+
+  check(
+    "W11 打开时标上 aria-modal 并把焦点交给弹窗（读屏才知道「弹窗出现了、背景不可用」）",
+    dialogElement.getAttribute("aria-modal") === "true" &&
+      dialogElement.showCalls === 1 &&
+      dialogElement.focusCalls === 1 &&
+      context.document.activeElement === dialogElement,
+    JSON.stringify({
+      modal: dialogElement.getAttribute("aria-modal"),
+      show: dialogElement.showCalls,
+      focus: dialogElement.focusCalls
+    })
+  );
+  check(
+    "W11 aria-labelledby 指向弹窗标题，且给标题补了唯一 id（十个弹窗共用一段代码）",
+    dialogElement.getAttribute("aria-labelledby") === titleElement.id &&
+      /^hb-runtime-dialog-title-\d+$/.test(titleElement.id),
+    JSON.stringify({ labelledby: dialogElement.getAttribute("aria-labelledby"), id: titleElement.id })
+  );
+  check(
+    "W11 弹窗自己被排除在 Tab 顺序外（tabIndex=-1，焦点只是「落上去」而不是多一个 Tab 停靠点）",
+    dialogElement.tabIndex === -1,
+    String(dialogElement.tabIndex)
+  );
+
+  // ---- 2) 第二个弹窗拿到不同的标题 id ----
+  const secondLayer = createLayerStub();
+  const secondFocusable = createFocusableElement("另一个");
+  const second = createDialogStub([secondFocusable], "影音室");
+  context.presentRuntimeDialog(secondLayer, second.dialogElement);
+  check(
+    "W11 第二个弹窗的标题 id 与第一个不同（同一个 id 会让读屏念错名字）",
+    second.titleElement.id !== titleElement.id,
+    JSON.stringify([titleElement.id, second.titleElement.id])
+  );
+
+  // ---- 3) Tab 在弹窗内首尾相接 ----
+  context.document.activeElement = lastButton;
+  const forwardTab = createTabKeyEvent(false);
+  layer.dispatchKeydown(forwardTab);
+  check(
+    "W11 焦点在最后一个控件时按 Tab 回到第一个（焦点不许跑到背后的编辑器上）",
+    forwardTab.defaultPrevented && firstButton.focusCalls === 1,
+    JSON.stringify({ prevented: forwardTab.defaultPrevented, focusCalls: firstButton.focusCalls })
+  );
+  context.document.activeElement = firstButton;
+  const backwardTab = createTabKeyEvent(true);
+  layer.dispatchKeydown(backwardTab);
+  check(
+    "W11 焦点在第一个控件时按 Shift+Tab 落到最后一个",
+    backwardTab.defaultPrevented && lastButton.focusCalls === 1,
+    JSON.stringify({
+      prevented: backwardTab.defaultPrevented,
+      focusCalls: lastButton.focusCalls
+    })
+  );
+  context.document.activeElement = middleButton;
+  const middleTab = createTabKeyEvent(false);
+  layer.dispatchKeydown(middleTab);
+  check(
+    "W11 焦点在中间时不动手（只在边界上接管，别把浏览器的默认 Tab 顺序改坏）",
+    !middleTab.defaultPrevented,
+    JSON.stringify({ prevented: middleTab.defaultPrevented })
+  );
+
+  // ---- 4) 不可用 / 不可见的控件不参与循环 ----
+  // 两层过滤各测一层：禁用由选择器排掉（`button:not([disabled])`），不可见由处理器里的
+  // `getClientRects().length` 排掉 —— 选择器管不到「没渲染出来」的元素。
+  const disabledButton = createFocusableElement("禁用的", { disabled: true });
+  const hiddenButton = createFocusableElement("隐藏的", { visible: false });
+  const onlyVisible = createFocusableElement("可见的");
+  const sparse = createDialogStub([disabledButton, hiddenButton, onlyVisible], "只剩一个");
+  context.document.activeElement = openTrigger;
+  context.presentRuntimeDialog(createLayerStub(), sparse.dialogElement);
+  check(
+    "W11 禁用控件不进焦点循环（选择器层：Tab 不许停在点不动的按钮上）",
+    !sparse.dialogElement
+      .querySelectorAll(focusableSelector)
+      .includes(disabledButton),
+    JSON.stringify(
+      sparse.dialogElement.querySelectorAll(focusableSelector).map(element => element.label)
+    )
+  );
+  const hiddenLayer = createLayerStub();
+  const hiddenMix = createDialogStub([hiddenButton, onlyVisible], "含隐藏控件");
+  context.document.activeElement = openTrigger;
+  context.presentRuntimeDialog(hiddenLayer, hiddenMix.dialogElement);
+  context.document.activeElement = onlyVisible;
+  const hiddenShiftTab = createTabKeyEvent(true);
+  hiddenLayer.dispatchKeydown(hiddenShiftTab);
+  check(
+    "W11 不可见控件不进焦点循环（处理器层：它没渲染出来，Tab 落上去等于焦点丢了）",
+    hiddenButton.focusCalls === 0 &&
+      hiddenShiftTab.defaultPrevented &&
+      context.document.activeElement === onlyVisible,
+    JSON.stringify({
+      hiddenFocusCalls: hiddenButton.focusCalls,
+      prevented: hiddenShiftTab.defaultPrevented,
+      active: context.document.activeElement?.label || "?"
+    })
+  );
+
+  // ---- 5) 循环里只剩一个控件：Tab 自己转回去，别漏到背后的编辑器 ----
+  const singleLayer = createLayerStub();
+  const single = createDialogStub([onlyVisible], "只剩一个");
+  context.document.activeElement = openTrigger;
+  context.presentRuntimeDialog(singleLayer, single.dialogElement);
+  context.document.activeElement = onlyVisible;
+  const singleTab = createTabKeyEvent(false);
+  singleLayer.dispatchKeydown(singleTab);
+  check(
+    "W11 循环里只剩一个控件时 Tab 自己转回到它（不 preventDefault 就会漏出去）",
+    singleTab.defaultPrevented && onlyVisible.focusCalls >= 1,
+    JSON.stringify({
+      prevented: singleTab.defaultPrevented,
+      focusCalls: onlyVisible.focusCalls
+    })
+  );
+
+  // ---- 6) 一个可聚焦控件都没有时把焦点留在弹窗上 ----
+  const emptyLayer = createLayerStub();
+  const empty = createDialogStub([], "纯文本提示");
+  context.document.activeElement = openTrigger;
+  context.presentRuntimeDialog(emptyLayer, empty.dialogElement);
+  const emptyTab = createTabKeyEvent(false);
+  emptyLayer.dispatchKeydown(emptyTab);
+  check(
+    "W11 弹窗里没有可聚焦控件时 Tab 被拦下并把焦点留在弹窗上（别放它去背后的编辑器）",
+    emptyTab.defaultPrevented && empty.dialogElement.focusCalls >= 2,
+    JSON.stringify({
+      prevented: emptyTab.defaultPrevented,
+      focusCalls: empty.dialogElement.focusCalls
+    })
+  );
+
+  // ---- 7) 关闭：还焦点 + 撤掉 Trap ----
+  dialogElement.close();
+  check(
+    "W11 关闭后焦点还给打开它之前那个元素（可能是另一个弹窗里的按钮）",
+    context.document.activeElement === openTrigger,
+    JSON.stringify({ active: context.document.activeElement?.label || "?" })
+  );
+  context.document.activeElement = middleButton;
+  const afterCloseTab = createTabKeyEvent(false);
+  layer.dispatchKeydown(afterCloseTab);
+  check(
+    "W11 关闭后 Trap 必须撤掉（留着的键盘监听会去动一个已经消失的弹窗）",
+    !afterCloseTab.defaultPrevented &&
+      middleButton.focusCalls === 0 &&
+      (layer.handlers.get("keydown") || []).length === 0,
+    JSON.stringify({
+      prevented: afterCloseTab.defaultPrevented,
+      focusCalls: middleButton.focusCalls,
+      remaining: layer.handlers.get("keydown")?.length || 0
+    })
+  );
+
+  // ---- 8) 打开它的那个元素已经不在了：不许抛，也不许把焦点丢给空气 ----
+  const detachedTrigger = createFocusableElement("已被移出文档的按钮");
+  detachedTrigger.isConnected = false;
+  context.document.activeElement = detachedTrigger;
+  const detachedLayer = createLayerStub();
+  const detached = createDialogStub([firstButton], "详情");
+  context.presentRuntimeDialog(detachedLayer, detached.dialogElement);
+  context.document.activeElement = firstButton;
+  let detachCloseThrew = false;
+  try {
+    detached.dialogElement.close();
+  } catch (closeError) {
+    detachCloseThrew = true;
+  }
+  check(
+    "W11 打开它的元素已被移出文档时不还焦点、也不抛（切项目 / 刷新时就是这么个时序）",
+    !detachCloseThrew && context.document.activeElement === firstButton,
+    JSON.stringify({
+      threw: detachCloseThrew,
+      active: context.document.activeElement?.label || "?"
+    })
+  );
+
+  // ---- 9) 重复打开同一个弹窗：不许再 show() 一次 ----
+  const reopenLayer = createLayerStub();
+  const reopen = createDialogStub([firstButton], "重复打开");
+  context.presentRuntimeDialog(reopenLayer, reopen.dialogElement);
+  context.presentRuntimeDialog(reopenLayer, reopen.dialogElement);
+  check(
+    "W11 已经打开的弹窗再呈现一次不会重复 show()（原生 show() 对已打开的弹窗会抛 InvalidStateError）",
+    reopen.dialogElement.showCalls === 1 &&
+      (reopenLayer.handlers.get("keydown")?.length || 0) === 1,
+    JSON.stringify({
+      showCalls: reopen.dialogElement.showCalls,
+      traps: reopenLayer.handlers.get("keydown")?.length || 0
+    })
+  );
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,
   login: runLoginSuite,
@@ -2767,6 +3112,7 @@ const suites = {
   "home-snapshot": runHomeSnapshotSuite,
   "optimistic-toggle": runOptimisticToggleSuite,
   "dialog-escape": runDialogEscapeSuite,
+  "dialog-a11y": runDialogA11ySuite,
   "interaction3d-mount": runInteraction3dMountSuite,
   "studio-conflict": runStudioConflictSuite
 };

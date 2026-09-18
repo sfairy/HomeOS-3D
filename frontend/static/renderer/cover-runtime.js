@@ -14,8 +14,8 @@
  * 本文件反向 import registry.js（为拿 coverComponentIsDream），循环依赖是既有结构，
  * 因此 here 的顶层不要执行任何依赖 registry 初始化结果的副作用。
  */
-import { coverComponentIsDream } from "./registry.js?v=20260918181612";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918181612";
+import { coverComponentIsDream } from "./registry.js?v=20260918191243";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918191243";
 /**
  * 通用「实体是否处于活动态」判定。
  *

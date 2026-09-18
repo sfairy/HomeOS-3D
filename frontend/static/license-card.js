@@ -10,10 +10,10 @@
 
 // 商品类型的中文名；"template" 类型只用于模板，不展示给用户。
 const PRODUCT_TYPE_LABELS = {
-  base: "\u4E3B\u6388\u6743",
-  module: "\u529F\u80FD\u589E\u91CF\u5305",
-  bundle: "\u5168\u6388\u6743",
-  package: "\u81EA\u5B9A\u4E49\u5957\u9910"
+  base: "主授权",
+  module: "功能增量包",
+  bundle: "全授权",
+  package: "自定义套餐"
 };
 
 /**
@@ -23,14 +23,14 @@ const PRODUCT_TYPE_LABELS = {
  * @returns {string} 「永久」「xxxx 到期」或「以商城授权记录为准」。
  */
 function formatValidity(license) {
-  if (!license) return "\u4EE5\u5546\u57CE\u6388\u6743\u8BB0\u5F55\u4E3A\u51C6";
-  if (license.expiresAt === null) return "\u6C38\u4E45";
+  if (!license) return "以商城授权记录为准";
+  if (license.expiresAt === null) return "永久";
   // 字段缺失（undefined）与 null 语义不同：前者未知，后者是永久。
-  if (!license.expiresAt) return "\u4EE5\u5546\u57CE\u6388\u6743\u8BB0\u5F55\u4E3A\u51C6";
+  if (!license.expiresAt) return "以商城授权记录为准";
   const expiresAt = new Date(license.expiresAt);
   return Number.isFinite(expiresAt.getTime())
-    ? `${expiresAt.toLocaleString("zh-CN", { hour12: !1 })} \u5230\u671F`
-    : "\u4EE5\u5546\u57CE\u6388\u6743\u8BB0\u5F55\u4E3A\u51C6";
+    ? `${expiresAt.toLocaleString("zh-CN", { hour12: !1 })} 到期`
+    : "以商城授权记录为准";
 }
 
 /**
@@ -58,9 +58,9 @@ export function licenseCardData(licenseData = {}) {
         ? licenseData.featureAccess
         : {},
     rights = [
-      { name: "HomeOS \u7F16\u8F91\u5668", enabled: isLicensed && !!featureAccess.editor },
+      { name: "HomeOS 编辑器", enabled: isLicensed && !!featureAccess.editor },
       {
-        name: "3D \u4EA4\u4E92\u529F\u80FD\u589E\u91CF\u5305",
+        name: "3D 交互功能增量包",
         enabled: isLicensed && !!featureAccess.interaction3d
       }
     ],
@@ -87,18 +87,18 @@ export function licenseCardData(licenseData = {}) {
       primaryProduct?.type === "package"
         ? typeLabels.join(" + ")
         : rights.every(rightItem => rightItem.enabled)
-          ? "\u5168\u6388\u6743"
-          : typeLabels.join(" + ") || "\u4E3B\u6388\u6743",
+          ? "全授权"
+          : typeLabels.join(" + ") || "主授权",
     name:
       products
         .map(namedProduct => namedProduct.name.trim())
         .filter(Boolean)
-        .join(" \xB7 ") || "HomeOS \u7F16\u8F91\u5668",
+        .join(" \xB7 ") || "HomeOS 编辑器",
     validity: formatValidity(primaryProduct || products[0]),
     // 多商品时才提示「以主授权期限为准」，单商品无需这句话。
     validityNote:
       products.length > 1
-        ? "\u6709\u6548\u671F\u4E3A\u4E3B\u6388\u6743\u671F\u9650\uFF0C\u9644\u52A0\u5305\u4EE5\u5404\u81EA\u6388\u6743\u671F\u9650\u4E3A\u51C6\u3002"
+        ? "有效期为主授权期限，附加包以各自授权期限为准。"
         : "",
     rights: rights
   };
@@ -128,11 +128,11 @@ export function createLicenseCard({ dialog: dialogElement }) {
           // 权益行的样式与图标 / 状态文案都由 enabled 决定，三处必须同步。
           (rightElement.classList.toggle("enabled", right.enabled),
             (rightElement.querySelector("[data-right-icon]").textContent = right.enabled
-              ? "\u2713"
-              : "\u2014"),
+              ? "✓"
+              : "—"),
             (rightElement.querySelector("[data-right-state]").textContent = right.enabled
-              ? "\u5DF2\u5F00\u901A"
-              : "\u672A\u5F00\u901A"));
+              ? "已开通"
+              : "未开通"));
         }));
     }
   };

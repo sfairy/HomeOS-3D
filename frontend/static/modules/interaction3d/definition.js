@@ -24,23 +24,23 @@
 export const INTERACTION3D_TYPE = "interaction3d",
   INTERACTION3D_FEATURE = "module.3d_interaction",
   INTERACTION3D_LIGHTING_MODES = [
-    ["standard", "\u6807\u51C6\u5149\u5F71"],
-    ["region", "\u8F7B\u91CF\u67D4\u5149"]
+    ["standard", "标准光影"],
+    ["region", "轻量柔光"]
   ],
   normalizeInteraction3dLightingMode = lightingMode =>
     lightingMode === "region" ? "region" : "standard",
   BACKGROUND_THEMES = [
-    ["grid", "\u7ECF\u5178\u7F51\u683C"],
-    ["dots", "\u5FAE\u5149\u661F\u5C18"]
+    ["grid", "经典网格"],
+    ["dots", "微光星尘"]
   ],
   normalizeBackgroundTheme = themeName =>
     themeName === "dots" || themeName === "contours" ? "dots" : "grid",
   interaction3dTemplate = {
     id: INTERACTION3D_TYPE,
     type: INTERACTION3D_TYPE,
-    name: "3D \u4EA4\u4E92",
+    name: "3D 交互",
     description:
-      "\u5728 3D \u6237\u578B\u4E2D\u67E5\u770B\u548C\u63A7\u5236\u706F\u5149\u3001\u8BBE\u5907\u3002",
+      "在 3D 户型中查看和控制灯光、设备。",
     scopes: ["page"],
     /**
      * 依据当前画布尺寸生成一个默认组件实例。
@@ -54,7 +54,7 @@ export const INTERACTION3D_TYPE = "interaction3d",
      * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
      * @returns {object} 完整的组件文档（position / properties / bindings 等已填默认值）。
      */
-    create({ id: instanceId, instanceName: displayName = "3D \u4EA4\u4E92", canvas: canvasSize }) {
+    create({ id: instanceId, instanceName: displayName = "3D 交互", canvas: canvasSize }) {
       // 画布缺省值与 preview-layout.js 中的兜底值必须一致，否则预览与真实渲染会错位。
       const canvasWidth = Number(canvasSize?.width || 2778),
         canvasHeight = Number(canvasSize?.height || 1940),

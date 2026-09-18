@@ -87,7 +87,7 @@ export function createEditorPickerElements({
    */
   function createEditorPickerCurrentIcon(
     iconName,
-    emptyIconLabel = "\u672A\u4F7F\u7528\u56FE\u6807"
+    emptyIconLabel = "未使用图标"
   ) {
     const trimmedIconName = String(iconName || "").trim(),
       currentIconElement = document.createElement("span");
@@ -176,7 +176,7 @@ export function createEditorPickerElements({
    * @returns {HTMLButtonElement} 按钮元素。
    */
   function editorPickerClearAction(
-    clearActionLabel = "\u4E0D\u4F7F\u7528\u5B9E\u4F53",
+    clearActionLabel = "不使用实体",
     isClearActionSelected = !1
   ) {
     const clearActionElement = editorPickerClearOption(clearActionLabel, isClearActionSelected);
@@ -215,7 +215,7 @@ export function createEditorPickerElements({
    */
   function createEditorPickerCurrentEntity(
     selectedEntity,
-    emptyEntityLabel = "\u672A\u9009\u62E9\u5B9E\u4F53"
+    emptyEntityLabel = "未选择实体"
   ) {
     const currentEntityElement = document.createElement("span");
     currentEntityElement.className = "editor-paged-picker-current-entity";
@@ -246,7 +246,7 @@ export function createEditorPickerElements({
    */
   function createEditorPickerCurrentAsset(
     asset,
-    emptyAssetLabel = "\u672A\u4F7F\u7528\u56FE\u7247"
+    emptyAssetLabel = "未使用图片"
   ) {
     const currentAssetElement = document.createElement("span");
     currentAssetElement.className = "editor-paged-picker-current-asset";

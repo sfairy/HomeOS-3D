@@ -174,11 +174,11 @@ export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeigh
   // 上下限与后端 panel/schema.py 的画布约束保持一致，后端也会再校验一次。
   if (!Number.isInteger(widthPx) || widthPx < 320 || widthPx > 7680)
     throw new Error(
-      "\u4EEA\u8868\u76D8\u5BBD\u5EA6\u5FC5\u987B\u4E3A 320 \u81F3 7680 \u4E4B\u95F4\u7684\u6574\u6570\u3002"
+      "仪表盘宽度必须为 320 至 7680 之间的整数。"
     );
   if (!Number.isInteger(heightPx) || heightPx < 240 || heightPx > 4320)
     throw new Error(
-      "\u4EEA\u8868\u76D8\u9AD8\u5EA6\u5FC5\u987B\u4E3A 240 \u81F3 4320 \u4E4B\u95F4\u7684\u6574\u6570\u3002"
+      "仪表盘高度必须为 240 至 4320 之间的整数。"
     );
   // 尺寸没变就直接返回副本，省掉一次全树遍历。
   if (widthPx === baseWidth && heightPx === baseHeight) return resizedDocument;

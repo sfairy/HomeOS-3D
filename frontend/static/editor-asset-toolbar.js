@@ -58,7 +58,7 @@ export function createEditorAssetToolbar({
   return function (pickerState, { toolbar: toolbarElement, controller: pickerController }) {
     const folderSelectElement = documentObject.createElement("select");
     ((folderSelectElement.className = "editor-paged-picker-folder"),
-      folderSelectElement.setAttribute("aria-label", "\u9009\u62E9\u56FE\u7247\u6587\u4EF6\u5939"),
+      folderSelectElement.setAttribute("aria-label", "选择图片文件夹"),
       folderSelectElement.addEventListener("change", () => {
         // 切文件夹属于换数据集，必须重置分页，否则会停在不存在的页码上。
         (setFolder(pickerState, folderSelectElement.value),
@@ -68,13 +68,13 @@ export function createEditorAssetToolbar({
     const deleteFolderButtonElement = documentObject.createElement("button");
     ((deleteFolderButtonElement.type = "button"),
       (deleteFolderButtonElement.className = "asset-folder-delete"),
-      (deleteFolderButtonElement.textContent = "\u5220\u9664"),
+      (deleteFolderButtonElement.textContent = "删除"),
       deleteFolderButtonElement.setAttribute(
         "aria-label",
-        "\u5220\u9664\u5F53\u524D\u81EA\u52A8\u5BFC\u56FE\u6587\u4EF6\u5939"
+        "删除当前自动导图文件夹"
       ),
       (deleteFolderButtonElement.title =
-        "\u5220\u9664\u5F53\u524D\u81EA\u52A8\u5BFC\u56FE\u6587\u4EF6\u5939"),
+        "删除当前自动导图文件夹"),
       deleteFolderButtonElement.addEventListener("click", () =>
         onDeleteFolder?.(pickerState, folderSelectElement.value)
       ));
@@ -84,7 +84,7 @@ export function createEditorAssetToolbar({
     const uploadButtonElement = documentObject.createElement("button");
     ((uploadButtonElement.type = "button"),
       (uploadButtonElement.className = "asset-upload-button"),
-      (uploadButtonElement.textContent = "\u4E0A\u4F20"),
+      (uploadButtonElement.textContent = "上传"),
       // 上传入口复用选择器自带的上传输入框，避免页面上出现多个 file input。
       uploadButtonElement.addEventListener("click", () => getUploadInput(pickerState).click()),
       toolbarElement.append(folderRowElement, uploadButtonElement),
@@ -95,7 +95,7 @@ export function createEditorAssetToolbar({
         (folderSelectElement.replaceChildren(
           ...availableFolders.map(
             optionName =>
-              new Option(optionName === "." ? "\u6839\u76EE\u5F55" : optionName, optionName)
+              new Option(optionName === "." ? "根目录" : optionName, optionName)
           )
         ),
           (folderSelectElement.value = selectedFolder),

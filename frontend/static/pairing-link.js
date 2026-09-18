@@ -20,7 +20,7 @@ export function parsePairingLink(rawLink) {
   // 超长字符串通常意味着扫到了非配对二维码，先挡掉避免后续解析开销与被撑爆的风险。
   if (String(rawLink).length > 4096)
     throw new Error(
-      "\u4E8C\u7EF4\u7801\u5185\u5BB9\u8FC7\u957F\uFF0C\u8BF7\u91CD\u65B0\u751F\u6210\u3002"
+      "二维码内容过长，请重新生成。"
     );
   const parsedUrl = new URL(rawLink),
     hashParams = new URLSearchParams(parsedUrl.hash.slice(1));
@@ -39,7 +39,7 @@ export function parsePairingLink(rawLink) {
     !/^[0-9]{6}$/.test(hashParams.get("code") || "")
   )
     throw new Error(
-      "\u914D\u5BF9\u94FE\u63A5\u65E0\u6548\uFF0C\u8BF7\u91CD\u65B0\u626B\u63CF\u7F16\u8F91\u5668\u4E2D\u7684\u4E8C\u7EF4\u7801\u3002"
+      "配对链接无效，请重新扫描编辑器中的二维码。"
     );
   return { server: parsedUrl.origin, code: hashParams.get("code") };
 }

@@ -20,8 +20,8 @@
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=20260918181612";
-import { createLightStream } from "./light-stream.js?v=20260918181612";
+} from "./popup-preview.js?v=20260918191243";
+import { createLightStream } from "./light-stream.js?v=20260918191243";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**

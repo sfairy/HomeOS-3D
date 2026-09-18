@@ -9,7 +9,7 @@
  *   都会让「点一次登录后按钮永久灰掉」——请求不返回时用户连重试都点不了。
  */
 
-import { apiFetch } from "./utils/api-fetch.js?v=20260918181612";
+import { apiFetch } from "./utils/api-fetch.js?v=20260918191243";
 
 const form = document.querySelector("#login-form"),
   message = document.querySelector("#message"),
@@ -48,7 +48,7 @@ form.addEventListener("submit", async submitEvent => {
         })
       }),
       responseBody = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(responseBody.detail || "\u767B\u5F55\u5931\u8D25\u3002");
+    if (!response.ok) throw new Error(responseBody.detail || "登录失败。");
     window.location.assign(loginDestination());
   } catch (error) {
     ((message.textContent = error.message), (message.hidden = !1));

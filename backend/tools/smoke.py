@@ -8925,6 +8925,7 @@ FRONTEND_PROBE_SUITES = {
     'home-snapshot': 'W9 草稿恢复快照的内容与失败告警（home.js）',
     'optimistic-toggle': 'W10 乐观开关的确认超时回滚与提示（renderer.js）',
     'dialog-escape': 'W12 ESC 逐层收口（renderer.js 运行时弹窗）',
+    'dialog-a11y': 'W11 运行时弹窗的模态语义与焦点（renderer.js）',
     'interaction3d-mount': 'W13 3D 运行时挂载失败的兜底（bridge.js）',
     'studio-conflict': 'W15 保存冲突的三条出路与稍后处理（studio-app.js）',
 }
@@ -9172,6 +9173,306 @@ def check_frontend_operation_feedback() -> None:
         and '"blocked-by-conflict"' in camera_view_body
         and '"failed"' in camera_view_body,
         f'body={camera_view_body if camera_view_body is None else camera_view_body[:200]!r}',
+    )
+
+
+def check_frontend_dialog_modal_semantics() -> None:
+    """W11：运行时弹窗的模态语义与焦点（行为探针 + 接线与「唯一主人」断言）。
+
+    为什么这一条不是「换个 showModal() 就完事」：弹窗层挂在画布容器里（`this.container` /
+    3D 呈现根），弹窗坐标是画布坐标。`showModal()` 会把弹窗提到顶层，于是
+    （一）在整体缩放的展示页上它脱离画布坐标系，尺寸位置走样；
+    （二）相机与实体详情那两条已有的 `::backdrop` 规则会和层自带的遮罩叠加，遮罩从 82% 变到约 97%。
+    所以这里保留 `show()` 的坐标空间，把模态该有的四件事（`aria-modal` + `aria-labelledby`、
+    焦点交接、Tab 循环、关闭还焦点）收在 `presentRuntimeDialog` 里 ——
+    「十条弹窗都走它、且没有第二条 `show()`」正是只能静态看的那一半。
+    """
+    _run_frontend_probe('dialog-a11y')
+
+    renderer_source = (FRONTEND_ROOT / 'static' / 'renderer' / 'renderer.js').read_text(encoding='utf-8')
+    present_body = _js_block_body(renderer_source, 'presentRuntimeDialog(dialogLayerElement, dialogElement)')
+    check(
+        'W11 十条运行时弹窗都走 presentRuntimeDialog（不再各自 show()）',
+        renderer_source.count('this.presentRuntimeDialog(') == 10
+        and not re.search(r'\w+DialogElement\.show\(\);', renderer_source)
+        and not re.search(r'\w+Dialog\.show\(\);', renderer_source),
+        f'助手调用={renderer_source.count("this.presentRuntimeDialog(")} '
+        f'裸 show()={len(re.findall(r"\\w+Dialog(Element)?\\.show\\(\\);", renderer_source))}',
+    )
+    check(
+        'W11 模态四件事都在同一个方法里：aria-modal / aria-labelledby / 焦点交接 / 关闭还焦点',
+        present_body is not None
+        and '"aria-modal"' in present_body
+        and '"aria-labelledby"' in present_body
+        and 'dialogElement.show();' in present_body
+        and 'dialogElement.focus(' in present_body
+        and 'previouslyFocusedElement?.isConnected' in present_body,
+        f'body={present_body if present_body is None else present_body[:200]!r}',
+    )
+    check(
+        'W11 焦点循环在关闭时被撤掉（留着的键盘监听会去动一个已经消失的弹窗）',
+        present_body is not None
+        and 'removeEventListener("keydown", focusTrapHandler)' in present_body,
+        f'关闭分支摘监听的次数={present_body.count("removeEventListener") if present_body else 0}',
+    )
+    check(
+        'W11 已打开的弹窗不再 show() 一次（原生 show() 对已打开的弹窗抛 InvalidStateError）',
+        present_body is not None and 'dialogElement.open' in present_body,
+        f'open 守卫出现次数={present_body.count("dialogElement.open") if present_body else 0}',
+    )
+    focusable_selector_match = re.search(
+        r'RUNTIME_DIALOG_FOCUSABLE_SELECTOR = \[(.*?)\]\s*\.join',
+        renderer_source,
+        re.DOTALL,
+    )
+    focusable_selector = focusable_selector_match.group(1) if focusable_selector_match else ''
+    check(
+        'W11 焦点可及性的选择器排掉禁用与 tabindex="-1"（探针的桩只认两种形态，这里看真的）',
+        bool(focusable_selector)
+        and 'button:not([disabled])' in focusable_selector
+        and 'input:not([disabled])' in focusable_selector
+        and '[tabindex]:not([tabindex="-1"])' in focusable_selector,
+        f'selector={focusable_selector!r}',
+    )
+
+def _css_rules(css_text: str) -> list[tuple[str, str]]:
+    """把 CSS 切成 ``(选择器, 声明块)`` 列表。
+
+    只取「花括号内不再有花括号」的那一层：`@media` 的头（`@media (...) {`）匹配不到，
+    它里面的规则因为选择器里不含花括号而照常单独成项 —— 因此
+    `_css_rules(_css_brace_body(css, '@media ...'))` 拿到的就是该媒体查询里的规则。
+    先剥掉注释：注释落在规则前面，会被算进「选择器」那一组，
+    于是 `.element-visibility` 这种精确匹配就永远匹配不上。
+
+    @param css_text CSS 全文。
+    @returns 规则列表（选择器已 strip，保留逗号分隔的原文）。
+    """
+    stripped = re.sub(r'/\*.*?\*/', '', css_text, flags=re.DOTALL)
+    return [
+        (match.group(1).strip(), match.group(2).strip())
+        for match in re.finditer(r'([^{}]+)\{([^{}]*)\}', stripped, re.DOTALL)
+    ]
+
+
+def _css_brace_body(css_text: str, marker: str, search_from: int = 0) -> str:
+    """取 ``marker`` 之后第一对花括号之间的内容（与 `_js_block_body` 同一套括号配平逻辑）。"""
+    return _js_block_body(css_text[search_from:], marker) or ''
+
+
+def _css_px(value: str) -> float | None:
+    """把 ``12px`` 这类长度读成数字；`%` / `auto` / 变量一律返回 None。"""
+    matched = re.match(r'^\s*(-?\d+(?:\.\d+)?)px\s*$', value or '')
+    return float(matched.group(1)) if matched else None
+
+
+def _css_hex_color(value: str) -> tuple[int, int, int] | None:
+    """把 ``#1a2026`` / ``#fff`` 读成 RGB 三元组。"""
+    matched = re.match(r'^\s*#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})\s*$', value or '')
+    if not matched:
+        return None
+    hex_text = matched.group(1)
+    if len(hex_text) == 3:
+        hex_text = ''.join(character * 2 for character in hex_text)
+    return tuple(int(hex_text[index:index + 2], 16) for index in (0, 2, 4))
+
+
+def _wcag_contrast(foreground: tuple[int, int, int], background: tuple[int, int, int]) -> float:
+    """WCAG 相对亮度对比度（1.0 ~ 21.0）。"""
+
+    def relative_luminance(color: tuple[int, int, int]) -> float:
+        channels = []
+        for channel in color:
+            ratio = channel / 255
+            channels.append(ratio / 12.92 if ratio <= 0.03928 else ((ratio + 0.055) / 1.055) ** 2.4)
+        return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+    brighter, darker = sorted((relative_luminance(foreground), relative_luminance(background)), reverse=True)
+    return (brighter + 0.05) / (darker + 0.05)
+
+
+def _css_rule_declarations(css_text: str, selector: str) -> dict[str, str]:
+    """取某个选择器（逗号分隔的任一项）命中的**全部**规则的合并声明表。
+
+    必须合并而不是取第一条：命中区那批小控件先在一个共用规则里挂 `position: relative`，
+    尺寸分别写在各自的规则里；只取第一条就会读成「没有尺寸」。
+    按出现顺序合并、后者覆盖前者，与 CSS 的层叠方向一致。
+    """
+    declarations: dict[str, str] = {}
+    for rule_selector, rule_body in _css_rules(css_text):
+        if selector in [item.strip() for item in rule_selector.split(',')]:
+            declarations.update(
+                {
+                    name.strip().lower(): value.strip()
+                    for name, _, value in (part.partition(':') for part in rule_body.split(';'))
+                    if value
+                }
+            )
+    return declarations
+
+
+def check_frontend_motion_and_target_guards() -> None:
+    """W14/W16/W17：动效减弱兜底、命中区与对比度 —— 全部按 CSS 文本算出来。
+
+    这三条都是纯样式、没有可观察的行为：动效有没有被关掉、命中区多大、颜色对比度多少，
+    读源码「看着像」是最容易骗过自己的做法。所以这里的观测量是**计算**：
+    无限动画的选择器必须逐个出现在 reduced-motion 块里、
+    命中区按 `width + 2×|inset|` 算出来必须过线、颜色按 WCAG 公式算出对比度必须过关。
+    数字写进诊断信息，改坏了能直接看出差多少。
+    """
+    studio_css = (FRONTEND_ROOT / 'static' / '3d-studio' / 'studio.css').read_text(encoding='utf-8')
+    auth_css = (FRONTEND_ROOT / 'static' / 'auth.css').read_text(encoding='utf-8')
+    app_css = (FRONTEND_ROOT / 'static' / 'app.css').read_text(encoding='utf-8')
+
+    # ---- W14：studio.css 的每一处无限动画都要有 reduced-motion 兜底 ----
+    reduced_motion_bodies = []
+    search_from = 0
+    while True:
+        marker_index = studio_css.find('@media (prefers-reduced-motion: reduce)', search_from)
+        if marker_index == -1:
+            break
+        body = _css_brace_body(studio_css, '@media (prefers-reduced-motion: reduce)', search_from)
+        if body:
+            reduced_motion_bodies.append(body)
+        search_from = marker_index + 1
+    guarded_selectors = set()
+    for body in reduced_motion_bodies:
+        for rule_selector, rule_body in _css_rules(body):
+            if 'animation' in rule_body and 'none' in rule_body:
+                guarded_selectors.update(item.strip() for item in rule_selector.split(','))
+    infinite_animation_selectors = [
+        item.strip()
+        for rule_selector, rule_body in _css_rules(studio_css)
+        if 'infinite' in rule_body and 'animation' in rule_body
+        for item in rule_selector.split(',')
+    ]
+    check(
+        'W14 studio.css 的每一处无限动画都有「减少动效」兜底（逐个选择器核对，不是抽一个代表）',
+        bool(infinite_animation_selectors)
+        and all(selector in guarded_selectors for selector in infinite_animation_selectors),
+        f'无限动画={infinite_animation_selectors}；已守卫={sorted(guarded_selectors)}',
+    )
+
+    # ---- W14：auth.css 的入场动画要「瞬间到终态」，而不是 animation: none ----
+    auth_guard_body = _css_brace_body(auth_css, '@media (prefers-reduced-motion: reduce)')
+    auth_entrance_selectors = [
+        '.home-characters.is-ready .character-purple',
+        '.home-characters.is-ready .character-dark',
+        '.home-characters.is-ready .character-orange',
+        '.home-characters.is-ready .character-yellow',
+    ]
+    guarded_entrance = [
+        selector
+        for selector, body in _css_rules(auth_guard_body)
+        for selector in (item.strip() for item in selector.split(','))
+        if selector in auth_entrance_selectors
+    ]
+    check(
+        'W14 四个入场角色都在「减少动效」块里（漏一个就会有一个角色飞进来）',
+        sorted(guarded_entrance) == sorted(auth_entrance_selectors),
+        f'已守卫={sorted(guarded_entrance)}',
+    )
+    check(
+        'W14 入场动画用 1ms 到终态而不是 animation: none（关掉动画会回落到带 skew 的静态样式，'
+        '与关键帧的 to 不等价 —— 等于顺手改了最终姿态）',
+        'animation-duration: 1ms' in auth_guard_body
+        and 'animation-delay: 0s' in auth_guard_body
+        and 'animation: none' not in auth_guard_body,
+        auth_guard_body.replace('\n', ' ')[:200],
+    )
+
+    # ---- W16：可见性按钮的命中区与隐藏态对比度 ----
+    visibility_rule = _css_rule_declarations(app_css, '.element-visibility')
+    visibility_hit_rule = _css_rule_declarations(app_css, '.element-visibility:after')
+    row_rule = _css_rule_declarations(app_css, '.element-item')
+    hit_inset = _css_px((visibility_hit_rule.get('inset') or '').split()[0]) if visibility_hit_rule else None
+    visibility_width = _css_px(visibility_rule.get('width', ''))
+    row_height = _css_px(row_rule.get('min-height', ''))
+    check(
+        'W16 可见性按钮的可点区域按 width + 2×外扩算出来过 44×44（列宽 28px 不动，只外扩）',
+        visibility_rule.get('position') == 'relative'
+        and hit_inset is not None
+        and hit_inset < 0
+        and visibility_width is not None
+        and row_height is not None
+        and visibility_width + 2 * abs(hit_inset) >= 44
+        and row_height + 2 * abs(hit_inset) >= 44,
+        f'position={visibility_rule.get("position")} width={visibility_width} '
+        f'行高={row_height} inset={hit_inset}',
+    )
+    surface_color = _css_hex_color(_css_rule_declarations(app_css, ':root').get('--surface', ''))
+    hidden_color = _css_hex_color(
+        _css_rule_declarations(app_css, '.element-visibility.hidden-element').get('color', '')
+    )
+    visible_color = _css_hex_color(visibility_rule.get('color', ''))
+    hidden_contrast = (
+        _wcag_contrast(hidden_color, surface_color)
+        if hidden_color and surface_color
+        else 0.0
+    )
+    visible_contrast = (
+        _wcag_contrast(visible_color, surface_color)
+        if visible_color and surface_color
+        else 0.0
+    )
+    check(
+        'W16 隐藏态图标的对比度过 3:1（图形对象那条线），且仍明显暗于可见态',
+        hidden_contrast >= 3.0 and hidden_contrast < visible_contrast,
+        f'隐藏态 {hidden_contrast:.2f}:1 / 可见态 {visible_contrast:.2f}:1（底色 {surface_color}）',
+    )
+
+    # ---- W17：关键控件的命中区（基础档 + 触屏/平板档） ----
+    key_control_selectors = [
+        '.element-list-tabs button',
+        '.add-element-button',
+        '.workspace-sound-toggle',
+        '.history-toolbar-button',
+        '.icon-button',
+        '.component-context-actions button',
+        '.component-label-options button',
+    ]
+    hit_rule_selectors = [
+        item.strip()
+        for rule_selector, rule_body in _css_rules(app_css)
+        if 'inset: -8px' in rule_body
+        for item in rule_selector.split(',')
+        if item.strip().endswith(':before')
+    ]
+    check(
+        'W17 七个关键控件都挂了命中区外扩（用 ::before —— active 页签的下划线占着 ::after）',
+        all(f'{selector}:before' in hit_rule_selectors for selector in key_control_selectors),
+        f'已挂={sorted(hit_rule_selectors)}',
+    )
+    undersized_controls = []
+    for selector in key_control_selectors:
+        declarations = _css_rule_declarations(app_css, selector)
+        heights = [
+            size
+            for size in (_css_px(declarations.get('height', '')), _css_px(declarations.get('min-height', '')))
+            if size is not None
+        ]
+        widths = [
+            size
+            for size in (_css_px(declarations.get('width', '')), _css_px(declarations.get('min-width', '')))
+            if size is not None and size > 0
+        ]
+        if not heights or heights[0] + 16 < 44:
+            undersized_controls.append(f'{selector} 高={heights}')
+        if widths and widths[0] + 16 < 44:
+            undersized_controls.append(f'{selector} 宽={widths}')
+    check(
+        'W17 外扩 8px 之后每个关键控件的命中区都过 44（尺寸从各自的规则里读出来算的）',
+        not undersized_controls,
+        '；'.join(undersized_controls) or f'{len(key_control_selectors)} 个控件全部过线',
+    )
+    touch_rule = _css_brace_body(app_css, '@media (max-width: 1180px), (pointer: coarse)')
+    touch_inset = None
+    for rule_selector, rule_body in _css_rules(touch_rule):
+        if rule_selector.strip().endswith(':before') and 'inset' in rule_body:
+            touch_inset = _css_px(rule_body.split('inset:', 1)[1].split(';')[0].strip())
+    check(
+        'W17 平板与触屏再放宽一档到 48（按指针判定，触屏才是「点不准」的原因）',
+        touch_inset is not None and touch_inset <= -10,
+        f'touch_inset={touch_inset} body={touch_rule[:120]!r}',
     )
 
 
@@ -9612,6 +9913,8 @@ async def run() -> int:
     check_frontend_pending_page_submits()
     check_frontend_editor_boot_and_snapshot()
     check_frontend_operation_feedback()
+    check_frontend_dialog_modal_semantics()
+    check_frontend_motion_and_target_guards()
     check_frontend_display_runtime_notice()
     check_frontend_display_notice_wiring()
     check_frontend_scripts_parse()

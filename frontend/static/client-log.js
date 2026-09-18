@@ -142,12 +142,12 @@
   // 按当前页面推断日志来源名称，后台日志列表里直接显示这四类来源。
   function currentSourceName() {
     return bridgeWindow.location.pathname.startsWith("/3d-studio")
-      ? "3D \u6237\u578B\u7F16\u8F91\u5668"
+      ? "3D 户型编辑器"
       : /^\/display\//.test(bridgeWindow.location.pathname)
-        ? "\u5C55\u793A\u8BBE\u5907"
+        ? "展示设备"
         : isPublicPage
-          ? "\u767B\u5F55\u4E0E\u914D\u5BF9\u9875\u9762"
-          : "\u4EEA\u8868\u76D8\u7F16\u8F91\u5668";
+          ? "登录与配对页面"
+          : "仪表盘编辑器";
   }
 
   // 清理过期与超量的队列项：先按时间淘汰，再按总字节数从队首丢弃。
@@ -202,8 +202,8 @@
     const eventPayload = {
       level: ["info", "success", "warning", "error"].includes(reportLevel) ? reportLevel : "error",
       source: currentSourceName(),
-      category: redactSensitive(reportCategory || "\u754C\u9762", 64),
-      message: redactSensitive(reportMessage || "\u672A\u77E5\u5F02\u5E38", 1e3) || "\u672A\u77E5\u5F02\u5E38",
+      category: redactSensitive(reportCategory || "界面", 64),
+      message: redactSensitive(reportMessage || "未知异常", 1e3) || "未知异常",
       details: redactSensitive(reportDetails, 8e3) || null,
       context: pickContext({
         userAgent: bridgeWindow.navigator?.userAgent || "",
@@ -239,8 +239,8 @@
     }
     reportEvent(
       "error",
-      "\u754C\u9762",
-      fallbackMessage || thrownValue?.message || String(thrownValue || "\u672A\u77E5\u5F02\u5E38"),
+      "界面",
+      fallbackMessage || thrownValue?.message || String(thrownValue || "未知异常"),
       extraContext,
       thrownValue?.stack || ""
     );
@@ -280,8 +280,8 @@
     return {
       level: ["warning", "error"].includes(rawEvent?.level) ? rawEvent.level : "error",
       source: redactSensitive(rawEvent?.source || currentSourceName(), 64),
-      category: redactSensitive(rawEvent?.category || "\u754C\u9762", 64),
-      message: redactSensitive(rawEvent?.message || "\u672A\u77E5\u5F02\u5E38", 1e3) || "\u672A\u77E5\u5F02\u5E38",
+      category: redactSensitive(rawEvent?.category || "界面", 64),
+      message: redactSensitive(rawEvent?.message || "未知异常", 1e3) || "未知异常",
       details: rawEvent?.details ? redactSensitive(rawEvent.details, 8e3) : null,
       context: pickContext(context),
       clientTimestamp: Number.isFinite(parsedTimestamp.getTime())
@@ -394,8 +394,8 @@
         (!fetchResponse.ok || durationMs >= 5e3) &&
           (reportEvent(
             fetchResponse.ok ? "warning" : "error",
-            "\u7F51\u7EDC\u8BF7\u6C42",
-            `${fetchResponse.ok ? "\u8BF7\u6C42\u8017\u65F6\u8F83\u957F" : "\u8BF7\u6C42\u5931\u8D25"}\uFF1A${requestInfo.method} ${requestPath}${fetchResponse.ok ? "" : `\uFF08HTTP ${fetchResponse.status}\uFF09`}`,
+            "网络请求",
+            `${fetchResponse.ok ? "请求耗时较长" : "请求失败"}：${requestInfo.method} ${requestPath}${fetchResponse.ok ? "" : `（HTTP ${fetchResponse.status}）`}`,
             {
               ...requestInfo,
               status: fetchResponse.status,
@@ -416,8 +416,8 @@
           (abortSignal?.aborted && caughtError === abortSignal.reason) ||
           (reportEvent(
             "error",
-            "\u7F51\u7EDC\u8BF7\u6C42",
-            `\u7F51\u7EDC\u8FDE\u63A5\u5931\u8D25\uFF1A${requestInfo.method} ${requestPath}`,
+            "网络请求",
+            `网络连接失败：${requestInfo.method} ${requestPath}`,
             { ...requestInfo, durationMs: Date.now() - startedAt },
             caughtError?.stack || caughtError?.message || ""
           ),
@@ -452,8 +452,8 @@
         ) {
           reportEvent(
             "error",
-            "\u8D44\u6E90\u52A0\u8F7D",
-            `\u8D44\u6E90\u52A0\u8F7D\u5931\u8D25\uFF1A${sanitizePath(failedTarget.src || failedTarget.href)}`,
+            "资源加载",
+            `资源加载失败：${sanitizePath(failedTarget.src || failedTarget.href)}`,
             {
               path: failedTarget.src || failedTarget.href,
               phase: String(failedTarget.tagName || "resource").toLowerCase()
@@ -463,7 +463,7 @@
         }
         reportError(
           errorEvent.error ||
-            new Error(errorEvent.message || "\u9875\u9762\u811A\u672C\u5F02\u5E38"),
+            new Error(errorEvent.message || "页面脚本异常"),
           {
             path: errorEvent.filename || bridgeWindow.location.pathname,
             line: errorEvent.lineno,
@@ -505,8 +505,8 @@
               ? storedEvent.level
               : "error",
             source: redactSensitive(storedEvent.source || currentSourceName(), 64),
-            category: redactSensitive(storedEvent.category || "\u754C\u9762", 64),
-            message: redactSensitive(storedEvent.message || "\u672A\u77E5\u5F02\u5E38", 1e3),
+            category: redactSensitive(storedEvent.category || "界面", 64),
+            message: redactSensitive(storedEvent.message || "未知异常", 1e3),
             details: redactSensitive(storedEvent.details, 8e3),
             context: pickContext({
               ...(storedEvent.context || {}),

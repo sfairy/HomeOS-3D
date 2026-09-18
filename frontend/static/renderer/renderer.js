@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918181612";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260918191243";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -51,9 +51,9 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260918181612";
-import { randomUuid } from "../utils/random-id.js?v=20260918181612";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260918181612";
+} from "./registry.js?v=20260918191243";
+import { randomUuid } from "../utils/random-id.js?v=20260918191243";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260918191243";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -72,11 +72,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260918181612";
+} from "./climate.js?v=20260918191243";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260918181612";
+} from "./device-profiles.js?v=20260918191243";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -85,26 +85,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260918181612";
-import { confirmAction } from "../ui-confirm.js?v=20260918181612";
+} from "../related-entities.js?v=20260918191243";
+import { confirmAction } from "../ui-confirm.js?v=20260918191243";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260918181612";
+} from "./entity-power.js?v=20260918191243";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260918181612";
-import { componentActionIsSupported } from "../action-rules.js?v=20260918181612";
+} from "../virtual-entities.js?v=20260918191243";
+import { componentActionIsSupported } from "../action-rules.js?v=20260918191243";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260918181612";
+} from "./transform-geometry.js?v=20260918191243";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -114,7 +114,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260918181612";
+} from "./effect-geometry.js?v=20260918191243";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -133,14 +133,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260918181612";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918181612";
+} from "./light-runtime.js?v=20260918191243";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918191243";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260918181612";
+} from "./vacuum-runtime.js?v=20260918191243";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -173,13 +173,13 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260918181612";
+} from "./cover-runtime.js?v=20260918191243";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260918181612";
+} from "./runtime-dialog-motion.js?v=20260918191243";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -189,13 +189,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260918181612";
+} from "./runtime-caches.js?v=20260918191243";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260918181612";
+} from "./runtime-document.js?v=20260918191243";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -291,6 +291,19 @@ const TIGHT_FILL_DIALOG_SCALE_LIMIT = 2.12;
 // 取 8 秒是「慢设备也给够余量」与「不让界面长期停在错误状态」之间的折中；
 // 这个值同时用于写下 expiresAt 与排回滚定时器，提成常量是为了不让两处各写一个 8000。
 const OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS = 8000;
+// 运行时弹窗里「会响应 Tab」的元素：disabled 与 tabindex="-1" 的不算，
+// 焦点循环就是按这份清单首尾相接的。
+const RUNTIME_DIALOG_FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])'
+].join(', ');
+// 弹窗标题 id 的自增序号 —— aria-labelledby 要的是一个稳定且唯一的 id，
+// 十个弹窗共用同一段代码，用序号区分比让每个调用点自己起名可靠。
+let runtimeDialogTitleSerial = 0;
 /**
  * 计算运行期弹窗的可用尺寸与缩放比例。
  *
@@ -8548,6 +8561,108 @@ export class PanelRenderer {
     });
   }
   /**
+   * 呈现一层运行时弹窗，并让它成为一个「真正的模态」。
+   *
+   * 为什么要自己补模态语义：原生 `<dialog>` 只有走 `showModal()` 才是模态，而这里的层
+   * 挂在画布容器里（`this.container` / 3D 呈现根），弹窗坐标是**画布坐标** ——
+   * `showModal()` 会把弹窗提到顶层（top layer），它会脱离画布坐标空间，在整体缩放的展示页上
+   * 尺寸与位置都会走样；同时相机/实体详情那两条已有的 `::backdrop` 规则会和层自带的遮罩叠加，
+   * 遮罩由 82% 变到约 97%。所以这里保留 `show()` 的坐标空间，把模态该有的四件事自己做掉：
+   *
+   * 1. `aria-modal="true"` + `aria-labelledby` 指向标题（读屏据此知道「弹窗出现了、叫什么、
+   *    背景不可用」）—— 弹窗标题一律是标题行里的 `<strong>`；
+   * 2. 打开时把焦点交给弹窗本身：读屏会念出标题，Tab 再从第一个可聚焦子项开始；
+   * 3. Tab 在弹窗内循环（首尾相接），背景控件不会被键盘走到；
+   * 4. 关闭后把焦点还给打开它之前那个元素（可能是另一个弹窗里的按钮）。
+   *
+   * 第 4 条要看 `isConnected`：关弹窗的同时文档可能已经被整份替换（切项目 / 刷新），
+   * 还焦到一个已经脱离文档的元素等于焦点掉到 `body`。
+   *
+   * @param {HTMLElement} dialogLayerElement 承载弹窗的那一层（也是 Tab 与 ESC 的监听范围）。
+   * @param {HTMLDialogElement} dialogElement 要打开的弹窗。
+   * @returns {void}
+   */
+  presentRuntimeDialog(dialogLayerElement, dialogElement) {
+    if (!dialogElement || dialogElement.open) {
+      return;
+    }
+    const previouslyFocusedElement = document.activeElement;
+    dialogElement.setAttribute("aria-modal", "true");
+    const dialogTitleElement = dialogElement.querySelector("strong");
+    if (dialogTitleElement) {
+      if (!dialogTitleElement.id) {
+        runtimeDialogTitleSerial += 1;
+        dialogTitleElement.id = "hb-runtime-dialog-title-" + runtimeDialogTitleSerial;
+      }
+      dialogElement.setAttribute("aria-labelledby", dialogTitleElement.id);
+    }
+    /**
+     * Tab 焦点循环：只在弹窗内首尾相接，别的一概不管。
+     *
+     * 可见性判定用 `getClientRects().length`：`offsetParent` 对 `position: fixed`
+     * 及其子元素恒为 null，拿它过滤会把弹窗里所有控件都当成不可见。
+     *
+     * @param {KeyboardEvent} trapKeyEvent 键盘事件。
+     * @returns {void}
+     */
+    const focusTrapHandler = trapKeyEvent => {
+      if (trapKeyEvent.key !== "Tab") {
+        return;
+      }
+      const focusableElements = Array.from(
+        dialogElement.querySelectorAll(RUNTIME_DIALOG_FOCUSABLE_SELECTOR)
+      ).filter(focusableElement => focusableElement.getClientRects().length > 0);
+      if (!focusableElements.length) {
+        trapKeyEvent.preventDefault();
+        dialogElement.focus({
+          preventScroll: true
+        });
+        return;
+      }
+      const firstFocusableElement = focusableElements[0];
+      const lastFocusableElement = focusableElements[focusableElements.length - 1];
+      const activeElementInside = dialogElement.contains(document.activeElement);
+      if (trapKeyEvent.shiftKey) {
+        if (!activeElementInside || document.activeElement === firstFocusableElement) {
+          trapKeyEvent.preventDefault();
+          lastFocusableElement.focus({
+            preventScroll: true
+          });
+        }
+        return;
+      }
+      if (!activeElementInside || document.activeElement === lastFocusableElement) {
+        trapKeyEvent.preventDefault();
+        firstFocusableElement.focus({
+          preventScroll: true
+        });
+      }
+    };
+    dialogLayerElement.addEventListener("keydown", focusTrapHandler);
+    dialogElement.addEventListener(
+      "close",
+      () => {
+        dialogLayerElement.removeEventListener("keydown", focusTrapHandler);
+        if (
+          previouslyFocusedElement?.isConnected &&
+          typeof previouslyFocusedElement.focus === "function"
+        ) {
+          previouslyFocusedElement.focus({
+            preventScroll: true
+          });
+        }
+      },
+      {
+        once: true
+      }
+    );
+    dialogElement.tabIndex = -1;
+    dialogElement.show();
+    dialogElement.focus({
+      preventScroll: true
+    });
+  }
+  /**
    * 给一层运行时弹窗挂「按 ESC 关闭」。
    *
    * 为什么必须看 `defaultPrevented`：这一层里会嵌下拉菜单与展开面板（气候模式、扩展项、
@@ -9106,7 +9221,7 @@ export class PanelRenderer {
         once: true
       }
     );
-    cameraDialogElement.show();
+    this.presentRuntimeDialog(cameraLayerElement, cameraDialogElement);
     cameraDialogElement.resizeInteraction3d?.();
   }
   /**
@@ -10144,7 +10259,7 @@ export class PanelRenderer {
         once: true
       }
     );
-    capabilityDialogElement.show();
+    this.presentRuntimeDialog(capabilityLayerElement, capabilityDialogElement);
   }
   /**
    * 打开空气净化器详情弹窗（含风量、滤芯寿命、空气质量等专有区块）。
@@ -10756,7 +10871,7 @@ export class PanelRenderer {
         once: true
       }
     );
-    purifierDialogElement.show();
+    this.presentRuntimeDialog(purifierLayerElement, purifierDialogElement);
   }
   /**
    * 打开媒体播放器详情弹窗（播放控制、进度、音源与音量）。
@@ -11205,7 +11320,7 @@ export class PanelRenderer {
         once: true
       }
     );
-    mediaPlayerDialogElement.show();
+    this.presentRuntimeDialog(mediaPlayerLayerElement, mediaPlayerDialogElement);
     speakerEntranceAnimation = playMediaSpeakerEntrance(speakerVisualElement);
   }
   /**
@@ -13867,7 +13982,7 @@ export class PanelRenderer {
         once: true
       }
     );
-    popupDialogElement.show();
+    this.presentRuntimeDialog(popupDialogLayerElement, popupDialogElement);
     this.refreshHistorySeries();
     for (const speakerVisualEntry of mediaSpeakerVisuals) {
       const speakerEntranceHandle = playMediaSpeakerEntrance(speakerVisualEntry);
@@ -17690,7 +17805,7 @@ export class PanelRenderer {
         once: true
       }
     );
-    bedDialogElement.show();
+    this.presentRuntimeDialog(bedDialogLayerElement, bedDialogElement);
     bedDialogElement.focus({
       preventScroll: true
     });
@@ -18150,7 +18265,7 @@ export class PanelRenderer {
         once: true
       }
     );
-    bedDetailsDialog.show();
+    this.presentRuntimeDialog(bedDialogLayer, bedDetailsDialog);
   }
   /**
    * 从 3D 舞台打开扫地机详情。
@@ -19284,7 +19399,7 @@ export class PanelRenderer {
         once: true
       }
     );
-    vacuumDialogElement.show();
+    this.presentRuntimeDialog(vacuumDialogLayer, vacuumDialogElement);
     vacuumDialogElement.resizeInteraction3d?.();
   }
   /**
@@ -19777,7 +19892,7 @@ export class PanelRenderer {
         once: true
       }
     );
-    presenceDialog.show();
+    this.presentRuntimeDialog(presenceDialogLayer, presenceDialog);
   }
   /**
    * 打开实体详情弹窗：按设备画像渲染相应的区块，是「更多信息」动作的落点。
@@ -21542,7 +21657,7 @@ export class PanelRenderer {
         once: true
       }
     );
-    entityDialog.show();
+    this.presentRuntimeDialog(entityDialogLayer, entityDialog);
     entityDialog.focus({
       preventScroll: true
     });

@@ -175,7 +175,7 @@
   function setRuntimePushNotice(available, message) {
     noticeRuntimeMessage = available
       ? ""
-      : String(message || "\u5B9E\u65F6\u72B6\u6001\u5DF2\u505C\u6B62\u66F4\u65B0\uFF0C\u753B\u9762\u53EF\u80FD\u4E0D\u662F\u6700\u65B0\u7684\u3002");
+      : String(message || "实时状态已停止更新，画面可能不是最新的。");
     renderNotice();
   }
 
@@ -193,7 +193,7 @@
   function showError(error, canEnter = !1) {
     // 运行期失败：数据可能已经过期，但页面还能用，不要用遮罩把整屏挡住。
     if (splashPhase === "done") {
-      setRefreshNotice(error?.message || "\u4EEA\u8868\u76D8\u66F4\u65B0\u5931\u8D25\uFF0C\u753B\u9762\u53EF\u80FD\u4E0D\u662F\u6700\u65B0\u7684\u3002");
+      setRefreshNotice(error?.message || "仪表盘更新失败，画面可能不是最新的。");
       return;
     }
     // 已是终态时忽略后续错误，防止淡出过程中被又一次失败打断。
@@ -205,7 +205,7 @@
       getSplashMessageElement() &&
         (getSplashMessageElement().textContent =
           error?.message ||
-          "\u4EEA\u8868\u76D8\u52A0\u8F7D\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u540E\u91CD\u8BD5\u3002"));
+          "仪表盘加载失败，请检查网络后重试。"));
     const actionsElement = document.getElementById("display-splash-actions");
     actionsElement && (actionsElement.hidden = !1);
     // 只有「首屏素材慢」这类非致命错误才允许跳过等待直接进入。
@@ -227,7 +227,7 @@
     const splashActionsElement = document.getElementById("display-splash-actions");
     (splashActionsElement && (splashActionsElement.hidden = !0),
       getSplashMessageElement() &&
-        (getSplashMessageElement().textContent = "\u51C6\u5907\u5C31\u7EEA"),
+        (getSplashMessageElement().textContent = "准备就绪"),
       // 两级定时：先等 250ms 让「准备就绪」可读，再加 550ms 离场动画；
       // 用户开了「减少动态效果」时两段都压到最短。
       (leaveTimer = setTimeout(
@@ -345,7 +345,7 @@
         () =>
           showError(
             new Error(
-              "\u9996\u5C4F\u7D20\u6750\u52A0\u8F7D\u8F83\u6162\uFF0C\u53EF\u4EE5\u91CD\u8BD5\uFF0C\u6216\u5148\u8FDB\u5165\u4EEA\u8868\u76D8\u3002"
+              "首屏素材加载较慢，可以重试，或先进入仪表盘。"
             ),
             !0
           ),
@@ -400,14 +400,14 @@
         (splashPhase === "loading" || splashPhase === "waiting") &&
           getSplashMessageElement() &&
           (getSplashMessageElement().textContent =
-            "\u6B63\u5728\u51C6\u5907\u4F60\u7684\u5BB6\uFF0C\u8BF7\u7A0D\u5019\u2026");
+            "正在准备你的家，请稍候…");
       }, 8e3)),
       // 45 秒（45e3）是整体兜底：超过就判定启动失败。
       (loadingTimeoutTimer = setTimeout(
         () =>
           showError(
             new Error(
-              "\u4EEA\u8868\u76D8\u52A0\u8F7D\u8D85\u65F6\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\u540E\u91CD\u8BD5\u3002"
+              "仪表盘加载超时，请检查网络后重试。"
             )
           ),
         45e3

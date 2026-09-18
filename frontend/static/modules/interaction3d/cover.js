@@ -11,8 +11,8 @@
 
 // 默认两行提示：第一行指向购买入口，第二行说明购买后的生效方式。
 const DEFAULT_COVER_MESSAGES = [
-  "\u8BF7\u79FB\u6B65\u5546\u5E97\u8D2D\u4E703D\u4EA4\u4E92\u5305",
-  "\u8D2D\u4E70\u540E\u8BF7\u91CD\u542F\u672C\u9879\u76EE"
+  "请移步商店购买3D交互包",
+  "购买后请重启本项目"
 ];
 /**
  * 替换封面上已有的提示文案。
@@ -53,7 +53,7 @@ export function createInteraction3dCover({ showTitle: isTitleVisible = !0 } = {}
   // 缩略图 URL 上的版本戳与后端静态资源缓存戳机制一致；
   // 换图后必须同步改这里，否则浏览器会一直吃旧缓存。
   ((coverImageElement.src =
-    "/static/component-thumbnails/interaction3d.png?v=20260918181612"),
+    "/static/component-thumbnails/interaction3d.png?v=20260918191243"),
     (coverImageElement.alt = ""),
     (coverImageElement.decoding = "async"));
   const titleElement = document.createElement("span");

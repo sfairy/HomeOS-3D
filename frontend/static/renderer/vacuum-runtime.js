@@ -11,7 +11,7 @@
  * 约定：位掩码取值直接沿用 HA 官方 vacuum 集成定义，硬编码在此以免与后端版本耦合。
  */
 
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918181612";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918191243";
 // HA vacuum 集成的能力位定义。数值来自官方 constant，不能改；只用到其中一部分。
 const VACUUM_FEATURE_FLAGS = Object.freeze({
   turn_on: 1,
