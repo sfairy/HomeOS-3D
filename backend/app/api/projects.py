@@ -17,6 +17,7 @@ from sqlalchemy import select, update
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
 from ..global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
 from ..models import GlobalCustomPopupState, Project, ProjectDraft
+from ..modules.interaction3d.scene_store import sweep_scenes_for_app
 from ..panel.documents import create_blank_project
 from ..panel.schema import validate_panel_document
 from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
@@ -250,6 +251,9 @@ def delete_project(project_id: str, payload: ProjectDeleteRequest, request: Requ
     request.app.state.global_log.append('warning', '仪表盘编辑器', '配置', f'已删除仪表盘：{project_name}')
     # 删了项目后实体绑定变了：放到后台任务里重算持久实体集合，不拖慢响应。
     background_tasks.add_task(request.app.state.ha_connector.refresh_persistent_entity_ids, ensure_states=False)
+    # 项目没了，它名下的户型快照可能再没人引用（B53）。放到后台任务里清理：
+    # 巡检规则统一（没人引用 + 过了保留期才删），所以这里不需要「哪些是它的」这份信息。
+    background_tasks.add_task(sweep_scenes_for_app, request.app)
 
 
 @router.get('/{project_id}/draft')

@@ -31,6 +31,7 @@ from .access import access_grant, module_components, require_access
 from .climate import require_air_conditioner_model, validate_climate_command
 from .cover import require_curtain_model, validate_cover_command
 from .render_cache import MAX_ENTRY_BYTES, cache_path, read_cache, write_cache
+from .scene_store import scenes_dir, sweep_scenes_for_app
 from starlette.concurrency import run_in_threadpool
 
 # 这个前缀必须与前端请求、舞台页注入的样式链接保持一致。
@@ -95,7 +96,7 @@ def scene_path(request: Request, scene_id: str):
     """
     if not re.fullmatch('[0-9a-f]{32}', scene_id):
         raise HTTPException(404, detail='户型快照不存在。')
-    path = request.app.state.settings.data_dir / 'modules' / 'interaction3d' / 'scenes' / f'{scene_id}.json'
+    path = scenes_dir(request.app.state.settings) / f'{scene_id}.json'
     if not path.is_file():
         raise HTTPException(404, detail='户型快照不存在，请重新载入户型。')
     return path
@@ -146,6 +147,9 @@ def snapshot_scene(request: Request, _user: LicensedUser):
     否则同一块屏刷新前后布局就变了。底图也复制一份，之后在 studio 里删掉素材
     也不影响已有快照。
 
+    落盘后顺带做一轮快照回收（见 scene_store）：冻结是低频操作，正好是清理的好时机；
+    回收只碰「没有任何仪表盘引用、且已过保留期」的快照，正在用的绝不会被删。
+
     异常:
         HTTPException: 409，草稿不存在、为空或 JSON 损坏。
     """
@@ -163,7 +167,7 @@ def snapshot_scene(request: Request, _user: LicensedUser):
         raise HTTPException(409, detail='户型暂时无法读取，请检查保存状态。') from error
     # uuid4().hex 即 32 位十六进制，天然满足 scene_path 对 sceneId 的格式校验。
     scene_id = uuid4().hex
-    folder = request.app.state.settings.data_dir / 'modules' / 'interaction3d' / 'scenes'
+    folder = scenes_dir(request.app.state.settings)
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f'{scene_id}.json'
     # 'x' 独占创建：sceneId 是新的，万一撞名也宁可报错，不覆盖已有快照。
@@ -184,6 +188,14 @@ def snapshot_scene(request: Request, _user: LicensedUser):
             continue
         # 复制成 <sceneId>-<assetId><后缀>，与快照同目录，清理场景时可一并删除。
         shutil.copyfile(asset, folder / f'{scene_id}-{asset_id}{asset.suffix.lower()}')
+    # 冻结成功后顺带回收一轮：只碰「没有任何仪表盘引用、且已过保留期」的快照。
+    # 回收失败不影响这次冻结（文件已落盘、sceneId 已经可用），但要让运维看见。
+    try:
+        sweep_scenes_for_app(request.app)
+    except Exception as error:  # noqa: BLE001 - 清理是附加工作，绝不能连累冻结本身
+        request.app.state.global_log.append(
+            'warning', '3D 舞台', '系统', f'户型快照回收失败：{error}',
+        )
     return {'sceneId': scene_id}
 
 

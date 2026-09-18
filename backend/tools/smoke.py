@@ -836,6 +836,505 @@ def check_credential_key_writes() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# B53：户型快照落盘必须有回收
+# --------------------------------------------------------------------------- #
+def _scene_id(seed: str) -> str:
+    """造一个形态合法的 sceneId（32 位十六进制），便于在断言里指名道姓。"""
+    return (seed * 32)[:32]
+
+
+def check_scene_snapshot_hooks() -> None:
+    """B53（结构面）：冻结快照与删除项目都要触发回收，回收不许连累两者。
+
+    ``snapshot_scene`` 是快照的唯一写入方，也是唯一能顺手算清「谁还被引用」的位置；
+    ``delete_project`` 是让快照失去引用的主要途径。这两处的接线一旦被后人改掉，
+    磁盘就会重新只增不减 —— 而这件事在功能上完全看不出来（舞台页照样能打开），
+    所以必须用静态断言钉住。
+    """
+    api_tree = ast.parse(
+        (PROJECT_ROOT / 'backend/app/modules/interaction3d/api.py').read_text(encoding='utf-8')
+    )
+    projects_tree = ast.parse(
+        (PROJECT_ROOT / 'backend/app/api/projects.py').read_text(encoding='utf-8')
+    )
+    store_tree = ast.parse(
+        (PROJECT_ROOT / 'backend/app/modules/interaction3d/scene_store.py').read_text(
+            encoding='utf-8'
+        )
+    )
+
+    def calls(tree: ast.AST, name: str) -> list[int]:
+        """找出所有以 ``name`` 结尾的调用所在行号。"""
+        return [
+            node.lineno
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and (
+                (isinstance(node.func, ast.Name) and node.func.id.endswith(name))
+                or (isinstance(node.func, ast.Attribute) and node.func.attr.endswith(name))
+            )
+        ]
+
+    def function(tree: ast.AST, name: str) -> ast.FunctionDef | None:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == name:
+                return node
+        return None
+
+    snapshot = function(api_tree, 'snapshot_scene')
+    snapshot_sweeps = bool(snapshot) and bool(calls(snapshot, 'sweep_scenes_for_app'))
+    check(
+        'B53 冻结快照后触发一轮回收（唯一能顺手算清引用关系的位置）',
+        snapshot_sweeps,
+        'snapshot_scene 里调用了回收' if snapshot_sweeps else 'snapshot_scene 没有触发回收',
+    )
+
+    # 回收是附加工作：失败必须记日志而不是把冻结请求带崩。
+    guarded = False
+    if snapshot is not None:
+        for node in ast.walk(snapshot):
+            if not isinstance(node, ast.Try):
+                continue
+            # 回收调用正好在这个 try 的 **body** 里（不是 except/else/finally）。
+            if any(
+                isinstance(inner, ast.Call) and calls(inner, 'sweep_scenes_for_app')
+                for statement in node.body
+                for inner in ast.walk(statement)
+            ):
+                # 且 except 里没有 re-raise（有的话等于没容错）。
+                re_raises = any(
+                    isinstance(inner, ast.Raise) and inner.exc is None
+                    for handler in node.handlers
+                    for inner in ast.walk(handler)
+                )
+                guarded = not re_raises
+    check(
+        'B53 回收失败只记日志，不让冻结请求失败（清理是附加工作）',
+        guarded,
+        'try/except 包住了回收且不重新抛出' if guarded else '回收未被容错包住',
+    )
+
+    delete_project = function(projects_tree, 'delete_project')
+    # 这里必须认「作为参数传进 add_task 的函数名」：删除项目是同步路由，
+    # 回收要排进后台任务（自己开短会话），而不是在请求里同步跑完。
+    background_task_names = [
+        argument.id
+        for node in ast.walk(delete_project or ast.Module(body=[], type_ignores=[]))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr.endswith('add_task')
+        for argument in node.args
+        if isinstance(argument, ast.Name)
+    ]
+    delete_sweeps = 'sweep_scenes_for_app' in background_task_names
+    check(
+        'B53 删除项目后回收失效快照（避免磁盘只增不减）',
+        delete_sweeps,
+        f'delete_project 排了后台任务 {background_task_names}'
+        if delete_sweeps
+        else f'delete_project 没有触发回收（后台任务只有 {background_task_names}）',
+    )
+
+    # 回收的两条硬性约束：被引用的快照绝不能删、没过保留期的不许删。
+    # 这里断言的是「删除发生在两道闸门之后」：闸门写在删除之前，才谈得上拦得住。
+    sweep = function(store_tree, 'sweep_scenes')
+    guard_lines: dict[str, int] = {}
+    if sweep is not None:
+        for node in ast.walk(sweep):
+            if not isinstance(node, ast.If):
+                continue
+            dumped = ast.dump(node.test)
+            # 闸门的形式是「命中条件 → continue」：continue 是保留分支的标记。
+            if not any(isinstance(inner, ast.Continue) for inner in node.body):
+                continue
+            if 'referenced' in dumped and 'reference' not in guard_lines:
+                guard_lines['reference'] = node.lineno
+            if 'ttl' in dumped and 'ttl' not in guard_lines:
+                guard_lines['ttl'] = node.lineno
+    delete_lines = calls(sweep, 'delete_scene_files') if sweep is not None else []
+    reference_guard = (
+        'reference' in guard_lines
+        and bool(delete_lines)
+        and min(delete_lines) > guard_lines['reference']
+    )
+    check(
+        'B53 被引用的快照一律保留（删掉正在用的 ＝ 看板黑屏）',
+        reference_guard,
+        f'引用闸门在第 {guard_lines.get("reference")} 行、删除在第 {delete_lines} 行'
+        if reference_guard
+        else '删除没有被「是否被引用」的闸门挡在后面',
+    )
+    ttl_guard = (
+        'ttl' in guard_lines
+        and bool(delete_lines)
+        and min(delete_lines) > guard_lines['ttl']
+    )
+    check(
+        'B53 未过保留期的不删（刚冻结、还没保存进仪表盘的快照要留）',
+        ttl_guard,
+        f'保留期闸门在第 {guard_lines.get("ttl")} 行、删除在第 {delete_lines} 行'
+        if ttl_guard
+        else '删除没有被保留期闸门挡在后面',
+    )
+
+
+def check_scene_snapshot_sweep() -> None:
+    """B53（行为面）：回收只删「没人引用 + 过了保留期」的快照，且底图副本一起走。
+
+    B53 的原始问题是快照目录**只有写入方、没有删除方**：studio 里每点一次「冻结」
+    就多一份 scene JSON 与几 MB 底图副本，项目删掉也不会带走它们。这里的断言覆盖
+    四种情形（有人引用 / 没人引用且新鲜 / 没人引用且过期 / 过期但删不掉），
+    确保补上的回收不会顺手删掉别人正在用的户型。
+    """
+    import os
+    from time import time
+
+    from backend.app.modules.interaction3d.scene_store import (
+        SCENE_TTL_SECONDS,
+        delete_scene_files,
+        existing_scene_ids,
+        orphan_scene_copies,
+        scene_bytes,
+        scene_files,
+        scene_folder_bytes,
+        scene_ids_in_documents,
+        sweep_scenes,
+    )
+
+    with tempfile.TemporaryDirectory(prefix='hb-b53-') as tmp:
+        folder = Path(tmp) / 'scenes'
+        folder.mkdir()
+
+        referenced = _scene_id('a')      # 有人引用：绝不删
+        fresh_unused = _scene_id('b')    # 没人引用但刚冻结：留
+        stale_unused = _scene_id('c')    # 没人引用且过期：删
+        locked_stale = _scene_id('d')    # 过期但删不掉：留着并如实统计
+
+        for scene_id in (referenced, fresh_unused, stale_unused, locked_stale):
+            (folder / f'{scene_id}.json').write_text(json.dumps({'scene': {}}), encoding='utf-8')
+        # 过期的那两个再各自带一份底图副本（几 MB 的那类文件）。
+        (folder / f'{stale_unused}-{_scene_id("e")}.png').write_bytes(b'p' * 4096)
+        (folder / f'{locked_stale}-{_scene_id("f")}.jpeg').write_bytes(b'p' * 2048)
+        # 目录里混进非快照文件（残渣、说明文件）：既不能被算成快照，也不该被删。
+        (folder / 'README.txt').write_text('说明', encoding='utf-8')
+        (folder / 'notes.json').write_text('{}', encoding='utf-8')
+
+        check(
+            'B53 目录扫描只认 sceneId 形态的文件名（不会把别的文件当快照删掉）',
+            existing_scene_ids(folder) == sorted(
+                (referenced, fresh_unused, stale_unused, locked_stale)
+            ),
+            f'扫到 {existing_scene_ids(folder)}',
+        )
+        check(
+            'B53 一个快照的体积把随它冻结的底图副本算进去',
+            scene_bytes(folder, stale_unused) == len(
+                (folder / f'{stale_unused}.json').read_bytes() + b'p' * 4096
+            ),
+            f'{stale_unused} 计得 {scene_bytes(folder, stale_unused)} 字节',
+        )
+        check(
+            'B53 快照文件集合覆盖 JSON 与全部底图副本',
+            [path.name for path in scene_files(folder, stale_unused)]
+            == [f'{stale_unused}.json', f'{stale_unused}-{_scene_id("e")}.png'],
+            f'{[path.name for path in scene_files(folder, stale_unused)]}',
+        )
+
+        before = scene_folder_bytes(folder)
+        # 时间线：两个「过期」的设成 TTL 之外，两个「新鲜」的设成刚刚冻结。
+        now = time()
+        for scene_id, age in (
+            (referenced, SCENE_TTL_SECONDS * 10),
+            (fresh_unused, 60),
+            (stale_unused, SCENE_TTL_SECONDS + 3600),
+            (locked_stale, SCENE_TTL_SECONDS + 3600),
+        ):
+            stamp = now - age
+            os.utime(folder / f'{scene_id}.json', (stamp, stamp))
+            for copy in folder.glob(f'{scene_id}-*'):
+                os.utime(copy, (stamp, stamp))
+
+        # 「删不掉」用权限模拟：把 scene JSON 所在目录设成只读在 macOS/Linux 上都
+        # 不可靠（root 会无视），所以这里直接猴补 unlink 一次，断言统计口径。
+        real_unlink = Path.unlink
+        blocked = {'count': 0}
+
+        def sometimes_blocked(self, *args, **kwargs):
+            if self.name.startswith(locked_stale):
+                blocked['count'] += 1
+                raise PermissionError(13, 'Operation not permitted')
+            return real_unlink(self, *args, **kwargs)
+
+        Path.unlink = sometimes_blocked
+        try:
+            stats = sweep_scenes(folder, {referenced}, now=now)
+        finally:
+            Path.unlink = real_unlink
+
+        check(
+            'B53 回收只删「没人引用 + 过了保留期」的快照',
+            stats['deleted'] == 1
+            and not (folder / f'{stale_unused}.json').exists()
+            and not (folder / f'{stale_unused}-{_scene_id("e")}.png').exists(),
+            f'统计 {stats}；被删的是 {stale_unused}',
+        )
+        check(
+            'B53 目录里的非快照文件不受回收影响（不误删不相干的东西）',
+            (folder / 'README.txt').is_file() and (folder / 'notes.json').is_file(),
+            'README.txt 与 notes.json 都还在',
+        )
+        check(
+            'B53 被引用的快照不论多老都保留（正在用的户型不能被回收）',
+            (folder / f'{referenced}.json').is_file() and stats['kept'] >= 2,
+            f'引用中的 {referenced} 仍在；kept={stats["kept"]}',
+        )
+        check(
+            'B53 未过保留期的快照保留（刚冻结、还没保存进仪表盘的不能删）',
+            (folder / f'{fresh_unused}.json').is_file(),
+            f'{fresh_unused} 仍在',
+        )
+        check(
+            'B53 删不掉的文件如实计入「保留」，不当成已回收（统计不骗人）',
+            (folder / f'{locked_stale}.json').is_file()
+            and blocked['count'] > 0
+            and stats['deleted'] == 1,
+            f'阻止 {blocked["count"]} 次删除；deleted={stats["deleted"]}',
+        )
+        check(
+            'B53 释放量等于被删快照（JSON 与底图副本）的实测体积',
+            stats['released'] == before - scene_folder_bytes(folder),
+            f'released={stats["released"]}，目录 {before} → {scene_folder_bytes(folder)}；'
+            f'被删的 JSON 自身 {len(json.dumps({"scene": {}}).encode())} 字节 + 底图副本 4096 字节',
+        )
+
+        check(
+            'B53 引用判定同时认 sceneId 与 sceneIds 列表（前端两种写法都要算数）',
+            scene_ids_in_documents(
+                [
+                    json.dumps({'pages': [{'panels': [{'properties': {'sceneId': referenced}}]}]}),
+                    json.dumps({'widgets': [{'properties': {'sceneIds': [fresh_unused, stale_unused]}}]}),
+                    # 坏文档不能让整轮判定失败：宁可多留一轮，也不能误删。
+                    '{ not json',
+                ]
+            )
+            == {referenced, fresh_unused, stale_unused},
+            '两种写法都收到了引用',
+        )
+
+        # 删除接口本身：单个文件删不掉不影响其余文件，也不抛异常。
+        unmovable = _scene_id('9')
+        (folder / f'{unmovable}.json').write_text('{}', encoding='utf-8')
+        (folder / f'{unmovable}-{_scene_id("8")}.png').write_bytes(b'p' * 1024)
+
+        def block_new_copy(self, *args, **kwargs):
+            """只挡住刚新建的那份底图副本，模拟「被占用/权限不足」。"""
+            if self.name.endswith(f'-{_scene_id("8")}.png'):
+                raise PermissionError(13, 'Operation not permitted')
+            return real_unlink(self, *args, **kwargs)
+
+        Path.unlink = block_new_copy
+        try:
+            released = delete_scene_files(folder, unmovable)
+        finally:
+            Path.unlink = real_unlink
+        check(
+            'B53 单个文件删不掉时跳过其余文件继续删，并且不抛异常',
+            released == len(b'{}')
+            and not (folder / f'{unmovable}.json').exists()
+            and (folder / f'{unmovable}-{_scene_id("8")}.png').is_file(),
+            f'released={released}（只算删掉的 JSON，删不掉的 1024 字节副本不计）',
+        )
+        # 收尾清掉这份故意留下副本，避免影响后面的目录统计（临时目录本会整棵删掉）。
+        real_unlink(folder / f'{unmovable}-{_scene_id("8")}.png')
+
+        # 残渣：JSON 已经不在了、只剩底图副本（delete_scene_files 部分失败留下的中间态）。
+        # 只按 *.json 巡检的话它谁也看不见，会一直躺在目录里。
+        orphan_old = _scene_id('3')
+        orphan_fresh = _scene_id('4')
+        (folder / f'{orphan_old}-{_scene_id("0")}.png').write_bytes(b'p' * 512)
+        (folder / f'{orphan_fresh}-{_scene_id("0")}.png').write_bytes(b'p' * 512)
+        # now 是本函数上面按「TTL 之外」定好的时间戳，拿它把残渣也设成过期。
+        old_stamp = now - SCENE_TTL_SECONDS * 2
+        os.utime(folder / f'{orphan_old}-{_scene_id("0")}.png', (old_stamp, old_stamp))
+        # 有引用但 JSON 缺失的场景，其副本必须原样留着（先让人看清楚，别顺手清证据）。
+        referenced_missing = _scene_id('6')
+        (folder / f'{referenced_missing}-{_scene_id("0")}.png').write_bytes(b'p' * 256)
+        os.utime(folder / f'{referenced_missing}-{_scene_id("0")}.png', (old_stamp, old_stamp))
+        check(
+            'B53 只按 *.json 巡检看不见的副本残渣会被单独认出（否则它永远躺在目录里）',
+            [path.name for path in orphan_scene_copies(folder)]
+            == sorted(
+                [
+                    f'{orphan_fresh}-{_scene_id("0")}.png',
+                    f'{orphan_old}-{_scene_id("0")}.png',
+                    f'{referenced_missing}-{_scene_id("0")}.png',
+                ]
+            ),
+            f'{sorted(path.name for path in orphan_scene_copies(folder))}',
+        )
+
+        residue = sweep_scenes(folder, {referenced, referenced_missing}, now=time())
+        check(
+            'B53 过期的副本残渣被清掉、新鲜的不动',
+            not (folder / f'{orphan_old}-{_scene_id("0")}.png').exists()
+            and (folder / f'{orphan_fresh}-{_scene_id("0")}.png').is_file(),
+            f'统计 {residue}',
+        )
+        check(
+            'B53 有引用的场景即使 JSON 缺失也不动它的副本（先看清原因，不顺手清证据）',
+            (folder / f'{referenced_missing}-{_scene_id("0")}.png').is_file(),
+            f'{referenced_missing} 的副本仍在',
+        )
+
+
+async def check_scene_snapshot_route() -> None:
+    """B53（端到端）：真的调一次冻结接口，验证「冻结顺手回收」整条链路是通的。
+
+    前面两条断言分别只看结构与纯函数；这条把真正装配起来的路由跑一遍，钉住三件
+    只有在真实请求里才会暴露的事：
+
+    1. ``sweep_scenes_for_app`` 自己开短会话算引用关系（不是复用请求会话）；
+    2. 冻结出来的快照连同底图副本都落了盘（回收将来要能一起删掉）；
+    3. 顺带那轮回收确实生效：老的、没人引用的被删，老的、有引用的留下。
+    """
+    import os
+    from datetime import datetime, timedelta, timezone
+
+    from fastapi import FastAPI
+
+    from backend.app.database import Base, Database
+    from backend.app.dependencies import licensed_user
+    from backend.app.models import Project, ProjectDraft, User
+    from backend.app.modules.interaction3d import api as scene_api
+
+    class RecordingLog:
+        """global_log 桩：只记下有没有出现过 warning，用来断言回收没炸。"""
+
+        def __init__(self) -> None:
+            self.entries: list[tuple[str, str, str, str]] = []
+
+        def append(self, level, source, category, message, **_kwargs) -> None:
+            self.entries.append((level, source, category, message))
+
+    async def freeze(app) -> httpx.Response:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url='http://homeos.test') as client:
+            return await client.post('/modules/interaction3d/scenes')
+
+    with tempfile.TemporaryDirectory(prefix='hb-b53-route-') as tmp:
+        root = Path(tmp)
+        data_dir = root / 'data'
+        assets = data_dir / 'user-assets'
+        asset_id = _scene_id('1')
+        asset_dir = assets / asset_id
+        asset_dir.mkdir(parents=True)
+        # user_asset_file 要求一个素材目录里恰好一个图片文件。
+        (asset_dir / 'floor-plan.png').write_bytes(b'\x89PNG\r\n\x1a\n' + b'p' * 64)
+
+        draft_path = data_dir / 'studio3d' / 'draft.json'
+        draft_path.parent.mkdir(parents=True, exist_ok=True)
+        draft_path.write_text(
+            json.dumps(
+                {
+                    'scene': {
+                        'floors': [
+                            {'scene': {'background': {'assetId': f'user:{asset_id}'}}},
+                        ]
+                    }
+                }
+            ),
+            encoding='utf-8',
+        )
+
+        settings = SimpleNamespace(
+            data_dir=data_dir,
+            user_assets_dir=assets,
+            studio3d_draft_path=draft_path,
+            license_required=False,
+        )
+        database = Database(f'sqlite:///{root / "app.db"}')
+        Base.metadata.create_all(database.engine)
+
+        # 老的、仍被仪表盘引用的快照：冻结时那轮回收绝不能碰它。
+        referenced_old = _scene_id('7')
+        referenced_doc = {
+            'pages': [
+                {
+                    'panels': [
+                        {'type': 'interaction3d', 'properties': {'sceneId': referenced_old}}
+                    ]
+                }
+            ]
+        }
+        with database.session_factory() as session:
+            session.add(User(id='u1', username='admin', password_hash='x', role='admin'))
+            session.commit()
+        # 分两次提交：模型之间没有 relationship，同一个 unit of work 里不保证先插 User。
+        with database.session_factory() as session:
+            session.add(Project(id='proj-1', name='示例', slug='proj-1', created_by='u1'))
+            session.add(
+                ProjectDraft(
+                    project_id='proj-1',
+                    updated_by='u1',
+                    document_json=json.dumps(referenced_doc),
+                )
+            )
+            session.commit()
+
+        app = FastAPI()
+        app.include_router(scene_api.router)
+        app.state.settings = settings
+        app.state.database = database
+        # 授权门禁只管「买没买」，与本次断言无关：一律放行。
+        app.state.license_service = SimpleNamespace(
+            allows=lambda code, database=None: True
+        )
+        app.state.global_log = RecordingLog()
+        # LicensedUser 是 Annotated[User, Depends(licensed_user)]，覆盖要落在底层函数上。
+        app.dependency_overrides[licensed_user] = lambda: SimpleNamespace(id='u1')
+
+        folder = data_dir / 'modules' / 'interaction3d' / 'scenes'
+        # 先铺两个「很久以前冻结」的快照：一个没人引用（该被回收），一个有引用（必须留）。
+        stale_unused = _scene_id('5')
+        old_stamp = (datetime.now(timezone.utc) - timedelta(days=40)).timestamp()
+        for scene_id in (stale_unused, referenced_old):
+            folder.mkdir(parents=True, exist_ok=True)
+            (folder / f'{scene_id}.json').write_text(json.dumps({'scene': {}}), encoding='utf-8')
+            (folder / f'{scene_id}-{_scene_id("2")}.png').write_bytes(b'p' * 2048)
+            for path in folder.glob(f'{scene_id}*'):
+                os.utime(path, (old_stamp, old_stamp))
+
+        response = await freeze(app)
+        payload = response.json() if response.status_code == 201 else {}
+        scene_id = payload.get('sceneId', '')
+        check(
+            'B53 冻结接口把快照与底图副本一起落盘',
+            response.status_code == 201
+            and (folder / f'{scene_id}.json').is_file()
+            and (folder / f'{scene_id}-{asset_id}.png').is_file(),
+            f'{response.status_code}；sceneId={scene_id}；'
+            f'目录={sorted(path.name for path in folder.iterdir())}',
+        )
+        check(
+            'B53 冻结时顺带回收了过期的无引用快照（端到端接线生效）',
+            not (folder / f'{stale_unused}.json').exists()
+            and not (folder / f'{stale_unused}-{_scene_id("2")}.png').exists(),
+            f'过期的 {stale_unused} 已被回收',
+        )
+        check(
+            'B53 端到端回收没有误伤仍被仪表盘引用的老快照',
+            (folder / f'{referenced_old}.json').is_file()
+            and (folder / f'{referenced_old}-{_scene_id("2")}.png').is_file(),
+            f'引用中的 {referenced_old} 仍在',
+        )
+        check(
+            'B53 端到端回收成功时不写「回收失败」告警（只在真失败时可见）',
+            not [entry for entry in app.state.global_log.entries if entry[0] == 'warning'],
+            f'日志 {app.state.global_log.entries}',
+        )
+
+
+# --------------------------------------------------------------------------- #
 # 自检自身
 # --------------------------------------------------------------------------- #
 def check_every_check_is_wired() -> None:
@@ -843,17 +1342,26 @@ def check_every_check_is_wired() -> None:
 
     与 ``store/tools/smoke.py`` 的同名检查同一理由：写完一条断言却忘了接进
     :func:`run`，输出照旧全绿，而那条从未执行过。
+
+    必须同时认 ``AsyncFunctionDef``：媒体代理那条检查是 ``async def``，
+    只看 ``FunctionDef`` 的话它根本不在清单里 —— 一条「从未执行过也没人发现」的
+    检查，恰好会从这个检查自己的漏洞里溜过去。
     """
     tree = ast.parse(Path(__file__).read_text(encoding='utf-8'))
     definitions = {
         node.name
-        for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name.startswith('check_')
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name.startswith('check_')
+        and node.col_offset == 0
     }
     referenced = {
         child.id
         for node in tree.body
-        if not (isinstance(node, ast.FunctionDef) and node.name in definitions)
+        if not (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name in definitions
+        )
         for child in ast.walk(node)
         if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load)
     }
@@ -874,6 +1382,9 @@ async def run() -> int:
     check_forwarded_allow_ips_defaults()
     check_client_ip_spoofing_invariant()
     check_credential_key_writes()
+    check_scene_snapshot_hooks()
+    check_scene_snapshot_sweep()
+    await check_scene_snapshot_route()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]
