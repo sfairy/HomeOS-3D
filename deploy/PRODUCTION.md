@@ -23,6 +23,12 @@
 #       参考 deploy/Caddyfile.example 或 deploy/nginx.conf.example
 #       转发 WebSocket：/api/v1/ws/runtime
 #       媒体：/api/hls/ 、/api/camera_proxy/
+#       反代就要显式告诉主应用「谁可以改来源地址」：
+#         UVICORN_FORWARDED_ALLOW_IPS=<反代地址或网段，例如 172.17.0.1>
+#       默认只信回环（127.0.0.1,::1）。若在这里填 *，登录限流、配对码枚举预算
+#       与审计里的来源 IP 会全部变成「客户端自己说了算」（启动时会告警）。
+#       不填也不会漏 IP：uvicorn 不改写对端，一律按 TCP 对端统计 —— 只是拿不到
+#       反代后面的真实客户端地址。
 #
 # [ ] 5. 商店后台
 #       打开 https://pay.example.com/admin

@@ -56,7 +56,11 @@ services:
       APP_CLIENT_KEYS_DIR: /data/keys
       # 默认走 compose 内网；独立授权域名时在 .env 覆盖
       APP_LICENSE_SERVER_URL: ${APP_LICENSE_SERVER_URL:-http://homeos-3d-store:18082}
-      UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-*}
+      # uvicorn 的转发头信任范围。默认只信回环：本服务把 18081 发布到宿主机，任何
+      # 直连的客户端都能自己写 X-Forwarded-For，一旦放开成 *，登录限流、配对码枚举
+      # 预算与审计来源 IP 就都成了「客户端自己说了算」。前面有反代时填代理地址/网段
+      # （例如宿主机的 172.17.0.1，或反代容器所在网段），不要用 *。
+      UVICORN_FORWARDED_ALLOW_IPS: ${UVICORN_FORWARDED_ALLOW_IPS:-127.0.0.1,::1}
     volumes:
       - homeos-3d-data:/data
       - homeos-3d-client-keys:/data/keys:ro

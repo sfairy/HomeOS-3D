@@ -28,6 +28,43 @@ from .config import Settings
 #: 转发头：出现任一即说明「前面还有代理」。用于提示运维去配 APP_TRUSTED_PROXIES。
 FORWARDED_HEADERS = ('x-forwarded-for', 'x-forwarded-proto', 'x-real-ip', 'forwarded')
 
+#: uvicorn 的 ``--forwarded-allow-ips`` 里，这些写法等同于「任何对端都可以自称客户端」。
+#:
+#: 要把它和本模块的 ``APP_TRUSTED_PROXIES`` 区分开：两者是**两层独立配置**。
+#: uvicorn 那一层决定 ``scope["client"]`` 会不会被 ``X-Forwarded-For`` 改写，而本模块
+#: 的全部判断都建立在「``request.client`` 是真实对端、客户端伪造不了」之上。一旦
+#: uvicorn 放开成通配，这一层前提就没了：攻击者给每个请求换一个 XFF 值，登录暴力
+#: 破解预算、配对码枚举预算与审计里的来源 IP 会同时失效（等于没有预算）；还能把
+#: 对端伪装成可信代理网段内的地址，把本模块的整条解析规则也一起接管。
+WILDCARD_FORWARDED_ALLOW_IPS = frozenset({'*', '0.0.0.0/0', '::/0'})
+
+
+def unsafe_forwarded_allow_ips(value: str | None) -> bool:
+    """``--forwarded-allow-ips`` 的取值是否等于「谁的转发头都信」。
+
+    支持逗号分隔的列表形态（``127.0.0.1,*`` 这种混写同样算不安全）。
+    """
+    return any(
+        piece.strip() in WILDCARD_FORWARDED_ALLOW_IPS
+        for piece in str(value or '').split(',')
+    )
+
+
+def forwarded_allow_ips_warning(value: str | None) -> str:
+    """取值会破坏来源地址可信性时给出告警文案；安全取值返回空串。
+
+    调用方有两处，用的是同一份文案：容器启动器（uvicorn 起来之前就喊）与主应用
+    lifespan（写进全局日志，让只看管理界面的运维也能看到）。
+    """
+    if not unsafe_forwarded_allow_ips(value):
+        return ''
+    return (
+        f'UVICORN_FORWARDED_ALLOW_IPS={str(value).strip()!r} 等于信任任何对端的转发头：'
+        'uvicorn 会据此改写对端地址，于是登录限流、配对码枚举预算与审计里的来源 IP '
+        '都能被逐个请求伪造，等于没有预算。默认只该信任回环（127.0.0.1,::1）；'
+        '前面确实有反向代理时，请填该代理自身的地址或它所在的网段。'
+    )
+
 
 @lru_cache(maxsize=32)
 def parse_trusted_proxies(values: tuple[str, ...]) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:

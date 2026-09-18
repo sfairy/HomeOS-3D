@@ -12,6 +12,15 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from docker.license_keys import apply_client_key_env  # noqa: E402
+from backend.app.http_security import (  # noqa: E402  (必须晚于 sys.path 注入)
+    forwarded_allow_ips_warning,
+)
+
+#: 默认只信任回环：容器里没有反向代理时，TCP 对端就是客户端本人，任何人都伪造不了
+#: ``X-Forwarded-For``。前面真有反代（宿主机 nginx / 另一个容器）时，必须由运维显式
+#: 写成那个代理的地址或网段 —— 不能用 ``*`` 图省事，那等于把「来源地址」交给客户端自己填
+#: （见 ``unsafe_forwarded_allow_ips``）。
+DEFAULT_FORWARDED_ALLOW_IPS = '127.0.0.1,::1'
 
 
 def wait_for_client_keys(client_keys_dir: Path, timeout_seconds: float = 120.0) -> None:
@@ -49,6 +58,16 @@ def main() -> None:
     wait_for_client_keys(client_keys_dir)
     environment = apply_client_key_env(environment, client_keys_dir)
 
+    # 转发头信任范围：默认回环，只有显式配置才放宽。取成通配时在 uvicorn 起来之前
+    # 就喊出来 —— 那一刻还没有全局日志，只能用 stderr（docker logs 里看得到）。
+    forwarded_allow_ips = (
+        environment.get('UVICORN_FORWARDED_ALLOW_IPS', '').strip() or DEFAULT_FORWARDED_ALLOW_IPS
+    )
+    environment['UVICORN_FORWARDED_ALLOW_IPS'] = forwarded_allow_ips
+    forwarded_warning = forwarded_allow_ips_warning(forwarded_allow_ips)
+    if forwarded_warning:
+        print(f'警告：{forwarded_warning}', file=sys.stderr, flush=True)
+
     print(f"HomeOS 主应用  http://0.0.0.0:{app_port}/setup", flush=True)
     print(f"授权服务器      {environment['APP_LICENSE_SERVER_URL']}", flush=True)
 
@@ -67,7 +86,7 @@ def main() -> None:
             app_port,
             "--proxy-headers",
             "--forwarded-allow-ips",
-            environment.get("UVICORN_FORWARDED_ALLOW_IPS", "*"),
+            forwarded_allow_ips,
         ],
     )
 

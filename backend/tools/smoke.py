@@ -521,6 +521,149 @@ def check_hls_stream_registration() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# B51：转发头的信任范围（对端可伪造）
+# --------------------------------------------------------------------------- #
+def check_forwarded_allow_ips_defaults() -> None:
+    """B51：默认不许「谁的转发头都信」，且通配要能被认出来并告警。
+
+    两道门一起守：``unsafe_forwarded_allow_ips`` 是识别，两个默认值（compose 与
+    容器启动器）是实际下发的取值。以前默认是 ``*``，而 compose 又把 18081 发布到
+    宿主机上，所以「直连 + 自己写 X-Forwarded-For」根本不需要任何前置条件。
+    """
+    import re
+
+    from backend.app.http_security import (
+        forwarded_allow_ips_warning,
+        unsafe_forwarded_allow_ips,
+    )
+
+    unsafe_values = ('*', '0.0.0.0/0', '::/0', '127.0.0.1,*', ' *, 10.0.0.1')
+    safe_values: tuple[str | None, ...] = (
+        '',
+        None,
+        '127.0.0.1,::1',
+        '10.0.0.0/8',
+        '172.17.0.1',
+    )
+    wrong = [value for value in unsafe_values if not unsafe_forwarded_allow_ips(value)]
+    wrong += [value for value in safe_values if unsafe_forwarded_allow_ips(value)]
+    check(
+        'B51 通配取值（含逗号混写）能被识别，正常网段不被误判',
+        not wrong,
+        f'判错的取值：{wrong}',
+    )
+    check(
+        'B51 通配取值会给出可读告警（不是静默接受）',
+        bool(forwarded_allow_ips_warning('*'))
+        and not forwarded_allow_ips_warning('127.0.0.1,::1'),
+        f'通配告警={forwarded_allow_ips_warning("*")[:40]!r}',
+    )
+
+    compose_text = (PROJECT_ROOT / 'docker-compose.yml').read_text(encoding='utf-8')
+    matched = re.search(
+        r'UVICORN_FORWARDED_ALLOW_IPS:\s*\$\{UVICORN_FORWARDED_ALLOW_IPS:-([^}]*)\}',
+        compose_text,
+    )
+    compose_default = matched.group(1).strip() if matched else ''
+    check(
+        'B51 compose 的默认转发头信任范围不是通配',
+        bool(matched) and not unsafe_forwarded_allow_ips(compose_default),
+        f'默认值={compose_default!r}',
+    )
+
+    from docker.start_app import DEFAULT_FORWARDED_ALLOW_IPS
+
+    check(
+        'B51 容器启动器的默认转发头信任范围不是通配（独立于 compose 生效）',
+        bool(DEFAULT_FORWARDED_ALLOW_IPS)
+        and not unsafe_forwarded_allow_ips(DEFAULT_FORWARDED_ALLOW_IPS),
+        f'默认值={DEFAULT_FORWARDED_ALLOW_IPS!r}',
+    )
+
+    main_tree = ast.parse((PROJECT_ROOT / 'backend' / 'app' / 'main.py').read_text(encoding='utf-8'))
+    wired = any(
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == 'forwarded_allow_ips_warning'
+        for node in ast.walk(main_tree)
+    )
+    check(
+        'B51 启动时把这条告警写进全局日志（只看管理界面的运维也看得到）',
+        wired,
+        f'main.py 里的调用点 {1 if wired else 0} 处',
+    )
+
+
+def check_client_ip_spoofing_invariant() -> None:
+    """B51：这道修复保护的不变量 —— 对端不可信时，转发头一律不算数。
+
+    之所以要单独钉住它：``http_security.py`` 的全部判断都建立在「``request.client``
+    是真实 TCP 对端」之上，而这句话只在 uvicorn 没有放开 ``--forwarded-allow-ips``
+    时成立。把这几个用例写下来，将来有人「顺手让 resolve_client_ip 也认转发头」时
+    会立刻变红。
+    """
+    from starlette.requests import Request
+
+    from backend.app.http_security import resolve_client_ip
+
+    def make_request(peer: str, forwarded: str, trusted: tuple[str, ...]) -> Request:
+        scope = {
+            'type': 'http',
+            'method': 'GET',
+            'path': '/',
+            'query_string': b'',
+            'scheme': 'http',
+            'server': ('store.test', 80),
+            'headers': [(b'x-forwarded-for', forwarded.encode())],
+            'client': (peer, 4321),
+            'app': SimpleNamespace(
+                state=SimpleNamespace(
+                    settings=SimpleNamespace(trusted_proxies=trusted),
+                )
+            ),
+        }
+        return Request(scope)
+
+    # 1) 没配可信代理：转发头完全不参与判断。
+    address = resolve_client_ip(make_request('203.0.113.9', '10.0.0.1', ()))
+    check(
+        'B51 未配置可信代理时忽略 X-Forwarded-For（伪造换不来新的限流桶）',
+        address.ip == '203.0.113.9' and not address.via_proxy,
+        f'ip={address.ip!r} via_proxy={address.via_proxy}',
+    )
+
+    # 2) 配了可信代理，但这条连接不是来自它：同样忽略。
+    address = resolve_client_ip(make_request('203.0.113.9', '10.0.0.1', ('10.0.0.0/8',)))
+    check(
+        'B51 连接不是来自可信代理时同样忽略转发头',
+        address.ip == '203.0.113.9' and not address.via_proxy,
+        f'ip={address.ip!r} via_proxy={address.via_proxy}',
+    )
+
+    # 3) 连接确实来自可信代理：从右往左跳过可信段，取第一个不可信地址。
+    address = resolve_client_ip(
+        make_request('10.0.0.5', '203.0.113.9, 10.0.0.5', ('10.0.0.0/8',))
+    )
+    check(
+        'B51 连接确来自可信代理时才采信转发链（取自右往左第一个不可信地址）',
+        address.ip == '203.0.113.9' and address.via_proxy,
+        f'ip={address.ip!r} via_proxy={address.via_proxy}',
+    )
+
+    # 4) 上面三条的前提是「对端地址本身不可伪造」。这条用例把前提写成断言：对端一旦
+    #    能被伪造成可信代理网段内的地址，来源 IP 就完全由客户端给的转发头决定 ——
+    #    这正是 uvicorn ``--forwarded-allow-ips=*`` 会造成的结果。
+    address = resolve_client_ip(
+        make_request('10.0.0.5', '192.0.2.7, 10.0.0.5', ('10.0.0.0/8',))
+    )
+    check(
+        'B51 可信代理判定依赖「对端不可伪造」这一前提（uvicorn 放开通配即失效）',
+        address.ip == '192.0.2.7',
+        f'ip={address.ip!r}（这条断言是在文档化前提，不是漏洞）',
+    )
+
+
+# --------------------------------------------------------------------------- #
 # 自检自身
 # --------------------------------------------------------------------------- #
 def check_every_check_is_wired() -> None:
@@ -556,6 +699,8 @@ async def run() -> int:
     check_media_proxy_entity_parsing()
     check_media_routes_carry_scope()
     check_hls_stream_registration()
+    check_forwarded_allow_ips_defaults()
+    check_client_ip_spoofing_invariant()
     check_every_check_is_wired()
 
     failures = [name for name, ok, _ in RESULTS if not ok]

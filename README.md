@@ -203,6 +203,11 @@ APP_DATA_DIR=./data PYTHONPATH=backend/app alembic upgrade head
 - **配了可信代理**（逗号分隔的 IP / CIDR）后，仍只在这条连接确实来自代理时，才从转发链里
   取真实来源。代理没传转发头时地址是共享的，按 IP 那一档限流会主动让位 —— 否则任何一个人
   失败几次就会锁掉所有人。
+- **还有一层在 uvicorn 上**：`--forwarded-allow-ips` 决定 uvicorn 会不会拿 `X-Forwarded-For`
+  改写对端地址，而上面两条规则的前提正是「对端不可伪造」。容器启动器与 Compose 的默认值是
+  `127.0.0.1,::1`（只信回环）；万一配成 `*`，容器启动与主应用启动都会告警，因为这个取值会让
+  登录限流、配对码枚举预算与审计来源 IP 同时变成「客户端自己说了算」。前面确有反向代理时，
+  把 `UVICORN_FORWARDED_ALLOW_IPS` 填成**代理自身的地址或网段**，不要用 `*`。
 - 检测到转发头却没配可信代理时，启动日志会警告一次（只记一次，避免刷屏）。
 
 ### 会话与 Cookie
@@ -538,6 +543,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `APP_BASE_URL` | 空 | 主应用对外根地址；反代时建议设置，供 WebSocket 校验 Origin |
 | `APP_LICENSE_SERVER_URL` | 本地 `http://127.0.0.1:18082`；Compose 默认 `http://homeos-3d-store:18082` | 授权服务器地址；同 Compose 网络通常不用改 |
 | `APP_TRUSTED_PROXIES` | 空 | 可信反向代理 IP / CIDR（逗号分隔）；留空则不信任任何转发头 |
+| `UVICORN_FORWARDED_ALLOW_IPS` | `127.0.0.1,::1`（Compose 与容器启动器） | uvicorn 允许改写对端地址的来源范围。**不要填 `*`**：那会让限流与审计的来源 IP 由客户端自己决定；前面有反代时填代理自身地址/网段 |
 | `APP_COOKIE_SECURE` | `false` | 强制会话 Cookie 加 `Secure`；不设时按请求自动判定 https |
 | `STORE_BASE_URL` | 由请求推导 | 商店对外基址（支付二维码 / 回调链接） |
 | `STORE_TRUSTED_PROXIES` | 空 | 商店侧可信反代，语义同主应用 |

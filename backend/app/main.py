@@ -46,6 +46,7 @@ from .config import Settings, load_settings
 from .database import Database
 from .ha.service import HAConnectorService
 from .http_security import (
+    forwarded_allow_ips_warning,
     forwarded_headers_present,
     parse_trusted_proxies,
     same_origin_request,
@@ -109,6 +110,19 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             # 代理信任范围是安全配置：解析不了的值必须当场炸掉，不能静默退化成
             # 「谁也不信」（那会让限流悄悄按代理地址统计，等于所有人共用一个桶）。
             trusted_proxies = parse_trusted_proxies(tuple(app_settings.trusted_proxies))
+            # uvicorn 那一层的信任范围由启动器透传进来（见 docker/start_app.py）。
+            # 它是「对端不可伪造」这条前提的第一层：通配时本模块的所有判断都不再成立，
+            # 所以只记警告不够，还要同时写到 stderr —— 只在 docker logs 里看启动输出
+            # 的运维也得看得到。
+            allow_ips_warning = forwarded_allow_ips_warning(
+                os.environ.get('UVICORN_FORWARDED_ALLOW_IPS')
+            )
+            if allow_ips_warning:
+                app.state.global_log.append('warning', '系统后台', '配置', allow_ips_warning)
+                try:
+                    sys.stderr.write(f'{allow_ips_warning}\n')
+                except OSError:
+                    pass
             if not trusted_proxies and (app_settings.app_base_url.startswith('https://')):
                 # 最常见的错配：HTTPS 反代后面却没配可信代理 —— 于是限流、审计里的
                 # 客户端 IP 全是代理地址，且带转发头的请求还会被当成「本机直连」之外的
