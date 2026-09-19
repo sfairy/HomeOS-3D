@@ -182,10 +182,18 @@ const RULES = {
  *
  *   - `sourceType: "script"`：这些文件里写 `import` / `export` 是解析错误（它们不是模块），
  *     由 eslint 直接把这一条钉住；
- *   - `no-unused-vars` 只查**函数内**的声明（`vars: "local"`）：经典脚本的顶层声明就是
- *     跨文件全局（`HtmlSafe` 定义在 htmlsafe.js、`ApiError` 定义在 api-error.js），
- *     静态判据看不见别的文件里的消费方 —— 让它在顶层报红的唯一后果是逼人写豁免。
- *     顶层死代码仍然由这条闸的结论去人工清点（本批清了 store.js 的 `availablePrimaryProducts`）。
+ *   - `no-unused-vars` 与 frontend 那块用同一份参数（`vars` 取默认的 `"all"`，即**顶层也查**）：
+ *     接入当天这里刻意收窄成 `vars: "local"`，理由是「经典脚本的顶层声明就是跨文件全局
+ *     （`HtmlSafe` 定义在 htmlsafe.js、`ApiError` 定义在 api-error.js），静态判据看不见
+ *     别的文件里的消费方，报红的唯一后果是逼人写豁免」。P12 收口量过之后这条顾虑不成立：
+ *     把参数放宽到 `"all"` 跑一遍，**6 个文件 0 条发现** —— 上面那两个跨文件全局在自己的
+ *     文件里也都有消费方（`global.HtmlSafe = …` 与文件尾的 CommonJS 兼容尾巴），
+ *     其余顶层声明都在本文件内被读。于是顶层死符号这一类（4.2 最后剩下的一块空白）
+ *     由这条闸接管；将来真出现「只被别的文件或模板 `onclick=` 消费」的顶层名字，
+ *     经典脚本的官方豁免是**在声明上方写一条 `exported` 注释**（开注释标记 + `exported`
+ *     加名字 + 闭注释标记，就是 eslint 文档里那条写法；这里不给字面量是因为本段自身是
+ *     块注释，写进去会提前闭合）。已量过：写了不报、不写就报。而不是把这一块的 `vars`
+ *     再收窄回去 —— 那等于把整类盲区换回来。
  *
  * `globals` 里要显式写出这两个跨文件全局：`no-undef` 的价值正在于「它不认识的名字要报红」，
  * 白名单因此必须一条条列出来（与 W30 那张 TOPLEVEL_BROWSER_GLOBALS 同一逻辑）。
@@ -227,9 +235,11 @@ export default [
     },
     rules: {
       ...RULES,
+      // 参数与 frontend 那块逐字相同，**只差这里写出来的理由**（顶层也查，见上面的长注释）：
+      // 不写 `vars` 就是默认的 `"all"`，所以这一条现在同时覆盖顶层与函数内的未使用声明。
       "no-unused-vars": [
         "error",
-        { vars: "local", args: "none", ignoreRestSiblings: true, caughtErrors: "none" },
+        { args: "none", ignoreRestSiblings: true, caughtErrors: "none" },
       ],
     },
   },
