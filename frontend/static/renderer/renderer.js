@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260919115244";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260919130911";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -52,18 +52,18 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260919115244";
-import { randomUuid } from "../utils/random-id.js?v=20260919115244";
+} from "./registry.js?v=20260919130911";
+import { randomUuid } from "../utils/random-id.js?v=20260919130911";
 // 颜色解析统一走 utils/colors.js（P10 B 类收敛）：本文件原先在 mixHexColors 里
 // 又写了一份 normalizeHexColor，与 home.js 那份同名但失败值不同（null vs 空串）。
-import { expandHexColorOrNull } from "../utils/colors.js?v=20260919115244";
-// 「按 ID / 按实体取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带
-// `resolvedEntityId.split(".")[0]`（init 与重定向后各一次），外加四处同族的内联形态。
-// 有 `|| ""` 守卫的那几处已换成 `entityDomainFromId` / `entityDomainOf`（语义逐字相同）；
-// 剩下七处的输入没有守卫，改它们会把 falsy 输入从抛错 / `"undefined"` 变成 `""` ——
-// 那是行为改动，清单与理由见 `utils/entities.js` 的模块头。
-import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=20260919115244";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260919115244";
+import { expandHexColorOrNull } from "../utils/colors.js?v=20260919130911";
+// 「按 ID / 按实体取域」只有一份实现（P12 收口 B 类末尾那一项，含残留补齐批次）：本文件原先
+// 自带 `resolvedEntityId.split(".")[0]`（init 与重定向后各一次），外加十一处同族的内联形态。
+// 其中有 `|| ""` 守卫的、以及输入已被上游真值判断卡住的那些，换过去语义逐字相同；
+// 唯一一处真有行为差异的是组合弹窗里 `moduleResolvedEntityId` 可能整个缺席（`undefined`）
+// 的那条 —— 旧写法抛 `TypeError`，现在归一成 `""`（渲染得更稳，不改变「是不是 button」的判定）。
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=20260919130911";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260919130911";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -82,11 +82,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260919115244";
+} from "./climate.js?v=20260919130911";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260919115244";
+} from "./device-profiles.js?v=20260919130911";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -95,26 +95,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260919115244";
-import { confirmAction } from "../ui-confirm.js?v=20260919115244";
+} from "../related-entities.js?v=20260919130911";
+import { confirmAction } from "../ui-confirm.js?v=20260919130911";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260919115244";
+} from "./entity-power.js?v=20260919130911";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260919115244";
-import { componentActionIsSupported } from "../action-rules.js?v=20260919115244";
+} from "../virtual-entities.js?v=20260919130911";
+import { componentActionIsSupported } from "../action-rules.js?v=20260919130911";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260919115244";
+} from "./transform-geometry.js?v=20260919130911";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -124,7 +124,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260919115244";
+} from "./effect-geometry.js?v=20260919130911";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -143,14 +143,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260919115244";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919115244";
+} from "./light-runtime.js?v=20260919130911";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919130911";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260919115244";
+} from "./vacuum-runtime.js?v=20260919130911";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -182,16 +182,16 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260919115244";
+} from "./cover-runtime.js?v=20260919130911";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919115244";
+import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919130911";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260919115244";
+} from "./runtime-dialog-motion.js?v=20260919130911";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -201,13 +201,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260919115244";
+} from "./runtime-caches.js?v=20260919130911";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260919115244";
+} from "./runtime-document.js?v=20260919130911";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -7742,7 +7742,7 @@ export class PanelRenderer {
       !["climate", "light"].includes(entityDomainName)
     ) {
       resolvedEntityId = climateRoleEntityId;
-      entityDomainName = resolvedEntityId.split(".")[0];
+      entityDomainName = entityDomainFromId(resolvedEntityId);
     }
     const metadataRecord = this.entityMetadata.get(resolvedEntityId);
     if (
@@ -7929,7 +7929,7 @@ export class PanelRenderer {
         typeof this.powerEntityId == "function"
           ? this.powerEntityId(dispatchComponent, dispatchEntityId)
           : dispatchEntityId;
-      const powerTargetDomain = powerTargetEntityId.split(".", 1)[0];
+      const powerTargetDomain = entityDomainFromId(powerTargetEntityId);
       if (["button", "script"].includes(powerTargetDomain)) {
         const buttonToggleCommand = entityToggleCommand(
           powerTargetEntityId,
@@ -11670,7 +11670,7 @@ export class PanelRenderer {
           const bedMemoryMetadata = bedMemoryEntityId
             ? this.entityMetadata.get(bedMemoryEntityId)
             : null;
-          if (bedMemoryEntityId.split(".", 1)[0] === "select") {
+          if (entityDomainFromId(bedMemoryEntityId) === "select") {
             appendBedCapabilityControl(
               bedMemoryListElement,
               "记忆姿势 " + (bedMemoryIndex + 1),
@@ -12108,7 +12108,7 @@ export class PanelRenderer {
         let isSwitchPopupPending = false;
         let switchPopupActionStatus = "idle";
         let switchPopupToggleHandler = null;
-        const isSwitchMomentaryButton = moduleResolvedEntityId.split(".")[0] === "button";
+        const isSwitchMomentaryButton = entityDomainFromId(moduleResolvedEntityId) === "button";
         const switchPopupVisual = createSwitchVisual({
           label: popupModuleTitleElement.textContent,
           interactive: !popupPreviewMode,
@@ -18071,7 +18071,7 @@ export class PanelRenderer {
       const memorySlotMetadata = memorySlotEntityId
         ? this.entityMetadata.get(memorySlotEntityId)
         : null;
-      if (String(memorySlotEntityId).split(".", 1)[0] === "select") {
+      if (entityDomainFromId(memorySlotEntityId) === "select") {
         const memorySlotElement = document.createElement("section");
         memorySlotElement.className = "hb-electric-bed-memory-control hb-electric-bed-control";
         const memorySlotLabel = document.createElement("strong");
@@ -19935,7 +19935,7 @@ export class PanelRenderer {
     const resolvedDetailsEntityId = String(detailsEntityId);
     const deviceProfile = this.deviceProfile(resolvedDetailsEntityId);
     detailsComponent = applyXiaomiDeviceProfile(detailsComponent, deviceProfile);
-    const detailsEntityDomain = resolvedDetailsEntityId.split(".", 1)[0];
+    const detailsEntityDomain = entityDomainFromId(resolvedDetailsEntityId);
     const isElectricBedDevice =
       detailsComponent.properties?.deviceType === "electric-bed" ||
       deviceProfile?.deviceType === "electric-bed";
@@ -22194,7 +22194,7 @@ export class PanelRenderer {
         const removedStateUpdate = {
           type: "state_changed",
           entityId: removedEntityId,
-          domain: removedEntityId.split(".", 1)[0],
+          domain: entityDomainFromId(removedEntityId),
           state: "unavailable",
           attributes: {},
           available: false

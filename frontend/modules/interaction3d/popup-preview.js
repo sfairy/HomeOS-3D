@@ -206,7 +206,7 @@ export function createFocusDevicePopup(
   const stylesheetLink = popupOwnerDocument.createElement("link");
   stylesheetLink.rel = "stylesheet";
   // 复用渲染器样式表；缓存戳必须与 static 资源版本保持一致。
-  stylesheetLink.href = "/static/renderer/renderer.css?v=20260919115244";
+  stylesheetLink.href = "/static/renderer/renderer.css?v=20260919130911";
   const rendererHostElement = popupOwnerDocument.createElement("div");
   rendererHostElement.className = "i3d-focus-popup-host";
   previewRootElement.append(stylesheetLink, rendererHostElement);

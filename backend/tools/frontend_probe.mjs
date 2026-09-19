@@ -4535,7 +4535,7 @@ async function runEntityHelpersSuite() {
   // 里内联的切法换成助手调用 —— 换调用时**实参传错**（把 A 的 ID 传成 B 的字段）静态闸看不见：
   // 语法合法、eslint 也过，表现是「某个控件按错的域分派」。所以把三处真实导出函数跑一遍，
   // 全都按「ID 里那个域」分派才算数。
-  const { climatePowerCommand } = await import(
+  const { climatePowerCommand, climateModeTranslation } = await import(
     pathToFileURL(path.join(ROOT, "frontend/static/renderer/climate.js")).href
   );
   const { entityToggleCommand } = await import(
@@ -4601,6 +4601,62 @@ async function runEntityHelpersSuite() {
       退回状态内entityId: fallbackByIdCapabilities,
       退回状态内domain: fallbackByDomainCapabilities,
       翻译键文案: translatedState
+    })
+  );
+
+  // P12 残留补齐：`climateModeTranslation` 里原先那处 `String(translationEntityId).split(".")[0]`
+  // 没写 `|| ""` 守卫。它的输入是调用方传进来的实体 ID，falsy 时旧写法会 `String(null)` /
+  // `String(0)` / `String(false)` 得到字符串 `"null"` / `"0"` / `"false"`，把**那个字符串当域名**
+  // 去拼翻译键 —— 若字典里恰好有同名键就会取到一段风马牛不相及的文案（不报错、只显示错）。
+  // 下面这份字典刻意把这几条「毒化」键塞进去：换到 `entityDomainFromId` 之后必须一条都取不到，
+  // 直接按「取不到域」返回空串。元数据刻意只给 platform / translationKey、不给 domain，
+  // 否则走的是 `metadata.domain` 那条路，测不到这里。
+  const poisonedClimateTranslations = {
+    "component.x.entity.null.y.state_attributes.preset_mode.state.cool": "毒化·null",
+    "component.x.entity.0.y.state_attributes.preset_mode.state.cool": "毒化·0",
+    "component.x.entity.false.y.state_attributes.preset_mode.state.cool": "毒化·false",
+    "component.x.entity.climate.y.state_attributes.preset_mode.state.cool": "正常·climate"
+  };
+  const climateMetadataWithoutDomain = entityIdValue =>
+    new Map([[entityIdValue, { platform: "x", translationKey: "y" }]]);
+  const falsyEntityIds = [null, 0, false];
+  check(
+    "P12 entityDomainFromId 在 climateModeTranslation 里挡住 falsy 实体 ID：不再拼出以 \"null\" / \"0\" / \"false\" 为域的翻译键",
+    falsyEntityIds.every(
+      falsyEntityId =>
+        climateModeTranslation("cool", {
+          entityId: falsyEntityId,
+          entityMetadata: climateMetadataWithoutDomain(falsyEntityId),
+          entityTranslations: poisonedClimateTranslations
+        }) === ""
+    ) &&
+      // 正面控制：正常的 `climate.living`（元数据仍不带 domain）必须照旧取到那条正常键。
+      climateModeTranslation("cool", {
+        entityId: "climate.living",
+        entityMetadata: climateMetadataWithoutDomain("climate.living"),
+        entityTranslations: poisonedClimateTranslations
+      }) === "正常·climate",
+    JSON.stringify({
+      null实体: climateModeTranslation("cool", {
+        entityId: null,
+        entityMetadata: climateMetadataWithoutDomain(null),
+        entityTranslations: poisonedClimateTranslations
+      }),
+      零实体: climateModeTranslation("cool", {
+        entityId: 0,
+        entityMetadata: climateMetadataWithoutDomain(0),
+        entityTranslations: poisonedClimateTranslations
+      }),
+      false实体: climateModeTranslation("cool", {
+        entityId: false,
+        entityMetadata: climateMetadataWithoutDomain(false),
+        entityTranslations: poisonedClimateTranslations
+      }),
+      正常实体: climateModeTranslation("cool", {
+        entityId: "climate.living",
+        entityMetadata: climateMetadataWithoutDomain("climate.living"),
+        entityTranslations: poisonedClimateTranslations
+      })
     })
   );
 }

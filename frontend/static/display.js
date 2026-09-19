@@ -10,10 +10,10 @@
  *   ③ 启动遮罩由 display-boot.js 维护，本模块通过 window.HABridgeDisplayBoot
  *   汇报 setDocument / ready / fail；④ 轮询间隔 10 秒，素材版本检查间隔 30 秒。
  */
-import { PanelRenderer } from "./renderer/renderer.js?v=20260919115244";
-import { createButtonSound } from "./sound-effects.js?v=20260919115244";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=20260919115244";
-import { isAppleMobile } from "./utils/apple-device.js?v=20260919115244";
+import { PanelRenderer } from "./renderer/renderer.js?v=20260919130911";
+import { createButtonSound } from "./sound-effects.js?v=20260919130911";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=20260919130911";
+import { isAppleMobile } from "./utils/apple-device.js?v=20260919130911";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");

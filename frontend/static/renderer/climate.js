@@ -14,8 +14,12 @@
  * water-heater 不是可配置的类型，它由实体域推断出来，所以不在下面的白名单里。
  */
 // 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带一份
-// `String(entityId || "").split(".", 1)[0]`（`climateControlStructureKey` 里那处）。
-import { entityDomainFromId } from "../utils/entities.js?v=20260919115244";
+// `String(entityId || "").split(".", 1)[0]`（`climateControlStructureKey` 里那处）；
+// P12 残留补齐这一批又把 `climateModeTranslation` 里那处没守卫的
+// `String(translationEntityId).split(".")[0]` 也换成它 —— 传入 `null` / `0` / `false`
+// 时不再拼出以 `"null"` / `"0"` / `"false"` 为域的翻译键，直接按「取不到域」返回空串。
+// 有钉子把这条新行为钉住（探针 `entity-helpers` 的 climate-translation 一条）。
+import { entityDomainFromId } from "../utils/entities.js?v=20260919130911";
 
 // 控件属性 deviceType 允许的取值；auto 表示交给 resolveClimateDeviceType 推断。
 const CLIMATE_DEVICE_TYPES = new Set(["auto", "air-conditioner", "bath-heater"]);
@@ -557,7 +561,7 @@ export function climateModeTranslation(
   const metadata = entityMetadata?.get?.(translationEntityId) || {};
   const platform = String(metadata.platform || "").trim();
   const metadataDomain = String(
-    metadata.domain || String(translationEntityId).split(".")[0] || ""
+    metadata.domain || entityDomainFromId(translationEntityId)
   ).trim();
   const translationKey = String(metadata.translationKey || "").trim();
   const modeKey = normalizeClimateModeKey(modeInput);

@@ -3033,8 +3033,10 @@ FRONTEND_HELPER_SINGLE_SOURCE = {
         # `const entityDomain = …` 与十九处**同形内联**写法（climate / entity-power /
         # registry / renderer / light-runtime / device-profiles / home 等）改为调它，
         # `entityDomainOf` 的对象路径也走它 —— 于是「按 ID 切域」只有一份实现。
-        # 谁换个文件定义同名函数，这条红；`/static/` 里没守卫的内联切分与 3D 运行时树
-        # 那几处属于**已知且写明的**缺口，见本函数 docstring 的边界段。
+        # 残留补齐批次又把最后十一处没写 `|| ""` 的内联切分也收掉了（九处语义不变、
+        # 两处是有意的行为改动），并由本函数的第 7 条闸钉住「不许再以内联写法回来」。
+        # 谁换个文件定义同名函数，这条红；只剩 3D 运行时树那三处是**已知且写明的**缺口
+        # （跨加载边界，见本函数 docstring 的边界段）。
         'entityDomainFromId',
     ),
     'frontend/static/utils/apple-device.js': ('isAppleMobile',),
@@ -3153,7 +3155,7 @@ def _frontend_helper_definitions(source: str, name: str) -> bool:
     )
 
 
-def _frontend_code_only(source: str) -> str:
+def _frontend_code_only(source: str, *, blank_strings: bool = True) -> str:
     """抹掉注释与字符串常量（换行保留、长度不变），只留下真正的代码字符。
 
     为什么必须先抹：这条闸判的是「名字在**代码**里被当值用了」，而收敛的说明往往就写在
@@ -3164,6 +3166,10 @@ def _frontend_code_only(source: str) -> str:
     边界如实写在这里：正则字面量不在处理范围内 —— ``/'/`` 这类里带引号的正则会让这里
     认为字符串开始了。前端源码里没这种写法；真出现了，症状是那条闸对**那一行之后**
     的代码失明（漏报），而不是误报，所以不会挡路。
+
+    ``blank_strings=False`` 时只抹注释、保留字符串内容 —— 给「要按**字符串实参**判形态」
+    的闸用（例如 ``.split(".")[0]``：把 ``"."`` 也抹掉就认不出这个形态了），
+    它同样保留长度以便报行号。
     """
     out = list(source)
     index = 0
@@ -3187,7 +3193,7 @@ def _frontend_code_only(source: str) -> str:
                     out[index] = ' '
                     index += 1
             continue
-        if char in ('"', "'", '`'):
+        if blank_strings and char in ('"', "'", '`'):
             quote = char
             out[index] = ' '
             index += 1
@@ -3262,14 +3268,11 @@ def check_frontend_helper_contract_single_source() -> None:
 
     * 3D 运行时树里那三处「按 ID 切域」（``modules/interaction3d/`` 的 ``light-state.js`` /
       ``runtime.js`` / ``television-state.js``，由后端按 ``/api/v1/modules/interaction3d/``
-      提供，与 ``/static/`` 是两个独立的加载边界）。**同族的具名五处 + 内联十九处已在 P12 收口**：
-      它们改调 ``utils/entities.js`` 的 ``entityDomainFromId`` / ``entityDomainOf`` ——
-      那两个名字登记在上表里，所以「换个文件定义同名函数」会红。**没守卫的内联十一处仍留在
-      ``/static/`` 里**（``renderer/renderer.js`` 七处、``home.js``、``action-rules.js``、
-      ``renderer/climate.js``、``editor-document-management.js``）：它们的输入写的是
-      ``x.split(...)`` / ``String(x)``，换成助手会把 falsy 输入从抛错或字符串
-      ``"undefined"`` 变成 ``""`` —— 属行为改动、且这些渲染路径没有探针覆盖，
-      清单与理由写在 ``utils/entities.js`` 的模块头；
+      提供，与 ``/static/`` 是两个独立的加载边界）。**同族的具名五处 + 内联十九处已在 P12
+      收口**：它们改调 ``utils/entities.js`` 的 ``entityDomainFromId`` / ``entityDomainOf`` ——
+      那两个名字登记在上表里，所以「换个文件定义同名函数」会红。**没守卫的内联十一处也已在
+      P12 残留补齐批次收掉**（本函数第 7 条闸专门钉住它不再以内联写法回来），其中九处语义
+      逐字不变、两处是有意的行为改动（说明写在 ``utils/entities.js`` 的模块头）；
     * 全前端 70 余处内联的 ``x?.newState || x`` / ``(x?.newState || x)?.attributes`` 取用
       —— 其中约 30 处落在上面那个 3D 运行时树里，同一个边界问题。
 
@@ -3397,6 +3400,39 @@ def check_frontend_helper_contract_single_source() -> None:
         '；'.join(drifted_sites)
         if drifted_sites
         else '；'.join(f'{name} → {site}' for name, site in FRONTEND_DISTINCT_HELPER_SITES.items()),
+    )
+
+    # 7) P12 残留补齐：「按 ID 切域」在 `/static/` 树里不许再有**内联**写法。
+    #    上面几条只管**具名**助手（定义点唯一 + 使用点必须 import），而同一份知识还以
+    #    `.split(".")[0]` / `.split(".", 1)[0]` 的裸表达式形态散在渲染路径里 —— 形态匹配
+    #    分不出「局部变量」与「助手定义」，把它们登记进手册会直接产生一堆假红，所以单列一条：
+    #    扫**代码位置**里还有没有这个形态。注释抹掉（说明文字里提它是常事），但**保留字符串
+    #    实参** —— 把 `"."` 也抹掉就认不出这个形态了。
+    #    唯一允许出现的地方是 `utils/entities.js` 里那份实现本身。刻意**不**匹配
+    #    `split(".")[1]` / `split(".", 2)[1]`：那是另外两种知识（小数位数、去掉域名后的
+    #    实体名），审计里与这一族分开记。
+    inline_domain_splits: list[str] = []
+    inline_domain_pattern = re.compile(r'\.split\(\s*["\']\.["\']\s*(?:,\s*1\s*)?\)\s*\[\s*0\s*\]')
+    for path in sorted((frontend_root / 'static').rglob('*.js')):
+        if '/vendor/' in path.as_posix():
+            continue
+        try:
+            source = path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:  # 前端资源里的二进制伪装交给语法门去报
+            continue
+        relative = path.relative_to(PROJECT_ROOT).as_posix()
+        if relative == 'frontend/static/utils/entities.js':
+            continue
+        code = _frontend_code_only(source, blank_strings=False)
+        for match in inline_domain_pattern.finditer(code):
+            line_number = code.count('\n', 0, match.start()) + 1
+            inline_domain_splits.append(f'{relative}:{line_number}')
+    check(
+        'P12 残留补齐：「按 ID 切域」在 /static 树里再没有内联写法（只剩 utils/entities.js 那一份实现）',
+        not inline_domain_splits,
+        '；'.join(inline_domain_splits[:8])
+        if inline_domain_splits
+        else '扫过 /static 全部脚本，无内联切域',
     )
 
 

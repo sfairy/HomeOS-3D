@@ -10,7 +10,7 @@
  *   字段名与前端 JSON 的 camelCase 对齐。本模块纯函数、不做持久化。
  *   夹取用 utils/numbers.js 的 clampNumber（唯一实现，P10 B 类收敛）。
  */
-import { clampNumber } from "../utils/numbers.js?v=20260919115244";
+import { clampNumber } from "../utils/numbers.js?v=20260919130911";
 
 // 最多 8 个预设槽；上限与导出面板的按钮禁用条件绑定。
 export const MAX_EXPORT_PRESET_COUNT = 8;

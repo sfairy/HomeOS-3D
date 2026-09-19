@@ -31,25 +31,41 @@
  * 实体对象路径也改调它 —— 「按 ID 切域」于是只有一份实现；与此同时把 `/static/` 树里
  * **输入已经写成 `String(x || "")` 的十九处内联切分**（它与我这个助手的函数体逐字相同）也一并
  * 换成 `entityDomainFromId` / `entityDomainOf`：这一步语义一字未变（输入自带守卫，不存在
- * 「传 falsy 会怎样」的新分支），但**没守卫的那些刻意留着**，原因见下。
+ * 「传 falsy 会怎样」的新分支）。
  *
- * 没收进这一批的两类，都写在明处（免得下次有人以为「已经全收敛了」）：
+ * **P12 残留补齐（第二批）**：上一批刻意留下的**十一处没写 `|| ""` 守卫的内联切分**
+ * （`renderer/renderer.js` 七处、`home.js`、`action-rules.js`、`renderer/climate.js`、
+ * `editor-document-management.js`）逐处读清输入来源后，分成两类收掉：
  *
- *   * **输入没有 `|| ""` 守卫的十一处内联切分**（`renderer/renderer.js` 七处、`home.js`、
- *     `action-rules.js`、`renderer/climate.js:560`、`editor-document-management.js:121`）。
- *     它们写的是 `x.split(...)` 或 `String(x)`：换成助手后，falsy 输入会从「抛 `TypeError`」
- *     或字符串 `"undefined"` / `"null"` 变成 `""` —— 方向上都更像对的，但那是**行为改动**，
- *     而这些渲染路径没有探针覆盖，所以另立一项、不夹带在形态统一里。
+ *   * **九处语义不变**，因为输入要么本就被 `String(x || "")` 包着（与助手函数体逐字相同），
+ *     要么被上游的真值判断卡住（`if (!detailsEntityId) throw`、`if (!removedEntityId) return`、
+ *     `if (climateRoleEntityId && …)`、电动床记忆槽的 `|| ""`），要么来源本身只会产出非空
+ *     字符串（`powerEntityId` 的每条返回路径都过 `runtimeEntityId` = `String(x || "")`；
+ *     `selectedRelatedEntityIds` / `legacyRelatedEntityIds` 都 `.filter(Boolean)`）。
+ *     换过去一字未变，只是把「按 ID 切域」收回一份实现。
+ *   * **两处行为改动**，方向都是「更归一」：
+ *     `renderer/climate.js` 的 `climateModeTranslation` —— 原先传 `null` / `0` / `false`
+ *     会拼出以 `"null"` / `"0"` / `"false"` 为域的翻译键，现在按「取不到域」返回空串；
+ *     `renderer/renderer.js` 组合弹窗里的 `moduleResolvedEntityId` —— 模块没绑实体时它整个
+ *     是 `undefined`，原先 `.split()` 抛 `TypeError`，现在归一成 `""`（判定仍是「不是
+ *     button」，只是不再把一次渲染打断）。前者有钉子：探针 `entity-helpers` 摆了一份
+ *     「毒化」的翻译字典（含 `component.x.entity.null.y` 这条键），断言换过去之后取不到它；
+ *     后者落在无法整份加载的 DOM 渲染路径上、没有探针可挂，理由写在 `renderer.js` 的
+ *     import 注释里。
+ *
+ * 仍然**刻意留在范围外**的只剩一类，写在明处（免得下次有人以为「已经全收敛了」）：
+ *
  *   * **3D 运行时树里那三处**（`modules/interaction3d/` 的 `light-state.js` / `runtime.js` /
  *     `television-state.js`）：由后端按 `/api/v1/modules/interaction3d/` 提供，与 `/static/`
  *     是两个加载边界，跨树 import 是架构决定（见审计文档 4.3 B 类末尾那两条）。所以那几处只
  *     改了局部变量名，形态仍与这里逐字相同 —— 谁要动它，先读那条账。
  *
- * 两处**有意的行为变化**（都是往「更归一」的方向，且消费方本来就只想要归一后的值）：
+ * 更早那一批的**两处有意行为变化**（都是往「更归一」的方向，且消费方本来就只想要归一后的值）：
  *   检索文本现在一律小写、段间压成单空格 —— 调用方正则全部带 `i`（不带 `i` 的那些
  *   本来收的就是小写文本），压空格只可能把 `no  motion`（某字段为空导致的空段）变成
  *   `no motion`，也就是**只可能多命中、不会漏命中**；实体域一律 `String` 后切第一个点号，
  *   所以带点号的 domain 与非字符串 domain 现在会被归一，这正是查表与比较要的形态。
+ *   （残留补齐那一批的两处行为变化另记在上面那一段里。）
  */
 
 /**
