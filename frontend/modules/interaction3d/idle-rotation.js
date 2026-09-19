@@ -17,8 +17,8 @@
 // 复用渲染器的页面行为解析（默认空闲秒数等），缓存戳需与 static 资源版本保持一致。
 const pageBehaviorModuleUrl = new URL(
   import.meta.url.startsWith("file:")
-    ? "../../static/modules/interaction3d/page-behavior.js?v=20260919093705"
-    : "/static/modules/interaction3d/page-behavior.js?v=20260919093705",
+    ? "../../static/modules/interaction3d/page-behavior.js?v=20260919111150"
+    : "/static/modules/interaction3d/page-behavior.js?v=20260919111150",
   import.meta.url
 );
 export const { resolvePageBehavior } = await import(pageBehaviorModuleUrl.href);

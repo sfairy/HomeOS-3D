@@ -10,7 +10,7 @@
  *   「是不是苹果移动端」由 utils/apple-device.js 统一判定（这里原先另有一份，
  *   看的是 navigator.platform，与展示页那两份的证据不是同一个）。
  */
-import { isAppleMobile } from "./utils/apple-device.js?v=20260919093705";
+import { isAppleMobile } from "./utils/apple-device.js?v=20260919111150";
 
 // 重新导出保持本模块的公开面不变（apple-install-guide.js 经 needsAppleInstallGuide 使用它）。
 export { isAppleMobile };
