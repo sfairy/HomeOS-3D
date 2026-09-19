@@ -7176,6 +7176,237 @@ async def check_rename_conflict_is_409_atomic() -> None:
     )
 
 
+def _popup_document(project_id: str, name: str, popup_id: str | None) -> dict:
+    """一份最小合法文档：一个按钮，``tap`` 动作打开全局弹窗 ``popup_id``。
+
+    ``popup_id`` 为 None 时不挂动作（用来测「删弹窗的人和引用的不是同一个项目」）。
+    形状与 ``check_panel_document_validation`` 里那份手写文档一致，只多一个动作 ——
+    「删弹窗要把引用改写掉」这件事没有动作就测不到。
+    """
+    from backend.app.panel.documents import create_blank_project
+
+    document = create_blank_project(project_id, name)
+    document['pages'] = [
+        {
+            'id': 'home',
+            'name': '首页',
+            'path': 'home',
+            'components': [
+                {
+                    'id': 'card',
+                    'type': 'button',
+                    'actions': (
+                        {
+                            'tap': {
+                                'type': 'more-info',
+                                'data': {'popupSource': 'custom', 'popupId': popup_id},
+                            }
+                        }
+                        if popup_id
+                        else {}
+                    ),
+                }
+            ],
+        }
+    ]
+    return document
+
+
+def _set_global_popups(database, popups: list[dict]) -> None:
+    """直接写全局弹窗那一行（绕过保存路径：那条路径正是这里要测的东西）。"""
+    from backend.app.models import GlobalCustomPopupState
+
+    with database.session_factory() as session:
+        state = session.get(GlobalCustomPopupState, 1)
+        state.popups_json = json.dumps(popups)
+        session.commit()
+
+
+def _tap_action_of(database, project_id: str) -> tuple[dict | None, int]:
+    """读出某份草稿里那个按钮的 tap 动作与草稿 revision（动作可以不存在）。"""
+    from backend.app.models import ProjectDraft
+
+    with database.session_factory() as session:
+        draft = session.get(ProjectDraft, project_id)
+        document = json.loads(draft.document_json)
+        return document['pages'][0]['components'][0]['actions'].get('tap'), draft.revision
+
+
+async def check_global_popup_delete_cascade() -> None:
+    """遗留清单第 19 项：删全局弹窗要在同一笔事务里扫过所有草稿、把引用一起清掉。
+
+    这一段此前**一条断言都没有**，于是 `update_project_draft` 里那段级联清理被一个集合差
+    的方向错误整整挡在门外：算出来的集合是「提交里有、库里没有」= 本次**新增**的弹窗，
+    而它被当成「本次被删掉的」。三条后果都是静默的（详见 `projects.py` 里那段注释）：
+
+    1. 新增弹窗的那一次保存里，指向**新弹窗**的动作会被当成悬空引用清成 `type:"none"` ——
+       用户刚配好就失效，页面不报错，只是点下去没反应；
+    2. 删弹窗时那个集合是空的：级联形同虚设，别的项目草稿留着悬空引用，而那份草稿
+       **下次保存必定 422**（校验层判「打开了不存在的组合弹窗」）——那个仪表盘再也存不回去；
+    3. 当前文档自己引用着被删的弹窗时，本份文档也没清，校验层当场 422 ——
+       用户根本删不掉这个弹窗。
+
+    这里把三条都钉住，外加上两条边界：并发下（乐观锁失败）**整笔回滚**不留半清理状态、
+    以及损坏草稿按 B54 跳过（它的引用留着悬空是已知残留，不是这条断言要修的东西）。
+    """
+    from backend.app.api.projects import serialize_document
+    from backend.app.dependencies import get_database_session
+    from backend.app.models import GlobalCustomPopupState, ProjectDraft
+
+    popup_one = {'id': 'pop-1', 'name': '弹窗一'}
+    popup_two = {'id': 'pop-2', 'name': '弹窗二'}
+
+    def prepare(app, database) -> None:
+        """保存路径会给后台任务排队刷新实体；生产里这个状态一定在，探针里自己补上。"""
+        app.state.ha_connector = SimpleNamespace(
+            refresh_persistent_entity_ids=lambda **_kwargs: None
+        )
+
+    async def save_draft(client, cookie, project_id: str, *, revision: int, popups, popup_id, dirty=True):
+        """把「本次提交的全局弹窗列表」与文档一起 PUT 上去。"""
+        payload_document = _popup_document(project_id, '甲', popup_id)
+        payload_document['customPopups'] = popups
+        return await client.put(
+            f'/api/v1/projects/{project_id}/draft',
+            cookies=cookie,
+            json={
+                'revision': revision,
+                'globalPopupRevision': 1,
+                'globalPopupsDirty': dirty,
+                'document': payload_document,
+            },
+        )
+
+    # —— ① 自己引用着 + 别的项目引用着 + 一份损坏草稿：一次删除要同时管到三份草稿 ——
+    with tempfile.TemporaryDirectory(prefix='hb-popup-cascade-') as tmp:
+        (app, database, cookie) = _projects_app(Path(tmp))
+        prepare(app, database)
+        _seed_project(database, 'proj-self', '自己', document_json=serialize_document(_popup_document('proj-self', '自己', 'pop-1')))
+        _seed_project(database, 'proj-other', '别人', document_json=serialize_document(_popup_document('proj-other', '别人', 'pop-1')))
+        broken_json = '{"schemaVersion": 1, "pages": ['
+        _seed_project(database, 'proj-broken', '坏的', document_json=broken_json)
+        _set_global_popups(database, [popup_one])
+
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            deleted = await save_draft(client, cookie, 'proj-self', revision=1, popups=[], popup_id='pop-1')
+
+        self_action, self_revision = _tap_action_of(database, 'proj-self')
+        other_action, other_revision = _tap_action_of(database, 'proj-other')
+        with database.session_factory() as session:
+            broken_row = session.get(ProjectDraft, 'proj-broken')
+            broken_after = broken_row.document_json
+            stored_popups = json.loads(session.get(GlobalCustomPopupState, 1).popups_json)
+
+        check(
+            '遗留19 删掉自己文档引用着的全局弹窗要能成功（修复前回 422「打开了不存在的组合弹窗」）',
+            deleted.status_code == 200,
+            f'{deleted.status_code} {_detail_of(deleted)[:60]}',
+        )
+        check(
+            '遗留19 当前文档的引用当场改写成空动作（type:"none" 而不是删掉动作）',
+            self_action == {'type': 'none', 'data': {}} and self_revision == 2,
+            f'动作={self_action} revision={self_revision}',
+        )
+        check(
+            '遗留19 别的项目草稿里的引用在同一笔事务里一起被清（这就是遗留清单第 19 项）',
+            other_action == {'type': 'none', 'data': {}} and other_revision == 2,
+            f'动作={other_action} revision={other_revision}',
+        )
+        check(
+            '遗留19 损坏的草稿按 B54 跳过：它清不掉引用，但不该让整笔删除失败',
+            deleted.status_code == 200 and broken_after == broken_json,
+            f'{deleted.status_code} 损坏行未被改动={broken_after == broken_json}',
+        )
+        check(
+            '遗留19 删除真的落到全局弹窗表上（不是只清了各文档的引用）',
+            stored_popups == [],
+            f'全局弹窗={stored_popups}',
+        )
+
+    # —— ② 同一次保存里「新建弹窗 + 动作指向它」：动作不许被当成悬空引用清掉 ——
+    with tempfile.TemporaryDirectory(prefix='hb-popup-add-') as tmp:
+        (app, database, cookie) = _projects_app(Path(tmp))
+        prepare(app, database)
+        _seed_project(database, 'proj-new', '新建', document_json=serialize_document(_popup_document('proj-new', '新建', 'pop-2')))
+        _set_global_popups(database, [])
+
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+            added = await save_draft(client, cookie, 'proj-new', revision=1, popups=[popup_two], popup_id='pop-2')
+
+        new_action, new_revision = _tap_action_of(database, 'proj-new')
+        with database.session_factory() as session:
+            added_popups = [popup['id'] for popup in json.loads(session.get(GlobalCustomPopupState, 1).popups_json)]
+
+        check(
+            '遗留19 新建全局弹窗的那次保存回 200 且弹窗进表',
+            added.status_code == 200 and added_popups == ['pop-2'],
+            f'{added.status_code} 全局弹窗={added_popups}',
+        )
+        check(
+            '遗留19 指向新弹窗的动作必须留着（修复前会被清成 type:"none"，用户刚配好就失效）',
+            new_action == {'type': 'more-info', 'data': {'popupSource': 'custom', 'popupId': 'pop-2'}}
+            and new_revision == 2,
+            f'动作={new_action} revision={new_revision}',
+        )
+
+    # —— ③ 并发：删除请求自己的乐观锁失败 → 整笔回滚，连级联写入一起撤销 ——
+    with tempfile.TemporaryDirectory(prefix='hb-popup-race-') as tmp:
+        (app, database, cookie) = _projects_app(Path(tmp))
+        prepare(app, database)
+        _seed_project(database, 'proj-a', '甲', document_json=serialize_document(_popup_document('proj-a', '甲', None)))
+        _seed_project(database, 'proj-other', '乙', document_json=serialize_document(_popup_document('proj-other', '乙', 'pop-1')))
+        _set_global_popups(database, [popup_one])
+
+        def bump_own_revision() -> None:
+            """对手在同一项目的草稿上先提交一步：让本次请求走到最后的条件更新时落空。"""
+            from sqlalchemy import update as sa_update
+
+            with database.session_factory() as rival_session:
+                rival_session.execute(
+                    sa_update(ProjectDraft)
+                    .where(ProjectDraft.project_id == 'proj-a')
+                    .values(revision=ProjectDraft.revision + 1)
+                )
+                rival_session.commit()
+
+        rival = RivalWriteSession(database.session_factory(), bump_own_revision)
+        app.dependency_overrides[get_database_session] = lambda: rival
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        try:
+            async with httpx.AsyncClient(transport=transport, base_url='http://app.test') as client:
+                raced = await save_draft(client, cookie, 'proj-a', revision=1, popups=[], popup_id=None)
+            fired = rival.fired
+        finally:
+            app.dependency_overrides.pop(get_database_session, None)
+            rival.close()
+
+        other_action, other_revision = _tap_action_of(database, 'proj-other')
+        with database.session_factory() as session:
+            popups_after = json.loads(session.get(GlobalCustomPopupState, 1).popups_json)
+            own_revision = session.get(ProjectDraft, 'proj-a').revision
+
+        check(
+            '遗留19 删除时自己撞上乐观锁 → 409（对手确实在窗口里提交过）',
+            fired
+            and raced.status_code == 409
+            and isinstance(_field_of(raced, 'detail'), dict)
+            and _field_of(raced, 'detail').get('code') == 'PROJECT_REVISION_CONFLICT',
+            f'对手提交={fired}，{raced.status_code} {_detail_of(raced)}',
+        )
+        check(
+            '遗留19 乐观锁失败时整笔回滚：弹窗还在、级联清掉的那份草稿也回到原样',
+            popups_after == [popup_one] and other_action == {'type': 'more-info', 'data': {'popupSource': 'custom', 'popupId': 'pop-1'}},
+            f'全局弹窗={popups_after} 乙的动作={other_action}',
+        )
+        check(
+            '遗留19 回滚时不留下「别人的 revision 被推进一步」这种半清理痕迹',
+            other_revision == 1 and own_revision == 2,
+            f'乙 revision={other_revision}（对手推的是甲：{own_revision}）',
+        )
+
+
 async def check_pairing_race_returns_409() -> None:
     """B12：同一个配对码被两个平板同时扫，输的那个要拿到 409，且不能顶掉先配好的那台。
 
@@ -11849,6 +12080,7 @@ async def run() -> int:
     await check_duplicate_dirty_document_is_422()
     await check_project_conflicts_resolve_to_409()
     await check_rename_conflict_is_409_atomic()
+    await check_global_popup_delete_cascade()
     await check_pairing_race_returns_409()
     await check_draft_body_limits()
     await check_media_body_bounded()

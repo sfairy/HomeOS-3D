@@ -526,15 +526,24 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
         for popup in (document_value.get('customPopups') or [])
         if isinstance(popup, dict) and isinstance(popup.get('id'), str)
     }
-    # 本次被删掉的全局弹窗：要给其它引用它们的草稿做级联清理。
+    stored_popup_ids = {
+        popup.get('id')
+        for popup in stored_global_popups
+        if isinstance(popup, dict) and isinstance(popup.get('id'), str)
+    }
+    # 本次被删掉的全局弹窗 = **库里有、提交里没有**的那些，要给引用它们的草稿做级联清理。
+    #
+    # 方向反了（写成「提交里有、库里没有」）会静默地坏三件事，都不是报错而是行为不对：
+    #   1) 新增弹窗的那一次保存里，指向这个**新**弹窗的动作会被下面的
+    #      ``clear_popup_references`` 当成悬空引用清成 ``type:"none"`` —— 用户刚配好
+    #      就失效，页面不报错、只是点下去没反应；
+    #   2) 删弹窗时这个集合是空的：级联那段形同虚设，别的草稿留着悬空引用，而那份
+    #      草稿**下次保存必定 422**（校验层判「打开了不存在的组合弹窗」）—— 那个仪表盘
+    #      从此存不回去（读取侧 referenced_only=True 也只会把找不到的弹窗略过，不提示）；
+    #   3) 当前文档自己引用着被删的弹窗时，本份文档也没清，校验层当场 422 ——
+    #      用户根本删不掉这个弹窗，且错误文案说的是「打开了不存在的组合弹窗」。
     removed_popup_ids = (
-        submitted_popup_ids - {
-            popup.get('id')
-            for popup in stored_global_popups
-            if isinstance(popup, dict) and isinstance(popup.get('id'), str)
-        }
-        if payload.global_popups_dirty
-        else set()
+        stored_popup_ids - submitted_popup_ids if payload.global_popups_dirty else set()
     )
     # 先摘掉本份文档里指向已删弹窗的引用，再交校验层，避免校验时判为悬空引用。
     clear_popup_references(document_value, removed_popup_ids)
