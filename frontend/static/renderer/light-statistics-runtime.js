@@ -14,7 +14,7 @@
 import {
   readFromMapOrRecord,
   resolveStateEntryIn
-} from "../utils/state-entry.js?v=20260918233037";
+} from "../utils/state-entry.js?v=20260919093705";
 
 // 这些域的「开 / 关」语义天然成立，直接按 state 判定。
 const ON_OFF_DOMAINS_SET = new Set([

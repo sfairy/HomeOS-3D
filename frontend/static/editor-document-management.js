@@ -7,7 +7,7 @@
  * 约定：页面路径由标题 slug 化而来，必须全局唯一；弹窗模块的推荐实体现
  *   与 HA 域一一对应，通用设备默认全部推荐。
  */
-import { clone, newId, slugify } from "./editor-utils.js?v=20260918233037";
+import { clone, newId, slugify } from "./editor-utils.js?v=20260919093705";
 
 /**
  * 生成不与现有页面冲突的路径。

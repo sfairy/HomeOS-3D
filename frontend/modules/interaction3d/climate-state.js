@@ -17,7 +17,7 @@
 // 缓存戳必须与 static 目录的统一版本号保持一致，改渲染器后要同步更新。
 const climateRendererModule = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../static/renderer/climate.js", import.meta.url))
-  : import("/static/renderer/climate.js?v=20260918233037"));
+  : import("/static/renderer/climate.js?v=20260919093705"));
 const {
   normalizeClimateCapabilities: normalizeClimateCapabilities,
   climateIsPoweredOn: climateIsPoweredOn,

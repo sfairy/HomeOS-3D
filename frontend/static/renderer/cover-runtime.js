@@ -14,11 +14,11 @@
  * 本文件反向 import registry.js（为拿 coverComponentIsDream），循环依赖是既有结构，
  * 因此 here 的顶层不要执行任何依赖 registry 初始化结果的副作用。
  */
-import { coverComponentIsDream } from "./registry.js?v=20260918233037";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260918233037";
+import { coverComponentIsDream } from "./registry.js?v=20260919093705";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919093705";
 // 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
 // 本文件与 registry.js 都要用，而 registry.js 是本文件的上游，不能再反向 import 它。
-import { coverPhysicalStateForReversedMotor } from "./cover-direction.js?v=20260918233037";
+import { coverPhysicalStateForReversedMotor } from "./cover-direction.js?v=20260919093705";
 /**
  * 通用「实体是否处于活动态」判定。
  *
@@ -928,7 +928,7 @@ export function relatedCoverMotorReverseEntity(motorReverseEntitiesById, reverse
  * `cover-direction.js` —— 那是叶子模块，本文件与 `registry.js` 都 import 它，
  * 因此注册表不必再留一份本地副本（见该文件模块头）。
  */
-export { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260918233037";
+export { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919093705";
 /**
  * 按电机方向把展示状态还原成物理状态。
  *

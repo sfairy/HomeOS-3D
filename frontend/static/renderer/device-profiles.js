@@ -17,7 +17,7 @@
  * （那两份保留原大小写、不压空格，靠调用方正则带 `i` 兜着）。现在三处共用一份，
  * 语义与原先本文件这份一致（小写 + 过滤空段），因此本文件的判定不受影响。
  */
-import { entitySearchText } from "../utils/entities.js?v=20260918233037";
+import { entitySearchText } from "../utils/entities.js?v=20260919093705";
 
 // 认定为小米生态的 HA 集成平台名：分别是旧版 MIoT 与新版 Xiaomi Home 集成。
 const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);

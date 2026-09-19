@@ -20,8 +20,8 @@
  * 本文件原先那份 `resolveEventState` 与 `registry.js` 的 `resolveStateEntry`、
  * `vacuum-runtime.js` 的 `unwrapStateChange` 是同一份知识，只是名字各不相同。
  */
-import { entitySearchTextOf } from "../utils/entities.js?v=20260918233037";
-import { resolveStateEntry } from "../utils/state-entry.js?v=20260918233037";
+import { entitySearchTextOf } from "../utils/entities.js?v=20260919093705";
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260919093705";
 
 /**
  * 把带单位的时长状态换算成秒。
