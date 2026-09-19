@@ -4405,7 +4405,7 @@ async function runColorHelpersSuite() {
  * 或「某个控件显示兜底文案」。
  */
 async function runEntityHelpersSuite() {
-  const { entitySearchText, entitySearchTextOf, entityDomainOf } = await import(
+  const { entitySearchText, entitySearchTextOf, entityDomainOf, entityDomainFromId } = await import(
     pathToFileURL(path.join(ROOT, "frontend/static/utils/entities.js")).href
   );
 
@@ -4488,6 +4488,119 @@ async function runEntityHelpersSuite() {
     JSON.stringify({
       带点号domain: entityDomainOf({ domain: "light.x" }),
       数字domain: entityDomainOf({ domain: 123 })
+    })
+  );
+
+  // P12 收口（审计 4.3 B 类末尾那一项）：上面两条钉的是**对象入口**，这里钉**ID 入口**，
+  // 以及「两个入口同源」——`entityDomainOf` 在 domain 缺失时走的就是 `entityDomainFromId`。
+  // 为什么要把边界矩阵摆出来：这个助手现在是 `/static/` 树里唯一一份「按 ID 切域」的实现，
+  // 它的边界值（`null` / `undefined` / 非字符串 / 不含点号）决定了十几处消费方在
+  // 「实体元数据还没到」时拿到什么 —— 拿到 `"undefined"` 这种字符串会被当成真域名去查表，
+  // 表现是页面上一个不报错的兜底文案。
+  const domainIdMatrix = [
+    ["完整 ID", "light.kitchen", "light"],
+    ["只取第一个点号之前", "light.kitchen.living", "light"],
+    ["不含点号", "light", "light"],
+    ["以点号开头", ".light", ""],
+    ["空串", "", ""],
+    ["null", null, ""],
+    ["undefined", undefined, ""],
+    ["数字", 123, "123"]
+  ];
+  check(
+    "P12 entityDomainFromId 边界矩阵：null / undefined / 空串 / 非字符串都归一，不抛异常",
+    domainIdMatrix.every(([, input, expected]) => entityDomainFromId(input) === expected),
+    JSON.stringify(
+      domainIdMatrix.map(([label, input, expected]) => ({
+        情形: label,
+        实得: entityDomainFromId(input),
+        期望: expected
+      }))
+    )
+  );
+  check(
+    "P12 两个入口同源：entityDomainOf 的 ID 回退路径就是 entityDomainFromId（逐格等值）",
+    domainIdMatrix.every(
+      ([, input]) => entityDomainOf({ entityId: input }) === entityDomainFromId(input)
+    ) && entityDomainOf({ domain: "light.x" }) === entityDomainFromId("light.x"),
+    JSON.stringify({
+      空实体: entityDomainOf({}),
+      带点号domain两入口: [entityDomainOf({ domain: "light.x" }), entityDomainFromId("light.x")],
+      null实体: entityDomainOf(null),
+      null入参: entityDomainFromId(null)
+    })
+  );
+
+  // 消费方那三条腿：这批把 `climate.js` / `entity-power.js` / `light-runtime.js` / `registry.js`
+  // 里内联的切法换成助手调用 —— 换调用时**实参传错**（把 A 的 ID 传成 B 的字段）静态闸看不见：
+  // 语法合法、eslint 也过，表现是「某个控件按错的域分派」。所以把三处真实导出函数跑一遍，
+  // 全都按「ID 里那个域」分派才算数。
+  const { climatePowerCommand } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/renderer/climate.js")).href
+  );
+  const { entityToggleCommand } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/renderer/entity-power.js")).href
+  );
+  const { lightRealtimeCapabilities } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/renderer/light-runtime.js")).href
+  );
+  const { formatEntityState } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/renderer/registry.js")).href
+  );
+  const waterHeaterCommand = climatePowerCommand("water_heater.boiler", {}, true);
+  const fanCommand = climatePowerCommand("fan.bathroom", {}, false);
+  const unknownCommand = climatePowerCommand("switch.plain", {}, true);
+  const buttonCommand = entityToggleCommand("button.scene_switch", {});
+  const scriptCommand = entityToggleCommand("script.night", {});
+  const lightToggleCommand = entityToggleCommand("light.kitchen", {});
+  const lightCapabilities = lightRealtimeCapabilities("light.desk", {
+    attributes: { supported_color_modes: ["color_temp"] }
+  });
+  const switchCapabilities = lightRealtimeCapabilities("switch.desk", {
+    attributes: { supported_color_modes: ["color_temp"] }
+  });
+  const fallbackByIdCapabilities = lightRealtimeCapabilities("", {
+    entityId: "light.fallback",
+    attributes: { supported_features: 1 }
+  });
+  const fallbackByDomainCapabilities = lightRealtimeCapabilities("", {
+    domain: "light",
+    attributes: { supported_features: 1 }
+  });
+  const translatedState = formatEntityState(
+    { state: "on", attributes: { device_class: "plug" } },
+    "light.kitchen",
+    { entityTranslations: { "component.light.entity_component.plug.state.on": "通电了" } }
+  );
+  check(
+    "P12 消费方按 ID 取域：climate / entity-power 的按域分派、灯光能力探测、状态文案翻译键都还认得出域",
+    waterHeaterCommand.domain === "water_heater" &&
+      waterHeaterCommand.service === "turn_on" &&
+      fanCommand.domain === "fan" &&
+      fanCommand.service === "turn_off" &&
+      unknownCommand.domain === "homeassistant" &&
+      buttonCommand.domain === "button" &&
+      buttonCommand.service === "press" &&
+      scriptCommand.domain === "script" &&
+      lightToggleCommand.domain === "homeassistant" &&
+      lightToggleCommand.service === "toggle" &&
+      lightCapabilities.colorTemperature === true &&
+      switchCapabilities.colorTemperature === false &&
+      fallbackByIdCapabilities.brightness === true &&
+      fallbackByDomainCapabilities.brightness === true &&
+      translatedState === "通电了",
+    JSON.stringify({
+      热水器命令: waterHeaterCommand,
+      风扇命令: fanCommand,
+      未知域命令: unknownCommand,
+      按钮命令: buttonCommand,
+      脚本命令: scriptCommand,
+      灯命令: lightToggleCommand,
+      灯能力: lightCapabilities,
+      开关能力: switchCapabilities,
+      退回状态内entityId: fallbackByIdCapabilities,
+      退回状态内domain: fallbackByDomainCapabilities,
+      翻译键文案: translatedState
     })
   );
 }

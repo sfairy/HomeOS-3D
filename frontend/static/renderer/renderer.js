@@ -57,6 +57,12 @@ import { randomUuid } from "../utils/random-id.js?v=20260919111150";
 // 颜色解析统一走 utils/colors.js（P10 B 类收敛）：本文件原先在 mixHexColors 里
 // 又写了一份 normalizeHexColor，与 home.js 那份同名但失败值不同（null vs 空串）。
 import { expandHexColorOrNull } from "../utils/colors.js?v=20260919111150";
+// 「按 ID / 按实体取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带
+// `resolvedEntityId.split(".")[0]`（init 与重定向后各一次），外加四处同族的内联形态。
+// 有 `|| ""` 守卫的那几处已换成 `entityDomainFromId` / `entityDomainOf`（语义逐字相同）；
+// 剩下七处的输入没有守卫，改它们会把 falsy 输入从抛错 / `"undefined"` 变成 `""` ——
+// 那是行为改动，清单与理由见 `utils/entities.js` 的模块头。
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=20260919111150";
 import { popupLayoutMetrics } from "../popup-layout.js?v=20260919111150";
 import {
   bathHeaterModeUsesAirflow,
@@ -7718,29 +7724,29 @@ export class PanelRenderer {
    */
   popupComponentForEntity(requestedTargetEntityId, popupLabelText = "") {
     let resolvedEntityId = String(requestedTargetEntityId || "");
-    let entityDomain = resolvedEntityId.split(".")[0];
+    let entityDomainName = entityDomainFromId(resolvedEntityId);
     const entityDeviceProfile = this.deviceProfile(resolvedEntityId);
     if (
       entityDeviceProfile?.deviceType === "air-purifier" &&
       entityDeviceProfile.roles?.fan &&
-      entityDomain !== "fan"
+      entityDomainName !== "fan"
     ) {
       resolvedEntityId = entityDeviceProfile.roles.fan;
-      entityDomain = "fan";
+      entityDomainName = "fan";
     }
     const climateRoleEntityId =
       entityDeviceProfile?.roles?.climate || entityDeviceProfile?.roles?.fan || "";
     if (
       ["air-conditioner", "bath-heater"].includes(entityDeviceProfile?.deviceType) &&
       climateRoleEntityId &&
-      !["climate", "light"].includes(entityDomain)
+      !["climate", "light"].includes(entityDomainName)
     ) {
       resolvedEntityId = climateRoleEntityId;
-      entityDomain = resolvedEntityId.split(".")[0];
+      entityDomainName = resolvedEntityId.split(".")[0];
     }
     const metadataRecord = this.entityMetadata.get(resolvedEntityId);
     if (
-      entityDomain === "sensor" &&
+      entityDomainName === "sensor" &&
       metadataRecord?.deviceId &&
       ["state", "status", "task_status"].includes(metadataRecord.translationKey)
     ) {
@@ -7752,31 +7758,31 @@ export class PanelRenderer {
       );
       if (vacuumMetadataRecord?.entityId) {
         resolvedEntityId = vacuumMetadataRecord.entityId;
-        entityDomain = "vacuum";
+        entityDomainName = "vacuum";
       }
     }
     const popupComponentType =
       entityDeviceProfile?.deviceType === "electric-bed"
         ? "electric-bed"
-        : entityDeviceProfile?.deviceType === "air-purifier" && entityDomain === "fan"
+        : entityDeviceProfile?.deviceType === "air-purifier" && entityDomainName === "fan"
           ? "air-purifier"
           : (["air-conditioner", "bath-heater"].includes(entityDeviceProfile?.deviceType) &&
-                ["climate", "fan"].includes(entityDomain)) ||
-              entityDomain === "climate"
+                ["climate", "fan"].includes(entityDomainName)) ||
+              entityDomainName === "climate"
             ? "air-conditioner"
-            : entityDomain === "water_heater"
+            : entityDomainName === "water_heater"
               ? "water-heater"
-              : entityDomain === "camera"
+              : entityDomainName === "camera"
                 ? "camera"
-                : entityDomain === "media_player"
+                : entityDomainName === "media_player"
                   ? "media-player"
-                  : ["fan", "select", "number", "input_number"].includes(entityDomain)
+                  : ["fan", "select", "number", "input_number"].includes(entityDomainName)
                     ? "device-button"
-                    : ["light", "switch", "input_boolean"].includes(entityDomain)
+                    : ["light", "switch", "input_boolean"].includes(entityDomainName)
                       ? "icon-button"
-                      : entityDomain === "sensor"
+                      : entityDomainName === "sensor"
                         ? "line-chart"
-                        : entityDomain === "vacuum"
+                        : entityDomainName === "vacuum"
                           ? "vacuum-control"
                           : "device-button";
     return {
@@ -7842,7 +7848,7 @@ export class PanelRenderer {
     }
     const sourceEntityId = popupSourceComponent?.bindings?.entity?.entityId;
     const usesSourceComponent =
-      String(sourceEntityId || "").split(".", 1)[0] === "cover" ||
+      entityDomainFromId(sourceEntityId) === "cover" ||
       ["camera", "line-chart", "air-conditioner", "icon-button"].includes(
         popupSourceComponent?.type
       );
@@ -9276,7 +9282,7 @@ export class PanelRenderer {
       "hb-capability-details-controls" +
       (capabilityVariant ? " hb-capability-details-controls--" + capabilityVariant : "");
     capabilityControlsElement.inert = !capabilityInteractive;
-    const capabilityDomain = String(capabilityEntityId || "").split(".", 1)[0];
+    const capabilityDomain = entityDomainFromId(capabilityEntityId);
     let capabilityState = capabilityInitialState || {
       entityId: capabilityEntityId,
       state: "unknown",
@@ -15399,7 +15405,7 @@ export class PanelRenderer {
   ) {
     const climateCapabilities = normalizeClimateCapabilities(climateControlsState);
     const climateCapabilityAttributes = climateCapabilities.attributes;
-    const climateEntityDomain = String(climateControlsEntityId || "").split(".", 1)[0];
+    const climateEntityDomain = entityDomainFromId(climateControlsEntityId);
     const climateLabelContext = {
       entityId: climateControlsEntityId,
       entityMetadata: this.entityMetadata,
@@ -17861,9 +17867,7 @@ export class PanelRenderer {
           .filter(
             bedMetadataEntry =>
               bedMetadataEntry.deviceId === bedEntityMetadata.deviceId &&
-              ["button", "select"].includes(
-                String(bedMetadataEntry.domain || bedMetadataEntry.entityId || "").split(".", 1)[0]
-              ) &&
+              ["button", "select"].includes(entityDomainOf(bedMetadataEntry)) &&
               bedMetadataEntry.entityId !== electricBedRoles.mode &&
               entityMetadataIsAvailable(bedMetadataEntry)
           )
@@ -21937,7 +21941,7 @@ export class PanelRenderer {
     for (const coverEntityId of [...subscriptionEntityIds]) {
       if (
         (this.entityMetadata.get(coverEntityId)?.domain ||
-          String(coverEntityId || "").split(".", 1)[0]) !== "cover"
+          entityDomainFromId(coverEntityId)) !== "cover"
       ) {
         continue;
       }

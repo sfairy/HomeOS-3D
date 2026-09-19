@@ -17,7 +17,10 @@
  * （那两份保留原大小写、不压空格，靠调用方正则带 `i` 兜着）。现在三处共用一份，
  * 语义与原先本文件这份一致（小写 + 过滤空段），因此本文件的判定不受影响。
  */
-import { entitySearchText } from "../utils/entities.js?v=20260919111150";
+// 取域走 `utils/entities.js` 的 `entityDomainOf`（P12 收口 B 类末尾那一项）。本文件原先有七处
+// 内联的 `String(entity?.domain || entity?.entityId || "").split(".", 1)[0]` —— 与那个助手的
+// **函数体逐字相同**（七处输入都自带 `|| ""` 守卫），换成调用后语义一字未变。
+import { entityDomainOf, entitySearchText } from "../utils/entities.js?v=20260919111150";
 
 // 认定为小米生态的 HA 集成平台名：分别是旧版 MIoT 与新版 Xiaomi Home 集成。
 const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);
@@ -60,7 +63,7 @@ function entityIsUsable(candidateEntity) {
  * @returns {number} 得分；-1 表示不匹配。
  */
 function scoreEntityForRole(entity, entityRole) {
-  const domain = String(entity?.domain || entity?.entityId || "").split(".", 1)[0];
+  const domain = entityDomainOf(entity);
   const roleSearchText = entitySearchText(
     entity?.entityId,
     entity?.name,
@@ -254,10 +257,7 @@ function pickBestBedControlEntity(entities, role) {
   return (
     entities
       .filter(bedEntity => {
-        const bedEntityDomain = String(bedEntity?.domain || bedEntity?.entityId || "").split(
-          ".",
-          1
-        )[0];
+        const bedEntityDomain = entityDomainOf(bedEntity);
         const bedEntitySearchText = entitySearchText(
           bedEntity?.entityId,
           bedEntity?.name,
@@ -401,8 +401,7 @@ export function resolveXiaomiDeviceProfile(
   };
   const selectEntities = deviceEntities
     .filter(
-      selectEntity =>
-        String(selectEntity?.domain || selectEntity?.entityId || "").split(".", 1)[0] === "select"
+      selectEntity => entityDomainOf(selectEntity) === "select"
     )
     .sort((leftSelectEntity, rightSelectEntity) =>
       String(leftSelectEntity.entityId || "").localeCompare(
@@ -456,10 +455,7 @@ export function resolveXiaomiDeviceProfile(
   }
   const memoryEntities = deviceEntities
     .filter(memoryEntity => {
-      const memoryDomain = String(memoryEntity?.domain || memoryEntity?.entityId || "").split(
-        ".",
-        1
-      )[0];
+      const memoryDomain = entityDomainOf(memoryEntity);
       const memorySearchText = entitySearchText(
         memoryEntity?.entityId,
         memoryEntity?.name,
@@ -478,8 +474,7 @@ export function resolveXiaomiDeviceProfile(
     );
   const buttonEntities = deviceEntities
     .filter(
-      buttonEntity =>
-        String(buttonEntity?.domain || buttonEntity?.entityId || "").split(".", 1)[0] === "button"
+      buttonEntity => entityDomainOf(buttonEntity) === "button"
     )
     .sort((leftButtonEntity, rightButtonEntity) =>
       String(leftButtonEntity.entityId || "").localeCompare(
@@ -489,10 +484,8 @@ export function resolveXiaomiDeviceProfile(
   const remainingSelectEntities = deviceEntities
     .filter(
       remainingSelectEntity =>
-        String(remainingSelectEntity?.domain || remainingSelectEntity?.entityId || "").split(
-          ".",
-          1
-        )[0] === "select" && remainingSelectEntity.entityId !== bedControlEntityIds.mode
+        entityDomainOf(remainingSelectEntity) === "select" &&
+        remainingSelectEntity.entityId !== bedControlEntityIds.mode
     )
     .sort((leftRemainingSelect, rightRemainingSelect) =>
       String(leftRemainingSelect.entityId || "").localeCompare(
@@ -513,10 +506,7 @@ export function resolveXiaomiDeviceProfile(
     !!bedControlEntityIds.leg &&
     !!bedControlEntityIds.waist &&
     !!bedControlEntityIds.mode;
-  const primaryDomain = String(primaryEntity.domain || primaryEntity.entityId || "").split(
-    ".",
-    1
-  )[0];
+  const primaryDomain = entityDomainOf(primaryEntity);
   const isBathHeater = /bath.?heater|ptc.?bath|(?:^|[._-])bhf(?:[._-]|$)|浴霸|风暖|暖风机/.test(
     searchText
   );

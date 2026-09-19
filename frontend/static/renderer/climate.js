@@ -13,6 +13,10 @@
  * 与界面约定死的字符串，改动需同步改设计稿；
  * water-heater 不是可配置的类型，它由实体域推断出来，所以不在下面的白名单里。
  */
+// 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带一份
+// `String(entityId || "").split(".", 1)[0]`（`climateControlStructureKey` 里那处）。
+import { entityDomainFromId } from "../utils/entities.js?v=20260919111150";
+
 // 控件属性 deviceType 允许的取值；auto 表示交给 resolveClimateDeviceType 推断。
 const CLIMATE_DEVICE_TYPES = new Set(["auto", "air-conditioner", "bath-heater"]);
 /**
@@ -216,9 +220,9 @@ export function climateControlStructureKey(
   deviceTypeHint = "air-conditioner"
 ) {
   const structureCapabilities = normalizeClimateCapabilities(structureState);
-  const entityDomain = String(entityId || "").split(".", 1)[0];
+  const entityDomainName = entityDomainFromId(entityId);
   const supportsTemperature =
-    ["climate", "water_heater"].includes(entityDomain) &&
+    ["climate", "water_heater"].includes(entityDomainName) &&
     structureCapabilities.supportsTargetTemperature;
   return JSON.stringify({
     temperature: supportsTemperature
@@ -229,9 +233,9 @@ export function climateControlStructureKey(
         ]
       : null,
     modes: climateOperationModeValues(structureState, deviceTypeHint),
-    fanModes: entityDomain === "climate" ? structureCapabilities.fanModes : [],
+    fanModes: entityDomainName === "climate" ? structureCapabilities.fanModes : [],
     fanPercentageStep:
-      entityDomain === "fan" && structureCapabilities.supportsFanPercentage
+      entityDomainName === "fan" && structureCapabilities.supportsFanPercentage
         ? structureCapabilities.fanPercentageStep
         : null,
     swingModes: structureCapabilities.swingModes,
@@ -1005,7 +1009,7 @@ export function climatePowerCommand(
   commandDeviceType = "air-conditioner",
   preferredMode = ""
 ) {
-  const commandDomain = String(commandEntityId || "").split(".", 1)[0];
+  const commandDomain = entityDomainFromId(commandEntityId);
   if (commandDomain === "water_heater") {
     return {
       domain: "water_heater",

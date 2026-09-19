@@ -17,6 +17,11 @@ import {
   editorEntityPickerPage
 } from "../../editor-picker-pagination.js?v=20260919111150";
 import { createEditorPickerQueries } from "../../editor-picker-queries.js?v=20260919111150";
+// 「取实体域」走 utils/entities.js 的唯一实现（P12 收口 B 类末尾那一项）：这里原先
+// 手写了一份 `pickerEntity.entityId.split(".")[0]`，而编辑器侧注入的是同一个助手。
+// 两者只差「元数据 domain 优先」这一条，而能进这个列表的实体都是 HA 目录里的行
+// （`domain` 列就是 entity_id 的前缀），虚拟实体另被 `editorEntityMatches` 滤掉 —— 同值。
+import { entityDomainOf } from "../../utils/entities.js?v=20260919111150";
 import { vacuumProfiles } from "./vacuum-catalog.js";
 import { nasProfiles } from "./nas-catalog.js";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
@@ -535,16 +540,16 @@ export function createInteraction3dEditorPickers({
       current: currentEntityId = "",
       onSelect: onEntitySelect,
       deviceKind: entityDeviceKind = deviceKind,
-      domain: entityDomain
+      domain: entityDomainName
     }) {
       // 交互语义比「实体域」复杂，这里先把各种特殊情形摊平成布尔量，
       // 后续所有判定都只看这些布尔量，避免条件散落各处。
       const isNasEntity = entityDeviceKind === "nas";
       const isTelevisionEntity = entityDeviceKind === "television";
       const isTelevisionPowerEntity = entityDeviceKind === "television-power";
-      const isCoverEntity = entityDeviceKind === "cover" || entityDomain === "cover";
+      const isCoverEntity = entityDeviceKind === "cover" || entityDomainName === "cover";
       const isClimateEntity =
-        !isCoverEntity && (entityDeviceKind === "climate" || entityDomain === "climate");
+        !isCoverEntity && (entityDeviceKind === "climate" || entityDomainName === "climate");
       const isLightEntity = entityDeviceKind === "light" && !isCoverEntity && !isClimateEntity;
       // 实体域白名单：决定「哪些实体有资格出现」。灯光 / 电视电源 / 人在允许任意域，
       // 因为这类功能真正绑定的是「任意可控实体」或某域下由 device_class 判定的实体。
@@ -610,7 +615,7 @@ export function createInteraction3dEditorPickers({
         pickerEntitiesForComponentType: () =>
           getEntities().filter(filteredEntity => entityIdPattern.test(filteredEntity.entityId)),
         entityPickerText: entityPickerText,
-        entityDomain: pickerEntity => pickerEntity.entityId.split(".")[0]
+        entityDomainResolver: entityDomainOf
       });
       await ensureEntities();
       // 打开选择器前用户可能已切走面板，触发器脱离 DOM 时不再弹层。

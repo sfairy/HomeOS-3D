@@ -22,6 +22,9 @@ import {
 // 状态条目归一（变更对象 / 状态对象两种形态）统一走 utils/state-entry.js：
 // 本文件原先那份 unwrapStateChange 与另外四处是同一份知识，只是缺失时的兜底不同。
 import { resolveStateEntry } from "../utils/state-entry.js?v=20260919111150";
+// 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带两份
+// `String(id || "").split(".", 1)[0]`（`entityPowerIsOn` 与 `entityToggleCommand` 各一处）。
+import { entityDomainFromId } from "../utils/entities.js?v=20260919111150";
 
 // 兜底占位状态：本文件的下游要直接读 `.state` 与 `.attributes`（还有 `delete attributes.x`），
 // 传 null 会让「状态还没到」变成页面上的 TypeError。三处调用点都只读或 spread 出去，不修改它。
@@ -66,7 +69,7 @@ export function entityPowerTarget(runtimeEntityId, component = {}, deviceProfile
  */
 export function entityPowerIsOn(entityId, stateInput, ownerComponent = {}) {
   const stateObject = resolveStateEntry(stateInput, EMPTY_ENTITY_STATE);
-  const domain = String(entityId || "").split(".", 1)[0];
+  const domain = entityDomainFromId(entityId);
   // 状态统一小写去空格再比较，HA 侧偶发带空格或大小写不一致时不会误判。
   const normalizedState = String(stateObject.state || "")
     .trim()
@@ -104,7 +107,7 @@ export function entityPowerIsOn(entityId, stateInput, ownerComponent = {}) {
  */
 export function entityToggleCommand(targetEntityId, stateSource, toggleComponent = {}) {
   const entityState = resolveStateEntry(stateSource, EMPTY_ENTITY_STATE);
-  const toggleDomain = String(targetEntityId || "").split(".", 1)[0];
+  const toggleDomain = entityDomainFromId(targetEntityId);
   if (toggleDomain === "button") {
     return {
       domain: "button",
@@ -162,15 +165,15 @@ export function entityToggleCommand(targetEntityId, stateSource, toggleComponent
  */
 export function optimisticToggleState(sourceEntityId, stateValue, sourceComponent = {}) {
   const currentState = resolveStateEntry(stateValue, EMPTY_ENTITY_STATE);
-  const entityDomain = String(sourceEntityId || "").split(".", 1)[0];
+  const entityDomainName = entityDomainFromId(sourceEntityId);
   const isPoweredOn = entityPowerIsOn(sourceEntityId, currentState, sourceComponent);
-  if (entityDomain === "media_player") {
+  if (entityDomainName === "media_player") {
     return {
       ...currentState,
       state: entityPowerIsOn(sourceEntityId, currentState, sourceComponent) ? "paused" : "playing"
     };
   }
-  if (entityDomain === "climate") {
+  if (entityDomainName === "climate") {
     const nextAttributes = {
       ...(currentState.attributes || {})
     };

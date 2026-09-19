@@ -630,10 +630,16 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
   if (!/^(light|switch)\.[a-z0-9_]+$/.test(commandEntityId) || !capabilities.available) {
     throw new Error("设备不可用。");
   }
-  const entityDomain = commandEntityId.split(".")[0];
+  // 域不调 utils/entities.js 的 entityDomainFromId：本文件在 3D 运行时树里
+  // （后端按 /api/v1/modules/interaction3d/ 提供），与 /static/ 是两个加载边界，
+  // 跨树 import 是个架构决定（审计文档 4.3 B 类末尾那两条）。这里只把局部名从
+  // entityDomain 改成 entityDomainName —— 那个名字在 P10 已被删掉，留着会与
+  // 「已删名字不许当值用」那条闸打架。切法与共享实现逐字相同，上面那行正则
+  // 已经保证 commandEntityId 是字符串。
+  const entityDomainName = commandEntityId.split(".")[0];
   if (commandName === "power") {
     return {
-      domain: entityDomain,
+      domain: entityDomainName,
       service: commandValue ? "turn_on" : "turn_off",
       entityId: commandEntityId,
       data: {}
@@ -646,7 +652,7 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
     // 面板用 1–100 的百分比，HA 要 0–255：先夹取再换算，且至少为 1，
     // 否则 1% 会被换算成 2（四舍五入后的最小值），再小就直接是 0 等于关灯。
     return {
-      domain: entityDomain,
+      domain: entityDomainName,
       service: "turn_on",
       entityId: commandEntityId,
       data: {
@@ -657,7 +663,7 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
   if (commandName === "temperature" && capabilities.temperatureSupported) {
     // 色温一律用开尔文属性下发，并夹到设备声明的区间内。
     return {
-      domain: entityDomain,
+      domain: entityDomainName,
       service: "turn_on",
       entityId: commandEntityId,
       data: {

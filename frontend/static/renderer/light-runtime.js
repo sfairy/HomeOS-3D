@@ -10,6 +10,14 @@
  * 位置：不碰 DOM，也不读控件注册表；灯光控件的 runtime 与编辑器预览共用这里的口径。
  */
 
+// 本文件到 P12 为止是**零 import** 的纯计算层；这一条是第一个依赖，且只依赖
+// `utils/entities.js`（它是叶子模块、自己没有 import，也不碰 DOM / 注册表），
+// 所以「不碰 DOM、不读注册表」这条位置说明仍然成立。
+// 为什么值得破一次例：本文件原先内联了一份 `String(id || … || "").split(".", 1)[0]`
+// 来判灯域，与 `entityDomainFromId` 的契约逐字相同（输入自带 `|| ""` 守卫）——
+// 留着它就是「同一份取域知识两份实现」，而那正是这批要收口的东西。
+import { entityDomainFromId } from "../utils/entities.js?v=20260919111150";
+
 /**
  * 把 0~100 的相对色温百分比换算成开尔文。
  *
@@ -120,8 +128,7 @@ export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
   const stateAttributes = stateObject?.attributes || {};
   // 实体 ID 缺失时退回状态对象自带的 entityId / domain，避免拿不到域就判成不支持。
   const isLightEntity =
-    String(entityId || stateObject.entityId || stateObject.domain || "").split(".", 1)[0] ===
-    "light";
+    entityDomainFromId(entityId || stateObject.entityId || stateObject.domain) === "light";
   const declaredColorModes = Array.isArray(stateAttributes.supported_color_modes)
     ? stateAttributes.supported_color_modes
     : [];

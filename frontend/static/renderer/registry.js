@@ -44,6 +44,11 @@ import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=202609
 // 状态条目归一统一走 utils/state-entry.js。本文件原先自带一份同内容实现，
 // 而 vacuum-runtime.js / presence-runtime.js 各有一份同内容但换了名字的副本 —— 现在只有一份。
 import { resolveStateEntry } from "../utils/state-entry.js?v=20260919111150";
+// 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带一份
+// `String(元数据.domain || id.split(".")[0] || "").trim()`，其中的回退路径换成
+// `entityDomainFromId`；`元数据.domain ||` 那半截刻意保留 —— 它**不切点号**，
+// 换掉会改变「域里带点号」时的取值（那是另一个知识，见 `entityDomainOf` 的说明）。
+import { entityDomainFromId } from "../utils/entities.js?v=20260919111150";
 // 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
 // 本文件原先各留一份本地实现，只因为 cover-runtime.js 已经 import 本文件、反向 import 会成环。
 import {
@@ -706,7 +711,7 @@ function resolveStateIcon(stateIconEntityId, stateIconEntityState) {
   if (stateIconName) {
     return stateIconName;
   }
-  const entityDomainName = String(stateIconEntityId || "").split(".")[0];
+  const entityDomainName = entityDomainFromId(stateIconEntityId);
   return (
     {
       binary_sensor: "mdi:radiobox-marked",
@@ -747,16 +752,16 @@ export function formatEntityState(rawState, formattedEntityId = "", formatContex
   const stateValueText = String(resolvedStateEntry.state ?? "").trim();
   const entityMetadataEntry = formatContext.entityMetadata?.get?.(formattedEntityId) || {};
   const integrationPlatform = String(entityMetadataEntry.platform || "").trim();
-  const entityDomain = String(
-    entityMetadataEntry.domain || formattedEntityId.split(".")[0] || ""
+  const entityDomainName = String(
+    entityMetadataEntry.domain || entityDomainFromId(formattedEntityId) || ""
   ).trim();
   const translationKey = String(entityMetadataEntry.translationKey || "").trim();
   const stateTranslationKey =
-    integrationPlatform && entityDomain && translationKey && stateValueText
+    integrationPlatform && entityDomainName && translationKey && stateValueText
       ? "component." +
         integrationPlatform +
         ".entity." +
-        entityDomain +
+        entityDomainName +
         "." +
         translationKey +
         ".state." +
@@ -764,9 +769,9 @@ export function formatEntityState(rawState, formattedEntityId = "", formatContex
       : "";
   const deviceClass = String(resolvedStateEntry.attributes?.device_class || "").trim();
   const componentTranslationKey =
-    entityDomain && deviceClass && stateValueText
+    entityDomainName && deviceClass && stateValueText
       ? "component." +
-        entityDomain +
+        entityDomainName +
         ".entity_component." +
         deviceClass +
         ".state." +

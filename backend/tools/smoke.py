@@ -3029,6 +3029,13 @@ FRONTEND_HELPER_SINGLE_SOURCE = {
         'entitySearchText',
         'entitySearchTextOf',
         'entityDomainOf',
+        # P12 加进来的（审计 4.3 B 类末尾那一项收口）：`/static/` 树里五处具名的
+        # `const entityDomain = …` 与十九处**同形内联**写法（climate / entity-power /
+        # registry / renderer / light-runtime / device-profiles / home 等）改为调它，
+        # `entityDomainOf` 的对象路径也走它 —— 于是「按 ID 切域」只有一份实现。
+        # 谁换个文件定义同名函数，这条红；`/static/` 里没守卫的内联切分与 3D 运行时树
+        # 那几处属于**已知且写明的**缺口，见本函数 docstring 的边界段。
+        'entityDomainFromId',
     ),
     'frontend/static/utils/apple-device.js': ('isAppleMobile',),
     # P10-B 第三批（4.3 B 类剩余）：状态条目归一。原先 5 份具名副本用了 3 个名字
@@ -3100,23 +3107,20 @@ FRONTEND_DISTINCT_HELPER_SITES = {
 #: 这条闸补的正是这个盲区：它不查「这一份语义对不对」（那是探针与上表的活儿），
 #: 只查「这个名字已经没有定义了，谁还在用」。
 #:
-#: 名单里的八个文件就是全部绑定点：六个 ``const entityDomain = String(id).split(".")[0]``
-#: 局部写法（审计文档 4.3 B 类末尾那一项，等 ``entityDomainFromId`` 落地时清空），
-#: 外加两处**解构形参**（``editor-picker-queries.js`` 的 ``handlers.entityDomain``、
-#: ``editor-pickers.js`` 的 ``domain: entityDomain``）—— 形参形态与「属性值漏改」
-#: 长得一模一样（都是 ``entityDomain: entityDomain``），静态上分不开，所以按文件点名，
-#: 再用下面第 2 条核对名单没变成摆设。
-FRONTEND_RETIRED_REFERENCE_NAMES = {
-    'entityDomain': (
-        'frontend/static/editor-picker-queries.js',
-        'frontend/static/modules/interaction3d/editor-pickers.js',
-        'frontend/static/renderer/climate.js',
-        'frontend/static/renderer/entity-power.js',
-        'frontend/static/renderer/light-statistics-runtime.js',
-        'frontend/static/renderer/registry.js',
-        'frontend/static/renderer/renderer.js',
-        'frontend/modules/interaction3d/light-state.js',
-    ),
+#: **P12 收口：豁免名单已清空 —— 但名字留着**（`'entityDomain': ()`）。这两件事要分开：
+#:
+#: * **豁免元组清空**才是收口条件。原先那八处绑定（六处 ``const entityDomain = …`` + 两处解构
+#:   形参）现在全部处理完了：五处改调 ``entityDomainFromId``（并登记进
+#:   ``FRONTEND_HELPER_SINGLE_SOURCE``，于是「换个文件重新定义同名函数」会红）、两处解构形参
+#:   连同**注入键**一起改名 ``entityDomainOf``（那个键名原先与已删的本地名同名，正是 P11 事故
+#:   的形态来源）、3D 运行时树那一处只改局部名（跨加载边界，形态留在那边）。
+#:   留着空元组不删名字，是因为**名字才是覆盖**：谁把这份已删的知识再抄回来当值用（哪怕只是
+#:   ``{ entityDomain: entityDomain }`` 这种值位置），这条闸立刻红；把名字一起删掉，闸就彻底
+#:   闭嘴了 —— 而它正是用一次页面级事故换来的。
+#: * 空元组下第二条断言（「名单里的文件必须真的绑着它」）无事可做，但它不是死代码：
+#:   下一次给某个退役名字登记豁免时，它立刻开始咬人。
+FRONTEND_RETIRED_REFERENCE_NAMES: dict[str, tuple[str, ...]] = {
+    'entityDomain': (),
 }
 
 #: 「这个文件里仍有对 ``name`` 的绑定」的判据（用来防止上面那份名单被改成摆设）。
@@ -3256,10 +3260,24 @@ def check_frontend_helper_contract_single_source() -> None:
     知识不在覆盖范围内 —— 定义模式匹配分不出「局部变量」与「助手定义」，把它们登记进来会
     直接产生一堆假红。两族留在范围外（见审计文档 4.3 B 类末尾）：
 
-    * ``renderer/*.js`` 里六处 ``const entityDomain = ...``；
+    * 3D 运行时树里那三处「按 ID 切域」（``modules/interaction3d/`` 的 ``light-state.js`` /
+      ``runtime.js`` / ``television-state.js``，由后端按 ``/api/v1/modules/interaction3d/``
+      提供，与 ``/static/`` 是两个独立的加载边界）。**同族的具名五处 + 内联十九处已在 P12 收口**：
+      它们改调 ``utils/entities.js`` 的 ``entityDomainFromId`` / ``entityDomainOf`` ——
+      那两个名字登记在上表里，所以「换个文件定义同名函数」会红。**没守卫的内联十一处仍留在
+      ``/static/`` 里**（``renderer/renderer.js`` 七处、``home.js``、``action-rules.js``、
+      ``renderer/climate.js``、``editor-document-management.js``）：它们的输入写的是
+      ``x.split(...)`` / ``String(x)``，换成助手会把 falsy 输入从抛错或字符串
+      ``"undefined"`` 变成 ``""`` —— 属行为改动、且这些渲染路径没有探针覆盖，
+      清单与理由写在 ``utils/entities.js`` 的模块头；
     * 全前端 70 余处内联的 ``x?.newState || x`` / ``(x?.newState || x)?.attributes`` 取用
-      —— 其中约 30 处落在 3D 运行时树（``frontend/modules/interaction3d/*``，由后端按
-      ``/api/v1/modules/interaction3d/`` 提供），与 ``/static/`` 是两个独立的加载边界。
+      —— 其中约 30 处落在上面那个 3D 运行时树里，同一个边界问题。
+
+    还有一条**判据本身的边界**（P12 撞到过）：这条闸按「自由标识符」判使用点，所以
+    **依赖注入的形参名不能与助手同名**。``editor-picker-queries.js`` 收的是
+    ``entityDomainResolver``（值由调用方注入 ``entityDomainOf``）而不是直接叫
+    ``entityDomainOf`` —— 后者会让这个文件被当成「用了助手却没 import」而误报；
+    反过来也说明：给注入形参起名时，别跟契约手册里的名字撞。
     """
     frontend_root = PROJECT_ROOT / 'frontend'
     expected = {
@@ -3390,21 +3408,32 @@ def check_frontend_retired_name_references() -> None:
     右侧那个名字已经在 P10 第五批被删了，于是模块顶层 ``ReferenceError``，
     ``/`` 编辑器页整份脚本不执行，而两套 smoke 与 e2e 全绿（前端探针只切片跑函数，
     从不整份求值 ``home.js``）。名字与成因详见 ``FRONTEND_RETIRED_REFERENCE_NAMES``。
+    （那一对现在是 ``entityDomainResolver: entityDomainOf`` —— P12 把注入键改成了
+    ``entityDomainResolver`` 而不是跟着值叫 ``entityDomainOf``：形参名与契约助手同名会被
+    上面那条「使用点必须自己 import」的闸误报（注入方不 import 它，它是形参），
+    详见那条闸的 docstring。于是「键还是旧名、值已删名」这种半改形态同样写不出来。）
 
-    两条断言，缺一不可：
+    两条断言 + 一条防呆，缺一不可：
 
-    * **不在名单里的文件里不许出现**。名字出现即说明「已删的知识又被用了一次」，
+    * **不在豁免名单里的文件里不许出现**。名字出现即说明「已删的知识又被用了一次」，
       不管它是当实参、当属性值，还是又抄了一份 ``const`` 回来 —— 浏览器里都是那一行红。
-    * **名单里的文件必须真的还绑着它**。这份名单是「本地绑定 / 解构形参」的豁免清单，
-      如果有人把那处 ``const entityDomain = …`` 改成别的名字（或把形参删掉），
+    * **登记了豁免的文件必须真的还绑着它**。这份豁免是「本地绑定 / 解构形参」的清单，
+      如果有人把那处 ``const … = …`` 改成别的名字（或把形参删掉），
       豁免就从「有理由的例外」变成「一块遮羞布」—— 那时它必须回到第一条去。
+    * **清单本身不许为空**。清豁免元组 ≠ 删名字：名字留着，闸才有正面覆盖
+      （``'entityDomain': ()``）；把名字一起删掉等于把这条闸关掉，那要红。
+
+    （P12 收口时前两条正是按预期咬住的：把 ``entityDomain`` 逐处改名之后，
+    豁免名单里那八个文件立刻报「没找到绑定」—— 于是豁免本身也必须清空，而不是留着当挡箭牌。
+    清空之后名字仍留在清单里、豁免元组是空的，第三条防的正是「顺手把名字也删了」。）
 
     与 W30（``toplevel-symbols``，把每个脚本的顶层真的求值一遍）的分工，是互补而不是重复：
     W30 走的是**求值路径**，通用、能顺着 import 走（本次事故就是它在顶层抓到的），但它自己的
     docstring 也写明了边界 —— 「函数体里的 no-undef 要等被调用才暴露」。这条静态闸补的就是
     那一半：只按代码文本判**值位置**，不看有没有被执行到，所以函数体里 ``fn({ a: entityDomain })``
     这种同样会红的写法它也拦得住（实测：把同一处漏改挪进函数体，W30 静默、这条红）。
-    代价是它必须自带一份「谁还合法持有这个名字」的名单，所以另配一条断言防名单腐坏。
+    代价是它必须自带一份「谁还合法持有这个名字」的豁免清单，所以另配两条断言防清单腐坏
+    （豁免失效、或名字被整份删掉）。
 
     故意不做的两件事，如实写在这里：不判断「这个值用对了没有」（那是探针的活儿），
     也不管对象字面量的**键**（``entityDomain: entityDomainOf`` 左边那个词只是属性名，
@@ -3414,6 +3443,17 @@ def check_frontend_retired_name_references() -> None:
     strays: list[str] = []
     stale: list[str] = []
     scanned = 0
+
+    if not FRONTEND_RETIRED_REFERENCE_NAMES:
+        # 这一条本身也是一条断言：把名字从字典里删干净 = 把整套机制关掉（而不是「没有名字要守」）。
+        # P12 收口时正是按这个口径处理的 —— 清的是**豁免元组**（`'entityDomain': ()`），
+        # 名字留着，于是「已删的知识又被抄回来当值用」仍然会红。
+        check(
+            'P11 退役名清单不许被整份删掉（清豁免元组 ≠ 删名字：名字才是正面覆盖）',
+            False,
+            '字典是空的：这条闸现在什么都不查 —— 只清豁免元组，别删名字',
+        )
+        return
 
     for path in sorted(frontend_root.rglob('*.js')):
         if '/vendor/' in path.as_posix():
@@ -3446,14 +3486,23 @@ def check_frontend_retired_name_references() -> None:
         not strays,
         '；'.join(strays[:6])
         if strays
-        else '；'.join(f'{name} 只在 {len(allow)} 个绑定点内' for name, allow in FRONTEND_RETIRED_REFERENCE_NAMES.items()),
+        else '；'.join(
+            f'{name} 全前端零值位置（豁免 {len(allow)} 处）'
+            if not allow
+            else f'{name} 只在 {len(allow)} 个绑定点内'
+            for name, allow in FRONTEND_RETIRED_REFERENCE_NAMES.items()
+        ),
     )
     check(
-        'P11 上面那份「仍然合法持有旧名字」的名单必须真的绑着它（否则豁免就从例外变成遮羞布）',
+        'P11 上面那份「仍然合法持有旧名字」的豁免必须真的绑着它（否则豁免就从例外变成遮羞布）',
         not stale,
         '；'.join(stale)
         if stale
-        else f'{sum(len(a) for a in FRONTEND_RETIRED_REFERENCE_NAMES.values())} 处绑定全部核对（扫过 {scanned} 份前端脚本）',
+        else (
+            f'豁免名单为空（没有绑定需要核对，扫过 {scanned} 份前端脚本）'
+            if not any(FRONTEND_RETIRED_REFERENCE_NAMES.values())
+            else f'{sum(len(a) for a in FRONTEND_RETIRED_REFERENCE_NAMES.values())} 处绑定全部核对（扫过 {scanned} 份前端脚本）'
+        ),
     )
 
 

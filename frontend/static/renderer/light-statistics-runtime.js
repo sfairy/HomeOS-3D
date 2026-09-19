@@ -15,6 +15,10 @@ import {
   readFromMapOrRecord,
   resolveStateEntryIn
 } from "../utils/state-entry.js?v=20260919111150";
+// 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件的回退路径原先自带一份
+// `entityId.split(".", 1)[0].toLowerCase()`，切法与 `entityDomainFromId` 逐字相同
+// （本文件自己保留外层 `toLowerCase()`，因为只有这个消费方需要小写域）。
+import { entityDomainFromId } from "../utils/entities.js?v=20260919111150";
 
 // 这些域的「开 / 关」语义天然成立，直接按 state 判定。
 const ON_OFF_DOMAINS_SET = new Set([
@@ -39,11 +43,12 @@ function resolveEntityDomain(entityDescriptor) {
     typeof entityDescriptor == "string"
       ? entityDescriptor
       : String(entityDescriptor?.entityId || entityDescriptor?.entity_id || "");
+  // 描述里的 domain 优先（可能带空白，故 trim）；缺失时按 ID 的点号前缀取域 ——
+  // 两条路径都要小写：下面的域集合全是小写字面量，这里不归一就会静默判成「不支持」。
   return (
-    String(typeof entityDescriptor == "string" ? "" : entityDescriptor?.domain || "")
-      .trim()
-      .toLowerCase() || entityId.split(".", 1)[0].toLowerCase()
-  );
+    String(typeof entityDescriptor == "string" ? "" : entityDescriptor?.domain || "").trim() ||
+    entityDomainFromId(entityId)
+  ).toLowerCase();
 }
 /**
  * 判断某个实体能否参与灯光统计，并给出给用户看的口径说明。
@@ -56,23 +61,23 @@ function resolveEntityDomain(entityDescriptor) {
  * @returns {{supported: boolean, message: string}} supported 为 false 时 message 说明原因。
  */
 export function lightStatisticsEntitySupport(entityLike) {
-  const entityDomain = resolveEntityDomain(entityLike);
-  if (entityDomain === "virtual" || entityLike?.virtual) {
+  const entityDomainName = resolveEntityDomain(entityLike);
+  if (entityDomainName === "virtual" || entityLike?.virtual) {
     return {
       supported: true,
       message: "虚拟实体按当前显示状态统计。"
     };
-  } else if (entityDomain === "group") {
+  } else if (entityDomainName === "group") {
     return {
       supported: true,
       message: "群组将作为 1 个实体统计。"
     };
-  } else if (ON_OFF_DOMAINS_SET.has(entityDomain)) {
+  } else if (ON_OFF_DOMAINS_SET.has(entityDomainName)) {
     return {
       supported: true,
       message: "按开启/关闭状态统计。"
     };
-  } else if (RUNNING_STATE_DOMAINS_SET.has(entityDomain)) {
+  } else if (RUNNING_STATE_DOMAINS_SET.has(entityDomainName)) {
     return {
       supported: true,
       message: "按关闭/运行状态统计。"

@@ -7268,9 +7268,7 @@ function updateRelatedPopup(editedComponent, anchorElement) {
     entityNameElement.textContent = entityDisplayName(candidate, entityLabel);
     const metaElement = document.createElement("small");
     const metaParts = [
-      RELATED_ENTITY_DOMAIN_LABELS[
-        String(candidate.domain || candidate.entityId || "").split(".", 1)[0]
-      ] || "实体",
+      RELATED_ENTITY_DOMAIN_LABELS[entityDomainOf(candidate)] || "实体",
       candidate.entityId
     ];
     if (isAvailable) {
@@ -7447,9 +7445,12 @@ const {
   entityPickerConfig: entityPickerConfig,
   pickerEntitiesForComponentType: selectableEntities,
   entityPickerText: entityOptionLabel,
-  // P10 收敛时本文件那份局部 entityDomain 被删掉，这一处漏改成 entityDomainOf。
-  // 这行在模块顶层求值：写错名字不是「少一个功能」，而是整个编辑器脚本一行都不执行。
-  entityDomain: entityDomainOf
+  // P11 的事故现场就在这一行：P10 把本文件那份局部 entityDomain 删掉、值改成 entityDomainOf 时，
+  // 右侧漏改过一次，而模块顶层求值是「一个名字写错 → 整个编辑器脚本一行都不执行」。
+  // P12 把注入键改成 entityDomainResolver：键与值一起看得清「外面注入进来的是哪个助手」，
+  // 而且形参名**不与契约助手同名** —— 同名会让「使用点必须自己 import」那条闸误报
+  // （`editor-picker-queries.js` 不 import 它，它是形参）。
+  entityDomainResolver: entityDomainOf
 });
 const editorPickers = createInteraction3dEditorPickers({
   getState: stateEntityId => editorRenderer?.states?.get(stateEntityId),
