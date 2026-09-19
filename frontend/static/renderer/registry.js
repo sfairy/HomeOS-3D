@@ -23,12 +23,12 @@
  * - 渲染器只负责产出 DOM，不修改文档数据；编辑器预览通过 context.editable 与
  *   context.previewState 表达，不要另开旁路。
  */
-import { randomUuid } from "../utils/random-id.js?v=20260919111150";
+import { randomUuid } from "../utils/random-id.js?v=20260919115244";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../utils/debug-log.js?v=20260919111150";
+import { debugLog } from "../utils/debug-log.js?v=20260919115244";
 // 数值夹取统一走 utils/numbers.js（P10 B 类收敛）：本文件原先那份也叫 clampNumber，
 // 但它是四参、且会把空串换算成 0 —— 与编辑器那份同名不同义，最容易调用错的形态。
-import { clampCoercedNumber } from "../utils/numbers.js?v=20260919111150";
+import { clampCoercedNumber } from "../utils/numbers.js?v=20260919115244";
 import {
   climateDefaultIcon,
   climateEffectMode,
@@ -37,24 +37,24 @@ import {
   climatePresentationMode,
   normalizeClimateCapabilities,
   resolveClimateDeviceType
-} from "./climate.js?v=20260919111150";
-import { entityPowerIsOn } from "./entity-power.js?v=20260919111150";
-import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260919111150";
-import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260919111150";
+} from "./climate.js?v=20260919115244";
+import { entityPowerIsOn } from "./entity-power.js?v=20260919115244";
+import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260919115244";
+import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260919115244";
 // 状态条目归一统一走 utils/state-entry.js。本文件原先自带一份同内容实现，
 // 而 vacuum-runtime.js / presence-runtime.js 各有一份同内容但换了名字的副本 —— 现在只有一份。
-import { resolveStateEntry } from "../utils/state-entry.js?v=20260919111150";
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260919115244";
 // 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带一份
 // `String(元数据.domain || id.split(".")[0] || "").trim()`，其中的回退路径换成
 // `entityDomainFromId`；`元数据.domain ||` 那半截刻意保留 —— 它**不切点号**，
 // 换掉会改变「域里带点号」时的取值（那是另一个知识，见 `entityDomainOf` 的说明）。
-import { entityDomainFromId } from "../utils/entities.js?v=20260919111150";
+import { entityDomainFromId } from "../utils/entities.js?v=20260919115244";
 // 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
 // 本文件原先各留一份本地实现，只因为 cover-runtime.js 已经 import 本文件、反向 import 会成环。
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor
-} from "./cover-direction.js?v=20260919111150";
+} from "./cover-direction.js?v=20260919115244";
 // 控件类型注册表。用 Map 而不是对象字面量：控件类型来自文档数据，
 // Map 不受原型链影响，查 "constructor" 之类的键也不会拿到奇怪的结果。
 const componentsByType = new Map();
@@ -64,7 +64,7 @@ registerComponent("interaction3d", {
   render: renderInteraction3d
 });
 // 内置资源的三个索引：版本戳、显式 URL、特效裁剪变体。
-// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=20260919111150
+// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=20260919115244
 // 特效变体记录裁剪矩形与原图尺寸，渲染时写进 dataset 供 effect-geometry 使用。
 const assetVersionByAssetId = new Map();
 const assetUrlByAssetId = new Map();
@@ -628,18 +628,18 @@ import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport,
   lightStatisticsSummary
-} from "./light-statistics-runtime.js?v=20260919111150";
+} from "./light-statistics-runtime.js?v=20260919115244";
 import {
   automaticNumericPrecision,
   formatLineChartValue,
   formatNumericValue,
   lineChartGeometry,
   normalizedStatePrecision
-} from "./line-chart-runtime.js?v=20260919111150";
+} from "./line-chart-runtime.js?v=20260919115244";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix
-} from "./door-window-runtime.js?v=20260919111150";
+} from "./door-window-runtime.js?v=20260919115244";
 import {
   automaticThresholds,
   meteoconUrl,
@@ -648,12 +648,12 @@ import {
   smoothChartPath,
   thresholdColor,
   weatherVisual
-} from "./weather-chart-runtime.js?v=20260919111150";
+} from "./weather-chart-runtime.js?v=20260919115244";
 import {
   formatLocalDate,
   formatLocalTime,
   formatLunarDate
-} from "./date-time-runtime.js?v=20260919111150";
+} from "./date-time-runtime.js?v=20260919115244";
 // 统一再导出各 runtime 的纯函数：页面脚本只 import registry.js 一处即可，
 // 也保证注册表与这些工具用的是同一份模块实例（版本戳不一致会出现两份）。
 export {
@@ -685,7 +685,7 @@ import {
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "./presence-runtime.js?v=20260919111150";
+} from "./presence-runtime.js?v=20260919115244";
 export {
   formatPresenceDuration as formatPresenceDuration,
   presenceAnimationPhase as presenceAnimationPhase,

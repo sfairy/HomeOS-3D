@@ -25,7 +25,7 @@
  *
  * 对外导出：planFurniture（可被其他平面渲染复用）、openVacuumMapEditor。
  */
-import { mapCorners, mapSource } from "./vacuum-map.js?v=20260919111150";
+import { mapCorners, mapSource } from "./vacuum-map.js?v=20260919115244";
 /**
  * 从户型平面数据里挑出可当参照物的家具，并把尺寸换算到像素尺度。
  *

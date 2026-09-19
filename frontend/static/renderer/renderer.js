@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260919111150";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260919115244";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -52,18 +52,18 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260919111150";
-import { randomUuid } from "../utils/random-id.js?v=20260919111150";
+} from "./registry.js?v=20260919115244";
+import { randomUuid } from "../utils/random-id.js?v=20260919115244";
 // 颜色解析统一走 utils/colors.js（P10 B 类收敛）：本文件原先在 mixHexColors 里
 // 又写了一份 normalizeHexColor，与 home.js 那份同名但失败值不同（null vs 空串）。
-import { expandHexColorOrNull } from "../utils/colors.js?v=20260919111150";
+import { expandHexColorOrNull } from "../utils/colors.js?v=20260919115244";
 // 「按 ID / 按实体取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带
 // `resolvedEntityId.split(".")[0]`（init 与重定向后各一次），外加四处同族的内联形态。
 // 有 `|| ""` 守卫的那几处已换成 `entityDomainFromId` / `entityDomainOf`（语义逐字相同）；
 // 剩下七处的输入没有守卫，改它们会把 falsy 输入从抛错 / `"undefined"` 变成 `""` ——
 // 那是行为改动，清单与理由见 `utils/entities.js` 的模块头。
-import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=20260919111150";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260919111150";
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=20260919115244";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260919115244";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -82,11 +82,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260919111150";
+} from "./climate.js?v=20260919115244";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260919111150";
+} from "./device-profiles.js?v=20260919115244";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -95,26 +95,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260919111150";
-import { confirmAction } from "../ui-confirm.js?v=20260919111150";
+} from "../related-entities.js?v=20260919115244";
+import { confirmAction } from "../ui-confirm.js?v=20260919115244";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260919111150";
+} from "./entity-power.js?v=20260919115244";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260919111150";
-import { componentActionIsSupported } from "../action-rules.js?v=20260919111150";
+} from "../virtual-entities.js?v=20260919115244";
+import { componentActionIsSupported } from "../action-rules.js?v=20260919115244";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260919111150";
+} from "./transform-geometry.js?v=20260919115244";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -124,7 +124,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260919111150";
+} from "./effect-geometry.js?v=20260919115244";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -143,14 +143,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260919111150";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919111150";
+} from "./light-runtime.js?v=20260919115244";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919115244";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260919111150";
+} from "./vacuum-runtime.js?v=20260919115244";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -182,16 +182,16 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260919111150";
+} from "./cover-runtime.js?v=20260919115244";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919111150";
+import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919115244";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260919111150";
+} from "./runtime-dialog-motion.js?v=20260919115244";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -201,13 +201,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260919111150";
+} from "./runtime-caches.js?v=20260919115244";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260919111150";
+} from "./runtime-document.js?v=20260919115244";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。

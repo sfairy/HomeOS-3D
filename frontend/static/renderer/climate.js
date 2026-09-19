@@ -15,7 +15,7 @@
  */
 // 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带一份
 // `String(entityId || "").split(".", 1)[0]`（`climateControlStructureKey` 里那处）。
-import { entityDomainFromId } from "../utils/entities.js?v=20260919111150";
+import { entityDomainFromId } from "../utils/entities.js?v=20260919115244";
 
 // 控件属性 deviceType 允许的取值；auto 表示交给 resolveClimateDeviceType 推断。
 const CLIMATE_DEVICE_TYPES = new Set(["auto", "air-conditioner", "bath-heater"]);
