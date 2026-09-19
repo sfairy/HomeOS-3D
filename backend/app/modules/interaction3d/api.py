@@ -453,7 +453,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
                 'off',
                 'standby'}:
                 raise HTTPException(409, detail='请先开启电视。')
-        return await call_service(payload, request, database, viewer)
+        return await call_service(payload, request, viewer)
     elif payload.domain in {
         'cover',
         'climate'}:
@@ -503,7 +503,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             validate_cover_command(payload.service, payload.data, states[0] if states else None, dream=dream)
         else:
             validate_climate_command(payload.service, payload.data, states[0] if states else None)
-        return await call_service(payload, request, database, viewer)
+        return await call_service(payload, request, viewer)
     else:
         # 兜底分支只放行灯光与开关的开关动作；其余域（含未声明的）一律拒绝。
         if payload.domain not in {
@@ -528,7 +528,7 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             # 灯光表里 entityId 可以为空（纯装饰的灯），因此这里比的是「有没有一条绑到它」。
             if not any(item.get('entityId') == payload.entity_id for item in component.get('properties', {}).get('lights', [])):
                 raise HTTPException(403, detail='此设备未配置到当前 3D 交互控件。')
-        return await call_service(payload, request, database, viewer)
+        return await call_service(payload, request, viewer)
 
 
 @router.get('/stage.html')

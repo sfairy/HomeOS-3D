@@ -24,6 +24,7 @@ import ast
 import hashlib
 import importlib.metadata
 import importlib.util
+import inspect
 import json
 import logging
 import os
@@ -1792,9 +1793,30 @@ async def check_interaction3d_scoping() -> None:
         real_call_service = scene_api.call_service
         ha_calls: list[str] = []
 
-        async def fake_call_service(payload, request, database, viewer) -> dict:
+        async def fake_call_service(payload, request, viewer) -> dict:
             ha_calls.append(payload.entity_id)
             return {'ok': True, 'entity': payload.entity_id}
+
+        # 桩的**签名形状**必须与真实函数一致 —— 这条断言是这一批补的「桩的忠实度」钉子。
+        # 背景：B56 把 `api/ha.py` 那几处没用的请求级会话参数删掉之后，`call_service` 从四个
+        # 参数变成三个，而本文件这个桩仍然写着四个（`payload, request, database, viewer`）、
+        # 三个调用点也仍然传四个 —— 于是「调用点元数错位」这件事被桩**照单全收**：自检全绿，
+        # 生产里每次控制都在路由外抛 `TypeError`（`main.py` 折成 500，前端只看到「操作失败」）。
+        # 下面 `control()` 里那个兜底 `except Exception` 折出的 `崩:TypeError` 是**装置**的
+        # 观测量（「崩栈也要能被断言看见」），不是生产的行为 —— 别把它当成已有的保护。
+        # 判据是**名字与种类**（positional-or-keyword 的顺序），刻意不比注解：
+        # 桩不写注解是正常的，注解一致与否不影响「谁会收到哪个实参」。
+        def _call_shape(function: object) -> list[tuple[str, object]]:
+            return [
+                (parameter.name, parameter.kind)
+                for parameter in inspect.signature(function).parameters.values()
+            ]
+
+        check(
+            'P12 桩的忠实度：interaction3d 控制路由的 call_service 桩与真实函数同形（签名不一致的桩会把调用点的元数错位照单全收）',
+            _call_shape(fake_call_service) == _call_shape(real_call_service),
+            f'桩={_call_shape(fake_call_service)} 真实={_call_shape(real_call_service)}',
+        )
 
         scene_api.call_service = fake_call_service
         try:
@@ -7958,8 +7980,13 @@ class _ChunkedUpstream:
         self.status_code = status_code
         self.headers = {'content-type': 'image/jpeg'}
         self.finished = False
+        # 模拟 httpx 的 is_stream_consumed：stream=False 时 send() 会先读完，
+        # 之后再调 aiter_raw() 必须抛 StreamConsumed（真库行为见 httpx/_models.py）。
+        self.consumed = False
 
     async def aiter_raw(self):
+        if self.consumed:
+            raise httpx.StreamConsumed()
         for chunk in self.chunks:
             yield chunk
         self.finished = True
@@ -7983,6 +8010,10 @@ class _FixedUpstreamClient(FakeAsyncClient):
 
     async def send(self, request, stream: bool = False):
         FakeAsyncClient.sent.append((request.method, request.url))
+        # 忠实模拟 httpx：stream=False 会在这里把整包读完并标记已消费。
+        if not stream:
+            _ = self._upstream.content
+            self._upstream.consumed = True
         return self._upstream
 
 
@@ -8024,7 +8055,17 @@ async def check_media_body_bounded() -> None:
         response = await ha_proxy.proxy_http(request)
         finished_before_first_read = upstream.finished
         iterator = response.body_iterator
-        first = await iterator.__anext__()
+        # 取第一块时把异常**折成观测量**：`stream=False` 的回归下这里抛的是
+        # `httpx.StreamConsumed`（上游已被 send() 读全，aiter_raw() 就不许再读），
+        # 直接让它冒出去只会以崩栈收场，牙齿测试看不见是哪条断言被咬住。
+        first_chunk_error = ''
+        first = b''
+        try:
+            first = await iterator.__anext__()
+        except StopAsyncIteration:
+            pass
+        except Exception as error:  # noqa: BLE001 - 崩栈折成观测量
+            first_chunk_error = f'{type(error).__name__}: {error}'
         finished_when_first_byte_arrived = upstream.finished
         rest = b''
         async for chunk in iterator:
@@ -8032,8 +8073,12 @@ async def check_media_body_bounded() -> None:
         body = first + rest
         check(
             'B15 非流式分支逐块透传（第一个字节到达客户端时上游还没读完）',
-            not finished_before_first_read and not finished_when_first_byte_arrived,
-            f'取第一块前已读完={finished_before_first_read} 第一块时已读完={finished_when_first_byte_arrived}',
+            not finished_before_first_read
+            and not finished_when_first_byte_arrived
+            and not first_chunk_error,
+            f'取第一块前已读完={finished_before_first_read} '
+            f'第一块时已读完={finished_when_first_byte_arrived}'
+            + (f' 取第一块抛={first_chunk_error}' if first_chunk_error else ''),
         )
         check(
             'B15 透传的内容与上游完全一致，且读完才写缓存',
@@ -8048,6 +8093,35 @@ async def check_media_body_bounded() -> None:
             caches.snapshot(snapshot_key) is not None
             and len(caches.snapshots[snapshot_key].content) == len(body),
             f'缓存条目={len(caches.snapshots)}',
+        )
+
+        # —— 桩的忠实度：非流式 send() 之后再读必须抛 StreamConsumed ——
+        # 这条断的是**测试装置本身**（所以读起来像在测 httpx 的语义）。理由：上面那条
+        # 「逐块透传」能咬住 `stream=False` 的回归，全靠 `_FixedUpstreamClient.send` 里
+        # 「非流式就把整包读掉并标记已消费」+ `_ChunkedUpstream.aiter_raw` 开头那道
+        # `if self.consumed: raise`。谁把这两处当成多余代码删掉，上面那条断言会照旧全绿
+        # （它测的是「上游有没有被读完」，而这两行决定「读完之后还能不能读」）。
+        # 真库行为见 `httpx/_models.py`：`Client.send(stream=False)` 先 `response.read()`
+        # （`is_stream_consumed` 变 True），此后 `Response.iter_raw()` 直接抛 `StreamConsumed`。
+        # 样本一条就够：这里要的是「模拟还在」，不是覆盖 httpx 的全部状态机。
+        probe_upstream = _ChunkedUpstream([b'probe'])
+        probe_client = _FixedUpstreamClient(probe_upstream)
+        await probe_client.send(
+            SimpleNamespace(method='GET', url='http://ha.test/api/camera_proxy/probe'),
+            stream=False,
+        )
+        stub_consumed_error = ''
+        try:
+            async for _chunk in probe_upstream.aiter_raw():
+                pass
+        except httpx.StreamConsumed:
+            stub_consumed_error = 'StreamConsumed'
+        except Exception as error:  # noqa: BLE001 - 兜底也折成观测量
+            stub_consumed_error = f'别的异常 {type(error).__name__}'
+        check(
+            'B15 上游桩忠实模拟 httpx：非流式取回后再读必须抛 StreamConsumed（否则上面那条透传断言会失去牙齿）',
+            stub_consumed_error == 'StreamConsumed',
+            f'抛={stub_consumed_error or "没抛"}',
         )
 
         # —— B14：单张可缓存上限（只能在 remember_snapshot 这一层观察） ——

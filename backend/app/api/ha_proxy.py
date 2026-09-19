@@ -622,7 +622,11 @@ async def proxy_http(request: Request) -> Response:
     )
     try:
         upstream_request = client.build_request(request.method, target, headers=headers)
-        upstream = await client.send(upstream_request, stream=stream_response)
+        # 必须始终以流式方式取回上游：两个分支都用 aiter_raw() 逐块透传，而
+        # stream=False 会让 httpx 先把整包读完（is_stream_consumed=True），
+        # 之后 aiter_raw() 直接抛 StreamConsumed —— 非流式分支过去正是这样在
+        # 回响应时才炸（B15 改为逐块透传时引入），且整包内存并未省下。
+        upstream = await client.send(upstream_request, stream=True)
     except httpx.HTTPError as error:
         # 失败路径同样要关掉客户端，否则连接池会随失败次数泄漏。
         await client.aclose()
