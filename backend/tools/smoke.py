@@ -10750,6 +10750,90 @@ def check_python_lint_clean() -> None:
     check(name, probe.returncode == 0, detail)
 
 
+#: P12 前端静态检查（eslint）的入口：仓库根 ``node_modules`` 里的本地安装。
+#: 不查全局 eslint —— 版本会随人而变，而一条闸的结论必须只由仓库决定。
+ESLINT_ENTRY = PROJECT_ROOT / 'node_modules' / '.bin' / 'eslint'
+
+
+def check_frontend_lint_clean() -> None:
+    """P12：前端静态检查（eslint）必须全绿，配置在仓库根的 ``eslint.config.mjs``。
+
+    为什么值得一条自检：这条闸**进场当天就咬出三个真缺陷**，而它们此前 1300+ 条
+    断言一条都盖不到 —— 因为它们是声明层面的错，不是行为层面的错：
+
+    - ``cover-runtime.js`` 直接调用 ``coverMotorIsReversedForComponent``，而这个名字
+      是 ``export { … } from …`` 转出去的：ESM 的 re-export **不产生本地绑定**，
+      调用点会在运行时 ReferenceError（页面直接白屏），静态看却「明明写着这个名」；
+    - ``renderer.js`` 引用 ``COVER_CLOSED_POSITION_EPSILON`` —— 那个名字只活在注释里，
+      真实实现是 ``registry.js`` 里的 ``COVER_ACTIVE_POSITION_THRESHOLD``；
+    - 探针 ``frontend_probe.mjs`` 的 ``suites`` 里 ``pair-scan`` 写了两遍，
+      后一处静默覆盖前一处（套件没少跑，但少了一个键的意义）。
+
+    自检刚量出来的那轮还带了另一类收成：**只写不读的状态**（``vacuumRevision``、
+    ``isEmptyLoading`` 那一族共 7 个）——no-unused-vars 说「赋值了没人用」，
+    删掉声明后立刻冒出 11 条 no-undef，正好把「声明与全部写入点」一起清干净。
+
+    选的族与 ruff 同判据：只留「能挡住这个仓库真发生过的回归」的那些（未定义名、
+    未使用声明、重复键、只在赋值里出现的新名、忘记 await 的表达式……），风格族一条
+    不进。逐条去留的理由写在 ``eslint.config.mjs``，与审计文档 P12 项两边要一起改。
+
+    没有 node 或没装依赖时**显式 skip**（与 ruff 那条同一先例）：自检会被打进容器
+    镜像里跑，镜像装的是运行时依赖，不该为开发期 linter 塞一整套 node_modules。
+    CI 里 eslint 是硬步骤（``.github/workflows/ci.yml``），所以这个 skip 实际上只会
+    发生在容器里；本地 ``npm install`` 过就会真跑，推送前就能看见与 CI 同一批结论。
+    """
+    name = 'P12 前端静态检查（eslint）全绿：未定义名 / 只写不读的声明 / 重复键 / 漏 await 的表达式'
+    if shutil.which('node') is None or not ESLINT_ENTRY.exists():
+        check(name, True, 'skipped：没有 node 或没装 node_modules（本地 npm install / CI 里会真跑）')
+        return
+    try:
+        probe = subprocess.run(  # noqa: S603
+            [str(ESLINT_ENTRY), '--format', 'json', '.'],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        check(name, False, 'eslint 180 秒没跑完（多半是某种病态回溯，请单独跑一次看卡在哪）')
+        return
+    if probe.returncode == 0:
+        # 报「扫过多少个文件」而不只是「0 条发现」：两者都绿，
+        # 但后者在「配置把一切都 ignore 掉」时同样成立，那是假绿。
+        check(name, True, f'eslint：扫过 {len(_eslint_reports(probe.stdout))} 个文件，0 条发现')
+        return
+    reports = _eslint_reports(probe.stdout)
+    if not reports:
+        check(
+            name,
+            False,
+            f'eslint 退出码 {probe.returncode}，且输出里没有可解析的报告：'
+            f'{(probe.stderr or probe.stdout).strip()[:200]}',
+        )
+        return
+    findings = [
+        f'{os.path.relpath(item["filePath"], PROJECT_ROOT)}:{message["line"]}:{message["column"]} '
+        f'{message["ruleId"]} {message["message"]}'
+        for item in reports
+        for message in item['messages']
+    ]
+    check(name, not findings, '；'.join(findings[:5]) if findings else 'eslint 报告为空')
+
+
+def _eslint_reports(output: str) -> list[dict[str, Any]]:
+    """把 eslint 的 ``--format json`` 输出解析成报告列表；解析不动时返回空列表。
+
+    刻意不抛异常：这条闸在 CI 里是硬步骤，输出格式变了应当表现为「这条断言红并
+    打印原始输出」，而不是让整轮自检崩在 JSONDecodeError 上（那样连总数都看不到）。
+    """
+    try:
+        parsed = json.loads(output or '[]')
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
 #: P12 前端死导出扫描：这些目录名一律不下探（第三方打包件、依赖与构建产物）。
 _JS_SCAN_PRUNED_DIRS = frozenset(
     {'node_modules', 'vendor', '.git', '.venv', '.venv-store', '.extracted', '__pycache__'}
@@ -11732,6 +11816,7 @@ async def run() -> int:
     check_frontend_static_cache_stamps()
     check_source_has_no_line_number_artifacts()
     check_python_lint_clean()
+    check_frontend_lint_clean()
     check_frontend_dead_exports()
     check_frontend_resize_batching()
     check_frontend_studio_history_guard()

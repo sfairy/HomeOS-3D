@@ -77,3 +77,13 @@ jobs:
             exit 1
           fi
           echo "check-js: $checked files OK"
+
+      - name: JavaScript lint (eslint)
+        run: |
+          # 版本锁在 package.json / package-lock.json：规则集与默认阈值会随版本变，
+          # 不锁的话「本地绿 / CI 红」会变成家常便饭。选哪几族、为什么，写在
+          # eslint.config.mjs 里；这条与 backend/tools/smoke.py 的
+          # check_frontend_lint_clean 是同一条命令（那边缺依赖时显式 skip，
+          # 所以 CI 这步是硬要求，容器镜像里那份自检才会跳）。
+          npm ci
+          npx eslint .
