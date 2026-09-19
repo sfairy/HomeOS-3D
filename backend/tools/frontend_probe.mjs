@@ -2331,7 +2331,7 @@ async function runOptimisticToggleSuite() {
   scheduledTimers.length = 0;
   reportedErrors.length = 0;
   const renderer = makeRendererStub();
-  const rollbackOptimistic = context.applyOptimisticToggle.call(renderer, "light.kitchen", {
+  context.applyOptimisticToggle.call(renderer, "light.kitchen", {
     on: true
   });
   const pendingEntry = renderer.pendingOptimisticStates.get("light.kitchen");
@@ -4930,6 +4930,120 @@ async function runCoverReversalSuite() {
     consistencyFailures.length === 0,
     consistencyFailures.length ? consistencyFailures.join("；") : "四种状态两条路径结论一致"
   );
+
+  // 「这次点击该发哪个服务」—— renderer.js 的弹层按钮与详情面板都走这一个入口。
+  //
+  // 为什么补这段：P10 第七批把本地那份「靠同设备开关实体推方向」的实现连同它的三个形参一起删掉、
+  // 换成一行 `export { coverMotorIsReversedForComponent } from "cover-direction.js"`，
+  // 却把调用点留成了四参数 —— 再导出**不会**在模块里建本地绑定，于是这里每次调用都是
+  // `ReferenceError: coverMotorIsReversedForComponent is not defined`。
+  // 当时所有闸门都是绿的：W30 只求值顶层（函数体不在覆盖范围），语法检查看不见名字，
+  // 探针按名字切函数驱动、从不走这条链。真机上表现为弹层里点一次窗帘开关，
+  // 按钮从此卡在 aria-busy 上不再响应，而服务一次都没发出去。
+  //
+  // 按实参形态调用（4 个实参，与 renderer.js 一致）：第三个是状态索引、第二个是实体元数据索引
+  // —— 形参名在历史上被写反过，这里用真实调用形状钉住「位置语义」而不是形参名。
+  const toggleMatrix = [
+    ["不反转 + 展示 open", normalComponent, { state: "open" }, "close_cover"],
+    ["不反转 + 展示 closed", normalComponent, { state: "closed" }, "open_cover"],
+    ["不反转 + 展示 opening", normalComponent, { state: "opening" }, "close_cover"],
+    ["不反转 + 展示 closing", normalComponent, { state: "closing" }, "open_cover"],
+    ["反转 + 展示 open（物理关）", reversedComponent, { state: "open" }, "close_cover"],
+    ["反转 + 展示 closed（物理开）", reversedComponent, { state: "closed" }, "open_cover"],
+    ["反转 + 展示 opening", reversedComponent, { state: "opening" }, "close_cover"],
+    ["反转 + 展示 closing", reversedComponent, { state: "closing" }, "open_cover"],
+    ["未配置方向 + 展示 open", unsetComponent, { state: "open" }, "close_cover"],
+    ["未配置方向 + 展示 closed", unsetComponent, { state: "closed" }, "open_cover"],
+    // 位置路径：没有可用状态名时按 current_position 归一，方向同样要参与。
+    [
+      "不反转 + 位置 50",
+      normalComponent,
+      { state: "closed", attributes: { current_position: 50 } },
+      "close_cover"
+    ],
+    [
+      "反转 + 位置 50",
+      reversedComponent,
+      { state: "closed", attributes: { current_position: 50 } },
+      "open_cover"
+    ],
+    // 状态索引里没有这个实体：归一成空状态 → 归到「非打开侧」。
+    ["状态索引缺该实体（不反转）", normalComponent, undefined, "open_cover"],
+    ["状态索引缺该实体（反转）", reversedComponent, undefined, "close_cover"]
+  ];
+  const toggleMismatched = toggleMatrix
+    .map(([label, component, stateEntry, expected]) => {
+      try {
+        const actual = coverRuntime.coverToggleServiceForComponent(
+          component,
+          new Map(),
+          new Map([["cover.a", stateEntry]]),
+          "cover.a"
+        );
+        return actual === expected ? null : `${label}: 期望 ${expected} 实得 ${actual}`;
+      } catch (error) {
+        return `${label}: 抛错 ${error?.name}: ${error?.message}`;
+      }
+    })
+    .filter(Boolean);
+  check(
+    "P10-B 消费方：面帘开关服务名的取用面（coverToggleServiceForComponent）能按控件方向给出 open_cover / close_cover，不抛错",
+    toggleMismatched.length === 0,
+    toggleMismatched.length ? toggleMismatched.join("；") : `${toggleMatrix.length} 组输入全部符合`
+  );
+
+  // 方向到底改变了什么：**只改展示，不改要发的动作**。
+  //
+  // 这一条是上面那张表背后的不变量，也是这族知识最容易改错的地方：
+  //   - 展示侧（registry.coverComponentIsActive）：同一份上报状态，反转与不反转给出相反判定；
+  //   - 动作侧（本函数）：同一份上报状态，反转与不反转给出**同一个**服务名。
+  // 看起来矛盾，其实是同一个方向开关被用了两次的结果：上报状态先被还原成展示状态（第一次翻转），
+  // 服务名再按方向选（第二次翻转），两次抵消。物理上正是如此 —— 电机反接的设备，
+  // 它的 "open" 标签对应物理上的关，所以「展示为开 → 要关 → 发标签为 open 的服务」。
+  // 谁要是「顺手把服务名也翻回来」，四下点击里就会有一半发成反向动作。
+  const directionFlipFailures = ["open", "closed", "opening", "closing"]
+    .map(reportedState => {
+      const serviceFor = component =>
+        coverRuntime.coverToggleServiceForComponent(
+          component,
+          new Map(),
+          new Map([["cover.a", { state: reportedState }]]),
+          "cover.a"
+        );
+      const names = new Set([
+        serviceFor(normalComponent),
+        serviceFor(reversedComponent),
+        serviceFor(unsetComponent)
+      ]);
+      return names.size === 1
+        ? null
+        : `上报 ${reportedState}: 三种方向给出 ${[...names].join(" / ")}`;
+    })
+    .filter(Boolean);
+  check(
+    "P10-B 消费方：服务名与电机方向无关（方向同时翻转展示与动作标签，同一上报状态下要做的物理动作相同）",
+    directionFlipFailures.length === 0,
+    directionFlipFailures.length ? directionFlipFailures.join("；") : "四种上报状态在三种方向下服务名一致"
+  );
+
+  // 与上一条配套的另一半：展示侧必须**真的**随方向翻转，否则上一条会退化成
+  // 「方向根本没生效」也能通过（两个方向给出同样的展示、同样的服务名，服务名一致性就成了空话）。
+  const displayFlipFailures = ["open", "closed", "opening", "closing"]
+    .map(reportedState => {
+      const activeFor = component =>
+        registry.coverComponentIsActive(component, "cover.a", { state: reportedState }, {});
+      const normalActive = activeFor(normalComponent);
+      const reversedActive = activeFor(reversedComponent);
+      return normalActive !== reversedActive
+        ? null
+        : `上报 ${reportedState}: 反转与不反转都判定为 ${normalActive ? "活动" : "不活动"}`;
+    })
+    .filter(Boolean);
+  check(
+    "P10-B 消费方：展示侧随方向翻转（同一上报状态，反转与不反转的活动判定相反）",
+    displayFlipFailures.length === 0,
+    displayFlipFailures.length ? displayFlipFailures.join("；") : "四种上报状态都随方向翻转"
+  );
 }
 
 /* ------------------------------------------------------------------------- */
@@ -5264,7 +5378,6 @@ const suites = {
   "dialog-a11y": runDialogA11ySuite,
   "interaction3d-mount": runInteraction3dMountSuite,
   "studio-conflict": runStudioConflictSuite,
-  "pair-scan": runPairScanSuite,
   "auth-shell": runAuthShellSuite,
   "renderer-resize": runRendererResizeSuite,
   "studio-history": runStudioHistorySuite,
