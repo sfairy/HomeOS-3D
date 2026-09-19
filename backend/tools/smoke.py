@@ -3720,6 +3720,159 @@ def check_frontend_helper_contract_single_source() -> None:
         )
 
 
+async def check_interaction3d_resource_whitelist() -> None:
+    """P12 收口（续）：3D 树里每一个资源文件都必须在模块的白名单里登记。
+
+    这条闸是从一次**真事故**补出来的（不是想象出来的形态）：本树那 16 处内联剥壳 / 切域
+    收敛时新增了 ``static-helpers.js`` 这个桥，文件写好了、13 份消费方的 import 也都指对了，
+    但 ``api.py`` 的 ``get_resource`` 白名单没同步 —— 于是浏览器里第一跳就 404：
+
+        GET /api/v1/modules/interaction3d/static-helpers.js?v=… → 404 (Not Found)
+
+    整条 import 链断在桥那里，3D 运行时一片空白。**这种漏登记在静态上完全看不出来**：
+    import 路径合法、文件存在、``node --check`` 全过、探针也全绿 —— 因为探针是从**磁盘**
+    直接 import 的，根本不过 HTTP 这一层。``api.py`` 的 docstring 早就写着「漏登记不会报错，
+    只会在浏览器里表现为某个模块 404、整条 import 链断掉。排查时先看这里」，
+    也就是说这个坑是**已知**的，缺的只是一条闸。
+
+    判据三个方向都查（任一方向单独出现都会变成 404）：
+      · 磁盘上有、白名单里没有 → 新增文件忘了登记（本次事故就是这一种）；
+      · 白名单里有、磁盘上没有 → 文件改名 / 删除后没同步（同样是 404，但表现在「本来好好的
+        资源突然不见了」）；
+      · 树内的相对 import 解析不到白名单条目 → 上面两条之外的第三种入口（比如文件放在子目录里，
+        磁盘扫描看不到它），报错信息带上「谁 import 的」，排查时一步到位。
+    另外核一遍媒体类型：``.js`` 必须是 ``text/javascript``、``.css`` 必须是 ``text/css`` ——
+    浏览器对模块脚本与样式表都做严格 MIME 检查，登记成错的那个会以「拒绝执行 / 拒绝应用」
+    的形式失败，而网络面板上那个请求**是 200**，比 404 更难查。
+    """
+    api_path = PROJECT_ROOT / 'backend' / 'app' / 'modules' / 'interaction3d' / 'api.py'
+    api_source = api_path.read_text(encoding='utf-8')
+    # 白名单块 = media_types 赋值起，到「先按白名单拒绝」那句注释为止（CSS 的 update 也在其中）。
+    block = api_source.partition('media_types = {')[2].partition('if filename not in media_types')[0]
+    if not block:
+        check(
+            'P12 3D 树：资源白名单里的每个文件都在磁盘上，磁盘上的每个文件也都登记了（漏登记 = 浏览器 404、整条 import 链断掉）',
+            False,
+            '没能从 api.py 解析出 media_types 白名单块',
+        )
+        return
+    # 白名单条目两种写法：裸条目 `'name.js'`（媒体类型统一由 `for name in (...)` 指向
+    # text/javascript）与键值对 `'name.css': 'text/css'`。归一成「文件名 → 媒体类型」。
+    registered: dict[str, str] = {}
+    for match in re.finditer(r"'([\w.-]+\.(?:js|css))'", block):
+        name = match.group(1)
+        tail = block[match.end():match.end() + 40]
+        css_decl = re.match(r"\s*:\s*'text/css'", tail)
+        registered[name] = 'text/css' if css_decl else 'text/javascript'
+
+    tree_root = FRONTEND_ROOT / 'modules' / 'interaction3d'
+    on_disk = {
+        path.name
+        for path in tree_root.iterdir()
+        if path.is_file() and path.suffix in ('.js', '.css')
+    }
+
+    unregistered = sorted(on_disk - set(registered))
+    missing = sorted(set(registered) - on_disk)
+
+    dangling: list[str] = []
+    for source_path in sorted(tree_root.glob('*.js')):
+        source = _js_comment_free(source_path.read_text(encoding='utf-8'))
+        for specifier in _JS_STATIC_SPECIFIER.findall(source):
+            if not specifier.startswith('.'):
+                continue  # 裸 /static/ 与绝对路径不经过本模块的白名单
+            target = _js_resolve_module(source_path, specifier)
+            if target is None:
+                continue
+            if target.parent == tree_root.resolve() and target.name not in registered:
+                dangling.append(f'{source_path.name} → {specifier.split("?")[0]}')
+
+    wrong_media = sorted(
+        name
+        for name, media_type in registered.items()
+        if media_type != ('text/css' if name.endswith('.css') else 'text/javascript')
+    )
+
+    problems = []
+    if unregistered:
+        problems.append(f'磁盘上有、白名单里没有（浏览器会 404）：{unregistered}')
+    if missing:
+        problems.append(f'白名单里有、磁盘上没有（同样是 404）：{missing}')
+    if dangling:
+        problems.append(f'树内相对 import 指向没登记的文件：{dangling}')
+    if wrong_media:
+        problems.append(f'媒体类型不对（浏览器严格 MIME 检查会拒绝，且请求是 200）：{wrong_media}')
+    check(
+        'P12 3D 树：资源白名单里的每个文件都在磁盘上，磁盘上的每个文件也都登记了（漏登记 = 浏览器 404、整条 import 链断掉）',
+        not problems,
+        '；'.join(problems)
+        if problems
+        else f'白名单与磁盘逐一对齐（{len(registered)} 个文件），树内相对 import 全部可达',
+    )
+    await _check_interaction3d_resources_are_actually_served(sorted(on_disk))
+
+
+async def _check_interaction3d_resources_are_actually_served(filenames: list[str]) -> None:
+    """上面那条闸的**行为侧**：每个资源真的走一遍路由，必须回 200。
+
+    为什么静态那条不够（本次事故就是证据）：静态判据能证明「文件在、登记了、媒体类型对」，
+    但证明不了**这条路由真的把它发出去了** —— 前缀改了、``require_access`` 把某个分支挡了、
+    ``FileResponse`` 的路径拼错、媒体类型表与实际取值不一致，静态扫描全都看不出来，
+    而浏览器看到的仍然是那句 404 / 拒绝执行。
+
+    这正是这台自检里反复用的「两条腿」：结构断言管「有没有人写下这句话」，行为断言管
+    「这件事真的会发生」。装一个最小应用、把鉴权依赖换成常量主体，然后对**树里每个文件**
+    发一次真请求 —— 加一个资源忘了登记，静态那条先红；登记对了但路由坏了，这条红。
+    """
+    from fastapi import FastAPI
+    import httpx
+
+    from backend.app.access import ViewerPrincipal
+    from backend.app.config import Settings
+    from backend.app.dependencies import licensed_viewer
+    from backend.app.modules.interaction3d import api as scene_api
+
+    app = FastAPI()
+    app.include_router(scene_api.router)
+    # 资源下发不碰 data_dir，但 Settings 要求一个可写的根；用临时目录并在最后收掉，
+    # 免得每跑一次自检就在 /tmp 里留一个空壳。
+    with tempfile.TemporaryDirectory(prefix='i3d-res-') as resource_root:
+        app.state.settings = Settings(data_dir=Path(resource_root))
+        app.state.license_service = SimpleNamespace(
+            allows=lambda code, database=None: True,
+            status=lambda: {'status': 'ACTIVE'},
+        )
+        # 门禁只管「买没买」，与这里要测的「资源发不发得出去」无关：一律放行。
+        app.dependency_overrides[licensed_viewer] = lambda: ViewerPrincipal(
+            user=SimpleNamespace(id='u1', is_admin=True)
+        )
+
+        unreachable: list[str] = []
+        wrong_type: list[str] = []
+        transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url='http://smoke') as client:
+            for filename in filenames:
+                response = await client.get(f'/modules/interaction3d/{filename}')
+                if response.status_code != 200:
+                    unreachable.append(f'{filename} → {response.status_code}')
+                    continue
+                expected = 'text/css' if filename.endswith('.css') else 'text/javascript'
+                if not response.headers.get('content-type', '').startswith(expected):
+                    wrong_type.append(f'{filename} → {response.headers.get("content-type")}')
+    problems = []
+    if unreachable:
+        problems.append(f'走路由拿不到（浏览器里就是这个 404）：{unreachable}')
+    if wrong_type:
+        problems.append(f'下游拿到的媒体类型与登记不符：{wrong_type}')
+    check(
+        'P12 3D 树：每个资源走一遍真路由都回 200，且下游拿到的媒体类型与登记一致（静态对齐 ≠ 发得出去）',
+        not problems,
+        '；'.join(problems)
+        if problems
+        else f'{len(filenames)} 个资源逐个真请求，全部 200 且媒体类型一致',
+    )
+
+
 def check_frontend_retired_name_references() -> None:
     """P11：定义已删掉的旧名字，不许再在别的文件里当值出现。
 
@@ -11644,6 +11797,46 @@ _JS_SCAN_PRUNED_DIRS = frozenset(
     {'node_modules', 'vendor', '.git', '.venv', '.venv-store', '.extracted', '__pycache__'}
 )
 
+#: `.gitignore` 里顶层目录模式的判据：`name/` 或 `/name/`（`.deobf/`、`/app/`、`源代码/`）。
+#: 带通配符、`!` 取反、以及非顶层的路径一律不收 —— 这个解析器只认最简单的那一种写法，
+#: 认不出来时就当没匹配（扫到多出来的文件会红，比漏扫更安全）。
+_GITIGNORE_TOP_DIR = re.compile(r'^/?(?![!*?])([^/*\s]+)/$')
+
+#: 这些目录是**本项目自己的源码树**，任何「扫描范围」的机制都不许把它们排除在外。
+_LOCAL_ONLY_FORBIDDEN_DIRS = frozenset(
+    {'backend', 'frontend', 'store', 'tools', 'docker', 'migrations', 'docs', 'deploy'}
+)
+
+
+def _gitignored_top_level_dirs() -> set[str]:
+    """从 `.gitignore` 取被忽略的**顶层目录**名（本机才有、不属于本项目源码的那些）。
+
+    为什么扫描范围要跟着 `.gitignore` 走，而不是写死一份名单：仓库里有一类目录是
+    **本机才有**的 —— 解包出来的旧构建、反混淆产物、用于对照的原项目快照、运行时数据。
+    它们不是本项目源码，扫它们只会报出别人的死导出。而「写死名字」这件事本批已经吃过
+    一次亏：`.gitignore` 里那个块原叫 `原项目/`，改成 `源代码/` 之后，`check_frontend_dead_exports`
+    立刻开始扫两个旧版本的整套 `frontend/`，报出两条不属于本项目的「死导出」——
+    写死名单的后果不是**误报**就是（更糟）改名后**静默漏扫**。所以取 `.gitignore` 当单一来源。
+
+    这里返回的是**原样解析结果**（不减去源码树）：哪个目录被忽略了、其是不是本项目源码，
+    是两件事 —— 前者是事实，后者是 :func:`check_local_only_dirs_are_out_of_scan_scope`
+    要判的错。把减法做在这里，那条断言就永远看不到「有人把 frontend/ 也忽略了」。
+    """
+    ignore_file = PROJECT_ROOT / '.gitignore'
+    if not ignore_file.is_file():
+        return set()
+    names: set[str] = set()
+    for line in ignore_file.read_text(encoding='utf-8').splitlines():
+        match = _GITIGNORE_TOP_DIR.match(line.strip())
+        if match:
+            names.add(match.group(1))
+    return names
+
+
+def _local_only_pruned_dirs() -> set[str]:
+    """真正要从扫描范围里剪掉的目录名 = `.gitignore` 里那些**且**不是本项目源码树的。"""
+    return _gitignored_top_level_dirs() - _LOCAL_ONLY_FORBIDDEN_DIRS
+
 #: 「字符串里写着模块路径」的判据：以 .js / .mjs 收尾，允许后面跟 `?v=` 缓存戳。
 #: 三种引号都认（模板串里的 `${...}` 解析不出文件，交给下面的解析函数返回 None）。
 _JS_MODULE_PATH_LITERAL = re.compile(r"""["'`]([^"'`\n]*?\.m?js(?:\?[^"'`\n]*)?)["'`]""")
@@ -11791,10 +11984,11 @@ def _js_name_used_in_source(source: str, name: str) -> bool:
 
 
 def _js_scan_targets() -> list[Path]:
-    """全仓的 JS / MJS 文件（剪掉 vendor、依赖目录与构建产物）。"""
+    """全仓的 JS / MJS 文件（剪掉依赖目录、构建产物与 `.gitignore` 里的本地专属目录）。"""
+    pruned = _JS_SCAN_PRUNED_DIRS | _local_only_pruned_dirs()
     targets: list[Path] = []
     for root, dir_names, file_names in os.walk(PROJECT_ROOT):
-        dir_names[:] = [name for name in dir_names if name not in _JS_SCAN_PRUNED_DIRS]
+        dir_names[:] = [name for name in dir_names if name not in pruned]
         for file_name in file_names:
             if file_name.endswith(('.js', '.mjs')):
                 targets.append(Path(root, file_name).resolve())
@@ -11883,6 +12077,50 @@ def check_frontend_dead_exports() -> None:
         'P12 前端模块级导出都有人 import（收敛 / 改名 / 下架后留下的死导出）',
         not dead,
         detail,
+    )
+
+
+def check_local_only_dirs_are_out_of_scan_scope() -> None:
+    """扫描范围那条机制的**防误用 + 防静默失效**断言。
+
+    上游那件事（`check_frontend_dead_exports`）这一批红过一次，原因不在代码而在**范围**：
+    `.gitignore` 里那个「本地临时目录」块改名（`原项目/` → `源代码/`）之后，扫描立刻开始
+    罩住两个旧版本的整套 `frontend/`，报出两条根本不属于本项目的「死导出」。
+
+    于是范围改由 `.gitignore` 决定（见 :func:`_gitignored_top_level_dirs`）。这条断言守的是
+    「这个机制本身别坏」，三个方向：
+      · **解析出来是空的** → 机制失效但不会有任何症状（所有本地目录又被扫进来，或者反过来
+        该扫的没扫），所以必须红；
+      · **把本项目自己的源码树写进忽略块** → 这是把闸关掉最省事的办法（`frontend/` 一忽略，
+        `check_frontend_dead_exports` 立刻全绿），点名的那几个目录出现即红；
+      · **派生的目录名没有真的从扫描目标里消失** → 解析对了但没接上（比如 `os.walk` 那份
+        用的是别的集合），是「改了没用」这一类，只有真去问扫描结果才看得出来。
+    """
+    ignored_dirs = _gitignored_top_level_dirs()
+    misuse = sorted(ignored_dirs & _LOCAL_ONLY_FORBIDDEN_DIRS)
+    pruned_dirs = _local_only_pruned_dirs()
+    targeted = {
+        path.relative_to(PROJECT_ROOT).parts[0] for path in _js_scan_targets()
+    }
+    leaked = sorted(
+        name
+        for name in pruned_dirs
+        if (PROJECT_ROOT / name).is_dir() and name in targeted
+    )
+    problems = []
+    if not ignored_dirs:
+        problems.append('一个顶层目录都没解析出来（机制失效，但不会有症状）')
+    if misuse:
+        problems.append(f'本项目自己的源码树被写进忽略块：{misuse}')
+    if leaked:
+        problems.append(f'解析出来的本地目录仍在扫描范围内（改了没用）：{leaked}')
+    check(
+        'P12 扫描范围跟着 .gitignore 走，且不许把本项目源码树排除在外（把 frontend/ 忽略掉 = 把闸关掉）',
+        not problems,
+        '；'.join(problems)
+        if problems
+        else f'本地专属目录 {sorted(pruned_dirs)} 已排除在扫描之外，'
+        f'源码树 {sorted(_LOCAL_ONLY_FORBIDDEN_DIRS)} 都还在范围内',
     )
 
 
@@ -12549,6 +12787,7 @@ async def run() -> int:
     check_scene_snapshot_sweep()
     await check_scene_snapshot_route()
     await check_interaction3d_scoping()
+    await check_interaction3d_resource_whitelist()
     check_admin_session_criteria()
     check_display_token_expiry()
     check_websocket_viewer_credentials()
@@ -12558,6 +12797,7 @@ async def run() -> int:
     check_closure_scope_writes()
     check_no_dead_module_level_symbols()
     check_no_duplicated_helper_implementations()
+    check_local_only_dirs_are_out_of_scan_scope()
     check_frontend_helper_contract_single_source()
     check_frontend_retired_name_references()
     check_access_criteria_single_source()

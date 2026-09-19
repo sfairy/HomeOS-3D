@@ -647,10 +647,19 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
     # 白名单同时充当媒体类型表与可访问清单：没登记的文件一律 404，
     # 前缀 /{filename} 不会退化成任意文件读取。新增资源必须在这里登记 ——
     # 漏登记不会报错，只会在浏览器里表现为「某个模块 404、整条 import 链断掉」，
-    # 排查时先看这里。stage.js 的每一个相对 import 都必须与下面的名单保持同步。
+    # 排查时先看这里。树里每一个相对 import 都必须与下面的名单保持同步。
+    # 这件事**已经不必靠人记得**：`backend/tools/smoke.py` 的
+    # `check_interaction3d_resource_whitelist` 两个方向都盯着 —— 静态腿比对
+    # 磁盘 vs 名单（含树内相对 import 的可达性与媒体类型），行为腿把每个文件
+    # 真发一次请求要求 200。漏登记 = 静态腿当场红（这个坑在 P12 收口时真踩过一次，
+    # `static-helpers.js` 就是这么 404 的）。
     media_types = {
         name: 'text/javascript'
         for name in (
+            # 桥：树里唯一一处「条件导入 /static 助手」的转出口（resolveStateEntry /
+            # entityDomainFromId），被上面十几份运行时文件 import —— 漏登记它，
+            # 整条 import 链会在浏览器里断在第一跳。
+            'static-helpers.js',
             'scene-background.js',
             'background-theme.js',
             'security-editor.js',
