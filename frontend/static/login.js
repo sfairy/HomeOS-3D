@@ -1,7 +1,7 @@
 /**
  * 登录页表单脚本。
  *
- * 位置：/login 页面，配合 auth-shell.js 的表情动画与 auth.css 样式。
+ * 位置：/login 页面，配合 auth-shell.js 的密码显隐与 setup.css 的激活页同款样式。
  * 职责：提交用户名密码到 /api/v1/auth/login，成功后跳到 next 指定的页面。
  * 约定：next 参数只接受站内绝对路径，且必须拒绝 // 开头的协议相对地址，
  *   否则会被利用做开放重定向。

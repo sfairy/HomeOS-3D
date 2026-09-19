@@ -3,8 +3,10 @@
   登录页（/login）。
   后端门禁顺序固定：未初始化先 303 去 /setup；已登录则按 ?next= 直接跳走（只认站内单斜杠路径）。
   页面本身不做能力判定，登录成功后由 /static/login.js 跳回 ?next=，再由目标页自己触发 editor 授权门禁。
-  入口脚本：/static/auth-shell.js（左侧形象动画与密码显隐）、/static/login.js（表单提交）。
-  样式只有一个 /static/auth.css；CSP 为 style-src 'self'，因此页面里不能写内联样式与内联脚本。
+  视觉对齐激活页（/license）与初始化页（/setup）：顶栏品牌 + 左栏说明 / 右栏表单，
+  样式统一走 /static/setup.css（勿再引用 auth.css 的展示壳）。
+  入口脚本：/static/auth-shell.js（与 /pair 共用的密码显隐）、/static/login.js（表单提交）。
+  CSP 为 style-src 'self'，因此页面里不能写内联样式与内联脚本。
 -->
 <html lang="zh-CN">
   <head>
@@ -12,88 +14,101 @@
     <meta charset="utf-8" />
     <script src="/static/client-log.js?v=20260918233037"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#172029" />
+    <meta name="theme-color" content="#151a1f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>登录 · HomeOS</title>
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；同一次发布里所有静态资源必须共用同一枚时间戳，
-         否则浏览器会新老混用（例如新的 auth.css 配旧的 login.js）。 -->
+         否则浏览器会新老混用（例如新的 setup.css 配旧的 login.js）。 -->
     <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260918233037" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260918233037" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260918233037" sizes="180x180" />
     <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260918233037" sizes="180x180" />
     <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260918233037" />
-    <link
-      rel="stylesheet"
-      href="/static/auth.css?v=20260918233037"
-    />
+    <link rel="stylesheet" href="/static/setup.css?v=20260918233037" />
   </head>
   <body>
-    <!-- ===== 左侧品牌展示区（纯装饰，整体 aria-hidden 之外的文案由 CSS 控制） ===== -->
-    <main class="login-shell">
-      <section class="login-showcase" aria-label="HomeOS介绍">
-        <div class="showcase-grid" aria-hidden="true"></div>
-        <div class="showcase-orb orb-one" aria-hidden="true"></div>
-        <div class="showcase-orb orb-two" aria-hidden="true"></div>
-        <div class="showcase-brand">
-          <img class="brand-mark" src="/static/homeos-mark-black-orange.svg?v=20260918233037" alt="" /><span
-            >HomeOS</span
-          >
+    <header class="hb-setup-topbar">
+      <div class="hb-container hb-setup-topbar__inner">
+        <a class="hb-setup-brand" href="/login" aria-label="HomeOS">
+          <span class="hb-setup-brand__mark">
+            <img src="/static/homeos-mark-white-orange.svg?v=20260918233037" alt="" />
+          </span>
+          <span class="hb-setup-brand__text">
+            <strong>HomeOS</strong>
+            <small>本机登录</small>
+          </span>
+        </a>
+        <span class="hb-setup-topbar__meta">LOCAL LOGIN · 0.5.6</span>
+      </div>
+    </header>
+
+    <main class="hb-setup-main">
+      <div class="hb-container">
+        <div class="hb-auth-shell">
+          <aside class="hb-auth-aside">
+            <span class="hb-kicker">Sign In</span>
+            <h2>欢迎<strong>回来</strong></h2>
+            <p>
+              请输入首次设置时创建的本机管理员账号。账号与密码只保存在本机，登录后即可进入编辑器，
+              或先用商店激活码完成授权绑定。
+            </p>
+            <ul>
+              <li><span class="hb-check" aria-hidden="true">✓</span>账号密码仅保存在本机，不经过第三方云</li>
+              <li><span class="hb-check" aria-hidden="true">✓</span>连续失败会触发登录限流，请确认账号与密码</li>
+              <li><span class="hb-check" aria-hidden="true">✓</span>授权未激活时，登录后会先进入激活页</li>
+            </ul>
+          </aside>
+
+          <section class="hb-auth-card">
+            <div class="hb-auth-brand">
+              <strong>登录 HomeOS</strong>
+              <p>使用首次设置时创建的本机管理员账号。</p>
+            </div>
+            <form id="login-form" class="hb-auth-form">
+              <label>
+                账号
+                <!-- 这里不加 minlength：登录只回显长度约束，账号规则不泄露（见 LoginRequest）。 -->
+                <input
+                  name="username"
+                  placeholder="输入管理员账号"
+                  autocomplete="username"
+                  maxlength="64"
+                  required
+                />
+              </label>
+              <label>
+                密码
+                <span class="hb-password-field">
+                  <input
+                    id="login-password"
+                    name="password"
+                    type="password"
+                    placeholder="输入密码"
+                    autocomplete="current-password"
+                    maxlength="256"
+                    required
+                  />
+                  <button type="button" data-toggle-password="login-password" aria-label="显示密码" title="显示密码">
+                    显示
+                  </button>
+                </span>
+              </label>
+              <p id="message" class="hb-setup-error" role="alert" hidden></p>
+              <button class="hb-button hb-button--primary hb-button--lg hb-button--block" type="submit">
+                登录
+              </button>
+            </form>
+            <p class="hb-auth-switch">登录成功后若授权失效，会先进入激活页完成绑定。</p>
+          </section>
         </div>
-        <div class="home-characters" aria-hidden="true">
-          <div class="character character-orange"><i></i><i></i></div>
-          <div class="character character-purple"><i></i><i></i></div>
-          <div class="character character-dark"><i></i><i></i></div>
-          <div class="character character-yellow"><i></i><i></i><span class="character-mouth yellow-mouth"></span></div>
-        </div>
-      </section>
-      <!-- ===== 右侧登录表单区 ===== -->
-      <section class="login-panel">
-        <div class="mobile-brand">
-          <img class="brand-mark" src="/static/homeos-mark-white-orange.svg?v=20260918233037" alt="" /><span
-            >HomeOS</span
-          >
-        </div>
-        <div class="login-card">
-          <header>
-            <p class="eyebrow">WELCOME BACK · 0.5.6</p>
-            <h1>欢迎回来</h1>
-            <p>使用首次设置时创建的本机管理员账号。</p>
-          </header>
-          <form id="login-form" class="auth-form">
-            <label
-              ><span>账号</span><input name="username" placeholder="输入账号" autocomplete="username" required
-            /></label>
-            <label
-              ><span>密码</span
-              ><span class="token-field"
-                ><input
-                  id="login-password"
-                  name="password"
-                  type="password"
-                  placeholder="输入密码"
-                  autocomplete="current-password"
-                  required /><button
-                  data-toggle-password="login-password"
-                  type="button"
-                  aria-label="显示密码"
-                  title="显示密码"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M2.5 12s3.4-6 9.5-6 9.5 6 9.5 6-3.4 6-9.5 6-9.5-6-9.5-6Z" />
-                    <circle cx="12" cy="12" r="2.5" />
-                  </svg></button></span
-            ></label>
-            <p id="message" class="login-error" role="alert" hidden></p>
-            <button class="login-submit" type="submit"><span>登录</span><b>→</b></button>
-          </form>
-        </div>
-      </section>
+      </div>
     </main>
-    <!-- auth-shell.js 必须在 login.js 之前执行：它负责给 .home-characters 打上动画状态类，
-         并用 data-toggle-password 绑定显隐按钮；login.js 只关心表单本身，两者互不等待。
+
+    <!-- auth-shell.js 必须在 login.js 之前执行：它负责按 data-toggle-password 绑定密码显隐
+         （本页已不再有角色区，缺少角色区不会影响显隐）；login.js 只关心表单本身，两者互不等待。
          这里同样要带 ?v=20260918233037 -->
     <script type="module" src="/static/auth-shell.js?v=20260918233037"></script>
     <script type="module" src="/static/login.js?v=20260918233037"></script>

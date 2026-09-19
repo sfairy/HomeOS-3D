@@ -1,15 +1,15 @@
 /**
- * 登录 / 授权页的表情角色动效脚本。
+ * 鉴权壳页的表情角色动效与密码显隐脚本。
  *
- * 位置：login、pair 等鉴权壳页共用，负责 .home-characters 角色的眨眼与
- *   视线跟随。
+ * 位置：/pair 使用角色区；/login 重构为激活页同款表单壳后已无角色区，
+ *   但两页共用本文件的密码显隐接线。
  * 职责：根据密码框是否有内容切换角色表情，按随机间隔播放眨眼动画，
- *   并让角色眼睛跟随指针移动。
- * 约定：**角色节点是可选的**（/pair 页就没有角色区），缺了它密码显隐照常工作 ——
+ *   并让角色眼睛跟随指针移动；同时负责 [data-toggle-password] 按钮。
+ * 约定：**角色节点是可选的**（/login、/pair 都可能没有角色区），缺了它密码显隐照常工作 ——
  *   本文件同时管着密码可见性按钮，顶层直接解引用会在模块加载时抛错并中断后面
  *   所有接线，所以角色相关的代码整段收在 `if (characters)` 里、与角色无关的接线
  *   放在它前面。密码可见性通过给输入框打 data-password-field 标记来跟踪，
- *   与各页表单结构解耦。
+ *   与各页表单结构解耦；文字型显隐按钮还要同步按钮文案。
  * 约定：指针几何按需缓存（resize / 旋转 / 滚动后失效），pointermove 里不读
  *   getBoundingClientRect —— 那个调用会强制同步布局，指针高频时等于每帧重排。
  */
@@ -53,6 +53,9 @@ for (const toggleButton of document.querySelectorAll("[data-toggle-password]"))
         isVisible ? "显示密码" : "隐藏密码"
       ),
       (toggleButton.title = isVisible ? "显示密码" : "隐藏密码"),
+      // 纯文字按钮（登录 / 初始化页同款）还要跟着换文案；图标按钮保留 SVG，只换无障碍名称。
+      !toggleButton.firstElementChild &&
+        (toggleButton.textContent = isVisible ? "显示" : "隐藏"),
       syncPasswordState());
   });
 
