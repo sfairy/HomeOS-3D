@@ -13,6 +13,10 @@
  * 128=开机、256=关机）。
  */
 
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 /** 状态源既可能是 Map 也可能是普通对象，这里统一取值的入口。 */
 const readState = (states, entityId) =>
   states instanceof Map ? states.get(entityId) : states?.[entityId];
@@ -47,7 +51,7 @@ export function televisionArtwork(entityAttributes = {}) {
  */
 export function televisionState(item, stateSources = {}, nowMs = Date.now()) {
   const receivedState = readState(stateSources, item.entityId);
-  const stateObject = receivedState?.newState || receivedState || {};
+  const stateObject = resolveStateEntry(receivedState, {});
   const attributes = stateObject.attributes || {};
   // 媒体实体缺失时用 unknown 兜底，后面统一按不可用处理。
   const stateValue = String(stateObject.state || "unknown").toLowerCase();
@@ -178,9 +182,9 @@ export function televisionTime(seconds) {
 export function televisionPower(powerItem, powerStates = {}, desiredOn) {
   // 允许「电源就是媒体播放器自身」的简化配置。
   const powerEntityId = powerItem.powerEntityId || powerItem.entityId || "";
-  const domain = powerEntityId.split(".")[0];
+  const domain = entityDomainFromId(powerEntityId);
   const powerState = readState(powerStates, powerEntityId);
-  const powerStateObject = powerState?.newState || powerState || {};
+  const powerStateObject = resolveStateEntry(powerState, {});
   const powerAvailable =
     !!powerEntityId &&
     powerStateObject.available !== false &&
@@ -223,7 +227,7 @@ export function televisionPower(powerItem, powerStates = {}, desiredOn) {
  */
 export function televisionMediaControl(mediaItem, mediaStates, action) {
   const mediaState = readState(mediaStates, mediaItem.entityId);
-  const mediaStateObject = mediaState?.newState || mediaState || {};
+  const mediaStateObject = resolveStateEntry(mediaState, {});
   const mediaPlayerState = televisionState(mediaItem, mediaStates);
   const mediaSupportedFeatures = Number(mediaStateObject.attributes?.supported_features) || 0;
   // 播放 / 暂停是同一个按钮：当前在播就发暂停，否则发播放。

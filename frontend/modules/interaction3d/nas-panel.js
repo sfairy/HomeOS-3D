@@ -11,6 +11,10 @@
  * 实体」的白名单。数值的单位取实体属性 unit_of_measurement。
  */
 
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 /**
  * 计算要展示的分组及其中文名。
  *
@@ -39,7 +43,7 @@ export function nasGroups(statusSource) {
  *      可选 warning（需要告警高亮）与 percent（0–100，用于进度条）。
  */
 export function nasMetricValue(metric, state) {
-  const stateObject = state?.newState || state || {};
+  const stateObject = resolveStateEntry(state, {});
   const stateValue = String(stateObject.state ?? "").trim();
   // 统一的「无数据」出口：用长破折号而不是空串，让卡片保持稳定高度与可读性。
   if (

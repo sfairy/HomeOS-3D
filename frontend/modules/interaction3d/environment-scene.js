@@ -22,7 +22,11 @@
  *
  * 对外提供：pageDimming、pageModelBindings、createEnvironmentScene。
  */
-import { createEnvironmentHalos } from "./environment-halos.js?v=20260919153711";
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { resolveStateEntry } from "./static-helpers.js?v=20260919202351";
+import { createEnvironmentHalos } from "./environment-halos.js?v=20260919202351";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  *
@@ -655,7 +659,7 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
         const stateRecord =
           entityStates instanceof Map ? entityStates.get(entityId) : entityStates?.[entityId];
         // 状态可能是事件包裹（newState）或就是 state 本身，两种形态都兼容。
-        const state = stateRecord?.newState || stateRecord || {};
+        const state = resolveStateEntry(stateRecord, {});
         const stateKey = String(state.state || "").toLowerCase();
         // off 也算「不活跃」，因此这里只排除空值与未知态；on / cool / heat 等都会命中色板。
         const isStateActive = !["", "off", "unknown", "unavailable"].includes(stateKey);

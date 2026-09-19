@@ -12,7 +12,7 @@
  *   参数夹取用 utils/numbers.js 的 clampOptionalNumber（唯一实现，P10 B 类收敛）：
  *   这里的值来自文档，空串 / null 表示「未设置」，不能按 0 用。
  */
-import { clampOptionalNumber } from "../utils/numbers.js?v=20260919153711";
+import { clampOptionalNumber } from "../utils/numbers.js?v=20260919202351";
 
 /**
  * 归一化窗帘轨道参数。

@@ -10,6 +10,10 @@
  * presenceTriggerIsTimed、createPresenceTriggers、closedPath、sampleClosedPath。
  */
 
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 /** 允许显示人体存在的页面；overview 即「ALL（全部楼层）」，是默认显示的页面之一。 */
 export const PRESENCE_PAGES = [
   ["overview", "ALL（全部楼层）"],
@@ -108,7 +112,7 @@ export function snapsToPresenceStart(routePoints, probePoint, screenScale, toler
  * @returns {boolean} 实体可用且 state 为 on 时返回 true。
  */
 export function presenceIsActive(entityState) {
-  const resolvedState = entityState?.newState || entityState;
+  const resolvedState = resolveStateEntry(entityState);
   return resolvedState?.available !== false && resolvedState?.state === "on";
 }
 /** 触发方式的候选列表（配置界面直接渲染这份数组）。 */
@@ -163,7 +167,7 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
         }
       }
       for (const binding of bindings) {
-        const state = states[binding.entityId]?.newState || states[binding.entityId];
+        const state = resolveStateEntry(states[binding.entityId]);
         const stateText = typeof state?.state == "string" ? state.state.trim() : "";
         // 可用性三重判断：未标记不可用、state 非空、且不是 unknown / unavailable。
         const isAvailable =

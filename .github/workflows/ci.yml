@@ -87,3 +87,21 @@ jobs:
           # 所以 CI 这步是硬要求，容器镜像里那份自检才会跳）。
           npm ci
           npx eslint .
+
+      # 三套自检（1038 + 807 + 44 项断言）此前只在开发者本机跑：CI 全绿并不等于
+      # 自检全绿。这里把同一批命令搬进来，顺序与本地一致。
+      - name: Self-checks (store / backend / e2e)
+        run: |
+          set -euo pipefail
+          # `store/keys/local/` 是 gitignore 的，干净检出里没有它，而 store 自检里有两条
+          # 断言要核 `keys/*.pem` 与 `store/keys/local/*.pem` 同源（密钥轮换时两侧必须
+          # 一起换）。CI 是一次性检出，这里两侧一起重生成，等于把那两条断言放回
+          # 「同源」这个前提上去验，而不是绕开它们。
+          python -m store.tools.gen_keys --force
+          # 三条命令各自以非零退出码表示「有断言变红」，set -e 下第一条红就停住：
+          # 后面那两套只在前面都过了才跑，日志里第一处红也最好找。
+          # eslint 已由上面那步 `npm ci` 装进 node_modules，所以 backend 自检里那条
+          # check_frontend_lint_clean 是真跑而不是 skip（缺依赖时它会显式跳过）。
+          python -m store.tools.smoke
+          python -m backend.tools.smoke
+          python -m store.tools.e2e

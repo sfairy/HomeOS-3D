@@ -17,11 +17,15 @@
  * （update / setPageVisible / setAuthorized / setViewEditing / viewCommand / captureView /
  * focusCommand / closeRangeEditor 与若干只读属性）。所有方法在 dispose 之后都是空操作。
  */
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=20260919153711";
-import { createLightStream } from "./light-stream.js?v=20260919153711";
+} from "./popup-preview.js?v=20260919202351";
+import { createLightStream } from "./light-stream.js?v=20260919202351";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -503,7 +507,7 @@ export function mountInteraction3d(
               !candidateMetadata.platform ||
               candidateMetadata.platform === curtainMetadata.platform) &&
             ["switch", "select"].includes(
-              candidateMetadata.domain || candidateMetadata.entityId?.split(".")[0]
+              candidateMetadata.domain || entityDomainFromId(candidateMetadata.entityId)
             ) &&
             !candidateMetadata.disabledBy &&
             !["disabled", "missing"].includes(candidateMetadata.status) &&
@@ -547,7 +551,7 @@ export function mountInteraction3d(
         continue;
       }
       const motorReverseEntityState =
-        statesMap[motorReversePair.entityId]?.newState || statesMap[motorReversePair.entityId];
+        resolveStateEntry(statesMap[motorReversePair.entityId]);
       const motorReverseStateText = String(motorReverseEntityState?.state || "")
         .trim()
         .toLowerCase();
@@ -564,7 +568,7 @@ export function mountInteraction3d(
               ? false
               : null;
       mergedStates[motorReversePair.coverEntityId] = {
-        ...(coverState.newState || coverState),
+        ...resolveStateEntry(coverState),
         motorReverse: {
           entityId: motorReversePair.entityId,
           enabled: isMotorReverseEnabled

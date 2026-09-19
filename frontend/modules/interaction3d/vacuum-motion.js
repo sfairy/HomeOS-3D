@@ -13,11 +13,15 @@
  * calibration_points 为「地图像素坐标 ↔ 扫地机坐标」的三点标定，
  * heading 角度存在 a 字段（度）。地图资源的地址由 vacuum-map.js 统一解析。
  */
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 import {
   mapSource,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=20260919153711";
+} from "./vacuum-map.js?v=20260919202351";
 /** 是否为有限数字（同时排除数字字符串）。 */
 const isFiniteNumber = candidateValue =>
   typeof candidateValue == "number" && Number.isFinite(candidateValue);
@@ -116,10 +120,10 @@ export function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) 
     return null;
   }
   const entityState =
-    statesByEntityId[vacuumBinding.entityId]?.newState || statesByEntityId[vacuumBinding.entityId];
+    resolveStateEntry(statesByEntityId[vacuumBinding.entityId]);
   const statusPresentation = vacuumStatusPresentation(vacuumBinding, statesByEntityId);
   const mapStateEntry = statesByEntityId[vacuumBinding.map?.entityId];
-  const mapAttributes = (mapStateEntry?.newState || mapStateEntry)?.attributes || {};
+  const mapAttributes = resolveStateEntry(mapStateEntry)?.attributes || {};
   const chargerPoint = asValidMapPoint(mapAttributes.charger_position);
   const robotPoint = asValidMapPoint(mapAttributes.vacuum_position || mapAttributes.robot_position);
   // 三个前置条件都满足才有意义：状态可用、基站坐标存在、地图尺寸已知。
@@ -230,7 +234,7 @@ export function vacuumQuip(quipComponent, quipStates, timestampMs) {
     return "";
   }
   const quipState =
-    quipStates[quipComponent.entityId]?.newState || quipStates[quipComponent.entityId];
+    resolveStateEntry(quipStates[quipComponent.entityId]);
   const quipAttributes = quipState?.attributes || {};
   // 语料分组优先级：回充 > 洗拖布 / 烘干 > 正常工作。
   const quipMessages =
@@ -378,7 +382,7 @@ export function createVacuumMotion(sceneContext, requestRender) {
       return null;
     }
     const mapState = entityStates[mapEntityId];
-    const sizeAttributes = (mapState?.newState || mapState)?.attributes || {};
+    const sizeAttributes = resolveStateEntry(mapState)?.attributes || {};
     // 没有标定或基站坐标时地图无法用于换算，直接不加载图片。
     if (!sizeAttributes.calibration_points || !sizeAttributes.charger_position) {
       return null;

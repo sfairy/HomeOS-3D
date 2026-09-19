@@ -53,12 +53,16 @@
  *     后者落在无法整份加载的 DOM 渲染路径上、没有探针可挂，理由写在 `renderer.js` 的
  *     import 注释里。
  *
- * 仍然**刻意留在范围外**的只剩一类，写在明处（免得下次有人以为「已经全收敛了」）：
- *
- *   * **3D 运行时树里那三处**（`modules/interaction3d/` 的 `light-state.js` / `runtime.js` /
- *     `television-state.js`）：由后端按 `/api/v1/modules/interaction3d/` 提供，与 `/static/`
- *     是两个加载边界，跨树 import 是架构决定（见审计文档 4.3 B 类末尾那两条）。所以那几处只
- *     改了局部变量名，形态仍与这里逐字相同 —— 谁要动它，先读那条账。
+ * **P12 收口（续）：3D 运行时树那三处也收了**（`modules/interaction3d/` 的 `light-state.js` /
+ *   `runtime.js` / `television-state.js`）。原先记的理由是「后端按
+ *   `/api/v1/modules/interaction3d/` 提供、与 `/static/` 是两个独立加载边界」—— 复核后**那条
+ *   理由不成立**：真实的约束只有一条「运行侧的文件不能写裸 `/static/...` 的**静态** import
+ *   （舞台页能以 `file:` 打开，那时它会被解析到文件系统根目录）」，而那棵树里早就有七处按
+ *   `import.meta.url` 分流的条件动态导入。于是这段导入收进一个纯转出口
+ *   `modules/interaction3d/static-helpers.js`（桥），那棵树里 33 处内联剥壳与 3 处内联切域
+ *   一并换成共享实现 —— 「按 ID 切域」此后在**两棵树里**都只有这一份实现，第 7 条闸的扫描
+ *   范围也随之合上。桥的纪律（只许转手导出、不许成为第二份实现）见该文件与 `smoke.py` 的
+ *   `FRONTEND_STATIC_BRIDGE`。
  *
  * 更早那一批的**两处有意行为变化**（都是往「更归一」的方向，且消费方本来就只想要归一后的值）：
  *   检索文本现在一律小写、段间压成单空格 —— 调用方正则全部带 `i`（不带 `i` 的那些

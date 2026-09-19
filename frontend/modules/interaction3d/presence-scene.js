@@ -22,6 +22,10 @@
  *
  * 对外提供：createPresenceScene、createPresenceWaves。
  */
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 import { createWalker, animateWalker, disposeWalker } from "./presence-character.js";
 import {
   validPresenceRoute,
@@ -29,7 +33,7 @@ import {
   closedPath,
   sampleClosedPath,
   presenceVisibleOnPage
-} from "./presence-motion.js?v=20260919153711";
+} from "./presence-motion.js?v=20260919202351";
 /**
  * 创建人体存在角色场景。
  *
@@ -866,7 +870,7 @@ export function createPresenceWaves(waveOptions) {
       // 状态可能是 Map（编辑器的实时表）或普通对象（序列化快照），两种都兼容。
       const stateEntry =
         waveStates?.get?.(waveBindingEntry.entityId) ?? waveStates[waveBindingEntry.entityId];
-      const stateData = stateEntry?.newState || stateEntry;
+      const stateData = resolveStateEntry(stateEntry);
       // 与触发器同口径：可用、state 非空、且不是 unknown / unavailable 才算「有人」。
       const isActiveState =
         stateData?.available !== false &&

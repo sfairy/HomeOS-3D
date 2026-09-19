@@ -11,6 +11,10 @@
  * （1=开、2=关、4=设位置、8=停、16/32/64/128=tilt 相关，见 HA CoverEntityFeature）。
  */
 
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 /**
  * 把任意输入转成有限数字，不可用时返回 null。
  *
@@ -66,7 +70,7 @@ export function coverIconIsOn(binding, iconState) {
  * @returns {object} 归一化状态，含位置 / 叶片角度 / 各种能力位与派生布尔量。
  */
 export function coverState(entityId, receivedState, item = {}) {
-  const stateObject = receivedState?.newState || receivedState || {};
+  const stateObject = resolveStateEntry(receivedState, {});
   const attributes = stateObject.attributes || {};
   const stateValue = String(stateObject.state || "")
     .trim()

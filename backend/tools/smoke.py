@@ -3115,6 +3115,32 @@ FRONTEND_DISTINCT_HELPER_SITES = {
     'flattenDocumentComponents': 'frontend/static/dashboard-resize.js',
 }
 
+#: 3D 运行时树通往上面那张表里两个助手的**唯一桥梁**（P12 收口（续）把那一族也收掉了）。
+#:
+#: 为什么需要一个桥：这棵树里有两种取用 `/static/` 的写法 —— **编辑侧**那 5 份
+#: （`config-editor.js` / `range-dialog.js` / `security-editor.js` / `presence-editor.js` /
+#: `presence-focus-editor.js`）直接写裸 `/static/...` 的静态 import（只在编辑器页 http 里加载）；
+#: **运行侧**那 7 份（`stage.js` / `runtime.js` / `popup-preview.js` / `climate-state.js` /
+#: `curtain-motion.js` / `television-screen.js` / `idle-rotation.js`）按 `import.meta.url` 是否
+#: `file:` 分流（舞台页能以 `file:` 打开，那时裸 `/static/...` 会被解析到文件系统根目录）。
+#: 这批助手的消费方两侧都有，所以桥取**更严**的运行侧口径，收在一个文件里：其余 16 份文件
+#: 只写普通的 `from "./static-helpers.js?v=…"`。原先记的「与 /static 是两个独立加载边界、
+#: 闸刻意不伸进去」**不成立** —— 真实的约束只是上面这条写法约束。
+#:
+#: 这个豁免**只给这一个文件、只给这些名字**，而且有两个方向的钉子：导出集合必须逐字等于
+#: 下面这个元组（多一个少一个都红），动态 import 的目标只许是这些名字所属的那两个模块；
+#: 而「实现只有一份」由第 1 条断言管着 —— 谁在桥里写函数体，那条当场点红。
+FRONTEND_STATIC_BRIDGE = 'frontend/modules/interaction3d/static-helpers.js'
+FRONTEND_STATIC_BRIDGE_EXPORTS = ('entityDomainFromId', 'resolveStateEntry')
+
+#: 「同一份知识的**内联形态**」那两条闸（按 ID 切域 / 状态条目剥壳）要扫的树。
+#:
+#: P12 收口（续）把 3D 运行时树也收了进来：那棵树里原有 33 处内联剥壳与 3 处内联切域，
+#: 原先记的理由是「跨加载边界、闸刻意不伸进去」—— 那条理由经复核**不成立**（真实的约束
+#: 只是「不能写裸 /static 静态 import」，树里早就有五处条件动态导入），所以这批把它们
+#: 一并换掉，闸的范围也随之合上。少扫一棵树等于给缺陷留一块「闸看不见」的地。
+FRONTEND_INLINE_FORM_SCAN_ROOTS = ('static', 'modules/interaction3d')
+
 #: 收敛时**定义被删掉**的旧名字，以及仍然合法持有它的文件（那里的名字是本地绑定，
 #: 不是自由标识符）。规则：名字不许在任何别的文件的**代码位置**上当值出现。
 #:
@@ -3413,17 +3439,38 @@ def check_frontend_helper_contract_single_source() -> None:
         imported_here: set[str] = set()
         # import { a, b } from "../../utils/numbers.js?v=..."：只查手册里的名字。
         # 连 `export { ... } from ...`（转手再导出）一起管 —— 那是把定义点拉回两份的常见形态。
+        # 唯一的例外是 3D 运行时树那个桥（见 FRONTEND_STATIC_BRIDGE）：那棵树里这批助手
+        # 要经桥取用（编辑侧 / 运行侧的 `/static` 写法不同，统一收在桥里），只允许它转手
+        # 再导出**登记在桥上的那几个名字**。
         for imported_names, specifier in re.findall(
             r'(?:import|export)\s*\{([^}]*)\}\s*from\s*["\']([^"\']+)["\']', source, re.DOTALL
         ):
+            bridged = (
+                'static-helpers.js' in specifier
+                and Path(relative).as_posix() != FRONTEND_STATIC_BRIDGE
+            )
             for imported_name in imported_names.split(','):
                 imported_name = imported_name.strip()
                 if imported_name not in expected:
+                    continue
+                if bridged and imported_name in FRONTEND_STATIC_BRIDGE_EXPORTS:
+                    imported_here.add(imported_name)
                     continue
                 imported_here.add(imported_name)
                 owner = expected[imported_name].rsplit('/', 1)[-1]
                 if owner not in specifier:
                     import_paths.append(f'{relative}：{imported_name} ← {specifier}')
+        # 条件动态 import（`import(new URL("../../static/utils/x.js", import.meta.url))` 那类）
+        # 也认：本体那份实现在 `/static/` 树里时，这是它唯一能在 3D 树里被取用的写法。
+        # 判据是**文件名出现在 specifier 里**（与上面那条 `owner not in specifier` 同一口径）：
+        # 动态导入没法逐名绑定，按「导入了那个模块」算 —— 宁可宽一点也不误报，
+        # 因为这条只管「漏没漏 import」，语义仍由上面的定义点断言与探针管着。
+        for specifier in re.findall(
+            r'import\s*\(\s*(?:new\s+URL\s*\(\s*)?["\']([^"\']+)["\']', source
+        ):
+            for name, owner in expected.items():
+                if owner.rsplit('/', 1)[-1] in specifier:
+                    imported_here.add(name)
         # 使用点必须自己 import：删掉定义时最容易漏的就是调用方的 import 行，
         # 而那种代码在浏览器里是一句 ReferenceError（静态闸不查就一路静默到页面上）。
         # P11 起这里不再只认 `name(` 这种**调用**形态：`{ entityDomain: entityDomain }`
@@ -3482,6 +3529,7 @@ def check_frontend_helper_contract_single_source() -> None:
     _run_frontend_probe('light-statistics')
     _run_frontend_probe('cover-direction')
     _run_frontend_probe('cover-reversal')
+    _run_frontend_probe('interaction3d-bridge')
 
     # 6) 改判登记：这两份是**不同的知识**（不是同一份知识的两份副本），所以只改名、不合并。
     #    这条钉住「名字不再互相冒充」：任一名字被抄到别处、或有人把一份改成另一份的语义
@@ -3510,7 +3558,11 @@ def check_frontend_helper_contract_single_source() -> None:
     #    实体名），审计里与这一族分开记。
     inline_domain_splits: list[str] = []
     inline_domain_pattern = re.compile(r'\.split\(\s*["\']\.["\']\s*(?:,\s*1\s*)?\)\s*\[\s*0\s*\]')
-    for path in sorted((frontend_root / 'static').rglob('*.js')):
+    for path in sorted(
+        scanned_path
+        for root in FRONTEND_INLINE_FORM_SCAN_ROOTS
+        for scanned_path in (frontend_root / root).rglob('*.js')
+    ):
         if '/vendor/' in path.as_posix():
             continue
         try:
@@ -3525,11 +3577,11 @@ def check_frontend_helper_contract_single_source() -> None:
             line_number = code.count('\n', 0, match.start()) + 1
             inline_domain_splits.append(f'{relative}:{line_number}')
     check(
-        'P12 残留补齐：「按 ID 切域」在 /static 树里再没有内联写法（只剩 utils/entities.js 那一份实现）',
+        'P12 残留补齐：「按 ID 切域」在 /static 与 3D 运行时树里再没有内联写法（只剩 utils/entities.js 那一份实现）',
         not inline_domain_splits,
         '；'.join(inline_domain_splits[:8])
         if inline_domain_splits
-        else '扫过 /static 全部脚本，无内联切域',
+        else '扫过两棵树的全部脚本，无内联切域',
     )
 
     # 8) P12 夹取收口：`clampCoercedNumber` 的兜底现在**原样返回**（不再跟着夹一次），
@@ -3597,7 +3649,11 @@ def check_frontend_helper_contract_single_source() -> None:
         # 都要认：后者在 `hasOwnProperty` 与参数之间夹了 `.call`，所以不能要求紧跟 `(`。
         re.compile(r'hasOwn(?:Property)?\b[^;\n]{0,120}["\']newState["\']'),
     )
-    for path in sorted((frontend_root / 'static').rglob('*.js')):
+    for path in sorted(
+        scanned_path
+        for root in FRONTEND_INLINE_FORM_SCAN_ROOTS
+        for scanned_path in (frontend_root / root).rglob('*.js')
+    ):
         if '/vendor/' in path.as_posix():
             continue
         try:
@@ -3613,12 +3669,55 @@ def check_frontend_helper_contract_single_source() -> None:
                 line_number = code.count('\n', 0, match.start()) + 1
                 inline_state_unwraps.append(f'{relative}:{line_number}')
     check(
-        'P12 状态条目内联收口：「变更对象 / 状态对象」的剥壳在 /static 树里再没有内联写法（只剩 utils/state-entry.js 那一份实现）',
+        'P12 状态条目内联收口：「变更对象 / 状态对象」的剥壳在 /static 与 3D 运行时树里再没有内联写法（只剩 utils/state-entry.js 那一份实现）',
         not inline_state_unwraps,
         '；'.join(sorted(set(inline_state_unwraps))[:8])
         if inline_state_unwraps
-        else '扫过 /static 全部脚本，无内联剥壳',
+        else '扫过两棵树的全部脚本，无内联剥壳',
     )
+
+    # 10) 3D 运行时树那个桥的**结构**：只许是「条件动态 import + 命名导出」，
+    #     导出的名字与动态 import 的目标都必须与登记表逐字相同。
+    #     这一条与上面第 1 条分工明确：第 1 条管「实现不许有第二份」（谁在桥里写函数体就红），
+    #     这条管「桥不许偷偷变宽」—— 多导出一个名字、或者顺手把 `/static/` 别的模块也挂过来
+    #     （那正是「借桥绕过唯一实现」的形态），都在这里现形。桥不存在时同样红：
+    #     1 那份 import 注释与 16 份文件的 import 都指着它，文件没了就是整棵树 ReferenceError。
+    bridge_path = PROJECT_ROOT / FRONTEND_STATIC_BRIDGE
+    if not bridge_path.is_file():
+        check(
+            'P12 3D 运行时树的 /static 助手桥存在，且只转手导出登记的那几个名字',
+            False,
+            f'{FRONTEND_STATIC_BRIDGE} 不存在',
+        )
+    else:
+        bridge_source = bridge_path.read_text(encoding='utf-8')
+        bridge_code = _frontend_code_only(bridge_source)
+        exported: list[str] = []
+        for names_block in re.findall(r'export\s*\{([^}]*)\}', bridge_code):
+            exported += [name.strip() for name in names_block.split(',') if name.strip()]
+        bridge_targets = sorted(
+            {
+                specifier.split('?', 1)[0].rsplit('/', 1)[-1]
+                for specifier in re.findall(
+                    r'import\s*\(\s*(?:new\s+URL\s*\(\s*)?["\']([^"\']+)["\']', bridge_source
+                )
+            }
+        )
+        owner_files = sorted(
+            {expected[name].rsplit('/', 1)[-1] for name in FRONTEND_STATIC_BRIDGE_EXPORTS}
+        )
+        problems = []
+        if sorted(exported) != sorted(FRONTEND_STATIC_BRIDGE_EXPORTS):
+            problems.append(f'导出={sorted(exported)}（应为 {sorted(FRONTEND_STATIC_BRIDGE_EXPORTS)}）')
+        if bridge_targets != owner_files:
+            problems.append(f'动态 import 目标={bridge_targets}（应为 {owner_files}）')
+        check(
+            'P12 3D 运行时树的 /static 助手桥只转手导出登记的那几个名字，动态 import 也只指向它们所属的模块（桥不许长成通往 /static 的通用通道）',
+            not problems,
+            '；'.join(problems)
+            if problems
+            else f'{" / ".join(FRONTEND_STATIC_BRIDGE_EXPORTS)} ← {owner_files[0]} + {owner_files[1]}',
+        )
 
 
 def check_frontend_retired_name_references() -> None:
@@ -10317,6 +10416,7 @@ FRONTEND_PROBE_SUITES = {
     'light-statistics': 'P10-B 统计卡片的汇总口径：形态混合 / 容器两种 / 被删除实体（light-statistics-runtime.js）',
     'cover-direction': 'P10-B 窗帘电机方向两份知识的契约矩阵（renderer/cover-direction.js）',
     'cover-reversal': 'P10-B 电机反转的消费方端到端：控件属性 → 开合判定与物理状态还原（registry.js / cover-runtime.js）',
+    'interaction3d-bridge': 'P12 3D 运行时树经桥取用 /static 助手（static-helpers.js：取到的是本体那一份、导入行写错名字会硬错、消费方顶层能求值到底）',
     'setup': 'W6 初始化页提交按钮与超时（setup.js）',
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
     'home-boot': 'W8 编辑器启动分片（home.js 启动序列）',
@@ -11384,6 +11484,49 @@ def check_frontend_lint_clean() -> None:
     check(name, not findings, '；'.join(findings[:5]) if findings else 'eslint 报告为空')
 
 
+def check_ci_runs_self_checks() -> None:
+    """P12 收口（续）：CI 必须真的跑那三套自检，而不是只跑 lint 与语法检查。
+
+    背景：`store.tools.smoke`（1038）/ `backend.tools.smoke`（807）/ `store.tools.e2e`（44）
+    此前一条都不在 CI 里 —— ``ci.yml`` 只有 ruff、两份语法检查与 eslint，``docker.yml``
+    又只在手动触发时构建镜像，于是**「CI 全绿」与「自检全绿」是两件事**，而且 CI 那侧
+    绿得很响（四项检查），自检红只有开发者本机看得见。这一批把三套搬进 checks job，
+    这两条断言把那个决定钉在 workflow 上：谁把这一步删掉、把某一条命令挪进注释，
+    或者把 PR 触发条件摘掉，都会当场变红。
+
+    判据只看 **``run:`` 块里的命令行**（行尾注释先抹掉）：写进注释里的命令不算跑过 ——
+    与 P9「死代码判定要认代码位置、不认注释里提到」同一口径（``rg`` 分不开
+    ``merge_document_popups`` 的唯二出现是别人的 docstring，这条吃过一次亏）。
+    刻意不查 YAML 结构（那个得引一份 YAML 解析器进来）：命令必须是**独占一行**的完整
+    形式，这样「有人把三套挪进 ``|| true`` / ``continue-on-error``」不会顺手过闸，
+    因为那种写法会把命令塞进别的一行里、这条断言就看不见它了。
+    """
+    workflow = PROJECT_ROOT / '.github/workflows/ci.yml'
+    if not workflow.is_file():
+        check('CI 真的跑三套自检（每条命令都独占一行；写在注释里不算）', False, f'{workflow} 不存在')
+        check('CI 的触发条件包含 PR（自检要在合并前拦住）', False, f'{workflow} 不存在')
+        return
+    # 抹掉整行注释与行尾注释：`# python -m store.tools.smoke` 这种「写给人看」的命令不算跑过。
+    code_lines = [line.split('#', 1)[0].strip() for line in workflow.read_text(encoding='utf-8').splitlines()]
+    commands = [
+        'python -m store.tools.gen_keys --force',
+        'python -m store.tools.smoke',
+        'python -m backend.tools.smoke',
+        'python -m store.tools.e2e',
+    ]
+    missing = [command for command in commands if command not in code_lines]
+    check(
+        'CI 真的跑三套自检（每条命令都独占一行；写在注释里不算）',
+        not missing,
+        f'缺={missing}' if missing else '四条命令都在（gen_keys + 两套 smoke + e2e）',
+    )
+    check(
+        'CI 的触发条件包含 PR（自检要在合并前拦住，而不是合并到 main 之后才发现）',
+        'pull_request:' in code_lines,
+        'on 下有 pull_request:' if 'pull_request:' in code_lines else '触发条件里没有 pull_request:',
+    )
+
+
 def _eslint_reports(output: str) -> list[dict[str, Any]]:
     """把 eslint 的 ``--format json`` 输出解析成报告列表；解析不动时返回空列表。
 
@@ -12381,6 +12524,7 @@ async def run() -> int:
     check_source_has_no_line_number_artifacts()
     check_python_lint_clean()
     check_frontend_lint_clean()
+    check_ci_runs_self_checks()
     check_frontend_dead_exports()
     check_frontend_resize_batching()
     check_frontend_studio_history_guard()

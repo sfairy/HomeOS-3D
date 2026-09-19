@@ -5581,6 +5581,130 @@ async function runToplevelSymbolsSuite() {
   );
 }
 
+/**
+ * 跑 3D 运行时树的 `/static` 助手桥（`modules/interaction3d/static-helpers.js`）。
+ *
+ * 为什么值得一条活体探针：这批把那一棵树里 33 处内联剥壳 + 3 处内联切域逐处换成了共享实现，
+ * 而**共享实现必须真的能取到** —— 这棵树的取用方式是「`import.meta.url` 是 file: 走相对路径、
+ * 否则走 `/static/` 绝对路径」的条件动态导入，静态闸只能看见「这一行写了 import」，
+ * 看不见它在 `file:` 分支下解析到哪。这里的做法是**把树里的模块真的从磁盘 import 进来**：
+ * Node 的具名导入是编译期校验的，所以「导入行写错了名字 / 文件改名了 / 桥把某个导出删了」
+ * 都会在 import 那一刻变成硬错误，而不是等到舞台上某个状态读不到。
+ *
+ * 覆盖范围的边界如实写在这里：**编辑侧**那几份（`config-editor.js` 等）自己写着裸
+ * `/static/...` 的静态 import，只有 http 页面里才解析得开，磁盘上 import 必然 `ENOENT` ——
+ * 那是它们的既有写法，不是本批引入的缺陷，所以按「失败原因必须是裸 /static」放行；
+ * 任何**别的**原因的失败都要红。这条边界本身也断言住（否则「跳过」会变成遮羞布）。
+ */
+async function runInteraction3dBridgeSuite() {
+  const treeRoot = path.join(ROOT, "frontend", "modules", "interaction3d");
+  const bridgePath = path.join(treeRoot, "static-helpers.js");
+  const bridge = await import(pathToFileURL(bridgePath).href);
+
+  check(
+    "P12 3D 树：桥能 import，且登记的两个助手都是函数（条件动态导入在 file: 分支下解析到了真文件）",
+    typeof bridge.resolveStateEntry === "function" && typeof bridge.entityDomainFromId === "function",
+    `导出=${Object.keys(bridge).join(",")}`
+  );
+
+  // 与本体同一份函数对象：谁把短路表达式在桥里抄成一份实现（看着一模一样、语义却会各自漂移），
+  // 这条当场红 —— 静态闸管的是「文件里没写函数体」，这条管的是**运行时真的是那一份**。
+  const stateEntryModule = await import(
+    pathToFileURL(path.join(ROOT, "frontend", "static", "utils", "state-entry.js")).href
+  );
+  const entitiesModule = await import(
+    pathToFileURL(path.join(ROOT, "frontend", "static", "utils", "entities.js")).href
+  );
+  check(
+    "P12 3D 树：桥转手的就是本体那一份（同名函数在两边是同一个对象，不是各写一遍的副本）",
+    bridge.resolveStateEntry === stateEntryModule.resolveStateEntry &&
+      bridge.entityDomainFromId === entitiesModule.entityDomainFromId,
+    `resolveStateEntry 同一对象=${bridge.resolveStateEntry === stateEntryModule.resolveStateEntry} ` +
+      `entityDomainFromId 同一对象=${bridge.entityDomainFromId === entitiesModule.entityDomainFromId}`
+  );
+
+  // 形态矩阵里挑两格：剥壳与切域各自跑一次，证明取到的这一份语义没变。
+  const stateObject = { state: "on", attributes: {} };
+  check(
+    "P12 3D 树：经桥取到的助手语义仍是契约里那一套（变更对象剥壳、实体 ID 切域）",
+    bridge.resolveStateEntry({ newState: stateObject }) === stateObject &&
+      bridge.resolveStateEntry(null) === null &&
+      bridge.entityDomainFromId("light.kitchen") === "light" &&
+      bridge.entityDomainFromId(undefined) === "",
+    JSON.stringify({
+      变更对象: bridge.resolveStateEntry({ newState: stateObject }),
+      空: bridge.resolveStateEntry(null),
+      切域: bridge.entityDomainFromId("light.kitchen"),
+      空ID: bridge.entityDomainFromId(undefined)
+    })
+  );
+
+  // 消费方：把树里所有引用桥的文件真的 import 一遍。具名导入是编译期校验的，
+  // 所以这一步同时证明「导入的名字桥都导出了」与「这些文件顶层没有别的 ReferenceError」。
+  const consumers = fs
+    .readdirSync(treeRoot)
+    .filter(name => name.endsWith(".js") && name !== "static-helpers.js")
+    .filter(name => fs.readFileSync(path.join(treeRoot, name), "utf8").includes("static-helpers.js"));
+  check(
+    "P12 3D 树：扫到了桥的消费方（一份都没扫到时必须红，否则下面那条全是假绿）",
+    consumers.length >= 16,
+    `发现 ${consumers.length} 份消费方：${consumers.join(" / ")}`
+  );
+
+  const httpOnly = [];
+  const unexplained = [];
+  let loaded = 0;
+  for (const name of consumers) {
+    try {
+      await import(pathToFileURL(path.join(treeRoot, name)).href);
+      loaded += 1;
+    } catch (error) {
+      const message = String(error?.message || error);
+      // 编辑侧的既有写法：裸 `/static/...` 静态 import，只在 http 页面里解析得开。
+      if (error?.code === "ERR_MODULE_NOT_FOUND" && /['"]\/static\//.test(message)) {
+        httpOnly.push(name);
+        continue;
+      }
+      unexplained.push(`${name} :: ${error?.name}: ${message.split("\n")[0].slice(0, 120)}`);
+    }
+  }
+  check(
+    "P12 3D 树：每个桥消费方都能从磁盘顶层求值到底（导入行写错名字 / 桥少了导出 = import 当场硬错）",
+    unexplained.length === 0,
+    unexplained.length
+      ? unexplained.slice(0, 6).join("；")
+      : `${loaded} 份消费方全部求值到底` +
+        (httpOnly.length ? `（${httpOnly.join(" / ")} 是编辑侧 http-only，按裸 /static 放行）` : "")
+  );
+
+  // 消费方侧再挑两处真实调用：这两处正是本批换掉内联表达式的位置，
+  // 断言的是「换过去之后调用方拿到的仍是同一个东西」而不是助手本身。
+  const lightState = await import(pathToFileURL(path.join(treeRoot, "light-state.js")).href);
+  const televisionState = await import(pathToFileURL(path.join(treeRoot, "television-state.js")).href);
+  const cameraStatus = await import(pathToFileURL(path.join(treeRoot, "camera-status.js")).href);
+  const presenceMotion = await import(pathToFileURL(path.join(treeRoot, "presence-motion.js")).href);
+  const lightCommand = lightState.lightCommand("light.kitchen", "power", true, { available: true });
+  const televisionPower = televisionState.televisionPower({ entityId: "switch.tv" }, {}, true);
+  check(
+    "P12 3D 树：调用方拿到的域仍是实体自己的域（lightCommand / televisionPower 都走同一份切域实现）",
+    lightCommand.domain === "light" && televisionPower.domain === "switch",
+    `lightCommand.domain=${lightCommand.domain} televisionPower.domain=${televisionPower.domain}`
+  );
+  check(
+    "P12 3D 树：调用方的剥壳语义不变（变更对象剥壳；空输入归一后仍判为不活跃，不抛）",
+    cameraStatus.cameraOnline({ newState: { state: "recording", attributes: {} } }) === true &&
+      cameraStatus.cameraOnline(undefined) === false &&
+      presenceMotion.presenceIsActive({ newState: { state: "on", available: true } }) === true &&
+      presenceMotion.presenceIsActive(undefined) === false,
+    JSON.stringify({
+      变更对象录音中: cameraStatus.cameraOnline({ newState: { state: "recording", attributes: {} } }),
+      空摄像头: cameraStatus.cameraOnline(undefined),
+      变更对象有人: presenceMotion.presenceIsActive({ newState: { state: "on", available: true } }),
+      空有人: presenceMotion.presenceIsActive(undefined)
+    })
+  );
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,  login: runLoginSuite,
   "display-boot": runDisplayBootSuite,
@@ -5610,6 +5734,7 @@ const suites = {
   "light-statistics": runLightStatisticsSuite,
   "cover-direction": runCoverDirectionSuite,
   "cover-reversal": runCoverReversalSuite,
+  "interaction3d-bridge": runInteraction3dBridgeSuite,
   "toplevel-symbols": runToplevelSymbolsSuite
 };
 

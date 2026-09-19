@@ -15,6 +15,10 @@
  * kelvin = 1000000 / mired，本模块统一以开尔文对外。
  */
 
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 /**
  * 判断是否为可用的数值型输入。
  *
@@ -49,7 +53,7 @@ const COLOR_MODE_SET = new Set([
  * @returns {object} 归一化状态：on / available / name / 能力标记 / 亮度百分比 / 开尔文区间。
  */
 export function lightState(entityId, entityState, fallbackState) {
-  const stateObject = entityState?.newState || entityState || {};
+  const stateObject = resolveStateEntry(entityState, {});
   const attributes = stateObject.attributes || {};
   const supportedColorModes = Array.isArray(attributes.supported_color_modes)
     ? attributes.supported_color_modes
@@ -193,7 +197,7 @@ const LIGHT_ATTRIBUTE_VALIDATORS = {
  * @returns {Object<string, *>} 通过校验的属性补丁。
  */
 function computeAttributePatch(patchEntityId, patchEntityState) {
-  const entityStateBody = patchEntityState?.newState || patchEntityState || {};
+  const entityStateBody = resolveStateEntry(patchEntityState, {});
   const entityAttributes = entityStateBody.attributes || {};
   const resolvedLightState = lightState(patchEntityId, patchEntityState);
   const attributePatch = {};
@@ -630,13 +634,10 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
   if (!/^(light|switch)\.[a-z0-9_]+$/.test(commandEntityId) || !capabilities.available) {
     throw new Error("设备不可用。");
   }
-  // 域不调 utils/entities.js 的 entityDomainFromId：本文件在 3D 运行时树里
-  // （后端按 /api/v1/modules/interaction3d/ 提供），与 /static/ 是两个加载边界，
-  // 跨树 import 是个架构决定（审计文档 4.3 B 类末尾那两条）。这里只把局部名从
-  // entityDomain 改成 entityDomainName —— 那个名字在 P10 已被删掉，留着会与
-  // 「已删名字不许当值用」那条闸打架。切法与共享实现逐字相同，上面那行正则
-  // 已经保证 commandEntityId 是字符串。
-  const entityDomainName = commandEntityId.split(".")[0];
+  // 域走 static-helpers 桥过来的 `entityDomainFromId`（唯一实现仍在 utils/entities.js，
+  // 见该模块头）。局部名保留 entityDomainName：`entityDomain` 那个名字在 P10 已被删掉，
+  // 留着会与「已删名字不许当值用」那条闸打架；上面那行正则已保证 commandEntityId 是字符串。
+  const entityDomainName = entityDomainFromId(commandEntityId);
   if (commandName === "power") {
     return {
       domain: entityDomainName,

@@ -14,6 +14,10 @@
  * 必须原样保留，不能改写或翻译。
  */
 
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。 */
 const FLOW_STATE_COLORS = {
   cool: "#73c8ff",
@@ -456,7 +460,7 @@ export function createEnvironmentAirflow({
         entityStates instanceof Map
           ? entityStates.get(effectBinding.entityId)
           : entityStates?.[effectBinding.entityId];
-      const stateBody = stateRecord?.newState || stateRecord || {};
+      const stateBody = resolveStateEntry(stateRecord, {});
       const stateValue = String(stateBody.state || "").toLowerCase();
       const hvacAction = String(stateBody.attributes?.hvac_action || "").toLowerCase();
       // 聚焦了别的设备时，本设备的气流不显示（画面里只保留一个焦点）。

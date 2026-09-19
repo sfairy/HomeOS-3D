@@ -20,6 +20,10 @@
  * createVacuumMaps / vacuumStatusPresentation。
  */
 
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 /**
  * 计算一份「地图身份」字符串，用于判断绑定配置里的 sourceMapId 是否仍指向当前地图。
  *
@@ -34,9 +38,9 @@
  */
 export function vacuumMapIdentity(mapEntityEntry, vacuumEntityEntry) {
   // 兼容两种入参形态：事件回调包裹了一层 newState，轮询接口则直接给 state 本身。
-  const mapIdentityAttributes = (mapEntityEntry?.newState || mapEntityEntry)?.attributes || {};
+  const mapIdentityAttributes = resolveStateEntry(mapEntityEntry)?.attributes || {};
   const vacuumIdentityAttributes =
-    (vacuumEntityEntry?.newState || vacuumEntityEntry)?.attributes || {};
+    resolveStateEntry(vacuumEntityEntry)?.attributes || {};
   // HA 的属性值可能是字符串或数字，空串、NaN 都视为「没有这个 ID」。
   const isUsableIdValue = idValue =>
     (typeof idValue == "string" && idValue) ||
@@ -89,10 +93,10 @@ export function vacuumBindingsForMap(bindings, statesByEntityId) {
     const mapEntityState = statesByEntityId[binding.map?.entityId];
     const vacuumEntityState = statesByEntityId[binding.entityId];
     // 地图实体的属性表，缺失时兜底成空对象，后面取值不再判空。
-    const mapAttributes = (mapEntityState?.newState || mapEntityState)?.attributes || {};
+    const mapAttributes = resolveStateEntry(mapEntityState)?.attributes || {};
     // 扫地机属性：多楼层标记（multi_floor_map）等判定依据都在这里。
     const vacuumStateAttributes =
-      (vacuumEntityState?.newState || vacuumEntityState)?.attributes || {};
+      resolveStateEntry(vacuumEntityState)?.attributes || {};
     const mapIdentity = vacuumMapIdentity(mapEntityState, vacuumEntityState);
     const sourceMapId = binding.map?.sourceMapId;
     // 兄弟绑定：同一扫地机 + 同一地图实体，但落在别的楼层。多楼层共用一张图时用来去重。
@@ -240,10 +244,10 @@ export function createVacuumMaps(sceneContext, requestRender) {
   const buildRevisionKey = (keyItem, revisionStates) => {
     // 状态可能来自事件包裹或轮询快照，两种形态都兼容；缺实体时退化成空对象。
     const revisionMapState = revisionStates[keyItem.map?.entityId];
-    const mapState = revisionMapState?.newState || revisionMapState || {};
+    const mapState = resolveStateEntry(revisionMapState, {});
     const revisionAttributes = mapState.attributes || {};
     const revisionVacuumState = revisionStates[keyItem.entityId];
-    const vacuumState = revisionVacuumState?.newState || revisionVacuumState || {};
+    const vacuumState = resolveStateEntry(revisionVacuumState, {});
     return JSON.stringify([
       mapState.state,
       mapState.last_updated,
@@ -644,7 +648,7 @@ export function createVacuumMaps(sceneContext, requestRender) {
  */
 export function vacuumStatusPresentation(statusBinding, statusStates = {}) {
   // 实体状态可能是事件包裹（newState）或轮询快照（state 本身），统一成「状态对象或 null」。
-  const resolveEntityState = entityEntry => entityEntry?.newState || entityEntry || null;
+  const resolveEntityState = entityEntry => resolveStateEntry(entityEntry);
   const vacuumStateEntry = resolveEntityState(statusStates[statusBinding.entityId]);
   const vacuumAttributes = vacuumStateEntry?.attributes || {};
   const stateText = String(vacuumStateEntry?.state || "unknown");

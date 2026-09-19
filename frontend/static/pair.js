@@ -17,8 +17,8 @@
 import {
   parsePairingLink as parseScanLink,
   needsAppleInstallGuide as shouldShowInstallGuide
-} from "./pairing-link.js?v=20260919153711";
-import { apiFetch } from "./utils/api-fetch.js?v=20260919153711";
+} from "./pairing-link.js?v=20260919202351";
+import { apiFetch } from "./utils/api-fetch.js?v=20260919202351";
 
 const formElement = document.querySelector("#pair-form"),
   messageElement = document.querySelector("#message"),

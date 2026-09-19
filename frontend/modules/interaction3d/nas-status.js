@@ -10,6 +10,10 @@
  * 未直接绑定时，改看 statusSource 下的「主指标 + 指标列表」是否有任意一项有有效数值。
  */
 
+// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
+// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
+// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import { resolveStateEntry } from "./static-helpers.js?v=20260919202351";
 /**
  * 归一化单个 NAS 开关实体。
  *
@@ -18,7 +22,7 @@
  * @returns {object} 含 available / on / name 的精简状态。
  */
 export function nasState(entityId, state) {
-  const stateObject = state?.newState || state || {};
+  const stateObject = resolveStateEntry(state, {});
   const stateValue = String(stateObject.state || "")
     .trim()
     .toLowerCase();
@@ -59,7 +63,7 @@ export function nasDeviceState(item, stateSources = {}) {
       ...(item.statusSource?.metrics || []).map(metricSource => metricSource.entityId)
     ])
   ].some(metricEntityId => {
-    const metricState = readState(metricEntityId)?.newState || readState(metricEntityId);
+    const metricState = resolveStateEntry(readState(metricEntityId));
     return (
       !!metricEntityId &&
       metricState?.available !== false &&
