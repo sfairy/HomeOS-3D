@@ -414,49 +414,6 @@ input {
 .login-card {
   width: min(100%, 430px);
 }
-/* 授权页右上角的退出按钮，绝对定位避开表单区。 */
-.license-logout {
-  position: absolute;
-  top: 30px;
-  right: 34px;
-  display: inline-flex;
-  height: 36px;
-  align-items: center;
-  gap: 8px;
-  padding: 0 14px;
-  border: 1px solid #39434c;
-  border-radius: 999px;
-  outline: 0;
-  color: #929da5;
-  background: #11171c75;
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
-  transition:
-    color 0.18s ease,
-    border-color 0.18s ease,
-    background 0.18s ease,
-    transform 0.18s ease;
-}
-.license-logout svg {
-  width: 15px;
-  height: 15px;
-  fill: currentColor;
-}
-.license-logout:hover {
-  color: #eef1f2;
-  border-color: #56616a;
-  background: #20272d;
-  transform: translateY(-1px);
-}
-.license-logout:active {
-  transform: translateY(0);
-}
-/* 键盘聚焦用外发光提示，不使用默认 outline 以保持圆角胶囊形状。 */
-.license-logout:focus-visible {
-  border-color: #df9a2c;
-  box-shadow: 0 0 0 3px #e09a2a21;
-}
 .login-card header {
   margin-bottom: 30px;
 }
@@ -674,10 +631,6 @@ input {
     display: flex;
     align-self: flex-start;
   }
-  .license-logout {
-    top: 28px;
-    right: 24px;
-  }
 }
 /* 中等宽度：展示区被压窄，缩小角色舞台并用负外边距吃掉多余空白。 */
 @media (max-width: 1100px) and (min-width: 821px) {
@@ -694,7 +647,7 @@ input {
     margin-bottom: -20px;
   }
 }
-/* 超窄屏：退出按钮只剩图标，文字用 clip 视觉隐藏但对读屏软件仍可见。 */
+/* 超窄屏：展示区彻底收起，表单占满整屏。 */
 @media (max-width: 440px) {
   .login-panel {
     padding: 30px 20px 23px;
@@ -705,20 +658,5 @@ input {
   }
   .login-card h1 {
     font-size: 27px;
-  }
-  .license-logout {
-    top: 29px;
-    right: 20px;
-    width: 36px;
-    padding: 0;
-    justify-content: center;
-  }
-  .license-logout span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
   }
 }
