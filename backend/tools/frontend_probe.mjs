@@ -3220,10 +3220,14 @@ async function runDialogA11ySuite() {
  * @param {object} [options] 场景开关。
  * @param {boolean} [options.withCharacters] 页面上有没有角色区（/pair 没有）。
  * @param {string[]} [options.toggleTargets] 每个显隐按钮指向的输入框 id。
+ * @param {string[]} [options.iconToggles] 哪些按钮是**图标按钮**（内含 SVG）。
+ *   login 页重构后按钮变成了纯文字（只有 ``显示`` / ``隐藏`` 两个字的 textContent），
+ *   所以两条契约都要摆出来：文字按钮要换文案，图标按钮**不能**换 —— 覆盖
+ *   textContent 会把内嵌的 SVG 一起抹掉，按钮变成空白。
  * @returns {object} 沙箱与观测量。
  */
 function makeAuthShellSandbox(options = {}) {
-  const { withCharacters = true, toggleTargets = ["password"] } = options;
+  const { withCharacters = true, toggleTargets = ["password"], iconToggles = [] } = options;
   const classes = new Set();
   const styleWrites = [];
   const box = { width: 100, height: 50, left: 0, top: 0 };
@@ -3263,18 +3267,24 @@ function makeAuthShellSandbox(options = {}) {
     }
   ];
   const fieldsById = new Map([["password", passwordFields[0]]]);
-  const toggles = toggleTargets.map(targetId => ({
-    dataset: { togglePassword: targetId },
-    title: "",
-    labels: [],
-    handlers: [],
-    setAttribute(name, value) {
-      this.labels.push([name, value]);
-    },
-    addEventListener(type, handler) {
-      this.handlers.push([type, handler]);
-    }
-  }));
+  const toggles = toggleTargets.map(targetId => {
+    const toggle = {
+      dataset: { togglePassword: targetId },
+      title: "",
+      labels: [],
+      handlers: [],
+      setAttribute(name, value) {
+        this.labels.push([name, value]);
+      },
+      addEventListener(type, handler) {
+        this.handlers.push([type, handler]);
+      }
+    };
+    // 图标按钮带一个子元素（真页面上是 SVG）。**故意不给它 textContent 字段**：
+    // 有没有被写过因此可以直接用 `"textContent" in toggle` 观测到。
+    if (iconToggles.includes(targetId)) toggle.firstElementChild = { tagName: "svg" };
+    return toggle;
+  });
   const formInputs = [{ name: "username", addEventListener() {} }];
   const windowListeners = new Map();
   const documentListeners = new Map();
@@ -3385,10 +3395,39 @@ async function runAuthShellSuite() {
     goodToggle.labels.some(([name, value]) => name === "aria-label" && value === "隐藏密码"),
     JSON.stringify(goodToggle.labels)
   );
+  // login 页重构后这个按钮是**纯文字**的（`显示` / `隐藏` 两个字），所以文案也必须跟着换。
+  // 只换 aria-label 的后果是：密码已经明文显示，按钮上却仍写着「显示」—— 读屏听得对、
+  // 看得见的用户会按反。
+  check(
+    "W25 纯文字按钮的文案跟着换（密码已明文时按钮还写着「显示」会让用户按反）",
+    goodToggle.textContent === "隐藏",
+    JSON.stringify({ text: goodToggle.textContent })
+  );
   check(
     "W25 无角色区时不碰角色节点（不该为了动效把密码显隐一起赔进去）",
     bare.styleWrites.length === 0,
     JSON.stringify(bare.styleWrites)
+  );
+
+  // 两条契约的另一半：图标按钮（内含 SVG）**不能**写 textContent —— 那会把 SVG 抹掉，
+  // 按钮变成一块空白。判据用 `"textContent" in toggle`（沙箱故意没给这个字段），
+  // 所以「没写」与「写了空串」在这里是两件事。
+  const iconShell = makeAuthShellSandbox({
+    withCharacters: false,
+    toggleTargets: ["password"],
+    iconToggles: ["password"]
+  });
+  vm.runInContext(source, iconShell.context, { filename: "auth-shell.js" });
+  const iconToggle = iconShell.toggles[0];
+  iconToggle.handlers.find(([type]) => type === "click")?.[1]();
+  check(
+    "W25 图标按钮只换无障碍名称、不写 textContent（覆盖它会把 SVG 抹掉，按钮变空白）",
+    iconToggle.labels.some(([name, value]) => name === "aria-label" && value === "隐藏密码") &&
+      !("textContent" in iconToggle),
+    JSON.stringify({
+      labels: iconToggle.labels,
+      wroteTextContent: "textContent" in iconToggle
+    })
   );
 
   const typoToggle = bare.toggles[1];

@@ -10419,6 +10419,63 @@ def check_frontend_static_cache_stamps() -> None:
         )
 
 
+def check_source_has_no_line_number_artifacts() -> None:
+    """P11：源码里不许残留「行号 + 竖线」那种从阅读器里粘出来的前缀。
+
+    为什么值得一条自检：这类残留是**编辑事故**的指纹，而不是谁有意写的代码。
+    它每次都是因为有人把带行号的视图整段复制回文件 —— 而带行号的视图看起来与
+    真源码一模一样，所以它永远不会在 review 里被「看出来」，只会被逐字比对发现。
+
+    危害按落点分三档：
+    * 落在**内联脚本**里（``store/templates/admin.html`` 那类）→ 整个后台的脚本
+      一行解析错误，页面静默失效（商店侧已有一条专盯它的断言）；
+    * 落在注释 / docstring 里 → 今天只是难看，但它会跟着这段注释被复制到别处，
+      而且会让「行号前缀」这个形状不再显眼，下一次落进代码里就没人觉得奇怪；
+    * 落在**字符串常量**里 → 直接是用户可见的脏数据。
+
+    这一批就是这么发现第一处的：``frontend/static/auth-shell.js`` 的模块注释里
+    嵌着一行 ``    10| *   所有接线……``（登录页重构时粘进去的）。它落在注释里，
+    功能上无害 —— 正因为无害，才需要一条闸来管，否则剩下两档迟早会发生。
+    覆盖范围是**全部随包发布的源码**（前端整棵树 + 商店模板与静态资源 +
+    主应用自带的前端模块），只跳过 vendor 与 node_modules。
+    """
+    roots = [
+        FRONTEND_ROOT,
+        PROJECT_ROOT / 'store' / 'templates',
+        PROJECT_ROOT / 'store' / 'static',
+        PROJECT_ROOT / 'backend' / 'app' / 'modules',
+    ]
+    skip_dirs = {'vendor', 'node_modules', '.venv', '.venv-store', '.extracted'}
+    extensions = {'.js', '.mjs', '.css', '.html', '.webmanifest'}
+    #: 行首 1~8 个空白 + 数字 + 竖线。宽度上限是为了不把「缩进很深的正文里恰好
+    #: 有个 `1234567890|`」也算进来 —— 行号前缀不会缩进那么深。
+    artifact_pattern = re.compile(r'^\s{1,8}\d+\|')
+
+    artifacts: list[str] = []
+    scanned = 0
+    for root in roots:
+        if not root.exists():
+            continue
+        for path in sorted(root.rglob('*')):
+            if not path.is_file() or path.suffix not in extensions:
+                continue
+            if any(part in skip_dirs for part in path.parts):
+                continue
+            scanned += 1
+            for number, line in enumerate(
+                path.read_text(encoding='utf-8', errors='replace').splitlines(), start=1
+            ):
+                if artifact_pattern.match(line):
+                    artifacts.append(
+                        f'{path.relative_to(PROJECT_ROOT).as_posix()}:{number}'
+                    )
+    check(
+        'P11 源码里没有从阅读器粘进来的行号前缀残留（占位符形状的编辑事故）',
+        not artifacts,
+        f'残留 {len(artifacts)} 处: {artifacts[:3]}' if artifacts else f'{scanned} 个文件无残留',
+    )
+
+
 def check_frontend_resize_batching() -> None:
     """W20：resize 的「先读后写 + 一帧一遍」（活体探针 + 两处接线断言）。
 
@@ -11129,6 +11186,7 @@ async def run() -> int:
     check_frontend_auth_shell_guards()
     check_frontend_pair_scan_focus()
     check_frontend_static_cache_stamps()
+    check_source_has_no_line_number_artifacts()
     check_frontend_resize_batching()
     check_frontend_studio_history_guard()
     check_frontend_runtime_cache_limit_single_source()
