@@ -5705,6 +5705,126 @@ async function runInteraction3dBridgeSuite() {
   );
 }
 
+/**
+ * 跑删除组合弹窗确认框里的「本仪表盘影响面」（`popupDeleteUsageEntries`）。
+ *
+ * 为什么值得一条探针：这个函数决定的是用户按下「确认删除」之前看到的**唯一**影响面提示，
+ * 而它的输入是任意组件树、输出是一行行文字 —— 静态闸只能证明「有人把清单填进 DOM」，
+ * 证明不了填出来的东西对不对（漏掉共享组件 / 漏掉嵌套子控件 / 把别的弹窗的动作算进来，
+ * 三种都不会报错，只是清单少一行，用户删完才发现某个卡片的点击没反应）。
+ * 所以这里把文档摆成矩阵：页内控件、共享组件（含被哪些页面引用）、组内嵌套子控件、
+ * 以及三种**不该命中**的形态（别的 popupId、popupSource 为 entity、动作类型不是 more-info）。
+ */
+async function runPopupDeleteUsageSuite() {
+  const source = fs.readFileSync(path.join(ROOT, "frontend/static/home.js"), "utf8");
+  const context = vm.createContext({});
+  vm.runInContext(extractFunction(source, "popupDeleteUsageEntries"), context);
+
+  const popupId = "popup-detail";
+  const popupReference = { type: "more-info", data: { popupSource: "custom", popupId } };
+  const documentFixture = {
+    customPopups: [{ id: popupId, name: "详情" }],
+    sharedComponents: [
+      {
+        id: "shared-1",
+        type: "group",
+        bindings: { main: { entityId: "sensor.shared" } },
+        actions: { tap: popupReference },
+        children: [
+          { id: "shared-child", type: "light", bindings: { main: { entityId: "light.child" } }, actions: { hold: popupReference } }
+        ]
+      },
+      {
+        id: "shared-unused",
+        type: "switch",
+        bindings: { main: { entityId: "switch.other" } },
+        actions: { tap: { type: "more-info", data: { popupSource: "custom", popupId: "popup-else" } } }
+      }
+    ],
+    pages: [
+      {
+        id: "page-living",
+        name: "客厅",
+        sharedComponentIds: ["shared-1"],
+        components: [
+          {
+            id: "page-card",
+            type: "light",
+            bindings: { main: { entityId: "light.kitchen" } },
+            actions: {
+              tap: popupReference,
+              doubleTap: { type: "more-info", data: { popupSource: "entity", entityId: "light.kitchen" } },
+              hold: { type: "toggle" }
+            }
+          },
+          {
+            id: "page-elsewhere",
+            type: "light",
+            bindings: { main: { entityId: "light.hall" } },
+            actions: { tap: { type: "more-info", data: { popupSource: "custom", popupId: "popup-else" } } }
+          }
+        ]
+      }
+    ]
+  };
+
+  const entityLabels = {
+    "sensor.shared": "共享传感器",
+    "light.child": "子灯",
+    "light.kitchen": "厨房灯",
+    "switch.other": "别的开关",
+    "light.hall": "走廊灯"
+  };
+  const labelFor = entityId => entityLabels[entityId] || "";
+  const entries = context.popupDeleteUsageEntries(documentFixture, popupId, labelFor);
+  const labels = entries.map(entry => entry.label);
+
+  check(
+    "P12 删除弹窗的影响面：页内控件按「页面名 · 实体显示名」列出，共享组件与嵌套子控件都算进来",
+    labels.length === 3 &&
+      labels[0] === "共享组件 · 共享传感器（客厅 在用）" &&
+      labels[1] === "共享组件 · 共享传感器 内 子灯（客厅 在用）" &&
+      labels[2] === "客厅 · 厨房灯",
+    labels.join(" | ")
+  );
+  check(
+    "P12 删除弹窗的影响面：只列真的指向这个弹窗的动作（别的弹窗 ID / 实体弹窗 / 非 more-info 都不算）",
+    !labels.some(label => label.includes("别的开关")) &&
+      !labels.some(label => label.includes("走廊灯")) &&
+      entries[2].triggers.length === 1,
+    labels.join(" | ")
+  );
+  check(
+    "P12 删除弹窗的影响面：触发器逐个报出来（单击 / 双击 / 长按），同一控件上的多处动作不合并",
+    entries[2].triggers.join("、") === "单击" && entries[1].triggers.join("、") === "长按",
+    JSON.stringify({
+      页内: entries[2].triggers,
+      共享子控件: entries[1].triggers
+    })
+  );
+  check(
+    "P12 删除弹窗的影响面：实体显示名取不到时退回实体 ID（不能列出一行空标签）",
+    context
+      .popupDeleteUsageEntries(documentFixture, popupId, () => "")
+      .map(entry => entry.label)
+      .join(" | ") ===
+      "共享组件 · sensor.shared（客厅 在用） | 共享组件 · sensor.shared 内 light.child（客厅 在用） | 客厅 · light.kitchen",
+    context
+      .popupDeleteUsageEntries(documentFixture, popupId, () => "")
+      .map(entry => entry.label)
+      .join(" | ")
+  );
+  check(
+    "P12 删除弹窗的影响面：没有任何控件指向它时给空清单（不是「未定义」也不是整个文档全算上）",
+    context.popupDeleteUsageEntries(documentFixture, "popup-missing", labelFor).length === 0 &&
+      context.popupDeleteUsageEntries(null, popupId, labelFor).length === 0,
+    JSON.stringify({
+      不存在的弹窗: context.popupDeleteUsageEntries(documentFixture, "popup-missing", labelFor).length,
+      空文档: context.popupDeleteUsageEntries(null, popupId, labelFor).length
+    })
+  );
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,  login: runLoginSuite,
   "display-boot": runDisplayBootSuite,
@@ -5735,6 +5855,7 @@ const suites = {
   "cover-direction": runCoverDirectionSuite,
   "cover-reversal": runCoverReversalSuite,
   "interaction3d-bridge": runInteraction3dBridgeSuite,
+  "popup-delete-usage": runPopupDeleteUsageSuite,
   "toplevel-symbols": runToplevelSymbolsSuite
 };
 

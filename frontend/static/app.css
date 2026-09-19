@@ -5773,6 +5773,20 @@ h2 {
   font-size: 10px;
   line-height: 1.6;
 }
+/* 影响面清单：逐条列出「哪些控件的动作会变成无动作」。
+   上限 6 条由脚本截断（超出只报个数），所以这里不需要滚动容器；
+   但列表要能换行、且不抢走确认按钮的注意力，所以字号与段落一致、去掉默认缩进。 */
+.delete-usage-list {
+  margin: 6px 0 0;
+  padding-left: 14px;
+  color: #a87876;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.delete-usage-list li {
+  margin: 2px 0;
+  word-break: break-all;
+}
 /* 标题里的警示文案单独染红，与普通对话框标题区分开。 */
 .delete-dialog .dialog-heading span {
   color: #df7772;

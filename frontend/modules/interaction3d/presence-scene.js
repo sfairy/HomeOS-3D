@@ -25,7 +25,7 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "./static-helpers.js?v=20260919202351";
+import { resolveStateEntry } from "./static-helpers.js?v=20260919214245";
 import { createWalker, animateWalker, disposeWalker } from "./presence-character.js";
 import {
   validPresenceRoute,
@@ -33,7 +33,7 @@ import {
   closedPath,
   sampleClosedPath,
   presenceVisibleOnPage
-} from "./presence-motion.js?v=20260919202351";
+} from "./presence-motion.js?v=20260919214245";
 /**
  * 创建人体存在角色场景。
  *

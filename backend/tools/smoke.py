@@ -10416,6 +10416,7 @@ FRONTEND_PROBE_SUITES = {
     'light-statistics': 'P10-B 统计卡片的汇总口径：形态混合 / 容器两种 / 被删除实体（light-statistics-runtime.js）',
     'cover-direction': 'P10-B 窗帘电机方向两份知识的契约矩阵（renderer/cover-direction.js）',
     'cover-reversal': 'P10-B 电机反转的消费方端到端：控件属性 → 开合判定与物理状态还原（registry.js / cover-runtime.js）',
+    'popup-delete-usage': 'P12 删除组合弹窗的确认框报出本仪表盘影响面（popupDeleteUsageEntries：页内控件 / 共享组件 / 嵌套子控件与三种不该命中的形态）',
     'interaction3d-bridge': 'P12 3D 运行时树经桥取用 /static 助手（static-helpers.js：取到的是本体那一份、导入行写错名字会硬错、消费方顶层能求值到底）',
     'setup': 'W6 初始化页提交按钮与超时（setup.js）',
     'license': 'W6/W7 授权页激活提交与状态轮询（license.js）',
@@ -10707,6 +10708,104 @@ def check_frontend_operation_feedback() -> None:
         and '"blocked-by-conflict"' in camera_view_body
         and '"failed"' in camera_view_body,
         f'body={camera_view_body if camera_view_body is None else camera_view_body[:200]!r}',
+    )
+
+
+def check_frontend_popup_delete_usage_notice() -> None:
+    """P12 收口（续，遗留清单第 19 项的最后一小块）：删组合弹窗**之前**要报出影响面。
+
+    审计原文那一项（「删全局弹窗的确认框不提示哪些仪表盘的组件会失效」）里，级联清理与
+    「当前文档自己那份引用」都已修掉，剩下的正是这句话本身：弹窗是**全局**的（所有项目共享
+    一份），确认框只有一句「删除后，所有仪表盘中打开该弹窗的…动作都会自动改为无动作」——
+    对**别的**仪表盘这句话已经到顶（前端手里没有它们的文档），但**当前这份**文档里是哪些控件
+    会变，前端完全知道，却一个都没说。用户只能凭记忆回想哪个卡片配过这个弹窗，
+    删完点一下才发现没反应。
+
+    这一批的做法是「两层话」：总述那句留着（对别处仍然准确），另加一行「当前仪表盘有 N 处会
+    受影响」与逐条清单（页面名 · 实体显示名 · 是单击/双击/长按；共享组件带上「哪些页面在用」）。
+    行为侧由探针 `popup-delete-usage` 把 `popupDeleteUsageEntries` 切出来按文档矩阵跑
+    （共享组件与嵌套子控件、三种不该命中的形态、显示名取不到时退回实体 ID、空清单）；
+    这条静态断言补上探针结构上看不见的三件事：
+      · 清单容器真的在 `#delete-popup-dialog` 里、且在确认按钮**之前**（提示要在按钮之前被读到）；
+      · 填充发生在 `showModal()` **之前** —— 模态弹出来之后前端再没机会改内容，
+        把渲染挪到 showModal 之后不会报错，只是永远显示上一次的清单；
+      · 关闭时清空 —— 那个 dialog 是复用同一个 DOM，留着旧清单会让下一次删除显示**上一个**
+        弹窗的控件（比不显示更坏：它看起来是对的）。
+    另外把「用 textContent 而不是 innerHTML 拼清单」也钉住：清单里放的是用户自己起的实体名，
+    用 innerHTML 拼等于把一个注入点交给实体目录。
+    """
+    _run_frontend_probe('popup-delete-usage')
+
+    index_html = (FRONTEND_ROOT / 'index.html').read_text(encoding='utf-8')
+    home_source = (FRONTEND_ROOT / 'static' / 'home.js').read_text(encoding='utf-8')
+
+    dialog_markup = index_html.partition('id="delete-popup-dialog"')[2].partition('</dialog>')[0]
+    has_container = (
+        'id="delete-popup-usage-summary"' in dialog_markup
+        and 'id="delete-popup-usage-list"' in dialog_markup
+    )
+    ordering_ok = (
+        has_container
+        and dialog_markup.index('id="delete-popup-usage-summary"')
+        < dialog_markup.index('id="delete-popup-confirm"')
+        and dialog_markup.index('id="delete-popup-usage-list"')
+        < dialog_markup.index('id="delete-popup-confirm"')
+    )
+    check(
+        'P12 删除弹窗：影响面清单的容器在确认框里、且在「确认删除」按钮之前（提示要被先读到）',
+        ordering_ok,
+        '两个容器都在'
+        if ordering_ok
+        else ('确认框里没有清单容器' if not has_container else '清单容器排在确认按钮之后'),
+    )
+
+    delete_branch = (
+        home_source.partition('if (popupActionName === "delete") {')[2].partition(
+            'deletePopupDialogElement.showModal();'
+        )[0]
+    )
+    filled_before_modal = (
+        'renderPopupDeleteUsage(' in delete_branch
+        and 'popupToDelete.id' in delete_branch
+        and 'popupToDelete.name' in delete_branch
+    )
+    check(
+        'P12 删除弹窗：影响面在 showModal() 之前填好（模态弹出后再改内容 = 永远慢一拍，只会显示上一次的清单）',
+        filled_before_modal,
+        'delete 分支里 showModal 之前调了 renderPopupDeleteUsage'
+        if filled_before_modal
+        else f'delete 分支片段={delete_branch[-160:]!r}',
+    )
+
+    close_body = _js_block_body(
+        home_source, 'deletePopupDialogElement.addEventListener("close"'
+    )
+    cleared_on_close = (
+        close_body is not None
+        and 'deletePopupUsageSummaryElement.textContent = ""' in close_body
+        and 'deletePopupUsageListElement.replaceChildren()' in close_body
+    )
+    check(
+        'P12 删除弹窗：关闭时清空影响面（对话框复用同一份 DOM，留着旧清单会显示上一个弹窗的控件）',
+        cleared_on_close,
+        'close 处理器里清了两处'
+        if cleared_on_close
+        else f'close 处理器={close_body if close_body is None else close_body[:200]!r}',
+    )
+
+    render_body = _js_block_body(home_source, 'function renderPopupDeleteUsage(')
+    uses_text_only = (
+        render_body is not None
+        and 'innerHTML' not in render_body
+        and render_body.count('textContent') >= 2
+        and 'DELETE_POPUP_USAGE_LIMIT' in render_body
+    )
+    check(
+        'P12 删除弹窗：清单用 textContent + replaceChildren 拼（实体名是用户数据，innerHTML 拼等于把注入点交给实体目录）且有条数上限',
+        uses_text_only,
+        '只用 textContent，且按 DELETE_POPUP_USAGE_LIMIT 截断'
+        if uses_text_only
+        else f'渲染函数={render_body if render_body is None else render_body[:200]!r}',
     )
 
 
@@ -12535,6 +12634,7 @@ async def run() -> int:
     check_frontend_pending_page_submits()
     check_frontend_editor_boot_and_snapshot()
     check_frontend_operation_feedback()
+    check_frontend_popup_delete_usage_notice()
     check_frontend_dialog_modal_semantics()
     check_frontend_motion_and_target_guards()
     check_frontend_display_runtime_notice()

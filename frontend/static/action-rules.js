@@ -7,11 +7,11 @@
  * 约定：本模块不碰 DOM，也不请求后端；校验所需的页面路径集合、弹窗 ID 集合
  *   由调用方（编辑器）以集合形式传入，传入 null 表示「暂不校验该维度」。
  */
-import { isVirtualEntityId } from "./virtual-entities.js?v=20260919202351";
+import { isVirtualEntityId } from "./virtual-entities.js?v=20260919214245";
 // 「按 ID 切域」只有一份实现（P12 收口 B 类末尾那一项的残留补齐）：本文件原先把域前缀
 // 的切法直接写在 `entityIdSupportsToggle` 里。输入已经过 `String(entityId || "")` 守卫，
 // 所以换成助手语义一字未变，只是把这份知识收回到 utils/entities.js。
-import { entityDomainFromId } from "./utils/entities.js?v=20260919202351";
+import { entityDomainFromId } from "./utils/entities.js?v=20260919214245";
 
 // 动作类型固定三种：开关、打开更多信息、跳转页面。
 export const ACTION_TYPES = Object.freeze(["toggle", "more-info", "navigate"]);

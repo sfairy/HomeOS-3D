@@ -18,7 +18,7 @@
  * 为什么要有这个文件（而不是每个文件各写一次那段条件动态导入）：本树原有 33 处内联剥壳与
  *   3 处内联切域，逐处换助手时若每份文件自带一段导入尾巴，同一段知识会重复 16 份 —— 与
  *   「同一份知识只有一处」正好相反，而且缓存戳要在 16 处同步。有桥之后，其余文件只写一次
- *   普通的 `from "./static-helpers.js?v=20260919202351"`，与 `/static/` 树里的 import 完全同形。
+ *   普通的 `from "./static-helpers.js?v=20260919214245"`，与 `/static/` 树里的 import 完全同形。
  *
  * 纪律（由 `backend/tools/smoke.py` 的 `FRONTEND_STATIC_BRIDGE` 那两条断言钉住）：
  *
@@ -31,9 +31,9 @@
 // 开发态（file:）走相对路径，生产走 /static 绝对路径；两条都不能省。
 const { resolveStateEntry } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../static/utils/state-entry.js", import.meta.url))
-  : import("/static/utils/state-entry.js?v=20260919202351"));
+  : import("/static/utils/state-entry.js?v=20260919214245"));
 const { entityDomainFromId } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../static/utils/entities.js", import.meta.url))
-  : import("/static/utils/entities.js?v=20260919202351"));
+  : import("/static/utils/entities.js?v=20260919214245"));
 
 export { entityDomainFromId, resolveStateEntry };

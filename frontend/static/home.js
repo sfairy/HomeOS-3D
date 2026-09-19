@@ -21,7 +21,7 @@
  *   7. 编辑历史、草稿保存与崩溃恢复；
  *   8. 拖拽 / 缩放 / 对齐等画布手势，以及文件末尾的初始化与事件绑定。
  *
- * 版本戳约定：本文件内部所有 `import ... ?v=20260919202351` 必须使用同一条版本戳，
+ * 版本戳约定：本文件内部所有 `import ... ?v=20260919214245` 必须使用同一条版本戳，
  * 与 renderer/renderer.js 引用 renderer/registry.js 的 `?v=` 完全一致 ——
  * 两条路径都指向同一份控件注册表，版本戳一旦不同就会加载出两份注册表，
  * 表现为控件类型在某些视图里"找不到"。改动静态资源后由
@@ -42,19 +42,19 @@
  *   - 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260919202351";
+import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260919214245";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "./utils/api-fetch.js?v=20260919202351";
+import { apiFetch } from "./utils/api-fetch.js?v=20260919214245";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "./renderer/renderer.js?v=20260919202351";
+} from "./renderer/renderer.js?v=20260919214245";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "./renderer/registry.js?v=20260919202351";
+} from "./renderer/registry.js?v=20260919214245";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -62,7 +62,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "./templates/component-templates.js?v=20260919202351";
+} from "./templates/component-templates.js?v=20260919214245";
 import {
   clone,
   newId,
@@ -72,30 +72,30 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260919202351";
-import { clampNumber } from "./utils/numbers.js?v=20260919202351";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "./utils/entities.js?v=20260919202351";
+} from "./editor-utils.js?v=20260919214245";
+import { clampNumber } from "./utils/numbers.js?v=20260919214245";
+import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "./utils/entities.js?v=20260919214245";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
-import { resolveStateEntry } from "./utils/state-entry.js?v=20260919202351";
+import { resolveStateEntry } from "./utils/state-entry.js?v=20260919214245";
 import {
   hexColorOrEmpty,
   strictHexColorOrEmpty
-} from "./utils/colors.js?v=20260919202351";
+} from "./utils/colors.js?v=20260919214245";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "./popup-layout.js?v=20260919202351";
+} from "./popup-layout.js?v=20260919214245";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260919202351";
+} from "./dashboard-resize.js?v=20260919214245";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260919202351";
+} from "./component-page-copy.js?v=20260919214245";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -107,25 +107,25 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "./related-entities.js?v=20260919202351";
-import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260919202351";
-import { createButtonSound } from "./sound-effects.js?v=20260919202351";
+} from "./related-entities.js?v=20260919214245";
+import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260919214245";
+import { createButtonSound } from "./sound-effects.js?v=20260919214245";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260919202351";
-import { confirmAction } from "./ui-confirm.js?v=20260919202351";
-import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260919202351";
+} from "./editor-dialogs.js?v=20260919214245";
+import { confirmAction } from "./ui-confirm.js?v=20260919214245";
+import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260919214245";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./editor-picker-pagination.js?v=20260919202351";
-import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260919202351";
-import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260919202351";
-import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260919202351";
-import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260919202351";
-import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260919202351";
+} from "./editor-picker-pagination.js?v=20260919214245";
+import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260919214245";
+import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260919214245";
+import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260919214245";
+import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260919214245";
+import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260919214245";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -133,13 +133,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "./action-rules.js?v=20260919202351";
+} from "./action-rules.js?v=20260919214245";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260919202351";
+} from "./component-tree.js?v=20260919214245";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -149,13 +149,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260919202351";
+} from "./editor-component-collections.js?v=20260919214245";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260919202351";
+} from "./editor-basic-inspectors.js?v=20260919214245";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -166,7 +166,7 @@ import {
   popupModuleTypeLabel,
   reorderedPopupModules,
   uniquePagePath
-} from "./editor-document-management.js?v=20260919202351";
+} from "./editor-document-management.js?v=20260919214245";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -174,18 +174,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260919202351";
+} from "./editor-history.js?v=20260919214245";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "./3d-studio/studio-normalization.js?v=20260919202351";
-import { createLicenseCard } from "./license-card.js?v=20260919202351";
+} from "./3d-studio/studio-normalization.js?v=20260919214245";
+import { createLicenseCard } from "./license-card.js?v=20260919214245";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "./modules/interaction3d/editor.js?v=20260919202351";
+} from "./modules/interaction3d/editor.js?v=20260919214245";
 /**
  * 按选择器取单个 DOM 节点的简写。
  *
@@ -1210,6 +1210,8 @@ const deletePopupCloseButtonElement = findElement("#delete-popup-close");
 const deletePopupCancelButtonElement = findElement("#delete-popup-cancel");
 const deletePopupConfirmButtonElement = findElement("#delete-popup-confirm");
 const deletePopupNameElement = findElement("#delete-popup-name");
+const deletePopupUsageSummaryElement = findElement("#delete-popup-usage-summary");
+const deletePopupUsageListElement = findElement("#delete-popup-usage-list");
 const deleteAssetDialogElement = findElement("#delete-asset-dialog");
 const deleteAssetCloseButtonElement = findElement("#delete-asset-close");
 const deleteAssetCancelButtonElement = findElement("#delete-asset-cancel");
@@ -4725,7 +4727,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260919202351";
+          ".jpg?v=20260919214245";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -28991,6 +28993,8 @@ popupActionsMenuElement.addEventListener("click", popupActionsClickEvent => {
       }
       popupModuleDraft = popupActionTargetId;
       deletePopupNameElement.textContent = popupToDelete.name;
+      // 影响面必须在 showModal 之前填好：确认框是模态的，弹出来之后前端没机会再改内容。
+      renderPopupDeleteUsage(activeProject?.document, popupToDelete.id);
       deletePopupDialogElement.showModal();
     }
   }
@@ -29006,10 +29010,133 @@ function closeDeletePopupDialog() {
   popupModuleDraft = null;
   deletePopupDialogElement.close();
 }
+
+/**
+ * 删除确认框里逐条列出的上限（超出只报个数）。
+ *
+ * 为什么要有上限：一个弹窗可能被几十个控件打开（例如整页都是同一个详情弹窗），
+ * 逐条列出来会把确认框撑成一面墙，反而看不见「确认删除」按钮。数字取得小是有意的：
+ * 这里的用途是「让用户认出自己配过的那几处」，认出之后剩下的看总述就够了。
+ */
+const DELETE_POPUP_USAGE_LIMIT = 6;
+
+/**
+ * 算出当前文档里哪些控件会因为删掉这个弹窗而失去动作。
+ *
+ * 为什么要有它：组合弹窗是**全局**的（所有项目共享一份），删掉会级联把每份草稿里指向它的
+ * 动作改成 `type:"none"`。原文案只说「所有仪表盘…都会自动改为无动作」，用户看不到
+ * **当前这份文档里**是哪些控件会变，只能凭记忆回想（忘了哪个卡片配过，删完点一下才发现没反应）。
+ * 这里把「谁会变」逐条列出来；别的仪表盘的定义不在前端手里，那里仍然只有总述那一句。
+ *
+ * 走法与后端级联清理同一套口子：`sharedComponents` + 每页的 `components`，沿 `children`
+ * 递归；只认 `type:"more-info"` 且 `data.popupSource === "custom"` 且 `popupId` 相同的动作
+ * （与 `_frontend` 侧的动作写入路径一致：弹窗只配在 tap / doubleTap / hold 三个触发器上）。
+ * 共享组件按 `sharedComponentIds` 反查引用它的页面 —— 共享组件一改，引用它的每一页都受影响。
+ *
+ * 纯函数（实体显示名经 `entityLabelFor` 回调取，DOM 与编辑器状态都不碰），
+ * 因此探针可以把它切出来直接喂文档跑。
+ *
+ * @param {?object} documentSource 当前文档（含 sharedComponents 与 pages）。
+ * @param {string} popupId 待删弹窗的 ID。
+ * @param {function(string): string} [entityLabelFor] 实体 ID → 界面显示名（取不到返回空串）。
+ * @returns {Array<{label: string, triggers: Array<string>}>} 每处一行，含是哪些触发器。
+ */
+function popupDeleteUsageEntries(documentSource, popupId, entityLabelFor) {
+  const triggerLabels = { tap: "单击", doubleTap: "双击", hold: "长按" };
+  const labelForComponent = componentSource => {
+    const boundEntityLabels = Object.values(componentSource?.bindings || {})
+      .map(bindingEntry => String(bindingEntry?.entityId || ""))
+      .filter(Boolean)
+      .map(boundEntityId => entityLabelFor?.(boundEntityId) || boundEntityId);
+    return boundEntityLabels.join("、") || componentSource?.type || "控件";
+  };
+  const collectUsages = (componentNodes, containerLabel) => {
+    const collected = [];
+    for (const componentNode of componentNodes || []) {
+      const usageComponentLabel = containerLabel
+        ? containerLabel + " 内 " + labelForComponent(componentNode)
+        : labelForComponent(componentNode);
+      const matchedTriggers = Object.entries(componentNode?.actions || {})
+        .filter(
+          ([, actionValue]) =>
+            actionValue?.type === "more-info" &&
+            actionValue?.data?.popupSource === "custom" &&
+            actionValue?.data?.popupId === popupId
+        )
+        .map(([triggerKey]) => triggerLabels[triggerKey] || triggerKey);
+      if (matchedTriggers.length) {
+        collected.push({ label: usageComponentLabel, triggers: matchedTriggers });
+      }
+      collected.push(...collectUsages(componentNode?.children, usageComponentLabel));
+    }
+    return collected;
+  };
+  const entries = [];
+  const documentPages = documentSource?.pages || [];
+  for (const sharedComponent of documentSource?.sharedComponents || []) {
+    const sharedUsages = collectUsages([sharedComponent], "");
+    if (!sharedUsages.length) {
+      continue;
+    }
+    const referencingPageNames = documentPages
+      .filter(pageEntry => (pageEntry?.sharedComponentIds || []).includes(sharedComponent?.id))
+      .map(pageEntry => pageEntry?.name || pageEntry?.path || "未命名页面");
+    const sharedScopeText = referencingPageNames.length
+      ? "（" + referencingPageNames.join("、") + " 在用）"
+      : "（没有被任何页面引用）";
+    for (const sharedUsage of sharedUsages) {
+      entries.push({
+        label: "共享组件 · " + sharedUsage.label + sharedScopeText,
+        triggers: sharedUsage.triggers
+      });
+    }
+  }
+  for (const pageEntry of documentPages) {
+    const pageName = pageEntry?.name || pageEntry?.path || "未命名页面";
+    for (const pageUsage of collectUsages(pageEntry?.components, "")) {
+      entries.push({ label: pageName + " · " + pageUsage.label, triggers: pageUsage.triggers });
+    }
+  }
+  return entries;
+}
+
+/**
+ * 把「本仪表盘的影响面」写进删除确认框（文案 + 逐条清单）。
+ *
+ * @param {?object} documentSource 当前文档。
+ * @param {string} popupId 待删弹窗的 ID。
+ * @returns {void}
+ */
+function renderPopupDeleteUsage(documentSource, popupId) {
+  const entityRecords = entitiesByEntityId();
+  const usageEntries = popupDeleteUsageEntries(documentSource, popupId, usageEntityId => {
+    const usageEntityRecord = entityRecords.get(usageEntityId);
+    return usageEntityRecord ? entityDisplayName(usageEntityRecord) : "";
+  });
+  deletePopupUsageSummaryElement.textContent = usageEntries.length
+    ? "当前仪表盘有 " + usageEntries.length + " 处会受影响："
+    : "当前仪表盘没有控件的动作指向这个弹窗。";
+  const listedEntries = usageEntries.slice(0, DELETE_POPUP_USAGE_LIMIT);
+  const usageListItems = listedEntries.map(usageEntry => {
+    const usageListItem = document.createElement("li");
+    usageListItem.textContent = usageEntry.label + " · " + usageEntry.triggers.join("、");
+    return usageListItem;
+  });
+  if (usageEntries.length > listedEntries.length) {
+    const usageRestItem = document.createElement("li");
+    usageRestItem.textContent =
+      "…另有 " + (usageEntries.length - listedEntries.length) + " 处（此处不逐条列出）";
+    usageListItems.push(usageRestItem);
+  }
+  deletePopupUsageListElement.replaceChildren(...usageListItems);
+}
 deletePopupCloseButtonElement.addEventListener("click", closeDeletePopupDialog);
 deletePopupCancelButtonElement.addEventListener("click", closeDeletePopupDialog);
 deletePopupDialogElement.addEventListener("close", () => {
   popupModuleDraft = null;
+  // 清掉上一次的影响面：确认框是同一个 DOM，留着旧清单会让下一次删除显示上一个弹窗的控件。
+  deletePopupUsageSummaryElement.textContent = "";
+  deletePopupUsageListElement.replaceChildren();
 });
 deletePopupConfirmButtonElement.addEventListener("click", () => {
   const popupIdToDelete = popupModuleDraft;
