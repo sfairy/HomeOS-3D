@@ -14,7 +14,7 @@
 import {
   readFromMapOrRecord,
   resolveStateEntryIn
-} from "../utils/state-entry.js?v=20260919093705";
+} from "../utils/state-entry.js?v=20260919111150";
 
 // 这些域的「开 / 关」语义天然成立，直接按 state 判定。
 const ON_OFF_DOMAINS_SET = new Set([
@@ -56,10 +56,6 @@ function resolveEntityDomain(entityDescriptor) {
  * @returns {{supported: boolean, message: string}} supported 为 false 时 message 说明原因。
  */
 export function lightStatisticsEntitySupport(entityLike) {
-  const targetEntityId =
-    typeof entityLike == "string"
-      ? entityLike
-      : String(entityLike?.entityId || entityLike?.entity_id || "");
   const entityDomain = resolveEntityDomain(entityLike);
   if (entityDomain === "virtual" || entityLike?.virtual) {
     return {

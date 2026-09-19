@@ -21,7 +21,7 @@
  *   7. 编辑历史、草稿保存与崩溃恢复；
  *   8. 拖拽 / 缩放 / 对齐等画布手势，以及文件末尾的初始化与事件绑定。
  *
- * 版本戳约定：本文件内部所有 `import ... ?v=20260919093705` 必须使用同一条版本戳，
+ * 版本戳约定：本文件内部所有 `import ... ?v=20260919111150` 必须使用同一条版本戳，
  * 与 renderer/renderer.js 引用 renderer/registry.js 的 `?v=` 完全一致 ——
  * 两条路径都指向同一份控件注册表，版本戳一旦不同就会加载出两份注册表，
  * 表现为控件类型在某些视图里"找不到"。改动静态资源后由
@@ -42,19 +42,19 @@
  *   - 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260919093705";
+import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260919111150";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "./utils/api-fetch.js?v=20260919093705";
+import { apiFetch } from "./utils/api-fetch.js?v=20260919111150";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "./renderer/renderer.js?v=20260919093705";
+} from "./renderer/renderer.js?v=20260919111150";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "./renderer/registry.js?v=20260919093705";
+} from "./renderer/registry.js?v=20260919111150";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -62,7 +62,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "./templates/component-templates.js?v=20260919093705";
+} from "./templates/component-templates.js?v=20260919111150";
 import {
   clone,
   newId,
@@ -72,27 +72,27 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260919093705";
-import { clampNumber } from "./utils/numbers.js?v=20260919093705";
-import { entityDomainOf, entitySearchTextOf } from "./utils/entities.js?v=20260919093705";
+} from "./editor-utils.js?v=20260919111150";
+import { clampNumber } from "./utils/numbers.js?v=20260919111150";
+import { entityDomainOf, entitySearchTextOf } from "./utils/entities.js?v=20260919111150";
 import {
   hexColorOrEmpty,
   strictHexColorOrEmpty
-} from "./utils/colors.js?v=20260919093705";
+} from "./utils/colors.js?v=20260919111150";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "./popup-layout.js?v=20260919093705";
+} from "./popup-layout.js?v=20260919111150";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260919093705";
+} from "./dashboard-resize.js?v=20260919111150";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260919093705";
+} from "./component-page-copy.js?v=20260919111150";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -104,25 +104,25 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "./related-entities.js?v=20260919093705";
-import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260919093705";
-import { createButtonSound } from "./sound-effects.js?v=20260919093705";
+} from "./related-entities.js?v=20260919111150";
+import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260919111150";
+import { createButtonSound } from "./sound-effects.js?v=20260919111150";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260919093705";
-import { confirmAction } from "./ui-confirm.js?v=20260919093705";
-import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260919093705";
+} from "./editor-dialogs.js?v=20260919111150";
+import { confirmAction } from "./ui-confirm.js?v=20260919111150";
+import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260919111150";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./editor-picker-pagination.js?v=20260919093705";
-import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260919093705";
-import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260919093705";
-import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260919093705";
-import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260919093705";
-import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260919093705";
+} from "./editor-picker-pagination.js?v=20260919111150";
+import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260919111150";
+import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260919111150";
+import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260919111150";
+import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260919111150";
+import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260919111150";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -130,13 +130,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "./action-rules.js?v=20260919093705";
+} from "./action-rules.js?v=20260919111150";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260919093705";
+} from "./component-tree.js?v=20260919111150";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -146,13 +146,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260919093705";
+} from "./editor-component-collections.js?v=20260919111150";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260919093705";
+} from "./editor-basic-inspectors.js?v=20260919111150";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -163,7 +163,7 @@ import {
   popupModuleTypeLabel,
   reorderedPopupModules,
   uniquePagePath
-} from "./editor-document-management.js?v=20260919093705";
+} from "./editor-document-management.js?v=20260919111150";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -171,18 +171,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260919093705";
+} from "./editor-history.js?v=20260919111150";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "./3d-studio/studio-normalization.js?v=20260919093705";
-import { createLicenseCard } from "./license-card.js?v=20260919093705";
+} from "./3d-studio/studio-normalization.js?v=20260919111150";
+import { createLicenseCard } from "./license-card.js?v=20260919111150";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "./modules/interaction3d/editor.js?v=20260919093705";
+} from "./modules/interaction3d/editor.js?v=20260919111150";
 /**
  * 按选择器取单个 DOM 节点的简写。
  *
@@ -456,7 +456,6 @@ const copyComponentPageNameElement = findElement("#copy-component-page-name");
 const copyComponentPageScopeSelectElement = findElement("#copy-component-page-scope");
 const copyComponentPageProjectFieldElement = findElement("#copy-component-page-project-field");
 const copyComponentPageProjectSelectElement = findElement("#copy-component-page-project");
-const copyComponentPageTargetFieldElement = findElement("#copy-component-page-target-field");
 const copyComponentPageTargetLabelElement = findElement("#copy-component-page-target-label");
 const copyComponentPageTargetSelectElement = findElement("#copy-component-page-target");
 const copyComponentScaleOptionsElement = findElement("#copy-component-scale-options");
@@ -481,12 +480,10 @@ const inspectorElement = findElement(".inspector");
 const imageInspectorFormElement = findElement("#image-inspector");
 const imageTypeTextInputElement = findElement("#image-type");
 const imageLabelTextInputElement = findElement("#image-label");
-const imageEntityPickerElement = findElement("#image-entity-picker");
 const imageEntityButtonElement = findElement("#image-entity-button");
 const imageEntityMenuElement = findElement("#image-entity-menu");
 const imageEntitySearchInputElement = findElement("#image-entity-search");
 const imageEntityOptionsElement = findElement("#image-entity-options");
-const imageAssetPickerElement = findElement("#image-asset-picker");
 const imageAssetButtonElement = findElement("#image-asset-button");
 const imageAssetMenuElement = findElement("#image-asset-menu");
 const imageAssetFolderSelectElement = findElement("#image-asset-folder");
@@ -494,7 +491,6 @@ const imageAssetSearchInputElement = findElement("#image-asset-search");
 const imageAssetOptionsElement = findElement("#image-asset-options");
 const imageAssetUploadButtonElement = findElement("#image-asset-upload");
 const imageAssetUploadInputElement = findElement("#image-asset-upload-input");
-const imageAssetUploadHintElement = findElement("#image-asset-upload-hint");
 const imageAssetLargePreviewElement = findElement("#image-asset-large-preview");
 const imageAssetLargePreviewImageElement = findElement("#image-asset-large-preview-image");
 const imageAssetLargePreviewNameElement = findElement("#image-asset-large-preview-name");
@@ -605,7 +601,6 @@ const iconButtonEffectAssetSearchInputElement = findElement("#ibe-asset-search")
 const iconButtonEffectAssetOptionsElement = findElement("#ibe-asset-options");
 const iconButtonEffectAssetUploadButtonElement = findElement("#ibe-asset-upload");
 const iconButtonEffectAssetUploadInputElement = findElement("#ibe-asset-upload-input");
-const iconButtonEffectAssetUploadHintElement = findElement("#ibe-asset-upload-hint");
 const iconButtonEffectEffectOpacityInputElement = findElement("#ibe-effect-opacity");
 const iconButtonEffectEffectFadeDurationInputElement = findElement("#ibe-effect-fade-duration");
 const iconButtonEffectEffectLayoutOptionsElement = findElement("#ibe-effect-layout-options");
@@ -693,8 +688,6 @@ const lightStatisticsEntityMenuElement = findElement("#light-statistics-entity-m
 const lightStatisticsEntitySearchInputElement = findElement("#light-statistics-entity-search");
 const lightStatisticsEntityOptionsElement = findElement("#light-statistics-entity-options");
 const lightStatisticsEntityPendingElement = findElement("#light-statistics-entity-pending");
-const lightStatisticsPendingNameElement = findElement("#light-statistics-pending-name");
-const lightStatisticsPendingDetailElement = findElement("#light-statistics-pending-detail");
 const lightStatisticsEntityConfirmButtonElement = findElement("#light-statistics-entity-confirm");
 const lightStatisticsEntityMessageElement = findElement("#light-statistics-entity-message");
 const lightStatisticsEntityListElement = findElement("#light-statistics-entity-list");
@@ -1026,7 +1019,6 @@ const dateRotationInputElement = findElement("#date-rotation");
 const weatherInspectorFormElement = findElement("#weather-inspector");
 const weatherTypeTextInputElement = findElement("#weather-type");
 const weatherLabelTextInputElement = findElement("#weather-label");
-const weatherEntityPickerElement = findElement("#weather-entity-picker");
 const weatherEntityButtonElement = findElement("#weather-entity-button");
 const weatherEntityMenuElement = findElement("#weather-entity-menu");
 const weatherEntitySearchInputElement = findElement("#weather-entity-search");
@@ -1054,7 +1046,6 @@ const weatherRotationInputElement = findElement("#weather-rotation");
 const lineChartInspectorFormElement = findElement("#line-chart-inspector");
 const lineChartTypeTextInputElement = findElement("#line-chart-type");
 const lineChartLabelTextInputElement = findElement("#line-chart-label");
-const lineChartEntityPickerElement = findElement("#line-chart-entity-picker");
 const lineChartEntityButtonElement = findElement("#line-chart-entity-button");
 const lineChartEntityMenuElement = findElement("#line-chart-entity-menu");
 const lineChartEntitySearchInputElement = findElement("#line-chart-entity-search");
@@ -1247,8 +1238,6 @@ let activeProject = null;
 let componentScope = "shared";
 let projectDialogMode = "create";
 let resizeWarningResolve = null;
-let canvasWidth = 2778;
-let canvasHeight = 1940;
 let isAspectLocked = false;
 let lockedCanvasWidth = 2778;
 let lockedCanvasHeight = 1940;
@@ -2554,7 +2543,7 @@ async function createDisplayPairingCode(submitEvent) {
     displayPairingGenerateButtonElement.disabled = true;
     setSettingsMessage(displayDevicesMessageElement, "");
     try {
-      const createdPairingCode = await requestJson("/displays/pairing-code", {
+      await requestJson("/displays/pairing-code", {
         method: "POST",
         body: JSON.stringify({
           projectId: activeProject.projectId,
@@ -4733,7 +4722,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260919093705";
+          ".jpg?v=20260919111150";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -7438,9 +7427,7 @@ const {
   createIconPickerOption: createIconPickerOption,
   createEditorPickerCurrentIcon: createEditorPickerCurrentIcon,
   createEditorEntityPickerOption: createEditorEntityPickerOption,
-  editorPickerClearOption: editorPickerClearOption,
   editorPickerClearAction: editorPickerClearAction,
-  editorPickerEntityAction: editorPickerEntityAction,
   createEditorPickerCurrentEntity: createEditorPickerCurrentEntity,
   createEditorPickerCurrentAsset: createEditorPickerCurrentAsset
 } = createEditorPickerElements({
@@ -9028,7 +9015,6 @@ function syncPanelFrameInspector(panelFrameComponent) {
 function syncNavigationInspector(navigationComponent) {
   const navigationProperties = navigationComponent.properties || {};
   const navigationPosition = navigationComponent.position || {};
-  const navigationPages = activeProject.document.pages || [];
   const navigationCanvasWidthPx = Number(activeProject.document.canvas.width || 2778);
   const navigationCanvasHeightPx = Number(activeProject.document.canvas.height || 1940);
   const navigationWidthPx = Number(navigationPosition.width || 100);
@@ -10887,7 +10873,6 @@ function syncInspector() {
     imageLayoutOptionElement.setAttribute("aria-pressed", String(isImageLayoutActive));
   }
   const isImageFillLayout = imageLayoutMode === "fill";
-  const isImageMultiSelection = selectedComponentIds.size > 1;
   imageLeftInputElement.disabled = isImageFillLayout;
   imageTopInputElement.disabled = isImageFillLayout;
   imageScaleInputElement.disabled = isImageFillLayout;
@@ -13461,7 +13446,7 @@ async function applyHistoryStep(historyStepDirection) {
  * @returns {Promise<void>}
  */
 async function refreshAuthSession() {
-  const authInfo = await requestJson("/auth/me");
+  await requestJson("/auth/me");
 }
 /**
  * 加载 Home Assistant 连接信息，回填表单与顶部状态文案。
@@ -13760,8 +13745,6 @@ function openProjectDialog(dialogMode = "create") {
   projectContentLockFieldsElement.hidden = !isResizeMode;
   projectCanvasFieldsElement.classList.remove("fixed", "name-only");
   if (!isEditDialogMode && !isResizeMode) {
-    canvasWidth = 2778;
-    canvasHeight = 1940;
     isAspectLocked = false;
     lockedCanvasWidth = 2778;
     lockedCanvasHeight = 1940;
@@ -13774,8 +13757,6 @@ function openProjectDialog(dialogMode = "create") {
   } else {
     const resizeWidth = Number(activeProject?.document?.canvas?.width || 2778);
     const resizeHeight = Number(activeProject?.document?.canvas?.height || 1940);
-    canvasWidth = resizeWidth;
-    canvasHeight = resizeHeight;
     isAspectLocked = true;
     lockedCanvasWidth = resizeWidth;
     lockedCanvasHeight = resizeHeight;
@@ -14305,14 +14286,10 @@ projectDialogElement.addEventListener("click", projectBackdropEvent => {
 });
 projectCanvasWidthInputElement.addEventListener("input", () => {
   syncLockedCanvasDimension("width");
-  canvasWidth = Number(projectCanvasWidthInputElement.value) || 2778;
-  canvasHeight = Number(projectCanvasHeightInputElement.value) || 1940;
   renderAspectRatio();
 });
 projectCanvasHeightInputElement.addEventListener("input", () => {
   syncLockedCanvasDimension("height");
-  canvasWidth = Number(projectCanvasWidthInputElement.value) || 2778;
-  canvasHeight = Number(projectCanvasHeightInputElement.value) || 1940;
   renderAspectRatio();
 });
 projectAspectLockButtonElement.addEventListener("click", () => {
@@ -27605,7 +27582,7 @@ function openIconPicker(iconTriggerButton) {
   if (!iconPickerSource) {
     return false;
   }
-  const iconPickerController = openEditorPickerDialog({
+  openEditorPickerDialog({
     kind: "icon",
     title: iconPickerSource.title,
     searchPlaceholder: "搜索图标名称",
@@ -27812,7 +27789,7 @@ function openLightStatisticsEntityPicker() {
     lightStatisticsEntityCandidate => lightStatisticsEntityCandidate.entityId === statisticsEntityId
   );
   const lightStatisticsVirtualEntity = iconVisibilityVirtualEntities()[0] || null;
-  const lightStatisticsPickerController = openEditorPickerDialog({
+  openEditorPickerDialog({
     kind: "entity",
     title: statisticsReplaceIndex >= 0 ? "选择替换实体" : "添加统计实体",
     subtitle: ENTITY_PICKER_HINT,

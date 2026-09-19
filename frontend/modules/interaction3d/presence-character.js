@@ -392,7 +392,7 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
     // 罩顶圆盘：封住灯罩口，兼作「帽子」。
     parts.hat = addSphere([0.213, 0.036, 0.213], [0, 1.316, 0], outfitMaterial, headGroup);
     // 提环（圆环体，管径 0.009），悬在罩顶上 0.057 米处。
-    const handleRingMesh = addMesh(
+    addMesh(
       new THREE.TorusGeometry(0.04, 0.009, 8, 24),
       outfitMaterial,
       [0, 1.387, 0],

@@ -18,11 +18,11 @@
  *   像素→场景米的平移与旋转由 studio-app.js 的 floorPointToScenePoint 负责，
  *   本文件不做任何三维变换，也不感知楼层堆叠。
  * 容差约定：平面坐标量级通常为 1e-1~1e4 像素，double 在该量级下的相对舍入误差
- *   约 1e-12，故用 EPSILON = 1e-7 作为「同一点 / 零长度 / 平行」的统一判定阈值 ——
- *   比一个像素的显示精度小几个数量级，又明显高于浮点噪声。需要随数据尺度缩放的
- *   判定（共线、墙端点归类、按比例的正交容差）会在函数内另行派生容差并注明来历。
+ *   约 1e-12，故统一用 1e-7 作为「同一点 / 零长度 / 平行」的判定阈值（本文件的阈值
+ *   下限都直接写这个字面量）—— 比一个像素的显示精度小几个数量级，又明显高于浮点噪声。
+ *   需要随数据尺度缩放的判定（共线、墙端点归类、按比例的正交容差）会在函数内另行
+ *   派生容差并注明来历。
  */
-const EPSILON = 1e-7;
 /**
  * 把数值夹到 [lowerBound, upperBound] 闭区间内。
  *
@@ -391,7 +391,7 @@ export function slidingDoorPanelCenters(panelWidth, handleSide = -1, openRatio =
  * 把点投影到线段上，取线段上离它最近的点。
  *
  * t 被夹在 [0,1]，所以结果一定落在线段内（不是无限延长线），这是做吸附 /
- * 命中检测时的期望语义。线段长度平方 ≤ 1e-7（EPSILON）时视为退化点，
+ * 命中检测时的期望语义。线段长度平方 ≤ 1e-7 时视为退化点，
  * 直接返回起点并把 t 记 0，避免除零产生 NaN/Infinity 污染下游。
  *
  * @param {{x: number, y: number}} point 待投影的点。
@@ -462,7 +462,7 @@ export function segmentIntersection(firstStart, firstEnd, secondStart, secondEnd
   const firstT = (startDeltaX * secondDirY - startDeltaY * secondDirX) / crossDenominator;
   // 交点在第二段上的归一化参数。
   const secondT = (startDeltaX * firstDirY - startDeltaY * firstDirX) / crossDenominator;
-  // 参数越界即交点落在线段之外；上界写成 1.0000001 是 1 + EPSILON 的字面量形式。
+  // 参数越界即交点落在线段之外；上界写成 1.0000001 是 1 + 1e-7 的字面量形式。
   if (firstT < -1e-7 || firstT > 1.0000001 || secondT < -1e-7 || secondT > 1.0000001) {
     return null;
   } else {
@@ -1910,7 +1910,7 @@ export function polygonArea(polygon) {
  * 分两个阶段：先看点到最后一条边的距离是否 ≤ 容差，是则直接判为「在内部」——
  * 这一步专治射线法在边界附近的抖动（点压在墙线上时结果不稳定，用户拖动时
  * 会看到内外闪烁）；再用经典奇偶射线法，沿 +x 方向数水平射线与各边的交叉次数
- * 判断严格内部。edgeTolerance 默认 1e-7（EPSILON），调用方传入的是随标定尺度
+ * 判断严格内部。edgeTolerance 默认 1e-7，调用方传入的是随标定尺度
  * 派生的容差（约 1cm 对应的像素数），于是「贴着墙线」在这一层就被明确归入内部，
  * 上层不必再补判定。
  *

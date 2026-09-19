@@ -242,10 +242,6 @@
     return upgrade && !isTrialProduct(product) ? `${base}&upgrade=${encodeURIComponent(upgrade)}` : base;
   }
 
-  function availablePrimaryProducts() {
-    return primaryProducts().filter(product => !primaryProductUnavailable(product));
-  }
-
   function addonProducts() {
     return state.products.filter(item => ['template', 'module'].includes(item.productType));
   }

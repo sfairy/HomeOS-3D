@@ -19,30 +19,30 @@
  * 字段约定：草稿结构与后端下发的 component.properties 完全一致（camelCase），
  * 落库后由后端的面板文档校验层把关；本模块只负责收集、不做合法性兜底。
  */
-import { vacuumMapIdentity } from "./vacuum-map.js?v=20260919093705";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260919093705";
-import { mountInteraction3d } from "./runtime.js?v=20260919093705";
-import { lightState } from "./light-state.js?v=20260919093705";
-import { openVacuumMapEditor } from "./vacuum-map-editor.js?v=20260919093705";
+import { vacuumMapIdentity } from "./vacuum-map.js?v=20260919111150";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260919111150";
+import { mountInteraction3d } from "./runtime.js?v=20260919111150";
+import { lightState } from "./light-state.js?v=20260919111150";
+import { openVacuumMapEditor } from "./vacuum-map-editor.js?v=20260919111150";
 import { nasGroups } from "./nas-panel.js";
-import { randomUuid } from "/static/utils/random-id.js?v=20260919093705";
-import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260919093705";
+import { randomUuid } from "/static/utils/random-id.js?v=20260919111150";
+import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260919111150";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   subscribeInteraction3dAccess
-} from "/static/modules/interaction3d/bridge.js?v=20260919093705";
-import { normalizeInteraction3dLightingMode } from "/static/modules/interaction3d/definition.js?v=20260919093705";
+} from "/static/modules/interaction3d/bridge.js?v=20260919111150";
+import { normalizeInteraction3dLightingMode } from "/static/modules/interaction3d/definition.js?v=20260919111150";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "/static/3d-studio/studio-normalization.js?v=20260919093705";
+} from "/static/3d-studio/studio-normalization.js?v=20260919111150";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "./editor-save-status.js?v=20260919093705";
-import { confirmAction } from "/static/ui-confirm.js?v=20260919093705";
+} from "./editor-save-status.js?v=20260919111150";
+import { confirmAction } from "/static/ui-confirm.js?v=20260919111150";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
@@ -209,7 +209,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260919093705";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260919111150";
   document.head.append(styleSheetLinkElement);
   // 建元素小工具，文本一律走 textContent，不拼 HTML。
   const createElement = (tagName, classNames, initialText) => {
@@ -281,9 +281,6 @@ export async function openInteraction3dEditor({
   let isSaving = false;
   // 是否有未保存改动；退出确认与保存按钮可用性都看它。
   let isDirty = false;
-  // 变更代次：每次草稿实质性变化自增，异步回调据此判断自己处理的是否仍是最新一轮，
-  // 避免（例如）上一轮场景就绪的渲染覆盖掉刚做的编辑。
-  let changeRevisionCount = 0;
   // 最近一次实体状态：面板上的只读状态展示与能力探测（色温上下限等）都从这里取。
   let latestStates = null;
   // 先占位成空函数，稍后由 renderPanel 按当前编辑类型赋上真实实现
@@ -1213,7 +1210,6 @@ export async function openInteraction3dEditor({
   // 否则每次点选都会被记成一次改动，退出时白弹一次确认框。
   function refreshEditorPreview({ markDirty = true } = {}) {
     if (markDirty) {
-      changeRevisionCount++;
       syncDraftDirtyState();
     }
     editorRuntime?.update(
@@ -2594,7 +2590,7 @@ export async function openInteraction3dEditor({
         if (isCoverMode) {
           currentContainer = createConfigSection("帘布外观");
           const curtainAppearanceRowElement = createConfigRow(currentContainer);
-          const curtainKindSelect = createSelectRow(
+          createSelectRow(
             curtainAppearanceRowElement,
             "窗帘类型",
             [
@@ -3508,7 +3504,6 @@ export async function openInteraction3dEditor({
         if (!isDisposed && !!isAccessAllowed && !addDialogState && !auxDialogElement) {
           if (editEvent.action === "light-region-overrides") {
             draftProperties.lightRegionOverrides = structuredClone(editEvent.overrides || {});
-            changeRevisionCount++;
             syncDraftDirtyState();
           }
           if (isVacuumShortcutMode) {
@@ -3588,7 +3583,6 @@ export async function openInteraction3dEditor({
             if (selectedFloorId === draftProperties.floorSelection) {
               draftProperties.camera = editEvent.camera;
             }
-            changeRevisionCount++;
             syncDraftDirtyState();
             errorMessageElement.textContent = isDirty
               ? "默认视角已记录，保存配置后生效。"
@@ -3679,7 +3673,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260919093705";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260919111150";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   // 与上面带类名的 createElement 区分开，避免传一堆空字符串。

@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260919093705";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260919111150";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -31,6 +31,7 @@ import {
 // 这里的 ?v= 必须与 home.js / display.js 里那条 registry.js?v= 完全一致；
 // 不一致会让注册表被加载两份，运行期两个模块各持一份 Map，控件类型彼此看不见。
 import {
+  COVER_CLOSED_POSITION_EPSILON,
   coverComponentIsDream,
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix,
@@ -51,12 +52,12 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260919093705";
-import { randomUuid } from "../utils/random-id.js?v=20260919093705";
+} from "./registry.js?v=20260919111150";
+import { randomUuid } from "../utils/random-id.js?v=20260919111150";
 // 颜色解析统一走 utils/colors.js（P10 B 类收敛）：本文件原先在 mixHexColors 里
 // 又写了一份 normalizeHexColor，与 home.js 那份同名但失败值不同（null vs 空串）。
-import { expandHexColorOrNull } from "../utils/colors.js?v=20260919093705";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260919093705";
+import { expandHexColorOrNull } from "../utils/colors.js?v=20260919111150";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260919111150";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -75,11 +76,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260919093705";
+} from "./climate.js?v=20260919111150";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260919093705";
+} from "./device-profiles.js?v=20260919111150";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -88,26 +89,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260919093705";
-import { confirmAction } from "../ui-confirm.js?v=20260919093705";
+} from "../related-entities.js?v=20260919111150";
+import { confirmAction } from "../ui-confirm.js?v=20260919111150";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260919093705";
+} from "./entity-power.js?v=20260919111150";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260919093705";
-import { componentActionIsSupported } from "../action-rules.js?v=20260919093705";
+} from "../virtual-entities.js?v=20260919111150";
+import { componentActionIsSupported } from "../action-rules.js?v=20260919111150";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260919093705";
+} from "./transform-geometry.js?v=20260919111150";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -117,7 +118,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260919093705";
+} from "./effect-geometry.js?v=20260919111150";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -136,14 +137,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260919093705";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919093705";
+} from "./light-runtime.js?v=20260919111150";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919111150";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260919093705";
+} from "./vacuum-runtime.js?v=20260919111150";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -175,16 +176,16 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260919093705";
+} from "./cover-runtime.js?v=20260919111150";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919093705";
+import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919111150";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260919093705";
+} from "./runtime-dialog-motion.js?v=20260919111150";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -194,13 +195,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260919093705";
+} from "./runtime-caches.js?v=20260919111150";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260919093705";
+} from "./runtime-document.js?v=20260919111150";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -8982,7 +8983,6 @@ export class PanelRenderer {
         cameraAvailableWidthPx,
         cameraAvailableHeightPx * cameraAspectRatio
       );
-      const cameraResolvedHeightPx = cameraResolvedWidthPx / cameraAspectRatio;
       cameraDialogElement.style.width = Math.max(280, cameraResolvedWidthPx) + "px";
       cameraStageElement.style.aspectRatio = String(cameraAspectRatio);
       cameraStageElement.style.borderRadius = "16px";
@@ -10630,7 +10630,6 @@ export class PanelRenderer {
     let airQualityState = airQualityEntityId
       ? this.states.get(airQualityEntityId)?.newState || this.states.get(airQualityEntityId)
       : null;
-    let isPurifierRunning = false;
     const pm25MetricDefinition = purifierMetricDefinitions.find(
       pm25MetricDefinitionEntry => pm25MetricDefinitionEntry.key === "pm25"
     );
@@ -10764,7 +10763,6 @@ export class PanelRenderer {
       const purifierNormalizedState = String(purifierState?.state || "").toLowerCase();
       const isPurifierUnavailable = ["unknown", "unavailable"].includes(purifierNormalizedState);
       const isPurifierActive = !isPurifierUnavailable && purifierNormalizedState !== "off";
-      isPurifierRunning = isPurifierActive;
       purifierDisplayTextElement.textContent = isPurifierActive ? "ON" : "OFF";
       purifierStatusElement.textContent = isPurifierUnavailable
         ? "当前不可用"
@@ -20340,7 +20338,6 @@ export class PanelRenderer {
     let relatedExtensionsControl = null;
     let relatedExtensionEntityIds = new Set();
     const selectedRelatedIds = selectedRelatedEntityIds(detailsComponent);
-    const selectedRelatedIdSet = new Set(selectedRelatedIds || []);
     if (isLightDetails) {
       entityLightVisual = document.createElement("button");
       entityLightVisual.type = "button";

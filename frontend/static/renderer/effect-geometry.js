@@ -54,7 +54,8 @@ export function normalizeIconButtonEffectComponent(component) {
  *   （分组内部已有自己的层叠上下文），但 group 类型例外——分组本身仍按普通层级处理。
  * @returns {number} 最终层级。
  *
- * 加档条件：图标按钮特效在「按钮可见」或「隐藏内容也允许点击」时才抬到 10 亿——
+ * 加档条件：图标按钮特效在「按钮可见」或「隐藏内容也允许点击」时才抬到
+ * ICON_BUTTON_EFFECT_BASE_Z_INDEX（同理，人体感应特效抬到 PRESENCE_SENSOR_BASE_Z_INDEX）——
  * 两者都不成立说明这个特效当前不可交互，不该挡住其它元素。
  */
 export function componentHostZIndex(hostComponent, baseZIndex, applyTypeBoost = true) {
@@ -66,9 +67,9 @@ export function componentHostZIndex(hostComponent, baseZIndex, applyTypeBoost = 
     (hostComponent.properties?.buttonVisible !== false ||
       hostComponent.properties?.hiddenContentClickable === true)
   ) {
-    return 1000000000 + resolvedZIndex;
+    return ICON_BUTTON_EFFECT_BASE_Z_INDEX + resolvedZIndex;
   } else if (hostComponent?.type === "presence-sensor") {
-    return 500000000 + resolvedZIndex;
+    return PRESENCE_SENSOR_BASE_Z_INDEX + resolvedZIndex;
   } else {
     return resolvedZIndex;
   }

@@ -59,7 +59,7 @@
           const item=await api('/referrals/withdrawals',{method:'POST',body:JSON.stringify({points:form.elements.points.value,requestKey,expectedFeePercent:data.settings.withdrawalFeePercent})});
           requestKey=crypto.randomUUID();$('#referral-application').textContent=`申请已提交，编号：${item.id}。请联系客服办理提现。`;
           kind='withdrawals';page=1;await refresh();await history();
-        }catch(e){error(e);await refresh().catch(()=>{});}finally{busy=false;const avail=Math.max(0,Number(data?.wallet?.balance||0)-Number(data?.wallet?.frozen||0));form.querySelector('button').disabled=!data?.wallet||avail<100||Number(data?.wallet?.frozen)>0;}
+        }catch(err){error(err);await refresh().catch(()=>{});}finally{busy=false;const avail=Math.max(0,Number(data?.wallet?.balance||0)-Number(data?.wallet?.frozen||0));form.querySelector('button').disabled=!data?.wallet||avail<100||Number(data?.wallet?.frozen)>0;}
       };
       document.querySelectorAll('[data-referral-history]').forEach(b=>b.onclick=()=>{kind=b.dataset.referralHistory;page=1;document.querySelectorAll('[data-referral-history]').forEach(x=>{x.classList.toggle('hb-button--primary',x===b);x.classList.toggle('hb-button--secondary',x!==b);});history().catch(error);});
       $('#referral-prev').onclick=()=>{page--;history().catch(error);};$('#referral-next').onclick=()=>{page++;history().catch(error);};

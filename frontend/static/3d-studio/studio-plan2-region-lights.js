@@ -21,9 +21,9 @@
  *     z 存形状码，w 存软边（softness）。详见 buildShaderChunk 上方的说明。
  */
 
-// 区域灯所在的自定义层号：与 studio-app.js 里灯的 layers.set 保持一致，
-// 改这里必须同步改那边的调用方，否则灯会被原生光照重复计算。
-const REGION_LIGHT_LAYER = 30;
+// 区域灯所在的自定义层号：studio-app.js 的 region-light 分支与灯控制器都用它，
+// 两边必须同一个值，否则灯会被原生光照重复计算或干脆不参与光照。
+export const REGION_LIGHT_LAYER = 30;
 // 接收面分类：floor / wall / furniture。同一盏灯对不同类别用不同的增益与体积高度，
 // 让地面更亮、墙面稍暗、家具居中，避免整屋亮度一刀切。
 const REGION_KINDS = ["floor", "wall", "furniture"];
@@ -1172,7 +1172,7 @@ export function createRegionLightController({
         )
       });
     }
-    lightObject.layers.set(30);
+    lightObject.layers.set(REGION_LIGHT_LAYER);
     // 区域灯用自己的光照体积，不需要 three.js 的实时阴影：那套阴影图会随每盏灯
     // 多一次投影渲染，而这里统一复用场景里唯一那盏平行光的阴影（见 sunShadowSnippet）。
     lightObject.castShadow = false;

@@ -24,11 +24,11 @@ const POPUP_HEADER_HEIGHT_PX = 88;
  */
 export function popupLayoutColumns(options) {
   const columns = Number(options?.columns);
-  // 上下限与 MIN/MAX_POPUP_COLUMNS 一致，越界一律回退默认列数。
-  if (columns >= 2 && columns <= 4) {
+  // 越界一律回退默认列数。
+  if (columns >= MIN_POPUP_COLUMNS && columns <= MAX_POPUP_COLUMNS) {
     return columns;
   } else {
-    return 3;
+    return DEFAULT_POPUP_COLUMNS;
   }
 }
 
@@ -67,11 +67,6 @@ export function popupModuleColumnSpan(moduleSpec) {
  * @returns {number} 固定为 1。
  */
 export function popupModuleRowSpan(rowModuleSpec) {
-  const moduleType = typeof rowModuleSpec == "string" ? rowModuleSpec : rowModuleSpec?.type;
-  const resolvedDeviceType =
-    typeof rowModuleSpec == "object"
-      ? rowModuleSpec?.deviceType || rowModuleSpec?.properties?.deviceType
-      : "";
   return 1;
 }
 
@@ -169,8 +164,8 @@ export function packPopupModules(moduleList, columnTotal) {
 /**
  * 计算弹窗布局的像素尺寸。
  *
- * 数值 56 / 420 / 14 / 470 / 88 分别对应内边距、列宽、间距、行高与标题栏高度，
- * 必须与文件顶部的 POPUP_* 常量保持一致。
+ * 尺寸全部取自文件顶部的 POPUP_* 常量（内边距、列宽、间距、行高、标题栏高度），
+ * 改常量即改此处，不要在函数里写回数值字面量。
  *
  * @param {Array<object>} moduleSpecs 模块列表。
  * @param {number|object} layoutOptions 列数或布局选项。
@@ -178,15 +173,21 @@ export function packPopupModules(moduleList, columnTotal) {
  */
 export function popupLayoutMetrics(moduleSpecs, layoutOptions) {
   const layout = packPopupModules(moduleSpecs, layoutOptions);
-  // 左右各 28px 内边距合计 56；列间距为 (列数 - 1) * 14。
-  const gridWidth = 56 + layout.columns * 420 + (layout.columns - 1) * 14;
-  const gridHeight = 56 + layout.rows * 470 + (layout.rows - 1) * 14;
+  // 左右各一份内边距（合计两份）；列 / 行间距都是 (数量 - 1) 份间距。
+  const gridWidth =
+    POPUP_CELL_PADDING_PX * 2 +
+    layout.columns * POPUP_COLUMN_WIDTH_PX +
+    (layout.columns - 1) * POPUP_GRID_GAP_PX;
+  const gridHeight =
+    POPUP_CELL_PADDING_PX * 2 +
+    layout.rows * POPUP_ROW_HEIGHT_PX +
+    (layout.rows - 1) * POPUP_GRID_GAP_PX;
   return {
     ...layout,
     gridWidth: gridWidth,
     gridHeight: gridHeight,
     popupWidth: gridWidth,
-    // 弹窗总高要加上 88px 的标题栏。
-    popupHeight: 88 + gridHeight
+    // 弹窗总高要加上标题栏。
+    popupHeight: POPUP_HEADER_HEIGHT_PX + gridHeight
   };
 }

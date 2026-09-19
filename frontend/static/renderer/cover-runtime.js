@@ -14,11 +14,14 @@
  * 本文件反向 import registry.js（为拿 coverComponentIsDream），循环依赖是既有结构，
  * 因此 here 的顶层不要执行任何依赖 registry 初始化结果的副作用。
  */
-import { coverComponentIsDream } from "./registry.js?v=20260919093705";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919093705";
+import { coverComponentIsDream } from "./registry.js?v=20260919111150";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919111150";
 // 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
 // 本文件与 registry.js 都要用，而 registry.js 是本文件的上游，不能再反向 import 它。
-import { coverPhysicalStateForReversedMotor } from "./cover-direction.js?v=20260919093705";
+import {
+  coverMotorIsReversedForComponent,
+  coverPhysicalStateForReversedMotor,
+} from "./cover-direction.js?v=20260919111150";
 /**
  * 通用「实体是否处于活动态」判定。
  *
@@ -922,14 +925,6 @@ export function relatedCoverMotorReverseEntity(motorReverseEntitiesById, reverse
   );
 }
 /**
- * 取控件级的电机方向设置。
- *
- * 这一份知识（读 `properties.coverMotorDirection`）与「反转时的四态互换」都收在
- * `cover-direction.js` —— 那是叶子模块，本文件与 `registry.js` 都 import 它，
- * 因此注册表不必再留一份本地副本（见该文件模块头）。
- */
-export { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919093705";
-/**
  * 按电机方向把展示状态还原成物理状态。
  *
  * 反转时四组状态两两互换（open↔closed、opening↔closing）；
@@ -1079,32 +1074,30 @@ export function dreamCurtainToggleService(isRetracted, openService, closeService
  * 之后再按 open / closed 与电机方向决定最终服务名。
  *
  * @param {object} toggleComponent 控件对象。
- * @param {Map<string, object>} stateByEntityId 状态索引。
- * @param {Map<string, object>} componentEntitiesByIdLookup 实体元数据索引。
+ * @param {Map<string, object>} entityMetadataById 实体元数据索引。
+ * @param {Map<string, object>} stateByEntityId 状态索引（含乐观态）。
  * @param {string} componentEntityId 实体 ID。
  * @returns {string} open_cover 或 close_cover。
  */
 export function coverToggleServiceForComponent(
   toggleComponent,
+  entityMetadataById,
   stateByEntityId,
-  componentEntitiesByIdLookup,
   componentEntityId
 ) {
-  const componentEntity = componentEntitiesByIdLookup.get(componentEntityId);
-  const isMotorReversed = coverMotorIsReversedForComponent(
-    toggleComponent,
-    stateByEntityId,
-    componentEntitiesByIdLookup,
-    componentEntityId
-  );
+  // 方向读控件属性（唯一实现在叶子模块 cover-direction.js，见模块头）。
+  // 这里曾经传过实体索引与状态索引三个参数：那是已删掉的「靠同设备开关实体推导方向」那版
+  // 的签名，方向改由控件属性承载后它们就没人看了 —— 只留控件这一个入参。
+  const isMotorReversed = coverMotorIsReversedForComponent(toggleComponent);
+  const resolvedStateEntry = stateByEntityId.get(componentEntityId);
   const presentationState = coverComponentIsDream(
     toggleComponent,
     componentEntityId,
-    componentEntity,
-    stateByEntityId
+    resolvedStateEntry,
+    entityMetadataById
   )
-    ? resolvedCoverState(componentEntity, isMotorReversed)
-    : coverPresentationState(componentEntity, isMotorReversed);
+    ? resolvedCoverState(resolvedStateEntry, isMotorReversed)
+    : coverPresentationState(resolvedStateEntry, isMotorReversed);
     // 已在打开侧就去关；但电机反接时服务名要反过来发——
     // 对反接的电机发 open_cover，物理上才是朝关的方向走。
   if (presentationState === "open" || presentationState === "opening") {

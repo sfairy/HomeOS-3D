@@ -60,70 +60,70 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "./studio-curtain-track.js?v=20260919093705";
-import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260919093705";
+} from "./studio-curtain-track.js?v=20260919111150";
+import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260919111150";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "./studio-surface-textures.js?v=20260919093705";
-import { createOverviewStack } from "./studio-overview-stack.js?v=20260919093705";
-import { windowGeometryParts } from "./studio-window-geometry.js?v=20260919093705";
+} from "./studio-surface-textures.js?v=20260919111150";
+import { createOverviewStack } from "./studio-overview-stack.js?v=20260919111150";
+import { windowGeometryParts } from "./studio-window-geometry.js?v=20260919111150";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=20260919093705";
-import { addSecurityModel } from "./studio-security-models.js?v=20260919093705";
-import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260919093705";
-import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260919093705";
-import { createFloorTransition } from "./studio-floor-transition.js?v=20260919093705";
-import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260919093705";
-import { createGroundReflections } from "./studio-ground-reflections.js?v=20260919093705";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260919093705";
+} from "./studio-camera-constraints.js?v=20260919111150";
+import { addSecurityModel } from "./studio-security-models.js?v=20260919111150";
+import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260919111150";
+import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260919111150";
+import { createFloorTransition } from "./studio-floor-transition.js?v=20260919111150";
+import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260919111150";
+import { createGroundReflections } from "./studio-ground-reflections.js?v=20260919111150";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260919111150";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances,
   mergeWallBands
-} from "./studio-wall-materials.js?v=20260919093705";
+} from "./studio-wall-materials.js?v=20260919111150";
 import {
   WARM_WOOD_STYLE,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=20260919093705";
-import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260919093705";
+} from "./studio-scene-style.js?v=20260919111150";
+import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260919111150";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../modules/interaction3d/render-cache.js?v=20260919093705";
-import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260919093705";
-import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260919093705";
-import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260919093705";
-import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260919093705";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=20260919093705";
+} from "../modules/interaction3d/render-cache.js?v=20260919111150";
+import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260919111150";
+import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260919111150";
+import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260919111150";
+import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260919111150";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=20260919111150";
 // 生产控制台的诊断输出与「开发 / 诊断入口」开关统一走 utils/debug-log.js：
 // debugLog 默认静默（只在 ?debug=1 时输出），isFrontendDebugMode 用来把测试钩子拦在生产之外。
-import { debugLog, isFrontendDebugMode } from "../utils/debug-log.js?v=20260919093705";
+import { debugLog, isFrontendDebugMode } from "../utils/debug-log.js?v=20260919111150";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260919093705";
+import { apiFetch } from "../utils/api-fetch.js?v=20260919111150";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260919093705";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260919111150";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260919093705";
-import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260919093705";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260919111150";
+import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260919111150";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../modules/interaction3d/light-motion.js?v=20260919093705";
+} from "../modules/interaction3d/light-motion.js?v=20260919111150";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -163,7 +163,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "./geometry.js?v=20260919093705";
+} from "./geometry.js?v=20260919111150";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -172,32 +172,32 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "./export-utils.js?v=20260919093705";
+} from "./export-utils.js?v=20260919111150";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "./export-presets.js?v=20260919093705";
-import { reorderFloors } from "./floor-order.js?v=20260919093705";
-import { syncControlValue } from "./ui-controls.js?v=20260919093705";
+} from "./export-presets.js?v=20260919111150";
+import { reorderFloors } from "./floor-order.js?v=20260919111150";
+import { syncControlValue } from "./ui-controls.js?v=20260919111150";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=20260919093705";
+} from "./studio-widgets.js?v=20260919111150";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "./studio-external-models.js?v=20260919093705";
+} from "./studio-external-models.js?v=20260919111150";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "./studio-plan-drawing.js?v=20260919093705";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260919093705";
-import { createRegionLightController } from "./studio-plan2-region-lights.js?v=20260919093705";
-import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260919093705";
+} from "./studio-plan-drawing.js?v=20260919111150";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260919111150";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "./studio-plan2-region-lights.js?v=20260919111150";
+import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260919111150";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -210,7 +210,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "./studio-normalization.js?v=20260919093705";
+} from "./studio-normalization.js?v=20260919111150";
 window.__haBridgeStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 /**
@@ -236,7 +236,6 @@ let groundReflectionSettingsKey = "off";
 let isEnvironmentActive = false;
 let sceneCacheRevision = 0;
 let isVacuumMoving = false;
-let vacuumRevision = 0;
 let isBackgroundFrameVisible = false;
 let backgroundTheme = "grid";
 // 材质风格（default / warm-wood）与墙体透明度覆盖：两者都由舞台侧通过
@@ -447,7 +446,6 @@ const refreshPreviewButton = selectElement("#refresh-preview");
 const refreshLightPreviewButton = selectElement("#refresh-light-preview");
 const previewQualityStatusElement = selectElement("#preview-quality-status");
 const modelLoadingStatusElement = selectElement("#model-loading-status");
-let isModelLoading = false;
 const lightCacheCanvasElement = selectElement("#preview-light-cache");
 const previewRenderShieldElement = selectElement("#preview-render-shield");
 let shieldHideTimer = null;
@@ -1397,7 +1395,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/draco-decoder-worker.js?v=20260919093705"
+  "/static/3d-studio/draco-decoder-worker.js?v=20260919111150"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -1566,7 +1564,6 @@ function updateModelLoadingStatus(loadState = externalModelManager.modelLoadStat
     isPrecompilePending = false;
     window.clearTimeout(precompileRenderTimer);
     precompileRenderTimer = null;
-    isModelLoading = true;
     if (orbitControls && !isExportBusy) {
       orbitControls.enabled = false;
     }
@@ -1581,7 +1578,6 @@ function updateModelLoadingStatus(loadState = externalModelManager.modelLoadStat
     window.requestAnimationFrame(() => updateModelLoadingStatus());
     return;
   }
-  isModelLoading = isLoading;
   if (orbitControls && !isExportBusy) {
     orbitControls.enabled = !isLoading;
   }
@@ -1597,8 +1593,6 @@ function updateModelLoadingStatus(loadState = externalModelManager.modelLoadStat
 // 几何体与材质的进程内复用池：键是尺寸 / 颜色等可枚举参数。
 // 户型图里同一件家具会被复制很多次，不缓存的话每份都会新建 geometry / material，
 // 显存与 draw call 都会成倍增长；这里缓存的对象在场景清空时统一 dispose。
-const sofaGeometryBySizeKey = new Map();
-const materialByColorHex = new Map();
 const rugGeometryBySizeKey = new Map();
 const rugMaterialByColorKey = new Map();
 const mergedWallBandGeometryCache = new Map();
@@ -2032,12 +2026,10 @@ let isExportRendering = false;
 let sceneUpdateTimer = null;
 let isAdaptiveRenderActive = false;
 let hasAdaptiveRenderProbe = false;
-let adaptiveRenderReason = "";
 let adaptiveRenderCost = 0;
 let recentFrameDurationsMs = [];
 let lastFrameTimestampMs = 0;
 let slowFrameStreak = 0;
-let measuredFps = null;
 const precompiledModelSignatures = new WeakSet();
 let isExternalPrecompileRunning = false;
 let shouldRerunExternalPrecompile = false;
@@ -2045,7 +2037,6 @@ let externalPrecompilePassCount = 0;
 let externalPrecompileTimer = null;
 let isLightPrecompileRunning = false;
 let shouldRerunLightPrecompile = false;
-let lightPrecompileSignature = "";
 let lightPrecompilePassCount = 0;
 let lightPrecompileTimer = null;
 let isPageUnloading = false;
@@ -10293,7 +10284,6 @@ function updateAdaptiveRenderState() {
   if (isStageViewerMode) {
     isAdaptiveRenderActive = true;
     hasAdaptiveRenderProbe = true;
-    adaptiveRenderReason = "cache-first";
     return {
       count: 0,
       cost: 0,
@@ -10308,7 +10298,6 @@ function updateAdaptiveRenderState() {
       renderCost.cost < Math.min(renderCost.budget * 0.68, Math.max(adaptiveRenderCost * 0.55, 1))
     ) {
       isAdaptiveRenderActive = false;
-      adaptiveRenderReason = "";
       adaptiveRenderCost = 0;
       slowFrameStreak = 0;
     }
@@ -10361,9 +10350,7 @@ function enableAdaptiveRender(frameAssessment) {
   if (!isAdaptiveRenderActive && !!frameAssessment?.sufficient) {
     isAdaptiveRenderActive = true;
     hasAdaptiveRenderProbe = true;
-    adaptiveRenderReason = "frame-rate";
     adaptiveRenderCost = measureLightRenderCost().cost;
-    measuredFps = frameAssessment.fps;
     lightCacheRevision += 1;
     needsLightCacheRefresh = true;
     applyRenderQualityMode();
@@ -10390,7 +10377,6 @@ function assessFrameRateForAdaptive() {
   const lightCacheRenderCost = measureLightRenderCost();
   const costBudgetRatio = lightCacheRenderCost.cost / Math.max(lightCacheRenderCost.budget, 1);
   const slowStreakThreshold = costBudgetRatio >= 1.8 ? 3 : costBudgetRatio >= 1 ? 4 : 5;
-  measuredFps = frameStats.fps;
   if (frameStats.severe) {
     slowFrameStreak = slowStreakThreshold;
   } else if (frameStats.slow) {
@@ -12570,7 +12556,6 @@ async function buildLightCache() {
         break;
       }
       const {
-        item: entryLightItem,
         group: entryLightGroup,
         itemKey: entryItemKey,
         groupKey: entryGroupKey
@@ -13396,7 +13381,6 @@ function initializeStudioStage() {
       renderer.domElement.addEventListener("webglcontextrestored", () => {
         appliedLightPrecompileSignature = "";
         precompiledLightSignatures.clear();
-        lightPrecompileSignature = "";
         scheduleLightPrecompile();
       });
     }
@@ -16356,7 +16340,6 @@ function disposeSceneSubtree(disposedRoot) {
       disposedNode.geometry &&
       !disposedGeometries.has(disposedNode.geometry) &&
       !disposedNode.userData.externalModelSharedGeometry &&
-      !disposedNode.userData.sofaSharedGeometry &&
       !disposedNode.userData.rugSharedGeometry &&
       !disposedNode.userData.architectureSharedGeometry
     ) {
@@ -16375,7 +16358,6 @@ function disposeSceneSubtree(disposedRoot) {
           nodeMaterial.map?.dispose?.();
         }
         if (
-          !disposedNode.userData.sofaSharedMaterial &&
           !disposedNode.userData.rugSharedMaterial &&
           !disposedNode.userData.architectureSharedMaterial &&
           !disposedNode.userData.externalModelSharedMaterial
@@ -16619,195 +16601,6 @@ function addWallBandMesh(architectureRoot, wallBands, wallMaterialColor, wallMes
   wallMesh.userData.architectureSharedMaterial = true;
   architectureRoot.add(wallMesh);
   return wallMesh;
-}
-/**
- * 造一个圆角方盒几何并平移到指定位置（部件级，供后续合并使用）。
- *
- * 圆角半径规则与 addBoxMesh 一致（最小边的 14%，且不超过 0.45×最小边与 0.08m），
- * 保证沙发扶手这类圆角件与直角件拼接时观感统一。
- *
- * @param {number} roundedWidth 宽。
- * @param {number} roundedHeight 高。
- * @param {number} roundedDepth 深。
- * @param {number} roundedX 平移 X。
- * @param {number} roundedY 平移 Y。
- * @param {number} roundedZ 平移 Z。
- * @returns {THREE.BufferGeometry} 平移后的圆角方盒几何。
- */
-function createRoundedBoxGeometry(
-  roundedWidth,
-  roundedHeight,
-  roundedDepth,
-  roundedX,
-  roundedY,
-  roundedZ
-) {
-  const roundedMinSize = Math.max(Math.min(roundedWidth, roundedHeight, roundedDepth), 0.001);
-  const roundedCornerRadius = Math.min(roundedMinSize * 0.14, roundedMinSize * 0.45, 0.08);
-  const sofaBoxGeometry = new RoundedBoxGeometry(
-    roundedWidth,
-    roundedHeight,
-    roundedDepth,
-    2,
-    roundedCornerRadius
-  );
-  sofaBoxGeometry.translate(roundedX, roundedY, roundedZ);
-  return sofaBoxGeometry;
-}
-/**
- * 把一批 [w, h, d, x, y, z] 箱子合并成单个圆角几何。
- *
- * 合并后立即 dispose 各分件几何：数据已拷进合并结果，留着只会白占显存
- * 并让 disposeSceneSubtree 多绕一圈。
- *
- * @param {Array<Array<number>>} partBoxSpecs 各零件的 6 元组参数。
- * @returns {THREE.BufferGeometry|null} 合并结果；属性不一致导致合并失败时为 null。
- */
-function mergeRoundedParts(partBoxSpecs) {
-  const partGeometries = partBoxSpecs.map(partBoxSpec => createRoundedBoxGeometry(...partBoxSpec));
-  const mergedPartGeometry = mergeGeometries(partGeometries);
-  partGeometries.forEach(partGeometry => partGeometry.dispose());
-  return mergedPartGeometry;
-}
-/**
- * 按尺寸生成沙发的「框架 + 坐垫」两份合并几何，并按尺寸缓存。
- *
- * 各比例都相对沙发外形尺寸：0.92×宽 / 0.28×高是坐箱，±0.46×宽处是两侧扶手
- * （0.1×宽厚、0.48×高），坐垫分左右两块（各 0.42×宽、0.12×高）。
- * 框架与坐垫分开成两份几何，是为了让它们各用一份材质（见 addSofaMeshes）。
- *
- * @param {number} sofaWidth 沙发宽（米）。
- * @param {number} sofaHeight 沙发高（米）。
- * @param {number} sofaDepth 沙发深（米）。
- * @returns {{frame: THREE.BufferGeometry, cushions: THREE.BufferGeometry}|null}
- *   框架与坐垫几何；任一份合并失败时为 null（同时释放另一份）。
- */
-function buildSofaGeometry(sofaWidth, sofaHeight, sofaDepth) {
-  const sofaSizeKey = sofaWidth + ":" + sofaHeight + ":" + sofaDepth;
-  if (sofaGeometryBySizeKey.has(sofaSizeKey)) {
-    return sofaGeometryBySizeKey.get(sofaSizeKey);
-  }
-  const sofaFrameGeometry = mergeRoundedParts([
-    [sofaWidth * 0.92, sofaHeight * 0.28, sofaDepth * 0.72, 0, sofaHeight * 0.28, sofaDepth * 0.06],
-    [
-      sofaWidth * 0.92,
-      sofaHeight * 0.55,
-      sofaDepth * 0.18,
-      0,
-      sofaHeight * 0.56,
-      -sofaDepth * 0.35
-    ],
-    [
-      sofaWidth * 0.1,
-      sofaHeight * 0.48,
-      sofaDepth * 0.75,
-      -sofaWidth * 0.46,
-      sofaHeight * 0.39,
-      sofaDepth * 0.03
-    ],
-    [
-      sofaWidth * 0.1,
-      sofaHeight * 0.48,
-      sofaDepth * 0.75,
-      sofaWidth * 0.46,
-      sofaHeight * 0.39,
-      sofaDepth * 0.03
-    ]
-  ]);
-  const sofaCushionGeometry = mergeRoundedParts([
-    [
-      sofaWidth * 0.42,
-      sofaHeight * 0.12,
-      sofaDepth * 0.55,
-      -sofaWidth * 0.22,
-      sofaHeight * 0.47,
-      sofaDepth * 0.07
-    ],
-    [
-      sofaWidth * 0.42,
-      sofaHeight * 0.12,
-      sofaDepth * 0.55,
-      sofaWidth * 0.22,
-      sofaHeight * 0.47,
-      sofaDepth * 0.07
-    ]
-  ]);
-  const sofaGeometryPair =
-    sofaFrameGeometry && sofaCushionGeometry
-      ? {
-          frame: sofaFrameGeometry,
-          cushions: sofaCushionGeometry
-        }
-      : null;
-  if (sofaGeometryPair) {
-    sofaGeometryBySizeKey.set(sofaSizeKey, sofaGeometryPair);
-  } else {
-    sofaFrameGeometry?.dispose();
-    sofaCushionGeometry?.dispose();
-  }
-  return sofaGeometryPair;
-}
-/**
- * 按颜色缓存并复用沙发材质（粗糙度 0.8、金属度 0.01 的哑光布感）。
- *
- * @param {number|string} sofaColor 沙发颜色。
- * @returns {THREE.MeshStandardMaterial} 共享材质实例。
- */
-function resolveSofaMaterial(sofaColor) {
-  const sofaColorKey = String(sofaColor);
-  if (!materialByColorHex.has(sofaColorKey)) {
-    materialByColorHex.set(
-      sofaColorKey,
-      new threeModuleMin.MeshStandardMaterial({
-        color: sofaColor,
-        roughness: 0.8,
-        metalness: 0.01,
-        transparent: false,
-        opacity: 1,
-        depthWrite: true,
-        depthFunc: threeModuleMin.LessEqualDepth,
-        side: threeModuleMin.FrontSide,
-        emissive: 0,
-        emissiveIntensity: 0
-      })
-    );
-  }
-  return materialByColorHex.get(sofaColorKey);
-}
-/**
- * 把沙发框架与坐垫两块 mesh 挂到父节点上。
- *
- * 选中态克隆材质而不改共享实例：高亮只能作用在这一件沙发上，直接改共享材质
- * 会把所有同色沙发一起点亮。未选中时用共享材质并打 sofaSharedMaterial 标记，
- * 把释放责任交给共享资源的所有者。
- *
- * @param {THREE.Object3D} sofaParent 挂载父节点。
- * @param {object} sofaItem 沙发条目（取 width / height / depth / id）。
- * @param {number|string} sofaFrameColor 框架色。
- * @param {number|string} sofaCushionColor 坐垫色。
- * @returns {boolean} 几何生成失败时为 false。
- */
-function addSofaMeshes(sofaParent, sofaItem, sofaFrameColor, sofaCushionColor) {
-  const servedSofaGeometry = buildSofaGeometry(sofaItem.width, sofaItem.height, sofaItem.depth);
-  if (!servedSofaGeometry) {
-    return false;
-  }
-  const isSofaSelected = isSelected("item", sofaItem.id);
-  for (const [sofaPartGeometry, sofaPartColor] of [
-    [servedSofaGeometry.frame, sofaFrameColor],
-    [servedSofaGeometry.cushions, sofaCushionColor]
-  ]) {
-    const sofaPartMaterial = isSofaSelected
-      ? resolveSofaMaterial(sofaPartColor).clone()
-      : resolveSofaMaterial(sofaPartColor);
-    const sofaPartMesh = new threeModuleMin.Mesh(sofaPartGeometry, sofaPartMaterial);
-    sofaPartMesh.castShadow = true;
-    sofaPartMesh.receiveShadow = true;
-    sofaPartMesh.userData.sofaSharedGeometry = true;
-    sofaPartMesh.userData.sofaSharedMaterial = !isSofaSelected;
-    sofaParent.add(sofaPartMesh);
-  }
-  return true;
 }
 /**
  * 生成地毯几何（圆角底板 + 略小一圈的贴花平面），并按尺寸缓存。
@@ -17932,7 +17725,7 @@ function applyShadowBudget(
     shadowRoot?.traverse(regionLightNode => {
       if (regionLightNode.isLight && regionLightNode.userData?.lightItemId) {
         regionLightNode.castShadow = false;
-        regionLightNode.layers.set(30);
+        regionLightNode.layers.set(REGION_LIGHT_LAYER);
       }
     });
     if (renderer) {
@@ -18411,7 +18204,6 @@ function addVehicleChargingEffect(
   if (chargingItem.chargingEnabled !== true) {
     return;
   }
-  const CHARGING_GLOW_COLOR_HEX = 5238711;
   const chargingCanvasElement = document.createElement("canvas");
   chargingCanvasElement.width = 256;
   chargingCanvasElement.height = 256;
@@ -18941,37 +18733,37 @@ function buildPillarSolidGeometry(shape, width, depth, height) {
   return solidGeometry;
 }
 /** 平面画布版的 buildPillarOutline：平面 +y 对应世界 +z，因此平直面始终留在背面。 */
-function tracePillarPlanPath(planContext, shape, widthPx, depthPx) {
+function tracePillarPlanPath(plan2dContext, shape, widthPx, depthPx) {
   const halfWidth = widthPx / 2;
   const halfDepth = depthPx / 2;
-  planContext.beginPath();
+  plan2dContext.beginPath();
   if (shape === "round") {
-    planContext.ellipse(0, 0, halfWidth, halfDepth, 0, 0, Math.PI * 2);
+    plan2dContext.ellipse(0, 0, halfWidth, halfDepth, 0, 0, Math.PI * 2);
     return;
   }
   if (shape === "semicircle") {
     // 平直边落在背面（-y），且弧的起点正好接在直线终点上。
-    planContext.moveTo(-halfWidth, -halfDepth);
-    planContext.lineTo(halfWidth, -halfDepth);
-    planContext.ellipse(0, -halfDepth, halfWidth, depthPx, 0, 0, Math.PI, false);
+    plan2dContext.moveTo(-halfWidth, -halfDepth);
+    plan2dContext.lineTo(halfWidth, -halfDepth);
+    plan2dContext.ellipse(0, -halfDepth, halfWidth, depthPx, 0, 0, Math.PI, false);
     return;
   }
   if (shape === "quarter") {
-    planContext.moveTo(-halfWidth, -halfDepth);
-    planContext.lineTo(halfWidth, -halfDepth);
-    planContext.ellipse(-halfWidth, -halfDepth, widthPx, depthPx, 0, 0, Math.PI / 2, false);
-    planContext.closePath();
+    plan2dContext.moveTo(-halfWidth, -halfDepth);
+    plan2dContext.lineTo(halfWidth, -halfDepth);
+    plan2dContext.ellipse(-halfWidth, -halfDepth, widthPx, depthPx, 0, 0, Math.PI / 2, false);
+    plan2dContext.closePath();
     return;
   }
   if (shape === "quarterinner") {
     // quarter 的镜像：顶点相同，但弧朝回收，使符号成为其互补形。
-    planContext.moveTo(halfWidth, -halfDepth);
-    planContext.lineTo(halfWidth, halfDepth);
-    planContext.lineTo(-halfWidth, halfDepth);
-    planContext.ellipse(-halfWidth, -halfDepth, widthPx, depthPx, 0, Math.PI / 2, 0, true);
+    plan2dContext.moveTo(halfWidth, -halfDepth);
+    plan2dContext.lineTo(halfWidth, halfDepth);
+    plan2dContext.lineTo(-halfWidth, halfDepth);
+    plan2dContext.ellipse(-halfWidth, -halfDepth, widthPx, depthPx, 0, Math.PI / 2, 0, true);
     return;
   }
-  planContext.rect(-halfWidth, -halfDepth, widthPx, depthPx);
+  plan2dContext.rect(-halfWidth, -halfDepth, widthPx, depthPx);
 }
 /**
  * 构建柱体：方柱直接用 BoxGeometry，其余造型用 buildPillarSolidGeometry 造截面。
@@ -19922,8 +19714,6 @@ function buildItemModel(itemSpec, prewarmLightIdSet = null) {
     const coffeeTableSmallLegZ = -itemDepth * 0.2;
     const coffeeTableLegHeight = itemHeight * 0.58;
     const coffeeTableSmallLegHeight = itemHeight * 0.76;
-    const coffeeTableTopY = itemHeight * 0.68;
-    const coffeeTableSmallTopY = itemHeight * 0.9;
     addCylinderMesh(
       itemGroup,
       coffeeTableLegRadius * 0.3,
@@ -25717,13 +25507,6 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
         const capturedRoot = previewModelRoot;
         const capturedOverlayScene = previewOverlayScene;
         const capturedRenderer = renderer;
-        const planSignature = [
-          capturedRoot.uuid,
-          currentPreviewFloorMode(),
-          activeFloorId,
-          externalPrecompilePassCount,
-          ...pendingPrecompilePlan.map(plan => plan.signature).sort()
-        ].join("|");
         if (!pendingPrecompilePlan.length) {
           shouldRerunLightPrecompile = false;
           capturedRenderer.domElement.dataset.lightPrecompileState = "ready";
@@ -25802,7 +25585,6 @@ function scheduleLightPrecompile(precompileDelayMs = 360) {
             precompiledLightSignatures.add(planEntry.signature);
           }
           if (shouldApplyPlan) {
-            lightPrecompileSignature = planSignature;
             delete capturedRenderer.domElement.dataset.lightPrecompileDeferred;
             capturedRenderer.domElement.dataset.lightPrecompileState = "ready";
           } else {
@@ -26516,158 +26298,6 @@ function addFloorEdgeOutline(edgeLoop, outlineColor, edgeSurfaceY) {
   }
 }
 /**
- * 沿楼层轮廓铺两层加色光晕，做出「地面灯带」效果。
- *
- * 先把闭环按弧长参数化（cumulativeDistances），这样片元着色器能用 glowAlong
- * 沿边做条纹、用 glowAcross 让光晕由内向外衰减。两层带子分别为：
- * 内层 0.24 米宽、亮而实（无条纹），外层 1.25 米宽、极淡且带条纹
- * （columnStrength 0.82）—— 后者模拟地面反射。都用 AdditiveBlending、
- * depthWrite=false、DoubleSide，保证不遮挡地面本身。
- *
- * @param {Array<{x: number, z: number}>} glowPolygon 轮廓闭环（世界米）。
- * @param {string|number} glowColor 光晕颜色。
- * @param {number} glowSurfaceY 地面高度（米），两层带子分别抬高 0.008 / 0.005。
- * @returns {void} 无返回值；点数少于 3 时直接返回。
- */
-function addFloorGlowOutline(glowPolygon, glowColor, glowSurfaceY) {
-  if (!Array.isArray(glowPolygon) || glowPolygon.length < 3) {
-    return;
-  }
-  const glowPlanarPoints = glowPolygon.map(polygonPoint => ({
-    x: polygonPoint.x,
-    y: polygonPoint.z
-  }));
-  const edgeDistances = glowPlanarPoints.map((edgePoint, edgeIndex) =>
-    distance(edgePoint, glowPlanarPoints[(edgeIndex + 1) % glowPlanarPoints.length])
-  );
-  const cumulativeDistances = [0];
-  for (const edgeDistance of edgeDistances) {
-    cumulativeDistances.push(cumulativeDistances.at(-1) + edgeDistance);
-  }
-  /**
-   * 生成一层光晕带（闭包，参数化程度高，外层共调用两次）。
-   *
-   * 几何做法：把每条边当作一个四边形，外侧顶点由 offsetPolygonOutward 沿
-   * 径向推出 distance；顶点属性 glowAlpha / glowAcross / glowAlong 交给
-   * 片元着色器做径向衰减与沿边条纹。每个四边形拆成两个三角形、六个顶点。
-   *
-   * @param {object} bandSpec 单层参数。
-   * @param {number} bandSpec.distance 由轮廓向外偏移的距离（米）。
-   * @param {number} bandSpec.innerAlpha 内缘透明度。
-   * @param {number} bandSpec.outerAlpha 外缘透明度。
-   * @param {number} bandSpec.columnStrength 沿边条纹强度（0 表示纯色渐变）。
-   * @param {number} bandSpec.y 该层带子的世界高度（米）。
-   * @param {number} bandSpec.renderOrder 渲染顺序。
-   * @returns {void} 直接把网格加入 previewModelRoot。
-   */
-  const buildGlowBand = ({
-    distance: bandDistance,
-    innerAlpha: innerAlpha,
-    outerAlpha: outerAlpha,
-    columnStrength: columnStrength,
-    y: glowBandY,
-    renderOrder: renderOrder
-  }) => {
-    const innerPoints = offsetPolygonOutward(glowPlanarPoints, bandDistance);
-    const positions = [];
-    const glowAlphas = [];
-    const glowAcross = [];
-    const glowAlong = [];
-    for (let bandPointIndex = 0; bandPointIndex < glowPlanarPoints.length; bandPointIndex += 1) {
-      // 环状取点：最后一段的「下一个点」回到第 0 个点，保证光带首尾闭合。
-      const nextIndex = (bandPointIndex + 1) % glowPlanarPoints.length;
-      const bandStartPoint = glowPlanarPoints[bandPointIndex];
-      const nextPoint = glowPlanarPoints[nextIndex];
-      const innerPoint = innerPoints[bandPointIndex];
-      const nextInnerPoint = innerPoints[nextIndex];
-      positions.push(
-        bandStartPoint.x,
-        glowBandY,
-        bandStartPoint.y,
-        innerPoint.x,
-        glowBandY,
-        innerPoint.y,
-        nextInnerPoint.x,
-        glowBandY,
-        nextInnerPoint.y,
-        bandStartPoint.x,
-        glowBandY,
-        bandStartPoint.y,
-        nextInnerPoint.x,
-        glowBandY,
-        nextInnerPoint.y,
-        nextPoint.x,
-        glowBandY,
-        nextPoint.y
-      );
-      glowAlphas.push(innerAlpha, outerAlpha, outerAlpha, innerAlpha, outerAlpha, innerAlpha);
-      glowAcross.push(0, 1, 1, 0, 1, 0);
-      const startDistance = cumulativeDistances[bandPointIndex];
-      const endDistance = cumulativeDistances[bandPointIndex + 1];
-      glowAlong.push(
-        startDistance,
-        startDistance,
-        endDistance,
-        startDistance,
-        endDistance,
-        endDistance
-      );
-    }
-    const glowGeometry = new threeModuleMin.BufferGeometry();
-    glowGeometry.setAttribute("position", new threeModuleMin.Float32BufferAttribute(positions, 3));
-    glowGeometry.setAttribute(
-      "glowAlpha",
-      new threeModuleMin.Float32BufferAttribute(glowAlphas, 1)
-    );
-    glowGeometry.setAttribute(
-      "glowAcross",
-      new threeModuleMin.Float32BufferAttribute(glowAcross, 1)
-    );
-    glowGeometry.setAttribute("glowAlong", new threeModuleMin.Float32BufferAttribute(glowAlong, 1));
-    glowGeometry.computeVertexNormals();
-    const glowMesh = new threeModuleMin.Mesh(
-      glowGeometry,
-      new threeModuleMin.ShaderMaterial({
-        uniforms: {
-          glowColor: {
-            value: new threeModuleMin.Color(glowColor)
-          },
-          glowColumnStrength: {
-            value: columnStrength
-          }
-        },
-        vertexShader:
-          "\n          attribute float glowAlpha;\n          attribute float glowAcross;\n          attribute float glowAlong;\n          varying float vGlowAlpha;\n          varying float vGlowAcross;\n          varying float vGlowAlong;\n          void main() {\n            vGlowAlpha = glowAlpha;\n            vGlowAcross = glowAcross;\n            vGlowAlong = glowAlong;\n            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n          }\n        ",
-        fragmentShader:
-          "\n          uniform vec3 glowColor;\n          uniform float glowColumnStrength;\n          varying float vGlowAlpha;\n          varying float vGlowAcross;\n          varying float vGlowAlong;\n          void main() {\n            float columnA = 0.5 + 0.5 * sin(vGlowAlong * 4.7 + 0.6);\n            float columnB = 0.5 + 0.5 * sin(vGlowAlong * 9.3 + 2.1);\n            float broadColumns = clamp(0.46 + columnA * 0.34 + columnB * 0.2, 0.0, 1.0);\n            float distanceMix = smoothstep(0.16, 0.88, vGlowAcross);\n            float reflection = mix(1.0, 0.48 + broadColumns * 0.52, glowColumnStrength * distanceMix);\n            gl_FragColor = vec4(glowColor, vGlowAlpha * reflection);\n          }\n        ",
-        transparent: true,
-        depthWrite: false,
-        blending: threeModuleMin.AdditiveBlending,
-        toneMapped: false,
-        side: threeModuleMin.DoubleSide
-      })
-    );
-    glowMesh.renderOrder = renderOrder;
-    previewModelRoot.add(glowMesh);
-  };
-  buildGlowBand({
-    distance: 0.24,
-    innerAlpha: 0.4,
-    outerAlpha: 0.055,
-    columnStrength: 0,
-    y: glowSurfaceY + 0.008,
-    renderOrder: 3
-  });
-  buildGlowBand({
-    distance: 1.25,
-    innerAlpha: 0.3,
-    outerAlpha: 0.008,
-    columnStrength: 0.82,
-    y: glowSurfaceY + 0.005,
-    renderOrder: 2
-  });
-}
-/**
  * 把多边形的每个顶点沿「质心 → 顶点」方向向外推开固定距离。
  *
  * 这是廉价的外扩近似：只在凸多边形上与真正的等距偏移等价，凹多边形会略有
@@ -27120,10 +26750,6 @@ function buildArchitectureLayer({
     if (!hostWallLength) {
       continue;
     }
-    const hostWallDirection = {
-      x: wallDeltaX / hostWallLength,
-      y: wallDeltaY / hostWallLength
-    };
     const wallRotationY = -Math.atan2(wallDeltaY, wallDeltaX);
     for (const loopedWindowSpec of activeScene.windows.filter(
       filteredWindowSpec => filteredWindowSpec.wallId === openingHostWall.id
@@ -30083,7 +29709,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/stage.js?v=20260919093705");
+        await import("/api/v1/modules/interaction3d/stage.js?v=20260919111150");
       mountStage(createStageController());
       return;
     }
@@ -34456,7 +34082,6 @@ function createStageController() {
       const shouldVacuumMove = isVacuumMovingRequested === true;
       if (shouldVacuumMove !== isVacuumMoving) {
         isVacuumMoving = shouldVacuumMove;
-        vacuumRevision++;
         if (shouldVacuumMove) {
           beginLightTransitionSession();
           syncLightTransitionSession(performance.now(), true);
