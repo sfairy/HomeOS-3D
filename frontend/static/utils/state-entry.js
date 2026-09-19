@@ -37,6 +37,19 @@
  *   （`light-statistics-runtime`）的调用点也已逐处核对：它在 `.state`、`.attributes.friendly_name`
  *   与 `lightStatisticsEntityStateStatus` 三处消费，`null` 与「变更对象本身」在这三处的结果相同，
  *   因为变更对象既没有 `.state` 也没有 `.attributes`。
+ *
+ * **P12 状态条目内联收口**：这份知识原先除了上面那 5 份具名副本，还有 80 余处是**裸表达式**
+ *   （`x?.newState || x`、`(x?.newState || x)?.attributes`，带 `|| {}` / `|| null` /
+ *   `|| {占位状态对象}` 三种第三兜底）。`/static/` 树上那 47 处已逐点换成 `resolveStateEntry(...)`，
+ *   由 `backend/tools/smoke.py` 的第 9 条闸钉住不再以内联写法回来（判据只认两种无歧义形态：
+ *   `newState || …` 与 `hasOwnProperty("newState")`）。
+ *
+ *   换过去唯一的语义差别在「**基表达式本身为假值**」这一格：内联写法漏出那个假值
+ *   （`undefined` / `""` / `0` / `false`），本函数归一成默认兜底 `null`。47 处的下游逐处核过，
+ *   **不可观测**，因为消费方式只有三类：`?.` 取字段（`?.` 对 `null` 与 `undefined` 结果相同）、
+ *   真值判定（`null` 与那个假值同为假）、自己再归一一次（`|| {}` / `String(x ?? "")`）。
+ *   另外三处 `?.newState?.state ?? …` 是**另一份知识**（取状态文本，字段优先级相反：
+ *   先看状态对象自己的 `.state`），本批点名不动，留在 `cover-runtime.js` / `registry.js`。
  */
 
 /**

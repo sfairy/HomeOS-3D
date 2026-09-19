@@ -14,14 +14,17 @@
  * 本文件反向 import registry.js（为拿 coverComponentIsDream），循环依赖是既有结构，
  * 因此 here 的顶层不要执行任何依赖 registry 初始化结果的副作用。
  */
-import { coverComponentIsDream } from "./registry.js?v=20260919135340";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919135340";
+import { coverComponentIsDream } from "./registry.js?v=20260919153711";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919153711";
+// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
+// 本文件原先有五处内联的 `x?.newState || x || {}`（P12 状态条目内联收口）。
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260919153711";
 // 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
 // 本文件与 registry.js 都要用，而 registry.js 是本文件的上游，不能再反向 import 它。
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor,
-} from "./cover-direction.js?v=20260919135340";
+} from "./cover-direction.js?v=20260919153711";
 /**
  * 通用「实体是否处于活动态」判定。
  *
@@ -43,7 +46,7 @@ const PERCENT_EPSILON = 1;
  * @returns {number|null} 夹在 0~100 的位置；没有该属性时返回 null（区别于位置就是 0）。
  */
 function coverPositionPercent(positionStateInput) {
-  const positionStateObject = positionStateInput?.newState || positionStateInput || {};
+  const positionStateObject = resolveStateEntry(positionStateInput, {});
   const currentPositionAttribute = Number(positionStateObject.attributes?.current_position);
   if (Number.isFinite(currentPositionAttribute)) {
     return Math.max(0, Math.min(100, currentPositionAttribute));
@@ -99,7 +102,7 @@ export function coverPendingDisplayPosition(fromPosition, toPosition, moveDirect
  * @returns {boolean} 视为打开时返回 true。
  */
 export function runtimeCoverStateIsActive(coverEventState) {
-  const coverState = coverEventState?.newState || coverEventState || {};
+  const coverState = resolveStateEntry(coverEventState, {});
   const rawCoverState = String(coverState.state || "")
     .trim()
     .toLowerCase();
@@ -257,7 +260,7 @@ export function coverComponentIsAirer(
   if (["standard", "dream"].includes(coverKind)) {
     return false;
   }
-  const airerStateObject = componentState?.newState || componentState || {};
+  const airerStateObject = resolveStateEntry(componentState, {});
   const airerEntityMetadata = airerEntitiesById.get(airerComponentEntityId) || {};
   const airerDeviceMetadata = airerEntityMetadata.deviceId
     ? devicesById.get(airerEntityMetadata.deviceId) || {}
@@ -949,7 +952,7 @@ export function physicalCoverState(stateInput, reverseOverride = false) {
  * @returns {string} open / closed / opening / closing。
  */
 export function coverPresentationState(presentationStateInput, isReversedOverride = false) {
-  const stateObject = presentationStateInput?.newState || presentationStateInput || {};
+  const stateObject = resolveStateEntry(presentationStateInput, {});
   const presentedState = physicalCoverState(stateObject.state, isReversedOverride);
   if (presentedState === "opening" || presentedState === "closing") {
     return presentedState;
@@ -973,7 +976,7 @@ export function coverPresentationState(presentationStateInput, isReversedOverrid
  * @returns {string} 物理状态名。
  */
 function resolvedCoverState(physicalStateInput, motorReversed = false) {
-  const coverStateObject = physicalStateInput?.newState || physicalStateInput || {};
+  const coverStateObject = resolveStateEntry(physicalStateInput, {});
   return physicalCoverState(coverStateObject.state, motorReversed);
 }
 /**

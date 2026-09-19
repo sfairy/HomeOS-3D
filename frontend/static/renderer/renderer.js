@@ -22,7 +22,7 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260919135340";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260919153711";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -52,18 +52,22 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260919135340";
-import { randomUuid } from "../utils/random-id.js?v=20260919135340";
+} from "./registry.js?v=20260919153711";
+import { randomUuid } from "../utils/random-id.js?v=20260919153711";
 // 颜色解析统一走 utils/colors.js（P10 B 类收敛）：本文件原先在 mixHexColors 里
 // 又写了一份 normalizeHexColor，与 home.js 那份同名但失败值不同（null vs 空串）。
-import { expandHexColorOrNull } from "../utils/colors.js?v=20260919135340";
+import { expandHexColorOrNull } from "../utils/colors.js?v=20260919153711";
 // 「按 ID / 按实体取域」只有一份实现（P12 收口 B 类末尾那一项，含残留补齐批次）：本文件原先
 // 自带 `resolvedEntityId.split(".")[0]`（init 与重定向后各一次），外加十一处同族的内联形态。
 // 其中有 `|| ""` 守卫的、以及输入已被上游真值判断卡住的那些，换过去语义逐字相同；
 // 唯一一处真有行为差异的是组合弹窗里 `moduleResolvedEntityId` 可能整个缺席（`undefined`）
 // 的那条 —— 旧写法抛 `TypeError`，现在归一成 `""`（渲染得更稳，不改变「是不是 button」的判定）。
-import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=20260919135340";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260919135340";
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=20260919153711";
+// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
+// 本文件原先有十几处内联的 `x?.newState || x[ || 兜底]`（P12 状态条目内联收口），
+// 语义与那个助手逐字相同（唯一的差别见 `state-entry.js` 里「为什么用真值判定」那段）。
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260919153711";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260919153711";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -82,11 +86,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260919135340";
+} from "./climate.js?v=20260919153711";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260919135340";
+} from "./device-profiles.js?v=20260919153711";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -95,26 +99,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260919135340";
-import { confirmAction } from "../ui-confirm.js?v=20260919135340";
+} from "../related-entities.js?v=20260919153711";
+import { confirmAction } from "../ui-confirm.js?v=20260919153711";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260919135340";
+} from "./entity-power.js?v=20260919153711";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260919135340";
-import { componentActionIsSupported } from "../action-rules.js?v=20260919135340";
+} from "../virtual-entities.js?v=20260919153711";
+import { componentActionIsSupported } from "../action-rules.js?v=20260919153711";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260919135340";
+} from "./transform-geometry.js?v=20260919153711";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -124,7 +128,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260919135340";
+} from "./effect-geometry.js?v=20260919153711";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -143,14 +147,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260919135340";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919135340";
+} from "./light-runtime.js?v=20260919153711";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919153711";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260919135340";
+} from "./vacuum-runtime.js?v=20260919153711";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -182,16 +186,16 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260919135340";
+} from "./cover-runtime.js?v=20260919153711";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919135340";
+import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919153711";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260919135340";
+} from "./runtime-dialog-motion.js?v=20260919153711";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -201,13 +205,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260919135340";
+} from "./runtime-caches.js?v=20260919153711";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260919135340";
+} from "./runtime-document.js?v=20260919153711";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -1213,7 +1217,7 @@ export class PanelRenderer {
     }
     const waterHeaterState = this.states.get(waterHeaterEntityId);
     const waterHeaterAttributes =
-      (waterHeaterState?.newState || waterHeaterState)?.attributes || {};
+      resolveStateEntry(waterHeaterState)?.attributes || {};
     const currentTemperature = Number(waterHeaterAttributes.temperature);
     const minTemperature = Number(waterHeaterAttributes.min_temp);
     const maxTemperature = Number(waterHeaterAttributes.max_temp);
@@ -3688,7 +3692,7 @@ export class PanelRenderer {
    */
   rememberLightVisualState(visualEntityIdInput, visualStateUpdate) {
     const visualEntityId = String(visualEntityIdInput || "");
-    const newEntityState = visualStateUpdate?.newState || visualStateUpdate;
+    const newEntityState = resolveStateEntry(visualStateUpdate);
     if (!visualEntityId.startsWith("light.") || !newEntityState?.attributes) {
       return;
     }
@@ -3788,7 +3792,7 @@ export class PanelRenderer {
     if (
       entityPowerIsOn(
         String(optimisticEntityIdInput || ""),
-        optimisticStateUpdate?.newState || optimisticStateUpdate,
+        resolveStateEntry(optimisticStateUpdate),
         affectedEffectComponent || {}
       ) === pendingOptimistic.desiredActive
     ) {
@@ -3799,7 +3803,7 @@ export class PanelRenderer {
           states: new Map([
             [
               String(optimisticEntityIdInput || ""),
-              optimisticStateUpdate?.newState || optimisticStateUpdate
+              resolveStateEntry(optimisticStateUpdate)
             ]
           ])
         })
@@ -4129,11 +4133,10 @@ export class PanelRenderer {
     const coverEntityState = this.states.get(resolvedPowerTargetEntityId);
     // 状态缓存里可能存的是 `{newState, oldState}` 包装（推送时的原始载荷），
     // 也可能直接是状态对象，两种形状都要兼容。
-    const currentEntityState = coverEntityState?.newState ||
-      coverEntityState || {
-        entityId: resolvedPowerTargetEntityId,
-        attributes: {}
-      };
+    const currentEntityState = resolveStateEntry(coverEntityState, {
+      entityId: resolvedPowerTargetEntityId,
+      attributes: {}
+    });
     const isCoverDomainEntity = String(resolvedPowerTargetEntityId || "").startsWith("cover.");
     const coverIsDream =
       isCoverDomainEntity &&
@@ -10108,12 +10111,11 @@ export class PanelRenderer {
       throw new Error("该控件没有关联实体。");
     }
     this.closeRuntimeDialog();
-    const capabilityDetailsState = this.states.get(capabilityDetailsEntityId)?.newState ||
-      this.states.get(capabilityDetailsEntityId) || {
-        entityId: capabilityDetailsEntityId,
-        state: "unknown",
-        attributes: {}
-      };
+    const capabilityDetailsState = resolveStateEntry(this.states.get(capabilityDetailsEntityId), {
+      entityId: capabilityDetailsEntityId,
+      state: "unknown",
+      attributes: {}
+    });
     const capabilityDetailsProfile = this.deviceProfile(capabilityDetailsEntityId);
     const isAirPurifierCapability = capabilityDetailsProfile?.deviceType === "air-purifier";
     const capabilityDialogElement = document.createElement("dialog");
@@ -10249,10 +10251,7 @@ export class PanelRenderer {
                 ).trim();
         }
       };
-      syncCapabilityMetricValue(
-        this.states.get(metricMetadataItem.entityId)?.newState ||
-          this.states.get(metricMetadataItem.entityId)
-      );
+      syncCapabilityMetricValue(resolveStateEntry(this.states.get(metricMetadataItem.entityId)));
       detailsHandlersByEntityId.set(metricMetadataItem.entityId, [syncCapabilityMetricValue]);
     }
     this.detailsStateSync = {
@@ -10312,12 +10311,11 @@ export class PanelRenderer {
     this.closeRuntimeDialog();
     const purifierDeviceProfile = this.deviceProfile(purifierEntityId);
     const purifierRelatedEntityIds = selectedRelatedEntityIds(purifierComponent);
-    let purifierState = this.states.get(purifierEntityId)?.newState ||
-      this.states.get(purifierEntityId) || {
-        entityId: purifierEntityId,
-        state: "unknown",
-        attributes: {}
-      };
+    let purifierState = resolveStateEntry(this.states.get(purifierEntityId), {
+      entityId: purifierEntityId,
+      state: "unknown",
+      attributes: {}
+    });
     const purifierDialogElement = document.createElement("dialog");
     purifierDialogElement.className =
       "hb-entity-details-dialog air-purifier-details capability-details";
@@ -10502,9 +10500,7 @@ export class PanelRenderer {
      * @returns {object|null} 该实体的状态；从未收到过状态时为 null。
      */
     const entityStateForCandidate = candidateForMetric =>
-      this.states.get(candidateForMetric?.id)?.newState ||
-      this.states.get(candidateForMetric?.id) ||
-      null;
+      resolveStateEntry(this.states.get(candidateForMetric?.id));
     /**
      * 从指标的多个候选实体中挑出当前有可用数值的一个，全都不可用时退回第一个。
      *
@@ -10634,7 +10630,7 @@ export class PanelRenderer {
       very_poor: "很差"
     };
     let airQualityState = airQualityEntityId
-      ? this.states.get(airQualityEntityId)?.newState || this.states.get(airQualityEntityId)
+      ? resolveStateEntry(this.states.get(airQualityEntityId))
       : null;
     const pm25MetricDefinition = purifierMetricDefinitions.find(
       pm25MetricDefinitionEntry => pm25MetricDefinitionEntry.key === "pm25"
@@ -10918,12 +10914,11 @@ export class PanelRenderer {
       throw new Error("该控件没有关联实体。");
     }
     this.closeRuntimeDialog();
-    let mediaPlayerState = this.states.get(mediaPlayerDetailsEntityId)?.newState ||
-      this.states.get(mediaPlayerDetailsEntityId) || {
-        entityId: mediaPlayerDetailsEntityId,
-        state: "unknown",
-        attributes: {}
-      };
+    let mediaPlayerState = resolveStateEntry(this.states.get(mediaPlayerDetailsEntityId), {
+      entityId: mediaPlayerDetailsEntityId,
+      state: "unknown",
+      attributes: {}
+    });
     const mediaPlayerDialogElement = document.createElement("dialog");
     mediaPlayerDialogElement.className =
       "hb-entity-details-dialog media-player-details capability-details";
@@ -11473,7 +11468,7 @@ export class PanelRenderer {
         : moduleGridPlacement.width;
       const moduleResolvedEntityId = moduleEntityId || resolvedPopupModule.entityId;
       const moduleEntityState = this.states.get(moduleResolvedEntityId);
-      const moduleCurrentState = moduleEntityState?.newState || moduleEntityState;
+      const moduleCurrentState = resolveStateEntry(moduleEntityState);
       const popupModuleElement = document.createElement("section");
       popupModuleElement.className =
         "hb-custom-popup-module hb-custom-popup-module--" + (resolvedPopupModule.type || "generic");
@@ -11538,12 +11533,11 @@ export class PanelRenderer {
         const stateForPopupEntity = popupStateEntityId => {
           const popupEntityStateValue = this.states.get(popupStateEntityId);
           return (
-            popupEntityStateValue?.newState ||
-            popupEntityStateValue || {
+            resolveStateEntry(popupEntityStateValue, {
               entityId: popupStateEntityId,
               state: "unknown",
               attributes: {}
-            }
+            })
           );
         };
         const bedBodyElement = document.createElement("div");
@@ -12563,11 +12557,10 @@ export class PanelRenderer {
         let bathHeaterLightControl = null;
         if (bathHeaterLightEntity?.entityId) {
           const bathHeaterLightState = this.states.get(bathHeaterLightEntity.entityId);
-          const bathHeaterLightResolvedState = bathHeaterLightState?.newState ||
-            bathHeaterLightState || {
-              state: "unknown",
-              attributes: {}
-            };
+          const bathHeaterLightResolvedState = resolveStateEntry(bathHeaterLightState, {
+            state: "unknown",
+            attributes: {}
+          });
           bathHeaterLightControl = this.createBathHeaterLightControl(
             bathHeaterLightEntity.entityId,
             bathHeaterLightResolvedState,
@@ -12722,7 +12715,7 @@ export class PanelRenderer {
         const airerLightStateRecord = airerLightEntityId
           ? this.states.get(airerLightEntityId)
           : null;
-        let airerLightState = airerLightStateRecord?.newState || airerLightStateRecord || null;
+        let airerLightState = resolveStateEntry(airerLightStateRecord);
         const airerPositionEntityId =
           (isAirerCover
             ? relatedAirerPositionNumberEntity(this.entityMetadata, moduleResolvedEntityId)
@@ -12730,7 +12723,7 @@ export class PanelRenderer {
           )?.entityId || "";
         const airerPositionStateRecord = this.states.get(airerPositionEntityId);
         const airerPositionState =
-          airerPositionStateRecord?.newState || airerPositionStateRecord || null;
+          resolveStateEntry(airerPositionStateRecord);
         const airerCurrentPositionEntityId =
           (isAirerCover
             ? relatedAirerCurrentPositionSensor(this.entityMetadata, moduleResolvedEntityId)
@@ -12743,7 +12736,7 @@ export class PanelRenderer {
           )?.entityId || "";
         const airerMotorSpeedStateRecord = this.states.get(airerMotorSpeedEntityId);
         const airerMotorSpeedState =
-          airerMotorSpeedStateRecord?.newState || airerMotorSpeedStateRecord || null;
+          resolveStateEntry(airerMotorSpeedStateRecord);
         const airerMotorActionEntities = isAirerCover
           ? relatedAirerMotorActionEntities(this.entityMetadata, moduleResolvedEntityId)
           : {};
@@ -12757,7 +12750,7 @@ export class PanelRenderer {
           airerCurrentPositionEntityId || airerPositionEntityId
         );
         const airerFeedbackState =
-          airerFeedbackStateRecord?.newState || airerFeedbackStateRecord || null;
+          resolveStateEntry(airerFeedbackStateRecord);
         const supportsCoverTiltControl = isDreamCurtainCover && supportsCoverTilt;
         const coverMotorIsReversed = coverMotorIsReversedForComponent(resolvedPopupModule);
         const closeCoverService = coverMotorIsReversed ? "open_cover" : "close_cover";
@@ -13245,7 +13238,7 @@ export class PanelRenderer {
          */
         const getEntityStateRecord = entityId => {
           const entityStateRecord = this.states.get(entityId);
-          return entityStateRecord?.newState || entityStateRecord || null;
+          return resolveStateEntry(entityStateRecord);
         };
         /**
          * 判断实体是否处于「有可读数值」的状态。
@@ -16997,12 +16990,11 @@ export class PanelRenderer {
     const getExtensionEntityState = handlerTargetEntityId => {
       const extensionStateRecord = this.states.get(handlerTargetEntityId);
       return (
-        extensionStateRecord?.newState ||
-        extensionStateRecord || {
+        resolveStateEntry(extensionStateRecord, {
           entityId: handlerTargetEntityId,
           state: "unknown",
           attributes: {}
-        }
+        })
       );
     };
     /**
@@ -17979,12 +17971,11 @@ export class PanelRenderer {
     const readBedEntityState = electricBedEntityId => {
       const bedEntityState = this.states.get(electricBedEntityId);
       return (
-        bedEntityState?.newState ||
-        bedEntityState || {
+        resolveStateEntry(bedEntityState, {
           entityId: electricBedEntityId,
           state: "unknown",
           attributes: {}
-        }
+        })
       );
     };
     /**
@@ -18339,7 +18330,7 @@ export class PanelRenderer {
           .map(relatedVacuumEntityId => {
             const relatedEntityState = this.states.get(relatedVacuumEntityId);
             const relatedEntityAttributes =
-              (relatedEntityState?.newState || relatedEntityState)?.attributes || {};
+              resolveStateEntry(relatedEntityState)?.attributes || {};
             return [
               relatedVacuumEntityId,
               relatedEntityAttributes.fan_speed_list,
@@ -18486,11 +18477,10 @@ export class PanelRenderer {
     const selectedEntityIds = selectedRelatedEntityIds(vacuumControlComponent);
     this.closeRuntimeDialog();
     const vacuumPrimaryState = this.states.get(vacuumPrimaryEntityId);
-    let vacuumState = vacuumPrimaryState?.newState ||
-      vacuumPrimaryState || {
-        state: "unknown",
-        attributes: {}
-      };
+    let vacuumState = resolveStateEntry(vacuumPrimaryState, {
+      state: "unknown",
+      attributes: {}
+    });
     const vacuumDialogElement = document.createElement("dialog");
     vacuumDialogElement.className = "hb-entity-details-dialog vacuum-details";
     if (interaction3dOptions) {
@@ -18776,7 +18766,7 @@ export class PanelRenderer {
     );
     const cleaningModeEntityId = String(cleaningModeEntity?.entityId || "");
     const cleaningModeState = cleaningModeEntityId ? this.states.get(cleaningModeEntityId) : null;
-    let cleaningModeCurrentState = cleaningModeState?.newState || cleaningModeState || null;
+    let cleaningModeCurrentState = resolveStateEntry(cleaningModeState);
     const vacuumBatteryEntity = relatedVacuumBatteryEntity(
       this.entityMetadata,
       this.states,
@@ -18786,7 +18776,7 @@ export class PanelRenderer {
     const vacuumBatteryState = vacuumBatteryEntityId
       ? this.states.get(vacuumBatteryEntityId)
       : null;
-    let vacuumBatteryCurrentState = vacuumBatteryState?.newState || vacuumBatteryState || null;
+    let vacuumBatteryCurrentState = resolveStateEntry(vacuumBatteryState);
     let cleaningModeGroup = null;
     /**
      * 记录清洁模式实体的最新状态，并同步清洁模式分组的选中态。
@@ -19496,12 +19486,11 @@ export class PanelRenderer {
         hintClear: "当前未检测到天然气"
       }
     }[presenceSensorKind];
-    let presenceState = this.states.get(presenceEntityId)?.newState ||
-      this.states.get(presenceEntityId) || {
-        entityId: presenceEntityId,
-        state: "unknown",
-        attributes: {}
-      };
+    let presenceState = resolveStateEntry(this.states.get(presenceEntityId), {
+      entityId: presenceEntityId,
+      state: "unknown",
+      attributes: {}
+    });
     const presenceHistoryHours = Math.max(
       1,
       Math.min(168, Number(presenceComponent.properties?.historyHours || 24))
@@ -20065,7 +20054,7 @@ export class PanelRenderer {
       return;
     }
     const entityCatalogState = this.states.get(resolvedDetailsEntityId);
-    const detailsEntityState = entityCatalogState?.newState || entityCatalogState;
+    const detailsEntityState = resolveStateEntry(entityCatalogState);
     const entityAttributes = detailsEntityState?.attributes || {};
     const isLineChart = detailsComponent.type === "line-chart";
     const isCover = !isLineChart && detailsEntityDomain === "cover";
@@ -20106,7 +20095,7 @@ export class PanelRenderer {
     const airerLightRelatedState = airerLightRelatedEntityId
       ? this.states.get(airerLightRelatedEntityId)
       : null;
-    let airerLightCurrentState = airerLightRelatedState?.newState || airerLightRelatedState || null;
+    let airerLightCurrentState = resolveStateEntry(airerLightRelatedState);
     const airerPositionNumberEntityId =
       (isAirerDevice
         ? relatedAirerPositionNumberEntity(this.entityMetadata, resolvedDetailsEntityId)
@@ -20114,7 +20103,7 @@ export class PanelRenderer {
       )?.entityId || "";
     const airerPositionNumberState = this.states.get(airerPositionNumberEntityId);
     const airerPositionCurrentState =
-      airerPositionNumberState?.newState || airerPositionNumberState || null;
+      resolveStateEntry(airerPositionNumberState);
     const airerPositionSensorEntityId =
       (isAirerDevice
         ? relatedAirerCurrentPositionSensor(this.entityMetadata, resolvedDetailsEntityId)
@@ -20127,7 +20116,7 @@ export class PanelRenderer {
       )?.entityId || "";
     const airerMotorSpeedSensorState = this.states.get(airerMotorSpeedSensorId);
     const airerMotorSpeedCurrentState =
-      airerMotorSpeedSensorState?.newState || airerMotorSpeedSensorState || null;
+      resolveStateEntry(airerMotorSpeedSensorState);
     const airerActionEntities = isAirerDevice
       ? relatedAirerMotorActionEntities(this.entityMetadata, resolvedDetailsEntityId)
       : {};
@@ -20141,7 +20130,7 @@ export class PanelRenderer {
       airerPositionSensorEntityId || airerPositionNumberEntityId
     );
     const airerPositionSensorCurrentState =
-      airerPositionSensorState?.newState || airerPositionSensorState || null;
+      resolveStateEntry(airerPositionSensorState);
     const isCoverMotorPolarityReversed =
       isCover && coverMotorIsReversedForComponent(detailsComponent);
     const coverPrimaryService = isCoverMotorPolarityReversed ? "open_cover" : "close_cover";
@@ -21239,11 +21228,10 @@ export class PanelRenderer {
       )?.entityId || "";
     if (bathHeaterLightEntityId && detailsControls) {
       const bathLightStateSnapshot = this.states.get(bathHeaterLightEntityId);
-      const bathLightResolvedState = bathLightStateSnapshot?.newState ||
-        bathLightStateSnapshot || {
-          state: "unknown",
-          attributes: {}
-        };
+      const bathLightResolvedState = resolveStateEntry(bathLightStateSnapshot, {
+        state: "unknown",
+        attributes: {}
+      });
       bathHeaterLightController = this.createBathHeaterLightControl(
         bathHeaterLightEntityId,
         bathLightResolvedState,
@@ -21312,7 +21300,7 @@ export class PanelRenderer {
                 const extensionEntityState = this.states.get(extensionHandlerEntityId);
                 if (extensionEntityState) {
                   for (const extensionStateHandler of extensionHandlerList) {
-                    extensionStateHandler(extensionEntityState.newState || extensionEntityState);
+                    extensionStateHandler(resolveStateEntry(extensionEntityState));
                   }
                 }
               }
@@ -21597,7 +21585,7 @@ export class PanelRenderer {
         const climateLoadingStartedAt = Date.now();
         climatePollTimer = window.setInterval(() => {
           const polledEntityState = this.states.get(resolvedDetailsEntityId);
-          const polledResolvedState = polledEntityState?.newState || polledEntityState;
+          const polledResolvedState = resolveStateEntry(polledEntityState);
           if (polledResolvedState) {
             applyEntityDetailsState(polledResolvedState);
           }
@@ -22158,7 +22146,7 @@ export class PanelRenderer {
             this.states.set(snapshotEntityState.entityId, snapshotEntityState);
             this.applyRuntimeStateHandlers(
               snapshotEntityState.entityId,
-              snapshotEntityState.newState || snapshotEntityState
+              resolveStateEntry(snapshotEntityState)
             );
           }
         }
@@ -22172,7 +22160,7 @@ export class PanelRenderer {
             const handlerEntityState = this.states.get(detailsHandlerEntityId);
             if (handlerEntityState) {
               for (const stateHandlerCallback of handlerCallbacks) {
-                stateHandlerCallback(handlerEntityState.newState || handlerEntityState);
+                stateHandlerCallback(resolveStateEntry(handlerEntityState));
               }
             }
           }
@@ -22181,7 +22169,7 @@ export class PanelRenderer {
             ? this.states.get(this.detailsStateSync.entityId)
             : null;
           if (this.detailsStateSync && dialogEntityState) {
-            this.detailsStateSync.apply(dialogEntityState.newState || dialogEntityState);
+            this.detailsStateSync.apply(resolveStateEntry(dialogEntityState));
           }
         }
         this.refreshRuntimeComponents([...snapshotEntityIds, ...this.removedRuntimeEntityIds]);
@@ -22241,14 +22229,14 @@ export class PanelRenderer {
           for (const changedStateHandler of this.detailsStateSync.handlers.get(
             socketMessage.entityId
           )) {
-            changedStateHandler(socketMessage.newState || socketMessage);
+            changedStateHandler(resolveStateEntry(socketMessage));
           }
         } else if (this.detailsStateSync?.entityId === socketMessage.entityId) {
-          this.detailsStateSync.apply(socketMessage.newState || socketMessage);
+          this.detailsStateSync.apply(resolveStateEntry(socketMessage));
         }
         this.applyRuntimeStateHandlers(
           socketMessage.entityId,
-          socketMessage.newState || socketMessage
+          resolveStateEntry(socketMessage)
         );
         this.scheduleRuntimeRender(socketMessage.entityId);
       }

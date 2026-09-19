@@ -16,7 +16,10 @@
 // 为什么值得破一次例：本文件原先内联了一份 `String(id || … || "").split(".", 1)[0]`
 // 来判灯域，与 `entityDomainFromId` 的契约逐字相同（输入自带 `|| ""` 守卫）——
 // 留着它就是「同一份取域知识两份实现」，而那正是这批要收口的东西。
-import { entityDomainFromId } from "../utils/entities.js?v=20260919135340";
+import { entityDomainFromId } from "../utils/entities.js?v=20260919153711";
+// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
+// 本文件原先内联了 `entityState?.newState || entityState || {}`（P12 状态条目内联收口）。
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260919153711";
 
 /**
  * 把 0~100 的相对色温百分比换算成开尔文。
@@ -124,7 +127,7 @@ export function lightSupportsColor(entityAttributes = {}) {
  * @returns {{brightness: boolean, colorTemperature: boolean}} 两项能力是否可用。
  */
 export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
-  const stateObject = entityState?.newState || entityState || {};
+  const stateObject = resolveStateEntry(entityState, {});
   const stateAttributes = stateObject?.attributes || {};
   // 实体 ID 缺失时退回状态对象自带的 entityId / domain，避免拿不到域就判成不支持。
   const isLightEntity =

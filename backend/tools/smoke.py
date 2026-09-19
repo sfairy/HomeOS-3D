@@ -3333,13 +3333,23 @@ def check_frontend_helper_contract_single_source() -> None:
       P12 残留补齐批次收掉**（本函数第 7 条闸专门钉住它不再以内联写法回来），其中九处语义
       逐字不变、两处是有意的行为改动（说明写在 ``utils/entities.js`` 的模块头）；
     * 全前端 70 余处内联的 ``x?.newState || x`` / ``(x?.newState || x)?.attributes`` 取用
-      —— 其中约 30 处落在上面那个 3D 运行时树里，同一个边界问题。
+      —— ``/static/`` 树上那 47 处已在 P12 状态条目内联收口批次换成 ``resolveStateEntry(...)``
+      （本函数第 9 条闸钉住它不再以内联写法回来）；**剩下的约 30 处落在上面那个 3D 运行时树里**，
+      同一个边界问题。另有 ``?.newState?.state ?? …`` 取状态文本的三处是**另一份知识**
+      （字段优先级相反），本批点名不动。
 
     P12 收口时还把这一族最后一处口径差异统一了：``clampCoercedNumber`` 的兜底现在与另外两份
     一样**原样返回、不参与夹取**（原先它会跟着夹一次，``null`` 这类区间外哨兵因此不能用）。
     ``renderer/registry.js`` 里三处兜底是推导表达式、存在越界现实的调用点，改到调用点显式
     ``clampNumber(...)`` 夹一次，行为与统一前逐字相同 —— 第 8 条闸钉住这三处补偿（判据与那句
     「宁可偏严」的取舍写在 ``_frontend_clamp_fallback_is_explicit`` 的 docstring 里）。
+
+    P12 状态条目内联收口批次还补了一条**消费侧**的活体断言（并进 ``state-entry`` 探针）：
+    内联写法 ``x?.newState || x`` 与 ``resolveStateEntry(x)`` 唯一的差别是「基表达式为假值时，
+    前者漏出那个假值（``undefined`` / ``""`` / ``0``）、后者归一成 ``null``」；逐处核过
+    ``/static`` 树里那 47 处的下游之后确认不可观测（下游要么用 ``?.`` 取字段、要么先做真值
+    判定、要么自己再归一一次），探针把这三类下游形态各钉一格 —— 谁把默认兜底改成空串之类，
+    那格会红。「不可观测」这条结论本身写在 ``utils/state-entry.js`` 的模块头。
 
     还有一条**判据本身的边界**（P12 撞到过）：这条闸按「自由标识符」判使用点，所以
     **依赖注入的形参名不能与助手同名**。``editor-picker-queries.js`` 收的是
@@ -3535,6 +3545,57 @@ def check_frontend_helper_contract_single_source() -> None:
         '；'.join(unclamped_fallbacks[:8])
         if unclamped_fallbacks
         else '扫过 /static 全部脚本，算出来的兜底都夹过或没有这种调用',
+    )
+
+    # 9) P12 状态条目内联收口：`/static/` 树里不许再以内联形态重写这份知识。
+    #    上面几条只管**具名**助手（`resolveStateEntry` 的五个字面/形参名副本已在 P10 第六批
+    #    收敛），而「变更对象 / 状态对象两种形态」这份知识在本批之前还有 50 余处是**裸表达式**
+    #    —— `x?.newState || x`、`(x?.newState || x)?.attributes`、以及带第三兜底的那三形态
+    #    （`|| {}` / `|| null` / `|| {entityId:…, state:"unknown", attributes:{}}`）——
+    #    本批把 `/static/` 树上这 47 处逐点换成 `resolveStateEntry(...)`。这条钉住
+    #    「不许再以内联写法回来」：抄回表达式不报错，表现只是「状态读不到」，一路静默。
+    #
+    #    判据故意只认**两种无歧义的形态**，把假红压到零：
+    #      * `newState || …`：真值判定 + `||` 兜底就是剥壳本身（本批收掉的那一族，
+    #        含 `(…?.newState || …)?.attributes` 这种外层再取属性的写法）；
+    #      * `hasOwnProperty("newState")` / `hasOwn(x, "newState")`：被合并掉的那份**严格版**
+    #        判定（原先在 `light-statistics-runtime.js`），抄回来同样是重写这份知识。
+    #    刻意**不**认 `?.newState?.state ?? …`：那是另一份知识（取状态文本，字段优先级与剥壳
+    #    相反 —— 先看状态对象自己的 `.state`），本批点名不动它，`cover-runtime.js` 与
+    #    `registry.js` 共三处留在那里；也**不**认 `newState === "open"`（菜单事件字段，
+    #    与状态条目无关）与 `newState: <乐观状态>`（生产者，这份知识的**来源**而非消费）。
+    #    唯一允许出现这份剥壳写法的地方是 `utils/state-entry.js` 里那份实现本身。
+    #
+    #    `blank_strings=False`：这条要按**字符串实参**判形态（`"newState"` 被抹掉就认不出
+    #    `hasOwnProperty` 那一款），所以只抹注释。
+    inline_state_unwraps: list[str] = []
+    state_unwrap_patterns = (
+        re.compile(r'newState\s*\|\|'),
+        # `Object.hasOwn(x, "newState")` 与 `Object.prototype.hasOwnProperty.call(x, "newState")`
+        # 都要认：后者在 `hasOwnProperty` 与参数之间夹了 `.call`，所以不能要求紧跟 `(`。
+        re.compile(r'hasOwn(?:Property)?\b[^;\n]{0,120}["\']newState["\']'),
+    )
+    for path in sorted((frontend_root / 'static').rglob('*.js')):
+        if '/vendor/' in path.as_posix():
+            continue
+        try:
+            source = path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:  # 前端资源里的二进制伪装交给语法门去报
+            continue
+        relative = path.relative_to(PROJECT_ROOT).as_posix()
+        if relative == 'frontend/static/utils/state-entry.js':
+            continue
+        code = _frontend_code_only(source, blank_strings=False)
+        for pattern in state_unwrap_patterns:
+            for match in pattern.finditer(code):
+                line_number = code.count('\n', 0, match.start()) + 1
+                inline_state_unwraps.append(f'{relative}:{line_number}')
+    check(
+        'P12 状态条目内联收口：「变更对象 / 状态对象」的剥壳在 /static 树里再没有内联写法（只剩 utils/state-entry.js 那一份实现）',
+        not inline_state_unwraps,
+        '；'.join(sorted(set(inline_state_unwraps))[:8])
+        if inline_state_unwraps
+        else '扫过 /static 全部脚本，无内联剥壳',
     )
 
 

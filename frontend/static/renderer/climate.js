@@ -19,7 +19,7 @@
 // `String(translationEntityId).split(".")[0]` 也换成它 —— 传入 `null` / `0` / `false`
 // 时不再拼出以 `"null"` / `"0"` / `"false"` 为域的翻译键，直接按「取不到域」返回空串。
 // 有钉子把这条新行为钉住（探针 `entity-helpers` 的 climate-translation 一条）。
-import { entityDomainFromId } from "../utils/entities.js?v=20260919135340";
+import { entityDomainFromId } from "../utils/entities.js?v=20260919153711";
 
 // 控件属性 deviceType 允许的取值；auto 表示交给 resolveClimateDeviceType 推断。
 const CLIMATE_DEVICE_TYPES = new Set(["auto", "air-conditioner", "bath-heater"]);

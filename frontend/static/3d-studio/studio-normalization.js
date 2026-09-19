@@ -11,7 +11,7 @@
  *   本模块原先那份的嵌套顺序与其余各处相反，区间上下限写反时结果会静默不同，
  *   收敛时按唯一实现的口径统一。
  */
-import { clampNumber } from "../utils/numbers.js?v=20260919135340";
+import { clampNumber } from "../utils/numbers.js?v=20260919153711";
 
 /**
  * 转成有限数字，失败时用兜底值。

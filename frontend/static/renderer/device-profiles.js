@@ -20,7 +20,10 @@
 // 取域走 `utils/entities.js` 的 `entityDomainOf`（P12 收口 B 类末尾那一项）。本文件原先有七处
 // 内联的 `String(entity?.domain || entity?.entityId || "").split(".", 1)[0]` —— 与那个助手的
 // **函数体逐字相同**（七处输入都自带 `|| ""` 守卫），换成调用后语义一字未变。
-import { entityDomainOf, entitySearchText } from "../utils/entities.js?v=20260919135340";
+import { entityDomainOf, entitySearchText } from "../utils/entities.js?v=20260919153711";
+// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
+// 本文件原先内联了 `stateEntry?.newState || stateEntry || {}`（P12 状态条目内联收口）。
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260919153711";
 
 // 认定为小米生态的 HA 集成平台名：分别是旧版 MIoT 与新版 Xiaomi Home 集成。
 const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);
@@ -353,7 +356,7 @@ export function resolveXiaomiDeviceProfile(
     deviceEntities.push(primaryEntity);
   }
   const stateEntry = statesByEntityId?.get?.(entityId);
-  const stateObject = stateEntry?.newState || stateEntry || {};
+  const stateObject = resolveStateEntry(stateEntry, {});
     // 检索文本刻意包含设备级信息（名称 / 厂商 / 型号）与所有同设备实体的命名，
     // 因为诸如「电动床」「浴霸」这类判断往往只在设备名或某个附属实体名里出现。
   const searchText = entitySearchText(

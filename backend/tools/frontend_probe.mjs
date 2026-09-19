@@ -2269,6 +2269,12 @@ async function runHomeSnapshotSuite() {
  */
 async function runOptimisticToggleSuite() {
   const source = fs.readFileSync(path.join(ROOT, "frontend/static/renderer/renderer.js"), "utf8");
+  // P12 状态条目内联收口把 `optimisticStateUpdate.newState || optimisticStateUpdate` 换成了
+  // `resolveStateEntry(...)`，于是切片出来的这段代码多了一个自由标识符 —— 这里注入**真实实现**
+  // （不是复刻），口径变了这里跟着变，探针才是在测被测代码而不是测桩。
+  const { resolveStateEntry } = await import(
+    pathToFileURL(path.join(ROOT, "frontend/static/utils/state-entry.js")).href
+  );
   const toggleSource = [
     extractVariableDeclaration(source, "OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS"),
     extractFunction(source, "createOptimisticToggleTimeoutError"),
@@ -2304,6 +2310,8 @@ async function runOptimisticToggleSuite() {
       throw new Error("非 cover 实体不该走 cover 分支");
     },
     entityPowerIsOn: (entityId, entityState, powerComponent) => !!powerComponent?.on,
+    // 剥离变更对象外壳的真实实现（见上面那段说明）。
+    resolveStateEntry,
     optimisticToggleState: (entityId, entityState, powerComponent) => ({
       ...entityState,
       state: powerComponent?.on ? "on" : "off"
@@ -4819,6 +4827,38 @@ async function runStateEntrySuite() {
       变更对象: resolveStateEntry(changeObject)?.attributes,
       缺失: resolveStateEntry(null)?.attributes || {}
     })
+  );
+
+  // P12 状态条目内联收口：`/static/` 树上原先 47 处裸表达式（`x?.newState || x`，
+  // 含 `|| {}` / `|| null` / `|| {占位状态对象}` 三形态）逐点换成了 `resolveStateEntry(...)`。
+  // 两种写法**唯一**可能的差别是「基表达式为假值」时：内联写法漏出那个假值本身
+  // （`undefined` / `""` / `0` / `false`），`resolveStateEntry` 归一成默认兜底 `null`。
+  // 逐处核过下游之后确认不可观测 —— 消费方能拆成三类：`?.` 取字段、真值判定、
+  // 自己再归一一次（`|| {}` / `String(x ?? "")`）。这条把三类各钉一格：谁把默认兜底从
+  // `null` 改成空串之类，或者实现又退回「漏出假值」，这里立刻红。
+  // 防呆：`resolveStateEntry` 的默认兜底必须仍是 `null`（第三格靠 `String(null ?? "")` 与
+  // `String("" ?? "")` 相同来兼容两种写法，但如果兜底变成 `""`，`?.attributes || {}` 那格
+  // 仍然相同 —— 所以另加一条直接断言默认兜底本身）。
+  const falsyStateInputs = [undefined, null, "", 0, false];
+  const stateConsumerView = value =>
+    JSON.stringify({
+      状态文本: String(value?.state ?? ""),
+      真值判定: Boolean(value),
+      属性个数: Object.keys(value?.attributes || {}).length
+    });
+  check(
+    "P12 状态条目内联收口：假值输入下 `resolveStateEntry(x)` 与内联写法在三种下游形态上结果一致（A2 归一不可观测），且默认兜底仍是 null",
+    falsyStateInputs.every(
+      input =>
+        stateConsumerView(resolveStateEntry(input)) === stateConsumerView(input?.newState || input)
+    ) && resolveStateEntry(undefined) === null,
+    JSON.stringify(
+      falsyStateInputs.map(input => [
+        String(input),
+        stateConsumerView(resolveStateEntry(input)),
+        stateConsumerView(input?.newState || input)
+      ])
+    )
   );
 }
 

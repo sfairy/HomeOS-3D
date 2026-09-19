@@ -29,7 +29,7 @@ import {
   closedPath,
   sampleClosedPath,
   presenceVisibleOnPage
-} from "./presence-motion.js?v=20260919135340";
+} from "./presence-motion.js?v=20260919153711";
 /**
  * 创建人体存在角色场景。
  *

@@ -11,7 +11,7 @@
  *   复用的 <dialog>；关闭后节点保留，下次直接改文案再开。
  */
 
-const STYLE_HREF = "/static/ui-confirm.css?v=20260919135340";
+const STYLE_HREF = "/static/ui-confirm.css?v=20260919153711";
 const DIALOG_ID = "homeos-ui-confirm-dialog";
 
 let stylePromise = null;

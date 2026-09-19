@@ -9,7 +9,7 @@
  *   都会让「点一次登录后按钮永久灰掉」——请求不返回时用户连重试都点不了。
  */
 
-import { apiFetch } from "./utils/api-fetch.js?v=20260919135340";
+import { apiFetch } from "./utils/api-fetch.js?v=20260919153711";
 
 const form = document.querySelector("#login-form"),
   message = document.querySelector("#message"),
