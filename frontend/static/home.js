@@ -7460,7 +7460,9 @@ const {
   entityPickerConfig: entityPickerConfig,
   pickerEntitiesForComponentType: selectableEntities,
   entityPickerText: entityOptionLabel,
-  entityDomain: entityDomain
+  // P10 收敛时本文件那份局部 entityDomain 被删掉，这一处漏改成 entityDomainOf。
+  // 这行在模块顶层求值：写错名字不是「少一个功能」，而是整个编辑器脚本一行都不执行。
+  entityDomain: entityDomainOf
 });
 const editorPickers = createInteraction3dEditorPickers({
   getState: stateEntityId => editorRenderer?.states?.get(stateEntityId),
