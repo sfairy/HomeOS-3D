@@ -10750,6 +10750,253 @@ def check_python_lint_clean() -> None:
     check(name, probe.returncode == 0, detail)
 
 
+#: P12 前端死导出扫描：这些目录名一律不下探（第三方打包件、依赖与构建产物）。
+_JS_SCAN_PRUNED_DIRS = frozenset(
+    {'node_modules', 'vendor', '.git', '.venv', '.venv-store', '.extracted', '__pycache__'}
+)
+
+#: 「字符串里写着模块路径」的判据：以 .js / .mjs 收尾，允许后面跟 `?v=` 缓存戳。
+#: 三种引号都认（模板串里的 `${...}` 解析不出文件，交给下面的解析函数返回 None）。
+_JS_MODULE_PATH_LITERAL = re.compile(r"""["'`]([^"'`\n]*?\.m?js(?:\?[^"'`\n]*)?)["'`]""")
+
+#: 静态子句里的路径：`from "..."`、`import "..."`、`export * from "..."`。
+#: 组 1 是路径字符串本身。这些位置必须**排除**在「按路径点名」之外 —— 否则每个静态
+#: import 都会把它的目标标成「有人整体在用」，这条闸就永远报不出任何东西。
+_JS_STATIC_SPECIFIER = re.compile(
+    r"""(?:from\s*|import\s*|export\s*\*\s*(?:as\s+[A-Za-z_$][\w$]*\s*)?from\s*)["']([^"'\n]+)["']"""
+)
+
+#: 静态具名 import：组 1 是花括号里的名单、组 2 是路径（`import X, { a } from` 也认）。
+_JS_NAMED_IMPORT = re.compile(
+    r"""import\s*(?:[A-Za-z_$][\w$]*\s*,\s*)?\{([^}]*)\}\s*from\s*["']([^"'\n]+)["']"""
+)
+#: `export { a, b as c } from "..."`：重导出同样算「有人用」。
+_JS_NAMED_REEXPORT = re.compile(r"""export\s*\{([^}]*)\}\s*from\s*["']([^"'\n]+)["']""")
+#: 整包拿（`import * as ns from`、`export * from`）：会用到哪些名字静态不可知 → 目标整个豁免。
+_JS_NAMESPACE_IMPORT = re.compile(
+    r"""(?:import\s*\*\s*as\s+[A-Za-z_$][\w$]*|export\s*\*\s*(?:as\s+[A-Za-z_$][\w$]*)?)\s*from\s*["']([^"'\n]+)["']"""
+)
+#: 解构式动态 import 的绑定名：`const { a, b: c } = await import(...)`。
+#: 本仓的 3D 运行时大量用这种装载法，且路径常常由变量算出来（`import(pageBehaviorModuleUrl.href)`），
+#: 静态解析不到目标。于是取兜底口径：这些名字算「有地方在用」，一律不报。
+_JS_DYNAMIC_DESTRUCTURE = re.compile(r"""(?:const|let|var)\s*\{([^}]*)\}\s*=\s*await\s+import\s*\(""")
+#: 整包式动态 import 的绑定名：`const ns = await import(...)`。模块名不可知，但它后面
+#: 一定会写 `ns.某导出`（`backend/tools/frontend_probe.mjs` 就是这么按名字点用渲染器的），
+#: 于是把 `ns.名字` 的名字收进同一份兜底集合。
+_JS_DYNAMIC_NAMESPACE = re.compile(r"""(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*await\s+import\s*\(""")
+
+#: 只有**产品代码**里的「按路径点名」才算「这个模块被整体使用」。测试与工具
+#: （`backend/tools/`、`tools/`）是用路径把模块装进来做断言，用到哪些名字在源码里
+#: 写得很清楚（解构 / `ns.名字`，两条兜底都能认），让它们整包豁免的代价是整个
+#: `utils/` 之类的目录从闸里消失 —— 牙齿测试 F1/F4 就是这么发现这条口径太宽的。
+_JS_PATH_MENTION_ROOTS = ('frontend', 'store', 'docker')
+
+#: 导出名单的三种写法。`export { a as b }` 记的是**对外的 b**（消费方 import 的就是 b）。
+_JS_EXPORT_FUNCTION = re.compile(
+    r'^\s*export\s+(?:async\s+)?(?:function|class)\s+([A-Za-z_$][\w$]*)', re.MULTILINE
+)
+_JS_EXPORT_VAR = re.compile(r'^\s*export\s+(?:const|let|var)\s+([A-Za-z_$][\w$]*)', re.MULTILINE)
+_JS_EXPORT_LIST = re.compile(r'^\s*export\s*\{([^}]*)\}', re.MULTILINE)
+#: `export` 子句本身：命中位置落在里面就不算「引用了这个名字」。
+_JS_EXPORT_CLAUSE = re.compile(
+    r'^\s*export\s*(?:\{[^}]*\}|\*[^;\n]*|(?:async\s+)?(?:function|class|const|let|var)\s+)',
+    re.MULTILINE,
+)
+#: 声明处：`const name =` / `function name(` 里的名字不是引用。
+_JS_DECLARATION_BEFORE = re.compile(r'(?:const|let|var|function|class|async)\s+$')
+
+
+def _js_comment_free(source: str) -> str:
+    """抹掉注释（换行与长度都不变），**字符串原样保留**。
+
+    与 :func:`_frontend_code_only` 的取舍不同：那条闸判「名字有没有被当值用」，
+    所以要连字符串一起抹；这条闸要解析 import 语句里的路径字符串，抹掉就没得解析了。
+    注释必须抹 —— 「对外提供：xxx」这类清单就写在文档注释里，不抹的话每条导出都能
+    被它自己的说明文字救活，闸就成了摆设。
+    """
+    out = list(source)
+    index = 0
+    length = len(source)
+    while index < length:
+        if source.startswith('//', index):
+            while index < length and source[index] != '\n':
+                out[index] = ' '
+                index += 1
+            continue
+        if source.startswith('/*', index):
+            out[index] = out[index + 1] = ' '
+            index += 2
+            while index < length and not source.startswith('*/', index):
+                if source[index] != '\n':
+                    out[index] = ' '
+                index += 1
+            for _ in range(2):
+                if index < length:
+                    out[index] = ' '
+                    index += 1
+            continue
+        index += 1
+    return ''.join(out)
+
+
+def _js_exported_names(source: str) -> set[str]:
+    """这段源码对外导出的名字（只认具名导出，``export default`` 不在此列）。"""
+    names = set(_JS_EXPORT_FUNCTION.findall(source)) | set(_JS_EXPORT_VAR.findall(source))
+    for clause in _JS_EXPORT_LIST.findall(source):
+        for part in clause.split(','):
+            part = part.strip()
+            if not part:
+                continue
+            # `a as b` / `a as default`：只有能当标识符的那个才算（default 由 default 走）。
+            local = part.split(' as ')[-1].strip()
+            if re.fullmatch(r'[A-Za-z_$][\w$]*', local):
+                names.add(local)
+    return names
+
+
+def _js_resolve_module(owner_path: Path, specifier: str) -> Path | None:
+    """把 import 的路径字符串换算成仓库里的文件；算不出来返回 None。
+
+    认四种写法：`/static/...`（frontend/static）、`/api/v1/modules/interaction3d/...`
+    （运行时的 3D 树）、相对路径、以及仓库根起算的路径。查询串（`?v=` 缓存戳）先剥掉。
+    """
+    specifier = specifier.split('?', 1)[0]
+    if not specifier:
+        return None
+    if specifier.startswith('/static/'):
+        target = FRONTEND_ROOT / 'static' / specifier[len('/static/'):]
+    elif specifier.startswith('/api/v1/modules/interaction3d/'):
+        target = (
+            FRONTEND_ROOT
+            / 'modules'
+            / 'interaction3d'
+            / specifier[len('/api/v1/modules/interaction3d/'):]
+        )
+    elif specifier.startswith('.'):
+        target = owner_path.parent / specifier
+    elif specifier.startswith(('frontend/', 'store/', 'docker/', 'tools/')):
+        target = PROJECT_ROOT / specifier
+    else:
+        return None
+    return target.resolve()
+
+
+def _js_name_used_in_source(source: str, name: str) -> bool:
+    """这段（已去注释的）源码里，``name`` 有没有作为值被引用。
+
+    三处不算引用：``export`` 子句自身、声明处（``const name =`` / ``function name(``）、
+    属性访问 ``obj.name``。展开 ``...name`` 算引用 —— 它是「把这份定义摊进新对象」，
+    与属性访问只差一个点，靠前三个字符区分。
+    """
+    clause_spans = [match.span() for match in _JS_EXPORT_CLAUSE.finditer(source)]
+    for match in re.finditer(rf'(?<![\w$]){re.escape(name)}(?![\w$])', source):
+        start = match.start()
+        if any(begin <= start < end for begin, end in clause_spans):
+            continue
+        if source[start - 1:start] == '.' and source[start - 3:start] != '...':
+            continue
+        if _JS_DECLARATION_BEFORE.search(source[max(0, start - 12):start]):
+            continue
+        return True
+    return False
+
+
+def _js_scan_targets() -> list[Path]:
+    """全仓的 JS / MJS 文件（剪掉 vendor、依赖目录与构建产物）。"""
+    targets: list[Path] = []
+    for root, dir_names, file_names in os.walk(PROJECT_ROOT):
+        dir_names[:] = [name for name in dir_names if name not in _JS_SCAN_PRUNED_DIRS]
+        for file_name in file_names:
+            if file_name.endswith(('.js', '.mjs')):
+                targets.append(Path(root, file_name).resolve())
+    return sorted(targets)
+
+
+def check_frontend_dead_exports() -> None:
+    """P12：模块级导出必须有人 import —— 没人 import 的导出就是一块走不到的代码。
+
+    为什么值得一条自检：已有的前端闸只认几类**具体形状**（W19/W21/W23：收敛后的
+    重复实现、退役名字、写死的旧路径），而「这个 export 全仓没人 import」是通用形状 ——
+    一次收敛、一次改名、一次功能下架就会留下几个，review 里看不出来（它长得就像正常
+    的对外接口），只有全仓比对才发现。加这条闸时按此清掉了 14 个（368 行）。
+
+    判据是三个集合的差，方向明确地**宁可漏报也不误报**（一条假阳就足以让人把闸删掉）：
+
+    1. 显式 import：``import { x } from "..."`` / ``export { x } from "..."``；
+    2. 本文件里的引用：文档注释不算、``export`` 子句不算、``obj.x`` 不算（``...x`` 算）；
+    3. 整包豁免：模块只要被**按路径点名**（除静态 import 子句之外的任何字符串，
+       如 ``import(".../x.js")``、``new URL(".../x.js", import.meta.url)``），就整个跳过。
+       这棵树的 3D 运行时大量用 ``const { a, b } = await import(new URL("...js", import.meta.url))``
+       装载模块，点名过的模块名字不可知，一律不看；只查「静态 import 世界」里的死导出。
+       另外 ``import * as ns`` / ``export * from`` / 解构式动态 import 的绑定名都进豁免集。
+
+    边界（写在这里，免得下次有人以为漏了）：只认 JS 里的 import —— HTML 内联脚本、
+    文档、Python 里提到名字都不算「有人用」。本仓现在没有这两种用法（加闸时核过），
+    真出现了，闸会报出那个名字，那时再决定是删导出还是补一条豁免。
+    """
+    sources: dict[Path, str] = {}
+    exported: dict[Path, set[str]] = {}
+    imported: dict[Path, set[str]] = {}
+    opaque: set[Path] = set()
+    dynamically_bound: set[str] = set()
+
+    for path in _js_scan_targets():
+        source = _js_comment_free(path.read_text(encoding='utf-8', errors='replace'))
+        sources[path] = source
+        names = _js_exported_names(source)
+        if names:
+            exported[path] = names
+        for closure, specifier in _JS_NAMED_IMPORT.findall(source) + _JS_NAMED_REEXPORT.findall(
+            source
+        ):
+            target = _js_resolve_module(path, specifier)
+            if target is not None:
+                imported.setdefault(target, set()).update(
+                    part.split(' as ')[0].strip() for part in closure.split(',') if part.strip()
+                )
+        for specifier in _JS_NAMESPACE_IMPORT.findall(source):
+            target = _js_resolve_module(path, specifier)
+            if target is not None:
+                opaque.add(target)
+        for closure in _JS_DYNAMIC_DESTRUCTURE.findall(source):
+            for part in closure.split(','):
+                part = part.strip()
+                if part:
+                    dynamically_bound.add(part.split(':')[-1].split('=')[0].strip())
+        for namespace in _JS_DYNAMIC_NAMESPACE.findall(source):
+            dynamically_bound.update(
+                re.findall(rf'\b{re.escape(namespace)}\.([A-Za-z_$][\w$]*)', source)
+            )
+        if path.relative_to(PROJECT_ROOT).parts[0] not in _JS_PATH_MENTION_ROOTS:
+            continue
+        static_spans = {match.span(1) for match in _JS_STATIC_SPECIFIER.finditer(source)}
+        for match in _JS_MODULE_PATH_LITERAL.finditer(source):
+            if match.span(1) in static_spans:
+                continue
+            target = _js_resolve_module(path, match.group(1))
+            if target is not None and target != path:
+                opaque.add(target)
+
+    dead: list[str] = []
+    for path, names in sorted(exported.items()):
+        if path in opaque:
+            continue
+        taken = imported.get(path, set()) | dynamically_bound
+        for name in sorted(names - taken):
+            if _js_name_used_in_source(sources[path], name):
+                continue
+            dead.append(f'{path.relative_to(PROJECT_ROOT).as_posix()}：{name}')
+    if dead:
+        detail = '；'.join(dead[:8]) + (f'（共 {len(dead)} 个）' if len(dead) > 8 else '')
+    else:
+        detail = f'{len(exported)} 个模块的导出全部有人 import'
+    check(
+        'P12 前端模块级导出都有人 import（收敛 / 改名 / 下架后留下的死导出）',
+        not dead,
+        detail,
+    )
+
+
 def check_frontend_resize_batching() -> None:
     """W20：resize 的「先读后写 + 一帧一遍」（活体探针 + 两处接线断言）。
 
@@ -11485,6 +11732,7 @@ async def run() -> int:
     check_frontend_static_cache_stamps()
     check_source_has_no_line_number_artifacts()
     check_python_lint_clean()
+    check_frontend_dead_exports()
     check_frontend_resize_batching()
     check_frontend_studio_history_guard()
     check_frontend_runtime_cache_limit_single_source()
