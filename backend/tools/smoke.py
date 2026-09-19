@@ -3082,6 +3082,51 @@ FRONTEND_DISTINCT_HELPER_SITES = {
     'flattenDocumentComponents': 'frontend/static/dashboard-resize.js',
 }
 
+#: 收敛时**定义被删掉**的旧名字，以及仍然合法持有它的文件（那里的名字是本地绑定，
+#: 不是自由标识符）。规则：名字不许在任何别的文件的**代码位置**上当值出现。
+#:
+#: 为什么单独有这条闸（P11）：P10 第五批删掉 ``home.js`` 那份局部 ``entityDomain``、
+#: 统一到 ``utils/entities.js`` 的 ``entityDomainOf`` 时，漏掉了**当属性值传递**的那个调用点：
+#:
+#:     } = createEditorPickerQueries({
+#:       entityDomain: entityDomain      # ← 名字已删，右侧是自由标识符
+#:     });
+#:
+#: 编译器/打包器都不在链条里，于是模块顶层直接 ``ReferenceError``，编辑器页``/``的整份
+#: 脚本不执行（页面白屏，控制台一行红），而两套 smoke 与 e2e 全绿 —— 因为前端探针只把
+#: 函数**切片**出来在 vm 里跑，从不整份求值 ``home.js``，顶层 ReferenceError 结构上不可见。
+#: 这条闸补的正是这个盲区：它不查「这一份语义对不对」（那是探针与上表的活儿），
+#: 只查「这个名字已经没有定义了，谁还在用」。
+#:
+#: 名单里的八个文件就是全部绑定点：六个 ``const entityDomain = String(id).split(".")[0]``
+#: 局部写法（审计文档 4.3 B 类末尾那一项，等 ``entityDomainFromId`` 落地时清空），
+#: 外加两处**解构形参**（``editor-picker-queries.js`` 的 ``handlers.entityDomain``、
+#: ``editor-pickers.js`` 的 ``domain: entityDomain``）—— 形参形态与「属性值漏改」
+#: 长得一模一样（都是 ``entityDomain: entityDomain``），静态上分不开，所以按文件点名，
+#: 再用下面第 2 条核对名单没变成摆设。
+FRONTEND_RETIRED_REFERENCE_NAMES = {
+    'entityDomain': (
+        'frontend/static/editor-picker-queries.js',
+        'frontend/static/modules/interaction3d/editor-pickers.js',
+        'frontend/static/renderer/climate.js',
+        'frontend/static/renderer/entity-power.js',
+        'frontend/static/renderer/light-statistics-runtime.js',
+        'frontend/static/renderer/registry.js',
+        'frontend/static/renderer/renderer.js',
+        'frontend/modules/interaction3d/light-state.js',
+    ),
+}
+
+#: 「这个文件里仍有对 ``name`` 的绑定」的判据（用来防止上面那份名单被改成摆设）。
+#: 只认两种真绑定：``const/let/var name =``、以及解构里的``键: name``（含 ``键: name``
+#: 这种显式改名写法）。**故意不认** ``(name)`` 与 ``{ name }`` 这类简写形态：
+#: 它们与「调用实参」「属性值」逐字同形（``includes(entityDomain)`` 就是前者），
+#: 认下来等于给豁免名单开口子 —— 这一条宁可漏认一种绑定写法，也不能把引用当绑定。
+_FRONTEND_BINDING_PATTERNS = (
+    r'(?:^|[^.\w])(?:const|let|var)\s+{name}\s*=',
+    r'[A-Za-z_$][\w$]*\s*:\s*{name}\s*[,)}\]]',
+)
+
 #: 定义点的四种写法：`function name(`、`const name =`、行首赋值 `name = (`、
 #: 对象属性 `{ name: (`（把助手塞进对象字面量也是一份新实现）。
 #: 只认这四种，是为了不被注释、字符串与调用点误伤（`clampNumber(1, 2, 3)` 不会命中）。
@@ -3100,6 +3145,81 @@ def _frontend_helper_definitions(source: str, name: str) -> bool:
         re.search(pattern.replace('{name}', re.escape(name)), source, re.MULTILINE)
         for pattern in _FRONTEND_DEFINITION_PATTERNS
     )
+
+
+def _frontend_code_only(source: str) -> str:
+    """抹掉注释与字符串常量（换行保留、长度不变），只留下真正的代码字符。
+
+    为什么必须先抹：这条闸判的是「名字在**代码**里被当值用了」，而收敛的说明往往就写在
+    紧挨着的注释里（``// 原先那份局部 entityDomain 已删``）—— 不抹的话闸会被自己这套
+    说明文字点红，然后下一个人就把闸删了。字符串同样要抹：报错文案里提名字是常事。
+
+    长度不变是为了让报出来的行号能直接对回原文件（同一位置换成空白而已）。
+    边界如实写在这里：正则字面量不在处理范围内 —— ``/'/`` 这类里带引号的正则会让这里
+    认为字符串开始了。前端源码里没这种写法；真出现了，症状是那条闸对**那一行之后**
+    的代码失明（漏报），而不是误报，所以不会挡路。
+    """
+    out = list(source)
+    index = 0
+    length = len(source)
+    while index < length:
+        char = source[index]
+        if char == '/' and source.startswith('//', index):
+            while index < length and source[index] != '\n':
+                out[index] = ' '
+                index += 1
+            continue
+        if char == '/' and source.startswith('/*', index):
+            out[index] = out[index + 1] = ' '
+            index += 2
+            while index < length and not source.startswith('*/', index):
+                if source[index] != '\n':
+                    out[index] = ' '
+                index += 1
+            for _ in range(2):
+                if index < length:
+                    out[index] = ' '
+                    index += 1
+            continue
+        if char in ('"', "'", '`'):
+            quote = char
+            out[index] = ' '
+            index += 1
+            while index < length:
+                current = source[index]
+                if current == '\\' and index + 1 < length:
+                    out[index] = ' '
+                    if source[index + 1] != '\n':
+                        out[index + 1] = ' '
+                    index += 2
+                    continue
+                out[index] = '\n' if current == '\n' else ' '
+                index += 1
+                if current == quote:
+                    break
+            continue
+        index += 1
+    return ''.join(out)
+
+
+def _frontend_retired_name_value_sites(source: str, name: str) -> list[str]:
+    """源码里把 ``name`` 当**值**用的位置（行号列表）。
+
+    为什么排除属性键：``{ entityDomain: entityDomainOf }`` 左边那个词只是属性名，不是
+    标识符引用 —— 配置对象本来就是这么把助手交出去的，收敛之后它还该继续存在。
+    真出事的是右侧那个值：``{ entityDomain: entityDomain }``（已删的名字），
+    以及 ``const entityDomain = …`` 这种把删掉的知识又抄一份回来的写法。
+    """
+    code = _frontend_code_only(source)
+    sites: list[str] = []
+    pattern = re.compile(rf'(?<![\w.$]){re.escape(name)}(?![\w$])')
+    for match in pattern.finditer(code):
+        # 键：`name:`（允许中间有空白）。`?.` / `name(` / `name,` 都照旧算值。
+        if re.match(r'\s*:', code[match.end() :]):
+            continue
+        line_number = code.count('\n', 0, match.start()) + 1
+        sites.append(f'{line_number} 行')
+    return sites
 
 
 def check_frontend_helper_contract_single_source() -> None:
@@ -3150,7 +3270,6 @@ def check_frontend_helper_contract_single_source() -> None:
     retired: list[str] = []
     import_paths: list[str] = []
     dangling: list[str] = []
-    owners = set(FRONTEND_HELPER_SINGLE_SOURCE)
     scanned = 0
 
     for path in sorted(frontend_root.rglob('*.js')):
@@ -3185,14 +3304,21 @@ def check_frontend_helper_contract_single_source() -> None:
                 owner = expected[imported_name].rsplit('/', 1)[-1]
                 if owner not in specifier:
                     import_paths.append(f'{relative}：{imported_name} ← {specifier}')
-        # 调用点必须自己 import：删掉定义时最容易漏的就是调用方的 import 行，
+        # 使用点必须自己 import：删掉定义时最容易漏的就是调用方的 import 行，
         # 而那种代码在浏览器里是一句 ReferenceError（静态闸不查就一路静默到页面上）。
-        if relative not in owners:
-            for name in expected:
-                if name in imported_here:
-                    continue
-                if re.search(rf'(?<![\w.]){re.escape(name)}\s*\(', source):
-                    dangling.append(f'{relative}：调用 {name}() 但没有 import 它')
+        # P11 起这里不再只认 `name(` 这种**调用**形态：`{ entityDomain: entityDomain }`
+        # 那种当值传参的漏改长得不像调用（没有括号），却同样是模块顶层的 ReferenceError
+        # —— 见 `check_frontend_retired_name_references` 里那次真事故。
+        # 豁免按**名字**判（`expected[name] == relative`）而不是按文件：手册里有 8 份
+        # 唯一实现分处 6 个文件，早先按文件豁免等于「只要这个文件拥有任何一个助手，
+        # 它用别的助手就都不查了」—— colors.js 里那句 `= clampNumber` 正是从这个洞里
+        # 漏过去的（牙齿测试 M6 抓到）。
+        for name in expected:
+            if relative == expected[name] or name in imported_here or name not in source:
+                continue
+            sites = _frontend_retired_name_value_sites(source, name)
+            if sites:
+                dangling.append(f'{relative}：{name} @ {",".join(sites[:3])} 但没有 import')
 
     # 1) 定义点唯一且落在手册指定的文件里。
     misplaced = [
@@ -3222,9 +3348,9 @@ def check_frontend_helper_contract_single_source() -> None:
 
     # 4) 调用点必须自己 import（删定义时最容易漏的那一行，漏了就是页面上的 ReferenceError）。
     check(
-        'P10-B 每个调用点都 import 了它调用的契约助手（删定义时漏改调用方 = 页面 ReferenceError）',
+        'P10-B 每个使用点都 import 了它用的契约助手（删定义时漏改调用方 / 传参方 = 页面 ReferenceError）',
         not dangling,
-        '；'.join(dangling[:6]) if dangling else '所有调用点都有对应的 import',
+        '；'.join(dangling[:6]) if dangling else '所有使用点都有对应的 import',
     )
 
     # 5) 活体探针：语义是否仍是契约里那一套。
@@ -3251,6 +3377,81 @@ def check_frontend_helper_contract_single_source() -> None:
         '；'.join(drifted_sites)
         if drifted_sites
         else '；'.join(f'{name} → {site}' for name, site in FRONTEND_DISTINCT_HELPER_SITES.items()),
+    )
+
+
+def check_frontend_retired_name_references() -> None:
+    """P11：定义已删掉的旧名字，不许再在别的文件里当值出现。
+
+    为什么要单独一条（而不是并进上面那条「调用点必须 import」）：那条只认**调用点**
+    （``name(``），而这次的真凶是**值形态** —— ``createEditorPickerQueries({ entityDomain: entityDomain })``
+    右侧那个名字已经在 P10 第五批被删了，于是模块顶层 ``ReferenceError``，
+    ``/`` 编辑器页整份脚本不执行，而两套 smoke 与 e2e 全绿（前端探针只切片跑函数，
+    从不整份求值 ``home.js``）。名字与成因详见 ``FRONTEND_RETIRED_REFERENCE_NAMES``。
+
+    两条断言，缺一不可：
+
+    * **不在名单里的文件里不许出现**。名字出现即说明「已删的知识又被用了一次」，
+      不管它是当实参、当属性值，还是又抄了一份 ``const`` 回来 —— 浏览器里都是那一行红。
+    * **名单里的文件必须真的还绑着它**。这份名单是「本地绑定 / 解构形参」的豁免清单，
+      如果有人把那处 ``const entityDomain = …`` 改成别的名字（或把形参删掉），
+      豁免就从「有理由的例外」变成「一块遮羞布」—— 那时它必须回到第一条去。
+
+    与 W30（``toplevel-symbols``，把每个脚本的顶层真的求值一遍）的分工，是互补而不是重复：
+    W30 走的是**求值路径**，通用、能顺着 import 走（本次事故就是它在顶层抓到的），但它自己的
+    docstring 也写明了边界 —— 「函数体里的 no-undef 要等被调用才暴露」。这条静态闸补的就是
+    那一半：只按代码文本判**值位置**，不看有没有被执行到，所以函数体里 ``fn({ a: entityDomain })``
+    这种同样会红的写法它也拦得住（实测：把同一处漏改挪进函数体，W30 静默、这条红）。
+    代价是它必须自带一份「谁还合法持有这个名字」的名单，所以另配一条断言防名单腐坏。
+
+    故意不做的两件事，如实写在这里：不判断「这个值用对了没有」（那是探针的活儿），
+    也不管对象字面量的**键**（``entityDomain: entityDomainOf`` 左边那个词只是属性名，
+    不是标识符引用 —— 配置对象本来就是这么把助手交出去的）。
+    """
+    frontend_root = PROJECT_ROOT / 'frontend'
+    strays: list[str] = []
+    stale: list[str] = []
+    scanned = 0
+
+    for path in sorted(frontend_root.rglob('*.js')):
+        if '/vendor/' in path.as_posix():
+            continue
+        try:
+            source = path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:  # 前端资源里的二进制伪装交给语法门去报
+            continue
+        scanned += 1
+        relative = path.relative_to(PROJECT_ROOT).as_posix()
+        for name, allowed in FRONTEND_RETIRED_REFERENCE_NAMES.items():
+            # 便宜的前置过滤：绝大多数文件根本不提这个名字，不必为它剥一遍注释。
+            if name not in source:
+                continue
+            code = _frontend_code_only(source)
+            if relative in allowed:
+                binds = any(
+                    re.search(pattern.replace('{name}', re.escape(name)), code, re.MULTILINE)
+                    for pattern in _FRONTEND_BINDING_PATTERNS
+                )
+                if not binds:
+                    stale.append(f'{relative}：名单说它绑着 {name}，实际没找到绑定')
+                continue
+            sites = _frontend_retired_name_value_sites(source, name)
+            if sites:
+                strays.append(f'{relative}：{name} @ {",".join(sites[:3])}')
+
+    check(
+        'P11 定义已删的旧名字不许再当值用（调用形态另有闸管；值形态漏改是页面级 ReferenceError）',
+        not strays,
+        '；'.join(strays[:6])
+        if strays
+        else '；'.join(f'{name} 只在 {len(allow)} 个绑定点内' for name, allow in FRONTEND_RETIRED_REFERENCE_NAMES.items()),
+    )
+    check(
+        'P11 上面那份「仍然合法持有旧名字」的名单必须真的绑着它（否则豁免就从例外变成遮羞布）',
+        not stale,
+        '；'.join(stale)
+        if stale
+        else f'{sum(len(a) for a in FRONTEND_RETIRED_REFERENCE_NAMES.values())} 处绑定全部核对（扫过 {scanned} 份前端脚本）',
     )
 
 
@@ -9570,6 +9771,7 @@ FRONTEND_PROBE_SUITES = {
     'dialog-a11y': 'W11 运行时弹窗的模态语义与焦点（renderer.js）',
     'interaction3d-mount': 'W13 3D 运行时挂载失败的兜底（bridge.js）',
     'studio-conflict': 'W15 保存冲突的三条出路与稍后处理（studio-app.js）',
+    'toplevel-symbols': 'W30 前端脚本模块顶层引用的符号必须存在（组合根漏改名 = 整页脚本一行都不执行）',
 }
 
 #: 真的被 ``_run_frontend_probe`` 调用过的套件。登记表只是一张名单，
@@ -9637,6 +9839,10 @@ def _run_frontend_probe(suite: str) -> None:
     node 不在时跳过（与 ``store/tools/smoke.py`` 的静态资源检查同一口径）；
     探针自己崩了（退出码 2 或没吐出 JSON）时登记一条失败而不是抛栈 —— 那种情况
     等于「这一套断言一条都没跑」，必须是红的。
+
+    ``--experimental-vm-modules`` 是 ``toplevel-symbols`` 套件要的：它必须用
+    ``vm.SourceTextModule`` 真的按模块语义求值被测文件的顶层（见该套件）。对其余
+    套件这个开关只是多一行 stderr 警告，而调用方只在失败时才读 stderr。
     """
     # 记账放在最前面：``check_frontend_probe_suites_all_ran`` 要拦的是「登记了却
     # 没有调用点」，与 node 在不在无关 —— 后者本来就该是 skip 而不是红。
@@ -9647,7 +9853,7 @@ def _run_frontend_probe(suite: str) -> None:
         return
     try:
         probe = subprocess.run(  # noqa: S603
-            ['node', str(FRONTEND_PROBE), str(PROJECT_ROOT), suite],
+            ['node', '--experimental-vm-modules', str(FRONTEND_PROBE), str(PROJECT_ROOT), suite],
             capture_output=True,
             text=True,
             timeout=120,
@@ -10977,6 +11183,28 @@ def check_frontend_scripts_parse() -> None:
             check(f'前端脚本语法可解析：{relative_path}', parse.returncode == 0, first_error)
 
 
+def check_frontend_toplevel_symbols() -> None:
+    """W30：前端脚本**模块顶层**引用的符号必须存在（漏改名 = 整页脚本不执行）。
+
+    这条闸的由来是一次真实回归：P10 第五批把 `entityDomain` 收敛成
+    `frontend/static/utils/entities.js` 的 `entityDomainOf`、删掉了 `home.js` 里那份
+    局部实现，按 `entityDomain(` 逐处改名 —— 唯独漏了组合根上那个**值位置**
+    （`entityDomain: entityDomain`，不带括号）。它出现在模块顶层，于是整份 `home.js`
+    在浏览器里一行都不执行，而当时所有闸门都是绿的：
+
+    - `check_frontend_scripts_parse` 只做语法，名字存不存在它看不见；
+    - `check_no_dead_module_level_symbols`（P9）方向相反，管的是「定义了却零引用」；
+    - `home-boot` / `home-snapshot` 那两套探针是**按名字把函数切出来**驱动的
+      （它们自己的 docstring 里写明了这个边界），从不求值组合根。
+
+    所以这里补的判据是**行为**：把每个脚本的顶层真的在 V8 里求值一遍，只把 import
+    换成桩。覆盖边界（探针 docstring 里也写了，避免这条闸被当成 no-undef 全集）：
+    只覆盖顶层求值到的路径（函数体里的 no-undef 要等被调用才暴露）、只扫
+    `frontend/static`（store 那侧是经典脚本 + 跨文件裸全局）。
+    """
+    _run_frontend_probe('toplevel-symbols')
+
+
 def _public_static_whitelist() -> set[str] | None:
     """从 ``main.py`` 取出「匿名可访问的静态资源」白名单（字面量集合）。"""
     main_tree = ast.parse((PROJECT_ROOT / 'backend' / 'app' / 'main.py').read_text(encoding='utf-8'))
@@ -11127,6 +11355,7 @@ async def run() -> int:
     check_no_dead_module_level_symbols()
     check_no_duplicated_helper_implementations()
     check_frontend_helper_contract_single_source()
+    check_frontend_retired_name_references()
     check_access_criteria_single_source()
     check_login_password_verification_cost()
     await check_revoke_other_sessions_requires_valid_session()
@@ -11201,6 +11430,7 @@ async def run() -> int:
     check_frontend_display_runtime_notice()
     check_frontend_display_notice_wiring()
     check_frontend_scripts_parse()
+    check_frontend_toplevel_symbols()
     check_public_static_import_closure()
     check_frontend_probe_suites_all_ran()
     check_every_check_is_wired()

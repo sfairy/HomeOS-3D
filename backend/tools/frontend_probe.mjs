@@ -13,8 +13,10 @@
  * 裸 `fetch` / `setTimeout` 解析到的是宿主全局，而不是 vm 沙箱里的同名属性。
  * 这一点必须记住，否则会出现「沙箱里换了 fetch，被测代码照旧打真网络」的假通过。
  *
- * 用法：node backend/tools/frontend_probe.mjs <仓库根> <套件>
- *   套件：api-fetch | login | display-boot | request-json | studio-request
+ * 用法：node --experimental-vm-modules backend/tools/frontend_probe.mjs <仓库根> <套件>
+ *   （`--experimental-vm-modules` 只有 `toplevel-symbols` 套件需要：它要用
+ *     `vm.SourceTextModule` 真的按模块语义求值被测文件的顶层。）
+ *   套件：api-fetch | login | display-boot | request-json | studio-request | toplevel-symbols …
  * 输出：末行是 {"results":[{"name":..,"ok":..,"detail":..}]}，供 smoke.py 逐条登记。
  * 退出码：0 = 探针跑完（逐条结果里带成败）；2 = 探针自身崩了（stderr 有原因）。
  */
@@ -4930,6 +4932,322 @@ async function runCoverReversalSuite() {
   );
 }
 
+/* ------------------------------------------------------------------------- */
+/* W30：模块顶层引用的符号必须存在（组合根漏改名 = 整页脚本一行都不执行）        */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * W30 上下文认识的浏览器全局。
+ *
+ * 为什么要有这张白名单：判据是「模块顶层的裸名字能不能解析」，所以上下文必须对
+ * **未知**名字抛 ReferenceError —— 不能用一个 `has: () => true` 的万能代理糊过去，
+ * 那样连被测的那类缺陷也一起放过了。白名单因此是「这台上下文认识的世界」的显式清单：
+ * 真出现一个新的浏览器全局，它会被报成红并带着名字，照着加一行即可。
+ */
+const TOPLEVEL_BROWSER_GLOBALS = `document window self navigator location history screen console
+setTimeout clearTimeout setInterval clearInterval requestAnimationFrame cancelAnimationFrame
+requestIdleCallback queueMicrotask structuredClone fetch Headers Request Response FormData Blob
+File FileReader URL URLSearchParams AbortController AbortSignal Event CustomEvent KeyboardEvent
+MouseEvent PointerEvent TouchEvent WheelEvent InputEvent DragEvent FocusEvent PopStateEvent
+HashChangeEvent StorageEvent ErrorEvent MessageEvent MutationObserver ResizeObserver
+IntersectionObserver PerformanceObserver customElements HTMLElement HTMLInputElement
+HTMLTextAreaElement HTMLSelectElement HTMLOptionElement HTMLButtonElement HTMLCanvasElement
+HTMLImageElement HTMLDialogElement HTMLTemplateElement HTMLAnchorElement HTMLDivElement
+HTMLSpanElement HTMLFormElement HTMLBodyElement HTMLHeadElement HTMLScriptElement HTMLLabelElement
+HTMLVideoElement HTMLAudioElement HTMLSourceElement HTMLMediaElement Element Node NodeList
+DocumentFragment ShadowRoot DOMParser XMLSerializer getComputedStyle matchMedia alert confirm
+prompt Image Audio WebSocket CloseEvent indexedDB caches crypto performance localStorage
+sessionStorage XMLHttpRequest TextEncoder TextDecoder EventSource Worker SharedWorker
+MessageChannel Notification CSS MediaQueryList DOMRect OffscreenCanvas Path2D ImageData
+CanvasRenderingContext2D DOMException Range Selection VisualViewport CSSStyleSheet CSSStyleRule
+globalThis Math JSON Date Number String Boolean Object Array Function Promise Error TypeError
+RangeError SyntaxError Set Map WeakMap WeakSet Symbol BigInt Proxy Reflect RegExp Intl isNaN
+isFinite parseInt parseFloat encodeURIComponent decodeURIComponent encodeURI decodeURI atob btoa
+escape unescape NaN Infinity undefined`.split(/\s+/);
+
+/** 不参与 W30 扫描的目录：vendor 是第三方产物，node_modules 是依赖。 */
+const TOPLEVEL_SKIP_DIRS = new Set(["vendor", "node_modules"]);
+
+/**
+ * 造一个「什么都返回替身」的万能 mock：可调用、可构造、取任何属性还是它自己。
+ *
+ * 被测脚本顶层会摸大量 DOM API，我们只关心「名字有没有解析失败」，不关心 DOM 语义，
+ * 所以垫片一律返回它自己。三处必须特殊对待，否则会把替身用成真值：
+ * `Symbol.iterator`（否则 `for...of` 会把替身当迭代器）、`Symbol.toPrimitive`
+ * （否则模板字符串里会抛）、`then`（否则会被当成 thenable 挂住 await）。
+ *
+ * @returns {Function} 替身。
+ */
+function createToplevelMock() {
+  const mock = new Proxy(function toplevelMock() {}, {
+    get(_target, property) {
+      if (property === Symbol.toPrimitive) return () => "";
+      if (property === Symbol.iterator) return () => [][Symbol.iterator]();
+      if (property === "then") return undefined;
+      if (property === "length" || property === "size" || property === "childElementCount") return 0;
+      return mock;
+    },
+    set: () => true,
+    has: () => true,
+    apply: () => mock,
+    construct: () => mock
+  });
+  return mock;
+}
+
+/**
+ * 造 W30 用的求值上下文。
+ *
+ * 这里**不能**用「`has` 只认白名单、`get` 一律给替身」的那种全局代理 —— 试过，它对
+ * 未定义名字不再抛 ReferenceError：V8 判定「不可解析的引用」时走的是全局对象上的
+ * 取值 + 空槽检查，而代理的 `get` 永远返回替身，于是**被测的那类缺陷被一起放过**
+ * （表现为「全绿」，包括牙齿样本）。所以全局就是一个普通对象：白名单里的名字是
+ * 替身，白名单外的裸名字按 JS 语义抛 ReferenceError。
+ *
+ * 代价写在覆盖边界里：`window.某个别的脚本挂上去的东西` 这类**属性访问**拿到的是
+ * `undefined` 而不是替身。真出现时会以「提前中断」报红（带着文件与那一帧），照着
+ * 把那个名字加进白名单即可 —— 这比悄悄放过一个裸名字安全。
+ *
+ * @param {Function} mock 替身。
+ * @returns {object} vm 上下文。
+ */
+function createToplevelContext(mock) {
+  const base = Object.create(null);
+  const hostOwned = new Set(["window", "self", "globalThis", "document", "location", "history", "navigator", "screen"]);
+  for (const name of TOPLEVEL_BROWSER_GLOBALS) {
+    base[name] = Object.hasOwn(globalThis, name) && !hostOwned.has(name) ? globalThis[name] : mock;
+  }
+  // 定时器必须换成「立刻结算」的桩：真的定时器会占住事件循环（探针靠看门狗退出），
+  // 而 W30 不关心时序，只关心顶层这一遍能不能走完。
+  base.setTimeout = callback => {
+    try {
+      callback();
+    } catch {
+      /* 桩定时器里的异常与顶层求值无关 */
+    }
+    return 0;
+  };
+  base.setInterval = () => 0;
+  base.clearTimeout = () => {};
+  base.clearInterval = () => {};
+  base.requestAnimationFrame = callback => {
+    try {
+      callback(0);
+    } catch {
+      /* 同上 */
+    }
+    return 0;
+  };
+  base.cancelAnimationFrame = () => {};
+  base.document = mock;
+  base.console = console;
+  base.location = { href: "http://localhost:18081/", search: "", pathname: "/", assign() {}, replace() {} };
+  base.history = { pushState() {}, replaceState() {}, state: null };
+  base.navigator = { userAgent: "node", language: "zh-CN", platform: "MacIntel", maxTouchPoints: 0 };
+  base.addEventListener = () => {};
+  base.removeEventListener = () => {};
+  base.dispatchEvent = () => true;
+  base.matchMedia = () => ({ matches: false, addEventListener() {}, addListener() {} });
+  base.innerWidth = 1440;
+  base.innerHeight = 900;
+  base.devicePixelRatio = 2;
+  base.window = base;
+  base.self = base;
+  base.globalThis = base;
+  return vm.createContext(base);
+}
+
+/**
+ * 取出文件里每条 import / `export ... from` 从句**要求对方提供的导出名**。
+ *
+ * 为什么不复用 `import` 的正则就算：`export { a } from "./b.js"` 与
+ * `import * as ns from "./c.js"` 两种形态会让桩少给名字，链接阶段直接抛
+ * SyntaxError（「不提供导出 X」）—— 那是探针的假红，不是产品缺陷。
+ *
+ * 实现刻意按行扫、不用「一条大正则」：`home.js` 有 1.2 MB，带嵌套量词从句正则
+ * （`(?:[\s,]*\w[\s,]*|\{[\s\S]*?\}|\*)*?`）会灾难性回溯，整条探针直接卡死
+ * （卡在正则里连套件看门狗都点不着 —— 看门狗是定时器，事件循环被占住就没机会跑）。
+ *
+ * @param {string} source 被测源码。
+ * @returns {Map<string, {names: Set<string>}>} specifier → 要求对方提供的导出名。
+ */
+function toplevelImportClauses(source) {
+  const clauses = new Map();
+  const lines = source.split("\n");
+  const addClause = (specifier, clause) => {
+    const entry = clauses.get(specifier) || { names: new Set() };
+    const braced = clause.match(/\{([\s\S]*)\}/);
+    if (braced) {
+      for (const part of braced[1].split(",")) {
+        const trimmed = part.trim();
+        if (!trimmed) continue;
+        // `a as b` 要的是对方的 `a`；`export { default as x }` 要的是 `default`。
+        entry.names.add(trimmed.split(/\s+as\s+/)[0].trim());
+      }
+    }
+    const outside = clause.replace(/\{[\s\S]*\}/, " ");
+    const star = outside.match(/\*\s*as\s*([A-Za-z_$][\w$]*)/);
+    if (star) {
+      // 命名空间导入：桩没法穷举成员，按「这个文件实际用到了 ns.<prop>」逐个给。
+      const propertyPattern = new RegExp(String.raw`\b${star[1]}\.([A-Za-z_$][\w$]*)`, "g");
+      for (const property of source.matchAll(propertyPattern)) entry.names.add(property[1]);
+    } else if (outside.trim()) {
+      // `import x from "..."` / `import x, { a } from "..."`：默认导出。
+      entry.names.add("default");
+    }
+    clauses.set(specifier, entry);
+  };
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const statement = /^[ \t]*(?:import|export)[ \t](\S.*)$/.exec(lines[index]);
+    if (!statement) continue;
+    let clauseText = statement[1];
+    // 花括号列表可以跨行（`import {\n a,\n b\n} from "..."`）：补到括号配平为止，
+    // 上限 200 行是护栏 —— 真配不平说明这行不是 import / export 从句。
+    const unbalanced = text => (text.match(/\{/g)?.length || 0) > (text.match(/\}/g)?.length || 0);
+    for (let guard = 0; unbalanced(clauseText) && index + 1 < lines.length && guard < 200; guard += 1) {
+      index += 1;
+      clauseText += " " + lines[index].trim();
+    }
+    // 从句形态的两条判据：结尾那个引号是模块说明符，且中间有 `from`（或本身就是
+    // 裸 import）。少了后一条，`export const VERSION = "0.5.6";` 会被当成从句。
+    const specifierMatch = /["']([^"']+)["']\s*;?\s*$/.exec(clauseText);
+    if (!specifierMatch || !(/\bfrom\b/.test(clauseText) || /^\s*["']/.test(clauseText))) continue;
+    const clause = clauseText
+      .slice(0, clauseText.lastIndexOf(specifierMatch[0]))
+      .replace(/\bfrom\b[\s,]*$/, "");
+    addClause(specifierMatch[1], clause);
+  }
+  return clauses;
+}
+
+/**
+ * 求值一段源码的顶层，import 一律换成替身桩。
+ *
+ * @param {string} source 源码（逐字节原样，不做改写）。
+ * @param {string} identifier 出错时栈里显示的文件名。
+ * @param {boolean} [fromModule] 是否一定有模块语义（测牙齿时用）。
+ * @returns {Promise<void>} 顶层跑完即返回；抛出的就是被测代码自己的错。
+ */
+async function evaluateToplevelSource(source, identifier, fromModule = false) {
+  const mock = createToplevelMock();
+  const context = createToplevelContext(mock);
+  const clauses = toplevelImportClauses(source);
+  const stubFor = specifier => {
+    const names = clauses.get(specifier)?.names ?? new Set();
+    return new vm.SyntheticModule([...names], function () {
+      for (const name of names) this.setExport(name, mock);
+    }, { identifier: specifier, context });
+  };
+  let module = null;
+  try {
+    module = new vm.SourceTextModule(source, {
+      identifier,
+      context,
+      initializeImportMeta(meta) {
+        meta.url = pathToFileURL(identifier).href;
+      },
+      importModuleDynamically: specifier => stubFor(specifier)
+    });
+  } catch (syntaxError) {
+    if (fromModule) throw syntaxError;
+    // 经典脚本（client-log.js 这类）按模块解析会失败，退回脚本语义 —— 两种都试，
+    // 是为了不靠「文件里有没有 import 这个词」猜（注释里的 import 会猜错）。
+  }
+  if (module) {
+    await module.link(async specifier => stubFor(specifier));
+    await module.evaluate();
+    return;
+  }
+  new vm.Script(source, { filename: identifier }).runInContext(context);
+}
+
+/**
+ * W30：把每个前端脚本的顶层真的求值一遍，抓「引用了不存在的名字」。
+ *
+ * 为什么需要这条：`node --check` 只做语法，名字存不存在它看不见；P9 那条模块级闸
+ * 方向相反（「定义了却零引用」）；`home-boot` / `home-snapshot` 那两套探针是**按名字
+ * 把函数切出来**驱动的，从不求值组合根。于是 `home.js` 里 `entityDomain: entityDomain`
+ * （P10 第五批删掉局部 `entityDomain` 时漏改的值位置）一路绿灯，直到浏览器里
+ * `Uncaught ReferenceError` —— 模块顶层一条语句抛错，整个编辑器脚本一行都不执行。
+ *
+ * 判据是行为：被测文件逐字节原样求值，只把 import 换成桩。不改写源码，所以不存在
+ * 「探针改了源码才通过」。
+ *
+ * 覆盖边界（如实写明，否则这条闸会被当成 no-undef 全集，见文件头的同类约定）：
+ *   · 只覆盖**顶层求值到的路径**。函数体里引用了不存在的名字，只有它被调用时才暴露，
+ *     这条闸看不见 —— 那是静态 no-undef 的活。
+ *   · 只扫 `frontend/static`（不含 vendor）。store 那侧是经典脚本 + 跨文件裸全局
+ *     （`$` / `htmlsafe`…），同一套口径全是假红。
+ *   · 非 ReferenceError 的顶层失败也报红：那说明垫片缺口让求值提前中断，这个文件
+ *     剩下的顶层代码**根本没被检查**。「少检查一半」在报告里与「全绿」长得一样。
+ *
+ * @returns {Promise<void>}
+ */
+async function runToplevelSymbolsSuite() {
+  const staticRoot = path.join(ROOT, "frontend", "static");
+  const scripts = [];
+  (function walk(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (!TOPLEVEL_SKIP_DIRS.has(entry.name)) walk(path.join(directory, entry.name));
+      } else if (entry.name.endsWith(".js")) {
+        scripts.push(path.join(directory, entry.name));
+      }
+    }
+  })(staticRoot);
+
+  check(
+    "W30 扫到了前端脚本（一个文件都没扫到时必须红，否则这条闸全是假绿）",
+    scripts.length > 0,
+    `发现 ${scripts.length} 个脚本`
+  );
+
+  const undefinedSymbols = [];
+  const stalled = [];
+  for (const file of scripts) {
+    const relative = path.relative(ROOT, file);
+    // 每扫一个文件在 stderr 留一行：万一某个脚本顶层自身死循环，套件看门狗点不着
+    // （它是定时器，而事件循环被占住），只能靠 smoke 的 120 秒超时兜底 —— 那时
+    // 这串进度就是「卡在哪一个文件」的唯一线索。
+    process.stderr.write(`[toplevel-symbols] ${relative}\n`);
+    try {
+      await evaluateToplevelSource(fs.readFileSync(file, "utf8"), path.basename(file));
+    } catch (error) {
+      const frame = String(error?.stack || "").split("\n")[1]?.trim() || "";
+      const record = `${relative} :: ${error?.name}: ${error?.message}${frame ? ` @ ${frame}` : ""}`;
+      (error?.name === "ReferenceError" ? undefinedSymbols : stalled).push(record);
+    }
+  }
+
+  check(
+    `W30 ${scripts.length} 个脚本的顶层都能求值到底（引用了不存在的名字 = 整个脚本不执行）`,
+    undefinedSymbols.length === 0,
+    undefinedSymbols.length
+      ? undefinedSymbols.slice(0, 6).join("；")
+      : `扫过 ${scripts.length} 个脚本，顶层没有未定义标识符`
+  );
+  check(
+    "W30 没有脚本在顶层提前中断（垫片缺口会让一个文件剩下几万行根本不被检查）",
+    stalled.length === 0,
+    stalled.length ? stalled.slice(0, 4).join("；") : "全部求值到顶"
+  );
+
+  // 牙齿：喂一段必然越界的源码，探针必须报 ReferenceError。没有这一条，「全绿」
+  // 可能只是它没在看 —— 与 check_frontend_probe_suites_all_ran 是同一条道理。
+  let biteName = "";
+  try {
+    await evaluateToplevelSource("const toplevelBite = toplevelMissingHelper;\n", "toplevel-bite.js", true);
+  } catch (error) {
+    biteName = error?.name === "ReferenceError" ? String(error.message) : `${error?.name}: ${error?.message}`;
+  }
+  check(
+    "W30 探针有牙齿：一件「引用了不存在的名字」的样本必须被抓住",
+    biteName.includes("toplevelMissingHelper") && biteName.startsWith("toplevelMissingHelper is not defined"),
+    biteName || "样本没有抛错 —— 这条闸现在不可能报红"
+  );
+}
+
 const suites = {
   "api-fetch": runApiFetchSuite,  login: runLoginSuite,
   "display-boot": runDisplayBootSuite,
@@ -4959,7 +5277,8 @@ const suites = {
   "state-entry": runStateEntrySuite,
   "light-statistics": runLightStatisticsSuite,
   "cover-direction": runCoverDirectionSuite,
-  "cover-reversal": runCoverReversalSuite
+  "cover-reversal": runCoverReversalSuite,
+  "toplevel-symbols": runToplevelSymbolsSuite
 };
 
 /**
