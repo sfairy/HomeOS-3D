@@ -27,6 +27,15 @@ from store.config import StoreSettings
 from store.database import Database
 from store.models import utcnow
 from store.payments.reconcile import SweepResult, reconcile_due_orders
+# 时间戳归一只有一份实现（``store.security.iso_z``）。本文件原先自带一份副本，理由写的是
+# 「不用直接 import：security 会拉进密码哈希与 token 生成那一整套」—— 这条理由不成立：
+# ``store.models`` 本来就从 ``store.security`` 取 ``utcnow`` / ``new_uuid``，所以这个模块
+# 早就在导入图里了；而 ``security`` 的顶层只有 stdlib 与几个常量，没有「一整套」。
+# 更要紧的是两份**口径不同**：security 那份会把带时区的时间先换算到 UTC 再去掉时区，
+# 而副本直接 ``strftime`` —— 对带时区的输入会把当地时间贴上 ``Z`` 后缀（东八区差 8 小时）。
+# 现在库里存的都是 naive UTC，所以副本今天恰好没出错；一旦哪天上游传进带时区的值，
+# 它会静默把一个错误的「UTC 时刻」交给后台与 /healthz。
+from store.security import iso_z
 
 logger = logging.getLogger("store.payments.sweeper")
 
@@ -234,15 +243,6 @@ def sweep_status() -> dict:
             None if last_success_at is None else max(0, int((moment - last_success_at).total_seconds()))
         ),
     }
-
-
-def iso_z(value: datetime | None) -> str | None:
-    """带 Z 后缀的 ISO 字符串（与 ``store.security.iso_z`` 同一口径）。
-
-    这里不用直接 import：``security`` 会拉进密码哈希与 token 生成那一整套，
-    而巡检只需要把两个时间戳转成字符串。
-    """
-    return None if value is None else f"{value.strftime('%Y-%m-%dT%H:%M:%S.%f')}Z"
 
 
 def sweep_once(database: Database, settings: StoreSettings) -> SweepResult | None:

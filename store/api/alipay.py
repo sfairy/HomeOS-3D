@@ -41,8 +41,21 @@ router = APIRouter(tags=["alipay"])
 NOTIFY_PATH = "/store/v1/payments/alipay/notify"
 
 
-def _alipay_provider(request: Request, session=None):
-    """返回当前站点配置下的支付宝渠道；不是支付宝就返回 None。
+def _active_alipay_provider(request: Request, session=None):
+    """返回**当前站点配置下真正在收款**的支付宝渠道；不是支付宝（或渠道不可用）就返回 None。
+
+    名字里的 ``active`` 是这份契约的重点，它与 ``store/payments/reconcile.py`` 的
+    ``_reconcile_alipay_provider`` 是**两份不同的知识**（两者的名字原先都是
+    ``_alipay_provider``，P10 第八批改的名 —— 照名字把调用搬过去不会报错，
+    但行为会静默改变）：
+
+    * 本函数按**当前**站点配置解析，并且**永不抛错**：渠道没配好、或当前选的是模拟
+      收银台时，都返回 None。两个调用点都匿名可达（支付宝异步通知、支付同步跳转页），
+      它们必须能拿到「现在不是支付宝在收款」这个结论并把请求好好收尾 ——
+      一个 500 会让支付宝一直重推、也会让用户看到白屏。
+    * ``reconcile`` 那份带 ``name_override="alipay"``，**绕过渠道开关**强制按支付宝解析，
+      且允许抛错。巡检/对账要打的是「这单当时用的渠道」，不能因为运营今天切了渠道
+      就不再认领历史订单。
 
     传入 ``session`` 是为了让后台配置的凭据生效（凭据存在站点配置里）。
     不传时 ``resolve_payment_provider`` 会自己读一次库。
@@ -79,7 +92,7 @@ def alipay_notify(
     真正的闸门是下面的 ``verify_notification`` 验签，格式不对的一样过不了。
     """
     settings = request.app.state.settings
-    provider = _alipay_provider(request, session)
+    provider = _active_alipay_provider(request, session)
     if provider is None:
         logger.warning("收到支付宝异步通知，但当前支付渠道不是支付宝，已忽略")
         return PlainTextResponse("failure")
@@ -221,7 +234,7 @@ def alipay_return(
     真正入账仍然依赖验签通过的异步通知或查单结果。
     """
     settings = request.app.state.settings
-    provider = _alipay_provider(request, session)
+    provider = _active_alipay_provider(request, session)
 
     order = None
     if out_trade_no:

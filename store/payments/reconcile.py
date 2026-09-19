@@ -106,8 +106,21 @@ def _allow_query(order_no: str) -> bool:
         return True
 
 
-def _alipay_provider(settings: StoreSettings, setting: StoreSetting):
-    """按站点配置构造支付宝渠道（含后台配置的凭据）。"""
+def _reconcile_alipay_provider(settings: StoreSettings, setting: StoreSetting):
+    """按渠道名强制解析出支付宝渠道，**绕过当前的渠道开关**（含后台配置的凭据）。
+
+    与 ``store/api/alipay.py`` 的 ``_active_alipay_provider`` 是两份不同的知识
+    （两者的名字原先都是 ``_alipay_provider``，P10 第八批改的名）。区别有两条，
+    都直接决定「钱付了但订单停在待支付」这类事故会不会被收尾：
+
+    * ``name_override="alipay"`` 让解析**跳过** ``settings.payment_provider`` /
+      站点配置的开关判断。巡检与对账打的是「这单当时用的渠道」：运营今天把渠道切成
+      模拟收银台，昨天那些真实付款的订单仍然必须被认领、被入账。若换成按当前配置解析，
+      切渠道当天所有在途支付宝订单就再也没人查了。
+    * 本函数**允许抛出** ``PaymentError``（不吞错）：调用方是后台线程，
+      坏了要记进巡检状态并让 ``/healthz`` 报 ``never`` / ``failing``，
+      而不是静默返回 None 假装「本来就没有支付宝订单」。
+    """
     return resolve_provider(settings, setting, name_override="alipay")
 
 
@@ -141,7 +154,7 @@ def reconcile_alipay_order(
     if not force and not _allow_query(order.order_no):
         return False
 
-    provider = _alipay_provider(settings, setting)
+    provider = _reconcile_alipay_provider(settings, setting)
     if not provider.is_configured(settings):
         return False
 
@@ -325,7 +338,7 @@ def _sweep_channel_orders(
     在调用方完成，不能因为这里返回就把那件事也一起跳过。
     """
     result = SweepResult()
-    provider = _alipay_provider(settings, setting)
+    provider = _reconcile_alipay_provider(settings, setting)
     if not provider.is_configured(settings):
         return result
 

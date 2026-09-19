@@ -19,21 +19,27 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+def naive_utc(value: datetime | None) -> datetime | None:
+    """时区归一的**唯一**实现：带时区的值先换算到 UTC，再去掉时区。
+
+    这一步在 ``iso`` 与 ``iso_micro`` 里各写过一遍（P10 第八批收敛到此处）。
+    它是「协议要求 UTC、而库里存的是 naive UTC」这条知识的执行点：
+    少做一步不会报错，只会把一个小时数静默偏掉 —— 东八区正好偏 8 小时。
+    """
+    if value is None or value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 def iso(value: datetime | None) -> str | None:
     """序列化为参考站风格的无时区 ISO 字符串。"""
-    if value is None:
-        return None
-    if value.tzinfo is not None:
-        value = value.astimezone(timezone.utc).replace(tzinfo=None)
-    return value.strftime("%Y-%m-%dT%H:%M:%S")
+    value = naive_utc(value)
+    return None if value is None else value.strftime("%Y-%m-%dT%H:%M:%S")
 
 
 def iso_micro(value: datetime | None) -> str | None:
-    if value is None:
-        return None
-    if value.tzinfo is not None:
-        value = value.astimezone(timezone.utc).replace(tzinfo=None)
-    return value.strftime("%Y-%m-%dT%H:%M:%S.%f")
+    value = naive_utc(value)
+    return None if value is None else value.strftime("%Y-%m-%dT%H:%M:%S.%f")
 
 
 def iso_z(value: datetime | None) -> str | None:
