@@ -22,17 +22,6 @@ export function editorAssetFolders(assetList) {
 }
 
 /**
- * 在当前文件夹已被删除时回退到第一个可用文件夹。
- *
- * @param {string} currentFolder 当前选中的文件夹名。
- * @param {Array<string>} folderList 可用文件夹列表。
- * @returns {string} 仍然有效的文件夹名；列表为空时返回空串。
- */
-export function editorAssetSelectedFolder(currentFolder, folderList) {
-  return folderList.includes(currentFolder) ? currentFolder : folderList[0] || "";
-}
-
-/**
  * 创建素材工具栏渲染函数。
  *
  * @param {object} handlers 依赖注入。

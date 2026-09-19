@@ -4,16 +4,15 @@
  * 位置：3D 工作室「导出」面板的预设槽（每个槽保存一组导出参数：分辨率、楼层范围、
  *   相机姿态、要一起导出的附加文件等）。文档从后端读回来的预设可能缺字段或被手改过，
  *   统一经本模块清洗后再使用。
- * 对外：预设数量常量、normalizeExportPreset（单个预设）、normalizeExportPresetSlots（槽位数组）、
- *   normalizeActiveExportPresetSlot（当前槽下标）、exportPresetIsEmpty 与 exportPresetSummary。
+ * 对外：normalizeExportPreset（单个预设）、normalizeExportPresetSlots（槽位数组）、
+ *   normalizeActiveExportPresetSlot（当前槽下标）、exportPresetIsEmpty 与槽位上限常量。
  * 约定：预设内部版本固定写 1；尺寸单位为像素，楼层间距单位为米；
  *   字段名与前端 JSON 的 camelCase 对齐。本模块纯函数、不做持久化。
  *   夹取用 utils/numbers.js 的 clampNumber（唯一实现，P10 B 类收敛）。
  */
 import { clampNumber } from "../utils/numbers.js?v=20260919093705";
 
-// 默认 4 个预设槽、最多 8 个；上限与导出面板的按钮禁用条件绑定。
-export const DEFAULT_EXPORT_PRESET_COUNT = 4;
+// 最多 8 个预设槽；上限与导出面板的按钮禁用条件绑定。
 export const MAX_EXPORT_PRESET_COUNT = 8;
 
 // 允许出现在导出列表里的固定文件键：渲染图与平面图两类基础产物。
@@ -214,34 +213,4 @@ export function normalizeActiveExportPresetSlot(activeSlotIndex, requestedSlotCo
  */
 export function exportPresetIsEmpty(preset, presetFeatureEnabled = false) {
   return !normalizeExportPreset(preset) && !presetFeatureEnabled;
-}
-
-/**
- * 生成预设的一行摘要文案（用于下拉列表等紧凑位置）。
- *
- * @param {*} storedPreset 原始预设。
- * @param {Map<string, string>} [floorLabelsById] 楼层 id 到名称的映射，用于显示楼层名。
- * @returns {string} 形如 `1852×1293 · 一层 · 透视` 的文案；
- *   未设置预设返回「未设置」；楼层已被删除时返回「楼层已变更」。
- */
-export function exportPresetSummary(storedPreset, floorLabelsById = new Map()) {
-  const normalizedPreset = normalizeExportPreset(storedPreset);
-  if (!normalizedPreset) {
-    return "未设置";
-  }
-  // 楼层名取不到说明该楼层已被删除，用「楼层已变更」提示用户重新选择而不是显示空白。
-  const floorLabel =
-    normalizedPreset.floorMode === "all"
-      ? "全楼合并"
-      : floorLabelsById.get(normalizedPreset.floorId) || "楼层已变更";
-  const cameraModeLabel = normalizedPreset.camera.mode === "perspective" ? "透视" : "正交";
-  return (
-    normalizedPreset.width +
-    "×" +
-    normalizedPreset.height +
-    " · " +
-    floorLabel +
-    " · " +
-    cameraModeLabel
-  );
 }

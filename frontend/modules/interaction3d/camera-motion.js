@@ -5,8 +5,8 @@
  * 本模块把「目标点 + 位置 + 上方向」这类直观姿势换算成旋转四元数，再按缓动函数
  * 在两点之间采样出逐帧姿势；楼层切换与聚焦分别走不同的插值策略。
  *
- * 对外提供：cameraMotionProgress、createReleasedFocusMotion、createDampedCameraMotion、
- * sampleFocusCamera、createFocusCameraSampler、automaticLightCamera、
+ * 对外提供：cameraMotionProgress、createDampedCameraMotion、
+ * createFocusCameraSampler、automaticLightCamera、
  * automaticAirConditionerCamera。
  *
  * 约定：姿势对象里的 position / target / up 都是长度 3 的数组（世界坐标），
@@ -14,10 +14,6 @@
  *       相机始终沿自身 +Z 方向看向目标，姿势换算出的旋转即以 (right, up, forward) 为基。
  */
 
-/** 判定「零向量」的阈值；再小的长度按退化处理，避免归一化出 NaN。 */
-const MIN_VECTOR_LENGTH_EPSILON = 1e-8;
-/** 世界坐标的允许量级上限（±10000），用于把射线裁剪在可视范围内。 */
-const MAX_COORDINATE_MAGNITUDE = 10000;
 /** 把数值夹到区间内。 */
 const clampValue = (clampedValue, minimumValue, maximumValue) =>
   Math.max(minimumValue, Math.min(maximumValue, clampedValue));
@@ -161,60 +157,6 @@ const DEFAULT_SETTLE_EPSILON = 0.0001;
 /** 收尾归一化窗口（毫秒）：见 createDampedCameraMotion 中对尾巴的处理。 */
 const SETTLE_WINDOW_MS = 500;
 /**
- * 创建「从聚焦状态释放」的运动（关闭聚焦时镜头柔和地退回原位）。
- *
- * @param {object} threeApi three.js 命名空间。
- * @param {object} releaseFromPose 起始姿势。
- * @param {object} releaseToPose 目标姿势。
- * @param {object} [options] 参数。
- * @param {boolean} [options.immediate=false] 为 true 时不动画（时长 0，直接到位）。
- * @returns {{settled: Function, progress: Function, sample: Function}} 运动句柄。
- */
-export function createReleasedFocusMotion(
-  threeApi,
-  releaseFromPose,
-  releaseToPose,
-  { immediate: immediate = false } = {}
-) {
-  // 1100ms 是「释放」的标准时长：与聚焦动画保持同一节奏，避免退出时过快。
-  const releaseDurationMs = immediate ? 0 : 1100;
-  /** 是否已经结束：立即模式恒为真。 */
-  const isSettled = releaseElapsedMs =>
-    releaseDurationMs === 0 || releaseElapsedMs >= releaseDurationMs;
-  /**
-   * 归一化的指数缓出：1 - e^(-rt) 在 t=duration 时不到 1，
-   * 因此除以同一个表达式在 duration 处的值，保证末端精确落在 1。
-   */
-  const releaseEase = (releaseTimelineMs, releaseRatePerSecond) =>
-    isSettled(releaseTimelineMs)
-      ? 1
-      : -Math.expm1(
-          (-releaseRatePerSecond *
-            Math.max(0, Number.isNaN(releaseTimelineMs) ? 0 : releaseTimelineMs)) /
-            1000
-        ) / -Math.expm1((-releaseRatePerSecond * releaseDurationMs) / 1000);
-  const releaseEasing = {
-    settled: isSettled,
-    // 位移与转向用不同的速率：位移 5/s、转向 4/s，让镜头先移动、朝向稍后追平，
-    // 视觉上比两者同步更像真实摄像机的跟随。
-    move: releaseMoveMs => releaseEase(releaseMoveMs, 5),
-    turn: releaseTurnMs => releaseEase(releaseTurnMs, 4)
-  };
-  return {
-    settled: isSettled,
-    progress: releaseEasing.move,
-    sample: createFocusCameraSampler(
-      threeApi,
-      releaseFromPose,
-      releaseToPose,
-      releaseDurationMs,
-      "focus",
-      null,
-      releaseEasing
-    )
-  };
-}
-/**
  * 创建「阻尼收敛」式相机运动（不做定时长，而是按指数衰减直到停稳）。
  *
  * 与释放运动不同，这里没有固定总时长：进度按 e^(-rt) 连续逼近 1，
@@ -303,30 +245,6 @@ export function createDampedCameraMotion(
       dampedEasing
     )
   };
-}
-/**
- * 一次性采样：直接按默认时长在两点之间取一帧姿势。
- *
- * @param {object} threeRuntime three.js 命名空间。
- * @param {object} sourcePose 起始姿势。
- * @param {object} destinationPose 目标姿势。
- * @param {number} sampleElapsedMs 已用时长。
- * @param {number} [sampleDurationMs=1100] 总时长。
- * @returns {object} 采样出的姿势。
- */
-export function sampleFocusCamera(
-  threeRuntime,
-  sourcePose,
-  destinationPose,
-  sampleElapsedMs,
-  sampleDurationMs = 1100
-) {
-  return createFocusCameraSampler(
-    threeRuntime,
-    sourcePose,
-    destinationPose,
-    sampleDurationMs
-  )(sampleElapsedMs);
 }
 /**
  * 创建姿势采样器：把「已用时长」映射成「当前姿势」。

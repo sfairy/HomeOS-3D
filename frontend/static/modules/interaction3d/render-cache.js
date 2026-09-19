@@ -3,7 +3,7 @@
  *
  * 位置：舞台页每次需要一帧画面时都先问这里（按「灯光增量」分层缓存），
  *   命中就免去一次服务端渲染；未命中则取回 PNG、解码成 ImageBitmap 交给渲染器。
- * 对外导出：RENDER_CACHE_VERSION、stableCacheJSON、sha256、lightLayerKey、
+ * 对外导出：RENDER_CACHE_VERSION、stableCacheJSON、sha256、
  *   cacheSceneDescriptor、createRenderCache。
  * 全局约定：
  *   - RENDER_CACHE_VERSION 参与 key 计算：只要渲染算法或缓存语义变了就必须改它，
@@ -119,26 +119,6 @@ export function sha256(text) {
     );
   }
   return hashState.map(hexWord => hexWord.toString(16).padStart(8, "0")).join("");
-}
-/**
- * 计算「基础画面 + 某一层灯光」的缓存 key。
- *
- * key 由版本戳、基础 key、灯的描述与楼层 ID 共同决定：任何一项变化都会得到
- * 一个全新的 key，因此缓存天然按「灯光增量」分层，不需要再做失效通知。
- *
- * @param {string} baseKey 基础画面（无灯光增量）的 key。
- * @param {{item: object, floor: {id: string}}} layerDescriptor 灯光层的描述。
- * @returns {string} 十六进制缓存 key。
- */
-export function lightLayerKey(baseKey, layerDescriptor) {
-  return sha256(
-    stableCacheJSON({
-      version: RENDER_CACHE_VERSION,
-      base: baseKey,
-      lamp: layerDescriptor.item,
-      floor: layerDescriptor.floor.id
-    })
-  );
 }
 /**
  * 生成用于计算基础 key 的场景描述。

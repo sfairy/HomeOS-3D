@@ -14,10 +14,9 @@
  *
  * 根节点 userData 上的字段是跨文件契约，改名会静默失效：
  * - parts：{ body, headRig, arms, legs, ... }，animateWalker 的摆动入口；
- * - outfitMaterial：外套材质，setWalkerColor 直接改它的 color；
  * - design：设计键，animateWalker 据此区分「豆豆」这类幅度更大的角色。
  *
- * 对外提供：DESIGNS、createWalker、setWalkerColor、animateWalker、disposeWalker。
+ * 对外提供：DESIGNS、createWalker、animateWalker、disposeWalker。
  */
 
 /** 可选人物方案；name / description 直接作为配置界面文案，height（米）与 pace 仅为设计参考值。 */
@@ -50,7 +49,7 @@ export const DESIGNS = {
  * @param {object} THREE 舞台注入的 three.js 命名空间；不直接 import，由宿主统一版本。
  * @param {number} [outfitColor=5421233] 外套颜色，默认 0x52B8B1，与路线预览的青色同值。
  * @param {string} [designKey="traveler"] 设计键；未知值静默回退到 traveler，不抛错。
- * @returns {object} 模型根节点（THREE.Group），userData 携带 parts / outfitMaterial / design。
+ * @returns {object} 模型根节点（THREE.Group），userData 携带 parts / design。
  */
 export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler") {
   // 容错而非抛错：历史配置里可能存着已下线的角色名，回退比让整个场景加载失败更合适。
@@ -408,22 +407,11 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
     parts.glowMat = glowMaterial;
     parts.shadeMat = shadeMaterial;
   }
-  // 以下三个 userData 字段是跨文件契约（场景侧读 parts、换色读 outfitMaterial、
-  // 动画分支读 design），返回前必须写全。
+  // 以下两个 userData 字段是跨文件契约（场景侧读 parts、动画分支读 design），
+  // 返回前必须写全。
   walkerGroup.userData.parts = parts;
-  walkerGroup.userData.outfitMaterial = outfitMaterial;
   walkerGroup.userData.design = designKey;
   return walkerGroup;
-}
-/**
- * 换掉角色的外套颜色（其余点缀色不变，保持配色层次）。
- *
- * @param {object} walkerObject createWalker 的返回值。
- * @param {number} colorHex 目标颜色（十六进制数字，如 0x52B8B1）。
- * @returns {void}
- */
-export function setWalkerColor(walkerObject, colorHex) {
-  walkerObject.userData.outfitMaterial.color.set(colorHex);
 }
 /**
  * 按行走相位摆一次姿势（每帧调用，纯函数式改动，不创建对象）。

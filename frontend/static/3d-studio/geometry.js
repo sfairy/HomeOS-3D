@@ -59,54 +59,6 @@ export function spotLightBrightnessResponse(lightType = "downlight", brightnessI
   return baseResponse + downlightBoost;
 }
 /**
- * 由灯带（striplight）的三项配置推导它的投影几何与强度。
- *
- * 三个入参先按工程可达范围夹取：层高 0.05~6m（低于 5cm 视为无效、高于 6m 不可能是住宅）、
- * 射程 0.5~10m、灯带长度 0.2~8m；默认值 2.7 / 3.5 / 2 分别取自常见住宅层高、
- * 灯带有效射程与两米标准灯带。随后所有调制都以这两个基准归一：
- * elevationRatio = 层高/2.7、lengthRatio = 长度/2，灯越高光斑越大越远但越弱
- * （强度按 1/elevationRatio 衰减），灯带越长光斑越扁。
- * 各夹取区间（0.6~1.6、0.75~1.5、0.65~1.55、0.5~2.2）是防止极端输入把光斑拉爆的
- * 边界，取值来自两端外观可接受的极限，而非物理量推导。
- *
- * @param {number} elevationInput 安装高度（米），默认 2.7。
- * @param {number} rangeInput 标称射程（米），默认 3.5。
- * @param {number} lengthInput 灯带长度（米），默认 2。
- * @returns {{elevation: number, range: number, coreScale: number, intensity: number}}
- *   归一后的高度、射程、光斑核心缩放与强度系数。
- */
-export function stripLightProjection(elevationInput = 2.7, rangeInput = 3.5, lengthInput = 2) {
-  // 非有限值（undefined / NaN / 字符串）一律回落到默认层高，避免 NaN 顺着比例扩散。
-  const elevationMeters = clamp(
-    Number.isFinite(Number(elevationInput)) ? Number(elevationInput) : 2.7,
-    0.05,
-    6
-  );
-  const rangeMeters = clamp(
-    Number.isFinite(Number(rangeInput)) ? Number(rangeInput) : 3.5,
-    0.5,
-    10
-  );
-  const lengthMeters = clamp(
-    Number.isFinite(Number(lengthInput)) ? Number(lengthInput) : 2,
-    0.2,
-    8
-  );
-  // 以 2.7m 层高为基准的高度比；夹到 0.2~2.2，避免 5cm 或 6m 这类极端值把光斑拉成一点或一片。
-  const elevationRatio = clamp(elevationMeters / 2.7, 0.2, 2.2);
-  // 以 2m 标准灯带为基准的长度比，决定光斑在灯带方向上的拉伸程度。
-  const lengthRatio = clamp(lengthMeters / 2, 0.1, 4);
-  return {
-    elevation: elevationMeters,
-    range:
-      rangeMeters *
-      clamp(0.5 + elevationRatio * 0.5, 0.6, 1.6) *
-      clamp(0.82 + lengthRatio * 0.18, 0.75, 1.5),
-    coreScale: clamp(0.55 + elevationRatio * 0.45, 0.65, 1.55),
-    intensity: clamp(1 / elevationRatio, 0.5, 2.2)
-  };
-}
-/**
  * 估算一组灯在单帧里的相对渲染开销权重，供自适应画质降级使用。
  *
  * 权重按「是否生成阴影贴图 + 光源面积」分档：灯带 0.3（不投影，只做自发光）、
@@ -2830,18 +2782,6 @@ function collectOpenEndpoints(degreeWalls, degreeTolerance = 1) {
         ]
       : []
   );
-}
-/**
- * 取所有悬空墙端点的坐标（供端点标记与闭合提示使用）。
- *
- * @param {Array<object>} endpointWalls 墙列表。
- * @param {number} [openEndpointTolerance] 节点合并容差（平面像素）。
- * @returns {Array<{x: number, y: number}>} 悬空端点坐标。
- */
-export function openWallEndpoints(endpointWalls, openEndpointTolerance = 1) {
-  return collectOpenEndpoints(endpointWalls, openEndpointTolerance).map(endpoint => ({
-    ...endpoint.point
-  }));
 }
 /**
  * 判断一个点是否「严格」落在多边形内部（即不贴在任意一条边上）。

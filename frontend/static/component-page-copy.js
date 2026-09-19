@@ -16,20 +16,6 @@ function findComponentInTree(componentTree, targetComponentId) {
   }
   return null;
 }
-// 在整份文档里找组件：共享区优先，其次逐页搜索组件树。
-function findComponentAcrossDocument(editorDocument, searchedComponentId) {
-  // 共享组件优先：同一 ID 只会出现在一处，先查共享区可以少遍历所有页面。
-  const sharedComponentMatch = findComponentInTree(
-    editorDocument?.sharedComponents,
-    searchedComponentId
-  );
-  if (sharedComponentMatch) return sharedComponentMatch;
-  for (const documentPage of editorDocument?.pages || []) {
-    const pageComponentMatch = findComponentInTree(documentPage.components, searchedComponentId);
-    if (pageComponentMatch) return pageComponentMatch;
-  }
-  return null;
-}
 // 定位组件并标注来源作用域，共享区的 page 固定为 null。
 function locateComponentWithScope(scopedDocument, locatedComponentId) {
   const sharedScopeComponent = findComponentInTree(
@@ -309,112 +295,6 @@ export function copyComponentsAcrossDocuments(
         copiedComponents.map(copiedChildId => copiedChildId.id)
       ),
     copiedComponents
-  );
-}
-/**
- * 复制单个组件到目标文档的作用域。
- *
- * @param {object} sourceDocument 源文档。
- * @param {object} targetDocument 目标文档。
- * @param {string} componentId 待复制的组件 ID。
- * @param {string} targetScope 目标作用域。
- * @param {object} [options] 同 copyComponentsAcrossDocuments 的选项。
- * @returns {object|null} 新组件；失败时为 null。
- */
-export function copyComponentAcrossDocuments(
-  sourceDocument,
-  targetDocument,
-  componentId,
-  targetScope,
-  options = {}
-) {
-  return (
-    copyComponentsAcrossDocuments(
-      sourceDocument,
-      targetDocument,
-      [componentId],
-      targetScope,
-      options
-    )[0] || null
-  );
-}
-/**
- * 在同一文档内把组件复制到指定页面（源组件所在文档即目标文档）。
- *
- * @param {object} copySourceDocument 文档。
- * @param {string} copySourceComponentId 源组件 ID。
- * @param {string} copyTargetPagePath 目标页面路径。
- * @param {object} [options] 可选依赖。
- * @param {function(*): *} [options.cloneValue] 克隆实现。
- * @param {function(): string} [options.createId] 生成新组件 ID（必需）。
- * @param {function(object): string} [options.componentLabel] 取显示名。
- * @returns {object|null} 新组件；参数缺失或找不到目标页面时为 null。
- */
-export function copyComponentToPage(
-  copySourceDocument,
-  copySourceComponentId,
-  copyTargetPagePath,
-  {
-    cloneValue: cloneValueForPage = pageCloneValue => structuredClone(pageCloneValue),
-    createId: createPageComponentId,
-    componentLabel: componentLabelForPage = pageLabelComponent =>
-      pageLabelComponent?.properties?.label || pageLabelComponent?.type || "控件"
-  } = {}
-) {
-  if (
-    !copySourceDocument ||
-    !copySourceComponentId ||
-    !copyTargetPagePath ||
-    typeof createPageComponentId != "function"
-  )
-    return null;
-  const pageSourceComponent = findComponentAcrossDocument(
-      copySourceDocument,
-      copySourceComponentId
-    ),
-    copyTargetPage = (copySourceDocument.pages || []).find(
-      targetPageMatch => targetPageMatch.path === copyTargetPagePath
-    );
-  if (!pageSourceComponent || !copyTargetPage) return null;
-  const pageComponents = copyTargetPage.components || (copyTargetPage.components = []),
-    pageCopiedComponent = assignFreshComponentIds(
-      cloneValueForPage(pageSourceComponent),
-      createPageComponentId
-    );
-  return (
-    // 复制件同样要重命名并丢掉预览快照，其余与批量复制保持一致。
-    (pageCopiedComponent.properties = {
-      ...(pageCopiedComponent.properties || {}),
-      label: uniqueCopyLabel(pageSourceComponent, pageComponents, componentLabelForPage)
-    }),
-    delete pageCopiedComponent.properties.previewState,
-    pageComponents.unshift(pageCopiedComponent),
-    applyLayerOrder(pageComponents),
-    pageCopiedComponent
-  );
-}
-/**
- * 单组件版本的同文档复制到目标作用域。
- *
- * @param {object} singleCopySourceDocument 文档。
- * @param {string} singleCopyComponentId 源组件 ID。
- * @param {string} singleCopyTargetScope 目标作用域。
- * @param {object} [singleCopyOptions] 可选依赖。
- * @returns {object|null} 新组件；失败时为 null。
- */
-export function copyComponentToTarget(
-  singleCopySourceDocument,
-  singleCopyComponentId,
-  singleCopyTargetScope,
-  singleCopyOptions = {}
-) {
-  return (
-    copyComponentsToTarget(
-      singleCopySourceDocument,
-      [singleCopyComponentId],
-      singleCopyTargetScope,
-      singleCopyOptions
-    )[0] || null
   );
 }
 /**

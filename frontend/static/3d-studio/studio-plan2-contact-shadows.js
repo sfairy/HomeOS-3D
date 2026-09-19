@@ -4,7 +4,7 @@
  * 位置：3D 工作室的「二代平面渲染（plan2）」管线里，本模块负责家具与地面接触处
  *   那圈压暗的贴地阴影，以及家具顶面之间互相压暗的「表面烘焙」（surface bake）。
  *   它是环境遮蔽（AO）的廉价近似，不追求全局光照的物理正确，只求把物体「钉」在地板上。
- * 对外：isContactCasterMaterial（材质资格判定）、surfaceBakeLevels（导出各表面高度）、
+ * 对外：isContactCasterMaterial（材质资格判定）、
  *   createContactShadowController（控制器工厂，返回 sync / invalidate / dispose / settings 等）。
  * 为什么不用实时阴影贴图：
  *   - 场景里家具动辄上千个网格，逐帧渲染 shadow map 的 draw call 与显存开销不可接受；
@@ -82,21 +82,6 @@ export function isContactCasterMaterial(material) {
     !(material.transmission > 0) &&
     (!material.transparent || !!(material.alphaTest > 0))
   );
-}
-/**
- * 对外导出「场景里存在哪些可烘焙表面高度」。
- *
- * 用途：编辑器侧需要提前知道会生成多少级表面烘焙（例如据此提示性能开销），
- *   这里只把高度数组拿出来，不带累加统计等内部信息。
- *
- * @param {object} three three.js 模块命名空间。
- * @param {Array<object>} meshes 待扫描的网格列表。
- * @param {number} baseY 地板基准高度（世界坐标 Y）。
- * @param {number} [maxLevels=32] 最多保留的表面级数。
- * @returns {number[]} 按高度升序排列的表面高度数组（米）。
- */
-export function surfaceBakeLevels(three, meshes, baseY, maxLevels = 32) {
-  return computeSurfaceLevels(three, meshes, baseY, maxLevels).map(level => level.height);
 }
 /**
  * 扫描所有网格的三角面，归纳出「有哪些高度上存在朝上的表面」。

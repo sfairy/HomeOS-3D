@@ -5,7 +5,7 @@
  * 材质注入 GLSL（onBeforeCompile + 自定义 uniform），在同一份网格上切换出
  * 「经典网格」与「微光星尘」两种外观，并让地面能对指针交互产生光影反馈。
  *
- * 对外提供：BACKGROUND_THEMES、normalizeBackgroundTheme、createBackgroundTheme。
+ * 对外提供：normalizeBackgroundTheme、createBackgroundTheme。
  *
  * 约定：星尘主题把注入代码的版本号写进 customProgramCacheKey（":hb-ground-theme-v5"），
  * 改注入代码时必须同时改这个版本号，否则 three.js 会复用旧的着色器程序。
@@ -13,11 +13,6 @@
  * 对应场景的 -Z，因此所有注入代码里都带负号。
  */
 
-/** 可选主题列表（配置界面直接渲染这份数组）。 */
-export const BACKGROUND_THEMES = [
-  ["grid", "经典网格"],
-  ["dots", "微光星尘"]
-];
 /**
  * 归一化主题名。
  *
