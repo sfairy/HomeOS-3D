@@ -17,7 +17,7 @@ import {
   mapSource,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=20260919130911";
+} from "./vacuum-map.js?v=20260919135340";
 /** 是否为有限数字（同时排除数字字符串）。 */
 const isFiniteNumber = candidateValue =>
   typeof candidateValue == "number" && Number.isFinite(candidateValue);

@@ -22,16 +22,21 @@
  *   | `clampOptionalNumber` | 按数字用 | 视为「未设置」→ 兜底值 | 用兜底值 |
  *   | `clampTypedNumber`    | **算非法** | 用兜底值 | 用兜底值 |
  *
- * 兜底值本身另有一条口径差异（**已按原语义各自保留**，见下表最后一行）：注册表那份的兜底
- *   与值走同一次夹取，所以它不能用 `null` 这类区间外的哨兵当兜底；可选与严格那两份的兜底
- *   原样返回。统一这条口径会改变 `renderer/registry.js` 的运行语义（那里 190 处调用里有 20 处
- *   兜底是表达式、不是字面量），因此不在「同名不同义」这一批里顺手改。
+ * 兜底值本身的口径：**三个函数一律原样返回、不参与夹取**（`null` 这类区间外的哨兵因此
+ *   在每一份上都能当兜底）。这条曾是三者之间最后一处差异 —— `clampCoercedNumber` 原先与值
+ *   走同一次夹取（那是渲染器注册表的最初语义）。收口时先核 `renderer/registry.js` 那 190 处
+ *   调用：170 处兜底是字面量（全部落在各自区间内），20 处是表达式，其中三处**存在越界的
+ *   现实可能**（`deviceButtonIconSize * 0.5` 在图标取下限 1 时算出 0.5 < 1；
+ *   `panelTextTop - lineGap%` 与 `navigationTextTop - ratio * 18` 在下限 -100 附近同理）。
+ *   那三处改成在**调用点**显式 `clampNumber(...)` 夹一次，行为与统一前逐字相同 —— 于是
+ *   口径统一是纯粹的「契约变一致」，不夹带任何运行语义改动。
  *
  *   | 函数 | 兜底值是否参与夹取 |
  *   | --- | --- |
- *   | `clampCoercedNumber`  | **参与**（区间外的兜底会被夹进区间） |
+ *   | `clampCoercedNumber`  | 不参与，原样返回 |
  *   | `clampOptionalNumber` | 不参与，原样返回 |
  *   | `clampTypedNumber`    | 不参与，原样返回 |
+ *   探针断言把这一列钉住：区间外的 `999` / `-1` / `null` 三个哨兵在三份上都必须原样返回。
  */
 
 /**
@@ -55,22 +60,21 @@ export function clampNumber(value, minimum, maximum) {
  *
  * 注意 `Number("")` 与 `Number(null)` 都是 0 —— 这个契约把空值当成 0（对「文档里存的是
  * 字符串」那类调用点是想要的）；要把空值当「未设置」，用 `clampOptionalNumber`。
- * 也要注意**兜底值会跟着夹一次**（与另外两个带兜底的函数不同，见模块头的口径表）：
- * 所以区间外的哨兵（`null` 表示「没设过」）不能交给这个函数。原注册表里的注释写的是
- * 「兜底值本身不参与夹取」，与实现相反；这里以**实现**（也就是既有行为）为准。
+ * 兜底值原样返回、不参与夹取（与另外两个一致）：所以 `null` 这类区间外的哨兵可以当兜底。
+ * 原先这条与值走同一次夹取，「兜底也要落在区间内」由调用方负责 —— `registry.js` 里
+ * 那一处会算出区间外兜底的调用点已经在调用点显式 `clampNumber` 夹过（见模块头）。
  *
  * @param {*} value 待处理的值。
  * @param {number} minimum 下限。
  * @param {number} maximum 上限。
- * @param {number} fallback 换算后不是有限数时使用的兜底值。
- * @returns {number} 夹取后的值或兜底值。
+ * @param {*} fallback 换算后不是有限数时使用的兜底值（可以是区间外的哨兵）。
+ * @returns {number|*} 夹取后的值或兜底值。
  */
 export function clampCoercedNumber(value, minimum, maximum, fallback) {
   const parsedValue = Number(value);
-  return Math.max(
-    minimum,
-    Math.min(maximum, Number.isFinite(parsedValue) ? parsedValue : fallback)
-  );
+  return Number.isFinite(parsedValue)
+    ? Math.max(minimum, Math.min(maximum, parsedValue))
+    : fallback;
 }
 
 /**

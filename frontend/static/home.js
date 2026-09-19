@@ -21,7 +21,7 @@
  *   7. 编辑历史、草稿保存与崩溃恢复；
  *   8. 拖拽 / 缩放 / 对齐等画布手势，以及文件末尾的初始化与事件绑定。
  *
- * 版本戳约定：本文件内部所有 `import ... ?v=20260919130911` 必须使用同一条版本戳，
+ * 版本戳约定：本文件内部所有 `import ... ?v=20260919135340` 必须使用同一条版本戳，
  * 与 renderer/renderer.js 引用 renderer/registry.js 的 `?v=` 完全一致 ——
  * 两条路径都指向同一份控件注册表，版本戳一旦不同就会加载出两份注册表，
  * 表现为控件类型在某些视图里"找不到"。改动静态资源后由
@@ -42,19 +42,19 @@
  *   - 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260919130911";
+import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260919135340";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "./utils/api-fetch.js?v=20260919130911";
+import { apiFetch } from "./utils/api-fetch.js?v=20260919135340";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "./renderer/renderer.js?v=20260919130911";
+} from "./renderer/renderer.js?v=20260919135340";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "./renderer/registry.js?v=20260919130911";
+} from "./renderer/registry.js?v=20260919135340";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -62,7 +62,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "./templates/component-templates.js?v=20260919130911";
+} from "./templates/component-templates.js?v=20260919135340";
 import {
   clone,
   newId,
@@ -72,27 +72,27 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260919130911";
-import { clampNumber } from "./utils/numbers.js?v=20260919130911";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "./utils/entities.js?v=20260919130911";
+} from "./editor-utils.js?v=20260919135340";
+import { clampNumber } from "./utils/numbers.js?v=20260919135340";
+import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "./utils/entities.js?v=20260919135340";
 import {
   hexColorOrEmpty,
   strictHexColorOrEmpty
-} from "./utils/colors.js?v=20260919130911";
+} from "./utils/colors.js?v=20260919135340";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "./popup-layout.js?v=20260919130911";
+} from "./popup-layout.js?v=20260919135340";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260919130911";
+} from "./dashboard-resize.js?v=20260919135340";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260919130911";
+} from "./component-page-copy.js?v=20260919135340";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -104,25 +104,25 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "./related-entities.js?v=20260919130911";
-import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260919130911";
-import { createButtonSound } from "./sound-effects.js?v=20260919130911";
+} from "./related-entities.js?v=20260919135340";
+import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260919135340";
+import { createButtonSound } from "./sound-effects.js?v=20260919135340";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260919130911";
-import { confirmAction } from "./ui-confirm.js?v=20260919130911";
-import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260919130911";
+} from "./editor-dialogs.js?v=20260919135340";
+import { confirmAction } from "./ui-confirm.js?v=20260919135340";
+import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260919135340";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./editor-picker-pagination.js?v=20260919130911";
-import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260919130911";
-import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260919130911";
-import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260919130911";
-import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260919130911";
-import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260919130911";
+} from "./editor-picker-pagination.js?v=20260919135340";
+import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260919135340";
+import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260919135340";
+import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260919135340";
+import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260919135340";
+import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260919135340";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -130,13 +130,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "./action-rules.js?v=20260919130911";
+} from "./action-rules.js?v=20260919135340";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260919130911";
+} from "./component-tree.js?v=20260919135340";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -146,13 +146,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260919130911";
+} from "./editor-component-collections.js?v=20260919135340";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260919130911";
+} from "./editor-basic-inspectors.js?v=20260919135340";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -163,7 +163,7 @@ import {
   popupModuleTypeLabel,
   reorderedPopupModules,
   uniquePagePath
-} from "./editor-document-management.js?v=20260919130911";
+} from "./editor-document-management.js?v=20260919135340";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -171,18 +171,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260919130911";
+} from "./editor-history.js?v=20260919135340";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "./3d-studio/studio-normalization.js?v=20260919130911";
-import { createLicenseCard } from "./license-card.js?v=20260919130911";
+} from "./3d-studio/studio-normalization.js?v=20260919135340";
+import { createLicenseCard } from "./license-card.js?v=20260919135340";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "./modules/interaction3d/editor.js?v=20260919130911";
+} from "./modules/interaction3d/editor.js?v=20260919135340";
 /**
  * 按选择器取单个 DOM 节点的简写。
  *
@@ -4722,7 +4722,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260919130911";
+          ".jpg?v=20260919135340";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }

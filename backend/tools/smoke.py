@@ -3234,6 +3234,65 @@ def _frontend_retired_name_value_sites(source: str, name: str) -> list[str]:
     return sites
 
 
+def _frontend_call_arguments(code: str, open_paren: int) -> list[str] | None:
+    """按顶层逗号切开一次调用的实参（``open_paren`` 指向那个左括号）。
+
+    只该在**已经抹掉注释与字符串**的源码上调用（``_frontend_code_only``），所以这里不必
+    再处理引号与转义，只管括号深度。返回 ``None`` 表示括号没配平 —— 那种源码交给「前端
+    脚本能解析」那条闸去报，这里不重复喊。
+    """
+    depth = 0
+    arguments: list[str] = []
+    current: list[str] = []
+    index = open_paren
+    while index < len(code):
+        char = code[index]
+        if char in '([{':
+            depth += 1
+            if depth > 1:
+                current.append(char)
+        elif char in ')]}':
+            depth -= 1
+            if depth == 0:
+                arguments.append(''.join(current).strip())
+                return arguments
+            current.append(char)
+        elif char == ',' and depth == 1:
+            arguments.append(''.join(current).strip())
+            current = []
+        else:
+            current.append(char)
+        index += 1
+    return None
+
+
+def _frontend_clamp_fallback_is_explicit(argument: str) -> bool:
+    """``clampCoercedNumber`` 的兜底实参是不是「一眼看得出落没落在区间内」的形态。
+
+    为什么要按**形态**判：统一后的契约是「兜底原样返回」，静态分析判不出「这个表达式会不会
+    越界」，而 `renderer/registry.js` 里那三处是真实越界过的推导值（见 ``utils/numbers.js``
+    模块头）。所以口径是：兜底要么是**字面量 / 裸标识符 / 字面量三元**（读一眼就能对上下限），
+    要么已经在调用点显式 ``clampNumber(...)`` 夹过一次；其余（内联算术）一律要求写出来。
+    代价是「本来就在区间内的算术兜底」也会被要求包一层（多写一层恒等夹取），
+    这是刻意选的偏严一侧：那层删掉时静默改的是页面上的尺寸，不是报错。
+    """
+    text = argument.strip()
+    compact = ''.join(text.split())
+    # 1) 数字字面量（含负数）。
+    if re.fullmatch(r'[-+]?\d+(?:\.\d+)?', compact):
+        return True
+    # 2) 已经在本调用表达式里夹过一次。
+    if compact.startswith('clampNumber(') or compact.startswith('clampCoercedNumber('):
+        return True
+    # 3) 裸标识符（含 `a.b` 路径）：取值区间由上游那条赋值负责。
+    if re.fullmatch(r'[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*', text):
+        return True
+    # 4) 真 / 假两支都是数字字面量的三元。
+    if re.fullmatch(r'.+\?[-+]?\d+(?:\.\d+)?:[-+]?\d+(?:\.\d+)?', compact):
+        return True
+    return False
+
+
 def check_frontend_helper_contract_single_source() -> None:
     """P10-B：契约型助手的实现全前端只有一份，调用方只能 import。
 
@@ -3275,6 +3334,12 @@ def check_frontend_helper_contract_single_source() -> None:
       逐字不变、两处是有意的行为改动（说明写在 ``utils/entities.js`` 的模块头）；
     * 全前端 70 余处内联的 ``x?.newState || x`` / ``(x?.newState || x)?.attributes`` 取用
       —— 其中约 30 处落在上面那个 3D 运行时树里，同一个边界问题。
+
+    P12 收口时还把这一族最后一处口径差异统一了：``clampCoercedNumber`` 的兜底现在与另外两份
+    一样**原样返回、不参与夹取**（原先它会跟着夹一次，``null`` 这类区间外哨兵因此不能用）。
+    ``renderer/registry.js`` 里三处兜底是推导表达式、存在越界现实的调用点，改到调用点显式
+    ``clampNumber(...)`` 夹一次，行为与统一前逐字相同 —— 第 8 条闸钉住这三处补偿（判据与那句
+    「宁可偏严」的取舍写在 ``_frontend_clamp_fallback_is_explicit`` 的 docstring 里）。
 
     还有一条**判据本身的边界**（P12 撞到过）：这条闸按「自由标识符」判使用点，所以
     **依赖注入的形参名不能与助手同名**。``editor-picker-queries.js`` 收的是
@@ -3433,6 +3498,43 @@ def check_frontend_helper_contract_single_source() -> None:
         '；'.join(inline_domain_splits[:8])
         if inline_domain_splits
         else '扫过 /static 全部脚本，无内联切域',
+    )
+
+    # 8) P12 夹取收口：`clampCoercedNumber` 的兜底现在**原样返回**（不再跟着夹一次），
+    #    于是「兜底是算出来的推导值」的调用点必须自己夹一次。这条盯的正是
+    #    `renderer/registry.js` 里那三处补偿 —— 谁看着
+    #    `clampNumber(deviceButtonIconSize * 0.5, 1, 100)` 觉得多余顺手删掉，
+    #    图标尺寸算出 0.5 时就不再夹回下限 1（面板 / 导航文本同理，会算到 -100 以下）。
+    #    判据是**形态**不是取值（静态判不出会不会越界）：字面量 / 裸标识符 / 字面量三元 /
+    #    已 `clampNumber(...)` 包裹这四类放行，其余（内联算术）要求显式写出来。
+    unclamped_fallbacks: list[str] = []
+    for path in sorted((frontend_root / 'static').rglob('*.js')):
+        if '/vendor/' in path.as_posix():
+            continue
+        try:
+            source = path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:  # 前端资源里的二进制伪装交给语法门去报
+            continue
+        relative = path.relative_to(PROJECT_ROOT).as_posix()
+        if relative == 'frontend/static/utils/numbers.js':
+            continue  # 这一份是定义本身：它自己的实参名就是 `fallback`。
+        code = _frontend_code_only(source)
+        for match in re.finditer(r'clampCoercedNumber\s*\(', code):
+            arguments = _frontend_call_arguments(code, match.end() - 1)
+            if not arguments or len(arguments) != 4:
+                continue
+            if _frontend_clamp_fallback_is_explicit(arguments[3]):
+                continue
+            line_number = code.count('\n', 0, match.start()) + 1
+            unclamped_fallbacks.append(
+                f'{relative}:{line_number} → {" ".join(arguments[3].split())[:60]}'
+            )
+    check(
+        'P12 夹取收口：clampCoercedNumber 的「算出来的兜底」都在调用点显式夹过（兜底已不再跟着夹）',
+        not unclamped_fallbacks,
+        '；'.join(unclamped_fallbacks[:8])
+        if unclamped_fallbacks
+        else '扫过 /static 全部脚本，算出来的兜底都夹过或没有这种调用',
     )
 
 

@@ -4282,18 +4282,28 @@ async function runNumberHelpersSuite() {
     })
   );
 
-  // 兜底值的口径两份不同（这是各自原有的运行语义，本批只收敛名字、不动行为）：
-  // 注册表那份的兜底会跟着夹一次，可选 / 严格那两份原样返回（`null` 哨兵靠这条）。
-  // 钉在这里，是为了让「以后统一口径」变成一个显式决定，而不是某次重构的副产品。
+  // 兜底值的口径：三份**一律原样返回、不参与夹取** —— 区间外的哨兵（`null` / `999` / `-1`）
+  // 因此在三份上都能当兜底。这条曾是三者之间最后一处差异（注册表那份原先会把兜底夹一次）：
+  // 统一时把 `registry.js` 里三处「算出来可能越界」的兜底挪到调用点显式 `clampNumber`（见
+  // `utils/numbers.js` 模块头那张口径表）。钉在这里，是为了让口径再变回去必须是个显式决定，
+  // 而不是某次重构的副产品。
   check(
-    "P10-B 兜底值口径按下表钉住：clampCoercedNumber 会夹兜底，另两份原样返回",
-    clampCoercedNumber(NaN, 0, 1, 2) === 1 &&
+    "P10-B 兜底值口径按下表钉住：三份一律原样返回（区间外哨兵也能当兜底）",
+    clampCoercedNumber(NaN, 0, 1, 2) === 2 &&
+      clampCoercedNumber(NaN, 0, 1, -1) === -1 &&
+      clampCoercedNumber(NaN, 0, 1, null) === null &&
       clampOptionalNumber(undefined, 0, 1, -1) === -1 &&
-      clampTypedNumber(undefined, 0, 100, null) === null,
+      clampOptionalNumber(undefined, 0, 1, 999) === 999 &&
+      clampTypedNumber(undefined, 0, 100, null) === null &&
+      clampTypedNumber(undefined, 0, 100, 999) === 999,
     JSON.stringify({
       注册表_上界外兜底: clampCoercedNumber(NaN, 0, 1, 2),
+      注册表_下界外兜底: clampCoercedNumber(NaN, 0, 1, -1),
+      注册表_null哨兵: String(clampCoercedNumber(NaN, 0, 1, null)),
       可选_下界外兜底: clampOptionalNumber(undefined, 0, 1, -1),
-      严格_null哨兵: clampTypedNumber(undefined, 0, 100, null)
+      可选_上界外兜底: clampOptionalNumber(undefined, 0, 1, 999),
+      严格_null哨兵: String(clampTypedNumber(undefined, 0, 100, null)),
+      严格_上界外兜底: clampTypedNumber(undefined, 0, 100, 999)
     })
   );
 

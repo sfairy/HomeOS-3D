@@ -16,7 +16,7 @@
 // 为什么值得破一次例：本文件原先内联了一份 `String(id || … || "").split(".", 1)[0]`
 // 来判灯域，与 `entityDomainFromId` 的契约逐字相同（输入自带 `|| ""` 守卫）——
 // 留着它就是「同一份取域知识两份实现」，而那正是这批要收口的东西。
-import { entityDomainFromId } from "../utils/entities.js?v=20260919130911";
+import { entityDomainFromId } from "../utils/entities.js?v=20260919135340";
 
 /**
  * 把 0~100 的相对色温百分比换算成开尔文。
