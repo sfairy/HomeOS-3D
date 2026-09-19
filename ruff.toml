@@ -1,0 +1,47 @@
+# P12 CI 加固：Python 侧的静态检查（ruff）配置。
+#
+# 跑法（CI 里就是这一条，见 .github/workflows/ci.yml）：
+#     python -m ruff check backend migrations store docker start.py container_entrypoint.py
+# 落地时用的版本是 0.16.8，CI 里 pin 同一个版本：规则集与默认阈值会随版本变，
+# 不 pin 的话「本地绿 / CI 红」会变成家常便饭。`backend/tools/smoke.py` 里有一条
+# 同名自检会把同一份配置再跑一遍（环境里没有 ruff 时按 node 探针的先例显式 skip）。
+#
+# 为什么 `select` 只有这几族：名单是按「能挡住**这个仓库真发生过**的回归」逐条加出来的，
+# 一次开满只会把真问题淹掉（`--select ALL` 里光 RUF 一族就有两万多条，绝大多数是
+# 「中文注释里出现了全角标点」这类噪声）。逐条的去留理由写在
+# docs/AUDIT-2026-09-17.md 的 P12 项里；改动下面的名单时请一并改那边，否则两边会开始
+# 讲不一样的话。
+target-version = "py312"
+
+# 默认排除之外再补几条。容器里跑的时候没有 .git（respect-gitignore 帮不上忙），
+# 这些目录也必须排除：依赖树与运行期数据里的第三方代码不是我们要负责的。
+extend-exclude = [".venv", ".venv-store", "node_modules", "data", "keys"]
+
+[lint]
+select = [
+    # Pyflakes：未定义名（F821 —— S23 那个 IntegrityError 就是它抓到的）、未使用的
+    # import / 变量（F401 / F841 —— 4.2b 那两处漏写 nonlocal 的形态正是 F841）。
+    "F",
+    # 语法错误 / IO 错误（E999）：已经有两份语法检查（CI 一份、自检一份），
+    # 这条只是让 ruff 那一遍也负责同一件事，不必再单独写。
+    "E9",
+    # pycodestyle 警告：纯卫生（行尾空白、文件末尾缺换行、无效转义）——
+    # 与 P11 那条「行号前缀残留」同族：功能上无害，所以只能靠闸看，人工 review 看不见。
+    "W",
+    # except 里 raise 不带 from：把原始异常链顶掉（B39 的成因，那一批的修法就是补 from）。
+    "B904",
+    # zip 不带 strict：两边长度不等时静默少做一部分。本仓那三处都是「列清单 ↔ 每列取值」
+    # 的配对，而它们本身又都是校验 / 对账代码 —— 截断掉的恰好是「本该发现问题的那部分」。
+    "B905",
+    # async 函数里跑阻塞子进程 / 做阻塞 pathlib IO（P5 第二批整批在修这一类：
+    # async def 里做同步活，一个 _LoopTicker 就能量出来）。
+    "ASYNC221",
+    "ASYNC240",
+]
+
+[lint.per-file-ignores]
+# 自检脚本自己读写的是几个字节的临时文件，而且它本身就是「谁跑在事件循环上」那套观测
+# （_LoopTicker / _RecordingDatabase）的主人 —— 被测对象是生产代码，不是它自己。
+# 生产侧的阻塞活由上面两条 ASYNC 规则直接盯着；这里按**身份**放行（`**/tools/`），
+# 比在那七处各挂一个 noqa 更能说明放行的是什么。加新的自检工具目录时请一并想一下这条。
+"**/tools/smoke.py" = ["ASYNC221", "ASYNC240"]

@@ -8,6 +8,7 @@
 与引用性（实体 ID 的域是否与设备种类匹配、场景 / 模型 ID 是否存在于配置里）。
 写库前一定先过这一层。
 """
+import itertools
 import json
 import math
 import re
@@ -277,7 +278,11 @@ def validate_config(properties: dict) -> None:
             fail()
         # 闭合路径必须存在非共线的三点（用叉积判断），否则退化成线段，无法形成可绕行的环路。
         a = route[0]
-        if not any(abs((b['x'] - a['x']) * (c['y'] - a['y']) - (b['y'] - a['y']) * (c['x'] - a['x'])) > 1e-06 for b, c in zip(route[1:], route[2:])):
+        # 相邻三点：`pairwise(route[1:])` 就是「错位相邻对」的正写。不写成
+        # `zip(route[1:], route[2:])` —— 那两个切片长度本来就差 1，那样的 zip 只能靠
+        # 默认的「按短的截断」才跑得起来，而那个默认语义正是 B905 要拦的（想显式表达
+        # 就只有 strict=False，等于把「这里长度不等是故意的」写成一句噪声）。
+        if not any(abs((b['x'] - a['x']) * (c['y'] - a['y']) - (b['y'] - a['y']) * (c['x'] - a['x'])) > 1e-06 for b, c in itertools.pairwise(route[1:])):
             fail()
     if 'uniformOverviewStack' in properties and not isinstance(properties['uniformOverviewStack'], bool):
         fail()

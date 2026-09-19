@@ -247,8 +247,11 @@ def migrate_points(
                 if tuple(int(value or 0) for value in current_values) != expected:
                     updates.append((*expected, row_id))
                 # 对账基准在**回填前**就固定下来，回填后再逐行比对
+                # pairs / legacy_values / expected 三者都由同一个 legacy_columns 生成，
+                # 长度天然相等；strict=True 把这件事写成断言 —— 一旦有人只在一处加列，
+                # 这里会立刻炸掉，而不是**静默少对账最后几列**（而对账正是这段代码的职责）。
                 for (legacy, _centi), legacy_value, expected_value in zip(
-                    pairs, legacy_values, expected
+                    pairs, legacy_values, expected, strict=True
                 ):
                     shown = _legacy_shown(legacy_value)
                     got = money.format_centi(expected_value)
@@ -277,7 +280,7 @@ def migrate_points(
             actual_values = raw[1 + len(legacy_columns) :]
             mismatched = False
             for (legacy, centi), legacy_value, actual in zip(
-                pairs, legacy_values, actual_values
+                pairs, legacy_values, actual_values, strict=True
             ):
                 shown = _legacy_shown(legacy_value)
                 got = money.format_centi(int(actual or 0))

@@ -175,4 +175,3 @@ def validate_public_key_text(text: str) -> None:
     message = public_key_error(text)
     if message:
         raise PaymentError(message)
-    

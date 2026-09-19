@@ -1820,7 +1820,11 @@ def create_order(
         coupons.release_coupon(session, order)
         session.flush()
         logger.error("支付渠道解析失败 order=%s: %s", order.order_no, error)
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error))
+        # B904：这条 503 是**转换**而不是新错误，原始异常（哪个渠道的配置、哪一步不合规）
+        # 必须留在链上 —— 否则排查时只剩一句「渠道配置非法」，看不出是谁判的。
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+        ) from error
 
     try:
         # S53：模拟收银台的页面凭证用短时票据（见 ``store/cashier.py``），
@@ -1840,7 +1844,10 @@ def create_order(
         fulfill.release_order_reservation(session, order=order, product=product)
         coupons.release_coupon(session, order)
         session.flush()
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error))
+        # B904：同上 —— 渠道拒单的原因（签名、参数、上游返回）要留在异常链上。
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+        ) from error
 
     order.payment_payload_json = json.dumps(intent.payload, ensure_ascii=False)
     session.flush()

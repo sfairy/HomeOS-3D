@@ -24,6 +24,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r store/requirements.txt
 
+      - name: Python lint (ruff)
+        run: |
+          # 版本与仓库根 ruff.toml 里记的一致：规则集与默认阈值会随版本变，
+          # 不 pin 的话「本地绿 / CI 红」会变成家常便饭。选哪几族、为什么，
+          # 写在 ruff.toml 里；这里只是把同一条命令搬进 CI。
+          # 入口清单与下面那条语法检查覆盖的树保持一致 —— 新增顶层包时两处一起改。
+          pip install ruff==0.16.8
+          python -m ruff check backend migrations store docker start.py container_entrypoint.py
+
       - name: Python syntax
         run: |
           python - <<'PY'

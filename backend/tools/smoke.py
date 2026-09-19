@@ -22,6 +22,8 @@ from __future__ import annotations
 import asyncio
 import ast
 import hashlib
+import importlib.metadata
+import importlib.util
 import json
 import logging
 import os
@@ -10682,6 +10684,72 @@ def check_source_has_no_line_number_artifacts() -> None:
     )
 
 
+#: ruff 要扫的入口，与 CI 那条语法检查覆盖的树一致：``migrations`` 与 ``docker``
+#: 也是随包发布的代码，不是脚本角料。不按「``.`` 整棵树」传，是为了让「扫了什么」
+#: 写在命令里 —— 容器里没有 ``.git``，``respect-gitignore`` 帮不上忙，
+#: 靠 ``ruff.toml`` 的 ``extend-exclude`` 兜底（``.venv`` / ``data`` / ``keys`` …）。
+RUFF_PATHS = ('backend', 'migrations', 'store', 'docker', 'start.py', 'container_entrypoint.py')
+
+
+def check_python_lint_clean() -> None:
+    """P12：Python 侧静态检查（ruff）必须全绿，配置在仓库根的 ``ruff.toml``。
+
+    为什么值得一条自检：这个仓库已有的闸大多是**自己写的 AST 扫描**（定义点唯一、
+    闭包作用域、模块级死符号、行号前缀……），代价是每条只认自己那一件事。而
+    「未定义名」「未使用的 import」「except 里把原异常顶掉」「zip 静默截断」这类
+    通用形态交给 ruff 只需一次 subprocess，比再写五条 AST 扫描便宜，也不会与它
+    自己的判据打架（它不认那些，那些也不认它）。
+
+    为什么只选那几族而不是开满：判据是「能不能挡住这个仓库**真发生过**的回归」。
+    开满的代价是具体的 —— ``--select ALL`` 在这个仓库里报两万多条，绝大多数是
+    「中文注释里出现了全角标点」，真问题会淹在里面。逐条去留的理由写在 ``ruff.toml``
+    与审计文档 P12 项里，改名单时两边要一起改。
+
+    环境里没有 ruff 时**显式 skip**（与前端探针缺 node 时同一先例，见
+    ``_run_frontend_probe``）：自检会被打进容器镜像里跑，而镜像装的是运行时依赖
+    （``store/requirements.txt``），不该为了一个开发期 linter 把 ruff 装进生产镜像。
+    CI 里 ruff 是硬步骤（`.github/workflows/ci.yml`），所以这条 skip 实际上只会
+    发生在容器里；本地装了 ruff 的话，推送前就能看见与 CI 同一批结论。
+    """
+    name = 'P12 Python 静态检查（ruff）全绿：未定义名 / 未用 import / 被顶掉的异常链 / 静默截断的 zip'
+    if importlib.util.find_spec('ruff') is None:
+        check(name, True, 'skipped：这套解释器里没有 ruff（本地装了就会真跑；CI 里是硬步骤）')
+        return
+    try:
+        version = importlib.metadata.version('ruff')
+    except importlib.metadata.PackageNotFoundError:  # pragma: no cover - 装了就一定有元数据
+        version = '版本未知'
+    try:
+        probe = subprocess.run(  # noqa: S603
+            [
+                sys.executable,
+                '-m',
+                'ruff',
+                'check',
+                # 缓存交给 ruff 也行，但这是一条闸：宁可每次重扫 132 个文件（约 0.2 秒），
+                # 也不要「缓存的键漏算了什么」这种只能靠猜的失败模式。
+                '--no-cache',
+                '--output-format',
+                'concise',
+                *RUFF_PATHS,
+            ],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        check(name, False, 'ruff 180 秒没跑完（多半是某种病态回溯，请单独跑一次看卡在哪）')
+        return
+    lines = [line for line in (probe.stdout + probe.stderr).splitlines() if line.strip()]
+    if probe.returncode == 0:
+        detail = f'ruff {version}：{len(RUFF_PATHS)} 个入口全通过'
+    else:
+        detail = '；'.join(lines[:5]) or f'ruff 退出码 {probe.returncode}，且没有任何输出'
+    check(name, probe.returncode == 0, detail)
+
+
 def check_frontend_resize_batching() -> None:
     """W20：resize 的「先读后写 + 一帧一遍」（活体探针 + 两处接线断言）。
 
@@ -11416,6 +11484,7 @@ async def run() -> int:
     check_frontend_pair_scan_focus()
     check_frontend_static_cache_stamps()
     check_source_has_no_line_number_artifacts()
+    check_python_lint_clean()
     check_frontend_resize_batching()
     check_frontend_studio_history_guard()
     check_frontend_runtime_cache_limit_single_source()
