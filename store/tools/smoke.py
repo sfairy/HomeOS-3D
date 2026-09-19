@@ -43,7 +43,7 @@ import traceback
 import warnings
 import types
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -98,6 +98,7 @@ from store.payments.sweeper import (
     sweep_status,
 )
 from store.payments import sweeper as sweeper_module
+from store.payments import reconcile as reconcile_module
 from store.payments import settlement as settlement_module
 from store.security import hash_password, token_hash, utcnow
 from store.serializers import list_json
@@ -9327,6 +9328,363 @@ def check_no_duplicated_store_helpers() -> None:
     )
 
 
+def check_store_timestamp_and_channel_resolver_single_source() -> None:
+    """P10 B 类末尾（商店侧）：时间戳归一只有一份；两个同名渠道解析器各自改名守契约。
+
+    与上面那条 ``check_no_duplicated_store_helpers`` 同一动机，但这三处不是「逐字节相同的
+    副本」，而是两类更隐蔽的形态 —— 清单把它们记在 4.3 B 类（同名但语义不同）的末尾：
+
+    * ``iso_z``：``store/security.py`` 一份、``store/payments/sweeper.py`` 一份。
+      那份副本的注释写着「不用直接 import：security 会拉进密码哈希与 token 生成那一整套」
+      —— 这条理由**不成立**：``store.models`` 本来就从 ``store.security`` 取
+      ``utcnow`` / ``new_uuid``，而 swener 又 import 了 ``store.models``，
+      所以它早就在导入图里（本断言顺带用 ``iso_z is security.iso_z`` 证明这一点）。
+      更重要的是两份**口径不同**：security 那份先把带时区的时间换算到 UTC 再去掉时区，
+      副本直接 ``strftime`` —— 带时区的输入会被贴上 ``Z`` 后缀却是当地时间（东八区差 8 小时）。
+      今天库里存的都是 naive UTC，所以副本「恰好」没出错；正因如此，这个偏差只能靠断言
+      把两种输入摆出来才看得见。
+    * ``_alipay_provider``：``store/api/alipay.py`` 与 ``store/payments/reconcile.py``
+      各一份同名函数，契约**真正不同**（一个按当前站点配置解析且永不抛错、一个
+      ``name_override="alipay"`` 绕过渠道开关且允许抛错）。这不是重复，所以处置是
+      **改名**（``_active_alipay_provider`` / ``_reconcile_alipay_provider``）—— 但同名
+      之所以危险，是因为照名字把调用搬过去**不会报错**，只会静默改变行为：拿巡检那份去
+      接匿名端点，渠道没配好时会抛 500；拿请求那份去接巡检，运营一切换渠道，
+      在途支付宝订单就再也没人认领。所以这里既钉名字，也把两份的行为矩阵跑出来。
+    """
+    store_root = PROJECT_ROOT / "store"
+    sources = {
+        path.relative_to(PROJECT_ROOT).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(store_root.rglob("*.py"))
+        # 排除自检脚手架本身：下面用来证明「两份口径不同」的对照表达式（被删副本的写法）
+        # 必须写在断言里，否则这件事根本无法被断言 —— 而断言不该被自己扫到。
+        # 部署出去的是 ``store/`` 下的运行时代码，``store/tools/`` 只在自检时执行。
+        if "store/tools/" not in path.relative_to(PROJECT_ROOT).as_posix()
+    }
+
+    def defined_function_names(text: str) -> set[str]:
+        """按 AST 取函数名：比 ``"def name("`` 文本比对准（字符串/注释里的同名不算数）。"""
+        return {
+            node.name
+            for node in ast.walk(ast.parse(text))
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+
+    def function_code(text: str, name: str) -> str:
+        """取函数体**代码**（去掉 docstring）并反编译回源码。
+
+        契约要由代码兑现，不能被自己的文档说中 —— 这条断言的第一版是拿文本比对，
+        于是「把 ``name_override`` 删掉、docstring 里还写着它」能让闸门保持全绿
+        （M9 牙齿变异抓到的就是这个）。
+        """
+        for node in ast.walk(ast.parse(text)):
+            if isinstance(node, ast.FunctionDef) and node.name == name:
+                body = node.body
+                if (
+                    body
+                    and isinstance(body[0], ast.Expr)
+                    and isinstance(body[0].value, ast.Constant)
+                    and isinstance(body[0].value.value, str)
+                ):
+                    body = body[1:]
+                return "\n".join(ast.unparse(statement) for statement in body)
+        return ""
+
+    # ---------------- 1. iso_z 的定义点唯一 ----------------
+    iso_z_definers = [
+        relative for relative, text in sources.items() if "iso_z" in defined_function_names(text)
+    ]
+    check(
+        "P10 iso_z 只有一份实现（store/security.py），巡检不再自带副本",
+        iso_z_definers == ["store/security.py"],
+        str(iso_z_definers),
+    )
+
+    # 「同一份」不只是同名：引用关系上也要就是那一个函数对象。
+    # 这一条同时证明了副本删除后 sweeper 确实改成了 import，而不是又抄了一份同名函数。
+    from store.security import iso_z as security_iso_z
+
+    check(
+        "P10 巡检导出的 iso_z 就是 store/security.py 那一个函数对象（不是同名的第二份）",
+        sweeper_module.iso_z is security_iso_z,
+        f"{sweeper_module.iso_z!r}",
+    )
+
+    # 手写「strftime 再拼 Z」这个码型不许再出现在商店侧运行时代码里。
+    # 它正是副本的形态：绕开时区归一，却照样贴 Z。
+    # 按 AST 判两种写法 —— f-string 里 ``f"{x.strftime(...)}Z"`` 与拼接 ``x.strftime(...) + "Z"``。
+    def is_strftime_call(node: object) -> bool:
+        return (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "strftime"
+        )
+
+    def is_literal_z(node: object) -> bool:
+        return isinstance(node, ast.Constant) and node.value == "Z"
+
+    def appends_z_to_strftime(text: str) -> bool:
+        for node in ast.walk(ast.parse(text)):
+            if (
+                isinstance(node, ast.BinOp)
+                and isinstance(node.op, ast.Add)
+                and is_strftime_call(node.left)
+                and is_literal_z(node.right)
+            ):
+                return True
+            if isinstance(node, ast.JoinedStr) and len(node.values) >= 2:
+                if is_literal_z(node.values[-1]) and any(
+                    is_strftime_call(value.value)
+                    for value in node.values
+                    if isinstance(value, ast.FormattedValue)
+                ):
+                    return True
+        return False
+
+    hand_rolled = [
+        relative for relative, text in sources.items() if appends_z_to_strftime(text)
+    ]
+    check(
+        "P10 商店侧不再手写「strftime 再拼 Z」（那份副本会漏掉时区归一）",
+        not hand_rolled,
+        str(hand_rolled),
+    )
+
+    # 时区归一（astimezone → 去掉 tzinfo）在序列化这条线上也只有一处：security.naive_utc。
+    # 收敛前它被抄在 iso 与 iso_micro 两处（同一个文件里隔了 5 行），所以「漏改其中一处」
+    # 是个很现实的事故形态 —— 而它不会报任何错。
+    # 只扫 security.py：别处（admin/store/alipay）的 astimezone 是在解析运营填进来的时间，
+    # 与「输出必须带 Z」这条协议无关，不该被卷进来。
+    security_code = sources["store/security.py"]
+    security_astimezone_functions = sorted(
+        node.name
+        for node in ast.walk(ast.parse(security_code))
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and any(
+            isinstance(child, ast.Attribute) and child.attr == "astimezone"
+            for child in ast.walk(node)
+        )
+    )
+    both_go_through_helper = all(
+        "naive_utc" in function_code(security_code, name) for name in ("iso", "iso_micro")
+    )
+    check(
+        "P10 时区归一在 security.py 里只有一处（naive_utc），且 iso / iso_micro 都走它",
+        security_astimezone_functions == ["naive_utc"] and both_go_through_helper,
+        f"security.py 里调用 astimezone 的函数={security_astimezone_functions}"
+        f" iso/iso_micro 都调用 naive_utc={both_go_through_helper}",
+    )
+
+    # ---------------- 2. iso_z 的两种输入：等价的部分与修掉的部分 ----------------
+    # 副本的口径（已删除，这里作为对照表达式保留 —— 没有它就无法把「两份不同」写成断言）。
+    def removed_copy_iso_z(value):
+        return None if value is None else f"{value.strftime('%Y-%m-%dT%H:%M:%S.%f')}Z"
+
+    naive_moment = datetime(2026, 1, 2, 3, 4, 5, 678901)
+    aware_moment = datetime(
+        2026, 1, 2, 3, 4, 5, 678901, tzinfo=timezone(timedelta(hours=8))
+    )
+    check(
+        "P10 对 naive（库内实际形态）输入，统一后的 iso_z 与那份副本逐字节相同 —— 这是等价改写",
+        security_iso_z(naive_moment) == removed_copy_iso_z(naive_moment)
+        and security_iso_z(naive_moment) == "2026-01-02T03:04:05.678901Z"
+        and security_iso_z(None) is None,
+        repr(security_iso_z(naive_moment)),
+    )
+    check(
+        "P10 对带时区的输入，统一后的 iso_z 换算到 UTC 再贴 Z，副本会把当地时间贴成 Z（东八区差 8 小时）",
+        security_iso_z(aware_moment) == "2026-01-01T19:04:05.678901Z"
+        and removed_copy_iso_z(aware_moment) == "2026-01-02T03:04:05.678901Z"
+        and security_iso_z(aware_moment) != removed_copy_iso_z(aware_moment),
+        f"统一后={security_iso_z(aware_moment)} 副本={removed_copy_iso_z(aware_moment)}",
+    )
+
+    # ---------------- 3. 两个渠道解析器：名字不再互相冒充 ----------------
+    same_name = sorted(
+        relative
+        for relative, text in sources.items()
+        if "_alipay_provider" in defined_function_names(text)
+    )
+    check(
+        "P10 商店侧不再有同名的 _alipay_provider 两份实现（两份契约不同，只能靠名字区分）",
+        not same_name,
+        str(same_name),
+    )
+    defined = {
+        "store/api/alipay.py": "_active_alipay_provider",
+        "store/payments/reconcile.py": "_reconcile_alipay_provider",
+    }
+    missing = [
+        f"{relative}: {name}"
+        for relative, name in defined.items()
+        if name not in defined_function_names(sources.get(relative, ""))
+    ]
+    check(
+        "P10 两份渠道解析器各守自己的文件、各用自己的名字（_active_ / _reconcile_）",
+        not missing,
+        str(missing) if missing else "；".join(f"{name}" for name in defined.values()),
+    )
+
+    # 契约的静态形态：请求侧必须吞掉 PaymentError，巡检侧必须绕过渠道开关。
+    def swallows_payment_error(text: str, name: str) -> bool:
+        """函数体里有一个捕获 PaymentError 的 handler，且它 ``return None``（而不是继续往外抛）。
+
+        只判「提到了 PaymentError」是不够的：``except PaymentError: raise`` 同样提到了它，
+        而那正是这份契约最不能有的形态 —— 匿名端点会因此变成 500。
+        """
+        for node in ast.walk(ast.parse(text)):
+            if not (isinstance(node, ast.FunctionDef) and node.name == name):
+                continue
+            for inner in ast.walk(node):
+                if not isinstance(inner, ast.Try):
+                    continue
+                for handler in inner.handlers:
+                    caught = (
+                        {
+                            child.id
+                            for child in ast.walk(handler.type)
+                            if isinstance(child, ast.Name)
+                        }
+                        if handler.type is not None
+                        else set()
+                    )
+                    if "PaymentError" not in caught:
+                        continue
+                    if any(
+                        isinstance(statement, ast.Return)
+                        and (
+                            statement.value is None
+                            or (
+                                isinstance(statement.value, ast.Constant)
+                                and statement.value.value is None
+                            )
+                        )
+                        for statement in handler.body
+                    ):
+                        return True
+        return False
+
+    request_source = sources["store/api/alipay.py"]
+    reconcile_source = sources["store/payments/reconcile.py"]
+    request_swallows = swallows_payment_error(request_source, "_active_alipay_provider")
+    reconcile_code = function_code(reconcile_source, "_reconcile_alipay_provider")
+    check(
+        "P10 请求侧那份吞掉 PaymentError 并 return None（匿名端点要拿到「不是支付宝」而不是 500）",
+        request_swallows,
+        "handler 里 return None"
+        if request_swallows
+        else "没有「捕获 PaymentError 并 return None」的 handler",
+    )
+    check(
+        'P10 巡检侧那份带 name_override="alipay"（绕过渠道开关，运营切了渠道也要能认领在途订单）',
+        # ast.unparse 会把引号统一成单引号，所以这里不能写死引号风格。
+        bool(re.search(r"""name_override=(['"])alipay\1""", reconcile_code)),
+        reconcile_code.strip().splitlines()[-1] if reconcile_code.strip() else "(函数没找到)",
+    )
+
+    # ---------------- 4. 行为矩阵：两份在同一站点配置下的结论 ----------------
+    # 跑的是两份真实实现（不是复刻的逻辑），请求侧喂一个只提供
+    # resolve_payment_provider 的替身 request / session —— 正是被测代码真正用到的两个入口。
+    from store.api import alipay as alipay_api
+
+    workdir = Path(tempfile.mkdtemp(prefix="hb-store-channel-resolver-"))
+    base = dict(data_dir=workdir / "data", license_keys_dir=workdir / "keys", mail_mode="log")
+
+    class _StubSession:
+        """只实现 get_setting 用到的 ``.get``：够让请求侧拿到一份真实 StoreSetting。"""
+
+        def __init__(self, setting):
+            self._setting = setting
+
+        def get(self, model, ident):
+            return self._setting if ident == 1 else None
+
+    def stub_request(settings):
+        def resolver(setting=None, *, name=None):
+            # 与 store/app.py 的 resolve_payment_provider 同一逻辑，只去掉「没传就查库」
+            # 那一步 —— 本断言始终传 setting，那一步不会走到。
+            if name:
+                return resolve_provider(settings, setting, name_override=name)
+            return resolve_provider(settings, setting)
+
+        return types.SimpleNamespace(
+            app=types.SimpleNamespace(
+                state=types.SimpleNamespace(resolve_payment_provider=resolver)
+            )
+        )
+
+    def request_side(settings, setting):
+        """请求侧结论；返回 None 表示「当前不是支付宝在收款」。
+
+        抛错也原样返回（而不是让它冒出去）：那份契约是**永不抛错**，
+        所以「抛出 PaymentError」就是断言要抓的失败态，不该变成一个异常。
+        """
+        try:
+            return alipay_api._active_alipay_provider(
+                stub_request(settings), _StubSession(setting)
+            )
+        except PaymentError as error:
+            return error
+
+    def reconcile_side(settings, setting):
+        """巡检侧结论；抛错就返回异常对象（两份契约里「允许抛错」那一半）。"""
+        try:
+            return reconcile_module._reconcile_alipay_provider(settings, setting)
+        except PaymentError as error:
+            return error
+
+    mock_settings = load_settings(**base, payment_provider="mock", allow_mock_payments=True)
+    mock_setting = StoreSetting(id=1, payment_provider="mock")
+    alipay_settings = load_settings(**base, payment_provider="alipay")
+    alipay_setting = StoreSetting(id=1, payment_provider="alipay")
+    unconfigured_settings = load_settings(**base, payment_provider="")
+    unconfigured_setting = StoreSetting(id=1)
+
+    # 先把六个数算出来再断言：改名/改契约时该红的是断言，不是**自检自己崩掉**
+    # （崩掉的话本轮连「失败项」摘要都打不出来，等于把下面三条一起静音了）。
+    try:
+        request_mock = request_side(mock_settings, mock_setting)
+        reconcile_mock = getattr(reconcile_side(mock_settings, mock_setting), "name", None)
+        request_unconfigured = request_side(unconfigured_settings, unconfigured_setting)
+        reconcile_unconfigured = getattr(
+            reconcile_side(unconfigured_settings, unconfigured_setting), "name", None
+        )
+        request_alipay = getattr(request_side(alipay_settings, alipay_setting), "name", None)
+        reconcile_alipay = getattr(
+            reconcile_side(alipay_settings, alipay_setting), "name", None
+        )
+    except Exception as error:  # noqa: BLE001 - 断言要的是红，不是崩
+        check(
+            "P10 两份渠道解析器的行为矩阵跑得起来（改坏了名字/契约不该把自检本身炸掉）",
+            False,
+            f"{type(error).__name__}: {error}",
+        )
+        return
+
+    # 站点当前是模拟收银台：请求侧正确地说「不是支付宝」；巡检侧照样拿到支付宝，
+    # 因为要认领的是历史订单。
+    check(
+        "P10 站点切到模拟收银台时：请求侧返回 None，巡检侧仍按支付宝解析（在途订单还有人管）",
+        request_mock is None and reconcile_mock == "alipay",
+        f"请求侧={request_mock!r} 巡检侧={reconcile_mock!r}",
+    )
+
+    # 渠道压根没配：请求侧吞掉 PaymentError 返回 None（匿名端点不能被 500 打断），
+    # 巡检侧仍然解析出支付宝（不因为「当前没配」就假装没有历史支付宝订单）。
+    check(
+        "P10 渠道未配置时：请求侧吞掉 PaymentError 返回 None，巡检侧仍解析出支付宝且不抛错",
+        request_unconfigured is None and reconcile_unconfigured == "alipay",
+        f"请求侧={request_unconfigured!r} 巡检侧={reconcile_unconfigured!r}",
+    )
+
+    # 站点当前就是支付宝：两份结论一致（这是它们看起来「像重复」的原因，
+    # 也正是靠这一格无法分辨两份 —— 所以上面两格才是这条断言的承重部分）。
+    check(
+        "P10 站点就是支付宝时两份结论一致（只在「切了渠道 / 没配渠道」时才分道扬镳）",
+        request_alipay == "alipay" and reconcile_alipay == "alipay",
+        f"请求侧={request_alipay!r} 巡检侧={reconcile_alipay!r}",
+    )
+
+
 def check_store_database_connection_settings() -> None:
     """P10：商店侧的连接级设置与「库级 PRAGMA 只设一次」（搬自主应用 B36）。
 
@@ -15465,6 +15823,7 @@ async def run() -> int:
     check_static_assets()
     check_retired_columns()
     check_no_duplicated_store_helpers()
+    check_store_timestamp_and_channel_resolver_single_source()
     check_store_database_connection_settings()
     check_frontend_api_contract()
     check_theme_matches_app()
