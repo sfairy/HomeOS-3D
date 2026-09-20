@@ -61,12 +61,10 @@ class StoreSetting(Base):
     payment_provider: Mapped[str] = mapped_column(String(32), default="")
     payment_display_name: Mapped[str] = mapped_column(String(64), default="")
     payment_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    #: 留空表示跟随 STORE_ALIPAY_TRANSACTION_DESCRIPTION。
-    #:
-    #: 这里刻意**不再**给一个非空默认值（旧版本是 "HomeOS 授权"）：非空默认值会把
-    #: 环境变量永远盖住 —— 运营在 .env 里改了交易标题，界面上却还是「HomeOS 授权」，
-    #: 查半天也想不到是数据库里那行默认值在作祟。留空 == 跟随环境变量，
-    #: 与站点里其它配置保持同一口径。
+    #: 留空表示跟随 STORE_ALIPAY_TRANSACTION_DESCRIPTION；刻意不给非空默认值：
+    #: 非空默认值会把环境变量永远盖住 —— 运营在 .env 里改了交易标题，界面上却还是
+    #: 旧标题，查半天也想不到是数据库里那行默认值在作祟。
+    #: 留空 == 跟随环境变量，与站点里其它配置保持同一口径。
     payment_transaction_description: Mapped[str] = mapped_column(String(128), default="")
 
     # ---- 支付宝凭据（可选） ----
@@ -105,7 +103,7 @@ class StoreSetting(Base):
     #: 授权码、验证码有效期这类高频动作不必重启容器。
     #:
     #: 为什么整块搬进库：验证码邮件是注册动线上唯一的外部依赖，SMTP 授权码过期
-    #: / 被限流是常态。过去换个授权码要改 .env 再重启商店进程，注册会中断整段重启期。
+    #: / 被限流是常态，必须能在不重启商店进程的前提下更换。
     mail_mode: Mapped[str] = mapped_column(String(16), default="")
     mail_from: Mapped[str] = mapped_column(String(255), default="")
     smtp_host: Mapped[str] = mapped_column(String(255), default="")
@@ -190,8 +188,8 @@ class EmailVerification(Base):
 
     #: 投递结果。None 表示「本次没有真实发信」（log/echo 模式），
     #: True 表示 SMTP 已收下，False 表示发信失败（已回退成日志模式）。
-    #: 过去这个结果只回给前端就丢了，事后完全无法回答「用户说没收到，
-    #: 那封信到底发出去了吗」——只能翻日志，而日志有轮转。
+    #: 必须落库：只回给前端就丢了，事后无法回答「用户说没收到，那封信到底
+    #: 发出去了吗」——只能翻日志，而日志有轮转。
     delivered: Mapped[bool | None] = mapped_column(Boolean)
     #: 实际生效的投递方式（smtp / log / echo），用于区分「真发了」和「只记了日志」
     delivery_mode: Mapped[str] = mapped_column(String(16), default="")
@@ -331,18 +329,10 @@ class CouponRedemption(Base):
 class Order(Base):
     __tablename__ = "orders"
 
-    #: **每账号最多一笔待支付订单**，由数据库兜底。
-    #:
-    #: 业务规则（``store/api/store.py:create_order`` 里那段 ``pending`` 检查）过去只是
-    #: 「先 SELECT 再 INSERT」，两个并发请求会同时看到 ``pending`` 为空，于是产生两笔
-    #: 待付单 —— 连带两次 ``reserve_stock`` 与两次 ``redeem_coupon``，这也是
-    #: S40（优惠码按账号限额被绕过）的直接达成路径。
-    #:
-    #: 为什么是**部分**唯一索引：约束只该覆盖 ``status='pending'`` 这一种状态。
-    #: 一个账号当然可以有很多历史订单（paid/fulfilled/expired/cancelled…），
-    #: 对 ``account_id`` 直接加全量唯一索引会把老用户全部挡住。
-    #: 注意 ``account_id`` 可为空（游客单），SQLite 的唯一索引里 NULL 互不相等，
-    #: 所以游客单不受这条约束影响 —— 与该规则「只针对已登录账号」的语义一致。
+    #: **每账号最多一笔待支付订单**，由数据库兜底。业务规则那段「先 SELECT 再 INSERT」在并发下
+    #: 会同时看到 ``pending`` 为空而生成两笔待付单，连带两次 ``reserve_stock`` / ``redeem_coupon``。
+    #: 用**部分**唯一索引是因为约束只该覆盖 ``status='pending'``：历史订单可以有很多，全量唯一索引
+    #: 会挡住老用户。``account_id`` 可为空（游客单），SQLite 唯一索引里 NULL 互不相等，游客单不受影响。
     __table_args__ = (
         Index(
             "uq_orders_pending_per_account",
@@ -353,8 +343,8 @@ class Order(Base):
         #: 过期批扫要按 ``status='pending'`` 找行、按 ``expires_at`` 从最老的开始取
         #: 前 N 条（``store/commerce/expiry.py`` 的 ``ORDER BY expires_at LIMIT n``）。
         #: 有了它，这个 LIMIT 才是真的「取够就走」；只靠 ``status`` 的单列索引，
-        #: SQLite 得先把全部 pending 行读出来排序。同 S50 的商品统计一样，
-        #: 这是把「随历史变慢」变成「与要处理的那几行成正比」。
+    #: SQLite 得先把全部 pending 行读出来排序 —— 这条索引把「随历史变慢」
+    #: 变成「与要处理的那几行成正比」。
         Index("ix_orders_status_expires", "status", "expires_at"),
         #: 商品统计 ``WHERE status='fulfilled' GROUP BY product_id`` 的覆盖索引：
         #: 索引里同时有过滤列与分组列，聚合就是一次索引内扫描，不必回表。
@@ -405,8 +395,8 @@ class Order(Base):
     payment_provider: Mapped[str] = mapped_column(String(32), default="mock")
     payment_payload_json: Mapped[str] = mapped_column(Text, default="{}")
     payment_trade_no: Mapped[str | None] = mapped_column(String(128))
-    #: **累计**已退回到用户的金额（分）。后台退款现在会真的调用支付渠道，这里是对账依据；
-    #: 过去退款只改状态，库里没有任何金额记录，账目与真实资金流对不上。
+    #: **累计**已退回到用户的金额（分）。后台退款会真的调用支付渠道，这里是对账依据；
+    #: 只改状态、不留金额记录的话，账目与真实资金流对不上。
     #: 支持多次部分退款后它只增不减，明细见 ``order_refunds``。
     refund_amount_cents: Mapped[int] = mapped_column(Integer, default=0)
     refund_trade_no: Mapped[str | None] = mapped_column(String(128))
@@ -414,7 +404,7 @@ class Order(Base):
     #: 码也发了，但这件库存早已还给别人，属于刻意保留的例外，必须让运营看到。
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
     review_note: Mapped[str] = mapped_column(String(255), default="")
-    #: 这笔订单的「已支付」是**人拍的板**，不是渠道确认的钱（S8）。
+    #: 这笔订单的「已支付」是**人拍的板**，不是渠道确认的钱。
     #:
     #: 后台上「标记支付 / 履约」会给一张还没收到钱的订单盖上 ``paid_at``；只要
     #: 营收口径按 ``paid_at`` 汇总，点一下就凭空多出一笔营收 —— 而这一下恰恰是
@@ -422,9 +412,7 @@ class Order(Base):
     #: KPI（见 ``store/api/admin.py:_billable_money_filter``），并在后台列表上标注，
     #: 于是「为什么营收比订单少」有据可查，而不是一个沉默的偏差。
     manual_settlement: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
-    #: 这笔订单给邀请人发的奖励，单位**厘**（1 积分 = 100 厘）。
-    #: 与钱包/流水同一口径；旧列 ``referral_reward_points``（FLOAT）由
-    #: ``store.commerce.points_migration`` 回填后退役。
+    #: 这笔订单给邀请人发的奖励，单位**厘**（1 积分 = 100 厘），与钱包/流水同一口径。
     referral_reward_points_centi: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0"
     )
@@ -444,10 +432,10 @@ class Order(Base):
     archived_at: Mapped[datetime | None] = mapped_column(DateTime)
     #: 这一单占用的库存**是否已经归还**（归还时刻）。空值 = 仍然占着。
     #:
-    #: 加这一列是因为「此刻还占不占预留」过去没有持久化，只能由调用方看着
-    #: ``order.status`` 反推 —— 而状态与预留的生命周期并不一致：订单从 expired
-    #: 复活成 paid 时预留早已释放，按状态反推会再释放一次，把**别人**的预留
-    #: 扣掉（放开超卖）；``recompute_reserved_stock`` 也会把复活单算成占用。
+    #: 「此刻还占不占预留」必须持久化：只由调用方看着 ``order.status`` 反推时，
+    #: 状态与预留的生命周期并不一致 —— 订单从 expired 复活成 paid 时预留早已释放，
+    #: 按状态反推会再释放一次，把**别人**的预留扣掉（放开超卖）；
+    #: ``recompute_reserved_stock`` 也会把复活单算成占用。
     #: 现在「还占不占」只有一个事实来源，就是这一列。
     stock_reservation_released_at: Mapped[datetime | None] = mapped_column(DateTime)
 
@@ -459,16 +447,9 @@ class Order(Base):
 
 class OrderRefund(Base):
     """一次退款动作的流水（含被渠道拒绝的尝试）。
-
-    为什么必须单独一张表：支付宝的 ``out_request_no`` 是**幂等键**，同一个值
-    重复提交会被网关当成「同一笔退款」直接返回上一次的结果。过去它写死成
-    ``RF{订单号}``，于是「先退 30%、再退剩下的 70%」时，第二次调用会被静默
-    去重 —— 钱根本没退出去，本地却已把订单标成已退款，账面与实际资金流彻底
-    对不上，而且**没有任何报错**。
-
-    现在每次退款先生成一条流水（自带 UUID），``out_request_no`` 由流水 id 派生，
-    天然唯一；退款金额、渠道退款单号、操作人、是否线下退款一并留痕，
-    对账不必再去翻审计日志。
+    必须单独一张表：``out_request_no`` 是**幂等键**，同值重复提交会被网关当成「同一笔退款」直接返回
+    上次结果；若按订单号写死，「先退 30%、再退 70%」的第二次会被静默去重 —— 钱没退出去而本地已标成
+    已退款，账面与资金流对不上且没有任何报错。故每次退款先生成流水（自带 UUID）并在其中留痕全部要素。
     """
 
     __tablename__ = "order_refunds"
@@ -535,8 +516,8 @@ class License(Base):
     __table_args__ = (
         #: 商品统计里的「拥有客户数」是
         #: ``WHERE active = 1 GROUP BY product_id`` 上的 ``COUNT(DISTINCT customer_id)``。
-        #: ``product_id`` 是外键却没有单列索引，这条聚合过去只能全表扫；这个复合索引
-        #: 让过滤列与分组列都在索引里（回表只剩 ``customer_id``），按需收窄的
+    #: ``product_id`` 是外键却没有单列索引，只靠它的聚合就得全表扫；这个复合索引
+    #: 让过滤列与分组列都在索引里（回表只剩 ``customer_id``），按需收窄的
         #: ``product_id IN (...)`` 也能直接定位。
         Index("ix_licenses_product_active", "product_id", "active"),
     )
@@ -647,24 +628,11 @@ class RecoveryToken(Base):
 
 
 class CashierTicket(Base):
-    """模拟收银台的短时票据（S53）。
-
-    为什么需要它：收银台页面地址是要被**扫码打开**的（二维码/邮件里的链接），
-    扫码方没有登录态，所以页面凭证只能跟着 URL 走。过去那个凭证是订单的
-    ``lookup_token`` —— 一枚长期有效、还能查订单详情的 bearer 凭据。它会进访问
-    日志、``Referer`` 与浏览器历史；一旦从任何一处漏出，泄漏的就**不只是这张
-    收银台页面**，而是整个订单查询入口。
-
-    所以 URL 里改成只放这张票据：与订单绑定、有效期 30 分钟，且除了「打开这笔
-    订单的收银台」之外没有任何用途（不是订单查询凭证，不能换授权，不能调后台）。
-    页面加载后立刻用 ``history.replaceState`` 把查询串从地址栏与历史记录里抹掉，
-    因此后续跳转的 ``Referer`` 也是干净的。
-
-    **刻意没有做成「兑换一次即作废」**：这张票据的唯一入口是二维码，作废会让
-    「扫完关掉再扫一次」「按 F5」「同一张单第二次打开」全部失效，而可重复使用的
-    代价只是一个 30 分钟、限定单笔订单、且只在模拟渠道下存在的窗口 —— 真正的
-    收益来自「URL 里不再是长期凭据」，而不是这一层。真实渠道不需要这张表：
-    支付页由渠道自己签名，链接里没有本店凭据。
+    """模拟收银台的短时票据。
+    收银台地址要被扫码打开、扫码方没有登录态，所以页面凭证只能跟着 URL 走；若直接用订单的
+    ``lookup_token``（长期有效且能查订单详情的 bearer 凭据）会进访问日志、``Referer`` 与浏览器历史，
+    漏一次泄漏的不只是这张页面而是整个订单查询入口。票据只承载「打开这笔订单的收银台」一个用途
+    （30 分钟、非查询凭证），且刻意不做一次性作废，否则「扫完关掉再扫」「F5」全部失效。
     """
 
     __tablename__ = "cashier_tickets"
@@ -703,13 +671,9 @@ class ReferralWallet(Base):
     )
     code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
     #: 以下四个聚合值单位都是**厘**（1 积分 = 100 厘），整数存储。
-    #:
-    #: 原先是 ``Float``，正确性依赖「SQL 侧 round 与 Python 侧 round 结果一致」，
-    #: 而 SQLite 是 half-away、Python 是 half-even，落在 .xx5 上时两边给出不同的
-    #: 分币值 —— 提现的「比对冻结额是否被并发改过」会因此误报冲突，余额与流水之和
-    #: 也会差 1 厘。改整数后加减天然精确，那个前提不再需要。
-    #: 列名带 ``_centi`` 是为了让旧代码里每一处 ``wallet.balance`` 都在评审时暴露出来
-    #: （改名会让漏改点直接以 AttributeError 炸在测试里，而不是静默按旧单位算）。
+    #: 不能用 ``Float``：SQLite 是 half-away、Python 是 half-even，落在 .xx5 上时两边给出不同的分币值 ——
+    #: 提现的「比对冻结额是否被并发改过」会因此误报冲突，余额与流水之和也会差 1 厘。整数加减天然精确。
+    #: 列名带 ``_centi`` 是刻意的：漏改点会直接以 AttributeError 炸在测试里，而不是静默按旧单位算。
     balance_centi: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0"
     )

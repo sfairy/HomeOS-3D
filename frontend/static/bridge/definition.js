@@ -1,23 +1,11 @@
 /**
  * 3D 交互组件的类型标识与新建实例的默认模板。
  *
- * 位置：这是「新建一个 3D 交互组件」时前端唯一的初始值来源 —— 后端只做校验与存储，
- *   不补齐默认值，因此这里出现的字段名与取值必须与渲染层、设置面板的读取口径一致。
- * 对外导出：INTERACTION3D_TYPE（组件 type）、INTERACTION3D_FEATURE（授权能力名）、
- *   INTERACTION3D_LIGHTING_MODES / BACKGROUND_THEMES（设置面板的下拉项，元素为 [值, 中文文案]）、
- *   normalizeInteraction3dLightingMode / normalizeBackgroundTheme（取值归一化）、
- *   interaction3dTemplate（模板本体，含 create）。
- * 全局约定：
- *   - `module.3d_interaction` 是与授权服务约定死的能力名，改名会让已购用户直接失去权限；
- *   - lightingMode 只认 standard / region，backgroundTheme 只认 grid / dots ——
- *     文档里可能存在旧版本写入的值或别名，读入时一律经 normalize* 归一，渲染层不再重复判断；
- *     其中 `contours` 是背景主题的历史别名，仍被接受但统一折算成 dots，避免旧文档渲染异常；
- *   - sceneStyle 只认 default / warm-wood（材质风格），wallOpacity 为 null 或 0~1 的比例
- *     （null 表示跟随主题默认值），backgroundMotion 是动态背景总开关；
- *     后端白名单与校验已在 interaction3d/config.py 同步放开这三项；
- *   - create 生成的尺寸按画布 56% 居中放置，模板里的调暗强度（pageDimStrength）等数值
- *     是观感调过的经验值，调整前需确认与渲染层的光照公式仍匹配。
- * 副作用：无，模块只导出常量与一个纯工厂函数。
+ * 前端唯一的初始值来源：后端只校验与存储、不补默认值，故这里的字段名与取值必须与渲染层、
+ * 设置面板的读取口径一致。`module.3d_interaction` 是与授权服务约定死的能力名，改名会让已购用户失去权限。
+ * lightingMode 只认 standard / region，backgroundTheme 只认 grid / dots（历史别名 contours 折算成 dots），
+ * 读入时统一经 normalize* 归一；sceneStyle 只认 default / warm-wood，wallOpacity 为 null（跟随主题）或 0~1。
+ * create 按画布 56% 居中放置，模板里的观感数值（如 pageDimStrength）调整前需确认与渲染层光照公式仍匹配。
  */
 
 // 前四个常量为下拉项与各自的白名单归一函数；interaction3dTemplate 是同一链条里的模板本体。
@@ -44,10 +32,7 @@ export const INTERACTION3D_TYPE = "interaction3d",
     scopes: ["page"],
     /**
      * 依据当前画布尺寸生成一个默认组件实例。
-     *
-     * 默认值不是「随便填」：画布尺寸沿用设计标称的 2778 × 1940（2 倍 DPI 下的 1389 × 970），
-     * 组件占画布 56% 并居中，保证任何画布比例下新建的组件都完整落在可视区内。
-     *
+     * 尺寸沿用设计标称 2778 × 1940，组件占画布 56% 并居中，保证任何画布比例下都完整落在可视区内。
      * @param {string} options.id 实例 ID，由调用方生成，模板不负责唯一性。
      */
     create({ id: instanceId, instanceName: displayName = "3D 交互", canvas: canvasSize }) {

@@ -5,16 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>HomeOS 授权商店 · 管理后台</title>
-<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260920104554">
-<link rel="stylesheet" href="/store-static/theme.css?v=20260920104554">
-<link rel="stylesheet" href="/store-static/admin.css?v=20260920104554">
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260920131301">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260920131301">
+<link rel="stylesheet" href="/store-static/admin.css?v=20260920131301">
 </head>
 <body>
 
-<!-- 登录页对齐商店认证页：左栏说明 + 右栏表单。表单刻意不做任何预填：
-     · autocomplete="off" / 密码框 "new-password"（Chrome/Safari 会忽略 off）；
-     · data-lpignore / data-1p-ignore / data-bwignore 挡住密码扩展；
-     · 脚本里还有一次加载后清空（clearAutofilledLogin）。 -->
+<!-- 登录页对齐商店认证页：表单刻意不预填，靠 autocomplete / new-password / data-lpignore 等属性 + 脚本里的加载后清空（clearAutofilledLogin）挡住密码扩展。 -->
 <div id="admin-login" class="login-wrap" hidden>
   <div class="login-shell">
     <aside class="login-aside">
@@ -29,7 +26,7 @@
     </aside>
     <section class="login-card">
       <div class="login-card__brand">
-        <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260920104554" alt=""></span>
+        <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260920131301" alt=""></span>
         <div>
           <strong>管理员登录</strong>
           <p>使用管理员邮箱进入授权商店后台。</p>
@@ -55,8 +52,7 @@
   </div>
 </div>
 
-<!-- 启动占位：两个主面板默认都 hidden，bootstrap 异步跑之前显示这个。
-     否则刷新会先闪一下登录表单，等 fetch 回来再切走。 -->
+<!-- 启动占位：两个主面板默认 hidden，bootstrap 异步跑之前显示，避免刷新时先闪一下登录表单。 -->
 <div id="admin-boot" class="admin-boot">
   <div class="admin-boot__spinner"></div>
   <div class="admin-boot__text">正在加载…</div>
@@ -65,7 +61,7 @@
 <div id="admin-app" class="admin-shell" hidden>
   <aside class="admin-side">
     <div class="brand">
-      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=20260920104554" alt=""></span>
+      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=20260920131301" alt=""></span>
       <div class="brand__text">
         <strong>HomeOS</strong>
         <small>授权商店后台</small>
@@ -240,8 +236,7 @@
         </div>
       </header>
 
-      <!-- 概览原本一屏到底，滚三屏才看得到「维护模式」。按「看数 / 处理 / 干活」
-      切成三段：日常巡检只看第一段，出问题才切后面两段。 -->
+      <!-- 概览按「看数 / 处理 / 干活」切三段：日常巡检只看第一段，出问题才切后面两段。 -->
       <div class="admin-tabs" data-tab-strip role="tablist" aria-label="概览分区">
         <button class="admin-tabs__tab" type="button" role="tab" data-tab="dashboard">经营看板</button>
         <button class="admin-tabs__tab" type="button" role="tab" data-tab="risk">风险与待办</button>
@@ -281,11 +276,7 @@
       </div>
 
       <div class="admin-tab-pane" data-tab-pane="risk" role="tabpanel">
-        <!-- 支付巡检存活状态。
-        这块刻意常驻显示（不像待办那样为 0 就隐藏）：巡检坏掉时订单不会报错、
-        钱照收、单只是停在待支付，界面上没有任何别的信号。等它「看起来有问题」
-        再显示就来不及了，所以平时也要能看到「上次成功 xx 秒前」。
-        文案与配色由后端 health 决定，见 loadOverview()。 -->
+        <!-- 支付巡检存活状态：刻意常驻显示（不像待办为 0 就隐藏），巡检坏掉时订单照收、界面无别的信号，等出问题再显示就来不及；文案与配色由后端 health 决定（见 loadOverview）。 -->
         <div class="hb-card" id="overview-sweep">
           <div class="hb-card__body">
             <div class="setting-row">
@@ -297,12 +288,7 @@
           </div>
         </div>
 
-        <!-- 资金/履约异常计数（S36）。
-        与巡检同一理由常驻显示：这几处异常是**刻意吞掉**的（对账失败不能把用户的
-        支付页打成 500、入账后履约失败不能给渠道回失败），所以没有任何接口会报错，
-        只有这里能看见「钱收了、码没发出去」。没有异常时也要显示，否则运维不知道
-        这项功能存在；有异常时多出一个「确认」按钮把灯按灭（计数是进程内的，
-        没有这个按钮就只能重启服务才能清零）。 -->
+        <!-- 资金/履约异常计数：与巡检同理常驻显示，这些异常是刻意吞掉的（对账失败不能把支付页打成 500），只有这里能看见「钱收了、码没发出去」；有异常时多出「确认」按钮清零（计数在进程内）。 -->
         <div class="hb-card" id="overview-incidents">
           <div class="hb-card__body">
             <div class="setting-row">
@@ -829,24 +815,16 @@
         </div>
         <div class="panel-head__actions">
           <span class="panel-head__domain">系统</span>
-          <!-- 配置有没有真的读到，必须写在界面上：读到之前表单是空的，而「空表单 + 保存」
-          等于把支付渠道清空、把各个开关关掉。见 setSettingsLoadState。 -->
+          <!-- 配置有没有真的读到必须写在界面上：读到之前表单是空的，而「空表单 + 保存」等于把支付渠道清空、各开关关掉（见 setSettingsLoadState）。 -->
           <span class="admin-status-chip is-muted" id="settings-load-status">正在读取配置…</span>
-          <!-- 保存按钮必须常驻在面板头部：五个分区里只有「邀请与解绑」那一屏原来放得下它，
-          站在「站点信息」上改完站点名，屏幕上根本没有保存按钮（要先去点最后一个 tab）。
-          form="settings-form" 让它落在表单外也能提交 —— 头部不在 <form> 里，
-          而字段的列宽又是按 form 的 admin-grid--wide 推断的，不能为了放按钮把头部塞进 form。 -->
+          <!-- 保存按钮常驻面板头部：按分区切 tab 后它可能在屏幕外；用 form="settings-form" 让它落在表单外也能提交，且头部不能塞进 form（字段列宽按 form 的 admin-grid--wide 推断）。 -->
           <button class="hb-button hb-button--primary hb-button--sm" type="submit" form="settings-form" id="settings-save">保存配置</button>
         </div>
       </header>
       <div class="hb-card">
         <div class="hb-card__body">
           <form id="settings-form" class="admin-grid admin-grid--wide">
-            <!-- 三十来个字段铺在一页上要滚三屏，「保存配置」永远在屏幕外。
-            按用途切五段：改邀请规则的人不必先划过整个支付宝凭据块。
-            tab 条与 pane 都必须留在**同一个 form 内**：字段的列宽是按
-            form 的 admin-grid--wide 推断的，
-            挪出 form 就会按 186px 去算而实际是 210px。 -->
+            <!-- 三十来个字段铺一页要滚三屏，故按用途切五段；tab 条与 pane 必须留在同一个 form 内，否则字段列宽会按 186px 而非 210px 计算。 -->
             <div class="admin-tabs" data-tab-strip role="tablist" aria-label="站点配置分区">
               <button class="admin-tabs__tab" type="button" role="tab" data-tab="site">站点信息</button>
               <button class="admin-tabs__tab" type="button" role="tab" data-tab="payment">支付与维护</button>
@@ -886,10 +864,7 @@
                 <button class="hb-button hb-button--ghost hb-button--sm" type="button" id="alipay-test-button">测试凭据</button>
                 <span class="admin-hint" id="alipay-test-result"></span>
               </div>
-              <!-- 逐项诊断结论。过去这里只有一句「凭据可用」，而它其实从没用过
-                   支付宝公钥 —— 「公钥填成应用公钥」这种故障下单查单全通、异步通知
-                   全部验签失败，用户付了钱订单永远不到账。所以结论必须逐项铺开，
-                   并且明确区分「通过了」与「没测到」。 -->
+              <!-- 逐项诊断结论：过去只有一句「凭据可用」而从没用过支付宝公钥，「公钥填成应用公钥」会让异步通知全部验签失败、用户付钱订单不到账，所以必须逐项铺开并区分「通过」与「没测到」。 -->
               <ul class="admin-diagnostic-list admin-grid__full" id="alipay-diagnostic-list"></ul>
               <label class="hb-field"><span>AppID</span><input class="hb-input is-mono" name="alipayAppId" placeholder="跟随环境变量"></label>
               <label class="hb-field"><span>卖家 PID（校验异步通知的收款方）</span><input class="hb-input is-mono" name="alipaySellerId" placeholder="跟随环境变量"></label>
@@ -918,13 +893,8 @@
               <p class="admin-hint admin-grid__full">
                 留空即跟随环境变量；填写后立即生效，无需重启。SMTP 授权码只打码回显，接口响应与审核日志都不落明文。
               </p>
-              <!-- 邮箱预设：填一个邮箱地址，就把服务商那三项（服务器 / 加密 / 端口）反查出来填好。
-                  这三项各自只有唯一正确答案，答案却散落在各家服务商的帮助页上，而填错的表现是
-                  **静默降级成写日志**（用户收不到验证码、注册不了，后台却每一样都填好了）。
-                  清单来自后端 mail.presets（mail_settings.SMTP_PRESETS），不在这里抄第二份。 -->
-              <!-- 三个控件排成一行：两个字段是「标签在上、控件在下」，按钮要对齐**控件**
-                   那一行而不是整块居中 —— 否则它比旁边的下拉框高出半个标签，一行里
-                   三个东西不在一条基线上（.admin-form-actions--fielded 就是干这个的）。 -->
+              <!-- 邮箱预设：填一个邮箱就把服务商 / 加密 / 端口反查填好（填错会静默降级成写日志）；清单来自后端 mail.presets（mail_settings.SMTP_PRESETS），不在这里抄第二份。 -->
+              <!-- 三个控件排成一行：按钮要对齐控件那一行而不是整块居中，否则会比旁边的下拉框高出半个标签、不在同一条基线上（.admin-form-actions--fielded）。 -->
               <div class="admin-form-actions admin-form-actions--fielded admin-grid__full">
                 <label class="hb-field"><span>邮箱服务商</span>
                   <select class="hb-select" id="mail-preset-provider">
@@ -942,9 +912,7 @@
                 <button class="hb-button hb-button--ghost hb-button--sm" type="button" id="mail-test-button">发送测试邮件</button>
                 <span class="admin-hint" id="mail-test-result"></span>
               </div>
-              <!-- 逐项诊断结论：域名解析、连接与登录握手、授权码是否成对…… 与上面
-                   的支付宝区块同理，「填了 SMTP 但授权码漏了」过去只会静默退化成
-                   写日志，界面上一片正常而用户收不到验证码。 -->
+              <!-- 逐项诊断结论：域名解析、连接与登录握手、授权码是否成对；与支付宝区块同理，「填了 SMTP 但授权码漏了」过去只会静默退化成写日志。 -->
               <ul class="admin-diagnostic-list admin-grid__full" id="mail-diagnostic-list"></ul>
               <label class="hb-field admin-grid__full"><span>测试收件邮箱（留空则只做连接诊断，不发信）</span>
                 <input class="hb-input is-mono" name="mailTestEmail" placeholder="you@example.com（留空 = 只诊断，不发信）">
@@ -1044,9 +1012,7 @@
         </div>
         <div class="admin-pager" data-pager="releases"></div>
       </div>
-      <!-- 编辑器放在列表之后：商品 / 优惠码 / 账号 / 激活码 / 功能权益 五个面板都是
-      「列表在上、编辑器在下」，这里过去是反的——同样一个「新增」动作，
-      在版本发布页要先跨过表单才看得到已有记录，位置每页都得重新找。 -->
+      <!-- 编辑器放在列表之后：各面板统一「列表在上、编辑器在下」，避免在版本发布页要先跨过表单才看得到已有记录。 -->
       <div class="admin-tab-pane" data-tab-pane="form" role="tabpanel">
         <div class="hb-card admin-editor" id="release-editor" hidden>
           <div class="hb-card__body">
@@ -1308,10 +1274,7 @@
         </div>
       </header>
 
-      <!-- 七张表铺一页要滚很久，而且「会话 / 令牌 / 日志 / 核销」四类问题的排查
-      场景互斥：查撞库的人不需要划过设备解绑历史。所以这里的 pane 就是既有的
-      .admin-block 本身（一个 tab 可以拥有多个 pane，ARIA 的 aria-controls
-      本来就是 ID 列表），不额外套一层 div —— 套了反而要重排 DOM 顺序。 -->
+      <!-- 七张表铺一页要滚很久，且「会话 / 令牌 / 日志 / 核销」排查场景互斥，故 pane 直接用既有的 .admin-block（一个 tab 可拥有多个 pane），不额外套 div。 -->
       <div class="admin-tabs" data-tab-strip role="tablist" aria-label="诊断数据分区">
         <button class="admin-tabs__tab" type="button" role="tab" data-tab="sessions">登录会话</button>
         <button class="admin-tabs__tab" type="button" role="tab" data-tab="tokens">令牌与解绑</button>
@@ -1522,11 +1485,9 @@
 
 <div id="admin-toast"></div>
 
-<!-- 内联脚本必须带 nonce 占位符：服务端每响应替换成一次性随机值，
-     否则会被自身的 CSP（script-src 无 'unsafe-inline'）挡下。
-     见 store/security/request_security.py 的 CSP_NONCE_PLACEHOLDER。 -->
-<script src="/store-static/htmlsafe.js?v=20260920104554"></script>
-<script src="/store-static/api-error.js?v=20260920104554"></script>
+<!-- 内联脚本必须带 nonce 占位符：服务端每响应替换成一次性随机值，否则会被自身 CSP（script-src 无 'unsafe-inline'）挡下（见 request_security.py 的 CSP_NONCE_PLACEHOLDER）。 -->
+<script src="/store-static/htmlsafe.js?v=20260920131301"></script>
+<script src="/store-static/api-error.js?v=20260920131301"></script>
 <script nonce="{{NONCE}}">
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -1538,9 +1499,6 @@ const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selec
 //   · settings     站点配置响应（凭据徽标、邮件徽标要用它判断「来源是后台吗」）
 //   · featureCatalog / featureGroups  功能码目录（中文名渲染 + 选择器分组）
 //   · settingsLoaded  站点配置是否真的读到了，保存闸门读它（见 setSettingsLoadState）
-// 以前这里还挂着 orders / withdrawals / bindings / ledger / account 五个槽位，
-// 它们只被赋值、从没被读过 —— 每次加载都白存一份列表，读代码的人还会以为
-// 别处在依赖它。
 const state = {
   products: [],
   productPage: [],
@@ -1563,19 +1521,8 @@ function toast(message, kind = 'success') {
   setTimeout(() => box.remove(), 3600);
 }
 
-// 把接口返回的 ``detail`` 归一化成人话。实现只有一份：store/static/api-error.js
-// （``ApiError.describe``）—— 原先后台/前台/初始化页各一份，能力还不一致：后台认
-// FastAPI 422 的 detail 数组、前台只认字符串、初始化页直接把数组塞进 textContent
-// （显示 ``[object Object]``）。少认一种形态不会报错，只会让某类错误在某个页面上
-// 变成看不懂的一句话。
-//
-// 建一个带 HTTP 状态码的错误。调用方**必须**能区分两类失败：
-//   · 401 —— 「还没登录」。这是登录页的正常状态（未登录的访客一打开 /admin 就是
-//     这个结果），把它当故障报出来，每个人看到的都是一条红色报错；
-//   · 其余（500 / 断网 / 参数错误）—— 真的坏了，必须原样报出来，否则运营会以为
-//     只是自己没登录，然后反复重输密码。
-// 只按 message 文案判断是不可靠的：文案随时会改，而且「请先登录。」这句话也可能
-// 出现在别的 4xx 上。所以要带上状态码本身。
+// 把接口返回的 ``detail`` 归一化成人话，实现只有 store/static/api-error.js 的 ``ApiError.describe``。
+// 建带状态码的错误：401 是未登录访客打开 /admin 的正常状态，不能当故障；其余失败必须原样报出，故带上状态码本身。
 const httpError = (response, data) => ApiError.fromResponse(response, data);
 
 async function api(path, options = {}) {
@@ -1664,19 +1611,12 @@ function valueSize(value) {
   return '';
 }
 
-// HTML 转义。实现在 store/static/htmlsafe.js（唯一一份，S38）：
+// HTML 转义。实现在 store/static/htmlsafe.js（唯一一份）：
 // 这里只取别名，不再自己维护转义集 —— 两处实现并存时，少转一个字符不会有任何
 // 报错，只会让某个拼接点变成注入点。
 const esc = HtmlSafe.esc;
 
-// --------------------------------------------------------------------------- //
-// 时间口径：后端一律存 naive UTC，界面一律按浏览器本地时区显示与输入
-// --------------------------------------------------------------------------- //
-// store/security/security.py 的 utcnow() 写库时是不带时区的 UTC 字符串；运营脑子里的
-// 时间、datetime-local 输入框里的值则都是本地时间。两边直接对着字符串切片，就会
-// 差一个时区偏移（东八区整整 8 小时）：界面填「12月31日 23:59」，实际发出去的
-// 授权到次年 1月1日 07:59 才过期。
-// 所以边界只有两处转换：读（UTC→本地，显示）与写（本地→UTC，提交）。
+// 时间口径：后端存 naive UTC、界面按浏览器本地时区显示与输入，边界只在读（UTC→本地）与写（本地→UTC）两处转换。
 
 // 后端 ISO 串（无时区标记）按 UTC 解析。带 Z / 偏移的串原样交给 Date。
 function parseUtc(value) {
@@ -1756,7 +1696,6 @@ const STATUS_TONES = {
   cancelled: 'muted', expired: 'muted',
   refunded: 'danger', rejected: 'danger',
   // 这两种状态都是「钱/货卡在中间，必须人工介入」，与「已退款」同属需要盯的红色。
-  // 之前漏了它们，落到默认的 muted 灰，反而比「已取消」还不起眼。
   payment_failed: 'danger', fulfillment_failed: 'danger',
   // 退过钱、但没退完（授权仍有效）。比「已退款」轻一档：订单还活着，
   // 还能再退第二次，所以给 warning 而不是 danger。
@@ -1767,15 +1706,7 @@ function statusBadge(status, labels = ORDER_STATUS) {
   return pill(labels[status] || status, STATUS_TONES[status] || 'muted');
 }
 
-// 订单状态中文口径与前台账号中心完全一致（见 store/static/store.js 的订单状态映射），
-// 后台不要另造一套说法。顺带解决宽度问题：payment_failed 这类 snake_case 比中文宽一倍多。
-// 订单状态：与服务端 store/commerce/order_status.py 的 ORDER_STATUS_LABELS 逐字对齐。
-// 两边不一致会出现「弹窗说已取消、列表说已过期」这种同一状态两套说法。
-// payment_failed 是「支付渠道拒单」（预留已归还），不是「下单失败」；
-// fulfillment_failed 是「发货失败、等人工处理」，过去被错译成「处理中」，
-// 与 paid 的语义完全混淆。
-// partially_refunded 之前漏登记，后台会直接把 snake_case 原样显示出来 ——
-// 漏登记会让后台把 snake_case 原样显示出来，加状态时别忘这里。
+// 订单状态中文口径与服务端 store/commerce/order_status.py 的 ORDER_STATUS_LABELS 逐字对齐：payment_failed 是「支付渠道拒单」、fulfillment_failed 是「发货失败等人工处理」、partially_refunded 也要登记，否则后台会原样显示 snake_case。
 const ORDER_STATUS = {
   pending: '待付款', paid: '已付款', fulfilled: '已完成',
   cancelled: '已取消', expired: '已过期',
@@ -1836,8 +1767,6 @@ function actions(...buttons) {
 }
 
 // 「主操作 + ⋯ 菜单」：把低频/破坏性操作收进菜单。
-// 订单行原来最多堆 5 个按钮（标记支付/履约/退款/取消/删除），把表格撑到 1095px，
-// 在 1180px 视口下横向溢出 201px，最右侧按钮要拖着看。
 // 菜单项仍是 <button data-xxx>，沿用各表已有的事件委托，处理函数一行都不用改。
 function rowMenu(title, ...items) {
   const body = items.filter(Boolean).join('');
@@ -2014,15 +1943,7 @@ $('#pw-submit').addEventListener('click', async () => {
   }
 });
 
-// --------------------------------------------------------------------------- //
-// 行内「⋯」菜单
-// --------------------------------------------------------------------------- //
-// 后台不再引入任何 UI 框架，这里手写最小实现：
-//   · 同一时刻只开一个；点外部 / Esc / 滚动 / 改窗口大小都会收起
-//   · 菜单节点留在单元格里（#xxx-rows 上的事件委托才收得到点击），但弹出层打开时是
-//     position: fixed，用「⋯」按钮的位置现算坐标——.table-wrap 在窄屏下带着
-//     overflow-y: hidden，absolute 的菜单会被它切掉一截，表格只有一行时上下都放不下，
-//     「翻转」也救不回来；fixed 的包含块是视口，压根不参与祖先裁剪。
+// 行内「⋯」菜单：同一时刻只开一个，点外部 / Esc / 滚动 / 改窗口大小收起；菜单节点留在单元格里（事件委托要收得到点击），弹出层打开时用 fixed + 按钮位置现算坐标，避免被 .table-wrap 的 overflow 裁掉。
 const MENU_GAP = 5;
 const MENU_MARGIN = 8;
 
@@ -2111,16 +2032,7 @@ function setNavBadge(page, count) {
   groupBadge.textContent = total ? String(total) : '';
 }
 
-// --------------------------------------------------------------------------- //
-// 登录 / 会话
-// --------------------------------------------------------------------------- //
-// 后台登录页只应该是一张**空白**表单：在一台共用/借用过的机器上，浏览器密码管理器
-// 把上次保存的管理员邮箱与密码灌进输入框，等于「打开 /admin 就已经填好了后台账号」。
-//
-// 属性层已经压了一轮（见 HTML 里的 autocomplete / data-lpignore），但仍有浏览器在
-// ``DOMContentLoaded`` 之后、甚至 ``pageshow``（前进后退恢复页面）之后才写值，所以
-// 这里补一次「加载后清空」。刻意只在用户碰过表单之前清：一旦他自己聚焦或敲了键，
-// 立刻停手，否则会把正在输入的内容一起抹掉。
+// 登录页应保持空白表单：密码管理器会把上次保存的管理员邮箱与密码灌进输入框，属性层（autocomplete / data-lpignore）挡不住延迟写入，故加载后再清空一次，用户碰过表单即停手。
 const loginForm = $('#admin-login-form');
 let loginFormTouched = false;
 
@@ -2286,19 +2198,7 @@ $('#admin-logout').addEventListener('click', async () => {
   showLogin();
 });
 
-// --------------------------------------------------------------------------- //
-// 标签页（tab）
-// --------------------------------------------------------------------------- //
-// tab 树完全从 DOM 派生，不手工维护第二份映射：面板里的 [data-tab-strip] 里
-// 每个 [data-tab] 是按钮，同一面板里的 [data-tab-pane="key"] 是它的内容。
-// 一个 key 可以对应**多个** pane（诊断数据就是这样：pane 直接落在既有的
-// .admin-block 上，一个 tab 收两张表），ARIA 的 aria-controls 本来就是
-// ID 列表，所以这不是绕过规范，而是规范允许的形态 —— 好处是不必为了分组
-// 把 DOM 重排一遍。
-//
-// 切换只用 hidden 属性，不引入自定义 class：hidden 同时退出可访问性树与
-// Tab 焦点序列，这正是「这一屏不在眼前」该有的语义。自己写 display:none
-// 很容易漏掉 aria 的同步，而 tab 恰恰是最依赖 aria 的组件。
+// 标签页（tab）：tab 树完全从 DOM 派生，一个 key 可对应多个 pane（ARIA 的 aria-controls 本就是 ID 列表）；切换只用 hidden 属性，它同时退出可访问性树与 Tab 焦点序列，不必自己写 display:none 并同步 aria。
 const TAB_TREES = new Map(); // page → { items, byKey } / null（该面板没有 tab）
 
 // 首次访问时给按钮与 pane 补齐 id / aria-controls / aria-labelledby 与
@@ -2688,7 +2588,7 @@ function renderPaymentSweep(sweep) {
   detail.textContent = text;
 }
 
-// 资金/履约异常计数（S36）。文案的重点是「这些异常不会自己报错」——运维看到
+// 资金/履约异常计数。文案的重点是「这些异常不会自己报错」——运维看到
 // 非零时该去处理订单（重试发码 / 退款），而不是去查服务是不是挂了。
 function renderIncidents(incidents) {
   const pillNode = $('#overview-incidents-pill');
@@ -2740,7 +2640,7 @@ async function loadOverview() {
   // —— 营收 ——
   // 钱一律用琥珀（运营域的域色）：这一屏里「金额」和「件数」长得一样，
   // 靠色相把「这几个数字讲的是钱」立起来。
-  // 「人工补记」单独写进注脚（S8）：营收把人工补记（未收到钱就放行的单）排除在外，
+  // 「人工补记」单独写进注脚：营收把人工补记（未收到钱就放行的单）排除在外，
   // 这个差额必须摆在数字旁边 —— 否则运营看到「订单不少、营收偏低」只能靠猜。
   const manualNote = revenue.totalManualCents
     ? ` · 人工补记 ${money(revenue.totalManualCents)} 不计营收`
@@ -2889,7 +2789,7 @@ $('#overview-recompute-stock').addEventListener('click', async () => {
   } catch (error) { toast(error.message, 'danger'); }
 });
 
-// 确认（清零）入账异常计数（S36）。文案要说清这是「我已经处理过了」而不是
+// 确认（清零）入账异常计数。文案要说清这是「我已经处理过了」而不是
 // 「问题消失了」：清零只按灭这盏灯，订单本身还在 fulfillment_failed 上等人工处理。
 $('#overview-incidents-ack').addEventListener('click', async () => {
   const ok = await askConfirm({
@@ -2908,24 +2808,8 @@ $('#overview-incidents-ack').addEventListener('click', async () => {
   } catch (error) { toast(error.message, 'danger'); }
 });
 
-// --------------------------------------------------------------------------- //
-// 功能码选择器（商品「功能码」多选 / 权益「功能码」单选共用）
-// --------------------------------------------------------------------------- //
-// 功能码是主程序的能力码（backend/license/service.py 的 BASE_FEATURES
-// + backend/modules/interaction3d/access.py 的 module.3d_interaction），
-// 决定客户端能用哪些能力。编辑它的地方过去都是手写英文代码的输入框：抄错一个字母
-// 不会报错——履约照发，客户端只是静默拦截，这类隐性故障极难定位。
-//
-// 现在统一走这个选择器，目录由 /feature-codes 下发（中文名 + 代码 + 说明），
-// 勾选即写代码。实例配置全部写在根节点的 data-* 上，页面里可以放任意多个：
-//   data-feature-picker            标记这是选择器根节点
-//   data-feature-multiple="true"   多选；缺省为单选（选中即收起）
-//   data-feature-empty             空值时摘要显示的提示文案
-// 表单里仍只提交一个 name 与原来完全一致的隐藏域（多选存 CSV），所以各处
-// form.elements.xxx.value 的读取口径一行都不用改。
-//
-// 单选实例对应的是必填字段（权益的功能码），而隐藏域不进浏览器的 required
-// 校验，所以提交前必须自己拦一道——见 requireFeatureCode()。
+// 功能码选择器（商品多选 / 权益单选共用）：目录由 /feature-codes 下发，勾选即写代码，避免手写英文码抄错后静默失效。
+// 根节点 data-* 配置：data-feature-picker（标记根）、data-feature-multiple="true"（多选，缺省单选）、data-feature-empty（空值提示）；仍提交与原 name 一致的隐藏域（多选存 CSV），单选必填需自行拦截（见 requireFeatureCode）。
 function featureLabel(code) {
   const item = (state.featureCatalog || []).find(entry => entry.code === code);
   return item ? item.label : code;
@@ -3430,7 +3314,7 @@ async function loadOrders() {
       : canFulfill
         ? `<button class="hb-button hb-button--secondary hb-button--sm" data-order-fulfill="${esc(order.orderNo)}">履约</button>`
         : '';
-    // 人工补记的标记（S8）：这类订单的「已支付」是人写的、钱还没确认收到，因此
+    // 人工补记的标记：这类订单的「已支付」是人写的、钱还没确认收到，因此
     // **不计入营收**。必须在列表上看得见，否则运营会拿订单数去对营收，越对越糊涂。
     const manualBadge = order.manualSettlement
       ? ' <span class="hb-meta-chip hb-meta-chip--warning" title="人工补记：钱未经渠道确认，不计入营收">人工补记</span>'
@@ -3450,7 +3334,7 @@ async function loadOrders() {
           canFulfill && primaryPaid
             ? menuItem('履约', `data-order-fulfill="${esc(order.orderNo)}"`) : '',
           // 人工补记（不计营收）与线下收款入账（计营收）分成两个入口：一个布尔参数
-          // 藏在请求体里的话，「这一下算不算营收」就没人看得见（S8）。
+          // 藏在请求体里的话，「这一下算不算营收」就没人看得见。
           primaryPaid
             ? menuItem('线下收款入账', `data-order-offline-settle="${esc(order.orderNo)}"`) : '',
           canRefund
@@ -3555,7 +3439,7 @@ $('#order-rows').addEventListener('click', async (event) => {
   const action = orderPaid ? 'mark-paid' : orderFulfill ? 'fulfill' : 'refund';
   let offlineRefund = false;
   if (action === 'mark-paid') {
-    // S8：这个按钮**只**放行订单，不认钱。「客户催单先给码」「赠送/补偿」都走它，
+    // 这个按钮**只**放行订单，不认钱。「客户催单先给码」「赠送/补偿」都走它，
     // 所以它必须明确说出「不计营收」—— 用户以为在记账、系统却没记，比按钮点不动
     // 危险得多。钱真收到了就用 ⋯ 里的「线下收款入账」。
     const ok = await askConfirm({
@@ -4145,9 +4029,6 @@ $('#account-rows').addEventListener('click', async (event) => {
   const adjustId = event.target.dataset.accountAdjust;
   // 停用 / 启用不在这里：它走「编辑」里的「启用」勾选框（PATCH /accounts/{id}），
   // 服务端在那条路径上有「不能停用自己」「不能停用最后一个管理员」两道守卫。
-  // 这里过去还维护着一对 data-account-off / data-account-on 分支，而模板里
-  // 根本没有元素带这两个属性 —— 一段永远不会执行的代码，读的人却会以为
-  // 停用走的是另一条（没有守卫的）接口。
 
   if (editId) {
     const account = state.accounts.find(item => item.id === editId);
@@ -4191,16 +4072,9 @@ $('#account-rows').addEventListener('click', async (event) => {
   }
 });
 
-// --------------------------------------------------------------------------- //
-// 站点配置
-// --------------------------------------------------------------------------- //
 /**
- * 站点配置的「读到了吗」闸门。
- *
- * 表单是一屏扁平输入框，读失败时它既不是空的也不是对的 —— 只是**没有回填**。
- * 运营此时点「保存配置」，提交出去的就是一篇空值（支付渠道清空、启用支付变 false、
- * 冻结的凭据被写空），一次读取失败会连带把线上支付关掉，而界面上只会显示
- * 「保存成功」。所以读不到就把保存按钮彻底闸住，并说清楚为什么。
+ * 站点配置的「读到了吗」闸门：读失败时表单只是没回填（既非空也非对），此时保存会把支付渠道等
+ * 写空、而界面只显示「保存成功」，所以读不到就把保存按钮闸住并说清原因。
  */
 function setSettingsLoadState(phase, message = '') {
   const chip = $('#settings-load-status');
@@ -4228,12 +4102,8 @@ function setSettingsLoadState(phase, message = '') {
 }
 
 /**
- * 按**上一次**的结论把闸门重新落到界面上。
- *
- * 存在的原因是「忙状态」这一层会把按钮重新启用：保存成功后要重载配置，而重载失败
- * 时 ``loadSettings`` 已经关上了闸门（按钮 disabled），提交动作的 finally 再无条件
- * 放行一次，就等于用一次保存把闸门顶开了 —— 页面上是一份没回填的表单，
- * 而按钮亮着。
+ * 按**上一次**的结论把闸门重新落到界面上：「忙状态」会把按钮重新启用，保存后的重载若失败，
+ * 提交动作的 finally 再无条件放行就等于把闸门顶开（没回填的表单 + 亮着的按钮）。
  */
 function syncSettingsGate() {
   setSettingsLoadState(state.settingsLoadPhase || 'loading', state.settingsLoadMessage || '');
@@ -4282,14 +4152,9 @@ async function loadSettings() {
 }
 
 /**
- * 渲染逐项诊断清单。
- *
- * 这个函数的全部意义在于**不把 `skip` / `warn` 渲染成绿色**。后端刻意把
- * 「通过」「没测到」「需要留意」「失败」分成四级，前端如果只做「ok ? 绿 : 红」，
- * 那么「投递方式是 log，压根没测」就会显示成和「SMTP 全通」一样的绿 —— 这正是
- * 整个站点配置改造要消灭的那个谎言。
- *
- * 每一条都带 title（浏览器悬停可见），因为有些说明比较长，塞进列表会把版面撑破。
+ * 渲染逐项诊断清单：**不把 `skip` / `warn` 渲染成绿色**。后端把「通过 / 没测到 / 需要留意 / 失败」
+ * 分四级，只做「ok ? 绿 : 红」会让「投递方式是 log，压根没测」显示成和「SMTP 全通」一样的绿。
+ * 每一条都带 title，避免长说明撑破版面。
  */
 function renderDiagnostics(selector, checks) {
   const list = $(selector);
@@ -4323,13 +4188,8 @@ function clearDiagnostics(selector) {
 }
 
 /**
- * 回填支付宝凭据区块。
- *
- * 三条铁律：
- *  1. 密钥输入框**永不回填**（响应里只有打码值），打码值放进 placeholder。
- *  2. 只回填「来源是后台」的字段。把环境变量的值回填进输入框，运营随手保存一次
- *     站点名就会把它固化进数据库，之后改环境变量再也不生效。
- *  3. 「清除」勾选框每次重新加载都复位，避免上一次的勾选在下一次保存时静默清空密钥。
+ * 回填支付宝凭据区块，三条铁律：密钥输入框永不回填（只把打码值放进 placeholder）；
+ * 只回填「来源是后台」的字段（否则环境变量值会被随手保存固化进数据库）；清除勾选框每次复位。
  */
 function loadAlipayCredentials(alipay) {
   const form = $('#settings-form');
@@ -4373,21 +4233,9 @@ function renderAlipayEffectiveUrls(alipay) {
 }
 
 /**
- * 回填注册邮箱验证码区块。
- *
- * 与支付宝凭据区块共用同三条铁律：授权码永不回填（只打码放 placeholder）、
- * 只回填「来源是后台」的字段、清除勾选框每次复位。
- *
- * 有效期 / 冷却的 placeholder 直接写出**当前生效的数值**：这两个值可能来自后台，
- * 也可能来自环境变量，不写出来的话运营面对一个空输入框根本不知道现在是多少。
- *
- * 在三条铁律之外，这里还有两件事：
- *
- * 1. 「测试收件邮箱」从不落库，所以每次加载都按默认邮箱补齐 —— 否则每保存一次
- *    配置就重载一次，刚填的收件人被清掉，运营以为是自己没填上。
- * 2. 当前**完全没有可用配置**时，按默认邮箱的服务商预设预填 SMTP 那一整块
- *    （服务商 / 加密 / 端口 / 账号 / 发件人）。判据见 ``mailLooksUnconfigured``：
- *    只有「预填不会覆盖掉任何现有配置」时才动手。
+ * 回填注册邮箱验证码区块，与支付宝区块共用同三条铁律（授权码永不回填、只回填后台来源、清除勾选复位）。
+ * 有效期 / 冷却的 placeholder 写出当前生效数值（可能来自后台或环境变量）；「测试收件邮箱」不落库、每次按默认邮箱补齐；
+ * 完全没有可用配置时按默认邮箱预设预填 SMTP 整块（判据 mailLooksUnconfigured：预填不会覆盖任何现有配置）。
  */
 function loadMailSettings(mail) {
   const form = $('#settings-form');
@@ -4440,14 +4288,9 @@ function loadMailSettings(mail) {
 }
 
 /**
- * 渲染邮件投递的状态徽标。
- *
- * 这个徽标存在的唯一理由是「填了 SMTP 但授权码漏了」这种配置**不会报错**：
- * 系统会安静地退化成写日志，用户收不到验证码、注册不了，而后台每一样看起来
- * 都填好了。所以这里必须把「能不能真的发出去」直接说出来。
- *
- * ``unsaved`` 表示徽标此刻描述的是**表单里刚改完、还没保存**的组合：不追加这一句，
- * 运营把投递方式切到 smtp 的当下就会看到「SMTP 就绪」，以为已经生效了。
+ * 渲染邮件投递的状态徽标：这个徽标存在的唯一理由是「填了 SMTP 但授权码漏了」不会报错 ——
+ * 系统安静退化成写日志，用户收不到验证码而后台看起来都填好了。unsaved 表示描述的是表单里刚改完、
+ * 还没保存的组合，避免切到 smtp 的当下就显示「SMTP 就绪」。
  */
 function renderMailBadge(mail, unsaved = false) {
   const badge = $('#mail-delivery-status');
@@ -4483,14 +4326,9 @@ function syncMailSecretInput() {
   if (clear.checked) input.value = '';
 }
 
-// --------------------------------------------------------------------------- //
-// 邮箱服务商预设
-// --------------------------------------------------------------------------- //
 /**
- * 清单随 ``/settings`` 的 ``mail.presets`` 一起下发（后端
- * ``mail_settings.SMTP_PRESETS``）。**刻意不在这里抄一份**：服务器 / 端口 / 加密
- * 这三项各自只有唯一正确答案，而两份清单漂移之后，页面会拿旧参数去填一个
- * 已经改过接入方式的服务商 —— 界面上看不出任何异常，只有「测试邮件」会失败。
+ * 邮箱服务商预设：清单随 ``/settings`` 的 ``mail.presets`` 下发（后端 ``mail_settings.SMTP_PRESETS``），
+ * **刻意不在这里抄一份** —— 两份清单漂移后页面会拿旧参数去填已改过接入方式的服务商，只有「测试邮件」会失败。
  */
 function mailPresets(mail) {
   return Array.isArray(mail && mail.presets) ? mail.presets : [];
@@ -4570,13 +4408,8 @@ function mailFromDisplayName(form) {
 }
 
 /**
- * 把服务商预设写进表单。
- *
- * ``overwrite=false`` 时只补**空着**的字段，用于页面首次加载时的预填：那时候
- * 输入框里可能已经有运营正在编辑的内容，重新加载一次配置不该把它冲掉。
- *
- * 写入的字段刻意包含「投递方式 = smtp」：预填的目的就是让这套配置**能真的发信**，
- * 少这一项的话地址填好了、验证码还是只进日志，运营会以为预设没生效。
+ * 把服务商预设写进表单：``overwrite=false`` 时只补空着的字段（首次加载预填时可能已有运营在编辑的内容）。
+ * 写入字段刻意包含「投递方式 = smtp」，否则地址填好了验证码还是只进日志，运营会以为预设没生效。
  */
 function applyMailPreset(preset, mail, { overwrite = true } = {}) {
   if (!preset) return false;
@@ -4610,15 +4443,9 @@ function applyMailPreset(preset, mail, { overwrite = true } = {}) {
 }
 
 /**
- * 按**当前表单**重算徽标。
- *
- * 徽标原本只说「已保存的配置怎么样」，而「切到 smtp 但授权码没填」这个组合会直接
- * 让用户收不到验证码，必须在切换的当下就变色提醒，不能等保存之后才刷新。
- * 所以这里把表单里还没保存的值也算进来，再用一句「（表单已改，未保存）」
- * 说清当前结论描述的是**保存之后**的样子 —— 少了这一句，运营会以为已经生效了。
- *
- * 就绪判定与后端 ``StoreSettings.smtp_ready`` 同一口径：
- * smtp 模式 + 有服务器 + （用户名与授权码成对）。
+ * 按**当前表单**重算徽标：「切到 smtp 但授权码没填」会让用户收不到验证码，必须在切换当下就变色提醒，
+ * 故把未保存的值也算进来，并用「（表单已改，未保存）」说明结论描述的是保存之后的样子。
+ * 就绪判定与后端 StoreSettings.smtp_ready 同口径：smtp 模式 + 有服务器 + 用户名与授权码成对。
  */
 function refreshMailBadge() {
   const form = $('#settings-form');
@@ -4846,12 +4673,8 @@ $('#settings-form').addEventListener('submit', async (event) => {
 });
 
 /**
- * 测试凭据：用一笔不存在的交易探活。
- *
- * 之所以值得单独做一个按钮：凭据填错的反馈原本只在**用户下单**时才出现
- * （一句笼统的验签失败），运营改完配置没有任何办法自证。这里让网关直接回答
- * 「这套 app_id + 密钥它认不认」，且不产生任何资金动作 —— 测试的是**已保存**的
- * 配置，所以流程是「先保存，再测试」。
+ * 测试凭据：用一笔不存在的交易探活。凭据填错的反馈原本只在用户下单时出现且很笼统，
+ * 这里让网关直接回答「这套 app_id + 密钥认不认」且不产生资金动作 —— 测试的是已保存的配置，故先保存再测试。
  */
 $('#alipay-test-button').addEventListener('click', async (event) => {
   const button = event.currentTarget;
@@ -4883,15 +4706,9 @@ $('#alipay-test-button').addEventListener('click', async (event) => {
 });
 
 /**
- * 邮件诊断 / 发送测试邮件：按**已保存**的邮件配置先做连接诊断，给了收件人再真发一封。
- *
- * 与「测试凭据」同一套立场（先保存、再测试）。它要回答的问题很具体：
- * 「用户注册时到底收不收得到邮件」—— 这个答案过去只能靠问用户，而 SMTP
- * 填错时的表现是静默降级成写日志，后台一切正常。
- *
- * 收件人留空时只做连接诊断（域名解析 + TCP/TLS + 登录握手，不发信）：这一半可以
- * 反复点、不会往别人邮箱塞东西，而且能在「授权码错 / 端口与加密方式不匹配」这类
- * 故障上给到最具体的原因。
+ * 邮件诊断 / 发送测试邮件：按**已保存**的配置先做连接诊断，给了收件人再真发一封（先保存、再测试）。
+ * 收件人留空时只做连接诊断（域名解析 + TCP/TLS + 登录握手，不发信），可反复点且能在授权码错 /
+ * 端口与加密方式不匹配上给到最具体的原因。
  */
 $('#mail-test-button').addEventListener('click', async (event) => {
   const button = event.currentTarget;
@@ -5397,15 +5214,8 @@ function setTableState(key, state, message = '') {
   }
 }
 
-// 带回 {items, total, limit, offset}，并把游标落在 paging[key] 上
-//
-// 竞态守卫（每个 key 一个递增序号）：筛选框是 ``input`` 事件触发的，连打两个字
-// 就是两个在途请求，而它们的返回顺序**不保证** —— 后发的可能先回。没有守卫时，
-// 先发后到的那个旧响应会把 tbody 覆盖成上一次筛选的结果，看上去就是「筛选没生效」，
-// 换一个筛选再切回来又对了。这里做两件事：
-//   1. 只有「最新那个请求」才允许写游标与表格状态（旧响应一律不落 UI）；
-//   2. 被取代的调用方拿到的是**最新那次**的返回值（而不是自己那份旧数据），
-//      所以各 loader 后面的 ``data.items`` 渲染也自动是新数据，不必改 19 个调用点。
+// 带回 {items, total, limit, offset}，并把游标落在 paging[key] 上；筛选框是 input 事件触发、请求返回顺序不保证，
+// 故用每个 key 的递增序号做竞态守卫：只有最新请求能写游标与表格，被取代的调用方拿到最新那次返回值（各 loader 无需改）。
 async function pagedFetch(key, path, params = {}) {
   const cursor = pageState(key);
   const query = new URLSearchParams({ ...params, limit: String(cursor.limit), offset: String(cursor.offset) });

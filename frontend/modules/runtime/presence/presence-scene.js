@@ -1,39 +1,22 @@
 /**
- * 人体存在（presence）在 3D 舞台里的角色呈现与地面检测波纹。
+ * 人体存在（presence）在 3D 舞台里的角色呈现与地面检测波纹，是 presence 的渲染侧。
+ * 把行走路线（楼层平面坐标）经 worldPoint 换算成世界坐标，为每个绑定造虚拟人物沿闭合路径
+ * 匀速走动并按触发状态淡入/淡出；另给「检测到人」的传感器模型在地面画扩散波纹。
  *
- * 在 3D 子系统里的位置：本模块是 presence 的渲染侧，由 stage.js 创建、每帧驱动。
- * 它把配置里的行走路线（楼层平面坐标）换算成世界坐标，为每个绑定造一个虚拟人物，
- * 让其沿闭合路径匀速走动，并按触发状态淡入 / 淡出；另外给「检测到人」的传感器模型
- * 在地面画出一圈圈扩散的波纹。
- *
- * 坐标系与单位约定（与舞台其余 overlay 一致）：
- * - routePoint 是楼层平面坐标，一律经 sceneOptions.worldPoint(floorId, x, y, height) 换算；
- *   像素当量与楼层原点由该函数处理，本模块不自己算缩放。height 单位为米。
- * - 世界空间 Y 轴向上；人物正面朝 +Z，朝向直接取 sampleClosedPath 返回的 heading。
- * - 角色 scale 取绑定里的 size（1 即约 1.35 米高的原尺寸）；贴地补偿必须乘这个缩放，
- *   否则放大后的角色会陷进地板。
- *
- * 与 stage.js 的调用约定：
- * - sync(bindings, states, enabled, floorId, isEditing, isPreviewWalk, activeModule) 只在
- *   外部签名变化时被调用，本模块内部再做细粒度 diff，因此可以放心做较重的比较；
- * - tick(deltaSeconds) 由帧循环调用，返回 true 表示「还有动画在进行，需要继续出帧」；
- * - 通过 sceneOptions 使用舞台能力：overlayScene（叠加层容器）、requestRender、
- *   invalidateReflections（重建指定楼层的地面反射）、wakeFrameLoop（唤醒空闲帧循环）。
- *
- * 对外提供：createPresenceScene、createPresenceWaves。
+ * 约定：routePoint 是楼层平面坐标，一律经 sceneOptions.worldPoint(floorId, x, y, height) 换算
+ * （像素当量与原点由该函数处理，height 单位为米）；世界空间 Y 轴向上，人物正面朝 +Z。
+ * sync(...) 只在外部签名变化时调用、内部再做细粒度 diff；tick 返回 true 表示还需继续出帧。
  */
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
-import { createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260920104554";
+// 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
+import { createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260920131301";
 import {
   validPresenceRoute,
   createPresenceTriggers,
   closedPath,
   sampleClosedPath,
   presenceVisibleOnPage
-} from "./presence-motion.js?v=20260920104554";
+} from "./presence-motion.js?v=20260920131301";
 /**
  * 创建人体存在角色场景。
  *
@@ -639,15 +622,10 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   };
 }
 /**
- * 创建「检测到人」的地面波纹效果。
- *
- * 波纹出现在传感器模型（模型树上 userData.environmentModelType === "presence" 的节点）
- * 的脚下，用几个同心的圆环从中心向外扩散并淡出，表达「这里刚检测到人」。
- *
- * 实现要点：
- * - 所有波纹共用一份 RingGeometry 与一份「每实例各自克隆的材质」，环只靠缩放变形；
- * - 波纹组不自己算位置，而是每帧直接拷贝被跟随模型的 matrixWorld（传感器可能被拖动）；
- * - 开启「减少动态效果」时退化为一个静态环，不再扩散。
+ * 创建「检测到人」的地面波纹效果：波纹出现在传感器模型（userData.environmentModelType === "presence"）
+ * 的脚下，用同心圆环由中心向外扩散并淡出。
+ * 所有波纹共用一份 RingGeometry 与每实例克隆的材质，环只靠缩放变形；每帧直接拷贝被跟随模型的
+ * matrixWorld（传感器可能被拖动）；开启「减少动态效果」时退化为一个静态环。
  */
 export function createPresenceWaves(waveOptions) {
   const { THREE: THREE } = waveOptions;

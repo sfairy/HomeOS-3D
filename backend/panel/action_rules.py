@@ -3,10 +3,8 @@
 口径只在这里写一份：校验层（`schema.py`）与运行期都从这里取，避免同一规则写两份。
 本模块不依赖 pydantic，也不碰数据库，因此可以被任意层安全导入。
 
-**这里曾经还有三个动作判定函数**（`action_popup_source` /
-`action_needs_current_entity` / `entity_id_supports_toggle`）与常量 `ACTION_TYPES`，
-它们在 P9 清理时删除：动作类型与弹窗来源的校验早已由 `schema.py` 的 pydantic
-`Literal` 承担，那三处没有任何调用点。同名逻辑的 **JS 版仍在用**
+**不要再往这里加动作判定**：动作类型与弹窗来源的校验由 `schema.py` 的 pydantic
+`Literal` 承担。同名逻辑的 **JS 版仍在用**
 （`frontend/static/shared/action-rules.js` 被 `editor/home.js` 引用），这是两侧的漂移，记在 B43。
 """
 from __future__ import annotations
@@ -15,7 +13,7 @@ import re
 
 # Home Assistant 原生实体 ID：域 + 点 + 对象 ID，两段都只允许小写字母、数字与下划线。
 # 每段都加上长度上限：没有上限时 `"a" * 一千万 + ".b"` 这种「合法实体 ID」会被
-# 静默收进可见范围、订阅集与日志（B23）。200 是仓库既有约定（interaction3d/config.py
+# 静默收进可见范围、订阅集与日志。200 是仓库既有约定（interaction3d/config.py
 # 的实体校验用的是同一个数），两段各限 200 比只限其中一段更严密 —— 只限对象 ID 时
 # 域那一段仍然可以无限长。
 ENTITY_ID = re.compile(r"^[a-z0-9_]{1,200}\.[a-z0-9_]{1,200}$")

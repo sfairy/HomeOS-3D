@@ -1,22 +1,16 @@
 /**
- * 渲染器 ↔ 3D 交互舞台的桥接层。
+ * 渲染器 ↔ 3D 交互舞台的桥接层：渲染器只认识组件控制器（renderInteraction3d 返回宿主元素），
+ * 真正的 3D 实现跑在舞台页 iframe 内，本模块负责两者间的授权、加载、生命周期与「编辑器视图」登记。
  *
- * 位置：渲染器只认识组件控制器（renderInteraction3d 返回宿主元素），舞台页（iframe 内的运行时）
- *   才是真正的 3D 实现；本模块负责两者之间的授权、加载、生命周期与「编辑器视图」登记。
- * 对外导出：requestInteraction3dAccess、getInteraction3dEditorView、waitInteraction3dEditorView、
- *   cancelOtherInteraction3dViews、subscribeInteraction3dAccess、renderInteraction3d。
- * 全局约定：
- *   - 授权接口为 `/api/v1/modules/interaction3d/access`，响应必须同时给出 allowed 与正的
- *     validForSeconds（access-monitor 依赖后者决定续期节奏）；
- *   - 运行时代码走 `/api/v1/modules/interaction3d/core/runtime.js`，URL 上的 ?v= 是静态资源缓存戳，
- *     由构建脚本统一生成，改代码后必须同步更新，否则浏览器会一直吃旧包；
- *   - 错误对象上挂 `status`，用于区分「明确拒绝（403）」「登录失效（401）」与「暂时不可用」。
- * 副作用：模块级持有单个授权监视器与两张按组件 ID 索引的 Map；挂载时会插入 link / div / iframe，
- *   并在组件卸载（cleanup 回调）时全部移除。
+ * 约定：授权接口为 /api/v1/modules/interaction3d/access，响应必须同时给出 allowed 与正的
+ * validForSeconds（access-monitor 依赖后者决定续期节奏）；运行时代码走
+ * /api/v1/modules/interaction3d/core/runtime.js，URL 上的 ?v= 是构建脚本生成的缓存戳，改代码后必须同步
+ * 更新；错误对象上挂 status 以区分「明确拒绝（403）」「登录失效（401）」与「暂时不可用」。
+ * 副作用：模块级持有单个授权监视器与两张按组件 ID 索引的 Map，挂载时插入 link / div / iframe，卸载时移除。
  */
-import { createAccessMonitor } from "./access-monitor.js?v=20260920104554";
-import { createInteraction3dCover } from "./cover.js?v=20260920104554";
-import { createInteraction3dFocusLayout } from "./focus-layout.js?v=20260920104554";
+import { createAccessMonitor } from "./access-monitor.js?v=20260920131301";
+import { createInteraction3dCover } from "./cover.js?v=20260920131301";
+import { createInteraction3dFocusLayout } from "./focus-layout.js?v=20260920131301";
 /**
  * 向后端确认当前浏览器是否可以运行 3D 交互。
  *
@@ -99,10 +93,9 @@ function interaction3dLoadFailureReason(loadError) {
 /**
  * 3D 运行时挂载失败时的兜底：说明原因、切回待授权态、通知等待者。
  *
- * 三件事缺一不可：**原因要出现在占位文案里**（原先这里是裸 `catch {}`，动态 import
- * 404 / 授权被撤 / 运行时抛栈在页面上长得一模一样，排查只能靠猜），**原始错误要进
- * 全局日志**（日志面板是唯一能事后取证的通道），**编辑态的等待者要当场被拒**
- * （否则编辑器只能干等到 25 秒超时，用户对着空控件等半分钟）。
+ * 三件事缺一不可：**原因要出现在占位文案里**（动态 import 404 / 授权被撤 / 运行时抛栈在页面上
+ * 长得一模一样，排查只能靠猜），**原始错误要进全局日志**（日志面板是唯一能事后取证的通道），
+ * **编辑态的等待者要当场被拒**（否则编辑器只能干等到 25 秒超时，用户对着空控件等半分钟）。
  */
 function showInteraction3dLoadFailure(hostElement, component, context, loadError) {
   const loadFailureReason = interaction3dLoadFailureReason(loadError);
@@ -331,7 +324,7 @@ export function renderInteraction3d(component, context = {}) {
     try {
       // 动态 import 带 ?v= 缓存戳，必须与后端静态资源戳同步，否则会加载到旧运行时。
       const runtimeModule =
-        await import("/api/v1/modules/interaction3d/core/runtime.js?v=20260920104554");
+        await import("/api/v1/modules/interaction3d/core/runtime.js?v=20260920131301");
       // 三个丢弃条件：组件已销毁、已有更新的一轮加载、页面已切走（回来时会重新走一遍）。
       if (isDisposed || currentLoadToken !== loadToken || document.hidden) {
         return;
@@ -340,7 +333,7 @@ export function renderInteraction3d(component, context = {}) {
       stylesheetElement = document.createElement("link");
       stylesheetElement.rel = "stylesheet";
       stylesheetElement.href =
-        "/api/v1/modules/interaction3d/core/runtime.css?v=20260920104554";
+        "/api/v1/modules/interaction3d/core/runtime.css?v=20260920131301";
       // 先单独 append 让浏览器尽早开始下载，等运行时容器建好后再一次性替换成最终结构。
       hostElement.append(stylesheetElement);
       const runtimeContainerElement = document.createElement("div");

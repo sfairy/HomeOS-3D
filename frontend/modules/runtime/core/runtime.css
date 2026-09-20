@@ -1,18 +1,14 @@
 /*
  * 3D 交互控件的外层样式（宿主页侧）。
  *
- * 位置：interaction3d 的运行时外壳。runtime.js 建出的 iframe 与加载态，
- * 以及各编辑器弹窗（配置编辑器、外观编辑器、照射范围对话框、
- * 扫地机地图编辑器、弹窗布局预览、聚焦设备弹窗）都靠这里的类名；
- * 编辑器弹窗由 JS 在打开时动态注入本文件，关闭时移除。
+ * 位置：interaction3d 的运行时外壳，runtime.js 建出的 iframe 与加载态、以及各编辑器弹窗
+ * （配置 / 外观编辑器、照射范围对话框、扫地机地图编辑器、弹窗布局预览、聚焦设备弹窗）都靠这里的类名；
+ * 编辑器弹窗由 JS 打开时动态注入本文件，关闭时移除。
  *
- * 约定：
- *   - 控件撑满宿主元素，实际预览尺寸由 JS 按 16:9 算好后写到内联样式，
- *     这里只负责撑满与裁切；
- *   - 弹窗一律用原生 dialog + ::backdrop，遮罩与焦点陷阱交给浏览器；
- *   - 每段动画都配 prefers-reduced-motion 兜底。
+ * 约定：控件撑满宿主元素，实际预览尺寸由 JS 按 16:9 写到内联样式，这里只负责撑满与裁切；
+ * 弹窗一律用原生 dialog + ::backdrop，遮罩与焦点陷阱交给浏览器；每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=20260920104554";
+@import "/static/bridge/controls.css?v=20260920131301";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;

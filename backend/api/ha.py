@@ -1,14 +1,10 @@
 """Home Assistant 集成的主接口面：连接配置、目录查询、历史、同步与设备控制。
 
-HA 能力码分三档，写接口各自声明需要哪一档（读接口只要求 api）：ha.control（调用服务、
-浏览媒体，只影响设备状态，风险最低）、ha.sync（触发目录同步，会批量改库）、ha.configure
-（保存 / 删除连接，会改 HA 地址与 Token，风险最高）。
+HA 能力码分三档（读接口只要求 api）：ha.control（调服务 / 浏览媒体）、ha.sync
+（触发目录同步，会批量改库）、ha.configure（保存 / 删除连接，会改地址与 Token）。
 
-中控设备的可见范围另由 dependencies 层收窄：本模块涉及实体的查询都会经过
-viewer_entity_ids，中控设备只能看到自己绑定的实体，管理员不受限。
-
-runtime_router 提供 /ws/runtime 实时状态推送：客户端订阅一批实体后，服务端把 HA 侧的状态
-变化推给浏览器，并用心跳与配对状态复查维持这条长连接。
+中控设备的可见范围由 dependencies 层收窄：涉及实体的查询都经过 viewer_entity_ids。
+runtime_router 提供 /ws/runtime 实时状态推送，用心跳与配对复查维持长连接。
 """
 from __future__ import annotations
 
@@ -44,8 +40,7 @@ MAX_RUNTIME_ENTITIES = 1000
 # 中控配对状态的缓存窗口（秒）。展示页的心跳是秒级的，不缓存就等于每秒查一次库。
 DISPLAY_BINDING_CACHE_SECONDS = 1
 # 服务调用白名单：键为 (domain, service)，值为允许透传的参数名（空集表示不接受参数）。
-# 只有列在这里的组合才能被前端调用，多传的参数会被拒绝 ——
-# 这样即便前端被篡改，也无法把 HA 的任意服务当作远程执行入口。
+# 只有列在这里的组合才能被前端调用，多传的参数会被拒绝 —— 前端被篡改也无法把 HA 任意服务当远程执行入口。
 ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('homeassistant', 'toggle'): set(),
     ('button', 'press'): set(),
@@ -121,11 +116,8 @@ def active_connection(database: DatabaseSession) -> HAConnection | None:
 def load_active_connection_snapshot(database_manager: Database) -> HAConnection | None:
     """在独立会话里取活跃连接并在返回前 detach，供 async 路由用 to_thread 调用。
 
-    async 路由不能在事件循环里做同步查库，这个函数就是给 asyncio.to_thread 用的入口。
-
-    **本函数是全仓唯一一份**：同目录的 ``ha_proxy.py`` 原先也有一份逐字节相同的
-    ``load_active_connection``（P10 合并），两处调用点同形，只有名字不同。
-    ``ha_proxy`` 从本模块导入即可 —— 它本来就依赖这里的 ``active_connection``。
+    async 路由不能在事件循环里做同步查库，这个函数就是 asyncio.to_thread 的入口。
+    它是全仓唯一一份：同目录的 ``ha_proxy.py`` 从这里导入，不另存一份同名的副本。
     """
     with database_manager.session_factory() as database:
         connection = active_connection(database)
@@ -168,10 +160,8 @@ def load_authorized_entity_context(
 ) -> tuple[HAConnection | None, bool]:
     """取活跃连接，并确认该实体在当前主体可见范围内且同步正常。
 
-    返回:
-        (connection, entity_exists)。connection 为 None 表示尚未配置 HA；
-    异常:
-        HTTPException 403: 实体不属于当前中控仪表盘（由 require_viewer_entity 抛出）。
+    返回 (connection, entity_exists)；403 由 require_viewer_entity 抛出，
+    表示实体不属于当前中控仪表盘。
     """
     with database_manager.session_factory() as database:
         # 先做可见范围门禁：越权访问在查库之前就被拦下。
@@ -196,10 +186,8 @@ def load_authorized_entity_context(
 def connection_payload(connection: HAConnection | None, request: Request) -> dict[str, Any]:
     """把连接配置转成前端要的结构（camelCase）。
 
-    永不回传 Token 本体，只回 hasToken 布尔值。未配置时给一份带默认值的空壳，
-    让同一套前端逻辑既能渲染表单也能渲染状态。
-    lastError 优先用连接器的运行时错误（更实时）；连接正常时强制为 None，
-    避免界面继续展示早已过期的历史错误。
+    永不回传 Token 本体，只回 hasToken 布尔值；未配置时给一份带默认值的空壳。
+    lastError 优先用连接器的运行时错误，连接正常时强制为 None，避免展示过期错误。
     """
     connector = request.app.state.ha_connector
     # 连接正常就不存在「运行时错误」，这里主动抹掉，防止旧错误一直挂在界面上。
@@ -235,9 +223,7 @@ def connection_payload(connection: HAConnection | None, request: Request) -> dic
 def get_connection(request: Request, database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]:
     """读取 HA 连接配置（需已登录且授权允许 api）。
 
-    返回 connection_payload 的结构：configured / hasToken / connected /
-    baseUrl / name / verifyTls / version / lastConnectedAt / lastError。
-    永不回传 Token 明文。
+    返回 connection_payload 的结构，永不回传 Token 明文。
     """
     return connection_payload(active_connection(database), request)
 
@@ -247,8 +233,7 @@ async def delete_connection(request: Request, database: DatabaseSession, user: L
     """删除 HA 连接配置（需管理员 + 授权允许 api）。
 
     顺序：先停连接器 → 删库 → 清空状态缓存并广播目录变更 → 重新启动连接器。
-    异常:
-        HTTPException 404: 当前没有可删除的连接。
+    异常: HTTPException 404 当前没有可删除的连接。
     """
     require_admin(user)
     connection = active_connection(database)
@@ -285,10 +270,8 @@ async def delete_connection(request: Request, database: DatabaseSession, user: L
 async def test_connection(payload: HATestRequest, request: Request, user: LicensedUser) -> dict[str, Any]:
     """用请求里给的地址与 Token 试连 HA（需管理员 + 授权允许 api）。
 
-    请求体: base_url / access_token / verify_tls。
-    成功返回 {'ok': True, **HA 探测结果}（含 version）。
-    异常:
-        HTTPException 422: HA 不可达、Token 无效或 TLS 校验失败，detail 为中文文案。
+    请求体 base_url / access_token / verify_tls。成功返回 {'ok': True, **HA 探测结果}；
+    422 表示 HA 不可达、Token 无效或 TLS 校验失败，detail 为中文文案。
     """
     require_admin(user)
     client = HAClient(
@@ -314,23 +297,17 @@ async def save_connection(
 ) -> dict[str, Any]:
     """保存 HA 连接配置（需管理员 + 授权允许 api 与 ha.configure）。
 
-    门禁顺序是刻意的：先查能力码 ha.configure，再校验管理员身份 —— 这样即便身份不符，也不会把
-    「授权不足」与「权限不足」两种原因的提示弄反。
-
-    请求体字段 name / base_url / access_token / verify_tls。未填 access_token 时沿用已保存的
-    Token，首次连接必须填。保存前一定先用新配置试连一次，试连不过则整份配置都不落库。
-    返回连接结构，并额外带 'test'（本次试连结果）。403 授权不足或非管理员；422 试连失败、
-    首次连接缺 Token、旧 Token 解密失败。
+    门禁刻意先查能力码再校验管理员身份，避免把「授权不足」与「权限不足」弄反。
+    未填 access_token 时沿用已保存的 Token（首次必须填）；保存前先试连，不过则不落库。
     """
     # ha.configure 是最高一档能力码：改 HA 地址与 Token 等于交出控制面。
-    # 同步查库的门禁：async 路由里一律转线程池（B4），别在事件循环上开连接。
+    # 同步查库的门禁：async 路由里一律转线程池，别在事件循环上开连接。
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.configure'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
     require_admin(user)
     connector = request.app.state.ha_connector
     connection = active_connection(database)
-    # 链路本地地址（169.254.x.x / fe80::）只在 APIPA 场景下才指向真实主机，
-    # 其余情况下多半是把云元数据地址或别的设备误填了进来，这里提示一句。
+    # 链路本地地址（169.254.x.x / fe80::）只在 APIPA 场景才指向真实主机，否则多半是误填，提示一句。
     link_local = link_local_address(payload.base_url)
     if link_local:
         request.app.state.global_log.append(
@@ -341,9 +318,8 @@ async def save_connection(
         if payload.access_token:
             token = payload.access_token
         elif connection is not None:
-            # 换代到另一个地址时必须显式确认复用旧令牌：地址是可以被改的（改完就会
-            # 把旧令牌发给新主机试连），而长期令牌的权限远大于「一次试连」。
-            # 不确认时要求重新输入令牌，避免误改地址把令牌送到攻击者搭的服务上。
+            # 换到另一个地址时必须显式确认复用旧令牌：地址可以被改（改完就会把旧令牌发给
+            # 新主机试连），而长期令牌权限远大于一次试连；不确认时要求重新输入。
             if payload.base_url != connection.base_url and not payload.reuse_token_for_new_url:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -371,7 +347,7 @@ async def save_connection(
     previous_base_url = connection.base_url if connection is not None else None
     if connection is None:
         connection = HAConnection(
-            # name 的去空白与下限校验在 schema 里做完（B60），这里不再补一次 strip。
+            # name 的去空白与下限校验在 schema 里做完，这里不再补一次 strip。
             name=payload.name,
             base_url=payload.base_url,
             encrypted_access_token=connector.cipher.encrypt(token),
@@ -386,8 +362,7 @@ async def save_connection(
         connection.verify_tls = payload.verify_tls
         connection.ha_version = tested.get('version')
         connection.last_error = None
-        # 只在用户真的传了新 Token 时才改写密文，
-        # 避免用「解密再加密」的结果覆盖原值（密文每次都会变）。
+        # 只在真的传了新 Token 时才改写密文，避免用「解密再加密」的结果覆盖原值。
         if payload.access_token:
             connection.encrypted_access_token = connector.cipher.encrypt(token)
     database.commit()
@@ -426,10 +401,8 @@ def list_entities(
 ) -> dict[str, Any]:
     """分页查询实体目录（需已认证 + 授权允许 api）。
 
-    查询参数: search（同时匹配 entityId 与名称）、domain、areaId、status（同步状态）、
-    limit（默认 200，1..500）、offset。
-    中控设备只看到 viewer_entity_ids 允许的实体；管理员不受限。
-    返回 {items, total, limit, offset}，item 字段为 camelCase。
+    查询参数 search / domain / areaId / status / limit（默认 200，1..500）/ offset；
+    中控设备只看到 viewer_entity_ids 允许的实体。返回 {items, total, limit, offset}。
     """
     connection = active_connection(database)
     if connection is None:
@@ -528,11 +501,8 @@ async def entity_history(
 ) -> dict[str, Any]:
     """读取实体的历史曲线（需已认证 + 授权允许 api）。
 
-    查询参数: entityId（必填）、hours（默认 24，1..168）。
-    返回 {entityId, hours, points}，points 为 [{timestamp, value}]。
-    异常:
-        403 实体不在当前主体可见范围；409 未配置 HA；
-        404 实体不存在、已禁用或已失联；502 HA 侧查询失败。
+    查询参数 entityId（必填）、hours（默认 24，1..168）。返回 {entityId, hours, points}，
+    points 为 [{timestamp, value}]。403 越权；409 未配置 HA；404 实体不存在/禁用/失联；502 HA 查询失败。
     """
     connection, entity_exists = await asyncio.to_thread(
         load_authorized_entity_context,
@@ -571,8 +541,7 @@ async def entity_history(
 def history_state_value(raw_state: Any) -> float | str | None:
     """把 HA 的历史状态转成曲线可用的数值或字符串。
 
-    返回:
-        否则返回去掉空白的字符串；空值与空串统一返回 None，由调用方跳过该点。
+    数值直接返回；否则返回去空白的字符串，空值与空串统一返回 None（调用方跳过该点）。
     """
     try:
         return float(raw_state)
@@ -610,9 +579,8 @@ def list_areas(database: DatabaseSession, _user: LicensedUser) -> dict[str, Any]
 def list_devices(database: DatabaseSession, viewer: LicensedViewer) -> dict[str, Any]:
     """列出 HA 设备（需已认证 + 授权允许 api）。
 
-    中控设备只看到「其下挂着可见实体」的设备：先用可见实体反查出 device_id 集合，
-    再按集合过滤，避免把同一 HA 里别的设备名字暴露给这块屏。
-    返回 {items: [{deviceId, name, manufacturer, model, registryMetadata?, areaId, status}]}。
+    中控设备只看到「其下挂着可见实体」的设备：先用可见实体反查 device_id 再过滤，
+    避免把同一 HA 里别的设备名字暴露给这块屏。返回 items（字段为 camelCase）。
     """
     connection = active_connection(database)
     if connection is None:
@@ -691,11 +659,8 @@ def sync_status(request: Request, database: DatabaseSession, _viewer: LicensedVi
 async def run_sync(request: Request, user: LicensedUser) -> dict[str, Any]:
     """触发一次全量同步（需管理员 + 授权允许 api 与 ha.sync）。
 
-    ha.sync 会批量改库（新增/更新/回收实体、设备、区域），风险高于 ha.control，
-    因此单独占一档能力码。
-    返回 {'ok': True, 'counts': {...}}。
-    异常:
-        403 授权不足或非管理员；409 未配置 HA；502 HA 侧错误或凭证解密失败。
+    ha.sync 会批量改库（新增/更新/回收实体、设备、区域），风险高于 ha.control。
+    返回 {'ok': True, 'counts': {...}}；403 授权不足或非管理员；409 未配置；502 HA 侧失败。
     """
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.sync'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许同步 Home Assistant。')
@@ -739,13 +704,9 @@ async def call_service(
 ) -> dict[str, Any]:
     """调用 HA 服务控制设备（需已认证 + 授权允许 api 与 ha.control）。
 
-    请求体 domain / service / entity_id / data（透传参数）。校验顺序（任一不通过就不必回源 HA）：
-    ha.control 能力码 → (domain, service) 必须在 ALLOWED_SERVICES 里 → data 字段必须是该服务
-    允许的参数 → homeassistant.toggle 要求实体域本身可开关、其它服务要求服务域与实体域一致 →
-    实体必须在当前主体可见范围内且同步正常。返回 {'ok': True, 'result': {...}}。
-
-    403 授权不足或服务不在白名单；422 参数不允许、域不匹配；409 未配置 HA；
-    404 实体不存在 / 禁用 / 失联；502 调用失败。
+    校验顺序（任一不过就不回源）：能力码 → 服务白名单 → data 字段被该服务允许 →
+    homeassistant.toggle 要求实体域可开关、其它服务要求域一致 → 实体可见且同步正常。
+    返回 {'ok': True, 'result': {...}}。
     """
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.control'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
@@ -834,11 +795,8 @@ async def browse_media(
 ) -> dict[str, Any]:
     """浏览媒体播放器的可播放内容（需已认证 + 授权允许 api 与 ha.control）。
 
-    请求体: entity_id / media_content_id / media_content_type（可空）。
-    返回 {'ok': True, 'result': HA 原始结果}。
-    异常:
-        403 授权不足；422 实体不是媒体播放器；409 未配置 HA；
-        404 实体不存在 / 禁用 / 失联；502 HA 侧错误。
+    请求体 entity_id / media_content_id / media_content_type（可空）。
+    返回 {'ok': True, 'result': HA 原始结果}；422 实体不是媒体播放器，其余同 call_service。
     """
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.control'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
@@ -873,12 +831,8 @@ async def browse_media(
 def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
     """从 WebSocket 握手的 Cookie 解析访问主体。
 
-    与 HTTP 侧共用 ``access.resolve_principal``（B32）。这里原先独立实现了一遍：WebSocket 不走
-    FastAPI 依赖注入，所以当时「自己读 Cookie、查会话与中控配对」看着合理 —— 但那一版既不查会话
-    的绝对寿命、也不查中控令牌的有效期，于是实时连接同时成了这两道限制的旁路（B2/B3）。判据现在
-    只有一处实现，这里只负责读 Cookie、detach 对象与清理过期会话行。
-
-    管理员会话优先；两者都拿不到返回 None，由调用方以 4401 关闭连接。
+    与 HTTP 侧共用 ``access.resolve_principal``（WebSocket 不走依赖注入，不能自己再实现一遍
+    会话与配对校验）。管理员会话优先；两者都拿不到返回 None，调用方以 4401 关闭连接。
     """
     settings = websocket.app.state.settings
     with websocket.app.state.database.session_factory() as database:
@@ -904,15 +858,8 @@ def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
 class DisplayBindingGuard:
     """实时连接期间复查「中控配对是否仍然有效」，结果带短缓存。
 
-    配对可能在连接期间被解绑或改绑到别的项目，因此推送循环每轮都要确认；心跳是秒级的，不缓存就
-    等于每秒查一次库。
-
-    这段逻辑原先写在路由里，是个给外层 ``display_binding_cache`` 赋值却漏了 ``nonlocal`` 的闭包：
-    赋值落在闭包自己的局部作用域，于是这个名字在闭包内是局部的，第一次调用走到「缓存命中判断」
-    就抛 ``UnboundLocalError``；异常又被推送循环外层的 ``except Exception`` 收走且不记日志，
-    现象是「展示设备推送一会儿就断、日志里什么都没有」（4.2b）。
-
-    缓存挂在实例上，既不再依赖作用域规则，也能单独测「第二次调用真的没查库」。
+    配对可能在连接期间被解绑或改绑，因此推送循环每轮都要确认；心跳是秒级的，
+    不缓存就等于每秒查一次库。缓存挂在实例上而不是闭包里，作用域清晰且可单独测。
     """
 
     def __init__(self, websocket: WebSocket, viewer: ViewerPrincipal) -> None:
@@ -954,14 +901,8 @@ class DisplayBindingGuard:
 async def run_tasks_until_first_completes(*operations) -> None:
     """并行跑几路任务，任一路结束后取消其余，并把真正的异常原样抛出。
 
-    实时连接有两路任务（感知断开、推送状态），谁先结束都要收掉另一路；同时不能吞掉真正的异常 ——
-    原来的实现把这套逻辑写在路由的闭包里，给外层 ``failure`` 赋值却没声明 ``nonlocal``，赋值只落在
-    闭包自己的局部作用域，``raise failure`` 于是永远等不到东西：两路任务里的真实异常被完全丢弃，
-    而 ``except WebSocketDisconnect`` / ``except TimeoutError`` 两个分支成了死代码（4.2b）。
-
-    ``WebSocketDisconnect`` 原样抛出（由调用方按关闭码决定记不记警告 —— 1000/1001/1005 是刷新页面
-    与正常关闭，其余异常码例如 1006 要留一条日志）。谁先结束谁先到：后一路在这个点已经被取消，
-    此后不会再产生异常。
+    实时连接的两路任务谁先结束都要收掉另一路；真正的异常先到的优先（后到的那路已被取消）。
+    ``WebSocketDisconnect`` 原样抛出，由调用方按关闭码决定记不记警告。
     """
     failure: Exception | None = None
 
@@ -990,9 +931,8 @@ async def run_tasks_until_first_completes(*operations) -> None:
 def websocket_origin_allowed(websocket: WebSocket) -> bool:
     """校验 WebSocket 握手的 Origin 是否来自本应用主机。
 
-    配置了 app_base_url 时必须与之完全一致（含 scheme 与端口）；没配置时退化为
-    「Origin 的 host 与请求 Host 相同」，并额外要求 Origin 只能是 scheme://host
-    形态 —— 否则 http://evil@本机地址/xxx 之类的写法能骗过朴素的字符串比较。
+    配置了 app_base_url 时必须与之完全一致（含 scheme 与端口）；否则退化为「Origin 的
+    host 与请求 Host 相同」，且要求 Origin 只能是 scheme://host 形态（防止 evil@host 绕过）。
     """
     origin = websocket.headers.get('origin', '').strip()
     # 浏览器一定会带 Origin，缺失说明不是页面发起的连接，直接拒绝。
@@ -1030,7 +970,7 @@ def websocket_origin_allowed(websocket: WebSocket) -> bool:
 async def runtime_websocket(websocket: WebSocket) -> None:
     """实时状态推送 WebSocket 的入口壳：建上下文、兜异常、还原上下文。
 
-    连接级异常先记一条日志再抛出，保证连接被正常关闭且错误不会被吞。
+    连接级异常先记一条日志再抛出，保证连接被正常关闭且错误不会被吞；
     真正的握手与推送逻辑在 _runtime_websocket 里。
     """
     # 手工造一份与 HTTP 中间件同形的上下文，让 WS 相关的日志也能带上 requestId。
@@ -1068,8 +1008,7 @@ def _runtime_log(
 ) -> None:
     """写一条实时连接日志；global_log 未挂载时静默跳过。
 
-    来源按上下文推断：有 displayId 是展示设备，有 actor 是仪表盘编辑器，
-    都没有才算系统后台 —— 与 HTTP 侧的口径保持一致。
+    来源按上下文推断：有 displayId 是展示设备，有 actor 是仪表盘编辑器，都没有才算系统后台。
     """
     log = getattr(websocket.app.state, 'global_log', None)
     # 不做硬依赖：测试或极简启动时可能就没有全局日志组件。
@@ -1106,11 +1045,9 @@ async def _runtime_send_json(websocket: WebSocket, payload: dict) -> None:
 async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
     """实时状态连接的主流程。
 
-    握手阶段依次校验：Origin → 身份（管理员 Cookie 会话或中控配对）→
-    runtime.websocket 能力码；任一不过就以 44xx 码关闭并记日志
-    （4401 未认证、4403 被拒、4400 协议错误，是本应用自定义的语义）。
-    握手通过后要求客户端在 30 秒内发 subscribe 消息（带 entityIds），
-    随后推送 snapshot 与增量事件，并用 ping 保活。
+    握手依次校验 Origin → 身份（管理员 Cookie 会话或中控配对）→ runtime.websocket 能力码，
+    任一不过就以 44xx 关闭（4401 未认证、4403 被拒、4400 协议错误）；随后要求 30 秒内发
+    subscribe（带 entityIds），再推 snapshot 与增量事件并用 ping 保活。
     """
     async def close_with_log(code: int, reason: str, *, send_reason: bool = True) -> None:
         """关闭连接前先记一条日志。
@@ -1157,7 +1094,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
     entity_ids = set()
     # 标记是否已登记监听：决定收尾时要不要撤销，避免撤销未登记过的订阅。
     watching = False
-    # 配对复查器：内部做短缓存，见 DisplayBindingGuard（原先是个漏了 nonlocal 的闭包）。
+    # 配对复查器：内部做短缓存，见 DisplayBindingGuard。
     binding_guard = DisplayBindingGuard(websocket, viewer)
 
     try:
@@ -1222,8 +1159,7 @@ async def _runtime_websocket(websocket: WebSocket, context: dict) -> None:
                 if message['type'] == 'websocket.disconnect':
                     raise WebSocketDisconnect(code=message.get('code', 1000))
 
-        # 两路任务谁先结束就取消另一路，避免留下悬挂的接收循环；
-        # 真正的异常由它原样抛回这里，交给下面的 except 分支分流（B1）。
+        # 两路任务谁先结束就取消另一路；真正的异常由它原样抛回，交给下面的 except 分流。
         await run_tasks_until_first_completes(receive_disconnect, send_updates)
     except WebSocketDisconnect as error:
         # 1000/1001/1005 是正常关闭码，不记警告 —— 否则刷新一次页面就刷出一条告警。

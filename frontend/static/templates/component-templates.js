@@ -1,37 +1,14 @@
 /**
- * 编辑器「组件模板」内置模板库。
- *
- * 位置：编辑器侧边栏 / 主页面的「添加控件」弹窗完全由本文件供数，home.js 直接消费。
- * 职责：注册并保管全部内置控件模板（registerComponentTemplate）、按作用域列举
- *   （listComponentTemplates）、按模板实例化出完整组件（createComponentFromTemplate）、
- *   打开项目时把存量文档补齐到当前结构（normalizeDashboardDocument）。
- *
- * 模板与「组件文档模型」的关系：模板只描述出厂默认值，create() 产出的对象就是
- *   backend/panel/schema.py 中 PanelComponent 的 JSON 形态
- *   （id / type / componentVersion / position / bindings / properties / style /
- *   actions / children）。落库与校验都以展开后的组件文档为准，模板本身不持久化，
- *   只在组件上留下 templateRef 作为来源与版本标记。
- *
- * 模板数据从哪来：文件下半部分逐个 registerComponentTemplate({...}) 注册的内置定义，
- *   外加下方 registerComponentTemplate(interaction3dTemplate) 注册的 3D 交互模板
- *   （本体定义在 bridge/definition.js）；
- *   各类型默认 properties / style / dimensions 集中在 componentDefaultsByType。
- *   创建出的组件由 home.js 插入当前页面文档，保存后经后端 panel/schema.py 校验落库。
- *
- * 全局约定：
- *   - 设计标称画布 2778×1940（2 倍 DPI 的 1389×970，与 schema.Canvas 同源），
- *     position 的 x / y / width / height 都是该画布下的像素；新组件一律先按比例定尺寸再居中，
- *     由用户在编辑器里二次拖拽缩放；
- *   - 颜色统一写 #rrggbb 小写十六进制，透明度另用 0~1 的 opacity / *Opacity 字段表示；
- *   - scopes 决定模板出现在哪个区域：shared = 侧边栏（所有页面可见），page = 主页面；
- *   - zIndex 从 1 起，负数留给背景类组件。
- *
- * 副作用：模块导入即执行全部注册；templatesById 是模块级单例，同 id 重复注册会覆盖。
- * 新增控件类型时要同步改：本文件的 registerComponentTemplate 注册块、
- *   componentDefaultsByType（打开旧文档时补默认值）、templateScopeOrder（弹窗排序），
- *   以及前端渲染分支（renderer/core/registry.js、home.js）和后端 schema 的放行范围。
+ * 编辑器「组件模板」内置模板库：registerComponentTemplate 注册、按作用域列举、
+ * createComponentFromTemplate 实例化、normalizeDashboardDocument 打开项目时补齐存量文档。
+ * 模板只描述出厂默认值，create() 产出的对象就是 backend/panel/schema.py 中 PanelComponent 的 JSON 形态
+ * （id / type / componentVersion / position / bindings / properties / style / actions / children），
+ * 模板本身不持久化，只在组件上留 templateRef。
+ * 约定：设计标称画布 2778×1940（与 schema.Canvas 同源），position 的 x / y / width / height 为该画布像素；
+ * 颜色统一 #rrggbb 小写十六进制，透明度用 0~1 的 opacity；scopes 决定出现区域（shared = 侧边栏，
+ * page = 主页面）；zIndex 从 1 起，负数留给背景类组件。模块导入即执行全部注册，templatesById 是模块级单例。
  */
-import { interaction3dTemplate } from "../bridge/definition.js?v=20260920104554";
+import { interaction3dTemplate } from "../bridge/definition.js?v=20260920131301";
 // 模板注册表：id -> 冻结后的模板定义。模块级单例，导入即被下方的注册块填满。
 const templatesById = new Map();
 // 文档缺 theme 时的兜底主题，名字必须与后端 schema.Theme 的默认名 homeos-dark 一致。
@@ -702,12 +679,8 @@ export function createComponentFromTemplate(templateId, templateOptions) {
 }
 /**
  * 打开已有文档时的归一化：只做「补全」和「清理」，绝不改写存量取值。
- *
- * 模板默认值仅用于补齐缺失字段（例如新版本新增的默认项），任何文档里已经写下的
- * properties / style 都原样保留——否则用户刚保存的属性会在下次打开时被默认值覆盖，
- * 表现为「改完保存无效」。
- *
- * 只有 templateId / version 这类结构字段会被规整回模板引用格式。
+ * 模板默认值仅用于补齐缺失字段，文档里已写下的 properties / style 原样保留
+ * （否则用户刚保存的属性会在下次打开时被默认值覆盖）；只有 templateId / version 会被规整回模板引用格式。
  */
 function normalizeComponent(mappedComponent, canvas) {
   // 老文档可能只存了 type 没有 templateRef；内置模板的 id 与 type 同名，用 type 兜底即可命中。

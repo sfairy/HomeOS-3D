@@ -1,24 +1,17 @@
 /**
- * 空闲行为：自动旋转、自动退出聚焦、自动隐藏图标。
+ * 空闲行为：自动旋转、自动退出聚焦、自动隐藏图标 —— 页面长时间无人操作时相机动起来（展台效果）、
+ * 退出聚焦的设备、把图标元素收起来。
  *
- * 在 3D 子系统里的位置：页面长时间无人操作时，3D 场景需要做三件事 ——
- * 相机动起来（展台效果）、退出聚焦的设备、把图标元素收起来。三者都是
- * 「一段时间无活动就触发一次」的计时器，因此在这里统一实现、各自独立实例。
- *
- * 对外提供：resolvePageBehavior（转自页面行为模块）、createIdleRotation、
- * createIdleFocusExit、createIdleIconVisibility。
- *
- * 约定：三个工厂都不自己起定时器，由调用方按 nextDelay() 给出的间隔反复调用 tick()；
- *       时间统一用 performance.now() 口径（毫秒），可注入自定义 now 便于测试。
- *       参数签名里以 Timestamp 命名的位置（如 setAvailable 的第一个参数）实际是标志位，
- *       时间戳在第二位 —— 这是历史命名，调用时注意顺序。
+ * 约定：三个工厂都不自己起定时器，由调用方按 nextDelay() 给出的间隔反复调用 tick()；时间统一用
+ * performance.now() 口径（毫秒），可注入自定义 now 便于测试。参数签名里以 Timestamp 命名的位置
+ * （如 setAvailable 的第一个参数）实际是标志位、时间戳在第二位 —— 历史命名，调用时注意顺序。
  */
 
 // 复用渲染器的页面行为解析（默认空闲秒数等），缓存戳需与 static 资源版本保持一致。
 const pageBehaviorModuleUrl = new URL(
   import.meta.url.startsWith("file:")
-    ? "../../../static/bridge/page-behavior.js?v=20260920104554"
-    : "/static/bridge/page-behavior.js?v=20260920104554",
+    ? "../../../static/bridge/page-behavior.js?v=20260920131301"
+    : "/static/bridge/page-behavior.js?v=20260920131301",
   import.meta.url
 );
 export const { resolvePageBehavior } = await import(pageBehaviorModuleUrl.href);

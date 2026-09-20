@@ -1,23 +1,14 @@
 /**
- * 空调气流（出风）效果。
+ * 空调气流（出风）效果：根据空调 / 风口的模型包围盒自动推导「出风口」位置，挂一片着色器绘制的
+ * 流动气幕；运行时淡入、停止时淡出。
  *
- * 在 3D 子系统里的位置：根据空调 / 风口的模型包围盒自动推导出「出风口」位置，
- * 并在那里挂一片着色器绘制的流动气幕；空调运行时气幕淡入，停止时淡出。
- *
- * 对外提供：createEnvironmentAirflow —— 返回 setRoot / setState / tick / nextDelay / dispose。
- *
- * 与 HA 的字段约定：开关看实体 state（cool / heat / fan_only / drying 等），
- * 是否真的在吹风看 hvac_action（cooling / heating / fan / drying）；
- * 颜色按 state 取（cool 蓝、heat 橙、其余中性灰）。
- *
- * 注意：下面两个着色器字符串里的 // 是 GLSL 注释，属于着色器源码本身，
- * 必须原样保留，不能改写或翻译。
+ * 与 HA 的字段约定：开关看实体 state（cool / heat / fan_only / drying 等），是否真的在吹风看
+ * hvac_action（cooling / heating / fan / drying）；颜色按 state 取（cool 蓝、heat 橙、其余中性灰）。
+ * 注意：下面两个着色器字符串里的 // 是 GLSL 注释，属于着色器源码本身，必须原样保留，不能改写或翻译。
  */
 
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
+// 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。 */
 const FLOW_STATE_COLORS = {
   cool: "#73c8ff",

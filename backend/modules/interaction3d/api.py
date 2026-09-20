@@ -82,9 +82,8 @@ def light_history_scope(connection, viewer, project_id: str) -> str:
         base_url,
         hashlib.sha256(encrypted_token.encode('utf-8')).hexdigest(),
     ]
-    # 规范序列化（canonical_json_bytes）去掉多余空格并保持键序稳定，保证同一份输入
-    # 在任何 Python 版本下摘要一致；它同时钉住 ``ensure_ascii=False`` —— 手写
-    # ``json.dumps(..., separators=(',', ':'))`` 时最容易漏掉这一项，一旦某个字段
+    # 规范序列化去掉多余空格并保持键序稳定，保证同一份输入在任何 Python 版本下摘要一致；
+    # 它同时钉住 ``ensure_ascii=False`` —— 手写 ``json.dumps`` 最易漏掉这一项，一旦某字段
     # 含中文就会与规范形式产生两套字节、摘要随之分叉。
     return hashlib.sha256(canonical_json_bytes(identity)).hexdigest()
 
@@ -124,7 +123,7 @@ def require_scene_viewer(request, database, viewer, scene_id, project_id):
     # 否则任一已配对设备换掉 URL 里的 sceneId 就能读到别人的户型。
     draft = database.get(ProjectDraft, project_id)
     # 草稿损坏时按「没配到」拒绝（403）而不是 500：这是一道门禁，脏数据的答案
-    # 只能是「不放行」（B54 的统一入口）。
+    # 只能是「不放行」（统一入口）。
     document = parse_document(draft.document_json) if draft is not None else None
     if not any(
         c.get('properties', {}).get('sceneId') == scene_id
@@ -151,7 +150,7 @@ def control_component(database, project_id: str, component_id: str) -> dict:
 
     取不到一律回空 ``dict``（项目草稿不存在、`document_json` 是脏数据、控件已被删掉），
     让调用方按「这个实体没配到这个控件」拒绝：脏数据回 500 会把一条本该是 403 的拒绝
-    变成 5xx（B9 的同一类问题），而这里要的答案是拒绝，不是崩。
+    变成 5xx（同一类问题），而这里要的答案是拒绝，不是崩。
     """
     draft = database.get(ProjectDraft, project_id) if project_id else None
     if draft is None:
@@ -322,7 +321,7 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
 
     回退路径过去信的是全局草稿（``studio3d_draft_path``）—— 那份文件是全机共用的，它此刻编辑的
     可能是**别的项目**的户型，于是绑项目 A 的展示页只要猜中 / 枚举 ``asset_id`` 就能把别的项目的
-    底图取走（B24）。改为只认本场景：快照 JSON 自己记着每个楼层的 ``assetId``，因此「复制失败」
+    底图取走。改为只认本场景：快照 JSON 自己记着每个楼层的 ``assetId``，因此「复制失败」
     这个真实场景依然可取；管理员会话额外保留「当前草稿引用过就放行」（管理员本来就不受素材可见
     范围限制，``viewer_user_asset_ids`` 对它返回 None，这条只让编辑器刚换、还没冻结的底图也能
     显示，不会让它多拿到任何东西）。两种来源都取不到时抛 404。
@@ -496,14 +495,9 @@ async def control_light(payload: Interaction3dControlRequest, request: Request, 
             'turn_on',
             'turn_off'}:
             raise HTTPException(422, detail='3D 交互控制只支持已配置的灯光、开关、空调或窗帘。')
-        # 与前三个分支同一口径：中控设备必须证明这个实体**真的配在当前控件上**（B25）。
-        # 少了这一步，凡是这块屏可见的实体都能被控制 —— 同一设备上的兄弟实体（灯具的
-        # 第二路、窗帘电机的反向开关等由 viewer_entity_ids 按设备放行的那些）、别的控件
-        # 配的灯，全都可以用。前端 runtime 也做了同样的比对，但那只是体验（省一次往返），
-        # 不是边界：直接调接口就能绕过。
-        #
-        # 管理员会话不设这道：它本来就是全权主体（可以直接调 /ha/service 控制任意实体），
-        # 而编辑器里的 3D 预览挂载未必带上项目与控件标识，卡在这里只会误伤预览。
+        # 与前三个分支同一口径：中控设备必须证明这个实体**真的配在当前控件上**。少了这一步，
+        # 凡是这块屏可见的实体都能被控制（兄弟实体、别的控件配的灯）。前端 runtime 也做了同样的
+        # 比对，但那只是体验、不是边界 —— 直接调接口就能绕过。管理员会话不设这道。
         if not viewer.is_admin_session:
             if not (payload.project_id and payload.component_id):
                 raise HTTPException(422, detail='设备控制缺少仪表盘或控件信息。')
@@ -531,7 +525,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     scene_path(request, sceneId)
     html = (request.app.state.settings.frontend_dir / '3d-studio.html').read_text(encoding='utf-8')
     # v= 缓存戳需要手动维护：页面本身 no-store，只有 URL 变了浏览器才会重新取样式。
-    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20260920104554"></head>')
+    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20260920131301"></head>')
     html = html.replace('<body>', f'<body class="interaction3d-stage" data-i3d-light-history-scope="{scope}">')
     return HTMLResponse(html, headers={'Cache-Control': 'no-store'})
 
@@ -631,12 +625,9 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
         HTTPException: 404，文件不在白名单内，或解析后落在资源目录之外。
     """
     require_access(request)
-    # 白名单同时充当媒体类型表与可访问清单：没登记的文件一律 404，
-    # 前缀 /{filename:path} 不会退化成任意文件读取。新增资源必须在这里登记 ——
-    # 漏登记不会报错，只会在浏览器里表现为「某个模块 404、整条 import 链断掉」，
-    # 排查时先看这里。树里每一个相对 import 都必须与下面的名单保持同步。
-    # 这个坑在 P12 收口时真踩过一次：`core/static-helpers.js` 漏登记，整条 import 链
-    # 在浏览器里 404。改动这棵树时务必对照下面名单逐个核对。
+    # 白名单同时充当媒体类型表与可访问清单：没登记的文件一律 404，前缀 /{filename:path}
+    # 不会退化成任意文件读取。新增资源必须在这里登记 —— 漏登记不报错，只表现为浏览器里
+    # 某个模块 404、整条 import 链断掉（真踩过一次）。
     media_types = {
         name: 'text/javascript'
         for name in (

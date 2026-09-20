@@ -1,15 +1,8 @@
 /*
   编辑器主界面样式（frontend/index.html 专用）。
-
-  适用页面：只服务编辑器主页面；显示端与运行时弹窗用 renderer.css、bridge.css，
-  本文件末尾的 .hb-custom-popup-* 区块是编辑器里的弹窗预览，不是运行期弹窗本体。
-  主题变量：调色板在本文件 :root 里定义（--bg / --surface / --accent 等），
-  运行期由 home.js 往 documentElement 注入 --editor-layout-height、
-  --editor-viewport-scale、--component-template-dialog-scale；仓库中没有 --homeos-*
-  前缀的变量，新增主题色请沿用这里的 -- 变量，不要另起前缀。
-  尺寸基准：编辑器 UI 的设计标称宽度是 1020px（home.js 里的 EDITOR_DESIGN_WIDTH），
-  仪表盘画布的设计标称是 2778×1940（后端 panel/schema.py 的 DESIGN_WIDTH / DESIGN_HEIGHT），
-  组件坐标与字号都按该画布换算，因此本文件里的 px 一律是 CSS 像素、不做 DPR 换算；
+  只服务编辑器主页面；显示端与运行期弹窗用 renderer.css、bridge.css（本文件末尾的 .hb-custom-popup-* 是编辑器内的弹窗预览，不是运行期弹窗本体）。
+  主题变量：调色板在本文件 :root 里定义（--bg / --surface / --accent 等），运行期由 home.js 注入 --editor-layout-height / --editor-viewport-scale / --component-template-dialog-scale；仓库中没有 --homeos-* 前缀，新增主题色请沿用这里的 -- 变量。
+  尺寸基准：编辑器 UI 设计标称宽 1020px（home.js 的 EDITOR_DESIGN_WIDTH），仪表盘画布 2778×1940（backend/panel/schema.py）；组件坐标与字号按该画布换算，故本文件的 px 一律是 CSS 像素、不做 DPR 换算。
   视口放不下时由 home.js 给 html 挂 .editor-viewport-fit 整体等比缩放，而不是重排。
 */
 
@@ -423,17 +416,10 @@ button.danger-quiet {
 }
 /* ===== 关键控件的命中区兜底 ===== */
 
-/* 编辑器按 1020px 逻辑宽度出图，装不下时由 --editor-viewport-scale 整体等比缩放
-   （手机约 0.38）：设计空间里 28~35px 的控件落到屏幕上只剩 11~13px，手指点不准。
-   视觉尺寸动不得 —— 左侧列表的 28px 就是网格列宽、工具栏靠紧凑排布塞进 52px 顶栏 ——
-   所以只把**可点区域**外扩：最小的 28px 控件外扩 8px 后是 44×44（设计空间），
-   视觉上一行不变，点起来变大。外扩用 ::before 而不是 ::after：
-   .element-list-tabs button.active 的橙色下划线占着 ::after（right/bottom/left 全是 0），
-   同一伪元素上写 inset 会把那条线拉成 8px 高。
-
-   这里刻意**不**按 --editor-viewport-scale 反算外扩量：缩放 0.38 时反算要外扩 17px 以上，
-   而图标按钮之间只有 5px 间距，相邻控件的命中区会互相盖住 —— 点错比点不中更难排查。
-   手机端真正的出路是不整体缩放（见文档 W17 备注），不是把命中区撑到互相重叠。 */
+/* 编辑器按 1020px 逻辑宽度出图，装不下时整体等比缩放（手机约 0.38），28~35px 的控件落到屏幕上只剩 11~13px，手指点不准。
+   视觉尺寸动不得（列表 28px 就是网格列宽、工具栏要挤进 52px 顶栏），所以只把**可点区域**外扩：28px 控件外扩 8px 得 44×44，视觉不变、点起来变大。
+   外扩用 ::before 而非 ::after：.element-list-tabs button.active 的橙色下划线占着 ::after，同一伪元素写 inset 会把那条线拉成 8px 高。
+   刻意不按 --editor-viewport-scale 反算外扩量：缩放 0.38 时需外扩 17px 以上，而图标按钮间距只有 5px，命中区会互相盖住——点错比点不中更难排查。 */
 .element-list-tabs button,
 .add-element-button,
 .workspace-sound-toggle,

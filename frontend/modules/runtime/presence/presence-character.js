@@ -1,22 +1,12 @@
 /**
  * 虚拟人物（人体模型）的程序化建模、步态动画与资源释放。
  *
- * 在 3D 子系统里的位置：presence-scene.js 需要「一个会沿路线走路的小人」，但项目里
- * 不引入外部人物模型资源，所有角色都用 three.js 基本几何体当场拼出来，于是把建模
- * 细节集中在本文件：DESIGNS 是可选角色表，createWalker 造模型，animateWalker 用
- * 行走相位驱动四肢摆动，disposeWalker 回收几何体与材质。
- *
- * 坐标系与单位约定（与舞台其它 overlay 一致，写错会导致人物悬空或穿地）：
- * - 场景 1 单位 = 1 米，Y 轴向上，模型正面朝 +Z（转向角按 atan2(dx, dz) 计算）。
- * - 根节点原点即脚底所在的水平面；实际贴地由 presence-scene.js 量脚底包围盒后微调。
- * - 角色总高 1.3~1.5 米（见 DESIGNS 的 height），鞋底高度写进 userData.soleHeight，
- *   场景侧用「模型缩放 × soleHeight」换算落地补偿，因此这个字段不能省。
- *
- * 根节点 userData 上的字段是跨文件契约，改名会静默失效：
- * - parts：{ body, headRig, arms, legs, ... }，animateWalker 的摆动入口；
- * - design：设计键，animateWalker 据此区分「豆豆」这类幅度更大的角色。
- *
- * 对外提供：DESIGNS、createWalker、animateWalker、disposeWalker。
+ * 项目不引入外部人物模型资源，所有角色都用 three.js 基本几何体当场拼出：DESIGNS 是可选角色表，
+ * createWalker 造模型，animateWalker 用行走相位驱动四肢摆动，disposeWalker 回收几何体与材质。
+ * 坐标与单位（与舞台其它 overlay 一致）：1 单位 = 1 米，Y 轴向上，模型正面朝 +Z（转向角按 atan2(dx, dz)）；
+ * 根节点原点即脚底水平面，贴地由 presence-scene.js 量脚底包围盒后微调；角色总高 1.3~1.5 米，
+ * 鞋底高度写进 userData.soleHeight（场景侧据此换算落地补偿，不能省）。
+ * 根节点 userData 是跨文件契约：parts（animateWalker 的摆动入口）、design（设计键）。
  */
 
 /** 可选人物方案；name / description 直接作为配置界面文案，height（米）与 pace 仅为设计参考值。 */

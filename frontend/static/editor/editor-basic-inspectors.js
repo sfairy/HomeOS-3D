@@ -1,15 +1,12 @@
 /**
  * 编辑器基础检查器（Inspector）的通用计算。
  *
- * 位置：右侧属性面板中图标按钮特效层、组件尺寸与百分比度量等基础项。
- * 职责：切换「显示 / 隐藏」按钮态、归一特效层参数、把组件对齐到目标尺寸，
- *   以及把像素坐标换算成面板展示用的百分比与缩放值。
- * 约定：画布默认尺寸 2778×1940 与后端 schema 一致；百分比一律保留
- *   editor-utils 的 roundField 精度并对越界值做 clamp
- *   （clampNumber 的唯一实现在 utils/numbers.js，见那里的契约对照表）。
+ * 右侧属性面板中图标按钮特效层、组件尺寸与百分比度量等基础项：切换「显示 / 隐藏」按钮态、
+ * 归一特效层参数、把组件对齐到目标尺寸，以及把像素坐标换算成百分比与缩放值。画布默认尺寸
+ * 2778×1940 与后端 schema 一致；百分比保留 editor-utils 的 roundField 精度并对越界做 clamp。
  */
-import { roundField } from "./editor-utils.js?v=20260920104554";
-import { clampNumber } from "../utils/numbers.js?v=20260920104554";
+import { roundField } from "./editor-utils.js?v=20260920131301";
+import { clampNumber } from "../utils/numbers.js?v=20260920131301";
 
 /**
  * 同步「显示 / 隐藏」切换按钮的按压态与文案。

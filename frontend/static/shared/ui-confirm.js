@@ -1,17 +1,13 @@
 /**
  * 站内统一确认框。
  *
- * 位置：编辑器、展示页、3D 配置编辑器共用；替代 window.confirm，
- *   避免暗色页面跳出浅色系统框、按钮文案无法定制。
- * 对外导出：confirmAction({ kicker, title, message, detail, confirmLabel,
- *   cancelLabel, tone }) → Promise<boolean>。
- * 约定：遮罩 / Esc / 关闭按钮一律按「取消」（false）；只有点确认才 true。
- *   同一时刻只开一个确认框；重复调用会先关掉上一个并以 false 结束它。
- * 副作用：首次调用时向 <head> 注入 ui-confirm.css，并向 <body> 挂一个
- *   复用的 <dialog>；关闭后节点保留，下次直接改文案再开。
+ * 编辑器、展示页、3D 配置编辑器共用，替代 window.confirm（暗色页面不再跳出浅色系统框，
+ * 按钮文案可定制）。导出 confirmAction({kicker, title, message, detail, confirmLabel,
+ * cancelLabel, tone}) → Promise<boolean>。遮罩 / Esc / 关闭按钮一律按「取消」（false），
+ * 只有点确认才 true；同一时刻只开一个，重复调用先关掉上一个并以 false 结束它。
  */
 
-const STYLE_HREF = "/static/shared/ui-confirm.css?v=20260920104554";
+const STYLE_HREF = "/static/shared/ui-confirm.css?v=20260920131301";
 const DIALOG_ID = "homeos-ui-confirm-dialog";
 
 let stylePromise = null;

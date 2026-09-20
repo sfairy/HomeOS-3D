@@ -1,25 +1,19 @@
 /**
  * 窗帘（cover）实体的状态归一化与控制命令构造。
  *
- * 在 3D 子系统里的位置：把 HA 的 cover 实体翻译成窗帘动画需要的「整体位置 +
- * 叶片角度」，并把面板操作翻译成下面要发给 HA 的服务调用。
- *
- * 对外提供：coverStateLabel、coverIconIsOn、coverState、coverCanAdjustBlades、coverControl。
- *
- * 与 HA 的字段约定：位置取 current_position（0–100），叶片角度取
- * current_tilt_position（0–100）；能力位来自 supported_features
- * （1=开、2=关、4=设位置、8=停、16/32/64/128=tilt 相关，见 HA CoverEntityFeature）。
+ * 把 HA 的 cover 实体翻译成窗帘动画需要的「整体位置 + 叶片角度」，并把面板操作翻译成发给
+ * HA 的服务调用。对外提供 coverStateLabel、coverIconIsOn、coverState、
+ * coverCanAdjustBlades、coverControl。位置取 current_position（0–100），叶片角度取
+ * current_tilt_position；能力位来自 supported_features（见 HA CoverEntityFeature）。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 /**
  * 把任意输入转成有限数字，不可用时返回 null。
- *
- * 只接受 number 与 string：布尔值会被 Number 转成 0/1，属于脏数据；
- * 纯空白字符串也必须排除，否则会被当成 0 而误判成「已关到底」。
+ * 只接受 number 与 string：布尔会被 Number 转成 0/1；纯空白串会被当成 0 而误判「已关到底」。
  */
 const toFiniteNumber = input =>
   ["number", "string"].includes(typeof input) &&
@@ -35,9 +29,7 @@ const STATE_LABELS = {
   closing: "正在关闭"
 };
 /**
- * 取窗帘状态的中文文案。
- *
- * @returns {string} 已知状态返回对应文案，其余（含 unknown/unavailable）返回「设备不可用」。
+ * 取窗帘状态的中文文案；已知状态返回对应文案，其余（含 unknown / unavailable）返回「设备不可用」。
  */
 export function coverStateLabel(stateName) {
   if (Object.hasOwn(STATE_LABELS, stateName)) {
@@ -47,9 +39,7 @@ export function coverStateLabel(stateName) {
   }
 }
 /**
- * 判断窗帘图标是否应按「点亮」呈现。
- *
- * @returns {boolean} 可用且（按需取反后）为 on 时返回 true。
+ * 判断窗帘图标是否应按「点亮」呈现；可用且（按需取反后）为 on 时返回 true。
  */
 export function coverIconIsOn(binding, iconState) {
   return (
@@ -102,10 +92,8 @@ export function coverState(entityId, receivedState, item = {}) {
     /^cover\.[a-z0-9_]+$/.test(entityId) &&
     stateObject.available !== false &&
     Object.hasOwn(STATE_LABELS, stateValue);
-  // 返回结构是窗帘动画与图标的内部契约；下面几个派生量集中说明：
-  // positionKnown 区分「位置为 0」与「位置未知」；positionReported 表示位置来自 HA 而非推断；
-  // closedConfirmed 要求三重成立（可用、反馈可信、state 与位置都指向全关），
-  // 它是「允许调叶片」的硬门槛；on 在位置未知时退回用 state 判断。
+  // 返回结构是窗帘动画与图标的内部契约：positionKnown 区分「位置为 0」与「位置未知」，
+  // positionReported 表示位置来自 HA，closedConfirmed 要求可用 + 反馈可信 + 全关，on 未知时退回 state 判断。
   return {
     entityId: entityId,
     raw: stateObject,
@@ -140,9 +128,7 @@ export function coverState(entityId, receivedState, item = {}) {
   };
 }
 /**
- * 判断当前是否允许调整叶片角度。
- *
- * 梦幻帘的叶片机构依赖整体处于「完全关闭」状态才安全，因此这里是一道门禁。
+ * 判断当前是否允许调整叶片角度：梦幻帘的叶片机构依赖整体完全关闭才安全，这里是一道门禁。
  */
 export function coverCanAdjustBlades(state, presentation = state) {
   if (!state.available || !state.bladeSupported) {
@@ -160,7 +146,6 @@ export function coverCanAdjustBlades(state, presentation = state) {
 }
 /**
  * 构造窗帘控制命令。
- *
  * @throws {Error} 设备不可用、不支持该操作，或梦幻帘状态下不允许调叶片、位置非法。
  */
 export function coverControl(sourceState, service, value) {

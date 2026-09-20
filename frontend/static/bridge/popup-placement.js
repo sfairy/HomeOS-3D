@@ -1,14 +1,11 @@
 /**
  * 弹窗（详情面板）的摆放计算。
  *
- * 位置：用户在设置里可以把弹窗改成自定义位置与缩放，本模块把「用户百分比 + 面板实际尺寸」
- *   换算成具体的 top / right / left / scale，供舞台页写进样式。
- * 对外导出：popupPlacement。
- * 全局约定：settings.x / settings.y 为 null 表示「未自定义」（走默认贴右上角），
- *   这是有意义的合法取值，不能用 0 或其它数字代替。
- * 副作用：无，纯函数（参数解构后会被局部重新赋值，但都是基本类型拷贝）。
+ * 用户在设置里可把弹窗改成自定义位置与缩放，本模块把「用户百分比 + 面板实际尺寸」换算成具体
+ * 的 top / right / left / scale，供舞台页写进样式。对外导出 popupPlacement。settings.x /
+ * settings.y 为 null 表示「未自定义」（默认贴右上角），这是有意义的合法取值，不能用 0 代替。
  */
-import { clampTypedNumber } from "../utils/numbers.js?v=20260920104554";
+import { clampTypedNumber } from "../utils/numbers.js?v=20260920131301";
 
 /**
  * 计算弹窗的缩放与位置。

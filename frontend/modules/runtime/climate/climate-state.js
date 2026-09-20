@@ -1,27 +1,20 @@
 /**
  * 空调（climate）实体的状态归一化与控制命令构造。
  *
- * 在 3D 子系统里的位置：3D 场景只认识「渲染器」这套结构，本模块负责把 HA 的
- * climate 实体（或 state_changed 事件）翻译成渲染器能直接消费的形状，并把
- * 面板上的操作（开关、调温、改模式）翻译成下面要发给 HA 的服务调用。
+ * 把 HA 的 climate 实体（或 state_changed 事件）翻译成渲染器可直接消费的形状，并把面板操作
+ * （开关、调温、改模式）翻译成发给 HA 的服务调用。
  *
- * 对外提供：climateState、climatePowerControl、createClimateModeHistory、
- * climateControl，以及从渲染器转出的标签 / 图标工具（climateModeLabel 等）。
- *
- * 与渲染器的约定：能力解析（支持哪些模式、温度步长）与文案统一来自
- * static/renderer/controls/climate.js，这里只做转发，绝不另写一份口径 —— 否则 2D 面板
- * 与 3D 面板会出现同一台空调显示不同模式列表的问题。
+ * 约定：能力解析（支持哪些模式、温度步长）与文案统一来自 static/renderer/controls/climate.js，
+ * 这里只转发，绝不另写一份口径，否则 2D 与 3D 面板会出现同一台空调不同的模式列表。
  */
 
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
+// 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 // 动态导入渲染器模块：开发环境走相对路径（file:），生产环境走带缓存戳的静态路径。
 // 缓存戳必须与 static 目录的统一版本号保持一致，改渲染器后要同步更新。
 const climateRendererModule = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/renderer/controls/climate.js", import.meta.url))
-  : import("/static/renderer/controls/climate.js?v=20260920104554"));
+  : import("/static/renderer/controls/climate.js?v=20260920131301"));
 const {
   normalizeClimateCapabilities: normalizeClimateCapabilities,
   climateIsPoweredOn: climateIsPoweredOn,
@@ -183,12 +176,8 @@ export function climatePowerControl(state, desiredOn = !state.on, lastMode = "")
 }
 /**
  * 创建「空调上次使用模式」的记录器（关机后再开机时恢复用）。
- *
- * 为什么需要它：HA 的 climate 实体一关机，state 就变成 off，实体本身不再上报
- * 用户最后选的是 cool 还是 heat，面板因此拿不回上一次的模式。这里在内存里记住
- * 每台空调最后一个「可用且正在运行」的模式，并用 localStorage 持久化，
- * 刷新页面或重进应用后仍能恢复。
- *
+ * HA 的 climate 一关机 state 就变 off，不再上报用户最后选的是 cool 还是 heat，故在内存里记住
+ * 每台空调最后一个「可用且正在运行」的模式并用 localStorage 持久化。
  * @param {Storage} [options.storage] 持久化后端；不可用（隐私模式等）时静默降级为仅内存。
  */
 export function createClimateModeHistory({ storage, scope = "" } = {}) {

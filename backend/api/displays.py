@@ -50,25 +50,17 @@ def device_already_bound() -> HTTPException:
 #: 不了」的拥堵，短窗口把这种 DoS 的代价压到「刷新几次就好」，而不是长期瘫痪。
 PAIRING_GLOBAL_LIMIT = (30, 60, 60)
 PAIRING_GLOBAL_KEY = 'display-pair-global'
-#: 同一个配对码的失败预算 (max_failures, window_seconds, block_seconds)（B48）。
-#:
-#: 前两档管的是「谁来试」：按 IP 一档挡单点爆破，跨来源一档挡换 IP（共享预算 30 次/分钟，
-#: 6 位码全空间约 23 天）。它们都管不住「盯着一个码磨」—— 共享预算是大家平摊的，
-#: 一个从低清二维码、肩窥或旧截图里拿到码但拿不准的人，可以在预算内一直对同一个码试，
-#: 自己那一档只按 IP 计（换个网络就重置）。这一档按**码**记账：同一码 15 分钟错 5 次
-#: 就锁该码 15 分钟，把「磨一个码」与「扫全空间」分开计价。
-#: 它不替代另两档：换着码扫全空间仍然由跨来源预算承担。
+#: 同一个配对码的失败预算 (max_failures, window_seconds, block_seconds)。
+#: 前两档管「谁来试」（按 IP 挡单点爆破、跨来源挡换 IP），但都管不住「盯着一个码磨」—— 共享预算
+#: 是大家平摊的，拿到码但拿不准的人可以在预算内一直对同一个码试。这一档按**码**记账：同一码 15 分钟
+#: 错 5 次就锁该码 15 分钟，把「磨一个码」与「扫全空间」分开计价；它不替代另两档。
 PAIRING_CODE_LIMIT = (5, 900, 900)
 #: 按码计数器的键上限：键是「被尝试的码」的哈希，属外部可控输入，必须封顶。
 PAIRING_CODE_KEYS = 1024
-#: 只能拿到共享地址（可信代理没传转发头）时的兜底桶 (max_failures, window_seconds, block_seconds)（B16）。
-#:
-#: 按 IP 那一档在这种情形下必须让位：那时的「IP」是代理地址，所有人共用一个桶，正常人手滑几次
-#: 就把整个配对页锁掉。但**整个跳过**也不对 —— 剩下只有跨来源那一档（30 次/分钟，所有人平摊），
-#: 一个从共享地址来的攻击者几分钟就能烧光共享预算，把所有人一起挡在外面。
-#:
-#: 所以给共享地址单独一档：配额比按真实 IP 那档宽得多（代理后面可能是一整栋楼），但足以让
-#: 「一直是同一个来源在失败」被记账，封禁时间也刻意短（挡爆破节奏，不制造长时间拥塞）。
+#: 只能拿到共享地址（可信代理没传转发头）时的兜底桶 (max_failures, window_seconds, block_seconds)。
+#: 按 IP 那一档在这种情形下必须让位（所有人共用一个桶，正常人手滑几次就把配对页锁掉），但**整个跳过**
+#: 也不对：剩下只有跨来源那一档，攻击者几分钟就能烧光共享预算、把所有人一起挡在外面。所以给共享地址
+#: 单独一档：配额比按真实 IP 宽得多，但足以让「一直是同一个来源在失败」被记账，封禁时间也刻意短。
 PAIRING_SHARED_ADDRESS_LIMIT = (40, 300, 120)
 
 
@@ -84,14 +76,10 @@ def require_admin(user: User) -> None:
 
 def enforce_pair_rate_limit(request: Request, ip_address: str, per_client: bool = True) -> tuple:
     """检查 /pair 的两档限流；被拦时抛 429。
-
-    返回 (按来源地址的限流器, 它的 key)，调用方记失败时要用同一对。拿不到「能代表一个客户端」的
-    来源地址时（per_client=False，例如可信代理没传转发头）不启用按真实 IP 那一档 —— 所有人共用
-    同一个地址，用它计数等于让任何一个人失败几次就锁掉所有人的配对页；但这时改成记**共享地址**的
-    宽配额（B16），不能整个跳过。
-
-    注意 ``block_seconds`` 是 int 属性而不是方法（当函数调用会 500 而不是 429）；回带
-    ``Retry-After`` 用的是 ``retry_after(key)``（剩余时间）而不是它（B63）。
+    返回 (按来源地址的限流器, 它的 key)，调用方记失败时要用同一对。拿不到能代表一个客户端的来源
+    地址时（per_client=False）不启用按真实 IP 那一档，否则等于让任何一个人失败几次就锁掉所有人的
+    配对页；但这时改成记**共享地址**的宽配额，不能整个跳过。注意 ``block_seconds`` 是 int 属性而不是
+    方法（当函数调用会 500 而不是 429），回带 ``Retry-After`` 用的是 ``retry_after(key)``。
     """
     if per_client:
         ip_limiter = request.app.state.login_limiter
@@ -105,7 +93,7 @@ def enforce_pair_rate_limit(request: Request, ip_address: str, per_client: bool 
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail='配对失败次数过多，请稍后再试。',
-            # 剩余等待时间（B63）：block_seconds 是整段封禁时长，回它等于让客户端
+            # 剩余等待时间：block_seconds 是整段封禁时长，回它等于让客户端
             # 把已经等过的那一段再等一遍。
             headers={'Retry-After': str(ip_limiter.retry_after(ip_key))},
         )
@@ -425,27 +413,19 @@ def pair_display_device(
     database: DatabaseSession,
 ) -> dict:
     """设备侧配对：用配对码换一台中控设备的长期令牌。
-
-    刻意不需要登录，因此门禁全靠限流与「同一配对码不重复发放令牌」这两条。请求字段：code、
-    device_name（可选，覆盖配对码上的名字）。返回 {device, targetUrl} 并下发中控设备 Cookie。
-    会抛：429（配对失败次数过多 / 过于频繁 / 该码尝试次数过多）、403「当前授权不允许添加中控
-    设备。」、409「该配对码已绑定一台在用设备…」、422「配对码无效或已停用。」、
-    404「配对的仪表盘已不存在。」。
-
-    **为什么在用设备存在时要拒绝**：配对码是「固定」的（可能长期贴在墙上、印在二维码里、被拍照
-    留存），而库里同一配对码只对应一台设备 —— 谁拿到这个码都能换出新令牌并把原有那台顶掉
-    （旧 Cookie 立刻失效），那等于把「看到码」升级成「拿到这个仪表盘的控制权」。所以改绑必须是
-    管理员显式动作：先在管理端解绑那台设备（写 revoked_at），这里才会重新发令牌。已吊销的行会被
-    复用（pairing_code_id 上有唯一约束），令牌换新，旧令牌随之作废。
+    刻意不需要登录，门禁全靠限流与「同一配对码不重复发放令牌」两条。请求字段：code、device_name
+    （可选）。返回 {device, targetUrl} 并下发中控设备 Cookie；429（尝试过多）、403「当前授权不允许
+    添加中控设备。」、409「该配对码已绑定一台在用设备…」、422「配对码无效或已停用。」、404「配对的
+    仪表盘已不存在。」。在用设备存在时必须拒绝 —— 否则谁拿到码都能顶掉原设备，等于控制权易主。
     """
     # 来源地址走统一解析：配了可信反向代理时取真实客户端，否则用 TCP 对端地址。
-    # per_client 为 False（只能拿到共享代理地址）时按共享地址记一档宽配额（B16），
+    # per_client 为 False（只能拿到共享代理地址）时按共享地址记一档宽配额，
     # 而不是整个跳过 —— 跳过等于把所有人的配对页交给「谁先烧完共享预算」。
     address = resolve_client_ip(request)
     ip_address = address.ip
     # 免登录接口的第一道护栏：按来源地址 + 跨来源两档限流。
     (ip_limiter, ip_key) = enforce_pair_rate_limit(request, ip_address, address.per_client)
-    # 第三档按「被尝试的码」记账（B48）：前两档管「谁来试」，这一档管「盯着一个码磨」。
+    # 第三档按「被尝试的码」记账：前两档管「谁来试」，这一档管「盯着一个码磨」。
     # 用与会话令牌同一套哈希（也是 code_hash 那一列用的），键里不留明文码。
     code_key = session_token_hash(payload.code)
     if request.app.state.pairing_code_limiter.blocked(code_key):
@@ -513,7 +493,7 @@ def pair_display_device(
             # 在这里 flush 而不是等最后的 commit：唯一约束要在「还没下发 Cookie」之前裁决。
             # 两个平板同时扫同一个码时都读到「没有设备」，于是都去插 —— 输的那一个会撞上
             # display_devices.pairing_code_id 上的唯一约束。那必须是 409（码没错，只是被
-            # 别人抢先绑定了），不是 500（B12）。
+            # 别人抢先绑定了），不是 500。
             database.flush()
         except IntegrityError as error:
             database.rollback()
@@ -565,12 +545,9 @@ def update_display_device(
     user: LicensedUser,
 ) -> dict:
     """修改中控设备的名称或改绑到另一个仪表盘。
-
-    仅管理员可调用。两个字段可选，只更新传了的那些；
-    同时把改动同步回它的配对码，保持两处一致。
-    返回更新后的设备 JSON。设备不存在或已吊销抛 404「中控设备不存在。」；
-    目标仪表盘不存在抛 404「仪表盘不存在。」；
-    授权已收回 ``display`` 时抛 403（与创建/配对同一条口径，B64）。
+    仅管理员可调用。两个字段可选，只更新传了的那些，同时把改动同步回它的配对码，保持两处一致。
+    设备不存在或已吊销抛 404「中控设备不存在。」；目标仪表盘不存在抛 404「仪表盘不存在。」；
+    授权已收回 ``display`` 时抛 403。
     """
     require_admin(user)
     # 能力码：与 POST /pair 同一条口径。授权收回 display 之后还能改绑/改名，

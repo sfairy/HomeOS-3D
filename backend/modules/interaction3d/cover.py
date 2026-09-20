@@ -17,7 +17,7 @@ COVER_SERVICES = {
     'stop_cover': 8,
     'set_cover_tilt_position': 128 }
 # 没有能力位时按状态推断放行，被拒时要说清「为什么推断不出这项能力」，不能让用户以为
-# 再等等就会好（B27 的原始问题正是「请稍后重试」这种不可自救的提示）。
+# 再等等就会好（「请稍后重试」这种不可自救的提示正是要避免的）。
 INFERRED_FEATURE_HINT = {
     'set_cover_position': '设备未上报能力位，且状态里没有位置反馈（current_position），无法确定它支持定位操作，请在 Home Assistant 中确认设备能力。',
     'set_cover_tilt_position': '设备未上报能力位，且状态里没有叶片角度（current_tilt_position），无法确定它支持调整叶片，请在 Home Assistant 中确认设备能力。',
@@ -41,7 +41,7 @@ def _reported_number(value) -> bool:
 def inferred_cover_features(attributes: dict) -> int:
     """设备**从不**上报 supported_features 时，按它已经上报的状态推断能力位。
 
-    背景（B27）：``supported_features`` 是 HA 集成「自愿」上报的，一部分集成（尤其是只暴露基础实体的
+    背景：``supported_features`` 是 HA 集成「自愿」上报的，一部分集成（尤其是只暴露基础实体的
     网关）从不给这个字段。修复前凡是读不到能力位就直接 409「窗帘能力尚未载入，请稍后重试。」——
     而这是**永久**条件，不是「稍后就好」：前端会无限重试，用户看到一条永远不消失的提示，且没有任何
     自救办法。
@@ -116,7 +116,7 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
     if not isinstance(state, dict) or state.get('available') is False or state.get('state') in (None, '', 'unknown', 'unavailable'):
         raise HTTPException(status_code=409, detail='窗帘状态暂不可用，请等待设备重新连接。')
     attributes = state.get('attributes')
-    # 区分「真的还没载入」与「这个设备从不声明能力位」（B27）：
+    # 区分「真的还没载入」与「这个设备从不声明能力位」：
     # 前者是瞬时状态（实体刚建立、属性还没到），值得让前端稍后重试；后者是永久条件，
     # 再报 409 只会让前端无限重试。判据用 attributes 本身在不在 —— 状态里连属性都没有
     # 时我们确实无从判断；有属性、只是缺 supported_features，就是设备不给这个字段。

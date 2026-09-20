@@ -1,18 +1,15 @@
 /**
  * 摄像头在线状态指示点。
  *
- * 在 3D 子系统里的位置：在 3D 场景中「摄像头模型」上叠加一个小球（点），
- * 依据 HA 实体状态切换颜色，用最轻量的方式表达在线 / 离线。
- *
- * 对外提供：cameraOnline、createCameraStatus。
- * 约定：颜色取自家居面板的灰蓝（离线）与绿（在线）两色，
- *       半透明小球不参与射线拾取（raycast 置空），避免挡住模型本体的点击。
+ * 在 3D 场景的摄像头模型上叠加一个小球，依据 HA 实体状态切换颜色，用最轻量的方式表达在线 /
+ * 离线。对外提供 cameraOnline、createCameraStatus。颜色取家居面板的灰蓝（离线）与绿（在线），
+ * 半透明小球不参与射线拾取（raycast 置空），避免挡住模型本体的点击。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 /**
  * 判断摄像头实体是否在线。
  */

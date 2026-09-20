@@ -1,14 +1,9 @@
 /**
  * 折线图几何与数值格式化。
  *
- * 职责：把一组带 timestamp / value 的序列点映射到 SVG 用户坐标系，
- * 并按精度设置把数值格式化成图上的标签文案。
- *
- * 位置：纯计算模块，不做 DOM 操作，也不引控件注册表；
- * 折线图控件负责提供 viewBox 尺寸和序列数据，本模块只返回坐标与文案。
- *
- * 约定：坐标系与 SVG 一致——原点在左上、y 轴向下增长，
- * 所以数值越大映射出的 y 越小（越高）。
+ * 把一组带 timestamp / value 的序列点映射到 SVG 用户坐标系，并按精度设置格式化数值标签。
+ * 纯计算模块，不做 DOM、不引控件注册表；控件提供 viewBox 尺寸与序列数据。坐标系与 SVG
+ * 一致：原点在左上、y 轴向下，数值越大映射出的 y 越小。
  */
 
 /**
@@ -66,10 +61,8 @@ export function normalizedStatePrecision(precisionOption) {
   }
 }
 /**
- * 按量级自动挑选小数位。
- *
- * 阈值表：>=100 取整；>=10 一位；>=1 两位；>=0.01 三位；更小则四位。
- * 这样读数长度基本稳定，又不会把温度之类的小数压掉。
+ * 按量级自动挑选小数位：>=100 取整、>=10 一位、>=1 两位、>=0.01 三位、更小四位。
+ * 读数长度基本稳定，又不会把温度之类的小数压掉。
  */
 export function automaticNumericPrecision(inputValue) {
   const magnitude = Math.abs(Number(inputValue));
@@ -107,9 +100,7 @@ export function formatNumericValue(value, precisionSetting = "auto") {
 }
 /**
  * 把图表数值格式化成标签文案。
- *
- * 折线图控件只关心「最终显示成什么字」，精度规则一律交给 formatNumericValue；
- * 这一层薄封装是为了让控件侧不必直接依赖数值格式化模块的命名。
+ * 薄封装：精度规则交给 formatNumericValue，控件侧不必直接依赖数值格式化模块的命名。
  */
 export function formatLineChartValue(chartValue, precision = "auto") {
   return formatNumericValue(chartValue, precision);

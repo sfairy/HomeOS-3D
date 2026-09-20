@@ -1,52 +1,38 @@
 /**
- * 3D 控件的配置编辑器（弹窗形态，挂着在宿主页上）。
- *
- * 位置：interaction3d 子系统的「编辑侧」。它不直接操作 three.js，而是复用
- * runtime.js 的 mountInteraction3d 在弹窗里挂一个 editing=true 的预览舞台，
- * 用户在舞台上点选 / 拖拽标记，编辑器把结果写进草稿（draftProperties）。
- *
- * 职责划分：
- *   - 草稿：所有编辑都只改 draftProperties；保存时把整份快照交给 onSave 回调
- *     （真正的落库与 revision 冲突处理在宿主侧，本模块不直接发保存请求）；
- *   - 脏标记：isDirty = 草稿签名 ≠ 已保存签名，退出前用站内确认框拦一次；
- *   - 权限：通过 bridge 的 requestInteraction3dAccess / subscribeInteraction3dAccess 取
- *     编辑授权，未授权时面板 inert 且不可保存。
- *
- * 对外导出：
- *   - openInteraction3dEditor(options)：配置编辑器（灯光 / 空调 / 窗帘 / 电视 / NAS / 扫地机等）；
- *   - openInteraction3dAppearanceEditor(options)：整体外观（baseLighting）编辑器。
- *
- * 字段约定：草稿结构与后端下发的 component.properties 完全一致（camelCase），
- * 落库后由后端的面板文档校验层把关；本模块只负责收集、不做合法性兜底。
+ * 3D 控件的配置编辑器（弹窗形态，挂在宿主页上）。
+ * 位置：interaction3d 的「编辑侧」，不直接操作 three.js，而是复用 runtime.js 的 mountInteraction3d
+ * 在弹窗里挂 editing=true 的预览舞台，用户在舞台上点选 / 拖拽标记，结果写进草稿 draftProperties。
+ * 职责：所有编辑只改草稿，保存时把整份快照交给 onSave（落库与 revision 冲突由宿主侧处理）；
+ * 脏标记是「草稿签名 ≠ 已保存签名」，退出前用确认框拦一次；编辑授权经 bridge 的
+ * requestInteraction3dAccess / subscribeInteraction3dAccess 获取，未授权时面板 inert 且不可保存。
+ * 字段约定：草稿与后端下发的 component.properties 完全一致（camelCase），本模块只收集、不做兜底。
  */
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
-import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=20260920104554";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260920104554";
-import { mountInteraction3d } from "../core/runtime.js?v=20260920104554";
-import { lightState } from "../light/light-state.js?v=20260920104554";
-import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=20260920104554";
-import { nasGroups } from "../nas/nas-panel.js?v=20260920104554";
-import { randomUuid } from "/static/utils/random-id.js?v=20260920104554";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260920104554";
+// 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
+import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=20260920131301";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260920131301";
+import { mountInteraction3d } from "../core/runtime.js?v=20260920131301";
+import { lightState } from "../light/light-state.js?v=20260920131301";
+import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=20260920131301";
+import { nasGroups } from "../nas/nas-panel.js?v=20260920131301";
+import { randomUuid } from "/static/utils/random-id.js?v=20260920131301";
+import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260920131301";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=20260920104554";
-import { normalizeInteraction3dLightingMode } from "/static/bridge/definition.js?v=20260920104554";
+} from "/static/bridge/bridge.js?v=20260920131301";
+import { normalizeInteraction3dLightingMode } from "/static/bridge/definition.js?v=20260920131301";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "/static/3d-studio/loaders/studio-normalization.js?v=20260920104554";
+} from "/static/3d-studio/loaders/studio-normalization.js?v=20260920131301";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=20260920104554";
-import { confirmAction } from "/static/shared/ui-confirm.js?v=20260920104554";
+} from "../core/editor-save-status.js?v=20260920131301";
+import { confirmAction } from "/static/shared/ui-confirm.js?v=20260920131301";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
@@ -203,7 +189,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920104554";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920131301";
   document.head.append(styleSheetLinkElement);
   // 建元素小工具，文本一律走 textContent，不拼 HTML。
   const createElement = (tagName, classNames, initialText) => {
@@ -287,7 +273,7 @@ export async function openInteraction3dEditor({
   const findVacuumModel = () =>
     draftProperties.devices?.vacuums?.find(vacuumModelProbe => vacuumModelProbe.id === vacuumId);
   // 当前编辑对象的配置数组。四种编辑模式各取一处：扫地机快捷指令、状态面板类设备、
-  // 模型绑定类设备、灯光；其余代码只认这一份列表，不再各自判断模式。
+  // 模型绑定类设备、灯光；其余代码只认这一份列表。
   const getItemList = () =>
     isVacuumShortcutMode
       ? findVacuumModel()?.shortcuts || []
@@ -3664,7 +3650,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920104554";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920131301";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   // 与上面带类名的 createElement 区分开，避免传一堆空字符串。

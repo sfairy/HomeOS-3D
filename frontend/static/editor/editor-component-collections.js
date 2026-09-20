@@ -1,13 +1,11 @@
 /**
  * 编辑器组件集合操作：命名、层级排序与共享组件引用维护。
  *
- * 位置：左侧图层树与画布右键菜单的「复制 / 组合 / 引用共享组件」等操作。
- * 职责：为控件推导中文显示名、生成不重名的实例名与副本名、刷新组件 ID、
- *   按图层顺序写回 zIndex，以及维护页面对共享组件的引用顺序。
- * 约定：命名规则与界面显示强相关（「_副本」「组合 2」等后缀），修改会影响
- *   既有文档的显示名，需与后端校验逻辑保持一致。
+ * 图层树与画布右键菜单的「复制 / 组合 / 引用共享组件」等操作：为控件推导中文显示名、生成不
+ * 重名的实例名与副本名、刷新组件 ID、按图层顺序写回 zIndex，以及维护页面对共享组件的引用
+ * 顺序。命名规则与界面显示强相关（「_副本」「组合 2」等后缀），修改会影响既有文档的显示名。
  */
-import { newId } from "./editor-utils.js?v=20260920104554";
+import { newId } from "./editor-utils.js?v=20260920131301";
 
 /**
  * 推导组件的显示名。
@@ -107,7 +105,6 @@ export function groupNameForCollection(collectionComponents, baseName = "组合"
 
 /**
  * 递归刷新组件及其所有子组件的 ID。
- *
  * 复制 / 粘贴时必须整体换 ID，否则会与源组件在文档里「同 ID 双份」。
  */
 export function refreshComponentIds(targetComponent, componentId = null) {
@@ -157,8 +154,7 @@ export function applyCollectionLayerOrder(orderedComponents) {
 
 /**
  * 同步各页面对共享组件的引用顺序，使其跟随 sharedComponents 的排列。
- *
- * 删除某个共享组件后，残留的引用要一并清掉；顺序也要与图层面板一致。
+ * 删除某个共享组件后残留的引用要一并清掉；顺序也要与图层面板一致。
  */
 export function syncSharedComponentReferenceOrder(editorDocument) {
   // 全局共享组件顺序是唯一权威：各页面只保留自己确实引用过的那些，并按此顺序重排。

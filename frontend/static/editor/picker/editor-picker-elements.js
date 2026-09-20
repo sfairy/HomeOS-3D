@@ -1,11 +1,9 @@
 /**
  * 编辑器选择器的 DOM 元素工厂。
  *
- * 位置：图标 / 实体 / 素材三类分页选择器弹层，负责生成列表项与「当前选中值」
- *   展示块。
- * 约定：所有节点通过全局 document 创建；展示文案由注入的回调（entityPickerText、
- *   assetDisplayName 等）决定，本模块只管结构与类名，保证选择器样式统一。
- * 约定：列表项统一用 dataset.editorPickerValue 携带取值，选择器靠它读取点击结果。
+ * 图标 / 实体 / 素材三类分页选择器弹层，生成列表项与「当前选中值」展示块。展示文案由注入的
+ * 回调（entityPickerText、assetDisplayName 等）决定，本模块只管结构与类名。列表项统一用
+ * dataset.editorPickerValue 携带取值，选择器靠它读取点击结果。
  */
 
 /**

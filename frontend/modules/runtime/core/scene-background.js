@@ -1,35 +1,18 @@
 /**
- * 场景背景：在「经典网格 / 微光星尘」之上叠加「暖阳微光」。
+ * 场景背景：在「经典网格 / 微光星尘」之上叠加「暖阳微光」，包住 background-theme.js 并对外
+ * 提供完全相同的接口（theme / active / configure / sync / interact / tick / suspend / dispose）。
  *
- * 在 3D 子系统里的位置：本模块包住 background-theme.js（地面主题控制器），
- * 对外提供完全相同的接口（theme / active / configure / sync / interact / tick /
- * suspend / dispose），stage.js 因此可以无差别地把它当成背景控制器使用。
+ * 暖阳原木主题不再给地面注入着色器，而是往 overlayScene 挂一块全屏四边形，用屏幕空间片元
+ * 着色器画「暖色底 + 尘埃 + 一束阳光」，并替掉导出的 background / grid 这两个角色对象。
  *
- * 暖阳原木主题下的做法与地面主题完全不同：不再给地面注入着色器，而是往
- * overlayScene 里挂一块全屏四边形，用屏幕空间的片元着色器画出「暖色底 + 尘埃 +
- * 一束阳光」。它替掉的是导出的 background / grid 这两个角色对象 —— 这些对象在
- * 暖阳下会被 backgroundThemeHidden 隐藏（见 applyBackgroundVisibility）。
- *
- * 对外提供：backgroundFloorAnchor、createSceneBackground。
- *
- * 约定：
- * - 全屏四边形把 project_vertex 整段换成 gl_Position = vec4(position.xy, 0.9999, 1.0)，
- *   即直接用裁剪空间坐标铺满屏幕；renderOrder 取 -10000 保证它先于所有物体绘制。
- * - 暖阳下的帧循环是「按需驱动」：每帧最多每 50ms 通知一次舞台请求重绘，返回值告诉
- *   舞台下次该隔多久再来 tick；停帧时返回 Infinity，舞台便会退出动画循环。
- * - 主题名 "warm-sunlight" 只在这里派生，不会下发给后端，也不落库。
+ * 约定：全屏四边形直接写裁剪空间坐标铺满屏幕（renderOrder 取 -10000 保证最先绘制）；帧循环
+ * 按需驱动，每帧最多每 50ms 请求一次重绘，返回 Infinity 时舞台退出循环；主题名不下发后端、不落库。
  */
 
-import { createBackgroundTheme } from "./background-theme.js?v=20260920104554";
+import { createBackgroundTheme } from "./background-theme.js?v=20260920131301";
 /**
- * 求「背景锚点」：某层楼在展示坐标系里的平面中心，再往下压 0.203 米。
- *
- * 用途：暖阳的「阳光」要打在这层楼的中心上，而楼层切层时会走过渡动画，
- * 所以锚点必须能按任意楼层（含过渡中的来源层）实时求得。
- *
- * 平面中心取该层所有墙端点的包围盒中心；没有墙（或坐标非有限）时退化为原点。
- * 包围盒结果按 scene 缓存：同一份楼层数据在一次会话里不会变，缓存键用 scene 对象
- * 本身，楼层被重新导入时会换成新对象，缓存自然失效。
+ * 求「背景锚点」：某层楼在展示坐标系里的平面中心，再往下压 0.203 米，供暖阳「阳光」打光。
+ * 平面中心取该层所有墙端点的包围盒中心，无墙或坐标非有限时退化为原点；结果按 scene 对象缓存。
  */
 export function backgroundFloorAnchor(
   stageOptions,
@@ -75,14 +58,9 @@ export function backgroundFloorAnchor(
   return stageOptions.presentationPoint(anchorFloor.id, ...planCenter, -0.203);
 }
 /**
- * 暖阳尘埃的 GLSL 片段。
- *
- * 做法：把屏幕空间切成网格，每个格子用 hash 生成一颗尘埃（位置、半径、相位都不同），
- * 用 fwidth 做抗锯齿后得到「核心 + 光晕」两层亮度。threshold 用来丢掉一部分格子，
- * 让尘埃分布稀疏而不是均匀铺满。
- *
- * 注意：字符串里的换行与空格都属于着色器源码，改动会同时改变渲染结果与
- * customProgramCacheKey，不能用 JS 注释替代。
+ * 暖阳尘埃的 GLSL 片段：把屏幕空间切成网格，每格用 hash 生成一颗尘埃，fwidth 抗锯齿后得到
+ * 「核心 + 光晕」两层亮度，threshold 丢掉一部分格子让分布稀疏。
+ * 字符串里的换行与空格都属于着色器源码，改动会同时改变渲染结果与 customProgramCacheKey，不能用 JS 注释替代。
  */
 const WARM_MOTES_CHUNK =
   "\nfloat warmMotes(vec2 p, float size, float threshold, float time) {\n vec2 cell=floor(p), f=fract(p);\n float seed=fract(sin(dot(cell,vec2(127.1,311.7)))*43758.5453);\n float seed2=fract(sin(dot(cell,vec2(269.5,183.3)))*43758.5453);\n vec2 center=vec2(seed,seed2)*0.56+0.22;\n center+=vec2(sin(time*0.19+seed*6.28),cos(time*0.16+seed2*6.28))*0.065;\n float d=length(f-center), aa=max(length(fwidth(p)),0.0001);\n float radius=size*mix(.6,1.35,seed2);\n float core=(1.0-smoothstep(radius,radius+aa,d))*min(1.0,radius/aa);\n float halo=exp(-d*d/(radius*radius*18.0))*.11;\n return (core+halo)*step(threshold,seed)*(.66+.34*sin(time*.45+seed2*6.28));\n}";

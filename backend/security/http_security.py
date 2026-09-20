@@ -32,13 +32,9 @@ FORWARDED_HEADERS = ('x-forwarded-for', 'x-forwarded-proto', 'x-real-ip', 'forwa
 LOOPBACK_HOSTS = frozenset({'127.0.0.1', '::1', 'localhost'})
 
 #: uvicorn 的 ``--forwarded-allow-ips`` 里，这些写法等同于「任何对端都可以自称客户端」。
-#:
-#: 要把它和本模块的 ``APP_TRUSTED_PROXIES`` 区分开：两者是**两层独立配置**。
-#: uvicorn 那一层决定 ``scope["client"]`` 会不会被 ``X-Forwarded-For`` 改写，而本模块
-#: 的全部判断都建立在「``request.client`` 是真实对端、客户端伪造不了」之上。一旦
-#: uvicorn 放开成通配，这一层前提就没了：攻击者给每个请求换一个 XFF 值，登录暴力
-#: 破解预算、配对码枚举预算与审计里的来源 IP 会同时失效（等于没有预算）；还能把
-#: 对端伪装成可信代理网段内的地址，把本模块的整条解析规则也一起接管。
+#: 它与本模块的 ``APP_TRUSTED_PROXIES`` 是两层独立配置：uvicorn 那层决定 ``scope["client"]``
+#: 会不会被 ``X-Forwarded-For`` 改写，而本模块的全部判断都建立在「``request.client`` 是
+#: 真实对端」之上 —— 一旦放开成通配，登录预算、配对码枚举预算与审计来源 IP 会同时失效。
 WILDCARD_FORWARDED_ALLOW_IPS = frozenset({'*', '0.0.0.0/0', '::/0'})
 
 
@@ -133,7 +129,7 @@ def is_direct_local(request: Request) -> bool:
     （首次初始化窗口放行、健康探针回详情），绝不能用来放宽任何认证判定。
 
     用途见 ``setup_guard.SetupGuard.authorize`` 与 ``main.create_app`` 里的 ``/health/*``：
-    前者靠它区分本机运维与远程抢建，后者靠它决定要不要回版本号（B61）。
+    前者靠它区分本机运维与远程抢建，后者靠它决定要不要回版本号。
     """
     if any(request.headers.get(name) for name in FORWARDED_HEADERS):
         return False
@@ -244,7 +240,7 @@ def expected_request_scheme(request: Request) -> str:
     ``X-Forwarded-Proto`` 就采信它（浏览器脚本改不了这个头：``no-cors`` 下加它会触发
     preflight，普通表单更加不了头）；再否则看本连接自身的 scheme。
 
-    B28：``_origin_allowed`` 原先拿 **Origin 自己带的 scheme** 去拼白名单
+    ``_origin_allowed`` 不能拿 **Origin 自己带的 scheme** 去拼白名单
     （``f'{parsed.scheme}://{host}'``），等于让攻击者页面自己声明「我是 https 同源」，同主机的
     明文页面（例如劫持了 80 端口的中间人）因此能驱动 HTTPS 站点的带 Cookie 写请求。scheme 是
     攻击者能决定的、Host 不是，所以 scheme 必须由部署形态给出，并在这一处集中判定一次。
@@ -281,7 +277,7 @@ def _origin_allowed(request: Request, origin: str) -> bool:
     host = request.headers.get('host', '').strip().lower()
     if host:
         # 浏览器用 Host 寻址，攻击者的页面改不了它，这是最可靠的同源依据。
-        # scheme 则取自部署形态（B28），不能取 Origin 自己声明的那个。
+        # scheme 则取自部署形态，不能取 Origin 自己声明的那个。
         allowed.add(f'{expected_request_scheme(request)}://{host}')
     settings = _settings(request)
     base_origin = _origin_from_referer(str(getattr(settings, 'app_base_url', '') or '').strip())

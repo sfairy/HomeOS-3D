@@ -1,16 +1,10 @@
 /**
- * 特效图层的几何与层级计算。
+ * 特效图层的几何与层级计算：z-index 分配、图层尺寸推导、裁剪定位与参考图反推缩放。
  *
- * 职责：
- * - 决定特效宿主元素的 z-index（图标按钮特效、人体感应特效都要压在地图之上）；
- * - 决定特效图层 / 源图的尺寸，兼容「已声明尺寸」「图片原始尺寸」「加载中」三种时机；
- * - 处理特效图片的裁剪矩形与裁剪后的定位；
- * - 在工程里挑出一张「参考图」，用于按它反推特效的缩放比例。
+ * 位置：纯几何模块，被 3D 交互页与控件 runtime 共用；不碰网络，只读传入的对象与 DOM。
  *
- * 位置：纯几何模块，被 3D 交互页与控件 runtime 共用；不碰网络，只读传入的对象与 DOM 元素。
- *
- * 单位约定：所有 left / top / width / height 都是画布像素，rotation 是角度（deg），
- * scale 是无量纲倍数。percent 型属性（effectWidth / effectHeight）是相对宿主尺寸的百分比。
+ * 单位约定：left / top / width / height 是画布像素，rotation 是角度（deg），scale 是无量纲倍数；
+ * percent 型属性（effectWidth / effectHeight）是相对宿主尺寸的百分比。
  */
 
 // 人体感应特效的基础层级：取 5 亿，保证压在普通组件（z-index 通常几百到几千）之上，
@@ -79,12 +73,8 @@ export function effectFadeDuration(effectComponent) {
 /**
  * 计算特效图层应该使用的尺寸。
  *
- * 取值优先级（先到先用）：
- * 1. 布局为 fill —— 直接铺满宿主，无需知道图片原始尺寸；
- * 2. 组件上已缓存的原图尺寸（effectNaturalWidth / effectNaturalHeight，加载完成后回填）；
- * 3. 图片元素当前可读到的原始尺寸（dataset 里的记录优先于 naturalWidth，后者在懒加载时可能为 0）；
- * 4. 全都拿不到时按百分比属性给一个临时尺寸，并把 pendingNaturalSize 置为 true，
- *    调用方据此在图片 load 事件后重算一次。
+ * 优先级：fill 铺满宿主 → 组件缓存的原图尺寸 → 图片可读到的原始尺寸（dataset 优先于
+ * naturalWidth，后者懒加载时可能为 0）→ 按百分比给临时尺寸并置 pendingNaturalSize，load 后重算。
  */
 export function effectLayerDimensions(
   layerComponent,
@@ -264,11 +254,8 @@ export function effectCroppedLayerGeometry({
 /**
  * 为特效挑一张参考图，并算出它相对目标的缩放比例。
  *
- * 两级候选：
- * - 显式指定的 effectReferenceImageId 命中即胜出（用户明确指定，无需再比尺寸）；
- * - 否则在「可见、原始尺寸与目标完全一致、层级低于参考组件」的图片里挑层级最高的那张，
- *   这是启发式兜底——同一尺寸的底图通常就是它所属的参考图。
- * 两者都没有时返回 null，调用方按无参考图处理。
+ * 优先显式指定 effectReferenceImageId；否则在「可见、原始尺寸与目标一致、层级低于参考组件」的
+ * 图片里取层级最高者（同尺寸底图通常即所属参考图）。都没有返回 null。
  */
 export function effectReferenceImageTransform(
   project,

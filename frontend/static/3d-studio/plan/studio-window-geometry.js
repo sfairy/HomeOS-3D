@@ -1,18 +1,14 @@
 /**
  * 窗户（玻璃 + 窗框）的几何参数表。
  *
- * 位置：3D 工作室生成墙体开口构件时，由本模块产出窗户各部件的尺寸与位置，
- *   再由 studio-app.js 的 addWallBandMesh 批量建成盒体。
- * 对外：只导出 windowGeometryParts 一个纯函数。
- * 单位与坐标：长度一律米；每个部件是
- *   [尺寸X, 尺寸Y, 尺寸Z, 局部X, 局部Y, 局部Z]，
- *   坐标以窗户所在墙面的底部中点为原点，Y 轴向上（sillHeight 即窗台离地高度），
- *   Z 轴为墙体厚度方向，X 轴沿墙长方向。
+ * 生成墙体开口构件时产出窗户各部件的尺寸与位置，再由 studio-app.js 的 addWallBandMesh 建成
+ * 盒体。只导出纯函数 windowGeometryParts。长度一律米；每个部件是
+ * [尺寸X, 尺寸Y, 尺寸Z, 局部X, 局部Y, 局部Z]，坐标以窗户所在墙面底部中点为原点，Y 轴向上，
+ * Z 轴为墙体厚度方向，X 轴沿墙长方向。
  */
 
 /**
  * 计算窗户的玻璃与窗框部件。
- *
  * 尺寸非法（非有限数、宽或高不为正）时返回 null，调用方据此跳过该窗户的建模。
  */
 export function windowGeometryParts(windowWidth, windowHeight, sillHeight, allowDivided = true) {

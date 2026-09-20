@@ -31,10 +31,8 @@ class PaymentProvider(Protocol):
         settings: StoreSettings,
         setting: StoreSetting,
         base_url: str,
-        #: S53：给「页面凭证要跟着 URL 走」的渠道准备的短时票据（见 ``store/commerce/cashier.py``）。
-        #: 真实渠道的支付页由渠道自己签名、不携带本店凭据，因此收下也不用（``alipay``
-        #: 里显式 ``del`` 掉）；放进协议是为了让渠道自己决定用不用，而不是让调用层
-        #: 按渠道去挑不同签名。
+        #: 给「页面凭证要跟着 URL 走」的渠道准备的短时票据（见 ``store/commerce/cashier.py``）：
+        #: 真实渠道的支付页由渠道自己签名、不携带本店凭据，收下也不用。
         pay_token: str | None = None,
     ) -> PaymentIntent: ...
 
@@ -54,9 +52,8 @@ class PaymentProvider(Protocol):
 class RefundResult:
     """一次退款的执行结果。
 
-    后台的「退款」过去只把订单状态改成 ``refunded`` 并停用授权 —— 钱从来没退给
-    用户，库里也没有任何「退了多少」的记录，账面上这笔营收却已经消失。现在退款
-    必须真的经过支付渠道，并把实际退款金额落库，对账才有依据。
+    退款必须真的经过支付渠道并把实际退款金额落库：只把订单状态改成 ``refunded`` 并停用
+    授权的话，钱从没退给用户，账面上这笔营收却已经消失，对账没有依据。
     """
 
     ok: bool

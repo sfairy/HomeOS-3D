@@ -1,33 +1,30 @@
 <!doctype html>
 <!--
-  3D 户型工作室（Desktop Creator，/3d-studio）主页面：导入底图 → 标定比例 → 描绘户型 → 摆物件 → 布灯 → 导图。
-  授权：需要登录且授权允许 editor 能力，否则后端 303 去 /login 或 /license；未初始化先去 /setup。
-  入口脚本：/static/3d-studio/studio/studio-app.js（module，唯一编排层，其余 studio-*.js 都是它 import 的纯函数模块）。
-  版本戳约定：/static/3d-studio/studio/studio.css 与 studio-app.js 必须共用同一条 `?v=`，
-  否则浏览器会同时加载新旧两份模块，出现两套模块级单例状态（控件注册表、渲染缓存版本号）。
-  页面本身没有任何内联 <style> / <script>：CSP 是 style-src 'self'，内联样式会被直接拦掉。
-  本页只负责结构，全部状态与行为由 studio-app.js 通过 id / data-* 属性接管。
+  3D 户型工作室（/3d-studio）：导入底图 → 标定 → 描绘户型 → 摆物件 → 布灯 → 导图。
+  授权：需登录且允许 editor，否则后端 303 去 /login 或 /license；未初始化先去 /setup。
+  入口脚本 studio-app.js（module，唯一编排层），与 studio.css 共用同一条 `?v=`（否则同时加载新旧两份模块、出现两套单例状态）。
+  CSP 为 style-src 'self'：本页无内联样式/脚本，全部行为由 studio-app.js 经 id / data-* 接管。
 -->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=20260920104554"></script>
+    <script src="/static/logging/client-log.js?v=20260920131301"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#111820" />
     <title>户型图绘制</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920104554" type="image/svg+xml" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920131301" type="image/svg+xml" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
     <link
       rel="stylesheet"
-      href="/static/3d-studio/studio/studio.css?v=20260920104554"
+      href="/static/3d-studio/studio/studio.css?v=20260920131301"
     />
   </head>
   <body>
     <!-- ===== 顶部工作流条（六个步骤只是进度指示，点击不生效；data-step 供脚本高亮当前阶段） ===== -->
     <header class="studio-header">
       <div class="header-leading">
-        <img class="brand-logo" src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920104554" alt="HomeOS" />
+        <img class="brand-logo" src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920131301" alt="HomeOS" />
         <div class="header-title">
           <p>HOMEOS · DESKTOP CREATOR</p>
           <div class="header-title-row">
@@ -183,14 +180,10 @@
             </div>
             <div id="light-group-list" class="light-group-list"></div>
           </section>
-          <!-- 素材网格：每个按钮就是一个模型入口，data-item-type 是脚本查表用的键，
-               data-asset-subcategory 决定它归到哪个分组标题下，两者都不能随手改。
-               下面的分组标题（asset-group-heading）与按钮是同级兄弟，脚本按顺序决定显隐。
-               标题上的 data-asset-heading-category 与顶部页签的 data-asset-category 取值一一对应
-               （home / appliance），切页签时整组连同标题一起隐藏；data-asset-subcategory 是更细的
-               过滤键，用于在页签内部继续筛选。
-               卡片右侧 <small> 里的尺寸是模型真实占地（米），必须与模型实际尺寸一致：
-               3D 场景按真实尺度摆放，文字与实际不符会让用户误判剩余可摆放空间。 -->
+          <!-- 素材网格：data-item-type 是脚本查表键、data-asset-subcategory 决定分组，两者都不能随手改。
+                         分组标题与按钮是同级兄弟，脚本按顺序决定显隐；data-asset-heading-category 与顶部页签的
+                         data-asset-category 一一对应（home / appliance）。
+                         卡片 <small> 里的尺寸是模型真实占地（米），与实际不符会让用户误判可摆放空间。 -->
           <div id="asset-grid" class="asset-grid" aria-label="家居与电器模型库">
             <!-- 家居页签第 1 组：沙发、茶几、电视柜等客厅常用家具。 -->
             <div class="asset-group-heading" data-asset-heading-category="home">客厅常用</div>
@@ -1658,13 +1651,9 @@
     <!-- ===== 对话框集合：统一用原生 <dialog>，关闭依赖 form method="dialog" 的浏览器内建行为，
          因此这里不需要（也不应该）自己写 display 显隐逻辑，showModal / close 由脚本调用。 ===== -->
     <!-- ===== 小对话框：比例尺 / 重命名 / 删除 / 批量应用 / 导出提示 =====
-         共同约定：
-         - 都用 <form method="dialog">：原生提交即关闭，省掉手动 close()；分支靠各按钮的
-           id 或 value 区分，脚本读 dialog.returnValue 或直接绑 click。
-         - 样式基类是 .scale-dialog（窄条），再按语义叠加 .light-group-rename-dialog（改名/应用类）
-           或 .floor-delete-dialog（删除类）。这两个类名只决定配色与宽度，可以跨语义复用，
-           例如「删除导出预设」也挂 floor-delete-dialog。
-         - 文案里的可变部分（名称、路径、计数）都留成带 id 的空元素，打开前由脚本填充。 -->
+              都用 <form method="dialog">（原生提交即关闭），分支靠按钮 id 或 value 区分。
+              样式基类 .scale-dialog，按语义叠加 .light-group-rename-dialog 或 .floor-delete-dialog —— 两者只决定配色与宽度，可跨语义复用。
+              文案里可变的部分（名称、路径、计数）留成带 id 的空元素，打开前由脚本填充。 -->
 
     <!-- 参考线比例尺：填这段参考线的真实米数，与只读的像素长度相除得到 pixelsPerMeter，
          它是全场景唯一的像素↔米换算系数，后续墙长 / 窗宽 / 家具尺寸都按它计算。 -->
@@ -2111,11 +2100,11 @@
       <button type="button" data-floor-action="rename">重命名</button
       ><button type="button" data-floor-action="delete">删除楼层</button>
     </div>
-    <!-- 入口脚本：本页唯一的 module。它与 studio.css 必须共用同一条 ?v=20260920104554
+    <!-- 入口脚本：本页唯一的 module。它与 studio.css 必须共用同一条 ?v=20260920131301
          否则浏览器会缓存两份模块实例，出现两套注册表与缓存版本号。 -->
     <script
       type="module"
-      src="/static/3d-studio/studio/studio-app.js?v=20260920104554"
+      src="/static/3d-studio/studio/studio-app.js?v=20260920131301"
     ></script>
   </body>
 </html>

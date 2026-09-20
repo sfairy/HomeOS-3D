@@ -1,27 +1,12 @@
 /**
- * 人体感应控件的状态映射与动画相位计算。
+ * 人体感应控件的状态映射与动画相位计算：把 binary_sensor / device_tracker / 传感器 /
+ * event 等多种有人-无人实体统一映射成四态，并给出「已持续多久」文案与 CSS 动画负延迟。
  *
- * 职责：把五花八门的有人 / 无人实体（binary_sensor 的 on/off、device_tracker 的 home/not_home、
- * 传感器的数值、event 实体的 event_type）统一映射成四态展示；
- * 并给出「已持续多久」的文案与让 CSS 动画接着时间轴播放的负延迟。
- *
- * 位置：纯计算模块，被 interaction3d 的人体感应图层与编辑器预览共用；不碰网络与 DOM。
- *
- * 约定：返回的 key 只有 occupied / clear / unknown / unavailable 四种，
- * 界面文案（有人 / 无人 / 未知 / 离线）与 key 一一对应且会直接上屏。
- *
- * 依赖：关键词检索文本走 `utils/entities.js` 的 `entitySearchTextOf`（P10 B 类收敛）。
- * 本文件原先自带一份 `entitySearchText`（四个固定字段、保留原大小写），与
- * `device-profiles.js` / `home.js` 里那两份口径不同；现在三处共用一份（小写 + 单空格）。
- * 本文件的匹配正则全部带 `i`，所以小写化不影响命中；空段压成单空格只可能把
- * `no  motion` 补成 `no motion`，方向上是少漏判、不会多漏判。
- *
- * 依赖：状态条目归一走 `utils/state-entry.js` 的 `resolveStateEntry`（P10 第六批收敛）。
- * 本文件原先那份 `resolveEventState` 与 `registry.js` 的 `resolveStateEntry`、
- * `vacuum-runtime.js` 的 `unwrapStateChange` 是同一份知识，只是名字各不相同。
+ * 返回的 key 只有 occupied / clear / unknown / unavailable，界面文案（有人 / 无人 / 未知 / 离线）
+ * 与 key 一一对应且直接上屏。状态条目归一走 `utils/state-entry.js`。
  */
-import { entitySearchTextOf } from "../../utils/entities.js?v=20260920104554";
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920104554";
+import { entitySearchTextOf } from "../../utils/entities.js?v=20260920131301";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
 
 /**
  * 把带单位的时长状态换算成秒。
@@ -46,12 +31,9 @@ function durationSecondsFromState(stateEntity, defaultUnit = "s") {
   }
 }
 /**
- * 找出同一设备上用于判断「多久没动就该走人」的两个传感器。
- *
- * 两类：
- * - timeout：自定义超时无人移动时间，直接给出该等多久（单位通常为分钟）；
- * - noMotion：无移动状态持续时间，给出「已经多久没动」的实时读数。
- * 两者的实体命名在各厂商固件里差异很大，只能按名称正则匹配，匹配不到就返回 null。
+ * 找出同一设备上用于判断「多久没动就该走人」的两个传感器：timeout 是自定义超时无人移动时间
+ * （直接给出该等多久），noMotion 是无移动状态持续时间（已多久没动）。
+ * 两类实体命名在各厂商固件里差异很大，只能按名称正则匹配，匹配不到返回 null。
  */
 function findMotionCompanionSensors(entitiesById, targetEntityId) {
   const entityMetadata = entitiesById?.get?.(targetEntityId);
@@ -86,12 +68,8 @@ function findMotionCompanionSensors(entitiesById, targetEntityId) {
   };
 }
 /**
- * 解析 event 型人体感应实体的超时配置。
- *
- * event.* 实体本身只有瞬时事件（motion / no_motion），不携带「持续多久」的信息，
- * 所以必须从伴随传感器或调用方配置里取回超时，否则界面无从判断当前是否仍算有人。
- *
- * @param {object} [eventOptions] 调用方配置，motionTimeoutSeconds 作为第二优先级的超时来源。
+ * 解析 event 型人体感应实体的超时配置：event.* 只有瞬时事件（motion / no_motion），
+ * 不携带「持续多久」，必须从伴随传感器或调用方配置（motionTimeoutSeconds 为第二优先级）取回，否则无法判断当前是否仍算有人。
  * @returns {object} 含 motionEvent 标志、解析出的超时秒数与伴随实体 ID 列表的配置。
  */
 export function presenceMotionEventConfig(

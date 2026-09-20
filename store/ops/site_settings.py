@@ -9,19 +9,16 @@ from store.core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
 from store.payments.credentials import merge_alipay_settings
 from store.security.security import iso, utcnow
 
-#: 默认品牌标识。必须与 ``models.StoreSetting.logo_url`` 的默认值一致：
-#: 后台把该字段留空时回落到这里，而不是写一个空串进库（否则页面上
-#: ``<img src="">`` 会让整个标识位塌掉）。
+#: 默认品牌标识。必须与 ``models.StoreSetting.logo_url`` 的默认值一致：该字段留空时
+#: 回落到这里，而不是写空串进库（否则 ``<img src="">`` 会让标识位塌掉）。
 DEFAULT_LOGO_URL = "/store-static/homeos-mark.svg"
 
 
 def resolve_device_release_cooldown(setting: StoreSetting | None, settings: StoreSettings) -> int:
     """解绑冷却秒数的**唯一**取值口径：站点配置优先，未配置时回落到环境变量。
 
-    这个函数存在的理由：冷却值曾经有三处实现 —— 账号中心接口读站点配置，
-    而客户端协议侧（``LicenseAuthority.release_remaining_seconds``）只读环境变量。
-    运营在后台把冷却从 7 天改成 0（关掉限制），账号中心立刻放行，但客户端
-    仍然被按 7 天挡住，且报错里的剩余秒数与后台显示完全对不上。
+    口径必须唯一：账号中心与客户端协议侧各读一份配置，会出现后台改成 0 后客户端
+    仍被按旧值挡住、报错里的剩余秒数与后台显示对不上。
     """
     raw = setting.device_release_cooldown_seconds if setting is not None else None
     if raw is None:
@@ -61,8 +58,8 @@ def store_configuration_payload(setting: StoreSetting) -> dict:
         "siteTitle": setting.site_title,
         "description": setting.description,
         "announcement": setting.announcement,
-        # 与 logo_url 同款口径：留空回落到默认值，而不是把空串报给前端 ——
-        # 空串在页面上表现为「这个站没有客服邮箱」，而实际生效的默认值一直在那儿。
+        # 与 logo_url 同款口径：留空回落到默认值，而不是把空串报给前端（空串在页面上
+        # 表现为「这个站没有客服邮箱」，而生效的默认值一直在那儿）。
         "supportEmail": setting.support_email or DEFAULT_SUPPORT_EMAIL,
         "logoUrl": setting.logo_url,
         "maintenanceMode": bool(setting.maintenance_mode),
@@ -80,27 +77,16 @@ def payment_configuration_payload(
 ) -> dict:
     """支付配置的序列化。
 
-    ``include_credentials`` 是**必填的关键字参数**，不是默认值 —— 这个字段决定了
-    要不要把商户凭据信息放进响应里，而两份响应的受众完全不同：
-
-    - 后台（``/store-admin/v1/settings``）需要 ``appId`` / 网关 / 「密钥配没配」，
-      否则运营没法确认自己填的东西到底有没有生效；
-    - 前台（``/store/v1/configuration``）是**匿名可读**的，把商户号、网关地址、
-      「密钥尚未配置」这类信息报出去没有任何用处，只是白送一份侦察材料
-      （攻击者据此判断这个站值不值得下手，以及支付是否处于未配置的脆弱状态）。
-
-    所以这里不做「默认给全量、需要时再裁剪」：那种默认迟早会有人在新增调用点时
-    忘记裁剪，而且忘了也不会有任何报错。必填参数让每个调用点都必须表态。
+    ``include_credentials`` 是**必填的关键字参数**：前台（匿名可读）有它就成了白送
+    侦察材料，后台则需要看到 ``appId``/网关/「密钥配没配」。必填而非默认 True，是
+    为了让每个调用点都必须表态。
     """
-    # 空串 = 尚未配置渠道（不是 mock）。旧写法 ``or "mock"`` 会把「没配渠道」当成
-    # 模拟收银台，于是前台报「支付可用」、实际点一下就白送授权。
+    # 空串 = 尚未配置渠道，**不是** mock：把「没配渠道」当成模拟收银台会让前台报
+    # 「支付可用」，实际点一下就白送授权。
     provider = (setting.payment_provider or settings.payment_provider or "").lower()
     if provider == "alipay":
-        # 必须用**合并站点配置后**的凭据（与 ``resolve_provider`` 注入 provider 的是
-        # 同一份）。这里过去读的是启动时的 ``settings``，也就是只有环境变量：
-        # 后台填了商户号/密钥的部署里 ``settings.alipay_app_id`` 是空的，于是
-        # ``configured`` / ``available`` 报 false —— 前台看到「支付不可用」，
-        # 而真实支付通道其实是好的；后台也看不到自己填的值到底生效没有。
+        # 必须用**合并站点配置后**的凭据（与 ``resolve_provider`` 注入的同一份）。只读启动时
+        # 的 ``settings`` 等于只看环境变量，后台填了商户号的部署会误报「支付不可用」。
         merged = merge_alipay_settings(settings, setting)
         app_id = merged.alipay_app_id
         # 密钥可能来自文件而不是内联环境变量，这里必须用解析后的值
@@ -117,12 +103,10 @@ def payment_configuration_payload(
         gateway = ""
         display_name = setting.payment_display_name or "模拟支付"
         icon = "mock"
-        # 模拟收银台只有在服务端显式打开时才算「可用」：否则下单会 503，
-        # 前台不该显示成一个能付款的渠道。
+        # 模拟收银台只有服务端显式打开才算「可用」：否则下单会 503。
         channel_ready = bool(getattr(settings, "allow_mock_payments", False))
     else:
-        # 没配渠道：如实报「不可用」，让前台把支付入口收起来，而不是给出一个
-        # 点了会失败的按钮（更不该悄悄变成模拟收银台）。
+        # 没配渠道：如实报「不可用」，让前台收起支付入口，而不是给一个点了会失败的按钮。
         app_id = ""
         private_configured = False
         public_configured = False
@@ -149,15 +133,13 @@ def payment_configuration_payload(
             "applicationPrivateKeyConfigured": _mask_secret(private_configured),
             "alipayPublicKeyConfigured": _mask_secret(public_configured),
             "gatewayUrl": gateway,
-            #: 交易标题的「来源」标记：留空即跟随环境变量。前端只回填来源为后台的
-            #: 值，否则运营随手保存一次站点名就会把环境变量的值固化进数据库，
-            #: 之后改环境变量再也不生效（与 ``alipay_credentials_summary`` 同款处理）。
+            #: 交易标题的「来源」标记：留空即跟随环境变量，前端只回填来源为后台的值
+            #: （否则运营随手保存一次就会把它固化进库，之后改环境变量再也不生效）。
             "transactionDescriptionFromDatabase": bool(
                 (setting.payment_transaction_description or "").strip()
             ),
-            #: 模拟收银台在服务端是否被显式开启（STORE_ALLOW_MOCK_PAYMENTS）。
-            #: 后台要据此把「mock 现在是能下单还是点一下就 503」说清楚 —— 只看
-            #: 下拉框选了什么是不够的。
+            #: 模拟收银台在服务端是否被显式开启（STORE_ALLOW_MOCK_PAYMENTS）。后台要据此
+            #: 说清「mock 现在是能下单还是点一下就 503」，只看下拉框是不够的。
             "mockPaymentsAllowed": bool(getattr(settings, "allow_mock_payments", False)),
         }
     return payload

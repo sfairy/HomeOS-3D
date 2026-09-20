@@ -23,15 +23,11 @@ from store.core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
 from store.security.secret_fields import mask_secret
 
 #: 后台可选的邮件投递方式。``""`` 表示跟随环境变量，不是投递方式。
+#: ``echo`` 天然回显验证码；``smtp`` 是否回显由 ``expose_verification_code`` 决定。
 MAIL_MODES = ("log", "echo", "smtp")
 
-#: ``smtp`` 模式下接口是否回显验证码由 ``expose_verification_code`` 单独决定；
-#: ``echo`` 模式天然回显。这两个模式名与 ``mailer`` 里的分支一一对应。
-#:
-#: SMTP 连接加密方式。刻意收成一个三选一的枚举，而不是沿用环境变量里的两个
-#: 布尔开关（``smtp_use_ssl`` / ``smtp_starttls``）：两个裸布尔只能表达 4 种组合，
-#: 其中「两个都开」是非法组合，而「没配过」这种状态根本表达不出来 —— 而后台
-#: 最需要的恰恰是「留空 = 跟随环境变量」。一个下拉框同时解决这两件事。
+#: SMTP 连接加密方式。收成三选一枚举而非两个布尔开关（``smtp_use_ssl`` / ``smtp_starttls``）：
+#: 两个裸布尔表达不出「没配过 = 跟随环境变量」，外加「两个都开」这种非法组合。
 SMTP_SECURITY_MODES = ("ssl", "starttls", "plain")
 
 #: 各加密方式的行业标准端口。填了加密方式但没填端口时按它推导 ——
@@ -40,18 +36,10 @@ SMTP_SECURITY_MODES = ("ssl", "starttls", "plain")
 DEFAULT_SMTP_PORTS: dict[str, int] = {"ssl": 465, "starttls": 587, "plain": 25}
 
 
-#: 常见邮箱服务商的 SMTP 接入参数（后台「注册邮箱验证码 → 邮箱预设」的一键填充源）。
-#:
-#: 为什么值得做成一张表：SMTP 那四个字段（服务器 / 加密 / 端口 / 账号）各自只有
-#: 唯一正确答案，而答案散落在各家服务商的帮助页上。填错的表现是**静默降级成写日志**
-#: （见 ``mailer.send_verification_email`` 的 ``smtp_misconfigured`` 分支）：
-#: 用户收不到验证码、注册不了，而后台每一样看起来都填好了。
-#:
-#: ``domains`` 让「填一个邮箱地址」就能反查出其余三项（``preset_for_email``），
-#: 所以这张表同时是默认值的唯一来源 —— 前端只负责渲染与回填，不再自己维护一份
-#: 迟早会漂移的服务商清单。
-#:
-#: 取值必须是 ``SMTP_SECURITY_MODES`` 里的成员，端口按 ``DEFAULT_SMTP_PORTS`` 走。
+#: 常见服务商的 SMTP 接入参数（后台「注册邮箱验证码 → 邮箱预设」的一键填充源）。四个字段
+#: 各自只有唯一正确答案，却散落在各家帮助页上；填错的表现是静默降级成写日志 —— 用户收不到
+#: 验证码而界面看不出问题。``domains`` 让「填一个邮箱」反查出其余三项，故这张表也是默认值的
+#: 唯一来源。取值必须是 ``SMTP_SECURITY_MODES`` 的成员，端口按 ``DEFAULT_SMTP_PORTS`` 走。
 SMTP_PRESETS: tuple[dict[str, object], ...] = (
     {
         "id": "qq",
@@ -321,7 +309,7 @@ def mail_delivery_summary(
         "exposeVerificationCode": bool(merged.expose_verification_code),
         "exposeVerificationCodeFromDatabase": expose_override is not None,
         #: 当前配置下验证码邮件到底能不能真的发出去。这是整个区块最该一眼看到的信息：
-        #: 「填了 SMTP 但授权码漏了」过去只会安静地退化成写日志，用户收不到邮件，
+        #: 「填了 SMTP 但授权码漏了」若只安静地退化成写日志，用户收不到邮件，
         #: 而界面上每一样看起来都填好了。
         "smtpReady": bool(merged.smtp_ready),
         "smtpMisconfigured": bool(merged.smtp_misconfigured),

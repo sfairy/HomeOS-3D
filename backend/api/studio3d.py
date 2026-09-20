@@ -1,13 +1,11 @@
 """3D 户型图（Studio 3D）草稿与导出文件的存储接口。
 
-草稿不走数据库，而是以单文件 JSON 存在 settings.studio3d_draft_path 上：编辑器每次保存都带
-revision，服务端比对一致再 +1，用这个字段实现乐观并发控制；落盘一律走「临时文件 + fsync +
-rename」，保证断电或崩溃不会留下半份草稿。
+草稿不走数据库，以单文件 JSON 存在 settings.studio3d_draft_path 上：编辑器每次保存都带
+revision，服务端比对一致再 +1，用这个字段做乐观并发控制；落盘走「临时文件 + fsync + rename」，
+保证断电不会留下半份草稿。
 
-导出方向相反 —— 前端把 ZIP（场景 JSON + 家具图片）POST 上来，服务端校验后解压到
-settings.studio3d_exports_dir 下的一个文件夹并注册进资产目录；删除导出文件夹前会先扫描所有
-草稿与全局弹窗，确认没有图片仍被引用。
-
+导出方向相反：前端把 ZIP（场景 JSON + 家具图片）POST 上来，校验后解压到
+settings.studio3d_exports_dir 并注册进资产目录；删除前先扫描草稿与全局弹窗确认无引用。
 所有涉及导出目录的读改写都串行化在 _storage_lock 上，避免并发上传 / 删除互相踩踏。
 """
 from __future__ import annotations
@@ -38,17 +36,14 @@ from ..core.schemas import Studio3DDraftUpdate
 from ..http.streaming import flush_and_sync, write_stream_in_batches
 
 router = APIRouter(prefix='/studio3d', tags=['studio3d'])
-# 各条上限都是「防御性天花板」：正常户型图远小于这些值，
-# 设上限是为了挡住前端 bug 或恶意构造的超大请求把磁盘写满。
-# 草稿那一条与请求体上限同源（body_guard.MAX_SCENE_DOCUMENT_BYTES）：
-# 请求体先被中间件按它拦一道，这里再按序列化后的紧凑形式判一次 ——
-# 两处用同一个数字，免得出现「接口放行、落盘拒收」这种自相矛盾的门槛。
+# 各条上限都是「防御性天花板」：正常户型图远小于这些值，设上限是为了挡住前端 bug 或
+# 恶意构造的超大请求把磁盘写满。草稿那一条与 body_guard.MAX_SCENE_DOCUMENT_BYTES 同源，
+# 免得出现「接口放行、落盘拒收」这种自相矛盾的门槛。
 MAX_DRAFT_BYTES = MAX_SCENE_DOCUMENT_BYTES
 MAX_EXPORT_ARCHIVE_BYTES = 536870912
 MAX_EXPORT_EXPANDED_BYTES = 1073741824
 MAX_EXPORT_FILES = 512
-# 预留的「必含文件」清单，目前为空即不强制任何文件名；保留是为了将来需要
-# 校验固定文件时不必改动接口契约。
+# 预留的「必含文件」清单，目前为空即不强制任何文件名；保留是为了将来校验固定文件时不必改契约。
 REQUIRED_EXPORT_FILES = {}
 # 导出目录的互斥锁：上传、覆盖、删除都会做「先落临时目录再 rename」的多步操作，
 # 不加锁时两个并发请求的中间目录可能互相覆盖。
@@ -64,11 +59,8 @@ def _atomic_json_write(path: Path, payload: dict) -> None:
     """把草稿原子地写进 JSON 文件。
 
     步骤：序列化 → 检查大小 → 写同目录临时文件 → fsync → rename 覆盖。
-    参数:
-        path: 目标草稿文件路径（其父目录必须已存在）。
-        payload: 要写入的字典（键排序、去空格，保证相同内容字节一致）。
-    异常:
-        HTTPException 413: 序列化后超过 MAX_DRAFT_BYTES。
+    payload 按键排序、去空格，保证内容相同则字节一致。
+    异常: HTTPException 413 —— 序列化后超过 MAX_DRAFT_BYTES。
     """
     encoded = canonical_json_bytes(payload)
     # 写盘前就拦下超大草稿，避免先把大文件写出去再回滚。
@@ -93,14 +85,10 @@ def _atomic_json_write(path: Path, payload: dict) -> None:
 
 
 def _read_draft(path: Path) -> dict | None:
-    """读取草稿文件。
+    """读取草稿文件；文件不存在返回 None。
 
-    返回:
-        草稿字典；文件不存在返回 None。
-    异常:
-        HTTPException 500: 文件存在但 JSON 损坏或缺少 revision 字段。
-            这两种情况只能人工从备份恢复，因此不静默降级成空草稿，
-            否则编辑器下一次保存就会把坏文件覆盖掉。
+    异常: HTTPException 500 —— 文件存在但 JSON 损坏或缺少 revision 字段。只能人工从备份恢复，
+    因此不静默降级成空草稿，否则编辑器下一次保存就会把坏文件覆盖掉。
     """
     if not path.is_file():
         return None
@@ -117,19 +105,15 @@ def _read_draft(path: Path) -> dict | None:
 def _migrate_legacy_scene(request: Request, database: DatabaseSession) -> dict | None:
     """把旧版仪表盘文档里的 studio3d 字段迁出成独立草稿文件。
 
-    早期 3D 场景是塞在 ProjectDraft.document_json 里的，现在独立成文件。
-    迁移只做一次：从所有草稿里挑出第一份可用的场景写入草稿文件（revision=1），
-    并把该字段从所有文档中删净 —— 不删的话每次启动都会重复迁移。
-
-    返回:
-        新写入的草稿字典；没有任何可迁内容时返回 None。
+    迁移只做一次：从所有草稿里挑出第一份可用场景写入草稿文件（revision=1），并把该字段
+    从所有文档中删净 —— 不删的话每次启动都会重复迁移。没有任何可迁内容时返回 None。
     """
     selected_scene = None
     changed = False
     # 按更新时间倒序：优先采用最近编辑过的那份场景。
     drafts = database.scalars(select(ProjectDraft).order_by(ProjectDraft.updated_at.desc())).all()
     for draft in drafts:
-        # 单份草稿损坏时跳过（B54 的统一入口）：迁移不该因为一份坏文档整个失败。
+        # 单份草稿损坏时跳过（统一入口）：迁移不该因为一份坏文档整个失败。
         document = parse_document(draft.document_json)
         if document is None:
             continue
@@ -155,10 +139,8 @@ def _migrate_legacy_scene(request: Request, database: DatabaseSession) -> dict |
 def _folder_name(request: Request) -> str:
     """从 x-export-folder 请求头解析并校验导出文件夹名。
 
-    必须是单个路径段：不含路径分隔符、不以点开头、结尾不能是点或空格、
-    不含 Windows 保留字符与控制字符、UTF-8 编码不超过 180 字节。
-    异常:
-        HTTPException 422: 名称无效（含解码失败）。
+    必须是单个路径段：不含分隔符、不以点开头、结尾不是点或空格、不含 Windows 保留字符与
+    控制字符、UTF-8 编码不超过 180 字节。异常: HTTPException 422 —— 名称无效。
     """
     encoded = request.headers.get('x-export-folder', '')
     try:
@@ -197,9 +179,8 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
     """校验导出 ZIP 的结构与内容，返回条目列表。
 
     校验项：ZIP 能打开、条目数与解压后总大小在上限内、只允许单层文件名、扩展名限定
-    .png/.json/.webp、JSON 必须能解析成对象、图片必须带正确魔数。任何一项不过都直接抛 4xx 中文
-    错误，不做「尽量解压」的兜底。413 表示解压后总大小超过 MAX_EXPORT_EXPANDED_BYTES（防 zip
-    bomb）；422 表示文件不是 ZIP、条目数量 / 路径 / 类型非法、JSON 或图片内容无效。
+    .png/.json/.webp、JSON 必须能解析成对象、图片必须带正确魔数。任何一项不过都抛 4xx
+    中文错误，不做「尽量解压」的兜底。413 表示解压后总大小超限（防 zip bomb）；422 表示结构或内容非法。
     """
     try:
         archive = zipfile.ZipFile(archive_path)
@@ -277,12 +258,10 @@ def get_studio3d_draft(request: Request, database: DatabaseSession, _user: Licen
 def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, _user: LicensedUser) -> dict:
     """保存 3D 户型图草稿（需已登录且授权允许 api）。
 
-    请求体: scene（场景数据）与 revision（客户端持有的版本号）。
-    成功返回新的 {revision, scene, updatedAt}。
-    异常:
-        HTTPException 409: 版本号与磁盘不一致，detail 为
-            {code: 'STUDIO3D_REVISION_CONFLICT', message, currentRevision}，
-            前端应提示「已在其他页面更新」并让用户重新拉取。
+    请求体: scene（场景数据）与 revision（客户端持有的版本号）；成功返回新的
+    {revision, scene, updatedAt}。
+    异常: HTTPException 409 —— 版本号不一致，detail 为 {code: 'STUDIO3D_REVISION_CONFLICT',
+    message, currentRevision}，前端应提示「已在其他页面更新」并让用户重新拉取。
     """
     with _storage_lock:
         current = _read_draft(request.app.state.settings.studio3d_draft_path)
@@ -320,10 +299,9 @@ def check_studio3d_export(request: Request, _user: LicensedUser) -> dict:
 def _atomic_swap(source: Path, destination: Path) -> None:
     """原子替换一个路径（单独包一层是为了让「替换失败」可注入）。
 
-    覆盖导出时用的是「旧目录改名 → 新目录就位 → 删旧」的换位法，其中任何一步
-    都可能失败，而失败与回滚的先后顺序决定了异常链长什么样（B39）。要复现
-    「新目录就位失败且回滚也失败」这种罕见组合，直接打 ``os.replace`` 会污染
-    整个进程，所以留这一个可替换的入口（排障时手工打桩用）。
+    覆盖导出时用「旧目录改名 → 新目录就位 → 删旧」的换位法，其中任何一步都可能失败；要复现
+    「新目录就位失败且回滚也失败」这种罕见组合，直接打 os.replace 会污染整个进程，因此留这
+    一个可替换的入口（排障时手工打桩用）。
     """
     os.replace(source, destination)
 
@@ -332,9 +310,8 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
     """在写锁内把校验过的 ZIP 解压成正式导出目录，返回是否覆盖了旧文件夹。
 
     整段都是同步文件操作（解压最大 1 GiB、若干次 rename），调用方必须放进线程池：
-    留在事件循环里会让一次大导出把全部 HTTP 与 WebSocket 一起冻住（B5）。
-
-    存在性与覆盖判断放在锁内做，防止两个并发上传都看到「不存在」而互相覆盖。
+    留在事件循环里会让一次大导出把全部 HTTP 与 WebSocket 一起冻住。存在性与覆盖判断放在
+    锁内做，防止两个并发上传都看到「不存在」而互相覆盖。
     """
     target = settings.studio3d_exports_dir / folder_name
     with _storage_lock:
@@ -351,8 +328,7 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
             with zipfile.ZipFile(temporary_archive) as archive:
                 for entry in entries:
                     output_path = staging / entry.filename
-                    # 逐条复制而不是 extractall：条目名与类型已在 _validate_archive
-                    # 校验过，这里不再信任 ZIP 自带的路径信息。
+                    # 逐条复制而不是 extractall：条目名与类型已在 _validate_archive 校验过，不再信任 ZIP 自带信息。
                     with archive.open(entry) as source:
                         with output_path.open('xb') as output:
                             shutil.copyfileobj(source, output)
@@ -362,17 +338,15 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
             shutil.copyfile(temporary_archive, staging / archive_name)
             (staging / archive_name).chmod(384)
             if target_exists:
-                # 覆盖采用「旧目录改名 → 新目录就位 → 删旧」的换位法；
-                # 新目录就位失败时把旧目录改回来，任何时刻都有一份可用数据。
+                # 换位法：新目录就位失败时把旧目录改回来，任何时刻都有一份可用数据。
                 backup = settings.studio3d_exports_dir / f'.previous-{uuid4().hex}'
                 _atomic_swap(target, backup)
                 try:
                     _atomic_swap(staging, target)
                     shutil.rmtree(backup, ignore_errors=True)
                 except Exception as error:
-                    # 回滚自己失败时不能让它顶掉原始异常（B39）：那样调用方与全局日志
-                    # 看到的都是「回滚失败」，真正的原因（新目录没能就位）反而丢了，
-                    # 数据此时只剩隐藏的 backup。把两者一起说清楚，并链上原始异常。
+                    # 回滚失败不能顶掉原始异常：那样看到的都是「回滚失败」，真正的原因
+                    # （新目录没能就位）反而丢了。把两者一起说清并链上原始异常。
                     try:
                         _atomic_swap(backup, target)
                     except OSError as rollback_error:
@@ -393,9 +367,8 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
 def _register_exported_assets(catalog, folder_name: str, target: Path, entries: list[zipfile.ZipInfo]) -> None:
     """把导出包里的图片登记进素材目录（同步，调用方放进线程池）。
 
-    登记时要为每张图生成「透明裁剪变体」—— 那是一次完整的 Pillow 解码 + 一次
-    PNG 编码，属于与解压同量级的同步重活（B6 的同类问题），因此与解压一起
-    交给工作线程，而不是留在事件循环里逐张处理。
+    登记时要为每张图生成「透明裁剪变体」—— 一次完整的 Pillow 解码 + PNG 编码，
+    与解压同量级的同步重活，因此与解压一起交给工作线程。
     """
     for entry in entries:
         # 只登记图片：JSON 不是素材，前端素材库也不需要它。
@@ -407,14 +380,10 @@ def _register_exported_assets(catalog, folder_name: str, target: Path, entries: 
 async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
     """上传并保存 3D 导出包（需已登录且授权允许 api）。
 
-    请求头 x-export-folder（目标文件夹名，必填）、x-export-overwrite（'true' 表示允许覆盖同名
-    文件夹）；请求体是 ZIP 原始字节流（场景 JSON + 家具图片）。成功 201 返回
-    {folderName, relativePath, overwritten, files}。413 ZIP 本体或解压后总大小超限；422 ZIP 为空 /
-    结构非法；409 文件夹已存在且未允许覆盖（code=STUDIO3D_EXPORT_EXISTS）。
-
-    收流部分留在事件循环里（``await request.stream()`` 本身是异步的），所有同步重活 —— 落盘、
-    fsync、校验（要解压每个 JSON 与图片）、解压换位、生成效果变体 —— 一律交给工作线程：
-    一次大导出冻结全部 HTTP / WebSocket 是修复前的行为（B5/B6）。
+    请求头 x-export-folder（目标文件夹名，必填）、x-export-overwrite（'true' 表示允许覆盖）；
+    成功 201 返回 {folderName, relativePath, overwritten, files}。413 超限、422 结构非法、
+    409 已存在且未允许覆盖（STUDIO3D_EXPORT_EXISTS）。
+    收流留在事件循环里，所有同步重活（落盘、fsync、校验、解压换位、生成变体）交给工作线程。
     """
     folder_name = _folder_name(request)
     overwrite = request.headers.get('x-export-overwrite', '').strip().lower() == 'true'
@@ -440,8 +409,7 @@ async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
             raise HTTPException(status_code=422, detail='导出 ZIP 为空。')
         # 校验会逐个解压 JSON 与图片（最多 MAX_EXPORT_EXPANDED_BYTES），同样放线程池。
         entries = await run_in_threadpool(_validate_archive, temporary_archive)
-        # 解压与目录换位连同那把 _storage_lock 一起搬进线程池：锁是同步锁，
-        # 在事件循环里等锁同样会卡住别的请求。
+        # 解压与目录换位连同 _storage_lock 一起搬进线程池：在事件循环里等同步锁会卡住别的请求。
         target_exists = await run_in_threadpool(_install_export, settings, folder_name, temporary_archive, entries, overwrite)
         catalog = getattr(request.app.state, 'asset_catalog', None)
         if catalog is not None:
@@ -463,12 +431,10 @@ async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
 def delete_studio3d_export_folder(request: Request, database: DatabaseSession, _user: LicensedUser) -> Response:
     """删除一个自动导图文件夹（需已登录且授权允许 api）。
 
-    文件夹名取自 x-export-folder 请求头。删除前先扫描所有项目草稿、全局组合弹窗
-    与户型图草稿，只要还有图片被引用就拒绝。
-    成功返回 204；异常:
-        HTTPException 409: 文件夹内图片仍被引用，detail 为
-            {code: 'STUDIO3D_EXPORT_IN_USE', message, folderName, projects}；
-        404 文件夹不存在；422 名称非法。
+    文件夹名取自 x-export-folder 请求头。删除前先扫描所有项目草稿、全局组合弹窗与户型图草稿，
+    只要还有图片被引用就拒绝。成功返回 204。
+    异常: HTTPException 409 —— 图片仍被引用，detail 为 {code: 'STUDIO3D_EXPORT_IN_USE',
+    message, folderName, projects}；404 不存在；422 名称非法。
     """
     folder_name = _folder_name(request)
     # 资产 ID 的前缀形式与前端约定一致，用前缀匹配即可覆盖文件夹下所有图片。
@@ -476,7 +442,7 @@ def delete_studio3d_export_folder(request: Request, database: DatabaseSession, _
     projects = {item.id: item.name for item in database.scalars(select(Project))}
     usages = []
     for draft in database.scalars(select(ProjectDraft)):
-        # 单份草稿损坏时跳过：它的读取路径自会报错，不该连累删除流程（B54）。
+        # 单份草稿损坏时跳过：它的读取路径自会报错，不该连累删除流程。
         document = parse_document(draft.document_json)
         if document is None:
             continue

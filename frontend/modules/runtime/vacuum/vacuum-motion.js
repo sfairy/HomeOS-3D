@@ -1,27 +1,18 @@
 /**
- * 扫地机的实时位姿动画、台词与跟随相机。
+ * 扫地机的实时位姿动画、台词与跟随相机：把 HA 上报的「地图坐标系位姿」换算到 3D 户型坐标、
+ * 驱动模型平滑移动，并在跟随视角下把挡在相机与扫地机之间的家具临时变透明。
  *
- * 在 3D 子系统里的位置：HA 的扫地机只上报「地图坐标系下的位姿」，本模块负责把它
- * 换算到 3D 户型坐标、驱动模型在地板上平滑移动，并在跟随视角下把挡在相机与
- * 扫地机之间的家具临时变透明。
- *
- * 对外提供：vacuumMapPoint、vacuumTelemetry、VACUUM_CHAT、vacuumQuip、
- * createVacuumMotion、vacuumBirdCamera、vacuumFollowPose、createVacuumFollowCamera。
- *
- * 与 HA 的字段约定：地图实体（camera 域）的 attributes 里，vacuum_position /
- * robot_position 为机器人的地图坐标，charger_position 为基站坐标，
- * calibration_points 为「地图像素坐标 ↔ 扫地机坐标」的三点标定，
- * heading 角度存在 a 字段（度）。地图资源的地址由 vacuum-map.js 统一解析。
+ * 与 HA 的字段约定：camera 域地图实体的 attributes 里，vacuum_position / robot_position 为机器人
+ * 地图坐标，charger_position 为基站坐标，calibration_points 是「地图像素 ↔ 扫地机坐标」的三点标定，
+ * heading 角度存在 a 字段（度）。地图地址由 vacuum-map.js 解析。
  */
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
+// 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 import {
   mapSource,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=20260920104554";
+} from "./vacuum-map.js?v=20260920131301";
 /** 是否为有限数字（同时排除数字字符串）。 */
 const isFiniteNumber = candidateValue =>
   typeof candidateValue == "number" && Number.isFinite(candidateValue);
@@ -32,12 +23,8 @@ const asValidMapPoint = pointCandidate =>
     : null;
 /**
  * 把扫地机上报的坐标点换算成 3D 户型里的平面坐标（米）。
- *
- * 换算分三步：
- * 1) 用三点标定做重心插值，把「扫地机坐标」映射到「地图图片的像素坐标」；
- * 2) 像素坐标按图片尺寸归一化到 [-0.5, 0.5]，再乘地图在户型中的宽 / 深，得到以
- *    地图中心为原点的局部坐标（地图图片的中心即户型的原点）；
- * 3) 按 mapConfig 的旋转角与偏移做旋转平移，落到楼层坐标系里。
+ * 三步：三点标定重心插值 → 地图像素坐标；像素按图尺寸归一化到 [-0.5, 0.5] 再乘地图宽 / 深，
+ * 得到以地图中心（即户型原点）为原点的局部坐标；按 mapConfig 的旋转角与偏移落到楼层坐标系。
  */
 export function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapConfig) {
   // 边界校验一次做全：缺任何一项都无法换算，早退比中途出 NaN 更好排查。

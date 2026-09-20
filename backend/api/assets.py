@@ -1,10 +1,9 @@
 """素材（图片）的目录、上传与读取接口。
 
-路由前缀 /api/v1/assets；另有不带前缀的 read_builtin_asset 由 main.py 直接挂到
-/assets/builtin/*。三类：builtin（随发行版打包，只读）、user（用户上传，落在
-user_assets_dir 下，每个素材一个十六进制目录）、studio3d（3D 工作室导出，按文件夹分组）。
-目录状态由进程内 AssetCatalog 缓存（单进程部署前提）；上传的 SVG 先做白名单式清洗再落盘；
-读取一律带长期缓存头，靠 URL 里的版本参数失效。
+路由前缀 /api/v1/assets；另有 read_builtin_asset 由 main.py 挂到 /assets/builtin/*。
+三类素材：builtin（随发行版只读）、user（上传，每素材一个十六进制目录）、
+studio3d（3D 工作室导出，按文件夹分组）。目录状态由进程内 AssetCatalog 缓存
+（单进程部署前提），上传的 SVG 先白名单清洗再落盘，读取带长期缓存头靠 URL 版本失效。
 """
 from __future__ import annotations
 import asyncio
@@ -61,27 +60,19 @@ UPLOAD_CONTENT_TYPES = {
 # 上传图片的硬上限：1000 万像素、单边 8192，挡住解压炸弹式的超大图。
 MAX_UPLOAD_PIXELS = 10000000
 MAX_UPLOAD_DIMENSION = 8192
-# 单次上传请求体的字节上限，**逐块累计**判断（分块传输会让 Content-Length 失效，
-# 只信它等于没限）。用十进制 MB（与 MAX_UPLOAD_SVG_BYTES 同口径），因为同一个数字
-# 会出现在给用户看的文案里。取值刻意宽于像素上限所允许的最大文件：1000 万像素 ×
-# 4 字节原始数据 = 40 MB，PNG 最坏情况也只是「原始数据 + 每行 1 字节过滤字节 +
-# zlib 分块开销」，所以在 64 MB 之内 —— 它的目的不是挑图片，而是不让**单个**请求
-# 把磁盘写满（修复前这里是 `async for chunk in request.stream(): descriptor.write(chunk)`，
-# 没有任何上限，一个请求就能塞满整块盘并连带拖垮 SQLite 与日志）。
+# 单次上传请求体的字节上限，**逐块累计**判断（分块传输会让 Content-Length 失效）。
+# 取值刻意宽于像素上限：1000 万像素 × 4 字节 = 40 MB；目的是不让单个请求把盘写满。
 MAX_UPLOAD_BYTES = 64 * 1000 * 1000
 # SVG 是文本，另限体积与元素数量，避免海量节点把解析与渲染拖垮。
 MAX_UPLOAD_SVG_BYTES = 5000000
 MAX_UPLOAD_SVG_ELEMENTS = 20000
-# 用户素材目录的**总量**上限（B42）：单文件上限只挡得住「一张图」，挡不住「一直传」——
-# 反复上传 64 MB 的图就能把盘填满，而盘满之后先坏掉的不是上传接口，是数据库与日志
-# （它们写同一块盘）。1 GiB 对家庭部署够放几百张仪表盘图片，同时把上限写进给用户看的
-# 文案里，所以和 MAX_UPLOAD_BYTES 一样用十进制 MB 表述。
+# 用户素材目录的**总量**上限：单文件上限挡不住「一直传」，而盘满之后先坏的是数据库与日志。
+# 1 GiB 对家庭部署够放几百张图；与 MAX_UPLOAD_BYTES 一样用十进制 MB 写进用户文案。
 MAX_USER_ASSET_TOTAL_BYTES = 1000 * 1000 * 1000
-# 用量超过这个水位就记一条警告（不自动删任何图片：素材库本来就有「先传进来、以后再用」
-# 的用法，未被引用不等于没人要，删它等于把用户的图弄丢）。
+# 用量超过这个水位就记警告，不自动删图（未被引用不等于没人要，删它等于弄丢用户的图）。
 USER_ASSET_WARN_BYTES = MAX_USER_ASSET_TOTAL_BYTES * 4 // 5
-# 「目录里已经没有合法图片」的空壳目录保留多久再回收。上传是「先建目录、写完临时文件、
-# 校验通过后改名」，正在进行的上传长的就是这个样子，因此不能一看见就删。
+# 「目录里已没有合法图片」的空壳目录保留多久再回收。上传是「先建目录、写完临时文件、
+# 校验通过后改名」，进行中的上传长的就是这个样子，不能一看见就删。
 USER_ASSET_ORPHAN_GRACE_SECONDS = 3600
 # 变体缓存里对不上任何现存素材版本的键保留多久再回收（缓存可以随时重算）。
 EFFECT_VARIANT_GRACE_SECONDS = 24 * 3600
@@ -131,11 +122,7 @@ ElementTree.register_namespace('', SVG_NAMESPACE)
 ElementTree.register_namespace('xlink', XLINK_NAMESPACE)
 
 def user_asset_file(root: Path, asset_id: str) -> Path | None:
-    """定位某个用户素材目录里唯一的图片文件；目录非法或文件数不为 1 时返回 None。
-
-    参数:
-        asset_id: 32 位十六进制素材 ID。
-    """
+    """定位某个用户素材目录里唯一的图片文件；目录非法或文件数不为 1 时返回 None。"""
     # 目录名必须是纯十六进制 ID：先把 ../ 这类构造挡在门口。
     if not ASSET_ID.fullmatch(asset_id):
         return None
@@ -171,9 +158,8 @@ def user_asset_payload(root: Path, asset_id: str, path: Path, dimensions: tuple[
 def effect_variant_cache_key(full_asset_id: str, version: str) -> str:
     """变体缓存的键：素材 ID 与版本号的哈希。
 
-    生成（:func:`effect_variant_payload`）与回收（:func:`sweep_user_asset_storage`）
-    必须用同一个算法 —— 各写一遍的话，巡检算出来的键与生成时不一致，就会把**正在用的**
-    变体当成垃圾删掉（表现为运行时渲染悄悄退回整图，或者干脆报缺文件）。
+    生成与回收必须用同一个算法，否则巡检会把正在用的变体当成垃圾删掉
+    （表现为渲染退回整图或报缺文件）。
     """
     return hashlib.sha256(f'{full_asset_id}\x00{version}'.encode('utf-8')).hexdigest()
 
@@ -181,8 +167,8 @@ def effect_variant_cache_key(full_asset_id: str, version: str) -> str:
 def directory_bytes(directory: Path) -> int:
     """递归统计目录占用的字节数；读不到的条目按 0 计。
 
-    与 ``scene_store.scene_folder_bytes`` 不同：那个只数目录**第一层**的文件（户型快照
-    目录是平铺的），而用户素材目录是「一层目录一个素材」，因此必须递归。
+    与 ``scene_store.scene_folder_bytes`` 不同：那个只数第一层（户型快照目录是平铺的），
+    用户素材目录是「一层一个素材」，必须递归。
     """
     total = 0
     for path in directory.rglob('*'):
@@ -197,12 +183,8 @@ def directory_bytes(directory: Path) -> int:
 def directory_holds_asset(directory: Path) -> bool:
     """目录里是否还有「像素材」的文件 —— 判定刻意放宽，宁可漏收也不删用户的图。
 
-    巡检把「没有素材的目录」当残留回收，因此这个判定是**唯一**的分界线，必须偏保守：
-    与 ``user_asset_file`` 的严格判定（恰好一个非隐藏图片文件才有效）不同，这里只要
-    目录里还有任何一层存在图片文件就算「有素材」。两者的差别正是事故隐患所在 ——
-    比如一个目录里因历史原因留下了两个图片文件（``user_asset_file`` 会判它非法、
-    谁也选不中），若照那个判定回收，用户的图片就会被删掉。宁可留着这个目录（它至多
-    继续占几 MB），也不能删掉可能还有用的东西。
+    巡检把「没有素材的目录」当残留回收，因此这是唯一分界线：判据比 ``user_asset_file``
+    松，只要任一层还有图片文件就算有素材，避免因历史遗留的异常目录删掉用户的图。
     """
     for path in directory.rglob('*'):
         try:
@@ -216,8 +198,8 @@ def directory_holds_asset(directory: Path) -> bool:
 def _discard_variant_files(variant_path: Path | None) -> int:
     """删掉一张变体缓存（PNG + 同名 JSON 元数据），返回释放的字节数。
 
-    变体是缓存，删掉最多让它重算一次；查不到路径（没生成过、或已经被清理）返回 0。
-    删不掉的条目按 0 计而不是抛错：清理是附加工作，不该让「删素材」这条路径失败。
+    变体是缓存，删掉最多重算一次；路径为 None 返回 0。删不掉的条目按 0 计，
+    清理是附加工作，不该让「删素材」这条路径失败。
     """
     if variant_path is None:
         return 0
@@ -238,9 +220,8 @@ def _discard_variant_files(variant_path: Path | None) -> int:
 def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_root: Path) -> tuple[dict, Path] | None:
     """按 alpha 包围盒生成透明裁剪后的 PNG 变体，供运行时渲染器使用。
 
-    原图不动：变体另存到缓存目录，文件名由「素材 ID + 版本号」的哈希决定，并附一份同名
-    JSON 记录裁剪矩形，命中缓存时无需重新解码原图。``path`` 只支持 PNG / WebP；
-    ``full_asset_id`` 与 ``version`` 参与缓存键。不适用或收益不足时返回 None。
+    原图不动：变体另存缓存目录，文件名由「素材 ID + 版本号」哈希决定，并附同名 JSON
+    记录裁剪矩形，命中缓存无需重新解码。``path`` 只支持 PNG / WebP；不适用时返回 None。
     """
     # 只有 PNG / WebP 能做无损透明裁剪，其它格式直接跳过。
     if path.suffix.lower() not in frozenset({'.png', '.webp'}):
@@ -330,9 +311,8 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
 def studio3d_export_metadata(folder: Path) -> tuple[dict[str, str], dict[str, int]]:
     """读取 3D 工作室导出文件夹里的 lights.json 清单。
 
-    返回:
-        (文件名 → 角色, 文件名 → 导出顺序)；清单缺失或损坏时返回两个空字典，
-        此时素材仍会被列出，只是角色与排序退化为默认值。
+    返回: (文件名 → 角色, 文件名 → 导出顺序)。清单缺失或损坏时返回两个空字典，
+    素材仍会被列出，只是角色与排序退化为默认值。
     """
     manifest_path = folder / 'lights.json'
     # 没有清单就当没有角色信息，不影响图片本身的列出与访问。
@@ -385,8 +365,7 @@ def studio3d_export_payload(folder_name: str, path: Path, role: str = '', export
 def user_asset_sort_key(item: dict) -> tuple[str, int, int, str]:
     """用户素材的展示排序键：目录 → 3D 角色 → 导出顺序 → 名称。
 
-    3D 导出的图片要按固定角色顺序排在前面（电视、车辆、户型图、底图…），
-    其余素材统一落到最后一档。
+    3D 导出的图片按固定角色顺序排前面（电视、车辆、户型图、底图…），其余统一落最后一档。
     """
     name = str(item.get('name', ''))
     base_name = Path(name).stem
@@ -472,10 +451,10 @@ def parse_svg_length(value: str | None) -> float | None:
     return number * SVG_LENGTH_FACTORS[(match.group(2) or '').lower()]
 
 def svg_dimensions(root: ElementTree.Element) -> tuple[int, int]:
-    """推断 SVG 的像素尺寸：优先 width/height，缺失时按 viewBox 补算。
+    """推断 SVG 的像素尺寸：优先 width/height，缺失时按 viewBox 补算，都没有则用
+    规范里 <image> 的默认 300x150。
 
-    三者都缺失时回落到规范里 <image> 的默认 300x150。
-    尺寸超过上传上限时抛 ValueError（原文案为中文，直接给用户看）。
+    尺寸超过上传上限时抛 ValueError（中文文案，直接给用户看）。
     """
     view_box = None
     raw_view_box = root.attrib.get('viewBox') or root.attrib.get('viewbox')
@@ -508,10 +487,8 @@ def svg_dimensions(root: ElementTree.Element) -> tuple[int, int]:
 def validate_and_sanitize_uploaded_svg(path: Path) -> tuple[int, int]:
     """校验并就地清洗上传的 SVG，返回其像素尺寸。
 
-    清洗策略是白名单：只保留 SVG/xlink 命名空间下的安全元素与属性，
-    摘掉脚本、动画、外部嵌入，去掉 on* 事件属性与危险引用，
-    最后把清洗后的内容覆盖回原文件。
-    任何一项不合规都抛 ValueError，文案为中文，可直接返回给用户。
+    清洗是白名单式：只留 SVG/xlink 命名空间下的安全元素与属性，摘掉脚本、动画、外部
+    嵌入与 on* 事件、危险引用，最后覆盖回原文件。任何不合规都抛中文 ValueError。
     """
     # 三道体积/结构闸门都放在解析之前，避免把超大 XML 读进内存。
     if path.stat().st_size > MAX_UPLOAD_SVG_BYTES:
@@ -542,7 +519,7 @@ def validate_and_sanitize_uploaded_svg(path: Path) -> tuple[int, int]:
                 SVG_NAMESPACE} or xml_local_name(child.tag) in SVG_BLOCKED_ELEMENTS:
                 parent.remove(child)
     for element in root.iter():
-        # style 文本里可能藏 @import / expression()：不安全就把内容清空而不是删元素（保留选择器结构没意义，但更保险）。
+        # style 文本可能藏 @import / expression()：不安全就清空文本（不删元素更保险）。
         if xml_local_name(element.tag) == 'style':
             if not svg_style_is_safe(element.text or ''):
                 element.text = ''
@@ -577,8 +554,7 @@ def validate_and_sanitize_uploaded_svg(path: Path) -> tuple[int, int]:
 def validate_uploaded_image(suffix: str, path: Path) -> tuple[int, int]:
     """校验刚上传的图片文件，返回其像素尺寸；不合法时抛 ValueError。
 
-    SVG 走清洗流程，位图则核对真实格式与像素上限。
-    所有 ValueError 的文案都是中文，可直接作为 422 的 detail 返回。
+    SVG 走清洗流程，位图核对真实格式与像素上限。所有文案为中文，可直接作为 422 的 detail。
     """
     if suffix == '.svg':
         return validate_and_sanitize_uploaded_svg(path)
@@ -609,18 +585,15 @@ def validate_uploaded_image(suffix: str, path: Path) -> tuple[int, int]:
 class AssetCatalog:
     '''进程内的素材目录缓存。
 
-    前提：客户部署只有一个 app 进程，因此可以把目录状态放在内存里、
-    用 RLock 保护并发访问，不需要引入 Redis 之类的共享缓存。
-    内容变更后对应 revision 会换成新的随机值，前端据此判断是否重新拉列表。
+    前提：客户部署只有一个 app 进程，因此目录状态放内存、用 RLock 保护即可。
+    内容变更后对应 revision 换成新的随机值，前端据此判断是否重新拉列表。
     '''
 
     def __init__(self, built_in_root: Path, user_root: Path, studio3d_exports_root: Path | None = None, effect_variants_root: Path | None = None) -> None:
         """记录各素材根目录并统一转成绝对路径。
 
         参数:
-            built_in_root: 内置素材根目录（随仓库分发，只读）。
-            studio3d_exports_root: 3D 工作室导出物根目录；None 表示不使用。
-            effect_variants_root: 特效变体缓存根目录；None 时默认落在用户素材的
+            effect_variants_root: 特效变体缓存根目录；None 时默认落在用户素材父目录下。
         """
         self.built_in_root = built_in_root.resolve()
         self.user_root = user_root.resolve()
@@ -821,7 +794,7 @@ class AssetCatalog:
     def remove_user(self, full_asset_id: str) -> int:
         """从内存目录里摘掉一个用户素材，同时删掉它的效果变体缓存，返回释放的字节数。
 
-        两件事必须同一个动作里做完（B42）：变体的路径记录就在下面这张表里，先摘条目的话
+        两件事必须同一个动作里做完：变体的路径记录就在下面这张表里，先摘条目的话
         路径就再也查不到了 —— 缓存文件会永远留在这块盘上，谁也看不见、谁也删不掉。
         合成一个动作，调用方就没有「先调哪个」这种可以搞错的余地。
         """
@@ -857,9 +830,8 @@ class AssetCatalog:
     def user_asset_bytes(self) -> int:
         """用户素材目录当前占用的字节数（含尚未改名的临时文件）。
 
-        直接扫盘，不维护累加计数：手工删文件、上传中断、外部工具都改得动这个目录，计数一旦
-        漂移配额就失效（少算 → 盘被填满；多算 → 用户明明删了却传不上去）。代价是每次上传
-        前多一次目录遍历，而上传本来就要做一次完整的图片解码。
+        直接扫盘而不维护累加计数：手工删文件、上传中断、外部工具都改得动这个目录，
+        计数漂移配额就失效。代价是每次上传多一次目录遍历。
         """
         return directory_bytes(self.user_root) if self.user_root.is_dir() else 0
 
@@ -876,12 +848,8 @@ class AssetCatalog:
 def referenced_user_asset_ids(database, studio3d_draft_path: Path) -> set[str]:
     """此刻仍被引用的用户素材 ID（不含 ``user:`` 前缀）集合。
 
-    引用来源有三处，缺一处就会把在用的图片当成没人要的：项目草稿文档、全局组合弹窗
-    （独立于项目存放）、3D 户型草稿（不在数据库里，单独读盘）。
-
-    键名扫描复用 :func:`panel.entity_refs.document_keyed_values`，与「哪些实体 / 场景
-    还有人用」是同一套启发式（前端加字段不用改这里）；不另写一份递归扫描，是因为
-    「同一个约束有第二个主人」正是上一批吃过的教训。
+    引用来源三处：项目草稿文档、全局组合弹窗（独立存放）、3D 户型草稿（不在库里，
+    单独读盘）。键名扫描复用 ``document_keyed_values``，与「哪些实体还有人用」同一套启发式。
     """
     def is_user_asset(value: str) -> bool:
         """只收用户上传的图片：内置素材不会出现在这个目录里。"""
@@ -924,33 +892,19 @@ def sweep_user_asset_storage(
 ) -> dict[str, int]:
     """回收用户素材目录里那些**看不见的**残留，返回本轮统计。
 
-    只收两类「谁也选不中、谁也删不掉」的东西：
-
-    1. **空壳目录 / 散落文件**：目录里已经没有合法图片（上传中断的临时文件、被手工删掉的
-       文件、崩溃残留）。它们不会出现在素材列表里（``user_asset_file`` 返回 None），用户根本
-       无法意识到它们占着盘，更删不掉；
-    2. **对不上任何现存素材版本的变体缓存**：素材已删或版本已变（版本号进缓存键），纯缓存，
-       删掉最多重算一次。
-
-    **刻意不回收「没有被引用的图片」**：素材库本来就有「先传进来、以后再用」的用法，
-    未被引用不等于没人要 —— 删它等于把用户的图片弄丢（这与户型快照不同，快照没人引用就真的
-    没人会再打开）。未被引用的用量改为在 :func:`sweep_user_assets_for_app` 里报出来，由人决定。
-
-    ``active_variant_keys`` 是现存素材版本对应的缓存键（见 ``AssetCatalog.effect_variant_keys``）；
-    ``orphan_grace`` / ``variant_grace`` 分别是空壳目录与孤儿缓存的保留期。返回
-    ``{'directories', 'files', 'variants', 'released', 'kept'}`` 五项计数。
+    只收没有合法图片的空壳目录 / 散落文件（上传中断等残留）与对不上现存版本的变体缓存；
+    刻意不回收「未被引用的图片」（未被引用不等于没人要，删它等于弄丢用户的图）。
+    返回 ``{'directories', 'files', 'variants', 'released', 'kept'}``。
     """
     moment = time() if now is None else now
     stats = {'directories': 0, 'files': 0, 'variants': 0, 'released': 0, 'kept': 0}
     # 先归一成绝对路径：``user_asset_file`` 内部会 resolve 再判「还在根目录之下」，
-    # 根目录自己带符号链接（如 macOS 的 /var → /private/var）时两边口径必须一致，
-    # 否则每个素材目录都会被判成非法目录 —— 而这里的判定后果是**删掉它**。
+    # 两边口径必须一致，否则每个素材目录都会被判成非法 —— 而这里的判定后果是删掉它。
     root = root.resolve()
     if root.is_dir():
         for entry in sorted(root.iterdir()):
             if entry.is_dir() and not entry.is_symlink():
-                # 还有图片文件的目录一律不动：它是不是「没人用」不由这里判断（见函数说明），
-                # 而「目录里到底还有没有东西」用的是放宽的判定（见 directory_holds_asset）。
+                # 还有图片文件的目录一律不动：是否有用不由这里判断，而「还有没有东西」用放宽的判定。
                 if directory_holds_asset(entry):
                     stats['kept'] += 1
                     continue
@@ -974,8 +928,7 @@ def sweep_user_asset_storage(
                     entry.unlink()
                 except OSError:
                     pass
-            # 以「真的不在了」判定回收成功：删不掉（权限 / 占用）时不能算成已回收，
-            # 否则统计会骗人（这里与户型快照巡检同一口径）。
+            # 以「真的不在了」判定回收成功：删不掉（权限/占用）时不能算已回收，否则统计会骗人。
             if entry.exists():
                 stats['kept'] += 1
             else:
@@ -1008,8 +961,8 @@ def sweep_user_asset_storage(
 def sweep_user_assets_for_app(app) -> dict[str, int]:
     """请求路径 / 启动流程用的薄封装：自己开短会话算引用关系，再巡检并汇总用量。
 
-    顺带把「该由人来看一眼」的两件事写进全局日志：用量过水位、以及存在没有任何仪表盘
-    引用的图片（给出张数与字节）。不自动删它们，理由见 :func:`sweep_user_asset_storage`。
+    顺带把「该由人来看一眼」的两件事写进全局日志：用量过水位、存在没有任何仪表盘引用的
+    图片（给出张数与字节）。不自动删它们，理由见 :func:`sweep_user_asset_storage`。
     """
     root = app.state.settings.user_assets_dir
     variants_root = app.state.asset_catalog.effect_variants_root
@@ -1059,8 +1012,7 @@ def document_uses_asset(value, asset_id: str) -> bool:
 def list_builtin_assets(request: Request, _viewer: LicensedViewer) -> dict:
     """列出全部内置素材。
 
-    身份与能力码：LicensedViewer（认证 + api），另需授权允许 assets，
-    否则 403 LICENSE_RESTRICTED「当前授权不允许读取素材。」。
+    身份：LicensedViewer（认证 + api）且授权允许 assets，否则 403 LICENSE_RESTRICTED。
     """
     # 内置素材虽是发行版内容，读取同样受 assets 能力码约束。
     if not request.app.state.license_service.allows('assets'):
@@ -1076,10 +1028,9 @@ def list_builtin_assets(request: Request, _viewer: LicensedViewer) -> dict:
 def list_user_assets(request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """列出用户素材（含 3D 导出）。
 
-    中控设备身份只会看到自己仪表盘文档里引用过的图片；管理员不受限。
-    返回 {items, total, maxUploadPixels, usageBytes, maxTotalBytes, catalogVersion}：
-    前端用 maxUploadPixels 做上传前预校验，用 usageBytes / maxTotalBytes 显示「已用多少」
-    （B42 的总量配额到了之后上传会 413，用户得先知道该删什么）。
+    中控设备身份只会看到自己仪表盘文档里引用过的图片，管理员不受限。返回
+    {items, total, maxUploadPixels, usageBytes, maxTotalBytes, catalogVersion}；
+    前端用 maxUploadPixels 预校验，用 usageBytes / maxTotalBytes 显示已用多少。
     """
     catalog = request.app.state.asset_catalog
     items = catalog.user_items()
@@ -1105,10 +1056,9 @@ def asset_catalog_version(request: Request, _viewer: LicensedViewer) -> dict:
 async def upload_user_asset(request: Request, background_tasks: BackgroundTasks, _user: LicensedUser) -> dict:
     """上传一张用户图片，返回登记后的素材条目（201）。
 
-    身份与能力码：LicensedUser（认证 + api）。文件名走 X-File-Name 请求头（URL 编码），
-    请求体是裸文件流。会抛 422（文件名无效、后缀不支持、文件为空、内容与扩展名不符、尺寸
-    超限）与 413（超过该后缀上限：位图 64 MB、SVG 5 MB）—— 逐块累计判断，**不信任
-    Content-Length**，否则分块传输或伪造的长度都能绕过。错误文案均为可直接展示的中文。
+    身份：LicensedUser（认证 + api）。文件名走 X-File-Name 请求头（URL 编码），请求体是
+    裸文件流。422 为文件名/后缀/内容/尺寸非法，413 为超过该后缀上限（位图 64 MB、SVG 5 MB）；
+    大小**逐块累计**判断、不信任 Content-Length。文案均为可直接展示的中文。
     """
     # 文件名放在自定义头里：请求体是裸文件流，没有 multipart 表单可承载文件名。
     encoded_name = request.headers.get('x-file-name', '')
@@ -1125,15 +1075,13 @@ async def upload_user_asset(request: Request, background_tasks: BackgroundTasks,
     # 按后缀取更严的那个上限：SVG 只要 5 MB，就不该先写 64 MB 再回头判它超限。
     byte_limit = MAX_UPLOAD_SVG_BYTES if suffix == '.svg' else MAX_UPLOAD_BYTES
     size_hint = f'{byte_limit // 1000000} MB'
-    # 声明超限的直接拒，连第一个字节都不读：省下带宽与一次落盘（放在建目录之前，
-    # 这样早拒路径不需要任何清理）。
+    # 声明超限的直接拒，连第一个字节都不读（放在建目录之前，早拒路径无需清理）。
     declared_length = request.headers.get('content-length', '').strip()
     if declared_length.isdigit() and int(declared_length) > byte_limit:
         raise HTTPException(status_code = 413, detail = f'图片不能超过 {size_hint}，请压缩后重试。')
     root = request.app.state.settings.user_assets_dir.resolve()
-    # 总量配额（B42）：单文件上限只挡得住「一张图」，挡不住「一直传」。先按声明的长度粗判
-    # （省下一次落盘），流式写入时再按已收字节精判（分块传输压根没有长度头）。
-    # 这一档是**软上限**：两次并发上传可能同时通过检查，真正的兜底是单文件上限与巡检告警。
+    # 总量配额：单文件上限挡不住「一直传」。先按声明长度粗判，流式写入时再按实收字节精判。
+    # 这是软上限：并发上传可能同时通过，真正兜底的是单文件上限与巡检告警。
     catalog = request.app.state.asset_catalog
     used_bytes = await asyncio.to_thread(catalog.user_asset_bytes)
     quota_detail = (
@@ -1147,16 +1095,11 @@ async def upload_user_asset(request: Request, background_tasks: BackgroundTasks,
     directory = root / asset_id
     directory.mkdir(mode = 448)
     path = directory / filename
-    # 落到临时名、校验通过后再改名为真名（B41）。直接写最终文件名的话，「文件已存在」
-    # 与「文件已登记」之间有一段窗口：首次 GET /assets/user 会扫盘建索引，它可能在这段
-    # 窗口里（甚至在我们即将因为校验失败而删掉这个文件之后）把 user:<id> 登记进内存目录 ——
-    # 于是目录里留下一条指向不存在文件的条目，删素材、算版本、发 URL 都会跟着它走。
-    # 临时名以点开头，而扫描端本来就跳过隐藏文件（见 user_asset_file）。
+    # 落到临时名、校验通过后再改名：否则「文件已存在」与「文件已登记」之间有窗口，
+    # 扫盘建索引会把 user:<id> 登记成指向不存在文件的条目。临时名以点开头，扫描端本就跳过。
     temporary = directory / f'.upload-{asset_id}{suffix}'
     try:
-        # 流式落盘：不把整个上传体读进内存，也不预先信任 Content-Length。
-        # 写盘分批放进线程池（见 streaming.write_stream_in_batches）：留在事件循环里
-        # 的话，一次 64 MB 上传的几十次 write 系统调用会串在所有请求前面。
+        # 流式落盘、不预信任 Content-Length；写盘分批放线程池，避免几十次 write 串在所有请求前面。
         with temporary.open('xb') as descriptor:
             def _reject_oversized(received: int) -> None:
                 # 逐块累计：Content-Length 可以是假的，分块传输则干脆没有它。
@@ -1172,8 +1115,7 @@ async def upload_user_asset(request: Request, background_tasks: BackgroundTasks,
         if received == 0:
             raise HTTPException(status_code = 422, detail = '请选择需要上传的图片。')
         # 先落盘再校验：Pillow 与 XML 解析都要文件路径；不通过就在下面把文件与目录清理掉。
-        # 解码最大 64 MB / 1000 万像素的位图、解析 5 MB XML 都是 CPU 与 IO 重活，
-        # 放进线程池（B6）：放在事件循环里，一张大图就能让整个应用停摆几百毫秒。
+        # 解码位图 / 解析 XML 是 CPU 与 IO 重活，放进线程池：留在事件循环里一张大图就能停摆几百毫秒。
         try:
             dimensions = await asyncio.to_thread(validate_uploaded_image, suffix, temporary)
         except ValueError as error:
@@ -1183,13 +1125,11 @@ async def upload_user_asset(request: Request, background_tasks: BackgroundTasks,
         path.chmod(384)
     # 任何失败都要把刚建的目录删干净，否则素材目录里会留下空目录与半截文件。
     except Exception:
-        # 清理本身绝不能再抛（B40）：原先这里调 directory.rmdir()，目录非空时它抛
-        # OSError，把真正的失败原因（422/413/校验文案）顶成一条与客户端无关的 500 ——
-        # 上传人看到的是「目录不是空的」，而实际原因是他的图片不合格。
+        # 清理绝不能再抛：rmdir 在目录非空时会抛 OSError，把真正的失败原因（422/413）
+        # 顶成一条与客户端无关的 500，上传人看到的是「目录不是空的」。
         shutil.rmtree(directory, ignore_errors = True)
         raise
-    # 登记同样要进线程池：内部会为这张图生成透明裁剪变体（另一次完整的 Pillow
-    # 解码 + PNG 编码），与上面的校验是同一类同步重活。
+    # 登记同样进线程池：内部要为这张图生成透明裁剪变体（又一次完整解码 + PNG 编码）。
     item = await asyncio.to_thread(request.app.state.asset_catalog.register_user, asset_id, path, dimensions)
     if used_bytes + received > USER_ASSET_WARN_BYTES:
         # 越过水位才巡检：它要扫盘、遍历所有草稿，没必要每次上传都做。
@@ -1202,8 +1142,7 @@ def read_user_asset(asset_id: str, request: Request, viewer: LicensedViewer) -> 
     """读取用户上传的图片文件。
 
     鉴权：该图片必须被当前主体的仪表盘引用，否则 403「该图片不属于当前中控仪表盘。」；
-    文件不存在抛 404「图片不存在。」。
-    响应带一年期强缓存（URL 里带版本参数，内容变了 URL 就变）。
+    文件不存在抛 404「图片不存在。」。响应带一年期强缓存（URL 带版本参数）。
     """
     # 单独开一个短会话做鉴权：读完立即归还连接，文件响应体不再占用数据库连接。
     with request.app.state.database.session_factory() as database:
@@ -1219,12 +1158,10 @@ def read_user_asset(asset_id: str, request: Request, viewer: LicensedViewer) -> 
 
 @router.get('/effect-variant')
 def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId')) -> FileResponse:
-    """读取素材的透明裁剪变体（PNG）。
+    """读取素材的透明裁剪变体（PNG）；查询参数 assetId（三种前缀都可）。
 
-    查询参数为 assetId（三种前缀都可）。可见性按素材类型区分：
-    user: 需被当前主体的仪表盘引用，builtin: 需存在于素材目录，
-    studio3d: 同样需被当前主体的仪表盘引用（导出目录按项目生成，
-    没有这一步任何中控设备都能按文件名猜出别的项目的户型图）。
+    可见性：user: 与 studio3d: 需被当前主体的仪表盘引用（导出目录按项目生成，不校验
+    归属就能按文件名猜出别的项目的户型图），builtin: 需存在于素材目录。
     不存在或无权访问一律 404「效果图片不存在。」，不区分两者。
     """
     catalog = request.app.state.asset_catalog
@@ -1257,12 +1194,9 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
 def read_studio3d_export(folder_name: str, filename: str, request: Request, viewer: LicensedViewer) -> FileResponse:
     """读取 3D 工作室导出的图片原文。
 
-    身份与能力码：LicensedViewer（认证 + api）。
-    中控设备身份额外要求「这个文件被自己那块屏引用了」——导出目录是按项目生成的，
-    但 URL 只带目录名与文件名，不校验归属的话任何一台中控设备都能拿到别的项目的
-    户型图与图层截图（跨项目 IDOR）。管理员不受限。
-    路径参数经 studio3d_export_file 严格校验，非法或不存在抛 404「导出图片不存在。」；
-    引用校验不通过抛 403「该图片不属于当前中控仪表盘。」。
+    身份：LicensedViewer（认证 + api）。中控设备身份额外要求「该文件被自己那块屏引用」
+    ——URL 只带目录名与文件名，不校验归属就是跨项目 IDOR；管理员不受限。
+    路径参数严格校验，非法或不存在 404「导出图片不存在。」，引用校验不过 403。
     """
     root = request.app.state.settings.studio3d_exports_dir.resolve()
     folder = unquote(folder_name)
@@ -1284,10 +1218,8 @@ def read_studio3d_export(folder_name: str, filename: str, request: Request, view
 def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession, _user: LicensedUser) -> Response:
     """删除一张用户上传的图片，返回 204。
 
-    身份与能力码：LicensedUser（认证 + api）。
-    仍被仪表盘文档或全局组合弹窗引用时抛 409 ASSET_IN_USE，detail 里列出引用方；
-    3D 工作室草稿引用它时抛 409「图片正在被户型图绘制使用，请先替换或移除后再删除。」；
-    图片不存在抛 404「图片不存在。」。
+    身份：LicensedUser（认证 + api）。仍被仪表盘文档或全局组合弹窗引用时抛 409
+    ASSET_IN_USE 并列出引用方；被 3D 工作室草稿引用时抛同码的中文提示；不存在抛 404。
     """
     catalog = request.app.state.asset_catalog
     # 与保存文档共用同一把锁：删除与「保存时校验引用」不会交错执行。
@@ -1301,7 +1233,7 @@ def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession
         projects = {item.id: item.name for item in database.scalars(select(Project))}
         usages = []
         for draft in database.scalars(select(ProjectDraft)):
-            # 单份草稿损坏时跳过：它的读取路径自会报错，不该连累删除流程（B54）。
+            # 单份草稿损坏时跳过：它的读取路径自会报错，不该连累删除流程。
             document = parse_document(draft.document_json)
             if document is None:
                 continue
@@ -1323,9 +1255,8 @@ def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession
                 studio_draft = { }
             if document_uses_asset(studio_draft.get('scene', { }), full_asset_id):
                 raise HTTPException(status_code = status.HTTP_409_CONFLICT, detail = { 'code': 'ASSET_IN_USE', 'message': '图片正在被户型图绘制使用，请先替换或移除后再删除。' })
-        # 先删磁盘文件、再从内存目录摘掉：两步都成功才算删除完成。
-        # remove_user 会连带删掉这张图的效果变体缓存（B42）—— 变体路径记录只在目录里，
-        # 摘掉条目之后就再也查不到它了，所以两件事必须在同一个动作里完成。
+        # 先删磁盘文件、再从内存目录摘掉。remove_user 会连带删掉效果变体缓存 ——
+        # 变体路径记录只在目录里，摘掉条目后就再也查不到，两件事必须在同一动作里完成。
         path.unlink()
         catalog.remove_user(full_asset_id)
         try:
@@ -1337,8 +1268,8 @@ def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession
 def read_builtin_asset(relative_path: str, request: Request) -> FileResponse:
     """读取内置素材文件（由 main.py 直接挂到 /assets/builtin/*，不带 /api/v1 前缀）。
 
-    由于绕过了 api 依赖，这里自己再过一次 assets 能力码，否则 403
-    「当前授权状态不允许读取该资源。」；素材不存在抛 404「素材不存在。」。
+    绕过了 api 依赖，因此这里自己再过一次 assets 能力码，否则 403「当前授权状态不允许
+    读取该资源。」；素材不存在抛 404「素材不存在。」。
     """
     # 这个入口挂在 /assets/builtin/* 上、不经过 api 依赖，能力码必须在这里自查。
     if not request.app.state.license_service.allows('assets'):

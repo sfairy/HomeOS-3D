@@ -1,22 +1,15 @@
 /**
  * 平面图叠加层的绘制工具。
  *
- * 位置：3D 工作室的平面视图（俯视示意图）在 three.js 画布之上叠一层 2D Canvas，
- *   本模块提供这层 Canvas 的基础图元：米制网格、线段、端点、告警圈与浮标文字。
- * 对外：drawTrackedText（可控字距文本）与 createPlanDrawingTools（图元工厂）。
- * 坐标约定：入参一律是「设计图平面坐标」（像素单位，与户型数据同一套），
- *   由调用方注入的 planToScreen / screenToPlan 负责与屏幕像素互转；
- *   pixelsPerMeter 给出当前设计图坐标系下每米对应的像素数。
- * 副作用：所有图元都只写调用方提供的 2D 上下文，且各自 save / restore，
- *   不向外泄漏绘图状态。
+ * 平面视图在 three.js 画布之上叠一层 2D Canvas，本模块提供基础图元：米制网格、线段、端点、
+ * 告警圈与浮标文字。入参一律是设计图平面坐标（像素，与户型数据同一套），由调用方注入的
+ * planToScreen / screenToPlan 与屏幕互转。所有图元只写调用方提供的 2D 上下文且各自
+ * save / restore，不向外泄漏绘图状态。
  */
 
 /**
- * 逐字绘制文本，以支持字距（letter-spacing）。
- *
- * Canvas 2D 原生没有字距设置，只能自己累计游标逐字绘制；
- * 当整串宽度超出 maxWidthPx 时，对整体做横向压缩（而不是截断或换行），
- * 保证标签在窄空间里仍然完整可读。
+ * 逐字绘制文本以支持字距：Canvas 2D 原生没有字距设置，只能累计游标逐字画。
+ * 整串宽度超出 maxWidthPx 时对整体横向压缩而非截断换行，保证窄空间里仍完整可读。
  */
 export function drawTrackedText(textContext, text, originX, originY, trackingPx, maxWidthPx) {
   // 用展开运算符按码点切分，避免把 emoji 等代理对字符拆成两半。

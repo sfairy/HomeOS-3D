@@ -1,19 +1,12 @@
 /*
  * 窗帘 / 梦幻帘面板（.i3d-cover-panel）在 3D 舞台内的样式。
  *
- * 位置：interaction3d 展示侧，由 stage.css @import 引入；作用对象是
- * cover-panel.js 生成的窗帘面板：标题与百分比、位置滑杆与三个动作按钮
- * （打开 / 暂停 / 关闭）、反馈文案与梦幻帘叶片提示。
- * 面板外壳沿用灯光面板的 .i3d-light-panel，只覆盖高度。
+ * 由 stage.css @import 引入，作用对象是 cover-panel.js 生成的窗帘面板（标题与百分比、位置滑杆、
+ * 打开 / 暂停 / 关闭按钮、反馈文案与梦幻帘叶片提示）；外壳沿用 .i3d-light-panel，只覆盖高度。
+ * 滑杆已填充长度由 JS 写成 --hb-cover-position-progress，是这里唯一由脚本注入的自定义属性。
  *
- * 主题变量：宿主页 :root 提供 --surface / --field / --line / --muted（本文件未用到）；
- * 滑杆已填充的长度由 JS 写成 --hb-cover-position-progress（百分比），
- * 是这里唯一由脚本注入的自定义属性。
- *
- * 约定：
- *   - .hb-cover-details-* 是「窗帘详情控件」的共享类名，renderer.js 在别处也会
- *     用同一套结构渲染，本文件里的规则都以 .i3d-cover-panel 作前缀限定作用域；
- *   - 滑杆的 WebKit 与 Firefox 伪元素必须分别写，两条链路的盒模型不同。
+ * 约定：.hb-cover-details-* 是窗帘详情控件的共享类名，本文件规则一律以 .i3d-cover-panel 作前缀限定；
+ * 滑杆的 WebKit 与 Firefox 伪元素必须分别写（两条链路盒模型不同）。
  */
 
 /* 面板外壳：高度自适应并给出 232px 下限，保证位置滑杆与动作按钮不会挤在一起。 */

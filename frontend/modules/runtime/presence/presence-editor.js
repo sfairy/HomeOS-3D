@@ -1,42 +1,24 @@
 /**
- * 「配置安防 / 人物与行走路线」编辑对话框。
+ * 「配置安防 / 人物与行走路线」编辑对话框，是 presence 的配置入口：三栏布局（绑定列表 /
+ * SVG 平面图 + 3D 预览 / 人物方案、颜色、速度、大小、触发方式等属性控件）。
  *
- * 在 3D 子系统里的位置：presence 的配置入口。窗口分三栏 —— 左栏列出全部人在传感器绑定，中间是
- * 「SVG 平面图 + 3D 预览」叠加的画布，右栏是属性控件（人物方案、颜色、速度、大小、触发方式、点击
- * 聚焦等）。
- *
- * 两种模式（由 manageBindings 决定）：
- * - true：从安防设置进入，可增删绑定、选实体、改触发方式，按钮文案是「保存安防配置」；
- * - false：从人物与路线面板进入，只调路线与人物外观，绑定关系只读，文案是「应用人物与路线」。
- *
- * 坐标与数据约定：
- * - 路线点存的是楼层平面图坐标（像素），像素当量由 plan.pixelsPerMeter 决定；3D 侧由
- *   presence-scene.js 经 worldPoint 换算，本文件不做米制换算。
- * - 编辑结果写进 draftProperties.security.presenceSensors，通过 onSave 交回编辑器。
- * - routeClosed 是持久字段，但编辑期间用 closedRouteSensorIds（Set）记录"用户意图"，落盘时才与
- *   validPresenceRoute 求交，避免改到一半的路线被误判为闭合。
- *
- * 与舞台的命令约定（stage.js 的 editor-command 分支）：presence-top-view（切正交顶视图）、
- * presence-3d-view（恢复自由视角）、presence-preview-walk（编辑态行走预览开关）、
- * presence-show-hit-range（显示点击热区）。
- *
- * 其它约定：
- * - 脏标记不比较对象，而是比较 serializeEditorDraft(presencePersistState()) 的序列化结果，避免把
- *   键序 / 空值差异当成修改；
- * - 正在输入的数字 / 文本用 fieldCollectors 延迟提交，保存或重渲染前统一 flush；
- * - 人物预览是独立的 WebGLRenderer（240×160），three 走动态 import 且加载失败可忽略。
+ * manageBindings=true 从安防设置进入（可增删绑定、改触发方式），false 从人物与路线面板进入（只调路线与外观）。
+ * 路线点存楼层平面图坐标（像素，当量由 plan.pixelsPerMeter 决定），3D 侧由 presence-scene.js 换算；
+ * 编辑结果写进 draftProperties.security.presenceSensors 经 onSave 交回，routeClosed 编辑期间用
+ * closedRouteSensorIds 记录用户意图。舞台命令：presence-top-view / presence-3d-view /
+ * presence-preview-walk / presence-show-hit-range。
  */
-import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=20260920104554";
-import { mountInteraction3d } from "../core/runtime.js?v=20260920104554";
+import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=20260920131301";
+import { mountInteraction3d } from "../core/runtime.js?v=20260920131301";
 import {
   validPresenceRoute,
   snapsToPresenceStart,
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "./presence-motion.js?v=20260920104554";
-import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260920104554";
-import { randomUuid } from "/static/utils/random-id.js?v=20260920104554";
-import { serializeEditorDraft } from "../core/editor-save-status.js?v=20260920104554";
+} from "./presence-motion.js?v=20260920131301";
+import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260920131301";
+import { randomUuid } from "/static/utils/random-id.js?v=20260920131301";
+import { serializeEditorDraft } from "../core/editor-save-status.js?v=20260920131301";
 /**
  * 打开人在传感器编辑对话框。
  */
@@ -115,7 +97,7 @@ export async function openPresenceEditor({
   styleLinkElement.rel = "stylesheet";
   // 样式与 3D 预览的 runtime.css 是两套：这里只加载编辑器自身的样式表。
   styleLinkElement.href =
-    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=20260920104554";
+    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=20260920131301";
   const dialogElement = createElement("dialog", "", "i3d-editor i3d-presence-editor");
   dialogElement.setAttribute("aria-label", manageBindings ? "配置安防" : "人物与行走路线");
   // 记下打开前的焦点，关闭时还回去，键盘用户不会丢失位置。
@@ -487,12 +469,8 @@ export async function openPresenceEditor({
     }
   }
   /**
-   * 把当前草稿同步给 3D 预览（未挂载则先挂载）。
-   *
-   * 预览用的属性是「裁剪过的副本」而不是原始草稿：
-   * - 只保留当前楼层的相机与传感器，避免预览里出现别的楼层；
-   * - 关掉页面调暗 / 降饱和与自动旋转，编辑者需要看清真实材质与量体；
-   * - 只保留选中的那一条路线，防止多条路线在预览里重叠干扰。
+   * 把当前草稿同步给 3D 预览（未挂载则先挂载）：预览用裁剪过的副本而不是原始草稿 ——
+   * 只保留当前楼层的相机与传感器、关掉调暗/降饱和与自动旋转、只保留选中的那一条路线。
    */
   function syncPreview() {
     const previewFloorId = currentFloor()?.id;
@@ -746,12 +724,9 @@ export async function openPresenceEditor({
     return fieldControl;
   }
   /**
-   * 添加一个数值输入行，读写的是 selectedSensor 上的某个属性。
-   *
-   * 延迟提交模型：input 元素只是"视图"，真正写回绑定对象发生在 flushFieldCollectors()
-   * 或 change 事件里，这样用户输入到一半（如 "0." ）不会被立刻规整成最小值。
-   * displayScale 用于「存储是米 / 展示是厘米」这类单位换算，例如 size 存 1.0，
-   * 界面上按 100 显示成 100。
+   * 添加一个数值输入行，读写 selectedSensor 上的某个属性；input 只是视图，真正写回发生在
+   * flushFieldCollectors() 或 change 事件，避免用户输入到一半（如 "0."）被规整成最小值。
+   * displayScale 用于「存储是米 / 展示是厘米」这类单位换算。
    */
   function addNumberField(
     numberLabel,

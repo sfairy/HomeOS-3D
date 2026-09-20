@@ -21,20 +21,11 @@ logger = logging.getLogger("store.license.api")
 
 router = APIRouter(tags=["license"])
 
-#: S22 / B66：``/v2/*`` 是**匿名可达**的，且每一步都要做 RSA/X25519 运算 —— 不限流的话既是
-#: CPU 耗尽的放大器，也让「猜激活码」变得廉价（激活码就是授权凭据本身）。
-#:
-#: 三个维度，对应三类流量：
-#: * **按来源 IP（activate）**：兜住单机暴力猜码。它既是可枚举面，失败路径也最贵。
-#: * **按来源 IP（heartbeat / recover）**：兜住 CPU 洪水，但额度必须放得很宽 —— 这两个端点收的是
-#:   高熵会话 / 恢复令牌，**不构成枚举面**，而它们又承载常态流量：客户端后台心跳（默认 300s）与
-#:   「授权页开着时的状态轮询」都会打到这里。**B66 就是两者共用一个紧额度**：轮询把自己的配额打满，
-#:   然后被自己的限流挡在门外（限流回 429 → 页面拿不到确认 → 继续轮询）。额度按出口地址算，真实
-#:   部署里多台设备共用同一 NAT 出口时还要按台数留余量，所以做成可配置的
-#:   （``STORE_LICENSE_SESSION_IP_HOURLY_LIMIT``）。
-#: * **按激活码**：兜住换 IP 集中猜同一个码（IP 维度挡不住）。
-#:
-#: 与其它限流器一样是进程内计数，见 ``store/security/limiter.py`` 的取舍说明。
+#: ``/v2/*`` 是**匿名可达**的，且每一步都要做 RSA/X25519 运算 —— 不限流既是 CPU 耗尽的放大器，也让
+#: 「猜激活码」变得廉价（激活码就是授权凭据本身）。三个维度对应三类流量：**按来源 IP（activate）**
+#: 兜住单机暴力猜码；**按来源 IP（heartbeat / recover）**兜住 CPU 洪水但额度必须放得很宽 —— 这两个
+#: 端点收的是高熵会话/恢复令牌、不构成枚举面，却承载常态心跳与授权页轮询，额度太紧会让轮询打满自己
+#: 的配额而被自己的限流挡住（429 → 拿不到确认 → 继续轮询），故做成可配置；**按激活码**兜住换 IP 集中猜同一个码。
 _LICENSE_ACTIVATE_IP_LIMITER = SlidingWindowLimiter(limit=60, window_seconds=3600.0)
 _LICENSE_CODE_LIMITER = SlidingWindowLimiter(limit=30, window_seconds=3600.0)
 
@@ -62,7 +53,7 @@ def _retry_after_value(seconds: float | None) -> str:
     """把剩余等待时间格式化成 ``Retry-After`` 的值（至少 1 秒）。
 
     回的是**剩余**时间而不是整段窗口：客户端已经等了一会儿，不该被要求从头再等一遍
-    （与 B63 在登录限流上定的口径一致）。
+    （与登录限流同一口径）。
     """
     return str(max(1, int(seconds or 0) or 1))
 
@@ -83,27 +74,9 @@ def _run_in_worker(
     authority, method: str, body, path: str, client_ip: str | None
 ) -> tuple[dict | None, LicenseServerError | None, str]:
     """在线程池里跑完「解密 → 业务 → 加密」，返回 ``(响应体, 错误, 阶段)``。
-
-    为什么必须挪出事件循环：这三步全是**同步阻塞**的 —— 解封套与签名是 RSA/X25519 运算，业务里还要
-    开 SQLite 会话，而 SQLite 写锁争用时 ``busy_timeout`` 会一直阻塞到 5 秒。``async def`` 端点跑在
-    事件循环上，这 5 秒内**整个服务**（包括其它端点的健康检查与静态资源）一起冻结。这三个端点又匿名
-    可达（限流见 S22），天然适合用来把服务刷停。
-
-    用 ``asyncio.to_thread`` 而不是改写成同步 ``def`` 端点：请求体是 **JSON**，而 FastAPI 的
-    ``Body(bytes)`` 只对非 JSON 的 content-type 生效（``bytes`` 参数遇到 JSON 会被 pydantic 拒成
-    422），改签名就会连带改掉「非法 JSON 返回 400 且带固定 detail」这条既有契约，客户端只认结构化
-    字段，不能动。
-
-    ``stage`` 让调用方复现与改动前一致的日志与状态码 —— 解密阶段与业务阶段的失败语义并不相同
-    （前者一律 400「格式无效」，后者按业务状态码）。
-
-    **S22 的「按激活码限流」只能在这里做**：激活码在**加密载荷内部**，HTTP 层根本看不到它（这正是
-    协议的设计）。所以解密之后立刻配额，超限就以 ``LicenseServerError`` 返回 —— 不在这里抛
-    ``HTTPException``，因为上面那层 ``except Exception`` 会把它吞成 500。
-
-    **S52：先按请求里的 keyId 选代，再解密**。选中的那一代既用来解密，也用来签本次的租约
-    （``generation`` 透传给业务方法）。不选代而固定用当前一代，重叠窗口就形同虚设：旧客户端送的是
-    上一代 keyId，响应却由新密钥签发，它只会回「不受信任的授权公钥」。
+    必须挪出事件循环：解封套/签名是 RSA/X25519 运算、业务还要开 SQLite 会话（写锁争用时 ``busy_timeout``
+    会阻塞到 5 秒），跑在事件循环上会连同健康检查与静态资源一起冻结。同步 ``def`` 不能改是因为请求体是
+    JSON；``stage`` 复现一致的日志与状态码；按激活码限流只能在这里做，且必须先按 keyId 选代再解密。
     """
     stage = "decrypt"
     try:
@@ -140,9 +113,9 @@ async def _dispatch(request: Request, method: str) -> Response:
     authority = request.app.state.license_authority
     path = request.url.path
 
-    # S22 / B66：按来源 IP 限流。放在读请求体之前，这样「连解析都不做」就能挡掉洪水。
+    # 按来源 IP 限流。放在读请求体之前，这样「连解析都不做」就能挡掉洪水。
     # 桶按端点选：activate 是可枚举面，额度紧；heartbeat / recover 收的是高熵令牌，
-    # 额度宽（两者共用一个是 B66 的自锁成因，见文件头那段注释）。
+    # 额度宽（两者共用一个是自锁成因，见文件头那段注释）。
     # IP 用 resolve_client_ip 的解析结果（只在可信代理后面才采信转发头）——
     # 与验证码回显、登录限流共用同一套来源判定，避免「限流按 A 算、其它按 B 算」
     # 这类漂移，而伪造 X-Forwarded-For 正是绕开它们的手法。

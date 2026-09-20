@@ -1,22 +1,12 @@
 /*
- * 3D 户型工作室（/3d-studio，结构见 frontend/3d-studio.html）的唯一样式表。
+ * 3D 户型工作室（/3d-studio）的唯一样式表。只服务 studio.html 一个页面，页面无内联 <style>
+ * （CSP 为 style-src 'self'），所有视觉规则都必须写在这里。
  *
- * 这份样式只服务 studio.html 一个页面，页面里没有任何内联 <style>（CSP 是
- * style-src 'self'，内联样式会被拦掉），所以所有视觉规则都必须写在这里。
- *
- * 主题变量来源：
- *   - 调色板（--bg / --surface / --accent / --cyan / --danger 等）在本文件顶部的
- *     :root 里定义，不依赖 app.css 或后端下发的主题；改配色只改这一处。
- *   - --details-panel-width 与 --preview-panel-height 是例外：由 studio-app.js 在
- *     拖拽分隔条时用 style.setProperty 写到元素上，这里只提供默认兜底值。
- *   - --light-asset-icon 由每条 .light-asset-icon-* 规则自己给出，值是 vendor
- *     mdi 图标的 URL，靠 mask 上色（图标本身是纯色黑，颜色跟着 currentColor）。
- *
- * 布局前提：桌面端工具页，body 最小宽度 1180px（窄屏只做尺寸降级，不做移动端
- * 重排），面板三栏由 grid 固定分配，页面本身不允许出现滚动条。
- *
- * 版本戳：本文件与 studio-app.js 必须共用同一条 `?v=`（见 studio.html），
- * 否则新旧模块会同时加载，出现两套模块级单例状态。
+ * 主题变量：调色板（--bg / --surface / --accent / --cyan / --danger 等）在本文件顶部 :root 定义，
+ * 不依赖 app.css 或后端主题，改配色只改这一处；--details-panel-width 与 --preview-panel-height
+ * 由 studio-app.js 拖拽分隔条时写到元素上，这里只提供默认兜底值。
+ * 布局前提：桌面端工具页，body 最小宽度 1180px（窄屏只做尺寸降级），面板三栏由 grid 固定分配，
+ * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=，否则会加载出两套模块级单例。
  */
 
 /* ===== 设计令牌（主题变量） ===== */

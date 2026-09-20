@@ -1,17 +1,10 @@
 /**
- * NAS 设备目录（Profiles）。
+ * NAS 设备目录（Profiles）：把 HA 里散落的 NAS 相关实体（系统 / 存储 / 健康 / 网络）
+ * 归并成「一台 NAS = 一个 profile」。数据来自 /api/ha 的实体表与设备注册表，本文件不发请求。
  *
- * 位置：舞台页的「设备」页签需要把 HA 里散落的 NAS 相关实体（系统 / 存储 / 健康 / 网络）
- *   归并成「一台 NAS = 一个 profile」，本模块负责这套归并规则；数据来自 /api/ha 的
- *   实体表与设备注册表，本文件不发请求。
- * 对外导出：nasProfiles。
- * 全局约定：
- *   - 只认 fnos 与 synology_dsm 两个集成（见 normalizeNasPlatform），其它平台即使有同名实体也不进面板；
- *   - 指标白名单 METRIC_DEFINITIONS 同时决定「展示哪些指标」「中文标签」「分组」与排序，
- *     顺序即面板上的展示顺序；新增指标必须同时补进这张表；
- *   - 群晖（synology_dsm）的 uniqueId 里编码了主机名与指标名，解析规则见 resolveMetricIdentity，
- *     它同时也是「同一台机器的多条实体链」的归并依据。
- * 副作用：无，纯函数。
+ * 约定：只认 fnos 与 synology_dsm 两个集成；METRIC_DEFINITIONS 同时决定展示的指标、
+ * 中文标签、分组与顺序（新增指标必须补进这张表）；群晖的 uniqueId 编码了主机名与指标名，
+ * 解析见 resolveMetricIdentity。纯函数，无副作用。
  */
 
 // 指标白名单：键为 HA 的指标名，值为 [中文标签, 分组, 值类型]。
@@ -57,12 +50,9 @@ const METRIC_KEYS_BY_LENGTH = Object.keys(METRIC_DEFINITIONS).sort(
 );
 /**
  * 从实体的 uniqueId 中解析出「指标键」与「主机标识」。
- *
- * 群晖的 uniqueId 形如 `<主机名>_<实例>:<指标>`，主机名是同一台机器多条实体链的合并依据；
- * 其它平台没有固定格式，退化为「后缀匹配指标名，剩下的前缀即主机标识」。
- *
- * @returns {{key: (string|undefined), host?: (string|null), prefix?: (string|null)}}
- *   指标白名单里的键（匹配不上时为 undefined），以及主机标识。
+ * 群晖形如 `<主机名>_<实例>:<指标>`，主机名是同一台机器多条实体链的合并依据；其它平台退化为
+ * 「后缀匹配指标名，剩下的前缀即主机标识」。
+ * @returns {{key: (string|undefined), host?: (string|null), prefix?: (string|null)}} 白名单里的指标键（匹配不上为 undefined）与主机标识。
  */
 function resolveMetricIdentity(sourceEntity) {
   const uniqueId = sourceEntity.uniqueId || "";
@@ -108,11 +98,8 @@ const isSystemMetric = checkedMetric =>
       METRIC_DEFINITIONS[checkedMetric.key][1] === "network"));
 /**
  * 把 HA 实体与设备注册表聚合成 NAS profile 列表。
- *
- * 三个阶段的顺序不能颠倒：
- *   1) 从设备注册表建 profile，并沿 viaDeviceId 链路向上合并（同一台 NAS 常被拆成多台子设备）；
- *   2) 把指标实体解析出主机标识；
- *   3) 把指标归属到 profile（先按设备 ID，再按主机标识，最后按设备名前缀兜底）。
+ * 顺序不能颠倒：① 从设备注册表建 profile 并沿 viaDeviceId 合并（同一台 NAS 常被拆成多台子设备）；
+ * ② 把指标实体解析出主机标识；③ 把指标归属到 profile（设备 ID → 主机标识 → 设备名前缀兜底）。
  */
 export function nasProfiles(entities = [], devices = []) {
   // 设备注册表按 deviceId 建索引：后面所有归属判断都以它为准。

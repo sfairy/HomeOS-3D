@@ -1,16 +1,11 @@
 /*
  * NAS 状态面板（.i3d-nas-panel）在 3D 舞台内的样式。
  *
- * 位置：interaction3d 展示侧，由 stage.css @import 引入；作用对象是
- * nas-panel.js 渲染的 NAS 概览：标题、状态行、按分组排列的指标卡片
- * （卡片底部有一条按百分比填充的细条），以及底部的更新时间。
- * 面板外壳沿用灯光面板的 .i3d-light-panel，只覆盖固定高度。
+ * 由 stage.css @import 引入，作用对象是 nas-panel.js 渲染的 NAS 概览（标题、状态行、按分组排列的
+ * 指标卡片、底部更新时间）；外壳沿用 .i3d-light-panel，只覆盖固定高度。
  *
- * 主题变量：宿主页 :root 提供 --surface / --field / --line / --muted（本文件未使用）；
- * 卡片底部的细条宽度由 JS 写成内联 style.width，不经过自定义属性。
- *
- * 约定：配色统一走绿色系（NAS 属存储类设备），卡片状态只用类名表达——
- * .is-wide（时间戳占整行）、.is-warning（接近阈值）、.is-unavailable（取值失败）。
+ * 约定：卡片底部细条宽度由 JS 写成内联 style.width，不经过自定义属性；配色统一走绿色系（NAS 属存储类
+ * 设备），卡片状态只用类名表达 —— .is-wide（时间戳占整行）、.is-warning（接近阈值）、.is-unavailable（取值失败）。
  */
 
 /* 面板外壳：固定 400px，与灯光面板展开后的高度一致，指标区内部滚动。 */

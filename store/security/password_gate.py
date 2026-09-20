@@ -79,9 +79,8 @@ _last_prune_at: float = 0.0
 def maybe_prune(session: Session, *, interval_seconds: float = 3600.0) -> bool:
     """按时间节流地调用 :func:`prune`，返回本次是否真的执行了清理。
 
-    ``prune`` 之前定义了却**从来没有人调用**，于是这张表只增不减 ——
-    记录没有 TTL，且每次失败尝试都会写一行，长期运行会拖慢每次 ``_count_recent``
-    的全表扫描。挂在登录与验证码这两条本来就要写的路径上最省事。
+    ``prune`` 之前定义却没人调用，这张表只增不减且每次失败尝试都写一行，长期运行会拖慢
+    每次 ``_count_recent`` 的全表扫描。挂在登录与验证码这两条本来就要写的路径上最省事。
     """
     global _last_prune_at
     now = time.monotonic()

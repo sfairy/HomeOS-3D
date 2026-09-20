@@ -44,16 +44,11 @@ import store.core.models  # noqa: F401  仅为注册全部模型元数据
 
 logger = logging.getLogger("store.schema")
 
-#: 已从 ORM 退役、需要从存量库**物理删除**的列：``{表名: (列名, ...)}``。
-#:
-#: 为什么要登记，而不是「ORM 里没有就删」：删列在 SQLite 上要重建整张表，
-#: 一旦规则放宽成自动对比，某次误删模型字段就会在下次启动时无声地毁掉整列数据。
-#:
-#: 更隐蔽的是**不登记也不报错**的那一半：``Mapped[str]`` 会被推断成 ``NOT NULL``，
-#: 而 SQLAlchemy 不会把 Python 侧的 ``default=`` 写进 DDL，于是存量库里那一列是
-#: ``NOT NULL`` 且**没有默认值**。ORM 一旦不再映射它，INSERT 就会省略该列，
-#: 此后每次插入都以 ``NOT NULL constraint failed`` 失败 —— 且**只在存量库上**失败，
-#: 全新库（``create_all`` 建表时本就没有这一列）更不会暴露它，属于最难排查的一类漂移。
+#: 已从 ORM 退役、需从存量库**物理删除**的列：``{表名: (列名, ...)}``。
+#: 必须显式登记而非「ORM 里没有就删」：SQLite 删列要重建整张表，放宽成自动对比就会在
+#: 某次误删模型字段时无声毁掉整列；且 ``Mapped[str]`` 推断出的 ``NOT NULL`` 没有默认值，
+#: ORM 一旦不再映射它，INSERT 省略该列会每次以 ``NOT NULL constraint failed`` 失败 ——
+#: 且只在存量库上失败，全新库反而看不出来。
 _RETIRED_COLUMNS: dict[str, tuple[str, ...]] = {
     # 提现不再收集联系 QQ，改为让用户凭申请编号联系客服。
     "referral_withdrawals": ("qq",),
@@ -61,11 +56,8 @@ _RETIRED_COLUMNS: dict[str, tuple[str, ...]] = {
     "store_settings": (
         "referral_qq_group",
         "referral_qq_url",
-        # 商户订单号模板从未被任何下单路径读取（订单号统一由
-        # `security.new_order_no` 生成），而它默认值 `{{time}}-{{email}}` 与后台
-        # 提示文案里的 `{order_no}` 还对不上。留着就是一个「改了没有任何反应」
-        # 的假旋钮 —— 运营改完以为订单号会变，实际什么都不发生，还会在排障时
-        # 把注意力引到错误的方向。宁可删掉。
+        # 该模板从未被任何下单路径读取（订单号统一由 `security.new_order_no` 生成），且默认值
+        # 与后台提示文案对不上 —— 留着是个「改了没有任何反应」的假旋钮，排障时还会引错方向。
         "payment_merchant_order_template",
     ),
 }
@@ -164,13 +156,9 @@ def backup_database(
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     destination = target_dir / f"{source.name}.pre-{label}-{stamp}.bak"
 
-    #: **不能直接 ``shutil.copy2(store.db)``**（S58 实测踩到）：库跑在 WAL 模式下
-    #: （:func:`store.database.create_store_engine` 就是这么开的），新写入的行先在
-    #: ``store.db-wal`` 里，checkpoint 之前主库文件可能还是「一张表都没有」的状态。
-    #: 于是复制出来的 .bak 打不开、也没法还原 —— 而它看起来完全正常（文件名对、
-    #: 大小不为零），是最坏的一类保险：「以为有备份」比「知道自己没有备份」危险得多。
-    #: 换成 `VACUUM INTO`：由 SQLite 自己写出一份一致的快照，落盘的是完整数据，
-    #: 顺带压掉空闲页。`VACUUM` 不能在事务里跑，所以这条连接要 AUTOCOMMIT。
+    #: **不能直接 ``shutil.copy2(store.db)``**：库跑在 WAL 模式下，未 checkpoint 的写入还在
+    #: ``store.db-wal`` 里，复制出的 .bak 可能一张表都没有却看起来完全正常（「以为有备份」
+    #: 比「知道自己没有备份」危险得多）。用 `VACUUM INTO` 写一致快照，且连接须 AUTOCOMMIT。
     try:
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
             connection.exec_driver_sql("VACUUM INTO ?", (str(destination),))
@@ -406,12 +394,9 @@ def _drop_retired_columns(engine: Engine, table_name: str, columns: list[str]) -
 
     dropped: list[str] = []
     deleted: list[str] = []
-    #: 备份必须在删列之前：与重复行合并同理，这是会**毁掉数据**的一步，而且比那次
-    #: 更彻底 —— 合并只是把重复行并成一行，删列是整列消失（SQLite 的 DROP COLUMN
-    #: 会重建整张表，数据不再存在于任何地方）。`_RETIRED_COLUMNS` 白名单保证了「删
-    #: 的是登记过的那几列」，但白名单解决的是「该不该删」，不解决「删错了怎么回头」。
-    #: 一次表级备份（同名同表的多列共用一份）成本是复制一个库文件，而误删一列
-    #: 是没有任何别的补救手段的。
+    #: 备份必须在删列之前：删列是整列消失（SQLite 的 DROP COLUMN 会重建整张表，数据不再
+    #: 存在于任何地方），而 ``_RETIRED_COLUMNS`` 只保证「删的是登记过的列」，不解决
+    #: 「删错了怎么回头」；一次表级备份（同表多列共用一份）的成本只是复制一个库文件。
     backup = backup_database(engine, label=f"drop-{table_name}")
     for column in columns:
         try:
@@ -514,10 +499,8 @@ def ensure_schema(engine: Engine) -> list[str]:
                 with engine.begin() as connection:
                     connection.exec_driver_sql(ddl)
             except Exception as error:  # noqa: BLE001
-                # 建索引失败绝不能炸掉启动。最容易失败的一类正是**唯一索引**：
-                # 存量库里已经有违反唯一性的数据时，CREATE UNIQUE INDEX 会直接抛错，
-                # 而这是个结构清理步骤，不该让整个服务起不来（与删列的处理一致）。
-                # 只报警，并把「怎么修」写清楚 —— 沉默地跳过会让保护看起来是生效的。
+                # 建索引失败绝不能炸掉启动：存量库已有违反唯一性的数据时 CREATE UNIQUE INDEX
+                # 会直接抛错，而这只是结构清理步骤。只报警，并把「怎么修」写清楚。
                 logger.warning(
                     "建索引 %s.%s 失败（%s）：该索引未生效。"
                     "若这是唯一索引，通常是存量数据里已有重复值，请先清理重复行再重启。DDL=%s",

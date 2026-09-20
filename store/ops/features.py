@@ -1,16 +1,9 @@
 """客户端能力码目录（中文名 + 说明）。
 
-商品编辑里的「功能码」最终会写进租约的 ``features``，由主程序
-``LicenseService.allows`` 逐项判定客户端能用哪些能力。代码本身是英文标识，
-运营既记不住也抄不准；抄错一个字母不会报错——履约照发，客户端只是静默拦截。
-所以后台不再手写代码，改用这里的中文目录渲染下拉多选。
-
-代码清单必须与主项目保持一致：
-
-* ``backend/license/service.py`` 的 ``BASE_FEATURES``（9 项基础能力）
-* ``backend/modules/interaction3d/access.py`` 的 ``FEATURE``（3D 交互增量包）
-
-新增能力码时先改主项目，再补到这里；两边对不上等于运营勾了发不出去的能力。
+功能码会写进租约的 ``features``，由主程序 ``LicenseService.allows`` 逐项判定。代码是
+英文标识，运营手写抄错一个字母不会报错——履约照发，客户端只是静默拦截，所以改用中文
+目录渲染下拉多选。代码清单必须与主项目保持一致（``backend/license/service.py`` 的
+``BASE_FEATURES`` 与 ``backend/modules/interaction3d/access.py`` 的 ``FEATURE``）。
 """
 
 from __future__ import annotations
@@ -88,12 +81,8 @@ FEATURE_CATALOG: tuple[dict[str, str], ...] = (
 #: 全部已知代码，供校验/判重使用
 FEATURE_CODES: frozenset[str] = frozenset(item["code"] for item in FEATURE_CATALOG)
 
-#: 按分组拆出的代码集合。**只有这里能写死代码清单**（写死的其实是「哪些项目录
-#: 里」这件事）：新增能力码时改的是上面的目录，下面这些集合会自动跟上。
-#:
-#: S58 之前同一份清单在三个地方各存了一份（本文件、``serializers.BASE_FEATURES``、
-#: ``bootstrap.BASE_PRODUCT_FEATURES``），其中 ``serializers`` 那份是死代码、另外
-#: 两份的顺序还不一样；「抄错一个字母只会被客户端静默拦截」，所以这三份迟早会分叉。
+#: 按分组拆出的代码集合。**只有这里能写死代码清单**，新增能力码只改上面的目录。
+#: 同一份清单若在多处各存一份，顺序很容易不一致，而「抄错一个字母只会被静默拦截」。
 FEATURE_CODES_BY_GROUP: dict[str, frozenset[str]] = {
     group: frozenset(item["code"] for item in FEATURE_CATALOG if item["group"] == group)
     for group, _ in FEATURE_GROUPS
@@ -102,8 +91,8 @@ FEATURE_CODES_BY_GROUP: dict[str, frozenset[str]] = {
 #: 基础能力集合（主项目 ``license/service.py`` 的 ``BASE_FEATURES`` 同集）
 BASE_FEATURES: frozenset[str] = FEATURE_CODES_BY_GROUP["base"]
 
-#: 播种商品时写进 ``feature_codes_json`` 的**顺序**（与参考站 pay.habridge.cn 实测一致，
-#: 换顺序会让新装站点的商品功能码顺序与老站点不同 —— 内容由目录决定，顺序只是展示）。
+#: 播种商品时写进 ``feature_codes_json`` 的**顺序**。内容由目录决定，顺序只是展示，
+#: 换顺序会让新装站点的功能码顺序与老站点不同。
 BASE_PRODUCT_FEATURES: tuple[str, ...] = (
     "api",
     "assets",

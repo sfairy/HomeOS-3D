@@ -1,12 +1,10 @@
 /**
  * 仪表盘画布尺寸调整：把整份文档从旧分辨率换算到新分辨率。
  *
- * 位置：编辑器「画布尺寸」对话框调用；展示页不做换算，只读结果。
- * 职责：深拷贝文档后，按宽度 / 高度比例与内容缩放因子重算所有组件的
- *   position，并同步画布的 componentScale / popupScale 与重算基准。
- * 约定：resizeBaseWidth / resizeBaseHeight / resizeContentScale 三个字段
- *   记录「上一次调整的基准」，多次调整时用它们而不是当前尺寸算比例，
- *   避免连续缩放导致累积误差；数值统一四舍五入到 1e-6。
+ * 编辑器「画布尺寸」对话框调用；展示页不做换算，只读结果。深拷贝文档后按宽高比例与内容缩放
+ * 因子重算所有组件 position，并同步画布的 componentScale / popupScale 与重算基准。
+ * resizeBaseWidth / resizeBaseHeight / resizeContentScale 记录「上一次调整的基准」，多次调整
+ * 时用它而非当前尺寸算比例，避免累积误差；数值四舍五入到 1e-6。
  */
 
 // 保留 6 位小数，既压掉浮点误差，又不至于让坐标精度不足。
@@ -34,9 +32,7 @@ function scaleComponentSubtree(
     originalHeight = positiveNumberOrDefault(position.height, 100),
     originalX = Number.isFinite(Number(position.x)) ? Number(position.x) : 0,
     originalY = Number.isFinite(Number(position.y)) ? Number(position.y) : 0,
-    // 3D 控件的外框按画布比例伸缩，其余组件按统一的内容缩放因子：
-    // 3D 的内部画布是铺满自身外框渲染的，若用等比因子，外框与内部渲染口径不一致，
-    // 就会出现黑边或内容被裁切。
+    // 3D 控件外框按画布比例伸缩，其余组件按内容缩放因子：3D 内部画布铺满外框渲染，等比因子会与内部口径不一致而黑边或裁切。
     scaledWidth =
       originalWidth * (componentNode.type === "interaction3d" ? horizontalScale : contentScaleFactor),
     scaledHeight =
@@ -87,11 +83,7 @@ function scaleComponentSubtree(
 }
 
 // 摊平「文档级共享组件 + 各页面顶层组件」，作为缩放 / 越界检查的统一输入。
-// 名字从 flattenComponents 改成 flattenDocumentComponents（P10 B 类复核）：`home.js` 里那份
-// 同名函数展平的是**控件树的 children**，输入是一个控件数组；这份展平的是**文档的顶层清单**，
-// 输入是整个文档且不下钻 children。两者不是同一份知识的两种写法 —— 一个 `flattenComponents`
-// 的名字会让人以为可以互换着调用，而换过去的结果是漏掉嵌套子控件。这里按实际语义改名，
-// 不再与 home.js 那份共用名字。
+// 与 home.js 的 flattenComponents 不同：那份展平控件树的 children，这份展平文档顶层清单且不下钻。
 function flattenDocumentComponents(dashboardDocument) {
   return [
     ...(dashboardDocument.sharedComponents || []),
@@ -138,7 +130,6 @@ export function countComponentsOutsideCanvas(documentModel, documentWidth, docum
 
 /**
  * 把文档缩放到目标画布尺寸。
- *
  * @throws {Error} 宽或高不是范围内的整数时抛出中文错误文案。
  */
 export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeight, options = {}) {
@@ -169,9 +160,7 @@ export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeigh
     );
   // 尺寸没变就直接返回副本，省掉一次全树遍历。
   if (widthPx === baseWidth && heightPx === baseHeight) return resizedDocument;
-  // lockContent：只改画布大小，组件保持原样，常用于「扩展画布再手动排版」。
-  // 3D 控件是唯一例外：它的外框必须跟着画布比例走，否则 fill 模式下的
-  // 渲染尺寸会与画布对不上，缩放时出现内容拉伸或黑边。
+  // lockContent：只改画布大小、组件保持原样；3D 控件例外，外框必须跟着画布比例走，否则 fill 模式渲染尺寸对不上。
   if (options.lockContent) {
     for (const flatComponent of flattenDocumentComponents(resizedDocument)) {
       if (flatComponent.type === "interaction3d") {

@@ -1,24 +1,18 @@
 /**
- * 设备配对落地页（/pair）逻辑。
+ * 设备配对落地页（/pair）逻辑：可手输 6 位配对码，也可由二维码链接带入。
  *
- * 位置：中控设备首次配对页面，可手输 6 位配对码，也可由二维码链接直接带入。
- * 职责：识别扫码模式下的哈希参数、把配对码提交到 /api/v1/displays/pair，
- *   校验返回的面板地址后跳转过去。
- * 约定：pairing-entry.js 会把二维码哈希暂存在 window.__HA_BRIDGE_PAIRING_HASH__，
- *   本模块优先读它；配对码只允许 6 位数字；返回的 targetUrl 必须与当前站点
- *   同源且以 /display/ 开头，否则视为非法响应拒绝跳转。
- * 约定：扫码带入配对码后**不隐藏**手输入口，只把焦点交给主操作按钮 —— 隐藏一个
- *   已经聚焦的元素会把焦点甩回 body，键盘 / 读屏用户就落到了页面顶部；输入框留在
- *   原地则永远留着「改一下再连」的退路。
- * 约定：配对请求走 utils/api-fetch.js（带 20 秒超时），且按钮的恢复放在 finally 里
- *   —— 弱网下「请求永远不结算」与「按钮永久灰掉」是同一件事的两半，缺一半用户
- *   就只能刷新页面重来。
+ * 把配对码提交到 /api/v1/displays/pair，校验返回的面板地址后跳转。约定：pairing-entry.js 把二维码
+ * 哈希暂存在 window.__HA_BRIDGE_PAIRING_HASH__，本模块优先读它；配对码只允许 6 位数字；targetUrl
+ * 必须与当前站点同源且以 /display/ 开头，否则拒绝跳转。
+ * 约定：扫码带入后不隐藏手输入口，只把焦点交给主操作按钮（隐藏已聚焦元素会把焦点甩回 body，键盘 /
+ * 读屏用户就落到页面顶部）；配对请求走 utils/api-fetch.js（20 秒超时），按钮恢复放在 finally —— 弱网下
+ * 「请求不结算」与「按钮永久灰掉」是同一件事的两半。
  */
 import {
   parsePairingLink as parseScanLink,
   needsAppleInstallGuide as shouldShowInstallGuide
-} from "./pairing-link.js?v=20260920104554";
-import { apiFetch } from "../utils/api-fetch.js?v=20260920104554";
+} from "./pairing-link.js?v=20260920131301";
+import { apiFetch } from "../utils/api-fetch.js?v=20260920131301";
 
 const formElement = document.querySelector("#pair-form"),
   messageElement = document.querySelector("#message"),

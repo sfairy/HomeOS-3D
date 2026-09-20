@@ -1,33 +1,19 @@
 /**
- * 控件渲染层主体：把仪表盘文档里的控件描述渲成真实 DOM，并在运行期跟随实体状态刷新。
- *
- * 职责：
- * - 编辑器（frontend/index.html 加载 /static/editor/home.js）与中控展示页（frontend/display.html
- *   加载 /static/display/display.js）共用同一个 PanelRenderer：前者额外打开选中框、缩放 / 旋转
- *   手柄等编辑态能力，后者只走渲染与运行期刷新，两条路径的绘制结果必须完全一致；
- * - 文档解析、实体目录、图标与静态资源地址、动作派发（调 HA 服务、开弹窗、跳页）都收在
- *   这一层，页面脚本只经由 PanelRenderer 的公开方法交互，不直接摸 DOM 结构；
- * - 运行期订阅 HA 状态后按实体反查组件，只刷新受影响的组件，避免整页重建。
- *
- * 与 registry.js 的关系：控件注册表（组件类型 → 渲染函数）与底层绘制工具放在 registry.js，
- * 本文件 import 后按需 re-export。两处 import 必须写同一条 `registry.js?v=` 版本戳：版本戳
- * 不同会被浏览器当成两个模块各执行一遍，注册表出现两份，表现为控件渲染错乱、或编辑器里
- * 新增的控件类型在展示页上不生效。
- *
- * 全局命名约定：
- * - DOM class 一律 `hb-` 前缀，运行期状态类一律 `is-` 前缀，测试与样式表按这两个前缀选元素；
- * - 组件对象字段为 camelCase（componentId / entityId / properties），与后端文档 JSON 对齐；
- * - HA 侧字段名保持下划线原样（friendly_name、device_class、translation_key 等），不转换，
- *   这些名字是与 Home Assistant 约定死的，改名会导致状态取不到；
- * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
- *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
+ * 控件渲染层主体：把仪表盘文档里的控件描述渲成真实 DOM，并在运行期跟随实体状态增量刷新。
+ * 编辑器与中控展示页共用同一个 PanelRenderer，两条路径的绘制结果必须完全一致；文档解析、实体目录、
+ * 图标与静态资源地址、动作派发都收在这一层，页面脚本只经由公开方法交互，不直接摸 DOM。
+ * registry.js 的 import 必须与本文件写同一条 `registry.js?v=` 版本戳：版本戳不同会被浏览器当成两个模块
+ * 各执行一遍，注册表出现两份，表现为控件渲染错乱、或新控件在展示页上不生效。
+ * 命名约定：DOM class 用 `hb-` 前缀、运行期状态类用 `is-` 前缀；组件字段 camelCase（componentId /
+ * entityId / properties）；HA 侧字段名保持下划线原样（与 Home Assistant 约定死，改名取不到）；组件类型
+ * 字符串是文档与注册表的约定键，新增或改名必须同步 registry.js 的 registerComponent。
  */
-import { popupPlacement } from "../../bridge/popup-placement.js?v=20260920104554";
-import { formatZhDateTime } from "../../utils/datetime.js?v=20260920104554";
+import { popupPlacement } from "../../bridge/popup-placement.js?v=20260920131301";
+import { formatZhDateTime } from "../../utils/datetime.js?v=20260920131301";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
-} from "../../bridge/camera-popup-layout.js?v=20260920104554";
+} from "../../bridge/camera-popup-layout.js?v=20260920131301";
 // registry.js 是控件注册表的唯一出处，本文件只消费不注册。
 // 这里的 ?v= 必须与 home.js / display.js 里那条 registry.js?v= 完全一致；
 // 不一致会让注册表被加载两份，运行期两个模块各持一份 Map，控件类型彼此看不见。
@@ -53,23 +39,19 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260920104554";
-import { randomUuid } from "../../utils/random-id.js?v=20260920104554";
-import { apiErrorMessage } from "../../utils/api-error.js?v=20260920104554";
-// 颜色解析统一走 utils/colors.js（P10 B 类收敛）：本文件原先在 mixHexColors 里
-// 又写了一份 normalizeHexColor，与 home.js 那份同名但失败值不同（null vs 空串）。
-import { expandHexColorOrNull } from "../../utils/colors.js?v=20260920104554";
-// 「按 ID / 按实体取域」只有一份实现（P12 收口 B 类末尾那一项，含残留补齐批次）：本文件原先
-// 自带 `resolvedEntityId.split(".")[0]`（init 与重定向后各一次），外加十一处同族的内联形态。
-// 其中有 `|| ""` 守卫的、以及输入已被上游真值判断卡住的那些，换过去语义逐字相同；
-// 唯一一处真有行为差异的是组合弹窗里 `moduleResolvedEntityId` 可能整个缺席（`undefined`）
-// 的那条 —— 旧写法抛 `TypeError`，现在归一成 `""`（渲染得更稳，不改变「是不是 button」的判定）。
-import { entityDomainFromId, entityDomainOf } from "../../utils/entities.js?v=20260920104554";
-// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
-// 本文件原先有十几处内联的 `x?.newState || x[ || 兜底]`（P12 状态条目内联收口），
-// 语义与那个助手逐字相同（唯一的差别见 `state-entry.js` 里「为什么用真值判定」那段）。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920104554";
-import { popupLayoutMetrics } from "../../shared/popup-layout.js?v=20260920104554";
+} from "./registry.js?v=20260920131301";
+import { randomUuid } from "../../utils/random-id.js?v=20260920131301";
+import { apiErrorMessage } from "../../utils/api-error.js?v=20260920131301";
+// 颜色解析统一走 utils/colors.js，避免再出现「同名但失败值不同」的本地副本。
+import { expandHexColorOrNull } from "../../utils/colors.js?v=20260920131301";
+// 「按 ID / 按实体取域」只有一份实现（唯一一处与内联旧写法有行为差异的是组合弹窗里
+// `moduleResolvedEntityId` 可能整个缺席（`undefined`）的那条 —— 旧写法抛 `TypeError`，
+// 现在归一成 `""`，渲染得更稳，不改变「是不是 button」的判定）。
+import { entityDomainFromId, entityDomainOf } from "../../utils/entities.js?v=20260920131301";
+// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`
+// （唯一的语义差别见 `state-entry.js` 里「为什么用真值判定」那段）。
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
+import { popupLayoutMetrics } from "../../shared/popup-layout.js?v=20260920131301";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -88,11 +70,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "../controls/climate.js?v=20260920104554";
+} from "../controls/climate.js?v=20260920131301";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260920104554";
+} from "./device-profiles.js?v=20260920131301";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -101,26 +83,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../../shared/related-entities.js?v=20260920104554";
-import { confirmAction } from "../../shared/ui-confirm.js?v=20260920104554";
+} from "../../shared/related-entities.js?v=20260920131301";
+import { confirmAction } from "../../shared/ui-confirm.js?v=20260920131301";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260920104554";
+} from "./entity-power.js?v=20260920131301";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../../shared/virtual-entities.js?v=20260920104554";
-import { componentActionIsSupported } from "../../shared/action-rules.js?v=20260920104554";
+} from "../../shared/virtual-entities.js?v=20260920131301";
+import { componentActionIsSupported } from "../../shared/action-rules.js?v=20260920131301";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "../geometry/transform-geometry.js?v=20260920104554";
+} from "../geometry/transform-geometry.js?v=20260920131301";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -130,7 +112,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "../geometry/effect-geometry.js?v=20260920104554";
+} from "../geometry/effect-geometry.js?v=20260920131301";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -149,14 +131,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "../controls/light-runtime.js?v=20260920104554";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260920104554";
+} from "../controls/light-runtime.js?v=20260920131301";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260920131301";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "../controls/vacuum-runtime.js?v=20260920104554";
+} from "../controls/vacuum-runtime.js?v=20260920131301";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -188,16 +170,16 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "../controls/cover-runtime.js?v=20260920104554";
+} from "../controls/cover-runtime.js?v=20260920131301";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "../controls/cover-direction.js?v=20260920104554";
+import { coverMotorIsReversedForComponent } from "../controls/cover-direction.js?v=20260920131301";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260920104554";
+} from "./runtime-dialog-motion.js?v=20260920131301";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -207,13 +189,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260920104554";
+} from "./runtime-caches.js?v=20260920131301";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260920104554";
+} from "./runtime-document.js?v=20260920131301";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -324,9 +306,7 @@ const RUNTIME_DIALOG_FOCUSABLE_SELECTOR = [
 let runtimeDialogTitleSerial = 0;
 /**
  * 计算运行期弹窗的可用尺寸与缩放比例。
- *
- * 纯函数，不碰 DOM：输入画布层尺寸与设计稿尺寸，输出可用的宽高、安全内边距与缩放值，
- * 便于在编辑器与展示页两侧复用同一套尺寸口径，也便于单测。
+ * 纯函数不碰 DOM，编辑器与展示页复用同一套尺寸口径。
  */
 export function runtimeDialogLayout({
   layerWidth: layerWidthPx,
@@ -388,9 +368,7 @@ export function runtimeDialogLayout({
 }
 /**
  * 计算弹窗层与仪表盘矩形的交集，得出真正可见的视口。
- *
- * 仪表盘只占弹窗层的一部分（编辑器里还有工具条等区域），弹窗要居中在被看到的那块区域上，
- * 因此这里取两个矩形的交集而不是整个层；仪表盘参数缺失时退化成整层。
+ * 仪表盘只占弹窗层一部分，弹窗要居中在可见区域上；参数缺失时退化成整层。
  */
 export function runtimeDialogViewport({
   layerLeft: layerLeftPx = 0,
@@ -455,10 +433,8 @@ function createOptimisticToggleTimeoutError(entityId) {
   return timeoutError;
 }
 /**
- * 递归给组件及其子组件补上运行期 ID（`component-` + 随机 UUID）。
- *
- * 会把结果写回传入的对象：文档里的组件本身没有稳定 ID，而运行期刷新要按 ID 反查宿主
- * 元素，因此在渲染前统一补一遍。只在内存文档上做，不回写服务端。
+ * 递归给组件及子组件补上运行期 ID（`component-` + 随机 UUID），就地写回传入对象。
+ * 运行期刷新要按 ID 反查宿主元素；只在内存文档上做，不回写服务端。
  */
 function assignComponentIds(component) {
   component.id = "component-" + randomUuid();
@@ -468,10 +444,8 @@ function assignComponentIds(component) {
   return component;
 }
 /**
- * 判断键盘事件是否按下了「修饰键」（Alt / Ctrl，Apple 设备上还包括 Command）。
- *
- * 编辑态用按住修饰键表示多选与框选，松开即回到单选；把平台判断收在这里，
- * 免得每处交互都写一遍 userAgent 检测。
+ * 判断键盘事件是否按下了修饰键（Alt / Ctrl，Apple 设备上还包括 Command）。
+ * 编辑态按住修饰键表示多选与框选；平台判断收在这里，免得各处重复做 userAgent 检测。
  */
 function isModifierKeyPressed(keyboardEvent) {
   const platformName = navigator.userAgentData?.platform || navigator.platform || "";
@@ -494,10 +468,8 @@ export function componentDialogTitle(titleComponent, fallbackTitle) {
   return String(componentProperties.label || "").trim() || fallbackTitle;
 }
 /**
- * 取弹窗模块的标题，按四级优先级回退。
- *
- * 顺序：组件 title → 调用方兜底 → HA 实体的 friendly_name → 实体 ID。
- * friendly_name 是 HA 约定字段名，取不到再退到实体 ID，保证标题永远非空。
+ * 取弹窗模块标题，四级回退：组件 title → 调用方兜底 → HA friendly_name → 实体 ID。
+ * friendly_name 是 HA 约定字段名；末级兜底保证标题永远非空。
  */
 export function popupModuleDialogTitle(popupComponent, popupEntityState, fallbackTitleText = "") {
   return (
@@ -508,11 +480,8 @@ export function popupModuleDialogTitle(popupComponent, popupEntityState, fallbac
   );
 }
 /**
- * 往宿主元素里追加晾衣机的纯装饰图形。
- *
- * 图形本身不承载状态（升降、照明由运行期另行切换 class），因此结构与元素个数写死；
- * 用 createElement 而不是拼 HTML 字符串，一是沿用宿主文档（ownerDocument）避免跨文档
- * 元素报错，二是这些节点没有文本内容，无需 HTML 解析开销。
+ * 往宿主元素里追加晾衣机的纯装饰图形（结构写死，升降/照明由 class 另行切换）。
+ * 用 createElement + ownerDocument 避免跨文档报错，且这些节点无文本、无需 HTML 解析。
  */
 function appendAirerVisual(hostElement) {
   const ownerDocument = hostElement.ownerDocument;
@@ -538,9 +507,7 @@ function appendAirerVisual(hostElement) {
 }
 /**
  * 把晾衣机升降状态换成中文文案。
- *
- * 未知状态返回空串而不是兜底文案：调用方据此省略这一行，避免在数据未就绪时
- * 显示一个可能错误的「未知」。
+ * 未知状态返回空串而非「未知」：调用方据此省略该行，避免数据未就绪时显示错误文案。
  */
 function airerPositionLabel(positionState) {
   return (
@@ -554,9 +521,7 @@ function airerPositionLabel(positionState) {
 }
 /**
  * 创建通用的开关可视件（摇板 + 指示灯 + 可选文案区）。
- *
- * 交互与视觉解耦：返回的 sync 只负责把状态映射成 class 与 aria 属性，由调用方在状态
- * 变化时自己决定何时调用。
+ * 交互与视觉解耦：返回的 sync 只把状态映射成 class 与 aria 属性，何时调用由调用方决定。
  */
 function createSwitchVisual({
   label: labelText = "开关",
@@ -695,25 +660,15 @@ function mixHexColors(startColor, endColor, blendRatio = 0) {
 }
 /**
  * 仪表盘控件渲染器：编辑器与中控展示页共用的渲染入口。
- *
- * 生命周期：setDocument 装载页面文档 → render 建出宿主元素树 → connectRuntime 订阅 HA
- * 状态并持续增量刷新 → destroy 断开订阅、清理事件与缓存。
- * 编辑器额外走 setSelectedComponent / previewComponentTransform 等预览接口，这些预览
- * 只改 DOM 样式、不回写文档，松手后由调用方决定是否提交。
+ * 生命周期：setDocument 装载文档 → render 建宿主元素树 → connectRuntime 订阅 HA 并增量刷新 → destroy 断开订阅并清理；编辑器额外走 setSelectedComponent / previewComponentTransform 等预览接口，
+ * 这些预览只改 DOM 样式、不回写文档，松手后由调用方决定是否提交。
  */
 export class PanelRenderer {
   /**
-     * 建立渲染器实例：接管根容器，初始化缓存、索引与全局监听。
-     *
-     * 只做装配，不渲染任何内容，文档要等 setDocument 装载。构造期间就把
-     * resize / 可见性 / 网络恢复的监听挂上，是因为展示页会长期挂机，中途断网、
-     * 息屏、旋屏都要能自愈，不能依赖调用方再手动触发。
-     *
-   * @param {Function} [rendererOptions.onRuntimeAvailabilityChange] 实时推送可用性回调：
-   *   连接建立并发出订阅时为 `(true)`；服务端以 4400 永久停掉订阅时为
-   *   `(false, message)`（此后不再自动重连）。故意只报「彻底不可用」这一种，
-   *   免得宿主机把每一次自动重连中的抖动都显示成故障。
-     */
+   * 建立渲染器实例：接管根容器，初始化缓存、索引与全局监听（只装配，不渲染内容，文档等 setDocument 装载）。
+   * 构造期就挂 resize / 可见性 / 网络恢复监听，是因为展示页长期挂机，中途断网 / 息屏 / 旋屏都要能自愈。
+   * @param {Function} [rendererOptions.onRuntimeAvailabilityChange] 可用性回调：订阅建立时 `(true)`，服务端以 4400 永久停掉订阅时 `(false, message)`（此后不再自动重连）；刻意只报「彻底不可用」以免把重连抖动显示成故障。
+   */
   constructor(rootContainer, rendererOptions = {}) {
     // 包一层 onError 是刻意的：渲染运行期的异常也要进全局日志，
     // 否则展示页上只会表现为「某个控件不刷新」，排查时无线索。
@@ -854,9 +809,8 @@ export class PanelRenderer {
   }
   /**
    * 装载一份仪表盘文档并渲染出指定页面。
-   *
-   * 会重置一切与上一份文档绑定的运行期状态（订阅生成号、历史曲线、待开弹窗、
-   * 悲观/乐观状态等），等同于换实例，调用方不必先 destroy。
+   * 会重置所有与上一份文档绑定的运行期状态（订阅生成号、历史曲线、待开弹窗等），
+   * 等同于换实例，调用方不必先 destroy。
    */
   setDocument(documentData, pagePath = null) {
     this.destroyed = false;
@@ -947,9 +901,8 @@ export class PanelRenderer {
   }
   /**
    * 用最新的资产版本戳刷新内置素材（图标、图片等）。
-   *
-   * 版本戳是资源地址的一部分（`?v=`），变化后必须重新渲染并重新预载，否则浏览器会继续
-   * 用旧版本缓存。没有新增版本时不重绘，避免每次心跳都整页刷新。
+   * 版本戳是资源地址的一部分（`?v=`），变化后必须重渲染并重预载，否则浏览器继续用旧缓存；
+   * 无新增版本时不重绘，避免每次心跳都整页刷新。
    */
   refreshBuiltinAssets(assetVersionEntries = []) {
     const assetVersionResult = setBuiltinAssetVersions(assetVersionEntries);
@@ -961,9 +914,7 @@ export class PanelRenderer {
   }
   /**
    * 把文档里用到的静态图片交给图片缓存分层预载。
-   *
-   * 分两批：整份文档的图片作为低优先级预热，当前页的图片优先加载 ——
-   * 一份仪表盘动辄跨页引用上百张图，同优先级抢带宽会明显拖慢首屏。
+   * 整份文档的图片作低优先级预热、当前页优先加载：跨页上百张图同优先级抢带宽会拖慢首屏。
    */
   preloadStaticImages() {
     if (!this.document || !this.page) {
@@ -1003,9 +954,8 @@ export class PanelRenderer {
   }
   /**
    * 注入实体目录、翻译表与设备目录，随后整体重渲染并重新订阅。
-   *
-   * 目录是设备画像与实体可读名的来源，未就绪时部分控件只能走降级分支，因此目录到达后
-   * 必须重画一次；同时用 tryOpenPendingEntityDetails 补开先前因缺目录而挂起的详情弹窗。
+   * 目录是设备画像与实体可读名的来源，缺失时控件只能降级，因此到达后必须重画一次；
+   * 并补开先前因缺目录而挂起的详情弹窗（tryOpenPendingEntityDetails）。
    */
   setEntityCatalog(entityRecords = [], translationTable = {}, deviceRecords = []) {
     this.entityMetadata = new Map(
@@ -1043,36 +993,28 @@ export class PanelRenderer {
   }
   /**
    * 把实体 ID 归一成字符串。
-   *
-   * 组件绑定里可能缺字段（undefined / null），直接当 Map 键会各自成一个键，
-   * 状态查表因此失效，统一归一后不会出现「同一个实体两个键」。
+   * 绑定里可能缺字段（undefined / null），直接当 Map 键会各自成键导致状态查表失效。
    */
   runtimeEntityId(rawEntityId) {
     return String(rawEntityId || "");
   }
   /**
    * 图标显隐虚拟实体的作用域键。
-   *
-   * 按页面区分：同一个图标显隐开关在不同页面上互不影响，缺页面信息时退化成
-   * "current-page"，保证多页共用同一个键时也不会串。
+   * 按页面区分，不同页面的同一开关互不影响；缺页面信息时退化成 "current-page"。
    */
   iconVisibilityPageKey() {
     return String(this.page?.path || this.page?.id || "current-page");
   }
   /**
    * 当前页图标按钮的显隐状态（缺省视为显示）。
-   *
-   * 只把「显式为 false」当作隐藏：状态尚未写入时应当按可见渲染，
-   * 否则首帧会出现整页图标空一下再出现。
+   * 只把显式 false 当作隐藏：状态未写入时按可见渲染，否则首帧图标会空一下再出现。
    */
   iconVisibilityState() {
     return this.virtualEntityStates.get(this.iconVisibilityPageKey()) !== false;
   }
   /**
    * 切换「虚拟实体」的开关状态（目前只用于图标按钮的整体显隐）。
-   *
-   * 虚拟实体是渲染器自造的实体（virtual.xxx），不来自 HA，只存在本实例的状态缓存里。
-   *
+   * 虚拟实体是渲染器自造的（virtual.xxx），不来自 HA，只存在本实例的状态缓存里。
    * @throws {Error} 不是图标显隐类虚拟实体，或当前页没有图标按钮（效果）控件。
    */
   toggleVirtualEntity(virtualEntityId) {
@@ -1100,9 +1042,8 @@ export class PanelRenderer {
   }
   /**
    * 判断热水器详情所需的状态数据是否已就绪。
-   *
-   * 详情面板要画温度区间（HA 约定字段 temperature / min_temp / max_temp），
-   * 三者缺一或区间非法就无法画刻度，此时先不开详情，由调用方挂起等待。
+   * 要画温度区间（HA 字段 temperature / min_temp / max_temp），缺一或区间非法就无法画刻度，
+   * 此时先不开详情，由调用方挂起等待。
    */
   waterHeaterDetailsReady(waterHeaterEntityId) {
     if (!this.entityCatalogReady) {
@@ -1231,9 +1172,8 @@ export class PanelRenderer {
   }
   /**
    * 解析组件真正该用的「电源实体」，即开关语义挂在哪一个实体上。
-   *
-   * 三级回退：实体画像给出的电源目标 → 浴室取暖器把开关挂在同设备照明实体上的约定 →
-   * 组件自己绑定的实体。第三级是兜底，保证任何情况下都返回可用实体。
+   * 三级回退：实体画像的电源目标 → 浴室取暖器挂同设备照明实体的约定 → 组件自身绑定实体；
+   * 第三级兜底，保证任何情况下都返回可用实体。
    */
   powerEntityId(
     powerComponent,
@@ -1274,10 +1214,8 @@ export class PanelRenderer {
   }
   /**
    * 返回把绑定重指向电源实体的组件副本，供运行期刷新使用。
-   *
-   * 电源实体与绑定实体一致时原样返回（省掉一次对象展开）。不一致时额外把原实体 ID
-   * 记进 properties.runtimePowerEntityId：状态推送是按电源实体来的，但界面文案与
-   * 其它绑定仍按原实体，刷新时需要两个 ID 都在手。
+   * 电源实体与绑定实体一致时原样返回；不一致时把原实体 ID 记进
+   * properties.runtimePowerEntityId —— 状态推送按电源实体来，但文案与其它绑定仍按原实体。
    */
   runtimePowerComponent(
     runtimeComponent,
@@ -1378,9 +1316,7 @@ export class PanelRenderer {
   }
   /**
    * 指定某个组件的选中框要挂在哪一层上。
-   *
-   * 气流层、效果层、门窗外透视的可见范围都不等于宿主根节点，选中框必须挂到对应子层
-   * 才能与图形对齐，因此在渲染时先把这层信息记下来。
+   * 气流层、效果层、门窗外透视的可见范围不等于宿主根节点，选中框挂到对应子层才能对齐。
    */
   setComponentSelectionLayer(layerComponentId, layerKind = "button") {
     if (layerComponentId) {
@@ -1458,9 +1394,8 @@ export class PanelRenderer {
   }
   /**
    * 预览组件属性补丁：合并进组件记录后按控件类型走最小重绘。
-   *
-   * 与 previewComponentTransform 同样是高频路径，区别是它可能需要重画控件内容
-   * （例如改亮度、改文案），因此这里会有条件地重建该组件的可视件。
+   * 高频路径；与变换预览不同，属性变化可能要重画控件内容（如亮度、文案），
+   * 因此会有条件地重建该组件的可视件。
    */
   previewComponentProperties(propertyComponentId, propertyPatch = {}) {
     const propertyRecord = this.componentRecords.get(propertyComponentId);
@@ -1584,9 +1519,7 @@ export class PanelRenderer {
   }
   /**
    * 按当前选中集合重建选中框与变换手柄。
-   *
-   * 先整体移除旧框再重画，而不是尝试复用：选中框数量少、重建代价低，
-   * 复用反而容易出现残留的旧手柄（尤其是切换 airflow / effect 层时）。
+   * 先整体移除再重画而不复用：数量少、重建便宜，复用易残留旧手柄（尤其切换气流/效果层时）。
    */
   syncSelection() {
     this.canvas
@@ -1686,9 +1619,8 @@ export class PanelRenderer {
   }
   /**
    * 收集当前选中组件的记录与宿主元素，供批量缩放 / 旋转使用。
-   *
-   * 只有当所有宿主同属一个父元素时才返回结果：缩放要以共同父级为坐标系，
-   * 跨父级的选中集合不存在统一的参考系，此时退化为不显示多选框。
+   * 仅当所有宿主同属一个父元素时才返回：缩放要以共同父级为坐标系，
+   * 跨父级没有统一参考系，此时退化为不显示多选框。
    */
   selectedScaleRecords() {
     const selectedRecords = [...this.selectedComponentIds].map(selectedComponentId => ({
@@ -1713,9 +1645,7 @@ export class PanelRenderer {
   }
   /**
    * 沿父级链累加旋转与缩放，得出该组件父级坐标系相对画布的总变换。
-   *
-   * 用 visited 集合防环：文档损坏或拖动中可能出现父子互指的临时状态，
-   * 不防环会直接把界面卡死在这一帧。
+   * 用 visited 集合防环：损坏文档或拖动中的父子互指会让界面卡死在这一帧。
    */
   componentParentTransform(chainComponentId) {
     let parentComponentId = this.componentParentIds?.get(chainComponentId) || null;
@@ -1759,9 +1689,8 @@ export class PanelRenderer {
   }
   /**
    * 把变换链上的旋转相加、缩放相乘，得到组件的世界变换。
-   *
-   * 单级缩放夹在 0.01~5：这两端是编辑器的缩放下限/上限，链上出现越界值
-   * （例如文档被手改）会让包围盒算成 0 或无穷大，手柄随之消失。
+   * 单级缩放夹在 0.01~5（编辑器缩放的上下限）：越界值（如文档被手改）会让包围盒
+   * 算成 0 或无穷大，手柄随之消失。
    */
   componentWorldTransform(worldTransformComponentId) {
     return this.componentTransformChain(worldTransformComponentId).reduce(
@@ -1778,10 +1707,9 @@ export class PanelRenderer {
     );
   }
   /**
-   * 画布坐标 → 组件局部坐标。
-   *
-   * 逆序走变换链做逆向变换，与 componentLocalPointToWorld 必须严格互逆，
-   * 否则「按下点」与「拖动点」会算到不同坐标系，表现为控件跟手偏移。
+   * 画布坐标 → 组件局部坐标：逆序走变换链做逆向变换。
+   * 与 componentLocalPointToWorld 必须严格互逆，否则按下点与拖动点算到不同坐标系，
+   * 表现为控件跟手偏移。
    */
   worldPointToComponentLocal(localPointComponentId, worldX, worldY) {
     let localPoint = {
@@ -1853,12 +1781,8 @@ export class PanelRenderer {
   }
   /**
    * 计算组件在画布上的轴对齐包围盒（已计入缩放与旋转）。
-   *
-   * 两种特殊情况：
-   * 1. light-statistics 的可视范围与其 position 声明不一致（图例宽度随内容变），
-   *    因此改读真实选中框的尺寸；
-   * 2. 有旋转时用「半宽半高在坐标轴上的投影」求外接矩形，而不是取旋转后的四个角点，
-   *    这样包围盒不会随角度抖动。
+   * light-statistics 的可视范围与 position 声明不一致（图例宽度随内容变），因此改读真实选中框尺寸；
+   * 有旋转时用「半宽半高在坐标轴上的投影」求外接矩形，而不是取旋转后的四个角点，这样包围盒不随角度抖动。
    */
   componentVisualBounds(boundsComponent, boundsHostElement = null) {
     const boundsPosition = boundsComponent.position || {};
@@ -1970,9 +1894,7 @@ export class PanelRenderer {
   }
   /**
    * 按画布缩放与世界缩放反向放大多选手柄。
-   *
-   * 手柄是画在已缩放的坐标系里的，若不反向补偿，画布缩小时手柄会小到点不中，
-   * 放大时又会变成巨大的方块。
+   * 手柄画在已缩放的坐标系里，不反向补偿就会在画布缩小时小到点不中、放大时变成大方块。
    */
   updateMultiSelectionHandleScale(multiBoundsElement, measuredBoundsRect = null) {
     if (!multiBoundsElement) {
@@ -2048,9 +1970,7 @@ export class PanelRenderer {
   }
   /**
    * 批量预览一组组件的变换（多选拖动 / 缩放 / 旋转的高频路径）。
-   *
-   * 一次性写入整批组件再统一触发回流，而不是逐个组件分别读写样式，
-   * 否则每个组件都会引发一次强制同步布局，多选十几块控件时肉眼可见地卡。
+   * 一次性写入整批再统一触发回流；逐个组件读写样式会各自引发强制同步布局，多选时明显卡顿。
    */
   previewComponentsTransform(transformList, leadComponentId = this.selectedComponentId) {
     for (const componentTransformItem of transformList || []) {
@@ -2105,9 +2025,8 @@ export class PanelRenderer {
   }
   /**
    * 开始多选缩放：按指针相对包围盒中心距离的变化换算缩放比例。
-   *
-   * 只写预览变换，松手后由调用方决定是否提交文档；起始包围盒与指针距离在这里
-   * 一次性记下，后续每帧只做比例换算，避免累积误差。
+   * 只写预览变换，松手后由调用方决定是否提交文档；起始包围盒与指针距离一次性记下，
+   * 后续每帧只做比例换算，避免累积误差。
    */
   startComponentsScale(scalePointerEvent, recordList, boundsRect, activeBoundsElement) {
     scalePointerEvent.preventDefault();
@@ -2152,9 +2071,7 @@ export class PanelRenderer {
     scalePointerEvent.currentTarget.setPointerCapture(activePointerId);
     /**
      * 多选缩放期间的指针移动处理：按指针到包围盒中心的距离比例缩放整批组件。
-     *
-     * 只写预览变换与 DOM 样式（不提交文档），并同步更新多选框自身的尺寸；
-     * 缩放因子被夹在 minScaleFactor/maxScaleFactor 之间。
+     * 只写预览变换与 DOM 样式、不提交文档，并同步更新多选框尺寸；缩放因子夹在上下限之间。
      */
     const onScalePointerMove = scaleMoveEvent => {
       if (scaleMoveEvent.pointerId !== activePointerId) {
@@ -2415,10 +2332,8 @@ export class PanelRenderer {
   }
   /**
    * 建立（或复用）画布与视口，并渲染当前页的全部组件。
-   *
-   * retainedHostMap 是刻意保留的宿主元素（3D 舞台、楼层平面图预览）：这类控件内部
-   * 持有 WebGL 上下文或运行期实例，重建代价极高，且重建后需要重新加载模型，
-   * 因此在换文档 / 换页时直接把原 DOM 节点搬过来继续用。
+   * retainedHostMap 是刻意保留的宿主（3D 舞台、楼层平面图预览）：内部持有 WebGL 上下文
+   * 或运行期实例，重建代价极高，换文档 / 换页时直接搬原 DOM 节点继续用。
    */
   render(retainedHostMap = null) {
     const canReuseHosts =
@@ -2690,9 +2605,8 @@ export class PanelRenderer {
   }
   /**
    * 注册「实体状态变化 → 回调」的运行期处理器。
-   *
-   * 一个实体可以挂多个处理器（例如同一实体被多个控件引用），因此按实体存 Set。
-   * 传入 scope 组件 ID 后，组件销毁时会自动注销，避免控件层忘记解绑导致泄漏。
+   * 同一实体可挂多个处理器（被多个控件引用），因此按实体存 Set；传入 scope 组件 ID 后
+   * 组件销毁时会自动注销，避免控件层忘记解绑导致泄漏。
    */
   registerRuntimeStateHandler(handlerEntityId, stateHandler, handlerScopeComponentId = null) {
     const runtimeStateHandlerKey = String(handlerEntityId || "");
@@ -2749,9 +2663,8 @@ export class PanelRenderer {
   }
   /**
    * 收集单个组件（不含子组件）绑定到的全部实体 ID。
-   *
-   * 刻意把 children 清空：实体索引按组件逐个建立，子组件会各自登记，
-   * 若在这里递归会把父组件错误地关联到子组件的实体上，刷新时连坐重绘。
+   * 刻意清空 children：实体索引按组件逐个建立、子组件各自登记，递归会把父组件错误关联到
+   * 子组件的实体上，刷新时连坐重绘。
    */
   runtimeEntityIdsForComponent(indexedRuntimeComponent) {
     const runtimeEntityIdSet = collectEntityIds([
@@ -2794,9 +2707,7 @@ export class PanelRenderer {
   }
   /**
    * 把组件从实体索引中摘除，并顺手清掉空集合。
-   *
-   * 清空集合是必要的：索引里残留大量空 Set 会让每次状态推送都多遍历一批
-   * 无意义的实体键，展示页长时间运行后这个开销会累积起来。
+   * 残留的空 Set 会让每次状态推送多遍历一批无意义实体键，长跑后开销累积。
    */
   unindexRuntimeComponent(unindexedComponentId) {
     for (const [indexedEntityId, indexedComponentIds] of this.runtimeEntityComponentIndex) {
@@ -2824,8 +2735,7 @@ export class PanelRenderer {
   }
   /**
    * 重绘单个组件（状态推送与编辑器属性回写都走这里）。
-   *
-   * 宿主已从 DOM 上摘掉时直接跳过：拖拽重排、删除控件的瞬间仍可能收到状态推送，
+   * 宿主已从 DOM 摘掉时跳过：拖拽重排、删除控件的瞬间仍可能收到状态推送，
    * 此时重建会把已删除的控件又贴回页面。
    */
   refreshRuntimeComponent(runtimeComponentId) {
@@ -2969,10 +2879,8 @@ export class PanelRenderer {
   }
   /**
    * 在编辑态下就地刷新单个组件（改属性后不整页重绘）。
-   *
-   * 分三类处理：3D 舞台与组必须整体重建（内部状态无法增量更新）；楼层平面图若是
-   * 「预览层有无」发生变化，只改样式与提示文案，避免重跑生成流程；其余控件拆掉重建，
-   * 并记下原兄弟节点以便插回原位置 —— DOM 顺序即层叠顺序，插回错位会让遮挡关系突变。
+   * 3D 舞台与组必须整体重建；楼层平面图仅在「预览层有无」变化时改样式与文案，避免重跑生成；
+   * 其余控件拆掉重建并记下原兄弟节点插回原位 —— DOM 顺序即层叠顺序，错位会突变遮挡关系。
    */
   refreshEditorComponent(editorComponentId) {
     // 展示页没有属性面板，走不到这条路径；提前挡掉可以避免误改运行期状态。
@@ -3093,10 +3001,8 @@ export class PanelRenderer {
   }
   /**
    * 按实体 ID 批量刷新受影响的组件（状态推送的入口）。
-   *
-   * 分两路：开关类控件走 updateOptimisticToggleVisuals（它要同时处理乐观态与状态
-   * 尚未落定时的过渡态），其余组件逐个重绘。line-chart / camera / vacuum-map 另有
-   * 更重的刷新通道，这里跳过，避免同一帧里重复加载同一份数据。
+   * 开关类控件走 updateOptimisticToggleVisuals（要兼顾乐观态与过渡态），其余逐个重绘；
+   * line-chart / camera / vacuum-map 另有更重的刷新通道，这里跳过以免同帧重复加载。
    */
   refreshRuntimeComponents(entityIds) {
     const affectedComponentIds = new Set();
@@ -3140,10 +3046,8 @@ export class PanelRenderer {
   }
   /**
    * 把编辑器提交的组件更新并入文档并局部刷新（不整页重绘）。
-   *
-   * 前置校验很严：任一更新的组件已不存在、宿主已摘除、或组件类型被改，就整体放弃并返回
-   * false，由调用方退化为整页重渲染 —— 类型变了意味着可视件结构完全不同，局部替换会留下
-   * 上一个类型的残留 DOM。
+   * 前置校验很严：任一组件已不存在、宿主已摘除或类型被改就整体放弃并返回 false，
+   * 由调用方退化为整页重渲染 —— 类型变了可视件结构完全不同，局部替换会留下残留 DOM。
    */
   applyEditorComponentUpdates(updatedDocument, currentPagePath, componentUpdates = []) {
     if (!this.options.editable || !this.document || !Array.isArray(componentUpdates)) {
@@ -3241,9 +3145,8 @@ export class PanelRenderer {
   }
   /**
    * 合并短时间内的状态推送，延迟统一刷新。
-   *
-   * 展示页上一次状态变化常同时带来十几个实体更新，逐个刷新会连续触发重排；这里把实体 ID
-   * 攒进集合，并只保留一个定时器（重设即重新计时），抖动窗口内的刷新被压成一次。
+   * 一次状态变化常带来十几个实体更新，逐个刷新会连续触发重排；这里把实体 ID 攒进集合、
+   * 只保留一个定时器（重设即重新计时），抖动窗口内的刷新压成一次。
    */
   scheduleRuntimeRender(scheduledEntityId, renderDelayMs = 120) {
     if (!this.destroyed && !!this.document && !!scheduledEntityId) {
@@ -3265,10 +3168,9 @@ export class PanelRenderer {
     }
   }
   /**
-   * 切换效果层的激活态，并在需要时播一次淡变。
-   *
-   * 先读一次 offsetWidth 强制回流：让浏览器在下一帧真正执行过渡，否则「加过渡类又立刻
-   * 换激活类」会被并入同一次样式计算，动画不生效。
+   * 切换效果层的激活态并在需要时播一次淡变。
+   * 先读 offsetWidth 强制回流，否则「加过渡类又立刻换激活类」会被并入同一次样式计算，
+   * 过渡不生效。
    */
   setEffectLayerActive(layerHostElement, isActive, fadeDurationSeconds = 0) {
     if (!layerHostElement) {
@@ -3300,9 +3202,8 @@ export class PanelRenderer {
   }
   /**
    * 按实体灯效状态同步效果层的不透明度与滤镜。
-   *
-   * 最终透明度 = 用户设定的效果不透明度 × 灯效状态推出的系数；另外维护
-   * awaiting-light-visual 标记：状态尚未到达时先不显示灯效，避免先闪一帧默认亮度。
+   * 最终透明度 = 用户设定的不透明度 × 灯效状态推出的系数；awaiting-light-visual 标记
+   * 用于状态未到达时先不显示，避免闪一帧默认亮度。
    */
   syncEffectLayerLightVisual(effectComponent, layerElement) {
     if (!layerElement || effectComponent?.type !== "icon-button-effect") {
@@ -3336,9 +3237,8 @@ export class PanelRenderer {
   }
   /**
    * 取灯具最近一次确认过的可视状态（先内存缓存，再本地存储）。
-   *
-   * 走本地存储是为了整页刷新后仍按上次亮度 / 色温绘制；超过 30 天
-   * （2592000000ms）的缓存直接丢弃，避免用户换了灯后一直沿用旧属性。
+   * 走本地存储是为了整页刷新后仍按上次亮度 / 色温绘制；超过 30 天（2592000000ms）
+   * 的缓存直接丢弃，避免用户换灯后一直沿用旧属性。
    */
   cachedLightVisualState(lightEntityIdInput) {
     const lightEntityId = String(lightEntityIdInput || "");
@@ -3374,9 +3274,7 @@ export class PanelRenderer {
   }
   /**
    * 记住灯具最后一次「亮着」的可视属性，供下次开机或状态缺失时还原外观。
-   *
-   * 只有含亮度或色温的更新才记录：关灯推送里这些属性通常缺省，若照记会把上次亮度
-   * 覆盖成空值，再开机时控件会退回默认亮度。
+   * 只在含亮度或色温的更新里记录：关灯推送通常缺省这些属性，照记会把上次亮度覆盖成空值。
    */
   rememberLightVisualState(visualEntityIdInput, visualStateUpdate) {
     const visualEntityId = String(visualEntityIdInput || "");
@@ -3386,10 +3284,9 @@ export class PanelRenderer {
     }
     const stateAttributes = newEntityState.attributes;
     /**
-     * 判断某个状态属性是否为「可用数值」：非 null/undefined/空串且能转成有限数。
-     *
-     * 灯在关机或离线时亮度/色温可能是 "" 或 null，直接 Number() 会得到 0 或 NaN，
-     * 所以这里既排除空值又做 Number.isFinite 校验，避免把无效值写进缓存。
+     * 判断状态属性是否为可用数值：非 null/undefined/空串且能转成有限数。
+     * 关机或离线时亮度/色温可能是 "" 或 null，Number() 会得到 0 或 NaN，
+     * 因此既排除空值又做 Number.isFinite 校验，避免无效值写进缓存。
      */
     const attributeHasNumericValue = attributeName =>
       stateAttributes[attributeName] !== null &&
@@ -3443,10 +3340,8 @@ export class PanelRenderer {
   }
   /**
    * 判断某实体的乐观态是否已被真实状态确认，确认后清除乐观标记。
-   *
-   * 三个出口：无乐观态直接算确认；乐观态超过有效期算确认并清除；真实状态与期望一致算确认。
-   * 灯效控件多一层判断：亮度等可视属性尚未到位时不算确认，否则会先按默认亮度画一帧
-   * 再跳到真实亮度，出现可见的闪烁。
+   * 三个出口：无乐观态 / 乐观态超有效期 / 真实状态与期望一致，均算确认。
+   * 灯效控件多一层：亮度等可视属性未到位时不算确认，否则会先按默认亮度闪一帧。
    */
   optimisticStateIsConfirmed(optimisticEntityIdInput, optimisticStateUpdate) {
     const pendingOptimistic = this.pendingOptimisticStates.get(
@@ -3501,9 +3396,8 @@ export class PanelRenderer {
   }
   /**
    * 刷新开关类控件的可视状态（含乐观态与状态未落定时的过渡态）。
-   *
-   * cover 域单独处理：窗帘 / 晾衣机的「开」不是 state 为 on，而是位置到达；梦幻帘又另有一套
-   * 判定口径。编辑器强制预览态优先级最高，用于属性面板实时预览。
+   * cover 域单独处理：窗帘 / 晾衣机的「开」看位置到达而非 state，梦幻帘另有一套口径；
+   * 编辑器强制预览态优先级最高，用于属性面板实时预览。
    */
   updateOptimisticToggleVisuals(entityIdFilter, componentIdFilter = null) {
     for (const [componentId, componentRecord] of this.componentRecords) {
@@ -3793,9 +3687,8 @@ export class PanelRenderer {
   }
   /**
    * 写下乐观的开关状态并立即刷新界面，返回可撤销的还原函数。
-   *
-   * 交互路径上先让界面响应，再等 HA 推送确认（见 optimisticStateIsConfirmed）。
-   * 8 秒内没等到确认就自动回滚：既不让界面长期停在错误状态，也给慢设备留出余量。
+   * 交互路径先让界面响应，再等 HA 推送确认；8 秒内没等到就自动回滚，
+   * 既不让界面长期停在错误状态，也给慢设备留余量。
    */
   applyOptimisticToggle(toggleEntityIdInput, toggleComponent = null) {
     const optimisticEntityId = toggleEntityIdInput;
@@ -3879,13 +3772,9 @@ export class PanelRenderer {
         return;
       }
       restoreConfirmedState();
-      // 回滚必须说出来。界面自己变色、又自己变回去，用户唯一的解释是「点了没反应」，
-      // 于是会反复点同一下（每次都在 8 秒后再来一遍）；而真正的事实是「命令发出去了，
-      // 但设备 / HA 一直没回报状态」。这条一次性提示就是那个事实的唯一出口 ——
-      // 编辑器的错误弹窗与展示页的横幅都挂在这个回调上。
-      //
-      // 只在**真的回滚了**这一支上报（上面两个 return 都是「已经有人处理过」）：
-      // 手动撤销或 HA 推送到达时回滚函数会被清掉，那条路径不该报错。
+      // 回滚必须说出来：界面自己变回去、用户只看到「点了没反应」会反复点，
+      // 而事实是命令已发出、设备 / HA 未回报状态，这条一次性提示是它唯一的出口。
+      // 只在真的回滚了这一支上报（手动撤销或 HA 推送到达时回滚函数已被清掉）。
       this.options.onError?.(createOptimisticToggleTimeoutError(resolvedPowerTargetEntityId));
     }, OPTIMISTIC_TOGGLE_CONFIRM_TIMEOUT_MS);
     this.states.set(resolvedPowerTargetEntityId, nextStoredState);
@@ -3902,7 +3791,6 @@ export class PanelRenderer {
   }
   /**
    * 渲染单个组件：创建或复用宿主元素，再交给注册表里对应的渲染函数画内容。
-   *
    * 宿主复用只对 camera / vacuum-map / floorplan-auto-diagram / interaction3d / group 开放：
    * 这几类内部持有媒体流、WebGL 上下文或子组件树，重建代价高且会闪。
    */
@@ -4171,10 +4059,8 @@ export class PanelRenderer {
         activeEffectLayer.hidden = renderedComponent.style?.visible === false;
         /**
          * 计算并写入图标按钮效果层的位置与尺寸。
-         *
          * 图片自然尺寸未知时先隐藏图层（pendingNaturalSize），等 load 后由调用方再调一次，
-         * 避免用错误尺寸闪一帧；嵌套在分组内时还要把画布坐标换算回父组件局部坐标，
-         * 并反向抵消父层缩放与旋转。
+         * 避免用错误尺寸闪一帧；嵌套在分组内时还要换算回父组件局部坐标并反向抵消父层缩放旋转。
          */
         const applyEffectLayerLayout = () => {
           const sourceDimensions = effectSourceDimensions(
@@ -4373,9 +4259,8 @@ export class PanelRenderer {
       let lineChartElement = contentElement;
       /**
        * 历史曲线整块重渲染：重跑一次控件渲染函数并替换旧节点。
-       *
-       * 只在历史数据加载中（history-loading）时整块重建，其余情况走上方的增量刷新；
-       * 替换前先调 cleanupLineChartHover 解绑旧节点上的悬停监听，否则旧实例会泄漏。
+       * 只在历史数据加载中（history-loading）整块重建，其余走增量刷新；替换前先解绑旧节点的
+       * 悬停监听（cleanupLineChartHover），否则旧实例会泄漏。
        */
       const refreshLineChart = () => {
         if (!lineChartElement?.isConnected) {
@@ -4490,9 +4375,8 @@ export class PanelRenderer {
   }
   /**
    * 开始拖动组件（编辑器的核心交互）。
-   *
    * 拖动期间只走预览变换，松手后由调用方决定是否写入文档；指针捕获元素由调用方指定，
-   * 以便在拖出宿主元素边界后仍能持续收到移动事件。
+   * 以便拖出宿主边界后仍能持续收到移动事件。
    */
   startComponentMove(
     dragPointerEvent,
@@ -4595,10 +4479,8 @@ export class PanelRenderer {
     dragRecords.forEach(movingRecord => movingRecord.host.classList.add("moving"));
     /**
      * 组件拖动期间的指针移动处理：把屏幕位移换算成画布坐标并更新整批被拖组件。
-     *
-     * 同时处理三件事：按住修饰键时「拖出副本」（位移超过 3px 才真正克隆，避免误触）、
-     * 按住 Shift 时锁定单轴、按 dragBounds 夹取增量。增量最后经父级变换换算成
-     * 局部坐标写入组件 position，只做预览不落库，抬手时才提交。
+     * 同时处理三件事：修饰键「拖出副本」（位移超 3px 才克隆，避免误触）、Shift 锁定单轴、
+     * 按 dragBounds 夹取增量；增量经父级变换换算成局部坐标写入 position，只预览不落库。
      */
     const onDragPointerMove = moveEvent => {
       if (moveEvent.pointerId !== dragPointerId) {
@@ -4741,10 +4623,9 @@ export class PanelRenderer {
       }
     };
     /**
-     * 结束拖动：解绑全局监听，并按本次手势类型分别提交（新建副本 / 多选位移 / 单选位移）。
-     *
-     * 位置没变就不提交，避免一次纯点击也在文档里留下无意义的改动记录；
-     * 副本分支的坐标以拖动过程中最后的预览值为准，取不到时退回起始位置。
+     * 结束拖动：解绑全局监听，并按手势类型分别提交（新建副本 / 多选位移 / 单选位移）。
+     * 位置没变就不提交，避免纯点击留下无意义的改动记录；副本分支以拖动中最后的预览值为准，
+     * 取不到时退回起始位置。
      */
     const onDragPointerEnd = (dragEndEvent = null) => {
       if (
@@ -4819,9 +4700,7 @@ export class PanelRenderer {
   }
   /**
    * 为组件创建选中框（已存在则复用）。
-   *
-   * 宿主父层不是画布且自身未隐藏时返回 null：这类组件（例如组内成员）的选中框由父级
-   * 统一提供，各自再画一层会叠出双框。
+   * 宿主父层不是画布且自身未隐藏时返回 null：这类组件（如组内成员）的选中框由父级统一提供。
    */
   createComponentSelectionOverlay(overlayComponentHost, overlayComponentRecord) {
     if (
@@ -4867,10 +4746,8 @@ export class PanelRenderer {
     return overlayElement;
   }
   /**
-   * 为企业流层创建独立的选中框。
-   *
-   * 气流层的可视区域不等于宿主根节点（层内还有自己的偏移与裁剪），复用通用选中框会错位，
-   * 因此单独建一层。
+   * 为气流层创建独立的选中框。
+   * 气流层的可视区域不等于宿主根节点（层内有自己的偏移与裁剪），复用通用选中框会错位。
    */
   createAirflowSelectionOverlay(airflowOverlayLayerElement, airflowComponentRecord) {
     if (
@@ -5094,9 +4971,8 @@ export class PanelRenderer {
   }
   /**
    * 临时取消祖先链上的 hidden，执行测量回调后再恢复。
-   *
-   * hidden 元素量不到尺寸（offsetWidth 恒为 0），而部分数据源组件可能正处在隐藏状态，
-   * 不先显示就拿不到真实尺寸。恢复放在 finally 里，回调抛错也不会把元素留在可见态。
+   * hidden 元素量不到尺寸（offsetWidth 恒为 0），不先显示就拿不到真实尺寸；
+   * 恢复放在 finally 里，回调抛错也不会把元素留在可见态。
    */
   withSelectionMeasurementHost(measurementStartElement, measureCallback) {
     const hiddenElements = [];
@@ -5119,9 +4995,7 @@ export class PanelRenderer {
   }
   /**
    * 判断元素是否可见且有实际尺寸（决定选中框要不要画）。
-   *
-   * 只看 display / visibility 不够：父级折叠、flex 收缩都可能让尺寸归零，
-   * 因此还要检查宽高。
+   * 只看 display / visibility 不够：父级折叠、flex 收缩都可能让尺寸归零，还要查宽高。
    */
   selectionElementIsVisible(measuredElement) {
     if (!measuredElement || measuredElement.hidden) {
@@ -5143,9 +5017,8 @@ export class PanelRenderer {
   }
   /**
    * 计算元素相对指定祖先的偏移盒（left / top / 宽 / 高）。
-   *
-   * 逐级累加 offsetLeft / offsetTop，而不是用两个 getBoundingClientRect 相减：
-   * 后者带上了祖先 transform 的缩放，而选中框要与组件的局部坐标系对齐。累加带防环。
+   * 逐级累加 offsetLeft / offsetTop 而非两个 getBoundingClientRect 相减：后者带上了
+   * 祖先 transform 的缩放，而选中框要与组件局部坐标系对齐。累加带防环。
    */
   selectionElementBox(boxElement, boxAncestorElement) {
     let offsetLeftPx = 0;
@@ -5332,10 +5205,8 @@ export class PanelRenderer {
     let isPerspectiveFinished = false;
     /**
      * 透视角点拖动期间的指针移动处理：把指针位移换算成被拖角点的归一化坐标。
-     *
-     * 换算链：屏幕位移 → 除以视图缩放 → 用分组的累计旋转角反向旋转 → 除以世界缩放，
-     * 得到组件自身坐标系下的位移；再按组件宽高归一化成 0~1 的角点坐标。
-     * 每帧都重建角点数组并刷新透视层与手柄，保证预览与鼠标同步。
+     * 换算链：屏幕位移 → 除视图缩放 → 反向旋转分组累计角 → 除世界缩放，得到组件自身
+     * 坐标系位移，再按宽高归一化成 0~1 角点；每帧重建角点并刷新透视层与手柄。
      */
     const onPerspectivePointerMove = perspectiveMoveEvent => {
       if (perspectiveMoveEvent.pointerId !== perspectivePointerId) {
@@ -5468,9 +5339,7 @@ export class PanelRenderer {
   }
   /**
    * 开始拖动气流层。
-   *
-   * 气流层自带画布级的偏移量（不是普通的 left/top），因此单独一套手势处理，
-   * 并把偏移夹在允许范围内（见 transform-geometry.js 的 airflowCanvasOffsetBounds）。
+   * 气流层自带画布级偏移量（不是普通 left/top），因此单独一套手势处理并把偏移夹在允许范围。
    */
   startAirflowMove(
     moveStartPointerEvent,
@@ -5511,9 +5380,8 @@ export class PanelRenderer {
     airflowMoveBoundsElement.setPointerCapture(airflowPointerId);
     /**
      * 气流层拖动期间的指针移动处理：把位移换算成出风偏移的百分比。
-     *
-     * 偏移以组件宽高的百分比存储（airflowOffsetX/Y），所以位移要除以组件尺寸再乘 100；
-     * 结果按 airflowOffsetBounds 夹取，防止出风效果被拖出画布范围。
+     * 偏移以组件宽高百分比存储（airflowOffsetX/Y），故位移除以组件尺寸再乘 100，
+     * 结果按 airflowOffsetBounds 夹取，防止出风效果被拖出画布。
      */
     const onAirflowPointerMove = airflowMoveEvent => {
       if (airflowMoveEvent.pointerId !== airflowPointerId) {
@@ -5756,9 +5624,7 @@ export class PanelRenderer {
     airflowRotateCaptureElement.setPointerCapture(airflowRotatePointerEvent.pointerId);
     /**
      * 气流层旋转期间的指针移动处理：按指针绕中心的极角差旋转出风特效。
-     *
-     * 旋转角直接由「当前极角 - 按下时极角」得到并叠加到起始角上；与多选旋转不同，
-     * 这里不累计增量、也不做 ±π 归一化，实现更简单。
+     * 旋转角 = 起始角 +（当前极角 - 按下时极角）；与多选旋转不同，不累计增量也不做 ±π 归一化。
      */
     const onAirflowRotatePointerMove = airflowRotateMoveEvent => {
       const airflowPointerAngleRad = Math.atan2(
@@ -5808,9 +5674,8 @@ export class PanelRenderer {
   }
   /**
    * 计算空调控件选中框的位置与尺寸。
-   *
-   * 这类控件的可视件由内容撑开（按钮组、送风图），尺寸不等于文档声明的 position 宽高，
-   * 因此每次都要量实际内容盒；量不到时退回声明尺寸，宁可框略大也不要消失。
+   * 可视件由内容撑开（按钮组、送风图），尺寸不等于文档声明的 position 宽高，因此每次都要
+   * 量实际内容盒；量不到时退回声明尺寸，宁可框略大也不要消失。
    */
   updateAirConditionerButtonSelectionBounds(
     airConditionerHostElement,
@@ -5837,9 +5702,7 @@ export class PanelRenderer {
     const airConditionerRects = [];
     /**
      * 把空调控件的数值属性（尺寸、坐标百分比）夹到合法区间。
-     *
-     * 非数值一律换成兜底值：属性可能被旧文档写成字符串或空值，直接参与运算会得到 NaN，
-     * 进而让选中框整块消失。
+     * 非数值一律换成兜底值：旧文档可能写成字符串或空值，直接运算会得到 NaN 让选中框消失。
      */
     const clampAirConditionerValue = (
       airConditionerRawValue,
@@ -5876,9 +5739,8 @@ export class PanelRenderer {
     };
     /**
      * 记录一段文字占用的矩形。
-     *
-     * 文字以左侧中心为锚点（控件样式如此约定），宽度先量实际渲染宽度，
-     * 量不到时至少按一个字号宽度兜底，避免出现零宽矩形。
+     * 文字以左侧中心为锚点（控件样式约定），宽度先量实际渲染宽度，量不到时按一个字号兜底，
+     * 避免出现零宽矩形。
      */
     const pushAirConditionerTextRect = (
       airConditionerTextElement,
@@ -6024,9 +5886,7 @@ export class PanelRenderer {
     };
     /**
      * 记录一个「以中心点定义」的矩形（图标徽标用）。
-     *
-     * 与空调版不同：这里先校验四个值都有限且宽高为正，坏数据直接不记录，
-     * 免得把整个选中框的并集撑到无穷大。
+     * 先校验四个值都有限且宽高为正，坏数据直接不记录，免得把选中框的并集撑到无穷大。
      */
     const pushDeviceButtonCenteredRect = (
       deviceButtonRectCenterX,
@@ -6379,9 +6239,7 @@ export class PanelRenderer {
   }
   /**
    * 计算灯光统计控件选中框的位置与尺寸。
-   *
-   * 图例宽度随统计项数量变化，声明尺寸只覆盖柱子区域，因此这里读真实的
-   * .hb-selection-bounds 尺寸来对齐。
+   * 图例宽度随统计项数量变化，声明尺寸只覆盖柱子区域，因此读真实的 .hb-selection-bounds 尺寸。
    */
   updateLightStatisticsSelectionBounds(
     statisticsHostElement,
@@ -6559,9 +6417,8 @@ export class PanelRenderer {
   }
   /**
    * 计算图片控件选中框的位置与尺寸。
-   *
-   * 异步：图片按 contain 等比缩放，只有拿到自然尺寸才能算出实际占位，因此要等一次
-   * load（或短超时兜底）。选中框按真实占位画，才与用户看到的图像边界一致。
+   * 异步：图片按 contain 等比缩放，只有拿到自然尺寸才能算出实际占位，故要等一次 load
+   * （或短超时兜底）；按真实占位画框才能与看到的图像边界一致。
    */
   async updateImageSelectionBounds(imageHostElement, imageRecord, imageBoundsElement) {
     const imageTargetElement = imageHostElement.querySelector(":scope > .hb-image-component");
@@ -6644,9 +6501,8 @@ export class PanelRenderer {
   }
   /**
    * 找某个组件的手柄外框元素（选区外框）。
-   *
-   * 为什么单独抽出来：resize 要在「读阶段」先把所有宿主的矩形量齐，就得先能只定位
-   * 不测量。测量与套用分开之后，一遍 resize 的布局解析次数从「每个宿主一次」降到一次。
+   * 单独抽出来是为了只定位不测量：resize 在「读阶段」先量齐所有宿主矩形，
+   * 测量与套用分开后，一遍 resize 的布局解析从「每宿主一次」降到一次。
    */
   transformHandleBoundsElement(
     transformScaleHostElement,
@@ -6700,9 +6556,8 @@ export class PanelRenderer {
     componentScalePointerEvent.currentTarget.setPointerCapture(componentScalePointerId);
     /**
      * 单组件缩放期间的指针移动处理：按指针到组件中心的距离比例更新缩放值。
-     *
-     * 缩放值夹在 0.01~5；每一帧都要把同一 transform 同步给选中覆盖层与变换手柄，
-     * 否则手柄会滞后于组件、产生肉眼可见的错位。
+     * 缩放值夹在 0.01~5；每帧都要把同一 transform 同步给选中覆盖层与变换手柄，
+     * 否则手柄滞后于组件、产生可见错位。
      */
     const onComponentScalePointerMove = componentScaleMoveEvent => {
       if (componentScaleMoveEvent.pointerId !== componentScalePointerId) {
@@ -6799,9 +6654,7 @@ export class PanelRenderer {
     componentRotatePointerEvent.currentTarget.setPointerCapture(componentRotatePointerId);
     /**
      * 单组件旋转期间的指针移动处理：按指针绕组件中心的极角差更新旋转角。
-     *
-     * 旋转角 = 按下时的角度 + (当前极角 - 按下时极角)，直接写进 transform；
-     * 写入时保留原有缩放分量，避免旋转动作把已有缩放吃掉。
+     * 旋转角 = 按下时角度 +（当前极角 - 按下时极角），写入 transform 时保留原有缩放分量。
      */
     const onComponentRotatePointerMove = componentRotateMoveEvent => {
       if (componentRotateMoveEvent.pointerId !== componentRotatePointerId) {
@@ -6859,13 +6712,8 @@ export class PanelRenderer {
     window.addEventListener("blur", onComponentRotatePointerEnd);
   }
   /**
-   * 给控件绑定运行期动作（单击 / 双击 / 长按）。
-   *
-   * 三种手势共用一个指针序列，靠定时器区分：单击要等一个双击判定窗口才能确定不是双击，
-   * 长按要在阈值时刻先触发；触发过长按后还要抑制随之而来的 click，否则一次操作会发出
-   * 两个请求。toggle 动作在派发前先写乐观态，让界面即时响应。
-   *
-   * 逻辑动作类型不受支持时会被过滤成 null（见 action-rules.js 的统一口径），
+   * 给控件绑定运行期动作（单击 / 双击 / 长按）。三种手势共用一个指针序列、靠定时器区分：单击要等一个双击
+   * 判定窗口才能确定不是双击，长按要在阈值时刻先触发，触发过长按后还要抑制随之而来的 click，否则一次操作 会发两个请求；toggle 动作派发前先写乐观态让界面即时响应。逻辑动作类型不受支持时会被过滤成 null，
    * 因此「有动作配置」不等于「动作可用」。
    */
   bindRuntimeActions(runtimeActionElement, runtimeActionComponent) {
@@ -7086,9 +6934,8 @@ export class PanelRenderer {
   }
   /**
    * 运行动作的统一入口：派发并吞掉异步错误。
-   *
    * 动作派发是「点了就得有反应」的路径，不能把异常抛回事件处理器；出错统一写全局日志，
-   * 附带组件与实体信息，便于在展示页上定位是哪块控件出了问题。
+   * 附带组件与实体信息，便于在展示页定位是哪块控件出了问题。
    */
   runAction(runActionComponent, runActionConfig, runActionOptions = {}) {
     if (!!runActionConfig?.type && runActionConfig.type !== "none") {
@@ -7117,10 +6964,8 @@ export class PanelRenderer {
   }
   /**
    * 为某个实体构造一个「用于弹窗的组件」。
-   *
-   * 目标实体往往不是该设备拿到状态的最优实体（例如空气净化器的开关挂在 fan 上、
-   * 浴室取暖器的开关挂在 light 上），因此按设备画像里的角色把它重定向到主实体，
-   * 保证弹窗里的开关与列表里的状态是同一个来源。
+   * 目标实体往往不是设备拿到状态的最优实体（如净化器开关挂在 fan、浴霸开关挂在 light），
+   * 因此按设备画像的角色重定向到主实体，保证弹窗开关与列表状态同源。
    */
   popupComponentForEntity(requestedTargetEntityId, popupLabelText = "") {
     let resolvedEntityId = String(requestedTargetEntityId || "");
@@ -7221,9 +7066,8 @@ export class PanelRenderer {
   }
   /**
    * 按动作声明的来源打开弹窗。
-   *
-   * 三种来源：custom 打开文档里的组合弹窗（配置的弹窗已被删除时给出错误提示，
-   * 而不是静默无反应）；entity 打开指定实体；current 打开控件自身绑定的实体。
+   * 三种来源：custom 打开文档里的组合弹窗（配置的弹窗已删除时报错而非静默无反应）、
+   * entity 打开指定实体、current 打开控件自身绑定的实体。
    */
   showActionPopup(popupSourceComponent, popupActionConfig, { preview: popupPreview = false } = {}) {
     const popupSourceKind = popupActionConfig?.data?.popupSource || "current";
@@ -7288,10 +7132,9 @@ export class PanelRenderer {
     }
   }
   /**
-   * 执行一次控件动作（toggle / navigate / more-info）。
-   *
-   * 动作是异步的（要调 HA 服务），因此返回值可 await；开关类动作会把乐观态的回滚函数
-   * 一路带下去：HA 拒绝或超时后由调用方回滚界面，避免界面与真实状态长期不一致。
+   * 执行一次控件动作（toggle / navigate / more-info），返回值可 await。
+   * 开关类动作会把乐观态的回滚函数一路带下去：HA 拒绝或超时后由调用方回滚界面，
+   * 避免界面与真实状态长期不一致。
    */
   async dispatchAction(
     dispatchComponent,
@@ -7396,11 +7239,8 @@ export class PanelRenderer {
     }
   }
   /**
-   * 调用 Home Assistant 服务（设备控制的唯一出口）。
-   *
-   * 走本机后端的转发接口，浏览器不直连 HA：令牌与会话都留在后端。
+   * 调用 Home Assistant 服务（设备控制的唯一出口）。走本机后端转发接口，浏览器不直连 HA，令牌与会话留在后端；
    * hbLogContext 是全局日志约定的字段，出错时能直接看出是哪块屏幕的哪个实体。
-   *
    * @throws {Error} 后端返回非 2xx 时抛出，文案优先取后端的 detail。
    */
   async callEntityService(serviceDomain, serviceName, serviceEntityId, serviceData = {}) {
@@ -7423,7 +7263,7 @@ export class PanelRenderer {
     });
     if (!serviceResponse.ok) {
       const serviceErrorBody = await serviceResponse.json().catch(() => ({}));
-      // 文案归一交给 utils/api-error.js（这里原先只认字符串与 `detail.message`）。
+      // 文案归一交给 utils/api-error.js。
       const entityServiceError = new Error(
         apiErrorMessage(serviceErrorBody, "实体操作失败。")
       );
@@ -7536,19 +7376,15 @@ export class PanelRenderer {
       });
     };
     /**
-     * 取媒体条目的展示标题：按 title → name → media_content_id 依次回退。
-     *
-     * 各类媒体源给出的字段不统一（音乐用 title、电台用 name），
-     * 最后兜底 "未命名媒体"，避免列表出现空白行。
+     * 取媒体条目的展示标题：title → name → media_content_id 依次回退。
+     * 各类媒体源字段不统一（音乐用 title、电台用 name），末级兜底 "未命名媒体" 避免空白行。
      */
     const mediaEntryTitle = mediaEntry =>
       String(mediaEntry?.title || mediaEntry?.name || mediaEntry?.media_content_id || "未命名媒体");
     /**
      * 打开媒体库的一个目录，并把返回的子项渲染成列表。
-     *
      * 目录层级与游标由 HA 的 media-source 协议给出（media_content_id / media_content_type），
-     * 进入新目录时把当前层级压栈以支持「返回」；读取与投播期间用 busy 态禁用全部按钮，
-     * 防止连点导致目录内容与记录的当前 ID 错位。失败由 callEntityService 抛给上层 onError。
+     * 进入新目录时把当前层级压栈以支持「返回」；读取与投播期间用 busy 态禁用全部按钮防连点。
      */
     const openMediaDirectory = async (
       mediaContentEntryId,
@@ -7696,11 +7532,7 @@ export class PanelRenderer {
   }
   /**
    * 登记当前弹窗并接管它的缩放：按设计尺寸固定宽度，再整体缩放到可用区域。
-   *
-   * 弹窗内容是按设计稿绝对尺寸排版的，因此先把宽度钉死在设计宽度（禁止 max-width 收缩），
-   * 再用 transform 缩放，才能保证内部布局与设计稿一致。
-   *
-   * 尺寸变化用 ResizeObserver + requestAnimationFrame 合并：内容异步加载（图片、目录列表）
+   * 弹窗内容按设计稿绝对尺寸排版，因此先把宽度钉死在设计宽度（禁止 max-width 收缩）再 transform 缩放， 才能保证内部布局与设计稿一致。尺寸变化用 ResizeObserver + requestAnimationFrame 合并：内容异步加载
    * 会连续触发布局变化，逐次重算会抖动，这里一帧只算一次。
    */
   registerRuntimeDialogScale(dialogLayerElement, dialogElement, designWidthPx, designHeightPx) {
@@ -7779,9 +7611,8 @@ export class PanelRenderer {
   }
   /**
    * 按当前层与仪表盘的实际矩形重算弹窗缩放并写回样式。
-   *
-   * 每帧调用，因此不做任何布局无关的重活；弹窗已从 DOM 上摘掉时直接返回
-   * （关闭动画期间会先 disconnect 再触发尺寸回调）。
+   * 每帧调用，不做与布局无关的重活；弹窗已从 DOM 摘掉时直接返回（关闭动画期间会先
+   * disconnect 再触发尺寸回调）。
    */
   updateRuntimeDialogScale() {
     const activeDialogScaleContext = this.runtimeDialogScaleContext;
@@ -7863,9 +7694,8 @@ export class PanelRenderer {
   }
   /**
    * 注销缩放上下文：断开观察者、取消待执行帧与入场动画。
-   *
    * 只有当前登记的弹窗与传入元素一致时才清：旧弹窗的关闭回调可能晚于新弹窗打开，
-   * 不加判断会把新弹窗的缩放上下文一起清掉。
+   * 不加判断会把新弹窗的上下文一起清掉。
    */
   clearRuntimeDialogScale(clearedDialogElement) {
     if (this.runtimeDialogScaleContext?.dialog === clearedDialogElement) {
@@ -7880,9 +7710,8 @@ export class PanelRenderer {
   }
   /**
    * 关闭运行期弹窗。
-   *
-   * 未 open 的 dialog 调 close() 不触发 close 事件，因此走 dispatchEvent 手动补一次，
-   * 让依赖「关闭事件」的清理逻辑（缩放注销、清理回调）在两种情况下都能跑到。
+   * 未 open 的 dialog 调 close() 不触发 close 事件，因此用 dispatchEvent 手动补一次，
+   * 让依赖关闭事件的清理逻辑（缩放注销、清理回调）两种情况都能跑到。
    */
   closeRuntimeDialog(closedDialogElement = this.detailsDialog) {
     if (closedDialogElement) {
@@ -7904,9 +7733,7 @@ export class PanelRenderer {
   }
   /**
    * 绑定「点击弹窗外区域关闭弹窗」。
-   *
-   * 开场 320ms 内不响应：打开弹窗那一次点击往往会穿透到遮罩层上，
-   * 不设冷却会让弹窗刚出现就被自己那次点击关掉。
+   * 开场 320ms 内不响应：打开弹窗那次点击会穿透到遮罩层，不设冷却会让弹窗刚出现就被关掉。
    */
   bindRuntimeDialogOutsideDismiss(dismissLayerElement, dismissDialogElement, dismissPanelElement) {
     // 320ms 冷却：打开弹窗的那次点击会继续冒泡到遮罩层，不留冷却期就会立即被关掉。
@@ -7922,27 +7749,9 @@ export class PanelRenderer {
     });
   }
   /**
-   * 呈现一层运行时弹窗，并让它成为一个「真正的模态」。
-   *
-   * 为什么要自己补模态语义：原生 `<dialog>` 只有走 `showModal()` 才是模态，而这里的层
-   * 挂在画布容器里（`this.container` / 3D 呈现根），弹窗坐标是**画布坐标** ——
-   * `showModal()` 会把弹窗提到顶层（top layer），它会脱离画布坐标空间，在整体缩放的展示页上
-   * 尺寸与位置都会走样；而且 `showModal()` 会额外生成 `::backdrop`，与层自带的遮罩
-   * （`background: #040609d1` + `blur(5px)`）叠在一起，遮罩由 82% 变到约 97%。
-   * 所以这里保留 `show()` 的坐标空间，把模态该有的四件事自己做掉：
-   *
-   * 遮罩一律由承载层给（`.hb-renderer-runtime-dialog-layer`）：`show()` 不把元素送进
-   * 顶层，`::backdrop` 就不会生成，**在这一层里写 `::backdrop` 等于没写**（P9 已删掉
-   * 相机预览与实体详情那两条从未生效的规则）。新增弹窗时不要再补 `::backdrop`。
-   *
-   * 1. `aria-modal="true"` + `aria-labelledby` 指向标题（读屏据此知道「弹窗出现了、叫什么、
-   *    背景不可用」）—— 弹窗标题一律是标题行里的 `<strong>`；
-   * 2. 打开时把焦点交给弹窗本身：读屏会念出标题，Tab 再从第一个可聚焦子项开始；
-   * 3. Tab 在弹窗内循环（首尾相接），背景控件不会被键盘走到；
-   * 4. 关闭后把焦点还给打开它之前那个元素（可能是另一个弹窗里的按钮）。
-   *
-   * 第 4 条要看 `isConnected`：关弹窗的同时文档可能已经被整份替换（切项目 / 刷新），
-   * 还焦到一个已经脱离文档的元素等于焦点掉到 `body`。
+   * 呈现一层运行时弹窗，并让它成为「真正的模态」。
+   * 不用 `showModal()`：弹窗坐标是画布坐标，showModal 会把它提到 top layer 而脱离画布坐标空间（整体缩放的展示页 上尺寸与位置都走样），还会额外生成 `::backdrop` 与层自带遮罩叠加（82% → 约 97%）。故保留 show() 的坐标空间，
+   * 自己补模态语义：`aria-modal` + `aria-labelledby` 指向标题 `<strong>`、打开时焦点交给弹窗、Tab 在弹窗内循环、关闭后把焦点还给打开它的元素（用 `isConnected` 判断，文档可能已被整份替换）。
    */
   presentRuntimeDialog(dialogLayerElement, dialogElement) {
     if (!dialogElement || dialogElement.open) {
@@ -7960,9 +7769,8 @@ export class PanelRenderer {
     }
     /**
      * Tab 焦点循环：只在弹窗内首尾相接，别的一概不管。
-     *
-     * 可见性判定用 `getClientRects().length`：`offsetParent` 对 `position: fixed`
-     * 及其子元素恒为 null，拿它过滤会把弹窗里所有控件都当成不可见。
+     * 可见性判定用 `getClientRects().length`：`offsetParent` 对 `position: fixed` 及其子元素
+     * 恒为 null，拿它过滤会把弹窗里所有控件都当成不可见。
      */
     const focusTrapHandler = trapKeyEvent => {
       if (trapKeyEvent.key !== "Tab") {
@@ -8023,16 +7831,8 @@ export class PanelRenderer {
   }
   /**
    * 给一层运行时弹窗挂「按 ESC 关闭」。
-   *
-   * 为什么必须看 `defaultPrevented`：这一层里会嵌下拉菜单与展开面板（气候模式、扩展项、
-   * 电动床档位…），它们按 ESC 只该收起自己 —— 但键盘事件会继续冒泡到层上，
-   * 于是「想关下拉」变成「把整个设备弹窗也关掉」，用户得重新点开设备再找到刚才那个下拉。
-   * 里层处理 ESC 时都调过 `preventDefault()`，所以「冒泡到这里还带 preventDefault」
-   * 就等于「已经有人处理过」，此时不再关这一层。
-   *
-   * 十条弹窗（摄像头 / 能力 / 净化器 / 播放器 / 自定义弹层 / 电动床两个 / 晾衣机 /
-   * 存在检测 / 实体详情）走的都是这条，新增弹窗也必须走它 ——
-   * 各自手写一份 `if (key === "Escape") dialog.close()` 正是这条缺陷的来源。
+   * 必须看 `defaultPrevented`：层里嵌的下拉 / 展开面板按 ESC 只该收起自己，但事件会继续冒泡上来， 否则「想关下拉」就变成「把整个设备弹窗也关掉」。里层处理 ESC 时都调过 `preventDefault()`，所以
+   * 「冒泡到这里仍带 preventDefault」即等于「已有人处理过」。新增弹窗都要走这条，别各写一份 close()。
    */
   bindRuntimeDialogEscapeClose(escapeLayerElement, escapeDialogElement) {
     escapeLayerElement.addEventListener("keydown", escapeKeyEvent => {
@@ -8137,9 +7937,8 @@ export class PanelRenderer {
     let cameraLensOffset = 0;
     /**
      * 生成摄像头镜头组的变换字符串。
-     *
-     * 镜头在水平旋转的同时带上 0.035 倍的极小 rotateZ，制造「镜头歪一点」的手持感；
-     * 透视距离 260px 是视觉调参值，改小会让镜头看起来更广角。
+     * 水平旋转时带 0.035 倍的极小 rotateZ，制造手持云台的不规则感；透视距离 260px 是
+     * 视觉调参值，改小会让镜头显得更广角。
      */
     const cameraLensTransform = (cameraLensRotationDeg, cameraLensOffsetYPx = 0) =>
       "translateX(-50%) perspective(260px) rotateY(" +
@@ -8151,10 +7950,8 @@ export class PanelRenderer {
       "px)";
     /**
      * 启动一次镜头摆动动画，结束后随机延时再摆下一次。
-     *
-     * 候选角度里先滤掉与当前位置差小于 7 度的，否则会出现几乎看不见的「原地抖动」；
-     * 动画走 Web Animations API，finish 后把终值写回内联样式再取消动画 —— 不这样做，
-     * fill:forwards 的合成层终值会和后续手写的内联样式打架，导致镜头卡在旧位置。
+     * 候选角度先滤掉与当前位置差小于 7 度的，否则几乎是看不见的原地抖动；动画走 Web
+     * Animations API，finish 后把终值写回内联样式再取消，否则合成层终值会与内联样式打架。
      */
     const startCameraLensAnimation = () => {
       if (!cameraDeviceBodyElement.isConnected) {
@@ -8238,9 +8035,7 @@ export class PanelRenderer {
     let isCameraReady = false;
     /**
      * 摄像头媒体就绪回调：把状态文案与样式从 connecting 切到 live。
-     *
-     * 用 isCameraReady 做一次性守卫：媒体流重连时会重复触发 onReady，
-     * 反复切换 class 会打断正在播放的揭示动画。
+     * 用 isCameraReady 一次性守卫：媒体流重连会重复触发 onReady，反复切 class 会打断揭示动画。
      */
     const handleCameraReady = () => {
       if (!isCameraReady) {
@@ -8271,9 +8066,8 @@ export class PanelRenderer {
       : 16 / 9;
     /**
      * 按弹窗可用空间重算摄像头预览的宽高。
-     *
      * 3D 舞台上交给 cameraDialogElement.resizeInteraction3d（舞台侧按自己的布局算）；
-     * 普通弹窗里把宽度限制在 760px、按比例反推高度，并给标题与边距留出 88px。
+     * 普通弹窗把宽度限制在 760px、按比例反推高度，并给标题与边距留出 88px。
      */
     const applyCameraPreviewLayout = () => {
       if (interaction3dContext) {
@@ -8311,9 +8105,8 @@ export class PanelRenderer {
       });
       /**
        * 用媒体流的真实像素尺寸更新预览宽高比。
-       *
-       * 只在 3D 舞台内生效：HA 给的 aspectRatio 属性常常缺失或不准，拿到真实尺寸后
-       * 顺手写回 cameraPreviewRatio 的缓存，供后续打开的弹窗复用。
+       * 只在 3D 舞台内生效：HA 的 aspectRatio 常缺失或不准，拿到真实尺寸后写回
+       * cameraPreviewRatio 缓存，供后续弹窗复用。
        */
       const applyCameraMediaDimensions = (cameraMediaWidth, cameraMediaHeight) => {
         if (
@@ -8410,10 +8203,8 @@ export class PanelRenderer {
       );
       /**
        * 把摄像头弹窗摆到 3D 舞台的呈现区域内。
-       *
-       * 舞台可能被 CSS 整体缩放，因此先取「呈现尺寸」（未缩放的逻辑尺寸）算布局，
-       * 再用根元素与呈现尺寸的比值把结果乘回去；调两次 cameraPopupLayout 是刻意的 ——
-       * 第一次只是为了让面板宽度参与后续的 top / right 计算。
+       * 舞台可能被 CSS 整体缩放，故先取未缩放的「呈现尺寸」算布局，再按根元素与呈现尺寸
+       * 的比值乘回去；调两次 cameraPopupLayout 是刻意的，第一次让面板宽度参与后续计算。
        */
       const applyInteraction3dLayout = () => {
         const presentationLayout = interaction3dContext.getPresentationLayout?.();
@@ -8487,11 +8278,9 @@ export class PanelRenderer {
           ) + "px";
       };
       cameraDialogElement.resizeInteraction3d = applyInteraction3dLayout;
-      // 观察器的回调只排程：applyInteraction3dLayout 会写 cameraDialogElement 的宽度与
-      // 变换，而 cameraHeadingElement 正是被观察元素，父级宽度一变标题可能换行、尺寸再变，
-      // 通知在投递过程中被重新触发，浏览器随即抛「ResizeObserver loop completed with
-      // undelivered notifications」。推迟到下一帧后，写入落在通知投递之外。
-      // resizeInteraction3d 仍指向同步实现，供 show() 等即时布局路径直接调用。
+      // 观察器回调只排程：布局函数会写被观察元素的宽度，通知投递中再触发会报
+      // 「ResizeObserver loop completed with undelivered notifications」，推迟一帧即可避开。
+      // resizeInteraction3d 仍指向同步实现，供 show() 等即时布局路径直接用。
       let cameraLayoutFrameId = 0;
       const scheduleCameraLayout = () => {
         if (cameraLayoutFrameId) {
@@ -8546,9 +8335,8 @@ export class PanelRenderer {
   }
   /**
    * 按实体能力清单生成详情弹窗里的控件（电源、模式选择、数值调节等）。
-   *
-   * 能力清单决定放哪些控件，因此同一个函数同时服务风扇、净化器等多种设备；
-   * variant 用于同一设备在不同入口下的样式微调，inert 用于预览态禁用交互。
+   * 能力清单决定放哪些控件，同一函数因此服务风扇、净化器等多种设备；variant 用于同设备
+   * 不同入口的样式微调，inert 用于预览态禁用交互。
    */
   createCapabilityDetailsControls(
     capabilityEntityId,
@@ -8632,9 +8420,8 @@ export class PanelRenderer {
     }
     /**
      * 生成一个「多选一」控制组（模式、风速、摆头等）。
-     *
-     * 选项先去重并去掉首尾空白，防止 HA 属性里混入重复项导致按钮重影；
-     * 电动床类的 select 实体额外换成自绘下拉框（原生 select 在弹窗里样式不可控）。
+     * 选项先去重并去首尾空白，防止 HA 属性混入重复项导致按钮重影；电动床类的 select
+     * 实体额外换成自绘下拉框（原生 select 在弹窗里样式不可控）。
      */
     const createCapabilityOptionGroup = (
       optionGroupLabel,
@@ -8694,9 +8481,8 @@ export class PanelRenderer {
         let isBedSelectPending = false;
         /**
          * 下拉菜单是否展开。
-         *
-         * 优先用 :popover-open 判定（新浏览器），老浏览器不支持该伪类时退回 dataset.open
-         * （dataset 由 toggle 事件与 open/close 函数共同维护）。
+         * 优先用 :popover-open 判定，老浏览器不支持该伪类时退回 dataset.open（由 toggle 事件
+         * 与 open/close 函数共同维护）。
          */
         const isBedSelectMenuOpen = () => {
           try {
@@ -8707,9 +8493,8 @@ export class PanelRenderer {
         };
         /**
          * 把下拉菜单摆到触发按钮下方，下方空间不足时翻到上方。
-         *
-         * 菜单以 popover 挂在顶层、用 fixed 定位，因此必须按视口坐标自行计算并夹取：
-         * 宽度取按钮宽度与 150px 的较大者，左右各留 10px，高度上限 306px。
+         * 菜单以 popover 挂在顶层、用 fixed 定位，故须按视口坐标自行计算并夹取：宽度取按钮
+         * 宽度与 150px 的较大者，左右各留 10px，高度上限 306px。
          */
         const positionBedSelectMenu = () => {
           if (!isBedSelectMenuOpen() && bedSelectMenuElement.hidden) {
@@ -8759,9 +8544,8 @@ export class PanelRenderer {
         };
         /**
          * 展开下拉菜单。
-         *
-         * 优先走原生 popover API，不支持时退化成普通定位 + dataset.open 标记；
-         * shouldFocusBedOption 为真时把焦点移到当前选中项（键盘操作入口）。
+         * 优先走原生 popover API，不支持时退化成普通定位 + dataset.open 标记；参数为真时
+         * 把焦点移到当前选中项（键盘操作入口）。
          */
         const openBedSelectMenu = (shouldFocusBedOption = false) => {
           if (!bedSelectTriggerElement.disabled) {
@@ -8783,11 +8567,8 @@ export class PanelRenderer {
         };
         /**
          * 提交下拉选中的选项：先乐观更新本地状态并刷新 UI，再调用服务，失败回滚。
-         *
-         * 服务是异步的，若不先同步 capabilityState，界面会等一个来回才有反馈；
-         * 失败时整体回滚到提交前的快照并交给 onError 走统一的错误提示。
-         * state 只在服务是 select_option（状态值本身就是选项）时才被覆盖，
-         * 否则只写选项属性，避免污染其它能力的状态。
+         * 服务是异步的，不先同步 capabilityState 界面就要等一个来回才有反馈；失败时整体回滚到提交前的快照
+         * 并交给 onError 走统一提示。state 只在服务是 select_option 时才覆盖，否则只写选项属性，避免污染其它能力的状态。
          */
         const selectBedOption = async bedOptionValue => {
           if (
@@ -8830,9 +8611,8 @@ export class PanelRenderer {
         };
         /**
          * 重绘下拉菜单的选项列表，并更新触发按钮上的当前值文案。
-         *
-         * 当前值不在候选列表里（例如实体属性刚被写坏）时按钮显示第一项而不是 undefined，
-         * 列表为空时显示「读取中…」；选项按钮带 role=option 与 aria-selected，键盘可读。
+         * 当前值不在候选列表里（属性刚被写坏）时显示第一项而非 undefined，列表为空时显示
+         * 「读取中…」；选项按钮带 role=option 与 aria-selected，键盘可读。
          */
         const renderBedSelectOptions = (bedOptionValues, bedSelectedValue) => {
           bedSelectMenuElement.replaceChildren(
@@ -9191,10 +8971,8 @@ export class PanelRenderer {
     }
     /**
      * 把最新实体状态同步到「能力详情」面板的所有控件上（整体刷新，不做增删）。
-     *
-     * 开关类域 fan 的「开启」判定放宽为「非 off / unknown / unavailable」，
-     * 其余域只认字符串 on；选项按钮、下拉框、百分比档位、数值滑杆各走一条分支，
-     * 且都尽量只改 class / value / disabled，避免每次状态推送都重建 DOM。
+     * fan 域的「开启」判定放宽为「非 off / unknown / unavailable」，其余域只认字符串 on；
+     * 各控件分支都尽量只改 class / value / disabled，避免每次状态推送重建 DOM。
      */
     function syncCapabilityState(nextCapabilityState) {
       capabilityState = nextCapabilityState || capabilityState;
@@ -9520,11 +9298,8 @@ export class PanelRenderer {
       .filter(({ candidates: metricCandidates }) => metricCandidates.length);
     /**
      * 把实体状态解析成有限数值；unknown/unavailable 或非数值时返回 null。
-     *
-     * 净化器指标在离线时 state 可能是字符串 "unknown"，Number() 会得到 NaN，
-     * 所以这里必须显式排除这两个哨兵值，不能只依赖 isFinite 判断。
-     *
-     * @returns {number|null} 解析出的数值；不可用或非数值时为 null。
+     * 净化器指标离线时 state 可能是字符串 "unknown"，Number() 会得到 NaN，所以必须显式排除这两个哨兵值，
+     * 不能只靠 isFinite。@returns {number|null} 解析出的数值；不可用或非数值时为 null。
      */
     const numericStateValue = purifierEntityState => {
       const parsedStateValue = Number(purifierEntityState?.state);
@@ -9546,9 +9321,7 @@ export class PanelRenderer {
       resolveStateEntry(this.states.get(candidateForMetric?.id));
     /**
      * 从指标的多个候选实体中挑出当前有可用数值的一个，全都不可用时退回第一个。
-     *
-     * 同一角色常绑定了多个实体（例如不同型号的 PM2.5 传感器），
-     * 优先选真在上报数据的那个，避免弹窗出现空白指标格。
+     * 同一角色常绑定多个实体（不同型号的 PM2.5 传感器），优先选真在上报数据的那个。
      */
     const selectMetricCandidate = metricDefinitionInput =>
       metricDefinitionInput.candidates.find(
@@ -9586,10 +9359,8 @@ export class PanelRenderer {
     };
     /**
      * 把净化器指标状态格式化成「数值 + 单位」的展示文本。
-     *
-     * 单位优先取实体自带 unit_of_measurement，缺失时回退到内置单位表；
-     * HA 常见的时间单位 hours / days 在界面上显示为中文「小时 / 天」。
-     * unknown / unavailable 一律显示 "--"，避免把原始状态词透传到界面。
+     * 单位优先取实体自带 unit_of_measurement，缺失时回退内置单位表；hours / days 显示为
+     * 中文「小时 / 天」；unknown / unavailable 一律显示 "--"，不透传原始状态词。
      */
     const formatMetricDisplay = (metricEntityState, metricUnitRole) => {
       if (
@@ -9615,9 +9386,7 @@ export class PanelRenderer {
     const purifierHandlersByEntityId = new Map();
     /**
      * 注册净化器弹窗的状态回调。
-     *
-     * 一个实体可能同时被电源、指标、空气质量等多处订阅，因此按实体 ID 聚合成数组，
-     * 而不是相互覆盖。
+     * 同一实体可能被电源、指标、空气质量等多处订阅，因此按实体 ID 聚合成数组而非相互覆盖。
      */
     const registerPurifierHandler = (purifierHandlerEntityId, purifierStateHandler) => {
       if (purifierHandlerEntityId) {
@@ -9669,9 +9438,7 @@ export class PanelRenderer {
     );
     /**
      * 没有专用空气质量实体时，用 PM2.5 读数反推空气质量等级与文案。
-     *
-     * 阈值按国内 PM2.5 分档：≤35 优、≤75 良、≤115 轻度污染，再高归为较差；
-     * 读数缺失返回 unknown，由调用方决定是否显示 "--"。
+     * 阈值按国内 PM2.5 分档：≤35 优、≤75 良、≤115 轻度污染，再高较差；读数缺失返回 unknown。
      */
     const resolvePm25Quality = () => {
       const pm25Candidate = pm25MetricDefinition
@@ -9707,10 +9474,8 @@ export class PanelRenderer {
     };
     /**
      * 渲染净化器空气质量表盘：主文案、进度弧长度与整卡主题色。
-     *
-     * 有专用空气质量实体时按中英文关键词归类等级（不同厂商用词差异很大，
-     * 所以用正则同时匹配 very_poor / 严重 之类的写法）；没有该实体就退回 PM2.5 推算。
-     * 等级同时驱动 --hb-air-purifier-progress 与两级主题色变量，配色档位与文案固定对应。
+     * 有专用空气质量实体时按中英文关键词归类等级（厂商用词差异大，用正则同时匹配
+     * very_poor / 严重 等写法），没有就退回 PM2.5 推算；等级同时驱动进度弧与两级主题色。
      */
     const renderPurifierAirQuality = () => {
       const airQualityRawText = String(airQualityState?.state || "").trim();
@@ -9778,9 +9543,8 @@ export class PanelRenderer {
     };
     /**
      * 同步净化器的开关状态：刷新文案、按钮态、仪表动画，并转发给能力控件。
-     *
-     * 只有明确是 unknown/unavailable 才算不可用；其余状态里只要不是 off 都视为运行中
-     * —— HA 净化器还有 auto/favorite 等档位，不能只认 "on"。
+     * 只有明确 unknown/unavailable 才算不可用；其余状态里只要不是 off 都视为运行中
+     * —— 净化器还有 auto/favorite 等档位，不能只认 "on"。
      */
     const syncPurifierPowerState = nextPurifierState => {
       purifierState = nextPurifierState || purifierState;
@@ -9808,9 +9572,8 @@ export class PanelRenderer {
     };
     /**
      * 渲染净化器次要指标槽位（PM2.5 / 甲醛 / 滤芯寿命 / 温湿度中最多取三个）。
-     *
-     * 只展示能解析出数值的指标；每个指标可能对应多个候选实体（不同厂商命名不同），
-     * 取第一个有读数的候选。槽位是固定三个的复用节点，只改文案与类名，不重建 DOM。
+     * 只展示能解析出数值的指标，每个指标可能对应多个候选实体（厂商命名不同），取第一个
+     * 有读数的；槽位是固定三个的复用节点，只改文案与类名，不重建 DOM。
      */
     const renderPurifierMetrics = () => {
       const resolvedMetricSelections = purifierMetricDefinitions
@@ -9917,9 +9680,7 @@ export class PanelRenderer {
   }
   /**
    * 打开媒体播放器详情弹窗（播放控制、进度、音源与音量）。
-   *
-   * 打开前先关掉当前弹窗：媒体详情体量大，两个弹窗叠在一起会同时占满可用区域。
-   *
+   * 打开前先关掉当前弹窗：媒体详情体量大，两个叠在一起会同时占满可用区域。
    * @throws {Error} 组件没有绑定实体。
    */
   showMediaPlayerDetails(mediaPlayerComponent, { preview: mediaPlayerPreview = false } = {}) {
@@ -9994,9 +9755,7 @@ export class PanelRenderer {
     mediaActionsElement.className = "hb-media-player-actions";
     /**
      * 创建媒体详情弹窗的动作按钮（上一曲 / 播放暂停 / 下一曲）。
-     *
-     * 点击后先置灰防连点，服务调用失败交给 onError 提示，成功与否都在 finally 恢复可用；
-     * 预览态只渲染按钮、不派发服务。
+     * 点击后先置灰防连点，失败交给 onError，成功与否都在 finally 恢复可用；预览态只渲染不派发。
      */
     const createMediaActionButton = (mediaButtonLabel, mediaServiceName, mediaServiceData = {}) => {
       const mediaActionButton = document.createElement("button");
@@ -10068,10 +9827,8 @@ export class PanelRenderer {
     };
     /**
      * 渲染播放进度条与已播 / 总时长文本。
-     *
-     * HA 的 media_position 只是某一时刻的快照（media_position_updated_at），
-     * 播放中必须叠加此后流逝的时间，否则进度条会卡在下发播放的那一刻；
-     * 位置再夹到 [0, duration] 防止越界。没有时长信息时整块进度区隐藏。
+     * HA 的 media_position 只是某一时刻的快照（media_position_updated_at），播放中必须
+     * 叠加此后流逝的时间，否则进度条会卡住；位置夹到 [0, duration]，无时长则整块隐藏。
      */
     const renderPlaybackProgress = () => {
       if (!Number.isFinite(mediaDurationSeconds) || mediaDurationSeconds <= 0) {
@@ -10092,9 +9849,8 @@ export class PanelRenderer {
     const progressIntervalTimer = window.setInterval(renderPlaybackProgress, 1000);
     /**
      * 判断两个音量值是否足够接近（容差 0.005）。
-     *
-     * 用于区分「HA 已回传我们刚下发的音量」与「HA 还在报旧值」：
-     * 前者可以撤掉本地覆盖，后者必须继续压制滑杆，否则会被旧值拽回去。
+     * 用于区分「HA 已回传刚下发的音量」与「HA 仍在报旧值」：前者可撤掉本地覆盖，
+     * 后者必须继续压制滑杆，否则会被旧值拽回去。
      */
     const isVolumeCloseEnough = (firstVolume, secondVolume) =>
       Number.isFinite(firstVolume) &&
@@ -10102,9 +9858,7 @@ export class PanelRenderer {
       Math.abs(firstVolume - secondVolume) <= 0.005;
     /**
      * 渲染音量滑杆与百分比文本，并把音量夹到 0~1。
-     *
-     * 同时刷新 pendingVolumeValue：它是「界面当前显示的音量」的唯一来源，
-     * 供回声判定与丢包补发逻辑复用。
+     * 同时刷新 pendingVolumeValue：它是「界面当前显示音量」的唯一来源，供回声判定与补发复用。
      */
     const renderVolumeLevel = volumeLevel => {
       pendingVolumeValue = Math.max(0, Math.min(1, Number(volumeLevel) || 0));
@@ -10113,10 +9867,8 @@ export class PanelRenderer {
     };
     /**
      * 把排队的音量值下发给 media_player.volume_set。
-     *
-     * 同一时刻只允许一个在途请求：下发时取走队列并置忙，期间新产生的值留在队列，
-     * 等本次结束再补发一次（140ms 后），既避免连续请求乱序，也不丢最后一次拖动结果。
-     * 失败时回滚本地覆盖值并回到 HA 上一次上报的音量。
+     * 同一时刻只允许一个在途请求：下发时取走队列并置忙，期间新值留在队列，本次结束后
+     * 140ms 再补发一次，既避免乱序也不丢最后一次拖动；失败回滚本地覆盖并回到 HA 上次上报值。
      */
     const flushVolumeLevel = async () => {
       window.clearTimeout(volumeFlushTimer);
@@ -10148,10 +9900,8 @@ export class PanelRenderer {
     };
     /**
      * 提交滑杆音量：记录本地覆盖值并延迟下发。
-     *
-     * 立即写 localVolumeOverride 是为了压住 HA 回声状态；
-     * 120ms 延迟把拖动结束前后的连续 change 合并成一次请求；在途时不再排新的定时器，
-     * 交给 flushVolumeLevel 的补发逻辑收尾。
+     * 立即写 localVolumeOverride 是为了压住 HA 回声状态；120ms 延迟把连续 change 合并成
+     * 一次请求；在途时不再排新定时器，交给 flushVolumeLevel 的补发逻辑收尾。
      */
     const commitVolumeChange = () => {
       const nextVolumeLevel = Math.max(0, Math.min(1, Number(volumeInputElement.value) || 0));
@@ -10183,10 +9933,8 @@ export class PanelRenderer {
     volumeInputElement.addEventListener("change", commitVolumeChange);
     /**
      * 把 media_player 的最新状态同步到播放器弹窗的全部界面元素。
-     *
-     * 涵盖：状态文案与扬声器视觉态、正在播放的标题/副标题、播放暂停与上下曲按钮可用性
-     * （按 supported_features 的位掩码 16/32 判断）、播放进度快照，以及音量滑杆与
-     * 本地覆盖值的博弈 —— 若 HA 回传值与我们刚下发的值足够接近，就撤掉本地覆盖。
+     * 涵盖状态文案与扬声器视觉态、标题/副标题、播放暂停与上下曲按钮可用性
+     * （supported_features 位掩码 16/32）、播放进度，以及音量滑杆与本地覆盖值的博弈。
      */
     const syncMediaPlayerState = nextPlayerState => {
       mediaPlayerState = nextPlayerState || mediaPlayerState;
@@ -10338,9 +10086,8 @@ export class PanelRenderer {
   }
   /**
    * 打开文档里定义的组合弹窗（customPopup）。
-   *
-   * 打开时会递增弹窗代数并重新订阅运行期状态：弹窗内可能引用当前页没有的实体，
-   * 订阅集合必须覆盖到它们，否则弹窗里的控件拿不到状态推送。
+   * 打开时递增弹窗代数并重新订阅运行期状态：弹窗内可能引用当前页没有的实体，
+   * 订阅集合必须覆盖它们，否则弹窗控件拿不到状态推送。
    */
   showCustomPopup(popupDefinition, { preview: popupPreviewMode = false } = {}) {
     this.closeRuntimeDialog();
@@ -10504,9 +10251,8 @@ export class PanelRenderer {
           (moduleDeviceProfile || this.deviceProfile(moduleResolvedEntityId))?.roles || {};
         /**
          * 取弹窗内某个实体用于首帧渲染的状态，从未收到过状态时返回 unknown 占位。
-         *
-         * 控件创建时就需要一份状态渲染首帧，但状态推送可能还没到；
-         * 占位对象带齐 entityId/state/attributes，省去控件内部到处做空值判断。
+         * 控件创建时就需要一份状态渲染首帧，但推送可能还没到；占位对象带齐
+         * entityId/state/attributes，省去控件内部到处判空。
          */
         const stateForPopupEntity = popupStateEntityId => {
           const popupEntityStateValue = this.states.get(popupStateEntityId);
@@ -10577,9 +10323,8 @@ export class PanelRenderer {
           .filter(angleControlEntry => angleControlEntry.entityId);
         /**
          * 往电动床弹窗的某个区块追加一个通用能力控件。
-         *
-         * 控件同时登记到弹窗清理表与状态回调表：清理表保证关闭弹窗时解绑内部监听，
-         * 回调表让该实体后续的状态推送能直接同步到这个控件。
+         * 控件同时登记到弹窗清理表与状态回调表：前者保证关闭时解绑内部监听，后者让该实体
+         * 后续的状态推送能直接同步到这个控件。
          */
         const appendBedCapabilityControl = (
           sectionContainer,
@@ -10675,9 +10420,8 @@ export class PanelRenderer {
         }
         /**
          * 从三个角度实体当前的状态重算并刷新电动床的角度读数与模型倾角。
-         *
-         * 三个角度角色共用同一套渲染逻辑，所以内部按角色逐个取状态后调用同一渲染函数；
-         * 读数只影响视觉，取不到值就显示 "--"，模型保持上一次的姿态。
+         * 三个角色共用同一套渲染逻辑，故按角色逐个取状态后调用同一渲染函数；取不到值显示
+         * "--"，模型保持上一次姿态。
          */
         const syncBedAngleState = () => {
           const bedAngleStates = {
@@ -10700,9 +10444,8 @@ export class PanelRenderer {
           };
           /**
            * 渲染单个角度角色的读数文本，并同步床模型对应部位的倾角。
-           *
-           * 倾角通过 CSS 变量 --hb-bed-<role>-angle 下发给床模型，
-           * 让模型姿态与读数共用同一个角度值，避免两处各算一遍导致不同步。
+           * 倾角通过 CSS 变量 --hb-bed-<role>-angle 下发，让模型姿态与读数共用同一角度值，
+           * 避免两处各算一遍导致不同步。
            */
           const renderBedAngleReadout = (
             bedAngleRole,
@@ -10766,9 +10509,7 @@ export class PanelRenderer {
         let popupCameraLensOffset = 0;
         /**
          * 生成摄像头镜头的 3D 变换串（水平摇头 + 极轻微的 Z 轴倾斜）。
-         *
-         * rotateZ 取 rotateY 的 0.035 倍，让摇头带一点真实云台的不规则感，
-         * 而不是纯水平滑动的塑料感。
+         * rotateZ 取 rotateY 的 0.035 倍，让摇头带一点真实云台的不规则感而非塑料感的纯水平滑动。
          */
         const popupCameraLensTransform = (
           popupCameraLensRotationDeg,
@@ -10783,10 +10524,8 @@ export class PanelRenderer {
           "px)";
         /**
          * 启动一次镜头摇头动画，结束后随机延时递归调度下一次。
-         *
-         * 候选角度先按「与当前位置至少差 7 度」过滤，避免只挪一点点看不出动作；
-         * 时长与过冲量都掺随机数，防止循环显得机械。节点已卸载（弹窗关闭）直接返回，
-         * 命中 prefers-reduced-motion 时则根本不启动。
+         * 候选角度先按「与当前位置至少差 7 度」过滤，避免只挪一点点看不出动作；时长与过冲量
+         * 掺随机数防止循环机械；节点已卸载直接返回，命中 prefers-reduced-motion 则不启动。
          */
         const startPopupCameraLensAnimation = () => {
           if (!popupCameraBodyElement.isConnected) {
@@ -10952,9 +10691,8 @@ export class PanelRenderer {
         popupModuleHeadingElement.append(popupChartOutputElement);
         /**
          * 把折线图模块当前实体的状态渲染成标题旁的大号数值与单位。
-         *
-         * 数值可解析时按组件声明的 statePrecision 格式化，否则原样显示实体的 state
-         * （例如 "unknown"），保证任何状态下都有可读文本；aria-label 同步更新。
+         * 数值可解析时按组件声明的 statePrecision 格式化，否则原样显示 state（如 "unknown"），
+         * 保证任何状态下都有可读文本；aria-label 同步更新。
          */
         const renderPopupChartValue = popupChartState => {
           const popupChartNumericValue = Number.parseFloat(popupChartState?.state);
@@ -10986,10 +10724,8 @@ export class PanelRenderer {
         let popupChartRefreshTimer = 0;
         /**
          * 重建弹窗里的折线图：渲染新实例、接替旧实例并同步线色。
-         *
-         * 折线图的尺寸依赖挂载后的实际布局，无法原地更新，只能整体替换；
-         * 所以先解绑旧实例的悬浮监听再 replaceWith。弹窗已关闭或图表已脱离文档时直接返回，
-         * 避免在已销毁的 DOM 上做替换。
+         * 折线图尺寸依赖挂载后的实际布局，无法原地更新只能整体替换，故先解绑旧实例的悬浮监听
+         * 再 replaceWith；弹窗已关闭或图表已脱离文档时直接返回，避免在已销毁 DOM 上替换。
          */
         const refreshPopupChart = () => {
           popupChartRefreshTimer = 0;
@@ -11056,9 +10792,8 @@ export class PanelRenderer {
         switchPopupVisual.visual.classList.add("hb-custom-switch-visual");
         /**
          * 把开关实体的状态渲染到开关视觉与状态文案上。
-         *
-         * button 实体是瞬时动作（按一下执行一次），没有开/关概念，因此另外用
-         * pending / success 两个动作态驱动文案与高亮，而不是用 state 判断。
+         * button 实体是瞬时动作（按一下执行一次），没有开/关概念，因此用 pending / success
+         * 两个动作态驱动文案与高亮，而不是用 state 判断。
          */
         const renderSwitchPopupState = nextState => {
           switchPopupState = nextState;
@@ -11187,12 +10922,8 @@ export class PanelRenderer {
         };
         /**
          * 渲染灯光可视化（灯泡光色、亮度、光晕范围）并同步状态文案与无障碍属性。
-         *
-         * 入参既可能是实体状态（state / attributes），也可能是内部轻量对象
-         * （isOn / brightnessPercent / colorTemperatureKelvin / colorRgb），
-         * 因此每个字段都先看顶层再退回 attributes。
-         * 亮度按 HA 约定的 0~255 归一成百分比；色温若缺失，就按 2000~6500K 取比例，
-         * 在暖色与冷色之间线性插值出光色；只有设备声明支持彩色时才采信 rgb/hs 上报值。
+         * 入参既可能是实体状态（state / attributes），也可能是内部轻量对象（isOn / brightnessPercent / colorTemperatureKelvin / colorRgb），因此每个字段都先看顶层再退回 attributes。亮度按 HA 约定的 0~255 归一成
+         * 百分比；色温缺失时按 2000~6500K 在暖 / 冷色间线性插值；只有设备声明支持彩色才采信 rgb/hs 上报值。
          */
         const renderLightVisual = (nextLightState = {}) => {
           const nextLightAttributes = nextLightState.attributes || {};
@@ -11394,9 +11125,8 @@ export class PanelRenderer {
         climateVisualButton.append(climateUnitElement, climateAirflowElement);
         /**
          * 渲染弹窗里气候控件的可视化状态（开关态、运行态、目标温度与主题色）。
-         *
-         * 参数用对象解构并带默认值：调用方（能力控件的 onVisualChange 回调）在部分字段
-         * 缺失时也能安全调用，缺省即视为 off。浴霸没有开关概念，用 airflow 模式判定高亮。
+         * 参数用对象解构并带默认值：调用方（能力控件的 onVisualChange 回调）在部分字段缺失时
+         * 也能安全调用，缺省即视为 off；浴霸没有开关概念，用 airflow 模式判定高亮。
          */
         const renderPopupClimateVisual = ({
           mode: climateMode = "off",
@@ -11746,10 +11476,9 @@ export class PanelRenderer {
           appendAirerVisual(coverVisualButton);
         }
         /**
-         * 同步晾衣机顶灯状态（仅晾衣机形态生效）。
-         *
-         * 非晾衣机直接返回。晾衣机下整块可视化本身就是灯的开关按钮，
-         * 所以灯实体不可用时要把按钮置为 disabled，并给出对应的无障碍文案。
+         * 同步晾衣机顶灯状态（仅晾衣机形态生效），非晾衣机直接返回。
+         * 晾衣机下整块可视化本身就是灯的开关按钮，故灯实体不可用时要置按钮 disabled 并给出
+         * 对应的无障碍文案。
          */
         const renderAirerLightState = (airerLightNextState = airerLightState) => {
           if (!isAirerCover) {
@@ -11786,12 +11515,8 @@ export class PanelRenderer {
         );
         /**
          * 渲染窗帘 / 晾衣机可视化：开合位置、叶片角度、帘幕位移与状态文案。
-         *
-         * 位置 0~100 会映射到一组 CSS 变量（开合比、单 / 双面板宽度、叶片角度、
-         * 晾衣机下移量），面板宽度用线性式拟合，避免在样式层写分段函数。
-         * 「物理状态」与「展示状态」分开计算：电机接反时两者相反，
-         * 所以 open / opening 一律用 physicalCoverState 归一后再判高亮，
-         * 保证位置与图标方向始终一致。
+         * 位置 0~100 映射到一组 CSS 变量（开合比、单 / 双面板宽度、叶片角度、晾衣机下移量），面板宽度用线性式 拟合以免在样式层写分段函数。「物理状态」与「展示状态」分开算：电机接反时两者相反，所以 open / opening
+         * 一律用 physicalCoverState 归一后再判高亮，保证位置与图标方向始终一致。
          */
         const renderPopupCoverVisual = ({
           position: coverTargetPosition = 0,
@@ -12161,10 +11886,7 @@ export class PanelRenderer {
         };
         /**
          * 判断实体是否处于「有可读数值」的状态。
-         *
-         * 离线实体的 state 是 "unknown"/"unavailable" 字符串，Number() 会得到 NaN，
-         * 因此这里先排除哨兵值再判 isFinite；用于在多个候选实体里挑真正在上报数据的那个。
-         *
+         * 离线实体的 state 是 "unknown"/"unavailable" 字符串，Number() 会得到 NaN，因此先排除哨兵值再判 isFinite；用于在多个候选实体里挑真正在上报数据的那个。
          * @returns {boolean} 状态存在、不是哨兵值且可解析为有限数时为 true。
          */
         const hasNumericEntityState = stateEntityId => {
@@ -12203,9 +11925,8 @@ export class PanelRenderer {
           airPurifierSecondaryMetricsElement.append(metricRowElement);
           /**
            * 把某个指标实体的状态写进净化器的次要指标行。
-           *
-           * 单位优先取状态里的 unit_of_measurement，退回实体元数据里的单位；
-           * unknown/unavailable 显示 "--"，避免出现 "unknown ppm" 这类文案。
+           * 单位优先取状态里的 unit_of_measurement，退回实体元数据；unknown/unavailable 显示
+           * "--"，避免出现 "unknown ppm" 这类文案。
            */
           const renderMetricValue = metricState => {
             metricStrongElement.textContent = ["unknown", "unavailable"].includes(
@@ -12227,10 +11948,8 @@ export class PanelRenderer {
         const pm25RoleId = moduleDeviceProfile?.roles?.pm25;
         /**
          * 渲染净化器空气质量表盘（含无专用空气质量实体时用 PM2.5 分档的兜底）。
-         *
-         * 文案优先按专用空气质量实体的中英文关键词归类（正则同时覆盖 excellent / 优 等写法）；
+         * 文案优先按专用空气质量实体的中英文关键词归类（正则覆盖 excellent / 优 等写法）；
          * 取不到就退回 PM2.5 数值分档：≤15 优、≤35 良、≤75 轻度污染，其余较差。
-         * 档位同时驱动进度弧长度与两级主题色。
          */
         const renderAirQualityGauge = () => {
           const airQualityStateValue = getEntityStateRecord(airQualityRoleId);
@@ -12310,10 +12029,8 @@ export class PanelRenderer {
         renderAirQualityGauge();
         /**
          * 渲染净化器弹窗的开关状态：刷新 ON/OFF 文案、按钮态、表盘运行态与状态文案。
-         *
-         * 与净化器面板一致，除 unknown/unavailable 外只要不是 off 都视为运行中
-         * （fan 实体还可能有 auto 或各档风速，不能只认 "on"）。
-         * 参数默认取弹窗缓存的状态，便于无参调用时做一次重绘。
+         * 除 unknown/unavailable 外只要不是 off 都视为运行中（fan 实体还可能有 auto 或各档风速，
+         * 不能只认 "on"）；参数默认取弹窗缓存状态，便于无参调用时重绘。
          */
         const renderAirPurifierPower = (airPurifierNextState = popupAirPurifierState) => {
           popupAirPurifierState = airPurifierNextState || popupAirPurifierState;
@@ -12443,9 +12160,8 @@ export class PanelRenderer {
         popupMediaActionsElement.className = "hb-media-player-actions";
         /**
          * 创建组合弹窗内媒体模块的动作按钮。
-         *
-         * 与详情弹窗里的同款按钮共用同一套写法：置灰防连点、失败交给 onError、
-         * finally 恢复可用；预览态只渲染不派发。
+         * 与详情弹窗同款按钮共用一套写法：置灰防连点、失败交给 onError、finally 恢复可用；
+         * 预览态只渲染不派发。
          */
         const createPopupMediaActionButton = (buttonLabel, buttonService) => {
           const popupMediaActionButton = document.createElement("button");
@@ -12516,9 +12232,8 @@ export class PanelRenderer {
         };
         /**
          * 渲染组合弹窗媒体模块的播放进度条与时长文本。
-         *
-         * 与详情弹窗同一套外推逻辑：HA 只给 media_position 快照，
-         * 播放中必须叠加 media_position_updated_at 之后流逝的时间；无时长则整块隐藏。
+         * 与详情弹窗同一套外推逻辑：HA 只给 media_position 快照，播放中须叠加
+         * media_position_updated_at 之后流逝的时间；无时长则整块隐藏。
          */
         const renderMediaProgress = () => {
           if (!Number.isFinite(popupMediaDurationSeconds) || popupMediaDurationSeconds <= 0) {
@@ -12562,9 +12277,7 @@ export class PanelRenderer {
         });
         /**
          * 判断两个数值是否在容差 0.005 内相等。
-         *
-         * 用于区分「HA 已确认我们刚下发的音量」与「HA 仍在报旧值」，
-         * 从而决定是否可以撤掉本地覆盖值。
+         * 用于区分「HA 已确认刚下发的音量」与「HA 仍在报旧值」，从而决定能否撤掉本地覆盖值。
          */
         const areNumbersClose = (firstNumber, secondNumber) =>
           Number.isFinite(firstNumber) &&
@@ -12580,10 +12293,8 @@ export class PanelRenderer {
         };
         /**
          * 把排队的音量值下发给 media_player.volume_set。
-         *
-         * 同一时刻只允许一个在途请求：下发时取走队列并置忙，期间新产生的值留在队列，
-         * 本次结束后若仍有不同值则 140ms 后补发，既避免请求乱序又不会丢掉最后一次拖动。
-         * 失败时清掉本地覆盖值并回到 HA 上一次确认过的音量，同时上报 onError。
+         * 同一时刻只允许一个在途请求：下发时取走队列并置忙，期间新值留在队列，本次结束后
+         * 若有不同值则 140ms 后补发，既避免乱序又不丢最后一次拖动；失败清本地覆盖并上报 onError。
          */
         const flushVolumeRequest = async () => {
           window.clearTimeout(volumeRetryTimer);
@@ -12618,9 +12329,8 @@ export class PanelRenderer {
         };
         /**
          * 滑杆 change 提交：记录本地覆盖值并延迟下发音量。
-         *
-         * 120ms 延迟用于合并拖动过程中的连续 change；若有请求在途则不再排定时器，
-         * 交给 flushVolumeRequest 的补发逻辑收尾。
+         * 120ms 延迟用于合并拖动中的连续 change；若有请求在途则不再排定时器，交给
+         * flushVolumeRequest 的补发逻辑收尾。
          */
         const handleVolumeChange = () => {
           const sliderVolumeLevel = Math.max(
@@ -12641,10 +12351,8 @@ export class PanelRenderer {
         volumeSliderElement.addEventListener("change", handleVolumeChange);
         /**
          * 把 media_player 最新状态渲染进组合弹窗的媒体模块。
-         *
-         * 与播放器详情弹窗逻辑一致：状态文案与扬声器视觉态、标题/副标题回退链、
-         * 播放暂停与上下曲按钮可用性（supported_features 位掩码 16/32）、播放进度快照、
-         * 音量滑杆与本地覆盖值的博弈，以及封面图地址变化时才重建 img（避免闪烁）。
+         * 与播放器详情弹窗逻辑一致：状态文案与扬声器视觉态、标题/副标题回退链、按钮可用性
+         * （supported_features 位掩码 16/32）、播放进度、音量博弈；封面地址变化时才重建 img。
          */
         const renderMediaPlayerState = popupMediaState => {
           const mediaAttributes = popupMediaState?.attributes || {};
@@ -12792,11 +12500,7 @@ export class PanelRenderer {
     this.detailsDialog = popupDialogElement;
     /**
      * 为组合弹窗的模块列表生成签名串，用于判断是否需要整体重建弹窗。
-     *
-     * 签名不仅含模块 id 与类型，还含电动床各角色解析出的实体 ID：实体目录刷新后，
-     * 同一个模块可能换绑到别的实体，只比 id/type 会漏判，导致弹窗继续显示旧设备。
-     * 模块之间用 "|" 分隔、字段之间用 ":" 分隔，拼成一个可整体比较的字符串。
-     *
+     * 签名不仅含模块 id 与类型，还含电动床各角色解析出的实体 ID：实体目录刷新后同一模块可能换绑到别的实体， 只比 id/type 会漏判、弹窗继续显示旧设备。模块间用 "|"、字段间用 ":" 分隔，拼成可整体比较的字符串。
      * @returns {string} 模块列表的签名串。
      */
     const buildModulesSignature = moduleList =>
@@ -12901,9 +12605,8 @@ export class PanelRenderer {
   }
   /**
    * 构建灯具详情弹窗的控制区（电源、亮度、色温、颜色）。
-   *
    * 能力分三档：支持彩色、只支持色温、都不支持；不支持的控件不渲染，
-   * 因此渲染哪些滑块完全由能力探测结果决定，而不是由用户配置决定。
+   * 因此渲染哪些滑块由能力探测结果决定，而非用户配置。
    */
   createLightDetailsControls(
     lightControlsEntityId,
@@ -12929,10 +12632,8 @@ export class PanelRenderer {
     const slidersByDataKey = new Map();
     /**
      * 创建灯具详情弹窗里的一个滑条控件（亮度或色温）。
-     *
-     * 用参数对象而不是位置参数，因为两个滑条只有单位与数据键不同。
-     * 拖动（input）只更新本地显示并回调可视化预览，松手（change）才下发 light.turn_on，
-     * 避免拖动过程中打出大量服务调用；设备不支持该能力时滑条禁用并显示「不支持」。
+     * 用参数对象而非位置参数，因为两个滑条只有单位与数据键不同；拖动（input）只更新本地
+     * 显示并回调预览，松手（change）才下发 light.turn_on，避免拖动中打出大量服务调用。
      */
     const createLightSlider = ({
       label: sliderLabelText,
@@ -13094,10 +12795,8 @@ export class PanelRenderer {
       };
       /**
        * 处理取色盘上的指针事件：把指针位置换算成 HS 色值并应用。
-       *
-       * 先按取色盘的实际矩形把 client 坐标归一化到 0~1（夹取），
-       * 再交给 lightColorPickerHsFromPoint 反解出色相/饱和度。
-       * 盘面尺寸为 0（尚未布局或已隐藏）时直接返回，避免除零。
+       * 先按取色盘实际矩形把 client 坐标归一化到 0~1（夹取），再交由
+       * lightColorPickerHsFromPoint 反解出色相 / 饱和度；盘面尺寸为 0 时直接返回，避免除零。
        */
       const handleColorPickerPointer = colorPickerEvent => {
         const colorPickerRect = colorPickerElement.getBoundingClientRect();
@@ -13123,9 +12822,8 @@ export class PanelRenderer {
       };
       /**
        * 把当前选中的颜色通过 light.turn_on 提交，并用在途标记去重。
-       *
-       * 拖动结束会连续触发提交，不加 isColorRequestPending 守卫会发出一串请求；
-       * 请求期间给取色盘加 aria-busy，让辅助技术知道正处于忙碌状态。
+       * 拖动结束会连续触发提交，不加 isColorRequestPending 守卫会发出一串请求；请求期间
+       * 给取色盘加 aria-busy，让辅助技术知道正处于忙碌状态。
        */
       const commitColorPicker = async () => {
         if (!!lightControlsInteractive && !isColorRequestPending) {
@@ -13162,9 +12860,8 @@ export class PanelRenderer {
       });
       /**
        * 结束取色盘拖动：清掉拖动标记、释放指针捕获，并提交最终颜色。
-       *
-       * 以 dataset.dragging 作为「本次交互是否真的在拖」的判据，
-       * 避免 pointercancel 与 pointerup 各触发一次提交导致重复下发。
+       * 以 dataset.dragging 判断「是否真的在拖」，避免 pointercancel 与 pointerup 各触发
+       * 一次提交导致重复下发。
        */
       const handleColorPickerRelease = async colorReleaseEvent => {
         if (colorPickerElement.dataset.dragging === "true") {
@@ -13273,10 +12970,8 @@ export class PanelRenderer {
     };
     /**
      * 安排一次场景预设的下发结果核对。
-     *
-     * 下发后设备状态不会立刻到位，所以先强制保持一段最小时间，再要求状态连续稳定
-     * （LIGHT_PRESET_STABLE_CONFIRMATION_MS）或到达最大等待时间才判定结束；
-     * 任一时刻只排一个定时器，确认或超时都会清理并回落到实体真实状态。
+     * 下发后设备状态不会立刻到位，先强制保持一段最小时间，再要求状态连续稳定
+     * （LIGHT_PRESET_STABLE_CONFIRMATION_MS）或到达最大等待时间才判定结束；同一时刻只排一个定时器。
      */
     const schedulePresetCheck = () => {
       window.clearTimeout(presetTimer);
@@ -13306,9 +13001,8 @@ export class PanelRenderer {
     const presetDefinitions = LIGHT_DETAIL_PRESET_DEFINITIONS;
     /**
      * 把预设里的「色温百分比」换算成实际色温（开尔文）。
-     *
-     * 预设只声明相对位置（0% 暖 → 100% 冷），必须结合这盏灯自身支持的
-     * min/max 色温来换算，才能适配不同型号的灯具。
+     * 预设只声明相对位置（0% 暖 → 100% 冷），须结合这盏灯自身支持的 min/max 色温换算，
+     * 才能适配不同型号。
      */
     const presetKelvin = presetEntry =>
       relativeLightColorTemperature(
@@ -13412,10 +13106,8 @@ export class PanelRenderer {
     lightControlsElement.append(presetsElement);
     /**
      * 根据灯光当前状态高亮匹配的预设按钮。
-     *
-     * 匹配是「模糊」的：亮度容差取 4 个百分点、色温容差取 50K 与量程 6% 的较大者 ——
-     * 设备回传的 brightness/色温与下发值之间存在量化误差，用精确相等会永远不高亮。
-     * 两个维度都命中、且灯处于 on 时才标记激活。
+     * 匹配是模糊的：亮度容差 4 个百分点、色温容差取 50K 与量程 6% 的较大者
+     * —— 设备回传值与下发值存在量化误差，精确相等会永远不高亮；两维都命中且灯 on 才激活。
      */
     const renderPresetActiveState = presetState => {
       const presetLightAttributes = presetState?.attributes || {};
@@ -13548,9 +13240,8 @@ export class PanelRenderer {
   }
   /**
    * 构建窗帘 / 晾衣机详情弹窗的控制区（开合、位置、倾斜、电机反向、升降）。
-   *
-   * 设备之间差异很大（梦幻帘没有位置概念、晾衣机有升降与照明、部分电机接线反向），
-   * 因此全部靠入参开关在构建期定分支，点击时不再做判断。
+   * 设备差异很大（梦幻帘无位置概念、晾衣机有升降与照明、部分电机接线反向），因此全部靠
+   * 入参开关在构建期定分支，点击时不再判断。
    */
   createCoverDetailsControls(
     coverControlsEntityId,
@@ -13639,9 +13330,8 @@ export class PanelRenderer {
     let isCurtainRetracted = dreamCurtainIsRetracted(coverControlsState?.state, coverMotorReversed);
     /**
      * 按设备形态生成动作按钮组（关 / 暂停 / 开，晾衣机为下降 / 暂停 / 升起）。
-     *
-     * 电机反向的设备把开 / 关服务对调，因此按钮文案不变、下发的服务名相反；
-     * 返回数组同时供 `renderPositionState` 做高亮，顺序固定为「主 / 暂停 / 次」。
+     * 电机反向的设备把开 / 关服务对调，故按钮文案不变、下发的服务名相反；返回数组同时供
+     * `renderPositionState` 高亮，顺序固定为「主 / 暂停 / 次」。
      */
     const coverActionDefinitions = (
       isDreamCoverControl
@@ -13768,9 +13458,7 @@ export class PanelRenderer {
     let controlMotorState = coverMotorState;
     /**
      * 触发晾衣机的位置标定学习（记录升降两端对应的设备原始值）。
-     *
-     * 晾衣机的 number 指令值与实际高度不成比例，必须用实测端点反推映射；
-     * 非晾衣机没有标定概念，直接跳过。
+     * 晾衣机的 number 指令值与实际高度不成比例，必须用实测端点反推映射；非晾衣机直接跳过。
      */
     const learnPositionCalibration = () => {
       if (coverIsAirer) {
@@ -13786,10 +13474,8 @@ export class PanelRenderer {
     let latestCoverStateText = String(coverControlsState?.state || "");
     /**
      * 把实体状态换算成 0~100 的展示位置。
-     *
-     * 晾衣机的位置是非线性的（指令值与实际高度不成比例），要走标定映射并区分收起/展开的呈现；
-     * 普通 cover 直接读 current_position（支持倾斜时读 current_tilt_position）。
-     * 拿不到数值时按 state 兜底：open 视为 100，其余视为 0。
+     * 晾衣机位置非线性（指令值与实际高度不成比例），走标定映射并区分收起 / 展开；普通 cover
+     * 直接读 current_position（倾斜时读 current_tilt_position）；取不到数值时 open 计 100、其余计 0。
      */
     const resolvePositionFromState = positionSourceState => {
       const reportedPosition = coverIsAirer
@@ -13836,9 +13522,7 @@ export class PanelRenderer {
     };
     /**
      * 渲染位置滑条与动作按钮高亮，并把位置回调给可视化层。
-     *
-     * 位置夹到 0~100；按钮高亮依据的是本次运动方向而非服务器回报状态，
-     * 这样点击后能立刻给出反馈，不必等设备上报。
+     * 位置夹到 0~100；按钮高亮依据本次运动方向而非服务器回报状态，点击后能立刻反馈。
      */
     const renderPositionState = (renderPositionValue, renderMotionState = "") => {
       sliderPosition = Math.max(0, Math.min(100, Number(renderPositionValue) || 0));
@@ -13907,9 +13591,8 @@ export class PanelRenderer {
       const animationDurationMs = Math.max(900, Math.abs(toPosition - fromPosition) * 28);
       /**
        * 位置动画的一帧：按三次缓出曲线把滑条从起点推进到目标。
-       *
-       * 缓出曲线 1-(1-t)^3 让运动前快后慢，更接近真实电机减速停止的手感；
-       * 动画只驱动界面（真实位置仍以设备回报为准），到终点后不再排下一帧。
+       * 缓出曲线 1-(1-t)^3 前快后慢，更接近电机减速停止的手感；动画只驱动界面（真实位置仍以
+       * 设备回报为准），到终点后不再排下一帧。
        */
       const animatePositionStep = frameTimestampMs => {
         const animationProgress = Math.min(
@@ -13966,11 +13649,8 @@ export class PanelRenderer {
     };
     /**
      * 应用一条窗帘实体状态：更新位置、运动态与梦幻帘开合状态。
-     *
-     * primary 表示这条状态来自主实体，需要顺带更新内部缓存文案。
-     * 晾衣机在「保持位置」窗口内会忽略服务器回报的中间值，避免位置传感器抖动
-     * 让滑条来回跳；梦幻帘的「已收拢」是异步生效的，所以点击后的目标态要一直保留
-     * 到实体真正到达对应状态，超时则放弃，避免界面永远停在乐观值上。
+     * primary 表示状态来自主实体，需顺带更新内部缓存文案。晾衣机在「保持位置」窗口内忽略服务器回报的中间值， 避免位置传感器抖动让滑条来回跳；梦幻帘「已收拢」异步生效，所以点击后的目标态要一直保留到实体真正到达，
+     * 超时则放弃，避免界面永远停在乐观值上。
      */
     const applyCoverState = (coverSourceState, { primary: isPrimaryState = false } = {}) => {
       if (isPrimaryState) {
@@ -14163,9 +13843,8 @@ export class PanelRenderer {
   }
   /**
    * 构建空调 / 地暖详情弹窗的控制区（电源、模式、温度、风速、摆风）。
-   *
-   * 能力清单先过 normalizeClimateCapabilities 归一：各家集成给的属性名与取值不一致，
-   * 统一字段后才可能用同一套逻辑决定渲染哪些控件。
+   * 能力清单先过 normalizeClimateCapabilities 归一：各家集成的属性名与取值不一致，
+   * 统一字段后才能用同一套逻辑决定渲染哪些控件。
    */
   createClimateDetailsControls(
     climateControlsEntityId,
@@ -14236,9 +13915,8 @@ export class PanelRenderer {
     };
     /**
      * 安排一次「指令中间态」清理（2.5 秒后把待发状态一并收掉）。
-     *
-     * 与 8 秒的确认窗口配套：确认窗口负责压住状态回弹，
-     * 这个短定时器负责在请求失败或用户不再操作时把 pending 状态复位。
+     * 与 8 秒确认窗口配套：确认窗口负责压住状态回弹，这个短定时器负责在请求失败或用户
+     * 不再操作时复位 pending 状态。
      */
     const scheduleCommandClear = () => {
       window.clearTimeout(commandClearTimer);
@@ -14298,10 +13976,8 @@ export class PanelRenderer {
       climateEffectMode(effectSourceState, climateDeviceType);
     /**
      * 渲染温控区：模式按钮高亮、强调色、当前温度与可视回调。
-     *
-     * 强调色按「制冷 / 制热 / 其他」取模式色，再用目标温度在区间内的比例提亮，
-     * 让用户一眼看出设定温度处于区间高位还是低位；
-     * 末尾统一刷新所有按钮与自定义下拉的选中态，避免各控件各自维护状态。
+     * 强调色按「制冷 / 制热 / 其他」取模式色，再用目标温度在区间内的比例提亮，让用户一眼
+     * 看出设定温度处于高位还是低位；末尾统一刷新所有按钮与自定义下拉的选中态。
      */
     const renderClimateControls = (controlsSourceState = latestClimateEntityState) => {
       latestClimateEntityState = controlsSourceState || latestClimateEntityState;
@@ -14361,9 +14037,8 @@ export class PanelRenderer {
           : "当前温度 --";
       /**
        * 按服务名取出该服务对应的「当前值」，用于高亮模式按钮与自定义下拉。
-       *
-       * HA 把不同维度（模式、风速、摆风、预设…）分散在 state 与各种 attribute 上，
-       * 这里按服务名集中映射，免得每个按钮各自写一遍取值逻辑。
+       * HA 把模式、风速、摆风、预设等维度分散在 state 与各种 attribute 上，这里按服务名
+       * 集中映射，免得每个按钮各自写一遍取值逻辑。
        */
       const resolveServiceValue = climateServiceName =>
         climateServiceName === "set_hvac_mode"
@@ -14416,10 +14091,8 @@ export class PanelRenderer {
     };
     /**
      * 渲染圆形温控表盘：设定值、进度弧、指针角度与加减按钮可用性。
-     *
-     * 表盘可视角度只有 270°（自 225° 起），所以进度按 75% 折算而不是 100%；
-     * 边界判断留半步容差 stepEpsilon，否则步进值非整数时会「差一点点按不动」。
-     * shouldAnimate 用于在用户操作时重放一次数值变化的强调动画。
+     * 表盘可视角度只有 270°（自 225° 起），故进度按 75% 折算而非 100%；边界判断留半步
+     * 容差 stepEpsilon，否则步进值非整数时会「差一点点按不动」；参数控制强调动画重放。
      */
     const renderThermostat = (shouldAnimate = false) => {
       temperatureValueElement.innerHTML = supportsTargetTemperature
@@ -14468,9 +14141,7 @@ export class PanelRenderer {
     let temperatureQueueTimer = null;
     /**
      * 判断两个设定温度是否相等（容差 1e-8）。
-     *
-     * 温度可能是 22.5 这类浮点数，直接用 === 会因浮点误差误判，
-     * 导致本来相同的值仍被下发一次服务调用。
+     * 温度可能是 22.5 这类浮点数，直接用 === 会因浮点误差误判，导致相同的值仍被下发一次服务调用。
      */
     const areTemperaturesEqual = (firstTemperature, secondTemperature) =>
       firstTemperature !== null &&
@@ -14491,10 +14162,8 @@ export class PanelRenderer {
     };
     /**
      * 串行下发温度设定请求。
-     *
-     * 同一时刻只允许一个在途请求：取队首下发，期间新值继续排队，本轮结束 220ms 后再处理下一个。
-     * 与上次成功下发的值相同就跳过，省掉无意义的服务调用与状态抖动；
-     * 失败时清空队列并把显示回退到最后一个成功值，避免界面停在并未生效的温度上。
+     * 同一时刻只允许一个在途请求：取队首下发，期间新值继续排队，本轮结束 220ms 后再处理
+     * 下一个；与上次成功值相同就跳过；失败时清空队列并把显示回退到最后一个成功值。
      */
     const flushTemperatureQueue = async () => {
       window.clearTimeout(temperatureQueueTimer);
@@ -14544,10 +14213,7 @@ export class PanelRenderer {
     };
     /**
      * 把当前目标温度排入下发队列。
-     *
-     * 与队列末尾值相同就不重复排队（只刷新确认窗口）。preserveIntermediateSteps 为真
-     * 且设备是热水器时保留中间档位，因为热水器是「点一次升一档」，
-     * 合并掉中间值会让实际档位跳级；其他设备以及拖动结束的场景只保留最终值。
+     * 与队列末尾值相同就不重复排队（只刷新确认窗口）。preserveIntermediateSteps 为真且设备是热水器时保留 中间档位，因为热水器「点一次升一档」，合并中间值会让实际档位跳级；其他设备与拖动结束只留最终值。
      * 160ms 延迟用于合并连续点击。
      */
     const enqueueTemperature = ({
@@ -14584,9 +14250,8 @@ export class PanelRenderer {
     };
     /**
      * 按步长增减目标温度（「+」「-」按钮的处理函数）。
-     *
-     * 结果先夹到设备支持的 [min, max]，再按 capabilityTemperatureStep 的小数位数取整，
-     * 避免浮点累加出现 22.500000000000004 这类值；值确实变化才重绘并入队下发。
+     * 先夹到设备支持的 [min, max]，再按 capabilityTemperatureStep 的小数位数取整，避免
+     * 浮点累加出现 22.500000000000004 这类值；值真的变化才重绘并入队下发。
      */
     const stepTargetTemperature = stepCount => {
       if (!climateControlsInteractive || !supportsTargetTemperature) {
@@ -14610,10 +14275,8 @@ export class PanelRenderer {
     };
     /**
      * 把表盘上的指针位置换算成设定温度。
-     *
-     * 表盘的有效角度区间是 225°~495°（从正下方顺时针盘 270°，缺口留在正下方）；
-     * 指针落在缺口 135°~225° 内时按靠近哪端吸附到端值，避免读值跳变。
-     * 角度比例再按设备的温度区间与步长量化，保证与「+/-」按钮得到同一套刻度值。
+     * 有效角度区间 225°~495°（从正下方顺时针 270°，缺口在正下方）；指针落在缺口
+     * 135°~225° 内时按靠近端吸附到端值，避免读值跳变；比例再按设备温区与步长量化。
      */
     const temperatureFromPointer = dialPointerEvent => {
       const dialRect = temperatureDialElement.getBoundingClientRect();
@@ -14678,9 +14341,8 @@ export class PanelRenderer {
     });
     /**
      * 结束表盘拖动：清掉拖动态、释放指针捕获，并仅在温度真的变化时下发。
-     *
-     * 比较对象是「按下时的温度」而不是上一次移动的值，这样一次拖动只产生一个请求；
-     * preserveIntermediateSteps 传 false，让队列合并掉拖动过程中的中间值。
+     * 比较对象是「按下时的温度」而非上一次移动值，一次拖动只产生一个请求；
+     * preserveIntermediateSteps 传 false，让队列合并中间值。
      */
     const endDialDrag = dialReleaseEvent => {
       if (!activeDialDrag || dialReleaseEvent.pointerId !== activeDialDrag.pointerId) {
@@ -14719,11 +14381,8 @@ export class PanelRenderer {
     }
     /**
      * 创建一组温控选项控件（模式 / 风速 / 摆风 / 预设等）。
-     *
-     * 呈现形式由 climateOptionPresentation 按「选项数量与文案长度」自动决定：
-     * 少量短文案用内联按钮，多或长则用自定义下拉——原生 select 无法满足样式与
-     * 弹层定位需求，所以用 popover + listbox 角色手工实现并补齐键盘操作。
-     * 取值列表去重后为空则整组不渲染，避免出现空区块。
+     * 呈现形式由 climateOptionPresentation 按「选项数量与文案长度」自动决定：少量短文案用内联按钮，多或长 则用自定义下拉 —— 原生 select 无法满足样式与弹层定位需求，所以用 popover + listbox 角色手工实现并补齐
+     * 键盘操作。取值列表去重后为空则整组不渲染，避免出现空区块。
      */
     const createClimateOptionGroup = ({
       label: optionLabel,
@@ -14786,9 +14445,8 @@ export class PanelRenderer {
         let isSelectRequestPending = false;
         /**
          * 判断下拉菜单当前是否展开。
-         *
-         * 优先用 :popover-open 伪类；在不支持 popover 的环境走兼容分支，
-         * 读 dataset.open 标记，避免整个方法抛错导致菜单彻底不可用。
+         * 优先用 :popover-open 伪类；不支持 popover 的环境走兼容分支读 dataset.open 标记，
+         * 避免整个方法抛错导致菜单彻底不可用。
          */
         const isSelectMenuOpen = () => {
           try {
@@ -14799,9 +14457,8 @@ export class PanelRenderer {
         };
         /**
          * 把下拉当前值渲染到触发器文案与菜单项的选中态上。
-         *
-         * 显示文案优先取对应菜单项的文本（可能是本地化过的中文），
-         * 找不到时才退回原始值，保证未在 labels 里登记的取值也能显示出来。
+         * 显示文案优先取对应菜单项文本（可能已本地化），找不到才退回原始值，保证未在 labels
+         * 登记的取值也能显示。
          */
         const renderSelectValue = selectValueOption => {
           const currentSelectValueText = String(selectValueOption ?? "");
@@ -14820,10 +14477,8 @@ export class PanelRenderer {
         };
         /**
          * 计算并设置下拉菜单的尺寸与位置（空间不足时向上翻转）。
-         *
-         * 用 fixed 定位并夹进取视口：宽度取触发器宽度与 190px 的较大值，高度上限 360px；
-         * 下方空间容不下菜单且上方更宽裕时改为向上弹出；
-         * 最后把 left/top 夹进视口内 10px，避免贴边或溢出。
+         * 用 fixed 定位并夹进取视口：宽度取触发器宽度与 190px 的较大值、高度上限 360px；
+         * 下方容不下且上方更宽裕时向上弹；最后把 left/top 夹进视口内 10px，避免贴边或溢出。
          */
         const positionSelectMenu = () => {
           if (!isSelectMenuOpen() && selectMenuElement.hidden) {
@@ -14886,11 +14541,8 @@ export class PanelRenderer {
         };
         /**
          * 提交下拉选中的取值：先乐观刷新触发器文案，再调用服务，失败时回滚显示。
-         *
-         * 成功后必须把结果合并进 latestClimateEntityState：状态推送总晚于服务返回，
-         * 若不做本地合并，紧接着的 renderClimateControls 会按旧状态把刚选中的模式改回去。
-         * 合并时还要补齐派生字段 —— hvac_mode 要同步 state 与 hvac_action（否则可视化配色不对），
-         * 浴霸预设里的「待机/关闭」折算成 off，水暖的 operation_mode 则映射成 on/off。
+         * 成功后必须把结果合并进 latestClimateEntityState：状态推送总晚于服务返回，不合并的话紧接着的 renderClimateControls 会按旧状态把刚选中的模式改回去。合并时还要补齐派生字段 —— hvac_mode 同步 state 与
+         * hvac_action（否则配色不对），浴霸预设的「待机/关闭」折算成 off，水暖的 operation_mode 映射成 on/off。
          */
         const commitSelectOption = async committedOptionValue => {
           if (!climateControlsInteractive || isSelectRequestPending) {
@@ -15274,9 +14926,8 @@ export class PanelRenderer {
       autoFanButton.classList.toggle("active", isAutoFanSelected);
       /**
        * 渲染风速滑条：档位文案、进度填充与「自动」按钮高亮。
-       *
-       * 自动挡不在手动档位序列里，所以用 isAutoFanSelected 单独决定输出文案，
-       * 同时保留滑条位置，用户切回手动时能原地恢复上次档位。
+       * 自动挡不在手动档位序列里，故用 isAutoFanSelected 单独决定文案，同时保留滑条位置，
+       * 用户切回手动时能原地恢复上次档位。
        */
       const renderFanSlider = () => {
         const fanSliderIndex = Number(fanRangeElement.value);
@@ -15627,9 +15278,8 @@ export class PanelRenderer {
   }
   /**
    * 构建热水器详情弹窗的扩展区（同设备上的照明、杀菌、循环等附加实体）。
-   *
    * 这些实体不在 water_heater 域下，只能按「同设备 + 角色」从关联实体里挑；
-   * excludedEntityIds 用来排掉主控制区已经出现过的实体，避免一处功能出现两次。
+   * excludedEntityIds 排掉主控制区已出现过的实体，避免一处功能出现两次。
    */
   createWaterHeaterExtensionControls(
     extensionsEntityId,
@@ -15658,9 +15308,8 @@ export class PanelRenderer {
     const excludedEntityIdSet = new Set(extensionExcludedEntityIds);
     /**
      * 需要渲染成扩展控件的关联实体列表。
-     *
-     * 用户手工选过关联实体就用选择结果，否则按设备自动推断；
-     * 再排掉主控制区已经出现过的实体，避免同一功能在两处各出现一次。
+     * 用户手工选过就用选择结果，否则按设备自动推断；再排掉主控制区已出现过的实体，
+     * 避免同一功能在两处各出现一次。
      */
     const extensionRelatedEntities = (
       extensionSelectedEntities === null
@@ -15681,9 +15330,7 @@ export class PanelRenderer {
     const stateHandlersByEntityId = new Map();
     /**
      * 取扩展区某实体的状态，从未收到过状态时返回 unknown 占位对象。
-     *
-     * 占位对象带齐 entityId/state/attributes，让开关、下拉、数字、按钮、只读五类扩展控件
-     * 都能无条件按状态对象渲染首帧，不必各自判空。
+     * 占位对象带齐 entityId/state/attributes，让五类扩展控件都能无条件按状态对象渲染首帧。
      */
     const getExtensionEntityState = handlerTargetEntityId => {
       const extensionStateRecord = this.states.get(handlerTargetEntityId);
@@ -15819,9 +15466,8 @@ export class PanelRenderer {
         };
         /**
          * 把扩展下拉的取值格式化成展示文案。
-         *
-         * 浴霸的取值是设备私有的模式名，借 climateModeLabel 做本地化；
-         * 其余设备直接显示原始取值，避免误用气候模式词典。
+         * 浴霸的取值是设备私有模式名，借 climateModeLabel 本地化；其余设备直接显示原始取值，
+         * 避免误用气候模式词典。
          */
         const formatOptionLabel = optionLabelValue =>
           extensionPopupContext?.deviceType === "bath-heater"
@@ -15841,9 +15487,7 @@ export class PanelRenderer {
         };
         /**
          * 计算并设置扩展下拉菜单的尺寸与位置（空间不足时向上翻转）。
-         *
-         * 与温控区下拉同一套策略，只是上限更小（宽 132、高 216），
-         * 因为扩展区本身处在弹窗的角落，空间更紧张。
+         * 与温控区下拉同一套策略，只是上限更小（宽 132、高 216），因为扩展区处在弹窗角落、空间更紧。
          */
         const positionExtensionMenu = () => {
           if (!isExtensionMenuOpen() && extensionSelectMenuElement.hidden) {
@@ -15914,10 +15558,8 @@ export class PanelRenderer {
         };
         /**
          * 提交扩展下拉选中的取值：乐观渲染 → 调用对应选项服务 → 失败回滚。
-         *
-         * 不同域的选项服务名不同（select 用 select_option，input_select 用另一套），
-         * 由 relatedEntitySelectService 统一映射；映射不到时直接抛错，不静默失败。
-         * 乐观渲染时一并带上 options，否则重绘会丢掉菜单项。
+         * 不同域的选项服务名不同，由 relatedEntitySelectService 统一映射，映射不到直接抛错
+         * 而不静默失败；乐观渲染时一并带上 options，否则重绘会丢掉菜单项。
          */
         const commitExtensionOption = async extensionOptionValue => {
           if (!extensionsInteractive || isExtensionSelectPending || !extensionOptionValue) {
@@ -15987,9 +15629,8 @@ export class PanelRenderer {
         };
         /**
          * 渲染扩展区的下拉（select / input_select）控件。
-         *
-         * 选项集合用 JSON 签名比对：不变就只更新选中态，避免每次状态推送都重建按钮列表。
-         * 实体报 unknown / unavailable 时保留上一次的有效取值，防止下拉文案闪成「无选项」。
+         * 选项集合用 JSON 签名比对：不变就只更新选中态，避免每次状态推送重建按钮列表；
+         * 实体报 unknown / unavailable 时保留上一次有效取值，防止下拉文案闪成「无选项」。
          */
         const renderExtensionSelect = (extensionSelectSourceState = extensionSelectState) => {
           extensionSelectState = extensionSelectSourceState || extensionSelectState;
@@ -16111,8 +15752,7 @@ export class PanelRenderer {
         let isSteppingPending = false;
         /**
          * 解析数字实体的取值边界与步长，属性缺失时退回 0~100、步长 1。
-         *
-         * HA 的 number 实体在属性不全时没有可用范围，给一套保守默认值以免步进器不可操作；
+         * HA 的 number 实体属性不全时没有可用范围，给保守默认值以免步进器不可操作；
          * 步长下限取 0.001 是防除零 —— 后面要用它的小数位数做量化。
          */
         const resolveNumberBounds = () => {
@@ -16128,9 +15768,8 @@ export class PanelRenderer {
         };
         /**
          * 渲染扩展区的数字步进器：显示数值与单位，并按可用性禁用加减按钮。
-         *
-         * unknown/unavailable 时显示 "--" 并禁用按钮；参数默认取缓存的实体状态，
-         * 方便服务返回后用无参调用做一次重绘。
+         * unknown/unavailable 时显示 "--" 并禁用按钮；参数默认取缓存状态，方便服务返回后
+         * 无参调用重绘。
          */
         const renderNumberControl = (numberSourceState = numberEntityState) => {
           numberEntityState = numberSourceState || numberEntityState;
@@ -16154,10 +15793,8 @@ export class PanelRenderer {
         };
         /**
          * 按步长调整数字实体并通过 set_value 下发。
-         *
          * 值先夹到 [min, max]，再按步长的小数位数取整 —— 浮点加法会得到 0.30000000000000004
-         * 这类值，直接回写设备会留下脏数据。到达边界无变化时直接返回，不发无意义的请求；
-         * 请求在途时先乐观显示新值，失败则回滚到提交前的状态。
+         * 这类值，回写设备会留脏数据；边界无变化直接返回；在途时先乐观显示，失败回滚。
          */
         const stepNumber = async stepDirection => {
           if (!extensionsInteractive || isSteppingPending || !Number.isFinite(numericValue)) {
@@ -16210,9 +15847,8 @@ export class PanelRenderer {
         let isActionPending = false;
         /**
          * 渲染扩展区按钮类控件的可用性。
-         *
-         * 只有 unavailable 才算不可用：button 实体的 state 通常是「最后一次按下的时间戳」，
-         * 不能拿来当可用性判据；请求在途时同样禁用，避免重复触发。
+         * 只有 unavailable 才算不可用：button 实体的 state 通常是最后一次按下的时间戳，
+         * 不能当可用性判据；请求在途时同样禁用，避免重复触发。
          */
         const renderActionButton = actionSourceState => {
           const isActionUnavailable =
@@ -16263,7 +15899,6 @@ export class PanelRenderer {
         const readonlyValueElement = document.createElement("small");
         /**
          * 渲染扩展区的只读数值（sensor / binary_sensor）。
-         *
          * binary_sensor 的 on/off 转成「已触发 / 正常」，普通 sensor 拼上单位；
          * unknown/unavailable 统一显示「不可用」并给容器打标，便于样式弱化。
          */
@@ -16305,9 +15940,8 @@ export class PanelRenderer {
   }
   /**
    * 构建浴室取暖器的照明开关。
-   *
-   * 取暖与照明在 HA 里是同一设备下的两个实体，开关必须落到 light 实体上，
-   * 因此单独做一个控件，而不是复用取暖器本体的开关。
+   * 取暖与照明是同一设备下的两个实体，开关必须落到 light 实体上，故单独做一个控件，
+   * 而不复用取暖器本体的开关。
    */
   createBathHeaterLightControl(
     bathLightEntityId,
@@ -16397,8 +16031,7 @@ export class PanelRenderer {
   }
   /**
    * 打开电动床的「加载中」占位弹窗。
-   *
-   * 电动床的能力要靠设备画像判断，画像未到时先给占位，避免用户以为点击没反应；
+   * 电动床的能力要靠设备画像判断，画像未到时先给占位以免用户以为点击没反应；
    * 组件未绑定实体时静默返回 —— 连占位都没法定位。
    */
   showElectricBedLoadingDetails(bedLoadingComponent, { preview: bedLoadingPreview = false } = {}) {
@@ -16607,9 +16240,8 @@ export class PanelRenderer {
     };
     /**
      * 往电动床详情弹窗追加某个角色的能力控件，并登记状态回调与清理函数。
-     *
-     * bedStateHandlers 负责把该实体的后续推送转给控件；bedControlBindings 记下清理函数
-     * 与角色名，弹窗关闭时统一解绑，避免控件内部的监听随弹窗一起泄漏。
+     * bedStateHandlers 把该实体的后续推送转给控件；bedControlBindings 记下清理函数与角色名，
+     * 弹窗关闭时统一解绑，避免内部监听随弹窗泄漏。
      */
     const addBedRoleControl = (
       roleLabel,
@@ -16752,10 +16384,8 @@ export class PanelRenderer {
     bedDetailsDialog.append(bedDetailsCard);
     /**
      * 把角度实体的状态换算成 0~100 的百分比，用于驱动床模型的倾斜幅度。
-     *
-     * 实体自带 min/max 时按区间归一化；缺失或区间非法（max ≤ min）时直接把状态值
-     * 当百分比用 —— 有些床的角度实体本就是 0~100 的无量纲数值。
-     * 取不到数值时返回 0，让模型回到平躺姿态。
+     * 有 min/max 时按区间归一化；缺失或区间非法（max ≤ min）时把状态值当百分比用 ——
+     * 有些床的角度实体本就是 0~100 的无量纲数值；取不到数值时返回 0，让模型回到平躺。
      */
     const bedAnglePercent = (angleRoleId, angleEntityState) => {
       const angleStateValue = Number(angleEntityState?.state);
@@ -16783,10 +16413,8 @@ export class PanelRenderer {
     };
     /**
      * 刷新电动床详情的三个角度读数、模型倾角与状态文案。
-     *
-     * 模型倾角 = 百分比 × 负系数（靠背 -0.42、腿部 -0.28、腰部 -0.1，单位为 deg）：
-     * 系数是视觉标定值，让各部位的活动幅度看起来协调，并非真实角度，
-     * 取负是因为 CSS 旋转的正方向与「抬起」相反。
+     * 模型倾角 = 百分比 × 负系数（靠背 -0.42、腿部 -0.28、腰部 -0.1，单位 deg）：
+     * 系数是视觉标定值，让各部位活动幅度协调、并非真实角度；取负因 CSS 旋转正方向与抬起相反。
      */
     const refreshBedReadouts = () => {
       const backrestEntityState = readBedEntityState(electricBedRoles.backrest);
@@ -16887,9 +16515,8 @@ export class PanelRenderer {
   }
   /**
    * 从 3D 舞台打开扫地机详情。
-   *
    * 弹窗的呈现尺寸由舞台侧提供的布局回调决定（舞台可能整体缩放或倾斜），
-   * 因此几何参数全部由调用方注入，这里不自己计算。
+   * 因此几何参数全部由调用方注入，这里不自行计算。
    */
   openInteraction3dVacuumDetails(
     vacuumComponentConfig,
@@ -16911,11 +16538,7 @@ export class PanelRenderer {
     let vacuumOptionsSignature = "";
     /**
      * 计算扫地机「可选值集合」的签名，用于判断详情弹窗是否需要重建。
-     *
-     * 风速档、吸力档、清洁模式、options 这些可选值只存在于实体属性里，设备刚上线时
-     * 往往是空的，等属性补齐后必须重建弹窗才会出现对应控件。把这几组列表序列化成
-     * 字符串做整体比较，比逐个字段比对更省事，也不易漏字段。
-     *
+     * 风速档、吸力档、清洁模式、options 这些可选值只存在于实体属性里，设备刚上线时往往为空，等属性补齐后必须 重建弹窗才会出现对应控件；把这几组列表序列化成字符串整体比较，比逐个字段比对更省事也不易漏字段。
      * @returns {string} 当前可选值集合的签名。
      */
     const computeVacuumOptionsSignature = () =>
@@ -16937,10 +16560,8 @@ export class PanelRenderer {
       );
     /**
      * 写入扫地机相关实体的状态，并把状态分发给弹窗内的各个控件。
-     *
-     * 弹窗打开时逐个实体调用已注册的状态回调（detailsStateSync.handlers）；
-     * 之后若可选值签名发生变化（设备刚上线、属性补齐），整个弹窗重建一次。
-     * 没收到状态的实体会被写成 unavailable 快照，避免控件一直停在 loading 占位。
+     * 弹窗打开时逐个实体调用已注册的状态回调（detailsStateSync.handlers）；之后若可选值
+     * 签名变化（设备刚上线、属性补齐）则整个弹窗重建；无状态的实体写成 unavailable 快照。
      */
     const applyVacuumStates = vacuumStates => {
       for (const vacuumEntityKey of vacuumEntityIds) {
@@ -16964,9 +16585,8 @@ export class PanelRenderer {
     applyVacuumStates(initialStates);
     /**
      * 在组件树里递归查找绑定到当前扫地机实体的 vacuum-control 组件。
-     *
-     * 编辑态下组件可能藏在任意层级的 children 里，因此需要深度优先遍历；
-     * 找不到返回 null，此时「已选关联实体」按空列表处理。
+     * 组件可能藏在任意层级的 children 里，因此深度优先遍历；找不到返回 null，
+     * 此时「已选关联实体」按空列表处理。
      */
     const findVacuumControlComponent = componentList => {
       for (const componentEntry of componentList || []) {
@@ -17010,9 +16630,8 @@ export class PanelRenderer {
     };
     /**
      * 打开（或重建）扫地机详情的 3D 交互弹窗，并刷新可选值签名。
-     *
-     * 重建前先摘掉旧的 close 监听：监听是 once 的，但重建会换成新的 dialog 实例，
-     * 不摘会残留对已销毁弹窗的引用。重建的目的就是让新出现的可选值控件生效。
+     * 重建前先摘掉旧的 close 监听：重建会换成新的 dialog 实例，不摘会残留对已销毁弹窗的引用；
+     * 重建的目的就是让新出现的可选值控件生效。
      */
     const showVacuumDialog = () => {
       vacuumDialog?.removeEventListener("close", onDialogClose);
@@ -17218,9 +16837,8 @@ export class PanelRenderer {
     vacuumControlsElement.append(vacuumActionsElement);
     /**
      * 把设备返回的取值规范化成查表用的键。
-     *
-     * 各固件的写法差异很大（"Sweeping"、"sweeping"、"sweeping-and-mopping"），
-     * 统一转小写、把非字母数字换成下划线并去掉首尾下划线，才能命中中文标签表。
+     * 各固件写法差异很大（Sweeping / sweeping / sweeping-and-mopping），统一转小写、
+     * 非字母数字换下划线并去首尾下划线，才能命中中文标签表。
      */
     const normalizeVacuumOptionKey = optionRawValue =>
       String(optionRawValue || "")
@@ -17244,10 +16862,8 @@ export class PanelRenderer {
     const vacuumOptionGroups = [];
     /**
      * 创建一个扫地机可选值分组（清洁模式 / 风速档 …）。
-     *
-     * 选中行为由调用方通过 onSelect 处理，这里只负责渲染、选中态与禁用逻辑；
-     * 选项为空时返回 null，避免渲染出空分组。分组也会登记进 vacuumOptionGroups，
-     * 便于状态推送时统一调用各自的 sync。
+     * 选中行为由调用方通过 onSelect 处理，这里只管渲染、选中态与禁用逻辑；选项为空返回 null
+     * 避免渲染空分组；分组登记进 vacuumOptionGroups，便于状态推送时统一调用各自的 sync。
      */
     const createVacuumOptionGroup = ({
       label: groupLabel,
@@ -17336,7 +16952,6 @@ export class PanelRenderer {
     let cleaningModeGroup = null;
     /**
      * 记录清洁模式实体的最新状态，并同步清洁模式分组的选中态。
-     *
      * 分组可能还没创建（属性未到位时 cleaningModeGroup 为 null），此时只更新缓存，
      * 待重建分组时用 currentOption 兜底显示。
      */
@@ -17348,10 +16963,9 @@ export class PanelRenderer {
     };
     let isVacuumActionPending = false;
     /**
-     * 切换扫地机弹窗的「动作进行中」态：整块标记 pending 并禁用所有动作/选项按钮。
-     *
-     * 服务是异步的，期间若仍可点击会让多条指令交叉下发；
-     * 被标记 dataset.unsupported 的按钮（设备不支持的动作）始终保持禁用。
+     * 切换扫地机弹窗的「动作进行中」态：整块标记 pending 并禁用所有动作 / 选项按钮。
+     * 服务是异步的，期间仍可点击会让多条指令交叉下发；标记 dataset.unsupported 的按钮
+     * （设备不支持的动作）始终保持禁用。
      */
     const setVacuumActionPending = isPending => {
       isVacuumActionPending = isPending;
@@ -17365,11 +16979,8 @@ export class PanelRenderer {
     };
     /**
      * 统一调用扫地机相关服务，并集中处理乐观更新、回滚与错误上报。
-     *
-     * 调用前有两道守卫：预览态或已有动作在途时直接返回 false，丢弃并发指令。
-     * 传入了 optimisticVacuumState 就先乐观渲染，失败再回滚 —— 回滚目标由
-     * rollbackStateHandler / rollbackState 指定，因为不同调用点要回滚的对象不同
-     * （主状态、或某个分组的选中态）。
+     * 调用前两道守卫：预览态或已有动作在途时直接返回 false，丢弃并发指令。传入 optimisticVacuumState 就先 乐观渲染、失败再回滚 —— 回滚目标由 rollbackStateHandler / rollbackState 指定，因为不同调用点要回滚的
+     * 对象不同（主状态、或某个分组的选中态）。
      */
     const invokeVacuumService = async (
       vacuumServiceDomain,
@@ -17502,10 +17113,8 @@ export class PanelRenderer {
     vacuumDialogElement.append(vacuumCardElement);
     /**
      * 把扫地机状态翻译成中文状态文案。
-     *
-     * 判定有优先级：清洗拖布 / 烘干 / 排水 / 回充 / 建图这些「子动作」属性先判 ——
-     * 它们与主状态并行存在，只看 state 会把「正在洗拖布」显示成「正在清扫」；
-     * 之后再看 vacuum_state（比 state 更细的设备自定义状态），最后回退 state 原文。
+     * 判定有优先级：清洗拖布 / 烘干 / 排水 / 回充 / 建图等子动作属性先判 —— 它们与主状态
+     * 并行，只看 state 会把「正在洗拖布」显示成「正在清扫」；再看 vacuum_state，最后回退 state 原文。
      */
     const vacuumStatusText = vacuumStatusState => {
       const vacuumStatusAttributes = vacuumStatusState?.attributes || {};
@@ -17560,9 +17169,8 @@ export class PanelRenderer {
       Number.isFinite(Number(numericMetric)) ? Number(numericMetric) : fallbackText;
     /**
      * 判断扫地机是否处于「工作中」，用于驱动动画与按钮高亮。
-     *
-     * 只看 state 不够：清洗拖布、烘干、建图等子动作期间 state 可能仍是 docked，
-     * 因此还要一并检查 running / returning / washing / drying / mapping 这些属性位。
+     * 只看 state 不够：洗拖布、烘干、建图等子动作期间 state 可能仍是 docked，还要一并检查
+     * running / returning / washing / drying / mapping 属性位。
      */
     const isVacuumBusy = busyState => {
       const busyAttributes = busyState?.attributes || {};
@@ -17577,8 +17185,7 @@ export class PanelRenderer {
     };
     /**
      * 渲染扫地机电量文本。
-     *
-     * 电量可能来自设备自身属性，也可能来自独立的电池 sensor，两种来源由
+     * 电量可能来自设备自身属性，也可能来自独立电池 sensor，两种来源由
      * vacuumBatteryPercent 统一取值；取不到时显示 "--"。
      */
     const renderVacuumBattery = () => {
@@ -17594,14 +17201,9 @@ export class PanelRenderer {
       renderVacuumBattery();
     };
     /**
-     * 按扫地机最新状态刷新详情弹窗的全部视觉与按钮态。
-     *
-     * 涵盖：状态文案、工作中/暂停/回充/扫地/拖地等视觉态、电量、本次面积与时长、
-     * 动作按钮的显隐与高亮（按设备 supported_features 决定哪些动作可见），
-     * 清洁模式与风速分组的选中态，以及错误/缺水的告警条。
-     *
-     * 动作按钮按三列排布，最后一行的 2 个或 1 个按钮要单独补 is-last-row-pair /
-     * is-last-row-single，否则末行会因网格均分而偏左。
+     * 按扫地机最新状态刷新详情弹窗的全部视觉与按钮态：状态文案、工作中 / 暂停 / 回充 / 扫地 / 拖地等视觉态、
+     * 电量、本次面积与时长、动作按钮的显隐与高亮（按 supported_features 决定可见性）、清洁模式与风速分组的 选中态，以及错误 / 缺水的告警条。
+     * 动作按钮按三列排布，末行的 2 个或 1 个按钮要单独补 is-last-row-pair / is-last-row-single，否则会因网格均分而偏左。
      */
     function renderVacuumState(nextVacuumState) {
       if (!nextVacuumState) {
@@ -17834,10 +17436,8 @@ export class PanelRenderer {
       );
       /**
        * 按 3D 舞台的实际尺寸重算扫地机弹窗的位置、缩放与最大高度。
-       *
-       * 舞台可能被外部容器整体缩放（presentation 尺寸 ≠ 实际 client 尺寸），
-       * 所以把 popupPlacement 算出的比例分别乘以宽/高缩放因子再落盘。
-       * 最大高度按剩余可用空间反算，防止弹窗底部被裁掉。
+       * 舞台可能被外部容器整体缩放（presentation 尺寸 ≠ 实际 client 尺寸），故把
+       * popupPlacement 算出的比例分别乘宽 / 高缩放因子；最大高度按剩余空间反算以免底部被裁。
        */
       const layoutVacuumDialog = () => {
         const layoutRootElement = interaction3dOptions.root || this.container;
@@ -17880,10 +17480,9 @@ export class PanelRenderer {
           ) + "px";
       };
       vacuumDialogElement.resizeInteraction3d = layoutVacuumDialog;
-      // 观察器的回调只排程：layoutVacuumDialog 会把 maxHeight / transform 写回
-      // vacuumDialogElement，而它本身就是被观察元素，尺寸在通知投递过程中变化，
-      // 浏览器随即抛「ResizeObserver loop completed with undelivered notifications」。
-      // resizeInteraction3d 仍指向同步实现，供 show() 等即时布局路径直接调用。
+      // 观察器回调只排程：布局函数会把尺寸写回被观察的元素本身，投递过程中再触发会报
+      // 「ResizeObserver loop completed with undelivered notifications」，推迟一帧即可避开。
+      // resizeInteraction3d 仍指向同步实现，供 show() 等即时布局路径直接用。
       const scheduleVacuumDialogLayout = () => {
         if (vacuumLayoutFrameId) {
           return;
@@ -17938,9 +17537,7 @@ export class PanelRenderer {
   }
   /**
    * 打开人体存在传感器详情弹窗（活动曲线、停留时长、触发事件）。
-   *
-   * 传感器种类由实体与设备画像判定，不同种类展示的区块不同，因此先定种类再建控件。
-   *
+   * 传感器种类由实体与设备画像判定，不同种类展示的区块不同，故先定种类再建控件。
    * @throws {Error} 组件没有绑定实体。
    */
   showPresenceDetails(presenceComponent, { preview: presencePreview = false } = {}) {
@@ -18025,10 +17622,8 @@ export class PanelRenderer {
       "#758189";
     /**
      * 把存在感类实体的状态归一成展示所需的 key 与元数据。
-     *
-     * 人体、门窗、水浸、烟雾、燃气几类传感器的判定规则完全不同，
-     * 统一交给 presenceSensorPresentation 处理；这里只注入该实体的运动事件配置，
-     * 并允许调用方覆写「当前时间」—— 需要按历史时间点回放判定时会传入更早的时间戳。
+     * 人体、门窗、水浸、烟雾、燃气几类传感器判定规则完全不同，统一交给 presenceSensorPresentation；
+     * 这里只注入该实体的运动事件配置，并允许覆写「当前时间」以便按历史时间点回放判定。
      */
     const resolvePresencePresentation = (presenceInputState, presenceNow = Date.now()) =>
       presenceSensorPresentation(presenceInputState, "auto", {
@@ -18160,9 +17755,7 @@ export class PanelRenderer {
     presenceDialog.append(presenceCard);
     /**
      * 把时间戳格式化成「今天 HH:MM」或「MM-DD HH:MM」。
-     *
-     * 与今天同一天时省略日期，减少视觉噪音；否则补上月日，
-     * 并把 Intl 默认的 "/" 分隔符换成 "-" 统一风格。
+     * 与今天同一天时省略日期以减少视觉噪音，否则补上月日，并把 Intl 默认的 "/" 换成 "-"。
      */
     const formatPresenceTimestamp = timestampMs => {
       if (!Number.isFinite(timestampMs)) {
@@ -18182,10 +17775,8 @@ export class PanelRenderer {
     };
     /**
      * 重绘存在感时间轴：把历史分桶渲染成一行色块，并汇总有人时长。
-     *
-     * 分桶固定 48 段，色块宽度才能稳定不跳动；每块的 title 给出「多少分钟前 + 状态」，
-     * 鼠标悬停即可读历史。桶序号换算分钟数时按剩余比例估算，与分桶的时间轴保持一致；
-     * 有人时长同样按「有人桶数 × 每桶分钟数」折算，避免再遍历一次历史。
+     * 分桶固定 48 段，色块宽度才稳定不跳动；每块 title 给出「多少分钟前 + 状态」。
+     * 桶序号按剩余比例估算分钟数，有人时长按「有人桶数 × 每桶分钟数」折算，避免再遍历历史。
      */
     const renderPresenceTimeline = () => {
       const historyBuckets = presenceHistoryBuckets(
@@ -18235,10 +17826,8 @@ export class PanelRenderer {
     };
     /**
      * 求「最近一次检测到人」的时间戳。
-     *
-     * 要同时看两处：历史点里被判定为 occupied 的记录，以及当前状态若为 occupied
-     * 时的状态变更时间 —— 后者未必已经写进历史（历史是异步落库的），漏掉会显示偏旧的时间。
-     * 两处都没有则返回 null，由调用方显示 "--"。
+     * 同时看两处：历史点里判定为 occupied 的记录，以及当前状态为 occupied 时的状态变更
+     * 时间 —— 后者未必已写进历史（历史异步落库），漏掉会显示偏旧时间；都没有则返回 null。
      */
     const lastPresenceTimestamp = () => {
       const presenceMotionConfig = presenceMotionEventConfig(
@@ -18289,10 +17878,8 @@ export class PanelRenderer {
     };
     /**
      * 按传感器最新状态刷新存在感弹窗：状态文案、图形态与各项指标。
-     *
-     * 图形类名映射因传感器类型而异（门窗用 open、水浸用 wet、烟雾/燃气用 alert），
-     * 不能统一套 occupied，所以下面按 kind 分别组装类名。
-     * 本函数只负责「按当前状态重算一遍」，持续时间的推进由外层每秒触发一次重绘完成。
+     * 图形类名因传感器类型而异（门窗 open、水浸 wet、烟雾 / 燃气 alert），不能统一套
+     * occupied，故按 kind 分别组装；本函数只按当前状态重算，持续时长推进由外层每秒触发。
      */
     const renderPresenceState = nextPresenceState => {
       presenceState = nextPresenceState || presenceState;
@@ -18394,11 +17981,8 @@ export class PanelRenderer {
     this.presentRuntimeDialog(presenceDialogLayer, presenceDialog);
   }
   /**
-   * 打开实体详情弹窗：按设备画像渲染相应的区块，是「更多信息」动作的落点。
-   *
-   * 同一份文档里各类设备的详情差异全部收敛在这里，因此它是本文件里最大的分支树；
-   * 数据未就绪的设备（热水器等）交由 deferEntityDetailsUntilReady 挂起后重试。
-   *
+   * 打开实体详情弹窗：按设备画像渲染相应区块，是「更多信息」动作的落点。
+   * 各类设备的详情差异全部收敛在这里，因此是本文件里最大的分支树；数据未就绪的设备（热水器等）交由 deferEntityDetailsUntilReady 挂起后重试。
    * @throws {Error} 组件没有绑定实体。
    */
   showEntityDetails(detailsComponent, { preview: detailsPreview = false } = {}) {
@@ -18654,10 +18238,8 @@ export class PanelRenderer {
     this.closeRuntimeDialog();
     /**
      * 判断实体当前是否处于「开启」状态。
-     *
-     * 三类控件的规则不同：瞬时按钮（button）没有开关概念，恒为 false；
-     * 灯与开关类只看 state === "on"；气候类必须交给 climateIsPoweredOn，
-     * 因为它还要结合 hvac_action / preset_mode 等属性 —— 只看 state 会把送风、除湿判成关。
+     * 三类控件规则不同：瞬时按钮（button）恒为 false；灯与开关只看 state === "on"；
+     * 气候类交给 climateIsPoweredOn —— 还要结合 hvac_action / preset_mode，否则送风、除湿会被判成关。
      */
     const resolvePowerOn = (powerStateText, powerStateAttributes = entityAttributes) =>
       isMomentaryButton
@@ -18867,11 +18449,8 @@ export class PanelRenderer {
       };
       /**
        * 按灯光快照刷新详情弹窗里的光晕（颜色、透明度、模糊与缩放）。
-       *
-       * 亮度被映射到 0.08~1 的透明度、15~129px 的模糊与 0.62~1.67 的缩放，
-       * 都是视觉调参值：透明度下限留 0.08 是为了让「已开但很暗」与「已关闭」在界面上可区分。
-       * 色温用 2000K~6500K 的暖色 [255,132,42] 与冷色 [172,225,255] 线性插值兜底，
-       * 只在这盏灯拿不到可直接使用的 RGB 时才会走到这条路。
+       * 亮度映射到 0.08~1 透明度、15~129px 模糊与 0.62~1.67 缩放，都是视觉调参值：透明度下限留 0.08 是为了让 「已开但很暗」与「已关闭」在界面上可区分。色温用 2000K~6500K 的暖色 [255,132,42] 与冷色 [172,225,255]
+       * 线性插值兜底，只在这盏灯拿不到可直接使用的 RGB 时才走到这条路。
        */
       const renderEntityLightVisual = () => {
         const lightVisualBrightness = Math.max(
@@ -19919,10 +19498,8 @@ export class PanelRenderer {
     if (detailsComponent.type === "line-chart" && lineChartCurrentVisual) {
       /**
        * 重建详情弹窗里的折线图，并把新线色同步回外层容器。
-       *
-       * 折线图的尺寸依赖挂载后的实际布局，无法原地更新，只能整体换成新实例；
-       * 故先解绑旧实例的悬浮监听再 replaceWith。弹窗已关闭或图表已脱离文档时直接返回，
-       * 避免在已销毁的 DOM 上做替换。
+       * 折线图尺寸依赖挂载后的实际布局，无法原地更新，只能整体换新实例，故先解绑旧实例的
+       * 悬浮监听再 replaceWith；弹窗已关闭或图表已脱离文档时直接返回，避免在已销毁 DOM 上替换。
        */
       const refreshLineChartVisual = () => {
         chartRefreshTimer = 0;
@@ -19947,9 +19524,8 @@ export class PanelRenderer {
       };
       /**
        * 安排一次折线图重建（默认 700ms 防抖）。
-       *
-       * 用 `||=` 保证同一时刻只有一个待执行的定时器：历史数据通常成批到达，
-       * 每条都重建会连续触发重排，这里合并成一次。
+       * 用 `||=` 保证同一时刻只有一个待执行定时器：历史数据通常成批到达，每条都重建会连续
+       * 触发重排，这里合并成一次。
        */
       const scheduleChartRefresh = (delayMs = 700) => {
         chartRefreshTimer ||= window.setTimeout(
@@ -19984,11 +19560,8 @@ export class PanelRenderer {
     } else if (hasPowerToggle && renderPowerState) {
       /**
        * 把实体最新状态应用到详情弹窗（开关 / 灯 / 气候类控件的统一入口）。
-       *
-       * 气候控件的「结构」取决于实体属性（可用模式、风速档、摆风档…），属性变化时
-       * 必须整块重建控件而非就地更新，否则新旧档位按钮会混在一起；因此先比对
-       * climateControlStructureKey，只有结构变了才重建，重建时把灯控、扩展控件等
-       * 外挂节点迁回新控件，最后统一刷新开关态与各子控件状态。
+       * 气候控件的结构取决于实体属性（可用模式、风速档、摆风档…），属性变化时必须整块重建而非就地更新，否则 新旧档位按钮会混在一起；因此先比对 climateControlStructureKey，只有结构变了才重建，重建时把灯控、扩展
+       * 控件等外挂节点迁回新控件，最后统一刷新开关态与各子控件状态。
        */
       const applyEntityDetailsState = updatedEntityState => {
         latestEntityState = updatedEntityState;
@@ -20137,9 +19710,8 @@ export class PanelRenderer {
   }
   /**
    * 按容器尺寸重算画布缩放，并同步弹窗缩放与选中手柄。
-   *
-   * 由 ResizeObserver、窗口 resize、旋屏共同触发，因此必须幂等且轻量；
-   * 容器尺寸为 0 时直接返回，否则会把缩放算成 0，整页控件消失。
+   * 由 ResizeObserver、窗口 resize、旋屏共同触发，必须幂等且轻量；容器尺寸为 0 时直接
+   * 返回，否则会把缩放算成 0、整页控件消失。
    */
   resize() {
     if (!this.viewport || !this.document) {
@@ -20166,10 +19738,9 @@ export class PanelRenderer {
     this.container.dataset.renderScale = Math.min(appliedScaleXValue, appliedScaleYValue).toFixed(
       4
     );
-    // 先读后写：上面的几处写入已经让布局失效了，所以先把全部手柄外框的矩形一次读齐
-    // （整个 resize 只解析一次布局），再逐个套用。写成「逐个写→读」的话，第二个宿主
-    // 读之前已被前一个宿主的写入弄脏，于是每个宿主都强制一次同步重排 ——
-    // 组件多的页面在手机上滚动时就是每帧 N 次重排。
+    // 先读后写：先把全部手柄外框矩形一次读齐（整个 resize 只解析一次布局）再逐个套用；
+    // 写成「逐个写→读」的话，后一个宿主读取前已被前一个的写入弄脏，每个宿主都强制一次
+    // 同步重排 —— 组件多的页面在手机上滚动就是每帧 N 次重排。
     const transformHandleTargets = [];
     for (const [hostRecordId, componentHost] of this.componentHosts) {
       const componentRecord = this.componentRecords.get(hostRecordId);
@@ -20202,11 +19773,8 @@ export class PanelRenderer {
   }
   /**
    * 把 resize 合并到下一帧：同一帧里的多次触发只跑一遍。
-   *
-   * `visualViewport` 的 resize 在手机上每帧都来（滚动时地址栏收起、双指缩放），
-   * ResizeObserver 也可能连着投递；每一步 resize 都要把全部手柄宿主量一遍再写一遍，
-   * 不合并就是一帧跑好几遍。注意只合并**事件**入口：`resize()` 本身仍是同步的，
-   * 渲染完一页之后那次调用（要立刻拿到缩放值）不受影响。
+   * `visualViewport` 的 resize 在手机上每帧都来（滚动时地址栏收起、双指缩放），ResizeObserver 也可能连着 投递，而每步 resize 都要把全部手柄宿主量一遍再写一遍，不合并就是一帧跑好几遍。注意只合并**事件**入口：
+   * `resize()` 本身仍是同步的，渲染完一页之后那次调用（要立刻拿到缩放值）不受影响。
    */
   scheduleResize() {
     if (this.resizeFrameId) {
@@ -20219,9 +19787,8 @@ export class PanelRenderer {
   }
   /**
    * 断开运行期订阅并作废当前连接。
-   *
-   * socketGeneration 递增是关键的作废手段：断开是异步的，旧连接之后仍可能派发消息或
-   * 错误事件，靠代数比对把它们全部丢弃，避免旧连接影响新订阅。
+   * socketGeneration 递增是关键作废手段：断开是异步的，旧连接之后仍可能派发消息或错误，
+   * 靠代数比对全部丢弃，避免旧连接影响新订阅。
    */
   disconnectRuntime() {
     this.socketGeneration += 1;
@@ -20242,9 +19809,8 @@ export class PanelRenderer {
     let socketCloseTimer;
     /**
      * 取消「等待旧 socket 关闭」的兜底定时器与事件监听。
-     *
-     * 被 closePendingSocket 与 socket 自身的 close 事件共用：后者覆盖
-     * 「连接在超时前就自己失败」的情况，避免定时器空转。
+     * 被 closePendingSocket 与 socket 自身的 close 事件共用：后者覆盖「连接在超时前就
+     * 自己失败」的情况，避免定时器空转。
      */
     const cancelSocketCloseWait = () => {
       window.clearTimeout(socketCloseTimer);
@@ -20253,9 +19819,8 @@ export class PanelRenderer {
     };
     /**
      * 清理等待逻辑并关闭旧的运行期 socket。
-     *
-     * 调用方已排除「非 CONNECTING」的状态，因为连接中的 socket 直接 close 会被浏览器忽略，
-     * 必须等它 open 之后（或超时兜底）再关；close() 前再确认一次状态，避免重复关闭。
+     * 调用方已排除非 CONNECTING 的状态：连接中的 socket 直接 close 会被浏览器忽略，必须
+     * 等它 open 之后（或超时兜底）再关；close() 前再确认一次状态，避免重复关闭。
      */
     const closePendingSocket = () => {
       cancelSocketCloseWait();
@@ -20273,12 +19838,8 @@ export class PanelRenderer {
   }
   /**
    * 连接运行期通道并订阅当前页需要的实体。
-   *
-   * 订阅集合不等于「页面上写到的实体」，还要补齐一批隐式依赖：弹窗里引用的实体、
-   * 人体传感器配套的「无人移动」实体、扫地机的状态传感器与清扫模式、窗帘的电机反向
-   * 开关与晾衣机的位置实体等 —— 漏订一个，对应控件就会永远停在旧状态。
-   *
-   * force 为 true 时跳过「订阅集合没变就不重连」的短路，用于息屏恢复、网络恢复与补数据重试。
+   * 订阅集合不等于「页面上写到的实体」，还要补齐一批隐式依赖：弹窗里引用的实体、人体传感器配套的「无人 移动」实体、扫地机的状态传感器与清扫模式、窗帘的电机反向开关与晾衣机的位置实体等 —— 漏订一个，对应
+   * 控件就会永远停在旧状态。force 为 true 时跳过「订阅集合没变就不重连」的短路，用于息屏 / 网络恢复与补数据重试。
    */
   connectRuntime({ force: forceReconnect = false } = {}) {
     if (!this.document || this.destroyed) {
@@ -20759,17 +20320,14 @@ export class PanelRenderer {
   }
   /**
    * 给「状态尚未补齐」的折线图实体安排一次补数据重连。
-   *
-   * 只针对折线图：其它控件拿到当前状态就能画，折线图还要历史序列，缺失时会一直空着。
-   * 用指数退避（500ms 起、封顶 10s）最多 5 次，每次都用连接代数校验，期间发生过重连或
-   * 销毁就放弃本轮，避免旧轮次把新订阅挤掉。
+   * 只针对折线图：其它控件拿到当前状态就能画，折线图还要历史序列，缺失会一直空着。
+   * 指数退避（500ms 起、封顶 10s）最多 5 次，每轮都用连接代数校验，重连或销毁后放弃本轮。
    */
   scheduleRuntimeHydrationRetry(subscription, generationId) {
     /**
      * 判断本次订阅里是否还有折线图实体缺数据（决定要不要继续补数据重试）。
-     *
-     * 只盯折线图：其它控件拿到当前状态就能渲染，只有折线图还依赖历史序列，
-     * 缺历史时会一直空着。是否缺数据交给 lineChartRuntimeStateNeedsHydration 判定。
+     * 只盯折线图：其它控件拿到当前状态就能渲染，只有折线图依赖历史序列，缺失会一直空着；
+     * 是否缺数据交给 lineChartRuntimeStateNeedsHydration 判定。
      */
     const needsHydration = () => {
       const { entityIds: hydrationEntityIds, runtimeComponents: hydrationComponents } =
@@ -20821,7 +20379,6 @@ export class PanelRenderer {
   }
   /**
    * 请求刷新历史曲线（请求键由文档代数、页面路径、弹窗 ID 与弹窗代数组装）。
-   *
    * 交给 HistoryRefreshCoordinator 去重：多个图表、定时轮询与可见性恢复可能同时触发，
    * 协调器保证同一请求键同时只跑一趟。
    */
@@ -20864,9 +20421,8 @@ export class PanelRenderer {
   }
   /**
    * 实际拉取历史数据并驱动各图表刷新（一轮）。
-   *
-   * 开工前记下文档代数与弹窗代数，请求返回后逐项校验：期间换过文档或换过弹窗的结果
-   * 一律丢弃，否则上一份文档的数据会画进当前图表。
+   * 开工前记下文档代数与弹窗代数，请求返回后逐项校验：期间换过文档或弹窗的结果一律丢弃，
+   * 否则上一份文档的数据会画进当前图表。
    */
   async refreshHistorySeriesPass() {
     if (!this.document || this.destroyed || document.visibilityState === "hidden") {
@@ -20878,11 +20434,8 @@ export class PanelRenderer {
     const historyRequestsByEntityId = new Map();
     /**
      * 收集一批组件里需要历史数据的实体及其请求参数，写入 historyRequestsByEntityId。
-     *
-     * 只有折线图与存在感传感器需要历史：前者默认 600s 采样、24h，后者默认 300s、24h。
-     * 间隔夹在 30s~24h、时长夹在 1h~168h —— 太密会把后端打满，区间太短则图表没内容。
-     * 同一实体被多处引用时合并为一条请求，并保留 shared / 页面 / 弹窗等来源信息，
-     * 供返回时判断这批数据是否仍属于当前上下文。
+     * 只有折线图与存在感传感器需要历史：前者默认 600s 采样 / 24h，后者 300s / 24h；间隔夹在 30s~24h、时长夹在 1h~168h —— 太密会把后端打满，区间太短则图表没内容。同一实体被多处引用时合并为一条请求，并保留 shared /
+     * 页面 / 弹窗等来源信息，供返回时判断这批数据是否仍属于当前上下文。
      */
     const collectHistoryRequests = (historySourceComponents, requestContext) => {
       const historyComponents = collectComponents(
@@ -20973,9 +20526,7 @@ export class PanelRenderer {
     const pendingHistoryRequests = [...historyRequestsByEntityId];
     /**
      * 取当前的历史请求上下文，用于判断在途请求的返回值是否已经过期。
-     *
-     * 文档代数、页面路径、弹窗 ID、弹窗代数任一变化都意味着用户已经切走，
-     * 这批历史数据不能再画进当前图表。
+     * 文档代数、页面路径、弹窗 ID、弹窗代数任一变化都意味着用户已切走，这批历史数据不能再画进当前图表。
      */
     const currentHistoryContext = () => ({
       documentGeneration: this.historyDocumentGeneration,
@@ -20985,10 +20536,8 @@ export class PanelRenderer {
     });
     /**
      * 串行拉取排队中的历史请求，并把结果写进历史序列缓存。
-     *
-     * 用 while + shift 串行而非并发：历史查询对后端较重，一页可能有十几个图表，
-     * 并发会瞬间打满后端。每轮开头校验请求是否仍属于当前上下文，过期直接丢弃；
-     * 若已有缓存且距抓取时间不超过 interval 秒，则认为足够新鲜，跳过请求直接用缓存。
+     * 用 while + shift 串行而非并发：历史查询对后端较重，一页可能有十几个图表，并发会瞬间
+     * 打满后端；每轮开头校验请求是否仍属当前上下文；缓存新鲜（距抓取不超 interval 秒）则跳过。
      */
     const fetchHistoryRequest = async () => {
       while (pendingHistoryRequests.length) {

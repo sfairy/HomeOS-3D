@@ -1,11 +1,8 @@
 """授权服务器业务逻辑：激活、心跳续租、租约恢复。
 
-对应客户端 `backend/license/service.py` 里的 ``/v2/*`` 三个端点。
-错误语义必须与客户端约定一致：
-
-- ``401`` 表示会话失效 → 客户端会尝试 ``recover``
-- ``403`` 且 detail 命中吊销短语 → 客户端判定为「确认吊销」并清空本地授权
-- 其余 4xx 直接失败，不做端点切换
+对应客户端 `backend/license/service.py` 里的 ``/v2/*`` 三个端点。错误语义必须与
+客户端约定一致：``401`` 表示会话失效（客户端会尝试 recover）；``403`` 且 detail
+命中吊销短语判定为「确认吊销」并清空本地授权；其余 4xx 直接失败，不做端点切换。
 """
 
 from __future__ import annotations
@@ -49,17 +46,12 @@ logger = logging.getLogger("store.license")
 #: 恢复凭证有效期（比会话长，保证会话失效后仍能救回来）
 RECOVERY_TOKEN_TTL_SECONDS = 180 * 24 * 3600
 
-#: 恢复凭证的轮换阈值（S33）：一枚凭证活过这么久之后，下一次 ``recover`` 就换新的。
-#: 为什么不是「每次 recover 都换」：客户端只在响应里带回 ``recoveryToken`` 时才更新
-#: 本地存储，而它恰恰是在「会话已经失效」时才走 recover —— 如果换了新凭证而响应
-#: 在路上丢了，客户端手里只剩一枚**已经作废**的凭证，就彻底失联了。所以轮换要保守：
-#: 绝大多数会话失效发生在几周内，轮换由「这枚凭证已经用了很久」触发，而不是每次触发。
+#: 恢复凭证的轮换阈值：活过这么久之后，下一次 ``recover`` 换新的。不能每次 recover
+#: 都换 —— 新凭证若在响应中丢失，客户端手里只剩一枚已作废的凭证，会彻底失联。
 RECOVERY_TOKEN_ROTATE_AFTER_SECONDS = 30 * 24 * 3600
 
-#: 被轮换下来的恢复凭证还留多久（S33）。这就是上面那个「响应丢失」问题的兜底：
-#: 旧凭证不是立刻作废，而是在宽限窗口内仍然可用 —— 客户端拿着旧凭证再试一次仍然能
-#: 换到新凭证，而一旦它成功换过（或窗口过去），旧凭证就彻底失效。窗口取 1 天，
-#: 远大于客户端的重试节奏，同时把「一枚凭证的有效期」从 180 天收敛到 30 天 + 1 天。
+#: 被轮换下来的恢复凭证还留多久：旧凭证不是立刻作废，而是在宽限窗口内仍可用，客户端
+#: 拿旧凭证再试一次仍能换到新凭证。窗口取 1 天，远大于客户端重试节奏。
 RECOVERY_TOKEN_GRACE_SECONDS = 24 * 3600
 
 class LicenseAuthority:
@@ -115,13 +107,8 @@ class LicenseAuthority:
                 select(License).where(License.activation_code == code)
             ).first()
             customer = session.get(Customer, license.customer_id) if license is not None else None
-            # S22：**「激活码不存在」与「激活码存在但邮箱不匹配」必须给出完全相同的
-            # 回答**。分开回答等于对外提供两台现成的预言机：先用 404 枚举出真实存在的
-            # 激活码（它就是产品的授权凭据），再拿 403 把邮箱一位位试出来。两段并成
-            # 一个分支之后，攻击者从响应里只能得到「这组组合不对」。
-            #
-            # 状态码取 404 而不是 403：403 在语义上暗示「凭据存在但你没权限」，
-            # 那本身就是泄漏。
+            # 「激活码不存在」与「邮箱不匹配」必须给出完全相同的回答：分开回答等于
+            # 提供枚举激活码/试邮箱的预言机。状态码取 404（403 会暗示凭据存在）。
             if license is None or customer is None or (customer.email or "").strip().lower() != email:
                 raise LicenseServerError(
                     "激活码或邮箱不正确，请核对购买授权时收到的信息后重试。",
@@ -182,12 +169,8 @@ class LicenseAuthority:
                 raise LicenseServerError("授权会话对应的绑定已不存在。", status_code=401)
             if not binding.active or binding.released_at is not None:
                 raise LicenseServerError("实例绑定已停用。", status_code=403, revoked=True)
-            # 会话必须属于**当前**绑定在这张授权上的实例。
-            #
-            # 少了这一条，管理员刚做的解绑对旧设备等于没生效：设备 A 解绑后，设备 B
-            # 重新激活会复用同一行 DeviceBinding（ensure_binding 里就地改写
-            # instance_id），而 A 手里的 session token 仍指向该行，于是 A 能一直续租。
-            # recover 早就比对 instanceId，heartbeat 却漏了 —— 而心跳才是常态路径。
+            # 会话必须属于**当前**绑定在该授权上的实例。少了这条，管理员刚做的解绑对
+            # 旧设备等于没生效：设备 B 复用同一行 DeviceBinding，A 仍能凭旧 token 续租。
             if not instance_id or binding.instance_id != instance_id:
                 logger.warning(
                     "心跳实例不匹配 license=%s binding=%s 期望=%s 实收=%s：按已吊销处理",
@@ -250,9 +233,8 @@ class LicenseAuthority:
                 raise LicenseServerError("实例绑定已停用。", status_code=403, revoked=True)
             self.assert_usable(license, now)
 
-            # 轮换会话，恢复凭证默认保持不变 —— 但活太久的要换新的（S33，见
-            # RECOVERY_TOKEN_ROTATE_AFTER_SECONDS：轮换太激进会在响应丢失时把客户端
-            # 彻底锁在外面，所以只在凭证「已经用了很久」时才换）。
+            # 轮换会话，恢复凭证默认不变，但活太久的要换新的：轮换太激进会在响应丢失时
+            # 把客户端彻底锁在外面。
             recovery_token, rotated = self.rotate_recovery_if_stale(
                 session,
                 token=token,
@@ -322,12 +304,10 @@ class LicenseAuthority:
         return int(max(0, (allowed - now).total_seconds()))
 
     def _prune_expired_credentials(self, session: Session, binding_id: str, now: datetime) -> None:
-        """删掉这个绑定上**已经过期**的会话与恢复凭证（S33）。
+        """删掉这个绑定上**已经过期**的会话与恢复凭证。
 
-        为什么要主动删：过期的行在库里没有任何用处 —— 心跳与 recover 都会先看
-        ``expires_at`` 直接拒掉，后台列表默认也只列未过期的。可它们过去只增不减：
-        每次激活都会留下两行，一台长期在用的客户端反复激活/恢复几个月就能攒出一堆
-        死凭证，既让备份越来越胖，也让「这张库里到底有几枚还能用的凭据」越来越难看清。
+        过期的行没有任何用处（心跳与 recover 都会先看 ``expires_at`` 拒掉），但过去
+        只增不减：每次激活留下两行，长期反复激活/恢复会攒出一堆死凭证。
         """
         session.execute(
             delete(LicenseSession).where(
@@ -352,13 +332,8 @@ class LicenseAuthority:
     ) -> tuple[str, bool]:
         """必要时换一枚恢复凭证，返回 ``(要发给客户端的凭证, 是否轮换过)``。
 
-        传进来的 ``token`` 是客户端这枚凭证的**明文**（``record`` 是按它的哈希查出来的
-        行）—— 不轮换时原样返回，调用方就不必再想办法把明文找回来（库里只存哈希，
-        找不回来）。
-
-        轮换规则与理由见 ``RECOVERY_TOKEN_ROTATE_AFTER_SECONDS`` /
-        ``RECOVERY_TOKEN_GRACE_SECONDS``：旧凭证降到宽限窗口，新的按完整 TTL 生效，
-        这样「响应丢失」只是重试一次，而「一枚凭证用到天荒地老」不再可能。
+        传进来的 ``token`` 是明文（库里只存哈希，找不回来），不轮换时原样返回。轮换后
+        旧凭证降到宽限窗口、新的按完整 TTL 生效。
         """
         self._prune_expired_credentials(session, binding.id, now)
         age = (now - (record.created_at or now)).total_seconds()
@@ -387,9 +362,8 @@ class LicenseAuthority:
         ip: str | None,
         now: datetime,
     ) -> DeviceBinding:
-        # 无 ORDER BY 的 .first() 挑行取决于引擎返回顺序，而同一张授权可能留下多行
-        # 绑定（解绑只是 active=False，行会保留）。优先活跃、其次最近激活，结果才是
-        # 确定的；否则下面「已绑定其他设备」的 409 判定会建立在一个随机结果上。
+        # 无 ORDER BY 的 .first() 挑行取决于引擎返回顺序，而同一张授权可能留下多行绑定
+        # （解绑只是 active=False）。优先活跃、其次最近激活，否则 409 判定会随机。
         binding = session.scalars(
             select(DeviceBinding)
             .where(DeviceBinding.license_id == license.id)
@@ -434,10 +408,8 @@ class LicenseAuthority:
         binding.activated_at = now
         binding.released_at = None
         binding.last_heartbeat_at = now
-        # 换了实例就等于换了设备：把指向这一行的旧会话与旧恢复票据一并作废。
-        # 否则旧设备手里的 session token 仍然有效，可以继续心跳续租 —— 管理员刚刚
-        # 做的解绑对它等于没发生。heartbeat 侧的 instanceId 比对是第二道防线，
-        # 这里是第一道：让旧凭证在库里直接失效，而不是每台旧设备都靠一次请求才发现。
+        # 换实例等于换设备：把指向这一行的旧会话与旧恢复票据一并作废，否则旧设备的
+        # session token 仍能续租。heartbeat 侧的 instanceId 比对是第二道防线。
         stale_sessions = session.scalars(
             select(LicenseSession).where(LicenseSession.binding_id == binding.id)
         ).all()
@@ -462,13 +434,10 @@ class LicenseAuthority:
     def open_session(
         self, session: Session, *, license: License, binding: DeviceBinding, now: datetime
     ) -> tuple[str, str, str]:
-        """开一份新会话（激活路径），并把这份绑定上的旧凭据清干净（S33）。
+        """开一份新会话（激活路径），并把这份绑定上的旧凭据清干净。
 
-        为什么激活时可以把旧的直接删掉：激活的响应里就带着新的会话与恢复凭证，
-        客户端会用新的那两份；旧会话若继续有效，等于同一台设备上多留一枚没人再用、
-        却仍然能续租的 bearers token —— 而恢复凭证更敏感（它是「另开一份会话」的
-        凭证，180 天有效）。带上激活码才可能走到这里，而激活码客户端自己存着，
-        所以即使这枚新恢复凭证的响应丢在路上，客户端也能再激活一次。
+        激活响应就带着新的会话与恢复凭证，旧的继续有效只会多留一枚能续租的 bearer
+        token（恢复凭证更敏感）。带上激活码才能走到这里，所以即使响应丢了也能再激活。
         """
         self._prune_expired_credentials(session, binding.id, now)
         session.execute(delete(LicenseSession).where(LicenseSession.binding_id == binding.id))
@@ -501,11 +470,8 @@ class LicenseAuthority:
     ) -> tuple[str, str]:
         """恢复路径的换会话。
 
-        同样把该绑定上的**其它**会话删掉（S33）：过去这里只新增不吊销，于是客户端
-        每恢复一次就多留下一枚仍在有效期内的会话 token —— 客户端早就不再持有它，
-        但它照样能调心跳续租。恢复的语义本来就是「原会话已经不可用，重新拿一份」，
-        留下旧的那份不是在保护谁，只是多开了一扇门。恢复凭证不在这里删：它由
-        ``rotate_recovery_if_stale`` 决定是沿用还是轮换。
+        同样把该绑定上的**其它**会话删掉：过去只新增不吊销，客户端每恢复一次就多留一枚
+        仍能续租的 token。恢复凭证不在这里删，由 ``rotate_recovery_if_stale`` 决定。
         """
         self._prune_expired_credentials(session, binding.id, now)
         session.execute(delete(LicenseSession).where(LicenseSession.binding_id == binding.id))
@@ -524,21 +490,11 @@ class LicenseAuthority:
         return session_token, session_id
 
     def next_lease_sequence(self, session: Session, license: License) -> int:
-        """原子地取下一个租约序号（S34）。
+        """原子地取下一个租约序号。
 
-        过去是「读 ``license.lease_sequence`` → 加一 → 写回」。这在并发下会漏：两个
-        请求各自读到同一个值，于是**两张不同的租约带着同一个序号**发出去。客户端的
-        单调性检查（``leaseSequence <= state.lease_sequence`` 且内容不同即判为重放）
-        会把后到的那张丢掉 —— 用户突然回到「未授权」，而服务端日志里什么都看不到：
-        这不是崩溃，是静默的重复。
-
-        改成一条 ``UPDATE ... SET lease_sequence = lease_sequence + 1 RETURNING ...``：
-        读与写在同一条语句里，由数据库保证互斥，并发请求拿到的一定是不同的值。
-        用表级（core）语句而不是 ORM 的批量 update，是为了把 ORM 的「同步 session」
-        语义摘掉 —— 这里要的就是「绕过内存里的那个值，直接问库」。
-
-        拿到序号后写回 ORM 对象，是为了让随后 flush 出去的 ``UPDATE licenses``
-        （带着 ``lease_id``）与库里保持一致，而不是把过期值再盖回去。
+        必须是 ``UPDATE ... RETURNING``：读-改-写在并发下会给两张不同租约同一个序号，
+        客户端的单调性检查会把后到的那张当重放丢掉，用户突然回到「未授权」且无报错。
+        用 core 语句是为了绕过内存里的值、直接问库。
         """
         table = License.__table__
         sequence = session.execute(
@@ -586,10 +542,9 @@ class LicenseAuthority:
     ) -> dict:
         """签一张租约。
 
-        ``generation`` 必须与**本次请求所用的传输密钥**是同一代（由调用方从请求
-        里的 keyId 解析，见 ``store/api/license.py``）。用当前一代固定签发会漏掉
-        重叠窗口：旧客户端的可信表里只有旧公钥，拿到新密钥签的租约只会回
-        「不受信任的授权公钥」—— 明明窗口开着，旧客户端却全部失联。
+        ``generation`` 必须与**本次请求所用的传输密钥**同代（由调用方从请求里的 keyId
+        解析）：用当前一代固定签发会漏掉重叠窗口，旧客户端拿到新密钥签的租约只会回
+        「不受信任的授权公钥」。
         """
         active = generation or self.keyring.active
         signer = active.signer

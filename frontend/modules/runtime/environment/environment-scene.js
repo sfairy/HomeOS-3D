@@ -1,32 +1,15 @@
 /**
- * 环境氛围（页面压暗、降饱和、状态发光与光晕）。
- *
- * 在 3D 子系统里的位置：这是「页面级观感」模块。灯光 / 环境 / 设备等页面希望把整个
- * 户型压暗、降低饱和度，只让与当前任务有关的设备亮起来（空调发光、扫地机发光……）；
- * 本模块负责把这种「聚焦观感」注入到户型已有材质里，并为被聚焦的模型叠加一圈光晕。
- *
- * 实现方式（关键取舍）：
- * - 不替换模型材质，而是给原材质的 onBeforeCompile 打补丁，往片元着色器里插入
- *   去饱和 + 发光 + 整体压暗三段逻辑，因此不丢失原有贴图与光照计算；
- * - 同一份基础材质会被多个绑定共用，而每个绑定的发光颜色不同，所以按「绑定」克隆
- *   变体材质（resolveVariantMaterial），用 customProgramCacheKey 的版本后缀强制重编译；
- * - 补丁是全局副作用，必须完整可逆：unpatchMaterial / resetScene / dispose 都要把
- *   onBeforeCompile 与 customProgramCacheKey 还原（或删除），否则会污染别的模块。
- *
- * 与舞台的调用约定：
- * - setRoot(模型根, revision)：模型树换了才需要重建索引；
- * - setMode({ enabled, dimStrength, saturation, bindings, states, focusedId, selectedId,
- *   animateBindings })：所有观感输入都从这里进；
- * - tick(timestampMs) 由帧循环调用，返回 true 表示仍在淡入淡出；
- * - 动画时长常量：模式开关 400ms，单材质淡入淡出 360ms。
- *
- * 对外提供：pageDimming、pageModelBindings、createEnvironmentScene。
+ * 环境氛围（页面压暗、降饱和、状态发光与光晕）：把「聚焦观感」注入户型已有材质，
+ * 只让与当前任务有关的设备亮起来，并为被聚焦的模型叠加光晕。不替换材质，而是给原材质
+ * onBeforeCompile 打补丁插入去饱和 + 发光 + 压暗三段逻辑，不丢原贴图与光照；基础材质被
+ * 多绑定共用，故按「绑定」克隆变体材质并以 customProgramCacheKey 版本后缀强制重编译。
+ * 补丁必须完整可逆：unpatchMaterial / resetScene / dispose 都要还原。setRoot 在模型树更换时
+ * 重建索引；setMode 是全部观感输入入口；tick 由帧循环调用，返回 true 表示仍在淡入淡出
+ * （模式开关 400ms，单材质淡入淡出 360ms）。
  */
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
-import { createEnvironmentHalos } from "./environment-halos.js?v=20260920104554";
+// 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
+import { createEnvironmentHalos } from "./environment-halos.js?v=20260920131301";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  */

@@ -61,7 +61,7 @@ def cache_lock(root: Path, *, shared: bool = False):
 
     ``shared=True`` 加共享锁：多个读者可以同时持有，只有写路径（含淘汰）会与它们
     互斥。读缓存是高频路径，写缓存只在舞台页重新渲染后发生一次，因此读不该被读挡住
-    （B26）。
+    。
 
     参数:
         root: 缓存根目录。
@@ -80,7 +80,7 @@ def read_cache(path: Path) -> bytes | None:
 
     返回 None 而不抛异常：调用方只关心「有没有可用缓存」，统一按未命中处理（HTTP 204）即可。
 
-    读路径只持共享锁，且**只碰这一个文件**（B26）：命中时是「stat + 读」，不扫全目录、不算淘汰、
+    读路径只持共享锁，且**只碰这一个文件**：命中时是「stat + 读」，不扫全目录、不算淘汰、
     也不删任何东西。原先读也抢整目录排他锁，于是每一张缓存图命中都要把它之后的所有读与写排成一队，
     而它同时还做了一次全量 glob + stat。过期与超限的条目在这里只判不删 —— 删除是写操作，交给下一次
     ``write_cache`` 的淘汰顺带完成（它本来就先清过期条目），代价是过期条目可能多留一格时间，
@@ -157,7 +157,7 @@ def write_cache(path: Path, content: bytes) -> None:
                 continue
             entries.append((stat.st_mtime, stat.st_size, candidate))
         total, count = sum(item[1] for item in entries), len(entries)
-        # 排序键显式写成 (mtime, size, 完整路径字符串)（B59）。mtime 与 size 都可能完全
+        # 排序键显式写成 (mtime, size, 完整路径字符串)。mtime 与 size 都可能完全
         # 相同（同一批写进来的条目，或被对齐过时间戳的文件），那时「淘汰谁」就完全由
         # 第三个分量决定，它因此必须**一定唯一**：同一个 glob 出来的路径天然唯一，按
         # 路径字符串比也就一定排得出确定顺序，不会掉进「所有分量都相等」的稳定排序里

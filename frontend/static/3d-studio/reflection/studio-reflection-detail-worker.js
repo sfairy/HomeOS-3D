@@ -1,12 +1,10 @@
 /**
  * 地面反射「细节层」网格的简化 Worker 模块。
  *
- * 位置：studio-reflection-detail.js 在生成高细节反射网格前，把合并后的几何
- *   交给本模块做减面，减轻反射通道的绘制负担。
- * 对外：simplifyReflection（可直接 await 的纯函数）；当脚本运行在 Worker 线程
- *   （存在 self 且无 document）时，额外注册 onmessage 处理器以支持消息式调用。
- * 约定：消息字段为 {id, indices, positions, attributes, stride, weights, error}，
- *   回包为 {id, indices} 或 {id, failed: true}；indices 以 Transferable 方式回传。
+ * 生成高细节反射网格前，把合并后的几何交给本模块做减面，减轻反射通道的绘制负担。对外为可
+ * 直接 await 的纯函数 simplifyReflection；运行在 Worker 线程（有 self 无 document）时额外注册
+ * onmessage。消息为 {id, indices, positions, attributes, stride, weights, error}，回包为
+ * {id, indices} 或 {id, failed: true}，indices 以 Transferable 回传。
  */
 
 import { MeshoptSimplifier } from "../../vendor/meshoptimizer/0.25/meshopt_simplifier.module.js";

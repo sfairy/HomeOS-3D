@@ -1,23 +1,12 @@
 /**
- * 灯光照射范围编辑器（平面 / 3D 双视图）。
+ * 灯光照射范围编辑器（平面 / 3D 双视图）：舞台侧通过 range-editor 消息打开，以独立浮层挂在
+ * 容器的 ownerDocument 上，直接读写宿主注入的 regionLighting（区域布光系统）。
  *
- * 位置：interaction3d 的灯光编辑子流程。舞台侧通过 range-editor 消息打开它，
- * 它以独立浮层挂在容器的 ownerDocument 上，直接读写宿主注入的 regionLighting
- * （区域布光系统），并按住户的「完成 / 刷新」时机把整份覆盖集合交回宿主保存。
- *
- * 数据模型：覆盖以 regionKey = [区域 ID, 灯具 ID] 为键，值是光区的几何与离地参数
- * （width / depth / rotation / softness / shape / offsetX / offsetZ / height*）。
- * 编辑过程中先写进本地副本并即时反馈到场景，只有 commitOverrides 才回调宿主 ——
- * 因此「改到一半关掉」不会污染已保存的配置。
- *
- * 取值口径（与后端字段约定一致）：
- *   - 宽 / 深 0.5~20 米，两位小数；等比缩放时同样受这两个边界约束；
- *   - 离地高度 0~20 米，0 表示本层地面；min/max 交叉时自动把另一端改成当前值；
- *   - 柔和度界面按 5%~100% 展示，写进配置时换算成 0.05~1 的比例。
- *
- * 对外导出：resizeRegionDimensions（纯函数，尺寸拖拽计算）、regionHeightPatch（纯函数，
- * 离地映射）、mountRegionRangeEditor（挂载编辑器，返回 open/close/flush/dispose 等）、
- * mountRangeFormControls（表单控件增强，供本模块与其它编辑器复用）。
+ * 数据模型：覆盖以 regionKey = [区域 ID, 灯具 ID] 为键，值是光区的几何与离地参数；编辑先写本地副本
+ * 并即时反馈到场景，只有 commitOverrides 才回调宿主，故「改到一半关掉」不会污染已保存配置。
+ * 取值口径：宽 / 深 0.5~20 米（两位小数）；离地 0~20 米，0 表示本层地面；柔和度界面按 5%~100%
+ * 展示、写入时换算成 0.05~1 的比例。导出 resizeRegionDimensions / regionHeightPatch /
+ * mountRegionRangeEditor / mountRangeFormControls。
  */
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 // 夹取工具：所有几何与光照参数都要过它，保证写进配置的值始终在合法区间。

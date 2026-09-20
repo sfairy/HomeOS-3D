@@ -1,14 +1,11 @@
 /**
  * 天气图表的数据映射与曲线绘制。
  *
- * 职责：
- * - 把 Home Assistant 的天气状态（sunny / rainy / …）映射成图标名与中文文案，并按昼夜修正；
- * - 转出 meteocons 图标地址（实现与白名单约束在 `utils/icon-url.js`，这里只是同名转出口）；
- * - 由序列自动推导阈值色带，或归一化用户手填的阈值；
- * - 把点集转成平滑的 SVG 路径。
+ * 职责：把 HA 天气状态（sunny / rainy / …）映射成图标名与中文文案并按昼夜修正；转出 meteocons
+ * 图标地址（实现在 utils/icon-url.js，这里只是同名转出口）；由序列推导阈值色带或归一化手填阈值；
+ * 把点集转成平滑的 SVG 路径。
  *
- * 位置：纯计算模块，折线 / 天气图表控件在渲染时调用；不碰网络与 DOM。
- *
+ * 位置：纯计算模块，折线 / 天气图表控件渲染时调用；不碰网络与 DOM。
  * 约定：条件字符串与图标名沿用 HA 与 meteocons 的既有命名，改动会直接影响图标能否加载。
  */
 
@@ -62,10 +59,10 @@ export function weatherVisual(condition, sunState = "") {
 /**
  * 拼 meteocons 图标地址。
  *
- * 实现已挪到 `utils/icon-url.js`（与 `mdiIconUrl` 同属「图标名 → vendor 地址」这一份知识，
+ * 实现见 `utils/icon-url.js`（与 `mdiIconUrl` 同属「图标名 → vendor 地址」这一份知识，
  * 两者共用同一条白名单约束）；这里保留同名转出，页面脚本仍只 import registry 一处。
  */
-export { meteoconUrl } from "../../utils/icon-url.js?v=20260920104554";
+export { meteoconUrl } from "../../utils/icon-url.js?v=20260920131301";
 /**
  * 校验 CSS 颜色，不合法则用兜底值。
  *
@@ -118,11 +115,8 @@ export function normalizedThresholds(thresholds) {
 }
 /**
  * 由序列自动生成四档阈值。
- *
- * 取值区间用分位数而非极值：点数足够（≥5）时取 5% 与 95% 分位，
- * 这样个别离群点不会把整条色带拉平；点数太少时只能退化为取最小 / 最大。
- * 序列几乎恒定（跨度小于浮点误差量级）时用 ±padding 人为撑开四档，
- * 否则四档会重叠成同一个值，图上只剩一种颜色。
+ * 用分位数而非极值：点数 ≥5 时取 5% 与 95% 分位，离群点不会把色带拉平；点数太少退化为取最小 / 最大。
+ * 序列几乎恒定（跨度小于浮点误差量级）时用 ±padding 撑开四档，否则四档重叠成同一个值、图上只剩一种颜色。
  */
 export function automaticThresholds(series) {
   // 拍平成升序数值数组；非数值项（null / 纯字符串 / 缺 value 的项）在这一步就被滤掉。

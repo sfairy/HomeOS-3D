@@ -1,13 +1,9 @@
 """邀请与积分账本。
 
-积分口径：1 积分 = 1 元。奖励 = 实付金额（元）× 奖励比例。
-不足 0.01 的部分直接舍去（与参考站说明一致）。
-
+积分口径：1 积分 = 1 元，奖励 = 实付金额（元）× 奖励比例，不足 0.01 的部分舍去。
 **单位**：账本里所有积分都是 ``int`` 厘（1 积分 = 100 厘），运算交给
-:mod:`store.commerce.money`。原先用 ``float`` 存积分，正确性依赖「SQL 侧 ``round()`` 与
-Python 侧 ``round()`` 结果一致」，而 SQLite 是 half-away、Python 是 half-even ——
-落在 ``.xx5`` 上时两边给出不同分币值，导致提现的并发比对误报冲突、余额与流水之和
-差 1 厘。改整数厘后加减天然精确，那个前提不再需要（详见 ``store/commerce/money.py``）。
+:mod:`store.commerce.money`；用整数是因为浮点会让 SQL 与 Python 的舍入规则
+（half-away / half-even）在 ``.xx5`` 上分叉，提现的并发比对会误报冲突。
 """
 
 from __future__ import annotations
@@ -33,38 +29,26 @@ logger = logging.getLogger("store.commerce.referrals")
 
 
 class WalletConflictError(RuntimeError):
-    """并发改动同一本钱包时的冲突（调用方应当提示重试，而不是当成 500）。
+    """并发改动同一本钱包时的冲突（调用方应提示重试，而不是当成 500）。
 
-    为什么需要一个专门的异常：钱包的 ``balance_centi`` / ``frozen_centi`` 是
-    **读-改-写**的聚合值，而提现是「先校验可用积分、再冻结」的两步动作。两个请求
-    各自读到 ``frozen = 0`` 就会各自冻结成功，而第二次写入会把第一次的冻结覆盖掉 ——
-    账面上冻结了 100，实际却挂着两笔各 100 的待审提现，两次审批后 ``frozen``
-    变成 -100、``withdrawn`` 翻倍，而且 ``available_points`` 用
-    ``max(0, balance - frozen)`` 还会把额度「还」回来，可以反复刷。
+    ``balance_centi`` / ``frozen_centi`` 是读-改-写的聚合值：两个请求各自读到
+    ``frozen = 0`` 会各自冻结成功并覆盖对方，账面只冻结一笔却挂着两笔待审提现。
     """
 
 
 class WalletGuardError(RuntimeError):
     """写入会让钱包违反业务不变式（如余额为负），**不可重试**。
 
-    与 :class:`WalletConflictError` 的区别在语义：那个是「有人抢先了，重来一次
-    可能就成了」；这个是「这次请求本身不合法」—— 无论重试多少次，只要结果会
-    变成负数就永远失败，所以调用方必须转成 4xx 而不是 503。
+    与冲突的区别在语义：那个是「有人抢先了，重来可能就成了」，这个是「请求本身不合法」，
+    所以调用方必须转成 4xx 而不是 503。
     """
 
 
 def get_or_create_wallet(session: Session, account: Account) -> ReferralWallet:
     """取（必要时建）该账号的积分钱包。
 
-    两次「查一次再插」都在这里，而两条路都会撞唯一索引：
-
-    * ``ReferralWallet.account_id`` 唯一 —— 两个请求同时给同一账号建钱包；
-    * ``ReferralWallet.code`` 唯一 —— 随机 6 位邀请码撞号。
-
-    撞上唯一索引原本会让整个请求 500（例如用户点「生成我的邀请码」得到
-    「服务器错误」，而原因只是一个跟他无关的随机数碰撞）。现在插入放在
-    SAVEPOINT 里：撞了只回滚这一次插入，然后再判断该「复用对手建好的那个」
-    还是「换一个码重试」——并发建钱包属于前者，换码属于后者。
+    ``account_id`` 与 ``code`` 都有唯一索引，并发下两条都会撞：插入放在 SAVEPOINT 里，
+    撞了只回滚这一次插入，再判断是「复用对手建好的」还是「换一个码重试」。
     """
     wallet = _wallet_for(session, account)
     if wallet is not None:
@@ -96,10 +80,9 @@ def _wallet_for(session: Session, account: Account) -> ReferralWallet | None:
 
 
 def _pick_free_code(session: Session, account: Account) -> str:
-    """挑一个当前没人占用的邀请码并写回账号；查不出来就抛（不再靠重试硬扛）。
+    """挑一个当前没人占用的邀请码并写回账号；查不出来就抛。
 
-    这里只做「查」，真正的占用判定交给唯一索引（见 :func:`get_or_create_wallet`）：
-    并发下查出来的「空位」随时可能被对手先占，靠查询结果当保证是做不到的。
+    只做「查」：并发下查出来的空位随时可能被对手先占，真正的占用判定交给唯一索引。
     """
     for _ in range(32):
         candidate = new_referral_code()
@@ -118,11 +101,8 @@ def _pick_free_code(session: Session, account: Account) -> str:
 def available_points_centi(wallet: ReferralWallet | None) -> int:
     """可用积分 = 余额 - 冻结，单位**厘**。
 
-    这是全站唯一的口径：``balance_centi`` 是「已经赚到的总额（含正在提现的部分）」，
-    ``frozen_centi`` 是「已申请提现、还没结算的部分」。界面上叫「可用积分」，提现
-    校验也必须用这个数 —— 这两处口径曾经不一致（界面按 balance-frozen 显示、
-    提现接口却只比 balance），于是「可用 0 元」的用户仍能提交提现申请，
-    申请一路走到后台审核才被人工拒绝。
+    这是全站唯一口径：``balance_centi`` 是已赚到的总额（含正在提现的部分），界面上叫
+    「可用积分」，提现校验也必须用它，否则「可用 0 元」的用户仍能提交提现申请。
     """
     if wallet is None:
         return 0
@@ -134,10 +114,8 @@ def available_points_centi(wallet: ReferralWallet | None) -> int:
 def is_self_referral(session: Session, referrer: Account | None, account: Account) -> bool:
     """判断「自己邀请自己」。
 
-    两种形态都要拦：同一个账号（``referred_by_account_id == 自己的 id``，理论上
-    注册流程已挡），以及**同一个邮箱/同一个邀请码持有者开小号**（这才是实际
-    能刷到积分的路径：注册 A、拿 A 的码注册 B、用 B 下单给自己返点）。
-    邮箱是这套系统里唯一的身份标识，因此按它判定。
+    两种形态都要拦：同一个账号，以及**同邮箱开小号**（注册 A、拿 A 的码注册 B、用 B
+    下单给自己返点）。邮箱是这套系统里唯一的身份标识，因此按它判定。
     """
     if referrer is None or account is None:
         return True
@@ -161,34 +139,9 @@ def _apply_wallet_delta(
 ) -> tuple[int, int]:
     """把余额变动写成**一条 SQL** 并返回改动后的 ``(balance_centi, frozen_centi)``。
 
-    为什么不能用 ``wallet.balance_centi += delta``：那是「读-改-写」，两个并发请求
-    （两笔订单同时结算、提现申请与退款回退交叠）会各自基于同一个旧值计算，后写的
-    一方把先写的一方整个覆盖掉 —— 账本少记一笔，且没有任何报错。
-
-    这里交给数据库在一条语句里完成「读当前值 + 加 delta」，并用 ``COALESCE``
-    兜住历史数据里的 NULL（``NULL + 1`` 在 SQL 里是 NULL，漏掉会让钱包余额直接
-    变成空值）。
-
-    整数列不需要 ``round()``：整数加法本身精确，早先 SQL 侧那次 ``round(..., 2)``
-    正是「两处舍入规则不一致」的来源。
-
-    刻意**不**给余额夹到非负：能不能扣、扣多少是业务规则（见
-    ``reverse_order_reward`` 的「可扣上限 = 余额 - 冻结」），账本层擅自夹会让
-    「该扣的没扣到」变成静默发生的事，而那正是需要被记进流水备注去追偿的。
-    累计获得 ``earned_centi`` 是例外：它只是个计数器，负值没有业务含义，所以在 SQL 里
-    直接夹到 0（与原先 ``max(0, ...)`` 的语义一致）。
-
-    ``min_balance_centi`` / ``min_frozen_centi`` 是**可选的下界守卫**，语义是
-    「写完必须 ≥ 这个值，否则这次写入整个作废」，实现方式是把判断塞进同一条
-    UPDATE 的 ``WHERE``（见 :func:`ledger_entry` 的调用方 admin 调账）：
-
-    ｜ 请求 A 读到 余额=10，算出 10-20=-10 → 拒绝 ｜
-    ｜ 请求 B 同时读到 余额=10，也拒绝 ｜  ← 但其实 B 那笔本该成功（A 已放弃）
-
-    真正危险的是相反的读序：A 读到 10 通过、B 读到 10 通过，各自写
-    ``balance = 10 + delta`` —— 后写的一方把先写的覆盖掉。把守卫放进 ``WHERE``
-    之后，无论读到的是哪个版本，「结果会变成负数」的那一次都匹配不到行，
-    ``rowcount == 0`` 即失败，不可能两个都通过。
+    不能用 ``wallet.balance_centi += delta``：读-改-写会让并发请求互相覆盖、账本少记
+    且不报错。整数列不需要 round；``min_*`` 是可选下界守卫，塞进同一条 UPDATE 的
+    ``WHERE``，结果会变成负数的那次匹配不到行（``rowcount == 0``）。
     """
     values: dict[str, object] = {}
     if delta_centi:
@@ -200,9 +153,7 @@ def _apply_wallet_delta(
             frozen_delta_centi
         )
     if earned_delta_centi:
-        #: 累计获得同样是读-改-写的老问题：两笔奖励并发结算时后写的一方会把先写的
-        #: 整个覆盖掉，``earned`` 因此**少于**流水里 reward 的合计 —— 对账时表现为
-        #: 「有人绕过账本改了钱包」，实际只是这里丢了更新。改成一条 SQL 里的加法，
+        #: 累计获得同样是读-改-写：两笔奖励并发结算会互相覆盖，改成一条 SQL 的加法，
         #: 并夹到非负（退回奖励时可能把累计值扣到 0 以下）。
         values["earned_centi"] = func.max(
             0,
@@ -217,8 +168,7 @@ def _apply_wallet_delta(
         return int(wallet.balance_centi or 0), int(wallet.frozen_centi or 0)
 
     conditions = [ReferralWallet.id == wallet.id]
-    #: 只在**这一列真的要被改动**时才加守卫：否则「余额本来就是负的」这种历史数据
-    #: 会让一条与余额无关的写入（比如只改 frozen）也被拒绝，故障面凭空扩大。
+    #: 只在**这一列真的要被改动**时才加守卫：历史负值不该让无关写入也被拒绝。
     if delta_centi and min_balance_centi is not None:
         conditions.append(
             func.coalesce(ReferralWallet.balance_centi, 0) + int(delta_centi)
@@ -262,8 +212,8 @@ def ledger_entry(
     """记一条流水并原子更新钱包。
 
     ``min_balance_centi`` / ``min_frozen_centi`` 透传给 :func:`_apply_wallet_delta`
-    作为**下界守卫**：不满足时整个写入不生效并抛 :class:`WalletGuardError`，
-    流水也不会被插入（两条语句在同一个事务里，调用方转成 4xx 即可）。
+    作为**下界守卫**：不满足时整个写入不生效并抛 ``WalletGuardError``，流水也不会被
+    插入（两条语句在同一个事务里，调用方转成 4xx 即可）。
     """
     balance, frozen = _apply_wallet_delta(
         session,
@@ -318,8 +268,7 @@ def grant_order_reward(
     referrer = session.get(Account, buyer.referred_by_account_id)
     if referrer is None or not referrer.is_active:
         return 0
-    # 自邀（同账号 / 同邮箱开小号）不发奖励：否则「自己下单给自己返点」等于
-    # 把奖励比例变成永久折扣，比例设得高一点就能刷出负毛利。
+    # 自邀（同账号 / 同邮箱开小号）不发奖励：否则等于把奖励比例变成永久折扣。
     if is_self_referral(session, referrer, buyer):
         logger.warning(
             "检测到自邀并跳过奖励 buyer=%s referrer=%s order=%s",
@@ -339,8 +288,7 @@ def grant_order_reward(
         wallet,
         kind="reward",
         delta_centi=points_centi,
-        #: 累计获得与余额在同一条 SQL 里更新：分成两次写就会丢掉并发下的更新
-        #: （见 ``_apply_wallet_delta``）。
+        #: 累计获得与余额在同一条 SQL 里更新，分成两次写会丢掉并发下的更新。
         earned_delta_centi=points_centi,
         note=f"好友订单 {order.order_no} 实付奖励",
         reference=order.order_no,
@@ -356,10 +304,8 @@ def reverse_order_reward(
 ) -> int:
     """退款时把已发放的奖励扣回。返回**实际扣回的积分（厘）**。
 
-    余额必须夹到 0：邀请人可能已经把积分提现了（余额不足），此时硬扣会写出
-    负数余额 —— 负数余额意味着「账本上先欠着」，而系统没有任何追偿手段，
-    它只会让邀请人的可用积分变成负数、再也提不出钱，同时把总负债算错。
-    实际扣不回来的差额记进流水备注，作为追偿依据。
+    可扣上限 = 余额 - 冻结（冻结部分已进入提现审批，动不得）。扣不回来的差额记进
+    流水备注作为追偿依据 —— 硬扣会写出负数余额，而系统没有任何追偿手段。
     """
     if not order.referral_reward_points_centi or order.referral_reward_points_centi <= 0:
         return 0
@@ -385,7 +331,7 @@ def reverse_order_reward(
         kind="reversal",
         delta_centi=-deductible,
         #: 累计获得按**整笔**奖励回退（不是按实际扣回的 deductible）：退款后这笔奖励
-        #: 就不存在了，counted 值应回到发放前的口径。夹到 0 由 SQL 完成。
+        #: 就不存在了，counted 值应回到发放前的口径；夹到 0 由 SQL 完成。
         earned_delta_centi=-points_centi,
         note=detail,
         reference=order.order_no,
@@ -411,25 +357,9 @@ def create_withdrawal(
 ) -> ReferralWithdrawal:
     """新建提现申请，并把对应积分**原子地**冻结。
 
-    冻结这一步刻意用条件 UPDATE 抢单（``where frozen == 读到的值``）而不是
-    直接用 ``ledger_entry`` 累加。原因是「可用积分够不够」是调用方基于读到的
-    ``frozen`` 做的判断，与写入之间存在窗口：
-
-    ｜ 请求 A 读到 frozen=0，算出可用 100，申请提现 100 ｜ 请求 B 同样读到 frozen=0 ｜
-    ｜ 两次都通过校验、各插一条 pending 流水，而 frozen 被覆盖成同一个值 ｜
-
-    结果账面只冻结了 100，却挂着两笔 100 的待审提现；两次审批后 ``frozen`` 变负、
-    ``withdrawn`` 翻倍，而 ``available_points`` 用 ``max(0, balance - frozen)``
-    还会把额度「还」回来 —— 可以反复套现。
-
-    条件 UPDATE 把「校验」与「写入」压进同一条语句：``rowcount == 0`` 说明
-    期间有人改过钱包，直接抛 :class:`WalletConflictError` 让调用方提示重试。
-    这与 ``_claim_refund_amount`` 是同一套写法。
-
-    整数列让这里的比对变成**精确相等**：原先要写 ``func.round(frozen, 2) == round(x, 2)``
-    才能躲开浮点误差，而两条 round 的规则并不相同（SQLite half-away / Python
-    half-even），落在 ``.xx5`` 上时「没人改过」也会被判成冲突 —— 用户莫名其妙
-    收到「请重试」。
+    冻结用条件 UPDATE 抢单（``where frozen == 读到的值``），而不是直接累加：否则两个
+    请求都读到 frozen=0、都通过校验，账面只冻结一笔却挂着两笔待审提现，甚至可以反复
+    套现。``rowcount == 0`` 说明期间有人改过钱包，抛 ``WalletConflictError`` 让调用方重试。
     """
     existing = session.scalars(
         select(ReferralWithdrawal).where(ReferralWithdrawal.request_key == request_key)
@@ -467,8 +397,7 @@ def create_withdrawal(
     session.add(withdrawal)
     session.flush()
 
-    #: 抢单已经把钱加进 frozen 了，这里只补一条流水（frozen_delta=0 避免加两次），
-    #: 用 ``session.refresh`` 取到数据库里的真实值写进 balance_after/frozen_after。
+    #: 抢单已加进 frozen，这里只补流水（frozen_delta=0 避免加两次）。
     session.refresh(wallet)
     ledger_entry(
         session,
@@ -489,10 +418,8 @@ def resolve_withdrawal(
 ) -> ReferralWithdrawal:
     """审批一笔待处理提现。**抢单式**：只有把状态从 pending 改走的那一次才动钱包。
 
-    双击审批（或运营两个标签页同时点）在过去会把同一笔提现结算两次：
-    ``frozen`` 被扣两次、``withdrawn`` 加两次。这里的条件 UPDATE 保证
-    「状态迁移」与「记账」是同一个原子动作，``rowcount == 0`` 说明别人已经处理过，
-    直接返回即可（重复点击对用户表现为「已处理」，不会再动账）。
+    双击审批在过去会把同一笔结算两次；条件 UPDATE 让「状态迁移」与「记账」成为同一个
+    原子动作，``rowcount == 0`` 说明别人已处理，直接返回。
     """
     if withdrawal.status != "pending":
         return withdrawal
@@ -523,8 +450,7 @@ def resolve_withdrawal(
             kind="withdrawal",
             delta_centi=-points_centi,
             frozen_delta_centi=-points_centi,
-            #: ``withdrawn`` 也是聚合值：走同一个写入点（原先在这里另发一条
-            #: UPDATE，等价但把「钱包聚合值只有一个写入点」这件事拆散了）。
+            #: ``withdrawn`` 也走同一个写入点，保持「钱包聚合值只有一个写入点」。
             withdrawn_delta_centi=points_centi,
             note=note or "提现完成",
             reference=withdrawal.id,

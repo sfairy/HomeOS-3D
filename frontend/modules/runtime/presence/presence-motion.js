@@ -1,13 +1,10 @@
 /**
  * 人体存在（presence）的页面可见性、路径校验与触发计时。
  *
- * 在 3D 子系统里的位置：人体存在角色会沿一条闭合路径走动，并依据绑定实体的
- * 状态决定是否出现、出现多久。本模块集中放这些纯逻辑：页面过滤、路径合法性、
- * 触发条件判定与计时、以及沿路径取点，供 3D 场景与配置编辑器共用同一份口径。
- *
- * 对外提供：PRESENCE_PAGES、presenceVisibleOnPage、validPresenceRoute、
- * snapsToPresenceStart、presenceIsActive、PRESENCE_TRIGGER_MODES、
- * presenceTriggerIsTimed、createPresenceTriggers、closedPath、sampleClosedPath。
+ * 人体存在角色沿一条闭合路径走动，并依据绑定实体的状态决定是否出现、出现多久。本模块集中放
+ * 这些纯逻辑：页面过滤、路径合法性、触发条件判定与计时、沿路径取点，供 3D 场景与配置编辑器
+ * 共用。对外提供 PRESENCE_PAGES、presenceVisibleOnPage、validPresenceRoute、
+ * snapsToPresenceStart、presenceIsActive、createPresenceTriggers、closedPath、sampleClosedPath。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）、「按 ID 切域」与交互页面清单都只有一份实现
@@ -16,7 +13,7 @@
 import {
   INTERACTION_PAGE_OPTIONS as PRESENCE_PAGES,
   resolveStateEntry
-} from "../core/static-helpers.js?v=20260920104554";
+} from "../core/static-helpers.js?v=20260920131301";
 /** 允许显示人体存在的页面；与编辑器的页面下拉共用一份清单，见 `static/utils/interaction-pages.js`。 */
 export { PRESENCE_PAGES };
 /**
@@ -32,11 +29,9 @@ export function presenceVisibleOnPage(presenceBinding, pageId) {
   );
 }
 /**
- * 校验人体存在的巡游路径是否可用。
- *
- * 路径是一条闭合折线（首尾自动相连），需要满足：
- * 点数在 3–128 之间、坐标有限且不超过 ±1e6、各点互不重合，
- * 且至少有一个中间点与首点、次点不共线 —— 否则多边形退化成一条线，无法采样出朝向。
+ * 校验人体存在的巡游路径是否可用（闭合折线，首尾自动相连）。
+ * 点数 3–128、坐标有限且不超过 ±1e6、各点互不重合，且至少有一个中间点与首点、次点不共线，
+ * 否则多边形退化成线，无法采样出朝向。
  */
 export function validPresenceRoute(route) {
   if (
@@ -103,10 +98,8 @@ export const PRESENCE_TRIGGER_MODES = [
   ["change", "状态值变化"]
 ];
 /**
- * 判断该触发方式是否为「一次性显示后自动消失」。
- *
- * equals / change 属于瞬时事件，必须靠 displayDuration 控制出现时长；
- * auto 模式下如果绑的是 event.* 实体，也按瞬时事件处理。
+ * 判断该触发方式是否为「一次性显示后自动消失」：equals / change 是瞬时事件，靠
+ * displayDuration 控制时长；auto 模式绑 event.* 实体时也按瞬时事件处理。
  */
 export function presenceTriggerIsTimed(triggerBinding) {
   return (
@@ -117,10 +110,8 @@ export function presenceTriggerIsTimed(triggerBinding) {
 }
 /**
  * 创建人体存在的触发状态跟踪器。
- *
- * 「触发」要解决的是：HA 只告诉我们实体当前值，而 3D 需要知道「什么时候开始出现的、
- * 应该显示多久」。因此这里为每个绑定维护一条记录（是否触发中、起始时刻、时长），
- * 并在每次状态同步时按触发模式更新。
+ * HA 只给实体当前值，3D 需要知道「何时开始出现、显示多久」；这里为每个绑定维护
+ * （是否触发中、起始时刻、时长），每次状态同步时按触发模式更新。
  */
 export function createPresenceTriggers(nowProvider = () => Date.now()) {
   const triggersByBindingId = new Map();
@@ -221,9 +212,7 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
           });
           continue;
         }
-        // 常驻类：threshold 看数值是否大于阈值，state 看是否 on。
-        // 注意阈值分支读的是配置里的 triggerMode（而不是自动推断出的 triggerMode），
-        // 只有用户显式选了「数值大于阈值」才套用阈值比较。
+        // 常驻类：threshold 比对数值、state 看是否 on；阈值分支读配置里的 triggerMode，只有用户显式选「数值大于阈值」才套用。
         const isOn =
           isAvailable &&
           (triggerMode === "threshold"
@@ -263,9 +252,7 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
 }
 /**
  * 把闭合折线预处理成可快速采样的分段表。
- *
- * 首尾自动相连；长度为 0 的分段会被丢弃（同时不累加总长），
- * 避免采样时在同一个点上反复取到随机朝向。
+ * 首尾自动相连；长度为 0 的分段丢弃且不累加总长，避免在同一点反复取到随机朝向。
  */
 export function closedPath(points) {
   const segments = [];

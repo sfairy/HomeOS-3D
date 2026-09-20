@@ -5,12 +5,11 @@
 2. 授权层 —— 在认证之上叠加能力码门禁（api / projects.write 等）；
 3. 可见范围层 —— 中控设备只能看到自己绑定的实体与图片，由 viewer_entity_ids 收窄。
 
-命名约定：带 `short_lived` 的版本会在返回前把 ORM 对象 detach（expunge），
-让数据库连接尽早归还连接池；中控设备长时间挂着展示页，不这样做容易耗尽连接。
+命名约定：带 `short_lived` 的版本会在返回前把 ORM 对象 detach（expunge），让数据库连接
+尽早归还连接池；中控设备长时间挂着展示页，不这样做容易耗尽连接。
 """
 from __future__ import annotations
 
-# 导入顺序保持原有分组：标准库 / 第三方 / 本项目，便于对照改动。
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
@@ -59,12 +58,9 @@ def _admin_session(
 ) -> User | None:
     """解析管理员会话 Cookie，返回当前登录用户；不满足条件返回 None。
 
-    判定口径全部在 ``access.check_admin_session`` 里（含绝对寿命与归属校验），
-    这里只负责它需要的副作用：清理失效会话行、滑动续期并重写 Cookie，
-    以及把身份写进日志上下文。
-
-    副作用：会话过半程后会滑动续期（更新 last_seen_at / expires_at）并重写
-    Cookie，让长时间开着编辑器的用户不会中途掉线。
+    判定口径全部在 ``access.check_admin_session`` 里（含绝对寿命与归属校验），这里只负责
+    它需要的副作用：清理失效会话行、滑动续期并重写 Cookie，以及把身份写进日志上下文。
+    会话过半程后会滑动续期（更新 last_seen_at / expires_at），让长时间开着编辑器的用户不掉线。
     """
     settings = request.app.state.settings
     token = admin_token_from(request.cookies, settings)
@@ -156,8 +152,7 @@ def licensed_user(request: Request, user: CurrentUser) -> User:
 LicensedUser = Annotated[User, Depends(licensed_user)]
 
 
-# ViewerPrincipal 的唯一实现在 access 里（与本模块的解析入口同源），
-# 这里保留导入名是为了不改动各路由的 `from ..dependencies import ViewerPrincipal`。
+# ViewerPrincipal 的唯一实现在 access 里，这里保留导入名是为了不动各路由的 import。
 
 
 def _display_device(
@@ -165,14 +160,9 @@ def _display_device(
 ) -> DisplayDevice | None:
     """解析中控设备 Cookie，返回对应设备；未配对、已失效或已过期返回 None。
 
-    有效期是「滑动」的：每次活跃（>= 5 分钟节流）就把 last_seen_at 推到当前时间，因此按
+    有效期是「滑动」的：每次活跃（>= 5 分钟节流）就把 last_seen_at 推到当前时间，按
     last_seen_at + display_token_ttl_seconds 判定 —— 长期不用的平板与只在攻击者手里的令牌
-    会自己过期，而正常挂机的墙面平板只要还在轮询就一直有效。另有一个可选的硬上限（默认关闭），
-    见 config。两道有效期都由 ``display_access.active_display_device`` 判定（B2），这里不再
-    自己查一遍。
-
-    副作用：同样做了心跳节流 —— 设备超过 5 分钟没活跃才写一次库并刷新 Cookie，因为展示页会
-    长期挂机、每次请求都写库会拖慢整个看板。
+    会自己过期，正常挂机的墙面平板只要还在轮询就一直有效；另有一个可选的硬上限（默认关闭）。
     """
     settings = request.app.state.settings
     token = display_token_from(request.cookies, settings)
@@ -204,11 +194,10 @@ def authenticated_viewer(
 ) -> ViewerPrincipal:
     """要求「管理员已登录」或「已配对的中控设备」，否则 401。
 
-    优先级：管理员会话优先。这样管理员在已配对的平板上打开页面时，
-    看到的仍是完整权限，而不是被降级成单项目视角。
-
-    与页面路由、实时连接共用 access.resolve_principal 这一个入口（B32）：
-    三处各写一遍时，其中两处漏查了绝对寿命与中控令牌有效期（B2/B3）。
+    优先级：管理员会话优先 —— 管理员在已配对的平板上打开页面时看到的仍是完整权限，
+    而不是被降级成单项目视角。
+    与页面路由、实时连接共用 access.resolve_principal 这一个入口，避免某处漏查绝对寿命
+    与中控令牌有效期。
     """
     user = _admin_session(request, response, database)
     if user is not None:
@@ -285,8 +274,7 @@ ShortLivedLicensedViewer = Annotated[
 def require_viewer_project(viewer: ViewerPrincipal, project_id: str) -> None:
     """确认当前主体有权访问指定项目，否则 403。
 
-    管理员会话的 project_id 为 None，视为不受限直接放行；
-    中控设备只能访问自己绑定的那一个项目。
+    管理员会话的 project_id 为 None，视为不受限直接放行；中控设备只能访问自己绑定的项目。
     """
     if viewer.project_id is not None and viewer.project_id != project_id:
         raise HTTPException(
@@ -299,17 +287,16 @@ def require_viewer_project(viewer: ViewerPrincipal, project_id: str) -> None:
 def _display_document(database: DatabaseSession, viewer: ViewerPrincipal) -> dict:
     """取出中控设备所绑定项目的仪表盘文档。
 
-    任何一环缺失（无绑定项目、无草稿、JSON 损坏）都返回空字典，
-    让上层退化成"看不到任何实体"，而不是把异常抛给展示页。
-    弹窗按 referenced_only=True 水合：只带出文档真正引用到的组合弹窗，
-    不把库里全部弹窗塞进这份文档。
+    任何一环缺失（无绑定项目、无草稿、JSON 损坏）都返回空字典，让上层退化成「看不到任何
+    实体」，而不是把异常抛给展示页。弹窗按 referenced_only=True 水合，不把库里全部弹窗
+    塞进这份文档。
     """
     if viewer.project_id is None:
         return {}
     draft = database.get(ProjectDraft, viewer.project_id)
     if draft is None:
         return {}
-    # 草稿损坏时静默降级：展示页宁可空白，也不该整页报错（B54 的统一入口）。
+    # 草稿损坏时静默降级：展示页宁可空白，也不该整页报错（统一入口）。
     value = parse_document(draft.document_json)
     if value is None:
         return {}
@@ -319,8 +306,8 @@ def _display_document(database: DatabaseSession, viewer: ViewerPrincipal) -> dic
 def _document_bound_values(value, suffix: str) -> set[str]:
     """收集文档里所有以指定后缀结尾的键对应的字符串值。
 
-    键名比较大小写不敏感（assetId / AssetId 都算），
-    用于按名字约定捞出引用的资源，不依赖文档结构版本。
+    键名比较大小写不敏感（assetId / AssetId 都算），用于按名字约定捞出引用的资源，
+    不依赖文档结构版本。
     """
     result = set()
     if isinstance(value, dict):
@@ -342,14 +329,10 @@ def viewer_entity_ids(
 ) -> set[str] | None:
     """算出当前主体可见的实体集合；返回 None 表示不受限（管理员会话）。
 
-    三步收窄：
-    1. 先取文档里显式绑定的实体（document_entity_ids）；
-    2. 再按「同设备」放开这些实体所属设备上、语义上属于同一物的从属实体 ——
-       例如空调实体所属设备上的指示灯、热水器的按钮与数值；
-    3. 最后对小米平台再放开一层：同设备同平台的可用实体。
-
-    第 2、3 步是必要的：HA 里一个物理设备会拆成多个域上的实体，
-    只放开显式绑定的那些，中控面板上的子功能会全部点不动。
+    三步收窄：1) 文档里显式绑定的实体；2) 按「同设备」放开同一物理设备的从属实体
+    （如空调所属设备上的指示灯、热水器的按钮与数值）；3) 小米平台再放开同设备同平台的可用实体。
+    第 2、3 步是必要的：HA 里一个物理设备会拆成多个域上的实体，只放开显式绑定的那些，
+    中控面板上的子功能会全部点不动。
     """
     if viewer.project_id is None:
         return None
@@ -407,9 +390,8 @@ def viewer_entity_ids(
             ):
                 continue
             candidate_domain = candidate.domain
-            # identity 把候选实体的所有可读名字折成一个小写串，
-            # 后面用关键词匹配判断"这个实体是不是那个物理设备的某个部件"——
-            # HA 里同一个部件的命名在集成之间并不统一，只能靠名字兜底。
+            # identity 把候选实体的所有可读名字折成一个小写串，后面用关键词匹配判断
+            # 「这个实体是不是那个物理设备的某个部件」—— 同一部件的命名在集成之间并不统一。
             identity = " ".join(
                 filter(
                     None,
@@ -654,18 +636,14 @@ def viewer_studio3d_asset_ids(
 ) -> set[str] | None:
     """当前主体可见的 3D 工作室导出资源 ID 集合；None 表示不受限。
 
-    同一份文档里 `studio3d:<导出目录>/<文件名>` 形式的引用（assetId / effectAssetId
-    都算）。3D 导出目录是按项目生成的，但接口只按「目录名 + 文件名」取文件，
-    不做归属校验的话，任何一台中控设备都能遍历出别的项目的户型图与图层截图
-    （跨项目 IDOR）。这里把可见范围收窄到「本仪表盘文档真正引用到的那些文件」。
-
-    为什么按文件而不是按目录放开：一个导出目录里既有被引用的图层，也有中间产物
-    与整包 zip，直接按目录放开等于把该项目的全部导出物都暴露出去。
+    同一份文档里 `studio3d:<导出目录>/<文件名>` 形式的引用（assetId / effectAssetId 都算）。
+    3D 导出目录按项目生成，但接口只按「目录名 + 文件名」取文件，不做归属校验的话，任何一台
+    中控设备都能遍历出别的项目的户型图（跨项目 IDOR）；按文件而不是按目录放开，避免把中间
+    产物与整包 zip 一起暴露。
     """
     if viewer.project_id is None:
         return None
-    # 键名后缀匹配是大小写不敏感的（assetId / AssetId / effectAssetId / imageAssetId…
-    # 全部命中），因此一次扫描就够，不必逐字段枚举。
+    # 键名后缀匹配是大小写不敏感的（assetId / AssetId / effectAssetId 全部命中），一次扫描就够。
     return {
         item
         for item in _document_bound_values(_display_document(database, viewer), "assetId")

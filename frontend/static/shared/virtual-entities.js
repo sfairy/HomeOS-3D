@@ -1,11 +1,9 @@
 /**
  * 虚拟实体的 ID 生成与解析规则。
  *
- * 位置：编辑器实体选择器与展示页运行时共用的纯逻辑模块。
- * 职责：定义 virtual.<kind>.<scope> 形式的虚拟实体 ID，并产出「图标·显示隐藏」
- *   这类由前端合成、并不存在于 HA 的实体。
- * 约定：虚拟实体没有对应 HA 设备；其 ID 必须能被 parseVirtualEntityId 还原出
- *   kind 与 scope，展示页据此走本地逻辑而不是调用 HA 服务。
+ * 定义 virtual.<kind>.<scope> 形式的虚拟实体 ID，产出「图标·显示隐藏」这类由前端合成、并不
+ * 存在于 HA 的实体。虚拟实体没有对应 HA 设备；其 ID 必须能被 parseVirtualEntityId 还原出
+ * kind 与 scope，展示页据此走本地逻辑而不是调用 HA 服务。
  */
 export const VIRTUAL_ENTITY_PREFIX = "virtual.";
 export const ICON_VISIBILITY_VIRTUAL_KIND = "icon_visibility";

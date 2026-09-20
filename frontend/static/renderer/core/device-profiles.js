@@ -1,29 +1,13 @@
 /**
- * 小米设备的档案识别与角色实体匹配。
+ * 小米设备的档案识别与角色实体匹配：用「平台白名单 + 名称关键词打分」把同一台设备的
+ * 实体聚成一档档案，解析出 climate / cover / light / power / 各类传感器等角色的落点。
  *
- * 职责：小米生态的设备在 Home Assistant 里会拆成一堆命名各异的实体
- * （climate / fan / select / sensor / button…），且同一型号不同固件的命名还不一样。
- * 这里通过「平台白名单 + 名称关键词打分」把同一台设备的实体聚成一档档案，
- * 解析出 climate / cover / light / power / 各类传感器等角色分别落在哪个实体上。
- *
- * 位置：纯计算模块，被控件的设备档案解析与编辑器预览共用；不碰网络，也不改控件。
- *
- * 约定：档案里的 roles 键名（climate / cover / fan / light / power / mode / temperature /
- * humidity / pm25 / pm10 / hcho / filterLife / filterLeftTime / airQuality / primary）
- * 与各控件 runtime 读取的字段名一一对应，改键名会同时改到多个控件。
- *
- * 依赖：检索文本走 `utils/entities.js`（P10 B 类收敛）—— 本文件原先自带一份
- * `entitySearchText`，与 `presence-runtime.js` / `home.js` 里那两份口径不同
- * （那两份保留原大小写、不压空格，靠调用方正则带 `i` 兜着）。现在三处共用一份，
- * 语义与原先本文件这份一致（小写 + 过滤空段），因此本文件的判定不受影响。
+ * 档案 roles 的键名与各控件 runtime 读取的字段名一一对应，改键名会同时改到多个控件。
  */
-// 取域走 `utils/entities.js` 的 `entityDomainOf`（P12 收口 B 类末尾那一项）。本文件原先有七处
-// 内联的 `String(entity?.domain || entity?.entityId || "").split(".", 1)[0]` —— 与那个助手的
-// **函数体逐字相同**（七处输入都自带 `|| ""` 守卫），换成调用后语义一字未变。
-import { entityDomainOf, entitySearchText } from "../../utils/entities.js?v=20260920104554";
-// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
-// 本文件原先内联了 `stateEntry?.newState || stateEntry || {}`（P12 状态条目内联收口）。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920104554";
+// 取域走 `utils/entities.js` 的 `entityDomainOf`。
+import { entityDomainOf, entitySearchText } from "../../utils/entities.js?v=20260920131301";
+// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`。
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
 
 // 认定为小米生态的 HA 集成平台名：分别是旧版 MIoT 与新版 Xiaomi Home 集成。
 const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);
@@ -42,21 +26,8 @@ function entityIsUsable(candidateEntity) {
   );
 }
 /**
- * 为某个角色给单个实体打分。
- *
- * 返回 -1 表示「这个实体不属于该角色」，0 分以上参与竞聘，分数越高越可能被选中。
- * 打分的基本套路是：先看域是否对得上（域不对直接 -1），再加名称关键词的加分项。
- * 加分项都写死在同一处，是为了让「为什么选了这个实体」在排查时一眼可见。
- *
- * 各角色要点：
- * - climate：climate 域，名称含浴霸 / 风暖再加 40；
- * - light：翻译键恰为 light 加 80，名称恰为 灯 / 灯光 / 照明 加 70，
- *   带 S2 编号加 25，而指示灯 / 氛围灯 / 夜灯减 140（这些是设备上的附属小灯）；
- * - power：switch 或 input_boolean，名称含开关 / 取暖 / 加热加 35；
- * - mode：select 域，名称含模式 / 档位加 35；
- * - temperature / humidity / pm25 / pm10 / airQuality：传感器域 + 关键词，缺关键词时温度给 20 兜底；
- * - hcho：先排除 原始 / 标签 / 流水号 这类干扰项，含 浓度 给 190，否则 160；
- * - filterLeftTime / filterLife：同样先排除序列号与已使用量，滤芯剩余寿命 180，泛化的滤芯 135。
+ * 为某个角色给单个实体打分：域不对直接返回 -1，否则叠加名称关键词加分，分越高越可能被选中。
+ * 加分项都写死在同一处，让「为什么选了这个实体」在排查时一眼可见。
  */
 function scoreEntityForRole(entity, entityRole) {
   const domain = entityDomainOf(entity);
@@ -293,13 +264,10 @@ export function xiaomiIntegration(entityMetadata) {
   }
 }
 /**
- * 解析一台小米设备的完整档案。
+ * 解析一台小米设备的完整档案：确认平台属小米 → 收集同设备可用实体 → 拼检索文本 →
+ * 逐个角色竞聘 → 处理电动床的部位与记忆位 → 推断 deviceType 与 coverKind。
  *
- * 步骤：确认平台属小米 → 收集同设备（或退化为同实体）的可用实体 → 拼出统一检索文本
- * → 逐个角色竞聘 → 单独处理电动床的部位与记忆位 → 推断 deviceType 与 coverKind。
- *
- * 档案字段约定：roles.primary 一定是「最像主控」的那个实体（没有 climate / cover / fan /
- * light / power 时回落到传入的 entityId）；confidence 用来告诉调用方这是规则命中还是兜底。
+ * roles.primary 是「最像主控」的实体（都没有时回落传入的 entityId）；confidence 表示规则命中还是兜底。
  */
 export function resolveXiaomiDeviceProfile(
   entityId,

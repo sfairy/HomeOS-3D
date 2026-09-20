@@ -1,14 +1,10 @@
 /**
  * 电视屏幕玻璃质感的两种画法：熄屏渐变与暖色玻璃材质。
  *
- * 位置：3D 工作室与展示态都用到同一套熄屏观感 ——
- *   1) 展示态的电视屏幕是一张 2D 画布，熄屏时用 drawTelevisionGlass 画渐变；
- *   2) 工作室里电视模型的屏幕面在暖阳原木主题下换成 createWarmTelevisionGlass，
- *      用着色器画出同色系的渐变，保证两侧「熄屏」看起来是同一种玻璃。
- * 对外：drawTelevisionGlass（Canvas 2D）、createWarmTelevisionGlass（three 材质）。
- * 约定：两种画法的三个色标必须保持一致 —— 冷色 #2a2c2f / #222427 / #181a1d，
- *   暖色 #505b62 / #343d45 / #242b31；改了一边就要同步另一边，否则同一台电视
- *   在展示态与工作室会呈现两种不同的熄屏色。
+ * 展示态电视屏是 2D 画布，熄屏用 drawTelevisionGlass 画渐变；工作室里电视模型屏面在暖阳原木下
+ * 换成 createWarmTelevisionGlass，用着色器画同色系渐变，保证两侧熄屏看起来是同一种玻璃。
+ * 约定：两种画法的三个色标必须一致 —— 冷色 #2a2c2f / #222427 / #181a1d，暖色 #505b62 / #343d45 / #242b31；
+ * 改一边要同步另一边，否则同一台电视在展示态与工作室会呈现两种熄屏色。
  */
 
 /**
@@ -33,12 +29,9 @@ export function drawTelevisionGlass(canvasSize, context, warm = false) {
 
 /**
  * 创建暖阳原木主题下的电视玻璃材质。
- *
- * 做法：用一个 MeshBasicMaterial（不受光照影响，屏幕不该被环境光改变），
- * 通过 onBeforeCompile 注入两段 GLSL —— 顶点阶段把 uv 传到片元，片元阶段按
- * 「纵向 + 左上偏置」的权重在两个色标之间插值，复现 2D 版的斜向反光。
- *
- * 注意：与 drawTelevisionGlass 的暖色档同色系，不要单独改这里的颜色常量。
+ * 用 MeshBasicMaterial（不受光照影响，屏幕不该被环境光改变），通过 onBeforeCompile 注入两段 GLSL：
+ * 顶点阶段传 uv，片元阶段按「纵向 + 左上偏置」权重在两个色标间插值，复现 2D 版的斜向反光。
+ * 与 drawTelevisionGlass 的暖色档同色系，不要单独改这里的颜色常量。
  */
 export function createWarmTelevisionGlass(three) {
   const glassMaterial = new three.MeshBasicMaterial({

@@ -3,10 +3,8 @@
   const $$ = selector => [...document.querySelectorAll(selector)];
   const STORE_PAGE_REVISION = '20260909-referrals-v1';
   const storePageHref = path => `${path}${path.includes('?') ? '&' : '?'}v=${STORE_PAGE_REVISION}`;
-  // 接口下发的 logo_url 与商品图路径不带版本号，浏览器会按启发式缓存复用旧图。
-  // 这里复用页面已加载的 theme.css 上的 ?v=（由 tools/bump_static_cache_versions.mjs
-  // 统一改写），给商店静态资源补上版本号，
-  // 避免图标更新后仍显示旧文件。
+  // 接口下发的 logo_url 与商品图路径不带版本号，浏览器会按启发式缓存复用旧图；这里复用页面已
+  // 加载的 theme.css 上的 ?v=（由 tools/bump_static_cache_versions.mjs 统一改写）补上版本号。
   let storeStaticVersion;
   function versionedStoreAsset(url) {
     if (typeof url !== 'string' || !url.startsWith('/store-static/') || url.includes('?')) return url;
@@ -20,7 +18,7 @@
   const money = cents => `¥${(Number(cents || 0) / 100).toFixed(2)}`;
   // 支付弹窗把「¥」单独排成小一号的符号，只取数字部分
   const moneyAmount = cents => (Number(cents || 0) / 100).toFixed(2);
-  // HTML 转义。实现在 store/static/htmlsafe.js（唯一一份，S38）；
+  // HTML 转义。实现在 store/static/htmlsafe.js（唯一一份）；
   // 这个名字保留是因为下面已有 20+ 处调用点。
   const escapeHtml = HtmlSafe.esc;
 
@@ -40,8 +38,7 @@
     const body = response.status === 204 ? null : await response.json().catch(() => ({}));
     if (!response.ok) {
       // 「把 detail 变成人话」只有一份实现（store/static/api-error.js），与后台/初始化页
-      // 共用。过去这里只认字符串形态，于是 FastAPI 422 的参数明细（detail 是数组）被
-      // 整段丢掉 —— 顾客只看到「请求失败」，看不到是哪个字段不合法。
+      // 共用。
       const error = ApiError.fromResponse(response, body, '请求失败，请稍后重试。');
       error.retryAfter = Number(response.headers.get('Retry-After') || 0);
       throw error;
@@ -287,9 +284,7 @@
       ? '<span class="hb-button hb-button--secondary hb-button--sm is-disabled">已售罄</span>'
       : `<a class="hb-button hb-button--primary hb-button--sm" href="${escapeHtml(productHref(product))}">${state.account ? (requestedUpgradeLicenseId() && !isTrialProduct(product) ? '选择升级版本' : '选择此版本') : '查看详情'}</a>`;
     const badge = isTrialProduct(product) ? `${product.validityDays} 天试用` : bundle ? '全授权' : product.productType === 'package' ? '自定义套餐' : '主授权';
-    // 每个主授权卡都要有一行说明：套餐卡展示所含内容，其余卡展示商品说明（与详情页
-    // #store-product-description 同源）。否则「主授权」卡只有徽标+标题，同排被套餐卡拉
-    // 齐高度后不但显空，标题还会比其他卡低一截。
+    // 每个主授权卡都要有一行说明（套餐卡展示所含内容，其余卡展示商品说明）；否则卡片显空且标题比同排低一截。
     const summary = product.productType === 'package' ? packageContentsText(product) : product.displayDescription || product.note || '';
     const contents = summary ? `<p>${escapeHtml(summary)}</p>` : '';
     return `<article class="hb-addon-card${unavailable ? ' is-purchased' : ''}" data-product-group="${productGroup(product)}"><span class="hb-addon-card__badge">${escapeHtml(badge)}</span><h3>${escapeHtml(product.name)}</h3>${contents}<div class="hb-addon-card__footer"><strong>${money(product.priceCents)}</strong>${action}</div></article>`;
@@ -492,9 +487,7 @@
     dialog.classList.remove('is-closed');
     $('#payment-product').textContent = order.productName;
     $('#payment-price').textContent = moneyAmount(order.amountCents);
-    // 付款说明由渠道下发：支付宝是「请用支付宝扫码支付，付款后本页会自动确认。」，
-    // 本地模拟收银台是「本地联调收银台，确认后立即发码」。这段文案一直在
-    // payment.note 里，但界面从来没渲染过，写死成「支付宝」在 mock 模式下是错的。
+    // 付款说明由渠道下发（支付宝与本地模拟收银台文案不同），一直存在 payment.note 里但界面从未渲染，写死「支付宝」在 mock 模式下是错的。
     $('#payment-hint').textContent = order.payment.note
       || `打开${order.payment.displayName || '支付宝'}「扫一扫」完成付款，付款后本页会自动确认。`;
     $('#payment-order').textContent = order.orderNo;
@@ -550,14 +543,8 @@
     dialog.showModal();
   }
 
-  // 站内统一的确认框。过去这三个地方用的是 ``window.confirm``：那个框由浏览器
-  // 绘制，跟着操作系统的语言和主题走（暗色页面上跳出一个浅色系统框），文案里的
-  // 换行、按钮名字、语气都改不了，也不跟随设计系统的颜色与圆角。
-  //
-  // 用 ``<dialog>`` 自绘，行为和原来的原生框严格对齐：
-  //   · 遮罩 / Esc 关闭 —— 一律按「取消」处理（返回值 false），不下发任何写操作；
-  //   · 只有明确点了确认按钮才 resolve(true)，所以调用方写法不变；
-  //   · 同一时刻只可能有一个确认框（``showModal`` 会拒绝第二个），不需要排队。
+  // 站内统一确认框，替代 window.confirm（系统框跟不上暗色主题、文案不可定制）。用 <dialog> 自绘，
+  // 行为严格对齐：遮罩 / Esc 按「取消」（false）且不下发写操作，只有明确点确认才 resolve(true)。
   function confirmAction({
     kicker = 'Confirm',
     title,
@@ -580,10 +567,7 @@
     detailNode.textContent = detail;
     detailNode.hidden = !detail;
 
-    // 老 WebView 没有 showModal 时的兜底：用 open 属性手动挂出来，并打上
-    // is-fallback 让 CSS 把它摆成居中的浮层（这个类在支持 showModal 的浏览器里
-    // 永远不会出现，正常路径仍是原生模态 + ::backdrop）。不用 window.confirm
-    // 兜底：那正是这次要去掉的东西。
+    // 老 WebView 没有 showModal 时的兜底：用 open 手动挂出并打上 is-fallback 交给 CSS 居中；不用 window.confirm 兜底。
     const modal = typeof dialog.showModal === 'function';
     if (modal) dialog.showModal();
     else {
@@ -612,11 +596,8 @@
     });
   }
 
-  // 取消待支付订单：付款码弹窗与待支付订单弹窗共用这一段。
-  //
-  // 必须走接口，不能只把弹窗关掉：服务端要先关掉渠道侧那笔预下单交易（否则用户
-  // 手里那张二维码还能继续扫、继续付），再把库存预留和优惠码名额还回去。两个
-  // 弹窗各写一份的话，「确认文案 / 按钮禁用 / 失败后刷新」这些细节迟早分叉。
+  // 取消待支付订单：付款码与待支付订单两个弹窗共用。必须走接口：服务端要先关掉渠道侧预下单交易
+  // （否则二维码还能继续扫付），再归还库存预留与优惠码名额；各写一份迟早分叉。
   async function cancelPendingOrderFrom(button, order) {
     if (!order) return;
     const ok = await confirmAction({
@@ -678,12 +659,8 @@
       }
       if (['expired', 'payment_failed', 'cancelled'].includes(order.status)) {
         stopPaymentTimers();
-        // 订单作废了，二维码也就没用了（渠道侧的交易随后会被关单）。这里把二维码
-        // 压暗，避免有人对着一个扫不出结果的码反复扫；但**不关闭弹窗**：
-        //   · 订单号要留给用户报客服，关掉就只剩一句会消失的 toast；
-        //   · 「钱刚好卡在到期点到账」时后端会把这张单重新认回来
-        //     （reconcile._confirm_paid_after_close 专为这种情况兜底），
-        //     弹窗留着、按钮还能再查一次，用户点一下就拿到结果。
+        // 订单作废后二维码没用了（渠道侧交易随后关单），压暗避免反复扫；但不关闭弹窗：订单号要留给
+        // 用户报客服，且「钱刚好卡在到期点到账」时后端会认回这笔单（reconcile._confirm_paid_after_close）。
         $('#payment-dialog').classList.add('is-closed');
         if (order.status === 'expired') toast('订单已超时关闭，库存和优惠码已释放。');
       }
@@ -755,9 +732,7 @@
 
   //: 用户在「已经买过」确认框里点了「仍然购买」后置为 true，避免第二次提交又弹一次。
   function confirmDuplicatePurchase(product) {
-    // 原来这是一整张专用弹窗（#duplicate-purchase-dialog），和站内确认框除了文案
-    // 没有任何差别：同一个标题 + 说明 + 左右两个按钮的结构。统一到 confirmAction，
-    // 少一份模板、一份 CSS、一份「Esc 要不要算放弃」的判断。
+    // 原专用弹窗 #duplicate-purchase-dialog 与站内确认框只差文案，统一到 confirmAction 可少一份模板、CSS 与 Esc 判断。
     return confirmAction({
       kicker: 'Duplicate Purchase',
       title: '你可能已经买过这个授权',
@@ -775,9 +750,7 @@
     if (!product) return;
     if (product.soldOut) { toast('该商品已售罄。'); return; }
     if (!state.account) { showGuestPurchaseNotice(); return; }
-    // 重复购买同一个永久商品：再买一张会**另发一个新激活码**，而不是延长原授权。
-    // 服务端不能硬拦 —— 一人多台设备、多套部署是合法需求，所以这里做二次确认，
-    // 把「买错了」挡在付款之前。
+    // 重复购买永久商品会另发新激活码而非延长原授权；服务端不能硬拦（多设备是合法需求），故这里二次确认。
     if (ownedPermanentLicense(product) && !await confirmDuplicatePurchase(product)) {
       toast('已取消，未创建订单。');
       return;
@@ -1183,9 +1156,7 @@
     }).join('');
     const orders = $('#account-orders');
     const orderItems = payload.orders || [];
-    //: 分页状态与「加载更多」：接口只返回最近 20 单，但总数在 ordersTotal 里。
-    //: 没有这个按钮时，买满一页的用户会以为更早的订单丢了 —— 界面上既看不到
-    //: 后面的单，也看不到「还有更多」的提示。
+    //: 分页状态与「加载更多」：接口只返回最近 20 单，总数在 ordersTotal 里；没有按钮时买满一页的用户会以为更早订单丢了。
     state.accountOrdersLoaded = orderItems.length;
     state.accountOrdersTotal = Number(payload.ordersTotal ?? orderItems.length);
     orders.innerHTML = (orderItems.length
@@ -1374,10 +1345,8 @@
     // 事件上，免得只按 ESC 时轮询还在后台跑、state.currentOrder 还留着旧订单。
     $('#payment-dialog').addEventListener('close', () => { stopPaymentTimers(); state.currentOrder = null; });
     $$('#payment-dialog [data-payment-close]').forEach(button => button.addEventListener('click', () => $('#payment-dialog').close()));
-    // 「我已完成支付」：不等下一轮 3 秒轮询，立刻查一次订单状态——付完款的人
-    // 正盯着这个弹窗，主动点一下比干等更符合预期。订单超时被关单之后这个按钮
-    // 更重要：后端对「关单时发现已付款」有兜底入账（reconcile._confirm_paid_after_close），
-    // 用户在这里点一下就能把补发的激活码取回来。
+    // 「我已完成支付」：不等下一轮 3 秒轮询，立刻查一次状态；订单超时被关单后后端对「关单时发现
+    // 已付款」有兜底入账（reconcile._confirm_paid_after_close），用户点一下就能取回补发的激活码。
     $('#payment-refresh').addEventListener('click', async () => {
       const order = state.currentOrder;
       if (!order) return;

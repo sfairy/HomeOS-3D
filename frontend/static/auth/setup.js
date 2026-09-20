@@ -1,19 +1,14 @@
 /**
- * 首次初始化（管理员账号设置）页脚本。
+ * 首次初始化（管理员账号设置）页脚本：后端尚未创建管理员时，/setup 的表单逻辑。
  *
- * 位置：后端尚未创建管理员时，/setup 页面的表单逻辑。
- * 职责：提交用户名与密码到 /api/v1/setup/admin，成功后先去授权页。
- * 约定：两次密码在前端先比对一次；后端失败信息的归一（字符串 / FastAPI 校验错误
- *   数组 / 顶层 message）交给 utils/api-error.js，本页不再自带那一份。非本机地址
- *   打开时还要带上引导密钥。
- * 约定：初始化请求走 utils/api-fetch.js（带 20 秒超时），且按钮的恢复放在 finally
- *   里 —— 后端正在建库/迁移时这个请求可能拖很久，没有超时就没有结论，没有 finally
- *   就没有下一次点击。
- * 跳转：设置成功即已下发登录 Cookie；先打开 /license——
- *   授权有效时该页会 303 回首页，失效/未激活则留在授权页完成激活。
+ * 提交用户名与密码到 /api/v1/setup/admin，成功后先去授权页。约定：两次密码在前端先比对一次；
+ * 后端失败信息的归一交给 utils/api-error.js；非本机地址打开时还要带上引导密钥。
+ * 初始化请求走 utils/api-fetch.js（20 秒超时），按钮恢复放在 finally —— 后端建库 / 迁移时请求可能拖很久，
+ * 没有超时就没有结论，没有 finally 就没有下一次点击。
+ * 跳转：设置成功即已下发登录 Cookie，先打开 /license —— 授权有效时该页 303 回首页，失效 / 未激活则留下完成激活。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=20260920104554";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920104554";
+import { apiFetch } from "../utils/api-fetch.js?v=20260920131301";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260920131301";
 
 const form = document.querySelector("#setup-form"),
   message = document.querySelector("#message"),
@@ -66,8 +61,7 @@ form.addEventListener("submit", async submitEvent => {
       }),
       payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      // 文案归一交给 utils/api-error.js。这里原先那份是全仓唯一认得 422 数组的，
-      // 但只取 `detail[0].msg`（英文、不带字段名）；共享实现能同时用上后端的中文摘要。
+      // 文案归一交给 utils/api-error.js，它认得 422 数组并能用上后端追加的中文摘要。
       throw new Error(apiErrorMessage(payload, "初始化失败。"));
     }
     window.location.assign("/license");

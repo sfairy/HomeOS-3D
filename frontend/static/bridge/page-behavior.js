@@ -1,19 +1,13 @@
 /**
  * 页面行为解析：把「组件级配置 + 页面级覆盖」合成某类设备页面最终生效的行为参数。
  *
- * 位置：舞台页在渲染每一类设备面板（灯光 / 环境 / 设备 / 清扫 / 安防）之前调用一次，
- *   结果直接决定旋转、自动旋转、空闲退出聚焦、空闲隐藏图标等交互开关。
- * 对外导出：resolvePageBehavior。
- * 全局约定：
- *   - deviceKind 到页面名的映射表就是设置面板里的分组名，面板新增分组必须同步改这里；
- *   - 组件属性里把页面级覆盖存为 `pageBehaviors[页面名][分节名]`，且只有当 `behaviorScope === "page"`
- *     时才读取它 —— scope 为 global 时旧数据可能残留，读取它会得到「用户已改回全局但仍被旧值影响」的错误行为。
- * 副作用：无，纯函数。
+ * 舞台页在渲染每类设备面板（灯光 / 环境 / 设备 / 清扫 / 安防）前调用一次，结果决定旋转、
+ * 自动旋转、空闲退出聚焦、空闲隐藏图标等开关。deviceKind 到页面名的映射就是设置面板里的
+ * 分组名，新增分组必须同步改这里。纯函数，无副作用。
  */
 
 /**
  * 解析指定设备种类的最终页面行为。
- *
  * 合并优先级自低到高为：本函数内置默认值 → 组件级 config → 页面级覆盖。
  */
 export function resolvePageBehavior(config = {}, deviceKind = "light") {
@@ -44,11 +38,8 @@ export function resolvePageBehavior(config = {}, deviceKind = "light") {
         : pageOverride || {})
     };
   };
-  // 各分节的默认值为 false / 关闭：页面行为属于增强项，缺省不改变既有交互手感。
-  // interaction 的默认旋转模式兼容历史文档 —— 早期把相机设置存在 camera 下，
-  // 因此这里回落到 config.camera.rotationMode 而不是写死 "free"。
-  // 末尾的 hideIconsWhileRotating 不走 mergeSection：它是标量开关而非分节对象，
-  // 因此只接受页面级布尔覆盖。
+  // 各分节默认 false / 关闭：页面行为是增强项，缺省不改变既有手感。interaction 的默认旋转模式
+  // 兼容历史文档——早期把相机设置存在 camera 下，故回落 config.camera.rotationMode 而非写死 "free"。
   return {
     interaction: mergeSection("interaction", {
       rotationMode: config.camera?.rotationMode || "free",

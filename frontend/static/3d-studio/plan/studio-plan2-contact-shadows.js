@@ -1,31 +1,17 @@
 /**
- * 接触阴影（Contact Shadow）控制器。
- *
- * 位置：3D 工作室的「二代平面渲染（plan2）」管线里，本模块负责家具与地面接触处
- *   那圈压暗的贴地阴影，以及家具顶面之间互相压暗的「表面烘焙」（surface bake）。
- *   它是环境遮蔽（AO）的廉价近似，不追求全局光照的物理正确，只求把物体「钉」在地板上。
- * 对外：isContactCasterMaterial（材质资格判定）、
- *   createContactShadowController（控制器工厂，返回 sync / invalidate / dispose / settings 等）。
- * 为什么不用实时阴影贴图：
- *   - 场景里家具动辄上千个网格，逐帧渲染 shadow map 的 draw call 与显存开销不可接受；
- *   - 本管线只需要「贴地的一圈暗」，不需要轮廓正确的投影方向；
- *   - 相机常做楼层切换与环绕，实时阴影会出现闪烁与阴影贴图抖动。
- *   因此改为「只在需要时烘焙一次」：从地板下方 6cm 处朝上拍一张正交深度图，把深度
- *   换算成遮蔽浓度存进 RedFormat 贴图，地面材质的着色器再按世界坐标采样它。
- * 关键约定：
- *   - 所有贴图都在「楼层锚点帧」里烘焙，所以必须维护 plan2ContactTransform 把世界坐标
- *     变换回烘焙时的坐标系；锚点一动（楼层过渡、家具搬动）就要重算或重烘焙。
- *   - 烘焙会临时改写 renderer 的状态（renderTarget / viewport / scissor / clearColor /
- *     autoClear / shadowMap / xr），finally 里必须逐项还原，否则主渲染会花屏。
- *   - 遮蔽强度统一走 plan2ContactOpacity / plan2SurfaceOpacity 两个 uniform 做淡入淡出，
- *     开关、挂起、楼层切换都只改这两个值，不重建贴图。
+ * 接触阴影（Contact Shadow）控制器：为家具与地面接触处烘焙一圈压暗的贴地阴影，也负责家具顶面之间的「表面烘焙」。
+ * 它是环境遮蔽（AO）的廉价近似，不追求全局光照的物理正确，只求把物体「钉」在地板上。
+ * 对外：isContactCasterMaterial（材质资格判定）、createContactShadowController（控制器工厂，返回 sync / invalidate / dispose / settings）。
+ * 为什么不用实时阴影贴图：家具动辄上千网格，逐帧渲染 shadow map 的 draw call 与显存开销不可接受，且相机常做楼层切换与环绕会闪烁抖动。
+ * 因此改为「只在需要时烘焙一次」：从地板下方 6cm 处朝上拍一张正交深度图，把深度换算成遮蔽浓度存进 RedFormat 贴图，地面材质着色器再按世界坐标采样。
+ * 关键约定：所有贴图都在「楼层锚点帧」里烘焙，须维护 plan2ContactTransform 把世界坐标变换回烘焙时的坐标系，锚点一动（楼层过渡、家具搬动）就要重算或重烘焙。
+ * 烘焙会临时改写 renderer 的 renderTarget / viewport / scissor / clearColor / autoClear / shadowMap / xr，finally 里必须逐项还原，否则主渲染会花屏。
+ * 遮蔽强度统一走 plan2ContactOpacity / plan2SurfaceOpacity 两个 uniform 做淡入淡出，开关、挂起、楼层切换都只改这两个值，不重建贴图。
  */
 
 /**
  * 沿父链向上查找某个 userData 字段，返回第一个存在的值。
- *
- * 用途：网格本身通常不带楼层 / 层级信息，信息挂在某个祖先 Group 上，
- *   所以判断归属时一律用「向上查找」而不是只看自身。
+ * 用途：网格本身通常不带楼层 / 层级信息，信息挂在某个祖先 Group 上，所以判断归属时一律用「向上查找」而不是只看自身。
  */
 function findUserDataInAncestors(startObject3d, userDataKey) {
   for (
@@ -40,9 +26,7 @@ function findUserDataInAncestors(startObject3d, userDataKey) {
 }
 /**
  * 判断对象自身及其全部祖先是否都可见。
- *
- * three.js 的 visible 只影响自身渲染，父节点隐藏时子节点同样不会出现在画面里；
- * 而遍历到的网格可能挂在一个被临时隐藏的 Group（比如隐藏层、楼层过渡中的旧楼层）下，
+ * three.js 的 visible 只影响自身渲染，父节点隐藏时子节点同样不会出现在画面里；而遍历到的网格可能挂在一个被临时隐藏的 Group（比如隐藏层、楼层过渡中的旧楼层）下。
  * 只看 mesh.visible 会把看不见的物体也算成投影源，烘出多余的阴影。
  */
 function isVisibleWithAncestors(rootObject3d) {
@@ -54,15 +38,9 @@ function isVisibleWithAncestors(rootObject3d) {
   return true;
 }
 /**
- * 判断一个材质是否有资格作为「接触阴影投影源」。
- *
- * 之所以要筛选：深度烘焙通道只渲染不透明的实体，任何半透明 / 折射 / 镂空材质
- * 在深度图里都会变成一个「实心板」，把阴影错烘成一大片黑块。
- * 判定口径（四条全过才算数）：
- *   - opacity >= 0.98：几乎不透明的才算实体，0.98 是给浮点误差留的余量；
- *   - transmission > 0：玻璃类折射材质排除；
- *   - 允许 transparent，但必须配 alphaTest > 0 —— 树叶、栏杆这类靠 alphaTest 抠洞的
- *     材质在深度通道里能正确镂空，反而应该参与，否则树下会缺阴影。
+ * 判断一个材质是否有资格作为「接触阴影投影源」：深度烘焙通道只渲染不透明实体，任何半透明 / 折射 / 镂空材质在深度图里都会变成一个实心板，把阴影错烘成一大片黑块。
+ * 判定口径（四条全过才算数）：opacity >= 0.98 —— 几乎不透明的才算实体，0.98 是给浮点误差留的余量；transmission 必须为 0，排除玻璃类折射材质。
+ * 允许 transparent，但必须配 alphaTest > 0 —— 树叶、栏杆这类靠 alphaTest 抠洞的材质在深度通道里能正确镂空，反而应该参与，否则树下会缺阴影。
  */
 export function isContactCasterMaterial(material) {
   return (
@@ -74,22 +52,9 @@ export function isContactCasterMaterial(material) {
   );
 }
 /**
- * 扫描所有网格的三角面，归纳出「有哪些高度上存在朝上的表面」。
- *
- * 算法（对每个三角形做一次，纯 CPU、只在重建时跑）：
- *   1. 把顶点变换到世界坐标，算法线方向与面积，取三角形重心的 Y 作为表面高度；
- *   2. 只收「近似水平朝上」的面 —— 水平表面的遮蔽才需要单独烘焙，墙面与斜面交给地面通道；
- *   3. 按 1cm 分桶（heightKey）合并，桶内记录面积加权平均高度与最高点；
- *   4. 按总面积取前 levelLimit 个桶，再按高度升序输出。
- *
- * 分级参数的来历：
- *   - `triangleArea < 0.004`：小于 4cm² 的碎面（倒角、螺丝、贴花）数量极多且没有烘焙价值，
- *     不滤掉会让统计被噪声主导；
- *   - `faceNormal.y < triangleArea * 1.98`：叉积模长等于 2 倍面积，故该式等价于
- *     cos(倾角) < 0.99，即只保留与水平面夹角约 8° 以内的面，避免把沙发表面当桌面；
- *   - `surfaceHeight <= 0.12`：距地板 12cm 以内的面（踢脚、地面找平层）会与地面通道重叠，
- *     烘出来是同一条阴影，直接丢弃；
- *   - `Math.round(surfaceHeight * 100)`：以 1cm 为分辨率分桶，让同一件家具的顶面归成一级。
+ * 扫描所有网格的三角面，归纳出「有哪些高度上存在朝上的表面」；纯 CPU，只在重建时跑。
+ * 只收近似水平朝上的面（墙面与斜面交给地面通道），按 1cm 分桶（heightKey）合并，桶内记面积加权平均高度与最高点，按总面积取前 levelLimit 个再按高度升序输出。 阈值来历：triangleArea < 0.004 滤掉小于 4cm² 的碎面（倒角、螺丝、贴花），不滤会让统计被噪声主导；faceNormal.y < triangleArea * 1.98 等价于 cos(倾角) < 0.99（叉积模长即 2 倍面积），只保留与水平面夹角约 8° 以内的面，避免把沙发表面当桌面。
+ * surfaceHeight <= 0.12 丢弃距地板 12cm 以内的面（踢脚、地面找平层），它们会与地面通道烘出同一条阴影。
  */
 function computeSurfaceLevels(threeLib, meshList, floorY, levelLimit = 32) {
   const levelsByHeightKey = new Map();
@@ -193,23 +158,8 @@ function computeSurfaceLevels(threeLib, meshList, floorY, levelLimit = 32) {
 }
 /**
  * 创建接触阴影控制器（一个渲染器一份，内部状态跨帧复用）。
- *
- * 一次完整的同步流程：
- *   1. sync 时遍历场景，按楼层分组收集「地面接收面（regionReceiverKind === 'floor'）」
- *      与「投影源（castShadow + modelLayer === 'items' + 材质合格）」；
- *   2. 用内容签名（几何 + 材质 + 变换，见 computeLayoutKey）判断布局是否变化，
- *      没变就命中缓存直接复用贴图；
- *   3. 需要重烘时，从地板下方 6cm 处用正交相机朝上拍深度图，再对结果做两轮模糊，
- *      必要时把各级水平面也各拍一张、拼成图集并生成「高度 → 图集格子」的查找表；
- *   4. 用 floorStatesById 里的 uniform 把贴图交给地面材质，透明度走淡入淡出。
- *
- * 失效与重建时机：
- *   - 场景编辑（增删家具、改材质、改楼层）→ 调 invalidate(floorIds) 只重烘受影响的楼层；
- *   - 换根节点（换文档）→ 缓存整体作废，needsRebuild 置位；
- *   - 楼层过渡（家具在动的那些帧）→ setMotion(true) 挂起重建、只保留旧贴图做淡出，
- *     过渡结束再 setMotion(false) 恢复，避免在一帧里烘几十个楼层造成卡顿；
- *   - 增量模式下每帧最多补烘 1 个楼层，其余留到后续帧（deferredFloorIds），
- *     保证单帧渲染预算不被烘焙吃光。
+ * sync 流程：按楼层收集地面接收面（regionReceiverKind === 'floor'）与投影源（castShadow + modelLayer === 'items' + 材质合格）；用内容签名（几何 + 材质 + 变换，见 computeLayoutKey）判断布局是否变化，没变就命中缓存复用贴图。 需要重烘时从地板下方 6cm 处朝上拍深度图并做两轮模糊，必要时把各级水平面各拍一张拼成图集并生成「高度 → 图集格子」查找表。
+ * 失效与重建时机：场景编辑调 invalidate(floorIds) 只重烘受影响楼层；换根节点整体作废；楼层过渡调 setMotion(true) 挂起重建、只留旧贴图做淡出；增量模式下每帧最多补烘 1 个楼层，其余留到 deferredFloorIds，保证单帧渲染预算不被烘焙吃光。
  */
 export function createContactShadowController({
   THREE: THREE,
@@ -319,11 +269,8 @@ export function createContactShadowController({
     // 顶点着色器不做任何变换：直接把 NDC 坐标写出去，四边形的 uv 透传给片元。
     vertexShader:
       "varying vec2 shadowUv; void main() { shadowUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
-    // 9 抽头高斯模糊的「线性采样优化版」：中心权重 0.227027、近邻合计 0.316216、
-    // 远邻合计 0.070270，采样偏移 1.384615 / 3.230769 —— 这是经典常量，
-    // 用 5 次采样拟合 9 抽头高斯，省掉一半纹理读取。
-    // spread 在「模糊结果」与「邻域最大值」之间插值：取最大值相当于做膨胀，
-    // 让阴影稍微外扩，避免模糊后贴地阴影缩进家具底下露出缝隙。
+    // 9 抽头高斯模糊的「线性采样优化版」：中心权重 0.227027、近邻合计 0.316216、远邻合计 0.070270，采样偏移 1.384615 / 3.230769 —— 经典常量，用 5 次采样拟合 9 抽头高斯，省掉一半纹理读取。
+    // spread 在「模糊结果」与「邻域最大值」之间插值：取最大值相当于做膨胀、让阴影稍微外扩，避免模糊后贴地阴影缩进家具底下露出缝隙。
     fragmentShader:
       "uniform sampler2D source; uniform vec2 stepSize; uniform float spread; varying vec2 shadowUv;\n      void main() {\n        float center = texture2D(source, shadowUv).r;\n        float nearA = texture2D(source, shadowUv + stepSize * 1.384615).r;\n        float nearB = texture2D(source, shadowUv - stepSize * 1.384615).r;\n        float farA = texture2D(source, shadowUv + stepSize * 3.230769).r;\n        float farB = texture2D(source, shadowUv - stepSize * 3.230769).r;\n        float value = mix(center * 0.227027 + (nearA + nearB) * 0.316216 + (farA + farB) * 0.070270,\n          max(center, max(max(nearA, nearB), max(farA, farB))), spread);\n        gl_FragColor = vec4(vec3(value), 1.0);\n      }"
   });
@@ -334,9 +281,7 @@ export function createContactShadowController({
   blurScene.add(blurQuad);
   /**
    * 取（必要时创建）某楼层的地面阴影状态。
-   *
-   * 每个楼层独立持有自己的渲染目标与 uniform 对象：uniform 必须逐层独立，
-   * 否则多层同时可见时后烘焙的楼层会覆盖前一层的贴图。
+   * 每个楼层独立持有自己的渲染目标与 uniform 对象：uniform 必须逐层独立，否则多层同时可见时后烘焙的楼层会覆盖前一层的贴图。
    */
   function getFloorState(floorId) {
     const floorIdKey = String(floorId);
@@ -462,9 +407,7 @@ export function createContactShadowController({
   }
   /**
    * 挂起 / 恢复整个接触阴影（用于截图、导出、离屏渲染等需要干净画面的场景）。
-   *
-   * 挂起时把浓度直接清零并作废缓存；恢复时走一次完整重建 —— 因为挂起期间
-   * 场景可能被改过，复用的贴图不再可信。
+   * 挂起时把浓度直接清零并作废缓存；恢复时走一次完整重建 —— 因为挂起期间场景可能被改过，复用的贴图不再可信。
    */
   function setSuspended(suspended) {
     const nextSuspended = suspended === true;
@@ -479,11 +422,8 @@ export function createContactShadowController({
   }
   /**
    * 进入 / 退出「运动模式」（楼层过渡、家具拖拽动画）。
-   *
-   * 进入：给所有楼层挂上 240ms 的淡出动画，让阴影平滑消失，而不是在运动中途
-   *   还挂着与位置不符的旧阴影；
-   * 退出：清掉动画、允许复用布局（isIncrementalUpdate + shouldReuseLayout），
-   *   这样位置变了的楼层只需重烘一轮而不是全量重建。
+   * 进入：给所有楼层挂上 240ms 的淡出动画，让阴影平滑消失，而不是在运动中途还挂着与位置不符的旧阴影。
+   * 退出：清掉动画、允许复用布局（isIncrementalUpdate + shouldReuseLayout），位置变了的楼层只需重烘一轮而不是全量重建。
    */
   function setMotion(motionEnabled) {
     if (isMotionSuspended !== (motionEnabled === true)) {
@@ -511,10 +451,8 @@ export function createContactShadowController({
   }
   /**
    * 按当前锚点把烘焙时刻的贴图变换重新贴回世界坐标。
-   *
    * 数学：plan2ContactTransform = invert(当前锚点矩阵) × 烘焙时的锚点矩阵。
-   * 着色器用它把世界坐标先搬到烘焙坐标系再采样，所以锚点动了不必重烘，
-   * 只需在每帧 sync 时更新这个矩阵（楼层过渡时省下大量烘焙）。
+   * 着色器用它把世界坐标先搬到烘焙坐标系再采样，所以锚点动了不必重烘，只需在每帧 sync 时更新这个矩阵（楼层过渡时省下大量烘焙）。
    */
   function updateBakedTransforms() {
     for (const bakedFloorState of floorStatesById.values()) {
@@ -535,19 +473,9 @@ export function createContactShadowController({
     }
   }
   /**
-   * 取（必要时创建）用于深度烘焙的材质。
-   *
-   * 为什么不用普通 MeshDepthMaterial：three.js 的深度材质输出的是「距离远近」，
-   * 而接触阴影需要的是「离地高度 → 浓度」。这里通过 onBeforeCompile 往顶点 / 片元
-   * 着色器里注入两段代码：
-   *   - 顶点：按投影矩阵元素把顶点朝 (offsetX, offsetZ) 方向偏移，偏移量正比于顶点
-   *     离地高度 —— 效果是「阴影只从贴地部分长出来」，高处几乎不偏，形成短促的贴地影；
-   *   - 片元：把原生深度还原成高度，再用 exp(-height / falloff) 转成浓度，
-   *     末尾用 smoothstep(1.8, 2.5) 把超过 maxHeight 的部分收到 0，避免远处出现硬截断。
-   *
-   * @param {boolean} [isSurfaceBake=false] 是否为表面烘焙：表面级高度差很小，
-   *   会换一组近平面 / 衰减 / 截断参数（1.5 / 0.5 / 0.8~1.5）。
-   * @throws {Error} 注入点 project_vertex 缺失（three.js 版本不兼容）时抛出。
+   * 取（必要时创建）用于深度烘焙的材质。不用普通 MeshDepthMaterial：它输出的是「距离远近」，而接触阴影需要「离地高度 → 浓度」。
+   * onBeforeCompile 注入两段：顶点按投影矩阵元素把顶点朝 (offsetX, offsetZ) 偏移、偏移量正比于离地高度（效果是阴影只从贴地部分长出来，形成短促的贴地影）。 片元把原生深度还原成高度，再用 exp(-height / falloff) 转成浓度，末尾用 smoothstep(1.8, 2.5) 把超过 maxHeight 的部分收到 0，避免远处出现硬截断。
+   * @param {boolean} [isSurfaceBake=false] 表面烘焙：表面级高度差很小，会换一组近平面 / 衰减 / 截断参数（1.5 / 0.5 / 0.8~1.5）。@throws {Error} 注入点 project_vertex 缺失（three.js 版本不兼容）时抛出。
    */
   function getDepthMaterial(sourceMaterial, isSurfaceBake = false) {
     // 缓存键把「影响深度着色器输出的全部输入」都串起来：贴图 UUID、alphaTest、
@@ -646,9 +574,7 @@ export function createContactShadowController({
   }
   /**
    * 释放某楼层的全部 GPU 资源并复位 uniform。
-   *
-   * 注意只清渲染目标与 uniform 指向，不删除 floorStatesById 里的条目：
-   * 状态对象本身很轻，留着可以避免下一帧重建时反复分配。
+   * 注意只清渲染目标与 uniform 指向，不删除 floorStatesById 里的条目：状态对象本身很轻，留着可以避免下一帧重建时反复分配。
    */
   function disposeFloorState(targetState) {
     targetState.fade = null;
@@ -670,10 +596,8 @@ export function createContactShadowController({
   }
   /**
    * 确保该楼层的主深度图与 ping-pong 缓冲尺寸正确。
-   *
-   * ping 缓冲只用于模糊的中间结果，不需要深度缓冲；两者都用 RedFormat ——
-   * 只要一个通道，内存占用是 RGBA 的四分之一，而模糊只有 4 轮、
-   * 反复读写也不会出现明显精度损失。
+   * ping 缓冲只用于模糊的中间结果，不需要深度缓冲；两者都用 RedFormat —— 只要一个通道，内存占用是 RGBA 的四分之一。
+   * 模糊只有 4 轮，反复读写也不会出现明显精度损失。
    */
   function ensureRenderTargets(floorEntry, sizePx) {
     if (floorEntry.target?.width !== sizePx || floorEntry.target?.height !== sizePx) {
@@ -695,19 +619,8 @@ export function createContactShadowController({
   }
   /**
    * 烘焙「表面之间的接触遮蔽」：把每一级水平面各拍一张深度图，拼成一张图集。
-   *
-   * 为什么需要：家具顶面（桌面、柜顶）之间也会有接触阴影，但地面通道的相机在地板下方，
-   * 拍不到这些高度；而给每一级都保留一张独立贴图又太费显存。做法是把各级结果按
-   * 方形图集拼起来（atlasColumns × atlasColumns 个格子），再额外生成一张一维查找表，
-   * 运行时按「该像素离地高度」查出应采样哪个格子。
-   *
-   * 流程：
-   *   1. computeSurfaceLevels 得到高度级列表，空则不烘焙直接清空资源；
-   *   2. 图集边长受设备 maxTextureSize 约束，格子数多了就自动降分辨率；
-   *   3. 每级：把正交相机摆在该级最高点上方 3mm（贴太近会自遮挡，太远则漏掉细节），
-   *      朝上拍一张，做 4 轮由粗到细的模糊，再用 viewport 只写入图集对应的格子；
-   *   4. 生成 2048 采样的一维查找表：把 0 ~ 最高级 + 5cm 的高度区间等分，
-   *      每格记录最近的级号（容差 1.8cm，找不到就留 0 / alpha 0 表示无遮蔽）。
+   * 为什么需要：家具顶面之间也会有接触阴影，但地面通道的相机在地板下方拍不到这些高度；给每级都保留一张独立贴图又太费显存，故按方形图集拼起来（atlasColumns × atlasColumns 个格子），再额外生成一张一维查找表，运行时按「该像素离地高度」查出应采样哪个格子。 流程：computeSurfaceLevels 得到高度级列表，空则直接清空资源；图集边长受设备 maxTextureSize 约束，格子数多了自动降分辨率；每级把正交相机摆在该级最高点上方 3mm（贴太近会自遮挡、太远则漏掉细节），朝上拍一张后做 4 轮由粗到细的模糊，再用 viewport 只写入图集对应的格子。
+   * 最后生成 2048 采样的一维查找表：把 0 ~ 最高级 + 5cm 的高度区间等分，每格记录最近的级号（容差 1.8cm，找不到就留 0 / alpha 0 表示无遮蔽）。
    */
   function bakeSurfaceLevels(
     surfaceEntry,
@@ -889,17 +802,9 @@ export function createContactShadowController({
     }
   }
   /**
-   * 烘焙一层楼的接触阴影贴图。
-   *
-   * 相机摆位是整套方案的核心：正交相机放在地板面下方 6cm、朝正上方拍。
-   *   - 放在「下方」而不是「上方」：这样地面本身（与相机同高、甚至更低的三角面）
-   *     不会挡住视线，只有家具的侧壁会被拍到，深度图里自然形成一圈贴地的暗边；
-   *   - 6cm 是经验值：太小会把地板自身拍进深度，太大则阴影从家具边缘往外溢出不真实。
-   *
-   * 渲染前会把投影源 clone 一份放进临时场景，并整体替换成深度材质 —— 不动原场景，
-   * 避免改材质触发热更新或影响其他渲染通道。
-   *
-   * @throws {Error} 烘焙过程中渲染报错时，先清空该层资源再原样抛出，不留下半成品状态。
+   * 烘焙一层楼的接触阴影贴图。相机摆位是整套方案的核心：正交相机放在地板面下方 6cm、朝正上方拍。
+   * 放在「下方」而不是「上方」：地面本身（与相机同高、甚至更低的三角面）不会挡住视线，只有家具的侧壁会被拍到，深度图里自然形成一圈贴地的暗边。 6cm 是经验值：太小会把地板自身拍进深度，太大则阴影从家具边缘往外溢出不真实。
+   * 渲染前会把投影源 clone 一份放进临时场景，并整体替换成深度材质（不动原场景，避免改材质触发热更新或影响其他渲染通道）。@throws {Error} 烘焙过程中渲染报错时，先清空该层资源再原样抛出，不留下半成品状态。
    */
   function buildContactMap(contactEntry, receivers, casters) {
     const boundsBox = new THREE.Box3();
@@ -1083,14 +988,7 @@ export function createContactShadowController({
   }
   /**
    * 给几何算一个内容签名，供布局缓存做比对。
-   *
-   * 两级策略：
-   *   1. 快路径：几何是参数化类型（BoxGeometry 等）且属性没被改过（version === 0），
-   *      直接序列化 type + parameters，去掉 uuid 保证内容相同即签名相同；
-   *   2. 慢路径：手改过顶点或来自外部模型的几何，只能对底层 buffer 做 FNV 双通道哈希。
-   * 无论走哪条路，结果都与「position 属性 + index 属性的版本号」绑定缓存 ——
-   * 版本一变（哪怕 buffer 被整体替换而属性对象没换）就重算。
-   *
+   * 快路径：几何是参数化类型（BoxGeometry 等）且属性没被改过（version === 0），直接序列化 type + parameters，去掉 uuid 保证内容相同即签名相同；慢路径：手改过顶点或来自外部模型的几何，只能对底层 buffer 做 FNV 双通道哈希。 无论走哪条路，结果都与「position 属性 + index 属性的版本号」绑定缓存，版本一变（哪怕 buffer 被整体替换而属性对象没换）就重算。
    * @returns {string} 内容签名（JSON 字符串）。
    */
   function computeGeometryKey(bufferGeometry) {
@@ -1167,19 +1065,8 @@ export function createContactShadowController({
   }
   /**
    * 计算「一组接收面 + 投影源」的内容签名，用来判断能否复用已烘焙的贴图。
-   *
-   * 签名里包含四类信息：
-   *   - settings：任何烘焙参数变化都必须重烘；
-   *   - 接收面：只取经锚点帧归一化后的世界包围盒（不用整个几何，签名短得多），
-   *     并按位置缓存包围盒，属性版本没变就不重算；
-   *   - 投影源：几何签名 + 实例数量 + 形变权重 + 变换矩阵 + 材质签名；
-   *   - 材质签名刻意只保留「会影响深度输出」的字段（alphaTest、贴图、位移量），
-   *     改颜色、改金属度不会触发重烘。
-   * 所有矩阵元素都乘 10000 后取整再比较：浮点末位抖动不该被当成内容变化，
-   * 这是「拖拽家具时不疯狂重烘」的关键。
-   *
-   * @param {{receivers: Array<object>, casters: Array<object>}} layout 待签名的布局分组。
-   * @returns {string} 内容签名（JSON 字符串）。
+   * 签名含四类信息：settings（任何烘焙参数变化都必须重烘）；接收面只取经锚点帧归一化后的世界包围盒（比整个几何短得多），并按位置缓存包围盒，属性版本没变就不重算。 投影源取几何签名 + 实例数量 + 形变权重 + 变换矩阵 + 材质签名，材质签名刻意只保留「会影响深度输出」的字段（alphaTest、贴图、位移量），改颜色、改金属度不会触发重烘。
+   * 所有矩阵元素都乘 10000 后取整再比较：浮点末位抖动不该被当成内容变化，这是「拖拽家具时不疯狂重烘」的关键。@returns {string} 内容签名（JSON 字符串）。
    */
   function computeLayoutKey(layout, bakeFrame) {
     const bakeFrameInverse = bakeFrame.clone().invert();
@@ -1279,9 +1166,7 @@ export function createContactShadowController({
   }
   /**
    * 估算一份缓存状态占用的显存字节数，用于总预算控制。
-   *
-   * 只能估算：贴图的实际显存布局由驱动决定，这里按「单通道算 1~5 字节、多通道算 4~8 字节」
-   * 的保守口径折算，够用来判断有没有超预算。
+   * 只能估算：贴图的实际显存布局由驱动决定，这里按「单通道算 1~5 字节、多通道算 4~8 字节」的保守口径折算，够用来判断有没有超预算。
    */
   const estimateStateBytes = cachedFloorState =>
     (cachedFloorState.target
@@ -1302,10 +1187,8 @@ export function createContactShadowController({
     (cachedFloorState.lookup?.image?.data?.byteLength || 0);
   /**
    * 把一份烘焙结果存进布局缓存，供同一内容在不同楼层间复用。
-   *
-   * 存进去的是「资源 + uniform 值的快照」：uniform 里的向量 / 矩阵需要 clone，
-   * 纹理则只存引用（转移所有权，原状态对象随即被清空）。ping 缓冲不保存 ——
-   * 它只是模糊的中间结果，下次重建时可以重新分配。
+   * 存进去的是「资源 + uniform 值的快照」：uniform 里的向量 / 矩阵需要 clone，纹理则只存引用（转移所有权，原状态对象随即被清空）。
+   * ping 缓冲不保存 —— 它只是模糊的中间结果，下次重建时可以重新分配。
    */
   function storeCachedLayout(builtEntry) {
     if (!builtEntry.target || !builtEntry.contentKey) {
@@ -1350,10 +1233,7 @@ export function createContactShadowController({
   }
   /**
    * 尝试从布局缓存里恢复某楼层。
-   *
-   * 先把当前状态存回缓存（交换语义）：调用方通常在「内容即将变化」时调用它，
-   * 当前这份结果对之后仍可能有用，不该白白丢弃。
-   *
+   * 先把当前状态存回缓存（交换语义）：调用方通常在「内容即将变化」时调用它，当前这份结果对之后仍可能有用，不该白白丢弃。
    * @param {string} contentKey 目标内容签名。
    */
   function restoreCachedLayout(restoredEntry, contentKey) {
@@ -1384,13 +1264,8 @@ export function createContactShadowController({
   }
   /**
    * 按显存预算与数量上限淘汰缓存。
-   *
-   * 策略：先用所有状态对象（按 lastUsed 从新到旧）填预算，装不下的整体释放；
-   * 再把布局缓存限制在 8 份以内、并与已占用显存合计不超过 32MB。
-   * 32MB 上限是为了让接触阴影在低端显卡上也不至于挤掉主渲染的贴图。
-   *
-   * @param {Set<string>|Map<string, *>} protectedIds 必须保留的楼层 ID 集合
-   *   （本次重建涉及的楼层）。
+   * 策略：先用所有状态对象（按 lastUsed 从新到旧）填预算，装不下的整体释放；再把布局缓存限制在 8 份以内，并与已占用显存合计不超过 32MB。 32MB 上限是为了让接触阴影在低端显卡上也不至于挤掉主渲染的贴图。
+   * @param {Set<string>|Map<string, *>} protectedIds 必须保留的楼层 ID 集合（本次重建涉及的楼层）。
    */
   function evictCaches(protectedIds) {
     const evictionCandidates = [...floorStatesById.values()]
@@ -1432,10 +1307,8 @@ export function createContactShadowController({
   }
   /**
    * 每帧入口：推进淡入淡出、更新变换，并按需（增量）重建阴影。
-   *
    * 调用方每帧调一次，函数自己决定「这帧要不要干活」：没有待办就直接返回。
-   * 增量模式下每帧最多烘 1 个楼层，剩下的塞回 pendingFloorIds 并再请求一帧，
-   * 把烘焙开销摊到多帧，避免楼层切换时出现肉眼可见的卡顿。
+   * 增量模式下每帧最多烘 1 个楼层，剩下的塞回 pendingFloorIds 并再请求一帧，把烘焙开销摊到多帧，避免楼层切换时出现肉眼可见的卡顿。
    */
   function syncFloors() {
     if (isDisposed || isSuspended) {
@@ -1666,9 +1539,7 @@ export function createContactShadowController({
   }
   /**
    * 释放控制器持有的全部资源（幂等）。
-   *
-   * 释放顺序：贴图 → 材质 → 共享几何 / 纹理由创建方负责。占位纹理与模糊四边形是
-   * 控制器自己 new 的，必须一并 dispose，否则热重载时会留下泄漏。
+   * 释放顺序：贴图 → 材质 → 共享几何 / 纹理由创建方负责；占位纹理与模糊四边形是控制器自己 new 的，必须一并 dispose，否则热重载时会留下泄漏。
    */
   function disposeAll() {
     if (!isDisposed) {
@@ -1706,9 +1577,7 @@ export function createContactShadowController({
     setMotion: setMotion,
     /**
      * 只显示某个楼层的接触阴影（null 表示全部显示）。
-     *
-     * 楼层切换时用它把非当前楼层的浓度立刻清零，而不是等重建 ——
-     * 这样即使该层还没烘好，也不会在画面上残留其他楼层的阴影。
+     * 楼层切换时用它把非当前楼层的浓度立刻清零，而不是等重建 —— 这样即使该层还没烘好，也不会在画面上残留其他楼层的阴影。
      */
     setVisibleFloor(floorIdInput) {
       const nextVisibleFloorId = floorIdInput == null ? null : String(floorIdInput);

@@ -1,20 +1,16 @@
 /**
  * 3D 交互授权状态监视器。
  *
- * 位置：3D 交互舞台在挂载期间需要一个「当前浏览器是否被允许运行 3D 交互」的实时信号，
- *   本模块把后端授权接口轮询成一条可订阅的状态流，舞台据此决定渲染还是显示封面。
- * 对外导出：createAccessMonitor（工厂，返回 subscribe / suspend / resume）。
- * 全局约定：状态机取值 checking / allowed / denied / unavailable / suspended，
- *   界面文案同时由这里产出，调用方直接展示 message，不要再自行拼文案。
- * 副作用：注册定时器与网络请求；没有任何订阅者或处于 suspended 时全部停止，
- *   因此页面切走、组件卸载后不会留下后台请求。
+ * 3D 舞台挂载期间需要「当前浏览器是否被允许运行 3D 交互」的实时信号，本模块把后端授权接口
+ * 轮询成一条可订阅的状态流。对外为 createAccessMonitor 工厂，返回 subscribe / suspend /
+ * resume。状态机取值 checking / allowed / denied / unavailable / suspended，界面文案也由这里
+ * 产出；无订阅者或 suspended 时停止定时器与请求。
  */
 
 /**
  * 创建授权状态监视器。
- *
- * now / setTimer / clearTimer 允许注入，是为了在测试里用假时钟推进「到期 / 续期 / 过期响应」这些
- * 与真实时间强相关的分支，而不是让测试真的等待。
+ * now / setTimer / clearTimer 可注入，便于测试用假时钟推进「到期 / 续期 / 过期响应」等与真实
+ * 时间强相关的分支，而不必真的等待。
  */
 export function createAccessMonitor({
   requestGrant: requestGrant,

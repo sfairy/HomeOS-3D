@@ -1,14 +1,11 @@
 /**
  * 客户端日志上报（浏览器侧）。
  *
- * 位置：最早期加载的独立脚本，包裹 window.fetch 后暴露 window.HABridgeLog。
- * 职责：收集未捕获异常、资源加载失败、未处理的 Promise 拒绝与请求异常
- *   （失败或耗时超 5 秒），脱敏后进入本地队列，按批发送到 /api/v1/logs/events。
- * 约定：① 登录 / 初始化 / 配对这类公开页面只允许上报 warning 与 error，
- *   并改发 /api/v1/logs/public-events，避免把未登录用户的普通信息写进后台；
- *   ② 队列存 sessionStorage，上限 50 条 / 约 120KB / 15 分钟，超限丢最旧的；
- *   ③ 失败按指数退避重试（1 秒起，上限 60 秒），单次 flush 最多尝试 5 条；
- *   ④ 上报路径本身不记录，防止日志请求自激。
+ * 包裹 window.fetch 后暴露 window.HABridgeLog：收集未捕获异常、资源加载失败、未处理的
+ * Promise 拒绝与请求异常（失败或耗时超 5 秒），脱敏后进本地队列，按批发送到
+ * /api/v1/logs/events。登录 / 初始化 / 配对这类公开页面只允许上报 warning 与 error，并改
+ * 发 /api/v1/logs/public-events。队列存 sessionStorage，上限 50 条 / 约 120KB / 15 分钟，
+ * 超限丢最旧；失败按指数退避重试（1 秒起，上限 60 秒）；上报路径本身不记录。
  */
 (function (bridgeWindow) {
   "use strict";
@@ -43,9 +40,7 @@
       "userAgent",
       "phase"
     ]),
-    // 浏览器在 ResizeObserver 回调改动布局时派发的循环保护提示。它没有可用堆栈、
-    // 也不代表业务出错，却会随每次布局抖动重复上报，这里统一识别后丢弃。
-    // 真正需要修的是触发它的布局代码，而不是把这条提示记进后台。
+    // ResizeObserver 布局循环保护提示：没有堆栈也不代表业务出错，却会随布局抖动重复上报，统一识别后丢弃。
     RESIZE_OBSERVER_LOOP_ERROR = /^ResizeObserver loop (?:completed with undelivered notifications|limit exceeded)\.?$/,
     isPublicPage = /^\/(?:login|setup|pair|license)(?:\/|$)/.test(bridgeWindow.location.pathname);
   // publicMode 可在收到 401 后动态切到 true（会话过期降级为公开上报）。
@@ -84,15 +79,12 @@
   }
 
   /**
-   * 对任意文本做敏感信息脱敏。
-   *
+   * 对任意文本做敏感信息脱敏，超出 ``maxLength``（默认 1000）截断。
    * @param {*} rawText 原始文本。
-   * @param {number} [maxLength] 截断长度，默认 1000。
    * @returns {string} 脱敏后的文本。
    */
   function redactSensitive(rawText, maxLength = 1e3) {
-    // 依次处理：Cookie 头、PEM 私钥、邮箱、URL、Bearer Token、JWT、
-    // 各种「密钥=值」写法、HLS 流地址，最后统一去掉剩余查询串。
+    // 依次脱敏：Cookie 头、PEM 私钥、邮箱、URL、Token/JWT、「密钥=值」、HLS 流地址，最后去掉剩余查询串。
     return String(rawText ?? "")
       .replace(
         /(\b(?:set-cookie|cookie)["']?\s*[:=]\s*)(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\r\n]+)/gi,
@@ -117,7 +109,6 @@
 
   /**
    * 按白名单挑出可上报的上下文字段。
-   *
    * @returns {object} 只含白名单键、且值已脱敏的上下文。
    */
   function pickContext(contextRecord) {
@@ -180,7 +171,6 @@
 
   /**
    * 组装并入队一条日志事件。
-   *
    * @param {string} [reportDetails] 详情（通常是堆栈），截断到 8000 字符。
    */
   function reportEvent(

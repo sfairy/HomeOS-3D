@@ -35,22 +35,15 @@
 
 from __future__ import annotations
 
-#: 会占用库存预留与优惠码名额的状态。真相源就是本模块，``fulfill`` 只是直接
-#: re-export 同一个对象（``fulfill.RESERVING_STATUSES``），不存在两处各写一份的错配。
-#:
-#: ``fulfillment_failed`` 也在其中：发货抛异常时履约写入会被回滚（见
-#: ``admin_fulfill`` 的 SAVEPOINT），订单仍然占着那一件预留和那个优惠码名额，
-#: 等人工重试或退款。
+#: 会占用库存预留与优惠码名额的状态，真相源就是本模块（``fulfill`` 直接 re-export 同一对象）。
+#: ``fulfillment_failed`` 也在其中：发货抛异常时履约写入会被回滚（SAVEPOINT），
+#: 订单仍占着那一件预留与名额，等人工重试或退款。
 RESERVING_STATUSES: tuple[str, ...] = ("pending", "paid", "fulfillment_failed")
 
-#: 允许被「入账 / 标记支付 / 履约」的状态。终态订单一律拒绝——
-#: cancelled / expired 的库存与优惠码名额早已释放，refunded 的授权也已收回，
-#: 对它们履约等于凭空发一张可用授权，还会重复扣减预留并造成超卖。
-#: 钱确实到账的「复活」场景由支付宝结算路径处理（``settle_paid_order``），
-#: 不走后台接口。
-#:
-#: ``partially_refunded`` 同样不在列：部分退款后授权仍然有效、库存也已随发码
-#: 扣减过，再「履约」一次会重复发码。
+#: 允许被「入账 / 标记支付 / 履约」的状态。终态一律拒绝 —— cancelled / expired 的预留与
+#: 名额早已释放、refunded 的授权已收回，履约等于凭空发一张可用授权并造成超卖；钱确实
+#: 到账的「复活」由支付宝结算路径（``settle_paid_order``）处理，不走后台接口。
+#: ``partially_refunded`` 同样不在列：授权仍有效、码已随发码扣减，再履约一次会重复发码。
 FULFILLABLE_STATUSES: tuple[str, ...] = ("pending", "paid", "fulfillment_failed")
 
 #: 允许发起退款的状态。

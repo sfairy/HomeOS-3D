@@ -29,11 +29,9 @@ logger = logging.getLogger("store.api.alipay")
 
 #: 同步跳转页的**按来源**查单预算。
 #:
-#: 这个端点是匿名 GET，且 ``out_trade_no`` 是**调用方直接给的**（不是我们先发出去、
-#: 只能被猜到的值）。它会对处于 ``pending`` 的订单**真的发出一次渠道查单**（阻塞
-#: 网络往返），所以只靠「按订单号节流」挡不住 —— 攻击者换订单号即可绕过，把跳转页
-#: 变成对渠道的查单风暴，并占满 AnyIO 线程池。
-#: 这里按来源给一个粗粒度总预算，把所有查询都算进去（包括下面 force 的那条路径）。
+#: 这个端点是匿名 GET，且 ``out_trade_no`` 由调用方直接给，会对 ``pending`` 订单**真的
+#: 发一次渠道查单**（阻塞网络往返），只靠「按订单号节流」挡不住 —— 攻击者换订单号即可
+#: 绕过，把跳转页变成查单风暴并占满 AnyIO 线程池。按来源给粗粒度总预算（含 force 路径）。
 _RETURN_QUERY_LIMITER = SlidingWindowLimiter(limit=20, window_seconds=60.0)
 
 router = APIRouter(tags=["alipay"])
@@ -44,19 +42,10 @@ NOTIFY_PATH = "/store/v1/payments/alipay/notify"
 def _active_alipay_provider(request: Request, session=None):
     """返回**当前站点配置下真正在收款**的支付宝渠道；不是支付宝（或渠道不可用）就返回 None。
 
-    名字里的 ``active`` 是这份契约的重点，它与 ``store/payments/reconcile.py`` 的
-    ``_reconcile_alipay_provider`` 是**两份不同的知识**（两者原先都叫 ``_alipay_provider``，
-    P10 第八批改名 —— 照名字把调用搬过去不会报错，但行为会静默改变）：
-
-    * 本函数按**当前**站点配置解析，并且**永不抛错**：渠道没配好、或当前选的是模拟收银台时都返回
-      None。两个调用点都匿名可达（支付宝异步通知、支付同步跳转页），它们必须能拿到「现在不是支付宝
-      在收款」这个结论并把请求好好收尾 —— 一个 500 会让支付宝一直重推、也会让用户看到白屏。
-    * ``reconcile`` 那份带 ``name_override="alipay"``，**绕过渠道开关**强制按支付宝解析，且允许抛错。
-      巡检 / 对账要打的是「这单当时用的渠道」，不能因为运营今天切了渠道就不再认领历史订单。
-
-    传入 ``session`` 是为了让后台配置的凭据生效（凭据存在站点配置里），不传时
-    ``resolve_payment_provider`` 会自己读一次库。它在渠道没配好时会抛 ``PaymentError``（典型例子是
-    默认关闭的模拟收银台），这属于「当前不是支付宝在收款」的一种，不能让它冒出去变成 500。
+    本函数按**当前**站点配置解析且**永不抛错**（两个调用点都匿名可达，500 会让支付宝一直重推、
+    也让用户看到白屏）。与 ``reconcile._reconcile_alipay_provider`` 是两份不同的知识：那份带
+    ``name_override="alipay"``、**绕过渠道开关**且允许抛错 —— 巡检要打的是「这单当时用的渠道」，
+    不能因为运营今天切了渠道就不再认领历史订单。
     """
     setting = site_config.get_setting(session) if session is not None else None
     try:
@@ -75,15 +64,10 @@ def alipay_notify(
 ) -> PlainTextResponse:
     """支付宝异步通知（同步端点，跑在线程池里）。
 
-    刻意写成同步 ``def`` 而不是 ``async def``：这个端点的每一步都是同步阻塞的 ——
-    验签是 RSA 运算，后面还要开 SQLite 会话并写入订单。而它是**匿名可达**的，
-    支付宝自己也会在失败时不断重推（实测重推节奏很密）。放在事件循环上跑，
-    攻击者只要持续 POST 就能把整个服务卡住（SQLite 写锁争用下 ``busy_timeout``
-    会阻塞到 5 秒）。FastAPI 会把同步端点丢进线程池，阻塞只影响这一个请求。
-
-    请求体自己按 ``application/x-www-form-urlencoded`` 解析：原来用
-    ``await request.form()``，而同步端点不能 await。这没有放宽什么 ——
-    真正的闸门是下面的 ``verify_notification`` 验签，格式不对的一样过不了。
+    刻意写成同步 ``def``：每一步都是同步阻塞的（验签是 RSA 运算，之后还要开 SQLite 会话
+    写订单），而它**匿名可达**且支付宝失败时会密集重推；放事件循环上跑，持续 POST 就能把
+    整个服务卡住。请求体自己按 urlencoded 解析（同步端点不能 await ``request.form()``），
+    真正的闸门仍是 ``verify_notification`` 验签。
     """
     settings = request.app.state.settings
     provider = _active_alipay_provider(request, session)
@@ -115,11 +99,8 @@ def alipay_notify(
         logger.error("支付宝异步通知验签未通过：%s", notification.reason)
         return PlainTextResponse("failure")
 
-    # app_id / seller_id 是「这笔通知属于哪个商户」的判据，必须拿**验签用的那份**
-    # 凭据来比。provider 内部已经合并过后台站点配置，而这里手上的 ``settings``
-    # （来自 app.state.settings）只有环境变量：用它比较的话，后台配了商户号的部署
-    # 里这两个字段是空的，整段校验会被「非空才比较」静默跳过；环境变量与后台不一致
-    # 时又会把正常通知全部拒掉。
+    # app_id / seller_id 必须拿**验签用的那份**凭据来比：provider 内部已合并后台站点配置，
+    # 而手上的 ``settings`` 只有环境变量，用它比较会在后台配了商户号时静默跳过整段校验。
     effective = provider.resolve_settings(settings)
 
     if notification.app_id and effective.alipay_app_id:
@@ -185,7 +166,7 @@ _RETURN_PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} - HomeOS 授权中心</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260920104554">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260920131301">
 <style>
   /* 与商店/后台同一套暗色 + 琥珀设计语言（令牌来自 theme.css） */
   body {{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
@@ -247,10 +228,8 @@ def alipay_return(
             headers={"Cache-Control": "no-store"},
         )
 
-    # 用户刚付完款就跳回来，此刻查单命中率很高 —— 但「跳回来」这件事无法证明身份，
-    # 所以 force 只在**持订单凭证**时生效：否则任何人枚举订单号都能绕过节流，把这里
-    # 变成对渠道的查单风暴。不持凭证时走按订单号的常规节流，对真实用户没有影响
-    # （他这笔订单通常还没被查过，第一次必然放行）。
+    # 跳回来这件事无法证明身份，所以 force 只在**持订单凭证**时生效：否则枚举订单号就能绕过
+    # 节流，把这里变成查单风暴。不持凭证时走按订单号的常规节流，对真实用户没有影响。
     if provider is not None and provider.is_configured(settings):
         setting = site_config.get_setting(session)
         token = (request.query_params.get("token") or "").strip()
@@ -266,8 +245,7 @@ def alipay_return(
                     force=owns_order,
                 )
             except Exception as error:  # noqa: BLE001 - 对账失败不能挡住跳转页
-                # 用户就站在这张页面上等结果，所以这里不能失败；但要留下计数（S36），
-                # 否则「跳转页查单一直失败、订单一直停在待支付」在后台没有任何痕迹。
+                # 用户就站在这张页面上等结果，所以不能失败；但要留下计数，否则后台没有任何痕迹。
                 incidents.note("reconcile.return", order_no=order.order_no, error=error)
                 logger.exception("同步跳转页对账失败 order=%s", order.order_no)
         else:

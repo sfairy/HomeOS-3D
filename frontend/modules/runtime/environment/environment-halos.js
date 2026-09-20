@@ -1,14 +1,9 @@
 /**
- * 模型的屏幕描边与设备光晕。
+ * 模型的屏幕描边与设备光晕（两种 2D 叠加层反馈）：createScreenOutlines 把选中模型轮廓投影到屏幕、
+ * 用 SVG 描边 + 呼吸脉冲标出；createEnvironmentHalos 在模型前方贴一片加性发光面片，用颜色表示设备状态。
  *
- * 在 3D 子系统里的位置：本模块提供两种「2D 叠加层」视觉反馈 ——
- * 1) createScreenOutlines：把选中模型的轮廓投影到屏幕，用 SVG 描边 + 呼吸脉冲标出；
- * 2) createEnvironmentHalos：在模型前方贴一片加性发光面片，用颜色表示设备状态。
- *
- * 对外提供：outlineHull（二维凸包）、createScreenOutlines、createEnvironmentHalos。
- *
- * 约定：描边结果只依赖「模型的 27 个方向极值点」，极值点缓存以几何体 uuid 为键，
- * 几何体复用或扫地机移动组变化时会自动失效重算。
+ * 约定：描边只依赖「模型的 27 个方向极值点」，极值点缓存以几何体 uuid 为键，几何体复用或扫地机
+ * 移动组变化时自动失效重算。另导出 outlineHull（二维凸包）。
  */
 
 /**

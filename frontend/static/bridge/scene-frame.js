@@ -1,12 +1,10 @@
 /**
  * 场景坐标框架：把相机的位姿在「两个项目 / 两种楼层摆放」之间搬移。
  *
- * 位置：切换项目、导入导出或切换「全楼层」预览时，同一个相机视角要落到新场景的同一处，
- *   这一步必须换算坐标系，否则视角会跳。本模块只做几何计算，不接触渲染器。
- * 对外导出：transformSceneCamera（computeFloorPlacement 为内部实现）。
- * 全局约定：项目文档里楼层的摆放字段为 originX/originY、offsetX/offsetZ、rotation（角度）、
- *   elevation，以及 scene.calibration.pixelsPerMeter；缺任一字段都按默认值兜底，不得抛错。
- * 副作用：无，纯函数；返回的相机对象是深拷贝，调用方可以安全改写。
+ * 切换项目、导入导出或切换「全楼层」预览时，同一个视角要落到新场景的同一处，必须换算坐标系，
+ * 本模块只做几何计算。对外导出 transformSceneCamera。楼层摆放字段为 originX/originY、
+ * offsetX/offsetZ、rotation（角度）、elevation 与 scene.calibration.pixelsPerMeter，缺任一按
+ * 默认值兜底，不得抛错；返回的相机对象是深拷贝。
  */
 
 // 计算楼层的世界摆放：把楼层局部坐标映射到世界坐标所需的缩放 ppm、旋转 (c, s) 与平移 (x, y, z)。
@@ -23,9 +21,7 @@ function computeFloorPlacement(project, floorId, activeFloorId) {
   const scene = floor.scene;
   // 标定缺失时按 1 像素/米处理：数学上仍有意义，视觉上等价于 1:1。
   const pixelsPerMeter = scene.calibration?.pixelsPerMeter || 1;
-  // 全楼层预览不重新求包围盒，而是照抄每个楼层自己记录的摆放：旋转按角度制取负
-  // （three.js 绕 Y 轴的旋向与文档中的定义相反），高度则按 elevation 排序后乘以
-  // previewFloorGap，保证层与层之间不会互相穿插。
+  // 全楼层预览照抄每层自己记录的摆放：旋转按角度制取负（three.js 绕 Y 轴旋向与文档定义相反），高度按 elevation 排序后乘 previewFloorGap。
   if (floorId === "all" && floors.length > 1) {
     // 文档里的 rotation 是角度制，且绕 Y 轴的旋向与 three.js 相反，因此取负号后再转弧度。
     const rotationRad = (-(floor.rotation || 0) * Math.PI) / 180;
@@ -95,10 +91,8 @@ function computeFloorPlacement(project, floorId, activeFloorId) {
   };
 }
 /**
- * 把相机位姿从源项目的坐标系搬到目标项目的坐标系。
- *
- * 先用两个项目共有的楼层 ID 作为锚点 —— 只有共享楼层才能保证「同一个房间」被对齐；
- * 任一侧缺少摆放信息时返回相机状态的深拷贝（必须是拷贝，否则调用方一改就污染入参）。
+ * 把相机位姿从源项目坐标系搬到目标项目坐标系。
+ * 以两侧共有的楼层 ID 为锚点对齐「同一个房间」；任一侧缺摆放信息时返回相机状态的深拷贝。
  */
 export function transformSceneCamera(
   cameraState,

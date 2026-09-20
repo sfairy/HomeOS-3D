@@ -1,17 +1,13 @@
 /**
  * 组件动作规则（Action Rule）的取值与合法性判定。
  *
- * 位置：编辑器「动作」检查器与展示页运行时共用的一份纯逻辑模块。
- * 职责：定义动作类型 / 弹窗来源 / 可开关实体域的允许取值，并提供动作配置
- *   与组件绑定是否匹配的校验。
- * 约定：本模块不碰 DOM，也不请求后端；校验所需的页面路径集合、弹窗 ID 集合
- *   由调用方（编辑器）以集合形式传入，传入 null 表示「暂不校验该维度」。
+ * 编辑器「动作」检查器与展示页运行时的纯逻辑模块：定义动作类型 / 弹窗来源 / 可开关实体域的
+ * 允许取值，并校验动作配置与组件绑定是否匹配。不碰 DOM 也不请求后端；校验所需的页面路径集合、
+ * 弹窗 ID 集合由调用方传入，传入 null 表示「暂不校验该维度」。
  */
-import { isVirtualEntityId } from "./virtual-entities.js?v=20260920104554";
-// 「按 ID 切域」只有一份实现（P12 收口 B 类末尾那一项的残留补齐）：本文件原先把域前缀
-// 的切法直接写在 `entityIdSupportsToggle` 里。输入已经过 `String(entityId || "")` 守卫，
-// 所以换成助手语义一字未变，只是把这份知识收回到 utils/entities.js。
-import { entityDomainFromId } from "../utils/entities.js?v=20260920104554";
+import { isVirtualEntityId } from "./virtual-entities.js?v=20260920131301";
+// 「按 ID 切域」只有一份实现，走 utils/entities.js 的 entityDomainFromId。
+import { entityDomainFromId } from "../utils/entities.js?v=20260920131301";
 
 // 动作类型固定三种：开关、打开更多信息、跳转页面。
 export const ACTION_TYPES = Object.freeze(["toggle", "more-info", "navigate"]);

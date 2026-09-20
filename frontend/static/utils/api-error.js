@@ -1,67 +1,19 @@
 /**
- * 主应用侧唯一的「接口失败 → 人话」实现（P12，契约对齐商店侧 `store/static/api-error.js`）。
+ * 主应用侧唯一的「接口失败 → 人话」实现。契约对齐商店侧 `store/static/api-error.js`：两棵树
+ * 独立部署、加载方式不同，故刻意镜像而非共用（那份用全局名 `ApiError`）。
  *
- * 为什么要有这个文件：FastAPI 的参数校验失败（422）返回的 `detail` 是**数组**
- * （`[{loc: ["body","activationCode"], msg: "String should have at least 8 characters"}]`），而
- * 「把失败响应归一化成人话」这段知识在主应用里原先有 **9 份**各写各的、能力还不一样：
- *
- *   · `static/editor/home.js` 的 `requestJson`、`static/auth/license.js` 的 `errorMessage`、`static/display/display.js`、
- *     `static/logging/global-log-boot.js`、`static/3d-studio/studio/studio-app.js`、`static/renderer/core/renderer.js`、
- *     `modules/runtime/core/runtime.js` —— 七份只认「字符串」与 `detail.message`，**没有一个认
- *     数组**；
- *   · `static/auth/setup.js` 那一份认数组（`detail[0]?.msg`），于是同一类错误只有初始化页可读；
- *   · `static/bridge/editor.js` 那一份只认字符串，连 `detail.message` 都不认 ——
- *     户型载入失败时一律退成页面自己的重试文案。
- *
- * 少一种形态不会有任何报错，只会让某一类错误在**某一个页面**上变成看不懂的一句话。这不是假设：
- * 授权激活页输入短于 8 字符的激活码时，七个不认数组的调用点里就有一个当场把「参数 activationCode
- * 长度不足（至少 8 个字符）」显示成 `请求失败：/license/activate（HTTP 422）`。
- *
- * 与商店那份的关系：**刻意是镜像，不是重复**。两棵树是两个独立部署（`store/` 有自己的镜像、自己的
- * 静态目录），加载方式也不同 —— 商店页面是经典 `<script>`（那份用全局名 `ApiError` + 可选 CJS
- * 尾巴），主应用这一份的消费方**全是 ES module**（见各 `*.html` 的 `type="module"`），所以这里用
- * 命名导出。两边无法共用一个文件，契约则逐条对齐，于是「同一份知识只有一处」在**每棵树的范围内**
- * 成立。
- *
- * 对外只有 `apiErrorMessage` 一个入口：8 个消费点手上都有**整个响应体**，而「从任意载荷里挑出最能
- * 说明问题的那句话」正是这一份知识；拆出更细的函数只会多几个没人用的导出。契约（`fallback` 只在
- * 「说不出具体原因」时使用，各调用点按自己的口吻给文案）：
- *
- *   | 输入的 payload | 输出 |
- *   | --- | --- |
- *   | `detail` 是非空字符串 | 原样（后端写好的中文业务提示） |
- *   | 顶层 `message` 是非空字符串 | 原样（后端给的中文校验摘要，见下） |
- *   | `detail` 是 FastAPI 422 数组 | `参数 days：Input should be a valid integer`（多条用「；」连） |
- *   | 数组里的字符串条目 | 原样 |
- *   | 数组里说不出来源的条目 | `取值不合法` |
- *   | `detail` 是 `{msg}` / `{message}` 对象 | 该文案 |
- *   | 空值 / 其他形态 / 一条可用信息都没有 | `fallback` |
- *
- * `loc` 里的 `body` / `query` 是 FastAPI 的固定前缀，对着用户显示「参数 body.x」没有意义，去掉；
- * 剩下的用 `.` 拼（`body.items.0.days` → `items.0.days`）。
- *
- * 与后端的**分工**（刻意不重叠，免得同一份知识又变成两份）：
- *   · 后端负责「**这一次校验为什么没过、该怎么改**」—— `backend/main.py` 的
- *     `RequestValidationError` 处理器在标准 422 体上**追加**一个顶层 `message`：中文摘要，且知道
- *     约束值（例如「参数 activationCode 长度不足（至少 8 个字符）。」）。它只在校验失败时出现。
- *   · 这里负责「**从任意错误载荷里挑出最能说明问题的那句话、并保证永远不出现 `[object Object]` /
- *     `undefined`**」—— 包括没有 `message` 的载荷（别的接口、更旧的后端、第三方错误），那些情况下
- *     数组形态仍要能读出人话。
- *
- * 边界如实写在这里：只认 `detail` 与顶层 `message` 两个位置。别处塞进来的错误结构（例如某个接口把
- * 原因放在 `error` 字段）不在这份契约里 —— 那需要改的是接口，不是这里。
+ * 对外只有 `apiErrorMessage`：`detail` 或顶层 `message` 是非空字符串就原样用；`detail` 是
+ * FastAPI 422 数组时拼成「参数 days：…」（多条用「；」连，`loc` 去掉 `body`/`query` 前缀）；
+ * 其余形态一律 `fallback`（只在「说不出具体原因」时用）。只认这两个位置 —— 别处塞的错误
+ * 结构不在这份契约里，要改的是接口。
  */
 
-/**
- * 说不出具体原因时使用的兜底文案。
- */
+/** 说不出具体原因时使用的兜底文案。 */
 const DEFAULT_API_ERROR_TEXT = "请求失败。";
 
 /**
- * 单个 422 条目 → 一行人话。
- *
- * 认不出来时给「取值不合法」，**不把对象本身泄露出去** —— `String(entry)` 会产出
- * `[object Object]`，那正是这份知识要终结的形态（商店侧 P10 把它列为红线）。
+ * 单个 422 条目 → 一行人话。认不出来时给「取值不合法」，绝不把对象本身泄露出去
+ * （`String(entry)` 会产出 `[object Object]`，那正是这份知识要终结的形态）。
  */
 function describeEntry(entry) {
   if (typeof entry === "string") return entry;
@@ -72,9 +24,7 @@ function describeEntry(entry) {
   return field ? `参数 ${field}：${reason}` : reason;
 }
 
-/**
- * 把 ``detail`` 归一化成人话（不懂顶层 `message`，那是 `apiErrorMessage` 的事）。
- */
+/** 把 `detail` 归一化成人话（不懂顶层 `message`，那是 `apiErrorMessage` 的事）。 */
 function describeApiErrorDetail(detail, text) {
   if (!detail) return text;
   if (typeof detail === "string") return detail;
@@ -89,16 +39,9 @@ function describeApiErrorDetail(detail, text) {
 }
 
 /**
- * 从整个响应体里挑出最能说明问题的一句话。
- *
- * 优先顺序是**刻意**的：
- *   1. `detail` 是非空字符串 —— 业务错误，后端已经写好了面向用户的中文（例如
- *      「激活码已被使用」），比任何摘要都准；
- *   2. 顶层 `message` —— 校验失败的中文摘要（`main.py` 给的，知道约束值）；
- *   3. 其余形态交给 `describeApiErrorDetail` 兜底（数组 / `{message}` / 认不出来 → fallback）。
- *
- * 为什么第 2 条排在第 3 条前面：数组里的 `msg` 是 pydantic 的英文原句，而 `message`
- * 是后端按同一份错误算出来的中文摘要 —— 两者信息量相同，可读性差一个量级。
+ * 从整个响应体里挑出最能说明问题的一句话：`detail` 字符串（后端写好的中文业务错误）→
+ * 顶层 `message`（后端按同一份错误算出的中文摘要）→ 其余交给 `describeApiErrorDetail`。
+ * `message` 排在数组的 pydantic 英文 `msg` 前面：信息量相同，可读性差一个量级。
  */
 export function apiErrorMessage(payload, fallback) {
   const detail = payload?.detail;

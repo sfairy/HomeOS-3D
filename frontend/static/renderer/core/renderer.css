@@ -1,31 +1,12 @@
 /*
  * 控件渲染层样式：画布内所有「控件」的外观总表。
  *
- * 这份样式服务谁：渲染器（renderer.js + 各 *-runtime.js）动态生成的
- * .hb-* 结构，涵盖组件外壳、编辑态选中框与变换手柄、点击后弹出的实体
- * 详情对话框，以及灯 / 开关 / 空调 / 窗帘 / 晾衣机 / 扫地机 / 净化器 /
- * 媒体播放器 / 人体·门窗·水浸·烟感·燃气传感器 / 电动床 / 摄像头 / 时间
- * 日期天气折线图等控件的可视化与动画。页面本身不定义控件外观。
- *
- * 与页面的关系：同一份文件被三处引入，靠同一版本戳共用，缺一处就会出现
- * 两套控件外观 ——
- *   - index.html：编辑器，会加 .editable / .selected 等编辑态类；
- *   - display.html：中控展示页，只有运行态（无 .editable）；
- *   - modules/runtime/core/popup-preview.js：3D 场景里的弹窗预览，
- *     按同一份样式注入 iframe，保证 3D 弹窗与 2D 展示页长得一样。
- *
- * 主题变量从哪来：文档里的 theme.variables（默认取
- * templates/component-templates.js 的 "homeos-dark" 模板）在渲染时由
- * renderer.js 逐条写成 CSS 自定义属性挂到渲染容器上，运行期还会按实体
- * 状态再补写一批（如 --hb-light-visual-color、--hb-climate-accent）。
- * 因此本文件里的 --hb-* 变量一律「只消费、不定义」，换主题即换配色，
- * 不要在这里写死主题色，也不要依赖站点外壳的 --bg / --accent 等变量。
- *
- * 尺寸单位与缩放基准：画布的设计标称尺寸是 2778×1940（即 2 倍 DPI 下的
- * 1389×970），本文件出现的 px 都是这套标称坐标系里的绝对值，屏幕上的
- * 实际大小由渲染器给画布加 scale(...) 决定。与鼠标 / 触摸精度相关的
- * 尺寸（手柄、描边、命中区）再用 --hb-ui-scale 反向抵消，否则画布放大
- * 时手柄会跟着一起被放大、点不准。
+ * 服务对象：渲染器动态生成的 .hb-* 结构（控件外壳、编辑态选中框与变换手柄、实体详情对话框，
+ * 以及灯 / 开关 / 空调 / 窗帘 / 扫地机 / 传感器 / 媒体播放器 / 图表等控件的可视化与动画）。
+ * 主题变量：文档里的 theme.variables 由 renderer.js 逐条写成 CSS 自定义属性挂到渲染容器上，
+ * 运行期还会按实体状态补写。故本文件的 --hb-* 一律「只消费、不定义」，不要写死主题色。
+ * 尺寸单位：px 都是设计标称坐标系（2778×1940）里的绝对值，屏幕大小由渲染器 scale(...) 决定；
+ * 与鼠标精度相关的尺寸再用 --hb-ui-scale 反向抵消，否则放大后手柄会点不准。
  */
 
 /* ===== 渲染器视口与运行时对话框层 ===== */
@@ -1527,7 +1508,7 @@
 /* 原生 <dialog>：由 presentRuntimeDialog 用 show() 打开，挂在下方的
    .hb-renderer-runtime-dialog-layer 里 —— 遮罩/模糊由那一层提供（见文件开头的
    .hb-renderer-runtime-dialog-layer），所以这里不要写 ::backdrop：
-   show() 不会把弹窗送进顶层，::backdrop 根本不会生成（P9 删除）。
+     show() 不会把弹窗送进顶层，::backdrop 根本不会生成。
    宽度 / 高度用 min() 夹住，窄屏时也保证至少留 24px / 20px 边距。 */
 .hb-camera-preview-dialog {
   position: relative;
@@ -2896,8 +2877,8 @@
 
 /* 与摄像头预览同理：本弹窗也由 presentRuntimeDialog 用 show() 打开，
    ::backdrop 不会生成 —— 遮罩由 .hb-renderer-runtime-dialog-layer 提供。
-   （P9 删掉了这里原有的 ::backdrop 规则，它写的是 #05080bbd + blur(4px)，
-   与层的 #040609d1 + blur(5px) 不一致，且从未生效。） */
+     （这里不要写 ::backdrop：它取不到层那份遮罩值（层是 #040609d1 + blur(5px)），
+     且没进顶层就等于没写，从不生效。） */
 /* 卡片本体：竖向 flex，标题固定、内容区滚动；max-height 与弹窗一致，
    两者不同步会出现内容溢出圆角的情况。 */
 .hb-entity-details-card {
@@ -4670,7 +4651,6 @@
   white-space: nowrap;
   text-align: left;
 }
-/* 「位置」标题 23px。 */
 .hb-cover-details-position strong {
   width: 100%;
   color: #c9c7c5;
@@ -4811,7 +4791,6 @@
   opacity: 0.58;
   pointer-events: none;
 }
-/* 动作图标 29px。 */
 .hb-cover-details-actions i {
   color: #a8c5d3;
   font:
@@ -7434,7 +7413,6 @@
     background 0.28s ease,
     box-shadow 0.28s ease;
 }
-/* 选项图标 20px。 */
 .hb-climate-details-options button i {
   display: grid;
   width: 20px;
@@ -9277,7 +9255,6 @@
 .hb-custom-popup-module--climate .hb-climate-fan-slider-heading output {
   font-size: 17px;
 }
-/* 自动风与图例说明统一 15px。 */
 .hb-custom-popup-module--climate .hb-climate-fan-auto,
 .hb-custom-popup-module--climate .hb-climate-fan-slider-legend small {
   font-size: 15px;
@@ -9907,7 +9884,6 @@
   background: linear-gradient(145deg, #ffffff0b, #ffffff04);
   box-shadow: inset 0 1px #ffffff06;
 }
-/* 组标题 14px。 */
 .hb-capability-option-group > strong,
 .hb-capability-range-heading strong {
   color: #d6dcde;
@@ -9941,7 +9917,6 @@
   color: #eef7fb;
   background: #73c8ff1c;
 }
-/* 禁用态降到 45%。 */
 .hb-capability-options button:disabled {
   cursor: default;
   opacity: 0.45;
@@ -10010,7 +9985,6 @@
 .hb-media-player-now-playing:not(.has-artwork) {
   grid-template-columns: minmax(0, 1fr);
 }
-/* 封面 80px、圆角 9px。 */
 .hb-media-player-artwork {
   display: block;
   width: 80px;
@@ -11466,7 +11440,6 @@
   cursor: default;
   pointer-events: none;
 }
-/* 主读数 14px。 */
 .hb-air-purifier-visual-display strong {
   color: inherit;
   font-size: 14px;
@@ -11912,7 +11885,6 @@
     0 10px 24px #00000024,
     inset 0 1px #ffffff06;
 }
-/* 组标题 13px。 */
 .air-purifier-details .hb-capability-range-heading strong,
 .air-purifier-details .hb-capability-option-group > strong {
   color: #e2e6e8;
@@ -13812,7 +13784,6 @@
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
-/* 状态行收到 11px。 */
 .hb-entity-details-dialog.i3d-vacuum-details .hb-entity-details-heading span {
   font-size: 11px;
   gap: 5px;

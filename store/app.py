@@ -58,9 +58,8 @@ logger = logging.getLogger("store")
 def _ensure_license_keys(settings: StoreSettings) -> None:
     """确保商店密钥存在；默认密钥目录下还校验仓库根 keys/ 公钥镜像。
 
-    非默认密钥目录（临时目录）仍可自动生成密钥且不强制镜像。
-    默认 ``store/keys/local`` 缺密钥或与 ``keys/`` 不一致时直接失败，
-    避免「商店一把钥、客户端另一把」的静默激活失败。
+    默认 ``store/keys/local`` 缺密钥或与仓库根 ``keys/`` 不一致时直接失败，避免
+    「商店一把钥、客户端另一把」的静默激活失败；非默认目录仍可自动生成、不强制镜像。
     """
     default_keys_dir = (STORE_ROOT / "keys" / "local").resolve()
     using_default = settings.license_keys_dir.resolve() == default_keys_dir
@@ -122,13 +121,8 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
 def build_key_registry(settings: StoreSettings):
     """按当前密钥 +（可选的）上一代密钥组装密钥环。
 
-    上一代四件套齐全时窗口自动开启，没有任何开关：少配一件（比如只留了公钥）
-    只会让「以为窗口开着」的人白等，所以 ``previous_key_paths`` 要求四件齐全，
-    这里也就不必再判断。
-
-    这个函数不放进 ``store/licensing/``：配置模块要 import 密钥工具
-    （``key_id_from_public``），而密钥环又要 import 配置 —— 放进去就是一个
-    循环。放在装配层（本文件）两边都能看见，且谁也不会反向 import 它。
+    上一代四件套齐全时重叠窗口自动开启，没有开关：少配一件只会让「以为窗口开着」的人
+    白等。放在装配层是因为配置模块与密钥工具互相 import 会成环。
     """
     active = KeyGeneration(
         transport=TransportCipher(
@@ -179,17 +173,15 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     database = Database(settings)
     database.create_all()
 
-    # create_all 只建「缺的表」，对已存在的表**不会加列**。新增字段必须在这里
-    # 补上，否则老部署要等到某条特定 API 被调用时才以 no such column 崩掉。
+    # create_all 只建缺的表，对已存在的表**不会加列**。新增字段必须在这里补上，
+    # 否则老部署要等到某条特定 API 被调用时才以 no such column 崩掉。
     applied = ensure_schema(database.engine)
     if applied:
         logger.info("已补齐 %d 项库结构变更：%s", len(applied), "、".join(applied))
 
-    # 邀请积分从 FLOAT（积分）迁到 INTEGER（厘）。必须排在 ensure_schema **之后**：
-    # 新列由 ensure_schema 按 ORM 元数据补出来，这里负责回填、对账，并在对账全通过后
-    # 退役旧列。旧列是 NOT NULL 且没有 DDL 默认值，ORM 已经不再映射它 —— 不删掉的话
-    # 之后每次插入都会以 NOT NULL constraint failed 失败，且**只在存量库上**失败。
-    # 先备份再迁移；对账有任何一行不一致就整表跳过删列（保留旧列、数据不丢）。
+    # 邀请积分从 FLOAT（积分）迁到 INTEGER（厘）。必须排在 ensure_schema 之后：
+    # 新列由它补出来，这里回填、对账，全部通过后才退役旧列；旧列是 NOT NULL 且
+    # ORM 已不再映射，不删掉的话之后每次插入都会 NOT NULL constraint failed。
     migration = migrate_points(database.engine)
     if migration.changed:
         logger.warning("邀请积分口径迁移完成：%s", migration.summary())
@@ -198,12 +190,10 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             for problem in table.problems:
                 logger.error("积分迁移问题 %s：%s", table.table, problem)
 
-    # 确保 docker 渠道存在当前版本的发布记录：「检查更新」查的正是这张表，
-    # 缺了它客户端就没有可升级的目标版本。
+    # 确保 docker 渠道存在当前版本的发布记录：「检查更新」查的正是这张表。
     with database.session() as session:
         released = ensure_current_release(session)
-        # 商品目录、站点配置——首次部署就该就位的默认数据，
-        # 幂等补齐，不覆盖运营在后台改过的字段。
+        # 商品目录、站点配置——首次部署就该就位的默认数据，幂等补齐，不覆盖运营改过的字段。
         ensure_default_settings(session)
         ensure_default_products(session)
     if released:
@@ -215,16 +205,12 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     async def _payment_sweep_loop() -> None:
         """后台支付巡检循环。
 
-        每轮都跑在 ``asyncio.to_thread`` 里：对渠道的调用是阻塞 I/O，
-        直接在事件循环里发同步请求会把整个服务卡住（连 /healthz 都不响应）。
-
-        状态一律经 ``store.payments.sweeper`` 登记，后台概览与 /healthz 读的是
-        同一份快照——巡检坏了必须能从接口看出来，不能只躺在日志里。
+        每轮跑在 ``asyncio.to_thread`` 里：渠道调用是阻塞 I/O，直接在事件循环里发同步
+        请求会把整个服务卡住（连 /healthz 都不响应）。状态经 ``sweeper`` 登记。
         """
         interval = int(settings.payment_sweep_interval_seconds or 0)
-        # 代号要一路带到 sweep_round / mark_sweep_loop_stopped：同一个进程里若还有
-        # 上一个循环的收尾没跑完（测试里就是这么反复建 app 的），只有当前代号的
-        # 写入才算数，旧循环迟到的 finally 不能把新循环标成「已停止」。
+        # 代号要一路带到 sweep_round / mark_sweep_loop_stopped：测试里会反复建 app，
+        # 只有当前代号的写入才算数，旧循环迟到的 finally 不能把新循环标成「已停止」。
         generation = configure_sweep_loop(interval)
         if interval <= 0:
             logger.info("支付巡检已关闭（STORE_PAYMENT_SWEEP_INTERVAL_SECONDS=0）")
@@ -240,8 +226,8 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 except Exception:  # noqa: BLE001 - 单轮异常不能让巡检整体退出
                     logger.exception("支付巡检本轮失败，将在 %d 秒后重试", interval)
         finally:
-            # 循环以任何方式结束（取消、任务异常）都要落这个状态：否则后台会一直
-            # 显示「上次成功 xx 分钟前」，看着像还活着，实际已经没人对账了。
+            # 循环以任何方式结束（取消、任务异常）都要落这个状态：否则后台会一直显示
+            # 「上次成功 xx 分钟前」，看着像还活着，实际已经没人对账了。
             mark_sweep_loop_stopped(generation)
 
     @asynccontextmanager
@@ -250,8 +236,7 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             "授权商店服务已启动：%s（数据目录 %s）", settings.public_base_url, settings.data_dir
         )
         # 首次初始化窗口：库里还没有管理员时，把引导密钥打印到启动日志（stderr），
-        # 之后的 POST /store/v1/setup/admin 必须带上它（本机直连除外）。已初始化的
-        # 实例上顺手清掉可能残留的密钥文件 —— 那时它只是一枚死凭证。
+        # 之后的 POST /store/v1/setup/admin 必须带上它（本机直连除外）。
         with database.session() as session:
             if not setup_api.admin_exists(session):
                 setup_guard.ensure_token()
@@ -267,9 +252,8 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 await sweep_task
             database.dispose()
 
-    #: S26：文档页默认关闭。它会把全部商店与后台端点、参数结构、鉴权方式一次性
-    #: 列给任何人 —— 等于给攻击者一份现成的端点目录（含 ``/v2/*`` 授权协议）。
-    #: 关掉的方式是把 ``docs_url``/``openapi_url`` 置 None（FastAPI 的开关就是 None）。
+    #: 文档页默认关闭：它会把全部商店与后台端点、参数结构、鉴权方式一次性列给任何人
+    #: （含 ``/v2/*`` 授权协议）。关掉的方式就是置 None。
     _docs_enabled = bool(settings.expose_api_docs)
     app = FastAPI(
         title="HomeOS 授权商店与授权服务器",
@@ -289,21 +273,13 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     async def require_same_origin_for_writes(request: Request, call_next):
         """改状态的商店/后台请求必须同源（CSRF 第二道闸）。
 
-        第一道闸是 SameSite=Lax + 只收 JSON 体（跨站表单会 422、跨站 fetch 会因
-        没有 CORS 而 preflight 失败）。这里补一道显式的 Origin/Referer 校验，
-        免得日后新增一个 GET 写操作就立刻出现 CSRF 缺口。
-
-        保护范围：``/store/v1/*``（用户侧）与 ``/store-admin/v1/*``（后台侧）的
-        非 GET 请求。两类不拦：
-        - ``/v2/*`` 授权端点：客户端程序调用，报文加密封套 + 签名，没有浏览器 Origin；
-        - 支付宝异步回调（NOTIFY_PATH）：支付宝服务器直连，同样没有 Origin，
-          真伪由签名校验，不能被这道闸门挡住。
-
-        GET / HEAD / OPTIONS 一律不拦：读操作与 CORS 预检本就没有副作用。
+        第一道闸是 SameSite=Lax + 只收 JSON 体。保护范围：``/store/v1/*`` 与
+        ``/store-admin/v1/*`` 的非 GET 请求。``/v2/*``（程序调用，无 Origin）与支付宝
+        异步回调（服务器直连，真伪由签名校验）不拦。
         """
         path = request.url.path
         # 只提示一次：请求带了转发头但没配可信代理，说明前面有反代而限流与授权记录
-        # 只能看到代理地址。这是配置问题而不是每次请求的问题，反复记会把日志刷满。
+        # 只能看到代理地址。这是配置问题，反复记会把日志刷满。
         if not getattr(app.state, "proxy_warning_logged", False) and forwarded_headers_present(request):
             if not trusted_proxies:
                 app.state.proxy_warning_logged = True
@@ -326,23 +302,18 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
             )
         return await call_next(request)
 
-    # 安全头中间件必须**最后**注册：``@app.middleware`` 是往栈顶插，
-    # 最后注册的那层才在最外层。正因为它最外层，上面那道同源闸门提前返回的 403
-    # 也会被它补上头 —— 那是一个「不经过路由」的响应，最容易漏。
+    # 安全头中间件必须**最后**注册：``@app.middleware`` 往栈顶插，最后注册的那层才
+    # 在最外层，上面那道同源闸门提前返回的 403 也会被它补上头。
     @app.middleware("http")
     async def attach_security_headers(request: Request, call_next):
-        """给所有响应补上安全头（S16）。
+        """给所有响应补上安全头。
 
-        用中间件而不是逐个端点加：这是**全局**性质，挂在唯一入口上才能保证
-        「以后新加的端点自动带上」。这个商店里有大量 ``innerHTML`` 拼装，
-        真正兜住它们的不是「记得转义」，而是这一层。
-
-        nonce 必须在 ``call_next`` **之前**生成 —— 路由里渲染模板时就要读它。
+        挂在唯一入口上才能保证「以后新加的端点自动带上」；商店有大量 ``innerHTML`` 拼装，
+        真正兜住它们的不是「记得转义」而是这一层。nonce 必须在 ``call_next`` 之前生成。
         """
         request.state.csp_nonce = new_csp_nonce()
         response = await call_next(request)
-        # setdefault：端点自己设过的同名头以端点的为准（例如某个页面要放宽
-        # Referrer-Policy），这里只负责「没有就补上」。
+        # setdefault：端点自己设过的同名头以端点的为准，这里只负责「没有就补上」。
         for name, value in security_headers(request).items():
             response.headers.setdefault(name, value)
         return response
@@ -354,9 +325,8 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         必须打到当时那个网关。传空表示按当前站点配置解析。
         """
         if setting is None:
-            # 没带站点配置就从库里现读一份。支付宝凭据可以在后台改，绝不能把
-            # 「调用方没传 setting」当成「就该用环境变量里那套旧凭据」——
-            # 那正是「后台显示已配置、实际签名用的是旧密钥」的成因。
+            # 没带站点配置就从库里现读一份：支付宝凭据可以在后台改，绝不能把
+            # 「调用方没传 setting」当成「用环境变量里那套旧凭据」。
             with database.session() as lookup:
                 setting = get_setting(lookup)
         if name:
@@ -387,12 +357,9 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
-        # status 依然只表示「进程活着」，外部探活的机器不会被巡检状态带偏；
-        # 巡检单独给一个子对象，让监控可以按 paymentSweep.health 报警。
-        #
-        # incidents 是第二类「不会自己报错」的状态（S36）：资金/履约路径上被刻意
-        # 吞掉的异常。它同样只放在子对象里，不参与 status —— 否则探活机器会把
-        # 「有订单履约失败」当成进程不健康，进而重启一个本来能自愈的服务。
+        # status 只表示「进程活着」，探活机器不会被巡检状态带偏；巡检与 incidents
+        # 单独放子对象。incidents 是资金/履约路径上被刻意吞掉的异常，不参与 status ——
+        # 否则探活机器会把「有订单履约失败」当成进程不健康，去重启一个本可自愈的服务。
         return {
             "status": "ok",
             "version": __version__,
@@ -403,21 +370,10 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
 
     @app.exception_handler(Exception)
     async def unhandled_exception(request: Request, error: Exception) -> Response:
-        """未处理异常统一出口（S18：按调用方想要的格式回答）。
+        """未处理异常统一出口（按调用方想要的格式回答）。
 
-        这个 handler 挂在 ``ServerErrorMiddleware`` 上，也就是**用户中间件之外**，
-        所以：
-
-        * 它拿不到 ``attach_security_headers`` 补的头，必须自己补 —— 否则一个 500
-          页面就成了全站唯一没有 CSP 的响应，而它偏偏是「已经出问题」时返回的那个；
-        * 它也不能假手路由层，只能自己判断该回页面还是回 JSON。
-
-        判断依据是 ``Accept``（见 ``prefers_html``）：浏览器显式偏好 ``text/html``，
-        就回一个不含任何异常细节的静态页面；其余（fetch/axios/curl/监控）回 JSON，
-        保持既有契约不变。
-
-        HTML 分支**不落任何异常内容**：500 可能是任意内部状态出错，把异常文本或
-        栈帧渲染进页面等于把一个「内部实现泄漏面」做成公开页面。
+        挂在 ``ServerErrorMiddleware`` 上（用户中间件之外），因此必须自己补安全头 ——
+        否则 500 页面就是全站唯一没有 CSP 的响应。HTML 分支**不落任何异常内容**。
         """
         logger.exception("未处理的异常：%s", error)
         if prefers_html(request):

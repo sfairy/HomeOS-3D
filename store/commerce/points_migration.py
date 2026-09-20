@@ -1,38 +1,15 @@
 """把邀请积分从 ``FLOAT``（积分）迁移到 ``INTEGER``（厘）。
 
-背景
-----
-积分原先以 ``FLOAT`` 存积分值，全站靠 ``round(x, 2)`` 维持两位小数。问题在于
-**两条 round 不是同一个函数**：SQLite 的 ``round()`` 是 half-away-from-zero，
-Python 内建 ``round()`` 是 half-even，金额正好落在 ``.xx5`` 上时给出不同的分币值。
-后果（详见 :mod:`store.commerce.money`）一是提现那条「用 round 后的值比对冻结额是否被并发
-改过」的条件 UPDATE 会误判成冲突，二是余额与流水之和能差 1 厘。
+原先以 ``FLOAT`` 存积分，靠 ``round(x, 2)`` 维持两位小数，而 SQLite 的 round 是
+half-away、Python 是 half-even，``.xx5`` 上会分叉（见 :mod:`store.commerce.money`）。
 
-迁移策略（三段式，可中断、可重入、先验证后销毁）
-------------------------------------------------
-1. **补列**：``*_centi`` 列由 ``ensure_schema`` 按 ORM 元数据 ``ALTER TABLE ADD COLUMN``
-   补上（``NOT NULL DEFAULT 0``），本模块不重复这件事。
-2. **回填**：逐行把旧 ``FLOAT`` 列按 :func:`store.money.to_centi` 写成整数厘。
-   只更新「算出来和目标不一致」的行，所以重跑是幂等的、断在半路也能续。
-3. **对账**：逐行核对 ``format_centi(新值) == f"{旧值:.2f}"`` —— 也就是
-   **迁移前后显示给用户的数字必须一模一样**。任何一行对不上就中止，且**不删旧列**，
-   数据此时是「新旧都在」的安全状态。
-4. **退役旧列**：只有第 3 步全表通过才 ``DROP COLUMN``。
+迁移分四段、可中断可重入、先验证后销毁：新列由 ``ensure_schema`` 补上 → 逐行回填
+（只写不一致的行，重跑幂等）→ 逐行对账 ``format_centi(新值) == f"{旧值:.2f}"``
+（迁移前后显示给用户的数字必须一模一样）→ 全表通过才 ``DROP COLUMN``。
 
-为什么必须删掉旧列，而不是留着不管
-----------------------------------
-旧列是 ``NOT NULL`` 且**没有 DDL 默认值**（Python 侧 ``default=`` 不会写进 DDL）。
-ORM 一旦不再映射它，``INSERT`` 就会省略该列，此后每次插入都以
-``NOT NULL constraint failed`` 失败 —— 而且**只在存量库上**失败：全新库建表时本就没有
-这一列，本地与 CI 全绿。这正是 ``schema_guard`` 文档里点名的那类最难排查的漂移，
-所以这里必须把旧列真正删掉，而不是「先留着」。
-
-为什么不做成「一个大事务」
---------------------------
-SQLite 虽然支持事务性 DDL，但 ``DROP COLUMN`` 内部要走「建新表 → 拷数据 → 换名」，
-依赖驱动把 DDL 正确纳入事务，链路长且不易验证。这里改成每步各自提交 + 三段顺序
-保证「先验证、后销毁」：任何时刻崩溃，库里要么是纯旧列、要么是新旧并存且新列已
-回填，都不丢数据。另有一份文件级备份（见 :func:`backup_database`）兜住极端情况。
+必须真正删掉旧列：它是 ``NOT NULL`` 且无 DDL 默认值，ORM 不再映射后每次 INSERT 都会
+``NOT NULL constraint failed``，且**只在存量库上**失败。每步各自提交而非一个大事务，
+因为 SQLite 的 ``DROP COLUMN`` 内部要建新表拷数据，链路长且不易验证。
 """
 
 from __future__ import annotations
@@ -51,11 +28,8 @@ from store.security.schema_guard import drop_column_ddl
 logger = logging.getLogger("store.commerce.points_migration")
 
 
-#: 迁移映射：``{表名: ((旧列, 新列, 列的种类), ...)}``。
-#:
-#: 列的种类只影响**日志与错误信息**：两者都是「×100 后取整到整数」，换算函数相同
-#: （``percent_to_bps`` 就是 ``to_centi``），所以回填与对账可以走同一条代码路径。
-#: 分开标注是为了让对账失败时能说清「是金额还是比例对不上」。
+#: 迁移映射：``{表名: ((旧列, 新列, 列的种类), ...)}``。列的种类只影响日志与错误信息
+#: （金额与比例都是 ×100 取整到整数，换算函数相同），分开标注便于对账失败时定位。
 _POINTS = "points"
 _RATIO = "ratio"
 
@@ -129,10 +103,10 @@ def _convert(value: object) -> int:
 
 
 def _legacy_shown(value: object) -> str:
-    """旧值**当年显示出来的**字符串。
+    """旧值**当年显示出来的**字符串（对账基准）。
 
-    ``FLOAT`` 列里的值都是 ``round(..., 2)`` 的产物，这类浮点的最短 repr 恰好就是
-    它的两位小数，所以 ``f"{x:.2f}"`` 与它当年的界面显示一致 —— 对账的基准就是它。
+    ``FLOAT`` 列的值都是 ``round(..., 2)`` 的产物，其最短 repr 恰好就是两位小数，
+    所以 ``f"{x:.2f}"`` 与当年的界面显示一致。
     """
     return f"{float(value or 0.0):.2f}"
 
@@ -140,9 +114,8 @@ def _legacy_shown(value: object) -> str:
 def backup_database(engine: Engine, *, directory: Path | None = None) -> Path | None:
     """迁移前把 SQLite 库文件整份复制一份，返回备份路径。
 
-    实现已挪到 :func:`store.schema_guard.backup_database`：``schema_guard`` 合并重复行
-    前也要备份（同一件事只留一份实现）。这里保留同名包装只是为了不动既有调用方，
-    文件名前缀仍是 ``pre-centi-``。
+    实现复用 :func:`store.security.schema_guard.backup_database`（那里合并重复行前也要
+    备份）；保留同名包装只为不动既有调用方，文件名前缀仍是 ``pre-centi-``。
     """
     return _backup_database(engine, directory=directory, label="centi")
 
@@ -169,10 +142,8 @@ def migrate_points(
 ) -> MigrationReport:
     """执行回填 + 对账（+ 可选退役旧列）。
 
-    ``drop_legacy=False`` 时只做「补列 + 回填 + 对账」，把删列留给运维择期执行。
-
-    **唯一会破坏数据的一步是删列**，而它被 ``problems`` 严格把关：任何一行对账不通过
-    就整表跳过删列，并把原因写进日志与返回值。
+    ``drop_legacy=False`` 时只做「补列 + 回填 + 对账」，把删列留给运维择期执行。**唯一
+    会破坏数据的一步是删列**，它被 ``problems`` 严格把关：任何一行对账不通过就整表跳过。
     """
     report = MigrationReport()
     scanned = _scan(engine)
@@ -196,8 +167,7 @@ def migrate_points(
         row = TableReport(table=table)
         report.tables.append(row)
 
-        # 新列由 ensure_schema 按 ORM 元数据补；若调用方没跑过 ensure_schema，
-        # 这里明确说明缺哪一列，而不是等到 SELECT 时报 no such column。
+        # 新列由 ensure_schema 补；若调用方没跑过，这里明确说明缺哪一列。
         missing = [centi for _, centi, _ in spec if centi not in columns]
         if missing:
             row.state = "failed"
@@ -231,10 +201,8 @@ def migrate_points(
                 expected = tuple(_convert(value) for value in legacy_values)
                 if tuple(int(value or 0) for value in current_values) != expected:
                     updates.append((*expected, row_id))
-                # 对账基准在**回填前**就固定下来，回填后再逐行比对
-                # pairs / legacy_values / expected 三者都由同一个 legacy_columns 生成，
-                # 长度天然相等；strict=True 把这件事写成断言 —— 一旦有人只在一处加列，
-                # 这里会立刻炸掉，而不是**静默少对账最后几列**（而对账正是这段代码的职责）。
+                # 对账基准在**回填前**就固定下来；pairs / legacy_values / expected 三者
+                # 长度天然相等，strict=True 让「只在一处加列」立刻炸掉而非静默少对账。
                 for (legacy, _centi), legacy_value, expected_value in zip(
                     pairs, legacy_values, expected, strict=True
                 ):

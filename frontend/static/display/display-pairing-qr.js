@@ -1,18 +1,15 @@
 /**
  * 展示页的配对二维码弹窗。
  *
- * 位置：中控设备展示页上「扫码配对新设备」入口，仅在配对被启用时可用。
- * 职责：把服务地址与 6 位配对码编码成 /pair?scan=1#... 链接并渲染成 QR，
- *   地址可现场修改（家里换网段时无需回后台改配置），并附 iPhone 添加到主屏引导。
- * 约定：二维码内容格式必须与 pairing-link.js 的 parsePairingLink 完全对应
- *   （路径 /pair、查询串 ?scan=1、哈希字段 code/type/version）；
- *   拒绝本机回环地址，因为手机连不上电脑的 localhost。
+ * 中控设备展示页上「扫码配对新设备」入口，仅在配对被启用时可用：把服务地址与 6 位配对码编码
+ * 成 /pair?scan=1#... 链接并渲染成 QR，地址可现场修改（换网段时无需回后台），并附 iPhone 添加
+ * 到主屏引导。二维码内容格式必须与 pairing-link.js 的 parsePairingLink 完全对应；拒绝本机回环
+ * 地址，因为手机连不上电脑的 localhost。
  */
 import qrcode from "../vendor/qrcode-generator/qrcode.js";
 
 /**
  * 校验服务地址与配对码，拼出二维码内容。
- *
  * @throws {Error} 地址不合法（含路径 / 账号 / 查询串）或配对码格式错误。
  */
 export function pairingQrPayload(serverUrl, code) {

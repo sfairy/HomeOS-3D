@@ -1,10 +1,9 @@
 /*
  * 展示页启动引导（splash）样式（配合 display-boot.js）。
  *
- * 位置：/display/<项目名> 首屏遮罩，脚本在首屏素材就绪后摘掉本层。
- * 约定：明暗主题由 :root 上的 data-display-theme 决定（display-boot.js 按画布
- *   背景色写入），没有该属性时跟随系统 prefers-color-scheme；各元素的出现
- *   动画都带固定延迟，形成「图标 → 标识 → 光晕 → 页脚」的节奏。
+ * /display/<项目名> 首屏遮罩，脚本在首屏素材就绪后摘掉本层。明暗主题由 :root 上的
+ * data-display-theme 决定（display-boot.js 按画布背景色写入），没有该属性时跟随系统
+ * prefers-color-scheme；各元素的出现动画都带固定延迟。
  */
 
 /* ===== 主题变量 ===== */

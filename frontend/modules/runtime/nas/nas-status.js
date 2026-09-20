@@ -1,19 +1,16 @@
 /**
  * NAS 运行状态指示灯。
  *
- * 在 3D 子系统里的位置：在 NAS 模型正面叠加一颗呼吸的绿色指示灯（着色器绘制的
- * 平面），并临时隐藏模型自带的指示灯网格，避免出现「两颗灯」。
- *
- * 对外提供：nasState、nasDeviceState、createNasStatus。
- *
- * 与 HA 的字段约定：主开关可绑 binary_sensor / switch / input_boolean；
- * 未直接绑定时，改看 statusSource 下的「主指标 + 指标列表」是否有任意一项有有效数值。
+ * 在 NAS 模型正面叠加一颗着色器绘制的呼吸绿灯，并临时隐藏模型自带的指示灯网格，避免出现
+ * 「两颗灯」。对外提供 nasState、nasDeviceState、createNasStatus。主开关可绑 binary_sensor /
+ * switch / input_boolean；未直接绑定时改看 statusSource 下的「主指标 + 指标列表」是否有任意
+ * 一项有有效数值。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 /**
  * 归一化单个 NAS 开关实体。
  */
@@ -35,10 +32,8 @@ export function nasState(entityId, state) {
   };
 }
 /**
- * 归一化 NAS 设备的整体状态。
- *
- * 两种配置方式：直接绑一个开关实体（item.entityId），或者绑定一组「状态指标」
- * （item.statusSource）—— 后者常见于用 SNMP / 传感器间接判断 NAS 是否在线。
+ * 归一化 NAS 设备的整体状态：直接绑开关实体（item.entityId），或绑一组「状态指标」
+ * （item.statusSource，常见于用 SNMP / 传感器间接判断在线）。
  */
 export function nasDeviceState(item, stateSources = {}) {
   // 状态源可能是 Map（舞台侧按 entityId 建的索引）也可能是普通对象；
@@ -111,10 +106,8 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
   }
   /**
    * 计算模型（不含环境效果与嵌套的独立模型）的世界坐标包围盒。
-   *
-   * 为什么手工遍历而不是用 Box3.setFromObject：后者会把状态点、光晕等
-   * environmentEffect 子对象一起算进去，导致包围盒被撑大、指示灯位置漂移；
-   * 同时嵌套模型有自己的 origin，也必须排除。
+   * 手工遍历而非 Box3.setFromObject：后者会把状态点、光晕等子对象算进去，撑大包围盒、
+   * 让指示灯位置漂移；嵌套模型有自己的 origin，也必须排除。
    */
   function computeModelBounds(model) {
     const bounds = new THREE.Box3();
@@ -221,10 +214,8 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
           }
           const modelSize = modelBounds.getSize(new THREE.Vector3());
           const modelCenter = modelBounds.getCenter(new THREE.Vector3());
-          // 着色器绘制指示灯：顶点着色器把它贴在模型上的固定点并保证最小屏幕尺寸，
-          // 片元着色器画出「核心 + 光晕」并在 alpha 极低时 discard。
-          // 这样缩放场景时指示灯不会忽大忽小到看不清，也不会留下透明像素的开销。
-          // transparent + depthTest: false + renderOrder 提高，让灯始终画在外壳之上不被遮挡。
+          // 着色器绘制指示灯：顶点着色器贴点并保证最小屏幕尺寸，片元画「核心 + 光晕」并在
+          // alpha 极低时 discard；transparent + depthTest: false + renderOrder 提高，让它始终画在外壳之上。
           const ledMaterial = new THREE.ShaderMaterial({
             transparent: true,
             depthTest: false,
@@ -350,9 +341,7 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
       return true;
     }
     lastTickMs = nowMs;
-    // 呼吸曲线：cos 在 1400ms 周期内由 1 到 -1，(0.5 - cos/2) 映射到 0→1，
-    // 再乘 0.86 加 0.14，得到 [0.14, 1.0] 的亮度区间 —— 不会全灭，避免看起来像掉线。
-    // 用户要求「减少动态效果」时固定为常亮 1。
+    // 呼吸曲线：cos 在 1400ms 周期内映射到 [0.14, 1.0] 亮度，不会全灭（看起来像掉线）；「减少动态效果」时固定常亮 1。
     const pulse = reducedMotion
       ? 1
       : 0.14 + (0.5 - Math.cos((nowMs / 1400) * Math.PI * 2) * 0.5) * 0.86;

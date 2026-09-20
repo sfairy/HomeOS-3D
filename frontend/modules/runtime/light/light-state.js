@@ -1,24 +1,17 @@
 /**
  * 灯光（light / switch）状态的归一化、历史缓存与本地预览。
  *
- * 在 3D 子系统里的位置：3D 场景里的灯具需要「开关 + 亮度 + 色温」三个量，
- * 而 HA 在灯关闭时通常会上报一个残缺的实体（没有 brightness / color_temp，
- * 甚至没有 supported_color_modes），所以本模块除了归一化，还负责把「灯上次
- * 是什么样」记下来，供下次点亮时回填。文件后半部分是本地的乐观预览：用户拖动
- * 滑杆时先按本地值渲染，等 HA 回传后再对账，避免网络往返造成的跳变。
+ * HA 在灯关闭时通常上报残缺实体（没有 brightness / color_temp），所以本模块除归一化外，
+ * 还记住「灯上次是什么样」供下次点亮回填；用户拖滑杆时先按本地值渲染，等 HA 回传后对账，避免跳变。
  *
- * 对外提供：lightState、lightRenderState、createLightStateCache、lightCommand、
- * createLightPreview。
- *
- * 与 HA 的字段约定：亮度 brightness 为 0–255，色温 HA 侧有两套写法
- * ——color_temp（mired，微倒度）与 color_temp_kelvin（开尔文），二者换算关系为
- * kelvin = 1000000 / mired，本模块统一以开尔文对外。
+ * 字段约定：brightness 为 0–255；色温 HA 有 color_temp（mired）与 color_temp_kelvin 两套写法，
+ * 换算 kelvin = 1000000 / mired，本模块统一以开尔文对外。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
+import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 /**
  * 判断是否为可用的数值型输入。
  *
@@ -137,12 +130,8 @@ export function lightState(entityId, entityState, fallbackState) {
   };
 }
 /**
- * 把归一化状态转换成「用于渲染」的状态。
- *
- * 灯具动画依赖于明确的亮度与色温数值：当设备声明支持某项却暂时报不出值时
- * （常见于刚开机、HA 尚未刷新），宁可把灯渲染成关闭，也不要让动画拿到
- * undefined 后出现亮度突变或除零。
- *
+ * 把归一化状态转换成「用于渲染」的状态：设备声明支持某项却暂时报不出值时宁可渲染成关闭，
+ * 也不要让动画拿到 undefined 后出现亮度突变或除零。
  * @returns {object} 浅拷贝，其中 on 会被按需降级为 false。
  */
 export function lightRenderState(stateSnapshot) {
@@ -256,13 +245,8 @@ function computeAttributePatch(patchEntityId, patchEntityState) {
   );
 }
 /**
- * 创建灯光历史存储器（localStorage 持久化 + 内存索引）。
- *
- * 设计要点：
- * - 存储里可能残留旧版本数据或被其它页面写入，读取时全部当作不可信输入校验；
- * - 写入采用「合并后再存」而不是整体覆盖，避免多标签页互相把对方的记录冲掉；
- * - 写盘是节流的（默认 50ms 内合并），因为拖动亮度滑杆会连续产生上报；
- * - 存储不可用（隐私模式、配额满）时静默降级为「只用内存」，不再重试写盘。
+ * 创建灯光历史存储器（localStorage 持久化 + 内存索引）：读取一律当作不可信输入校验，
+ * 写入「合并后再存」避免多标签页互冲，写盘节流（默认 50ms），存储不可用时静默降级为只用内存。
  */
 function createLightHistoryStore(storage, scope, now, schedule, cancel) {
   // 参数不合法就整体关闭历史功能，调用方会退化成「只有内存缓存」的模式。
@@ -325,12 +309,8 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
     return didPrune;
   }
   /**
-   * 从存储里读出并校验历史。
-   *
-   * 存储内容来自外部（旧版本、其它页面甚至手工篡改），因此逐层校验：
-   * 顶层版本号与结构、实体 ID 形态、属性名是否在已知表内、值是否合法、
-   * 时间戳是否落在「过去 7 天内」。
-   *
+   * 从存储里读出并校验历史：存储内容来自外部（旧版本、其它页面甚至手工篡改），
+   * 因此逐层校验顶层版本与结构、实体 ID 形态、属性名与值、时间戳是否落在过去 7 天内。
    * @throws {Error} 顶层结构无法识别时抛出，由调用方按「存储不可用」处理。
    */
   function readStoredHistory() {
@@ -595,9 +575,8 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
     throw new Error("设备不可用。");
   }
   // 域走 static-helpers 桥过来的 `entityDomainFromId`（唯一实现仍在 utils/entities.js，
-  // 见该模块头）。局部名保留 entityDomainName：`entityDomain` 那个名字在 P10 已被删掉，
-  // 沿用同名会让人误以为它还是「本文件自带的一份实现」；
-  // 上面那行正则已保证 commandEntityId 是字符串。
+  // 见该模块头）；局部名用 entityDomainName，避免 `entityDomain` 让人误以为它还是
+  // 本文件自带的一份实现。上面那行正则已保证 commandEntityId 是字符串。
   const entityDomainName = entityDomainFromId(commandEntityId);
   if (commandName === "power") {
     return {
@@ -639,11 +618,8 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
 }
 /**
  * 创建灯光本地预览：在 HA 回传之前先按用户操作渲染。
- *
- * 生命周期：set 写入预览 → retain 标记「已确认提交」→ 等到 HA 状态与预览值一致
- * （reconcile）后删除；被拒绝时 reject 立即删除，长时间无响应则由 expire 超时清理。
- * 每个预览带自增 revision，retain/acknowledge/reject 都要求 revision 匹配，
- * 避免用户快速连续操作时把新预览误当成旧预览处理。
+ * 生命周期：set → retain（已确认提交）→ 值一致后 reconcile 删除；reject 立即删除，无响应则 expire 超时清理。
+ * 每个预览带自增 revision，retain/acknowledge/reject 要求 revision 匹配，避免快速连续操作时新旧混淆。
  */
 export function createLightPreview({ now: previewNow = () => performance.now() } = {}) {
   const previewsByEntityId = new Map();

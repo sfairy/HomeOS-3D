@@ -5,12 +5,12 @@
 ``main.active_display``、实时连接握手 ``api.ha.websocket_viewer``），三处口径并不相同：
 
 - 只有 HTTP 依赖查会话的**绝对寿命**（``session_hard_max_age_seconds``），页面路由与
-  ``/static/*``、``/assets/builtin/*`` 因此照旧放行（B3）；
+  ``/static/*``、``/assets/builtin/*`` 因此照旧放行；
 - 只有 HTTP 依赖查中控令牌的**有效期**，展示页与实时连接完全绕过
-  ``display_token_ttl_seconds`` / ``display_token_hard_ttl_seconds``（B2）。
+  ``display_token_ttl_seconds`` / ``display_token_hard_ttl_seconds``。
 
 修法不是给另外两处补上判断 —— 那样下次再添入口，同样的洞会以第三种写法再来一次；
-而是把「凭据 → 主体」收敛成本模块的唯一实现（B32）。调用方只保留各自需要的副作用：
+而是把「凭据 → 主体」收敛成本模块的唯一实现。调用方只保留各自需要的副作用：
 HTTP 侧重发续期 Cookie、页面侧跳登录、实时连接侧 detach。
 """
 from __future__ import annotations

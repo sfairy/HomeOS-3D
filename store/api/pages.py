@@ -129,14 +129,9 @@ def product_image(product_id: str, request: Request, session: DbSession) -> File
 
 # 模拟收银台
 #: 嵌进 ``<script>`` 的 JSON 里必须转义成 ``\uXXXX`` 的字符。
-#:
-#: ``json.dumps`` **只保证 JSON 合法，不保证 HTML 安全**：``<`` 是普通字符，
-#: 于是 ``</script>`` 会原样出现在 HTML 里并**提前结束脚本块**，后面的内容被当成
-#: 标记解析 —— 这就是最经典的「JSON 进 script」注入。``>`/``&`` 同理（``<!--``、
-#: 实体解码），U+2028/2029 则是历史上 JS 字符串字面量的换行符。
-#:
-#: 转义成 ``\u003c`` 之后，JSON 解析仍会还原出同一个字符串，而 HTML 解析器
-#: 永远看不到字面的 ``</script``。
+#: ``json.dumps`` 只保证 JSON 合法、不保证 HTML 安全：``<`` 是普通字符，于是 ``</script>`` 会原样出现
+#: 并**提前结束脚本块**，后面的内容被当成标记解析 —— 最经典的「JSON 进 script」注入（``>``/``&``、
+#: U+2028/2029 同理）。转义后 JSON 解析仍还原出同一个字符串，而 HTML 解析器永远看不到字面的 ``</script``。
 _JSON_SCRIPT_ESCAPES = {
     "<": "\\u003c",
     ">": "\\u003e",
@@ -179,9 +174,9 @@ def _cashier_html(order: Order, product: Product | None, *, request: Request) ->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>模拟收银台 · {order_no}</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260920104554">
-<link rel="stylesheet" href="/store-static/store.css?v=20260920104554">
-<link rel="icon" href="/store-static/favicon-rounded.png?v=20260920104554">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260920131301">
+<link rel="stylesheet" href="/store-static/store.css?v=20260920131301">
+<link rel="icon" href="/store-static/favicon-rounded.png?v=20260920131301">
 </head>
 <body>
 <div class="hb-cashier">
@@ -210,7 +205,7 @@ def _cashier_html(order: Order, product: Product | None, *, request: Request) ->
 <script nonce="{nonce}">
 const ORDER = {safe};
 const message = document.getElementById('cashier-message');
-// S53：把地址栏里的 ?t= 票据抹掉。放在最前面：后面 act() 会发请求，这一句执行过后，
+// 把地址栏里的 ?t= 票据抹掉。放在最前面：后面 act() 会发请求，这一句执行过后，
 // 那些请求的 Referer 与「浏览器历史里的这条记录」都不再带凭据。
 // 用 replaceState（而不是 pushState）才能改写当前这条历史记录，而不是再压一条。
 if (location.search) {{
@@ -253,21 +248,10 @@ def mock_cashier(
     t: str | None = None,
 ) -> HTMLResponse:
     """模拟收银台页面。
-
-    **必须能证明对这笔订单的访问权**：短时票据（``?t=``）或者该订单所属账号已登录。这个页面会把
-    ``lookupToken`` 写进 HTML 供按钮调用 ``mock/pay``，而订单号本身**从来不是一道授权** —— 它会
-    出现在邮件、客服工单、截图与 Referer 里。过去页面无鉴权，任何人拿到一个订单号（从别处漏出来的）
-    都能得到那张「免付款发码」的凭证。
-
-    **S53：URL 里不再放 ``lookup_token``**。那是长期有效、还能查订单详情的 bearer 凭据，跟随 URL
-    会进访问日志、``Referer`` 与浏览器历史 —— 漏出一次就不只是丢掉这张页面。现在跟 URL 走的是一张
-    短时票据（30 分钟、与订单绑定、只能打开这笔订单的收银台，见 ``store/commerce/cashier.py``）；页面加载后
-    立刻用 ``history.replaceState`` 把查询串从地址栏与历史记录里抹掉，所以后续跳转的 ``Referer``
-    不带它，历史里也不会留下一条「带凭据的地址」。
-
-    登录态兜底是给账号中心「继续支付」这类同浏览器路径用的：它不需要票据，地址栏里自然什么都没有。
-    旧订单里存的 ``?token=`` 链接从此不再被接受 —— 这正是这条修复的目的（那种 URL 就是长期凭据的
-    第二份副本）。
+    **必须能证明对这笔订单的访问权**：短时票据（``?t=``）或该订单所属账号已登录。页面会把
+    ``lookupToken`` 写进 HTML 供按钮调用 ``mock/pay``，而订单号本身**从来不是一道授权** —— 它会出现在
+    邮件、客服工单、截图与 Referer 里。URL 里不放长期有效的 ``lookup_token``（能查订单详情的 bearer
+    凭据），改放 30 分钟的短时票据；登录态兜底给账号中心「继续支付」这类同浏览器路径用。
     """
     order = order_or_404(session, order_no)
 
@@ -301,14 +285,10 @@ def mock_pay(order_no: str, request: Request, session: DbSession, payload: dict 
 
     if order.status == "fulfilled":
         return order_payload(order)
-    # 状态白名单：只有待付款的订单可以被模拟收银台入账。
-    #   · expired / cancelled：库存预留与优惠码名额都已归还，再入账并履约等于
-    #     扣掉其它待支付订单的预留 —— 直接放开超卖。
-    #   · payment_failed：同上，且它表示渠道已经明确拒单。
-    #   · refunded：已经退过款的订单不能复活。
-    # 这里刻意**不**沿用 settlement 的「钱确实到账就照常发码」策略：那是真实
-    # 支付宝通知的补救路径，而模拟收银台只会在用户眼前点两下，没有「钱已付出去
-    # 收不回来」的约束，放行只会制造超卖。
+    # 状态白名单：只有待付款的订单可以被模拟收银台入账。expired / cancelled 的预留与名额已归还，
+    # 再入账并履约等于扣掉其它待支付订单的预留（直接放开超卖）；payment_failed 同上且渠道已明确拒单；
+    # refunded 不能复活。这里刻意**不**沿用 settlement 的「钱确实到账就照常发码」策略 —— 那是真实
+    # 支付宝通知的补救路径，模拟收银台只会在用户眼前点两下，没有「钱已付出去收不回来」的约束。
     if order.status != "pending":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -382,17 +362,9 @@ def _ensure_mock_provider(request: Request, session) -> None:
 
 def _ensure_mock_order(order: Order) -> None:
     """订单自身必须也是模拟渠道。
-
-    只校验「当前渠道是 mock」并不够 —— 下单时渠道是**冻结在订单行上**的
-    （``Order.payment_provider``），而当前渠道是站点配置，两者可以不一致：
-
-    · 一笔支付宝订单还挂着（pending），运维因为任何原因把站点渠道切回 mock
-      （联调、排障、误操作），持有自己 ``lookupToken`` 的下单方就能把这笔**真实
-      渠道**的订单标记为已支付并触发发码，而钱一分没到；
-    · 取消同理：真渠道的单被模拟收银台取消并归还库存/优惠名额后，支付宝侧仍可能
-      支付成功，账实不符。
-
-    所以模拟收银台的入口必须同时满足「当前渠道是 mock」与「订单渠道是 mock」。
+    只校验「当前渠道是 mock」并不够：下单时渠道是**冻结在订单行上**的（``Order.payment_provider``），
+    而当前渠道是站点配置，两者可以不一致 —— 一笔支付宝订单还挂着时运维把站点渠道切回 mock，持有自己
+    ``lookupToken`` 的下单方就能把真实渠道的单标记为已支付并触发发码，而钱一分没到；取消同理。
     """
     if (order.payment_provider or "") != "mock":
         raise HTTPException(

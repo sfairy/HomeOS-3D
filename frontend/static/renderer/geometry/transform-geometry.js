@@ -1,17 +1,10 @@
 /**
- * 画布几何变换工具。
- *
- * 职责：为「出风层」（空调 / 风扇的送风动画图层）与多选拖拽提供坐标换算——
- * 计算出风层在普通控件内与分组内的落点，以及分组旋转缩放后鼠标位移在本地的分量。
+ * 画布几何变换工具：为「出风层」（空调 / 风扇的送风动画图层）与多选拖拽提供坐标换算 ——
+ * 算出出风层在普通控件内与分组内的落点，以及分组旋转缩放后鼠标位移在本地的分量。
  *
  * 位置：纯计算模块，被编辑器与运行时共用；不读 DOM，也不碰控件注册表。
- * 对外导出四个纯函数：airflowCanvasOffsetBounds（偏移滑块的上下界）、
- * airflowLayerGeometry（出风层定位盒）、rotateMultiSelectionTransforms（多选整体旋转）、
- * groupedComponentLocalDelta（分组拖拽的位移换算）；调用方见 renderer.js 与 home.js。
- *
- * 坐标约定：控件的 position / properties 里，x、y、width、height 一律是画布像素，
- * rotation 是角度（deg，顺时针为正），scale 是无量纲倍数；
- * 而出风层的 airflowOffsetX / Y、airflowWidth / Height 存的是相对控件宽高的百分比。
+ * 坐标约定：position / properties 里 x、y、width、height 是画布像素，rotation 是角度（deg，顺时针为正），
+ * scale 是无量纲倍数；而出风层的 airflowOffsetX / Y、airflowWidth / Height 是相对控件宽高的百分比。
  */
 
 /**
@@ -39,12 +32,9 @@ export function airflowCanvasOffsetBounds(component, canvasSize) {
 }
 /**
  * 计算出风图层的定位盒。
- *
- * 分组内外的返回值口径刻意不同，调用方要按 grouped 区分：
- * - 未分组：left / top 是画布绝对坐标。
- * - 分组内：left / top 是相对组内原点的坐标，且先按组旋转把偏移转到组的本地坐标系、
- *   再除以组缩放，抵消父层的 transform；rotation 只保留出风层自身的角度，
- *   scale 则是自身缩放除以组缩放，这样最终视觉大小与未分组时一致。
+ * 分组内外口径刻意不同：未分组时 left / top 是画布绝对坐标；分组内时是相对组内原点的坐标，
+ * 且先按组旋转把偏移转到组的本地坐标系、再除以组缩放以抵消父层 transform，rotation 只留自身角度，
+ * scale 为自身缩放除以组缩放，保证视觉大小与未分组一致。
  */
 export function airflowLayerGeometry(sourceComponent, { grouped: isGrouped = false } = {}) {
   const componentPosition = sourceComponent?.position || {};

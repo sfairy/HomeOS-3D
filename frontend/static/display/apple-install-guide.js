@@ -1,13 +1,11 @@
 /**
  * 苹果设备「添加到主屏幕」引导脚本。
  *
- * 位置：随配对 / 展示页一起加载的独立脚本，运行在应用主脚本之前。
- * 职责：在 iPhone / iPad 上注入一个悬浮按钮与说明弹窗，指导用户把页面
- *   添加到主屏幕；支持 ?addToHome=1 自动弹出。
- * 约定：needsAppleInstallGuide 来自 pairing-link.js，统一判断「是否该引导」；
- *   自动弹出要等展示页启动态（display-booting）结束，避免盖住启动遮罩。
+ * 随配对 / 展示页一起加载、运行在主脚本之前。在 iPhone / iPad 上注入悬浮按钮与说明弹窗，指导
+ * 用户添加到主屏幕，支持 ?addToHome=1 自动弹出。needsAppleInstallGuide 来自 pairing-link.js，
+ * 统一判断「是否该引导」；自动弹出要等展示页启动态结束，避免盖住启动遮罩。
  */
-import { needsAppleInstallGuide as shouldShowInstallGuide } from "../auth/pairing-link.js?v=20260920104554";
+import { needsAppleInstallGuide as shouldShowInstallGuide } from "../auth/pairing-link.js?v=20260920131301";
 
 // isAddToHomeLaunch 为真表示配对链接带 addToHome=1，这次落地就是引导添加主屏的场景。
 const currentUrl = new URL(location.href),
@@ -30,7 +28,7 @@ if (
   ((guideDialog.className = "apple-install-dialog"),
     guideDialog.setAttribute("aria-labelledby", "apple-install-title"),
     (guideDialog.innerHTML = `
-    <img class="apple-install-icon" src="/static/assets/icons/homeos-icon-180-h5.png?v=20260920104554" alt="">
+    <img class="apple-install-icon" src="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" alt="">
     <p class="apple-install-eyebrow">IPHONE \xB7 IPAD</p>
     <h2 id="apple-install-title">把 HomeOS 放到主屏幕</h2>
     <p class="apple-install-intro">添加后像 App 一样从桌面全屏打开，面板功能与 App 相同。</p>
@@ -43,10 +41,8 @@ if (
     <button class="apple-install-done" type="button">知道了，进入面板</button>`),
     document.body.append(triggerButton, guideDialog));
   /**
-   * 打开「添加到主屏幕」说明弹窗。
-   *
-   * 有两个触发点：用户点击悬浮按钮；或链接带 addToHome=1 且展示页启动遮罩已摘掉时
-   * 自动弹出（启动阶段弹窗会被 display-booting 遮罩压住，必须等遮罩消失）。
+   * 打开「添加到主屏幕」说明弹窗。触发点：用户点击悬浮按钮；或链接带 addToHome=1 且启动遮罩
+   * 已摘掉时自动弹出（启动阶段会被 display-booting 遮罩压住）。
    */
   const openGuide = () => {
     // 重复点击时 dialog 已打开就不要再 showModal，否则会抛异常。

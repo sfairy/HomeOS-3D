@@ -1,17 +1,11 @@
 /**
- * 3D 交互组件的聚焦让位布局。
- *
- * 位置：舞台页进入聚焦（点击某个组件、进入视图编辑等）时，画布上同一个页面的其它组件
- *   需要向左平移让出中间区域；本模块负责计算让位距离、做逐帧动画，并在解除聚焦时还原。
- * 对外导出：createInteraction3dFocusLayout。
- * 全局约定：
- *   - 每个画布（.hb-renderer-canvas）只保留一份布局状态，画布上的多个 3D 组件通过
- *     clients / owners 两个集合共享它，因此状态放在模块级 WeakMap 里并以画布元素为键；
- *   - 让位的对象是「与该组件同属一个页面的兄弟组件」，通过它们元素上的
- *     data-componentId / data-effectFor / data-airflowFor 与页面 sharedComponentIds 匹配；
- *   - 编辑器环境（context.editable）下完全禁用：编辑时组件位置必须保持稳定。
- * 副作用：会给画布挂一个 MutationObserver 与一组捕获阶段的守卫事件监听，
- *   并直接改写兄弟组件的内联 translate / opacity（最后一个使用者释放时全部还原）。
+ * 3D 交互组件的聚焦让位布局：舞台页进入聚焦（点击组件、进入视图编辑）时，同页面的其它组件
+ * 向左平移让出中间区域；本模块计算让位距离、做逐帧动画，解除聚焦时还原。
+ * 约定：每个画布（.hb-renderer-canvas）只保留一份布局状态，多个 3D 组件通过 clients / owners
+ * 共享，故状态放在以画布元素为键的模块级 WeakMap 里；让位对象是同页兄弟组件，靠元素上的
+ * data-componentId / data-effectFor / data-airflowFor 与页面 sharedComponentIds 匹配；
+ * 编辑器环境（context.editable）完全禁用（编辑时位置必须稳定）。
+ * 副作用：给画布挂 MutationObserver 与捕获阶段守卫监听，并改写兄弟组件的内联 translate / opacity。
  */
 // 以画布元素为键的状态表：用 WeakMap 是为了让画布被移除后状态能随之回收。
 const layoutStateByCanvas = new WeakMap();

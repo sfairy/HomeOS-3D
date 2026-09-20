@@ -79,15 +79,10 @@ from .security.setup_guard import SetupGuard, announce_setup_window
 SLOW_REQUEST_MILLISECONDS = 2000
 
 #: 校验失败的中文原因表：键是 pydantic v2 的 error ``type``。
-#:
-#: 为什么要有这张表（而不是直接把 ``msg`` 给前端）：pydantic 的 ``msg`` 是**英文**且面向
-#: 开发者（``String should have at least 8 characters``）。它可以出现在日志里，但不适合
-#: 直接摆给用户看。这份映射只覆盖本仓接口真的会产生的那几类，其余落到「取值不合法」——
-#: 宁可说得笼统，也不要猜错。
-#:
-#: 与前端的分工写在 ``frontend/static/utils/api-error.js`` 的模块头：这里负责
-#: 「这一次校验为什么没过」（而且知道约束值），前端那份负责「从任意错误载荷里挑出最能
-#: 说明问题的那句话」。两边刻意不重叠，所以不是同一份知识的两份实现。
+#: 为什么要有这张表：pydantic 的 ``msg`` 是**英文**且面向开发者，可以进日志但不适合直接给用户看；
+#: 这份映射只覆盖本仓接口真的会产生的那几类，其余落到「取值不合法」—— 宁可笼统也不要猜错。
+#: 与前端的分工：这里负责「这一次校验为什么没过」（而且知道约束值），前端负责从任意错误载荷里挑出
+#: 最能说明问题的那句话，两边刻意不重叠。
 _VALIDATION_REASON_TEXT = {
     'missing': '为必填项',
     'string_too_short': '长度不足',
@@ -139,17 +134,10 @@ _VALIDATION_MESSAGE_MAX_PARTS = 3
 
 def _validation_error_message(errors: list[dict]) -> str:
     """把 FastAPI 的校验错误压成一句中文摘要，供前端直接展示。
-
-    值得在后端做（而不是让前端拼）：只有这里知道**约束值**。前端拿到的 ``detail`` 数组里
-    ``msg`` 是英文句子，``ctx`` 里的边界值前端要么读不出、要么得自己再维护一份 pydantic 类型表 ——
-    那才是真正的重复。这里给摘要，前端 ``api-error.js`` 只负责「从任意载荷里挑出最能说明问题的
-    那句」。
-
-    形态（前端 ``apiErrorMessage`` 优先取顶层 ``message``）：``参数 activationCode 长度不足
-    （至少 8 个字符）``；多处用「；」连，超过 :data:`_VALIDATION_MESSAGE_MAX_PARTS` 处只报前几处
-    并缀「等」。``errors`` 是 ``RequestValidationError.errors()`` 的原始条目（含 loc / type / ctx）。
-    连一条都解析不出来时也返回兜底文案，绝不返回空串（前端把空串当「没有可用信息」而退回更笼统
-    的文案）。
+    值得在后端做：只有这里知道**约束值**，前端拿到的 ``msg`` 是英文、``ctx`` 里的边界值也读不出，
+    自己再维护 pydantic 类型表才是真正的重复。形态（前端优先取顶层 ``message``）如
+    ``参数 activationCode 长度不足（至少 8 个字符）``；多处用「；」连，超过上限只报前几处并缀「等」。
+    连一条都解析不出来时也返回兜底文案，绝不返回空串。
     """
     parts: list[str] = []
     for item in errors:
@@ -280,14 +268,14 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.login_account_limiter = LoginAttemptLimiter(10, 900, 900)
             # 中控配对的跨来源失败预算（按 IP 那一档在 login_limiter 里，见 displays.py）。
             app.state.pairing_limiter = LoginAttemptLimiter(*PAIRING_GLOBAL_LIMIT)
-            # 只能拿到共享地址（可信代理没传转发头）时的兜底桶（B16）：按 IP 那一档
+            # 只能拿到共享地址（可信代理没传转发头）时的兜底桶：按 IP 那一档
             # 在这种情况下会让位，但不能整个跳过 —— 那样一个来源就能烧完跨来源预算，
             # 把所有人一起挡在配对页外。
             app.state.pairing_shared_limiter = LoginAttemptLimiter(*PAIRING_SHARED_ADDRESS_LIMIT)
-            # 第三档：按被尝试的码记账（B48）。键是外部可控输入，因此用带键上限的一层
+            # 第三档：按被尝试的码记账。键是外部可控输入，因此用带键上限的一层
             # 包装 —— 否则「每次换一个码来试」就成了一条内存放大路径。
             app.state.pairing_code_limiter = BoundedAttemptLimiter(*PAIRING_CODE_LIMIT, max_keys = PAIRING_CODE_KEYS)
-            # 匿名 4xx 的形态合并计数（B62）：诊断中间件据此把「一次请求一行」压成
+            # 匿名 4xx 的形态合并计数：诊断中间件据此把「一次请求一行」压成
             # 「每形态每窗口一行」。放在这里而不是模块级全局，是为了让 create_app()
             # 多次调用（同一进程里先后建两个应用）互不共享状态。
             app.state.error_tally = RepeatedErrorTally()
@@ -302,7 +290,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.license_service = LicenseService(app_settings, app.state.database, transport = license_transport, endpoint_pool = license_endpoint_pool, event_log = app.state.global_log)
             await app.state.license_service.start()
             app.state.asset_catalog = AssetCatalog(app_settings.built_in_assets_dir, app_settings.user_assets_dir, app_settings.studio3d_exports_dir, app_settings.effect_variants_dir)
-            # 用户素材目录巡检（B42）：回收崩溃残留的空壳目录、散落临时文件与孤儿变体缓存，
+            # 用户素材目录巡检：回收崩溃残留的空壳目录、散落临时文件与孤儿变体缓存，
             # 并把用量报进全局日志。放启动时机是因为「上传中断 / 进程被杀」留下的残渣只在这
             # 一刻才能被确定地认定（正在进行的上传有宽限期，见 sweep_user_asset_storage）。
             # 扫盘 + 遍历草稿都是同步重活，进线程池；失败只记日志，绝不阻断启动。
@@ -314,7 +302,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 app_settings,
                 app.state.database,
                 event_log = app.state.global_log,
-                # 连接被重建 / 删除时作废媒体代理的两份记账（B57）：快照缓存里是上一台 HA 的
+                # 连接被重建 / 删除时作废媒体代理的两份记账：快照缓存里是上一台 HA 的
                 # 画面，HLS 归属记的是上一台 HA 发的令牌。地址可以不变而实例已经换了一台，
                 # 所以这件事只能由「连接被重建」这个事件告诉它。
                 on_reconnect = app.state.media_proxy.clear,
@@ -332,7 +320,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.update_checker.start()
             if app_settings.update_checks_enabled:
                 # 打开外发检查就在启动日志里说清「发给谁、发什么」：这是本应用唯一一条
-                # 主动外发的周期性请求，运维有权在启动输出里看到它（B31）。
+                # 主动外发的周期性请求，运维有权在启动输出里看到它。
                 app.state.global_log.append(
                     'info', '系统后台', '配置',
                     f'更新检查已开启：每 6 小时向 {endpoint_hosts(app.state.update_checker.endpoints)} 上报本机版本与更新渠道；不需要时设 APP_UPDATE_CHECKS=0 关闭。',
@@ -394,7 +382,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     # 关掉 docs / redoc / openapi：本项目不对外暴露接口文档。
     app = FastAPI(title = 'HomeOS', version = app_settings.version, lifespan = lifespan, docs_url = None, redoc_url = None, openapi_url = None)
     app.state.settings = app_settings
-    # 媒体代理的两份进程内记账（快照缓存 + HLS 归属）挂在应用上而不是模块级（B57）：
+    # 媒体代理的两份进程内记账（快照缓存 + HLS 归属）挂在应用上而不是模块级：
     # create_app() 调两次时模块级的那一份会被两个应用共享（缓存串台、刷新任务绑在
     # 另一个事件循环上），而进程内单实例只是习惯，不是保证。
     app.state.media_proxy = MediaProxyCaches()
@@ -426,14 +414,11 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             {key: item[key] for key in ('loc', 'msg', 'type') if key in item}
             for item in error.errors()
         ]
-        # 响应体在标准形态（``{"detail": [...]}``）之上**追加**一个顶层 ``message``：
-        # 标准那份 ``detail`` 原样保留（OpenAPI 契约、既有解析方、诊所工具都还认它），
-        # 新增的这一句是给用户看的中文摘要 —— 前端原先有 9 个调用点各写各的，其中 8 个
-        # 只认字符串与 ``detail.message``（**认不出数组**，而数组正是 422 的形态），于是
-        # 同一个校验失败在某几个页面会变成看不懂的「请求失败（HTTP 422）」。
-        #
-        # 走标准处理器再补键、而不是自己拼 JSONResponse：状态码与 detail 的编码都由
-        # FastAPI 负责，这里只加一个键，以后那边改形态也不会跟着漂。
+        # 响应体在标准形态（``{"detail": [...]}``）之上**追加**一个顶层 ``message``：标准那份 ``detail``
+        # 原样保留（OpenAPI 契约与既有解析方都还认它），新增的中文摘要是给用户看的 —— 前端调用点只认
+        # 字符串与 ``detail.message``（**认不出数组**，而数组正是 422 的形态），否则同一个校验失败会在
+        # 某些页面变成看不懂的「请求失败（HTTP 422）」。走标准处理器再补键而不是自己拼 JSONResponse，
+        # 是为了让状态码与 detail 的编码仍由 FastAPI 负责。
         response = await request_validation_exception_handler(request, error)
         body = json.loads(response.body)
         body['message'] = _validation_error_message(error.errors())
@@ -489,7 +474,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                             details = detail if isinstance(detail, str) else (json.dumps(detail, ensure_ascii = False) if detail is not None else None),
                         )
                     else:
-                        # 4xx 走形态合并计数（B62）：路径是外部可以随手编的，逐条写等于
+                        # 4xx 走形态合并计数：路径是外部可以随手编的，逐条写等于
                         # 把扫描量放大成磁盘写入量。只在窗口首次出现时写一条，窗口滚动时
                         # 补写累计次数 —— 按形态归并（数字/id 段替换成占位符）是为了不让
                         # 「每次都编一个新 id」绕开合并。已自行记录过错误的接口不重复记。
@@ -535,14 +520,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     def signed_in(request: Request) -> bool:
         """是否为已登录的有效管理员会话。
-
-        与 API 侧共用 ``access.check_admin_session``（B32）。这里原先独立实现了
-        一遍校验，而独立实现的那一版少了绝对寿命判定：滑动有效期能被续期一直
-        往后推，于是被盗 Cookie 只要还在被使用，就能一直打开页面、取
-        ``/static/*`` 与 ``/assets/builtin/*``（B3）。
-
-        页面路由要的是「未登录就跳转」而不是抛 401，所以这里只返回布尔值；
-        副作用与 API 侧一致 —— 顺手清掉命中的过期会话行。
+        必须与 API 侧共用 ``access.check_admin_session``：独立实现容易漏掉绝对寿命判定，而滑动有效期
+        能被续期一直往后推 —— 被盗 Cookie 只要还在用就能一直打开页面、取静态资源。页面路由要的是
+        「未登录就跳转」而非 401，所以这里只返回布尔值；副作用与 API 侧一致，顺手清掉命中的过期会话行。
         """
         with request.app.state.database.session_factory() as database:
             session = check_admin_session(
@@ -558,8 +538,8 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         """从 Cookie 解析已配对且未过期的中控设备，并把对象 detachment 出会话。
 
         expunge 是为了让调用方拿到游离对象后连接即可归还连接池。
-        令牌有效期由 ``active_display_device`` 判定（B2）：这里原先只查「配没配过」，
-        于是展示页完全绕过了 display_token_ttl / hard_ttl。
+        令牌有效期必须由 ``active_display_device`` 判定：只查「配没配过」的话，
+        展示页就绕过了 display_token_ttl / hard_ttl。
         """
         token = display_token_from(request.cookies, app_settings)
         if not token:
@@ -574,9 +554,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     def browser_authorized(request: Request) -> bool:
         """页面级访问条件：管理员已登录，或是一台已配对且未过期的中控设备。
 
-        两种身份由同一个解析入口给出（B32）。原先写的是
-        ``signed_in(request) or active_display(request) is not None``：
-        两条路一次请求要开两个数据库会话，而两边的判据又各自不完整。
+        两种身份必须由同一个解析入口给出：分别写成
+        ``signed_in(request) or active_display(request) is not None`` 的话，
+        一次请求要开两个数据库会话，而两边的判据又各自不完整。
         """
         with request.app.state.database.session_factory() as database:
             resolution = resolve_principal(
@@ -611,12 +591,12 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         # utils 时务必同步这里，否则未登录状态会白屏。
         '/static/utils/api-fetch.js',
         '/static/utils/request-timeout.js',
-        # 授权激活页与初始化页都要把失败响应翻成人话（P12：422 的原因只在 detail 数组里，
-        # 原先这两页各写一份、都不认数组），所以这份纯文本工具也在匿名图里 ——
-        # 它不碰 DOM、不发请求，符合上面「utils/ 只放与业务无关的纯工具」的口径。
+        # 授权激活页与初始化页都要把失败响应翻成人话（422 的原因只在 detail 数组里），
+        # 所以这份共用的纯文本工具也在匿名图里 —— 它不碰 DOM、不发请求，
+        # 符合上面「utils/ 只放与业务无关的纯工具」的口径。
         '/static/utils/api-error.js',
-        # 配对页的引导判定经 pairing-link.js → utils/apple-device.js（P10-B 收敛后
-        # 苹果移动端判定只有这一份实现），所以它也在匿名图里。
+        # 配对页的引导判定经 pairing-link.js → utils/apple-device.js
+        # （苹果移动端判定只有这一份实现），所以它也在匿名图里。
         '/static/utils/apple-device.js',
         '/static/assets/manifest/manifest.webmanifest',
         '/static/assets/manifest/dashboard.webmanifest',
@@ -737,13 +717,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     @app.middleware('http')
     async def require_same_origin_for_writes(request: Request, call_next):
         """所有改状态的 /api 请求必须同源（CSRF 第二道闸）。
-
-        第一道闸是 SameSite=Lax + 只收 JSON 体（跨站表单会 422、跨站 fetch 会因
-        没有 CORS 而 preflight 失败）。这里补一道显式的 Origin/Referer 校验，
-        这样日后新增「GET 写操作」或收 text/plain 的接口时不会立刻出现 CSRF 缺口。
-
-        GET / HEAD / OPTIONS 不拦（读操作 + CORS 预检）；非 /api 路径不拦
-        （页面与静态资源没有副作用）。判定细节见 http_security.same_origin_request。
+        第一道闸是 SameSite=Lax + 只收 JSON 体（跨站表单会 422、跨站 fetch 会因没有 CORS 而 preflight
+        失败）。这里补一道显式的 Origin/Referer 校验，这样日后新增「GET 写操作」或收 text/plain 的接口
+        时不会立刻出现缺口。GET/HEAD/OPTIONS 不拦（读操作 + 预检），非 /api 路径不拦（页面无副作用）。
         """
         if (
             request.url.path.startswith('/api/')
@@ -787,7 +763,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     async def health_live(request: Request) -> dict[str, str]:
         """存活探针：只要进程能响应就算存活，不检查任何依赖。
 
-        只有本机直连才回版本号（B61）：探活机器只需要一个 2xx，而精确版本对
+        只有本机直连才回版本号：探活机器只需要一个 2xx，而精确版本对
         外部扫描者是「这个部署值不值得打」的第一手情报 —— 配合 setup_guard 的
         初始化窗口，匿名可读的版本号就是选靶子用的。
         """
@@ -822,7 +798,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     def health_ready(request: Request) -> dict[str, str | bool]:
         """就绪探针：真的连一次数据库，连不上就返回 500 让编排器不转发流量。
 
-        非本机直连只回 ``status``（B61）：``initialized`` 告诉扫描者「这台还没建
+        非本机直连只回 ``status``：``initialized`` 告诉扫描者「这台还没建
         管理员」—— 那正是 setup_guard 的初始化窗口最怕被挑出来的时刻；精确版本号
         同理。编排器的探测本来就是从容器内回环发起的（见 Dockerfile 与
         docker-compose 的 healthcheck），因此它照旧拿得到详情。
@@ -884,15 +860,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     @app.get('/', include_in_schema = False)
     async def home_page(request: Request):
         """编辑器主页：未初始化 → 设置页；未登录 → 登录页；授权非 ACTIVE → 授权页。
-
-        三道门禁顺序固定。进入前联网确认绑定（走节流窗口，见 confirm_binding）。
-        仅 ``ACTIVE`` 可进编辑器：``CONNECTION_WARNING`` 等宽限态虽然离线验签
-        仍可能通过，但必须先经过授权页（展示告警 / 重新激活），避免「未激活
-        却直接进主页」。心跳恢复为 ACTIVE 后授权页轮询会自动放行。
-
-        这一条是 ``async def`` 里的同步查库（会话校验、读授权状态），一律转线程池：
-        修复前它还会 ``confirm_binding(force=True)`` 跳过全部节流，于是「刷新几下
-        面板」就能让多个请求一起排在并发的网络往返后面（B55）。
+        三道门禁顺序固定，进入前联网确认绑定（走节流窗口）。仅 ``ACTIVE`` 可进编辑器：宽限态虽然离线
+        验签仍可能通过，但必须先经过授权页展示告警，避免「未激活却直接进主页」。这里的同步查库一律转
+        线程池；绑定确认不能 ``confirm_binding(force=True)``，否则刷几下面板就能让请求一起排队。
         """
         if not initialized(request):
             return RedirectResponse('/setup', status_code = 303)
@@ -958,7 +928,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         # 设备只能看自己绑定的项目；管理员会话不受此项限制。
         if not viewer_signed_in and (device is None or device.project_id != project.id):
             return pairing_redirect(request)
-        # 用的是改名前的旧地址（B38）：跳到当前地址，并保留设备手里的书签可用。
+        # 用的是改名前的旧地址：跳到当前地址，并保留设备手里的书签可用。
         # 放在鉴权之后，未配对的匿名请求仍走配对页，不会因为这里多一条跳转而暴露
         # 「某个旧名称曾经存在」。
         if alias_name is not None:
@@ -991,7 +961,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     # camera / HLS 反向代理自行定义 /api/* 路径，因此不挂 /api/v1 前缀。
     app.include_router(ha_proxy_router)
-    # 草稿类请求体的字节 / 深度上限（B7）。注册在这里意味着它比同源闸门与
+    # 草稿类请求体的字节 / 深度上限。注册在这里意味着它比同源闸门与
     # 资源鉴权更靠外：FastAPI 是先读全请求体再进依赖与路由的，只有在中间件
     # 层拦才算拦得住（未登录的匿名请求也能用它把内存打满）。
     app.add_middleware(DraftBodyGuard)

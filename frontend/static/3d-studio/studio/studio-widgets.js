@@ -1,13 +1,9 @@
 /**
  * 工作室表单控件的外观增强（自定义下拉框与数字步进器）。
  *
- * 位置：3D 工作室的属性面板大量使用原生 <select> 与 <input type="number">，
- *   原生控件无法做主题化外观，本模块在原地把它们包装成可自由编排样式的 DOM 结构。
- * 对外：enhanceStudioSelect / initializeStudioSelects（下拉框）、
- *   enhanceNumberInput / initializeNumberInputs（数字输入）、syncStudioSelect（手动同步）。
- * 关键约定：原生控件仍然保留在 DOM 中并作为唯一的「值来源」，
- *   只是被隐藏（tabIndex = -1 且 aria-hidden）。所有交互最终都回写到原生控件并派发
- *   input / change 事件，因此已有的业务监听器无需改动。
+ * 属性面板大量使用原生 <select> 与 <input type="number">，本模块在原地把它们包装成可编排
+ * 样式的 DOM。原生控件仍保留在 DOM 中并作为唯一「值来源」，只是被隐藏（tabIndex = -1 且
+ * aria-hidden）；所有交互最终回写原生控件并派发 input / change，已有业务监听器无需改动。
  */
 
 // 原生 select → 控制器记录的映射；openController 记录当前展开的那个（全局同时只允许一个）。
@@ -184,7 +180,6 @@ export function initializeStudioSelects(rootElement = document) {
 
 /**
  * 同步步进按钮的禁用态。
- *
  * 只读输入框同样要禁用步进按钮：stepUp / stepDown 对 readonly 无效，留着按钮会点了没反应。
  */
 function syncStepperButtonsDisabled(stepperInput, stepperButtons) {

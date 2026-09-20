@@ -1,15 +1,12 @@
 /**
  * 登录页表单脚本。
  *
- * 位置：/login 页面，配合 auth-shell.js 的密码显隐与 setup.css 的激活页同款样式。
- * 职责：提交用户名密码到 /api/v1/auth/login，成功后跳到 next 指定的页面。
- * 约定：next 参数只接受站内绝对路径，且必须拒绝 // 开头的协议相对地址，
- *   否则会被利用做开放重定向。
- *   提交按钮的禁用状态在 finally 里复位，并且请求带超时（apiFetch）：两者缺一
- *   都会让「点一次登录后按钮永久灰掉」——请求不返回时用户连重试都点不了。
+ * /login 页面，配合 auth-shell.js 的密码显隐。提交用户名密码到 /api/v1/auth/login，成功后跳到
+ * next 指定页面。next 参数只接受站内绝对路径，必须拒绝 // 开头的协议相对地址，否则会被利用做
+ * 开放重定向。提交按钮的禁用态在 finally 里复位且请求带超时（apiFetch），缺一会让按钮永久灰掉。
  */
 
-import { apiFetch } from "../utils/api-fetch.js?v=20260920104554";
+import { apiFetch } from "../utils/api-fetch.js?v=20260920131301";
 
 const form = document.querySelector("#login-form"),
   message = document.querySelector("#message"),

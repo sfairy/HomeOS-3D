@@ -1,24 +1,11 @@
 /**
- * 苹果移动端判定（iPhone / iPad / iPadOS 桌面模式）。
+ * 苹果移动端判定（iPhone / iPad / iPadOS 桌面模式）的纯工具。
  *
- * 位置：`utils/` 下的纯工具，被展示页（`display.js`）、展示表层色（`display-surface.js`）
- *   与配对页引导（`pairing-link.js` → `apple-install-guide.js`）共用。
+ * 同时看 UA 里的 `Macintosh` 与 `navigator.platform === "MacIntel"` 两条证据，任一成立即认定 ——
+ * 两条各自依赖一个正被浏览器收紧的信号（UA 缩减、platform 冻结），只挑一条迟早失效；并起来只会补漏判，
+ * 不会多认 Windows / 安卓（它们的 UA 无 Macintosh，platform 也不是 MacIntel）。
  *
- * 为什么要有这个文件：这处判定原先有**三份实现、两套策略** ——
- *   `display.js` 与 `display-surface.js` 看 UA 里有没有 `Macintosh`，
- *   `pairing-link.js` 看 `navigator.platform === "MacIntel"`。真实的 iPadOS 13+
- *   两条同时成立（UA 伪装成 Macintosh、platform 报 MacIntel），所以今天结果一样；
- *   但两条各自依赖一个**正在被浏览器收紧**的证据：UA 缩减会先抹掉 `Macintosh`，
- *   `platform` 已被标记废弃、正在被冻结。谁先失效只是时间问题，而失效的表现不是报错，
- *   而是「iPad 上视口改按 visualViewport 算、添加到主屏的引导也不再弹」。
- *
- * 所以这里不挑一条、废掉另一条，而是把两条**并**起来：任一证据成立就认定是苹果移动端。
- *   在真实设备矩阵上这与原来那两份都等价（iPad 上两条都成立；桌面 Mac 上两条都不成立 ——
- *   即便带触摸屏，UA 里也必有 `Macintosh`，原来就已经判真），差别只出现在只给一条证据的
- *   替身 / 测试对象上，而那里并集是超集：只会补上漏判，不会多认一台 Windows 或安卓设备
- *   （它们的 UA 里既没有 `Macintosh`，platform 也不是 `MacIntel`）。
- *
- * 约定：`navigatorLike` 可注入，便于把设备矩阵摆出来跑（传替身对象即可）；不传时读全局 `navigator`。
+ * 约定：navigatorLike 可注入（传替身对象即可），不传时读全局 navigator。
  */
 
 /**

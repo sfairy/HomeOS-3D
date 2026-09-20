@@ -1,13 +1,10 @@
 """Home Assistant 的底层访问客户端（REST + WebSocket）。
 
-本模块只负责「怎么和 HA 说话」，不碰数据库、不认识项目里的实体/设备模型：
-- 地址一律先过 `normalize_base_url`，把用户输入整形成规范 URL；
-- REST 用于读配置、批量取状态、调服务、拉历史；
-- WebSocket 用于鉴权、订阅事件、读注册表与翻译资源；
-- `websocket_proxy` / `is_ipv6_literal` 处理本地部署常见的代理坑。
+只负责「怎么和 HA 说话」，不碰数据库、不认识项目的实体/设备模型：地址一律先过
+normalize_base_url；REST 用于读配置、批量取状态、调服务、拉历史；WebSocket 用于鉴权、
+订阅事件、读注册表与翻译资源。
 
-所有失败都统一包成 `HAClientError` 并带中文提示，由上层决定是提示用户
-还是记录到连接器日志。
+所有失败都统一包成 HAClientError 并带中文提示，由上层决定是提示用户还是记连接器日志。
 """
 from __future__ import annotations
 
@@ -33,8 +30,7 @@ class HAClientError(RuntimeError):
 
 
 #: 云元数据端点：SSRF 里最经典的目标，任何情况下都不该被当成 HA 地址。
-#: AWS/GCP/Azure 用 169.254.169.254，ECS 任务元数据用 169.254.170.2，
-#: IPv6 侧是 fd00:ec2::254。
+#: AWS/GCP/Azure 用 169.254.169.254，ECS 用 169.254.170.2，IPv6 侧是 fd00:ec2::254。
 METADATA_HOSTS = frozenset({'169.254.169.254', '169.254.170.2', 'fd00:ec2::254'})
 
 
@@ -52,8 +48,7 @@ def _host_ip(base_url: str):
 def metadata_address(base_url: str) -> str:
     """该地址是否指向云元数据端点；是则返回命中的地址，否则空串。
 
-    同时识别 IPv4 映射形式的 IPv6（``::ffff:169.254.169.254``），
-    否则换个写法就能绕过去。
+    同时识别 IPv4 映射形式的 IPv6（``::ffff:169.254.169.254``），否则换个写法就能绕过去。
     """
     host = _host_ip(base_url)
     if host is None:
@@ -77,16 +72,15 @@ def link_local_address(base_url: str) -> str:
 
 def normalize_base_url(value: str) -> str:
     """把用户填写的 HA 地址整形成规范形式。
-    异常:
-        HAClientError: 不是完整 http(s) 地址、带了账号/密码/查询参数/锚点，
-            或指向云元数据端点。
+
+    异常: HAClientError —— 不是完整 http(s) 地址、带了账号/密码/查询参数/锚点，
+    或指向云元数据端点。
     """
     candidate = value.strip().rstrip('/')
     parsed = urlparse(candidate)
     if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
         raise HAClientError('Home Assistant 地址必须是完整的 http 或 https URL。')
-    # 明确拒绝嵌入的凭据与查询串：它们会被原样带进日志和后端请求，
-    # 拼接 /api/... 时也容易产生歧义地址（本身就是一类 SSRF 隐患）。
+    # 拒绝嵌入的凭据与查询串：它们会被带进日志和后端请求，拼接 /api/... 时也易产生歧义地址。
     if parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise HAClientError('Home Assistant 地址不能包含账号、密码、查询参数或锚点。')
     # 元数据地址不是「家里的 HA」：放行等于白送一个能读到云上凭证的探针。
@@ -101,8 +95,7 @@ def normalize_base_url(value: str) -> str:
 def websocket_url(base_url: str) -> str:
     """由 REST 基地址推出 HA 的 WebSocket 端点地址。
 
-    HA 的 WS 端点在同一个主机端口上，仅把协议换成 ws/wss 并附加固定路径
-    `/api/websocket`。
+    HA 的 WS 端点在同一主机端口上，仅把协议换成 ws/wss 并附加固定路径 `/api/websocket`。
     """
     parsed = urlparse(base_url)
     scheme = 'wss' if parsed.scheme == 'https' else 'ws'
@@ -113,12 +106,8 @@ def websocket_url(base_url: str) -> str:
 def is_ipv6_literal(base_url: str) -> bool:
     """判断地址是否直接指向 IPv6 字面量。
 
-    本地部署常用的代理只监听了 IPv4，IPv6 字面量根本走不通，
-    因此这类目标必须绕开环境变量里的代理（见 `websocket_proxy`
-    与各 REST 调用里的 trust_env）。
-
-    返回:
-        是 IPv6 字面量时为 True；主机名解析不出或不是 IP 时为 False。
+    本地部署常用的代理只监听了 IPv4，这类目标必须绕开环境变量里的代理
+    （见 `websocket_proxy` 与各 REST 调用里的 trust_env）。主机名解析不出或不是 IP 时为 False。
     """
     hostname = urlparse(base_url).hostname
     if not hostname:
@@ -133,14 +122,9 @@ def is_ipv6_literal(base_url: str) -> bool:
 def websocket_proxy(base_url: str) -> str | bool | None:
     """给出连接 HA WebSocket 时应传的 ``proxy`` 参数。
 
-    ``websockets`` 在 ``proxy=True`` 时会从环境变量解析代理，但它把 SOCKS 代理排在 HTTP 代理之前，
-    而 SOCKS 需要可选的 ``python-socks`` 依赖才可用。macOS 的系统代理设置里总会带上 SOCKS，于是在
-    这种机器上，即使已经配置了完全可用的 HTTP 代理，连接也会在真正发起前就因 ``ImportError`` 中止。
-    这里自己解析代理：HTTP 代理照旧可用、SOCKS 不可用时跳过它，同时尊重 ``NO_PROXY``。
-
-    返回代理 URL 字符串（交给 websockets 使用）、``None``（不使用代理：IPv6 字面量、命中 NO_PROXY、
-    或根本没配代理）、或 ``True``（只配了 SOCKS，交回 websockets 自行处理，好让它抛出自己那条
-    明确的报错）。
+    ``websockets`` 的 ``proxy=True`` 把 SOCKS 排在 HTTP 代理之前，而 SOCKS 需要可选的
+    ``python-socks``；macOS 系统代理总带 SOCKS，于是即使有可用的 HTTP 代理也会在建连前中止。
+    返回代理 URL、``None``（IPv6 字面量 / NO_PROXY / 没配代理），或 ``True``（只配了 SOCKS）。
     """
     parsed = urlparse(base_url)
     if is_ipv6_literal(base_url):
@@ -149,8 +133,7 @@ def websocket_proxy(base_url: str) -> str | bool | None:
     if not hostname:
         return None
     try:
-        # 未写端口时按协议默认端口判断是否在 NO_PROXY 里，
-        # 否则 proxy_bypass('host') 与 'host:port' 的匹配结果可能不一致。
+        # 未写端口时用协议默认端口判断 NO_PROXY，否则 proxy_bypass 的两种匹配结果可能不一致。
         port = parsed.port or (443 if parsed.scheme == 'https' else 80)
         bypassed = urllib.request.proxy_bypass(f'{hostname}:{port}')
     except ValueError:
@@ -165,8 +148,7 @@ def websocket_proxy(base_url: str) -> str | bool | None:
         if value and not str(value).lower().startswith('socks'):
             return str(value)
     if any(str(value).lower().startswith('socks') for value in proxies.values()):
-        # 环境里只剩 SOCKS 代理。交给 websockets 自己处理，
-        # 这样缺少 ``python-socks`` 时它仍会抛出那条明确的错误。
+        # 只剩 SOCKS 代理：交给 websockets 自己处理，缺 python-socks 时它会抛出那条明确的错误。
         return True
     return None
 
@@ -175,10 +157,8 @@ def websocket_proxy(base_url: str) -> str | bool | None:
 class HASnapshot:
     """一次全量对账所需的全部 HA 侧数据。
 
-    注意三个注册表字段用「None 与 [] 区分语义」：
-    - None 表示这次没取到（HA 版本不支持该命令或调用失败），
-      同步层据此跳过「标记缺失」，避免把整个目录误判为已删除；
-    - [] 表示取到了、但确实是空的，是权威结果。
+    三个注册表字段用「None 与 [] 区分语义」：None 表示这次没取到（HA 版本不支持该命令或
+    调用失败），同步层据此跳过「标记缺失」，避免把整个目录误判为已删除；[] 是权威的空结果。
     """
 
     config: dict[str, Any]
@@ -198,8 +178,7 @@ class HASnapshot:
 class HAClient:
     """一个 HA 连接的服务端视图（基地址 + 令牌 + 传输选项）。
 
-    客户端本身无状态、可反复创建：每次调用都新建 httpx 连接，
-    由 httpx 内部的连接池复用 TCP，所以不在这里缓存长连接对象。
+    客户端本身无状态、可反复创建：每次调用都新建 httpx 连接，由 httpx 内部的连接池复用 TCP。
     """
 
     def __init__(
@@ -212,11 +191,8 @@ class HAClient:
     ) -> None:
         """构造一个 HA 客户端（不发起任何网络请求）。
 
-        参数:
-            access_token: 长期访问令牌（明文，仅存在于内存；落库时由 `crypto` 加密）。
-            verify_tls: 是否校验 TLS 证书；自签名证书的本地部署需要关掉。
-            timeout: 单次 REST 请求与 WebSocket 建连超时（秒）。
-            websocket_max_size_bytes: 单条 WebSocket 消息上限，默认 64 MiB。
+        参数: access_token 为长期访问令牌（明文，仅存内存）；verify_tls 为 False 时不校验证书
+        （自签名证书的本地部署）；timeout 为 REST 与 WebSocket 建连超时（秒）。
         """
         self.base_url = normalize_base_url(base_url)
         self.access_token = access_token
@@ -239,11 +215,8 @@ class HAClient:
     async def test_connection(self) -> dict[str, Any]:
         """调用 `/api/config` 验证连通性与令牌权限。
 
-        返回:
-            （键名 camelCase，与前端约定一致；location_name 缺省回落到 Home Assistant）。
-        异常:
-            HAClientError: 401/403 表示令牌无效，其它 HTTP 状态码原样带出，
-                网络与解析失败也统一包成 HAClientError。
+        返回键名 camelCase，与前端约定一致（location_name 缺省回落到 Home Assistant）。
+        异常: HAClientError —— 401/403 表示令牌无效，其它 HTTP 状态码原样带出。
         """
         try:
             async with httpx.AsyncClient(
@@ -275,9 +248,8 @@ class HAClient:
     ) -> list[dict[str, Any]]:
         """按实体 ID 逐个拉取当前状态（并发 + 去重）。
 
-        用于「补拉」：内存里缺某个实体的状态、或状态明显不完整时，点查比整份 ``get_states`` 便宜得多。
-        ``entity_ids`` 接受 set / list / tuple，内部会去重排序；不存在（404）或返回非字典的项会被丢弃。
-        鉴权失败、HTTP 错误或网络异常抛 ``HAClientError``。
+        用于「补拉」：内存里缺某个实体状态时，点查比整份 ``get_states`` 便宜得多。
+        ``entity_ids`` 接受 set / list / tuple；404 或非字典的项被丢弃，失败抛 ``HAClientError``。
         """
         # 去重 + 排序：既避免重复请求，也让并发顺序稳定，便于复现问题。
         requested = sorted({str(value) for value in entity_ids if str(value)})
@@ -294,14 +266,10 @@ class HAClient:
         ) as client:
 
             async def fetch_one(entity_id: str) -> dict[str, Any] | None:
-                """拉取单个实体的状态；实体已不存在时返回 None 而不是抛错。
-                返回:
-                    实体状态字典；404 时返回 None。
-                """
+                """拉取单个实体的状态；实体已不存在时返回 None 而不是抛错。"""
                 async with semaphore:
                     try:
-                        # 实体 ID 里的「点」必须转义；safe='' 让 quote 把 . 也编码掉，
-                        # 避免被某些反代/HA 版本把路径段拆错。
+                        # 实体 ID 里的「点」必须转义；safe='' 让 quote 把 . 也编码掉，避免被反代/HA 拆错路径段。
                         response = await client.get(
                             f'{self.base_url}/api/states/{quote(entity_id, safe="")}'
                         )
@@ -315,8 +283,7 @@ class HAClient:
                         raise HAClientError(f'Home Assistant 返回 HTTP {error.response.status_code}。') from error
                     except (httpx.HTTPError, ValueError) as error:
                         raise HAClientError(f'无法获取 Home Assistant 实体 {entity_id}：{error}') from error
-                    # 兜底类型判断：HA 某些错误页会返回 JSON 字符串/数组，
-                    # 放进状态表会污染下游，这里直接当没取到。
+                    # 兜底类型判断：HA 某些错误页返回 JSON 字符串/数组，放进状态表会污染下游，当没取到。
                     return payload if isinstance(payload, dict) else None
 
             results = await asyncio.gather(*(fetch_one(entity_id) for entity_id in requested))
@@ -325,25 +292,19 @@ class HAClient:
     def _ssl_context(self):
         """按需构造 WebSocket 的 TLS 上下文。
 
-        返回:
-            ws:// 直连时返回 None（不加密）；根据 verify_tls 决定是校验证书
-            的默认上下文，还是跳过校验的上下文（自签名证书的本地部署）。
+        返回: ws:// 直连时返回 None（不加密）；否则按 verify_tls 决定校验证书还是跳过校验。
         """
         if not websocket_url(self.base_url).startswith('wss://'):
             return None
-        # _create_unverified_context 是标准库内部方法，但它是 Python 里构造
-        # 「不校验证书」上下文最直接的方式，无需自写 SSLContext 配置。
+        # ssl._create_unverified_context 虽是标准库内部方法，但它是构造「不校验证书」上下文最直接的方式。
         return ssl.create_default_context() if self.verify_tls else ssl._create_unverified_context()
 
     async def _authenticate(self, websocket) -> None:
         """完成 HA WebSocket 的握手鉴权。
 
-        HA 的协议是「服务端先说话」：连上后服务端发 `auth_required`，
-        客户端回 `{type: auth, access_token: ...}`，服务端再回 `auth_ok`
-        或 `auth_invalid`。因此这里必须先 recv 一次，不能直接发鉴权帧。
-
-        异常:
-            HAClientError: 首帧不是 `auth_required`，或最终不是 `auth_ok`。
+        HA 的协议是「服务端先说话」：连上后服务端发 `auth_required`，客户端回
+        `{type: auth, access_token: ...}`，服务端再回 `auth_ok` 或 `auth_invalid`。
+        异常: HAClientError —— 首帧不是 `auth_required`，或最终不是 `auth_ok`。
         """
         try:
             required = json.loads(await websocket.recv())
@@ -362,16 +323,15 @@ class HAClient:
 
     async def connect_websocket(self):
         """建立并完成鉴权的 HA WebSocket 连接。
-        异常:
-            HAClientError: 建连失败或鉴权失败；单条消息超过上限时给出
-                可操作的提示（提示调大 APP_HA_WEBSOCKET_MAX_SIZE_BYTES）。
+
+        异常: HAClientError —— 建连或鉴权失败；单条消息超限时给出可操作的提示
+        （提示调大 APP_HA_WEBSOCKET_MAX_SIZE_BYTES）。
         """
         try:
             websocket = await websockets.connect(
                 websocket_url(self.base_url),
                 ssl=self._ssl_context(),
-                # 代理由本模块显式解析，避免 websockets 自己去读环境变量时
-                # 选中不可用的 SOCKS（见 websocket_proxy）。
+                # 代理由本模块显式解析，避免 websockets 读环境变量时选中不可用的 SOCKS（见 websocket_proxy）。
                 proxy=websocket_proxy(self.base_url),
                 open_timeout=self.timeout,
                 # 20 秒心跳：家用网络/路由器会静默掐掉闲置 TCP，
@@ -388,8 +348,7 @@ class HAClient:
         except HAClientError:
             raise
         except (OSError, TimeoutError, websockets.WebSocketException) as error:
-            # 1009 是 WebSocket 协议里「消息过大」的关闭码；
-            # 有些实现只给一句 message too big 文本，所以三种特征都判。
+            # 1009 是「消息过大」的关闭码；有些实现只给 message too big 文本，所以三种特征都判。
             if (
                 getattr(error, 'code', None) == 1009
                 or 'message too big' in str(error).lower()
@@ -405,11 +364,8 @@ class HAClient:
     async def command(self, websocket, message_id: int, command_type: str, **payload) -> Any:
         """在已鉴权的连接上发一条命令并等它的结果。
 
-        HA 的 WebSocket 是「单连接多路复用」：订阅推送（type=event）与各种命令的返回值混在同一条流里，
-        只能靠 ``id`` 认领属于自己的回复，因此这里是「循环跳过无关消息直到命中本 id」的写法。
-        ``message_id`` 需由调用方保证同一连接上不重复；``payload`` 会与 id / type 平铺进同一个 JSON
-        对象。返回回复里的 ``result`` 字段（可能为 None）；连接中断、消息超限或 ``success`` 为假时抛
-        ``HAClientError``。
+        HA 的 WebSocket 单连接多路复用：订阅推送与命令返回值混在同一条流里，只能靠 ``id``
+        认领回复，因此这里是「循环跳过无关消息直到命中本 id」。``message_id`` 由调用方保证不重复。
         """
         await websocket.send(json.dumps({'id': message_id, 'type': command_type, **payload}))
         while True:
@@ -447,13 +403,9 @@ class HAClient:
     ) -> list[dict[str, Any]]:
         """批量订阅事件，并返回订阅期间已经推送过来的事件。
 
-        之所以要把「订阅确认之前就到达的事件」一起返回：订阅是逐条发出的，后面的订阅还没确认时，
-        前一条订阅可能已经在推事件；这些事件比随后的全量快照更新，调用方必须先处理它们再做快照，
-        否则会用旧值覆盖新值。
-
-        ``start_id`` 默认 100 是为了与同一连接上小 id 的命令（get_states 用 1、注册表用 2~4）错开，
-        避免 id 撞车。``required_event_types`` 里的订阅失败必须整体失败；非必需类型订阅失败只跳过，
-        防止某个 HA 版本缺事件类型就断掉整条连接。返回订阅确认期间缓冲到的事件消息列表。
+        必须把「订阅确认之前就到达的事件」一起返回：订阅逐条发出，后面的还没确认时前面可能
+        已在推事件，而这些事件比随后的全量快照更新，调用方要先处理它们再做快照。
+        ``required_event_types`` 里的订阅失败必须整体失败，非必需类型失败只跳过。
         """
         required = required_event_types if required_event_types is not None else set(event_types)
         # id -> 事件类型：用来认领各自的订阅确认。
@@ -466,8 +418,7 @@ class HAClient:
                 'event_type': event_type,
             }))
         buffered_events = []
-        # 必须等所有订阅都确认完才能返回，否则调用方拿着「半订阅」的连接
-        # 会漏掉后续事件。
+        # 必须等所有订阅都确认完才返回，否则调用方拿着「半订阅」的连接会漏掉后续事件。
         while pending:
             message = json.loads(await websocket.recv())
             # 订阅确认与事件推送混在同一条流里，事件先攒着最后一起交出去。
@@ -488,14 +439,9 @@ class HAClient:
     async def fetch_snapshot(self) -> HASnapshot:
         """拉取一次全量对账所需的全部数据。
 
-        实现上把三条注册表查询放在同一个 WebSocket 里（id 依次为 2/3/4），
-        状态查询用 id 1；`config` 走 REST 单独取，因为 WS 已经关闭，
-        也避免与 WS 的多路复用混在一起。
-
-        返回:
-            HASnapshot；注册表查询失败时对应字段为 None（供上层跳过「标记缺失」）。
-        异常:
-            HAClientError: 状态查询或 `test_connection` 失败。
+        三条注册表查询放在同一个 WebSocket 里（id 依次 2/3/4），状态查询用 id 1；`config`
+        走 REST 单独取。注册表失败时对应字段为 None（供上层跳过「标记缺失」），状态查询或
+        `test_connection` 失败抛 HAClientError。
         """
         websocket = await self.connect_websocket()
         try:
@@ -509,8 +455,7 @@ class HAClient:
                 try:
                     optional_results.append(await self.command(websocket, message_id, command_type))
                 except HAClientError:
-                    # 注册表是「可选增强」：老版本 HA 或权限不足时取不到，
-                    # 记成 None 让同步层保持旧数据，而不是让整次同步失败。
+                    # 注册表是可选增强：老版本 HA 或权限不足时取不到，记成 None 让同步层保持旧数据。
                     optional_results.append(None)
             entities, devices, areas = optional_results
         finally:
@@ -536,11 +481,8 @@ class HAClient:
     ]:
         """单独拉取实体 / 设备 / 区域三份注册表。
 
-        与 `fetch_snapshot` 的区别是这里不取状态：注册表变更事件（重命名、
-        换区、禁用）只需刷新元数据，没必要顺带拉一遍全部状态。
-
-        返回:
-            (entities, devices, areas)；取不到的那份为 None。
+        与 `fetch_snapshot` 的区别是不取状态：注册表变更事件只需刷新元数据，没必要顺带拉
+        全部状态。返回 (entities, devices, areas)；取不到的那份为 None。
         """
         websocket = await self.connect_websocket()
         results = []
@@ -571,13 +513,11 @@ class HAClient:
     ) -> dict[str, str]:
         """取 HA 官方的实体名称翻译表，供界面显示中文名。
 
-        分两步：``entity_component`` 是各域通用的称呼（例如 light → 灯），``entity`` 则要按集成逐个取
-        （例如 hue 下的具体命名规则）。``language`` 默认 ``zh-Hans``，与本项目的中文界面一致；
-        ``integrations`` 来自实体注册表的 platform 字段。返回翻译键到中文文案的映射；任何一步失败都只
-        表示少一部分翻译，不会抛异常 —— 取不到时界面回落到 HA 原始名称即可。
+        分两步：``entity_component`` 是各域通用称呼，``entity`` 要按集成逐个取。``language``
+        默认 ``zh-Hans``；``integrations`` 来自实体注册表的 platform。任何一步失败只表示少
+        一部分翻译，不会抛异常（界面回落到 HA 原始名称）。
         """
-        # 去重排序后逐个请求：每个集成一次 WebSocket 往返，
-        # 顺序稳定便于日志排查，也避免同一集成重复请求。
+        # 去重排序后逐个请求：每个集成一次往返，顺序稳定便于排查，也避免重复请求。
         requested = sorted({str(item).strip() for item in integrations if str(item).strip()})
         websocket = await self.connect_websocket()
         resources = {}
@@ -625,9 +565,8 @@ class HAClient:
     ) -> Any:
         """调用 HA 服务（开灯、设温度、执行脚本等）。
 
-        走 REST 而非 WebSocket：服务调用是一次性动作，不需要订阅推送，也避免与长连的订阅连接互相干扰。
-        ``data`` 是服务附加参数（亮度、颜色等）。返回 HA 给出的受影响实体列表（原样透传，字段名由 HA
-        决定）；HTTP 错误或网络异常抛 ``HAClientError``。
+        走 REST 而非 WebSocket：服务调用是一次性动作，不需要订阅推送。``data`` 是服务附加参数。
+        返回 HA 给出的受影响实体列表（字段名由 HA 决定）；HTTP 错误或网络异常抛 ``HAClientError``。
         """
         # entity_id 放在展开之后：强制以本参数为准，防止 data 里夹带另一个实体。
         payload = {**data, 'entity_id': entity_id}
@@ -659,13 +598,10 @@ class HAClient:
     ) -> Any:
         """浏览媒体源，供媒体播放器控件选择要播放的内容。
 
-        返回 HA 原生的浏览结果结构（children 树），由前端直接渲染 ——
-        这里刻意不做归一化，免得跟着 HA 的字段变化来回改。
-
-        默认值 `media-source://` 是 HA 的媒体源根节点，即从最外层开始浏览。
+        返回 HA 原生的浏览结果结构（children 树），由前端直接渲染 —— 刻意不做归一化，
+        免得跟着 HA 的字段变化来回改。默认值 `media-source://` 是 HA 的媒体源根节点。
         """
-        # media_content_type 不在请求里使用：HA 的 browse_media 只认 media_content_id；
-        # 参数保留是为了不破坏已有调用签名。
+        # HA 的 browse_media 只认 media_content_id，media_content_type 保留是为了不破坏调用签名。
         payload = {'media_content_id': media_content_id}
         websocket = await self.connect_websocket()
         try:
@@ -676,18 +612,14 @@ class HAClient:
     async def fetch_history(self, entity_id: str, start_time: str) -> list[dict[str, Any]]:
         """读取某个实体的历史状态，用于图表。
 
-        参数:
-            start_time: 起始时间（ISO8601 字符串，作为路径段传入）。
-        异常:
-            HAClientError: HTTP 错误或网络异常。
+        参数: start_time 为起始时间（ISO8601 字符串，作为路径段传入）。
+        异常: HAClientError —— HTTP 错误或网络异常。
         """
-        # 起始时间在 URL 路径里（不是查询参数），其中的 : 和 + 必须转义，
-        # safe='' 保证整段时间串被完整编码。
+        # 起始时间在 URL 路径里，其中的 : 和 + 必须转义；safe='' 保证整串被完整编码。
         encoded_start = quote(start_time, safe='')
         params = {
             'filter_entity_id': entity_id,
-            # 历史接口默认会把每个点的 attributes 全带上，数据量能翻好几倍；
-            # 图表只画 state 曲线，因此显式关掉属性。
+            # 历史接口默认带上每个点的 attributes，数据量翻几倍；图表只画 state 曲线，显式关掉。
             'no_attributes': '1',
             # 只取 recorder 认为「有意义的」变化点，去掉抖动噪声，图表更轻。
             'significant_changes_only': '1',
@@ -711,8 +643,7 @@ class HAClient:
             ) from error
         except (httpx.HTTPError, ValueError) as error:
             raise HAClientError(f'无法读取 Home Assistant 历史数据：{error}') from error
-        # HA 的历史接口返回「列表的列表」（每个实体一段），即使只查一个实体也套一层；
-        # 结构不符合预期时按空历史处理，而不是把脏数据抛给图表。
+        # HA 返回「列表的列表」（每个实体一段）；结构不符预期时按空历史处理，不把脏数据抛给图表。
         if not isinstance(payload, list) or not payload or not isinstance(payload[0], list):
             return []
         return [item for item in payload[0] if isinstance(item, dict)]

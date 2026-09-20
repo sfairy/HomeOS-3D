@@ -1,27 +1,12 @@
 /**
- * 颜色字符串归一：三份契约，各自服务一种用途。
- *
- * 位置：`utils/` 下的纯工具，被编辑器（`home.js` / `editor-utils.js`）与运行时渲染器
- *   （`renderer/core/renderer.js`）引用。
- *
- * 为什么要有这个文件：这三处原先各有自己的「归一十六进制颜色」——
- *   `editor-utils.normalizedHexColor`、`home.js` 里的 `normalizeHexColor`、
- *   `renderer.js` 里 `mixHexColors` 内部的 `normalizeHexColor`。前两个名字只差一个字母
- *   （`normalized` / `normalize`）却是两种契约：能不能省略 `#`、认不认三位缩写、
- *   失败时给空串还是 `null`，全都不同。照名字互相搬用不会报错，只会静默换一套判定 ——
- *   典型后果是「用户才输到 `#ab`」被误判成有效色，或同一个颜色的两种写法比较起来不相等。
- *   现在三份实现都在这里，名字即契约。
- *
- * 契约对照：
- *
+ * 颜色字符串归一：三份契约，名字即契约，各自服务一种用途。
  *   | 函数 | 省略 `#` | 三位缩写 | 返回值 | 失败时 |
  *   | --- | --- | --- | --- | --- |
  *   | `hexColorOrEmpty`       | 认 | 展开 | 小写 `#rrggbb` | `""` |
- *   | `strictHexColorOrEmpty` | 不认 | **拒绝** | 小写 `#rrggbb` | `""` |
- *   | `expandHexColorOrNull`  | 不认 | 展开 | 六位，**大小写原样** | `null` |
+ *   | `strictHexColorOrEmpty` | 不认 | 拒绝 | 小写 `#rrggbb` | `""` |
+ *   | `expandHexColorOrNull`  | 不认 | 展开 | 六位，原样大小写 | `null` |
  *
- * 三种「失败」写法都是有意的：空串给的是「不是一个颜色，跳过它」，`null` 给的是
- * 「读不出通道值，放弃计算」，而拒绝三位缩写给的是「这还不算一个完整的输入」。
+ * 失败写法有意：空串=「不是一个颜色」；`null`=「放弃计算」；拒绝缩写=「输入还不完整」。
  */
 
 /**
@@ -61,11 +46,8 @@ export function strictHexColorOrEmpty(hexColorInput) {
 
 /**
  * 解析成六位 `#rrggbb`（三位缩写展开，大小写原样保留）；不是十六进制时返回 `null`。
- *
- * 用在「取值」的地方（展开成六位后拆出 RGB 通道做插值）：三位缩写要先展开，
- * 因为 HA 里用户手写的颜色常是 `#abc`，直接按六位解析会得到错值；大小写不在这里统一，
- * 调用方只要通道值，归一反而多一次改写。拿不准的输入明确返回 `null`，让调用方放弃计算
- * —— 算出一个错的颜色比不插值更糟。
+ * 用于取值场景（拆 RGB 通道做插值）：HA 里用户常手写 `#abc`，不展开会得到错值；
+ * 大小写不归一，调用方只要通道值。拿不准明确返回 `null`，算错颜色比不插值更糟。
  */
 export function expandHexColorOrNull(colorValue) {
   const trimmedColor = String(colorValue || "").trim();

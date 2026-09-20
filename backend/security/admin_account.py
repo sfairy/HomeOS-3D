@@ -41,7 +41,7 @@ class AdminAccountConflict(RuntimeError):
     与 ``RuntimeError`` 的分界是「谁该处理」：这一类表示**这次请求不成立** ——
     并发的初始化请求先赢了，或盘上出现了一份不属于本次初始化的账号文件。状态是可预期
     的，重试或刷新页面就能看清，因此调用方应当把它映射成 409，而不是让它逃逸成 500
-    带着堆栈进全局日志（B35）。``RuntimeError`` 留给「文件损坏 / 权限写不进去」这类
+    带着堆栈进全局日志。``RuntimeError`` 留给「文件损坏 / 权限写不进去」这类
     需要人工介入或属于服务器侧的问题。
     """
 
@@ -157,7 +157,7 @@ class AdminAccountStore:
         os.chmod(self.path.parent, 0o700)
         # 已存在就报错：初始化只能发生一次，避免静默覆盖掉正在使用的凭据。
         # 这是**可预期的冲突**（这份文件在本次启动之后才出现，或来自另一次初始化），
-        # 因此用 AdminAccountConflict 让路由回 409，而不是 500（B35）。
+        # 因此用 AdminAccountConflict 让路由回 409，而不是 500。
         if self.path.exists():
             raise AdminAccountConflict(
                 '数据目录里出现了一份管理员账号文件，拒绝覆盖；请刷新页面确认状态，'

@@ -1,12 +1,8 @@
 """支付宝凭据解析：站点配置（后台可改）优先，环境变量兜底。
 
-为什么需要单独一层：``StoreSettings`` 是启动时装配好的**不可变**对象，而
-``StoreSetting`` 是运行时可变、由后台改写的。凭据必须每次现算，不能在启动时
-烘焙进 settings —— 否则运营在后台换了商户号，进程不重启就永远不生效，
-而「免重启改配置」恰恰是后台提供这几个字段的全部意义。
-
-优先级规则与站点里其它配置保持一致（见 ``resolve_device_release_cooldown``）：
-**站点配置非空则覆盖环境变量，留空表示跟随环境变量**。
+``StoreSettings`` 是启动时装配好的**不可变**对象，而 ``StoreSetting`` 运行时可变 ——
+凭据必须每次现算，不能在启动时烘焙进 settings，否则后台改了商户号不重启就不生效。
+优先级规则与站点其它配置一致：**站点配置非空则覆盖环境变量，留空表示跟随环境变量**。
 """
 
 from __future__ import annotations
@@ -23,8 +19,7 @@ from store.payments.alipay import (
     validate_callback_url,
     validate_gateway_url,
 )
-#: 打码 / 归一化密钥提交值的规则与邮箱 SMTP 授权码共用一份实现
-#: （见 ``store.security.secret_fields``。这里重新导出，保持既有调用点的 import 不变）。
+#: 打码/归一化密钥提交值的规则与 SMTP 授权码共用一份实现，这里重新导出以保持调用点不变。
 from store.security.secret_fields import (
     MASK_PREFIX,
     is_masked_secret,
@@ -77,14 +72,11 @@ def merge_alipay_settings(
         alipay_app_private_key=database_private_key or settings.alipay_app_private_key,
         alipay_public_key=database_public_key or settings.alipay_public_key,
         alipay_gateway_url=gateway,
-        # 回调地址同理：留空跟随环境变量，非空则以站点配置为准。
-        # 这两项是「钱付了订单不到账」的第一嫌疑人，改它不该需要重启容器。
+        # 回调地址同理：留空跟随环境变量，非空以站点配置为准；改它不该需要重启容器。
         alipay_notify_url=database_notify_url or settings.alipay_notify_url,
         alipay_return_url=database_return_url or settings.alipay_return_url,
-        # 这一句是必须的：``StoreSettings.alipay_private_key_text`` 的取值顺序是
-        # 「文件优先于内联」。如果环境变量配了 ``..._PATH``，后台刚填的私钥会被
-        # 那个文件整个盖掉 —— 表现是「后台显示已配置，但签名用的是旧密钥」，
-        # 报错只有一句笼统的验签失败。既然后台显式给了密钥，就把路径清掉。
+        # 必须清掉 ``..._PATH``：``alipay_private_key_text`` 是「文件优先于内联」，环境变量
+        # 配了 PATH 就会把后台刚填的私钥整个盖掉（后台显示已配置、签名却用旧密钥）。
         alipay_app_private_key_path=(
             "" if database_private_key else settings.alipay_app_private_key_path
         ),
@@ -107,14 +99,11 @@ def alipay_credentials_summary(
         "sellerId": merged.alipay_seller_id,
         "gatewayUrl": merged.alipay_gateway_url,
         "sandbox": bool(getattr(setting, "alipay_sandbox", False)),
-        #: 当前**实际生效**的异步通知 / 同步跳转地址（可能是后台配的、环境变量给的、
-        #: 或按 STORE_BASE_URL 推导出来的）。把解析后的值报出来，是因为
-        #: 「通知没到」时运营第一件要做的事就是确认支付宝到底在往哪个地址推，
-        #: 而过去这个值只存在于服务端拼接逻辑里，界面上完全看不到。
+        #: 当前**实际生效**的异步通知/同步跳转地址（可能来自后台、环境变量或按
+        #: STORE_BASE_URL 推导）。「通知没到」时运营第一件事就是确认支付宝在往哪推。
         "notifyUrl": merged.alipay_notify_url,
         "returnUrl": merged.alipay_return_url,
-        #: 只读展示：签名算法与响应验签开关目前仍由环境变量控制（改错这两项
-        #: 会直接导致下单/验签全挂，不适合随手在界面上改），但排障时需要看得见。
+        #: 只读展示：签名算法与响应验签开关仍由环境变量控制（改错会全挂），排障时要看得见。
         "signType": merged.alipay_sign_type,
         "verifyResponseSign": bool(merged.alipay_verify_response_sign),
         "applicationPrivateKeyConfigured": bool(private_key),
@@ -126,13 +115,8 @@ def alipay_credentials_summary(
         "alipayPublicKeyMasked": mask_secret(
             (getattr(setting, "alipay_public_key", "") or "").strip()
         ),
-        #: 凭据是否来自后台（false=来自环境变量/文件）。前端据此提示
-        #: 「留空即跟随环境变量」，避免运营以为必须在这里重填一遍。
-        #:
-        #: 各字段各报各的：只要有一个字段被后台显式写过，它就不再跟随环境变量。
-        #: 前端**只回填来源为后台的字段** —— 如果把环境变量的值也回填进输入框，
-        #: 运营随手保存一次站点名就会把环境变量「固化」进数据库，之后改环境变量
-        #: 再也无效，而界面上完全看不出来。这正是这里的 fromDatabase 标记存在的意义。
+        #: 各字段各报各的来源。前端**只回填来源为后台的字段** —— 若把环境变量的值也回填，
+        #: 运营随手保存一次站点名就会把它「固化」进库，之后改环境变量再也无效。
         "appIdFromDatabase": bool((getattr(setting, "alipay_app_id", "") or "").strip()),
         "sellerIdFromDatabase": bool((getattr(setting, "alipay_seller_id", "") or "").strip()),
         "gatewayUrlFromDatabase": bool(
@@ -157,13 +141,8 @@ def alipay_credentials_summary(
 def validate_private_key_text(text: str) -> None:
     """校验应用私钥能被解析；不能则抛 ``PaymentError``。
 
-    为什么要在**保存时**校验，而不是等第一次支付时再暴露：``sign_params`` 抛出的
-    是 ``PaymentError``，会以 409/503 的形式出现在**用户下单**的动线上 ——
-    运营改配置改错了，付不了款的是客户。把校验前移到配置接口，错误直接落在改配置
-    的那个人眼前，用户侧完全无感。
-
-    判定逻辑本身放在 ``payments.alipay.private_key_error``：后台自检要拿到同一份
-    结论（只是不抛异常而已），两边各写一遍迟早会漂移成「保存拦得住、自检说没问题」。
+    在**保存时**校验而不是等第一次支付：错误应落在改配置的人眼前，而不是用户下单时。
+    判定逻辑复用 ``private_key_error``，后台自检要用同一份结论。
     """
     message = private_key_error(text)
     if message:

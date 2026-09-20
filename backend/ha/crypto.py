@@ -32,7 +32,7 @@ class CredentialCipher:
         self.key_path = key_path
 
     def _load_or_create_key(self) -> bytes:
-        """取密钥文件里的 Fernet 密钥；进程内只碰一次文件（B8）。
+        """取密钥文件里的 Fernet 密钥；进程内只碰一次文件。
 
         目录权限 0700、文件 O_EXCL + 0600 的原子创建与「只对并发抢占重试」都在
         ``load_or_create_secret_key`` 里；这里只负责把失败翻译成 CredentialCipherError。该入口自带进程内

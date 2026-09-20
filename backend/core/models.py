@@ -1,13 +1,10 @@
 """ORM 模型定义：主应用的全部数据表。
 
-约定：
-- 所有时间列都是 UTC aware（`DateTime(timezone=True)`），默认值统一用 `utc_now`，
-  展示时由前端按浏览器本地时区换算。
-- 需要加密的敏感字段（HA 令牌、激活码、会话令牌）以 `encrypted_*` 命名，
-  库里存密文，密钥在 `data/secrets/` 下。
-- 同步自 Home Assistant 的表（ha_entities / ha_devices / ha_areas）
-  用 `sync_status` + `missing_since` 表达「曾经存在但当前消失」，
-  不直接删行，这样仪表盘上已绑定的实体不会因为一次同步失败就丢失绑定。
+约定：所有时间列都是 UTC aware（`DateTime(timezone=True)`），默认值统一用 `utc_now`，
+展示时由前端按浏览器本地时区换算；需要加密的敏感字段（HA 令牌、激活码、会话令牌）以
+`encrypted_*` 命名，库里存密文，密钥在 `data/secrets/` 下；同步自 HA 的表用 `sync_status`
++ `missing_since` 表达「曾经存在但当前消失」，不直接删行，这样已绑定的实体不会因为一次
+同步失败就丢失绑定。
 """
 from __future__ import annotations
 
@@ -28,8 +25,8 @@ def utc_now() -> datetime:
 class User(Base):
     """管理员账号的库内身份行。
 
-    注意：认证不读这里的 `password_hash`。凭据已外置到 admin-account.json，
-    这一行保留主要是为了让 project.created_by 等外键有稳定的引用目标。
+    认证不读这里的 `password_hash`（凭据已外置到 admin-account.json），这一行保留主要是为了
+    让 project.created_by 等外键有稳定的引用目标。
     """
 
     __tablename__ = 'users'
@@ -132,9 +129,9 @@ class HAConnection(Base):
 class HAEntity(Base):
     """从 HA 同步来的实体。
 
-    唯一约束是 (connection_id, entity_id)：换了一条连接后同名实体是另一条记录。
-    实体在 HA 里消失时不删行，而是把 sync_status 置为非 active 并记 missing_since，
-    这样仪表盘的绑定关系不会因为 HA 临时重启就丢失。
+    唯一约束是 (connection_id, entity_id)：换了一条连接后同名实体是另一条记录。实体在 HA 里
+    消失时不删行，而是把 sync_status 置为非 active 并记 missing_since，这样仪表盘的绑定关系
+    不会因为 HA 临时重启就丢失。
     """
 
     __tablename__ = 'ha_entities'
@@ -233,11 +230,9 @@ class HASyncState(Base):
 class Project(Base):
     """一个仪表盘项目。
 
-    `name` 全局唯一，因为它同时被用作展示地址 `/display/{项目名称}` 的路径段；
-    `slug` 则是给内部与文件命名用的 ASCII 形式。
-    两条唯一性都由数据库的唯一索引兜底（应用层那次「先查后写」只是为了让常见错误
-    尽早返回中文提示，并发下挡不住）：`name` 的冲突回 409 让用户改名，
-    `slug` 的冲突换一个后缀重试，见 `api/projects.insert_project_with_draft`。
+    `name` 全局唯一，因为它同时被用作展示地址 `/display/{项目名称}` 的路径段；`slug` 是给内部
+    与文件命名用的 ASCII 形式。两条唯一性都由数据库唯一索引兜底（应用层「先查后写」只是为了让
+    常见错误尽早返回中文提示）：`name` 冲突回 409 让用户改名，`slug` 冲突换后缀重试。
     `created_by` 用 RESTRICT：只要还有项目引用，就不允许删除该用户行。
     """
 
@@ -270,18 +265,12 @@ class ProjectDraft(Base):
 
 
 class ProjectPathAlias(Base):
-    """项目改名后保留的旧展示地址（B38）。
+    """项目改名后保留的旧展示地址。
 
-    展示地址 `/display/{项目名称}` 由**名称**派生，而名称可以改 —— 改完之后，已配对、书签里
-    存着旧地址的墙面平板就再也打不开这一页，且没有任何提示：它只会一直收到 404，用户唯一能想到
-    的办法是把平板拆下来重新配对。
-
-    这里按「旧名称 → 项目」记一行：`/display/{旧名称}` 在**没有**任何现存项目占用该名称时 303
-    跳到当前地址。名称被别的项目占用时以现存项目为准（旧别名只是兜底），因此不会出现「两个仪表盘
-    抢一个地址」。
-
-    刻意存名称而不存 id：地址本来就从名称算出来，存名称才能保证别名与地址一致。每个项目的别名
-    数量有上限（见 ``api/projects.PROJECT_PATH_ALIAS_LIMIT``）：反复改名不会让它无限增长。
+    展示地址由**名称**派生，而名称可以改 —— 改完之后，已配对、书签里存着旧地址的墙面平板就
+    再也打不开这一页，且只会一直收到 404。这里按「旧名称 → 项目」记一行：`/display/{旧名称}`
+    在没有现存项目占用该名称时 303 跳到当前地址，被占用时以现存项目为准。
+    刻意存名称而不存 id，保证别名与地址一致；每个项目的别名数量有上限（见 PROJECT_PATH_ALIAS_LIMIT）。
     """
 
     __tablename__ = 'project_path_aliases'
@@ -312,10 +301,9 @@ class GlobalCustomPopupState(Base):
 class LicenseState(Base):
     """本机授权状态（单行，固定 id=1）。
 
-    敏感值全部加密存放：激活码、会话令牌、恢复令牌。`signed_lease` 是服务端签发的
-    Ed25519 签名租约原文，客户端离线验签即可判断是否仍然有效。
-    `status` 取值包括 UNACTIVATED / ACTIVE / CONNECTION_WARNING / LEASE_EXPIRED / REVOKED；
-    其中只有「确认吊销」与「租约过期」会拦截功能，其余按联网告警处理。
+    敏感值全部加密存放：激活码、会话令牌、恢复令牌。`signed_lease` 是服务端签发的 Ed25519
+    签名租约原文，客户端离线验签即可判断是否仍然有效。`status` 取值包括 UNACTIVATED / ACTIVE /
+    CONNECTION_WARNING / LEASE_EXPIRED / REVOKED；只有「确认吊销」与「租约过期」会拦截功能。
     """
 
     __tablename__ = 'license_state'

@@ -24,7 +24,7 @@ from ..core.dependencies import CurrentUser
 router = APIRouter()
 # 内置的发布端点与说明页地址：这是**厂商运营**的地址。更新检查默认关闭（见
 # settings.update_checks_enabled），只有显式打开才会用到它们；自托管部署想自己
-# 掌控这条外发请求，用 APP_UPDATE_ENDPOINTS / APP_UPDATE_WIKI_URL 指向自建节点（B31）。
+# 掌控这条外发请求，用 APP_UPDATE_ENDPOINTS / APP_UPDATE_WIKI_URL 指向自建节点。
 # 两个候选端点按顺序尝试：第一个不通就试第二个，都失败则本轮放弃。
 RELEASE_ENDPOINTS = (
     "https://pay.habridge.cn/store/v1/updates/latest",
@@ -230,7 +230,7 @@ class UpdateChecker:
             "currentVersion": self.version,
             "channel": self.channel,
             # enabled 也返回：界面据此区分「服务端暂时没查到」与「本部署关掉了外发检查」，
-            # 否则关掉开关后界面会一直显示「尚未检查」，看上去像坏了（B31）。
+            # 否则关掉开关后界面会一直显示「尚未检查」，看上去像坏了。
             "enabled": bool(self.enabled),
             "updateAvailable": available,
             "latestVersion": release["version"] if release else None,

@@ -1,11 +1,8 @@
 /**
- * 运行时弹窗与设备入场的动画补丁。
+ * 运行时弹窗与设备入场的动画补丁，只在「3D 运行时」这类全屏场景使用，编辑器不加载。
  *
- * 位置：只在「3D 运行时」这类全屏场景里使用，编辑器不加载。
- *
- * 核心目的：绕开 Safari（WebKit）在弹窗内播放一次性 CSS 动画时的渲染缺陷——
- * 动画结束后元素可能停在首帧（全透明 / 错位），看起来像弹窗没出来。
- * 因此这里宁可牺牲一部分动效，也要保证内容一定可见。
+ * 目的：绕开 Safari（WebKit）播放一次性 CSS 动画的渲染缺陷——动画结束后元素可能停在首帧
+ * （全透明 / 错位），看起来像弹窗没出来。故宁可牺牲一部分动效，也保证内容一定可见。
  */
 
 /**
@@ -26,12 +23,8 @@ export function runtimeDialogUsesStableMotion({
 }
 /**
  * 播放入场动画，保证弹窗内容可见。
- *
- * 处理顺序：
- * 1. 非 Safari 直接返回空数组，交给 CSS 原有的复杂动画，不做任何干预；
- * 2. 带 hb-runtime-simplified-motion 类时，连所有后代一起扫描并取消「只播放一次」的动画
- *    （iterations === 1），因为正是这类动画会卡在首帧；无限循环的动画不影响可见性，保留不动；
- * 3. 只对第一个子元素做不透明度淡入，避免与弹窗自身尺寸动画叠加出抖动。
+ * 非 Safari 直接返回空数组交给 CSS 原有动画；带 hb-runtime-simplified-motion 类时连后代一起扫描并取消
+ * 「只播放一次」的动画（iterations === 1，正是它卡在首帧），无限循环的保留；只对第一个子元素做不透明度淡入。
  */
 export function playStableRuntimeDialogEntrance(dialogElement, contentElement) {
   if (!runtimeDialogUsesStableMotion()) {

@@ -1,24 +1,12 @@
 /**
  * 运行时缓存层：历史序列、静态图解码、特效图加载与扫地机地图预加载。
+ * 把「会重复发生、开销又高」的四类异步操作收敛到这里统一节流：历史序列缓存与请求串行化、
+ * 画布静态图的有界解码缓存、特效图的按需加载与优先级提升、扫地机地图的预加载与失败退避。
+ * 各缓存的构造参数都可注入 createImage / setTimer / clearTimer，便于测试替换。
  *
- * 职责：把「会重复发生、开销又高」的四类异步操作收敛到这里统一节流——
- * - 历史序列缓存与请求串行化（HistoryRefreshCoordinator）；
- * - 画布静态图的有界解码缓存（RuntimeStaticImageCache）；
- * - 特效图的按需加载与优先级提升（RuntimeEffectImageLoader）；
- * - 扫地机地图的预加载与失败退避（RuntimeVacuumMapImagePreloader）。
- *
- * 位置：运行时的基础设施层，被 home.js 与各控件 runtime 引用。
- * 各缓存的构造参数都允许注入 createImage / setTimer / clearTimer，便于测试替换。
- *
- * 缓存键与失效时机（改动前务必确认）：
- * - 历史序列：键是「实体ID:小时数」，写入时按插入顺序淘汰到 MAX_HISTORY_SERIES_CACHE_SIZE 条；
- * - 静态图：键是完整图片地址，setSources 整体替换需求集合，切页即回收旧位图；
- * - 特效图：键是图片地址，但状态记在 img 元素的 dataset 上，元素移除即自然失效；
- * - 扫地机地图：键是「去掉 ?query 的地址」，这样版本 token 变化仍视为同一张图，
- *   只保留最新地址，不会因为 token 轮换把缓存撑大。
- *
- * 约定：异步结果是否还该被采用由 historyRequestStillRelevant 判定，
- * 上下文里的 documentGeneration / popupGeneration 由文档与弹窗的生命周期维护。
+ * 缓存键：历史序列 =「实体ID:小时数」（按插入顺序淘汰到 MAX_HISTORY_SERIES_CACHE_SIZE 条）；
+ * 静态图 = 完整图片地址（setSources 整体替换，切页回收旧位图）；特效图 = 图片地址，状态记在
+ * img 元素 dataset 上、元素移除即失效；扫地机地图 = 去掉 ?query 的地址（版本 token 变化仍视为同一张图）。
  */
 export const MAX_HISTORY_SERIES_CACHE_SIZE = 512;
 // 历史数据的请求超时：超过 12 秒即视为失败，调用方按空序列处理，而不是一直挂着。
@@ -63,12 +51,8 @@ export class HistoryRefreshCoordinator {
     this.pendingRun = null;
   }
   /**
-   * 执行 run，必要时排队等当前请求结束。
-   *
-   * 排队规则：
-   * - 本次 key 与正在执行的相同 → 丢弃待执行项，用户要的就是这份数据；
-   * - 与已排队的 key 不同 → 覆盖待执行项，只保留最新的；
-   * - 与已排队的 key 相同 → 保持原样，避免重复入队。
+   * 执行 run，必要时排队等当前请求结束：同 key 丢弃待执行项，不同 key 覆盖、只保留最新的，
+   * 同 key 保持原样避免重复入队。
    */
   request(requestKey, run) {
     if (this.running) {
@@ -418,11 +402,8 @@ export class RuntimeStaticImageCache {
   }
 }
 /**
- * 特效图片加载器。
- *
- * 与 RuntimeStaticImageCache 的差别：这里的图片元素是画布上真实存在且要参与渲染的 <img>，
- * 加载状态直接记在元素的 dataset 上（effectPendingSource / effectLoadingSource /
- * effectLoadedSource），组件被重建后也能看出这张图是否已加载过，不需要额外的副作用表。
+ * 特效图片加载器：图片元素是画布上真实存在且要参与渲染的 <img>，加载状态记在 dataset 上
+ * （effectPendingSource / effectLoadingSource / effectLoadedSource），元素重建后也知道是否加载过；
  * 已离开文档（isConnected 为 false）的元素会被剪枝，避免为离屏特效浪费带宽。
  */
 export class RuntimeEffectImageLoader {
@@ -676,12 +657,9 @@ export class RuntimeEffectImageLoader {
   }
 }
 /**
- * 扫地机地图图片预加载器。
- *
- * 关键点：以「去掉查询串的地址」为键——地图图片带版本 token，token 变了地址就变，
- * 但同一张图只应保留最新的一份，旧 token 的记录会被清掉，缓存不会无限增长。
- * 已加载、已排队、正在加载的地址会被直接跳过；失败的地址记录时间戳，
- * retryDelay 内不再重试，避免地图服务异常时打成请求风暴。
+ * 扫地机地图图片预加载器：以「去掉查询串的地址」为键，地图图片带版本 token，同一张图只保留
+ * 最新一份，旧 token 记录会清掉，缓存不会无限增长。
+ * 已加载、已排队、正在加载的地址直接跳过；失败地址记录时间戳，retryDelay 内不再重试，避免请求风暴。
  */
 export class RuntimeVacuumMapImagePreloader {
   /**

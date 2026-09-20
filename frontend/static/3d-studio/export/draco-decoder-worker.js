@@ -1,15 +1,11 @@
 /**
- * Draco 解码 Worker 脚本（同源部署版）。
+ * Draco 解码 Worker 脚本（同源部署版）：studio-app.js 经 draco-loader.js 的 SameOriginDRACOLoader
+ * 启动本 Worker，在后台线程把 .drc 压缩几何解成 three.js 属性数组，避免主线程卡顿。
  *
- * 位置：3D 工作室加载外部模型时，studio-app.js 经由 draco-loader.js 里的
- *   SameOriginDRACOLoader 启动本 Worker，在后台线程把 .drc 压缩几何解成
- *   three.js 需要的属性数组，避免主线程卡顿。
- * 对外：本文件没有模块导出，只通过 self.onmessage 与主线程通信。
- * 协议：初始化 {type: "init", decoderPath, decoderConfig}；
- *   解码请求 {type: "decode", id, buffer, taskConfig}；
- *   成功回包 {type: "decode", id, geometry}，失败回包 {type: "error", id, error}。
- * 约定：类型名、错误文案、以及 taskConfig 里的 attributeIDs / useUniqueIDs /
- *   vertexColorSpace 字段名都沿用 three.js DRACOLoader 的既有约定，方便对照上游实现。
+ * 协议：初始化 {type: "init", decoderPath, decoderConfig}；解码请求 {type: "decode", id, buffer,
+ * taskConfig}；成功回包 {type: "decode", id, geometry}，失败回包 {type: "error", id, error}。
+ * 约定：类型名、错误文案与 taskConfig 里的 attributeIDs / useUniqueIDs / vertexColorSpace 字段名
+ * 都沿用 three.js DRACOLoader 的既有约定，方便对照上游实现。本文件无模块导出，只通过 self.onmessage 通信。
  */
 "use strict";
 // 经典 Worker 没有模块作用域：靠这条指令把「给未声明变量赋值」从静默变成报错。

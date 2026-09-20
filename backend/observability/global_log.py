@@ -23,11 +23,9 @@ from uuid import uuid4
 from ..core.time_utils import ensure_aware
 
 # 请求级上下文：由中间件写入 requestId / method / path 等，深层代码 append 时不必透传。
-#
-# 默认值必须是 None 而不是 {}（B44）：ContextVar 的默认值是**同一个对象**，任何一处
-# 「拿到就原地改」都会改掉所有未 set 过的上下文（其他任务、后台线程）看到的那份，
-# 表现为字段串到无关日志上且不报错。返回 None 后这种写法立刻抛 TypeError（位置准）。
-# 读处统一 ``or {}``。
+# 默认值必须是 None 而不是 {}：ContextVar 的默认值是**同一个对象**，任何一处「拿到就
+# 原地改」都会改掉所有未 set 过的上下文（其他任务、后台线程）看到的那份，且不报错；
+# 返回 None 后这种写法立刻抛 TypeError（位置准）。读处统一 ``or {}``。
 event_context: ContextVar[dict[str, Any] | None] = ContextVar("global_log_context", default=None)
 
 # 去重签名要剔除的「每次不同」字段：requestId / durationMs 逐请求变化，留着会让同一处
@@ -133,19 +131,12 @@ def safe_context(value: dict[str, Any] | None) -> dict[str, Any]:
 class RepeatedErrorTally:
     """把「同形态的 4xx」合并成计数，只在窗口边界各写一条。
 
-    审计 B62：原先每个 ``>= 400`` 的 ``/api/`` 响应都写一条日志、说明里带完整请求路径，而
-    4xx 的两大来源（目录扫描、接口探测）路径都由外部随手编 —— 「一次请求一行」把扫描量直接
-    放大成磁盘写入量，日志文件 5 MB 上限被占满，真正的业务错误反被裁剪掉。
-
-    合并按「形态」而非原路径：``/api/v1/hls/abc123`` 与 ``/api/v1/hls/def456`` 归成一个键，
-    才不会被「每次编新 id」绕开。键上限 64 —— 键本身也是外部可控输入，不封顶就是另一条内存
-    放大路径；键满后统一进「其他形态」。
-
-    窗口内首次出现立刻写一条（运维要马上看见），之后只累加，窗口滚动时补写最终次数。
-    窗口 300 秒，最坏写入量是「64 个形态 + 1 条其他」/ 5 分钟，与请求量无关。
-
-    刻意不识别已登录请求：中间件跑在路由之前拿不到身份，靠 Cookie 判断等于让外部自己声明。
-    代价是业务侧 4xx 也只剩计数与形态，需要逐请求排查时请调低中间件日志级别。
+    若每个 >= 400 的 /api/ 响应都写一条日志、说明里带完整请求路径，则 4xx 的两大来源
+    （目录扫描、接口探测）路径都由外部随手编 —— 一次请求一行会把扫描量直接放大成磁盘写入量。
+    键上限 64：键本身也是外部可控输入，不封顶就是另一条内存放大路径；键满后统一进「其他形态」。
+    合并按「形态」而非原路径（``/api/v1/hls/abc123`` 与 ``def456`` 归成一个键），才不会被
+    「每次编新 id」绕开。窗口内首次出现立刻写一条，之后只累加，窗口滚动时补写最终次数。
+    刻意不识别已登录请求：中间件跑在路由之前拿不到身份，代价是业务侧 4xx 也只剩计数与形态。
     """
 
     #: 同一形态多久滚动一次窗口（秒）。
@@ -184,8 +175,7 @@ class RepeatedErrorTally:
         now = self.clock()
         with self._lock:
             if key not in self._entries and len(self._entries) >= self.MAX_KEYS:
-                # 形态表已满：新形态一律并进「其他形态」，标签随之泛化，免得把「其他」的累计次数记到
-                # 某个具体路径名下。
+                # 形态表已满：新形态一律并进「其他形态」，标签泛化，免得把累计次数记到某个具体路径名下。
                 key = ("*", 0, "*")
                 label = "其他形态的请求"
             entry = self._entries.get(key)
@@ -250,8 +240,8 @@ class GlobalLogStore:
         self._last_warning_at = None
         self._tail_checked = False
         # 文件解析结果的缓存：(mtime_ns, size, 重写代数) → 事件列表（最旧在前）。日志接口一次
-        # 请求要「筛选后的 + 未筛选的」两份列表，不缓存会把同一个文件整份解析两三遍（B13）。
-        # 重写代数由 _write_events 递增，因此 mtime 精度只到秒级的文件系统也不会读到过期内容。
+        # 请求要「筛选后的 + 未筛选的」两份列表；重写代数由 _write_events 递增，避免 mtime
+        # 只到秒级时读到过期内容。
         self._file_cache: tuple[tuple[int, int, int], list[dict[str, Any]]] | None = None
         self._file_revision = 0
         try:
@@ -300,7 +290,7 @@ class GlobalLogStore:
         """折叠窗口结束时收尾：把需要落盘的最终计数补写一次。调用方必须已持锁。
 
         折叠期间同一签名不再逐条落盘，文件里那条的 repeatCount 会偏小；窗口一结束就把最终
-        快照推回待写队列，读接口按 id 去重后拿到的就是准确计数。只补写过「被折叠过」的事件。
+        快照推回待写队列，读接口按 id 去重后拿到的就是准确计数。
         """
         cutoff = _utc_now() - timedelta(seconds=self.FOLD_WINDOW_SECONDS)
         expired = [
@@ -313,17 +303,16 @@ class GlobalLogStore:
             if event.get("repeatCount", 1) <= 1:
                 continue
             # 走统一的入队口：这一条常常与队列里那条同 id（同一签名的首个快照），原地替换才不会
-            # 在队列满时挤掉另一条真实事件（B45）。
+            # 在队列满时挤掉另一条真实事件。
             self._queue_event_locked(event)
             self._last_queued_at[event["id"]] = _utc_now()
 
     def _queue_event_locked(self, event: dict[str, Any]) -> None:
         """把一条事件放进待写队列；同 id 已在队列里就**原地替换**。调用方必须已持锁。
 
-        不能一律 append（B45）：折叠快照与队列里那条是**同一个 id**，追加只会让队列多一份同 id
-        的旧快照。刷盘按 id 去重取最新，多出来的那份不会写进文件，却会占掉一格 —— 队列已满时它
-        把最旧的一条**别的**事件挤掉（永久丢失，而且 `_dropped_events` 还把它记成「本条被丢」，
-        与事实相反）。替换则既不丢别人，磁盘上的 repeatCount 也是最终值。
+        不能一律 append：折叠快照与队列里那条是同一个 id，追加只会让队列多一份同 id 的旧快照。
+        多出来的那份不会写进文件，却会占掉一格 —— 队列已满时把最旧的**别的**事件挤掉（永久丢失）。
+        替换则既不丢别人，磁盘上的 repeatCount 也是最终值。
         """
         for index, pending in enumerate(self._pending):
             if pending.get("id") == event.get("id"):
@@ -356,8 +345,7 @@ class GlobalLogStore:
         单次 open + 顺序写入，不 seek、不重写：追加成本与文件大小无关。
         """
         if self._pending:
-            # 同一 id 在一次刷盘里只写一条（取最新快照）：折叠期间 id 不变，队列里会堆着同一条
-            # 事件的多个版本，逐条写等于按请求量放大文件行数。
+            # 同一 id 只写最新快照：折叠期间队列里会堆着同一条的多个版本，逐条写等于按请求量放大行数。
             batch = {}
             for pending in self._pending:
                 batch[pending["id"]] = pending
@@ -463,8 +451,7 @@ class GlobalLogStore:
         """写入一条事件，返回实际落库的事件字典。
 
         级别非 info/error/success/warning 时归一为 info；context 与请求级 event_context 合并后
-        过滤遮盖；details 截断到 8000 字符。若与 5 秒内的同签名事件重复，返回被折叠后的那条
-        （沿用原 id 与首次时间戳）。
+        过滤遮盖；details 截断到 8000 字符。与 5 秒内同签名事件重复时返回被折叠后的那条。
         """
         normalized_level = (
             level if level in frozenset({"info", "error", "success", "warning"}) else "info"
@@ -493,9 +480,8 @@ class GlobalLogStore:
                 pass
 
         with self._lock:
-            # 去重签名只取会影响可读性的字段，不含 id 与时间戳，这样同一处反复报错才会被识别成
-            # 「重复」。requestId / durationMs 逐请求变化必须剔除，否则刷屏时每条都算「不重复」，
-            # 折叠失效 → 日志写入量被请求量直接放大。
+            # 去重签名只取影响可读性的字段，不含 id 与时间戳；requestId / durationMs 逐请求变化，
+            # 必须剔除，否则刷屏时每条都算「不重复」，折叠失效 → 写入量被请求量直接放大。
             signature = json.dumps(
                 [
                     normalized_level,
@@ -514,9 +500,8 @@ class GlobalLogStore:
             )
             now = _utc_now()
             recent = self._recent_events.get(signature)
-            # FOLD_WINDOW_SECONDS 窗口内同签名事件折叠：保留首次的 id 与时间戳，叠加计数并记录最后
-            # 一次发生时间，前端据此显示「重复 N 次」。窗口随每次命中向后滑动：只要还在持续刷屏，
-            # 就始终是同一 id。
+            # FOLD_WINDOW_SECONDS 窗口内同签名折叠：保留首次的 id 与时间戳，叠加计数并记录最后
+            # 一次发生时间，前端据此显示「重复 N 次」；窗口随每次命中向后滑动。
             if recent and (now - recent[0]).total_seconds() < self.FOLD_WINDOW_SECONDS:
                 event["id"] = recent[1]["id"]
                 event["timestamp"] = recent[1]["timestamp"]
@@ -528,14 +513,12 @@ class GlobalLogStore:
                         "clientTimestamp", event["clientTimestamp"]
                     )
             self._recent_events[signature] = (now, event.copy())
-            # 兜底清理：正常情况下超窗的签名由写线程收尾（_expire_recent_locked），但海量不同签名
-            # 涌进来时表不会自己缩小，因此超过上限就按最旧淘汰。
+            # 兜底清理：正常情况下由写线程收尾（_expire_recent_locked），但海量不同签名涌入时表不会自己缩小。
             while len(self._recent_events) > self.MAX_TRACKED_SIGNATURES:
                 self._recent_events.pop(next(iter(self._recent_events)))
-            # 折叠命中时不必每条都落盘：同一 id 在 FOLD_WRITE_INTERVAL_SECONDS 内最多写一行，否则
-            # 文件行数会被请求量直接放大（JSONL 是 append-only，行数就是磁盘占用与后续裁剪的成本）。
-            # 代价是窗口内那行的 repeatCount 会小于内存里的最终值 —— 窗口结束时写线程补写最终快照，
-            # 读接口按 id 去重后看到的仍是准确计数。
+            # 折叠命中时同一 id 在 FOLD_WRITE_INTERVAL_SECONDS 内最多写一行，否则文件行数
+            # （JSONL 的 append-only 成本）会被请求量放大；窗口内那行 repeatCount 偏小，
+            # 由写线程补写最终快照，读接口按 id 去重后仍是准确计数。
             queued_at = self._last_queued_at.get(event["id"])
             if (
                 event["repeatCount"] <= 1
@@ -564,8 +547,8 @@ class GlobalLogStore:
         """按级别 / 分类 / 关键词筛选事件，按时间倒序返回。
 
         search 在来源、分类、说明、上下文与细节中做大小写不敏感的子串搜索；limit 为 None 时
-        最多 2000 条、下限 1；offset 在筛选之后应用。events 可复用 :meth:`events_snapshot` 的结果 ——
-        日志列表接口要同时给出「筛选后的」与「未筛选的（分类清单）」，不传就是两次全量解析（B13）。
+        最多 2000 条、下限 1；offset 在筛选之后应用。events 可复用 events_snapshot 的结果，
+        不传就是两次全量解析。
         """
         search_key = _safe_text(search, limit=128).casefold() if search else ""
         if events is None:
@@ -619,8 +602,7 @@ class GlobalLogStore:
     def events_snapshot(self) -> list[dict[str, Any]]:
         """一次读出全部事件（含内存里尚未落盘的），按写入顺序（最旧在前）。
 
-        给「一次请求要看好几遍日志」的接口用（见 :meth:`list_events` 的 events 参数）：
-        调用方拿这一份快照自己筛选，文件只解析一次。
+        给「一次请求要看好几遍日志」的接口用（见 :meth:`list_events` 的 events 参数）。
         """
         with self._lock:
             return self._read_events()
@@ -674,8 +656,7 @@ class GlobalLogStore:
     def _read_events(self, *, strict: bool = False) -> list[dict[str, Any]]:
         """读取全部事件，按 id 去重后返回。
 
-        strict 语义同 :meth:`_read_events`。同一 id 以最后收集到的那条为准 —— 顺序是
-        「文件 → 待写队列 → 折叠表」，越靠后的越新。
+        同一 id 以最后收集到的那条为准 —— 顺序是「文件 → 待写队列 → 折叠表」，越靠后的越新。
         """
         events = {}
 
@@ -686,16 +667,14 @@ class GlobalLogStore:
             ):
                 return
             event_id = str(event.get("id") or uuid4())
-            # 先删再插：dict 保序，这样被更新的同 id 事件会移到末尾，结果顺序天然与「最后一次
-            # 写入」一致。
+            # 先删再插：dict 保序，被更新的同 id 事件移到末尾，顺序天然与「最后一次写入」一致。
             events.pop(event_id, None)
             events[event_id] = event
 
         for event in self._file_events(strict=strict):
             collect(event)
 
-        # 磁盘上还没有的事件必须算进来：否则磁盘不可用期间，前端刷新日志会完全看不到刚刚
-        # 发生的问题。
+        # 磁盘上还没有的事件必须算进来：否则磁盘不可用期间，前端刷新日志看不到刚发生的问题。
         for event in self._pending:
             collect(event)
         # 折叠表里的是最新快照（repeatCount 比已落盘那行更大，但按行数节流的原因还没写盘），
@@ -707,8 +686,8 @@ class GlobalLogStore:
     def _write_events(self, events: list[dict[str, Any]]) -> None:
         """全量重写日志文件（临时文件 + fsync + rename，保证原子性）。
 
-        只用于 clear 与裁剪；追加写入走后台写线程的 _flush_locked 快路径。调用方必须持有 _lock：
-        临时文件名是固定的，两个重写叠在一起会互相把对方的临时文件 rename 走（ENOENT + 丢事件）。
+        只用于 clear 与裁剪；追加写入走后台写线程的 _flush_locked 快路径。调用方必须持有
+        _lock：临时文件名固定，两个重写叠在一起会互相把对方的临时文件 rename 走。
         """
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         temporary = self.path.with_suffix(".tmp")
@@ -730,15 +709,9 @@ class GlobalLogStore:
     def _prune_if_needed(self) -> None:
         """按保留天数与文件上限裁剪日志（只应由后台写线程调用）。
 
-        裁剪是一次「读全量 + 全量重写 + fsync」，必须带最小间隔：文件超限时最密
-        PRUNE_MIN_INTERVAL_SECONDS 一次，未超限时 PRUNE_INTERVAL_SECONDS 一次。绝不在每次写入
-        时触发 —— 那等于让请求量直接放大成磁盘读写量。两次裁剪之间文件可能略高于 max_bytes，
-        这是刻意的取舍。裁剪从最新往旧保留，累计字节超限即停止。
-
-        日志文件还不存在时（进程起来后一条都没写过）不是故障，必须自己吞掉 FileNotFoundError：
-        `_read_events(strict=True)` 会把它抛出来，而调用链上游是写线程的兜底 except，那会把
-        「空日志」记成一次存储故障（healthy 变 false、stderr 每 30 秒告警一次），直到第一条事件
-        落盘。顺手记下这次时间，免得每次唤醒（0.5 秒）都去读一个不存在的文件。
+        裁剪是「读全量 + 全量重写 + fsync」，必须带最小间隔（超限时最密 PRUNE_MIN_INTERVAL_SECONDS，
+        未超限时 PRUNE_INTERVAL_SECONDS），绝不在每次写入时触发，否则请求量会直接放大成磁盘读写量。
+        文件还不存在时（一条都没写过）不是故障：吞掉 FileNotFoundError，否则会被上游记成存储故障。
         """
         now = _utc_now()
         # 首次（_last_pruned_at 为 None）允许立刻裁一次，清掉超过保留期的旧数据。

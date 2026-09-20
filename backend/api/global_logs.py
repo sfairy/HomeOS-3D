@@ -1,10 +1,9 @@
 """全局日志接口：查询、导出、清空，以及前端与未登录页面的日志上报。
 
-日志本体存在 app.state.global_log 里（带落盘的环形缓冲），本模块只负责门禁、
-分页与导出格式。两条上报通道的信任级别不同：
-- /logs/events 走 CurrentViewer，必须是管理员或已配对的中控设备；
-- /logs/public-events 允许未登录页面（登录页、配对页等）上报，因此额外做同源校验、
-  只放行 warning / error，并单独走一套更严格的限流阈值。
+日志本体存在 app.state.global_log 里（带落盘的环形缓冲），本模块只负责门禁、分页与导出
+格式。两条上报通道信任级别不同：/logs/events 走 CurrentViewer，必须是管理员或已配对的中控
+设备；/logs/public-events 允许未登录页面上报，因此额外做同源校验、只放行 warning / error，
+并单独走一套更严格的限流阈值。
 """
 from __future__ import annotations
 
@@ -45,8 +44,7 @@ class ClientLogEvent(BaseModel):
     clientTimestamp: datetime | None = None
 
 
-# 允许客户端自带的上下文字段白名单：只有这些键会被写进日志，其余一律丢弃。
-# 这是防敏感信息外泄的第一道闸，字段名与前端日志上报约定一致。
+# 客户端可自带的上下文字段白名单，其余一律丢弃；这是防敏感信息外泄的第一道闸。
 CLIENT_CONTEXT_KEYS = {
     'code',
     'line',
@@ -76,8 +74,7 @@ PUBLIC_PAGES = {
     '/3d-studio',
 }
 
-#: 公开通道（无需登录）的事件在落库前统一加这个来源标记（B62）：这条文本来自
-#: 外部上报，没有身份背书，必须与系统自身记录一眼可分。
+#: 公开通道的事件在落库前统一加这个来源标记：文本来自外部上报，必须与系统自身记录一眼可分。
 PUBLIC_EVENT_MARKER = '[公开上报] '
 #: 公开通道的长度上限：比已认证通道紧得多。正文短到「够定位异常」即可，
 #: 细节留给已认证通道 —— 审计日志的存储不该由未登录页面决定。
@@ -91,9 +88,8 @@ ANONYMOUS_CLIENT_LOG_PER_MINUTE = 10
 class ClientLogLimiter:
     """客户端日志上报的双层限流器。
 
-    目标是「限制匿名上报」又不让每个任意 IP 都在内存里留下常驻记录：
-    每个 peer 只保留一个 60 秒滑动窗口，客户端条目数封顶并按 LRU 淘汰，
-    另外再加一个全局窗口兜住「不停换 IP 刷日志」的情况。
+    目标是「限制匿名上报」又不让每个任意 IP 都在内存里留下常驻记录：每个 peer 只保留一个
+    60 秒滑动窗口，客户端条目数封顶并按 LRU 淘汰，另加一个全局窗口兜住「不停换 IP 刷日志」。
     """
 
     def __init__(self) -> None:
@@ -105,8 +101,7 @@ class ClientLogLimiter:
         self._all = deque()
 
     def allow(self, peer: str, *, anonymous: bool) -> bool:
-        """判断本次上报是否放行；匿名通道阈值更低。
-        """
+        """判断本次上报是否放行；匿名通道阈值更低。"""
         now = time.monotonic()
         with self._lock:
             # 取不到就建空窗口；重新插回队尾，使 OrderedDict 的顺序即最近使用顺序。
@@ -143,8 +138,7 @@ def _limit_client_log(request: Request, *, anonymous: bool) -> None:
         if not hasattr(store, 'client_limiter'):
             store.client_limiter = ClientLogLimiter()
         limiter = store.client_limiter
-    # 取不到地址时全部归到同一个桶，避免未知来源绕过限流。
-    # 走统一解析：配了可信代理就按真实客户端计数，否则用 TCP 对端地址。
+    # 取不到地址时归到同一个桶；走统一解析：配了可信代理按真实客户端计数，否则用 TCP 对端地址。
     address = resolve_client_ip(request)
     peer = address.ip or 'unknown'
     if not limiter.allow(peer, anonymous=anonymous):
@@ -155,12 +149,9 @@ def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None,
     """把一条客户端事件整理成日志条目写入全局日志。
 
     身份三选一决定 source 与 actor：管理员沿用上报自带的 source、中控设备标注设备与项目、
-    未登录页面统一记为「未登录页面 / 未登录」。上下文先按白名单过滤键，再交给 safe_context 遮盖
-    敏感值。
-
-    ``public=True`` 表示这条走的是「无需登录」的公开通道（B62）：内容没有任何身份背书，因此统一
-    加来源标记并收窄长度上限 —— 未登录页面能写进后台审计日志的文本，必须一眼能认出「这是外部
-    上报的」，而不是混在系统自身的记录里。
+    未登录页面统一记为「未登录页面 / 未登录」。上下文先按白名单过滤键，再交给 safe_context 遮盖。
+    ``public=True`` 表示走「无需登录」的公开通道：内容没有身份背书，因此统一加来源标记并
+    收窄长度上限，让外部上报的文本一眼可与系统自身的记录分开。
     """
     message = payload.message
     details = payload.details
@@ -213,12 +204,10 @@ def export_global_logs(
 ) -> PlainTextResponse:
     """把全局日志导出成纯文本附件（需已登录）。
 
-    查询参数: level / category / search，语义与列表接口一致。
-    返回 text/plain 附件，每行一条记录，字段用 ' | ' 拼接；除消息本体外还带上
-    重复次数、最近发生时间与客户端时间，方便排查前端偶发问题。
+    查询参数: level / category / search，语义与列表接口一致。每行一条记录，字段用 ' | ' 拼接；
+    除消息本体外还带上重复次数、最近发生时间与客户端时间，方便排查前端偶发问题。
     """
-    # list_events 是「最新在前」，这里再倒序一次，让导出的文件按时间正序排列，
-    # 用文本工具打开时更接近一条时间线。
+    # list_events 是最新在前，这里再倒序，让导出文件按时间正序排列，更像一条时间线。
     items = list(reversed(request.app.state.global_log.list_events(limit=None, level=level, category=category, search=search)))
     # 级别转中文标签；未知级别回落到「信息」，与前端筛选下拉的用词一致。
     level_labels = {'info': '信息', 'success': '成功', 'warning': '警告', 'error': '错误'}
@@ -255,16 +244,11 @@ def list_global_logs(
 ) -> dict:
     """分页查询全局日志（需已登录）。
 
-    查询参数: level / category / search 过滤，limit（默认 500，上限 2000）与
-    offset（上限 100 万）分页。
-    返回 items（当前页）、total（过滤后的总条数）、categories（全量分类清单）、
-    hasMore / nextOffset（给前端「加载更多」用的游标）以及 retentionDays 与
-    storage（日志文件占用与健康状态）。
+    查询参数: level / category / search 过滤，limit（默认 500，上限 2000）与 offset 分页。
+    返回 items、total、categories、hasMore / nextOffset 以及 retentionDays 与 storage。
     """
-    # 先取出过滤后的全量再在内存里切片：日志本就在内存中，这样 total、hasMore
-    # 与当前页结果天然同源，不会出现「总数比翻得到的条数多」的错位。
-    # 三处都复用同一份快照（B13）：过去这里是三次 list_events，同一个日志文件
-    # 会被整份解析三遍；文件解析结果另有 mtime/size 缓存，重复请求不再重解析。
+    # 先取过滤后的全量再在内存里切片：日志本就在内存中，这样 total、hasMore 与当前页结果
+    # 天然同源。三处复用同一份快照（过去这里是三次 list_events，同一文件被解析三遍）。
     store = request.app.state.global_log
     snapshot = store.events_snapshot()
     matching = store.list_events(level=level, category=category, search=search, limit=None, events=snapshot)
@@ -306,10 +290,8 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
     门禁顺序：同源校验 → 匿名限流 → 只收 warning / error → 页面路径必须在 PUBLIC_PAGES 或其
     子路径内 → 尝试解析身份（解析不到就按匿名记录，未登录页面上报本来就是这个接口的常态）。
 
-    **限流必须排在两个「直接 204 丢掉」的过滤之前（B19）**：过滤不是免费的，它是外部可控输入上的
-    一道判断，而过滤之后的 204 意味着这条请求不消耗任何配额 —— 只要把 level 填成 info（或把 page
-    填成任意不在白名单里的值），同一个来源就能无限次地调这个接口，限流器连一次都不会看到。
-    先限流后过滤，配额数的是「调了几次」，与这条最终写不写日志无关。
+    **限流必须排在两个「直接 204 丢掉」的过滤之前**：过滤是免费对外的一道判断，过滤之后的 204
+    不消耗任何配额 —— 只要把 level 填成 info，同一个来源就能无限次地调这个接口。
     """
     # Origin 必须与 Host 完全一致，避免被跨站页面当成日志注入通道。
     # 这条放在限流之前：它是纯判断、不改任何状态，垃圾请求在这里就结束，不必占配额。
@@ -317,9 +299,8 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
     if origin.scheme not in frozenset({'http', 'https'}) or origin.netloc.casefold() != request.headers.get('host', '').casefold():
         raise HTTPException(status_code=403, detail='日志只允许同源页面上报。')
     _limit_client_log(request, anonymous=True)
-    # 未登录页面只允许上报异常：正常信息没有上报价值，也堵住刷日志的水位。
-    # 直接 204 丢掉，而不是 422：日志通道是 fire-and-forget，打回 422 只会让
-    # 浏览器控制台刷红，对运营与排障都没有帮助（旧版客户端偶发会误投 info）。
+    # 未登录页面只允许上报异常：正常信息没有上报价值，也堵住刷日志的水位。直接 204 丢掉
+    # 而不是 422：日志通道是 fire-and-forget，打回 422 只会让浏览器控制台刷红。
     if payload.level not in frozenset({'error', 'warning'}):
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     # 先剥掉查询串与哈希、再去尾部斜杠，防止用 ?x 之类的小把戏绕过页面白名单。
@@ -333,7 +314,7 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
         if error.status_code != 401:
             raise
         viewer = None
-    # public=True：这条来自「无需登录」的通道，落库前加来源标记并收窄长度（B62）。
+    # public=True：这条来自「无需登录」的通道，落库前加来源标记并收窄长度。
     _append_client_event(payload, request, viewer, public=True)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

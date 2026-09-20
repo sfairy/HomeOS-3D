@@ -1,21 +1,17 @@
 /*
  * 3D 舞台（iframe 内）的样式表。
  *
- * 位置：interaction3d 的展示侧。stage.js 建出的 DOM —— 演示层、标记层、
- * 工具栏与模块 / 楼层页签、灯光面板、电视 / 扫地机 / 安防状态卡、聚焦暗角、
- * 以及内嵌的平面照射范围编辑器 —— 全部靠这里的类名定位。
- * 舞台页只在加载时引入本文件（外加 controls.css 与几个面板的局部样式）。
+ * 位置：interaction3d 的展示侧，stage.js 建出的演示层、标记层、工具栏与页签、灯光面板、
+ * 设备状态卡、聚焦暗角与照射范围编辑器的类名都靠这里定位；仅舞台页加载时引入。
  *
- * 约定：
- *   - 标记与浮层用绝对定位叠在 canvas 上，坐标由 stage.js 每帧投影后写成
- *     style.left / top，因此这里不要给它们加会改变盒模型的 margin；
- *   - 状态一律用类名或 [hidden] 表达，JS 只负责切类名；
- *   - 每段动画都配一份 prefers-reduced-motion 兜底，尊重系统的「减少动态效果」。
+ * 约定：标记与浮层绝对定位叠在 canvas 上，坐标由 stage.js 每帧投影写成 style.left / top，
+ * 不要给它们加会改变盒模型的 margin；状态一律用类名或 [hidden] 表达，JS 只切类名；
+ * 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=20260920104554";
-@import "../nas/nas-panel.css?v=20260920104554";
-@import "../climate/climate-panel.css?v=20260920104554";
-@import "../cover/cover-panel.css?v=20260920104554";
+@import "/static/bridge/controls.css?v=20260920131301";
+@import "../nas/nas-panel.css?v=20260920131301";
+@import "../climate/climate-panel.css?v=20260920131301";
+@import "../cover/cover-panel.css?v=20260920131301";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
@@ -2175,13 +2171,7 @@ body.interaction3d-stage.is-background-hidden,
   box-shadow: inset 0 0 0 1px #f2a20d7a;
 }
 /* ===== 暖阳原木主题覆盖（sceneStyle = warm-wood） =====
- *
- * 场景侧把材质风格写进 data-scene-style（舞台页写在 iframe 的 body 上，
- * 运行时的宿主节点写在 runtime.js 里），这里整段只做一件事：把默认的冷灰
- * 面板换成暖米色系。规则分两类 ——
- *   - 页签 / 工具栏 / 标记等浮在画布上的控件：换成半透明暖米底 + 暖褐色文字；
- *   - 面板内的滑块、按钮、状态字：统一压成深褐、强调色改用暖陶土 / 木色。
- * 每条规则的取值都与 0.5.6 的暖色色卡逐字一致，不参与主题的类名一概不写。
+ * 整段只把冷灰面板换成暖米色系：浮层用半透明暖米底 + 暖褐文字，面板内压成深褐 / 暖陶土。
  */
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-floor-tabs,
 .interaction3d-stage[data-scene-style="warm-wood"] .i3d-navigation .i3d-module-tabs {

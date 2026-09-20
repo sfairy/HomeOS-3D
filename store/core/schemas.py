@@ -36,9 +36,8 @@ class ChangeEmailRequest(_Camel):
 class ChangePasswordRequest(_Camel):
     """已登录账号修改密码。
 
-    必须凭当前登录密码确认身份（这是挡住「会话被劫持」的最后一道锁 ——
-    任何拿到一次会话的人，改密时都会被旧密码挡住）。改密后其它设备上的会话
-    全部踢下线，只保留当前这一个。
+    必须凭当前登录密码确认身份（挡住会话被劫持的最后一道锁）；改密后其它设备上的
+    会话全部踢下线，只保留当前这一个。
     """
 
     old_password: str = Field(min_length=1, max_length=128, alias="oldPassword")
@@ -79,10 +78,8 @@ class LabelRequest(_Camel):
 
 class ReleaseDeviceRequest(_Camel):
     password: str = Field(min_length=1, max_length=128)
-    #: 乐观锁字段：前端在打开「解除绑定」弹窗时记下当时看到的绑定快照，
-    #: 提交时回传。用户在弹窗里输入的这段时间，授权可能已经在别的标签页
-    #: 重新绑定了新设备 —— 此时按旧快照解绑会踢掉一台它没看到的设备。
-    #: 这三个字段此前被 schema 直接丢弃（前端一直在发），校验形同不存在。
+    #: 乐观锁：前端打开「解除绑定」弹窗时记下当时的绑定快照，提交时回传；期间授权可能
+    #: 已在别的标签页重绑。这些字段必须显式声明，schema 不认就会丢弃、校验形同不存在。
     expected_binding_id: str | None = Field(default=None, alias="expectedBindingId", max_length=64)
     expected_activated_at: datetime | None = Field(default=None, alias="expectedActivatedAt")
     expected_binding_version: str | None = Field(
@@ -122,10 +119,8 @@ class WithdrawalRequest(_Camel):
 class _AdminBase(BaseModel):
     """后台请求体基类：**未知字段直接报 422**。
 
-    商店侧 ``_Camel`` 用 ``extra="ignore"`` 是为了容忍客户端多传字段；但后台
-    是我们自己的界面，把「字段名写错 / 后端漏映射」静默丢弃的代价是运营以为
-    改动生效了——接口返回 200，库里却一点没变（改折扣率、改 logo 都踩过）。
-    这里收紧成显式报错，让漏映射当场暴露。
+    商店侧 ``_Camel`` 用 ``extra="ignore"`` 容忍客户端多传字段；但后台是自己人用的界面，
+    静默丢弃字段的代价是运营以为改动生效了（接口 200、库里没变），所以收紧成显式报错。
     """
 
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
@@ -193,9 +188,8 @@ class AdminCouponRequest(_AdminBase):
 class AdminCouponPatch(_AdminBase):
     """优惠码的部分更新。
 
-    字段必须与 ``AdminCouponRequest`` 对齐：优惠码一旦发出去就很难收回，
-    运营需要能改门槛、折扣、有效期和适用范围，而不是只能启用 / 停用。
-    ``max_redemptions`` 允许下调（改小即收紧名额），但不允许改成 0 或负数。
+    字段与 ``AdminCouponRequest`` 对齐：优惠码发出去就很难收回，运营需要能改门槛、
+    折扣、有效期与适用范围。``max_redemptions`` 允许下调，但不允许改成 0 或负数。
     """
 
     description: str | None = Field(default=None, max_length=255)
@@ -239,9 +233,8 @@ class AdminSettingsRequest(_AdminBase):
         default=None, alias="deviceReleaseCooldownSeconds", ge=0
     )
     # ---- 支付宝凭据（后台可改，免重启） ---------------------------------- #
-    #: 留空 = 清掉站点配置，跟随环境变量；不传 = 保持不变。
-    #: 传回 GET 拿到的打码值（``••••`` 开头）同样视为「保持不变」，
-    #: 否则前端把打码串原样回传就会把真密钥覆盖成 `••••abcd`。
+    #: 留空 = 清掉站点配置、跟随环境变量；不传 = 保持不变。传回 GET 拿到的打码值
+    #: （``••••`` 开头）同样视为「保持不变」，否则会把真密钥覆盖成 `••••abcd`。
     alipay_app_id: str | None = Field(default=None, alias="alipayAppId", max_length=64)
     alipay_seller_id: str | None = Field(default=None, alias="alipaySellerId", max_length=64)
     alipay_app_private_key: str | None = Field(
@@ -284,20 +277,15 @@ class AdminSettingsRequest(_AdminBase):
     expose_verification_code: bool | None = Field(
         default=None, alias="exposeVerificationCode"
     )
-    #: 前端「清除已保存的授权码」勾选框走这个独立字段，避免和「留空不改动」
-    #: 的语义打架（见 ``alipayClearPrivateKey`` 的同款处理）。
+    #: 前端「清除已保存的授权码」勾选框走这个独立字段，避免和「留空不改动」打架。
     smtp_clear_password: bool | None = Field(default=None, alias="smtpClearPassword")
 
 
 class AdminMailTestRequest(_AdminBase):
     """「邮件诊断 / 发送测试邮件」的收件人。
 
-    刻意做成显式传参，而不是「发给当前登录的管理员」：排障时常常要往**客户**
-    那个收不到验证码的邮箱发一封，好判断是「我们发不出去」还是「对方网关拒收」。
-
-    也刻意允许留空：留空表示**只做连接诊断**（域名解析、TCP/TLS、登录握手），
-    不发任何邮件。这一半是可以反复点、不会往别人邮箱塞东西的，而它恰好在
-    「授权码错 / 端口与加密方式不匹配」这类故障上给的信息最具体。
+    刻意显式传参而不是发给当前管理员：排障常要往客户那个收不到验证码的邮箱发一封。
+    留空表示**只做连接诊断**（域名解析、TCP/TLS、登录握手），不发任何邮件。
     """
 
     email: str | None = Field(default=None, min_length=3, max_length=255)
@@ -313,10 +301,8 @@ class AdminLicenseRequest(_AdminBase):
 class AdminLicensePatch(_AdminBase):
     """授权的后台修正。
 
-    这几个字段过去完全没有入口，客服遇到「客户要延期 / 备注写错」只能改库。
-    ``extend_days`` 与 ``access_expires_at`` 互斥：前者在现有到期时间上顺延
-    （永久授权会以当前时刻为起点重新计时），后者直接指定绝对时间。
-    ``access_expires_at`` 显式传 null 表示改为永久有效。
+    ``extend_days`` 与 ``access_expires_at`` 互斥：前者在现有到期时间上顺延（永久授权
+    以当前时刻重新计时），后者直接指定绝对时间；``access_expires_at`` 传 null 表示永久。
     """
 
     user_label: str | None = Field(default=None, alias="userLabel", max_length=64)
@@ -392,24 +378,19 @@ class AdminWithdrawalResolveRequest(_AdminBase):
 
 class AdminOrderActionRequest(_AdminBase):
     note: str = Field(default="", max_length=255)
-    #: 只对退款有意义：显式声明「这笔钱是在线下退的」。
-    #: 后台手动标记支付的订单没有支付渠道交易，走网关必然失败；此时运营可以
-    #: 勾选离线退款，让系统如实记录退款金额与备注，而不是伪造一条渠道退款记录。
+    #: 只对退款有意义：显式声明「这笔钱是在线下退的」。后台手动标记支付的订单没有
+    #: 支付渠道交易，走网关必然失败，此时可勾选离线退款并如实记录金额与备注。
     offline: bool = False
-    #: 只对退款有意义：本次要退多少（分）。留空表示退掉**剩余全部可退金额**
-    #: （与历史上「一退就退全款」的行为一致）。
-    #:
-    #: 允许部分退款后，同一个订单可以被退多次；每次退款都会生成一条独立的
-    #: ``order_refunds`` 流水，并携带唯一的渠道幂等请求号 —— 否则第二次退款
-    #: 会被支付宝按幂等键去重，钱根本退不出去。
+    #: 只对退款有意义：本次退多少（分），留空表示退掉**剩余全部可退金额**。部分退款后
+    #: 同一订单可退多次，每次都生成独立 ``order_refunds`` 流水并带唯一渠道幂等请求号。
     amount_cents: int | None = Field(default=None, alias="amountCents", gt=0)
 
 
 class AdminOrderReviewRequest(_AdminBase):
     """「标记已处理」的复核结论。
 
-    备注可选，但强烈建议填写：``review_note`` 是「这单当时为什么被标出来、
-    为什么放行」的唯一记录，只有时间戳的条目事后等于没有信息。
+    备注可选，但强烈建议填写：``review_note`` 是「这单为什么被标出来、为什么放行」的
+    唯一记录，只有时间戳的条目事后等于没有信息。
     """
 
     note: str = Field(default="", max_length=200)

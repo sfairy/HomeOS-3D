@@ -1,19 +1,15 @@
 /*
- * 3D 交互组件在渲染器与编辑器中的宿主样式。
+ * 3D 交互组件的宿主样式（渲染器 iframe 宿主、授权外观、入场动画、封面与检查器区块）。
  *
- * 位置：渲染器把一个 iframe（.i3d-frame）挂进 .hb-interaction3d-host，本文件负责这块宿主区域
- *   的尺寸、授权状态外观、场景入场动画、封面（未授权遮罩）以及组件检查器里各设置区块的排布。
- *   入口先 @import controls.css —— 开关样式单独成文件，是为了让同一套开关在多个编辑器复用。
  * 约定：
- *   - 授权状态通过宿主元素上的 data-access 属性（locked / pending / allowed）切换外观，
- *     取值与 access-monitor.js 的状态流一一对应；
- *   - iframe 在 .is-ready 出现前保持 opacity: 0，避免白屏闪烁；入场动画见 @keyframes i3d-scene-enter；
- *   - 封面类名 .interaction3d-cover-* 与 cover.js 里创建的元素一一对应，改名会同时失效。
+ *   - 授权状态由宿主元素的 data-access（locked / pending / allowed）切换，取值与 access-monitor.js 对应；
+ *   - iframe 在 .is-ready 前保持 opacity: 0，避免白屏闪烁；
+ *   - 封面类名 .interaction3d-cover-* 与 cover.js 创建的元素一一对应，改名会同时失效。
  */
 
 /* ===== 宿主容器与授权状态 ===== */
 
-@import "/static/bridge/controls.css?v=20260920104554";
+@import "/static/bridge/controls.css?v=20260920131301";
 /* 宿主铺满组件区域并把内容居中；透明背景让组件的背景设置（网格 / 星尘）由内部渲染决定。 */
 .hb-interaction3d-host {
   display: flex;

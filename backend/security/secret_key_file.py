@@ -15,7 +15,7 @@
    地永久空转**，而调用方是 ``asyncio.to_thread``，空转会把线程池占满，表现为「HA 相关接口
    全部卡死」而不是能查到原因的报错。
 3. **重试有上限与退避**：真实竞态只需两三次，但不能让它有机会变成死循环。
-4. **每进程只读一次**（B8）：``load_or_create_secret_key`` 带缓存，第二次起直接回内存里那把钥。
+4. **每进程只读一次**：``load_or_create_secret_key`` 带缓存，第二次起直接回内存里那把钥。
    原先每个加解密都要走「mkdir + chmod + exists + read」四个系统调用，而加解密落在每个带会话
    Cookie 的请求上，于是每个请求都为一把永不改变的本机密钥付一遍磁盘往返。换密钥等于让既存
    密文全部解不开，属于换部署而不是运行期操作。**加载失败不进缓存** —— 文件损坏、目录不可写
@@ -80,7 +80,7 @@ def _read_or_create_secret_key(
     error_factory: Callable[[str], Exception],
     empty_message: str,
 ) -> bytes:
-    """真正去读/创建密钥文件的那一层：每次调用都碰文件系统（B52 的重试都在这里）。"""
+    """真正去读/创建密钥文件的那一层：每次调用都碰文件系统（重试都在这里）。"""
     try:
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     except OSError as error:

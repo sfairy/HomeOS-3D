@@ -1,39 +1,19 @@
 /**
- * 地面反射（Ground Reflection）模块。
- *
- * 位置：3D 工作室内嵌了「预览层场景」（previewOverlayScene），地面网格本身是一个平面，
- *   本模块为每一块地面接收面单独拍一张镜像贴图，再用一个只覆盖那块地面的透明 overlay
- *   网格把它贴回去 —— 不使用 three.js 的 reflector 类，因为需要「逐楼层、逐房间」
- *   独立控制（不同楼层的地面高度不同，用同一张镜像贴图会互相串）。
- * 对外：createGroundReflections，返回 { settings, stats, render, configure,
- *   setVisibleFloor, setOutsideFloor, setSuspended, changed, invalidate, records, dispose }。
- *
- * 渲染流程（每次 render 一次）：
- *   1. rebuildRecords：扫描场景找出地面接收面与用于「室外背景」的面，逐面建记录；
- *   2. 逐记录：把相机对镜面做镜像（updateReflectionCamera），做斜切近平面裁剪，
- *      然后离屏渲染整场景 → 反射贴图；
- *   3. 主渲染时 overlay 网格按「世界坐标 → 反射贴图 UV」的矩阵采样贴图，叠在地面之上。
- *
- * 关键约定：
- *   - 反射渲染会临时改写 renderer / scene 状态（renderTarget、viewport、scissor、
- *     clearColor、background、shadowMap.autoUpdate、matrixWorldAutoUpdate、xr）以及
- *     大量对象的 visible / material / geometry，finally 里必须逐项还原；
- *   - 反射通道与主渲染共用同一个 renderer，因此本模块必须「先于主渲染」执行
- *     （studio-app 里在 renderer.getRenderTarget() 为空时才调 render，正是这个顺序约束）；
- *   - 硬性节流：默认 30fps（settings.fps），相机没动、光照没变时直接跳过整次捕获。
+ * 地面反射（Ground Reflection）模块：为每一块地面接收面单独拍一张镜像贴图，再用一个只覆盖那块地面的透明 overlay 网格把它贴回去。
+ * 位置：3D 工作室内嵌的「预览层场景」（previewOverlayScene），地面网格本身是一个平面。
+ * 为什么不用 three.js 的 reflector 类：需要「逐楼层、逐房间」独立控制 —— 不同楼层的地面高度不同，用同一张镜像贴图会互相串。
+ * 对外：createGroundReflections，返回 { settings, stats, render, configure, setVisibleFloor, setOutsideFloor, setSuspended, changed, invalidate, records, dispose }。
+ * 渲染流程（每次 render 一次）：rebuildRecords 扫描场景找出地面接收面与用于「室外背景」的面并逐面建记录 → 逐记录把相机对镜面做镜像（updateReflectionCamera）、做斜切近平面裁剪，然后离屏渲染整场景得到反射贴图 → 主渲染时 overlay 网格按「世界坐标 → 反射贴图 UV」的矩阵采样贴图，叠在地面之上。
+ * 关键约定：反射渲染会临时改写 renderer / scene 状态（renderTarget、viewport、scissor、clearColor、background、shadowMap.autoUpdate、matrixWorldAutoUpdate、xr）以及大量对象的 visible / material / geometry，finally 里必须逐项还原。
+ * 反射通道与主渲染共用同一个 renderer，因此本模块必须「先于主渲染」执行（studio-app 里在 renderer.getRenderTarget() 为空时才调 render，正是这个顺序约束）；硬性节流默认 30fps（settings.fps），相机没动、光照没变时直接跳过整次捕获。
  */
 
-import { normalizeGroundReflection } from "../../bridge/reflection-settings.js?v=20260920104554";
-import { createReflectionCulling } from "./studio-reflection-culling.js?v=20260920104554";
+import { normalizeGroundReflection } from "../../bridge/reflection-settings.js?v=20260920131301";
+import { createReflectionCulling } from "./studio-reflection-culling.js?v=20260920131301";
 /**
  * 创建地面反射控制器（一个渲染器一份）。
- *
- * @param {function(object): void} options.syncLighting 用给定相机同步区域灯（反射通道
- *   需要按镜像相机重新算一次光照，否则反射里的房间亮度会和主画面不一致）。
- * @param {function(): string} [options.getStateKey] 外部状态签名（文档版本、环境开关等），
- *   变化即视为需要重拍。
- * @param {boolean} [options.floorLighting] 是否按楼层分别烘焙光照（true 时楼层之间的
- *   光照签名分开计算，false 时视为全局一致）。
+ * @param {function(object): void} options.syncLighting 用给定相机同步区域灯 —— 反射通道需要按镜像相机重新算一次光照，否则反射里的房间亮度会和主画面不一致。 @param {function(): string} [options.getStateKey] 外部状态签名（文档版本、环境开关等），变化即视为需要重拍。
+ * @param {boolean} [options.floorLighting] 是否按楼层分别烘焙光照（true 时楼层之间的光照签名分开计算，false 时视为全局一致）。
  */
 export function createGroundReflections({
   THREE: THREE,
@@ -90,12 +70,9 @@ export function createGroundReflections({
   const scratchSignVector = new THREE.Vector4();
   const scratchProjectionMatrix = new THREE.Matrix4();
   /**
-   * 克隆材质，但让所有「渲染目标纹理」 uniform 继续指向原贴图。
-   *
-   * 为什么不能直接 clone：three.js 的 Material.clone 会把 renderTargetTexture 也复制一份
-   * 引用（有些版本甚至复制内容），而反射通道要求克隆材质继续用主通道的那张输出贴图；
-   * 因此先临时把 uniform 置 null 再 clone，clone 完两边都还原。
-   * 这样做也避免了 clone 期间 texture 被标记为「需要上传」而触发额外的 GPU 上传。
+   * 克隆材质，但让所有「渲染目标纹理」uniform 继续指向原贴图。
+   * 为什么不能直接 clone：three.js 的 Material.clone 会把 renderTargetTexture 也复制一份引用（有些版本甚至复制内容），而反射通道要求克隆材质继续用主通道的那张输出贴图；
+   * 因此先临时把 uniform 置 null 再 clone，clone 完两边都还原 —— 这也避免了 clone 期间 texture 被标记为「需要上传」而触发额外的 GPU 上传。
    */
   function cloneMaterialSharingRenderTargets(material) {
     const renderTargetUniforms = [];
@@ -124,12 +101,8 @@ export function createGroundReflections({
     return clonedMaterial;
   }
   /**
-   * 取（必要时创建）某材质的「无折射」版本。
-   *
-   * 触发条件：有 transmission 的玻璃，或带 alphaWallBand 的渐变墙。
-   * 改动：transmission 置 0、forceSinglePass 打开（折射材质默认双面渲染两次，
-   * 在只有一张贴图的反射通道里会互相覆盖），并沿用原材质的 onBeforeCompile 与
-   * programCacheKey（否则区域灯注入的代码会丢失 / 程序缓存会串）。
+   * 取（必要时创建）某材质的「无折射」版本。触发条件：有 transmission 的玻璃，或带 alphaWallBand 的渐变墙。
+   * 改动：transmission 置 0、forceSinglePass 打开（折射材质默认双面渲染两次，在只有一张贴图的反射通道里会互相覆盖），并沿用原材质的 onBeforeCompile 与 programCacheKey（否则区域灯注入的代码会丢失 / 程序缓存会串）。
    * 通过源材质的 dispose 事件自动回收这份克隆：源材质没了，克隆也没有存在的意义。
    */
   function getRefractionFreeMaterial(material) {
@@ -159,10 +132,7 @@ export function createGroundReflections({
   }
   /**
    * 处理数组材质：逐项取无折射版本。
-   *
-   * 复用同一个「结果数组」对象（cachedArrayEntry.next）并在内容没变时直接返回入参，
-   * 这样调用方可以安全地用 `!==` 判断「材质有没有被换过」，也避免每帧在
-   * three.js 内部触发材质数组的变化检测。
+   * 复用同一个「结果数组」对象（cachedArrayEntry.next）并在内容没变时直接返回入参，这样调用方可以安全地用 `!==` 判断「材质有没有被换过」，也避免每帧在 three.js 内部触发材质数组的变化检测。
    */
   function getRefractionFreeMaterials(materialInput) {
     if (!Array.isArray(materialInput)) {
@@ -221,10 +191,8 @@ export function createGroundReflections({
   let heightByFloorId = new Map();
   let lightsByFloorId = new Map();
   /**
-   * 沿父链向上找楼层 ID（兼容四种字段名）。
-   *
-   * 四个字段分别来自：文档楼层、区域、环境层、灯光层。任一命中即返回，
-   * 保证反射能把「这块地面属于哪一层」判对，进而只拍本层的地面。
+   * 沿父链向上找楼层 ID（兼容四种字段名：文档楼层、区域、环境层、灯光层）。
+   * 任一命中即返回，保证反射能把「这块地面属于哪一层」判对，进而只拍本层的地面。
    */
   function resolveFloorId(startObject) {
     for (let currentObject = startObject; currentObject; currentObject = currentObject.parent) {
@@ -243,9 +211,7 @@ export function createGroundReflections({
   let objectIdSequence = 0;
   /**
    * 取对象的稳定自增 ID。
-   *
-   * three.js 的 uuid 字符串很长，放进几何签名里会让字符串比较变慢；
-   * 这里用 WeakMap 给每个对象分配一个短整型 ID，签名更短且同样稳定。
+   * three.js 的 uuid 字符串很长、放进几何签名里会让字符串比较变慢；这里用 WeakMap 给每个对象分配一个短整型 ID，签名更短且同样稳定。
    */
   function getObjectId(targetObject) {
     if (targetObject) {
@@ -259,11 +225,7 @@ export function createGroundReflections({
   }
   /**
    * 生成网格几何的内容签名，用于判断记录是否需要重建。
-   *
-   * 覆盖：几何 uuid、index 与各 attribute 的对象 ID / 版本号 / 数据版本 / 元素个数、
-   * drawRange。之所以带上 attribute 的对象 ID 与 data.version：只改 version 可能漏掉
-   * 「整个 buffer 被替换成新对象」的情况，只比对象又漏掉「原地改数据」。
-   *
+   * 覆盖：几何 uuid、index 与各 attribute 的对象 ID / 版本号 / 数据版本 / 元素个数、drawRange。 之所以同时带上 attribute 的对象 ID 与 data.version：只比 version 会漏掉「整个 buffer 被替换成新对象」的情况，只比对象又会漏掉「原地改数据」。
    * @returns {string} 以 `|` 连接的签名串。
    */
   function geometrySignature(mesh) {
@@ -299,11 +261,8 @@ export function createGroundReflections({
   }
   /**
    * 裁掉不再使用的记录缓存（LRU + 字节预算）。
-   *
-   * 只处理「不在本帧 recordList 里」的记录：它们对应的地面这一帧不需要反射，
-   * 但可能下一帧又被需要（比如楼层来回切换），所以留一小撮（上限 4 条）。
-   * 字节估算公式把 HalfFloat（每像素 2 字节 × 4 通道）与多重采样的额外开销
-   * 折算成 12 字节/像素，scratch 另算 8 字节/像素。
+   * 只处理「不在本帧 recordList 里」的记录：它们对应的地面这一帧不需要反射，但可能下一帧又被需要（比如楼层来回切换），所以留一小撮（上限 4 条）。
+   * 字节估算公式把 HalfFloat（每像素 2 字节 × 4 通道）与多重采样的额外开销折算成 12 字节/像素，scratch 另算 8 字节/像素。
    */
   function trimRecordCache() {
     const activeRecords = new Set(recordList);
@@ -329,11 +288,7 @@ export function createGroundReflections({
   }
   /**
    * 生成一组灯的光照签名，用于判断反射是否需要重拍。
-   *
-   * 覆盖影响光照结果的字段：可见性、强度、颜色、距离、衰减、角度、半影、
-   * 世界矩阵与目标点矩阵。任何一项变化都会让反射里的明暗与主画面不一致，
-   * 因此必须重拍 —— 这是「改灯之后反射也会跟着变」的实现。
-   *
+   * 覆盖影响光照结果的字段：可见性、强度、颜色、距离、衰减、角度、半影、世界矩阵与目标点矩阵。 任何一项变化都会让反射里的明暗与主画面不一致，因此必须重拍 —— 这是「改灯之后反射也会跟着变」的实现。
    * @returns {string} 签名串。
    */
   function buildLightingSignature(lights) {
@@ -358,10 +313,7 @@ export function createGroundReflections({
   }
   /**
    * 计算单条记录的状态键：它关心的所有「会影响反射内容」的外部因素。
-   *
-   * 由两部分拼成：各楼层的光照签名（按可见楼层与高度过滤），
-   * 以及 floorLighting 模式下只算不高于该记录的楼层（低楼层的地面看不到上层的光）。
-   *
+   * 由两部分拼成：各楼层的光照签名（按可见楼层与高度过滤），以及 floorLighting 模式下只算不高于该记录的楼层（低楼层的地面看不到上层的光）。
    * @param {Map<string, string>} floorLightingSignatures 按楼层索引的光照签名。
    */
   function recordStateKey(targetRecord, floorLightingSignatures) {
@@ -396,9 +348,7 @@ export function createGroundReflections({
   }
   /**
    * 判断「室外背景」面是否属于当前选定的室外楼层。
-   *
-   * outsideFloorId 为 null 表示不限制；向上找到第一个带楼层字段的祖先再比对，
-   * 因此背景面即使自己没标楼层也能正确归属。
+   * outsideFloorId 为 null 表示不限制；向上找到第一个带楼层字段的祖先再比对，因此背景面即使自己没标楼层也能正确归属。
    */
   function isOnOutsideFloor(outsideSource) {
     if (outsideFloorId === null) {
@@ -434,15 +384,9 @@ export function createGroundReflections({
   const blurMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blurMaterial);
   blurScene.add(blurMesh);
   /**
-   * 创建反射用的渲染目标。
-   *
-   * 三处取舍：
-   *   - HalfFloatType：反射里可能有高光与环境贴图的亮度超过 1，用 8 位会在
-   *     后续的 tonemapping 之前就被截断，出现明显断层；
-   *   - depthBuffer：只有真正做场景捕获的那张贴图需要深度；模糊用的中间贴图不需要，
-   *     省一份深度附件；
-   *   - samples：借用渲染器的 maxSamples 但上限 2 —— MSAA 对边缘有帮助，
-   *     但 4x 以上的开销在逐地面捕获的场景里不划算。
+   * 创建反射用的渲染目标，三处取舍：
+   * HalfFloatType —— 反射里可能有高光与环境贴图的亮度超过 1，用 8 位会在后续 tonemapping 之前就被截断，出现明显断层；
+   * depthBuffer 只有真正做场景捕获的那张贴图才需要，模糊用的中间贴图省掉这份深度附件；samples 借用渲染器的 maxSamples 但上限 2 —— MSAA 对边缘有帮助，但 4x 以上的开销在逐地面捕获的场景里不划算。
    */
   const createReflectionTarget = (resolutionPx, forBlurPass = false) =>
     new THREE.WebGLRenderTarget(resolutionPx, resolutionPx, {
@@ -462,13 +406,8 @@ export function createGroundReflections({
   }
   /**
    * 重建记录列表：扫描场景，为每块地面（以及室外背景）准备 overlay 与渲染目标。
-   *
-   * 快速返回条件（四者全满足才跳过）：
-   *   - 场景版本号没变；
-   *   - 根节点没换、第一个子节点没换（顶层结构的廉价探针）；
-   *   - 已有记录的源网格都还挂在场景里且没被销毁。
-   * 复用已有记录时只更新高度、位置与使用计数，不重新分配贴图 —— 这是楼层来回切换
-   * 时几乎零开销的关键。
+   * 快速返回条件（四者全满足才跳过）：场景版本号没变；根节点没换、第一个子节点没换（顶层结构的廉价探针）；已有记录的源网格都还挂在场景里且没被销毁。
+   * 复用已有记录时只更新高度、位置与使用计数，不重新分配贴图 —— 这是楼层来回切换时几乎零开销的关键。
    */
   function rebuildRecords(sceneRevision) {
     const resolvedRoot = getRoot();
@@ -676,13 +615,9 @@ export function createGroundReflections({
     );
   }
   /**
-   * 应用新的反射设置（来自设置面板）。
-   *
-   * 三档处理：
-   *   - 三项都相同 → 什么都不做，返回 false（调用方据此避免无谓的重渲染）；
-   *   - 分辨率变化 / 关闭 / 强度归零 → 释放全部记录（贴图尺寸变了必须重新分配，
-   *     关掉则没必要留着显存）；
-   *   - 模式变化 → 只清 rootFirstChild 触发一次结构重扫，已有贴图还能复用。
+   * 应用新的反射设置（来自设置面板）。三档处理：
+   * 三项都相同 → 什么都不做，返回 false（调用方据此避免无谓的重渲染）；
+   * 分辨率变化 / 关闭 / 强度归零 → 释放全部记录（贴图尺寸变了必须重新分配，关掉则没必要留着显存）；模式变化 → 只清 rootFirstChild 触发一次结构重扫，已有贴图还能复用。
    */
   function configure(nextSettings) {
     const normalizedSettings = normalizeGroundReflection(nextSettings);
@@ -713,16 +648,8 @@ export function createGroundReflections({
   }
   /**
    * 计算镜像相机与「世界坐标 → 反射贴图 UV」的纹理矩阵。
-   *
-   * 步骤与理由：
-   *   1. 把相机位置沿镜面法线镜像（距离乘 -2 即对称点），朝向向量对法线做反射；
-   *   2. up 向量同样反射，保证镜像画面不发生翻滚；
-   *   3. 直接复制源相机的投影矩阵，再把 x 轴翻转（elements[8] / [12] 取负）——
-   *      镜像会翻转手性，不翻转 x 会得到左右颠倒的画面；
-   *   4. textureMatrix 用「NDC → UV」的偏移缩放矩阵（0.5 缩放 + 0.5 平移）乘上
-   *      投影与世界逆矩阵，供 overlay 着色器把世界坐标直接映射成 UV；
-   *   5. 斜切近平面裁剪（Oblique Near-Plane Clipping）：把镜面本身作为相机近平面，
-   *      这样镜子下方的物体（地板背面、楼下的房间）不会出现在反射里。
+   * 1. 把相机位置沿镜面法线镜像（距离乘 -2 即对称点），朝向向量对法线做反射；2. up 向量同样反射，保证镜像画面不发生翻滚； 3. 直接复制源相机的投影矩阵，再把 x 轴翻转（elements[8] / [12] 取负）—— 镜像会翻转手性，不翻转 x 会得到左右颠倒的画面；
+   * 4. textureMatrix 用「NDC → UV」的偏移缩放矩阵（0.5 缩放 + 0.5 平移）乘上投影与世界逆矩阵，供 overlay 着色器把世界坐标直接映射成 UV；5. 斜切近平面裁剪（Oblique Near-Plane Clipping）把镜面本身作为相机近平面，这样镜子下方的物体（地板背面、楼下的房间）不会出现在反射里。
    */
   function updateReflectionCamera(sourceCamera, mirrorPlane, textureMatrix) {
     let reflectionCamera = reflectionCameraBySource.get(sourceCamera);
@@ -731,10 +658,8 @@ export function createGroundReflections({
       reflectionCameraBySource.set(sourceCamera, reflectionCamera);
     }
     reflectionCamera.layers.mask = sourceCamera.layers.mask;
-    // 逐项同步相机的投影参数：clone(false) 只保证初始一致，之后主相机的
-    // near / far / fov / zoom 可能被别处改过（比如缩放动画），必须每帧对齐。
-    // 用「属性名列表 + in 判断」而不是直接赋值，是为了兼容透视 / 正交两种相机
-    // 各自才有的字段（left/right/top/bottom、fov 等）。
+    // 逐项同步相机的投影参数：clone(false) 只保证初始一致，之后主相机的 near / far / fov / zoom 可能被别处改过（比如缩放动画），必须每帧对齐。
+    // 用「属性名列表 + in 判断」而不是直接赋值，是为了兼容透视 / 正交两种相机各自才有的字段（left/right/top/bottom、fov 等）。
     for (const propertyName of [
       "near",
       "far",
@@ -813,13 +738,8 @@ export function createGroundReflections({
   }
   /**
    * 主入口：按需重拍所有脏记录的地面反射。
-   *
-   * 必须由调用方在主渲染之前调用（studio-app 里的判断是 renderer 还没有渲染目标时），
-   * 因为反射通道会切换 renderTarget 并清屏，跑在主渲染之后会覆盖主画面。
-   *
-   * 内部顺序：
-   *   suspend / fadeOut 分支 → 更新矩阵与记录 → 脏记录筛选 → 帧率节流 →
-   *   保存渲染器状态 → prepareNode（隐藏 / 替换）→ 逐记录捕获 + 模糊 → 还原状态。
+   * 必须由调用方在主渲染之前调用（studio-app 里的判断是 renderer 还没有渲染目标时），因为反射通道会切换 renderTarget 并清屏，跑在主渲染之后会覆盖主画面。
+   * 内部顺序：suspend / fadeOut 分支 → 更新矩阵与记录 → 脏记录筛选 → 帧率节流 → 保存渲染器状态 → prepareNode（隐藏 / 替换）→ 逐记录捕获 + 模糊 → 还原状态。
    */
   function render(camera, { worldMatricesCurrent: worldMatricesCurrent = false } = {}) {
     if (isDisposed || stats.inCapture || !camera) {
@@ -1258,9 +1178,7 @@ export function createGroundReflections({
     configure: configure,
     /**
      * 设置只显示哪一层的地面反射（null 表示全部）。
-     *
-     * 非当前楼层的 overlay 立刻摘下来，避免楼层切换瞬间出现「别人的反射」；
-     * 同时清 rootFirstChild 触发一次结构重扫（哪些地面属于本层由扫描决定）。
+     * 非当前楼层的 overlay 立刻摘下来，避免楼层切换瞬间出现「别人的反射」；同时清 rootFirstChild 触发一次结构重扫（哪些地面属于本层由扫描决定）。
      */
     setVisibleFloor(nextFloorId) {
       const normalizedFloorId = nextFloorId == null ? null : String(nextFloorId);
@@ -1371,9 +1289,7 @@ export function createGroundReflections({
     },
     /**
      * 释放控制器持有的全部资源。幂等。
-     *
-     * 顺序：先停掉节流定时器（否则回调会在释放后再请求一帧），再释放记录，
-     * 最后释放模糊用的共享几何 / 材质与所有折射克隆材质。
+     * 顺序：先停掉节流定时器（否则回调会在释放后再请求一帧），再释放记录，最后释放模糊用的共享几何 / 材质与所有折射克隆材质。
      */
     dispose() {
       isDisposed = true;

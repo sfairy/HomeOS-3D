@@ -1,22 +1,15 @@
 /**
  * 3D 工作室的输入归一化工具箱。
  *
- * 位置：文档从后端读回、或用户在面板上输入参数之后，统一由本模块把可能缺失 /
- *   越界 / 类型不对的字段收敛成安全值，再交给渲染与状态逻辑使用。
- * 对外：基础数值工具、尺寸下限、标签文本、色温转色、固定机位与相机设置、
- *   以及默认基础照明与照明归一化。
- * 约定：长度单位一律米，角度单位度；相机位置 / 注视点用世界坐标；
- *   色温用开尔文。所有函数都是纯函数，不持有状态、不写回入参。
- *   夹取用 utils/numbers.js 的 clampNumber（唯一实现，P10 B 类收敛）——
- *   本模块原先那份的嵌套顺序与其余各处相反，区间上下限写反时结果会静默不同，
- *   收敛时按唯一实现的口径统一。
+ * 文档从后端读回或用户在面板输入参数后，统一把缺失 / 越界 / 类型不对的字段收敛成安全值再
+ * 交给渲染与状态逻辑。长度单位一律米，角度单位度，相机位置用世界坐标，色温用开尔文；全部
+ * 是纯函数，不持有状态、不写回入参。夹取统一用 utils/numbers.js 的 clampNumber，区间上下
+ * 限与其余各处相反时结果会静默不同，故按同一份口径。
  */
-import { clampNumber } from "../../utils/numbers.js?v=20260920104554";
+import { clampNumber } from "../../utils/numbers.js?v=20260920131301";
 
 /**
- * 转成有限数字，失败时用兜底值。
- *
- * JSON 里常见 null、""、"abc" 这类值，直接参与运算会得到 NaN 并污染整条数据链。
+ * 转成有限数字，失败时用兜底值（JSON 里的 null / "" / "abc" 直接运算会得到 NaN）。
  */
 export function finite(value, fallback = 0) {
   const numericValue = Number(value);
@@ -29,9 +22,7 @@ export function finite(value, fallback = 0) {
 
 /**
  * 把任意角度归一化到 [0, 360)。
- *
- * 已经落在 [0, 360] 区间内的值原样返回 —— 这里刻意保留 360 而不取模成 0，
- * 因为界面上「正好转了一圈」与「没转」是两种输入，取模会吞掉用户的意图。
+ * 落在 [0, 360] 内的值原样返回：刻意保留 360 而不取模成 0，取模会吞掉「正好转了一圈」的意图。
  */
 export function normalizeFullRotation(degrees, fallbackDegrees = 0) {
   const rotationDegrees = finite(degrees, fallbackDegrees);
@@ -44,10 +35,8 @@ export function normalizeFullRotation(degrees, fallbackDegrees = 0) {
 }
 
 /**
- * 给出某类物件允许的最小平面尺寸（米）。
- *
- * 对应检查器里尺寸输入框的 min 属性。人体存在传感器外形细长，允许小到 1 厘米；
- * 其余家具最小 10 厘米，避免误输入后生成几乎不可见的碎片。
+ * 给出某类物件允许的最小平面尺寸（米），对应检查器尺寸输入框的 min。
+ * 人体存在传感器细长，允许小到 1 厘米；其余家具最小 10 厘米，避免生成几乎不可见的碎片。
  */
 export function itemMinimumFootprint(itemType) {
   if (itemType === "presence") {
@@ -58,9 +47,7 @@ export function itemMinimumFootprint(itemType) {
 }
 
 /**
- * 给出某类物件允许的最小高度 / 厚度（米）。
- *
- * 平面标签是零厚度的贴片，1 毫米即可；地毯 4 毫米；其余物件至少 5 厘米。
+ * 给出某类物件允许的最小高度 / 厚度（米）：标签贴片 1 毫米、地毯 4 毫米、其余至少 5 厘米。
  */
 export function itemMinimumHeight(itemKind) {
   if (itemKind === "planlabel") {
@@ -83,10 +70,7 @@ export function normalizePoint(point) {
 }
 
 /**
- * 归一化标签文本。
- *
- * 连续空白（含换行）折成一个空格再 trim：标签是画布上单行绘制的内容，
- * 换行符会画出异常的字距；超长文本按 maxLength 截断，空文本回落到占位文案。
+ * 归一化标签文本：连续空白折成一个空格再 trim（换行会画出异常字距），超长按 maxLength 截断。
  */
 export function normalizeLabelText(labelText, fallbackText, maxLength) {
   return (
@@ -98,10 +82,8 @@ export function normalizeLabelText(labelText, fallbackText, maxLength) {
 }
 
 /**
- * 把色温换算成 0xRRGGBB 整数（用于灯具发光色）。
- *
- * 采用常见的冷暖色温近似式（分段幂函数 / 对数式），只在 2200~6500 K 区间内准确；
- * 超出区间的输入先被夹到边界，避免出现负底数或非法对数。
+ * 把色温换算成 0xRRGGBB（灯具发光色）。
+ * 分段幂函数 / 对数近似式，只在 2200~6500 K 准确；越界输入先夹到边界，避免负底数或非法对数。
  */
 export function kelvinToRgbHex(kelvin) {
   // 近似式的自变量以百开尔文为单位，分界点 66 即 6600 K。
@@ -185,10 +167,8 @@ export function normalizeCameraSettings(cameraSettings) {
   };
 }
 
-// 默认基础照明：一组实测调好的数值，作为新建场景与「恢复默认」的基准。
-// 角度说明：方位角以场景正前方为 0、顺时针为正，仰角自地平线向上度量；
-// 强度均为各灯的相对系数，曝光为渲染器 toneMappingExposure。
-// 冻结对象：这些值会被 normalizeBaseLighting 当作兜底读，运行期不允许被就地改写。
+// 默认基础照明：新建场景与「恢复默认」的基准，会被 normalizeBaseLighting 兜底读取，运行期不可就地改写。
+// 方位角以场景正前方为 0、顺时针为正，仰角自地平线向上度量；强度为各灯相对系数，曝光为 toneMappingExposure。
 export const DEFAULT_BASE_LIGHTING = Object.freeze({
   exposure: 1.05,
   hemisphereIntensity: 0.58,
@@ -207,9 +187,7 @@ export const DEFAULT_BASE_LIGHTING = Object.freeze({
 
 /**
  * 归一化基础照明参数。
- *
- * 各字段的上限按「明显过曝 / 过暗」的边界给出：强度类 0~5 之间，
- * 角度类方位限 ±180°、仰角限 0~89°（89° 而非 90° 是为了避免顶光与地面共面）。
+ * 上限按「明显过曝 / 过暗」的边界给出；仰角限 0~89°，89° 而非 90° 是为了避免顶光与地面共面。
  */
 export function normalizeBaseLighting(lightingSettings) {
   // 非对象（null / 字符串）统一当空对象处理，后续全部走默认值。

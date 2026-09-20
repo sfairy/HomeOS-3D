@@ -1,34 +1,30 @@
 /**
  * 电视屏幕的画面渲染。
  *
- * 在 3D 子系统里的位置：把 HA 播放器上报的「封面 + 状态」画到一张 2D 画布上，
- * 再作为 CanvasTexture 贴到电视模型的屏幕面上，替代模型自带的发光贴图。
- *
- * 对外提供：createTelevisionScreens。
- *
- * 与渲染器的约定：没有封面时用 3d-studio/materials/studio-television-poster.js 生成程序化海报，
- * 保证离线 / 未播放时屏幕也不是纯黑。
+ * 把 HA 播放器上报的「封面 + 状态」画到一张 2D 画布，再作为 CanvasTexture 贴到电视模型的
+ * 屏幕面，替代模型自带的发光贴图。对外提供 createTelevisionScreens。没有封面时用
+ * 3d-studio/materials/studio-television-poster.js 生成程序化海报，保证离线 / 未播放时屏幕不纯黑。
  */
 
-import { televisionState } from "./television-state.js?v=20260920104554";
+import { televisionState } from "./television-state.js?v=20260920131301";
 // 程序化海报绘制；缓存戳需与 static 资源版本保持一致。
 const { drawTelevisionPoster: drawTelevisionPoster } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-poster.js?v=20260920104554",
+        "../../../static/3d-studio/materials/studio-television-poster.js?v=20260920131301",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-poster.js?v=20260920104554"));
+  : import("/static/3d-studio/materials/studio-television-poster.js?v=20260920131301"));
 // 熄屏玻璃渐变；冷暖两档色标都在该模块里，暖阳原木主题下传 warm=true。
 const { drawTelevisionGlass: drawTelevisionGlass } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-glass.js?v=20260920104554",
+        "../../../static/3d-studio/materials/studio-television-glass.js?v=20260920131301",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-glass.js?v=20260920104554"));
+  : import("/static/3d-studio/materials/studio-television-glass.js?v=20260920131301"));
 /**
  * 创建电视屏幕控制器。
  */
@@ -76,9 +72,7 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
     if (state.on) {
       context.fillRect(0, 0, canvas.width, canvas.height);
     } else {
-      // 关机状态：画一层从左上到右下的深灰渐变，模拟熄屏玻璃的反光，
-      // 比纯黑更有体积感，也能看出屏幕边界。
-      // 暖阳原木主题下换成暖色档，与工作室里同一台电视的屏幕材质保持同色系。
+      // 关机状态画一层深灰渐变（暖阳原木主题换暖色档），比纯黑更有体积感，也能看出屏幕边界。
       drawTelevisionGlass(canvas, context, entry.screen.userData?.sceneStyle === "warm-wood");
     }
     if (state.on && image) {

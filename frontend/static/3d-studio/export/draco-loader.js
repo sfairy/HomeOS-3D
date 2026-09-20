@@ -1,16 +1,12 @@
 /**
  * 同源部署下的 Draco 加载器。
  *
- * 位置：3D 工作室加载外部 3D 模型（glTF / GLB，几何用 Draco 压缩）时的解码入口，
- *   由 studio-app.js 实例化后交给 three.js 的 GLTFLoader。
- * 对外：SameOriginDRACOLoader。
- * 为什么要重写：three.js 原版 DRACOLoader 用 Blob URL 启动 Worker，
- *   而部署环境的 CSP 只允许同源脚本，因此这里改成直接用同源的
- *   draco-decoder-worker.js 作为 Worker 地址，其余接口与原版保持一致。
- * 单位约定：本模块不涉及几何换算，坐标与单位由上层模型归一化逻辑负责。
+ * 加载外部 glTF / GLB（几何用 Draco 压缩）时的解码入口，由 studio-app.js 实例化后交给
+ * three.js 的 GLTFLoader。对外：SameOriginDRACOLoader。原版 DRACOLoader 用 Blob URL 启
+ * Worker，而部署环境 CSP 只允许同源脚本，故改成直接用同源的 draco-decoder-worker.js。
  */
 
-import { DRACOLoader } from "/static/vendor/three/0.182.0/DRACOLoader.js?v=20260920104554";
+import { DRACOLoader } from "/static/vendor/three/0.182.0/DRACOLoader.js?v=20260920131301";
 
 /**
  * 把 Worker 启动失败的原因包装成带中文兜底文案的 Error。
@@ -23,8 +19,7 @@ function normalizeWorkerError(cause) {
 
 /**
  * 使用同源 Worker 脚本的 DRACOLoader。
- *
- * 与基类的差异只有两处：_initDecoder 不做解码器预加载（真正的初始化在 Worker 内完成），
+ * 与基类差异只有两处：_initDecoder 不做解码器预加载（真正的初始化在 Worker 内完成），
  * _getWorker 由基类的 Blob 方案改为 new Worker(同源 URL)。
  */
 export class SameOriginDRACOLoader extends DRACOLoader {
@@ -37,9 +32,7 @@ export class SameOriginDRACOLoader extends DRACOLoader {
 
   /**
    * 省略主线程侧的解码器初始化。
-   *
-   * 返回一个已 resolve 的 Promise 告诉基类「解码器已就绪」，
-   * 真正的 WASM 加载发生在 Worker 内部收到 init 消息之后。
+   * 返回已 resolve 的 Promise 告诉基类「就绪」，真正的 WASM 加载在 Worker 内收到 init 后发生。
    */
   _initDecoder() {
     if (this.sameOriginWorkerUrl) {

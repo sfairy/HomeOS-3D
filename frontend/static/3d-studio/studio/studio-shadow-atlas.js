@@ -1,24 +1,17 @@
 /**
- * 共享聚光灯阴影图集（Spot Shadow Atlas）。
- *
- * 位置：3D 工作室里每个房间可能有多盏聚光灯，如果每盏都单独占用一张阴影贴图，
- *   会迅速吃掉 WebGL 的纹理单元与显存；本模块把这些单灯阴影图拼进一张大图，
- *   所有接收阴影的材质共用一次采样。
- * 对外：packSpotShadowAtlasTiles（纯函数布局计算）、guardZeroContributionSpotLights
- *   与 createSpotShadowAtlasController（控制器：调度烘焙、刷新几何、清理资源）。
- * 坐标系与单位：图集尺寸是像素（2 的幂，上限取设备的 maxTextureSize）；
- *   每盏灯的 tile 记录的是像素矩形的左上角与边长（x / y / size）。
- * 关键约定：
- *   - 灯的哈希键是 floorId:itemId，与楼层/家具的 userData 字段名（lightFloorId /
- *     lightItemId）绑死，改名会静默丢阴影。
- *   - 烘焙期间会把灯的 visible / intensity / castShadow 临时改掉，finally 里必须还原，
- *     且 castShadow 一律还原成 false —— 因为阴影已改由图集提供，单灯阴影图不再需要。
- *   - 整块图集只在一次完整烘焙成功后才替换旧图集；中途失败保留旧图集，避免闪黑。
+ * 共享聚光灯阴影图集（Spot Shadow Atlas）：把每盏灯的单灯阴影图拼进一张大图，
+ * 避免多灯各自占用纹理单元与显存，所有接收阴影的材质共用一次采样。
+ * 对外：packSpotShadowAtlasTiles（布局计算）、guardZeroContributionSpotLights、
+ * createSpotShadowAtlasController（调度烘焙、刷新几何、清理资源）。
+ * 约定：图集尺寸是像素（2 的幂，上限取 maxTextureSize），每盏灯的 tile 记左上角与边长（x / y / size）；
+ * 灯的哈希键是 floorId:itemId，与 userData 的 lightFloorId / lightItemId 绑死，改名会静默丢阴影；
+ * 烘焙期间临时改灯的 visible / intensity / castShadow，finally 必须还原且 castShadow 一律还原成 false；
+ * 整块图集只在一次完整烘焙成功后才替换旧图集，中途失败保留旧图集避免闪黑。
  */
 
-import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=20260920104554";
+import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=20260920131301";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=20260920104554";
+import { debugLog } from "../../utils/debug-log.js?v=20260920131301";
 // tile 之间的留白：紧贴会因线性过滤在边缘互相渗色。
 const DEFAULT_TILE_GUTTER = 1;
 
@@ -209,11 +202,8 @@ function buildAtlasVertexChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  vec3 userShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\n  vec4 userShadowWorldPosition;\n  #pragma unroll_loop_start\n  for ( int i = 0; i < NUM_SPOT_LIGHTS; i ++ ) {\n    userShadowWorldPosition = worldPosition + vec4( userShadowWorldNormal * userSpotShadowParams[ i ].w, 0.0 );\n    vUserSpotShadowCoord[ i ] = userSpotShadowMatrix[ i ] * userShadowWorldPosition;\n  }\n  #pragma unroll_loop_end\n#endif\n";
 }
 /**
- * 给 three.js 的灯光着色器打补丁：跳过颜色为零的聚光灯。
- *
- * 场景里常见十几盏灯但多数亮度为 0，它们仍会走完整段直接光计算。
- * 这里在 RE_Direct 调用外裹一层 uniform 分支，把这类灯的计算整段跳过。
- *
+ * 给 three.js 的灯光着色器打补丁：跳过颜色为零的聚光灯。场景里常见十几盏灯但多数亮度为 0，
+ * 它们仍会走完整段直接光计算，这里在 RE_Direct 调用外裹一层 uniform 分支整段跳过。
  * @throws {Error} three.js 版本变化导致聚光灯分支结构不再匹配时抛出，宁可失败也不要静默出错图。
  */
 export function guardZeroContributionSpotLights(lightsShader) {
@@ -234,11 +224,8 @@ export function guardZeroContributionSpotLights(lightsShader) {
   return lightsShader.slice(0, spotLightBranchStart) + spotLightBranch.replace(directLightCall, guardedCall) + lightsShader.slice(dirLightBranchStart);
 }
 /**
- * 在图集采样点处把 three.js 自带的单灯阴影代码换成图集采样。
- *
- * 做法：在 USE_SHADOWMAP 的聚光灯循环标记前插入一段用图集替换阴影因子的代码，
- * 再把该标记删除，让原来的单灯阴影分支不再生成。
- *
+ * 在图集采样点处把 three.js 自带的单灯阴影代码换成图集采样：在 USE_SHADOWMAP 的聚光灯循环
+ * 标记前插入替换阴影因子的代码，再删除该标记，让原来的单灯阴影分支不再生成。
  * @throws {Error} three.js 的灯光着色器版本与图集补丁不匹配时抛出。
  */
 function patchLightsFragmentBegin(THREE) {

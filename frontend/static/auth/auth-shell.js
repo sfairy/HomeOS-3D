@@ -1,17 +1,12 @@
 /**
- * 鉴权壳页的表情角色动效与密码显隐脚本。
+ * 鉴权壳页的表情角色动效与密码显隐脚本：/pair 使用角色区，/login 无角色区，但两页共用密码显隐接线。
  *
- * 位置：/pair 使用角色区；/login 重构为激活页同款表单壳后已无角色区，
- *   但两页共用本文件的密码显隐接线。
- * 职责：根据密码框是否有内容切换角色表情，按随机间隔播放眨眼动画，
- *   并让角色眼睛跟随指针移动；同时负责 [data-toggle-password] 按钮。
- * 约定：**角色节点是可选的**（/login、/pair 都可能没有角色区），缺了它密码显隐照常工作 ——
- *   本文件同时管着密码可见性按钮，顶层直接解引用会在模块加载时抛错并中断后面
- *   所有接线，所以角色相关的代码整段收在 `if (characters)` 里、与角色无关的接线
- *   放在它前面。密码可见性通过给输入框打 data-password-field 标记来跟踪，
- *   与各页表单结构解耦；文字型显隐按钮还要同步按钮文案。
- * 约定：指针几何按需缓存（resize / 旋转 / 滚动后失效），pointermove 里不读
- *   getBoundingClientRect —— 那个调用会强制同步布局，指针高频时等于每帧重排。
+ * 职责：按密码框是否有内容切换角色表情、随机间隔眨眼、角色眼睛跟随指针；负责 [data-toggle-password]。
+ * 约定：角色节点是可选的，缺了密码显隐照常工作 —— 本文件同时管密码可见性按钮，顶层直接解引用会在
+ * 模块加载时抛错并中断后续接线，故角色相关代码整段收在 `if (characters)` 里、无关接线放在它前面；
+ * 密码可见性给输入框打 data-password-field 标记来跟踪，文字型按钮还要同步按钮文案。
+ * 约定：指针几何按需缓存（resize / 旋转 / 滚动后失效），pointermove 里不读 getBoundingClientRect
+ * （会强制同步布局，高频指针下等于每帧重排）。
  */
 
 const characters = document.querySelector(".home-characters");
@@ -40,8 +35,8 @@ for (const toggleButton of document.querySelectorAll("[data-toggle-password]"))
     // 用 getElementById 取目标，而不是把 id 拼进选择器：id 里有特殊字符时也只是
     // 查不到，不会在选择器解析处抛异常。
     const passwordInput = document.getElementById(toggleButton.dataset.togglePassword);
-    // 一处 id 写错只该让这一个按钮失效：以前这里是顶层解引用，整个模块会停在
-    // 那一行，同一页的密码显隐按钮从此全部没反应。
+    // 一处 id 写错只该让这一个按钮失效：顶层解引用会让整个模块停在那行，
+    // 同一页的密码显隐按钮从此全部没反应。
     if (!passwordInput) return;
     // 切换成 text 后 type 选择器就失效了，靠 data-password-field 标记让
     // syncPasswordState 仍能识别这个输入框。

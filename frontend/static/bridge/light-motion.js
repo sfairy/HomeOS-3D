@@ -1,13 +1,10 @@
 /**
  * 灯光状态映射与过渡动画的纯计算层。
  *
- * 位置：舞台页拿到 HA 灯光实体后，先用这里把「实体上报值」翻译成渲染层可用的亮度 / 颜色，
- *   再用这里的过渡采样逐帧做渐变；本模块不接触 three.js，只产出数字。
- * 对外导出：mapLightEffectState、lightEffectColorHex、lightTransitionDurationMs、
- *   createLightTransition、sampleLightTransition。
- * 全局约定：亮度统一用 0~100 的百分比，色温用开尔文，颜色用 0xRRGGBB；
- *   过渡对象是不透明的内部结构，调用方只应通过 create / sample 使用它。
- * 副作用：无，全部为纯函数。
+ * 舞台页拿到 HA 灯光实体后，先用这里把实体上报值翻译成渲染层可用的亮度 / 颜色，再用过渡采样
+ * 逐帧做渐变；不接触 three.js，只产出数字。导出 mapLightEffectState、lightEffectColorHex、
+ * lightTransitionDurationMs、createLightTransition、sampleLightTransition。亮度用 0~100 百分比，
+ * 色温用开尔文，颜色用 0xRRGGBB；全部为纯函数。
  */
 
 // 数值统一走这两个小工具：clamp 保证写进渲染层的值永远在合法区间，
@@ -22,9 +19,7 @@ const normalizeLightState = lightState => ({
   color: [0, 1, 2].map(channelIndex => clamp(finiteOr(lightState?.color?.[channelIndex], 1), 0, 1))
 });
 /**
- * 区间归一：两端各自夹进 bounds，再保证下限不大于上限。
- *
- * 顺序颠倒（用户把两端拖反、或后端给的 min/max 反了）在这里被静默纠正，
+ * 区间归一：两端各自夹进 bounds，再保证下限不大于上限；顺序颠倒在这里被静默纠正，
  * 调用方无需再判大小。
  */
 function normalizeRange(minValue, maxValue, fallbackRange, bounds) {
@@ -34,10 +29,8 @@ function normalizeRange(minValue, maxValue, fallbackRange, bounds) {
 }
 /**
  * 把灯光实体的原始状态映射成「效果区间内」的亮度与色温。
- *
- * 背景：HA 的灯启用场景 / 效果后，实体上报的 brightness 是百分比，
- * 但实际可达的亮度与色温由 effectRange 限定。直接拿百分比当亮度，会让灯光在效果模式下
- * 与实际观感对不上，因此这里按比例映射进效果区间。
+ * 灯启用效果后，上报的 brightness 只是百分比，实际可达范围由 effectRange 限定；直接当亮度
+ * 用会与实际观感对不上，故按比例映射进效果区间。
  */
 export function mapLightEffectState(lightEntry) {
   const mappedState = {
@@ -108,10 +101,8 @@ export function mapLightEffectState(lightEntry) {
   return mappedState;
 }
 /**
- * 色温（K）换算成 0xRRGGBB 颜色。
- *
- * 用的是经典的色温近似公式（Tanner Helland）：分段幂函数 / 对数，66 是 6600K 的分段点。
- * 下面的浮点常数就是公式系数，想改等于换公式，必须整段替换而不是微调某一位。
+ * 色温（K）换算成 0xRRGGBB（Tanner Helland 经典近似式，66 是 6600K 分段点）。
+ * 下面的浮点常数就是公式系数，改等于换公式，必须整段替换而非微调某一位。
  */
 export function lightEffectColorHex(kelvin) {
   // 公式以「百 K」为单位，因此先除以 100。
@@ -136,10 +127,8 @@ export function lightEffectColorHex(kelvin) {
   );
 }
 /**
- * 决定本次灯光变化应使用的过渡时长。
- *
- * 开关切换才用组件配置的淡入淡出（夹在 0~10 秒，默认 0.3 秒）；
- * 预览与调光另有更合适的节奏 —— 预览求跟手，调光求顺滑。
+ * 决定本次灯光变化的过渡时长：开关切换用组件配置的淡入淡出（夹在 0~10 秒，默认 0.3 秒）；
+ * 预览求跟手、调光求顺滑，另有节奏。
  */
 export function lightTransitionDurationMs(wasOn, isOn, fadeDurationSeconds, options = {}) {
   // 立即生效优先于一切：初始同步时做动画，会让画面从错误状态缓慢爬回正确值。
@@ -158,7 +147,6 @@ export function lightTransitionDurationMs(wasOn, isOn, fadeDurationSeconds, opti
 }
 /**
  * 构造一次灯光过渡描述。
- *
  * 起点与终点都先归一，保证插值两侧的量纲一致（否则强度与颜色会互相污染）。
  */
 export function createLightTransition(fromState, toState, startedAtMs, durationMs) {
@@ -171,9 +159,8 @@ export function createLightTransition(fromState, toState, startedAtMs, durationM
 }
 /**
  * 按时间采样一次过渡结果。
- *
- * 用 smoothstep（3t² − 2t³）而非线性插值：它在起止处导数为 0，灯光变化不会出现生硬的折角。
- * complete 是给帧循环的收尾信号 —— 为真时调用方可以停止为这次过渡继续排帧。
+ * 用 smoothstep（3t² − 2t³）而非线性：起止处导数为 0，灯光变化不会出现生硬折角。
+ * complete 为真时调用方可停止为这次过渡排帧。
  */
 export function sampleLightTransition(transition, nowMs) {
   // duration 为 0（立即生效）时直接视为完成，避免除零得到 NaN 进度。

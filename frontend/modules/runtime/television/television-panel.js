@@ -1,21 +1,17 @@
 /**
  * 电视控制面板（3D 详情弹窗 / 配置预览共用）。
  *
- * 在 3D 子系统里的位置：把 televisionState 归一化后的状态渲染成「封面 + 曲目信息 +
- * 播放进度 + 开关机 / 上一集 / 播放暂停 / 下一集」，并把命令交给 onControl 发送。
- *
- * 对外提供：createTelevisionPanel。
- *
- * 约定：面板不直接访问后端；开关机与媒体控制分别由 television-state.js 的
- *       televisionPower / televisionMediaControl 生成命令。播放进度条靠每秒重绘推进，
- *       因为 HA 只在状态变化时上报 media_position。
+ * 把 televisionState 归一化后的状态渲染成「封面 + 曲目信息 + 播放进度 + 开关机 / 上一集 /
+ * 播放暂停 / 下一集」，命令交给 onControl 发送。对外提供 createTelevisionPanel。面板不直接
+ * 访问后端：开关机与媒体控制分别由 television-state.js 生成命令；进度条靠每秒重绘推进，
+ * 因为 HA 只在状态变化时上报 media_position。
  */
 import {
   televisionState,
   televisionTime,
   televisionPower,
   televisionMediaControl
-} from "./television-state.js?v=20260920104554";
+} from "./television-state.js?v=20260920131301";
 /**
  * 创建电视面板。
  */

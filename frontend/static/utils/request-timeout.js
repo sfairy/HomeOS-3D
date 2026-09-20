@@ -1,27 +1,18 @@
 /**
  * 请求超时与外部取消的统一包装。
  *
- * 位置：通用工具层，被编辑器 / 舞台页里所有需要「限时完成且可被上层取消」的
- *   fetch 调用复用（例如读取 NAS 目录、拉取渲染缓存清单）。
- * 对外导出：withRequestTimeout。
- * 全局约定：抛出的错误用 `name` 区分语义 —— `TimeoutError` 表示超时，
- *   `AbortError` 表示调用方主动取消。调用方按 name 判断，不要匹配中文/英文文案。
- * 副作用：临时监听外部 AbortSignal 的 abort 事件，并在 finally 中注销监听、
- *   清除定时器，避免长时间存活的组件累积监听器。
+ * 位置：通用工具层，被编辑器 / 舞台页里需要「限时完成且可被上层取消」的 fetch 调用复用。
+ * 约定：抛出的错误用 name 区分语义 —— TimeoutError 表示超时，AbortError 表示调用方取消；
+ * 调用方按 name 判断，不要匹配文案。
+ * 副作用：临时监听外部 AbortSignal 的 abort 事件，并在 finally 中注销监听、清除定时器。
  */
 
 /**
- * 执行一次受超时约束的异步请求。
- *
- * 内部自建 AbortController 与外部传入的 signal 是「或」的关系：
- * 任一方触发都会中断真正的请求，且最终抛出的错误保留最初触发者的原始 reason，
- * 便于上层区分「用户切页取消」与「后端太慢超时」这两类完全不同的处置方式。
- *
+ * 执行一次受超时约束的异步请求。内部 AbortController 与外部 signal 是「或」的关系，任一方触发都中断
+ * 请求，且错误保留最初触发者的 reason，便于区分「用户切页取消」与「后端太慢超时」。
  * @param {number} timeoutMs 超时毫秒数；到点后以 TimeoutError 中断请求。
- * @param {(signal: AbortSignal) => Promise<*>} runWithSignal 真正发起请求的回调，
- *   必须把收到的 signal 透传给 fetch，否则中断不会生效。
- * @throws {Error} 超时（name 为 TimeoutError）、被外部取消（name 为 AbortError），
- *   或 runWithSignal 自身抛出的原始错误。
+ * @param {(signal: AbortSignal) => Promise<*>} runWithSignal 真正发起请求的回调，必须把 signal 透传给 fetch。
+ * @throws {Error} 超时（TimeoutError）、被外部取消（AbortError）或 runWithSignal 的原始错误。
  */
 export async function withRequestTimeout(timeoutMs, runWithSignal, externalSignal) {
   const requestAbortController = new AbortController();

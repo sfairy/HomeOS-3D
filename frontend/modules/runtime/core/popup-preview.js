@@ -1,25 +1,19 @@
 /**
- * 3D 弹窗的布局预览。
+ * 3D 弹窗的布局预览：编辑弹窗（通用 / 摄像头）时，不打开真实弹窗也让用户看到弹窗会出现在哪里、
+ * 多大、缩放多少。两级预览：createPopupLayoutPreview 是编辑面板里的示意方块，
+ * createFocusDevicePopup 用真实 PanelRenderer 渲染一份不可交互的缩微副本。
  *
- * 在 3D 子系统里的位置：编辑弹窗（通用弹窗 / 摄像头弹窗）时，需要在不打开真实
- * 弹窗的前提下，让用户看到「弹窗会出现在哪里、多大、缩放多少」。本模块提供两级
- * 预览：createPopupLayoutPreview 是编辑面板里的示意方块，
- * createFocusDevicePopup 则用真实的 PanelRenderer 渲染一份不可交互的缩微副本。
- *
- * 对外提供：popupPreviewPlacement、createPopupLayoutPreview、createFocusDevicePopup。
- *
- * 与渲染器的约定：布局计算统一委托给 popup-placement.js（面板在视口内的落位）
- * 与 camera-popup-layout.js（摄像头弹窗的固定版式），这里只负责补默认值，
- * 避免 2D 弹窗与 3D 预览出现两套算法。
+ * 与渲染器的约定：布局计算统一委托给 popup-placement.js（面板在视口内的落位）与
+ * camera-popup-layout.js（摄像头弹窗的固定版式），这里只补默认值，避免 2D 弹窗与 3D 预览出现两套算法。
  */
 
 // 复用渲染器的弹窗落位与摄像头版式算法；开发环境走相对路径，生产环境走静态路径。
 const { popupPlacement: popupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/popup-placement.js", import.meta.url))
-  : import("/static/bridge/popup-placement.js?v=20260920104554"));
+  : import("/static/bridge/popup-placement.js?v=20260920131301"));
 const { cameraPopupLayout: cameraPopupLayout } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/camera-popup-layout.js", import.meta.url))
-  : import("/static/bridge/camera-popup-layout.js?v=20260920104554"));
+  : import("/static/bridge/camera-popup-layout.js?v=20260920131301"));
 /**
  * 计算弹窗预览的落位与缩放。
  */
@@ -181,7 +175,7 @@ export function createFocusDevicePopup(
   const stylesheetLink = popupOwnerDocument.createElement("link");
   stylesheetLink.rel = "stylesheet";
   // 复用渲染器样式表；缓存戳必须与 static 资源版本保持一致。
-  stylesheetLink.href = "/static/renderer/core/renderer.css?v=20260920104554";
+  stylesheetLink.href = "/static/renderer/core/renderer.css?v=20260920131301";
   const rendererHostElement = popupOwnerDocument.createElement("div");
   rendererHostElement.className = "i3d-focus-popup-host";
   previewRootElement.append(stylesheetLink, rendererHostElement);
@@ -198,7 +192,7 @@ export function createFocusDevicePopup(
     // 加载完成后若已被销毁（用户在加载期间就退出了编辑），直接放弃初始化。
     ready: (import.meta.url.startsWith("file:")
       ? import(new URL("../../../static/renderer/core/renderer.js", import.meta.url))
-      : import("/static/renderer/core/renderer.js?v=20260920104554")
+      : import("/static/renderer/core/renderer.js?v=20260920131301")
     ).then(({ PanelRenderer: PanelRenderer }) => {
       if (isDisposed) {
         return;

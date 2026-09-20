@@ -77,7 +77,7 @@ def document_entity_ids(value: Any) -> set[str]:
     这里过去用的是「含点即算实体」的宽松判据，于是任何带点的字符串 —— 标题、
     说明文案、自定义字段里随手写的文本 —— 都会被当成实体收进这个集合。这个集合
     同时决定了**中控设备能看到哪些实体**与**要订阅哪些状态**：放宽一格就是放宽
-    一格可见范围（B22）。判据改成与写入端（`panel/schema.py` 的绑定校验）同一把尺子，
+    一格可见范围。判据改成与写入端（`panel/schema.py` 的绑定校验）同一把尺子，
     写入时不允许存的 ID，读取时也不该被认成实体。
     """
     result = document_keyed_values(value, "entityId", keep=valid_ha_entity_id)

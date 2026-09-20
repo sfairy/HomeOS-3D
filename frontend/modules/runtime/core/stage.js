@@ -1,102 +1,82 @@
 /**
- * 3D 舞台主控制器：interaction3d 子系统的展示侧入口（运行在 iframe 内）。
- *
- * 位置：编辑器 / 展示页（父窗口）负责配置与业务，本文件负责「把配置画成可交互的 3D 房子」。
- * 两者之间只有一条 postMessage 通道，channel 固定为 "hb-i3d-v1"：
- *   宿主 → 舞台：config（整份配置 + 实体状态 + 编辑态标志）、states（增量状态）、
- *               presentation-layout、range-editor、range-save-result、editor-command、
- *               control-result、activity-state、user-activity、dismiss-focus、vacuum-room-result；
- *   舞台 → 宿主：ready（含 metadata）、control（控制命令）、focus-state、edit（标记拖拽落点）、
- *               range-editor-state、range-overrides、vacuum-follow-state、camera-popup 等。
- * 舞台侧只信同源父窗口的消息（origin + source 双重校验），其余一律丢弃。
- *
- * 对外导出：
- *   - configuredModuleKinds(config)：算出当前配置下可用的模块页签；
- *   - mountStage(stageOptions)：挂载舞台，注册消息监听、按需渲染循环与全部子系统。
- *     不返回句柄：外部靠 postMessage 驱动，页面 pagehide 时整体释放；
- *     挂载完成会主动回一条 { type: "ready", statePatches: true, metadata }。
- *
- * 与后端的字段约定：配置与状态一律 camelCase（floorSelection、lightRegionOverrides、
- * focusCamera、coverKind…），实体状态按 entityId 索引；控制命令统一形如
- * { type: "control", requestId, command }，requestId 由本文件自增生成，
- * 结果用 { type: "control-result", requestId, error } 配对，配不上的一律忽略。
- *
- * 全局约定：所有可变状态都收在 mountStage 的闭包里（没有模块级可变全局），
- * 因此刷新配置、切楼层、进编辑态都只改闭包变量；跨文件的联动靠 stageOptions 上的
- * setCurtainSync / setTelevisionSync 等回调把「重算」钩子交给宿主。
+ * 3D 舞台主控制器：interaction3d 展示侧入口（iframe 内），与父窗口只有一条 postMessage 通道，
+ * channel 固定 "hb-i3d-v1"，只信同源父窗口消息（origin + source 双重校验）。
+ * 宿主 → 舞台：config / states / presentation-layout / range-editor / range-save-result / editor-command /
+ * control-result / activity-state / user-activity / dismiss-focus / vacuum-room-result；舞台 → 宿主：
+ * ready / control / focus-state / edit / range-editor-state / range-overrides / vacuum-follow-state / camera-popup。
+ * 字段：配置与状态一律 camelCase、实体状态按 entityId 索引；控制命令 { type:"control", requestId, command }
+ * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "./static-helpers.js?v=20260920104554";
+// 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
+import { resolveStateEntry } from "./static-helpers.js?v=20260920131301";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=20260920104554",
+        "../../../static/bridge/popup-placement.js?v=20260920131301",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=20260920104554"));
+  : import("/static/bridge/popup-placement.js?v=20260920131301"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=20260920104554";
-import { createSceneBackground } from "./scene-background.js?v=20260920104554";
-import { floorNavigationChoices } from "./floor-navigation.js?v=20260920104554";
+} from "../presence/presence-scene.js?v=20260920131301";
+import { createSceneBackground } from "./scene-background.js?v=20260920131301";
+import { floorNavigationChoices } from "./floor-navigation.js?v=20260920131301";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=20260920104554";
+} from "../vacuum/vacuum-motion.js?v=20260920131301";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=20260920104554";
-import { televisionState } from "../television/television-state.js?v=20260920104554";
-import { createTelevisionPanel } from "../television/television-panel.js?v=20260920104554";
-import { createTelevisionScreens } from "../television/television-screen.js?v=20260920104554";
-import { createNasPanel } from "../nas/nas-panel.js?v=20260920104554";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=20260920104554";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=20260920104554";
+} from "../vacuum/vacuum-map.js?v=20260920131301";
+import { televisionState } from "../television/television-state.js?v=20260920131301";
+import { createTelevisionPanel } from "../television/television-panel.js?v=20260920131301";
+import { createTelevisionScreens } from "../television/television-screen.js?v=20260920131301";
+import { createNasPanel } from "../nas/nas-panel.js?v=20260920131301";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=20260920131301";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=20260920131301";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=20260920104554";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=20260920104554";
-import { createCoverPanel } from "../cover/cover-panel.js?v=20260920104554";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=20260920104554";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=20260920104554";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=20260920104554";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=20260920104554";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=20260920104554";
-import { createClimatePanel } from "../climate/climate-panel.js?v=20260920104554";
+} from "../cover/cover-state.js?v=20260920131301";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=20260920131301";
+import { createCoverPanel } from "../cover/cover-panel.js?v=20260920131301";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=20260920131301";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=20260920131301";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=20260920131301";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=20260920131301";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=20260920131301";
+import { createClimatePanel } from "../climate/climate-panel.js?v=20260920131301";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=20260920104554";
-import { startSceneSync } from "./scene-sync.js?v=20260920104554";
+} from "../environment/environment-scene.js?v=20260920131301";
+import { startSceneSync } from "./scene-sync.js?v=20260920131301";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=20260920104554";
+} from "../light/light-state.js?v=20260920131301";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=20260920104554";
+} from "../camera/camera-motion.js?v=20260920131301";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=20260920104554";
+} from "./idle-rotation.js?v=20260920131301";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -142,15 +122,10 @@ export function configuredModuleKinds(rawConfig = {}) {
   ];
 }
 /**
- * 挂载 3D 舞台：注册宿主消息、渲染循环与全部子系统。
- *
- * 一次性完成：建 DOM 骨架 → 建各子系统（窗帘 / 扫地机 / 电视 / NAS / 摄像头 / 环境）→
- * 监听 message 与 ResizeObserver → 建按需渲染循环 → 回 ready。
- * 不返回句柄，因为舞台只由宿主消息驱动；释放统一挂在 pagehide 上。
- *
- * @param {object} stageOptions 宿主注入的依赖与回调：THREE、container、canvas、
- *     document（场景文档）、cameraState / restoreCamera / transformCamera（相机）、
- *     createFrameLoop（按需渲染循环工厂）、setFloor / setCurtainSync 等联动钩子。
+ * 挂载 3D 舞台：注册宿主消息、渲染循环与全部子系统（窗帘 / 扫地机 / 电视 / NAS / 摄像头 / 环境）。
+ * 建 DOM 骨架 → 建子系统 → 监听 message 与 ResizeObserver → 建按需渲染循环 → 回 ready；
+ * 不返回句柄（只由宿主消息驱动），释放统一挂在 pagehide 上。
+ * @param {object} stageOptions 宿主注入的依赖与回调（THREE、container、canvas、document、相机、帧循环工厂、联动钩子）。
  */
 export function mountStage(stageOptions) {
   const { THREE: THREE, container: containerElement, canvas: canvasElement } = stageOptions;
@@ -228,7 +203,6 @@ export function mountStage(stageOptions) {
   // 早期注册的回调（子系统构造时）也会调用，所以必须用可选链兜底。
   const wakeFrameLoop = () => frameLoop?.wake();
   // 背景控制器：默认主题下驱动地面星尘，暖阳原木下换成全屏暖色背景。
-  // 对外接口与原先的 createBackgroundTheme 完全一致，因此沿用同一个变量名。
   const backgroundTheme = createSceneBackground(stageOptions, wakeFrameLoop);
   stageOptions.setBackgroundTheme?.(backgroundTheme);
   let areIdleIconsHidden = false;
@@ -4007,12 +3981,8 @@ export function mountStage(stageOptions) {
   // 每帧写 style.left/top 会强制样式重算，是这类页面的主要开销。
   let markerLayoutSignature = "";
   /**
-   * 把标记的世界坐标投影成屏幕坐标并摆放 DOM。
-   *
-   * 空闲超过 240ms 且没有扫地机在动时直接跳过（省掉每帧的投影计算）；
-   * 投影结果落在 NDC 的 ±1.05 之外视为不可见 —— 留 5% 余量，
-   * 免得标记在屏幕边缘反复闪现。
-   *
+   * 把标记的世界坐标投影成屏幕坐标并摆放 DOM：空闲超过 240ms 且没有扫地机在动时跳过（省每帧投影），
+   * 投影结果落在 NDC ±1.05 之外视为不可见（留 5% 余量避免边缘闪现）。
    * @param {boolean} [forceLayout=false] 强制重排，忽略签名缓存。
    */
   function updateMarkerPositions(forceLayout = false) {

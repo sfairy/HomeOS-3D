@@ -1,21 +1,15 @@
 /**
- * 「照射范围」编辑弹窗。
+ * 「照射范围」编辑弹窗：只有「区域覆盖」（region）模式的轻量柔光支持逐区域调整，本模块把 3D 编辑器
+ * 以「只编辑范围」的模式挂进模态弹窗，让用户在 3D 预览中拖拽平面控制照射范围。
  *
- * 在 3D 子系统里的位置：灯光只有一个「区域覆盖」（region）模式的轻量柔光
- * 才支持逐区域调整照射范围，本模块把 3D 编辑器以「只编辑范围」的模式挂进一个
- * 模态弹窗里，让用户在 3D 预览中拖拽平面来控制照射范围。
- *
- * 对外提供：openInteraction3dRangeEditor —— 打开弹窗并返回 { close, ready }。
- *
- * 约定：需要先有 3D 户型（component.properties.sceneId）且灯光为 region 模式，
- *       否则直接抛中文错误；打开期间会派发 hb-i3d-preview-scope 事件，
- *       通知页面其它部分暂时收起自己的 3D 预览，避免两处同时渲染。
+ * 约定：需要先有 3D 户型（component.properties.sceneId）且灯光为 region 模式，否则直接抛中文错误；
+ * 打开期间派发 hb-i3d-preview-scope 事件，通知页面其它部分暂时收起自己的 3D 预览，避免两处同时渲染。
  */
-import { mountInteraction3d } from "../core/runtime.js?v=20260920104554";
+import { mountInteraction3d } from "../core/runtime.js?v=20260920131301";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=20260920104554";
+} from "/static/bridge/bridge.js?v=20260920131301";
 /**
  * 打开照射范围编辑弹窗。
  *
@@ -50,7 +44,7 @@ export async function openInteraction3dRangeEditor({
   };
   const stylesheetLink = createElement("link");
   stylesheetLink.rel = "stylesheet";
-  stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=20260920104554";
+  stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=20260920131301";
   document.head.append(stylesheetLink);
   // 复用编辑器与运行时样式，因此类名沿用 i3d-editor。
   const dialogElement = createElement("dialog", "i3d-editor i3d-range-dialog");

@@ -1,14 +1,11 @@
 /**
  * 展示页启动引导（splash）状态机。
  *
- * 位置：/display/<id> 展示页最前置脚本，早于渲染脚本执行，负责盖住首屏白屏。
- * 职责：维护 loading → waiting → leaving → done / error 的启动阶段，等首屏
- *   素材与 3D 交互宿主都就绪后再淡出；把画布背景色推导成明 / 暗主题并写入
- *   localStorage；失败时给出重试与「先进入仪表盘」两种出口。
- * 约定：对外通过 window.HABridgeDisplayBoot 暴露 setDocument / ready / fail /
- *   notice / recovered / setRuntimePush 与只读的 pending / failed，渲染脚本据此
- *   汇报进度与运行期异常；?capturePreview=1 时完全跳过启动引导（截图 / 预览
- *   场景不需要遮罩，也不该出现提示横幅）。
+ * 位置：/display/<id> 最前置脚本，早于渲染脚本执行，负责盖住首屏白屏。
+ * 职责：维护 loading → waiting → leaving → done / error，等首屏素材与 3D 交互宿主就绪后再淡出；
+ * 把画布背景色推导成明 / 暗主题写入 localStorage；失败时给出重试与「先进入仪表盘」两种出口。
+ * 约定：通过 window.HABridgeDisplayBoot 暴露 setDocument / ready / fail / notice / recovered /
+ * setRuntimePush 与只读的 pending / failed；?capturePreview=1 时完全跳过启动引导。
  */
 (() => {
   "use strict";
@@ -152,10 +149,7 @@
 
   /**
    * 设置 / 撤销「实时推送已停止」横幅。
-   *
-   * 与刷新失败分开记，是因为它的解除条件不同：刷新成功不代表实体状态会恢复，
-   * 只有在渲染层重新订阅成功（收到 available 为 true）时才可以说已经恢复。
-   *
+   * 与刷新失败分开记：刷新成功不代表实体状态会恢复，只有渲染层重新订阅成功（available 为 true）才算恢复。
    * @param {string} [message] 不可用时的文案。
    */
   function setRuntimePushNotice(available, message) {

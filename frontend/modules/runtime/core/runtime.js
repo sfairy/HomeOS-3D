@@ -1,31 +1,19 @@
 /**
- * 3D 交互模块的外层运行时（宿主页侧，非 iframe 内）。
- *
- * 位置：interaction3d 子系统的「外壳层」。它在宿主 DOM 里建一个 iframe 指向 3D 舞台，
- * 然后负责三件事：
- *   1) 状态：订阅被追踪实体的状态（优先走 lightStream 增量流，退化到 registerRuntimeStateHandler），
- *      把状态随配置一起推给舞台；
- *   2) 配置：runtimeApi.update 收到控件属性后做差异判断，必要时重载 iframe 或只发 config；
- *   3) 命令：舞台回传的 control 在这里落到 /api/v1/modules/interaction3d/control，
- *      编辑类指令（视角、聚焦、照射范围）用 editor-command 发下去并按 requestId 等回执。
- *
- * 与舞台的协议：channel 固定 "hb-i3d-v1"，双向都只认同源窗口；
- * 控制请求 12 秒超时（AbortController），编辑类回执 5 秒超时；
- * 加载兜底 45 秒 —— 超时按加载失败提示，避免页面永远停在骨架屏。
- *
- * 对外导出 mountInteraction3d(hostElement, options)：返回 runtimeApi 句柄
- * （update / setPageVisible / setAuthorized / setViewEditing / viewCommand / captureView /
- * focusCommand / closeRangeEditor 与若干只读属性）。所有方法在 dispose 之后都是空操作。
+ * 3D 交互模块的外层运行时（宿主页侧，非 iframe 内）：在宿主 DOM 里建 iframe 指向 3D 舞台。
+ * 三件事：① 状态——订阅被追踪实体（优先 lightStream 增量流，退化到 registerRuntimeStateHandler）
+ * 并随配置推给舞台；② 配置——update 收到属性后做差异判断，必要时重载 iframe 或只发 config；
+ * ③ 命令——舞台回传的 control 落到 /api/v1/modules/interaction3d/control，编辑类指令用 editor-command
+ * 下发并按 requestId 等回执。
+ * 协议：channel 固定 "hb-i3d-v1"，双向只认同源窗口；控制请求 12 秒超时，编辑回执 5 秒，
+ * 加载兜底 45 秒（超时按加载失败提示，避免永远停在骨架屏）。dispose 后所有方法都是空操作。
  */
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { apiErrorMessage, entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260920104554";
+// 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
+import { apiErrorMessage, entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260920131301";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=20260920104554";
-import { createLightStream } from "../light/light-stream.js?v=20260920104554";
+} from "./popup-preview.js?v=20260920131301";
+import { createLightStream } from "../light/light-stream.js?v=20260920131301";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -1289,7 +1277,7 @@ export function mountInteraction3d(
           body: JSON.stringify({
             ...incomingMessage.command,
             // 定位字段一律带上（不再只给空调/窗帘/电视带）：后端四个分支都要用它
-            // 反查「实体是不是真配在这个控件上」，灯光/开关那条也不例外（B25）。
+            // 反查「实体是不是真配在这个控件上」，灯光/开关那条也不例外。
             // 少了它后端会回 422，而不是悄悄退回「只校验实体可见范围」。
             projectId: projectId,
             componentId: componentDescriptor.id

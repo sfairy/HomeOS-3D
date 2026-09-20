@@ -24,14 +24,9 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from store.licensing import keys
 
-#: 传输协议标识。**改动它等于把所有已部署客户端踢下线**：
-#: 它参与 HKDF 的 info 与 AES-GCM 的 AAD，新旧不一致时连密钥都派不出来，
-#: 请求会在解密阶段直接失败、没有降级路径。
-#:
-#: 品牌改名时这里从 ``ha-bridge-license-transport-v1`` 改成了
-#: ``homeos-license-transport-v1``，属于**故意的破坏性变更**（0.5.6）：
-#: 服务端只认新标识，老客户端必须先升级再连。发布时必须同步提升 VERSION
-#: 并在版本说明里写清升级顺序（先升客户端，再升服务端）。
+#: 传输协议标识。**改动它等于把所有已部署客户端踢下线**：它参与 HKDF 的 info 与 AES-GCM
+#: 的 AAD，新旧不一致时连密钥都派不出来，请求会在解密阶段失败且没有降级路径。
+#: 发布时须同步提升 VERSION 并写清升级顺序（先升客户端、再升服务端）。
 PROTOCOL = b"homeos-license-transport-v1"
 #: 激活时客户端上报的产品标识，服务端严格比对。
 PRODUCT = "homeos"

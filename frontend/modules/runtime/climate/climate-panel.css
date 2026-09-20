@@ -1,17 +1,12 @@
 /*
  * 空调 / 温控面板（.i3d-climate-panel）在 3D 舞台内的样式。
  *
- * 位置：interaction3d 展示侧，由 stage.css 用 @import 引入；作用对象是
- * climate-panel.js 渲染的温控面板——标题与电源键、温度步进器、
- * 模式 / 风速选项组、温区提示与错误文案。
+ * 由 stage.css @import 引入，作用对象是 climate-panel.js 渲染的温控面板（标题与电源键、温度步进器、
+ * 模式 / 风速选项组、温区提示与错误文案）；外壳沿用 .i3d-light-panel（只覆盖高度与滚动）。
  *
- * 主题变量：宿主页 :root 提供 --surface / --field / --line / --muted；
- * 面板另外定义 --i3d-climate-accent 作为「当前模式强调色」，由 data-climate-mode
- * 属性切换（制冷蓝 / 制热橙 / 关机灰），--hb-climate-accent* 则是给
- * .hb-* 前缀的通用控件复用的别名。
- *
- * 约定：面板外壳沿用灯光面板的 .i3d-light-panel（只覆盖高度与滚动），
- * 所有面板内类名一律以 i3d-climate- 前缀书写。
+ * 主题变量：宿主页 :root 提供 --surface / --field / --line / --muted；面板另定义
+ * --i3d-climate-accent 作为「当前模式强调色」，由 data-climate-mode 切换（制冷蓝 / 制热橙 / 关机灰），
+ * --hb-climate-accent* 是给 .hb-* 通用控件复用的别名。面板内类名一律以 i3d-climate- 前缀书写。
  */
 
 /* 面板起始位置与外层 .i3d-light-panel 共用同一个 top 公式，

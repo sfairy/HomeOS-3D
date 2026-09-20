@@ -1,17 +1,13 @@
 /**
  * 弹窗「关联功能」实体：候选筛选、默认勾选、名称清洗与操作确认。
  *
- * 位置：编辑器弹窗设计器中「关联实体」选择器，以及展示页弹窗渲染时的取数层。
- * 职责：由被绑定的实体推导出所属设备（热水器 / 净化器 / 浴霸 / 空调 / 扫地机），
- *   从同一设备的兄弟实体里挑出可关联项、按域排序、限制勾选数量；同时提供
- *   去前缀显示名、危险操作确认、可选项列表与服务映射等辅助能力。
- * 约定：① mode 为 "selected" 的显式勾选优先；返回 null 表示「未配置过」，
- *   与「配置为空」区分开；② 各设备类型的可选域白名单与数量上限是产品约定，
- *   改动会影响既有弹窗的显示；③ 候选排序稳定：不可用项最后、再按域优先级、
- *   最后按实体 ID 字典序。
+ * 由被绑定实体推导所属设备（热水器 / 净化器 / 浴霸 / 空调 / 扫地机），从同一设备的兄弟
+ * 实体里挑出可关联项、按域排序、限制勾选数量。mode 为 "selected" 的显式勾选优先；返回
+ * null 表示「未配置过」，与「配置为空」区分。候选排序稳定：不可用项最后、再按域优先级、
+ * 最后按实体 ID 字典序。
  */
-import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles.js?v=20260920104554";
-import { entityDomainOf } from "../utils/entities.js?v=20260920104554";
+import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles.js?v=20260920131301";
+import { entityDomainOf } from "../utils/entities.js?v=20260920131301";
 
 // 显式勾选模式的标识值，与文档里 properties.relatedEntities.mode 对应。
 export const RELATED_ENTITY_MODE_SELECTED = "selected";
@@ -140,9 +136,8 @@ export const RELATED_ENTITY_DOMAIN_LABELS = Object.freeze({
   binary_sensor: "状态"
 });
 
-// 取实体域：统一走 utils/entities.js 的 entityDomainOf（P10 B 类收敛）。本文件原先那份
-// 与 home.js 那份对「domain 带点号」「domain 不是字符串」两种输入的结果不同 —— 两边的
-// 消费方都是拿去查标签表或与裸域名比较，所以这类输入下会静默认错域。
+// 取实体域：统一走 utils/entities.js 的 entityDomainOf，避免在「domain 带点号 / 不是字符串」
+// 时静默认错域（消费方都是拿去查标签表或与裸域名比较）。
 
 /**
  * 判断实体当前是否可用（未被禁用、未被删除）。

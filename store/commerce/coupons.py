@@ -21,15 +21,10 @@ from store.core.models import Account, Coupon, CouponRedemption, Order
 #: 避免出现「能存进库、但结算时按 percent 处理」的意外组合。
 DISCOUNT_TYPES = frozenset({"percent", "fixed"})
 
-#: 「名额已归还」的订单状态：这些路径都会调用 :func:`release_coupon`，所以它们的
-#: 核销记录**不再占用名额**，既不该算进 ``max_redemptions``，也不该算进
-#: ``per_account_limit``。
-#:
-#: 刻意不包含 ``refunded``：退款发生在付款成功之后，码确实被用掉了，名额不还给用户
-#: （与库存口径一致 —— 退款不退名额，只退还预留）。
-#:
-#: 判定「这个账号还用没用过该码」必须排除这些状态，否则用户只要有一单被取消，
-#: 就会永久失去这个优惠码：名额明明已经还回去了，却永远提示「你已使用过」。
+#: 「名额已归还」的订单状态：这些路径都调用 :func:`release_coupon`，核销记录不再占名额，
+#: 既不该算进 ``max_redemptions`` 也不该算进 ``per_account_limit``。刻意不含 ``refunded``
+#: —— 退款发生在付款成功之后，码确实被用掉了，名额不退（与库存口径一致）。
+#: 判定「该账号是否用过此码」必须排除这些状态，否则取消过一单的用户会永久失去该码。
 RELEASED_STATUSES = frozenset({"cancelled", "expired", "payment_failed"})
 
 
@@ -112,7 +107,7 @@ def redeem_coupon(
     ``redeem_coupon`` 的原子条件过去只覆盖 ``max_redemptions``，对 ``account_id``
     没有任何约束，于是同账号两个并发 ``POST /orders`` 各自读到
     ``used=0`` 并双双通过 —— ``per_account_limit=1`` 形同虚设，100% 折扣码
-    可以直接刷出免费授权（而 S41 的待付单竞态正好提供了这条并发路径）。
+    可以直接刷出免费授权（而待付单竞态正好提供了这条并发路径）。
     """
     statement = (
         update(Coupon)
@@ -125,13 +120,9 @@ def redeem_coupon(
             func.coalesce(Coupon.redeemed_count, 0) < int(coupon.max_redemptions)
         )
     if coupon.per_account_limit:
-        # 该账号仍占用中的核销记录数，作为**相关标量子查询**参与 WHERE。
-        # 整个判断与自增在同一条 UPDATE 里完成，并发下只有一个能成功。
-        #
-        # 这里刻意不用 ``EXISTS(... HAVING count(...) >= limit)``：没有 GROUP BY 时
-        # SQLite 会判定为「非聚合查询」并直接报
-        # ``OperationalError: HAVING clause on a non-aggregate query``。
-        # 标量子查询既避开这个方言坑，读起来也更直接：count < limit 才放行。
+        # 该账号仍占用中的核销记录数，作为**相关标量子查询**参与 WHERE；整个判断与自增在同一条
+        # UPDATE 里完成，并发下只有一个能成功。不用 ``EXISTS(... HAVING ...)``：没有 GROUP BY 时
+        # SQLite 会直接报 ``HAVING clause on a non-aggregate query``。
         used_subquery = (
             select(func.count(CouponRedemption.id))
             .select_from(CouponRedemption)

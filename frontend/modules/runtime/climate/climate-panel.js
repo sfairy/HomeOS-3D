@@ -1,13 +1,9 @@
 /**
  * 空调控制面板（3D 详情弹窗 / 配置预览共用）。
  *
- * 在 3D 子系统里的位置：把 climateState 归一化后的空调状态渲染成一张控制卡
- * —— 开关、设定温度、运行模式、风速、摆风，并把用户操作交给 onControl 发送。
- *
- * 对外提供：createClimatePanel。
- *
- * 约定：面板本身不直接访问后端，所有命令都通过 onControl(command) 发出去；
- *       命令结构由 climate-state.js 统一构造，面板只负责挑服务名与参数。
+ * 把 climateState 归一化后的状态渲染成一张控制卡（开关、设定温度、运行模式、风速、摆风），
+ * 用户操作交给 onControl 发送。对外提供 createClimatePanel。面板不直接访问后端，所有命令
+ * 通过 onControl(command) 发出，命令结构由 climate-state.js 统一构造。
  */
 import {
   climateState,
@@ -16,12 +12,10 @@ import {
   climateModeLabel,
   climateSwingModeLabel,
   createClimateModeHistory
-} from "./climate-state.js?v=20260920104554";
+} from "./climate-state.js?v=20260920131301";
 /**
  * HA 的 fan_mode 取值 → 中文文案。
- *
- * 同一个语义在厂商之间写法不一（medium/middle 都是中风，silent/quiet 都是静音），
- * 因此这里把常见写法都列上；未收录的取值在界面上原样显示。
+ * 各厂商写法不一（medium/middle 都是中风），故常见写法都列上；未收录的原样显示。
  */
 const FAN_MODE_LABELS = {
   auto: "自动",
@@ -52,10 +46,7 @@ export function createClimatePanel({
     return element;
   };
   /**
-   * 清空容器并填入新子节点。
-   *
-   * 优先用原生 replaceChildren；某些嵌入式 WebView 内核没有实现该方法，
-   * 因此保留一版手动实现的兜底，保证面板在这些环境里同样能重建。
+   * 清空容器并填入新子节点；某些嵌入式 WebView 没有原生 replaceChildren，故保留手动兜底。
    */
   const replaceChildren = (containerElement, ...childNodes) => {
     if (typeof containerElement.replaceChildren == "function") {
@@ -198,9 +189,7 @@ export function createClimatePanel({
     }
   }
   /**
-   * 先本地校验再发送控制命令。
-   *
-   * @returns {Promise<void>|undefined} 不可控时返回 undefined。
+   * 先本地校验再发送控制命令；不可控时返回 undefined。
    */
   function requestControl(requestedService, value) {
     if (canControl()) {

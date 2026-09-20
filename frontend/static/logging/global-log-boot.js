@@ -1,23 +1,17 @@
 /**
- * 全局日志上报的启动引导（编辑器 / 面板侧）。
+ * 全局日志上报的启动引导（编辑器 / 面板侧）：早于业务脚本执行，把 global-log.js 接到真实接口上。
  *
- * 位置：早于业务脚本执行，负责把 global-log.js 接到真实接口上。
- * 职责：把一个极简的 JSON 请求封装注入 setupGlobalLog，让日志模块可以
- *   上报到 /api/v1 下的日志接口。
- * 约定：请求一律 cache: "no-store"，避免日志接口被缓存；401 视为会话失效
- *   直接跳登录页；只有带 body 时才声明 Content-Type: application/json；
- *   超时预算统一由 utils/api-fetch.js 决定（这里不自己写超时）。
+ * 把一个极简的 JSON 请求封装注入 setupGlobalLog，让日志模块能上报到 /api/v1 下的日志接口。
+ * 约定：请求一律 cache: "no-store"；401 视为会话失效直接跳登录页；只有带 body 时才声明
+ * Content-Type: application/json；超时预算统一由 utils/api-fetch.js 决定。
  */
-import { setupGlobalLog } from "./global-log.js?v=20260920104554";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920104554";
-import { apiFetch } from "../utils/api-fetch.js?v=20260920104554";
+import { setupGlobalLog } from "./global-log.js?v=20260920131301";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260920131301";
+import { apiFetch } from "../utils/api-fetch.js?v=20260920131301";
 
 /**
  * 发送 JSON 请求并做统一的错误处理。
- *
- * 超时交给 apiFetch（普通 20 秒、上传 3 分钟）：日志上报悬挂时也必须抛错，
- * 否则调用方会一直停在「正在上报」。
- *
+ * 超时交给 apiFetch（普通 20 秒、上传 3 分钟）：日志上报悬挂时也必须抛错，否则调用方会一直停在「正在上报」。
  * @throws {Error} 会话失效、超时、HTTP 失败或响应不是合法 JSON。
  */
 async function requestJson(path, init = {}) {
@@ -50,8 +44,7 @@ async function requestJson(path, init = {}) {
     throw new Error("登录状态已失效。");
   }
   if (!response.ok) {
-    // 文案归一交给 utils/api-error.js：这里原先只认字符串与 `detail.message`，
-    // 不认 FastAPI 422 的数组 —— 而日志面板正是最需要看清原因的地方。
+    // 文案归一交给 utils/api-error.js，它认得字符串、`detail.message` 与 FastAPI 422 数组。
     throw new Error(
       apiErrorMessage(payload, "请求失败（HTTP " + response.status + "）")
     );

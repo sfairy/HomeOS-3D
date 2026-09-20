@@ -1,13 +1,12 @@
 /**
  * 面板按钮点击音效。
  *
- * 位置：展示页 / 编辑器运行时的交互反馈模块，由页面在需要时构造实例。
- * 职责：维护「音效开关」的本地持久化，并在按钮点击时播放一次点击音。
- * 约定：开关存在 localStorage（homeos-dashboard-sound-enabled），默认开启；
- *   播放用 Audio 克隆节点，保证快速连点时每次都能从头出声。
+ * 展示页 / 编辑器运行时的交互反馈模块，由页面在需要时构造实例：维护「音效开关」的本地持久化，
+ * 并在按钮点击时播放一次点击音。开关存在 localStorage（homeos-dashboard-sound-enabled），默认
+ * 开启；播放用 Audio 克隆节点，保证快速连点时每次都能从头出声。
  */
 const SOUND_ENABLED_STORAGE_KEY = "homeos-dashboard-sound-enabled",
-  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3?v=20260920104554";
+  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3?v=20260920131301";
 
 // 读取音效开关：存储项缺失视为开启；隐私模式禁读 localStorage 时同样兜底为开启。
 function isSoundEnabled() {

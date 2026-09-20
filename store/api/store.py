@@ -94,20 +94,7 @@ HISTORY_PAGE_SIZE = 20
 #: 同一邮箱一小时内最多能索取多少次验证码（含注册与找回密码）。
 MAX_VERIFICATION_SENDS_PER_HOUR = 10
 
-#: S14：发信配额的另外两个维度。已有那条只按**邮箱**算，挡得住「把一个邮箱炸爆」，
-#: 挡不住「用脚本给上万个**不同**邮箱各发一封」—— 那是把本站当发信机去轰炸第三方。
-#: 发件域信誉一旦因此毁掉，之后**正常用户**的验证码会成批进垃圾箱，且基本不可逆；
-#: 顺带还有 SMTP 配额与成本。所以再补两条：
-#:
-#: * 按**来源 IP**：脚本通常来自同一批地址。真实用户每小时 1~3 封足够，
-#:   20 是很宽松的上限。
-#: * 按**全站**：兜住换 IP 的分布式来源。这条做成可配置的，因为它的合理值随站点
-#:   规模变化（小站 500/小时绰绰有余，大促期间可能需要调高）；上限由
-#:   ``STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT`` 控制，触发时会打一条明确的告警，
-#:   让运营知道该往上调而不是对着「收不到验证码」干着急。
-#:
-#: 与 ``store/security/limiter.py`` 里的其它限流器同一个实现、同一套取舍（进程内计数，
-#: 单进程部署够用；多进程时额度会翻倍，见该模块 docstring）。
+#: 发信配额除「按邮箱」外另加两个维度：按来源 IP（脚本常来自同一批地址，20/小时很宽松）与按全站（兜住换 IP 的分布式来源，上限由 ``STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT`` 控制，触发会告警）。
 _VERIFICATION_IP_LIMITER = SlidingWindowLimiter(limit=20, window_seconds=3600.0)
 
 #: 全站配额按 ``limit`` 缓存实例（见下）。
@@ -130,7 +117,7 @@ def _verification_global_limiter(limit: int) -> SlidingWindowLimiter:
 def _enforce_verification_send_quota(
     request: Request, settings: StoreSettings, *, email: str
 ) -> None:
-    """按来源 IP 与全站总量限制发信（S14）。超限抛 429。
+    """按来源 IP 与全站总量限制发信。超限抛 429。
 
     IP 取 ``resolve_client_ip`` 的解析结果（只在可信代理后面才采信转发头），
     与验证码回显、登录限流用的是同一个来源判定 —— 各写一份就会出现「限流按 A
@@ -225,9 +212,9 @@ def _resolve_upgrade_target(
 ) -> License | None:
     """解析「试用升级为永久」要就地升级的那张授权。
 
-    前台升级链接过去把 ``Customer.id`` 当参数传（``&upgrade=<customerId>``），而
-    后端完全没有消费这个参数 —— 于是点了「升级为永久授权」只是重新买了一张新码，
-    原试用授权依旧到期。现在按授权主键解析，并校验它确实属于当前账号且有时限。
+    参数来自前台升级链接（``&upgrade=<...>``）。必须按**授权主键**解析，并校验它
+    确实属于当前账号且有时限 —— 若拿 ``Customer.id`` 之类当参数，后端消费不到，
+    「升级为永久授权」就会变成重新买一张新码，原试用授权依旧到期。
     """
     normalized = (upgrade_license_id or "").strip()
     if not normalized:
@@ -300,13 +287,8 @@ def _create_session(session, request: Request, account: Account) -> str:
 def _customer_for(session, account: Account) -> Customer:
     """取（必要时创建）账号对应的客户档案行。
 
-    ``customers.account_id`` 上有唯一索引，而这里是「先查后插」—— 两个并发请求
-    会同时查不到、同时插入，后到的那个撞唯一约束并把整个请求打成 500
-    （由 S41 的并发测试当场发现：8 个并发下单里有 1 个是
-    ``UNIQUE constraint failed: customers.account_id``，而不是预期的 409）。
-
-    唯一索引本身就保证了「每个账号至多一行」，所以撞约束时不必报错 ——
-    说明另一个请求刚好抢先建好了，直接把它读回来即可（幂等）。
+    ``customers.account_id`` 有唯一索引，但「先查后插」会被并发请求撞唯一约束（直接打成 500）。
+    撞约束说明另一请求刚好抢先建好了，直接读回来即可（幂等）。
     """
     customer = session.scalars(
         select(Customer).where(Customer.account_id == account.id)
@@ -349,21 +331,10 @@ def _product_or_404(session, product_id: str) -> Product:
 
 
 def _product_stats(session, product_ids=None) -> dict[str, dict]:
-    """商品的「已售份数 / 拥有客户数」。
+    """商品的「已售份数 / 拥有客户数」，只在商品卡片展示、不参与任何判定。
 
-    这两个数只在商品卡片上做展示，**不参与任何判定**（``soldOut`` 看的是
-    ``stock_quantity - reserved_stock``，见 ``product_payload``），所以调用方可以按需缩小范围。
-
-    ``product_ids`` 就是为此而加：不传时对**全表** fulfilled 订单 ``GROUP BY``、对全表活跃授权
-    ``COUNT(DISTINCT)``，而这段聚合过去同时挂在商品列表、商品详情与**下单热路径**上 —— 销售历史
-    越长，下单接口越慢。传了 ``product_ids`` 之后条件收窄成 ``product_id IN (...)``，只有该商品
-    自己的历史被扫到。
-
-    这里刻意**不做**进程内缓存，也刻意不加增量计数列：没有缓存是可行的前提 —— 这两个数没有时效
-    承诺，但也没有 UI 消费者（前台只把它们放进响应体），缓存带来的只有「陈旧值」这一类新故障；
-    计数列对 ``purchase_count`` 可行，对 ``customer_count`` 不可行 —— 后者是
-    ``COUNT(DISTINCT customer_id)``，一个整数加不出来，要再建一张辅助表并在履约 / 退款 / 停用 /
-    删除订单四处同步更新，代价与漂移风险都远超一个展示字段。
+    聚合挂在下单热路径上，故用 ``product_ids`` 把条件收窄到指定商品。刻意不做进程内缓存、
+    也不加计数列：这两个数没有时效承诺，且 ``customer_count`` 是 ``COUNT(DISTINCT)``，加列要另建辅助表并多处同步。
     """
     purchase_query = select(Order.product_id, func.count(Order.id)).where(
         Order.status == "fulfilled"
@@ -401,7 +372,7 @@ def _bundled_map(session) -> dict[str, Product]:
 
 
 def _product_item(session, product: Product) -> dict:
-    #: 只问这一张商品的统计（S50）：详情页不该替其它商品的销售历史买单。
+    #: 只问这一张商品的统计：详情页不该替其它商品的销售历史买单。
     stats = _product_stats(session, {product.id})
     return product_payload(
         product,
@@ -477,23 +448,16 @@ def _evaluate_coupon_limited(
 ) -> tuple[Coupon, int]:
     """试算优惠码：口径校验 → 限流 → 试算 → 记失败 / 清计数，全部收在一处。
 
-    下单与预览必须走同一条路径，原因有两个，都是真实踩过的坑：
-
-    1. **预览过去完全没有限流**。它是一个不消耗任何东西、可以无限调的接口，
-       而每次试探都会返回精确折扣额 —— 等于把「这个码对不对、能减多少」直接
-       念出来。下单路径有 ``password_gate``，预览没有，爆破者当然走预览。
-    2. **两条路径对「哪些商品不能用码」的判断各写了一遍**，于是人工发卡商品在
-       预览里按折后价展示、在下单时被静默忽略原价收款，用户毫无提示地多付了钱。
-
-    失败时用**独立会话**落一条尝试记录：本请求接下来一定会回滚（HTTPException
-    会被转成 4xx，事务回滚），在本会话里写的记录会跟着消失，限流就形同虚设。
+    下单与预览必须走同一条路径：预览不限流等于把精确折扣额念给爆破者，且「哪些商品不能用码」
+    只能有一处判断，否则人工发卡商品会按折后价展示、下单时被静默忽略原价。
+    失败时用独立会话落尝试记录，否则本请求回滚会把限流记录一起抹掉。
     """
     normalized = (code or "").strip()
     if not normalized:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请输入优惠码。")
     if product.fulfillment_mode == "manual":
         # 人工发卡商品由运营手工核对后发码，折扣没法自动结算，因此明确不支持。
-        # 关键是**两条路径都拒绝**：过去下单路径静默忽略、预览照常打折。
+        # 关键是**两条路径都拒绝**：否则会一边静默忽略、一边照常打折。
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=_MANUAL_COUPON_DETAIL
         )
@@ -515,20 +479,10 @@ def _evaluate_coupon_limited(
 
 
 def _flush_order(session, order: Order) -> str:
-    """插入订单；把唯一索引的裁决翻译成业务语义。
-
-    返回 ``"ok"``（已落库）/ ``"pending"``（该账号已有待付单）/ ``"retry"``（订单号
-    撞车，请调用方重试整个请求）。
-
-    订单号由 :func:`store.security.new_order_no` 末尾的随机段保证**按构造即唯一**，
-    所以这里刻意**不再**「撞号就换一个再插」。那种事后重试在 SQLAlchemy 里是个陷阱：
-    flush 失败会把对象**逐出会话**，于是重试那次 flush 实际什么都没插、却返回成功
-    （实测：换号重试的写法返回 "ok" 但行根本没落库）—— 订单静默丢失，比 500 更糟。
-    真撞上订单号（概率可忽略）就交给上层让客户端重试，绝不假装成功。
-
-    flush 放在 SAVEPOINT 内并关掉自动 flush：先建 SAVEPOINT、再显式 flush，失败时
-    只回滚这一次插入，本事务中此前的改动（``_customer_for`` 建的客户档案等）不受
-    影响，会话也仍可正常提交。
+    """插入订单；把唯一索引的裁决翻译成业务语义，返回 ``"ok"`` / ``"pending"`` / ``"retry"``。
+    订单号按构造即唯一，刻意不再「撞号就换一个再插」：flush 失败会把对象逐出会话，
+    重试那次实际什么都没插却返回成功，订单会静默丢失。flush 放在 SAVEPOINT 内并关掉自动 flush，
+    失败只回滚这一次插入，不影响本事务此前的改动（如 ``_customer_for`` 建的客户档案）。
     """
     try:
         with session.no_autoflush, session.begin_nested():
@@ -601,8 +555,8 @@ def _account_orders(
         session.scalars(
             select(Order)
             .where(Order.account_id == account.id)
-            # 用户主动「清除订单记录」写的就是 archived_at。这个字段此前没有任何
-            # 查询过滤它，于是按钮点了只弹个提示，订单照样躺在账号中心。
+            # 用户主动「清除订单记录」写的就是 archived_at；不在这里过滤的话，
+            # 按钮点了只弹个提示，订单照样躺在账号中心。
             .where(Order.archived_at.is_(None))
             .order_by(Order.created_at.desc())
             .limit(limit)
@@ -648,9 +602,8 @@ def _center_payload(session, request: Request, account: Account) -> dict:
         license_meta=_license_meta(session, licenses),
         entitlements=entitlements,
         orders=_account_orders(session, account),
-        #: 总数单独查一次（与列表同口径），让前端能如实显示「还有 N 单未加载」——
-        #: 过去固定 limit=50 且界面上没有任何提示，买满 50 单的用户会以为
-        #: 更早的订单被系统丢掉了。
+        #: 总数单独查一次（与列表同口径），让前端能如实显示「还有 N 单未加载」；
+        #: 只给固定一批又没有任何提示的话，买满的用户会以为更早的订单被系统丢掉了。
         orders_total=_account_orders_total(session, account),
         has_used_trial=_has_used_trial(session, account),
     )
@@ -675,7 +628,7 @@ def list_products(session: DbSession) -> dict:
         select(Product).where(Product.active.is_(True)).order_by(Product.sort_order, Product.created_at)
     ).all()
     #: 只统计**本页要渲染的**商品：下架商品的历史不该被算进来，也让聚合条件
-    #: 从「全表」收窄成 ``product_id IN (...)``（S50）。
+    #: 从「全表」收窄成 ``product_id IN (...)``。
     stats = _product_stats(session, [product.id for product in products])
     return {
         "items": [
@@ -732,16 +685,7 @@ def latest_release(request: Request, session: DbSession, channel: str = "docker"
 #: 这个接口就成了免费的邮件群发器（而且发件人是我们自己的域名，会被拉黑）。
 _PURPOSES_REQUIRING_ACCOUNT = frozenset({"verify", "change_email"})
 
-#: 视为「本机」的客户端地址（含空串：Starlette 的 TestClient 是进程内调用，
-#: 根本没有网络对端，与 localhost 同级；``testclient`` 是为显式构造的请求保留的）。
-#: 只有这些地址才允许看到 echo 回显的验证码 —— echo 的假设就是「访问者本身就在
-#: 这台机器上」。
-#:
-#: 注意与 ``store/setup_guard.LOOPBACK_HOSTS`` 的区别：那一份**刻意更严**（既不含空串
-#: 也不含 ``testclient``），因为它守的是首次初始化窗口 —— 未初始化的实例对公网是
-#: 「先到先得」，把「拿不到对端」当本机会直接放行匿名创建管理员。这里多收那两个值
-#: 只服务于进程内调用与测试，而多回显一枚验证码的代价远小于多一个管理员。
-#: 两处各自的取舍是刻意不同的，不要「顺手统一」成同一份。
+#: 视为「本机」的客户端地址（含空串与 ``testclient``）：只有这些地址才允许看到 echo 回显的验证码；比 ``store/setup_guard.LOOPBACK_HOSTS`` 刻意更宽，取舍不同不要「顺手统一」。
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient", ""})
 
 
@@ -753,17 +697,10 @@ def _client_host(request: Request) -> str:
 def _is_loopback_client(request: Request) -> bool:
     """请求的**真实来源**是否在本机。
 
-    刻意用 ``resolve_client_ip`` 而不是直接读 ``request.client.host``：后者只是
-    TCP 对端，而在本机反代（nginx/caddy 与 store 同机）后面，**每一个**外部请求的
-    对端都是 ``127.0.0.1``，直接读对端会把它们全部误判成本机，验证码就回显给了
-    整个互联网。``resolve_client_ip`` 只在「对端确实是配置里的可信代理」时才采信
-    ``X-Forwarded-For``，指向客户端的真实地址；没配 ``STORE_TRUSTED_PROXIES`` 时
-    转发头一律忽略，语义与直接读对端一致（此时本机反代无法区分，靠 ``load_settings``
-    的启动告警提示运营）。
-
-    地址为空或标记 ``per_client=False``（链路全程可信、拿不到具体客户端）时按本机
-    处理：那只会出现在进程内调用与 TestClient 场景，不存在「谁从网络上打过来」。
-    反过来误判成本机才是危险的，所以只有能确定指向本机时才返回真。
+    刻意用 ``resolve_client_ip`` 而非 ``request.client.host``：本机反代后面每个外部请求的对端
+    都是 127.0.0.1，直接读对端会把它们全部误判成本机；只有对端是配置里的可信代理时才采信
+    ``X-Forwarded-For``（没配 ``STORE_TRUSTED_PROXIES`` 时转发头一律忽略）。地址为空或
+    ``per_client=False``（链路全程可信）时按本机处理，只会出现在进程内调用与 TestClient 场景。
     """
     try:
         address = resolve_client_ip(request)
@@ -792,20 +729,8 @@ def _assert_purpose_allowed(
         select(Account).where(func.lower(Account.email) == email)
     ).first()
 
-    # ---- S13：``register`` / ``reset`` 的「邮箱是否已存在」不再在这里回答 ---- #
-    #
-    # 这两个用途此前会给出「该邮箱已注册」(409) 与「该邮箱尚未注册」(404)，
-    # 而这个端点**匿名可达、不需要邮箱里的验证码**。于是它就是一个随时可用的
-    # 账号枚举探针：一次请求问一个地址，拿到的状态码直接就是答案。被枚举出来的
-    # 是登录名，配合撞库/钓鱼这一步的价值远高于「知道某人注册过」。
-    #
-    # 现在两个分支一律按正常流程发码并返回同样的 200。真相挪到**用码的那一步**
-    # 才说（见 ``register`` / ``reset_password``）—— 那时对方已经证明自己能收到
-    # 该邮箱的邮件，告知归属不再构成泄漏。
-    #
-    # 代价是「用已注册邮箱去注册」会真发一封验证码邮件，而不是当场被拒。
-    # 这是标准取舍（所有不做枚举的注册流程都是这样），发信量由
-    # :func:`_enforce_verification_send_quota`、单邮箱小时上限与冷却共同封顶。
+    # register / reset 一律按正常流程发码并返回同样的 200（已注册不报 409、未注册不报 404），
+    # 否则这个匿名可达且不需要验证码的端点就成了账号枚举探针；真相挪到用码那一步再说。
     if purpose in {"register", "reset"}:
         return
 
@@ -854,7 +779,7 @@ def send_verification(
     )
     purpose = payload.purpose
 
-    # ---- S14：按来源 IP 与全站的发信配额 ---- #
+    # ---- 按来源 IP 与全站的发信配额 ---- #
     # 放在最前面是刻意的：这一步之下要写库、要连 SMTP，都是每秒几次量级的开销，
     # 而上面的入口只需要一次内存计数。更关键的是，这个端点匿名可达、又能给
     # **任意**地址发信，是天然的「邮件轰炸第三方」放大器；配额不前置，前面的
@@ -917,8 +842,8 @@ def send_verification(
         settings, setting, email=email, code=code, purpose=purpose
     )
 
-    # 投递结果落库。过去 ``delivered`` 只回给前端就丢了，事后完全无法回答
-    # 「用户说没收到，那封信到底发出去没有」—— 只能翻日志，而日志会轮转。
+    # 投递结果必须落库：只回给前端就丢了，事后无法回答「用户说没收到，
+    # 那封信到底发出去没有」—— 只能翻日志，而日志会轮转。
     # ``mode`` 记录的是**实际生效**的方式（smtp 失败会回退成 log），
     # 所以不能拿 settings.mail_mode 冒充：那会把「以为发了其实只写了日志」藏起来。
     record.delivery_mode = result.mode
@@ -941,17 +866,9 @@ def send_verification(
     if result.error:
         # 发信失败要如实告诉用户「可能收不到」，而不是让他对着收件箱干等
         body["deliveryError"] = "验证码邮件发送失败，请稍后重试或联系客服。"
-    #: 任何把验证码写进 HTTP 响应的路径都只认**本机**客户端。
-    #:
-    #: 这一条必须覆盖所有 mail_mode，而不只是 echo：``result.exposed_code`` 在
-    #: ``mail_mode=log`` 与 ``mail_mode=smtp``（凭据不全或发信重试全失败而回退）下
-    #: 同样会有值 —— 只要 ``STORE_EXPOSE_VERIFICATION_CODE`` 打开。此前这里写的是
-    #: ``settings.mail_mode != "echo" or echo_allowed``，「非 echo」直接短路为真，
-    #: 于是远端请求在 log / smtp 两种模式下都能从响应里拿到验证码，等于给任意账号
-    #: （含管理员）留了接管路径；只有 echo 一个模式恰好被挡住。
-    #:
-    #: 非本机一律按 log 处理并告警：验证码仍写进服务端日志（运营能捞到），
-    #: 但不会出现在任何一个跨网络的响应里。
+    #: 任何把验证码写进 HTTP 响应的路径都只认**本机**客户端：判定必须覆盖所有 mail_mode，
+    #: 只按 ``mail_mode != "echo"`` 短路会让远端（log 或回退的 smtp 下）照样拿到验证码；
+    #: 非本机一律按 log 处理并告警，验证码只写服务端日志、不出现在跨网络响应里。
     echo_allowed = _is_loopback_client(request)
     if result.exposed_code is not None and not echo_allowed:
         logger.warning(
@@ -1042,12 +959,9 @@ def _record_verify_failure(session, scope: str) -> None:
 def record_attempt_in_new_session(session, scope: str) -> None:
     """在一个独立事务里记录失败尝试，确保外层请求回滚不会把它抹掉。
 
-    限流记录的语义就是「即使这次请求失败也要留下痕迹」，所以它天然不能和
-    请求共用事务 —— 共用事务时所有失败路径的记录都会被回滚，限流永远不会触发
-    （``verify:<email>`` 这个 scope 之前就是这样，形同虚设）。
-
+    限流记录必须在失败路径也留下痕迹，共用事务会被回滚而永不触发。
     写入失败（SQLite 写锁被外层事务占着等）一律吞掉并告警：这是限流记账，
-    让用户的「验证码不正确」变成 500 是不可接受的降级。
+    不能因此把「验证码不正确」变成 500。
     """
     factory = sessionmaker(bind=session.get_bind(), expire_on_commit=False, future=True)
     try:
@@ -1064,14 +978,8 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     if payload.confirm_password and payload.confirm_password != payload.password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="两次输入的密码不一致。")
 
-    # S13：先消费验证码，再回答「这个邮箱是否已注册」。
-    #
-    # 反过来的话，任何人都能拿一个瞎编的验证码去 POST：拿 409 = 该邮箱有账号，
-    # 拿「请先获取邮箱验证码」= 没有。那就等于把 :func:`_assert_purpose_allowed`
-    # 里刚堵上的枚举口又原样挪到了这里。
-    #
-    # 换到「先验码」之后，能走到 409 的只有**确实持有该邮箱**（验证码是发到那里、
-    # 且只在那里）的人，告知归属不再泄漏任何东西。未持有邮箱者两条分支所见完全一致。
+    # 顺序不能反：先消费验证码，再回答「这个邮箱是否已注册」，否则任何人都能拿瞎编的
+    # 验证码探出账号是否存在（409 = 有、请先获取验证码 = 无），枚举口又从 _assert_purpose_allowed 挪回来。
     _consume_verification(session, email=email, purpose="register", code=payload.code)
 
     existing = session.scalars(select(Account).where(func.lower(Account.email) == email)).first()
@@ -1143,12 +1051,9 @@ LOGIN_GLOBAL_SCOPE = "login-global"
 def _login_scopes(request: Request, email: str) -> list[str]:
     """一次登录失败要记到哪些维度上。
 
-    只有「按账号」这一档能保护单个账号；加上「按 IP」是为了挡住「同一个来源
-    横扫很多账号」——只有按账号时，攻击者换一个邮箱就等于换了一个全新的计数桶。
-
-    按 IP 那一档只在「来源地址真的代表一个客户端」时启用：反代后面没配可信代理时
-    所有人共用代理那一个地址，用它计数会让任何一个人失败几次就锁掉所有人
-    （包括管理员自己）。这种情况由按账号那一档继续兜底。
+    「按账号」保护单个账号，「按 IP」挡住同一来源横扫多账号（只有按账号时换个邮箱就是全新计数桶）。
+    按 IP 只在来源地址真的代表一个客户端时启用：反代后没配可信代理会让所有人共用代理地址，
+    失败几次就锁掉所有人，此时由按账号那档继续兜底。
     """
     scopes = [f"login:{email}"]
     address = resolve_client_ip(request)
@@ -1160,17 +1065,8 @@ def _login_scopes(request: Request, email: str) -> list[str]:
 def _note_login_failure(session, scopes: list[str]) -> None:
     """把失败记进各维度，并在全局量异常时告警。
 
-    **必须先结束本请求的事务，再用独立会话提交。** 这里有两层原因，都是实测出来的：
-
-    1. 本函数之后一定会抛 401，请求事务随之回滚 —— 写在请求会话里的失败记录会
-       一起消失，限流永远不会触发（这正是审计里「40 次错误密码无一被拦」的成因）。
-    2. 光换成独立会话还不够：请求会话此刻可能**正持着 SQLite 写锁**（``maybe_prune``
-       的 DELETE 会开启写事务）。SQLite 是单写者，独立会话的写入会一直等到
-       ``busy_timeout``（5 秒）才失败，然后被 ``record_attempt_in_new_session``
-       吞掉并只留一条告警 —— 既拖慢每次失败登录，又照样丢计数。所以先回滚把锁放掉。
-
-    此时回滚是安全的：失败分支到此为止只做过读与一次可丢弃的清理，``account``
-    对象之后不再使用。
+    必须先回滚本请求事务、再用独立会话提交：否则随后的 401 回滚会丢掉失败记录（限流永不触发），
+    且请求会话此刻可能正持 SQLite 写锁，独立写入要等到 busy_timeout 才失败并被吞掉，同样丢计数。
     """
     session.rollback()
     for scope in scopes:
@@ -1330,7 +1226,7 @@ def reset_password(payload: PasswordResetRequest, request: Request, session: DbS
     email = payload.email.strip().lower()
     if payload.confirm_password and payload.confirm_password != payload.password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="两次输入的密码不一致。")
-    # S13：同 ``register`` —— 先消费验证码，再表态邮箱是否存在。
+    # 同 ``register`` —— 先消费验证码，再表态邮箱是否存在。
     # 「尚未注册」这个回答只该给到已经证明持有该邮箱的人；否则这里就是一个
     # 一次请求一个答案的枚举探针（而且它连验证码都不用去拿）。
     _consume_verification(session, email=email, purpose="reset", code=payload.code)
@@ -1393,12 +1289,8 @@ def change_account_email(
 ) -> dict:
     """把账号邮箱换成新地址，需要发到**新地址**的验证码 + 当前登录密码。
 
-    为什么两样都要：账号邮箱就是登录名，它一旦被改掉，原主就再也登不进来。
-
-    - 只验旧邮箱 → 任何拿到一次会话的人都能把邮箱改成自己的，再走「忘记密码」
-      把账号彻底夺走。
-    - 只验新邮箱 → 会话被劫持时同样守不住（新邮箱本来就是攻击者的）。
-    - 要求密码 → 这是挡住「会话被劫持」的最后一道锁。
+    邮箱就是登录名，改掉后原主再也登不进来：只验旧邮箱则拿到会话即可夺号，只验新邮箱则
+    会话被劫持时守不住，要求密码是挡住会话劫持的最后一道锁。
     """
     if not verify_password(payload.password, account.password_hash):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="登录密码不正确。")
@@ -1407,15 +1299,13 @@ def change_account_email(
     if (account.email or "").strip().lower() == email:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。")
 
-    # S13：占用校验挪到**消费验证码之后**。
-    #
-    # 位置不能随意的两个理由：
+    # 占用校验必须在**消费验证码之后**，位置不能随意，两个理由：
     # 1. 安全性 —— 放在前面就是个「该邮箱有没有账号」的探针，任何登录用户都能
     #    拿一个瞎编的验证码逐条问出来（409 有账号 / 「请先获取邮箱验证码」没有）。
-    #    挪到后面，只有能收到该地址验证码的人才会看到 409，而 409 要保护的
+    #    放在后面，只有能收到该地址验证码的人才会看到 409，而 409 要保护的
     #    「两台账号撞名」是登录名的归属问题，对地址主人公开并不越界。
     # 2. 正确性 —— TOCTOU 的窗口是「发码 → 落库」，校验必须紧贴写库那次查询。
-    #    挪到消费之后仍是「查完即写、同一事务」，窗口反而更小。
+    #    放在消费之后仍是「查完即写、同一事务」，窗口反而更小。
     _consume_verification(session, email=email, purpose="change_email", code=payload.code)
 
     taken = session.scalars(
@@ -1588,9 +1478,9 @@ def list_orders(
 ) -> dict:
     """账号中心的订单列表（分页）。
 
-    带上 ``ordersTotal``：这个接口过去固定返回最近 50 单且没有总数，用户买满
-    50 单之后更早的订单就再也看不到了，界面也没有任何「还有更多」的提示 ——
-    看起来就像订单丢了。分页本身直接复用 ``_account_orders``，
+    必须带上 ``ordersTotal``：只给固定一批且没有总数的话，用户买满之后更早的订单
+    就再也看不到了，界面也没有任何「还有更多」的提示 —— 看起来就像订单丢了。
+    分页本身直接复用 ``_account_orders``，
     与账号中心首屏用同一口径（都过滤 ``archived_at``）。
     """
     _require_verified(account)
@@ -1621,8 +1511,8 @@ def create_order(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=setting.maintenance_message or "商城正在升级维护，请稍后再试。",
         )
-    # 「启用支付」这个开关过去只影响站点配置接口的展示（payment.configured），
-    # 下单流程从没读过它 —— 运营关掉支付后，用户依然能下单并拿到二维码。
+    # 「启用支付」必须在**下单流程**里读：只影响站点配置接口的展示
+    # （payment.configured）的话，运营关掉支付后用户依然能下单并拿到二维码。
     if not setting.payment_enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -1644,8 +1534,8 @@ def create_order(
         )
 
     product = _product_or_404(session, payload.product_id)
-    #: 只判售罄，不再为了这一位去算「已售份数 / 拥有客户数」与整张商品表
-    #: （S50：那两个数只用于商品卡片展示，而这段是下单热路径）。
+    #: 只判售罄，不为了这一位去算「已售份数 / 拥有客户数」与整张商品表 ——
+    #: 那两个数只用于商品卡片展示，而这段是下单热路径。
     if is_sold_out(product):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该商品已售罄。")
 
@@ -1670,9 +1560,9 @@ def create_order(
                 detail="增量包只能添加到永不过期的主授权上。",
             )
     elif _is_trial_product(product):
-        # 「每个账号只能买一次试用」过去只写在前端（store.js 的 primaryProductUnavailable），
-        # 而 state.hasUsedTrial 恒为 false（后端从未计算过这个字段），等于这条规则
-        # 在前端也是死代码。这里在服务端兜底：试用只能买一次，且已有永久授权时不必再买。
+        # 「每个账号只能买一次试用」必须在**服务端**兜底：只写在前端
+        # （store.js 的 primaryProductUnavailable）就挡不住直接调接口，
+        # 且已有永久授权时也不必再买。
         permanent, _temporary = _account_license_state(session, account)
         if permanent:
             raise HTTPException(
@@ -1691,8 +1581,8 @@ def create_order(
     discount = 0
     coupon_code = (payload.coupon_code or "").strip()
     if coupon_code:
-        # 限流、口径校验、失败记账都在这里——与 ``/coupons/preview`` 是同一条
-        # 路径。过去这段内联在结账里，导致「哪些商品支持优惠码」与预览各写一遍，
+        # 限流、口径校验、失败记账都在这里 —— 与 ``/coupons/preview`` 走同一条
+        # 路径；内联在结账里会让「哪些商品支持优惠码」与预览各写一遍，
         # 人工发卡商品在预览里打折、在下单时被静默忽略（用户多付钱且无提示）。
         coupon, discount = _evaluate_coupon_limited(
             session, account=account, product=product, code=coupon_code
@@ -1802,8 +1692,8 @@ def create_order(
         ) from error
 
     try:
-        # S53：模拟收银台的页面凭证用短时票据（见 ``store/commerce/cashier.py``），
-        # 而不是把订单的 ``lookup_token`` 拼进 URL。真实渠道不需要它：支付页由
+        # 模拟收银台的页面凭证用短时票据（见 ``store/commerce/cashier.py``），
+        # 而不是把订单的 ``lookup_token`` 拼进 URL；真实渠道不需要它：支付页由
         # 渠道自己签名，链接里没有本店凭据 —— 这里按渠道判一次，纯粹是不给
         # 用不上的渠道白写一行票据。
         pay_token = cashier.issue_ticket(session, order) if provider.name == "mock" else None
@@ -1853,7 +1743,7 @@ def _reconcile_payment(session, request: Request, order: Order) -> None:
         )
     except Exception as error:  # noqa: BLE001 - 对账出问题绝不能把轮询接口打成 500
         # 查单失败不影响这一轮响应（用户下次轮询还会再查），但它是「订单可能永远
-        # 停在待支付」的早期信号，所以除了日志也计入计数（S36）。
+        # 停在待支付」的早期信号，所以除了日志也计入计数。
         incidents.note("reconcile.poll", order_no=order.order_no, error=error)
         logger.exception("订单查单对账失败 order=%s", order.order_no)
 
@@ -1895,23 +1785,11 @@ def get_order(
 def cancel_order(
     order_no: str, request: Request, session: DbSession, account: CurrentAccount
 ) -> dict:
-    """买家自助取消待支付订单：关掉渠道侧的收款码，归还库存预留与优惠码名额。
+    """买家自助取消待支付订单：关掉渠道侧收款码，归还库存预留与优惠码名额。
 
-    与后台 ``POST /store-admin/v1/orders/{order_no}/cancel`` 的关键区别：后台取消只改本地状态，
-    渠道侧那笔预下单交易仍然开着 —— 用户手里那张二维码还能继续扫、继续付。钱进来时本地订单已经进了
-    终态、库存也还给了别人，只能按「复活单」补发并挂人工复核。所以这里在改状态**之前**先
-    ``close_payment``，把这个窗口堵掉。
-
-    关单结果分三种，处理不能混：``closed`` —— 渠道侧已不可能再被支付（含「交易本来就不存在 / 已经
-    关闭过」这类幂等情况），照常取消并写下 ``channel_closed_at``（巡检靠它判断「这笔远端交易已经关
-    过了」，漏写会让同一笔单被反复关）；``already_paid`` —— 钱已经付了，**绝不能取消**，返回 409，
-    订单保持 pending 交给对账（``reconcile_alipay_order``）走正常入账发码；``PaymentError`` ——
-    网关抖动或凭据没配好，此时仍然本地取消（库存和优惠码必须先还给用户），远端那笔交易留给巡检重试
-    （``channel_closed_at`` 留空，下一轮扫描还会再来关一次）。
-
-    授权口径与 ``GET /orders/{order_no}`` 一致（本人订单，或持有订单查询凭证）。这里**不**要求邮箱
-    已验证：取消只释放资源、不发放任何权益，而把「验证邮箱」设成取消的前提，会把还没验证邮箱却已经
-    占到库存的用户卡在一张他既不能付、也退不掉的单上。
+    与后台取消不同：后台只改本地状态，渠道侧那笔预下单交易还开着、二维码仍能继续付，所以这里在改状态之前
+    先 ``close_payment``。关单结果分三种：``closed`` 照常取消并写 ``channel_closed_at``；``already_paid`` 绝
+    不能取消（返回 409 交对账入账）；``PaymentError`` 仍本地取消、远端留给巡检重试。这里不要求邮箱已验证。
     """
     order = order_or_404(session, order_no)
 
@@ -2168,8 +2046,8 @@ def request_withdrawal(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"最低提现 {money.format_centi(minimum_centi)} 积分。",
         )
-    # 「可用积分」口径必须与前端展示一致（余额 - 冻结）。过去这里只比 balance，
-    # 于是「可用 0 元」的用户照样能提交申请，一路走到后台才被人工拒绝。
+    # 「可用积分」口径必须与前端展示一致（余额 - 冻结）；只比 balance 的话，
+    # 「可用 0 元」的用户照样能提交申请，一路走到后台才被人工拒绝。
     available_centi = referrals.available_points_centi(wallet)
     if points_centi > available_centi:
         raise HTTPException(

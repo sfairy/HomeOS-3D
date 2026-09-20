@@ -1,20 +1,16 @@
 /**
  * 展示页主脚本（/display/<项目名>）。
  *
- * 位置：中控设备上长期打开的运行时页面，只读消费编辑器保存的草稿。
- * 职责：解析地址得到项目、轮询 revision 判断是否需要刷新、拉取目录（实体 /
- *   设备 / 翻译）与素材、创建 PanelRenderer 渲染文档，并处理前后台切换、
- *   断网恢复与旋转屏等生命周期事件。
- * 约定：① 未配对 / 会话失效（401）跳 /pair，授权受限（403 LICENSE_RESTRICTED）
- *   跳 /license；② 素材版本号形如 "内置戳:用户戳"，只在变化时重新下载；
- *   ③ 启动遮罩由 display-boot.js 维护，本模块通过 window.HABridgeDisplayBoot
- *   汇报 setDocument / ready / fail；④ 轮询间隔 10 秒，素材版本检查间隔 30 秒。
+ * 长期打开的运行时页面，只读消费编辑器保存的草稿：解析地址得到项目、轮询 revision 判断
+ * 是否刷新、拉取目录与素材、创建 PanelRenderer 渲染文档，并处理前后台切换、断网恢复与旋转
+ * 屏。未配对 / 会话失效（401）跳 /pair，授权受限（403 LICENSE_RESTRICTED）跳 /license；
+ * 素材版本号形如 "内置戳:用户戳"，只在变化时重新下载；轮询 10 秒，素材版本检查 30 秒。
  */
-import { PanelRenderer } from "../renderer/core/renderer.js?v=20260920104554";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920104554";
-import { createButtonSound } from "../shared/sound-effects.js?v=20260920104554";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=20260920104554";
-import { isAppleMobile } from "../utils/apple-device.js?v=20260920104554";
+import { PanelRenderer } from "../renderer/core/renderer.js?v=20260920131301";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260920131301";
+import { createButtonSound } from "../shared/sound-effects.js?v=20260920131301";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=20260920131301";
+import { isAppleMobile } from "../utils/apple-device.js?v=20260920131301";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");
@@ -40,15 +36,12 @@ let lastCatalogFingerprint = null;
 let lastAssetsCheckAt = 0;
 let assetsVersion = null;
 
-// 苹果移动端判定统一走 utils/apple-device.js：原先这里与 display-surface.js 各一份
-// （都看 UA 里的 Macintosh），而 pairing-link.js 那第三份看 navigator.platform —— 两套证据
-// 都会被浏览器收紧，哪一份先失效只是时间问题，所以合并成一处、把两条证据并起来用。
+// 苹果移动端判定统一走 utils/apple-device.js：两套证据（UA 里的 Macintosh / navigator.platform）
+// 都会被浏览器收紧，合并成一处并把两条证据并起来用。
 
 /**
  * 把展示根节点尺寸同步成真实可视区域尺寸。
- *
- * iOS 上 visualViewport 会随地址栏收缩变化，所以改取 screen 尺寸；
- * 若屏幕方向与当前视口方向不一致（横竖屏切换途中），交换宽高。
+ * iOS 的 visualViewport 会随地址栏收缩，故改取 screen 尺寸；屏幕方向与视口不一致时交换宽高。
  */
 function syncViewportSize() {
   const appleMobile = isAppleMobile();
@@ -86,7 +79,6 @@ function buildPairUrl() {
 
 /**
  * 请求展示页所需的接口。
- *
  * @throws {Error} 超时、HTTP 失败或响应不是合法 JSON。
  */
 async function apiRequest(path) {
@@ -122,8 +114,7 @@ async function apiRequest(path) {
       return null;
     }
     if (!response.ok) {
-      // 文案归一交给 utils/api-error.js（这里原先只认字符串与 `detail.message`，
-      // 不认 FastAPI 422 的数组，那一类失败在本页会退成「请求失败。」）。
+      // 文案归一交给 utils/api-error.js，它认得字符串、`detail.message` 与 FastAPI 422 数组。
       const detail = payload?.detail;
       const requestError = new Error(apiErrorMessage(payload, "请求失败。"));
       requestError.code = detail?.code || "";
@@ -279,7 +270,6 @@ function decodeDisplayPath(value) {
 
 /**
  * 根据 URL 解析当前展示的项目。
- *
  * @throws {Error} 地址非法、项目不存在或名称重复时抛出中文文案。
  */
 async function resolveProject() {
@@ -390,9 +380,7 @@ async function refreshDisplay() {
             onRuntimeButtonPress() {
               buttonSound.play();
             },
-            // 运行期异常必须看得见：展示页没有控制台，之前这里没传 onError，
-            // 于是控件操作失败、订阅被服务端停掉都只写进日志，墙面屏前毫无反馈。
-            // 一次性提示会自动收起（真实状态类问题由下面的实时推送回调负责）。
+            // 运行期异常必须看得见：展示页没有控制台，不传 onError 时控件操作失败、订阅被停掉都无反馈。
             onError(rendererError) {
               window.HABridgeDisplayBoot?.notice(rendererError?.message || "操作失败。");
             },

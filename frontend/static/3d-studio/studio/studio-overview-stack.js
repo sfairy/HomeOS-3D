@@ -1,15 +1,10 @@
 /**
- * 楼层堆叠总览（exploded view）。
+ * 楼层堆叠总览（exploded view）：把多个楼层在同一画面里按层竖向错开叠加显示，便于一眼看完整栋布置。
  *
- * 位置：3D 工作室的「总览」模式，把多个楼层在同一画面里按层竖向错开叠加显示，
- *   便于一眼看完整栋住宅的布置。
- * 对外：overviewFloorId（判定对象属于哪层）、stackProjection（堆叠投影矩阵）、
- *   createOverviewStack（总览控制器，返回 cameraForFloor / rayForFloor / dispose 等）。
- * 实现思路：不改动场景与几何，而是给每个楼层克隆一台相机，把「屏幕平移」直接乘进
- *   它的投影矩阵里，再接管 renderer.render / renderBufferDirect 按对象所属楼层换相机。
- * 坐标与单位：世界坐标，长度单位米；layout.gap 为层间视觉间隔（米），
- *   layout.amount 为错位倍率。
- * 副作用：控制器会替换 renderer 上的两个方法，dispose 时必须调用以还原。
+ * 实现思路：不改场景与几何，而是给每个楼层克隆一台相机、把「屏幕平移」直接乘进它的投影矩阵，
+ * 再接管 renderer.render / renderBufferDirect 按对象所属楼层换相机。
+ * 坐标：世界坐标、单位米；layout.gap 为层间视觉间隔（米），layout.amount 为错位倍率。
+ * 副作用：控制器替换 renderer 上的两个方法，dispose 时必须调用以还原。
  */
 
 /**

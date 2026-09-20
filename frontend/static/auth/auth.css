@@ -1,11 +1,10 @@
 /*
  * 登录 / 授权页样式（配合 login.js、setup.js、license.js 与 auth-shell.js）。
  *
- * 位置：/login、/setup、/license 等未进入编辑器前的页面，左展示区 + 右表单栏。
- * 约定：左侧 .home-characters 的动效由 auth-shell.js 通过类名驱动
- *   （is-ready / is-account-typing / has-password / is-password-visible /
- *   is-*-blinking），CSS 变量 --look-x、--look-y、--body-skew 也由它写入；
- *   本文件只负责外观，不承担任何状态判断。
+ * /login、/setup、/license 等未进入编辑器前的页面，左展示区 + 右表单栏。左侧 .home-characters
+ * 的动效由 auth-shell.js 通过类名驱动（is-ready / is-account-typing / has-password /
+ * is-password-visible / is-*-blinking），CSS 变量 --look-x、--look-y、--body-skew 也由它写入；
+ * 本文件只负责外观。
  */
 
 /* ===== 主题变量与全局重置 ===== */
@@ -266,11 +265,8 @@ input {
 .home-characters.is-ready .character-yellow {
   animation: character-front-rise 0.68s cubic-bezier(0.18, 0.9, 0.2, 1.12) 0.51s both;
 }
-/* 系统开启「减少动效」时：四个角色直接站到落位，不做落下 / 升起与回弹。
-   这里刻意不写 `animation: none` —— 入场动画是 `both` 填充，终态由关键帧的 `to` 决定
-   （`translateY(0)`，不含角色自身的 `skew`），而关掉动画后会回落到静态样式（带 `skew`）。
-   两者并不等价，`animation: none` 会顺手改掉最终姿态。改成 1ms 时长 + 0 延迟：
-   动画瞬间跑完、停在 `to`，终态与现在完全一致，也没有可感知的动效。 */
+/* 「减少动效」时改成 1ms 时长 + 0 延迟，而不是 animation: none：入场动画是 both 填充，
+   终态由关键帧 to 决定；关掉动画会回落到带 skew 的静态样式，两者并不等价。 */
 @media (prefers-reduced-motion: reduce) {
   .home-characters.is-ready .character-purple,
   .home-characters.is-ready .character-dark,
@@ -280,7 +276,7 @@ input {
     animation-delay: 0s;
   }
 }
-/* 前排两个角色直接以深色圆点当眼睛，不再用眼白 + 眼珠的两层结构。 */
+/* 前排两个角色直接以深色圆点当眼睛。 */
 .character-orange i,
 .character-yellow i {
   width: 12px;

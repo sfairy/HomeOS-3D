@@ -1,11 +1,8 @@
 /**
  * 导出流程的底层工具：分辨率换算、ZIP 打包、灯光增量图层。
  *
- * 位置：3D 工作室导出（渲染成图 / 打包 zip）时的公共工具层，被 studio-app.js 调用。
- * 对外：分辨率相关的常量与 scaledExportResolution、无压缩 ZIP 打包 buildStoredZip、
- *   以及灯光合成用的 buildLightDeltaPixels。
- * 单位约定：分辨率单位为像素；本模块不涉及三维坐标换算。
- * 副作用：无全局状态，纯计算；buildStoredZip 返回的是可直接塞进 Blob 的字节数组。
+ * 导出（渲染成图 / 打包 zip）时的公共工具层，被 studio-app.js 调用。分辨率单位为像素，
+ * 本模块不涉及三维坐标换算；无全局状态，纯计算，buildStoredZip 返回可直接塞进 Blob 的字节数组。
  */
 
 // 文本文件名编码器：ZIP 条目名统一按 UTF-8 写入，与包里的 UTF-8 标志位配套。
@@ -162,13 +159,9 @@ export function buildStoredZip(entries) {
 
 /**
  * 计算「灯光图层」相对「基础图层」的增量像素。
- *
- * 用于导出可分层的效果图：基础图已经是完整场景，灯光层只需承载变化过的像素，
- * 在图片编辑器里按 alpha 叠加即可还原开灯效果，文件体积因此大幅缩小。
- * 判据：亮度差不超过 1.5（Rec.709 加权，阈值低于人眼在 8 位色深下的分辨力）
- * 且 alpha 差不超过 1/255 时视为未变化，直接留空。
- *
- * @throws {Error} 两帧尺寸不一致（调用方多半是渲染分辨率没对齐）。
+ * 用于导出可分层的效果图：基础图已是完整场景，灯光层只承载变化过的像素，按 alpha 叠加即可还原开灯效果，
+ * 文件体积大幅缩小。亮度差 ≤1.5（Rec.709 加权，低于人眼 8 位色深分辨力）且 alpha 差 ≤1/255 时视为未变化。
+ * @throws {Error} 两帧尺寸不一致（多半是渲染分辨率没对齐）。
  */
 export function buildLightDeltaPixels(basePixels, litPixels) {
   if (basePixels.length !== litPixels.length) {

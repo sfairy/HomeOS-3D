@@ -34,7 +34,7 @@
         $('#referral-link').hidden=!w;
         if(w) $('#referral-link').value=`${location.origin}/user/authentication/register?invite=${encodeURIComponent(w.code)}`;
         // 「可用积分」必须和服务端 referrals.available_points 同一口径：余额 - 提现冻结。
-        // 这里曾经直接展示 balance，于是「可用」把已申请提现的钱也算进去了，
+        // 不能直接展示 balance：那样「可用」会把已申请提现的钱也算进去，
         // 用户看着 100 积分却提不出来。
         const available = Math.max(0, Number(w?.balance || 0) - Number(w?.frozen || 0));
         $('#referral-stats').innerHTML=[['可用积分',available],['提现中积分',w?.frozen],['累计净奖励',w?.earned],['已提现积分',w?.withdrawn]].map(([label,v])=>`<article><small>${label}</small><strong>${esc(typeof v === 'number' ? v.toFixed(2) : (v||'0.00'))}</strong><small>积分</small></article>`).join('');

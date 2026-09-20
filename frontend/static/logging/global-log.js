@@ -1,15 +1,13 @@
 /**
  * 全局日志查看器（后端日志 + 客户端上报日志的统一界面）。
  *
- * 位置：编辑器 / 面板顶栏「全局日志」按钮打开的对话框，由 global-log-boot.js
- *   注入 api 后调用 setupGlobalLog 启动。
- * 职责：分页拉取 /api/v1/logs、按等级 / 分类 / 关键字筛选、展开详情、
- *   导出为 txt、清空日志，并在对话框打开期间自动刷新。
- * 约定：接口路径由注入的 api 拼接（相对 /api/v1），本模块不直接 fetch；
- *   每页 200 条，翻到「查看历史」时暂停自动刷新，避免覆盖用户正在看的内容。
+ * 编辑器 / 面板顶栏「全局日志」按钮打开的对话框，由 global-log-boot.js 注入 api 后调用
+ * setupGlobalLog 启动。分页拉取 /api/v1/logs、按等级 / 分类 / 关键字筛选、展开详情、导出 txt、
+ * 清空，并在打开期间自动刷新。接口路径由注入的 api 拼接；每页 200 条，翻到「查看历史」时暂停
+ * 自动刷新，避免覆盖用户正在看的内容。
  */
-import { confirmAction } from "../shared/ui-confirm.js?v=20260920104554";
-import { formatZhDateTime } from "../utils/datetime.js?v=20260920104554";
+import { confirmAction } from "../shared/ui-confirm.js?v=20260920131301";
+import { formatZhDateTime } from "../utils/datetime.js?v=20260920131301";
 
 // 日志等级的中文名，与后端 global_log.py 的等级枚举一致。
 const LEVEL_LABELS = {
@@ -163,10 +161,7 @@ export function setupGlobalLog({ api: apiRequest }) {
   }
 
   /**
-   * 拉取日志列表。
-   *
-   * @param {boolean} [options.append] 为 true 时在现有列表后追加（翻页），
-   *   否则从第一页重新加载。
+   * 拉取日志列表；options.append 为 true 时在现有列表后追加（翻页），否则从第一页重新加载。
    */
   async function loadEntries({ append: append = false } = {}) {
     if (isLoading) {

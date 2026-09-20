@@ -243,14 +243,9 @@ _OVERVIEW_WINDOWS: tuple[tuple[str, timedelta], ...] = (
     ("last30d", timedelta(days=30)),
 )
 
-#: 真的收到过钱的状态。``pending`` 从未付款；``expired`` / ``cancelled`` /
-#: ``payment_failed`` 的库存预留早已归还，不走支付成功路径；``fulfillment_failed``
-#: 的钱是到账的（只是没发出去），所以必须计入。
-#:
-#: ``partially_refunded`` 同样必须在列：它表达的是「收到过钱、退了一部分、还有余额
-#: 没退」，漏掉它会让一笔 10000 分、部分退 3000 的订单在营收里贡献 0（gross 记不到、
-#: refund 也记不到），实际应为 7000。order_status.REFUNDABLE_STATUSES 用的是同一套
-#: 口径，两处必须一致。
+#: 真的收到过钱的状态。``fulfillment_failed`` 的钱已到账（只是没发出去），``partially_refunded``
+#: 表示「收到过钱、退了一部分、还有余额没退」，两者都必须计入，否则部分退款订单的营收会算成 0。
+#: 口径与 order_status.REFUNDABLE_STATUSES 一致，两处必须同改。
 PAID_MONEY_STATUSES: tuple[str, ...] = (
     "paid",
     "fulfilled",
@@ -264,31 +259,19 @@ OVERVIEW_EXPIRING_DAYS = 30
 
 
 def _billable_money_clause():
-    """营收口径的过滤条件：**排除人工补记**（S8）。
-
-    为什么需要一个条件而不是「按时长」：后台上「标记支付 / 履约」会给一张还没收到
-    钱的订单盖上 ``paid_at``（客户催单、先放行、赠送补记都会走这一下），而营收按
-    ``paid_at`` 汇总 —— 点一下就凭空空出一笔营收。所以人工补记的订单单独打标
-    （``Order.manual_settlement``），照常发码但不计入营收。
-
-    返回的是「可用在 ``.where()`` 里的子句」而不是一个布尔开关常量，是为了让
-    三处 KPI（累计 gross/refund、时间窗、概览 netCents）不会各自漏掉它。
+    """营收口径的过滤条件：**排除人工补记**。
+    后台「标记支付 / 履约」会给还没收到钱的订单盖上 ``paid_at``，而营收按 ``paid_at`` 汇总 ——
+    点一下就凭空空出一笔营收，所以人工补记的订单单独打标（``Order.manual_settlement``）、照常发码但
+    不计入营收。返回可用在 ``.where()`` 里的子句而非布尔常量，是为了让三处 KPI 都不会各自漏掉它。
     """
     return Order.manual_settlement.is_(False)
 
 
 def _window_money(session: Session, since: datetime) -> dict:
-    """统计 ``[since, now)`` 内的收款、退款与付款订单数。
-
-    口径说明（改这里之前先想清楚，后台三处 KPI 都读它）：
-
-    * 时间归属按 ``paid_at``，不是 ``created_at``——「上周下单今天付款」的订单
-      算今天的营收，因为它今天才让钱进账。
-    * ``grossCents`` 是**订单实付**（已减优惠码），不是商品原价。
-    * ``refundCents`` 是 ``refund_amount_cents``，支持部分退款，所以不能用
-      「refunded 订单的实付额」来代替，否则部分退款会被当成全额退货。
-    * 人工补记的订单不进 gross/refund，而是单列成 ``manualCents`` / ``manualOrders``
-      （S8）：直接丢掉会让运营看不到「有多少单是人工放行的」，那才是真查不出来。
+    """统计 ``[since, now)`` 内的收款、退款与付款订单数（后台三处 KPI 都读它）。
+    时间归属按 ``paid_at``（不是 ``created_at``，否则「上周下单今天付款」会算错周）；``grossCents``
+    是订单实付（已减优惠码）；``refundCents`` 读 ``refund_amount_cents`` 以支持部分退款；人工补记的
+    订单单列成 ``manualCents`` / ``manualOrders``，直接丢掉会让运营看不到人工放行量。
     """
     row = session.execute(
         select(
@@ -355,7 +338,7 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
             _billable_money_clause(),
         )
     )
-    # 人工补记（未收到钱）单独统计：不进营收，但必须看得见（S8）。
+    # 人工补记（未收到钱）单独统计：不进营收，但必须看得见。
     total_manual = count(
         select(func.coalesce(func.sum(Order.amount_cents), 0)).where(
             Order.paid_at.is_not(None),
@@ -486,7 +469,7 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         # 后台巡检（查单对账 / 关闭过期渠道交易）的存活状态。它坏掉时没有任何
         # 接口会报错——钱照收、单停在待支付——所以必须由概览主动把它摆出来。
         "paymentSweep": sweep_status(),
-        # 被刻意吞掉的资金/履约异常计数（S36）。与巡检同理：这些异常不会让任何接口
+        # 被刻意吞掉的资金/履约异常计数。与巡检同理：这些异常不会让任何接口
         # 报错，只会让「钱收了、码没发」悄悄发生，所以必须主动摆出来。
         "incidents": incidents.status(),
         # —— 营收（含时间窗）——
@@ -568,7 +551,7 @@ def admin_recompute_stock(session: DbSession, admin: AdminAccount) -> dict:
 
 @router.post("/incidents/ack")
 def admin_ack_incidents(session: DbSession, admin: AdminAccount) -> dict:
-    """确认（清零）资金/履约异常计数（S36）。
+    """确认（清零）资金/履约异常计数。
 
     为什么需要这个入口：这些计数是给监控报警用的，一次性的抖动会把它点亮，而它是
     进程内的 —— 除了重启服务没有别的办法按灭。按不灭的灯等于没有灯，所以给后台
@@ -616,7 +599,7 @@ def _product_delete_refs(session) -> tuple[dict[str, int], dict[str, int]]:
 def _admin_product_context(session, product_ids=None) -> dict:
     """一次性查出列表渲染所需的所有辅助数据，避免逐行 N+1。
 
-    ``product_ids`` 只影响 ``stats``：它的聚合条件可以收窄成 ``IN (...)``（S50），
+    ``product_ids`` 只影响 ``stats``：它的聚合条件可以收窄成 ``IN (...)``，
     而 ``licenses`` / ``orders`` 这两个计数是**删除守卫**的依据，必须全表统计、
     不能按需裁剪 —— 见 :func:`_product_delete_refs` 的说明。
     """
@@ -729,17 +712,9 @@ def _assert_product_configuration(
     included_product_ids: list,
 ) -> None:
     """校验商品的可枚举字段，并拦下「什么都不会发放」的套餐配置。
-
-    1. **取值校验**（``store.commerce.catalog``）：``product_type`` / ``fulfillment_mode`` 直接决定下单走哪个
-       分支、付款后自不自动发码，写错一个字母不会报错但会静默走错路；功能码同理，不在这里校验的话
-       抄错的能力码会一路发到客户端然后被静默拦截。
-    2. **可发放性**：履约时功能码有两个来源 —— 商品自己的 ``feature_codes``，以及套餐
-       ``included_product_ids`` 展开出的功能码。两者都为空时用户付了钱却拿不到任何功能码，授权会在
-       激活时因空功能集被 422 拒绝，所以这类错配必须尽早拦住。
-
-    第 2 条只对 ``package`` 强制：单卖的主授权 / 增量包允许先建后补功能码（运营常常先建商品再配
-    功能），而套餐的卖点就是「包含若干商品」，「既没有自己的功能码、也没包含任何商品」的套餐没有
-    任何合法用途。
+    枚举值（``product_type`` / ``fulfillment_mode`` / 功能码）写错一个字母不会报错但会静默走错分支，
+    必须按 ``store.commerce.catalog`` 校验。功能码为空时用户付了钱却拿不到任何功能码，激活会因空
+    功能集被 422 拒绝；该检查只对 ``package`` 强制（单卖商品允许先建后补功能码）。
     """
     try:
         catalog.validate_product_type(product_type)
@@ -926,17 +901,9 @@ IMAGE_MAX_BYTES = 8 * 1024 * 1024
 
 def _image_suffix(content: bytes) -> str | None:
     """按**字节**判断图片格式，返回落盘用的后缀（不认识就 ``None``）。
-
-    为什么不能只看文件名后缀（S37）：后缀是调用方随便写的，把 SVG 改名成 ``.png`` 就绕过了白名单；
-    而落盘之后静态目录是**按后缀**回 ``Content-Type`` 的，于是「白名单」与「实际回给浏览器的类型」
-    说的不是一件事。
-
-    为什么是「按内容派生后缀」而不是「校验后缀与内容一致」：后者会把「一张 JPEG 存成了 logo.png」
-    变成一次报错，而用户并不关心文件名叫什么。内容是什么就存成什么，静态目录的 ``Content-Type``
-    才与字节一致（改名换格式的场景由调用方清理旧文件）。
-
-    只认四种有明确签名的格式，刻意**不含 SVG**：它是能内嵌 ``<script>`` 的 XML，而商品图是按原样
-    回给浏览器的同源资源 —— 上传一个 SVG 就等于在商店域下拿到一个可执行的 XSS 落点。图标需求用 PNG。
+    只看文件名后缀不行：后缀是调用方随便写的，SVG 改名成 ``.png`` 就绕过白名单，而静态目录是按
+    后缀回 ``Content-Type`` 的。按内容派生后缀而非校验一致性，是为了不把「一张 JPEG 存成 logo.png」
+    变成报错。只认四种有明确签名的格式，刻意**不含 SVG** —— 它能内嵌 ``<script>``，等于同源 XSS 落点。
     """
     if content.startswith(b"\x89PNG\r\n\x1a\n"):
         return ".png"
@@ -979,7 +946,7 @@ def admin_upload_product_image(
             detail="图片不能超过 8MB。",
         )
 
-    # 格式**按内容判定**（S37），不看文件名 —— 见 ``_image_suffix`` 的说明。
+    # 格式**按内容判定**，不看文件名 —— 见 ``_image_suffix`` 的说明。
     suffix = _image_suffix(content)
     if suffix is None:
         raise HTTPException(
@@ -1033,8 +1000,8 @@ _FULFILLABLE_STATUSES = ORDER_FULFILLABLE_STATUSES
 #: 订单状态中文口径统一来自 ``store.commerce.order_status``（服务端唯一来源），
 #: 避免「后台弹窗说 cancelled、页面显示已取消」这种同一状态两套说法。
 #: 取文案一律走 ``order_status_label()`` 或 ``ORDER_STATUS_LABELS``（后者用于
-#: 批量拼列表），不要在后台再留一份「本地副本」——P9 删掉的 `_ORDER_STATUS_LABELS`
-#: 就是那样一份没人读的别名。
+#: 批量拼列表），不要在后台再留一份「本地副本」——曾经那份 `_ORDER_STATUS_LABELS`
+#: 就是没人读的别名。
 
 
 def _status_label(status: str) -> str:
@@ -1055,12 +1022,9 @@ def admin_list_orders(
     offset: int = 0,
 ) -> dict:
     """订单列表（分页 + 筛选）。
-
-    ``status_filter`` 支持多状态，用逗号分隔（例如 ``paid,fulfillment_failed``）——
-    概览看板的「待发货」待办就靠它一次带出两类需要人工推进的订单。
-
-    日期区间按 ``created_at`` 过滤，边界都含。时间参数由前端按本地时区算好再转
-    UTC 传出，服务端只做 naive UTC 归一（见 ``_naive_utc``）。
+    ``status_filter`` 支持逗号分隔的多状态（如 ``paid,fulfillment_failed``），概览看板的「待发货」
+    待办靠它一次带出两类订单。日期区间按 ``created_at`` 过滤、边界都含；时间参数由前端按本地时区算好
+    再转 UTC，服务端只做 naive UTC 归一。
     """
     expire_stale_orders(session, settings)
     base = select(Order)
@@ -1102,15 +1066,9 @@ def _fulfill_with_failure_state(
     session: Session, *, order: Order, setting: StoreSetting, actor: str
 ) -> dict:
     """履约并处理失败：抛异常时把订单标记为 ``fulfillment_failed`` 而不是 500。
-
-    用 SAVEPOINT 包住履约，失败只回滚这一段的写入（已发的半张授权、扣掉的库存、
-    记上的邀请奖励），订单本身仍占着库存预留与优惠码名额 —— 因为货并没有真的
-    发出去。这样状态机是自洽的：``fulfillment_failed`` 既在
-    ``RESERVING_STATUSES``（预留未归还）又在 ``FULFILLABLE_STATUSES``（可以重试），
-    运营点「履约」就能重来，点「退款」也能正常退。
-
-    过去这里没有兜底：履约抛异常直接 500，订单停在 ``paid``，而且没有任何地方
-    记录「这张单发不出去」，只能靠错误日志发现。
+    用 SAVEPOINT 包住履约，失败只回滚这一段的写入（半张授权、库存、邀请奖励），订单本身仍占着库存
+    预留与优惠码名额（货没发出去）。这样状态机自洽：``fulfillment_failed`` 既在预留未归还集合里，
+    也在可重试集合里，运营点「履约」能重来、点「退款」也能正常退。
     """
     try:
         with session.begin_nested():
@@ -1145,17 +1103,10 @@ def _fulfill_with_failure_state(
 def admin_mark_paid(
     order_no: str, session: DbSession, admin: AdminAccount
 ) -> dict:
-    """人工补记：把订单放行（发码），但**不计入营收**（S8）。
-
-    这个按钮最常见的用法是「客户催单、钱还没到，先放行」和「赠送/补偿」，这几种
-    情况下账上并没有钱。以前它会盖上 ``paid_at``，而营收按 ``paid_at`` 汇总 ——
-    点一下就凭空多出一笔营收，且事后分不清哪些是人工补的。现在它同时置
-    ``manual_settlement``，营收口径（``_billable_money_clause``）把这类订单排除，
-    概览里单列成 ``manualCents`` / ``manualOrders``，订单行上也会标注。
-
-    **钱确实收到了**（线下转账、现金）请用 ``settle-offline``：那才是把人工收到的
-    钱计入营收的入口。两个入口分开而不是加一个布尔参数，是为了让「这一下算不算
-    营收」写在 URL 与审计动作里，事后查账不用去翻请求体。
+    """人工补记：把订单放行（发码），但**不计入营收**。
+    「客户催单先放行」「赠送补偿」时账上并没有钱，而营收按 ``paid_at`` 汇总 —— 只盖 ``paid_at`` 会
+    凭空多出一笔营收且事后分不清，所以它同时置 ``manual_settlement`` 并被营收口径排除、概览里单列。
+    **钱确实收到了**（线下转账、现金）请用 ``settle-offline``；两个入口分开，让「算不算营收」写在 URL 里。
     """
     return _manual_payment(session, order_no, admin=admin, manual_settlement=True)
 
@@ -1246,7 +1197,7 @@ def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dic
         )
     if order.paid_at is None:
         # 只补时间戳，不碰状态：状态流转与幂等由 fulfill_order 的条件 UPDATE 负责。
-        # 同时置人工补记标记（S8）：这里也是「没收到钱就放行」的一条路 —— 例如
+        # 同时置人工补记标记：这里也是「没收到钱就放行」的一条路 —— 例如
         # 手动发卡的订单直接点「履约」。不标记的话，一笔钱根本没到的订单会因为
         # 这个按钮进入营收。
         session.execute(
@@ -1267,18 +1218,9 @@ def admin_review_order(
     order_no: str, payload: AdminOrderReviewRequest, session: DbSession, admin: AdminAccount
 ) -> dict:
     """把订单的「待复核」标记清掉（人工已处理）。
-
-    ``needs_review`` 目前唯一的来源是「订单超时关闭后支付才到账」的复活单 ——
-    钱收了、码也发了，但那一件库存早已还给别人，需要人确认补货还是退款。
-    只有置位路径（``settle_paid_order`` / 履约失败）而**没有任何清除路径**时，
-    概览页那条待办会永久挂着：第 10 单之后运营就再也看不见它了，告警等于失效。
-
-    刻意**不**在履约成功时自动清除：复活单的价值就在于让人看见「这单超卖过」，
-    必须由人确认（哪怕确认的结论是「不用处理」）。所以这里要求订单已经不在
-    ``pending``：钱还没到账的单谈不上「已处理」。
-
-    清标记同时把复核结论追加进 ``review_note``（保留原因，不覆盖）：事后复盘
-    「这单当时为什么放行」只能靠它。
+    ``needs_review`` 目前只来自「订单超时关闭后支付才到账」的复活单（钱收了、码发了，但库存早已还给
+    别人）。只有置位路径而没有清除路径时，概览页那条待办会永久挂着、告警失效；刻意不在履约成功时
+    自动清除，因为复活单的价值就是让人看见「这单超卖过」。清标记同时把复核结论追加进 ``review_note``。
     """
     order = order_or_404(session, order_no)
     if order.status == "pending":
@@ -1311,20 +1253,11 @@ def admin_review_order(
     return order_payload(order)
 
 
-#: 同一订单的退款必须串行执行。渠道退款是**不可逆的资金动作**，而退款接口是「读累计值 →
-#: 调渠道 → 写累计值」的形状：两个并发请求（双击按钮、两个标签页、两位客服同时操作）会各自
-#: 读到同一个 ``refund_amount_cents``、各自把同一笔钱退给用户，而累计值只加一次 —— 钱多退
-#: 一倍，账面却显示只退了一笔。
-#:
-#: 为什么不用「条件 UPDATE 抢单」当闸门：闸门必须在**调渠道之前**取得，而那一刻请求事务还没
-#: 写过任何东西；条件 UPDATE 会把 SQLite 的写锁一直攥到请求结束，也就是在整个网络往返期间阻塞
-#: 所有下单。放到调渠道之后又拦不住第二次调用。所以用进程内锁把同一订单串起来：不占数据库写锁，
-#: 正好覆盖「同一进程内并发」这个真实场景；跨进程的残余窗口由 ``_claim_refund_amount`` 兜住
-#: （不静默吞掉）。
-#:
-#: 每个订单号一把进程内锁，**带引用计数**：没有计数的话这个字典只增不减 —— 每来一笔新订单就
-#: 永久留下一个 Lock 对象，站点跑上几个月就是一条缓慢但确定的内存泄漏。最后一个使用者退出时
-#: 把表项删掉。
+#: 同一订单的退款必须串行：渠道退款不可逆，而退款接口是「读累计值 → 调渠道 → 写累计值」的形状，
+#: 两个并发请求会各自读到同一个 ``refund_amount_cents``、把钱退两次而累计值只加一次。
+#: 不用「条件 UPDATE 抢单」是因为闸门必须在**调渠道之前**取得，而那一刻事务还没写过东西，条件
+#: UPDATE 会把 SQLite 写锁攥到请求结束、阻塞整个网络往返期间的所有下单。用进程内锁（每单一把、
+#: 带引用计数以免字典只增不减）不占数据库写锁，跨进程残余窗口由 ``_claim_refund_amount`` 兜住。
 _refund_locks: dict[str, list] = {}
 _refund_locks_guard = threading.Lock()
 
@@ -1431,7 +1364,7 @@ def _refund_order(
 
     #: 人工标记支付的订单（以及没记渠道 / 渠道名已失效的老订单）在渠道侧没有可退的
     #: 交易：必须按**线下退款**记账，绝不能回落到「当前站点配置的渠道」——配模拟收银台
-    #: 时会「退成功」却分文未动（S47）。这里不抛 409：这类订单本来就只能线下退，
+    #: 时会「退成功」却分文未动。这里不抛 409：这类订单本来就只能线下退，
     #: 拒绝只会让运营在后台点不动退款按钮。改为自动改走线下，并把原因写进审计与流水。
     forced_offline = _offline_refund_reason(order)
     offline_refund = bool(payload.offline) or bool(forced_offline)
@@ -1613,14 +1546,9 @@ def _refund_order(
 
 def _revoke_order_entitlements(session, order: Order) -> None:
     """收回订单产生的激活码与权益（全额退款时调用）。
-
-    两种情况必须分开处理，因为它们的**权属**完全不同：
-
-    * ``issue``（本单发了一张新授权）→ 这张码就是本单的产物，整张作废；
-    * ``upgrade`` / ``patch``（本单改的是用户**此前已经付过钱**的那张授权）→
-      只能还原成改动前的样子。整张作废等于没收了他原来那笔消费，而什么都不做
-      则是「钱退了、永久授权还在手里」—— 后者是过去真实存在的漏洞：这类授权的
-      ``License.order_id`` 仍指向最早那张订单，按 ``order_id`` 找根本找不到它。
+    两种情况权属不同：``issue``（本单发的新授权）整张作废；``upgrade`` / ``patch``（改的是用户此前
+    付过钱的那张授权）只能还原成改动前的样子 —— 整张作废等于没收他原来的消费，什么都不做又变成
+    「钱退了、永久授权还在手里」（这类授权的 ``License.order_id`` 指向最早那张订单，按单号找不到）。
     """
     if (
         order.license_action in {"upgrade", "patch"}
@@ -1652,17 +1580,9 @@ def _revoke_order_entitlements(session, order: Order) -> None:
 
 def _offline_refund_reason(order: Order) -> str:
     """这笔退款为什么**只能**按线下处理（渠道侧没有可退的交易）；无需强制时返回空串。
-
-    后台「标记支付」的订单（:func:`admin_mark_paid`）把 ``payment_provider`` 记成
-    ``manual``。这类订单在渠道侧**根本不存在交易**，过去却会回落到「当前站点配置的
-    渠道」去退：
-
-    * 配支付宝 → 报「交易不存在」，运营看到一条看不懂的 409；
-    * 配模拟收银台 → 直接「退成功」，于是账面上凭空多出一笔已退款、还写上了渠道单号，
-      而钱一分没动 —— 这正是审计里那条「假称已退款却无资金流动」。
-
-    没记下单渠道、或渠道名已不在受支持列表里的老订单同理：无从判断该打哪个网关，
-    只能按线下退款如实记账。
+    「标记支付」的订单把 ``payment_provider`` 记成 ``manual``，这类单在渠道侧根本不存在交易，过去却
+    会回落到当前站点渠道去退：配支付宝报「交易不存在」，配模拟收银台则直接「退成功」、账面凭空多出
+    一笔已退款却无资金流动。没记下单渠道或渠道名已不受支持的老订单同理，只能按线下如实记账。
     """
     provider = normalize_provider_name(order.payment_provider)
     if provider == "manual":
@@ -1676,13 +1596,9 @@ def _offline_refund_reason(order: Order) -> str:
 
 def _refund_provider(resolver, *, order: Order, setting):
     """按**订单下单时**的渠道退款，而不是当前站点配置的渠道。
-
-    运营中途把渠道从支付宝切到模拟收银台（或反过来）后，用当前渠道去退老订单
-    会打到错误的网关：要么报「交易不存在」，要么（模拟渠道）直接「退成功」。
-    所以优先按 ``order.payment_provider`` 找渠道实现。
-
-    能走到这里的订单，渠道名必然在受支持列表内：``manual`` / 未知渠道由
-    :func:`_offline_refund_reason` 提前拦下、改走线下退款，不会再落到「当前渠道」。
+    运营中途切换渠道后，用当前渠道去退老订单会打到错误网关（报「交易不存在」，或模拟渠道直接「退
+    成功」），所以优先按 ``order.payment_provider`` 找渠道实现。能走到这里的订单渠道名必然受支持：
+    ``manual`` / 未知渠道已由 :func:`_offline_refund_reason` 拦下改走线下。
     """
     order_provider = normalize_provider_name(order.payment_provider)
     if order_provider in PROVIDER_NAMES:
@@ -1753,23 +1669,10 @@ def admin_cancel(
 @router.delete("/orders/{order_no}")
 def admin_delete_order(order_no: str, session: DbSession, admin: AdminAccount) -> dict:
     """删除订单（用于清理测试单 / 垃圾单）。
-
-    订单是营收与授权来源的凭证，所以只允许删除**确定没有动过任何授权**的历史单据：状态必须是终态
-    ``cancelled`` / ``expired``（待支付单请先取消，才会释放库存）；``license_id`` 为空 —— 这一单
-    没有发出过授权（``License.order_id`` 是 ON DELETE SET NULL，删掉订单会静默切断授权与来源订单
-    的溯源）；``license_state_before_json`` 为空 —— 这一单没有改过别人已有的授权；渠道交易已确认
-    关闭（``channel_still_payable`` 为假，见下面的支付宝说明）。
-
-    注意**不能**拿 ``target_license_id`` 当判据：增量包（addon）与升级单在**下单时**就会写入这一列，
-    指向用户已持有、被选作目标的那张授权 —— 它表达的是「这单打算改谁」，而不是「这单已经改过谁」。
-    已取消 / 已过期的这类订单从未履约（履约会把 ``license_id`` 与快照一起写上并推进
-    ``fulfilled``），把「指向某张授权」当成「已关联授权」会让所有增购 / 升级的垃圾单永远删不掉。
-
-    已付款 / 已履约的订单请走「退款」，用退款保留资金流水的可追溯性。
-
-    支付宝还有一道额外守卫：本地订单过期 / 取消**不代表**渠道那笔预下单交易结束，用户手机上那个旧
-    二维码仍然能付款。这种单删掉，延迟到账的钱就再也没有凭证（异步通知按订单号查不到，只会打一条
-    error 日志；巡检的回看窗口也已经过去）。
+    订单是营收与授权来源的凭证，只允许删**确定没动过任何授权**的历史单据：状态必须是终态
+    ``cancelled`` / ``expired``、``license_id`` 为空、``license_state_before_json`` 为空、渠道交易已确认
+    关闭。不能拿 ``target_license_id`` 当判据 —— 增量包与升级单在下单时就会写这一列，它表达「打算改谁」
+    而非「已经改过谁」，当成判据会让所有增购/升级垃圾单永远删不掉。已付款/已履约请走「退款」保留流水。
     """
     order = order_or_404(session, order_no)
 
@@ -1915,7 +1818,7 @@ def admin_issue_license(
             ),
         )
 
-    # 与订单履约走同一条「撞码重试」路径（S35），否则同一种冲突在这里是 500、
+    # 与订单履约走同一条「撞码重试」路径，否则同一种冲突在这里是 500、
     # 在那里是自动重试，两个入口的可靠性不一样。
     license = fulfill.insert_license_with_unique_code(session, build)
     # 审计只记 id + 提示码，**绝不落激活码明文**：激活码就是这张授权的凭证，
@@ -1979,12 +1882,8 @@ def admin_activate_license(license_id: str, session: DbSession, admin: AdminAcco
 @router.delete("/licenses/{license_id}")
 def admin_delete_license(license_id: str, session: DbSession, admin: AdminAccount) -> dict:
     """彻底删除一条授权（含级联的权益、绑定、租约与会话）。
-
-    这是不可恢复操作，所以两道守卫：
-      1. 必须**先停用**——强制「停用 → 再删」两步，避免误点直接抹掉在用授权；
-      2. 不允许存在仍然活跃的设备绑定（说明还有设备在用）。
-    ``orders.license_id`` / ``orders.target_license_id`` 是 ON DELETE SET NULL，
-    订单本身会保留，只是不再指向这条授权。
+    不可恢复，所以两道守卫：必须**先停用**（强制「停用 → 再删」两步），且不允许存在仍活跃的设备绑定。
+    ``orders.license_id`` / ``orders.target_license_id`` 是 ON DELETE SET NULL，订单会保留、只是不再指向它。
     """
     license = session.get(License, license_id)
     if license is None:
@@ -2168,13 +2067,9 @@ def admin_list_coupons(
 
 def _coupon_redemption_counts(session, coupon_ids=None) -> dict[str, int]:
     """按核销记录表统计每个优惠码的实际用量。
-
-    刻意不用 ``Coupon.redeemed_count`` 这个反规范化计数列：它是发放时的快照，
-    一旦和 ``coupon_redemptions`` 漂移，删除守卫（数记录）与界面提示（读计数列）
-    就会各说各话——确认弹窗写着「尚未被使用」，点下去却只停用。
-
-    ``coupon_ids`` 给出时只统计这些码（列表页用它把全表 group by 降成本页
-    ``in_`` 统计）；为 None 时统计全部（导出/校验等场景）。
+    刻意不用 ``Coupon.redeemed_count`` 计数列：它是快照，一旦与核销记录漂移，删除守卫（数记录）与
+    界面提示（读计数列）就会各说各话。``coupon_ids`` 给出时只统计这些码（列表页把全表 group by 降成
+    本页 ``in_``），为 None 时统计全部。
     """
     statement = select(
         CouponRedemption.coupon_id, func.count(CouponRedemption.id)
@@ -2204,15 +2099,10 @@ def _coupon_redemption_count(session, coupon_id: str) -> int:
 
 def _coupon_payload(coupon: Coupon, redemption_count: int) -> dict:
     """优惠码的后台视图。
-
-    两个「用量」字段刻意分开，因为它们回答的是两个不同问题：
-
-    * ``redeemedCount``（读 ``coupon.redeemed_count`` 计数列）—— **此刻还被占用
-      多少名额**，参与 ``max_redemptions`` 校验。取消/退款会让它回落。
-    * ``redemptionCount``（数 ``coupon_redemptions`` 记录）—— **历史上被占用过
-      多少次**，作为对账凭证永久保留，也是删除守卫的判据。
-
-    把两者混成一个字段，就会出现「确认弹窗写着没人用过、点下去却只停用」。
+    两个「用量」字段刻意分开：``redeemedCount`` 读计数列，表示**此刻还被占用多少名额**（参与
+    ``max_redemptions`` 校验，取消/退款会让它回落）；``redemptionCount`` 数控销记录，表示**历史上被
+    占用过多少次**（作为对账凭证永久保留，也是删除守卫的判据）。混成一个字段就会出现「确认弹窗写着
+    没人用过、点下去却只停用」。
     """
     return {
         "id": coupon.id,
@@ -2637,12 +2527,8 @@ _ALIPAY_CALLBACK_LABELS = {
 
 def _alipay_settings_updates(data: dict) -> dict:
     """校验并归一化后台提交的支付宝凭据字段，返回待写入的 updates。
-
-    为什么必须在这里校验而不是等第一次支付：私钥填错时 ``sign_params`` 抛的
-    ``PaymentError`` 会出现在**用户下单**的动线上，支付失败的是客户，改配置的人
-    却看不到任何反馈。把校验前移到配置接口，错误当场落在改配置的那个人眼前。
-
-    密钥字段的三种语义（见 ``resolve_secret_input``）：未提交=不改动、
+    必须在配置接口校验而不是等第一次支付：私钥填错时 ``sign_params`` 抛的 ``PaymentError`` 会出现在
+    **用户下单**的动线上，支付失败的是客户、改配置的人却看不到反馈。密钥字段的三种语义：未提交=不改动、
     空串=清空（跟随环境变量）、打码值=不改动、其它=新密钥。
     """
     updates: dict = {}
@@ -2687,14 +2573,9 @@ _MAIL_TEXT_FIELDS = {
 
 def _mail_settings_updates(data: dict, *, current: StoreSetting, settings: SettingsDep) -> dict:
     """校验并归一化后台提交的邮件 / 验证码字段，返回待写入的 updates。
-
-    校验前移到配置接口的理由与支付宝凭据完全相同：SMTP 填错时受害的是
-    **正在注册的用户**（收不到验证码就等于注册不了），而改配置的运营一无所知。
-    错误必须当场落在改配置的那个人眼前。
-
-    这里还要额外校验「有效期 / 冷却」的联动关系，而且必须拿**合并后**的值去算：
-    有效期可能配在后台、冷却可能来自环境变量，只校验提交的那一半会漏掉
-    「冷却 >= 有效期」这种跨来源的死锁（见 ``validate_verification_window``）。
+    校验前移的理由同支付宝凭据：SMTP 填错时受害的是**正在注册的用户**，而改配置的运营一无所知。
+    这里还要校验「有效期 / 冷却」的联动，且必须拿**合并后**的值去算 —— 有效期可能配在后台、冷却来自
+    环境变量，只校验提交的那半会漏掉跨来源的死锁。
     """
     updates: dict = {}
     for field, column in _MAIL_TEXT_FIELDS.items():
@@ -2761,14 +2642,9 @@ def _validate_verification_window(
     updates: dict, *, current: StoreSetting, settings: SettingsDep
 ) -> None:
     """校验「有效期 / 冷却」的联动关系。
-
-    只在本次提交**动过**这两个字段时才校验：环境变量里历史遗留的坏值
-    （比如 ``STORE_VERIFICATION_TTL_SECONDS=30``）不应该把「改个站点名」
-    这种无关操作也一并卡死 —— 那样运营会陷入「什么都保存不了，但不知道
-    该改哪个页面上的哪个框」。
-
-    校验用的是**合并后**的有效值，所以「有效期配在后台、冷却来自环境变量」
-    这种跨来源的死锁也拦得住（见 ``validate_verification_window``）。
+    只在本次提交**动过**这两个字段时才校验：环境变量里的历史坏值不该把「改个站点名」这种无关操作也
+    卡死，否则运营会陷入「什么都保存不了、又不知道该改哪」。校验用**合并后**的有效值，所以跨来源的
+    「冷却 >= 有效期」死锁也拦得住。
     """
     touched = {
         "verification_ttl_seconds",
@@ -2798,18 +2674,10 @@ def admin_test_alipay_credentials(
     settings: SettingsDep,
 ) -> dict:
     """测试**当前支付渠道**的凭据与回调配置，逐项给出结论。
-
-    只看**已保存**的配置，不做「先试再存」：探活要真的把密钥拿去签名并发出请求，
-    如果允许测试未保存的内容，就等于多一条「任意字符串都能触发外呼」的路径，
-    而且试通了却忘了保存反而更乱。运营的正常流程是保存 → 测试。
-
-    这里刻意测「当前渠道」而不是硬编码 alipay：这个按钮要回答的问题始终是
-    「用户现在能不能付钱」，而不是「我填的支付宝参数对不对」。渠道还停在 mock
-    时，最该让运营看到的就是那句「模拟收银台不能用于生产收款」——
-    过去这一栏会绕开渠道选择直接去测支付宝，于是界面全绿、站点却在白送授权。
-
-    这是个**同步**端点（和 ``admin_refund`` 一样），FastAPI 会把它丢进线程池执行，
-    所以内部的阻塞式 HTTPS/DNS 调用不会卡住事件循环。
+    只看**已保存**的配置，不做「先试再存」：探活要真拿密钥签名并外呼，允许测未保存内容就多一条
+    「任意字符串都能触发外呼」的路径。测「当前渠道」而非硬编码支付宝，因为这个按钮要回答的是
+    「用户现在能不能付钱」—— 渠道还停在 mock 时最该看到的就是那句「模拟收银台不能用于生产收款」。
+    同步端点，FastAPI 会丢进线程池，阻塞式 HTTPS/DNS 不会卡住事件循环。
     """
     setting = site_config.get_setting(session)
     try:
@@ -2857,20 +2725,10 @@ def admin_test_mail_delivery(
     settings: SettingsDep,
 ) -> dict:
     """按当前（已保存）邮件配置做一次诊断；给了收件人就再真发一封。
-
-    与支付宝凭据自检同一套立场：只看**已保存**的配置，不做「先试再存」。「填了 SMTP 但授权码过期 /
-    端口选错」过去唯一的暴露方式就是用户注册不了，而运营在后台看不出任何异常 —— 这个按钮把那条反馈
-    回路缩短到一次点击。
-
-    收件人留空表示**只做连接诊断**（域名解析 + TCP/TLS + 登录握手，不发信），这是能反复点的那一半；
-    填了收件人才会真的投递一封，用来回答「用户到底收得到吗」。两者分开是刻意的 —— SMTP 的故障在握手
-    阶段就能定位到具体原因（授权码错 / 端口与加密方式不匹配 / 防火墙），而发信失败往往只回一句笼统的
-    5xx。
-
-    发信与探测都是阻塞 I/O，所以这是个**同步**端点，FastAPI 会把它丢进线程池，不会卡住事件循环。
-    返回里的 ``ok`` 必须如实反映结果：带收件人时以「真的投递出去没」为准，不带收件人时以「连接诊断
-    是否全绿」为准。``mail_mode=log/echo`` 时它一定是 ``false``（压根没发信），前端要明确提示
-    「当前是日志模式，测试不会真的发出去」，否则运营会以为链路通了，实际只是写了行日志。
+    与支付宝自检同一立场：只看**已保存**配置，不做「先试再存」——「填了 SMTP 但授权码过期/端口选错」
+    过去唯一的暴露方式就是用户注册不了。收件人留空表示**只做连接诊断**（解析 + TCP/TLS + 登录握手，
+    不发信），填了才真投递一封：SMTP 故障在握手阶段就能定位，而发信失败往往只回笼统 5xx。``ok`` 必须
+    如实反映结果，``mail_mode=log/echo`` 时一定是 ``false`` 并要提示「测试不会真的发出去」。
     """
     email = normalize_email(payload.email or "")
     if email and not is_valid_email(email):
@@ -3291,13 +3149,9 @@ def admin_patch_license(
     admin: AdminAccount,
 ) -> dict:
     """修正授权的有效期 / 备注。
-
-    过去这几个字段完全没有入口，客服遇到「客户要延期」「备注写错了」只能改库。
-    到期时间的三种给法互斥，避免一次请求里两个字段互相覆盖：
-    - ``extend_days``：在现有到期时间上顺延（永久授权以当前时刻为起点重新计时）
-    - ``access_expires_at``：直接指定绝对时间，显式传 null 表示改为永久有效
-    - 只给 ``validity_days``：按开始时间重算到期时间，避免出现「买的 365 天、
-      实际只到明年」这种自相矛盾的授权
+    到期时间的三种给法互斥、避免一次请求里两个字段互相覆盖：``extend_days`` 在现有到期时间上顺延
+    （永久授权以当前时刻重新计时）；``access_expires_at`` 指定绝对时间、显式传 null 表示改为永久；
+    只给 ``validity_days`` 则按开始时间重算，避免「买的 365 天、实际只到明年」。
     """
     license = session.get(License, license_id)
     if license is None:
@@ -3671,17 +3525,10 @@ def admin_adjust_wallet(
 # 商品图片 / 设备绑定 / 版本发布：删除与修正
 def _safe_image_target(root: Path, raw: str) -> Path | None:
     """把库里的商品图相对路径解析成绝对路径；越界返回 ``None``。
-
-    防目录穿越：``path`` 是上传时自己拼出来的文件名，但不排除被改过，也不排除历史
-    数据里就有 ``../``。越界的路径绝不能落到文件系统调用上 —— ``admin_delete_product``
-    过去把 ``product_images_dir / path`` 直接 ``unlink``，等于「能改库就能删任意文件」。
-    两处删除点（删单图、删商品）原先各写各的，这里收成一份。
-
-    内部对 ``root`` 也做一次 ``resolve()``：调用方本来就传的是已解析路径，但
-    macOS 上 ``/var`` 是指向 ``/private/var`` 的符号链接 —— 一旦谁传了未解析的
-    ``root``，下面那句 ``root not in target.parents`` 会对**所有**路径成立，
-    函数就变成「永远返回 None」，静默跳过全部文件删除。失败方向是安全的，
-    但会让人以为删除逻辑坏了。
+    防目录穿越：``path`` 不排除被改过或历史数据里就有 ``../``，越界路径绝不能落到文件系统调用上
+    （等于「能改库就能删任意文件」），删单图与删商品两处必须共用这一份判断。内部对 ``root`` 也做一次
+    ``resolve()``：macOS 上 ``/var`` 是指向 ``/private/var`` 的符号链接，一旦传入未解析的 root，
+    ``root not in target.parents`` 会对所有路径成立、函数变成永远返回 None。
     """
     base = root.resolve()
     if not raw:
@@ -3800,11 +3647,10 @@ def admin_patch_release(
     return _release_payload(release)
 
 
-# 只读数据面：这些表过去在后台完全看不到，出问题时只能连库查
+# 只读数据面：登录尝试、验证码、解绑事件等表，出问题时靠「翻旧账」定位
 #
-# 分页口径统一为 {items, total, limit, offset}。此前各接口一律 limit<=500 且没有
-# offset，第 501 条之后的记录在界面上永远看不到 —— 而这几张表（登录尝试、验证码、
-# 解绑事件）恰恰靠「翻旧账」定位问题，看不到旧记录等于白存。
+# 分页口径统一为 {items, total, limit, offset}：只给 limit 而没有 offset 的话，
+# 第 501 条之后的记录在界面上永远看不到 —— 看不到旧记录等于白存。
 def _page_bounds(limit: int, offset: int) -> tuple[int, int]:
     """分页参数的统一闸门：单页上限 500，offset 不允许负数或离谱的大值。"""
     size = max(1, min(int(limit or 200), 500))
@@ -3838,14 +3684,9 @@ def _page(session: Session, base, order_by, *, limit: int, offset: int, render) 
 
 def _page_items(session: Session, base, order_by, *, limit: int, offset: int, build) -> dict:
     """``_page`` 的两段式版本：先把**本页的行**整批交给 ``build(rows)``。
-
-    存在的唯一理由是让「先取本页行、再一次性补关联数据」成为顺手写法。逐行
-    ``session.get`` 的代价不是「多几条 SQL」那么轻：每一条都是一次独立的
-    SQLite 往返，页大小 500 时是 500~1500 次，而这几张表（会话、令牌、核销记录）
-    恰恰是**越积越多**的运维表 —— 出问题时要去翻的正是它们的旧记录。
-
-    约定：``build`` 只能看到本页的行，所需的关联对象自己用 :func:`_by_ids`
-    批量取，然后按行拼装。
+    存在的唯一理由是让「先取本页行、再一次性补关联数据」成为顺手写法：逐行 ``session.get`` 每条都是
+    一次独立的 SQLite 往返，页大小 500 时是 500~1500 次，而会话/令牌/核销这几张恰恰是越积越多的表。
+    约定：``build`` 只能看到本页的行，所需关联对象自己用 :func:`_by_ids` 批量取后按行拼装。
     """
     size, skip = _page_bounds(limit, offset)
     total = _count_rows(session, base)
@@ -3888,7 +3729,7 @@ def _cutoff_days(older_than_days: int) -> datetime:
     return utcnow() - timedelta(days=days)
 
 
-#: 批量清理时每批取多少行（S30）。
+#: 批量清理时每批取多少行。
 #:
 #: 500 这个量级的依据是 SQLite 的两条硬约束：一条 ``IN (...)`` 的变量数上限，
 #: 以及「一批的写锁占用时间」要小到不会被用户感知。老版本 SQLite 的变量上限是 999，
@@ -3907,18 +3748,10 @@ def _purge_rows(
     action: str,
     detail: str,
 ) -> dict:
-    """按给定谓词分批删除。返回删除行数，并写一条审计（S30）。
-
-    过去的写法是「先把命中的主键**全部**读进内存，再发一条 ``DELETE ... WHERE``」。后台这些清理按钮
-    点的正是最容易攒出量的表（``account_sessions`` / ``license_sessions`` / ``recovery_tokens`` /
-    ``email_verifications``）：运维勾「清理 0 天前的会话」时命中数可能是几十万，内存里先堆出等量的
-    Python 字符串，再让 SQLite 在一个事务里删掉它们 —— 期间全站的写请求都被这把写锁挡住，而后台只
-    看到按钮转圈。
-
-    现在按 :data:`_PURGE_BATCH` 一批一批删：每批一个 ``DELETE``、批间 ``flush()``，写锁有机会在批与
-    批之间让出去。删不完的下一轮继续 —— 端点本身是幂等的。
-
-    批内用主键 ``IN`` 而不是把 ``where`` 再跑一遍：语义更硬 —— 删掉的正是刚读到的那些行。
+    """按给定谓词分批删除。返回删除行数，并写一条审计。
+    必须分批是因为这些清理按钮点的正是最容易攒量的表，「清理 0 天前的会话」可能命中几十万行，一次删完
+    会让全站写请求被写锁挡住。按 :data:`_PURGE_BATCH` 一批一批删，批间 ``flush()`` 让写锁有机会让出去；
+    删不完下一轮继续，端点本身幂等。批内用主键 ``IN`` 而不是把 ``where`` 再跑一遍，语义更硬。
     """
     total = 0
     while True:
@@ -3940,15 +3773,10 @@ _HEX_CHARS = frozenset("0123456789abcdef")
 
 def _resolve_by_hash_hint(session: Session, model, hint: str, label: str):
     """按「令牌哈希前缀」定位一行。
-
-    列表接口只下发哈希前 12 位（48 bit）——足够做标识，又不至于把完整哈希（可用来
-    在别处比对/冒用）暴露到浏览器里。删除/撤销时用同一个前缀回查：命中多行就要求
-    调用方给更长的前缀，绝不猜。
-
-    前缀**必须是纯十六进制**：``id_hash`` 是 ``sha256`` 的 hexdigest，所以这不是
-    收窄、而是精确描述。顺带堵掉 LIKE 的通配符注入 —— 直接把输入拼进 ``like(f"{p}%")``
-    时，``%`` 会匹配任意内容（8 个下划线 ``________`` 即可命中全表，把一个「按标识
-    定位一行」的接口变成「批量命中」）；换成白名单校验比转义 ``ESCAPE`` 更不容易漏。
+    列表接口只下发哈希前 12 位（48 bit），足够做标识又不暴露完整哈希；回查命中多行就要求调用方给更长
+    前缀，绝不猜。前缀**必须是纯十六进制**（``id_hash`` 是 sha256 的 hexdigest），这同时堵掉 LIKE 的
+    通配符注入 —— 直接把输入拼进 ``like(f"{p}%")`` 时 ``%`` 会匹配任意内容，把一个「按标识定位一行」的
+    接口变成批量命中。
     """
     prefix = (hint or "").strip().lower()
     if len(prefix) < 8:
@@ -4023,8 +3851,8 @@ def admin_list_sessions(
 def admin_revoke_session(ref: str, session: DbSession, admin: AdminAccount) -> dict:
     """把单条登录会话踢下线。
 
-    过去只能改密码或停用账号来「踢人」，两种做法都会连带踢掉该账号的**全部**会话
-    （包括管理员自己正在用的那条）。这里按会话粒度撤销。
+    必须按会话粒度撤销：改密码或停用账号都会连带踢掉该账号的**全部**会话，
+    包括管理员自己正在用的那条。
     """
     record = _resolve_by_hash_hint(session, AccountSession, ref, "登录会话")
     account = session.get(Account, record.account_id)
@@ -4171,13 +3999,9 @@ def admin_list_coupon_redemptions(
 
 def _recount_coupon_redemptions(session: Session, coupon: Coupon | None) -> int:
     """把 ``coupon.redeemed_count`` 按「仍占用名额」的核销记录重算。
-
-    核销记录的作废会改变「此刻还被占用多少名额」，而这个计数参与
-    ``max_redemptions`` 校验，所以任何一次作废之后都必须跟着重算，
-    否则会出现「名额看着还有、下单却说领完」。
-
-    谓词与下单校验（``store/api/store.py``）同源：``coupons.holds_slot_conditions()``
-    —— 订单进了 ``RELEASED_STATUSES``、记录被作废、或订单已被删除，都不再计入。
+    核销记录的作废会改变「此刻还被占用多少名额」，而这个计数参与 ``max_redemptions`` 校验，所以任何
+    一次作废之后都必须跟着重算，否则会出现「名额看着还有、下单却说领完」。谓词与下单校验同源
+    （``coupons.holds_slot_conditions()``）：订单已释放、记录被作废、订单被删除都不再计入。
     """
     if coupon is None:
         return 0
@@ -4200,15 +4024,9 @@ def admin_void_coupon_redemption(
     redemption_id: str, session: DbSession, admin: AdminAccount
 ) -> dict:
     """作废一条核销记录（仅供纠错：重复核销、测试单、误发折扣）。
-
-    **软删除**：置 ``voided_at`` 而不是删行。这张表有两个身份 —— 它既是
-    ``per_account_limit`` 的判定依据（所以作废必须真的放开名额），又是
-    「谁在什么时候用哪个码减了多少钱」的唯一凭证。过去直接 ``session.delete``
-    等于把凭证本身删掉：审计日志里只剩一句「作废了某条记录」，被作废的折扣额、
-    账号、订单号全部查不回来，对账时无法复核这次作废是否该做。
-
-    作废后连带重算 ``coupon.redeemed_count``；这条记录的账号也因此重新获得一个
-    名额。两件事都写进审计，事后可追。
+    **软删除**：置 ``voided_at`` 而不是删行。这张表既是 ``per_account_limit`` 的判定依据，又是「谁在
+    什么时候用哪个码减了多少钱」的唯一凭证；直接 ``session.delete`` 会让审计里只剩一句「作废了某条
+    记录」，折扣额、账号、订单号全部查不回来。作废后连带重算 ``coupon.redeemed_count``，两件事都写审计。
     """
     record = session.get(CouponRedemption, redemption_id)
     if record is None:
@@ -4493,7 +4311,7 @@ def admin_purge_device_release_events(
 
 
 # 审计日志
-# 客户端侧会话与令牌：过去完全没有入口，只能靠解绑/删绑定级联清理
+# 客户端侧会话与令牌：以前只能靠解绑/删绑定级联清理
 @router.get("/license-sessions")
 def admin_list_license_sessions(
     session: DbSession,
@@ -4507,8 +4325,8 @@ def admin_list_license_sessions(
     """客户端登录会话。
 
     这是「谁在用这张授权」的直接证据：``last_used_at`` 是心跳时间，
-    ``binding_id`` 指向具体设备。过去后台只能看到设备绑定、看不到会话，
-    排查「同一张授权被多处同时使用」时无从下手。
+    ``binding_id`` 指向具体设备。只看设备绑定、不看会话，就查不出
+    「同一张授权被多处同时使用」。
     """
     base = select(LicenseSession)
     moment = utcnow()

@@ -3,7 +3,7 @@
 只做最简单的封装：一个全局 Engine、一个会话工厂，外加 SQLite 的连接级 PRAGMA。
 业务逻辑一律写在调用方，这里不持有任何模型知识。
 
-**谁在哪个线程上碰请求级会话（B36/B47）**：请求级会话由 FastAPI 的同步依赖产出
+**谁在哪个线程上碰请求级会话**：请求级会话由 FastAPI 的同步依赖产出
 （``dependencies.get_database_session``），因此会被三种线程先后碰到 —— 线程池线程跑同步
 依赖（认证/授权那几层）与同步路由、事件循环线程跑 ``async def`` 路由体、线程池线程做依赖
 清理（关闭会话、归还连接）。
@@ -22,7 +22,7 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 #: 写锁等待上限（秒）：另一个连接正写着时，本连接最多等这么久，超时才报
 #: ``database is locked``。没有它（原状）时那是**立刻**失败 —— 两个人同时保存，
-#: 其中一个凭空报错，而重试往往就能成功（B36）。
+#: 其中一个凭空报错，而重试往往就能成功。
 BUSY_TIMEOUT_SECONDS = 30
 
 #: 连接池规模。SQLite 是单写多读，池子只需要覆盖「同时在读写的人数」：满了之后
@@ -71,7 +71,7 @@ class Database:
             # 换手到别的线程（见模块 docstring），这条检查无条件下会直接拒。写出来是因为
             # 它表达了这个前提，并且**不依赖 URL 形态**（SQLAlchemy 只对文件库默认关掉它，
             # 内存库默认仍是 True）—— 真正的前提由 _check_sqlite_threadsafety 在构造时
-            # 核过（B47），那一层与驱动默认值无关。
+            # 核过，那一层与驱动默认值无关。
             connect_args={'check_same_thread': False, 'timeout': BUSY_TIMEOUT_SECONDS},
             pool_size=POOL_SIZE,
             max_overflow=MAX_OVERFLOW,
@@ -79,7 +79,7 @@ class Database:
         )
         # 每个新连接都必须重新设置的 PRAGMA（连接级配置，不随库持久化）。
         event.listen(self.engine, 'connect', self._configure_sqlite)
-        # WAL 是库级设置，只在池子建第一条连接时做一次（B36），见 _enable_wal。
+        # WAL 是库级设置，只在池子建第一条连接时做一次，见 _enable_wal。
         event.listen(self.engine, 'first_connect', self._enable_wal)
         # autoflush=False：避免查询时隐式 flush 半成品对象；
         # expire_on_commit=False：提交后仍可读取对象属性，省掉一次回查。
@@ -87,7 +87,7 @@ class Database:
 
     @staticmethod
     def _check_sqlite_threadsafety() -> None:
-        """确认 sqlite3 构建允许跨线程顺序使用连接（B47）。
+        """确认 sqlite3 构建允许跨线程顺序使用连接。
 
         这是「请求级会话在事件循环线程与线程池线程之间换手」的**前提**，原先是默认
         成立的（CPython 默认 serialized），但从没被检查过也没被写下来：换一个
@@ -119,7 +119,7 @@ class Database:
 
     @staticmethod
     def _enable_wal(connection, _record) -> None:
-        """把库切到 WAL，**每个 Engine 只做一次**（B36）。
+        """把库切到 WAL，**每个 Engine 只做一次**。
 
         ``journal_mode`` 是库级设置、写在数据库文件头里：一次打开之后就是 WAL，
         后续连接（包括别的进程、别的工具）看到的都是 WAL，不必逐连接再设一遍。

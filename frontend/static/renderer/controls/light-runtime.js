@@ -1,25 +1,18 @@
 /**
  * 灯光控件的纯计算层：能力探测、颜色空间转换、服务数据拼装与预设确认状态机。
  *
- * 职责：
- * - 从 HA 属性推断灯支持哪些能力（亮度 / 色温 / 彩色），供界面决定显示哪些滑条；
- * - 在 HS（色相 + 饱和度）与 RGB 之间互转，并把拾色盘上的归一化坐标与 HS 互换；
- * - 把用户操作拼成要发给 HA 的服务数据；
- * - 维护「点了预设之后等设备状态稳定」的判定逻辑。
+ * 职责：从 HA 属性推断支持的能力（亮度 / 色温 / 彩色）；HS 与 RGB 互转、拾色盘坐标与 HS 互换；
+ * 把操作拼成发给 HA 的服务数据；维护「点预设后等设备状态稳定」的判定。
  *
- * 位置：不碰 DOM，也不读控件注册表；灯光控件的 runtime 与编辑器预览共用这里的口径。
+ * 位置：不碰 DOM，也不读控件注册表；runtime 与编辑器预览共用这里的口径。
  */
 
-// 本文件到 P12 为止是**零 import** 的纯计算层；这一条是第一个依赖，且只依赖
-// `utils/entities.js`（它是叶子模块、自己没有 import，也不碰 DOM / 注册表），
-// 所以「不碰 DOM、不读注册表」这条位置说明仍然成立。
-// 为什么值得破一次例：本文件原先内联了一份 `String(id || … || "").split(".", 1)[0]`
-// 来判灯域，与 `entityDomainFromId` 的契约逐字相同（输入自带 `|| ""` 守卫）——
-// 留着它就是「同一份取域知识两份实现」，而那正是这批要收口的东西。
-import { entityDomainFromId } from "../../utils/entities.js?v=20260920104554";
-// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
-// 本文件原先内联了 `entityState?.newState || entityState || {}`（P12 状态条目内联收口）。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920104554";
+// 本模块原本是**零 import** 的纯计算层，这里引入第一个依赖，且只依赖 `utils/entities.js`
+// （叶子模块，自己没有 import，也不碰 DOM / 注册表），所以「不碰 DOM、不读注册表」这条
+// 位置说明仍然成立；灯域判定与 `entityDomainFromId` 是同一份知识，不再内联。
+import { entityDomainFromId } from "../../utils/entities.js?v=20260920131301";
+// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`。
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
 
 /**
  * 把 0~100 的相对色温百分比换算成开尔文。
@@ -48,10 +41,7 @@ export function relativeLightColorTemperature(minimumKelvin, maximumKelvin, rela
 }
 /**
  * 在「控件支持该能力」与「属性里有可用数值」同时成立时才采用实际值，否则用兜底值。
- *
- * 布尔判断放在外面：某些灯会把 brightness 等字段留在属性里但已经不支持调节，
- * 只看数值存在会把不支持的能力误判为可用。
- *
+ * 某些灯会把 brightness 留在属性里但已不支持调节，只看数值存在会误判为可用。
  * @param {*} fallbackValue 不可用时的兜底值。
  */
 export function lightVisualValueForCapability(
@@ -102,13 +92,9 @@ export function lightSupportsColor(entityAttributes = {}) {
 }
 /**
  * 探测灯在实时状态下的可调能力。
- *
- * 三个依据按「任一成立即算支持」的并集处理，兼容新旧 HA 版本：
- * - supported_color_modes 声明（新）；
- * - 属性里存在对应的数值字段；
- * - 旧的 supported_features 位掩码：第 1 位是亮度、第 2 位是色温（位判断用 & 1 === 1 的写法）。
- *
- * 非 light 域一律返回全 false，因为温度单位、属性名与灯并不通用。
+ * 三个依据取并集（任一成立即支持），兼容新旧 HA：supported_color_modes 声明、属性里的数值字段、
+ * 旧 supported_features 位掩码（第 1 位亮度、第 2 位色温，位判断用 & 1 === 1）。
+ * 非 light 域一律全 false，因为温度单位与属性名并不通用。
  */
 export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
   const stateObject = resolveStateEntry(entityState, {});

@@ -1,18 +1,12 @@
 /**
- * 窗帘轨道与帘布的生成（含梦幻帘）。
+ * 窗帘轨道与帘布的生成（含梦幻帘）：3D 工作室生成窗帘（直轨 / L 型 / U 型）时的几何构造模块，
+ * 由物件生成流程调用，产出轨道杆与两片帘布。
  *
- * 位置：3D 工作室生成窗帘（直轨 / L 型 / U 型）时的几何构造模块，
- *   由物件生成流程调用，产出轨道杆与两片帘布。
- * 对外：normalizeCurtainTrack、curtainFootprintDepth、createCurtainTrack、
- *   curtainPanelRanges、createTrackClothGeometry、poseTrackCloth、addTrackCurtain，
- *   以及梦幻帘用的 createDreamBladeGeometry / poseDreamBlades。
- * 坐标与单位：长度一律米；轨道在水平面上用 x / z 描述（y 为竖直方向），
- *   帘布底边离地 0.06 米、顶边离地 height - 0.06 米。
- * 约定：curtainMeet 为两片帘布的搭接百分比，curtainPreview 为开合预览百分比。
- *   参数夹取用 utils/numbers.js 的 clampOptionalNumber（唯一实现，P10 B 类收敛）：
- *   这里的值来自文档，空串 / null 表示「未设置」，不能按 0 用。
+ * 坐标与单位：长度一律米；轨道在水平面上用 x / z 描述（y 为竖直方向），帘布底边离地 0.06 米、
+ * 顶边离地 height - 0.06 米。约定：curtainMeet 为两片帘布搭接百分比，curtainPreview 为开合预览百分比；
+ * 参数夹取用 utils/numbers.js 的 clampOptionalNumber（空串 / null 表示「未设置」，不能按 0 用）。
  */
-import { clampOptionalNumber } from "../../utils/numbers.js?v=20260920104554";
+import { clampOptionalNumber } from "../../utils/numbers.js?v=20260920131301";
 
 /**
  * 归一化窗帘轨道参数。

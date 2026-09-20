@@ -1,12 +1,8 @@
 """接口的请求 / 响应模型（pydantic）。
 
-约定：
-- 字段名用 snake_case，别名用前端 JSON 的 camelCase，`populate_by_name=True`
-  让两种写法都能被接受。
-- 面向「后台表单已提交」的请求体一律 `extra='forbid'`：字段名拼错时直接报错，
-  而不是静默丢弃用户刚在界面上做的改动。
-- 所有用户输入的名字都跑一遍 `CONTROL_CHARACTERS` 检查，
-  防止控制字符进入日志与展示页。
+约定：字段名用 snake_case、别名用前端 JSON 的 camelCase，`populate_by_name=True` 让两种
+写法都能被接受；面向「后台表单已提交」的请求体一律 `extra='forbid'`，字段名拼错时直接报错
+而不是静默丢弃用户的改动；所有用户输入的名字都跑一遍 `CONTROL_CHARACTERS` 检查。
 """
 from __future__ import annotations
 
@@ -27,14 +23,8 @@ CONTROL_CHARACTERS = re.compile('[\\x00-\\x1f\\x7f]')
 def _validated_device_name(value: str | None) -> str | None:
     """设备名去首尾空白并挡住控制字符；去空白后为空视为非法。
 
-    P10 之前这段判断在 `schemas.py` 里写了**四份**（`DisplayPairingCodeRequest`、
-    `DisplayPairingCodeUpdateRequest`、`DisplayPairRequest`、`DisplayDeviceUpdateRequest`），
-    逐字节相同，只是方法名不同（`trim_pairing_name` / `trim_device_name` /
-    `trim_display_name`）—— 按名字搜只能找到其中两份，另外两份是靠「函数体逐字节
-    比对」才现形的。
-
-    合并的理由不只是少几行：这四条路径在改同一台设备的同一个字段，口径一旦漂开，
-    就会出现「生成配对码时能取的名字，改设备名时被拒」这种自相矛盾的报错。
+    四条路径共用这一份（配对码生成 / 配对码更新 / 设备配对 / 设备改名）：它们改的是同一台
+    设备的同一个字段，口径一旦漂开就会出现「生成配对码时能取的名字，改设备名时被拒」。
     """
     if value is None:
         return None
@@ -47,9 +37,8 @@ def _validated_device_name(value: str | None) -> str | None:
 def _validated_project_name(value: str) -> str:
     """项目名去首尾空白；全空白视为非法。
 
-    P10 之前 `ProjectCreateRequest`（新建）与 `ProjectDuplicateRequest`（复制）
-    各有一份相同实现。项目名是正式展示地址的路径段（见 `display_path`），
-    两处口径必须一致，否则复制出来的项目可能带一个新建时不允许的名字。
+    `ProjectCreateRequest`（新建）与 `ProjectDuplicateRequest`（复制）共用这一份检查。项目名是
+    正式展示地址的路径段（见 `display_path`），两处口径必须一致。
     """
     value = value.strip()
     if not value:
@@ -219,9 +208,8 @@ class HAConnectionInput(BaseModel):
     def trim_connection_name(cls, value: str) -> str:
         """去空白后再校验连接名。
 
-        ``min_length=1`` 判的是**未去空白**的原值，所以 ``" "`` 能过长度这一关，
-        再被路由里的 ``.strip()`` 存成空串 —— 库里就会出现没有名字的连接（B60）。
-        去掉首尾空白之后再判一次下限，与设备名 / 账号名那几处同一口径。
+        ``min_length=1`` 判的是**未去空白**的原值，所以 ``" "`` 能过长度这一关，再被路由里的
+        ``.strip()`` 存成空串 —— 库里就会出现没有名字的连接。去掉首尾空白后再判一次下限。
         """
         value = value.strip()
         if not value or CONTROL_CHARACTERS.search(value):
@@ -296,10 +284,8 @@ class ProjectCreateRequest(BaseModel):
 class ProjectDraftUpdate(BaseModel):
     """保存项目草稿。
 
-    `revision` 是乐观锁：必须与库内当前版本一致，否则接口返回 409
-    并带上服务端版本，让用户选择覆盖还是加载服务端版本。
-
-    `global_popups_dirty` 为 False 时跳过全局弹窗的合并与写回，
+    `revision` 是乐观锁：必须与库内当前版本一致，否则接口返回 409 并带上服务端版本，让用户
+    选择覆盖还是加载服务端版本。`global_popups_dirty` 为 False 时跳过全局弹窗的合并与写回，
     避免每次自动保存都去改写共享的全局弹窗表（那会让 revision 无谓增长）。
     """
 
@@ -344,16 +330,13 @@ class Studio3DDraftUpdate(BaseModel):
     @field_validator('scene')
     @classmethod
     def validate_scene_size(cls, value: dict[str, Any]) -> dict[str, Any]:
-        """在类型边界上声明场景的体积与嵌套深度上限（B49）。
+        """在类型边界上声明场景的体积与嵌套深度上限。
 
-        这两条限制原先只存在于**这条路由**上：字节数写在 ASGI 中间件
-        （``body_guard.DraftBodyGuard``）与写盘函数（``studio3d._atomic_json_write``）里，深度只写在
-        中间件里。中间件只在装了它的应用上生效 —— 直接把路由器挂到别的 FastAPI 应用上时，一个几 KB
-        的深层嵌套 JSON 就能把 ``json.loads`` 打爆成 500。所以契约要声明在 schema 这一层：
-        无论谁调用这个模型，边界都成立。
+        这两条限制原先只写在路由上（字节数在 body_guard 中间件与写盘函数里、深度只在中间件里），
+        而中间件只在装了它的应用上生效 —— 把路由器挂到别的 FastAPI 应用上时，一个几 KB 的深层
+        嵌套 JSON 就能把 json.loads 打爆成 500，所以契约要声明在 schema 这一层。
 
-        判据用的是**同一批常量**（与中间件、写盘共用一个数字），因此不会出现「接口放行、落盘拒收」
-        这种自相矛盾的门槛；序列化方式也取写盘时那一套（排序 + 去空格），两处算出来的字节数一致。
+        判据与中间件、写盘共用同一批常量，序列化方式也取写盘那一套，不会出现「接口放行、落盘拒收」。
         """
         encoded = canonical_json_bytes(value)
         if len(encoded) > MAX_SCENE_DOCUMENT_BYTES:

@@ -91,14 +91,9 @@ class MockPaymentProvider:
         base_url: str,
         pay_token: str | None = None,
     ) -> PaymentIntent:
-        # 页面凭证**不再是** ``lookup_token``（S53）：那是一枚长期有效、还能查订单
-        # 详情的 bearer 凭据，写在 URL 里会进访问日志、Referer 与浏览器历史 ——
-        # 漏出一次就不只是丢掉这张收银台页面。这里换成短时票据（30 分钟、与订单
-        # 绑定、只能打开这笔订单的收银台）；页面加载后立刻用 ``history.replaceState``
-        # 把查询串从地址栏与历史记录里抹掉（见 ``store/api/pages.py``）。
-        #
-        # 因此链接里没有任何长期凭据；订单号现在带随机尾缀（``new_order_no``），
-        # 猜不出来 —— 但可枚举性从来不是这里的边界，凭据才是。
+        # 页面凭证**不再是** ``lookup_token``：那是长期有效、还能查订单详情的 bearer 凭据，
+        # 写进 URL 会进访问日志、Referer 与浏览器历史。这里换成短时票据（30 分钟、与订单绑定、
+        # 只能打开这笔订单的收银台），页面加载后立刻用 ``history.replaceState`` 抹掉查询串。
         ticket = pay_token or ""
         query = f"?t={quote(ticket, safe='')}" if ticket else ""
         pay_url = f"{base_url}/store/mock/pay/{order.order_no}{query}"

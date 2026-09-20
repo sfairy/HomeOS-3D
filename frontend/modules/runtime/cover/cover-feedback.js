@@ -1,17 +1,11 @@
 /**
- * 窗帘的「展示态」推算：把 HA 的离散上报补成连续的动画表现。
+ * 窗帘的「展示态」推算：把 HA 的离散上报补成连续的动画表现。HA 只在位置变化时上报
+ * current_position，而 6 秒行程里可能只上报两三次，故本模块夹在状态与 3D 动画之间负责：
+ * ① 平滑补间（smoothingTime，把跳变位置渲染成连续运动）；② 指令乐观推算（commandPreview，
+ * 点开合后立刻按行程时间推算位置）；③ 断线续算（storage，梦幻帘无可信整体反馈，刷新后接着推算）。
  *
- * 在 3D 子系统里的位置：HA 只会在位置变化时上报 current_position，而窗帘在
- * 6 秒的行程里可能只上报两三次。本模块夹在状态与 3D 动画之间，负责：
- * 1) 平滑补间（smoothingTime）——把跳变的位置渲染成连续运动；
- * 2) 指令乐观推算（commandPreview）——用户点了开合后立刻按行程时间推算位置；
- * 3) 断线续算（storage）——梦幻帘没有可信整体反馈，刷新页面后接着推算。
- *
- * 对外提供：createCoverFeedback —— 返回 sync / begin / startPreview / fail / read /
- * tick / nextDelay / retain / preview / clear。
- *
- * 与 HA 的字段约定：判定「上报是否更新」用 attributes.last_updated / updatedAt；
- * 梦幻帘（dream）且 overallFeedbackAvailable === false 时才启用持久化。
+ * 与 HA 的约定：判定「上报是否更新」用 attributes.last_updated / updatedAt；仅梦幻帘（dream）
+ * 且 overallFeedbackAvailable === false 时启用持久化。
  */
 
 /**

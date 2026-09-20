@@ -1,11 +1,9 @@
 /**
  * 弹窗布局排版：把弹窗模块按网格排布并算出整体尺寸。
  *
- * 位置：编辑器弹窗设计器与展示页弹窗运行时共用。
- * 职责：给定模块列表与列数，求解每个模块的网格坐标（x / y / 宽 / 高），
- *   并换算成弹窗的像素宽高。
- * 约定：网格列数限制在 2~4 列、最多 3 行；climate 等大模块占 2 列；
- *   放不下时返回 fits: false，由调用方提示用户精简模块。
+ * 编辑器弹窗设计器与展示页弹窗运行时共用。给定模块列表与列数，求解每个模块的网格坐标
+ * （x / y / 宽 / 高）并换算成弹窗像素宽高。网格列数限制在 2~4 列、最多 3 行；climate 等大
+ * 模块占 2 列；放不下时返回 fits: false，由调用方提示用户精简模块。
  */
 const MIN_POPUP_COLUMNS = 2;
 const MAX_POPUP_COLUMNS = 4;
@@ -54,7 +52,6 @@ export function popupModuleColumnSpan(moduleSpec) {
 
 /**
  * 计算模块占用的行数。
- *
  * 目前所有模块都只占 1 行，保留该函数是为了以后支持高模块时不必改调用方。
  */
 export function popupModuleRowSpan(rowModuleSpec) {
@@ -145,9 +142,7 @@ export function packPopupModules(moduleList, columnTotal) {
 
 /**
  * 计算弹窗布局的像素尺寸。
- *
- * 尺寸全部取自文件顶部的 POPUP_* 常量（内边距、列宽、间距、行高、标题栏高度），
- * 改常量即改此处，不要在函数里写回数值字面量。
+ * 尺寸全部取自文件顶部的 POPUP_* 常量，改常量即改此处，不要在函数里写回数值字面量。
  */
 export function popupLayoutMetrics(moduleSpecs, layoutOptions) {
   const layout = packPopupModules(moduleSpecs, layoutOptions);

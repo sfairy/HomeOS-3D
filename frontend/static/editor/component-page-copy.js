@@ -1,12 +1,9 @@
 /**
  * 跨页面 / 跨项目复制组件（含「复制到指定页面」与「复制到侧边栏共享区」）。
  *
- * 位置：编辑器图层树的复制菜单与画布右键菜单调用，是「复制组件」的纯逻辑层。
- * 职责：找到源组件、克隆并整棵子树换新 ID、生成不重名的副本名、校验导航与
- *   弹窗引用是否仍然有效，必要时按画布比例缩放，最后插入目标集合。
- * 约定：① 复制到共享区时，所有页面都要引用这批新共享组件；
- *   ② 副作用是直接修改 targetDocument（就地插入），调用方负责进历史栈；
- *   ③ 坐标缩放公式与 dashboard-resize.js 保持一致（顶层按中心对齐）。
+ * 图层树复制菜单与画布右键菜单调用的纯逻辑层：找到源组件、克隆并整棵子树换新 ID、生成不重名
+ * 的副本名、校验导航与弹窗引用，必要时按画布比例缩放，最后插入目标集合。复制到共享区时所有
+ * 页面都要引用这批新共享组件；副作用是就地修改 targetDocument，调用方负责进历史栈。
  */
 function findComponentInTree(componentTree, targetComponentId) {
   for (const childComponent of componentTree || []) {
@@ -44,10 +41,8 @@ function collectComponentsByIds(documentTree, wantedComponentIds) {
   return collectedComponents;
 }
 /**
- * 列出可作为复制目标的页面。
- *
- * 源组件在共享区时任何页面都能引用它，因此全部页面入选；
- * 源组件属于某个页面时排除它自己所在的页面，避免同页重复。
+ * 列出可作为复制目标的页面：源组件在共享区时全部页面入选；属于某页面时排除它自己所在的页，
+ * 避免同页重复。
  */
 export function copyComponentTargetPages(originDocument, copiedComponentId) {
   const locatedTarget = locateComponentWithScope(originDocument, copiedComponentId);
@@ -59,10 +54,8 @@ export function copyComponentTargetPages(originDocument, copiedComponentId) {
     : [];
 }
 /**
- * 构造「复制到…」下拉的候选项列表。
- *
- * 先按页面生成 key 为 "page:<path>" 的目标；只有源组件本身属于某个页面时，
- * 才在最前面插入共享区（侧边栏）这一项 —— 共享组件不允许再复制到共享区。
+ * 构造「复制到…」下拉候选项：先按页面生成 key 为 "page:<path>" 的目标；只有源组件属于某个
+ * 页面时，才在最前面插入共享区（侧边栏）——共享组件不允许再复制到共享区。
  */
 export function copyComponentTargets(pageSourceDocument, sourceComponentId) {
   const targetLocation = locateComponentWithScope(pageSourceDocument, sourceComponentId);

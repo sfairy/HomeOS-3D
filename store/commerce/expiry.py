@@ -18,7 +18,7 @@
 
 同一个理由让 :func:`prune_expired_sessions` 也住在这里，而且**只**挂在巡检上：
 过期登录会话的删除原本藏在认证依赖里（每个带旧 Cookie 的请求顺手删一行），
-那正是 S28 —— 读请求变成写热点。它是同一类「没人访问也要发生」的收尾，所以换了
+那正是「读请求变成写热点」。它是同一类「没人访问也要发生」的收尾，所以换了
 一个执行者，而不是被取消。
 """
 
@@ -36,15 +36,10 @@ from store.core.models import AccountSession, Order, Product, utcnow
 
 logger = logging.getLogger("store.commerce.expiry")
 
-#: 单次调用最多处理多少笔超时单。
-#:
-#: 请求路径上的调用是「顺带清理」，而积压可能是「一整天（或一整个周末）没人访问」
-#: 攒出来的：不设上限的话，第一个打开的页面就要在自己的请求事务里逐条 UPDATE
-#: 并归还预留，一个页面加载被拖成分钟级 —— 而且账号中心、订单历史、下单前自查、
-#: 订单轮询这四条**公开**路径都会各自扛一遍。
-#:
-#: 200 笔足够清掉日常零散积压，又把单次请求的最坏代价封住。完整清理由
-#: ``payments.sweeper`` 反复轮转完成 —— 它无流量、未配渠道也照跑（见模块顶部）。
+#: 单次调用最多处理多少笔超时单。请求路径上的清点是「顺带做」，而积压可能是积了一整天
+#: 没人访问攒出来的 —— 不设上限会把一次页面加载拖成分钟级，且四条**公开**路径（账号中心、
+#: 订单历史、下单前自查、订单轮询）都会各扛一遍。200 笔够清日常零散积压，完整清理交给
+#: ``payments.sweeper`` 轮转。
 EXPIRE_BATCH_LIMIT = 200
 
 #: 单次最多删多少条过期登录会话（见 :func:`prune_expired_sessions`）。
@@ -101,10 +96,9 @@ def expire_stale_orders(
                 and_(Order.expires_at.is_(None), Order.created_at <= legacy_before),
             )
         )
-        #: 按过期时间正序 + 批内主键定序有**两个**作用：一是「每轮都从最老的开始」，
-        #: 有上限也不会让某笔老单永远排在后面挨饿；二是顺序确定，重复调用结果可复现
-        #: （不加 ORDER BY 时 SQLite 的返回顺序是实现细节，测试会写出飘忽的断言）。
-        #: ``expires_at`` 为 NULL 的遗留单在 SQLite 的 ASC 里排最前 —— 正合语义。
+        #: 按过期时间正序 + 批内主键定序有两个作用：每轮都从最老的开始，有上限也不会让老单
+        #: 永远挨饿；顺序确定则重复调用结果可复现（不加 ORDER BY 时 SQLite 的返回顺序是实现
+        #: 细节）。``expires_at`` 为 NULL 的遗留单在 ASC 里排最前，正合语义。
         .order_by(Order.expires_at.asc(), Order.id.asc())
         .limit(max(0, int(limit)))
     )
@@ -127,7 +121,7 @@ def expire_stale_orders(
 def prune_expired_sessions(
     session: Session, *, now=None, limit: int = SESSION_PRUNE_BATCH
 ) -> int:
-    """删掉已经过期的登录会话行，返回删除条数（S28）。
+    """删掉已经过期的登录会话行，返回删除条数。
 
     这些行的删除原本在认证依赖里（``deps._resolve_session``）顺手做，而那是**读
     路径**：每个带着过期 Cookie 的 GET 都会开一个写事务，并在请求剩下的整个生命

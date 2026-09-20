@@ -1,24 +1,15 @@
 /**
- * 「人在传感器 · 聚焦视角」配置弹窗。
- *
- * 在 3D 子系统里的位置：presence-editor.js 勾选「点击模型聚焦」后，需要给该传感器
- * 单独调一个镜头；本模块就是这个弹窗 —— 左边内嵌一块 3D 预览（mountInteraction3d），
- * 右边是投影方式与焦段控件，用户拖动 / 滚轮调出来的结果会作为 focusCamera 保存。
- *
- * 与舞台的协议：所有相机操作都走 runtime 的 focusCommand，命令名与 stage.js 的
- * editor-command 分支一一对应（edit-light-camera / focus-projection /
- * focus-focal-length / save-light-camera）。舞台每条命令都回一份 camera 快照，
- * 本模块据此回填控件；点「保存此视角」时把最后一份快照交给 onSave 写回编辑器草稿。
- *
- * 约定与副作用：
- * - 弹窗内嵌预览，尺寸由 interaction3dPreviewSize 依据面板文档算出，需用
- *   ResizeObserver 跟随可视区域变化；
- * - 打开 / 关闭时派发 hb-i3d-preview-scope，并给 dialog 打 i3d-preview-scope 标记，
- *   让 runtime.js 知道这块预览会被弹窗遮挡，从而挂起 / 恢复渲染；
- * - 命令按队列串行执行，避免并发改相机导致回填顺序错乱。
+ * 「人在传感器 · 聚焦视角」配置弹窗：左侧内嵌 3D 预览（mountInteraction3d），右侧是投影方式
+ * 与焦段控件，用户拖动 / 滚轮调出的结果作为 focusCamera 保存。
+ * 与舞台的协议：相机操作走 runtime 的 focusCommand，命令名与 stage.js 的 editor-command 分支
+ * 一一对应（edit-light-camera / focus-projection / focus-focal-length / save-light-camera）；
+ * 舞台每条命令回一份 camera 快照，本模块据此回填控件，「保存此视角」时交给 onSave 写回草稿。
+ * 约定：内嵌预览尺寸由 interaction3dPreviewSize 算出，需用 ResizeObserver 跟随可视区域；
+ * 打开 / 关闭时派发 hb-i3d-preview-scope 并给 dialog 打标记，让 runtime.js 挂起 / 恢复渲染；
+ * 命令按队列串行执行，避免并发改相机导致回填顺序错乱。
  */
-import { mountInteraction3d } from "../core/runtime.js?v=20260920104554";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260920104554";
+import { mountInteraction3d } from "../core/runtime.js?v=20260920131301";
+import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260920131301";
 /**
  * 打开聚焦视角编辑弹窗（模态，无返回值句柄）。
  */

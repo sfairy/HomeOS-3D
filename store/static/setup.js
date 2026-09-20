@@ -24,11 +24,8 @@
     if (tokenInput && !tokenInput.value) tokenInput.value = fragmentToken;
   }
 
-  // 页面加载时检查是否已有管理员。
-  //
-  // S17：``/store/v1/setup/status`` 对**无权限**的调用方恒回 ``{initialized:true}``
-  // （否则它就成了一条免费探针：``false`` = 「这家店还没管理员，来抢」）。
-  // 因此这里只在「确实带了引导密钥」时才把 ``initialized`` 当定论并跳去登录；
+  // 页面加载时检查是否已有管理员。``/store/v1/setup/status`` 对无权限的调用方恒回 ``{initialized:true}``
+  //（否则它就成了免费探针：``false`` = 「这家店还没管理员，来抢」），所以只在确实带了引导密钥时才把 ``initialized`` 当定论并跳去登录。
   // 拿不到权限时照常显示表单，由提交结果（403 无权限 / 409 已初始化）给出确定答案。
   fetch('/store/v1/setup/status', {
     method: 'GET',
@@ -111,7 +108,7 @@
           location.href = '/admin';
           return;
         }
-        // 409 = 库里已经有管理员了。这是 S17 之后**无权限**调用方唯一能确定
+        // 409 = 库里已经有管理员了。这是**无权限**调用方唯一能确定
         // 「其实已经初始化过」的途径（``/status`` 对他们恒回 true），所以这里
         // 直接把他送回登录页，而不是抛一句看不懂的报错。
         if (result.status === 409) {
@@ -120,10 +117,9 @@
           setTimeout(function () { location.href = '/admin'; }, 1500);
           return;
         }
-        // FastAPI 的参数校验失败（422）里的 ``detail`` 是**数组**，直接交给
-        // ``showError`` 会显示成 ``[object Object]`` —— 初始化页最常见的一类失败
-        // （邮箱格式、密码太短、引导密钥不对）恰好都走这条。归一化只有一份实现，
-        // 与后台/商店前台共用：store/static/api-error.js。
+        // FastAPI 参数校验失败（422）里的 ``detail`` 是**数组**，直接交给 ``showError`` 会显示成 ``[object Object]``，
+        // 而初始化页最常见的失败（邮箱格式、密码太短、引导密钥不对）恰好都走这条。
+        // 归一化只有一份实现，与后台/商店前台共用：store/static/api-error.js。
         var detail = ApiError.describe(result.body && result.body.detail, '初始化失败，请重试。');
         showError(detail);
         submitBtn.classList.remove('is-loading');

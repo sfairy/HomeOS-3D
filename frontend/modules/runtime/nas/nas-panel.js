@@ -1,20 +1,16 @@
 /**
  * NAS 状态面板（3D 场景与详情弹窗共用的信息卡）。
  *
- * 在 3D 子系统里的位置：把 NAS 绑定里的 statusSource 渲染成「分组 + 指标卡」，
- * 每个指标卡显示名称、格式化后的数值、以及百分比进度条。
- *
- * 对外提供：nasGroups、nasMetricValue、createNasPanel。
- *
- * 与后端的字段约定：指标配置来自 item.statusSource.metrics（每项含 entityId /
- * label / kind / group），kind 决定数值的展示方式；visibleMetrics 是「要显示哪些
- * 实体」的白名单。数值的单位取实体属性 unit_of_measurement。
+ * 把 NAS 绑定里的 statusSource 渲染成「分组 + 指标卡」，每卡显示名称、格式化数值与百分比
+ * 进度条。对外提供 nasGroups、nasMetricValue、createNasPanel。指标配置来自
+ * item.statusSource.metrics（每项含 entityId / label / kind / group），kind 决定数值展示
+ * 方式，visibleMetrics 是「显示哪些实体」的白名单，单位取实体属性 unit_of_measurement。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 /**
  * 计算要展示的分组及其中文名。
  */

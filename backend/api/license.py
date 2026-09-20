@@ -26,7 +26,7 @@ async def license_status(request: Request, _user: CurrentUser) -> dict:
     再跳转 /license；字段名由授权模块与前端约定，这里不做加工。
 
     节流窗口在发起联网前就被占住，因此多个标签页 / 多个页面同时轮询时只有一个
-    真的发请求；读状态本身是同步查库，同样转线程池（B4/B55）。
+    真的发请求；读状态本身是同步查库，同样转线程池。
     """
     await request.app.state.license_service.confirm_binding(force=False)
     return await asyncio.to_thread(request.app.state.license_service.status)

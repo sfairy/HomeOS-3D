@@ -33,7 +33,7 @@ def verify_password(password_hash: str | None, password: str) -> bool:
       「该用户是否存在 / 哈希是否损坏」暴露给攻击者；
     - 上面三种情形都必须真的算一轮 argon2（缺哈希时用 :data:`DUMMY_PASSWORD_HASH`
       顶上）。否则调用方一旦把本函数写在判定链的末尾，短路会让「用户名对不对」
-      从响应时间上泄漏出去（B17）—— 22ms 与 0ms 的差别，枚举出用户名只要几次请求。
+      从响应时间上泄漏出去—— 22ms 与 0ms 的差别，枚举出用户名只要几次请求。
     """
     if not password_hash:
         _verify_against_dummy(password)
@@ -63,7 +63,7 @@ def _verify_against_dummy(password: str) -> None:
 #:
 #: 它的作用只有一个：当账号不存在（或哈希损坏）时，仍然让 argon2 跑完整的一轮，
 #: 使这条路径的耗时与「账号存在但口令错」一致 —— 否则响应时间的差别本身就回答了
-#: 「这个用户名存不存在」（B17）。值写死而不是启动时现算，是为了不给每个进程的启动
+#: 「这个用户名存不存在」。值写死而不是启动时现算，是为了不给每个进程的启动
 #: 加一次 argon2 哈希；参数随 argon2 升级也不会失效（校验参数从哈希串里读）。
 DUMMY_PASSWORD_HASH = (
     '$argon2id$v=19$m=65536,t=3,p=4$5JEhzNRvImo3+VBOu7xD0Q$IMvV/nOBd1/+sI61MaQJx3fHAR6WCXSpU419+hTAwwk'

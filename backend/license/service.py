@@ -1,17 +1,10 @@
 """授权客户端：激活、心跳续租、租约恢复与能力门禁。
 
-整体流程：
-1. 激活（activate）：把激活码 + 实例 ID 交给授权服务，换回 Ed25519 签名租约
-   与两个令牌（会话令牌、恢复令牌）；令牌用 SecretCipher 加密后落库。
-2. 心跳（heartbeat）：用会话令牌周期续租；leaseSequence 必须单调递增，
-   序号不增的响应一律拒绝，用于防重放。
-3. 恢复（recover）：会话令牌失效（401）后用恢复令牌换新租约；
-   恢复令牌也失效则要求用户重新激活（reactivate / MANUAL_ACTIVATION_REQUIRED）。
-4. 门禁（_verified_access）：每次判权都重新对本地签名租约做离线验签，
-   不信任数据库里的 status 字段 —— 库被改也不能凭状态字段放行。
+激活换回签名租约 + 会话/恢复令牌（加密落库）；心跳按单调递增的 leaseSequence
+续租（不增即拒绝，防重放）；会话 401 时用恢复令牌换新租约，两者都失效才要求
+重新激活。门禁每次都对签名租约离线验签，不信任库里的 status。
 
-网络约定：请求体经 LicenseTransportCipher 加密（X25519 + HKDF-SHA256 + AES-256-GCM），
-端点按 esa / eo / direct 批次依次尝试，失败地址临时拉黑。
+网络约定：请求体经 LicenseTransportCipher 加密，端点按批次依次尝试并拉黑失败地址。
 """
 from __future__ import annotations
 
@@ -57,11 +50,8 @@ class LicenseClientError(RuntimeError):
         retry_after_seconds: float | None = None,
     ) -> None:
         """参数:
-            message: 面向用户的错误文案。
-            status_code: 授权服务返回的 HTTP 状态码；本地错误为 None。
-            code: 业务错误码，例如 MANUAL_ACTIVATION_REQUIRED / REVOKED，前端据此切换界面。
-            retry_after_seconds: 仅 429 上有值，来自响应头的 ``Retry-After``：
-                从这一刻起还要等多少秒。调用方据此进入冷却，而不是按固定间隔重打。
+            code: 业务错误码，前端据此切换界面（如 REVOKED / MANUAL_ACTIVATION_REQUIRED）。
+            retry_after_seconds: 仅 429 上有值，来自 ``Retry-After`` 的剩余秒数，调用方据此冷却。
         """
         super().__init__(message)
         self.status_code = status_code
@@ -72,10 +62,8 @@ class LicenseClientError(RuntimeError):
     def is_rate_limited(self) -> bool:
         """是否被授权服务的限流挡下（429）。
 
-        单独判出来是因为它**不能**像其它失败那样降级本地状态：429 只说明「这一小时
-        打得太多了」，对绑定是否仍然有效一个字都没说。按普通失败处理会把一个已过期的
-        租约翻成 ``LEASE_EXPIRED``，从而把编辑器锁死 —— 那正是 B66 的现象：
-        授权页的轮询把自己的心跳配额打满，然后被自己的限流关在门外。
+        429 不能像其它失败那样降级本地状态：它只说明「这一小时打多了」，对绑定是否
+        有效一个字都没说，按普通失败处理会把过期租约翻成 LEASE_EXPIRED 并锁死编辑器。
         """
         return self.status_code == 429
 
@@ -83,11 +71,8 @@ class LicenseClientError(RuntimeError):
     def is_confirmed_revocation(self) -> bool:
         """仅在授权服务「确认吊销」时返回 True。
 
-        401/403 也可能是会话过期、恢复令牌失效，或授权节点同步过程中的瞬时竞态；
-        这些情况必须保留本地授权，让客户端还有机会自动重试恢复。
-
-        仅认结构化 ``code``（``REVOKED`` / ``LICENSE_REVOKED``）；
-        ``revoked: true`` 无 code 时由 ``_parse_error_response`` 注入 ``REVOKED``。
+        401/403 也可能是会话过期或同步竞态，此时必须保留本地授权以便自动重试恢复。
+        仅认结构化 ``code``（``REVOKED`` / ``LICENSE_REVOKED``）。
         """
         # 只有 401/403 才可能是吊销；网络错误、5xx 一律不算。
         if self.status_code not in frozenset({401, 403}):
@@ -99,8 +84,7 @@ class LicenseClientError(RuntimeError):
 EXPIRED_LEASE_RETRY_SECONDS = 30
 #: 本机拿不出可用激活凭证时返回的错误码，前端据此展开手动激活表单。
 MANUAL_ACTIVATION_REQUIRED = 'LICENSE_ACTIVATION_REQUIRED'
-# 基础权益集合：当租约 features 里出现 'all' 时按这份清单展开，
-# 前端据此渲染可用的功能开关（'all' 只是服务端的合集简写）。
+# 基础权益集合：租约 features 里出现 'all' 时按此展开（'all' 只是服务端的合集简写）。
 BASE_FEATURES = {
     'api',
     'assets',
@@ -116,18 +100,14 @@ BASE_FEATURES = {
 class LicenseService:
     """授权服务客户端。
 
-    生命周期：start() 读库做离线校验、必要时联网确认，然后拉起心跳循环；
-    stop() 停循环。所有状态都落在 LicenseState 单行表里，进程重启后
-    只靠「签名租约 + 实例 ID」恢复判定，不依赖任何内存状态。
+    start() 读库做离线校验、必要时联网确认后拉起心跳循环，stop() 停循环；状态全部
+    落在单行 LicenseState 表里，进程重启后只靠「签名租约 + 实例 ID」恢复判定。
     """
 
     def __init__(self, settings: Settings, database: Database, transport: httpx.AsyncBaseTransport | None, *, endpoint_pool: LicenseEndpointPool | None = None, event_log: GlobalLogStore | None = None) -> None:
         """参数:
-            settings: 全局配置，提供公钥/密钥路径、超时、时钟容差等。
-            database: 会话工厂来源，所有状态读写都经由它开短事务。
             transport: httpx 传输层，测试可注入 MockTransport。
-            endpoint_pool: 端点池，缺省时按配置的批次构建。
-            event_log: 全局日志存储，把授权状态变化写进「授权」分类事件。
+            event_log: 全局日志存储，授权状态变化写入「授权」分类事件。
         """
         self.settings = settings
         self.database = database
@@ -149,8 +129,7 @@ class LicenseService:
         self._endpoint_pool = endpoint_pool or LicenseEndpointPool(settings.effective_license_server_batches)
         # 心跳任务句柄，仅在 start() 与 stop() 之间有效。
         self._task = None
-        # 心跳与恢复共用这一把锁：避免两条路径并发续租，
-        # 导致后到的旧序号租约把新租约覆盖掉（会被判为 INVALID）。
+        # 心跳与恢复共用这把锁：并发续租会让旧序号租约覆盖新租约（判为 INVALID）。
         self._heartbeat_lock = asyncio.Lock()
         # 停信号：用 Event 而不是 bool，是为了让正在等待的协程能被立刻唤醒。
         self._stop = asyncio.Event()
@@ -162,16 +141,11 @@ class LicenseService:
         self._startup_validation_pending = False
         # 最近一次 confirm_binding 的单调时钟；用于非强制调用的节流。
         self._last_binding_confirm_at = 0.0
-        # 被授权服务限流（429）后的冷却截止时间（单调时钟）。0 表示不在冷却里。
-        # 与「失败降级」分开记：429 不说明绑定有效与否，只是「这一小时打太多了」。
+        # 429 冷却截止（单调时钟，0 表示不在冷却）：与「失败降级」分开记，429 不说明绑定有效与否。
         self._rate_limited_until = 0.0
 
-    #: 打开编辑器等入口强制联网确认；状态轮询走节流，避免打爆授权服务。
-    #:
-    #: 从 15 秒放宽到 60 秒是 B66 的另一半：按 5 秒轮询算，15 秒节流意味着一个开着的
-    #: 授权页每小时要发 240 次心跳，而服务端那份额度是按「300 秒心跳 = 12 次/小时」
-    #: 定的。60 秒把稳态压到 60 次/小时（与后台心跳同量级），代价只是商店解绑后
-    #: 授权页上的可见延迟从 ≤15 秒变成 ≤60 秒 —— 那个页面本来就是等待室。
+    #: 打开编辑器等入口强制联网确认，状态轮询走节流。
+    #: 取 60 秒：服务端额度按「300 秒心跳 = 12 次/小时」定，60 秒把稳态压到同量级。
     BINDING_CONFIRM_THROTTLE_SECONDS = 60.0
 
     def _rate_limit_remaining(self) -> float:
@@ -181,9 +155,8 @@ class LicenseService:
     def _note_rate_limit(self, error: LicenseClientError) -> None:
         """记下这次 429 的冷却。
 
-        服务端没回 ``Retry-After`` 时用一个保守的兜底值：限流器是小时窗口，但客户端
-        不必等满一小时 —— 只要不再持续重打，窗口自己会滑动。取 120 秒，让心跳循环
-        每两分钟试一次，既不空转也不会漏掉窗口提前释放。
+        服务端没回 ``Retry-After`` 时兜底 120 秒：限流器是小时窗口，但不必等满一小时 ——
+        只要不再持续重打，窗口自己会滑动。
         """
         seconds = error.retry_after_seconds
         self._rate_limited_until = time.monotonic() + (seconds if seconds else 120.0)
@@ -191,8 +164,7 @@ class LicenseService:
     def _binding_needs_confirm(self) -> bool:
         """读本地凭证判断这次调用是否真需要联网（同步，调用方放进工作线程）。
 
-        条件：已激活、有签名租约、且状态处在「心跳还在续租」的那几个值上。
-        终态（未激活 / 已停用）不需要也不该联网。
+        条件：已激活、有签名租约、状态处在「心跳还在续租」的那几个值上；终态不需联网。
         """
         with self.database.session_factory() as database:
             state = self._state(database)
@@ -206,31 +178,20 @@ class LicenseService:
     async def confirm_binding(self, *, force: bool = False) -> None:
         """联网确认设备绑定仍有效；商店解绑 / 停用后清空本地授权。
 
-        打开编辑器、读取授权状态前调用：不能只靠离线签名租约继续放行，
-        否则解绑后最长要等心跳间隔（默认 300 秒）才能跳转到激活页。
-        网络失败不清空本地租约（保持离线可用）；仅「确认吊销」会 ``_mark_revoked``。
-
-        限流（429）单独走一条路：它既不算「确认吊销」，也不算「网络失败」—— 见
-        ``_rate_limit_remaining``。冷却期内直接返回，连节流窗口都不占，等冷却结束
-        自然恢复确认。
-
-        并发语义：节流窗口在**发起联网之前**就被占住，因此窗口期内的并发调用
-        （多标签页同时刷新、页面与轮询一起到）里只有一个真的发请求，其余立刻
-        带着本地状态返回。否则它们会一起排在 ``_heartbeat_lock`` 后面，
-        等待时间随标签页数量无界增长 —— 这正是 B55 里「刷新几下面板就卡住」的成因。
+        打开编辑器、读授权状态前调用，避免解绑后要等一个心跳间隔才跳激活页；网络失败
+        保留离线租约，仅「确认吊销」清空。429 既不算吊销也不算网络失败，冷却期内返回。
         """
         if not self.settings.license_required or not self._endpoint_pool.configured:
             return
-        # 冷却期内不联网：这是 B66 的止血点 —— 被限流之后每一次确认都只会再拿一个
-        # 429，而状态轮询恰恰是触发限流的那股流量。放在节流判定**之前**：否则冷却
-        # 结束后还要再等一个节流窗口，白白拖长恢复时间。
+        # 冷却期内不联网（状态轮询正是触发限流的那股流量）；放在节流判定之前，否则冷却结束后还要再等一个窗口。
         if self._rate_limit_remaining() > 0:
             return
         now = time.monotonic()
+        # 节流窗口在发起联网之前占住：窗口内的并发调用只有一个真的发请求，其余带本地状态返回。
         if not force and (now - self._last_binding_confirm_at) < self.BINDING_CONFIRM_THROTTLE_SECONDS:
             return
         self._last_binding_confirm_at = now
-        # 同步查库放线程池：SQLAlchemy 的同步会话跑在事件循环上会拖住所有请求（B4）。
+        # 同步查库放线程池：SQLAlchemy 的同步会话跑在事件循环上会拖住所有请求。
         if not await asyncio.to_thread(self._binding_needs_confirm):
             return
         try:
@@ -281,16 +242,14 @@ class LicenseService:
                 message = f'''授权状态变化：{labels.get(previous, previous)} → {labels.get(status, status)}'''
             if reason:
                 message += f'''；原因：{reason}'''
-            # 日志级别：正常为 success，已停用/未激活为 info，其余告警；
-            # 不可恢复的错误再单独升为 error。
+            # 级别：正常 success，停用/未激活 info，其余 warning；不可恢复错误再升 error。
             level = 'success' if status == 'ACTIVE' else 'info' if status in frozenset({'DEACTIVATED', 'UNACTIVATED'}) else 'warning'
             if status in frozenset({'INVALID', 'REVOKED', 'CLOCK_ROLLBACK', 'INSTANCE_MISMATCH'}):
                 level = 'error'
             self._log_event(level, message)
 
     def _record_failure(self, operation: str, error: Exception | str, *, sensitive_values: tuple[str, ...] = ()) -> None:
-        """记录一次失败，并按「同因去重」策略决定是否真的写日志。
-        """
+        """记录一次失败，并按「同因去重」策略决定是否写日志。"""
         reason = str(error)
         # 按长度降序替换：短值可能是长值的子串，先长后短才不会把长值截断成残留片段。
         for value in sorted(set(sensitive_values), key=len, reverse=True):
@@ -318,8 +277,7 @@ class LicenseService:
 
     def _record_online_success(self, operation: str) -> None:
         """联网成功：汇报此前累计的心跳/恢复失败次数，并清掉对应的失败计数。"""
-        # 联网既然通了，限流冷却就没有意义了（那条路只有在被 429 挡下时才置位）：
-        # 留着它会让 confirm_binding 白白少确认一次、心跳循环多睡一轮。
+        # 联网通了，限流冷却即失效；留着它会让心跳循环多睡一轮、confirm_binding 少确认一次。
         self._rate_limited_until = 0.0
         with self._event_lock:
             # 只汇报并清理这两类：本地校验与激活各自有独立的成功路径。
@@ -428,9 +386,7 @@ class LicenseService:
             self._record_status(state.status, state.last_error)
         return state
 
-        # 下列方法都只做同步查库 / 落库，供 async 调用方用 asyncio.to_thread 转交。
-    # SQLAlchemy 的同步会话跑在事件循环上会阻塞所有请求（B4），因此授权路径里
-    # 每一段「读状态 → 联网 → 写状态」之间的同步部分都收敛成这些私有方法。
+    # 以下同步方法只做查库 / 落库，供 async 调用方用 asyncio.to_thread 转交：同步会话跑在事件循环上会阻塞所有请求。
     def _activation_instance_id(self) -> str:
         """取当前实例 ID（同步，供 ``activate`` 放线程池）。"""
         with self.database.session_factory() as database:
@@ -448,10 +404,8 @@ class LicenseService:
     def _heartbeat_credentials(self) -> tuple[str | None, int, str]:
         """取心跳要用的本地凭证（同步，供 ``_heartbeat_unlocked`` 放线程池）。
 
-        返回: (加密的会话令牌, 本地租约序号, 实例 ID)。
-
-        实例 ID 是必须回传的一项：服务端靠它识别「同一张授权已被另一台设备重新
-        激活」，少了它就认不出旧会话，解绑对旧设备等于没生效。
+        返回: (加密的会话令牌, 本地租约序号, 实例 ID)。实例 ID 必须回传：服务端靠它
+        识别「同一张授权已被另一台设备重新激活」，少了它解绑对旧设备等于没生效。
         """
         with self.database.session_factory() as database:
             state = self._state(database)
@@ -474,8 +428,7 @@ class LicenseService:
         with self.database.session_factory() as database:
             state = self._state(database)
             self._validate_saved_state(state, database)
-            # 三个条件同时成立才要求联网确认：配置要求授权、已有激活记录、且本地有签名租约。
-            # 纯离线部署（未激活）不受影响。
+            # 三者同时成立才要求联网确认：配置要求授权、已有激活记录、本地有签名租约。纯离线部署不受影响。
             pending = bool(self.settings.license_required and state.license_id and state.signed_lease)
             self._record_status('STARTUP_VALIDATION_REQUIRED' if pending else state.status)
             return pending
@@ -483,20 +436,17 @@ class LicenseService:
     async def start(self) -> None:
         """启动授权服务：离线校验本地状态，必要时联网确认，然后拉起心跳循环。
 
-        副作用:
-            可能修改数据库中的状态字段；会创建后台心跳任务。
+        副作用: 可能修改数据库状态字段；会创建后台心跳任务。
         """
-        # 离线校验要读写 LicenseState：放线程池，别在事件循环里做同步查库（B4）。
+        # 离线校验要读写 LicenseState：放线程池，别在事件循环里做同步查库。
         self._startup_validation_pending = await asyncio.to_thread(self._begin_startup_validation)
         # 没配置端点就没法联网确认，直接跳过（保持离线验签给出的判定）。
         if self._startup_validation_pending and self._endpoint_pool.configured:
             try:
                 await self.recover()
             except LicenseClientError as error:
-                # 启动联网确认失败。确认吊销已由 recover() 内部清空本地授权（_mark_revoked），
-                # 此时必须保持拦截；其余情况（网络不可达、服务端故障）不应把「持有未过期
-                # 有效租约」的安装锁死——那与离线验签相矛盾。交回离线验签判定：
-                # 租约未过期 → CONNECTION_WARNING（门禁放行），已过期 → LEASE_EXPIRED（拦截）。
+                # 启动联网确认失败：确认吊销已由 recover() 清空本地授权，必须保持拦截；
+                # 其余失败不锁死有效租约，交回离线验签判定（未过期放行，过期拦截）。
                 # 心跳循环会持续重试，服务器恢复后自动续租回到 ACTIVE。
                 if not error.is_confirmed_revocation:
                     await asyncio.to_thread(self._clear_startup_validation)
@@ -518,34 +468,18 @@ class LicenseService:
         self._task = None
 
     def _lease_expired(self, expires_at: datetime, *, now: datetime) -> bool:
-        """租约是否**确实**已到期（含时钟偏移容差，B29）。
+        """租约是否**确实**已到期（含时钟偏移容差）。
 
-        同一个函数里的 ``issuedAt`` 判定与「时钟回拨」检测都用
-        ``license_clock_skew_seconds`` 留了余量，只有这一半（到期判定）过去是拿
-        ``now`` 硬比的：本机时钟只要快几秒，就会在租约还剩几秒可用时提前判成过期。
-        而心跳间隔是分钟级的（``heartbeatIn`` 下限 30 秒、默认 300 秒），于是出现
-        「服务端认为有效、本机把自己关成完全受限」的窗口，期间所有门禁一口回绝。
-        两侧用同一个容差才对称：容差的意义就是「这台机器的时钟不许比服务端快太多」，
-        既然签发时间用这个容差宽恕，到期时间也该用同一个。
-
-        代价是租约最多被多用 ``license_clock_skew_seconds`` 秒（默认 300 秒），
-        与「时钟回拨容差」是同一笔代价，没有引入新的放宽。
+        本机时钟快几秒就会在租约仍可用时提前判过期，而心跳间隔是分钟级，会造出
+        「服务端认为有效、本机完全受限」的窗口；代价是多用 ``license_clock_skew_seconds`` 秒。
         """
         return expires_at <= now - timedelta(seconds=self.settings.license_clock_skew_seconds)
 
     def _lease_sequence_ok(self, payload_sequence: int, state: LicenseState) -> bool:
-        """租约序号判据：手上这份租约不能比已经记下的更旧（B30）。
+        """租约序号判据：手上这份租约不能比已经记下的更旧。
 
-        这一处过去要求「与库里的序号**完全相等**」。它要守的性质其实是防重放
-        （不能拿一份更旧的租约顶替现在这份），而写成相等之后，任何让两个字段不同步
-        的状态 —— 库被回滚/恢复、行被外部修过、将来多一条只更新租约的路径 —— 都会
-        变成**终局 INVALID**：界面上没有任何恢复入口，只能清空授权重新激活。
-        序号的权威来源是服务端签名，本地这一列只是「我见过的最新序号」的备忘，
-        因此判据放宽成「不比备忘更旧」，并把更大的值**回写**成新备忘（自愈）；
-        更旧则说明手上这份租约是被换下来的旧货，照旧拒绝。
-
-        回写能否落库取决于调用方会话是否提交：请求级会话会在收尾提交（因此下一次
-        校验就直接相等了），服务自己开的只读会话不提交，交给启动校验那条路径补。
+        防重放要求「不比备忘更旧」；若写成完全相等，任何让两个字段不同步的状态
+        （库被回滚、行被外部修过）都会变成终局 INVALID。更大的值回写成新备忘（自愈）。
         """
         if payload_sequence < state.lease_sequence:
             return False
@@ -556,8 +490,8 @@ class LicenseService:
     def _validate_saved_state(self, state: LicenseState, database) -> None:
         """启动时的离线校验：只信签名租约，不信库里的 status。
 
-        校验顺序：验签 → 租约序号不比备忘更旧 → 到期时间 → 时钟回拨。
-        任何一步失败都写回明确的状态与中文原因，供前端展示。
+        校验顺序为验签 → 序号不比备忘更旧 → 到期时间 → 时钟回拨，
+        任一步失败都写回明确状态与中文原因，供前端展示。
         """
         # 没有租约，或已处于终态（停用/未激活）时无需校验。
         if not state.signed_lease or state.status in frozenset({'DEACTIVATED', 'UNACTIVATED'}):
@@ -575,7 +509,7 @@ class LicenseService:
                 state.status = 'CLOCK_ROLLBACK'
                 state.last_error = '检测到系统时间回拨，请校准系统时间后重新验证授权。'
             else:
-                # 验签通过后按租约到期时间给出离线结论（含时钟偏移容差，B29）。
+                # 验签通过后按租约到期时间给出离线结论（含时钟偏移容差）。
                 state.status = 'LEASE_EXPIRED' if self._lease_expired(expires, now=now) else 'ACTIVE'
                 state.last_verified_at = now
                 state.last_error = None
@@ -591,10 +525,7 @@ class LicenseService:
     async def _post(self, path: str, payload: dict) -> dict:
         """向授权服务发送加密请求，按候选列表依次重试。
 
-        参数:
-            path: 接口路径，如 /v2/activate。
-        异常:
-            LicenseClientError: 未配置端点、全部候选失败，或遇到 4xx 业务拒绝。
+        未配置端点或全部候选失败抛 ``LicenseClientError``；4xx 业务拒绝直接抛出，不重试。
         """
         candidates = self._endpoint_pool.candidates()
         # 未配置是配置问题（重试无用），全部不可用是暂时问题，两者给出不同文案。
@@ -649,8 +580,7 @@ class LicenseService:
                 try:
                     parsed = self.transport_cipher.decrypt_response(parsed, path, response_key)
                 except LicenseCryptoError as error:
-                    # 解密失败可能是该端点用了另一把密钥：拉黑并换一个，
-                    # 而不是立刻判成「服务端拒绝」（那会让用户看到误导性提示）。
+                    # 解密失败可能是该端点密钥不同：拉黑换一个，而不是判成「服务端拒绝」（会给用户误导）。
                     self._endpoint_pool.mark_failed(endpoint.base_url)
                     last_failure = LicenseClientError(str(error))
                     continue
@@ -662,12 +592,8 @@ class LicenseService:
     def _parse_retry_after(response: httpx.Response) -> float | None:
         """从 429 响应头取 ``Retry-After``（秒）。
 
-        只认「秒数」这一种写法：HTTP 也允许日期格式，但服务端发的是
-        ``SlidingWindowLimiter.retry_after()`` 算出来的剩余秒数，多解析一种格式
-        就是多一条永远走不到、也永远测不到的分支。
-
-        钳到 ``[1, 3600]``：下界避免「回 0 就等于不休避」变成热循环；上界与限流窗口
-        同量级，防止伪造 / 错配的头把客户端长期钉死在冷却里。
+        只认秒数写法：服务端发的就是限流器算出的剩余秒数。钳到 ``[1, 3600]``，
+        下界避免「回 0 就不休避」变成热循环，上界防止伪造头把客户端长期钉死在冷却里。
         """
         raw = response.headers.get('Retry-After')
         if raw is None:
@@ -682,12 +608,11 @@ class LicenseService:
     def _parse_error_response(response: httpx.Response) -> tuple[str, str | None]:
         """从错误响应取出 detail 与可选业务 code。
 
-        协议：``{"detail": "...", "code": "REVOKED", "revoked": true}``。
-        ``revoked: true`` 且无 code 时补 ``REVOKED``（现行字段，非旧版 detail 兼容）。
+        协议：``{"detail": ..., "code": "REVOKED", "revoked": true}``；
+        ``revoked: true`` 且无 code 时补 ``REVOKED``。
         """
         try:
-            # 非 JSON 或顶层不是字典时统一回落到通用文案，
-            # 绝不把原始 body 直接透传给用户。
+            # 非 JSON 或顶层不是字典时回落通用文案，绝不把原始 body 透传给用户。
             parsed = response.json()
             if not isinstance(parsed, dict):
                 return '授权服务器拒绝请求。', None
@@ -704,9 +629,7 @@ class LicenseService:
     def _apply_response(self, response: dict, *, activation_code_hint: str | None = None, activation_code: str | None = None, email: str | None = None) -> dict:
         """把一次成功的授权响应落库（验签通过后才算成功）。
 
-        参数:
-            activation_code_hint: 激活码脱敏提示（保留前段，截掉后 9 位）。
-            activation_code: 完整激活码，加密后落库，供自动重新激活使用。
+        ``activation_code`` 加密落库供自动重激活；``activation_code_hint`` 截掉后 9 位作界面提示。
         """
         # 缺字段时留空串，交给 verifier 统一按「格式无效」拒绝。
         signed_lease = response.get('signedLease', '')
@@ -726,26 +649,22 @@ class LicenseService:
             lease_sequence = payload['leaseSequence']
             now = datetime.now(timezone.utc)
             if issued_at > now + timedelta(seconds=self.settings.license_clock_skew_seconds):
-                # 服务端签发时间明显超前于本机 → 本机时钟偏慢或服务端异常；
-                # 此时租约的到期判断不可信，先要求校准时间而不是写入可用状态。
+                # 签发时间明显超前本机 → 时钟偏慢或服务端异常，到期判断不可信，先要求校准时间。
                 state.status = 'CLOCK_ROLLBACK'
                 state.last_error = '授权服务器时间明显晚于本机时间，请先校准系统时间。'
                 database.commit()
                 self._record_status(state.status, state.last_error)
                 raise LicenseClientError(state.last_error)
             if self._lease_expired(expires_at, now=now):
-                # 服务端返回一份已过期的租约：不写入可用状态，
-                # 避免刚「激活成功」就拿到一个当场失效的凭证。
-                # 判据含时钟偏移容差（B29）：本机时钟只是比服务端快几秒时，
-                # 一份刚签发的租约不该被判成过期而让激活直接失败。
+                # 服务端返回已过期租约：不写入可用状态，避免刚「激活成功」就拿到失效凭证。
+                # 判据含时钟偏移容差，本机快几秒不会让刚签发的租约被判成过期。
                 state.status = 'LEASE_EXPIRED'
                 state.last_error = '授权服务器返回了已到期租约。'
                 database.commit()
                 self._record_status(state.status, state.last_error)
                 raise LicenseClientError(state.last_error)
             if payload['activationCodeId'] == state.license_id and lease_sequence <= state.lease_sequence and state.signed_lease != signed_lease:
-                # 序号防重放：同一授权下序号必须递增。只有「内容完全相同」才允许相等
-                # （网络重试拿到同一响应属于正常情况，换个内容就是重放攻击）。
+                # 序号须递增防重放；只有内容完全相同的重试响应才允许相等。
                 state.status = 'INVALID'
                 state.last_error = '授权服务器返回了未递增的租约序号。'
                 database.commit()
@@ -764,8 +683,7 @@ class LicenseService:
             # 目前只有完整版一种授权形态，字段保留给后续分层版本。
             state.product_edition = 'full'
             features = payload.get('features')
-            # 权益列表必须是字符串数组：类型不对说明响应被篡改或服务端版本不兼容，
-            # 宁可整体置为 INVALID，也不要放行一份看不懂的权益。
+            # 权益必须是字符串数组，类型不对说明响应被篡改，整体置 INVALID 而不放行看不懂的权益。
             if not isinstance(features, list) or not all(isinstance(item, str) for item in features):
                 state.status = 'INVALID'
                 state.last_error = '授权服务器返回的权益列表无效。'
@@ -805,10 +723,10 @@ class LicenseService:
 
     async def activate(self, activation_code: str, email: str | None = None) -> dict:
         """用激活码激活当前安装。
-        异常:
-            LicenseClientError: 邮箱缺失（422）、激活码被拒或租约校验失败。
+
+        邮箱缺失（422）、激活码被拒或租约校验失败抛 ``LicenseClientError``。
         """
-        # 同步查库（可能新建那一行状态）放线程池，别占着事件循环（B4）。
+        # 同步查库（可能新建那一行状态）放线程池，别占着事件循环。
         instance_id = await asyncio.to_thread(self._activation_instance_id)
         payload = {
             # 归一化激活码：去掉空白并转大写，容忍用户输入的格式差异。
@@ -845,25 +763,13 @@ class LicenseService:
         return result
 
     async def reactivate(self) -> dict:
-        '''用户主动触发的「重新激活」，成功后返回与 ``/license/activate`` 同构的状态。
+        '''用户主动触发的「重新激活」，返回与 ``/license/activate`` 同构的状态。
 
-        会话与租约恢复凭证双双过期后，客户端会卡在「心跳 401 → 恢复 401」的循环里：
-        本地租约尚未到期时状态是 ``CONNECTION_WARNING``（功能仍可用），到期后变成
-        ``LEASE_EXPIRED`` 被门禁拦死，而这条路径不会自己恢复。这里给用户一个显式
-        出口，按代价从低到高尝试：
-
-        1. 一次心跳 —— ``_heartbeat_unlocked`` 会在会话失效时自动回落到恢复凭证，
-           所以这一步同时覆盖「网络抖动」与「只有会话过期」两种情况，且不动本地凭证。
-        2. 用本地加密保存的激活码重跑 ``/v2/activate`` —— 授权服务对「已绑定当前
-           安装」的授权是幂等放行的（``ensure_binding`` 命中 ``already_bound_here``
-           时不消耗解绑冷却），会重新签发会话与恢复凭证。
-
-        确认吊销（403 + ``code=REVOKED`` / 吊销短语）不属于可自愈的故障：那种情况下本地授权已被清空，
-        且自动重激活会把厂商刚释放的绑定悄悄抢回来，因此直接上抛由用户处理。
-        本机没有可用激活凭证时返回 ``MANUAL_ACTIVATION_REQUIRED``，前端据此展开
-        激活表单让用户手动输入。
+        心跳与恢复凭证双双过期后客户端会卡在 401 循环且不能自愈，这里给用户显式出口：
+        先试一次心跳（内部自动回落到恢复凭证），再用本地激活码重跑 ``/v2/activate``；
+        确认吊销不可自愈直接上抛，无可用凭证时返回 ``MANUAL_ACTIVATION_REQUIRED``。
         '''
-        # 同步查库放线程池（B4）：授权路径上的每一段同步读写都不留在事件循环里。
+        # 同步查库放线程池：授权路径上的每一段同步读写都不留在事件循环里。
         (licensed, encrypted_activation_code, email) = await asyncio.to_thread(self._activation_credentials)
         if not licensed:
             raise LicenseClientError('当前安装尚未激活，请填写激活码完成激活。', status_code=409, code=MANUAL_ACTIVATION_REQUIRED)
@@ -894,12 +800,10 @@ class LicenseService:
     async def _heartbeat_unlocked(self) -> dict:
         """心跳的实际实现（调用方须已持有 _heartbeat_lock）。
 
-        优先用会话令牌续租；没有会话令牌或服务端回 401 时回落到恢复令牌；
-        确认吊销则清空本地授权；被限流（429）只记冷却、不改变本地状态；
-        其余失败只降级状态（保留租约，等待重试）。
+        优先用会话令牌续租，无令牌或 401 时回落到恢复令牌；确认吊销清空本地授权，
+        429 只记冷却不改状态，其余失败只降级状态并保留租约等重试。
         """
-        # 同步查库放线程池（B4）：心跳是请求路径也会 await 的（confirm_binding /
-        # activate / 页面门禁），不能让这段读写占着事件循环。
+        # 同步查库放线程池：心跳也会被请求路径 await，不能让读写占着事件循环。
         (encrypted, lease_sequence, instance_id) = await asyncio.to_thread(self._heartbeat_credentials)
         # 没有会话令牌说明从未激活成功或刚被清空，直接走恢复流程。
         if not encrypted:
@@ -912,10 +816,8 @@ class LicenseService:
                 'sessionToken': session_token,
                 # 回传本地序号：服务端据此判断客户端是否落后于最新租约。
                 'leaseSequence': lease_sequence,
-                # 回传本机实例 ID：服务端据此拒绝「不属于当前实例」的旧会话。
-                # 少了这一项，管理员刚做的解绑对旧设备等于没生效 —— 另一台设备重新
-                # 激活会复用同一行 DeviceBinding 并改写 instance_id，而旧设备的
-                # session token 仍指向该行，于是能一直续租下去。
+                # 回传本机实例 ID：服务端据此拒绝不属于当前实例的旧会话。少了它，
+                # 管理员刚做的解绑对旧设备等于没生效，旧会话仍能一直续租下去。
                 'instanceId': instance_id,
                 'clientVersion': self.settings.version,
                 'nonce': secrets.token_urlsafe(24)})
@@ -931,9 +833,9 @@ class LicenseService:
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
                 await asyncio.to_thread(self._mark_revoked, str(error))
                 raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
-            # 被限流（429）：只记冷却，**不降级本地状态**。限流对「绑定是否仍然有效」
-            # 一个字都没说，而按普通失败处理会把已过期的租约翻成 LEASE_EXPIRED、把编辑器
-            # 锁死 —— 那正是 B66 的现象。也不在这里转 recover：那只会对同一个桶再打一次。
+            # 被限流（429）：只记冷却，**不降级本地状态** —— 429 对绑定是否有效一个字都
+            # 没说，按普通失败处理会把过期租约翻成 LEASE_EXPIRED、把编辑器锁死。
+            # 也不在这里转 recover：那只会对同一个桶再打一次。
             if isinstance(error, LicenseClientError) and error.is_rate_limited:
                 self._note_rate_limit(error)
                 raise LicenseClientError(
@@ -942,8 +844,7 @@ class LicenseService:
                     code=error.code,
                     retry_after_seconds=error.retry_after_seconds,
                 ) from error
-            # 其它失败（网络不可达、5xx）：按租约剩余有效期降级为
-            # CONNECTION_WARNING 或 LEASE_EXPIRED，等下一轮心跳重试。
+            # 其它失败按租约剩余有效期降级为 CONNECTION_WARNING 或 LEASE_EXPIRED，等下一轮重试。
             await asyncio.to_thread(self._mark_failure, str(error))
             raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=getattr(error, 'code', None)) from error
 
@@ -993,8 +894,8 @@ class LicenseService:
     def _mark_revoked(self, message: str) -> None:
         """确认吊销后的清理：清空所有本地凭证并把状态置为 REVOKED。
 
-        清得彻底是有意的：残留的租约或令牌会让下次启动仍尝试用已吊销的授权续租，
-        而自动重新激活还可能把厂商刚释放的绑定悄悄抢回来。
+        清得彻底是有意的：残留租约或令牌会让下次启动仍用已吊销的授权续租，而自动
+        重新激活还可能把厂商刚释放的绑定悄悄抢回来。
         """
         with self.database.session_factory() as database:
             state = self._state(database)
@@ -1040,24 +941,19 @@ class LicenseService:
         with self.database.session_factory() as database:
             state = self._state(database)
             expires = ensure_aware(state.lease_expires_at)
-            # 租约还没到期就只是「联系不上服务器」，功能继续可用；
-            # 已经到期则必须拦截，等恢复或重新激活。
+            # 租约未到期只是联系不上服务器，功能继续可用；已到期则必须拦截等恢复。
             state.status = 'CONNECTION_WARNING' if expires and expires > datetime.now(timezone.utc) else 'LEASE_EXPIRED'
             # 同样截断，避免超长错误进库。
             state.last_error = message[:1000]
             database.commit()
-            # 启动确认未完成时对外继续显示「等待启动联网验证」，
-            # 不因一次失败就改变门禁语义。
+            # 启动确认未完成时对外仍显示「等待启动联网验证」，不因一次失败改变门禁语义。
             self._record_status('STARTUP_VALIDATION_REQUIRED' if self._startup_validation_pending else state.status)
 
     def _clear_startup_validation(self) -> None:
         """联网确认失败但非确认吊销时，把判定权交回离线验签。
 
-        状态按本地租约的剩余有效期重算，而不是沿用可能已过期的旧值：
-        未过期 → ``CONNECTION_WARNING``（门禁放行，直到租约到期）；
-        已过期 → ``LEASE_EXPIRED``（拦截，等待恢复或重新激活）。
-        真正生效的仍是 :meth:`_verified_access` 的离线验签结果，
-        因此这条路径不会放行被篡改或实例不符的租约。
+        状态按本地租约剩余有效期重算：未过期 → ``CONNECTION_WARNING``（放行），
+        已过期 → ``LEASE_EXPIRED``（拦截）。真正生效的仍是 :meth:`_verified_access`。
         """
         self._startup_validation_pending = False
         with self.database.session_factory() as database:
@@ -1071,13 +967,10 @@ class LicenseService:
 
     @staticmethod
     def _heartbeat_wait_seconds(state: LicenseState, now: datetime | None = None) -> float | None:
-        """算出心跳循环下一次该等多久。
+        """算出心跳循环下一次该等多久；未激活时返回 None（调用方据此跳过本轮）。
 
-        返回:
-            等待秒数；未激活时返回 None（调用方据此跳过本轮）。
-        规则:
-            租约已到期 → 固定 30 秒重试，尽快拿回可用租约；
-            否则取 min(心跳间隔, 距到期剩余时间)，保证租约一到点就被处理。
+        租约已到期 → 固定 30 秒重试；否则取 min(心跳间隔, 距到期剩余时间)，
+        保证租约一到点就被处理。
         """
         if not state.license_id:
             # 未激活无需心跳。
@@ -1100,8 +993,7 @@ class LicenseService:
         if wait_seconds is None:
             # 未激活无需联网，冷却不改变这一点（调用方据此一直等到有变更为止）。
             return None
-        # 冷却期内不再重打：等待时间至少覆盖冷却剩余。少了这一条，循环会按心跳间隔
-        # 反复去撞同一个 429，而每一次撞都在把窗口重新填满（B66 的另一半）。
+        # 冷却期内不再重打：等待至少覆盖冷却剩余，否则每次撞 429 都在把窗口重新填满。
         return max(wait_seconds, self._rate_limit_remaining())
 
     def _due_state(self) -> tuple[bool, str, bool]:
@@ -1113,8 +1005,7 @@ class LicenseService:
             state = self._state(database)
             expires = ensure_aware(state.lease_expires_at)
             now = datetime.now(timezone.utc)
-            # 是否到期用同一个带容差的判据（B29）：这里决定「下来是续租还是走恢复令牌」，
-            # 用硬比会让本机时钟稍快时多走一次恢复分支。
+            # 到期用同一个带容差判据：这里决定续租还是走恢复令牌，硬比会在时钟稍快时多走恢复分支。
             return (bool(state.license_id), state.status, bool(expires and self._lease_expired(expires, now=now)))
 
     async def _heartbeat_loop(self) -> None:
@@ -1125,8 +1016,7 @@ class LicenseService:
         while not self._stop.is_set():
             # 先清后等：清掉上一轮遗留的信号，避免本轮空转。
             self._schedule_changed.clear()
-            # 每轮都要读库，同样放线程池：这是常驻后台任务，占住事件循环就是
-            # 让所有请求为它让路（B4）。
+            # 每轮读库也放线程池：常驻任务占住事件循环就是让所有请求为它让路。
             wait_seconds = await asyncio.to_thread(self._heartbeat_wait)
             try:
                 # 用事件等待代替 sleep：激活成功后能立刻打断长等待。
@@ -1148,8 +1038,7 @@ class LicenseService:
                     # 失败已在 *_unlocked 内部记录并降级状态，这里只等下一轮重试。
                     continue
                 except Exception as error:
-                    # 非授权异常（例如编码 bug）不再吞掉：记日志并让任务结束，
-                    # 否则会变成无声的死循环、一直刷错误日志。
+                    # 非授权异常不再吞掉：记日志并让任务结束，否则会变成无声死循环一直刷错误日志。
                     self._log_event('error', f'''授权自动续租任务意外停止（{type(error).__name__}）。''')
                     raise
                 if self._stop.is_set():
@@ -1158,11 +1047,10 @@ class LicenseService:
     def _payload(self, state: LicenseState) -> dict:
         """组装对外状态字典（字段名与前端约定死，逐字不可改）。
 
-        这里会在落库状态之上做一次实时修正：时钟回拨、租约到期、启动联网确认
-        未完成都会覆盖 effective_status，保证前端看到的与门禁口径一致。
+        会在落库状态之上做实时修正：时钟回拨、租约到期、启动联网确认未完成都会覆盖
+        effective_status，保证前端看到的与门禁口径一致。
         """
-        # 先复制库里的值再做实时修正：修正结果不写库，
-        # 避免把「与当前时间相关的瞬时判断」固化成持久状态。
+        # 先复制库值再实时修正：修正不写库，避免把与时间相关的瞬时判断固化成持久状态。
         effective_status = state.status
         effective_error = state.last_error
         now = datetime.now(timezone.utc)
@@ -1173,8 +1061,7 @@ class LicenseService:
             effective_status = 'CLOCK_ROLLBACK'
             effective_error = '检测到系统时间回拨，请校准系统时间后重新验证授权。'
         elif lease_expires and self._lease_expired(lease_expires, now=now) and effective_status in frozenset({'ACTIVE', 'CONNECTION_WARNING'}):
-            # 库里还写着 ACTIVE，但租约按实时时间已经到期：覆盖为 LEASE_EXPIRED，
-            # 避免前端显示「正常」而实际请求被门禁拦下。
+            # 库里写着 ACTIVE 但租约已到期：覆盖为 LEASE_EXPIRED，避免前端显示正常却被门禁拦下。
             effective_status = 'LEASE_EXPIRED'
             if not effective_error:
                 effective_error = '授权租约已到期。'
@@ -1194,8 +1081,7 @@ class LicenseService:
         if not isinstance(stored_features, list):
             stored_features = []
         if 'all' in stored_features:
-            # 'all' 是服务端的合集简写，在这里展开成 BASE_FEATURES，
-            # 前端不必硬编码这份清单。
+            # 'all' 是服务端的合集简写，展开成 BASE_FEATURES，前端不必硬编码清单。
             visible_features = sorted(BASE_FEATURES)
         else:
             visible_features = [item for item in stored_features if isinstance(item, str)]
@@ -1214,8 +1100,7 @@ class LicenseService:
                     product_name = item['name'].strip()
                     if not product_name:
                         continue
-                    # 类型与到期时间容错处理：缺失或类型不对时退化为默认值，
-                    # 不让个别脏条目把整个产品列表丢掉。
+                    # 类型与到期时间容错：缺失或不对时退默认值，不让个别脏条目丢掉整个产品列表。
                     product_type = item.get('type') if isinstance(item.get('type'), str) else 'module'
                     expires_at = item.get('expiresAt') if isinstance(item.get('expiresAt'), str) else None
                     visible_products.append({
@@ -1240,8 +1125,7 @@ class LicenseService:
             'edition': 'full' if state.license_id else None,
             # 未激活时一律返回空权益与空产品，避免前端误判为已授权。
             'features': visible_features if state.license_id else [],
-            # featureAccess 额外乘上租约验签结果：即使权益列表里有该能力，
-            # 租约不合法（被改、过期、实例不符）也不放行。
+            # featureAccess 额外乘上验签结果：租约不合法（被改、过期、实例不符）也不放行。
             'featureAccess': {
                 'editor': bool(state.license_id and 'editor' in visible_features and editor_allowed),
                 'interaction3d': bool(state.license_id and 'module.3d_interaction' in visible_features and self._verified_access(state, 'module.3d_interaction'))},
@@ -1262,8 +1146,7 @@ class LicenseService:
     def _verified_access(self, state: LicenseState, feature: str | None = None) -> bool:
         """重新校验签名租约，而不是信任可被改写的 SQLite 状态字段。
 
-        参数:
-            feature: 要判定的能力码；None 表示只判「授权整体是否可用」。
+        参数: feature 为要判定的能力码；None 表示只判「授权整体是否可用」。
         """
         if not self.settings.license_required:
             # 关闭授权校验的部署形态直接放行。
@@ -1272,8 +1155,7 @@ class LicenseService:
             # 启动确认未完成，或状态不在可放行集合内时短路，避免无谓的验签开销。
             return False
         if not (state.signed_lease and state.license_id and state.lease_id and state.session_id):
-            # 四个字段缺一不可：租约本身、授权标识、租约标识、会话标识，
-            # 任一缺失都说明这条记录不完整，不能据此放行。
+            # 四个字段（租约、授权标识、租约标识、会话标识）缺一不可，否则记录不完整。
             self._record_failure('本地校验', '授权记录缺少签名租约或租约关联信息。')
             return False
         try:
@@ -1296,16 +1178,14 @@ class LicenseService:
         if self._lease_expired(expires_at, now=now):
             self._record_failure('本地校验', '授权租约已到期。')
             return False
-        # 逐字段比对库里的关联标识与租约载荷：
-        # 不一致说明记录被改过，或租约被换成了另一份。
+        # 逐字段比对库里的关联标识与租约载荷：不一致说明记录被改过或租约被换过。
         if payload['activationCodeId'] != state.license_id:
             self._record_failure('本地校验', '本地授权标识与签名租约不一致。')
             return False
         if payload['leaseId'] != state.lease_id or payload['sessionId'] != state.session_id:
             self._record_failure('本地校验', '本地租约或会话标识与签名租约不一致。')
             return False
-        # 序号只要求「不比备忘更旧」（B30）：相等是常态，更大则回写自愈；
-        # 更旧说明手上这份租约是被换下来的旧货，拒绝。
+        # 序号只要求不比备忘更旧：相等常态、更大回写自愈；更旧说明是被换下来的旧货。
         if not self._lease_sequence_ok(payload['leaseSequence'], state):
             self._record_failure('本地校验', '本地签名租约的序号比记录更旧，授权记录可能被回滚或替换过。')
             return False
@@ -1322,21 +1202,18 @@ class LicenseService:
             return feature in BASE_FEATURES
         entitlements = payload.get('entitlements')
         if isinstance(entitlements, list):
-            # 细粒度权益走 entitlements：逐条检查 code 与过期时间，
-            # 已过期的条目不参与判定。
+            # 细粒度权益走 entitlements：逐条检查 code 与过期时间，已过期的条目不参与判定。
             active_features = set()
             for entitlement in entitlements:
                 if not isinstance(entitlement, dict) or not isinstance(entitlement.get('code'), str):
                     continue
                 expires_at = entitlement.get('expiresAt')
                 try:
-                    # 权益到期与租约到期是同一类比较（服务端签的时间 vs 本机时钟），
-                    # 因此共用同一个带容差的判据（B29），不在这里另写一套。
+                    # 权益到期与租约到期同为「服务端签的时间 vs 本机时钟」，共用同一个带容差判据。
                     if expires_at and self._lease_expired(parse_timestamp(expires_at), now=now):
                         continue
                 except (LicenseCryptoError, TypeError, ValueError):
-                    # 时间格式非法的条目直接跳过（视为未授权），
-                    # 不让一条脏数据把整次判定打挂。
+                    # 时间格式非法的条目跳过（视为未授权），不让一条脏数据打挂整次判定。
                     continue
                 active_features.add(entitlement['code'])
             return feature in active_features
@@ -1346,14 +1223,12 @@ class LicenseService:
     def allows(self, feature: str | None = None, *, database=None) -> bool:
         """对外门禁入口：判断当前安装是否有权使用某能力。
 
-        参数:
-            feature: 能力码；None 表示只判授权是否整体可用。
+        参数: feature 为能力码；None 表示只判授权是否整体可用。
         """
         if database is not None:
             # 复用外部会话，但仍要核对实例 ID：换了数据卷后不能沿用旧判定。
             state = database.scalar(select(LicenseState).limit(1))
-            # 实例 ID 与本地不一致时直接拒绝，连验签都不必做 ——
-            # 那份租约必然不属于当前安装。
+            # 实例 ID 与本地不一致时直接拒绝：那份租约必然不属于当前安装，无需验签。
             if state is None or state.instance_id != self._instance_id():
                 return False
             return self._verified_access(state, feature)

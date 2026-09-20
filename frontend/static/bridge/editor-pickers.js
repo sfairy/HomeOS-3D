@@ -1,29 +1,22 @@
 /**
- * 3D 交互编辑器里的各类选择器（picker）组装层。
+ * 3D 交互编辑器里的各类选择器（picker）组装层：编辑器需要设备 / 图标 / 实体三种选择器，
+ * 本模块集中「候选数据从哪来、怎么打分排序、选中后回调什么」，弹层 UI 由宿主通过 openPicker 与 elements 注入。
  *
- * 位置：编辑器需要三种选择器 —— 设备 / 图标 / 实体；本模块把「候选数据从哪来、怎么打分排序、
- *   选中后回调什么」集中在这里，实际的弹层 UI 由宿主通过 openPicker 与 elements 注入。
- * 对外导出：presenceDeviceProfiles、createInteraction3dEditorPickers。
- * 全局约定：
- *   - 设备 / 实体 / 房间目录分别来自 /api/v1/ha/devices、/api/v1/ha/areas，
- *     失败时抛中文文案，由调用方决定提示方式；
- *   - 单选「清除绑定」用空字符串回调，各 onSelect 必须接受空值；
- *   - 回调出去的 profile 都经过 structuredClone，调用方可以自由改动而不影响内部数据。
- * 副作用：会发起实体 / 设备 / 房间 / 图标请求（实体目录由 ensureEntities 触发）。
+ * 约定：设备 / 实体 / 房间目录来自 /api/v1/ha/devices 与 /api/v1/ha/areas，失败时抛中文文案；
+ * 单选「清除绑定」用空字符串回调，各 onSelect 必须接受空值；回调的 profile 都经过 structuredClone，
+ * 调用方可自由改动而不影响内部数据。副作用：会发起实体 / 设备 / 房间 / 图标请求。
  */
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../editor/picker/editor-picker-pagination.js?v=20260920104554";
-import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=20260920104554";
-// 「取实体域」走 utils/entities.js 的唯一实现（P12 收口 B 类末尾那一项）：这里原先
-// 手写了一份 `pickerEntity.entityId.split(".")[0]`，而编辑器侧注入的是同一个助手。
-// 两者只差「元数据 domain 优先」这一条，而能进这个列表的实体都是 HA 目录里的行
-// （`domain` 列就是 entity_id 的前缀），虚拟实体另被 `editorEntityMatches` 滤掉 —— 同值。
-import { entityDomainOf } from "../utils/entities.js?v=20260920104554";
-import { vacuumProfiles } from "./vacuum-catalog.js?v=20260920104554";
-import { nasProfiles } from "./nas-catalog.js?v=20260920104554";
+} from "../editor/picker/editor-picker-pagination.js?v=20260920131301";
+import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=20260920131301";
+// 「取实体域」走 utils/entities.js 的唯一实现：能进这个列表的实体都是 HA 目录里的行
+// （`domain` 列就是 entity_id 的前缀），虚拟实体另被 `editorEntityMatches` 滤掉，两边同值。
+import { entityDomainOf } from "../utils/entities.js?v=20260920131301";
+import { vacuumProfiles } from "./vacuum-catalog.js?v=20260920131301";
+import { nasProfiles } from "./nas-catalog.js?v=20260920131301";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
 // 只接受 Material Design Icons 的合法 ID（长度上限 120 与图标目录约定一致），

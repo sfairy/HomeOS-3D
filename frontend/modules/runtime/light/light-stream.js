@@ -1,19 +1,11 @@
 /**
- * 灯光 / 实体状态的 WebSocket 流式订阅。
+ * 灯光 / 实体状态的 WebSocket 流式订阅：状态变化频繁，走 HTTP 轮询代价高，故改成长连接 ——
+ * 连上后先收一份全量快照，之后只收增量变更。
  *
- * 在 3D 子系统里的位置：3D 场景里的灯具、窗帘、电视等状态量变化频繁，走 HTTP
- * 轮询代价高，这里改成长连接：连上后先收一份全量快照，之后只收增量变更。
- *
- * 对外提供：createLightStream —— 返回 configure / setActive / dispose 三个方法。
- *
- * 与后端的协议约定（/api/v1/ws/runtime）：
- * - 客户端 → 服务端：{ type: "subscribe", entityIds: [...] }
- * - 服务端 → 客户端：{ type: "snapshot", states: [...] }（全量）
- *                    { type: "state_changed", entityId, state, attributes, ... }（单实体增量）
- *                    { type: "state_removed", entityId }（实体消失）
- *                    { type: "ping" }（保活）
- *                    { type: "resync_required" }（服务端认为客户端已漂移，需重建连接）
- * 所有回调里传出的状态都是 structuredClone 过的副本，调用方改动不会污染内部缓存。
+ * 与后端协议（/api/v1/ws/runtime）：客户端发 { type: "subscribe", entityIds }；服务端回
+ * { type: "snapshot", states }（全量）、{ type: "state_changed", entityId, state, attributes }（增量）、
+ * { type: "state_removed", entityId }、{ type: "ping" }（保活）、{ type: "resync_required" }（需重建连接）。
+ * 回调传出的状态都是 structuredClone 过的副本，调用方改动不会污染内部缓存。
  */
 export function createLightStream({
   onStates: onStates = () => {},

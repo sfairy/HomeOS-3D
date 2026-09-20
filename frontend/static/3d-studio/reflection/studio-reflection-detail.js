@@ -1,13 +1,10 @@
 /**
  * 地面反射的「细节层」几何缓存。
  *
- * 位置：studio-ground-reflections.js 渲染反射贴图时，用本模块提供的低模几何替换
- *   原网格再拍一次镜像，从而把反射通道的三角形数压下来。
- * 对外：createReflectionDetail 工厂，返回 {stats, prepare, get, dispose}。
- * 工作方式：prepare 把符合条件的网格几何打包后交给 Web Worker 做带属性减面，
- *   结果缓存起来；get 在渲染时按网格取用；dispose 释放全部缓存并终止 Worker。
- * 单位约定：误差预算按网格的世界缩放折算，保证不同缩放物件在屏幕上的误差观感一致。
- * 副作用：会创建 / 终止一个 Worker，并持有简化后的几何（有总字节上限）。
+ * 渲染反射贴图时用本模块的低模几何替换原网格再拍一次镜像，把反射通道的三角形数压下来。对外
+ * 为 createReflectionDetail 工厂，返回 {stats, prepare, get, dispose}：prepare 把符合条件的
+ * 几何打包交给 Web Worker 减面后缓存，get 按网格取用，dispose 释放缓存并终止 Worker。误差
+ * 预算按网格世界缩放折算，保证不同缩放物件在屏幕上的误差观感一致。
  */
 
 /**
@@ -51,9 +48,7 @@ export function createReflectionDetail({
         count: attribute.count
       })
     );
-  // 判断缓存记录是否仍然对应源几何：逐项比对 index / 各属性的对象引用、version、
-  // data.version 与 count。源几何被原地改写（换贴图、改顶点）时签名就对不上，
-  // 该条简化结果必须作废，否则会拿旧几何的细节层去渲染新形状。
+  // 缓存签名逐项比对 index / 属性引用 / version：源几何被原地改写时签名对不上，该条简化结果必须作废。
   const isRecordCurrent = record =>
     record.signature.every(signatureEntry => {
       const signatureAttribute =

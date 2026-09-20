@@ -32,13 +32,13 @@ router = APIRouter(prefix='/projects', tags=['projects'])
 #: 免得同一个错误在不同入口说成不同的话。
 NAME_CONFLICT_DETAIL = '仪表盘名称已存在。'
 
-#: slug 撞唯一约束时最多重试几次（B11）。
+#: slug 撞唯一约束时最多重试几次。
 #: 每轮都用当时的库状态重新生成 slug（``unique_slug`` 会看到对手已经提交的那一行），
 #: 因此正常情况下第二轮就能拿到空闲后缀。上限只是兜底：不封顶的重试在病态输入下
 #: 会变成一个迟迟不返回的请求。
 SLUG_CONFLICT_ATTEMPTS = 5
 
-#: 每个项目最多保留几条旧展示地址（B38）。旧地址是给「已经配对、书签里还是老地址」
+#: 每个项目最多保留几条旧展示地址。旧地址是给「已经配对、书签里还是老地址」
 #: 的平板用的，正常只会落后一两个名字；设上限是为了让反复改名不会把别名表撑大。
 PROJECT_PATH_ALIAS_LIMIT = 20
 
@@ -150,7 +150,7 @@ def ensure_unique_project_name(database: DatabaseSession, name: str, exclude_pro
 
 
 def record_project_path_alias(database: DatabaseSession, project_id: str, previous_name: str) -> None:
-    """记下改名前的展示地址，让已经配对的中控设备继续打得开（B38）。
+    """记下改名前的展示地址，让已经配对的中控设备继续打得开。
 
     展示地址由名称派生，改名会让旧地址永久 404，而平板手里存的正是旧地址。这里按「旧名称 → 项目」
     记一行，展示页在没有现存项目占用该名称时 303 跳转。
@@ -182,7 +182,7 @@ def validate_document_or_422(document: dict) -> dict:
     """校验一份要落库的文档；失败按 422 回带校验层写好的中文文案。
 
     保存与复制共用这一处映射。校验层抛的是 ``ValueError``，不接住就是 500 加一段堆栈
-    （B9）—— 复制那条路径上更糟：源文档一旦脏了，这个项目就**永远复制不出来**，
+—— 复制那条路径上更糟：源文档一旦脏了，这个项目就**永远复制不出来**，
     而用户看到的只是「服务器内部错误」。
     """
     try:
@@ -204,7 +204,7 @@ def insert_project_with_draft(
 
     ``ensure_unique_project_name`` 与 ``unique_slug`` 都是「先查后写」：两个请求可以同时查到
     「这个名字 / 这个 slug 没人用」，然后一起去插 —— 唯一约束成了真正的裁决者，撞上的那个拿到
-    ``IntegrityError``（B10 / B11）。过去这意味着 500，而用户只是又点了一次「新建」，或者另一个
+    ``IntegrityError``。不接住就会变成 500，而用户只是又点了一次「新建」，或者另一个
     标签页刚建过同名项目。
 
     两条约束的退让方式不同，因此分开处理：
@@ -393,7 +393,7 @@ def delete_project(project_id: str, payload: ProjectDeleteRequest, request: Requ
     request.app.state.global_log.append('warning', '仪表盘编辑器', '配置', f'已删除仪表盘：{project_name}')
     # 删了项目后实体绑定变了：放到后台任务里重算持久实体集合，不拖慢响应。
     background_tasks.add_task(request.app.state.ha_connector.refresh_persistent_entity_ids, ensure_states=False)
-    # 项目没了，它名下的户型快照可能再没人引用（B53）。放到后台任务里清理：
+    # 项目没了，它名下的户型快照可能再没人引用。放到后台任务里清理：
     # 巡检规则统一（没人引用 + 过了保留期才删），所以这里不需要「哪些是它的」这份信息。
     background_tasks.add_task(sweep_scenes_for_app, request.app)
 
@@ -409,7 +409,7 @@ async def get_project_draft(project_id: str, request: Request, database: Databas
     中控设备只能读自己绑定的项目，越权 403「该中控设备未绑定此仪表盘。」；草稿不存在抛 404
     「项目草稿不存在。」。
 
-    同步查库与文档水合都在工作线程里做（B4）：这条路由是 ``async def``（要 await 联网确认），
+    同步查库与文档水合都在工作线程里做：这条路由是 ``async def``（要 await 联网确认），
     而 SQLAlchemy 的同步会话与整份文档的 JSON 解析都不该留在事件循环上。
     """
     await request.app.state.license_service.confirm_binding()
@@ -435,7 +435,7 @@ def _draft_payload(database: DatabaseSession, project_id: str, viewer: LicensedV
 
     草稿不存在返回 None，由调用方转 404 —— 把「有没有草稿」与「怎么回响应」分开。
 
-    文档损坏这一个例外在**这里**就抛 422（B54 之后走统一入口 `require_document`）：
+    文档损坏这一个例外在**这里**就抛 422（走统一入口 `require_document`）：
     它不能像别的读路径那样降级成空文档，因为编辑器会照着「空白项目」继续编辑，
     下一次保存就把坏掉的草稿盖掉了（studio3d 的 ``_read_draft`` 出于同样的理由
     拒绝静默降级）。异常从工作线程穿回来仍由 FastAPI 正常转成 422 响应。
@@ -516,14 +516,8 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
         if isinstance(popup, dict) and isinstance(popup.get('id'), str)
     }
     # 本次被删掉的全局弹窗 = **库里有、提交里没有**的那些，要给引用它们的草稿做级联清理。
-    #
-    # 方向反了（写成「提交里有、库里没有」）会静默地坏三件事，都不是报错而是行为不对：
-    #   1) 新增弹窗的那一次保存里，指向这个**新**弹窗的动作会被下面的 clear_popup_references
-    #      当成悬空引用清成 ``type:"none"`` —— 用户刚配好就失效，页面不报错、只是点下去没反应；
-    #   2) 删弹窗时这个集合是空的：级联那段形同虚设，别的草稿留着悬空引用，而那份草稿**下次
-    #      保存必定 422**（校验层判「打开了不存在的组合弹窗」）—— 那个仪表盘从此存不回去；
-    #   3) 当前文档自己引用着被删的弹窗时，本份文档也没清，校验层当场 422 —— 用户根本删不掉
-    #      这个弹窗，且错误文案说的是「打开了不存在的组合弹窗」。
+    # 方向反了会静默坏两件事：新增弹窗时指向新弹窗的动作会被当成悬空引用清成 ``type:"none"``；
+    # 删弹窗时这个集合为空、级联形同虚设，别的草稿留着悬空引用、下次保存必定 422。
     removed_popup_ids = (
         stored_popup_ids - submitted_popup_ids if payload.global_popups_dirty else set()
     )
@@ -582,7 +576,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
             # 级联更新其它草稿：同样用行级 revision 做条件更新，失败就整笔回滚。
             if removed_popup_ids:
                 for referenced_draft in database.scalars(select(ProjectDraft).where(ProjectDraft.project_id != project_id)):
-                    # 单份草稿损坏时跳过：它清理不掉引用，但也不该让整笔删除回滚（B54）。
+                    # 单份草稿损坏时跳过：它清理不掉引用，但也不该让整笔删除回滚。
                     referenced_document = parse_document(referenced_draft.document_json)
                     if referenced_document is None:
                         continue
@@ -621,7 +615,7 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
         renamed = False
         previous_name = None
         try:
-            # 改名前的名称要留着给展示地址做别名（B38），所以先读一次再用 UPDATE 覆盖。
+            # 改名前的名称要留着给展示地址做别名，所以先读一次再用 UPDATE 覆盖。
             previous_name = database.scalar(select(Project.name).where(Project.id == project_id))
             # UPDATE 与 commit 都要包住：唯一约束在语句执行时就检查，不是等到 commit
             # 才报 —— 只包 commit 的话异常照样会冒到接口层变成 500。
@@ -633,10 +627,9 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
                 record_project_path_alias(database, project_id, previous_name)
             database.commit()
         except IntegrityError as error:
-            # 上面的 ensure_unique_project_name 是「先查后写」：并发下另一个请求可能
-            # 在这之间把同名项目抢先建成，唯一约束随之成为真正的裁决者（B10）。
-            # 改名不该被悄悄改成别的名字，回 409 让用户自己选；整笔保存一起回滚，
-            # 免得留下「文档存进去了、项目名没改」的半成品。
+            # 上面的 ensure_unique_project_name 是「先查后写」：并发下另一个请求可能抢先建成
+            # 同名项目，唯一约束才是真正的裁决者。改名不该被悄悄改成别的名字，回 409 让用户
+            # 自己选；整笔保存一起回滚，免得留下「文档存进去了、项目名没改」的半成品。
             database.rollback()
             if not is_unique_violation(error, 'projects.name'):
                 raise

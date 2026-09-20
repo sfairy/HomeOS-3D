@@ -1,22 +1,14 @@
 /**
- * 电视（media_player + 可选电源实体）的状态归一化与控制命令构造。
+ * 电视（media_player + 可选电源实体）的状态归一化与控制命令构造：从 HA 实体抽出开关机、
+ * 播放进度、封面等信息，并生成开关机 / 上下一曲命令。
  *
- * 在 3D 子系统里的位置：3D 场景里的电视模型要显示「开关机、播放进度、封面」，
- * 本模块把这些信息从 HA 实体里抽出来，并生成开关机 / 上下一曲的命令。
- *
- * 对外提供：televisionArtwork、televisionState、televisionTime、televisionPower、
- * televisionMediaControl。
- *
- * 与 HA 的字段约定：媒体信息取自播放器实体的 media_* 属性；电源可以另绑一个
- * switch 实体（item.powerEntityId），也可直接复用播放器自身；
- * 能力位来自 supported_features（媒体播放器：1=暂停、16=上一曲、32=下一曲、16384=播放、
- * 128=开机、256=关机）。
+ * 与 HA 的字段约定：媒体信息取自播放器实体的 media_* 属性；电源可另绑一个 switch 实体
+ * （item.powerEntityId），也可复用播放器自身；能力位来自 supported_features（1=暂停、16=上一曲、
+ * 32=下一曲、16384=播放、128=开机、256=关机）。
  */
 
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
+// 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
+import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 /** 状态源既可能是 Map 也可能是普通对象，这里统一取值的入口。 */
 const readState = (states, entityId) =>
   states instanceof Map ? states.get(entityId) : states?.[entityId];

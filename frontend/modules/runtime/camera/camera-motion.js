@@ -1,17 +1,10 @@
 /**
- * 3D 相机运动的姿态解算、缓动与采样。
+ * 3D 相机运动的姿态解算、缓动与采样：相机镜头移动（聚焦设备、切楼层、灯光视角）都经过这里。
+ * 把「目标点 + 位置 + 上方向」换算成旋转四元数，再按缓动函数在两点间采样逐帧姿势；
+ * 楼层切换与聚焦走不同插值策略。
  *
- * 在 3D 子系统里的位置：相机镜头移动（聚焦设备、切楼层、灯光视角）全部经过这里。
- * 本模块把「目标点 + 位置 + 上方向」这类直观姿势换算成旋转四元数，再按缓动函数
- * 在两点之间采样出逐帧姿势；楼层切换与聚焦分别走不同的插值策略。
- *
- * 对外提供：cameraMotionProgress、createDampedCameraMotion、
- * createFocusCameraSampler、automaticLightCamera、
- * automaticAirConditionerCamera。
- *
- * 约定：姿势对象里的 position / target / up 都是长度 3 的数组（世界坐标），
- *       可选的 zoom / focalLength / frameSize 会一并插值；
- *       相机始终沿自身 +Z 方向看向目标，姿势换算出的旋转即以 (right, up, forward) 为基。
+ * 约定：position / target / up 都是长度 3 的世界坐标数组，可选的 zoom / focalLength / frameSize
+ * 会一并插值；相机始终沿自身 +Z 看向目标，旋转以 (right, up, forward) 为基。
  */
 
 /** 把数值夹到区间内。 */
@@ -177,11 +170,8 @@ export function createDampedCameraMotion(
   const dampingTailMs = (-Math.log(settleEpsilon) * 1000) / turnRatePerSecond - SETTLE_WINDOW_MS;
   /**
    * 阻尼进度。
-   *
-   * 纯指数曲线永远到不了 1，直接用它会让相机在最后几像素上磨蹭很久。
-   * 因此在最后 SETTLE_WINDOW_MS 内换成一段三次多项式：其系数由「在衔接点与指数曲线的
-   * 取值、一阶、二阶导数分别相等」解出（Hermite 型），保证速度与加速度连续，
-   * 末端精确落在 1。
+   * 纯指数曲线永远到不了 1，会让相机在最后几像素磨蹭很久；故在最后 SETTLE_WINDOW_MS 内换成
+   * 一段三次多项式，系数由衔接点处取值与一阶 / 二阶导数分别相等解出（Hermite 型），末端精确落 1。
    */
   const dampedProgress = (dampedElapsedMs, dampedRatePerSecond = moveRatePerSecond) => {
     if (isDampingSettled(dampedElapsedMs)) {

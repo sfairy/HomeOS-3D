@@ -1,15 +1,10 @@
 /**
- * 墙体材质与墙带几何属性工具。
+ * 墙体材质与墙带几何属性工具：3D 工作室生成墙体（含门窗上下的墙带）时决定墙面着色方式与
+ * 「墙脚偏暗、越高越亮」的渐变；同一套材质也被平面二期的光照函数复用。
  *
- * 位置：3D 工作室生成墙体（含门窗上下的墙带）时使用，决定墙面的着色方式与
- *   「墙脚偏暗、越高越亮」的渐变效果；同一套材质也会被平面二期的光照函数复用。
- * 对外：createWallSideMaterial（墙体材质）、createDedicatedWallMaterial 为内部实现，
- *   setWallCornerDistances / setWallGradientHeight / mergeWallBands 三个几何工具。
- * 约定：材质通过自定义顶点属性与几何绑定 —— hbWallHeight 为归一化的墙高，
- *   hbWallCornerDistance 为顶点到最近墙体棱边的沿边距离；wallFeatures 是逗号分隔的
- *   特性串（shader / single / depth），由调用方按渲染需要拼出。
- * 注意：注入的 GLSL 字符串里保留了原有英文注释 —— 它们属于字符串内容，改动即改变
- *   着色器源码，因此按原文保留。
+ * 约定：材质通过自定义顶点属性与几何绑定 —— hbWallHeight 为归一化墙高，hbWallCornerDistance 为顶点
+ * 到最近墙体棱边的沿边距离；wallFeatures 是逗号分隔的特性串（shader / single / depth），由调用方拼出。
+ * 注意：注入的 GLSL 字符串里保留了原有英文注释 —— 属于字符串内容，改动即改变着色器源码，按原文保留。
  */
 
 /**

@@ -1,12 +1,9 @@
 /**
  * 摄像 / 人体存在传感器的程序化建模。
  *
- * 位置：3D 工作室生成安防设备（itemSpec.type 为 camera 或 presence）时的几何构造，
- *   由 studio-app.js 在设备分支调用，产出直接挂到设备分组节点下。
- * 对外：只导出 addSecurityModel。
- * 坐标与单位：与场景一致，长度单位为米；模型以自身底部中心为原点、朝向 +Z 前方，
- *   modelSpec 的 width / depth / height 即设备的外接盒尺寸。
- * 副作用：会在 modelGroup 上新增网格，并释放最终没有被任何网格用到的材质。
+ * 生成安防设备（itemSpec.type 为 camera 或 presence）的几何，由 studio-app.js 在设备分支调用，
+ * 产出直接挂到设备分组节点下。只导出 addSecurityModel。长度单位米，模型以自身底部中心为原点、
+ * 朝向 +Z，modelSpec 的 width / depth / height 即外接盒尺寸。
  */
 
 /**

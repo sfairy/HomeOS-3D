@@ -1,16 +1,12 @@
 /*
  * 人物存在 / 安防绑定编辑器的弹窗样式。
  *
- * 位置：interaction3d 的编辑器侧。presence-editor.js 在打开弹窗时动态注入本文件、
- * 关闭时移除；弹窗根节点是 .i3d-editor.i3d-presence-editor，内部为
- * 「左绑定列表 / 中户型平面 / 右参数表单」三栏。
- *
- * 主题变量：宿主页面在 :root 上定义 --surface / --field / --line / --muted
- * （编辑页来自 app.css，3D 工作室来自 studio.css），这里全部写成
- * var(--名, 兜底色) 的形式，保证弹窗被单独打开时也不会丢样式。
- *
- * 约定：开头 @import runtime.css 复用弹窗骨架（.i3d-editor 的头部、按钮与焦点样式），
- * 本文件只负责人物编辑器特有的三栏布局、路线工具、预设宫格与配色按钮。
+ * presence-editor.js 打开弹窗时动态注入本文件、关闭时移除；弹窗根节点是
+ * .i3d-editor.i3d-presence-editor，内部为「左绑定列表 / 中户型平面 / 右参数表单」三栏。
+ * 主题变量：宿主页 :root 的 --surface / --field / --line / --muted（编辑页来自 app.css，
+ * 3D 工作室来自 studio.css），这里全写成 var(--名, 兜底色)，保证弹窗被单独打开也不丢样式。
+ * 约定：开头 @import runtime.css 复用弹窗骨架，本文件只负责人物编辑器特有的三栏布局、路线工具、
+ * 预设宫格与配色按钮。
  */
 @import "../core/runtime.css";
 /* ===== 弹窗骨架与三栏布局 ===== */

@@ -1,35 +1,30 @@
 /**
- * 3D 安防配置编辑器（摄像头与人体传感器共用一个弹窗）。
+ * 3D 安防配置编辑器（摄像头与人体传感器共用一个弹窗）：与 config-editor.js 同构 —— 弹窗 +
+ * 预览舞台（mountInteraction3d，editing=true）+ 草稿。
  *
- * 位置：interaction3d 的安防编辑入口，由宿主的安防模块调用。与 config-editor.js
- * 同构：弹窗 + 预览舞台（runtime.js 的 mountInteraction3d，editing=true） + 草稿。
- *
- * 两种编辑对象共用同一个面板实现，只靠 getCollectionKey / getKindLabel 区分：
- *   - 摄像头：位置、朝向、焦距、点击行为等；
- *   - 人体传感器：触发模式与探测路线，路线编辑会打开 presence-editor.js 子编辑器，
- *     子编辑器期间本编辑器主动卸载预览运行时（一个容器只挂一个）。
- *
- * 约定：保存通过 onSave 回调把整份草稿快照交给宿主落库（本模块不发保存请求），
- * 脏标记沿用 editor-save-status 的签名比较口径，退出前用同一套文案确认。
- * 对外只导出 openSecurityEditor。
+ * 两种编辑对象共用同一面板，只靠 getCollectionKey / getKindLabel 区分：摄像头（位置、朝向、焦距、
+ * 点击行为等）与人体传感器（触发模式与探测路线；路线编辑会打开 presence-editor.js 子编辑器，
+ * 期间本编辑器主动卸载预览运行时，一个容器只挂一个）。
+ * 约定：保存通过 onSave 交给宿主落库（本模块不发保存请求），脏标记沿用 editor-save-status 的签名
+ * 比较口径，退出前用同一套文案确认。对外只导出 openSecurityEditor。
  */
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "../presence/presence-motion.js?v=20260920104554";
-import { mountInteraction3d } from "../core/runtime.js?v=20260920104554";
-import { openPresenceEditor } from "../presence/presence-editor.js?v=20260920104554";
+} from "../presence/presence-motion.js?v=20260920131301";
+import { mountInteraction3d } from "../core/runtime.js?v=20260920131301";
+import { openPresenceEditor } from "../presence/presence-editor.js?v=20260920131301";
 import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=20260920104554";
-import { confirmAction } from "/static/shared/ui-confirm.js?v=20260920104554";
-import { randomUuid } from "/static/utils/random-id.js?v=20260920104554";
+} from "../core/editor-save-status.js?v=20260920131301";
+import { confirmAction } from "/static/shared/ui-confirm.js?v=20260920131301";
+import { randomUuid } from "/static/utils/random-id.js?v=20260920131301";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=20260920104554";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260920104554";
+} from "/static/bridge/bridge.js?v=20260920131301";
+import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260920131301";
 /**
  * 打开 3D 安防配置编辑器。
  *
@@ -79,7 +74,7 @@ export async function openSecurityEditor({
   const styleSheetLinkElement = createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920104554";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920131301";
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D 安防配置");
   // 标记预览作用域：宿主据此识别「哪些弹窗会遮挡 3D 预览」，

@@ -1,13 +1,10 @@
 /**
  * 扫地机器人（vacuum）的实体聚合目录。
  *
- * 位置：舞台页的清扫面板用这里产出的 profile 列表渲染「设备 + 地图 + 相关按键」，
- *   上游数据来自 /api/ha 的实体表与设备注册表，本文件只做纯计算，不发请求。
- * 对外导出：vacuumProfiles。
- * 全局约定：后端的实体字段存在 snake_case 与 camelCase 两套写法
- *   （`disabled_by` / `disabledBy`、`device_id` / `deviceId`），两边都必须识别，
- *   否则 HA 集成升级后会出现「已被禁用的扫地机仍显示在面板上」。
- * 副作用：无，纯函数。
+ * 舞台页清扫面板用这里产出的 profile 列表渲染「设备 + 地图 + 相关按键」，数据来自 /api/ha 的
+ * 实体表与设备注册表，纯计算不发请求。对外导出 vacuumProfiles。后端实体字段有 `disabled_by` /
+ * `disabledBy`、`device_id` / `deviceId` 两套写法，两边都要识别，否则 HA 集成升级后会出现
+ * 「已禁用的扫地机仍显示」。
  */
 
 /**

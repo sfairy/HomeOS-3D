@@ -1,23 +1,17 @@
 /**
  * 运行时文档的遍历与实体依赖收集。
  *
- * 职责：
- * - 从一份仪表盘文档里收集「需要实时状态」的实体 ID，交给状态订阅层一次性拉取；
- * - 按条件在文档树里查找组件（尤其是折线图）；
- * - 从别处的同名图表同步属性。
+ * 职责：收集「需要实时状态」的实体 ID 交给订阅层一次性拉取；按条件查找组件（尤其是折线图）；
+ * 从别处的同名图表同步属性。
  *
- * 位置：运行时的文档工具层，被 home.js 与各控件 runtime 复用；
- * 不持有状态，所有函数都是纯遍历。
- *
- * 约定：文档模型沿用面板文档的字段名（components / sharedComponents / sharedComponentIds），
- * 与后端 /api/projects 下发的 JSON 结构一致。
+ * 位置：运行时文档工具层，被 home.js 与各控件 runtime 复用；不持有状态，全是纯遍历。
+ * 约定：文档模型沿用 components / sharedComponents / sharedComponentIds，与 /api/projects 下发的 JSON 一致。
  */
 
-import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=20260920104554";
-import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=20260920104554";
-// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
-// 本文件原先内联了 `stateOrChange?.newState || stateOrChange`（P12 状态条目内联收口）。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920104554";
+import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=20260920131301";
+import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=20260920131301";
+// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`。
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
 /**
  * 判断状态是否需要从后端补历史 / 详情。
  *
@@ -38,16 +32,9 @@ export function lineChartRuntimeStateNeedsHydration(stateOrChange) {
 }
 /**
  * 递归收集文档里所有需要实时状态的实体 ID。
- *
- * 覆盖面刻意做得比「绑定的实体」宽，因为以下位置的状态也直接决定渲染结果：
- * - interaction3d 的扫地机：主机、地图、关联实体与各快捷方式各自绑定的实体；
- * - interaction3d 的人体感应：安防分区里配置的传感器；
- * - light-statistics：统计卡片列出的所有实体；
- * - weather：太阳实体（缺省 sun.sun），用于昼 / 夜判断；
- * - more-info 动作且弹窗来源为 entity 时指定的实体；
- * - 与控件关联的相关实体（selectedRelatedEntityIds）。
- *
- * 虚拟实体一律跳过：它们由渲染器自己合成，向后端订阅会被判为不存在。
+ * 覆盖面刻意比「绑定的实体」宽——扫地机的主机 / 地图 / 关联实体与快捷方式、人体感应的安防分区传感器、
+ * light-statistics 的统计实体、weather 的太阳实体（缺省 sun.sun）、more-info(entity) 指定的实体、
+ * selectedRelatedEntityIds 也直接决定渲染。虚拟实体一律跳过（由渲染器合成，订阅会被判不存在）。
  */
 export function collectEntityIds(components, entityIdSet = new Set()) {
   for (const component of components || []) {

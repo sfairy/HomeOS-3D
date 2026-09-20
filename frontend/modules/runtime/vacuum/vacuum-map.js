@@ -1,36 +1,22 @@
 /**
  * 扫地机底图（地图）在 3D 舞台里的运行时支撑。
+ * 在「绑定配置（后端持久化）↔ 舞台渲染（Three.js）」之间负责三件事：绑定解析（按实时地图身份
+ * 过滤多楼层绑定，避免串图）、贴图加载（按 revision 轮询、换图淡入、隐藏/停用/切楼层即释放）、
+ * 状态文案（原始状态翻译成中文标签、电量与是否运行中）。
  *
- * 本模块位于「绑定配置（后端持久化）↔ 舞台渲染（Three.js）」之间，负责三件事：
- *   1. 绑定解析：把「扫地机实体 + 地图实体 + 楼层」的绑定按设备实时上报的地图身份过滤，
- *      多楼层共用同一实体时只保留真正对应的那一条，避免串图。
- *   2. 贴图加载：为每张可见底图建一块平面网格，按 revision 键轮询拉取实体图片资源，
- *      换图时做淡入；隐藏/停用/切楼层时立即释放纹理与几何体。
- *   3. 状态文案：把 vacuum 实体的原始状态翻译成面板要显示的中文标签、电量与「是否运行中」。
- *
- * 全局约定：
- *   - 坐标：mapCorners 输出的是楼层平面坐标（与世界坐标同为「米」），由
- *     sceneContext.worldPoint(floorId, x, y, height) 再换算到舞台空间；
- *     底图只是一张平面贴图，没有厚度，靠 height（0.025 起，按索引递增 0.001 米）
- *     错开层高，防止与其他 overlay 共面产生 z-fighting。
- *   - 图片地址一律走 mapSource 生成，且带 hb 时间戳破除实体图片缓存。
- *   - 空闲轮询 5 秒，设备处于运行态时收紧到 1 秒；页面隐藏时完全不请求。
- *
- * 对外导出：vacuumMapIdentity / vacuumBindingsForMap / mapCorners / mapSource /
- * createVacuumMaps / vacuumStatusPresentation。
+ * 约定：mapCorners 输出楼层平面坐标（与世界坐标同为「米」），经 worldPoint 换算到舞台空间；
+ * 底图无厚度，靠 height（0.025 起、按索引递增 0.001 米）错开避免 z-fighting；图片地址一律走
+ * mapSource 且带 hb 时间戳；空闲轮询 5 秒、运行态收紧到 1 秒、页面隐藏时不请求。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 /**
- * 计算一份「地图身份」字符串，用于判断绑定配置里的 sourceMapId 是否仍指向当前地图。
- *
- * 取值优先级从高到低：saved_map_id / selected_map_id 组合为 "saved:<id>"，
- * 退化为 map_index 的 "index:<n>"，最后才回退到任意一个原始地图 ID 字段的字符串形式。
- * 之所以统一加前缀，是因为设备上报里 saved_map_id 与 map_id 可能数值相同但语义不同
- * （前者是持久化的地图槽位，后者是本次建图会话），不带前缀直接比较会误判为同一张图。
+ * 计算「地图身份」字符串，用于判断绑定配置里的 sourceMapId 是否仍指向当前地图。
+ * 取值优先级：saved_map_id / selected_map_id → "saved:<id>"，退化为 map_index → "index:<n>"，
+ * 最后回退原始地图 ID 字符串；统一加前缀是因为 saved_map_id 与 map_id 可能数值相同但语义不同。
  */
 export function vacuumMapIdentity(mapEntityEntry, vacuumEntityEntry) {
   // 兼容两种入参形态：事件回调包裹了一层 newState，轮询接口则直接给 state 本身。
@@ -68,16 +54,10 @@ export function vacuumMapIdentity(mapEntityEntry, vacuumEntityEntry) {
   return "";
 }
 /**
- * 过滤出「当前应该渲染」的底图绑定。
- *
- * 一条绑定记录的是「扫地机实体 + 地图实体 + 楼层 + 保存时的 sourceMapId」。
- * 设备可能换了地图、或者同一条绑定被拆到多个楼层复用，所以这里按实时状态做二次判定：
- *   - sourceMapId 为空：多楼层兄弟绑定只保留一条，否则会重复贴图；单条则原样保留。
- *   - sourceMapId 与当前地图身份完全一致：保留。
- *   - sourceMapId 是不带前缀的旧格式：用地图实体的 map_id/current_map_id 直接比对，
- *     命中即保留；若属于单楼层设备（multi_floor_map === false）且当前是 saved 地图，
- *     则顺手把旧格式升级成 "saved:<id>" 后保留。
- *   - 其余情况一律丢弃。
+ * 过滤出「当前应该渲染」的底图绑定：一条绑定记录「扫地机 + 地图实体 + 楼层 + 保存时的 sourceMapId」，
+ * 设备可能换图或同一绑定被多楼层复用，故按实时状态二次判定：sourceMapId 为空时多楼层兄弟绑定
+ * 只保留一条、单条保留；与当前地图身份一致则保留；不带前缀的旧格式用 map_id/current_map_id 比对
+ * （单楼层设备且当前为 saved 地图时顺手升级为 "saved:<id>"）；其余一律丢弃。
  */
 export function vacuumBindingsForMap(bindings, statesByEntityId) {
   return bindings.flatMap(binding => {
@@ -142,12 +122,9 @@ export function vacuumBindingsForMap(bindings, statesByEntityId) {
   });
 }
 /**
- * 把地图矩形换算成楼层平面坐标里的四个角点。
- *
- * 约定：以「单位正方形」的四角 (-0.5, -0.5)…(0.5, 0.5) 为基准，先按 width/depth
- * 缩放（得到相对中心的偏移，单位与 mapConfig.x/y 一致，即米），再绕地图中心旋转。
- * 输出顺序固定为左上、右上、右下、左下，调用方（Three.js 顶点属性与 SVG polygon）
- * 都依赖这个顺序，不能调换。
+ * 把地图矩形换算成楼层平面坐标里的四个角点：以单位正方形四角 (-0.5,-0.5)…(0.5,0.5) 为基准，
+ * 先按 width/depth 缩放（单位与 mapConfig.x/y 一致，即米），再绕地图中心旋转。
+ * 输出顺序固定为左上、右上、右下、左下，调用方（Three.js 顶点属性与 SVG polygon）依赖此顺序不能调换。
  */
 export function mapCorners(mapConfig) {
   // 角度转弧度；rotation 缺省或为 0 时按未旋转处理。
@@ -165,12 +142,9 @@ export function mapCorners(mapConfig) {
   }));
 }
 /**
- * 生成地图（或摄像头预览）图片的代理地址。
- *
- * 只有形如 `camera.xxx` / `image.xxx` 的实体 ID 才走本函数，其余返回空串，
- * 调用方据此判断「这张图根本没有可加载的源」。
- * 地址一律附带 hb（cache-bust）时间戳：底图在设备侧是原地覆盖更新的，
- * 不带时间戳浏览器会一直用旧图；摄像头额外加 hb_live=1 表示这是实时画面流。
+ * 生成地图（或摄像头预览）图片的代理地址：只有 `camera.xxx` / `image.xxx` 实体 ID 才走本函数，
+ * 其余返回空串，调用方据此判断「这张图没有可加载的源」。
+ * 地址一律带 hb（cache-bust）时间戳，否则浏览器一直用旧图；摄像头额外加 hb_live=1 表示实时画面流。
  */
 export function mapSource(entityId, cacheBustTimestamp = Date.now()) {
   if (/^(camera|image)\.[a-z0-9_]+$/.test(entityId || "")) {

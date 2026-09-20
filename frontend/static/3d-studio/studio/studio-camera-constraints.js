@@ -1,11 +1,10 @@
 /**
  * 相机位置约束：防止视角穿到地面以下。
  *
- * 位置：3D 工作室的 OrbitControls 轨道相机在每帧更新位置后调用本模块做钳制。
- * 职责：把相机相对轨道中心的位置限制在「极角不超过约 88.2°、且离地至少 2 厘米」
- *   的范围内，同时尽量保持原视线方向与距离不变。
- * 对外：constrainCameraPosition（就地修改向量）与 constrainCameraPose（返回新姿态）。
- * 坐标约定：three.js 世界坐标，Y 轴向上，长度单位米；极角以 +Y 轴为 0 度量。
+ * 位置：3D 工作室的 OrbitControls 相机每帧更新位置后调用本模块钳制。把相机相对轨道中心的位置限制在
+ * 「极角不超过约 88.2°、且离地至少 2 厘米」，同时尽量保持原视线方向与距离。对外导出
+ * constrainCameraPosition（就地修改向量）与 constrainCameraPose（返回新姿态）。
+ * 坐标：three.js 世界坐标，Y 轴向上，单位米；极角以 +Y 轴为 0 度量。
  */
 
 // 约 88.2°：留出不到 2° 的余量，既允许接近水平看地面的视角，
@@ -18,10 +17,8 @@ const COS_MAX_POLAR_ANGLE = Math.cos(MAX_CAMERA_POLAR_ANGLE);
 
 /**
  * 就地钳制相机位置，使其落在允许的轨道范围之内。
- *
- * 返回 true 表示位置被改动过，调用方据此决定是否需要重新渲染。
- * 未越界时完全不碰传入向量（保留原始浮点值），避免每帧累积舍入误差造成视角漂移。
- *
+ * 返回 true 表示位置被改动过，调用方据此决定是否重新渲染。未越界时完全不碰传入向量（保留原始浮点值），
+ * 避免每帧累积舍入误差造成视角漂移。
  * @returns {boolean} 位置被修改过返回 true，否则 false。
  */
 export function constrainCameraPosition(cameraPosition, orbitTarget) {

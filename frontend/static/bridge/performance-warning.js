@@ -1,18 +1,14 @@
 /**
  * 画质设置的性能告警。
  *
- * 位置：设置面板在「应用」之前调用 performanceWarnings 收集提示，必要时用
- *   confirmPerformanceWarning 弹窗征求确认 —— 这些设置本身合法，只是可能让低端设备掉帧。
- * 对外导出：performanceWarnings、confirmPerformanceWarning。
- * 全局约定：告警文案是面向用户的界面文案，由本文件统一产出（未做 i18n），
- *   调用方不要拆分或改写；弹窗的 class / id 前缀 `i3d-performance-` 与样式表约定死。
- * 副作用：confirmPerformanceWarning 会向 document.body 插入并移除 <dialog> 节点。
+ * 设置面板在「应用」之前收集提示，必要时用 confirmPerformanceWarning 弹窗征求确认——这些设置
+ * 本身合法，只是可能让低端设备掉帧。导出 performanceWarnings、confirmPerformanceWarning。告警
+ * 文案由本文件统一产出（未做 i18n），调用方不要改写。
  */
-import { normalizeGroundReflection as normalizeReflection } from "./reflection-settings.js?v=20260920104554";
+import { normalizeGroundReflection as normalizeReflection } from "./reflection-settings.js?v=20260920131301";
 /**
  * 比较新旧设置，列出「变更后会更容易掉帧」的项目。
- *
- * 只提示「变贵」的方向（例如分辨率调高、开启反射），调低画质不会产生任何告警。
+ * 只提示「变贵」的方向（如分辨率调高、开启反射），调低画质不产生告警。
  */
 export function performanceWarnings(currentProperties, pendingProperties) {
   const warningList = [];
@@ -119,9 +115,7 @@ export function confirmPerformanceWarning(
                 resolve(result));
             },
             handleCancel = () => settle(!1);
-          // 事件绑定与挂载一次性完成：close 事件兜底为「取消」，因为 Esc 关闭只触发 close；
-          // 由于 settle 幂等，用户点「继续应用」后再触发 close 不会推翻已定的结果。
-          // 焦点主动交给取消按钮，让默认操作是「不改变画质」。
+          // close 兜底为「取消」（Esc 关闭只触发 close），settle 幂等所以点「继续应用」后再 close 不会推翻结果；焦点交给取消按钮。
           (cancelButtonElement.addEventListener("click", handleCancel),
             confirmButtonElement.addEventListener("click", () => settle(!0)),
             dialogElement.addEventListener("cancel", event => {

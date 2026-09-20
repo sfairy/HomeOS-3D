@@ -1,18 +1,14 @@
 /**
  * 编辑器通用小工具：ID / 颜色 / 数值格式化。
  *
- * 位置：编辑器各模块共用的纯函数集合，被 inspector、history、picker 等引用。
- * 职责：克隆文档、生成带前缀的 ID、把标题转为 URL 片段、颜色空间互转
- *   （HEX / RGB / HSV）、以及面板字段的取整。
- * 约定：ID 依赖 randomUuid（utils/random-id.js），同一版本戳必须与
- *   home.js 引用的一致；颜色一律先归一成小写 6 位 HEX 再计算。
- *   夹取（clampNumber）与颜色归一（原 normalizedHexColor）**不在**这里定义：
- *   它们是编辑器、3D 工作室与渲染器共用的契约，唯一实现在 utils/numbers.js
- *   与 utils/colors.js（P10 B 类收敛，原先各处各有一份同名但不同义的实现）。
+ * 克隆文档、生成带前缀 ID、把标题转为 URL 片段、颜色空间互转（HEX / RGB / HSV）与面板字段
+ * 取整。ID 依赖 utils/random-id.js 的 randomUuid；颜色一律先归一成小写 6 位 HEX。夹取与
+ * 颜色归一不在这里：它们是编辑器、3D 工作室与渲染器共用的契约，唯一实现在 utils/numbers.js
+ * 与 utils/colors.js。
  */
-import { randomUuid } from "../utils/random-id.js?v=20260920104554";
-import { clampNumber } from "../utils/numbers.js?v=20260920104554";
-import { hexColorOrEmpty } from "../utils/colors.js?v=20260920104554";
+import { randomUuid } from "../utils/random-id.js?v=20260920131301";
+import { clampNumber } from "../utils/numbers.js?v=20260920131301";
+import { hexColorOrEmpty } from "../utils/colors.js?v=20260920131301";
 
 /**
  * 深拷贝一个值。
@@ -144,10 +140,7 @@ export function roundField(fieldValue) {
 }
 
 /**
- * 归一字体粗细。
- *
- * 面板与后端存在两套写法：1~900 的 CSS 数值，与 0~1 的比例值。
- * 这里统一输出 0~1，方便滑杆控件使用。
+ * 归一字体粗细：面板与后端有 1~900 与 0~1 两套写法，这里统一输出 0~1 供滑杆使用。
  */
 export function normalizedFontWeight(weight, fallbackWeight = 0.4) {
   const numericWeight = Number(weight);

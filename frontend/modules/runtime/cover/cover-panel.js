@@ -1,22 +1,18 @@
 /**
  * 窗帘控制面板（3D 详情弹窗 / 配置预览共用）。
  *
- * 在 3D 子系统里的位置：把 coverState 归一化后的状态渲染成「开合位置滑杆 +
- * 打开 / 暂停 / 关闭」控件，并把操作交给 onControl 发送；同时通过 onPreview
- * 让 3D 场景在拖动滑杆时实时预览目标位置。
+ * 把 coverState 归一化后的状态渲染成「开合位置滑杆 + 打开 / 暂停 / 关闭」，操作交给 onControl；
+ * onPreview 让 3D 场景在拖动滑杆时实时预览目标位置。
  *
- * 对外提供：createCoverPanel。
- *
- * 约定：面板不直接访问后端；命令由 cover-state.js 的 coverControl 构造。
- *       梦幻帘（item.coverKind === "dream"）走「整体 + 叶片」两段语义，
- *       同一个滑杆在梦幻帘下控制的是叶片角度，且必须整体关闭到位后才允许调整。
+ * 约定：不直接访问后端，命令由 cover-state.js 的 coverControl 构造。梦幻帘（coverKind === "dream"）
+ * 走「整体 + 叶片」两段语义，同一滑杆控制叶片角度，且必须整体关闭到位后才允许调整。
  */
 import {
   coverState,
   coverControl,
   coverStateLabel,
   coverCanAdjustBlades
-} from "./cover-state.js?v=20260920104554";
+} from "./cover-state.js?v=20260920131301";
 /**
  * 创建窗帘面板。
  */
@@ -286,10 +282,8 @@ export function createCoverPanel({
   }
   /**
    * 先本地校验再发送控制命令。
-   *
-   * 把展示状态合并进设备状态后再校验：梦幻帘的可调叶片判断依赖展示层的
-   * closedConfirmed（可能已被 railUnconfirmed 降级），只传 deviceState 会漏判。
-   *
+   * 把展示状态合并进设备状态后再校验：梦幻帘的可调叶片判断依赖展示层的 closedConfirmed
+   * （可能已被 railUnconfirmed 降级），只传 deviceState 会漏判。
    * @returns {Promise<void>|undefined} 不可控时返回 undefined。
    */
   function requestControl(requestedService, controlValue) {

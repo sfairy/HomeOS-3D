@@ -46,9 +46,8 @@ def public_user(user: User) -> UserResponse:
 def require_admin_account(user: User) -> None:
     """确认当前账号是管理员，否则 403「仅管理员可以管理登录会话。」。
 
-    登录会话列表里能看到 IP 与 UA，撤销会踢人下线，属于管理动作。
-    虽然当前设置流程只会建出管理员账号，但角色是数据字段：接口自己再确认一次，
-    不依赖「目前只有管理员」这个假设。
+    登录会话列表里能看到 IP 与 UA，撤销会踢人下线，属于管理动作。角色是数据字段，
+    接口自己再确认一次，不依赖「目前只有管理员」这个假设。
     """
     if user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="仅管理员可以管理登录会话。")
@@ -58,10 +57,9 @@ def require_admin_account(user: User) -> None:
 def request_metadata(request: Request) -> tuple[str, str]:
     """取出用于审计与限流的请求元信息。
 
-    返回 ``(客户端 IP, User-Agent)``，两者都按数据库列宽上限截断（IP 64、UA 512），防止超长
-    请求头把审计字段撑爆。客户端 IP 由 :func:`http_security.resolve_client_ip` 解析：配了可信
-    反向代理时取真实来源地址，没配或对端不可信时一律用 TCP 对端地址 —— 转发头在这两种情况下
-    都不可信，信了就等于让攻击者自选 IP。
+    返回 ``(客户端 IP, User-Agent)``，两者按数据库列宽上限截断（IP 64、UA 512）。
+    客户端 IP 由 :func:`http_security.resolve_client_ip` 解析：配了可信反向代理时取真实来源
+    地址，否则一律用 TCP 对端地址 —— 转发头在这两种情况下都不可信，信了就等于让攻击者自选 IP。
     """
     ip_address = resolve_client_ip(request).ip
     return (ip_address[:64], request.headers.get("user-agent", "")[:512])
@@ -70,13 +68,10 @@ def request_metadata(request: Request) -> tuple[str, str]:
 def login_limiter_scopes(request: Request, username: str) -> list[tuple]:
     """列出本次登录要检查 / 累加的限流档位。
 
-    三档，各挡一类攻击：账号档（``login_account_limiter``，**不含 IP**，换 IP 也躲不掉，
-    是按 IP 限流被绕开后的兜底）、按 IP 档（``login_limiter``，挡单机爆破）、按 IP + 账号档
-    （``login_limiter``，挡同一台机器换账号试）。
-
+    三档，各挡一类攻击：账号档（``login_account_limiter``，不含 IP，换 IP 也躲不掉）、
+    按 IP 档（``login_limiter``，挡单机爆破）、按 IP + 账号档（挡同一台机器换账号试）。
     后两档只在「来源地址真的代表一个客户端」时启用：反代后面没配可信代理时所有人共用代理那一个
-    地址，用它计数会让任何一个人失败几次就锁掉所有人（包括管理员自己）。账号档不受影响，
-    因此并非无保护。
+    地址，用它计数会让任何一个人失败几次就锁掉所有人（包括管理员自己）。账号档不受影响。
     """
     limiter = getattr(request.app.state, "login_limiter", None)
     account_limiter = getattr(request.app.state, "login_account_limiter", None)
@@ -91,11 +86,10 @@ def login_limiter_scopes(request: Request, username: str) -> list[tuple]:
 
 
 def _retry_after_seconds(scopes: list[tuple]) -> str:
-    """被拦时回带的 Retry-After：取所有命中档里**剩余等待时间**最长的。
+    """被拦时回带的 Retry-After：取所有命中档里剩余等待时间最长的。
 
-    用剩余时间而不是 ``block_seconds``（封禁总时长）：后者从被封那一刻起算就固定了，
-    而调用方是在封禁中途某刻才被拦下的 —— 回总时长等于让客户端多等「已经等过的那段」
-    （B63）。取最长的一档是为了不自相矛盾：客户端按这个值等满，必然同时越过所有档位。
+    用剩余时间而不是 ``block_seconds``（封禁总时长）：调用方是在封禁中途某刻才被拦下的，
+    回总时长等于让客户端多等「已经等过的那段」。取最长的一档保证客户端按它等满必然越过所有档。
     """
     remaining = [limiter.retry_after(key) for limiter, key in scopes]
     return str(max(remaining, default=1))
@@ -125,11 +119,9 @@ def create_login_session(request: Request, database: DatabaseSession, user: User
 def set_session_cookie(request: Request, response: Response, token: str) -> None:
     """把会话令牌写进管理员 Cookie。
 
-    httponly 防脚本读取，samesite=lax 允许同源跳转带上，
-    path=/ 保证 /api/* 与页面请求都能携带。
-
-    Secure 由 :func:`secure_cookies_enabled` 按请求自动判定（https 基址 / 可信代理
-    转发的 https / 本连接 https 都算），因此漏配 APP_COOKIE_SECURE 也不会明文下发。
+    httponly 防脚本读取，samesite=lax 允许同源跳转带上，path=/ 保证 /api/* 与页面请求都能携带。
+    Secure 由 :func:`secure_cookies_enabled` 按请求自动判定（https 基址 / 可信代理转发的 https /
+    本连接 https 都算），因此漏配 APP_COOKIE_SECURE 也不会明文下发。
     """
     settings = request.app.state.settings
     response.set_cookie(
@@ -147,11 +139,8 @@ def set_session_cookie(request: Request, response: Response, token: str) -> None
 def setup_status(request: Request) -> SetupStatusResponse:
     """查询系统是否已完成初始化，供前端决定进设置页还是登录页。
 
-    刻意不要求任何身份：未初始化时必须能匿名访问，否则首次设置无从下手。
-    返回 initialized（账号文件是否生效）与 version（当前版本号）。
-
-    也不开数据库会话：这两项都来自进程内状态，而这个端点会被前端反复轮询，
-    每次请求白开一个会话（含一次事务）只是为轮询增加写锁竞争。
+    刻意不要求任何身份：未初始化时必须能匿名访问，否则首次设置无从下手。返回 initialized
+    与 version。也不开数据库会话：两项都来自进程内状态，而这个端点会被前端反复轮询。
     """
     return SetupStatusResponse(
         initialized=request.app.state.admin_account.initialized,
@@ -172,18 +161,10 @@ def setup_admin(
 ) -> UserResponse:
     """首次初始化管理员账号，或在账号文件丢失后重新设置。
 
-    请求字段：username、password、setupToken（见 SetupAdminRequest）。返回管理员 UserResponse，
-    同时直接下发登录 Cookie（设置完即为登录态）。会抛：403「首次设置需要引导密钥。…」（远程来源
-    没带或带错引导密钥）、429「初始化尝试次数过多，请稍后再试。」、409「系统已经完成初始化。」、
-    409「这个账号名已被使用。」、409「现有账号无法安全重置，请检查账号文件。」。
-
-    访问控制：这个端点刻意不要求身份（首次设置时还没有账号可登），所以「谁能连上就先到先得」的
-    窗口必须由别的东西关上 —— 见 setup_guard：本机直连放行，其余来源必须带对启动日志里给出的
-    引导密钥，失败计入限流并写审计。顺序是「已初始化 → 409，再看引导密钥，最后才 argon2」，
-    未授权的请求连一次哈希都换不到。
-
-    事务与回滚：先 BEGIN IMMEDIATE 取写锁避免并发初始化；账号文件用 stage 先落盘、activate 等库
-    提交成功后才生效，任何一步失败都回滚数据库并 abort 掉已落盘的凭据文件。
+    请求字段：username、password、setupToken。返回管理员 UserResponse，同时下发登录 Cookie。
+    会抛：403「首次设置需要引导密钥。…」、429 初始化尝试过多、409 已完成初始化 / 账号名已用 /
+    现有账号无法重新设置。顺序是「已初始化 → 409，再看引导密钥，最后才 argon2」，未授权请求
+    换不到哈希。事务与回滚：BEGIN IMMEDIATE 取写锁；账号文件 stage 落盘、activate 延后到库提交成功。
     """
     account_store = request.app.state.admin_account
     # 廉价预检放最前：已初始化时对**所有**来源都只会是 409（端点已关闭），
@@ -253,11 +234,9 @@ def setup_admin(
         try:
             staged_credentials = account_store.stage(user, password_hash)
         except AdminAccountConflict as error:
-            # 两类**可预期**的冲突：并发的初始化请求先赢了（或别处已经把账号补好），
-            # 或盘上出现了一份不属于本次初始化的账号文件。都不是「服务器坏了」，
-            # 所以回 409 并让人刷新页面，而不是 500 带堆栈进全局日志（B35）。
-            # 事务必须在这里回滚：外层的 HTTPException 分支刻意不回滚（它假定抛出处
-            # 已经处理过），而这里刚刚 add / flush 过用户行并删过会话。
+            # 两类**可预期**的冲突：并发初始化请求先赢了，或盘上出现了一份不属于本次初始化的
+            # 账号文件。都不是「服务器坏了」，所以回 409 而不是 500。事务必须在这里回滚：
+            # 外层的 HTTPException 分支刻意不回滚（它假定抛出处已处理过）。
             database.rollback()
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -298,11 +277,9 @@ def login(
 ) -> UserResponse:
     """用账号名与口令登录，成功后下发会话 Cookie。
 
-    请求字段：username、password。
-    返回：登录成功的 UserResponse。
-    会抛的中文错误文案：
-    - 429「登录失败次数过多，请稍后再试。」：命中限流，并回带 Retry-After；
-    - 401「账号或密码错误。」：账号不存在、账号停用或口令不匹配都归到这一条，不向外区分。
+    请求字段：username、password；返回登录成功的 UserResponse。
+    会抛：429「登录失败次数过多，请稍后再试。」（命中限流，回带 Retry-After）；
+    401「账号或密码错误。」（账号不存在、停用或口令不匹配都归到这一条，不向外区分）。
     """
     # 先去掉首尾空白再比较：避免「 admin」与「admin」被当成两个账号绕过计数。
     username = payload.username.strip()
@@ -318,9 +295,8 @@ def login(
     # 凭据只取自账号文件快照：users 表里的 password_hash 是哨兵值，不参与校验。
     credentials = request.app.state.admin_account.credentials
     user = database.get(User, credentials.user_id) if credentials else None
-    # 口令校验先无条件算一次，再和其它条件合并（B17）：写进上面的 if 里的话，
-    # 用户名一旦对不上就会短路跳过 argon2，耗时差别本身就回答了「这个用户名存不存在」。
-    # 缺哈希时用哑哈希顶上，因此这条路径与「账号存在但口令错」一样慢。
+    # 口令校验先无条件算一次：写进上面的 if 里的话，用户名对不上就会短路跳过 argon2，
+    # 耗时差别本身就回答了「这个用户名存不存在」。缺哈希时用哑哈希顶上，耗时一致。
     stored_hash = credentials.password_hash if credentials is not None else None
     password_ok = verify_password(stored_hash, payload.password)
     # 五个条件全过才放行；任一不满足都按同一条 401 文案返回，不给攻击者区分线索。
@@ -427,9 +403,8 @@ def list_sessions(
 ) -> LoginSessionListResponse:
     """列出当前管理员的全部登录会话（最近活跃在前）。
 
-    用途：让主人能看见「有哪些设备登录着」，并在怀疑被盗用时一键踢掉。
-    只列自己的会话，别人的（多管理员场景）与中控设备令牌都不在这里管。
-    已过期的行顺手删掉，否则列表会随使用时间越来越长。
+    用途：让主人能看见「有哪些设备登录着」，并在怀疑被盗用时一键踢掉。只列自己的会话，
+    别人的（多管理员场景）与中控设备令牌都不在这里管。已过期的行顺手删掉。
     """
     require_admin_account(user)
     now = datetime.now(timezone.utc)
@@ -466,10 +441,9 @@ def revoke_other_sessions(
     比「改密码」轻，但足以把被盗 Cookie 踢下线；当前会话保留，避免操作者自己掉线。
     """
     require_admin_account(user)
-    # 「只保留当前这条会话」的前提是知道当前这条是哪条：这里复用与认证依赖
-    # 完全同一个判据，要求它对应库里真实存在、且仍然有效的会话行（B18）。
-    # 不能只看 Cookie 里有没有值 —— 删除条件是 ``id_hash != current_hash``，
-    # 空串或对不上任何行的哈希都会让「不等于」退化成「删掉该用户的全部会话」。
+    # 「只保留当前这条会话」的前提是知道当前这条是哪条：复用与认证依赖完全同一个判据，
+    # 要求它对应库里真实存在且仍有效的会话行。不能只看 Cookie 里有没有值 —— 删除条件是
+    # id_hash != current_hash，空串会让「不等于」退化成「删掉该用户的全部会话」。
     session = check_admin_session(
         database,
         request.app.state.settings,
@@ -502,8 +476,8 @@ def revoke_session(
 ) -> None:
     """撤销指定的登录会话，返回 204（幂等：不存在也算成功）。
 
-    撤销自己当前这条时会一并清掉浏览器 Cookie，等于原地登出。
-    `session_id` 是会话令牌的 sha256（列表接口给出的那个 id）。
+    撤销自己当前这条时会一并清掉浏览器 Cookie，等于原地登出。`session_id` 是会话令牌的
+    sha256（列表接口给出的那个 id）。
     """
     require_admin_account(user)
     record = database.scalar(

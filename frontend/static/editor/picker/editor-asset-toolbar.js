@@ -1,12 +1,9 @@
 /**
  * 编辑器素材选择器的文件夹工具栏。
  *
- * 位置：图片 / IBE 分页选择器弹层顶部，由 picker 控制器在渲染时调用。
- * 职责：构造「文件夹下拉 + 删除 + 上传」一行控件，并把刷新的回调挂到
- *   pickerController.syncAssetToolbar 上，供控制器主动同步。
- * 约定：文件夹名为 "." 时显示为「根目录」；删除按钮只对用户素材文件夹
- *   （canDeleteFolder("user", …)）可用；所有 DOM 构造通过注入的 documentObject，
- *   便于在非浏览器环境测试。
+ * 图片 / IBE 分页选择器弹层顶部，由 picker 控制器渲染时调用：构造「文件夹下拉 + 删除 + 上传」
+ * 一行控件，并把刷新回调挂到 pickerController.syncAssetToolbar。文件夹名为 "." 时显示为
+ * 「根目录」；删除按钮只对用户素材文件夹可用；DOM 通过注入的 documentObject 构造，便于测试。
  */
 
 /**

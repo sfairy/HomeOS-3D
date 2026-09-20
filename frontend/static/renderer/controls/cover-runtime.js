@@ -1,30 +1,23 @@
 /**
  * 窗帘域的运行时映射：普通帘、晾衣机、梦幻帘，以及帘子背后的电机状态。
  *
- * 职责：
- * - 把 cover 的 state（open / closed / opening / closing）与 current_position 归一成展示状态；
- * - 处理「电机反转」（电机接线方向与界面相反）造成的开合颠倒；
- * - 晾衣机专题：在同一台设备里找出灯、设定位置、当前位置、电机速度与升降按钮；
- * - 梦幻帘专题：叶片位置与角度的文案、收起 / 展开的判定；
- * - 与窗帘同设备的开关 / 下拉 / 数值实体（用于扩展功能面板）。
+ * 职责：把 cover 的 state（open / closed / opening / closing）与 current_position 归一成展示状态；
+ * 处理「电机反转」（接线方向与界面相反）造成的开合颠倒；晾衣机专题（同设备里的灯、设定位置、当前
+ * 位置、电机速度与升降按钮）；梦幻帘专题（叶片位置与角度的文案、收起 / 展开判定）；同设备的开关 / 下拉 / 数值实体。
  *
- * 位置：被窗帘控件、晾衣机控件与编辑器预览共用。
- *
- * 约定：导入路径上的 ?v= 版本戳必须与 home.js、renderer.js 一致；
- * 本文件反向 import registry.js（为拿 coverComponentIsDream），循环依赖是既有结构，
- * 因此 here 的顶层不要执行任何依赖 registry 初始化结果的副作用。
+ * 约定：导入路径上的 ?v= 版本戳必须与 home.js、renderer.js 一致；本文件反向 import registry.js
+ * （为拿 coverComponentIsDream），循环依赖是既有结构，故顶层不得执行依赖 registry 初始化结果的副作用。
  */
-import { coverComponentIsDream } from "../core/registry.js?v=20260920104554";
-import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260920104554";
-// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
-// 本文件原先有五处内联的 `x?.newState || x || {}`（P12 状态条目内联收口）。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920104554";
+import { coverComponentIsDream } from "../core/registry.js?v=20260920131301";
+import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260920131301";
+// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`。
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
 // 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
 // 本文件与 registry.js 都要用，而 registry.js 是本文件的上游，不能再反向 import 它。
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor,
-} from "./cover-direction.js?v=20260920104554";
+} from "./cover-direction.js?v=20260920131301";
 /**
  * 通用「实体是否处于活动态」判定。
  */
@@ -935,8 +928,6 @@ export function coverToggleServiceForComponent(
   componentEntityId
 ) {
   // 方向读控件属性（唯一实现在叶子模块 cover-direction.js，见模块头）。
-  // 这里曾经传过实体索引与状态索引三个参数：那是已删掉的「靠同设备开关实体推导方向」那版
-  // 的签名，方向改由控件属性承载后它们就没人看了 —— 只留控件这一个入参。
   const isMotorReversed = coverMotorIsReversedForComponent(toggleComponent);
   const resolvedStateEntry = stateByEntityId.get(componentEntityId);
   const presentationState = coverComponentIsDream(

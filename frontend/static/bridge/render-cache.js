@@ -1,18 +1,11 @@
 /**
- * 3D 渲染结果的磁盘 / 内存缓存层。
+ * 3D 渲染结果的磁盘 / 内存缓存层：按「灯光增量」分层缓存，命中即免一次服务端渲染，
+ * 未命中则取回 PNG、解码成 ImageBitmap 交给渲染器。
  *
- * 位置：舞台页每次需要一帧画面时都先问这里（按「灯光增量」分层缓存），
- *   命中就免去一次服务端渲染；未命中则取回 PNG、解码成 ImageBitmap 交给渲染器。
- * 对外导出：RENDER_CACHE_VERSION、stableCacheJSON、sha256、
- *   cacheSceneDescriptor、createRenderCache。
- * 全局约定：
- *   - RENDER_CACHE_VERSION 参与 key 计算：只要渲染算法或缓存语义变了就必须改它，
- *     否则新旧结果会共用同一个 key，客户端会一直命中旧图；
- *   - 服务端接口约定：GET 命中返回 image/png，未生成返回 404（且 content-type 不是 JSON），
- *     明确无缓存返回 204；写回用 PUT，正文为 image/png；
- *   - 所有 key 都由 sha256 得出，任何字段变化都必须体现为不同的 key，不能依赖时间戳。
- * 副作用：持有 ImageBitmap（必须显式 close 才能释放显存）、在途请求与上传队列；
- *   调用 close() 会中断全部在途请求并释放所有已解码位图。
+ * 约定：RENDER_CACHE_VERSION 参与 key 计算，渲染算法或缓存语义变了必须改它（否则一直命中旧图）；
+ * 服务端 GET 命中返回 image/png、未生成返回 404、明确无缓存返回 204，写回用 PUT（image/png）；
+ * 所有 key 由 sha256 得出，任何字段变化都必须体现为不同的 key，不能依赖时间戳。
+ * 副作用：持有 ImageBitmap（必须显式 close 释放显存）、在途请求与上传队列；close() 会中断全部在途请求。
  */
 // 版本戳：改渲染口径（光照计算、分块策略等）时自增，用作所有 key 的一部分。
 export const RENDER_CACHE_VERSION = "i3d-light-delta-20260916-warm-refine-v6";
@@ -157,17 +150,9 @@ export function cacheSceneDescriptor(floors) {
 }
 /**
  * 创建渲染缓存实例。
- *
- * 缓存分三层，职责与上限各不相同：
- *   1) encodedBlobsByKey：已下载 / 已生成的 PNG（LRU，最多 64 条且总字节不超过 maxBytes）；
- *   2) decodedRecordsByKey：解码后的 ImageBitmap（引用计数 + 最多 maxDecodedFrames 帧），
- *      必须显式 close 才能释放显存，因此用 refs / retained 两个标记控制回收；
- *   3) inFlightReadsByKey：同一 key 的并发读取合并成一次请求，避免同一张图下载多次。
- * 另外维护一个上传队列（pendingUploadsByKey），把本地新生成的图回写服务端。
- *
- * 所有依赖（fetcher / decode / now / makeCanvas / report）都可注入，便于在测试里
- * 用假计时器与假解码器复现容量淘汰、超时、并发合并等分支。
- *
+ * 三层：encodedBlobsByKey（PNG，LRU，最多 64 条且不超过 maxBytes）、decodedRecordsByKey
+ * （ImageBitmap，引用计数 + maxDecodedFrames 帧，用 refs / retained 控制回收）、
+ * inFlightReadsByKey（同一 key 的并发读取合并成一次请求）；另维护上传队列 pendingUploadsByKey。
  * @param {number} [options.timeoutMs] 单次请求超时，默认 1800ms。
  */
 export function createRenderCache({

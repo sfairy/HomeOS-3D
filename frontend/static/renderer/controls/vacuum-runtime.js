@@ -1,21 +1,16 @@
 /**
  * 扫地机器人控件的状态映射。
  *
- * 职责：
- * - 把 Home Assistant 的 supported_features 位掩码翻译成界面要显示的按钮列表；
- * - 把按钮动作映射成真正要调用的服务名（老固件只有 turn_on / turn_off，没有 start / stop）；
- * - 从机器人自身属性或同设备的电池传感器里解析电量。
+ * 职责：把 HA 的 supported_features 位掩码翻译成按钮列表；把按钮动作映射成服务名
+ * （老固件只有 turn_on / turn_off，没有 start / stop）；从机器人属性或同设备电池传感器解析电量。
  *
- * 位置：纯计算模块，被 interaction3d 的扫地机面板与编辑器预览共用。
- *
- * 约定：位掩码取值直接沿用 HA 官方 vacuum 集成定义，硬编码在此以免与后端版本耦合。
+ * 位置：纯计算模块，被 interaction3d 扫地机面板与编辑器预览共用。
+ * 约定：位掩码沿用 HA 官方 vacuum 集成定义，硬编码在此以免与后端版本耦合。
  */
 
-import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260920104554";
-// 状态条目归一统一走 utils/state-entry.js：本文件原先那份 unwrapStateChange 与
-// registry.js 的 resolveStateEntry、presence-runtime.js 的 resolveEventState 是同一份
-// 知识（只是名字不同，这里少写一个「缺失时怎么办」的约定就会被当成新实现再抄一份）。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920104554";
+import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260920131301";
+// 状态条目归一统一走 utils/state-entry.js，避免各处再各抄一份签名不同的副本。
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
 // HA vacuum 集成的能力位定义。数值来自官方 constant，不能改；只用到其中一部分。
 const VACUUM_FEATURE_FLAGS = Object.freeze({
   turn_on: 1,
@@ -133,19 +128,10 @@ export function vacuumBatteryPercent(vacuumStateOrChange, batterySensor = null) 
 }
 /**
  * 在同一个设备下挑出最可能是「电量」的传感器实体。
- *
- * 做法是打分排序而不是写死命名规则：各家扫地机的实体命名差异很大，
- * 打分能同时利用 device_class、翻译键、名称关键词、图标与单位这些线索。
- *
- * 加分：device_class 为 battery（+240）、翻译键恰为 battery（+210）、
- * 名称里出现 battery / 电池电量 等词（+150）、图标是 mdi:battery（+60）、单位为 %（+25）。
- * 减分：名称含滤芯 / 主刷 / 尘袋 等耗材词（-260，这类实体的值也是百分比，最容易误判）、
- * 当前状态解析不出百分比（-40，说明多半不是电量读数）。
- * 只保留正分候选，依次按分数降序、实体 ID 长度升序（越短越像主实体）、
- * 字典序升序排序，取第一条。
- *
- * 候选前置条件：必须与扫地机同设备、必须是 sensor 域、且实体当前可用，
- * 否则电池读数没有意义。
+ * 用打分排序而非写死命名规则，同时利用 device_class、翻译键、名称关键词、图标与单位：加分项
+ * battery（+240）/ 翻译键 battery（+210）/ 名称含 battery 或 电池电量（+150）/ mdi:battery（+60）/ 单位为 %（+25）；
+ * 减分项耗材词（滤芯 / 主刷 / 尘袋，-260）/ 状态解析不出百分比（-40）。只留正分，按分数降序、实体 ID 长度升序取第一条。
+ * 前置：必须与扫地机同设备、sensor 域且当前可用。
  */
 export function relatedVacuumBatteryEntity(metadataByEntityId, statesByEntityId, vacuumEntityId) {
   const vacuumMetadata = metadataByEntityId.get(vacuumEntityId);

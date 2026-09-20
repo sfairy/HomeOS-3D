@@ -1,19 +1,12 @@
 /* ==========================================================================
-   HomeOS 统一设计系统 · 暗色 + 琥珀
-   本文件是商店（store.html / admin.html / 模拟收银台）**唯一**的样式基座：
-   令牌 → 重置 → 排版 → 组件。页面级布局分别写在 store.css 与 admin.css，
-   那两份文件只允许摆放区块，不允许重新定义组件外观。
-
-   设计语言与主程序 frontend/static/app.css 同源：
-     canvas      #151a1f      surface  #1a2026
-     soft        #1e252c      raised   #232b33
-     field       #171d22      hairline #303840 / #3b444d
-     ink         #e8ecef      muted    #89949d / #6f7a82
-     accent      #f2a20d（亮 #ffb52e，深 #ef9900，渐变 #ffb82e → #ef9900）
-     success     #54bd78      danger   #e26b67
-
-   --hb-bg / --hb-accent / --hb-success 三个值必须与主程序（frontend/static/app.css）
-   逐字符一致：主程序改色而这里没跟，两套界面就会配色不一致。
+   HomeOS 统一设计系统 · 暗色 + 琥珀。
+   本文件是商店（store.html / admin.html / 模拟收银台）**唯一**的样式基座：令牌 → 重置 → 排版 → 组件。
+   页面级布局分别写在 store.css 与 admin.css，那两份文件只允许摆放区块，不允许重新定义组件外观。
+   与主程序 frontend/static/app.css 同源：
+     canvas #151a1f   surface #1a2026   soft #1e252c   raised #232b33   field #171d22
+     hairline #303840 / #3b444d   ink #e8ecef   muted #89949d / #6f7a82
+     accent #f2a20d（亮 #ffb52e，深 #ef9900，渐变 #ffb82e → #ef9900）   success #54bd78   danger #e26b67
+   --hb-bg / --hb-accent / --hb-success 三个值必须与主程序（frontend/static/app.css）逐字符一致：主程序改色而这里没跟，两套界面就会配色不一致。
    ========================================================================== */
 
 /* 1. 令牌 */
@@ -1346,16 +1339,8 @@ html.hb-auth-hint .hb-guest-only {
   display: none !important;
 }
 
-/* --------------------------------------------------------------------------
-   16. 共享动效
-   前台页头横幅、认证页左栏与后台面板头都用同一块「控制台铭牌」质感：细网格 +
-   琥珀辉光。网格按 46px 一循环，所以位移正好一个循环长度就能无缝接回，做出
-   一条几乎察觉不到的漂移，让铭牌是活的而不是一张贴图。
-
-   放在设计系统里而不是各自的页面样式表里：这两个页面样式表互不加载
-   （前台 theme+store，后台 theme+admin），keyframes 放任何一边都会让另一边
-   引用到一个不存在的动画名——那种失败是静默的，只是不动了。
-   -------------------------------------------------------------------------- */
+/* 共享动效：前台页头横幅、认证页左栏与后台面板头都用同一块「控制台铭牌」质感——细网格 + 琥珀辉光。网格按 46px 一循环，所以位移正好一个循环长度就能无缝接回，做出几乎察觉不到的漂移。
+   放在设计系统里而不是各自的页面样式表里：前台 theme+store、后台 theme+admin 互不加载，keyframes 放任何一边都会让另一边引用到一个不存在的动画名，而那种失败是静默的（只是不动了）。 */
 @keyframes hb-head-drift {
   from {
     background-position: 0 0, 0 0, 0 0, 0 0;

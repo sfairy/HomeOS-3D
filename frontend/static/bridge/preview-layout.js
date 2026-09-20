@@ -1,10 +1,8 @@
 /**
  * 3D 组件在设计器 / 仪表盘里的预览尺寸计算。
  *
- * 位置：编辑器与渲染器共用的一份纯计算，预览壳拿它决定占位宽高，
- *   真实舞台则由同一份比例去计算渲染分辨率，两边口径必须保持一致。
- * 对外导出：interaction3dPreviewSize。
- * 副作用：无，纯函数。
+ * 编辑器与渲染器共用的纯计算：预览壳拿它决定占位宽高，真实舞台用同一份比例去计算渲染分辨率，
+ * 两边口径必须保持一致。对外导出 interaction3dPreviewSize。无副作用。
  */
 
 // 文档里的数值可能以字符串形式存于 JSON，这里统一转换；
@@ -13,9 +11,7 @@ const positiveNumberOr = (value, fallback) =>
   Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
 /**
  * 计算预览区应占据的像素尺寸与宽高比。
- *
- * 缩放在宽高两个方向取较小者，即 CSS 的 contain 语义：宁可留边也不裁切，
- * 保证设计器里画布与真实投放后的取景范围完全一致。
+ * 缩放在宽高两方向取较小者（CSS contain 语义）：宁可留边也不裁切，保证与真实投放取景一致。
  */
 export function interaction3dPreviewSize(component, documentApi, containerWidth, containerHeight) {
   const isFillLayout = component.properties?.layoutMode === "fill";

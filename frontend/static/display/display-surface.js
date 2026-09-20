@@ -1,15 +1,11 @@
 /**
  * 苹果设备全屏展示页的背景色同步。
  *
- * 位置：展示页（display）启动流程里调用，仅对 iOS / iPadOS 生效。
- * 职责：把项目画布背景色写进 CSS 变量 --display-surface-background 与
- *   meta[theme-color]，让状态栏与页面底色一致，避免全屏下露出黑边。
- * 约定：只有「已添加到主屏并以 standalone 运行」的设备才处理；普通浏览器
- *   标签页交给页面自身背景，不改主题色。win 参数可注入，便于测试。
- *   「是不是苹果移动端」由 utils/apple-device.js 统一判定（原先这里与 display.js 各抄一份，
- *   而 pairing-link.js 那第三份用的是另一套证据）。
+ * 展示页启动时调用，仅对 iOS / iPadOS 生效：把项目画布背景色写进 CSS 变量
+ * --display-surface-background 与 meta[theme-color]，让状态栏与页面底色一致，避免全屏下露出
+ * 黑边。只有「已添加到主屏并以 standalone 运行」的设备才处理。
  */
-import { isAppleMobile } from "../utils/apple-device.js?v=20260920104554";
+import { isAppleMobile } from "../utils/apple-device.js?v=20260920131301";
 
 /**
  * 按画布背景色更新苹果全屏设备的表面颜色。

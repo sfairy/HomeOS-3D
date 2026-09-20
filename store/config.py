@@ -27,21 +27,10 @@ DEFAULT_ORDER_TTL_SECONDS = 120
 #: 解除设备绑定冷却（与参考站一致：28800 秒 = 8 小时）
 DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS = 28800
 #: 签发租约的有效期；客户端默认 300 秒心跳一次。
-#:
-#: ⚠ 这个值**同时**决定两件事，改它等于同时改这两件事：
-#:
-#: 1. **离线可用时长**：客户端把签名租约存进本地库，签名有效期内即使连不上商店也
-#:    照常放行（状态降为 ``CONNECTION_WARNING``）；租约一过就转 ``LEASE_EXPIRED``
-#:    并收回编辑器功能（见 ``backend/license/service.py`` 的 ``_payload``）。
-#: 2. **吊销生效上界**：管理后台停用授权/解绑设备时，客户端要等**下一次成功心跳**
-#:    才会知道。对一台**持续离线**的客户端，最坏情况就是撑到租约到期 —— 所以
-#:    「吊销最慢多久生效」在数值上就等于这个 TTL。
-#:
-#: 这两个需求是反向的：TTL 越长，断网与「商店本身故障/停机」越从容，但吊销越慢。
-#: 这里取 72 小时作为折中 —— 吊销最多 3 天生效，同时商店整体停摆 3 天内不会
-#: 把全部已付费客户锁在门外（早先的 7 天对吊销来说太慢；而审计初稿建议的
-#: 「心跳间隔 + 宽限期」（约 1 小时）会让商店故障 1 小时即锁死所有客户）。
-#: 误配成很大的值时 ``load_settings`` 会打启动告警提醒吊销上界。
+#: ⚠ 这个值**同时**决定两件事：① **离线可用时长** —— 签名有效期内客户端连不上商店也照常放行，租约
+#: 一过就转 ``LEASE_EXPIRED`` 并收回编辑器功能；② **吊销生效上界** —— 停用授权/解绑设备后客户端要等
+#: 下一次成功心跳，持续离线的客户端最坏撑到租约到期。两者需求反向，取 72 小时作折中：吊销最多 3 天
+#: 生效，商店整体停摆 3 天内也不会把所有已付费客户锁在门外。误配很大时启动会打告警。
 DEFAULT_LEASE_TTL_SECONDS = 72 * 3600
 DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 300
 #: 邮箱验证码有效期与重发间隔
@@ -94,15 +83,9 @@ def _env_int(
     maximum: int | None = None,
 ) -> int:
     """读一个整数环境变量。
-
-    解析失败**抛错，不回退默认值**。环境变量是部署时的输入，写错一个字符
-    （``STORE_ORDER_TTL_SECONDS=12o``）过去会静默变成「按默认值跑」—— 那正是
-    「改了配置但行为没变」这类事故的来源，而且日志里一个字都不会提。只有
-    「未设置」与「空串」才用默认值。
-
-    范围校验同理由这里做：调用方各自 ``max(1, ...)`` 兜底会把「配错了」变成
-    「悄悄按别的值跑」，例如 ``STORE_ORDER_TTL_SECONDS=-1`` 生成的是
-    「创建即过期」的订单 —— 用户看到的是下单就失败，运维看到的是一切正常。
+    解析失败**抛错，不回退默认值**：环境变量是部署时的输入，写错一个字符过去会静默变成「按默认值跑」，
+    正是「改了配置但行为没变」且日志一字不提的事故来源；只有「未设置」与「空串」才用默认值。范围校验
+    同理放在这里，否则调用方各自 ``max(1, ...)`` 兜底会把「配错了」悄悄变成按别的值跑。
     """
     raw = os.getenv(name)
     if raw is None or not raw.strip():
@@ -195,13 +178,13 @@ class StoreSettings:
     smtp_retry_backoff_seconds: float = 1.0
     verification_ttl_seconds: int = DEFAULT_VERIFICATION_TTL_SECONDS
     verification_cooldown_seconds: int = DEFAULT_VERIFICATION_COOLDOWN_SECONDS
-    #: S14：全站每小时的发信上限，兜住换 IP 的分布式滥用（按 IP 的那条是常量，
+    #: 全站每小时的发信上限，兜住换 IP 的分布式滥用（按 IP 的那条是常量，
     #: 见 ``store/api/store.py`` 的 ``_VERIFICATION_IP_LIMITER``）。做成可配置是因为
     #: 合理值随站点规模变化；触发时会打 error 级日志提示运营调高。
     verification_global_hourly_limit: int = 500
     #: 仅当 mail_mode=echo 时，接口才回显验证码明文（本地联调用）
     expose_verification_code: bool = False
-    #: 是否公开 ``/store-api-docs``（S26）。默认**关闭**：那两个页面会把全部商店与
+    #: 是否公开 ``/store-api-docs``。默认**关闭**：那两个页面会把全部商店与
     #: 后台端点、参数结构、鉴权方式一次性列给任何人 —— 等于给攻击者一份现成的目录。
     #: 本地联调时用 STORE_EXPOSE_API_DOCS=1 打开。
     expose_api_docs: bool = False
@@ -528,16 +511,9 @@ _RANGED_FIELDS: tuple[tuple[str, float | None, float | None], ...] = (
 
 def _validate_settings(settings: StoreSettings) -> None:
     """启动即校验，配错就抛 —— 不静默纠正、不带着坏值继续跑。
-
-    两类问题：
-
-    1. **单字段越界**（``_RANGED_FIELDS``）。典型是 ``order_ttl_seconds`` 为负或 0：
-       订单 ``expires_at`` 就等于创建时间，用户看到的是「一下单就过期」，而下单
-       接口本身返回 200，日志里没有一处异常 —— 只能靠人对着配置猜。
-    2. **跨字段矛盾**：租约 TTL 必须明显大于心跳间隔。否则一个心跳稍有延迟的健康
-       客户端，会在两次心跳之间就把租约耗到 ``LEASE_EXPIRED``、收回编辑器功能 ——
-       表现为「网络看着好好的，功能却一阵阵消失」，而两个配置项单独看都合法。
-       取 2 倍心跳作为下界：至少要能容忍**漏掉一次**心跳。
+    ① **单字段越界**（``_RANGED_FIELDS``）：典型是 ``order_ttl_seconds`` 为负或 0，订单 ``expires_at``
+    等于创建时间、用户看到「一下单就过期」而下单接口照常 200。② **跨字段矛盾**：租约 TTL 必须明显大于
+    心跳间隔，否则健康客户端会在两次心跳之间就把租约耗到 ``LEASE_EXPIRED``。取 2 倍心跳作为下界。
     """
     for field, minimum, maximum in _RANGED_FIELDS:
         value = getattr(settings, field)
@@ -558,16 +534,11 @@ def _validate_settings(settings: StoreSettings) -> None:
 
 
 def _validate_rotation(settings: StoreSettings) -> None:
-    """检查轮换重叠窗口的配置自洽性（S52）。
-
-    上一代密钥四件套齐全时窗口就是开着的，这里只拦「开了但没用」的组合：
-
-    * 显式 keyId 且上一代派生出**同一个** id —— 比如把当前密钥直接复制成
-      ``*.previous.pem``，或者（更常见）两边都用静态 ``STORE_LICENSE_KEY_ID``。
-      此时 ``KeyRegistry`` 会因 id 重复直接拒绝启动，与其等到构建密钥环时才炸，
-      不如在这里说清楚原因。
-    * 上一代存在但显式配置只改了其中一个 id：不影响启动，但会在日志里点明
-      「旧客户端仍按上一代 id 验签」，省得运维以为换了 id 就等于吊销了旧客户端。
+    """检查轮换重叠窗口的配置自洽性。
+    上一代密钥齐全时窗口就是开着的，这里只拦「开了但没用」的组合：① 显式 keyId 且上一代派生出**同一个**
+    id（例如把当前密钥直接复制成 ``*.previous.pem``，或两边都用静态 ``STORE_LICENSE_KEY_ID``），此时
+    ``KeyRegistry`` 会因 id 重复拒绝启动；② 上一代存在但只改了其中一个 id —— 不影响启动，但会在日志里
+    点明「旧客户端仍按上一代 id 验签」。
     """
     previous_paths = settings.previous_key_paths
     if previous_paths is None:
@@ -593,16 +564,10 @@ def _validate_rotation(settings: StoreSettings) -> None:
 
 def _warn_insecure_verification_exposure(settings: StoreSettings) -> None:
     """验证码回显 + 非本机绑定 → 大声告警。
-
-    回显（``mail_mode=echo`` 或 ``STORE_EXPOSE_VERIFICATION_CODE``）是本地联调用的，
-    一旦部署同时监听非本机网卡，就必须确认访问者真的到不了这个进程：请求侧只对
-    能确定来自本机的来源回显（见 ``store/api/store.py:_is_loopback_client``），
-    但如果前面挂了**同机反代且没配** ``STORE_TRUSTED_PROXIES``，每个外部请求的对端
-    都是 127.0.0.1，请求侧就无从区分了 —— 那正是这里要提醒的场景。
-
-    刻意只告警不抛错：docker 默认是 ``STORE_HOST=0.0.0.0``，而本地联调（含进程内调用，
-    没有真实网络对端）本来就要靠 echo。硬失败会把「本机联调」这一合法用法一起挡掉，
-    而它恰恰是 echo 存在的理由。
+    回显（``mail_mode=echo`` 或 ``STORE_EXPOSE_VERIFICATION_CODE``）是本地联调用的：一旦同时监听非本机
+    网卡，请求侧只对能确定来自本机的来源回显，但前面挂了**同机反代且没配** ``STORE_TRUSTED_PROXIES``
+    时每个外部请求的对端都是 127.0.0.1、无从区分 —— 那正是要提醒的场景。刻意只告警不抛错：硬失败会把
+    本机联调这一合法用法一起挡掉。
     """
     exposure_on = bool(settings.expose_verification_code) or settings.mail_mode == "echo"
     bind_host = (settings.host or "").strip().lower()
@@ -626,14 +591,9 @@ _LEASE_TTL_WARN_SECONDS = 7 * 24 * 3600
 
 def _warn_lease_revocation_bound(settings: StoreSettings) -> None:
     """把「吊销生效上界」在启动日志里说清楚。
-
-    租约 TTL 在实现上同时是两个东西：离线可用时长，以及**吊销最慢多久生效**。
-    这两件事只有一处配置，而常量名 ``STORE_LEASE_TTL_SECONDS`` 读起来只像前者 ——
-    运营出于「让断网用户更从容」把它调到 30 天时，多半没意识到停用一张授权也要
-    等 30 天才能对一台离线设备生效。所以这里把耦合关系换算成天数摆到日志里。
-
-    刻意只告警不拦：TTL 调大是合法的可用性取舍（例如商店本身要长期停机维护），
-    该由运营自己权衡；这里只保证他做选择时看得见代价。
+    租约 TTL 同时是离线可用时长与**吊销最慢多久生效**，但常量名读起来只像前者 —— 运营为「让断网用户
+    更从容」把它调到 30 天时，多半没意识到停用一张授权也要等 30 天才对离线设备生效。所以这里把耦合
+    关系换算成天数摆到日志里。刻意只告警不拦：TTL 调大是合法的可用性取舍，只保证选择时看得见代价。
     """
     seconds = int(settings.lease_ttl_seconds or 0)
     if seconds <= _LEASE_TTL_WARN_SECONDS:

@@ -1,18 +1,12 @@
 """Home Assistant 媒体与摄像头的反向代理。
 
-浏览器不能直接访问 HA（Token 只存在服务端，HA 又常在私网），因此这里把
-/api/camera_proxy/、/api/camera_proxy_stream/、/api/image_proxy/、/api/media_player_proxy/、
-/api/hls/ 这几类路径整体中转到 HA，转发过程中：
+浏览器不能直接访问 HA（Token 只在服务端，HA 常在私网），因此把 camera_proxy /
+camera_proxy_stream / image_proxy / media_player_proxy / hls 几类路径中转到 HA：
+注入服务端 Bearer Token，剥掉浏览器凭据与转发头，只放行这些前缀并拒绝路径绕过。
 
-- 注入服务端持有的 Bearer Token，并剥掉浏览器的 Cookie / Origin / 转发头；
-- 只放行上述路径前缀，同时拒绝路径归一化绕过（'.' / '..' / 反斜杠）；
-- **每条路径都必须给出实体归属**，且该实体属于当前主体（见 :func:`require_media_proxy_scope`）
-  —— 代理会注入 HA 令牌，没有这道校验时，绑在项目 A 的中控只要写下项目 B 的实体 ID 就能把
-  别人的摄像头画面拉出来；
-- 快照类请求走带 TTL 的进程内缓存，避免多个看板同时刷新把 HA 打满；
-- HLS 播放地址由 /api/camera_hls/{entity_id} 换取，拿到后同样走本代理。
-
-媒体流是长连接，因此流式分支的超时设为 None（不主动掐断），其余请求使用 HA 客户端配置的超时。
+每条路径都必须给出属于当前主体的实体归属 —— 代理会注入 HA 令牌，没有这道校验时，
+绑在项目 A 的中控只要写下项目 B 的实体 ID 就能拉到别人的摄像头画面。
+快照走带 TTL 的进程内缓存；媒体流是长连接，流式分支超时设为 None（不主动掐断）。
 """
 from __future__ import annotations
 
@@ -42,9 +36,8 @@ ALLOWED_MEDIA_PROXY_PREFIXES = (
     '/api/media_player_proxy/',
     '/api/hls/',
 )
-# 转发给 HA 前要剥掉的请求头：逐跳头（connection / te / trailer / upgrade）、
-# 浏览器凭据（cookie / authorization）、以及外层反代的来源信息。
-# 不剥这些会把自己的部署拓扑透给 HA，也可能让 HA 误判请求来源。
+# 转发给 HA 前要剥掉的请求头：逐跳头、浏览器凭据（cookie / authorization）与
+# 外层反代的来源信息。不剥这些会把自己的部署拓扑透给 HA，也可能让 HA 误判请求来源。
 REQUEST_HEADERS_TO_DROP = {
     'te',
     'via',
@@ -79,21 +72,17 @@ RESPONSE_HEADERS_TO_DROP = {
 CAMERA_SNAPSHOT_CACHE_TTL_SECONDS = 8
 # 缓存条目上限，超限按创建时间淘汰最旧一条，防止长期运行把内存吃满。
 CAMERA_SNAPSHOT_CACHE_MAX_ENTRIES = 64
-# 缓存的**字节**预算（B14）：条数封顶挡不住「64 张 4K 快照」这种组合 ——
-# 按张数算，64 张各 3 MB 就是近 200 MB 常驻内存。超预算同样淘汰最旧的一条，
+# 缓存的**字节**预算：条数封顶挡不住「64 张 4K 快照」。超预算同样淘汰最旧的一条，
 # 直到落回预算内；两个上限都生效（先撞哪个按哪个）。
 CAMERA_SNAPSHOT_CACHE_MAX_BYTES = 24 * 1024 * 1024
-# 单张快照**可进缓存**的上限（B14/B15）。超过它的响应照旧原样流给浏览器，
+# 单张快照**可进缓存**的上限。超过它的响应照旧原样流给浏览器，
 # 只是不为它攒内存：缓存图的是省下一次回源，不值得为此把一张几十 MB 的图钉住。
 CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES = 6 * 1024 * 1024
 # HA 摄像头实体 supported_features 的 bit 2 表示支持 STREAM（可转 HLS）。
 CAMERA_FEATURE_STREAM = 2
 
 #: 五条通配媒体前缀里「第一段路径就是实体 ID」的四条。
-#:
-#: ``/api/hls/`` 刻意不在其中：HA 把 HLS 播放地址给成 ``/api/hls/<流令牌>/...``，
-#: 令牌是 HA 生成的随机串，**里面没有实体信息**，所以那一条只能靠本服务在发放
-#: 播放地址时记账（见 :func:`remember_hls_stream`）。
+#: ``/api/hls/`` 不在其中：HA 把 HLS 地址给成 ``/api/hls/<流令牌>/...``，令牌里没有实体信息。
 ENTITY_PATH_MEDIA_PREFIXES = (
     '/api/camera_proxy/',
     '/api/camera_proxy_stream/',
@@ -107,10 +96,7 @@ HLS_STREAM_SCOPE_TTL_SECONDS = 12 * 3600
 #: 记账条数上限，超限淘汰最早到期的一条（同快照缓存的「淘汰最旧」口径）。
 HLS_STREAM_SCOPE_MAX_ENTRIES = 128
 #: 同一个项目对同一个 HLS 令牌的归属结论，多久之内不必重查数据库。
-#:
-#: HLS 的片段请求是「每个分片一次」（几秒一个），逐次查库会把这个接口的数据库
-#: 开销抬到与实际收益不相称的高度；而令牌 ↔ 实体的对应关系在一次播放里不会变。
-#: 窗口取得很短（一分钟），这样即使仪表盘刚好改了绑定，漏放也不会超过一分钟。
+#: HLS 分片是几秒一个，逐次查库开销不相称；窗口取 60 秒，改绑后漏放不超过一分钟。
 HLS_SCOPE_RECHECK_SECONDS = 60
 
 
@@ -127,7 +113,7 @@ class CameraSnapshotCacheEntry:
 class HlsStreamScope:
     """一条 HLS 播放地址的归属：属于哪个实体、记账何时过期、谁校验过。
 
-    ``verified_project`` / ``verified_at`` 是「最近一次通过校验的项目与时刻」，
+    ``verified_project`` / ``verified_at`` 记录最近一次通过校验的项目与时刻，
     用来把片段级请求的查库开销压到每分钟一次（见 HLS_SCOPE_RECHECK_SECONDS）。
     """
 
@@ -142,19 +128,11 @@ class HlsStreamScope:
 
 
 class MediaProxyCaches:
-    """媒体代理的两份进程内记账：快照缓存与 HLS 归属（B57）。
+    """媒体代理的两份进程内记账：快照缓存与 HLS 归属。
 
-    挂在 ``app.state.media_proxy`` 而**不是**模块级字典。模块级那一版建立在「一个进程里只有一个
-    应用实例」这个假设上，而它在三处都不成立：
-
-    - ``create_app()`` 调两次就会共享同一份缓存 —— 第二个应用直接读到第一个应用缓存的画面；
-    - 刷新任务表里存的是 ``asyncio.Task``，而任务属于**某一个**事件循环：另一个应用去 await 它会抛
-      「attached to a different loop」；
-    - 换了一条 HA 连接时没有任何东西能让它失效 —— 地址可以不变而实例已经换了一台（重装、恢复
-      备份、同一地址换了另一套系统），此时缓存里是**上一台** HA 的画面。
-
-    因此快照键里带连接身份（换连接后旧条目不可能被命中），两份记账另有一处显式清空
-    （连接被重建时，见 :meth:`clear`）。
+    挂在 ``app.state.media_proxy`` 而不是模块级字典：模块级会在 create_app() 调两次、
+    跨事件循环的刷新任务、以及换 HA 连接这三处失效。因此快照键里带连接身份，
+    两份记账另有 :meth:`clear` 在连接重建时显式清空。
     """
 
     def __init__(self) -> None:
@@ -168,9 +146,8 @@ class MediaProxyCaches:
     def clear(self) -> None:
         """丢掉两份记账 —— 连接被重建或删除时调用（见 ``HAConnectorService.restart``）。
 
-        在途的刷新任务**不取消**：取消会让正在等它完成的那次请求（``hb_live=1`` 会
-        ``asyncio.shield`` 它）收到 CancelledError。它自己会结束，而它写回的是**旧连接**
-        的键，清理之后不会被任何请求命中。
+        在途的刷新任务**不取消**：取消会让正在等它的请求（``hb_live=1`` 会 ``shield`` 它）
+        收到 CancelledError；它写回的是旧连接的键，清理之后不会被任何请求命中。
         """
         self.snapshots.clear()
         self.hls_scopes.clear()
@@ -189,22 +166,14 @@ class MediaProxyCaches:
     def remember_snapshot(self, key: str, content: bytes, content_type: str) -> None:
         """写入快照缓存；超条数或超字节预算时淘汰最旧的一条。
 
-        用「淘汰最旧」而不是 clear()：缓存里都是活跃图片，清空会让紧接着的一轮请求全部回源，
-        反过来冲击 HA。
-
-        单张超过 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES`` 的直接不缓存（B14）：这类响应（例如一张
-        几十 MB 的原始快照）一旦缓存，一条就能吃掉整个字节预算，把真正有用的那几十张小图全挤出去，
-        而它自己的命中率并不高。
-
-        预算与单张上限都调得很小时，缓存里至少会留下第一条 —— 与日志裁剪同一口径：宁可短暂超一点，
-        也不要出现「什么都存不下」的空转。
+        用「淘汰最旧」而不是 clear()：清空会让紧接着的一轮请求全部回源。单张超过
+        ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES`` 的不缓存（一条就能吃掉整个字节预算）。
         """
         if len(content) > CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES:
             self.snapshots.pop(key, None)
             return None
-        # 淘汰判据是「放进这一条之后」的占用：覆盖已有键时先把它自己那一份算掉。
-        # 旧实现在条数满时就有这层保护（覆盖不会让条数增长），换成字节预算后同样
-        # 需要 —— 否则反复刷新同一张图会被当成新增，每次都白白淘汰一条别的活跃图。
+        # 淘汰判据是「放进这一条之后」的占用：覆盖已有键时先把它自己那一份算掉，
+        # 否则反复刷新同一张图会被当成新增，每次都白白淘汰一条别的活跃图。
         while self.snapshots:
             replaced = self.snapshots.get(key)
             replaced_bytes = len(replaced.content) if replaced is not None else 0
@@ -259,8 +228,7 @@ class MediaProxyCaches:
     ) -> None:
         """后台回源刷新一张快照并写进缓存。
 
-        失败被静默吞掉：调用方此时通常已经把旧图返回给浏览器了，
-        为了刷新失败去中断这次看板渲染并不值得。
+        失败被静默吞掉：调用方此时通常已把旧图返回给浏览器，不值得为刷新失败中断渲染。
         """
         try:
             async with httpx.AsyncClient(
@@ -287,11 +255,10 @@ class MediaProxyCaches:
         return self.hls_scopes.get(token) if token else None
 
     def remember_hls_stream(self, stream_url: str, entity_id: str) -> None:
-        """记账「这条 HLS 播放地址是给哪个实体的」，供后续片段请求做归属校验。
+        """记账「这条 HLS 播放地址是给哪个实体的」，供片段请求做归属校验。
 
-        这是 HLS 唯一的归属来源：令牌里没有实体信息，只能在**发放时**记下来。
-        记账是滑动的（每次命中续期），所以一次正常播放不会中途失效；淘汰只在
-        并发播放数超过上限时发生，那种情况下前端会回落到带实体校验的 MJPEG 通道。
+        这是 HLS 唯一的归属来源：令牌里没有实体信息，只能在发放时记下来。记账滑动续期，
+        正常播放不会中途失效；淘汰只在并发播放数超上限时发生，前端会回落到 MJPEG。
         """
         token = hls_stream_token(stream_url)
         if not token:
@@ -319,11 +286,7 @@ class MediaProxyCaches:
 
 
 def upstream_path(request: Request) -> str:
-    """拼出要转给 HA 的路径（含查询串）；HA 侧路径与本服务完全一致。
-
-    参数:
-        request: 浏览器原始请求，查询串原样保留（HLS 片段依赖查询参数）。
-    """
+    """拼出要转给 HA 的路径（含查询串）；HA 侧路径与本服务完全一致。"""
     path = request.url.path
     query = request.url.query
     return f'{path}?{query}' if query else path
@@ -334,8 +297,7 @@ def upstream_request_headers(headers: Mapping[str, str]) -> dict[str, str]:
     return {
         name: value
         for name, value in headers.items()
-        # 保留 Range / If-None-Match 这类影响媒体响应内容的头，
-        # 只丢弃黑名单里的头与全部 x-forwarded-*。
+        # 保留 Range / If-None-Match 等影响媒体内容的头，只丢弃黑名单头与全部 x-forwarded-*。
         if name.lower() not in REQUEST_HEADERS_TO_DROP and not name.lower().startswith('x-forwarded-')
     }
 
@@ -344,17 +306,15 @@ def allowed_media_proxy_path(path: str) -> bool:
     """判断路径是否允许代理：既要命中白名单前缀，也不能含路径归一化写法。"""
     if not path.startswith(ALLOWED_MEDIA_PROXY_PREFIXES) or '\\' in path:
         return False
-    # 逐段检查：出现 '.' / '..' 时可以用 /api/hls/../xxx 之类的写法
-    # 绕过前缀检查打到别的 HA 接口，所以这里必须再拦一道。
+    # 逐段检查：'.' / '..' 可用 /api/hls/../xxx 绕过前缀检查打到别的 HA 接口。
     return all(segment not in {'.', '..'} for segment in path.split('/'))
 
 
 def media_proxy_entity_id(path: str) -> str | None:
     """从「路径里带实体」的媒体前缀取出实体 ID；不是那四条前缀时返回 None。
 
-    路径形态是 ``<前缀>/<实体 ID>[/...]``，实体 ID 由前端 ``encodeURIComponent``
-    编码，所以这里要解码一次再比对 —— 不解码的话 ``camera.%78`` 这类写法会与
-    可见集合里的真实 ID 对不上，校验变成了「拼写恰好一致才拦」。
+    路径形态是 ``<前缀>/<实体 ID>[/...]``，实体 ID 由前端 ``encodeURIComponent`` 编码，
+    因此要解码一次再比对 —— 否则 ``camera.%78`` 这类写法会绕过校验。
     """
     for prefix in ENTITY_PATH_MEDIA_PREFIXES:
         if path.startswith(prefix):
@@ -374,8 +334,8 @@ def hls_stream_token(path: str) -> str:
 def _viewer_can_see_entity(database_manager: Database, viewer: ViewerPrincipal, entity_id: str) -> None:
     """在独立会话里做一次实体归属校验；不可见时由 require_viewer_entity 抛 403。
 
-    独立会话是必需的：校验会在 ``asyncio.to_thread`` 的线程里跑，而请求级的
-    会话绑定在事件循环所在线程，跨线程使用会踩 SQLAlchemy 的会话线程约束。
+    独立会话是必需的：校验跑在 ``asyncio.to_thread`` 的线程里，而请求级会话绑定在
+    事件循环所在线程，跨线程使用会踩 SQLAlchemy 的会话线程约束。
     """
     with database_manager.session_factory() as database:
         require_viewer_entity(database, viewer, entity_id)
@@ -386,13 +346,8 @@ async def require_media_proxy_scope(
 ) -> None:
     """媒体代理的归属门禁：请求路径必须能定位到一个当前主体可见的实体。
 
-    过去的门禁只有「已认证 + 授权允许 api」，而本代理会**注入 HA 令牌**回源 —— 于是一台绑在
-    项目 A 的中控只要请求 ``/api/camera_proxy/camera.front_door``（实体 ID 是可读名字，不是保密
-    的随机串）就能把项目 B 的画面拉出来。同类 HLS 端点一直在做实体校验，媒体代理这两条路径却漏了，
-    这是跨项目 IDOR。
-
-    做成**路由级依赖**而不是处理器里的一行：新增媒体路由时 ``Depends`` 写在路由签名上，漏掉它会
-    一眼看出来；写在函数体里则很容易「新路由忘了抄」。
+    只有「已认证 + 允许 api」不够：实体 ID 是可读名字，绑在项目 A 的中控只要写下项目 B
+    的实体就能拉到别人的画面（跨项目 IDOR）。做成路由级依赖，新路由漏掉它一眼能看出来。
     """
     path = request.url.path
     if not allowed_media_proxy_path(path):
@@ -402,8 +357,7 @@ async def require_media_proxy_scope(
     entity_id = media_proxy_entity_id(path)
     if entity_id is None:
         # HLS 分支：令牌查不到归属就拒绝（fail closed）。令牌只可能由本服务的
-        # /api/camera_hls 在实体校验之后记账，所以「查不到」= 不是本服务发的；
-        # 前端在流被拒后会回落到带实体校验的 MJPEG 通道，不会一直黑屏。
+        # /api/camera_hls 在实体校验后记账，查不到即不是本服务发的；前端会回落到 MJPEG。
         token = hls_stream_token(path)
         scope = caches.hls_scope(token)
         entity_id = caches.hls_entity_id(path) if scope is not None else None
@@ -412,8 +366,7 @@ async def require_media_proxy_scope(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail='这段媒体流不属于当前中控仪表盘。',
             )
-        # 管理员会话不受限（viewer.project_id is None），没有可缓存的「已校验」结论；
-        # 中控设备则在短窗口内复用上一次结论，避免每个 HLS 分片都查一次库。
+        # 管理员不受限（project_id 为 None），中控则在一个短窗口内复用上次结论，避免每分片查库。
         project_key = viewer.project_id or ''
         if (
             project_key
@@ -430,8 +383,7 @@ async def require_media_proxy_scope(
             scope.verified_at = monotonic()
         return
     if viewer.project_id is None:
-        # 管理员会话可见全部实体：require_viewer_entity 也会直接放行，
-        # 这里省掉的是一次跨线程的建会话开销（快照请求是热路径）。
+        # 管理员可见全部实体，这里省掉一次跨线程建会话的开销（快照请求是热路径）。
         return
     await asyncio.to_thread(
         _viewer_can_see_entity, request.app.state.database, viewer, entity_id
@@ -441,9 +393,8 @@ async def require_media_proxy_scope(
 def rewrite_location(value: str, base_url: str) -> str:
     """把 HA 返回的绝对地址改写成本服务可代理的相对路径。
 
-    Location 响应头与 HLS 播放列表里的地址可能是 HA 的绝对 URL，浏览器直接
-    访问打不到（HA 在私网或仅服务端可达），因此统一改写成 /api/... 形式。
-    只改写命中媒体白名单的路径，其余原样返回，避免误改外站链接。
+    Location 头与 HLS 播放列表里的地址可能是 HA 的绝对 URL，浏览器直接访问打不到，
+    因此统一改写成 /api/... 形式；只改写命中媒体白名单的路径，其余原样返回。
     """
     normalized_base = base_url.rstrip('/')
     if value == normalized_base:
@@ -464,10 +415,8 @@ def rewrite_location(value: str, base_url: str) -> str:
 def camera_supports_hls(entity_state: dict | None) -> bool | None:
     """判断摄像头实体是否能提供 HLS 实时流。
 
-    参数:
-        entity_state: HA 返回的实体状态字典；取不到时为 None。
-    返回:
-        True 能；False 明确不支持（前端应回落到 MJPEG）；None 状态未知，
+    参数: entity_state 为 HA 返回的实体状态字典；取不到时为 None。
+    返回 True 能、False 明确不支持（前端应回落 MJPEG）、None 状态未知。
     """
     if not isinstance(entity_state, dict):
         return None
@@ -493,13 +442,11 @@ def camera_supports_hls(entity_state: dict | None) -> bool | None:
 def versioned_image_proxy_cache_control(path: str, query: str, status_code: int) -> str | None:
     """为「带版本参数」的 HA 图片给出可长期缓存的 Cache-Control。
 
-    只对 /api/image_proxy/ 的 2xx 生效：带 hb 参数说明这张图的内容变化会反映在
-    URL 上，因此可以标记为 immutable 缓存 10 分钟；摄像头快照等实时资源没有该
-    参数，返回 None 让它保持 HA 原策略，不被浏览器缓存住。
+    只对 /api/image_proxy/ 的 2xx 生效：带 hb 参数说明内容变化会反映在 URL 上，
+    因此可标记为 immutable 缓存 10 分钟；其余资源返回 None，不被浏览器缓存住。
     """
     if path.startswith('/api/image_proxy/') and 200 <= status_code < 300:
-        # hb 是前端给「实体状态图」打的版本戳：内容变了 URL 就会变，
-        # 值为空则等同于没有版本信息，不能长缓存。
+        # hb 是前端给「实体状态图」打的版本戳，值为空等同于没有版本信息，不能长缓存。
         versioned = any(
             key == 'hb' and bool(value)
             for part in query.split('&')
@@ -515,12 +462,8 @@ def versioned_image_proxy_cache_control(path: str, query: str, status_code: int)
 def camera_snapshot_cache_key(connection_id: str, base_url: str, path: str) -> str:
     """快照缓存键：连接身份 + HA 基址 + 代理路径。
 
-    三个部分各挡一类串图：连接身份挡「换了一台 HA 却继续发上一台的画面」（B57，
-    地址可以不变而实例已经换了）；基址挡「同一进程里配过多个地址」；路径挡
-    「同一台 HA 上不同摄像头互相串」。
-
-    连接身份必须在这里而不是靠清缓存：换连接与清缓存是两件事，任何一条没走清缓存
-    的路径（以及清理之后才回来的在途刷新）都不该让旧画面被命中。
+    三部分各挡一类串图：连接身份挡「换了 HA 仍发上一台画面」、基址挡「同进程配过多个
+    地址」、路径挡「同一台 HA 上不同摄像头互串」。连接身份必须在这里而不是只靠清缓存。
     """
     return f'{connection_id}|{base_url.rstrip("/")}{path}'
 
@@ -549,9 +492,8 @@ def load_authorized_camera_connection(
 async def proxy_http(request: Request) -> Response:
     """媒体代理的核心实现：与身份无关的通用转发。
 
-    门禁：只允许 GET / HEAD，且路径必须命中媒体白名单；未配置 HA 抛 409；凭证解密失败或回源失败
-    抛 502。浏览器原始请求的查询串会原样带给 HA，返回上游响应（流式或一次性），必要时带上改写后的
-    缓存与 Location 头。
+    门禁：只允许 GET / HEAD 且路径命中白名单；未配置 HA 抛 409，凭证解密失败或回源失败
+    抛 502。查询串原样带给 HA，返回上游响应（流式或一次性），必要时改写缓存与 Location 头。
     """
     if request.method not in {'GET', 'HEAD'} or not allowed_media_proxy_path(request.url.path):
         # 路径不合规统一回 404 而不是 403：不向扫描者暴露哪些前缀存在。
@@ -613,10 +555,8 @@ async def proxy_http(request: Request) -> Response:
     )
     try:
         upstream_request = client.build_request(request.method, target, headers=headers)
-        # 必须始终以流式方式取回上游：两个分支都用 aiter_raw() 逐块透传，而
-        # stream=False 会让 httpx 先把整包读完（is_stream_consumed=True），
-        # 之后 aiter_raw() 直接抛 StreamConsumed —— 非流式分支过去正是这样在
-        # 回响应时才炸（B15 改为逐块透传时引入），且整包内存并未省下。
+        # 必须始终以流式方式取回上游：stream=False 会让 httpx 先把整包读完，
+        # 之后 aiter_raw() 直接抛 StreamConsumed，而整包内存并未省下。
         upstream = await client.send(upstream_request, stream=True)
     except httpx.HTTPError as error:
         # 失败路径同样要关掉客户端，否则连接池会随失败次数泄漏。
@@ -646,8 +586,7 @@ async def proxy_http(request: Request) -> Response:
         async def stream_body():
             """把上游字节流原样转发给客户端。
 
-            使用 aiter_raw() 而不是 aiter_bytes()：这里只做管道，不做解码，
-            避免上游是压缩响应时被再解压/再压缩一次。
+            用 aiter_raw() 而不是 aiter_bytes()：这里只做管道不做解码，避免压缩响应被再解压一次。
             """
             try:
                 async for chunk in upstream.aiter_raw():
@@ -665,14 +604,8 @@ async def proxy_http(request: Request) -> Response:
     async def pass_through_body():
         """非流式分支：同样逐块透传，只在「够小且要缓存」时攒一份副本。
 
-        过去这里是 ``content = upstream.content`` —— 上游给多大就占多大内存（B15）：一张几十 MB 的图、
-        或者一个被指向大文件的 image_proxy 路径，都能让一次请求把整包内容钉在内存里。快照路径更吃亏：
-        它本来就要缓存一份，于是同一张图在内存里存在两份。
-
-        攒副本的边界是 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES``：一旦超过就丢掉已攒的部分并停止累积
-        （响应照旧完整透传），因此单条响应额外占用的内存最多就是这一个上限。只有快照请求
-        （``snapshot_request``）才攒，其余路径（image_proxy / media_player_proxy / HLS 播放列表）
-        压根不进缓存。
+        不能写 ``upstream.content``（上游给多大就占多大内存）；只有快照请求才攒，
+        超过 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES`` 就丢弃已攒部分并停止累积。
         """
         buffered = bytearray()
         cacheable = snapshot_request
@@ -690,8 +623,8 @@ async def proxy_http(request: Request) -> Response:
         finally:
             await upstream.aclose()
             await client.aclose()
-        # 走到这里说明上游已经读完（生成器提前关闭时不会执行到这里，
-        # 半截内容绝不能进缓存）。回源成功就顺手更新缓存，下一次请求直接命中。
+        # 走到这里说明上游已经读完（提前关闭时不会执行到这里，半截内容绝不能进缓存）。
+        # 回源成功就顺手更新缓存，下一次请求直接命中。
         if cacheable and buffered and 200 <= upstream.status_code < 300:
             caches.remember_snapshot(
                 snapshot_key,
@@ -710,10 +643,8 @@ async def camera_hls_stream(
 ) -> JSONResponse:
     """为摄像头换取 HLS 播放地址（需已认证且授权允许 api）。
 
-    路径参数 entity_id 必须是当前主体可见的实体，否则 403。返回 ``{'url': ...}``（可直接请求的
-    代理播放地址）、``{'url': None, 'fallback': 'mjpeg'}``（该摄像头明确不支持 HLS，回落 MJPEG）、
-    或带 ``detail`` 的同类回落（HA 侧可回落的错误）。409 未配置 HA；502 凭证解密失败、
-    WebSocket 无法建立或 Token 鉴权失败。
+    路径参数 entity_id 必须是当前主体可见的实体，否则 403。返回 ``{'url': ...}``，或
+    ``{'url': None, 'fallback': 'mjpeg'}``（不支持时回落 MJPEG）。409 未配置 HA；502 启动流失败。
     """
     connection = await asyncio.to_thread(
         load_authorized_camera_connection, request.app.state.database, viewer, entity_id
@@ -743,8 +674,7 @@ async def camera_hls_stream(
         ) from error
     except HAClientError as error:
         error_text = str(error)
-        # 按错误文案分流：连接与鉴权问题属于配置错误，必须让用户看到（502）；
-        # 其余（例如摄像头本身不响应）降级成 MJPEG，不打断看板。
+        # 连接与鉴权问题是配置错误，必须让用户看到（502）；其余（如摄像头不响应）降级成 MJPEG。
         if any(
             marker in error_text
             for marker in ('无法建立 Home Assistant WebSocket', '鉴权失败', '无法连接 Home Assistant', 'Token')
@@ -765,8 +695,7 @@ async def camera_hls_stream(
     # 改写后的地址必须仍落在媒体白名单内，防止被诱导到其它 HA 接口。
     if not allowed_media_proxy_path(stream_url.split('?', 1)[0]):
         return mjpeg_fallback
-    # 记账这条播放地址的归属：HLS 令牌里没有实体信息，片段请求的归属校验
-    # 只能靠这里记下来的「令牌 → 实体」（B50）。
+    # 记账归属：HLS 令牌里没有实体信息，片段请求的校验只能靠这里记下的「令牌 → 实体」。
     request.app.state.media_proxy.remember_hls_stream(stream_url, entity_id)
     return JSONResponse({'url': stream_url})
 
@@ -784,7 +713,6 @@ async def proxy_home_assistant_media(
     """五条媒体路径共用的代理入口（需已认证、授权允许 api、且实体对当前主体可见）。
 
     路由用通配路径覆盖 HA 的几种媒体前缀，具体的白名单判定在 proxy_http 里做；
-    认证与授权由 _viewer 依赖完成，实体归属由 _scope 依赖完成（B50：这两条路径
-    过去只查前者），本函数只负责转发。
+    认证与授权由 _viewer 依赖完成，实体归属由 _scope 依赖完成，本函数只负责转发。
     """
     return await proxy_http(request)

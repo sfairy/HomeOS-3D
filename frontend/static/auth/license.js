@@ -1,18 +1,14 @@
 /**
- * 授权页（/license）逻辑。
+ * 授权页（/license）逻辑：未授权 / 授权失效时由后端跳转至此。
  *
- * 位置：未授权 / 授权失效时后端把请求跳转到此页。
- * 职责：轮询 /api/v1/license/status 判断是否已可进入编辑器，处理激活码提交，
- *   并提供退出本机登录入口。
- * 约定：5 秒轮询一次状态，但满足任一条件就跳过这一拍 —— 激活请求进行中
- *   （activationPending）、即将跳转（navigating）、或上一次状态请求还在飞
- *   （isLoadingStatus）。进入编辑器用 location.replace，防止用户按返回键回到授权页。
- * 约定：状态与激活请求都走 utils/api-fetch.js（20 秒超时）。这把「在飞闩」与超时是
- *   一对：只有闩没有超时，一次弱网就把轮询永久冻住；只有超时没有闩，弱网下每 5 秒
- *   就再叠一个同源请求上去，把本来就差的网络压得更差。
+ * 轮询 /api/v1/license/status 判断是否可进入编辑器，处理激活码提交与退出本机登录。
+ * 约定：5 秒轮询一次，但激活请求进行中（activationPending）、即将跳转（navigating）或上次
+ * 状态请求还在飞（isLoadingStatus）时跳过这一拍。进入编辑器用 location.replace 防止返回键回到授权页。
+ * 请求都走 utils/api-fetch.js（20 秒超时）：「在飞闩 + 超时」缺一不可 —— 无超时则弱网下轮询永久冻住，
+ * 无闩则每 5 秒叠一个同源请求把网络压得更差。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=20260920104554";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920104554";
+import { apiFetch } from "../utils/api-fetch.js?v=20260920131301";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260920131301";
 
 const form = document.querySelector("#license-form"),
   message = document.querySelector("#message"),
@@ -103,11 +99,8 @@ async function loadStatus() {
 
 /**
  * 带「在飞去重闩」地查一次授权状态。
- *
- * 为什么闩必须在这里而不是在定时器回调里：初始加载与 5 秒轮询是同一个入口的两种
- * 触发方式，闩只加在定时器那一支，初始那次就会和第一拍叠在一起（也正是本页最早的
- * 形态）。超时会由 apiFetch 抛出，所以「闩 + 超时」一起才成立：闩保证不叠加，
- * 超时保证闩一定会被放掉（否则一次弱网就把轮询永久冻住）。
+ * 闩必须放在这里而非定时器回调：初始加载与 5 秒轮询是同一入口的两种触发方式，只加在定时器上
+ * 会让初始那次与第一拍叠加。超时由 apiFetch 抛出，闩保证不叠加，超时保证闩一定会被放掉。
  */
 async function refreshStatus() {
   if (isLoadingStatus || navigating) return;

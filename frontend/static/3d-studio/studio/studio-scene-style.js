@@ -1,14 +1,9 @@
 /**
- * 「暖阳原木」主题的调色板与地板材质增强。
+ * 「暖阳原木」主题的调色板与地板材质增强：studioPalette() 把 WARM_WOOD_STYLE 合并到
+ * STUDIO_PALETTE 之上（地板另需 decorateWarmFloor 做橡木拼板接缝与木纹，仅换基色做不出来）。
  *
- * 位置：工作室的 `studioPalette()` 在主题为暖阳原木时，把 WARM_WOOD_STYLE 合并到
- *   STUDIO_PALETTE 之上，之后所有取色都走合并结果；地板这一个材质另外需要着色器
- *   增强（见 decorateWarmFloor），因为仅换基色无法做出橡木拼板的接缝与木纹。
- * 对外：WARM_WOOD_STYLE（冻结的色表）、decorateWarmFloor（地板材质注入）。
- * 约定：色值与 STUDIO_PALETTE 一样用 0xRRGGBB 的十进制写法，与 three 的 Color 直接互通。
- * 重要：本表**不含** accent / accentIntensity / exposure / wallOpacity ——
- *   这四项在 0.5.6 里仍取 STUDIO_PALETTE 的原值，合并时不要在这里补上，
- *   否则会让强调色、曝光与墙体透明度偏离原设计。
+ * 约定：色值用 0xRRGGBB 十进制，与 three 的 Color 直接互通。本表不含 accent / accentIntensity /
+ * exposure / wallOpacity —— 这四项仍取 STUDIO_PALETTE 的原值，合并时不要补上，否则会偏离原设计。
  */
 export const WARM_WOOD_STYLE = Object.freeze({
   // 总开关：材质层大量分支都以它为准，取色表本身也带这一位。
@@ -58,12 +53,8 @@ export const WARM_WOOD_STYLE = Object.freeze({
 });
 /**
  * 给地板材质注入「泛白橡木」的程序化拼板与木纹。
- *
- * 做法：在标准材质里插入两段 GLSL —— 顶点阶段把世界坐标的 xz 与法线的竖向分量
- * 传给片元；片元阶段按 0.28m 的行距切出拼板行、每行按 2.4m 错缝，再画出
- * 板缝、端缝与细木纹。所有线条都用 fwidth 做抗锯齿，远处不会闪成噪点。
- *
- * 只在暖阳原木下生效：其它主题直接返回，不做任何改动。
+ * 在标准材质插入两段 GLSL：顶点阶段传世界坐标 xz 与法线竖向分量；片元阶段按 0.28m 行距切拼板行、
+ * 每行按 2.4m 错缝，画板缝 / 端缝 / 细木纹，线条用 fwidth 抗锯齿。只在暖阳原木下生效。
  */
 export function decorateWarmFloor(material, palette) {
   if (!palette.warmWood) {

@@ -1,19 +1,12 @@
 """支付到账后的统一入账逻辑。
 
-支付宝有两条确认到账的路径——异步通知和主动查单——必须收敛到同一段代码，
-否则两条路很容易出现「一个会发码、另一个不会」的差异。
+支付宝有两条确认到账的路径 —— 异步通知与主动查单 —— 必须收敛到同一段代码，否则很容易出现
+「一个会发码、另一个不会」的差异。
 
-两个关键取舍：
-
-1. **订单已超时关闭但钱确实收到了，仍然照常发码。** 钱在用户那边已经扣了，
-   如果这里把订单当过期丢掉，用户就得走人工客服。这类「复活」单的库存预留
-   在进入终态时就已经释放过，所以不能再释放一次 —— 否则会扣掉其它待支付订单的
-   预留额度。判据不再是「调用方读到的订单状态」，而是订单上持久化的
-   ``stock_reservation_released_at``（唯一的「这单还占不占预留」来源，见
-   ``fulfill.release_order_reservation``）。
-2. **用条件 UPDATE 做幂等。** 支付宝会重复推送通知，而查单可能和通知同时到达；
-   两个线程各自读到「未履约」就会重复发码。所以状态流转交给带条件的
-   UPDATE，谁抢到谁入账。
+两个关键取舍：① 订单已超时关闭但钱确实收到了仍照常发码（钱在用户那边已扣，丢掉就得走人工客服）；
+这类「复活」单的库存预留在进终态时已释放过，所以判据不是调用方读到的状态，而是订单上持久化的
+``stock_reservation_released_at``。② 用条件 UPDATE 做幂等：支付宝会重复推送、查单也可能与通知同时
+到达，状态流转交给带条件的 UPDATE，谁抢到谁入账。
 """
 
 from __future__ import annotations
@@ -43,16 +36,11 @@ _SETTLEABLE_STATUSES = (
     "fulfillment_failed",
 )
 
-#: 允许被标记为「发货失败」的状态。刻意收得很窄：
-#:
-#: * ``paid`` —— 入账刚把状态改到 paid，履约抛异常时就是这个状态；
-#: * ``fulfillment_failed`` —— 人工重试又失败，保持原状并刷新原因。
-#:
-#: 过去这里只排除 ``refunded``，于是并发的**成功**履约（状态已是 ``fulfilled``）
-#: 或一笔部分退款（``partially_refunded``）都会被这句 UPDATE 覆盖成
-#: ``fulfillment_failed``，连 ``fulfilled_at`` 也被清空 —— 码已经发给用户了，
-#: 账面却显示「发货失败、待重试」，重试闸门（``fulfilled_at IS NULL``）还被打开，
-#: 再点一次重试就会**重复发码**。
+#: 允许被标记为「发货失败」的状态。刻意收得很窄：``paid``（入账刚改到 paid，履约抛异常时就是这个
+#: 状态）与 ``fulfillment_failed``（人工重试又失败，保持原状并刷新原因）。
+#: 过去这里只排除 ``refunded``，于是并发的**成功**履约或一笔部分退款都会被这句 UPDATE 覆盖成
+#: ``fulfillment_failed``、连 ``fulfilled_at`` 也被清空 —— 码已发出、账面却显示待重试，而且重试闸门
+#: （``fulfilled_at IS NULL``）被打开，再点一次就会**重复发码**。
 _FAILURE_MARKABLE_STATUSES = ("paid", "fulfillment_failed")
 
 
@@ -72,7 +60,7 @@ def settle_paid_order(
         "status": "paid",
         "paid_at": order.paid_at or moment,
         # 走到这里就是**渠道**说钱收到了（异步通知 / 主动查单 / 同步跳转），这是这个
-        # 系统里最强的证据。因此顺手清掉人工补记标记（S8）：先被人工补记放行、钱随后
+        # 系统里最强的证据。因此顺手清掉人工补记标记：先被人工补记放行、钱随后
         # 真的到账的订单，从这里起就计入营收 —— 否则「补记过」会永久把真实收入挡在
         # KPI 之外，而运营没有任何办法把它加回来。
         "manual_settlement": False,
@@ -116,14 +104,10 @@ def settle_paid_order(
         original_status not in RESERVING_STATUSES
     )
     if revived:
-        # 钱在用户那边已经扣了，码照发（否则用户只能找人工客服）。但这件库存
-        # 的预留早已在订单进终态时还给别人，属于刻意保留的例外 —— 必须打上
-        # 「待人工复核」标记并在后台告警，否则没人知道发生了超卖。
-        #
-        # 优惠码名额同理：进终态时 ``release_coupon`` 已经把它还回去了，但核销
-        # 记录还在（记录要留着回答「这个账号用没用过这个码」）。现在这单复活成交，
-        # 名额必须重新占回来，否则该码的 ``redeemed_count`` 少算一次，
-        # ``max_redemptions`` 会被后来的人突破。
+        # 钱在用户那边已经扣了，码照发（否则用户只能找人工客服）。但这件库存的预留早已在订单进终态时
+        # 还给别人，属于刻意保留的例外 —— 必须打上「待人工复核」标记并在后台告警。优惠码名额同理：
+        # 进终态时 ``release_coupon`` 已把它还回去，但核销记录还在；现在这单复活成交，名额必须重新占
+        # 回来，否则该码的 ``redeemed_count`` 少算一次、``max_redemptions`` 会被后来的人突破。
         if order.coupon_code and not coupons.reoccupy_coupon(session, order):
             logger.warning(
                 "复活单未能重新占用优惠码名额（名额已满）order=%s code=%s",
@@ -166,7 +150,7 @@ def settle_paid_order(
             # 一遍同样的失败。这里把订单显式推到 fulfillment_failed 交后台人工
             # 处理（重试或退款），并把失败原因写进复核备注。
             _mark_fulfillment_failed(session, order_id=order.id, error=error)
-            # 除了日志，还要留下**能被接口读到**的计数（S36）：这一条是本文件里最重
+            # 除了日志，还要留下**能被接口读到**的计数：这一条是本文件里最重
             # 的失败 —— 钱已经入账，授权却没发出去。只写日志时它和「巡检一切正常」
             # 在后台长得一模一样，运维得先知道去翻日志才可能发现。
             incidents.note("fulfillment", order_no=order.order_no, error=error)
@@ -186,12 +170,9 @@ def settle_paid_order(
 
 def _mark_fulfillment_failed(session: Session, *, order_id: str, error: Exception) -> None:
     """把订单标记为发货失败并请求人工介入（独立事务段，不再受失败的履约影响）。
-
-    状态守卫必须收窄（见 ``_FAILURE_MARKABLE_STATUSES``）：履约抛异常时，另一个
-    线程/另一次重推可能**已经把这单履约成功了**，或者运营已经退了款。无条件
-    （或只排除 ``refunded``）地写 ``fulfillment_failed`` 会把这些结果覆盖掉，
-    并顺手清空 ``fulfilled_at`` —— 那正是重试的幂等闸门，闸门被打开意味着
-    下一次重试会重复发码。
+    状态守卫必须收窄（见 ``_FAILURE_MARKABLE_STATUSES``）：履约抛异常时，另一个线程或另一次重推可能
+    已经把这单履约成功、或运营已经退了款；无条件地写 ``fulfillment_failed`` 会覆盖这些结果，并顺手
+    清空 ``fulfilled_at`` —— 那正是重试的幂等闸门，被打开意味着下一次重试会重复发码。
     """
     session.execute(
         update(Order)

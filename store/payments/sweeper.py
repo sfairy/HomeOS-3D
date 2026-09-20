@@ -1,18 +1,11 @@
 """后台支付巡检：定时对账 + 关闭过期交易 + 本地超时单收尾。
 
-为什么必须由服务端定时跑，而不能只靠前端轮询：
+必须由服务端定时跑，前端轮询靠不住：用户扫码付完款直接关掉页面就再没人查单，钱付了订单却停在
+pending，库存预留与优惠码名额一直挂着；本地订单过期/取消只是我们自己的状态，支付宝那笔预下单交易
+仍然开着、旧二维码还能扫；商店整天没人访问（或没配渠道）时超时单连本地都不会清理。
 
-- 用户扫码付完款**直接关掉页面**，就再没有人去查单了。钱付了、订单却永远停在
-  pending，库存预留和优惠码名额也一直挂着 —— 直到用户下次打开账号中心，
-  而那可能是好几天之后。
-- 本地订单过期/取消只是我们自己的状态，支付宝那边那笔预下单交易仍然开着，
-  旧二维码还能扫、还能付。
-- 商店整天没人访问（或站点压根没配支付渠道）时，超时单连**本地**都不会被清理：
-  库存预留与优惠码名额一直挂着，用户本人还被「有未完成订单」挡着不能下单。
-
-巡检把这三件事收尾。后一件与渠道无关，所以即使没配支付宝也照跑（``store.commerce.expiry``）。
-它运行在独立的线程里（``asyncio.to_thread``），因为对渠道的调用是阻塞 I/O：
-直接在事件循环里 await 一个同步的 httpx 请求会把整个服务卡住。
+巡检把这三件事收尾，最后一件与渠道无关所以没配支付宝也照跑；它跑在独立线程里（``asyncio.to_thread``），
+因为对渠道的调用是阻塞 I/O，直接在事件循环里 await 会把整个服务卡住。
 """
 
 from __future__ import annotations
@@ -27,14 +20,9 @@ from store.config import StoreSettings
 from store.core.database import Database
 from store.core.models import utcnow
 from store.payments.reconcile import SweepResult, reconcile_due_orders
-# 时间戳归一只有一份实现（``store.security.iso_z``）。本文件原先自带一份副本，理由写的是
-# 「不用直接 import：security 会拉进密码哈希与 token 生成那一整套」—— 这条理由不成立：
-# ``store.core.models`` 本来就从 ``store.security.security`` 取 ``utcnow`` / ``new_uuid``，所以这个模块
-# 早就在导入图里了；而 ``security`` 的顶层只有 stdlib 与几个常量，没有「一整套」。
-# 更要紧的是两份**口径不同**：security 那份会把带时区的时间先换算到 UTC 再去掉时区，
-# 而副本直接 ``strftime`` —— 对带时区的输入会把当地时间贴上 ``Z`` 后缀（东八区差 8 小时）。
-# 现在库里存的都是 naive UTC，所以副本今天恰好没出错；一旦哪天上游传进带时区的值，
-# 它会静默把一个错误的「UTC 时刻」交给后台与 /healthz。
+# 时间戳归一只有一份实现（``store.security.iso_z``）：本文件原先自带的副本口径不同 —— 对带时区的
+# 输入会把当地时间贴上 ``Z`` 后缀（东八区差 8 小时），而现在库里存的都是 naive UTC 才恰好没出错。
+# 一旦上游传进带时区的值，它会静默把一个错误的「UTC 时刻」交给后台与 /healthz。
 from store.security.security import iso_z
 
 logger = logging.getLogger("store.payments.sweeper")
@@ -43,17 +31,10 @@ logger = logging.getLogger("store.payments.sweeper")
 _MAX_ERROR_CHARS = 300
 
 # 巡检状态
-# 为什么需要它：巡检跑在 `try/except Exception` 里，坏掉时**只往日志刷 traceback**，
-# 服务照常启动、下单照常成功，后台概览一片正常。于是「用户付了钱、订单停在待支付」
-# 会慢慢堆成客服工单，而运维只有去翻日志才知道。所以巡检必须自己留下可被接口读到的
-# 状态：上次成功是什么时候、连着失败几次、最近一次错在哪。
-#
-# 状态只放在进程内存里，不落库。这是刻意的：重启后「本进程内从未成功巡检」本身
-# 就是最该看到的信号，落库反而会把上一次进程的成功记录带过来，让刚起就坏的巡检
-# 看起来正常。
-# 巡检自己的状态词表（六档）。**不要**与 ``store/ops/incidents.py`` 那两个 ``HEALTH_*``
-# 合并：那套只有 ok/degraded 两档，回答的是「这个进程有没有吞过异常」，与「上一轮巡检
-# 成不成功」是两件事 —— 共享一个常量只会让两边在改词表时互相绊住。
+# 为什么需要它：巡检坏掉时**只往日志刷 traceback**，服务照常启动、下单照常成功，于是「用户付了钱、
+# 订单停在待支付」慢慢堆成工单而运维只有翻日志才知道。所以巡检必须留下可被接口读到的状态：上次成功
+# 是什么时候、连着失败几次、最近一次错在哪。状态只放进程内存、不落库 —— 重启后「本进程从未成功巡检」
+# 本身就是最该看到的信号。词表六档，**不要**与 ``store/ops/incidents.py`` 的 ``HEALTH_*`` 合并。
 HEALTH_OK = "ok"
 HEALTH_DISABLED = "disabled"  # 配置关掉了巡检（间隔 0）
 HEALTH_PENDING = "pending"  # 循环还没跑完第一轮
@@ -125,11 +106,8 @@ def _is_current(generation: int | None) -> bool:
 
 def mark_sweep_loop_stopped(generation: int | None = None) -> None:
     """循环退出时调用。
-
-    没有这一步，循环一旦静默退出（例如任务被取消），后台会一直显示「上次成功
-    xx 分钟前」——看起来还活着，实际早就没人对账了。
-
-    ``generation`` 用来确认「退出的是当前这轮循环」：旧循环的 finally 跑得晚一点
+    没有这一步，循环一旦静默退出（例如任务被取消），后台会一直显示「上次成功 xx 分钟前」，看起来还
+    活着、实际早就没人对账。``generation`` 用来确认退出的是当前这轮循环：旧循环的 finally 跑得晚一点
     时，它**不能**把已经接上来的新循环标成「已停止」。不传表示不校验（手工调用）。
     """
     with _lock:
@@ -171,14 +149,9 @@ def sweep_round(
     generation: int | None = None,
 ) -> SweepResult | None:
     """跑一轮巡检并登记状态。异常照旧往上抛。
-
-    异常的**登记**在这里、**处置**在调用方（``app.py`` 的循环负责打完整 traceback），
-    这样「谁记录状态」只有一处，不会出现循环自己记一半、sweep_once 记一半。
-
-    ``generation``：这轮属于哪次循环。传 None 表示「就是当前这轮」——手工调用
-    （测试、运维排查）不必先费力去取代号。不属于当前这轮的残留线程**照样把巡检
-    跑完**（对账是幂等的，白跑一轮没有副作用），但不许往快照里写：那份快照是给
-    运维看「现在这个循环还好吗」的，混进上一轮循环的数据只会把人带偏。
+    异常的**登记**在这里、**处置**在调用方（``app.py`` 的循环负责打完整 traceback），这样「谁记录
+    状态」只有一处。``generation`` 表示这轮属于哪次循环，传 None 即「当前这轮」（手工调用不必取代号）；
+    不属于当前这轮的残留线程照样把巡检跑完（对账幂等），但不许写快照，以免把运维带偏。
     """
     if generation is None:
         generation = _current_generation()

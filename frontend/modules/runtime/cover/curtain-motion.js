@@ -1,19 +1,11 @@
 /**
- * 窗帘的开合动画（普通布帘与梦幻帘）。
+ * 窗帘的开合动画（普通布帘与梦幻帘）：3D 户型里的窗帘模型是「一整片」静态网格，本模块在其上挂
+ * 自制的布料网格，按开合百分比实时改变形状并隐藏原静态网格。
  *
- * 在 3D 子系统里的位置：3D 户型里的窗帘模型本身是「一整片」静态网格，
- * 本模块在它上面挂一个自制的布料网格（或直接复用场生成轨道模型），
- * 按开合百分比实时改变形状，并隐藏掉原来的静态网格。
- *
- * 对外提供：createCurtainMotion —— 返回 setBindings / setState / update /
- * isMoving / poseKey / structureKey / dispose。
- *
- * 与渲染器的约定：轨道相关的几何构建与姿态采样统一来自 3d-studio/loaders/studio-curtain-track.js，
+ * 与渲染器的约定：轨道几何构建与姿态采样统一来自 3d-studio/loaders/studio-curtain-track.js，
  * 避免 3D 预览与渲染产物出现两套窗帘算法。
- *
- * 与 HA 的约定：位置取归一化状态里的 position（0–100，0 为全关）；
- * 梦幻帘另取 tiltPosition（0–100 叶片角度，50 表示 90° 打开）。
- * 开合方向 coverDirection / curtainPosition 取值 left / right / split。
+ * 与 HA 的约定：位置取归一化状态的 position（0–100，0 全关）；梦幻帘另取 tiltPosition（0–100 叶片角度，
+ * 50 表示 90° 打开）；开合方向 coverDirection / curtainPosition 取值 left / right / split。
  */
 
 // 轨道模型与布料几何的构建原语；开发环境走相对路径，生产环境走带缓存戳的静态路径。
@@ -28,11 +20,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=20260920104554",
+        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=20260920131301",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=20260920104554"));
+  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=20260920131301"));
 /** 允许的开合方向：left 只开左幅、right 只开右幅、split 对开。 */
 const DIRECTION_SET = new Set(["left", "right", "split"]);
 /** 会被本模块接管（隐藏）的局部：cloth 是布料面，band 是帘头装饰带。 */

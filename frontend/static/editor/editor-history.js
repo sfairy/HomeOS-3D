@@ -1,12 +1,10 @@
 /**
- * 编辑器历史栈与草稿恢复写入器。
+ * 编辑器历史栈与草稿恢复写入器：撤销 / 重做与「未保存草稿恢复」的核心工具。
  *
- * 位置：编辑器撤销 / 重做与「未保存草稿恢复」功能的核心工具模块。
- * 职责：① 提供带延迟合并的草稿恢复写入器；② 把文档拆成「组件条目 + 顺序」
- *   用于历史快照比对；③ 生成忽略纯样式 / 坐标差异的文档签名。
- * 约定：签名用于判断「文档是否真的变了」，因此会剔除 actions / bindings /
- *   position / properties / style 这些高频但语义上可忽略的键；
- *   快照策略是「结构优先」，避免拖拽过程中的每个像素都进历史栈。
+ * 职责：带延迟合并的草稿恢复写入器；把文档拆成「组件条目 + 顺序」用于历史快照比对；
+ * 生成忽略纯样式 / 坐标差异的文档签名。
+ * 约定：签名判断「文档是否真的变了」，故剔除 actions / bindings / position / properties /
+ * style 这些高频但语义可忽略的键；快照策略「结构优先」，避免拖拽的每个像素都进历史栈。
  */
 const IGNORED_COMPONENT_KEYS = new Set(["actions", "bindings", "position", "properties", "style"]);
 
@@ -137,11 +135,8 @@ export function editorDocumentFrameSignature(sourceDocument) {
 
 /**
  * 生成文档内容签名，用于判断保存 / 历史比较时内容是否真的变化。
- *
- * 归一化规则：无类型或 type 为 "none" 的动作直接丢弃；data 为空则删掉该键；
- * 非 navigate 动作删掉 target；domain / service 属于运行时推导字段，一并删除；
- * 对象键统一排序后再序列化，保证键序不同不会产生假差异。
- *
+ * 归一化：丢弃无类型或 type 为 "none" 的动作；data 为空删该键；非 navigate 动作删 target；
+ * domain / service 属运行时推导字段一并删；对象键排序后再序列化，保证键序不同不产生假差异。
  * @returns {string} JSON 字符串签名。
  */
 export function documentSignature(document) {
