@@ -22,11 +22,11 @@ from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import Field
 from sqlalchemy import select
 
-from ...canonical_json import canonical_json_bytes
-from ...dependencies import DatabaseSession, LicensedViewer, LicensedUser, require_viewer_project
-from ...models import HAEntity, ProjectDraft
+from ...core.canonical_json import canonical_json_bytes
+from ...core.dependencies import DatabaseSession, LicensedViewer, LicensedUser, require_viewer_project
+from ...core.models import HAEntity, ProjectDraft
 from ...panel.documents import parse_document, require_document
-from ...schemas import HAServiceCallRequest
+from ...core.schemas import HAServiceCallRequest
 from ...api.ha import active_connection, call_service
 from ...api.assets import user_asset_file, UPLOAD_CONTENT_TYPES
 from .access import access_grant, module_components, require_access

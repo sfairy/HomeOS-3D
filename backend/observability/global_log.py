@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from .time_utils import ensure_aware
+from ..core.time_utils import ensure_aware
 
 # 请求级上下文：由中间件写入 requestId / method / path 等，深层代码 append 时不必透传。
 #

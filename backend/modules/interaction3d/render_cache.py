@@ -25,7 +25,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from PIL import Image, UnidentifiedImageError
 
-from ...file_lock import file_lock
+from ...core.file_lock import file_lock
 
 #: 单条 10 MiB / 单张 2M 像素：纯粹是防滥用的闸门，不是业务上预期的图片大小。
 MAX_ENTRY_BYTES = 10485760

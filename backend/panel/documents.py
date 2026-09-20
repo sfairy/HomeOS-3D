@@ -14,7 +14,7 @@ from fastapi import HTTPException, status
 from .schema import validate_panel_document
 
 if TYPE_CHECKING:
-    from ..models import ProjectDraft
+    from ..core.models import ProjectDraft
 
 # 设计标称画布尺寸，对应常见 16:9 大屏在 2 倍 DPI 下的像素数。
 DESIGN_WIDTH = 2778

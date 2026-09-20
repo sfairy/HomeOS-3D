@@ -15,19 +15,19 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
-from ..conflicts import is_unique_violation
-from ..dependencies import DatabaseSession, LicensedUser
-from ..display_access import display_path, display_token_expired, display_token_expires_at
-from ..http_security import resolve_client_ip, secure_cookies_enabled
+from ..core.conflicts import is_unique_violation
+from ..core.dependencies import DatabaseSession, LicensedUser
+from ..security.display_access import display_path, display_token_expired, display_token_expires_at
+from ..security.http_security import resolve_client_ip, secure_cookies_enabled
 from ..ha.crypto import CredentialCipher, CredentialCipherError
-from ..models import DisplayDevice, DisplayPairingCode, Project, User
-from ..schemas import (
+from ..core.models import DisplayDevice, DisplayPairingCode, Project, User
+from ..core.schemas import (
     DisplayDeviceUpdateRequest,
     DisplayPairRequest,
     DisplayPairingCodeRequest,
     DisplayPairingCodeUpdateRequest,
 )
-from ..security import new_session_token, session_token_hash, set_display_cookie
+from ..security.security import new_session_token, session_token_hash, set_display_cookie
 
 router = APIRouter(prefix='/displays', tags=['displays'])
 

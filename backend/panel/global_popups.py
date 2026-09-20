@@ -25,7 +25,7 @@ from copy import deepcopy
 
 from sqlalchemy.orm import Session
 
-from .models import GlobalCustomPopupState
+from ..core.models import GlobalCustomPopupState
 
 
 def global_popup_state(database: Session) -> GlobalCustomPopupState:

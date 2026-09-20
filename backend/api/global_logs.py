@@ -19,10 +19,10 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from ..canonical_json import canonical_json
-from ..dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
-from ..global_log import event_context, safe_context
-from ..http_security import resolve_client_ip
+from ..core.canonical_json import canonical_json
+from ..core.dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
+from ..observability.global_log import event_context, safe_context
+from ..security.http_security import resolve_client_ip
 
 router = APIRouter(prefix='/logs', tags=['global-logs'])
 

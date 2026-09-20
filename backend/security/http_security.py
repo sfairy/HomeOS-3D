@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 
 from starlette.requests import Request
 
-from .config import Settings
+from ..config import Settings
 
 #: 转发头：出现任一即说明「前面还有代理」。用于提示运维去配 APP_TRUSTED_PROXIES。
 FORWARDED_HEADERS = ('x-forwarded-for', 'x-forwarded-proto', 'x-real-ip', 'forwarded')

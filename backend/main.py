@@ -28,15 +28,15 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .access import (
+from .security.access import (
     admin_token_from,
     check_admin_session,
     discard_expired_session,
     display_token_from,
     resolve_principal,
 )
-from .admin_account import AdminAccountStore
-from .http_cache import set_versioned_private_cache
+from .security.admin_account import AdminAccountStore
+from .http.http_cache import set_versioned_private_cache
 from .api.auth import router as auth_router
 from .api.assets import AssetCatalog, read_builtin_asset, router as assets_router, sweep_user_assets_for_app
 from .api.displays import (
@@ -54,12 +54,12 @@ from .api.license import router as license_router
 from .modules.interaction3d.api import router as interaction3d_router
 from .api.projects import router as projects_router
 from .api.studio3d import router as studio3d_router
-from .auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
-from .body_guard import DraftBodyGuard
+from .security.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
+from .http.body_guard import DraftBodyGuard
 from .config import Settings, load_settings
-from .database import Database
+from .core.database import Database
 from .ha.service import HAConnectorService
-from .http_security import (
+from .security.http_security import (
     forwarded_allow_ips_warning,
     forwarded_headers_present,
     is_direct_local,
@@ -67,13 +67,13 @@ from .http_security import (
     same_origin_request,
 )
 from .license import LicenseService
-from .updates import UpdateChecker, endpoint_hosts, router as updates_router
-from .migrations import run_migrations
-from .display_access import active_display_device, display_path, resolve_display_project
-from .global_log import GlobalLogStore, RepeatedErrorTally, _safe_text, event_context
-from .models import DisplayDevice, Project
-from .security import set_display_cookie
-from .setup_guard import SetupGuard, announce_setup_window
+from .observability.updates import UpdateChecker, endpoint_hosts, router as updates_router
+from .core.migrations import run_migrations
+from .security.display_access import active_display_device, display_path, resolve_display_project
+from .observability.global_log import GlobalLogStore, RepeatedErrorTally, _safe_text, event_context
+from .core.models import DisplayDevice, Project
+from .security.security import set_display_cookie
+from .security.setup_guard import SetupGuard, announce_setup_window
 
 # 超过这个耗时的接口会在全局日志里记一条"响应缓慢"的警告。
 SLOW_REQUEST_MILLISECONDS = 2000

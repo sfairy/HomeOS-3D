@@ -12,7 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from docker.license_keys import apply_client_key_env  # noqa: E402
-from backend.http_security import (  # noqa: E402  (必须晚于 sys.path 注入)
+from backend.security.http_security import (  # noqa: E402  (必须晚于 sys.path 注入)
     forwarded_allow_ips_warning,
 )
 

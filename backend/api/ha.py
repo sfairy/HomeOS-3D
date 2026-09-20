@@ -25,16 +25,16 @@ from anyio import create_task_group
 from fastapi import APIRouter, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import func, or_, select
 
-from ..access import admin_token_from, discard_expired_session, display_token_from, resolve_principal
-from ..database import Database
-from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, ViewerPrincipal, require_viewer_entity, viewer_entity_ids
-from ..display_access import active_display_device
-from ..global_log import event_context
+from ..security.access import admin_token_from, discard_expired_session, display_token_from, resolve_principal
+from ..core.database import Database
+from ..core.dependencies import DatabaseSession, LicensedUser, LicensedViewer, ViewerPrincipal, require_viewer_entity, viewer_entity_ids
+from ..security.display_access import active_display_device
+from ..observability.global_log import event_context
 from ..ha.client import HAClient, HAClientError, link_local_address
 from ..ha.crypto import CredentialCipherError
-from ..models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, User
+from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, User
 from ..panel.action_rules import TOGGLE_ENTITY_DOMAINS
-from ..schemas import HABrowseMediaRequest, HAConnectionInput, HAServiceCallRequest, HATestRequest
+from ..core.schemas import HABrowseMediaRequest, HAConnectionInput, HAServiceCallRequest, HATestRequest
 
 router = APIRouter(prefix='/ha', tags=['home-assistant'])
 # 实时连接单独一个 router：不带 /ha 前缀，挂在 /api/v1/ws/runtime 下。

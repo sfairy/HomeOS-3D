@@ -29,9 +29,9 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-from ..canonical_json import canonical_json_bytes
-from ..secret_key_file import load_or_create_secret_key
-from ..time_utils import ensure_aware
+from ..core.canonical_json import canonical_json_bytes
+from ..security.secret_key_file import load_or_create_secret_key
+from ..core.time_utils import ensure_aware
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 

@@ -33,7 +33,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from ...models import ProjectDraft
+from ...core.models import ProjectDraft
 from ...panel.entity_refs import document_scene_ids
 
 logger = logging.getLogger(__name__)

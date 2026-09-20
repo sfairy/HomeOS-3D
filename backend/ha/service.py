@@ -23,10 +23,10 @@ from contextvars import copy_context
 from typing import Any
 from sqlalchemy import func, select
 from ..config import Settings
-from ..database import Database
-from ..models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft, utc_now
-from ..global_popups import global_popups
-from ..global_log import GlobalLogStore, _safe_text, event_context
+from ..core.database import Database
+from ..core.models import HAArea, HAConnection, HADevice, HAEntity, HASyncState, ProjectDraft, utc_now
+from ..panel.global_popups import global_popups
+from ..observability.global_log import GlobalLogStore, _safe_text, event_context
 from ..panel.documents import parse_document
 from ..panel.entity_refs import document_entity_ids
 from .client import HAClient, HAClientError, HASnapshot

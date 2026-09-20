@@ -12,7 +12,7 @@
 ``same_origin_request``），而它在请求**没有** ``Origin``/``Referer`` 时放行 ——
 ``curl`` 默认就不带这两个头，所以这道闸门对脚本化攻击等于不存在。
 
-本模块给出的策略与主应用 ``backend/setup_guard.py`` 同构（两边刻意各自保留一份：
+本模块给出的策略与主应用 ``backend/security/setup_guard.py`` 同构（两边刻意各自保留一份：
 store 要能单独部署，不依赖 backend 的代码；P10 会用同步测试钉住两侧的行为一致）：
 
 - **本机直连放行**：能坐在机器前的人本来就拥有这台机器。判断标准是「TCP 对端是
@@ -56,7 +56,7 @@ MIN_TOKEN_LENGTH = 16
 #: README 教给运营的取用方式，多出一行注释会让照着文档复制的人拿到「注释 + 密钥」，
 #: 于是在表单里粘出一个 403 而不知道错在哪。密钥文件因此保持「一行就是一枚密钥」，
 #: 出处另放一个文件。
-#: 主应用的 ``backend/setup_guard.py`` 有同构的一份，两处必须一起改（改动前先
+#: 主应用的 ``backend/security/setup_guard.py`` 有同构的一份，两处必须一起改（改动前先
 #: 对照另一处，确认改完仍然同构）。
 GENERATED_MARKER_FILE = "setup-token.generated"
 #: 标记文件里那行指纹的前缀。

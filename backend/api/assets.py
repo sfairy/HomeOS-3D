@@ -25,14 +25,14 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, R
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
-from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_viewer_studio3d_asset, require_viewer_user_asset, viewer_user_asset_ids
-from ..canonical_json import canonical_json
-from ..http_cache import set_private_immutable_cache, set_versioned_private_cache
+from ..core.dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_viewer_studio3d_asset, require_viewer_user_asset, viewer_user_asset_ids
+from ..core.canonical_json import canonical_json
+from ..http.http_cache import set_private_immutable_cache, set_versioned_private_cache
 from ..panel.documents import parse_document
 from ..panel.entity_refs import document_keyed_values
-from ..models import Project, ProjectDraft
-from ..global_popups import global_popups
-from ..streaming import write_stream_in_batches
+from ..core.models import Project, ProjectDraft
+from ..panel.global_popups import global_popups
+from ..http.streaming import write_stream_in_batches
 
 router = APIRouter(prefix = '/assets', tags = [
     'assets'])

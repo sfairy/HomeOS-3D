@@ -15,16 +15,16 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 
-from ..canonical_json import canonical_json
-from ..conflicts import is_unique_violation
-from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
-from ..global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
-from ..models import GlobalCustomPopupState, Project, ProjectDraft, ProjectPathAlias
+from ..core.canonical_json import canonical_json
+from ..core.conflicts import is_unique_violation
+from ..core.dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
+from ..panel.global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
+from ..core.models import GlobalCustomPopupState, Project, ProjectDraft, ProjectPathAlias
 from ..modules.interaction3d.scene_store import sweep_scenes_for_app
 from ..panel.documents import create_blank_project, parse_document, require_document
 from ..panel.schema import validate_panel_document
 from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
-from ..schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
+from ..core.schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
 
 router = APIRouter(prefix='/projects', tags=['projects'])
 

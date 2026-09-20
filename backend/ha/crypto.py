@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from cryptography.fernet import Fernet, InvalidToken
 
-from ..secret_key_file import load_or_create_secret_key
+from ..security.secret_key_file import load_or_create_secret_key
 
 
 class CredentialCipherError(RuntimeError):

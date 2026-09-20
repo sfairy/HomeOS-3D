@@ -11,12 +11,12 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import delete, select, text
 
-from ..access import admin_token_from, check_admin_session
-from ..admin_account import AdminAccountConflict, EXTERNAL_PASSWORD_SENTINEL
-from ..dependencies import CurrentUser, DatabaseSession
-from ..http_security import resolve_client_ip, secure_cookies_enabled
-from ..models import LoginSession, User
-from ..schemas import (
+from ..security.access import admin_token_from, check_admin_session
+from ..security.admin_account import AdminAccountConflict, EXTERNAL_PASSWORD_SENTINEL
+from ..core.dependencies import CurrentUser, DatabaseSession
+from ..security.http_security import resolve_client_ip, secure_cookies_enabled
+from ..core.models import LoginSession, User
+from ..core.schemas import (
     LoginRequest,
     LoginSessionListResponse,
     LoginSessionResponse,
@@ -24,14 +24,14 @@ from ..schemas import (
     SetupStatusResponse,
     UserResponse,
 )
-from ..security import (
+from ..security.security import (
     hash_password,
     new_session_token,
     session_expiry,
     session_token_hash,
     verify_password,
 )
-from ..time_utils import ensure_aware
+from ..core.time_utils import ensure_aware
 
 # 整组路由不带 prefix：路径里的 /setup/* 与 /auth/* 是与前端约定死的，别改。
 # 单例限流器挂在 app.state.login_limiter 上，本模块只读取与累加计数。

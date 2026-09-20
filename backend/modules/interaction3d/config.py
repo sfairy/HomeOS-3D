@@ -15,7 +15,7 @@ import re
 
 from fastapi import HTTPException
 
-from ...canonical_json import canonical_json
+from ...core.canonical_json import canonical_json
 
 
 def validate_config(properties: dict) -> None:

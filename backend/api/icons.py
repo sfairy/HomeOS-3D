@@ -10,7 +10,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Query, Request
 
-from ..dependencies import LicensedUser
+from ..core.dependencies import LicensedUser
 
 router = APIRouter(prefix='/icons', tags=['icons'])
 

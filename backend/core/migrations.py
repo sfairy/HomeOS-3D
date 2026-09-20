@@ -18,7 +18,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from .config import Settings
+from ..config import Settings
 from .file_lock import locked_file
 
 #: 唯一的基线迁移。更早的 0001-0015 已合并到它，项目按首个发布版本维护，

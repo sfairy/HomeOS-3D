@@ -13,7 +13,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
 from starlette.responses import Response
 
-from .config import Settings
+from ..config import Settings
 
 # 模块级单例：PasswordHasher 内部会缓存参数，重复构造纯属浪费。
 password_hasher = PasswordHasher()

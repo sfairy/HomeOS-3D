@@ -28,14 +28,14 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
-from ..body_guard import MAX_SCENE_DOCUMENT_BYTES
-from ..canonical_json import canonical_json, canonical_json_bytes
-from ..dependencies import DatabaseSession, LicensedUser
-from ..global_popups import global_popups
-from ..models import Project, ProjectDraft
+from ..http.body_guard import MAX_SCENE_DOCUMENT_BYTES
+from ..core.canonical_json import canonical_json, canonical_json_bytes
+from ..core.dependencies import DatabaseSession, LicensedUser
+from ..panel.global_popups import global_popups
+from ..core.models import Project, ProjectDraft
 from ..panel.documents import parse_document
-from ..schemas import Studio3DDraftUpdate
-from ..streaming import flush_and_sync, write_stream_in_batches
+from ..core.schemas import Studio3DDraftUpdate
+from ..http.streaming import flush_and_sync, write_stream_in_batches
 
 router = APIRouter(prefix='/studio3d', tags=['studio3d'])
 # 各条上限都是「防御性天花板」：正常户型图远小于这些值，

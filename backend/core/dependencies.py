@@ -18,16 +18,16 @@ from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from .access import (
+from ..security.access import (
     ViewerPrincipal,
     admin_token_from,
     check_admin_session,
     discard_expired_session,
     display_token_from,
 )
-from .display_access import active_display_device
-from .global_popups import hydrate_document_popups
-from .http_security import secure_cookies_enabled
+from ..security.display_access import active_display_device
+from ..panel.global_popups import hydrate_document_popups
+from ..security.http_security import secure_cookies_enabled
 from .models import (
     DisplayDevice,
     HAConnection,
@@ -35,9 +35,9 @@ from .models import (
     ProjectDraft,
     User,
 )
-from .panel.documents import parse_document
-from .panel.entity_refs import document_entity_ids
-from .security import set_display_cookie
+from ..panel.documents import parse_document
+from ..panel.entity_refs import document_entity_ids
+from ..security.security import set_display_cookie
 from .time_utils import ensure_aware
 
 

@@ -19,7 +19,7 @@ from uuid import UUID
 import httpx
 from fastapi import APIRouter, Request, Response
 
-from .dependencies import CurrentUser
+from ..core.dependencies import CurrentUser
 
 router = APIRouter()
 # 内置的发布端点与说明页地址：这是**厂商运营**的地址。更新检查默认关闭（见

@@ -26,12 +26,12 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from sqlalchemy import select
 
-from ..canonical_json import canonical_json
+from ..core.canonical_json import canonical_json
 from ..config import Settings
-from ..database import Database
-from ..global_log import GlobalLogStore
-from ..models import LicenseState
-from ..time_utils import ensure_aware
+from ..core.database import Database
+from ..observability.global_log import GlobalLogStore
+from ..core.models import LicenseState
+from ..core.time_utils import ensure_aware
 from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
 from .endpoints import LicenseEndpointPool
 from .hardware import hardware_instance_id

@@ -17,8 +17,8 @@ from pathlib import Path
 
 from sqlalchemy import delete, select
 
-from .database import Database
-from .models import LoginSession, User
+from ..core.database import Database
+from ..core.models import LoginSession, User
 
 ACCOUNT_FILE_SCHEMA_VERSION = 1
 # 写进 users.password_hash 的哨兵值：表示该账号的凭据已外置到账号文件，
