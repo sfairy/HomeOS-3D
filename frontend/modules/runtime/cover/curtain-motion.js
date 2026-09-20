@@ -8,7 +8,7 @@
  * 对外提供：createCurtainMotion —— 返回 setBindings / setState / update /
  * isMoving / poseKey / structureKey / dispose。
  *
- * 与渲染器的约定：轨道相关的几何构建与姿态采样统一来自 3d-studio/studio-curtain-track.js，
+ * 与渲染器的约定：轨道相关的几何构建与姿态采样统一来自 3d-studio/loaders/studio-curtain-track.js，
  * 避免 3D 预览与渲染产物出现两套窗帘算法。
  *
  * 与 HA 的约定：位置取归一化状态里的 position（0–100，0 为全关）；
@@ -28,11 +28,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/studio-curtain-track.js?v=20260920093608",
+        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=20260920093608",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/studio-curtain-track.js?v=20260920093608"));
+  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=20260920093608"));
 /** 允许的开合方向：left 只开左幅、right 只开右幅、split 对开。 */
 const DIRECTION_SET = new Set(["left", "right", "split"]);
 /** 会被本模块接管（隐藏）的局部：cloth 是布料面，band 是帘头装饰带。 */

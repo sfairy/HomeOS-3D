@@ -40,7 +40,7 @@ import { normalizeInteraction3dLightingMode } from "/static/bridge/definition.js
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "/static/3d-studio/studio-normalization.js?v=20260920093608";
+} from "/static/3d-studio/loaders/studio-normalization.js?v=20260920093608";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,

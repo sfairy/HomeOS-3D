@@ -177,7 +177,7 @@ import {
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/studio-normalization.js?v=20260920093608";
+} from "../3d-studio/loaders/studio-normalization.js?v=20260920093608";
 import { createLicenseCard } from "./license-card.js?v=20260920093608";
 import {
   guardInteraction3dChanges,

@@ -21,18 +21,18 @@
 import {
   applyCarFinish,
   smoothCarSurfaceNormals
-} from "./studio-car-finish.js?v=20260920093608";
+} from "../materials/studio-car-finish.js?v=20260920093608";
 import {
   repairGlassCabinetBack,
   repairWallCabinetSides
-} from "./studio-cabinet-back.js?v=20260920093608";
+} from "../materials/studio-cabinet-back.js?v=20260920093608";
 import { finite } from "./studio-normalization.js?v=20260920093608";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../utils/debug-log.js?v=20260920093608";
+import { debugLog } from "../../utils/debug-log.js?v=20260920093608";
 // 暖阳原木（warm-wood）主题专用的两个模块：地板材质着色器增强与树叶几何放大。
 // 两者都只在 palette.warmWood 为真时被调用，其它主题下不产生任何效果。
-import { decorateWarmFloor } from "./studio-scene-style.js?v=20260920093608";
-import { enlargeWarmLeaves } from "./studio-warm-foliage.js?v=20260920093608";
+import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=20260920093608";
+import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=20260920093608";
 const HOME_LITE_MODEL_VERSION = "20260920093608";
 const APPLIANCE_LITE_MODEL_VERSION = "20260920093608";
 /**

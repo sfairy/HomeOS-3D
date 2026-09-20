@@ -9,7 +9,7 @@
  *   回包为 {id, indices} 或 {id, failed: true}；indices 以 Transferable 方式回传。
  */
 
-import { MeshoptSimplifier } from "../vendor/meshoptimizer/0.25/meshopt_simplifier.module.js";
+import { MeshoptSimplifier } from "../../vendor/meshoptimizer/0.25/meshopt_simplifier.module.js";
 
 /**
  * 用 meshoptimizer 的带属性简化算法削减索引数量。

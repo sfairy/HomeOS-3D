@@ -6,7 +6,7 @@
  * 「把失败响应归一化成人话」这段知识在主应用里原先有 **9 份**各写各的、能力还不一样：
  *
  *   · `static/home.js` 的 `requestJson`、`static/license.js` 的 `errorMessage`、`static/display.js`、
- *     `static/global-log-boot.js`、`static/3d-studio/studio-app.js`、`static/renderer/renderer.js`、
+ *     `static/global-log-boot.js`、`static/3d-studio/studio/studio-app.js`、`static/renderer/renderer.js`、
  *     `modules/runtime/core/runtime.js` —— 七份只认「字符串」与 `detail.message`，**没有一个认
  *     数组**；
  *   · `static/setup.js` 那一份认数组（`detail[0]?.msg`），于是同一类错误只有初始化页可读；

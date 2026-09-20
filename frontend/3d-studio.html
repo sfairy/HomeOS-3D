@@ -2,8 +2,8 @@
 <!--
   3D 户型工作室（Desktop Creator，/3d-studio）主页面：导入底图 → 标定比例 → 描绘户型 → 摆物件 → 布灯 → 导图。
   授权：需要登录且授权允许 editor 能力，否则后端 303 去 /login 或 /license；未初始化先去 /setup。
-  入口脚本：/static/3d-studio/studio-app.js（module，唯一编排层，其余 studio-*.js 都是它 import 的纯函数模块）。
-  版本戳约定：/static/3d-studio/studio.css 与 studio-app.js 必须共用同一条 `?v=`，
+  入口脚本：/static/3d-studio/studio/studio-app.js（module，唯一编排层，其余 studio-*.js 都是它 import 的纯函数模块）。
+  版本戳约定：/static/3d-studio/studio/studio.css 与 studio-app.js 必须共用同一条 `?v=`，
   否则浏览器会同时加载新旧两份模块，出现两套模块级单例状态（控件注册表、渲染缓存版本号）。
   页面本身没有任何内联 <style> / <script>：CSP 是 style-src 'self'，内联样式会被直接拦掉。
   本页只负责结构，全部状态与行为由 studio-app.js 通过 id / data-* 属性接管。
@@ -20,7 +20,7 @@
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
     <link
       rel="stylesheet"
-      href="/static/3d-studio/studio.css?v=20260920093608"
+      href="/static/3d-studio/studio/studio.css?v=20260920093608"
     />
   </head>
   <body>
@@ -2115,7 +2115,7 @@
          否则浏览器会缓存两份模块实例，出现两套注册表与缓存版本号。 -->
     <script
       type="module"
-      src="/static/3d-studio/studio-app.js?v=20260920093608"
+      src="/static/3d-studio/studio/studio-app.js?v=20260920093608"
     ></script>
   </body>
 </html>
