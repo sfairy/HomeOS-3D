@@ -1,18 +1,15 @@
 <!doctype html>
 <!--
-  授权激活页（/license）。
-  视觉对齐 /setup：暗色琥珀 + 顶栏品牌 + 左栏说明 / 右栏表单。
-  后端门禁：未初始化 → /setup；未登录 → /login；
-  仅当授权状态为 ACTIVE 且具备 editor 时 303 回首页。
-  CONNECTION_WARNING 等宽限态会留在本页展示告警与重新激活。
-  表单字段与后端激活请求体对齐：email 最长 255、activationCode 最长 128。
-  #logout 退出本机管理员会话（不是商店账号）。
+  授权激活页（/license），视觉对齐 /setup：暗色琥珀 + 顶栏品牌 + 左栏说明 / 右栏表单。
+  后端门禁：未初始化 → /setup；未登录 → /login；仅当 ACTIVE 且具备 editor 时 303 回首页；CONNECTION_WARNING 等宽限态留在本页展示。
+  表单字段与后端激活请求体对齐：email 最长 255、activationCode 最长 128；#logout 退出的是本机管理员会话（不是商店账号）。
+  入口脚本：/static/logging/client-log.js（head 同步执行）、/static/auth/license.js（module）。
 -->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=20260920104554"></script>
+    <script src="/static/logging/client-log.js?v=20260920131301"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#151a1f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -20,19 +17,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>激活授权 · HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260920104554" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920104554" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920104554" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920104554" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260920104554" />
-    <link rel="stylesheet" href="/static/auth/setup.css?v=20260920104554" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260920131301" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920131301" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260920131301" />
+    <link rel="stylesheet" href="/static/auth/setup.css?v=20260920131301" />
   </head>
   <body>
     <header class="hb-setup-topbar">
       <div class="hb-container hb-setup-topbar__inner">
         <a class="hb-setup-brand" href="/license" aria-label="HomeOS">
           <span class="hb-setup-brand__mark">
-            <img src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920104554" alt="" />
+            <img src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920131301" alt="" />
           </span>
           <span class="hb-setup-brand__text">
             <strong>HomeOS</strong>
@@ -40,7 +37,7 @@
           </span>
         </a>
         <div class="hb-setup-topbar__actions">
-          <span class="hb-setup-topbar__meta">LICENSE · 0.5.6</span>
+          <span class="hb-setup-topbar__meta">LICENSE · 0.6.1</span>
           <button id="logout" class="hb-setup-logout" type="button">退出本机登录</button>
         </div>
       </div>
@@ -105,6 +102,6 @@
       </div>
     </main>
 
-    <script type="module" src="/static/auth/license.js?v=20260920104554"></script>
+    <script type="module" src="/static/auth/license.js?v=20260920131301"></script>
   </body>
 </html>

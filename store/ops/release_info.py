@@ -17,19 +17,23 @@ from store.core.models import Release
 
 logger = logging.getLogger("store.ops.release_info")
 
-CURRENT_VERSION = "0.5.6"
-CURRENT_RELEASE_DATE = "2026-09-17"
+CURRENT_VERSION = "0.6.1"
+CURRENT_RELEASE_DATE = "2026-09-20"
 CURRENT_UPGRADE_NOTES = (
-    "1. 自托管改为双容器：主应用（18081）与授权商店 / 授权服务器（18082）"
-    "通过 Docker Compose 一并拉起；默认镜像 ghcr.io/sfairy/homeos-3d 与 …-store。\n"
-    "2. 商店容器负责生成或复用授权密钥，并把公钥同步到共享卷；"
-    "主应用等待公钥就绪后再启动。首次部署请在浏览器打开 "
-    "http://<商店地址>:18082/setup 创建管理员（不再支持 STORE_ADMIN_EMAIL / "
-    "STORE_ADMIN_PASSWORD 环境变量）。\n"
-    "3. 运行镜像不再包含可读业务源码（Python 仅留 .pyc，业务 JS 经混淆）；"
-    "生产清单与反代示例见 deploy/PRODUCTION.md。\n"
-    "4. .env.example 收敛为部署常改项置顶；邮件 / SMTP / 支付渠道请到商店 /admin「站点配置」修改，免重启。\n"
-    "5. 升级时请保留全部数据卷（homeos-3d-data / homeos-3d-store-data /"
+    "1. 全量安全与质量审计（P1–P12）落地：修复授权商店与主应用的一批高危 / 中危缺陷"
+    "（首次设置守卫、CSRF 同源闸门、会话与配对码生命周期、上传体积上限、媒体代理归属、"
+    "并发写入的唯一性退让等），详见仓库 README 的更新日志。\n"
+    "2. 数据库迁移由单条基线扩展为 0001 → 0003：0002 为项目名加唯一索引并对历史重名行做"
+    "确定性改名，0003 新建 project_path_aliases，让改名前的展示地址仍可访问（303 跳转）。"
+    "启动时自动执行，无需手工命令。\n"
+    "3. 邀请积分由 FLOAT（积分）改为 INTEGER（厘，1 积分 = 100 厘），启动时自动完成"
+    "「补列 → 回填 + 逐行对账 → 退役旧列」并先做数据库快照；对外 JSON 仍是两位小数字符串，"
+    "前端与客户端无需改动。\n"
+    "4. 授权服务器心跳现在校验 instanceId，吊销响应改为结构化 code / revoked："
+    "旧客户端必须与本服务端一并升级，否则会被判为确认吊销。\n"
+    "5. 仓库目录分包（backend/、store/ 与前端静态资源按功能域分组），对运行时行为无影响；"
+    "同步移除内置自动化测试设施（此后改动请人工走关键路径）。\n"
+    "6. 升级时请保留全部数据卷 / 数据目录（homeos-3d-data / homeos-3d-store-data /"
     "homeos-3d-license-keys / homeos-3d-client-keys），不要删卷。"
 )
 
@@ -67,10 +71,8 @@ def ensure_current_release(session: Session) -> bool:
             return True
         return False
 
-    # ``releases`` 上 (product, channel, version) 是唯一索引，于是「查不到就插」在多个
-    # 实例同时启动时会撞索引 —— 而这是**启动路径**，一次竞争就会让容器起不来。
-    # 用 SAVEPOINT 兜住：撞了说明别处刚插好，回滚这一条重查、按「已存在」处理即可。
-    # flush 放在 SAVEPOINT 内并关掉自动 flush（见 ``store/api/admin.py`` 同款写法）。
+    # ``releases`` 上 (product, channel, version) 是唯一索引，「查不到就插」在多实例同时
+    # 启动时会撞索引，而这是**启动路径**，一次竞争就让容器起不来。用 SAVEPOINT 兜住。
     try:
         with session.no_autoflush, session.begin_nested():
             session.add(

@@ -1,22 +1,18 @@
 <!doctype html>
 <!--
-  编辑器主页面（/），也就是仪表盘的全部编辑入口。
-  后端三道门禁顺序固定：未初始化 → 303 /setup；未登录 → 303 /login；无 editor 能力 → 303 /license。
-  因此本页能打开，就说明初始化、登录与授权状态 ACTIVE 三者都已通过；页面自身不做这三项判断。
-  三栏结构共用同一份「仪表盘文档」（字段口径见 backend/panel/schema.py）：
-  左侧控件图层导航、中间页面画布 / 仪表盘预览 / 组合弹窗编辑、右侧属性检查器。
-  入口脚本按顺序：/static/logging/global-log-boot.js（日志面板先就绪，不依赖主脚本）、
-  /static/vendor/hls.js/1.6.16/hls.min.js（摄像头 HLS 播放）、/static/editor/home.js（主体，module）。
-  版本戳约定：home.js 内部 import 的 renderer/core/renderer.js 与 renderer/core/registry.js 必须与
-  renderer.css 共用同一条 `?v=`，否则会出现两份控件注册表，表现为某些控件「找不到类型」。
-  CSP 为 style-src 'self' 且 script-src 'self'，所以页面里没有任何内联 <style> / <script>，
-  全部行为靠 id 与 data-* 属性与脚本约定挂接，改动这些名字等于改接口。
+  编辑器主页面（/），仪表盘的全部编辑入口。
+  后端三道门禁顺序固定：未初始化 → 303 /setup；未登录 → 303 /login；无 editor → 303 /license。
+  因此本页能打开就说明初始化、登录与 ACTIVE 授权三者都已通过；页面自身不做这三项判断。
+  三栏共用同一份「仪表盘文档」（字段口径见 backend/panel/schema.py）。
+  入口脚本按顺序：global-log-boot.js（日志面板先就绪）、hls.min.js（摄像头 HLS）、/static/editor/home.js（module）。
+  home.js 内部 import 的 renderer.js 与 registry.js 必须与 renderer.css 共用同一条 `?v=`，否则会出现两份控件注册表。
+  CSP 为 style-src/script-src 'self'，故无内联样式与脚本；行为全靠 id 与 data-* 挂接，改这些名字等于改接口。
 -->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=20260920104554"></script>
+    <script src="/static/logging/client-log.js?v=20260920131301"></script>
     <!-- 编辑器是桌面级布局，固定按 1020px 逻辑宽度出图，小屏靠缩放而不是响应式重排。 -->
     <meta name="viewport" content="width=1020,user-scalable=yes" />
     <meta name="theme-color" content="#172029" />
@@ -25,28 +21,28 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>HomeOS全屋智能管家</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260920104554" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920104554" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920104554" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920104554" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260920104554" />
-    <link rel="stylesheet" href="/static/logging/global-log.css?v=20260920104554" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260920131301" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920131301" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260920131301" />
+    <link rel="stylesheet" href="/static/logging/global-log.css?v=20260920131301" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；app.css、renderer.css 与 home.js
          内部 import 的模块必须共用同一枚时间戳，否则样式与运行时会对不上版本。 -->
     <link
       rel="stylesheet"
-      href="/static/app.css?v=20260920104554"
+      href="/static/app.css?v=20260920131301"
     />
-    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=20260920104554" />
-    <link rel="stylesheet" href="/static/bridge/bridge.css?v=20260920104554" />
+    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=20260920131301" />
+    <link rel="stylesheet" href="/static/bridge/bridge.css?v=20260920131301" />
   </head>
   <body>
     <!-- ===== 顶部工具条：四个入口按钮的状态点都由脚本按轮询结果着色 ===== -->
     <header class="editor-header">
       <div class="brand-lockup">
-        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920104554" alt="" /><strong
+        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920131301" alt="" /><strong
           >HomeOS</strong
-        ><span class="version">0.5.6</span>
+        ><span class="version">0.6.1</span>
       </div>
       <div class="header-actions">
         <button id="ha-open" class="ha-status" type="button"><i></i><span>HA 未配置</span></button
@@ -3292,17 +3288,10 @@
       </aside>
     </main>
     <!-- ===== 对话框与结果提示 =====
-         全部使用原生 <dialog>，由 home.js 里的 showModal() 打开、close() 关闭：
-         原生 dialog 自带焦点陷阱（focus trap）与顶层渲染，无需自己实现遮罩与 Tab 循环。
-         约定：
-         - 每个可关闭的对话框右上角都有一个 .icon-button，带 aria-label（纯符号按钮，
-           没有可读文字时必须给无障碍名）；点击只是「取消」，真正的动作在 .settings-form 里的提交按钮。
-         - .settings-form 是共用表单栅格（见 app.css），不是 <form> 才有这个类，
-           说明区、结果提示同样用它对齐内边距。
-         - 删除类对话框统一加 .delete-dialog 并配 "DANGER ZONE" 眉标，样式上做危险色区分。
-         - 带 id 的标题 / 眉标（如 xxx-dialog-title、xxx-dialog-kicker）由脚本按「新建 / 编辑」
-           两种模式改写文案，所以同一对话框能复用于新增与修改。
-         - 部分对话框内嵌隐藏表单（例如项目、页面、HA 连接），首次打开时由脚本填充后再显示。 -->
+             全部用原生 <dialog>（自带焦点陷阱与顶层渲染），由 home.js 的 showModal()/close() 操控。
+             每个可关闭对话框右上角有 .icon-button（纯符号，必须给 aria-label），它只是「取消」，真动作在 .settings-form 的提交按钮。
+             .settings-form 是共用表单栅格（见 app.css），说明区与结果提示也用它对齐内边距；删除类对话框加 .delete-dialog 与 "DANGER ZONE" 眉标。
+             带 id 的标题/眉标由脚本按「新建 / 编辑」改写文案；部分对话框内嵌隐藏表单（项目、页面、HA 连接），首次打开时由脚本填充后再显示。 -->
 
     <dialog id="popup-name-dialog" class="settings-dialog popup-name-dialog">
       <div class="dialog-heading">
@@ -4431,11 +4420,11 @@
         </div>
       </div>
     </dialog>
-    <script type="module" src="/static/logging/global-log-boot.js?v=20260920104554"></script>
+    <script type="module" src="/static/logging/global-log-boot.js?v=20260920131301"></script>
     <script src="/static/vendor/hls.js/1.6.16/hls.min.js"></script>
     <script
       type="module"
-      src="/static/editor/home.js?v=20260920104554"
+      src="/static/editor/home.js?v=20260920131301"
     ></script>
   </body>
 </html>
