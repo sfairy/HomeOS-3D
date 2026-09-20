@@ -26,9 +26,6 @@ import { entityDomainFromId } from "../utils/entities.js?v=20260920080000";
 const CLIMATE_DEVICE_TYPES = new Set(["auto", "air-conditioner", "bath-heater"]);
 /**
  * 归一化 HA 下发的字符串列表：去空格、丢空项、去重。
- *
- * @param {*} values 原始数组，可能不是数组。
- * @returns {string[]} 归一化后的列表；非数组输入返回空数组。
  */
 function normalizeStringList(values) {
   if (Array.isArray(values)) {
@@ -42,10 +39,6 @@ function normalizeStringList(values) {
  *
  * 默认值本身可以是 null，用来区分「值就是 0」与「压根没有这个值」——
  * supportsTargetTemperature 之类的能力开关正是靠这个区别判断的。
- *
- * @param {*} value 原始值。
- * @param {*} [fallbackValue] 解析失败时的返回值。
- * @returns {number|null} 解析结果。
  */
 function toNumberOrDefault(value, fallbackValue = null) {
   if (value == null || value === "") {
@@ -63,9 +56,6 @@ function toNumberOrDefault(value, fallbackValue = null) {
  *
  * 白名单之外的任何值都当成 auto：属性可能来自旧版本或被手工改坏，
  * 与其把非法值透传到下游，不如统一收敛成「自动推断」。
- *
- * @param {object} component 控件对象。
- * @returns {string} auto / air-conditioner / bath-heater。
  */
 export function configuredClimateDeviceType(component) {
   const configuredType = String(component?.properties?.deviceType || "auto");
@@ -83,9 +73,6 @@ export function configuredClimateDeviceType(component) {
  *
  * 注意 hasModeControl 会把 havc_modes 里的 off 以及中文「空」排除掉：
  * 只有 off 的实体其实是纯开关，不该显示模式选择。
- *
- * @param {object} sourceState 状态对象（或含 attributes 的任意对象）。
- * @returns {object} 归一化后的能力集合，含 attributes 与各项布尔位。
  */
 export function normalizeClimateCapabilities(sourceState) {
   const stateAttributes =
@@ -142,10 +129,6 @@ export function normalizeClimateCapabilities(sourceState) {
  *
  * 热水器走 operation_list，并过滤掉 off 与「空」；其余设备直接用 hvac_modes。
  * 两者字段不同是 HA 侧的历史差异，这里统一成同一份列表供界面渲染。
- *
- * @param {object} stateEntity 状态对象。
- * @param {string} [deviceType] 设备类型。
- * @returns {string[]} 可选的模式键列表。
  */
 export function climateOperationModeValues(stateEntity, deviceType = "air-conditioner") {
   const capabilities = normalizeClimateCapabilities(stateEntity);
@@ -162,12 +145,6 @@ export function climateOperationModeValues(stateEntity, deviceType = "air-condit
  *
  * 用户拖动滑条后，本地会先记下 pending 值并把界面画成新值；设备把状态回推上来之前，
  * 界面不能被旧值拉回去（会看起来像滑条弹回）。只有当设备回报的值进入容差范围才算确认。
- *
- * @param {number} componentTargetTemperature 控件上记录的当前显示温度。
- * @param {*} confirmedTemperature 设备回报的温度。
- * @param {*} pendingTemperature 本地待确认的温度。
- * @param {number} [stepOverride] 该设备的温度步长，用于推导容差。
- * @returns {{temperature: number, pending: *, confirmed: boolean}} 新的显示值与确认标志。
  */
 export function reconcileClimateTargetTemperature(
   componentTargetTemperature,
@@ -213,11 +190,6 @@ export function reconcileClimateTargetTemperature(
  * 只包含决定界面结构的能力（温度区间与步长、模式列表、风速、摆风、预设），
  * 不含温度、当前模式这类高频变化的字段——它被用作「需要重建面板吗」的缓存键，
  * 把易变字段放进来会导致每次状态更新都重建界面。
- *
- * @param {string} entityId 实体 ID。
- * @param {object} structureState 状态对象。
- * @param {string} [deviceTypeHint] 设备类型提示，影响模式列表的取值。
- * @returns {string} JSON 字符串形式的指纹。
  */
 export function climateControlStructureKey(
   entityId,
@@ -253,11 +225,6 @@ export function climateControlStructureKey(
  *
  * 判定顺序即优先级：控件显式配置 > 名称关键词 > 模式列表特征 > 冷却能力 > 只有单一制热。
  * 名称优先于模式，是因为浴霸与空调的模式列表高度重叠，而设备名通常最可靠。
- *
- * @param {object} deviceComponent 控件对象（读 properties.deviceType 与 properties.label）。
- * @param {object} deviceState 状态对象或变更对象。
- * @param {string} [friendlyName] 额外的名称线索（例如关联的实体名）。
- * @returns {string} air-conditioner 或 bath-heater。
  */
 export function resolveClimateDeviceType(deviceComponent, deviceState, friendlyName = "") {
   const configuredDeviceType = configuredClimateDeviceType(deviceComponent);
@@ -448,9 +415,6 @@ const HORIZONTAL_POSITION_LABELS = {
  * 把 + 与 & 换成 _and_、转小写、空白与 . / - 换成下划线、压缩连续下划线并去掉首尾下划线。
  * 各家的模式名从 "Fan Only" 到 "fan-only" 再到 "fanOnly" 都有，
  * 归一化后文案表与能力判断才只需要维护一套键。
- *
- * @param {*} rawModeKey 原始模式名。
- * @returns {string} 归一化后的模式键；输入为空时返回空串。
  */
 export function normalizeClimateModeKey(rawModeKey) {
   return String(rawModeKey || "")
@@ -469,10 +433,6 @@ export function normalizeClimateModeKey(rawModeKey) {
  * 用字符分类代替 canvas 测量，是为了在渲染前就能算出按钮排布：
  * 空白 0.35 em、窄字符 0.32 em、常规半角 0.58 em、宽字符 0.82 em、非 ASCII（中文）按 1 em。
  * 结果只用于「放得下吗」的判断，不要求像素级精确。
- *
- * @param {string} text 文本。
- * @param {number} fontSizePx 字号（像素）。
- * @returns {number} 估算宽度（像素）。
  */
 function measureTextWidth(text, fontSizePx) {
   return Array.from(String(text || "")).reduce(

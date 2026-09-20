@@ -35,11 +35,6 @@ const EMPTY_ENTITY_STATE = { state: "", attributes: {} };
  * 绝大多数控件就是自己的绑定实体；唯一的例外是浴霸（bath-heater）：
  * 当它没有独立空调控件时，用户看到的开关状态实际由 deviceProfile.roles.light 指定的
  * 照明实体承载，此时必须把命令与状态都改派到那个实体，否则界面与设备会不一致。
- *
- * @param {string} runtimeEntityId 运行时绑定的实体 ID。
- * @param {object} [component] 控件对象，读取 type 以判断是否已有空调控件。
- * @param {object} [deviceProfile] 设备档案，含 deviceType 与 roles。
- * @returns {string} 实际用于开关操作的实体 ID。
  */
 export function entityPowerTarget(runtimeEntityId, component = {}, deviceProfile = null) {
   if (
@@ -61,11 +56,6 @@ export function entityPowerTarget(runtimeEntityId, component = {}, deviceProfile
  * - media_player：playing 与 buffering 都算开，paused 算关；
  * - 其余（light / switch / input_boolean / cover 等）：on / open / true 以及
  *   device_tracker 的 home 都算开。
- *
- * @param {string} entityId 实体 ID，取点号前的域。
- * @param {object} stateInput 状态对象或变更对象。
- * @param {object} [ownerComponent] 所属控件，用于 climate 判断设备类型。
- * @returns {boolean} 是否处于开启状态。
  */
 export function entityPowerIsOn(entityId, stateInput, ownerComponent = {}) {
   const stateObject = resolveStateEntry(stateInput, EMPTY_ENTITY_STATE);
@@ -99,11 +89,6 @@ export function entityPowerIsOn(entityId, stateInput, ownerComponent = {}) {
  * - climate / fan / water_heater 不能走通用 toggle，必须交给 climatePowerCommand，
  *   并把「取反」后的目标状态显式传进去（该函数需要知道要开还是要关）；
  * - 其余域统一走 homeassistant.toggle。
- *
- * @param {string} targetEntityId 目标实体 ID（可能已被 entityPowerTarget 改派）。
- * @param {object} stateSource 当前状态对象或变更对象，用于推算取反后的目标状态。
- * @param {object} [toggleComponent] 所属控件，用于 climate 判断设备类型。
- * @returns {{domain: string, service: string, data: object}} 可直接发给后端的服务调用描述。
  */
 export function entityToggleCommand(targetEntityId, stateSource, toggleComponent = {}) {
   const entityState = resolveStateEntry(stateSource, EMPTY_ENTITY_STATE);
@@ -157,11 +142,6 @@ export function entityToggleCommand(targetEntityId, stateSource, toggleComponent
  * - climate 关闭时会把 preset_mode 与 mode 两个属性删掉——否则界面会继续显示
  *   「制热 / 送风」等模式，与已关机的事实矛盾；开机时统一落到 auto 由设备自行决定；
  * - 其余域在 off / on 之间翻转。
- *
- * @param {string} sourceEntityId 目标实体 ID。
- * @param {object} stateValue 当前状态对象或变更对象。
- * @param {object} [sourceComponent] 所属控件，用于 climate 判断设备类型。
- * @returns {object} 推测出的新状态对象（未与后端确认真伪）。
  */
 export function optimisticToggleState(sourceEntityId, stateValue, sourceComponent = {}) {
   const currentState = resolveStateEntry(stateValue, EMPTY_ENTITY_STATE);

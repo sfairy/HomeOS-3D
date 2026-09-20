@@ -32,9 +32,6 @@ const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);
  *
  * 与 entity-metadata.js 的 entityMetadataIsAvailable 判定一致，此处刻意重复实现而不 import：
  * 该模块被编辑器与运行时共用，保持零依赖可以避免因版本戳错配而加载两份。
- *
- * @param {object} candidateEntity 实体元数据。
- * @returns {boolean} 有 ID 且未被停用 / 缺失 / 禁用时返回 true。
  */
 function entityIsUsable(candidateEntity) {
   return (
@@ -60,10 +57,6 @@ function entityIsUsable(candidateEntity) {
  * - temperature / humidity / pm25 / pm10 / airQuality：传感器域 + 关键词，缺关键词时温度给 20 兜底；
  * - hcho：先排除 原始 / 标签 / 流水号 这类干扰项，含 浓度 给 190，否则 160；
  * - filterLeftTime / filterLife：同样先排除序列号与已使用量，滤芯剩余寿命 180，泛化的滤芯 135。
- *
- * @param {object} entity 实体元数据。
- * @param {string} entityRole 目标角色键。
- * @returns {number} 得分；-1 表示不匹配。
  */
 function scoreEntityForRole(entity, entityRole) {
   const domain = entityDomainOf(entity);
@@ -221,10 +214,6 @@ function scoreEntityForRole(entity, entityRole) {
  *
  * 排序依据依次为：得分降序 → 实体 ID 更短者优先（越短越像主实体）→ 字典序（保证结果稳定）。
  * 得分为 0 也允许入选（说明域匹配但没命中关键词），-1 才被排除。
- *
- * @param {Array<object>} entityList 候选实体列表。
- * @param {string} targetRole 目标角色键。
- * @returns {object|null} 选中的实体；无候选返回 null。
  */
 function pickBestEntityForRole(entityList, targetRole) {
   return (
@@ -251,10 +240,6 @@ function pickBestEntityForRole(entityList, targetRole) {
  * 与通用打分不同，这里先按角色对应的「域 + 名称」硬性过滤（靠背 / 腿部 / 腰部必须是 number，
  * 模式必须是 select 且不含 记忆 / 姿势），再按实体 ID 字典序取第一个，
  * 目的是让同一台床的按钮顺序在不同设备上保持一致。
- *
- * @param {Array<object>} entities 候选实体列表。
- * @param {string} role 部位角色：backrest / leg / waist / mode / memory。
- * @returns {object|null} 选中的实体；无候选返回 null。
  */
 function pickBestBedControlEntity(entities, role) {
   return (
@@ -296,9 +281,6 @@ function pickBestBedControlEntity(entities, role) {
 }
 /**
  * 取实体所属的小米集成标识。
- *
- * @param {object} entityMetadata 实体元数据。
- * @returns {string} 集成平台名；不是小米系设备时返回空串（调用方以空串作为「不适用」信号）。
  */
 export function xiaomiIntegration(entityMetadata) {
   const platform = String(entityMetadata?.platform || "")
@@ -315,12 +297,6 @@ export function xiaomiIntegration(entityMetadata) {
  *
  * 步骤：确认平台属小米 → 收集同设备（或退化为同实体）的可用实体 → 拼出统一检索文本
  * → 逐个角色竞聘 → 单独处理电动床的部位与记忆位 → 推断 deviceType 与 coverKind。
- *
- * @param {string} entityId 主实体 ID。
- * @param {Map<string, object>} [entitiesById] 实体元数据索引。
- * @param {Map<string, object>} [devicesById] 设备元数据索引（取厂商 / 型号 / 设备名）。
- * @param {Map<string, object>} [statesByEntityId] 状态索引，用于读 friendly_name 与下拉项。
- * @returns {object|null} 档案对象；不是小米设备或找不到主实体时返回 null。
  *
  * 档案字段约定：roles.primary 一定是「最像主控」的那个实体（没有 climate / cover / fan /
  * light / power 时回落到传入的 entityId）；confidence 用来告诉调用方这是规则命中还是兜底。
@@ -582,10 +558,6 @@ export function resolveXiaomiDeviceProfile(
  *
  * 只回填 deviceType 与 coverKind，且仅在原值为空或 auto 时写入——
  * 用户在编辑器里显式选过的类型必须优先于自动识别结果。
- *
- * @param {object} component 控件对象。
- * @param {object} profile 由 resolveXiaomiDeviceProfile 得到的档案。
- * @returns {object} 新的控件对象；入参缺失时原样返回。
  */
 export function applyXiaomiDeviceProfile(component, profile) {
   if (!component || !profile) {

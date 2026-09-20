@@ -26,8 +26,6 @@ import { resolveStateEntry } from "../utils/state-entry.js?v=20260920080000";
 /**
  * 把带单位的时长状态换算成秒。
  *
- * @param {object} stateEntity 状态对象或变更对象。
- * @param {string} [defaultUnit] 状态里没写单位时的默认单位。
  * @returns {number|null} 秒数；状态不是非负有限数时返回 null（表示「这条信息不可用」）。
  */
 function durationSecondsFromState(stateEntity, defaultUnit = "s") {
@@ -54,10 +52,6 @@ function durationSecondsFromState(stateEntity, defaultUnit = "s") {
  * - timeout：自定义超时无人移动时间，直接给出该等多久（单位通常为分钟）；
  * - noMotion：无移动状态持续时间，给出「已经多久没动」的实时读数。
  * 两者的实体命名在各厂商固件里差异很大，只能按名称正则匹配，匹配不到就返回 null。
- *
- * @param {Map<string, object>} entitiesById 实体元数据索引。
- * @param {string} targetEntityId 人体感应主实体 ID。
- * @returns {{timeout: object|null, noMotion: object|null}} 两个可选伴随传感器。
  */
 function findMotionCompanionSensors(entitiesById, targetEntityId) {
   const entityMetadata = entitiesById?.get?.(targetEntityId);
@@ -97,10 +91,6 @@ function findMotionCompanionSensors(entitiesById, targetEntityId) {
  * event.* 实体本身只有瞬时事件（motion / no_motion），不携带「持续多久」的信息，
  * 所以必须从伴随传感器或调用方配置里取回超时，否则界面无从判断当前是否仍算有人。
  *
- * @param {string} entityId 实体 ID。
- * @param {object} [eventState] 状态对象或变更对象。
- * @param {Map<string, object>} [entityRegistry] 实体元数据索引。
- * @param {Map<string, object>} [statesByEntityId] 状态索引。
  * @param {object} [eventOptions] 调用方配置，motionTimeoutSeconds 作为第二优先级的超时来源。
  * @returns {object} 含 motionEvent 标志、解析出的超时秒数与伴随实体 ID 列表的配置。
  */
@@ -173,13 +163,6 @@ export function presenceMotionEventConfig(
  *
  * 判定顺序固定，且每一步都是「先返回」：手动覆盖 → 无状态 → 离线 → 未知态 → event 分支 →
  * 通用布尔态列表 → 数值兜底。顺序即优先级，改动会影响已有页面的显示。
- *
- * @param {object} stateSource 状态对象或变更对象。
- * @param {string} [overrideState] 手动覆盖：on / off 时忽略真实状态；其余（含 auto）按状态判定。
- * @param {object} [presentationOptions] 展示选项：motionEvent、entityId、now、
- *   motionTimeoutSeconds、noMotionSeconds、noMotionStateTimestamp。
- * @returns {{key: string, label: string, active: boolean, available: boolean}}
- *   key 为 occupied / clear / unknown / unavailable，label 为对应中文文案。
  */
 export function presenceSensorPresentation(
   stateSource,
@@ -354,9 +337,6 @@ export function presenceSensorPresentation(
  *
  * 字段名在各数据来源之间不统一（HA 原生用 last_changed，本地缓存用 updatedAt / lastUpdated），
  * 因此逐个尝试；都不合法时返回 null，调用方据此放弃「已持续多久」的展示。
- *
- * @param {object} stateRecord 状态对象或变更对象。
- * @returns {number|null} 毫秒时间戳或 null。
  */
 export function presenceStateTimestamp(stateRecord) {
   const resolvedState = resolveStateEntry(stateRecord) || {};
@@ -381,12 +361,6 @@ export function presenceStateTimestamp(stateRecord) {
  * 原理：CSS 动画如果从头播放，每次重新渲染都会从 0 开始，看起来像是「人刚出现」。
  * 用负的 animation-delay 等于把动画快进到「按状态时间戳算，现在本该在的位置」，
  * 于是重渲染后依然是连续的画面。
- *
- * @param {object} stateInput 状态对象或变更对象。
- * @param {object} [durations] 各动画的周期（秒）：orbit / wave / floor / step。
- * @param {number} [animationNowMs] 当前时间戳，便于测试注入。
- * @returns {{orbitDelay: string, waveDelay: string, floorDelay: string, stepDelay: string}}
- *   CSS 可用的延迟字符串（形如 -1234ms 或 0ms）。
  */
 export function presenceAnimationPhase(stateInput, durations = {}, animationNowMs = Date.now()) {
   const stateTimestamp = presenceStateTimestamp(stateInput);
@@ -395,10 +369,6 @@ export function presenceAnimationPhase(stateInput, durations = {}, animationNowM
     : 0;
   /**
    * 把「已经过去了多久」折算成一个周期的进度，用 CSS 负延迟表达。
-   *
-   * @param {number|undefined} durationSeconds 该动画的周期（秒），缺失时用 defaultSeconds。
-   * @param {number} defaultSeconds 周期兜底值（秒），与控件默认动画配置保持一致。
-   * @returns {string} CSS 可用的延迟字符串，形如 `-1234ms` 或 `0ms`。
    */
   const formatDelayForPeriod = (durationSeconds, defaultSeconds) => {
     const periodMs = Math.max(0.001, Number(durationSeconds) || defaultSeconds) * 1000;
@@ -423,10 +393,6 @@ export function presenceAnimationPhase(stateInput, durations = {}, animationNowM
  *
  * 档位：不足 1 分钟 → 刚刚；不足 1 小时 → N 分钟；不足 1 天 → N 小时 [M 分钟]；
  * 再往上 → N 天 [M 小时]。有较小单位时一并带上，读数更直观。
- *
- * @param {number} timestamp 起始时间戳（毫秒）。
- * @param {number} [referenceNowMs] 参照时刻，便于测试注入。
- * @returns {string} 中文时长文案；时间戳非法时返回 --。
  */
 export function formatPresenceDuration(timestamp, referenceNowMs = Date.now()) {
   const timestampValue = Number(timestamp);
@@ -463,14 +429,6 @@ export function formatPresenceDuration(timestamp, referenceNowMs = Date.now()) {
  *
  * 每个桶取「桶结束时刻之前最近一条记录」的状态，也就是该时段内的既成事实；
  * 完全没有历史时退化为取下一条记录（前向填充），保证桶不会莫名空着。
- *
- * @param {Array<object>} [historyEntries] 历史记录，每项含 timestamp 与 value。
- * @param {object} [currentState] 当前状态，用于修正最后一个桶。
- * @param {number} [nowTimestampMs] 当前时间戳。
- * @param {number} [windowHours] 时间窗口（小时）。
- * @param {number} [bucketCount] 桶数量。
- * @param {object} [bucketOptions] 透传给 presenceSensorPresentation 的选项。
- * @returns {string[]} 每个桶的状态 key 数组，长度等于归一化后的桶数量。
  */
 export function presenceHistoryBuckets(
   historyEntries = [],

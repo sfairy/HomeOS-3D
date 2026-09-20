@@ -77,10 +77,6 @@ const effectVariantByAssetId = new Map();
 /**
  * 用后端下发的资源清单刷新内置资源的版本与 URL 索引。
  *
- * @param {Array<object>} [assetEntries] 资源条目，每项含 assetId、version、url、
- *   legacyAssetIds（历史 ID 别名）与可选的 effectVariant。
- * @returns {boolean} 索引内容确实变化返回 true，无变化返回 false。
- *
  * 返回布尔值是刻意设计的：调用方只有在 true 时才重建界面，
  * 否则每次轮询资源清单都会引发一次全量重绘。
  * 旧 ID 别名与原 ID 写入同一份索引，保证老文档里记录的旧 ID 仍能取到资源。
@@ -173,10 +169,6 @@ export function setBuiltinAssetVersions(assetEntries = []) {
 /**
  * 注册一个控件类型的渲染器。
  *
- * @param {string} componentType 控件类型（与文档里的 component.type 一致）。
- * @param {{render: function(object, object): Node}} componentRenderer 渲染器对象。
- * @returns {void}
- *
  * 重复注册同一类型会直接覆盖（后注册者生效），因此模块重复加载时最后一份生效；
  * 这也意味着版本戳不一致导致的两份模块会各自维护一份表，务必保持版本戳一致。
  */
@@ -185,10 +177,6 @@ export function registerComponent(componentType, componentRenderer) {
 }
 /**
  * 渲染一个控件：查出注册的渲染器并调用，查不到则给出可见的占位。
- *
- * @param {object} component 控件数据。
- * @param {object} renderContext 渲染上下文（states / history / editable / document 等）。
- * @returns {Node} 渲染出的 DOM 节点。
  *
  * 未知控件不抛异常而是画一块「控件尚未实现」的占位：
  * 页面可能只是比运行时新，缺一个控件不应该让整页渲染失败。
@@ -216,9 +204,6 @@ export function renderRegisteredComponent(component, renderContext) {
  * - user:<32 位十六进制> → /api/v1/assets/user/…；
  * - builtin:<相对路径> → /assets/builtin/…（并按需附带版本戳）。
  * 认不出的一律返回空串，由调用方渲染占位而不是发出一个必然 404 的请求。
- *
- * @param {string} assetReference 资源引用。
- * @returns {string} URL 或空串。
  */
 function resolveAssetUrl(assetReference) {
   const assetReferenceText = String(assetReference || "");
@@ -277,9 +262,6 @@ function resolveAssetUrl(assetReference) {
 }
 /**
  * 静态图片资源的对外入口（等价于 resolveAssetUrl）。
- *
- * @param {string} imageAssetId 资源 ID。
- * @returns {string} 图片 URL 或空串。
  */
 export function staticAssetImageSource(imageAssetId) {
   return resolveAssetUrl(imageAssetId);
@@ -289,10 +271,6 @@ export function staticAssetImageSource(imageAssetId) {
  *
  * 颜色值来自文档数据并会被写进内联样式，白名单正则只放行十六进制与 rgb / hsl 系列函数，
  * 避免任意字符串（例如带分号的注入）进入 style。
- *
- * @param {string} colorCandidate 待校验颜色。
- * @param {string} fallbackColor 兜底颜色。
- * @returns {string} 可安全写入样式的颜色。
  */
 function resolveColor(colorCandidate, fallbackColor) {
   const trimmedColor = String(colorCandidate || "").trim();
@@ -308,11 +286,6 @@ function resolveColor(colorCandidate, fallbackColor) {
  * 字重属性支持 1~900 与 0~1 两种量纲，这里统一归一化到 0~1，
  * 再用文字描边（0.05 em 的当前色描边）把笔画加粗——纯 font-weight 在部分中文字体上无级差，
  * 描边能得到连续的粗细变化。paint-order 保证描边画在填充之下，字不会糊。
- *
- * @param {HTMLElement} targetElement 目标元素。
- * @param {*} fontWeightValue 字重（1~900 或 0~1）。
- * @param {*} fontSizeValue 字号，决定描边宽度。
- * @returns {void}
  */
 function applyFontWeight(targetElement, fontWeightValue, fontSizeValue) {
   const weightNumber = Number(fontWeightValue);
@@ -328,9 +301,6 @@ function applyFontWeight(targetElement, fontWeightValue, fontSizeValue) {
 }
 /**
  * 通用「活动态」判定：on / open / true / home 都算活动。
- *
- * @param {object} entityStateEntry 状态对象或变更对象。
- * @returns {boolean} 是否活动。
  */
 function isEntityActiveState(entityStateEntry) {
   const entityStateText = String(entityStateEntry?.state ?? entityStateEntry?.newState?.state ?? "")
@@ -358,12 +328,6 @@ export const COVER_CLOSED_POSITION_EPSILON = 1;
  * 优先级：控件显式配置的 coverKind → 状态里有 current_tilt_position 属性 →
  * supported_features 的第 240 位（官方 0x00F0 中的 tilt 能力）→ 名称含 梦幻 / 竖帘 / 百叶 / novo。
  * 前三者都是「设备确实支持调叶片角度」的证据，比名称更可靠。
- *
- * @param {object} coverDreamComponent 控件对象。
- * @param {string} [coverDreamEntityId] 实体 ID。
- * @param {object} [coverDreamState] 状态对象。
- * @param {Map<string, object>} [coverDreamMetadataByEntityId] 实体元数据索引。
- * @returns {boolean} 是否按梦幻帘处理。
  */
 export function coverComponentIsDream(
   coverDreamComponent,
@@ -401,12 +365,6 @@ export function coverComponentIsDream(
  * 判定顺序：先按电机方向还原出有效状态 → opening / closing 直接定论 →
  * 梦幻帘只看状态名 → 有位置属性时用位置（反转时取 100 - 位置）→
  * 最后才回落到状态名判定，反转时状态名也要取反。
- *
- * @param {object} coverComponent 控件对象。
- * @param {string} coverActiveEntityId 实体 ID。
- * @param {object} coverActiveState 状态对象。
- * @param {object} coverActiveContext 渲染上下文。
- * @returns {boolean} 是否视为打开。
  */
 function isCoverActive(coverComponent, coverActiveEntityId, coverActiveState, coverActiveContext) {
   const coverResolvedState = resolveStateEntry(coverActiveState) || {};
@@ -447,12 +405,6 @@ function isCoverActive(coverComponent, coverActiveEntityId, coverActiveState, co
 }
 /**
  * 判断窗帘控件是否处于活动（打开）状态，供控件渲染与图标按钮调用。
- *
- * @param {object} activeCoverComponent 控件对象。
- * @param {string} activeCoverEntityId 实体 ID。
- * @param {object} activeCoverState 状态对象。
- * @param {object} [activeCoverContext] 渲染上下文。
- * @returns {boolean} 是否活动。
  */
 export function coverComponentIsActive(
   activeCoverComponent,
@@ -473,12 +425,6 @@ export function coverComponentIsActive(
  * cover 域单独走窗帘逻辑（它的活动定义与普通开关不同）；
  * 其余域先看 properties.runtimePowerEntityId —— 有些控件（例如浴霸）的开关状态由另一个实体承载，
  * 只有该属性缺失或与自身相同时才使用控件自己绑定的实体与状态。
- *
- * @param {object} powerAwareComponent 控件对象。
- * @param {string} powerAwareEntityId 实体 ID。
- * @param {object} powerAwareState 状态对象。
- * @param {object} [powerAwareContext] 渲染上下文，提供 states。
- * @returns {boolean} 是否活动。
  */
 function isComponentEntityActive(
   powerAwareComponent,
@@ -514,10 +460,6 @@ function isComponentEntityActive(
  * 编辑态、非 light 域、两项实时效果都被关掉时一律返回 false；
  * 实体状态缺失 / unknown / unavailable 时返回 true（信息还没到位）；
  * 若刚下发了开机指令（pendingOptimisticState.desiredActive）则以乐观状态为准，不再等待。
- *
- * @param {object} effectAwaitComponent 特效控件。
- * @param {object} [effectAwaitContext] 渲染上下文。
- * @returns {boolean} 是否处于等待状态。
  */
 export function iconButtonEffectLightVisualAwaiting(effectAwaitComponent, effectAwaitContext = {}) {
   const effectAwaitProperties = effectAwaitComponent?.properties || {};
@@ -589,10 +531,6 @@ export function iconButtonEffectLightVisualAwaiting(effectAwaitComponent, effect
  *
  * 走 HA 的 image_proxy；hb 查询参数充当缓存键，取 updatedAt / lastChanged / state，
  * 都取不到时用 initial。地图内容更新时这个值会变，浏览器才会重新取图而不用缓存。
- *
- * @param {string} vacuumImageEntityId 地图实体 ID。
- * @param {object} [vacuumImageState] 状态对象或变更对象。
- * @returns {string} 图片地址。
  */
 export function vacuumMapImageSource(vacuumImageEntityId, vacuumImageState = null) {
   const vacuumImageResolvedState = resolveStateEntry(vacuumImageState) || {};
@@ -684,10 +622,6 @@ export {
  *
  * 优先用实体自身上报的 icon 属性；没有则按域给一个默认 mdi 图标，
  * 认不出的域用 mdi:devices 兜底。
- *
- * @param {string} stateIconEntityId 实体 ID。
- * @param {object} stateIconEntityState 状态对象。
- * @returns {string} mdi 图标名。
  */
 function resolveStateIcon(stateIconEntityId, stateIconEntityState) {
   const stateIconName = String(
@@ -723,11 +657,6 @@ function resolveStateIcon(stateIconEntityId, stateIconEntityState) {
  * 窗帘电机反接时的状态互换文案 → HA 翻译（两级键：实体状态键与组件状态键）→
  * 内置中英文对照表 → 原始状态值 → 「未知」。
  * 最后按需拼接单位；状态本身是「不可用 / 未知」时不拼单位。
- *
- * @param {object} rawState 状态对象或变更对象。
- * @param {string} [formattedEntityId] 实体 ID。
- * @param {object} [formatContext] 上下文：entityMetadata、entityTranslations、component。
- * @returns {string} 展示文案；没有状态时返回「等待实体状态」。
  */
 export function formatEntityState(rawState, formattedEntityId = "", formatContext = {}) {
   const resolvedStateEntry = resolveStateEntry(rawState);
@@ -820,10 +749,6 @@ export function formatEntityState(rawState, formattedEntityId = "", formatContex
  * 灯光类控件的活动态判定。
  *
  * 编辑器里直接采用预览开关；运行时按绑定实体是否处于开启态判断。
- *
- * @param {object} visualComponent 控件对象。
- * @param {object} visualContext 渲染上下文。
- * @returns {boolean} 是否活动。
  */
 function isLightVisualActive(visualComponent, visualContext) {
   if (visualContext.editable && visualContext.previewState === "on") {
@@ -850,9 +775,6 @@ export const ICON_BUTTON_EFFECT_BASE_TEMPERATURE_KELVIN = 3500;
  *
  * 映射到 0.2~1 而不是 0~1：最暗时仍留一点可见度，否则用户完全看不到控件。
  * 亮度缺失或非法时按满亮处理（1）。
- *
- * @param {*} brightnessPercent 亮度百分比。
- * @returns {number} 0.2~1 的透明度（亮度为 0 时返回 0）。
  */
 function brightnessPercentToOpacity(brightnessPercent) {
   if (
@@ -874,9 +796,6 @@ function brightnessPercentToOpacity(brightnessPercent) {
  *
  * 新版 HA 给 color_temp_kelvin，老版只给 mired 单位的 color_temp，
  * 后者用 1000000 / mired 换算。两者都没有则返回 null。
- *
- * @param {object} [kelvinAttributes] 实体属性。
- * @returns {number|null} 开尔文值。
  */
 function resolveColorTemperature(kelvinAttributes = {}) {
   const colorTempKelvin = Number(kelvinAttributes.color_temp_kelvin);
@@ -896,11 +815,6 @@ function resolveColorTemperature(kelvinAttributes = {}) {
  * 亮度换算成透明度，色温换算成饱和度滤镜；两项实时效果都可以在控件属性里单独关掉，
  * 关掉的那一项不参与计算（透明度假定为 1、滤镜为 none），
  * 这样用户可以在页面上固定一个理想外观而不随灯的实际状态变化。
- *
- * @param {object} lightVisualComponent 控件对象。
- * @param {object} [lightVisualContext] 渲染上下文，提供 states。
- * @returns {{brightnessPercent: number|null, colorTemperatureKelvin: number|null,
- *   opacity: number, filter: string}} 视觉参数。非 light 域返回中性值。
  */
 export function iconButtonEffectLightVisualState(lightVisualComponent, lightVisualContext = {}) {
   const lightVisualEntityId = String(lightVisualComponent?.bindings?.entity?.entityId || "");
@@ -957,10 +871,6 @@ export function iconButtonEffectLightVisualState(lightVisualComponent, lightVisu
 }
 /**
  * 设备按钮的活动态判定（逻辑与灯光一致，编辑器走预览、运行时看实体）。
- *
- * @param {object} buttonPreviewComponent 控件对象。
- * @param {object} buttonPreviewContext 渲染上下文。
- * @returns {boolean} 是否活动。
  */
 function isDeviceButtonVisualActive(buttonPreviewComponent, buttonPreviewContext) {
   if (buttonPreviewContext.editable && buttonPreviewContext.previewState === "on") {
@@ -985,10 +895,6 @@ function isDeviceButtonVisualActive(buttonPreviewComponent, buttonPreviewContext
  *
  * 编辑态预览开机时给一个示例模式（浴霸给 heat、空调给 cool），
  * 预览关机直接 off；运行时走 climate.js 的展示模式推导，并统一转小写便于类名拼接。
- *
- * @param {object} climateComponent 控件对象。
- * @param {object} climateContext 渲染上下文。
- * @returns {string} 模式名。
  */
 function resolveClimatePresentationMode(climateComponent, climateContext) {
   const climateEntityId = climateComponent.bindings?.entity?.entityId || "";
@@ -1012,10 +918,6 @@ function resolveClimatePresentationMode(climateComponent, climateContext) {
 }
 /**
  * 温控设备的开关态判定。
- *
- * @param {object} poweredComponent 控件对象。
- * @param {object} poweredContext 渲染上下文。
- * @returns {boolean} 是否开机。
  */
 function isClimateDeviceActive(poweredComponent, poweredContext) {
   if (poweredContext.editable && poweredContext.previewState === "on") {
@@ -1033,10 +935,6 @@ function isClimateDeviceActive(poweredComponent, poweredContext) {
 }
 /**
  * 取温控设备出风特效的模式（编辑态预览开机统一按 cool 展示）。
- *
- * @param {object} effectModeComponent 控件对象。
- * @param {object} effectModeContext 渲染上下文。
- * @returns {string} off / cool / heat / other。
  */
 function resolveClimateEffectMode(effectModeComponent, effectModeContext) {
   const effectModeEntityId = effectModeComponent.bindings?.entity?.entityId || "";
@@ -1059,10 +957,6 @@ function resolveClimateEffectMode(effectModeComponent, effectModeContext) {
  *
  * 关机时只显示模式名；开机且有目标温度时追加目标温度，
  * 没有目标温度才退回当前温度，两者都没有就只显示模式名。
- *
- * @param {object} modeLabelComponent 控件对象。
- * @param {object} modeLabelContext 渲染上下文。
- * @returns {string} 标签文案。
  */
 function resolveClimateLabel(modeLabelComponent, modeLabelContext) {
   const modeLabelEntityId = modeLabelComponent.bindings?.entity?.entityId || "";
@@ -1095,10 +989,6 @@ function resolveClimateLabel(modeLabelComponent, modeLabelContext) {
  *
  * 所有外观参数都做了区间夹取，越界值不会画出破图；
  * 颜色随制冷（蓝）/ 制热（橙）/ 其它（白）切换。
- *
- * @param {object} [airflowProperties] 控件属性，含角度、长度、密度、厚度、速度、模糊等。
- * @param {string} [airflowClimateMode] 特效模式：cool / heat / other。
- * @returns {string} data:image/svg+xml 形式的地址。
  */
 function buildAirflowSvg(airflowProperties = {}, airflowClimateMode = "other") {
   const airflowMotionMode = airflowProperties.airflowMotion === "static" ? "static" : "dynamic";
@@ -1330,10 +1220,6 @@ function buildAirflowSvg(airflowProperties = {}, airflowClimateMode = "other") {
 }
 /**
  * 渲染空调 / 浴霸的出风图层。
- *
- * @param {object} airflowLayerComponent 图层控件。
- * @param {object} airflowLayerContext 渲染上下文。
- * @returns {HTMLElement|null} 出风图层；设备未运行或图层被关闭时返回 null（调用方跳过渲染）。
  */
 export function renderAirConditionerAirflowLayer(airflowLayerComponent, airflowLayerContext) {
   const airflowLayerProperties = airflowLayerComponent.properties || {};
@@ -1360,10 +1246,7 @@ export function renderAirConditionerAirflowLayer(airflowLayerComponent, airflowL
  *
  * 必须用 createElementNS：用 createElement 创建的 svg 子元素不会被当作 SVG 渲染。
  *
- * @param {Element} svgParentElement 父节点。
  * @param {string} svgTagName 标签名。
- * @param {object} [svgAttributes] 属性表。
- * @returns {Element} 创建的元素。
  */
 function appendSvgElement(svgParentElement, svgTagName, svgAttributes = {}) {
   const createdSvgElement = document.createElementNS("http://www.w3.org/2000/svg", svgTagName);
@@ -1382,12 +1265,6 @@ function appendSvgElement(svgParentElement, svgTagName, svgAttributes = {}) {
  * - 相邻重复（同一时间戳同一值）先去重，减少无意义的锯齿；
  * - 按「每小时一个桶」前向填充：桶内取该时刻之前最近的一条记录，
  *   这样空档期会自然延续上一个值，与仪表盘的读数语义一致。
- *
- * @param {object} historyContext 渲染上下文，提供 history（实体 ID → {points}）。
- * @param {string} historyEntityId 实体 ID。
- * @param {number} currentStateValue 当前值，非法时不追加。
- * @param {number} [historyHours] 时间窗口（小时）。
- * @returns {Array<{timestamp: number, value: number}>} 等间隔的序列点；无数据时为空数组。
  */
 function buildHistorySeries(historyContext, historyEntityId, currentStateValue, historyHours = 24) {
   // 先把原始点归一成「毫秒时间戳 + Number 数值」，后面统一按这两个字段比较与排序；
@@ -1457,10 +1334,6 @@ function buildHistorySeries(historyContext, historyEntityId, currentStateValue, 
  * 把时间戳格式化成图表提示用的 `MM-DD HH:mm` 或 `HH:mm`。
  *
  * Intl 的中文格式用斜杠分隔，这里统一替换成短横线。
- *
- * @param {number} timestampValue 毫秒时间戳。
- * @param {boolean} [includeDate] 是否带上日期。
- * @returns {string} 格式化结果。
  */
 function formatHistoryTimestamp(timestampValue, includeDate = true) {
   return formatZhDateTime(timestampValue, { withDate: includeDate });
@@ -1473,16 +1346,6 @@ function formatHistoryTimestamp(timestampValue, includeDate = true) {
  * - 挂在运行时弹窗层内：同样用 absolute 但要先减去弹窗层相对视口的偏移；
  * - 挂在 document.body：用 fixed 直接按视口坐标定位。
  * 另外气泡会按缩放比反向缩放，并在靠近容器左右边缘时改用右 / 左对齐，防止溢出被裁掉。
- *
- * @param {Element} chartRootElement 图表根元素（接收指针事件、提供 viewBox）。
- * @param {Element} chartContainerElement 图表容器（挂引导线与光点）。
- * @param {object} tooltipGeometry 由 lineChartGeometry 得到的几何数据，含 points / firstTime / lastTime。
- * @param {string} valueSuffix 数值单位后缀。
- * @param {function(object): {x: number, y: number}} positionMapper 把数据点映射到图表内百分比坐标。
- * @param {string} [valuePrecision] 数值精度设置。
- * @param {{start: number, end: number}} [valueRange] 指针横向位置对应的数据区间（0~1）。
- * @param {Element} [tooltipParentElement] 气泡挂载的父元素。
- * @returns {function(): void} 清理函数：解绑监听并移除气泡。
  */
 function attachChartTooltip(
   chartRootElement,
@@ -1635,14 +1498,6 @@ function attachChartTooltip(
  * 于是内部只需按 236 宽的坐标系计算边距、圆角与描边宽度。
  * 渐变 id 用随机 UUID 加后缀：同一页面上可能有多个导航按钮，
  * id 冲突会让后来的按钮引用到前一个的渐变。
- *
- * @param {object} navFrameComponent 控件对象。
- * @param {object} navFrameProperties 控件属性。
- * @param {boolean} isNavFrameActive 是否活动，决定整体透明度档位。
- * @param {number} navFrameOpacity 透明度系数。
- * @param {number} navGlowStrength 光晕强度。
- * @param {number} navGlowSize 光晕范围。
- * @returns {SVGElement} 可直接挂载的 SVG 元素。
  */
 function buildNavigationEffects(
   navFrameComponent,
@@ -1802,14 +1657,6 @@ function buildNavigationEffects(
  *
  * 优先级：编辑态预览 → 目标页等于当前页 → 绑定实体的活动态。
  * 两者都没有时按不高亮处理。
- *
- * @param {object} [options] 选项。
- * @param {string} [options.targetPage] 目标页路径。
- * @param {string} [options.currentPagePath] 当前页路径。
- * @param {string} [options.entityId] 绑定实体 ID。
- * @param {boolean} [options.entityActive] 绑定实体是否活动。
- * @param {string} [options.previewState] 编辑态预览：on / off / auto。
- * @returns {boolean} 是否高亮。
  */
 export function navigationButtonIsActive({
   targetPage: navigationTargetPage = "",
@@ -1856,10 +1703,6 @@ registerComponent("image", {
  *
  * 比通用活动态更宽：opening / active / playing 也算，
  * 因为图层绑定的可能是窗帘、媒体播放器这类语义不同的实体。
- *
- * @param {string} diagramLayerEntityId 图层实体 ID。
- * @param {object} layerContext 渲染上下文。
- * @returns {boolean} 是否点亮。
  */
 function isLayerEntityActive(diagramLayerEntityId, layerContext) {
   if (!diagramLayerEntityId) {
@@ -2025,10 +1868,6 @@ registerComponent("floorplan-auto-diagram", {
  * 资源优先用服务端生成的特效裁剪变体（只取需要的一小块，省带宽也省显存），
  * 没有变体时退回原图。用变体时会先把裁剪参数写进 dataset 而暂不设置 src，
  * 交给 effect-geometry / 图片加载器在拿到原图尺寸后再决定最终地址与裁剪。
- *
- * @param {object} effectLayerComponent 图层控件。
- * @param {object} effectLayerContext 渲染上下文。
- * @returns {HTMLElement|null} 图层元素；未配置资源或图层关闭时返回 null。
  */
 export function renderIconButtonEffectLayer(effectLayerComponent, effectLayerContext) {
   const effectLayerProperties = effectLayerComponent.properties || {};
@@ -2994,12 +2833,6 @@ registerComponent("icon-button", buttonRenderer);
 registerComponent("device-button", buttonRenderer);
 /**
  * 渲染门窗传感器。
- *
- * @param {object} sensorComponent 控件对象。
- * @param {object} sensorProperties 控件属性。
- * @param {object} sensorPresentation 由 presenceSensorPresentation 得到的状态四态。
- * @param {object} sensorContext 渲染上下文。
- * @returns {HTMLElement} 传感器元素。
  */
 function renderDoorWindowSensor(
   sensorComponent,
@@ -3065,10 +2898,6 @@ function renderDoorWindowSensor(
 }
 /**
  * 渲染水浸传感器。
- *
- * @param {object} waterLeakProperties 控件属性。
- * @param {object} waterLeakPresentation 状态四态。
- * @returns {HTMLElement} 传感器元素。
  */
 function renderWaterLeakSensor(waterLeakProperties, waterLeakPresentation) {
   const waterLeakAccentColor = resolveColor(waterLeakProperties.waterLeakColor, "#42c8ff");
@@ -3121,10 +2950,6 @@ function renderWaterLeakSensor(waterLeakProperties, waterLeakPresentation) {
 }
 /**
  * 渲染烟雾传感器。
- *
- * @param {object} smokeProperties 控件属性。
- * @param {object} smokePresentation 状态四态。
- * @returns {HTMLElement} 传感器元素。
  */
 function renderSmokeSensor(smokeProperties, smokePresentation) {
   const smokeAccentColor = resolveColor(smokeProperties.smokeColor, "#ffffff");
@@ -3167,10 +2992,6 @@ function renderSmokeSensor(smokeProperties, smokePresentation) {
 }
 /**
  * 渲染天然气传感器。
- *
- * @param {object} gasProperties 控件属性。
- * @param {object} gasPresentation 状态四态。
- * @returns {HTMLElement} 传感器元素。
  */
 function renderGasSensor(gasProperties, gasPresentation) {
   const gasAccentColor = resolveColor(gasProperties.naturalGasColor, "#ffb347");
@@ -3600,10 +3421,6 @@ registerComponent("air-conditioner", {
  *
  * 入参可能是 0~1 的比例，也可能是 0~100 的百分比，用「是否大于 0.5」区分：
  * 两种量纲在这里的分界明显，不需要额外配置项。
- *
- * @param {*} radiusValue 半径值。
- * @param {number} [fallbackRadiusRatio] 非法时的兜底比例。
- * @returns {number} 0~0.5 的半径比例。
  */
 export function cameraRadiusRatio(radiusValue, fallbackRadiusRatio = 0.04) {
   const parsedRadius = Number(radiusValue);
@@ -3623,12 +3440,6 @@ export function cameraRadiusRatio(radiusValue, fallbackRadiusRatio = 0.04) {
  *
  * 只画边框不含内容，因此宽高优先取控件尺寸，取不到才退回容器的客户端尺寸；
  * 边框宽度为 0 或显式关闭时返回 null，调用方不必再判断。
- *
- * @param {Element} frameContainerElement 容器元素。
- * @param {object} frameComponent 控件对象。
- * @param {object} [frameProperties] 控件属性。
- * @param {string} [frameNamespace] 渐变 / 滤镜 id 的命名空间，避免同页多实例冲突。
- * @returns {Element|null} 边框元素。
  */
 export function appendCameraFrame(
   frameContainerElement,
@@ -3723,8 +3534,6 @@ const cameraSourceInflight = new Map();
  * 同一实体在有效期内的请求直接命中缓存；未完成的请求按实体合并，
  * 多个控件同时挂载同一路摄像头时只会真正请求一次。
  *
- * @param {string} cameraEntityId 摄像头实体 ID。
- * @returns {Promise<string>} HLS 地址。
  * @throws {Error} 实体 ID 为空或后端返回失败时抛出。
  */
 async function fetchCameraHlsSource(cameraEntityId) {
@@ -3784,9 +3593,6 @@ async function fetchCameraHlsSource(cameraEntityId) {
  *
  * 页面隐藏时不预热（用户看不到，白白占带宽）；数量截到 CAMERA_PREWARM_LIMIT，
  * 失败用 allSettled 吞掉：预热本来就是可选优化，不该影响页面。
- *
- * @param {string[]} [prewarmEntityIds] 待预热的实体 ID。
- * @returns {Promise<void>}
  */
 export async function prewarmCameraMedia(prewarmEntityIds = []) {
   if (document.visibilityState === "hidden") {
@@ -3810,16 +3616,6 @@ export async function prewarmCameraMedia(prewarmEntityIds = []) {
  *
  * 刷新间隔下限 6 秒（再短对后端与浏览器都不划算），并夹在 setTimeout 的最大值之内；
  * 页面隐藏时挂起定时器，回到前台立刻补一次，避免后台空转。
- *
- * @param {object} options 挂载参数。
- * @param {Element} options.container 容器。
- * @param {string} options.entityId 摄像头实体 ID。
- * @param {string} [options.label] 无障碍标签。
- * @param {string} [options.objectFit] 填充方式。
- * @param {number} [options.refreshInterval] 刷新间隔（秒）。
- * @param {Element} [options.placeholder] 占位元素。
- * @param {function} [options.cleanup] 卸载时的回调。
- * @returns {function(): void} 卸载函数。
  */
 export function mountCameraSnapshot({
   container: snapshotContainer,
@@ -3952,16 +3748,7 @@ export function mountCameraSnapshot({
  * 视频元素必须 muted + playsInline：浏览器只允许静音自动播放，
  * 不静音会直接被拒绝播放，表现为黑屏。
  *
- * @param {object} options 挂载参数。
- * @param {Element} options.container 容器。
- * @param {string} options.entityId 摄像头实体 ID。
- * @param {string} [options.label] 无障碍标签。
- * @param {string} [options.objectFit] 填充方式。
- * @param {Element} [options.placeholder] 占位元素。
- * @param {function} [options.onReady] 播放就绪回调。
  * @param {function} [options.onUnavailable] 不可用回调。
- * @param {function} [options.cleanup] 卸载时的回调。
- * @returns {function(): void} 卸载函数。
  */
 export function mountCameraMedia({
   container: mediaContainer,
@@ -4809,10 +4596,6 @@ registerComponent("line-chart", {
  *
  * 与控件本体共用同一套数据整理与几何计算；返回值上挂了 syncLineChartState，
  * 运行时状态更新时直接调用它做增量刷新，不必整块重建 DOM。
- *
- * @param {object} detailsComponent 控件数据。
- * @param {object} detailsContext 渲染上下文。
- * @returns {HTMLElement} 详情区块。
  */
 export function renderLineChartDetails(detailsComponent, detailsContext) {
   const detailsEntityId = detailsComponent.bindings?.entity?.entityId || "";
@@ -5311,10 +5094,6 @@ registerComponent("panel-frame", {
  * 画布存在整体缩放（componentScale），同一份文档在不同屏幕上控件像素尺寸不同；
  * 内容单位是「除以缩放、再除以 100」后的相对值，控件内部按它定字号与间距，
  * 这样缩放画布时内容的相对比例保持不变。
- *
- * @param {object} unitComponent 控件对象。
- * @param {object} unitContext 渲染上下文，提供 document.canvas.componentScale。
- * @returns {{width: number, height: number}} 内容单位下的宽高。
  */
 export function componentContentUnitsPx(unitComponent, unitContext) {
   const componentScale = Math.max(0.01, Number(unitContext?.document?.canvas?.componentScale || 1));
@@ -5326,10 +5105,6 @@ export function componentContentUnitsPx(unitComponent, unitContext) {
 /**
  * 导航按钮专用内容单位：以 64.36 的设计基准高度换算，
  * 使按钮内的字号与图标在不同高度下按同一比例缩放。
- *
- * @param {object} navigationUnitComponent 控件对象。
- * @param {object} navigationUnitContext 渲染上下文。
- * @returns {number} 导航内容单位（像素）。
  */
 export function navigationContentUnitPx(navigationUnitComponent, navigationUnitContext) {
   return (

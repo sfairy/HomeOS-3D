@@ -23,9 +23,6 @@ import { resolveStateEntry } from "../utils/state-entry.js?v=20260920080000";
  *
  * 空串、unknown、unavailable 都属于「前端拿不到有效读数」，
  * 需要触发一次补数据而不是直接按无效态渲染。
- *
- * @param {object} stateOrChange 状态对象或变更对象。
- * @returns {boolean} 需要补数据时返回 true。
  */
 export function lineChartRuntimeStateNeedsHydration(stateOrChange) {
   const stateObject = resolveStateEntry(stateOrChange);
@@ -51,10 +48,6 @@ export function lineChartRuntimeStateNeedsHydration(stateOrChange) {
  * - 与控件关联的相关实体（selectedRelatedEntityIds）。
  *
  * 虚拟实体一律跳过：它们由渲染器自己合成，向后端订阅会被判为不存在。
- *
- * @param {Array<object>} components 组件数组，可为任意层级。
- * @param {Set<string>} [entityIdSet] 复用的结果集合，便于外部追加已有 ID。
- * @returns {Set<string>} 收集到的实体 ID 集合。
  */
 export function collectEntityIds(components, entityIdSet = new Set()) {
   for (const component of components || []) {
@@ -117,11 +110,6 @@ export function collectEntityIds(components, entityIdSet = new Set()) {
 }
 /**
  * 递归收集满足条件的组件。
- *
- * @param {Array<object>} inputComponents 待遍历的组件数组。
- * @param {function(object): boolean} predicate 判定函数，返回 true 即收录。
- * @param {Array<object>} [matches] 复用的结果数组。
- * @returns {Array<object>} 命中的组件，顺序为父组件先于其子组件。
  */
 export function collectComponents(inputComponents, predicate, matches = []) {
   for (const currentComponent of inputComponents || []) {
@@ -137,11 +125,6 @@ export function collectComponents(inputComponents, predicate, matches = []) {
  *
  * 查找顺序是刻意的「由近及远」：当前页 → 当前页挂载的共享组件 → 其它页 → 全部共享组件。
  * 同一实体可能在多个页面都有图表，取最近的一个做属性来源，用户在当前页看到的样式才符合直觉。
- *
- * @param {object} documentModel 文档模型，含 pages 与 sharedComponents。
- * @param {object} page 当前页模型。
- * @param {string} entityId 目标实体 ID。
- * @returns {object|null} 命中的折线图组件，找不到返回 null。
  */
 export function matchingLineChartComponent(documentModel, page, entityId) {
   // 判定组件是否为「绑定了目标实体」的折线图：类型与 entityId 都要匹配。它是纯判定
@@ -182,12 +165,6 @@ export function matchingLineChartComponent(documentModel, page, entityId) {
 }
 /**
  * 生成折线图的属性：以别处同名图表的属性为底，再被显式覆盖项压过。
- *
- * @param {object} documentSnapshot 文档快照。
- * @param {object} currentPage 当前页。
- * @param {string} targetEntityId 目标实体 ID。
- * @param {object} [overrides] 调用方指定的属性覆盖。
- * @returns {object} 合并后的属性对象。
  */
 export function syncedLineChartProperties(
   documentSnapshot,

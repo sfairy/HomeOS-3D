@@ -18,7 +18,6 @@
  * - status 为 missing：Home Assistant 里已找不到该实体（例如已删除）；
  * - status 为 disabled：HA 侧实体被禁用。
  *
- * @param {object} [metadata] 控件携带的实体元数据。
  * @returns {boolean} 可用返回 true，否则 false。
  */
 export function entityMetadataIsAvailable(metadata) {

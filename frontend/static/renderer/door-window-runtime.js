@@ -30,9 +30,6 @@ const PERSPECTIVE_CORNER_BOUNDS = Object.freeze([
  * 归一化角点数组：非法输入回落到默认矩形，逐分量钳制并补齐非有限值。
  *
  * 逐项兜底而不是整体兜底，是为了容忍只坏掉一个分量的历史数据。
- *
- * @param {*} corners 期望长度为 8 的角点数组。
- * @returns {number[]} 长度为 8、已钳制在 PERSPECTIVE_CORNER_BOUNDS 内的角点。
  */
 export function doorWindowPerspectiveCorners(corners) {
   return (
@@ -56,11 +53,6 @@ export function doorWindowPerspectiveCorners(corners) {
  * 算法：先用角点差解出单应矩阵的 H、I 两个自由度，再换算成 matrix3d 的 16 个分量，
  * 最后一步做了退化保护——四边形退化成线或点时 determinant 趋零，直接返回单位矩阵，
  * 否则 CSS 会收到 Inf / NaN 并让整个元素消失。
- *
- * @param {number} width 控件宽度（像素），至少按 1 处理。
- * @param {number} height 控件高度（像素），至少按 1 处理。
- * @param {*} cornerValues 归一化角点，交给 doorWindowPerspectiveCorners 归一。
- * @returns {string} 可直接写入 style.transform 的 `matrix3d(...)` 字符串。
  */
 export function doorWindowPerspectiveMatrix(width, height, cornerValues) {
   const safeWidth = Math.max(1, Number(width) || 1);

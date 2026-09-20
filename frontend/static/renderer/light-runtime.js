@@ -24,9 +24,6 @@ import { resolveStateEntry } from "../utils/state-entry.js?v=20260920080000";
 /**
  * 把 0~100 的相对色温百分比换算成开尔文。
  *
- * @param {number} minimumKelvin 该灯支持的最低色温（最暖端）。
- * @param {number} maximumKelvin 该灯支持的最高色温（最冷端）。
- * @param {number} relativePercent 相对百分比，0 对应最低色温，100 对应最高色温。
  * @returns {number} 开尔文值；区间非法时回落到最低色温，最低色温也不可用时用 2700（常见暖白默认值）。
  */
 export function relativeLightColorTemperature(minimumKelvin, maximumKelvin, relativePercent) {
@@ -55,10 +52,7 @@ export function relativeLightColorTemperature(minimumKelvin, maximumKelvin, rela
  * 布尔判断放在外面：某些灯会把 brightness 等字段留在属性里但已经不支持调节，
  * 只看数值存在会把不支持的能力误判为可用。
  *
- * @param {boolean} isCapabilitySupported 能力探测结果。
- * @param {*} capabilityValue 实体属性里读到的值。
  * @param {*} fallbackValue 不可用时的兜底值。
- * @returns {number} 最终用于渲染的数值。
  */
 export function lightVisualValueForCapability(
   isCapabilitySupported,
@@ -79,9 +73,6 @@ const COLOR_CAPABLE_MODES_SET = new Set(["hs", "rgb", "rgbw", "rgbww", "xy"]);
  *
  * 老固件不下发 supported_color_modes，只会给 hs_color / rgb_color，
  * 这时补一个 "hs" 作为等价声明，避免把能调色的灯误判成只能调亮度。
- *
- * @param {object} [attributes] 实体属性。
- * @returns {string[]} 归一化后的色彩模式列表，可能为空。
  */
 function resolveSupportedColorModes(attributes = {}) {
   const normalizedColorModes = Array.isArray(attributes?.supported_color_modes)
@@ -103,9 +94,6 @@ function resolveSupportedColorModes(attributes = {}) {
 }
 /**
  * 判断灯是否支持彩色（而非仅明暗 / 冷暖）。
- *
- * @param {object} [entityAttributes] 实体属性。
- * @returns {boolean} 支持任一彩色模式返回 true。
  */
 export function lightSupportsColor(entityAttributes = {}) {
   return resolveSupportedColorModes(entityAttributes).some(colorMode =>
@@ -121,10 +109,6 @@ export function lightSupportsColor(entityAttributes = {}) {
  * - 旧的 supported_features 位掩码：第 1 位是亮度、第 2 位是色温（位判断用 & 1 === 1 的写法）。
  *
  * 非 light 域一律返回全 false，因为温度单位、属性名与灯并不通用。
- *
- * @param {string} [entityId] 实体 ID，用于判断域。
- * @param {object} [entityState] 状态对象或变更对象。
- * @returns {{brightness: boolean, colorTemperature: boolean}} 两项能力是否可用。
  */
 export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
   const stateObject = resolveStateEntry(entityState, {});
@@ -165,9 +149,6 @@ export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
  *
  * 返回 HS 而不是直接操作界面，是因为拾色盘的色相环用的就是 HS，
  * 而 HA 服务也接受 hs_color，链路中间不需要再转一次。
- *
- * @param {number[]} rgbColor 形如 [r, g, b]，0~255，允许越界（会被夹紧）。
- * @returns {[number, number]|null} [色相 0~360, 饱和度 0~100]；入参不是长度 ≥3 的数组时返回 null。
  */
 export function rgbToHsColor(rgbColor) {
   if (!Array.isArray(rgbColor) || rgbColor.length < 3) {
@@ -202,9 +183,6 @@ export function rgbToHsColor(rgbColor) {
  *
  * 亮度固定按 100% 计算：HA 的亮度是独立字段，颜色只需要表达色相与饱和度，
  * 若把亮度也揉进来，界面在灯处于低亮时拾色盘会整片发暗。
- *
- * @param {number[]} hsColor 形如 [色相, 饱和度]，色相可为任意实数（会被归一化到 0~360）。
- * @returns {[number, number, number]|null} [r, g, b]，各 0~255；入参非法时返回 null。
  */
 export function hsToRgbColor(hsColor) {
   if (!Array.isArray(hsColor) || hsColor.length < 2) {
@@ -241,10 +219,6 @@ export function hsToRgbColor(hsColor) {
  * 坐标约定：入参是相对拾色盘外接正方形的归一化坐标（0~1，左上为原点）。
  * 0.36 是色相环半径相对正方形的比例，用来把方形内的点折算成半径比例；
  * 角度上先算 atan2（0° 在正右方，逆时针为正），再整体 +90° 对齐色相环的绘制起点。
- *
- * @param {number} normalizedX 归一化横坐标。
- * @param {number} normalizedY 归一化纵坐标。
- * @returns {[number, number]} [色相 0~360, 饱和度 0~100]。
  */
 export function lightColorPickerHsFromPoint(normalizedX, normalizedY) {
   const clampedX = Math.max(0, Math.min(1, Number(normalizedX) || 0));
@@ -259,9 +233,6 @@ export function lightColorPickerHsFromPoint(normalizedX, normalizedY) {
 }
 /**
  * HS → 拾色盘上的归一化坐标，是 lightColorPickerHsFromPoint 的逆运算。
- *
- * @param {number[]} hueSaturation 形如 [色相, 饱和度]。
- * @returns {{x: number, y: number}} 相对拾色盘外接正方形的归一化坐标，已夹在 0~1 内。
  */
 export function lightColorPickerPointFromHs(hueSaturation) {
   // 色相先归一化到 0~360，负值与绕了多圈的输入都能落回标准区间。
@@ -280,10 +251,6 @@ export function lightColorPickerPointFromHs(hueSaturation) {
  * 字段选择规则：支持 hs 或 xy 时优先发 hs_color；仅当明确只支持 rgb 时才发 rgb_color。
  * 这个「优先 hs」的顺序是刻意的——rgb_color 在部分灯上会被转回 hs 时丢精度，
  * 而 xy 灯同样接受 hs_color。
- *
- * @param {object} lightAttributes 实体属性，读取 supported_color_modes。
- * @param {number[]} hsColorPair [色相, 饱和度]。
- * @returns {{hs_color: number[]}|{rgb_color: number[]}} 服务数据。
  */
 export function lightColorServiceData(lightAttributes, hsColorPair) {
   const colorModes = resolveSupportedColorModes(lightAttributes);
@@ -311,9 +278,6 @@ export const UNSUPPORTED_LIGHT_VISUAL_BRIGHTNESS_PERCENT = 100;
  *
  * 100% 时走 brightness: 255 而不是 brightness_pct：满量程下按 255 发送可以避免
  * 部分固件把 100% 换算成 254 导致「按了没反应」。
- *
- * @param {number} brightnessPercent 目标亮度百分比。
- * @returns {{brightness: number}|{brightness_pct: number}} 服务数据。
  */
 export function lightPresetBrightnessServiceData(brightnessPercent) {
   // 下限取 1：0% 在 HA 里等价于关灯，而调用方此处要表达的是「调到最暗但仍亮」。
@@ -366,11 +330,6 @@ export const LIGHT_PRESET_STABLE_CONFIRMATION_MS = 1200;
 export const LIGHT_PRESET_MAXIMUM_HOLD_MS = 12000;
 /**
  * 判断某个待确认预设当前应处于什么阶段。
- *
- * @param {object} pendingPreset 待确认记录，含 expiresAt、minimumHoldUntil、
- *   matchStartedAt 与 latestMatches。
- * @param {number} [nowMs] 当前时间戳（毫秒），便于测试注入。
- * @returns {"idle"|"timeout"|"hold"|"confirmed"} 确认状态机的阶段。
  */
 export function lightPresetPendingDecision(pendingPreset, nowMs = Date.now()) {
   if (!pendingPreset) {

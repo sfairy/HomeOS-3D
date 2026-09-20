@@ -13,10 +13,6 @@
  *
  * 判定同时要求出现 AppleWebKit 与 Safari，并排除 Chrome、Edg、OPR、FxiOS 等
  * 同样带 AppleWebKit 字样的浏览器——它们的 UA 里都有这两段字符串，只有排除后才剩下真 Safari。
- *
- * @param {object} [options] 可注入 UA 以便测试。
- * @param {string} [options.userAgent] 用户代理字符串，默认取 navigator.userAgent。
- * @returns {boolean} 需要走稳定动效补丁时返回 true。
  */
 export function runtimeDialogUsesStableMotion({
   userAgent: userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent || ""
@@ -36,10 +32,6 @@ export function runtimeDialogUsesStableMotion({
  * 2. 带 hb-runtime-simplified-motion 类时，连所有后代一起扫描并取消「只播放一次」的动画
  *    （iterations === 1），因为正是这类动画会卡在首帧；无限循环的动画不影响可见性，保留不动；
  * 3. 只对第一个子元素做不透明度淡入，避免与弹窗自身尺寸动画叠加出抖动。
- *
- * @param {Element} dialogElement 弹窗外层元素。
- * @param {Element} contentElement 弹窗内容元素。
- * @returns {Animation[]} 新建的动画对象数组；未启用稳定动效时为空数组。
  */
 export function playStableRuntimeDialogEntrance(dialogElement, contentElement) {
   if (!runtimeDialogUsesStableMotion()) {
@@ -85,9 +77,6 @@ export function playStableRuntimeDialogEntrance(dialogElement, contentElement) {
 }
 /**
  * 播放音箱控件的滑入入场动画。
- *
- * @param {Element} speakerElement 音箱元素。
- * @returns {Animation|null} 动画对象；元素缺失或用户开启了「减弱动态效果」时返回 null。
  */
 export function playMediaSpeakerEntrance(speakerElement) {
   // 尊重系统的 prefers-reduced-motion：前庭敏感用户不应看到位移与旋转。
@@ -130,12 +119,6 @@ export function playMediaSpeakerEntrance(speakerElement) {
 }
 /**
  * 播放固定式设备的「下落归位」入场动画。
- *
- * @param {Element} deviceElement 设备元素。
- * @param {object} [options] 动画参数。
- * @param {number} [options.distance] 起始高度（像素），越大落得越远。
- * @param {number} [options.delay] 起始延迟（毫秒）。
- * @returns {Animation|null} 动画对象；元素缺失或用户开启了「减弱动态效果」时返回 null。
  */
 export function playFixedDeviceDropEntrance(
   deviceElement,

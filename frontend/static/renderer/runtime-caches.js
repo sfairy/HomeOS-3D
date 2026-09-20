@@ -25,10 +25,6 @@ export const MAX_HISTORY_SERIES_CACHE_SIZE = 512;
 export const HISTORY_FETCH_TIMEOUT_MS = 12000;
 /**
  * 生成历史序列的缓存键。
- *
- * @param {string} cacheEntityId 实体 ID。
- * @param {number} hours 时间跨度（小时）。
- * @returns {string} `实体ID:小时数` 形式的键。
  */
 export function historySeriesCacheKey(cacheEntityId, hours) {
   return String(cacheEntityId || "") + ":" + (Number(hours) || 0);
@@ -37,11 +33,6 @@ export function historySeriesCacheKey(cacheEntityId, hours) {
  * 写入历史序列缓存，并按插入顺序淘汰超量条目。
  *
  * 空序列不写：请求失败会得到空数组，写进去反而会把上一次的好数据顶掉。
- *
- * @param {Map<string, object>} cache 缓存容器。
- * @param {string} entityId 实体 ID。
- * @param {object} series 序列对象，须含 points 与 hours。
- * @returns {void}
  */
 export function cacheHistorySeries(cache, entityId, series) {
   if (!!Array.isArray(series?.points) && series.points.length !== 0) {
@@ -78,10 +69,6 @@ export class HistoryRefreshCoordinator {
    * - 本次 key 与正在执行的相同 → 丢弃待执行项，用户要的就是这份数据；
    * - 与已排队的 key 不同 → 覆盖待执行项，只保留最新的；
    * - 与已排队的 key 相同 → 保持原样，避免重复入队。
-   *
-   * @param {string} requestKey 请求标识（通常由实体 ID 与时间跨度拼成）。
-   * @param {function(): Promise<void>} run 真正发起请求的函数。
-   * @returns {Promise<void>} 本轮串行队列的 Promise，新请求会复用同一个。
    */
   request(requestKey, run) {
     if (this.running) {
@@ -125,14 +112,7 @@ export class HistoryRefreshCoordinator {
  */
 export class RuntimeStaticImageCache {
   /**
-   * @param {object} [options] 构造参数。
-   * @param {number} [options.maxConcurrent] 同时加载的最大张数。
-   * @param {number} [options.maxDecoded] 保留已解码图片的上限。
-   * @param {number} [options.idleDelay] 普通图的排队延迟，用于让出主线程。
    * @param {number} [options.loadTimeout] 单张图的加载超时。
-   * @param {function(): HTMLImageElement} [options.createImage] 图片工厂，测试可替换。
-   * @param {function} [options.setTimer] 定时器工厂，测试可替换。
-   * @param {function} [options.clearTimer] 清除定时器的函数。
    */
   constructor({
     maxConcurrent: maxConcurrent = 2,
@@ -167,10 +147,6 @@ export class RuntimeStaticImageCache {
    * 用最新的图片需求整体替换旧集合，并回收不再需要的资源。
    *
    * 不做增量 diff 而是整体替换：切页时需求几乎全变，逐个比较反而更慢。
-   *
-   * @param {string[]} [sources] 本次需要的全部图片地址。
-   * @param {string[]} [prioritySources] 其中需要优先加载的地址；不在 sources 里的会被忽略。
-   * @returns {void}
    */
   setSources(sources = [], prioritySources = []) {
     if (!this.stopped) {
@@ -228,11 +204,6 @@ export class RuntimeStaticImageCache {
   }
   /**
    * 把一张图加入待加载队列。
-   *
-   * @param {string} source 图片地址。
-   * @param {object} [options] 选项。
-   * @param {boolean} [options.active] 是否为优先图（立即调度，不等空闲延迟）。
-   * @returns {boolean} 真正新增队列项返回 true；因重复或不再需要而跳过返回 false。
    */
   enqueue(source, { active: isActive = false } = {}) {
     // 六种「不需要再排队」的情形一次挡掉：已停止、地址为空、当前不需要、已解码、
@@ -268,9 +239,6 @@ export class RuntimeStaticImageCache {
   }
   /**
    * 安排一次延迟排空；多次调用只保留最早到期的那个定时器。
-   *
-   * @param {number} [staticScheduleDelayMs] 延迟毫秒数。
-   * @returns {void}
    */
   schedule(staticScheduleDelayMs = 0) {
     if (this.stopped) {
@@ -293,8 +261,6 @@ export class RuntimeStaticImageCache {
   }
   /**
    * 排空队列：优先图先行，其次按入队顺序，直到达到并发上限。
-   *
-   * @returns {void}
    */
   drain() {
     if (!this.stopped) {
@@ -320,11 +286,6 @@ export class RuntimeStaticImageCache {
   }
   /**
    * 真正发起一张图的加载。
-   *
-   * @param {object} entry 队列项。
-   * @param {string} entry.source 图片地址。
-   * @param {boolean} entry.active 是否为优先图，决定 fetchPriority。
-   * @returns {void}
    */
   start({ source: loadingSource, active: activeRequest }) {
     if (this.stopped || !loadingSource) {
@@ -412,8 +373,6 @@ export class RuntimeStaticImageCache {
    *
    * 优先淘汰非优先图；若全都是优先图，则退回淘汰最久未用的一张，
    * 保证容量一定能回到上限内而不是死循环。
-   *
-   * @returns {void}
    */
   trimDecodedImages() {
     while (this.decodedImages.size > this.maxDecoded) {
@@ -429,16 +388,12 @@ export class RuntimeStaticImageCache {
   }
   /**
    * 复位为可用状态（保留已加载集合），用于运行时被重新启用。
-   *
-   * @returns {void}
    */
   reset() {
     this.stopped = false;
   }
   /**
    * 停止一切加载并清空全部状态，离开运行时页面时调用。
-   *
-   * @returns {void}
    */
   stop() {
     this.stopped = true;
@@ -472,12 +427,7 @@ export class RuntimeStaticImageCache {
  */
 export class RuntimeEffectImageLoader {
   /**
-   * @param {object} [options] 构造参数。
-   * @param {number} [options.maxConcurrent] 同时加载的最大张数。
-   * @param {number} [options.idleDelay] 普通特效的排队延迟。
    * @param {number} [options.loadTimeout] 单张图的加载超时。
-   * @param {function} [options.setTimer] 定时器工厂，测试可替换。
-   * @param {function} [options.clearTimer] 清除定时器的函数。
    */
   constructor({
     maxConcurrent: effectMaxConcurrent = 4,
@@ -503,12 +453,6 @@ export class RuntimeEffectImageLoader {
   }
   /**
    * 登记某个 <img> 需要加载的地址。
-   *
-   * @param {HTMLImageElement} imageElement 目标图片元素。
-   * @param {string} requestedSource 图片地址。
-   * @param {object} [options] 选项。
-   * @param {boolean} [options.active] 是否立即加载（当前可见的特效）。
-   * @returns {void}
    */
   enqueue(imageElement, requestedSource, { active: isPriority = false } = {}) {
     const effectSource = String(requestedSource || "");
@@ -554,9 +498,6 @@ export class RuntimeEffectImageLoader {
   }
   /**
    * 与 RuntimeStaticImageCache.schedule 同理：多次调用只保留最早到期的定时器。
-   *
-   * @param {number} [effectScheduleDelayMs] 延迟毫秒数。
-   * @returns {void}
    */
   schedule(effectScheduleDelayMs = 0) {
     if (this.stopped) {
@@ -582,9 +523,6 @@ export class RuntimeEffectImageLoader {
    *
    * 与静态图缓存不同，这里用 findIndex 逐项查找而不是取队首：
    * 队首那张可能已经不可见或已被加载，必须跳过它继续往后找。
-   *
-   * @param {boolean} [activeOnly] 只允许优先图出队（优先图刚入队时使用）。
-   * @returns {void}
    */
   drain(activeOnly = false) {
     if (!this.stopped) {
@@ -615,11 +553,6 @@ export class RuntimeEffectImageLoader {
   }
   /**
    * 真正发起一次特效图加载。
-   *
-   * @param {object} entry 队列项。
-   * @param {HTMLImageElement} entry.image 目标图片元素。
-   * @param {string} entry.source 图片地址。
-   * @returns {void}
    */
   start({ image: pendingImage, source: pendingSource }) {
     if (
@@ -683,9 +616,6 @@ export class RuntimeEffectImageLoader {
   }
   /**
    * 把某张图提到最高优先级，用于元素刚进入可见区域时插队。
-   *
-   * @param {HTMLImageElement} promotedImage 目标图片元素。
-   * @returns {void}
    */
   promote(promotedImage) {
     const promotedSource =
@@ -698,8 +628,6 @@ export class RuntimeEffectImageLoader {
   }
   /**
    * 剪掉已离开文档的元素，停止为它们加载。
-   *
-   * @returns {void}
    */
   pruneDisconnected() {
     this.queue = this.queue.filter(
@@ -716,8 +644,6 @@ export class RuntimeEffectImageLoader {
   }
   /**
    * 复位调度状态（保留已加载记录），清空队列后重新接受入队。
-   *
-   * @returns {void}
    */
   reset() {
     if (this.timer !== null) {
@@ -732,8 +658,6 @@ export class RuntimeEffectImageLoader {
   }
   /**
    * 停止加载并清空全部在途与已加载记录。
-   *
-   * @returns {void}
    */
   stop() {
     this.stopped = true;
@@ -761,11 +685,7 @@ export class RuntimeEffectImageLoader {
  */
 export class RuntimeVacuumMapImagePreloader {
   /**
-   * @param {object} [options] 构造参数。
-   * @param {number} [options.maxConcurrent] 同时预加载的最大张数。
    * @param {number} [options.retryDelay] 失败后的重试间隔（毫秒）。
-   * @param {function(): HTMLImageElement} [options.createImage] 图片工厂，测试可替换。
-   * @param {function(): number} [options.now] 时间源，测试可替换。
    */
   constructor({
     maxConcurrent: vacuumMaxConcurrent = 1,
@@ -787,9 +707,6 @@ export class RuntimeVacuumMapImagePreloader {
   }
   /**
    * 登记一张待预加载的地图。
-   *
-   * @param {string} candidateSource 图片地址。
-   * @returns {boolean} 真正入队返回 true；被去重或退避挡掉返回 false。
    */
   enqueue(candidateSource) {
     const vacuumSource = String(candidateSource || "");
@@ -896,8 +813,6 @@ export class RuntimeVacuumMapImagePreloader {
   }
   /**
    * 清空队列与在途记录（保留已加载与失败退避表），用于运行时重启。
-   *
-   * @returns {void}
    */
   reset() {
     this.queue.length = 0;
@@ -907,8 +822,6 @@ export class RuntimeVacuumMapImagePreloader {
   }
   /**
    * 停止预加载并清空全部记录。
-   *
-   * @returns {void}
    */
   stop() {
     this.stopped = true;
@@ -932,10 +845,6 @@ export class RuntimeVacuumMapImagePreloader {
  * 三层判定：文档代次必须一致（换了文档一律作废）；共享组件、或当前页路径一致即可；
  * 否则要求弹窗 ID 与弹窗代次都一致——弹窗关掉再打开同一个弹窗时 popupGeneration 会变，
  * 旧请求的结果不会污染新弹窗。
- *
- * @param {object} requestContext 发请求时的上下文快照。
- * @param {object} currentContext 当前上下文。
- * @returns {boolean} 仍然有效返回 true。
  */
 export function historyRequestStillRelevant(requestContext, currentContext) {
   if (requestContext.documentGeneration !== currentContext.documentGeneration) {

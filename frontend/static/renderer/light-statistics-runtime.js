@@ -34,9 +34,6 @@ const ON_OFF_DOMAINS_SET = new Set([
 const RUNNING_STATE_DOMAINS_SET = new Set(["climate", "water_heater"]);
 /**
  * 解析实体所属域，优先用描述里的 domain 字段，缺失时回退到实体 ID 的点号前缀。
- *
- * @param {string|object} entityDescriptor 实体 ID 字符串，或含 domain / entityId 的描述对象。
- * @returns {string} 小写的域名字符串；无法判断时返回空串。
  */
 function resolveEntityDomain(entityDescriptor) {
   const entityId =
@@ -56,9 +53,6 @@ function resolveEntityDomain(entityDescriptor) {
  * 判定顺序：虚拟实体 → 群组 → 开 / 关域 → 运行态域 → 其余不支持。
  * 虚拟实体与群组放在最前，是因为它们的 domain 可能是 virtual / group，
  * 若先按域的集合匹配会被判成不支持，而它们实际上可以参与统计。
- *
- * @param {string|object} entityLike 实体 ID 或实体描述对象。
- * @returns {{supported: boolean, message: string}} supported 为 false 时 message 说明原因。
  */
 export function lightStatisticsEntitySupport(entityLike) {
   const entityDomainName = resolveEntityDomain(entityLike);
@@ -94,10 +88,6 @@ export function lightStatisticsEntitySupport(entityLike) {
  *
  * 空串、unknown、unavailable 一律算 abnormal——它们代表「读数不可信」而不是「关」，
  * 混进 off 会让统计结果偏乐观。运行态域（climate / water_heater）只要不是 off 就算 on。
- *
- * @param {string|object} entityInput 实体 ID 或描述。
- * @param {object} stateLike 状态对象、变更对象或裸状态字符串。
- * @returns {"on"|"off"|"abnormal"} 统计用的归类结果。
  */
 export function lightStatisticsEntityStateStatus(entityInput, stateLike) {
   if (!lightStatisticsEntitySupport(entityInput).supported) {
@@ -119,12 +109,6 @@ export function lightStatisticsEntityStateStatus(entityInput, stateLike) {
 }
 /**
  * 汇总一批实体的开关统计。
- *
- * @param {string[]} entityIds 参与统计的实体 ID，允许重复与空项。
- * @param {Map|object} [liveStatesByEntityId] 实时状态容器，键为实体 ID。
- * @param {Map|object} [descriptorsByEntityId] 实体描述容器，用于取展示名。
- * @returns {{total: number, on: number, off: number, abnormal: number, items: Array<object>}}
- *   items 每项含 entityId、label、state、status 与 message。
  */
 export function lightStatisticsSummary(
   entityIds,

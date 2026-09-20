@@ -11,10 +11,6 @@
 
 /**
  * 把日期格式化成时间文案。
- *
- * @param {object} options 控件显示选项，读取 showSeconds 与 hour12 两个布尔项。
- * @param {Date} [date] 待格式化的时间点，默认取当前时刻。
- * @returns {{value: string, suffix: string}} value 为 HH:mm[:ss]，suffix 为 AM / PM（24 小时制时为空串）。
  */
 export function formatLocalTime(options, date = new Date()) {
   const isSecondsVisible = options.showSeconds === true;
@@ -38,10 +34,6 @@ export function formatLocalTime(options, date = new Date()) {
 }
 /**
  * 把日期格式化成 `YYYY-MM-DD[ 星期X]` 文案。
- *
- * @param {object} displayOptions 控件显示选项，showWeekday 显式为 false 时才省略星期。
- * @param {Date} [dateValue] 待格式化的时间点，默认取当前时刻。
- * @returns {string} 日期文案；星期取自 `日一二三四五六`，用 getDay() 的下标直接取字。
  */
 export function formatLocalDate(displayOptions, dateValue = new Date()) {
   // 刻意不用 toISOString()：那条路径按 UTC 切片，跨时区会整体偏移一天。
@@ -62,9 +54,6 @@ export function formatLocalDate(displayOptions, dateValue = new Date()) {
  *
  * 依赖 Intl 的中文农历历法；运行时（如精简版 JS 引擎）缺失该历法时返回空串，
  * 由调用方据此隐藏农历这一行，而不是让整个时钟控件渲染失败。
- *
- * @param {Date} [dateSource] 待格式化的时间点，默认取当前时刻。
- * @returns {string} 农历文案；环境不支持农历历法时返回空串。
  */
 export function formatLunarDate(dateSource = new Date()) {
   try {

@@ -33,9 +33,6 @@ const VACUUM_FEATURE_FLAGS = Object.freeze({
  * 属性缺失或非法时回落到最小可用集 start / pause / return_to_base：
  * 与其把所有按钮都禁用（那样用户完全无法操作），不如给出最常见的一组，
  * 由后端在调用失败时把错误回显出来。
- *
- * @param {object} vacuumState 扫地机状态对象或变更对象。
- * @returns {string[]} 动作名数组，顺序即界面按钮顺序。
  */
 export function vacuumSupportedActions(vacuumState) {
   const supportedFeatures = vacuumState?.attributes?.supported_features;
@@ -80,10 +77,6 @@ export function vacuumSupportedActions(vacuumState) {
  *
  * 只处理「有 turn_on 但没有 start」与「有 turn_off 但没有 stop」这两种老固件形态，
  * 其余动作名与服务名同名，直接透传；位掩码不可解析时也透传，把判断交给后端。
- *
- * @param {object} vacuumEntity 扫地机实体状态对象。
- * @param {string} actionName 界面动作名。
- * @returns {string} 服务名。
  */
 export function vacuumActionService(vacuumEntity, actionName) {
   const featureFlags = Number(vacuumEntity?.attributes?.supported_features);
@@ -123,10 +116,6 @@ function parsePercent(rawPercent) {
  *
  * 先按 battery_level → battery_percentage → battery 的顺序读机器人自身属性
  * （不同固件字段名不同，逐个尝试比按型号分支更稳），都没有时才回退到独立的电池传感器。
- *
- * @param {object} vacuumStateOrChange 扫地机状态对象或变更对象。
- * @param {object} [batterySensor] 关联的电池传感器状态对象。
- * @returns {number|null} 0~100 的电量；始终取不到时返回 null。
  */
 export function vacuumBatteryPercent(vacuumStateOrChange, batterySensor = null) {
   const attributes = resolveStateEntry(vacuumStateOrChange)?.attributes || {};
@@ -157,11 +146,6 @@ export function vacuumBatteryPercent(vacuumStateOrChange, batterySensor = null) 
  *
  * 候选前置条件：必须与扫地机同设备、必须是 sensor 域、且实体当前可用，
  * 否则电池读数没有意义。
- *
- * @param {Map<string, object>} metadataByEntityId 实体元数据索引。
- * @param {Map<string, object>} statesByEntityId 实体状态索引。
- * @param {string} vacuumEntityId 扫地机主实体 ID。
- * @returns {string|null} 电池实体 ID；没有合适候选时返回 null。
  */
 export function relatedVacuumBatteryEntity(metadataByEntityId, statesByEntityId, vacuumEntityId) {
   const vacuumMetadata = metadataByEntityId.get(vacuumEntityId);

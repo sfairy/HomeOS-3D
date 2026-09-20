@@ -20,10 +20,6 @@
  * 界值取「把控件中心推到画布边缘时的比例」再与 ±500 取外扩较大者：
  * 下限用 Math.min、上限用 Math.max，保证无论控件在画布哪个角落，
  * 滑块都有 ±500% 的可调空间，不会因为控件居中就把范围压成 0。
- *
- * @param {object} component 控件对象，读取 position 的 width / height / x / y。
- * @param {object} canvasSize 画布尺寸，缺省按 2778 × 1940 处理。
- * @returns {{minX: number, maxX: number, minY: number, maxY: number}} 百分比偏移界值。
  */
 export function airflowCanvasOffsetBounds(component, canvasSize) {
   const position = component?.position || {};
@@ -49,12 +45,6 @@ export function airflowCanvasOffsetBounds(component, canvasSize) {
  * - 分组内：left / top 是相对组内原点的坐标，且先按组旋转把偏移转到组的本地坐标系、
  *   再除以组缩放，抵消父层的 transform；rotation 只保留出风层自身的角度，
  *   scale 则是自身缩放除以组缩放，这样最终视觉大小与未分组时一致。
- *
- * @param {object} sourceComponent 控件对象，读取 position、properties 与 style.scale。
- * @param {object} [options] 选项。
- * @param {boolean} [options.grouped] 是否处于分组上下文。
- * @returns {{left: number, top: number, width: number, height: number,
- *   rotation: number, scale: number}} 出风层的定位盒，单位与调用方所处的坐标系一致。
  */
 export function airflowLayerGeometry(sourceComponent, { grouped: isGrouped = false } = {}) {
   const componentPosition = sourceComponent?.position || {};
@@ -119,12 +109,6 @@ export function airflowLayerGeometry(sourceComponent, { grouped: isGrouped = fal
  *
  * 做法：先把各控件中心平移到以枢轴为原点的相对坐标，
  * 乘上旋转矩阵后再平移回去，最后按控件自身宽高还原成左上角坐标。
- *
- * @param {Array<object>} transforms 每个元素含 componentId、centerX / centerY、width / height、rotation。
- * @param {number} pivotX 枢轴点 x（画布像素）。
- * @param {number} pivotY 枢轴点 y（画布像素）。
- * @param {number} pivotRotationDegrees 本次旋转增量（deg）。
- * @returns {Array<{componentId: *, x: number, y: number, rotation: number}>} 旋转后的控件变换。
  */
 export function rotateMultiSelectionTransforms(transforms, pivotX, pivotY, pivotRotationDegrees) {
   // 本次旋转增量由角度制换算成弧度，只算一次供下面所有控件复用。
@@ -150,13 +134,6 @@ export function rotateMultiSelectionTransforms(transforms, pivotX, pivotY, pivot
  *
  * 分组带有旋转与缩放时，鼠标在屏幕上的位移并不等于控件在组内的位移，
  * 这里用逆旋转（非对角项改号）+ 除以缩放还原，拖拽才能贴着指针走。
- *
- * @param {number} deltaX 画布 / 屏幕方向的横向位移。
- * @param {number} deltaY 画布 / 屏幕方向的纵向位移。
- * @param {object} [options] 分组变换。
- * @param {number} [options.rotation] 分组旋转角度（deg）。
- * @param {number} [options.scale] 分组缩放倍数，钳到不小于 0.01 以防止除零。
- * @returns {{x: number, y: number}} 组内本地坐标系下的位移。
  */
 export function groupedComponentLocalDelta(
   deltaX,
