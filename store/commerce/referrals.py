@@ -4,10 +4,10 @@
 不足 0.01 的部分直接舍去（与参考站说明一致）。
 
 **单位**：账本里所有积分都是 ``int`` 厘（1 积分 = 100 厘），运算交给
-:mod:`store.money`。原先用 ``float`` 存积分，正确性依赖「SQL 侧 ``round()`` 与
+:mod:`store.commerce.money`。原先用 ``float`` 存积分，正确性依赖「SQL 侧 ``round()`` 与
 Python 侧 ``round()`` 结果一致」，而 SQLite 是 half-away、Python 是 half-even ——
 落在 ``.xx5`` 上时两边给出不同分币值，导致提现的并发比对误报冲突、余额与流水之和
-差 1 厘。改整数厘后加减天然精确，那个前提不再需要（详见 ``store/money.py``）。
+差 1 厘。改整数厘后加减天然精确，那个前提不再需要（详见 ``store/commerce/money.py``）。
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from store import money
-from store.models import (
+from store.commerce import money
+from store.core.models import (
     Account,
     Order,
     ReferralLedger,
@@ -27,9 +27,9 @@ from store.models import (
     ReferralWithdrawal,
     utcnow,
 )
-from store.security import new_referral_code, new_uuid
+from store.security.security import new_referral_code, new_uuid
 
-logger = logging.getLogger("store.referrals")
+logger = logging.getLogger("store.commerce.referrals")
 
 
 class WalletConflictError(RuntimeError):

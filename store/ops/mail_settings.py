@@ -19,8 +19,8 @@ from __future__ import annotations
 from dataclasses import replace
 
 from store.config import StoreSettings
-from store.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
-from store.secret_fields import mask_secret
+from store.core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
+from store.security.secret_fields import mask_secret
 
 #: 后台可选的邮件投递方式。``""`` 表示跟随环境变量，不是投递方式。
 MAIL_MODES = ("log", "echo", "smtp")

@@ -43,7 +43,7 @@ class LicenseServerError(Exception):
     ``retry_after`` 只在 429 上有值：它是**从这一刻起还要等多少秒**，由 API 层放进
     ``Retry-After`` 响应头。客户端据此退避而不是按固定间隔重打 —— 心跳本身是分钟级
     的，撞上小时级的限流窗口时若不做退避，整个窗口内的每一次尝试都只会再拿一个 429
-    （``SlidingWindowLimiter`` 的取舍见 ``store/limiter.py``）。
+    （``SlidingWindowLimiter`` 的取舍见 ``store/security/limiter.py``）。
     """
 
     def __init__(

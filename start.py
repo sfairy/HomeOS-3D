@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 
 from docker.license_keys import ensure_store_license_keys
-from store.env import load_dotenv
+from store.core.env import load_dotenv
 
 ROOT = Path(__file__).resolve().parent
 IS_WINDOWS = sys.platform == 'win32'

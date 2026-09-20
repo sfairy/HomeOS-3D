@@ -9,8 +9,8 @@ from __future__ import annotations
 from urllib.parse import quote
 
 from store.config import StoreSettings
-from store.models import Order, StoreSetting
-from store.net_probe import LEVEL_SKIP, LEVEL_WARN, check_result
+from store.core.models import Order, StoreSetting
+from store.ops.net_probe import LEVEL_SKIP, LEVEL_WARN, check_result
 from store.payments.base import PaymentIntent, RefundResult
 
 

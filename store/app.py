@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from store import __version__
-from store import incidents
+from store.ops import incidents
 from store.api import admin as admin_api
 from store.api import alipay as alipay_api
 from store.api import license as license_api
@@ -20,7 +20,7 @@ from store.api import pages as pages_api
 from store.api import setup as setup_api
 from store.api import store as store_api
 from store.config import STORE_ROOT, StoreSettings, load_settings
-from store.database import Database
+from store.core.database import Database
 from store.licensing import keys
 from store.licensing.crypto import (
     KeyGeneration,
@@ -36,9 +36,9 @@ from store.payments.sweeper import (
     sweep_round,
     sweep_status,
 )
-from store.bootstrap import ensure_default_products, ensure_default_settings
-from store.release_info import CURRENT_VERSION, ensure_current_release
-from store.request_security import (
+from store.core.bootstrap import ensure_default_products, ensure_default_settings
+from store.ops.release_info import CURRENT_VERSION, ensure_current_release
+from store.security.request_security import (
     error_page_html,
     forwarded_headers_present,
     new_csp_nonce,
@@ -47,10 +47,10 @@ from store.request_security import (
     same_origin_request,
     security_headers,
 )
-from store.schema_guard import ensure_schema
-from store.points_migration import migrate_points
-from store.setup_guard import SetupGuard, announce_setup_window
-from store.site_settings import get_setting
+from store.security.schema_guard import ensure_schema
+from store.commerce.points_migration import migrate_points
+from store.security.setup_guard import SetupGuard, announce_setup_window
+from store.ops.site_settings import get_setting
 
 logger = logging.getLogger("store")
 

@@ -5,9 +5,9 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from store.config import StoreSettings
-from store.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
+from store.core.models import DEFAULT_SUPPORT_EMAIL, StoreSetting
 from store.payments.credentials import merge_alipay_settings
-from store.security import iso, utcnow
+from store.security.security import iso, utcnow
 
 #: 默认品牌标识。必须与 ``models.StoreSetting.logo_url`` 的默认值一致：
 #: 后台把该字段留空时回落到这里，而不是写一个空串进库（否则页面上

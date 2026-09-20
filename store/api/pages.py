@@ -16,14 +16,15 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import func, select, update
 
-from store import cashier, fulfill, site_settings as site_config
-from store.deps import CurrentAccount, DbSession, order_or_404
-from store.models import Account, Order, Product, ProductImage
-from store.order_status import order_status_label
+from store.commerce import cashier, fulfill
+from store.ops import site_settings as site_config
+from store.core.deps import CurrentAccount, DbSession, order_or_404
+from store.core.models import Account, Order, Product, ProductImage
+from store.commerce.order_status import order_status_label
 from store.payments.base import PaymentError
-from store.request_security import render_template
-from store.security import token_matches, utcnow
-from store.serializers import order_payload
+from store.security.request_security import render_template
+from store.security.security import token_matches, utcnow
+from store.core.serializers import order_payload
 
 logger = logging.getLogger("store.pages")
 
@@ -260,7 +261,7 @@ def mock_cashier(
 
     **S53：URL 里不再放 ``lookup_token``**。那是长期有效、还能查订单详情的 bearer 凭据，跟随 URL
     会进访问日志、``Referer`` 与浏览器历史 —— 漏出一次就不只是丢掉这张页面。现在跟 URL 走的是一张
-    短时票据（30 分钟、与订单绑定、只能打开这笔订单的收银台，见 ``store/cashier.py``）；页面加载后
+    短时票据（30 分钟、与订单绑定、只能打开这笔订单的收银台，见 ``store/commerce/cashier.py``）；页面加载后
     立刻用 ``history.replaceState`` 把查询串从地址栏与历史记录里抹掉，所以后续跳转的 ``Referer``
     不带它，历史里也不会留下一条「带凭据的地址」。
 

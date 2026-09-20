@@ -5,7 +5,7 @@
 积分原先以 ``FLOAT`` 存积分值，全站靠 ``round(x, 2)`` 维持两位小数。问题在于
 **两条 round 不是同一个函数**：SQLite 的 ``round()`` 是 half-away-from-zero，
 Python 内建 ``round()`` 是 half-even，金额正好落在 ``.xx5`` 上时给出不同的分币值。
-后果（详见 :mod:`store.money`）一是提现那条「用 round 后的值比对冻结额是否被并发
+后果（详见 :mod:`store.commerce.money`）一是提现那条「用 round 后的值比对冻结额是否被并发
 改过」的条件 UPDATE 会误判成冲突，二是余额与流水之和能差 1 厘。
 
 迁移策略（三段式，可中断、可重入、先验证后销毁）
@@ -44,11 +44,11 @@ from pathlib import Path
 from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 
-from store import money
-from store.schema_guard import backup_database as _backup_database
-from store.schema_guard import drop_column_ddl
+from store.commerce import money
+from store.security.schema_guard import backup_database as _backup_database
+from store.security.schema_guard import drop_column_ddl
 
-logger = logging.getLogger("store.points_migration")
+logger = logging.getLogger("store.commerce.points_migration")
 
 
 #: 迁移映射：``{表名: ((旧列, 新列, 列的种类), ...)}``。

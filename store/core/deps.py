@@ -8,9 +8,9 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from store.models import Account, AccountSession, Order
+from store.core.models import Account, AccountSession, Order
 from store.config import StoreSettings
-from store.security import token_hash, utcnow
+from store.security.security import token_hash, utcnow
 
 #: ``last_seen_at`` 的写入节流窗口（秒）。诊断页要回答"这个会话现在还有人用吗"，
 #: 但每个请求都写一次会把 SQLite 变成写热点，所以最多每分钟落一次盘。

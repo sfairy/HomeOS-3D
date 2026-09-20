@@ -27,10 +27,10 @@ from datetime import timedelta
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from store.models import CashierTicket, Order, utcnow
-from store.security import new_token, token_hash
+from store.core.models import CashierTicket, Order, utcnow
+from store.security.security import new_token, token_hash
 
-logger = logging.getLogger("store.cashier")
+logger = logging.getLogger("store.commerce.cashier")
 
 #: 票据有效期。取 30 分钟：远长于待支付订单本身的有效期（默认 120 秒，超时后
 #: 页面也没什么可付的了），又短到「一条泄漏的日志」没有长期价值。

@@ -8,7 +8,7 @@ from datetime import timedelta
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from store.models import LoginAttempt, utcnow
+from store.core.models import LoginAttempt, utcnow
 
 MAX_ATTEMPTS = 8
 WINDOW_MINUTES = 10

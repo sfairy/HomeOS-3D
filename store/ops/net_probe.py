@@ -36,7 +36,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-logger = logging.getLogger("store.net_probe")
+logger = logging.getLogger("store.ops.net_probe")
 
 #: 单次探测的超时（秒）。刻意取得比 ``httpx`` 默认的 5 秒更短：自检是**同步**
 #: 端点，FastAPI 会把它丢进线程池，几个检查项串起来就是运营盯着按钮转圈的时间。

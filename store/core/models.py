@@ -20,8 +20,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from store.database import Base
-from store.security import new_uuid, utcnow
+from store.core.database import Base
+from store.security.security import new_uuid, utcnow
 
 
 def _id() -> str:
@@ -351,7 +351,7 @@ class Order(Base):
             sqlite_where=text("status = 'pending' AND account_id IS NOT NULL"),
         ),
         #: 过期批扫要按 ``status='pending'`` 找行、按 ``expires_at`` 从最老的开始取
-        #: 前 N 条（``store/expiry.py`` 的 ``ORDER BY expires_at LIMIT n``）。
+        #: 前 N 条（``store/commerce/expiry.py`` 的 ``ORDER BY expires_at LIMIT n``）。
         #: 有了它，这个 LIMIT 才是真的「取够就走」；只靠 ``status`` 的单列索引，
         #: SQLite 得先把全部 pending 行读出来排序。同 S50 的商品统计一样，
         #: 这是把「随历史变慢」变成「与要处理的那几行成正比」。
@@ -424,7 +424,7 @@ class Order(Base):
     manual_settlement: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     #: 这笔订单给邀请人发的奖励，单位**厘**（1 积分 = 100 厘）。
     #: 与钱包/流水同一口径；旧列 ``referral_reward_points``（FLOAT）由
-    #: ``store.points_migration`` 回填后退役。
+    #: ``store.commerce.points_migration`` 回填后退役。
     referral_reward_points_centi: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0"
     )
@@ -606,7 +606,7 @@ class DeviceBinding(Base):
     __table_args__ = (
         # 用 unique Index 而不是 UniqueConstraint：表级约束在存量库上补不了
         # （SQLite 不支持 ALTER 追加），而 ``CREATE UNIQUE INDEX IF NOT EXISTS``
-        # 能补 —— 见 ``store/schema_guard.py`` 顶部的说明。语义相同，可维护性差很多。
+        # 能补 —— 见 ``store/security/schema_guard.py`` 顶部的说明。语义相同，可维护性差很多。
         Index(
             "uq_device_bindings_license_instance",
             "license_id",

@@ -20,7 +20,7 @@ import logging
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from store.models import OrderRefund
+from store.core.models import OrderRefund
 
 logger = logging.getLogger("store.payments.refunds")
 

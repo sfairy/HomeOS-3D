@@ -7,7 +7,7 @@
 
 - **引导密钥**：仅有同源中间件不够 —— 它在请求不带 ``Origin``/``Referer`` 时放行，而 ``curl``
   默认就不带，于是未初始化的实例对公网就是「先到先得」。现在非本机直连的请求必须带上
-  ``STORE_SETUP_TOKEN``（或启动日志里那份自动生成的），详见 ``store/setup_guard.py``。
+  ``STORE_SETUP_TOKEN``（或启动日志里那份自动生成的），详见 ``store/security/setup_guard.py``。
 - **原子写入**：过去是「先 SELECT 数管理员，再 INSERT」，而 ``hash_password`` 走 argon2 要几十到
   几百毫秒，窗口很宽 —— 合法的部署者和攻击者可以各自读到 ``admin_count=0`` 并双双创建成功。
   现在改成一条 ``INSERT ... SELECT ... WHERE NOT EXISTS (SELECT 1 FROM accounts WHERE
@@ -26,10 +26,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import Boolean, DateTime, String, exists, func, insert, literal, select
 
-from store.deps import DbSession
-from store.models import Account, AccountSession
-from store.request_security import resolve_client_ip, secure_cookies_required
-from store.security import (
+from store.core.deps import DbSession
+from store.core.models import Account, AccountSession
+from store.security.request_security import resolve_client_ip, secure_cookies_required
+from store.security.security import (
     hash_password,
     is_valid_email,
     new_token,

@@ -13,9 +13,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from store.models import Release
+from store.core.models import Release
 
-logger = logging.getLogger("store.release_info")
+logger = logging.getLogger("store.ops.release_info")
 
 CURRENT_VERSION = "0.5.6"
 CURRENT_RELEASE_DATE = "2026-09-17"

@@ -25,14 +25,14 @@ import logging
 from sqlalchemy import exists, insert, literal, null, select
 from sqlalchemy.orm import Session
 
-from store.features import BASE_PRODUCT_FEATURES, MODULE_3D_FEATURES
-from store.models import Product, StoreSetting
-from store.serializers import list_json
+from store.ops.features import BASE_PRODUCT_FEATURES, MODULE_3D_FEATURES
+from store.core.models import Product, StoreSetting
+from store.core.serializers import list_json
 
-logger = logging.getLogger("store.bootstrap")
+logger = logging.getLogger("store.core.bootstrap")
 
 # 商品
-#: 功能码清单的唯一出处是 :mod:`store.features`（S58：这里过去另抄了一份，两份顺序
+#: 功能码清单的唯一出处是 :mod:`store.ops.features`（S58：这里过去另抄了一份，两份顺序
 #: 还不一样）。播种时按目录给的顺序写进 ``feature_codes_json``。
 
 

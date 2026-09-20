@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from store.env import load_dotenv
+from store.core.env import load_dotenv
 from store.licensing import keys as license_keys
 
 logger = logging.getLogger("store.config")
@@ -173,7 +173,7 @@ class StoreSettings:
     session_max_age_seconds: int = DEFAULT_SESSION_MAX_AGE_SECONDS
 
     #: 首次初始化（创建第一个管理员）的引导密钥。
-    #: 为空时由 ``store/setup_guard.py`` 自动生成一份并落到 ``data_dir/setup-token``，
+    #: 为空时由 ``store/security/setup_guard.py`` 自动生成一份并落到 ``data_dir/setup-token``，
     #: 同时打印到启动日志（stderr）。本机直连访问无需填写。
     setup_token: str = ""
 

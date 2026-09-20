@@ -14,7 +14,7 @@ from __future__ import annotations
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from store.models import Account, Coupon, CouponRedemption, Order
+from store.core.models import Account, Coupon, CouponRedemption, Order
 
 #: 合法的折扣类型白名单。结算逻辑（``store.api.store``）只区分 ``fixed``
 #: （立减固定金额）与其余（按百分比），所以取值必须收口在这里，后台校验复用同一份，

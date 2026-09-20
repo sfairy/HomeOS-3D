@@ -10,7 +10,7 @@
 - 商店整天没人访问（或站点压根没配支付渠道）时，超时单连**本地**都不会被清理：
   库存预留与优惠码名额一直挂着，用户本人还被「有未完成订单」挡着不能下单。
 
-巡检把这三件事收尾。后一件与渠道无关，所以即使没配支付宝也照跑（``store.expiry``）。
+巡检把这三件事收尾。后一件与渠道无关，所以即使没配支付宝也照跑（``store.commerce.expiry``）。
 它运行在独立的线程里（``asyncio.to_thread``），因为对渠道的调用是阻塞 I/O：
 直接在事件循环里 await 一个同步的 httpx 请求会把整个服务卡住。
 """
@@ -22,20 +22,20 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime
 
-from store import site_settings as site_config
+from store.ops import site_settings as site_config
 from store.config import StoreSettings
-from store.database import Database
-from store.models import utcnow
+from store.core.database import Database
+from store.core.models import utcnow
 from store.payments.reconcile import SweepResult, reconcile_due_orders
 # 时间戳归一只有一份实现（``store.security.iso_z``）。本文件原先自带一份副本，理由写的是
 # 「不用直接 import：security 会拉进密码哈希与 token 生成那一整套」—— 这条理由不成立：
-# ``store.models`` 本来就从 ``store.security`` 取 ``utcnow`` / ``new_uuid``，所以这个模块
+# ``store.core.models`` 本来就从 ``store.security.security`` 取 ``utcnow`` / ``new_uuid``，所以这个模块
 # 早就在导入图里了；而 ``security`` 的顶层只有 stdlib 与几个常量，没有「一整套」。
 # 更要紧的是两份**口径不同**：security 那份会把带时区的时间先换算到 UTC 再去掉时区，
 # 而副本直接 ``strftime`` —— 对带时区的输入会把当地时间贴上 ``Z`` 后缀（东八区差 8 小时）。
 # 现在库里存的都是 naive UTC，所以副本今天恰好没出错；一旦哪天上游传进带时区的值，
 # 它会静默把一个错误的「UTC 时刻」交给后台与 /healthz。
-from store.security import iso_z
+from store.security.security import iso_z
 
 logger = logging.getLogger("store.payments.sweeper")
 
@@ -51,7 +51,7 @@ _MAX_ERROR_CHARS = 300
 # 状态只放在进程内存里，不落库。这是刻意的：重启后「本进程内从未成功巡检」本身
 # 就是最该看到的信号，落库反而会把上一次进程的成功记录带过来，让刚起就坏的巡检
 # 看起来正常。
-# 巡检自己的状态词表（六档）。**不要**与 ``store/incidents.py`` 那两个 ``HEALTH_*``
+# 巡检自己的状态词表（六档）。**不要**与 ``store/ops/incidents.py`` 那两个 ``HEALTH_*``
 # 合并：那套只有 ok/degraded 两档，回答的是「这个进程有没有吞过异常」，与「上一轮巡检
 # 成不成功」是两件事 —— 共享一个常量只会让两边在改词表时互相绊住。
 HEALTH_OK = "ok"

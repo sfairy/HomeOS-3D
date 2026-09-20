@@ -14,7 +14,7 @@
    开着，本地订单又卡在 pending 占着库存预留与优惠码名额。
 
    最后一条与渠道无关，因此由 ``reconcile_due_orders`` 在渠道对账**之后**无条件执行
-   （``store.expiry``）：没配支付宝的站点也得清理超时单，否则巡检等于空转。
+   （``store.commerce.expiry``）：没配支付宝的站点也得清理超时单，否则巡检等于空转。
 
 网络调用与写库刻意分两段执行（先收集动作、再统一落库），因为 SQLite 的写锁会跨整个事务持有，
 而 ``busy_timeout`` 只有 5 秒：在写事务里等一次 15 秒的网关超时，会把同一时刻所有其它写请求
@@ -32,10 +32,10 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from store import fulfill
+from store.commerce import fulfill
 from store.config import StoreSettings
-from store.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders, prune_expired_sessions
-from store.models import Order, Product, StoreSetting, utcnow
+from store.commerce.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders, prune_expired_sessions
+from store.core.models import Order, Product, StoreSetting, utcnow
 from store.payments import resolve_provider
 from store.payments.alipay import SUCCESS_TRADE_STATUSES, cents_from_yuan
 from store.payments.base import PaymentError
@@ -54,7 +54,7 @@ _MAX_TRACKED_ORDERS = 1024
 SWEEP_LOOKBACK_HOURS = 24
 
 #: 巡检一轮最多做多少笔本地过期收尾。比请求路径的
-#: :data:`store.expiry.EXPIRE_BATCH_LIMIT` 大一截：这段不在用户请求里，
+#: :data:`store.commerce.expiry.EXPIRE_BATCH_LIMIT` 大一截：这段不在用户请求里，
 #: 而且一轮巡检本来就要等渠道查单，多一点本地清理不增加用户可见延迟。
 SWEEP_EXPIRE_LIMIT = EXPIRE_BATCH_LIMIT * 5
 
@@ -293,7 +293,7 @@ def reconcile_due_orders(
     - 本地过期收尾在后，且**不受渠道配置约束**。这曾经是个真实的坑：
       站点没配支付宝（或凭据不全）时，整个巡检在这里第一步就 ``return``，
       连本地超时单都不清理。于是那些单永远占着库存预留与优惠码名额 ——
-      而它的主人还会被「有未完成订单」挡住不能下单。见 ``store.expiry``。
+      而它的主人还会被「有未完成订单」挡住不能下单。见 ``store.commerce.expiry``。
     """
     result = _sweep_channel_orders(session, settings=settings, setting=setting, limit=limit)
     #: 本地过期一次多清一些：这段不在用户请求里，而且巡检间隔以分钟计。

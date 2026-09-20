@@ -16,8 +16,8 @@
 
 ## 已知口径漂移
 
-[VERSION](../VERSION) 与 [store/release_info.py](../store/release_info.py) 目前都是 `0.5.6`，而 `releases/RELEASE-V0.6.1.md` 描述的是 0.6.1。这是纯目录结构重构时发现的历史遗留，尚未对齐；发布前需要决定是以 `VERSION` 为准还是补齐到 0.6.1。
+[VERSION](../VERSION) 与 [store/ops/release_info.py](../store/ops/release_info.py) 目前都是 `0.5.6`，而 `releases/RELEASE-V0.6.1.md` 描述的是 0.6.1。这是纯目录结构重构时发现的历史遗留，尚未对齐；发布前需要决定是以 `VERSION` 为准还是补齐到 0.6.1。
 
 ## 不在此目录
 
-生产部署清单与反向代理示例（`deploy/PRODUCTION.md`、`Caddyfile.example`、`nginx.conf.example`）保留在 [deploy/](../deploy/)：`store/release_info.py` 会把该路径作为字符串下发给商店前端，移动它会同时改动 `store/` 代码。
+生产部署清单与反向代理示例（`deploy/PRODUCTION.md`、`Caddyfile.example`、`nginx.conf.example`）保留在 [deploy/](../deploy/)：`store/ops/release_info.py` 会把该路径作为字符串下发给商店前端，移动它会同时改动 `store/` 代码。

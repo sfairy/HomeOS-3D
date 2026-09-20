@@ -39,8 +39,8 @@ from sqlalchemy import inspect, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import Column
 
-from store.database import Base
-import store.models  # noqa: F401  仅为注册全部模型元数据
+from store.core.database import Base
+import store.core.models  # noqa: F401  仅为注册全部模型元数据
 
 logger = logging.getLogger("store.schema")
 

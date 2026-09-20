@@ -14,9 +14,9 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from store import coupons, referrals
+from store.commerce import coupons, referrals
 from store.config import StoreSettings
-from store.models import (
+from store.core.models import (
     Customer,
     Entitlement,
     License,
@@ -24,15 +24,15 @@ from store.models import (
     Product,
     StoreSetting,
 )
-from store.order_status import RESERVING_STATUSES as RESERVING_STATUS_FROM_ORDER
-from store.security import (
+from store.commerce.order_status import RESERVING_STATUSES as RESERVING_STATUS_FROM_ORDER
+from store.security.security import (
     activation_code_hint,
     new_activation_code,
     utcnow,
 )
-from store.serializers import json_list
+from store.core.serializers import json_list
 
-logger = logging.getLogger("store.fulfill")
+logger = logging.getLogger("store.commerce.fulfill")
 
 
 #: ``Order.license_state_before_json`` 里记录的授权字段。顺序无所谓，但必须是

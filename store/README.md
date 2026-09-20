@@ -289,7 +289,7 @@ half-away-from-zero、Python 是 half-even，落在 `.xx5` 上时给出不同分
 有没有被并发改过」的条件 UPDATE 会把**没有并发**的情况判成冲突，以及余额与流水之和
 能差 1 厘。
 
-现已全部改为 `INTEGER` **厘**（1 积分 = 100 厘），运算集中在 `store/money.py`。
+现已全部改为 `INTEGER` **厘**（1 积分 = 100 厘），运算集中在 `store/commerce/money.py`。
 **升级不需要手工执行任何命令**：`app.py` 启动时按
 `ensure_schema`（补新列）→ `migrate_points`（回填 + 逐行对账 → 退役旧列）自动完成，
 迁移前会先做一次数据库文件级备份（`VACUUM INTO` 一致快照）。
@@ -353,7 +353,7 @@ half-away-from-zero、Python 是 half-even，落在 `.xx5` 上时给出不同分
 
 过去它们的共同出口是「往日志写一行 traceback」：服务照常、后台一片正常，出的事却正是
 最该有人立刻知道的那类（钱收了、码没发）。日志是写给已经在翻日志的人看的，不是告警。
-所以这些异常现在额外记一笔进程内计数（`store/incidents.py`）：
+所以这些异常现在额外记一笔进程内计数（`store/ops/incidents.py`）：
 
 | 读法 | 位置 |
 | --- | --- |
@@ -444,21 +444,40 @@ store/
   run.py               # uvicorn 启动入口
   app.py               # 应用工厂（挂载静态资源、路由、授权机构）
   config.py            # StoreSettings，全部走环境变量
-  database.py          # engine / session
-  models.py            # 全部表
-  schemas.py           # 请求体模型（响应统一 camelCase dict）
-  serializers.py       # 响应序列化
-  security.py          # 密码哈希、会话 token、激活码/邀请码生成、ISO 时间
-  site_settings.py     # 站点/支付/邀请 运行时配置
-  mailer.py            # 验证码投递：log | echo | smtp
-  password_gate.py     # 登录失败限流
-  money.py             # ★ 积分/金额的分币运算唯一口径（Decimal，整数厘）
-  points_migration.py  # 邀请积分 FLOAT→整数厘 的回填/对账/退役/回滚
-  fulfill.py           # 订单履约：发码 / 追加增量包 / 库存 / 邀请奖励
-  referrals.py         # 邀请钱包与积分账本、提现
-  limiter.py           # 进程内滑动窗口限流（初始化守卫、支付跳转页查单）
-  setup_guard.py       # 首次初始化窗口的访问守卫（本机放行 + 远程引导密钥 + 限流）
-  features.py          # 客户端能力码目录（中文名 + 说明），**唯一出处**：主项目 BASE_FEATURES 同集、播种顺序也由它派生
+  core/                # 运行时基座：连接 / 表 / 请求体模型 / 序列化 / 公共依赖 / .env / 启动默认数据
+  core/database.py     # engine / session
+  core/models.py       # 全部表
+  core/schemas.py      # 请求体模型（响应统一 camelCase dict）
+  core/serializers.py  # 响应序列化
+  core/deps.py         # API 层公共依赖（数据库会话、登录态、按主键取行）
+  core/env.py          # 极简 ``.env`` 加载器（仅标准库）
+  core/bootstrap.py    # 启动时幂等补齐的默认数据（商品目录、站点配置）
+  security/            # 口令与会话、来源/同源判定、失败限流、初始化守卫、密钥字段、库结构守卫
+  security/security.py       # 密码哈希、会话 token、激活码/邀请码生成、ISO 时间
+  security/request_security.py  # 真实来源 IP / Cookie Secure / CSRF（与主应用同构的另一份实现）
+  security/password_gate.py  # 登录与验证码的失败限流（基于数据库，跨进程一致）
+  security/limiter.py        # 进程内滑动窗口限流（初始化守卫、支付跳转页查单）
+  security/setup_guard.py    # 首次初始化窗口的访问守卫（本机放行 + 远程引导密钥 + 限流）
+  security/secret_fields.py  # 后台「密钥类字段」的打码、识别与归一化
+  security/schema_guard.py   # 启动时把存量库对齐到 ORM（补缺列 / 补缺索引 / 删退役列）
+  commerce/            # 交易与账务：商品、订单、履约、优惠码、邀请与积分
+  commerce/money.py    # ★ 积分/金额的分币运算唯一口径（Decimal，整数厘）
+  commerce/catalog.py  # 商品类型 / 履约方式的合法取值（服务端唯一来源）
+  commerce/order_status.py   # 订单状态枚举与中文口径（服务端唯一来源）
+  commerce/fulfill.py        # 订单履约：发码 / 追加增量包 / 库存 / 邀请奖励
+  commerce/coupons.py        # 优惠码核销的记账口径
+  commerce/cashier.py        # 模拟收银台的短时票据：签发、查询、清理（S53）
+  commerce/expiry.py         # 待支付订单过期处理 + 过期登录会话清理
+  commerce/referrals.py      # 邀请钱包与积分账本、提现
+  commerce/points_migration.py  # 邀请积分 FLOAT→整数厘 的回填/对账/退役/回滚
+  ops/                 # 运营支撑：站点配置、邮件、发布信息、能力码目录、自检原语
+  ops/site_settings.py       # 站点/支付/邀请 运行时配置
+  ops/mailer.py              # 验证码投递：log | echo | smtp
+  ops/mail_settings.py       # 注册邮箱验证码配置解析（站点配置优先，环境变量兜底）
+  ops/release_info.py        # 当前版本的发布记录常量与兜底写入
+  ops/features.py            # 客户端能力码目录（**唯一出处**：主项目 BASE_FEATURES 同集、播种顺序也由它派生）
+  ops/net_probe.py           # 网络可达性探测（后台「站点配置」自检按钮用）
+  ops/incidents.py           # 资金与履约路径上「吞掉异常」的计数（S36）
   payments/            # base 接口 + mock 收银台 + 支付宝（签名/下单/验签/查单）+ 统一入账
   payments/sweeper.py  # 后台巡检：认领「已付款但通知丢了」的单、关闭过期渠道交易 + 状态登记（概览 / healthz）
   licensing/           # 服务端 TransportCipher + LeaseSigner + 三端点业务
@@ -472,7 +491,6 @@ store/
   static/theme.css     # ★ 唯一设计系统：令牌 / 重置 / 排版 / 组件（前台 + 后台 + 收银台共用）
   static/store.css     # ★ 前台页面布局：外壳 + 首页落地页/商品/结算/认证/账号/邀请
   static/admin.css     # ★ 后台页面布局：窄侧栏、面板骨架、统计卡、表格
-  points_migration.py  # 积分口径迁移（启动时自动调用：回填 + 对账 + 退役旧列）
 ```
 
 前端复刻策略：**结构与契约对齐参考站，视觉为本项目自研暗色主题**。`templates/store.html` 与 `static/store.js` / `static/referrals.js` 不保留参考站原有的 DOM 结构，但保留同一套 `data-store-page` 分页、全部 `id`/`data-*` 钩子与 `api(path) → /store/v1` 契约——布局可以随时重排，前后端接口与 JS 行为不动。图标字体写在 `font.min.css` 里的路径是 `../fonts/font.woff2`，所以 `/fonts` 必须挂在根路径（`app.py` 已处理）。
@@ -640,7 +658,7 @@ body            { overflow: hidden; }
 字母不会报错——履约照发，客户端只是静默拦截，这类隐性故障极难定位。现在改成中文选择器，
 **三处共用同一个组件**（商品「功能码」多选，权益「手工补权益」与「改期 / 开关」单选）：
 
-- 目录定义在 `store/features.py`，由 `GET /store-admin/v1/feature-codes` 下发（`code` /
+- 目录定义在 `store/ops/features.py`，由 `GET /store-admin/v1/feature-codes` 下发（`code` /
   `label` / `description` / `groupLabel`）。**新增能力码先改主项目，再补这里**；两边对不上
   等于运营勾了发不出去的能力。
 - 实例配置写在根节点的 data-* 上：`data-feature-picker`（标记）、`data-feature-multiple`

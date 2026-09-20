@@ -19,28 +19,30 @@ from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
-from store import coupons, features, fulfill, incidents, money, referrals, site_settings as site_config
-from store import catalog, mail_settings, mailer
+from store.commerce import coupons, fulfill, money, referrals
+from store.ops import features, incidents, site_settings as site_config
+from store.commerce import catalog
+from store.ops import mail_settings, mailer
 from store.api.store import (
     _image_map,
     _license_meta,
     _product_stats,
 )
-from store.deps import AdminAccount, DbSession, SettingsDep, order_or_404
-from store.expiry import expire_stale_orders
-from store.order_status import (
+from store.core.deps import AdminAccount, DbSession, SettingsDep, order_or_404
+from store.commerce.expiry import expire_stale_orders
+from store.commerce.order_status import (
     ORDER_ATTENTION_STATUSES,
     ORDER_STATUS_LABELS,
     ORDER_STATUS_CHOICES,
     order_status_label,
 )
-from store.order_status import (
+from store.commerce.order_status import (
     FULFILLABLE_STATUSES as ORDER_FULFILLABLE_STATUSES,
 )
-from store.order_status import (
+from store.commerce.order_status import (
     REFUNDABLE_STATUSES as ORDER_REFUNDABLE_STATUSES,
 )
-from store.order_status import refundable_cents
+from store.commerce.order_status import refundable_cents
 from store.payments import PROVIDER_NAMES, is_known_provider, normalize_provider_name
 from store.payments.base import PaymentError
 from store.payments.credentials import (
@@ -54,7 +56,7 @@ from store.payments.credentials import (
 from store.payments.reconcile import CLOSE_LOOKBACK_HOURS, channel_still_payable
 from store.payments.refunds import record_refund_in_new_session
 from store.payments.sweeper import sweep_status
-from store.models import (
+from store.core.models import (
     Account,
     AccountSession,
     AuditLog,
@@ -80,7 +82,7 @@ from store.models import (
     Release,
     StoreSetting,
 )
-from store.schemas import (
+from store.core.schemas import (
     AdminAccountPatch,
     AdminCouponPatch,
     AdminCouponRequest,
@@ -99,7 +101,7 @@ from store.schemas import (
     AdminWalletAdjustRequest,
     AdminWithdrawalResolveRequest,
 )
-from store.security import (
+from store.security.security import (
     activation_code_hint,
     hash_password,
     is_valid_email,
@@ -109,7 +111,7 @@ from store.security import (
     normalize_email,
     utcnow,
 )  # noqa: F401
-from store.serializers import (
+from store.core.serializers import (
     json_list,
     license_payload,
     list_json,
@@ -652,7 +654,7 @@ def _product_admin_payload(session, product: Product, context: dict | None = Non
 def admin_feature_codes(_admin: AdminAccount) -> dict:
     """商品可选的功能码目录（中文名 + 说明）。
 
-    目录定义在 ``store/features.py``，与主程序的能力码一一对应。后台下拉多选
+    目录定义在 ``store/ops/features.py``，与主程序的能力码一一对应。后台下拉多选
     直接渲染它，运营不再手写代码，也就不会把 ``ha.control`` 抄成 ``ha.contorl``
     这种「不报错但客户端静默拦截」的隐性故障。
     """
@@ -728,7 +730,7 @@ def _assert_product_configuration(
 ) -> None:
     """校验商品的可枚举字段，并拦下「什么都不会发放」的套餐配置。
 
-    1. **取值校验**（``store.catalog``）：``product_type`` / ``fulfillment_mode`` 直接决定下单走哪个
+    1. **取值校验**（``store.commerce.catalog``）：``product_type`` / ``fulfillment_mode`` 直接决定下单走哪个
        分支、付款后自不自动发码，写错一个字母不会报错但会静默走错路；功能码同理，不在这里校验的话
        抄错的能力码会一路发到客户端然后被静默拦截。
     2. **可发放性**：履约时功能码有两个来源 —— 商品自己的 ``feature_codes``，以及套餐
@@ -751,7 +753,7 @@ def _assert_product_configuration(
     unknown = sorted({code for code in codes if code not in features.FEATURE_CODES})
     if unknown:
         # 能力码清单在主项目（``backend/license/service.py``）与
-        # ``store/features.py`` 里各有一份、必须同步；抄错的码不会让任何一步报错，
+        # ``store/ops/features.py`` 里各有一份、必须同步；抄错的码不会让任何一步报错，
         # 只会在客户端被静默拦截，所以宁可在这里拒绝。
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -1021,14 +1023,14 @@ def admin_upload_product_image(
 
 
 # 订单
-#: 允许被后台标记支付 / 履约的状态。参见 ``store.order_status``：
+#: 允许被后台标记支付 / 履约的状态。参见 ``store.commerce.order_status``：
 #: 只有仍持有库存预留的订单才谈得上「入账」。终态订单一律拒绝——
 #: cancelled / expired 的库存与优惠码名额早已释放，refunded 的授权也已收回，
 #: 对它们履约等于凭空发一张可用授权，还会重复扣减预留并造成超卖。
 #: 钱确实到账的「复活」场景由支付宝结算路径处理，不走后台接口。
 _FULFILLABLE_STATUSES = ORDER_FULFILLABLE_STATUSES
 
-#: 订单状态中文口径统一来自 ``store.order_status``（服务端唯一来源），
+#: 订单状态中文口径统一来自 ``store.commerce.order_status``（服务端唯一来源），
 #: 避免「后台弹窗说 cancelled、页面显示已取消」这种同一状态两套说法。
 #: 取文案一律走 ``order_status_label()`` 或 ``ORDER_STATUS_LABELS``（后者用于
 #: 批量拼列表），不要在后台再留一份「本地副本」——P9 删掉的 `_ORDER_STATUS_LABELS`
@@ -1383,7 +1385,7 @@ def admin_refund(
     with _refund_lock(order_no):
         result = _refund_order(order_no, payload, request, session, admin)
         # 必须在本进程锁**之内**把抢单结果与流水落库。请求会话的 commit 发生在
-        # 依赖 teardown（见 store.database.Database.session），那时锁早就释放了：
+        # 依赖 teardown（见 store.core.database.Database.session），那时锁早就释放了：
         # 第二笔并发退款会读到同一个旧累计值，于是两次渠道退款都发出去、两次
         # 抢单也都成立 —— 钱多退一倍。teardown 的 commit 之后是空操作。
         session.commit()

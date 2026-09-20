@@ -37,8 +37,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from store.config import StoreSettings
-from store.models import Order, StoreSetting
-from store.net_probe import (
+from store.core.models import Order, StoreSetting
+from store.ops.net_probe import (
     LEVEL_FAIL,
     LEVEL_PASS,
     LEVEL_SKIP,

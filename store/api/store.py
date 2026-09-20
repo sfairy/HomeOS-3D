@@ -17,21 +17,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
-from store import (
-    cashier,
-    coupons,
-    fulfill,
-    incidents,
-    mail_settings,
-    mailer,
-    money,
-    password_gate,
-    referrals,
-)
+from store.commerce import cashier, coupons, fulfill, money, referrals
+from store.ops import incidents, mail_settings, mailer
+from store.security import password_gate
 from store.config import StoreSettings
-from store.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
-from store.expiry import expire_stale_orders
-from store.models import (
+from store.core.deps import AuthedAccount, CurrentAccount, DbSession, SettingsDep, order_or_404
+from store.commerce.expiry import expire_stale_orders
+from store.core.models import (
     Account,
     AccountSession,
     Coupon,
@@ -50,9 +42,9 @@ from store.models import (
     ReferralWithdrawal,
     Release,
 )
-from store.limiter import SlidingWindowLimiter
-from store.request_security import resolve_client_ip, secure_cookies_required
-from store.schemas import (
+from store.security.limiter import SlidingWindowLimiter
+from store.security.request_security import resolve_client_ip, secure_cookies_required
+from store.core.schemas import (
     ChangeEmailRequest,
     ChangePasswordRequest,
     CouponPreviewRequest,
@@ -66,7 +58,7 @@ from store.schemas import (
     VerifyEmailRequest,
     WithdrawalRequest,
 )
-from store.security import (
+from store.security.security import (
     code_hash,
     new_code_salt,
     hash_password,
@@ -80,7 +72,7 @@ from store.security import (
     utcnow,
     verify_password,
 )
-from store.serializers import (
+from store.core.serializers import (
     account_center_payload,
     account_state_payload,
     binding_version,
@@ -89,7 +81,7 @@ from store.serializers import (
     order_payload,
     product_payload,
 )
-from store import site_settings as site_config
+from store.ops import site_settings as site_config
 from store.payments.base import PaymentError
 from store.payments.reconcile import reconcile_alipay_order
 
@@ -114,7 +106,7 @@ MAX_VERIFICATION_SENDS_PER_HOUR = 10
 #:   ``STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT`` 控制，触发时会打一条明确的告警，
 #:   让运营知道该往上调而不是对着「收不到验证码」干着急。
 #:
-#: 与 ``store/limiter.py`` 里的其它限流器同一个实现、同一套取舍（进程内计数，
+#: 与 ``store/security/limiter.py`` 里的其它限流器同一个实现、同一套取舍（进程内计数，
 #: 单进程部署够用；多进程时额度会翻倍，见该模块 docstring）。
 _VERIFICATION_IP_LIMITER = SlidingWindowLimiter(limit=20, window_seconds=3600.0)
 
@@ -1810,7 +1802,7 @@ def create_order(
         ) from error
 
     try:
-        # S53：模拟收银台的页面凭证用短时票据（见 ``store/cashier.py``），
+        # S53：模拟收银台的页面凭证用短时票据（见 ``store/commerce/cashier.py``），
         # 而不是把订单的 ``lookup_token`` 拼进 URL。真实渠道不需要它：支付页由
         # 渠道自己签名，链接里没有本店凭据 —— 这里按渠道判一次，纯粹是不给
         # 用不上的渠道白写一行票据。

@@ -33,13 +33,13 @@ from email.message import EmailMessage
 from email.utils import parseaddr
 from typing import Iterator
 
-from store import mail_settings, net_probe
+from store.ops import mail_settings, net_probe
 from store.config import StoreSettings
-from store.models import StoreSetting
-from store.net_probe import check_result
-from store.security import is_valid_email, new_verification_code
+from store.core.models import StoreSetting
+from store.ops.net_probe import check_result
+from store.security.security import is_valid_email, new_verification_code
 
-logger = logging.getLogger("store.mailer")
+logger = logging.getLogger("store.ops.mailer")
 
 
 @dataclass(frozen=True)

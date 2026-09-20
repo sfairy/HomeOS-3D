@@ -14,8 +14,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
 from store.licensing.crypto import LicenseServerError
-from store.limiter import SlidingWindowLimiter
-from store.request_security import resolve_client_ip
+from store.security.limiter import SlidingWindowLimiter
+from store.security.request_security import resolve_client_ip
 
 logger = logging.getLogger("store.license.api")
 
@@ -34,7 +34,7 @@ router = APIRouter(tags=["license"])
 #:   （``STORE_LICENSE_SESSION_IP_HOURLY_LIMIT``）。
 #: * **按激活码**：兜住换 IP 集中猜同一个码（IP 维度挡不住）。
 #:
-#: 与其它限流器一样是进程内计数，见 ``store/limiter.py`` 的取舍说明。
+#: 与其它限流器一样是进程内计数，见 ``store/security/limiter.py`` 的取舍说明。
 _LICENSE_ACTIVATE_IP_LIMITER = SlidingWindowLimiter(limit=60, window_seconds=3600.0)
 _LICENSE_CODE_LIMITER = SlidingWindowLimiter(limit=30, window_seconds=3600.0)
 

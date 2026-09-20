@@ -80,14 +80,14 @@ HomeOS/
 │       ├── templates/      # 控件模板
 │       └── component-thumbnails/  audio/  vendor/（three.js、hls.js、MDI）
 ├── store/                  # 授权商店 + 授权服务器 + 运营后台
-│   ├── app.py run.py config.py models.py schemas.py serializers.py
+│   ├── app.py run.py config.py
+│   ├── core/               # 连接/表/请求体模型/序列化/公共依赖/.env/启动默认数据
+│   ├── security/           # 口令会话、来源与同源校验、失败限流、初始化守卫、库结构守卫
+│   ├── commerce/           # 商品·订单·履约·优惠码·积分与邀请（含 money/catalog/order_status）
+│   ├── ops/                # 站点配置、邮件、发布信息、能力码目录、可达性探测、异常计数
 │   ├── api/                # store.py(/store/v1) license.py(/v2) admin.py alipay.py pages.py
 │   ├── licensing/          # 服务端传输加密 + 租约签发 + 三端点业务
 │   ├── payments/           # base / mock / alipay（签名·下单·验签·查单）/ 统一入账
-│   ├── fulfill.py referrals.py site_settings.py release_info.py mailer.py security.py
-│   ├── catalog.py          # 商品类型 / 履约方式的合法取值（服务端唯一来源）
-│   ├── request_security.py # 商店侧同源实现：真实来源 IP / Cookie Secure / CSRF
-│   ├── net_probe.py        # 网络可达性探测（后台「站点配置」自检用）
 │   ├── templates/          # store.html（前台 8 个分页）+ admin.html（后台 15 个 panel）
 │   ├── static/             # theme.css（唯一设计系统）+ store.css / admin.css（页面布局）+ 字体·图标·jQuery·JS
 │   ├── keys/local/         # 授权私钥（不入库）
@@ -198,7 +198,7 @@ APP_DATA_DIR=./data PYTHONPATH=. alembic upgrade head
 ### 请求来源：谁在代理、能不能信转发头
 
 限流、审计与首次设置的放行都建立在「请求到底来自哪个 IP」上，而 `X-Forwarded-For`
-是客户端可以自己写的。判定规则（`backend/security/http_security.py` 与 `store/request_security.py`
+是客户端可以自己写的。判定规则（`backend/security/http_security.py` 与 `store/security/request_security.py`
 是同一套逻辑的两份实现，两个服务独立部署、刻意不互相 import）：
 
 - **默认不信任任何转发头**（`APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` 留空）：
@@ -260,7 +260,7 @@ SameSite=Lax + 只收 JSON 是第一道闸，代码里另有一道显式的 Orig
 
 ### 商店侧
 
-- **商品字段取值收敛**：`product_type` 与 `fulfillment_mode` 由 `store/catalog.py` 统一校验
+- **商品字段取值收敛**：`product_type` 与 `fulfillment_mode` 由 `store/commerce/catalog.py` 统一校验
   （取值与后台两个 `<select>` 一致）。这两个字段过去完全没有校验，
   拼错一个字母会让「手工发卡」静默变成自动发卡，或让增量包被当成基础授权直接买走。
 - **订单终态保护**：`cancelled` / `expired` / `refunded` 的订单不能再被标记支付或履约。
@@ -293,7 +293,7 @@ SameSite=Lax + 只收 JSON 是第一道闸，代码里另有一道显式的 Orig
   **把备份当数据库打开、读出即将被删的那一列的原值**，并要求删列时日志点名备份路径。
 - **能力码清单只有一处定义**：基础能力码曾在三份常量里各存一遍（其中一份是没人引用的死代
   码，两份顺序还不一样）。「抄错一个字母不会报错 —— 履约照发，客户端只是静默拦截」，所以
-  分叉的代价没人会发现。现统一由 `store/features.py` 的能力目录派生，校验直接读主项目
+  分叉的代价没人会发现。现统一由 `store/ops/features.py` 的能力目录派生，校验直接读主项目
   `backend/` 的 `BASE_FEATURES` 对账（同一仓库，不靠记性），并静态扫描防止别处再抄一份。
 
 ## 授权体系
@@ -720,7 +720,7 @@ node tools/bump_static_cache_versions.mjs
 测试与死代码清理
 
 - 不再内置任何自动化测试 / 探针：删除 `.github/workflows/ci.yml`、`docker-compose.smoke.yml`、`backend/tools/*`（冒烟、前端探针、API 错误探针）与 `store/tools/{smoke,e2e,*probe}`；`docker.yml` 去掉 `smoke` job，只保留多架构构建与可选远端部署。**仓库此后没有自动化回归网，改动请人工走关键路径。**
-- 删除运维脚本 `store/tools/{seed,gen_keys,migrate_points}.py`：密钥准备改由 `docker/license_keys.py`（`start.py` 与容器启动共用）完成，商品目录 / 站点配置由 `store/bootstrap.py` 启动时幂等补齐，积分迁移在启动时自动执行。同步删除 `ruff.toml`、`eslint.config.mjs`、根 `package.json` / `package-lock.json`（`docker/package*.json` 保留）。`tools/bump_static_cache_versions.mjs` **保留**（静态资源 `?v=` 同戳仍靠它统一改写；它只用 Node 内置模块，不依赖被删的根 `package.json`）。
+- 删除运维脚本 `store/tools/{seed,gen_keys,migrate_points}.py`：密钥准备改由 `docker/license_keys.py`（`start.py` 与容器启动共用）完成，商品目录 / 站点配置由 `store/core/bootstrap.py` 启动时幂等补齐，积分迁移在启动时自动执行。同步删除 `ruff.toml`、`eslint.config.mjs`、根 `package.json` / `package-lock.json`（`docker/package*.json` 保留）。`tools/bump_static_cache_versions.mjs` **保留**（静态资源 `?v=` 同戳仍靠它统一改写；它只用 Node 内置模块，不依赖被删的根 `package.json`）。
 - 清理死代码与重复实现：删除 `floor-lamp.glb` 孤儿模型、`is_blacklisted()`、`public_key_pem()`、`showCapabilityDetails()`、`bootstrap_admin_*` 配置项、两个限流器的 `tracked_keys()` 与全局日志的三个排障计数器；新增 `backend/core/canonical_json.py`、`backend/http/http_cache.py`、`frontend/static/utils/icon-url.js`、`frontend/static/utils/datetime.js`、`frontend/static/utils/interaction-pages.js` 收敛此前逐处手写的规范 JSON、Cache-Control、图标 URL、时间格式与交互页面清单（那份清单原有三份字面量）。
 - 资金路径上的重复释放收敛为两处唯一实现：`store/fulfill.close_pending_order()`（CAS 抢 `pending` 后推进终态，「用户取消 / 后台取消 / 模拟收银台取消 / 超时过期 / 渠道对账兜底」五处共用）与 `store/fulfill.release_order_effects()`（归还预占 + 名额，闭单与「下单即失败」路径共用）。原先这段在十余处各写一遍，抄漏一处就会让 `reserved_stock` 虚高或优惠码名额被永久占用 —— 都不报错，只在某天被发现。
 - `canonical_json` 补齐漏网调用点：`interaction3d/config.py`（光区覆盖表键比对）、`api/assets.py`（裁剪元数据落盘）、`api/global_logs.py`（导出上下文）、`license/service.py`（权益集落库），以及 `interaction3d/api.py` 分桶摘要那处**漏写 `ensure_ascii=False`** 的真实分歧。
@@ -741,14 +741,14 @@ node tools/bump_static_cache_versions.mjs
 - 新增 `deploy/PRODUCTION.md`、Caddy / nginx 反代示例，以及 `.github/workflows/docker.yml`（冒烟 → 多架构推送；可选 SSH 远端重启）。
 - `.env.example` 收敛为 A/B/C/D 分区：部署常改项置顶，SMTP / 支付 / 站点文案改到 `/admin` 配置，避免双源。
 - 移除已过时的 `frontend/NAMING.md` 与根目录 `COMMENTING.md`。
-- 客户端「检查更新」发布记录写入 `store/release_info.py`（`CURRENT_UPGRADE_NOTES`），启动时幂等补写 / 同步到 `releases` 表。
+- 客户端「检查更新」发布记录写入 `store/ops/release_info.py`（`CURRENT_UPGRADE_NOTES`），启动时幂等补写 / 同步到 `releases` 表。
 
 ### v0.5.5
 
 安全加固
 
 - 首次设置窗口（`backend/security/setup_guard.py`）：`/api/v1/setup/admin` 过去只受「管理员账号文件是否存在」这一道闸门保护，任何能连上机器的人都能抢先把管理员建掉并当场拿到会话。现在**本机直连放行**（TCP 对端是 loopback 且请求不带任何转发头），其它来源必须带引导密钥（`APP_SETUP_TOKEN`，或首次启动自动生成并落盘到 `data/setup-token`、打印到启动日志的那一串）；失败计入登录限流，成功与失败都写审计，初始化成功后密钥立即作废。
-- 真实来源 IP（`backend/security/http_security.py`、`store/request_security.py`）：两个服务默认**不信任任何转发头**，限流、审计与登录记录一律按 TCP 对端统计 —— 此前不可信来源自己写 `X-Forwarded-For` 就能给限流换一个新桶，形同虚设。配了 `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` 后也只在连接确实来自代理时才认转发链；拿不到真实来源时按 IP 那一档主动让位，避免共享地址被一个人的失败锁死所有人。
+- 真实来源 IP（`backend/security/http_security.py`、`store/security/request_security.py`）：两个服务默认**不信任任何转发头**，限流、审计与登录记录一律按 TCP 对端统计 —— 此前不可信来源自己写 `X-Forwarded-For` 就能给限流换一个新桶，形同虚设。配了 `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` 后也只在连接确实来自代理时才认转发链；拿不到真实来源时按 IP 那一档主动让位，避免共享地址被一个人的失败锁死所有人。
 - Cookie `Secure` 自动判定：漏配 `APP_COOKIE_SECURE` / `STORE_COOKIE_SECURE` 不再让会话 Cookie（能看订单、能提现、能控中控）明文下发，纯 http 局域网也不会误加。
 - CSRF 同源闸门：主应用拦非 GET 的 `/api/*`，商店拦非 GET 的 `/store/v1/*` 与 `/store-admin/v1/*`；只认裸的 `scheme://host`，`http://evil@本机地址/` 这类写法不会被误判为同源。`/v2/*` 授权端点与支付宝异步回调豁免（前者报文加密签名、后者靠签名校验，都没有浏览器 Origin）。
 - 登录会话管理：新增 `GET /api/v1/auth/sessions`（只回令牌哈希）、`DELETE /api/v1/auth/sessions/{id}` 与 `DELETE /api/v1/auth/sessions`，并补上绝对寿命 `APP_SESSION_HARD_MAX_AGE_SECONDS` —— 滑动续期不能再把一枚被盗 Cookie 无限续下去。
@@ -758,7 +758,7 @@ node tools/bump_static_cache_versions.mjs
 - 上传体积上限（H3）：`POST /api/v1/assets/user` 补 `Content-Length` 早拒与逐块累计上限（SVG 5 MB / 位图 64 MB），413 且不留垃圾文件 —— 此前无任何字节上限，一个请求就能把磁盘写满。
 - 3D 导出与效果变体的跨项目 IDOR（M4）：中控设备只能读自己仪表盘引用的导出图 / 效果变体，跨项目 403，不存在统一 404 不泄露存在性。
 - HA 换址的令牌复用确认（M5）：改 `baseUrl` 但不重输令牌时返回 409 `HA_URL_CHANGED_TOKEN_REUSE`，需显式 `reuseTokenForNewUrl: true`；云元数据地址（`169.254.169.254`，含 IPv4 映射写法）在 `/api/v1/ha/test` 直接拒绝。
-- 商店商品字段取值收敛（`store/catalog.py`）：`product_type` / `fulfillment_mode` 此前完全没有校验，拼错一个字母会让「手工发卡」静默变成自动发卡、或让增量包被当成基础授权买走；现由服务端唯一来源校验，并与后台两个 `<select>` 对齐。
+- 商店商品字段取值收敛（`store/commerce/catalog.py`）：`product_type` / `fulfillment_mode` 此前完全没有校验，拼错一个字母会让「手工发卡」静默变成自动发卡、或让增量包被当成基础授权买走；现由服务端唯一来源校验，并与后台两个 `<select>` 对齐。
 - 商店订单：`cancelled` / `expired` / `refunded` 的终态订单不能再被标记支付或履约；「超时关闭后款项才到账」的复活单打上 `needs_review`，后台新增 `POST /store-admin/v1/orders/{order_no}/review` 标记已处理，结论追加进 `review_note` 而不覆盖原原因。
 - 商店营收口径：后台「标记支付」只放行订单、**不再计入营收**（新增 `orders.manual_settlement`，存量库自动补列且历史数字不变）；人工确认钱已收到走新的 `POST /store-admin/v1/orders/{order_no}/settle-offline`，渠道随后确认收款会自动清掉标记。概览营收卡单列「人工补记」金额，订单列表带芯片标注 —— 详见 [store/README.md](store/README.md) 的「人工补记与营收口径」。
 
@@ -773,7 +773,7 @@ node tools/bump_static_cache_versions.mjs
 - 彻底下线**栖光 UI 方案**（`ui.base` / DWELL LIGHT）：删除前后端 UI Pack 抽象（`ui_packs.py`、`/api/v1/ui-packs`、`uiPack` / `templateRef.uiPackId` 字段、`ui.base` 能力码），控件模板注册改为按 `templateId` 单键，文档归一化收敛为 `normalizeDashboardDocument`。
 - 删除内置仪表盘模板 `dwell-light`（`dashboard_templates/`、预览轮播与项目创建时的模板选择）与全部栖光预览/封面资源；新建仪表盘只有「空白画布」一种路径。
 - 删除整个 `image/v1` 内置素材（61 张，含示例户型图）与 `legacy_asset_ids` 户型图路径映射；素材选择器只保留「我的图片」。`image/` 目录保留但默认为空。
-- 数据迁移：本项目按**首个发布版本**维护，不再保留历史版本数据迁移。Alembic `0001–0015` 合并为单条基线 `0001_initial_schema`；删除升级前备份 / 失败回滚、`data/secrets/` 密钥搬迁、管理员凭据外置的 `migrated` 分支、旧中控令牌补挂，以及商店启动时的补列 / 品牌标识回填 / 旧图标路径自愈 / `ui.base` 剔除（发布记录兜底迁至 `store/release_info.py`）。库内残留旧 revision 时由启动流程直接认领基线，业务数据不受影响。
+- 数据迁移：本项目按**首个发布版本**维护，不再保留历史版本数据迁移。Alembic `0001–0015` 合并为单条基线 `0001_initial_schema`；删除升级前备份 / 失败回滚、`data/secrets/` 密钥搬迁、管理员凭据外置的 `migrated` 分支、旧中控令牌补挂，以及商店启动时的补列 / 品牌标识回填 / 旧图标路径自愈 / `ui.base` 剔除（发布记录兜底迁至 `store/ops/release_info.py`）。库内残留旧 revision 时由启动流程直接认领基线，业务数据不受影响。
 - 下线发布清单与 SBOM：删除 `release-manifest.json` 与 `sbom.cdx.json`。仓库内既没有生成器（`tools/release_artifacts.py` 从未入库），CI 的 `Release manifest consistency` 步骤也已一并移除。
 
 品牌
@@ -809,7 +809,7 @@ node tools/bump_static_cache_versions.mjs
     - 支付渠道 `mock`（本地收银台）与 `alipay`（当面付扫码）可切换；异步通知验签 + 主动查单兜底，统一入账且重复通知只发一次码。
 - 客户端默认零配置指向自建授权服务器（`backend/config.py` 内置端点、由公钥派生的 keyId 与公钥 sha256），厂商生产节点与生产公钥已彻底移除。
 - 仓库根 `keys/` 作为客户端信任锚公钥镜像，由 `store.tools.gen_keys` 从 `store/keys/local/` 自动同步，二者逐字节一致。
-- 新增 `.env` 本地配置（SMTP 授权码、支付宝私钥等只落在被 gitignore 的 `.env` 里，随仓库分发的 `.env.example` 只含占位符）与 `store/env.py` 极简加载器。
+- 新增 `.env` 本地配置（SMTP 授权码、支付宝私钥等只落在被 gitignore 的 `.env` 里，随仓库分发的 `.env.example` 只含占位符）与 `store/core/env.py` 极简加载器。
 - 新增 `tools/bump_static_cache_versions.mjs`（统一静态资源 `?v=YYYYMMDDHHMMSS`）。
 
 优化

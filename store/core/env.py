@@ -12,8 +12,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-#: store/ 的上一级即项目根目录
-ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+#: store/core/ 的上两级即项目根目录
+ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 _loaded = False
 

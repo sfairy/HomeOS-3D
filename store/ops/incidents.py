@@ -27,10 +27,10 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from store.models import utcnow
-from store.security import iso_z
+from store.core.models import utcnow
+from store.security.security import iso_z
 
-logger = logging.getLogger("store.incidents")
+logger = logging.getLogger("store.ops.incidents")
 
 #: 已登记的计数类别 → 人类可读标签。标签放在后端，是为了让后台、``/healthz`` 与
 #: 日志讲同一件事；新类别必须显式登记，避免各处风格漂移成「同一件事三种叫法」。

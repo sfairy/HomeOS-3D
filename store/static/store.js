@@ -884,7 +884,7 @@
   }
 
   function statusLabel(order) {
-    // 与服务端 store/order_status.py 的口径保持一致（详见 admin.html 的同名注释）。
+    // 与服务端 store/commerce/order_status.py 的口径保持一致（详见 admin.html 的同名注释）。
     return ({ pending: '待付款', paid: order.fulfillmentMode === 'manual' ? '待人工发卡' : '已付款', fulfilled: '已完成', cancelled: '已取消', expired: '已过期', payment_failed: '支付失败', fulfillment_failed: '发货失败', refunded: '已退款' })[order.status] || order.status;
   }
 

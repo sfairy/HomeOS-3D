@@ -8,7 +8,7 @@
 2. ``POST /store/v1/setup/admin`` 一次就创建管理员，并**当场下发会话 Cookie**；
 3. 自此攻击者可读订单与账号、改商品与价格、导出授权码、下发/吊销授权。
 
-当时唯一的保护是同源中间件（``store/request_security.py`` 的
+当时唯一的保护是同源中间件（``store/security/request_security.py`` 的
 ``same_origin_request``），而它在请求**没有** ``Origin``/``Referer`` 时放行 ——
 ``curl`` 默认就不带这两个头，所以这道闸门对脚本化攻击等于不存在。
 
@@ -40,8 +40,8 @@ from pathlib import Path
 
 from fastapi import HTTPException, Request, status
 
-from store.limiter import SlidingWindowLimiter
-from store.request_security import forwarded_headers_present
+from store.security.limiter import SlidingWindowLimiter
+from store.security.request_security import forwarded_headers_present
 
 logger = logging.getLogger("store.setup")
 

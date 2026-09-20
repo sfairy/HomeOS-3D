@@ -1524,7 +1524,7 @@
 
 <!-- 内联脚本必须带 nonce 占位符：服务端每响应替换成一次性随机值，
      否则会被自身的 CSP（script-src 无 'unsafe-inline'）挡下。
-     见 store/request_security.py 的 CSP_NONCE_PLACEHOLDER。 -->
+     见 store/security/request_security.py 的 CSP_NONCE_PLACEHOLDER。 -->
 <script src="/store-static/htmlsafe.js?v=20260920093608"></script>
 <script src="/store-static/api-error.js?v=20260920093608"></script>
 <script nonce="{{NONCE}}">
@@ -1672,7 +1672,7 @@ const esc = HtmlSafe.esc;
 // --------------------------------------------------------------------------- //
 // 时间口径：后端一律存 naive UTC，界面一律按浏览器本地时区显示与输入
 // --------------------------------------------------------------------------- //
-// store/security.py 的 utcnow() 写库时是不带时区的 UTC 字符串；运营脑子里的
+// store/security/security.py 的 utcnow() 写库时是不带时区的 UTC 字符串；运营脑子里的
 // 时间、datetime-local 输入框里的值则都是本地时间。两边直接对着字符串切片，就会
 // 差一个时区偏移（东八区整整 8 小时）：界面填「12月31日 23:59」，实际发出去的
 // 授权到次年 1月1日 07:59 才过期。
@@ -1769,7 +1769,7 @@ function statusBadge(status, labels = ORDER_STATUS) {
 
 // 订单状态中文口径与前台账号中心完全一致（见 store/static/store.js 的订单状态映射），
 // 后台不要另造一套说法。顺带解决宽度问题：payment_failed 这类 snake_case 比中文宽一倍多。
-// 订单状态：与服务端 store/order_status.py 的 ORDER_STATUS_LABELS 逐字对齐。
+// 订单状态：与服务端 store/commerce/order_status.py 的 ORDER_STATUS_LABELS 逐字对齐。
 // 两边不一致会出现「弹窗说已取消、列表说已过期」这种同一状态两套说法。
 // payment_failed 是「支付渠道拒单」（预留已归还），不是「下单失败」；
 // fulfillment_failed 是「发货失败、等人工处理」，过去被错译成「处理中」，

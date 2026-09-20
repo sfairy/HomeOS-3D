@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from store.config import StoreSettings
-from store.models import StoreSetting
+from store.core.models import StoreSetting
 from store.payments.alipay import (
     SANDBOX_GATEWAY_URL,
     PaymentError,
@@ -24,8 +24,8 @@ from store.payments.alipay import (
     validate_gateway_url,
 )
 #: 打码 / 归一化密钥提交值的规则与邮箱 SMTP 授权码共用一份实现
-#: （见 ``store.secret_fields``。这里重新导出，保持既有调用点的 import 不变）。
-from store.secret_fields import (
+#: （见 ``store.security.secret_fields``。这里重新导出，保持既有调用点的 import 不变）。
+from store.security.secret_fields import (
     MASK_PREFIX,
     is_masked_secret,
     mask_secret,
