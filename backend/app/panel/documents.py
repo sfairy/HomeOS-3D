@@ -35,10 +35,8 @@ def parse_document(value: object) -> dict | None:
 
     参数:
         value: 草稿行的 ``document_json``（字符串）；``None`` 等非法类型回 None。
-
     返回:
         文档字典；JSON 损坏、或是数组 / 字符串这类「顶层不是对象」的内容时回 None。
-
     异常:
         不抛异常：判断「坏了怎么办」是调用方的事，见 :func:`require_document`。
     """
@@ -57,12 +55,6 @@ def require_document(draft: 'ProjectDraft', *, on_error: str) -> dict:
     ``JSONDecodeError`` 直接冒出去只会是 500 加堆栈。读路径宁可降级也不该报错，
     用 :func:`parse_document` 自己处理 ``None``。
     草稿可能来自更早的版本（字段已下线）或在写盘时被截断。
-
-    参数:
-        draft: 草稿行。
-        on_error: 损坏时回给用户的 detail；由调用方给，因为「复制不出来」与
-            「保存不了」对用户是两件不同的事。
-
     异常:
         HTTPException 422: 文档 JSON 损坏或不是对象。
     """
@@ -83,11 +75,8 @@ def create_blank_project(
     """构造一份空白仪表盘文档。
 
     参数:
-        project_id: 项目 ID，会写进文档的 projectId，需与数据库记录一致。
-        name: 仪表盘名称，直接作为文档 name。
         canvas_width: 画布宽度，默认取设计标称宽度。
         canvas_height: 画布高度，默认取设计标称高度。
-
     返回:
         经 validate_panel_document 归一后的文档字典（字段为 camelCase，
         已剔除 None），可直接序列化入库。

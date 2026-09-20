@@ -55,10 +55,7 @@ class LicenseTransportCipher:
         """载入并校验授权传输公钥（服务端 X25519 公钥）。
 
         参数:
-            public_key_path: PEM 格式公钥文件路径。
-            key_id: 与服务端约定的密钥标识，参与密钥派生与 AAD。
             expected_sha256: 公钥文件内容的 SHA-256 十六进制指纹，钉死在发布版本里。
-
         异常:
             LicenseCryptoError: keyId 非法、公钥读不到、指纹不符，或公钥不是 X25519。
         """
@@ -106,11 +103,8 @@ class LicenseTransportCipher:
         """加密一次请求体，返回（信封字段字典，响应解密所需的对称密钥）。
 
         参数:
-            payload: 待发送的请求体，明文只在本机内存里存在。
             path: 请求路径（如 /v2/activate），参与密钥派生与 AAD 绑定。
-
         返回:
-            (envelope, key)：envelope 直接作为 HTTP JSON body 发出；
             key 必须原样保留，用于 decrypt_response 解密配对的响应。
         """
         # 每次请求都换一把临时私钥：即便某次请求密文被录下，也无法反推长期私钥。
@@ -141,13 +135,8 @@ class LicenseTransportCipher:
         """解密与某个请求配对的响应信封。
 
         参数:
-            envelope: 服务端返回的 JSON 字典（含 iv / ciphertext，可能含 keyId）。
             path: 原请求路径，必须与加密时一致，否则 AAD 不匹配。
             key: encrypt_request 返回的对称密钥，一个请求一把，不可跨请求复用。
-
-        返回:
-            解密后的响应字典。
-
         异常:
             LicenseCryptoError: keyId 不符、编码非法、IV 长度异常，或 GCM 校验失败
             （被篡改、密钥不对、AAD 不符都会走到这里）。
@@ -177,13 +166,8 @@ class LicenseTransportCipher:
 
 def parse_timestamp(value: str) -> datetime:
     """解析租约里的 ISO-8601 时间戳，统一成 UTC 时区感知对象。
-
-    参数:
-        value: 授权服务返回的时间字符串，可能带 'Z' 后缀也可能不带时区。
-
     返回:
         UTC 时区的 datetime，可直接与 datetime.now(timezone.utc) 比较。
-
     异常:
         LicenseCryptoError: 字符串无法解析为 ISO-8601 时间。
     """
@@ -221,12 +205,8 @@ class LeaseVerifier:
         """配置可信公钥集合。
 
         参数:
-            public_key_path: 单公钥模式下的 PEM 路径，会登记到 default_key_id 名下。
-            product: 期望的租约产品标识，验签后比对，防止跨产品串用租约。
             expected_sha256: 单公钥模式下的 SHA-256 指纹。
             trusted_keys: 多公钥模式：{keyId: (公钥路径, 指纹或 None)}。
-            default_key_id: 单公钥模式下登记用的 keyId。
-
         异常:
             ValueError: 可信公钥集合为空（配置错误，启动期就该失败）。
         """
@@ -288,10 +268,8 @@ class LeaseVerifier:
         参数:
             signed_lease: 形如 <base64url(payload)>.<base64url(signature)> 的字符串。
             instance_id: 当前安装实例 ID，载荷里的 instanceId 必须与之一致。
-
         返回:
             已通过签名与全部字段校验的载荷字典。
-
         异常:
             LicenseCryptoError: 格式、编码、keyId、指纹、签名、产品或实例任一不符，
             以及缺少必要字段或序号非法。
@@ -366,7 +344,6 @@ class SecretCipher:
 
         返回:
             32 字节 urlsafe base64 的 Fernet 密钥。
-
         异常:
             LicenseCryptoError: 密钥文件已存在但内容为空，或密钥文件/目录不可写。
         """

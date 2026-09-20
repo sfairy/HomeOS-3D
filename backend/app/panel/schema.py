@@ -345,14 +345,8 @@ class PanelDocument(ExtensibleModel):
 
 def validate_panel_document(value: dict[str, Any]) -> dict[str, Any]:
     """校验并归一一份仪表盘文档。
-
-    参数:
-        value: 外部传入的原始文档字典（字段名为 camelCase）。
-
     返回:
         归一后的字典：按别名（camelCase）输出、剔除 None 字段，
-        可直接序列化入库或回传给前端。
-
     异常:
         pydantic.ValidationError: 字段类型、范围或引用完整性校验失败，
         由调用方转成 422 响应。

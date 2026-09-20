@@ -28,12 +28,7 @@ def document_keyed_values(
     大小写不敏感：文档里既有 ``entityId`` 也有 ``EntityId`` 的历史写法。
 
     参数:
-        value: 任意文档片段，通常是整个仪表盘文档字典。
-        suffix: 键名后缀，例如 ``entityId`` / ``sceneId``。
         keep: 可选的过滤器；不传则全部收下。
-
-    返回:
-        去重后的字符串集合。
     """
     found: set[str] = set()
     normalized_suffix = suffix.casefold()
@@ -84,12 +79,6 @@ def document_entity_ids(value: Any) -> set[str]:
     同时决定了**中控设备能看到哪些实体**与**要订阅哪些状态**：放宽一格就是放宽
     一格可见范围（B22）。判据改成与写入端（`panel/schema.py` 的绑定校验）同一把尺子，
     写入时不允许存的 ID，读取时也不该被认成实体。
-
-    参数:
-        value: 任意文档片段，通常是整个仪表盘文档字典。
-
-    返回:
-        去重后的实体 ID 集合；文档没有引用任何实体时返回空集合。
     """
     result = document_keyed_values(value, "entityId", keep=valid_ha_entity_id)
 

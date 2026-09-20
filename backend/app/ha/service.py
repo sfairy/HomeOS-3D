@@ -1,17 +1,15 @@
 """Home Assistant 连接器服务：同步、实时事件与状态分发的主循环。
 
-整体结构：
-- `_run` 是常驻后台任务：取当前启用的连接 → 全量同步 → 建立 WebSocket
-  长连并处理实时事件，异常时按指数退避重连；
-- 全量对账（`sync_once`）按 `ha_reconcile_interval_seconds` 周期执行，
-  用 HA 的权威数据修正漏掉的增量事件；
-- 增量事件（`_handle_live_event`）只做「落库 + 推内存」，注册表类事件再
-  触发一次防抖的元数据刷新；
-- 状态分发交给 `StateHub`，本模块只负责决定「谁该被关注」。
+- ``_run`` 是常驻后台任务：取当前启用的连接 → 全量同步 → 建立 WebSocket 长连并处理实时事件，
+  异常时按指数退避重连；
+- 全量对账（``sync_once``）按 ``ha_reconcile_interval_seconds`` 周期执行，用 HA 的权威数据修正
+  漏掉的增量事件；
+- 增量事件（``_handle_live_event``）只做「落库 + 推内存」，注册表类事件再触发一次防抖的元数据
+  刷新；
+- 状态分发交给 ``StateHub``，本模块只负责决定「谁该被关注」。
 
-并发约定：数据库操作都经 `_run_database` 串行化并放到线程池，避免阻塞
-事件循环（SQLAlchemy 是同步的）；注册表刷新与全量同步共用 `_sync_lock`，
-避免两份快照互相覆盖。
+并发约定：数据库操作都经 ``_run_database`` 串行化并放到线程池，避免阻塞事件循环（SQLAlchemy 是
+同步的）；注册表刷新与全量同步共用 ``_sync_lock``，避免两份快照互相覆盖。
 """
 from __future__ import annotations
 import asyncio
@@ -68,11 +66,7 @@ def state_requires_fetch_retry(entity_id: str, state: dict | None) -> bool:
     """判断某个实体的状态是否缺失或残缺、需要重新拉取。
 
     参数:
-        entity_id: 实体 ID，用来推断域。
         state: 已有的状态字典；None 表示内存里还没有这个实体。
-
-    返回:
-        True 表示需要（重）拉。
     """
     domain = entity_id.partition('.')[0]
     required_attributes = STATE_FETCH_REQUIRED_ATTRIBUTES.get(domain)
@@ -261,13 +255,6 @@ class HAConnectorService:
 
     async def refresh_persistent_entity_ids(self, *, ensure_states: bool = True) -> set[str]:
         """重新扫描草稿与弹窗，刷新持久关注的实体集合。
-
-        参数:
-            ensure_states: 是否为新出现的实体主动补拉状态；
-                全量同步过程中传 False，因为快照马上就会带来它们的状态。
-
-        返回:
-            刷新后仍需关注的实体集合（含运行期订阅）。
         """
         next_ids = await self._run_database(self._load_persistent_entity_ids)
         async with self._watch_lock:
@@ -316,9 +303,6 @@ class HAConnectorService:
 
         补拉结果只 `merge` 进内存，不主动推送：调用方（页面订阅）随后自己
         读快照初始化界面，这里再推一遍只会造成重复渲染。
-
-        参数:
-            entity_ids: 需要确保状态的实体 ID。
         """
         normalized = {
             str(entity_id) for entity_id in entity_ids if str(entity_id) }
@@ -369,13 +353,8 @@ class HAConnectorService:
         '''限制并发并做短缓存的历史读取，避免图表请求把 HA 打爆。
 
         参数:
-            connection: 目标 HA 连接（用于解密令牌与拼请求）。
-            entity_id: 实体 ID。
             start_time: 起始时间（ISO8601 字符串）。
             hours: 时间跨度（小时），一并进缓存键。
-
-        返回:
-            历史状态列表（深拷贝副本，调用方可随意改写）。
         '''
         # 缓存键不含 start_time：起始时间由 hours 反推，同一个 hours 就是同一张图。
         # 用 time.monotonic 而非挂钟时间，系统对时/改时间不会让缓存判断失真。
@@ -467,17 +446,10 @@ class HAConnectorService:
     async def sync_once(self, connection_id: str | None = None, reconciled: bool = False) -> dict[str, int]:
         """执行一次全量对账，并把结果推给前端。
 
-        参数:
-            connection_id: 目标连接；缺省取当前启用连接。
-            reconciled: 是否为周期性对账（由长连空闲超时或定时触发），
-                为真时额外记录 last_reconciled_at，便于排查「对账是否在跑」。
-
-        返回:
-            实体/设备/区域的数量统计。
-
-        异常:
-            HAClientError: 未配置连接或拉取失败；其它异常记录后原样抛出，
-                由 `_run` 决定退避重连。
+        ``connection_id`` 缺省取当前启用连接；``reconciled`` 为真表示这是周期性对账（由长连空闲超时或
+        定时触发），会额外记录 last_reconciled_at，便于排查「对账是否在跑」。返回实体 / 设备 / 区域的
+        数量统计。未配置连接或拉取失败抛 ``HAClientError``；其它异常记录后原样抛出，由 ``_run`` 决定
+        退避重连。
         """
         # 与防抖的注册表刷新互斥：两份快照若交叉写库，后写的会把先写的结果覆盖。
         async with self._sync_lock:
@@ -672,20 +644,13 @@ class HAConnectorService:
     def _apply_registry_event(self, connection_id: str, event_type: str, event_data: dict[str, Any]) -> str | None:
         """把一条注册表变更事件增量写库。
 
-        参数:
-            connection_id: 连接 ID。
-            event_type: `entity_registry_updated` / `device_registry_updated` /
-                `area_registry_updated`。
-            event_data: HA 事件 payload，含 action、实体/设备/区域 ID 与 changes。
+        ``event_type`` 是 ``entity_registry_updated`` / ``device_registry_updated`` /
+        ``area_registry_updated`` 之一，``event_data`` 含 action、实体 / 设备 / 区域 ID 与 changes。
+        返回实际执行的操作名（create/remove/update），供调用方广播目录变更；事件无效或无需处理时返回
+        None（调用方据此不再广播）。
 
-        返回:
-            实际执行的操作名（create/remove/update），供调用方广播目录变更；
-            事件无效或无需处理时返回 None（调用方据此不再广播）。
-
-        说明:
-            changes 里放的是「变更前的旧值」，因此判断禁用/启用时看的是旧值；
-            实体被移除只把 sync_status 置 missing 并记 missing_since，不删行，
-            这样仪表盘上的绑定关系不会因为 HA 抖动而丢失。
+        **changes 里放的是「变更前的旧值」**，因此判断禁用 / 启用时看的是旧值。实体被移除只把
+        sync_status 置 missing 并记 missing_since，不删行，这样仪表盘上的绑定关系不会因为 HA 抖动而丢失。
         """
         action = str(event_data.get('action') or 'update')
         # 白名单外的 action 一律忽略：HA 未来新增的语义在这里没有对应处理，
@@ -799,16 +764,11 @@ class HAConnectorService:
     def _apply_registry_snapshot(self, connection_id: str, entities: list[dict[str, Any]] | None, devices: list[dict[str, Any]] | None, areas: list[dict[str, Any]] | None) -> dict[str, int] | None:
         """用三份注册表快照刷新元数据（新增 + 更新，不做缺失标记）。
 
-        参数:
-            connection_id: 连接 ID。
-            entities / devices / areas: 各自注册表的最新内容；None 表示该份没取到。
+        ``entities`` / ``devices`` / ``areas`` 各自为对应注册表的最新内容，None 表示该份没取到。返回刷新后
+        的目录计数；三份都没取到时返回 None（调用方据此不广播）。
 
-        返回:
-            刷新后的目录计数；三份都没取到时返回 None（调用方据此不广播）。
-
-        说明:
-            这里刻意不把未出现的记录标记为 missing：注册表快照可能只成功了一部分，
-            缺失判定交给全量对账（`_apply_snapshot`）更安全，免得误清目录。
+        刻意不把未出现的记录标记为 missing：注册表快照可能只成功了一部分，缺失判定交给全量对账
+        （``_apply_snapshot``）更安全，免得误清目录。
         """
         if entities is None and devices is None and areas is None:
             return None
@@ -983,22 +943,14 @@ class HAConnectorService:
         return 'disabled' if disabled_by else 'active'
 
     def _apply_snapshot(self, connection_id: str, snapshot: HASnapshot, reconciled: bool) -> dict[str, int]:
-        """把一次全量快照写库，并标记「本次没出现的」实体/设备/区域为缺失。
+        """把一次全量快照写库，并标记「本次没出现的」实体 / 设备 / 区域为缺失。
 
-        参数:
-            connection_id: 连接 ID。
-            snapshot: `HAClient.fetch_snapshot` 的结果。
-            reconciled: 是否为周期性对账，为真时记录 last_reconciled_at。
+        ``reconciled`` 为真时记录 last_reconciled_at。返回实体 / 设备 / 区域的数量统计。
 
-        返回:
-            实体/设备/区域的数量统计。
-
-        说明:
-            - 实体集合取「状态表 ∪ 注册表」：被禁用的实体只出现在注册表里，
-              没有注册表条目的实体（部分集成）只出现在状态里，两边都要认；
-            - 缺失只用 sync_status=missing 表达，不删行，避免 HA 抖动导致
-              仪表盘绑定关系丢失；
-            - 设备/区域在本次快照为 None（命令不可用）时跳过缺失标记。
+        - 实体集合取「状态表 ∪ 注册表」：被禁用的实体只出现在注册表里，没有注册表条目的实体（部分集成）
+          只出现在状态里，两边都要认；
+        - 缺失只用 ``sync_status=missing`` 表达，不删行，避免 HA 抖动导致仪表盘绑定关系丢失；
+        - 设备 / 区域在本次快照为 None（命令不可用）时跳过缺失标记。
         """
         now = utc_now()
         state_by_id = {
@@ -1146,17 +1098,11 @@ class HAConnectorService:
     def _apply_incremental_state(self, connection_id: str, raw_state: dict[str, Any]) -> bool:
         """把一条实时状态事件增量落库。
 
-        参数:
-            connection_id: 连接 ID。
-            raw_state: HA 的 `new_state` 原始字典。
+        返回目录是否发生变化（新实体出现、或原本 missing 的实体复活），调用方据此决定要不要广播目录
+        变更。
 
-        返回:
-            目录是否发生变化（新实体出现、或原本 missing 的实体复活）；
-            调用方据此决定要不要广播目录变更。
-
-        说明:
-            这是高频路径，必须便宜：已知实体在 INCREMENTAL_FLUSH_SECONDS 内
-            直接返回，不碰数据库 —— 否则功率/温度这类秒级上报的实体会把库写爆。
+        这是高频路径，必须便宜：已知实体在 INCREMENTAL_FLUSH_SECONDS 内直接返回，不碰数据库 ——
+        否则功率 / 温度这类秒级上报的实体会把库写爆。
         """
         entity_id = str(raw_state.get('entity_id') or '')
         if not entity_id:

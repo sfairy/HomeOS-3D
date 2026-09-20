@@ -1,16 +1,12 @@
 """Home Assistant 实体状态的内存中枢与订阅分发。
 
-连接器把 HA 推来的原始状态归一成前端约定的 camelCase 结构后存在这里，
-再由 WebSocket / SSE 端点通过订阅队列实时取走，避免每个前端连接各自
-去 HA 拉一次状态。
+连接器把 HA 推来的原始状态归一成前端约定的 camelCase 结构后存在这里，再由 WebSocket / SSE 端点
+通过订阅队列实时取走，避免每个前端连接各自去 HA 拉一次状态。
 
-三条约定：
-- 状态字典的字段名（entityId / lastChanged / updatedAt …）是与前端
-  约定死的协议，改动等于改协议；
-- 所有对 `_states` / `_subscribers` / `_subscriber_entities` 的读写都在
-  `_lock` 保护下进行，因为这些方法会被多个 asyncio 任务并发调用；
-- 订阅队列有界（见 `subscribe`），满了就丢旧事件并补一个全量重同步信号，
-  宁可让前端重新拉一次快照，也不让慢消费者拖垮连接器。
+三条约定：状态字典的字段名（entityId / lastChanged / updatedAt …）是与前端约定死的协议，
+改动等于改协议；所有对 ``_states`` / ``_subscribers`` / ``_subscriber_entities`` 的读写都在
+``_lock`` 保护下进行，因为这些方法会被多个 asyncio 任务并发调用；订阅队列有界（见 ``subscribe``），
+满了就丢旧事件并补一个全量重同步信号 —— 宁可让前端重新拉一次快照，也不让慢消费者拖垮连接器。
 """
 from __future__ import annotations
 
@@ -36,13 +32,8 @@ class StateHub:
     @staticmethod
     def normalize(raw: dict[str, Any]) -> dict[str, Any]:
         """把 HA 的原始状态对象转成前端协议结构。
-
-        参数:
-            raw: HA `/api/states` 或 `state_changed` 事件里的 new_state 字典。
-
         返回:
             键名全部为 camelCase 的状态字典；缺字段时给出安全默认值，
-            调用方仍需自行判断 entityId 是否为空。
         """
         entity_id = str(raw.get("entity_id", ""))
         # state 缺失时按 unknown 处理：HA 在某些不可用场景下会省掉该字段，
@@ -101,10 +92,6 @@ class StateHub:
 
     async def update(self, raw: dict[str, Any]) -> dict[str, Any] | None:
         """写入单个实体的最新状态，并立即广播。
-
-        参数:
-            raw: HA 推送的 new_state 原始字典。
-
         返回:
             归一化后的状态字典；entityId 为空时返回 None（不写也不推）。
         """
@@ -186,10 +173,6 @@ class StateHub:
         握手窗口期内（订阅尚未校验）排队的事件属于协议协商阶段，
         随后的快照才是权威数据，因此这里先丢弃这些陈旧事件，
         再开始运行期处理，防止前端收到比快照更早的过期状态。
-
-        参数:
-            queue: 订阅者队列；不在 `_subscribers` 中时静默忽略。
-            entity_ids: 该订阅者关心的实体集合。
         """
         if queue not in self._subscribers:
             return None

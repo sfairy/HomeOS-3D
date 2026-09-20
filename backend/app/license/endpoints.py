@@ -64,13 +64,6 @@ class LicenseEndpointPool:
     @staticmethod
     def _normalize_batches(batches: Iterable[tuple[str, Iterable[str]]]) -> dict[str, tuple[str, ...]]:
         """归一化配置：校验批次名、清洗地址、全局去重。
-
-        参数:
-            batches: 原始 (批次名, 地址列表) 序列。
-
-        返回:
-            固定包含三个批次键的字典，未配置的批次为空元组。
-
         异常:
             ValueError: 批次名不在白名单内，或地址不是 HTTP/HTTPS。
         """
@@ -106,10 +99,6 @@ class LicenseEndpointPool:
 
     def candidates(self) -> list[LicenseEndpoint]:
         """返回本次可用的候选端点，列表顺序即尝试顺序。
-
-        返回:
-            LicenseEndpoint 列表；未配置与仍在拉黑期内的地址都不会出现，
-            首批（esa/eo）内部随机洗牌，direct 永远排在最后。
         """
         with self._lock:
             now = self._clock()

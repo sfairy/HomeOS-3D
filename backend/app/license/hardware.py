@@ -209,11 +209,8 @@ def _persistent_fallback_identity(path: Path, host_seal: str) -> str:
 
     参数:
         path: 存放兜底文件的路径（位于 data/ 内，可被拷贝）。
-        host_seal: 当前机器的宿主封印（不在 data/ 内计算）。
-
     返回:
         32 字节十六进制随机串。
-
     异常:
         OSError: 文件系统不可写，无法创建兜底标识。
         RuntimeError: 宿主封印为空，无法安全建立不可拷贝绑定。
@@ -261,14 +258,8 @@ def hardware_identity(*, machine_override: str = '', board_override: str = '', r
     """按机器与主板标识计算硬件身份。
 
     参数:
-        machine_override: 机器标识覆盖值，非空则直接采用。
-        board_override: 主板标识覆盖值，非空则直接采用。
         required: True 表示拿不到完整标识时必须报错或走兜底；False 允许退化为开发值。
         fallback_path: 兜底随机 ID 的存放路径；None 表示不允许兜底。
-
-    返回:
-        含 instance_id / machine_id / board_id 的 HardwareIdentity。
-
     异常:
         RuntimeError: required 为真但标识缺失，且无法创建兜底 ID。
     """

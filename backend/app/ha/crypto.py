@@ -34,16 +34,11 @@ class CredentialCipher:
     def _load_or_create_key(self) -> bytes:
         """取密钥文件里的 Fernet 密钥；进程内只碰一次文件（B8）。
 
-        目录权限 0700、文件 O_EXCL + 0600 的原子创建与「只对并发抢占重试」
-        都在 ``load_or_create_secret_key`` 里；这里只负责把失败翻译成
-        CredentialCipherError。该入口自带进程内缓存：HA 长期令牌的解密落在每个
-        用到 HA 的请求上，而密钥文件在部署生命周期内不变，不必每次都重新读盘。
-
-        返回:
-            Fernet 格式的密钥字节（URL 安全 base64，44 字节含换行）。
-
-        异常:
-            CredentialCipherError: 密钥文件存在但内容为空，或密钥文件/目录不可写。
+        目录权限 0700、文件 O_EXCL + 0600 的原子创建与「只对并发抢占重试」都在
+        ``load_or_create_secret_key`` 里；这里只负责把失败翻译成 CredentialCipherError。该入口自带进程内
+        缓存：HA 长期令牌的解密落在每个用到 HA 的请求上，而密钥文件在部署生命周期内不变，不必每次重新
+        读盘。返回 Fernet 格式的密钥字节（URL 安全 base64，44 字节含换行）；密钥文件存在但内容为空、
+        或密钥文件 / 目录不可写时抛 ``CredentialCipherError``。
         """
         return load_or_create_secret_key(
             self.key_path,

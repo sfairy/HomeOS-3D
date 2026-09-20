@@ -208,11 +208,6 @@ class LicenseService:
 
         打开编辑器、读取授权状态前调用：不能只靠离线签名租约继续放行，
         否则解绑后最长要等心跳间隔（默认 300 秒）才能跳转到激活页。
-
-        参数:
-            force: True 时忽略节流（页面入口）；False 时最多每
-                ``BINDING_CONFIRM_THROTTLE_SECONDS`` 确认一次（状态轮询）。
-
         网络失败不清空本地租约（保持离线可用）；仅「确认吊销」会 ``_mark_revoked``。
 
         限流（429）单独走一条路：它既不算「确认吊销」，也不算「网络失败」—— 见
@@ -295,11 +290,6 @@ class LicenseService:
 
     def _record_failure(self, operation: str, error: Exception | str, *, sensitive_values: tuple[str, ...] = ()) -> None:
         """记录一次失败，并按「同因去重」策略决定是否真的写日志。
-
-        参数:
-            operation: 操作名（激活 / 心跳 / 租约恢复 / 本地校验 / 重新激活）。
-            error: 异常对象或错误文案。
-            sensitive_values: 需要从文案里抹掉的敏感值（令牌、激活码）。
         """
         reason = str(error)
         # 按长度降序替换：短值可能是长值的子串，先长后短才不会把长值截断成残留片段。
@@ -366,9 +356,6 @@ class LicenseService:
         uuid4 安装文件。``data/`` 整盘拷贝到另一台机器时：真实硬件不同，或兜底
         文件的本机封印不匹配，都会得到新的 instance_id；``_state`` 随之判为
         ``INSTANCE_MISMATCH``，用户需在商店解绑后用同一激活码重新激活。
-
-        返回:
-            合法的硬件派生实例 ID。
         """
         # 缓存命中直接返回，避免每次门禁判定都重读硬件标识。
         if self._cached_instance_id:
@@ -441,11 +428,9 @@ class LicenseService:
             self._record_status(state.status, state.last_error)
         return state
 
-    # ------------------------------------------------------------------ #
-    # 下列方法都只做同步查库 / 落库，供 async 调用方用 asyncio.to_thread 转交。
+        # 下列方法都只做同步查库 / 落库，供 async 调用方用 asyncio.to_thread 转交。
     # SQLAlchemy 的同步会话跑在事件循环上会阻塞所有请求（B4），因此授权路径里
     # 每一段「读状态 → 联网 → 写状态」之间的同步部分都收敛成这些私有方法。
-    # ------------------------------------------------------------------ #
     def _activation_instance_id(self) -> str:
         """取当前实例 ID（同步，供 ``activate`` 放线程池）。"""
         with self.database.session_factory() as database:
@@ -608,11 +593,6 @@ class LicenseService:
 
         参数:
             path: 接口路径，如 /v2/activate。
-            payload: 明文请求体，由调用方组装。
-
-        返回:
-            解密后的响应字典；服务端返回空 body 时返回 {}。
-
         异常:
             LicenseClientError: 未配置端点、全部候选失败，或遇到 4xx 业务拒绝。
         """
@@ -725,10 +705,8 @@ class LicenseService:
         """把一次成功的授权响应落库（验签通过后才算成功）。
 
         参数:
-            response: 解密后的响应字典，须含 signedLease。
             activation_code_hint: 激活码脱敏提示（保留前段，截掉后 9 位）。
             activation_code: 完整激活码，加密后落库，供自动重新激活使用。
-            email: 授权邮箱，自动重新激活时需要再次提交。
         """
         # 缺字段时留空串，交给 verifier 统一按「格式无效」拒绝。
         signed_lease = response.get('signedLease', '')
@@ -827,14 +805,6 @@ class LicenseService:
 
     async def activate(self, activation_code: str, email: str | None = None) -> dict:
         """用激活码激活当前安装。
-
-        参数:
-            activation_code: 用户输入的激活码。
-            email: 购买时使用的邮箱；授权服务要求邮箱与激活码匹配。
-
-        返回:
-            激活成功后的状态字典。
-
         异常:
             LicenseClientError: 邮箱缺失（422）、激活码被拒或租约校验失败。
         """
@@ -1105,7 +1075,6 @@ class LicenseService:
 
         返回:
             等待秒数；未激活时返回 None（调用方据此跳过本轮）。
-
         规则:
             租约已到期 → 固定 30 秒重试，尽快拿回可用租约；
             否则取 min(心跳间隔, 距到期剩余时间)，保证租约一到点就被处理。
@@ -1294,11 +1263,7 @@ class LicenseService:
         """重新校验签名租约，而不是信任可被改写的 SQLite 状态字段。
 
         参数:
-            state: 当前授权状态行。
             feature: 要判定的能力码；None 表示只判「授权整体是否可用」。
-
-        返回:
-            是否放行。任何一步校验失败都返回 False，并记录一条中文原因。
         """
         if not self.settings.license_required:
             # 关闭授权校验的部署形态直接放行。
@@ -1383,10 +1348,6 @@ class LicenseService:
 
         参数:
             feature: 能力码；None 表示只判授权是否整体可用。
-            database: 可选，复用调用方已开启的会话（避免同一次请求里重复开连接）。
-
-        返回:
-            是否放行。
         """
         if database is not None:
             # 复用外部会话，但仍要核对实例 ID：换了数据卷后不能沿用旧判定。
