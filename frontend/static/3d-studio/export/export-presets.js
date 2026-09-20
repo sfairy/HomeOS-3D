@@ -1,16 +1,11 @@
 /**
- * 导出预设的归一化与摘要文案。
+ * 导出预设的归一化与摘要文案：把后端读回、可能缺字段或被手改过的预设清洗后再用。
  *
- * 位置：3D 工作室「导出」面板的预设槽（每个槽保存一组导出参数：分辨率、楼层范围、
- *   相机姿态、要一起导出的附加文件等）。文档从后端读回来的预设可能缺字段或被手改过，
- *   统一经本模块清洗后再使用。
- * 对外：normalizeExportPreset（单个预设）、normalizeExportPresetSlots（槽位数组）、
- *   normalizeActiveExportPresetSlot（当前槽下标）、exportPresetIsEmpty 与槽位上限常量。
- * 约定：预设内部版本固定写 1；尺寸单位为像素，楼层间距单位为米；
- *   字段名与前端 JSON 的 camelCase 对齐。本模块纯函数、不做持久化。
- *   夹取用 utils/numbers.js 的 clampNumber（唯一实现，P10 B 类收敛）。
+ * 位置：3D 工作室「导出」面板的预设槽（每个槽保存分辨率、楼层范围、相机姿态、附加文件等）。
+ * 约定：预设内部版本固定写 1；尺寸单位为像素，楼层间距单位为米；字段名与前端 JSON 的 camelCase 对齐。
+ * 纯函数，不做持久化。
  */
-import { clampNumber } from "../../utils/numbers.js?v=20260920104554";
+import { clampNumber } from "../../utils/numbers.js?v=20260920131301";
 
 // 最多 8 个预设槽；上限与导出面板的按钮禁用条件绑定。
 export const MAX_EXPORT_PRESET_COUNT = 8;
@@ -180,4 +175,30 @@ export function normalizeActiveExportPresetSlot(activeSlotIndex, requestedSlotCo
  */
 export function exportPresetIsEmpty(preset, presetFeatureEnabled = false) {
   return !normalizeExportPreset(preset) && !presetFeatureEnabled;
+}
+
+/**
+ * 生成槽位摘要：「1852×1293 · 一层 · 透视」。
+ * 让用户不切换槽位也能判断它是干什么的：档位名是用户自起的，随意时只有分辨率 / 楼层 / 投影方式能说明内容。
+ * 楼层名走传入的 id → 名称映射，查不到时显式说「楼层已变更」而不是留空；未配置的槽位返回「未设置」。
+ */
+export function exportPresetSummary(preset, floorNamesById = new Map()) {
+  const normalizedPreset = normalizeExportPreset(preset);
+  if (!normalizedPreset) {
+    return "未设置";
+  }
+  const presetFloorLabel =
+    normalizedPreset.floorMode === "all"
+      ? "全楼合并"
+      : floorNamesById.get(normalizedPreset.floorId) || "楼层已变更";
+  const presetCameraLabel = normalizedPreset.camera.mode === "perspective" ? "透视" : "正交";
+  return (
+    normalizedPreset.width +
+    "×" +
+    normalizedPreset.height +
+    " · " +
+    presetFloorLabel +
+    " · " +
+    presetCameraLabel
+  );
 }

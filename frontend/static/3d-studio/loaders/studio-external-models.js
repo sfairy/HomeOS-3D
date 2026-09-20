@@ -1,40 +1,30 @@
 /**
  * 外部模型（家具 / 家电）的资产表，以及加载、材质替换与落地管线。
  *
- * 位置：studio-app.js 启动时调用 createExternalModelManager 建一个管理器，注入
- *   three.js 命名空间、已挂好 DRACO 解码器的 GLTFLoader，以及「该类型是否正在被使用」
- *   「请求重绘」两个回调；本模块不创建渲染器、不维护场景状态，落地通过返回的
- *   addExternalItemModel 完成。
- * 对外：EXTERNAL_ITEM_MODELS / ALL_ITEM_MODELS（类型 → 模型定义）、
- *   createExternalModelManager（及其返回的 5 个方法）、insetBedBaseGeometry。
- * 资源约定：每种类型对应两个 GLB —— 主资源是 -lite.glb（构建产出的轻量版，
- *   网格经 Draco 压缩），fallbackUrl 是同目录的完整版；两条路径都由同一个
- *   GLTFLoader 加载，Draco 解压在同源 Worker 中完成（见 draco-loader.js），
- *   因此这里只关心「用哪个 URL」，不关心解码细节。
- * 单位与坐标：模型定义里的 scaleBasis 与物件规格的宽 / 高 / 深一律是米，
- *   模型自身以作者原点（通常是底面中心）为基准；平面像素→场景米的换算在
- *   studio-app.js 侧完成，本文件只处理场景米。
- * 生命周期：模型按类型缓存（loadedModelByType），克隆体共享同一份几何与贴图；
- *   等价材质会被收敛成一份并缓存，重复生成的副本立即 dispose，
- *   避免显存随物件数量线性增长（实例上的 externalModelShared* 标记供销毁逻辑判断）。
+ * 每种类型对应两个 GLB：主资源是构建产出的 -lite.glb（Draco 压缩），fallbackUrl 是同目录完整版，两条路径
+ * 都走同一个 GLTFLoader、解压在同源 Worker 里完成，因此这里只关心「用哪个 URL」。
+ * 单位与坐标：模型 scaleBasis 与物件规格的宽 / 高 / 深一律是米，模型以作者原点（通常底面中心）为基准；
+ * 平面像素→场景米的换算在 studio-app.js 完成，本文件只处理场景米。
+ * 生命周期：模型按类型缓存、克隆体共享几何与贴图，等价材质收敛成一份并缓存，重复副本立即 dispose，
+ * 避免显存随物件数量线性增长（销毁逻辑靠实例上的 externalModelShared* 标记判断）。
  */
 import {
   applyCarFinish,
   smoothCarSurfaceNormals
-} from "../materials/studio-car-finish.js?v=20260920104554";
+} from "../materials/studio-car-finish.js?v=20260920131301";
 import {
   repairGlassCabinetBack,
   repairWallCabinetSides
-} from "../materials/studio-cabinet-back.js?v=20260920104554";
-import { finite } from "./studio-normalization.js?v=20260920104554";
+} from "../materials/studio-cabinet-back.js?v=20260920131301";
+import { finite } from "./studio-normalization.js?v=20260920131301";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=20260920104554";
+import { debugLog } from "../../utils/debug-log.js?v=20260920131301";
 // 暖阳原木（warm-wood）主题专用的两个模块：地板材质着色器增强与树叶几何放大。
 // 两者都只在 palette.warmWood 为真时被调用，其它主题下不产生任何效果。
-import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=20260920104554";
-import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=20260920104554";
-const HOME_LITE_MODEL_VERSION = "20260920104554";
-const APPLIANCE_LITE_MODEL_VERSION = "20260920104554";
+import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=20260920131301";
+import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=20260920131301";
+const HOME_LITE_MODEL_VERSION = "20260920131301";
+const APPLIANCE_LITE_MODEL_VERSION = "20260920131301";
 /**
  * 自带独立 GLB 资源的异形柱形：方形柱沿用原先烘焙好的方盒，因此仍留在普通的
  * "pillar" 模型上，物件本身的行为保持不变。
@@ -42,12 +32,8 @@ const APPLIANCE_LITE_MODEL_VERSION = "20260920104554";
 const PILLAR_ASSET_SHAPES = new Set(["round", "semicircle", "quarter", "quarterinner"]);
 /**
  * 把床的底座几何在水平方向内缩 0.4%，消除与床垫共面导致的闪烁（z-fighting）。
- *
- * 只对「已知那一版床模型」生效：先校验包围盒尺寸（高 0.186m、宽 1.8m、
- * 深 2m，容差 0.002m），不符合就原样返回 —— 这条修订是按旧版床的比例写死的，
- * 上游一旦换模型必须重新标定；宁可不动，也不能凭尺寸猜着缩。
- * 内缩用「平移到中心 → 缩放 → 平移回去」三步，因为 BufferGeometry.scale
- * 以原点为中心，直接缩放会把底座原有的偏移一起放大。
+ * 只对「已知那一版床模型」生效：先校验包围盒（高 0.186m、宽 1.8m、深 2m，容差 0.002m），不符合就原样返回 —— 这条修订按旧版床的比例写死，上游换模型必须重新标定，宁可不动也不能凭尺寸猜着缩。内缩用「平移到中心
+ * → 缩放 → 平移回去」，因为 BufferGeometry.scale 以原点为中心，直接缩放会把底座原有的偏移一起放大。
  */
 export function insetBedBaseGeometry(bedBaseGeometry) {
   if (!bedBaseGeometry?.attributes?.position) {
@@ -79,11 +65,8 @@ export function insetBedBaseGeometry(bedBaseGeometry) {
 }
 /**
  * 生成「家居类」模型定义：主资源用 -lite 轻量版，回退到完整版。
- *
- * 两个 URL 都带 ?v= 版本戳（与同源静态资源约定一致，用来破缓存）；版本号由调用方
- * 按发布时间传入，换了模型必须同步更新，否则浏览器会继续用旧资源。
- * 返回前 Object.freeze 冻结：这张表是模块级常量，被多处按类型查表，
- * 冻结可以避免任何一处的意外改写影响到其它调用方。
+ * 两个 URL 都带 ?v= 版本戳（破缓存），版本号由调用方按发布时间传入，换模型必须同步更新，否则浏览器会继续
+ * 用旧资源。返回前 Object.freeze 冻结：这张表是模块级常量、被多处按类型查表，冻结可避免意外改写。
  */
 function defineHomeItemModel(homeModelKey, homeFallbackVersion, homeModelOverrides) {
   return Object.freeze({
@@ -95,11 +78,8 @@ function defineHomeItemModel(homeModelKey, homeFallbackVersion, homeModelOverrid
   });
 }
 /**
- * 生成「电器类」模型定义：与家居类同构，区别只是轻量版与完整版共用一个版本常量
- * （APPLIANCE_LITE_MODEL_VERSION，而非各自传入）。
- *
- * 家电的轻量版与完整版由同一次构建产出，因此两者版本一致；单独一个函数是为了
- * 让日后家电与家具分开更新时不必回头改表结构。
+ * 生成「电器类」模型定义：与家居类同构，区别只是轻量版与完整版共用一个版本常量（APPLIANCE_LITE_MODEL_VERSION，而非各自传入），因为两者由同一次构建产出。
+ * 单独一个函数是为了让日后家电与家具分开更新时不必回头改表结构。
  */
 function defineApplianceItemModel(applianceModelKey, applianceModelOverrides) {
   return Object.freeze({
@@ -111,264 +91,262 @@ function defineApplianceItemModel(applianceModelKey, applianceModelOverrides) {
     fallbackUrl:
       "/static/3d-studio/models/" +
       applianceModelKey +
-      ".glb?v=20260920104554",
+      ".glb?v=20260920131301",
     ...applianceModelOverrides
   });
 }
 export const EXTERNAL_ITEM_MODELS = Object.freeze({
   sofa: {
-    url: "/static/3d-studio/models/sofa-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/sofa.glb?v=20260920104554",
+    url: "/static/3d-studio/models/sofa-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/sofa.glb?v=20260920131301",
     scaleBasis: [2.2, 0.82, 0.9],
     preserveOrigin: true,
     groundAlign: true,
     groundOffset: -0.008
   },
-  coffeetable: defineHomeItemModel("coffeetable", "20260920104554", {
+  coffeetable: defineHomeItemModel("coffeetable", "20260920131301", {
     scaleBasis: [1.7, 0.5, 1.25],
     preserveOrigin: true
   }),
-  squarecoffeetable: defineHomeItemModel("squarecoffeetable", "20260920104554", {
-    url: "/static/3d-studio/models/squarecoffeetable-lite.glb?v=20260920104554",
+  squarecoffeetable: defineHomeItemModel("squarecoffeetable", "20260920131301", {
+    url: "/static/3d-studio/models/squarecoffeetable-lite.glb?v=20260920131301",
     fallbackUrl:
-      "/static/3d-studio/models/squarecoffeetable.glb?v=20260920104554",
+      "/static/3d-studio/models/squarecoffeetable.glb?v=20260920131301",
     scaleBasis: [1.4, 0.46, 0.7],
     preserveOrigin: true
   }),
-  tvstand: defineHomeItemModel("tvstand", "20260920104554", {
-    url: "/static/3d-studio/models/tvstand-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/tvstand.glb?v=20260920104554",
+  tvstand: defineHomeItemModel("tvstand", "20260920131301", {
+    url: "/static/3d-studio/models/tvstand-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/tvstand.glb?v=20260920131301",
     scaleBasis: [1.8, 0.48, 0.42],
     preserveOrigin: true
   }),
-  rug: defineHomeItemModel("rug", "20260920104554", {
+  rug: defineHomeItemModel("rug", "20260920131301", {
     scaleBasis: [2, 0.012, 1.4],
     preserveOrigin: true
   }),
-  plant: defineHomeItemModel("plant", "20260920104554", {
+  plant: defineHomeItemModel("plant", "20260920131301", {
     scaleBasis: [0.75, 1.6, 0.75],
     preserveOrigin: true
   }),
-  bed: defineHomeItemModel("bed", "20260920104554", {
+  bed: defineHomeItemModel("bed", "20260920131301", {
     scaleBasis: [1.8, 0.62, 2],
     preserveOrigin: true,
     geometryRevision: "20260908-base-inset-v1"
   }),
-  nightstand: defineHomeItemModel("nightstand", "20260920104554", {
+  nightstand: defineHomeItemModel("nightstand", "20260920131301", {
     scaleBasis: [0.5, 0.55, 0.42],
     preserveOrigin: true
   }),
-  vanity: defineHomeItemModel("vanity", "20260920104554", {
+  vanity: defineHomeItemModel("vanity", "20260920131301", {
     scaleBasis: [1.2, 1.55, 0.5],
     preserveOrigin: true
   }),
-  desk: defineHomeItemModel("desk", "20260920104554", {
+  desk: defineHomeItemModel("desk", "20260920131301", {
     scaleBasis: [1.4, 0.76, 0.65],
     preserveOrigin: true
   }),
-  bookcase: defineHomeItemModel("bookcase", "20260920104554", {
+  bookcase: defineHomeItemModel("bookcase", "20260920131301", {
     scaleBasis: [1.2, 1.9, 0.32],
     preserveOrigin: true
   }),
   smallcar: {
-    url: "/static/3d-studio/models/car-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/car.glb?v=20260920104554"
+    url: "/static/3d-studio/models/car-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/car.glb?v=20260920131301"
   },
   airoutlet: {
-    url: "/static/3d-studio/models/air-outlet-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/air-outlet.glb?v=20260920104554"
+    url: "/static/3d-studio/models/air-outlet-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/air-outlet.glb?v=20260920131301"
   },
   pipelinewaterpurifier: {
-    url: "/static/3d-studio/models/pipeline-water-purifier-lite.glb?v=20260920104554",
+    url: "/static/3d-studio/models/pipeline-water-purifier-lite.glb?v=20260920131301",
     fallbackUrl:
-      "/static/3d-studio/models/pipeline-water-purifier.glb?v=20260920104554"
+      "/static/3d-studio/models/pipeline-water-purifier.glb?v=20260920131301"
   },
   tea_bar_machine: {
-    url: "/static/3d-studio/models/tea-bar-machine-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/tea-bar-machine.glb?v=20260920104554"
+    url: "/static/3d-studio/models/tea-bar-machine-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/tea-bar-machine.glb?v=20260920131301"
   },
   elevator: {
-    url: "/static/3d-studio/models/elevator-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/elevator.glb?v=20260920104554"
+    url: "/static/3d-studio/models/elevator-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/elevator.glb?v=20260920131301"
   },
   steelstairs: {
-    url: "/static/3d-studio/models/steel-stairs-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/steel-stairs.glb?v=20260920104554"
+    url: "/static/3d-studio/models/steel-stairs-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/steel-stairs.glb?v=20260920131301"
   },
   glassstairs: {
-    url: "/static/3d-studio/models/glass-stairs-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/glass-stairs.glb?v=20260920104554"
+    url: "/static/3d-studio/models/glass-stairs-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/glass-stairs.glb?v=20260920131301"
   },
   piano: {
-    url: "/static/3d-studio/models/piano-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/piano.glb?v=20260920104554",
+    url: "/static/3d-studio/models/piano-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/piano.glb?v=20260920131301",
     materialRevision: "20260914-piano-surface-shadow-v1",
     preserveAspect: true
   }
 });
 export const ALL_ITEM_MODELS = Object.freeze({
   ...EXTERNAL_ITEM_MODELS,
-  bed: defineHomeItemModel("bed", "20260920104554", {
+  bed: defineHomeItemModel("bed", "20260920131301", {
     scaleBasis: [1.8, 0.62, 2],
     preserveOrigin: true,
     geometryRevision: "20260908-base-inset-v1"
   }),
-  nightstand: defineHomeItemModel("nightstand", "20260920104554", {
+  nightstand: defineHomeItemModel("nightstand", "20260920131301", {
     scaleBasis: [0.5, 0.55, 0.42],
     preserveOrigin: true
   }),
-  vanity: defineHomeItemModel("vanity", "20260920104554", {
+  vanity: defineHomeItemModel("vanity", "20260920131301", {
     scaleBasis: [1.2, 1.55, 0.5],
     preserveOrigin: true
   }),
-  desk: defineHomeItemModel("desk", "20260920104554", {
+  desk: defineHomeItemModel("desk", "20260920131301", {
     scaleBasis: [1.4, 0.76, 0.65],
     preserveOrigin: true
   }),
-  bookcase: defineHomeItemModel("bookcase", "20260920104554", {
-    url: "/static/3d-studio/models/bookcase-lite.glb?v=20260920104554",
+  bookcase: defineHomeItemModel("bookcase", "20260920131301", {
+    url: "/static/3d-studio/models/bookcase-lite.glb?v=20260920131301",
     scaleBasis: [1.2, 1.9, 0.32],
     preserveOrigin: true
   }),
-  aquarium: defineHomeItemModel("aquarium", "20260920104554", {
+  aquarium: defineHomeItemModel("aquarium", "20260920131301", {
     scaleBasis: [1.5, 1.4, 0.55],
     preserveOrigin: true
   }),
-  table: defineHomeItemModel("table", "20260920104554", {
+  table: defineHomeItemModel("table", "20260920131301", {
     scaleBasis: [2.4, 0.82, 1.8],
     preserveOrigin: true
   }),
-  rounddiningtable: defineHomeItemModel("rounddiningtable", "20260920104554", {
+  rounddiningtable: defineHomeItemModel("rounddiningtable", "20260920131301", {
     scaleBasis: [2.2, 0.78, 2.2],
     preserveOrigin: true
   }),
-  chair: defineHomeItemModel("chair", "20260920104554", {
+  chair: defineHomeItemModel("chair", "20260920131301", {
     scaleBasis: [0.5, 0.86, 0.5],
     preserveOrigin: true
   }),
-  bar: defineHomeItemModel("bar", "20260920104554", {
+  bar: defineHomeItemModel("bar", "20260920131301", {
     scaleBasis: [2.2, 1.05, 0.65],
     preserveOrigin: true
   }),
-  sideboard: defineHomeItemModel("sideboard", "20260920104554", {
+  sideboard: defineHomeItemModel("sideboard", "20260920131301", {
     scaleBasis: [1.6, 2.2, 0.45],
     preserveOrigin: true
   }),
-  shoecabinet: defineHomeItemModel("shoecabinet", "20260920104554", {
+  shoecabinet: defineHomeItemModel("shoecabinet", "20260920131301", {
     scaleBasis: [1.8, 2.25, 0.42],
     preserveOrigin: true
   }),
-  cabinet: defineHomeItemModel("cabinet", "20260920104554", {
+  cabinet: defineHomeItemModel("cabinet", "20260920131301", {
     scaleBasis: [1.6, 1.9, 0.45],
     preserveOrigin: true
   }),
-  glasscabinet: defineHomeItemModel("glasscabinet", "20260920104554", {
-    url: "/static/3d-studio/models/glasscabinet-lite.glb?v=20260920104554",
+  glasscabinet: defineHomeItemModel("glasscabinet", "20260920131301", {
+    url: "/static/3d-studio/models/glasscabinet-lite.glb?v=20260920131301",
     scaleBasis: [1.2, 1.9, 0.4],
     preserveOrigin: true
   }),
-  shelf: defineHomeItemModel("shelf", "20260920104554", {
+  shelf: defineHomeItemModel("shelf", "20260920131301", {
     scaleBasis: [1.2, 1.8, 0.45],
     preserveOrigin: true
   }),
-  wallcabinet: defineHomeItemModel("wallcabinet", "20260920104554", {
-    url: "/static/3d-studio/models/wallcabinet-lite.glb?v=20260920104554",
+  wallcabinet: defineHomeItemModel("wallcabinet", "20260920131301", {
+    url: "/static/3d-studio/models/wallcabinet-lite.glb?v=20260920131301",
     scaleBasis: [1.5, 0.82, 0.35],
     preserveOrigin: true
   }),
-  kitchenbase: defineHomeItemModel("kitchenbase", "20260920104554", {
+  kitchenbase: defineHomeItemModel("kitchenbase", "20260920131301", {
     scaleBasis: [2.4, 0.85, 0.6],
     preserveOrigin: true
   }),
-  kitchensink: defineHomeItemModel("kitchensink", "20260920104554", {
+  kitchensink: defineHomeItemModel("kitchensink", "20260920131301", {
     scaleBasis: [1.2, 0.85, 0.6],
     preserveOrigin: true
   }),
-  kitchencooktop: defineHomeItemModel("kitchencooktop", "20260920104554", {
+  kitchencooktop: defineHomeItemModel("kitchencooktop", "20260920131301", {
     scaleBasis: [1.2, 0.85, 0.6],
     preserveOrigin: true
   }),
-  basin: defineHomeItemModel("basin", "20260920104554", {
+  basin: defineHomeItemModel("basin", "20260920131301", {
     scaleBasis: [0.9, 0.88, 0.5],
     preserveOrigin: true
   }),
-  toilet: defineHomeItemModel("toilet", "20260920104554", {
+  toilet: defineHomeItemModel("toilet", "20260920131301", {
     scaleBasis: [0.42, 0.52, 0.7],
     preserveOrigin: true
   }),
-  squattoilet: defineHomeItemModel("squattoilet", "20260920104554", {
+  squattoilet: defineHomeItemModel("squattoilet", "20260920131301", {
     scaleBasis: [0.45, 0.18, 0.65],
     preserveOrigin: true
   }),
-  urinal: defineHomeItemModel("urinal", "20260920104554", {
+  urinal: defineHomeItemModel("urinal", "20260920131301", {
     scaleBasis: [0.38, 0.72, 0.34],
     preserveOrigin: true
   }),
-  shower: defineHomeItemModel("shower", "20260920104554", {
+  shower: defineHomeItemModel("shower", "20260920131301", {
     scaleBasis: [0.9, 2.1, 0.9],
     preserveOrigin: true
   }),
-  bathtub: defineHomeItemModel("bathtub", "20260920104554", {
+  bathtub: defineHomeItemModel("bathtub", "20260920131301", {
     scaleBasis: [1.7, 0.58, 0.78],
     preserveOrigin: true
   }),
-  glasspartition: defineHomeItemModel("glasspartition", "20260920104554", {
+  glasspartition: defineHomeItemModel("glasspartition", "20260920131301", {
     scaleBasis: [1.2, 2, 0.08],
     preserveOrigin: true
   }),
-  stairs: defineHomeItemModel("stairs", "20260920104554", {
+  stairs: defineHomeItemModel("stairs", "20260920131301", {
     scaleBasis: [1, 1.65, 2.8],
     preserveOrigin: true
   }),
-  pillar: defineHomeItemModel("pillar", "20260920104554", {
+  pillar: defineHomeItemModel("pillar", "20260920131301", {
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   }),
-  // 异形柱必须有真实资源：替换外部模型时，程序化生成的柱体会被加载进来的 GLB 顶掉，
-  // 而一个烘焙成方盒的模型会悄悄把所有非方形柱形都变成方形。这些网格与
-  // studio-app.js 构建出的几何同源（见 gen-pillars.mjs），并共用柱体的 scaleBasis，
-  // 因此物件仍保持 0.45 × 2.8 × 0.45 的占地与「底面在原点」的摆放约定。
+  // 异形柱必须有真实资源：替换外部模型时，程序化生成的柱体会被加载进来的 GLB 顶掉，而一个烘焙成方盒的模型会悄悄把所有非方形柱形都变成方形。
+  // 这些网格与 studio-app.js 构建出的几何同源（见 gen-pillars.mjs），并共用柱体的 scaleBasis，因此物件仍保持 0.45 × 2.8 × 0.45 的占地与「底面在原点」的摆放约定。
   pillar_round: {
-    url: "/static/3d-studio/models/pillar-round-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/pillar-round.glb?v=20260920104554",
+    url: "/static/3d-studio/models/pillar-round-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/pillar-round.glb?v=20260920131301",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_semicircle: {
-    url: "/static/3d-studio/models/pillar-semicircle-lite.glb?v=20260920104554",
+    url: "/static/3d-studio/models/pillar-semicircle-lite.glb?v=20260920131301",
     fallbackUrl:
-      "/static/3d-studio/models/pillar-semicircle.glb?v=20260920104554",
+      "/static/3d-studio/models/pillar-semicircle.glb?v=20260920131301",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_quarter: {
-    url: "/static/3d-studio/models/pillar-quarter-lite.glb?v=20260920104554",
-    fallbackUrl: "/static/3d-studio/models/pillar-quarter.glb?v=20260920104554",
+    url: "/static/3d-studio/models/pillar-quarter-lite.glb?v=20260920131301",
+    fallbackUrl: "/static/3d-studio/models/pillar-quarter.glb?v=20260920131301",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_quarterinner: {
-    url: "/static/3d-studio/models/pillar-quarterinner-lite.glb?v=20260920104554",
+    url: "/static/3d-studio/models/pillar-quarterinner-lite.glb?v=20260920131301",
     fallbackUrl:
-      "/static/3d-studio/models/pillar-quarterinner.glb?v=20260920104554",
+      "/static/3d-studio/models/pillar-quarterinner.glb?v=20260920131301",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
-  curtain_left: defineHomeItemModel("curtain_left", "20260920104554", {
+  curtain_left: defineHomeItemModel("curtain_left", "20260920131301", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
-  curtain_right: defineHomeItemModel("curtain_right", "20260920104554", {
+  curtain_right: defineHomeItemModel("curtain_right", "20260920131301", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
-  curtain_split: defineHomeItemModel("curtain_split", "20260920104554", {
+  curtain_split: defineHomeItemModel("curtain_split", "20260920131301", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
   rounddiningtable_turntable: defineHomeItemModel(
     "rounddiningtable_turntable",
-    "20260920104554",
+    "20260920131301",
     {
       scaleBasis: [2.2, 0.78, 2.2],
       preserveOrigin: true
@@ -593,10 +571,8 @@ const CUSTOM_MATERIAL_ITEM_TYPES = new Set([
 ]);
 /**
  * 「暖阳原木」主题下按整块木料重做的柜类（含吊柜 / 鞋柜 / 书柜等）。
- *
- * 这些类型的中 / 柔 / 深三档家具色会一起收敛到木色：一件柜子上出现三种明度的木色
- * 会显得像拼接，收敛后整体才像同一块木料。清单同时决定台面、门板回边等部件是否
- * 走木色分支，因此单独提出来共用，而不是在各个分支里各写一份。
+ * 这些类型的中 / 柔 / 深三档家具色会一起收敛到木色：一件柜子上出现三种明度的木色会显得像拼接，收敛后整体才像同一块木料。
+ * 清单同时决定台面、门板回边等部件是否走木色分支，因此单独提出来共用，而不是在各个分支里各写一份。
  */
 const WARM_JOINERY_ITEM_TYPES = new Set([
   "cabinet",
@@ -613,12 +589,9 @@ const WARM_JOINERY_ITEM_TYPES = new Set([
   "glasscabinet"
 ]);
 /**
- * 「暖阳原木」主题下餐桌 / 餐椅的材质槽位表：键是家具类型，值是按 material-N 下标
- * 排列的材质语义（wood / linen / sage / ceramic）。
- *
- * 餐桌是一进门的视觉中心，只有木色 + 亚麻 + 鼠尾草绿这几种材质才像一套成品的原木
- * 餐桌，所以按槽位逐一指定，而不是沿用家具调色板的三档灰。下标越界时取到 undefined，
- * 调用方按「没有专门语义」处理。
+ * 「暖阳原木」主题下餐桌 / 餐椅的材质槽位表：键是家具类型，值是按 material-N 下标排列的材质语义。
+ * 餐桌是一进门的视觉中心，只有木色 + 亚麻 + 鼠尾草绿（wood / linen / sage / ceramic）才像一套成品的原木
+ * 餐桌，所以按槽位逐一指定而不是沿用家具调色板的三档灰；下标越界取到 undefined，调用方按没有专门语义处理。
  */
 const WARM_DINING_MATERIAL_TABLE = Object.freeze({
   table: ["wood", "wood", "linen"],
@@ -628,9 +601,7 @@ const WARM_DINING_MATERIAL_TABLE = Object.freeze({
 });
 /**
  * 「暖阳原木」主题下各柜类「台面」所在的材质槽位。
- *
- * 台面要单独压平粗糙度并换成石材色（countertop），否则会和柜门一起被染成木色、
- * 整件柜子看上去像一整块木头。槽位值来自建模约定，不能凭外观猜。
+ * 台面要单独压平粗糙度并换成石材色（countertop），否则会和柜门一起被染成木色、整件柜子看上去像一整块木头；槽位值来自建模约定，不能凭外观猜。
  */
 const WARM_COUNTERTOP_MATERIAL_INDEX_BY_ITEM_TYPE = Object.freeze({
   sideboard: "0",
@@ -642,9 +613,7 @@ const WARM_COUNTERTOP_MATERIAL_INDEX_BY_ITEM_TYPE = Object.freeze({
 });
 /**
  * 「暖阳原木」主题下各柜类「门板回边」所在的材质槽位。
- *
- * 门板侧面（回边）在暖色侧光下会亮成一条白边，需要注入着色器按法线朝向压暗，
- * 所以要精确知道哪一号材质是回边 —— 同样来自建模约定。
+ * 门板侧面（回边）在暖色侧光下会亮成一条白边，需要注入着色器按法线朝向压暗，所以要精确知道哪一号材质是回边 —— 同样来自建模约定。
  */
 const WARM_DOOR_RETURN_MATERIAL_INDEX_BY_ITEM_TYPE = Object.freeze({
   sideboard: "3",
@@ -655,15 +624,8 @@ const WARM_DOOR_RETURN_MATERIAL_INDEX_BY_ITEM_TYPE = Object.freeze({
 });
 /**
  * 创建外部模型管理器：负责按需加载、并发排队、材质复用与实例落地。
- *
- * 依赖注入的用意：THREE 必须用主模块命名空间（否则会出现两份 three），
- * loader 必须是已挂好 DRACO 解码器的 GLTFLoader；isModelInUse 与 requestRender
- * 让管理器在「模型装载完成或失败」时主动触发一次重绘，而不需要轮询。
- * 并发上限默认 2、单次超时默认 12s：解压发生在 Worker 里，同时放太多会抢占
- * 主线程与带宽；12s 是弱网下 1MB 级模型的容忍上限，超过即认为这张资源不可用。
- *
- * @param {number} [managerOptions.maxConcurrentLoads] 并发加载上限。
- * @param {number} [managerOptions.loadTimeoutMs] 单次加载超时（毫秒）。
+ * 依赖注入的用意：THREE 必须用主模块命名空间（否则出现两份 three），loader 必须是已挂 DRACO 解码器的 GLTFLoader；isModelInUse 与 requestRender 让管理器在装载完成 / 失败时主动触发一次重绘，无需轮询。
+ * @param {number} [managerOptions.maxConcurrentLoads] 并发加载上限（默认 2，解压占 Worker 与带宽）。@param {number} [managerOptions.loadTimeoutMs] 单次加载超时（默认 12s，弱网下 1MB 级模型的容忍上限）。
  */
 export function createExternalModelManager({
   THREE: THREE,
@@ -709,11 +671,8 @@ export function createExternalModelManager({
   }
   /**
    * 按并发上限启动排队中的加载任务。
-   *
-   * 每启动一个就把状态推出去，让界面上的加载计数及时更新；任务收尾（无论成败）
-   * 都在 finally 里递减计数并递归再泵一次，所以队列不会因为某次失败而卡死。
-   * 用 Promise.resolve().then(...) 而不是直接调用，是为了让任务在本轮同步代码
-   * 结束后才开始执行，避免递归泵造成越来越深的调用栈。
+   * 每启动一个就把状态推出去让加载计数及时更新；任务收尾（无论成败）都在 finally 里递减计数并递归再泵一次， 所以队列不会因某次失败卡死。用 Promise.resolve().then(...) 而非直接调用，是为了让任务在本轮同步代码结束后
+   * 才开始执行，避免递归泵把调用栈越堆越深。
    */
   function pumpLoadQueue() {
     while (activeLoadCount < concurrencyLimit && loadQueue.length) {
@@ -732,9 +691,7 @@ export function createExternalModelManager({
   }
   /**
    * 把加载动作排进队列并返回它的 Promise。
-   *
-   * 入队后立刻尝试泵一次队列：若当前并发未满，调用方拿到的 Promise 会在本轮事件
-   * 循环内就开始执行，不必等下一次状态变化或用户操作。
+   * 入队后立刻尝试泵一次队列：若当前并发未满，调用方拿到的 Promise 会在本轮事件循环内就开始执行，不必等下一次状态变化或用户操作。
    */
   function enqueueLoadTask(runLoad) {
     return new Promise((resolveTask, rejectTask) => {
@@ -749,14 +706,8 @@ export function createExternalModelManager({
   }
   /**
    * 按「主资源 → 回退资源」的顺序加载一个模型，并给每次加载加上超时。
-   *
-   * 两层兜底：Promise.race + 计时器保证弱网下不会永久挂住（超时文案里带模型类型，
-   * 便于定位是哪张资源慢）；主资源（-lite 轻量版）失败时静默回退到完整版，
-   * 因为轻量版是构建产物，缺失或损坏不该让家具整个消失。
-   * 不做自动重试：加载失败通常是资源缺失或格式问题，重试只会拖慢整个队列。
-   * finally 里清掉计时器，否则超时之后即便加载成功也会留下一个待触发的定时器。
-   *
-   * @throws {Error} 两个地址都失败、或定义里没有可用资源时抛出（中文文案）。
+   * 两层兜底：Promise.race + 计时器保证弱网下不会永久挂住（超时文案带模型类型，便于定位哪张资源慢）；主资源 (-lite) 失败时静默回退完整版，因为轻量版是构建产物，缺失或损坏不该让家具整个消失。不做自动重试：失败
+   * 通常是资源缺失或格式问题，重试只会拖慢队列。finally 里清掉计时器，否则超时后即便加载成功也会留下定时器。@throws 两个地址都失败或定义里没有可用资源时抛出（中文文案）。
    */
   function loadModelWithFallback(modelDefinition, modelTypeLabel) {
     let timeoutId = null;
@@ -786,10 +737,8 @@ export function createExternalModelManager({
   }
   /**
    * 把场景物件映射成具体的模型类型键。
-   *
-   * 带子状态的类型（窗帘、柱子、圆桌转盘、电视安装方式）会拼出后缀；对未知取值
-   * 一律回落到一个确定的默认项（split / pillar / standard），保证任何脏数据都能
-   * 查到模型，而不是静默丢件（丢件在满屏家具里很难被用户描述清楚）。
+   * 带子状态的类型（窗帘、柱子、圆桌转盘、电视安装方式）会拼出后缀。
+   * 对未知取值一律回落到一个确定的默认项（split / pillar / standard），保证任何脏数据都能查到模型，而不是静默丢件（丢件在满屏家具里很难被用户描述清楚）。
    */
   function modelTypeForItem(item) {
     if (item.type === "curtain") {
@@ -817,15 +766,8 @@ export function createExternalModelManager({
   }
   /**
    * 加载（或复用）指定类型的模型，包含延迟放行、请求去重与按类型的几何修订。
-   *
-   * 关键行为：
-   * - 若 studio-app 声明「外部模型延后加载」（首屏先出建筑与平面），且这次不是
-   *   用户主动要模型，则只登记需求并同步返回 null，让渲染本次先用过程几何顶上；
-   * - 已加载直接返回缓存；正在加载则复用同一个 Promise（同一类型只解析一次）；
-   * - 解析成功后按类型做几何修订（玻璃柜背板、吊柜侧板、车漆法线、床底内缩），
-   *   其中车漆按「源几何」缓存平滑结果并 dispose 掉被替换掉的旧几何，避免泄漏；
-   * - 只缓存 scene 与实测尺寸：落地时克隆 scene，尺寸供没配 scaleBasis 的类型使用；
-   * - 失败时记日志并返回 null（不抛错），调用方继续用过程几何 —— 这是降级而非中断。
+   * 延迟加载声明生效且非用户主动要模型时只登记需求并同步返回 null，让本次先用过程几何顶上；已加载直接返回 缓存，正在加载则复用同一个 Promise；解析成功后按类型做几何修订（玻璃柜背板、吊柜侧板、车漆法线、床底内缩，
+   * 车漆按源几何缓存并 dispose 旧几何以免泄漏），只缓存 scene 与实测尺寸；失败时记日志并返回 null（不抛错），调用方继续用过程几何 —— 这是降级而非中断。
    */
   function loadExternalModel(modelType) {
     if (
@@ -948,12 +890,8 @@ export function createExternalModelManager({
   }
 /**
  * 按原材质的亮度把它归入调色板的某个明度档，生成家具用的标准材质。
- *
- * 亮度用 Rec.709 权重（0.2126 / 0.7152 / 0.0722）计算；档位边界 0.1 / 0.42 / 0.72
- * 对应调色板四档（深 / 中 / 柔 / 浅）的实际观感。最终色是调色板色 × 0.34 再配
- * emissive 0.46 抬亮，用来抵消场景色调映射对深色的压暗。
- * 透明度与深度写入沿用原材质，但 transparent 强制为 false —— 这条路径只服务
- * 不透明家具，玻璃等半透明件走各自的专用分支。
+ * 亮度用 Rec.709 权重（0.2126 / 0.7152 / 0.0722）计算；档位边界 0.1 / 0.42 / 0.72 对应调色板四档（深 / 中 / 柔 / 浅）的观感。最终色是调色板色 × 0.34 再配 emissive 0.46 抬亮，抵消场景色调映射对深色的压暗。
+ * 透明度与深度写入沿用原材质，但 transparent 强制 false —— 这条路径只服务不透明家具。
  */
   function createLuminanceBandedMaterial(sourceMaterial, palette) {
     if (!sourceMaterial) {
@@ -988,12 +926,8 @@ export function createExternalModelManager({
   }
 /**
  * 生成家具用的标准材质，并为未显式指定的属性留出可覆盖的默认值。
- *
- * 默认值（粗糙度 0.58、金属度 0.04、不透明）面向室内的木质 / 布艺家具；
- * 调用方按需覆盖 roughness / metalness / transparent / polygonOffset 等。
- * depthWrite 与 depthTest 默认沿用模板材质，只有调用方明确要求才改 ——
- * 这两项一旦改错会直接造成遮挡关系错乱（透明件写深度，或丢掉深度测试）。
- * polygonOffset 三项默认关闭，仅地毯这类贴地薄片会打开（见 applyFurniturePalette）。
+ * 默认值（粗糙度 0.58、金属度 0.04、不透明）面向室内的木质 / 布艺家具；调用方按需覆盖 roughness / metalness / transparent / polygonOffset 等。depthWrite 与 depthTest 默认沿用模板材质，只有明确要求才改 ——
+ * 这两项改错会直接造成遮挡关系错乱（透明件写深度、或丢掉深度测试）；polygonOffset 仅地毯这类贴地薄片会开。
  */
   function createFurnitureMaterial(templateMaterial, colorValue, materialOptions = {}) {
     if (!templateMaterial) {
@@ -1022,16 +956,8 @@ export function createExternalModelManager({
   }
 /**
  * 给家具类材质挑调色板颜色：依据「材质名 + 类型 + 原色亮度」三路信息决定。
- *
- * 模型自带的材质名里编码了部件语义（material-N、-dark / -soft / -light、foliage 等），
- * 所以命名是这里最主要的分支依据 —— 这是与建模流水线约定死的字段，不能凭外观去猜；
- * 亮度只在没有命名线索时兜底（LUMINANCE_BANDED_ITEM_TYPES 分支）。
- * 几处细节：
- * - 窗帘 / 桌 / 橱柜按 material-N 的下标挑档，下标来自建模时的槽位约定；
- * - 地毯的 -soft 面打开 polygonOffset，压住与地面的 z-fighting；
- * - 玻璃等半透明件保持 transparent 并关掉 depthWrite，避免遮挡身后的物件；
- * - 暖阳原木（palette.warmWood）下额外按槽位覆盖木色 / 布艺 / 台面 / 玻璃色，
- *   见下方各 warm 分支 —— 这些分支在其它主题下完全不参与计算。
+ * 材质名编码了部件语义（material-N、-dark / -soft / -light、foliage 等），是与建模流水线约定死的字段，因此 命名是最主要的分支依据，不能凭外观猜；亮度只在没有命名线索时兜底。细节：窗帘 / 桌 / 橱柜按 material-N
+ * 下标挑档；地毯的 -soft 面开 polygonOffset 压住 z-fighting；半透明件保持 transparent 并关 depthWrite；暖阳原木下额外按槽位覆盖木色 / 布艺 / 台面 / 玻璃色。
  */
   function applyFurniturePalette(meshMaterial, inputPalette, furnitureItemType) {
     // 暖阳原木：柜类整件走柜体木色而不是基础家具灰，先把 wood 兜到 cabinetWood，
@@ -1372,12 +1298,8 @@ export function createExternalModelManager({
   }
 /**
  * 生成楼梯专用材质：玻璃楼梯走半透明，其余走框架色。
- *
- * 玻璃楼梯的判据是「原材质本身透明且不透明度 < 0.5」—— 只有建模时就标成玻璃的
- * 部件才会被重做成 0.3 不透明度的双面玻璃，否则整段楼梯都会变成玻璃。
- * 玻璃件关掉 depthWrite（避免同层玻璃互相遮挡出现黑边）但保留 depthTest。
- * 钢楼梯用更高的金属度与更低的粗糙度（0.42 / 0.38）表现金属反射，
- * 其余楼梯用 0.08 / 0.58 的哑光框架，两条路都加极低的 emissive 0.07 提亮暗部。
+ * 玻璃判据是「原材质本身透明且不透明度 < 0.5」—— 只有建模时就标成玻璃的部件才会被重做成 0.3 不透明度的 双面玻璃，否则整段楼梯都会变玻璃；玻璃件关 depthWrite（避免同层玻璃互遮出现黑边）但保留 depthTest。
+ * 钢楼梯用更高的金属度与更低的粗糙度（0.42 / 0.38）表现金属反射，其余用 0.08 / 0.58 的哑光框架，都加极低 emissive 0.07 提亮暗部。
  */
   function createStairMaterial(existingMaterial, stairPalette, stairItemType) {
     if (!existingMaterial) {
@@ -1445,15 +1367,8 @@ export function createExternalModelManager({
   }
 /**
  * 家电 / 家具材质的统一分发入口：按类型挑这条链上最合适的替换策略。
- *
- * 分发顺序不可调换，原则是「先专门、后通用」：纯色家电（APPLIANCE_PALETTE）→
- * 家具（FURNITURE_PALETTE 与 sofa）→ 电梯 → 钢琴 → 楼梯 → 其余按亮度分档兜底。
- * 三处特殊处理：
- * - 拿不到 MeshStandardMaterial 构造器（精简版 three 或测试替身）时直接克隆原材质
- *   放行，宁可保真也不报错，这条分支保证模块在没有 three 的环境里也能跑；
- * - 暖阳原木下钢琴提前分流：亮光黑琴身在暖色场景里是一块死黑，改走暖木 / 黄铜色板；
- * - 茶几机的自发光被显式清零，因为它的原模型自带 emissive，
- *   替换材质后再叠加场景灯光会明显发白。
+ * 分发顺序不可调换，原则是「先专门、后通用」：纯色家电 → 家具（含 sofa）→ 电梯 → 钢琴 → 楼梯 → 其余按亮度 分档兜底。三处特殊处理：拿不到 MeshStandardMaterial 构造器（精简版 three 或测试替身）时直接克隆原材质放行，
+ * 宁可保真也不报错；暖阳原木下钢琴提前分流（亮光黑琴身在暖色场景里是死黑，改走暖木 / 黄铜色板）；茶几机的自发光被显式清零，否则替换后再叠场景灯光会明显发白。
  */
   function applyAppliancePalette(baseMaterial, appliancePalette, applianceItemType) {
     if (typeof THREE.MeshStandardMaterial != "function") {
@@ -1605,11 +1520,8 @@ export function createExternalModelManager({
   }
 /**
  * 克隆几何并重算法线，修正「按平面烘焙」带来的生硬着色。
- *
- * 只给少数几类用（茶几机、洗碗机）：它们的模型带明显圆角面，导出时却没有平滑
- * 法线，直接渲染会出现一圈圈棱线。重算法线后要同步把法线属性标记为 needsUpdate，
- * 并重建包围盒 / 包围球，否则光线投射与视锥剔除仍会用到旧值。
- * 几何没有 clone / computeVertexNormals 时原样返回，不强行改。
+ * 只给少数几类用（茶几机、洗碗机）：它们带明显圆角面却没有平滑法线，直接渲染会出现一圈圈棱线。重算后要把
+ * 法线属性标记 needsUpdate 并重建包围盒 / 包围球，否则光线投射与视锥剔除仍用旧值；没有 clone / computeVertexNormals 时原样返回，不强行改。
  */
   function cloneGeometryWithNormals(inputGeometry) {
     const clonedGeometry = inputGeometry?.clone?.();
@@ -1627,11 +1539,8 @@ export function createExternalModelManager({
   }
 /**
  * 收集某个材质分组（或整个几何）用到的顶点下标。
- *
- * 多材质模型的一个 mesh 会按材质 group 切片，几何本身并不区分部件，所以要改某个
- * 部件的顶点，必须先把该 group 覆盖的顶点挑出来：有索引时经 index 映射，
- * 无索引时顶点顺序与位置一一对应。groupMaterialIndex 传 null 表示「整个几何」，
- * 用于不需要分组的场合。分组存在但没匹配到任何顶点时返回空集，由调用方决定兜底。
+ * 多材质模型的一个 mesh 会按材质 group 切片，几何本身并不区分部件，所以要改某个部件的顶点必须先挑出该 group 覆盖的顶点：有索引时经 index 映射，无索引时顶点顺序与位置一一对应。groupMaterialIndex 传 null 表示
+ * 整个几何；分组存在但没匹配到顶点时返回空集，由调用方决定兜底。
  */
   function collectGroupVertexIndices(geometry, groupMaterialIndex = null) {
     const vertexIndices = new Set();
@@ -1667,9 +1576,7 @@ export function createExternalModelManager({
   }
 /**
  * 统计给定顶点集合在 Y 轴上的取值范围。
- *
- * 初始值取 ±Infinity，空集合会原样返回，因此调用方必须自己用 Number.isFinite 判断，
- * 不能把 Infinity 当尺寸使用。只统计 Y 是因为调用方都在做「高度对齐」。
+ * 初始值取 ±Infinity，空集合会原样返回，因此调用方必须自己用 Number.isFinite 判断、不能把 Infinity 当尺寸使用；只统计 Y 是因为调用方都在做「高度对齐」。
  */
   function measureVertexYRange(positionAttribute, vertexIndexSet) {
     let minY = Infinity;
@@ -1686,17 +1593,8 @@ export function createExternalModelManager({
   }
 /**
  * 让目标几何（笔记本的屏幕面板）贴合参考几何给出的倾斜轮廓。
- *
- * 背景：翻盖在模型里是一块独立几何，闭合时与机身共面、翻开时要沿转轴贴合。
- * 作者在参考部件（键盘面 / 转轴）上留了轮廓采样点，这里按它们定义的高度区间
- * 重新映射目标顶点：
- * - 高度按比例映射到底 / 顶轮廓之间，并在底部留 4%、顶部留 7% 的余量，
- *   用来避开与机身、屏幕边框的穿插；
- * - 沿 Z（厚度方向）按斜面插值，再整体前移 profileHeight × 0.008，
- *   并叠加按「顶点在目标深度范围内的相对位置」加权的 0.022 深度补偿：
- *   靠外的顶点前移更多，因此不会呈现整块面板被平移的僵硬感。
- * 任一环节不满足（顶点集为空、高度区间退化、采样点异常）都原样返回：
- * 宁可不动，也不产出畸形几何。
+ * 翻盖是独立几何，闭合时与机身共面、翻开时沿转轴贴合，作者在参考部件上留了轮廓采样点，这里按它们定义的 高度区间重映射目标顶点：高度按比例落在底 / 顶轮廓之间，底部留 4%、顶部留 7% 余量以避开穿插；沿 Z（厚度）
+ * 按斜面插值，再整体前移 profileHeight × 0.008 并叠加按顶点深度相对位置加权的 0.022 补偿，避免整块面板被平移的僵硬感。任一环节不满足都原样返回，宁可不动也不产出畸形几何。
  */
   function conformGeometryToReference(
     targetGeometry,
@@ -1919,13 +1817,8 @@ export function createExternalModelManager({
   ]);
 /**
  * 把材质属性值归一化成可稳定 JSON 序列化的表示，供缓存键使用。
- *
- * 需要归一化，是因为两份外观等价的材质可能得到「数值相等但位模式不同」的值
- * （-0 与 0、NaN、±Infinity、纹理对象、Color、Vector、数组）；直接
- * JSON.stringify 会得出不同的键，材质缓存随即失效，GPU program 数量也跟着膨胀。
- * 特殊值统一用字符串标记（"undefined" / "NaN" / "Infinity" / "-Infinity"），
- * 纹理取 uuid，颜色 / 向量摊成数字数组；既没有 toArray 又不含 x/y/z/w 的对象
- * 退化成 String() —— 宁可偶尔键冲突（多复用一次材质），也不要键爆炸（材质泄漏）。
+ * 两份外观等价的材质可能得到「数值相等但位模式不同」的值（-0 与 0、NaN、±Infinity、纹理对象、Color、 Vector、数组），直接 JSON.stringify 会得出不同的键，材质缓存随即失效、GPU program 数量膨胀。特殊值统一用
+ * 字符串标记，纹理取 uuid，颜色 / 向量摊成数字数组，其余退化成 String() —— 宁可偶尔键冲突，也不要键爆炸。
  */
   function normalizeMaterialValue(rawValue) {
     if (rawValue === undefined) {
@@ -1964,11 +1857,8 @@ export function createExternalModelManager({
   }
 /**
  * 由材质实例构造缓存键，用于跨物件复用等价材质。
- *
- * 键由三部分组成：着色器类型与 customProgramCacheKey（决定 GPU program 能否共享）、
- * MATERIAL_PROPERTY_KEYS（渲染状态与数值属性）、TEXTURE_MAP_KEYS(贴图引用)。
- * ShaderMaterial 直接按 uuid 判等并打上 "unique" 标记：自定义着色器的等价性
- * 无法从字段推断，宁可不复用也不能错用。
+ * 键由三部分组成：着色器类型与 customProgramCacheKey（决定 GPU program 能否共享）、MATERIAL_PROPERTY_KEYS （渲染状态与数值属性）、TEXTURE_MAP_KEYS（贴图引用）。ShaderMaterial 直接按 uuid 判等并打 "unique" 标记：
+ * 自定义着色器的等价性无法从字段推断，宁可不复用也不能错用。
  */
   function buildMaterialCacheKey(material) {
     if (material?.isShaderMaterial || material?.isRawShaderMaterial) {
@@ -1995,16 +1885,8 @@ export function createExternalModelManager({
   }
 /**
  * 取得可在多个物件实例间共享的材质：必要时替换外观，并做缓存去重。
- *
- * 流程：按类型决定是「整体换材质」（家电类 / 自定义材质类，暖阳原木下还包括家具类）
- * 还是「克隆一份」→ 暖阳原木的各种材质后处理（自发光、地板 / 台面 / 门板回边着色器、
- * 床尾搭毯）→ 叠加模型特有的后处理（汽车漆面）→ 修正个别部件的透明标记 →
- * 用材质键查缓存。
- * 命中缓存时，把本次刚生成的等价材质立刻 dispose 并返回缓存里那一份：物件是
- * 克隆出来的，每个实例都会走一遍这条函数，不去重就会按「每个物件的每个部件」
- * 生成材质，显存随之线性膨胀。
- * 注意：被缓存的材质会一直存活到场景销毁 —— 克隆体在共享它，单个物件被删除时
- * 绝不能 dispose（销毁逻辑靠实例上的 externalModelSharedMaterial 标记判断）。
+ * 流程：按类型决定「整体换材质」（家电 / 自定义材质类，暖阳原木下还包括家具）还是克隆 → 暖阳原木的后处理 （自发光、地板 / 台面 / 门板回边着色器、床尾搭毯）→ 模型特有后处理（汽车漆面）→ 修正透明标记 → 用材质键查缓存。
+ * 命中缓存时把本次生成的等价材质立刻 dispose 并返回缓存那份，否则会按「每个物件的每个部件」生成材质、显存线性膨胀；缓存的材质存活到场景销毁，单个物件删除时绝不能 dispose（靠实例上的 externalModelSharedMaterial 标记判断）。
  */
   function resolveSharedMaterial(inputMaterial, materialPalette, modelTypeName) {
     if (!inputMaterial) {
@@ -2192,18 +2074,8 @@ export function createExternalModelManager({
   }
 /**
  * 把一个外部模型实例化并放进场景，成功返回 true。
- *
- * 落地顺序不可调换：
- * 1. 模型尚未加载则先发起加载并返回 false（本次先用过程几何渲染，加载完再重绘）；
- * 2. 克隆缓存的 scene —— 克隆体共享几何与贴图，只复制节点结构；
- * 3. 逐 mesh 处理材质、阴影与渲染顺序（选中态额外克隆材质，避免高亮污染同类型的
- *    其它实例，见 resolveSharedMaterial）；
- * 4. 缩放：有 scaleBasis 就按「物件尺寸 / 基准尺寸」分别缩放三轴；preserveAspect
- *    的类型（如钢琴）取三轴最小值等比缩放，保证不变形；没配 scaleBasis 的类型
- *    退回模型的实测尺寸，等价于「先把模型缩到 1 米基准再乘物件尺寸」；
- * 5. 摆位：preserveOrigin 表示模型自带「底面在原点」的作者约定，此时只做地面贴合
- *    （groundAlign 时把包围盒底面抬到 y = 0，再叠加 groundOffset，例如沙发的
- *    -0.008 让沙发脚略微陷入地毯）；否则把模型重新居中到 XZ 中心、底面贴地。
+ * 落地顺序不可调换：模型未加载则先发起加载并返回 false（本次先用过程几何渲染，加载完再重绘）→ 克隆缓存的 scene（共享几何与贴图，只复制节点结构）→ 逐 mesh 处理材质、阴影与渲染顺序（选中态额外克隆材质，避免高亮污染
+ * 其它实例）→ 缩放（有 scaleBasis 就按「物件尺寸 / 基准尺寸」分轴缩放，preserveAspect 如钢琴取三轴最小值等比，没配则退回实测尺寸）→ 摆位（preserveOrigin 只做地面贴合，groundAlign 时把包围盒底面抬到 y = 0 再叠 groundOffset；否则重新居中到 XZ 中心、底面贴地）。
  */
   function addExternalItemModel(
     parentObject,

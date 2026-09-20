@@ -1,17 +1,59 @@
 /**
- * 编辑器文档管理：页面路径、页面复制、弹窗模块与拖放排序。
+ * 编辑器文档管理：页面路径、页面复制、弹窗模块、拖放排序与「上次打开的仪表盘」。
  *
- * 位置：编辑器「页面管理」「弹窗设置」面板与拖拽排序交互。
- * 职责：生成不冲突的页面路径、整页复制并换新 ID、弹窗模块的中文名与推荐
- *   实体判定、模块拖放目标位置计算，以及辗转相除法求最大公约数。
- * 约定：页面路径由标题 slug 化而来，必须全局唯一；弹窗模块的推荐实体现
- *   与 HA 域一一对应，通用设备默认全部推荐。
+ * 编辑器「页面管理」「弹窗设置」面板与拖拽排序交互。职责：生成不冲突的页面路径、整页复制换新 ID、
+ * 弹窗模块的中文名与推荐实体判定、模块拖放目标位置计算、辗转相除法求最大公约数、记住 / 恢复仪表盘。
+ * 约定：页面路径由标题 slug 化而来且必须全局唯一；弹窗模块的推荐实体与 HA 域一一对应，通用设备默认全推荐。
  */
-import { clone, newId, slugify } from "./editor-utils.js?v=20260920104554";
-// 「按 ID 切域」只有一份实现（P12 收口 B 类末尾那一项的残留补齐）：本文件原先在
-// popupModuleEntityRecommended 里手写 `String(entity?.entityId || "").split(".")[0]`。
-// 那条表达式与助手函数体逐字相同，换过去语义不变。
-import { entityDomainFromId } from "../utils/entities.js?v=20260920104554";
+import { clone, newId, slugify } from "./editor-utils.js?v=20260920131301";
+// 「按 ID 切域」只有一份实现：统一走 utils/entities.js 的 entityDomainFromId，
+// 不要在这里重新内联 `String(entityId).split(".")[0]`。
+import { entityDomainFromId } from "../utils/entities.js?v=20260920131301";
+
+/**
+ * 「上次打开哪个仪表盘」的会话级记忆键。
+ *
+ * 用 sessionStorage 而非 localStorage：只在当前标签页存活期间有效，关掉就回到
+ * 列表第一项 —— 与「未保存草稿」同一取舍（见 home.js 的 RECOVERY_STORAGE_PREFIX），
+ * 避免一份陈旧的选择长期留存，把用户带到他早已不想要的项目上。
+ */
+const SELECTED_PROJECT_STORAGE_KEY = "homeos:editor:selected-project";
+
+/**
+ * 记住当前正在编辑的仪表盘。
+ *
+ * 写失败（隐私模式、配额耗尽）只当没记住，不抛：这是便利功能，
+ * 不能因为它把「打开项目」这条主流程弄失败。
+ */
+export function rememberEditorProject(projectId) {
+  try {
+    sessionStorage.setItem(SELECTED_PROJECT_STORAGE_KEY, String(projectId || ""));
+  } catch {
+    // 忽略：记不住不影响本次编辑，只是下次回到第一项。
+  }
+}
+
+/**
+ * 决定进编辑器时打开哪个仪表盘。
+ * 优先级：显式指定（外部跳转传入）→ 上次打开且仍然存在的 → 列表第一项。
+ * 「上次打开的已被删除」是删项目后的常态，记忆值必须先在列表里找到才使用，否则 openProjectDraft 会去拉不存在的草稿而失败。
+ */
+export function restoredEditorProject(projects, requestedProjectId = null) {
+  if (projects.some(listedProject => listedProject.id === requestedProjectId)) {
+    return requestedProjectId;
+  }
+  let rememberedProjectId = null;
+  try {
+    rememberedProjectId = sessionStorage.getItem(SELECTED_PROJECT_STORAGE_KEY);
+  } catch {
+    // 读不到就当没记住，走第一项兜底。
+  }
+  return (
+    projects.find(listedProject => listedProject.id === rememberedProjectId)?.id ??
+    projects[0]?.id ??
+    null
+  );
+}
 
 /**
  * 生成不与现有页面冲突的路径。

@@ -1,57 +1,27 @@
 /**
- * 仪表盘编辑器主体脚本（页面 /，模板 frontend/index.html）。
+ * 仪表盘编辑器主体脚本（页面 /，模板 frontend/index.html）：把一张仪表盘文档渲染成可编辑画布，
+ * 并负责草稿、编辑、保存、撤销到展示的全部交互。后端只把文档当 JSON 存取，字段口径见 backend/panel/schema.py。
  *
- * 职责：把一份「仪表盘文档」渲染成可编辑的画布，并负责这份文档从草稿、编辑、保存、撤销到展示的
- * 全部交互。后端只把文档当作 JSON 存取，字段口径由 backend/panel/schema.py 定义，因此这里的
- * 文档结构与它一一对应：画布（document.canvas）→ schema.Canvas；页面（document.pages）→
- * schema.Page（每页一份组件树）；自定义弹窗（document.customPopups）→ schema.Popup（组件可经动作
- * more-info 打开）；组件（componentType + position/style/properties/bindings/action）→
- * schema.PanelComponent 的判别联合类型。编辑期所有改动都先落在内存里的 activeProject.document 上，
- * 只有点「保存」才写回后端。
- *
- * 模块划分（按文件中出现顺序）：
- *   1. 模块级 DOM 句柄与状态变量：整份状态就是一组模块级 let，没有额外的 store 层；
- *   2. requestJson：唯一的后端出入口，统一处理 401 / 403 与错误文案；
- *   3. 自建表单控件（下拉、颜色、数字步进）：原生控件在当前浏览器内核上表现不一致才自己实现；
- *   4. 文档与选择编辑：mutateDocument、选择集、分组、复制、图层；
- *   5. 检查器（inspector）：每个组件类型一段 syncXxxInspector，负责「文档 → 表单」单向回填；
- *   6. 素材、图标、实体、弹窗模块等各类选择器；
- *   7. 编辑历史、草稿保存与崩溃恢复；
- *   8. 拖拽 / 缩放 / 对齐等画布手势，以及文件末尾的初始化与事件绑定。
- *
- * 版本戳约定：本文件内部所有 `import ... ?v=20260920104554` 必须使用同一条版本戳，与
- * renderer/core/renderer.js 引用 renderer/core/registry.js 的 `?v=` 完全一致 —— 两条路径都指向同一份控件
- * 注册表，版本戳一旦不同就会加载出两份注册表，表现为控件类型在某些视图里"找不到"。改动静态资源
- * 后用 tools/bump_static_cache_versions.mjs 统一改写，不要手改单处。
- *
- * 与后端的交互约定：
- *   - 所有请求经 requestJson 走 /api/v1 前缀，且强制 cache: "no-store"；
- *   - 401 直接跳 /login，403 且 detail.code === "LICENSE_RESTRICTED" 跳 /license，其余错误把
- *     detail.code 挂到 Error.code 上交给调用方；
- *   - 草稿读写用 PUT/GET /projects/{id}/draft，请求体带 revision（乐观锁），后端发现版本落后返回
- *     409，前端据此走冲突分支；
- *   - 所有写请求串在 writeQueuePromise 上，保证同一时刻只有一个写操作在途。
- *
- * 状态管理方式：模块级变量即全局状态（activeProject 及其 document 是唯一真相源），派生状态（是否有
- * 未保存改动、撤销栈、恢复快照）各自单独维护：hasUnsavedChanges 由 savedDocumentSignature 与当前
- * 文档签名对比得出；historyState.undo/redo 保存文档快照式历史，最多 MAX_HISTORY_ENTRIES 条；
+ * 全局约定：本文件所有 import 必须与 renderer/core/registry.js 引用 registry.js 的同一条 ?v= 版本戳，
+ * 否则会加载出两份控件注册表；文档改动先进内存的 activeProject.document，只有点「保存」才写回后端；
+ * 所有后端写请求串在 writeQueuePromise 上，草稿用 revision 乐观锁（409 走冲突分支）；
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260920104554";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260920131301";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260920104554";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920104554";
+import { apiFetch } from "../utils/api-fetch.js?v=20260920131301";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260920131301";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=20260920104554";
+} from "../renderer/core/renderer.js?v=20260920131301";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../renderer/core/registry.js?v=20260920104554";
+} from "../renderer/core/registry.js?v=20260920131301";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -59,7 +29,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=20260920104554";
+} from "../templates/component-templates.js?v=20260920131301";
 import {
   clone,
   newId,
@@ -69,32 +39,32 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260920104554";
-import { clampNumber } from "../utils/numbers.js?v=20260920104554";
-import { mdiIconUrl } from "../utils/icon-url.js?v=20260920104554";
-import { formatZhDateTime } from "../utils/datetime.js?v=20260920104554";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260920104554";
+} from "./editor-utils.js?v=20260920131301";
+import { clampNumber } from "../utils/numbers.js?v=20260920131301";
+import { mdiIconUrl } from "../utils/icon-url.js?v=20260920131301";
+import { formatZhDateTime } from "../utils/datetime.js?v=20260920131301";
+import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260920131301";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
-import { resolveStateEntry } from "../utils/state-entry.js?v=20260920104554";
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260920131301";
 import {
   hexColorOrEmpty,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=20260920104554";
+} from "../utils/colors.js?v=20260920131301";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=20260920104554";
+} from "../shared/popup-layout.js?v=20260920131301";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260920104554";
+} from "./dashboard-resize.js?v=20260920131301";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260920104554";
+} from "./component-page-copy.js?v=20260920131301";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -106,25 +76,25 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=20260920104554";
-import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260920104554";
-import { createButtonSound } from "../shared/sound-effects.js?v=20260920104554";
+} from "../shared/related-entities.js?v=20260920131301";
+import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260920131301";
+import { createButtonSound } from "../shared/sound-effects.js?v=20260920131301";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260920104554";
-import { confirmAction } from "../shared/ui-confirm.js?v=20260920104554";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260920104554";
+} from "./editor-dialogs.js?v=20260920131301";
+import { confirmAction } from "../shared/ui-confirm.js?v=20260920131301";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260920131301";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=20260920104554";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260920104554";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260920104554";
-import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260920104554";
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260920104554";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260920104554";
+} from "./picker/editor-picker-pagination.js?v=20260920131301";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260920131301";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260920131301";
+import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260920131301";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260920131301";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260920131301";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -132,13 +102,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=20260920104554";
+} from "../shared/action-rules.js?v=20260920131301";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260920104554";
+} from "./component-tree.js?v=20260920131301";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -148,13 +118,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260920104554";
+} from "./editor-component-collections.js?v=20260920131301";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260920104554";
+} from "./editor-basic-inspectors.js?v=20260920131301";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -163,9 +133,11 @@ import {
   popupModuleDropPosition,
   popupModuleEntityRecommended,
   popupModuleTypeLabel,
+  rememberEditorProject,
   reorderedPopupModules,
+  restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=20260920104554";
+} from "./editor-document-management.js?v=20260920131301";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -173,24 +145,21 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260920104554";
+} from "./editor-history.js?v=20260920131301";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=20260920104554";
-import { createLicenseCard } from "./license-card.js?v=20260920104554";
+} from "../3d-studio/loaders/studio-normalization.js?v=20260920131301";
+import { createLicenseCard } from "./license-card.js?v=20260920131301";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=20260920104554";
+} from "../bridge/editor.js?v=20260920131301";
 /**
- * 按选择器取单个 DOM 节点的简写。
- *
- * 模块顶部大量用它一次性缓存固定节点引用（只在脚本加载时执行一次），
- * 因此这里不做缓存与空值兜底：querySelector 找不到时返回 null，
- * 由使用处自行判断（这类节点都是页面自带的静态结构，缺失代表模板出错）。
+ * 按选择器取单个 DOM 节点的简写。不做缓存与空值兜底：调用处只在模块加载时一次性缓存静态节点，
+ * querySelector 找不到说明模板出错，返回 null 由使用处自行判断。
  */
 const findElement = selector => document.querySelector(selector);
 installSettingsDialogBackdropGuard();
@@ -220,10 +189,8 @@ function refreshEditorViewportFit() {
   document.documentElement.style.setProperty("--editor-viewport-scale", String(viewportScaleRatio));
 }
 /**
- * 计算并写入组件对话框的 CSS 缩放变量。
- *
- * 对话框按 1920×1080 设计，再乘 1.1 放大系数；下限 0.1 是刻意兜底，
- * 避免窗口极小或 resize 过程中算出 0 导致内容不可见。
+ * 计算并写入组件对话框的 CSS 缩放变量。对话框按 1920×1080 设计再乘 1.1 放大系数；
+ * 下限 0.1 是刻意兜底，避免窗口极小或 resize 过程中算出 0 导致内容不可见。
  */
 function refreshComponentDialogScale() {
   const componentDialogScale = Math.max(
@@ -398,10 +365,8 @@ const dashboardPreviewElement = findElement("#dashboard-preview");
 const customPopupEditorElement = findElement("#custom-popup-editor");
 const buttonSoundController = createButtonSound();
 /**
- * 同步「按键音效」开关的可见性、禁用态与文案。
- *
- * 只在编辑模式显示；音频开关以文档里的 soundEnabled 为准回灌给播放器，
- * 避免刷新后播放器状态与文档记录不一致。
+ * 同步「按键音效」开关的可见性、禁用态与文案。只在编辑模式显示；开关以文档里的 soundEnabled
+ * 为准回灌给播放器，避免刷新后播放器状态与文档记录不一致。
  */
 function refreshSoundToggle() {
   if (!soundToggleButtonElement) {
@@ -1353,16 +1318,9 @@ let colorPickerCopyResetTimer = null;
 let lastLicenseFeatureSignature = null;
 let isLicenseActivationFormRequested = false;
 /**
- * 后端 API 的唯一出入口：统一前缀、统一鉴权重定向与统一错误形态。
- *
- * 约定：所有业务接口都挂在 /api/v1 下，且一律禁用缓存（草稿与实体状态都必须是实时值）。
- * 401 视为会话失效直接跳登录页，403 + detail.code === LICENSE_RESTRICTED 视为授权失效跳授权页，
- * 这两种情况都会抛错中断调用方后续逻辑，不做静默返回。
- * 其余非 2xx 会把后端 detail 的 code 透传到 Error.code，业务层据此区分「冲突」等可预期分支。
- * 超时由 apiFetch 兜底（普通 20 秒、上传 3 分钟）：请求悬挂时一定要抛错，否则
- * 调用方的「正在保存」闩不会复位，保存按钮与工具栏会永久锁死。
- *
- * @throws {Error} 网络失败、超时、非 2xx、或响应体不是合法 JSON 时抛出，消息带接口路径与状态码。
+ * 后端 API 的唯一出入口：统一 /api/v1 前缀、禁用缓存、统一鉴权重定向与错误形态。
+ * 401 跳登录、403 + detail.code === LICENSE_RESTRICTED 跳授权页，均抛错中断调用方；
+ * 其余非 2xx 把 detail.code 透传到 Error.code。请求悬挂必须抛错，否则「正在保存」闩不会复位。
  */
 async function requestJson(requestPath, requestOptions = {}) {
   const apiResponse = await apiFetch("/api/v1" + requestPath, {
@@ -1478,10 +1436,8 @@ function closeCustomSelectMenu(customSelectRecord = openCustomSelect) {
   }
 }
 /**
- * 把自建下拉菜单摆到触发按钮下方或上方。
- *
- * 三条边界是刻意的：菜单最小 80px 保证仍可点，最大 320px 防止在小屏上撑破视口；
- * 横向钳制在 [8, 视口宽 - 菜单宽 - 8]，纵向在下方放不下时翻到按钮上方。
+ * 把自建下拉菜单摆到触发按钮下方或上方。三条边界是刻意的：最小 80px 保证仍可点、最大 320px
+ * 防止在小屏上撑破视口；横向钳制在 [8, 视口宽 − 菜单宽 − 8]，下方放不下则翻到按钮上方。
  */
 function positionCustomSelectMenu(openSelectRecord) {
   if (openSelectRecord.menu.hidden) {
@@ -1506,11 +1462,8 @@ function positionCustomSelectMenu(openSelectRecord) {
 }
 /**
  * 把原生 select 的选项镜像成自建菜单，并同步按钮文案与禁用态。
- *
- * 这里的空列表兜底文案按 select 的 id 分派：原生 select 没有占位选项，
- * 列表为空时按钮会变成空白，因此逐个 id 给出对应的中文空态。
- * 素材文件夹下拉额外允许删除用户文件夹，删除按钮只在
- * canDeleteAssetFolder 判定可删时才挂上，避免删掉内置目录。
+ * 原生 select 没有占位选项，列表为空时按钮会空白，故按 id 逐个给出中文空态文案；
+ * 素材文件夹下拉额外允许删除用户文件夹，删除按钮只在 canDeleteAssetFolder 通过时挂上。
  */
 function syncCustomSelect(selectElement) {
   const customSelectForSelect = customSelectsBySelectElement.get(selectElement);
@@ -1583,13 +1536,9 @@ function syncCustomSelect(selectElement) {
   }
 }
 /**
- * 把原生 select 原地包装成自定义下拉。
- *
- * 原生 select 在部分内核上的弹层不受 CSS 控制、也无法显示「★ 默认页」标记，
- * 因此保留原生元素（仍作为 value 的真相源与 change 事件来源），
- * 只把可交互外观换成自建按钮 + 菜单。菜单挂到最近的 dialog 或 body 上，
- * 否则会被弹窗的 overflow 裁掉。
- * 幂等：已有记录或标记 data-native-select 的元素直接跳过。
+ * 把原生 select 原地包装成自定义下拉，保留原生元素作 value 真相源与 change 事件来源。
+ * 只把可交互外观换成自建按钮 + 菜单：原生弹层在部分内核不受 CSS 控制、也无法显示「★ 默认页」标记。
+ * 菜单挂到最近的 dialog 或 body 上，否则会被弹窗 overflow 裁掉；已有记录的元素直接跳过（幂等）。
  */
 function enhanceNativeSelect(nativeSelect) {
   if (
@@ -1690,10 +1639,8 @@ function enhanceNativeSelectsIn(selectRootNode = document) {
     .forEach(nativeSelectItem => enhanceNativeSelect(nativeSelectItem));
 }
 /**
- * 用十六进制色值刷新取色器面板，并可选地回写到当前绑定的输入框。
- *
- * 特殊处理：饱和度为 0（灰阶）时保留原色相，否则每次选灰色都会把色相重置为 0，
- * 用户再拖饱和度时颜色会跳变。
+ * 用十六进制色值刷新取色器面板，并可选地回写到当前绑定的输入框。饱和度为 0（灰阶）时保留原色相，
+ * 否则每次选灰色都会把色相重置为 0，用户再拖饱和度时颜色会跳变。
  */
 function syncColorPickerFromHex(hexColorValue, shouldDispatchInput = false) {
   const normalizedHex = hexColorOrEmpty(hexColorValue);
@@ -1766,10 +1713,8 @@ function positionColorPicker() {
   globalColorPickerElement.style.top = colorPickerTopPx + "px";
 }
 /**
- * 为某个颜色输入框打开取色器，并把输入框现值解析成初始 HSV。
- *
- * 同一时刻只服务一个输入框：切换到别的输入框前先关掉旧的，
- * 避免 input 事件被派发到已经不该响应的控件上。
+ * 为某个颜色输入框打开取色器，并把输入框现值解析成初始 HSV。同一时刻只服务一个输入框：
+ * 切换前先关掉旧的，避免 input 事件被派发到已经不该响应的控件上。
  */
 function openColorPickerForInput(colorInputElement) {
   if (!colorInputElement || colorInputElement.disabled) {
@@ -1789,10 +1734,8 @@ function openColorPickerForInput(colorInputElement) {
   window.requestAnimationFrame(positionColorPicker);
 }
 /**
- * 关闭取色器面板，并在颜色确实变化时补发 change 事件。
- *
- * 拖动过程中只派发 input（实时预览），收尾才补一次 change：
- * 调用方普遍把 change 当作「一次编辑结束」的提交点，只有此时才写历史。
+ * 关闭取色器面板，并在颜色确实变化时补发 change 事件。拖动过程中只派发 input（实时预览），
+ * 收尾才补一次 change：调用方普遍把 change 当作「一次编辑结束」的提交点，只有此时才写历史。
  */
 function closeColorPicker() {
   if (!activeColorInputElement) {
@@ -1813,10 +1756,8 @@ function closeColorPicker() {
   resetPreviewForInput(closingColorInput);
 }
 /**
- * 取色器开着时，把绑定输入框的当前值重新同步进面板。
- *
- * 输入框可能被别的逻辑（如「应用样式」）改写，isConnected 一并判断，
- * 元素已被移除时直接跳过。
+ * 取色器开着时，把绑定输入框的当前值重新同步进面板。输入框可能被别的逻辑（如「应用样式」）改写，
+ * isConnected 一并判断，元素已被移除时直接跳过。
  */
 function syncOpenColorPicker() {
   if (!globalColorPickerElement.hidden && activeColorInputElement?.isConnected) {
@@ -1824,10 +1765,8 @@ function syncOpenColorPicker() {
   }
 }
 /**
- * 把子树里的原生 color 输入框换成「点击弹自建取色器」的行为。
- *
- * 用 pointerdown 而不是 click 打开，是为了抢在原生取色面板弹出前 preventDefault；
- * 绑定记录存在 colorPickerBoundInputs 里，重复增强不会叠加监听。
+ * 把子树里的原生 color 输入框换成「点击弹自建取色器」的行为。用 pointerdown 而不是 click 打开，
+ * 是为了抢在原生取色面板弹出前 preventDefault；绑定记录存在 colorPickerBoundInputs 里，重复增强不叠加监听。
  */
 function enhanceColorInputsIn(colorRootNode = document) {
   (colorRootNode instanceof HTMLInputElement && colorRootNode.type === "color"
@@ -1854,10 +1793,8 @@ function enhanceColorInputsIn(colorRootNode = document) {
   });
 }
 /**
- * 对数字输入框做一次上下步进，并派发 input 事件。
- *
- * 优先用原生 stepUp/stepDown；在 step 非法或未设置时它们会抛错，
- * 此时按 dataset.numberStep → step → 1 的顺序取步长，并对 min/max 做钳制。
+ * 对数字输入框做一次上下步进，并派发 input 事件。优先用原生 stepUp/stepDown，
+ * 在 step 非法或未设置时它们会抛错，此时按 dataset.numberStep → step → 1 取步长并钳制 min/max。
  */
 function stepNumberInput(numberInput, stepDirection) {
   if (!numberInput || numberInput.disabled || numberInput.readOnly) {
@@ -1896,13 +1833,9 @@ function stepNumberInput(numberInput, stepDirection) {
   }
 }
 /**
- * 给检查器里的数字输入框加上自定义加减按钮。
- *
- * 只用原生 spinner 的话，不同内核对鼠标滚轮与长按的处理不一致，所以自绘按钮：
- * 单击立即步进一次，长按 320ms 后按 55ms 间隔连发；连发期间只在松开时补一次
- * change 事件，避免每 55ms 就往撤销栈写一条历史。
- * 范围限定在 .inspector-form / .i3d-editor / .i3d-vacuum-map-editor 内，
- * 弹窗里的数字框不在此列（由各自逻辑自己处理）。
+ * 给检查器里的数字输入框加自绘加减按钮（原生 spinner 对滚轮与长按处理不一致）。
+ * 单击步进一次；长按 320ms 后按 55ms 连发，期间只在松开时补一次 change，避免刷满撤销栈。
+ * 范围限定在 .inspector-form / .i3d-editor / .i3d-vacuum-map-editor 内，弹窗里的数字框不在此列。
  */
 function enhanceNumberInputsIn(numberRootNode = document) {
   const numberInputElements =
@@ -1923,10 +1856,8 @@ function enhanceNumberInputsIn(numberRootNode = document) {
     const numberSteppersElement = document.createElement("span");
     numberSteppersElement.className = "inspector-number-steppers";
     /**
-     * 创建一个数字步进按钮（加号或减号）。
-     *
-     * 单击立即步进一次；长按 320ms 后转为每 55ms 连发，松开时只补发一次 change，
-     * 免得连发期间不断往撤销栈写历史。
+     * 创建一个数字步进按钮（加号或减号）。单击立即步进一次；长按 320ms 后转为每 55ms 连发，
+     * 松开时只补发一次 change，免得连发期间不断往撤销栈写历史。
      */
     const createNumberStepperButton = (stepAmount, stepperLabel, stepperIconPath) => {
       const stepperButtonElement = document.createElement("button");
@@ -1961,11 +1892,8 @@ function enhanceNumberInputsIn(numberRootNode = document) {
           }, 55);
         }, 320);
         /**
-         * 结束长按连发并把定时器收尾。
-         *
-         * 用 isStepperReleased 做幂等守卫：pointerup / pointercancel /
-         * lostpointercapture 三个事件可能同时到达，只允许第一次生效。
-         * 仅当确实改过值时才补发 change，避免空点击也产生一条撤销历史。
+         * 结束长按连发并把定时器收尾。用 isStepperReleased 做幂等守卫：pointerup / pointercancel /
+         * lostpointercapture 可能同时到达，只允许第一次生效；仅当确实改过值才补发 change。
          */
         const stopStepperRepeat = () => {
           if (!isStepperReleased) {
@@ -2049,11 +1977,8 @@ function destroyDashboardPreview() {
   dashboardPreviewRenderer = null;
 }
 /**
- * 渲染展示预览：与展示页共用同一个 PanelRenderer，只是不给编辑能力。
- *
- * 关键点是三份运行态缓存（图表历史、实体运行态、虚拟实体状态）与编辑器共享，
- * 这样预览里的开关状态和图表曲线跟真实展示页一致；
- * editable:false 保证预览里的操作不会写回文档。
+ * 渲染展示预览：与展示页共用 PanelRenderer，并共享三份运行态缓存（图表历史、实体运行态、虚拟实体状态），
+ * 使预览里的开关状态与图表曲线跟真实展示页一致；editable:false 保证预览操作不写回文档。
  * 非 dashboard 模式一律销毁预览，避免它在后台继续订阅实体更新。
  */
 function renderDashboardPreview(previewPagePath = pageSelectElement.value) {
@@ -2122,10 +2047,8 @@ function formatLastSeen(lastSeenTimestamp) {
   }
 }
 /**
- * 把中控设备的令牌有效期整理成可读文案（拼在设备状态后面）。
- *
- * 已经过期的设备（expired=true）明确写出「已过期」——它此时已经无法访问任何接口，
- * 墙上那块屏会跳回配对页，这种状态必须在管理端一眼可见。
+ * 把中控设备的令牌有效期整理成可读文案（拼在设备状态后面）。已过期的设备（expired=true）明确写出
+ * 「已过期」—— 它此时已无法访问任何接口，墙上那块屏会跳回配对页，这种状态必须在管理端一眼可见。
  */
 function formatDisplayTokenExpiry(displayDevice) {
   if (!displayDevice) {
@@ -2141,10 +2064,8 @@ function formatDisplayTokenExpiry(displayDevice) {
   return " · 有效期至 " + formatLastSeen(displayDevice.expiresAt);
 }
 /**
- * 拉取当前仪表盘的展示设备配对码并重建列表。
- *
- * 配对码归属于仪表盘（projectId），不是全局资源。
- * 启用/停用与删除成功后整体重拉，保证设备绑定状态（device.lastSeenAt）也是新的。
+ * 拉取当前仪表盘的展示设备配对码并重建列表。配对码归属于仪表盘（projectId），不是全局资源；
+ * 启用/停用与删除成功后整体重拉，保证 device.lastSeenAt 等设备绑定状态也是新的。
  */
 async function loadDisplayPairingCodes() {
   if (!activeProject) {
@@ -2310,12 +2231,8 @@ async function openDisplayDevicesDialog() {
   }
 }
 /**
- * 拉取并渲染当前管理员的登录会话列表。
- *
- * 每条三行：来源（IP 或「本机」）、最近活跃 / 滑动有效期 / 绝对寿命（若配置了）、
- * User-Agent（若上报了）。三行都做单行省略，完整值挂在 title 上。
- * 当前这条会话整条标成高亮且不给撤销按钮，避免手一抖把自己踢下线
- * （要退出本机请用右上角的「退出」）。
+ * 拉取并渲染当前管理员的登录会话列表：每条三行（来源、各类有效期、User-Agent），单行省略、完整值挂 title。
+ * 当前这条会话整条标亮且不给撤销按钮，避免手一抖把自己踢下线（退出本机请用右上角「退出」）。
  */
 async function loadLoginSessions() {
   const sessions = (await requestJson("/auth/sessions")).items || [];
@@ -2396,9 +2313,7 @@ async function openSessionsDialog() {
   }
 }
 /**
- * 打开「撤销单条登录会话」确认弹窗。
- *
- * 叠在登录会话列表之上；确认按钮把会话 id 存在 dataset 里，
+ * 打开「撤销单条登录会话」确认弹窗。叠在登录会话列表之上；确认按钮把会话 id 存在 dataset 里，
  * 避免闭包持有整份条目。
  */
 function openSessionsRevokeDialog(sessionEntry) {
@@ -2424,9 +2339,7 @@ function openSessionsRevokeOthersDialog() {
   }
 }
 /**
- * 提交「生成配对码」表单。
- *
- * 自定义码留空时由后端生成，前端不做格式校验以免与后端规则不一致；
+ * 提交「生成配对码」表单。自定义码留空时由后端生成，前端不做格式校验以免与后端规则不一致；
  * 失败时把后端文案原样显示在弹窗里，并恢复按钮可用。
  */
 async function createDisplayPairingCode(submitEvent) {
@@ -2471,10 +2384,8 @@ function renderWorkspaceResolution() {
     : "";
 }
 /**
- * 切换编辑器的三种模式：页面画布 / 展示预览 / 组合弹窗编辑。
- *
- * 三种模式共用同一份 DOM 容器，靠 hidden 互斥，并在切换时销毁不再使用的渲染器 ——
- * 渲染器会订阅实体状态，留着不销毁会让学生页面在后台持续重绘。
+ * 切换编辑器的三种模式：页面画布 / 展示预览 / 组合弹窗编辑。三种模式共用同一份 DOM 容器，靠 hidden 互斥，
+ * 并在切换时销毁不再使用的渲染器 —— 渲染器会订阅实体状态，留着会让学生页面在后台持续重绘。
  * 非法值一律回落到 "edit"，避免调用方传错字符串时整个界面失去可见容器。
  */
 function setEditorMode(editorModeValue) {
@@ -2534,10 +2445,8 @@ function setEditorMode(editorModeValue) {
   }
 }
 /**
- * 在新标签打开已配置的 Home Assistant 地址。
- *
- * 只接受 http/https 且不允许内嵌用户名密码：地址来自用户配置，
- * 若放行 file: 之类的协议会成为跳转注入点。
+ * 在新标签打开已配置的 Home Assistant 地址。只接受 http/https 且不允许内嵌用户名密码：
+ * 地址来自用户配置，若放行 file: 之类的协议会成为跳转注入点。
  */
 function openHomeAssistantDashboard() {
   const haBaseUrl = String(haConnectionInfo?.baseUrl || "").trim();
@@ -2583,11 +2492,9 @@ function setPageControlsEnabled(controlsEnabled) {
   }
 }
 /**
- * 按工作区可用空间等比缩放画布容器。
- *
- * 以「容器可用宽高比 vs 画布宽高比」判断是宽度受限还是高度受限，
- * 再取较小的一边，保证整块画布始终完整可见（不裁切、不出现滚动条）。
- * 宽高各自兜底 1px，避免 ResizeObserver 在容器暂时为 0 时写入非法尺寸。
+ * 按工作区可用空间等比缩放画布容器。以「容器可用宽高比 vs 画布宽高比」判断是宽度还是高度受限，
+ * 再取较小的一边，保证整块画布始终完整可见（不裁切、不出现滚动条）；宽高各自兜底 1px，
+ * 避免 ResizeObserver 在容器暂时为 0 时写入非法尺寸。
  */
 function resizeWorkspaceCanvas() {
   if (!activeProject) {
@@ -2620,12 +2527,9 @@ function resizeWorkspaceCanvas() {
 // 已排程的帧句柄，非 0 时同时充当「本帧已排过」标记。
 let workspaceLayoutFrameId = 0;
 /**
- * 同步工作区布局：把观察器通知合并到下一帧执行一次。
- *
- * 观察目标只有 `.workspace`，它的尺寸由 .editor-shell / .workspace-panel 的 grid 决定，
- * 所以这里写的子元素尺寸不会反过来改变它 —— 这条路径不会自激成 ResizeObserver 循环。
- * 批处理解决的是另外两件事：① 回调里是「读可用宽高 → 写画布尺寸 → 读 stageWrap
- * 宽度」交替，挪出通知投递过程可少一轮强制布局；② 连续 resize 通知只在同帧执行一次。
+ * 同步工作区布局：把 ResizeObserver 通知合并到下一帧执行一次。
+ * 观察目标 .workspace 的尺寸由外层 grid 决定，这里写子元素尺寸不会反过来改变它，不会自激成循环；
+ * 批处理既减少「读—写—读」交替造成的强制布局，也让连续 resize 通知同帧只执行一次。
  */
 function syncWorkspaceLayout() {
   if (workspaceLayoutFrameId) {
@@ -2641,9 +2545,7 @@ function syncWorkspaceLayout() {
 const workspaceResizeObserver = new ResizeObserver(syncWorkspaceLayout);
 workspaceResizeObserver.observe(workspaceElement);
 /**
- * 取当前编辑的页面对象。
- *
- * 下拉框里的路径可能已失效（页面被删或文档刚切换），此时回落到第一页，
+ * 取当前编辑的页面对象。下拉框里的路径可能已失效（页面被删或文档刚切换），此时回落到第一页，
  * 保证调用方拿到的一定是一个存在的页面或 null。
  */
 function currentPage() {
@@ -2656,11 +2558,8 @@ function currentPage() {
   );
 }
 /**
- * 判断这组控件能否成组。
- *
- * 规则：至少两个、且成员都不能是已有分组（不支持嵌套分组），
- * 必须落在同一个集合与同一个页面作用域里，并且不能是 fill 布局的控件 ——
- * fill 控件尺寸由父容器决定，成组后会造成循环依赖。
+ * 判断这组控件能否成组。规则：至少两个、成员都不能是已有分组（不支持嵌套分组），必须落在同一个
+ * 集合与同一个页面作用域里，并且不能是 fill 布局的控件 —— fill 控件尺寸由父容器决定，成组后会造成循环依赖。
  */
 function canGroupComponents(componentIdList, groupingDocument = activeProject?.document) {
   const uniqueComponentIds = [...new Set(componentIdList || [])];
@@ -2687,10 +2586,8 @@ function canGroupComponents(componentIdList, groupingDocument = activeProject?.d
   );
 }
 /**
- * 把选中的多个控件合成一个 group 组件。
- *
- * 分组用「外接矩形」而不是各自的原始位置：新组的 position 取成员的最小/最大边界，
- * 成员坐标改为相对组内偏移，这样之后移动或缩放整组时子元素会自然跟随。
+ * 把选中的多个控件合成一个 group 组件。分组用「外接矩形」而不是各自的原始位置：新组的 position 取成员的
+ * 最小/最大边界，成员坐标改为相对组内偏移，这样之后移动或缩放整组时子元素会自然跟随。
  * 共享作用域下还要同步各页的 sharedComponentIds 引用顺序，否则共享控件在别的页面会散架。
  */
 function groupSelectedComponents(requestedComponentIds) {
@@ -2796,12 +2693,8 @@ function groupSelectedComponents(requestedComponentIds) {
   });
 }
 /**
- * 拆散一个分组，把子控件还原到顶层。
- *
- * 还原要按组的旋转与缩放做一次逆变换：子控件在组内是相对坐标且会跟着组缩放，
- * 拆出来后必须把中心点按组的旋转矩阵搬回画布坐标系，并把组的 scale 乘进子元素的 scale，
- * scale 钳制在 [0.01, 5] 是编辑器统一的缩放上下限。
- * 组若被设为不可见，拆散后子元素保持不可见，避免「拆组后凭空出现」。
+ * 拆散分组，把子控件还原到顶层：按组的旋转与缩放做一次逆变换，把中心点搬回画布坐标系、把组 scale 乘进子元素，
+ * scale 钳在 [0.01, 5]（编辑器统一缩放上下限）。组不可见时子元素保持不可见，避免拆组后凭空出现。
  */
 function ungroupComponent(groupIdToUngroup) {
   const groupLocationEntry = findComponentLocation(activeProject?.document, groupIdToUngroup);
@@ -2910,12 +2803,9 @@ function openGroupRenameDialog(renameGroupId) {
   }
 }
 /**
- * 在指定文档里复制一个控件，插回它原来的位置后面。
- *
- * 复制体会重新生成全部内部 ID（refreshComponentIds），否则父子引用会指向原控件；
- * 副本一律清掉 previewState，那是运行期状态，带过去会让新控件看起来已经是「开」的。
- * offsetDuplicate 用于「复制并错开」，偏移 24px 并按画布边界钳制，
- * 允许半个控件出界（所以下界是 -宽/2），这样靠边的控件也能复制。
+ * 在指定文档里复制控件并插回原位置后面。副本重新生成全部内部 ID（refreshComponentIds），
+ * 否则父子引用会指向原控件；副本一律清掉 previewState，那是运行期状态，带过去会让新控件看起来已是「开」。
+ * offsetDuplicate 用于「复制并错开」：偏移 24px、按画布边界钳制，允许半个控件出界（下界 -宽/2）。
  */
 function duplicateComponent(
   targetDocument,
@@ -2974,10 +2864,8 @@ function duplicateComponent(
   return duplicatedComponent;
 }
 /**
- * 从文档里彻底移除一个控件，并清理共享引用。
- *
- * 共享控件被删后，各页 sharedComponentIds 里的对应 ID 必须一并摘掉，
- * 否则下次渲染会按孤立的引用 ID 找不到控件（引用完整性）。
+ * 从文档里彻底移除一个控件，并清理共享引用。共享控件被删后，各页 sharedComponentIds 里的对应 ID
+ * 必须一并摘掉，否则下次渲染会按孤立的引用 ID 找不到控件。
  */
 function removeComponent(removalDocument, removedComponentId) {
   const removalLocation = findComponentLocation(removalDocument, removedComponentId);
@@ -3003,10 +2891,8 @@ function selectedComponent() {
   return findComponent(activeProject?.document, selectedComponentId)?.component || null;
 }
 /**
- * 取当前图层列表应展示的控件数组。
- *
- * 进入分组编辑态（activeGroupId）时展示该组的子控件，否则按作用域取
- * 共享控件或当前页控件 —— 三类列表共用同一套渲染逻辑。
+ * 取当前图层列表应展示的控件数组。进入分组编辑态（activeGroupId）时展示该组的子控件，否则按作用域
+ * 取共享控件或当前页控件 —— 三类列表共用同一套渲染逻辑。
  */
 function componentListForScope(groupListScope) {
   if (activeGroupId) {
@@ -3045,10 +2931,8 @@ function findPageComponentsByType(typeFilter) {
   );
 }
 /**
- * 找出可以被某控件「替换」的同类型控件（共享与页面两类都算）。
- *
- * presence-sensor 额外按 resolveSensorKind 分组：同类型下还细分了传感器种类，
- * 只列同种类的控件，否则替换后语义会变。自身被排除。
+ * 找出可以被某控件「替换」的同类型控件（共享与页面两类都算）。presence-sensor 额外按 resolveSensorKind
+ * 分组：同类型下还细分了传感器种类，只列同种类的控件，否则替换后语义会变；自身被排除。
  */
 function findReplaceableComponents(sourceComponent) {
   if (!sourceComponent) {
@@ -3090,10 +2974,8 @@ function clearComponentSelection() {
   selectionAnchorComponentId = null;
 }
 /**
- * 把所有控件的临时预览态复位成 auto。
- *
- * 这些预览态是编辑期的「强制显示某层/某状态」开关（如空调出风层、图标发光效果），
- * 不属于文档内容，所以在取消选中或切页时必须逐个还原，否则画布会残留预览效果。
+ * 把所有控件的临时预览态复位成 auto。这些预览态是编辑期的「强制显示某层/某状态」开关（如空调出风层、
+ * 图标发光效果），不属于文档内容，取消选中或切页时必须逐个还原，否则画布会残留预览效果。
  */
 function resetPreviewStates() {
   for (const previewStateMap of [
@@ -3109,14 +2991,9 @@ function resetPreviewStates() {
   }
 }
 /**
- * 处理画布上的一次点选，更新单选 / 多选 / 区间选择状态。
- *
- * 四种入参对应四种鼠标语义：preserveGroup，在组内点击时不破坏已有多选；
- * range（Shift）以锚点为准圈定同作用域内的连续区间，跨作用域（不同页）退化为单选，
- * 因为跨页区间在图层列表里没有对应的一行；toggle（Ctrl/Cmd）切换单个成员；
- * 都不带时点击已唯一选中的控件视为「取消选中」。
- * 共享控件被选中时顺带把它补进当前页的引用列表（ensureSharedComponentReference），
- * 保证「选过就出现」——否则共享控件在页面里没有引用就不可见。
+ * 处理画布点选，更新单选 / 多选 / 区间选择：preserveGroup 组内点击不破坏已有多选；range（Shift）以锚点圈定
+ * 同作用域连续区间，跨页退化为单选（跨页区间在图层列表里没有对应行）；toggle（Ctrl/Cmd）切换单个；
+ * 都不带时点击已唯一选中的控件视为取消选中。选中共享控件时顺带把它补进当前页引用列表，否则无引用就不可见。
  */
 function selectComponent(
   clickedComponentId,
@@ -3203,14 +3080,9 @@ function selectComponent(
   syncInspector();
 }
 /**
- * 文档修改的唯一入口：克隆 → 改副本 → 提交。
- *
- * 为什么绕一层：文档是唯一真相源，任何原地修改都会让「撤销/脏标记」无法判断改了什么；
- * 这里统一走 clone + applyDocumentChange，保证每次修改都得到一份新文档对象。
- * 写入串在 writeQueuePromise 上，且队列里先 catch 掉上一次的错误，
- * 避免上一次失败把后续所有编辑都拖死。
- *
- * @param {boolean} [options.throwOnError] 为真时返回「会抛错的 Promise」，否则返回已吞掉错误的队列。
+ * 文档修改的唯一入口：克隆 → 改副本 → 提交。文档是唯一真相源，原地改会让撤销/脏标记无法判断改了什么，
+ * 故统一走 clone + applyDocumentChange 得到新对象；写入串在 writeQueuePromise 上并先 catch 上次错误，
+ * 避免上次失败拖死后续所有编辑；options.throwOnError 为真时返回会抛错的 Promise，否则返回已吞错的队列。
  */
 function mutateDocument(
   documentMutator,
@@ -3236,12 +3108,9 @@ function mutateDocument(
   }
 }
 /**
- * 用方向键把选中的控件（或空调出风层）平移一小段。
- *
- * 两种对象的移动语义不同：普通控件改 position，空调的「出风层」改的是
- * properties.airflowOffsetX/Y，且那是相对控件宽高的百分比，所以要把像素位移换算成百分比。
- * 位移不是逐个钳制而是先求整组的公共可行区间：多选时保持相对间距，
- * 有成员贴边就整组停在原地，避免被拖散的相对位置。
+ * 用方向键平移选中的控件（或空调出风层）：普通控件改 position，出风层改 properties.airflowOffsetX/Y
+ * （那是相对控件宽高的百分比，需把像素位移换算成百分比）。多选时先求整组公共可行区间而非逐个钳制：
+ * 保持相对间距，有成员贴边就整组停在原地，避免被拖散相对位置。
  */
 function nudgeSelectedComponents(nudgeDeltaX, nudgeDeltaY) {
   const nudgedComponentIds = [...selectedComponentIds];
@@ -3369,10 +3238,8 @@ function nudgeSelectedComponents(nudgeDeltaX, nudgeDeltaY) {
   }
 }
 /**
- * 计算控件在画布坐标系下的轴对齐包围盒（已计入旋转与缩放）。
- *
- * 用旋转后矩形的投影半宽半高（|cos|·w + |sin|·h）而不是直接用 w/h，
- * 这样多选对齐、成组外接矩形在控件被旋转后依然正确。
+ * 计算控件在画布坐标系下的轴对齐包围盒（已计入旋转与缩放）。用旋转后矩形的投影半宽半高
+ * （|cos|·w + |sin|·h）而不是直接用 w/h，这样多选对齐、成组外接矩形在控件被旋转后依然正确；
  * scale 与尺寸下限 0.01 是为了避免零尺寸控件让包围盒退化成一条线。
  */
 function componentBounds(boundsComponent) {
@@ -3399,12 +3266,9 @@ function componentBounds(boundsComponent) {
   };
 }
 /**
- * 计算「多选整体缩放」后每个控件的新位置与新缩放。
- *
- * 以整个选择集的包围盒中心为不动点做等比缩放，所以缩放会同时改变各控件的位置，
- * 相对布局保持不变。比例被钳到所有成员的 [0.01, 5] 公共区间内 ——
- * 否则某个成员的 scale 会越界，而单边钳制会破坏等比例关系。
- * 少于两个成员、任一成员缺失或为 fill 布局时返回空数组，调用方据此不做批量缩放。
+ * 计算「多选整体缩放」后每个控件的新位置与新缩放：以选择集包围盒中心为不动点做等比缩放，相对布局保持不变；
+ * 比例钳到所有成员 [0.01, 5] 的公共区间，否则某成员会越界、单边钳制又会破坏等比例关系。
+ * 少于两个成员、成员缺失或为 fill 布局时返回空数组，调用方据此不做批量缩放。
  */
 function scaledSelectionPlacements(targetSelectionScale) {
   if (selectedComponentIds.size < 2 || !activeProject || !selectedComponentId) {
@@ -3480,9 +3344,7 @@ function scaledSelectionPlacements(targetSelectionScale) {
   });
 }
 /**
- * 从图层列表 DOM 读取当前高亮的控件 ID。
- *
- * 多选时以内存中的选择集为准（列表可能只渲染了其中一部分），
+ * 从图层列表 DOM 读取当前高亮的控件 ID。多选时以内存中的选择集为准（列表可能只渲染了其中一部分），
  * 单选时反而以 DOM 为准，因为列表点击会先更新 DOM 类名。
  */
 function selectedComponentIdsFromDom() {
@@ -3527,9 +3389,7 @@ function visibilityIconSvg(visibilityIconVisible) {
   }
 }
 /**
- * 批量设置控件的可见性。
- *
- * 可见性写在 style.visible 上（false 才隐藏，缺省视为可见），
+ * 批量设置控件的可见性。可见性写在 style.visible 上（false 才隐藏，缺省视为可见），
  * 与后端 schema 的组件样式字段一致。
  */
 function setComponentsVisibility(visibilityComponentIds, visibilityTarget) {
@@ -3559,11 +3419,8 @@ function closeComponentContextMenu() {
   contextMenuComponentId = null;
 }
 /**
- * 在鼠标位置打开控件右键菜单，并按当前选择集刷新各菜单项。
- *
- * 菜单项的文案与可用性都随选择集变化：多选时显示「N 个控件」，
- * 可见性不一致时禁用批量隐藏/显示（否则会把一半控件设成相反状态），
- * 分组项只在 canGroupComponents 通过时出现，重命名项只在单选分组时出现。
+ * 在鼠标位置打开控件右键菜单并按当前选择集刷新菜单项：多选显示「N 个控件」；可见性不一致时禁用批量隐藏/显示
+ * （否则会把一半控件设成相反状态）；分组项仅在 canGroupComponents 通过时出现，重命名项仅单选分组时出现。
  * 弹层位置在下一帧按实际尺寸计算，因为此刻菜单内容刚重建、量到的尺寸才有效。
  */
 function openComponentContextMenu(contextMenuEvent, openedContextMenuComponentId) {
@@ -3691,9 +3548,7 @@ function openComponentContextMenu(contextMenuEvent, openedContextMenuComponentId
   });
 }
 /**
- * 取一组控件的「共同可复制目标」。
- *
- * 多选复制只允许落到所有成员都支持的目标上（取各自目标 key 的交集），
+ * 取一组控件的「共同可复制目标」。多选复制只允许落到所有成员都支持的目标上（取各自目标 key 的交集），
  * 否则会出现部分控件复制不进去、部分成功的半成品状态。
  */
 function findCommonCopyTargets(copyTargetDocument, copySourceComponentIds) {
@@ -3762,11 +3617,8 @@ async function handleCopySuccessConfirm() {
   }
 }
 /**
- * 批量复制控件（编辑器内的「复制」）。
- *
- * 先按原图层顺序排序再复制，保证复制后新控件的相对层级与原顺序一致；
- * 同集合内按 index 排序，跨集合保持入参顺序（此时 index 不可比）。
- * 复制完成后把选择集切到副本上，用户可以直接拖走。
+ * 批量复制控件（编辑器内的「复制」）。先按原图层顺序排序再复制，保证复制后新控件的相对层级与原顺序一致；
+ * 同集合内按 index 排序，跨集合保持入参顺序（此时 index 不可比）。复制完成后把选择集切到副本上。
  */
 function duplicateComponents(
   duplicatedComponentIds,
@@ -3813,12 +3665,8 @@ function duplicateComponents(
   }
 }
 /**
- * 列出某个文档内可作为复制落点的目标。
- *
- * 侧边栏（共享区）只有一个，排在页面之前，与复制对话框里的选项顺序一致。
- * 传入 sourceComponentId 时改为查询该控件的专属目标（复制目标依赖控件类型与作用域）。
- *
- * @param {string} [options.sourceComponentId] 指定控件时按控件算目标，否则按文档算。
+ * 列出某文档内可作为复制落点的目标：侧边栏（共享区）唯一，排在页面之前，与复制对话框里的选项顺序一致。
+ * 传入 options.sourceComponentId 时改为查询该控件的专属目标（目标依赖控件类型与作用域）。
  */
 function copyTargetsForDocument(
   copyTargetSourceDocument,
@@ -3902,10 +3750,8 @@ function renderCopyScaleOptions() {
     : "";
 }
 /**
- * 重建复制对话框：按「本仪表盘 / 其他仪表盘」两种目标刷新文案与可用选项。
- *
- * 控件 ID 列表从弹窗的 data-component-ids 里取（JSON 串），
- * 解析失败按空列表处理，避免一次脏数据让整个弹窗打不开。
+ * 重建复制对话框：按「本仪表盘 / 其他仪表盘」两种目标刷新文案与可用选项。控件 ID 列表从弹窗的
+ * data-component-ids 里取（JSON 串），解析失败按空列表处理，避免一次脏数据让整个弹窗打不开；
  * 跨仪表盘目标需要先拉草稿才能算目标页面，所以这里只负责置空并等用户选择。
  */
 async function renderCopyComponentDialog() {
@@ -4059,9 +3905,7 @@ function openDeleteComponentDialog(deleteComponentIds) {
   }
 }
 /**
- * 批量设置控件的图层颜色标签。
- *
- * 取消标签用 delete 而不是写空串：后端 schema 里该字段缺省表示「无标签」，
+ * 批量设置控件的图层颜色标签。取消标签用 delete 而不是写空串：后端 schema 里该字段缺省表示「无标签」，
  * 留空串会让「取消」与「选了透明色」无法区分。
  */
 function setComponentsLabelColor(labelColorComponentIds, newLabelColorValue) {
@@ -4090,15 +3934,9 @@ function setComponentsLabelColor(labelColorComponentIds, newLabelColorValue) {
   });
 }
 /**
- * 渲染一个图层列表（侧边栏或主页面），并挂上点选、拖拽排序等交互。
- *
- * 交互语义：单击选择（Ctrl/Cmd 切换、Shift 区间），双击分组项下钻编辑该组，
- * 右键打开控件菜单；拖拽在同一列表内调整层级顺序。
- * 拖拽数据用 text/plain 传一份 JSON（scope/sourceId/movingIds），
- * 只有同作用域内才生效 —— 跨作用域拖动在编辑器里没有明确语义，直接忽略。
- * 拖放位置按「鼠标是否过了条目中线」判定插入到前半还是后半，
- * 用 CSS 类而非 DOM 占位来画插入指示，避免拖动过程中反复重排真实节点。
- * draggable 在组编辑态下关闭，防止把子控件拖出组外。
+ * 渲染图层列表（侧边栏或主页面）并挂上点选、拖拽排序：单击选择（Ctrl/Cmd 切换、Shift 区间），
+ * 双击分组项下钻，右键打开控件菜单。拖拽数据用 text/plain 传 JSON（scope/sourceId/movingIds），
+ * 仅同作用域生效；插入位置按鼠标是否过条目中线判定，用 CSS 类而非 DOM 占位画指示；组编辑态关闭 draggable。
  */
 function renderComponentList(componentListElement, listComponents, listEmptyText, listScope) {
   componentListElement.replaceChildren();
@@ -4149,12 +3987,9 @@ function renderComponentList(componentListElement, listComponents, listEmptyText
     );
     itemVisibilityButtonElement.innerHTML = visibilityIconSvg(itemIsVisible);
     /**
-     * 显示/隐藏按钮的 pointerdown 处理器：拦住冒泡并记下「刚点过这一项」。
-     *
-     * 不拦冒泡的话，点按钮会顺带触发列表项的选中与拖拽起手，用户想切可见性
-     * 结果把组件拖走了。记录 lastComponentClick（组件 ID + 时间戳）是为了让随后
-     * 的 click 处理器认出这是同一次点击（600ms 内的同一组件），
-     * 从而把它当成一次选中而不是两次独立操作。
+     * 显示/隐藏按钮的 pointerdown：拦住冒泡并记下「刚点过这一项」，否则点按钮会顺带触发列表项选中与拖拽起手，
+     * 用户想切可见性却把组件拖走了。lastComponentClick（组件 ID + 时间戳）让随后的 click 在 600ms 内认出同一次点击，
+     * 从而当成一次选中而不是两次独立操作。
      */
     const stopItemEventPropagation = itemEvent => {
       lastComponentClick = {
@@ -4344,9 +4179,7 @@ function prependGroupBackButton(groupBackListElement, groupBackComponent) {
   groupBackListElement.prepend(groupBackButtonElement);
 }
 /**
- * 重建侧边栏与主页面两个图层列表。
- *
- * 组编辑态下两个列表各自展示该组的子控件；若组已被删除
+ * 重建侧边栏与主页面两个图层列表。组编辑态下两个列表各自展示该组的子控件；若组已被删除
  * （例如撤销后回到没有该组的状态）则自动退出组编辑态，避免停留在空列表里。
  */
 function renderComponentLists() {
@@ -4406,9 +4239,7 @@ function syncAddComponentButton() {
     : "请先新建页面";
 }
 /**
- * 渲染控件模板库弹窗。
- *
- * 两类模板（侧边栏 / 主页面）合并后按 id 去重，重复的模板只出现一次。
+ * 渲染控件模板库弹窗。两类模板（侧边栏 / 主页面）合并后按 id 去重，重复的模板只出现一次；
  * interaction3d 没有静态缩略图，走 renderInteraction3dThumbnail 实时渲染。
  */
 function renderComponentTemplates() {
@@ -4448,7 +4279,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260920104554";
+          ".jpg?v=20260920131301";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -4512,12 +4343,9 @@ const ENTITY_DOMAIN_LABELS = {
   weather: "天气",
   zone: "区域"
 };
-// 取实体域统一走 utils/entities.js 的 entityDomainOf（P10 B 类收敛）：本文件原先那份返回
-// `domain` 原值，related-entities.js 那份会 String 之后切第一个点号 —— 带点号或非字符串的
-// domain 下两者结果不同，而两边的消费方都是拿去查标签表 / 与裸域名比较。
-/**
- * 取实体在界面上展示的种类标签（如「灯光」「辅助元素」「虚拟实体」）。
- */
+// 取实体域统一走 utils/entities.js 的 entityDomainOf：带点号或非字符串的 domain 下，
+// 它与本文件原先那份的切分结果不同，而两边消费方都是拿去查标签表或与裸域名比较，所以只留这一个口径。
+/** 取实体在界面上展示的种类标签（如「灯光」「辅助元素」「虚拟实体」）。 */
 function entityKindLabel(entityForLabel) {
   const entityDomainName = entityDomainOf(entityForLabel);
   if (entityForLabel?.virtual) {
@@ -4543,11 +4371,8 @@ function deviceNameForEntity(deviceEntity) {
   return collapseWhitespace(deviceNamesByDeviceId.get(String(deviceEntity?.deviceId || "")));
 }
 /**
- * 取实体名相对于设备名的「副标题」部分。
- *
- * HA 的实体名常被拼成「设备名 实体名」，直接用会重复。
- * 这里按空格与间隔号「·」两种分隔尝试剥掉设备名前缀；剥不出结果时
- * 回落到 originalName（HA 原始名），再不行返回空串。
+ * 取实体名相对于设备名的「副标题」部分。HA 的实体名常被拼成「设备名 实体名」，直接用会重复；
+ * 这里按空格与间隔号「·」两种分隔尝试剥掉设备名前缀，剥不出结果时回落到 originalName，再不行返回空串。
  */
 function entityDisplaySubtitle(namedEntity, entityDeviceName = deviceNameForEntity(namedEntity)) {
   const entityName = collapseWhitespace(namedEntity?.name);
@@ -4626,11 +4451,9 @@ function componentEntityIds(componentForEntityIds = selectedComponent()) {
   ];
 }
 /**
- * 汇总灯光统计控件里某个实体的可用性与状态文案。
- *
- * 状态取自渲染器的实际运行态（editorRenderer.states），而不是实体目录 ——
- * 目录只说明实体存在，不能说明此刻是否可用。
- * 「无法判断:<原状态>」是刻意把原始状态码带出来，方便用户到 HA 侧排查。
+ * 汇总灯光统计控件里某个实体的可用性与状态文案。状态取自渲染器的实际运行态（editorRenderer.states），
+ * 而不是实体目录 —— 目录只说明实体存在，不能说明此刻是否可用。「无法判断:<原状态>」刻意把原始状态码
+ * 带出来，方便用户到 HA 侧排查。
  */
 function lightStatisticsEntityStatus(statisticsTargetEntityId, statisticsEntity = null) {
   if (!statisticsEntity) {
@@ -4681,10 +4504,8 @@ function lightStatisticsEntityStatus(statisticsTargetEntityId, statisticsEntity 
   }
 }
 /**
- * 设置灯光统计面板的提示文案（并切换错误样式）。
- *
- * 文案为空时整条提示隐藏（用 !text 而不是长度判断，顺带兜住 null/undefined）。
- * 错误态用 class 表达，样式交给 CSS，避免在这里写内联样式。
+ * 设置灯光统计面板的提示文案（并切换错误样式）。文案为空时整条提示隐藏（用 !text 判断，顺带兜住
+ * null/undefined）；错误态用 class 表达，样式交给 CSS，避免在这里写内联样式。
  */
 function setLightStatisticsMessage(statisticsMessageText = "", isStatisticsMessageError = false) {
   lightStatisticsEntityMessageElement.textContent = statisticsMessageText;
@@ -4693,10 +4514,8 @@ function setLightStatisticsMessage(statisticsMessageText = "", isStatisticsMessa
 }
 const MAX_LIGHT_STATISTICS_ENTITIES = 100;
 /**
- * 复位统计实体选择器的临时选择状态。
- *
- * statisticsEntityId / statisticsReplaceIndex 是选择器与文档之间的暂存中介，
- * 复位是为了让下一次「加入」不会带上上一次的实体或替换下标。
+ * 复位统计实体选择器的临时选择状态。statisticsEntityId / statisticsReplaceIndex 是选择器与文档之间
+ * 的暂存中介，复位是为了让下一次「加入」不会带上上一次的实体或替换下标。
  */
 function resetLightStatisticsPicker({ clearMessage: shouldClearMessage = true } = {}) {
   statisticsEntityId = "";
@@ -4709,10 +4528,8 @@ function resetLightStatisticsPicker({ clearMessage: shouldClearMessage = true } 
   }
 }
 /**
- * 渲染统计控件的实体候选列表。
- *
- * 排序刻意分三级：支持统计的实体优先，其次是 light 域实体，最后才回到原始顺序 ——
- * 统计控件只对部分实体有意义，把不可用的沉到后面能少滚几屏。
+ * 渲染统计控件的实体候选列表。排序刻意分三级：支持统计的实体优先，其次是 light 域实体，最后才回到
+ * 原始顺序 —— 统计控件只对部分实体有意义，把不可用的沉到后面能少滚几屏。
  */
 function renderLightStatisticsEntityOptions(entitySearchQuery = "") {
   if (selectedComponent()?.type !== "light-statistics") {
@@ -4822,11 +4639,9 @@ function pickLightStatisticsEntity(
   return addLightStatisticsEntity();
 }
 /**
- * 把当前选中的实体加入统计控件（替换模式下改写对应下标）。
- *
- * 校验做了两层：mutateDocument 之外先拦一次用于即时提示，文档修改函数内部再拦一次，
- * 防止用户点得很快时「文档已被改过」的竞态。结果用结果码而不是异常表达，
- * 因为这不是错误而是一种需要提示的业务分支。
+ * 把当前选中的实体加入统计控件（替换模式下改写对应下标）。校验做了两层：mutateDocument 之外先拦一次
+ * 用于即时提示，文档修改函数内部再拦一次，防止用户点得很快时「文档已被改过」的竞态；结果用结果码
+ * 而不是异常表达，因为这不是错误而是一种需要提示的业务分支。
  */
 function addLightStatisticsEntity() {
   const statisticsTargetComponentId = selectedComponentId;
@@ -4920,14 +4735,9 @@ function addLightStatisticsEntity() {
   );
 }
 /**
- * 从灯光统计组件的实体列表里移除指定下标的实体。
- *
- * 下标校验用 Number.isInteger 且非负：调用方传的是渲染时记录的下标，若中间列表
- * 被改过可能已经失效，用非法下标 splice 会静默删掉别的实体。
- * 删除时同步清理 properties.entityLabels 里对应的标签，否则该实体的名字会残留，
- * 之后用同一个 entityId 加回来时会显示成旧名字。
- *
- * @sideeffect 通过 mutateDocument 改写文档并进入撤销历史。
+ * 从灯光统计组件的实体列表里移除指定下标的实体，并同步清理 properties.entityLabels 里对应的标签，
+ * 否则该实体的名字会残留，之后用同一 entityId 加回来时会显示成旧名字。下标校验用 Number.isInteger 且非负，
+ * 非法下标 splice 会静默删掉别的实体。经 mutateDocument 改写文档并进入撤销历史。
  */
 function removeLightStatisticsEntity(statisticsRemoveIndex) {
   const statisticsRemoveComponentId = selectedComponentId;
@@ -4965,10 +4775,8 @@ function removeLightStatisticsEntity(statisticsRemoveIndex) {
   }
 }
 /**
- * 渲染「已加入统计」的实体行（名称、ID、运行状态与更换 / 删除按钮）。
- *
- * 实体可能已从系统里消失，此时回落到 entityLabels 里存下的历史名称，
- * 并给整行加 missing 类，让用户知道它已经不可用。
+ * 渲染「已加入统计」的实体行（名称、ID、运行状态与更换 / 删除按钮）。实体可能已从系统里消失，
+ * 此时回落到 entityLabels 里存下的历史名称，并给整行加 missing 类，让用户知道它已经不可用。
  */
 function renderLightStatisticsEntities(statisticsRowComponent = selectedComponent()) {
   if (statisticsRowComponent?.type !== "light-statistics") {
@@ -5024,10 +4832,8 @@ function renderLightStatisticsEntities(statisticsRowComponent = selectedComponen
   lightStatisticsEntityListElement.replaceChildren(...statisticsRowElements);
 }
 /**
- * 深度优先展开组件树，得到含所有层级子控件的扁平数组。
- *
- * 结果数组由递归通过默认参数一路传递并原地追加；父组件先于其子组件入列，
- * 调用方拿到的是新构造的数组（默认参数），但内部的递归共享同一个引用。
+ * 深度优先展开组件树，得到含所有层级子控件的扁平数组。结果数组由递归通过默认参数一路传递并原地追加，
+ * 父组件先于其子组件入列；调用方拿到的是新构造的数组（默认参数），内部递归共享同一个引用。
  */
 function flattenComponents(flattenSourceComponents, flattenedResult = []) {
   for (const flattenedComponent of flattenSourceComponents || []) {
@@ -5037,10 +4843,9 @@ function flattenComponents(flattenSourceComponents, flattenedResult = []) {
   return flattenedResult;
 }
 /**
- * 取某页实际渲染的全部组件：页面自有组件 + 该页引用的共享组件。
- *
- * 共享组件实体存在 document.sharedComponents 里，页面只持有 sharedComponentIds，
- * 所以这里要做一次 ID → 组件的解引用（失效引用直接过滤），再展开分组内部的子控件。
+ * 取某页实际渲染的全部组件：页面自有组件 + 该页引用的共享组件。共享组件实体存在 document.sharedComponents
+ * 里，页面只持有 sharedComponentIds，所以这里要做一次 ID → 组件的解引用（失效引用直接过滤），
+ * 再展开分组内部的子控件。
  */
 function componentsInPage(pageForComponents = currentPage()) {
   if (!pageForComponents || !activeProject?.document) {
@@ -5061,11 +4866,9 @@ function componentsInPage(pageForComponents = currentPage()) {
   return flattenComponents([...(pageForComponents.components || []), ...pageSharedComponents]);
 }
 /**
- * 返回当前页面适用的「图标可见性」虚拟实体（没有则空数组）。
- *
- * 虚拟实体不是真实 HA 实体，而是「按图标效果控件的可见性来驱动某个图标显隐」的
- * 伪绑定，只有页面里存在 icon-button-effect 组件时才有意义，所以这里先扫描页面判断。
- * 只用第一个虚拟实体（调用处普遍取 [0]），因为一张页面通常只有一组图标效果。
+ * 返回当前页面适用的「图标可见性」虚拟实体（没有则空数组）。虚拟实体不是真实 HA 实体，而是
+ * 「按图标效果控件的可见性来驱动某个图标显隐」的伪绑定，只有页面里存在 icon-button-effect 组件时才有意义，
+ * 所以这里先扫描页面判断；只用第一个，因为一张页面通常只有一组图标效果。
  */
 function iconVisibilityVirtualEntities(pageForVirtualEntities = currentPage()) {
   if (
@@ -5089,10 +4892,8 @@ const previewTargetsByRow = new WeakMap();
 const HOVER_SCROLL_TARGET_SELECTOR =
   "[data-overflow-scroll-preview], .inspector-picker-value, .inspector-entity-name-line";
 /**
- * 登记一行「内容溢出时可悬停横向滚动」的预览目标。
- *
- * 状态存在 WeakMap（previewTargetsByRow）里而不是 DOM 属性上：行节点是复用的，
- * WeakMap 能在节点被丢弃时自动释放，也避免把 DOM 元素序列化进 dataset。
+ * 登记一行「内容溢出时可悬停横向滚动」的预览目标。状态存在 WeakMap（previewTargetsByRow）里而不是 DOM
+ * 属性上：行节点是复用的，WeakMap 能在节点被丢弃时自动释放，也避免把 DOM 元素序列化进 dataset；
  * data-overflow-scroll-preview* 标记只是给选择器与调试用的镜像。
  */
 function registerOverflowPreviewRow(previewRowElement, previewTargetList) {
@@ -5111,10 +4912,8 @@ function registerOverflowPreviewRow(previewRowElement, previewTargetList) {
   }
 }
 /**
- * 从事件目标向上找到可横向滚动的预览元素。
- *
- * 先按选择器找直接命中项，找不到再退回到所在行登记的第一个目标 ——
- * 这样鼠标落在行内空白处也能触发滚动预览。
+ * 从事件目标向上找到可横向滚动的预览元素。先按选择器找直接命中项，找不到再退回到所在行登记的
+ * 第一个目标 —— 这样鼠标落在行内空白处也能触发滚动预览。
  */
 function findOverflowPreviewTarget(closestSourceElement) {
   const previewTargetElement = closestSourceElement.closest?.(HOVER_SCROLL_TARGET_SELECTOR);
@@ -5135,10 +4934,8 @@ function findOverflowRow(overflowRowCandidate) {
   );
 }
 /**
- * 停止某一行的悬停滚动并复位。
- *
- * 定时器与动画帧都要清：元素被移除后 rAF 会一直跑下去；scrollLeft 归零则是为了
- * 下次悬停仍从行首开始滚。
+ * 停止某一行的悬停滚动并复位。定时器与动画帧都要清：元素被移除后 rAF 会一直跑下去；
+ * scrollLeft 归零则是为了下次悬停仍从行首开始滚。
  */
 function stopHoverScroll(hoverScrollRowElement) {
   const hoverScrollState = hoverScrollStateByRow.get(hoverScrollRowElement);
@@ -5209,13 +5006,9 @@ document.addEventListener("pointerover", pointerOverEvent => {
     hoveredRowElement.classList.add("hover-scrolling");
     const hoverScrollStartTime = performance.now();
     /**
-     * 逐帧推进悬停横向滚动。
-     *
-     * 用 requestAnimationFrame 而不是 CSS transition/定时器，是为了让滚动位置
-     * 与显示刷新同步、且在指针移出时能立刻停住。
-     * 速度系数 0.04 是「像素/毫秒」，约合 40px/秒：慢到能看清实体名，又不至于
-     * 让人等太久；滚动距离夹到 overflowScrollDistance（最大可滚动距离），
-     * 避免把内容滚出边界留下空白。
+     * 逐帧推进悬停横向滚动。用 requestAnimationFrame 而非 CSS transition/定时器，使滚动与刷新同步、指针移出能立刻停住。
+     * 速度系数 0.04（像素/毫秒，约 40px/秒）在「看得清实体名」与「不用久等」之间取平衡；
+     * 滚动距离夹到 overflowScrollDistance，避免滚出边界留下空白。
      */
     const stepHoverScroll = hoverScrollTimestamp => {
       const elapsedScrollPx = (hoverScrollTimestamp - hoverScrollStartTime) * 0.04;
@@ -5238,10 +5031,8 @@ document.addEventListener("pointerout", pointerOutEvent => {
   }
 });
 /**
- * 关闭一个下拉菜单并复位其触发按钮的展开状态。
- *
- * 图片素材与图标按钮效果素材这两个菜单额外挂着大图预览和分组下拉，
- * 必须一并收起，否则会出现「菜单关了预览还浮着」的残影。
+ * 关闭一个下拉菜单并复位其触发按钮的展开状态。图片素材与图标按钮效果素材这两个菜单额外挂着大图预览
+ * 和分组下拉，必须一并收起，否则会出现「菜单关了预览还浮着」的残影。
  */
 function closeDropdownMenu(dropdownMenuElement, dropdownButtonElement) {
   dropdownMenuElement.hidden = true;
@@ -5258,11 +5049,8 @@ function closeDropdownMenu(dropdownMenuElement, dropdownButtonElement) {
   }
 }
 /**
- * 批量关闭所有下拉菜单，可指定保留一个。
- *
- * 按 key 逐个判断而不是从 DOM 遍历：菜单是模块级变量持有的固定集合，
- * 显式列举能保证新增菜单时不会漏关。
- * 统计实体菜单额外做了「关掉就复位选择器」的处理，避免残留待加入的实体。
+ * 批量关闭所有下拉菜单，可指定保留一个。按 key 逐个判断而不是从 DOM 遍历：菜单是模块级变量持有的
+ * 固定集合，显式列举能保证新增菜单时不会漏关；统计实体菜单额外做了「关掉就复位选择器」的处理。
  */
 function closeAllDropdownMenus(exceptMenuKey = null) {
   if (exceptMenuKey !== "entity") {
@@ -5331,11 +5119,8 @@ function closeAllDropdownMenus(exceptMenuKey = null) {
   }
 }
 /**
- * 渲染导航按钮的图标预览与复制按钮状态。
- *
- * 图标用 CSS mask + 背景色实现，所以同一张 SVG 能跟随主题色变化；hidden 与
- * maskImage 必须同时设置，否则旧图标的遮罩会残留。未选图标时把复制按钮禁用，
- * 避免复制到空串。
+ * 渲染导航按钮的图标预览与复制按钮状态。图标用 CSS mask + 背景色实现，所以同一张 SVG 能跟随主题色
+ * 变化；hidden 与 maskImage 必须同时设置，否则旧图标的遮罩会残留；未选图标时禁用复制按钮，避免复制到空串。
  */
 function renderNavigationIconPreview(navigationIconName) {
   const navigationIconValue = String(navigationIconName || "");
@@ -5375,9 +5160,7 @@ function renderIconButtonEffectIconPreview(effectIconName) {
     : "当前未使用图标";
 }
 /**
- * 回填图标按钮「常态图标」的预览与复制按钮状态。
- *
- * 设备按钮允许不指定图标，此时按钮上显示「跟随实体图标」，
+ * 回填图标按钮「常态图标」的预览与复制按钮状态。设备按钮允许不指定图标，此时按钮上显示「跟随实体图标」，
  * 提示图标来自实体绑定而不是这里选的。
  */
 function renderIconButtonIconPreview(iconButtonIconName) {
@@ -5441,12 +5224,8 @@ function renderLightStatisticsIconPreview(lightStatisticsIconName) {
     : "当前未使用图标";
 }
 /**
- * 复制文本到剪贴板。
- *
- * 优先用异步剪贴板 API（需要安全上下文）；不可用时退回临时 textarea +
- * execCommand("copy") 的老办法，覆盖 http 内网部署的场景。
- *
- * @throws {Error} 两种方式都没复制成功时抛出「复制失败。」。
+ * 复制文本到剪贴板：优先异步剪贴板 API（需安全上下文），不可用时退回临时 textarea + execCommand("copy")，
+ * 覆盖 http 内网部署的场景。两种方式都没复制成功时抛「复制失败。」。
  */
 async function copyTextToClipboard(clipboardText) {
   if (navigator.clipboard?.writeText) {
@@ -5467,11 +5246,9 @@ async function copyTextToClipboard(clipboardText) {
   }
 }
 /**
- * 给实体选择按钮旁挂一个「复制实体 ID」的小按钮。
- *
- * 幂等：重复调用直接返回缓存在元素 _entityCopySync 上的同步函数，因为检查器
- * 每次回填都会走到这里。宿主按钮会被包进一行 flex 容器（replaceWith 后重新
- * append），所以刷新文案必须作用在包好的新结构上。
+ * 给实体选择按钮旁挂一个「复制实体 ID」的小按钮。幂等：重复调用直接返回缓存在元素 _entityCopySync 上的
+ * 同步函数，因为检查器每次回填都会走到这里。宿主按钮会被包进一行 flex 容器（replaceWith 后重新 append），
+ * 所以刷新文案必须作用在包好的新结构上。
  */
 function enhanceEntityCopyButton(
   copyButtonHostElement,
@@ -5522,10 +5299,8 @@ function enhanceEntityCopyButton(
   return syncEntityCopyButton;
 }
 /**
- * 为所有带实体选择的按钮补上「复制实体 ID」按钮。
- *
- * 按钮是写死在 HTML 里的固定清单（id 枚举），逐个 getElementById 后再增强；
- * 找不到的跳过，这样某个检查器被移除时不会连带报错。函数在模块初始化时立即执行一次。
+ * 为所有带实体选择的按钮补上「复制实体 ID」按钮。按钮是写死在 HTML 里的固定清单（id 枚举），
+ * 逐个 getElementById 后再增强，找不到的跳过，这样某个检查器被移除时不会连带报错；函数在模块初始化时立即执行一次。
  */
 function enhanceEntityCopyButtons() {
   for (const entityButtonId of [
@@ -5550,10 +5325,8 @@ enhanceEntityCopyButtons();
 const ICON_PAGE_SIZE = 160;
 const iconListStateByElement = new WeakMap();
 /**
- * 取（必要时初始化）某个图标列表容器的滚动加载状态。
- *
- * 状态按容器存在 WeakMap 里：同一个页面同时挂着导航、图标按钮、标题按钮等多份
- * 图标下拉，它们的关键字与分页位置必须互不影响。generation 用于丢弃过期请求。
+ * 取（必要时初始化）某个图标列表容器的滚动加载状态。状态按容器存在 WeakMap 里：同一个页面同时挂着
+ * 导航、图标按钮、标题按钮等多份图标下拉，关键字与分页位置必须互不影响；generation 用于丢弃过期请求。
  */
 function iconListState(iconOptionsElement) {
   let iconListStateValue = iconListStateByElement.get(iconOptionsElement);
@@ -5579,12 +5352,9 @@ function hideIconTooltip() {
   iconTooltipElement = null;
 }
 /**
- * 在锚点元素上方居中显示图标名提示气泡（空间不足时改到下方）。
- *
- * 气泡挂在最近的 <dialog> 内部而不是 body：模态对话框处于浏览器的 top layer，
- * 挂到 body 的气泡会被背板遮住看不见。
- * 水平位置夹到距视口边缘 8px 以内（含气泡自身宽度），垂直优先放上方、放不下
- * 再翻到下方；8px 是给气泡阴影留的视觉余量。
+ * 在锚点元素上方居中显示图标名气泡（空间不足改到下方）。气泡挂在最近的 <dialog> 内而非 body：
+ * 模态对话框处于浏览器 top layer，挂到 body 会被背板遮住看不见。
+ * 水平位置夹到距视口边缘 8px 内（含气泡自身宽度，给阴影留视觉余量）。
  */
 function showIconTooltip(tooltipAnchorElement, tooltipText) {
   hideIconTooltip();
@@ -5611,10 +5381,8 @@ function showIconTooltip(tooltipAnchorElement, tooltipText) {
   iconTooltipElement = tooltipContentElement;
 }
 /**
- * 给元素挂上图标名提示的显示/隐藏交互。
- *
- * 鼠标（pointerenter/leave）与键盘（focus/blur）两条路径都挂：只挂鼠标的话
- * 键盘用户看不到完整图标名。
+ * 给元素挂上图标名提示的显示/隐藏交互。鼠标（pointerenter/leave）与键盘（focus/blur）两条路径都挂：
+ * 只挂鼠标的话键盘用户看不到完整图标名。
  */
 function attachIconTooltip(tooltipTargetElement, tooltipLabelText) {
   tooltipTargetElement.addEventListener("pointerenter", () =>
@@ -5627,14 +5395,9 @@ function attachIconTooltip(tooltipTargetElement, tooltipLabelText) {
   tooltipTargetElement.addEventListener("blur", hideIconTooltip);
 }
 /**
- * 渲染（或追加）一页图标选项，并维护滚动分页状态。
- *
- * 约定：
- *   - append 为 false 或关键字变化时重置列表、分页归零并 generation + 1，
- *     让仍在途的旧请求作废（回来时 generation 不匹配就丢弃）；
- *   - 首项固定是「不使用图标」，由 createIconPickerClearOption 生成；
- *   - loading / complete 用于挡掉滚动事件触发的重复请求；
- *   - 失败时把 loading 复位并把异常继续抛出，交给调用方决定提示方式。
+ * 渲染（或追加）一页图标选项并维护滚动分页：append 为 false 或关键字变化时重置列表、分页归零并 generation + 1，
+ * 让在途旧请求作废；首项固定为「不使用图标」；loading / complete 挡掉滚动事件触发的重复请求；
+ * 失败时复位 loading 并把异常继续抛出，交给调用方决定提示方式。
  */
 async function renderIconOptions({
   optionsElement: iconOptionsHostElement,
@@ -5712,11 +5475,9 @@ async function renderIconOptions({
   }
 }
 /**
- * 给滚动容器挂上「滚到底部自动加载下一页」的行为。
- *
- * 阈值 120px：提前一屏的一小段距离就开始加载，用这段距离抵消网络往返时间，
- * 用户继续滚动时新内容通常已经就位，不会看到空白等待。
- * 重复触发由调用方（loadMoreIcons）内部的状态位挡掉，这里只负责判断位置。
+ * 给滚动容器挂上「滚到底部自动加载下一页」的行为。阈值 120px：提前一屏的一小段距离就开始加载，
+ * 用这段距离抵消网络往返时间，用户继续滚动时新内容通常已经就位；重复触发由调用方（loadMoreIcons）
+ * 内部的状态位挡掉，这里只负责判断位置。
  */
 function attachInfiniteScroll(infiniteScrollElement, loadMoreIcons) {
   infiniteScrollElement.addEventListener("scroll", () => {
@@ -5761,9 +5522,7 @@ async function loadIconButtonEffectIconOptions(
   });
 }
 /**
- * 加载图标按钮「常态图标」的候选列表。
- *
- * 设备按钮未指定图标时首项文案是「跟随实体图标」（图标来自实体绑定），
+ * 加载图标按钮「常态图标」的候选列表。设备按钮未指定图标时首项文案是「跟随实体图标」（图标来自实体绑定），
  * 其余图标按钮则是「不使用图标」——与运行时的图标回退策略保持一致。
  */
 async function loadIconButtonIconOptions(
@@ -5794,11 +5553,9 @@ async function loadTitleButtonIconOptions(
   });
 }
 /**
- * 加载统计控件图标的候选列表。
- *
- * 默认图标只在 properties 里根本没有 icon 字段时才补上（用 hasOwn 判断）：
- * 用户主动清空图标会留下空串字段，那种情况必须尊重，不能被默认值覆盖。
- * datasetKey 换成 lightStatisticsIconName，与其它图标下拉的 data 键区分开。
+ * 加载统计控件图标的候选列表。默认图标只在 properties 里根本没有 icon 字段时才补上（用 hasOwn 判断）：
+ * 用户主动清空图标会留下空串字段，那种情况必须尊重；datasetKey 换成 lightStatisticsIconName，
+ * 与其它图标下拉的 data 键区分开。
  */
 async function loadLightStatisticsIconOptions(
   statisticsIconQuery = "",
@@ -5844,13 +5601,9 @@ attachInfiniteScroll(lightStatisticsIconOptionsElement, () =>
   })
 );
 /**
- * 把导航图标下拉摆到按钮的下方（下方空间不足则翻到上方）。
- *
- * 关键数值：间距 gap 5px、距视口边缘 margin 8px（给阴影留量）；高度上限 390px、
- * 下限 150px（再矮就一次只能看到两三个图标）。优先向下展开的条件是
- * 「下方空间 ≥ 250px 或 下方不窄于上方」，250 大致是能舒服看到一屏图标的高度。
- * 菜单宽度跟随触发按钮，视觉上像按钮的延伸；列表可用高度再扣掉菜单头部
- * （搜索框那一行）占用的 57px，并保底 90px，避免扣完变成负数把列表压没。
+ * 把导航图标下拉摆到按钮下方（下方空间不足则翻到上方）。间距 5px、距视口边缘 8px；高度上限 390px、下限 150px，
+ * 优先向下展开的条件是「下方空间 ≥ 250px 或下方不窄于上方」（250 约为一屏舒适图标高度）。菜单宽度跟随触发按钮；
+ * 列表可用高度再扣掉菜单头部（搜索框那行）的 57px 并保底 90px，避免扣成负数把列表压没。
  */
 function positionNavigationIconMenu() {
   if (navigationIconMenuElement.hidden) {
@@ -5897,10 +5650,8 @@ function positionNavigationIconMenu() {
     Math.max(90, navigationIconMenuHeightPx - 57) + "px";
 }
 /**
- * 把图标按钮「效果」图标下拉摆到按钮下方（空间不足则翻到上方）。
- *
- * 定位规则、间距与高度上下限同 positionNavigationIconMenu（gap 5 / margin 8 /
- * 高度 150~390 / 优先下方阈值 250）。
+ * 把图标按钮「效果」图标下拉摆到按钮下方（空间不足则翻到上方）。定位规则、间距与高度上下限同
+ * positionNavigationIconMenu（gap 5 / margin 8 / 高度 150~390 / 优先下方阈值 250）。
  */
 function positionIconButtonEffectIconMenu() {
   if (iconButtonEffectIconMenuElement.hidden) {
@@ -5941,10 +5692,8 @@ function positionIconButtonEffectIconMenu() {
     Math.max(90, effectIconMenuHeightPx - 57) + "px";
 }
 /**
- * 把图标按钮的图标下拉摆到按钮下方（空间不足则翻到上方）。
- *
- * 与导航图标下拉共用同一套定位规则（gap 5 / margin 8 / 高度 150~390 / 优先下方阈值
- * 250）；列表最大高度额外扣掉菜单头部 57px 并保底 90px。
+ * 把图标按钮的图标下拉摆到按钮下方（空间不足则翻到上方）。与导航图标下拉共用同一套定位规则
+ * （gap 5 / margin 8 / 高度 150~390 / 优先下方阈值 250）；列表最大高度额外扣掉菜单头部 57px 并保底 90px。
  */
 function positionIconButtonIconMenu() {
   if (iconButtonIconMenuElement.hidden) {
@@ -6134,14 +5883,9 @@ function positionLightStatisticsEntityMenu() {
     Math.max(90, statisticsEntityMenuHeightPx - 58) + "px";
 }
 /**
- * 取某种组件的实体选择器配置。
- *
- * 配置里含触发按钮、下拉菜单、搜索框、选项容器，以及两个语义字段：
- * except（菜单的互斥分组名，保证同时只开一个）与 recommended（推荐判定，
- * 用于把该组件最可能绑定的实体域排到前面，如灯光效果推荐 light 域）。
- * 用 if/else 链而不是查表对象，是因为每项都直接引用模块级的 DOM 常量，
- * 查表会在模块初始化时就要把所有常量求值一遍。
- * 未知类型回落到图片选择器配置。
+ * 取某种组件的实体选择器配置（触发按钮、下拉菜单、搜索框、选项容器），含 except（菜单互斥分组名）与
+ * recommended（推荐判定，如灯光效果推荐 light 域）。用 if/else 链而非查表对象，因为每项直接引用模块级 DOM 常量，
+ * 查表会在模块初始化时就把所有常量求值一遍；未知类型回落到图片选择器配置。
  */
 function entityPickerConfig(entityPickerComponentType = "image") {
   if (entityPickerComponentType === "light-statistics") {
@@ -6350,15 +6094,9 @@ function entityPickerConfig(entityPickerComponentType = "image") {
   }
 }
 /**
- * 渲染实体选择器的候选列表（清空项 + 按推荐度排序的实体）。
- *
- * 排序规则：虚拟实体固定给 100 分排最前（它们代表「图标可见性」这类特殊绑定，
- * 用户最常用），其余按各组件类型自带的 recommended 判定给分（true=1 / false=0），
- * 同分保持原始顺序，避免每次搜索后顺序抖动。
- * 匹配用实体显示名 + domain 拼接后再做小写包含判断，这样用户输入 "light"
- * 既能命中域也能命中实体名里的关键字。选中项用 class 与 aria-selected 双标。
- *
- * @sideeffect 覆写对应选择器菜单的选项列表。
+ * 渲染实体选择器的候选列表：虚拟实体固定 100 分排最前（它们代表图标可见性这类特殊绑定），其余按组件自带的
+ * recommended 判定给分（true=1 / false=0），同分保持原始顺序避免抖动。匹配用「显示名 + domain」拼接后做小写包含判断，
+ * 输入 light 既能命中域也能命中实体名；选中项用 class 与 aria-selected 双标。
  */
 function renderEntityPickerOptions(searchQuery = "", componentType = "image") {
   const pickerConfig = entityPickerConfig(componentType);
@@ -6438,11 +6176,9 @@ function renderEntityPickerOptions(searchQuery = "", componentType = "image") {
   pickerConfig.options.scrollTop = 0;
 }
 /**
- * 把控件当前绑定的实体回填到选择器按钮上（文档 → 表单）。
- *
- * 绑定的实体可能已不存在，此时直接显示原始 entityId 兜底，而不是显示空。
- * 回填时清空搜索框；下拉若正开着就按新类型重渲染候选。最后同步「复制 ID」按钮
- * 与关联实体配置块 —— 换控件后锚点位置也会变，所以这两步必须放在回填之后。
+ * 把控件当前绑定的实体回填到选择器按钮上（文档 → 表单）。绑定的实体可能已不存在，此时直接显示原始
+ * entityId 兜底而不是显示空。回填时清空搜索框，下拉若正开着就按新类型重渲染候选；最后同步「复制 ID」
+ * 按钮与关联实体配置块 —— 换控件后锚点位置也会变，所以这两步必须放在回填之后。
  */
 function syncEntityPickerValue(component) {
   const componentPickerConfig = entityPickerConfig(component.type);
@@ -6485,10 +6221,8 @@ let relatedPopupDialogElement = null;
 let relatedPopupDialogTitleElement = null;
 let relatedPopupSearchInputElement = null;
 /**
- * 建立 entityId → 实体 的索引表。
- *
- * 每次调用都重建而不缓存：实体列表来自轮询 / 推送，缓存反而要额外处理失效。
- * 过滤空 ID 是为了避免多个「没有 ID」的记录互相覆盖。
+ * 建立 entityId → 实体 的索引表。每次调用都重建而不缓存：实体列表来自轮询 / 推送，缓存反而要额外
+ * 处理失效；过滤空 ID 是为了避免多个「没有 ID」的记录互相覆盖。
  */
 function entitiesByEntityId() {
   return new Map(
@@ -6508,10 +6242,8 @@ function devicesByDeviceId() {
   );
 }
 /**
- * 按搜索词过滤「关联实体」弹窗里的候选项，并切换空结果提示。
- *
- * 匹配用预先拼在 data-related-entity-search 上的可搜索文本（ID + 名称 + 域），
- * 这样每次输入只做子串比较，不必重新归一化全部候选。
+ * 按搜索词过滤「关联实体」弹窗里的候选项，并切换空结果提示。匹配用预先拼在 data-related-entity-search
+ * 上的可搜索文本（ID + 名称 + 域），这样每次输入只做子串比较，不必重新归一化全部候选。
  */
 function filterRelatedEntityOptions() {
   const searchTerm = String(relatedPopupSearchInputElement?.value || "")
@@ -6536,11 +6268,9 @@ function filterRelatedEntityOptions() {
   }
 }
 /**
- * 取（必要时创建）「关联设备弹窗功能」设置区的 DOM。
- *
- * 懒创建 + 幂等：这组节点只在需要展示关联弹窗设置时才存在，若已创建则直接返回，
- * 避免重复插入。相关节点（标题、摘要、按钮、对话框）统一挂到模块级变量上，
- * 后续同步逻辑直接引用这些引用，不必每次 querySelector。
+ * 取（必要时创建）「关联设备弹窗功能」设置区的 DOM。懒创建 + 幂等：这组节点只在需要展示关联弹窗设置
+ * 时才存在，若已创建则直接返回，避免重复插入；相关节点统一挂到模块级变量上，后续同步逻辑直接引用，
+ * 不必每次 querySelector。
  */
 function ensureRelatedPopupElement() {
   if (relatedPopupElement) {
@@ -6666,10 +6396,8 @@ function ensureRelatedPopupElement() {
   return relatedPopupElement;
 }
 /**
- * 在指定锚点后显示「关联实体」配置块，并回填当前的关联配置摘要。
- *
- * anchorElement 为 null、或该控件不支持关联功能时整体隐藏，并关掉可能开着的
- * 选择弹窗（弹窗是单例，切换控件后留着会指向错误的控件）。
+ * 在指定锚点后显示「关联实体」配置块，并回填当前的关联配置摘要。anchorElement 为 null、或该控件不支持
+ * 关联功能时整体隐藏，并关掉可能开着的选择弹窗（弹窗是单例，切换控件后留着会指向错误的控件）；
  * 配置块随锚点搬动而不是重建，所以用 insertAdjacentElement。
  */
 function updateRelatedPopup(editedComponent, anchorElement) {
@@ -6802,10 +6530,8 @@ function updateRelatedPopup(editedComponent, anchorElement) {
   filterRelatedEntityOptions();
 }
 /**
- * 把实体下拉摆到按钮下方（空间不足则翻到上方）。
- *
- * 与图标菜单同一套规则，差别是高度上限放宽到 430、列表减 58px 让出搜索框；
- * 宽度取按钮宽度并压进视口。只需传控件类型，句柄由 entityPickerConfig 解析。
+ * 把实体下拉摆到按钮下方（空间不足则翻到上方）。与图标菜单同一套规则，差别是高度上限放宽到 430、
+ * 列表减 58px 让出搜索框；宽度取按钮宽度并压进视口。只需传控件类型，句柄由 entityPickerConfig 解析。
  */
 function positionEntityPickerMenu(pickerComponentType = "image") {
   const activePickerConfig = entityPickerConfig(pickerComponentType);
@@ -6835,23 +6561,16 @@ function positionEntityPickerMenu(pickerComponentType = "image") {
     : Math.max(viewportMarginPx, buttonRect.top - menuHeightPx - verticalGapPx) + "px";
 }
 /**
- * 把图片素材下拉摆到触发按钮下方。
- *
- * 直接复用通用的实体选择器菜单定位逻辑（传入 "image" 取图片类的锚点配置），
- * 保持所有下拉的定位规则一致。
+ * 把图片素材下拉摆到触发按钮下方。直接复用通用的实体选择器菜单定位逻辑（传入 "image" 取图片类的
+ * 锚点配置），保持所有下拉的定位规则一致。
  */
 function positionImagePickerMenu() {
   positionEntityPickerMenu("image");
 }
 /**
- * 把素材记录解析成可直接用于 img / 背景图的 URL。
- *
- * 按来源分三种情况：
- *   - 记录自带 url 的（后端已给全路径）直接采用；
- *   - assetId 以 user: 开头的用户素材走 /api/v1/assets/user/{32 位 hex}，
- *     ID 不是 32 位十六进制就返回空串，避免把任意字符串拼进接口路径；
- *   - 其余按内置素材处理：去掉 builtin: 前缀后逐段 encodeURIComponent，
- *     再附上 version 作查询参数（版本戳是内置素材的缓存失效手段）。
+ * 把素材记录解析成可直接用于 img / 背景图的 URL：自带 url 的直用；assetId 以 user: 开头的走
+ * /api/v1/assets/user/{32 位 hex}，ID 不是 32 位十六进制就返回空串，避免把任意字符串拼进接口路径；
+ * 其余按内置素材处理：去掉 builtin: 前缀后逐段 encodeURIComponent，再附 version 作缓存失效参数。
  */
 function resolveAssetPreviewUrl(asset) {
   if (asset?.url) {
@@ -6883,11 +6602,9 @@ function resolveAssetPreviewUrl(asset) {
   );
 }
 /**
- * 解析图标按钮「效果」素材的地址。
- *
- * 效果素材可能带一个独立的效果变体（effectVariant.url，指向
- * /api/v1/assets/effect-variant?...）。只有它确实以该接口路径开头时才采用，
- * 否则退回普通素材地址 —— 相当于对素材里携带的 URL 做一次白名单校验。
+ * 解析图标按钮「效果」素材的地址。效果素材可能带一个独立的效果变体（effectVariant.url，指向
+ * /api/v1/assets/effect-variant?...）。只有它确实以该接口路径开头时才采用，否则退回普通素材地址 ——
+ * 相当于对素材里携带的 URL 做一次白名单校验。
  */
 function resolveEffectAssetUrl(effectAsset) {
   const effectVariantUrl = effectAsset?.effectVariant?.url;
@@ -6925,11 +6642,8 @@ const {
   entityPickerConfig: entityPickerConfig,
   pickerEntitiesForComponentType: selectableEntities,
   entityPickerText: entityOptionLabel,
-  // P11 的事故现场就在这一行：P10 把本文件那份局部 entityDomain 删掉、值改成 entityDomainOf 时，
-  // 右侧漏改过一次，而模块顶层求值是「一个名字写错 → 整个编辑器脚本一行都不执行」。
-  // P12 把注入键改成 entityDomainResolver：键与值一起看得清「外面注入进来的是哪个助手」，
-  // 而且形参名**不与助手同名** —— 同名会让「这个文件没 import 它、它是形参」这件事看不出来
-  // （`editor-picker-queries.js` 确实不 import 它）。
+  // 注入键写成 entityDomainResolver、且形参名不与助手同名：否则「本文件没 import 它、
+  // 它是形参」这件事在调用处看不出来，而模块顶层求值一个名字写错就整个脚本一行都不执行。
   entityDomainResolver: entityDomainOf
 });
 const editorPickers = createInteraction3dEditorPickers({
@@ -6988,9 +6702,7 @@ function assetMatchesId(assetRecord, targetAssetId) {
   return assetRecord?.assetId === targetAssetId;
 }
 /**
- * 取后端返回的全量素材目录（内置 + 用户上传）。
- *
- * 变量名叫 userAssets 是历史原因（接口路径是 /assets/user），
+ * 取后端返回的全量素材目录（内置 + 用户上传）。变量名叫 userAssets 是历史原因（接口路径是 /assets/user），
  * 但内容确实是全量素材，内置素材的版本戳也在这份数据里。
  */
 function allAssets() {
@@ -7003,10 +6715,8 @@ function findAssetById(wantedAssetId) {
   return allAssets().find(assetCandidate => assetMatchesId(assetCandidate, wantedAssetId));
 }
 /**
- * 取素材的展示名（去掉图片扩展名）。
- *
- * 依次回落到 name → relativePath → assetId，保证任何素材都有可显示的名字；
- * 去掉 .png/.jpg/.jpeg/.webp/.gif/.svg 后缀，因为界面上显示「客厅.png」不如「客厅」干净。
+ * 取素材的展示名（去掉图片扩展名）。依次回落到 name → relativePath → assetId，保证任何素材都有可显示
+ * 的名字；去掉 .png/.jpg/.jpeg/.webp/.gif/.svg 后缀，因为界面上显示「客厅」比「客厅.png」干净。
  */
 function assetDisplayName(namedAsset) {
   return String(namedAsset?.name || namedAsset?.relativePath || namedAsset?.assetId || "").replace(
@@ -7024,11 +6734,8 @@ function exportedAssetsInFolder(targetFolderName) {
   );
 }
 /**
- * 判断某个素材文件夹能否被删除。
- *
- * 只允许删「用户来源」且夹内全部素材都出自 3D 工作台导出的文件夹：
- * 只要夹着一个手工上传的素材就拒删，避免误删用户自己的图；
- * 空文件夹也不给删（长度必须大于 0）。
+ * 判断某个素材文件夹能否被删除。只允许删「用户来源」且夹内全部素材都出自 3D 工作台导出的文件夹：
+ * 只要夹着一个手工上传的素材就拒删，避免误删用户自己的图；空文件夹也不给删（长度必须大于 0）。
  */
 function canDeleteAssetFolder(folderSource, assetFolderName) {
   if (folderSource !== "user" || !assetFolderName) {
@@ -7043,10 +6750,8 @@ function canDeleteAssetFolder(folderSource, assetFolderName) {
   );
 }
 /**
- * 重建素材文件夹下拉的选项，并把当前文件夹纠正到有效值。
- *
- * 文件夹清单由当前素材列表去重得出并按中文排序；若当前选中的文件夹已不存在
- * （素材被删或移走），回落到排序后的第一项，避免下拉停在空值上。
+ * 重建素材文件夹下拉的选项，并把当前文件夹纠正到有效值。文件夹清单由当前素材列表去重得出并按中文排序；
+ * 若当前选中的文件夹已不存在（素材被删或移走），回落到排序后的第一项，避免下拉停在空值上。
  * "." 代表根目录，展示为「根目录」。
  */
 function syncAssetFolderOptions(assetSourceKind) {
@@ -7076,15 +6781,9 @@ function syncAssetFolderOptions(assetSourceKind) {
   syncCustomSelect(folderSelectInput);
 }
 /**
- * 取素材图片的原始像素尺寸（已有缓存则直接用）。
- *
- * 尺寸来自素材记录里的 width/height 字段（导入时后端解析过一次），命中就同步返回，
- * 省掉一次网络加载。未缓存时才 new Image 异步量一次，量完写回记录作为缓存——
- * 因此这个 Promise 可能 reject（图片加载失败），调用方要么捕获，
- * 要么由上游的 handleOperationError 统一提示。
- * decoding = "async" 避免解码阻塞主线程。
- *
- * @throws {Error} 图片加载失败时抛出（文案带素材名便于定位）。
+ * 取素材图片的原始像素尺寸：记录里已有 width/height（导入时后端解析过一次）就同步返回，省掉一次网络加载；
+ * 未缓存时才 new Image 异步量一次并写回记录作为缓存，因此返回的 Promise 可能 reject（图片加载失败），
+ * 由调用方或上游 handleOperationError 统一提示。decoding = "async" 避免解码阻塞主线程。
  */
 function measureAssetImageSize(measuredAsset) {
   if (Number(measuredAsset?.width) > 0 && Number(measuredAsset?.height) > 0) {
@@ -7122,19 +6821,14 @@ function measureAssetImageSize(measuredAsset) {
   }
 }
 /**
- * 按图片的原始尺寸重算图片组件的布局，使其以「1:1 像素」比例显示。
- *
- * 分两种情况：铺满模式（layoutMode === "fill"）下位置由画布决定，所以只重算
- * 记在 properties.freeLayout 里的「自由布局快照」（切回自由模式时要还原）；
- * 自由模式直接把算好的布局写到组件上。完全没有 freeLayout 快照时不动，
- * 因为铺满模式下组件自身的位置是无意义的中间值。
+ * 按图片原始尺寸重算布局，使其以「1:1 像素」比例显示。铺满模式（layoutMode === "fill"）下位置由画布决定，
+ * 只重算 properties.freeLayout 里的自由布局快照（切回自由模式时要还原）；自由模式直接把算好的布局写到组件上。
+ * 完全没有 freeLayout 快照时不动，因为铺满模式下组件自身的位置是无意义的中间值。
  */
 function applyAssetNaturalSize(assetComponent, appliedAssetId, naturalSize) {
   /**
-   * 以「保持中心点不动」为原则，把当前布局换算成自然尺寸下的布局与缩放。
-   *
-   * scale 的换算是「当前显示宽 × 当前缩放 ÷ 自然宽」，因此放大过的图片
-   * 套用自然尺寸后视觉大小不变，只是内部数值改成 1:1 基准。
+   * 以「保持中心点不动」为原则，把当前布局换算成自然尺寸下的布局与缩放。scale 的换算是
+   * 「当前显示宽 × 当前缩放 ÷ 自然宽」，因此放大过的图片套用自然尺寸后视觉大小不变，只是内部数值改成 1:1 基准；
    * 缩放夹到 0.01~5（对应界面的 1%~500%），防止极端值把图片缩成一个点或撑爆画布。
    */
   const buildAssetLayout = (layoutPosition, layoutScale) => {
@@ -7199,11 +6893,8 @@ function readEffectNaturalSize(effectSourceComponent, fallbackSize = null) {
   }
 }
 /**
- * 探测素材原始尺寸，必要时把结果补写回控件。
- *
- * 防重入：以「控件 ID + 素材 ID」为键登记进 pendingAssetProbeKeys，
- * 同一素材不会被并发测量多次（滚动素材列表会反复触发）。
- * 异步回来后必须重新按 ID 找一次控件：等待期间文档可能已被替换或撤销，
+ * 探测素材原始尺寸，必要时把结果补写回控件。以「控件 ID + 素材 ID」为键登记防重入，同一素材不会被并发测量多次
+ * （滚动素材列表会反复触发）。异步回来后必须重新按 ID 找一次控件：等待期间文档可能已被替换或撤销，
  * 只有 assetId 仍是同一个、且尺寸确实不同才写回，避免覆盖用户这期间的修改。
  */
 function probeAssetNaturalSize(probedComponent, probedAsset) {
@@ -7244,10 +6935,8 @@ function probeAssetNaturalSize(probedComponent, probedAsset) {
   }
 }
 /**
- * 把图片素材下拉摆到按钮下方（空间不足则翻到上方）。
- *
- * 同一套定位规则，但素材菜单头部更高：高度上限 470，列表减 150px 让出
- * 搜索框 + 文件夹下拉那一整块。
+ * 把图片素材下拉摆到按钮下方（空间不足则翻到上方）。同一套定位规则，但素材菜单头部更高：
+ * 高度上限 470，列表减 150px 让出搜索框 + 文件夹下拉那一整块。
  */
 function positionImageAssetMenu() {
   if (imageAssetMenuElement.hidden) {
@@ -7277,10 +6966,8 @@ function positionImageAssetMenu() {
     : Math.max(menuMarginPx, assetButtonRect.top - assetMenuHeightPx - menuGapPx) + "px";
 }
 /**
- * 把素材大图预览摆在菜单的左侧或右侧。
- *
- * 菜单位于屏幕左半边时预览放右边，否则放左边 —— 尽量不遮住正在浏览的菜单；
- * 选项已被卸载（isConnected 为 false）时直接跳过，避免量到 0 尺寸后乱摆。
+ * 把素材大图预览摆在菜单的左侧或右侧。菜单位于屏幕左半边时预览放右边，否则放左边 —— 尽量不遮住正在
+ * 浏览的菜单；选项已被卸载（isConnected 为 false）时直接跳过，避免量到 0 尺寸后乱摆。
  */
 function positionAssetLargePreview(hoveredOptionElement, assetMenuElement = imageAssetMenuElement) {
   if (imageAssetLargePreviewElement.hidden || !hoveredOptionElement?.isConnected) {
@@ -7301,15 +6988,9 @@ function positionAssetLargePreview(hoveredOptionElement, assetMenuElement = imag
     "px";
 }
 /**
- * 延迟一小段时间后弹出素材大图预览。
- *
- * 延迟 300ms 是为了「悬停意图」判断：鼠标快速划过列表时不弹预览，只有停下来
- * 才弹，否则预览会连续闪烁。定时器句柄存在模块级变量里，新的悬停会 clearTimeout
- * 取消上一次，保证同时最多只有一个待弹预览。
- * 回调里重新做三项校验（URL 有效、菜单仍打开、锚点仍在文档中），因为 300ms 内
- * 用户可能已经关掉菜单或滚动换掉了那一项。
- * 图片 onload 时与下一帧各定位一次：onload 后才能拿到真实尺寸，只靠首次定位
- * 会把预览放偏。
+ * 延迟 300ms 后弹出素材大图预览（悬停意图判断，鼠标快速划过不弹，否则预览连续闪烁）。定时器句柄存模块级变量，
+ * 新悬停会 clearTimeout 上一次，保证同时最多只有一个待弹预览。回调里重新校验 URL 有效、菜单仍打开、锚点仍在文档中，
+ * 因为 300ms 内用户可能已关掉菜单或滚动换掉了那一项；图片 onload 时与下一帧各定位一次，onload 后才能拿到真实尺寸。
  */
 function scheduleAssetPreview(
   previewAsset,
@@ -7335,10 +7016,8 @@ function scheduleAssetPreview(
   }
 }
 /**
- * 立即隐藏素材大图预览并清掉待弹定时器。
- *
- * 必须同时解绑 img.onload：否则某张图片在预览关闭后才加载完，会触发一个
- * 「给旧锚点定位」的回调，把已经隐藏的预览重新摆到过期位置。
+ * 立即隐藏素材大图预览并清掉待弹定时器。必须同时解绑 img.onload：否则某张图片在预览关闭后才加载完，
+ * 会触发一个「给旧锚点定位」的回调，把已经隐藏的预览重新摆到过期位置。
  */
 function hideAssetLargePreview() {
   clearTimeout(assetPreviewTimeoutId);
@@ -7347,12 +7026,9 @@ function hideAssetLargePreview() {
   imageAssetLargePreviewImageElement.onload = null;
 }
 /**
- * 构造素材下拉里的一个选项（缩略图 + 名称，用户素材额外带删除按钮）。
- *
- * 只有 source === "user" 的素材可删，内置素材与 3D 工作台导出的素材都直接返回
- * 按钮本身（导出素材会被重新生成，删掉反而让自动图示失效）。
- * 缩略图 loading="lazy" 避免一次渲染上百张图；加载失败时加 image-load-error
- * 类，由 CSS 显示占位，而不是留一个破图。
+ * 构造素材下拉里的一个选项（缩略图 + 名称，用户素材额外带删除按钮）。只有 source === "user" 的素材可删；
+ * 内置素材与 3D 工作台导出的素材直接返回按钮本身（导出素材会被重新生成，删掉反而让自动图示失效）。
+ * 缩略图 loading="lazy" 避免一次渲染上百张图；加载失败时加 image-load-error 类由 CSS 显示占位，而不是留破图。
  */
 function createAssetOptionButton(optionAsset, selectedAssetId) {
   const assetOptionButton = document.createElement("button");
@@ -7392,10 +7068,8 @@ function createAssetOptionButton(optionAsset, selectedAssetId) {
   return deleteWrapElement;
 }
 /**
- * 渲染图片素材下拉（清空项 + 当前文件夹或搜索命中的素材）。
- *
- * 有搜索词时忽略文件夹过滤，可以跨文件夹找图；没有搜索词才按当前文件夹过滤，
- * 保持列表短一点。首项固定「不使用图片」用于解绑。
+ * 渲染图片素材下拉（清空项 + 当前文件夹或搜索命中的素材）。有搜索词时忽略文件夹过滤，可以跨文件夹找图；
+ * 没有搜索词才按当前文件夹过滤，保持列表短一点。首项固定「不使用图片」用于解绑。
  */
 function renderImageAssetOptions(assetSearchQuery = "") {
   hideAssetLargePreview();
@@ -7430,13 +7104,9 @@ function renderImageAssetOptions(assetSearchQuery = "") {
   );
 }
 /**
- * 把图片组件的当前素材同步到素材下拉（按钮文案、文件夹下拉、搜索框与选项列表）。
- *
- * 组件引用的素材可能已经被删：matchedAsset 为空时按钮回落到显示原始 assetId，
- * 让用户知道当前绑定的是个失效 ID 而不是「没选图片」。
- * 文件夹保持原选择（`matchedAsset?.folder || "" || imageAssetFolder` 的第二项是
- * 恒假的历史写法，效果是「没有匹配素材就沿用原文件夹」），避免每次同步都把
- * 用户切到的文件夹重置掉。最后 probeAssetNaturalSize 会在后台补测图片尺寸。
+ * 把图片组件的当前素材同步到素材下拉（按钮文案、文件夹下拉、搜索框与选项列表）。组件引用的素材可能
+ * 已被删：matchedAsset 为空时按钮回落到显示原始 assetId，让用户知道当前绑定的是个失效 ID 而不是「没选图片」；
+ * 文件夹沿用原选择，避免每次同步都把用户切到的文件夹重置掉。最后 probeAssetNaturalSize 会在后台补测图片尺寸。
  */
 function syncImageAssetSelection(imageComponent) {
   const currentAssetId = imageComponent.properties?.assetId || "";
@@ -7449,11 +7119,8 @@ function syncImageAssetSelection(imageComponent) {
   probeAssetNaturalSize(imageComponent, matchedAsset);
 }
 /**
- * 把效果素材下拉摆到按钮下方（空间不足则翻到上方）。
- *
- * 与图标下拉同一套规则，但高度区间不同：优先下方阈值 260、上限 470（效果素材
- * 网格更密，一屏能放更多），列表可用高度扣掉菜单头部 150px（搜索框 + 文件夹行）
- * 并保底 80px。
+ * 把效果素材下拉摆到按钮下方（空间不足则翻到上方）。与图标下拉同一套规则，但高度区间不同：优先下方
+ * 阈值 260、上限 470（效果素材网格更密，一屏能放更多），列表可用高度扣掉菜单头部 150px 并保底 80px。
  */
 function positionEffectAssetMenu() {
   if (iconButtonEffectAssetMenuElement.hidden) {
@@ -7524,10 +7191,8 @@ function renderEffectAssetOptions(effectAssetSearchQuery = "") {
   );
 }
 /**
- * 把效果组件当前使用的素材同步到效果素材下拉。
- *
- * 逻辑与 syncImageAssetSelection 平行：把素材所在文件夹同步到文件夹下拉，
- * 按钮文案回落到原始 assetId（素材可能已被删），并清空搜索框与选项列表，
+ * 把效果组件当前使用的素材同步到效果素材下拉。逻辑与 syncImageAssetSelection 平行：把素材所在文件夹
+ * 同步到文件夹下拉，按钮文案回落到原始 assetId（素材可能已被删），并清空搜索框与选项列表，
  * 让下拉下次打开时按新的文件夹重新渲染。
  */
 function syncEffectAssetSelection(effectOwnerComponent) {
@@ -7541,12 +7206,9 @@ function syncEffectAssetSelection(effectOwnerComponent) {
   iconButtonEffectAssetOptionsElement.replaceChildren();
 }
 /**
- * 给动作区块内的表单控件补上唯一 id，供 <label for> 关联。
- *
- * id 由「所在表单 id + 动作触发键 + 字段后缀」拼成，因此同一表单里
- * tap / doubleTap / hold 三块的同名控件不会撞 id。
- * 只补没有 id 且没有 name 的控件：已经有 id/name 的说明已被别处命名，覆盖会打断关联。
- * 触发键里的非法字符先替换成短横线，避免生成非法的 HTML id。
+ * 给动作区块内的表单控件补上唯一 id 供 <label for> 关联。id 由「表单 id + 动作触发键 + 字段后缀」拼成，
+ * 因此同一表单里 tap / doubleTap / hold 三块的同名控件不会撞 id。只补没有 id 且没有 name 的控件
+ * （已有 id/name 说明已被别处命名，覆盖会打断关联）；触发键里的非法字符先替换成短横线。
  */
 function assignActionControlIds(controlElement) {
   const formId = controlElement.closest(".inspector-form[id]")?.id || "component-action";
@@ -7569,15 +7231,9 @@ function assignActionControlIds(controlElement) {
   }
 }
 /**
- * 为所有动作区块补齐「弹窗来源」配置界面（仅初始化一次）。
- *
- * 配置区 DOM 用 innerHTML 一次性生成后再 assignActionControlIds 补 name/id 关联，
- * 之所以先 assignActionControlIds 再插入、插入后再调一次，是因为标签关联既需要
- * 容器已有的 id（外层表单 id），也需要新节点进入文档后的上下文。
- * 已存在 .component-popup-config 的区块直接跳过，保证重复调用不出重复界面
- * （本函数每次 syncComponentActionControls 都会调）。
- * 「打开弹窗」文案在这里统一改写：属性面板里的枚举项名称与动作类型名不同，
- * 需要翻译成用户看得懂的说法。
+ * 为所有动作区块补齐「弹窗来源」配置界面（仅初始化一次）。DOM 用 innerHTML 一次生成后再
+ * assignActionControlIds 补 name/id 关联；已存在 .component-popup-config 的区块跳过，保证每次
+ * syncComponentActionControls 调用都不出重复界面。「打开弹窗」文案也在这里统一改写。
  */
 function initActionPopupConfig() {
   for (const moreInfoElement of document.querySelectorAll('[data-action-type="more-info"]')) {
@@ -7605,11 +7261,9 @@ function initActionPopupConfig() {
   }
 }
 /**
- * 收起所有弹窗实体下拉，可选择保留当前正在操作的那一个。
- *
- * 遍历文档而不是只关模块级变量持有的那一个：动作区块是动态生成的，
- * 数量不定，必须按 data 属性全量扫描。保留项用「最近的 [data-action-trigger]」
- * 比较，因为一个区块内可能有多个下拉，按元素本身比较会误关同区块的其它下拉。
+ * 收起所有弹窗实体下拉，可选择保留当前正在操作的那一个。遍历文档而不是只关模块级变量持有的那一个：
+ * 动作区块是动态生成的，数量不定，必须按 data 属性全量扫描；保留项用「最近的 [data-action-trigger]」比较，
+ * 因为一个区块内可能有多个下拉，按元素本身比较会误关同区块的其它下拉。
  */
 function closePopupEntityMenus(activeTriggerElement = null) {
   for (const popupMenuElement of document.querySelectorAll("[data-popup-entity-menu]")) {
@@ -7623,10 +7277,8 @@ function closePopupEntityMenus(activeTriggerElement = null) {
   }
 }
 /**
- * 刷新某个动作区块的实体选择按钮文案与状态。
- *
- * 从隐藏输入框读出当前 entityId 再反查实体；找不到实体（如 HA 里已删除）时
- * 回落到显示原始 ID，让用户能看出绑定失效而不是空按钮。
+ * 刷新某个动作区块的实体选择按钮文案与状态。从隐藏输入框读出当前 entityId 再反查实体；找不到实体
+ * （如 HA 里已删除）时回落到显示原始 ID，让用户能看出绑定失效而不是空按钮。
  */
 function syncPopupEntityButton(configElement) {
   const popupEntityId = configElement?.querySelector("[data-popup-entity]")?.value || "";
@@ -7645,12 +7297,9 @@ function syncPopupEntityButton(configElement) {
   popupPickerButtonElement._entityCopySync?.();
 }
 /**
- * 渲染弹窗动作的实体候选列表（按搜索词过滤，当前绑定项标记选中）。
- *
- * 与其它实体列表不同，这里的候选项包含虚拟实体——弹窗动作可以绑到虚拟实体上
- * （它的状态由图标可见性驱动），所以不做 virtual 过滤。
- * 名称行登记为「溢出可滚动预览」目标，长实体名悬停时能横向滚动看全。
- * 无匹配时补一条空态提示。
+ * 渲染弹窗动作的实体候选（按搜索词过滤，当前绑定项标选中）。与其它实体列表不同，这里包含虚拟实体
+ * ——弹窗动作可以绑到虚拟实体上（状态由图标可见性驱动），所以不做 virtual 过滤。
+ * 名称行登记为「溢出可滚动预览」目标，长实体名悬停时能横向滚动看全；无匹配时补一条空态提示。
  */
 function renderPopupEntityOptions(popupConfigElement, popupSearchQuery = "") {
   const optionsElement = popupConfigElement?.querySelector("[data-popup-entity-options]");
@@ -7705,13 +7354,9 @@ function renderPopupEntityOptions(popupConfigElement, popupSearchQuery = "") {
   }
 }
 /**
- * 把弹窗实体下拉摆到按钮下方（下方放不下则翻到上方）。
- *
- * 与其它下拉的差别：宽度取 min(按钮宽, 视口宽 - 16)，高度上限 340 且不超过
- * 视口高度 - 16，也就是说这里同时限制了「太宽」与「太高」两种溢出。
- * 列表可用高度扣掉菜单头部 58px（搜索框一行）并保底 120px。
- * 翻转判断用实际内容高度（scrollHeight 截到上限）而不是可用空间：内容不多时
- * 即使下方空间小也能原样放下，不必翻上去。
+ * 把弹窗实体下拉摆到按钮下方（下方放不下则翻到上方）。宽度取 min(按钮宽, 视口宽 - 16)，高度上限 340
+ * 且不超过视口高 - 16，即同时限制「太宽」与「太高」两种溢出；列表可用高度扣掉菜单头部 58px 并保底 120px。
+ * 翻转判断用实际内容高度（scrollHeight 截到上限）而非可用空间：内容不多时下方空间小也能原样放下，不必翻上去。
  */
 function positionPopupEntityMenu(triggerConfigElement) {
   const popupEntityButton = triggerConfigElement?.querySelector("[data-popup-entity-button]");
@@ -7739,17 +7384,9 @@ function positionPopupEntityMenu(triggerConfigElement) {
   entityMenuElement.style.top = resolvedTopPx + "px";
 }
 /**
- * 把某个组件的动作配置同步到它对应的动作控件区（tap / doubleTap / hold 三块）。
- *
- * 先 initActionPopupConfig 补齐弹窗配置界面（幂等），再逐块处理：
- *  - 用 componentActionIsSupported 校验已存的动作是否仍合法（目标页面/弹窗可能已被删），
- *    不合法就降级成 "none"，避免面板显示一个实际不会生效的动作；
- *  - 动作类型按钮的可用性按绑定实体与组件类型裁剪：没有绑定实体或该实体不支持
- *    toggle 时禁用「切换」；灯光统计只开放 none/toggle/more-info/navigate 四种；
- *  - 跳转页面下拉重建为当前文档的页面列表，已失效的目标页回落到当前页；
- *  - 弹窗来源为「当前实体」时，未绑定实体则该选项禁用；
- *  - 弹窗下拉里已失效的 popupId 回落到第一个弹窗；
- *  - 若实体下拉正开着，重渲选项并在下一帧重新定位（重渲会改变内容高度）。
+ * 把组件的动作配置同步到 tap / doubleTap / hold 三块动作控件区（先幂等 initActionPopupConfig 补齐弹窗
+ * 配置）。动作合法性经 componentActionIsSupported 校验（目标页面/弹窗可能已被删），不合法就降级成 "none"；
+ * 类型按钮按绑定实体与组件类型裁剪；跳转页与 popupId 均回落有效值；实体下拉正开着时重渲选项并在下一帧重新定位。
  */
 function syncComponentActionControls(editedActionComponent, actionControlsRoot) {
   initActionPopupConfig();
@@ -7863,10 +7500,8 @@ function syncComponentActionControls(editedActionComponent, actionControlsRoot) 
   }
 }
 /**
- * 按属性重算时间组件的目标宽高（文字尺寸变化后自动贴合内容）。
- *
- * 委托 fitInspectorComponentToDimensions 完成，实际行为是保持中心点不动、
- * 只改宽高与左上角坐标，视觉上等价于以中心缩放。
+ * 按属性重算时间组件的目标宽高（文字尺寸变化后自动贴合内容）。委托 fitInspectorComponentToDimensions
+ * 完成，实际行为是保持中心点不动、只改宽高与左上角坐标，视觉上等价于以中心缩放；
  * 默认参数用组件自带的 properties，方便调用方直接传组件。
  */
 function fitTimeComponentToDimensions(
@@ -7876,12 +7511,9 @@ function fitTimeComponentToDimensions(
   fitInspectorComponentToDimensions(timeFitComponent, timeFitProperties, timeComponentDimensions);
 }
 /**
- * 把时间组件的当前值回填到检查器。
- *
- * 12/24 小时制与「显示秒」用 active class 表示选中（这里没有写 aria-pressed，
- * 与天气/日期的分段控件写法保持历史一致）。字号、字距、透明度都做了边界夹取：
- * 字号 12~500、字距 -20~100（允许负值做紧凑排版）、透明度百分比 0~100。
- * 最后强制解除缩放与旋转的禁用态，避免沿用上一个组件类型的禁用状态。
+ * 把时间组件的当前值回填到检查器。12/24 小时制与「显示秒」用 active class 表示选中（未写 aria-pressed，
+ * 与天气/日期的分段控件写法保持历史一致）。字号、字距、透明度都做边界夹取：12~500、-20~100（允许负值做紧凑排版）、
+ * 0~100；最后强制解除缩放与旋转的禁用态，避免沿用上一个组件类型的禁用状态。
  */
 function syncTimeInspector(timeComponent) {
   const timeProperties = timeComponent.properties || {};
@@ -7939,12 +7571,9 @@ function fitDateComponentToDimensions(
   fitInspectorComponentToDimensions(dateFitComponent, dateFitProperties, dateComponentDimensions);
 }
 /**
- * 把日期组件的当前值回填到检查器。
- *
- * 「显示星期」默认开（只在显式为 false 时算关），「显示农历」默认关（只在显式
- * 为 true 时算开）——这两个默认值与原模板保持一致，用 === false / === true 的
- * 严格比较而不是取反，可以避免 undefined 被误判成开或关。
- * 主副文案各自有字号（12~500 / 10~500）、字重、字距、行距（0~200）与颜色。
+ * 把日期组件的当前值回填到检查器。「显示星期」默认开（只在显式为 false 时算关）、「显示农历」默认关
+ * （只在显式为 true 时算开），用严格比较而非取反，避免 undefined 被误判。主副文案各有字号（12~500 / 10~500）、
+ * 字重、字距、行距（0~200）与颜色。
  */
 function syncDateInspector(dateComponent) {
   const dateProperties = dateComponent.properties || {};
@@ -8016,11 +7645,8 @@ function fitWeatherComponentToDimensions(
   );
 }
 /**
- * 把天气组件的当前值回填到检查器。
- *
- * 四个显示开关（图标 / 温度 / 天气描述 / 湿度）用表格驱动，属性键到 dataset 键
- * 的转换靠正则把驼峰转成短横线（weatherIconVisible → data-weather-icon-visible），
- * 这样再加开关只要往表里补一行，不必复制一段查询代码。
+ * 把天气组件的当前值回填到检查器。四个显示开关（图标 / 温度 / 描述 / 湿度）用表格驱动，属性键到 dataset 键
+ * 靠正则把驼峰转成短横线（weatherIconVisible → data-weather-icon-visible），加开关只要往表里补一行。
  * 所有可选项默认都是「显示」（!== false），老文档缺字段时不会出现空白组件。
  */
 function syncWeatherInspector(weatherComponent) {
@@ -8104,13 +7730,9 @@ function syncWeatherInspector(weatherComponent) {
   weatherRotationInputElement.disabled = false;
 }
 /**
- * 把折线图组件的当前值回填到检查器。
- *
- * 位置按中心点百分比展示（position 存左上角像素，故 x/y 各加半个自身尺寸）；
- * 宽高下限 0.1 防止回填 0、缩放夹到 1~500（即 0.01~5 倍）、旋转夹到 ±360。
- * 多选时禁用宽高输入（多选没有统一的目标尺寸），缩放与旋转仍可批量设置。
- * 「一键应用」按钮的可点性同时取决于可替换目标数与净变更数——两者任一为 0
- * 都没有可应用的内容。
+ * 把折线图组件的当前值回填到检查器。位置按中心点百分比展示（position 存左上角像素，故 x/y 各加半个自身尺寸）；
+ * 宽高下限 0.1 防回填 0、缩放夹到 1~500（即 0.01~5 倍）、旋转夹到 ±360。多选时禁用宽高输入但缩放与旋转仍可批量设置；
+ * 「一键应用」按钮的可点性同时取决于可替换目标数与净变更数，任一为 0 都没有可应用的内容。
  */
 function syncLineChartInspector(lineChartComponent) {
   const chartProperties = lineChartComponent.properties || {};
@@ -8231,10 +7853,8 @@ function syncLineChartInspector(lineChartComponent) {
   syncComponentActionControls(lineChartComponent, lineChartActionControlsElement);
 }
 /**
- * 把底图框组件的当前值回填到检查器。
- *
- * 与折线图同构：位置按中心点百分比、宽高按画布百分比、字号等做边界夹取，
- * 主文案默认可见（!== false 兼容缺字段的老文档）。
+ * 把底图框组件的当前值回填到检查器。与折线图同构：位置按中心点百分比、宽高按画布百分比、字号等做
+ * 边界夹取；主文案默认可见（!== false 兼容缺字段的老文档）。
  */
 function syncPanelFrameInspector(panelFrameComponent) {
   const frameProperties = panelFrameComponent.properties || {};
@@ -8362,12 +7982,9 @@ function syncPanelFrameInspector(panelFrameComponent) {
   panelFrameApplyStyleButtonElement.textContent = "一键应用到同类型控件";
 }
 /**
- * 把导航按钮组件的当前值回填到检查器。
- *
- * 预览态优先读 navigationPreviewStateByComponentId（编辑期临时值），没有则 "auto"。
- * 文案与副标题给了默认值（"页面导航" / "NAVIGATION"），因为导航按钮必须有可读文案，
- * 空字符串会让按钮在画布上完全看不见。透明度类字段内部是 0~1 小数，界面统一乘 100
- * 显示成百分比；发光强度上限放宽到 500，是为了允许过曝的高光效果。
+ * 把导航按钮组件的当前值回填到检查器。预览态优先读 navigationPreviewStateByComponentId（编辑期临时值），无则 "auto"。
+ * 文案与副标题给了默认值，因为空字符串会让按钮在画布上完全看不见；透明度字段内部是 0~1 小数、界面乘 100 显示成百分比；
+ * 发光强度上限放宽到 500，是为了允许过曝的高光效果。
  */
 function syncNavigationInspector(navigationComponent) {
   const navigationProperties = navigationComponent.properties || {};
@@ -8544,13 +8161,9 @@ function syncNavigationInspector(navigationComponent) {
   syncComponentActionControls(navigationComponent, navigationActionControlsElement);
 }
 /**
- * 把标题按钮组件的当前值回填到检查器。
- *
- * 副标题是「最多两行」的语义，所以把 secondaryText 按换行拆开分别填进两个输入框；
- * 用 slice(0, 2) 丢弃多余行，保证面板不会出现存不回去的第三行（面板只有两个输入框，
- * 若原样保留第三行，用户一改就把它静默删掉了）。
- * 字重通过 normalizedFontWeight 归一（历史数据里可能是 100~900 的数值或关键字），
- * 主副文案都给了默认字重，避免缺字段时字重变成 0 而看不见。
+ * 把标题按钮组件的当前值回填到检查器。副标题是「最多两行」的语义，故把 secondaryText 按换行拆开填进两个输入框，
+ * 用 slice(0, 2) 丢弃多余行——面板只有两个输入框，原样保留第三行会让用户一改就把它静默删掉。
+ * 字重经 normalizedFontWeight 归一（历史数据可能是 100~900 数值或关键字）；主副文案都给了默认字重，避免缺字段时看不见。
  */
 function syncTitleButtonInspector(titleButtonComponent) {
   const titleProperties = titleButtonComponent.properties || {};
@@ -8660,11 +8273,9 @@ function syncTitleButtonInspector(titleButtonComponent) {
   syncComponentActionControls(titleButtonComponent, titleButtonActionControlsElement);
 }
 /**
- * 把灯光统计组件的当前值回填到检查器。
- *
- * 组件 ID 变化时先 resetLightStatisticsPicker：统计面板的「添加/替换实体」是按
- * 下标操作的，换组件后旧下标会指向错误的实体，必须先复位。
- * 图标与数量标题都有可见性开关与配色（普通色 + 激活色），激活色用于亮灯时的强调。
+ * 把灯光统计组件的当前值回填到检查器。组件 ID 变化时先 resetLightStatisticsPicker：统计面板的
+ * 「添加/替换实体」是按下标操作的，换组件后旧下标会指向错误的实体，必须先复位。图标与数量标题都有
+ * 可见性开关与配色（普通色 + 激活色，后者用于亮灯时的强调）。
  */
 function syncLightStatisticsInspector(lightStatisticsComponent) {
   const statisticsProperties = lightStatisticsComponent.properties || {};
@@ -8767,11 +8378,9 @@ function syncLightStatisticsInspector(lightStatisticsComponent) {
   syncComponentActionControls(lightStatisticsComponent, lightStatisticsActionControlsElement);
 }
 /**
- * 把图标按钮类组件（图标按钮 / 设备按钮 / 传感器）的当前值回填到检查器。
- *
- * 一个函数覆盖三种类型：先用 type 派生 isPresenceSensor / isDeviceButton /
- * isIconButton 三个布尔量，后续按类型分支显示不同的属性分组。传感器品类用白名单
- * 过滤并映射成中文标签，非法值回落 "presence"，与 resolveSensorKind 的归一规则一致。
+ * 把图标按钮类组件（图标按钮 / 设备按钮 / 传感器）的当前值回填到检查器。一个函数覆盖三种类型：先用
+ * type 派生 isPresenceSensor / isDeviceButton / isIconButton，后续按类型分支显示不同的属性分组；
+ * 传感器品类用白名单过滤并映射成中文标签，非法值回落 "presence"，与 resolveSensorKind 的归一规则一致。
  */
 function syncIconButtonInspector(iconButtonComponent) {
   const iconButtonProperties = iconButtonComponent.properties || {};
@@ -9102,13 +8711,9 @@ function syncIconButtonInspector(iconButtonComponent) {
   syncComponentActionControls(iconButtonComponent, iconButtonActionControlsElement);
 }
 /**
- * 把摄像头组件的当前值回填到检查器。
- *
- * 刷新间隔下限取 6 秒：抓图请求会打到 HA，间隔再短容易把 HA 打满，
- * 非法值回落到默认 10 秒；该字段只在「快照」模式下显示并可用。
- * 圆角输入单位在不同版本里有过两种存法（0~0.5 的比例与 0~50 的百分比），
- * 这里用 `> 0.5` 猜测：大于 0.5 视为已经是百分比，否则乘 100 换算。
- * 位置按中心点百分比展示（position 存左上角像素），宽高与缩放按画布换算。
+ * 把摄像头组件的当前值回填到检查器。刷新间隔下限取 6 秒（抓图请求会打到 HA，间隔再短容易把 HA 打满），
+ * 非法值回落到默认 10 秒，该字段只在「快照」模式下显示并可用。圆角历史上有 0~0.5 比例与 0~50 百分比两种存法，
+ * 用 > 0.5 猜测换算；位置按中心点百分比展示（position 存左上角像素），宽高与缩放按画布换算。
  */
 function syncCameraInspector(cameraComponent) {
   const cameraProperties = cameraComponent.properties || {};
@@ -9202,11 +8807,8 @@ function syncCameraInspector(cameraComponent) {
   syncComponentActionControls(componentWithTapAction, cameraActionControlsElement);
 }
 /**
- * 把空调组件的当前值回填到检查器。
- *
- * 设备类型只认 air-conditioner / bath-heater 两种，其余（含历史文档缺失）回落
- * "auto" 自动识别；预览按钮文案随类型变化，且未绑定实体时禁用（没有实体就取不到
- * 实时状态，预览无意义）。颜色类字段都给了内置默认色，保证老文档也有可见外观；
+ * 把空调组件的当前值回填到检查器。设备类型只认 air-conditioner / bath-heater 两种，其余（含历史文档缺失）回落 "auto"；
+ * 预览按钮文案随类型变化，未绑定实体时禁用（取不到实时状态，预览无意义）。颜色字段都给了内置默认色保证老文档也可见；
  * 透明度、徽标尺寸等内部为小数/像素，界面按百分比或原值显示。
  */
 function syncAirConditionerInspector(airConditionerComponent) {
@@ -9460,12 +9062,9 @@ function syncAirConditionerInspector(airConditionerComponent) {
   syncComponentActionControls(airConditionerComponent, airConditionerActionControlsElement);
 }
 /**
- * 把扫地机地图组件的当前值回填到检查器（文案 / 透明度 / 中心位置 / 缩放 / 旋转）。
- *
- * 位置存的是左上角像素，而检查器展示中心点百分比，所以 x/y 各加半个自身尺寸后
- * 再除以画布尺寸；透明度与缩放内部是 0~1 的小数，界面按百分比显示所以乘 100。
- * 最后两行强制解除缩放与旋转输入框的禁用——真空地图这两项始终可编辑，
- * 而上一轮同步别的组件类型时可能把它们锁上了。
+ * 把扫地机地图组件的当前值回填到检查器（文案 / 透明度 / 中心位置 / 缩放 / 旋转）。位置存左上角像素而检查器展示中心点百分比，
+ * 故 x/y 各加半个自身尺寸后再除以画布尺寸；透明度与缩放内部是 0~1 小数，界面乘 100 显示。最后两行强制解除缩放与旋转
+ * 输入框的禁用——真空地图这两项始终可编辑，而上一轮同步别的组件类型时可能把它们锁上了。
  */
 function syncVacuumMapInspector(vacuumMapComponent) {
   const vacuumMapProperties = vacuumMapComponent.properties || {};
@@ -9497,13 +9096,9 @@ function syncVacuumMapInspector(vacuumMapComponent) {
   vacuumMapScaleInputElement.disabled = false;
 }
 /**
- * 同步窗帘设置区（类型 / 开合方向 / 电机方向）到检查器。
- *
- * 三组枚举一律先做白名单过滤，非法或缺失值回落 "auto"（历史文档里可能没有这些
- * 字段），再逐按钮切换 active 与 aria-pressed。
- * 窗帘设置区是独立于各检查器表单的一块复用 DOM，所以每次同步都要先把它
- * insertAdjacentElement 挪到当前可见检查器小节的后面，否则切换组件类型后它会
- * 停留在上一个组件的位置、甚至跑进隐藏表单里。
+ * 同步窗帘设置区（类型 / 开合方向 / 电机方向）。三组枚举一律先做白名单过滤，非法或缺失值回落 "auto"
+ * （历史文档里可能没有这些字段）。该区是独立于各检查器表单的复用 DOM，所以每次同步都要 insertAdjacentElement
+ * 把它挪到当前可见检查器小节的后面，否则切换组件类型后它会停留在上一个组件的位置、甚至跑进隐藏表单里。
  */
 function syncCoverSettingsInspector(coverComponent) {
   const visibleInspectorSection = [
@@ -9566,17 +9161,9 @@ function syncCoverSettingsInspector(coverComponent) {
   }
 }
 /**
- * 把当前选中组件的全部状态同步到右侧检查器（编辑器的核心刷新入口）。
- *
- * 流程：先按组件类型分发到各 sync*Inspector 回填数值；对未选中的组件类型
- * 清掉它的预览态（否则切走后画布上还留着某个组件的临时预览）；再统一处理
- * 只读属性、动作区与多选态。
- * 开头用 requestAnimationFrame 安排 syncOpenColorPicker：取色器定位依赖布局
- * 完成后的坐标，同一帧里读会拿到上一步 DOM 变化前的旧位置。
- * 3D 交互组件走 renderInteraction3dInspector 单独渲染，其中 prepareCanvas
- * 会在需要时切回编辑模式并重建组件列表，因为 3D 检查器的操作对象是画布本身。
- *
- * @sideeffect 大面积改写检查器 DOM 与多个预览状态 Map。
+ * 把当前选中组件的全部状态同步到右侧检查器（编辑器核心刷新入口）：按类型分发到各 sync*Inspector 回填，
+ * 对未选中类型清掉它的预览态（否则切走后画布上还留着临时预览），再统一处理只读属性、动作区与多选态。
+ * 开头用 requestAnimationFrame 安排 syncOpenColorPicker（取色器定位依赖布局完成后的坐标）；3D 交互组件走 renderInteraction3dInspector。
  */
 function syncInspector() {
   window.requestAnimationFrame(syncOpenColorPicker);
@@ -9877,10 +9464,8 @@ function syncInspector() {
       lightEntityRecord => entityDomainOf(lightEntityRecord) === "light"
     );
     /**
-     * 为 3D 导图的每个灯组生成一行「灯组 → 灯实体」绑定下拉框。
-     *
-     * 绑定键固定为 `lightGroup:<灯组 id>`，与文档 bindings 的键名约定一致；
-     * 已绑定但当前目录里查不到的实体也补一个同名选项，避免回填时把绑定清掉。
+     * 为 3D 导图的每个灯组生成一行「灯组 → 灯实体」绑定下拉框。绑定键固定为 `lightGroup:<灯组 id>`，
+     * 与文档 bindings 的键名约定一致；已绑定但当前目录里查不到的实体也补一个同名选项，避免回填时把绑定清掉。
      */
     const lightGroupRows = (diagramProperties.lightLayers || []).map(lightLayer => {
       const layerLabelElement = document.createElement("label");
@@ -10213,12 +9798,9 @@ function syncInspector() {
   syncComponentActionControls(inspectedComponent, componentActionControlsElement);
 }
 /**
- * 重新拉取素材目录（用户素材 + 内置素材版本），必要时重渲染并刷新检查器。
- *
- * 加 `_=` 时间戳参数是为了绕过 HTTP 缓存，确保拿到最新的 catalogVersion。
- * 内置素材的版本变了会触发两个渲染器整表重渲染（缓存的图片资源需要作废）；
- * refreshInspector 允许轮询路径复用本函数但并不想打断用户正在编辑的表单，
- * 所以做成可选。返回值告诉调用方「是否有版本变化」，供轮询决定是否需要提示。
+ * 重新拉取素材目录（用户素材 + 内置素材版本），必要时重渲染并刷新检查器。加 _ 时间戳参数绕过 HTTP 缓存，
+ * 确保拿到最新 catalogVersion；内置素材版本变化会触发两个渲染器整表重渲（缓存图片资源作废）；refreshInspector 可选，
+ * 让轮询路径复用本函数又不打断用户正在编辑的表单。返回值告知是否有版本变化，供轮询决定是否提示。
  */
 async function reloadAssetCatalog({ refreshInspector: refreshInspector = true } = {}) {
   const userAssetsResponse = await requestJson("/assets/user?_=" + Date.now());
@@ -10247,16 +9829,9 @@ async function pollAssetCatalogVersion() {
   }
 }
 /**
- * 确保实体目录（实体 / 设备 / 翻译资源）已加载，并按需刷新 UI。
- *
- * 用单个 Promise 做并发去重：同时有多个调用方（检查器、选择器对话框）请求时
- * 只会发起一轮网络请求，其余调用共享同一个 Promise。
- * `afterCurrent` 语义不同：为 true 表示「等本轮加载完再重新调用一次」——若加载
- * 期间用户又打开了新的选择器，它需要拿到加载完成后的最新实体列表，直接共享
- * 同一个 Promise 会让它读到尚未赋值的快照，所以这里递归重入一次。
- * 分页拉取用 limit/offset，因为实体数可能上千；status 为 missing 的实体被过滤掉，
- * 它们没有可用状态，出现在选择器里只会干扰。设备与翻译是可选增强，失败时降级为
- * 空数据而不是让整个流程失败。
+ * 确保实体目录（实体 / 设备 / 翻译资源）已加载并按需刷新 UI。用单个 Promise 做并发去重；afterCurrent 为 true 表示
+ * 「等本轮加载完再重新调用一次」—— 加载期间又打开新选择器时需拿到完成后的最新列表，共享同一 Promise 会读到未赋值
+ * 快照，故这里递归重入。分页用 limit/offset；status 为 missing 的实体被过滤；设备与翻译失败时降级为空数据。
  */
 async function ensureEntitiesLoaded({ afterCurrent: waitForCurrent = false } = {}) {
   if (entitiesLoadPromise) {
@@ -10309,10 +9884,8 @@ async function ensureEntitiesLoaded({ afterCurrent: waitForCurrent = false } = {
   }
 }
 /**
- * 渲染组合弹窗的下拉选择器与左侧列表。
- *
- * 当 initialPopupId 已不存在（弹窗被删或文档被替换）时回退到第一个弹窗，
- * 保证 selectedPopupId 始终指向有效项，否则后续编辑会写空。
+ * 渲染组合弹窗的下拉选择器与左侧列表。当 initialPopupId 已不存在（弹窗被删或文档被替换）时回退到第一个
+ * 弹窗，保证 selectedPopupId 始终指向有效项，否则后续编辑会写空。
  */
 function renderPopupList(sourceDocument, initialPopupId = selectedPopupId) {
   const customPopupList = sourceDocument?.customPopups || [];
@@ -10357,10 +9930,8 @@ function renderPopupList(sourceDocument, initialPopupId = selectedPopupId) {
   }
 }
 /**
- * 同步所有弹窗动作区块的实体输入框与按钮显示。
- *
- * 新加的动作块实体为空时默认填第一个实体，避免出现空绑定；随后刷新按钮文案，
- * 且只对已经展开的实体下拉重渲染选项（隐藏的下拉不必浪费一次渲染）。
+ * 同步所有弹窗动作区块的实体输入框与按钮显示。新加的动作块实体为空时默认填第一个实体，避免出现空绑定；
+ * 随后刷新按钮文案，且只对已经展开的实体下拉重渲染选项（隐藏的下拉不必浪费一次渲染）。
  */
 function syncPopupEntityInputs() {
   for (const popupEntityInput of document.querySelectorAll("[data-popup-entity]")) {
@@ -10379,10 +9950,8 @@ function syncPopupEntityInputs() {
   }
 }
 /**
- * 同步组合弹窗 climate 模块的「设备类型」分段控件（自动识别 / 空调 / 浴霸）。
- *
- * 该行只在模块类型为 climate 时显示；写回时同时清掉模块上旧的顶层 deviceType 字段，
- * 避免 properties.deviceType 与顶层字段两份值不一致。
+ * 同步组合弹窗 climate 模块的「设备类型」分段控件（自动识别 / 空调 / 浴霸）。该行只在模块类型为 climate
+ * 时显示；写回时同时清掉模块上旧的顶层 deviceType 字段，避免 properties.deviceType 与顶层字段两份值不一致。
  */
 function syncPopupModuleDeviceType(
   deviceTypeName = popupModuleFormElement.elements.deviceType.value
@@ -10428,10 +9997,8 @@ function syncPopupModuleEntityButton() {
   popupModuleEntityButtonElement._entityCopySync?.();
 }
 /**
- * 渲染组合弹窗模块的实体候选列表。
- *
- * 排序策略：先用 popupModuleEntityRecommended 把与模块类型匹配的实体排前面，
- * 再按目录原始下标做稳定排序，保证同推荐度时顺序可预期。
+ * 渲染组合弹窗模块的实体候选列表。排序策略：先用 popupModuleEntityRecommended 把与模块类型匹配的实体
+ * 排前面，再按目录原始下标做稳定排序，保证同推荐度时顺序可预期。
  */
 function renderPopupModuleEntityOptions(searchText = popupModuleEntitySearchInputElement.value) {
   const boundModuleEntityId = popupModuleFormElement.elements.entityId.value;
@@ -10509,14 +10076,9 @@ function closePopupModuleEntityMenu() {
   popupModuleEntityButtonElement.setAttribute("aria-expanded", "false");
 }
 /**
- * 按可用空间缩放组合弹窗的舞台，使其完整适应编辑区。
- *
- * 只在弹窗编辑模式下工作；舞台用 CSS transform: scale 缩放而不是改宽高，
- * 这样模块内部的像素坐标（拖拽、吸附都基于设计像素）不必换算。
- * 缩放系数下限 0.2：再小就点不中模块了，宁可让内容溢出出现滚动。
- * 视口宽高用 max(1, …) 兜底，防止布局未完成时算出 0 导致子元素被压扁。
- *
- * @sideeffect 直接写 customPopupEditorElement 内若干节点的 style。
+ * 按可用空间缩放组合弹窗的舞台，使其完整适应编辑区（仅弹窗编辑模式）。用 CSS transform: scale 而非改宽高，
+ * 这样模块内部的像素坐标（拖拽、吸附都基于设计像素）不必换算；缩放系数下限 0.2，再小就点不中模块了，宁可溢出滚动。
+ * 视口宽高用 max(1, …) 兜底，防止布局未完成时算出 0 把子元素压扁。
  */
 function syncCustomPopupStage() {
   if (editorMode !== "popup") {
@@ -10558,10 +10120,8 @@ function syncCustomPopupStage() {
   editorToolbarElement.style.width = stageWrapElement.clientWidth + "px";
 }
 /**
- * 把组合弹窗中的某个模块移动到 beforeModuleId 之前（placeAfter 为 true 时移到其后）。
- *
- * 组合弹窗最多 3 行，所以先试排一次，若新顺序装不下就报错返回，不写入文档，
- * 保证「拖拽结果不可行」与「拖拽被取消」对文档是同一效果。
+ * 把组合弹窗中的某个模块移动到 beforeModuleId 之前（placeAfter 为 true 时移到其后）。组合弹窗最多 3 行，
+ * 所以先试排一次，若新顺序装不下就报错返回、不写入文档，保证「拖拽结果不可行」与「拖拽被取消」对文档是同一效果。
  */
 function applyPopupModuleReorder(
   popupIdValue,
@@ -10609,10 +10169,8 @@ function applyPopupModuleReorder(
   }
 }
 /**
- * 构造窗帘模块的设置区：窗帘类型 / 开合方向 / 电机方向 三组枚举按钮。
- *
- * 三组取值都用白名单过滤，历史文档里的非法值回落到 fallback，
- * 这样旧数据不会把渲染器带进未定义分支。
+ * 构造窗帘模块的设置区：窗帘类型 / 开合方向 / 电机方向 三组枚举按钮。三组取值都用白名单过滤，
+ * 历史文档里的非法值回落到 fallback，这样旧数据不会把渲染器带进未定义分支。
  */
 function createPopupCoverSettings(popupIdentifier, coverModule) {
   const containerElement = document.createElement("div");
@@ -10697,11 +10255,9 @@ function createPopupCoverSettings(popupIdentifier, coverModule) {
   return containerElement;
 }
 /**
- * 构造空调模块（climate）的设置区：设备类型三选一（自动识别 / 空调 / 浴霸）。
- *
- * 读取时同时看 properties.deviceType 与历史遗留的顶层 deviceType 字段；
- * 写入时统一写进 properties 并 delete 顶层字段，避免两份值不一致时行为不可预期。
- * 按钮加上 aria-pressed 是为了让状态不依赖颜色也能被读出来。
+ * 构造空调模块（climate）的设置区：设备类型三选一（自动识别 / 空调 / 浴霸）。读取时同时看
+ * properties.deviceType 与历史遗留的顶层 deviceType 字段；写入时统一写进 properties 并 delete 顶层字段，
+ * 避免两份值不一致时行为不可预期。按钮加上 aria-pressed 是为了让状态不依赖颜色也能被读出来。
  */
 function createPopupClimateSettings(popupKey, climateModule) {
   const climateContainerElement = document.createElement("div");
@@ -10756,10 +10312,8 @@ function createPopupClimateSettings(popupKey, climateModule) {
   return climateContainerElement;
 }
 /**
- * 归一化折线图阈值：固定 4 档，缺项用默认温度分段补齐。
- *
- * 默认档位 0 / 13 / 27 / 40 与 renderer 里折线图的自适应分段一致，
- * 因此这里直接以它为骨架，只覆盖文档里已显式配置的档位。
+ * 归一化折线图阈值：固定 4 档，缺项用默认温度分段补齐。默认档位 0 / 13 / 27 / 40 与 renderer 里折线图的
+ * 自适应分段一致，因此这里直接以它为骨架，只覆盖文档里已显式配置的档位。
  */
 function resolveLineChartThresholds(thresholdSourceModule) {
   const defaultChartThresholds = [
@@ -10791,10 +10345,9 @@ function resolveLineChartThresholds(thresholdSourceModule) {
   }));
 }
 /**
- * 构造折线图模块的设置区：小数位、数值颜色、阈值模式、阈值输入与折线颜色。
- *
- * 小数位从 syncedLineChartProperties 取「页面组件级」的有效属性（弹窗模块会与
- * 同实体的页面组件共享该设置），阈值与颜色则写回模块自身的 properties。
+ * 构造折线图模块的设置区：小数位、数值颜色、阈值模式、阈值输入与折线颜色。小数位从
+ * syncedLineChartProperties 取「页面组件级」的有效属性（弹窗模块会与同实体的页面组件共享该设置），
+ * 阈值与颜色则写回模块自身的 properties。
  */
 function createPopupLineChartSettings(lineChartPopupId, lineChartModule) {
   const chartSettingsElement = document.createElement("div");
@@ -10852,10 +10405,8 @@ function createPopupLineChartSettings(lineChartPopupId, lineChartModule) {
   precisionRowElement.append(precisionLabelElement, precisionSelectElement);
   chartSettingsElement.append(precisionRowElement);
   /**
-   * 往设置区追加一行「标题 + 一组取色器」。
-   *
-   * 抽成局部函数是因为折线图有多行同类设置（数值颜色、各档阈值颜色、折线颜色），
-   * 行结构完全相同，只有标题、初始色值、回调与禁用态不同。
+   * 往设置区追加一行「标题 + 一组取色器」。抽成局部函数是因为折线图有多行同类设置（数值颜色、各档阈值颜色、
+   * 折线颜色），行结构完全相同，只有标题、初始色值、回调与禁用态不同。
    */
   const addColorRow = (rowTitle, colorValues, onColorChange, isDisabled = false) => {
     const colorRowElement = document.createElement("div");
@@ -11042,17 +10593,9 @@ function createPopupLineChartSettings(lineChartPopupId, lineChartModule) {
   return chartSettingsElement;
 }
 /**
- * 重建组合弹窗编辑器（工具栏 + 网格舞台 + 模块卡片）。
- *
- * 采用整体重建而不是增量更新：弹窗结构变化（增删模块、改列数）会连带影响
- * 布局与拖拽目标，重建最不容易留下过期状态。非弹窗编辑模式下直接返回，
- * 避免在别的视图里白跑一遍 DOM 构建。
- * 列数按钮先试排 packPopupModules，装不下就报错不改文档——与拖拽排序保持
- * 同一套「不可行即不写入」的约定。舞台宽高与网格模板由 popupLayoutMetrics
- * 统一算出，拖拽用的 draggedModuleId 与各种高亮状态都活在本函数的闭包里，
- * 因此每次重建都会自然复位。
- *
- * @sideeffect 覆写 customPopupEditorElement 的全部子节点。
+ * 重建组合弹窗编辑器（工具栏 + 网格舞台 + 模块卡片）。采用整体重建而非增量更新：结构变化（增删模块、
+ * 改列数）会连带影响布局与拖拽目标，重建最不容易留下过期状态；非弹窗编辑模式直接返回，避免白跑一遍 DOM 构建。
+ * 列数按钮先试排 packPopupModules，装不下就报错不改文档（与拖拽排序同一套「不可行即不写入」的约定）。
  */
 function renderCustomPopupEditor() {
   if (editorMode !== "popup") {
@@ -11374,10 +10917,8 @@ function renderCustomPopupEditor() {
   window.requestAnimationFrame(syncCustomPopupStage);
 }
 /**
- * 打开「添加 / 编辑弹窗模块」对话框，并把模块数据回填到表单。
- *
- * 模块类型用白名单收敛，未知类型（含旧版 capability-device）统一落到 light 或 generic，
- * 默认实体优先取与模块类型匹配的推荐实体，没有推荐才退回实体目录第一项。
+ * 打开「添加 / 编辑弹窗模块」对话框，并把模块数据回填到表单。模块类型用白名单收敛，未知类型（含旧版
+ * capability-device）统一落到 light 或 generic；默认实体优先取与模块类型匹配的推荐实体，没有推荐才退回实体目录第一项。
  */
 function openPopupModuleDialog(popupModule = null) {
   if (!findCustomPopup(activeProject?.document, selectedPopupId)) {
@@ -11419,12 +10960,9 @@ function openPopupModuleDialog(popupModule = null) {
   popupModuleDialogElement.showModal();
 }
 /**
- * 重建页面下拉选择器，并尽量保留用户的当前选择。
- *
- * 优先用 preferredPagePath（例如刚切换过来的页面），但它可能已不在文档里，
- * 所以要先校验存在性；其次回落到文档标记的默认页，最后才取第一页。
- * 默认页信息写进 option 的 dataset，供增强型下拉（syncCustomSelect）与
- * 「设为默认页」等操作读取。没有页面时禁用下拉并返回 false。
+ * 重建页面下拉选择器并尽量保留用户的当前选择：优先用 preferredPagePath（例如刚切换过来的页面，但可能已不在文档里，
+ * 需先校验存在性），其次回落到文档标记的默认页，最后才取第一页。默认页信息写进 option 的 dataset 供增强型下拉
+ * （syncCustomSelect）与「设为默认页」读取；没有页面时禁用下拉并返回 false。
  */
 function renderPageSelect(projectDocumentData, preferredPagePath = null) {
   pageSelectElement.replaceChildren();
@@ -11482,11 +11020,9 @@ function retainExistingSelection(documentToCheck, pagePathFilter) {
 }
 const structureVolatileTypes = new Set();
 /**
- * 比对前后两份文档，收集「可以只重绘自己」的组件。
- *
- * 只要出现下列任一情况就返回 null，让调用方老老实实整页重绘：
- * 组件顺序或数量变了、组件换了宿主/页面/父级、类型在 structureVolatileTypes 里、
- * 结构签名不同、组件在当前渲染器里没有宿主节点。宁可多绘也不能画错。
+ * 比对前后两份文档，收集「可以只重绘自己」的组件。只要出现下列任一情况就返回 null，让调用方老老实实
+ * 整页重绘：组件顺序或数量变了、组件换了宿主/页面/父级、类型在 structureVolatileTypes 里、结构签名不同、
+ * 组件在当前渲染器里没有宿主节点。宁可多绘也不能画错。
  */
 function collectChangedComponents(previousDocument, nextDocument, pagePath) {
   if (
@@ -11548,14 +11084,9 @@ function collectChangedComponents(previousDocument, nextDocument, pagePath) {
   return changedComponents;
 }
 /**
- * 把画布上拖拽/缩放产生的变换回写到检查器的数值输入框。
- *
- * 画布用像素存 position（position.width/height/x/y），而检查器显示百分比，
- * 因此要除以画布尺寸（缺省 2778×1940）；宽高下限夹到 0.1 而非 0，避免回写 0
- * 后组件不可选中。scale 内部以 1 为基准，输入框按百分比显示所以乘 100。
- * 只更新 transform 里真正带值的字段（Number.isFinite 判断），这样拖拽移动位置时
- * 不会顺手把宽度/缩放也重置；同时要求组件仍是当前选中项，避免异步回调
- * （如 rAF 节流的拖拽同步）在用户已切换选择后写到错误的输入框上。
+ * 把画布上拖拽/缩放产生的变换回写到检查器的数值输入框。画布用像素存 position、检查器显示百分比，故要除以画布
+ * 尺寸（缺省 2778×1940）；宽高下限夹到 0.1 而非 0，避免回写 0 后组件不可选中；scale 内部以 1 为基准、界面乘 100。
+ * 只更新 transform 里真正带值的字段（Number.isFinite），并要求组件仍是当前选中项，避免异步回调写到错误的输入框上。
  */
 function applyTransformToInspector(syncedComponentId, transform) {
   const inspectorComponent = findComponent(activeProject?.document, syncedComponentId)?.component;
@@ -11791,14 +11322,9 @@ function applyTransformToInspector(syncedComponentId, transform) {
   }
 }
 /**
- * 创建（或复用）编辑器画布渲染器，并把实体目录挂上去。
- *
- * 渲染器是单例：只创建一次，之后重复调用直接返回现有实例，因为重建会丢掉
- * 缩放状态、选中态与已缓存的运行时数据。创建时把 onComponentTransform、
- * onPreviewTransform 等回调注入，让画布上的拖拽/预览能反向更新文档与检查器。
- *
- * @sideeffect 首次调用时把渲染器构造函数里传入的多种缓存（历史序列、运行时状态、
- *   虚拟实体状态）与实体目录一并初始化，并在页面上创建画布 DOM。
+ * 创建（或复用）编辑器画布渲染器并把实体目录挂上去。渲染器是单例，只创建一次：重建会丢掉缩放状态、选中态
+ * 与已缓存的运行时数据。创建时注入 onComponentTransform、onPreviewTransform 等回调，让画布上的拖拽/预览能反向更新
+ * 文档与检查器；首次调用还会把历史序列、运行时状态、虚拟实体状态等缓存与实体目录一并初始化，并在页面上创建画布 DOM。
  */
 function ensureEditorRenderer() {
   return (
@@ -12042,13 +11568,9 @@ function ensureEditorRenderer() {
   );
 }
 /**
- * 重建整个编辑器工作区（页面下拉、画布、组件列表、检查器、预览）。
- *
- * 属于「大刷新」入口：文档被整体替换或结构变化过大时调用。没有可用页面时会把
- * 渲染器销毁并显示提示文案，避免残留画布上的旧组件；同时仍同步页面下拉与
- * 仪表盘预览，保证各区域状态一致。
- *
- * @sideeffect 重建工作区各区域的 DOM，并可能销毁重建 editorRenderer。
+ * 重建整个编辑器工作区（页面下拉、画布、组件列表、检查器、预览），在文档被整体替换或结构变化过大时调用。
+ * 没有可用页面时会销毁渲染器并显示提示文案，避免残留画布上的旧组件；同时仍同步页面下拉与仪表盘预览，
+ * 保证各区域状态一致，并可能销毁重建 editorRenderer。
  */
 function renderEditorWorkspace(activePagePath = null) {
   refreshSoundToggle();
@@ -12109,10 +11631,8 @@ function discardRecoverySnapshot(recoveryProjectId = activeProject?.projectId) {
   }
 }
 /**
- * 读取并校验 sessionStorage 中的崩溃恢复快照。
- *
- * 项目 ID 与调用方不一致的快照一律丢弃：同一浏览器可能同时开着多个项目页，
- * 复用了同一个 sessionStorage。
+ * 读取并校验 sessionStorage 中的崩溃恢复快照。项目 ID 与调用方不一致的快照一律丢弃：同一浏览器
+ * 可能同时开着多个项目页，复用了同一个 sessionStorage。
  */
 function readRecoverySnapshot(snapshotProjectId) {
   try {
@@ -12144,15 +11664,9 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 /**
- * 把当前未保存状态排入恢复快照写队列（真正的防抖与合并由 recoveryWriter 负责）。
- *
- * 没有未保存改动时不写，避免用一份「等于已保存内容」的快照覆盖掉更有价值的旧快照。
- *
- * 快照里**刻意不带撤销 / 重做栈**：那两个栈各自是「最多 MAX_HISTORY_ENTRIES 份完整文档
- * 快照」，一次序列化就是几百 KB 到几 MB，而写入是 200ms 一节流的 —— 大文档下这一项
- * 就是「拖控件时一顿一顿」的来源。恢复快照要救的是**未保存的文档内容**，历史栈跨会话
- * 恢复的价值有限（恢复之后照样能继续编辑与保存）；恢复侧本来就容忍这两个键缺失
- * （`Array.isArray(recoveredSnapshot.undo) ? ... : []`），老的带栈快照也仍然读得进来。
+ * 把当前未保存状态排入恢复快照写队列（真正的防抖与合并由 recoveryWriter 负责）；没有未保存改动时不写，避免用
+ * 「等于已保存内容」的快照覆盖掉更有价值的旧快照。快照刻意不带撤销 / 重做栈：那两个栈各自是「最多 MAX_HISTORY_ENTRIES
+ * 份完整文档快照」，一次序列化就是几百 KB 到几 MB，而写入是 200ms 一节流的，大文档下就是「拖控件时一顿一顿」的来源。
  */
 function scheduleRecoverySnapshot() {
   if (!activeProject || !hasUnsavedChanges) {
@@ -12174,13 +11688,9 @@ function scheduleRecoverySnapshot() {
 let recoveryFailureNotifiedProjectId = null;
 
 /**
- * 真正把恢复快照写进 sessionStorage。
- *
- * 只有**一次**写入：原先这里是「失败后降级为不带撤销/重做栈的精简快照再试一次」，
- * 而降级的那份内容（去掉 undo / redo）现在**就是**唯一会写的那一份 —— 重试再也不可能
- * 「第一次失败、第二次成功」，留着只是让人以为还有一层保险。写不进去就是真的写不进去
- * （sessionStorage 配额满、隐私模式），这时唯一有意义的事是让用户知道（见
- * notifyRecoveryWriteFailure），而不是自己悄悄放弃。
+ * 真正把恢复快照写进 sessionStorage。只有一次写入：不再「失败后降级为去栈的快照重试」，
+ * 因为去栈后的内容本来就是唯一会写的那份。写不进去（配额满、隐私模式）时唯一有意义的事
+ * 是让用户知道（见 notifyRecoveryWriteFailure），而不是悄悄放弃。
  */
 function persistRecoverySnapshot(recoveryState) {
   try {
@@ -12196,14 +11706,9 @@ function persistRecoverySnapshot(recoveryState) {
 }
 
 /**
- * 恢复快照写不进去时给用户一次可见告警。
- *
- * 为什么必须说出来：草稿恢复是「崩溃 / 误关页面之后唯一能找回未保存内容」的通道，
- * 它失效时页面本身毫无异样 —— 用户会一直以为有兜底，直到真的需要它的那一刻。
- *
- * 两处克制：①同一个项目每次页面加载只提醒一次（写入是 200ms 一节流的，配额满时每次都会
- * 失败）；②页面不可见时不弹对话框（`pagehide` / `beforeunload` 也走这条写入路径，那时
- * 弹窗既看不见也没意义），但日志照记。
+ * 恢复快照写不进去时给用户一次可见告警。必须说出来：草稿恢复是「崩溃 / 误关页面之后唯一能找回未保存内容」的通道，
+ * 它失效时页面本身毫无异样，用户会一直以为有兜底。两处克制：同一项目每次页面加载只提醒一次（200ms 一节流，
+ * 配额满时每次都会失败）；页面不可见时不弹对话框（pagehide / beforeunload 也走这条写入路径），但日志照记。
  */
 function notifyRecoveryWriteFailure(recoveryState, writeError) {
   window.HABridgeLog?.error(writeError, {
@@ -12245,10 +11750,8 @@ function refreshDirtyState({
   }
 }
 /**
- * 清空撤销/重做栈并解除「历史操作进行中」标记。
- *
- * 切项目、载入新文档后必须调用：旧文档的历史记录里带着旧文档快照，
- * 直接撤销会把另一个项目的内容写回当前项目。
+ * 清空撤销/重做栈并解除「历史操作进行中」标记。切项目、载入新文档后必须调用：旧文档的历史记录里带着
+ * 旧文档快照，直接撤销会把另一个项目的内容写回当前项目。
  */
 function resetHistoryState() {
   historyState.undo = [];
@@ -12257,9 +11760,7 @@ function resetHistoryState() {
   syncHistoryButtons();
 }
 /**
- * 压入一条历史记录，并按上限修剪。
- *
- * 修剪对非 save 记录生效（从最早的一条开始删），save 记录始终保留：
+ * 压入一条历史记录，并按上限修剪。修剪对非 save 记录生效（从最早的一条开始删），save 记录始终保留：
  * 它们标记了「已保存到后端」的锚点，撤销到锚点才能正确判断脏状态。
  */
 function pushHistoryEntry(historyEntries, historyEntry) {
@@ -12292,10 +11793,8 @@ function createEditHistoryEntry() {
   };
 }
 /**
- * 打开指定项目的草稿：拉取草稿、归一化文档、重置历史，并尝试恢复崩溃快照。
- *
- * 两种恢复快照会被丢弃：revision 与后端不一致（后端已有更新，快照已过期），
- * 或快照内容与已保存文档一致（没有需要恢复的东西）。
+ * 打开指定项目的草稿：拉取草稿、归一化文档、重置历史，并尝试恢复崩溃快照。两种恢复快照会被丢弃：
+ * revision 与后端不一致（后端已有更新，快照已过期），或快照内容与已保存文档一致（没有需要恢复的东西）。
  */
 async function openProjectDraft(requestedProjectId, initialPagePath = null) {
   recoveryWriter.flush();
@@ -12329,17 +11828,16 @@ async function openProjectDraft(requestedProjectId, initialPagePath = null) {
   setWorkspaceHasProject(true);
   projectSelectElement.value = requestedProjectId;
   syncCustomSelect(projectSelectElement);
+  rememberEditorProject(requestedProjectId);
   renderEditorWorkspace(initialPagePath);
   if (recoverySnapshot && !recoveryDialogElement.open) {
     recoveryDialogElement.showModal();
   }
 }
 /**
- * 加载仪表盘列表并打开其中一个（默认第一个，或指定的那个）。
- *
- * 列表为空时走「无仪表盘」分支：销毁渲染器、清空所有按组件 ID 缓存的改动前基线、
- * 复位脏状态与历史栈、禁用相关下拉——这些缓存都以组件 ID 为键，不清会串到下一个
- * 项目的同 ID 组件上，导致检查器显示错误的「改动前」值。
+ * 加载仪表盘列表并打开其中一个（默认第一个，或指定的那个）。列表为空时走「无仪表盘」分支：销毁渲染器、
+ * 清空所有按组件 ID 缓存的改动前基线、复位脏状态与历史栈、禁用相关下拉 —— 这些缓存都以组件 ID 为键，
+ * 不清会串到下一个项目的同 ID 组件上，导致检查器显示错误的「改动前」值。
  */
 async function loadProjects(preferredProjectId = null) {
   projects = (await requestJson("/projects")).items || [];
@@ -12383,24 +11881,12 @@ async function loadProjects(preferredProjectId = null) {
   }
   projectSelectElement.disabled = false;
   syncCustomSelect(projectSelectElement);
-  const selectedProjectId =
-    preferredProjectId && projects.some(listedProject => listedProject.id === preferredProjectId)
-      ? preferredProjectId
-      : projects[0].id;
-  await openProjectDraft(selectedProjectId);
+  await openProjectDraft(restoredEditorProject(projects, preferredProjectId));
 }
 /**
- * 用一份新文档替换当前草稿，并负责历史记录与局部重绘。
- *
- * 文档签名相同直接返回（同一份内容的重复提交不应产生一条撤销记录）。
- * 写库前先 await guardInteraction3dChanges：3D 交互模块有自己的异步保存流程，
- * 不等待它完成就替换文档会造成两边数据互相覆盖。
- * 重绘走两条路：结构未变时用 applyEditorComponentUpdates 只更新受影响的组件
- * （保留画布缩放与选中态）；结构变化过大（collectChangedComponents 返回 null）
- * 才整体重建工作区。changedComponentList 为空数组时是「无变化但有历史」的情况，
- * 走局部更新分支以免整页闪一下。
- *
- * @throws {Error} 尚未选择仪表盘时抛出。
+ * 用一份新文档替换当前草稿，并负责历史记录与局部重绘。文档签名相同直接返回；写库前先 await guardInteraction3dChanges：
+ * 3D 交互模块有自己的异步保存流程，不等它完成就替换文档会造成两边数据互相覆盖。重绘走两条路 —— 结构未变时用
+ * applyEditorComponentUpdates 只更新受影响的组件（结构变化过大才整体重建）；changedComponentList 为空数组是「无变化但有历史」，走局部更新。
  */
 async function applyDocumentChange(
   updatedDocument,
@@ -12461,11 +11947,9 @@ async function applyDocumentChange(
   return activeProject;
 }
 /**
- * 把当前草稿写回后端（PUT /projects/{id}/draft）。
- *
- * 请求体带 revision 做乐观锁：后端发现版本落后返回 409，由 handleOperationError
- * 走冲突提示。globalPopupsDirty 只在弹窗定义真的变了时才置位，避免无谓抬升
- * 全局弹窗版本导致其它页面重绘。保存成功后清空各类「改动前基线」缓存。
+ * 把当前草稿写回后端（PUT /projects/{id}/draft）。请求体带 revision 做乐观锁：后端发现版本落后返回 409，
+ * 由 handleOperationError 走冲突提示。globalPopupsDirty 只在弹窗定义真的变了时才置位，避免无谓抬升全局
+ * 弹窗版本导致其它页面重绘；保存成功后清空各类「改动前基线」缓存。
  */
 async function saveDraft() {
   if (!activeProject || !hasUnsavedChanges || isSaving) {
@@ -12530,14 +12014,9 @@ async function saveDraft() {
   }
 }
 /**
- * 撤销/重做跨越「保存锚点」时，把后端草稿回滚到该锚点的已保存版本。
- *
- * save 型历史记录保存的是保存前后的两份文档，撤销用 beforeSavedDocument、
- * 重做用 afterSavedDocument。回滚必须请求后端（PUT /projects/{id}/draft），
- * 因为「已保存」状态由后端持有 revision。
- * 关键点：回滚后仍把用户当前未保存的改动（currentDraftDocument）放回 activeProject
- * ——撤销一次保存不应该丢弃用户之后做的编辑；只有当弹窗定义也变了（popupsChanged）
- * 才采用服务端返回的弹窗，避免本地较新的弹窗定义被覆盖。
+ * 撤销/重做跨越「保存锚点」时，把后端草稿回滚到该锚点的已保存版本。save 型历史记录保存的是保存前后的两份文档，
+ * 撤销用 beforeSavedDocument、重做用 afterSavedDocument；回滚必须请求后端（后端持有「已保存」状态的 revision）。
+ * 回滚后仍把用户当前未保存的改动放回 activeProject；只有当弹窗定义也变了才采用服务端返回的弹窗，避免本地较新的定义被覆盖。
  */
 async function restoreSavedDocument(saveHistoryEntry, historyDirection) {
   const targetSavedDocument =
@@ -12571,14 +12050,9 @@ async function restoreSavedDocument(saveHistoryEntry, historyDirection) {
   refreshDirtyState();
 }
 /**
- * 执行一步撤销或重做。
- *
- * 先 await writeQueuePromise：写文档是串行的，若还有排队的写入没落盘就撤销，
- * 会把「撤销前的文档」又写回去，所以必须等队列排空。
- * historyState.busy 防止连点（撤销过程中又触发一次会用错栈）。
- * 普通编辑记录会先把「当前状态」压到反向栈，再应用目标文档；应用时过滤掉已不存在的
- * 组件 ID，否则选中集里会留下幽灵 ID 让检查器空白。失败时把记录压回原栈，
- * 保证一次失败的撤销不会静默吞掉历史。
+ * 执行一步撤销或重做。先 await writeQueuePromise：写文档是串行的，若还有排队的写入没落盘就撤销，会把「撤销前的文档」
+ * 又写回去，故必须等队列排空；historyState.busy 防止连点（撤销中途再触发会用错栈）。普通编辑记录会先把「当前状态」压到
+ * 反向栈再应用目标文档，应用时过滤掉已不存在的组件 ID，否则选中集里会留下幽灵 ID 让检查器空白；失败时把记录压回原栈。
  */
 async function applyHistoryStep(historyStepDirection) {
   await writeQueuePromise.catch(() => {});
@@ -12676,13 +12150,8 @@ async function loadHaConnection({ preserveForm: keepHaForm = false } = {}) {
   syncHaConnectionUi();
 }
 /**
- * 拉取 HA 同步状态，必要时重载实体目录。
- *
- * 用「目录版本 + 实体/设备/区域数量」拼出的签名判断是否需要重拉：只在首次连上
- * 或目录确实变化时才全量拉实体，避免每轮轮询都刷一遍。重载失败会把签名回滚，
- * 让下一轮还能重试。
- *
- * @throws {Error} 实体目录加载失败时原样抛出（签名已回滚，下一轮会重试）。
+ * 拉取 HA 同步状态，必要时重载实体目录。用「目录版本 + 实体/设备/区域数量」拼出的签名判断是否重拉：只在首次连上
+ * 或目录确实变化时才全量拉实体，避免每轮轮询都刷一遍；重载失败会把签名回滚，让下一轮还能重试（异常原样抛出）。
  */
 async function refreshHaSyncStatus() {
   const haSyncStatus = await requestJson("/ha/sync/status");
@@ -12793,10 +12262,8 @@ function syncHaConnectionUi() {
     (haDetailHasError && (haConnectionInfo.lastError || haConnectionStatus?.lastError)) || "";
 }
 /**
- * 进入 Home Assistant 连接信息的编辑态。
- *
- * 用独立布尔量而不是直接看表单可见性：表单可见但处于只读展示时不能算编辑中，
- * 而 loadHaConnection 的 preserveForm 判断依赖这个标志。
+ * 进入 Home Assistant 连接信息的编辑态。用独立布尔量而不是直接看表单可见性：表单可见但处于只读展示时
+ * 不能算编辑中，而 loadHaConnection 的 preserveForm 判断依赖这个标志。
  */
 function startHaEditing() {
   isEditingHaConnection = true;
@@ -12804,10 +12271,8 @@ function startHaEditing() {
   setSettingsMessage(haMessageElement, "");
 }
 /**
- * 退出 Home Assistant 连接信息的编辑态（不保存，也不主动还原表单）。
- *
- * 表单内容会在下次 loadHaConnection 时不带 preserveForm 重新拉取覆盖，
- * 所以这里只切状态。
+ * 退出 Home Assistant 连接信息的编辑态（不保存，也不主动还原表单）。表单内容会在下次 loadHaConnection
+ * 时不带 preserveForm 重新拉取覆盖，所以这里只切状态。
  */
 function cancelHaEditing() {
   isEditingHaConnection = false;
@@ -12820,10 +12285,8 @@ function waitForMs(delayMs) {
   return new Promise(resolveDelay => window.setTimeout(resolveDelay, delayMs));
 }
 /**
- * 刷新 HA 连接信息与同步状态。
- *
- * 用共享的 haTestPromise 去重：并发调用只会发一轮请求，测试连接期间的
- * 轮询也不会叠加。
+ * 刷新 HA 连接信息与同步状态。用共享的 haTestPromise 去重：并发调用只会发一轮请求，
+ * 测试连接期间的轮询也不会叠加。
  */
 async function refreshHaConnection({ preserveForm: keepRefreshForm = true } = {}) {
   return (
@@ -12840,9 +12303,7 @@ async function refreshHaConnection({ preserveForm: keepRefreshForm = true } = {}
   );
 }
 /**
- * 轮询等待 HA 连接成功。
- *
- * 每 500ms 重试一次；一旦出现 lastError 立即返回 false，不必空等到超时。
+ * 轮询等待 HA 连接成功。每 500ms 重试一次；一旦出现 lastError 立即返回 false，不必空等到超时。
  *
  * @param {number} [timeoutMs=30000] 超时毫秒数。
  */
@@ -12944,10 +12405,8 @@ function openProjectDialog(dialogMode = "create") {
   projectDialogElement.showModal();
 }
 /**
- * 计算并显示画布宽高的最简比例。
- *
- * 未锁定时按输入框里的实时值算，锁定时按锁定基准算，这样锁定后比例读数不会
- * 因中间的取整来回跳动。输入非法时显示占位文案而不是算出错误比例。
+ * 计算并显示画布宽高的最简比例。未锁定时按输入框里的实时值算，锁定时按锁定基准算，这样锁定后比例
+ * 读数不会因中间的取整来回跳动；输入非法时显示占位文案而不是算出错误比例。
  */
 function renderAspectRatio() {
   const widthInput = Number(projectCanvasWidthInputElement.value);
@@ -12968,10 +12427,8 @@ function renderAspectRatio() {
     ratioWidthBase / ratioDivisor + " : " + ratioHeightBase / ratioDivisor;
 }
 /**
- * 同步画布比例锁定按钮的选中态、文案与 aria-pressed。
- *
- * 锁定状态是三处一致的：class 管样式、aria-pressed 管无障碍、label/title 管
- * 用户可读文案，缺一处就会出现「看起来锁了但读屏说没锁」这类不一致。
+ * 同步画布比例锁定按钮的选中态、文案与 aria-pressed。锁定状态是三处一致的：class 管样式、aria-pressed
+ * 管无障碍、label/title 管用户可读文案，缺一处就会出现「看起来锁了但读屏说没锁」这类不一致。
  */
 function syncAspectLockButton() {
   const isAspectLockActive = isAspectLocked;
@@ -12984,10 +12441,8 @@ function syncAspectLockButton() {
     : "锁定当前画布比例";
 }
 /**
- * 锁定比例时，按被改动的一侧自动换算另一侧。
- *
- * 换算结果若越过画布尺寸上下限（宽 320–7680、高 240–4320），先把越界那侧夹到
- * 边界，再反推被改动侧，保证两侧同时合法而不是只夹一侧。
+ * 锁定比例时，按被改动的一侧自动换算另一侧。换算结果若越过画布尺寸上下限（宽 320–7680、高 240–4320），
+ * 先把越界那侧夹到边界，再反推被改动侧，保证两侧同时合法而不是只夹一侧。
  */
 function syncLockedCanvasDimension(changedDimension) {
   if (!isAspectLocked) {
@@ -13034,10 +12489,8 @@ function syncLockedCanvasDimension(changedDimension) {
   }
 }
 /**
- * 弹出画布尺寸变更警告：告知会有多少控件落在画布外，等用户决定是否继续。
- *
- * 返回的是挂起的 Promise，由 settleCanvasResizeWarning 在用户点击时兑现，
- * 因此调用方可以用 await 把对话框当成同步确认来写。
+ * 弹出画布尺寸变更警告：告知会有多少控件落在画布外，等用户决定是否继续。返回的是挂起的 Promise，
+ * 由 settleCanvasResizeWarning 在用户点击时兑现，因此调用方可以用 await 把对话框当成同步确认来写。
  */
 function confirmCanvasResize(overflowComponentCount, targetWidth, targetHeight) {
   projectResizeWarningTextElement.textContent =
@@ -13093,10 +12546,9 @@ function guardUnsavedChanges() {
   }
 }
 /**
- * 渲染授权状态：顶部按钮、详情面板与激活表单的显示规则。
- *
- * 状态码分三档配色：ACTIVE 为正常，CONNECTION_WARNING / STARTUP_VALIDATION_REQUIRED
- * 为警告，其余（租约到期、实例不匹配、无效、被撤销、时间回拨）为错误。
+ * 渲染授权状态：顶部按钮、详情面板与激活表单的显示规则。状态码分三档配色：ACTIVE 为正常，
+ * CONNECTION_WARNING / STARTUP_VALIDATION_REQUIRED 为警告，其余（租约到期、实例不匹配、无效、
+ * 被撤销、时间回拨）为错误。
  */
 function renderLicenseStatus(licenseState) {
   const licenseStatusLabelByCode = {
@@ -13189,12 +12641,9 @@ function revealLicenseActivationForm(message) {
   licenseFormElement.querySelector('input[name="email"]')?.focus();
 }
 /**
- * 查询授权状态；未授权且为强制授权模式时直接跳转到 /license 页。
- *
- * 授权特性列表（features）变了会重载素材目录：可用素材与部分功能是按授权特性
- * 下发的，特性变化意味着目录也可能变化。这里 reloadAssetCatalog 传
- * refreshInspector: false，是因为本函数常由定时器调用，不该打断用户正在编辑的表单。
- * 返回响应体，供调用方（如授权对话框）判断是否需要弹出。
+ * 查询授权状态；未授权且为强制授权模式时直接跳转 /license 页。features 变化会重载素材目录（可用素材与部分功能按授权特性
+ * 下发，特性变化意味着目录也可能变化），这里 reloadAssetCatalog 传 refreshInspector: false，因为本函数常由定时器调用，
+ * 不该打断用户正在编辑的表单。返回响应体，供调用方判断是否需要弹出。
  */
 async function refreshLicenseStatus() {
   const licenseResponse = await requestJson("/license/status");
@@ -13850,13 +13299,9 @@ deletePageConfirmButtonElement.addEventListener("click", async () => {
     deletePageDocument.defaultPagePath = fallbackPagePath;
   }
   /**
-   * 把组件树里所有指向被删页面的引用改写到回退页面。
-   *
-   * 需要处理两类引用：导航按钮的 properties.targetPage（同时改写主/副标题，
-   * 但只在标题还是默认值时才改，避免覆盖用户自定义文案），以及
-   * tap/doubleTap/hold 三种动作里 type === "navigate" 的 target。
-   * 没有回退页面时（删掉的是最后一个页面）删除引用字段而不是留一个空串目标，
-   * 让渲染器走「未设置跳转」分支。
+   * 把组件树里所有指向被删页面的引用改写到回退页面：导航按钮的 properties.targetPage（同时改写主/副标题，
+   * 但只在标题还是默认值时才改，避免覆盖用户自定义文案），以及 tap/doubleTap/hold 三种动作里 type === "navigate" 的 target。
+   * 没有回退页面时（删掉的是最后一个页面）删除引用字段而非留一个空串目标，让渲染器走「未设置跳转」分支。
    */
   const remapPageReferences = componentList => {
     for (const scannedComponent of componentList || []) {
@@ -15238,10 +14683,8 @@ floorplanAutoDiagramLayoutElement.addEventListener("click", floorplanLayoutClick
   }
 });
 /**
- * 向指定 3D 导图预览 iframe 发送相机指令。
- *
- * 预览跑在 iframe 里，跨文档只能走 postMessage；targetOrigin 固定用同源
- * window.location.origin，而不是通配的 "*"。
+ * 向指定 3D 导图预览 iframe 发送相机指令。预览跑在 iframe 里，跨文档只能走 postMessage；
+ * targetOrigin 固定用同源 window.location.origin，而不是通配的 "*"。
  */
 function postDiagramCameraCommand(iframeComponentId, cameraCommand, cameraCommandValue = null) {
   const diagramPreviewFrame = document.querySelector(
@@ -15265,11 +14708,9 @@ function postDiagramCameraCommand(iframeComponentId, cameraCommand, cameraComman
   }
 }
 /**
- * 向户型预览 iframe 下发「切换楼层」命令。
- *
- * 通过 postMessage 与内嵌的 3D 预览通信，targetOrigin 固定为当前站点源，
- * 避免消息泄露给第三方页面。iframe 尚未就绪（没有 contentWindow）时返回 false，
- * 由调用方决定是否忽略（文档里的值已经写好了，刷新后仍会生效）。
+ * 向户型预览 iframe 下发「切换楼层」命令。通过 postMessage 与内嵌的 3D 预览通信，targetOrigin 固定为
+ * 当前站点源，避免消息泄露给第三方页面；iframe 尚未就绪（没有 contentWindow）时返回 false，由调用方
+ * 决定是否忽略（文档里的值已经写好了，刷新后仍会生效）。
  */
 function postDiagramFloorCommand(floorDiagramComponentId, floorLevelValue) {
   const floorDiagramFrame = document.querySelector(
@@ -15293,10 +14734,8 @@ function postDiagramFloorCommand(floorDiagramComponentId, floorLevelValue) {
   }
 }
 /**
- * 强制重载一个户型预览 iframe（清掉 is-ready 并加回加载提示）。
- *
- * 用时间戳查询参数（auto-diagram-refresh）绕开浏览器缓存，因为 iframe 的 src
- * 不变时浏览器不会重新请求，而重新载入必须拿到新的 HTML。
+ * 强制重载一个户型预览 iframe（清掉 is-ready 并加回加载提示）。用时间戳查询参数（auto-diagram-refresh）
+ * 绕开浏览器缓存，因为 iframe 的 src 不变时浏览器不会重新请求，而重新载入必须拿到新的 HTML。
  */
 function reloadDiagramPreview(diagramPreviewElement) {
   if (!diagramPreviewElement?.isConnected) {
@@ -15452,9 +14891,7 @@ floorplanAutoDiagramRotateTopButtonElement.addEventListener("click", () => {
   }
 });
 /**
- * 找到某个户型图组件对应的预览 iframe。
- *
- * iframe 藏在组件 DOM 内部，用 CSS.escape 转义组件 ID 后再拼选择器，
+ * 找到某个户型图组件对应的预览 iframe。iframe 藏在组件 DOM 内部，用 CSS.escape 转义组件 ID 后再拼选择器，
  * 避免 ID 里的特殊字符把选择器写坏。默认参数取当前正在编辑光照的组件。
  */
 function findDiagramPreviewFrame(lightingComponentId = baseLightingComponentId) {
@@ -15469,10 +14906,8 @@ function findDiagramPreviewFrame(lightingComponentId = baseLightingComponentId) 
   }
 }
 /**
- * 向户型预览 iframe 下发「基础光照」命令。
- *
- * 命令共有 request-state / preview / reset / save / cancel 几种；payload 为空时
- * 不发送 lighting 字段，让 iframe 侧区分「不改光照只下命令」与「带新光照下发」。
+ * 向户型预览 iframe 下发「基础光照」命令。命令共有 request-state / preview / reset / save / cancel 几种；
+ * payload 为空时不发送 lighting 字段，让 iframe 侧区分「不改光照只下命令」与「带新光照下发」。
  */
 function postBaseLightingCommand(lightingCommand, lightingPayload = null) {
   const lightingFrame = findDiagramPreviewFrame();
@@ -15496,11 +14931,9 @@ function postBaseLightingCommand(lightingCommand, lightingPayload = null) {
   }
 }
 /**
- * 把光照参数写进光照面板的各输入框并返回归一化结果。
- *
- * 先归一化再回填，保证面板显示的值与真正下发给 iframe 的一致。
- * 整数滑块（step === "5"）显示取整值，其余通道保留两位小数——浮点运算会
- * 产生 0.30000000000000004 这类尾数，直接回填会让输入框显示得很脏。
+ * 把光照参数写进光照面板的各输入框并返回归一化结果。先归一化再回填，保证面板显示的值与真正下发给 iframe
+ * 的一致。整数滑块（step === "5"）显示取整值，其余通道保留两位小数 —— 浮点运算会产生 0.30000000000000004
+ * 这类尾数，直接回填会让输入框显示得很脏。
  */
 function applyBaseLightingToPanel(baseLighting) {
   const normalizedLighting = normalizeBaseLighting(baseLighting);
@@ -15514,9 +14947,7 @@ function applyBaseLightingToPanel(baseLighting) {
   return normalizedLighting;
 }
 /**
- * 从光照面板的各输入框读出光照参数并归一化。
- *
- * 输入框的通道名写在 data-floorplan-base-light 上，靠它组装对象，
+ * 从光照面板的各输入框读出光照参数并归一化。输入框的通道名写在 data-floorplan-base-light 上，靠它组装对象，
  * 因此新增光照通道只要加 DOM 并登记进 floorplanBaseLightElements 即可。
  */
 function readBaseLightingFromPanel() {
@@ -15529,11 +14960,9 @@ function readBaseLightingFromPanel() {
   return normalizeBaseLighting(lightingInputValues);
 }
 /**
- * 关闭基础光照面板并清空编辑态。
- *
- * cancelPreview 默认为 true：面板关闭意味着放弃未保存的调整，需要通知 iframe
- * 还原到保存过的光照，否则预览会停留在临时值上。取消预览时同步下发 cancel 并
- * 清掉 baseLightingComponentId 与拖拽状态，防止下次打开串到别的组件上。
+ * 关闭基础光照面板并清空编辑态。cancelPreview 默认为 true：面板关闭意味着放弃未保存的调整，需要通知
+ * iframe 还原到保存过的光照，否则预览会停留在临时值上。取消预览时同步下发 cancel 并清掉 baseLightingComponentId
+ * 与拖拽状态，防止下次打开串到别的组件上。
  */
 function closeLightingPanel({ cancelPreview: cancelLightingPreview = true } = {}) {
   if (!floorplanAutoLightingPanelElement.hidden) {
@@ -15547,13 +14976,9 @@ function closeLightingPanel({ cancelPreview: cancelLightingPreview = true } = {}
   }
 }
 /**
- * 打开基础光照面板并把该户型图切到「浏览」交互模式。
- *
- * 交互模式必须切到 view，否则用户调光照时鼠标拖动会移动组件而不是旋转视角；
- * 同时把 iframe 的 is-position-mode 换成 is-view-mode，让内部 3D 端同步切换。
- * 面板默认靠右对齐，一旦超出视口（或太靠边）就改为按 left/top 定位并夹到
- * 距边 8px 以内——8px 是给面板阴影与圆角留的视觉余量。
- * 打开后先 request-state 拉取当前光照，等 iframe 回包再填充面板。
+ * 打开基础光照面板并把该户型图切到「浏览」交互模式：必须切到 view，否则用户调光照时拖动鼠标会移动组件而不是旋转视角；
+ * 同时把 iframe 的 is-position-mode 换成 is-view-mode，让内部 3D 端同步切换。面板默认靠右对齐，超出视口或太靠边就改为
+ * 按 left/top 定位并夹到距边 8px 内（给面板阴影与圆角留量）。打开后先 request-state 拉取当前光照，等 iframe 回包再填充面板。
  */
 function openLightingPanel(lightingHostComponentId) {
   const lightingPreviewFrame = findDiagramPreviewFrame(lightingHostComponentId);
@@ -15670,10 +15095,8 @@ floorplanAutoLightingHandleElement.addEventListener("pointermove", lightingDragM
     ) + "px";
 });
 /**
- * 结束光照面板拖拽，清空拖拽状态。
- *
- * 同时挂到 pointerup 与 pointercancel 上：指针被系统夺走（如触控被取消）时
- * 也要复位，否则状态残留会让下次 pointermove 用旧的起点继续拖动。
+ * 结束光照面板拖拽，清空拖拽状态。同时挂到 pointerup 与 pointercancel 上：指针被系统夺走（如触控被取消）
+ * 时也要复位，否则状态残留会让下次 pointermove 用旧的起点继续拖动。
  */
 const endLightingPanelDrag = dragEndEvent => {
   if (!!lightingPanelDragState && dragEndEvent.pointerId === lightingPanelDragState.pointerId) {
@@ -15683,10 +15106,8 @@ const endLightingPanelDrag = dragEndEvent => {
 floorplanAutoLightingHandleElement.addEventListener("pointerup", endLightingPanelDrag);
 floorplanAutoLightingHandleElement.addEventListener("pointercancel", endLightingPanelDrag);
 /**
- * 关闭自动图示对话框并清掉挂在 dataset 上的临时状态。
- *
- * componentId 与 cancelRemovesComponent 用 dataset 传递，是因为对话框 DOM 是
- * 复用的，必须在关闭时清空，否则下次打开会误用上一次的组件 ID。
+ * 关闭自动图示对话框并清掉挂在 dataset 上的临时状态。componentId 与 cancelRemovesComponent 用 dataset
+ * 传递，是因为对话框 DOM 是复用的，必须在关闭时清空，否则下次打开会误用上一次的组件 ID。
  */
 function closeAutoDiagramDialog() {
   if (floorplanAutoDiagramDialogElement.open) {
@@ -15697,11 +15118,9 @@ function closeAutoDiagramDialog() {
   floorplanAutoDiagramGuideElement.hidden = false;
 }
 /**
- * 打开自动图示对话框并记录它正在编辑哪个组件。
- *
- * 对话框 DOM 复用，所以组件 ID 与「取消时是否删除该组件」都暂存在 dataset 上，
- * 由 settleAutoDiagramDialog 在收尾时读取。cancelRemovesComponent 用于「刚新建
- * 就取消」的场景，避免留下一个空组件。
+ * 打开自动图示对话框并记录它正在编辑哪个组件。对话框 DOM 复用，所以组件 ID 与「取消时是否删除该组件」
+ * 都暂存在 dataset 上，由 settleAutoDiagramDialog 在收尾时读取。cancelRemovesComponent 用于「刚新建就取消」
+ * 的场景，避免留下一个空组件。
  */
 function openAutoDiagramDialog(
   dialogComponentId,
@@ -15718,11 +15137,9 @@ function openAutoDiagramDialog(
   }
 }
 /**
- * 收尾自动图示对话框：按需删除「新建后又被取消」的组件。
- *
- * 先读出 dataset 再 closeAutoDiagramDialog（它会把 dataset 清空），顺序不能反。
- * 删除时同步修正选中集与锚点，避免选中态指向已不存在的组件；最后走
- * mutateDocument 落盘，保证这次删除进入历史记录、可以撤销。
+ * 收尾自动图示对话框：按需删除「新建后又被取消」的组件。先读出 dataset 再 closeAutoDiagramDialog
+ * （它会把 dataset 清空），顺序不能反。删除时同步修正选中集与锚点，避免选中态指向已不存在的组件；
+ * 最后走 mutateDocument 落盘，保证这次删除进入历史记录、可以撤销。
  */
 function settleAutoDiagramDialog() {
   const pendingDialogComponentId = floorplanAutoDiagramDialogElement.dataset.componentId;
@@ -16098,14 +15515,8 @@ window.addEventListener("message", messageEvent => {
     const diagramPage = componentLocation.page;
     const autoDiagramComponents = [];
     /**
-     * 递归收集属于本次自动图示导出文件夹的所有组件。
-     *
-     * 用 autoDiagramFolder 标记归属（等于导出文件夹 ID），因为同一页面里可能
-     * 同时存在多组自动图示，只能靠标记区分；沿 children 递归保证嵌套布局里的
-     * 图元也被回收替换。
-     *
-     * @param {Array<object>} componentBranch 当前层的组件数组。
-     * @returns {void}
+     * 递归收集属于本次自动图示导出文件夹的所有组件：用 autoDiagramFolder 标记归属（等于导出文件夹 ID），
+     * 因为同一页面里可能同时存在多组自动图示，只能靠标记区分；沿 children 递归保证嵌套布局里的图元也被回收替换。
      */
     const collectAutoDiagramComponents = componentBranch => {
       for (const branchComponent of componentBranch || []) {
@@ -16301,19 +15712,9 @@ window.addEventListener("message", messageEvent => {
     const overlaySourceHeight = resolutionHeight * overlayScale;
     const placedOverlayAnchors = [];
     /**
-     * 为一个自动生成的图元挑选互不重叠的归一化锚点（0~1）。
-     *
-     * 优先用图元自带的 anchor；缺失时按序号均分横向位置、纵向固定在 0.9（画面底部），
-     * 避免多个新图元叠在正中。为避免图标互相压住，以「图元在底图上的相对尺寸 × 1.08」
-     * 作为锚点最小间距（1.08 即留 8% 余隙），并设下限 0.035/0.045——底图很小时相对
-     * 尺寸会退化成 0，没有下限会导致所有候选点重合。候选点按同心环由内向外枚举，
-     * 取第一个与已占位锚点距离足够远的点；全部冲突时回落到默认位置。
-     *
-     * @param {object} overlaySpecItem 图元规格（含可选 anchor）。
-     * @param {number} overlayIndex 图元在同批中的序号，用于生成默认分散位置。
-     * @param {number} overlayWidthPx 图元在底图坐标系中的宽度（像素）。
-     * @param {number} overlayHeightPx 图元在底图坐标系中的高度（像素）。
-     * @returns {{x: number, y: number}} 选定的归一化锚点。
+     * 为自动生成的图元挑选互不重叠的归一化锚点（0~1）：优先用图元自带 anchor；缺失时按序号均分横向位置、纵向固定
+     * 在 0.9（画面底部），避免多个新图元叠在正中。以「图元在底图上的相对尺寸 × 1.08」作为锚点最小间距并设下限
+     * 0.035/0.045 —— 底图很小时相对尺寸会退化成 0，没有下限会让所有候选点重合；候选点按同心环由内向外枚举取第一个足够远的点。
      */
     const placeOverlayAnchor = (overlaySpecItem, overlayIndex, overlayWidthPx, overlayHeightPx) => {
       const anchorX = Number(overlaySpecItem.anchor?.x);
@@ -16734,14 +16135,9 @@ const effectTransformInputSet = new Set([
   iconButtonEffectRotationInputElement
 ]);
 /**
- * 根据获得焦点的输入框，把图标按钮效果的预览切到对应的开/关态。
- *
- * 效果组件的属性成对出现（Off 组与 On 组），聚焦哪一组就预览哪一组，
- * 这样用户调「关闭态」的颜色时看到的就是关闭态效果。预览状态记录在
- * iconButtonEffectPreviewStateByComponentId 里，不写入文档。
- *
- * @param {*} eventTarget 触发事件的元素，需在 effectPreviewStateByElement 中登记过。
- * @returns {void}
+ * 根据获得焦点的输入框，把图标按钮效果的预览切到对应的开/关态：效果组件的属性成对出现（Off 组与 On 组），
+ * 聚焦哪一组就预览哪一组，这样用户调「关闭态」的颜色时看到的就是关闭态效果。
+ * 预览状态记录在 iconButtonEffectPreviewStateByComponentId 里，不写入文档。
  */
 function applyEffectPreviewState(eventTarget) {
   const previewButtonState = effectPreviewStateByElement.get(eventTarget);
@@ -16919,21 +16315,13 @@ iconButtonEffectEffectLayoutOptionsElement.addEventListener("click", effectLayou
   }
 });
 /**
- * 收集一个页面下所有普通图片组件（含深层子组件）。
- *
- * 只认 type === "image"：图标按钮的图片效果、自动图示的分层底图等
- * 都不是「普通图片」，不能参与图片对齐。
- *
- * @param {?object} pageSource 页面对象；缺失时返回空数组。
- * @returns {Array<object>} 页面内的图片组件列表（先序）。
+ * 收集一个页面下所有普通图片组件（含深层子组件）。只认 type === "image"：图标按钮的图片效果、自动图示的分层底图等
+ * 都不是「普通图片」，不能参与图片对齐。pageSource 缺失时返回空数组。
  */
 function collectPageImages(pageSource) {
   const pageImages = [];
   /**
-   * 递归把组件树里的图片组件推进外层结果数组。
-   *
-   * @param {Array<object>} componentItems 当前层的组件数组。
-   * @returns {void}
+   * 递归把组件树里的图片组件推进外层 pageImages 结果数组。
    */
   const collectImageComponents = componentItems => {
     for (const imageItem of componentItems || []) {
@@ -16947,16 +16335,9 @@ function collectPageImages(pageSource) {
   return pageImages;
 }
 /**
- * 构造「图片对齐」对话框里的一张可选图片行（单选按钮 + 缩略图 + 摘要）。
- *
- * 摘要里的位置与尺寸都换算成画布百分比展示：position 存的是左上角坐标与尺寸，
- * 用户更容易理解中心点位置，所以 x/y 各加半个自身尺寸后再除以画布尺寸；
- * 画布尺寸缺省取 2778×1940（默认画布分辨率）。scale 以 1 为基准、显示成百分比。
- * 铺满模式（layoutMode === "fill"）下位置没有意义，改为只显示可见性。
- *
- * @param {object} imageComponentOption 待展示的图片组件。
- * @param {boolean} isChosenImage 是否作为当前选中的对齐基准。
- * @returns {HTMLLabelElement} 可直接插入列表的单选项节点。
+ * 构造「图片对齐」对话框里的一张可选图片行（单选按钮 + 缩略图 + 摘要）。摘要里的位置与尺寸换算成画布百分比展示：
+ * position 存的是左上角坐标与尺寸，用户更易懂中心点位置，故 x/y 各加半个自身尺寸后再除以画布尺寸（缺省 2778×1940）。
+ * scale 以 1 为基准、显示成百分比；铺满模式（layoutMode === "fill"）下位置没有意义，改为只显示可见性。
  */
 function createImageAlignOption(imageComponentOption, isChosenImage) {
   const optionLabelElement = document.createElement("label");
@@ -17010,15 +16391,9 @@ function createImageAlignOption(imageComponentOption, isChosenImage) {
   return optionLabelElement;
 }
 /**
- * 打开「选择图片对齐基准」对话框。
- *
- * 仅对 icon-button-effect 组件可用，因为只有效果组件需要跟随某张参考图排版。
- * 默认选中已保存的 effectReferenceImageId；没有保存过时默认选本页第一张图片
- * （`alignableIndex === 0`），让用户少点一次。本页没有普通图片时禁用确认按钮
- * 并给出提示文案。确认后由对话框的确认回调写回 properties 并触发重新布局。
- *
- * @returns {void}
- * @sideeffect 改写 imageAlignSourceComponentId 等模块级状态并渲染选项列表。
+ * 打开「选择图片对齐基准」对话框，仅对 icon-button-effect 组件可用（只有效果组件需要跟随某张参考图排版）。
+ * 默认选中已保存的 effectReferenceImageId，没有保存过时默认选本页第一张图片（alignableIndex === 0），让用户少点一次；
+ * 本页没有普通图片时禁用确认按钮并给出提示文案。确认后由对话框的确认回调写回 properties 并触发重新布局。
  */
 function openImageAlignDialog() {
   const alignEffectComponent = selectedComponent();
@@ -18335,22 +17710,9 @@ const cameraTransformKeyByElement = new Map([
   [cameraRotationInputElement, "rotation"]
 ]);
 /**
- * 给一个检查器表单挂上 input（实时预览）与 change（提交文档）两套字段处理逻辑。
- *
- * 表单里混着两类字段：属性字段（propertyConfigsByElement 配置的）与几何字段
- * （transformKeyByElement 配置的 left/top/width/height/scale/rotation）。
- * input 事件只调用 editorRenderer.preview* 做无副作用的即时预览；change 事件
- * 才走 mutateDocument 落盘，这样拖动输入框时不会把每一步中间值都写进历史。
- * 几何字段存的是画布百分比：位置按「画布尺寸 × 百分比 − 自身尺寸 ÷ 2」换算成
- * 左上角坐标（position 存的是左上角，而用户填的是中心位置）；宽高下限取 0.1
- * 而不是 0，避免把组件压成 0 尺寸后无法再选回来；scale 以 1~500 表示 0.01~5 倍；
- * 多选时跳过 rotation，因为旋转对多选没有共同参考系。
- *
- * @param {HTMLElement} inspectorFormElement 已生成好的检查器表单元素。
- * @param {string|string[]} componentTypes 该表单适用的组件类型，单个类型可直接传字符串。
- * @param {Map} propertyConfigsByElement 输入元素 → 属性配置（含 property/limits/divisor）。
- * @param {Map} transformKeyByElement 输入元素 → 几何字段键名。
- * @returns {void}
+ * 给一个检查器表单挂上 input（实时预览）与 change（提交文档）两套字段处理：input 只调 editorRenderer.preview* 做
+ * 无副作用的即时预览，change 才走 mutateDocument 落盘，这样拖动输入框时不会把每一步中间值都写进历史。几何字段存的是
+ * 画布百分比：位置按「画布尺寸 × 百分比 − 自身尺寸 ÷ 2」换算成左上角坐标；宽高下限取 0.1 而不是 0；scale 以 1~500 表示 0.01~5 倍；多选跳过 rotation。
  */
 function bindInspectorFieldHandlers(
   inspectorFormElement,
@@ -18746,14 +18108,8 @@ cameraFrameVisibleButtonElement.addEventListener("click", () => {
   }
 });
 /**
- * 记录并应用空调组件在编辑器里的预览状态（开/关/自动）。
- *
- * 预览状态存放在模块级 Map 里而不是写进文档，因为它只是编辑期的可视化辅助，
- * 不该进入历史记录或被保存。非 "on"/"off" 的输入统一归一为 "auto"。
- *
- * @param {?string} previewTargetComponentId 目标空调组件 ID；为空时直接返回。
- * @param {string} [previewModeRequest="auto"] 预览模式：on / off / auto。
- * @returns {void}
+ * 记录并应用空调组件在编辑器里的预览状态（开/关/自动）。状态存放在模块级 Map 里而不是写进文档，
+ * 因为它只是编辑期的可视化辅助，不该进入历史记录或被保存；非 "on"/"off" 的输入统一归一为 "auto"。
  */
 function applyAirConditionerPreviewState(previewTargetComponentId, previewModeRequest = "auto") {
   if (!previewTargetComponentId) {
@@ -18909,13 +18265,8 @@ const previewStateByInputElement = new Map([
   [deviceButtonIconOnColorInputElement, "on"]
 ]);
 /**
- * 同步图标按钮预览切换按钮的选中态。
- *
- * 用 class 与 aria-pressed 双写：class 负责样式，aria-pressed 负责无障碍朗读，
+ * 同步图标按钮预览切换按钮的选中态。用 class 与 aria-pressed 双写：class 负责样式、aria-pressed 负责无障碍朗读，
  * 只改 class 会让屏幕阅读器读不出当前是开还是关。
- *
- * @param {string} previewStateValue 当前预览模式（on / off / auto）。
- * @returns {void}
  */
 function syncIconButtonPreviewButtons(previewStateValue) {
   for (const previewButtonNode of iconButtonPreviewStateElement.querySelectorAll(
@@ -18927,15 +18278,8 @@ function syncIconButtonPreviewButtons(previewStateValue) {
   }
 }
 /**
- * 记录并应用图标按钮/设备按钮/传感器的预览状态（开/关/自动）。
- *
- * 与空调预览同理，状态存在模块级 Map 中，仅用于编辑期预览。
- * "auto" 表示解除强制预览（从 Map 里删除），按键值不同区分是「显式置 auto」
- * 还是「保留上次的开关预览」。
- *
- * @param {?string} previewComponentIdForIcon 目标组件 ID；为空时直接返回。
- * @param {string} [previewModeForIcon="auto"] 预览模式：on / off / auto。
- * @returns {void}
+ * 记录并应用图标按钮/设备按钮/传感器的预览状态（开/关/自动），与空调预览同理，状态存在模块级 Map、仅用于编辑期预览。
+ * "auto" 表示解除强制预览（从 Map 里删除），以按键值不同区分是「显式置 auto」还是「保留上次的开关预览」。
  */
 function applyIconButtonPreviewState(previewComponentIdForIcon, previewModeForIcon = "auto") {
   if (!previewComponentIdForIcon) {
@@ -18955,15 +18299,8 @@ function applyIconButtonPreviewState(previewComponentIdForIcon, previewModeForIc
   }
 }
 /**
- * 聚焦/编辑某个输入框时，把预览切到它能体现的开关态。
- *
- * previewStateByInputElement 只登记了「Off 类」与「On 类」输入框；
- * 另有特例：设备按钮的 iconColor 未登记但语义上属于「未激活」态，
- * 所以单独判一次并回落到 "off"。不适用于图标按钮类组件时不做任何事，
- * 避免给别的类型组件强加预览状态。
- *
- * @param {Element} previewInputElement 获得焦点的输入元素。
- * @returns {void}
+ * 聚焦/编辑某个输入框时，把预览切到它能体现的开关态。previewStateByInputElement 只登记了「Off 类」与「On 类」输入框；
+ * 特例：设备按钮的 iconColor 未登记但语义上属于「未激活」态，故单独判一次并回落到 "off"。不适用于图标按钮类组件时不做任何事。
  */
 function activatePreviewForInput(previewInputElement) {
   const previewOwnerComponent = selectedComponent();
@@ -18981,13 +18318,8 @@ function activatePreviewForInput(previewInputElement) {
   }
 }
 /**
- * 输入框失焦后把预览恢复为自动，避免强制预览一直粘着。
- *
- * 只对登记过预览态（或设备按钮 iconColor 特例）的输入框生效，
+ * 输入框失焦后把预览恢复为自动，避免强制预览一直粘着。只对登记过预览态（或设备按钮 iconColor 特例）的输入框生效，
  * 并限定组件类型，逻辑与 activatePreviewForInput 对称。
- *
- * @param {Element} resetInputElement 失去焦点的输入元素。
- * @returns {void}
  */
 function resetPreviewForInput(resetInputElement) {
   const resetOwnerComponent = selectedComponent();
@@ -19274,12 +18606,7 @@ const timeTransformInputSet = new Set([
   timeRotationInputElement
 ]);
 /**
- * 时间组件尺寸预览：按新属性算出目标宽高，保持中心不动反推左上角坐标，
- * 只推给渲染器做临时变换，落盘仍由 change 事件里的 mutateDocument 负责。
- *
- * @param {object} resizedTimeComponent 正在编辑的 time 组件。
- * @param {object} timeDimensionProperties 合并新值后的完整 properties。
- * @returns {void}
+ * 时间组件尺寸预览：按新属性算出目标宽高，保持中心不动反推左上角坐标，只推给渲染器做临时变换，落盘仍由 change 里的 mutateDocument 负责。
  */
 function previewTimeResize(resizedTimeComponent, timeDimensionProperties) {
   const timeWidth = Number(resizedTimeComponent.position?.width || 100);
@@ -19552,12 +18879,7 @@ const dateTransformInputSet = new Set([
   dateRotationInputElement
 ]);
 /**
- * 尺寸类属性变更时的即时预览：按新属性算出目标宽高，保持组件中心不动
- * 重置左上角坐标，只推给渲染器做临时变换，不写回文档。
- *
- * @param {object} resizedDateComponent 正在编辑的 date 组件（需含 id 与 position）。
- * @param {object} dateDimensionProperties 合并新值后的完整 properties，用于反推尺寸。
- * @returns {void}
+ * 日期组件尺寸类属性变更的即时预览：按新属性算出目标宽高，保持组件中心不动重置左上角坐标，只推给渲染器做临时变换，不写回文档。
  */
 function previewDateResize(resizedDateComponent, dateDimensionProperties) {
   const dateWidth = Number(resizedDateComponent.position?.width || 100);
@@ -19858,12 +19180,7 @@ const weatherTransformInputSet = new Set([
   weatherRotationInputElement
 ]);
 /**
- * 天气组件尺寸预览：按新属性算出目标宽高，以中心为锚点反推新的左上角坐标，
- * 仅通知渲染器做临时变换，最终值仍由 change 事件里的 mutateDocument 落盘。
- *
- * @param {object} weatherResizeComponent 正在编辑的 weather 组件。
- * @param {object} weatherResizeProperties 合并新值后的完整 properties。
- * @returns {void}
+ * 天气组件尺寸预览：按新属性算出目标宽高，以中心为锚点反推新的左上角坐标，仅通知渲染器做临时变换，最终值仍由 change 里的 mutateDocument 落盘。
  */
 function previewWeatherComponentResize(weatherResizeComponent, weatherResizeProperties) {
   const weatherResizeWidth = Number(weatherResizeComponent.position?.width || 100);
@@ -21087,7 +20404,6 @@ const navigationToggleStateByElement = new Map([
  * 把导航按钮检查器里的「预览状态」分段控件切到指定档位（on / off）。
  *
  * @param {string} navigationPreviewState 目标档位；传空值时不做任何切换。
- * @returns {void}
  */
 function setNavigationPreviewState(navigationPreviewState) {
   if (navigationPreviewState) {
@@ -21102,12 +20418,7 @@ function setNavigationPreviewState(navigationPreviewState) {
   }
 }
 /**
- * 应用导航按钮的预览状态：写入按组件 ID 索引的临时状态表并通知渲染器，
- * 若该组件正处于选中态则同步顶部按钮的 active 样式。
- *
- * @param {string} navigationPreviewComponentId 目标导航按钮组件 ID。
- * @param {string} navigationPreviewStateValue 取值 "on" / "off" / 其他（归一为 "auto"）。
- * @returns {void}
+ * 应用导航按钮的预览状态：写入按组件 ID 索引的临时状态表并通知渲染器，若该组件正处于选中态则同步顶部按钮的 active 样式。
  */
 function applyNavigationPreviewState(navigationPreviewComponentId, navigationPreviewStateValue) {
   if (!navigationPreviewComponentId) {
@@ -21135,7 +20446,6 @@ function applyNavigationPreviewState(navigationPreviewComponentId, navigationPre
 /**
  * 从点击的分段控件反查它代表的预览档位，并把该档位应用到当前选中的导航按钮。
  *
- * @param {Element} navigationPreviewInputElement 被点击的预览档位元素。
  * @returns {?string} 应用的档位文案；元素无法识别或选中项不是导航按钮时返回 null。
  */
 function syncNavigationPreviewFromElement(navigationPreviewInputElement) {
@@ -21157,13 +20467,8 @@ const navigationTransformInputSet = new Set([
   navigationRotationInputElement
 ]);
 /**
- * 把导航按钮检查器的某个输入框映射到它负责的样式属性名。
- *
- * 颜色/数值配置表优先，随后是宽高等几何输入；返回空串表示该输入框
- * 不参与样式变更（调用方据此跳过）。
- *
- * @param {Element} navigationPropertyInputElement 检查器内的输入元素。
- * @returns {string} 样式属性名，无法识别时为空字符串。
+ * 把导航按钮检查器的某个输入框映射到它负责的样式属性名：颜色/数值配置表优先，随后是宽高等几何输入；
+ * 返回空串表示该输入框不参与样式变更（调用方据此跳过）。
  */
 function navigationPropertyNameFromElement(navigationPropertyInputElement) {
   const navigationColorPropertyName = navigationColorPropertiesByElement.get(
@@ -21554,14 +20859,8 @@ const lineChartPropertyDefinitions = {
   }
 };
 /**
- * 读取折线图组件在某个属性上的当前取值，统一供「变更对比」与格式化使用。
- *
- * 宽高取自 position、缩放取自 style、旋转取自 position.rotation，
- * 其余走 properties，缺省时回退到 lineChartDefaults 的深拷贝，避免默认值被改写。
- *
- * @param {?object} lineChartSourceComponent 来源组件；为空时返回 undefined。
- * @param {string} lineChartPropertyKey 属性键（width/height/scale/rotation 或 properties 键）。
- * @returns {*} 属性当前值；组件为空时为 undefined。
+ * 读取折线图组件在某个属性上的当前取值，供「变更对比」与格式化复用：宽高取自 position、缩放取自 style、旋转取自 position.rotation，
+ * 其余走 properties，缺省时回退到 lineChartDefaults 的深拷贝（避免默认值被改写）；组件为空时返回 undefined。
  */
 function getLineChartPropertyValue(lineChartSourceComponent, lineChartPropertyKey) {
   if (lineChartSourceComponent) {
@@ -21580,13 +20879,8 @@ function getLineChartPropertyValue(lineChartSourceComponent, lineChartPropertyKe
   }
 }
 /**
- * 列出折线图组件相对「基线快照」发生变化的属性键，用于生成变更摘要对话框。
- *
- * 基线优先取 baselineDocument 中同名组件的深拷贝并按组件 ID 缓存，
- * 找不到时退化为组件自身的快照，从而保证首次对比不会误报全量变更。
- *
- * @param {?object} lineChartCollectComponent 待对比的折线图组件。
- * @returns {string[]} 发生变化的属性键列表；组件类型不符时为空数组。
+ * 列出折线图组件相对「基线快照」发生变化的属性键，用于生成变更摘要：基线优先取 baselineDocument 中同名组件的深拷贝并按组件 ID 缓存，
+ * 找不到时退化为组件自身的快照，从而保证首次对比不会误报全量变更；类型不符时返回空数组。
  */
 function collectLineChartChangedProperties(lineChartCollectComponent) {
   if (!lineChartCollectComponent || lineChartCollectComponent.type !== "line-chart") {
@@ -21607,15 +20901,8 @@ function collectLineChartChangedProperties(lineChartCollectComponent) {
   );
 }
 /**
- * 把折线图属性的原始值格式化成变更摘要里的可读文案。
- *
- * 宽高按画布尺寸换算成百分比（画布缺省值 2778×1940 与 schema 标称一致），
+ * 把折线图属性的原始值格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比（缺省 2778×1940 与 schema 标称一致），
  * 缩放转百分比、旋转加角度符号，阈值转成「N 段配色」。
- *
- * @param {string} lineChartFormatKey 属性键，决定单位与换算方式。
- * @param {*} lineChartPropertyValue 原始属性值。
- * @param {object} [lineChartPropertyDocument] 提供画布尺寸的文档，默认取当前工程文档。
- * @returns {string} 面向用户的中文/百分比文本。
  */
 function formatLineChartPropertyValue(
   lineChartFormatKey,
@@ -21835,14 +21122,8 @@ const titleButtonPropertyDefinitions = {
   }
 };
 /**
- * 读取标题按钮组件在指定属性上的当前取值，供变更对比与格式化复用。
- *
- * 宽高来自 position、缩放来自 style、旋转来自 position.rotation，
- * 其余走 properties，缺省时回退 titleButtonDefaults（默认值不写回组件）。
- *
- * @param {?object} titleButtonSourceComponent 来源组件；为空时返回 undefined。
- * @param {string} titleButtonPropertyKey 属性键。
- * @returns {*} 属性当前值；组件为空时为 undefined。
+ * 读取标题按钮组件在指定属性上的当前取值，供变更对比与格式化复用：宽高来自 position、缩放来自 style、旋转来自 position.rotation，
+ * 其余走 properties，缺省时回退 titleButtonDefaults（默认值不写回组件）；组件为空时返回 undefined。
  */
 function getTitleButtonPropertyValue(titleButtonSourceComponent, titleButtonPropertyKey) {
   if (titleButtonSourceComponent) {
@@ -21861,13 +21142,8 @@ function getTitleButtonPropertyValue(titleButtonSourceComponent, titleButtonProp
   }
 }
 /**
- * 列出标题按钮组件相对基线文档中同名组件发生变化的属性键。
- *
- * 基线直接现取现比（不做缓存），因此调用方需保证 baselineDocument 处于
- * 本次编辑开始前的状态；组件类型不符时返回空数组。
- *
- * @param {?object} titleButtonCollectComponent 待对比的标题按钮组件。
- * @returns {string[]} 发生变化的属性键列表。
+ * 列出标题按钮组件相对基线文档中同名组件发生变化的属性键。基线现取现比（不做缓存），因此调用方需保证 baselineDocument
+ * 处于本次编辑开始前的状态；类型不符时返回空数组。
  */
 function collectTitleButtonChangedProperties(titleButtonCollectComponent) {
   if (!titleButtonCollectComponent || titleButtonCollectComponent.type !== "title-button") {
@@ -21887,15 +21163,8 @@ function collectTitleButtonChangedProperties(titleButtonCollectComponent) {
   );
 }
 /**
- * 把标题按钮属性的原始值格式化成变更摘要里的可读文案。
- *
- * 宽高按画布尺寸换算成百分比，缩放与各段文字/图标的相对位置统一渲染为百分比，
+ * 把标题按钮属性的原始值格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比，缩放与各段文字/图标的相对位置统一渲染为百分比，
  * 旋转加角度符号；布尔值直接翻译成「显示 / 隐藏」。
- *
- * @param {string} titleButtonFormatKey 属性键，决定单位与换算方式。
- * @param {*} titleButtonPropertyValue 原始属性值。
- * @param {object} [titleButtonPropertyDocument] 提供画布尺寸的文档，默认取当前工程文档。
- * @returns {string} 可读文案。
  */
 function formatTitleButtonPropertyValue(
   titleButtonFormatKey,
@@ -22223,14 +21492,8 @@ const airConditionerPropertyDefinitions = {
   }
 };
 /**
- * 读取空调按钮组件在指定属性上的当前取值，供变更对比与格式化复用。
- *
- * 宽高取自 position、缩放取自 style、旋转取自 position.rotation，
+ * 读取空调按钮组件在指定属性上的当前取值，供变更对比与格式化复用：宽高取自 position、缩放取自 style、旋转取自 position.rotation，
  * 其余走 properties 并回退 airConditionerDefaults，避免默认值被误判为已修改。
- *
- * @param {?object} airConditionerSourceComponent 来源组件；为空时返回 undefined。
- * @param {string} airConditionerPropertyKey 属性键。
- * @returns {*} 属性当前值；组件为空时为 undefined。
  */
 function getAirConditionerPropertyValue(airConditionerSourceComponent, airConditionerPropertyKey) {
   if (airConditionerSourceComponent) {
@@ -22249,13 +21512,8 @@ function getAirConditionerPropertyValue(airConditionerSourceComponent, airCondit
   }
 }
 /**
- * 列出空调按钮组件相对基线快照发生变化的属性键，用于生成变更摘要对话框。
- *
- * 基线取 baselineDocument 中同名组件的深拷贝并按组件 ID 缓存（首次现取），
- * 这样连续弹窗不会因基线被后续编辑污染而重复报告同一处改动。
- *
- * @param {?object} airConditionerCollectComponent 待对比的空调按钮组件。
- * @returns {string[]} 发生变化的属性键列表；类型不符时为空数组。
+ * 列出空调按钮组件相对基线快照发生变化的属性键。基线取 baselineDocument 中同名组件的深拷贝并按组件 ID 缓存（首次现取），
+ * 这样连续弹窗不会因基线被后续编辑污染而重复报告同一处改动；类型不符时返回空数组。
  */
 function collectAirConditionerChangedProperties(airConditionerCollectComponent) {
   if (
@@ -22288,15 +21546,8 @@ function collectAirConditionerChangedProperties(airConditionerCollectComponent) 
   );
 }
 /**
- * 把空调按钮属性的原始值格式化成变更摘要里的可读文案。
- *
- * 宽高按画布尺寸换成百分比；缩放类（含气流缩放、角标透明度）乘 100 加百分号；
+ * 把空调按钮属性的原始值格式化成变更摘要里的可读文案：宽高按画布尺寸换成百分比；缩放类（含气流缩放、角标透明度）乘 100 加百分号；
  * 旋转与气流角度加角度符号；气流动画把 static 翻译成「静态」，其余为「动态」。
- *
- * @param {string} airConditionerFormatKey 属性键，决定单位与换算方式。
- * @param {*} airConditionerPropertyValue 原始属性值。
- * @param {object} [airConditionerPropertyDocument] 提供画布尺寸的文档，默认取当前工程文档。
- * @returns {string} 可读文案。
  */
 function formatAirConditionerPropertyValue(
   airConditionerFormatKey,
@@ -22455,14 +21706,8 @@ const iconButtonEffectPropertyDefinitions = {
   }
 };
 /**
- * 读取「图标按钮效果」组件在指定属性上的当前取值，供变更对比与格式化复用。
- *
- * 宽高取自 position、缩放取自 style、旋转取自 position.rotation，
- * 其余走 properties 并回退 iconButtonEffectDefaults。
- *
- * @param {?object} iconButtonEffectSourceComponent 来源组件；为空时返回 undefined。
- * @param {string} iconButtonEffectPropertyKey 属性键。
- * @returns {*} 属性当前值；组件为空时为 undefined。
+ * 读取「图标按钮效果」组件在指定属性上的当前取值，供变更对比与格式化复用：宽高取自 position、缩放取自 style、旋转取自 position.rotation，
+ * 其余走 properties 并回退 iconButtonEffectDefaults；组件为空时返回 undefined。
  */
 function getIconButtonEffectPropertyValue(
   iconButtonEffectSourceComponent,
@@ -22484,13 +21729,8 @@ function getIconButtonEffectPropertyValue(
   }
 }
 /**
- * 列出「图标按钮效果」组件相对基线快照发生变化的属性键。
- *
- * 基线取 baselineDocument 中同名组件的深拷贝并按组件 ID 缓存，
+ * 列出「图标按钮效果」组件相对基线快照发生变化的属性键。基线取 baselineDocument 中同名组件的深拷贝并按组件 ID 缓存，
  * 保证同一组件多次对比使用同一把「尺子」；类型不符时返回空数组。
- *
- * @param {?object} iconButtonEffectComponent 待对比的组件。
- * @returns {string[]} 发生变化的属性键列表。
  */
 function collectIconButtonEffectChangedProperties(iconButtonEffectComponent) {
   if (!iconButtonEffectComponent || iconButtonEffectComponent.type !== "icon-button-effect") {
@@ -22523,16 +21763,8 @@ function collectIconButtonEffectChangedProperties(iconButtonEffectComponent) {
   );
 }
 /**
- * 把「图标按钮效果」属性格式化成变更摘要里的可读文案。
- *
- * 宽高按画布尺寸换算成百分比；透明度/缩放类乘 100 加百分号；
- * 尺寸与位置类直接加百分号；时长类加「秒」；布局模式把 fill 译为「铺满」。
- * 末尾用 `||` 兜底，空值统一显示为「不使用」。
- *
- * @param {string} iconButtonEffectFormatKey 属性键，决定单位与换算方式。
- * @param {*} iconButtonEffectPropertyValue 原始属性值。
- * @param {object} [iconButtonEffectPropertyDocument] 提供画布尺寸的文档。
- * @returns {string} 可读文案。
+ * 把「图标按钮效果」属性格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比；透明度/缩放类乘 100 加百分号；
+ * 尺寸与位置类直接加百分号；时长类加「秒」；布局模式把 fill 译为「铺满」。末尾用 || 兜底，空值统一显示为「不使用」。
  */
 function formatIconButtonEffectPropertyValue(
   iconButtonEffectFormatKey,
@@ -22927,13 +22159,8 @@ const presenceSensorPropertyDefinitions = {
   rotation: iconButtonPropertyDefinitions.rotation
 };
 /**
- * 归一传感器组件的品类标识。
- *
- * 只认五种已支持品类；老文档没有 sensorKind 字段时统一按 "presence" 处理，
+ * 归一传感器组件的品类标识：只认五种已支持品类，老文档没有 sensorKind 字段时统一按 "presence" 处理，
  * 保证这类组件仍能落到一套可编辑的属性面板上。
- *
- * @param {?object} sensorComponent 传感器组件。
- * @returns {string} 品类标识：presence / door-window / water-leak / smoke / natural-gas。
  */
 function resolveSensorKind(sensorComponent) {
   const sensorKindCandidate = sensorComponent?.properties?.sensorKind;
@@ -22946,13 +22173,7 @@ function resolveSensorKind(sensorComponent) {
   }
 }
 /**
- * 把传感器品类标识翻译成中文显示名。
- *
- * 与 resolveSensorKind 的五个品类一一对应；未知值不会走到这里，
- * 因为 resolveSensorKind 已把无法识别的字段归一成 "presence"。
- *
- * @param {?object} sensorLabelComponent 传感器组件。
- * @returns {string} 该品类的中文名称。
+ * 把传感器品类标识翻译成中文显示名：与 resolveSensorKind 的五个品类一一对应，未知值不会走到这里（已被归一成 "presence"）。
  */
 function resolveSensorKindLabel(sensorLabelComponent) {
   return {
@@ -22964,14 +22185,8 @@ function resolveSensorKindLabel(sensorLabelComponent) {
   }[resolveSensorKind(sensorLabelComponent)];
 }
 /**
- * 按传感器品类列出参与「变更对比」的属性键。
- *
- * 尺寸与变换四个键是所有品类共用的，其余按品类收敛到各自的专有字段
- * （如门窗只有 iconOnColor/perspectiveCorners，水浸只有 waterLeakColor），
- * 避免把别的品类专属字段也算进本品的变更清单。
- *
- * @param {?object} presenceSensorComponent 传感器组件。
- * @returns {string[]} 该品类需要对比的属性键列表。
+ * 按传感器品类列出参与「变更对比」的属性键：尺寸与变换四个键是所有品类共用的，其余按品类收敛到各自的专有字段
+ * （如门窗只有 iconOnColor/perspectiveCorners、水浸只有 waterLeakColor），避免把别的品类专属字段也算进本品的变更清单。
  */
 function presenceSensorPropertyKeys(presenceSensorComponent) {
   const transformPropertyKeys = ["width", "height", "scale", "rotation"];
@@ -23003,16 +22218,9 @@ function presenceSensorPropertyKeys(presenceSensorComponent) {
   }
 }
 /**
- * 读取图标按钮类组件的某个属性值，统一走「新字段 → 历史字段 → 默认值」的回退链。
- *
- * 尺寸与缩放/旋转不放在 properties 里，而是分居 position 与 style（这是组件
- * 模型的约定），所以这里单独分支取值。颜色类字段存在多轮历史命名
- * （如 iconColor/clearColor/iconOffColor/iconOnColor），按新→旧顺序回退，
- * 保证老文档打开后仍能显示出颜色而不是空白。
- *
- * @param {?object} iconButtonSourceComponent 图标按钮/设备按钮/传感器组件。
- * @param {string} iconButtonPropertyKey 属性键名。
- * @returns {*} 属性值；组件为空时返回 undefined，数值类缺失时返回内置默认值。
+ * 读取图标按钮类组件的某个属性值，统一走「新字段 → 历史字段 → 默认值」的回退链。尺寸与缩放/旋转不放在 properties 里，
+ * 而是分居 position 与 style（这是组件模型的约定），故单独分支取值。颜色类字段存在多轮历史命名（如 iconColor/clearColor/
+ * iconOffColor/iconOnColor），按新→旧顺序回退，保证老文档打开后仍能显示出颜色而不是空白。
  */
 function getIconButtonPropertyValue(iconButtonSourceComponent, iconButtonPropertyKey) {
   if (!iconButtonSourceComponent) {
@@ -23063,14 +22271,8 @@ function getIconButtonPropertyValue(iconButtonSourceComponent, iconButtonPropert
   }
 }
 /**
- * 列出图标按钮类组件相对基线快照发生变化的属性键。
- *
- * 同一函数覆盖 icon-button / device-button / presence-sensor 三种类型：
- * 前者用 iconButtonPropertyDefinitions 全量键，后两者用显式白名单
- * （传感器还会按品类细分），基线按组件 ID 缓存以避免重复深拷贝。
- *
- * @param {?object} iconButtonCollectComponent 待对比的组件。
- * @returns {string[]} 发生变化的属性键列表；类型不受支持时为空数组。
+ * 列出图标按钮类组件相对基线快照发生变化的属性键。同一函数覆盖 icon-button / device-button / presence-sensor 三种类型：
+ * 前者用 iconButtonPropertyDefinitions 全量键，后两者用显式白名单（传感器还会按品类细分）；基线按组件 ID 缓存以避免重复深拷贝。
  */
 function collectIconButtonChangedProperties(iconButtonCollectComponent) {
   if (
@@ -23131,15 +22333,8 @@ function collectIconButtonChangedProperties(iconButtonCollectComponent) {
   );
 }
 /**
- * 查属性键对应的分组/中文标签，按组件类型选择不同的字典。
- *
- * 设备按钮复用图标按钮的定义，但把 main* / secondary* 两组改名为
- * 「标题 / 状态」，并去掉原标签里的「中文」「英文」后缀；透明度项
- * 统一显示为「透明度」，让同一份定义适配另一种命名语境。
- *
- * @param {?object} iconButtonDefinitionComponent 组件，决定用哪套定义表。
- * @param {string} iconButtonDefinitionLookupKey 属性键。
- * @returns {?{group: string, label: string}} 分组与标签；未命中时可能为 undefined。
+ * 查属性键对应的分组/中文标签，按组件类型选择不同的字典：设备按钮复用图标按钮的定义，但把 main* / secondary* 两组改名为
+ * 「标题 / 状态」并去掉原标签里的「中文」「英文」后缀，透明度项统一显示为「透明度」，让同一份定义适配另一种命名语境。
  */
 function resolveIconButtonPropertyDefinition(
   iconButtonDefinitionComponent,
@@ -23170,16 +22365,8 @@ function resolveIconButtonPropertyDefinition(
   }
 }
 /**
- * 把图标/设备按钮属性的原始值格式化成变更摘要里的可读文案。
- *
- * 宽高按画布尺寸换算成百分比；透明度与缩放类乘 100 加百分号；
- * 角度类加「°」；时长类加「秒」；四角透视与默认值逐字比较，
- * 相同显示「默认透视」，否则「自定义透视」。
- *
- * @param {string} iconButtonFormatKey 属性键，决定单位与换算方式。
- * @param {*} iconButtonPropertyValue 原始属性值。
- * @param {object} [iconButtonPropertyDocument] 提供画布尺寸的文档。
- * @returns {string} 可读文案。
+ * 把图标/设备按钮属性的原始值格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比；透明度与缩放类乘 100 加百分号；
+ * 角度类加「°」；时长类加「秒」；四角透视与默认值逐字比较，相同显示「默认透视」，否则「自定义透视」。
  */
 function formatIconButtonPropertyValue(
   iconButtonFormatKey,
@@ -23337,16 +22524,9 @@ const cameraPropertyDefinitions = {
   }
 };
 /**
- * 读取摄像头组件在指定属性上的当前取值，并按后端字段约定做一次归一化。
- *
- * 归一化要点：displayMode 只认 "snapshot"，其余一律算 "live"；刷新间隔下限
- * 取 6 秒（低于该值会让预览频繁重建连接），缺省 10；fit 只认 "contain"；
- * radius 兼容旧文档里写成百分比的大数（>0.5 时除以 100），最终夹到 0–0.5。
- * 宽高取 position、缩放取 style、旋转取 position.rotation。
- *
- * @param {?object} cameraSourceComponent 来源组件；为空时返回 undefined。
- * @param {string} cameraPropertyKey 属性键。
- * @returns {*} 归一化后的属性值。
+ * 读取摄像头组件在指定属性上的当前取值，并按后端字段约定做一次归一化：displayMode 只认 "snapshot"，其余一律算 "live"；
+ * 刷新间隔下限取 6 秒（低于该值会让预览频繁重建连接），缺省 10；fit 只认 "contain"；radius 兼容旧文档里写成百分比的大数
+ * （>0.5 时除以 100），最终夹到 0–0.5。宽高取 position、缩放取 style、旋转取 position.rotation。
  */
 function getCameraPropertyValue(cameraSourceComponent, cameraPropertyKey) {
   if (!cameraSourceComponent) {
@@ -23391,13 +22571,8 @@ function getCameraPropertyValue(cameraSourceComponent, cameraPropertyKey) {
   return cameraPropertyValues[cameraPropertyKey] ?? cameraDefaults[cameraPropertyKey];
 }
 /**
- * 列出摄像头组件相对基线文档中同名组件发生变化的属性键。
- *
- * 基线现取现比（走的仍是带归一化的取值函数，因此两种写法的等价值不会被
- * 判为变更）；类型不符时返回空数组。
- *
- * @param {?object} cameraCollectComponent 待对比的摄像头组件。
- * @returns {string[]} 发生变化的属性键列表。
+ * 列出摄像头组件相对基线文档中同名组件发生变化的属性键。基线现取现比（走的仍是带归一化的取值函数，因此两种写法的等价值
+ * 不会被判为变更）；类型不符时返回空数组。
  */
 function collectCameraChangedProperties(cameraCollectComponent) {
   if (!cameraCollectComponent || cameraCollectComponent.type !== "camera") {
@@ -23412,16 +22587,8 @@ function collectCameraChangedProperties(cameraCollectComponent) {
   );
 }
 /**
- * 把摄像头属性的原始值格式化成变更摘要里的可读文案。
- *
- * 展示模式把 snapshot/live 译为「快照 / 实时」；适配方式把 contain 译为
- * 「原始比例」、其余为「压缩 16:9」；宽高按画布尺寸换算成百分比，
- * 半径/缩放/边框透明度乘 100 加百分号，角度类加「°」。
- *
- * @param {string} cameraFormatKey 属性键，决定单位与换算方式。
- * @param {*} cameraPropertyValue 原始属性值。
- * @param {object} [cameraPropertyDocument] 提供画布尺寸的文档。
- * @returns {string} 可读文案。
+ * 把摄像头属性的原始值格式化成变更摘要里的可读文案：展示模式把 snapshot/live 译为「快照 / 实时」；适配方式把 contain 译为
+ * 「原始比例」、其余为「压缩 16:9」；宽高按画布尺寸换算成百分比，半径/缩放/边框透明度乘 100 加百分号，角度类加「°」。
  */
 function formatCameraPropertyValue(
   cameraFormatKey,
@@ -23627,15 +22794,9 @@ const panelFrameStylePropertyDefinitions = {
   }
 };
 /**
- * 读取面板边框组件在指定属性上的当前取值，并兼容旧版排版字段。
- *
- * 老文档只有 textLeft / textTop / lineGap 三个整体字段：左右位置直接沿用
- * textLeft；主标题的顶部位置由 textTop 减去半个行距（lineGap/2）换算成
- * 占组件高度的百分比得到。height 取 Math.max(1, ...) 是为了避免除零。
- *
- * @param {?object} panelFrameStyleSourceComponent 来源组件；为空时返回 undefined。
- * @param {string} panelFrameStylePropertyKey 属性键。
- * @returns {*} 属性当前值。
+ * 读取面板边框组件在指定属性上的当前取值，并兼容旧版排版字段：老文档只有 textLeft / textTop / lineGap 三个整体字段，
+ * 左右位置直接沿用 textLeft；主标题的顶部位置由 textTop 减去半个行距（lineGap/2）换算成占组件高度的百分比得到。
+ * height 取 Math.max(1, ...) 是为了避免除零。
  */
 function getPanelFrameStyleValue(panelFrameStyleSourceComponent, panelFrameStylePropertyKey) {
   if (!panelFrameStyleSourceComponent) {
@@ -23686,13 +22847,8 @@ function getPanelFrameStyleValue(panelFrameStyleSourceComponent, panelFrameStyle
   }
 }
 /**
- * 列出面板边框组件相对基线快照发生变化的属性键。
- *
- * 基线按组件 ID 缓存；若基线里该组件已不是 panel-frame（例如中途换过类型），
- * 则整表视为已变更，让用户看到完整的新样式而不是空列表。
- *
- * @param {?object} panelFrameStyleComponent 待对比的面板边框组件。
- * @returns {string[]} 发生变化的属性键列表；类型不符时为空数组。
+ * 列出面板边框组件相对基线快照发生变化的属性键。基线按组件 ID 缓存；若基线里该组件已不是 panel-frame（例如中途换过类型），
+ * 则整表视为已变更，让用户看到完整的新样式而不是空列表；类型不符时返回空数组。
  */
 function collectPanelFrameStyleChanges(panelFrameStyleComponent) {
   if (!panelFrameStyleComponent || panelFrameStyleComponent.type !== "panel-frame") {
@@ -23723,15 +22879,8 @@ function collectPanelFrameStyleChanges(panelFrameStyleComponent) {
   );
 }
 /**
- * 把面板边框属性的原始值格式化成变更摘要里的可读文案。
- *
- * 宽高按画布尺寸换算成百分比；透明度/圆角/柔光强度与大小乘 100 加百分号；
+ * 把面板边框属性的原始值格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比；透明度/圆角/柔光强度与大小乘 100 加百分号；
  * 旋转与渐变角度加「°」；四段文字的相对位置按百分比直接展示。
- *
- * @param {string} panelFrameStyleFormatKey 属性键，决定单位与换算方式。
- * @param {*} panelFrameStylePropertyValue 原始属性值。
- * @param {object} [panelFrameStylePropertyDocument] 提供画布尺寸的文档。
- * @returns {string} 可读文案。
  */
 function formatPanelFrameStyleValue(
   panelFrameStyleFormatKey,
@@ -23991,16 +23140,9 @@ const navigationStylePropertyDefinitions = {
   }
 };
 /**
- * 读取导航按钮组件在指定属性上的当前取值，并兼容旧版「统一透明度」字段。
- *
- * 老文档把文字/图标的闲置与激活透明度合并成 idleOpacity / activeOpacity，
- * 这里按新键优先、旧键兜底依次回退；文字左位置同理回退 textLeft。
- * mainTextTop 缺省时用 textTop 减去 1800/64.36（旧版把 1800px 设计稿上
- * 的 64.36px 行高偏移折算成百分比），保持与历史渲染结果一致。
- *
- * @param {?object} navigationStyleSourceComponent 来源组件；为空时返回 undefined。
- * @param {string} navigationStylePropertyKey 属性键。
- * @returns {*} 属性当前值。
+ * 读取导航按钮组件在指定属性上的当前取值，并兼容旧版「统一透明度」字段：老文档把文字/图标的闲置与激活透明度合并成
+ * idleOpacity / activeOpacity，这里按新键优先、旧键兜底依次回退，文字左位置同理回退 textLeft。mainTextTop 缺省时用
+ * textTop 减去 1800/64.36（旧版把 1800px 设计稿上的 64.36px 行高偏移折算成百分比），保持与历史渲染结果一致。
  */
 function getNavigationStyleValue(navigationStyleSourceComponent, navigationStylePropertyKey) {
   if (!navigationStyleSourceComponent) {
@@ -24066,30 +23208,15 @@ function getNavigationStyleValue(navigationStyleSourceComponent, navigationStyle
   }
 }
 /**
- * 用 JSON 序列化结果判断两个属性值是否相等。
- *
- * 属性值可能是数组或对象（如透视四角），直接用 === 比不出内容相等；
+ * 用 JSON 序列化结果判断两个属性值是否相等：属性值可能是数组或对象（如透视四角），直接用 === 比不出内容相等；
  * 属性值体量都很小，序列化的开销可以接受。
- *
- * @param {*} firstComponentValue 左值。
- * @param {*} secondComponentValue 右值。
- * @returns {boolean} 序列化后是否一致。
  */
 function areComponentValuesEqual(firstComponentValue, secondComponentValue) {
   return JSON.stringify(firstComponentValue) === JSON.stringify(secondComponentValue);
 }
 /**
- * 记录导航按钮某个属性「本次编辑前的值」，供退出编辑时生成变更摘要。
- *
- * 只记第一笔：同一属性被连续改动时保留最早的那次旧值，这样摘要里展示的
- * 是会话开始前的状态而非中间态。属性不在已知样式表内、或新旧值本就相等
- * 时直接忽略，避免把噪声写进摘要。
- *
- * @param {string} navigationComponentId 导航按钮组件 ID。
- * @param {string} navigationPropertyKey 属性键。
- * @param {*} previousPropertyValue 改动前的值。
- * @param {*} updatedPropertyValue 改动后的值。
- * @returns {void}
+ * 记录导航按钮某个属性「本次编辑前的值」，供退出编辑时生成变更摘要。只记第一笔：同一属性被连续改动时保留最早的那次旧值，
+ * 这样摘要里展示的是会话开始前的状态而非中间态；属性不在已知样式表内、或新旧值本就相等时直接忽略，避免把噪声写进摘要。
  */
 function rememberNavigationStyleChange(
   navigationComponentId,
@@ -24119,13 +23246,8 @@ function rememberNavigationStyleChange(
   }
 }
 /**
- * 清理某导航按钮已记录变更中「属性键已废弃」的条目。
- *
- * 旧版本记录下的键可能已从 navigationStylePropertyDefinitions 移除，
+ * 清理某导航按钮已记录变更中「属性键已废弃」的条目：旧版本记录下的键可能已从 navigationStylePropertyDefinitions 移除，
  * 留着会让摘要显示不出来的属性；顺带在表为空时删掉整个 Map 项，防止泄漏。
- *
- * @param {?object} navigationSettingsComponent 导航按钮组件。
- * @returns {void}
  */
 function pruneNavigationSavedSettings(navigationSettingsComponent) {
   const navigationSavedSettings = navigationButtonSavedSettingsByComponentId.get(
@@ -24143,13 +23265,8 @@ function pruneNavigationSavedSettings(navigationSettingsComponent) {
   }
 }
 /**
- * 汇总导航按钮本次会话内真正发生变化的属性键。
- *
- * 先剪枝再比对：已记录旧值但当前值与旧值仍相等的键会被滤掉
- * （例如改了又改回原值），保证摘要只列净变化。
- *
- * @param {?object} navigationChangesComponent 导航按钮组件。
- * @returns {string[]} 净变化的属性键列表。
+ * 汇总导航按钮本次会话内真正发生变化的属性键：先剪枝再比对，已记录旧值但当前值与旧值仍相等的键会被滤掉（例如改了又改回原值），
+ * 保证摘要只列净变化。
  */
 function collectNavigationStyleChanges(navigationChangesComponent) {
   pruneNavigationSavedSettings(navigationChangesComponent);
@@ -24167,15 +23284,8 @@ function collectNavigationStyleChanges(navigationChangesComponent) {
     .map(([savedNavigationEntryKey]) => savedNavigationEntryKey);
 }
 /**
- * 把导航按钮属性格式化成变更摘要里的可读文案。
- *
- * 宽高按画布尺寸换算成百分比；各类透明度/圆角/泛光强度与大小乘 100 加百分号；
+ * 把导航按钮属性格式化成变更摘要里的可读文案：宽高按画布尺寸换算成百分比；各类透明度/圆角/泛光强度与大小乘 100 加百分号；
  * 文字与图标位置按百分比展示；旋转与泛光角度加「°」。
- *
- * @param {string} navigationFormatKey 属性键，决定单位与换算方式。
- * @param {*} navigationPropertyValue 原始属性值。
- * @param {object} [navigationPropertyDocument] 提供画布尺寸的文档。
- * @returns {string} 可读文案。
  */
 function formatNavigationStyleValue(
   navigationFormatKey,
@@ -24236,18 +23346,8 @@ function formatNavigationStyleValue(
   }
 }
 /**
- * 生成「应用样式」对话框里的一行复选项。
- *
- * 用 data 属性区分两种用途：勾选属性（data-navigation-style-property）
- * 与勾选目标控件（data-navigation-target-id），一个对话框里两处共用此函数。
- * 复选框默认勾选，符合「默认全应用」的操作习惯。
- *
- * @param {object} options 配置对象。
- * @param {string} options.value 数据属性值：属性键或目标组件 ID。
- * @param {string} options.label 显示文案。
- * @param {string} [options.detail] 次要说明（分组 · 当前值或目标页面）。
- * @param {boolean} [options.target=false] 是否为「目标控件」类型的选项。
- * @returns {HTMLLabelElement} 可直接插入对话框的 label 元素。
+ * 生成「应用样式」对话框里的一行复选项。用 data 属性区分两种用途（data-navigation-style-property 勾选属性、
+ * data-navigation-target-id 勾选目标控件），一个对话框里两处共用此函数。复选框默认勾选，符合「默认全应用」的操作习惯。
  */
 function createStyleApplyOption({
   value: applyOptionValue,
@@ -24276,19 +23376,9 @@ function createStyleApplyOption({
   return applyOptionLabelElement;
 }
 /**
- * 渲染「应用样式」对话框里的目标选择区，按区域与页面两级分组。
- *
- * 数据先按 scope（shared 侧边栏 / 具体页面路径）归组，再套一层固定顺序的
- * ["shared", "page"] 区域小节——用固定顺序而不是按数据出现顺序，是为了让
- * 同一份目标列表每次渲染出来的区块顺序一致，用户勾选时不会跳位。
- * 每组生成「n/m 个控件」摘要与全选/取消全选按钮，勾选框的 value 用组件 id，
- * 由调用方在确认时收集。detailResolver 既接受函数（按组件算描述）也接受字符串
- * （整组统一描述），因为部分调用方只需要一句固定说明。
- *
- * @param {Array<{component: object, page: ?object, scope: string}>} applyTargets 可应用的目标组件及其所属页面/区域。
- * @param {function|string} detailResolver 勾选项副标题的来源，函数按组件计算，字符串则整组通用。
- * @returns {void}
- * @sideeffect 覆写 navigationStyleApplyTargetsElement 的子节点。
+ * 渲染「应用样式」对话框里的目标选择区，按区域（shared 侧边栏 / 具体页面路径）与页面两级分组：先按 scope 归组，再套一层
+ * 固定顺序的 ["shared", "page"] 小节——用固定顺序而非数据出现顺序，让同一份目标列表每次渲染的区块顺序一致、勾选时不跳位。
+ * 每组生成「n/m 个控件」摘要与全选/取消按钮，勾选框的 value 用组件 id；detailResolver 既接受函数（按组件算描述）也接受字符串。
  */
 function renderStyleApplyTargets(applyTargets, detailResolver) {
   const targetsByGroupKey = new Map();
@@ -24355,10 +23445,8 @@ function renderStyleApplyTargets(applyTargets, detailResolver) {
       ...pageOptionsElement.querySelectorAll("[data-navigation-target-id]")
     ];
     /**
-     * 局部汇总函数：一次算出「已选/总数」与「是否全选」，同步摘要文案、
-     * 全选按钮文案及其 aria-label，避免在每次 change 里重复查询 DOM。
-     *
-     * @returns {void}
+     * 局部汇总函数：一次算出「已选/总数」与「是否全选」，同步摘要文案、全选按钮文案及其 aria-label，
+     * 避免在每次 change 里重复查询 DOM。
      */
     const updatePageSelectionSummary = () => {
       const checkedCount = targetCheckboxElements.filter(
@@ -24393,14 +23481,9 @@ function renderStyleApplyTargets(applyTargets, detailResolver) {
   navigationStyleApplyTargetsElement.replaceChildren(...scopeSectionsByScope.values());
 }
 /**
- * 打开「应用导航按钮设置」对话框，把当前导航按钮的净样式变更复制到其他导航按钮。
- *
- * 只有同时存在净变更（collectNavigationStyleChanges）与可替换目标
- * （findReplaceableComponents）时才弹出，否则静默返回——空对话框没有意义。
- * 各类型共用同一套对话框 DOM，这里只改写标题、摘要、属性行与目标行，
- * 并记下 appliedStyleRecord 供「应用」按钮反查来源与类型。
- *
- * @returns {void}
+ * 打开「应用导航按钮设置」对话框，把当前导航按钮的净样式变更复制到其他导航按钮。只有同时存在净变更
+ * （collectNavigationStyleChanges）与可替换目标（findReplaceableComponents）时才弹出，否则静默返回——空对话框没有意义。
+ * 各类型共用同一套对话框 DOM，这里只改写标题、摘要、属性行与目标行，并记下 appliedStyleRecord 供「应用」按钮反查来源与类型。
  */
 function openNavigationStyleApplyDialog() {
   const sourceNavigationComponent = selectedComponent();
@@ -24458,12 +23541,8 @@ function openNavigationStyleApplyDialog() {
   }
 }
 /**
- * 打开「应用底图框设置」对话框，把当前底图框的净样式变更复制到其他底图框。
- *
- * 同样要求«有变更且有目标»才弹出；目标行说明是固定文案，因为底图框没有
- * 需要额外展示的绑定信息。同时写入 appliedStyleRecord 记录本次来源。
- *
- * @returns {void}
+ * 打开「应用底图框设置」对话框，把当前底图框的净样式变更复制到其他底图框。同样要求有变更且有目标才弹出；
+ * 目标行说明是固定文案（底图框没有需要额外展示的绑定信息），同时写入 appliedStyleRecord 记录本次来源。
  */
 function openPanelFrameStyleApplyDialog() {
   const sourcePanelFrameComponent = selectedComponent();
@@ -24508,12 +23587,8 @@ function openPanelFrameStyleApplyDialog() {
   }
 }
 /**
- * 打开「应用摄像头实时预览设置」对话框，把当前摄像头的净变更复制到其他摄像头。
- *
- * 摘要里明确列出「实体、备注、动作和控件位置不会改变」，减少用户对
- * 批量操作的顾虑；目标行文案固定，变更条件仍是«有变更且有目标»。
- *
- * @returns {void}
+ * 打开「应用摄像头实时预览设置」对话框，把当前摄像头的净变更复制到其他摄像头。摘要里明确列出「实体、备注、动作和
+ * 控件位置不会改变」，减少用户对批量操作的顾虑；目标行文案固定，变更条件仍是有变更且有目标。
  */
 function openCameraStyleApplyDialog() {
   const sourceCameraComponent = selectedComponent();
@@ -24718,13 +23793,8 @@ function openAirConditionerStyleApplyDialog() {
   }
 }
 /**
- * 打开「应用图标/设备按钮或传感器设置」对话框。
- *
- * 三种组件共用此入口：传感器按品类取中文名（resolveSensorKindLabel），
- * 设备按钮与图标按钮用固定文案，标题与目标行都带上这个名称，
- * 让用户明确批量的作用范围。appliedStyleRecord.type 记真实组件类型。
- *
- * @returns {void}
+ * 打开「应用图标/设备按钮或传感器设置」对话框。三种组件共用此入口：传感器按品类取中文名（resolveSensorKindLabel），
+ * 设备按钮与图标按钮用固定文案，标题与目标行都带上这个名称，让用户明确批量的作用范围；appliedStyleRecord.type 记真实组件类型。
  */
 function openIconButtonStyleApplyDialog() {
   const sourceIconButtonComponent = selectedComponent();
@@ -24783,12 +23853,8 @@ function openIconButtonStyleApplyDialog() {
   }
 }
 /**
- * 打开「应用折线图设置」对话框，把当前折线图的净变更复制到其他折线图。
- *
- * 目标行展示各自绑定的数值实体 ID（缺省显示「未设置数值实体」），
- * 因为折线图之间最容易混淆的就是绑定了哪个实体。
- *
- * @returns {void}
+ * 打开「应用折线图设置」对话框，把当前折线图的净变更复制到其他折线图。目标行展示各自绑定的数值实体 ID
+ * （缺省显示「未设置数值实体」），因为折线图之间最容易混淆的就是绑定了哪个实体。
  */
 function openLineChartStyleApplyDialog() {
   const sourceLineChartComponent = selectedComponent();
@@ -24836,16 +23902,9 @@ function openLineChartStyleApplyDialog() {
   }
 }
 /**
- * 把导航按钮的某个样式属性就地写入目标组件（目标为文档草稿里的副本）。
- *
- * 宽高改变时以目标原有中心为锚点反推左上角，避免批量应用后控件跑位；
- * scale 写 style、rotation 写 position、其余写 properties。取值先 clone，
- * 防止目标与源共享同一个数组/对象引用（如透视四角、阈值配色）。
- *
- * @param {object} styleSourceComponent 取值来源组件。
- * @param {object} styleTargetComponent 写入目标组件，会被就地修改。
- * @param {string} stylePropertyKey 要复制的属性键。
- * @returns {void}
+ * 把导航按钮的某个样式属性就地写入目标组件（目标为文档草稿里的副本）。宽高改变时以目标原有中心为锚点反推左上角，
+ * 避免批量应用后控件跑位；scale 写 style、rotation 写 position、其余写 properties。取值先 clone，防止目标与源共享
+ * 同一个数组/对象引用（如透视四角、阈值配色）。
  */
 function applyStyleChangeToComponent(styleSourceComponent, styleTargetComponent, stylePropertyKey) {
   const stylePropertyValue = clone(getNavigationStyleValue(styleSourceComponent, stylePropertyKey));
@@ -24892,11 +23951,6 @@ function applyStyleChangeToComponent(styleSourceComponent, styleTargetComponent,
 }
 /**
  * 把底图框的某个样式属性就地写入目标框，宽高同样以目标中心为锚点保位。
- *
- * @param {object} panelFrameApplySourceComponent 取值来源底图框。
- * @param {object} panelFrameApplyTargetComponent 写入目标底图框，会被就地修改。
- * @param {string} panelFrameApplyPropertyKey 要复制的属性键。
- * @returns {void}
  */
 function applyPanelFrameStyleChange(
   panelFrameApplySourceComponent,
@@ -24949,11 +24003,6 @@ function applyPanelFrameStyleChange(
 }
 /**
  * 把摄像头的某个属性就地写入目标摄像头，宽高以目标中心为锚点保位。
- *
- * @param {object} cameraApplySourceComponent 取值来源摄像头。
- * @param {object} cameraApplyTargetComponent 写入目标摄像头，会被就地修改。
- * @param {string} cameraApplyPropertyKey 要复制的属性键。
- * @returns {void}
  */
 function applyCameraStyleChange(
   cameraApplySourceComponent,
@@ -25006,11 +24055,6 @@ function applyCameraStyleChange(
 }
 /**
  * 把折线图的某个属性就地写入目标折线图，宽高以目标中心为锚点保位。
- *
- * @param {object} lineChartApplySourceComponent 取值来源折线图。
- * @param {object} lineChartApplyTargetComponent 写入目标折线图，会被就地修改。
- * @param {string} lineChartApplyPropertyKey 要复制的属性键。
- * @returns {void}
  */
 function applyLineChartStyleChange(
   lineChartApplySourceComponent,
@@ -25063,11 +24107,6 @@ function applyLineChartStyleChange(
 }
 /**
  * 把「图标按钮效果」的某个属性就地写入目标控件，宽高以目标中心为锚点保位。
- *
- * @param {object} iconButtonEffectApplySourceComponent 取值来源控件。
- * @param {object} iconButtonEffectApplyTargetComponent 写入目标控件，会被就地修改。
- * @param {string} iconButtonEffectApplyPropertyKey 要复制的属性键。
- * @returns {void}
  */
 function applyIconButtonEffectStyleChange(
   iconButtonEffectApplySourceComponent,
@@ -25123,11 +24162,6 @@ function applyIconButtonEffectStyleChange(
 }
 /**
  * 把标题按钮的某个属性就地写入目标标题按钮，宽高以目标中心为锚点保位。
- *
- * @param {object} titleButtonApplySourceComponent 取值来源标题按钮。
- * @param {object} titleButtonApplyTargetComponent 写入目标标题按钮，会被就地修改。
- * @param {string} titleButtonApplyPropertyKey 要复制的属性键。
- * @returns {void}
  */
 function applyTitleButtonStyleChange(
   titleButtonApplySourceComponent,
@@ -25180,11 +24214,6 @@ function applyTitleButtonStyleChange(
 }
 /**
  * 把图标/设备按钮或传感器的某个属性就地写入目标控件，宽高以目标中心为锚点保位。
- *
- * @param {object} iconButtonApplySourceComponent 取值来源组件。
- * @param {object} iconButtonApplyTargetComponent 写入目标组件，会被就地修改。
- * @param {string} iconButtonApplyPropertyKey 要复制的属性键。
- * @returns {void}
  */
 function applyIconButtonStyleChange(
   iconButtonApplySourceComponent,
@@ -25237,11 +24266,6 @@ function applyIconButtonStyleChange(
 }
 /**
  * 把空调控件的某个属性就地写入目标空调控件，宽高以目标中心为锚点保位。
- *
- * @param {object} airConditionerApplySourceComponent 取值来源空调控件。
- * @param {object} airConditionerApplyTargetComponent 写入目标空调控件，会被就地修改。
- * @param {string} airConditionerApplyPropertyKey 要复制的属性键。
- * @returns {void}
  */
 function applyAirConditionerStyleChange(
   airConditionerApplySourceComponent,
@@ -25998,21 +25022,9 @@ imageEntityOptionsElement.addEventListener("click", imageEntityOptionClickEvent 
   });
 });
 /**
- * 给某类控件的「实体选择」下拉按钮绑定开合、搜索与选中逻辑。
- *
- * 一个按钮可能服务多种组件类型（如 icon-button 按钮同时服务
- * icon-button / device-button / presence-sensor），因此用 pickerComponentTypes
- * 决定当前生效的配置。选中实体后会同步维护引用完整性：
- *  - 清空实体时删掉 bindings.entity，并清掉依赖该实体的动作
- *    （light-statistics 会保留与实体无关的动作）；
- *  - 导航按钮若因此丢了 tap 动作，会补一个跳转到有效页面的 navigate；
- *  - 空调没有动作时补默认的 tap=more-info、doubleTap=toggle；
- *  - 天气固定绑定 sun.sun；换实体时清掉自动推导的 relatedEntities，
- *    有联动弹窗上下文则改为显式空配置。
- *
- * @param {string} bindPickerKind 默认的实体选择器种类键。
- * @param {string[]} [pickerComponentTypes=[bindPickerKind]] 该按钮支持的组件类型列表。
- * @returns {void}
+ * 给某类控件的「实体选择」下拉按钮绑定开合、搜索与选中逻辑；用 pickerComponentTypes 决定当前生效的配置（一个按钮
+ * 可能服务 icon-button / device-button / presence-sensor 多种类型）。选中实体后维护引用完整性：清空实体时删掉
+ * bindings.entity 并清掉依赖该实体的动作；导航按钮若因此丢了 tap 动作会补一个跳转到有效页面的 navigate，天气固定绑定 sun.sun。
  */
 function bindEntityPicker(bindPickerKind, pickerComponentTypes = [bindPickerKind]) {
   const boundPickerConfig = entityPickerConfig(bindPickerKind);
@@ -26184,41 +25196,9 @@ function closeActiveEditorPicker() {
   activeEditorPicker?.close();
 }
 /**
- * 创建一个分页选择器对话框并接管其生命周期（图标、实体、素材等共用）。
- *
- * 结构是即时构建的：<dialog> + 卡片 + 搜索框 + 当前值 + 列表 + 页脚。
- * 要点：
- *  - 先关掉已有选择器与遗留下拉菜单，避免叠加；
- *  - 搜索输入做 160ms 防抖（避免每次按键都打接口）；
- *  - 所有异步加载用自增的 pickerRequestId 作令牌，回调时令牌不一致或
- *    对话框已关闭就丢弃结果，防止慢响应覆盖新页面；
- *  - 页码越界（如删除条目后）会自动回退到最后一页重新加载；
- *  - 列表容器上的 pointerover/scroll 会隐藏素材大图预览，避免残留浮层；
- *  - 销毁时把大图预览节点移回 body 并清空列表，防止节点随对话框一起被回收。
- *
- * @param {object} options 配置项。
- * @param {string} options.kind 选择器种类标识，写入 data-editor-picker-kind。
- * @param {string} options.title 标题文案。
- * @param {string} [options.subtitle] 标题下的副标题。
- * @param {string} options.searchPlaceholder 搜索框占位文案。
- * @param {?Element} options.triggerButton 触发按钮，用于同步 aria-expanded。
- * @param {number} options.pageSize 每页条数。
- * @param {number} [options.initialPage=1] 初始页码。
- * @param {string} [options.selectedText] 当前选中值文案；实体选择器缺省显示「不使用实体」。
- * @param {string} options.emptyText 空结果时的提示文案。
- * @param {string} [options.itemClass] 附加到列表容器的样式类。
- * @param {Function} options.getPage 取页函数，入参 {query, page, pageSize}，返回 {items, total}。
- * @param {Function} options.renderItem 单条渲染函数，返回元素。
- * @param {?Function} [options.renderLeadingItems] 列表头部附加元素渲染器。
- * @param {?Function} [options.renderTrailingItems] 末页列表尾部附加元素渲染器。
- * @param {?Function} [options.buildToolbar] 工具栏渲染器，用于插入自定义控件。
- * @param {Function} options.onSelect 选中回调，入参为条目的 data-editor-picker-value。
- * @param {?Function} [options.onDelete] 删除用户素材回调。
- * @param {?Function} [options.onItemHover] 条目悬停回调，用于展示大图预览。
- * @param {boolean} [options.closeLegacyPickers=true] 是否顺带关闭旧版下拉菜单。
- * @param {?Function} [options.renderSelectedActions] 「当前选择」区域的附加操作按钮渲染器。
- * @param {?Function} [options.renderSelectedContent] 「当前选择」区域的自定义内容渲染器。
- * @returns {object} 选择器控制器，含 state、refresh、rebuildToolbar、close。
+ * 创建一个分页选择器对话框并接管其生命周期（图标、实体、素材等共用）。先关掉已有选择器与遗留下拉菜单避免叠加，
+ * 搜索输入做 160ms 防抖；所有异步加载用自增的 pickerRequestId 作令牌，回调时令牌不一致或对话框已关闭就丢弃结果，
+ * 防止慢响应覆盖新页面；页码越界自动回退到最后一页；列表上的 pointerover/scroll 会隐藏素材大图预览；销毁时把大图预览节点移回 body。
  */
 function openEditorPickerDialog({
   kind: pickerKind,
@@ -26393,11 +25373,9 @@ function openEditorPickerDialog({
     }
   };
   /**
-   * 销毁选择器：置关闭标记、取消待触发的防抖搜索、作废进行中的请求令牌，
-   * 复位触发按钮的 aria-expanded，并把素材大图预览节点搬回 body（它不在
-   * 对话框子树里，但会被 close 时的清理逻辑一并影响），最后从 DOM 摘除对话框。
-   *
-   * @returns {void}
+   * 销毁选择器：置关闭标记、取消待触发的防抖搜索、作废进行中的请求令牌，复位触发按钮的 aria-expanded，
+   * 并把素材大图预览节点搬回 body（它不在对话框子树里，但会被 close 时的清理逻辑一并影响），
+   * 最后从 DOM 摘除对话框。
    */
   function teardownPickerDialog() {
     if (!isPickerClosed) {
@@ -26418,14 +25396,8 @@ function openEditorPickerDialog({
     }
   }
   /**
-   * 拉取并渲染当前页。
-   *
-   * 用自增令牌做竞态防护：await 回来后若令牌已被更新或对话框已关闭，
-   * 直接丢弃结果（否则慢的旧请求会覆盖新页）。页码越界时先回退到末页
-   * 再递归重载一次；加载中禁用翻页按钮并置 aria-busy，失败时用
-   * 「加载失败，请稍后重试」占位并交给统一错误处理。
-   *
-   * @returns {Promise<void>} 无返回值，渲染结果直接写入对话框 DOM。
+   * 拉取并渲染当前页。用自增令牌做竞态防护：await 回来后若令牌已被更新或对话框已关闭，直接丢弃结果（否则慢的旧请求会覆盖新页）。
+   * 页码越界时先回退到末页再递归重载一次；加载中禁用翻页按钮并置 aria-busy，失败时用「加载失败，请稍后重试」占位并交给统一错误处理。
    */
   async function loadPickerPage() {
     const pickerRequestToken = ++pickerRequestId;
@@ -26451,10 +25423,8 @@ function openEditorPickerDialog({
       }
       const leadingPickerItems = renderLeadingItems ? renderLeadingItems(pickerState) : [];
       /**
-       * 本页渲染出的条目元素；空结果时会被塞入一个占位节点，
-       * 因此不会出现「列表为空但页脚仍显示总数」的错觉。
-       *
-       * @type {HTMLElement[]}
+       * 本页渲染出的条目元素；空结果时会被塞入一个占位节点，因此不会出现
+       * 「列表为空但页脚仍显示总数」的错觉。
        */
       const pickerItemElements = (pickerPageResult.items || []).map(pickerItem =>
         renderItem(pickerItem)
@@ -26600,15 +25570,8 @@ function openEditorPickerDialog({
   return pickerController;
 }
 /**
- * 以「程序点击」的方式触发某个选择器选项，复用既有的 selectionchange 链路。
- *
- * 临时按钮只负责携带 data-* 标识，点击后立即清空容器，避免在 DOM 里
- * 残留一次性节点。
- *
- * @param {Element} optionsContainer 承载选项的元素容器。
- * @param {string} datasetKey 数据集键名（如 iconName）。
- * @param {string} datasetValue 数据集取值。
- * @returns {void}
+ * 以「程序点击」的方式触发某个选择器选项，复用既有的 selectionchange 链路。临时按钮只负责携带 data-* 标识，
+ * 点击后立即清空容器，避免在 DOM 里残留一次性节点。
  */
 function selectPickerOption(optionsContainer, datasetKey, datasetValue) {
   const pickerTriggerButton = document.createElement("button");
@@ -26619,15 +25582,9 @@ function selectPickerOption(optionsContainer, datasetKey, datasetValue) {
   optionsContainer.replaceChildren();
 }
 /**
- * 打开图标选择器（分页检索 /icons）。
- *
- * 五组「触发按钮 → 目标下拉容器」的映射是一次性查表，因为不同控件把
- * 选中结果写回不同元素：四组写 iconName，灯光统计写 lightStatisticsIconName。
- * 灯光统计的「当前值」还做了特判：属性里没显式给 icon 时按默认
- * mdi:lightbulb-group-outline 展示，避免显示成「不使用图标」。
- *
- * @param {Element} iconTriggerButton 被点击的图标触发按钮。
- * @returns {boolean} 是否成功打开（按钮不认识时返回 false）。
+ * 打开图标选择器（分页检索 /icons）。五组「触发按钮 → 目标下拉容器」的映射是一次性查表，因为不同控件把选中结果
+ * 写回不同元素：四组写 iconName，灯光统计写 lightStatisticsIconName。灯光统计的「当前值」还做了特判：属性里没显式给 icon 时
+ * 按默认 mdi:lightbulb-group-outline 展示，避免显示成「不使用图标」。
  */
 function openIconPicker(iconTriggerButton) {
   const iconPickerComponent = selectedComponent();
@@ -26733,17 +25690,9 @@ function openIconPicker(iconTriggerButton) {
   return true;
 }
 /**
- * 按触发按钮反查组件类型，并打开对应的实体选择器对话框。
- *
- * 先判断按钮属于图片还是图标按钮/设备按钮等；其余类型用一个候选类型表逐个
- * 比对 entityPickerConfig(kind).button 是否等于该按钮，因此新增带实体绑定的
- * 组件类型时只要往那张表里加名字即可。虚拟实体（图标可见性伪实体）会被提到
- * 首页第一项。
- * 实体尚未加载完成时通过 deferUntilEntitiesLoaded 延后重试，并用「选中组件
- * 未变」作为回调有效条件；成功打开后由回调里的 selectPickerOption 写回值。
- *
- * @param {Element} entityTriggerButton 触发选择器的按钮元素。
- * @returns {boolean} true 表示已打开或已排队等待；无法识别按钮归属时返回 false。
+ * 按触发按钮反查组件类型，并打开对应的实体选择器对话框。先判断按钮属于图片还是图标按钮/设备按钮等；其余类型用一个候选类型表
+ * 逐个比对 entityPickerConfig(kind).button，因此新增带实体绑定的组件类型只需往那张表里加名字。虚拟实体（图标可见性伪实体）
+ * 会被提到首页第一项。实体尚未加载完成时通过 deferUntilEntitiesLoaded 延后重试，并以「选中组件未变」作为回调有效条件。
  */
 function openEntityPicker(entityTriggerButton) {
   const entityPickerComponent = selectedComponent();
@@ -26821,14 +25770,9 @@ function openEntityPicker(entityTriggerButton) {
   return true;
 }
 /**
- * 打开灯光统计的「选择/替换实体」选择器。
- *
- * 候选集只取适宜统计的灯光类实体，并做稳定性排序：支持统计的在前，
- * 其次灯域实体，最后按原始顺序，避免同一批实体每次打开顺序抖动。
- * 另外这里 closeLegacyPickers 传 false，因为灯光统计面板自身就挂在一个
- * 下拉里，关掉旧下拉会把触发按钮一起收起来。
- *
- * @returns {boolean} 是否已打开或已排队等待；当前选中项不是灯光统计时返回 false。
+ * 打开灯光统计的「选择/替换实体」选择器。候选集只取适宜统计的灯光类实体，并做稳定性排序：支持统计的在前，其次灯域实体，
+ * 最后按原始顺序，避免同一批实体每次打开顺序抖动。这里 closeLegacyPickers 传 false，因为灯光统计面板自身就挂在一个下拉里，
+ * 关掉旧下拉会把触发按钮一起收起来。
  */
 function openLightStatisticsEntityPicker() {
   if (selectedComponent()?.type !== "light-statistics") {
@@ -26847,14 +25791,8 @@ function openLightStatisticsEntityPicker() {
     return true;
   }
   /**
-   * 过滤并按「可统计性 → 灯域 → 原始顺序」排序灯光统计的候选实体。
-   *
-   * 只保留实体名称或 domain 命中查询词的项（大小写不敏感，中文用 zh-CN 规则）。
-   * 索引在排序前先记录下来，作为最后一级稳定排序键，避免同一批实体在
-   * 每次打开选择器时顺序抖动；支持统计的实体排在前面，其次才是 light 域。
-   *
-   * @param {string} lightStatisticsQuery 搜索词，空串表示不过滤。
-   * @returns {Array<object>} 过滤排序后的实体列表。
+   * 过滤并按「可统计性 → 灯域 → 原始顺序」排序灯光统计的候选实体。只保留实体名称或 domain 命中查询词的项（大小写不敏感，中文用 zh-CN 规则）；
+   * 索引在排序前先记录下来作为最后一级稳定排序键，避免同一批实体每次打开顺序抖动。
    */
   const filterLightStatisticsEntities = lightStatisticsQuery => {
     const lightStatisticsQueryText = String(lightStatisticsQuery || "")
@@ -26926,14 +25864,9 @@ function openLightStatisticsEntityPicker() {
   return true;
 }
 /**
- * 打开弹窗动作编辑区的实体选择器（触发按钮由 DOM 关系定位，不用全局引用）。
- *
- * 选择结果写回 [data-popup-entity-options] 容器，走既有的 selectionchange 链路；
- * 候选集过滤掉虚拟实体，避免把仅用于图标可见性的伪实体绑进动作。
- * 等待实体加载的回调以「触发节点仍在文档中」为有效条件（弹窗可能已被关闭）。
- *
- * @param {Element} popupEntityTrigger 动作区块内的实体触发按钮。
- * @returns {boolean} 是否已打开或已排队等待；DOM 结构不完整时返回 false。
+ * 打开弹窗动作编辑区的实体选择器（触发按钮由 DOM 关系定位，不用全局引用）。选择结果写回 [data-popup-entity-options] 容器，
+ * 走既有的 selectionchange 链路；候选集过滤掉虚拟实体，避免把仅用于图标可见性的伪实体绑进动作。等待实体加载的回调以
+ * 「触发节点仍在文档中」为有效条件（弹窗可能已被关闭）。
  */
 function openPopupEntityPicker(popupEntityTrigger) {
   const popupEntityTriggerElement = popupEntityTrigger.closest("[data-action-trigger]");
@@ -26959,13 +25892,8 @@ function openPopupEntityPicker(popupEntityTrigger) {
     null;
   const popupVirtualEntity = iconVisibilityVirtualEntities()[0] || null;
   /**
-   * 过滤弹窗动作可绑定的实体候选。
-   *
-   * 排除 virtual 实体——它们是「图标可见性」用的伪实体，没有真实状态，
-   * 绑进动作里无法产生任何效果。空查询返回全部非虚拟实体。
-   *
-   * @param {string} popupQuery 搜索词（匹配实体显示名或 entityId）。
-   * @returns {Array<object>} 匹配的实体列表。
+   * 过滤弹窗动作可绑定的实体候选：排除 virtual 实体——它们是「图标可见性」用的伪实体、没有真实状态，绑进动作无法产生任何效果；
+   * 空查询返回全部非虚拟实体。
    */
   const filterPopupEntities = popupQuery => {
     const popupQueryText = String(popupQuery || "")
@@ -27012,13 +25940,8 @@ function openPopupEntityPicker(popupEntityTrigger) {
   return true;
 }
 /**
- * 打开「添加/编辑模块」对话框里的实体选择器。
- *
- * 排序会参考当前模块类型做推荐（popupModuleEntityRecommended），
- * 把最可能被选中的实体排到前面；对话框关闭后回调即失效，
- * 因此等待实体加载的条件直接绑在弹窗的 open 状态上。
- *
- * @returns {boolean} 是否已打开或已排队等待；模块对话框未打开时返回 false。
+ * 打开「添加/编辑模块」对话框里的实体选择器。排序会参考当前模块类型做推荐（popupModuleEntityRecommended），
+ * 把最可能被选中的实体排到前面；对话框关闭后回调即失效，因此等待实体加载的条件直接绑在弹窗的 open 状态上。
  */
 function openPopupModuleEntityPicker() {
   if (!popupModuleDialogElement.open) {
@@ -27040,15 +25963,9 @@ function openPopupModuleEntityPicker() {
     ) || null;
   const popupModuleVirtualEntity = iconVisibilityVirtualEntities()[0] || null;
   /**
-   * 过滤并排序「添加/编辑模块」对话框的实体候选。
-   *
-   * 同样排除 virtual 伪实体；排序用 popupModuleEntityRecommended 按当前模块类型
-   * 做推荐度排序（推荐的在前），推荐度相同时回落到原始下标，保证顺序稳定。
-   * 之所以实时读取表单里的 type 值，是为了让用户切换模块类型后重开选择器
-   * 就能看到对应的推荐顺序。
-   *
-   * @param {string} moduleQuery 搜索词（匹配实体显示名或 entityId）。
-   * @returns {Array<object>} 过滤排序后的实体列表。
+   * 过滤并排序「添加/编辑模块」对话框的实体候选：同样排除 virtual 伪实体；用 popupModuleEntityRecommended 按当前模块类型
+   * 做推荐度排序（推荐在前），同分时回落原始下标保证顺序稳定。实时读取表单里的 type 值，是为了让用户切换模块类型后
+   * 重开选择器就能看到对应的推荐顺序。
    */
   const filterPopupModuleEntities = moduleQuery => {
     const moduleQueryText = String(moduleQuery || "")
@@ -27120,16 +26037,9 @@ function openPopupModuleEntityPicker() {
   return true;
 }
 /**
- * 打开图片素材选择器（控件图片 image / 效果图片 ibe 两种用途）。
- *
- * 打开前先静默重载素材目录，保证列表是最新的；重载完成时只有本次活动
- * 的选择器仍在用同一个触发按钮才刷新，避免用户已切到别处还去改它的状态。
- * 素材分页走本地切片（目录已整体拿到内存），初始页由当前素材下标推算。
- * 悬停条目会调度大图预览，预览节点最终挂在选择器对话框上，
- * 因此这里把返回值链式 append 进去。
- *
- * @param {Element} assetTriggerButton 图片素材触发按钮。
- * @returns {boolean} 是否成功打开（按钮不认识时返回 false）。
+ * 打开图片素材选择器（控件图片 image / 效果图片 ibe 两种用途）。打开前先静默重载素材目录保证列表最新；重载完成时只有本次
+ * 活动的选择器仍用同一个触发按钮才刷新，避免用户已切到别处还去改它的状态。素材分页走本地切片（目录已整体在内存），
+ * 初始页由当前素材下标推算；悬停条目会调度大图预览，预览节点最终挂在选择器对话框上，故把返回值链式 append 进去。
  */
 function openAssetPicker(assetTriggerButton) {
   const assetPickerKind =
@@ -27217,16 +26127,9 @@ function openAssetPicker(assetTriggerButton) {
   return true;
 }
 /**
- * 批量上传用户素材，并同步两条展示路径（旧下拉菜单与新版分页选择器）。
- *
- * 逐张上传而不是打包，是为了拿出「哪个文件为什么失败」的细粒度错误：
- * 扩展名先在前端过滤（与后端白名单一致：PNG/JPG/JPEG/WebP/SVG），
- * 单张失败只记错误继续传下一张，最后把汇总错误一次性抛出提示。
- * 文件名走 X-File-Name 头（URL 编码），因为请求体就是文件本身。
- *
- * @param {?FileList|File[]} assetFileList 待上传的文件列表。
- * @param {string} uploadAssetKind 素材用途："image"（控件图片）或 "ibe"（效果图片）。
- * @returns {Promise<void>} 上传结束后刷新列表与选择器。
+ * 批量上传用户素材，并同步两条展示路径（旧下拉菜单与新版分页选择器）。逐张上传而非打包，是为了拿到「哪个文件为什么失败」
+ * 的细粒度错误：扩展名先在前端过滤（与后端白名单一致：PNG/JPG/JPEG/WebP/SVG），单张失败只记错误继续传下一张，
+ * 最后把汇总错误一次性抛出提示。文件名走 X-File-Name 头（URL 编码），因为请求体就是文件本身。
  */
 async function uploadAssetFiles(assetFileList, uploadAssetKind) {
   const uploadFiles = [...(assetFileList || [])];
@@ -27294,15 +26197,9 @@ async function uploadAssetFiles(assetFileList, uploadAssetKind) {
   }
 }
 /**
- * 请求删除一张用户素材（先做引用完整性检查，再弹确认框）。
- *
- * 只允许删 source === "user" 的素材；随后递归遍历当前文档的所有值，
- * 只要有任何字段等于该 assetId 就拒绝删除并提示先替换
- * ——因为删除被引用的素材会让控件渲染回退或报错。
- * 通过检查后把待删 ID 暂存到 pendingDeleteAssetId，等确认框里再执行。
- *
- * @param {string} assetIdToDelete 待删除的素材 ID。
- * @returns {void}
+ * 请求删除一张用户素材（先做引用完整性检查，再弹确认框）。只允许删 source === "user" 的素材；随后递归遍历当前文档的所有值，
+ * 只要有任何字段等于该 assetId 就拒绝删除并提示先替换——删除被引用的素材会让控件渲染回退或报错。通过检查后把待删 ID
+ * 暂存到 pendingDeleteAssetId，等确认框里再执行。
  */
 function requestDeleteAsset(assetIdToDelete) {
   const assetToDelete = findAssetById(assetIdToDelete);
@@ -27310,13 +26207,8 @@ function requestDeleteAsset(assetIdToDelete) {
     return;
   }
   /**
-   * 递归判断整份文档里是否还有字段引用了这张待删素材。
-   *
-   * 文档是任意嵌套的 JSON 结构，素材 ID 可能出现在任意层级的字符串值里，
-   * 所以对数组/对象逐层下钻、对字符串做等值比较，命中即短路返回 true。
-   *
-   * @param {*} assetDocumentNode 待检查的文档子树（数组、对象、字符串或原始值）。
-   * @returns {boolean} 是否存在对该素材 ID 的引用。
+   * 递归判断整份文档里是否还有字段引用了这张待删素材。文档是任意嵌套的 JSON 结构，素材 ID 可能出现在任意层级的字符串值里，
+   * 故对数组/对象逐层下钻、对字符串做等值比较，命中即短路返回 true。
    */
   const documentUsesAsset = assetDocumentNode =>
     Array.isArray(assetDocumentNode)
@@ -27335,16 +26227,9 @@ function requestDeleteAsset(assetIdToDelete) {
   deleteAssetDialogElement.showModal();
 }
 /**
- * 请求删除一个用户素材文件夹（同样先检查引用完整性）。
- *
- * 用户素材的 ID 约定为 "studio3d:<文件夹>/<文件名>"，因此这里靠前缀匹配
- * 判断文档里是否还引用了该文件夹里的图片。canDeleteAssetFolder 负责
- * 拒绝内置/不可删的目录；通过检查后暂存待删文件夹，等确认框里执行，
+ * 请求删除一个用户素材文件夹（同样先检查引用完整性）。用户素材的 ID 约定为 "studio3d:<文件夹>/<文件名>"，故靠前缀匹配判断
+ * 文档里是否还引用了该文件夹里的图片；canDeleteAssetFolder 负责拒绝内置/不可删的目录；通过检查后暂存待删文件夹，等确认框执行，
  * 确认框会顺带显示文件夹内的图片数量。
- *
- * @param {string} folderKind 文件夹所属的素材种类。
- * @param {string} folderName 文件夹名。
- * @returns {void}
  */
 function requestDeleteAssetFolder(folderKind, folderName) {
   if (!canDeleteAssetFolder("user", folderName)) {
@@ -27353,13 +26238,8 @@ function requestDeleteAssetFolder(folderKind, folderName) {
   const folderAssetRecords = exportedAssetsInFolder(folderName);
   const folderAssetPrefix = "studio3d:" + folderName + "/";
   /**
-   * 递归判断整份文档里是否还有字段引用了该用户素材文件夹下的图片。
-   *
-   * 用户素材 ID 约定为 "studio3d:<文件夹>/<文件名>"，无法逐个枚举文件名，
-   * 因此对所有字符串值做前缀匹配；数组/对象逐层下钻，命中即短路返回 true。
-   *
-   * @param {*} folderDocumentNode 待检查的文档子树（数组、对象、字符串或原始值）。
-   * @returns {boolean} 是否存在属于该文件夹的素材引用。
+   * 递归判断整份文档里是否还有字段引用了该用户素材文件夹下的图片。用户素材 ID 约定为 "studio3d:<文件夹>/<文件名>"，
+   * 无法逐个枚举文件名，故对所有字符串值做前缀匹配；数组/对象逐层下钻，命中即短路返回 true。
    */
   const documentUsesFolder = folderDocumentNode =>
     Array.isArray(folderDocumentNode)
@@ -27382,13 +26262,8 @@ function requestDeleteAssetFolder(folderKind, folderName) {
   deleteAssetFolderDialogElement.showModal();
 }
 /**
- * 素材变更后统一刷新两条展示路径。
- *
- * 两类素材各自同步文件夹下拉、重渲染旧版下拉列表；若当前正开着新版
- * 分页选择器则重建工具栏并回到第一页（删除/新增后会改变分页总量），
- * 最后对仍可见的浮层重算定位，避免列表内容变化后浮层错位。
- *
- * @returns {void}
+ * 素材变更后统一刷新两条展示路径：两类素材各自同步文件夹下拉、重渲染旧版下拉列表；若当前正开着新版分页选择器则重建工具栏
+ * 并回到第一页（删除/新增后会改变分页总量），最后对仍可见的浮层重算定位，避免列表内容变化后浮层错位。
  */
 function refreshAssetPickerViews() {
   syncAssetFolderOptions("image");
@@ -27927,14 +26802,8 @@ pageSelectElement.addEventListener("change", () => {
   syncInspector();
 });
 /**
- * 打开组合弹窗的「新建 / 重命名」对话框。
- *
- * 两种用途共用同一个表单，靠 popupDialogMode 区分：重命名时回填现有名称，
- * 新建时预置「新建组合弹窗」并全选，便于直接改写。选中文本是为了
- * 让用户不必先手动清空默认名。
- *
- * @param {string} popupNameMode 模式："create"（新建）或 "rename"（重命名）。
- * @returns {void}
+ * 打开组合弹窗的「新建 / 重命名」对话框。两种用途共用同一个表单，靠 popupDialogMode 区分：重命名时回填现有名称，
+ * 新建时预置「新建组合弹窗」并全选，便于直接改写。
  */
 function openPopupNameDialog(popupNameMode) {
   popupDialogMode = popupNameMode;
@@ -28051,8 +26920,6 @@ popupActionsMenuElement.addEventListener("click", popupActionsClickEvent => {
         /**
          * 草稿文档里被复制的原弹窗；逐层深拷贝并重新生成各模块 ID，
          * 否则副本与原弹窗会指向同一个模块对象。
-         *
-         * @type {?object}
          */
         const popupToDuplicate = (popupDuplicateDraftDocument.customPopups || []).find(
           popupDuplicateMatch => popupDuplicateMatch.id === popupActionTargetId
@@ -28092,11 +26959,8 @@ popupActionsMenuElement.addEventListener("click", popupActionsClickEvent => {
   }
 });
 /**
- * 关闭「删除组合弹窗」确认框，并清掉暂存的待删弹窗 ID。
- *
- * 不用等 `close` 事件，因为点确认时也会走 close，两条路径都要清空暂存值。
- *
- * @returns {void}
+ * 关闭「删除组合弹窗」确认框，并清掉暂存的待删弹窗 ID。不用等 `close` 事件，
+ * 因为点确认时也会走 close，两条路径都要清空暂存值。
  */
 function closeDeletePopupDialog() {
   popupModuleDraft = null;
@@ -28104,34 +26968,16 @@ function closeDeletePopupDialog() {
 }
 
 /**
- * 删除确认框里逐条列出的上限（超出只报个数）。
- *
- * 为什么要有上限：一个弹窗可能被几十个控件打开（例如整页都是同一个详情弹窗），
- * 逐条列出来会把确认框撑成一面墙，反而看不见「确认删除」按钮。数字取得小是有意的：
- * 这里的用途是「让用户认出自己配过的那几处」，认出之后剩下的看总述就够了。
+ * 删除确认框里逐条列出的上限（超出只报个数）。一个弹窗可能被几十个控件打开（例如整页都是同一个详情弹窗），
+ * 逐条列出来会把确认框撑成一面墙，反而看不见「确认删除」按钮；数字取得小是有意的：这里的用途是
+ * 「让用户认出自己配过的那几处」，认出之后剩下的看总述就够了。
  */
 const DELETE_POPUP_USAGE_LIMIT = 6;
 
 /**
- * 算出当前文档里哪些控件会因为删掉这个弹窗而失去动作。
- *
- * 为什么要有它：组合弹窗是**全局**的（所有项目共享一份），删掉会级联把每份草稿里指向它的
- * 动作改成 `type:"none"`。原文案只说「所有仪表盘…都会自动改为无动作」，用户看不到
- * **当前这份文档里**是哪些控件会变，只能凭记忆回想（忘了哪个卡片配过，删完点一下才发现没反应）。
- * 这里把「谁会变」逐条列出来；别的仪表盘的定义不在前端手里，那里仍然只有总述那一句。
- *
- * 走法与后端级联清理同一套口子：`sharedComponents` + 每页的 `components`，沿 `children`
- * 递归；只认 `type:"more-info"` 且 `data.popupSource === "custom"` 且 `popupId` 相同的动作
- * （与 `_frontend` 侧的动作写入路径一致：弹窗只配在 tap / doubleTap / hold 三个触发器上）。
- * 共享组件按 `sharedComponentIds` 反查引用它的页面 —— 共享组件一改，引用它的每一页都受影响。
- *
- * 纯函数（实体显示名经 `entityLabelFor` 回调取，DOM 与编辑器状态都不碰），
- * 因此可以把它切出来直接喂文档跑（原探针已随测试清理删除）。
- *
- * @param {?object} documentSource 当前文档（含 sharedComponents 与 pages）。
- * @param {string} popupId 待删弹窗的 ID。
- * @param {function(string): string} [entityLabelFor] 实体 ID → 界面显示名（取不到返回空串）。
- * @returns {Array<{label: string, triggers: Array<string>}>} 每处一行，含是哪些触发器。
+ * 算出当前文档里哪些控件会因为删掉这个弹窗而失去动作。组合弹窗是全局的（所有项目共享一份），删掉会级联把每份
+ * 草稿里指向它的动作改成 type:"none"；这里逐条列出「谁会变」。走法与后端级联清理同一套口子：sharedComponents +
+ * 每页 components 沿 children 递归，只认 type:"more-info" 且 data.popupSource === "custom" 且 popupId 相同的动作。
  */
 function popupDeleteUsageEntries(documentSource, popupId, entityLabelFor) {
   const triggerLabels = { tap: "单击", doubleTap: "双击", hold: "长按" };
@@ -28196,8 +27042,6 @@ function popupDeleteUsageEntries(documentSource, popupId, entityLabelFor) {
  * 把「本仪表盘的影响面」写进删除确认框（文案 + 逐条清单）。
  *
  * @param {?object} documentSource 当前文档。
- * @param {string} popupId 待删弹窗的 ID。
- * @returns {void}
  */
 function renderPopupDeleteUsage(documentSource, popupId) {
   const entityRecords = entitiesByEntityId();
@@ -28241,14 +27085,8 @@ deletePopupConfirmButtonElement.addEventListener("click", () => {
         popupIdMatch => popupIdMatch.id !== popupIdToDelete
       );
       /**
-       * 递归清理组件树中所有指向待删弹窗的 more-info 动作。
-       *
-       * 一个弹窗可能被多个组件（含子组件）的 more-info 动作引用，删掉弹窗后
-       * 这些动作会变成悬空引用、点击无反应，因此统一重置为 type:"none"。
-       * 沿 children 递归，保证深层布局里的引用也一起清掉。
-       *
-       * @param {Array<object>} componentNodes 待遍历的组件节点数组（可为空）。
-       * @returns {void}
+       * 递归清理组件树中所有指向待删弹窗的 more-info 动作。一个弹窗可能被多个组件（含子组件）的 more-info 动作引用，
+       * 删掉弹窗后这些动作会变成悬空引用、点击无反应，因此统一重置为 type:"none"；沿 children 递归，保证深层布局里的引用也一起清掉。
        */
       const clearPopupModuleReferences = componentNodes => {
         for (const componentNode of componentNodes || []) {
@@ -28382,8 +27220,6 @@ popupModuleFormElement.addEventListener("submit", popupModuleSubmitEvent => {
     /**
      * 草稿文档里承载本次模块编辑的弹窗；找不到说明弹窗已被删除，
      * 直接放弃这次写入（例如对话框打开期间在别处删掉了它）。
-     *
-     * @type {?object}
      */
     const popupModuleDraftPopup = (popupModuleDraftDocument.customPopups || []).find(
       popupModulePopupMatch => popupModulePopupMatch.id === popupModuleTargetPopupId
@@ -28825,16 +27661,9 @@ enhanceNativeSelectsIn();
 enhanceColorInputsIn(document);
 enhanceNumberInputsIn(document);
 /**
- * 按指针位置更新 HSV 取色器的饱和度与明度，并立即提交给当前输入框。
- *
- * 坐标换算成 0~1 的比例：x 相对色块左边距除以宽度得到饱和度；y 相对上边距
- * 除以高度后取反得到明度（HSV 的明度向上递增，而 DOM 的 y 轴向下）。
- * 分母用 Math.max(1, …) 兜底，是为了防止色块尚未完成布局（宽高为 0）时除零，
- * 否则结果会变成 NaN/Infinity 并写进输入框。
- * 由色块的 pointerdown / pointermove 监听调用（拖动过程中连续触发）。
- *
- * @param {PointerEvent} saturationPointerEvent 色块上的指针事件，需带 clientX/clientY。
- * @returns {void}
+ * 按指针位置更新 HSV 取色器的饱和度与明度，并立即提交给当前输入框。坐标换算成 0~1 的比例：x 相对色块左边距除以宽度得饱和度；
+ * y 相对上边距除以高度后取反得明度（HSV 的明度向上递增，而 DOM 的 y 轴向下）。分母用 Math.max(1, …) 兜底，防止色块尚未完成布局
+ * （宽高为 0）时除零，否则结果会变成 NaN/Infinity 并写进输入框。由色块的 pointerdown / pointermove 调用（拖动过程中连续触发）。
  */
 const updateColorPickerFromPointer = saturationPointerEvent => {
   const saturationAreaRect = globalColorPickerSaturationValueElement.getBoundingClientRect();
@@ -28906,12 +27735,8 @@ globalColorPickerHexTextInputElement.addEventListener("change", () => {
   }
 });
 /**
- * 把颜色选择器的 RGB 三个通道输入合成十六进制并提交（失焦与输入时都会触发）。
- *
- * 各通道先夹到 0–255（用户可能输入越界数字），只有三个值都是有限数
- * 才提交，避免在输入中途用残缺值刷掉当前颜色。
- *
- * @returns {void}
+ * 把颜色选择器的 RGB 三个通道输入合成十六进制并提交（失焦与输入时都会触发）。各通道先夹到 0–255（用户可能输入越界数字），
+ * 只有三个值都是有限数才提交，避免在输入中途用残缺值刷掉当前颜色。
  */
 const commitColorPickerFromRgb = () => {
   if (!activeColorInputElement) {
@@ -29046,15 +27871,9 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 /**
- * 启动阶段的分片加载清单：每一项是「一个可以独立失败的加载动作 + 它在报错里的名字」。
- *
- * 名字不是装饰：`Promise.allSettled` 只会告诉你「第 3 片失败了」，而用户看到的必须是
- * 「实体清单没读出来」—— 少了名字，报错就退化成一句「操作失败」，与修复前没有区别。
- *
- * 写成函数而不是常量，是为了让这份清单能被整份取出来（按源码文本取函数，不去解析
- * 数组字面量 —— 原探针就是这么做启动顺序断言的），同时保证「谁属于启动阶段」只有这一个出处。
- *
- * @returns {Array<[string, function(): Promise<*>]>} 名称与加载动作。
+ * 启动阶段的分片加载清单：每一项是「一个可以独立失败的加载动作 + 它在报错里的名字」。名字不是装饰：Promise.allSettled 只会说
+ * 「第 3 片失败了」，而用户看到的必须是「实体清单没读出来」。写成函数而不是常量，是为了让这份清单能被整份取出来（按源码文本
+ * 取函数，不去解析数组字面量），同时保证「谁属于启动阶段」只有这一个出处。
  */
 function editorBootSlices() {
   return [
@@ -29068,14 +27887,8 @@ function editorBootSlices() {
 }
 
 /**
- * 汇总启动分片的失败：逐片进日志，再一次性给用户一句能指认的提示。
- *
- * 为什么不是「哪片失败就弹哪个」：六片同源失败（后端刚起来、网关没就绪、断网）时弹六次
- * 等于什么都没说。这里合成一条，带上失败片的名字 —— 用户截图就能定位，日志里每片各有一条
- * 带 `slice` 上下文的记录。
- *
- * @param {PromiseSettledResult<*>[]} bootResults 与 editorBootSlices() 一一对应。
- * @returns {void}
+ * 汇总启动分片的失败：逐片进日志，再一次性给用户一句能指认的提示。不逐片弹是因为六片同源失败（后端刚起来、网关没就绪、断网）
+ * 时弹六次等于什么都没说；这里合成一条并带上失败片的名字，用户截图就能定位，日志里每片各有一条带 slice 上下文的记录。
  */
 function reportBootFailures(bootResults) {
   const failedSliceNames = [];
@@ -29105,15 +27918,9 @@ function reportBootFailures(bootResults) {
 }
 
 /**
- * 逐个加载启动分片：一片失败不影响其它片，也不影响面板渲染。
- *
- * 为什么不用 `Promise.all`：这六片互相独立（会话 / 授权 / HA 连接 / 项目 / 素材 / 实体），
- * 一片失败没有任何理由让另外五片的结果作废 —— 而 `Promise.all` 的第一个 rejection 会把
- * `renderComponentLists()` 整段跳过，表现是**左侧组件面板一片空白**，右下角只留一句
- * 「操作失败」：用户既不知道坏的是哪一片，也分不出是不是自己没登录。`allSettled` 之后
- * 面板照画（没读到的那片自然是空的），失败的片各自进日志，再一次性把清单摆给用户。
- *
- * @returns {Promise<PromiseSettledResult<*>[]>} 分片结果，便于调用方继续处理。
+ * 逐个加载启动分片：一片失败不影响其它片，也不影响面板渲染。不用 Promise.all 是因为这六片互相独立（会话 / 授权 / HA 连接 /
+ * 项目 / 素材 / 实体），一片失败没有理由让另外五片的结果作废——而 all 的第一个 rejection 会把 renderComponentLists() 整段跳过，
+ * 表现是左侧组件面板一片空白、右下角只留一句「操作失败」；allSettled 之后面板照画，失败的片各自进日志再一次性摆给用户。
  */
 async function loadEditorBootSlices() {
   const bootResults = await Promise.allSettled(

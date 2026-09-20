@@ -1,38 +1,21 @@
 /**
- * 控件注册表与内置控件渲染器。
+ * 控件注册表与内置控件渲染器，职责三块共用同一文件：注册表本身（componentsByType 存「类型 → 渲染器」，
+ * registerComponent / renderRegisteredComponent 是唯一入口）、资源解析（把 builtin: / user: / studio3d: /
+ * 资源 ID 解析成可访问 URL，并处理版本戳与特效裁剪变体）、内置控件渲染器（图片、图标/设备按钮、
+ * 灯光统计、人体感应、空调、扫地机、时间/日期/天气、折线图、面板框与导航按钮等）。
  *
- * 职责分三块，共用同一个文件：
- * 1. 注册表本身：componentsByType 存「控件类型 → 渲染器」，
- *    registerComponent / renderRegisteredComponent 是唯一的注册与取用入口；
- * 2. 资源解析：把控件里存的资源引用（builtin: / user: / studio3d: / 资源 ID）
- *    解析成可访问的 URL，并处理内置资源版本戳与特效裁剪变体；
- * 3. 内置控件渲染器：图片、图标按钮、设备按钮、灯光统计、人体感应、空调、扫地机、
- *    时间 / 日期 / 天气、折线图、面板框与导航按钮等，逐个用 registerComponent 挂上。
- *
- * 约定（改动前务必确认）：
- * - 版本戳：本文件与 home.js、renderer.js 必须引用同一条 registry.js?v= 版本戳
- *   （由 tools/bump_static_cache_versions.mjs 统一改写）。浏览器按完整 URL 缓存 ES 模块，
- *   两条不同的 ?v= 会被当成两个模块分别求值，于是出现两份互不相认的 componentsByType，
- *   排查起来很像「控件已注册却渲染不出来」；
- * - 同一份注册表同时服务编辑器预览与展示页：编辑器在 iframe / 预览层里用同一批渲染器，
- *   靠 context.editable（是否可编辑）、context.previewState（预览态）与
- *   context.renderNamespace（隔离渐变等 id 前缀）区分两种场景，
- *   所以同一个控件类型只需注册一次，不需要为编辑器另写一套渲染器；
- * - 下面所有 re-export 是为了让页面脚本只 import registry.js 一处，
- *   同时保证各 runtime 模块与注册表用的是同一份实例；
- * - 渲染器只负责产出 DOM，不修改文档数据；编辑器预览通过 context.editable 与
- *   context.previewState 表达，不要另开旁路。
+ * 约定：本文件与 home.js、renderer.js 必须引用同一条 registry.js?v= 版本戳（tools/bump_static_cache_versions.mjs
+ * 统一改写），否则同一模块会被当成两份分别求值、出现两份互不相认的 componentsByType；同一份注册表同时服务
+ * 编辑器预览与展示页，靠 context.editable / previewState / renderNamespace 区分场景，同一控件类型只需注册一次。
  */
-import { randomUuid } from "../../utils/random-id.js?v=20260920104554";
-import { formatZhDateTime } from "../../utils/datetime.js?v=20260920104554";
+import { randomUuid } from "../../utils/random-id.js?v=20260920131301";
+import { formatZhDateTime } from "../../utils/datetime.js?v=20260920131301";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=20260920104554";
-// 数值夹取统一走 utils/numbers.js（P10 B 类收敛）：本文件原先那份也叫 clampNumber，
-// 但它是四参、且会把空串换算成 0 —— 与编辑器那份同名不同义，最容易调用错的形态。
-// `clampNumber` 只在三处出现：那三处 `clampCoercedNumber` 的兜底是**算出来的表达式**、
-// 存在越界的现实可能，所以要在调用点先夹一次（`clampCoercedNumber` 的兜底现在原样返回，
-// 与另外两份一致 —— 见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber, clampNumber } from "../../utils/numbers.js?v=20260920104554";
+import { debugLog } from "../../utils/debug-log.js?v=20260920131301";
+// 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
+// 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
+// （见 `utils/numbers.js` 模块头那张口径表）。
+import { clampCoercedNumber, clampNumber } from "../../utils/numbers.js?v=20260920131301";
 import {
   climateDefaultIcon,
   climateEffectMode,
@@ -41,25 +24,22 @@ import {
   climatePresentationMode,
   normalizeClimateCapabilities,
   resolveClimateDeviceType
-} from "../controls/climate.js?v=20260920104554";
-import { entityPowerIsOn } from "./entity-power.js?v=20260920104554";
-import { lightRealtimeCapabilities } from "../controls/light-runtime.js?v=20260920104554";
-import { renderInteraction3d } from "../../bridge/bridge.js?v=20260920104554";
-// 状态条目归一统一走 utils/state-entry.js。本文件原先自带一份同内容实现，
-// 而 vacuum-runtime.js / presence-runtime.js 各有一份同内容但换了名字的副本 —— 现在只有一份。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920104554";
-// 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带一份
-// `String(元数据.domain || id.split(".")[0] || "").trim()`，其中的回退路径换成
-// `entityDomainFromId`；`元数据.domain ||` 那半截刻意保留 —— 它**不切点号**，
-// 换掉会改变「域里带点号」时的取值（那是另一个知识，见 `entityDomainOf` 的说明）。
-import { entityDomainFromId } from "../../utils/entities.js?v=20260920104554";
-import { mdiIconUrl } from "../../utils/icon-url.js?v=20260920104554";
+} from "../controls/climate.js?v=20260920131301";
+import { entityPowerIsOn } from "./entity-power.js?v=20260920131301";
+import { lightRealtimeCapabilities } from "../controls/light-runtime.js?v=20260920131301";
+import { renderInteraction3d } from "../../bridge/bridge.js?v=20260920131301";
+// 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
+// 「按 ID 取域」的回退路径走 `entityDomainFromId`；`元数据.domain ||` 那半截刻意保留
+// —— 它**不切点号**，换掉会改变「域里带点号」时的取值（那是另一个知识，见 `entityDomainOf` 的说明）。
+import { entityDomainFromId } from "../../utils/entities.js?v=20260920131301";
+import { mdiIconUrl } from "../../utils/icon-url.js?v=20260920131301";
 // 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
-// 本文件原先各留一份本地实现，只因为 cover-runtime.js 已经 import 本文件、反向 import 会成环。
+// 它不 import 任何东西，避免 cover-runtime.js 与本文件反向 import 成环。
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor
-} from "../controls/cover-direction.js?v=20260920104554";
+} from "../controls/cover-direction.js?v=20260920131301";
 // 控件类型注册表。用 Map 而不是对象字面量：控件类型来自文档数据，
 // Map 不受原型链影响，查 "constructor" 之类的键也不会拿到奇怪的结果。
 const componentsByType = new Map();
@@ -69,7 +49,7 @@ registerComponent("interaction3d", {
   render: renderInteraction3d
 });
 // 内置资源的三个索引：版本戳、显式 URL、特效裁剪变体。
-// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=20260920104554
+// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=20260920131301
 // 特效变体记录裁剪矩形与原图尺寸，渲染时写进 dataset 供 effect-geometry 使用。
 const assetVersionByAssetId = new Map();
 const assetUrlByAssetId = new Map();
@@ -196,14 +176,10 @@ export function renderRegisteredComponent(component, renderContext) {
   return unknownComponentElement;
 }
 /**
- * 把资源引用解析成可访问的 URL。
- *
- * 支持的引用形式（按匹配顺序）：
- * - 直接命中资源 ID 索引（后端给出的显式 URL）；
- * - studio3d:<导出目录>/<文件名> → /api/v1/assets/studio3d-export/…；
- * - user:<32 位十六进制> → /api/v1/assets/user/…；
- * - builtin:<相对路径> → /assets/builtin/…（并按需附带版本戳）。
- * 认不出的一律返回空串，由调用方渲染占位而不是发出一个必然 404 的请求。
+ * 把资源引用解析成可访问的 URL，按匹配顺序支持：直接命中资源 ID 索引（后端显式 URL）、
+ * studio3d:<导出目录>/<文件名> → /api/v1/assets/studio3d-export/…、user:<32 位十六进制> →
+ * /api/v1/assets/user/…、builtin:<相对路径> → /assets/builtin/…（按需附带版本戳）。
+ * 认不出的一律返回空串，由调用方渲染占位而不是发出必然 404 的请求。
  */
 function resolveAssetUrl(assetReference) {
   const assetReferenceText = String(assetReference || "");
@@ -308,19 +284,7 @@ function isEntityActiveState(entityStateEntry) {
     .toLowerCase();
   return ["on", "open", "true", "home"].includes(entityStateText);
 }
-// 窗帘「已在关闭位」的位置容差（%）：≤1% 视为关闭，避免设备残值（0.x%）让开合状态抖动。
-//
-// 为什么导出、为什么落在本文件：这条知识有两个消费方 —— 本文件的「是否活动（打开）」判定，
-// 以及 renderer.js 弹层按钮的「这次点击该发关还是该开发」。renderer.js 本来就 import 本文件，
-// 因此这一份定义放在这里既够得着又不引入新的依赖方向（反向 import cover-runtime.js 会成环）。
-//
-// 原先 renderer.js 那两处写的就是这个名字，而它**从来没有定义过**：点一次弹层里的窗帘开关
-// 就抛 ReferenceError，异步点击处理器在此之前已经把 isCoverTogglePending 置真，
-// 于是按钮卡在 aria-busy 上、之后再点也一律 return。
-//
-// 遗留（记在审计文档里，单独一批处理）：`cover-runtime.js` 另有一份等值的 `PERCENT_EPSILON = 1`，
-// 用的是同一条「1% 以内当作端点」知识。要合成一份得先有第三个叶子模块（registry 与
-// cover-runtime 之间不能互相 import，见 cover-direction.js 模块头），那是动模块布局的一批。
+// 窗帘「已在关闭位」容差（%）：≤1% 视为关闭，避免设备残值（0.x%）让开合状态抖动；本文件与 renderer.js 都消费这份定义，cover-runtime.js 另有等值常量不便合并（互相 import 会成环）。
 export const COVER_CLOSED_POSITION_EPSILON = 1;
 /**
  * 判断窗帘控件是否应按梦幻帘渲染。
@@ -450,16 +414,11 @@ function isComponentEntityActive(
   return entityPowerIsOn(runtimePowerEntityId, runtimePowerState, powerAwareComponent);
 }
 /**
- * 判断灯光特效是否在「等待实时视觉参数」。
- *
- * 解决的问题：刚开灯时实体的 brightness / color_temp 属性往往要晚一拍才上报，
- * 若立刻按当前（缺失的）属性绘制，效果层会先按默认值闪一下再跳到真实亮度。
- * 因此这里在「灯已开、能力支持、但对应属性还没到」时返回 true，
- * 渲染侧据此打上 awaiting-light-visual 类，让 CSS 先不做过场。
- *
- * 编辑态、非 light 域、两项实时效果都被关掉时一律返回 false；
- * 实体状态缺失 / unknown / unavailable 时返回 true（信息还没到位）；
- * 若刚下发了开机指令（pendingOptimisticState.desiredActive）则以乐观状态为准，不再等待。
+ * 判断灯光特效是否在「等待实时视觉参数」：刚开灯时 brightness / color_temp 往往晚一拍才上报，
+ * 若立刻按缺失属性绘制，效果层会先按默认值闪一下；灯已开、能力支持、但属性未到时返回 true，
+ * 渲染侧据此打上 awaiting-light-visual 类让 CSS 先不做过场。
+ * 编辑态、非 light 域、两项实时效果都关闭时返回 false；实体状态缺失 / unknown / unavailable 时返回 true；
+ * 刚下发开机指令（pendingOptimisticState.desiredActive）时以乐观状态为准，不再等待。
  */
 export function iconButtonEffectLightVisualAwaiting(effectAwaitComponent, effectAwaitContext = {}) {
   const effectAwaitProperties = effectAwaitComponent?.properties || {};
@@ -551,18 +510,18 @@ import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport,
   lightStatisticsSummary
-} from "../controls/light-statistics-runtime.js?v=20260920104554";
+} from "../controls/light-statistics-runtime.js?v=20260920131301";
 import {
   automaticNumericPrecision,
   formatLineChartValue,
   formatNumericValue,
   lineChartGeometry,
   normalizedStatePrecision
-} from "../controls/line-chart-runtime.js?v=20260920104554";
+} from "../controls/line-chart-runtime.js?v=20260920131301";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix
-} from "../controls/door-window-runtime.js?v=20260920104554";
+} from "../controls/door-window-runtime.js?v=20260920131301";
 import {
   automaticThresholds,
   meteoconUrl,
@@ -571,12 +530,12 @@ import {
   smoothChartPath,
   thresholdColor,
   weatherVisual
-} from "../controls/weather-chart-runtime.js?v=20260920104554";
+} from "../controls/weather-chart-runtime.js?v=20260920131301";
 import {
   formatLocalDate,
   formatLocalTime,
   formatLunarDate
-} from "../controls/date-time-runtime.js?v=20260920104554";
+} from "../controls/date-time-runtime.js?v=20260920131301";
 // 统一再导出各 runtime 的纯函数：页面脚本只 import registry.js 一处即可，
 // 也保证注册表与这些工具用的是同一份模块实例（版本戳不一致会出现两份）。
 export {
@@ -608,7 +567,7 @@ import {
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "../controls/presence-runtime.js?v=20260920104554";
+} from "../controls/presence-runtime.js?v=20260920131301";
 export {
   formatPresenceDuration as formatPresenceDuration,
   presenceAnimationPhase as presenceAnimationPhase,
@@ -651,12 +610,9 @@ function resolveStateIcon(stateIconEntityId, stateIconEntityState) {
   );
 }
 /**
- * 把实体状态格式化成展示文案。
- *
- * 文案优先级：数值（纯数字才格式化，精度取 properties.statePrecision）→
- * 窗帘电机反接时的状态互换文案 → HA 翻译（两级键：实体状态键与组件状态键）→
- * 内置中英文对照表 → 原始状态值 → 「未知」。
- * 最后按需拼接单位；状态本身是「不可用 / 未知」时不拼单位。
+ * 把实体状态格式化成展示文案，优先级：数值（纯数字才格式化，精度取 properties.statePrecision）→
+ * 窗帘电机反接时的状态互换文案 → HA 翻译（实体状态键与组件状态键两级）→ 内置中英文对照表 →
+ * 原始状态值 → 「未知」；最后按需拼单位，状态为「不可用 / 未知」时不拼。
  */
 export function formatEntityState(rawState, formattedEntityId = "", formatContext = {}) {
   const resolvedStateEntry = resolveStateEntry(rawState);
@@ -981,14 +937,10 @@ function resolveClimateLabel(modeLabelComponent, modeLabelContext) {
   }
 }
 /**
- * 生成空调 / 浴霸出风动画的 SVG，并以 data URI 形式返回。
- *
- * 用 SVG 而不是 canvas：出风是纯矢量渐变与位移，SVG 交给浏览器合成更省电，
- * 且可以用 SMIL 动画（animateMotion）让光带沿路径流动，不需要 JS 逐帧驱动。
- * 用 data URI 而不是内联 DOM：图片可以享受浏览器的图片缓存与解码优化。
- *
- * 所有外观参数都做了区间夹取，越界值不会画出破图；
- * 颜色随制冷（蓝）/ 制热（橙）/ 其它（白）切换。
+ * 生成空调 / 浴霸出风动画的 SVG，以 data URI 返回。
+ * 用 SVG 而非 canvas：出风是纯矢量渐变与位移，交给浏览器合成更省电，且可用 SMIL（animateMotion）
+ * 让光带沿路径流动；用 data URI 而非内联 DOM：图片可享受浏览器缓存与解码优化。
+ * 所有外观参数都做了区间夹取，越界不会画出破图；颜色随制冷（蓝）/ 制热（橙）/ 其它（白）切换。
  */
 function buildAirflowSvg(airflowProperties = {}, airflowClimateMode = "other") {
   const airflowMotionMode = airflowProperties.airflowMotion === "static" ? "static" : "dynamic";
@@ -1257,14 +1209,9 @@ function appendSvgElement(svgParentElement, svgTagName, svgAttributes = {}) {
   return createdSvgElement;
 }
 /**
- * 把历史点整理成等间隔的折线序列。
- *
- * 处理要点：
- * - 丢掉时间戳或数值非法的点；
- * - 追加当前值作为最新一点，避免曲线停在最后一次历史采样上；
- * - 相邻重复（同一时间戳同一值）先去重，减少无意义的锯齿；
- * - 按「每小时一个桶」前向填充：桶内取该时刻之前最近的一条记录，
- *   这样空档期会自然延续上一个值，与仪表盘的读数语义一致。
+ * 把历史点整理成等间隔的折线序列：丢掉时间戳或数值非法的点，追加当前值作为最新一点，
+ * 相邻重复（同一时间戳同一值）先去重，再按「每小时一个桶」前向填充（桶内取该时刻之前最近的一条记录），
+ * 这样空档期会自然延续上一个值，与仪表盘读数语义一致。
  */
 function buildHistorySeries(historyContext, historyEntityId, currentStateValue, historyHours = 24) {
   // 先把原始点归一成「毫秒时间戳 + Number 数值」，后面统一按这两个字段比较与排序；
@@ -1339,13 +1286,9 @@ function formatHistoryTimestamp(timestampValue, includeDate = true) {
   return formatZhDateTime(timestampValue, { withDate: includeDate });
 }
 /**
- * 给折线图挂上指针提示：竖线、光点与跟随的数值气泡。
- *
- * 定位策略分三种，跟着气泡挂载的父元素走：
- * - 挂在图表容器内：用 absolute 定位，并按容器自身的缩放比反算，避免被父级 transform 放大；
- * - 挂在运行时弹窗层内：同样用 absolute 但要先减去弹窗层相对视口的偏移；
- * - 挂在 document.body：用 fixed 直接按视口坐标定位。
- * 另外气泡会按缩放比反向缩放，并在靠近容器左右边缘时改用右 / 左对齐，防止溢出被裁掉。
+ * 给折线图挂上指针提示：竖线、光点与跟随的数值气泡。定位策略随气泡挂载的父元素分三种 ——
+ * 图表容器内用 absolute 并按容器缩放比反算、运行时弹窗层内用 absolute 再减去弹窗层偏移、
+ * document.body 用 fixed 直接按视口坐标；气泡按缩放比反向缩放，靠近容器左右边缘时改右 / 左对齐防裁切。
  */
 function attachChartTooltip(
   chartRootElement,
@@ -1492,12 +1435,9 @@ function attachChartTooltip(
   };
 }
 /**
- * 生成导航按钮的边框与光晕 SVG。
- *
- * viewBox 宽度固定 236，高度按控件实际宽高比换算，配合 preserveAspectRatio=none 拉伸，
- * 于是内部只需按 236 宽的坐标系计算边距、圆角与描边宽度。
- * 渐变 id 用随机 UUID 加后缀：同一页面上可能有多个导航按钮，
- * id 冲突会让后来的按钮引用到前一个的渐变。
+ * 生成导航按钮的边框与光晕 SVG：viewBox 宽度固定 236，高度按控件实际宽高比换算，配合
+ * preserveAspectRatio=none 拉伸，内部只需按 236 宽的坐标系算边距、圆角与描边宽度。
+ * 渐变 id 用随机 UUID 加后缀，避免同一页面上多个导航按钮的 id 冲突而引用到前一个的渐变。
  */
 function buildNavigationEffects(
   navFrameComponent,
@@ -3529,11 +3469,8 @@ const CAMERA_PREWARM_LIMIT = 4;
 const cameraSourceCache = new Map();
 const cameraSourceInflight = new Map();
 /**
- * 取摄像头的 HLS 播放地址（带缓存与并发合并）。
- *
- * 同一实体在有效期内的请求直接命中缓存；未完成的请求按实体合并，
- * 多个控件同时挂载同一路摄像头时只会真正请求一次。
- *
+ * 取摄像头的 HLS 播放地址（带缓存与并发合并）：同一实体在有效期内的请求直接命中缓存，
+ * 未完成的请求按实体合并，多个控件同时挂载同一路摄像头时只会真正请求一次。
  * @throws {Error} 实体 ID 为空或后端返回失败时抛出。
  */
 async function fetchCameraHlsSource(cameraEntityId) {
@@ -3744,10 +3681,7 @@ export function mountCameraSnapshot({
 }
 /**
  * 在容器里挂载实时视频，失败时自动退回定时快照。
- *
- * 视频元素必须 muted + playsInline：浏览器只允许静音自动播放，
- * 不静音会直接被拒绝播放，表现为黑屏。
- *
+ * 视频元素必须 muted + playsInline：浏览器只允许静音自动播放，不静音会被拒绝播放而黑屏。
  * @param {function} [options.onUnavailable] 不可用回调。
  */
 export function mountCameraMedia({
@@ -3986,6 +3920,20 @@ export function mountCameraMedia({
       }
       mediaContainer.dataset.cameraState = "setup-fallback";
       mediaContainer.dataset.cameraError = String(hlsError);
+      // 这里必须记一笔：HLS 初始化抛错后画面会静默降级到 MJPEG，用户只看到「能播了」，
+      // 完全看不出走的是降级通道；不记日志就无从知道 HLS 在哪些设备上根本起不来。
+      // 文案与「摄像头播放失败」分支保持同一前缀，便于在会话历史里按关键词归并。
+      window.HABridgeLog?.report(
+        "error",
+        "摄像头",
+        "摄像头连接失败：" + (hlsError?.message || hlsError),
+        { entityId: mediaEntityId, phase: "hls-setup" }
+      );
+      // 控制台这份只在 ?debug=1 时输出：会话历史已经记过一次，生产里不必同一次失败响两份。
+      debugLog("warn", "[HomeOS camera] HLS setup failed", {
+        entityId: mediaEntityId,
+        error: String(hlsError)
+      });
       useLegacyCameraStream(playbackGeneration);
     }
   };
