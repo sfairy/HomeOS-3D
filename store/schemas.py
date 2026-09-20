@@ -11,9 +11,7 @@ class _Camel(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
 
-# --------------------------------------------------------------------------- #
 # 账号
-# --------------------------------------------------------------------------- #
 class VerificationRequest(_Camel):
     email: str = Field(min_length=3, max_length=255)
     #: register / reset 无需登录；verify / change_email 必须带登录态
@@ -92,9 +90,7 @@ class ReleaseDeviceRequest(_Camel):
     )
 
 
-# --------------------------------------------------------------------------- #
 # 订单
-# --------------------------------------------------------------------------- #
 class CreateOrderRequest(_Camel):
     product_id: str = Field(alias="productId", min_length=1, max_length=64)
     coupon_code: str | None = Field(default=None, alias="couponCode", max_length=64)
@@ -115,18 +111,14 @@ class CouponPreviewRequest(_Camel):
     coupon_code: str = Field(alias="couponCode", min_length=1, max_length=64)
 
 
-# --------------------------------------------------------------------------- #
 # 邀请
-# --------------------------------------------------------------------------- #
 class WithdrawalRequest(_Camel):
     points: float = Field(gt=0)
     request_key: str = Field(alias="requestKey", min_length=8, max_length=64)
     expected_fee_percent: float | None = Field(default=None, alias="expectedFeePercent")
 
 
-# --------------------------------------------------------------------------- #
 # 管理后台
-# --------------------------------------------------------------------------- #
 class _AdminBase(BaseModel):
     """后台请求体基类：**未知字段直接报 422**。
 

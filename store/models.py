@@ -37,9 +37,7 @@ def _id() -> str:
 DEFAULT_SUPPORT_EMAIL = "156120718@qq.com"
 
 
-# --------------------------------------------------------------------------- #
 # 站点配置
-# --------------------------------------------------------------------------- #
 class StoreSetting(Base):
     """站点级运行时配置（单例，id 固定为 1）。"""
 
@@ -133,9 +131,7 @@ class StoreSetting(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
 
-# --------------------------------------------------------------------------- #
 # 账号
-# --------------------------------------------------------------------------- #
 class Account(Base):
     __tablename__ = "accounts"
 
@@ -218,9 +214,7 @@ class LoginAttempt(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
-# --------------------------------------------------------------------------- #
 # 客户（与账号 1:1，但保持独立实体，对齐参考站的 customerId）
-# --------------------------------------------------------------------------- #
 class Customer(Base):
     __tablename__ = "customers"
 
@@ -235,9 +229,7 @@ class Customer(Base):
     account: Mapped[Account] = relationship(back_populates="customer")
 
 
-# --------------------------------------------------------------------------- #
 # 商品
-# --------------------------------------------------------------------------- #
 class Product(Base):
     __tablename__ = "products"
 
@@ -288,9 +280,7 @@ class ProductImage(Base):
     product: Mapped[Product] = relationship(back_populates="images")
 
 
-# --------------------------------------------------------------------------- #
 # 优惠码
-# --------------------------------------------------------------------------- #
 class Coupon(Base):
     __tablename__ = "coupons"
 
@@ -337,9 +327,7 @@ class CouponRedemption(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
-# --------------------------------------------------------------------------- #
 # 订单
-# --------------------------------------------------------------------------- #
 class Order(Base):
     __tablename__ = "orders"
 
@@ -507,9 +495,7 @@ class OrderRefund(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
-# --------------------------------------------------------------------------- #
 # 授权与权益
-# --------------------------------------------------------------------------- #
 class License(Base):
     __tablename__ = "licenses"
 
@@ -597,9 +583,7 @@ class Entitlement(Base):
     )
 
 
-# --------------------------------------------------------------------------- #
 # 设备绑定与租约
-# --------------------------------------------------------------------------- #
 class DeviceBinding(Base):
     __tablename__ = "device_bindings"
 
@@ -709,9 +693,7 @@ class DeviceReleaseEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
 
 
-# --------------------------------------------------------------------------- #
 # 邀请与积分
-# --------------------------------------------------------------------------- #
 class ReferralWallet(Base):
     __tablename__ = "referral_wallets"
 
@@ -784,9 +766,7 @@ class ReferralWithdrawal(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
-# --------------------------------------------------------------------------- #
 # 版本发布与审计
-# --------------------------------------------------------------------------- #
 class Release(Base):
     __tablename__ = "releases"
 

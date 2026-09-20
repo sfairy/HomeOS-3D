@@ -294,10 +294,6 @@ class SetupGuard:
 
     def authorize(self, request: Request, setup_token: str = "") -> None:
         """校验本次初始化请求；无权限抛 403，超限抛 429。
-
-        参数:
-            request: 当前请求（用于判定对端与限流键）。
-            setup_token: 请求体里带的引导密钥（也接受 ``X-Setup-Token`` 头）。
         """
         host = peer_host(request) or "unknown"
         limiter_key = f"setup:{host}"

@@ -106,9 +106,7 @@ def setup_page(request: Request) -> HTMLResponse:
     )
 
 
-# --------------------------------------------------------------------------- #
 # 商品图
-# --------------------------------------------------------------------------- #
 @router.get("/store/v1/product-images/{product_id}", include_in_schema=False)
 def product_image(product_id: str, request: Request, session: DbSession) -> FileResponse:
     image = session.scalars(
@@ -128,9 +126,7 @@ def product_image(product_id: str, request: Request, session: DbSession) -> File
     return FileResponse(target, headers={"Cache-Control": "public, max-age=86400"})
 
 
-# --------------------------------------------------------------------------- #
 # 模拟收银台
-# --------------------------------------------------------------------------- #
 #: 嵌进 ``<script>`` 的 JSON 里必须转义成 ``\uXXXX`` 的字符。
 #:
 #: ``json.dumps`` **只保证 JSON 合法，不保证 HTML 安全**：``<`` 是普通字符，

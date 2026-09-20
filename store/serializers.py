@@ -43,9 +43,7 @@ def list_json(values) -> str:
     return json.dumps(list(values), ensure_ascii=False, separators=(",", ":"))
 
 
-# --------------------------------------------------------------------------- #
 # 商品
-# --------------------------------------------------------------------------- #
 def available_stock_units(product: Product) -> int | None:
     """可售数量；``None`` 表示不限量（未设库存）。"""
     if product.stock_quantity is None:
@@ -132,9 +130,7 @@ def product_payload(
     }
 
 
-# --------------------------------------------------------------------------- #
 # 账号
-# --------------------------------------------------------------------------- #
 def account_payload(account: Account) -> dict:
     return {
         "id": account.id,
@@ -271,9 +267,7 @@ def entitlement_payload(entitlement: Entitlement, *, now: datetime | None = None
     }
 
 
-# --------------------------------------------------------------------------- #
 # 订单
-# --------------------------------------------------------------------------- #
 def order_payload(order: Order) -> dict:
     payment = {}
     try:

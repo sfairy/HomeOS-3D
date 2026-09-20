@@ -376,9 +376,7 @@ class StoreSettings:
         """显式要求 smtp 但凭据不全——需要大声报警，避免又变成静默失败。"""
         return self.mail_mode == "smtp" and not self.smtp_ready
 
-    # ------------------------------------------------------------------ #
-    # 支付宝密钥：优先读文件，其次用内联值
-    # ------------------------------------------------------------------ #
+        # 支付宝密钥：优先读文件，其次用内联值
     @property
     def alipay_private_key_text(self) -> str:
         return _read_secret_file(self.alipay_app_private_key_path) or self.alipay_app_private_key

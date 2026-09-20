@@ -171,9 +171,7 @@ def _enforce_verification_send_quota(
         )
 
 
-# --------------------------------------------------------------------------- #
 # 公共工具
-# --------------------------------------------------------------------------- #
 def _base_url(request: Request) -> str:
     return request.app.state.settings.public_base_url
 
@@ -670,9 +668,7 @@ def _center_payload(session, request: Request, account: Account) -> dict:
     )
 
 
-# --------------------------------------------------------------------------- #
 # 站点配置与商品
-# --------------------------------------------------------------------------- #
 @router.get("/configuration")
 def configuration(session: DbSession, settings: SettingsDep) -> dict:
     setting = site_config.get_setting(session)
@@ -741,9 +737,7 @@ def latest_release(request: Request, session: DbSession, channel: str = "docker"
     return response
 
 
-# --------------------------------------------------------------------------- #
 # 账号
-# --------------------------------------------------------------------------- #
 #: 需要登录态才能发码的用途。
 #:
 #: 「换绑邮箱」尤其重要：不校验登录态的话，任何人都能填任意邮箱触发验证码，
@@ -1367,9 +1361,7 @@ def reset_password(payload: PasswordResetRequest, request: Request, session: DbS
     return {"email": email, "reset": True}
 
 
-# --------------------------------------------------------------------------- #
 # 账号中心
-# --------------------------------------------------------------------------- #
 @router.get("/account")
 def account_center(request: Request, session: DbSession, account: AuthedAccount) -> Response:
     response = JSONResponse(_center_payload(session, request, account))
@@ -1592,9 +1584,7 @@ def _release_snapshot_conflict(payload: ReleaseDeviceRequest, binding) -> str | 
     return None
 
 
-# --------------------------------------------------------------------------- #
 # 订单
-# --------------------------------------------------------------------------- #
 #: 账号中心订单列表每页条数。与后台的 ``_page`` 保持同一量级（后台默认 100），
 #: 但前台是按卡片渲染的，一次 100 张卡片会明显拖慢首屏，所以取 20。
 ACCOUNT_ORDER_PAGE_SIZE = 20
@@ -2014,9 +2004,7 @@ def archive_order(order_no: str, session: DbSession, account: AuthedAccount) -> 
     return order_payload(order)
 
 
-# --------------------------------------------------------------------------- #
 # 优惠码
-# --------------------------------------------------------------------------- #
 @router.post("/coupons/preview")
 def preview_coupon(
     payload: CouponPreviewRequest, session: DbSession, account: AuthedAccount
@@ -2037,9 +2025,7 @@ def preview_coupon(
     }
 
 
-# --------------------------------------------------------------------------- #
 # 邀请有礼
-# --------------------------------------------------------------------------- #
 def _wallet_payload(wallet: ReferralWallet | None) -> dict | None:
     if wallet is None:
         return None

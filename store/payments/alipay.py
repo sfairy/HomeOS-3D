@@ -96,9 +96,7 @@ _PRE_HEADER = "RSA PRIVATE KEY"
 _PKCS8_HEADER = "PRIVATE KEY"
 
 
-# --------------------------------------------------------------------------- #
 # 金额：分 ↔ 元
-# --------------------------------------------------------------------------- #
 def yuan_from_cents(cents: int) -> str:
     """分转元，固定两位小数（支付宝要求 ``total_amount`` 形如 ``12.00``）。"""
     return str((Decimal(int(cents or 0)) / Decimal(100)).quantize(Decimal("0.01")))
@@ -112,9 +110,7 @@ def cents_from_yuan(value: object) -> int | None:
         return None
 
 
-# --------------------------------------------------------------------------- #
 # 密钥：把支付宝密钥工具产出的各种格式统一成 PEM
-# --------------------------------------------------------------------------- #
 def _strip_wrapping(raw: str) -> str:
     text = (raw or "").strip()
     # 环境变量里常见把换行写成字面量 \n 的写法
@@ -182,9 +178,7 @@ def _load_public_key(raw: str) -> rsa.RSAPublicKey:
     )
 
 
-# --------------------------------------------------------------------------- #
 # 凭据校验（纯函数：返回错误文案而不是抛异常，供保存校验与后台自检共用）
-# --------------------------------------------------------------------------- #
 #: 支付宝要求 RSA2048。低于这个位数本地能签名成功，网关却一律拒绝 ——
 #: 报错只有一句笼统的「验签失败」，运营根本想不到是密钥长度问题。
 MIN_RSA_BITS = 2048
@@ -346,9 +340,7 @@ def _callback_check(
     )
 
 
-# --------------------------------------------------------------------------- #
 # 签名
-# --------------------------------------------------------------------------- #
 def build_sign_content(params: dict[str, object], *, excluded: frozenset[str]) -> str:
     """拼接待签名字符串：按 key 字典序，跳过空值和 excluded。"""
     items = [
@@ -525,9 +517,7 @@ def alipay_timestamp(moment: datetime | None = None) -> str:
     )
 
 
-# --------------------------------------------------------------------------- #
 # 通知解析结果
-# --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
 class AlipayNotification:
     """异步通知的验签结果。``ok`` 为假时**绝不能入账**。"""
@@ -589,9 +579,7 @@ class AlipayProvider:
         """
         return self._resolve(settings)
 
-    # ------------------------------------------------------------------ #
-    # 配置
-    # ------------------------------------------------------------------ #
+        # 配置
     def is_configured(self, settings: StoreSettings) -> bool:
         settings = self._resolve(settings)
         return bool(
@@ -634,9 +622,7 @@ class AlipayProvider:
         settings = self._resolve(settings)
         return settings.alipay_return_url or f"{base_url}/store/payment/return"
 
-    # ------------------------------------------------------------------ #
-    # 调接口
-    # ------------------------------------------------------------------ #
+        # 调接口
     def _call(
         self,
         settings: StoreSettings,
@@ -733,9 +719,7 @@ class AlipayProvider:
         if not verify_content(content, signature, settings.alipay_public_key_text):
             raise ResponseSignatureInvalid("支付宝响应验签失败，已拒绝该响应。")
 
-    # ------------------------------------------------------------------ #
-    # 下单
-    # ------------------------------------------------------------------ #
+        # 下单
     def create_payment(
         self,
         *,
@@ -792,9 +776,7 @@ class AlipayProvider:
             qr_code=qr_code,
         )
 
-    # ------------------------------------------------------------------ #
-    # 退款
-    # ------------------------------------------------------------------ #
+        # 退款
     def refund_payment(
         self,
         *,
@@ -877,9 +859,7 @@ class AlipayProvider:
             ),
         )
 
-    # ------------------------------------------------------------------ #
-    # 异步通知验签
-    # ------------------------------------------------------------------ #
+        # 异步通知验签
     def verify_notification(
         self, settings: StoreSettings, form: dict[str, str]
     ) -> AlipayNotification:
@@ -907,9 +887,7 @@ class AlipayProvider:
             fields=fields,
         )
 
-    # ------------------------------------------------------------------ #
-    # 凭据自检
-    # ------------------------------------------------------------------ #
+        # 凭据自检
     def _probe_gateway_credentials(self, settings: StoreSettings) -> tuple[bool, str]:
         """用一笔**不存在的交易**探活，判断这套凭据到底能不能用。
 
@@ -1196,9 +1174,7 @@ class AlipayProvider:
             )
         return passed, message[:500], checks
 
-    # ------------------------------------------------------------------ #
-    # 查单
-    # ------------------------------------------------------------------ #
+        # 查单
     def query_payment(
         self, settings: StoreSettings, order: Order
     ) -> dict[str, object] | None:
@@ -1231,9 +1207,7 @@ class AlipayProvider:
         # 主动查单路径要把它挡在用户流程之外，巡检路径要记 failed 而不是当没查过。
         raise PaymentError(f"支付宝查单失败（{code}）：{detail}")
 
-    # ------------------------------------------------------------------ #
-    # 关单
-    # ------------------------------------------------------------------ #
+        # 关单
     def close_payment(self, settings: StoreSettings, order: Order) -> CloseResult:
         """关闭渠道侧的预下单交易（``alipay.trade.close``）。
 

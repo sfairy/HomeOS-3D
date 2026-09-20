@@ -371,17 +371,13 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.state.resolve_payment_provider = resolve_payment_provider
     app.state.payment_provider_from_db = payment_provider_from_db
 
-    # ------------------------------------------------------------------ #
-    # 静态资源
-    # ------------------------------------------------------------------ #
+        # 静态资源
     static_dir = settings.static_dir
     app.mount("/store-static", StaticFiles(directory=static_dir), name="store-static")
     # font.min.css 内部写死了 ../fonts/xxx，必须挂到根路径 /fonts 才能加载图标字体
     app.mount("/fonts", StaticFiles(directory=static_dir / "fonts"), name="fonts")
 
-    # ------------------------------------------------------------------ #
-    # 路由
-    # ------------------------------------------------------------------ #
+        # 路由
     app.include_router(license_api.router)
     app.include_router(store_api.router)
     app.include_router(alipay_api.router)

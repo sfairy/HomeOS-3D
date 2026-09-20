@@ -85,9 +85,7 @@ class LicenseAuthority:
         """当前一代传输密钥。同上；请求路径应按 keyId 选代。"""
         return self.keyring.active.transport
 
-    # ------------------------------------------------------------------ #
-    # 端点
-    # ------------------------------------------------------------------ #
+        # 端点
     def activate(
         self,
         payload: dict,
@@ -289,9 +287,7 @@ class LicenseAuthority:
                 generation=generation,
             )
 
-    # ------------------------------------------------------------------ #
-    # 内部
-    # ------------------------------------------------------------------ #
+        # 内部
     @property
     def session_ttl_seconds(self) -> int:
         return max(3600, int(self.settings.lease_ttl_seconds))
