@@ -19,13 +19,6 @@ import {
 } from "./cover-state.js?v=20260920080000";
 /**
  * 创建窗帘面板。
- *
- * @param {object} [options] 参数。
- * @param {HTMLElement} options.element 复用的容器；不传则新建一个 section。
- * @param {(command: object) => Promise<void>} [options.onControl] 命令发送回调。
- * @param {(entityId: string, position: number|null) => object|undefined} [options.onPreview]
- *        位置预览回调：传目标位置开始预览，传 null 取消预览；返回值为新的展示状态。
- * @returns {{root: HTMLElement, update: Function, dispose: Function}} 面板句柄。
  */
 export function createCoverPanel({
   element: hostElement,
@@ -215,9 +208,6 @@ export function createCoverPanel({
   }
   /**
    * 发送一条窗帘命令，并登记待确认意图。
-   *
-   * @param {object} command cover-state.js 构造出的服务调用描述。
-   * @returns {Promise<void>}
    */
   async function sendControl(command) {
     const instanceAtSend = instanceId;
@@ -300,8 +290,6 @@ export function createCoverPanel({
    * 把展示状态合并进设备状态后再校验：梦幻帘的可调叶片判断依赖展示层的
    * closedConfirmed（可能已被 railUnconfirmed 降级），只传 deviceState 会漏判。
    *
-   * @param {string} requestedService 服务名。
-   * @param {number} [controlValue] 目标位置。
    * @returns {Promise<void>|undefined} 不可控时返回 undefined。
    */
   function requestControl(requestedService, controlValue) {
@@ -538,10 +526,6 @@ export function createCoverPanel({
   }
   /**
    * 用新的视图模型刷新面板。
-   *
-   * @param {object} [nextViewModel={}] 含 item（绑定项）、state（HA 状态或已归一化状态）、
-   *        presentation（外部预览状态）、editing、error。
-   * @returns {void}
    */
   function update(nextViewModel = {}) {
     if (isDisposed) {

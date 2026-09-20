@@ -89,16 +89,6 @@ const APPEARANCE_GROUPS = [
  *
  * 流程：先取编辑授权 → 建弹窗骨架 → 挂预览舞台运行时 → 等舞台 ready 后渲染面板。
  * 弹窗以 dialog.showModal() 打开，关闭时整体释放（含舞台 iframe）。
- *
- * @param {object} options 配置项：
- *     component 控件描述（properties 为被编辑的 3D 配置，草稿从它克隆）；
- *     document 户型文档 API；entities / states 实体与状态；pickers 选择器工厂；
- *     onSave 保存回调，收到整份草稿快照；
- *     deviceKind 编辑对象类型（light / climate / cover / nas / television / vacuum…）；
- *     startAdding 打开后是否直接进「添加模型」弹窗；
- *     vacuumId 扫地机模式下要编辑的扫地机 ID；
- *     editingFloorId 初始楼层。
- * @returns {Promise<void>} 弹窗关闭后 resolve。
  */
 export async function openInteraction3dEditor({
   component: component,
@@ -3646,9 +3636,6 @@ export async function openInteraction3dEditor({
  *
  * 与配置编辑器的区别：它改的是整份户型文档层面的光照，保存回调收到的也是
  * baseLighting 草稿；复用同一套授权门禁与脏标记口径。
- *
- * @param {object} options 配置项：component 控件描述、onSave 保存回调。
- * @returns {Promise<void>} 弹窗关闭后 resolve。
  */
 export async function openInteraction3dAppearanceEditor({
   component: appearanceComponent,

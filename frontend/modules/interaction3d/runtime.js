@@ -33,15 +33,6 @@ const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
  *
  * 挂载时会：建 iframe + 加载占位、注册窗口级事件（指针 / 键盘 / 页面可见性 / 祖先尺寸）、
  * 起状态订阅，并在舞台回报 ready 后开始下发配置。
- *
- * @param {HTMLElement} hostElement 宿主容器（会被清空并接管）。
- * @param {object} options 挂载选项：
- *     component 控件描述（properties 为 3D 配置）；
- *     context 运行时上下文（document 场景文档、entityMetadata、editable 等）；
- *     editing / editingModule / editingVacuumId 编辑态与当前编辑模块；
- *     rangeEditorOnly 是否只做照射范围编辑；
- *     onEdit / onStates / onReady / onPresented / onLoadError / onFocusChange 回调。
- * @returns {object} runtimeApi 句柄。
  */
 export function mountInteraction3d(
   hostElement,
@@ -970,9 +961,6 @@ export function mountInteraction3d(
    *
    * 处理的类型见文件头；控制类消息会落到后端 /control，并按 requestId 回执；
    * 编辑类（视角 / 聚焦 / 范围）按各自的 requestId 兑现对应的 Promise。
-   *
-   * @param {MessageEvent} messageEvent 来自舞台 iframe 的消息。
-   * @returns {Promise<void>}
    */
   async function handleStageMessage(messageEvent) {
     if (

@@ -11,16 +11,6 @@
 
 /**
  * 启动周期性场景同步。
- *
- * @param {object} options 依赖注入配置。
- * @param {() => boolean} options.eligible 返回当前是否应当同步（例如页面可见、场景已就绪）。
- *       返回 false 时本轮直接跳过，不消耗一次失败计数。
- * @param {(signal: AbortSignal) => Promise<*>} options.read 拉取场景更新；失败即抛异常。
- * @param {(payload: *) => Promise<void>|void} options.apply 应用场景更新。
- * @param {number} [options.interval=5000] 基准间隔（毫秒）；失败后按指数退避放大。
- * @param {Function} [options.schedule=setTimeout] 定时器工厂，测试时可注入假实现。
- * @param {Function} [options.cancel=clearTimeout] 取消定时器函数，需与 schedule 配对。
- * @returns {() => void} 停止函数：置位停止标记、清掉待触发定时器并中断在途请求。
  */
 export function startSceneSync({
   eligible: isEligible,

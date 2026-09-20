@@ -42,13 +42,6 @@ const toRegionKey = (areaIdPart, lightIdPart) =>
  *
  * 拖南北向手柄只改深度、拖东西向只改宽度；等比模式下取变化更大的那一轴作为缩放
  * 系数，并夹取到「宽深都不越界」的共同区间，最后统一保留两位小数。
- *
- * @param {object} sourceRegion 原光区（含 width / depth）。
- * @param {number} requestedWidth 目标宽度（米）。
- * @param {number} requestedDepth 目标深度（米）。
- * @param {string} handleName 手柄方位（n / s / w / e 或缺省表示角点）。
- * @param {boolean} [shouldKeepAspect=false] 是否按住 Shift 等比缩放。
- * @returns {{width: number, depth: number}} 夹取并取整后的尺寸（0.5~20 米）。
  */
 export function resizeRegionDimensions(
   sourceRegion,
@@ -94,11 +87,6 @@ export function resizeRegionDimensions(
  * 用户把下限调到上限之上时，直接把另一端一起改成同一个值（而不是拒绝输入），
  * 这样拖到边界时手感是「推着另一端走」。heightAbove / heightBelow 是旧的自动推算字段，
  * 这里显式置 undefined，由调用方负责删除，避免两套字段同时存在。
- *
- * @param {object} regionDescriptor 当前光区。
- * @param {string} changedField 正在改的字段（heightMin / heightMax）。
- * @param {number} fieldValue 新值（米）。
- * @returns {object} 只含高度字段的补丁对象。
  */
 export function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
   const heightPatch = {
@@ -128,13 +116,6 @@ export function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
  *
  * 编辑器自己管一份覆盖集合，编辑时即时作用到场景，提交时通过 onChange 交回宿主；
  * 平面与 3D 预览两套相机状态各自保存，来回切换不会互相打断。
- *
- * @param {object} editorHost 宿主依赖：container、THREE、regionLighting、worldPoint、
- *     invalidateRegionLighting 等。
- * @param {object} [options] 回调：getConfig 取配置、onChange 提交覆盖、onClose 关闭通知、
- *     wake 唤醒渲染、standalone 是否为无宿主弹窗的独立会话。
- * @returns {object} 控制器：open / close / flush / refresh / setSaveStatus /
- *     isOpen / syncCameraInteraction / dispose。
  */
 export function mountRegionRangeEditor(
   editorHost,
@@ -1633,9 +1614,6 @@ export function mountRegionRangeEditor(
  *
  * 之所以自己做下拉：原生 select 的弹出层在弹窗里样式与层级都不可控。
  * 所有监听器都登记在册，dispose 时统一注销 —— 编辑器会被反复开关，漏一个就会累积。
- *
- * @param {HTMLElement} editorRootElement 编辑器根节点（在其内部查找控件）。
- * @returns {{sync: Function, close: Function, dispose: Function}} 控件控制器。
  */
 export function mountRangeFormControls(editorRootElement) {
   const formDocument = editorRootElement.ownerDocument;

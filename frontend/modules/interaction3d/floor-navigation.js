@@ -12,12 +12,6 @@
 
 /**
  * 依据楼层数据与人工覆盖表生成导航选项，并按「从上到下」排序。
- *
- * @param {Array<object>} floors 楼层列表，元素含 id / name / elevation。
- * @param {Object<string, number>} floorNumbers 楼层 ID → 人工指定的数字层号覆盖表；
- *       约定 0 视为「未指定」，绝对值需 ≤ 99 才生效。
- * @returns {Array<[string, string, string]>} 三元组数组：[楼层 ID, 标签, 显示名]，
- *       末尾可能追加 ["all", "ALL", "全部楼层"]。
  */
 export function floorNavigationChoices(floors, floorNumbers = {}) {
   /**

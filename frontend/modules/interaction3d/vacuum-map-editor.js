@@ -33,9 +33,6 @@ import { mapCorners, mapSource } from "./vacuum-map.js?v=20260920080000";
  * 不在落地层，要么只是标注，画出来只会干扰对齐；缺少合法坐标或宽高非正的条目也丢掉。
  * 尺寸乘以 plan.pixelsPerMeter：户型数据以米存储，pixelsPerMeter 非法时退化为 1，
  * 避免整块平面被乘成 0 而看不见。
- *
- * @param {object} [plan] 户型平面数据，含 items 与 pixelsPerMeter。
- * @returns {Array<object>} 家具副本列表，width/depth 已换算成像素，rotation 已归一成数字。
  */
 export function planFurniture(plan = {}) {
   // pixelsPerMeter 缺失或非正时退化为 1：宁可比例不准，也不能让整张平面缩成 0。
@@ -73,12 +70,6 @@ export function planFurniture(plan = {}) {
  * 弹窗内部维护一份 draftState.map 草稿：拖动、滚轮、输入框改的都是草稿，
  * 只有点「保存」才通过 onSave 交给面板（面板再写回配置并落库），
  * 因此「关闭」按钮天然等于放弃本次修改。
- *
- * @param {object} options 打开参数。
- * @param {object} options.item 面板条目，需带 map 配置（可为空配置）。
- * @param {object} options.floor 当前楼层，需带 name 与 plan（walls / items / pixelsPerMeter）。
- * @param {Function} options.onSave 保存回调，收到草稿 map 的深拷贝。
- * @returns {{close: Function}} 控制器，暴露 close 供外部主动关闭。
  */
 export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: saveHandler }) {
   const documentRef = window.document;
@@ -88,8 +79,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
    * 创建 HTML 元素（可选带文本）。
    *
    * @param {string} tagName 标签名。
-   * @param {string} [textContent] 文本内容，为空时不设置。
-   * @returns {HTMLElement} 新建元素。
    */
   const createHtmlElement = (tagName, textContent) => {
     const createdElement = documentRef.createElement(tagName);
@@ -102,8 +91,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
    * 创建 SVG 元素并批量设置属性。
    *
    * @param {string} svgTagName SVG 标签名。
-   * @param {object} [svgAttributes] 属性名 → 属性值。
-   * @returns {SVGElement} 新建的 SVG 元素。
    */
   const createSvgElement = (svgTagName, svgAttributes = {}) => {
     const createdSvgElement = documentRef.createElementNS(SVG_NAMESPACE_URI, svgTagName);
@@ -166,8 +153,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   let dragState = null;
   /**
    * 关闭并销毁弹窗。
-   *
-   * @returns {void} 无返回值；重复调用是安全的。
    */
   const closeEditor = () => {
     // 只关一次：断开观察器、关闭 dialog、移除节点，避免残留节点与观察者。
@@ -180,10 +165,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   };
   /**
    * 创建按钮。
-   *
-   * @param {string} buttonLabel 按钮文案。
-   * @param {Function} onClick 点击回调。
-   * @returns {HTMLButtonElement} 新建按钮元素。
    */
   const createButton = (buttonLabel, onClick) => {
     const buttonElement = createHtmlElement("button", buttonLabel);
@@ -230,8 +211,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   };
   /**
    * 把当前 viewBox 写回 SVG 并重绘。
-   *
-   * @returns {void} 无返回值。
    */
   const applyViewBox = () => {
     svgElement.setAttribute(
@@ -246,9 +225,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
    *
    * 缩放系数按「最小边不小于 0.01、最大边不超过 1e6 个单位」夹取：
    * 既避免缩到 0 之后出现除零，也避免数值过大后浮点精度失控。
-   *
-   * @param {number} scaleFactor 缩放倍数（大于 1 放大，小于 1 缩小）。
-   * @returns {void} 无返回值。
    */
   const scaleMap = scaleFactor => {
     const draftMap = draftState.map;
@@ -265,9 +241,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
    * 缩放视图（只改 viewBox，不动底图尺寸），并保持视图中心不变。
    *
    * 视图宽度夹在户型包围盒的 15%~1000%：再小看不清手柄，再大容易迷失方位。
-   *
-   * @param {number} zoomFactor 视图宽度倍数（大于 1 表示看得更远）。
-   * @returns {void} 无返回值。
    */
   const zoomView = zoomFactor => {
     const nextViewWidth = Math.max(
@@ -322,8 +295,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
      * 往当前家具 group 里追加一个形状。
      *
      * @param {string} shapeTagName SVG 形状标签名。
-     * @param {object} shapeAttributes 形状属性。
-     * @returns {void} 无返回值。
      */
     const appendFurnitureShape = (shapeTagName, shapeAttributes) =>
       furnitureGroup.append(
@@ -495,15 +466,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
    * 输入非法或为空时回填旧值（绝不把 NaN 写进草稿）；合法值会先夹在
    * [minValue, maxValue] 之间再落盘并回显。step 只记录在 dataset 上供外部增减按钮读取，
    * 输入框本身用 step="any"，否则浏览器会按整数取整，旋转角这类小数步进就输不进去。
-   *
-   * @param {string} labelText 字段标签文案。
-   * @param {object} boundObject 绑定对象（这里是 draftState.map）。
-   * @param {string} boundKey 绑定键名。
-   * @param {number} minValue 允许的最小值。
-   * @param {number} maxValue 允许的最大值。
-   * @param {number} [stepValue] 步进值，仅记录到 dataset。
-   * @param {HTMLElement} [fieldContainer] 字段容器，默认放进侧栏。
-   * @returns {HTMLInputElement} 创建好的输入框元素。
    */
   const createNumberField = (
     labelText,
@@ -626,8 +588,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
    * 把草稿状态同步到整个弹窗 DOM（唯一的渲染入口）。
    *
    * 所有交互最终都会调用它：输入框回写、底图 image 几何、手柄重建、标签字号。
-   *
-   * @returns {void} 无返回值。
    */
   function renderEditor() {
     const currentMap = draftState.map;
@@ -717,9 +677,6 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
    *
    * 用 getScreenCTM().inverse() 反变换，自动吃掉 viewBox 平移缩放与元素自身的旋转，
    * 所以调用方拿到的点可以直接参与地图几何运算。
-   *
-   * @param {PointerEvent} pointerEvent 指针事件。
-   * @returns {DOMPoint} SVG 用户坐标系下的点。
    */
   const toSvgPoint = pointerEvent => {
     const svgPoint = svgElement.createSVGPoint();

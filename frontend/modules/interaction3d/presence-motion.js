@@ -21,10 +21,6 @@ import {
 export { PRESENCE_PAGES };
 /**
  * 判断人体存在绑定是否应该在指定页面上显示。
- *
- * @param {object} presenceBinding 绑定配置，displayPages 可为 "all" 或页面 ID 数组。
- * @param {string} pageId 当前页面 ID。
- * @returns {boolean} 页面合法且被配置覆盖时返回 true。
  */
 export function presenceVisibleOnPage(presenceBinding, pageId) {
   // 默认只在前三个页面显示：全楼层总览、灯光、安防 —— 这是人体存在最常用的场景。
@@ -41,9 +37,6 @@ export function presenceVisibleOnPage(presenceBinding, pageId) {
  * 路径是一条闭合折线（首尾自动相连），需要满足：
  * 点数在 3–128 之间、坐标有限且不超过 ±1e6、各点互不重合，
  * 且至少有一个中间点与首点、次点不共线 —— 否则多边形退化成一条线，无法采样出朝向。
- *
- * @param {Array<{x: number, y: number}>} route 路径点。
- * @returns {boolean} 合法返回 true。
  */
 export function validPresenceRoute(route) {
   if (
@@ -84,12 +77,6 @@ export function validPresenceRoute(route) {
 }
 /**
  * 判断拖动中的点是否已经吸附到路径起点附近。
- *
- * @param {Array<object>} routePoints 路径点。
- * @param {{x: number, y: number}} probePoint 被拖动的点。
- * @param {number} screenScale 屏幕上「每世界单位对应多少像素」。
- * @param {number} [tolerancePx=16] 吸附容差（像素）。
- * @returns {boolean} 在容差内返回 true。
  */
 export function snapsToPresenceStart(routePoints, probePoint, screenScale, tolerancePx = 16) {
   return (
@@ -103,9 +90,6 @@ export function snapsToPresenceStart(routePoints, probePoint, screenScale, toler
 }
 /**
  * 判断存在传感器当前是否「有人」。
- *
- * @param {object} entityState HA 的 state 对象或 state_changed 事件。
- * @returns {boolean} 实体可用且 state 为 on 时返回 true。
  */
 export function presenceIsActive(entityState) {
   const resolvedState = resolveStateEntry(entityState);
@@ -123,9 +107,6 @@ export const PRESENCE_TRIGGER_MODES = [
  *
  * equals / change 属于瞬时事件，必须靠 displayDuration 控制出现时长；
  * auto 模式下如果绑的是 event.* 实体，也按瞬时事件处理。
- *
- * @param {object} triggerBinding 绑定配置。
- * @returns {boolean} 需要计时消失时返回 true。
  */
 export function presenceTriggerIsTimed(triggerBinding) {
   return (
@@ -140,19 +121,12 @@ export function presenceTriggerIsTimed(triggerBinding) {
  * 「触发」要解决的是：HA 只告诉我们实体当前值，而 3D 需要知道「什么时候开始出现的、
  * 应该显示多久」。因此这里为每个绑定维护一条记录（是否触发中、起始时刻、时长），
  * 并在每次状态同步时按触发模式更新。
- *
- * @param {() => number} [nowProvider=() => Date.now()] 取当前时间（毫秒），便于测试注入。
- * @returns {{sync: Function, visible: Function}} 跟踪器：sync 吸收最新状态，visible 查询是否应显示。
  */
 export function createPresenceTriggers(nowProvider = () => Date.now()) {
   const triggersByBindingId = new Map();
   return {
     /**
      * 用最新的绑定列表与实体状态刷新触发记录。
-     *
-     * @param {Array<object>} bindings 绑定列表。
-     * @param {object} states 实体 ID → HA 状态。
-     * @returns {void}
      */
     sync(bindings, states) {
       // 清掉已经不在配置里的绑定，避免记录无限增长。
@@ -276,9 +250,6 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
     },
     /**
      * 查询某个绑定当前是否应该显示。
-     *
-     * @param {string} bindingId 绑定 ID。
-     * @returns {boolean} 正在触发、且仍在显示时长内时返回 true。
      */
     visible(bindingId) {
       const record = triggersByBindingId.get(bindingId);
@@ -295,10 +266,6 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
  *
  * 首尾自动相连；长度为 0 的分段会被丢弃（同时不累加总长），
  * 避免采样时在同一个点上反复取到随机朝向。
- *
- * @param {Array<{x: number, y: number, z: number}>} points 路径点。
- * @returns {{length: number, segments: Array<object>}} 总长度与分段表
- *      （每段含起止点、在整条路径上的起始距离 start、段长 length）。
  */
 export function closedPath(points) {
   const segments = [];
@@ -328,10 +295,6 @@ export function closedPath(points) {
 }
 /**
  * 沿闭合路径取指定距离处的点与朝向。
- *
- * @param {{length: number, segments: Array<object>}} path closedPath 的返回值。
- * @param {number} distance 距起点的路径长度；可为负或超过总长，会自动环绕。
- * @returns {{x: number, y: number, z: number, heading: number}|null} 采样点；路径为空返回 null。
  */
 export function sampleClosedPath(path, distance) {
   if (!(path.length > 0)) {

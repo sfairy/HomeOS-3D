@@ -37,12 +37,8 @@ import {
 /**
  * 创建人体存在角色场景。
  *
- * @param {object} sceneOptions 舞台注入的上下文：THREE、overlayScene、worldPoint、
- *     requestRender、invalidateReflections 等。
  * @param {Function} [wakeFrameLoop=() => {}] 唤醒空闲帧循环；角色在动时必须调用，
  *     否则舞台为省电停掉帧循环后动画会僵住。
- * @param {Function} [nowProvider] 取当前时间（毫秒），透传给触发计时器，便于测试注入。
- * @returns {object} 句柄：sync / tick / anchor / hitRects / pick / dispose。
  */
 export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowProvider) {
   const actorsByBindingId = new Map();
@@ -62,8 +58,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
    * 阴影不是真实软阴影，而是一张程序生成的径向渐变贴图铺在脚下：人物很小、
    * 又有自发光，开真实阴影的收益远低于代价。贴图与几何体只在首次调用时创建，
    * 返回的 Mesh 每次都是新的（材质要能各自调不透明度）。
-   *
-   * @returns {object} 阴影网格（THREE.Mesh），已放平并朝上。
    */
   function createFootShadow() {
     if (!footShadowAssets) {
@@ -121,8 +115,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   }
   /**
    * 把本轮攒下的脏楼层一次性提交给舞台重建反射。
-   *
-   * @returns {void}
    */
   function flushReflectionFloors() {
     if (dirtyFloorIds.size) {
@@ -137,10 +129,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
    * 不能只改 opacity：半透明材质必须同时打开 transparent 并关掉 depthWrite，
    * 否则角色自身的前后部件会互相遮挡、出现「外壳盖住内里」的穿帮；
    * 而 transparent 是渲染状态的开关，改动后必须置 needsUpdate 让着色器重编译。
-   *
-   * @param {object} actor 角色记录。
-   * @param {number} targetOpacity 0~1。
-   * @returns {void}
    */
   function applyActorOpacity(actor, targetOpacity) {
     actor.opacity = targetOpacity;
@@ -160,9 +148,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   }
   /**
    * 量角色的世界包围盒。
-   *
-   * @param {object} measuredActor 角色记录。
-   * @returns {object} THREE.Box3，含角色所有部件（不含脚底阴影）。
    */
   function measureActorBounds(measuredActor) {
     const bounds = new sceneOptions.THREE.Box3();
@@ -181,9 +166,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   const scratchFootPosition = new sceneOptions.THREE.Vector3();
   /**
    * 删除一个角色并摘下它的全部资源，同时记住它走到哪了。
-   *
-   * @param {string} removalBindingId 绑定 ID。
-   * @returns {void}
    */
   const removeActor = removalBindingId => {
     const removedActor = actorsByBindingId.get(removalBindingId);
@@ -206,9 +188,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   };
   /**
    * 把角色摆到路径上的当前位置，并完成贴地。
-   *
-   * @param {object} placedActor 角色记录（读取 path / distance / size / preview）。
-   * @returns {void} 路径为空时直接返回，不抛错。
    */
   function placeActor(placedActor) {
     const pathSample = sampleClosedPath(placedActor.path, placedActor.distance);
@@ -247,11 +226,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
    *
    * 做法是把世界包围盒的 8 个角投影到屏幕再取外接矩形 —— 比逐点采样便宜，
    * 也够用（角色是近立方体，倾斜投影下的误差可以忽略）。
-   *
-   * @param {object} renderCamera 当前渲染相机。
-   * @param {HTMLElement} hitCanvasElement 画布元素，用它的 bounding rect 换算像素坐标。
-   * @param {Array<object>} sensorBindings 传感器绑定列表，取其中的 hitPadding。
-   * @returns {Array<object>} 每项为 { id, left, top, width, height, padding }（CSS 像素）。
    */
   function computeHitRects(renderCamera, hitCanvasElement, sensorBindings) {
     const hitCanvasRect = hitCanvasElement.getBoundingClientRect();
@@ -305,15 +279,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   return {
     /**
      * 按最新配置与状态对齐角色集合（外部签名变化时才会被调用）。
-     *
-     * @param {Array<object>} [bindings=[]] 传感器绑定列表。
-     * @param {object} [states={}] 实体 ID → HA 状态。
-     * @param {boolean} [enabled=false] 场景总开关（页面隐藏、编辑别的模块等都会关掉）。
-     * @param {string} [floorId="all"] 当前楼层，"all" 表示全部。
-     * @param {boolean} [isEditing=false] 是否处于编辑态。
-     * @param {boolean} [isPreviewWalk=false] 编辑态下是否正在「预览行走」。
-     * @param {string} [activeModule="light"] 当前模块，用于页面级可见性过滤。
-     * @returns {void}
      */
     sync(
       bindings = [],
@@ -505,9 +470,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
     },
     /**
      * 推进动画（每帧调用）。
-     *
-     * @param {number} deltaSeconds 距上一帧的秒数。
-     * @returns {boolean} true 表示角色仍在移动 / 淡入淡出，需要继续出帧。
      */
     tick(deltaSeconds) {
       // 夹到 0.1 秒：切后台回来时 delta 可能是几十秒，不夹会让角色瞬间跨过整条路径。
@@ -564,9 +526,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
     },
     /**
      * 取角色头顶附近的世界坐标，供相机聚焦使用。
-     *
-     * @param {string} bindingId 绑定 ID。
-     * @returns {{center: Array<number>}|null} 中心点 [x, y, z]；角色不存在时返回 null。
      */
     anchor(bindingId) {
       const anchoredActor = actorsByBindingId.get(bindingId);
@@ -586,13 +545,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
     hitRects: computeHitRects,
     /**
      * 命中测试：先射线打模型，再用热区矩形兜底。
-     *
-     * @param {number} clientX 指针 X（视口坐标）。
-     * @param {number} clientY 指针 Y（视口坐标）。
-     * @param {object} camera 当前渲染相机。
-     * @param {HTMLElement} canvasElement 画布元素。
-     * @param {Array<object>} pickBindings 绑定列表，用于过滤 clickToFocus 与取 padding。
-     * @returns {string|null} 命中的绑定 ID。
      */
     pick(clientX, clientY, camera, canvasElement, pickBindings) {
       const pickCanvasRect = canvasElement.getBoundingClientRect();
@@ -672,8 +624,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
     },
     /**
      * 释放本场景创建的全部资源。
-     *
-     * @returns {void}
      */
     dispose() {
       for (const disposedBindingId of actorsByBindingId.keys()) {
@@ -698,10 +648,6 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
  * - 所有波纹共用一份 RingGeometry 与一份「每实例各自克隆的材质」，环只靠缩放变形；
  * - 波纹组不自己算位置，而是每帧直接拷贝被跟随模型的 matrixWorld（传感器可能被拖动）；
  * - 开启「减少动态效果」时退化为一个静态环，不再扩散。
- *
- * @param {object} waveOptions 舞台注入的上下文，额外需要 modelRoot（户型模型根）与
- *     overlayScene；environmentRevision / sceneRevision 用于判断模型树是否换过。
- * @returns {object} 句柄：sync / tick / dispose。
  */
 export function createPresenceWaves(waveOptions) {
   const { THREE: THREE } = waveOptions;
@@ -717,9 +663,6 @@ export function createPresenceWaves(waveOptions) {
   let hasVisibleWave = false;
   /**
    * 摘掉一条波纹记录并释放它独占的材质（几何体是共享的，不能在这里 dispose）。
-   *
-   * @param {object} removedWave 波纹记录。
-   * @returns {void}
    */
   const removeWaveRecord = removedWave => {
     removedWave.group.removeFromParent();
@@ -727,14 +670,6 @@ export function createPresenceWaves(waveOptions) {
   };
   /**
    * 按最新绑定与状态对齐波纹节点。
-   *
-   * @param {object} syncOptions 入参（解构后使用）。
-   * @param {Array<object>} [syncOptions.bindings=[]] 传感器绑定列表。
-   * @param {object} [syncOptions.states={}] 实体 ID → HA 状态。
-   * @param {boolean} [syncOptions.enabled=false] 总开关。
-   * @param {string} [syncOptions.floorId=""] 当前楼层 ID，波纹只显示在本楼层。
-   * @param {boolean} [syncOptions.preview=false] 编辑态预览（不受状态约束，直接显示）。
-   * @returns {void}
    */
   function syncWaves({
     bindings: waveBindings = [],
@@ -890,9 +825,6 @@ export function createPresenceWaves(waveOptions) {
   }
   /**
    * 推进波纹动画（每帧调用）。
-   *
-   * @param {number} elapsedMs 自启动以来的毫秒数（用绝对值而非增量，方便随时重置相位）。
-   * @returns {boolean} true 表示波纹仍在扩散、需要继续出帧；极简动态模式下恒为 false。
    */
   function tickWaves(elapsedMs) {
     // 没有可见波纹时直接返回 false：波纹自身的开销很小，但没必要让帧循环空转。
@@ -933,8 +865,6 @@ export function createPresenceWaves(waveOptions) {
     tick: tickWaves,
     /**
      * 释放全部波纹资源（含共享的圆环几何体）。
-     *
-     * @returns {void}
      */
     dispose() {
       // isDisposed 兜底：dispose 可能被重复调用。

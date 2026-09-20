@@ -47,10 +47,6 @@ function readVector3(three, sourceArray, fallbackArray) {
  * 做法：以 position → target 的方向作为相机的前方向（即 three.js 默认的 +Z），
  * 用 up 做 Gram-Schmidt 正交化得到真正的上方向，再由三者叉乘出右方向，
  * 组装成矩阵后取四元数。
- *
- * @param {object} threeNamespace three.js 命名空间。
- * @param {object} poseConfig 姿势配置（target / position / up）。
- * @returns {{target: object, distance: number, rotation: object}} 解算结果。
  */
 function resolveCameraPose(threeNamespace, poseConfig) {
   const targetVector = readVector3(threeNamespace, poseConfig.target, [0, 0, 0]);
@@ -92,11 +88,6 @@ function resolveCameraPose(threeNamespace, poseConfig) {
 }
 /**
  * 尝试把旋转表达成「环绕角度」。
- *
- * @param {object} threeLib three.js 命名空间。
- * @param {object} viewPose 原始姿势（需要 view 字段判断是否俯视）。
- * @param {object} resolvedPose resolveCameraPose 的结果。
- * @returns {{theta: number, phi: number}|null} 环绕角度；无法表达时返回 null。
  */
 function readOrbitAngles(threeLib, viewPose, resolvedPose) {
   // 俯视视角在数学上是奇异点（theta 无意义），直接用四元数插值更稳。
@@ -130,10 +121,6 @@ function readOrbitAngles(threeLib, viewPose, resolvedPose) {
 }
 /**
  * 默认的缓动曲线：三次缓出（ease-out cubic）。
- *
- * @param {number} progressElapsedMs 已用时长。
- * @param {number} progressDurationMs 总时长。
- * @returns {number} 0–1 的进度；已结束或时长非法时返回 1。
  */
 export function cameraMotionProgress(progressElapsedMs, progressDurationMs) {
   if (progressDurationMs <= 0 || progressElapsedMs >= progressDurationMs) {
@@ -162,15 +149,6 @@ const SETTLE_WINDOW_MS = 500;
  * 与释放运动不同，这里没有固定总时长：进度按 e^(-rt) 连续逼近 1，
  * 由调用方通过 settled() 判断何时结束。不同 owner 用不同速率 ——
  * 楼层切换（floor）最快，聚焦（focus）最慢。
- *
- * @param {object} threeCore three.js 命名空间。
- * @param {object} dampedFromPose 起始姿势。
- * @param {object} dampedToPose 目标姿势。
- * @param {object} [options] 参数。
- * @param {boolean} [options.immediate=false] 为 true 时视为立刻停稳。
- * @param {"focus"|"floor"|string} [options.owner="focus"] 运动发起方，决定速率与精度。
- * @param {object|null} [options.floorFrame=null] 楼层切换的枢轴数据（fromPivot / toPivot）。
- * @returns {{settled: Function, progress: Function, sample: Function}} 运动句柄。
  */
 export function createDampedCameraMotion(
   threeCore,
@@ -248,15 +226,6 @@ export function createDampedCameraMotion(
 }
 /**
  * 创建姿势采样器：把「已用时长」映射成「当前姿势」。
- *
- * @param {object} threeFrame three.js 命名空间。
- * @param {object} initialPose 起始姿势。
- * @param {object} targetPose 目标姿势。
- * @param {number} [motionDurationMs=1100] 默认总时长（有 easingHooks 时由钩子接管）。
- * @param {"focus"|"focus-orbit"|"floor"|string} [motionMode="focus"] 运动模式。
- * @param {object|null} [floorFrameData=null] 楼层枢轴数据，仅 floor 模式使用。
- * @param {object|null} [easingHooks=null] 自定义缓动（{settled, move, turn}）。
- * @returns {(elapsedMs: number) => object} 采样函数。
  */
 export function createFocusCameraSampler(
   threeFrame,
@@ -414,12 +383,6 @@ export function createFocusCameraSampler(
  *
  * 用于把「从目标点朝某个方向按给定长度外移」的相机位置限制在场景坐标范围内；
  * 若射线一开始就朝外（可用距离为 0），则反向重试一次。
- *
- * @param {object} threeModule three.js 命名空间。
- * @param {object} rayOrigin 起点。
- * @param {object} rayDirection 方向（会被就地规范化；退化时被修改为反向）。
- * @param {number} maxTravelDistance 期望前进距离。
- * @returns {object} 裁剪后的点。
  */
 function clipRayToBounds(threeModule, rayOrigin, rayDirection, maxTravelDistance) {
   let travelDistance = maxTravelDistance;
@@ -453,11 +416,6 @@ function clipRayToBounds(threeModule, rayOrigin, rayDirection, maxTravelDistance
 }
 /**
  * 计算灯光编辑用的相机姿势（由灯光配置推导）。
- *
- * @param {object} threeToolkit three.js 命名空间。
- * @param {object} lightConfig 灯光配置（含 position / target / up / mode / zoom / view 等）。
- * @param {Array<number>} lightTarget 灯光目标点。
- * @returns {object} 相机姿势。
  */
 export function automaticLightCamera(threeToolkit, lightConfig, lightTarget) {
   const lightOptions = lightConfig || {};
@@ -525,16 +483,6 @@ export function automaticLightCamera(threeToolkit, lightConfig, lightTarget) {
 }
 /**
  * 计算空调编辑用的相机姿势：从斜上方对准空调并完整取景。
- *
- * @param {object} threeContext three.js 命名空间。
- * @param {object} conditionerConfig 相机配置（mode / zoom / aspect 等）。
- * @param {Array<number>} conditionerTarget 空调的中心点。
- * @param {Array<number>} conditionerDirection 空调朝向（水平分量生效）。
- * @param {Array<number>} conditionerFrameWeight 各轴的取景权重。
- * @param {object} [options] 参数。
- * @param {number} [options.minimumFrameSize=3] 最小取景尺寸。
- * @param {number} [options.minimumDistance=3] 相机与目标的最小距离。
- * @returns {object} 相机姿势。
  */
 export function automaticAirConditionerCamera(
   threeContext,

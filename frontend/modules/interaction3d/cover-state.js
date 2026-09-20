@@ -37,7 +37,6 @@ const STATE_LABELS = {
 /**
  * 取窗帘状态的中文文案。
  *
- * @param {string} stateName HA 的 state 值。
  * @returns {string} 已知状态返回对应文案，其余（含 unknown/unavailable）返回「设备不可用」。
  */
 export function coverStateLabel(stateName) {
@@ -50,8 +49,6 @@ export function coverStateLabel(stateName) {
 /**
  * 判断窗帘图标是否应按「点亮」呈现。
  *
- * @param {object} binding 图标绑定配置。
- * @param {object} iconState 由状态归一化得到的图标状态（含 available 与 on）。
  * @returns {boolean} 可用且（按需取反后）为 on 时返回 true。
  */
 export function coverIconIsOn(binding, iconState) {
@@ -63,11 +60,6 @@ export function coverIconIsOn(binding, iconState) {
 }
 /**
  * 把 HA 的窗帘实体状态归一化成 3D 动画使用的状态对象。
- *
- * @param {string} entityId 实体 ID，形如 cover.living_room。
- * @param {object} receivedState HA 的 state 对象或 state_changed 事件。
- * @param {object} [item={}] 绑定项；coverKind === "dream" 时按「梦幻帘」处理。
- * @returns {object} 归一化状态，含位置 / 叶片角度 / 各种能力位与派生布尔量。
  */
 export function coverState(entityId, receivedState, item = {}) {
   const stateObject = resolveStateEntry(receivedState, {});
@@ -151,10 +143,6 @@ export function coverState(entityId, receivedState, item = {}) {
  * 判断当前是否允许调整叶片角度。
  *
  * 梦幻帘的叶片机构依赖整体处于「完全关闭」状态才安全，因此这里是一道门禁。
- *
- * @param {object} state coverState 产出的状态对象。
- * @param {object} [presentation=state] 展示层状态（可能含估算位置与移动标记）。
- * @returns {boolean} 允许调整时返回 true。
  */
 export function coverCanAdjustBlades(state, presentation = state) {
   if (!state.available || !state.bladeSupported) {
@@ -173,11 +161,6 @@ export function coverCanAdjustBlades(state, presentation = state) {
 /**
  * 构造窗帘控制命令。
  *
- * @param {object} sourceState coverState 产出的状态对象。
- * @param {string} service 服务名：open_cover、close_cover、stop_cover、
- *        set_cover_position、set_cover_tilt_position。
- * @param {*} value 目标位置（0–100 整数）；开关与停止类服务忽略此参数。
- * @returns {object} 服务调用描述，data 里只带该服务需要的字段。
  * @throws {Error} 设备不可用、不支持该操作，或梦幻帘状态下不允许调叶片、位置非法。
  */
 export function coverControl(sourceState, service, value) {

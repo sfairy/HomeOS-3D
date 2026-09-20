@@ -16,10 +16,6 @@
 import { resolveStateEntry } from "./static-helpers.js?v=20260920080000";
 /**
  * 归一化单个 NAS 开关实体。
- *
- * @param {string} entityId 实体 ID。
- * @param {object} state HA 的 state 对象或 state_changed 事件。
- * @returns {object} 含 available / on / name 的精简状态。
  */
 export function nasState(entityId, state) {
   const stateObject = resolveStateEntry(state, {});
@@ -43,10 +39,6 @@ export function nasState(entityId, state) {
  *
  * 两种配置方式：直接绑一个开关实体（item.entityId），或者绑定一组「状态指标」
  * （item.statusSource）—— 后者常见于用 SNMP / 传感器间接判断 NAS 是否在线。
- *
- * @param {object} item 绑定项，含 entityId 或 statusSource。
- * @param {object|Map} [stateSources={}] 实体 ID → HA 状态。
- * @returns {object} 含 available / on / name 的状态。
  */
 export function nasDeviceState(item, stateSources = {}) {
   // 状态源可能是 Map（舞台侧按 entityId 建的索引）也可能是普通对象；
@@ -84,12 +76,6 @@ export function nasDeviceState(item, stateSources = {}) {
 }
 /**
  * 创建 NAS 指示灯控制器。
- *
- * @param {object} options 构造参数。
- * @param {object} options.THREE three.js 命名空间。
- * @param {() => void} [options.requestFrame] 请求重绘的回调。
- * @returns {{sync: Function, tick: Function, nextDelay: Function, dispose: Function}}
- *      控制器；tick 需要由外部动画循环按 nextDelay 给出的间隔驱动。
  */
 export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () => {} }) {
   const meshesByBindingId = new Map();
@@ -113,9 +99,6 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
   const locationKey = (floorId, modelId) => JSON.stringify([floorId || "", modelId || ""]);
   /**
    * 释放一条记录：恢复被隐藏的原生指示灯，移除并销毁自制平面。
-   *
-   * @param {object} entry 记录项。
-   * @returns {void}
    */
   function releaseEntry(entry) {
     // 逐个还原为「创建时记录的可见性」，而不是无脑设成 true，
@@ -132,9 +115,6 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
    * 为什么手工遍历而不是用 Box3.setFromObject：后者会把状态点、光晕等
    * environmentEffect 子对象一起算进去，导致包围盒被撑大、指示灯位置漂移；
    * 同时嵌套模型有自己的 origin，也必须排除。
-   *
-   * @param {object} model 模型根对象。
-   * @returns {object} THREE.Box3 包围盒；模型无网格时返回空盒。
    */
   function computeModelBounds(model) {
     const bounds = new THREE.Box3();
@@ -172,16 +152,6 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
   }
   /**
    * 同步指示灯：按最新绑定与状态创建 / 更新 / 回收平面。
-   *
-   * @param {object} params 同步参数。
-   * @param {object} params.root 场景根节点。
-   * @param {number} params.revision 场景修订号。
-   * @param {Array<object>} params.bindings NAS 绑定列表。
-   * @param {Object<string, object>} params.states 实体 ID → HA 状态。
-   * @param {boolean} params.enabled 总开关。
-   * @param {number} params.sizeScale 指示灯尺寸倍率（跟随全局视觉缩放）。
-   * @param {number} params.brightness 亮度，作为 uniform 传入着色器。
-   * @returns {void}
    */
   function sync({
     root: root,
@@ -369,9 +339,6 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
   }
   /**
    * 推进呼吸动画。
-   *
-   * @param {number} nowMs 当前时间戳（毫秒）。
-   * @returns {boolean} 是否还需要继续调度 tick。
    */
   function tick(nowMs) {
     if (isDisposed || !hasVisibleIndicator) {

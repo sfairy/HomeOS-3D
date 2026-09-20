@@ -49,10 +49,6 @@ const toFiniteNumber = input =>
  *
  * 字段名与 HA 属性严格对应（min_temp / max_temp / fan_mode / swing_mode 等），
  * 面板与动画都按这些名字取值，改名前需同步改动使用方。
- *
- * @param {string} entityId 实体 ID，形如 climate.living_room。
- * @param {object} receivedState HA 的 state 对象或 state_changed 事件。
- * @returns {object} 归一化后的状态，含可用性、开关、运行、模式、温度与能力列表。
  */
 export function climateState(entityId, receivedState) {
   // 事件对象取 newState；直接传 state 时用自身；都没有则退化成空对象，避免抛错。
@@ -135,10 +131,6 @@ export function climateState(entityId, receivedState) {
 /**
  * 构造空调开关命令。
  *
- * @param {object} state climateState 产出的状态对象。
- * @param {boolean} [desiredOn=!state.on] 目标开关状态，默认取反。
- * @param {string} [lastMode=""] 上次使用的模式；关→开时由渲染器用它决定回到哪个模式。
- * @returns {object} 形如 { entityId, domain, service, data } 的服务调用描述。
  * @throws {Error} 设备不可用，或渲染器未能给出可用的 set_hvac_mode 命令。
  */
 export function climatePowerControl(state, desiredOn = !state.on, lastMode = "") {
@@ -197,10 +189,7 @@ export function climatePowerControl(state, desiredOn = !state.on, lastMode = "")
  * 每台空调最后一个「可用且正在运行」的模式，并用 localStorage 持久化，
  * 刷新页面或重进应用后仍能恢复。
  *
- * @param {object} [options] 参数。
  * @param {Storage} [options.storage] 持久化后端；不可用（隐私模式等）时静默降级为仅内存。
- * @param {string} [options.scope=""] 作用域；隔离同一实体在不同页面里的记录。
- * @returns {{get: (entityId: string) => string, observe: (entityId: string, receivedState: object) => void}}
  */
 export function createClimateModeHistory({ storage, scope = "" } = {}) {
   const modesByEntityId = new Map();
@@ -261,10 +250,6 @@ export function createClimateModeHistory({ storage, scope = "" } = {}) {
 /**
  * 构造空调的单项控制命令（设定温度 / 模式 / 风速 / 摆风）。
  *
- * @param {object} deviceState climateState 产出的状态对象。
- * @param {string} service 服务名：set_temperature、set_hvac_mode、set_fan_mode 或 set_swing_mode。
- * @param {*} value 目标值；set_temperature 时为数字温度，其余为模式字符串。
- * @returns {object} 服务调用描述，data 里只带该服务对应的那一个字段。
  * @throws {Error} 设备不可用、不支持该控制项，或温度越界 / 不支持温度控制。
  */
 export function climateControl(deviceState, service, value) {

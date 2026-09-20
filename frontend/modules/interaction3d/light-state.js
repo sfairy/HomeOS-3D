@@ -47,10 +47,6 @@ const COLOR_MODE_SET = new Set([
  * 把 HA 的灯光实体归一化成面板 / 动画使用的状态。
  *
  * @param {string} entityId 实体 ID，形如 light.living_room；非 light. 前缀一律视为不可用。
- * @param {object} entityState HA 的 state 对象或 state_changed 事件。
- * @param {object} [fallbackState] 历史回填值（来自 createLightStateCache 的缓存），
- *        HA 在灯关闭时报不出能力与亮度时用它补齐，字段名与本函数返回值一致。
- * @returns {object} 归一化状态：on / available / name / 能力标记 / 亮度百分比 / 开尔文区间。
  */
 export function lightState(entityId, entityState, fallbackState) {
   const stateObject = resolveStateEntry(entityState, {});
@@ -147,7 +143,6 @@ export function lightState(entityId, entityState, fallbackState) {
  * （常见于刚开机、HA 尚未刷新），宁可把灯渲染成关闭，也不要让动画拿到
  * undefined 后出现亮度突变或除零。
  *
- * @param {object} stateSnapshot lightState 的返回值。
  * @returns {object} 浅拷贝，其中 on 会被按需降级为 false。
  */
 export function lightRenderState(stateSnapshot) {
@@ -191,10 +186,6 @@ const LIGHT_ATTRIBUTE_VALIDATORS = {
  *
  * 只记录本次上报中确实出现过的属性，并逐项通过 LIGHT_ATTRIBUTE_VALIDATORS 过滤，
  * 这样历史里不会混入 undefined 或越界值，也不会用「没上报」的信息覆盖已有记录。
- *
- * @param {string} patchEntityId 实体 ID。
- * @param {object} patchEntityState HA 的 state 对象或事件。
- * @returns {Object<string, *>} 通过校验的属性补丁。
  */
 function computeAttributePatch(patchEntityId, patchEntityState) {
   const entityStateBody = resolveStateEntry(patchEntityState, {});
@@ -272,13 +263,6 @@ function computeAttributePatch(patchEntityId, patchEntityState) {
  * - 写入采用「合并后再存」而不是整体覆盖，避免多标签页互相把对方的记录冲掉；
  * - 写盘是节流的（默认 50ms 内合并），因为拖动亮度滑杆会连续产生上报；
  * - 存储不可用（隐私模式、配额满）时静默降级为「只用内存」，不再重试写盘。
- *
- * @param {Storage|null} storage 持久化后端，通常为 window.localStorage。
- * @param {string} scope 作用域，用于隔离不同页面 / 不同项目的记录。
- * @param {() => number} now 取当前时间戳。
- * @param {(callback: Function) => *} schedule 延迟调度函数。
- * @param {(timerId: *) => void} cancel 取消调度的函数。
- * @returns {object|null} 存储器；参数不合法或存储损坏时返回 null。
  */
 function createLightHistoryStore(storage, scope, now, schedule, cancel) {
   // 参数不合法就整体关闭历史功能，调用方会退化成「只有内存缓存」的模式。
@@ -302,9 +286,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
    * 清理过期记录并控制实体数量上限。
    *
    * 带时间闸门：未到期且实体数未超限时直接返回，避免每次上报都全量遍历。
-   *
-   * @param {number} nowMs 当前时间戳。
-   * @returns {boolean} 是否真的删掉了记录（调用方据此决定要不要写盘）。
    */
   function pruneExpiredRecords(nowMs) {
     if (nowMs < nextPruneMs && historyByEntityId.size <= MAX_TRACKED_ENTITIES) {
@@ -350,7 +331,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
    * 顶层版本号与结构、实体 ID 形态、属性名是否在已知表内、值是否合法、
    * 时间戳是否落在「过去 7 天内」。
    *
-   * @returns {Map<string, object>} 通过校验的记录。
    * @throws {Error} 顶层结构无法识别时抛出，由调用方按「存储不可用」处理。
    */
   function readStoredHistory() {
@@ -467,10 +447,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
   return {
     /**
      * 记录一次实体上报，并返回该实体目前累积出的历史属性。
-     *
-     * @param {string} resolveEntityId 实体 ID。
-     * @param {object} resolveEntityState HA 的 state 对象或事件。
-     * @returns {Object<string, *>} 历史属性（值已从 {value, at} 里取出）。
      */
     resolve(resolveEntityId, resolveEntityState) {
       const resolveNowMs = now();
@@ -557,14 +533,6 @@ function createLightHistoryStore(storage, scope, now, schedule, cancel) {
 }
 /**
  * 创建灯光状态缓存：把历史回填与「上一次的对外状态」合到一起。
- *
- * @param {object} [options] 构造参数。
- * @param {Storage} options.storage 持久化后端。
- * @param {string} options.scope 存储作用域。
- * @param {() => number} [options.now=() => Date.now()] 取当前时间。
- * @param {Function} [options.schedule] 延迟调度（默认 50ms 后执行，用于合并连续写盘）。
- * @param {Function} [options.cancel] 取消调度。
- * @returns {{resolve: Function, flush: Function, clear: Function}} 缓存句柄。
  */
 export function createLightStateCache({
   storage: cacheStorage,
@@ -584,10 +552,6 @@ export function createLightStateCache({
   return {
     /**
      * 归一化一个实体，历史可用时用历史补齐缺失字段。
-     *
-     * @param {string} cacheEntityId 实体 ID。
-     * @param {object} cacheEntityState HA 的 state 对象或事件。
-     * @returns {object} lightState 的结果。
      */
     resolve(cacheEntityId, cacheEntityState) {
       // name 不在历史里（它不算「灯光属性」），因此单独从内存的上次状态里补。
@@ -624,10 +588,6 @@ export function createLightStateCache({
  * 构造灯光控制命令。
  *
  * @param {string} commandEntityId 实体 ID，必须是 light.* 或 switch.*。
- * @param {string} commandName 命令名："power"、"brightness"、"temperature"。
- * @param {*} commandValue power 为布尔值，brightness 为 1–100 百分比，temperature 为开尔文。
- * @param {object} capabilities 归一化状态，用于校验设备是否支持该项调节。
- * @returns {object} 服务调用描述（域取实体自身的域）。
  * @throws {Error} 实体非法 / 不可用、参数非数值，或设备不支持该调节。
  */
 export function lightCommand(commandEntityId, commandName, commandValue, capabilities) {
@@ -684,11 +644,6 @@ export function lightCommand(commandEntityId, commandName, commandValue, capabil
  * （reconcile）后删除；被拒绝时 reject 立即删除，长时间无响应则由 expire 超时清理。
  * 每个预览带自增 revision，retain/acknowledge/reject 都要求 revision 匹配，
  * 避免用户快速连续操作时把新预览误当成旧预览处理。
- *
- * @param {object} [options] 构造参数。
- * @param {() => number} [options.now=() => performance.now()] 取时间，默认用性能计时器。
- * @returns {object} 预览句柄；公开方法：
- *   set / state / reconcile / hold / retain / acknowledge / reject / expire / clear / nextDelay。
  */
 export function createLightPreview({ now: previewNow = () => performance.now() } = {}) {
   const previewsByEntityId = new Map();
@@ -696,12 +651,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
   return {
     /**
      * 写入一条预览。
-     *
-     * @param {string} previewEntityId 实体 ID。
-     * @param {string} previewCommand 命令名，与 lightCommand 一致。
-     * @param {*} previewValue 目标值；preset 时是含 brightness / kelvin 的对象。
-     * @param {boolean} [isCommitted=false] 是否已经发出命令（未发出的预览更容易被丢弃）。
-     * @returns {number} 本次预览的 revision。
      */
     set(previewEntityId, previewCommand, previewValue, isCommitted = false) {
       // 在旧预览基础上叠加新值；任何一项调节都隐含「灯已打开」，
@@ -743,10 +692,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
     },
     /**
      * 把预览值叠加到服务器状态上。
-     *
-     * @param {string} stateEntityId 实体 ID。
-     * @param {object} serverState 归一化后的服务器状态。
-     * @returns {object} 叠加后的状态。
      */
     state(stateEntityId, serverState) {
       return {
@@ -756,10 +701,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
     },
     /**
      * 与 HA 回传状态对账；一致且已提交，或设备已不可用时清掉预览。
-     *
-     * @param {string} reconcileEntityId 实体 ID。
-     * @param {object} serverEntityState 当前服务器状态。
-     * @returns {void}
      */
     reconcile(reconcileEntityId, serverEntityState) {
       const pendingPreview = previewsByEntityId.get(reconcileEntityId);
@@ -786,10 +727,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
      * 把预览降级为「未提交」。
      *
      * 用于连续交互（例如滑杆拖动中）：当前值还会变，不应因一次对账成功就被清掉。
-     *
-     * @param {string} holdEntityId 实体 ID。
-     * @param {number} holdRevision 期望匹配的 revision。
-     * @returns {void}
      */
     hold(holdEntityId, holdRevision) {
       const heldPreview = previewsByEntityId.get(holdEntityId);
@@ -799,10 +736,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
     },
     /**
      * 标记预览已提交（命令已发出），并续期存活时间。
-     *
-     * @param {string} retainEntityId 实体 ID。
-     * @param {number} retainRevision 期望匹配的 revision。
-     * @returns {void}
      */
     retain(retainEntityId, retainRevision) {
       const retainedPreview = previewsByEntityId.get(retainEntityId);
@@ -816,10 +749,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
      *
      * 应答只代表命令已被接收、状态未必立刻回传，因此不直接删除，
      * 而是把超时压到 8 秒，失败了也能较快退回服务器状态。
-     *
-     * @param {string} acknowledgeEntityId 实体 ID。
-     * @param {number} acknowledgeRevision 期望匹配的 revision。
-     * @returns {void}
      */
     acknowledge(acknowledgeEntityId, acknowledgeRevision) {
       const acknowledgedPreview = previewsByEntityId.get(acknowledgeEntityId);
@@ -829,10 +758,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
     },
     /**
      * 命令被拒绝：立即丢弃预览，回到服务器状态。
-     *
-     * @param {string} rejectEntityId 实体 ID。
-     * @param {number} rejectRevision 期望匹配的 revision。
-     * @returns {void}
      */
     reject(rejectEntityId, rejectRevision) {
       if (previewsByEntityId.get(rejectEntityId)?.revision === rejectRevision) {
@@ -841,8 +766,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
     },
     /**
      * 清理所有已超时的预览。
-     *
-     * @returns {boolean} 是否有预览被清掉（调用方据此决定要不要重绘）。
      */
     expire() {
       let didExpire = false;
@@ -859,9 +782,6 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
     },
     /**
      * 距离最近一次超时还有多久，供调用方设置下一轮 expire 的定时器。
-     *
-     * @param {number} [atMs=previewNow()] 基准时间。
-     * @returns {number} 毫秒数；没有预览时返回 0。
      */
     nextDelay(atMs = previewNow()) {
       let earliestExpiryMs = Infinity;

@@ -27,15 +27,6 @@ export const { resolvePageBehavior } = await import(pageBehaviorModuleUrl.href);
  *
  * 状态机：waiting（等待空闲）→ returning（先把相机拉回基准位）→ rotating（缓慢自转）。
  * 任何活动都会立刻回到 waiting，并中止正在进行的旋转。
- *
- * @param {object} options 参数。
- * @param {() => number} [options.now] 取当前时间。
- * @param {(onDone: Function) => void} options.returnToBase 把相机拉回基准位，完成后回调。
- * @param {() => void} options.start 开始旋转（调用方通常在此挂上渲染循环）。
- * @param {(angleRad: number) => void} options.rotate 应用一个旋转角度（弧度）。
- * @param {() => void} options.stop 停止旋转。
- * @returns {object} 控制器；公开方法：
- *   configure / setAvailable / hold / activity / tick / nextDelay / phase / dispose。
  */
 export function createIdleRotation({
   now: now = () => performance.now(),
@@ -61,9 +52,6 @@ export function createIdleRotation({
   let rotationActivityRevision = 0;
   /**
    * 复位到等待状态。
-   *
-   * @param {number} [activityTimestampMs=now()] 本次活动的时间戳。
-   * @returns {void}
    */
   function resetRotationState(activityTimestampMs = now()) {
     const wasRotating = rotationPhase === "returning" || rotationPhase === "rotating";
@@ -81,10 +69,6 @@ export function createIdleRotation({
   return {
     /**
      * 应用配置；配置实际变化时才复位计时。
-     *
-     * @param {object} [configureOptions={}] 配置项。
-     * @param {number} [configureTimestampMs=now()] 配置生效时间。
-     * @returns {void}
      */
     configure(configureOptions = {}, configureTimestampMs = now()) {
       // 逐项夹取到合法区间：空闲时长 1–3600 秒（默认 30），速度 0.5–30 度/秒（默认 6）。
@@ -107,10 +91,6 @@ export function createIdleRotation({
     },
     /**
      * 设置「当前场景是否允许旋转」（例如是否处于可旋转的页面 / 视图）。
-     *
-     * @param {boolean} availableTimestampMs 可用标志（形参名沿用历史命名，实为布尔值）。
-     * @param {number} [availableFlag=now()] 时间戳。
-     * @returns {void}
      */
     setAvailable(availableTimestampMs, availableFlag = now()) {
       if (isRotationAvailable !== !!availableTimestampMs) {
@@ -120,10 +100,6 @@ export function createIdleRotation({
     },
     /**
      * 外部临时挂起空闲旋转（例如正在拖拽相机）。
-     *
-     * @param {boolean} heldFlag 是否挂起。
-     * @param {number} [holdTimestampMs=now()] 时间戳。
-     * @returns {void}
      */
     hold(heldFlag, holdTimestampMs = now()) {
       isRotationHeld = !!heldFlag;
@@ -132,9 +108,6 @@ export function createIdleRotation({
     activity: resetRotationState,
     /**
      * 推进状态机。
-     *
-     * @param {number} [tickTimestampMs=now()] 当前时间。
-     * @returns {void}
      */
     tick(tickTimestampMs = now()) {
       if (!!rotationConfig.enabled && !!isRotationAvailable && !isRotationHeld) {
@@ -193,7 +166,6 @@ export function createIdleRotation({
     /**
      * 距离下一次需要 tick 还有多久。
      *
-     * @param {number} [delayTimestampMs=now()] 当前时间。
      * @returns {number} 毫秒；旋转中返回 0（需要每帧调用），其余不可用情况返回 Infinity。
      */
     nextDelay(delayTimestampMs = now()) {
@@ -216,10 +188,7 @@ export function createIdleRotation({
 /**
  * 创建「空闲自动退出聚焦」控制器。
  *
- * @param {object} [options] 参数。
- * @param {() => number} [options.now] 取当前时间。
  * @param {() => void} [options.onExit] 空闲超时时的回调（每次空闲只触发一次）。
- * @returns {object} 控制器：configure / setAvailable / hold / activity / tick / nextDelay / dispose。
  */
 export function createIdleFocusExit({
   now: focusExitNow = () => performance.now(),
@@ -245,10 +214,6 @@ export function createIdleFocusExit({
   return {
     /**
      * 应用配置。
-     *
-     * @param {object} [focusExitOptions={}] 含 enabled 与 idleSeconds（夹在 1–3600）。
-     * @param {number} [focusExitConfigureMs=now()] 配置生效时间。
-     * @returns {void}
      */
     configure(focusExitOptions = {}, focusExitConfigureMs = focusExitNow()) {
       if (isFocusExitDisposed) {
@@ -270,10 +235,6 @@ export function createIdleFocusExit({
     },
     /**
      * 设置当前是否允许自动退出聚焦。
-     *
-     * @param {boolean} focusExitAvailableFlag 可用标志。
-     * @param {number} [focusExitAvailableMs=now()] 时间戳。
-     * @returns {void}
      */
     setAvailable(focusExitAvailableFlag, focusExitAvailableMs = focusExitNow()) {
       if (!isFocusExitDisposed && isFocusExitAvailable !== !!focusExitAvailableFlag) {
@@ -287,10 +248,6 @@ export function createIdleFocusExit({
     },
     /**
      * 临时挂起自动退出。
-     *
-     * @param {boolean} focusExitHeldFlag 是否挂起。
-     * @param {number} [focusExitHoldMs=now()] 时间戳。
-     * @returns {void}
      */
     hold(focusExitHeldFlag, focusExitHoldMs = focusExitNow()) {
       if (!isFocusExitDisposed) {
@@ -301,9 +258,6 @@ export function createIdleFocusExit({
     activity: restartFocusIdleTimer,
     /**
      * 推进计时。
-     *
-     * @param {number} [focusExitTickMs=now()] 当前时间。
-     * @returns {void}
      */
     tick(focusExitTickMs = focusExitNow()) {
       if (
@@ -322,7 +276,6 @@ export function createIdleFocusExit({
     /**
      * 距离下次 tick 的间隔。
      *
-     * @param {number} [focusExitDelayMs=now()] 当前时间。
      * @returns {number} 毫秒；已触发 / 不可用时返回 Infinity。
      */
     nextDelay(focusExitDelayMs = focusExitNow()) {
@@ -350,12 +303,6 @@ export function createIdleFocusExit({
 }
 /**
  * 创建「空闲自动隐藏图标」控制器。
- *
- * @param {object} [options] 参数。
- * @param {() => number} [options.now] 取当前时间。
- * @param {(hidden: boolean) => void} [options.onChange] 隐藏状态变化回调。
- * @returns {object} 控制器；公开方法：
- *   configure / setAvailable / hold / activity / tick / nextDelay / hidden / dispose。
  */
 export function createIdleIconVisibility({
   now: iconVisibilityNow = () => performance.now(),
@@ -387,10 +334,6 @@ export function createIdleIconVisibility({
   return {
     /**
      * 应用配置。
-     *
-     * @param {object} [iconVisibilityOptions={}] 含 enabled 与 idleSeconds（夹在 1–3600）。
-     * @param {number} [iconConfigureMs=now()] 配置生效时间。
-     * @returns {void}
      */
     configure(iconVisibilityOptions = {}, iconConfigureMs = iconVisibilityNow()) {
       if (isIconVisibilityDisposed) {
@@ -412,10 +355,6 @@ export function createIdleIconVisibility({
     },
     /**
      * 设置当前是否允许隐藏图标。
-     *
-     * @param {boolean} iconAvailableFlag 可用标志。
-     * @param {number} [iconAvailableMs=now()] 时间戳。
-     * @returns {void}
      */
     setAvailable(iconAvailableFlag, iconAvailableMs = iconVisibilityNow()) {
       if (!isIconVisibilityDisposed && isIconVisibilityAvailable !== !!iconAvailableFlag) {
@@ -428,10 +367,6 @@ export function createIdleIconVisibility({
     },
     /**
      * 临时挂起自动隐藏（例如打开了面板，图标必须保持可见）。
-     *
-     * @param {boolean} iconHeldFlag 是否挂起。
-     * @param {number} [iconHoldMs=now()] 时间戳。
-     * @returns {void}
      */
     hold(iconHeldFlag, iconHoldMs = iconVisibilityNow()) {
       if (!isIconVisibilityDisposed) {
@@ -442,9 +377,6 @@ export function createIdleIconVisibility({
     activity: restartIconIdleTimer,
     /**
      * 推进计时。
-     *
-     * @param {number} [iconTickMs=now()] 当前时间。
-     * @returns {void}
      */
     tick(iconTickMs = iconVisibilityNow()) {
       if (
@@ -472,7 +404,6 @@ export function createIdleIconVisibility({
     /**
      * 距离下次 tick 的间隔。
      *
-     * @param {number} [iconDelayMs=now()] 当前时间。
      * @returns {number} 毫秒；已经隐藏或不可用时返回 Infinity（无需再 tick）。
      */
     nextDelay(iconDelayMs = iconVisibilityNow()) {

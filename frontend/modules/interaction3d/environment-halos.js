@@ -13,9 +13,6 @@
 
 /**
  * 求二维点集的凸包（Andrew 单调链算法）。
- *
- * @param {Array<Array<number>>} hullInput 点集，元素为 [x, y]。
- * @returns {Array<Array<number>>} 逆时针排列的凸包顶点。
  */
 export function outlineHull(hullInput) {
   // 先按 x 再按 y 排序，单调链的前提。
@@ -50,14 +47,6 @@ export function outlineHull(hullInput) {
 }
 /**
  * 创建模型轮廓描边（SVG 覆盖层）。
- *
- * @param {object} options 参数。
- * @param {object} options.THREE three.js 命名空间。
- * @param {HTMLElement} options.container 承载 SVG 的容器。
- * @param {object} options.camera 默认相机。
- * @param {() => object} [options.getCamera] 取当前相机。
- * @param {(model: object) => object} [options.getObjectCamera] 取某个模型专用的相机。
- * @returns {object} 控制器：sync / update / pause / cameraChanged / nextDelay / dispose。
  */
 export function createScreenOutlines({
   THREE: three,
@@ -165,9 +154,6 @@ export function createScreenOutlines({
   }
   /**
    * 求模型在世界坐标下的轮廓极值点。
-   *
-   * @param {object} modelRoot 模型根节点。
-   * @returns {Array<object>} 极值点数组（世界坐标）。
    */
   function computeSilhouettePoints(modelRoot) {
     const extremePoints = directionVectors.map(() => ({
@@ -224,12 +210,6 @@ export function createScreenOutlines({
   }
   /**
    * 同步需要描边的模型列表。
-   *
-   * @param {object} syncModelRoot 场景根节点。
-   * @param {number} sceneRevision 场景修订号。
-   * @param {Array<object>} modelList 需要描边的模型引用列表。
-   * @param {boolean} shouldShowOutlines 是否显示描边。
-   * @returns {void}
    */
   function syncOutlines(syncModelRoot, sceneRevision, modelList, shouldShowOutlines) {
     isOutlineActive = shouldShowOutlines;
@@ -500,10 +480,7 @@ export function createScreenOutlines({
 /**
  * 创建设备光晕（贴片发光）。
  *
- * @param {object} options 参数。
- * @param {object} options.THREE three.js 命名空间。
  * @param {number} options.modeAmount 光晕总强度（0 时完全不可见）。
- * @returns {object} 控制器：sync / setColor / setVisible / clear / update / dispose。
  */
 export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: modeAmount }) {
   const halosById = new Map();
@@ -518,9 +495,6 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
   const planeGeometry = new threeNamespace.PlaneGeometry(1, 1);
   /**
    * 量出模型的世界包围盒（跳过环境效果与自制窗帘骨架）。
-   *
-   * @param {object} boundsModelRoot 模型根节点。
-   * @returns {object|null} Box3；没有有效网格时返回 null。
    */
   function computeModelBounds(boundsModelRoot) {
     const accumulatedBounds = new threeNamespace.Box3();
@@ -565,12 +539,6 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
   }
   /**
    * 同步光晕列表。
-   *
-   * @param {object} haloModelRoot 场景根节点。
-   * @param {Array<object>} haloItems 需要光晕的项（含 id / floorId / modelId / visible / deviceKind）。
-   * @param {number} haloSceneRevision 场景修订号。
-   * @param {Map} [modelMap] 外部传入的模型索引，缺省时自行遍历场景。
-   * @returns {void}
    */
   function syncHalos(haloModelRoot, haloItems, haloSceneRevision, modelMap) {
     const haloKey = JSON.stringify(
@@ -746,9 +714,6 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
   }
   /**
    * 更新窗帘光晕的矩形列表，让光只落在实际可见的帘布上。
-   *
-   * @param {object} targetHalo 光晕记录。
-   * @returns {void}
    */
   function updateHaloPanels(targetHalo) {
     // 姿态键：帘布的可见性与横向缩放（开合程度）；不变则无需重算。
@@ -814,10 +779,6 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
   }
   /**
    * 设置某片光晕的颜色。
-   *
-   * @param {string} itemId 光晕 ID。
-   * @param {object} color three.js 颜色。
-   * @returns {void}
    */
   function setHaloColor(itemId, color) {
     const colorHalo = halosById.get(itemId);

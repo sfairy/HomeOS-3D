@@ -29,12 +29,6 @@ import { resolveStateEntry } from "./static-helpers.js?v=20260920080000";
 import { createEnvironmentHalos } from "./environment-halos.js?v=20260920080000";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
- *
- * @param {object} config 户型配置（读 pageDimStrength / pageSaturation / environment 等）。
- * @param {string} activeModule 当前模块 ID，会被归一化成页面 ID。
- * @param {boolean} [isFocusMode=false] 是否处于聚焦模式（额外叠加 focusDimStrength）。
- * @returns {{page: string, strength: number, enabled: boolean, saturation?: number}}
- *     页面 ID、压暗强度百分比与是否生效；页面非法时 enabled 为 false。
  */
 export function pageDimming(config, activeModule, isFocusMode = false) {
   // 模块 ID → 页面 ID 的归一：气候 / 窗帘都算「环境」页，NAS / 电视算「设备」页，
@@ -57,10 +51,6 @@ export function pageDimming(config, activeModule, isFocusMode = false) {
   }
   /**
    * 把百分比夹到 0~100；非有限值（undefined / 字符串 / NaN）用兜底值。
-   *
-   * @param {*} candidateValue 候选取值。
-   * @param {number} fallbackValue 兜底值。
-   * @returns {number} 0~100 的数值。
    */
   const clampPercent = (candidateValue, fallbackValue) =>
     Number.isFinite(candidateValue) ? Math.max(0, Math.min(100, candidateValue)) : fallbackValue;
@@ -118,12 +108,6 @@ const MODEL_TYPE_TO_DEVICE_KIND = {
  * 背景：绑定了实体的设备由 stage.js 提供绑定，但户型里还可能有没绑实体、或不属于
  * 当前页面绑定集合的模型（总览页需要显示全部）。这里按模型类型反推出所属页面，
  * 给缺绑定的模型补一个 previewOnly 的展示用绑定，使其同样参与压暗 / 发光。
- *
- * @param {Array<object>} floors 楼层列表（含 scene.items）。
- * @param {Array<object>} sceneBindings 场景已有绑定，按「楼层 + 模型 ID」索引复用。
- * @param {string} page 目标页面 ID，"overview" 表示全部。
- * @param {string} floorId 目标楼层 ID，"all" 表示不限。
- * @returns {Array<object>} 绑定列表；缺绑定的条目 id 形如 "presentation:<key>"。
  */
 export function pageModelBindings(floors, sceneBindings, page, floorId) {
   // JSON.stringify([楼层, 模型]) 作为复合键：模型 ID 在不同楼层可能重名。
@@ -165,13 +149,6 @@ export function pageModelBindings(floors, sceneBindings, page, floorId) {
 }
 /**
  * 创建环境氛围场景（页面压暗 / 降饱和 / 状态发光 + 光晕）。
- *
- * @param {object} options 入参。
- * @param {object} options.THREE 舞台注入的 three.js 命名空间。
- * @param {Function} [options.requestFrame=() => {}] 请求重绘；可传脏楼层数组，
- *     只重建这些楼层的地面反射。
- * @returns {object} 句柄：setRoot / setMode / tick / retainRoot / releaseRoot /
- *     isActive / dispose。
  */
 export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFrame = () => {} }) {
   // 三个全局 uniform 对象被所有补丁共享（同一引用挂进 shader），改一次即可全场生效。
@@ -200,8 +177,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
    *
    * 同时探测 globalThis.matchMedia 与 globalThis.window.matchMedia：前者在某些
    * 宿主（自定义元素 / 测试环境）里没有，后者才是常规浏览器路径。
-   *
-   * @returns {boolean} 需要减少动态效果时返回 true。
    */
   const prefersReducedMotion = () =>
     globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true ||
@@ -245,26 +220,16 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   let configuredDimStrength = 0.7;
   /**
    * 复合模型键：楼层 + 模型 ID，用于把 mesh 记录与绑定对上。
-   *
-   * @param {string} keyFloorId 楼层 ID。
-   * @param {string} modelId 模型 ID。
-   * @returns {string} JSON 字符串键。
    */
   const composeModelKey = (keyFloorId, modelId) =>
     JSON.stringify([String(keyFloorId ?? ""), String(modelId ?? "")]);
   /**
    * 复合绑定键：绑定 ID + 楼层 + 模型，用于识别「同一个绑定」。
-   *
-   * @param {object} binding 绑定。
-   * @returns {string} JSON 字符串键。
    */
   const composeBindingKey = binding =>
     JSON.stringify([String(binding.id ?? ""), binding.floorId, binding.modelId]);
   /**
    * 把可能是单值 / 数组 / 空值的材质字段统一成数组。
-   *
-   * @param {*} arrayCandidate 候选值。
-   * @returns {Array} 数组（可能是空数组）。
    */
   const toArray = arrayCandidate =>
     Array.isArray(arrayCandidate) ? arrayCandidate : arrayCandidate ? [arrayCandidate] : [];
@@ -273,9 +238,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
    *
    * 白名单只收常见的内置光照材质：自定义 ShaderMaterial 的片元着色器里没有
    * opaque_fragment / colorspace_fragment 这些 chunk，注入会直接编译失败。
-   *
-   * @param {*} materialCandidate 候选材质。
-   * @returns {boolean} 可打补丁时返回 true。
    */
   const isSupportedMaterial = materialCandidate =>
     materialCandidate?.isMaterial &&
@@ -291,8 +253,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
    *
    * amount 与全局共享（页面压暗是全场同一个值）；retain / glow / lift 每组独立，
    * 因为它们是「按绑定」的发光参数。lift 的默认 [0.12, 0.8] 是中性设备的发光抬升曲线。
-   *
-   * @returns {object} GLSL uniform 对象集合。
    */
   const createUniforms = () => ({
     amount: amountUniform,
@@ -310,12 +270,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   const baseUniforms = createUniforms();
   /**
    * 给材质打上环境特效补丁（幂等：同一材质只打一次）。
-   *
-   * @param {object} material 目标材质。
-   * @param {object} uniforms 该材质使用的 uniform 组（含 retain / glow / lift）。
-   * @param {object} [sourceMaterial=null] 变体材质的来源基础材质；非空表示这是变体，
-   *     需要沿用来源已记录的「更早的」注入函数与 cacheKey，形成调用链而不是覆盖。
-   * @returns {void}
    */
   function patchMaterial(material, uniforms, sourceMaterial = null) {
     if (!isSupportedMaterial(material) || patchedMaterials.has(material)) {
@@ -336,10 +290,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     const originalOwner = sourceMaterial || material;
     /**
      * 真正被 three 在编译期调用的注入函数。
-     *
-     * @param {object} shaderParameters three 给出的着色器参数（含 fragmentShader 与 uniforms）。
-     * @param {object} renderer 渲染器（透传给上游注入函数）。
-     * @returns {void}
      */
     const patchedOnBeforeCompile = function (shaderParameters, renderer) {
       priorCompile?.call(this, shaderParameters, renderer);
@@ -408,8 +358,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 把所有 mesh 的材质从「变体」换回原始材质，并隐藏光晕。
-   *
-   * @returns {void}
    */
   function detachAppliedMaterials() {
     halos.setVisible(false);
@@ -424,8 +372,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 彻底重置场景侧状态（换模型根 / dispose 时用）：还原材质、清空索引与光晕。
-   *
-   * @returns {void}
    */
   function resetScene() {
     for (const retainedEntry of retainedMeshEntries.values()) {
@@ -455,10 +401,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 撤销一个材质的补丁，恢复补丁前的方法与 cacheKey。
-   *
-   * @param {object} targetMaterial 被打过补丁的材质。
-   * @param {object} patch patchMaterial 存下的补丁记录。
-   * @returns {void}
    */
   function unpatchMaterial(targetMaterial, patch) {
     let didRestore = false;
@@ -495,10 +437,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
    *
    * 之所以要变体：一份基础材质常被多个模型共用（同一款空调），而每个绑定的发光色
    * 与 lift 各不相同，共享材质会让后设置的绑定覆盖前一个。
-   *
-   * @param {object} baseMaterial 模型上的原始材质。
-   * @param {object} targetBinding 目标绑定。
-   * @returns {object} 变体材质；不支持改造时原样返回基础材质。
    */
   function resolveVariantMaterial(baseMaterial, targetBinding) {
     if (!isSupportedMaterial(baseMaterial)) {
@@ -550,8 +488,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 按当前绑定把每个 mesh 的材质挂成对应变体（没绑定的还原为原始材质）。
-   *
-   * @returns {void}
    */
   function applyBindingMaterials() {
     // 完全关闭且淡出结束时才允许「拆掉」特效，否则淡出过程中材质会被提前还原而闪一下。
@@ -606,8 +542,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 回收不再活跃的变体材质，防止绑定反复增删导致显存泄漏。
-   *
-   * @returns {void}
    */
   function pruneMaterialVariants() {
     const activeBindingKeys = new Set(activeBindings().map(composeBindingKey));
@@ -629,11 +563,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 重算每个材质变体的目标值（是否发光、发光色、强度），必要时启动淡入淡出。
-   *
-   * @param {boolean} [shouldAnimate=false] 是否允许用动画过渡（不满足条件时直接赋值）。
-   * @param {Set<string>} [changedFloorIdsTarget=new Set()] 输出参数：发生变化的地板楼层 ID，
-   *     供调用方决定只重建哪些楼层的地面反射。
-   * @returns {boolean} 是否有材质目标值发生变化。
    */
   function updateMaterialTargets(shouldAnimate = false, changedFloorIdsTarget = new Set()) {
     const highlightId = selectedId || focusedId;
@@ -720,10 +649,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 换模型根（楼层 / 户型整体重建时调用）。
-   *
-   * @param {object} nextRoot 新的模型根节点。
-   * @param {number} revision 场景版本号，与根节点一起判断是否需要重建索引。
-   * @returns {void}
    */
   function setRoot(nextRoot, revision) {
     if (!isDisposed && (sceneRoot !== nextRoot || rootRevision !== revision)) {
@@ -747,8 +672,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
    *
    * 这是本模块最重的一次遍历，因此只在根节点变化、绑定变化或首次启用时执行；
    * 已有的记录会被复用（见 entriesByMesh），避免每帧重复打补丁。
-   *
-   * @returns {void}
    */
   function indexSceneGraph() {
     if (!sceneRoot?.traverse) {
@@ -881,17 +804,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 更新环境特效的全部输入（开关 / 强度 / 饱和度 / 绑定 / 状态 / 聚焦选中）。
-   *
-   * @param {object} [options={}] 只想改哪一项就传哪一项，其余沿用上一次的值。
-   * @param {boolean} [options.enabled] 是否启用特效。
-   * @param {number} [options.dimStrength] 压暗强度百分比（0~100）。
-   * @param {number} [options.saturation] 饱和度百分比（0~100）。
-   * @param {Array<object>} [options.bindings] 页面绑定列表。
-   * @param {Map|object} [options.states] 实体 ID → HA 状态。
-   * @param {string} [options.focusedId] 聚焦中的绑定 ID。
-   * @param {string} [options.selectedId] 选中的绑定 ID。
-   * @param {boolean} [options.animateBindings] 绑定变化时是否用淡出过渡。
-   * @returns {void}
    */
   function setMode(options = {}) {
     if (isDisposed) {
@@ -1020,9 +932,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 推进淡入淡出（每帧调用）。
-   *
-   * @param {number} timestampMs 当前时间戳（毫秒）；缺省时自行取 performance.now()。
-   * @returns {boolean} true 表示仍在动画，需要继续出帧。
    */
   function tick(timestampMs) {
     if (isDisposed) {
@@ -1129,18 +1038,12 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     tick: tick,
     /**
      * 登记一个「被保留」的根节点：它下面的材质不参与还原 / 回收。
-     *
-     * @param {object} root 保留的根节点。
-     * @returns {void}
      */
     retainRoot(root) {
       retainedRoots.add(root);
     },
     /**
      * 解除保留（与 retainRoot 配对使用）。
-     *
-     * @param {object} releasedRoot 之前登记的根节点。
-     * @returns {void}
      */
     releaseRoot(releasedRoot) {
       retainedRoots.delete(releasedRoot);
@@ -1151,8 +1054,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     },
     /**
      * 释放本模块的资源：还原所有材质补丁并销毁变体材质。
-     *
-     * @returns {void}
      */
     dispose() {
       // 先把共享 uniform 归零：即使还有材质没来得及还原，画面也不会残留压暗。

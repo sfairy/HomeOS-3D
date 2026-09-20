@@ -39,12 +39,6 @@ const composeBindingKey = (keyFloorId, keyModelId) =>
   JSON.stringify([String(keyFloorId ?? ""), String(keyModelId ?? "")]);
 /**
  * 创建气流效果控制器。
- *
- * @param {object} [options] 参数。
- * @param {object} options.THREE three.js 命名空间。
- * @param {() => void} [options.requestFrame] 请求重绘。
- * @param {boolean} [options.reducedMotion] 强制指定的「减少动态效果」；不传则跟随系统设置。
- * @returns {object} 控制器。
  */
 export function createEnvironmentAirflow({
   THREE: THREE,
@@ -81,9 +75,6 @@ export function createEnvironmentAirflow({
     "uniform vec3 flowColor;\n    uniform float flowOpacity;\n    uniform float flowTime;\n    uniform float flowOverview;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    float hash(vec2 p) {\n      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);\n    }\n    float noise(vec2 p) {\n      vec2 cell = floor(p), f = fract(p);\n      f = f * f * (3.0 - 2.0 * f);\n      return mix(mix(hash(cell), hash(cell + vec2(1.0, 0.0)), f.x),\n        mix(hash(cell + vec2(0.0, 1.0)), hash(cell + vec2(1.0)), f.x), f.y);\n    }\n    void main() {\n      float t = vFlowUv.y, across = vFlowUv.x * 2.0 - 1.0;\n      float edge = exp(-0.8 * across * across) * (1.0 - smoothstep(0.45, 1.0, abs(across)));\n      float distanceFade = smoothstep(0.0, 0.025, t) * exp(-mix(1.15, 0.9, flowOverview) * t)\n        * (1.0 - smoothstep(0.62, 1.0, t));\n      // Advected, lengthwise fibres: deliberately much longer than they are\n      // wide, so the air reads as a continuous breeze, never dots or light bars.\n      float drift = sin(t * 4.0 - flowTime * 0.45 + vFlowLayer * 2.0) * t * 0.16;\n      // Keep individual strands fine even in overview; visibility comes from\n      // their bright cores rather than widening them into opaque white bands.\n      vec2 p = vec2(vFlowUv.x * mix(22.0, 16.0, flowOverview) + drift + vFlowLayer * 23.0,\n        t * mix(1.8, 1.25, flowOverview) - flowTime * 0.9);\n      float detail = 0.28;\n      float fibres = noise(p) * (1.0 - detail) + noise(p * vec2(1.9, 0.7) + 13.0) * detail;\n      // Give the moving strands enough coverage on both pale wood and dark\n      // floors. Keep the empty space clear instead of adding a uniform veil.\n      float density = 0.012 + 1.25 * fibres * fibres;\n      // A soft density ceiling keeps the stronger near-outlet strands\n      // translucent while letting their motion remain readable at room scale.\n      density = density / (1.0 + density * 0.65);\n      // Moving fibre crests catch a white highlight, with the mode color in\n      // their softer edges. This remains one transparent draw, without lights.\n      float crest = smoothstep(0.56, 0.9, fibres);\n      float highlight = crest * crest;\n      float alpha = min(0.56, flowOpacity * edge * distanceFade\n        * (density + highlight * 0.16) * mix(1.0, 0.42, vFlowLayer));\n      vec3 strandColor = mix(flowColor, vec3(1.0), highlight * 0.68);\n      gl_FragColor = vec4(strandColor, alpha);\n      #include <colorspace_fragment>\n    }";
   /**
    * 量出模型的世界包围盒（不含环境效果与嵌套的独立模型）。
-   *
-   * @param {object} modelRoot 模型根节点。
-   * @returns {object|null} Box3；模型里没有有效网格时返回 null。
    */
   function measureModelBox(modelRoot) {
     const boundsBox = new THREE.Box3();
@@ -142,9 +133,6 @@ export function createEnvironmentAirflow({
    * 三种形态各有经验参数：airoutlet（风口）口长沿 Z、旋转 90°；
    * floorac（柜机 / 落地机）风道窄而长、略向下坠；
    * wallac（挂机）风道宽而短、下坠更多。
-   *
-   * @param {object} model 空调 / 风口模型。
-   * @returns {object|null} 版式；模型无有效尺寸时返回 null。
    */
   function resolveOutletLayout(model) {
     const modelBox = measureModelBox(model);
@@ -206,9 +194,6 @@ export function createEnvironmentAirflow({
    *
    * UV 的 y 方向表示「离出风口的距离」，着色器按它做衰减与噪声取样；
    * flowLayer 属性区分两层，用于错开纤维相位与透明度。
-   *
-   * @param {object} layout resolveOutletLayout 的结果。
-   * @returns {object} BufferGeometry。
    */
   function buildFlowGeometry(layout) {
     const positions = [];
@@ -305,10 +290,6 @@ export function createEnvironmentAirflow({
   }
   /**
    * 为某个模型创建气流网格。
-   *
-   * @param {object} modelObject 空调 / 风口模型。
-   * @param {object} binding 绑定配置。
-   * @returns {object|null} 效果记录；无法推导版式时返回 null。
    */
   function createFlowEffect(modelObject, binding) {
     const outletLayout = resolveOutletLayout(modelObject);
@@ -402,9 +383,6 @@ export function createEnvironmentAirflow({
   }
   /**
    * 按绑定列表增删 / 复用气流效果。
-   *
-   * @param {boolean} [shouldRefreshLayouts=false] 是否重新推导版式（场景结构变化时传 true）。
-   * @returns {void}
    */
   function syncEffects(shouldRefreshLayouts = false) {
     // 惰性建索引：只有真正启用且有绑定时才遍历场景。
@@ -519,10 +497,6 @@ export function createEnvironmentAirflow({
   }
   /**
    * 设置场景根节点。
-   *
-   * @param {object} nextRoot 新的根节点。
-   * @param {number} revision 场景修订号。
-   * @returns {void}
    */
   function setRoot(nextRoot, revision) {
     if (!isDisposed && (sceneRoot !== nextRoot || rootRevision !== revision)) {
@@ -549,10 +523,6 @@ export function createEnvironmentAirflow({
   }
   /**
    * 批量更新内部状态。
-   *
-   * @param {object} [options={}] 可含 enabled / bindings / states / focusedId /
-   *        overview / reducedMotion；只处理显式出现的键。
-   * @returns {void}
    */
   function setState(options = {}) {
     if (isDisposed) {
@@ -587,9 +557,6 @@ export function createEnvironmentAirflow({
   }
   /**
    * 推进淡入淡出与气流动画。
-   *
-   * @param {number} timestampMs 当前时间。
-   * @returns {boolean} 是否需要继续动画。
    */
   function tick(timestampMs) {
     if (

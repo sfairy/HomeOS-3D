@@ -31,12 +31,6 @@ const { drawTelevisionGlass: drawTelevisionGlass } = await (import.meta.url.star
   : import("/static/3d-studio/studio-television-glass.js?v=20260920080000"));
 /**
  * 创建电视屏幕控制器。
- *
- * @param {object} options 参数。
- * @param {object} options.THREE three.js 命名空间。
- * @param {(floorIds?: Array<string>) => void} [options.requestFrame] 请求重绘；
- *        传入楼层列表是因为屏幕内容属于分楼层渲染的缓存键。
- * @returns {{sync: Function, dispose: Function}} 控制器。
  */
 export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFrame = () => {} }) {
   let syncedRoot;
@@ -49,9 +43,6 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
     JSON.stringify([bindingConfig.floorId, bindingConfig.modelId]);
   /**
    * 释放一块屏幕：还原原材质与原生发光网格，销毁贴图与材质。
-   *
-   * @param {object} targetEntry 屏幕记录。
-   * @returns {void}
    */
   function releaseScreen(targetEntry) {
     // removed 标记保证幂等：几何体 dispose 事件与主动释放可能先后到达。
@@ -74,9 +65,6 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
   }
   /**
    * 把当前状态画到画布上并标记贴图需要更新。
-   *
-   * @param {object} entry 屏幕记录。
-   * @returns {void}
    */
   function renderScreen(entry) {
     if (isDisposed) {
@@ -119,15 +107,6 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
   return {
     /**
      * 按最新绑定与状态同步所有电视屏幕。
-     *
-     * @param {object} params 参数。
-     * @param {object} params.root 场景根节点。
-     * @param {number} params.revision 场景修订号。
-     * @param {Array<object>} params.bindings 电视绑定列表。
-     * @param {object} params.states 实体 ID → HA 状态。
-     * @param {string} [params.focusedModel=""] 当前聚焦的电视位置键（其它电视会变暗）。
-     * @param {number} [params.dimStrength=70] 变暗强度（百分比，0 为不变暗）。
-     * @returns {void}
      */
     sync({
       root: root,

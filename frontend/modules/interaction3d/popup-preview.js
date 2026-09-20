@@ -22,12 +22,6 @@ const { cameraPopupLayout: cameraPopupLayout } = await (import.meta.url.startsWi
   : import("/static/modules/interaction3d/camera-popup-layout.js"));
 /**
  * 计算弹窗预览的落位与缩放。
- *
- * @param {"camera"|string} kind 弹窗类型；"camera" 走摄像头专用版式，其余走通用弹窗。
- * @param {number} width 逻辑视口宽度（设计坐标系）。
- * @param {number} height 逻辑视口高度（设计坐标系）。
- * @param {object} settings 用户配置（含位置 / 缩放覆盖项）。
- * @returns {object} 落位结果，额外带上 panelWidth / panelHeight 供调用方做缩放。
  */
 export function popupPreviewPlacement(kind, width, height, settings) {
   const cameraLayout = kind === "camera" ? cameraPopupLayout(width, height) : null;
@@ -62,11 +56,6 @@ export function popupPreviewPlacement(kind, width, height, settings) {
 }
 /**
  * 创建编辑面板里的弹窗示意预览（缩微色块，不含真实控件）。
- *
- * @param {HTMLElement} hostElement 挂载容器（编辑器的画布区域）。
- * @param {() => object} getLayout 读取当前逻辑视口尺寸。
- * @param {() => void} onClose 关闭按钮的回调。
- * @returns {{update: Function, resize: Function, dispose: Function}} 预览句柄。
  */
 export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
   // 一律用宿主元素所属的 document，保证嵌在 iframe 里也创建到正确的文档中。
@@ -130,10 +119,6 @@ export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
   return {
     /**
      * 切换预览类型或刷新配置。
-     *
-     * @param {string} nextKind 弹窗类型。
-     * @param {object} nextSettings 配置。
-     * @returns {void}
      */
     update(nextKind, nextSettings) {
       // 只有类型变化时才重建内容（DOM 结构开销较大），同类型只更新配置再重新布局。
@@ -176,16 +161,6 @@ export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
  *
  * 与示意预览不同，这里直接实例化渲染器的 PanelRenderer，渲染一份与线上完全一致的
  * 弹窗，只是整块设为 inert（不可交互）并隐藏，仅作为编辑时的视觉参照。
- *
- * @param {HTMLElement} popupHostElement 挂载容器。
- * @param {object} options 配置。
- * @param {string} options.kind 弹窗类型，"camera" 走摄像头预览分支。
- * @param {object} options.item 绑定项。
- * @param {() => object} options.getLayout 读取展示布局。
- * @param {() => object} options.getSettings 读取 3D 弹窗设置。
- * @param {() => object} options.getStates 读取实体状态（用于填充预览数据）。
- * @param {object} options.panelDocument 面板文档（控件树）。
- * @returns {{ready: Promise, resize: Function, updateStates: Function, dispose: Function}} 句柄。
  */
 export function createFocusDevicePopup(
   popupHostElement,

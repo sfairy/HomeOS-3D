@@ -19,13 +19,6 @@ import {
 /**
  * 打开照射范围编辑弹窗。
  *
- * @param {object} options 参数。
- * @param {object} options.component 面板控件（含 properties.sceneId 与 properties.lightingMode）。
- * @param {object} options.document 面板文档。
- * @param {object} options.states 实体状态。
- * @param {(overrides: object) => Promise<void>} options.onSave 保存回调，收到的是范围覆盖配置。
- * @param {() => void} [options.onClose] 关闭后的回调。
- * @returns {Promise<{close: Function, ready: Promise<void>}>} 句柄；ready 在编辑器可用后兑现。
  * @throws {Error} 缺少 3D 户型，或灯光不是轻量柔光（region）模式。
  */
 export async function openInteraction3dRangeEditor({

@@ -15,9 +15,6 @@
 import { resolveStateEntry } from "./static-helpers.js?v=20260920080000";
 /**
  * 判断摄像头实体是否在线。
- *
- * @param {object} stateOrChange HA 的 state 对象或 state_changed 事件（取 newState）。
- * @returns {boolean} available 不为 false、state 非空且不属于未知态时为 true。
  */
 export function cameraOnline(stateOrChange) {
   // 同时兼容两种入参：事件对象走 newState，直接传 state 时用自身。
@@ -34,12 +31,6 @@ export function cameraOnline(stateOrChange) {
 }
 /**
  * 创建摄像头状态点控制器。
- *
- * @param {object} options 构造参数。
- * @param {object} options.THREE three.js 命名空间（由调用方注入，便于共享同一份 THREE）。
- * @param {() => void} [options.requestFrame] 请求重绘的回调；仅在确实发生变化时调用。
- * @returns {{sync: Function, dispose: Function}} sync 负责按最新数据刷新状态点，
- *       dispose 释放几何体与材质。
  */
 export function createCameraStatus({ THREE: THREE, requestFrame: requestFrame = () => {} }) {
   // 每帧都会调用 sync，缓存 Map 让「未变化」的路径几乎零成本。
@@ -61,14 +52,6 @@ export function createCameraStatus({ THREE: THREE, requestFrame: requestFrame = 
   };
   /**
    * 刷新所有摄像头的状态点。
-   *
-   * @param {object} params 刷新参数。
-   * @param {object} params.root 场景根节点。
-   * @param {number} params.revision 场景修订号，变化即表示模型已重建。
-   * @param {Array<object>} params.bindings 摄像头绑定列表（含模型位置与实体 ID）。
-   * @param {Object<string, object>} params.states 实体 ID → HA 状态。
-   * @param {boolean} params.enabled 总开关，关闭时所有状态点隐藏（但仍保留实例）。
-   * @param {number} params.brightness 不透明度，由外部亮度策略统一控制。
    */
   function syncCameraStatus({
     root: root,

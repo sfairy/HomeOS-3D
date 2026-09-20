@@ -162,8 +162,6 @@ export function createLightStream({
     };
     /**
      * 重置心跳超时定时器。
-     *
-     * @param {number} heartbeatTimeoutMs 本次允许的静默时长。
      */
     function scheduleHeartbeatTimeout(heartbeatTimeoutMs) {
       if (heartbeatTimerId !== null) {
@@ -270,11 +268,8 @@ export function createLightStream({
     /**
      * 设置订阅的实体列表。
      *
-     * @param {string[]} [entityIds=[]] 实体 ID 列表。
-     * @param {object} [options] 额外参数。
      * @param {string[]} [options.additionalEntityIds=[]] 白名单外的补充实体；
      *        只校验 ID 形态，允许订阅本列表未覆盖的域。
-     * @returns {void}
      */
     configure(entityIds = [], { additionalEntityIds: additionalEntityIds = [] } = {}) {
       if (isDisposed) {
@@ -319,9 +314,6 @@ export function createLightStream({
     },
     /**
      * 开关长连接（例如页面切到后台时关闭以省电）。
-     *
-     * @param {boolean} isActiveNext 是否保持连接。
-     * @returns {void}
      */
     setActive(isActiveNext) {
       if (!isDisposed && isStreamActive !== (isActiveNext === true)) {

@@ -38,12 +38,6 @@ const asValidMapPoint = pointCandidate =>
  * 2) 像素坐标按图片尺寸归一化到 [-0.5, 0.5]，再乘地图在户型中的宽 / 深，得到以
  *    地图中心为原点的局部坐标（地图图片的中心即户型的原点）；
  * 3) 按 mapConfig 的旋转角与偏移做旋转平移，落到楼层坐标系里。
- *
- * @param {{x: number, y: number}} mapPoint 扫地机坐标点。
- * @param {Array<object>} calibrationPoints 三点标定（每点含 vacuum 与 map）。
- * @param {{width: number, height: number}} mapPixelSize 地图图片的像素尺寸。
- * @param {object} mapConfig 地图在户型中的摆放（width / depth / x / y / rotation）。
- * @returns {{x: number, y: number}|null} 户型平面坐标；参数不足或标定退化时返回 null。
  */
 export function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapConfig) {
   // 边界校验一次做全：缺任何一项都无法换算，早退比中途出 NaN 更好排查。
@@ -104,11 +98,6 @@ export function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapCon
 }
 /**
  * 计算扫地机当前的位姿（位置 + 朝向 + 状态）。
- *
- * @param {object} vacuumBinding 扫地机绑定项（含 entityId 与 map 配置）。
- * @param {object} statesByEntityId 实体 ID → HA 状态。
- * @param {{width: number, height: number}|null} mapResolution 地图图片像素尺寸。
- * @returns {object|null} 相对基站的位姿与状态；数据不足时返回 null（表示「不要显示」）。
  */
 export function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) {
   // 绑定了「上游共享地图」却没有解析出可用的地图绑定时，说明这张地图由别的绑定负责渲染，
@@ -223,11 +212,6 @@ export const VACUUM_CHAT = {
 };
 /**
  * 取当前该显示的台词。
- *
- * @param {object} quipComponent 台词绑定项（含 entityId、funMessages 开关）。
- * @param {object} quipStates 实体 ID → HA 状态。
- * @param {number} timestampMs 当前时间戳（毫秒）。
- * @returns {string} 台词文本；关闭趣味消息时返回空串。
  */
 export function vacuumQuip(quipComponent, quipStates, timestampMs) {
   if (quipComponent.funMessages === false) {
@@ -248,10 +232,6 @@ export function vacuumQuip(quipComponent, quipStates, timestampMs) {
 }
 /**
  * 创建扫地机位姿动画控制器。
- *
- * @param {object} sceneContext 场景上下文（含 THREE、modelRoot、document、worldPoint 等）。
- * @param {() => void} requestRender 请求重绘的回调。
- * @returns {object} 控制器：sync / offset / worldPosition / tick / hasTracking / dispose。
  */
 export function createVacuumMotion(sceneContext, requestRender) {
   const { THREE: THREE } = sceneContext;
@@ -280,10 +260,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
    *
    * 做法：把模型里贴地的部分（刷盘 / 机身）单独摘出来挂到一个 Group 上，
    * 之后只移动这个 Group，模型里的充电桩等固定部件留在原地不动。
-   *
-   * @param {object} modelRoot 扫地机模型根节点。
-   * @param {object} motionItem 绑定项（含 floorId / modelId）。
-   * @returns {object|null} 动画记录；模型里找不到贴地网格时返回 null。
    */
   function createMotionEntry(modelRoot, motionItem) {
     modelRoot.updateWorldMatrix(true, true);
@@ -372,9 +348,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
    *
    * 地图坐标换算必须知道图片的像素尺寸，而它只能等图片加载完才知道，
    * 因此这里返回 null 表示「还在加载」，调用方下一轮再试。
-   *
-   * @param {object} sizeItem 扫地机绑定项。
-   * @returns {{width: number, height: number}|null} 图片尺寸；未就绪时返回 null。
    */
   function ensureMapSize(sizeItem) {
     const mapEntityId = sizeItem.map?.entityId;
@@ -519,11 +492,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
   return {
     /**
      * 同步绑定列表与状态。
-     *
-     * @param {Array<object>} items 扫地机绑定列表。
-     * @param {object} syncStates 实体 ID → HA 状态。
-     * @param {boolean} enabled 全局是否启用位姿动画。
-     * @returns {void}
      */
     sync(items, syncStates, enabled) {
       motionItems = items;
@@ -549,9 +517,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
     },
     /**
      * 取某条绑定当前相对基站的偏移（供其它效果跟随扫地机）。
-     *
-     * @param {string} offsetEntityId 绑定 ID，允许带 "vacuum:" 前缀。
-     * @returns {{x: number, y: number}|null} 偏移；不存在时返回 null。
      */
     offset(offsetEntityId) {
       const offsetEntry = motionEntriesByItemId.get(offsetEntityId.replace(/^vacuum:/, ""));
@@ -566,9 +531,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
     },
     /**
      * 取某条绑定当前的世界坐标（供相机跟随）。
-     *
-     * @param {string} worldEntityId 绑定 ID，允许带 "vacuum:" 前缀。
-     * @returns {object|null} 世界坐标向量。
      */
     worldPosition(worldEntityId) {
       const worldEntry = motionEntriesByItemId.get(worldEntityId.replace(/^vacuum:/, ""));
@@ -580,9 +542,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
     },
     /**
      * 推进一帧动画。
-     *
-     * @param {number} deltaSeconds 距上一帧的秒数。
-     * @returns {boolean} 是否需要继续动画（调用方据此决定是否保持动画循环）。
      */
     tick(deltaSeconds) {
       if (!isMotionEnabled) {
@@ -693,10 +652,6 @@ export function createVacuumMotion(sceneContext, requestRender) {
 }
 /**
  * 生成「俯视跟拍」相机姿势：落在焦点正上方 6 米、沿原视线方向后退 2.5 米。
- *
- * @param {object} camera 当前相机姿势。
- * @param {Array<number>} focusPoint 焦点（扫地机位置）。
- * @returns {object} 新相机姿势。
  */
 export function vacuumBirdCamera(camera, focusPoint) {
   // 只保留水平方向：俯视视角不需要俯仰分量，否则仰角会随原相机变化而漂移。
@@ -722,10 +677,6 @@ export function vacuumBirdCamera(camera, focusPoint) {
 }
 /**
  * 把相机平移到新的跟随目标，保持原有的相对偏移与朝向。
- *
- * @param {object} sourceCamera 当前相机姿势。
- * @param {Array<number>} followTarget 新的跟随目标。
- * @returns {object} 新相机姿势。
  */
 export function vacuumFollowPose(sourceCamera, followTarget) {
   return {
@@ -740,9 +691,6 @@ export function vacuumFollowPose(sourceCamera, followTarget) {
 }
 /**
  * 创建跟随相机的遮挡处理：把挡在相机与扫地机之间的家具临时透明化。
- *
- * @param {object} threeNamespace three.js 命名空间。
- * @returns {{reset: Function, reveal: Function}} 句柄：reveal 每帧调用，reset 用于退出跟随。
  */
 export function createVacuumFollowCamera(threeNamespace) {
   const raycaster = new threeNamespace.Raycaster();
@@ -754,10 +702,6 @@ export function createVacuumFollowCamera(threeNamespace) {
   let occluderMeshes = [];
   /**
    * 收集「可能挡住视线」的网格（家具）。
-   *
-   * @param {object} occluderContext 场景上下文（modelRoot / sceneRevision）。
-   * @param {object} occlusionItem 当前扫地机绑定项。
-   * @returns {void}
    */
   function collectOccluders(occluderContext, occlusionItem) {
     const occluderKey = JSON.stringify([occlusionItem.floorId, occlusionItem.modelId]);
@@ -807,12 +751,6 @@ export function createVacuumFollowCamera(threeNamespace) {
   }
   /**
    * 计算本帧需要透明化的网格，并更新材质。
-   *
-   * @param {object} revealContext 场景上下文。
-   * @param {object} revealItem 当前扫地机绑定项。
-   * @param {object} revealFocus 扫地机焦点（世界坐标）。
-   * @param {object} cameraPosition 相机世界坐标。
-   * @returns {void}
    */
   function revealFurniture(revealContext, revealItem, revealFocus, cameraPosition) {
     collectOccluders(revealContext, revealItem);

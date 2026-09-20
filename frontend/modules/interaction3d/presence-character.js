@@ -45,11 +45,6 @@ export const DESIGNS = {
 };
 /**
  * 按设计键拼装一个可走动的人物模型。
- *
- * @param {object} THREE 舞台注入的 three.js 命名空间；不直接 import，由宿主统一版本。
- * @param {number} [outfitColor=5421233] 外套颜色，默认 0x52B8B1，与路线预览的青色同值。
- * @param {string} [designKey="traveler"] 设计键；未知值静默回退到 traveler，不抛错。
- * @returns {object} 模型根节点（THREE.Group），userData 携带 parts / design。
  */
 export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler") {
   // 容错而非抛错：历史配置里可能存着已下线的角色名，回退比让整个场景加载失败更合适。
@@ -76,12 +71,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
   });
   /**
    * 造一个网格并挂到指定父节点。
-   *
-   * @param {object} geometry 几何体。
-   * @param {object} material 材质（可为材质数组，由 three 自行处理）。
-   * @param {Array<number>} position 局部坐标 [x, y, z]（米）。
-   * @param {object} [parentGroup=walkerGroup] 父节点。
-   * @returns {object} 新建的 THREE.Mesh。
    */
   function addMesh(geometry, material, position, parentGroup = walkerGroup) {
     const mesh = new THREE.Mesh(geometry, material);
@@ -95,12 +84,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
   }
   /**
    * 用「单位球 + 三轴缩放」造椭球，代替给每个部件单独建球体几何。
-   *
-   * @param {Array<number>} scaleVector 三轴缩放 [x, y, z]（米），即椭球半径。
-   * @param {Array<number>} spherePosition 局部坐标 [x, y, z]。
-   * @param {object} sphereMaterial 材质。
-   * @param {object} [sphereParent=walkerGroup] 父节点。
-   * @returns {object} 新建的网格（THREE.Mesh）。
    */
   function addSphere(scaleVector, spherePosition, sphereMaterial, sphereParent = walkerGroup) {
     // 32×20 分段是顶点数与圆润度的折中：角色在屏幕里只占几十像素，再细分看不出差别。
@@ -115,11 +98,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
   }
   /**
    * 用旋转体（Lathe）造斗篷、灯罩这类回转曲面。
-   *
-   * @param {Array<Array<number>>} profilePoints 剖面点 [[半径, 高度], ...]（米），y=0 为脚底平面。
-   * @param {object} latheMaterial 材质。
-   * @param {object} [latheParent=walkerGroup] 父节点。
-   * @returns {object} 新建的旋转体网格（THREE.Mesh）。
    */
   function addLathe(profilePoints, latheMaterial, latheParent = walkerGroup) {
     // 36 段环向分段：斗篷与灯罩接近圆柱，这个段数在屏幕尺寸下已看不出棱角。
@@ -149,13 +127,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
   };
   /**
    * 造一对眼睛。
-   *
-   * @param {number} eyeY 眼睛中心的相对高度（米，相对 headGroup）。
-   * @param {number} eyeZ 眼睛中心的前后位置（米），正值朝 +Z 即正脸。
-   * @param {number} [eyeSpacing=0.055] 单眼偏离中线的横向距离（米）。
-   * @param {number} [eyeRadius=0.012] 眼球半径（米）。
-   * @param {object} [eyeParent=headGroup] 父节点。
-   * @returns {void}
    */
   function addEyes(eyeY, eyeZ, eyeSpacing = 0.055, eyeRadius = 0.012, eyeParent = headGroup) {
     for (const side of [-1, 1]) {
@@ -170,12 +141,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
   }
   /**
    * 造一对手臂：每侧一个绕肩枢轴，摆动只改枢轴的 rotation.x。
-   *
-   * @param {number} shoulderY 肩关节高度（米）。
-   * @param {number} shoulderOffsetX 单侧肩关节偏离中线的距离（米）。
-   * @param {number} armLength 上臂长度（米），小臂与手掌按比例派生。
-   * @param {number} armRadius 上臂半径（米）。
-   * @returns {void}
    */
   function addArms(shoulderY, shoulderOffsetX, armLength, armRadius) {
     for (const sideSign of [-1, 1]) {
@@ -203,14 +168,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
   }
   /**
    * 造两条腿：髋 → 膝两段式，便于膝盖只向后弯。
-   *
-   * @param {number} hipY 髋关节高度（米）。
-   * @param {number} hipOffsetX 单侧髋关节偏离中线的距离（米）。
-   * @param {number} legLength 大腿 / 小腿各自长度（米）。
-   * @param {number} legRadius 大腿半径（米），小腿与脚按其派生。
-   * @param {number} footDepth 脚掌前后长度（米）。
-   * @param {number} footHeight 脚掌高度（米），同时作为贴地基准写进 soleHeight。
-   * @returns {void}
    */
   function addLegs(hipY, hipOffsetX, legLength, legRadius, footDepth, footHeight) {
     for (const legSideSign of [-1, 1]) {
@@ -415,14 +372,6 @@ export function createWalker(THREE, outfitColor = 5421233, designKey = "traveler
 }
 /**
  * 按行走相位摆一次姿势（每帧调用，纯函数式改动，不创建对象）。
- *
- * @param {object} walkerRoot createWalker 的返回值。
- * @param {number} walkPhase 行走相位（弧度）；由「已走距离 / 路径周长 × 12」换算，
- *     取模后周期性重复，因此相邻两次调用的相位差决定步频。
- * @param {number} walkAmount 行走权重 0~1：1 为正常行走，0 为站立（预览态用），
- *     所有摆动幅度都乘上它，避免从走到停是硬切。
- * @param {number} elapsedSeconds 累计秒数，驱动与步伐无关的呼吸与张望。
- * @returns {void}
  */
 export function animateWalker(walkerRoot, walkPhase, walkAmount, elapsedSeconds) {
   const {
@@ -466,9 +415,6 @@ export function animateWalker(walkerRoot, walkPhase, walkAmount, elapsedSeconds)
 }
 /**
  * 释放角色占用的显存并摘出场景。
- *
- * @param {object} walkerToDispose createWalker 的返回值。
- * @returns {void}
  */
 export function disposeWalker(walkerToDispose) {
   // 用 Set 去重：一次 createWalker 里多个网格共用同一几何体与材质（例如所有眼睛共用一个

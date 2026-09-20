@@ -17,9 +17,6 @@
 import { resolveStateEntry } from "./static-helpers.js?v=20260920080000";
 /**
  * 计算要展示的分组及其中文名。
- *
- * @param {object} statusSource 状态来源配置（含 groupOrder）。
- * @returns {Array<[string, string]>} [分组键, 分组中文名] 数组，按 groupOrder 排序。
  */
 export function nasGroups(statusSource) {
   const GROUP_LABELS = {
@@ -36,11 +33,6 @@ export function nasGroups(statusSource) {
 }
 /**
  * 按指标类型格式化数值。
- *
- * @param {object} metric 指标配置，关键字段是 kind。
- * @param {object} state HA 的 state 对象或 state_changed 事件。
- * @returns {object} 展示结果：text 为文案，available 表示数据是否有效，
- *      可选 warning（需要告警高亮）与 percent（0–100，用于进度条）。
  */
 export function nasMetricValue(metric, state) {
   const stateObject = resolveStateEntry(state, {});
@@ -123,9 +115,6 @@ export function nasMetricValue(metric, state) {
 }
 /**
  * 创建 NAS 面板控制器。
- *
- * @returns {{root: HTMLElement, update: Function, dispose: Function}} 面板句柄；
- *      调用方负责把 root 插到界面上，并每次状态变化时调用 update。
  */
 export function createNasPanel() {
   /** 建元素的小工具，统一处理类名与文本。 */
@@ -150,11 +139,6 @@ export function createNasPanel() {
   let metricCards = [];
   /**
    * 刷新面板内容。
-   *
-   * @param {object} params 参数。
-   * @param {object} params.item 绑定项（含 statusSource）。
-   * @param {object|Map} [params.states={}] 实体 ID → HA 状态。
-   * @returns {void}
    */
   function update({ item: item, states: states = {} }) {
     const sourceConfig = item.statusSource;

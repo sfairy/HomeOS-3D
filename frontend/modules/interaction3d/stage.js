@@ -122,9 +122,6 @@ const LIGHT_PRESETS = [
  * 总览与灯光始终存在：总览聚合当前楼层上所有已配置模块，只有一个模块也仍有意义，
  * 灯光是默认落地页所以不参与判定；其余模块按配置里是否存在对应设备出现，
  * 避免出现点进去什么都没有的空页签。
- *
- * @param {object} [rawConfig] 舞台配置，允许直接传空对象。
- * @returns {string[]} 模块键列表，顺序即页签顺序。
  */
 export function configuredModuleKinds(rawConfig = {}) {
   return [
@@ -154,7 +151,6 @@ export function configuredModuleKinds(rawConfig = {}) {
  * @param {object} stageOptions 宿主注入的依赖与回调：THREE、container、canvas、
  *     document（场景文档）、cameraState / restoreCamera / transformCamera（相机）、
  *     createFrameLoop（按需渲染循环工厂）、setFloor / setCurtainSync 等联动钩子。
- * @returns {void}
  */
 export function mountStage(stageOptions) {
   const { THREE: THREE, container: containerElement, canvas: canvasElement } = stageOptions;
@@ -319,9 +315,6 @@ export function mountStage(stageOptions) {
    * 相机字段分散在 lights / security.cameras / security.presenceSensors /
    * environment.* / devices.* 上，且都可能是 undefined，所以逐个可选补齐；
    * 只补 focusCamera 这类坐标，不新增配置项，保持结构原样透传。
-   *
-   * @param {object} sourceConfig 宿主下发的原始配置。
-   * @returns {object} 可直接内部消费的配置副本。
    */
   function normalizeSceneConfig(sourceConfig) {
     const normalizedConfig = structuredClone(sourceConfig);
@@ -509,12 +502,6 @@ export function mountStage(stageOptions) {
    * 拖动（input）只写本地预览并立即重绘，松手（change）才下发命令：
    * 否则一次拖动会给后端灌几十条命令。色温步进 10K，对应多数灯具的能力粒度，
    * 亮度步进 1%。滑杆只在有聚焦灯且非编辑态时生效。
-   *
-   * @param {string} labelText 显示名，同时用作 aria-label。
-   * @param {string} sliderName 内部名（brightness / temperature），拼进类名与表单名。
-   * @param {string} minValue 最小值，直接写进 input.min。
-   * @param {string} maxValue 最大值。
-   * @returns {{root: Element, input: Element, value: Element}} 节点句柄。
    */
   function createSliderControl(labelText, sliderName, minValue, maxValue) {
     const sliderLabelElement = makeElement("label", "i3d-slider i3d-" + sliderName);
@@ -627,10 +614,6 @@ export function mountStage(stageOptions) {
   });
   /**
    * 结清一条空调控制请求：清超时定时器、出表，再按有无错误 resolve / reject。
-   *
-   * @param {string} pendingClimateKey 请求 ID（即回传的 requestId）。
-   * @param {string} [climateError] 错误文案；为空表示成功。
-   * @returns {void}
    */
   function settleClimateRequest(pendingClimateKey, climateError) {
     const pendingClimateRequest = climateRequestsById.get(pendingClimateKey);
@@ -693,10 +676,6 @@ export function mountStage(stageOptions) {
    *
    * 叶片正在等待回报时强制覆盖成「打开中」：那一刻整体已停、叶片还在转，
    * 不覆盖的话图标会闪回静止态。
-   *
-   * @param {object} coverBindingItem 窗帘绑定（含 entityId、coverKind）。
-   * @param {object} [baseCoverState] 基础状态；缺省用实体状态现算。
-   * @returns {object} 供图标与面板消费的展示状态。
    */
   function resolveCoverPresentation(
     coverBindingItem,
@@ -877,10 +856,6 @@ export function mountStage(stageOptions) {
   /**
    * 结清窗帘控制请求：清定时器、撤回叶片待确认标记、把失败原因写进反馈，
    * 再重绘标记与灯光面板并唤醒渲染。
-   *
-   * @param {string} pendingCoverKey 请求 ID。
-   * @param {string} [coverError] 错误文案；为空表示成功。
-   * @returns {void}
    */
   function settleCoverRequest(pendingCoverKey, coverError) {
     const pendingCoverRequest = coverRequestsById.get(pendingCoverKey);
@@ -947,10 +922,6 @@ export function mountStage(stageOptions) {
   });
   /**
    * 结清电视控制请求：清超时定时器并按结果 resolve / reject。
-   *
-   * @param {string} pendingTelevisionKey 请求 ID。
-   * @param {string} [televisionError] 错误文案；为空表示成功。
-   * @returns {void}
    */
   function settleTelevisionRequest(pendingTelevisionKey, televisionError) {
     const pendingTelevisionRequest = televisionRequestsById.get(pendingTelevisionKey);
@@ -1002,8 +973,6 @@ export function mountStage(stageOptions) {
    *
    * 先用快照（config / states / 场景根 / revision / 文档）短路：宿主每帧都可能调用，
    * 没有变化时直接返回，省掉一次 filter + 重新绑定。
-   *
-   * @returns {void}
    */
   function syncCurtains() {
     const modelRoot = stageOptions.modelRoot;
@@ -1268,8 +1237,6 @@ export function mountStage(stageOptions) {
   /**
    * 收集空调绑定：把配置项与场景模型（挂机 / 柜机 / 出风口）合并。
    * 坐标优先用配置里的显式值（编辑器拖拽过），缺省回落到模型坐标与几何中心高度。
-   *
-   * @returns {object[]} 空调绑定列表，modelAvailable 标记模型是否还在场景里。
    */
   function collectClimateBindings() {
     return (config.environment?.airConditioners || []).map(airConditionerEntry => {
@@ -1305,10 +1272,6 @@ export function mountStage(stageOptions) {
    *
    * 轨道相关参数只来自场景模型（编辑器才有），布料与 coverKind 允许配置覆盖模型；
    * unboundPosition 是未绑定实体时的预览开合度。
-   *
-   * @param {object} sceneItemSource 场景里的窗帘模型，可能不存在。
-   * @param {object} [itemConfig] 配置项。
-   * @returns {object} 供动画与面板消费的几何参数。
    */
   function resolveCurtainGeometry(sceneItemSource, itemConfig = {}) {
     return {
@@ -1328,8 +1291,6 @@ export function mountStage(stageOptions) {
   }
   /**
    * 收集窗帘绑定：合并配置项与场景模型，坐标 / 高度缺省取模型几何中心。
-   *
-   * @returns {object[]} 窗帘绑定列表（含模型是否存在的 modelAvailable）。
    */
   function collectCurtainBindings() {
     return (config.environment?.curtains || []).map(curtainBindingEntry => {
@@ -1363,8 +1324,6 @@ export function mountStage(stageOptions) {
   }
   /**
    * 收集 NAS 绑定：clickAction 缺省为 focus（点击聚焦），坐标缺省取模型几何中心。
-   *
-   * @returns {object[]} NAS 绑定列表。
    */
   function collectNasBindings() {
     return (config.devices?.nas || []).map(nasEntry => {
@@ -1395,10 +1354,6 @@ export function mountStage(stageOptions) {
   toolbarElement.append(followButton);
   /**
    * 退出扫地机跟随视角。
-   *
-   * @param {boolean} [restoreCamera=true] 是否恢复进入跟随时保存的相机姿态；
-   *     楼层切换等场景传 false，因为紧接着会按新楼层重新定位相机。
-   * @returns {void}
    */
   function stopVacuumFollow(restoreCamera = true) {
     if (!followedVacuumId) {
@@ -1684,8 +1639,6 @@ export function mountStage(stageOptions) {
   /**
    * 收集扫地机绑定：合并配置项、场景模型与运行期偏移（拖拽 / 动画位置）。
    * 编辑态忽略偏移，保证编辑器里显示的一直是配置坐标。
-   *
-   * @returns {object[]} 扫地机绑定列表。
    */
   function collectVacuumBindings() {
     return (config.devices?.vacuums || []).map(vacuumBindingEntry => {
@@ -1789,8 +1742,6 @@ export function mountStage(stageOptions) {
   }
   /**
    * 收集电视绑定：合并配置项与场景模型，坐标缺省取模型位置。
-   *
-   * @returns {object[]} 电视绑定列表。
    */
   function collectTelevisionBindings() {
     return (config.devices?.televisions || []).map(televisionEntry => {
@@ -1870,8 +1821,6 @@ export function mountStage(stageOptions) {
    *
    * 展示态的「总览 / 全部楼层」刻意返回空数组：那两种模式只展示房子本体，
    * 设备按钮留给各自的模块页签。
-   *
-   * @returns {object[]} 当前模块的绑定列表。
    */
   function resolveModuleBindings() {
     if (!isEditing && isOverviewMode()) {
@@ -1985,9 +1934,6 @@ export function mountStage(stageOptions) {
   }
   /**
    * 切换楼层：更新楼层状态、相机与标记，并把选择结果回报宿主。
-   *
-   * @param {string} targetFloorId 目标楼层 ID；"all" 表示全部楼层。
-   * @returns {void}
    */
   function selectFloor(targetFloorId) {
     if (
@@ -2073,9 +2019,6 @@ export function mountStage(stageOptions) {
    *
    * 编辑器是舞台内的独立浮层，宿主需要知道它是否激活，才能决定要不要
    * 屏蔽页签与视图编辑入口，所以每次状态变化都要回报一次。
-   *
-   * @param {string} [rangeRequestId] 宿主下发的请求 ID，回报时原样带回。
-   * @returns {void}
    */
   function openRangeEditor(rangeRequestId) {
     // 状态回报的统一出口：requestId 只在宿主主动下发了请求时才回带，
@@ -2245,8 +2188,6 @@ export function mountStage(stageOptions) {
    *
    * 调用点很多（切模块、切楼层、聚焦、状态更新），所以这里不做增量优化，
    * 由各子同步函数内部用签名短路来避免重复计算。
-   *
-   * @returns {void}
    */
   function renderStage() {
     applyPageBehavior();
@@ -2583,9 +2524,6 @@ export function mountStage(stageOptions) {
   }
   /**
    * 切换到指定模块页签（overview / light / environment / devices / vacuum / security）。
-   *
-   * @param {string} targetModule 模块键。
-   * @returns {void}
    */
   function selectModule(targetModule) {
     if (
@@ -3132,12 +3070,6 @@ export function mountStage(stageOptions) {
   }
   /**
    * 启动一次相机过渡。
-   *
-   * @param {object} targetCameraPose 目标姿态。
-   * @param {string} focused 目标绑定 ID，空字符串表示无聚焦目标。
-   * @param {boolean} [immediateTransition=false] 立即到位，不做插值。
-   * @param {Function} [onTransitionDone] 过渡完成后的回调。
-   * @returns {void}
    */
   function beginCameraTransition(
     targetCameraPose,
@@ -3369,9 +3301,6 @@ export function mountStage(stageOptions) {
   }
   /**
    * 退出聚焦状态：恢复导航栏、相机与面板，并通知宿主。
-   *
-   * @param {object} [exitOptions] 选项；immediate 为 true 时不做过渡动画。
-   * @returns {void}
    */
   function exitFocus(exitOptions = {}) {
     if (findFocusedBinding()?.deviceKind === "vacuum") {
@@ -3425,11 +3354,6 @@ export function mountStage(stageOptions) {
   }
   /**
    * 聚焦到某个绑定：选中它、把相机推到其 focusCamera 姿态，并按需打开设备面板。
-   *
-   * @param {string} focusId 绑定 ID。
-   * @param {string} [focusModeName="runtime"] 聚焦模式（runtime / edit / preview / panel）。
-   * @param {boolean} [immediateFocus=false] 是否跳过相机过渡直接到位。
-   * @returns {void}
    */
   function focusBinding(focusId, focusModeName = "runtime", immediateFocus = false) {
     const focusedBinding = findBinding(focusId);
@@ -3601,8 +3525,6 @@ export function mountStage(stageOptions) {
    *
    * 面板内容完全由「当前聚焦绑定 + 其实体状态」推导，所以任何状态变化都整块重画，
    * 不做局部更新（面板元素少，整块重画更不容易出错）。
-   *
-   * @returns {void}
    */
   function renderLightPanel() {
     const panelBinding = findFocusedBinding();
@@ -3891,11 +3813,6 @@ export function mountStage(stageOptions) {
   }
   /**
    * 执行一次灯光操作（开关、亮度、色温、预设），必要时补一条开灯命令。
-   *
-   * @param {string} service 操作类型（toggle / brightness / temperature / preset）。
-   * @param {*} serviceValue 操作值（预设会传整个预设对象）。
-   * @param {object} [targetBinding] 目标灯绑定，缺省取当前聚焦的灯。
-   * @returns {Promise<void>}
    */
   async function runLightCommand(service, serviceValue, targetBinding = findFocusedBinding()) {
     if (!!targetBinding && !isEditing && !isDisposed) {
@@ -3964,10 +3881,6 @@ export function mountStage(stageOptions) {
    * 点击标记的总入口：按绑定类型分发到聚焦、窗帘 / 扫地机面板、房间快捷入口等。
    *
    * 编辑态只做选中并回报宿主；展示态下总览页与跟随视角中不响应点击。
-   *
-   * @param {string} activationBindingId 绑定 ID。
-   * @param {boolean} [fromPointer=false] 是否来自指针点击（与键盘回车区分）。
-   * @returns {void}
    */
   function activateBinding(activationBindingId, fromPointer = false) {
     if (!isEditing && isOverviewMode()) {
@@ -4101,7 +4014,6 @@ export function mountStage(stageOptions) {
    * 免得标记在屏幕边缘反复闪现。
    *
    * @param {boolean} [forceLayout=false] 强制重排，忽略签名缓存。
-   * @returns {void}
    */
   function updateMarkerPositions(forceLayout = false) {
     if (isRangeEditorOpen || isSceneUpdating || isDisposed) {
@@ -4248,8 +4160,6 @@ export function mountStage(stageOptions) {
    * 重绘标记列表：按当前模块的绑定集合增删 DOM 节点并同步内容。
    *
    * 场景替换过程中（isSceneUpdating）不重绘，避免与场景更新互相竞争。
-   *
-   * @returns {void}
    */
   function renderMarkers() {
     if (isSceneUpdating) {
@@ -4855,9 +4765,6 @@ export function mountStage(stageOptions) {
    * config 是最重的一条：同时携带配置、实体状态、编辑态与视图编辑标志，
    * 收到后要重算楼层、模块、相机与各子系统；场景替换进行中则先挂起，
    * 等替换完成后再处理，避免两条更新交错。
-   *
-   * @param {MessageEvent} messageEvent 来自父窗口的消息事件。
-   * @returns {void}
    */
   function handleHostMessage(messageEvent) {
     if (
@@ -5408,9 +5315,6 @@ export function mountStage(stageOptions) {
    *
    * 替换前挡住并发的场景更新、关掉相机交互（否则用户在替换过程中会拖出一个悬空视角）；
    * 替换中途失败时回滚到上一份场景，并把错误抛给调用方。
-   *
-   * @param {object} sceneUpdate 新的场景文档。
-   * @returns {Promise<void>}
    */
   async function applySceneUpdate(sceneUpdate) {
     const previousScene = stageOptions.savedScene;
@@ -5528,9 +5432,6 @@ export function mountStage(stageOptions) {
    * 返回值是按需渲染的核心：Infinity 表示可以停下来，0 表示下一帧立刻继续
    * （相机过渡等连续动画），其余值按各自节奏定时唤醒。
    * 页面隐藏或场景更新中直接返回 Infinity，等价于暂停循环。
-   *
-   * @param {number} timestamp 当前帧时间戳（performance.now 基准）。
-   * @returns {number} 距下一帧的毫秒数。
    */
   function renderFrame(timestamp) {
     if (isDisposed || document.hidden || isSceneUpdating) {
@@ -5759,8 +5660,6 @@ export function mountStage(stageOptions) {
    * 编辑器 / 展示页要靠这些数据做下拉选项与坐标换算，所以这里做的是
    * 「从场景文档反推可编辑信息」，字段一律 camelCase。
    * 墙体高度优先取场景设置，缺失时取所有墙的最大值，再夹到 0.01~6 米。
-   *
-   * @returns {object} 元数据对象。
    */
   function buildMetadata() {
     const floorNumbersById = new Map(

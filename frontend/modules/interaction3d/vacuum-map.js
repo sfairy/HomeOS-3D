@@ -31,10 +31,6 @@ import { resolveStateEntry } from "./static-helpers.js?v=20260920080000";
  * 退化为 map_index 的 "index:<n>"，最后才回退到任意一个原始地图 ID 字段的字符串形式。
  * 之所以统一加前缀，是因为设备上报里 saved_map_id 与 map_id 可能数值相同但语义不同
  * （前者是持久化的地图槽位，后者是本次建图会话），不带前缀直接比较会误判为同一张图。
- *
- * @param {object} mapEntityEntry 地图实体条目；可以是事件包裹（含 newState），也可以直接是 state。
- * @param {object} vacuumEntityEntry 扫地机实体条目；同样兼容两种形态。
- * @returns {string} 身份字符串；所有候选字段都不合法时返回空串。
  */
 export function vacuumMapIdentity(mapEntityEntry, vacuumEntityEntry) {
   // 兼容两种入参形态：事件回调包裹了一层 newState，轮询接口则直接给 state 本身。
@@ -82,10 +78,6 @@ export function vacuumMapIdentity(mapEntityEntry, vacuumEntityEntry) {
  *     命中即保留；若属于单楼层设备（multi_floor_map === false）且当前是 saved 地图，
  *     则顺手把旧格式升级成 "saved:<id>" 后保留。
  *   - 其余情况一律丢弃。
- *
- * @param {Array<object>} bindings 绑定列表，元素形如 { entityId, map: { entityId, sourceMapId }, floorId }。
- * @param {object} statesByEntityId 实体 ID → 实体状态（兼容事件包裹形态）的映射。
- * @returns {Array<object>} 过滤（并可能升级 sourceMapId）后的绑定列表。
  */
 export function vacuumBindingsForMap(bindings, statesByEntityId) {
   return bindings.flatMap(binding => {
@@ -156,10 +148,6 @@ export function vacuumBindingsForMap(bindings, statesByEntityId) {
  * 缩放（得到相对中心的偏移，单位与 mapConfig.x/y 一致，即米），再绕地图中心旋转。
  * 输出顺序固定为左上、右上、右下、左下，调用方（Three.js 顶点属性与 SVG polygon）
  * 都依赖这个顺序，不能调换。
- *
- * @param {{x: number, y: number, width: number, depth: number, rotation?: number}} mapConfig 地图配置。
- *        rotation 单位为度，正值为顺时针。
- * @returns {Array<{x: number, y: number}>} 四个角点，顺序为左上、右上、右下、左下。
  */
 export function mapCorners(mapConfig) {
   // 角度转弧度；rotation 缺省或为 0 时按未旋转处理。
@@ -183,10 +171,6 @@ export function mapCorners(mapConfig) {
  * 调用方据此判断「这张图根本没有可加载的源」。
  * 地址一律附带 hb（cache-bust）时间戳：底图在设备侧是原地覆盖更新的，
  * 不带时间戳浏览器会一直用旧图；摄像头额外加 hb_live=1 表示这是实时画面流。
- *
- * @param {string} entityId 图片实体 ID。
- * @param {number} [cacheBustTimestamp] 破缓存时间戳，默认取当前时间。
- * @returns {string} 图片代理 URL；实体 ID 不匹配时返回空串。
  */
 export function mapSource(entityId, cacheBustTimestamp = Date.now()) {
   if (/^(camera|image)\.[a-z0-9_]+$/.test(entityId || "")) {
@@ -210,10 +194,6 @@ export function mapSource(entityId, cacheBustTimestamp = Date.now()) {
  * 调用方通过返回对象的 sync/tick/dispose 驱动：sync 声明「当前哪些底图该显示」，
  * tick 在每帧里推进淡入动画，dispose 在页面/舞台卸载时释放资源。
  * 内部自己按 revision 变化轮询拉图，不依赖外部定时器。
- *
- * @param {object} sceneContext 舞台上下文，需提供 THREE、overlayScene、worldPoint、sceneRevision。
- * @param {Function} requestRender 请求重绘舞台的回调（由舞台节流合并）。
- * @returns {{sync: Function, tick: Function, dispose: Function}} 底图运行时控制器。
  */
 export function createVacuumMaps(sceneContext, requestRender) {
   const { THREE: THREE } = sceneContext;
@@ -236,10 +216,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
    * 键里放地图实体与扫地机自身的 state / last_updated、图片地址与更新时间、
    * 以及机器人位置、充电座位置——这些字段一变，底图内容就可能变，需要重新拉图。
    * 返回 JSON 字符串，调用方只做 === 比较，省掉逐字段 diff。
-   *
-   * @param {object} keyItem 面板条目（含 map 与 entityId）。
-   * @param {object} revisionStates 实体 ID → 状态映射。
-   * @returns {string} 可用于等值比较的 revision 键。
    */
   const buildRevisionKey = (keyItem, revisionStates) => {
     // 状态可能来自事件包裹或轮询快照，两种形态都兼容；缺实体时退化成空对象。
@@ -262,9 +238,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
   };
   /**
    * 在 delayMs 之后安排一次底图刷新（覆盖式调度，同一时刻只会有一个定时器）。
-   *
-   * @param {number} delayMs 延迟毫秒数。
-   * @returns {void} 无返回值；条件不满足时直接不排期。
    */
   function scheduleRefreshIn(delayMs) {
     // 页面切到后台、运行时未启用或当前没有任何条目时完全不排期，避免无意义的后台请求。
@@ -281,15 +254,11 @@ export function createVacuumMaps(sceneContext, requestRender) {
   }
   /**
    * 以「距上次加载满 1 秒」为目标重新排期；数据已更新时用它尽快补一次拉取。
-   *
-   * @returns {void} 无返回值。
    */
   const rescheduleRefresh = () =>
     scheduleRefreshIn(Math.max(0, 1000 - (performance.now() - lastLoadTimestamp)));
   /**
    * 是否开启了系统「减少动态效果」；开启时底图不做淡入，直接出图。
-   *
-   * @returns {boolean} true 表示应跳过淡入动画。
    */
   const prefersReducedMotion = () =>
     globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -298,9 +267,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
    *
    * generation 计数器是关键：onload 回调里靠比对 generation 判断自己是否已被作废，
    * 这样即使图片已经发出去也无法取消，回调也不会再把过期图片贴到网格上。
-   *
-   * @param {object} loadingEntry 底图条目。
-   * @returns {void} 无返回值。
    */
   const cancelImageLoad = loadingEntry => {
     // 先自增代数使在途回调失效，再拆掉事件、清空 src 促使浏览器放弃下载。
@@ -315,9 +281,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
   };
   /**
    * 彻底释放一个底图条目占用的 GPU 资源，并把网格从场景里摘掉。
-   *
-   * @param {object} disposalTarget 底图条目。
-   * @returns {void} 无返回值。
    */
   const disposeMapEntry = disposalTarget => {
     // 先取消在途加载：否则回调可能在几何体、材质释放之后才把它贴回已销毁的网格。
@@ -333,9 +296,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
    * 底图网格只有 4 个顶点（两个三角形），每次改位置/缩放/旋转都是直接改顶点，
    * 而不是改 mesh 的 transform——因为楼层本身可能带变换，顶点法能直接吃 worldPoint
    * 的换算结果，省去矩阵叠加。任一顶点换算失败（楼层未加载）就整体放弃本次摆放。
-   *
-   * @param {object} positionedEntry 底图条目。
-   * @returns {boolean} true 表示四个角点都换算成功并已写入顶点缓冲。
    */
   function positionMesh(positionedEntry) {
     const worldCorners = mapCorners(positionedEntry.map).map(corner =>
@@ -358,9 +318,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
    * 按「启用状态 + 是否已摆放 + 是否已有贴图」重算网格可见性，并重置淡入状态。
    *
    * 可见时才把不透明度归零等待淡入；开启系统减少动态效果时直接给到目标不透明度。
-   *
-   * @param {object} visibilityEntry 底图条目。
-   * @returns {void} 无返回值。
    */
   function applyVisibility(visibilityEntry) {
     visibilityEntry.mesh.visible =
@@ -376,8 +333,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
    *
    * 每条各自持有一个 generation：图片来源变化、条目被隐藏或运行时释放时，旧回调
    * 会因 generation 不匹配而直接返回，不会把过期图片贴上去。
-   *
-   * @returns {void} 无返回值；不满足条件时只清理定时器状态。
    */
   function loadVisibleMaps() {
     // 进入本函数就说明本次排期已消费，先把定时器状态清干净，再由末尾重新排期。
@@ -443,12 +398,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
   return {
     /**
      * 声明「当前应该显示哪些底图」，并在需要时触发重建/重摆/重拉。
-     *
-     * @param {Array<object>} items 面板条目列表（含 id、floorId、map、entityId 等）。
-     * @param {boolean} isEnabled 舞台是否允许显示底图。
-     * @param {string} floorFilter 楼层过滤：具体楼层 ID 或 "all"。
-     * @param {object} [syncStates] 实体 ID → 状态映射（兼容事件包裹形态）。
-     * @returns {void} 无返回值。
      */
     sync(items, isEnabled, floorFilter, syncStates = {}) {
       // 任一条件成立都按「本轮不显示」处理：停掉轮询并隐藏所有底图，但**不销毁**条目，
@@ -585,9 +534,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
     },
     /**
      * 推进底图淡入动画，由舞台每帧调用。
-     *
-     * @param {number} timestampMs 当前帧时间戳（毫秒）。
-     * @returns {boolean} true 表示仍有底图在淡入，舞台需要继续为该动画请求重绘。
      */
     tick(timestampMs) {
       // 未启用时直接返回 false，让舞台不必再为底图维持帧循环。
@@ -620,8 +566,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
     },
     /**
      * 释放全部底图资源（几何体、材质、贴图）并停止轮询；调用后该实例不可再用。
-     *
-     * @returns {void} 无返回值。
      */
     dispose() {
       // 先置位销毁标记：在途的图片回调看到它会直接返回，不会再往已卸载的场景里写东西。
@@ -640,11 +584,6 @@ export function createVacuumMaps(sceneContext, requestRender) {
  *
  * 纯函数、不产生副作用：给定绑定与实体状态快照，返回状态文案、电量文本、
  * 是否在线、以及是否处于运行态（舞台据此决定底图轮询周期）。
- *
- * @param {object} statusBinding 面板条目中的绑定信息，需要 entityId 与 relatedEntityIds。
- * @param {object} [statusStates] 实体 ID → 状态映射（兼容事件包裹形态）。
- * @returns {{status: string, battery: string, available: boolean, active: boolean}}
- *          状态文案、电量文本（形如 "82%" 或 "电量 —"）、是否在线、是否运行中。
  */
 export function vacuumStatusPresentation(statusBinding, statusStates = {}) {
   // 实体状态可能是事件包裹（newState）或轮询快照（state 本身），统一成「状态对象或 null」。

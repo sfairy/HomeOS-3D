@@ -22,9 +22,6 @@ const readState = (states, entityId) =>
   states instanceof Map ? states.get(entityId) : states?.[entityId];
 /**
  * 从媒体实体属性里挑出可用的封面地址。
- *
- * @param {object} [entityAttributes={}] 实体的 attributes。
- * @returns {string} 封面 URL；找不到时返回空串。
  */
 export function televisionArtwork(entityAttributes = {}) {
   return (
@@ -43,11 +40,6 @@ export function televisionArtwork(entityAttributes = {}) {
 }
 /**
  * 把 HA 状态归一化成 3D 电视屏幕需要的展示状态。
- *
- * @param {object} item 绑定项，含 entityId（播放器）、可选 powerEntityId 与 label。
- * @param {object|Map} [stateSources={}] 实体 ID → HA 状态。
- * @param {number} [nowMs=Date.now()] 当前时间戳，用于推算播放进度，便于测试注入。
- * @returns {object} 展示状态：开关、空闲、播放进度、标题、封面等。
  */
 export function televisionState(item, stateSources = {}, nowMs = Date.now()) {
   const receivedState = readState(stateSources, item.entityId);
@@ -160,9 +152,6 @@ export function televisionState(item, stateSources = {}, nowMs = Date.now()) {
 }
 /**
  * 把秒数格式化成 m:ss。
- *
- * @param {number} seconds 秒数。
- * @returns {string} 形如 "3:07"；非有限数返回长破折号 "—" 表示未知。
  */
 export function televisionTime(seconds) {
   if (!Number.isFinite(seconds)) {
@@ -173,11 +162,6 @@ export function televisionTime(seconds) {
 }
 /**
  * 归一化电视的电源状态并生成开关机命令。
- *
- * @param {object} powerItem 绑定项，含可选 powerEntityId；缺省时用 entityId 自身。
- * @param {object|Map} [powerStates={}] 实体 ID → HA 状态。
- * @param {boolean} [desiredOn] 目标状态；缺省则取反当前状态。
- * @returns {object} 含 on / available / supported / service / reason 与 command 的描述。
  */
 export function televisionPower(powerItem, powerStates = {}, desiredOn) {
   // 允许「电源就是媒体播放器自身」的简化配置。
@@ -219,11 +203,6 @@ export function televisionPower(powerItem, powerStates = {}, desiredOn) {
 }
 /**
  * 生成媒体控制（上一曲 / 下一曲 / 播放暂停）命令。
- *
- * @param {object} mediaItem 媒体播放器绑定项，含 entityId。
- * @param {object|Map} mediaStates 实体 ID → HA 状态。
- * @param {string} action 动作："previous"、"next"，其余值视为播放 / 暂停切换。
- * @returns {object} 含 enabled（是否允许执行）与 command 的描述。
  */
 export function televisionMediaControl(mediaItem, mediaStates, action) {
   const mediaState = readState(mediaStates, mediaItem.entityId);

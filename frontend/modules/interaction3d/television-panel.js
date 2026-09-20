@@ -18,10 +18,6 @@ import {
 } from "./television-state.js?v=20260920080000";
 /**
  * 创建电视面板。
- *
- * @param {object} [options] 参数。
- * @param {(command: object) => Promise<void>} [options.onControl] 命令发送回调。
- * @returns {{root: HTMLElement, update: Function, hide: Function, dispose: Function}} 面板句柄。
  */
 export function createTelevisionPanel({ onControl: onControl = async () => {} } = {}) {
   // 建元素并顺手挂类名：类名统一带 i3d- 前缀，样式分别写在 stage.css / nas-panel.css，
@@ -123,9 +119,6 @@ export function createTelevisionPanel({ onControl: onControl = async () => {} } 
   }
   /**
    * 发送开关机命令（带乐观状态与超时兜底）。
-   *
-   * @param {boolean} powerOn 目标状态。
-   * @returns {Promise<void>}
    */
   async function sendPower(powerOn) {
     if (!viewModel || isDisposed || viewModel.editing || isBusy || pendingPower !== null) {
@@ -267,9 +260,6 @@ export function createTelevisionPanel({ onControl: onControl = async () => {} } 
     root: rootElement,
     /**
      * 用新的视图模型刷新面板。
-     *
-     * @param {object} nextViewModel 含 item 与 states。
-     * @returns {void}
      */
     update(nextViewModel) {
       // 换了绑定项：作废在途回包并清空与旧设备相关的状态。

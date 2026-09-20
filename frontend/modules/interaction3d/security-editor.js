@@ -35,11 +35,6 @@ import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-
  *
  * 先取编辑授权，再建弹窗与预览舞台；舞台回报场景元数据后才渲染面板
  * （可选项来自场景，未就绪时面板只能显示加载态）。
- *
- * @param {object} options 配置项：component 控件描述（properties 为安防配置草稿源）、
- *     panelDocument 户型文档 API、entities 实体列表、pickers 选择器工厂、
- *     onSave 保存回调（收到整份草稿快照）。
- * @returns {Promise<void>} 弹窗关闭后 resolve。
  */
 export async function openSecurityEditor({
   component: component,
@@ -253,15 +248,6 @@ export async function openSecurityEditor({
    * 两种提交时机：shouldCommitWhileTyping 用于需要边调边看效果的字段（焦距等），
    * 其余字段在 change 时提交；提交时若值非法（空 / 非数字 / 越界）就退回上一个合法值，
    * 而不是把 NaN 或越界值写进草稿。
-   *
-   * @param {string} fieldLabel 标签（同时作为 aria-label）。
-   * @param {number} currentValue 当前值。
-   * @param {number} minValue 最小值。
-   * @param {number} maxValue 最大值。
-   * @param {Function} onValueCommit 合法值提交回调。
-   * @param {number} [stepSize=0.1] 步进。
-   * @param {boolean} [shouldCommitWhileTyping=false] 是否边输入边提交。
-   * @returns {HTMLInputElement} 输入元素。
    */
   function createNumberField(
     fieldLabel,

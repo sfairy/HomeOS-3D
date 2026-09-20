@@ -1,28 +1,28 @@
 /**
  * 「配置安防 / 人物与行走路线」编辑对话框。
  *
- * 在 3D 子系统里的位置：presence 的配置入口。窗口分三栏 —— 左栏列出全部人在传感器绑定，
- * 中间是「SVG 平面图 + 3D 预览」叠加的画布，右栏是属性控件（人物方案、颜色、速度、
- * 大小、触发方式、点击聚焦等）。
+ * 在 3D 子系统里的位置：presence 的配置入口。窗口分三栏 —— 左栏列出全部人在传感器绑定，中间是
+ * 「SVG 平面图 + 3D 预览」叠加的画布，右栏是属性控件（人物方案、颜色、速度、大小、触发方式、点击
+ * 聚焦等）。
  *
  * 两种模式（由 manageBindings 决定）：
  * - true：从安防设置进入，可增删绑定、选实体、改触发方式，按钮文案是「保存安防配置」；
  * - false：从人物与路线面板进入，只调路线与人物外观，绑定关系只读，文案是「应用人物与路线」。
  *
  * 坐标与数据约定：
- * - 路线点存的是楼层平面图坐标（像素），像素当量由 plan.pixelsPerMeter 决定；
- *   3D 侧由 presence-scene.js 经 worldPoint 换算，本文件不做米制换算。
+ * - 路线点存的是楼层平面图坐标（像素），像素当量由 plan.pixelsPerMeter 决定；3D 侧由
+ *   presence-scene.js 经 worldPoint 换算，本文件不做米制换算。
  * - 编辑结果写进 draftProperties.security.presenceSensors，通过 onSave 交回编辑器。
- * - routeClosed 是持久字段，但编辑期间用 closedRouteSensorIds（Set）记录"用户意图"，
- *   落盘时才与 validPresenceRoute 求交，避免改到一半的路线被误判为闭合。
+ * - routeClosed 是持久字段，但编辑期间用 closedRouteSensorIds（Set）记录"用户意图"，落盘时才与
+ *   validPresenceRoute 求交，避免改到一半的路线被误判为闭合。
  *
  * 与舞台的命令约定（stage.js 的 editor-command 分支）：presence-top-view（切正交顶视图）、
  * presence-3d-view（恢复自由视角）、presence-preview-walk（编辑态行走预览开关）、
  * presence-show-hit-range（显示点击热区）。
  *
  * 其它约定：
- * - 脏标记不比较对象，而是比较 serializeEditorDraft(presencePersistState()) 的序列化结果，
- *   避免把键序 / 空值差异当成修改；
+ * - 脏标记不比较对象，而是比较 serializeEditorDraft(presencePersistState()) 的序列化结果，避免把
+ *   键序 / 空值差异当成修改；
  * - 正在输入的数字 / 文本用 fieldCollectors 延迟提交，保存或重渲染前统一 flush；
  * - 人物预览是独立的 WebGLRenderer（240×160），three 走动态 import 且加载失败可忽略。
  */
@@ -39,19 +39,6 @@ import { randomUuid } from "/static/utils/random-id.js";
 import { serializeEditorDraft } from "./editor-save-status.js?v=20260920080000";
 /**
  * 打开人在传感器编辑对话框。
- *
- * @param {object} options 入参。
- * @param {object} options.component 仪表盘组件描述（含 properties）。
- * @param {Document} options.panelDocument 面板所在文档，取楼层 / 实体等上下文。
- * @param {Array<object>} [options.floors=[]] 楼层列表（平面图、相机存档都在这里）。
- * @param {Array<object>} [options.entities=[]] 实体列表，用于把 entityId 显示成名称。
- * @param {object} options.pickers 选择器集合（pickers.entity 打开实体选择弹窗）。
- * @param {(properties: object) => Promise<void>} options.onSave 保存回调，收到深拷贝后的属性。
- * @param {string} [options.initialSelectedId=""] 初始选中的绑定 ID。
- * @param {string} [options.editingFloorId=""] 初始楼层（没指定选中项时用它挑默认绑定）。
- * @param {boolean} [options.manageBindings=true] 是否允许增删 / 改绑定关系。
- * @param {Function} [options.onClose] 关闭后的回调。
- * @returns {Promise<{close: Function}>} 句柄；只能在句柄上主动关闭。
  */
 export async function openPresenceEditor({
   component: component,
@@ -97,9 +84,6 @@ export async function openPresenceEditor({
    * 创建一个元素（本文件专用的小工具，避免重复三行样板）。
    *
    * @param {string} tagName 标签名。
-   * @param {string} [initialText] 文本内容，走 textContent 而不是 innerHTML。
-   * @param {string} [classNames] 类名。
-   * @returns {HTMLElement} 新建元素。
    */
   const createElement = (tagName, initialText, classNames) => {
     const createdElement = editorDocument.createElement(tagName);
@@ -116,8 +100,6 @@ export async function openPresenceEditor({
    * 创建 SVG 元素（必须用 createElementNS，普通 createElement 拿到的是 HTML 元素）。
    *
    * @param {string} svgTagName SVG 标签名，如 "circle" / "polygon"。
-   * @param {object} [attributes] 属性表，逐项 setAttribute。
-   * @returns {Element} 新建的 SVG 元素。
    */
   const createSvgElement = (svgTagName, attributes) => {
     const createdSvgElement = editorDocument.createElementNS(
@@ -157,8 +139,6 @@ export async function openPresenceEditor({
   );
   /**
    * 生成「将要落盘」的传感器列表快照。
-   *
-   * @returns {Array<object>} 浅拷贝数组，其中 routeClosed 已按「意图 ∩ 合法性」重算。
    */
   const presencePersistState = () =>
     sensorBindings.map(sensorItem => ({
@@ -190,8 +170,6 @@ export async function openPresenceEditor({
   let isDirty = false;
   /**
    * 提交所有正在编辑的字段值。
-   *
-   * @returns {void}
    */
   const flushFieldCollectors = () => {
     for (const fieldCollector of fieldCollectors) {
@@ -203,10 +181,6 @@ export async function openPresenceEditor({
   statusElement.setAttribute("role", "status");
   /**
    * 造一个按钮。
-   *
-   * @param {string} buttonLabel 文案。
-   * @param {Function} onButtonClick 点击回调。
-   * @returns {HTMLButtonElement} 新建按钮。
    */
   const createButton = (buttonLabel, onButtonClick) => {
     const buttonElement = createElement("button", buttonLabel);
@@ -217,8 +191,6 @@ export async function openPresenceEditor({
   };
   /**
    * 关闭编辑器并释放全部资源（幂等）。
-   *
-   * @returns {void}
    */
   function closeEditor() {
     if (!isClosed) {
@@ -291,9 +263,6 @@ export async function openPresenceEditor({
   saveButtonElement.disabled = true;
   /**
    * 重算脏标记并更新保存按钮与提示文案。
-   *
-   * @param {string} [dirtyMessage] 有实际改动时要显示的提示。
-   * @returns {void}
    */
   const markPresenceDirty = dirtyMessage => {
     // 先提交在编辑中的字段，否则「刚输入但未失焦」的改动会被判成"没改"。
@@ -393,9 +362,6 @@ export async function openPresenceEditor({
   viewModeGroupElement.setAttribute("aria-label", "编辑视图");
   /**
    * 切换「平面 / 3D」编辑视图。
-   *
-   * @param {"plan"|"3d"} nextViewMode 目标视图。
-   * @returns {void}
    */
   const setViewMode = nextViewMode => {
     viewMode = nextViewMode;
@@ -476,9 +442,6 @@ export async function openPresenceEditor({
   dialogElement.dataset.i3dPreviewScope = "presence";
   /**
    * 把错误写到状态栏（编辑器已关闭时静默）。
-   *
-   * @param {Error|string} loadError 错误对象或文本。
-   * @returns {void}
    */
   function showError(loadError) {
     if (!isClosed) {
@@ -487,8 +450,6 @@ export async function openPresenceEditor({
   }
   /**
    * 取当前应当显示的楼层：选中绑定的楼层优先，否则回退到初始楼层 / 草稿楼层 / 首层。
-   *
-   * @returns {object|undefined} 楼层对象。
    */
   function currentFloor() {
     if (selectedSensor) {
@@ -507,8 +468,6 @@ export async function openPresenceEditor({
    *
    * 30ms 的延迟是为了合并连续的调用：拖动窗户尺寸、连续 resize 时避免每帧都发命令；
    * 回调里重新判断一遍条件，因为定时器触发时用户可能已经切走视图。
-   *
-   * @returns {void}
    */
   function scheduleTopView() {
     clearTimeout(topViewTimer);
@@ -534,8 +493,6 @@ export async function openPresenceEditor({
    * - 只保留当前楼层的相机与传感器，避免预览里出现别的楼层；
    * - 关掉页面调暗 / 降饱和与自动旋转，编辑者需要看清真实材质与量体；
    * - 只保留选中的那一条路线，防止多条路线在预览里重叠干扰。
-   *
-   * @returns {void}
    */
   function syncPreview() {
     const previewFloorId = currentFloor()?.id;
@@ -611,8 +568,6 @@ export async function openPresenceEditor({
    *
    * 取景范围 = 墙体端点 ∪ 路线点，两边各留 10% 边距（pixelMargin），
    * 这样路线贴墙时圆点不会被裁掉。没有数据时按 pixelsPerMeter 给一块默认视口。
-   *
-   * @returns {void}
    */
   function fitPlanBox() {
     const activeFloor = currentFloor();
@@ -646,10 +601,6 @@ export async function openPresenceEditor({
   }
   /**
    * 重画 SVG 平面视图（路线、控制点、提示文案、按钮可用态）。
-   *
-   * @param {boolean} [scheduleTopViewAfterRender=true] 是否需要顺带同步 3D 顶视图；
-   *   拖动圆点等高频路径传 false，避免每帧都发相机命令。
-   * @returns {void}
    */
   function renderRoutePlan(scheduleTopViewAfterRender = true) {
     if (!planBox) {
@@ -786,10 +737,6 @@ export async function openPresenceEditor({
   }
   /**
    * 把「标签 + 控件」包成一行追加到右栏。
-   *
-   * @param {string} fieldLabel 左侧标签文案。
-   * @param {HTMLElement} fieldControl 控件元素。
-   * @returns {HTMLElement} 原样返回 fieldControl，方便链式调用。
    */
   function appendField(fieldLabel, fieldControl) {
     const fieldElement = createElement("label", "", "presence-field");
@@ -805,14 +752,6 @@ export async function openPresenceEditor({
    * 或 change 事件里，这样用户输入到一半（如 "0." ）不会被立刻规整成最小值。
    * displayScale 用于「存储是米 / 展示是厘米」这类单位换算，例如 size 存 1.0，
    * 界面上按 100 显示成 100。
-   *
-   * @param {string} numberLabel 标签文案。
-   * @param {string} propertyKey 绑定对象上的属性名。
-   * @param {number} minValue 最小值（用户可见单位）。
-   * @param {number} maxValue 最大值（用户可见单位）。
-   * @param {number} [stepSize] 步长。
-   * @param {number} [displayScale=1] 展示值 = 存储值 × displayScale。
-   * @returns {void}
    */
   function addNumberField(
     numberLabel,
@@ -836,8 +775,6 @@ export async function openPresenceEditor({
     const sensorRef = selectedSensor;
     /**
      * 把输入框里的值规整后写回绑定对象。
-     *
-     * @returns {void}
      */
     const commitNumberField = () => {
       const typedNumber = Number(numberInputElement.value);
@@ -860,8 +797,6 @@ export async function openPresenceEditor({
   }
   /**
    * 重建右栏属性面板与左栏绑定列表（选中项变化、增删绑定后调用）。
-   *
-   * @returns {void}
    */
   function renderControls() {
     // 重建会丢弃 DOM，必须先把在编辑的值提交回绑定对象，否则最后一笔输入丢失。
@@ -993,8 +928,6 @@ export async function openPresenceEditor({
     labelInputElement.setAttribute("aria-label", "显示名称");
     /**
      * 把名称输入框的内容提交到绑定对象。
-     *
-     * @returns {void}
      */
     const commitLabelInput = () => {
       // 截断到 128 字符：与 maxLength 双保险（粘贴超长文本时 maxLength 不生效）。
@@ -1133,8 +1066,6 @@ export async function openPresenceEditor({
         triggerValueInputElement.setAttribute("aria-label", "触发值");
         /**
          * 把触发值输入框的内容提交到绑定对象（空值不提交）。
-         *
-         * @returns {void}
          */
         const commitTriggerValue = () => {
           // 空值不提交：留空时保留原触发值，避免把规则改成"永不触发"。
@@ -1265,9 +1196,6 @@ export async function openPresenceEditor({
    *
    * getScreenCTM().inverse() 包含了 viewBox 缩放与页面滚动偏移，是唯一可靠的换算方式；
    * 直接用 clientX 加减 boundingRect 在 viewBox 缩放时会有偏差。
-   *
-   * @param {PointerEvent} pointerEvent 指针事件。
-   * @returns {DOMPoint} 平面图坐标系下的点。
    */
   const toSvgPoint = pointerEvent => {
     const localPoint = routeSvgElement.createSVGPoint();
@@ -1363,8 +1291,6 @@ export async function openPresenceEditor({
   });
   /**
    * 结束（或取消）拖拽 / 绘制手势：提交脏标记并同步 3D 预览。
-   *
-   * @returns {void}
    */
   const handlePointerEnd = () => {
     // 只有真的拖动过才标脏（点一下空白新增点的情况已在 pointerdown 标过）。
@@ -1389,9 +1315,6 @@ export async function openPresenceEditor({
   });
   /**
    * 角色预览的渲染循环：按需重建模型 + 推进行走动画。
-   *
-   * @param {number} timestamp requestAnimationFrame 传入的高精度时间戳。
-   * @returns {void}
    */
   function animateCharacterPreview(timestamp) {
     // 页面隐藏时不再排下一帧（handleVisibilityChange 会在恢复时重启循环）。
@@ -1428,8 +1351,6 @@ export async function openPresenceEditor({
   }
   /**
    * 页面可见性变化：隐藏时停掉渲染循环，恢复时重启（并把时间基准清零防止跳帧）。
-   *
-   * @returns {void}
    */
   function handleVisibilityChange() {
     cancelAnimationFrame(animationFrameId);

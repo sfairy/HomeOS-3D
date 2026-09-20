@@ -37,13 +37,6 @@ const FAN_MODE_LABELS = {
 };
 /**
  * 创建空调面板。
- *
- * @param {object} [options] 参数。
- * @param {HTMLElement} options.element 复用的容器；不传则新建一个 section。
- * @param {(command: object) => Promise<void>} [options.onControl] 命令发送回调。
- * @param {object} [options.modeHistory] 「上次使用模式」记录器（createClimateModeHistory）；
- *        不传时退化为仅内存的临时记录，关机后再开机无法恢复。
- * @returns {{root: HTMLElement, update: Function, power: Function, dispose: Function}} 面板句柄。
  */
 export function createClimatePanel({
   element: hostElement,
@@ -151,9 +144,6 @@ export function createClimatePanel({
   }
   /**
    * 刷新温度区的显示与按钮可用性。
-   *
-   * @param {number|null} [temperature=resolveTemperature()] 要显示的温度。
-   * @returns {void}
    */
   function syncTemperature(temperature = resolveTemperature()) {
     // output 同时写 value 与 textContent：前者给表单语义，后者保证老浏览器也显示文本。
@@ -171,9 +161,6 @@ export function createClimatePanel({
   }
   /**
    * 发送一条命令并维护发送中的界面状态。
-   *
-   * @param {object} command climate-state.js 构造出的服务调用描述。
-   * @returns {Promise<void>}
    */
   async function sendControl(command) {
     if (!canControl()) {
@@ -213,8 +200,6 @@ export function createClimatePanel({
   /**
    * 先本地校验再发送控制命令。
    *
-   * @param {string} requestedService 服务名。
-   * @param {*} value 目标值。
    * @returns {Promise<void>|undefined} 不可控时返回 undefined。
    */
   function requestControl(requestedService, value) {
@@ -230,10 +215,6 @@ export function createClimatePanel({
   }
   /**
    * 切换开关机。
-   *
-   * @param {object} [options] 参数。
-   * @param {boolean} [options.toggle=true] true 表示取反，false 表示只执行「开机」。
-   * @returns {Promise<boolean>} 未执行时返回 false。
    */
   function togglePower({ toggle: toggle = true } = {}) {
     // toggle=false 且设备已开时不重复下发，避免把「开机」按钮当成无操作。
@@ -407,10 +388,6 @@ export function createClimatePanel({
   }
   /**
    * 用新的视图模型刷新面板。
-   *
-   * @param {object} [nextViewModel={}] 含 item（绑定项）、state（HA 状态或已归一化状态）、
-   *        editing（是否配置预览）、busy（外部忙碌）、error（外部错误文案）。
-   * @returns {void}
    */
   function update(nextViewModel = {}) {
     if (isDisposed) {

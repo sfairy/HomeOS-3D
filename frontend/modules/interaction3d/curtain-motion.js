@@ -118,11 +118,6 @@ const resolveRigBasis = rigAnchor =>
  * 为什么自己造几何而不是用模型：模型是一片平板，无法表现「收拢时褶皱变密变深」。
  * 这里沿帘宽方向铺 N 个正弦褶皱，再按需要生成正/反/上/下四面与两侧端盖，
  * 使布料具有真实厚度（0.003 米）和可用的法线。
- *
- * @param {object} three three.js 命名空间。
- * @param {number} folds 褶皱数量。
- * @param {"cloth"|"sheer"} fabric 布料类型。
- * @returns {object} BufferGeometry。
  */
 function createClothGeometry(three, folds, fabric) {
   const isSheer = fabric === "sheer";
@@ -297,9 +292,6 @@ function isDescendantOf(descendant, ancestor) {
  *
  * 需要找到两样东西：会被隐藏的原生局部（轨道杆、端盖、布面、帘头），
  * 以及一个能容纳自制骨架的锚点（优先用模型自带的 curtainRigRoot）。
- *
- * @param {object} environmentRoot 窗帘模型根节点。
- * @returns {{anchor: object, parts: Array<object>}|null} 定位结果；没有布面可接管时返回 null。
  */
 function locateCurtainRig(environmentRoot) {
   const curtainParts = [];
@@ -357,12 +349,6 @@ function locateCurtainRig(environmentRoot) {
 }
 /**
  * 创建窗帘动画控制器。
- *
- * @param {object} [options] 参数。
- * @param {object} options.THREE three.js 命名空间。
- * @param {() => void} [options.requestRender] 请求重绘的回调。
- * @returns {object} 控制器；公开方法：
- *   setBindings / setState / update / isMoving / poseKey / structureKey / dispose。
  */
 export function createCurtainMotion({
   THREE: THREE,
@@ -400,11 +386,6 @@ export function createCurtainMotion({
   }
   /**
    * 为一条绑定创建自制骨架。
-   *
-   * @param {object} model 窗帘模型根节点。
-   * @param {object} binding 归一化后的绑定配置。
-   * @param {object} located locateCurtainRig 的结果。
-   * @returns {object} 骨架记录。
    */
   function createRig(model, binding, located) {
     const coveredParts = located.parts.filter(coveredPart =>
@@ -556,9 +537,6 @@ export function createCurtainMotion({
   }
   /**
    * 按当前开合位置摆放骨架（即时生效，不做动画）。
-   *
-   * @param {object} posedRig 骨架记录。
-   * @returns {void}
    */
   function applyRigPose(posedRig) {
     // 没有实体时的位置来自配置的固定值；有实体但位置未知时也会落到这个分支。
@@ -614,11 +592,6 @@ export function createCurtainMotion({
   }
   /**
    * 更新骨架的目标位置（处理动画起点）。
-   *
-   * @param {object} motionRig 骨架记录。
-   * @param {object} receivedMotionState 归一化状态（position / bladePosition）。
-   * @param {boolean} [immediate=false] 为 true 时不走动画，直接跳到目标。
-   * @returns {boolean} 姿态是否有变化。
    */
   function updateRigTarget(motionRig, receivedMotionState, immediate = false) {
     const incomingPosition = resolveStatePosition(receivedMotionState);
@@ -659,11 +632,6 @@ export function createCurtainMotion({
   }
   /**
    * 应用绑定列表（场景结构变化时调用）。
-   *
-   * @param {object} modelRoot 环境场景根节点。
-   * @param {Array<object>} [bindings=[]] 窗帘绑定列表。
-   * @param {number} sceneRevision 场景修订号。
-   * @returns {void}
    */
   function setBindings(modelRoot, bindings = [], sceneRevision) {
     if (isDisposed) {
@@ -868,12 +836,6 @@ export function createCurtainMotion({
   }
   /**
    * 写入某条绑定的开合状态。
-   *
-   * @param {string} coverBindingId 绑定 ID（不是实体 ID）。
-   * @param {object} receivedCoverState 归一化后的窗帘状态。
-   * @param {object} [options] 参数。
-   * @param {boolean} [options.immediate=false] 是否跳过动画直接到位。
-   * @returns {void}
    */
   function setState(
     coverBindingId,
@@ -908,9 +870,6 @@ export function createCurtainMotion({
   }
   /**
    * 推进动画帧。
-   *
-   * @param {number} timestampMs 当前时间（毫秒）；非法时自行取 performance.now()。
-   * @returns {boolean} 本帧是否有窗帘实际移动（调用方据此决定是否重绘）。
    */
   function update(timestampMs) {
     if (

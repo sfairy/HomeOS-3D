@@ -26,9 +26,6 @@ export const EDITOR_SAVE_STATUS = Object.freeze({
  * 为什么不能直接用 JSON.stringify：对象键顺序取决于构造顺序，同一份配置
  * 两次构造可能得到不同字符串，会让脏检查误报。这里对每个嵌套普通对象按键名
  * 排序、并剔除值为 undefined 的键，保证「内容相同 ⇒ 字符串相同」。
- *
- * @param {*} value 任意草稿结构（通常是配置对象）。
- * @returns {string} 键序归一化后的 JSON 文本。
  */
 export function serializeEditorDraft(value) {
   return JSON.stringify(value, (_propertyKey, nestedValue) => {
@@ -49,10 +46,6 @@ export function serializeEditorDraft(value) {
  * 判断当前草稿相对基线草稿是否有改动（脏检查）。
  *
  * 基线由调用方在每次保存成功后更新，因此这里只做纯比较，不维护状态。
- *
- * @param {*} currentDraft 当前编辑中的草稿。
- * @param {*} baselineDraft 上次保存成功时的草稿快照。
- * @returns {boolean} 归一化序列化后不相等即为有改动。
  */
 export function editorDraftHasChanges(currentDraft, baselineDraft) {
   return serializeEditorDraft(currentDraft) !== serializeEditorDraft(baselineDraft);

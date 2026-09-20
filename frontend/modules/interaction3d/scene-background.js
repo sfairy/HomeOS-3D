@@ -30,11 +30,6 @@ import { createBackgroundTheme } from "./background-theme.js?v=20260920080000";
  * 平面中心取该层所有墙端点的包围盒中心；没有墙（或坐标非有限）时退化为原点。
  * 包围盒结果按 scene 缓存：同一份楼层数据在一次会话里不会变，缓存键用 scene 对象
  * 本身，楼层被重新导入时会换成新对象，缓存自然失效。
- *
- * @param {object} stageOptions 舞台上下文（需要 document / backgroundFloor / presentationPoint）。
- * @param {WeakMap} [anchorCache] 平面中心缓存（每个控制器一份）。
- * @param {string} [floorRef] 目标楼层：楼层 id，或 "all" 表示取最低层。
- * @returns {object|null} 展示坐标下的锚点向量；没有楼层时返回 null。
  */
 export function backgroundFloorAnchor(
   stageOptions,
@@ -93,13 +88,6 @@ const WARM_MOTES_CHUNK =
   "\nfloat warmMotes(vec2 p, float size, float threshold, float time) {\n vec2 cell=floor(p), f=fract(p);\n float seed=fract(sin(dot(cell,vec2(127.1,311.7)))*43758.5453);\n float seed2=fract(sin(dot(cell,vec2(269.5,183.3)))*43758.5453);\n vec2 center=vec2(seed,seed2)*0.56+0.22;\n center+=vec2(sin(time*0.19+seed*6.28),cos(time*0.16+seed2*6.28))*0.065;\n float d=length(f-center), aa=max(length(fwidth(p)),0.0001);\n float radius=size*mix(.6,1.35,seed2);\n float core=(1.0-smoothstep(radius,radius+aa,d))*min(1.0,radius/aa);\n float halo=exp(-d*d/(radius*radius*18.0))*.11;\n return (core+halo)*step(threshold,seed)*(.66+.34*sin(time*.45+seed2*6.28));\n}";
 /**
  * 创建场景背景控制器。
- *
- * @param {object} stageOptions 舞台上下文：THREE / camera / controls / overlayScene /
- *     document / backgroundFloor / backgroundFloorTransition / presentationPoint /
- *     requestRender / backgroundFrame。
- * @param {() => void} [requestFrame] 请求重绘。
- * @returns {object} 与 createBackgroundTheme 同形的控制器；暖阳下额外派生
- *     theme === "warm-sunlight"。
  */
 export function createSceneBackground(stageOptions, requestFrame = () => {}) {
   const themeController = createBackgroundTheme(stageOptions, requestFrame);
@@ -249,10 +237,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
     },
     /**
      * 切换主题与暖阳开关。
-     *
-     * @param {string} configuredTheme 背景主题名（仅非暖阳时生效）。
-     * @param {object} [config] 完整配置；读取 sceneStyle 与 backgroundMotion。
-     * @returns {boolean} 是否需要外部重绘（主题或动态开关发生变化时为真）。
      */
     configure(configuredTheme, config = {}) {
       const nextWarmWood = config.sceneStyle === "warm-wood";
@@ -278,10 +262,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
     },
     /**
      * 同步需要处理的场景对象（studio-app 传入选中的 background / grid 角色对象）。
-     *
-     * @param {Array<object>} sceneObjects 场景对象列表。
-     * @param {boolean} nextBackgroundEnabled 背景总开关。
-     * @returns {void}
      */
     sync(sceneObjects, nextBackgroundEnabled) {
       backgroundObjects = sceneObjects;
@@ -296,10 +276,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
      *
      * 暖阳下没有地面脉冲可打，但相机的每一次移动都值得重绘一帧；
      * 其余主题原样转交给地面主题控制器。
-     *
-     * @param {PointerEvent} pointerEvent 指针事件。
-     * @param {boolean} [shouldRaycast] 是否额外做一次射线拾取。
-     * @returns {void}
      */
     interact(pointerEvent, shouldRaycast) {
       if (isWarmWood) {
@@ -312,9 +288,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
     },
     /**
      * 推进一帧。
-     *
-     * @param {number} frameTimestampMs 当前时间。
-     * @returns {number} 下次调用间隔；停帧时返回 Infinity。
      */
     tick(frameTimestampMs) {
       if (isDisposed) {

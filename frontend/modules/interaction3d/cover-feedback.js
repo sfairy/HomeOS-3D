@@ -16,16 +16,6 @@
 
 /**
  * 创建窗帘展示态推算器。
- *
- * @param {object} [options] 参数。
- * @param {() => number} [options.now] 单调时钟（performance.now），用于补间计时。
- * @param {number} [options.smoothingTime=180] 位置补间时长（毫秒）。
- * @param {boolean} [options.commandPreview=false] 是否启用指令乐观推算。
- * @param {number} [options.travelTime=6000] 走完全程（0→100%）的假设耗时（毫秒）。
- * @param {Storage} [options.storage] 持久化后端，通常为 localStorage。
- * @param {string} [options.scope] 存储作用域（隔离不同页面 / 项目）。
- * @param {() => number} [options.wallNow] 墙上时钟（Date.now），用于跨刷新计时。
- * @returns {object} 推算器句柄。
  */
 export function createCoverFeedback({
   now: now = () => performance.now(),
@@ -194,10 +184,6 @@ export function createCoverFeedback({
   }
   /**
    * 吸收一次 HA 上报，更新展示态。
-   *
-   * @param {string} entityId 实体 ID。
-   * @param {object} nextState 归一化后的窗帘状态。
-   * @returns {void}
    */
   function sync(entityId, nextState) {
     let entry = feedbackByEntityId.get(entityId);
@@ -309,12 +295,6 @@ export function createCoverFeedback({
   }
   /**
    * 登记一条用户指令（乐观展示的起点）。
-   *
-   * @param {object} command 命令描述（entityId / service / data）。
-   * @param {*} token 本次命令的令牌，用于匹配后续的回调。
-   * @param {object} [options] 参数。
-   * @param {boolean} [options.defer=false] 为 true 时先不启动推算（等外部显式触发）。
-   * @returns {void}
    */
   function begin(command, token, { defer: defer = false } = {}) {
     const commandEntry = feedbackByEntityId.get(command.entityId);
@@ -379,9 +359,7 @@ export function createCoverFeedback({
   /**
    * 启动乐观推算：按行程时间把当前位置动画到目标位置。
    *
-   * @param {string} previewEntityId 实体 ID。
    * @param {*} previewToken 命令令牌，必须与当前令牌一致。
-   * @returns {boolean} 是否启动了推算。
    */
   function startPreview(previewEntityId, previewToken) {
     const previewEntry = feedbackByEntityId.get(previewEntityId);
@@ -418,11 +396,6 @@ export function createCoverFeedback({
   }
   /**
    * 命令失败：回退到真实位置并清除乐观状态。
-   *
-   * @param {string} failedEntityId 实体 ID。
-   * @param {*} failedToken 命令令牌。
-   * @param {string} message 错误文案。
-   * @returns {boolean} 是否处理了本次失败。
    */
   function fail(failedEntityId, failedToken, message) {
     const failedEntry = feedbackByEntityId.get(failedEntityId);
@@ -446,10 +419,6 @@ export function createCoverFeedback({
   }
   /**
    * 读取合并了推算结果的展示态。
-   *
-   * @param {string} readEntityId 实体 ID。
-   * @param {object} fallbackState 没有记录时直接返回的状态。
-   * @returns {object} 展示态（字段与归一化状态兼容，额外带 estimated / preview 等）。
    */
   function read(readEntityId, fallbackState) {
     const snapshotEntry = feedbackByEntityId.get(readEntityId);
@@ -498,9 +467,6 @@ export function createCoverFeedback({
   }
   /**
    * 推进计时：清理过期意图、推进补间。
-   *
-   * @param {number} [nowMs=now()] 当前时间。
-   * @returns {boolean} 是否有状态变化（需要重绘）。
    */
   function tick(nowMs = now()) {
     let changed = false;
@@ -523,7 +489,6 @@ export function createCoverFeedback({
   /**
    * 下一次需要 tick 的间隔。
    *
-   * @param {number} [currentTimeMs=now()] 当前时间。
    * @returns {number} 毫秒；有补间时按 30fps 返回，否则等到最近的意图过期，都没有则 Infinity。
    */
   function nextDelay(currentTimeMs = now()) {
@@ -548,10 +513,6 @@ export function createCoverFeedback({
   }
   /**
    * 写入拖动草稿（用户在滑杆上拖动时调用）。
-   *
-   * @param {string} draftEntityId 实体 ID。
-   * @param {number} position 草稿位置；非有限数按「取消草稿」处理。
-   * @returns {void}
    */
   function preview(draftEntityId, position) {
     const draftEntry = feedbackByEntityId.get(draftEntityId);

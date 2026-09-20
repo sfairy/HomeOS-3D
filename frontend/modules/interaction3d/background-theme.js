@@ -29,12 +29,6 @@ const GROUND_THEME_FRAGMENT_CHUNK =
   "\nif (hbGroundTheme > 0.5) {\ndiffuseColor.a = (hbGroundFallback >= 0.0 ? hbGroundFallback : diffuseColor.a) / hbGroundCoverage;\nvec2 bgP = vHbGround - hbGroundCenter;\nvec2 bgUV = bgP / hbGroundSpan;\nfloat bgR2 = dot(bgUV, bgUV);\nfloat bgHalo = exp(-bgR2 * 0.55);\nfloat bgCore = exp(-bgR2 * 2.4);\nfloat bgFade = 1.0 - smoothstep(2.2, 4.2, length(bgUV));\nfloat bgAge = hbGroundPulse.z;\n// A broad, quiet response; never a sharp concentric ring.\nvec2 bgTouch = (vHbGround - hbGroundPulse.xy) / (hbGroundSpan * 0.38);\nfloat bgFeedback = exp(-dot(bgTouch, bgTouch) * 0.6)\n  * max(0.0, 1.0 - bgAge / 1.25);\nvec3 bgBase = mix(diffuseColor.rgb * 0.34, hbGroundDeep, 0.84);\nbgBase *= mix(1.0, 0.62, smoothstep(0.65, 2.8, length(bgUV)));\nvec3 bgLight = hbGroundInk * bgHalo * 0.085 + hbGroundAccent * bgCore * 0.014;\n  // Uneven, widely separated motes. Fixed world size and pixel coverage keep\n  // far points from turning into a dense, equally bright dotted wallpaper.\n  vec2 bgCellP = bgUV / 0.44;\n  vec2 bgCell = floor(bgCellP);\n  float bgSeed = fract(sin(dot(bgCell, vec2(127.1, 311.7))) * 43758.5453);\n  float bgSeed2 = fract(sin(dot(bgCell, vec2(269.5, 183.3))) * 43758.5453);\n  vec2 bgOffset = vec2(bgSeed, bgSeed2) * 0.64 + 0.18;\n  float bgDistance = length(fract(bgCellP) - bgOffset);\n  float bgAA = max(length(fwidth(bgCellP)), 0.0001);\n  float bgRadius = mix(0.004, 0.012, bgSeed2);\n  float bgPoint = (1.0 - smoothstep(bgRadius, bgRadius + bgAA * 0.75, bgDistance))\n    * min(1.0, bgRadius / bgAA) * step(0.66, bgSeed);\n  float bgVeil = (0.2 + 0.8 * exp(-bgR2 * 0.22)) * bgFade;\n  bgLight += hbGroundAccent * bgPoint * bgVeil * (0.32 + hbGroundActivity * 0.06);\ndiffuseColor.rgb = bgBase + bgLight * (1.0 + hbGroundActivity * 0.12)\n  + hbGroundAccent * bgFeedback * bgFade * 0.009;\n}\n";
 /**
  * 创建背景主题控制器。
- *
- * @param {object} stageOptions 舞台上下文（THREE / canvas / camera / getOrbitCenter / backgroundFrame）。
- * @param {(floorIds?: Array<string>) => void} [requestFrame] 请求重绘。
- * @param {() => number} [now] 单调时钟。
- * @returns {object} 控制器：theme / active / materialCount 只读属性 + configure /
- *      sync / interact / tick / suspend / dispose。
  */
 export function createBackgroundTheme(
   stageOptions,
@@ -106,9 +100,6 @@ export function createBackgroundTheme(
   }
   /**
    * 给一块地面材质注入星尘着色代码。
-   *
-   * @param {object} meshObject 地面网格对象。
-   * @returns {void}
    */
   function applyGroundTheme(meshObject) {
     const meshMaterial = meshObject.material;
@@ -221,9 +212,6 @@ export function createBackgroundTheme(
     },
     /**
      * 切换主题。
-     *
-     * @param {string} configuredTheme 主题名（旧名 contours 会归一到 dots）。
-     * @returns {boolean} 是否发生了切换。
      */
     configure(configuredTheme) {
       const normalizedTheme = normalizeBackgroundTheme(configuredTheme);
@@ -241,10 +229,6 @@ export function createBackgroundTheme(
     },
     /**
      * 同步场景对象。
-     *
-     * @param {Array<object>} sceneObjects 需要处理的对象（地面等）。
-     * @param {boolean} isBackgroundEnabled 背景总开关。
-     * @returns {void}
      */
     sync(sceneObjects, isBackgroundEnabled) {
       if (isDisposed) {
@@ -364,10 +348,6 @@ export function createBackgroundTheme(
     },
     /**
      * 处理一次指针交互。
-     *
-     * @param {PointerEvent} pointerEvent 指针事件。
-     * @param {boolean} [shouldRaycast=false] 是否额外做一次射线拾取（产生点击处的脉冲）。
-     * @returns {void}
      */
     interact(pointerEvent, shouldRaycast = false) {
       // 网格主题没有交互反馈；减少动态效果时不打扰用户；没有地面时无事可做。
@@ -419,9 +399,6 @@ export function createBackgroundTheme(
     },
     /**
      * 推进交互衰减。
-     *
-     * @param {number} frameTimestampMs 当前时间。
-     * @returns {number} 下次调用间隔；不再活跃时返回 Infinity 以停止动画循环。
      */
     tick(frameTimestampMs) {
       if (isDisposed || !isSyncEnabled || activeTheme === "grid" || prefersReducedMotion) {

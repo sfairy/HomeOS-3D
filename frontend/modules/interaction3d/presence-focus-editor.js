@@ -21,14 +21,6 @@ import { mountInteraction3d } from "./runtime.js";
 import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260920080000";
 /**
  * 打开聚焦视角编辑弹窗（模态，无返回值句柄）。
- *
- * @param {object} options 入参。
- * @param {object} options.component 仪表盘组件描述（含 properties）。
- * @param {object} options.properties 当前编辑器草稿属性，会被深拷贝后再改，避免脏写原对象。
- * @param {object} options.item 正在编辑的传感器绑定（读取 id / floorId）。
- * @param {Document} options.panelDocument 面板所在文档，用于取楼层 / 相机等上下文。
- * @param {(focusCamera: object) => void} options.onSave 点「保存此视角」时回调，收到相机快照。
- * @returns {void}
  */
 export function openPresenceFocusEditor({
   component: component,
@@ -42,8 +34,6 @@ export function openPresenceFocusEditor({
    * 创建一个元素（本文件专用的小工具，避免重复三行样板）。
    *
    * @param {string} tagName 标签名。
-   * @param {string} [initialText] 文本内容，走 textContent 而不是 innerHTML。
-   * @returns {HTMLElement} 新建元素。
    */
   const createElement = (tagName, initialText) => {
     const createdElement = editorDocument.createElement(tagName);
@@ -77,8 +67,6 @@ export function openPresenceFocusEditor({
    *
    * 尺寸不是固定值：面板文档里可能写了画布比例，也可能随窗口变化，
    * 所以每次都由 interaction3dPreviewSize 现算，而不是缓存。
-   *
-   * @returns {void}
    */
   const updatePreviewSize = () => {
     const previewSize = interaction3dPreviewSize(
@@ -107,10 +95,6 @@ export function openPresenceFocusEditor({
   const actionButtons = [];
   /**
    * 造一个按钮并登记到 actionButtons。
-   *
-   * @param {string} buttonLabel 按钮文案。
-   * @param {Function} onButtonClick 点击回调。
-   * @returns {HTMLButtonElement} 新建按钮。
    */
   const createButton = (buttonLabel, onButtonClick) => {
     const buttonElement = createElement("button", buttonLabel);
@@ -124,8 +108,6 @@ export function openPresenceFocusEditor({
    *
    * 用 isClosed 做幂等：cancel 事件、保存成功后、异常路径都可能触发，重复执行会
    * 让 editorRuntime 二次销毁并抛错。
-   *
-   * @returns {void}
    */
   const closeEditor = () => {
     if (!isClosed) {
@@ -140,8 +122,6 @@ export function openPresenceFocusEditor({
   };
   /**
    * 把控件状态对齐到当前相机与忙碌状态。
-   *
-   * @returns {void}
    */
   const syncControls = () => {
     actionButtons.forEach(actionButton => {
@@ -163,10 +143,6 @@ export function openPresenceFocusEditor({
   };
   /**
    * 串行执行一条相机命令，并用返回的 camera 快照回填状态。
-   *
-   * @param {string} commandName 舞台命令名（见文件头协议说明）。
-   * @param {*} [commandPayload] 命令参数，按命令而异（投影模式字符串 / 焦段数值）。
-   * @returns {Promise<void>} 命令结束（成功或已把错误写进状态栏）后 resolve。
    */
   const runFocusCommand = async (commandName, commandPayload) => {
     if (!isReady || isBusy || isClosed) {
