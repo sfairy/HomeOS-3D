@@ -12,11 +12,6 @@
 
 /**
  * 把原始实体表聚合成扫地机器人 profile 列表。
- *
- * @param {Array<object>} [entities] 实体列表，元素至少含 entityId / status 等字段。
- * @param {Array<object>} [devices] 设备注册表，用来取用户自定义设备名。
- * @returns {Array<object>} 每个 profile 含 deviceId、name、entities（主机实体）、
- *   maps（地图实体）、relatedEntityIds（相关控制 / 传感器实体）。
  */
 export function vacuumProfiles(entities = [], devices = []) {
   // 先剔除已禁用与已丢失的实体：它们在 HA 里已经离线，留在面板上只会产生无效操作。

@@ -21,9 +21,6 @@ export const RENDER_CACHE_VERSION = "i3d-light-delta-20260916-warm-refine-v6";
  *
  * 对象的键顺序在 JSON.stringify 里是有意义的，若不排序，同一份逻辑内容因键序不同
  * 会算出不同的 key，缓存命中率会莫名其妙地掉下去。
- *
- * @param {*} payload 任意可序列化的值。
- * @returns {string} 稳定文本（对象键递归排序后序列化）。
  */
 export function stableCacheJSON(payload) {
   return JSON.stringify(payload, (key, rawValue) =>
@@ -42,9 +39,6 @@ export function stableCacheJSON(payload) {
  * 为什么不用 crypto.subtle.digest：它是异步的，而缓存 key 需要在一帧之内算出来，
  * 无法在同步的渲染路径里 await。因此这里自带一份纯 JS 实现（常量由前 64 个质数的
  * 立方根 / 平方根小数部分按 FIPS 180-4 生成，不要手工改动）。
- *
- * @param {string} text 待哈希文本（UTF-8）。
- * @returns {string} 64 位十六进制摘要。
  */
 export function sha256(text) {
   const messageBytes = new TextEncoder().encode(text);
@@ -126,9 +120,6 @@ export function sha256(text) {
  * 这里做的是「剔除不影响画面的字段」：相机视图 / 剖切 / 面板宽度只影响编辑器的观察方式，
  * 灯光组的 enabled / name 以及灯具自身的亮度色温也不参与 —— 灯光是单独分层的，
  * 基础画面在灯光变化时必须保持同一个 key，否则每次调灯都要重新渲染整张底图。
- *
- * @param {Array<object>} floors 楼层列表。
- * @returns {Array<object>} 可安全参与 key 计算的场景描述。
  */
 export function cacheSceneDescriptor(floors) {
   // 按名单剔除字段：只保留「会影响基础画面像素」的部分，供上层组合出稳定 key。
@@ -177,19 +168,7 @@ export function cacheSceneDescriptor(floors) {
  * 所有依赖（fetcher / decode / now / makeCanvas / report）都可注入，便于在测试里
  * 用假计时器与假解码器复现容量淘汰、超时、并发合并等分支。
  *
- * @param {object} [options] 配置。
- * @param {string} options.sceneId 场景 ID（拼进请求 URL）。
- * @param {string} options.projectId 项目 ID（拼进请求 URL，可为空）。
- * @param {Function} [options.fetcher] 网络实现，默认全局 fetch。
- * @param {(blob: Blob) => Promise<ImageBitmap>} [options.decode] 解码实现，默认 createImageBitmap。
- * @param {number} [options.maxBytes] 编码缓存字节上限，默认 32MB。
  * @param {number} [options.timeoutMs] 单次请求超时，默认 1800ms。
- * @param {() => number} [options.now] 当前时间，默认 Date.now。
- * @param {Function} [options.report] 统计上报回调。
- * @param {Function} [options.makeCanvas] 创建离屏画布，用于大图分块。
- * @param {number} [options.maxDecodedBytes] 解码后位图字节上限，默认 32MB。
- * @param {number} [options.maxDecodedFrames] 解码后位图帧数上限，默认 3 帧。
- * @returns {object} 缓存实例（stats / closed / acquire / read / write / close）。
  */
 export function createRenderCache({
   sceneId: sceneId,
@@ -319,12 +298,6 @@ export function createRenderCache({
   }
   /**
    * 发起一次缓存请求（GET 下载 / PUT 回写共用）。
-   *
-   * @param {string} requestKey 缓存 key。
-   * @param {object} [requestOptions] 附加 fetch 选项；带 method 视为写请求。
-   * @param {() => boolean} [isRequestWanted] 返回 false 表示调用方已不再需要这次结果。
-   * @returns {Promise<Blob|Response|object|null>} GET 成功返回 Blob，PUT 返回 Response，
-   *   未命中 / 已放弃 / 失败返回 null。
    */
   async function requestBlob(requestKey, requestOptions = {}, isRequestWanted = () => true) {
     // 关闭中或处于错误冷却期时直接放弃，不产生任何请求。
@@ -444,12 +417,6 @@ export function createRenderCache({
      *
      * 命中内存时直接复用；未命中则合并并发读取，只发起一次下载 + 解码。
      * 调用方用完必须 close() 租约。
-     *
-     * @param {string} acquireKey 缓存 key。
-     * @param {number} acquireWidth 目标宽度（px）。
-     * @param {number} acquireHeight 目标高度（px）。
-     * @param {() => boolean} [isAcquireWanted] 返回 false 表示调用方已不再需要。
-     * @returns {Promise<object|null>} 租约对象（含 image / width / height / close）；无结果时为 null。
      */
     async acquire(acquireKey, acquireWidth, acquireHeight, isAcquireWanted = () => true) {
       // 关闭、无 key、调用方已不需要：三种情况都直接不做事。
@@ -523,12 +490,6 @@ export function createRenderCache({
     },
     /**
      * 读取一张缓存图并解码成位图（不进入解码缓存，供 acquire 与本模块内部使用）。
-     *
-     * @param {string} readKey 缓存 key。
-     * @param {number} readWidth 期望宽度（px）。
-     * @param {number} readHeight 期望高度（px）。
-     * @param {() => boolean} [isReadWanted] 返回 false 表示调用方已不再需要。
-     * @returns {Promise<object|null>} 位图（或由分块拼装出的画布）；未命中 / 失败为 null。
      */
     async read(readKey, readWidth, readHeight, isReadWanted = () => true) {
       if (isClosed || !readKey || !isReadWanted()) {
@@ -625,11 +586,6 @@ export function createRenderCache({
     },
     /**
      * 写回一张渲染结果：先存内存，再后台排队上传到服务端。
-     *
-     * @param {string} writeKey 缓存 key。
-     * @param {object} writeImage 待写回的位图 / 画布（需支持 toBlob 与 width / height）。
-     * @param {() => boolean} [isWriteWanted] 返回 false 表示调用方已不再需要这次写回。
-     * @returns {Promise<void>} 无返回值；失败只计入统计，不抛错。
      */
     async write(writeKey, writeImage, isWriteWanted = () => true) {
       if (isClosed || !writeKey || !isWriteWanted()) {

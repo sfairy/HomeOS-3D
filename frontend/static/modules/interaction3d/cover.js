@@ -19,10 +19,6 @@ const DEFAULT_COVER_MESSAGES = [
  *
  * 用于授权状态变化（例如刚完成购买校验）后原地刷新文案，
  * 而不必重建整块封面 —— 重建会丢掉封面元素上的过渡动画与已有引用。
- *
- * @param {HTMLElement} coverTitleElement 封面标题元素；封面不存在时静默返回。
- * @param {string[]} [messages] 新文案列表，默认使用内置两行提示。
- * @returns {void}
  */
 export function updateInteraction3dCoverMessage(
   coverTitleElement,
@@ -41,10 +37,8 @@ export function updateInteraction3dCoverMessage(
 /**
  * 创建一块 3D 组件封面。
  *
- * @param {object} [options] 选项。
  * @param {boolean} [options.showTitle] 是否显示标题（含锁图标与购买提示），默认 true；
  *   预览缩略图场景会传 false，只保留底图。
- * @returns {HTMLElement} 封面根节点，class 为 `interaction3d-cover`。
  */
 export function createInteraction3dCover({ showTitle: isTitleVisible = !0 } = {}) {
   const coverElement = document.createElement("span");

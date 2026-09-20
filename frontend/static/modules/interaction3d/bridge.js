@@ -20,7 +20,6 @@ import { createInteraction3dFocusLayout } from "./focus-layout.js?v=202609200800
 /**
  * 向后端确认当前浏览器是否可以运行 3D 交互。
  *
- * @returns {Promise<{allowed: boolean, validForSeconds: number}>} 授权结果。
  * @throws {Error} 请求失败或响应不合法；错误对象带 `status`（403 明确拒绝 / 401 未登录 / 502 其它）。
  */
 export async function requestInteraction3dAccess() {
@@ -82,9 +81,6 @@ function notifyViewReady(componentId, error) {
  * 只认「Error 的非空 message」与「非空字符串」两种形状：抛出来的东西可能是任何值
  * （`throw {}`、`Promise.reject(undefined)`、事件对象…），`String(值)` 会把它变成
  * `[object Object]` 写进用户可见的文案里 —— 那比没有原因更糟。
- *
- * @param {unknown} loadError 捕获到的原始错误。
- * @returns {string} 短原因；取不到时返回空串（调用方退回通用文案，不留半截括号）。
  */
 function interaction3dLoadFailureReason(loadError) {
   const rawReason =
@@ -107,12 +103,6 @@ function interaction3dLoadFailureReason(loadError) {
  * 404 / 授权被撤 / 运行时抛栈在页面上长得一模一样，排查只能靠猜），**原始错误要进
  * 全局日志**（日志面板是唯一能事后取证的通道），**编辑态的等待者要当场被拒**
  * （否则编辑器只能干等到 25 秒超时，用户对着空控件等半分钟）。
- *
- * @param {HTMLElement} hostElement 组件宿主元素。
- * @param {object} component 组件定义（只用到 id）。
- * @param {object} context 渲染上下文，`editable` 为真时才通知等待者。
- * @param {unknown} loadError 捕获到的原始错误。
- * @returns {void}
  */
 function showInteraction3dLoadFailure(hostElement, component, context, loadError) {
   const loadFailureReason = interaction3dLoadFailureReason(loadError);
@@ -134,9 +124,6 @@ function showInteraction3dLoadFailure(hostElement, component, context, loadError
 }
 /**
  * 取出指定组件已挂载的编辑器视图。
- *
- * @param {string} requestedComponentId 组件 ID。
- * @returns {object|undefined} 视图句柄（含 ready / metadata / setViewEditing 等）；未挂载时为 undefined。
  */
 export function getInteraction3dEditorView(requestedComponentId) {
   return editorViewByComponentId.get(requestedComponentId);
@@ -144,8 +131,6 @@ export function getInteraction3dEditorView(requestedComponentId) {
 /**
  * 等待指定组件的编辑器视图就绪。
  *
- * @param {string} pendingComponentId 组件 ID。
- * @returns {Promise<object>} 就绪的编辑器视图（ready 为真且带 metadata）。
  * @throws {Error} 25 秒内未就绪（"户型准备较慢，请稍候重试。"），或视图加载/授权失败。
  */
 export function waitInteraction3dEditorView(pendingComponentId) {
@@ -192,9 +177,6 @@ export function waitInteraction3dEditorView(pendingComponentId) {
  *
  * 编辑器同一时刻只允许一个组件处于视图编辑 / 弹窗预览 / 范围编辑中，
  * 否则多个组件同时接管画布指针事件会互相干扰。
- *
- * @param {string} activeComponentId 当前激活的组件 ID。
- * @returns {void}
  */
 export function cancelOtherInteraction3dViews(activeComponentId) {
   for (const [viewComponentId, otherView] of editorViewByComponentId) {
@@ -232,20 +214,12 @@ function getAccessMonitor() {
 }
 /**
  * 订阅 3D 交互授权状态。
- *
- * @param {(accessState: object) => void} onAccessChange 状态回调，订阅时会立刻收到当前状态。
- * @returns {() => void} 退订函数。
  */
 export function subscribeInteraction3dAccess(onAccessChange) {
   return getAccessMonitor().subscribe(onAccessChange);
 }
 /**
  * 挂载一个 3D 交互组件：创建宿主元素、按授权状态加载运行时，并管理其完整生命周期。
- *
- * @param {object} component 组件文档（需要 id 与 properties）。
- * @param {object} [context] 渲染上下文：editable 表示处于编辑器、document 为文档 API、
- *   cleanup 用于注册卸载回调。
- * @returns {HTMLElement} 宿主元素；调用方把它插入画布即可。
  */
 export function renderInteraction3d(component, context = {}) {
   const hostElement = document.createElement("section");

@@ -15,10 +15,6 @@ const previewRatiosByCameraId = new Map();
  *
  * 传入合法比例时先写入缓存再返回，因此调用方可以用同一次调用来「上报 + 查询」；
  * 尚未观测过的摄像头返回 16:9 这一摄像头通用的默认取景比例。
- *
- * @param {string} cameraId 摄像头实体 ID。
- * @param {number} [aspectRatio] 本次观测到的宽高比；非法值不会污染缓存。
- * @returns {number} 该摄像头当前的宽高比。
  */
 export function cameraPreviewRatio(cameraId, aspectRatio) {
   if (Number.isFinite(aspectRatio) && aspectRatio > 0) {
@@ -31,13 +27,6 @@ export function cameraPreviewRatio(cameraId, aspectRatio) {
  *
  * 数值全部由容器尺寸推导，目的是让面板在任意屏幕上都落在「不遮挡主画面上半部」的区域内：
  * 单个面板不超过容器高度的一半，横向不超过容器宽度的 30%，两个面板并排时还要留出间距。
- *
- * @param {number} containerWidth 舞台容器宽度（px）。
- * @param {number} containerHeight 舞台容器高度（px）。
- * @param {number} [mediaAspectRatio] 媒体宽高比，默认 16:9；通常来自 cameraPreviewRatio 的缓存。
- * @param {number} [chromeHeight] 面板自身控件条高度（px），默认 58。
- * @returns {{panelWidth: number, mediaHeight: number, panelHeight: number, top: number}}
- *   面板宽、媒体区高、面板总高与距容器顶部的偏移。
  */
 export function cameraPopupLayout(
   containerWidth,

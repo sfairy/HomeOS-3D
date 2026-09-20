@@ -13,10 +13,6 @@ import { normalizeGroundReflection as normalizeReflection } from "./reflection-s
  * 比较新旧设置，列出「变更后会更容易掉帧」的项目。
  *
  * 只提示「变贵」的方向（例如分辨率调高、开启反射），调低画质不会产生任何告警。
- *
- * @param {object} currentProperties 当前组件属性。
- * @param {object} pendingProperties 待应用的组件属性。
- * @returns {string[]} 告警文案列表；为空表示可以直接应用。
  */
 export function performanceWarnings(currentProperties, pendingProperties) {
   const warningList = [];
@@ -70,12 +66,6 @@ export function performanceWarnings(currentProperties, pendingProperties) {
 }
 /**
  * 用模态弹窗征求用户对性能告警的确认。
- *
- * @param {string[]} warnings performanceWarnings 产出的告警文案。
- * @param {object} [options] 选项。
- * @param {Document} [options.document] 文档对象，默认全局 document（可注入以便测试）。
- * @param {AbortSignal} [options.signal] 外部取消信号；已中止时直接返回 false，且中止后立即按取消收尾。
- * @returns {Promise<boolean>} true 表示用户确认继续，false 表示取消（或已被中止）。
  */
 export function confirmPerformanceWarning(
   warnings,

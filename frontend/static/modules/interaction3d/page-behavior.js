@@ -15,11 +15,6 @@
  * 解析指定设备种类的最终页面行为。
  *
  * 合并优先级自低到高为：本函数内置默认值 → 组件级 config → 页面级覆盖。
- *
- * @param {object} [config] 组件的 properties（可能缺少任意字段）。
- * @param {string} [deviceKind] 设备种类，默认 "light"；未知种类回落到自身作为页面名。
- * @returns {object} 含 interaction / autoRotate / idleExitFocus / idleHideIcons /
- *   hideIconsWhileRotating 的行为参数。
  */
 export function resolvePageBehavior(config = {}, deviceKind = "light") {
   // 清扫、电视、NAS、窗帘、空调在设置面板里各自归入固定的页面分组，

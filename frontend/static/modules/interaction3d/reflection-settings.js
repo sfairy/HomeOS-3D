@@ -10,11 +10,6 @@
 
 /**
  * 把任意外部输入收敛成合法且完整的反射参数。
- *
- * @param {object} [settings] 原始设置对象；可能是 null、数组或别的类型。
- * @returns {{mode: string, resolution: number, strength: number}} 归一化结果：
- *   mode ∈ off / inside / outside / all，resolution ∈ 256 / 512 / 768，
- *   strength 限制在 0 ~ 0.45。
  */
 export function normalizeGroundReflection(settings = {}) {
   // 先做类型防御：非对象（含 null）一律当空对象，后续字段全部走默认值。

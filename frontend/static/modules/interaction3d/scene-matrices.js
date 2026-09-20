@@ -13,10 +13,6 @@
 const instrumentedObjects = new WeakSet();
 /**
  * 为场景树中可缓存的对象安装矩阵更新短路逻辑。
- *
- * @param {object} rootObject three.js 场景根节点（含 traverse 方法）。
- * @param {Function} objectPrototype three.js Object3D 构造函数，用于取得原型上的原始 updateMatrix。
- * @returns {number} 本次实际新包装的对象数量，供性能面板统计。
  */
 export function cacheObjectTransforms(rootObject, objectPrototype) {
   let instrumentedCount = 0;

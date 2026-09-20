@@ -215,9 +215,6 @@ function animateAmount(animatingLayout, targetAmount, shouldAnimate = true) {
  *
  * 只处理画布的直接子节点：命中共享组件集合、自身不是 3D 宿主、也不是 iframe / video
  * 这类无法安全变换的内容时，才按统一距离整体平移；同时负责回收已退出候选集合的成员。
- *
- * @param {object} canvasLayout 布局上下文（画布元素、clients / owners 集合、members 台账、缩放）。
- * @returns {void} 无返回值；副作用是读写成员元素的内联 style 与注册 / 注销 rAF。
  */
 function updateLayout(canvasLayout) {
   // 两份 ID 集合：clientComponentIds 决定「哪些兄弟组件可能需要让位」，
@@ -341,10 +338,8 @@ function releaseLayout(releasedLayout, clientRegistration) {
 /**
  * 为某个 3D 宿主元素创建聚焦让位控制器。
  *
- * @param {HTMLElement} rootElement 3D 组件宿主元素。
  * @param {object} [context] 渲染上下文：`document` / `page` 用于取共享组件列表，
  *   `editable` 为真时整个让位机制被禁用（编辑器里位置必须稳定）。
- * @returns {{refresh: Function, setActive: Function, dispose: Function}} 控制器。
  */
 export function createInteraction3dFocusLayout(rootElement, context = {}) {
   const registration = {
@@ -442,9 +437,6 @@ export function createInteraction3dFocusLayout(rootElement, context = {}) {
     refresh: refreshLayout,
     /**
      * 切换本组件的聚焦状态。
-     *
-     * @param {boolean} shouldActivate 为真表示进入聚焦（其它组件让位）。
-     * @returns {void}
      */
     setActive(shouldActivate) {
       if (!isDisposed && !context.editable) {
@@ -455,8 +447,6 @@ export function createInteraction3dFocusLayout(rootElement, context = {}) {
     },
     /**
      * 释放控制器：撤销注册，最后一个使用者离开时还会还原所有被移动过的组件。
-     *
-     * @returns {void}
      */
     dispose() {
       if (!isDisposed) {

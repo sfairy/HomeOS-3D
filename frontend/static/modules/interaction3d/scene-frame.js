@@ -99,13 +99,6 @@ function computeFloorPlacement(project, floorId, activeFloorId) {
  *
  * 先用两个项目共有的楼层 ID 作为锚点 —— 只有共享楼层才能保证「同一个房间」被对齐；
  * 任一侧缺少摆放信息时返回相机状态的深拷贝（必须是拷贝，否则调用方一改就污染入参）。
- *
- * @param {object} cameraState 相机状态，含 position / target，可能还有 up 与 frameSize。
- * @param {object} sourceProject 源项目文档。
- * @param {object} targetProject 目标项目文档。
- * @param {string} requestedFloorId 请求的楼层 ID，可为 "all"。
- * @param {boolean} [shouldSwap] 为真时交换源与目标，用于反向变换。
- * @returns {object} 变换后的相机状态；无可用摆放时为原状态的深拷贝。
  */
 export function transformSceneCamera(
   cameraState,

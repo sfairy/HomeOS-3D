@@ -48,11 +48,6 @@ import {
  *
  * 用「路径片段数组」的 JSON 串当键：同一个组件可能被页面与共享组件引用，
  * 路径才是它在文档里的唯一位置，仅靠 id 无法区分。
- *
- * @param {any} componentTree 组件树（数组或对象）。
- * @param {Array<string>} [pathSegments] 当前递归到的路径。
- * @param {Map<string, object>} [entriesByPath] 累积结果。
- * @returns {Map<string, object>} 路径 → 组件。
  */
 export function interaction3dEntries(componentTree, pathSegments = [], entriesByPath = new Map()) {
   if (Array.isArray(componentTree)) {
@@ -118,10 +113,6 @@ function stripPositionZIndex(component) {
  * 用于决定保存前是否需要重新做一次授权校验（3D 交互是受限功能）。
  * 除了组件属性，还要看「页面是否新引用了含 3D 交互的共享组件」——
  * 这种情况组件本身没变，但新的页面上会出现 3D 交互。
- *
- * @param {object} previousProject 旧项目文档。
- * @param {object} nextProject 新项目文档。
- * @returns {boolean} 有变化为 true。
  */
 export function changesInteraction3d(previousProject, nextProject) {
   const previousEntriesByPath = interaction3dEntries(previousProject);
@@ -157,9 +148,6 @@ export function changesInteraction3d(previousProject, nextProject) {
 /**
  * 保存前守卫：涉及 3D 交互内容的改动必须先通过授权校验。
  *
- * @param {object} currentProject 当前项目文档。
- * @param {object} incomingProject 即将保存的项目文档。
- * @returns {Promise<void>} 无返回；无变化时直接返回，有变化时校验失败会抛错以阻断保存。
  * @throws {Error} 授权校验失败（如 403）时抛出。
  */
 export async function guardInteraction3dChanges(currentProject, incomingProject) {
@@ -177,9 +165,6 @@ export function renderInteraction3dThumbnail(thumbnailButton) {
 const cardStateByButton = new WeakMap();
 /**
  * 刷新组件卡片按钮的可用状态（授权校验 + 文案）。
- *
- * @param {HTMLElement} cardButton 组件卡片按钮。
- * @returns {Promise<void>} 无返回；失败时以文案形式反馈，不抛错。
  */
 export async function updateInteraction3dCard(cardButton) {
   const cardState = {
@@ -233,7 +218,6 @@ const inspectorAbortByHost = new WeakMap();
 /**
  * 向后端申请一个新的户型场景 ID。
  *
- * @returns {Promise<{sceneId: string}>} 新签发的 sceneId。
  * @throws {Error} 请求失败、超时或返回体不符合约定（非 32 位十六进制）时抛出中文错误。
  */
 export async function requestInteraction3dScene() {
@@ -265,12 +249,6 @@ export async function requestInteraction3dScene() {
  *
  * 面板采用「整块重建」策略：任何影响结构的改动都会重新走一遍本函数，
  * 因此下面刻意保存并恢复滚动位置、焦点控件名与最小高度，避免重建造成视觉跳动。
- *
- * @param {HTMLElement} hostElement 面板宿主容器。
- * @param {object} targetComponent 当前选中的组件；非 interaction3d 时用于隐藏面板。
- * @param {object} editorOptions 编辑器回调：onChange / onError / document / entities /
- *   states / pickers / prepareCanvas / enhanceControls 等。
- * @returns {void}
  */
 export function renderInteraction3dInspector(hostElement, targetComponent, editorOptions) {
   // 每次重建都作废旧面板的在途异步流程（授权校验、性能告警弹窗等），

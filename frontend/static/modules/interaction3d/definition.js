@@ -48,11 +48,7 @@ export const INTERACTION3D_TYPE = "interaction3d",
      * 默认值不是「随便填」：画布尺寸沿用设计标称的 2778 × 1940（2 倍 DPI 下的 1389 × 970），
      * 组件占画布 56% 并居中，保证任何画布比例下新建的组件都完整落在可视区内。
      *
-     * @param {object} options 新建参数。
      * @param {string} options.id 实例 ID，由调用方生成，模板不负责唯一性。
-     * @param {string} [options.instanceName] 实例显示名，同时写入 label 与 instanceName。
-     * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-     * @returns {object} 完整的组件文档（position / properties / bindings 等已填默认值）。
      */
     create({ id: instanceId, instanceName: displayName = "3D 交互", canvas: canvasSize }) {
       // 画布缺省值与 preview-layout.js 中的兜底值必须一致，否则预览与真实渲染会错位。

@@ -82,12 +82,6 @@ const floorSignature = floorEntry =>
  *
  * 每个判定维度对应一种最小代价的更新手段：结构变化只能重建，楼层变化可只换网格，
  * 灯光变化只需重算光照。调用方据此避免「改一盏灯就重建整栋楼」。
- *
- * @param {{floors: Array<object>, baseLighting?: *}} previousProject 上一次的项目快照。
- * @param {{floors: Array<object>, baseLighting?: *}} nextProject 最新的项目数据。
- * @returns {{full: boolean, floors: string[], lighting: boolean, visual: boolean}}
- *   full 为真表示需要整场重建；floors 为需要重建的楼层 ID；lighting 表示灯光参数变化；
- *   visual 是「画面是否需要重新出帧」的综合开关。
  */
 export function sceneUpdatePlan(previousProject, nextProject) {
   const floorsById = new Map(

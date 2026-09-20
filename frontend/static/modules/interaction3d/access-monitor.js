@@ -15,13 +15,6 @@
  *
  * now / setTimer / clearTimer 允许注入，是为了在测试里用假时钟推进「到期 / 续期 / 过期响应」这些
  * 与真实时间强相关的分支，而不是让测试真的等待。
- *
- * @param {object} deps 依赖。
- * @param {() => Promise<{allowed: boolean, validForSeconds: number}>} deps.requestGrant 向后端确认授权。
- * @param {() => number} [deps.now] 取当前时间（毫秒），默认 performance.now。
- * @param {Function} [deps.setTimer] 定时器实现，默认 setTimeout。
- * @param {Function} [deps.clearTimer] 清除定时器实现，默认 clearTimeout。
- * @returns {{subscribe: Function, suspend: Function, resume: Function}} 监视器实例。
  */
 export function createAccessMonitor({
   requestGrant: requestGrant,

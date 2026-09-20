@@ -14,17 +14,6 @@
  *
  * 时间源、rAF 与定时器均可注入：测试里可以手动推进帧与延迟，
  * 页面隐藏 / 渲染器丢失上下文时也可以从外部整体停摆而不必销毁实例。
- *
- * @param {object} deps 依赖。
- * @param {(timestamp: number) => number} deps.step 每次运行的回调，返回下次需要的延迟（毫秒）。
- * @param {() => void} [deps.onWake] 真正排帧前的一次性钩子，默认空实现。
- * @param {() => number} [deps.now] 取当前时间，默认 performance.now。
- * @param {Function} [deps.requestFrame] 排帧实现，默认 requestAnimationFrame。
- * @param {Function} [deps.cancelFrame] 取消排帧实现，默认 cancelAnimationFrame。
- * @param {Function} [deps.schedule] 延迟调度实现，默认 setTimeout。
- * @param {Function} [deps.cancel] 取消延迟调度实现，默认 clearTimeout。
- * @returns {{wake: Function, stats: object, setAvailable: Function, dispose: Function,
- *   pending: boolean}} 帧循环句柄；stats 里的 frames / deadlines 用于性能面板统计。
  */
 export function createDemandFrameLoop({
   step: step,

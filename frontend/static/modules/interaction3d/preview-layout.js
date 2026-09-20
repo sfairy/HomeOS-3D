@@ -16,12 +16,6 @@ const positiveNumberOr = (value, fallback) =>
  *
  * 缩放在宽高两个方向取较小者，即 CSS 的 contain 语义：宁可留边也不裁切，
  * 保证设计器里画布与真实投放后的取景范围完全一致。
- *
- * @param {object} component 组件文档；`properties.layoutMode` 为 "fill" 时按画布尺寸铺满。
- * @param {object} documentApi 文档级信息，仅 fill 布局下用来取画布宽高。
- * @param {number} containerWidth 预览容器可用宽度（px）。
- * @param {number} containerHeight 预览容器可用高度（px）。
- * @returns {{width: number, height: number, aspectRatio: number}} 预览尺寸与宽高比。
  */
 export function interaction3dPreviewSize(component, documentApi, containerWidth, containerHeight) {
   const isFillLayout = component.properties?.layoutMode === "fill";

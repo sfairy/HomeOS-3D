@@ -35,11 +35,6 @@ const isValidIconId = iconId =>
  *
  * 用于「人在 / 移动」这类需要按设备绑定的交互：HA 里同一个传感器设备常有多个实体
  * （占用、移动、事件），面板希望用户选设备而不是逐个挑实体。
- *
- * @param {Array<object>} [entities] 实体列表。
- * @param {Array<object>} [devices] 设备注册表；用于取用户自定义设备名与判断设备是否禁用。
- * @param {(entityId: string) => object|null} [lookupState] 取实体当前状态的函数，用于补齐 device_class。
- * @returns {Array<object>} 设备 profile 列表，每项含 deviceId、name 与排好序的 entities。
  */
 export function presenceDeviceProfiles(entities = [], devices = [], lookupState = () => null) {
   const devicesById = new Map();
@@ -125,19 +120,6 @@ export function presenceDeviceProfiles(entities = [], devices = [], lookupState 
  * 所有依赖都从参数注入：openPicker 提供弹层实现、elements 提供元素工厂、
  * fetchIcons / getEntities / ensureEntities / entityPickerText 由编辑器提供，
  * 这样本模块既不依赖具体 UI，也便于在测试里替换数据源。
- *
- * @param {object} deps 依赖。
- * @param {Function} deps.openPicker 打开选择器并返回其结果。
- * @param {Function} deps.fetchIcons 分页拉取图标。
- * @param {() => Array<object>} deps.getEntities 取当前实体表（同步）。
- * @param {(entityId: string) => object|null} [deps.getState] 取实体状态。
- * @param {() => Promise<void>} deps.ensureEntities 确保实体表已加载。
- * @param {Function} deps.entityPickerText 生成实体的搜索文本。
- * @param {object} deps.elements 元素工厂集合。
- * @param {string} [deps.deviceKind] 默认设备种类。
- * @param {() => Promise<Array<object>>} [deps.fetchAreas] 房间目录，默认请求 /api/v1/ha/areas。
- * @param {() => Promise<Array<object>>} [deps.fetchDevices] 设备目录，默认请求 /api/v1/ha/devices。
- * @returns {object} 各选择器：presenceEntities / presence / vacuum / nas / icon / entity。
  */
 export function createInteraction3dEditorPickers({
   openPicker: openPicker,

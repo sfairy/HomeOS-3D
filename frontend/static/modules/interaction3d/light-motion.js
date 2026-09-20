@@ -26,12 +26,6 @@ const normalizeLightState = lightState => ({
  *
  * 顺序颠倒（用户把两端拖反、或后端给的 min/max 反了）在这里被静默纠正，
  * 调用方无需再判大小。
- *
- * @param {number} minValue 期望下限。
- * @param {number} maxValue 期望上限。
- * @param {number[]} fallbackRange 任一端缺失时使用的 [下限, 上限]。
- * @param {number[]} bounds 允许的绝对范围 [最小值, 最大值]。
- * @returns {number[]} 长度为 2 的区间，且 [0] <= [1]。
  */
 function normalizeRange(minValue, maxValue, fallbackRange, bounds) {
   const clampedMin = clamp(finiteOr(minValue, fallbackRange[0]), bounds[0], bounds[1]);
@@ -44,11 +38,6 @@ function normalizeRange(minValue, maxValue, fallbackRange, bounds) {
  * 背景：HA 的灯启用场景 / 效果后，实体上报的 brightness 是百分比，
  * 但实际可达的亮度与色温由 effectRange 限定。直接拿百分比当亮度，会让灯光在效果模式下
  * 与实际观感对不上，因此这里按比例映射进效果区间。
- *
- * @param {object} lightEntry 上游灯光条目，含 brightness / kelvin / effectRange /
- *   effectDefaults / minimum / maximum / brightnessSupported / temperatureSupported。
- * @returns {{brightness: (number|undefined), kelvin: (number|undefined)}}
- *   映射后的亮度（0~100）与色温（K）；原字段缺失时保持 undefined，由调用方决定是否兜底。
  */
 export function mapLightEffectState(lightEntry) {
   const mappedState = {
@@ -123,9 +112,6 @@ export function mapLightEffectState(lightEntry) {
  *
  * 用的是经典的色温近似公式（Tanner Helland）：分段幂函数 / 对数，66 是 6600K 的分段点。
  * 下面的浮点常数就是公式系数，想改等于换公式，必须整段替换而不是微调某一位。
- *
- * @param {number} kelvin 色温；非法值按 3000K 处理，超出 1000~20000 会被夹紧。
- * @returns {number} 0xRRGGBB 整数，可直接交给渲染层。
  */
 export function lightEffectColorHex(kelvin) {
   // 公式以「百 K」为单位，因此先除以 100。
@@ -154,15 +140,6 @@ export function lightEffectColorHex(kelvin) {
  *
  * 开关切换才用组件配置的淡入淡出（夹在 0~10 秒，默认 0.3 秒）；
  * 预览与调光另有更合适的节奏 —— 预览求跟手，调光求顺滑。
- *
- * @param {boolean} wasOn 变化前的开关状态。
- * @param {boolean} isOn 变化后的开关状态。
- * @param {number} fadeDurationSeconds 组件配置的淡入淡出秒数。
- * @param {object} [options] 附加选项。
- * @param {boolean} [options.immediate] 为真时立即生效（例如首次挂载对齐状态）。
- * @param {boolean} [options.preview] 为真时使用更短的预览时长。
- * @param {boolean} [options.temperatureChanged] 预览时色温是否也变了；色温要更慢地过渡。
- * @returns {number} 过渡时长（毫秒）。
  */
 export function lightTransitionDurationMs(wasOn, isOn, fadeDurationSeconds, options = {}) {
   // 立即生效优先于一切：初始同步时做动画，会让画面从错误状态缓慢爬回正确值。
@@ -183,13 +160,6 @@ export function lightTransitionDurationMs(wasOn, isOn, fadeDurationSeconds, opti
  * 构造一次灯光过渡描述。
  *
  * 起点与终点都先归一，保证插值两侧的量纲一致（否则强度与颜色会互相污染）。
- *
- * @param {object} fromState 起始灯态（intensity / color）。
- * @param {object} toState 目标灯态（intensity / color）。
- * @param {number} startedAtMs 过渡开始的时刻（毫秒，与帧循环同一时间源）。
- * @param {number} durationMs 过渡时长；非法值按 0 处理，即立即完成。
- * @returns {{from: object, to: object, started: number, duration: number}}
- *   过渡描述，供 sampleLightTransition 消费。
  */
 export function createLightTransition(fromState, toState, startedAtMs, durationMs) {
   return {
@@ -204,11 +174,6 @@ export function createLightTransition(fromState, toState, startedAtMs, durationM
  *
  * 用 smoothstep（3t² − 2t³）而非线性插值：它在起止处导数为 0，灯光变化不会出现生硬的折角。
  * complete 是给帧循环的收尾信号 —— 为真时调用方可以停止为这次过渡继续排帧。
- *
- * @param {object} transition createLightTransition 产出的过渡描述。
- * @param {number} nowMs 当前时刻（毫秒）。
- * @returns {{intensity: number, color: number[], complete: boolean}} 当前插值结果；
- *   complete 表示进度已到 100%。
  */
 export function sampleLightTransition(transition, nowMs) {
   // duration 为 0（立即生效）时直接视为完成，避免除零得到 NaN 进度。

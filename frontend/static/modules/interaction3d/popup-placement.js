@@ -12,19 +12,6 @@ import { clampTypedNumber } from "../../utils/numbers.js?v=20260920080000";
 
 /**
  * 计算弹窗的缩放与位置。
- *
- * @param {object} options 参数（解构时重命名，让下面的公式读起来是像素对像素）。
- * @param {number} options.width 视口宽度（px）。
- * @param {number} options.height 视口高度（px）。
- * @param {number} options.panelWidth 面板的设计宽度（px，未缩放）。
- * @param {number} options.panelHeight 面板的设计高度（px，未缩放）。
- * @param {number} [options.defaultScale] 默认缩放，默认 1。
- * @param {number} [options.defaultTop] 默认位置距顶部（px），默认 12。
- * @param {number} [options.defaultRight] 默认位置距右侧（px），默认 16。
- * @param {object} [options.settings] 用户设置：scale（0.5~2）、x / y（0~100 的百分比，null 表示未设置）。
- * @returns {{scale: number, top: number, right: number, left: number, width: number,
- *   height: number, custom: boolean}}
- *   最终样式值；custom 为 true 表示用户自定义过位置（界面可据此显示「重置」）。
  */
 export function popupPlacement({
   width: viewportWidth,

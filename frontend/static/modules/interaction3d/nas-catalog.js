@@ -61,7 +61,6 @@ const METRIC_KEYS_BY_LENGTH = Object.keys(METRIC_DEFINITIONS).sort(
  * 群晖的 uniqueId 形如 `<主机名>_<实例>:<指标>`，主机名是同一台机器多条实体链的合并依据；
  * 其它平台没有固定格式，退化为「后缀匹配指标名，剩下的前缀即主机标识」。
  *
- * @param {object} sourceEntity 实体记录，至少含 uniqueId；群晖还会给 platform 与 translationKey。
  * @returns {{key: (string|undefined), host?: (string|null), prefix?: (string|null)}}
  *   指标白名单里的键（匹配不上时为 undefined），以及主机标识。
  */
@@ -114,11 +113,6 @@ const isSystemMetric = checkedMetric =>
  *   1) 从设备注册表建 profile，并沿 viaDeviceId 链路向上合并（同一台 NAS 常被拆成多台子设备）；
  *   2) 把指标实体解析出主机标识；
  *   3) 把指标归属到 profile（先按设备 ID，再按主机标识，最后按设备名前缀兜底）。
- *
- * @param {Array<object>} [entities] 实体列表。
- * @param {Array<object>} [devices] 设备注册表。
- * @returns {Array<object>} 每个 profile 含 deviceId、name、platform、primaryEntityId 与 metrics
- *   （每项为 {entityId, label, group, kind}），按名称排序。
  */
 export function nasProfiles(entities = [], devices = []) {
   // 设备注册表按 deviceId 建索引：后面所有归属判断都以它为准。

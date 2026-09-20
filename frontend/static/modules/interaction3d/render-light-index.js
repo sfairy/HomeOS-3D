@@ -10,10 +10,6 @@
 
 /**
  * 创建灯光索引实例。
- *
- * @returns {{stats: object, read: Function, invalidate: Function, dispose: Function}}
- *   stats 里的 builds / sorts / reads / checkedLights 供性能面板展示
- *   （builds 持续增长通常意味着每帧都在换根对象，属于异常）。
  */
 export function createRenderLightIndex() {
   let currentRoot = null;
@@ -81,10 +77,6 @@ export function createRenderLightIndex() {
      * 每帧调用：返回可见且需要投影的聚光灯，按阴影代价从高到低排序。
      *
      * 结果数组是内部复用的同一个引用，调用方只读。
-     *
-     * @param {object} root 当前场景根节点。
-     * @param {object} camera 当前相机（用于层过滤）。
-     * @returns {object[]} 已排序的聚光灯列表；索引已销毁时为空数组。
      */
     read(root, camera) {
       // 已销毁时返回空数组而不是抛错：调用方不必在每个帧循环里判生命周期。
