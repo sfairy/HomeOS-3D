@@ -16,11 +16,6 @@
  *
  * 渐变方向从左上延伸到画布高度的位置，模拟斜向的环境反光；比纯黑更有体积感，
  * 也能让人看清屏幕边界。函数内会自行设置 fillStyle 并铺满整块画布。
- *
- * @param {{width: number, height: number}} canvasSize 目标画布尺寸（真实像素）。
- * @param {CanvasRenderingContext2D} context 目标绘制上下文。
- * @param {boolean} [warm=false] 是否使用暖色档（暖阳原木主题下的屏幕）。
- * @returns {void}
  */
 export function drawTelevisionGlass(canvasSize, context, warm = false) {
   const glassGradient = context.createLinearGradient(
@@ -44,9 +39,6 @@ export function drawTelevisionGlass(canvasSize, context, warm = false) {
  * 「纵向 + 左上偏置」的权重在两个色标之间插值，复现 2D 版的斜向反光。
  *
  * 注意：与 drawTelevisionGlass 的暖色档同色系，不要单独改这里的颜色常量。
- *
- * @param {object} three three.js 模块命名空间。
- * @returns {object} 新的 MeshBasicMaterial。
  */
 export function createWarmTelevisionGlass(three) {
   const glassMaterial = new three.MeshBasicMaterial({

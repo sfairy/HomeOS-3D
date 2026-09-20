@@ -29,10 +29,6 @@ const VALID_SELECTED_FILE_KEYS = new Set([
 
 /**
  * 转成有限数字，失败时返回兜底值。
- *
- * @param {*} value 原始值。
- * @param {number} [fallback] 兜底值，默认 0。
- * @returns {number} 有限数或兜底值。
  */
 function toFiniteNumber(value, fallback = 0) {
   const numericValue = Number(value);
@@ -45,10 +41,6 @@ function toFiniteNumber(value, fallback = 0) {
 
 /**
  * 归一化一个三维向量（相机位置 / 注视点）。
- *
- * @param {{x?: number, y?: number, z?: number}} source 原始向量。
- * @param {{x?: number, y?: number, z?: number}} [defaults] 各分量缺失时的兜底值。
- * @returns {{x: number, y: number, z: number}} 归一化结果。
  */
 function normalizeVector3(source, defaults = {}) {
   return {
@@ -63,9 +55,6 @@ function normalizeVector3(source, defaults = {}) {
  *
  * 非数组一律当空；未知键被过滤掉，避免旧版本残留的文件名让导出流程找不到素材；
  * 前缀引用允许 1~180 个字符，长度上限与后端文档字段长度限制一致。
- *
- * @param {*} files 原始清单。
- * @returns {Array<string>} 去重后的键名，最多 128 项。
  */
 function normalizeSelectedFiles(files) {
   if (Array.isArray(files)) {
@@ -88,11 +77,6 @@ function normalizeSelectedFiles(files) {
 
 /**
  * 归一化预设里的相机设置。
- *
- * @param {object} [camera] 原始相机设置。
- * @returns {{mode: string, view: string, topRotation: number, position: object,
- *   target: object, visibleHeight: number, fov: number, focalLength: number|null}}
- *   清洗后的相机设置；正交模式下 focalLength 置 null。
  */
 function normalizePresetCamera(camera) {
   // 只认这两个字面量，其余一律回落到默认值，防止非法枚举流到取景逻辑里。
@@ -127,12 +111,6 @@ function normalizePresetCamera(camera) {
 
 /**
  * 归一化单个导出预设。
- *
- * @param {*} rawPreset 原始预设；非对象返回 null（调用方据此判定槽位为空）。
- * @returns {{version: number, name: string, width: number, height: number,
- *   lockRatio: boolean, floorMode: string, floorId: string, floorGap: number,
- *   camera: object, folderName: string, selectedFiles: Array<string>}|null}
- *   清洗后的预设。
  */
 export function normalizeExportPreset(rawPreset) {
   if (!rawPreset || typeof rawPreset != "object") {
@@ -170,9 +148,6 @@ export function normalizeExportPreset(rawPreset) {
  * 槽位数量夹在 1~8 之间（常量值与此处的字面量保持一致）；
  * 入参不是数组时按默认 4 个空槽处理，保证 UI 至少有槽位可用。
  * 槽位内容允许为 null，表示该槽尚未配置。
- *
- * @param {*} slots 原始槽位数组。
- * @returns {Array<object|null>} 定长的槽位数组。
  */
 export function normalizeExportPresetSlots(slots) {
   const slotList = Array.isArray(slots) ? slots : [];
@@ -189,10 +164,6 @@ export function normalizeExportPresetSlots(slots) {
  * 归一化当前选中的预设槽下标。
  *
  * 越界或非整数一律回到 0，避免上层用非法下标去索引槽位数组。
- *
- * @param {*} activeSlotIndex 原始槽下标。
- * @param {*} [requestedSlotCount] 当前槽位总数，默认 4。
- * @returns {number} 合法的槽下标。
  */
 export function normalizeActiveExportPresetSlot(activeSlotIndex, requestedSlotCount = 4) {
   const slotNumber = Number(activeSlotIndex);
@@ -206,10 +177,6 @@ export function normalizeActiveExportPresetSlot(activeSlotIndex, requestedSlotCo
 
 /**
  * 判断导出预设是否为空。
- *
- * @param {*} preset 原始预设。
- * @param {*} [presetFeatureEnabled] 预设功能开关；功能关闭时即便有配置也算「未启用」。
- * @returns {boolean} 无有效预设且功能未启用时返回 true。
  */
 export function exportPresetIsEmpty(preset, presetFeatureEnabled = false) {
   return !normalizeExportPreset(preset) && !presetFeatureEnabled;

@@ -11,14 +11,6 @@
 
 /**
  * 往分组里生成一台安防设备。
- *
- * @param {object} THREE three.js 模块命名空间（由调用方注入，便于复用同一份实例）。
- * @param {object} modelGroup 设备分组节点，几何会追加到它的 children。
- * @param {{type: string, width: number, depth: number, height: number}} modelSpec
- *   设备类型与外形尺寸（米）。
- * @param {object} palette 配色表，提供 applianceSoft / appliance / applianceDark 等键，
- *   缺失时回落到家具色系。
- * @returns {object} 传入的 modelGroup，便于链式使用。
  */
 export function addSecurityModel(THREE, modelGroup, modelSpec, palette) {
   const { width: modelWidth, depth: modelDepth, height: modelHeight } = modelSpec;

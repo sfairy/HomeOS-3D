@@ -13,15 +13,6 @@ import { MeshoptSimplifier } from "../vendor/meshoptimizer/0.25/meshopt_simplifi
 
 /**
  * 用 meshoptimizer 的带属性简化算法削减索引数量。
- *
- * @param {object} options 简化参数。
- * @param {Uint32Array|Uint16Array} options.indices 原始索引。
- * @param {Float32Array} options.positions 顶点位置，每顶点 3 个分量。
- * @param {Float32Array} options.attributes 参与误差评估的附加属性。
- * @param {number} options.stride 附加属性每顶点占用的浮点分量数。
- * @param {Float32Array} options.weights 附加属性各分量的权重。
- * @param {number} options.error 允许的最大误差。
- * @returns {Promise<Uint32Array|Uint16Array>} 简化后的索引数组。
  */
 export async function simplifyReflection({
   indices: indexArray,

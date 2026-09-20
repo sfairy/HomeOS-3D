@@ -24,10 +24,6 @@ const DEFAULT_TILE_GUTTER = 1;
 
 /**
  * 把外部输入夹成正整数。
- *
- * @param {*} input 待转换的值。
- * @param {number} [fallback] 非正数 / 非数字时的兜底值。
- * @returns {number} 正整数或兜底值。
  */
 function toPositiveInt(input, fallback = 0) {
   const parsed = Math.floor(Number(input));
@@ -43,9 +39,6 @@ function toPositiveInt(input, fallback = 0) {
  *
  * 图集尺寸必须是 2 的幂：mipmap 与部分驱动的纹理压缩才允许，
  * 而且后续按 2 倍递增试探布局也更简单。
- *
- * @param {number} requestedValue 期望尺寸。
- * @returns {number} 不小于入参的 2 的幂。
  */
 function nextPowerOfTwo(requestedValue) {
   let result = 1;
@@ -60,11 +53,6 @@ function nextPowerOfTwo(requestedValue) {
  *
  * 为什么不用更省空间的算法：货架算法 O(n) 且结果可预测，
  * 图集每次重建都会得到完全相同的布局，便于复现问题。
- *
- * @param {Array<{index: number, size: number}>} tiles 已按尺寸降序排好的 tile。
- * @param {number} atlasSize 图集边长（像素）。
- * @param {number} gutter 相邻 tile 之间的留白（像素）。
- * @returns {Array<object>|null} 带 x / y 的 tile 列表；放不下时返回 null。
  */
 function packTilesIntoAtlas(tiles, atlasSize, gutter) {
   let cursorX = gutter;
@@ -96,12 +84,6 @@ function packTilesIntoAtlas(tiles, atlasSize, gutter) {
 }
 /**
  * 计算聚光灯阴影图集的布局：给每盏灯的阴影图挑一块位置。
- *
- * @param {number[]} [tileSizes] 各盏灯的阴影图边长（像素），顺序即灯的声明顺序。
- * @param {number} [maxAtlasSize] 设备允许的最大图集边长，一般取 maxTextureSize。
- * @param {number} [tileGutter] tile 之间的留白像素。
- * @returns {{size: number, tiles: Array<object>}|null} 图集边长与按入参顺序排好的 tile；
- *   单块 tile 超过上限或任何尺寸凑不出合法布局时返回 null，调用方据此回退到单灯阴影。
  */
 export function packSpotShadowAtlasTiles(tileSizes = [], maxAtlasSize = 4096, tileGutter = DEFAULT_TILE_GUTTER) {
   const atlasLimit = toPositiveInt(maxAtlasSize, 4096);
@@ -151,9 +133,6 @@ export function packSpotShadowAtlasTiles(tileSizes = [], maxAtlasSize = 4096, ti
  *
  * 必须稳定，因为图集条目是按这个键在多次重建之间复用的；
  * 键为空（灯没有归属家具）的灯不参与图集。
- *
- * @param {object} lightObject three.js 聚光灯。
- * @returns {string} `floorId:itemId`；缺少 itemId 时返回空串表示不参与。
  */
   function spotLightKey(lightObject) {
   // 优先用家具 ID 而不是灯对象的 uuid：家具可能被重建，uuid 会变，键就不稳定了。
@@ -170,10 +149,6 @@ export function packSpotShadowAtlasTiles(tileSizes = [], maxAtlasSize = 4096, ti
  *
  * 入选条件（缺一不可）：是 SpotLight、标记了 shadowCandidate、
  * 有稳定的灯键、（按需）层级可见、以及亮度大于 0 或显式要求预热。
- *
- * @param {object} searchRoot 遍历起点。
- * @param {{includeHidden?: boolean}} [options] includeHidden 为 false 时跳过 visible=false 的灯。
- * @returns {object[]} 命中的聚光灯。
  */
 function collectShadowLights(searchRoot, { includeHidden: includeHidden = true } = {}) {
   const lights = [];
@@ -198,9 +173,6 @@ function collectShadowLights(searchRoot, { includeHidden: includeHidden = true }
  *
  * 只列 MeshStandard / Physical / Lambert / Phong / Toon：这些才走 three.js 的
  * lights_fragment_begin 分支。基础材质（Basic）与自定义着色器不接收阴影，打补丁反而会报错。
- *
- * @param {object} material three.js 材质。
- * @returns {boolean} 需要注入图集采样代码时为 true。
  */
 function isShadowableMaterial(material) {
   return (
@@ -217,16 +189,12 @@ function isShadowableMaterial(material) {
  *
  * 用 VSM（方差阴影）贴图的 rg 通道：r 是模糊后的深度均值，g 是标准差。
  * 这里刻意不走 three.js 自带的切比雪夫尾部概率，原因见函数体内注释。
- *
- * @returns {string} 以 `#if NUM_SPOT_LIGHTS > 0` 开头的 GLSL 片段。
  */
 function buildAtlasFragmentChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  uniform sampler2D userSpotShadowAtlas;\n  uniform float userSpotShadowAtlasEnabled;\n  uniform vec4 userSpotShadowRect[ NUM_SPOT_LIGHTS ];\n  uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];\n  varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];\n\n  float getUserSpotAtlasShadow( vec4 atlasRect, vec4 shadowParams, vec4 shadowCoord ) {\n    if ( userSpotShadowAtlasEnabled < 0.5 || shadowParams.z < 0.5 ) return 1.0;\n    shadowCoord.xyz /= shadowCoord.w;\n    shadowCoord.z += shadowParams.x;\n    bool inFrustum = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0\n      && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0;\n    if ( ! inFrustum || shadowCoord.z > 1.0 ) return 1.0;\n    vec2 atlasUv = atlasRect.xy + clamp( shadowCoord.xy, 0.0, 1.0 ) * atlasRect.zw;\n    vec2 distribution = texture2D( userSpotShadowAtlas, atlasUv ).rg;\n    float mean = distribution.x;\n    // The stock VSM Chebyshev tail turns half-float depth steps from a\n    // 256px local-light map into several visible contour rings. Preserve the\n    // authored VSM blur, but use its deviation only to size one bounded edge\n    // transition. This keeps the same single texture sample and removes the\n    // long probability tail that made furniture shadows look layered.\n    float softness = clamp( abs( distribution.y ) * 0.35, 0.0007, 0.004 );\n    // A slope-scaled receiver guard keeps the newly bounded edge from\n    // exposing quantized self-shadow stripes on cabinet fronts and tabletops.\n    // It changes only the depth comparison, not the map resolution or sample\n    // count, and is capped tightly so real contact shadows stay attached.\n    // Cover the complete soft transition at equal depth, then add only a\n    // small slope allowance. This prevents the half-float map's depth bands\n    // from reappearing on large floors or through transparent glass, while\n    // keeping the allowance proportional to the authored penumbra.\n    float receiverGuard = softness + clamp( fwidth( shadowCoord.z ) * 1.5, 0.0002, 0.0015 );\n    #ifdef USE_REVERSED_DEPTH_BUFFER\n      float occludedDistance = mean - shadowCoord.z;\n    #else\n      float occludedDistance = shadowCoord.z - mean;\n    #endif\n    // The atlas contains only solid architectural occluders. Once a receiver\n    // is safely behind a wall, collapse the remaining VSM depth transition\n    // quickly instead of letting it extend through nearby cabinet backs and\n    // reveal half-float depth rows. The authored blur in atlas UV space still\n    // keeps the wall silhouette soft; this only removes light bleeding behind\n    // the blocker. Equality and the complete receiver guard remain lit.\n    float blockerTransition = max( softness * 0.5, 0.00035 );\n    float shadow = 1.0 - smoothstep(\n      receiverGuard,\n      receiverGuard + blockerTransition,\n      occludedDistance\n    );\n    return mix( 1.0, shadow, shadowParams.y );\n  }\n#endif\n";
 }
 /**
  * 顶点着色器里注入的 uniform 声明（GLSL 源码）。
- *
- * @returns {string} 图集变换矩阵、参数与插值用的坐标声明。
  */
 function buildAtlasVertexParsChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  uniform mat4 userSpotShadowMatrix[ NUM_SPOT_LIGHTS ];\n  uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];\n  varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];\n#endif\n";
@@ -236,8 +204,6 @@ function buildAtlasVertexParsChunk() {
  *
  * params.w 是法线偏移（normalBias）：沿世界法线把采样点推离表面，
  * 用来消除斜面上的自阴影条纹（shadow acne）。
- *
- * @returns {string} 把世界坐标变换到各盏灯阴影空间的循环。
  */
 function buildAtlasVertexChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  vec3 userShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\n  vec4 userShadowWorldPosition;\n  #pragma unroll_loop_start\n  for ( int i = 0; i < NUM_SPOT_LIGHTS; i ++ ) {\n    userShadowWorldPosition = worldPosition + vec4( userShadowWorldNormal * userSpotShadowParams[ i ].w, 0.0 );\n    vUserSpotShadowCoord[ i ] = userSpotShadowMatrix[ i ] * userShadowWorldPosition;\n  }\n  #pragma unroll_loop_end\n#endif\n";
@@ -248,8 +214,6 @@ function buildAtlasVertexChunk() {
  * 场景里常见十几盏灯但多数亮度为 0，它们仍会走完整段直接光计算。
  * 这里在 RE_Direct 调用外裹一层 uniform 分支，把这类灯的计算整段跳过。
  *
- * @param {string} lightsShader lights_fragment_begin 着色器源码。
- * @returns {string} 打了零贡献跳过补丁的源码。
  * @throws {Error} three.js 版本变化导致聚光灯分支结构不再匹配时抛出，宁可失败也不要静默出错图。
  */
 export function guardZeroContributionSpotLights(lightsShader) {
@@ -275,8 +239,6 @@ export function guardZeroContributionSpotLights(lightsShader) {
  * 做法：在 USE_SHADOWMAP 的聚光灯循环标记前插入一段用图集替换阴影因子的代码，
  * 再把该标记删除，让原来的单灯阴影分支不再生成。
  *
- * @param {object} THREE three.js 模块命名空间。
- * @returns {string} 打过补丁的 lights_fragment_begin 源码。
  * @throws {Error} three.js 的灯光着色器版本与图集补丁不匹配时抛出。
  */
 function patchLightsFragmentBegin(THREE) {
@@ -298,9 +260,6 @@ function patchLightsFragmentBegin(THREE) {
  *
  * 图集烘焙完成后单灯贴图就成了纯显存浪费，必须显式 dispose，
  * three.js 不会因为 light.shadow.map 被置空而回收纹理。
- *
- * @param {object} disposedLight 已完成烘焙的灯。
- * @returns {void}
  */
 function disposeShadowTargets(disposedLight) {
   disposedLight?.shadow?.map?.dispose?.();
@@ -313,17 +272,7 @@ function disposeShadowTargets(disposedLight) {
 /**
  * 创建聚光灯阴影图集控制器。
  *
- * @param {object} options 依赖与调参。
- * @param {object} options.THREE three.js 模块命名空间（必需）。
- * @param {object} options.renderer WebGLRenderer（必需，烘焙会临时接管它的渲染目标）。
- * @param {object} options.scene 场景（必需）。
- * @param {object} options.camera 相机（必需，用于烘焙时的视锥与投影）。
- * @param {function(): void} [options.requestFrame] 请求下一帧重绘的回调。
  * @param {function(): boolean} [options.canBuild] 返回 false 时推迟烘焙（例如页面不可见）。
- * @param {number} [options.buildDelay] 调度到真正烘焙之间的防抖毫秒数。
- * @param {boolean} [options.syncBeforeRender] 是否每帧按实际渲染的灯光同步 uniform。
- * @returns {object} 控制器：prepareRoot / refreshGeometry / schedule / sync / setEnabled /
- *   dispose / activeCount / isBuilding / isPending / releaseRenderIndex。
  * @throws {Error} 缺少 Three.js 渲染上下文，或 three.js 着色器结构不兼容时抛出。
  */
 export function createSpotShadowAtlasController({
@@ -409,9 +358,6 @@ export function createSpotShadowAtlasController({
 
   /**
    * 根据当前是否启用、灯数是否非零，决定着色器里的图集开关。
-   *
-   * @param {boolean} enabled 希望启用的状态。
-   * @returns {void}
    */
   function setAtlasEnabled(enabled) {
     uniforms.userSpotShadowAtlasEnabled.value = enabled && isEnabled && entryByLightKey.size ? 1 : 0;
@@ -423,8 +369,6 @@ export function createSpotShadowAtlasController({
    * 楼层过渡动画会把 autoUpdate 与 needsUpdate 同时置 false 来冻结阴影更新。
    * 这段窗口里烘焙会采到正在移动的世界矩阵，得到错误结果，而且楼层落位后
    * 没有任何机制会顺带重建；因此只能等冻结解除再烘。
-   *
-   * @returns {boolean} 冻结中返回 true。
    */
   function areShadowUpdatesFrozen() {
     return renderer.shadowMap.autoUpdate === false && renderer.shadowMap.needsUpdate === false;
@@ -432,9 +376,6 @@ export function createSpotShadowAtlasController({
 
   /**
    * 给一个材质注入图集采样所需的 defines 与着色器改写。
-   *
-   * @param {object} materialToPrepare three.js 材质。
-   * @returns {void}
    */
   function prepareMaterial(materialToPrepare) {
     // WeakSet 去重：材质可能被成百上千个网格共享，重复包装会层层套娃。
@@ -489,9 +430,6 @@ export function createSpotShadowAtlasController({
 
   /**
    * 遍历子树，给所有接收阴影的网格材质打补丁。
-   *
-   * @param {object} root 子树根节点。
-   * @returns {void}
    */
   function prepareRoot(root) {
     if (!isDisposed) {
@@ -514,9 +452,6 @@ export function createSpotShadowAtlasController({
   }
   /**
    * 收集当前实际可见（层级可见）的候选灯。
-   *
-   * @param {object} activeRoot 子树根节点。
-   * @returns {object[]} 可见的候选聚光灯。
    */
   function collectActiveLights(activeRoot) {
     return collectShadowLights(activeRoot, {
@@ -526,9 +461,6 @@ export function createSpotShadowAtlasController({
 
   /**
    * 按当前可见灯列表重排 uniform 数组，并关闭单灯阴影。
-   *
-   * @param {object} [syncRoot] 子树根节点。
-   * @returns {number} 实际提供阴影的灯数。
    */
   function syncUniforms(syncRoot = pendingRoot) {
     if (isDisposed) {
@@ -569,10 +501,6 @@ export function createSpotShadowAtlasController({
    *
    * three.js 只给经过视锥与图层筛选的灯分配循环下标，因此 uniform 顺序
    * 必须跟着渲染器实际使用的灯列表走，不能只按场景遍历顺序。
-   *
-   * @param {object} renderedScene 本帧渲染的场景。
-   * @param {object} renderedCamera 本帧渲染的相机。
-   * @returns {void}
    */
   function syncRenderLights(renderedScene, renderedCamera) {
     if (isDisposed || !syncBeforeRender || !renderedScene) {
@@ -630,9 +558,6 @@ export function createSpotShadowAtlasController({
   }
   /**
    * 创建一块图集渲染目标。
-   *
-   * @param {number} targetSize 边长（像素，2 的幂）。
-   * @returns {object} WebGLRenderTarget。
    */
   function createAtlasTarget(targetSize) {
     // RG + 半浮点是 VSM 的最小可用格式：R 存深度均值、G 存方差。
@@ -655,9 +580,6 @@ export function createSpotShadowAtlasController({
    *
    * 用纯白而不是黑色：VSM 里距离 1 代表最远，未绘制的 tile 就自动是无阴影，
    * 这样某些灯烘焙失败时那块区域的读者不会看到整片黑块。
-   *
-   * @param {object} target 图集渲染目标。
-   * @returns {void}
    */
   function clearAtlasTarget(target) {
     // 临时改渲染目标与清屏色，必须原样还原，否则会污染调用方的渲染状态。
@@ -676,8 +598,6 @@ export function createSpotShadowAtlasController({
    *
    * 优先用 scheduler.yield（浏览器可在高优先级任务后插队调度），
    * 不支持时退化为 setTimeout(0)。
-   *
-   * @returns {Promise<void>}
    */
   async function yieldToScheduler() {
     if (globalThis.scheduler?.yield) {
@@ -691,10 +611,6 @@ export function createSpotShadowAtlasController({
    *
    * 之所以逐盏烘：three.js 的阴影通道会一次性处理所有 castShadow 灯，
    * 而我们需要把结果拆到不同 tile 上，只能一次只让一盏灯产生阴影。
-   *
-   * @param {object} buildRoot 参与烘焙的子树根节点。
-   * @param {number} buildRevision 调用时的 revision，用于检测中途场景变更。
-   * @returns {Promise<void>}
    */
   async function rebuildAtlas(buildRoot, buildRevision) {
     // revision 不一致说明排队期间场景又变了，本次结果必然过期，直接放弃。
@@ -967,9 +883,6 @@ export function createSpotShadowAtlasController({
 
   /**
    * 延迟调度一次重建（带防抖）。
-   *
-   * @param {number} delay 延迟毫秒数。
-   * @returns {void}
    */
   function scheduleBuild(delay) {
     // isDirty 是排队的唯一条件：不脏就不排，避免无意义的重复烘焙。
@@ -999,10 +912,6 @@ export function createSpotShadowAtlasController({
 
   /**
    * 登记一次「场景变了」：更新待处理子树、同步 uniform 并排队重建。
-   *
-   * @param {object} scheduledRoot 待处理的子树根节点。
-   * @param {{delay?: number}} [options] delay 覆盖默认防抖时长。
-   * @returns {number} 本次纳入的候选灯数量。
    */
   function schedule(scheduledRoot, { delay: scheduleDelay = buildDelay } = {}) {
     if (isDisposed) {
@@ -1030,10 +939,6 @@ export function createSpotShadowAtlasController({
    * 只刷新已有图集的几何信息（灯移动 / 物体移动），不重新排版。
    *
    * 适用于灯只是换了位置或场景物体微调的情况：重新烘焙一遍几何比整块重建快得多。
-   *
-   * @param {object} [refreshRoot] 子树根节点。
-   * @param {Array<object>|null} [viewBoxes] 相机可视范围盒；只刷新与之相交的灯，省掉无用烘焙。
-   * @returns {boolean} 刷新成功（或无需刷新）返回 true，失败返回 false 由调用方安排重建。
    */
   function refreshGeometry(refreshRoot = pendingRoot, viewBoxes = null) {
     if (isDisposed) {
@@ -1185,9 +1090,6 @@ export function createSpotShadowAtlasController({
 
   /**
    * 打开 / 关闭图集（例如导出或低性能模式时关闭）。
-   *
-   * @param {boolean} nextEnabled 目标状态。
-   * @returns {void}
    */
   function setEnabled(nextEnabled) {
     if (!isDisposed) {
@@ -1198,8 +1100,6 @@ export function createSpotShadowAtlasController({
   }
   /**
    * 释放图集相关显存并清空条目。
-   *
-   * @returns {void}
    */
   function disposeAtlases() {
     atlasTarget?.dispose();
@@ -1212,8 +1112,6 @@ export function createSpotShadowAtlasController({
   }
   /**
    * 销毁控制器：停掉调度、断开引用、回收纹理。
-   *
-   * @returns {void}
    */
   function dispose() {
     if (!isDisposed) {

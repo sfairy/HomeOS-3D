@@ -64,10 +64,6 @@ export const WARM_WOOD_STYLE = Object.freeze({
  * 板缝、端缝与细木纹。所有线条都用 fwidth 做抗锯齿，远处不会闪成噪点。
  *
  * 只在暖阳原木下生效：其它主题直接返回，不做任何改动。
- *
- * @param {object} material 地板材质（会被就地改写）。
- * @param {object} palette 调色板；读取 palette.warmWood 作为开关。
- * @returns {void}
  */
 export function decorateWarmFloor(material, palette) {
   if (!palette.warmWood) {

@@ -26,10 +26,6 @@
  *
  * 用途：网格本身通常不带楼层 / 层级信息，信息挂在某个祖先 Group 上，
  *   所以判断归属时一律用「向上查找」而不是只看自身。
- *
- * @param {object} startObject3d 起始对象（含自身）。
- * @param {string} userDataKey 要查找的 userData 字段名。
- * @returns {*} 第一个命中的值；整条父链都没有则返回 undefined。
  */
 function findUserDataInAncestors(startObject3d, userDataKey) {
   for (
@@ -48,9 +44,6 @@ function findUserDataInAncestors(startObject3d, userDataKey) {
  * three.js 的 visible 只影响自身渲染，父节点隐藏时子节点同样不会出现在画面里；
  * 而遍历到的网格可能挂在一个被临时隐藏的 Group（比如隐藏层、楼层过渡中的旧楼层）下，
  * 只看 mesh.visible 会把看不见的物体也算成投影源，烘出多余的阴影。
- *
- * @param {object} rootObject3d 起始对象（含自身）。
- * @returns {boolean} 整条父链都 visible 才为 true。
  */
 function isVisibleWithAncestors(rootObject3d) {
   for (let ancestorNode = rootObject3d; ancestorNode; ancestorNode = ancestorNode.parent) {
@@ -70,9 +63,6 @@ function isVisibleWithAncestors(rootObject3d) {
  *   - transmission > 0：玻璃类折射材质排除；
  *   - 允许 transparent，但必须配 alphaTest > 0 —— 树叶、栏杆这类靠 alphaTest 抠洞的
  *     材质在深度通道里能正确镂空，反而应该参与，否则树下会缺阴影。
- *
- * @param {object} material 待判定的材质。
- * @returns {boolean} 可参与接触阴影烘焙时为 true。
  */
 export function isContactCasterMaterial(material) {
   return (
@@ -100,13 +90,6 @@ export function isContactCasterMaterial(material) {
  *   - `surfaceHeight <= 0.12`：距地板 12cm 以内的面（踢脚、地面找平层）会与地面通道重叠，
  *     烘出来是同一条阴影，直接丢弃；
  *   - `Math.round(surfaceHeight * 100)`：以 1cm 为分辨率分桶，让同一件家具的顶面归成一级。
- *
- * @param {object} threeLib three.js 模块命名空间。
- * @param {Array<object>} meshList 参与扫描的网格（可含 InstancedMesh）。
- * @param {number} floorY 地板基准高度（世界坐标 Y）。
- * @param {number} [levelLimit=32] 最多输出的级数。
- * @returns {Array<{height: number, top: number}>} 高度升序的表面级；height 为面积加权平均高度，
- *   top 为该级内的最高点（烘相机要贴着它上方，避免把同级其他面裁掉）。
  */
 function computeSurfaceLevels(threeLib, meshList, floorY, levelLimit = 32) {
   const levelsByHeightKey = new Map();
@@ -227,15 +210,6 @@ function computeSurfaceLevels(threeLib, meshList, floorY, levelLimit = 32) {
  *     过渡结束再 setMotion(false) 恢复，避免在一帧里烘几十个楼层造成卡顿；
  *   - 增量模式下每帧最多补烘 1 个楼层，其余留到后续帧（deferredFloorIds），
  *     保证单帧渲染预算不被烘焙吃光。
- *
- * @param {object} options 配置项。
- * @param {object} options.THREE three.js 模块命名空间。
- * @param {object} options.renderer WebGL 渲染器（烘焙会借用它并在 finally 还原状态）。
- * @param {function(): object} options.getRoot 返回当前场景根节点。
- * @param {function(): boolean} [options.canBuild] 是否允许烘焙（例如渲染器未就绪时返回 false）。
- * @param {function(): void} [options.requestFrame] 请求下一帧的钩子，用于淡入淡出与增量补齐。
- * @returns {object} 控制器实例，含 sync / invalidate / setEnabled / setSuspended / setMotion /
- *   setVisibleFloor / setFrameProvider / getUniforms / dispose 与 stats、settings。
  */
 export function createContactShadowController({
   THREE: THREE,
@@ -363,9 +337,6 @@ export function createContactShadowController({
    *
    * 每个楼层独立持有自己的渲染目标与 uniform 对象：uniform 必须逐层独立，
    * 否则多层同时可见时后烘焙的楼层会覆盖前一层的贴图。
-   *
-   * @param {string|number} floorId 楼层 ID。
-   * @returns {object} 该楼层的状态对象（target / ping / surface / lookup / uniforms / 统计字段）。
    */
   function getFloorState(floorId) {
     const floorIdKey = String(floorId);
@@ -430,13 +401,6 @@ export function createContactShadowController({
   }
   /**
    * 声明某些楼层需要重建。
-   *
-   * @param {string|number|Array<string|number>|null} [floorIds] 目标楼层；
-   *   null / 省略表示整场景重建。
-   * @param {boolean} [keepLayoutCache=false] 是否保留已烘焙的布局缓存。
-   *   楼层过渡这类「只是位置在动」的场景传 true：贴图仍然有效，重建时能直接复用，
-   *   传 false 则连缓存一起清掉（材质 / 几何真的变了）。
-   * @returns {void}
    */
   function invalidate(floorIds, keepLayoutCache = false) {
     if (!isDisposed) {
@@ -471,9 +435,6 @@ export function createContactShadowController({
   }
   /**
    * 总开关：只切换 uniform 浓度，不销毁贴图。
-   *
-   * @param {boolean} enabled 是否开启接触阴影。
-   * @returns {void}
    */
   function setEnabled(enabled) {
     settings.enabled = !!enabled;
@@ -504,9 +465,6 @@ export function createContactShadowController({
    *
    * 挂起时把浓度直接清零并作废缓存；恢复时走一次完整重建 —— 因为挂起期间
    * 场景可能被改过，复用的贴图不再可信。
-   *
-   * @param {boolean} suspended 是否挂起。
-   * @returns {void}
    */
   function setSuspended(suspended) {
     const nextSuspended = suspended === true;
@@ -526,9 +484,6 @@ export function createContactShadowController({
    *   还挂着与位置不符的旧阴影；
    * 退出：清掉动画、允许复用布局（isIncrementalUpdate + shouldReuseLayout），
    *   这样位置变了的楼层只需重烘一轮而不是全量重建。
-   *
-   * @param {boolean} motionEnabled true 表示进入运动模式。
-   * @returns {void}
    */
   function setMotion(motionEnabled) {
     if (isMotionSuspended !== (motionEnabled === true)) {
@@ -560,8 +515,6 @@ export function createContactShadowController({
    * 数学：plan2ContactTransform = invert(当前锚点矩阵) × 烘焙时的锚点矩阵。
    * 着色器用它把世界坐标先搬到烘焙坐标系再采样，所以锚点动了不必重烘，
    * 只需在每帧 sync 时更新这个矩阵（楼层过渡时省下大量烘焙）。
-   *
-   * @returns {void}
    */
   function updateBakedTransforms() {
     for (const bakedFloorState of floorStatesById.values()) {
@@ -592,10 +545,8 @@ export function createContactShadowController({
    *   - 片元：把原生深度还原成高度，再用 exp(-height / falloff) 转成浓度，
    *     末尾用 smoothstep(1.8, 2.5) 把超过 maxHeight 的部分收到 0，避免远处出现硬截断。
    *
-   * @param {object} sourceMaterial 原始材质（提供贴图 / alphaTest / 位移参数）。
    * @param {boolean} [isSurfaceBake=false] 是否为表面烘焙：表面级高度差很小，
    *   会换一组近平面 / 衰减 / 截断参数（1.5 / 0.5 / 0.8~1.5）。
-   * @returns {object} 深度材质；参数组合相同则复用缓存实例。
    * @throws {Error} 注入点 project_vertex 缺失（three.js 版本不兼容）时抛出。
    */
   function getDepthMaterial(sourceMaterial, isSurfaceBake = false) {
@@ -685,8 +636,6 @@ export function createContactShadowController({
    * 把深度材质缓存裁到上限。
    *
    * 64 是「一层楼的独立材质数量」量级：正常户型远小于它，频繁编辑时也不会无界增长。
-   *
-   * @returns {void}
    */
   function trimMaterialCache() {
     while (depthMaterialsByKey.size > 64) {
@@ -700,9 +649,6 @@ export function createContactShadowController({
    *
    * 注意只清渲染目标与 uniform 指向，不删除 floorStatesById 里的条目：
    * 状态对象本身很轻，留着可以避免下一帧重建时反复分配。
-   *
-   * @param {object} targetState 目标楼层状态。
-   * @returns {void}
    */
   function disposeFloorState(targetState) {
     targetState.fade = null;
@@ -728,10 +674,6 @@ export function createContactShadowController({
    * ping 缓冲只用于模糊的中间结果，不需要深度缓冲；两者都用 RedFormat ——
    * 只要一个通道，内存占用是 RGBA 的四分之一，而模糊只有 4 轮、
    * 反复读写也不会出现明显精度损失。
-   *
-   * @param {object} floorEntry 楼层状态。
-   * @param {number} sizePx 目标边长（像素）。
-   * @returns {{target: object, ping: object}} 主图与 ping 缓冲。
    */
   function ensureRenderTargets(floorEntry, sizePx) {
     if (floorEntry.target?.width !== sizePx || floorEntry.target?.height !== sizePx) {
@@ -766,17 +708,6 @@ export function createContactShadowController({
    *      朝上拍一张，做 4 轮由粗到细的模糊，再用 viewport 只写入图集对应的格子；
    *   4. 生成 2048 采样的一维查找表：把 0 ~ 最高级 + 5cm 的高度区间等分，
    *      每格记录最近的级号（容差 1.8cm，找不到就留 0 / alpha 0 表示无遮蔽）。
-   *
-   * @param {object} surfaceEntry 楼层状态下与表面通道相关的那部分字段（surface / lookup / uniforms）。
-   * @param {Array<object>} casterMeshes 原始投影源网格（用于算高度级）。
-   * @param {Array<object>} overrideByCaster 投影源的克隆体数组，下标与 casterMeshes 一一对应；
-   *   每轮烘焙前把克隆体的材质换成表面深度材质，用完由调用方在 finally 里回收。
-   * @param {object} renderScene 存放克隆体的临时场景。
-   * @param {object} casterBounds 投影源的世界包围盒；向外扩 0.5m 后作为表面覆盖范围，
-   *   给贴边家具留出阴影外扩的余量，避免阴影在边界被裁掉。
-   * @param {number} floorBaseY 地板高度（世界 Y）。
-   * @param {object} fallbackMaterial 材质不合格时使用的兜底深度材质（visible = false）。
-   * @returns {void}
    */
   function bakeSurfaceLevels(
     surfaceEntry,
@@ -968,10 +899,6 @@ export function createContactShadowController({
    * 渲染前会把投影源 clone 一份放进临时场景，并整体替换成深度材质 —— 不动原场景，
    * 避免改材质触发热更新或影响其他渲染通道。
    *
-   * @param {object} contactEntry 该楼层的状态对象（贴图、uniform、淡入状态都在这里）。
-   * @param {Array<object>} receivers 地面接收面网格。
-   * @param {Array<object>} casters 投影源网格。
-   * @returns {void}
    * @throws {Error} 烘焙过程中渲染报错时，先清空该层资源再原样抛出，不留下半成品状态。
    */
   function buildContactMap(contactEntry, receivers, casters) {
@@ -1164,7 +1091,6 @@ export function createContactShadowController({
    * 无论走哪条路，结果都与「position 属性 + index 属性的版本号」绑定缓存 ——
    * 版本一变（哪怕 buffer 被整体替换而属性对象没换）就重算。
    *
-   * @param {object} bufferGeometry 目标几何。
    * @returns {string} 内容签名（JSON 字符串）。
    */
   function computeGeometryKey(bufferGeometry) {
@@ -1253,7 +1179,6 @@ export function createContactShadowController({
    * 这是「拖拽家具时不疯狂重烘」的关键。
    *
    * @param {{receivers: Array<object>, casters: Array<object>}} layout 待签名的布局分组。
-   * @param {object} bakeFrame 烘焙时使用的锚点帧矩阵（世界矩阵）。
    * @returns {string} 内容签名（JSON 字符串）。
    */
   function computeLayoutKey(layout, bakeFrame) {
@@ -1357,9 +1282,6 @@ export function createContactShadowController({
    *
    * 只能估算：贴图的实际显存布局由驱动决定，这里按「单通道算 1~5 字节、多通道算 4~8 字节」
    * 的保守口径折算，够用来判断有没有超预算。
-   *
-   * @param {object} cachedFloorState 缓存条目。
-   * @returns {number} 估算字节数。
    */
   const estimateStateBytes = cachedFloorState =>
     (cachedFloorState.target
@@ -1384,9 +1306,6 @@ export function createContactShadowController({
    * 存进去的是「资源 + uniform 值的快照」：uniform 里的向量 / 矩阵需要 clone，
    * 纹理则只存引用（转移所有权，原状态对象随即被清空）。ping 缓冲不保存 ——
    * 它只是模糊的中间结果，下次重建时可以重新分配。
-   *
-   * @param {object} builtEntry 刚烘焙完成的楼层状态。
-   * @returns {void}
    */
   function storeCachedLayout(builtEntry) {
     if (!builtEntry.target || !builtEntry.contentKey) {
@@ -1435,9 +1354,7 @@ export function createContactShadowController({
    * 先把当前状态存回缓存（交换语义）：调用方通常在「内容即将变化」时调用它，
    * 当前这份结果对之后仍可能有用，不该白白丢弃。
    *
-   * @param {object} restoredEntry 目标楼层状态。
    * @param {string} contentKey 目标内容签名。
-   * @returns {boolean} 命中并恢复成功返回 true；没有缓存返回 false。
    */
   function restoreCachedLayout(restoredEntry, contentKey) {
     const restoreKey = JSON.stringify([restoredEntry.id, contentKey]);
@@ -1474,7 +1391,6 @@ export function createContactShadowController({
    *
    * @param {Set<string>|Map<string, *>} protectedIds 必须保留的楼层 ID 集合
    *   （本次重建涉及的楼层）。
-   * @returns {void}
    */
   function evictCaches(protectedIds) {
     const evictionCandidates = [...floorStatesById.values()]
@@ -1520,8 +1436,6 @@ export function createContactShadowController({
    * 调用方每帧调一次，函数自己决定「这帧要不要干活」：没有待办就直接返回。
    * 增量模式下每帧最多烘 1 个楼层，剩下的塞回 pendingFloorIds 并再请求一帧，
    * 把烘焙开销摊到多帧，避免楼层切换时出现肉眼可见的卡顿。
-   *
-   * @returns {void}
    */
   function syncFloors() {
     if (isDisposed || isSuspended) {
@@ -1755,8 +1669,6 @@ export function createContactShadowController({
    *
    * 释放顺序：贴图 → 材质 → 共享几何 / 纹理由创建方负责。占位纹理与模糊四边形是
    * 控制器自己 new 的，必须一并 dispose，否则热重载时会留下泄漏。
-   *
-   * @returns {void}
    */
   function disposeAll() {
     if (!isDisposed) {
@@ -1797,9 +1709,6 @@ export function createContactShadowController({
      *
      * 楼层切换时用它把非当前楼层的浓度立刻清零，而不是等重建 ——
      * 这样即使该层还没烘好，也不会在画面上残留其他楼层的阴影。
-     *
-     * @param {string|number|null} floorIdInput 目标楼层 ID。
-     * @returns {void}
      */
     setVisibleFloor(floorIdInput) {
       const nextVisibleFloorId = floorIdInput == null ? null : String(floorIdInput);
@@ -1819,9 +1728,6 @@ export function createContactShadowController({
      * 注入楼层锚点帧提供者（返回该楼层当前世界矩阵的函数）。
      *
      * 换了提供者等于「锚点定义变了」，必须作废缓存重烘，不能沿用旧贴图。
-     *
-     * @param {function(string): object|null} provider 锚点帧提供者。
-     * @returns {void}
      */
     setFrameProvider(provider) {
       frameProvider = provider;

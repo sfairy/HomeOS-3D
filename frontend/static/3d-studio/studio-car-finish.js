@@ -69,9 +69,6 @@ const toGlslVec2 = uvPoint =>
  *
  * 做法是逐边做半平面判定再相乘（凸多边形内判定的常见写法），
  * 因此必须先统一环绕方向，否则不同朝向的多边形会得到相反的符号。
- *
- * @param {Array<Array<number>>} lens 多边形顶点（贴图像素坐标）。
- * @returns {string} 结果落在 0~1 的 GLSL 表达式。
  */
 const buildLensEdgeExpression = lens => {
   // 鞋带公式求带符号面积：为负说明是顺时针，反转后保证每条边的判定符号一致。
@@ -105,10 +102,6 @@ const buildLampGlowExpression = lampId =>
  * 车模常因 UV 或材质分组把同一位置拆成多个顶点，各自持有独立法线，
  * 渲染出来会有明显接缝。这里按位置聚类后做面积加权的法线平均，
  * 但只合并夹角在 50° 以内的邻居，以保住车身折角的硬边。
- *
- * @param {object} THREE three.js 模块命名空间。
- * @param {object} geometry 原始几何（不会被修改）。
- * @returns {object} 新的几何；顶点属性不满足要求时原样返回入参。
  */
 export function smoothCarSurfaceNormals(THREE, geometry) {
   const positionAttribute = geometry?.attributes?.position;
@@ -195,11 +188,6 @@ export function smoothCarSurfaceNormals(THREE, geometry) {
  * 已注入过（userData.hbCarFinish）或不是标准材质的对象直接原样返回。
  * 注入的内容包括：把物件坐标传给片元着色器、用贴图 UV 判定玻璃与车灯区域，
  * 再按高度与视线方向叠加天光反射与灯带自发光。
- *
- * @param {object} material 车身材质。
- * @param {object} [options] 选项。
- * @param {boolean} [options.pearlWhite=false] 是否套用珠光白漆（暖阳原木主题用）。
- * @returns {object} 同一个材质对象（可能已被改写）。
  */
 export function applyCarFinish(material, { pearlWhite = false } = {}) {
   if (!material?.isMeshStandardMaterial || material.userData.hbCarFinish) {

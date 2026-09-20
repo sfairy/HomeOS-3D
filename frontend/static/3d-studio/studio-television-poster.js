@@ -10,10 +10,6 @@
 
 /**
  * 在给定 2D 上下文上绘制待机海报。
- *
- * @param {{width: number, height: number}} canvasSize 目标画布尺寸（真实像素）。
- * @param {CanvasRenderingContext2D} context 目标绘制上下文。
- * @returns {void}
  */
 export function drawTelevisionPoster(canvasSize, context) {
   // 先 save 再改缩放与文本对齐，函数结束 restore，保证不污染调用方的上下文状态。

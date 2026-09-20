@@ -16,9 +16,6 @@ let openController = null;
 
 /**
  * 收起指定的下拉框（默认收起当前展开的那个）。
- *
- * @param {object} [targetController] 控制器记录；为空时不做事。
- * @returns {void}
  */
 function closeStudioSelect(targetController = openController) {
   if (targetController) {
@@ -34,9 +31,6 @@ function closeStudioSelect(targetController = openController) {
 
 /**
  * 把原生 select 的当前状态同步到自定义控件上。
- *
- * @param {HTMLSelectElement} selectElement 原生下拉框。
- * @returns {void}
  */
 export function syncStudioSelect(selectElement) {
   const selectController = controllersBySelect.get(selectElement);
@@ -97,9 +91,6 @@ export function syncStudioSelect(selectElement) {
 
 /**
  * 把单个原生 select 增强成自定义下拉框（幂等，重复调用不会重复包装）。
- *
- * @param {HTMLSelectElement} hostSelectElement 原生下拉框。
- * @returns {void}
  */
 export function enhanceStudioSelect(hostSelectElement) {
   if (!hostSelectElement || controllersBySelect.has(hostSelectElement)) {
@@ -166,9 +157,6 @@ export function enhanceStudioSelect(hostSelectElement) {
 
 /**
  * 增强根节点下所有原生下拉框，并注册全局的收起交互。
- *
- * @param {ParentNode} [rootElement] 搜索范围，默认为整个文档。
- * @returns {void}
  */
 export function initializeStudioSelects(rootElement = document) {
   for (const discoveredSelect of rootElement.querySelectorAll("select")) {
@@ -198,10 +186,6 @@ export function initializeStudioSelects(rootElement = document) {
  * 同步步进按钮的禁用态。
  *
  * 只读输入框同样要禁用步进按钮：stepUp / stepDown 对 readonly 无效，留着按钮会点了没反应。
- *
- * @param {HTMLInputElement} stepperInput 数字输入框。
- * @param {Array<HTMLButtonElement>} stepperButtons 步进按钮。
- * @returns {void}
  */
 function syncStepperButtonsDisabled(stepperInput, stepperButtons) {
   const isStepperDisabled = stepperInput.disabled || stepperInput.readOnly;
@@ -213,9 +197,6 @@ function syncStepperButtonsDisabled(stepperInput, stepperButtons) {
 
 /**
  * 给数字输入框加上下步进按钮（幂等）。
- *
- * @param {HTMLInputElement} numberInput 数字输入框。
- * @returns {void}
  */
 export function enhanceNumberInput(numberInput) {
   if (!numberInput || numberInput.closest(".number-stepper")) {
@@ -341,9 +322,6 @@ export function enhanceNumberInput(numberInput) {
 
 /**
  * 增强容器内所有数字输入框。
- *
- * @param {ParentNode} [containerElement] 搜索范围，默认为整个文档。
- * @returns {void}
  */
 export function initializeNumberInputs(containerElement = document) {
   for (const numberInputElement of containerElement.querySelectorAll('input[type="number"]')) {

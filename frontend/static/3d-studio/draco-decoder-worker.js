@@ -76,11 +76,6 @@ self.onmessage = event => {
 
 /**
  * 加载并初始化 Draco 解码模块。
- *
- * @param {object} options 初始化参数。
- * @param {string} options.decoderPath 解码器资源目录（以 / 结尾的绝对路径）。
- * @param {object} [options.decoderConfig] 透传给 DRACOLoader 的解码器配置。
- * @returns {Promise<{draco: object}>} 就绪的 Draco 模块命名空间。
  */
 function initializeDecoder(options) {
   const decoderPath = String(options.decoderPath || "");
@@ -132,11 +127,7 @@ function initializeDecoder(options) {
 /**
  * 把一段 Draco 压缩数据解成 three.js 的几何数据。
  *
- * @param {object} draco Draco 模块命名空间，提供类型常量与 destroy。
- * @param {object} decoder Draco 解码器实例。
- * @param {Int8Array} encodedData 待解码的二进制数据。
  * @param {object} taskConfig DRACOLoader 下发的任务配置（属性 id / 类型 / 唯一 id 开关等）。
- * @returns {{index: object|null, attributes: Array<object>}} 几何数据；点云没有 index。
  * @throws {Error} 几何类型未知或解码失败。
  */
 function decodeGeometry(draco, decoder, encodedData, taskConfig) {
@@ -210,11 +201,6 @@ function decodeGeometry(draco, decoder, encodedData, taskConfig) {
  *
  * Draco 的索引固定为 32 位；这里在 WASM 堆上分配临时缓冲，
  * 读出后立刻 slice 成独立数组再释放，避免返回的视图指向已回收的堆内存。
- *
- * @param {object} dracoLib Draco 模块命名空间（提供 _malloc / _free 与 HEAPF32）。
- * @param {object} meshDecoder Draco 解码器实例。
- * @param {object} mesh 已解码的网格。
- * @returns {{array: Uint32Array, itemSize: number}} 索引数据。
  */
 function decodeIndex(dracoLib, meshDecoder, mesh) {
   const indexCount = mesh.num_faces() * 3;
@@ -232,15 +218,6 @@ function decodeIndex(dracoLib, meshDecoder, mesh) {
 
 /**
  * 解出一个顶点属性。
- *
- * @param {object} dracoApi Draco 模块命名空间。
- * @param {object} attributeDecoder Draco 解码器实例。
- * @param {object} meshOrPointCloud 已解码的网格或点云。
- * @param {string} attributeName 属性名（POSITION / NORMAL / COLOR_0 ...）。
- * @param {Function} arrayType 目标定型数组构造函数。
- * @param {object} sourceAttribute Draco 侧的属性句柄。
- * @returns {{name: string, count: number, itemSize: number, array: object, stride: number}}
- *   属性数据；stride 为补齐后的每顶点分量数。
  */
 function decodeAttribute(
   dracoApi,
@@ -306,9 +283,6 @@ function decodeAttribute(
 /**
  * 把 JS 定型数组类型映射到 Draco 的数据类型常量。
  *
- * @param {object} dracoNamespace Draco 模块命名空间。
- * @param {Function} arrayConstructor 定型数组构造函数。
- * @returns {number} Draco 的 DT_* 常量。
  * @throws {Error} 遇到不支持的数组类型。
  */
 function getDracoDataType(dracoNamespace, arrayConstructor) {

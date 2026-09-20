@@ -14,9 +14,6 @@ import { DRACOLoader } from "/static/vendor/three/0.182.0/DRACOLoader.js?v=20260
 
 /**
  * 把 Worker 启动失败的原因包装成带中文兜底文案的 Error。
- *
- * @param {Error|Event|*} cause 原始错误对象或错误事件。
- * @returns {Error} 归一化后的错误。
  */
 function normalizeWorkerError(cause) {
   // Worker / 事件对象上的 message 可能为空，此时用中文文案兜底，避免抛出空错误难以排查。
@@ -32,8 +29,6 @@ function normalizeWorkerError(cause) {
  */
 export class SameOriginDRACOLoader extends DRACOLoader {
   /**
-   * @param {string} workerUrl 同源 Worker 脚本地址（draco-decoder-worker.js）。
-   * @param {string} decoderPath Draco 解码器资源目录，透传给基类，最终由 Worker 使用。
    */
   constructor(workerUrl, decoderPath) {
     super(decoderPath);
@@ -45,8 +40,6 @@ export class SameOriginDRACOLoader extends DRACOLoader {
    *
    * 返回一个已 resolve 的 Promise 告诉基类「解码器已就绪」，
    * 真正的 WASM 加载发生在 Worker 内部收到 init 消息之后。
-   *
-   * @returns {Promise<void>} 恒为已完成状态。
    */
   _initDecoder() {
     if (this.sameOriginWorkerUrl) {
@@ -61,10 +54,6 @@ export class SameOriginDRACOLoader extends DRACOLoader {
 
   /**
    * 从 Worker 池中取出一个可用 Worker，必要时新建。
-   *
-   * @param {number} taskId 任务 id，回包时原样带回用于匹配回调。
-   * @param {number} taskCost 任务预估开销，用于挑选负载最低的 Worker。
-   * @returns {Promise<Worker>} 已挂好回调、可就绪接收任务的 Worker。
    */
   _getWorker(taskId, taskCost) {
     if (this.sameOriginWorkerUrl) {

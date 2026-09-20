@@ -22,8 +22,6 @@ const COS_MAX_POLAR_ANGLE = Math.cos(MAX_CAMERA_POLAR_ANGLE);
  * 返回 true 表示位置被改动过，调用方据此决定是否需要重新渲染。
  * 未越界时完全不碰传入向量（保留原始浮点值），避免每帧累积舍入误差造成视角漂移。
  *
- * @param {{x: number, y: number, z: number}} cameraPosition 相机位置，就地修改。
- * @param {{x: number, y: number, z: number}} orbitTarget 轨道中心（相机注视点）。
  * @returns {boolean} 位置被修改过返回 true，否则 false。
  */
 export function constrainCameraPosition(cameraPosition, orbitTarget) {
@@ -61,11 +59,6 @@ export function constrainCameraPosition(cameraPosition, orbitTarget) {
 
 /**
  * 钳制一份「位置 + 注视点」形式的相机姿态。
- *
- * @param {{position: Array<number>, target: Array<number>}} pose 相机姿态，
- *   position 与 target 均为 [x, y, z]，单位为米。
- * @returns {{position: Array<number>, target: Array<number>}} 新姿态；
- *   未越界时原样返回入参，便于调用方用引用相等判断「无需更新」。
  */
 export function constrainCameraPose(pose) {
   if (!pose) {

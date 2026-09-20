@@ -54,9 +54,6 @@ const featureWallStyleSet = new Set(FEATURE_WALL_STYLES);
 
 /**
  * 归一化挂画风格，非法值回落到第一个风格。
- *
- * @param {*} styleValue 原始风格值。
- * @returns {string} 合法的风格名。
  */
 export function normalizeMuralArtStyle(styleValue) {
   return muralArtStyleSet.has(styleValue) ? styleValue : MURAL_ART_STYLES[0];
@@ -64,9 +61,6 @@ export function normalizeMuralArtStyle(styleValue) {
 
 /**
  * 归一化背景墙饰面风格，非法值回落到第一个风格。
- *
- * @param {*} styleValue 原始风格值。
- * @returns {string} 合法的风格名。
  */
 export function normalizeFeatureWallStyle(styleValue) {
   return featureWallStyleSet.has(styleValue) ? styleValue : FEATURE_WALL_STYLES[0];
@@ -74,9 +68,6 @@ export function normalizeFeatureWallStyle(styleValue) {
 
 /**
  * 确定性伪随机数源。
- *
- * @param {number} seed 种子。
- * @returns {function(): number} 返回 [0, 1) 随机数的函数。
  */
 function seededRandomSource(seed) {
   let randomSeed = seed >>> 0;
@@ -90,10 +81,6 @@ function seededRandomSource(seed) {
 
 /**
  * 按系数调整颜色明度。
- *
- * @param {number} hexColor 24 位 RGB 整数。
- * @param {number} factor 明度系数，大于 1 变亮、小于 1 变暗。
- * @returns {string} CSS rgb() 字符串；各通道夹在 0~255。
  */
 function shadeColor(hexColor, factor) {
   const red = Math.min(255, Math.max(0, Math.round(((hexColor >> 16) & 255) * factor)));
@@ -107,10 +94,6 @@ function shadeColor(hexColor, factor) {
  *
  * 直接连线会得到明显的折线感；这里以相邻点的中点为锚、
  * 采样点本身为控制点做二次贝塞尔，让石纹与木纹看起来是自然生长的。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {Array<{x: number, y: number}>} points 采样点。
- * @returns {void}
  */
 function strokeSmoothPath(canvasCtx, points) {
   if (points.length < 2) {
@@ -132,11 +115,6 @@ function strokeSmoothPath(canvasCtx, points) {
 
 /**
  * 包豪斯风格挂画：几何色块 + 一条手绘曲线 + 右侧刻度短线。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintMuralBauhaus(canvasCtx, width, height) {
   const muralBase = canvasCtx.createLinearGradient(0, 0, width, height);
@@ -199,11 +177,6 @@ function paintMuralBauhaus(canvasCtx, width, height) {
  * 色域风格挂画：几块大面积的半透明圆角色块叠在竖向浅色条带上。
  *
  * 圆角半径由随机数决定，让每块色域的柔和程度略有差别。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintMuralColorField(canvasCtx, width, height) {
   const colorFieldRandom = seededRandomSource(74123);
@@ -242,11 +215,6 @@ function paintMuralColorField(canvasCtx, width, height) {
 
 /**
  * 线条风格挂画：46 条随机长度与透明度的斜线，加一段深蓝圆弧与红点、一条水平参考线。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintMuralLinework(canvasCtx, width, height) {
   const lineworkRandom = seededRandomSource(90211);
@@ -284,11 +252,6 @@ function paintMuralLinework(canvasCtx, width, height) {
 
 /**
  * 色块风格挂画：四列自下而上堆叠的矩形色块，列间留竖向浅色缝。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintMuralBlocks(canvasCtx, width, height) {
   const blocksRandom = seededRandomSource(31577);
@@ -329,11 +292,6 @@ function paintMuralBlocks(canvasCtx, width, height) {
 
 /**
  * 水墨风格挂画：14 团径向渐变的墨晕 + 一条黑色笔触 + 一道红色横笔与朱点。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintMuralInk(canvasCtx, width, height) {
   const inkRandom = seededRandomSource(60413);
@@ -401,11 +359,6 @@ function paintMuralInk(canvasCtx, width, height) {
 
 /**
  * 水磨石风格挂画：340 颗随机旋转的多边形石粒，叠两段粗圆弧与一块浅色遮盖圆。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintMuralTerrazzo(canvasCtx, width, height) {
   const terrazzoRandom = seededRandomSource(52019);
@@ -469,11 +422,6 @@ const muralArtTextures = new Map();
 
 /**
  * 生成（或取回缓存的）挂画贴图。
- *
- * @param {object} threeApi three.js 模块命名空间。
- * @param {string} styleValue 风格值。
- * @param {number} [maxAnisotropy] 渲染器支持的最大各向异性过滤级别。
- * @returns {object|null} 贴图；取不到 2D 上下文时返回 null。
  */
 export function createMuralArtTexture(threeApi, styleValue, maxAnisotropy = 1) {
   const muralStyle = normalizeMuralArtStyle(styleValue);
@@ -501,11 +449,6 @@ export function createMuralArtTexture(threeApi, styleValue, maxAnisotropy = 1) {
 
 /**
  * 大理石饰面：白底 + 柔和的云斑 + 9 条粗黑纹 + 46 条细纹 + 明暗噪点。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintFeatureWallMarble(canvasCtx, width, height) {
   const marbleRandom = seededRandomSource(88117);
@@ -584,11 +527,6 @@ function paintFeatureWallMarble(canvasCtx, width, height) {
 
 /**
  * 木饰面：四块竖向拼板，每块带横向渐变的底色、120 条木纹与若干年轮节疤。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintFeatureWallWood(canvasCtx, width, height) {
   const woodRandom = seededRandomSource(45119);
@@ -663,11 +601,6 @@ function paintFeatureWallWood(canvasCtx, width, height) {
 
 /**
  * 木格栅饰面：深色凹槽底 + 等距竖条，竖条中间有一条高光细线。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintFeatureWallSlat(canvasCtx, width, height) {
   const slatRandom = seededRandomSource(70841);
@@ -705,11 +638,6 @@ function paintFeatureWallSlat(canvasCtx, width, height) {
 
 /**
  * 石材墙面：3×2 块板材，每块在基准色上做明度浮动，并叠加云斑、细纹与白色噪点。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintFeatureWallStone(canvasCtx, width, height) {
   const stoneRandom = seededRandomSource(25309);
@@ -780,11 +708,6 @@ function paintFeatureWallStone(canvasCtx, width, height) {
 
 /**
  * 清水混凝土饰面：中性灰底 + 34 团云斑 + 16 道抹刀弧痕 + 两层噪点。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintFeatureWallConcrete(canvasCtx, width, height) {
   const concreteRandom = seededRandomSource(13627);
@@ -852,11 +775,6 @@ function paintFeatureWallConcrete(canvasCtx, width, height) {
  * 织物饰面：底色 + 22 团柔斑 + 3 像素间距的经纬织纹 + 90 道横向竹节纱。
  *
  * 织纹用奇偶列 / 行交替的明暗线模拟平纹织物，间距 3 像素是像素与观感的折中。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintFeatureWallFabric(canvasCtx, width, height) {
   const fabricRandom = seededRandomSource(38971);
@@ -910,11 +828,6 @@ function paintFeatureWallFabric(canvasCtx, width, height) {
 
 /**
  * 金属饰面：多段竖向灰度渐变模拟反射 + 900 道拉丝 + 12 道高光条。
- *
- * @param {CanvasRenderingContext2D} canvasCtx 目标上下文。
- * @param {number} width 画布宽（像素）。
- * @param {number} height 画布高（像素）。
- * @returns {void}
  */
 function paintFeatureWallMetal(canvasCtx, width, height) {
   const metalRandom = seededRandomSource(19237);
@@ -971,11 +884,6 @@ const featureWallTextures = new Map();
 
 /**
  * 生成（或取回缓存的）背景墙饰面贴图。
- *
- * @param {object} threeApi three.js 模块命名空间。
- * @param {string} styleValue 饰面风格值。
- * @param {number} [maxAnisotropy] 渲染器支持的最大各向异性过滤级别。
- * @returns {object|null} 贴图；取不到 2D 上下文时返回 null。
  */
 export function createFeatureWallTexture(threeApi, styleValue, maxAnisotropy = 1) {
   const wallStyle = normalizeFeatureWallStyle(styleValue);

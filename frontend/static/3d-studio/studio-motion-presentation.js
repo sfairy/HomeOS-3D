@@ -11,13 +11,6 @@
 
 /**
  * 创建运动呈现控制器。
- *
- * @param {object} options 依赖注入。
- * @param {function(boolean): void} options.reflections 反射开关回调参数为「是否挂起反射」。
- * @param {function(boolean): void} options.shadows 阴影开关回调参数为「是否处于运动态」。
- * @param {boolean} [options.liveCameraReflections] 镜头运动时是否保留实时反射，默认否。
- * @returns {{floor: function(boolean): void, camera: function(boolean, object=): void,
- *   advance: function(number): void}} 控制器实例。
  */
 export function createMotionPresentation({
   reflections: setReflections,

@@ -14,13 +14,6 @@
  * 计算窗户的玻璃与窗框部件。
  *
  * 尺寸非法（非有限数、宽或高不为正）时返回 null，调用方据此跳过该窗户的建模。
- *
- * @param {number} windowWidth 窗洞宽度（米），调用方已按墙长裁剪过。
- * @param {number} windowHeight 窗洞高度（米），调用方已按剩余墙高裁剪过。
- * @param {number} sillHeight 窗台离地高度（米）。
- * @param {boolean} [allowDivided] 是否允许加中挺，默认允许。
- * @returns {{glass: Array<Array<number>>, frames: Array<Array<number>>, divided: boolean}|null}
- *   玻璃与窗框的部件表，以及是否生成了中挺。
  */
 export function windowGeometryParts(windowWidth, windowHeight, sillHeight, allowDivided = true) {
   // NaN / Infinity 会在几何体里静默产出畸形网格，这里统一拦掉并回落到不建模。

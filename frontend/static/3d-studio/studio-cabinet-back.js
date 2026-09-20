@@ -16,11 +16,6 @@
  * 原模型导出的背板常常比外框小一圈（或位置偏内），从背面看会露出缝隙。
  * 这里以「外框与背板两者在面板局部空间里的包围盒」为准重建一块整板：
  * 宽高对齐外框，进深从面板前表面一直延伸到最深处的 4 毫米之外。
- *
- * @param {object} THREE three.js 模块命名空间。
- * @param {object} root 模型根节点。
- * @param {string} [cabinetKind] 柜体类型前缀，决定材质名与背板序号，默认 glasscabinet。
- * @returns {boolean} 找到并修补成功返回 true；缺件时返回 false 表示不做修改。
  */
 export function repairGlassCabinetBack(THREE, root, cabinetKind = "glasscabinet") {
   // 包围盒要用世界矩阵换算，先强制刷新一次矩阵，避免用到上一帧的陈旧变换。
@@ -92,10 +87,6 @@ export function repairGlassCabinetBack(THREE, root, cabinetKind = "glasscabinet"
  *
  * 先 toNonIndexed 转成非索引形式再拼接：索引形式合并时需要重算索引偏移，
  * 合并后顶点数不多，牺牲一点顶点重复换取实现简单与绘制批次更少。
- *
- * @param {object} three three.js 模块命名空间。
- * @param {Array<Array<number>>} boxes 每项为 [宽, 高, 深, 偏移X, 偏移Y, 偏移Z]。
- * @returns {object} 合并后的 BufferGeometry（含 position / normal / uv）。
  */
 function buildBoxGeometry(three, boxes) {
   const positions = [];
@@ -128,10 +119,6 @@ function buildBoxGeometry(three, boxes) {
  * 导入模型的三种材质被贴到了错误的板块上，导致柜体侧面漏空、顶板变成一块悬空的板。
  * 这里按外框的包围盒反推正确的板材位置，把三块板各自替换成若干块盒体的合并几何：
  * 侧板拆成左右两片加顶部封条，顶板拆成上下两片，左板改成背板。
- *
- * @param {object} threeLib three.js 模块命名空间。
- * @param {object} meshRoot 模型根节点。
- * @returns {boolean} 三个部件齐全时返回 true；缺件时返回 false 且不做修改。
  */
 export function repairWallCabinetSides(threeLib, meshRoot) {
   // 材质名到网格的映射：吊柜每个部件用独立材质，名字唯一，可以据此定位。

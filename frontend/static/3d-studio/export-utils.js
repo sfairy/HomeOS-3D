@@ -21,11 +21,6 @@ export const EXPORT_IMAGE_QUALITY = 0.95;
 
 /**
  * 把预设尺寸按渲染倍率换算成实际像素尺寸。
- *
- * @param {number} width 预设宽度（像素）。
- * @param {number} height 预设高度（像素）。
- * @param {number} [scale] 渲染倍率，非法或非正时回落到 EXPORT_RENDER_SCALE。
- * @returns {{width: number, height: number}} 至少 1 像素的实际渲染尺寸。
  */
 export function scaledExportResolution(width, height, scale = EXPORT_RENDER_SCALE) {
   // 倍率为 0 / NaN 时不能直接乘，否则会得到 0 尺寸的画布。
@@ -41,9 +36,6 @@ export function scaledExportResolution(width, height, scale = EXPORT_RENDER_SCAL
  *
  * 采用标准的反转多项式算法，把多项式 0xEDB88320 写成 -306674912 是为了避免
  * 有符号位移在 JS 里被提升成 32 位溢出；初始值与收尾异或均按规范取 0xFFFFFFFF。
- *
- * @param {Uint8Array} bytes 待校验的字节。
- * @returns {number} 无符号 32 位校验和。
  */
 function crc32(bytes) {
   let checksum = 4294967295;
@@ -58,11 +50,6 @@ function crc32(bytes) {
 
 /**
  * 写入一个小端 16 位整数。
- *
- * @param {DataView} view 目标视图。
- * @param {number} offset 字节偏移。
- * @param {number} value 写入值。
- * @returns {void}
  */
 function writeUint16LE(view, offset, value) {
   view.setUint16(offset, value, true);
@@ -70,11 +57,6 @@ function writeUint16LE(view, offset, value) {
 
 /**
  * 写入一个小端 32 位无符号整数。
- *
- * @param {DataView} dataView 目标视图。
- * @param {number} byteOffset 字节偏移。
- * @param {number} int32Value 写入值，内部转成无符号。
- * @returns {void}
  */
 function writeUint32LE(dataView, byteOffset, int32Value) {
   dataView.setUint32(byteOffset, int32Value >>> 0, true);
@@ -82,9 +64,6 @@ function writeUint32LE(dataView, byteOffset, int32Value) {
 
 /**
  * 把多段字节拼成一段。
- *
- * @param {Array<Uint8Array>} chunks 待拼接的片段。
- * @returns {Uint8Array} 拼接结果。
  */
 function concatChunks(chunks) {
   const totalLength = chunks.reduce((chunkTotal, chunk) => chunkTotal + chunk.length, 0);
@@ -103,9 +82,6 @@ function concatChunks(chunks) {
  * 导出内容基本都是已经压过的图片，再走一次 deflate 收益极小，却要额外引入压缩实现，
  * 因此这里牺牲体积换实现简单与打包速度。
  * 各段偏移按 ZIP 规范手工写入：本地文件头 → 文件数据 → 中央目录 → 中央目录结束记录。
- *
- * @param {Array<{name: string, data: Uint8Array|ArrayBuffer}>} entries 待打包条目。
- * @returns {Uint8Array} 完整 ZIP 字节流。
  */
 export function buildStoredZip(entries) {
   const localParts = [];
@@ -192,9 +168,6 @@ export function buildStoredZip(entries) {
  * 判据：亮度差不超过 1.5（Rec.709 加权，阈值低于人眼在 8 位色深下的分辨力）
  * 且 alpha 差不超过 1/255 时视为未变化，直接留空。
  *
- * @param {Uint8ClampedArray} basePixels 基础图层 RGBA 像素。
- * @param {Uint8ClampedArray} litPixels 开灯后图层 RGBA 像素。
- * @returns {Uint8ClampedArray} 增量图层 RGBA 像素，未变化处 alpha 为 0。
  * @throws {Error} 两帧尺寸不一致（调用方多半是渲染分辨率没对齐）。
  */
 export function buildLightDeltaPixels(basePixels, litPixels) {

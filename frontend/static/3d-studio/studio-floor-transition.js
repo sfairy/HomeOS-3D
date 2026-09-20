@@ -33,9 +33,6 @@ export function createFloorTransition({
 
   /**
    * 把矩阵拆成 position / quaternion / scale。
-   *
-   * @param {object} matrix 待拆解的 Matrix4。
-   * @returns {{position: object, quaternion: object, scale: object}} 三个可复用的分量对象。
    */
   const decomposeMatrix = matrix => {
     // 三个向量各复用一个实例，避免每帧为每个楼层分配新对象。
@@ -52,11 +49,6 @@ export function createFloorTransition({
 
   /**
    * 捕捉待过渡的楼层：为每层建一个包装 Group 并把该层的根对象托管进去。
-   *
-   * @param {string[]} captureFloorIds 需要捕捉的楼层 ID。
-   * @param {function(string): object} getBaseFrame 取某层基准帧（层内坐标系到世界坐标系的基准矩阵）。
-   * @param {boolean} groupByFloorId 是否按 floorId 筛选根对象；false 表示把根下所有对象都收进第一层。
-   * @returns {object[]} 楼层记录列表。
    */
   function captureFloors(captureFloorIds, getBaseFrame, groupByFloorId) {
     const rootObject = getRootObject();
@@ -128,9 +120,6 @@ export function createFloorTransition({
 
   /**
    * 算出一层楼当前的「层内坐标系到世界」的实际帧：包装 Group 的矩阵乘基准帧。
-   *
-   * @param {object} capturedRecord 楼层记录。
-   * @returns {object} 世界矩阵的副本。
    */
   function computeRecordFrame(capturedRecord) {
     capturedRecord.node.updateMatrix();
@@ -139,9 +128,6 @@ export function createFloorTransition({
 
   /**
    * 把地面层材质还原成原始材质，并释放过渡期间用的克隆体。
-   *
-   * @param {object} floorRecord 楼层记录。
-   * @returns {void}
    */
   function restoreGroundMaterials(floorRecord) {
     for (const groundEntry of floorRecord.ground) {
@@ -156,10 +142,6 @@ export function createFloorTransition({
 
   /**
    * 把一层楼从过渡状态里摘掉。
-   *
-   * @param {object} leavingRecord 待摘除的楼层记录。
-   * @param {boolean} [shouldDispose] 是否允许调用方接管（release 返回 true）后不销毁。
-   * @returns {void}
    */
   function detachRecord(leavingRecord, shouldDispose = true) {
     restoreGroundMaterials(leavingRecord);
@@ -172,10 +154,6 @@ export function createFloorTransition({
   }
   /**
    * 复用上一轮过渡留下的楼层包装：把里面的内容取出并挂回根节点。
-   *
-   * @param {object} cachedRecord 缓存的楼层记录。
-   * @param {object} targetFrame 目标世界帧（既有的楼层帧）。
-   * @returns {object} 复用的节点（可能是原包装里的子节点，也可能是新建的 Group）。
    */
   function reuseRecord(cachedRecord, targetFrame) {
     restoreGroundMaterials(cachedRecord);
@@ -205,11 +183,6 @@ export function createFloorTransition({
   }
   /**
    * 取出待过渡的楼层记录：已有过渡在跑就沿用当前记录，否则现捕捉一份。
-   *
-   * @param {string[]} takeFloorIds 楼层 ID。
-   * @param {function(string): object} resolveBaseFrame 取基准帧。
-   * @param {boolean} takeGroupByFloorId 是否按 floorId 分组。
-   * @returns {object[]} 楼层记录，且已从场景根上摘下（世界帧快照存在 record.frame）。
    */
   function takeRecords(takeFloorIds, resolveBaseFrame, takeGroupByFloorId) {
     // 过渡期间立刻暂停反射：反射探针采到的中间态会污染反射贴图。
@@ -231,15 +204,6 @@ export function createFloorTransition({
   }
   /**
    * 编排一次楼层过渡：给每个楼层算出起点帧、终点帧与淡出目标。
-   *
-   * @param {object[]} previousRecords 上一批楼层记录（可能为空）。
-   * @param {object[]} nextRecords 本次要展示的楼层记录。
-   * @param {string[]} floorOrder 楼层自下而上的顺序，决定动画中的相对位移方向。
-   * @param {number} floorSpread 相邻楼层的参考间距（米）。
-   * @param {boolean} [isScrollTransition] 是否为连续滚动模式（楼层排成一条链）。
-   * @param {object} [scrollAxis] 滚动轴；省略时默认 Y 轴向上。
-   * @param {string} [targetFloorId] 本次要聚焦的楼层 ID。
-   * @returns {void}
    */
   function beginTransition(
     previousRecords,
@@ -285,10 +249,6 @@ export function createFloorTransition({
 
     /**
      * 把一帧沿楼层顺序方向平移若干「层距」。
-     *
-     * @param {object} frameMatrix 起始世界帧。
-     * @param {number} stepDelta 相对层数（可为小数）。
-     * @returns {object} 平移后的新矩阵。
      */
     const offsetFrameBySteps = (frameMatrix, stepDelta) => {
       const offsetFrame = frameMatrix.clone();
@@ -408,8 +368,6 @@ export function createFloorTransition({
   }
   /**
    * 结束过渡：把保留的楼层解包回场景根，其余楼层摘除。
-   *
-   * @returns {void}
    */
   function finishTransition() {
     if (!isTransitionActive && !activeRecords.length) {
@@ -447,9 +405,6 @@ export function createFloorTransition({
 
   /**
    * 把「相机描述」转成视图矩阵。
-   *
-   * @param {object} cameraDescriptor 含 position、target、up（默认 Y 轴向上）。
-   * @returns {object} 视图矩阵（世界 → 相机）。
    */
   const computeCameraFrame = cameraDescriptor => {
     const cameraPosition = new three.Vector3().fromArray(cameraDescriptor.position);
@@ -468,11 +423,6 @@ export function createFloorTransition({
    * 为什么要预计算：过渡期间每帧都要把楼层摆到「屏幕上某个位置」，
    * 而把世界坐标换算成屏幕坐标需要相机矩阵与投影参数；这些在同一段过渡里
    * 只在起止两次取值（中间按 progress 插值），提前算完能省下每层的重复计算。
-   *
-   * @param {object} fromCameraSpec 起始相机描述。
-   * @param {object} toCameraSpec 结束相机描述。
-   * @param {object|null} [projections] 起止投影参数（含 height / weight / distance）。
-   * @returns {void}
    */
   function prepareSlideCameras(fromCameraSpec, toCameraSpec, projections = null) {
     if (assemblyState && projections) {
@@ -680,10 +630,6 @@ export function createFloorTransition({
       new three.Matrix4().makeTranslation(0, offsetY, 0).multiply(baseSlideFrame);
     /**
      * 深入换算：给定纵深，求该处「世界单位 → 屏幕半高比例」的缩放系数。
-     *
-     * @param {object} slideProjection 投影参数。
-     * @param {number} worldZ 相机空间 z（负值在前方）。
-     * @returns {number} 缩放系数，下限 0.001 防止除零。
      */
     const projectedScaleAtZ = (slideProjection, worldZ) =>
       Math.max(
@@ -887,10 +833,6 @@ export function createFloorTransition({
    *
    * 与内部同名逻辑的区别是入参是一个「投影参数对象」而不是矩阵，
    * 供外部（导出、相机适配）复用同一套公式。
-   *
-   * @param {object} projectionSpec 含 height（可视高度）、weight（透视权重）、distance（参考距离）。
-   * @param {number} depthValue 相机空间纵深。
-   * @returns {number} 缩放系数，下限 0.001 防止除零。
    */
   function projectedScaleAtDepth(projectionSpec, depthValue) {
     return Math.max(
@@ -907,11 +849,6 @@ export function createFloorTransition({
 
   /**
    * 采样过渡的第 progressRatio 帧，把每层楼摆到该时刻应有的位置。
-   *
-   * @param {number} progressRatio 进度，0 到 1（内部会夹紧）。
-   * @param {object|null} [cameraSpec] 该帧的相机描述；屏幕对齐类动画需要它。
-   * @param {object|null} [projectionParams] 该帧的投影参数；省略时按 slideState 的起止值插值。
-   * @returns {void}
    */
   function sampleTransition(progressRatio, cameraSpec = null, projectionParams = null) {
     if (!isTransitionActive) {

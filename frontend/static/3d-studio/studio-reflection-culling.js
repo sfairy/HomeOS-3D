@@ -13,12 +13,6 @@
 
 /**
  * 创建一套反射剔除器（每个反射控制器一份，内部状态可跨帧复用）。
- *
- * @param {object} THREE three.js 模块命名空间。
- * @returns {{reset: function(): void, add: function(object, boolean=): void,
- *   begin: function(object, object): boolean, restore: function(): void,
- *   stats: {tested: number, culled: number, skippedCaptures: number}}}
- *   剔除器实例；begin 返回 false 表示该次反射可以整帧跳过。
  */
 export function createReflectionCulling(THREE) {
   // 三种缓存都用 WeakMap：网格被回收后缓存自动失效，不会随场景编辑无限增长。
@@ -47,9 +41,6 @@ export function createReflectionCulling(THREE) {
 
   /**
    * 取几何的局部包围盒，属性变化时自动重算。
-   *
-   * @param {object} geometry 目标几何。
-   * @returns {object|null} 局部包围盒。
    */
   function getGeometryBounds(geometry) {
     const positionAttribute = geometry.attributes.position;
@@ -73,9 +64,6 @@ export function createReflectionCulling(THREE) {
 
   /**
    * 取网格的世界包围盒，几何或世界矩阵变化时重算。
-   *
-   * @param {object} mesh 目标网格。
-   * @returns {object|null} 世界包围盒；几何为空时返回 null。
    */
   function getWorldBounds(mesh) {
     const localBounds = getGeometryBounds(mesh.geometry);
@@ -109,8 +97,6 @@ export function createReflectionCulling(THREE) {
 
   /**
    * 清空候选列表并恢复上一轮被隐藏的网格。
-   *
-   * @returns {void}
    */
   function reset() {
     restore();
@@ -120,11 +106,6 @@ export function createReflectionCulling(THREE) {
 
   /**
    * 登记一个候选网格（只在满足剔除前提时才登记）。
-   *
-   * @param {object} candidateMesh 候选网格。
-   * @param {boolean} [skipShadowCasters] 是否跳过投影网格；地板反射模式下阴影不会出现在
-   *   镜像画面里，跳过它们可省下大量顶点处理。
-   * @returns {void}
    */
   function add(candidateMesh, skipShadowCasters = false) {
     // 只有「自带视锥剔除、无子节点、非骨骼 / 非实例化 / 无变形目标」的普通网格才安全：
@@ -179,8 +160,6 @@ export function createReflectionCulling(THREE) {
    * 再据此构造一个「只渲染这块矩形」的投影矩阵并做视锥剔除；
    * 这样既提高了有效分辨率，也顺带剔掉了大量与镜子无关的网格。
    *
-   * @param {{source: object, matrix: object, map: {width: number}}} capture 镜面捕获记录。
-   * @param {object} camera 已镜像过的相机。
    * @returns {boolean} 返回 false 表示镜面在贴图上完全不可见，整次反射可以跳过。
    */
   function begin(capture, camera) {
@@ -272,8 +251,6 @@ export function createReflectionCulling(THREE) {
 
   /**
    * 恢复所有被本轮剔除隐藏的网格。
-   *
-   * @returns {void}
    */
   function restore() {
     for (const hiddenMesh of hiddenMeshes) {

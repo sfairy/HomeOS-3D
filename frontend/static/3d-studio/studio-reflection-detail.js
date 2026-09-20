@@ -12,14 +12,6 @@
 
 /**
  * 创建反射细节层控制器。
- *
- * @param {object} options 依赖注入。
- * @param {object} options.THREE three.js 模块命名空间。
- * @param {function(): void} [options.requestFrame] 数据就绪后请求重绘的回调。
- * @param {function(): Worker} [options.makeWorker] Worker 工厂，默认按模块方式加载同目录的
- *   studio-reflection-detail-worker.js；注入以便在无 Worker 环境下测试。
- * @returns {{stats: object, prepare: function(object): void,
- *   get: function(object): (object|null), dispose: function(): void}} 控制器实例。
  */
 export function createReflectionDetail({
   THREE: THREE,
@@ -92,9 +84,6 @@ export function createReflectionDetail({
 
   /**
    * 释放某个源几何对应的记录（含简化后的几何）。
-   *
-   * @param {object} sourceGeometry 源几何。
-   * @returns {void}
    */
   function releaseRecord(sourceGeometry) {
     const existingRecord = recordByGeometry.get(sourceGeometry);
@@ -117,8 +106,6 @@ export function createReflectionDetail({
 
   /**
    * 保证 Worker 存在；创建失败则永久放弃这一功能。
-   *
-   * @returns {void}
    */
   function ensureWorker() {
     if (!worker && !isWorkerFailed) {
@@ -187,9 +174,6 @@ export function createReflectionDetail({
 
   /**
    * 扫描场景，把值得减面的网格提交给 Worker。
-   *
-   * @param {object} root 待扫描的场景根节点。
-   * @returns {void}
    */
   function prepare(root) {
     if (!isDisposed && !isWorkerFailed) {

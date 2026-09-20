@@ -24,13 +24,6 @@ function toPositiveNumber(value) {
  * 无法重排时（入参不是数组、不足两层、缺少 id、拖动项与目标项相同、id 找不到）
  * 原样返回入参，调用方可以直接用返回值覆盖状态，无需再做额外判断。
  * 若重排结果与原来完全一致，也返回原数组，便于调用方用引用相等判断「无需更新」。
- *
- * @param {Array<object>} floors 楼层列表，每项至少含 id 与 elevation。
- * @param {string} draggedFloorId 被拖动的楼层 id。
- * @param {string} targetFloorId 落点所在的楼层 id。
- * @param {boolean} [placeAfter] true 表示插到目标楼层之后，默认插到之前。
- * @param {number} [defaultFloorSpacing] 层间距（米），默认 3。
- * @returns {Array<object>} 新的楼层数组；未发生改动时返回原数组。
  */
 export function reorderFloors(
   floors,

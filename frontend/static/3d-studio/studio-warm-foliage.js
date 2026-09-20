@@ -19,11 +19,6 @@
  * 3) 以簇中心为原点把顶点相对坐标乘以 scale，再落回旋转后的位置。
  *
  * 注意：结果写在几何副本上，原几何与传入的法线都不改动。
- *
- * @param {object} geometry 原始几何（不会被修改）。
- * @param {Array<object>} materials 材质数组；按分组的 materialIndex 取名字判断是否为树叶。
- * @param {number} [scale=1.85] 放大倍数（只放大簇内相对坐标，簇中心不动）。
- * @returns {object} 放大后的新几何；没有树叶分组时原样返回入参。
  */
 export function enlargeWarmLeaves(geometry, materials, scale = 1.85) {
   const positionAttribute = geometry.attributes.position;

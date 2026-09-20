@@ -14,11 +14,6 @@
  *
  * 先在开洞自身中心建局部坐标（宽沿 X、深沿 Y，各取一半），
  * 再按 rotation 旋转并平移回开洞中心，最终得到世界平面坐标。
- *
- * @param {{x: number, y: number, width: number, depth: number, rotation: number}} opening
- *   开洞定义；x / y 是中心点，width / depth 是未缩放的尺寸，rotation 单位为度。
- * @param {number} scaleFactor 每米对应的平面像素数。
- * @returns {Array<{x: number, y: number}>} 四个角点，顺序为左上、右上、右下、左下。
  */
 export function floorOpeningPolygon(opening, scaleFactor) {
   // 设计图里的 rotation 是角度制，三角函数只认弧度，这里先换算一次供下面复用。

@@ -16,9 +16,6 @@ import { clampOptionalNumber } from "../utils/numbers.js?v=20260920080000";
 
 /**
  * 归一化窗帘轨道参数。
- *
- * @param {object} [inputOptions] 原始参数。
- * @returns {object} 归一化后的轨道参数；curtainFabric 只在取值合法时才出现在结果里。
  */
 export function normalizeCurtainTrack(inputOptions = {}) {
   return {
@@ -48,9 +45,6 @@ export function normalizeCurtainTrack(inputOptions = {}) {
  *
  * L / U 型轨道的回折段垂直于墙面伸出，所以进深要把最长的那段回折算进去，
  * 否则物件包围盒会偏小，导致贴墙摆放时穿过家具。
- *
- * @param {object} trackConfig 轨道参数。
- * @returns {number} 进深（米）。
  */
 export function curtainFootprintDepth(trackConfig) {
   const trackModel = normalizeCurtainTrack(trackConfig);
@@ -74,9 +68,6 @@ export function curtainFootprintDepth(trackConfig) {
  *
  * 顶点顺序即沿轨道的行走方向：先左回折（若有）、再主轨、最后右回折（若有）；
  * 拐角处用四分之一圆弧倒角过渡，帘布经过拐角时才不会突然折出一个直角。
- *
- * @param {object} [options] 轨道参数，另可传 width（主轨长度，米）。
- * @returns {object} 归一化参数 + width / length / vertices / sample(distance)。
  */
 export function createCurtainTrack(options = {}) {
   const normalizedTrack = normalizeCurtainTrack(options);
@@ -228,11 +219,6 @@ export function createCurtainTrack(options = {}) {
 
 /**
  * 计算两片帘布各自占据的轨道区间。
- *
- * @param {object} panelTrack createCurtainTrack 的结果。
- * @param {number} [previewPercent] 开合预览百分比，0 为完全闭合。
- * @param {string} [position] 帘布位置：left / right 为单侧，其余按 split 两侧处理。
- * @returns {Array<{visible: boolean, start: number, end: number}>} 两片帘布（左、右）的区间。
  */
 export function curtainPanelRanges(panelTrack, previewPercent = 0, position = "split") {
   // 预览开合按 0.88 的系数收缩而不是 1:1：即使拉到 100%，也要留一成多的帘布，
@@ -262,12 +248,6 @@ export function curtainPanelRanges(panelTrack, previewPercent = 0, position = "s
  *
  * 用 1×1 的平面细分出足够多的横向分段（每褶 8 段），供 poseTrackCloth 逐顶点摆出褶皱；
  * 顶点用量固定申请为动态更新，因为每次改开合 / 搭接都要重写整片顶点。
- *
- * @param {object} THREE three.js 模块命名空间。
- * @param {object} clothTrack 轨道参数（取长度算褶皱数）。
- * @param {number} clothHeight 帘布高度（米）。
- * @param {string} [fabric] 面料：sheer 为纱帘。
- * @returns {object} 帘布几何，褶皱参数挂在 userData.curtainCloth 上。
  */
 export function createTrackClothGeometry(THREE, clothTrack, clothHeight, fabric = "cloth") {
   // 褶皱数按轨道长度除以褶间距得出：纱帘 0.1 米一褶（更密），布帘 0.15 米；夹在 4~160 褶。
@@ -299,12 +279,6 @@ export function createTrackClothGeometry(THREE, clothTrack, clothHeight, fabric 
 
 /**
  * 按轨道姿态摆放一片帘布的顶点。
- *
- * @param {object} clothGeometry 帘布几何（由 createTrackClothGeometry 创建）。
- * @param {object} posedTrack 轨道参数（提供 sample 采样）。
- * @param {{start: number, end: number, side: number, split: boolean}} panel
- *   本片帘布的区间、左右侧序号与是否处于分片模式。
- * @returns {void}
  */
 export function poseTrackCloth(clothGeometry, posedTrack, panel) {
   const {
@@ -359,12 +333,6 @@ export function poseTrackCloth(clothGeometry, posedTrack, panel) {
 
 /**
  * 生成一套窗帘（轨道杆 + 两片帘布）并挂到给定节点上。
- *
- * @param {object} three three.js 模块命名空间。
- * @param {object} rigRoot 挂载节点（会写入窗帘相关的 userData）。
- * @param {object} curtainOptions 窗帘参数（轨道、高度、面料、位置、配色等）。
- * @param {object} [colorOverrides] 配色覆盖：dark 为杆色，light 为帘布色。
- * @returns {object} 传入的 rigRoot。
  */
 export function addTrackCurtain(three, rigRoot, curtainOptions, colorOverrides = {}) {
   const curtainTrack = createCurtainTrack(curtainOptions);
@@ -455,11 +423,6 @@ export function addTrackCurtain(three, rigRoot, curtainOptions, colorOverrides =
  *
  * 用一块非索引缓冲承载所有叶片：每片 4 个顶点（上下 × 左右），
  * 索引固定为两个三角形，顶点数据全部由 poseDreamBlades 填。
- *
- * @param {object} threeLib three.js 模块命名空间。
- * @param {object} bladeTrack 轨道参数。
- * @param {number} bladeHeight 叶片高度（米）。
- * @returns {object} 叶片条带几何，参数挂在 userData.dreamBlades 上。
  */
 export function createDreamBladeGeometry(threeLib, bladeTrack, bladeHeight) {
   // 叶片间距约 12 厘米，夹在 4~160 片之间。
@@ -507,12 +470,6 @@ export function createDreamBladeGeometry(threeLib, bladeTrack, bladeHeight) {
 
 /**
  * 按轨道姿态摆放梦幻帘的叶片。
- *
- * @param {object} bladeStripGeometry 叶片条带几何。
- * @param {object} dreamTrack 轨道参数（提供 sample 采样）。
- * @param {{start: number, end: number, side: number, split: boolean}} dreamPanel 本段叶片的区间。
- * @param {number} [tiltPercent] 叶片旋转百分比，0~100 映射到 0~180°。
- * @returns {void}
  */
 export function poseDreamBlades(bladeStripGeometry, dreamTrack, dreamPanel, tiltPercent = 50) {
   const {

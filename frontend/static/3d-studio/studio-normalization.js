@@ -17,10 +17,6 @@ import { clampNumber } from "../utils/numbers.js?v=20260920080000";
  * 转成有限数字，失败时用兜底值。
  *
  * JSON 里常见 null、""、"abc" 这类值，直接参与运算会得到 NaN 并污染整条数据链。
- *
- * @param {*} value 原始值。
- * @param {number} [fallback] 兜底值，默认 0。
- * @returns {number} 有限数字或兜底值。
  */
 export function finite(value, fallback = 0) {
   const numericValue = Number(value);
@@ -36,10 +32,6 @@ export function finite(value, fallback = 0) {
  *
  * 已经落在 [0, 360] 区间内的值原样返回 —— 这里刻意保留 360 而不取模成 0，
  * 因为界面上「正好转了一圈」与「没转」是两种输入，取模会吞掉用户的意图。
- *
- * @param {*} degrees 角度（度）。
- * @param {number} [fallbackDegrees] 非法输入时的兜底角度，默认 0。
- * @returns {number} [0, 360) 区间内的角度，或原样返回的合法值。
  */
 export function normalizeFullRotation(degrees, fallbackDegrees = 0) {
   const rotationDegrees = finite(degrees, fallbackDegrees);
@@ -56,9 +48,6 @@ export function normalizeFullRotation(degrees, fallbackDegrees = 0) {
  *
  * 对应检查器里尺寸输入框的 min 属性。人体存在传感器外形细长，允许小到 1 厘米；
  * 其余家具最小 10 厘米，避免误输入后生成几乎不可见的碎片。
- *
- * @param {string} itemType 物件类型。
- * @returns {number} 最小平面尺寸（米）。
  */
 export function itemMinimumFootprint(itemType) {
   if (itemType === "presence") {
@@ -72,9 +61,6 @@ export function itemMinimumFootprint(itemType) {
  * 给出某类物件允许的最小高度 / 厚度（米）。
  *
  * 平面标签是零厚度的贴片，1 毫米即可；地毯 4 毫米；其余物件至少 5 厘米。
- *
- * @param {string} itemKind 物件类型。
- * @returns {number} 最小高度（米）。
  */
 export function itemMinimumHeight(itemKind) {
   if (itemKind === "planlabel") {
@@ -88,9 +74,6 @@ export function itemMinimumHeight(itemKind) {
 
 /**
  * 归一化平面坐标点。
- *
- * @param {{x?: *, y?: *}} [point] 原始点。
- * @returns {{x: number, y: number}} 两个分量都保证是有限数字。
  */
 export function normalizePoint(point) {
   return {
@@ -104,11 +87,6 @@ export function normalizePoint(point) {
  *
  * 连续空白（含换行）折成一个空格再 trim：标签是画布上单行绘制的内容，
  * 换行符会画出异常的字距；超长文本按 maxLength 截断，空文本回落到占位文案。
- *
- * @param {*} labelText 原始文本。
- * @param {string} fallbackText 文本为空时的兜底文案。
- * @param {number} maxLength 最大字符数。
- * @returns {string} 归一化后的文本。
  */
 export function normalizeLabelText(labelText, fallbackText, maxLength) {
   return (
@@ -124,9 +102,6 @@ export function normalizeLabelText(labelText, fallbackText, maxLength) {
  *
  * 采用常见的冷暖色温近似式（分段幂函数 / 对数式），只在 2200~6500 K 区间内准确；
  * 超出区间的输入先被夹到边界，避免出现负底数或非法对数。
- *
- * @param {number} kelvin 色温（开尔文）。
- * @returns {number} 24 位 RGB 整数。
  */
 export function kelvinToRgbHex(kelvin) {
   // 近似式的自变量以百开尔文为单位，分界点 66 即 6600 K。
@@ -150,11 +125,6 @@ export function kelvinToRgbHex(kelvin) {
 
 /**
  * 归一化「固定机位」视图。
- *
- * @param {*} savedView 已保存的机位。
- * @returns {{mode: string, view: string, topRotation: number, position: object,
- *   target: object, visibleHeight: number, fov: number, focalLength: number|null}|null}
- *   清洗后的机位；入参非法或位置与目标过近时返回 null。
  */
 export function normalizeFixedCameraView(savedView) {
   if (!savedView || typeof savedView != "object") {
@@ -203,10 +173,6 @@ export function normalizeFixedCameraView(savedView) {
 
 /**
  * 归一化文档级相机设置。
- *
- * @param {object} [cameraSettings] 原始相机设置。
- * @returns {{cameraView: string, cameraTopRotation: number, cameraMode: string,
- *   cameraFocalLength: number}} 清洗后的设置。
  */
 export function normalizeCameraSettings(cameraSettings) {
   return {
@@ -244,9 +210,6 @@ export const DEFAULT_BASE_LIGHTING = Object.freeze({
  *
  * 各字段的上限按「明显过曝 / 过暗」的边界给出：强度类 0~5 之间，
  * 角度类方位限 ±180°、仰角限 0~89°（89° 而非 90° 是为了避免顶光与地面共面）。
- *
- * @param {object} [lightingSettings] 原始照明设置。
- * @returns {object} 清洗后的照明设置；floorBrightness 仅在原始数据里显式给出时才输出。
  */
 export function normalizeBaseLighting(lightingSettings) {
   // 非对象（null / 字符串）统一当空对象处理，后续全部走默认值。

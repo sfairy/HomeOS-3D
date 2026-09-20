@@ -13,12 +13,6 @@
  * 返回布尔值而非直接操作，是为了让调用方知道「这次是否真的产生了 DOM 写入」，
  * 从而决定要不要触发重绘或标记脏数据。正在被用户操作的控件会跳过：
  * 输入框获得焦点时若被程序回写，会打断用户的正在输入的选区与光标位置。
- *
- * @param {HTMLInputElement|HTMLSelectElement} controlElement 目标控件。
- * @param {*} nextValue 新值，内部统一转成字符串再比较。
- * @param {Element} [activeElement] 当前聚焦元素，默认取 document.activeElement；
- *   允许注入是为了在无 DOM 环境下也能测试。
- * @returns {boolean} 发生写入返回 true；控件缺失、控件正聚焦、值未变都返回 false。
  */
 export function syncControlValue(
   controlElement,

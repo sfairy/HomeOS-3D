@@ -48,9 +48,6 @@ const PILLAR_ASSET_SHAPES = new Set(["round", "semicircle", "quarter", "quarteri
  * 上游一旦换模型必须重新标定；宁可不动，也不能凭尺寸猜着缩。
  * 内缩用「平移到中心 → 缩放 → 平移回去」三步，因为 BufferGeometry.scale
  * 以原点为中心，直接缩放会把底座原有的偏移一起放大。
- *
- * @param {object} bedBaseGeometry 床底座的 BufferGeometry。
- * @returns {object} 内缩后的新几何；不满足修订条件时返回原几何。
  */
 export function insetBedBaseGeometry(bedBaseGeometry) {
   if (!bedBaseGeometry?.attributes?.position) {
@@ -87,11 +84,6 @@ export function insetBedBaseGeometry(bedBaseGeometry) {
  * 按发布时间传入，换了模型必须同步更新，否则浏览器会继续用旧资源。
  * 返回前 Object.freeze 冻结：这张表是模块级常量，被多处按类型查表，
  * 冻结可以避免任何一处的意外改写影响到其它调用方。
- *
- * @param {string} homeModelKey 模型文件名标识（不含目录与扩展名）。
- * @param {string} homeFallbackVersion 完整版资源的版本戳。
- * @param {object} homeModelOverrides 额外字段（scaleBasis / preserveOrigin 等）。
- * @returns {object} 冻结后的模型定义。
  */
 function defineHomeItemModel(homeModelKey, homeFallbackVersion, homeModelOverrides) {
   return Object.freeze({
@@ -108,10 +100,6 @@ function defineHomeItemModel(homeModelKey, homeFallbackVersion, homeModelOverrid
  *
  * 家电的轻量版与完整版由同一次构建产出，因此两者版本一致；单独一个函数是为了
  * 让日后家电与家具分开更新时不必回头改表结构。
- *
- * @param {string} applianceModelKey 模型文件名标识（不含目录与扩展名）。
- * @param {object} applianceModelOverrides 额外字段（scaleBasis / preserveOrigin 等）。
- * @returns {object} 冻结后的模型定义。
  */
 function defineApplianceItemModel(applianceModelKey, applianceModelOverrides) {
   return Object.freeze({
@@ -674,17 +662,8 @@ const WARM_DOOR_RETURN_MATERIAL_INDEX_BY_ITEM_TYPE = Object.freeze({
  * 并发上限默认 2、单次超时默认 12s：解压发生在 Worker 里，同时放太多会抢占
  * 主线程与带宽；12s 是弱网下 1MB 级模型的容忍上限，超过即认为这张资源不可用。
  *
- * @param {object} managerOptions 依赖与策略。
- * @param {object} managerOptions.THREE three.js 命名空间。
- * @param {object} managerOptions.loader 已配置 DRACO 的 GLTFLoader。
- * @param {Set<string>} managerOptions.stairItemTypes 楼梯类类型集合（决定材质策略）。
- * @param {function(string): boolean} managerOptions.isModelInUse 某类型当前是否在用。
- * @param {function(object): void} managerOptions.requestRender 请求一次重绘。
- * @param {function(object): void} [managerOptions.onLoadStateChange] 加载状态变化回调。
  * @param {number} [managerOptions.maxConcurrentLoads] 并发加载上限。
  * @param {number} [managerOptions.loadTimeoutMs] 单次加载超时（毫秒）。
- * @returns {object} 管理器：addExternalItemModel / loadExternalItemModel /
- *   modelTypeForItem / modelLoadState / cacheRepresentation。
  */
 export function createExternalModelManager({
   THREE: THREE,
@@ -711,9 +690,6 @@ export function createExternalModelManager({
   let materialReuseCount = 0;
   /**
    * 汇总当前的加载与材质缓存状态（供调试面板与测试断言）。
-   *
-   * @returns {{active: number, queued: number, limit: number, timeoutMs: number,
-   *   materials: number, materialReuses: number}} 状态快照。
    */
   function getModelLoadState() {
     return {
@@ -727,8 +703,6 @@ export function createExternalModelManager({
   }
   /**
    * 把最新状态推给注入的回调（默认是个空函数，调用方可以完全不关心）。
-   *
-   * @returns {void}
    */
   function emitLoadStateChange() {
     onLoadStateChange(getModelLoadState());
@@ -740,8 +714,6 @@ export function createExternalModelManager({
    * 都在 finally 里递减计数并递归再泵一次，所以队列不会因为某次失败而卡死。
    * 用 Promise.resolve().then(...) 而不是直接调用，是为了让任务在本轮同步代码
    * 结束后才开始执行，避免递归泵造成越来越深的调用栈。
-   *
-   * @returns {void}
    */
   function pumpLoadQueue() {
     while (activeLoadCount < concurrencyLimit && loadQueue.length) {
@@ -763,9 +735,6 @@ export function createExternalModelManager({
    *
    * 入队后立刻尝试泵一次队列：若当前并发未满，调用方拿到的 Promise 会在本轮事件
    * 循环内就开始执行，不必等下一次状态变化或用户操作。
-   *
-   * @param {function(): Promise<object>} runLoad 真正执行加载的函数。
-   * @returns {Promise<object>} 加载结果。
    */
   function enqueueLoadTask(runLoad) {
     return new Promise((resolveTask, rejectTask) => {
@@ -787,9 +756,6 @@ export function createExternalModelManager({
    * 不做自动重试：加载失败通常是资源缺失或格式问题，重试只会拖慢整个队列。
    * finally 里清掉计时器，否则超时之后即便加载成功也会留下一个待触发的定时器。
    *
-   * @param {object} modelDefinition 模型定义（url / fallbackUrl）。
-   * @param {string} modelTypeLabel 模型类型名，用于错误文案。
-   * @returns {Promise<object>} GLTF 解析结果。
    * @throws {Error} 两个地址都失败、或定义里没有可用资源时抛出（中文文案）。
    */
   function loadModelWithFallback(modelDefinition, modelTypeLabel) {
@@ -824,9 +790,6 @@ export function createExternalModelManager({
    * 带子状态的类型（窗帘、柱子、圆桌转盘、电视安装方式）会拼出后缀；对未知取值
    * 一律回落到一个确定的默认项（split / pillar / standard），保证任何脏数据都能
    * 查到模型，而不是静默丢件（丢件在满屏家具里很难被用户描述清楚）。
-   *
-   * @param {object} item 场景物件。
-   * @returns {string} ALL_ITEM_MODELS 中的类型键。
    */
   function modelTypeForItem(item) {
     if (item.type === "curtain") {
@@ -863,9 +826,6 @@ export function createExternalModelManager({
    *   其中车漆按「源几何」缓存平滑结果并 dispose 掉被替换掉的旧几何，避免泄漏；
    * - 只缓存 scene 与实测尺寸：落地时克隆 scene，尺寸供没配 scaleBasis 的类型使用；
    * - 失败时记日志并返回 null（不抛错），调用方继续用过程几何 —— 这是降级而非中断。
-   *
-   * @param {string} modelType 模型类型键。
-   * @returns {Promise<object|null>} 缓存条目（source / size）；延后、未定义或失败时为 null。
    */
   function loadExternalModel(modelType) {
     if (
@@ -994,10 +954,6 @@ export function createExternalModelManager({
  * emissive 0.46 抬亮，用来抵消场景色调映射对深色的压暗。
  * 透明度与深度写入沿用原材质，但 transparent 强制为 false —— 这条路径只服务
  * 不透明家具，玻璃等半透明件走各自的专用分支。
- *
- * @param {object} sourceMaterial 原材质（可为空）。
- * @param {object} palette 调色板（furniture / furnitureDark / furnitureSoft / furnitureLight）。
- * @returns {object} 新材质；入参为空时原样返回。
  */
   function createLuminanceBandedMaterial(sourceMaterial, palette) {
     if (!sourceMaterial) {
@@ -1038,11 +994,6 @@ export function createExternalModelManager({
  * depthWrite 与 depthTest 默认沿用模板材质，只有调用方明确要求才改 ——
  * 这两项一旦改错会直接造成遮挡关系错乱（透明件写深度，或丢掉深度测试）。
  * polygonOffset 三项默认关闭，仅地毯这类贴地薄片会打开（见 applyFurniturePalette）。
- *
- * @param {object} templateMaterial 模板材质（提供 side / depthWrite / depthTest 与命名）。
- * @param {number|object} colorValue 颜色（十六进制或 THREE.Color）。
- * @param {object} [materialOptions] 覆盖项。
- * @returns {object} 新材质；模板为空时原样返回。
  */
   function createFurnitureMaterial(templateMaterial, colorValue, materialOptions = {}) {
     if (!templateMaterial) {
@@ -1081,12 +1032,6 @@ export function createExternalModelManager({
  * - 玻璃等半透明件保持 transparent 并关掉 depthWrite，避免遮挡身后的物件；
  * - 暖阳原木（palette.warmWood）下额外按槽位覆盖木色 / 布艺 / 台面 / 玻璃色，
  *   见下方各 warm 分支 —— 这些分支在其它主题下完全不参与计算。
- *
- * @param {object} meshMaterial 原材质（读 name / color / transparent / opacity）。
- * @param {object} inputPalette 调色板；暖阳原木下会派生一份木色 / 布艺覆盖版，
- *   后续所有分支都读派生版，非暖色主题下派生版就是入参本身。
- * @param {string} furnitureItemType 家具类型键。
- * @returns {object} 新材质。
  */
   function applyFurniturePalette(meshMaterial, inputPalette, furnitureItemType) {
     // 暖阳原木：柜类整件走柜体木色而不是基础家具灰，先把 wood 兜到 cabinetWood，
@@ -1433,11 +1378,6 @@ export function createExternalModelManager({
  * 玻璃件关掉 depthWrite（避免同层玻璃互相遮挡出现黑边）但保留 depthTest。
  * 钢楼梯用更高的金属度与更低的粗糙度（0.42 / 0.38）表现金属反射，
  * 其余楼梯用 0.08 / 0.58 的哑光框架，两条路都加极低的 emissive 0.07 提亮暗部。
- *
- * @param {object} existingMaterial 原材质（读 name / transparent / opacity / side）。
- * @param {object} stairPalette 调色板。
- * @param {string} stairItemType 楼梯类型键。
- * @returns {object} 新材质；入参为空时原样返回。
  */
   function createStairMaterial(existingMaterial, stairPalette, stairItemType) {
     if (!existingMaterial) {
@@ -1514,12 +1454,6 @@ export function createExternalModelManager({
  * - 暖阳原木下钢琴提前分流：亮光黑琴身在暖色场景里是一块死黑，改走暖木 / 黄铜色板；
  * - 茶几机的自发光被显式清零，因为它的原模型自带 emissive，
  *   替换材质后再叠加场景灯光会明显发白。
- *
- * @param {object} baseMaterial 原材质。
- * @param {object} appliancePalette 调色板
- *   （appliance / applianceSoft / applianceDark / accent / wall / furniture…）。
- * @param {string} applianceItemType 类型键。
- * @returns {object} 新材质（或原材质的克隆）。
  */
   function applyAppliancePalette(baseMaterial, appliancePalette, applianceItemType) {
     if (typeof THREE.MeshStandardMaterial != "function") {
@@ -1676,9 +1610,6 @@ export function createExternalModelManager({
  * 法线，直接渲染会出现一圈圈棱线。重算法线后要同步把法线属性标记为 needsUpdate，
  * 并重建包围盒 / 包围球，否则光线投射与视锥剔除仍会用到旧值。
  * 几何没有 clone / computeVertexNormals 时原样返回，不强行改。
- *
- * @param {object} inputGeometry 原几何。
- * @returns {object} 平滑后的新几何；无法处理时返回原几何。
  */
   function cloneGeometryWithNormals(inputGeometry) {
     const clonedGeometry = inputGeometry?.clone?.();
@@ -1701,10 +1632,6 @@ export function createExternalModelManager({
  * 部件的顶点，必须先把该 group 覆盖的顶点挑出来：有索引时经 index 映射，
  * 无索引时顶点顺序与位置一一对应。groupMaterialIndex 传 null 表示「整个几何」，
  * 用于不需要分组的场合。分组存在但没匹配到任何顶点时返回空集，由调用方决定兜底。
- *
- * @param {object} geometry 目标几何。
- * @param {number|null} [groupMaterialIndex] 材质下标；null 表示全部顶点。
- * @returns {Set<number>} 顶点下标集合。
  */
   function collectGroupVertexIndices(geometry, groupMaterialIndex = null) {
     const vertexIndices = new Set();
@@ -1743,10 +1670,6 @@ export function createExternalModelManager({
  *
  * 初始值取 ±Infinity，空集合会原样返回，因此调用方必须自己用 Number.isFinite 判断，
  * 不能把 Infinity 当尺寸使用。只统计 Y 是因为调用方都在做「高度对齐」。
- *
- * @param {object} positionAttribute 位置属性（BufferAttribute）。
- * @param {Set<number>} vertexIndexSet 顶点下标集合。
- * @returns {{min: number, max: number}} Y 的最小 / 最大值。
  */
   function measureVertexYRange(positionAttribute, vertexIndexSet) {
     let minY = Infinity;
@@ -1774,12 +1697,6 @@ export function createExternalModelManager({
  *   靠外的顶点前移更多，因此不会呈现整块面板被平移的僵硬感。
  * 任一环节不满足（顶点集为空、高度区间退化、采样点异常）都原样返回：
  * 宁可不动，也不产出畸形几何。
- *
- * @param {object} targetGeometry 目标几何（屏幕面板）。
- * @param {object} referenceGeometry 参考几何（提供轮廓采样点）。
- * @param {number|null} [targetMaterialIndex] 目标几何中要处理的材质分组。
- * @param {number|null} [referenceMaterialIndex] 参考几何中提供轮廓的材质分组。
- * @returns {object} 贴合后的新几何；条件不满足时返回原几何。
  */
   function conformGeometryToReference(
     targetGeometry,
@@ -2009,9 +1926,6 @@ export function createExternalModelManager({
  * 特殊值统一用字符串标记（"undefined" / "NaN" / "Infinity" / "-Infinity"），
  * 纹理取 uuid，颜色 / 向量摊成数字数组；既没有 toArray 又不含 x/y/z/w 的对象
  * 退化成 String() —— 宁可偶尔键冲突（多复用一次材质），也不要键爆炸（材质泄漏）。
- *
- * @param {*} rawValue 原始属性值。
- * @returns {*} 可稳定序列化的值。
  */
   function normalizeMaterialValue(rawValue) {
     if (rawValue === undefined) {
@@ -2055,9 +1969,6 @@ export function createExternalModelManager({
  * MATERIAL_PROPERTY_KEYS（渲染状态与数值属性）、TEXTURE_MAP_KEYS(贴图引用)。
  * ShaderMaterial 直接按 uuid 判等并打上 "unique" 标记：自定义着色器的等价性
  * 无法从字段推断，宁可不复用也不能错用。
- *
- * @param {object} material 材质实例。
- * @returns {string} 缓存键（JSON 字符串）。
  */
   function buildMaterialCacheKey(material) {
     if (material?.isShaderMaterial || material?.isRawShaderMaterial) {
@@ -2094,11 +2005,6 @@ export function createExternalModelManager({
  * 生成材质，显存随之线性膨胀。
  * 注意：被缓存的材质会一直存活到场景销毁 —— 克隆体在共享它，单个物件被删除时
  * 绝不能 dispose（销毁逻辑靠实例上的 externalModelSharedMaterial 标记判断）。
- *
- * @param {object} inputMaterial 原材质。
- * @param {object} materialPalette 调色板。
- * @param {string} modelTypeName 模型类型键。
- * @returns {object} 可共享的材质；入参为空时原样返回。
  */
   function resolveSharedMaterial(inputMaterial, materialPalette, modelTypeName) {
     if (!inputMaterial) {
@@ -2298,12 +2204,6 @@ export function createExternalModelManager({
  * 5. 摆位：preserveOrigin 表示模型自带「底面在原点」的作者约定，此时只做地面贴合
  *    （groundAlign 时把包围盒底面抬到 y = 0，再叠加 groundOffset，例如沙发的
  *    -0.008 让沙发脚略微陷入地毯）；否则把模型重新居中到 XZ 中心、底面贴地。
- *
- * @param {object} parentObject 挂载父对象。
- * @param {object} itemSpec 物件规格（type / width / height / depth 及子状态字段）。
- * @param {object} itemPalette 调色板。
- * @param {object} [placementOptions] selected 表示是否为选中态。
- * @returns {boolean} 是否已成功落地（false 表示正在加载，调用方应稍后重绘）。
  */
   function addExternalItemModel(
     parentObject,
@@ -2382,9 +2282,6 @@ export function createExternalModelManager({
       }
       /**
        * 选中态额外克隆一份材质用于高亮，未选中则直接共享缓存材质。
-       *
-       * @param {object} meshMaterialInput 该 mesh 的原始材质。
-       * @returns {object} 可用于本实例的材质。
        */
       const resolveMeshMaterial = meshMaterialInput => {
         const sharedMaterial = resolveSharedMaterial(
@@ -2471,10 +2368,6 @@ export function createExternalModelManager({
     modelLoadState: getModelLoadState,
     /**
      * 汇总「这批物件会用到哪些模型类型、各自是否已就绪」，供预加载与测试断言。
-     *
-     * @param {Array<object>} requestedItems 待渲染的物件列表。
-     * @returns {Array<{type: string, definition: object, loaded: boolean}>}
-     *   按类型名排序的去重清单。
      */
     cacheRepresentation(requestedItems) {
       return [...new Set(requestedItems.map(modelTypeForItem).filter(Boolean))]

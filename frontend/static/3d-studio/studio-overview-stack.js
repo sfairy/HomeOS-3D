@@ -17,9 +17,6 @@
  *
  * 场景里不同子系统用了不同的字段记录楼层（普通物件、区域光、环境特效、灯光缓存），
  * 这里按优先级依次尝试，任一命中即返回。
- *
- * @param {object} node 场景节点。
- * @returns {string} 楼层 id；不属于任何楼层时返回空串。
  */
 export function overviewFloorId(node) {
   for (let currentNode = node; currentNode; currentNode = currentNode.parent) {
@@ -41,13 +38,6 @@ export function overviewFloorId(node) {
  * 推导：three.js 渲染时会再乘一次 matrixWorldInverse（即视图矩阵的逆），
  * 为了让最终结果等于「原投影 × 下移」，这里的矩阵末尾必须补上一个 camera.matrixWorld。
  * 屏幕平移放在最左侧，因此它是裁剪空间下的位移 —— 与物体离相机的远近无关。
- *
- * @param {object} THREE three.js 模块命名空间。
- * @param {object} camera 基准相机（取其投影矩阵与世界矩阵）。
- * @param {number} stackedHeight 世界空间的下移量（米），即该层的堆叠高度。
- * @param {number} projectionOffsetY 裁剪空间下的额外纵向偏移。
- * @param {object} [targetMatrix] 复用的目标矩阵，避免每帧新建。
- * @returns {object} 结果矩阵。
  */
 export function stackProjection(
   THREE,
@@ -67,16 +57,6 @@ export function stackProjection(
 
 /**
  * 创建楼层堆叠总览控制器。
- *
- * @param {object} options 依赖注入。
- * @param {object} options.THREE three.js 模块命名空间。
- * @param {object} options.renderer 渲染器（会被替换 render / renderBufferDirect）。
- * @param {object} options.scene 主场景。
- * @param {function(): object} options.getCamera 取当前主相机。
- * @param {function(): object} options.getLayout 取堆叠布局
- *   （含 enabled、floors、gap、amount、center、bounds）。
- * @returns {{stats: object, cameraForFloor: Function, rayForFloor: Function,
- *   reflectionCamera: Function, presentationPoint: Function, dispose: Function}} 控制器实例。
  */
 export function createOverviewStack({
   THREE: three,
@@ -113,8 +93,6 @@ export function createOverviewStack({
 
   /**
    * 取当前生效的堆叠布局；不满足生效条件时返回 null。
-   *
-   * @returns {object|null} 布局对象。
    */
   function getActiveLayout() {
     const currentLayout = getLayout();
@@ -140,8 +118,6 @@ export function createOverviewStack({
 
   /**
    * 还原堆叠期间被改动的视锥剔除开关。
-   *
-   * @returns {void}
    */
   function restoreFrustumCulled() {
     for (const [culledNode, frustumCulled] of savedFrustumCulled) {
@@ -152,9 +128,6 @@ export function createOverviewStack({
 
   /**
    * 按当前布局刷新各楼层的层相机与镜像相机。
-   *
-   * @param {object} renderCamera 本次渲染用的主相机。
-   * @returns {void}
    */
   function syncFloorCameras(renderCamera) {
     // 帧号与矩阵都没变时直接返回：这是每帧都会走的路径，提前退出很关键。
@@ -260,10 +233,6 @@ export function createOverviewStack({
 
   /**
    * 取某楼层对应的层相机。
-   *
-   * @param {string} floorId 楼层 id。
-   * @param {object} [sourceCamera] 基准相机，默认取主相机。
-   * @returns {object} 层相机；总览未启用或该层无记录时返回基准相机。
    */
   function cameraForFloor(floorId, sourceCamera = getCamera()) {
     if (getActiveLayout()) {

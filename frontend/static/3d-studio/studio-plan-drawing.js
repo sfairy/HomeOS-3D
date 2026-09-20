@@ -17,14 +17,6 @@
  * Canvas 2D 原生没有字距设置，只能自己累计游标逐字绘制；
  * 当整串宽度超出 maxWidthPx 时，对整体做横向压缩（而不是截断或换行），
  * 保证标签在窄空间里仍然完整可读。
- *
- * @param {CanvasRenderingContext2D} textContext 目标上下文。
- * @param {string} text 文本内容。
- * @param {number} originX 起始 X（屏幕像素）。
- * @param {number} originY 基线 Y（屏幕像素）。
- * @param {number} trackingPx 字间距（屏幕像素）。
- * @param {number} maxWidthPx 允许的最大宽度（屏幕像素）。
- * @returns {number} 实际占用宽度；文本为空时返回 0。
  */
 export function drawTrackedText(textContext, text, originX, originY, trackingPx, maxWidthPx) {
   // 用展开运算符按码点切分，避免把 emoji 等代理对字符拆成两半。
@@ -59,18 +51,6 @@ export function drawTrackedText(textContext, text, originX, originY, trackingPx,
 
 /**
  * 创建一组绑定到具体画布与坐标转换函数的绘图工具。
- *
- * @param {object} options 依赖注入。
- * @param {CanvasRenderingContext2D} options.context 目标 2D 上下文。
- * @param {function({x: number, y: number}): {x: number, y: number}} options.planToScreen
- *   设计图平面坐标 → 屏幕坐标。
- * @param {function({x: number, y: number}): {x: number, y: number}} options.screenToPlan
- *   屏幕坐标 → 设计图平面坐标。
- * @param {function(): number} options.pixelsPerMeter 当前每米对应的设计图像素数。
- * @param {function(): {width: number, height: number}} options.getCanvasSize 画布尺寸。
- * @param {function(): number} options.getViewZoom 当前视图缩放倍数。
- * @returns {{drawMetricGrid: Function, drawLine: Function, drawPoint: Function,
- *   drawOpenEndpointWarning: Function, drawFloatingLabel: Function}} 绘图工具集。
  */
 export function createPlanDrawingTools({
   context: context,
@@ -82,8 +62,6 @@ export function createPlanDrawingTools({
 }) {
   /**
    * 绘制米制网格：按当前缩放自适应的步长，只画可见区域内的横纵线。
-   *
-   * @returns {void}
    */
   function drawMetricGrid() {
     const meterScale = pixelsPerMeter();
@@ -177,11 +155,6 @@ export function createPlanDrawingTools({
 
   /**
    * 绘制一条设计图线段。
-   *
-   * @param {{x: number, y: number}} fromPlan 起点（设计图平面坐标）。
-   * @param {{x: number, y: number}} toPlan 终点（设计图平面坐标）。
-   * @param {object} [lineOptions] 样式：color / width / cap / dash。
-   * @returns {void}
    */
   function drawLine(fromPlan, toPlan, lineOptions = {}) {
     const fromScreen = planToScreen(fromPlan);
@@ -204,11 +177,6 @@ export function createPlanDrawingTools({
 
   /**
    * 绘制一个端点圆点（深色实心 + 彩色描边）。
-   *
-   * @param {{x: number, y: number}} planPoint 端点（设计图平面坐标）。
-   * @param {string} strokeColor 描边颜色，用于区分端点类型。
-   * @param {number} [radiusPx] 屏幕半径（像素），默认 4。
-   * @returns {void}
    */
   function drawPoint(planPoint, strokeColor, radiusPx = 4) {
     const screenPoint = planToScreen(planPoint);
@@ -226,9 +194,6 @@ export function createPlanDrawingTools({
 
   /**
    * 绘制「墙体未闭合」告警标记（红色发光圈）。
-   *
-   * @param {{x: number, y: number}} endpointPlan 未闭合端点（设计图平面坐标）。
-   * @returns {void}
    */
   function drawOpenEndpointWarning(endpointPlan) {
     const endpointScreen = planToScreen(endpointPlan);
@@ -256,11 +221,6 @@ export function createPlanDrawingTools({
 
   /**
    * 在锚点正上方绘制带底框的浮标文字标签。
-   *
-   * @param {{x: number, y: number}} anchorPlan 锚点（设计图平面坐标）。
-   * @param {string} labelText 文本内容；为空时直接返回。
-   * @param {string} [labelColor] 文字颜色，默认浅灰。
-   * @returns {void}
    */
   function drawFloatingLabel(anchorPlan, labelText, labelColor = "#dce3e8") {
     // 空文本直接返回，省掉一次测量与一次绘制。

@@ -16,17 +16,6 @@ export const RUNTIME_FURNITURE_TYPES = new Set(["bed", "sofa", "cabinet", "desk"
 
 /**
  * 合并同材质的家具网格。
- *
- * @param {object} root 场景根节点，合并结果与统计都会挂在它上面。
- * @param {Array<{item: object, group: object}>} furnitureEntries 家具条目
- *   （item 为文档里的物件记录，group 为它在场景中的分组节点）。
- * @param {object} options 依赖注入。
- * @param {object} options.THREE three.js 模块命名空间。
- * @param {function(Array<object>): object|null} options.mergeGeometries 几何合并函数
- *   （来自 three 的 BufferGeometryUtils）。
- * @param {function(object, boolean, boolean): (string|null)} options.materialKey
- *   材质分组键函数，参数为网格、是否用于分组、是否需要校验。
- * @returns {object} 统计信息（合并前后的网格数、三角形数、顶点字节数与涉及的类型）。
  */
 export function compactRuntimeFurniture(
   root,
