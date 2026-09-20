@@ -16,8 +16,8 @@
  * @param {function(string): Array<object>} handlers.pickerEntitiesForComponentType 取该控件可用的实体。
  * @param {function(object): string} handlers.entityPickerText 取实体展示名称。
  * @param {function(object): string} handlers.entityDomainResolver 取实体域，由调用方注入
- *   `utils/entities.js` 的 `entityDomainOf`（**名字刻意不叫 `entityDomainOf`**：那个名字登记在
- *   契约助手手册里，「使用点必须自己 import」那条闸按自由标识符判使用点，同名形参会撞上它
+ *   `utils/entities.js` 的 `entityDomainOf`（**名字刻意不叫 `entityDomainOf`**：
+ *   那个名字只在这两处出现，同名形参会让「本文件并不 import 它」这件事在阅读时消失
  *   —— 而且形参叫 `entityDomainResolver` 才看得出「这是外面注入进来的依赖」。
  *   历史上这里的键叫 `entityDomain`，与 P10 已删掉的本地名字同名，见审计文档 4.3 B 类末尾）。
  * @returns {{editorEntityMatches: function(string, string): Array<object>,

@@ -58,19 +58,19 @@ logger = logging.getLogger("store")
 def _ensure_license_keys(settings: StoreSettings) -> None:
     """确保商店密钥存在；默认密钥目录下还校验仓库根 keys/ 公钥镜像。
 
-    临时目录（smoke / e2e）仍可自动生成密钥且不强制镜像。
+    非默认密钥目录（临时目录）仍可自动生成密钥且不强制镜像。
     默认 ``store/keys/local`` 缺密钥或与 ``keys/`` 不一致时直接失败，
-    引导运行 ``python -m store.tools.gen_keys``，避免「商店一把钥、客户端另一把」的静默激活失败。
+    避免「商店一把钥、客户端另一把」的静默激活失败。
     """
     default_keys_dir = (STORE_ROOT / "keys" / "local").resolve()
     using_default = settings.license_keys_dir.resolve() == default_keys_dir
-    gen_keys_hint = (
-        "请在仓库根运行：.venv-store/bin/python -m store.tools.gen_keys"
-        "（会生成 store/keys/local 私钥并同步公钥到仓库根 keys/；"
-        "若轮换了密钥，还需把打印的 sha256 写入 APP_LICENSE_*_PUBLIC_KEY_SHA256"
-        " 或 backend/app/config.py 的 DEFAULT_LICENSE_* 常量）。"
-        "要让旧客户端在轮换后继续可用一段时间，改用 --rotate（保留上一代，"
-        "keyId 由公钥派生所以会自动变成新值）。"
+    key_preparation_hint = (
+        "本地开发请在仓库根运行 python start.py："
+        "它会生成 store/keys/local 私钥并把公钥镜像到仓库根 keys/，"
+        "同时按公钥文件字节设置主应用的指纹校验；"
+        "容器部署则由 docker/start_store.py 启动时完成同样的准备。"
+        "要让旧客户端在轮换后继续可用一段时间，"
+        "保留成对齐全的 *.previous.pem（四件套齐全时重叠窗口自动开启）。"
     )
 
     missing_signing = (
@@ -81,7 +81,7 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
         or not settings.transport_public_key_path.exists()
     )
     if using_default and (missing_signing or missing_transport):
-        raise RuntimeError(f"缺少商店授权密钥（{settings.license_keys_dir}）。{gen_keys_hint}")
+        raise RuntimeError(f"缺少商店授权密钥（{settings.license_keys_dir}）。{key_preparation_hint}")
 
     if missing_signing:
         result = keys.generate_ed25519(
@@ -111,11 +111,11 @@ def _ensure_license_keys(settings: StoreSettings) -> None:
         mirror = client_keys / name
         if not mirror.exists():
             raise RuntimeError(
-                f"客户端公钥镜像缺失：{mirror}。商店密钥与仓库根 keys/ 必须逐字节一致。{gen_keys_hint}"
+                f"客户端公钥镜像缺失：{mirror}。商店密钥与仓库根 keys/ 必须逐字节一致。{key_preparation_hint}"
             )
         if source.read_bytes() != mirror.read_bytes():
             raise RuntimeError(
-                f"客户端公钥镜像与商店密钥不一致：{mirror}。{gen_keys_hint}"
+                f"客户端公钥镜像与商店密钥不一致：{mirror}。{key_preparation_hint}"
             )
 
 

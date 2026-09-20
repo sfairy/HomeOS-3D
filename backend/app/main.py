@@ -36,6 +36,7 @@ from .access import (
     resolve_principal,
 )
 from .admin_account import AdminAccountStore
+from .http_cache import set_versioned_private_cache
 from .api.auth import router as auth_router
 from .api.assets import AssetCatalog, read_builtin_asset, router as assets_router, sweep_user_assets_for_app
 from .api.displays import (
@@ -76,6 +77,106 @@ from .setup_guard import SetupGuard, announce_setup_window
 
 # 超过这个耗时的接口会在全局日志里记一条"响应缓慢"的警告。
 SLOW_REQUEST_MILLISECONDS = 2000
+
+#: 校验失败的中文原因表：键是 pydantic v2 的 error ``type``。
+#:
+#: 为什么要有这张表（而不是直接把 ``msg`` 给前端）：pydantic 的 ``msg`` 是**英文**且面向
+#: 开发者（``String should have at least 8 characters``）。它可以出现在日志里，但不适合
+#: 直接摆给用户看。这份映射只覆盖本仓接口真的会产生的那几类，其余落到「取值不合法」——
+#: 宁可说得笼统，也不要猜错。
+#:
+#: 与前端的分工写在 ``frontend/static/utils/api-error.js`` 的模块头：这里负责
+#: 「这一次校验为什么没过」（而且知道约束值），前端那份负责「从任意错误载荷里挑出最能
+#: 说明问题的那句话」。两边刻意不重叠，所以不是同一份知识的两份实现。
+_VALIDATION_REASON_TEXT = {
+    'missing': '为必填项',
+    'string_too_short': '长度不足',
+    'string_too_long': '长度超限',
+    'string_type': '必须是文本',
+    'string_pattern_mismatch': '格式不符',
+    'int_parsing': '必须是整数',
+    'int_type': '必须是整数',
+    'int_from_float': '必须是整数',
+    'float_parsing': '必须是数字',
+    'float_type': '必须是数字',
+    'bool_parsing': '必须是布尔值',
+    'bool_type': '必须是布尔值',
+    'json_invalid': '请求体不是合法 JSON',
+    'list_type': '必须是列表',
+    'dict_type': '必须是对象',
+    'url_parsing': '必须是合法链接',
+    'url_scheme': '链接协议不支持',
+    'datetime_parsing': '必须是合法时间',
+    'date_parsing': '必须是合法日期',
+    'uuid_parsing': '必须是合法标识',
+    'greater_than': '超出允许范围',
+    'greater_than_equal': '超出允许范围',
+    'less_than': '超出允许范围',
+    'less_than_equal': '超出允许范围',
+    'enum': '取值不在允许范围内',
+    'literal_error': '取值不在允许范围内',
+    'value_error': '取值不合法',
+}
+
+#: 带上下界约束的那几类，把 ``ctx`` 里的边界值一起说出来（「长度不足（至少 8 个字符）」
+#: 比「长度不足」可操作）。值是 ``(ctx 键, 前缀词, 单位)`` —— 方向词直接写在表里，
+#: 不在拼装处按类型名做判断（那种判断是改一处漏一处的形态）。
+_VALIDATION_BOUND_TEXT = {
+    'string_too_short': ('min_length', '至少', ' 个字符'),
+    'string_too_long': ('max_length', '最多', ' 个字符'),
+    'greater_than': ('gt', '需大于', ''),
+    'greater_than_equal': ('ge', '需不小于', ''),
+    'less_than': ('lt', '需小于', ''),
+    'less_than_equal': ('le', '需不大于', ''),
+}
+
+#: 请求位置的固定前缀（FastAPI 的 ``loc`` 首段）：对着用户显示「参数 body.x」没有意义。
+_VALIDATION_LOCATION_PREFIXES = ('body', 'query', 'path', 'header', 'cookie')
+
+#: 一条 message 里最多说几处错：字段一多（批量提交）会把提示撑成一屏，用户反而读不出重点。
+_VALIDATION_MESSAGE_MAX_PARTS = 3
+
+
+def _validation_error_message(errors: list[dict]) -> str:
+    """把 FastAPI 的校验错误压成一句中文摘要，供前端直接展示。
+
+    为什么值得在后端做（而不是让前端拼）：只有这里知道**约束值**。前端拿到的
+    ``detail`` 数组里 ``msg`` 是英文句子，``ctx`` 里的边界值前端要么读不出、要么得自己
+    再维护一份 pydantic 的类型表 —— 那才是真正的重复。这里给出摘要，前端那份
+    ``api-error.js`` 只负责「从任意载荷里挑出最能说明问题的那句」，不再解析语义。
+
+    形态（前端 ``apiErrorMessage`` 优先取顶层 ``message``）：``参数 activationCode
+    长度不足（至少 8 个字符）``；多处用「；」连，超过
+    :data:`_VALIDATION_MESSAGE_MAX_PARTS` 处只报前几处并缀「等」。
+
+    Args:
+        errors: ``RequestValidationError.errors()`` 的原始条目（含 ``loc`` / ``type`` / ``ctx``）。
+
+    Returns:
+        str: 非空的中文摘要；连一条都解析不出来时也是「参数校验未通过。」这种兜底，
+        绝不返回空串（前端把空串当「没有可用信息」而退回更笼统的文案）。
+    """
+    parts: list[str] = []
+    for item in errors:
+        if not isinstance(item, dict):
+            continue
+        location = [str(part) for part in (item.get('loc') or ())]
+        # 首段是请求位置（body / query / path …）：去掉，剩下的用 `.` 拼成字段路径。
+        if location and location[0] in _VALIDATION_LOCATION_PREFIXES:
+            location = location[1:]
+        field = '.'.join(location)
+        error_type = str(item.get('type') or '')
+        reason = _VALIDATION_REASON_TEXT.get(error_type, '取值不合法')
+        bound = _VALIDATION_BOUND_TEXT.get(error_type)
+        context = item.get('ctx') if isinstance(item.get('ctx'), dict) else {}
+        if bound and bound[0] in context:
+            reason = f'{reason}（{bound[1]} {context[bound[0]]}{bound[2]}）'
+        parts.append(f'参数 {field} {reason}' if field else reason)
+    if not parts:
+        return '参数校验未通过。'
+    if len(parts) > _VALIDATION_MESSAGE_MAX_PARTS:
+        return '；'.join(parts[:_VALIDATION_MESSAGE_MAX_PARTS]) + ' 等。'
+    return '；'.join(parts) + '。'
 
 
 def _record_lifecycle_failure(app: FastAPI, phase: str, error: Exception) -> None:
@@ -198,7 +299,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.pairing_code_limiter = BoundedAttemptLimiter(*PAIRING_CODE_LIMIT, max_keys = PAIRING_CODE_KEYS)
             # 匿名 4xx 的形态合并计数（B62）：诊断中间件据此把「一次请求一行」压成
             # 「每形态每窗口一行」。放在这里而不是模块级全局，是为了让 create_app()
-            # 多次调用（自检里就是这么做的）互不共享状态。
+            # 多次调用（同一进程里先后建两个应用）互不共享状态。
             app.state.error_tally = RepeatedErrorTally()
             # 首次初始化的守卫：没带引导密钥的远程请求不允许抢建管理员账号。
             app.state.setup_guard = SetupGuard(app_settings.data_dir, app_settings.setup_token, event_log = app.state.global_log)
@@ -305,7 +406,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     app.state.settings = app_settings
     # 媒体代理的两份进程内记账（快照缓存 + HLS 归属）挂在应用上而不是模块级（B57）：
     # create_app() 调两次时模块级的那一份会被两个应用共享（缓存串台、刷新任务绑在
-    # 另一个事件循环上），而进程内单实例只是自检之外的习惯，不是保证。
+    # 另一个事件循环上），而进程内单实例只是习惯，不是保证。
     app.state.media_proxy = MediaProxyCaches()
 
     @app.exception_handler(Exception)
@@ -335,7 +436,18 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             {key: item[key] for key in ('loc', 'msg', 'type') if key in item}
             for item in error.errors()
         ]
-        return await request_validation_exception_handler(request, error)
+        # 响应体在标准形态（``{"detail": [...]}``）之上**追加**一个顶层 ``message``：
+        # 标准那份 ``detail`` 原样保留（OpenAPI 契约、既有解析方、诊所工具都还认它），
+        # 新增的这一句是给用户看的中文摘要 —— 前端原先有 9 个调用点各写各的，其中 8 个
+        # 只认字符串与 ``detail.message``（**认不出数组**，而数组正是 422 的形态），于是
+        # 同一个校验失败在某几个页面会变成看不懂的「请求失败（HTTP 422）」。
+        #
+        # 走标准处理器再补键、而不是自己拼 JSONResponse：状态码与 detail 的编码都由
+        # FastAPI 负责，这里只加一个键，以后那边改形态也不会跟着漂。
+        response = await request_validation_exception_handler(request, error)
+        body = json.loads(response.body)
+        body['message'] = _validation_error_message(error.errors())
+        return JSONResponse(status_code=response.status_code, content=body)
 
     async def record_request_diagnostics(request: Request, call_next):
         """诊断中间件：分配 requestId、记录慢请求与错误、注入日志上下文。
@@ -505,10 +617,14 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         '/static/pairing-entry.js',
         # 匿名可访问的页面脚本 import 的工具模块也必须在这里：模块图缺一环，
         # 整页脚本都不会执行（login/setup/pair/license 全在未激活时就要能打开）。
-        # utils/ 只放与业务无关的纯工具，白名单按文件精确列，改动由
-        # backend/tools/smoke.py 的「白名单 import 闭包」检查兜住。
+        # utils/ 只放与业务无关的纯工具，白名单按文件精确列；新增匿名页依赖的
+        # utils 时务必同步这里，否则未登录状态会白屏。
         '/static/utils/api-fetch.js',
         '/static/utils/request-timeout.js',
+        # 授权激活页与初始化页都要把失败响应翻成人话（P12：422 的原因只在 detail 数组里，
+        # 原先这两页各写一份、都不认数组），所以这份纯文本工具也在匿名图里 ——
+        # 它不碰 DOM、不发请求，符合上面「utils/ 只放与业务无关的纯工具」的口径。
+        '/static/utils/api-error.js',
         # 配对页的引导判定经 pairing-link.js → utils/apple-device.js（P10-B 收敛后
         # 苹果移动端判定只有这一份实现），所以它也在匿名图里。
         '/static/utils/apple-device.js',
@@ -615,7 +731,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         if model_asset and response.status_code in {304, 200, 206}:
             # 3D 模型体积大且内容不变，带 ?v= 版本戳时允许一年强缓存；
             # 没有版本戳就只能 no-cache，否则换了模型用户看不到。
-            response.headers['Cache-Control'] = 'private, max-age=31536000, immutable' if request.query_params.get('v') else 'private, no-cache'
+            set_versioned_private_cache(response, bool(request.query_params.get('v')))
         elif (
             path in {'/', '/pair', '/login', '/setup', '/license', '/3d-studio'}
             or (path.startswith('/api/v1/') and not immutable_private_asset(path))
@@ -662,19 +778,20 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             return destination
         return '/'
 
-    def pairing_redirect(request: Request) -> RedirectResponse:
-        """把当前请求转到配对页，并把原地址塞进 next 以便配对后跳回。"""
+    def next_redirect(request: Request, target: str) -> RedirectResponse:
+        """把当前请求转到 ``target``，并把原地址塞进 next 以便跳回。"""
         destination = request.url.path
         if request.url.query:
             destination = f'{destination}?{request.url.query}'
-        return RedirectResponse(f'/pair?next={quote(destination, safe = "")}', status_code = 303)
+        return RedirectResponse(f'{target}?next={quote(destination, safe = "")}', status_code = 303)
+
+    def pairing_redirect(request: Request) -> RedirectResponse:
+        """把当前请求转到配对页，并把原地址塞进 next 以便配对后跳回。"""
+        return next_redirect(request, '/pair')
 
     def login_redirect(request: Request) -> RedirectResponse:
         """把当前请求转到登录页，并把原地址塞进 next 以便登录后跳回。"""
-        destination = request.url.path
-        if request.url.query:
-            destination = f'{destination}?{request.url.query}'
-        return RedirectResponse(f'/login?next={quote(destination, safe = "")}', status_code = 303)
+        return next_redirect(request, '/login')
 
     @app.get('/health/live', include_in_schema = False)
     async def health_live(request: Request) -> dict[str, str]:

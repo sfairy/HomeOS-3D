@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
 
-from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -38,13 +38,27 @@ PRODUCT = "homeos"
 
 
 class LicenseServerError(Exception):
-    """授权端点错误。``revoked`` 为真时表示这是客户端的「确认吊销」语义。"""
+    """授权端点错误。``revoked`` 为真时表示这是客户端的「确认吊销」语义。
 
-    def __init__(self, detail: str, *, status_code: int = 400, revoked: bool = False) -> None:
+    ``retry_after`` 只在 429 上有值：它是**从这一刻起还要等多少秒**，由 API 层放进
+    ``Retry-After`` 响应头。客户端据此退避而不是按固定间隔重打 —— 心跳本身是分钟级
+    的，撞上小时级的限流窗口时若不做退避，整个窗口内的每一次尝试都只会再拿一个 429
+    （``SlidingWindowLimiter`` 的取舍见 ``store/limiter.py``）。
+    """
+
+    def __init__(
+        self,
+        detail: str,
+        *,
+        status_code: int = 400,
+        revoked: bool = False,
+        retry_after: float | None = None,
+    ) -> None:
         super().__init__(detail)
         self.detail = detail
         self.status_code = status_code
         self.revoked = revoked
+        self.retry_after = retry_after
 
     def as_body(self) -> dict[str, object]:
         """明文错误体：detail 给人看；revoked/code 给客户端做结构化吊销判定。"""
@@ -152,13 +166,6 @@ class LeaseSigner:
         payload_bytes = _canonical(payload)
         signature = self._private.sign(payload_bytes)
         return f"{b64url_encode(payload_bytes)}.{b64url_encode(signature)}"
-
-    def public_key_pem(self) -> bytes:
-        return self._private.public_key().public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo,
-        )
-
 
 @dataclass(frozen=True)
 class KeyGeneration:

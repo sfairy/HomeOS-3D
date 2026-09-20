@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import re
 from contextlib import nullcontext
 from uuid import uuid4
@@ -16,6 +15,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 
+from ..canonical_json import canonical_json
 from ..conflicts import is_unique_violation
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
 from ..global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
@@ -95,7 +95,7 @@ def serialize_document(document: dict) -> str:
     键排序 + 紧凑分隔符，保证同一份文档每次序列化结果完全一致，
     这样比较「内容是否变化」时可以直接比字符串，不必逐字段 diff。
     """
-    return json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    return canonical_json(document)
 
 
 def project_payload(project: Project, draft: ProjectDraft | None = None) -> dict:

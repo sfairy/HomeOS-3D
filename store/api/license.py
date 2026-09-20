@@ -21,19 +21,63 @@ logger = logging.getLogger("store.license.api")
 
 router = APIRouter(tags=["license"])
 
-#: S22：``/v2/*`` 是**匿名可达**的，且每一步都要做 RSA/X25519 运算 —— 不限流的话
+#: S22 / B66：``/v2/*`` 是**匿名可达**的，且每一步都要做 RSA/X25519 运算 —— 不限流的话
 #: 既是 CPU 耗尽的放大器，也让「猜激活码」变得廉价（激活码就是授权凭据本身）。
 #:
-#: 两个维度，对应两种攻击：
-#: * **按来源 IP**：兜住单机暴力跑
-#: * **按激活码**：兜住换 IP 集中猜同一个码（IP 维度挡不住）
+#: 三个维度，对应三类流量：
+#: * **按来源 IP（activate）**：兜住单机暴力猜码。它既是可枚举面，失败路径也最贵。
+#: * **按来源 IP（heartbeat / recover）**：兜住 CPU 洪水，但额度必须放得很宽 ——
+#:   这两个端点收的是高熵会话 / 恢复令牌，**不构成枚举面**（S22 的取舍说明里已写明），
+#:   而它们又承载常态流量：一台客户端的后台心跳（默认 300s）与「授权页开着时的状态
+#:   轮询」都会打到这里。**B66 就是两者共用一个紧额度**：轮询把自己的配额打满，
+#:   然后被自己的限流挡在门外（限流回 429 → 页面拿不到确认 → 继续轮询）。
+#:   额度按出口地址算，真实部署里多台设备共用同一 NAT 出口时还要按台数留余量，
+#:   所以做成可配置的（``STORE_LICENSE_SESSION_IP_HOURLY_LIMIT``）。
+#: * **按激活码**：兜住换 IP 集中猜同一个码（IP 维度挡不住）。
 #:
-#: 每次心跳都会走这三个端点，所以额度必须比「发信」类接口宽松得多：
-#: 一台已激活的客户端按 300s 心跳间隔算，一小时也就 12 次。取 60/IP/小时
-#: 与 30/激活码/小时，对正常使用绰绰有余（含重试与多台同网设备）。
 #: 与其它限流器一样是进程内计数，见 ``store/limiter.py`` 的取舍说明。
-_LICENSE_IP_LIMITER = SlidingWindowLimiter(limit=60, window_seconds=3600.0)
+_LICENSE_ACTIVATE_IP_LIMITER = SlidingWindowLimiter(limit=60, window_seconds=3600.0)
 _LICENSE_CODE_LIMITER = SlidingWindowLimiter(limit=30, window_seconds=3600.0)
+
+#: heartbeat / recover 的 IP 桶按 ``limit`` 缓存实例（见下）。
+_LICENSE_SESSION_IP_LIMITERS: dict[int, SlidingWindowLimiter] = {}
+
+
+def _session_ip_limiter(limit: int) -> SlidingWindowLimiter:
+    """heartbeat / recover 的来源 IP 配额。
+
+    上限来自配置，所以按 ``limit`` 缓存一份实例 —— ``SlidingWindowLimiter`` 的计数
+    在内部持有，每次请求都新建一个等于没有限流。缓存不会无限增长：``limit`` 来自
+    进程启动时解析的环境变量，一个进程里只有一个值。与 ``store/api/store.py`` 的
+    ``_verification_global_limiter`` 是同一取舍。
+    """
+    bounded = max(1, int(limit))
+    cached = _LICENSE_SESSION_IP_LIMITERS.get(bounded)
+    if cached is None:
+        cached = SlidingWindowLimiter(limit=bounded, window_seconds=3600.0)
+        _LICENSE_SESSION_IP_LIMITERS[bounded] = cached
+    return cached
+
+
+def _retry_after_value(seconds: float | None) -> str:
+    """把剩余等待时间格式化成 ``Retry-After`` 的值（至少 1 秒）。
+
+    回的是**剩余**时间而不是整段窗口：客户端已经等了一会儿，不该被要求从头再等一遍
+    （与 B63 在登录限流上定的口径一致）。
+    """
+    return str(max(1, int(seconds or 0) or 1))
+
+
+def _rate_limited(retry_after: float | None) -> JSONResponse:
+    """429 响应：形状与业务错误一致（明文 ``{"detail": ...}``），并回带 ``Retry-After``。
+
+    客户端只认结构化字段，所以限流不能改协议形状；``Retry-After`` 则是它做退避的依据。
+    """
+    return JSONResponse(
+        {"detail": "请求过于频繁，请稍后再试。"},
+        status_code=429,
+        headers={"Retry-After": _retry_after_value(retry_after)},
+    )
 
 
 def _run_in_worker(
@@ -79,7 +123,11 @@ def _run_in_worker(
             logger.warning("授权端点限流：激活码维度触顶 path=%s", path)
             return (
                 None,
-                LicenseServerError("请求过于频繁，请稍后再试。", status_code=429),
+                LicenseServerError(
+                    "请求过于频繁，请稍后再试。",
+                    status_code=429,
+                    retry_after=_LICENSE_CODE_LIMITER.retry_after(f"code:{code}"),
+                ),
                 "dispatch",
             )
         result = getattr(authority, method)(payload, ip=client_ip, generation=generation)
@@ -96,7 +144,9 @@ async def _dispatch(request: Request, method: str) -> Response:
     authority = request.app.state.license_authority
     path = request.url.path
 
-    # S22：按来源 IP 限流。放在读请求体之前，这样「连解析都不做」就能挡掉洪水。
+    # S22 / B66：按来源 IP 限流。放在读请求体之前，这样「连解析都不做」就能挡掉洪水。
+    # 桶按端点选：activate 是可枚举面，额度紧；heartbeat / recover 收的是高熵令牌，
+    # 额度宽（两者共用一个是 B66 的自锁成因，见文件头那段注释）。
     # IP 用 resolve_client_ip 的解析结果（只在可信代理后面才采信转发头）——
     # 与验证码回显、登录限流共用同一套来源判定，避免「限流按 A 算、其它按 B 算」
     # 这类漂移，而伪造 X-Forwarded-For 正是绕开它们的手法。
@@ -105,11 +155,16 @@ async def _dispatch(request: Request, method: str) -> Response:
     except Exception:  # noqa: BLE001 - 解析异常不该让授权端点整体不可用
         address = None
     if address is not None and address.per_client and address.ip:
-        if not _LICENSE_IP_LIMITER.allow(f"ip:{address.ip}"):
-            logger.warning("授权端点限流：来源 IP 触顶 path=%s ip=%s", path, address.ip)
-            return JSONResponse(
-                {"detail": "请求过于频繁，请稍后再试。"}, status_code=429
+        if method == "activate":
+            limiter = _LICENSE_ACTIVATE_IP_LIMITER
+        else:
+            limiter = _session_ip_limiter(
+                request.app.state.settings.license_session_ip_hourly_limit
             )
+        ip_key = f"ip:{address.ip}"
+        if not limiter.allow(ip_key):
+            logger.warning("授权端点限流：来源 IP 触顶 path=%s ip=%s", path, address.ip)
+            return _rate_limited(limiter.retry_after(ip_key))
 
     try:
         body = await request.json()
@@ -139,7 +194,15 @@ async def _dispatch(request: Request, method: str) -> Response:
                 error.status_code,
                 error.detail,
             )
-        return JSONResponse(error.as_body(), status_code=error.status_code)
+        return JSONResponse(
+            error.as_body(),
+            status_code=error.status_code,
+            headers=(
+                {"Retry-After": _retry_after_value(error.retry_after)}
+                if error.retry_after is not None
+                else None
+            ),
+        )
 
     return JSONResponse(response_body)
 

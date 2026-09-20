@@ -19,7 +19,7 @@ router = APIRouter(prefix='/icons', tags=['icons'])
 #: 键里为什么不只有路径（B20）：meta.json 会被**原地更新**（重新发布图标库、运维
 #: 替换 vendor 目录、开发时换一份 meta.json），只按路径缓存的话永远读回第一次那份，
 #: 表现为「新图标搜不到、旧图标搜得到」，而磁盘上明明已经是新文件。
-#: 存快照而不是用 lru_cache 是为了让「文件变没变」这件事可观测：自检直接看这张表。
+#: 存快照而不是用 lru_cache 是为了让「文件变没变」这件事可观测：排障时可以直接看这张表。
 _mdi_metadata_cache: dict[str, tuple[int, int, tuple[dict, ...]]] = {}
 
 

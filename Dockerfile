@@ -89,9 +89,6 @@ COPY --from=store-static-protected /work/store/static ./store/static
 RUN python /tmp/strip_python_sources.py /app \
     && test ! -f /app/store/app.py \
     && test -f /app/store/app.pyc \
-    && test -f /app/store/tools/seed.pyc \
-    && test ! -f /app/store/tools/smoke.py \
-    && test ! -f /app/store/tools/smoke.pyc \
     && test -f /app/container_entrypoint.pyc \
     && test -f /app/docker/start_store.pyc \
     && rm -f /tmp/strip_python_sources.py /app/docker/obfuscate_javascript.mjs /app/docker/package.json \

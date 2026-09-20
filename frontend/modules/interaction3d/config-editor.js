@@ -22,31 +22,31 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "./static-helpers.js?v=20260919214245";
-import { vacuumMapIdentity } from "./vacuum-map.js?v=20260919214245";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260919214245";
-import { mountInteraction3d } from "./runtime.js?v=20260919214245";
-import { lightState } from "./light-state.js?v=20260919214245";
-import { openVacuumMapEditor } from "./vacuum-map-editor.js?v=20260919214245";
+import { resolveStateEntry } from "./static-helpers.js?v=20260920080000";
+import { vacuumMapIdentity } from "./vacuum-map.js?v=20260920080000";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260920080000";
+import { mountInteraction3d } from "./runtime.js?v=20260920080000";
+import { lightState } from "./light-state.js?v=20260920080000";
+import { openVacuumMapEditor } from "./vacuum-map-editor.js?v=20260920080000";
 import { nasGroups } from "./nas-panel.js";
-import { randomUuid } from "/static/utils/random-id.js?v=20260919214245";
-import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260919214245";
+import { randomUuid } from "/static/utils/random-id.js?v=20260920080000";
+import { interaction3dPreviewSize } from "/static/modules/interaction3d/preview-layout.js?v=20260920080000";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   subscribeInteraction3dAccess
-} from "/static/modules/interaction3d/bridge.js?v=20260919214245";
-import { normalizeInteraction3dLightingMode } from "/static/modules/interaction3d/definition.js?v=20260919214245";
+} from "/static/modules/interaction3d/bridge.js?v=20260920080000";
+import { normalizeInteraction3dLightingMode } from "/static/modules/interaction3d/definition.js?v=20260920080000";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "/static/3d-studio/studio-normalization.js?v=20260919214245";
+} from "/static/3d-studio/studio-normalization.js?v=20260920080000";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "./editor-save-status.js?v=20260919214245";
-import { confirmAction } from "/static/ui-confirm.js?v=20260919214245";
+} from "./editor-save-status.js?v=20260920080000";
+import { confirmAction } from "/static/ui-confirm.js?v=20260920080000";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
@@ -213,7 +213,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260919214245";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260920080000";
   document.head.append(styleSheetLinkElement);
   // 建元素小工具，文本一律走 textContent，不拼 HTML。
   const createElement = (tagName, classNames, initialText) => {
@@ -3677,7 +3677,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/runtime.css?v=20260919214245";
+    "/api/v1/modules/interaction3d/runtime.css?v=20260920080000";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   // 与上面带类名的 createElement 区分开，避免传一堆空字符串。

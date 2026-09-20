@@ -14,7 +14,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from store import referrals
+from store import coupons, referrals
 from store.config import StoreSettings
 from store.models import (
     Customer,
@@ -623,6 +623,59 @@ def release_order_reservation(
     release_reserved_stock(session, product, quantity)
     session.expire(order, ["stock_reservation_released_at"])
     session.flush()
+    return True
+
+
+def release_order_effects(
+    session: Session, *, order: Order, product: Product | None
+) -> None:
+    """归还这一单占用的库存预占与优惠码名额。
+
+    **两件事必须成对发生**，所以收成一个函数：漏归还预留会把 ``reserved_stock``
+    越算越高（商品被误判售罄），漏归还优惠码会让名额被永久占用（用户此后只看到
+    「已被领完」）。过去这段在十余处各写一遍，抄漏一处留下的都是这种「只是数字
+    慢慢不对」的账目问题 —— 没有报错，只在某天被发现。
+
+    ``release_order_reservation`` 自己带幂等标记（见该函数），重复调用安全；
+    ``release_coupon`` 只递减 ``redeemed_count``，同样按核销记录判定，不会重复归还。
+    即便如此，**调用方仍只该在真正抢到状态迁移的那一次调用它**：把幂等当成
+    「可以随便多调几次」是误解，它防的是崩溃重放，不是逻辑上的重复释放。
+    """
+    release_order_reservation(session, order=order, product=product)
+    coupons.release_coupon(session, order)
+
+
+def close_pending_order(
+    session: Session,
+    *,
+    order: Order,
+    product: Product | None,
+    status: str = "cancelled",
+    moment: datetime | None = None,
+) -> bool:
+    """把**待支付**订单原子地推入终态，并释放它的库存预留与优惠码名额。
+
+    返回本次是否真的推动了状态（``False`` = 已被别的路径处理）。
+
+    「用户取消 / 后台取消 / 模拟收银台取消 / 超时过期」是同一件事：先抢占
+    ``pending`` 这一行，谁抢到谁负责释放副作用。四处过去各写一遍条件 UPDATE
+    （再加一遍 ``release_order_reservation`` + ``release_coupon``），任何一处
+    抄漏都会留下难查的账目：漏释放预留会把 ``reserved_stock`` 越算越高（商品
+    被误判售罄），漏归还优惠码会让名额被永久占用（用户此后只能看到「已被领完」）。
+
+    只有抢到状态迁移的那一次才释放副作用 —— 因此调用方拿到 ``False`` 时
+    不要再自己释放，那会把预留扣两次并直接放开超卖。
+    """
+    claimed = session.execute(
+        update(Order)
+        .where(Order.id == order.id)
+        .where(Order.status == "pending")
+        .values(status=status, cancelled_at=moment or utcnow())
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount == 0:
+        return False
+    release_order_effects(session, order=order, product=product)
     return True
 
 

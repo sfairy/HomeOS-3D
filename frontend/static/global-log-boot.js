@@ -8,8 +8,9 @@
  *   直接跳登录页；只有带 body 时才声明 Content-Type: application/json；
  *   超时预算统一由 utils/api-fetch.js 决定（这里不自己写超时）。
  */
-import { setupGlobalLog } from "./global-log.js?v=20260919214245";
-import { apiFetch } from "./utils/api-fetch.js?v=20260919214245";
+import { setupGlobalLog } from "./global-log.js?v=20260920080000";
+import { apiErrorMessage } from "./utils/api-error.js?v=20260920080000";
+import { apiFetch } from "./utils/api-fetch.js?v=20260920080000";
 
 /**
  * 发送 JSON 请求并做统一的错误处理。
@@ -52,12 +53,10 @@ async function requestJson(path, init = {}) {
     throw new Error("登录状态已失效。");
   }
   if (!response.ok) {
-    // detail 可能是字符串，也可能是结构化对象，两种都要还原成可读文案。
-    const detail = payload?.detail;
+    // 文案归一交给 utils/api-error.js：这里原先只认字符串与 `detail.message`，
+    // 不认 FastAPI 422 的数组 —— 而日志面板正是最需要看清原因的地方。
     throw new Error(
-      typeof detail == "string"
-        ? detail
-        : detail?.message || "请求失败（HTTP " + response.status + "）"
+      apiErrorMessage(payload, "请求失败（HTTP " + response.status + "）")
     );
   }
   return payload;

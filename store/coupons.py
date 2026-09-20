@@ -40,7 +40,7 @@ class CouponUnavailable(RuntimeError):
 def holds_slot_conditions() -> tuple:
     """「此刻仍占着名额」的 SQL 判据 —— 所有判定点的**唯一来源**。
 
-    四个地方要回答同一个问题（读时校验、原子占用、后台重算、自检），过去各写
+    三个地方要回答同一个问题（读时校验、原子占用、后台重算），过去各写
     一遍 ``or_(order_id.is_(None), status.notin_(RELEASED))``。任何一处写歪都会
     产生「读时放行、写时拒绝」的莫名 400，或者反过来超发折扣，所以收在这里。
 
@@ -66,8 +66,7 @@ def holds_slot_conditions() -> tuple:
 def holds_slot(record: CouponRedemption, order: Order | None) -> bool:
     """:func:`holds_slot_conditions` 的 Python 版（后台列表逐行渲染用）。
 
-    两份实现必须同口径 —— ``smoke.py::check_coupon_redemption_ledger`` 用一张
-    状态矩阵把两边逐格对比，任何一边改了规则都会立刻变红。
+    两份实现必须同口径：任何一边改了规则，两边就会对不上，改动时必须同步。
     """
     if record.voided_at is not None:
         return False

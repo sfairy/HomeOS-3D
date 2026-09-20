@@ -15,6 +15,8 @@ import re
 
 from fastapi import HTTPException
 
+from ...canonical_json import canonical_json
+
 
 def validate_config(properties: dict) -> None:
     """校验一份 3D 交互控件的 properties。
@@ -433,7 +435,7 @@ def validate_config(properties: dict) -> None:
             fail()
         if not isinstance(pair, list) or len(pair) != 2 or any(not text(value) or not value for value in pair):
             fail()
-        if json.dumps(pair, ensure_ascii=False, separators=(',', ':')) != key:
+        if canonical_json(pair) != key:
             fail()
         if not isinstance(region, dict) or not region_fields <= set(region) or set(region) - region_fields - region_optional:
             fail()

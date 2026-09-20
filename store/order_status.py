@@ -35,8 +35,8 @@
 
 from __future__ import annotations
 
-#: 会占用库存预留与优惠码名额的状态。与 ``fulfill.RESERVING_STATUSES`` 必须一致，
-#: 两边都在这里取值，避免「一个模块放行、另一个模块已释放」的错配。
+#: 会占用库存预留与优惠码名额的状态。真相源就是本模块，``fulfill`` 只是直接
+#: re-export 同一个对象（``fulfill.RESERVING_STATUSES``），不存在两处各写一份的错配。
 #:
 #: ``fulfillment_failed`` 也在其中：发货抛异常时履约写入会被回滚（见
 #: ``admin_fulfill`` 的 SAVEPOINT），订单仍然占着那一件预留和那个优惠码名额，
@@ -86,8 +86,8 @@ ORDER_STATUS_CHOICES: tuple[str, ...] = tuple(ORDER_STATUS_LABELS)
 #: 需要人工介入的状态 —— 「必须有人看一眼」的唯一定义。
 #:
 #: 后台概览的「待办」区按它逐项计数（``fulfillment_failed`` = 自动发货炸了、
-#: ``payment_failed`` = 付款没成功但要核对渠道账单），``smoke.py`` 会断言每一项
-#: 都在概览响应里露了面 —— 否则新增一个状态就只改了这里，界面照旧岁月静好。
+#: ``payment_failed`` = 付款没成功但要核对渠道账单）。新增状态时记得同步概览的
+#: 「待办」响应，否则只改了这里、界面照旧岁月静好。
 ORDER_ATTENTION_STATUSES: tuple[str, ...] = ("payment_failed", "fulfillment_failed")
 
 

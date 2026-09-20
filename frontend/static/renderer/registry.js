@@ -23,15 +23,16 @@
  * - 渲染器只负责产出 DOM，不修改文档数据；编辑器预览通过 context.editable 与
  *   context.previewState 表达，不要另开旁路。
  */
-import { randomUuid } from "../utils/random-id.js?v=20260919214245";
+import { randomUuid } from "../utils/random-id.js?v=20260920080000";
+import { formatZhDateTime } from "../utils/datetime.js?v=20260920080000";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../utils/debug-log.js?v=20260919214245";
+import { debugLog } from "../utils/debug-log.js?v=20260920080000";
 // 数值夹取统一走 utils/numbers.js（P10 B 类收敛）：本文件原先那份也叫 clampNumber，
 // 但它是四参、且会把空串换算成 0 —— 与编辑器那份同名不同义，最容易调用错的形态。
 // `clampNumber` 只在三处出现：那三处 `clampCoercedNumber` 的兜底是**算出来的表达式**、
 // 存在越界的现实可能，所以要在调用点先夹一次（`clampCoercedNumber` 的兜底现在原样返回，
 // 与另外两份一致 —— 见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber, clampNumber } from "../utils/numbers.js?v=20260919214245";
+import { clampCoercedNumber, clampNumber } from "../utils/numbers.js?v=20260920080000";
 import {
   climateDefaultIcon,
   climateEffectMode,
@@ -40,24 +41,25 @@ import {
   climatePresentationMode,
   normalizeClimateCapabilities,
   resolveClimateDeviceType
-} from "./climate.js?v=20260919214245";
-import { entityPowerIsOn } from "./entity-power.js?v=20260919214245";
-import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260919214245";
-import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260919214245";
+} from "./climate.js?v=20260920080000";
+import { entityPowerIsOn } from "./entity-power.js?v=20260920080000";
+import { lightRealtimeCapabilities } from "./light-runtime.js?v=20260920080000";
+import { renderInteraction3d } from "../modules/interaction3d/bridge.js?v=20260920080000";
 // 状态条目归一统一走 utils/state-entry.js。本文件原先自带一份同内容实现，
 // 而 vacuum-runtime.js / presence-runtime.js 各有一份同内容但换了名字的副本 —— 现在只有一份。
-import { resolveStateEntry } from "../utils/state-entry.js?v=20260919214245";
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260920080000";
 // 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带一份
 // `String(元数据.domain || id.split(".")[0] || "").trim()`，其中的回退路径换成
 // `entityDomainFromId`；`元数据.domain ||` 那半截刻意保留 —— 它**不切点号**，
 // 换掉会改变「域里带点号」时的取值（那是另一个知识，见 `entityDomainOf` 的说明）。
-import { entityDomainFromId } from "../utils/entities.js?v=20260919214245";
+import { entityDomainFromId } from "../utils/entities.js?v=20260920080000";
+import { mdiIconUrl } from "../utils/icon-url.js?v=20260920080000";
 // 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
 // 本文件原先各留一份本地实现，只因为 cover-runtime.js 已经 import 本文件、反向 import 会成环。
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor
-} from "./cover-direction.js?v=20260919214245";
+} from "./cover-direction.js?v=20260920080000";
 // 控件类型注册表。用 Map 而不是对象字面量：控件类型来自文档数据，
 // Map 不受原型链影响，查 "constructor" 之类的键也不会拿到奇怪的结果。
 const componentsByType = new Map();
@@ -67,7 +69,7 @@ registerComponent("interaction3d", {
   render: renderInteraction3d
 });
 // 内置资源的三个索引：版本戳、显式 URL、特效裁剪变体。
-// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=20260919214245
+// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=20260920080000
 // 特效变体记录裁剪矩形与原图尺寸，渲染时写进 dataset 供 effect-geometry 使用。
 const assetVersionByAssetId = new Map();
 const assetUrlByAssetId = new Map();
@@ -323,26 +325,6 @@ function applyFontWeight(targetElement, fontWeightValue, fontSizeValue) {
   targetElement.style.fontWeight = "100";
   targetElement.style.webkitTextStroke = strokeWidthPx.toFixed(3) + "px currentColor";
   targetElement.style.paintOrder = "stroke fill";
-}
-/**
- * 把 mdi 图标名解析成本地静态资源 URL。
- *
- * 图标名去掉 mdi: 前缀后只允许小写字母、数字与连字符（即正常的图标名），
- * 不合规返回空串，调用方据此不渲染图标而不是请求一个坏地址。
- * 版本号写在 URL 里，升级图标集时同步改这里即可。
- *
- * @param {string} iconName 图标名，形如 mdi:lightbulb。
- * @returns {string} SVG 地址或空串。
- */
-function resolveIconUrl(iconName) {
-  const normalizedIconName = String(iconName || "")
-    .trim()
-    .replace(/^mdi:/, "");
-  if (/^[a-z0-9-]+$/.test(normalizedIconName)) {
-    return "/static/vendor/mdi/7.4.47/svg/" + normalizedIconName + ".svg";
-  } else {
-    return "";
-  }
 }
 /**
  * 通用「活动态」判定：on / open / true / home 都算活动。
@@ -631,18 +613,18 @@ import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport,
   lightStatisticsSummary
-} from "./light-statistics-runtime.js?v=20260919214245";
+} from "./light-statistics-runtime.js?v=20260920080000";
 import {
   automaticNumericPrecision,
   formatLineChartValue,
   formatNumericValue,
   lineChartGeometry,
   normalizedStatePrecision
-} from "./line-chart-runtime.js?v=20260919214245";
+} from "./line-chart-runtime.js?v=20260920080000";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix
-} from "./door-window-runtime.js?v=20260919214245";
+} from "./door-window-runtime.js?v=20260920080000";
 import {
   automaticThresholds,
   meteoconUrl,
@@ -651,12 +633,12 @@ import {
   smoothChartPath,
   thresholdColor,
   weatherVisual
-} from "./weather-chart-runtime.js?v=20260919214245";
+} from "./weather-chart-runtime.js?v=20260920080000";
 import {
   formatLocalDate,
   formatLocalTime,
   formatLunarDate
-} from "./date-time-runtime.js?v=20260919214245";
+} from "./date-time-runtime.js?v=20260920080000";
 // 统一再导出各 runtime 的纯函数：页面脚本只 import registry.js 一处即可，
 // 也保证注册表与这些工具用的是同一份模块实例（版本戳不一致会出现两份）。
 export {
@@ -688,7 +670,7 @@ import {
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "./presence-runtime.js?v=20260919214245";
+} from "./presence-runtime.js?v=20260920080000";
 export {
   formatPresenceDuration as formatPresenceDuration,
   presenceAnimationPhase as presenceAnimationPhase,
@@ -1481,22 +1463,7 @@ function buildHistorySeries(historyContext, historyEntityId, currentStateValue, 
  * @returns {string} 格式化结果。
  */
 function formatHistoryTimestamp(timestampValue, includeDate = true) {
-  const dateTimeFormatOptions = includeDate
-    ? {
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false
-      }
-    : {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false
-      };
-  return new Intl.DateTimeFormat("zh-CN", dateTimeFormatOptions)
-    .format(new Date(timestampValue))
-    .replace(/\//g, "-");
+  return formatZhDateTime(timestampValue, { withDate: includeDate });
 }
 /**
  * 给折线图挂上指针提示：竖线、光点与跟随的数值气泡。
@@ -2189,7 +2156,7 @@ registerComponent("icon-button-effect", {
       "--effect-glow-inset-opacity",
       Math.min(100, effectGlowStrength * 30) + "%"
     );
-    const effectIconSource = resolveIconUrl(effectButtonProperties.icon || "mdi:lightbulb-outline");
+    const effectIconSource = mdiIconUrl(effectButtonProperties.icon || "mdi:lightbulb-outline");
     if (effectIconSource) {
       const effectIconElement = document.createElement("i");
       effectIconElement.className = "hb-icon-button-effect-icon";
@@ -2399,7 +2366,7 @@ registerComponent("title-button", {
       titleElement.append(titleSecondaryTextElement);
     }
     if (titleProperties.iconVisible !== false || isHiddenContentClickable) {
-      const titleIconSource = resolveIconUrl(titleProperties.icon || "");
+      const titleIconSource = mdiIconUrl(titleProperties.icon || "");
       if (titleIconSource) {
         const titleIconElement = document.createElement("i");
         titleIconElement.className = "hb-title-button-icon";
@@ -2504,7 +2471,7 @@ registerComponent("light-statistics", {
     const statisticsIconName = Object.prototype.hasOwnProperty.call(statisticsProperties, "icon")
       ? String(statisticsProperties.icon || "")
       : "mdi:lightbulb-group-outline";
-    const statisticsIconSource = resolveIconUrl(statisticsIconName);
+    const statisticsIconSource = mdiIconUrl(statisticsIconName);
     const hasStatisticsIcon = statisticsProperties.iconVisible !== false && !!statisticsIconSource;
     const hasStatisticsTitle = statisticsProperties.titleVisible !== false;
     const hasStatisticsCount = statisticsProperties.countVisible !== false;
@@ -2826,7 +2793,7 @@ const buttonRenderer = {
       (isDeviceButton
         ? resolveStateIcon(deviceButtonEntityId, deviceButtonState)
         : "mdi:ceiling-light");
-    const deviceButtonIconSource = resolveIconUrl(deviceButtonIconName);
+    const deviceButtonIconSource = mdiIconUrl(deviceButtonIconName);
     if (
       deviceButtonIconSource &&
       (!isDeviceButton ||
@@ -3548,7 +3515,7 @@ registerComponent("air-conditioner", {
         (!airConditionerIconName || airConditionerIconName === "mdi:air-conditioner")
           ? climateDefaultIcon(airConditionerDeviceType)
           : airConditionerIconName || climateDefaultIcon(airConditionerDeviceType);
-      const airConditionerIconSource = resolveIconUrl(airConditionerResolvedIconName);
+      const airConditionerIconSource = mdiIconUrl(airConditionerResolvedIconName);
       if (airConditionerIconSource) {
         const airConditionerIconElement = document.createElement("i");
         airConditionerIconElement.className = "hb-air-conditioner-icon";
@@ -5527,7 +5494,7 @@ registerComponent("navigation-button", {
       );
     }
     if (navigationProperties.iconVisible !== false) {
-      const navigationIconSource = resolveIconUrl(
+      const navigationIconSource = mdiIconUrl(
         navigationProperties.icon || "mdi:home-lightbulb-outline"
       );
       if (navigationIconSource) {

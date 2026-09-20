@@ -101,7 +101,6 @@ class TableReport:
 class MigrationReport:
     tables: list[TableReport] = field(default_factory=list)
     backup_path: Path | None = None
-    reason: str = ""
 
     @property
     def ok(self) -> bool:
@@ -142,14 +141,10 @@ def backup_database(engine: Engine, *, directory: Path | None = None) -> Path | 
     """迁移前把 SQLite 库文件整份复制一份，返回备份路径。
 
     实现已挪到 :func:`store.schema_guard.backup_database`：``schema_guard`` 合并重复行
-    前也要备份（同一件事只留一份实现）。这里保留同名包装只是为了不动既有调用方
-    （``store/tools/migrate_points.py``、smoke），文件名前缀仍是 ``pre-centi-``。
+    前也要备份（同一件事只留一份实现）。这里保留同名包装只是为了不动既有调用方，
+    文件名前缀仍是 ``pre-centi-``。
     """
     return _backup_database(engine, directory=directory, label="centi")
-
-
-def _table_columns(engine: Engine, table: str) -> set[str]:
-    return {column["name"] for column in inspect(engine).get_columns(table)}
 
 
 def _scan(engine: Engine) -> list[tuple[str, list[tuple[str, str, str]], set[str], bool]]:
@@ -166,15 +161,6 @@ def _scan(engine: Engine) -> list[tuple[str, list[tuple[str, str, str]], set[str
     return scanned
 
 
-def legacy_tables(engine: Engine) -> list[str]:
-    """哪些表还留着旧 ``FLOAT`` 列（即「还没迁移」）。"""
-    return [
-        table
-        for table, spec, columns, exists in _scan(engine)
-        if exists and any(legacy in columns for legacy, _, _ in spec)
-    ]
-
-
 def migrate_points(
     engine: Engine,
     *,
@@ -183,8 +169,7 @@ def migrate_points(
 ) -> MigrationReport:
     """执行回填 + 对账（+ 可选退役旧列）。
 
-    ``drop_legacy=False`` 时只做「补列 + 回填 + 对账」，把删列留给运维择期执行
-    （``python -m store.tools.migrate_points --drop-legacy``）。
+    ``drop_legacy=False`` 时只做「补列 + 回填 + 对账」，把删列留给运维择期执行。
 
     **唯一会破坏数据的一步是删列**，而它被 ``problems`` 严格把关：任何一行对账不通过
     就整表跳过删列，并把原因写进日志与返回值。
@@ -345,76 +330,3 @@ def _drop_legacy_columns(
         dropped.append(column)
         logger.info("已退役旧列 %s.%s", table, column)
     return dropped
-
-
-def rollback_points(engine: Engine) -> MigrationReport:
-    """把整数厘还原成旧的 ``FLOAT`` 积分列（迁移的反向操作）。
-
-    用于「迁移后发现别的问题、需要退回旧版本程序」的场景：旧版本程序只认
-    ``balance`` / ``delta`` 这些列，如果不还原就启动，会以 ``no such column`` 崩掉。
-
-    反向换算**无损**：``centi / 100`` 渲染回两位小数与迁移前完全一致（因为迁移本来就是
-    按「显示值不变」校验的）。旧列按原 DDL 重建为 ``FLOAT NOT NULL DEFAULT 0``。
-    """
-    report = MigrationReport(reason="rollback")
-    for table, spec in _MIGRATION_SPEC.items():
-        row = TableReport(table=table)
-        report.tables.append(row)
-        columns = _table_columns(engine, table)
-        if not columns:
-            row.state = "missing-table"
-            continue
-
-        pairs = [
-            (legacy, centi)
-            for legacy, centi, _ in spec
-            if centi in columns
-        ]
-        if not pairs:
-            row.state = "already"
-            continue
-
-        for legacy, _centi in pairs:
-            if legacy in columns:
-                continue
-            with engine.begin() as connection:
-                connection.exec_driver_sql(
-                    f'ALTER TABLE "{table}" ADD COLUMN "{legacy}" FLOAT NOT NULL DEFAULT 0'
-                )
-            row.created.append(legacy)
-
-        assignments = ", ".join(f'"{legacy}" = ?' for legacy, _ in pairs)
-        with engine.begin() as connection:
-            rows = connection.exec_driver_sql(
-                f'SELECT "id", {", ".join(centi for _, centi in pairs)} FROM "{table}"'
-            ).fetchall()
-            updates = [
-                (*[float(money.from_centi(int(value or 0))) for value in raw[1:]], raw[0])
-                for raw in rows
-            ]
-            if updates:
-                connection.exec_driver_sql(
-                    f'UPDATE "{table}" SET {assignments} WHERE "id" = ?', updates
-                )
-        row.backfilled = len(updates)
-        row.verified = len(updates)
-
-        for _legacy, centi in pairs:
-            try:
-                with engine.begin() as connection:
-                    connection.exec_driver_sql(drop_column_ddl(table, centi))
-            except Exception as error:  # noqa: BLE001
-                row.problems.append(f"删列 {table}.{centi} 失败：{error}")
-                continue
-            row.dropped.append(f"{centi}（已删除）")
-
-        row.state = "migrated"
-        logger.warning(
-            "已回滚 %s：还原 %d 行，重建旧列 %s，删除整数列 %s。",
-            table,
-            row.backfilled,
-            "、".join(row.created) or "（已存在）",
-            "、".join(row.dropped) or "（无）",
-        )
-
-    return report

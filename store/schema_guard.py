@@ -53,7 +53,7 @@ logger = logging.getLogger("store.schema")
 #: 而 SQLAlchemy 不会把 Python 侧的 ``default=`` 写进 DDL，于是存量库里那一列是
 #: ``NOT NULL`` 且**没有默认值**。ORM 一旦不再映射它，INSERT 就会省略该列，
 #: 此后每次插入都以 ``NOT NULL constraint failed`` 失败 —— 且**只在存量库上**失败，
-#: 全新库（``create_all`` 建表时本就没有这一列）与 smoke 全绿，属于最难排查的一类漂移。
+#: 全新库（``create_all`` 建表时本就没有这一列）更不会暴露它，属于最难排查的一类漂移。
 _RETIRED_COLUMNS: dict[str, tuple[str, ...]] = {
     # 提现不再收集联系 QQ，改为让用户凭申请编号联系客服。
     "referral_withdrawals": ("qq",),

@@ -200,7 +200,7 @@ def expected_request_scheme(request: Request) -> str:
     （``f"{parsed.scheme}://{host}"``），等于让攻击者页面自己声明「我是 https 同源」。
     同主机的明文页面因此能驱动 HTTPS 站点的带 Cookie 写请求。scheme 是攻击者能决定的，
     Host 不是，所以必须由部署形态给出。与 ``backend/app/http_security.py`` 的同名函数
-    是刻意重复的两份，改一处必须同步改另一处（自检里有对照断言）。
+    是刻意重复的两份，改一处必须同步改另一处。
     """
     settings = _settings(request)
     base_url = str(getattr(settings, "public_base_url", "") or "").strip().lower()
@@ -249,7 +249,7 @@ def same_origin_request(request: Request) -> bool:
 
     有 ``Origin`` 就比它；只有 ``Referer`` 就比 Referer 的来源；两个都没有则放行
     —— 浏览器发起的跨站写请求一定带 Origin，缺头说明是脚本 / 本机工具
-    （支付回调、自检脚本、监控探活），它们本来也带不上受害者的 Cookie。
+    （支付回调、命令行工具、监控探活），它们本来也带不上受害者的 Cookie。
     """
     origin = request.headers.get("origin", "").strip()
     if origin:

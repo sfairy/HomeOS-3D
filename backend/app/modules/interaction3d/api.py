@@ -22,6 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import Field
 from sqlalchemy import select
 
+from ...canonical_json import canonical_json_bytes
 from ...dependencies import DatabaseSession, LicensedViewer, LicensedUser, require_viewer_project
 from ...models import HAEntity, ProjectDraft
 from ...panel.documents import parse_document, require_document
@@ -82,8 +83,11 @@ def light_history_scope(connection, viewer, project_id: str) -> str:
         base_url,
         hashlib.sha256(encrypted_token.encode('utf-8')).hexdigest(),
     ]
-    # separators 去掉多余空格，保证同一份输入在任何 Python 版本下摘要一致。
-    return hashlib.sha256(json.dumps(identity, separators=(',', ':')).encode('utf-8')).hexdigest()
+    # 规范序列化（canonical_json_bytes）去掉多余空格并保持键序稳定，保证同一份输入
+    # 在任何 Python 版本下摘要一致；它同时钉住 ``ensure_ascii=False`` —— 手写
+    # ``json.dumps(..., separators=(',', ':'))`` 时最容易漏掉这一项，一旦某个字段
+    # 含中文就会与规范形式产生两套字节、摘要随之分叉。
+    return hashlib.sha256(canonical_json_bytes(identity)).hexdigest()
 
 
 def scene_path(request: Request, scene_id: str):
@@ -293,7 +297,7 @@ def get_current_scene(scene_id: str, request: Request, viewer: LicensedViewer, p
             raise HTTPException(409, detail='户型保存尚未完成，稍后自动重试。') from error
         payload = reference
     # syncKey 只对 scene 本身做规范化哈希：包装字段（如本地临时状态）变化不算改动。
-    key = hashlib.sha256(json.dumps(payload['scene'], sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    key = hashlib.sha256(canonical_json_bytes(payload['scene'])).hexdigest()
     # 无变化：回 204 空响应，前端什么都不用做，这是轮询的主路径。
     if key == since:
         from fastapi.responses import Response
@@ -547,7 +551,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     scene_path(request, sceneId)
     html = (request.app.state.settings.frontend_dir / '3d-studio.html').read_text(encoding='utf-8')
     # v= 缓存戳需要手动维护：页面本身 no-store，只有 URL 变了浏览器才会重新取样式。
-    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/stage.css?v=20260919214245"></head>')
+    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/stage.css?v=20260920080000"></head>')
     html = html.replace('<body>', f'<body class="interaction3d-stage" data-i3d-light-history-scope="{scope}">')
     return HTMLResponse(html, headers={'Cache-Control': 'no-store'})
 
@@ -648,11 +652,8 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
     # 前缀 /{filename} 不会退化成任意文件读取。新增资源必须在这里登记 ——
     # 漏登记不会报错，只会在浏览器里表现为「某个模块 404、整条 import 链断掉」，
     # 排查时先看这里。树里每一个相对 import 都必须与下面的名单保持同步。
-    # 这件事**已经不必靠人记得**：`backend/tools/smoke.py` 的
-    # `check_interaction3d_resource_whitelist` 两个方向都盯着 —— 静态腿比对
-    # 磁盘 vs 名单（含树内相对 import 的可达性与媒体类型），行为腿把每个文件
-    # 真发一次请求要求 200。漏登记 = 静态腿当场红（这个坑在 P12 收口时真踩过一次，
-    # `static-helpers.js` 就是这么 404 的）。
+    # 这个坑在 P12 收口时真踩过一次：`static-helpers.js` 漏登记，整条 import 链
+    # 在浏览器里 404。改动这棵树时务必对照下面名单逐个核对。
     media_types = {
         name: 'text/javascript'
         for name in (

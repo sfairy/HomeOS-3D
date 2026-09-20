@@ -29,6 +29,7 @@ from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
 from ..body_guard import MAX_SCENE_DOCUMENT_BYTES
+from ..canonical_json import canonical_json, canonical_json_bytes
 from ..dependencies import DatabaseSession, LicensedUser
 from ..global_popups import global_popups
 from ..models import Project, ProjectDraft
@@ -69,7 +70,7 @@ def _atomic_json_write(path: Path, payload: dict) -> None:
     异常:
         HTTPException 413: 序列化后超过 MAX_DRAFT_BYTES。
     """
-    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    encoded = canonical_json_bytes(payload)
     # 写盘前就拦下超大草稿，避免先把大文件写出去再回滚。
     if len(encoded) > MAX_DRAFT_BYTES:
         raise HTTPException(status_code=413, detail='户型图数据过大，无法保存。')
@@ -139,7 +140,7 @@ def _migrate_legacy_scene(request: Request, database: DatabaseSession) -> dict |
         # 只采用第一份有效场景；后续文档里的字段照删，但内容不再覆盖。
         if selected_scene is None and isinstance(scene, dict):
             selected_scene = scene
-        draft.document_json = json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        draft.document_json = canonical_json(document)
         changed = True
     if changed:
         database.commit()
@@ -320,12 +321,12 @@ def check_studio3d_export(request: Request, _user: LicensedUser) -> dict:
 
 
 def _atomic_swap(source: Path, destination: Path) -> None:
-    """原子替换一个路径（单独包一层是为了让自检能注入「替换失败」）。
+    """原子替换一个路径（单独包一层是为了让「替换失败」可注入）。
 
     覆盖导出时用的是「旧目录改名 → 新目录就位 → 删旧」的换位法，其中任何一步
-    都可能失败，而失败与回滚的先后顺序决定了异常链长什么样（B39）。自检要能
-    制造「新目录就位失败且回滚也失败」这种罕见组合，直接打 ``os.replace`` 会
-    污染整个进程，所以留这一个可替换的入口。
+    都可能失败，而失败与回滚的先后顺序决定了异常链长什么样（B39）。要复现
+    「新目录就位失败且回滚也失败」这种罕见组合，直接打 ``os.replace`` 会污染
+    整个进程，所以留这一个可替换的入口（排障时手工打桩用）。
     """
     os.replace(source, destination)
 

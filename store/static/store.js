@@ -5,7 +5,8 @@
   const storePageHref = path => `${path}${path.includes('?') ? '&' : '?'}v=${STORE_PAGE_REVISION}`;
   // 接口下发的 logo_url 与商品图路径不带版本号，浏览器会按启发式缓存复用旧图。
   // 这里复用页面已加载的 theme.css 上的 ?v=（由 tools/bump_static_cache_versions.mjs
-  // 统一维护），给商店静态资源补上版本号，避免图标更新后仍显示旧文件。
+  // 统一改写），给商店静态资源补上版本号，
+  // 避免图标更新后仍显示旧文件。
   let storeStaticVersion;
   function versionedStoreAsset(url) {
     if (typeof url !== 'string' || !url.startsWith('/store-static/') || url.includes('?')) return url;
@@ -775,8 +776,8 @@
     if (product.soldOut) { toast('该商品已售罄。'); return; }
     if (!state.account) { showGuestPurchaseNotice(); return; }
     // 重复购买同一个永久商品：再买一张会**另发一个新激活码**，而不是延长原授权。
-    // 服务端不能硬拦 —— 一人多台设备、多套部署是合法需求（且 smoke/e2e 也会
-    // 连续购买同一商品），所以这里做二次确认，把「买错了」挡在付款之前。
+    // 服务端不能硬拦 —— 一人多台设备、多套部署是合法需求，所以这里做二次确认，
+    // 把「买错了」挡在付款之前。
     if (ownedPermanentLicense(product) && !await confirmDuplicatePurchase(product)) {
       toast('已取消，未创建订单。');
       return;

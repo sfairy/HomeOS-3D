@@ -8,7 +8,8 @@
  * 约定：接口路径由注入的 api 拼接（相对 /api/v1），本模块不直接 fetch；
  *   每页 200 条，翻到「查看历史」时暂停自动刷新，避免覆盖用户正在看的内容。
  */
-import { confirmAction } from "./ui-confirm.js?v=20260919214245";
+import { confirmAction } from "./ui-confirm.js?v=20260920080000";
+import { formatZhDateTime } from "./utils/datetime.js?v=20260920080000";
 
 // 日志等级的中文名，与后端 global_log.py 的等级枚举一致。
 const LEVEL_LABELS = {
@@ -29,17 +30,7 @@ function formatTimestamp(timestamp) {
   if (Number.isNaN(parsedDate.getTime())) {
     return "时间未知";
   } else {
-    // zh-CN 默认用 "/" 分隔，替换成 "-" 与后端日志文本风格统一。
-    return new Intl.DateTimeFormat("zh-CN", {
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false
-    })
-      .format(parsedDate)
-      .replace(/\//g, "-");
+    return formatZhDateTime(parsedDate, { withSeconds: true });
   }
 }
 

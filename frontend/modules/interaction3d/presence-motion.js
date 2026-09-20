@@ -10,19 +10,15 @@
  * presenceTriggerIsTimed、createPresenceTriggers、closedPath、sampleClosedPath。
  */
 
-// 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
-// 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
-// `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "./static-helpers.js?v=20260919214245";
-/** 允许显示人体存在的页面；overview 即「ALL（全部楼层）」，是默认显示的页面之一。 */
-export const PRESENCE_PAGES = [
-  ["overview", "ALL（全部楼层）"],
-  ["light", "灯光"],
-  ["environment", "环境"],
-  ["devices", "设备"],
-  ["vacuum", "扫地机"],
-  ["security", "安防"]
-];
+// 状态条目归一（变更对象 / 状态对象两种形态）、「按 ID 切域」与交互页面清单都只有一份实现
+// （`/static/utils/` 里那几份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）
+// 不能写裸 `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
+import {
+  INTERACTION_PAGE_OPTIONS as PRESENCE_PAGES,
+  resolveStateEntry
+} from "./static-helpers.js?v=20260920080000";
+/** 允许显示人体存在的页面；与编辑器的页面下拉共用一份清单，见 `static/utils/interaction-pages.js`。 */
+export { PRESENCE_PAGES };
 /**
  * 判断人体存在绑定是否应该在指定页面上显示。
  *

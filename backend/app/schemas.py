@@ -10,7 +10,6 @@
 """
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime
 from typing import Any
@@ -18,6 +17,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .body_guard import MAX_JSON_DEPTH, MAX_SCENE_DOCUMENT_BYTES, json_nesting_depth
+from .canonical_json import canonical_json_bytes
 from .ha.client import HAClientError, normalize_base_url
 
 # 禁止出现在用户名 / 设备名里的控制字符（含 NUL 与 DEL）。
@@ -349,7 +349,7 @@ class Studio3DDraftUpdate(BaseModel):
         这两条限制原先只存在于**这条路由**上：字节数写在 ASGI 中间件
         （``body_guard.DraftBodyGuard``）与写盘函数（``studio3d._atomic_json_write``）里，
         深度只写在中间件里。中间件只在装了它的应用上生效 —— 直接把路由器挂到别的
-        FastAPI 应用上（自检就是这么做的，将来别的入口也可能）时，一个几 KB 的深层
+        FastAPI 应用上（将来别的入口可能这么做）时，一个几 KB 的深层
         嵌套 JSON 就能把 ``json.loads`` 打爆成 500。所以契约要声明在 schema 这一层：
         无论谁调用这个模型，边界都成立。
 
@@ -357,9 +357,7 @@ class Studio3DDraftUpdate(BaseModel):
         「接口放行、落盘拒收」这种自相矛盾的门槛；序列化方式也取写盘时那一套
         （排序 + 去空格），两处算出来的字节数一致。
         """
-        encoded = json.dumps(
-            value, ensure_ascii=False, sort_keys=True, separators=(',', ':')
-        ).encode('utf-8')
+        encoded = canonical_json_bytes(value)
         if len(encoded) > MAX_SCENE_DOCUMENT_BYTES:
             raise ValueError('户型图数据过大，无法保存。')
         if json_nesting_depth(encoded) > MAX_JSON_DEPTH:

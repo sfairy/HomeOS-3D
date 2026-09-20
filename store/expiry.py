@@ -27,10 +27,10 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from sqlalchemy import and_, delete, or_, select, update
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.orm import Session
 
-from store import coupons, fulfill
+from store import fulfill
 from store.config import StoreSettings
 from store.models import AccountSession, Order, Product, utcnow
 
@@ -112,20 +112,13 @@ def expire_stale_orders(
     products = _products_in(session, (order.product_id for order in stale))
     expired = 0
     for order in stale:
-        claimed = session.execute(
-            update(Order)
-            .where(Order.id == order.id)
-            .where(Order.status == "pending")
-            .values(status="expired", cancelled_at=moment)
-            .execution_options(synchronize_session=False)
-        )
-        if claimed.rowcount == 0:
+        product = products.get(order.product_id or "")
+        if not fulfill.close_pending_order(
+            session, order=order, product=product, status="expired", moment=moment
+        ):
             # 已被别的路径处理（支付/取消/其它线程的扫描），副作用由它负责。
             continue
         expired += 1
-        product = products.get(order.product_id or "")
-        fulfill.release_order_reservation(session, order=order, product=product)
-        coupons.release_coupon(session, order)
     if expired:
         session.flush()
     return expired

@@ -11,8 +11,8 @@ POST / PATCH 的请求体可以带任意字符串。这两个字段过去完全�
   基础授权处理**（``store/api/store.py`` 的 ``_checkout``）。一个拼错的类型
   会让「只能追加到已有授权的增量包」变成可以直接买走的基础授权。
 
-取值清单必须与 ``store/templates/admin.html`` 里两个 ``<select>`` 的选项一致
-（smoke 里有断言盯着），新增取值要两边同时改。
+取值清单必须与 ``store/templates/admin.html`` 里两个 ``<select>`` 的选项一致，
+新增取值要两边同时改。
 """
 
 from __future__ import annotations

@@ -22,7 +22,8 @@
  * - 组件类型字符串（icon-button、light-statistics 等）是文档与注册表之间的约定键，
  *   新增或改名必须同步 registry.js 里的 registerComponent 调用。
  */
-import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260919214245";
+import { popupPlacement } from "../modules/interaction3d/popup-placement.js?v=20260920080000";
+import { formatZhDateTime } from "../utils/datetime.js?v=20260920080000";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
@@ -52,22 +53,23 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260919214245";
-import { randomUuid } from "../utils/random-id.js?v=20260919214245";
+} from "./registry.js?v=20260920080000";
+import { randomUuid } from "../utils/random-id.js?v=20260920080000";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260920080000";
 // 颜色解析统一走 utils/colors.js（P10 B 类收敛）：本文件原先在 mixHexColors 里
 // 又写了一份 normalizeHexColor，与 home.js 那份同名但失败值不同（null vs 空串）。
-import { expandHexColorOrNull } from "../utils/colors.js?v=20260919214245";
+import { expandHexColorOrNull } from "../utils/colors.js?v=20260920080000";
 // 「按 ID / 按实体取域」只有一份实现（P12 收口 B 类末尾那一项，含残留补齐批次）：本文件原先
 // 自带 `resolvedEntityId.split(".")[0]`（init 与重定向后各一次），外加十一处同族的内联形态。
 // 其中有 `|| ""` 守卫的、以及输入已被上游真值判断卡住的那些，换过去语义逐字相同；
 // 唯一一处真有行为差异的是组合弹窗里 `moduleResolvedEntityId` 可能整个缺席（`undefined`）
 // 的那条 —— 旧写法抛 `TypeError`，现在归一成 `""`（渲染得更稳，不改变「是不是 button」的判定）。
-import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=20260919214245";
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=20260920080000";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
 // 本文件原先有十几处内联的 `x?.newState || x[ || 兜底]`（P12 状态条目内联收口），
 // 语义与那个助手逐字相同（唯一的差别见 `state-entry.js` 里「为什么用真值判定」那段）。
-import { resolveStateEntry } from "../utils/state-entry.js?v=20260919214245";
-import { popupLayoutMetrics } from "../popup-layout.js?v=20260919214245";
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260920080000";
+import { popupLayoutMetrics } from "../popup-layout.js?v=20260920080000";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -86,11 +88,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "./climate.js?v=20260919214245";
+} from "./climate.js?v=20260920080000";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260919214245";
+} from "./device-profiles.js?v=20260920080000";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -99,26 +101,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../related-entities.js?v=20260919214245";
-import { confirmAction } from "../ui-confirm.js?v=20260919214245";
+} from "../related-entities.js?v=20260920080000";
+import { confirmAction } from "../ui-confirm.js?v=20260920080000";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260919214245";
+} from "./entity-power.js?v=20260920080000";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../virtual-entities.js?v=20260919214245";
-import { componentActionIsSupported } from "../action-rules.js?v=20260919214245";
+} from "../virtual-entities.js?v=20260920080000";
+import { componentActionIsSupported } from "../action-rules.js?v=20260920080000";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "./transform-geometry.js?v=20260919214245";
+} from "./transform-geometry.js?v=20260920080000";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -128,7 +130,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "./effect-geometry.js?v=20260919214245";
+} from "./effect-geometry.js?v=20260920080000";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -147,14 +149,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "./light-runtime.js?v=20260919214245";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260919214245";
+} from "./light-runtime.js?v=20260920080000";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260920080000";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "./vacuum-runtime.js?v=20260919214245";
+} from "./vacuum-runtime.js?v=20260920080000";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -186,16 +188,16 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "./cover-runtime.js?v=20260919214245";
+} from "./cover-runtime.js?v=20260920080000";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260919214245";
+import { coverMotorIsReversedForComponent } from "./cover-direction.js?v=20260920080000";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260919214245";
+} from "./runtime-dialog-motion.js?v=20260920080000";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -205,13 +207,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260919214245";
+} from "./runtime-caches.js?v=20260920080000";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260919214245";
+} from "./runtime-document.js?v=20260920080000";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -8045,10 +8047,9 @@ export class PanelRenderer {
     });
     if (!serviceResponse.ok) {
       const serviceErrorBody = await serviceResponse.json().catch(() => ({}));
+      // 文案归一交给 utils/api-error.js（这里原先只认字符串与 `detail.message`）。
       const entityServiceError = new Error(
-        typeof serviceErrorBody.detail == "string"
-          ? serviceErrorBody.detail
-          : serviceErrorBody.detail?.message || "实体操作失败。"
+        apiErrorMessage(serviceErrorBody, "实体操作失败。")
       );
       throw (
         window.HABridgeLog?.linkError(entityServiceError, serviceResponse) || entityServiceError
@@ -8082,7 +8083,7 @@ export class PanelRenderer {
     });
     const mediaBrowseBody = await mediaBrowseResponse.json().catch(() => ({}));
     if (!mediaBrowseResponse.ok) {
-      throw new Error(mediaBrowseBody.detail || "媒体目录读取失败。");
+      throw new Error(apiErrorMessage(mediaBrowseBody, "媒体目录读取失败。"));
     }
     return mediaBrowseBody.result || {};
   }
@@ -10091,204 +10092,6 @@ export class PanelRenderer {
     };
     syncCapabilityState(capabilityState);
     return capabilityControlsElement;
-  }
-  /**
-   * 打开「能力详情」通用弹窗（按实体能力渲染控件）。
-   *
-   * @param {object} capabilityDetailsComponent 组件记录。
-   * @param {object} [options] 选项。
-   * @param {boolean} [options.preview=false] 是否编辑态预览。
-   * @param {string} [options.title=""] 标题覆盖。
-   * @returns {void}
-   * @throws {Error} 组件没有绑定实体。
-   */
-  showCapabilityDetails(
-    capabilityDetailsComponent,
-    { preview: capabilityDetailsPreview = false, title: capabilityDetailsTitle = "" } = {}
-  ) {
-    const capabilityDetailsEntityId = capabilityDetailsComponent.bindings?.entity?.entityId;
-    if (!capabilityDetailsEntityId) {
-      throw new Error("该控件没有关联实体。");
-    }
-    this.closeRuntimeDialog();
-    const capabilityDetailsState = resolveStateEntry(this.states.get(capabilityDetailsEntityId), {
-      entityId: capabilityDetailsEntityId,
-      state: "unknown",
-      attributes: {}
-    });
-    const capabilityDetailsProfile = this.deviceProfile(capabilityDetailsEntityId);
-    const isAirPurifierCapability = capabilityDetailsProfile?.deviceType === "air-purifier";
-    const capabilityDialogElement = document.createElement("dialog");
-    capabilityDialogElement.className =
-      "hb-entity-details-dialog capability-details" +
-      (isAirPurifierCapability ? " air-purifier-details" : "");
-    const capabilityCardElement = document.createElement("div");
-    capabilityCardElement.className = "hb-entity-details-card";
-    const capabilityHeadingElement = document.createElement("div");
-    capabilityHeadingElement.className = "hb-entity-details-heading";
-    const capabilityTitleRowElement = document.createElement("div");
-    const capabilityTitleElement = document.createElement("strong");
-    capabilityTitleElement.textContent =
-      capabilityDetailsTitle ||
-      capabilityDetailsComponent.properties?.label ||
-      capabilityDetailsState.attributes?.friendly_name ||
-      capabilityDetailsEntityId;
-    const capabilityStatusElement = document.createElement("span");
-    capabilityStatusElement.textContent =
-      capabilityDetailsState.state === "unavailable" ? "当前不可用" : "设备控制";
-    capabilityTitleRowElement.append(capabilityTitleElement, capabilityStatusElement);
-    const capabilityCloseButton = document.createElement("button");
-    capabilityCloseButton.type = "button";
-    capabilityCloseButton.textContent = "×";
-    capabilityCloseButton.setAttribute("aria-label", "关闭弹窗");
-    capabilityHeadingElement.append(capabilityTitleRowElement, capabilityCloseButton);
-    const capabilityBodyElement = document.createElement("div");
-    capabilityBodyElement.className = "hb-capability-details-body";
-    const capabilityControls = this.createCapabilityDetailsControls(
-      capabilityDetailsEntityId,
-      capabilityDetailsState,
-      {
-        interactive: !capabilityDetailsPreview,
-        variant: isAirPurifierCapability ? "air-purifier" : ""
-      }
-    );
-    capabilityBodyElement.append(capabilityControls);
-    capabilityCardElement.append(capabilityHeadingElement, capabilityBodyElement);
-    capabilityDialogElement.append(capabilityCardElement);
-    const capabilityMetricLabels = {
-      pm25: "PM2.5",
-      airQuality: "空气质量",
-      temperature: "温度",
-      humidity: "湿度",
-      filterLife: "滤芯寿命"
-    };
-    const capabilityMetricEntries = isAirPurifierCapability
-      ? ["pm25", "airQuality", "temperature", "humidity", "filterLife"]
-          .map(metricRole => ({
-            role: metricRole,
-            id: capabilityDetailsProfile.roles?.[metricRole]
-          }))
-          .filter(({ id: metricId }) => metricId)
-          .map(({ role: metricRoleEntry, id: metricIdEntry }) => ({
-            role: metricRoleEntry,
-            item: this.entityMetadata.get(metricIdEntry)
-          }))
-          .filter(
-            ({ item: metricMetadataRecord }) =>
-              ["sensor", "binary_sensor"].includes(metricMetadataRecord?.domain) &&
-              entityMetadataIsAvailable(metricMetadataRecord)
-          )
-          .slice(0, 5)
-      : [];
-    const metricValueElementsByEntityId = new Map();
-    if (capabilityMetricEntries.length) {
-      const capabilityMetricsElement = document.createElement("div");
-      capabilityMetricsElement.className = "hb-capability-metrics";
-      for (const { role: metricRoleName, item: metricMetadataEntry } of capabilityMetricEntries) {
-        const capabilityMetricElement = document.createElement("div");
-        capabilityMetricElement.className =
-          "hb-capability-metric hb-capability-metric--" + metricRoleName;
-        const capabilityMetricLabelElement = document.createElement("small");
-        capabilityMetricLabelElement.textContent =
-          capabilityMetricLabels[metricRoleName] ||
-          metricMetadataEntry.name ||
-          metricMetadataEntry.originalName ||
-          metricMetadataEntry.entityId;
-        const capabilityMetricValueElement = document.createElement("strong");
-        capabilityMetricElement.append(capabilityMetricLabelElement, capabilityMetricValueElement);
-        capabilityMetricsElement.append(capabilityMetricElement);
-        metricValueElementsByEntityId.set(
-          metricMetadataEntry.entityId,
-          capabilityMetricValueElement
-        );
-      }
-      capabilityBodyElement.prepend(capabilityMetricsElement);
-    }
-    const capabilityLayerElement = document.createElement("div");
-    capabilityLayerElement.className =
-      "hb-renderer-runtime-dialog-layer" + (this.options.editable ? "" : " hb-runtime-no-select");
-    capabilityLayerElement.tabIndex = -1;
-    capabilityLayerElement.append(capabilityDialogElement);
-    this.container.append(capabilityLayerElement);
-    this.detailsDialog = capabilityDialogElement;
-    /**
-     * 把设备最新状态同步进能力弹窗：转发给控件，并按需切换状态文案。
-     *
-     * @param {object} nextDetailsState 该实体的最新状态对象。
-     * @returns {void}
-     */
-    const syncCapabilityDialogState = nextDetailsState => {
-      capabilityControls.syncCapabilityState?.(nextDetailsState);
-      capabilityStatusElement.textContent = ["unknown", "unavailable"].includes(
-        String(nextDetailsState?.state || "").toLowerCase()
-      )
-        ? "当前不可用"
-        : "设备控制";
-    };
-    const detailsHandlersByEntityId = new Map([
-      [capabilityDetailsEntityId, [syncCapabilityDialogState]]
-    ]);
-    for (const { item: metricMetadataItem } of capabilityMetricEntries) {
-      /**
-       * 把某个指标实体的最新状态写进弹窗里的数值格。
-       *
-       * unknown/unavailable 显示 "--"；单位取自状态里的 unit_of_measurement，
-       * 即指标实体自带单位，前端不硬编码。
-       *
-       * @param {object} nextMetricState 指标实体的最新状态。
-       * @returns {void}
-       */
-      const syncCapabilityMetricValue = nextMetricState => {
-        const metricValueElement = metricValueElementsByEntityId.get(metricMetadataItem.entityId);
-        if (metricValueElement) {
-          metricValueElement.textContent =
-            nextMetricState?.state === "unknown" || nextMetricState?.state === "unavailable"
-              ? "--"
-              : (
-                  (nextMetricState?.state ?? "--") +
-                  " " +
-                  (nextMetricState?.attributes?.unit_of_measurement || "")
-                ).trim();
-        }
-      };
-      syncCapabilityMetricValue(resolveStateEntry(this.states.get(metricMetadataItem.entityId)));
-      detailsHandlersByEntityId.set(metricMetadataItem.entityId, [syncCapabilityMetricValue]);
-    }
-    this.detailsStateSync = {
-      dialog: capabilityDialogElement,
-      handlers: detailsHandlersByEntityId
-    };
-    this.registerRuntimeDialogScale(
-      capabilityLayerElement,
-      capabilityDialogElement,
-      isAirPurifierCapability ? 620 : 560,
-      isAirPurifierCapability ? 560 : 500
-    );
-    capabilityCloseButton.addEventListener("click", () => capabilityDialogElement.close());
-    this.bindRuntimeDialogOutsideDismiss(
-      capabilityLayerElement,
-      capabilityDialogElement,
-      capabilityCardElement
-    );
-    this.bindRuntimeDialogEscapeClose(capabilityLayerElement, capabilityDialogElement);
-    capabilityDialogElement.addEventListener(
-      "close",
-      () => {
-        capabilityControls.cleanupCapabilityDetails?.();
-        this.clearRuntimeDialogScale(capabilityDialogElement);
-        if (this.detailsDialog === capabilityDialogElement) {
-          this.detailsDialog = null;
-        }
-        if (this.detailsStateSync?.dialog === capabilityDialogElement) {
-          this.detailsStateSync = null;
-        }
-        capabilityLayerElement.remove();
-      },
-      {
-        once: true
-      }
-    );
-    this.presentRuntimeDialog(capabilityLayerElement, capabilityDialogElement);
   }
   /**
    * 打开空气净化器详情弹窗（含风量、滤芯寿命、空气质量等专有区块）。
@@ -19665,23 +19468,10 @@ export class PanelRenderer {
         eventDate.getFullYear() === referenceDate.getFullYear() &&
         eventDate.getMonth() === referenceDate.getMonth() &&
         eventDate.getDate() === referenceDate.getDate();
-      const formattedTime = new Intl.DateTimeFormat("zh-CN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false
-      }).format(eventDate);
       if (isSameDay) {
-        return "今天 " + formattedTime;
+        return "今天 " + formatZhDateTime(eventDate, { withDate: false });
       } else {
-        return new Intl.DateTimeFormat("zh-CN", {
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false
-        })
-          .format(eventDate)
-          .replace(/\//g, "-");
+        return formatZhDateTime(eventDate);
       }
     };
     /**

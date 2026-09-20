@@ -8,8 +8,8 @@
  *   editor-utils 的 roundField 精度并对越界值做 clamp
  *   （clampNumber 的唯一实现在 utils/numbers.js，见那里的契约对照表）。
  */
-import { roundField } from "./editor-utils.js?v=20260919214245";
-import { clampNumber } from "./utils/numbers.js?v=20260919214245";
+import { roundField } from "./editor-utils.js?v=20260920080000";
+import { clampNumber } from "./utils/numbers.js?v=20260920080000";
 
 /**
  * 同步「显示 / 隐藏」切换按钮的按压态与文案。

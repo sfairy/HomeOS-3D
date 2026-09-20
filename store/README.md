@@ -18,24 +18,15 @@
 python -m venv .venv-store
 .venv-store/bin/pip install -r store/requirements.txt
 
-# 2) 生成授权密钥（私钥留在 store/keys/local，公钥自动镜像到客户端 keys/）
-.venv-store/bin/python -m store.tools.gen_keys
-
-# 3) 初始化管理员 + 3 条商品 + 版本记录
-.venv-store/bin/python -m store.tools.seed
-
-# 4) 起服务（默认 0.0.0.0:18082）
+# 2) 起服务（默认 0.0.0.0:18082）
+#    授权密钥在启动时自动生成（私钥留在 store/keys/local，公钥镜像到客户端 keys/）；
+#    商品目录与站点配置由 store.app 启动时幂等补齐。
 .venv-store/bin/python -m store.run
 ```
 
-浏览器打开 <http://127.0.0.1:18082/>。管理员账号**必须由你自己指定**：执行 `python -m store.tools.seed` 前设置 `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD`，缺任一项会直接退出。
+浏览器打开 <http://127.0.0.1:18082/>，首次部署会引导到 `/setup` 页面创建管理员账号。
 
-```bash
-STORE_ADMIN_EMAIL=you@example.com STORE_ADMIN_PASSWORD='一个足够强的口令' \
-  .venv-store/bin/python -m store.tools.seed
-```
-
-早期版本在缺省时会用代码里写死的默认管理员（口令还公开在本文件里）建号 —— 那等于给每个照文档部署的实例装一个公开后门，现已移除。`start.py` 首次启动会引导你走 `/setup`，也可以用那里的图形界面创建管理员。
+早期版本在缺省时会用代码里写死的默认管理员（口令还公开在本文件里）建号 —— 那等于给每个照文档部署的实例装一个公开后门，现已移除；管理员一律走 `/setup` 页面创建。本地非 Docker 也可直接运行仓库根 `start.py`，它会一并起主应用与商店。
 
 验证码投递由 `STORE_MAIL_MODE` 决定，三种取值：
 
@@ -73,25 +64,18 @@ STORE_SMTP_USE_SSL=true
 
 ---
 
-## 二、自检
+## 二、本地联调与部署
+
+仓库不再内置自动化自检 / 端到端脚本（原 `store/tools/` 下的 `smoke.py`、`e2e.py`、
+`seed.py`、`gen_keys.py`、`migrate_points.py` 已随本次清理移除）。本地非 Docker 直接用
+仓库根 `start.py` 一键起主应用与商店：
 
 ```bash
-# 协议级自检：用客户端自己的 crypto.py 做字节级对齐校验
-.venv-store/bin/python -m store.tools.smoke      # 全部通过
-
-# 真实链路端到端：子进程起 store.run + 真实 socket + 客户端整套授权栈
-.venv-store/bin/python -m store.tools.e2e        # 44 项
+.venv-store/bin/python start.py
 ```
 
-- `smoke.py` 用 `httpx.ASGITransport` 在**同进程**内直连应用，覆盖：传输加解密往返、租约签发/客户端验签、activate→heartbeat→recover、商店只读接口、注册下单模拟支付、增量包、后台停用/强制解绑、优惠码、订单取消/过期/归档、授权备注、自助解绑冷却、邀请奖励与提现审核、支付宝签名拼接规则/往返/篡改拒绝/裸 base64 密钥解析、异步通知验签（含错误密钥与金额不符必须拒绝、重复通知不重复发码）、**后台支付巡检**（已付款但通知丢了的单必须被认领并履约、本地已过期而渠道侧还开着的单必须被关掉、没事可做时返回 `None`、节流窗口内不重复查同一笔单）、0 元订单直接开通、静态资源完整性（模板/CSS 引用都存在、JS 可被 node 解析、字体未截断）、前后端方法契约，以及「零配置下客户端默认指向自建授权服务器、公钥镜像与服务器同源、生产端点已彻底移除」的静态断言。
-
-  巡检这条检查是有来历的：`store/payments/sweeper.py` 曾把 `result.queried` 写成 `result.queryed`，而巡检跑在 `app.py` 的 `try/except Exception` 里——异常被吃成一行 `logger.exception`，服务照常启动、下单照常成功，只是每 30 秒往日志里刷一次 traceback，**查单、认领已付款订单、关闭过期渠道交易三件事一件都没发生**。界面上看不出异常，只有「用户付了钱、订单还停在待支付」慢慢堆成工单。而 `store/tools` 里当时搜不到任何 `sweep`，所以这个错别字能一路跑到线上。凡是跑在 `try/except Exception` 里的**后台循环**（巡检、清理、重试），都要有一条把它当黑盒跑一轮的自检，否则它坏了没人知道。
-
-  巡检的状态登记（见下节）也有两条检查：`check_payment_sweep_loop_runs()` 用真实 `lifespan_context` 起一次服务，等循环自己跑完第一轮，专门盯「单轮跑得通但**没人去跑**」——循环漏了 `configure_sweep_loop`、或忘了换成登记状态的入口，都会让后台永远停在「尚未启动」而单轮检查全绿；`check_admin_dom_bindings()` 里钉死「后端 `HEALTH_*` 常量 ↔ 前端 `SWEEP_HEALTH` 文案」一一对应，因为缺文案不会报错，徽标会静默退化成「尚未启动」——把「连续失败」说成别的东西，正是这块报警卡片最不该出的错。
-- 其中 `check_theme_matches_app()` 还会比对商店主题与 `frontend/static/app.css` 的令牌（`--hb-bg`/`--hb-accent`/`--hb-success` 必须等于 `--bg`/`--accent`/`--success`），并锁定 `theme.css` 在 `store.html` 中最后加载、后台模板不再内联 `<style>`。
-- `e2e.py` 用 `subprocess` 真起服务（真实 socket），并用客户端自己的 `config.load_settings` + `LicenseEndpointPool` + `LicenseTransportCipher` + `LeaseVerifier` + `LicenseService` 走完整 HTTP 链路，验证「商店发码 → 客户端 ACTIVE → 心跳续租 → 后台吊销 → 客户端 REVOKED → 冷却期内无法重绑」。
-
-两者都用临时目录，不会污染 `store/data` 与 `store/keys`。`e2e.py` 默认用 18082，被占用时自动退让到随机端口。
+Docker / Compose 部署见仓库根 `README.md`。改动前后请人工走一遍关键路径：
+管理员 `/setup` → 下单（模拟支付）→ 发码 → 客户端 `/license` 激活 → 心跳续租 → 后台吊销。
 
 ---
 
@@ -113,33 +97,29 @@ python start.py                         # 终端 B：客户端
 export APP_DATA_DIR=/tmp/hb-client-dev
 export APP_LICENSE_SERVER_URL=https://license.example.com
 export APP_LICENSE_PUBLIC_KEY_FILE=/path/to/license-public.pem
-export APP_LICENSE_PUBLIC_KEY_SHA256=<gen_keys 打印的签名公钥 sha256>
+export APP_LICENSE_PUBLIC_KEY_SHA256=<license-public.pem 文件字节的 sha256>
 export APP_LICENSE_TRANSPORT_PUBLIC_KEY_FILE=/path/to/license-transport-public.pem
-export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 sha256>
+export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文件字节的 sha256>
 ```
 
-**密钥轮换（S52）**：`keyId` 是从公钥文件字节派生的 `hb-<16 位十六进制>`，所以
-`gen_keys --force`（直接覆盖）会让所有旧客户端**当场失效**。要让存量客户端平滑过渡，
-用：
+**密钥轮换（S52）**：`keyId` 是从公钥文件字节派生的 `hb-<16 位十六进制>`，所以直接
+覆盖密钥会让所有旧客户端**当场失效**。要让存量客户端平滑过渡：把当前四件套
+（`license-private.pem` / `license-public.pem` / `license-transport-private.pem` /
+`license-transport-public.pem`）改名成 `*.previous.pem`，再生成新四件套并把新公钥镜像到
+仓库根 `keys/`。
 
-```bash
-.venv-store/bin/python -m store.tools.gen_keys --rotate
-```
-
-它把当前密钥改名成 `*.previous.pem` 再生成新的，并把上一代公钥一并镜像到仓库根
-`keys/`。服务端发现上一代四件套齐全就把两代都装进密钥环，**按请求里的 keyId 选代
-解密、并用同一代签名** —— 旧客户端在窗口内照旧心跳；客户端的可信表也会自动多登记
-一条上一代记录（`keys/license-public.previous.pem` 存在就登记），所以「客户端先升级、
-服务端后轮换」也不会中断。窗口长度是一次轮换：再 `--rotate` 一次，上一代被新的前任
-覆盖。想立刻关闭窗口就删掉 `*.previous.pem` 四件套（四个缺一不可，只留公钥不算开窗）。
+服务端发现上一代四件套齐全就把两代都装进密钥环，**按请求里的 keyId 选代解密、并用
+同一代签名** —— 旧客户端在窗口内照旧心跳；客户端的可信表也会自动多登记一条上一代记录
+（`keys/license-public.previous.pem` 存在就登记），所以「客户端先升级、服务端后轮换」
+也不会中断。想立刻关闭窗口就删掉 `*.previous.pem` 四件套（四个缺一不可，只留公钥不算开窗）。
 
 说明：
 
-- **厂商生产节点与生产公钥已从代码中彻底移除**，`store.tools.smoke` 用断言锁住「零配置指向自建」与「生产残留为零」。
+- **厂商生产节点与生产公钥已从代码中彻底移除**，默认配置只指向自建授权服务器。
 - 只设 `APP_LICENSE_SERVER_URL` 时，客户端会把批次**收敛为单条 `direct`**，不会散到其它批次节点。
 - 需要多批次时用 `APP_LICENSE_SERVER_BATCHES='esa=;eo=;direct=http://127.0.0.1:18082|http://127.0.0.1:18083'`（`;` 分隔批次，`|` 分隔组内地址，空组表示禁用）。
 - `APP_LICENSE_TRUSTED_PUBLIC_KEYS='keyId:公钥路径:sha256|keyId2:路径:sha256'` 可整体替换可信公钥表。
-- 指纹按 PEM **文件字节** 计算，所以 `keys/` 镜像必须与 `store/keys/local/` 逐字节一致（有断言防漂移）。
+- 指纹按 PEM **文件字节** 计算，所以 `keys/` 镜像必须与 `store/keys/local/` 逐字节一致。
 
 ### 重启时的联网确认
 
@@ -148,7 +128,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 - **确认吊销**（403 且含 `code=REVOKED` / `revoked: true`，服务端已明确停用）→ 保持拦截，本地授权已被清空，状态 `REVOKED`。
 - **其余失败**（网络不可达、服务端 5xx）→ **不锁死**，把判定权交回离线验签：租约未过期则 `CONNECTION_WARNING`（门禁放行），已过期则 `LEASE_EXPIRED`（拦截）。
 
-心跳循环会持续重试，服务器恢复后自动续租回到 `ACTIVE`。这样「离线验签」才真正成立：授权服务器短暂不可达不会让持有有效租约的安装失去功能。`store.tools.e2e` 对这条语义有断言（断网重启放行 / 吊销后重启仍锁死）。
+心跳循环会持续重试，服务器恢复后自动续租回到 `ACTIVE`。这样「离线验签」才真正成立：授权服务器短暂不可达不会让持有有效租约的安装失去功能。
 
 ---
 
@@ -177,12 +157,13 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<gen_keys 打印的传输公钥 s
 | `STORE_ALIPAY_VERIFY_RESPONSE` | `true` | 是否校验支付宝响应签名，除排障外不要关 |
 | `STORE_LEASE_TTL_SECONDS` | `259200` | 租约有效期（72 小时），心跳 300s 续租。⚠ 该值同时是「离线可用时长」与「吊销生效上界」—— 对持续离线的客户端，停用授权/解绑设备最慢要等这么久才生效 |
 | `STORE_HEARTBEAT_INTERVAL_SECONDS` | `300` | 下发给客户端的 `heartbeatIn` |
+| `STORE_LICENSE_SESSION_IP_HOURLY_LIMIT` | `3600` | `/v2/heartbeat` 与 `/v2/recover` 的**来源 IP** 小时配额。比 `/v2/activate` 那个固定的 60/小时宽得多：这两个端点收的是高熵令牌（不可枚举），却承载后台心跳与「授权页开着时的状态轮询」。额度是**按出口地址**算的，多台设备共用同一 NAT 出口时会叠加 —— 授权页卡住且日志里一片 `429` 时调大它 |
 | `STORE_ORDER_TTL_SECONDS` | `120` | 订单有效期。**真实收款必须调大**，见下节 |
 | `STORE_DEVICE_RELEASE_COOLDOWN_SECONDS` | `28800` | 解绑冷却（8 小时） |
 | `STORE_VERIFICATION_TTL_SECONDS` / `_COOLDOWN_SECONDS` | `600` / `60` | 验证码有效期 / 重发冷却 |
 | `STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT` | `500` | 验证码发信的**全站**小时上限（所有来源合计）。防「拿商店当发信机轰炸第三方」的兜底闸门；额度之内还按来源 IP（20/小时）、单邮箱（10/小时）各限一层。触顶时日志打 ERROR，并按正常业务量调高 |
 | `STORE_SESSION_MAX_AGE_SECONDS` | `2592000` | 商店会话有效期 |
-| `STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` | —（**必填**） | `seed` 初始化管理员；缺失时任一项都会让 `seed` 直接退出，不再有内置默认值 |
+| `STORE_SETUP_TOKEN` | 空 | `/setup` 首次初始化的引导口令。留空时启动自动生成一份 32 字节随机串，落到 `data_dir/setup-token`（0600）并打印到标准错误 —— 非本机直连必须带上它，避免未初始化实例「先到先得」 |
 
 **写错就起不来（这是刻意的）**：上面这些数值型/布尔型变量在启动时**严格解析** ——
 `STORE_ORDER_TTL_SECONDS=12o`、`STORE_COOKIE_SECURE=ture`、`STORE_PORT=99999`
@@ -310,22 +291,16 @@ half-away-from-zero、Python 是 half-even，落在 `.xx5` 上时给出不同分
 
 现已全部改为 `INTEGER` **厘**（1 积分 = 100 厘），运算集中在 `store/money.py`。
 **升级不需要手工执行任何命令**：`app.py` 启动时按
-`ensure_schema`（补新列）→ `migrate_points`（回填 + 逐行对账 → 退役旧列）自动完成。
+`ensure_schema`（补新列）→ `migrate_points`（回填 + 逐行对账 → 退役旧列）自动完成，
+迁移前会先做一次数据库文件级备份（`VACUUM INTO` 一致快照）。
 
-| 想做的事 | 命令 |
-| --- | --- |
-| 只看看会影响哪些表、多少行（只读） | `python -m store.tools.migrate_points --check-only` |
-| 先回填 + 对账、**暂不删旧列** | `python -m store.tools.migrate_points --check` |
-| 正式迁移（默认先备份数据库文件，用 `VACUUM INTO` 取一致快照） | `python -m store.tools.migrate_points` |
-| 退回旧版本程序前，把厘还原成 FLOAT | `python -m store.tools.migrate_points --rollback` |
-
-**三条要知道的规则**：
+**两条要知道的规则**：
 
 1. **对账基准是「用户看到的数字」**——`format_centi(新值) == f"{旧值:.2f}"`。
    任何一行不符就**整表跳过删列**并打印前 10 处差异，此时库是「新旧并存」的安全状态。
 2. **旧列必须删掉，不能留着不管**。旧列是 `NOT NULL` 且没有 DDL 默认值，ORM 已不再映射它，
    于是新的 `INSERT` 会以 `NOT NULL constraint failed` 失败——**且只在存量库上失败**
-   （全新库本就没有这一列），本地与 CI 全绿。所以 `--check` 之后请尽快补跑正式迁移。
+   （全新库本就没有这一列），只在存量库上暴露。
 3. 对外 JSON 契约**没变**：仍是 `"10.05"` 这样的两位小数字符串（厘正好是 1/100，无损），
    所以前端与客户端都不需要跟着改。
 
@@ -341,7 +316,7 @@ half-away-from-zero、Python 是 half-even，落在 `.xx5` 上时给出不同分
 | 人看 | 后台**运营概览**顶部的「支付巡检」卡片（常驻显示，不随健康与否隐藏） |
 | 机器看 | `GET /healthz` → `paymentSweep`（`status` 仍只表示进程活着，探活的机器不会被它带偏） |
 
-状态码（`sweeper.HEALTH_*`，前端 `SWEEP_HEALTH` 一一对应，冒烟测试钉死两边一致）：
+状态码（`sweeper.HEALTH_*`，前端 `SWEEP_HEALTH` 一一对应 —— 两边改动必须同步，已无自动化闸门会替你发现漂移）：
 
 | health | 含义 | 该做什么 |
 | --- | --- | --- |
@@ -407,11 +382,11 @@ half-away-from-zero、Python 是 half-even，落在 `.xx5` 上时给出不同分
 ## 六、密钥与安全
 
 - `store/keys/local/` 下的私钥**不要提交到任何公开仓库**，它是授权服务器签名与传输的真相源。
-- 仓库根 `keys/*.pem` 是**客户端默认读取的公钥镜像**，由 `gen_keys` 从 `store/keys/local/` 自动同步。客户端按 PEM **文件字节** 校验指纹，两处必须逐字节一致（`store.tools.smoke` 有断言防漂移）。
-- 轮换密钥：`python -m store.tools.gen_keys --force` 会刷新密钥对并同步镜像，同时打印新的 sha256；若不改用环境变量覆盖，请把新 sha256 更新进 `backend/app/config.py` 的 `DEFAULT_LICENSE_*` 常量。
+- 仓库根 `keys/*.pem` 是**客户端默认读取的公钥镜像**，由启动时的密钥准备流程（`docker/license_keys.py` / `start.py`）从 `store/keys/local/` 自动同步。客户端按 PEM **文件字节** 校验指纹，两处必须逐字节一致。
+- 轮换密钥：按上文「密钥轮换（S52）」把现有四件套改名成 `*.previous.pem` 后生成新四件套，镜像到仓库根 `keys/`；若不改用环境变量覆盖，请把新公钥字节的 sha256 更新进 `backend/app/config.py` 的 `DEFAULT_LICENSE_*` 常量。
 - 传输层：X25519 ECDH → HKDF-SHA256 → AES-256-GCM，`path` 参与 HKDF/AAD 派生，所以端点路径本身也被认证。
 - 租约层：Ed25519 对 canonical JSON 的**原始字节**签名，`leaseSequence` 同 `activationCodeId` 下严格递增。
-- `gen_keys` 只在 `--out` 为默认密钥目录时才隐式写 `keys/`；用 `--out <临时目录>`（如 `e2e`）时必须带 `--no-sync`，否则会用一次性密钥覆盖客户端信任锚。
+- 只有写入默认密钥目录（`store/keys/local/`）时才会同步 `keys/` 镜像；用临时目录做一次性测试时不要执行同步，否则会用一次性密钥覆盖客户端信任锚。
 
 ---
 
@@ -497,11 +472,7 @@ store/
   static/theme.css     # ★ 唯一设计系统：令牌 / 重置 / 排版 / 组件（前台 + 后台 + 收银台共用）
   static/store.css     # ★ 前台页面布局：外壳 + 首页落地页/商品/结算/认证/账号/邀请
   static/admin.css     # ★ 后台页面布局：窄侧栏、面板骨架、统计卡、表格
-  tools/gen_keys.py    # 生成密钥对，并同步公钥镜像到客户端 keys/ 与指纹常量
-  tools/seed.py        # 初始化管理员 + 商品 + 版本
-  tools/migrate_points.py  # 积分口径迁移 CLI（--check / --no-drop / --rollback）
-  tools/smoke.py       # 协议级自检
-  tools/e2e.py         # 真实链路端到端（44 项）
+  points_migration.py  # 积分口径迁移（启动时自动调用：回填 + 对账 + 退役旧列）
 ```
 
 前端复刻策略：**结构与契约对齐参考站，视觉为本项目自研暗色主题**。`templates/store.html` 与 `static/store.js` / `static/referrals.js` 不保留参考站原有的 DOM 结构，但保留同一套 `data-store-page` 分页、全部 `id`/`data-*` 钩子与 `api(path) → /store/v1` 契约——布局可以随时重排，前后端接口与 JS 行为不动。图标字体写在 `font.min.css` 里的路径是 `../fonts/font.woff2`，所以 `/fonts` 必须挂在根路径（`app.py` 已处理）。
@@ -524,15 +495,15 @@ theme.css（令牌 + 组件）  →  store.css | admin.css（只排区块，不�
 
 令牌与主程序逐项对齐：画布 `#151a1f`、面 `#1a2026`、发丝线 `#303840`、强调 `#f2a20d`、成功 `#54bd78`，主按钮为琥珀渐变 `#ffb82e → #ef9900` 配深色字。
 
-维护时的三条硬规矩（都踩过坑，`smoke.py` 已加断言）：
+维护时的三条硬规矩（都踩过坑）：
 
 1. **`theme.css` 必须排在任何页面样式表之前。** 组件定义在 `theme.css`，`store.css` / `admin.css` 只负责摆放区块；顺序反了就会出现「页面布局被组件样式反向覆盖」这类难查的问题。
-2. **新样式加进对应层级，不要靠提高特异性取胜。** 页面级差异写进 `store.css` / `admin.css`，组件级差异写进 `theme.css` 的组件章节——不要在模板里内联 `<style>`（`smoke.py` 会拦）。
-3. **令牌改名即失效。** `--hb-bg` / `--hb-accent` / `--hb-success` 三个值与 `frontend/static/app.css` 的 `--bg` / `--accent` / `--success` 必须一致，`smoke.py` 的 `check_theme_matches_app()` 会直接比对，主程序改色而商店没跟就会 FAIL。
+2. **新样式加进对应层级，不要靠提高特异性取胜。** 页面级差异写进 `store.css` / `admin.css`，组件级差异写进 `theme.css` 的组件章节——不要在模板里内联 `<style>`。
+3. **令牌改名即失效。** `--hb-bg` / `--hb-accent` / `--hb-success` 三个值与 `frontend/static/app.css` 的 `--bg` / `--accent` / `--success` 必须一致，主程序改色而商店没跟就会出现配色漂移。
 
 另外两处**内联** HTML 也走同一套令牌，改配色时别漏：`api/pages.py` 的模拟收银台（`_cashier_html`）和 `api/alipay.py` 的同步跳转页（`_RETURN_PAGE`）。
 
-自查手法：换布局最容易出的是「类名写出来了但没有对应样式」——节点照样渲染，只是没有边框和内边距，控制台一声不响。`smoke.py` 的 `check_design_class_coverage()` 会把 `store.js` / `referrals.js` / 模板 `class=` 字面量里的类名逐个到三份样式表里核对；肉眼核对时则用浏览器 DevTools 遍历 `document.querySelectorAll('*')`，把没有生效样式的节点打出来。
+自查手法：换布局最容易出的是「类名写出来了但没有对应样式」——节点照样渲染，只是没有边框和内边距，控制台一声不响。核对时把 `store.js` / `referrals.js` / 模板 `class=` 字面量里的类名逐个到三份样式表里比对，或直接用浏览器 DevTools 遍历 `document.querySelectorAll('*')`，把没有生效样式的节点打出来。
 
 ---
 
@@ -557,7 +528,7 @@ theme.css（令牌 + 组件）  →  store.css | admin.css（只排区块，不�
 ### 提示文案必须与守卫同源
 
 确认弹窗会预告「这次是真删还是降级」。**这个预告的数据必须和守卫用同一套口径**，否则管理
-员会被误导。踩过的两个坑（`smoke.py` 已加断言锁住）：
+员会被误导。踩过的两个坑：
 
 - 优惠码用量原本读 `Coupon.redeemed_count` 这个反规范化计数列，而守卫数的是
   `coupon_redemptions` 行。两者一旦漂移，弹窗会写着「尚未被使用，将被彻底删除」，点下去却
@@ -864,8 +835,8 @@ Hero 定位 → 四条事实条 → 购买三步 → 能力矩阵 → 中控示�
    （3D 户型、交互舞台、HA 直连、中控配对、气候面板、安防、扫地机地图）都对应
    主程序里真实存在的模块，不要为了版面好看写没做的功能。
 
-新增类名记得同时补进 `store.css`：`smoke.py` 的 `check_design_class_coverage()`
-会把模板里的 `class=` 字面量逐个到三份样式表里核对，写漏了直接 FAIL。
+新增类名记得同时补进 `store.css`：模板里的 `class=` 字面量要与三份样式表逐一对上，
+写漏了节点照常渲染却没有样式，控制台不会报错。
 
 ### 10.14 第二遍布局收口（15 个面板逐页量过）
 
@@ -895,7 +866,7 @@ Hero 定位 → 四条事实条 → 购买三步 → 能力矩阵 → 中控示�
 的邻居高一行，而 `.hb-field` 各自独立成格（不是 `subgrid`），控件自然被顶下去——同一带的输入框
 于是不在一条线上。
 
-两条硬规则，已由 `store/tools/smoke.py::check_field_label_fit` 钉住（74 个字段名全核对）：
+两条硬规则（74 个字段名全核对过）：
 
 1. **字段名不带长括号说明。** 语义解释交给 `.admin-field-hint`。宽度按实测标定：全角 12.24px、
    半角 7px、空格 3.4px，留 8px 余量——当初那条 22 字的字段名算出来 257px，浏览器实测 258px。

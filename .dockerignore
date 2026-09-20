@@ -5,7 +5,6 @@
 __pycache__
 **/__pycache__
 **/*.py[cod]
-.ruff_cache
 .DS_Store
 
 # 运行时数据与本地密钥（镜像内由启动脚本按需生成 / 卷挂载）
@@ -25,10 +24,7 @@ image
 # 文档与开发产物（不进运行镜像）
 *.md
 !README.md
-COMMENTING.md
-frontend/NAMING.md
 
-# 测试与工具缓存
-**/.pytest_cache
+# 依赖目录
 node_modules
 docker/node_modules

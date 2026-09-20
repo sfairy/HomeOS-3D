@@ -20,7 +20,7 @@
  *   死的那份是前者的遗留物 —— 方向改由控件属性承载后，没有人再读那个开关实体了
  *   （3D 运行时树另有自己的实体推导，见 `modules/interaction3d/runtime.js`，那属于另一份知识）。
  *
- * 契约（探针 `cover-direction` 按这张表逐格断言）：
+ * 契约（下表是唯一口径 —— 原探针 `cover-direction` 已随测试清理删除）：
  *
  *   | `component.properties.coverMotorDirection` | `coverMotorIsReversedForComponent` |
  *   | --- | --- |
@@ -50,7 +50,7 @@ export function coverMotorIsReversedForComponent(directionComponent) {
  * 为什么单独一个名字：这条映射原先有两份 —— `cover-runtime.js` 的 `physicalCoverState`
  *   内部一份、`registry.js` 的 `isCoverActive` 里内联一份（两个文件之间不能 import，见模块头）。
  *
- * 契约（探针逐格断言）：
+ * 契约：
  *   - `open` / `closed` / `opening` / `closing` 两两互换；
  *   - **认不出的状态原样返回**（含空串、大写、中文、数字等），不做大小写归一、不抛错。
  *     末条是承重的：调用方传进来的可能是任何固件上报的怪值，这里一旦「顺手归一」，

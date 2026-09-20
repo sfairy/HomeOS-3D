@@ -12,14 +12,12 @@
  *
  * 约定（S39）：把值拼进 HTML 之前必须过一遍 `esc()`。判断用的属性读
  * （`${row.expired ? a : b}` 里的 `row.expired`）不必过，但**要显示出来的数据**
- * 一律要过 —— smoke.py 的 `check_markup_templates_escape_data` 会专门拦
- * 「数据属性直插进标记模板」这一类写法。
+ * 一律要过 —— 尤其是「数据属性直插进标记模板」这一类写法。
  *
  * 单引号用 `&#39;` 而不是 `&apos;`：后者在旧版 HTML 解析器里不被识别，会原样
  * 显示出来。
  *
- * 这个文件不碰 DOM，所以 node 可以直接 require 它做行为测试
- * （smoke.py 的 `check_escaper_behaviour`）。
+ * 这个文件不碰 DOM，所以 node 可以直接 require 它单测。
  */
 (function (global) {
   const ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };

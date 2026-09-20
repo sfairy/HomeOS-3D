@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>HomeOS 授权商店 · 管理后台</title>
-<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260919214245">
-<link rel="stylesheet" href="/store-static/theme.css?v=20260919214245">
-<link rel="stylesheet" href="/store-static/admin.css?v=20260919214245">
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260920080000">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260920080000">
+<link rel="stylesheet" href="/store-static/admin.css?v=20260920080000">
 </head>
 <body>
 
@@ -29,7 +29,7 @@
     </aside>
     <section class="login-card">
       <div class="login-card__brand">
-        <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260919214245" alt=""></span>
+        <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260920080000" alt=""></span>
         <div>
           <strong>管理员登录</strong>
           <p>使用管理员邮箱进入授权商店后台。</p>
@@ -65,7 +65,7 @@
 <div id="admin-app" class="admin-shell" hidden>
   <aside class="admin-side">
     <div class="brand">
-      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=20260919214245" alt=""></span>
+      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=20260920080000" alt=""></span>
       <div class="brand__text">
         <strong>HomeOS</strong>
         <small>授权商店后台</small>
@@ -845,7 +845,7 @@
             <!-- 三十来个字段铺在一页上要滚三屏，「保存配置」永远在屏幕外。
             按用途切五段：改邀请规则的人不必先划过整个支付宝凭据块。
             tab 条与 pane 都必须留在**同一个 form 内**：字段的列宽是按
-            form 的 admin-grid--wide 推断的（smoke 的 check_field_label_fit），
+            form 的 admin-grid--wide 推断的，
             挪出 form 就会按 186px 去算而实际是 210px。 -->
             <div class="admin-tabs" data-tab-strip role="tablist" aria-label="站点配置分区">
               <button class="admin-tabs__tab" type="button" role="tab" data-tab="site">站点信息</button>
@@ -1525,8 +1525,8 @@
 <!-- 内联脚本必须带 nonce 占位符：服务端每响应替换成一次性随机值，
      否则会被自身的 CSP（script-src 无 'unsafe-inline'）挡下。
      见 store/request_security.py 的 CSP_NONCE_PLACEHOLDER。 -->
-<script src="/store-static/htmlsafe.js?v=20260919214245"></script>
-<script src="/store-static/api-error.js?v=20260919214245"></script>
+<script src="/store-static/htmlsafe.js?v=20260920080000"></script>
+<script src="/store-static/api-error.js?v=20260920080000"></script>
 <script nonce="{{NONCE}}">
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -1567,7 +1567,7 @@ function toast(message, kind = 'success') {
 // （``ApiError.describe``）—— 原先后台/前台/初始化页各一份，能力还不一致：后台认
 // FastAPI 422 的 detail 数组、前台只认字符串、初始化页直接把数组塞进 textContent
 // （显示 ``[object Object]``）。少认一种形态不会报错，只会让某类错误在某个页面上
-// 变成看不懂的一句话。加载顺序由 smoke.py 的 check_shared_api_error_helper 钉住。
+// 变成看不懂的一句话。
 //
 // 建一个带 HTTP 状态码的错误。调用方**必须**能区分两类失败：
 //   · 401 —— 「还没登录」。这是登录页的正常状态（未登录的访客一打开 /admin 就是
@@ -1656,7 +1656,7 @@ function num(value) {
 // 概览卡主数字的字号档位。卡宽下限 186px、左右内边距各 16px，可用 154px：
 // 25px 等宽字一行 9 个字符，19px 放 13 个，16px 放 16 个（见 admin.css 的
 // .stat .stat__value--*）。超长时靠 text-overflow 出省略号，不会再折成两三行。
-// 值都是数字/斜杠，按字符数降档足够准；核对在 smoke.py::check_stat_card_fit。
+// 值都是数字/斜杠，按字符数降档足够准；档位与 admin.css 的 .stat__value--* 对应。
 function valueSize(value) {
   const length = String(value ?? '').length;
   if (length > 13) return ' stat__value--xs';
@@ -1775,7 +1775,7 @@ function statusBadge(status, labels = ORDER_STATUS) {
 // fulfillment_failed 是「发货失败、等人工处理」，过去被错译成「处理中」，
 // 与 paid 的语义完全混淆。
 // partially_refunded 之前漏登记，后台会直接把 snake_case 原样显示出来 ——
-// 它也是 check_admin_status_labels 重点盯的一项，加状态时别忘这里。
+// 漏登记会让后台把 snake_case 原样显示出来，加状态时别忘这里。
 const ORDER_STATUS = {
   pending: '待付款', paid: '已付款', fulfilled: '已完成',
   cancelled: '已取消', expired: '已过期',

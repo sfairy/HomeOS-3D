@@ -16,7 +16,7 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260919214245";
+import { entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260920080000";
 /** 状态源既可能是 Map 也可能是普通对象，这里统一取值的入口。 */
 const readState = (states, entityId) =>
   states instanceof Map ? states.get(entityId) : states?.[entityId];

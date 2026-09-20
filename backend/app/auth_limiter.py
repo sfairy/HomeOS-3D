@@ -89,11 +89,6 @@ class BoundedAttemptLimiter:
             self._keys.pop(key, None)
             self._limiter.reset(key)
 
-    def tracked_keys(self) -> int:
-        """当前记住的键数量（自检用）。"""
-        with self._lock:
-            return len(self._keys)
-
     def _remember(self, key: str) -> None:
         """把键挪到队尾并按上限淘汰；调用方必须已持有 _lock。"""
         self._keys.pop(key, None)
@@ -172,11 +167,6 @@ class LoginAttemptLimiter:
         with self._lock:
             self._failures.pop(key, None)
             self._blocked_until.pop(key, None)
-
-    def tracked_keys(self) -> int:
-        """当前记账的键数量（失败窗口与封禁表合计），自检用。"""
-        with self._lock:
-            return len(self._failures) + len(self._blocked_until)
 
     def _trim(self, now: float, *, keep_key: str | None = None) -> None:
         """把内部状态压回 ``max_keys`` 以内；调用方必须已持有 ``_lock``。

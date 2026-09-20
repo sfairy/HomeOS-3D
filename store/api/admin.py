@@ -340,7 +340,7 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
     def count(statement) -> int:
         return int(session.execute(statement).scalar_one() or 0)
 
-    # —— 累计数（保持既有键名，后台与冒烟测试都在用）——
+    # —— 累计数（保持既有键名，后台与外部集成方都在用）——
     total_gross = count(
         select(func.coalesce(func.sum(Order.amount_cents), 0)).where(
             Order.paid_at.is_not(None),
@@ -475,7 +475,7 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         "activeEntitlements": count(
             select(func.count(Entitlement.id)).where(Entitlement.active.is_(True))
         ),
-        # 净营收（已减退款）。冒烟测试断言它 > 0，所以不能只算 fulfilled。
+        # 净营收（已减退款）。它得覆盖全部已收款状态，所以不能只算 fulfilled。
         "revenueCents": total_gross - total_refunded,
         "pendingWithdrawals": int(pending_withdrawal_rows[0] or 0),
         "deviceBindings": count(
@@ -958,11 +958,6 @@ def _image_suffix(content: bytes) -> str | None:
     if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
         return ".webp"
     return None
-
-
-#: 前端 ``accept`` 必须与 :func:`_image_suffix` 认的格式一致（S37）：
-#: 前后端各写一份白名单时，多写一个类型不会报错 —— 只会让用户挑中一个必然失败的文件。
-IMAGE_ACCEPT_ATTR = "image/png,image/jpeg,image/webp,image/gif"
 
 
 @router.post("/products/{product_id}/image")
@@ -1759,22 +1754,10 @@ def admin_cancel(
     product = session.get(Product, order.product_id) if order.product_id else None
     # 条件 UPDATE 抢单：取消与超时扫描/支付入账可能同时发生，只有把订单从
     # pending 推走的那一个请求才释放预留与优惠码名额。
-    claimed = session.execute(
-        update(Order)
-        .where(Order.id == order.id)
-        .where(Order.status == "pending")
-        .values(status="cancelled", cancelled_at=utcnow())
-        .execution_options(synchronize_session=False)
-    )
-    if claimed.rowcount == 0:
+    if not fulfill.close_pending_order(session, order=order, product=product):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
         )
-    fulfill.release_order_reservation(session, order=order, product=product)
-    # 与 expire_stale_orders 对齐：取消要同时归还优惠码名额。漏掉这一步会让
-    # redeemed_count 只增不减，而它参与 max_redemptions 校验，名额会被永久占用，
-    # 用户之后下单会收到「优惠码已被领完」。
-    coupons.release_coupon(session, order)
     session.flush()
     _audit(session, _admin_actor(admin), "order.cancel", order.order_no, payload.note)
     session.refresh(order)

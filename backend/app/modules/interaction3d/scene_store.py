@@ -72,17 +72,6 @@ def scene_files(folder: Path, scene_id: str) -> list[Path]:
     return [folder / f'{scene_id}.json', *sorted(folder.glob(f'{scene_id}-*'))]
 
 
-def scene_bytes(folder: Path, scene_id: str) -> int:
-    """一个快照占用的字节数（缺失的文件按 0 算）。"""
-    total = 0
-    for path in scene_files(folder, scene_id):
-        try:
-            total += path.stat().st_size
-        except OSError:
-            continue
-    return total
-
-
 def delete_scene_files(folder: Path, scene_id: str) -> int:
     """删除一个快照的全部文件，返回真正释放的字节数。
 

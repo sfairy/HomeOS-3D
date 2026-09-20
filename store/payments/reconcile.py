@@ -32,10 +32,10 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from store import coupons, fulfill
+from store import fulfill
 from store.config import StoreSettings
 from store.expiry import EXPIRE_BATCH_LIMIT, expire_stale_orders, prune_expired_sessions
 from store.models import Order, Product, StoreSetting, utcnow
@@ -264,22 +264,16 @@ def _confirm_paid_after_close(
 def _expire_local_order(session: Session, order: Order) -> bool:
     """把「已过期但仍是 pending」的订单推进终态，归还预留与优惠码名额。
 
-    条件 UPDATE 抢单（与 ``expire_stale_orders`` 同一套路）：支付回调可能正好在
-    巡检这一瞬间把钱认了，谁先把状态从 ``pending`` 改走谁负责副作用。返回本次
-    调用是否真的完成了过期。
+    与「用户取消 / 后台取消 / 模拟收银台取消」共用 ``fulfill.close_pending_order``：
+    同样是条件 UPDATE 抢单（支付回调可能正好在巡检这一瞬间把钱认了，谁先把状态从
+    ``pending`` 改走谁负责副作用），只是目标状态为 ``expired``。返回本次调用是否
+    真的完成了过期。
     """
-    claimed = session.execute(
-        update(Order)
-        .where(Order.id == order.id)
-        .where(Order.status == "pending")
-        .values(status="expired", cancelled_at=utcnow())
-        .execution_options(synchronize_session=False)
-    )
-    if claimed.rowcount == 0:
-        return False
     product = session.get(Product, order.product_id) if order.product_id else None
-    fulfill.release_order_reservation(session, order=order, product=product)
-    coupons.release_coupon(session, order)
+    if not fulfill.close_pending_order(
+        session, order=order, product=product, status="expired"
+    ):
+        return False
     session.refresh(order)
     return True
 

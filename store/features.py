@@ -102,12 +102,8 @@ FEATURE_CODES_BY_GROUP: dict[str, frozenset[str]] = {
 #: 基础能力集合（主项目 ``license/service.py`` 的 ``BASE_FEATURES`` 同集）
 BASE_FEATURES: frozenset[str] = FEATURE_CODES_BY_GROUP["base"]
 
-#: 增量模块集合（主项目各模块 ``access.py`` 里的 ``FEATURE`` 同集）
-MODULE_FEATURES: frozenset[str] = FEATURE_CODES_BY_GROUP["module"]
-
 #: 播种商品时写进 ``feature_codes_json`` 的**顺序**（与参考站 pay.habridge.cn 实测一致，
 #: 换顺序会让新装站点的商品功能码顺序与老站点不同 —— 内容由目录决定，顺序只是展示）。
-#: 与目录同集这件事由 ``smoke.py`` 的对账断言钉住。
 BASE_PRODUCT_FEATURES: tuple[str, ...] = (
     "api",
     "assets",

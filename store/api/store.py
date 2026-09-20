@@ -12,7 +12,7 @@ from datetime import timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
@@ -759,7 +759,7 @@ _PURPOSES_REQUIRING_ACCOUNT = frozenset({"verify", "change_email"})
 #: 也不含 ``testclient``），因为它守的是首次初始化窗口 —— 未初始化的实例对公网是
 #: 「先到先得」，把「拿不到对端」当本机会直接放行匿名创建管理员。这里多收那两个值
 #: 只服务于进程内调用与测试，而多回显一枚验证码的代价远小于多一个管理员。
-#: 两处各自的取舍都由自检钉住（``check_setup_guard_privilege_scope``）。
+#: 两处各自的取舍是刻意不同的，不要「顺手统一」成同一份。
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient", ""})
 
 
@@ -1151,9 +1151,7 @@ def register(payload: RegisterRequest, request: Request, session: DbSession) -> 
     return response
 
 
-#: 登录限流的三档阈值。按账号必须最紧（保护单个账号），按来源 IP 放宽
-#: （同一个出口 NAT 后面可能坐着整间办公室）。
-LOGIN_ACCOUNT_MAX_ATTEMPTS = password_gate.MAX_ATTEMPTS
+#: 登录限流的阈值。按来源 IP 放宽（同一个出口 NAT 后面可能坐着整间办公室）。
 LOGIN_IP_MAX_ATTEMPTS = 30
 #: 全局维度**只告警、不拦截**，见 :func:`_note_login_failure` 的说明。
 LOGIN_FLOOD_ALERT_ATTEMPTS = 120
@@ -1565,7 +1563,7 @@ def _release_snapshot_conflict(payload: ReleaseDeviceRequest, binding) -> str | 
     """校验解绑请求里的绑定快照，返回冲突说明（None 表示一致）。
 
     三个字段都可选：后台脚本 / 老客户端不带快照时保持原行为（不做校验，包括
-    「当前没有绑定设备也允许解绑」——smoke 用它验证「未被占用的授权仍可解绑」）。
+    「当前没有绑定设备也允许解绑」——未被占用的授权仍可解绑）。
     带了快照就必须一致：用户在弹窗里输密码的这段时间授权可能已被换绑，按旧快照
     解绑会误踢一台「它没看到」的设备。
     """
@@ -1816,8 +1814,7 @@ def create_order(
         # 渠道配置非法（例如后台把 payment_provider 写成了未知值）：此时绝不能
         # 静默回落模拟收银台，也不能把订单留在 pending 占着库存。
         order.status = "payment_failed"
-        fulfill.release_order_reservation(session, order=order, product=product)
-        coupons.release_coupon(session, order)
+        fulfill.release_order_effects(session, order=order, product=product)
         session.flush()
         logger.error("支付渠道解析失败 order=%s: %s", order.order_no, error)
         # B904：这条 503 是**转换**而不是新错误，原始异常（哪个渠道的配置、哪一步不合规）
@@ -1841,8 +1838,7 @@ def create_order(
         )
     except PaymentError as error:
         order.status = "payment_failed"
-        fulfill.release_order_reservation(session, order=order, product=product)
-        coupons.release_coupon(session, order)
+        fulfill.release_order_effects(session, order=order, product=product)
         session.flush()
         # B904：同上 —— 渠道拒单的原因（签名、参数、上游返回）要留在异常链上。
         raise HTTPException(
@@ -1984,15 +1980,9 @@ def cancel_order(
     # ---- 阶段二：本地收尾（条件 UPDATE 抢单） ----
     product = session.get(Product, order.product_id) if order.product_id else None
     # 取消可能和支付回调、超时扫描同时发生：只有把订单从 pending 推走的那一个请求
-    # 才负责释放副作用，否则预留与优惠码名额会被释放两次。
-    claimed = session.execute(
-        update(Order)
-        .where(Order.id == order.id)
-        .where(Order.status == "pending")
-        .values(status="cancelled", cancelled_at=utcnow())
-        .execution_options(synchronize_session=False)
-    )
-    if claimed.rowcount == 0:
+    # 才负责释放副作用（库存预留 + 优惠码名额，见 close_pending_order），否则
+    # 预留与名额会被释放两次。
+    if not fulfill.close_pending_order(session, order=order, product=product):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
         )
@@ -2001,11 +1991,6 @@ def cancel_order(
         #: 巡检下一轮会重试；写错方向是「把还开着的交易标成已关闭」，那笔钱
         #: 就再也关不掉了。
         order.channel_closed_at = utcnow()
-    fulfill.release_order_reservation(session, order=order, product=product)
-    #: 与超时扫描、后台取消对齐：取消必须归还优惠码名额。漏掉这一步
-    #: ``redeemed_count`` 只增不减，而它参与 ``max_redemptions`` 校验，名额会被
-    #: 永久占用，用户之后下单直接收到「优惠码已被领完」。
-    coupons.release_coupon(session, order)
     session.flush()
     session.refresh(order)
     logger.info(

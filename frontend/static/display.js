@@ -10,10 +10,11 @@
  *   ③ 启动遮罩由 display-boot.js 维护，本模块通过 window.HABridgeDisplayBoot
  *   汇报 setDocument / ready / fail；④ 轮询间隔 10 秒，素材版本检查间隔 30 秒。
  */
-import { PanelRenderer } from "./renderer/renderer.js?v=20260919214245";
-import { createButtonSound } from "./sound-effects.js?v=20260919214245";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=20260919214245";
-import { isAppleMobile } from "./utils/apple-device.js?v=20260919214245";
+import { PanelRenderer } from "./renderer/renderer.js?v=20260920080000";
+import { apiErrorMessage } from "./utils/api-error.js?v=20260920080000";
+import { createButtonSound } from "./sound-effects.js?v=20260920080000";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=20260920080000";
+import { isAppleMobile } from "./utils/apple-device.js?v=20260920080000";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");
@@ -125,11 +126,10 @@ async function apiRequest(path) {
       return null;
     }
     if (!response.ok) {
-      // detail 可能是字符串或对象；同时保留 code 供上层判断（如授权受限）。
+      // 文案归一交给 utils/api-error.js（这里原先只认字符串与 `detail.message`，
+      // 不认 FastAPI 422 的数组，那一类失败在本页会退成「请求失败。」）。
       const detail = payload?.detail;
-      const requestError = new Error(
-        typeof detail == "string" ? detail : detail?.message || "请求失败。"
-      );
+      const requestError = new Error(apiErrorMessage(payload, "请求失败。"));
       requestError.code = detail?.code || "";
       // 先交给日志桥关联响应（避免重复上报），没有桥接时用原错误。
       throw window.HABridgeLog?.linkError(requestError, response) || requestError;

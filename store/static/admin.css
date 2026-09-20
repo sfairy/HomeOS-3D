@@ -6,8 +6,8 @@
    以及后台专属的小组件（KPI 卡、行内 ⋯ 菜单、危险操作区、确认弹窗外观）。
 
    设计定位：暗色「专业控制台」。与主程序（frontend/static/app.css）共用同一套
-   配色令牌（--hb-bg / --hb-accent / --hb-success 由 theme.css 提供，smoke.py 会
-   断言三者与主程序完全一致，**不要在这里改这三个值**），在此基础上：
+   配色令牌（--hb-bg / --hb-accent / --hb-success 由 theme.css 提供，必须与主程序
+   完全一致，**不要在这里改这三个值**），在此基础上：
 
      1. 建立层级——面板标题 22px、KPI 数值 25px、正文 13.5px、辅助 11.5px。
      2. 分层表面——画布 → 卡片 → 浮层三级，靠渐变 + 顶部高光 + 柔和投影拉开。
@@ -50,7 +50,7 @@
    重算一遍，加域只加一行；手写五套（各 6 个色值）改一处字号/透明度时必然漏。
 
    **--hb-bg / --hb-accent / --hb-success 一个字都不能动**（theme.css 与主程序
-   逐字对齐，smoke.py 会断言），所以多色是「新增一层」，不是改品牌色。
+   逐字对齐），所以多色是「新增一层」，不是改品牌色。
    品牌琥珀只保留在「可点的东西」上：主操作按钮、焦点环、复选框选中态，
    以及 is-alert / is-danger 这类**语气**（告警永远是琥珀，不该随域漂移）。
 
@@ -1271,7 +1271,7 @@ body {
    1) 两者都必须独占整行；
    2) pane 自己要再开一层同规格的网格，字段才能像以前那样按列铺开，
       列宽下限与原表单保持一致（普通表单 186px、``--wide`` 表单 210px），
-      与 smoke 的 ``check_field_label_fit`` 是同一口径。 */
+      与后台字段标签的排版口径一致。 */
 .admin-grid > .admin-tabs,
 .admin-grid > .admin-tab-pane {
   grid-column: 1 / -1;
@@ -2081,7 +2081,7 @@ body {
 /* 长数值降档。卡宽下限 186px、左右内边距各 16px，可用 154px：
    25px 等宽一行 10 个字符、19px 放 13 个、15px 放 16 个（等宽字符约 0.61em/字，
    浏览器实测 0.59–0.60）。档位由 admin.html 的 valueSize() 按字符数给出，
-   容量与阈值的关系由 store/tools/smoke.py::check_stat_card_fit 核对。
+   容量与阈值的关系必须与 admin.html 的 valueSize() 保持一致。
    选择器必须带 .stat 前缀：`.stat strong` 的权重比单个修饰类高。 */
 .stat .stat__value--sm {
   font-size: 19px;
@@ -2112,7 +2112,8 @@ body {
 .is-tone-slate { --a-tone: 205; }
 
 /* KPI 卡：只换颜色，字号 / 降档阈值 / padding 一律不动 ——
-   check_stat_card_fit 按这里的字号核对卡片能否放下，动一个值就 FAIL。 */
+   这几个值与 admin.html 的 valueSize()、admin.css 的 .stat__value--* 档位联动，
+   动一个值就会让卡片放不下。 */
 .stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald) {
   border-color: hsl(var(--a-tone) 90% 62% / 0.3);
 }

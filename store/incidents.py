@@ -153,10 +153,3 @@ def clear(*, actor: str | None = None) -> dict:
         _STATE.counts.clear()
         _STATE.cleared = _Cleared(at=utcnow(), by=(actor or "").strip(), total=before["total"])
     return before
-
-
-def reset_for_tests() -> None:
-    """仅供自检使用：把模块状态恢复到「从未发生」。"""
-    with _LOCK:
-        _STATE.counts.clear()
-        _STATE.cleared = None

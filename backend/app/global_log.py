@@ -189,7 +189,7 @@ class RepeatedErrorTally:
         """初始化形态表与保护它的锁。
 
         参数:
-            clock: 时间源，默认 monotonic；注入后自检可以控制窗口滚动。
+            clock: 时间源，默认 monotonic；注入后可以控制窗口滚动（排障用）。
         """
         self.clock = clock
         # 键 -> [窗口起点, 窗口内次数, 该键的展示标签]；键与标签都只由形态派生。
@@ -307,10 +307,6 @@ class GlobalLogStore:
         # 即使 mtime 精度不够（某些文件系统按秒计）也不会读到过期内容。
         self._file_cache: tuple[tuple[int, int, int], list[dict[str, Any]]] | None = None
         self._file_revision = 0
-        # 统计量：只用于自检与排障，不对外暴露。
-        self._flush_count = 0
-        self._prune_count = 0
-        self._parse_count = 0
         try:
             self._prepare_directory()
         except OSError as error:
@@ -458,7 +454,6 @@ class GlobalLogStore:
                         )
                     output.flush()
                 self._pending.clear()
-                self._flush_count += 1
                 self._tail_checked = True
                 was_unavailable = self._last_error is not None
                 self._last_error = None
@@ -498,7 +493,7 @@ class GlobalLogStore:
     def prune_now(self) -> None:
         """立刻按保留天数与文件上限裁剪一次（跳过节流）。
 
-        只给自检 / 运维用：会加锁，因此不会和后台写线程撞在一起。
+        只给排障 / 运维用：会加锁，因此不会和后台写线程撞在一起。
         常规路径不要调它 —— 裁剪是全量重写，必须由写线程按节流节奏做。
         """
         with self._lock:
@@ -763,7 +758,6 @@ class GlobalLogStore:
                 raise
             self._io_failure(error)
             return []
-        self._parse_count += 1
         self._file_cache = (key, events)
         return events
 
@@ -888,5 +882,4 @@ class GlobalLogStore:
             retained_bytes += event_bytes
         retained.reverse()
         self._write_events(retained)
-        self._prune_count += 1
         self._last_pruned_at = now

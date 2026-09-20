@@ -135,9 +135,3 @@ class LicenseEndpointPool:
         with self._lock:
             # 以 self._clock() 起算，与 candidates() 的过期判据用同一时间源。
             self._blacklist_until[base_url] = self._clock() + self._blacklist_seconds
-
-    def is_blacklisted(self, base_url: str) -> bool:
-        """查询地址是否仍在拉黑期内。"""
-        with self._lock:
-            # 默认 0 表示「从未拉黑」，因此必须用 > 而不能用 >= 比较。
-            return self._blacklist_until.get(base_url, 0) > self._clock()

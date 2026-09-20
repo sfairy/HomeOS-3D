@@ -21,10 +21,10 @@
  *   7. 编辑历史、草稿保存与崩溃恢复；
  *   8. 拖拽 / 缩放 / 对齐等画布手势，以及文件末尾的初始化与事件绑定。
  *
- * 版本戳约定：本文件内部所有 `import ... ?v=20260919214245` 必须使用同一条版本戳，
+ * 版本戳约定：本文件内部所有 `import ... ?v=20260920080000` 必须使用同一条版本戳，
  * 与 renderer/renderer.js 引用 renderer/registry.js 的 `?v=` 完全一致 ——
  * 两条路径都指向同一份控件注册表，版本戳一旦不同就会加载出两份注册表，
- * 表现为控件类型在某些视图里"找不到"。改动静态资源后由
+ * 表现为控件类型在某些视图里"找不到"。改动静态资源后用
  * tools/bump_static_cache_versions.mjs 统一改写，不要手改单处。
  *
  * 与后端的交互约定：
@@ -42,19 +42,20 @@
  *   - 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260919214245";
+import { showDisplayPairingQr } from "./display-pairing-qr.js?v=20260920080000";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "./utils/api-fetch.js?v=20260919214245";
+import { apiFetch } from "./utils/api-fetch.js?v=20260920080000";
+import { apiErrorMessage } from "./utils/api-error.js?v=20260920080000";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "./renderer/renderer.js?v=20260919214245";
+} from "./renderer/renderer.js?v=20260920080000";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "./renderer/registry.js?v=20260919214245";
+} from "./renderer/registry.js?v=20260920080000";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -62,7 +63,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "./templates/component-templates.js?v=20260919214245";
+} from "./templates/component-templates.js?v=20260920080000";
 import {
   clone,
   newId,
@@ -72,30 +73,32 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260919214245";
-import { clampNumber } from "./utils/numbers.js?v=20260919214245";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "./utils/entities.js?v=20260919214245";
+} from "./editor-utils.js?v=20260920080000";
+import { clampNumber } from "./utils/numbers.js?v=20260920080000";
+import { mdiIconUrl } from "./utils/icon-url.js?v=20260920080000";
+import { formatZhDateTime } from "./utils/datetime.js?v=20260920080000";
+import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "./utils/entities.js?v=20260920080000";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
-import { resolveStateEntry } from "./utils/state-entry.js?v=20260919214245";
+import { resolveStateEntry } from "./utils/state-entry.js?v=20260920080000";
 import {
   hexColorOrEmpty,
   strictHexColorOrEmpty
-} from "./utils/colors.js?v=20260919214245";
+} from "./utils/colors.js?v=20260920080000";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "./popup-layout.js?v=20260919214245";
+} from "./popup-layout.js?v=20260920080000";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260919214245";
+} from "./dashboard-resize.js?v=20260920080000";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260919214245";
+} from "./component-page-copy.js?v=20260920080000";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -107,25 +110,25 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "./related-entities.js?v=20260919214245";
-import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260919214245";
-import { createButtonSound } from "./sound-effects.js?v=20260919214245";
+} from "./related-entities.js?v=20260920080000";
+import { createIconVisibilityVirtualEntity } from "./virtual-entities.js?v=20260920080000";
+import { createButtonSound } from "./sound-effects.js?v=20260920080000";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260919214245";
-import { confirmAction } from "./ui-confirm.js?v=20260919214245";
-import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260919214245";
+} from "./editor-dialogs.js?v=20260920080000";
+import { confirmAction } from "./ui-confirm.js?v=20260920080000";
+import { createEditorPickerElements } from "./editor-picker-elements.js?v=20260920080000";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./editor-picker-pagination.js?v=20260919214245";
-import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260919214245";
-import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260919214245";
-import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260919214245";
-import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260919214245";
-import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260919214245";
+} from "./editor-picker-pagination.js?v=20260920080000";
+import { createEditorPickerQueries } from "./editor-picker-queries.js?v=20260920080000";
+import { createEditorAssetMatcher } from "./editor-asset-queries.js?v=20260920080000";
+import { createEditorPickerLifecycle } from "./editor-picker-lifecycle.js?v=20260920080000";
+import { createInteraction3dEditorPickers } from "./modules/interaction3d/editor-pickers.js?v=20260920080000";
+import { createEditorAssetToolbar } from "./editor-asset-toolbar.js?v=20260920080000";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -133,13 +136,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "./action-rules.js?v=20260919214245";
+} from "./action-rules.js?v=20260920080000";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260919214245";
+} from "./component-tree.js?v=20260920080000";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -149,13 +152,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260919214245";
+} from "./editor-component-collections.js?v=20260920080000";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260919214245";
+} from "./editor-basic-inspectors.js?v=20260920080000";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -166,7 +169,7 @@ import {
   popupModuleTypeLabel,
   reorderedPopupModules,
   uniquePagePath
-} from "./editor-document-management.js?v=20260919214245";
+} from "./editor-document-management.js?v=20260920080000";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -174,18 +177,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260919214245";
+} from "./editor-history.js?v=20260920080000";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "./3d-studio/studio-normalization.js?v=20260919214245";
-import { createLicenseCard } from "./license-card.js?v=20260919214245";
+} from "./3d-studio/studio-normalization.js?v=20260920080000";
+import { createLicenseCard } from "./license-card.js?v=20260920080000";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "./modules/interaction3d/editor.js?v=20260919214245";
+} from "./modules/interaction3d/editor.js?v=20260920080000";
 /**
  * 按选择器取单个 DOM 节点的简写。
  *
@@ -1414,16 +1417,18 @@ async function requestJson(requestPath, requestOptions = {}) {
   if (!apiResponse.ok) {
     const errorDetail = responseBody?.detail;
     const responseExcerpt = responseText.trim().slice(0, 240);
+    // 文案归一交给 utils/api-error.js（原先这里自己判形态，只认字符串与 `detail.message`，
+    // 于是 FastAPI 422 的「detail 是数组」在本接口上一律退成下面这句通用文案）。
     const requestError = new Error(
-      typeof errorDetail == "string"
-        ? errorDetail
-        : errorDetail?.message ||
-            "请求失败：" +
-              requestPath.split("?")[0] +
-              "（HTTP " +
-              apiResponse.status +
-              "）" +
-              (responseExcerpt ? " · " + responseExcerpt : "")
+      apiErrorMessage(
+        responseBody,
+        "请求失败：" +
+          requestPath.split("?")[0] +
+          "（HTTP " +
+          apiResponse.status +
+          "）" +
+          (responseExcerpt ? " · " + responseExcerpt : "")
+      )
     );
     if (errorDetail && typeof errorDetail == "object" && errorDetail.code) {
       requestError.code = errorDetail.code;
@@ -2204,13 +2209,7 @@ function renderDashboardDisplayLink() {
 function formatLastSeen(lastSeenTimestamp) {
   const lastSeenDate = new Date(lastSeenTimestamp);
   if (Number.isFinite(lastSeenDate.getTime())) {
-    return new Intl.DateTimeFormat("zh-CN", {
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false
-    }).format(lastSeenDate);
+    return formatZhDateTime(lastSeenDate);
   } else {
     return "尚未在线";
   }
@@ -4727,7 +4726,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260919214245";
+          ".jpg?v=20260920080000";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -5709,25 +5708,6 @@ function closeAllDropdownMenus(exceptMenuKey = null) {
   }
   if (exceptMenuKey !== "navigation-icon") {
     closeDropdownMenu(navigationIconMenuElement, navigationIconButtonElement);
-  }
-}
-/**
- * 把 `mdi:xxx` 图标名解析成内置 Material Design Icons 的 SVG 地址。
- *
- * 名字做了白名单校验（只允许小写字母、数字与连字符）：既避免把任意字符串拼进 URL，
- * 也顺带挡掉路径穿越；校验不过返回空串，调用方据此隐藏预览。
- *
- * @param {string} mdiIconName 图标名，可带 `mdi:` 前缀。
- * @returns {string} SVG 资源路径；名字非法时返回空串。
- */
-function mdiIconUrl(mdiIconName) {
-  const normalizedIconName = String(mdiIconName || "")
-    .trim()
-    .replace(/^mdi:/, "");
-  if (/^[a-z0-9-]+$/.test(normalizedIconName)) {
-    return "/static/vendor/mdi/7.4.47/svg/" + normalizedIconName + ".svg";
-  } else {
-    return "";
   }
 }
 /**
@@ -7453,8 +7433,8 @@ const {
   // P11 的事故现场就在这一行：P10 把本文件那份局部 entityDomain 删掉、值改成 entityDomainOf 时，
   // 右侧漏改过一次，而模块顶层求值是「一个名字写错 → 整个编辑器脚本一行都不执行」。
   // P12 把注入键改成 entityDomainResolver：键与值一起看得清「外面注入进来的是哪个助手」，
-  // 而且形参名**不与契约助手同名** —— 同名会让「使用点必须自己 import」那条闸误报
-  // （`editor-picker-queries.js` 不 import 它，它是形参）。
+  // 而且形参名**不与助手同名** —— 同名会让「这个文件没 import 它、它是形参」这件事看不出来
+  // （`editor-picker-queries.js` 确实不 import 它）。
   entityDomainResolver: entityDomainOf
 });
 const editorPickers = createInteraction3dEditorPickers({
@@ -29034,7 +29014,7 @@ const DELETE_POPUP_USAGE_LIMIT = 6;
  * 共享组件按 `sharedComponentIds` 反查引用它的页面 —— 共享组件一改，引用它的每一页都受影响。
  *
  * 纯函数（实体显示名经 `entityLabelFor` 回调取，DOM 与编辑器状态都不碰），
- * 因此探针可以把它切出来直接喂文档跑。
+ * 因此可以把它切出来直接喂文档跑（原探针已随测试清理删除）。
  *
  * @param {?object} documentSource 当前文档（含 sharedComponents 与 pages）。
  * @param {string} popupId 待删弹窗的 ID。
@@ -29959,8 +29939,8 @@ document.addEventListener("visibilitychange", () => {
  * 名字不是装饰：`Promise.allSettled` 只会告诉你「第 3 片失败了」，而用户看到的必须是
  * 「实体清单没读出来」—— 少了名字，报错就退化成一句「操作失败」，与修复前没有区别。
  *
- * 写成函数而不是常量，是为了让这份清单能被整份取出来驱动（探针按源码文本取函数，
- * 不去解析数组字面量），同时保证「谁属于启动阶段」只有这一个出处。
+ * 写成函数而不是常量，是为了让这份清单能被整份取出来（按源码文本取函数，不去解析
+ * 数组字面量 —— 原探针就是这么做启动顺序断言的），同时保证「谁属于启动阶段」只有这一个出处。
  *
  * @returns {Array<[string, function(): Promise<*>]>} 名称与加载动作。
  */

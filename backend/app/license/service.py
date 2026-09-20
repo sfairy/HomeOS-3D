@@ -26,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 from sqlalchemy import select
 
+from ..canonical_json import canonical_json
 from ..config import Settings
 from ..database import Database
 from ..global_log import GlobalLogStore
@@ -47,15 +48,36 @@ class LicenseClientError(RuntimeError):
     区分「临时失败」「需要人工重新激活」等情形。
     """
 
-    def __init__(self, message: str, *, status_code: int | None = None, code: str | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        code: str | None = None,
+        retry_after_seconds: float | None = None,
+    ) -> None:
         """参数:
             message: 面向用户的错误文案。
             status_code: 授权服务返回的 HTTP 状态码；本地错误为 None。
             code: 业务错误码，例如 MANUAL_ACTIVATION_REQUIRED / REVOKED，前端据此切换界面。
+            retry_after_seconds: 仅 429 上有值，来自响应头的 ``Retry-After``：
+                从这一刻起还要等多少秒。调用方据此进入冷却，而不是按固定间隔重打。
         """
         super().__init__(message)
         self.status_code = status_code
         self.code = code
+        self.retry_after_seconds = retry_after_seconds
+
+    @property
+    def is_rate_limited(self) -> bool:
+        """是否被授权服务的限流挡下（429）。
+
+        单独判出来是因为它**不能**像其它失败那样降级本地状态：429 只说明「这一小时
+        打得太多了」，对绑定是否仍然有效一个字都没说。按普通失败处理会把一个已过期的
+        租约翻成 ``LEASE_EXPIRED``，从而把编辑器锁死 —— 那正是 B66 的现象：
+        授权页的轮询把自己的心跳配额打满，然后被自己的限流关在门外。
+        """
+        return self.status_code == 429
 
     @property
     def is_confirmed_revocation(self) -> bool:
@@ -110,7 +132,7 @@ class LicenseService:
         self.settings = settings
         self.database = database
         self.event_log = event_log
-        # 启动期先钉死信任锚：指纹错了立刻失败并提示 gen_keys，不拖到首次激活。
+        # 启动期先钉死信任锚：指纹错了立刻失败并给出密钥准备指引，不拖到首次激活。
         verify_license_trust_anchors(settings)
         # 事件去重状态可能被心跳协程与请求线程同时访问，用可重入锁保护。
         self._event_lock = threading.RLock()
@@ -140,9 +162,31 @@ class LicenseService:
         self._startup_validation_pending = False
         # 最近一次 confirm_binding 的单调时钟；用于非强制调用的节流。
         self._last_binding_confirm_at = 0.0
+        # 被授权服务限流（429）后的冷却截止时间（单调时钟）。0 表示不在冷却里。
+        # 与「失败降级」分开记：429 不说明绑定有效与否，只是「这一小时打太多了」。
+        self._rate_limited_until = 0.0
 
     #: 打开编辑器等入口强制联网确认；状态轮询走节流，避免打爆授权服务。
-    BINDING_CONFIRM_THROTTLE_SECONDS = 15.0
+    #:
+    #: 从 15 秒放宽到 60 秒是 B66 的另一半：按 5 秒轮询算，15 秒节流意味着一个开着的
+    #: 授权页每小时要发 240 次心跳，而服务端那份额度是按「300 秒心跳 = 12 次/小时」
+    #: 定的。60 秒把稳态压到 60 次/小时（与后台心跳同量级），代价只是商店解绑后
+    #: 授权页上的可见延迟从 ≤15 秒变成 ≤60 秒 —— 那个页面本来就是等待室。
+    BINDING_CONFIRM_THROTTLE_SECONDS = 60.0
+
+    def _rate_limit_remaining(self) -> float:
+        """冷却还剩多少秒（单调时钟）；不在冷却里返回 0。"""
+        return max(0.0, self._rate_limited_until - time.monotonic())
+
+    def _note_rate_limit(self, error: LicenseClientError) -> None:
+        """记下这次 429 的冷却。
+
+        服务端没回 ``Retry-After`` 时用一个保守的兜底值：限流器是小时窗口，但客户端
+        不必等满一小时 —— 只要不再持续重打，窗口自己会滑动。取 120 秒，让心跳循环
+        每两分钟试一次，既不空转也不会漏掉窗口提前释放。
+        """
+        seconds = error.retry_after_seconds
+        self._rate_limited_until = time.monotonic() + (seconds if seconds else 120.0)
 
     def _binding_needs_confirm(self) -> bool:
         """读本地凭证判断这次调用是否真需要联网（同步，调用方放进工作线程）。
@@ -171,12 +215,21 @@ class LicenseService:
 
         网络失败不清空本地租约（保持离线可用）；仅「确认吊销」会 ``_mark_revoked``。
 
+        限流（429）单独走一条路：它既不算「确认吊销」，也不算「网络失败」—— 见
+        ``_rate_limit_remaining``。冷却期内直接返回，连节流窗口都不占，等冷却结束
+        自然恢复确认。
+
         并发语义：节流窗口在**发起联网之前**就被占住，因此窗口期内的并发调用
         （多标签页同时刷新、页面与轮询一起到）里只有一个真的发请求，其余立刻
         带着本地状态返回。否则它们会一起排在 ``_heartbeat_lock`` 后面，
         等待时间随标签页数量无界增长 —— 这正是 B55 里「刷新几下面板就卡住」的成因。
         """
         if not self.settings.license_required or not self._endpoint_pool.configured:
+            return
+        # 冷却期内不联网：这是 B66 的止血点 —— 被限流之后每一次确认都只会再拿一个
+        # 429，而状态轮询恰恰是触发限流的那股流量。放在节流判定**之前**：否则冷却
+        # 结束后还要再等一个节流窗口，白白拖长恢复时间。
+        if self._rate_limit_remaining() > 0:
             return
         now = time.monotonic()
         if not force and (now - self._last_binding_confirm_at) < self.BINDING_CONFIRM_THROTTLE_SECONDS:
@@ -192,7 +245,7 @@ class LicenseService:
             if error.is_confirmed_revocation:
                 # 本地已是 REVOKED；调用方随后 allows() / status() 会拦截并引导重激活。
                 self._log_event('warning', f'联网确认绑定失败（已吊销）：{error}')
-            # 网络 / 临时故障：保留离线租约，等心跳循环重试。
+            # 网络 / 临时故障 / 限流：保留离线租约，等心跳循环重试。
 
     def _log_event(self, level: str, message: str) -> None:
         """写一条授权事件日志。
@@ -275,6 +328,9 @@ class LicenseService:
 
     def _record_online_success(self, operation: str) -> None:
         """联网成功：汇报此前累计的心跳/恢复失败次数，并清掉对应的失败计数。"""
+        # 联网既然通了，限流冷却就没有意义了（那条路只有在被 429 挡下时才置位）：
+        # 留着它会让 confirm_binding 白白少确认一次、心跳循环多睡一轮。
+        self._rate_limited_until = 0.0
         with self._event_lock:
             # 只汇报并清理这两类：本地校验与激活各自有独立的成功路径。
             failures = [(name, self._event_failures.pop(name)) for name in ('心跳', '租约恢复') if name in self._event_failures]
@@ -588,7 +644,13 @@ class LicenseService:
                 if response.status_code >= 400:
                     # 4xx 是业务拒绝（激活码错误、确认吊销等），换地址也不会变，直接抛出。
                     detail, code = self._parse_error_response(response)
-                    raise LicenseClientError(detail, status_code=response.status_code, code=code)
+                    raise LicenseClientError(
+                        detail,
+                        status_code=response.status_code,
+                        code=code,
+                        # 429 才有意义：服务端回的是**剩余**等待秒数，调用方据此进入冷却。
+                        retry_after_seconds=self._parse_retry_after(response),
+                    )
                 # 204 / 空响应是合法的成功返回（个别接口无 body）。
                 if not response.content:
                     return {}
@@ -615,6 +677,26 @@ class LicenseService:
                 return parsed
         # 所有候选都试过：抛出最后一次失败，保留 status_code 等信息。
         raise last_failure or LicenseClientError('无法连接授权服务器。')
+
+    @staticmethod
+    def _parse_retry_after(response: httpx.Response) -> float | None:
+        """从 429 响应头取 ``Retry-After``（秒）。
+
+        只认「秒数」这一种写法：HTTP 也允许日期格式，但服务端发的是
+        ``SlidingWindowLimiter.retry_after()`` 算出来的剩余秒数，多解析一种格式
+        就是多一条永远走不到、也永远测不到的分支。
+
+        钳到 ``[1, 3600]``：下界避免「回 0 就等于不休避」变成热循环；上界与限流窗口
+        同量级，防止伪造 / 错配的头把客户端长期钉死在冷却里。
+        """
+        raw = response.headers.get('Retry-After')
+        if raw is None:
+            return None
+        try:
+            seconds = float(str(raw).strip())
+        except (TypeError, ValueError):
+            return None
+        return min(3600.0, max(1.0, seconds))
 
     @staticmethod
     def _parse_error_response(response: httpx.Response) -> tuple[str, str | None]:
@@ -713,7 +795,7 @@ class LicenseService:
                 self._record_status(state.status, state.last_error)
                 raise LicenseClientError(state.last_error)
             # 紧凑序列化存库：内容由验签通过的租约决定，不需要可读性。
-            state.feature_set = json.dumps(features, ensure_ascii=False, separators=(',', ':'))
+            state.feature_set = canonical_json(features)
             # 0 表示不限；配额目前由租约权益控制，不再单独下发数字。
             state.max_projects = 0
             state.max_displays = 0
@@ -843,7 +925,8 @@ class LicenseService:
         """心跳的实际实现（调用方须已持有 _heartbeat_lock）。
 
         优先用会话令牌续租；没有会话令牌或服务端回 401 时回落到恢复令牌；
-        确认吊销则清空本地授权；其余失败只降级状态（保留租约，等待重试）。
+        确认吊销则清空本地授权；被限流（429）只记冷却、不改变本地状态；
+        其余失败只降级状态（保留租约，等待重试）。
         """
         # 同步查库放线程池（B4）：心跳是请求路径也会 await 的（confirm_binding /
         # activate / 页面门禁），不能让这段读写占着事件循环。
@@ -878,6 +961,17 @@ class LicenseService:
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
                 await asyncio.to_thread(self._mark_revoked, str(error))
                 raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
+            # 被限流（429）：只记冷却，**不降级本地状态**。限流对「绑定是否仍然有效」
+            # 一个字都没说，而按普通失败处理会把已过期的租约翻成 LEASE_EXPIRED、把编辑器
+            # 锁死 —— 那正是 B66 的现象。也不在这里转 recover：那只会对同一个桶再打一次。
+            if isinstance(error, LicenseClientError) and error.is_rate_limited:
+                self._note_rate_limit(error)
+                raise LicenseClientError(
+                    str(error),
+                    status_code=error.status_code,
+                    code=error.code,
+                    retry_after_seconds=error.retry_after_seconds,
+                ) from error
             # 其它失败（网络不可达、5xx）：按租约剩余有效期降级为
             # CONNECTION_WARNING 或 LEASE_EXPIRED，等下一轮心跳重试。
             await asyncio.to_thread(self._mark_failure, str(error))
@@ -914,6 +1008,15 @@ class LicenseService:
             if isinstance(error, LicenseClientError) and error.is_confirmed_revocation:
                 await asyncio.to_thread(self._mark_revoked, str(error))
                 raise LicenseClientError(str(error), status_code=error.status_code, code=error.code) from error
+            # 同心跳：限流只记冷却、不降级状态（见 ``_heartbeat_unlocked`` 里的说明）。
+            if isinstance(error, LicenseClientError) and error.is_rate_limited:
+                self._note_rate_limit(error)
+                raise LicenseClientError(
+                    str(error),
+                    status_code=error.status_code,
+                    code=error.code,
+                    retry_after_seconds=error.retry_after_seconds,
+                ) from error
             await asyncio.to_thread(self._mark_failure, str(error))
             raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=getattr(error, 'code', None)) from error
 
@@ -1024,7 +1127,13 @@ class LicenseService:
     def _heartbeat_wait(self) -> float | None:
         """读库算出本轮该等多久（同步，供心跳循环放线程池）。"""
         with self.database.session_factory() as database:
-            return self._heartbeat_wait_seconds(self._state(database))
+            wait_seconds = self._heartbeat_wait_seconds(self._state(database))
+        if wait_seconds is None:
+            # 未激活无需联网，冷却不改变这一点（调用方据此一直等到有变更为止）。
+            return None
+        # 冷却期内不再重打：等待时间至少覆盖冷却剩余。少了这一条，循环会按心跳间隔
+        # 反复去撞同一个 429，而每一次撞都在把窗口重新填满（B66 的另一半）。
+        return max(wait_seconds, self._rate_limit_remaining())
 
     def _due_state(self) -> tuple[bool, str, bool]:
         """超时醒来后重新读一次状态（同步，供心跳循环放线程池）。

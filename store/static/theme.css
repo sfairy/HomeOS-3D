@@ -13,9 +13,8 @@
      accent      #f2a20d（亮 #ffb52e，深 #ef9900，渐变 #ffb82e → #ef9900）
      success     #54bd78      danger   #e26b67
 
-   --hb-bg / --hb-accent / --hb-success 三个值必须与主程序逐字符一致：
-   store/tools/smoke.py 的 check_theme_matches_app() 会直接比对，
-   主程序改色而这里没跟就会 FAIL。
+   --hb-bg / --hb-accent / --hb-success 三个值必须与主程序（frontend/static/app.css）
+   逐字符一致：主程序改色而这里没跟，两套界面就会配色不一致。
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -854,7 +853,7 @@ b {
 
 /* 账号中心的状态芯片（授权卡抬头、权益卡抬头各一枚）。变体**必须**写成
    复合选择器：单类名（0,1,0）扛不住外层容器里任何 `.xxx span` 这类
-   （0,1,1）规则，颜色会静默退回中性灰 —— smoke.py 对此有断言。 */
+   （0,1,1）规则，颜色会静默退回中性灰。 */
 .hb-meta-chip {
   display: inline-flex;
   padding: 3px 9px;
@@ -1246,7 +1245,7 @@ b {
 /* 纵向 flex + 页脚 margin-top:auto 是「等高网格不拉伸徽标行」的关键：
    卡片若是 grid，同排最矮卡之外多出来的高度会被均摊到每一行，
    内容少的卡（只有徽标 + 标题）会表现为徽标被拉成竖椭圆、标题比邻卡低一截。
-   smoke.py 的 check_addon_card_layout() 断言这两条，别改回 grid。 */
+   别改回 grid。 */
 .hb-addon-card {
   position: relative;
   display: flex;

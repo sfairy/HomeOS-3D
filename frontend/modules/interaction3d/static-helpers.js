@@ -1,5 +1,5 @@
 /**
- * 3D 运行时树 → `/static/` 契约助手的**唯一桥梁**。
+ * 3D 运行时树 → `/static/` 共享助手的**唯一桥梁**。
  *
  * 位置：`frontend/modules/interaction3d/` 下的纯转出口，本身不实现任何逻辑。
  *
@@ -18,22 +18,28 @@
  * 为什么要有这个文件（而不是每个文件各写一次那段条件动态导入）：本树原有 33 处内联剥壳与
  *   3 处内联切域，逐处换助手时若每份文件自带一段导入尾巴，同一段知识会重复 16 份 —— 与
  *   「同一份知识只有一处」正好相反，而且缓存戳要在 16 处同步。有桥之后，其余文件只写一次
- *   普通的 `from "./static-helpers.js?v=20260919214245"`，与 `/static/` 树里的 import 完全同形。
+ *   普通的 `from "./static-helpers.js?v=20260920080000"`，与 `/static/` 树里的 import 完全同形。
  *
- * 纪律（由 `backend/tools/smoke.py` 的 `FRONTEND_STATIC_BRIDGE` 那两条断言钉住）：
+ * 纪律：
  *
  *   * 这里只许出现「条件动态 import + 命名导出」，**不许出现实现** —— 实现只有 `/static/`
- *     那一份，本文件里写函数体会被「定义点唯一」那条闸当场点红；
- *   * 导出的名字必须与登记表**逐字相同**，多一个少一个都红，动态 import 的目标也只许是
- *     这些名字所属的那两个模块 —— 否则它会慢慢长成通往 `/static` 的通用通道。
+ *     那一份，本文件里写函数体就会长出第二份实现；
+ *   * 导出的名字必须与登记表**逐字相同**，动态 import 的目标也只许是
+ *     这些名字所属的那几个模块 —— 否则它会慢慢长成通往 `/static` 的通用通道。
  */
 
 // 开发态（file:）走相对路径，生产走 /static 绝对路径；两条都不能省。
 const { resolveStateEntry } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../static/utils/state-entry.js", import.meta.url))
-  : import("/static/utils/state-entry.js?v=20260919214245"));
+  : import("/static/utils/state-entry.js?v=20260920080000"));
 const { entityDomainFromId } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../static/utils/entities.js", import.meta.url))
-  : import("/static/utils/entities.js?v=20260919214245"));
+  : import("/static/utils/entities.js?v=20260920080000"));
+const { apiErrorMessage } = await (import.meta.url.startsWith("file:")
+  ? import(new URL("../../static/utils/api-error.js", import.meta.url))
+  : import("/static/utils/api-error.js?v=20260920080000"));
+const { INTERACTION_PAGE_OPTIONS } = await (import.meta.url.startsWith("file:")
+  ? import(new URL("../../static/utils/interaction-pages.js", import.meta.url))
+  : import("/static/utils/interaction-pages.js?v=20260920080000"));
 
-export { entityDomainFromId, resolveStateEntry };
+export { INTERACTION_PAGE_OPTIONS, apiErrorMessage, entityDomainFromId, resolveStateEntry };

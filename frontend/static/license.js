@@ -11,7 +11,8 @@
  *   一对：只有闩没有超时，一次弱网就把轮询永久冻住；只有超时没有闩，弱网下每 5 秒
  *   就再叠一个同源请求上去，把本来就差的网络压得更差。
  */
-import { apiFetch } from "./utils/api-fetch.js?v=20260919214245";
+import { apiFetch } from "./utils/api-fetch.js?v=20260920080000";
+import { apiErrorMessage } from "./utils/api-error.js?v=20260920080000";
 
 const form = document.querySelector("#license-form"),
   message = document.querySelector("#message"),
@@ -33,21 +34,6 @@ function enterEditor() {
     ((navigating = !0),
     statusTimer !== null && window.clearInterval(statusTimer),
     window.location.replace("/"));
-}
-
-/**
- * 从错误响应里提取可读文案。
- *
- * @param {object} errorResponse 后端响应体。
- * @param {string} fallbackMessage 兜底文案。
- * @returns {string} detail 为字符串时直接用；为对象时取 message；否则用兜底文案。
- */
-function errorMessage(errorResponse, fallbackMessage) {
-  return typeof errorResponse?.detail == "string"
-    ? errorResponse.detail
-    : typeof errorResponse?.detail?.message == "string"
-      ? errorResponse.detail.message
-      : fallbackMessage;
 }
 
 function setRecoveryHint(statusCode) {
@@ -72,7 +58,7 @@ async function loadStatus() {
   // 非 JSON 响应按空对象处理，走下方统一错误分支。
   const statusPayload = await statusResponse.json().catch(() => ({}));
   if (!statusResponse.ok)
-    throw new Error(errorMessage(statusPayload, "无法读取授权状态。"));
+    throw new Error(apiErrorMessage(statusPayload, "无法读取授权状态。"));
   if (statusPayload.status === "ACTIVE" && statusPayload.editorAllowed) {
     enterEditor();
     return;
@@ -152,7 +138,7 @@ async function refreshStatus() {
         }),
         activatePayload = await activateResponse.json().catch(() => ({}));
       if (!activateResponse.ok)
-        throw new Error(errorMessage(activatePayload, "激活失败。"));
+        throw new Error(apiErrorMessage(activatePayload, "激活失败。"));
       if (activatePayload.status !== "ACTIVE" || !activatePayload.editorAllowed)
         // 区分「授权有效但不含编辑器权益」与「激活尚未生效」，两种提示给用户的动作不同。
         throw new Error(

@@ -232,7 +232,7 @@ class StoreSettings:
     alipay_verify_response_sign: bool = True
 
     # 授权签发
-    #: 注意：仓库根的 keys/ 是客户端默认读取的公钥镜像（由 gen_keys 自动同步），私钥留在服务自己的目录
+    #: 注意：仓库根的 keys/ 是客户端默认读取的公钥镜像（由 start.py / 容器启动自动同步），私钥留在服务自己的目录
     license_keys_dir: Path = STORE_ROOT / "keys" / "local"
     #: 留空 = 按公钥文件派生 keyId（推荐，见 ``license_key_id`` 属性）；显式赋值
     #: 仍然生效，但那时轮换要服务端与客户端同步改名 —— 静态名字不会随密钥变，
@@ -243,6 +243,13 @@ class StoreSettings:
     license_transport_key_id_override: str = ""
     lease_ttl_seconds: int = DEFAULT_LEASE_TTL_SECONDS
     heartbeat_interval_seconds: int = DEFAULT_HEARTBEAT_INTERVAL_SECONDS
+    #: ``/v2/heartbeat`` 与 ``/v2/recover`` 的**来源 IP** 小时配额（见 ``store/api/license.py``）。
+    #:
+    #: 比 ``/v2/activate`` 那个固定的 60/小时宽得多，理由是这类流量「不可枚举但很常态」：
+    #: 收的是高熵会话 / 恢复令牌（猜不出来），却同时来自后台心跳与「授权页开着时的状态
+    #: 轮询」。而且额度是**按出口地址**算的，真实部署里多台设备共用同一个 NAT 出口时
+    #: 会叠加 —— 出问题时症状是「授权页卡住、日志里一片 429」，调大它即可，不必改代码。
+    license_session_ip_hourly_limit: int = 3600
 
     # 订单 / 设备
     order_ttl_seconds: int = DEFAULT_ORDER_TTL_SECONDS
@@ -254,10 +261,6 @@ class StoreSettings:
     payment_sweep_interval_seconds: int = 30
     #: 每轮巡检处理的订单上限，避免积压时一次性打爆渠道配额
     payment_sweep_batch: int = 25
-
-    # 初始管理员（seed 用）
-    bootstrap_admin_email: str = ""
-    bootstrap_admin_password: str = ""
 
     @property
     def database_path(self) -> Path:
@@ -471,6 +474,12 @@ def load_settings(**overrides) -> StoreSettings:
             minimum=5,
             maximum=24 * 3600,
         ),
+        "license_session_ip_hourly_limit": _env_int(
+            "STORE_LICENSE_SESSION_IP_HOURLY_LIMIT",
+            3600,
+            minimum=60,
+            maximum=100_000,
+        ),
         "order_ttl_seconds": _env_int(
             "STORE_ORDER_TTL_SECONDS", DEFAULT_ORDER_TTL_SECONDS, minimum=30, maximum=24 * 3600
         ),
@@ -484,8 +493,6 @@ def load_settings(**overrides) -> StoreSettings:
             "STORE_PAYMENT_SWEEP_INTERVAL_SECONDS", 30, minimum=0, maximum=3600
         ),
         "payment_sweep_batch": _env_int("STORE_PAYMENT_SWEEP_BATCH", 25, minimum=1, maximum=500),
-        "bootstrap_admin_email": _env_str("STORE_ADMIN_EMAIL"),
-        "bootstrap_admin_password": _env_str("STORE_ADMIN_PASSWORD"),
     }
     values.update(overrides)
     settings = StoreSettings(**values)
@@ -499,8 +506,8 @@ def load_settings(**overrides) -> StoreSettings:
 _LOOPBACK_BIND_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 
 #: ``(字段, 最小值, 最大值)``：环境变量那侧已经带了范围，这里再对**最终对象**做一遍，
-#: 因为 ``load_settings(**overrides)`` 是绕过 ``_env_int`` 的（工具脚本、自检、以及
-#: 将来任何程序化构造都走这条路），而「负数 TTL」这种配置的后果与来源无关。
+#: 因为 ``load_settings(**overrides)`` 是绕过 ``_env_int`` 的（程序化构造走这条路），
+#: 而「负数 TTL」这种配置的后果与来源无关。
 _RANGED_FIELDS: tuple[tuple[str, float | None, float | None], ...] = (
     ("port", 1, 65535),
     ("smtp_port", 1, 65535),
@@ -513,6 +520,7 @@ _RANGED_FIELDS: tuple[tuple[str, float | None, float | None], ...] = (
     ("verification_global_hourly_limit", 1, 100_000),
     ("lease_ttl_seconds", 60, None),
     ("heartbeat_interval_seconds", 5, 24 * 3600),
+    ("license_session_ip_hourly_limit", 60, 100_000),
     ("order_ttl_seconds", 30, 24 * 3600),
     ("device_release_cooldown_seconds", 0, 30 * 24 * 3600),
     ("payment_sweep_interval_seconds", 0, 3600),
@@ -594,9 +602,9 @@ def _warn_insecure_verification_exposure(settings: StoreSettings) -> None:
     但如果前面挂了**同机反代且没配** ``STORE_TRUSTED_PROXIES``，每个外部请求的对端
     都是 127.0.0.1，请求侧就无从区分了 —— 那正是这里要提醒的场景。
 
-    刻意只告警不抛错：docker 默认是 ``STORE_HOST=0.0.0.0``，而大量自检与工具脚本
-    也都在回显开启下跑（它们用 ASGITransport，没有真实网络对端）。硬失败会把
-    「本机联调」这一合法用法一起挡掉，而它恰恰是 echo 存在的理由。
+    刻意只告警不抛错：docker 默认是 ``STORE_HOST=0.0.0.0``，而本地联调（含进程内调用，
+    没有真实网络对端）本来就要靠 echo。硬失败会把「本机联调」这一合法用法一起挡掉，
+    而它恰恰是 echo 存在的理由。
     """
     exposure_on = bool(settings.expose_verification_code) or settings.mail_mode == "echo"
     bind_host = (settings.host or "").strip().lower()

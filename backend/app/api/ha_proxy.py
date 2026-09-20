@@ -148,8 +148,7 @@ class MediaProxyCaches:
     挂在 ``app.state.media_proxy`` 而**不是**模块级字典。模块级那一版建立在「一个
     进程里只有一个应用实例」这个假设上，而它在三处都不成立：
 
-    - ``create_app()`` 调两次（自检就是这么做的）就会共享同一份缓存 —— 第二个应用
-      直接读到第一个应用缓存的画面；
+    - ``create_app()`` 调两次就会共享同一份缓存 —— 第二个应用直接读到第一个应用缓存的画面；
     - 刷新任务表里存的是 ``asyncio.Task``，而任务属于**某一个**事件循环：另一个应用
       去 await 它会抛「attached to a different loop」；
     - 换了一条 HA 连接时没有任何东西能让它失效 —— 地址可以不变而实例已经换了一台
@@ -185,7 +184,7 @@ class MediaProxyCaches:
         return self.snapshots.get(key)
 
     def snapshot_bytes(self) -> int:
-        """当前快照缓存占用的字节数（自检与预算淘汰都要用）。"""
+        """当前快照缓存占用的字节数（预算淘汰要用）。"""
         return sum(len(entry.content) for entry in self.snapshots.values())
 
     def remember_snapshot(self, key: str, content: bytes, content_type: str) -> None:

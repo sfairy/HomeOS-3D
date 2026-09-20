@@ -2,7 +2,6 @@
 """把目录内 Python 编译为 legacy ``.pyc`` 后删除 ``.py`` 源码。
 
 Alembic 按文件名加载 ``migrations/env.py``，因此 ``migrations/`` 下的 ``.py`` 会保留。
-``store/tools/seed.py`` / ``gen_keys.py`` 保留进镜像（运维初始化）；smoke/e2e 去掉。
 前端静态资源（HTML/JS/CSS）不在此处理。
 """
 from __future__ import annotations
@@ -17,12 +16,6 @@ from pathlib import Path
 
 KEEP_PY_PREFIXES = (
     "migrations/",
-)
-
-# 不进运行镜像的开发/测试脚本（相对仓库根）
-DROP_PATHS = (
-    "store/tools/smoke.py",
-    "store/tools/e2e.py",
 )
 
 
@@ -42,14 +35,6 @@ def strip_tree(root: Path) -> None:
     root = root.resolve()
     if not root.is_dir():
         raise SystemExit(f"不是目录：{root}")
-
-    for relative in DROP_PATHS:
-        _remove_tree(root / relative)
-
-    probes = root / "backend" / "app"
-    if probes.is_dir():
-        for match in probes.glob("probe_*.py"):
-            _remove_tree(match)
 
     ok = compileall.compile_dir(
         str(root),
@@ -75,10 +60,7 @@ def strip_tree(root: Path) -> None:
     for path in root.rglob("*.pyi"):
         path.unlink(missing_ok=True)
 
-    print(
-        f"已剥离 {removed} 个 .py；保留 migrations 与 store.tools.seed/gen_keys",
-        flush=True,
-    )
+    print(f"已剥离 {removed} 个 .py；保留 migrations", flush=True)
 
 
 def main() -> None:

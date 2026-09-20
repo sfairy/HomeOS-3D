@@ -16,7 +16,7 @@ import {
   coverControl,
   coverStateLabel,
   coverCanAdjustBlades
-} from "./cover-state.js?v=20260919214245";
+} from "./cover-state.js?v=20260920080000";
 /**
  * 创建窗帘面板。
  *

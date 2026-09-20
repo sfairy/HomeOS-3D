@@ -88,21 +88,6 @@ def public_key_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def rotate_pair(paths: KeyPairPaths) -> bool:
-    """把当前密钥对改名成「上一代」，为写入新密钥腾出位置。返回是否真的搬了。
-
-    只有在当前私钥/公钥都存在时才搬；搬之前先删掉更早的那一对（只留一代）。
-    """
-    if not (paths.private_path.exists() and paths.public_path.exists()):
-        return False
-    for path in (paths.private_path, paths.public_path):
-        target = previous_path(path)
-        if target.exists():
-            target.unlink()
-        path.rename(target)
-    return True
-
-
 def _generate(paths: KeyPairPaths, private_key, *, force: bool) -> GeneratedKeyPair:
     paths.public_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     if (

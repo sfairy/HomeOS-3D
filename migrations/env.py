@@ -20,9 +20,9 @@ if config.config_file_name is not None:
     # **永久静默**：``logger.warning(...)`` 从此什么都不写，全局日志也跟着空掉
     # （日志记录在 ``logger.isEnabledFor`` 就被挡掉了，handler 再对也没用）。
     #
-    # 症状是「日志整个消失」而不是报错，因此只在「迁移之前先创建一个 logger、
-    # 迁移之后再问它还能不能用」这种观测下才看得见 —— 自检里的
-    # ``check_migrations_do_not_disable_loggers`` 就是这条观测。
+    # 症状是「日志整个消失」而不是报错，只在「迁移之前先创建一个 logger、迁移之后
+    # 再问它还能不能用」这种观测下才看得见 —— 改动这一行后请手工这样验一遍：
+    # 仓库已没有自动化闸门能替你发现它。
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata

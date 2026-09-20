@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy import func, select, update
 
-from store import cashier, coupons, fulfill, site_settings as site_config
+from store import cashier, fulfill, site_settings as site_config
 from store.deps import CurrentAccount, DbSession, order_or_404
 from store.models import Account, Order, Product, ProductImage
 from store.order_status import order_status_label
@@ -182,9 +182,9 @@ def _cashier_html(order: Order, product: Product | None, *, request: Request) ->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>模拟收银台 · {order_no}</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260919214245">
-<link rel="stylesheet" href="/store-static/store.css?v=20260919214245">
-<link rel="icon" href="/store-static/favicon-rounded.png?v=20260919214245">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260920080000">
+<link rel="stylesheet" href="/store-static/store.css?v=20260920080000">
+<link rel="icon" href="/store-static/favicon-rounded.png?v=20260920080000">
 </head>
 <body>
 <div class="hb-cashier">
@@ -357,22 +357,12 @@ def mock_cancel(order_no: str, request: Request, session: DbSession, payload: di
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="只有待支付订单可以取消。")
     product = session.get(Product, order.product_id) if order.product_id else None
     # 条件 UPDATE 抢单：与「模拟支付」按钮可以同时点，两个请求各自读到 pending
-    # 就会一个取消、一个入账，库存则被释放两次。谁抢到这一行谁负责释放副作用。
-    claimed = session.execute(
-        update(Order)
-        .where(Order.id == order.id)
-        .where(Order.status == "pending")
-        .values(status="cancelled", cancelled_at=utcnow())
-        .execution_options(synchronize_session=False)
-    )
-    if claimed.rowcount == 0:
+    # 就会一个取消、一个入账，库存则被释放两次。谁抢到这一行谁负责释放副作用
+    # （库存预留 + 优惠码名额），都在 close_pending_order 里一并做掉。
+    if not fulfill.close_pending_order(session, order=order, product=product):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="订单状态已变更，请刷新后重试。"
         )
-    fulfill.release_order_reservation(session, order=order, product=product)
-    # 收银台取消同样要归还优惠码名额，否则 redeemed_count 只增不减，
-    # 名额被永久占用（该列参与 max_redemptions 校验）。
-    coupons.release_coupon(session, order)
     session.flush()
     session.refresh(order)
     return order_payload(order)

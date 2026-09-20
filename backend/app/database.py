@@ -120,7 +120,7 @@ class Database:
         # 打开外键约束：SQLite 默认不校验外键，删项目时子表会留下孤儿行。
         cursor.execute('PRAGMA foreign_keys=ON')
         # 写锁等待：与 connect_args 的 timeout 同一个值，两层都设是有意的 ——
-        # 驱动层管「拿锁重试」，这里显式落一遍库级配置，且它可被自检直接读到。
+        # 驱动层管「拿锁重试」，这里显式落一遍库级配置，且它可被排障时直接读到。
         cursor.execute(f'PRAGMA busy_timeout={BUSY_TIMEOUT_SECONDS * 1000}')
         cursor.close()
 

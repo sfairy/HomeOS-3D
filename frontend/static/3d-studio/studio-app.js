@@ -16,9 +16,9 @@
  * - vendor/three/0.182.0 为三方库。
  *
  * 版本戳约定：同源静态资源统一带同一条 `?v=`（由 tools/bump_static_cache_versions.mjs
- * 批量改写），本文件与它 import 的每一个模块必须同戳，否则浏览器会同时加载新旧两份
- * 模块，出现两套模块级单例状态（注册表、缓存版本号不一致）。改完 JS/CSS/HTML 后
- * 必须重新 bump，不能只改本文件的戳。
+ * 统一改写），本文件与它 import 的每一个模块必须同戳，
+ * 否则浏览器会同时加载新旧两份模块，出现两套模块级单例状态（注册表、缓存版本号不一致）。
+ * 改完 JS/CSS/HTML 后必须用该脚本统一刷新版本戳，不能只改本文件的戳。
  *
  * 与后端 api/studio3d.py 的交互：
  * - GET  /api/v1/studio3d 取草稿 {revision, scene, updatedAt}；revision=0 表示尚无草稿；
@@ -60,70 +60,71 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "./studio-curtain-track.js?v=20260919214245";
-import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260919214245";
+} from "./studio-curtain-track.js?v=20260920080000";
+import { drawTelevisionPoster } from "./studio-television-poster.js?v=20260920080000";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260920080000";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "./studio-surface-textures.js?v=20260919214245";
-import { createOverviewStack } from "./studio-overview-stack.js?v=20260919214245";
-import { windowGeometryParts } from "./studio-window-geometry.js?v=20260919214245";
+} from "./studio-surface-textures.js?v=20260920080000";
+import { createOverviewStack } from "./studio-overview-stack.js?v=20260920080000";
+import { windowGeometryParts } from "./studio-window-geometry.js?v=20260920080000";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=20260919214245";
-import { addSecurityModel } from "./studio-security-models.js?v=20260919214245";
-import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260919214245";
-import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260919214245";
-import { createFloorTransition } from "./studio-floor-transition.js?v=20260919214245";
-import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260919214245";
-import { createGroundReflections } from "./studio-ground-reflections.js?v=20260919214245";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260919214245";
+} from "./studio-camera-constraints.js?v=20260920080000";
+import { addSecurityModel } from "./studio-security-models.js?v=20260920080000";
+import { compactRuntimeFurniture } from "./studio-runtime-furniture.js?v=20260920080000";
+import { createReflectionDetail } from "./studio-reflection-detail.js?v=20260920080000";
+import { createFloorTransition } from "./studio-floor-transition.js?v=20260920080000";
+import { floorOpeningPolygon } from "./studio-floor-openings.js?v=20260920080000";
+import { createGroundReflections } from "./studio-ground-reflections.js?v=20260920080000";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260920080000";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances,
   mergeWallBands
-} from "./studio-wall-materials.js?v=20260919214245";
+} from "./studio-wall-materials.js?v=20260920080000";
 import {
   WARM_WOOD_STYLE,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=20260919214245";
-import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260919214245";
+} from "./studio-scene-style.js?v=20260920080000";
+import { createWarmTelevisionGlass } from "./studio-television-glass.js?v=20260920080000";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../modules/interaction3d/render-cache.js?v=20260919214245";
-import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260919214245";
-import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260919214245";
-import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260919214245";
-import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260919214245";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=20260919214245";
+} from "../modules/interaction3d/render-cache.js?v=20260920080000";
+import { transformSceneCamera } from "../modules/interaction3d/scene-frame.js?v=20260920080000";
+import { sceneUpdatePlan } from "../modules/interaction3d/scene-update.js?v=20260920080000";
+import { createDemandFrameLoop } from "../modules/interaction3d/frame-loop.js?v=20260920080000";
+import { cacheObjectTransforms } from "../modules/interaction3d/scene-matrices.js?v=20260920080000";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=20260920080000";
 // 生产控制台的诊断输出与「开发 / 诊断入口」开关统一走 utils/debug-log.js：
 // debugLog 默认静默（只在 ?debug=1 时输出），isFrontendDebugMode 用来把测试钩子拦在生产之外。
-import { debugLog, isFrontendDebugMode } from "../utils/debug-log.js?v=20260919214245";
+import { debugLog, isFrontendDebugMode } from "../utils/debug-log.js?v=20260920080000";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260919214245";
+import { apiFetch } from "../utils/api-fetch.js?v=20260920080000";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260919214245";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260920080000";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260919214245";
-import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260919214245";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260920080000";
+import { SameOriginDRACOLoader } from "./draco-loader.js?v=20260920080000";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../modules/interaction3d/light-motion.js?v=20260919214245";
+} from "../modules/interaction3d/light-motion.js?v=20260920080000";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -163,7 +164,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "./geometry.js?v=20260919214245";
+} from "./geometry.js?v=20260920080000";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -172,32 +173,32 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "./export-utils.js?v=20260919214245";
+} from "./export-utils.js?v=20260920080000";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "./export-presets.js?v=20260919214245";
-import { reorderFloors } from "./floor-order.js?v=20260919214245";
-import { syncControlValue } from "./ui-controls.js?v=20260919214245";
+} from "./export-presets.js?v=20260920080000";
+import { reorderFloors } from "./floor-order.js?v=20260920080000";
+import { syncControlValue } from "./ui-controls.js?v=20260920080000";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=20260919214245";
+} from "./studio-widgets.js?v=20260920080000";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "./studio-external-models.js?v=20260919214245";
+} from "./studio-external-models.js?v=20260920080000";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "./studio-plan-drawing.js?v=20260919214245";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260919214245";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "./studio-plan2-region-lights.js?v=20260919214245";
-import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260919214245";
+} from "./studio-plan-drawing.js?v=20260920080000";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260920080000";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "./studio-plan2-region-lights.js?v=20260920080000";
+import { createContactShadowController } from "./studio-plan2-contact-shadows.js?v=20260920080000";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -210,7 +211,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "./studio-normalization.js?v=20260919214245";
+} from "./studio-normalization.js?v=20260920080000";
 window.__haBridgeStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 /**
@@ -1395,7 +1396,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/draco-decoder-worker.js?v=20260919214245"
+  "/static/3d-studio/draco-decoder-worker.js?v=20260920080000"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -5233,11 +5234,10 @@ async function requestStudioApi(requestPath, requestOptions = {}) {
     );
   }
   if (!apiResponse.ok) {
-    const errorDetail = responsePayload?.detail;
+    // 文案归一交给 utils/api-error.js（这里原先只认字符串与 `detail.message`，
+    // 不认 FastAPI 422 的数组）。
     const requestFailedError = new StudioRequestError(
-      typeof errorDetail == "string"
-        ? errorDetail
-        : errorDetail?.message || "请求失败（HTTP " + apiResponse.status + "）",
+      apiErrorMessage(responsePayload, "请求失败（HTTP " + apiResponse.status + "）"),
       apiResponse.status,
       responsePayload
     );
@@ -25138,7 +25138,9 @@ function collectExternalModelSignatures() {
 /**
  * 把外部模型材质复用情况与两轮预编译次数写进 canvas 的 dataset。
  *
- * 仅供调试面板与自动化冒烟测试读取（dataset 属性），不参与任何渲染决策。
+ * 仅供**开发期诊断**读取（浏览器 devtools 直接看属性，外部诊断脚本按 dataset 取值），
+ * 不参与任何渲染决策。原先配套的自动化探针已随测试清理移除，这些属性保留下来正是
+ * 因为排障时要靠它们（同 `studio-shadow-atlas.js` 里那几项）。
  *
  * @returns {void} 无返回值；renderer 尚未创建时直接跳过。
  */
@@ -29709,7 +29711,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/stage.js?v=20260919214245");
+        await import("/api/v1/modules/interaction3d/stage.js?v=20260920080000");
       mountStage(createStageController());
       return;
     }
@@ -32020,7 +32022,12 @@ if (isFrontendDebugMode() && new URLSearchParams(window.location.search).has("mo
     });
   }
 }
-const materialTestTypeKey = new URLSearchParams(window.location.search).get("material-test");
+// 材质预编译自检钩子：与 `?model-export` 同一立场 —— 它只服务于开发期排查（跑三个实例、
+// 把预编译结果写进 `data-material-test-*` 供 devtools 或外部诊断脚本读取），因此同样要求
+// `?debug=1`，不进入生产运行时。
+const materialTestTypeKey = isFrontendDebugMode()
+  ? new URLSearchParams(window.location.search).get("material-test")
+  : null;
 if (materialTestTypeKey) {
   (async () => {
     const materialTestRootGroup = new threeModuleMin.Group();
@@ -32125,7 +32132,10 @@ if (materialTestTypeKey) {
     }
   })();
 }
-const instanceTestTypeKey = new URLSearchParams(window.location.search).get("instance-test");
+// 实例合批自检钩子：同上（`?debug=1` 才生效），结果写在 `data-instance-test-*` 上。
+const instanceTestTypeKey = isFrontendDebugMode()
+  ? new URLSearchParams(window.location.search).get("instance-test")
+  : null;
 if (instanceTestTypeKey) {
   const instanceTestRootGroup = new threeModuleMin.Group();
   const instanceTestGeometry = new threeModuleMin.BoxGeometry(0.5, 0.86, 0.5);

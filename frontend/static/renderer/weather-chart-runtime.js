@@ -3,7 +3,7 @@
  *
  * 职责：
  * - 把 Home Assistant 的天气状态（sunny / rainy / …）映射成图标名与中文文案，并按昼夜修正；
- * - 生成 meteocons 图标地址（带白名单校验，防止把任意字符串拼进 URL）；
+ * - 转出 meteocons 图标地址（实现与白名单约束在 `utils/icon-url.js`，这里只是同名转出口）；
  * - 由序列自动推导阈值色带，或归一化用户手填的阈值；
  * - 把点集转成平滑的 SVG 路径。
  *
@@ -66,20 +66,10 @@ export function weatherVisual(condition, sunState = "") {
 /**
  * 拼 meteocons 图标地址。
  *
- * 图标名来自后端下发，理论上可信，但仍做一次白名单校验（只允许小写字母、数字与连字符），
- * 避免异常数据拼出跨目录路径；不合法时统一回落到 code-red。
- *
- * @param {string} iconName 图标名。
- * @returns {string} `/static/vendor/meteocons/fill/<name>.svg` 形式的地址。
+ * 实现已挪到 `utils/icon-url.js`（与 `mdiIconUrl` 同属「图标名 → vendor 地址」这一份知识，
+ * 两者共用同一条白名单约束）；这里保留同名转出，页面脚本仍只 import registry 一处。
  */
-export function meteoconUrl(iconName) {
-  const normalizedIconName = String(iconName || "").trim();
-  if (/^[a-z0-9-]+$/.test(normalizedIconName)) {
-    return "/static/vendor/meteocons/fill/" + normalizedIconName + ".svg";
-  } else {
-    return "/static/vendor/meteocons/fill/code-red.svg";
-  }
-}
+export { meteoconUrl } from "../utils/icon-url.js?v=20260920080000";
 /**
  * 校验 CSS 颜色，不合法则用兜底值。
  *

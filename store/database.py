@@ -14,7 +14,7 @@ from store.config import StoreSettings
 #: SQLite 写锁等待（秒）。**两层都设是刻意的**，与主应用 B36 同口径：
 #: 驱动层管「拿锁重试」（``connect_args['timeout']``；sqlite3 的默认值恰好也是
 #: 5 秒，这里显式写出来，免得把「两层一致」这件事寄托在别人的默认值上），
-#: PRAGMA 层再把它落到连接上，让自检可以直接读回来。
+#: PRAGMA 层再把它落到连接上，让排障时可以直接读回来。
 BUSY_TIMEOUT_SECONDS = 5
 
 

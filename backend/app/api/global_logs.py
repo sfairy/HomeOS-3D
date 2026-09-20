@@ -8,7 +8,6 @@
 """
 from __future__ import annotations
 
-import json
 import threading
 import time
 from collections import OrderedDict, deque
@@ -20,6 +19,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from ..canonical_json import canonical_json
 from ..dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..global_log import event_context, safe_context
 from ..http_security import resolve_client_ip
@@ -238,7 +238,7 @@ def export_global_logs(
                 f"最近发生={item.get('lastTimestamp') or item.get('timestamp') or ''}",
                 f"客户端发生时间={item.get('clientTimestamp') or ''}",
                 f"客户端最近发生={item.get('lastClientTimestamp') or item.get('clientTimestamp') or ''}",
-                json.dumps(item.get('context') or {}, ensure_ascii=False, separators=(',', ':')),
+                canonical_json(item.get('context') or {}),
                 str(item.get('details') or ''),
             )
         )

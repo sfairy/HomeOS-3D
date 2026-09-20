@@ -20,12 +20,12 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260919214245";
+import { apiErrorMessage, entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260920080000";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=20260919214245";
-import { createLightStream } from "./light-stream.js?v=20260919214245";
+} from "./popup-preview.js?v=20260920080000";
+import { createLightStream } from "./light-stream.js?v=20260920080000";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -1310,11 +1310,8 @@ export function mountInteraction3d(
         });
         const responseBody = await controlResponse.json().catch(() => ({}));
         if (!controlResponse.ok) {
-          throw new Error(
-            typeof responseBody.detail == "string"
-              ? responseBody.detail
-              : responseBody.detail?.message || "设备操作失败。"
-          );
+          // 文案归一交给 /static/utils/api-error.js（经 static-helpers 桥取用）。
+          throw new Error(apiErrorMessage(responseBody, "设备操作失败。"));
         }
         sendControlResult({
           type: "control-result",

@@ -20,10 +20,10 @@
 // 取域走 `utils/entities.js` 的 `entityDomainOf`（P12 收口 B 类末尾那一项）。本文件原先有七处
 // 内联的 `String(entity?.domain || entity?.entityId || "").split(".", 1)[0]` —— 与那个助手的
 // **函数体逐字相同**（七处输入都自带 `|| ""` 守卫），换成调用后语义一字未变。
-import { entityDomainOf, entitySearchText } from "../utils/entities.js?v=20260919214245";
+import { entityDomainOf, entitySearchText } from "../utils/entities.js?v=20260920080000";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
 // 本文件原先内联了 `stateEntry?.newState || stateEntry || {}`（P12 状态条目内联收口）。
-import { resolveStateEntry } from "../utils/state-entry.js?v=20260919214245";
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260920080000";
 
 // 认定为小米生态的 HA 集成平台名：分别是旧版 MIoT 与新版 Xiaomi Home 集成。
 const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);

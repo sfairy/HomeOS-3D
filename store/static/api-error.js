@@ -13,7 +13,7 @@
  * 少一种形态不会有任何报错，只会让某一类错误在**某一个页面**上变成看不懂的一句话，
  * 而同一个错误在后台是可读的。所以这里收成一份：形态认全 + 说不出来时用调用方给的兜底文案。
  *
- * 用法（三个消费方都必须接这一份，smoke.py 的 ``check_shared_api_error_helper`` 会拦自带的实现）：
+ * 用法（三个消费方都必须接这一份，不要再各写一套）：
  *   admin.html / store.js / setup.js 里 ``ApiError.describe(detail, fallback)``，
  *   或 ``ApiError.fromResponse(response, data, fallback)``（顺带带出 ``status`` / ``payload``）。
  *
@@ -31,8 +31,7 @@
  * ``loc`` 里的 ``body`` / ``query`` 是 FastAPI 的固定前缀，对着运营显示「参数 body.x」
  * 没有意义，去掉；剩下的用 ``.`` 拼（``body.items.0.days`` → ``items.0.days``）。
  *
- * 这个文件不碰 DOM、也不发请求，所以 node 可以直接 require 它做行为测试
- * （``store/tools/api_error_probe.cjs``）。
+ * 这个文件不碰 DOM、也不发请求，所以 node 可以直接 require 它单测。
  */
 (function (global) {
   const DEFAULT_FALLBACK = '请求失败。';

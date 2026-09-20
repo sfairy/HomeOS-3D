@@ -28,6 +28,8 @@ from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
 from ..dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_viewer_studio3d_asset, require_viewer_user_asset, viewer_user_asset_ids
+from ..canonical_json import canonical_json
+from ..http_cache import set_private_immutable_cache, set_versioned_private_cache
 from ..panel.documents import parse_document
 from ..panel.entity_refs import document_keyed_values
 from ..models import Project, ProjectDraft
@@ -323,7 +325,7 @@ def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_r
     cache_root.mkdir(parents = True, exist_ok = True, mode = 448)
     temporary_metadata_path = cache_root / f'.{cache_key}.{uuid4().hex}.json.tmp'
     try:
-        temporary_metadata_path.write_text(json.dumps(metadata, ensure_ascii = False, separators = (',', ':')), encoding = 'utf-8')
+        temporary_metadata_path.write_text(canonical_json(metadata), encoding = 'utf-8')
         temporary_metadata_path.chmod(384)
         temporary_metadata_path.replace(metadata_path)
     finally:
@@ -1235,7 +1237,7 @@ def read_user_asset(asset_id: str, request: Request, viewer: LicensedViewer) -> 
         raise HTTPException(status_code = 404, detail = '图片不存在。')
     response = FileResponse(path, media_type = UPLOAD_CONTENT_TYPES[path.suffix.lower()])
     # 一年强缓存 + immutable：URL 带版本参数，内容一变 URL 就变，不会读到旧图。
-    response.headers['Cache-Control'] = 'private, max-age=31536000, immutable'
+    set_private_immutable_cache(response)
     return response
 
 @router.get('/effect-variant')
@@ -1266,7 +1268,7 @@ def read_effect_variant(request: Request, asset_id: str = Query(alias = 'assetId
         if path is None:
             raise HTTPException(status_code = 404, detail = '效果图片不存在。')
     response = FileResponse(path, media_type = 'image/png')
-    response.headers['Cache-Control'] = 'private, max-age=31536000, immutable'
+    set_private_immutable_cache(response)
     # 只转发 Set-Cookie：其余头部（如 Content-Length）留给文件响应自己决定。
     for key, value in authorization_response.raw_headers:
         if key.lower() != b'set-cookie':
@@ -1298,7 +1300,7 @@ def read_studio3d_export(folder_name: str, filename: str, request: Request, view
     # 只允许 PNG / WebP 两种后缀，所以媒体类型可以在这里直接穷举。
     media_type = 'image/webp' if path.suffix.lower() == '.webp' else 'image/png'
     response = FileResponse(path, media_type = media_type)
-    response.headers['Cache-Control'] = 'private, max-age=31536000, immutable'
+    set_private_immutable_cache(response)
     return response
 
 @router.delete('/user/{asset_id}', status_code = status.HTTP_204_NO_CONTENT)
@@ -1369,5 +1371,5 @@ def read_builtin_asset(relative_path: str, request: Request) -> FileResponse:
         raise HTTPException(status_code = 404, detail = '素材不存在。')
     response = FileResponse(match)
     # 带 v 参数（内容版本）才允许强缓存；否则要求每次校验，避免旧图被浏览器长期留下。
-    response.headers['Cache-Control'] = 'private, max-age=31536000, immutable' if request.query_params.get('v') else 'private, no-cache'
+    set_versioned_private_cache(response, bool(request.query_params.get('v')))
     return response

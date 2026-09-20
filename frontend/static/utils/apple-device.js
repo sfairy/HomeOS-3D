@@ -18,7 +18,7 @@
  *   替身 / 测试对象上，而那里并集是超集：只会补上漏判，不会多认一台 Windows 或安卓设备
  *   （它们的 UA 里既没有 `Macintosh`，platform 也不是 `MacIntel`）。
  *
- * 约定：`navigatorLike` 可注入，便于探针把设备矩阵摆出来跑；不传时读全局 `navigator`。
+ * 约定：`navigatorLike` 可注入，便于把设备矩阵摆出来跑（传替身对象即可）；不传时读全局 `navigator`。
  */
 
 /**

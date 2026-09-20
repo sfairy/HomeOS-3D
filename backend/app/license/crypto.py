@@ -29,6 +29,7 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+from ..canonical_json import canonical_json_bytes
 from ..secret_key_file import load_or_create_secret_key
 from ..time_utils import ensure_aware
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -125,7 +126,7 @@ class LicenseTransportCipher:
         aad = self.PROTOCOL + b'\x00request\x00' + path.encode('ascii') + b'\x00' + self.key_id.encode('ascii')
         # 规范化序列化（排序键 + 紧凑分隔符）：同样的内容产出稳定字节，
         # 授权服务侧按字节校验或做摘要时才有确定性。
-        plaintext = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
+        plaintext = canonical_json_bytes(payload)
         # AESGCM.encrypt 返回「密文 + 16 字节 tag」拼接，tag 校验在解密侧自动完成。
         ciphertext = AESGCM(key).encrypt(iv, plaintext, aad)
         # 只传 32 字节裸公钥：省掉 PEM 头尾与额外编码，体积最小。

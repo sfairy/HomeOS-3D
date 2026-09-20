@@ -4,8 +4,7 @@
 支付宝私钥这类**不该进版本库**的本地配置。
 
 优先级刻意保持"真实环境变量 > .env"：已存在的环境变量不会被覆盖，
-所以 ``start.py`` 的本地默认值、``e2e.py`` 显式注入的 ``STORE_MAIL_MODE=echo``
-都不会被 ``.env`` 抢掉。
+所以 ``start.py`` 注入的本地默认值不会被 ``.env`` 抢掉。
 """
 
 from __future__ import annotations

@@ -19,6 +19,7 @@ import sys
 import time
 from pathlib import Path
 
+from docker.license_keys import ensure_store_license_keys
 from store.env import load_dotenv
 
 ROOT = Path(__file__).resolve().parent
@@ -39,7 +40,7 @@ VENV_PYTHON = (
 )
 REQUIREMENTS = ROOT / 'store' / 'requirements.txt'
 
-# 客户端默认读取的公钥镜像目录；gen_keys 会把 store/keys/local/ 的公钥同步到这里。
+# 客户端默认读取的公钥镜像目录；ensure_license_keys() 会把 store/keys/local/ 的公钥同步到这里。
 CLIENT_KEYS_DIR = ROOT / 'keys'
 LICENSE_PUBLIC_KEY = CLIENT_KEYS_DIR / 'license-public.pem'
 LICENSE_TRANSPORT_PUBLIC_KEY = CLIENT_KEYS_DIR / 'license-transport-public.pem'
@@ -54,26 +55,23 @@ def ensure_venv() -> str:
     return str(VENV_PYTHON)
 
 
-def ensure_license_keys(python: str) -> dict[str, str]:
-    """生成并镜像本地授权密钥，返回主应用需要的环境变量覆盖项。
+def ensure_license_keys() -> dict[str, str]:
+    """确保本地授权密钥存在并镜像公钥，返回主应用需要的环境变量覆盖项。
 
     config.py 里钉死的公钥指纹是正式发布版本的，本地开发生成的密钥指纹不同；
     这里用环境变量把主应用的指纹校验对准本地密钥，避免改动发布版常量。
-    gen_keys 幂等：已存在则复用、缺失则生成，同时把公钥镜像到 keys/。
+    ``ensure_store_license_keys`` 幂等：已存在则复用、缺失则生成，同时把公钥
+    镜像到 ``keys/``（与容器启动复用同一段逻辑，不依赖任何命令行脚本）。
     """
-    source = ROOT / 'store' / 'keys' / 'local' / 'license-transport-public.pem'
-    need_generate = not source.is_file()
+    keys_dir = ROOT / 'store' / 'keys' / 'local'
+    source = keys_dir / 'license-transport-public.pem'
     # 镜像缺失或与真相源不一致时重新同步：避免占位公钥让指纹校验失败。
     need_mirror = not LICENSE_TRANSPORT_PUBLIC_KEY.is_file() or (
         source.is_file()
         and LICENSE_TRANSPORT_PUBLIC_KEY.read_bytes() != source.read_bytes()
     )
-    if need_generate or need_mirror:
-        # 抑制 gen_keys 的常规输出（仅首次生成时有用）；失败时 check_call 会抛错。
-        subprocess.check_call(
-            [python, '-m', 'store.tools.gen_keys'],
-            stdout=subprocess.DEVNULL,
-        )
+    if not source.is_file() or need_mirror:
+        ensure_store_license_keys(keys_dir, CLIENT_KEYS_DIR)
     overrides = {}
     for env_name, key_path in (
         ('APP_LICENSE_PUBLIC_KEY_SHA256', LICENSE_PUBLIC_KEY),
@@ -105,7 +103,7 @@ def main() -> None:
     python = ensure_venv()
     # 本地密钥指纹覆盖：把主应用的指纹校验对准本地生成的密钥，
     # 而不是 config.py 里钉死的正式发布版指纹。
-    license_overrides = ensure_license_keys(python)
+    license_overrides = ensure_license_keys()
     # .env 提供 SMTP 授权码等本地配置；已存在的真实环境变量优先
     load_dotenv()
     base_environment = os.environ.copy()

@@ -18,8 +18,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # 授权服务器：本项目自带的 ``store/`` 应用（默认监听 18082），不再依赖任何外部厂商节点。
 # 体系为「服务端签发 Ed25519 签名租约 → 客户端离线验签 → 定期心跳续租」。
-# 信任锚是仓库根 ``keys/`` 下的公钥镜像，真相源为 ``store/keys/local/``（由
-# ``python -m store.tools.gen_keys`` 生成，公钥会自动同步回 ``keys/``）。
+# 信任锚是仓库根 ``keys/`` 下的公钥镜像，真相源为 ``store/keys/local/``（本地开发由
+# ``start.py`` 生成、容器由 ``docker/start_store.py`` 生成，公钥会自动同步回 ``keys/``）。
 SELF_HOSTED_LICENSE_SERVER_URL = 'http://127.0.0.1:18082'
 # 单条 direct 批次：只访问自建服务器，不会散到其它节点。
 DEFAULT_LICENSE_SERVER_BATCHES = (('direct', (SELF_HOSTED_LICENSE_SERVER_URL,)),)
@@ -31,11 +31,11 @@ DEFAULT_LICENSE_PUBLIC_KEY_FILENAME = 'license-public.pem'
 # 签名公钥的文件字节 sha256；必须与 store/keys/local/ 下的私钥配对，
 # 不匹配时验签会失败，因此 keys/ 镜像与真相源必须逐字节一致。
 #
-# 这两个常量在轮换密钥时由 ``python -m store.tools.gen_keys`` 自动改写（仅在公钥
-# 镜像写回仓库根 keys/ 时），不要手抄：0985d3d 就是手抄时把新旧指纹抄反了 ——
-# 公钥文件换成新的、常量却写成旧的，于是**默认配置**下的离线验签全部失败。
-# 而 start.py / e2e 都会显式设 APP_LICENSE_*_PUBLIC_KEY_SHA256，恰好绕过默认值，
-# 所以这个错误只在 smoke 的镜像一致性断言里暴露。
+# 这两个常量是随仓库分发的正式公钥指纹，仅在没有环境变量覆盖时兜底。本地开发
+# （start.py）与容器部署（docker/start_store.py）都会按实际公钥**文件字节**设置
+# APP_LICENSE_*_PUBLIC_KEY_SHA256，因此日常启动不会读到这里；只有轮换仓库里随包
+# 分发的 keys/ 公钥时，才需要把这两个常量与镜像一起改（不要只手抄其中一个：
+# 0985d3d 就是把新旧指纹抄反，导致默认配置下离线验签全部失败）。
 DEFAULT_LICENSE_PUBLIC_KEY_SHA256 = 'a53d869318a3d9005431b0296b9f0d1d7f7b2523e088f0ede322f88c882e0c28'
 DEFAULT_LICENSE_TRANSPORT_KEY_ID = 'hb-local-transport-2026'
 DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_FILENAME = 'license-transport-public.pem'
@@ -45,7 +45,7 @@ DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256 = '1dd4a0a822b9227ebd1032fabd992342f
 #: 报成「不受信任的公钥」（名字不对）又被报成「指纹不匹配」（指纹不对）。
 #: 上一代签名公钥镜像的文件名：存在就一并登记 —— 这样「客户端先升级、服务端后
 #: 轮换」这段时间里，服务端用上一代密钥签发的租约仍然验得过。服务端侧的重叠窗口
-#: 见 ``store/tools/gen_keys.py --rotate`` 与 ``store.app.build_key_registry``。
+#: 见 ``store.app.build_key_registry``（成对的 ``*.previous.pem`` 齐全时自动开启）。
 DEFAULT_LICENSE_PREVIOUS_PUBLIC_KEY_FILENAME = 'license-public.previous.pem'
 
 
@@ -53,9 +53,9 @@ def _derive_key_id(public_key_path: Path) -> str | None:
     '''由公钥**文件字节**派生 keyId；读不到文件时返回 None。
 
     必须与 ``store/licensing/keys.key_id_from_public`` 逐字符一致：两边各读自己
-    那份镜像（仓库根 ``keys/`` ↔ ``store/keys/local/``），靠 gen_keys 保证两份
-    字节相同，从而派生出同一个 id。smoke 里有一条断言专门盯着这两个实现不许漂移
-    （它们是同一个仓库里的两份代码，没有共享模块可用）。
+    那份镜像（仓库根 ``keys/`` ↔ ``store/keys/local/``），只要两份字节相同就能
+    派生出同一个 id。它们是同一个仓库里的两份代码、没有共享模块可用，改动时
+    必须保证两个实现逐字符一致。
 
     为什么是文件字节而不是公钥本身：客户端校验指纹用的就是文件字节的 sha256，
     复用同一份素材可以少一种「两边算法一致但输入不同」的失败模式。
@@ -179,10 +179,10 @@ class Settings:
     ha_websocket_max_size_bytes: int = 67108864
     # 授权校验是否开启。**默认值必须与 load_settings 的取值一致（都是 True）**：
     # 这个字段在 6 处被读（启动校验、心跳、状态接口、3D 交互的授权判定等），默认值一旦
-    # 是 False，直接构造 Settings 的工具或自检拿到的就是「另一种产品」—— 差异只会在某条
+    # 是 False，直接构造 Settings 的入口拿到的就是「另一种产品」—— 差异只会在某条
     # 分支上才看得出来。此前正是 False vs 加载器写死 True（B46）。
     # README 承诺「不能通过环境变量关闭」，因此 load_settings 不读任何相关变量；
-    # 显式传 False 是自检与内部工具的唯一入口（它们本来就不该被授权流程挡住）。
+    # 显式传 False 是内部工具的唯一入口（它们本来就不该被授权流程挡住）。
     license_required: bool = True
     license_server_url: str = SELF_HOSTED_LICENSE_SERVER_URL
     license_server_batches: tuple[tuple[str, tuple[str, ...]], ...] = DEFAULT_LICENSE_SERVER_BATCHES
@@ -425,7 +425,7 @@ def load_settings() -> Settings:
         'ha_reconcile_interval_seconds': int(os.getenv('APP_HA_RECONCILE_INTERVAL_SECONDS', '1800')),
         'ha_websocket_max_size_bytes': int(os.getenv('APP_HA_WEBSOCKET_MAX_SIZE_BYTES', str(67108864))),
         # 硬编码 True：授权校验始终开启，README 明确不能用环境变量关闭（B46 的另一半：
-        # 字段默认值也是 True，两处一致，字段不会撒谎）。自检与内部工具可以显式传 False。
+        # 字段默认值也是 True，两处一致，字段不会撒谎）。内部工具可以显式传 False。
         'license_required': True,
         'license_server_url': custom_license_url or SELF_HOSTED_LICENSE_SERVER_URL,
         'license_server_batches': license_batches,
