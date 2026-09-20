@@ -42,12 +42,9 @@ def device_already_bound() -> HTTPException:
 
 
 #: /pair 的**跨来源**失败预算 (max_failures, window_seconds, block_seconds)。
-#:
-#: 为什么除了按 IP 限流还需要这一档：6 位数字只有 100 万种，而按 IP 限流只要换 IP
-#: 就能摊薄 —— 审计实测里轮换来源基本等于不限流。这一档是全进程共享的总预算，
-#: 按 30 次/分钟算，枚举完 100 万种要 23 天以上，中途还得持续顶着 60 秒封禁。
-#: 封禁窗口故意只有 60 秒：它既然是共享的，攻击者就能故意把它填满来制造「谁也配对
-#: 不了」的拥堵，短窗口把这种 DoS 的代价压到「刷新几次就好」，而不是长期瘫痪。
+#: 除了按 IP 限流还需要这一档：6 位数字只有 100 万种，按 IP 挡换 IP 就摊薄；这一档是全进程共享总预算，
+#: 按 30 次/分钟算枚举完要 23 天以上，封禁窗口故意只 60 秒——共享预算会被攻击者填满制造拥堵，
+#: 短窗口把 DoS 代价压到「刷新几次就好」。
 PAIRING_GLOBAL_LIMIT = (30, 60, 60)
 PAIRING_GLOBAL_KEY = 'display-pair-global'
 #: 同一个配对码的失败预算 (max_failures, window_seconds, block_seconds)。
@@ -491,9 +488,8 @@ def pair_display_device(
         database.add(device)
         try:
             # 在这里 flush 而不是等最后的 commit：唯一约束要在「还没下发 Cookie」之前裁决。
-            # 两个平板同时扫同一个码时都读到「没有设备」，于是都去插 —— 输的那一个会撞上
-            # display_devices.pairing_code_id 上的唯一约束。那必须是 409（码没错，只是被
-            # 别人抢先绑定了），不是 500。
+            # 两个平板同时扫同一个码时都读到「没有设备」并都去插，输的那个会撞上
+            # display_devices.pairing_code_id 唯一约束，必须回 409（码没错，只是被抢先绑定）而不是 500。
             database.flush()
         except IntegrityError as error:
             database.rollback()
@@ -501,10 +497,9 @@ def pair_display_device(
                 raise
             raise device_already_bound() from error
     else:
-        # 这一行是被管理员解绑过的，两个请求会同时读到它并都想复用 —— 先读后写的话，
-        # 后提交的那个会静默顶掉先配对成功的那台设备，而先拿到的 Cookie 立刻失效
-        # （用户看到的是「配对了但打不开」）。所以用读到的 token_hash 做条件更新（CAS）：
-        # 只有第一个请求能把令牌换成自己的，另一个 rowcount 为 0，按「已被占用」拒绝。
+        # 这一行是被管理员解绑过的，两个请求会同时读到它并都想复用；先读后写会让后提交者
+        # 静默顶掉先配对成功的设备，先拿到的 Cookie 立刻失效。所以用读到的 token_hash 做条件更新（CAS），
+        # 只有第一个请求能换成自己的令牌，另一个 rowcount 为 0，按「已被占用」拒绝。
         updated = database.execute(
             update(DisplayDevice)
             .where(DisplayDevice.id == device.id, DisplayDevice.token_hash == device.token_hash)

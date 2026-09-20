@@ -40,13 +40,9 @@ const templateScopeOrder = {
     "panel-frame"
   ]
 };
-// 各控件类型的默认 properties / style / dimensions，键为组件的 type。
-// createComponentFromTemplate 会用这里的值覆盖模板 create() 给出的同名属性：
-// 模板函数只负责与画布、实体相关的部分，通用观感默认值集中在这里维护。
-// dimensions 是设计标称画布 2778×1940 上的定稿像素值——部分类型与 create() 里的比例
-// 换算结果一致，其余是按设计稿单独标定的，因此它的优先级高于 create() 的比例结果。
-// style.scale 多为设计稿调优后量出的值，刻意保留完整小数位，避免二次四舍五入后观感走样。
-// 注意取值方向与 normalizeComponent 相反——归一化时以文档里已写下的取值优先。
+// 各控件类型的默认 properties / style / dimensions，键为组件的 type；createComponentFromTemplate 会用这里覆盖 create() 的同名属性
+// （模板只管画布/实体，通用观感默认值集中在此）。dimensions 是标称画布 2778×1940 上的定稿像素值，优先级高于 create() 的比例结果；
+// style.scale 保留完整小数位避免二次四舍五入走样；注意取值方向与 normalizeComponent 相反——归一化时以文档已写下的取值为优先。
 const componentDefaultsByType = {
   image: {
     properties: {
@@ -582,9 +578,7 @@ const componentDefaultsByType = {
 };
 /**
  * 注册一个控件模板，供模板库列举与实例化。
- *
- * @param {object} template 模板定义：必须含 id（全局唯一）与 create（工厂函数），
- *   可选 name / description / thumbnailId / scopes。
+ * @param {object} template 必须含 id（全局唯一）与 create（工厂函数），可选 name / description / thumbnailId / scopes。
  * @throws {Error} 缺少 id，或 create 不是函数——这类模板进不了库，早抛早发现。
  */
 export function registerComponentTemplate(template) {
@@ -733,10 +727,8 @@ function normalizeComponent(mappedComponent, canvas) {
 }
 /**
  * 打开项目时归一化整份仪表盘文档：补齐缺失结构，但不动用户已保存的取值。
- *
- * 兼容意图：旧版本保存的文档可能缺 sharedComponents / customPopups / theme，
- * 或组件上还没有 templateRef。这里就地补齐后再交给编辑器渲染，避免旧项目直接报错打不开；
- * 反过来，新前端新增的默认项也通过同一入口补给旧文档，不需要写一次性迁移脚本。
+ * 旧文档可能缺 sharedComponents / customPopups / theme 或组件上的 templateRef，就地补齐后再交给编辑器渲染，
+ * 避免旧项目打不开；新增默认项也走同一入口补给旧文档，不需要一次性迁移脚本。
  */
 export function normalizeDashboardDocument(editorDocument) {
   const documentCanvas = editorDocument.canvas || {};
@@ -775,9 +767,8 @@ export function normalizeDashboardDocument(editorDocument) {
 }
 /**
  * 按当前时间属性推算时间控件的默认宽高。
- *
- * 宽度是估算值：等宽数字按字号系数累加字符数，再叠加字间距与右侧留白，
- * 目的只是让新组件「落地时框住内容」，用户之后可以随意调整字号与位置。
+ * 宽度是估算值（等宽数字按字号系数累加字符数，再加字间距与右侧留白），目的只是让新组件落地时框住内容；
+ * 用户之后可随意调整字号与位置。
  */
 export function timeComponentDimensions(timeOptions = {}) {
   // 上下限与编辑器属性面板的滑杆范围一致，避免脏数据把默认框撑到画布之外。

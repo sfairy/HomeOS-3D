@@ -32,8 +32,7 @@ export function createCoverPanel({
   };
   /**
    * 清空容器并填入新子节点。
-   *
-   * 优先用原生 replaceChildren；部分嵌入式 WebView 没有实现该方法，
+   * 优先用原生 replaceChildren；部分嵌入式 WebView 未实现该方法，
    * 因此保留手动实现的兜底分支。
    */
   const replaceChildren = (containerElement, ...childNodes) => {
@@ -154,7 +153,6 @@ export function createCoverPanel({
     };
   /**
    * 滑杆是否可用。
-   *
    * 梦幻帘只能调叶片，且必须满足 coverCanAdjustBlades 的门禁；
    * 其余窗帘则要求设备支持设置位置。
    */
@@ -282,9 +280,8 @@ export function createCoverPanel({
   }
   /**
    * 先本地校验再发送控制命令。
-   * 把展示状态合并进设备状态后再校验：梦幻帘的可调叶片判断依赖展示层的 closedConfirmed
-   * （可能已被 railUnconfirmed 降级），只传 deviceState 会漏判。
-   * @returns {Promise<void>|undefined} 不可控时返回 undefined。
+   * 校验前先把展示状态合并进设备状态：梦幻帘的可调叶片判断依赖展示层的 closedConfirmed
+   * （可能已被 railUnconfirmed 降级），只传 deviceState 会漏判。不可控时返回 undefined。
    */
   function requestControl(requestedService, controlValue) {
     if (canControl()) {
@@ -581,11 +578,9 @@ export function createCoverPanel({
     // 只有「没有外部展示状态」时才由本面板自行对账意图：
     // 有 presentation 时生命周期的判断权在外部的展示状态里。
     if (!viewModel.presentation && pendingIntent && stateRevision > pendingIntent.revision) {
-      // 四种「已经达成目标」的判定，命中任一即认为命令生效：
-      // 1) 到达目标位置（0.5% 容差，覆盖设备取整误差）；
-      // 2) 暂停命令且已停止移动；
-      // 3) 打开命令但设备不报位置，且 state 从非 open 翻转为 open；
-      // 4) 此前已确认在运动，现在停下来了。
+      // 四种「已经达成目标」的判定，命中任一即认为命令生效：1) 到达目标位置（0.5% 容差，
+      // 覆盖设备取整误差）；2) 暂停命令且已停止移动；3) 打开命令但设备不报位置，且 state 从
+      // 非 open 翻转为 open；4) 此前已确认在运动，现在停下来了。
       const reachedTarget =
         pendingIntent.target !== null &&
         deviceState.position !== null &&

@@ -298,10 +298,8 @@ def _customer_for(session, account: Account) -> Customer:
 
     customer = Customer(account_id=account.id, email=account.email, name=account.email)
     try:
-        # 用 SAVEPOINT 而非整个事务回滚：失败时只丢掉这一条 INSERT，
-        # 调用方在本事务里已完成的其它写入（例如 expire_stale_orders 关掉的过期单）
-        # 不该被这次撞车连累。本仓的 SQLite 驱动下 SAVEPOINT 语义已实测正确
-        # （内层失败后外层写入仍在、会话仍可用）。
+        # 用 SAVEPOINT 而非整个事务回滚：失败时只丢掉这一条 INSERT，调用方在本事务里已完成的其它写入
+        # （例如 expire_stale_orders 关掉的过期单）不该被这次撞车连累；本仓 SQLite 驱动下 SAVEPOINT 语义已实测正确。
         with session.begin_nested():
             session.add(customer)
             session.flush()
@@ -494,10 +492,9 @@ def _flush_order(session, order: Order) -> str:
         if "UNIQUE constraint failed" not in message:
             raise
         if "orders.account_id" in message:
-            # 待付单唯一索引（``uq_orders_pending_per_account``）挡下并发重复下单：
-            # 上面的 ``pending`` 预检查是「先 SELECT 再 INSERT」，两个并发请求会同时
-            # 看到没有待付单；真正定胜负的是这条索引。翻译成与预检查**完全相同** 的
-            # 409，调用方无从分辨、也无需分辨。
+        # 待付单唯一索引（``uq_orders_pending_per_account``）挡下并发重复下单：上面的 ``pending`` 预检查是
+        # 「先 SELECT 再 INSERT」，并发请求会同时看到没有待付单，真正定胜负的是这条索引；翻译成与预检查
+        # **完全相同** 的 409，调用方无从分辨、也无需分辨。
             return "pending"
         if "orders.order_no" in message:
             return "retry"
@@ -679,10 +676,8 @@ def latest_release(request: Request, session: DbSession, channel: str = "docker"
 
 
 # 账号
-#: 需要登录态才能发码的用途。
-#:
-#: 「换绑邮箱」尤其重要：不校验登录态的话，任何人都能填任意邮箱触发验证码，
-#: 这个接口就成了免费的邮件群发器（而且发件人是我们自己的域名，会被拉黑）。
+#: 需要登录态才能发码的用途。「换绑邮箱」尤其重要：不校验登录态的话，任何人都能填任意邮箱触发验证码，
+#: 这个接口就成了免费的邮件群发器（发件人还是我们自己的域名，会被拉黑）。
 _PURPOSES_REQUIRING_ACCOUNT = frozenset({"verify", "change_email"})
 
 #: 视为「本机」的客户端地址（含空串与 ``testclient``）：只有这些地址才允许看到 echo 回显的验证码；比 ``store/setup_guard.LOOPBACK_HOSTS`` 刻意更宽，取舍不同不要「顺手统一」。
@@ -770,9 +765,8 @@ def send_verification(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="请输入有效的邮箱地址。")
 
     setting = site_config.get_setting(session)
-    # 邮件 / 验证码相关配置一律用**合并后**的值（站点配置优先、环境变量兜底）。
-    # 直接拿 ``app.state.settings`` 只会读到环境变量，于是后台改的有效期、
-    # 冷却、投递方式全都不生效 —— 表现是「保存成功但没有任何反应」，
+    # 邮件 / 验证码相关配置一律用**合并后**的值（站点配置优先、环境变量兜底）：直接拿 ``app.state.settings``
+    # 只会读到环境变量，后台改的有效期、冷却、投递方式全都不生效（表现是「保存成功但没有任何反应」），
     # 而这恰恰是这几个字段被搬进后台的全部意义。
     settings: StoreSettings = mail_settings.merge_mail_settings(
         request.app.state.settings, setting
@@ -780,10 +774,8 @@ def send_verification(
     purpose = payload.purpose
 
     # ---- 按来源 IP 与全站的发信配额 ---- #
-    # 放在最前面是刻意的：这一步之下要写库、要连 SMTP，都是每秒几次量级的开销，
-    # 而上面的入口只需要一次内存计数。更关键的是，这个端点匿名可达、又能给
-    # **任意**地址发信，是天然的「邮件轰炸第三方」放大器；配额不前置，前面的
-    # 参数校验分支就成了绕过配额的免费通道。
+    # 放在最前面是刻意的：下面的校验分支只做内存计数，而这个端点匿名可达、又能给**任意**地址发信，
+    # 是天然的「邮件轰炸第三方」放大器；配额不前置，前面的参数校验分支就成了绕过配额的免费通道。
     _enforce_verification_send_quota(request, settings, email=email)
 
     _assert_purpose_allowed(session, purpose=purpose, email=email, account=account)
@@ -842,10 +834,9 @@ def send_verification(
         settings, setting, email=email, code=code, purpose=purpose
     )
 
-    # 投递结果必须落库：只回给前端就丢了，事后无法回答「用户说没收到，
-    # 那封信到底发出去没有」—— 只能翻日志，而日志会轮转。
-    # ``mode`` 记录的是**实际生效**的方式（smtp 失败会回退成 log），
-    # 所以不能拿 settings.mail_mode 冒充：那会把「以为发了其实只写了日志」藏起来。
+    # 投递结果必须落库：只回给前端就丢了，事后无法回答「用户说没收到，那封信到底发出去没有」——只能翻日志，而日志会轮转。
+    # ``mode`` 记录的是**实际生效**的方式（smtp 失败会回退成 log），不能拿 settings.mail_mode 冒充：
+    # 那会把「以为发了其实只写了日志」藏起来。
     record.delivery_mode = result.mode
     record.delivery_attempts = result.attempts
     record.delivery_error = result.error
@@ -1118,10 +1109,8 @@ def login(payload: LoginRequest, request: Request, session: DbSession) -> Respon
         _note_login_failure(session, _login_scopes(request, email))
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="邮箱或密码不正确。")
 
-    # 登录成功：清掉这个账号与这个来源 IP 的失败计数。
-    # 清来源 IP 一档是为了「同一个人先打错几次再成功」的正常体验；它带来的唯一
-    # 放宽是「持有任一有效凭据者可重置该 IP 的计数」，而攻击者一旦有有效凭据就
-    # 不需要撞库，且按账号那一档始终在拦他真正想攻的那个账号。
+    # 登录成功：清掉这个账号与这个来源 IP 的失败计数。清来源 IP 是为了「同一个人先打错几次再成功」的正常体验，
+    # 唯一放宽是「持有任一有效凭据者可重置该 IP 计数」，而有凭据者本就不需要撞库，按账号那一档始终在拦他真正想攻的账号。
     # 全局桶不清 —— 它是聚合观测，被一次成功登录清零就失去了发现慢速撞库的意义。
     password_gate.clear(session, account_scope)
     if ip_scope:
@@ -1299,13 +1288,9 @@ def change_account_email(
     if (account.email or "").strip().lower() == email:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="新邮箱与当前邮箱相同。")
 
-    # 占用校验必须在**消费验证码之后**，位置不能随意，两个理由：
-    # 1. 安全性 —— 放在前面就是个「该邮箱有没有账号」的探针，任何登录用户都能
-    #    拿一个瞎编的验证码逐条问出来（409 有账号 / 「请先获取邮箱验证码」没有）。
-    #    放在后面，只有能收到该地址验证码的人才会看到 409，而 409 要保护的
-    #    「两台账号撞名」是登录名的归属问题，对地址主人公开并不越界。
-    # 2. 正确性 —— TOCTOU 的窗口是「发码 → 落库」，校验必须紧贴写库那次查询。
-    #    放在消费之后仍是「查完即写、同一事务」，窗口反而更小。
+    # 占用校验必须在**消费验证码之后**（不能随意挪动）：放前面就成了「该邮箱有没有账号」的探针，
+    # 任何登录用户拿瞎编的验证码就能逐条问出 409；放后面则只有能收到该地址验证码的人才会看到 409。
+    # 同时 TOCTOU 窗口是「发码 → 落库」，紧贴写库那次查询仍是「查完即写、同一事务」，窗口反而更小。
     _consume_verification(session, email=email, purpose="change_email", code=payload.code)
 
     taken = session.scalars(
@@ -1692,10 +1677,9 @@ def create_order(
         ) from error
 
     try:
-        # 模拟收银台的页面凭证用短时票据（见 ``store/commerce/cashier.py``），
-        # 而不是把订单的 ``lookup_token`` 拼进 URL；真实渠道不需要它：支付页由
-        # 渠道自己签名，链接里没有本店凭据 —— 这里按渠道判一次，纯粹是不给
-        # 用不上的渠道白写一行票据。
+        # 模拟收银台的页面凭证用短时票据（见 ``store/commerce/cashier.py``），而不是把订单的
+        # ``lookup_token`` 拼进 URL；真实渠道由渠道自己签名、链接里没有本店凭据，
+        # 这里按渠道判一次纯粹是不给用不上的渠道白写一行票据。
         pay_token = cashier.issue_ticket(session, order) if provider.name == "mock" else None
         intent = provider.create_payment(
             order=order,
@@ -2062,11 +2046,9 @@ def request_withdrawal(
             status_code=status.HTTP_409_CONFLICT, detail="你有正在处理中的提现申请，请等待处理完成。"
         )
     fee_percent = float(setting.referral_withdrawal_fee_percent or 0.0)
-    # 手续费在用户确认那一刻可能是 1%，等运营改成 5% 后才提交 —— 用户看到的
-    # 到账金额与实际不符，只能事后投诉。前端已经在发 expectedFeePercent，
-    # 这里真正校验它：不一致就让用户重新确认一次。
-    # 比对用基点整数：浮点的 abs(a-b) > 1e-6 对「1% vs 1.0000001%」判不出来，
-    # 而这两个值在前端显示成同一个数字。
+    # 手续费在用户确认那一刻可能是 1%，等运营改成 5% 后才提交 —— 用户看到的到账金额与实际不符，只能事后投诉；
+    # 前端已在发 expectedFeePercent，这里真正校验它，不一致就让用户重新确认一次。
+    # 比对用基点整数：浮点的 abs(a-b) > 1e-6 对「1% vs 1.0000001%」判不出来，而这两个值在前端显示成同一个数字。
     if payload.expected_fee_percent is not None and money.percent_to_bps(
         payload.expected_fee_percent
     ) != money.percent_to_bps(fee_percent):
@@ -2086,9 +2068,8 @@ def request_withdrawal(
             fee_percent=fee_percent,
         )
     except referrals.WalletConflictError:
-        #: 上面的「可用积分够不够」「有没有正在处理的提现」都是**读**判断，
-        #: 与真正冻结之间存在窗口。两个并发的提现申请会各自读到 frozen=0、
-        #: 各自通过校验，最终只冻结一次却挂两笔待审 —— 审完就能重复套现。
+        #: 上面的「可用积分够不够」「有没有正在处理的提现」都是**读**判断，与真正冻结之间存在窗口：
+        #: 两个并发申请会各自读到 frozen=0、各自通过校验，最终只冻结一次却挂两笔待审 —— 审完就能重复套现。
         #: 冲突时让用户重试即可，绝不能让它变成一个 500 或静默成功。
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

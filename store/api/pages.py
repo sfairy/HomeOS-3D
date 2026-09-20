@@ -118,9 +118,8 @@ def product_image(product_id: str, request: Request, session: DbSession) -> File
     folder: Path = request.app.state.settings.product_images_dir
     root = folder.resolve()
     target = (root / image.path).resolve()
-    # 目录边界必须按**路径段**判断，不能用字符串前缀：``/data/images`` 与
-    # ``/data/images-backup`` 前缀相同，字符串比较会把后者一并放行，于是库里一条
-    # 脏 ``path``（历史数据、被改过的行）就能读到商品图目录之外的任意文件。
+    # 目录边界必须按**路径段**判断，不能用字符串前缀：``/data/images`` 与 ``/data/images-backup``
+    # 前缀相同，字符串比较会放行后者，库里一条脏 ``path`` 就能读到商品图目录之外的任意文件。
     # 另外必须要求是**文件**：目录也能通过 exists()，交给 FileResponse 会炸。
     if target == root or root not in target.parents or not target.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="商品图不存在。")
@@ -128,10 +127,8 @@ def product_image(product_id: str, request: Request, session: DbSession) -> File
 
 
 # 模拟收银台
-#: 嵌进 ``<script>`` 的 JSON 里必须转义成 ``\uXXXX`` 的字符。
-#: ``json.dumps`` 只保证 JSON 合法、不保证 HTML 安全：``<`` 是普通字符，于是 ``</script>`` 会原样出现
-#: 并**提前结束脚本块**，后面的内容被当成标记解析 —— 最经典的「JSON 进 script」注入（``>``/``&``、
-#: U+2028/2029 同理）。转义后 JSON 解析仍还原出同一个字符串，而 HTML 解析器永远看不到字面的 ``</script``。
+#: 嵌进 ``<script>`` 的 JSON 必须把 ``<`` 等转义成 ``\uXXXX``：``json.dumps`` 只保证 JSON 合法、
+#: 不保证 HTML 安全，``</script>`` 会原样出现并**提前结束脚本块**（``>``/``&``、U+2028/2029 同理）。
 _JSON_SCRIPT_ESCAPES = {
     "<": "\\u003c",
     ">": "\\u003e",
@@ -285,10 +282,9 @@ def mock_pay(order_no: str, request: Request, session: DbSession, payload: dict 
 
     if order.status == "fulfilled":
         return order_payload(order)
-    # 状态白名单：只有待付款的订单可以被模拟收银台入账。expired / cancelled 的预留与名额已归还，
-    # 再入账并履约等于扣掉其它待支付订单的预留（直接放开超卖）；payment_failed 同上且渠道已明确拒单；
-    # refunded 不能复活。这里刻意**不**沿用 settlement 的「钱确实到账就照常发码」策略 —— 那是真实
-    # 支付宝通知的补救路径，模拟收银台只会在用户眼前点两下，没有「钱已付出去收不回来」的约束。
+    # 状态白名单：只有待付款订单可被模拟收银台入账。expired / cancelled 的预留与名额已归还，
+    # 再入账履约等于扣掉其它待支付订单的预留（放开超卖），payment_failed / refunded 同理不可复活。
+    # 刻意**不**沿用 settlement 的「钱到账就发码」策略——那是真实支付宝通知的补救路径。
     if order.status != "pending":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

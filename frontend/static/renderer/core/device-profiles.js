@@ -13,9 +13,8 @@ import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
 const XIAOMI_PLATFORMS = new Set(["xiaomi_miot", "xiaomi_home"]);
 /**
  * 判断实体是否可用于档案匹配。
- *
- * 与 entity-metadata.js 的 entityMetadataIsAvailable 判定一致，此处刻意重复实现而不 import：
- * 该模块被编辑器与运行时共用，保持零依赖可以避免因版本戳错配而加载两份。
+ * 与 entity-metadata.js 的判定一致，此处刻意重复实现而不 import：该模块被编辑器与运行时共用，
+ * 保持零依赖可以避免因版本戳错配而加载两份。
  */
 function entityIsUsable(candidateEntity) {
   return (
@@ -182,9 +181,8 @@ function scoreEntityForRole(entity, entityRole) {
 }
 /**
  * 在候选实体里挑出最匹配某个角色的一个。
- *
- * 排序依据依次为：得分降序 → 实体 ID 更短者优先（越短越像主实体）→ 字典序（保证结果稳定）。
- * 得分为 0 也允许入选（说明域匹配但没命中关键词），-1 才被排除。
+ * 排序依据依次为：得分降序 → 实体 ID 更短者优先（越短越像主实体）→ 字典序（保证结果稳定）；
+ * 得分为 0 也允许入选（域匹配但没命中关键词），-1 才被排除。
  */
 function pickBestEntityForRole(entityList, targetRole) {
   return (
@@ -207,10 +205,8 @@ function pickBestEntityForRole(entityList, targetRole) {
 }
 /**
  * 在候选实体里挑出电动床的某个可控部位。
- *
- * 与通用打分不同，这里先按角色对应的「域 + 名称」硬性过滤（靠背 / 腿部 / 腰部必须是 number，
- * 模式必须是 select 且不含 记忆 / 姿势），再按实体 ID 字典序取第一个，
- * 目的是让同一台床的按钮顺序在不同设备上保持一致。
+ * 与通用打分不同：先按角色对应的「域 + 名称」硬性过滤（靠背 / 腿部 / 腰部必须是 number，模式必须是 select 且不含
+ * 记忆 / 姿势），再按实体 ID 字典序取第一个，目的是让同一台床的按钮顺序在不同设备上保持一致。
  */
 function pickBestBedControlEntity(entities, role) {
   return (
@@ -264,9 +260,8 @@ export function xiaomiIntegration(entityMetadata) {
   }
 }
 /**
- * 解析一台小米设备的完整档案：确认平台属小米 → 收集同设备可用实体 → 拼检索文本 →
- * 逐个角色竞聘 → 处理电动床的部位与记忆位 → 推断 deviceType 与 coverKind。
- *
+ * 解析一台小米设备的完整档案：确认平台属小米 → 收集同设备可用实体 → 拼检索文本 → 逐个角色竞聘 →
+ * 处理电动床的部位与记忆位 → 推断 deviceType 与 coverKind。
  * roles.primary 是「最像主控」的实体（都没有时回落传入的 entityId）；confidence 表示规则命中还是兜底。
  */
 export function resolveXiaomiDeviceProfile(
@@ -523,7 +518,6 @@ export function resolveXiaomiDeviceProfile(
 }
 /**
  * 把档案里能推断出的控件属性回填到组件上。
- *
  * 只回填 deviceType 与 coverKind，且仅在原值为空或 auto 时写入——
  * 用户在编辑器里显式选过的类型必须优先于自动识别结果。
  */

@@ -203,10 +203,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             # 代理信任范围是安全配置：解析不了的值必须当场炸掉，不能静默退化成
             # 「谁也不信」（那会让限流悄悄按代理地址统计，等于所有人共用一个桶）。
             trusted_proxies = parse_trusted_proxies(tuple(app_settings.trusted_proxies))
-            # uvicorn 那一层的信任范围由启动器透传进来（见 docker/start_app.py）。
-            # 它是「对端不可伪造」这条前提的第一层：通配时本模块的所有判断都不再成立，
-            # 所以只记警告不够，还要同时写到 stderr —— 只在 docker logs 里看启动输出
-            # 的运维也得看得到。
+            # uvicorn 那层的信任范围由启动器透传（见 docker/start_app.py），是「对端不可
+            # 伪造」的第一层：通配时本模块所有判断都不成立。只记警告不够，还要写 stderr ——
+            # 只看 docker logs 的运维也得看得到。
             allow_ips_warning = forwarded_allow_ips_warning(
                 os.environ.get('UVICORN_FORWARDED_ALLOW_IPS')
             )
@@ -290,10 +289,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.license_service = LicenseService(app_settings, app.state.database, transport = license_transport, endpoint_pool = license_endpoint_pool, event_log = app.state.global_log)
             await app.state.license_service.start()
             app.state.asset_catalog = AssetCatalog(app_settings.built_in_assets_dir, app_settings.user_assets_dir, app_settings.studio3d_exports_dir, app_settings.effect_variants_dir)
-            # 用户素材目录巡检：回收崩溃残留的空壳目录、散落临时文件与孤儿变体缓存，
-            # 并把用量报进全局日志。放启动时机是因为「上传中断 / 进程被杀」留下的残渣只在这
-            # 一刻才能被确定地认定（正在进行的上传有宽限期，见 sweep_user_asset_storage）。
-            # 扫盘 + 遍历草稿都是同步重活，进线程池；失败只记日志，绝不阻断启动。
+            # 用户素材目录巡检：回收崩溃残留的空壳目录、临时文件与孤儿变体缓存，并把用量
+            # 报进全局日志。放启动时机是因为「上传中断 / 进程被杀」的残渣只有此刻才能被确定
+            # 认定（进行中的上传有宽限期）。扫盘是同步重活进线程池，失败只记日志不阻断启动。
             try:
                 await asyncio.to_thread(sweep_user_assets_for_app, app)
             except Exception as error:  # noqa: BLE001 - 巡检是附加工作，启动不能因它失败
@@ -414,11 +412,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             {key: item[key] for key in ('loc', 'msg', 'type') if key in item}
             for item in error.errors()
         ]
-        # 响应体在标准形态（``{"detail": [...]}``）之上**追加**一个顶层 ``message``：标准那份 ``detail``
-        # 原样保留（OpenAPI 契约与既有解析方都还认它），新增的中文摘要是给用户看的 —— 前端调用点只认
-        # 字符串与 ``detail.message``（**认不出数组**，而数组正是 422 的形态），否则同一个校验失败会在
-        # 某些页面变成看不懂的「请求失败（HTTP 422）」。走标准处理器再补键而不是自己拼 JSONResponse，
-        # 是为了让状态码与 detail 的编码仍由 FastAPI 负责。
+        # 响应体在标准 ``{"detail": [...]}`` 之上**追加**顶层 ``message``：``detail`` 原样保留
+        # （OpenAPI 契约与既有解析方认它），中文摘要给用户看 —— 前端调用点只认字符串与
+        # ``detail.message``（认不出 422 的数组形态），走标准处理器补键以保住状态码与编码。
         response = await request_validation_exception_handler(request, error)
         body = json.loads(response.body)
         body['message'] = _validation_error_message(error.errors())
@@ -474,10 +470,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                             details = detail if isinstance(detail, str) else (json.dumps(detail, ensure_ascii = False) if detail is not None else None),
                         )
                     else:
-                        # 4xx 走形态合并计数：路径是外部可以随手编的，逐条写等于
-                        # 把扫描量放大成磁盘写入量。只在窗口首次出现时写一条，窗口滚动时
-                        # 补写累计次数 —— 按形态归并（数字/id 段替换成占位符）是为了不让
-                        # 「每次都编一个新 id」绕开合并。已自行记录过错误的接口不重复记。
+                        # 4xx 走形态合并计数：路径外部可随手编，逐条写等于把扫描量放大成
+                        # 磁盘写入量。窗口首现时写一条、滚动时补写累计次数；按形态归并
+                        # （数字/id 段换成占位符）防绕开合并，已自行记录错误的接口不重复记。
                         summary = request.app.state.error_tally.note(
                             request.method, response.status_code, request.url.path
                         )
@@ -585,10 +580,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         '/static/auth/auth-shell.js',
         '/static/auth/pairing-link.js',
         '/static/auth/pairing-entry.js',
-        # 匿名可访问的页面脚本 import 的工具模块也必须在这里：模块图缺一环，
-        # 整页脚本都不会执行（login/setup/pair/license 全在未激活时就要能打开）。
-        # utils/ 只放与业务无关的纯工具，白名单按文件精确列；新增匿名页依赖的
-        # utils 时务必同步这里，否则未登录状态会白屏。
+        # 匿名页脚本 import 的工具模块也必须在这里：模块图缺一环整页脚本都不执行
+        # （login/setup/pair/license 未激活时就要能打开）。utils/ 只放纯工具、白名单
+        # 按文件精确列；新增匿名页依赖的 utils 务必同步这里，否则未登录会白屏。
         '/static/utils/api-fetch.js',
         '/static/utils/request-timeout.js',
         # 授权激活页与初始化页都要把失败响应翻成人话（422 的原因只在 detail 数组里），

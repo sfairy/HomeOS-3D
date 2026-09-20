@@ -7,9 +7,8 @@
 
 /**
  * 判断当前浏览器是否为「非 Chromium 的 Safari / WebKit」。
- *
  * 判定同时要求出现 AppleWebKit 与 Safari，并排除 Chrome、Edg、OPR、FxiOS 等
- * 同样带 AppleWebKit 字样的浏览器——它们的 UA 里都有这两段字符串，只有排除后才剩下真 Safari。
+ * 同样带 AppleWebKit 字样的浏览器——它们的 UA 都含这两段字符串，排除后才剩下真 Safari。
  */
 export function runtimeDialogUsesStableMotion({
   userAgent: userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent || ""

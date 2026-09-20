@@ -36,10 +36,8 @@ function readVector3(three, sourceArray, fallbackArray) {
 }
 /**
  * 把姿势解算成「目标点 + 距离 + 旋转」。
- *
- * 做法：以 position → target 的方向作为相机的前方向（即 three.js 默认的 +Z），
- * 用 up 做 Gram-Schmidt 正交化得到真正的上方向，再由三者叉乘出右方向，
- * 组装成矩阵后取四元数。
+ * 以 position → target 为前方向（three.js 默认 +Z），用 up 做 Gram-Schmidt
+ * 正交化得上方向，再由三者叉乘出右方向，组装成矩阵后取四元数。
  */
 function resolveCameraPose(threeNamespace, poseConfig) {
   const targetVector = readVector3(threeNamespace, poseConfig.target, [0, 0, 0]);
@@ -88,10 +86,9 @@ function readOrbitAngles(threeLib, viewPose, resolvedPose) {
     return null;
   }
   const forwardVector = new threeLib.Vector3(0, 0, 1).applyQuaternion(resolvedPose.rotation);
-  // 两种情况不能用角度插值：
-  // 1) 视线接近竖直（水平投影过短，theta 抖动剧烈）；
-  // 2) 相机带「翻滚」（roll）—— 用 lookAt(forward, 原点, +Y) 重建的四元数与实际旋转
-  //    不一致，说明存在角度插值表达不了的滚转。
+  // 两种情况不能用角度插值：1) 视线接近竖直（水平投影过短，theta 抖动剧烈）；
+  // 2) 相机带「翻滚」（roll）—— 用 lookAt(forward, 原点, +Y) 重建的四元数与实际
+  // 旋转不一致，说明存在角度插值表达不了的滚转。
   if (
     Math.hypot(forwardVector.x, forwardVector.z) < 0.00001 ||
     new threeLib.Quaternion()
@@ -138,10 +135,8 @@ const DEFAULT_SETTLE_EPSILON = 0.0001;
 const SETTLE_WINDOW_MS = 500;
 /**
  * 创建「阻尼收敛」式相机运动（不做定时长，而是按指数衰减直到停稳）。
- *
- * 与释放运动不同，这里没有固定总时长：进度按 e^(-rt) 连续逼近 1，
- * 由调用方通过 settled() 判断何时结束。不同 owner 用不同速率 ——
- * 楼层切换（floor）最快，聚焦（focus）最慢。
+ * 与释放运动不同，没有固定总时长：进度按 e^(-rt) 连续逼近 1，由调用方用
+ * settled() 判断何时结束。不同 owner 速率不同 —— 楼层切换最快、聚焦最慢。
  */
 export function createDampedCameraMotion(
   threeCore,
@@ -370,8 +365,7 @@ export function createFocusCameraSampler(
 }
 /**
  * 沿射线前进并裁剪到 ±10000 的立方体边界内。
- *
- * 用于把「从目标点朝某个方向按给定长度外移」的相机位置限制在场景坐标范围内；
+ * 用于把「从目标点朝某方向按给定长度外移」的相机位置限制在场景坐标范围内；
  * 若射线一开始就朝外（可用距离为 0），则反向重试一次。
  */
 function clipRayToBounds(threeModule, rayOrigin, rayDirection, maxTravelDistance) {

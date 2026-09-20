@@ -152,9 +152,8 @@ export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
 }
 /**
  * 创建「聚焦编辑」用的真实弹窗预览。
- *
- * 与示意预览不同，这里直接实例化渲染器的 PanelRenderer，渲染一份与线上完全一致的
- * 弹窗，只是整块设为 inert（不可交互）并隐藏，仅作为编辑时的视觉参照。
+ * 与示意预览不同，这里直接实例化渲染器的 PanelRenderer，渲染与线上完全一致的弹窗，
+ * 只是整块设为 inert（不可交互）并隐藏，仅作为编辑时的视觉参照。
  */
 export function createFocusDevicePopup(
   popupHostElement,

@@ -3382,12 +3382,10 @@
   box-sizing: border-box;
   scrollbar-color: rgba(211, 165, 108, 0.42) transparent;
 }
-/* [hidden] 与 ::backdrop：菜单本体是 <div popover="auto">（不是 <dialog>），
-   隐藏状态由 JS 两手维护 —— 打 hidden 属性 + hidePopover()；不支持 popover 的浏览器
-   退回纯定位方案，那时只有 hidden 这一道，所以这里必须显式 display: none。
-   popover 展开时元素会进顶层，**它真的会生成 ::backdrop**（默认透明）：写明透明是防
-   别的 UA 把顶层遮罩改成半透明黑（那会让弹窗外的页面整体变暗）。
-   （真正的死代码是 <dialog> + show() 那一类，见文件开头摄像头预览的说明。） */
+/* [hidden] 与 ::backdrop：菜单本体是 <div popover="auto">（不是 <dialog>），隐藏状态由 JS
+   两手维护 —— hidden 属性 + hidePopover()；不支持 popover 的浏览器退回纯定位，那时只有
+   hidden 这一道，所以必须显式 display: none。popover 展开会进顶层并生成默认透明的
+   ::backdrop，写明透明是防 UA 改成半透明黑把页面整体变暗。 */
 .hb-electric-bed-select-menu[hidden] {
   display: none;
 }
@@ -4806,12 +4804,10 @@
 
 /* ===== 窗帘 / 梦幻帘图形（可点击，绝对定位在弹窗右上） ===== */
 
-/* 244×154 的窗口，三个变量由 JS 写入：
-   --hb-cover-open-position 开合百分比；
-   --hb-cover-panel-width 单侧窗帘的宽度；
-   --hb-cover-single-panel-width 单侧开合时的整幅宽度。
-   默认 45.9% / 91.8% 是配套算出来的：窗口可视宽度 = 244 − 左右各 10px = 224px，
-   即容器的 91.8%；两侧各占一半（45.9%）时刚好在中间合拢。 */
+/* 244×154 的窗口，三个变量由 JS 写入：--hb-cover-open-position 开合百分比、
+   --hb-cover-panel-width 单侧窗帘宽度、--hb-cover-single-panel-width 单侧开合整幅宽度。
+   默认 45.9% / 91.8% 是配套算出的：可视宽 244 − 左右各 10px = 224px 即容器的 91.8%，
+   两侧各占一半（45.9%）时刚好在中间合拢。 */
 .hb-cover-visual {
   --hb-cover-open-position: 0%;
   --hb-cover-panel-width: 45.9%;

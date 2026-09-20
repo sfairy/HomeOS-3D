@@ -22,10 +22,9 @@ from uuid import uuid4
 
 from ..core.time_utils import ensure_aware
 
-# 请求级上下文：由中间件写入 requestId / method / path 等，深层代码 append 时不必透传。
-# 默认值必须是 None 而不是 {}：ContextVar 的默认值是**同一个对象**，任何一处「拿到就
-# 原地改」都会改掉所有未 set 过的上下文（其他任务、后台线程）看到的那份，且不报错；
-# 返回 None 后这种写法立刻抛 TypeError（位置准）。读处统一 ``or {}``。
+# 请求级上下文：中间件写入 requestId / method / path 等，深层代码 append 时不必透传。
+# 默认值必须是 None 而不是 {}：ContextVar 的默认值是**同一个对象**，任何「拿到就原地改」都会改掉所有
+# 未 set 过的上下文（其他任务、后台线程）且不报错；返回 None 则立刻抛 TypeError（位置准）。读处统一 ``or {}``。
 event_context: ContextVar[dict[str, Any] | None] = ContextVar("global_log_context", default=None)
 
 # 去重签名要剔除的「每次不同」字段：requestId / durationMs 逐请求变化，留着会让同一处

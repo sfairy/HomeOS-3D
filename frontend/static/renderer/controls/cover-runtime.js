@@ -43,9 +43,8 @@ function coverPositionPercent(positionStateInput) {
 }
 /**
  * 判断窗帘是否已到达目标位置。
- *
- * 0.5% 的容差是必要的：设备上报的位置通常有小数抖动，严格相等会让「已到位」永远不成立。
- * 比较方向随移动方向而定——上升方向是「不小于目标」，下降方向是「不大于目标」。
+ * 0.5% 容差是必要的：设备上报位置通常有小数抖动，严格相等会让「已到位」永远不成立；
+ * 比较方向随移动方向而定——上升是「不小于目标」，下降是「不大于目标」。
  */
 export function coverPositionReachedTarget(currentPosition, targetPosition, direction) {
   const clampedReported = Math.max(0, Math.min(100, Number(currentPosition) || 0));
@@ -58,9 +57,8 @@ export function coverPositionReachedTarget(currentPosition, targetPosition, dire
 }
 /**
  * 计算「等待设备确认」期间该显示的位置。
- *
- * 取下发指令前的起点与目标中更靠终点的那一端：朝大值移动时取 max、朝小值移动时取 min，
- * 这样界面会立刻贴到终点侧，不会出现先回退再前进的假动画。
+ * 取起点与目标中更靠终点的那一端（朝大值移动取 max、朝小值移动取 min），界面立刻贴到终点侧，
+ * 不会出现先回退再前进的假动画。
  */
 export function coverPendingDisplayPosition(fromPosition, toPosition, moveDirection) {
   if (moveDirection < 0) {
@@ -71,8 +69,7 @@ export function coverPendingDisplayPosition(fromPosition, toPosition, moveDirect
 }
 /**
  * 判断窗帘当前是否处于「打开」侧。
- *
- * 判定顺序固定：opening / closing 这两个动作态优先（哪怕位置还没变也说明在开 / 在关），
+ * 判定顺序固定：opening / closing 两个动作态优先（位置没变也说明在开 / 在关），
  * 其次看位置百分比，最后才回落到通用的 on / open 判定。
  */
 export function runtimeCoverStateIsActive(coverEventState) {
@@ -144,7 +141,6 @@ export function relatedDeviceEntity(
 }
 /**
  * 在同一台设备里找出指定域的实体（不看翻译键）。
- *
  * 与 relatedDeviceEntity 的差别是筛选更松、并额外偏好「名字像灯」的实体，
  * 用于窗帘 / 晾衣机这类设备上附带照明的情况。
  */
@@ -197,8 +193,7 @@ const MOTOR_CONTROL_PATTERNS = {
 };
 /**
  * 判断窗帘控件是否应按晾衣机渲染。
- *
- * 优先级：控件显式配置的 coverKind（airer / standard / dream 都是明确答案，直接返回）→
+ * 优先级：控件显式配置的 coverKind（airer / standard / dream 都是明确答案，直接返回）；
  * 否则按实体 ID、状态里的 friendly_name、实体元数据与设备型号里的关键词推断。
  */
 export function coverComponentIsAirer(
@@ -237,9 +232,8 @@ export function coverComponentIsAirer(
 }
 /**
  * 从实体 ID 里取出「晾杆编号」。
- *
- * 晾衣机的实体 ID 形如 cover.xxx_s_1_airer、light.xxx_p_2_…，其中 s / p 后的数字标识
- * 具体是哪根杆 / 哪个位置；同一根杆上的灯与位置实体必须配套，否则会串到别的杆上。
+ * 晾衣机实体 ID 形如 cover.xxx_s_1_airer、light.xxx_p_2_…，s / p 后的数字标识是哪根杆 / 哪个位置；
+ * 同一根杆上的灯与位置实体必须配套，否则会串到别的杆上。
  */
 function collectAirerSlotNumbers(slotSourceEntityId) {
   return new Set(
@@ -250,8 +244,7 @@ function collectAirerSlotNumbers(slotSourceEntityId) {
 }
 /**
  * 在晾衣机的同设备实体里挑出那盏照明灯。
- *
- * 用打分而不是硬匹配，因为灯可能是 light 域也可能是 switch 域，命名也各家不同。
+ * 用打分而不是硬匹配，因为灯可能是 light 域也可能是 switch 域，命名也各家不同；
  * 打分见下方注释，最终按 分数降序 → 实体 ID 长度升序 → 字典序 取第一个。
  */
 export function relatedAirerLightEntity(lightEntitiesById, lightSourceEntityId) {
@@ -317,9 +310,8 @@ export function relatedAirerLightEntity(lightEntitiesById, lightSourceEntityId) 
 }
 /**
  * 按名称模式在同设备实体里查找晾衣机的某个附属实体。
- *
- * 特殊分支：源实体没有 deviceId（HA 里未登记设备，常见于厂商直连）时，
- * 会按实体 ID 模板推算出该型号固定的附属实体 ID，见下方注释。
+ * 特殊分支：源实体没有 deviceId（HA 里未登记设备，常见于厂商直连）时，按实体 ID 模板推算出该型号固定的附属实体 ID，
+ * 见下方注释。
  */
 function findAirerEntityByPattern(
   airerLookupEntitiesById,
@@ -443,9 +435,7 @@ export function relatedAirerMotorSpeedSensor(motorSpeedEntitiesById, motorSpeedE
 }
 /**
  * 取晾衣机的升降控制按钮。
- *
- * 只在 button 域里按 MOTOR_CONTROL_PATTERNS 的三个模式查找，
- * 查不到的动作用 null 占位，调用方据此隐藏对应按钮。
+ * 只在 button 域里按 MOTOR_CONTROL_PATTERNS 的三个模式查找，查不到的动作用 null 占位，调用方据此隐藏对应按钮。
  */
 export function relatedAirerMotorActionEntities(actionEntitiesById, actionEntityId) {
   const actionSourceEntity = actionEntitiesById.get(actionEntityId);
@@ -481,11 +471,8 @@ export function relatedAirerMotorActionEntities(actionEntitiesById, actionEntity
   );
 }
 /**
- * 把晾衣机位置换算成界面上的「下降幅度」。
- *
- * 返回值是画布内的相对距离：2 表示完全收起（贴近顶部），40 表示完全放下。
- * open / closed 两个端点直接给常量，是为了让端点状态不受标定误差影响；
- * 其余情况在命令区间内做线性插值，区间长度为 0 时退化为不下落。
+ * 把晾衣机位置换算成界面上的「下降幅度」：返回值是画布内相对距离，2 表示完全收起（贴近顶部），40 表示完全放下。
+ * open / closed 端点直接给常量，让端点状态不受标定误差影响；其余情况在命令区间内做线性插值，区间长度为 0 时退化为不下落。
  */
 export function airerVisualDrop(positionPercent, airerStateName = "", visualCalibration = {}) {
   if (airerStateName === "open") {
@@ -526,7 +513,6 @@ export function airerVisualDrop(positionPercent, airerStateName = "", visualCali
 }
 /**
  * 取晾衣机的出厂标定。
- *
  * 只有 pro2 型号带固定标定（命令值 0 为收起、100 为放下），其余型号返回全 null，
  * 交给 learnAirerPositionCalibration 在运行中学习。
  */
@@ -565,10 +551,8 @@ export function airerPositionCalibration(
 }
 /**
  * 根据实时读数学习「收起 / 放下」两端对应的上报位置。
- *
- * 只在电机停稳（速度绝对值小于 0.5）且命令值正好落在已知端点附近（0.5 以内）时才采样，
- * 因此只会写入真实可信的端点读数，不会把中间的移动过程当成端点。
- * 注意：函数直接修改并返回传入的 calibration 对象（既有的就地更新约定）。
+ * 只在电机停稳（速度绝对值小于 0.5）且命令值落在已知端点附近（0.5 以内）时才采样，只写入可信端点读数，
+ * 不会把中间的移动过程当成端点；函数直接修改并返回传入的 calibration 对象（既有就地更新约定）。
  */
 export function learnAirerPositionCalibration(
   calibration = {},
@@ -611,9 +595,8 @@ export function learnAirerPositionCalibration(
 }
 /**
  * 把设备坐标的位置换算成界面坐标。
- *
- * 设备的数值越大越靠下，而界面坐标（晾杆高度）越大越靠上，所以这里是一次反向线性映射；
- * 两端未知或几乎重合时不做换算，直接返回原值，避免出现除零或极端放大。
+ * 设备数值越大越靠下、界面坐标（晾杆高度）越大越靠上，因此是一次反向线性映射；
+ * 两端未知或几乎重合时不做换算直接返回原值，避免除零或极端放大。
  */
 export function airerPresentationPosition(airerPosition, presentationCalibration = {}) {
   const clampedPosition = Math.max(0, Math.min(100, Number(airerPosition) || 0));
@@ -644,9 +627,8 @@ export function airerPresentationPosition(airerPosition, presentationCalibration
 }
 /**
  * 取晾衣机的展示位置，端点状态直接给 0 / 100。
- *
- * 先按电机是否反转求出物理状态：open 一律映射成 100、closed 一律映射成 0，
- * 只有中间态才使用标定换算，保证「已完全收起 / 放下」这两个结论绝对准确。
+ * 先按电机是否反转求出物理状态：open 映射成 100、closed 映射成 0，只有中间态才使用标定换算，
+ * 保证「已完全收起 / 放下」这两个结论绝对准确。
  */
 export function airerPresentationPositionForState(
   statePosition,
@@ -665,9 +647,8 @@ export function airerPresentationPositionForState(
 }
 /**
  * 取晾衣机当前上报的位置。
- *
- * 读数优先级：两端标定都齐全且跨度够大时用 state 数值（此时 state 就是位置百分比）→
- * 属性的 current_position → 最后才用 state 原值。
+ * 读数优先级：两端标定齐全且跨度够大时用 state 数值（此时 state 就是位置百分比）→ 属性的 current_position →
+ * 最后才用 state 原值。
  */
 export function airerReportedPosition(entityState, entityAttributes, reportedCalibration = {}) {
   const stateNumber = Number(entityState?.state);
@@ -695,9 +676,7 @@ export function airerReportedPosition(entityState, entityAttributes, reportedCal
 }
 /**
  * 把界面百分比换算成下发命令用的设备百分比。
- *
- * 是 airerPresentationPosition 的逆运算；两端未知或重合时原样返回，
- * 让调用方至少发得出一个有意义的命令值。
+ * 是 airerPresentationPosition 的逆运算；两端未知或重合时原样返回，让调用方至少发得出一个有意义的命令值。
  */
 export function airerDevicePosition(reportedPercent, deviceCalibration = {}) {
   const clampedDevicePosition = Math.max(0, Math.min(100, Number(reportedPercent) || 0));
@@ -757,10 +736,8 @@ export function relatedWaterHeaterEntities(waterHeaterEntitiesById, waterHeaterE
 }
 /**
  * 生成扩展功能项的展示名。
- *
- * 设备的附属实体名常常把设备名重复拼在前面（「晾衣机 晾衣机照明」），
- * 这里按「父名 + 空格」逐层剥离；候选前缀按长度降序排列，长前缀优先，避免短前缀先匹配掉一截。
- * 剥离后为空则退回实体 ID 的对象 ID（下划线换成空格），再空则用「扩展功能」。
+ * 附属实体名常把设备名重复拼在前面（「晾衣机 晾衣机照明」），这里按「父名 + 空格」逐层剥离；候选前缀按
+ * 长度降序排列，长前缀优先，避免短前缀先匹配掉一截。剥离后为空则退回实体 ID 对象 ID，再空则用「扩展功能」。
  */
 export function waterHeaterRelatedEntityLabel(labelComponent, entityMetadata) {
   let label = String(entityMetadata?.name || entityMetadata?.originalName || "")
@@ -808,9 +785,7 @@ export function relatedCoverMotorReverseEntity(motorReverseEntitiesById, reverse
 }
 /**
  * 按电机方向把展示状态还原成物理状态。
- *
- * 反转时四组状态两两互换（open↔closed、opening↔closing）；
- * 认不出的状态原样返回，不做映射。
+ * 反转时四组状态两两互换（open↔closed、opening↔closing）；认不出的状态原样返回，不做映射。
  */
 export function physicalCoverState(stateInput, reverseOverride = false) {
   const stateName = String(stateInput || "");
@@ -818,9 +793,8 @@ export function physicalCoverState(stateInput, reverseOverride = false) {
 }
 /**
  * 取窗帘用于展示的状态名。
- *
- * opening / closing 原样返回；其余按位置百分比归一：位置在 1% 以内视为 closed，
- * 否则视为 open。反转时要用 100 减位置再判断，因为百分比的方向也跟着反了。
+ * opening / closing 原样返回；其余按位置百分比归一：位置在 1% 以内视为 closed，否则视为 open；
+ * 反转时要用 100 减位置再判断，因为百分比的方向也跟着反了。
  */
 export function coverPresentationState(presentationStateInput, isReversedOverride = false) {
   const stateObject = resolveStateEntry(presentationStateInput, {});
@@ -848,10 +822,8 @@ function resolvedCoverState(physicalStateInput, motorReversed = false) {
 }
 /**
  * 取梦幻帘叶片位置的文案。
- *
- * 位置语义：0 附近是一个方向的闭合、100 附近是反方向的闭合、50 附近是 90° 全开，
- * 中间值按 0~180 度的角度线性折算（乘 1.8）。
- * 50 度附近给 2 的容差，避免「刚好 90°」因为浮点误差显示成 89°。
+ * 位置语义：0 附近是一个方向的闭合、100 附近是反方向闭合、50 附近是 90° 全开，中间值按 0~180 度线性折算（乘 1.8）；
+ * 50 度附近给 2 的容差，避免「刚好 90°」因浮点误差显示成 89°。
  */
 export function dreamCurtainBladeLabel(bladePosition) {
   const clampedBladePosition = Math.max(0, Math.min(100, Number(bladePosition) || 0));
@@ -897,9 +869,7 @@ export function dreamCurtainStatusFromRetraction(isRetracting, isMoving, bladePe
 }
 /**
  * 判断梦幻帘是否已收起。
- *
- * open / opening 都算收起：帘片正在向收起方向移动时，界面上也应显示为已收状态，
- * 这样按钮的语义不会在运动中途来回翻转。
+ * open / opening 都算收起：帘片正在向收起方向移动时界面也应显示为已收，这样按钮语义不会在运动中途来回翻转。
  */
 export function dreamCurtainIsRetracted(retractionStateInput, retractionReversed = false) {
   const retractedState = physicalCoverState(retractionStateInput, retractionReversed);
@@ -917,8 +887,7 @@ export function dreamCurtainToggleService(isRetracted, openService, closeService
 }
 /**
  * 为窗帘控件挑出本次「切换」要调用的服务。
- *
- * 梦幻帘与普通帘的状态解析方式不同，因此分别取 resolvedCoverState / coverPresentationState；
+ * 梦幻帘与普通帘的状态解析方式不同，分别取 resolvedCoverState / coverPresentationState；
  * 之后再按 open / closed 与电机方向决定最终服务名。
  */
 export function coverToggleServiceForComponent(

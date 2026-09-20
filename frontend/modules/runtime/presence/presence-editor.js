@@ -447,9 +447,8 @@ export async function openPresenceEditor({
   }
   /**
    * 延时切到正交顶视图（用于平面视图）。
-   *
-   * 30ms 的延迟是为了合并连续的调用：拖动窗户尺寸、连续 resize 时避免每帧都发命令；
-   * 回调里重新判断一遍条件，因为定时器触发时用户可能已经切走视图。
+   * 30ms 延迟是为了合并连续调用：拖动窗户尺寸、连续 resize 时避免每帧都发命令；
+   * 回调里重新判断条件，因为定时器触发时用户可能已经切走视图。
    */
   function scheduleTopView() {
     clearTimeout(topViewTimer);
@@ -543,9 +542,8 @@ export async function openPresenceEditor({
   }
   /**
    * 计算平面图的取景框 planBox（平面坐标系，单位是平面图像素）。
-   *
-   * 取景范围 = 墙体端点 ∪ 路线点，两边各留 10% 边距（pixelMargin），
-   * 这样路线贴墙时圆点不会被裁掉。没有数据时按 pixelsPerMeter 给一块默认视口。
+   * 取景范围 = 墙体端点 ∪ 路线点，两边各留 10% 边距（pixelMargin），路线贴墙时圆点不会被裁掉；
+   * 没有数据时按 pixelsPerMeter 给一块默认视口。
    */
   function fitPlanBox() {
     const activeFloor = currentFloor();
@@ -1168,8 +1166,7 @@ export async function openPresenceEditor({
   }
   /**
    * 把指针事件的屏幕坐标换算成 SVG 用户坐标（平面图像素）。
-   *
-   * getScreenCTM().inverse() 包含了 viewBox 缩放与页面滚动偏移，是唯一可靠的换算方式；
+   * getScreenCTM().inverse() 包含 viewBox 缩放与页面滚动偏移，是唯一可靠的换算方式；
    * 直接用 clientX 加减 boundingRect 在 viewBox 缩放时会有偏差。
    */
   const toSvgPoint = pointerEvent => {

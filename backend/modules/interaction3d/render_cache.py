@@ -96,10 +96,8 @@ def read_cache(path: Path) -> bytes | None:
             if time.time() - stat.st_mtime > MAX_AGE_SECONDS or stat.st_size > MAX_ENTRY_BYTES:
                 return None
             content = path.read_bytes()
-            # 触摸节流：60 秒内读多次只更新一次 mtime，既少写元数据，
-            # 又保证「经常被读」的条目不会在 LRU 淘汰时被误伤。
-            # 在共享锁里写元数据是安全的：淘汰持排他锁，与共享锁互斥，
-            # 因此不会出现「刚 stat 到、正要 utime，文件已被删」。
+            # 触摸节流：60 秒内读多次只更新一次 mtime，少写元数据，又保证「经常被读」的条目不被 LRU 误伤。
+            # 在共享锁里写元数据是安全的：淘汰持排他锁，与共享锁互斥，不会出现「刚 stat 到、正要 utime，文件已被删」。
             if time.time() - stat.st_mtime > 60:
                 os.utime(path, None)
             return content
@@ -157,13 +155,9 @@ def write_cache(path: Path, content: bytes) -> None:
                 continue
             entries.append((stat.st_mtime, stat.st_size, candidate))
         total, count = sum(item[1] for item in entries), len(entries)
-        # 排序键显式写成 (mtime, size, 完整路径字符串)。mtime 与 size 都可能完全
-        # 相同（同一批写进来的条目，或被对齐过时间戳的文件），那时「淘汰谁」就完全由
-        # 第三个分量决定，它因此必须**一定唯一**：同一个 glob 出来的路径天然唯一，按
-        # 路径字符串比也就一定排得出确定顺序，不会掉进「所有分量都相等」的稳定排序里
-        # 听凭目录顺序。审计原文说这里「退化成比较 Path 对象会抛 TypeError」——实测
-        # 不成立（CPython 给 PurePath 定义了全序，旧写法在这台机器上排得好好的），
-        # 改成显式 key 图的是把判据写在明面上、不依赖语言实现细节。
+        # 排序键显式写成 (mtime, size, 完整路径字符串)：前两个分量可能完全相同（同批写入、或被对齐过时间戳），
+        # 淘汰谁就完全由第三个决定，所以它必须**一定唯一** —— 同一 glob 出的路径天然唯一，也就排得出确定顺序，
+        # 不会掉进「所有分量都相等」的稳定排序里听凭目录顺序。（旧写法比较 Path 对象实测也不抛错，CPython 给 PurePath 定义了全序。）
         for _, size, candidate in sorted(
             entries, key=lambda item: (item[0], item[1], str(item[2]))
         ):

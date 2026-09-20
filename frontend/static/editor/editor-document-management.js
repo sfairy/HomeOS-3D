@@ -12,16 +12,13 @@ import { entityDomainFromId } from "../utils/entities.js?v=20260920131301";
 
 /**
  * 「上次打开哪个仪表盘」的会话级记忆键。
- *
- * 用 sessionStorage 而非 localStorage：只在当前标签页存活期间有效，关掉就回到
- * 列表第一项 —— 与「未保存草稿」同一取舍（见 home.js 的 RECOVERY_STORAGE_PREFIX），
- * 避免一份陈旧的选择长期留存，把用户带到他早已不想要的项目上。
+ * 用 sessionStorage 而非 localStorage：只在当前标签页存活期间有效，关掉就回到列表第一项，
+ * 与「未保存草稿」同一取舍；避免陈旧选择长期留存，把用户带到他早已不想要的项目上。
  */
 const SELECTED_PROJECT_STORAGE_KEY = "homeos:editor:selected-project";
 
 /**
  * 记住当前正在编辑的仪表盘。
- *
  * 写失败（隐私模式、配额耗尽）只当没记住，不抛：这是便利功能，
  * 不能因为它把「打开项目」这条主流程弄失败。
  */

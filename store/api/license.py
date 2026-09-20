@@ -113,12 +113,9 @@ async def _dispatch(request: Request, method: str) -> Response:
     authority = request.app.state.license_authority
     path = request.url.path
 
-    # 按来源 IP 限流。放在读请求体之前，这样「连解析都不做」就能挡掉洪水。
-    # 桶按端点选：activate 是可枚举面，额度紧；heartbeat / recover 收的是高熵令牌，
-    # 额度宽（两者共用一个是自锁成因，见文件头那段注释）。
-    # IP 用 resolve_client_ip 的解析结果（只在可信代理后面才采信转发头）——
-    # 与验证码回显、登录限流共用同一套来源判定，避免「限流按 A 算、其它按 B 算」
-    # 这类漂移，而伪造 X-Forwarded-For 正是绕开它们的手法。
+    # 按来源 IP 限流，放在读请求体之前，「连解析都不做」就能挡掉洪水。桶按端点选：
+    # activate 可枚举、额度紧，heartbeat / recover 收高熵令牌、额度宽（共用一个是
+    # 自锁成因）。IP 取 resolve_client_ip 结果，与验证码回显、登录限流同一套来源判定。
     try:
         address = resolve_client_ip(request)
     except Exception:  # noqa: BLE001 - 解析异常不该让授权端点整体不可用

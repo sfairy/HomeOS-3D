@@ -18,9 +18,8 @@ import { createLightStream } from "../light/light-stream.js?v=20260920131301";
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
  * 把 3D 交互控件挂到宿主元素上，返回运行时句柄。
- *
- * 挂载时会：建 iframe + 加载占位、注册窗口级事件（指针 / 键盘 / 页面可见性 / 祖先尺寸）、
- * 起状态订阅，并在舞台回报 ready 后开始下发配置。
+ * 挂载时会建 iframe + 加载占位、注册窗口级事件（指针 / 键盘 / 页面可见性 / 祖先尺寸）、
+ * 起状态订阅，并在舞台回报 ready 后下发配置。
  */
 export function mountInteraction3d(
   hostElement,
@@ -946,9 +945,8 @@ export function mountInteraction3d(
   const pendingAbortControllersSet = new Set();
   /**
    * 舞台消息总入口（同源 + iframe 来源 + channel 三重校验后分发）。
-   *
-   * 处理的类型见文件头；控制类消息会落到后端 /control，并按 requestId 回执；
-   * 编辑类（视角 / 聚焦 / 范围）按各自的 requestId 兑现对应的 Promise。
+   * 处理类型见文件头；控制类落到后端 /control 并按 requestId 回执，
+   * 编辑类（视角 / 聚焦 / 范围）按各自 requestId 兑现 Promise。
    */
   async function handleStageMessage(messageEvent) {
     if (

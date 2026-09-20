@@ -59,10 +59,9 @@ def settle_paid_order(
     values: dict[str, object] = {
         "status": "paid",
         "paid_at": order.paid_at or moment,
-        # 走到这里就是**渠道**说钱收到了（异步通知 / 主动查单 / 同步跳转），这是这个
-        # 系统里最强的证据。因此顺手清掉人工补记标记：先被人工补记放行、钱随后
-        # 真的到账的订单，从这里起就计入营收 —— 否则「补记过」会永久把真实收入挡在
-        # KPI 之外，而运营没有任何办法把它加回来。
+        # 走到这里就是**渠道**说钱收到了（异步通知 / 主动查单 / 同步跳转），是全系统最强的
+        # 证据。因此顺手清掉人工补记标记：先被人工补记放行、钱随后真到账的订单从此计入营收，
+        # 否则「补记过」会永久把真实收入挡在 KPI 之外，运营也没办法加回来。
         "manual_settlement": False,
     }
     if trade_no:
@@ -94,20 +93,16 @@ def settle_paid_order(
         return {"changed": False, "alreadyFulfilled": True, "licenseId": order.license_id}
 
     session.refresh(order)
-    #: 「复活单」的判据必须与库存预留的**实际**状态一致，而不是入账前那一刻读到
-    #: 的 ``original_status``：那个值可能已经过期（读到 pending、期间被过期扫描
-    #: 改成 expired），此时按它判断会漏掉复核标记，而这正是最需要人看到的一类单。
-    #: ``stock_reservation_released_at`` 非空 ⟺ 这张单此前进过终态（预留已还），
-    #: 也就是「复活单」本身 —— 两个判断合成一个事实来源。
-    #: 存量订单该列为 NULL（列是后加的），此时回落到原来的状态比较，保持旧行为。
+    #: 「复活单」判据必须与库存预留的**实际**状态一致，而不是入账前读到的 ``original_status``
+    #: （可能已过期——读到 pending、期间被过期扫描改成 expired，会漏掉复核标记）。
+    #: ``stock_reservation_released_at`` 非空 ⟺ 此前进过终态，即「复活单」；存量订单该列为 NULL，回落状态比较。
     revived = order.stock_reservation_released_at is not None or (
         original_status not in RESERVING_STATUSES
     )
     if revived:
-        # 钱在用户那边已经扣了，码照发（否则用户只能找人工客服）。但这件库存的预留早已在订单进终态时
-        # 还给别人，属于刻意保留的例外 —— 必须打上「待人工复核」标记并在后台告警。优惠码名额同理：
-        # 进终态时 ``release_coupon`` 已把它还回去，但核销记录还在；现在这单复活成交，名额必须重新占
-        # 回来，否则该码的 ``redeemed_count`` 少算一次、``max_redemptions`` 会被后来的人突破。
+        # 钱在用户那边已经扣了，码照发，但库存预留早在进终态时已还给别人，属于刻意保留的例外，
+        # 必须打「待人工复核」标记并告警。优惠码名额同理：release_coupon 已还名额但核销记录还在，
+        # 复活成交要重新占回，否则 redeemed_count 少算、max_redemptions 会被后来者突破。
         if order.coupon_code and not coupons.reoccupy_coupon(session, order):
             logger.warning(
                 "复活单未能重新占用优惠码名额（名额已满）order=%s code=%s",
@@ -129,12 +124,9 @@ def settle_paid_order(
 
     # 手动发卡商品只标记已支付，等管理员核对后发码
     if order.fulfillment_mode != "manual":
-        # expired / cancelled / payment_failed 在进入终态时已经释放过库存预留，
-        # 这里是「钱到账了所以补发」，不能再扣一次预留（否则等于偷走其它待支付
-        # 订单占的额度，直接放开超卖）。这个判断不再由这里传参，而是交给
-        # ``fulfill_order`` 去读订单上持久化的 ``stock_reservation_released_at`` ——
-        # 同一件事（这张单还占不占预留）在两处用两套写法，迟早会漂移成
-        # 「标记了复核却没释放」或反之。
+        # expired / cancelled / payment_failed 进终态时已释放过库存预留，这里是「钱到账了所以
+        # 补发」，不能再扣一次预留（否则偷走其它待支付订单的额度，直接放开超卖）。该判断交给
+        # ``fulfill_order`` 读持久化的 ``stock_reservation_released_at``，避免两处两套写法漂移。
         try:
             # SAVEPOINT 包住履约：失败时只回滚这一段的写入（发出去的半张授权、
             # 扣掉的库存、记上的邀请奖励），「已入账」这一状态本身保留 ——

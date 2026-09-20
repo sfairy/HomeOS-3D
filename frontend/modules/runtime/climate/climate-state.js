@@ -29,9 +29,7 @@ export const {
 } = climateRendererModule;
 /**
  * 把任意输入转成有限数字，不可用时返回 null。
- *
- * 特意排除布尔值：`Number(true)` 是 1，会让「属性缺失但被写成 true」的脏数据
- * 被当成合法温度；空串同理要排除，避免被当成 0。
+ * 特意排除布尔值与空串：Number(true) 是 1、Number("") 是 0，都会把脏数据当成合法温度。
  */
 const toFiniteNumber = input =>
   input != null && input !== "" && typeof input != "boolean" && Number.isFinite(Number(input))
@@ -39,9 +37,7 @@ const toFiniteNumber = input =>
     : null;
 /**
  * 把 HA 的空调实体状态归一化成 3D 面板使用的状态对象。
- *
- * 字段名与 HA 属性严格对应（min_temp / max_temp / fan_mode / swing_mode 等），
- * 面板与动画都按这些名字取值，改名前需同步改动使用方。
+ * 字段名与 HA 属性严格对应（min_temp / max_temp / fan_mode 等），面板与动画按这些名字取值，改名需同步使用方。
  */
 export function climateState(entityId, receivedState) {
   // 事件对象取 newState；直接传 state 时用自身；都没有则退化成空对象，避免抛错。
@@ -177,8 +173,7 @@ export function climatePowerControl(state, desiredOn = !state.on, lastMode = "")
 /**
  * 创建「空调上次使用模式」的记录器（关机后再开机时恢复用）。
  * HA 的 climate 一关机 state 就变 off，不再上报用户最后选的是 cool 还是 heat，故在内存里记住
- * 每台空调最后一个「可用且正在运行」的模式并用 localStorage 持久化。
- * @param {Storage} [options.storage] 持久化后端；不可用（隐私模式等）时静默降级为仅内存。
+ * 每台空调最后一个「可用且正在运行」的模式并用 localStorage 持久化；storage 不可用（隐私模式等）时静默降级为仅内存。
  */
 export function createClimateModeHistory({ storage, scope = "" } = {}) {
   const modesByEntityId = new Map();

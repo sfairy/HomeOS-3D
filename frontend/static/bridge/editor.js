@@ -37,8 +37,7 @@ import {
 
 /**
  * 递归收集组件树里的 interaction3d 组件。
- *
- * 用「路径片段数组」的 JSON 串当键：同一个组件可能被页面与共享组件引用，
+ * 用「路径片段数组」的 JSON 串当键：同一组件可能被页面与共享组件引用，
  * 路径才是它在文档里的唯一位置，仅靠 id 无法区分。
  */
 export function interaction3dEntries(componentTree, pathSegments = [], entriesByPath = new Map()) {
@@ -100,11 +99,8 @@ function stripPositionZIndex(component) {
   };
 }
 /**
- * 判断两个项目版本之间「3D 交互相关内容」是否发生变化。
- *
- * 用于决定保存前是否需要重新做一次授权校验（3D 交互是受限功能）。
- * 除了组件属性，还要看「页面是否新引用了含 3D 交互的共享组件」——
- * 这种情况组件本身没变，但新的页面上会出现 3D 交互。
+ * 判断两个项目版本之间「3D 交互相关内容」是否发生变化，用于决定保存前是否需要重新授权校验（3D 交互是受限功能）。
+ * 除了组件属性，还要看「页面是否新引用了含 3D 交互的共享组件」—— 此时组件本身没变，但新页面上会出现 3D 交互。
  */
 export function changesInteraction3d(previousProject, nextProject) {
   const previousEntriesByPath = interaction3dEntries(previousProject);
@@ -237,9 +233,8 @@ export async function requestInteraction3dScene() {
 }
 /**
  * 渲染（或重建）3D 交互组件的属性面板。
- *
- * 面板采用「整块重建」策略：任何影响结构的改动都会重新走一遍本函数，
- * 因此下面刻意保存并恢复滚动位置、焦点控件名与最小高度，避免重建造成视觉跳动。
+ * 面板采用「整块重建」策略：任何影响结构的改动都会重走本函数，因此下面刻意保存并恢复
+ * 滚动位置、焦点控件名与最小高度，避免重建造成视觉跳动。
  */
 export function renderInteraction3dInspector(hostElement, targetComponent, editorOptions) {
   // 每次重建都作废旧面板的在途异步流程（授权校验、性能告警弹窗等），

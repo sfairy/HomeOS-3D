@@ -251,7 +251,6 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
     },
     /**
      * 处理一次指针交互。
-     *
      * 暖阳下没有地面脉冲可打，但相机的每一次移动都值得重绘一帧；
      * 其余主题原样转交给地面主题控制器。
      */

@@ -190,9 +190,8 @@ class StoreSettings:
     expose_api_docs: bool = False
 
     # 支付
-    #: 空串表示「尚未配置渠道」。**绝不能默认 mock**：模拟收银台点一下按钮就把订单
-    #: 标成已支付并签发真实授权 —— 也就是「照默认配置部署 = 付费产品免费送」。
-    #: 未配置时 ``resolve_provider`` 会直接报错、拒绝建单（fail-closed）。
+    #: 空串 = 尚未配置渠道。**绝不能默认 mock**：模拟收银台点一下就直接签发真实
+    #: 授权（照默认部署 = 付费产品免费送）；未配置时 ``resolve_provider`` 拒绝建单。
     payment_provider: str = ""
     #: 是否允许使用模拟收银台（mock）。默认关闭，必须显式开启（STORE_ALLOW_MOCK_PAYMENTS=1），
     #: 且仅供本地联调；正式收款环境绝不能打开。
@@ -217,30 +216,24 @@ class StoreSettings:
     # 授权签发
     #: 注意：仓库根的 keys/ 是客户端默认读取的公钥镜像（由 start.py / 容器启动自动同步），私钥留在服务自己的目录
     license_keys_dir: Path = STORE_ROOT / "keys" / "local"
-    #: 留空 = 按公钥文件派生 keyId（推荐，见 ``license_key_id`` 属性）；显式赋值
-    #: 仍然生效，但那时轮换要服务端与客户端同步改名 —— 静态名字不会随密钥变，
-    #: 重新生成密钥后客户端只会看到「指纹不匹配」（见 ``keys.key_id_from_public``）。
-    #: 字段名带 ``_override`` 是为了让下面那个同名属性成为唯一入口：读到
-    #: ``settings.license_key_id`` 的人拿到的永远是**实际生效**的 id。
+    #: 留空 = 按公钥文件派生 keyId（推荐，见 ``license_key_id`` 属性）；显式赋值时
+    #: 轮换要服务端与客户端同步改名，否则重生成密钥后客户端只会看到「指纹不匹配」。
+    #: 名字带 ``_override`` 是让同名属性成为唯一入口，读到的永远是**实际生效**的 id。
     license_key_id_override: str = ""
     license_transport_key_id_override: str = ""
     lease_ttl_seconds: int = DEFAULT_LEASE_TTL_SECONDS
     heartbeat_interval_seconds: int = DEFAULT_HEARTBEAT_INTERVAL_SECONDS
     #: ``/v2/heartbeat`` 与 ``/v2/recover`` 的**来源 IP** 小时配额（见 ``store/api/license.py``）。
-    #:
-    #: 比 ``/v2/activate`` 那个固定的 60/小时宽得多，理由是这类流量「不可枚举但很常态」：
-    #: 收的是高熵会话 / 恢复令牌（猜不出来），却同时来自后台心跳与「授权页开着时的状态
-    #: 轮询」。而且额度是**按出口地址**算的，真实部署里多台设备共用同一个 NAT 出口时
-    #: 会叠加 —— 出问题时症状是「授权页卡住、日志里一片 429」，调大它即可，不必改代码。
+    #: 比 ``/v2/activate`` 的 60/小时宽得多：这些令牌猜不出来但流量常态，且额度按
+    #: **出口地址**算，NAT 下多设备会叠加 —— 出问题表现为「授权页卡住 + 429」，调大即可。
     license_session_ip_hourly_limit: int = 3600
 
     # 订单 / 设备
     order_ttl_seconds: int = DEFAULT_ORDER_TTL_SECONDS
     device_release_cooldown_seconds: int = DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS
-    #: 后台支付巡检间隔（秒）。0 表示关闭巡检。
-    #:
-    #: 巡检负责两件前端轮询覆盖不到的事：认领「用户付完就关页面」的单，
-    #: 以及关闭本地已过期、但支付宝那边仍开着（旧二维码还能付）的交易。
+    #: 后台支付巡检间隔（秒），0 = 关闭。巡检补前端轮询覆盖不到的两件事：
+    #: 认领「用户付完就关页面」的单；关闭本地已过期但支付宝仍开着（旧二维码
+    #: 还能付）的交易。
     payment_sweep_interval_seconds: int = 30
     #: 每轮巡检处理的订单上限，避免积压时一次性打爆渠道配额
     payment_sweep_batch: int = 25

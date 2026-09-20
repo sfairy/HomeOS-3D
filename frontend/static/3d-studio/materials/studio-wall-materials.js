@@ -70,10 +70,8 @@ export function createWallSideMaterial(
 }
 /**
  * 创建专用墙体材质（自定义 ShaderMaterial）。
- *
- * 相比通用 PBR 材质的注入方案，这里可以直接调用平面二期的表面光照函数
- * （plan2SurfaceLight / plan2Gain），让墙面与其他二期物件共用同一套光照口径，
- * 代价是必须自己接管法线、裁剪面与色彩空间等全部流程。
+ * 相比通用 PBR 的注入方案，这里可直接调用平面二期的表面光照函数
+ * （plan2SurfaceLight / plan2Gain），让墙面与其他二期物件共用同一套光照口径；代价是必须自己接管法线、裁剪面与色彩空间等全部流程。
  */
 function createDedicatedWallMaterial(three, wallParams, isWarmWood = false) {
   // 顶点侧只需要透传墙高与角距，法线在世界空间里算好传给片元；
@@ -124,10 +122,8 @@ function createDedicatedWallMaterial(three, wallParams, isWarmWood = false) {
 }
 /**
  * 为墙面几何写入 hbWallCornerDistance 属性（到墙角的两个方向距离）。
- *
- * 输入是墙体的平面闭合环（设计图坐标，米），函数把它们拆成边段后，
- * 为每个「竖直面」顶点找出最近的棱边，记下沿边距离与剩余距离，
- * 片元着色器据此在墙角附近压暗，让墙体的转折关系更清楚。
+ * 输入是墙体的平面闭合环（设计图坐标，米）：拆成边段后为每个「竖直面」顶点
+ * 找出最近的棱边，记下沿边距离与剩余距离，片元着色器据此在墙角附近压暗，让墙体的转折关系更清楚。
  */
 export function setWallCornerDistances(threeNamespace, geometry, loops) {
   // 先把所有环化成「带方向的边段」列表，后面逐顶点找最近边时直接线性遍历。
@@ -218,10 +214,8 @@ export function setWallCornerDistances(threeNamespace, geometry, loops) {
 }
 /**
  * 合并可批量处理的墙带网格。
- *
- * 「墙带」指门窗上下那两段墙体条带：它们数量多、形状规则，但每个都是独立网格。
- * 这里把材质与渲染状态完全一致的墙带合到一个网格里，只保留墙带自身那段几何
- * （多材质网格里 materialIndex 为 1 的 group），从而大幅减少绘制批次。
+ * 「墙带」指门窗上下那两段墙体条带：数量多、形状规则，但每个都是独立网格。
+ * 这里把材质与渲染状态完全一致的墙带合到一个网格里，只保留墙带自身那段几何（materialIndex 为 1 的 group），大幅减少绘制批次。
  */
 export function mergeWallBands(threeApi, bandRoot, mergeGeometries) {
   // 分组键是「材质与渲染状态」的完整签名：只有全都一致才能安全合并，
@@ -330,9 +324,8 @@ export function mergeWallBands(threeApi, bandRoot, mergeGeometries) {
 }
 /**
  * 为墙体几何写入 hbWallHeight 属性（归一化墙高）。
- *
- * 高度按「沿某根轴的线性映射」再除以墙高求出，结果夹在 0~1；
- * 轴为 z 时取 Z 分量，否则取 Y —— 因为不同来源的墙体几何其「向上」轴并不一致。
+ * 高度按「沿某根轴的线性映射」再除以墙高求出，结果夹在 0~1；轴为 z 时取 Z
+ * 分量，否则取 Y —— 不同来源的墙体几何其「向上」轴并不一致。
  */
 export function setWallGradientHeight(threeModule, meshGeometry, axis, offset, scale, heightSpan) {
   const wallPositionAttribute = meshGeometry.attributes.position;

@@ -28,12 +28,11 @@ def _id() -> str:
     return new_uuid()
 
 
-#: 本部署的默认邮箱：客服邮箱的默认值，同时也是后台「注册邮箱验证码」预填
-#: SMTP 账号 / 测试收件人 / 发件人的来源（见 ``mail_settings.SMTP_PRESETS``）。
+#: 本部署的默认邮箱：客服邮箱默认值，也是注册验证码预填 SMTP 账号 / 测试
+#: 收件人 / 发件人的来源（见 ``mail_settings.SMTP_PRESETS``）。
 #:
-#: 之所以放在模型层：它是**数据**的默认值（``store_settings.support_email``），
-#: 而 models 是 ``site_settings`` 与 ``mail_settings`` 共同的上游 —— 定义在
-#: 下游任何一边，另一边都得反向 import，迟早出现两份迟早漂移的字面量。
+#: 放在模型层：models 是 ``site_settings`` 与 ``mail_settings`` 共同的上游，
+#: 定义在下游任一边，另一边都得反向 import，迟早漂移出两份字面量。
 DEFAULT_SUPPORT_EMAIL = "156120718@qq.com"
 
 
@@ -61,10 +60,9 @@ class StoreSetting(Base):
     payment_provider: Mapped[str] = mapped_column(String(32), default="")
     payment_display_name: Mapped[str] = mapped_column(String(64), default="")
     payment_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    #: 留空表示跟随 STORE_ALIPAY_TRANSACTION_DESCRIPTION；刻意不给非空默认值：
-    #: 非空默认值会把环境变量永远盖住 —— 运营在 .env 里改了交易标题，界面上却还是
-    #: 旧标题，查半天也想不到是数据库里那行默认值在作祟。
-    #: 留空 == 跟随环境变量，与站点里其它配置保持同一口径。
+    #: 留空表示跟随 STORE_ALIPAY_TRANSACTION_DESCRIPTION。刻意不给非空默认值：
+    #: 那样会把环境变量永远盖住，运营在 .env 改了交易标题界面却还是旧的，还想不到
+    #: 是库里那行默认值作祟。
     payment_transaction_description: Mapped[str] = mapped_column(String(128), default="")
 
     # ---- 支付宝凭据（可选） ----
@@ -74,9 +72,8 @@ class StoreSetting(Base):
     #: 商户 uid，用来核验异步通知确实是推给本商户的
     alipay_seller_id: Mapped[str] = mapped_column(String(64), default="")
     #: 应用私钥。**明文入库**是刻意取舍：它与 STORE_ALIPAY_APP_PRIVATE_KEY_PATH
-    #: 指向的文件在同一台机器、同一层磁盘权限之下，安全性等价，换来的可运维性
-    #: 却是实打实的。接口层一律不回显（只报「是否已配置」），也不写日志。
-    #: 生产环境若要求密钥不落库，把这几列留空、继续用环境变量/文件即可。
+    #: 指向的文件同机同层磁盘权限，安全性等价，换来不用重启即可换密钥。接口层
+    #: 一律不回显（只报「是否已配置」）、不写日志；要求不落库就留空用环境变量。
     alipay_app_private_key: Mapped[str] = mapped_column(Text, default="")
     #: 支付宝公钥（验签用）。注意不是应用公钥，两者填反是最高频的配置错误。
     alipay_public_key: Mapped[str] = mapped_column(Text, default="")
@@ -98,12 +95,8 @@ class StoreSetting(Base):
     device_release_cooldown_seconds: Mapped[int] = mapped_column(Integer, default=28800)
 
     # ---- 注册邮箱验证码（可选） ----
-    #: 与支付宝凭据同一套口径：留空 / 0 表示「跟随 STORE_* 环境变量」，
-    #: 非空则站点配置优先。这样本地开发仍可用 .env 一把梭，而生产运营改 SMTP
-    #: 授权码、验证码有效期这类高频动作不必重启容器。
-    #:
-    #: 为什么整块搬进库：验证码邮件是注册动线上唯一的外部依赖，SMTP 授权码过期
-    #: / 被限流是常态，必须能在不重启商店进程的前提下更换。
+    #: 留空 / 0 = 跟随 STORE_* 环境变量，非空则站点配置优先 —— 验证码邮件是注册
+    #: 动线上唯一的外部依赖，SMTP 授权码过期/被限流是常态，必须能不重启店铺更换。
     mail_mode: Mapped[str] = mapped_column(String(16), default="")
     mail_from: Mapped[str] = mapped_column(String(255), default="")
     smtp_host: Mapped[str] = mapped_column(String(255), default="")
@@ -176,20 +169,18 @@ class EmailVerification(Base):
     email: Mapped[str] = mapped_column(String(255), index=True)
     purpose: Mapped[str] = mapped_column(String(32), default="register")
     code_hash: Mapped[str] = mapped_column(String(64))
-    #: 逐条随机盐（十六进制）。验证码只有 6 位（10⁶ 空间），不加盐时「同一个码」
-    #: 在任何行里都是同一个哈希：拿到库读权限的人可以一次算 10⁶ 个哈希、把**所有**
-    #: 近期验证码一次性还原出来。逐条加盐之后必须按行重算，且无法预计算。
-    #: 空串专指「本列引入之前写入的旧记录」，其哈希口径与当时一致（见 ``code_hash``）。
+    #: 逐条随机盐（十六进制）。验证码只有 6 位，不加盐时同一个码处处同哈希，
+    #: 拿到读权限即可预算 10⁶ 个哈希还原所有近期验证码；加盐后必须按行重算。
+    #: 空串专指本列引入前的旧记录，其哈希口径与当时一致（见 ``code_hash``）。
     code_salt: Mapped[str] = mapped_column(String(32), default="")
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
-    #: 投递结果。None 表示「本次没有真实发信」（log/echo 模式），
-    #: True 表示 SMTP 已收下，False 表示发信失败（已回退成日志模式）。
-    #: 必须落库：只回给前端就丢了，事后无法回答「用户说没收到，那封信到底
-    #: 发出去了吗」——只能翻日志，而日志有轮转。
+    #: 投递结果：None = 本次未真实发信（log/echo），True = SMTP 已收下，
+    #: False = 发信失败（已回退日志模式）。必须落库：只回前端就丢了，事后无法
+    #: 回答「用户说没收到，那封信到底发没发」——只能翻会轮转的日志。
     delivered: Mapped[bool | None] = mapped_column(Boolean)
     #: 实际生效的投递方式（smtp / log / echo），用于区分「真发了」和「只记了日志」
     delivery_mode: Mapped[str] = mapped_column(String(16), default="")
@@ -316,9 +307,8 @@ class CouponRedemption(Base):
     )
     discount_cents: Mapped[int] = mapped_column(Integer, default=0)
     #: 作废时间（软删除）。这张表既是 ``per_account_limit`` 的判定依据，也是
-    #: 「谁在什么时候用掉了哪个码、减了多少钱」的唯一凭证 —— 物理删除会把凭证本身
-    #: 删掉，审计里只剩一句「作废了某条记录」，连折扣额和账号都查不回来。
-    #: 非空表示这条记录已作废、不再占名额；记录本体留在原位供对账。
+    #: 「谁何时用掉哪个码、减了多少钱」的唯一凭证，物理删除会让审计查不回折扣额
+    #: 与账号。非空即已作废、不再占名额，本体留原位供对账。
     voided_at: Mapped[datetime | None] = mapped_column(DateTime)
     #: 作废人/来源。不写就无法回答「这个名额是谁放开的」。
     void_reason: Mapped[str] = mapped_column(String(255), default="")
@@ -329,10 +319,9 @@ class CouponRedemption(Base):
 class Order(Base):
     __tablename__ = "orders"
 
-    #: **每账号最多一笔待支付订单**，由数据库兜底。业务规则那段「先 SELECT 再 INSERT」在并发下
-    #: 会同时看到 ``pending`` 为空而生成两笔待付单，连带两次 ``reserve_stock`` / ``redeem_coupon``。
-    #: 用**部分**唯一索引是因为约束只该覆盖 ``status='pending'``：历史订单可以有很多，全量唯一索引
-    #: 会挡住老用户。``account_id`` 可为空（游客单），SQLite 唯一索引里 NULL 互不相等，游客单不受影响。
+    #: **每账号最多一笔待支付订单**，由数据库兜底：「先 SELECT 再 INSERT」在并发下
+    #: 会同时看到 ``pending`` 为空而开出两笔单。用**部分**唯一索引只覆盖
+    #: ``status='pending'``（历史订单允许多笔）；游客单 ``account_id`` 为 NULL 不受约束。
     __table_args__ = (
         Index(
             "uq_orders_pending_per_account",
@@ -340,17 +329,13 @@ class Order(Base):
             unique=True,
             sqlite_where=text("status = 'pending' AND account_id IS NOT NULL"),
         ),
-        #: 过期批扫要按 ``status='pending'`` 找行、按 ``expires_at`` 从最老的开始取
-        #: 前 N 条（``store/commerce/expiry.py`` 的 ``ORDER BY expires_at LIMIT n``）。
-        #: 有了它，这个 LIMIT 才是真的「取够就走」；只靠 ``status`` 的单列索引，
-    #: SQLite 得先把全部 pending 行读出来排序 —— 这条索引把「随历史变慢」
-    #: 变成「与要处理的那几行成正比」。
+        #: 过期批扫按 ``status='pending'`` + ``expires_at`` 取最老前 N 条
+        #: （``store/commerce/expiry.py`` 的 ``ORDER BY expires_at LIMIT n``）。有它
+        #: LIMIT 才是真「取够就走」，否则 SQLite 要读全部 pending 行排序。
         Index("ix_orders_status_expires", "status", "expires_at"),
-        #: 商品统计 ``WHERE status='fulfilled' GROUP BY product_id`` 的覆盖索引：
-        #: 索引里同时有过滤列与分组列，聚合就是一次索引内扫描，不必回表。
-        #: 不替换 ``product_id`` 的单列索引 —— 存量库上删索引不是 ``schema_guard``
-        #: 的职责（它只做 ``CREATE INDEX IF NOT EXISTS``），两边保留同一套索引，
-        #: 新库与老库的结构才一致。
+        #: 商品统计 ``WHERE status='fulfilled' GROUP BY product_id`` 的覆盖索引，
+        #: 过滤列与分组列都在索引里，聚合不必回表。不替换 ``product_id`` 单列索引：
+        #: 存量库上删索引不是 ``schema_guard``（只做 IF NOT EXISTS）的职责。
         Index("ix_orders_status_product", "status", "product_id"),
     )
 
@@ -378,13 +363,9 @@ class Order(Base):
         String(36), ForeignKey("licenses.id", ondelete="SET NULL")
     )
     license_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("licenses.id", ondelete="SET NULL"))
-    #: 升级 / 增量包履约**之前**那张目标授权的快照（JSON）。
-    #:
-    #: 这两种履约方式与「发一张新码」有一个本质区别：被改的是用户**原先买过、还在用**
-    #: 的授权，而 ``License.order_id`` 仍然指着最早那张订单，所以退款时按
-    #: ``License.order_id == order.id`` 找不到它 —— 结果是钱退了、永久授权还在手上。
-    #: 有了快照，退款可以把授权还原成升级前的样子（而不是把用户已付费的授权整张作废）。
-    #: 空串表示「这单没改过别人的授权」，此时退款仍走原来的「作废本单发出的授权」。
+    #: 升级 / 增量包履约**之前**那张目标授权的快照（JSON）。它改的是用户**原先
+    #: 买过还在用**的授权，而 ``License.order_id`` 仍指着最早那单，退款按
+    #: ``order_id == order.id`` 找不到；有快照才能还原而非整张作废。空串 = 没改过。
     license_state_before_json: Mapped[str] = mapped_column(Text, default="")
     original_amount_cents: Mapped[int] = mapped_column(Integer, default=0)
     discount_cents: Mapped[int] = mapped_column(Integer, default=0)
@@ -404,13 +385,9 @@ class Order(Base):
     #: 码也发了，但这件库存早已还给别人，属于刻意保留的例外，必须让运营看到。
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
     review_note: Mapped[str] = mapped_column(String(255), default="")
-    #: 这笔订单的「已支付」是**人拍的板**，不是渠道确认的钱。
-    #:
-    #: 后台上「标记支付 / 履约」会给一张还没收到钱的订单盖上 ``paid_at``；只要
-    #: 营收口径按 ``paid_at`` 汇总，点一下就凭空多出一笔营收 —— 而这一下恰恰是
-    #: 最常见的操作（客户催单、先放行）。置位后该订单仍照常发码，但**不计入营收**
-    #: KPI（见 ``store/api/admin.py:_billable_money_filter``），并在后台列表上标注，
-    #: 于是「为什么营收比订单少」有据可查，而不是一个沉默的偏差。
+    #: 这笔订单的「已支付」是**人拍的板**：后台「标记支付 / 履约」会给未收款订单
+    #: 盖上 ``paid_at``，按它汇总营收就凭空多出一笔。置位后仍照常发码但不计入
+    #: 营收 KPI（``store/api/admin.py:_billable_money_filter``），后台列表标注。
     manual_settlement: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     #: 这笔订单给邀请人发的奖励，单位**厘**（1 积分 = 100 厘），与钱包/流水同一口径。
     referral_reward_points_centi: Mapped[int] = mapped_column(
@@ -423,20 +400,13 @@ class Order(Base):
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime)
     refunded_at: Mapped[datetime | None] = mapped_column(DateTime)
     #: 渠道侧交易已关闭的时刻（``alipay.trade.close`` 成功或确认交易已不存在）。
-    #:
-    #: 本地订单过期/取消**不等于**渠道那笔预下单交易结束：不主动关单的话，
-    #: 用户手机上那个旧二维码还能扫、还能付款，钱进来时本地订单已是 expired，
-    #: 只能走「复活单 + 人工复核」兜底。这一列记录「已经关过了」，
-    #: 避免后台任务反复对同一笔订单调用关单接口。
+    #: 本地订单过期/取消**不等于**渠道那笔预下单结束：不主动关单，旧二维码仍能
+    #: 付款，钱进来时本地已 expired，只能走「复活单 + 人工复核」。此列兼防重复关单。
     channel_closed_at: Mapped[datetime | None] = mapped_column(DateTime)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime)
-    #: 这一单占用的库存**是否已经归还**（归还时刻）。空值 = 仍然占着。
-    #:
-    #: 「此刻还占不占预留」必须持久化：只由调用方看着 ``order.status`` 反推时，
-    #: 状态与预留的生命周期并不一致 —— 订单从 expired 复活成 paid 时预留早已释放，
-    #: 按状态反推会再释放一次，把**别人**的预留扣掉（放开超卖）；
-    #: ``recompute_reserved_stock`` 也会把复活单算成占用。
-    #: 现在「还占不占」只有一个事实来源，就是这一列。
+    #: 这一单占用的库存**是否已经归还**（归还时刻）。空值 = 仍然占着。必须持久化：
+    #: 只看 ``order.status`` 反推，expired 复活成 paid 时会再释放一次，扣掉**别人**
+    #: 的预留（放开超卖），``recompute_reserved_stock`` 也会误算；此列是唯一事实来源。
     stock_reservation_released_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     #: Order 与 License 互相持有外键，必须显式指定 join 条件并用 post_update 打破写入循环
@@ -514,11 +484,9 @@ class License(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
     __table_args__ = (
-        #: 商品统计里的「拥有客户数」是
-        #: ``WHERE active = 1 GROUP BY product_id`` 上的 ``COUNT(DISTINCT customer_id)``。
-    #: ``product_id`` 是外键却没有单列索引，只靠它的聚合就得全表扫；这个复合索引
-    #: 让过滤列与分组列都在索引里（回表只剩 ``customer_id``），按需收窄的
-        #: ``product_id IN (...)`` 也能直接定位。
+        #: 商品统计的「拥有客户数」是 ``WHERE active = 1 GROUP BY product_id`` 上的
+        #: ``COUNT(DISTINCT customer_id)``。``product_id`` 无单列索引，只靠它聚合要
+        #: 全表扫；复合索引让过滤列与分组列都进索引（回表只剩 ``customer_id``）。
         Index("ix_licenses_product_active", "product_id", "active"),
     )
 
@@ -670,10 +638,9 @@ class ReferralWallet(Base):
         String(36), ForeignKey("accounts.id", ondelete="CASCADE"), unique=True, index=True
     )
     code: Mapped[str] = mapped_column(String(16), unique=True, index=True)
-    #: 以下四个聚合值单位都是**厘**（1 积分 = 100 厘），整数存储。
-    #: 不能用 ``Float``：SQLite 是 half-away、Python 是 half-even，落在 .xx5 上时两边给出不同的分币值 ——
-    #: 提现的「比对冻结额是否被并发改过」会因此误报冲突，余额与流水之和也会差 1 厘。整数加减天然精确。
-    #: 列名带 ``_centi`` 是刻意的：漏改点会直接以 AttributeError 炸在测试里，而不是静默按旧单位算。
+    #: 以下聚合值单位都是**厘**（1 积分 = 100 厘），整数存储。不用 ``Float`` 是因为
+    #: SQLite half-away、Python half-even 在 .xx5 上分币值不同，会让提现的并发比对
+    #: 误报、余额与流水差 1 厘；列名带 ``_centi`` 则是让漏改点直接炸在测试里。
     balance_centi: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0"
     )

@@ -30,9 +30,8 @@ export const FEATURE_WALL_STYLES = Object.freeze([
 
 /**
  * 各饰面对应的材质参数：让同一种饰面在 3D 里除了贴图之外，粗糙度与金属度也各不相同。
- *
- * 只靠贴图无法体现材质差异（例如混凝土的漫反射与金属的高光），
- * 因此每种风格各配一组颜色 / 粗糙度 / 金属度。
+ * 只靠贴图无法体现材质差异（如混凝土的漫反射与金属的高光），因此每种风格各配一组
+ * 颜色 / 粗糙度 / 金属度。
  */
 export const FEATURE_WALL_STYLE_MATERIAL = Object.freeze({
   marble: { color: 0xf7f7f5, roughness: 0.34, metalness: 0.03 },
@@ -87,9 +86,8 @@ function shadeColor(hexColor, factor) {
 
 /**
  * 用二次曲线平滑地串起一串采样点并描边。
- *
- * 直接连线会得到明显的折线感；这里以相邻点的中点为锚、
- * 采样点本身为控制点做二次贝塞尔，让石纹与木纹看起来是自然生长的。
+ * 直接连线会得到明显的折线感；这里以相邻点的中点为锚、采样点本身为控制点做
+ * 二次贝塞尔，让石纹与木纹看起来是自然生长的。
  */
 function strokeSmoothPath(canvasCtx, points) {
   if (points.length < 2) {

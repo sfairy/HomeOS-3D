@@ -1497,10 +1497,9 @@
   cursor: default;
 }
 /* ===== 暖阳原木主题覆盖（sceneStyle = warm-wood） =====
- *
- * 宿主节点上的 data-scene-style 由 runtime.js 写入，这里把弹窗 / 扫地机详情 /
+ * 宿主节点的 data-scene-style 由 runtime.js 写入，这里把弹窗 / 扫地机详情 /
  * 实体详情这类运行时浮层换成与舞台同一套暖米色，保证 3D 控件与运行时弹窗
- * 在暖阳原木下看起来是同一套皮肤。取值与 0.5.6 暖色色卡逐字一致。
+ * 看起来是同一套皮肤。取值与 0.5.6 暖色色卡逐字一致。
  */
 .hb-interaction3d-runtime[data-scene-style="warm-wood"] :is(.i3d-popup-preview, dialog.i3d-vacuum-details) {
   color: #493f34;

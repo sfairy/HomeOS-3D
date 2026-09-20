@@ -120,9 +120,7 @@ export function createEnvironmentAirflow({
   }
   /**
    * 由模型包围盒推导出风口版式（位置、宽度、长度、下坠量）。
-   *
-   * 三种形态各有经验参数：airoutlet（风口）口长沿 Z、旋转 90°；
-   * floorac（柜机 / 落地机）风道窄而长、略向下坠；
+   * 三种形态各有经验参数：airoutlet（风口）口长沿 Z、旋转 90°；floorac（柜机）风道窄而长、略向下坠；
    * wallac（挂机）风道宽而短、下坠更多。
    */
   function resolveOutletLayout(model) {
@@ -182,7 +180,6 @@ export function createEnvironmentAirflow({
   }
   /**
    * 构建气幕几何：两层 25×7 的网格面片。
-   *
    * UV 的 y 方向表示「离出风口的距离」，着色器按它做衰减与噪声取样；
    * flowLayer 属性区分两层，用于错开纤维相位与透明度。
    */

@@ -71,10 +71,8 @@ function notifyViewReady(componentId, error) {
 }
 /**
  * 把挂载失败的原因压成一句能进占位文案的短句。
- *
- * 只认「Error 的非空 message」与「非空字符串」两种形状：抛出来的东西可能是任何值
- * （`throw {}`、`Promise.reject(undefined)`、事件对象…），`String(值)` 会把它变成
- * `[object Object]` 写进用户可见的文案里 —— 那比没有原因更糟。
+ * 只认「Error 的非空 message」与「非空字符串」两种形状：抛出来的东西可能是任何值（throw {}、Promise.reject(undefined)、
+ * 事件对象…），String(值) 会得到 [object Object] 写进用户可见文案 —— 那比没有原因更糟。
  */
 function interaction3dLoadFailureReason(loadError) {
   const rawReason =
@@ -92,10 +90,8 @@ function interaction3dLoadFailureReason(loadError) {
 }
 /**
  * 3D 运行时挂载失败时的兜底：说明原因、切回待授权态、通知等待者。
- *
- * 三件事缺一不可：**原因要出现在占位文案里**（动态 import 404 / 授权被撤 / 运行时抛栈在页面上
- * 长得一模一样，排查只能靠猜），**原始错误要进全局日志**（日志面板是唯一能事后取证的通道），
- * **编辑态的等待者要当场被拒**（否则编辑器只能干等到 25 秒超时，用户对着空控件等半分钟）。
+ * 三件事缺一不可：原因要出现在占位文案里（几种失败在页面上长得一样，排查只能靠猜）、原始错误要进全局日志
+ * （唯一能事后取证的通道）、编辑态等待者要当场被拒（否则编辑器干等 25 秒超时）。
  */
 function showInteraction3dLoadFailure(hostElement, component, context, loadError) {
   const loadFailureReason = interaction3dLoadFailureReason(loadError);
@@ -167,9 +163,7 @@ export function waitInteraction3dEditorView(pendingComponentId) {
 }
 /**
  * 让除当前组件外的其它 3D 组件退出模态编辑状态。
- *
- * 编辑器同一时刻只允许一个组件处于视图编辑 / 弹窗预览 / 范围编辑中，
- * 否则多个组件同时接管画布指针事件会互相干扰。
+ * 编辑器同一时刻只允许一个组件处于视图编辑 / 弹窗预览 / 范围编辑，否则多个组件同时接管画布指针事件会互相干扰。
  */
 export function cancelOtherInteraction3dViews(activeComponentId) {
   for (const [viewComponentId, otherView] of editorViewByComponentId) {

@@ -63,9 +63,7 @@ export function createBackgroundTheme(
     "blendDstAlpha"
   ];
   /**
-   * 该对象是否应当保持可见。
-   *
-   * 楼层背景隐藏逻辑（floorBackgroundHidden）会把远处楼层的地面藏起来，
+   * 该对象是否应当保持可见：楼层背景隐藏逻辑（floorBackgroundHidden）会藏起远处楼层地面，
    * 但被选为「兜底不透明层」的地面必须例外，否则整体透明度会不足。
    */
   const shouldRemainVisible = candidateObject =>

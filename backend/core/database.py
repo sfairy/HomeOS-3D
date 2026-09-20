@@ -67,11 +67,9 @@ class Database:
         self._check_sqlite_threadsafety()
         self.engine = create_engine(
             database_url,
-            # check_same_thread=False 关掉的是 sqlite3 **自己**的同线程检查：会话会被
-            # 换手到别的线程（见模块 docstring），这条检查无条件下会直接拒。写出来是因为
-            # 它表达了这个前提，并且**不依赖 URL 形态**（SQLAlchemy 只对文件库默认关掉它，
-            # 内存库默认仍是 True）—— 真正的前提由 _check_sqlite_threadsafety 在构造时
-            # 核过，那一层与驱动默认值无关。
+            # check_same_thread=False 关掉的是 sqlite3 **自己**的同线程检查：会话会被换手到别的线程
+            # （见模块 docstring），这条检查无条件下会直接拒。它**不依赖 URL 形态** —— SQLAlchemy 只对文件库
+            # 默认关掉、内存库默认仍是 True；真正的前提由 _check_sqlite_threadsafety 在构造时核过。
             connect_args={'check_same_thread': False, 'timeout': BUSY_TIMEOUT_SECONDS},
             pool_size=POOL_SIZE,
             max_overflow=MAX_OVERFLOW,

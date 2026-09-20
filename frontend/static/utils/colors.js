@@ -29,9 +29,8 @@ export function hexColorOrEmpty(colorInput) {
 
 /**
  * 严格归一：只认完整的 `#rrggbb`（大小写不限），输出小写；其余（含三位缩写）返回空串。
- *
- * 用在「判断用户输入到哪一步了」与「比较两个颜色是不是同一个」的地方：三位缩写在这里
- * 也算「不是一个完整的颜色」—— 比较结果要稳定，不可以因为同一颜色的两种写法而忽等忽不等。
+ * 用在「判断用户输入到哪一步」与「比较两个颜色是否同一个」：三位缩写也算不完整，比较结果要稳定，
+ * 不可因同一颜色的两种写法而忽等忽不等。
  */
 export function strictHexColorOrEmpty(hexColorInput) {
   const normalizedHexValue = String(hexColorInput || "")

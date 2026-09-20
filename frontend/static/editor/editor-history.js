@@ -136,8 +136,7 @@ export function editorDocumentFrameSignature(sourceDocument) {
 /**
  * 生成文档内容签名，用于判断保存 / 历史比较时内容是否真的变化。
  * 归一化：丢弃无类型或 type 为 "none" 的动作；data 为空删该键；非 navigate 动作删 target；
- * domain / service 属运行时推导字段一并删；对象键排序后再序列化，保证键序不同不产生假差异。
- * @returns {string} JSON 字符串签名。
+ * domain / service 属运行时推导字段一并删；对象键排序后再序列化，避免键序不同产生假差异。
  */
 export function documentSignature(document) {
   // 把动作对象压到最小等价形态，避免等价配置被判为不同。

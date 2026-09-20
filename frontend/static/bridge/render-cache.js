@@ -11,9 +11,8 @@
 export const RENDER_CACHE_VERSION = "i3d-light-delta-20260916-warm-refine-v6";
 /**
  * 生成「键序无关」的 JSON 文本。
- *
- * 对象的键顺序在 JSON.stringify 里是有意义的，若不排序，同一份逻辑内容因键序不同
- * 会算出不同的 key，缓存命中率会莫名其妙地掉下去。
+ * 对象的键顺序在 JSON.stringify 里有意义，不排序时同一份逻辑内容会因键序不同
+ * 算出不同的 key，缓存命中率会莫名下降。
  */
 export function stableCacheJSON(payload) {
   return JSON.stringify(payload, (key, rawValue) =>
@@ -28,10 +27,8 @@ export function stableCacheJSON(payload) {
 }
 /**
  * 同步实现的 SHA-256。
- *
- * 为什么不用 crypto.subtle.digest：它是异步的，而缓存 key 需要在一帧之内算出来，
- * 无法在同步的渲染路径里 await。因此这里自带一份纯 JS 实现（常量由前 64 个质数的
- * 立方根 / 平方根小数部分按 FIPS 180-4 生成，不要手工改动）。
+ * crypto.subtle.digest 是异步的，而缓存 key 必须在一帧内同步算出，无法 await，
+ * 故自带纯 JS 实现（常量由前 64 个质数的立方根 / 平方根小数部分按 FIPS 180-4 生成，勿改）。
  */
 export function sha256(text) {
   const messageBytes = new TextEncoder().encode(text);
@@ -109,10 +106,8 @@ export function sha256(text) {
 }
 /**
  * 生成用于计算基础 key 的场景描述。
- *
- * 这里做的是「剔除不影响画面的字段」：相机视图 / 剖切 / 面板宽度只影响编辑器的观察方式，
- * 灯光组的 enabled / name 以及灯具自身的亮度色温也不参与 —— 灯光是单独分层的，
- * 基础画面在灯光变化时必须保持同一个 key，否则每次调灯都要重新渲染整张底图。
+ * 剔除不影响画面的字段：相机视图 / 剖切 / 面板宽度只影响观察方式，灯光组 enabled / name
+ * 与灯具亮度色温也不参与（灯光单独分层）；基础画面在灯光变化时必须保持同一个 key。
  */
 export function cacheSceneDescriptor(floors) {
   // 按名单剔除字段：只保留「会影响基础画面像素」的部分，供上层组合出稳定 key。
@@ -149,11 +144,9 @@ export function cacheSceneDescriptor(floors) {
   }));
 }
 /**
- * 创建渲染缓存实例。
- * 三层：encodedBlobsByKey（PNG，LRU，最多 64 条且不超过 maxBytes）、decodedRecordsByKey
- * （ImageBitmap，引用计数 + maxDecodedFrames 帧，用 refs / retained 控制回收）、
- * inFlightReadsByKey（同一 key 的并发读取合并成一次请求）；另维护上传队列 pendingUploadsByKey。
- * @param {number} [options.timeoutMs] 单次请求超时，默认 1800ms。
+ * 创建渲染缓存实例：encodedBlobsByKey（PNG，LRU，≤64 条且不超 maxBytes）、decodedRecordsByKey
+ * （ImageBitmap，引用计数 + maxDecodedFrames 帧，refs / retained 控制回收）、
+ * inFlightReadsByKey（并发读取合并）三层，另维护上传队列 pendingUploadsByKey。
  */
 export function createRenderCache({
   sceneId: sceneId,
@@ -399,7 +392,6 @@ export function createRenderCache({
     },
     /**
      * 取一张已解码的位图，返回带引用计数的租约。
-     *
      * 命中内存时直接复用；未命中则合并并发读取，只发起一次下载 + 解码。
      * 调用方用完必须 close() 租约。
      */

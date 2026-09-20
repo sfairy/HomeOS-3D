@@ -138,9 +138,8 @@ export function presenceMotionEventConfig(
 }
 /**
  * 把任意状态映射成统一的人体感应展示结果。
- *
- * 判定顺序固定，且每一步都是「先返回」：手动覆盖 → 无状态 → 离线 → 未知态 → event 分支 →
- * 通用布尔态列表 → 数值兜底。顺序即优先级，改动会影响已有页面的显示。
+ * 判定顺序固定且每步「先返回」：手动覆盖 → 无状态 → 离线 → 未知态 → event 分支 → 通用布尔态列表 → 数值兜底，
+ * 顺序即优先级，改动会影响已有页面的显示。
  */
 export function presenceSensorPresentation(
   stateSource,
@@ -312,9 +311,8 @@ export function presenceSensorPresentation(
 }
 /**
  * 取状态最后一次变化的毫秒时间戳。
- *
- * 字段名在各数据来源之间不统一（HA 原生用 last_changed，本地缓存用 updatedAt / lastUpdated），
- * 因此逐个尝试；都不合法时返回 null，调用方据此放弃「已持续多久」的展示。
+ * 字段名各来源不统一（HA 原生 last_changed，本地缓存 updatedAt / lastUpdated），故逐个尝试；
+ * 都不合法返回 null，调用方据此放弃「已持续多久」的展示。
  */
 export function presenceStateTimestamp(stateRecord) {
   const resolvedState = resolveStateEntry(stateRecord) || {};
@@ -335,10 +333,8 @@ export function presenceStateTimestamp(stateRecord) {
 }
 /**
  * 计算各个动画应当使用的起始相位（以负延迟表达）。
- *
- * 原理：CSS 动画如果从头播放，每次重新渲染都会从 0 开始，看起来像是「人刚出现」。
- * 用负的 animation-delay 等于把动画快进到「按状态时间戳算，现在本该在的位置」，
- * 于是重渲染后依然是连续的画面。
+ * 原理：CSS 动画从头播放时每次重渲染都从 0 开始，看起来像「人刚出现」；用负 animation-delay 快进到
+ * 「按状态时间戳算、现在本该在的位置」，重渲染后仍是连续画面。
  */
 export function presenceAnimationPhase(stateInput, durations = {}, animationNowMs = Date.now()) {
   const stateTimestamp = presenceStateTimestamp(stateInput);
@@ -368,9 +364,8 @@ export function presenceAnimationPhase(stateInput, durations = {}, animationNowM
 }
 /**
  * 把时间戳格式化成「多久之前」的中文文案。
- *
- * 档位：不足 1 分钟 → 刚刚；不足 1 小时 → N 分钟；不足 1 天 → N 小时 [M 分钟]；
- * 再往上 → N 天 [M 小时]。有较小单位时一并带上，读数更直观。
+ * 档位：不足 1 分钟→刚刚；不足 1 小时→N 分钟；不足 1 天→N 小时 [M 分钟]；再往上→N 天 [M 小时]，
+ * 有较小单位时一并带上，读数更直观。
  */
 export function formatPresenceDuration(timestamp, referenceNowMs = Date.now()) {
   const timestampValue = Number(timestamp);
@@ -404,9 +399,8 @@ export function formatPresenceDuration(timestamp, referenceNowMs = Date.now()) {
 }
 /**
  * 把历史记录压成等宽的桶，得到一串用于绘制时间条的状态 key。
- *
- * 每个桶取「桶结束时刻之前最近一条记录」的状态，也就是该时段内的既成事实；
- * 完全没有历史时退化为取下一条记录（前向填充），保证桶不会莫名空着。
+ * 每个桶取「桶结束时刻之前最近一条记录」的状态，即该时段的既成事实；
+ * 全无历史时退化为取下一条记录（前向填充），保证桶不会莫名空着。
  */
 export function presenceHistoryBuckets(
   historyEntries = [],

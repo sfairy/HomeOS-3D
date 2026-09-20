@@ -133,10 +133,8 @@ export function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) 
   }
   /**
    * 计算朝向角。
-   *
-   * 不能直接用 HA 的 a 字段：标定变换可能包含旋转与缩放，角度会失真。
-   * 这里把「沿 a 方向前进 100 个地图单位」的点也做一次同样的变换，
-   * 用变换后的两点连线方向作为朝向。
+   * 不能直接用 HA 的 a 字段：标定变换可能含旋转与缩放，角度会失真。这里把
+   * 「沿 a 方向前进 100 个地图单位」的点也做同样变换，用变换后两点连线方向作朝向。
    */
   const headingAngle = headingSource => {
     if (!isFiniteNumber(headingSource?.a)) {
@@ -244,9 +242,8 @@ export function createVacuumMotion(sceneContext, requestRender) {
   };
   /**
    * 为扫地机模型创建「可移动主体」。
-   *
-   * 做法：把模型里贴地的部分（刷盘 / 机身）单独摘出来挂到一个 Group 上，
-   * 之后只移动这个 Group，模型里的充电桩等固定部件留在原地不动。
+   * 把模型里贴地的部分（刷盘 / 机身）单独摘出来挂到一个 Group 上，之后只移动
+   * 这个 Group，充电桩等固定部件留在原地不动。
    */
   function createMotionEntry(modelRoot, motionItem) {
     modelRoot.updateWorldMatrix(true, true);
@@ -332,9 +329,8 @@ export function createVacuumMotion(sceneContext, requestRender) {
   }
   /**
    * 确保拿到地图图片的像素尺寸（异步加载 + 缓存 + 失败退避）。
-   *
-   * 地图坐标换算必须知道图片的像素尺寸，而它只能等图片加载完才知道，
-   * 因此这里返回 null 表示「还在加载」，调用方下一轮再试。
+   * 地图坐标换算必须知道像素尺寸，而它只能等图片加载完才知道，因此返回 null
+   * 表示「还在加载」，调用方下一轮再试。
    */
   function ensureMapSize(sizeItem) {
     const mapEntityId = sizeItem.map?.entityId;

@@ -41,9 +41,8 @@ function applyPairingHash() {
         location.origin + location.pathname + location.search + rawHash
       );
       // 解析成功：把配对码填进输入框，再把焦点交给主操作按钮。
-      // 这里刻意不隐藏手输入口（label）：隐藏一个正处于聚焦状态的元素会让焦点
-      // 回到 body，键盘 / 读屏用户直接落到页面顶部；保留输入框则永远留着
-      // 「改一下再连」的退路，因此也不需要额外造一个「重新输入」按钮。
+      // 刻意不隐藏手输入口：隐藏聚焦中的元素会把焦点甩回 body，键盘 / 读屏用户直接落到页面顶部；
+      // 保留输入框还留着「改一下再连」的退路，不必另造「重新输入」按钮。
       ((codeInput.value = pairingLink.code),
         (titleElement.textContent = "连接 HomeOS"),
         (descriptionElement.textContent =
@@ -105,10 +104,8 @@ function applyPairingHash() {
       ((messageElement.textContent = submitError.message),
         (messageElement.hidden = !1));
     } finally {
-      // 成功、失败、超时三条路径都要把按钮放回来：以前只在 catch 里复位，而
-      // apiFetch 的超时/取消也会进 catch，但「成功跳转」与「异常穿透」两条路径
-      // 一旦漏掉，按钮就永久灰掉（用户只能刷新页面重来）。放在 finally 里，
-      // 以后无论加多少条 return 都不会漏。
+      // 成功、失败、超时、异常穿透四条路径都要把按钮放回来：以前只在 catch 里复位，
+      // 漏掉的路径会让按钮永久灰掉（用户只能刷新页面重来）；放在 finally 里永远不会漏。
       submitButton.disabled = !1;
     }
   }));

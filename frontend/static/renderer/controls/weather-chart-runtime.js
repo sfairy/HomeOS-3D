@@ -29,9 +29,8 @@ const WEATHER_VISUALS_BY_CONDITION = {
 };
 /**
  * 取天气图标名与文案。
- *
- * HA 的天气条件不含昼夜信息，sunny / partlycloudy 在太阳落山后必须换成夜间图标，
- * 否则晚上会显示大太阳。unknown / unavailable 用通用的异常图标，不把原始状态当文案上屏。
+ * HA 的天气条件不含昼夜信息，sunny / partlycloudy 日落后必须换夜间图标，否则晚上会
+ * 显示大太阳；unknown / unavailable 用通用异常图标，不把原始状态当文案上屏。
  */
 export function weatherVisual(condition, sunState = "") {
   let normalizedCondition = String(condition || "")
@@ -58,16 +57,14 @@ export function weatherVisual(condition, sunState = "") {
 }
 /**
  * 拼 meteocons 图标地址。
- *
- * 实现见 `utils/icon-url.js`（与 `mdiIconUrl` 同属「图标名 → vendor 地址」这一份知识，
- * 两者共用同一条白名单约束）；这里保留同名转出，页面脚本仍只 import registry 一处。
+ * 实现见 `utils/icon-url.js`（与 `mdiIconUrl` 同属「图标名 → vendor 地址」这份知识，
+ * 共用同一条白名单）；这里保留同名转出，页面脚本仍只 import registry 一处。
  */
 export { meteoconUrl } from "../../utils/icon-url.js?v=20260920131301";
 /**
  * 校验 CSS 颜色，不合法则用兜底值。
- *
- * 颜色会被写进内联样式，这里用白名单正则挡掉任意字符串，
- * 只放行十六进制与 rgb / hsl 系列函数写法。
+ * 颜色会被写进内联样式，这里用白名单正则只放行十六进制与 rgb / hsl 系列函数写法，
+ * 挡掉任意字符串。
  */
 function sanitizeCssColor(color, fallbackColor) {
   const trimmedColor = String(color || "").trim();
@@ -100,8 +97,7 @@ function sampleArrayAtRatio(values, ratio) {
 }
 /**
  * 归一化用户手填的阈值：丢掉非数值项、校验颜色、按值升序排列。
- *
- * 排序是必须的：后面的 thresholdColor 依赖「升序 + 取最后一个不超过当前值的档位」，
+ * 排序是必须的：thresholdColor 依赖「升序 + 取最后一个不超过当前值的档位」，
  * 顺序错了颜色就会错档。
  */
 export function normalizedThresholds(thresholds) {
@@ -191,10 +187,8 @@ export function thresholdColor(sortedThresholds, value) {
 }
 /**
  * 把点集转成平滑的三次贝塞尔路径。
- *
- * 控制点按 Catmull-Rom 转 Bézier 的经典做法取相邻点差的 1/6，
- * 首尾点用自身补齐（previousPoint / afterNextPoint），这样端点也能得到切线而不出现折角。
- * 坐标统一保留三位小数，避免路径字符串过长。
+ * 控制点按 Catmull-Rom 转 Bézier 的经典做法取相邻点差的 1/6，首尾点用自身补齐
+ * （previousPoint / afterNextPoint），端点也能得到切线而不出现折角；坐标保留三位小数。
  */
 export function smoothChartPath(points) {
   if (!points.length) {

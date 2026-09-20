@@ -116,10 +116,9 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
     if not isinstance(state, dict) or state.get('available') is False or state.get('state') in (None, '', 'unknown', 'unavailable'):
         raise HTTPException(status_code=409, detail='窗帘状态暂不可用，请等待设备重新连接。')
     attributes = state.get('attributes')
-    # 区分「真的还没载入」与「这个设备从不声明能力位」：
-    # 前者是瞬时状态（实体刚建立、属性还没到），值得让前端稍后重试；后者是永久条件，
-    # 再报 409 只会让前端无限重试。判据用 attributes 本身在不在 —— 状态里连属性都没有
-    # 时我们确实无从判断；有属性、只是缺 supported_features，就是设备不给这个字段。
+    # 区分「真的还没载入」（瞬时状态，值得让前端稍后重试）与「这个设备从不声明能力位」
+    # （永久条件，再报 409 只会让前端无限重试）。判据是 attributes 本身在不在：连属性都没有时
+    # 无从判断；有属性、只是缺 supported_features，就是设备不给这个字段。
     if not isinstance(attributes, dict):
         raise HTTPException(status_code=409, detail='窗帘能力尚未载入，请稍后重试。')
     features = attributes.get('supported_features')

@@ -55,9 +55,8 @@ export function vacuumMapIdentity(mapEntityEntry, vacuumEntityEntry) {
 }
 /**
  * 过滤出「当前应该渲染」的底图绑定：一条绑定记录「扫地机 + 地图实体 + 楼层 + 保存时的 sourceMapId」，
- * 设备可能换图或同一绑定被多楼层复用，故按实时状态二次判定：sourceMapId 为空时多楼层兄弟绑定
- * 只保留一条、单条保留；与当前地图身份一致则保留；不带前缀的旧格式用 map_id/current_map_id 比对
- * （单楼层设备且当前为 saved 地图时顺手升级为 "saved:<id>"）；其余一律丢弃。
+ * 设备换图或被多楼层复用，故按实时状态二次判定：sourceMapId 为空时多楼层兄弟只留一条、单条保留；
+ * 与当前地图身份一致则保留，旧格式用 map_id/current_map_id 比对（单楼层 saved 图升级为 "saved:<id>"）。
  */
 export function vacuumBindingsForMap(bindings, statesByEntityId) {
   return bindings.flatMap(binding => {
@@ -164,10 +163,8 @@ export function mapSource(entityId, cacheBustTimestamp = Date.now()) {
 }
 /**
  * 创建扫地机底图运行时。
- *
- * 调用方通过返回对象的 sync/tick/dispose 驱动：sync 声明「当前哪些底图该显示」，
- * tick 在每帧里推进淡入动画，dispose 在页面/舞台卸载时释放资源。
- * 内部自己按 revision 变化轮询拉图，不依赖外部定时器。
+ * 调用方用 sync/tick/dispose 驱动：sync 声明「当前哪些底图该显示」，tick 每帧推进淡入，
+ * dispose 在页面/舞台卸载时释放资源；内部按 revision 变化轮询拉图，不依赖外部定时器。
  */
 export function createVacuumMaps(sceneContext, requestRender) {
   const { THREE: THREE } = sceneContext;
@@ -186,10 +183,8 @@ export function createVacuumMaps(sceneContext, requestRender) {
   let nextRefreshAt = Infinity;
   /**
    * 构造底图的 revision 键：状态或图片资源任一处变化就换键。
-   *
-   * 键里放地图实体与扫地机自身的 state / last_updated、图片地址与更新时间、
-   * 以及机器人位置、充电座位置——这些字段一变，底图内容就可能变，需要重新拉图。
-   * 返回 JSON 字符串，调用方只做 === 比较，省掉逐字段 diff。
+   * 键里放地图实体与扫地机自身的 state / last_updated、图片地址与更新时间、机器人位置、
+   * 充电座位置——这些字段一变底图内容就可能变，需重新拉图；返回 JSON 供调用方只做 === 比较。
    */
   const buildRevisionKey = (keyItem, revisionStates) => {
     // 状态可能来自事件包裹或轮询快照，两种形态都兼容；缺实体时退化成空对象。
@@ -238,9 +233,8 @@ export function createVacuumMaps(sceneContext, requestRender) {
     globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
   /**
    * 作废一次尚未完成的图片加载。
-   *
-   * generation 计数器是关键：onload 回调里靠比对 generation 判断自己是否已被作废，
-   * 这样即使图片已经发出去也无法取消，回调也不会再把过期图片贴到网格上。
+   * generation 计数器是关键：onload 回调靠比对 generation 判断自己是否已被作废，
+   * 这样即使图片已发出无法取消，回调也不会再把过期图片贴到网格上。
    */
   const cancelImageLoad = loadingEntry => {
     // 先自增代数使在途回调失效，再拆掉事件、清空 src 促使浏览器放弃下载。
@@ -266,10 +260,8 @@ export function createVacuumMaps(sceneContext, requestRender) {
   };
   /**
    * 用地图四角把平面网格的四个顶点摆到楼层平面上的正确位置。
-   *
-   * 底图网格只有 4 个顶点（两个三角形），每次改位置/缩放/旋转都是直接改顶点，
-   * 而不是改 mesh 的 transform——因为楼层本身可能带变换，顶点法能直接吃 worldPoint
-   * 的换算结果，省去矩阵叠加。任一顶点换算失败（楼层未加载）就整体放弃本次摆放。
+   * 直接改顶点而不改 mesh transform：楼层本身可能带变换，顶点法能直接吃 worldPoint
+   * 的换算结果，省去矩阵叠加；任一顶点换算失败（楼层未加载）就整体放弃本次摆放。
    */
   function positionMesh(positionedEntry) {
     const worldCorners = mapCorners(positionedEntry.map).map(corner =>
@@ -304,9 +296,8 @@ export function createVacuumMaps(sceneContext, requestRender) {
   }
   /**
    * 立即为所有底图条目拉一次图（定时器回调）。
-   *
-   * 每条各自持有一个 generation：图片来源变化、条目被隐藏或运行时释放时，旧回调
-   * 会因 generation 不匹配而直接返回，不会把过期图片贴上去。
+   * 每条各持一个 generation：图片来源变化、条目被隐藏或运行时释放时，旧回调会因
+   * generation 不匹配而直接返回，不会把过期图片贴上去。
    */
   function loadVisibleMaps() {
     // 进入本函数就说明本次排期已消费，先把定时器状态清干净，再由末尾重新排期。
@@ -555,9 +546,8 @@ export function createVacuumMaps(sceneContext, requestRender) {
 }
 /**
  * 把扫地机实体状态整理成面板要用的展示信息。
- *
- * 纯函数、不产生副作用：给定绑定与实体状态快照，返回状态文案、电量文本、
- * 是否在线、以及是否处于运行态（舞台据此决定底图轮询周期）。
+ * 纯函数、无副作用：给定绑定与实体状态快照，返回状态文案、电量文本、是否在线，
+ * 以及是否处于运行态（舞台据此决定底图轮询周期）。
  */
 export function vacuumStatusPresentation(statusBinding, statusStates = {}) {
   // 实体状态可能是事件包裹（newState）或轮询快照（state 本身），统一成「状态对象或 null」。

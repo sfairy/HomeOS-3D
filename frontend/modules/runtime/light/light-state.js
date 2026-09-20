@@ -14,17 +14,14 @@
 import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
 /**
  * 判断是否为可用的数值型输入。
- *
- * null、空串、非数字字符串一律视为「缺失」，避免被 Number 转成 0 或 NaN
- * 后混进亮度 / 色温的计算里。
+ * null、空串、非数字字符串一律视为「缺失」，避免被 Number 转成 0 或 NaN 后混进亮度 / 色温计算。
  */
 const isNumericValue = candidateValue =>
   candidateValue != null && candidateValue !== "" && Number.isFinite(Number(candidateValue));
 /**
  * HA 的 color_mode 白名单。
- *
- * color_temp 单独判断（它走色温通道），其余都属于「彩光 / 纯亮度」通道；
- * 集合里的 onoff 表示只有开关、没有亮度，是判断「是否支持亮度」的重要反例。
+ * color_temp 单独判断（走色温通道），其余属「彩光 / 纯亮度」通道；onoff 表示只有开关没有亮度，
+ * 是判断「是否支持亮度」的重要反例。
  */
 const COLOR_MODE_SET = new Set([
   "hs",
@@ -102,10 +99,9 @@ export function lightState(entityId, entityState, fallbackState) {
   const rawBrightness = isNumericValue(attributes.brightness)
     ? Math.max(0, Math.min(255, Number(attributes.brightness)))
     : null;
-  // 亮度百分比：state 为 off 且亮度为 0 时说明「这是关机态的残留值」，
-  // 不能当作有效亮度，于是回退到历史值（历史值也为 0 或缺失则给 null）。
-  // 上限取 Math.max(1, …) 是刻意的：只要不是 0 就至少显示 1%，
-  // 否则 1/255 会被四舍五入成 0，用户会看到「开着但亮度为 0」。
+  // 亮度百分比：state 为 off 且亮度为 0 说明是关机残留值，不能当有效亮度，回退到历史值（也为 0 或缺则 null）。
+  // 下限取 Math.max(1, …) 是刻意的：只要不是 0 就至少显示 1%，否则 1/255 会被四舍五入成 0，
+  // 用户会看到「开着但亮度为 0」。
   const brightnessPercent =
     rawBrightness !== null && (stateObject.state !== "off" || rawBrightness !== 0)
       ? rawBrightness > 0
@@ -172,9 +168,8 @@ const LIGHT_ATTRIBUTE_VALIDATORS = {
 };
 /**
  * 从一次实体上报里抽出「值得写进历史」的属性补丁。
- *
- * 只记录本次上报中确实出现过的属性，并逐项通过 LIGHT_ATTRIBUTE_VALIDATORS 过滤，
- * 这样历史里不会混入 undefined 或越界值，也不会用「没上报」的信息覆盖已有记录。
+ * 只记录本次确实出现过的属性并逐项经 LIGHT_ATTRIBUTE_VALIDATORS 过滤，历史里不会混入 undefined 或越界值，
+ * 也不会用「没上报」的信息覆盖已有记录。
  */
 function computeAttributePatch(patchEntityId, patchEntityState) {
   const entityStateBody = resolveStateEntry(patchEntityState, {});
@@ -566,8 +561,6 @@ export function createLightStateCache({
 }
 /**
  * 构造灯光控制命令。
- *
- * @param {string} commandEntityId 实体 ID，必须是 light.* 或 switch.*。
  * @throws {Error} 实体非法 / 不可用、参数非数值，或设备不支持该调节。
  */
 export function lightCommand(commandEntityId, commandName, commandValue, capabilities) {
@@ -722,9 +715,8 @@ export function createLightPreview({ now: previewNow = () => performance.now() }
     },
     /**
      * 收到 HA 已受理的应答，缩短剩余存活时间。
-     *
-     * 应答只代表命令已被接收、状态未必立刻回传，因此不直接删除，
-     * 而是把超时压到 8 秒，失败了也能较快退回服务器状态。
+     * 应答只代表命令已被接收、状态未必立刻回传，因此不直接删除，而是把超时压到 8 秒，
+     * 失败了也能较快退回服务器状态。
      */
     acknowledge(acknowledgeEntityId, acknowledgeRevision) {
       const acknowledgedPreview = previewsByEntityId.get(acknowledgeEntityId);

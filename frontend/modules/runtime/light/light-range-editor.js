@@ -28,9 +28,8 @@ const toRegionKey = (areaIdPart, lightIdPart) =>
   JSON.stringify([String(areaIdPart), String(lightIdPart)]);
 /**
  * 按拖拽的手柄计算光区的新宽高（纯函数，便于单测）。
- *
- * 拖南北向手柄只改深度、拖东西向只改宽度；等比模式下取变化更大的那一轴作为缩放
- * 系数，并夹取到「宽深都不越界」的共同区间，最后统一保留两位小数。
+ * 拖南北向手柄只改深度、拖东西向只改宽度；等比模式取变化更大的那一轴作为缩放系数，
+ * 并夹取到「宽深都不越界」的共同区间，最后统一保留两位小数。
  */
 export function resizeRegionDimensions(
   sourceRegion,
@@ -72,10 +71,8 @@ export function resizeRegionDimensions(
 }
 /**
  * 生成离地高度的补丁，并保证下限不高于上限。
- *
- * 用户把下限调到上限之上时，直接把另一端一起改成同一个值（而不是拒绝输入），
- * 这样拖到边界时手感是「推着另一端走」。heightAbove / heightBelow 是旧的自动推算字段，
- * 这里显式置 undefined，由调用方负责删除，避免两套字段同时存在。
+ * 用户把下限调到上限之上时直接把另一端改成同一个值（而非拒绝输入），拖到边界时手感是「推着另一端走」；
+ * heightAbove / heightBelow 是旧的自动推算字段，这里显式置 undefined，由调用方删除，避免两套字段同时存在。
  */
 export function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
   const heightPatch = {
@@ -102,7 +99,6 @@ export function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
 }
 /**
  * 挂载照射范围编辑器浮层。
- *
  * 编辑器自己管一份覆盖集合，编辑时即时作用到场景，提交时通过 onChange 交回宿主；
  * 平面与 3D 预览两套相机状态各自保存，来回切换不会互相打断。
  */
@@ -356,8 +352,7 @@ export function mountRegionRangeEditor(
     editorHost.invalidateRegionLighting?.();
     wake();
   }
-  // 写入覆盖的核心：以场景实际光区值打底，叠加已有覆盖，再叠本次补丁；
-  // 勾了「同步本组范围」时同一份补丁会写到该组所有光区。
+  // 写入覆盖的核心：以场景实际光区值打底，叠加已有覆盖，再叠本次补丁（勾了「同步本组范围」时写到该组所有光区）；
   // 高度字段为 undefined 的一律删掉 —— 留着会参与序列化比较，导致脏标记误判。
   // shouldRefreshControls 用于需要立刻交回宿主的操作（例如重置）。
   function applyOverride(overridePatch, shouldRefreshControls = false) {
@@ -1600,9 +1595,8 @@ export function mountRegionRangeEditor(
 }
 /**
  * 增强编辑器表单控件：原生 select 包成自定义下拉、数字输入加步进按钮与键盘支持。
- *
- * 之所以自己做下拉：原生 select 的弹出层在弹窗里样式与层级都不可控。
- * 所有监听器都登记在册，dispose 时统一注销 —— 编辑器会被反复开关，漏一个就会累积。
+ * 自己做下拉是因为原生 select 的弹出层在弹窗里样式与层级都不可控；
+ * 所有监听器都登记在册，dispose 时统一注销 —— 编辑器反复开关，漏一个就会累积。
  */
 export function mountRangeFormControls(editorRootElement) {
   const formDocument = editorRootElement.ownerDocument;

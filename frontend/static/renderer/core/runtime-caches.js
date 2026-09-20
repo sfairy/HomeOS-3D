@@ -39,9 +39,8 @@ export function cacheHistorySeries(cache, entityId, series) {
 }
 /**
  * 历史请求的串行化协调器。
- *
- * 目的：同一时刻只允许一个历史请求在途，避免用户连续切页时打出一串并发请求；
- * 同时又不能把用户最后一次操作丢掉，所以待执行的请求只保留「最新那一个」。
+ * 同一时刻只允许一个历史请求在途，避免连续切页打出一串并发请求；又不能丢掉用户最后一次操作，
+ * 所以待执行的请求只保留「最新那一个」。
  */
 export class HistoryRefreshCoordinator {
   constructor() {
@@ -89,10 +88,8 @@ export class HistoryRefreshCoordinator {
 }
 /**
  * 画布静态图的有界解码缓存。
- *
- * 解决的问题：画布上大量 <img> 共用同一批图片，直接交给浏览器会在切页瞬间发起几十个请求，
- * 且解码后的位图没有任何上限。这里把「需要的图」收敛成集合，按并发上限与空闲延迟排队加载，
- * 并把已解码的 Image 对象按 LRU 保留（受保护的 prioritySources 不会被淘汰）。
+ * 画布上大量 <img> 共用同一批图片，直接交给浏览器会在切页瞬间发起几十个请求，且解码位图没有上限；这里把
+ * 「需要的图」收敛成集合，按并发上限与空闲延迟排队加载，已解码的 Image 按 LRU 保留（prioritySources 受保护）。
  */
 export class RuntimeStaticImageCache {
   /**
@@ -280,10 +277,9 @@ export class RuntimeStaticImageCache {
     let isSettled = false;
     let hasDecodeStarted = false;
     let timeoutHandle = null;
-    // 静态图加载的唯一收尾出口：load / error / decode 完成 / 超时 / 被取消 都汇到这里，
-    // 靠 isSettled 保证只跑一次；摘监听、清定时器、从在途表出队，成功且仍被需要时把
-    // Image 挪到 LRU 末尾并裁剪缓存，最后 drain() 把并发名额让给下一张。loaded=false
-    // 表示失败或超时，此时不认领结果，下次 setSources 需要它会重新入队。
+    // 静态图加载的唯一收尾出口：load / error / decode 完成 / 超时 / 被取消都汇到这里，靠 isSettled 保证只跑一次；
+    // 摘监听、清定时器、从在途表出队，成功且仍被需要时把 Image 挪到 LRU 末尾并裁剪缓存，最后 drain() 让出并发名额。
+    // loaded=false 表示失败或超时，此时不认领结果，下次 setSources 需要它会重新入队。
     const finishStaticLoad = loaded => {
         // 收尾动作：摘监听、从在途表移除，成功时把解码后的 Image 放到 LRU 末尾，最后再尝试排空。
       if (!isSettled) {
@@ -354,7 +350,6 @@ export class RuntimeStaticImageCache {
   }
   /**
    * 把已解码图片裁到上限。
-   *
    * 优先淘汰非优先图；若全都是优先图，则退回淘汰最久未用的一张，
    * 保证容量一定能回到上限内而不是死循环。
    */
@@ -501,9 +496,8 @@ export class RuntimeEffectImageLoader {
   }
   /**
    * 排空队列。
-   *
-   * 与静态图缓存不同，这里用 findIndex 逐项查找而不是取队首：
-   * 队首那张可能已经不可见或已被加载，必须跳过它继续往后找。
+   * 与静态图缓存不同，这里用 findIndex 逐项查找而不是取队首：队首那张可能已不可见或已被加载，
+   * 必须跳过它继续往后找。
    */
   drain(activeOnly = false) {
     if (!this.stopped) {
@@ -548,10 +542,9 @@ export class RuntimeEffectImageLoader {
     pendingImage.dataset.effectLoadingSource = pendingSource;
     let isEffectSettled = false;
     let effectTimeoutHandle = null;
-    // 特效图加载的唯一收尾出口：load / error / 超时 / 被取消都走这里（isEffectSettled
-    // 保证只执行一次）。与静态图的区别是它在收尾时会二次核对 dataset.effectPendingSource，
-    // 只认领「元素此刻仍想要这次地址」的结果，否则说明期间已切图，结果必须丢弃。
-    // inFlight 用计数器而非 activeLoads 的键数来记账，最后统一 drain()。
+    // 特效图加载的唯一收尾出口：load / error / 超时 / 被取消都走这里（isEffectSettled 保证只执行一次）。
+    // 与静态图的区别是收尾时会二次核对 dataset.effectPendingSource，只认领「元素此刻仍想要这次地址」的结果，
+    // 否则说明期间已切图，结果必须丢弃；inFlight 用计数器而非 activeLoads 的键数记账，最后统一 drain()。
     const finishEffectLoad = effectLoaded => {
         // 收尾：只有「元素当前想要的地址仍是本次这个」时才认领结果，
         // 否则说明期间已切到别的图，本次结果要丢弃。
@@ -819,10 +812,8 @@ export class RuntimeVacuumMapImagePreloader {
 }
 /**
  * 判断一个已发出的历史请求在返回时是否仍然有意义。
- *
  * 三层判定：文档代次必须一致（换了文档一律作废）；共享组件、或当前页路径一致即可；
- * 否则要求弹窗 ID 与弹窗代次都一致——弹窗关掉再打开同一个弹窗时 popupGeneration 会变，
- * 旧请求的结果不会污染新弹窗。
+ * 否则要求弹窗 ID 与弹窗代次都一致——弹窗关掉再打开同一个时 popupGeneration 会变，旧结果不会污染新弹窗。
  */
 export function historyRequestStillRelevant(requestContext, currentContext) {
   if (requestContext.documentGeneration !== currentContext.documentGeneration) {

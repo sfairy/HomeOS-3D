@@ -46,10 +46,8 @@ export function planFurniture(plan = {}) {
 }
 /**
  * 打开「底图对齐」弹窗。
- *
- * 弹窗内部维护一份 draftState.map 草稿：拖动、滚轮、输入框改的都是草稿，
- * 只有点「保存」才通过 onSave 交给面板（面板再写回配置并落库），
- * 因此「关闭」按钮天然等于放弃本次修改。
+ * 内部维护一份 draftState.map 草稿：拖动、滚轮、输入框改的都是草稿，只有点「保存」才通过 onSave 交给面板
+ * （面板再写回配置并落库），因此「关闭」按钮天然等于放弃本次修改。
  */
 export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: saveHandler }) {
   const documentRef = window.document;
@@ -202,9 +200,8 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   };
   /**
    * 按比例缩放底图（改草稿里的 width/depth，不是视图）。
-   *
-   * 缩放系数按「最小边不小于 0.01、最大边不超过 1e6 个单位」夹取：
-   * 既避免缩到 0 之后出现除零，也避免数值过大后浮点精度失控。
+   * 缩放系数按「最小边不小于 0.01、最大边不超过 1e6 个单位」夹取：既避免缩到 0 后除零，
+   * 也避免数值过大后浮点精度失控。
    */
   const scaleMap = scaleFactor => {
     const draftMap = draftState.map;
@@ -442,10 +439,8 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   sidebarElement.append(hintElement);
   /**
    * 在侧栏创建一个数字输入框，并与草稿对象的某个键双向绑定。
-   *
-   * 输入非法或为空时回填旧值（绝不把 NaN 写进草稿）；合法值会先夹在
-   * [minValue, maxValue] 之间再落盘并回显。step 只记录在 dataset 上供外部增减按钮读取，
-   * 输入框本身用 step="any"，否则浏览器会按整数取整，旋转角这类小数步进就输不进去。
+   * 输入非法或为空时回填旧值（绝不把 NaN 写进草稿）；合法值先夹在 [minValue, maxValue] 再落盘回显。
+   * step 只记录在 dataset 上供外部增减按钮读取，输入框本身用 step="any"，否则小数步进会被取整。
    */
   const createNumberField = (
     labelText,
@@ -654,9 +649,8 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   }
   /**
    * 把指针事件的屏幕坐标换算成 SVG 用户坐标（即平面米）。
-   *
-   * 用 getScreenCTM().inverse() 反变换，自动吃掉 viewBox 平移缩放与元素自身的旋转，
-   * 所以调用方拿到的点可以直接参与地图几何运算。
+   * 用 getScreenCTM().inverse() 反变换，自动吃掉 viewBox 平移缩放与元素自身旋转，
+   * 调用方拿到的点可直接参与地图几何运算。
    */
   const toSvgPoint = pointerEvent => {
     const svgPoint = svgElement.createSVGPoint();

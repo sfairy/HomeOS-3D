@@ -22,10 +22,9 @@ from fastapi import APIRouter, Request, Response
 from ..core.dependencies import CurrentUser
 
 router = APIRouter()
-# 内置的发布端点与说明页地址：这是**厂商运营**的地址。更新检查默认关闭（见
-# settings.update_checks_enabled），只有显式打开才会用到它们；自托管部署想自己
-# 掌控这条外发请求，用 APP_UPDATE_ENDPOINTS / APP_UPDATE_WIKI_URL 指向自建节点。
-# 两个候选端点按顺序尝试：第一个不通就试第二个，都失败则本轮放弃。
+# 内置发布端点与说明页地址：这是**厂商运营**的地址，仅在显式打开 settings.update_checks_enabled 时使用；
+# 自托管想自己掌控这条外发请求，用 APP_UPDATE_ENDPOINTS / APP_UPDATE_WIKI_URL 指向自建节点。
+# 两个候选端点按顺序尝试，都失败则本轮放弃。
 RELEASE_ENDPOINTS = (
     "https://pay.habridge.cn/store/v1/updates/latest",
     "https://pay2.habridge.cn/store/v1/updates/latest",

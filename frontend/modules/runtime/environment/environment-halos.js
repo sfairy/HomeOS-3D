@@ -20,9 +20,8 @@ export function outlineHull(hullInput) {
     (secondPoint[1] - originPoint[1]) * (thirdPoint[0] - originPoint[0]);
   /**
    * 走一条链（下半边或上半边）。
-   *
-   * 条件是 cross <= 0 就弹出：等于 0 也要弹，这样共线的中间点会被丢掉，
-   * 最终轮廓只保留真正的拐角（描边更短、也不会有毛刺）。
+   * cross <= 0 就弹出：等于 0 也要弹，这样共线的中间点被丢掉，最终轮廓
+   * 只保留真正的拐角（描边更短、也不会有毛刺）。
    */
   const buildHullSide = sortedInput => {
     const stack = [];
@@ -276,9 +275,8 @@ export function createScreenOutlines({
   }
   /**
    * 取一个模型真正需要描边的根节点。
-   *
-   * 窗帘要按「帘布」逐个描边（帘布会移动、收拢），
-   * 扫地机要同时描机身与移动组（机身随位姿移动）。
+   * 窗帘要按「帘布」逐个描边（帘布会移动、收拢），扫地机要同时描
+   * 机身与移动组（机身随位姿移动）。
    */
   function collectOutlineRoots(sceneModelRoot) {
     if (sceneModelRoot.userData.environmentModelType === "curtain") {

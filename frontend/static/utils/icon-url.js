@@ -25,9 +25,8 @@ export function mdiIconUrl(iconName) {
 
 /**
  * meteocons 图标名 → 本地 SVG 地址。
- *
- * 图标名来自后端下发，理论上可信，但仍做一次白名单校验（只允许小写字母、数字与连字符），
- * 避免异常数据拼出跨目录路径；不合法时统一回落到 code-red。
+ * 名称来自后端，但仍做白名单校验（只允许小写字母、数字与连字符）避免拼出跨目录路径；
+ * 不合法时统一回落到 code-red。
  */
 export function meteoconUrl(iconName) {
   const normalizedIconName = String(iconName || "").trim();

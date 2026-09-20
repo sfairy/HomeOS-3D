@@ -276,10 +276,9 @@ def validate_config(properties: dict) -> None:
             fail()
         # 闭合路径必须存在非共线的三点（用叉积判断），否则退化成线段，无法形成可绕行的环路。
         a = route[0]
-        # 相邻三点：`pairwise(route[1:])` 就是「错位相邻对」的正写。不写成
-        # `zip(route[1:], route[2:])` —— 那两个切片长度本来就差 1，那样的 zip 只能靠
-        # 默认的「按短的截断」才跑得起来，而那个默认语义正是 B905 要拦的（想显式表达
-        # 就只有 strict=False，等于把「这里长度不等是故意的」写成一句噪声）。
+        # 相邻三点用 `pairwise(route[1:])`，而不是 `zip(route[1:], route[2:])`：
+        # 那两个切片长度本就差 1，那样的 zip 只能靠默认的「按短截断」才跑得起来，
+        # 而这正是 B905 要拦的语义（写 strict=False 等于把「长度不等是故意的」变成噪声）。
         if not any(abs((b['x'] - a['x']) * (c['y'] - a['y']) - (b['y'] - a['y']) * (c['x'] - a['x'])) > 1e-06 for b, c in itertools.pairwise(route[1:])):
             fail()
     if 'uniformOverviewStack' in properties and not isinstance(properties['uniformOverviewStack'], bool):

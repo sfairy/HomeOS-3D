@@ -17,8 +17,7 @@ const pageBehaviorModuleUrl = new URL(
 export const { resolvePageBehavior } = await import(pageBehaviorModuleUrl.href);
 /**
  * 创建「空闲自动旋转」控制器。
- *
- * 状态机：waiting（等待空闲）→ returning（先把相机拉回基准位）→ rotating（缓慢自转）。
+ * 状态机：waiting（等待空闲）→ returning（先把相机拉回基准位）→ rotating（缓慢自转）；
  * 任何活动都会立刻回到 waiting，并中止正在进行的旋转。
  */
 export function createIdleRotation({

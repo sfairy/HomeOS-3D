@@ -72,8 +72,7 @@ const APPEARANCE_GROUPS = [
 ];
 /**
  * 打开 3D 控件配置编辑器。
- *
- * 流程：先取编辑授权 → 建弹窗骨架 → 挂预览舞台运行时 → 等舞台 ready 后渲染面板。
+ * 流程：先取编辑授权 → 建弹窗骨架 → 挂预览舞台运行时 → 等舞台 ready 后渲染面板；
  * 弹窗以 dialog.showModal() 打开，关闭时整体释放（含舞台 iframe）。
  */
 export async function openInteraction3dEditor({
@@ -3619,7 +3618,6 @@ export async function openInteraction3dEditor({
 }
 /**
  * 打开「整体外观」编辑器（曝光 / 主光 / 补光与阴影等 baseLighting 参数）。
- *
  * 与配置编辑器的区别：它改的是整份户型文档层面的光照，保存回调收到的也是
  * baseLighting 草稿；复用同一套授权门禁与脏标记口径。
  */

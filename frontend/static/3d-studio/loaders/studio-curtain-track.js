@@ -36,9 +36,8 @@ export function normalizeCurtainTrack(inputOptions = {}) {
 
 /**
  * 计算窗帘轨道的平面占用进深（米，沿 z 方向）。
- *
- * L / U 型轨道的回折段垂直于墙面伸出，所以进深要把最长的那段回折算进去，
- * 否则物件包围盒会偏小，导致贴墙摆放时穿过家具。
+ * L / U 型轨道的回折段垂直于墙面伸出，进深要把最长的那段回折算进去，
+ * 否则物件包围盒偏小，贴墙摆放时会穿过家具。
  */
 export function curtainFootprintDepth(trackConfig) {
   const trackModel = normalizeCurtainTrack(trackConfig);
@@ -59,9 +58,8 @@ export function curtainFootprintDepth(trackConfig) {
 
 /**
  * 创建一条窗帘轨道的平面参数（折线顶点 + 弧长采样器）。
- *
- * 顶点顺序即沿轨道的行走方向：先左回折（若有）、再主轨、最后右回折（若有）；
- * 拐角处用四分之一圆弧倒角过渡，帘布经过拐角时才不会突然折出一个直角。
+ * 顶点顺序即行走方向：先左回折（若有）、再主轨、最后右回折（若有）；拐角处用
+ * 四分之一圆弧倒角过渡，帘布经过拐角时才不会突然折出直角。
  */
 export function createCurtainTrack(options = {}) {
   const normalizedTrack = normalizeCurtainTrack(options);
@@ -239,9 +237,8 @@ export function curtainPanelRanges(panelTrack, previewPercent = 0, position = "s
 
 /**
  * 创建一片帘布的几何体。
- *
- * 用 1×1 的平面细分出足够多的横向分段（每褶 8 段），供 poseTrackCloth 逐顶点摆出褶皱；
- * 顶点用量固定申请为动态更新，因为每次改开合 / 搭接都要重写整片顶点。
+ * 用 1×1 平面细分出足够多的横向分段（每褶 8 段）供 poseTrackCloth 逐顶点摆褶皱；
+ * 顶点用量固定申请为动态更新，因为改开合 / 搭接都要重写整片顶点。
  */
 export function createTrackClothGeometry(THREE, clothTrack, clothHeight, fabric = "cloth") {
   // 褶皱数按轨道长度除以褶间距得出：纱帘 0.1 米一褶（更密），布帘 0.15 米；夹在 4~160 褶。
@@ -414,9 +411,8 @@ export function addTrackCurtain(three, rigRoot, curtainOptions, colorOverrides =
 
 /**
  * 创建梦幻帘（垂直叶片条带）的几何体。
- *
- * 用一块非索引缓冲承载所有叶片：每片 4 个顶点（上下 × 左右），
- * 索引固定为两个三角形，顶点数据全部由 poseDreamBlades 填。
+ * 用一块非索引缓冲承载所有叶片：每片 4 个顶点（上下 × 左右）、索引固定为两个
+ * 三角形，顶点数据全部由 poseDreamBlades 填。
  */
 export function createDreamBladeGeometry(threeLib, bladeTrack, bladeHeight) {
   // 叶片间距约 12 厘米，夹在 4~160 片之间。

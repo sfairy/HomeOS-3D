@@ -21,10 +21,8 @@ import { entityDomainFromId } from "../../utils/entities.js?v=20260920131301";
 const EMPTY_ENTITY_STATE = { state: "", attributes: {} };
 /**
  * 解析控件「开关」语义真正落在哪个实体上。
- *
- * 绝大多数控件就是自己的绑定实体；唯一的例外是浴霸（bath-heater）：
- * 当它没有独立空调控件时，用户看到的开关状态实际由 deviceProfile.roles.light 指定的
- * 照明实体承载，此时必须把命令与状态都改派到那个实体，否则界面与设备会不一致。
+ * 绝大多数控件就是自己的绑定实体，唯一例外是浴霸（bath-heater）：没有独立空调控件时，用户看到的开关状态
+ * 实际由 deviceProfile.roles.light 指定的照明实体承载，此时命令与状态都要改派过去，否则界面与设备不一致。
  */
 export function entityPowerTarget(runtimeEntityId, component = {}, deviceProfile = null) {
   if (
@@ -65,9 +63,8 @@ export function entityPowerIsOn(entityId, stateInput, ownerComponent = {}) {
   }
 }
 /**
- * 构造「切换开关」要调用的 HA 服务。
- * button 用 button.press，script 用 script.turn_on，media_player 用 media_play_pause；
- * climate / fan / water_heater 必须交给 climatePowerCommand 并显式传入取反后的目标状态；
+ * 构造「切换开关」要调用的 HA 服务：button 用 button.press、script 用 script.turn_on、
+ * media_player 用 media_play_pause；climate / fan / water_heater 必须交给 climatePowerCommand 并显式传入取反后的目标状态；
  * 其余域统一走 homeassistant.toggle。
  */
 export function entityToggleCommand(targetEntityId, stateSource, toggleComponent = {}) {

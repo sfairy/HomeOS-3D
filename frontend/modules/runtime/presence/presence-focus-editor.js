@@ -55,7 +55,6 @@ export function openPresenceFocusEditor({
   viewElement.append(aspectBoxElement);
   /**
    * 把预览容器调整到户型应有的长宽比。
-   *
    * 尺寸不是固定值：面板文档里可能写了画布比例，也可能随窗口变化，
    * 所以每次都由 interaction3dPreviewSize 现算，而不是缓存。
    */
@@ -96,9 +95,8 @@ export function openPresenceFocusEditor({
   };
   /**
    * 关闭弹窗并释放预览运行时。
-   *
-   * 用 isClosed 做幂等：cancel 事件、保存成功后、异常路径都可能触发，重复执行会
-   * 让 editorRuntime 二次销毁并抛错。
+   * 用 isClosed 做幂等：cancel 事件、保存成功后、异常路径都可能触发，
+   * 重复执行会让 editorRuntime 二次销毁并抛错。
    */
   const closeEditor = () => {
     if (!isClosed) {

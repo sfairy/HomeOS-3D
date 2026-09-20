@@ -9,10 +9,8 @@
 
 /**
  * 计算出风层偏移量的可调上下界（百分比单位）。
- *
- * 界值取「把控件中心推到画布边缘时的比例」再与 ±500 取外扩较大者：
- * 下限用 Math.min、上限用 Math.max，保证无论控件在画布哪个角落，
- * 滑块都有 ±500% 的可调空间，不会因为控件居中就把范围压成 0。
+ * 界值取「控件中心推到画布边缘时的比例」与 ±500 中更外扩者（下限 Math.min、上限 Math.max），
+ * 这样控件在任何角落都有 ±500% 可调空间，居中时也不会被压成 0。
  */
 export function airflowCanvasOffsetBounds(component, canvasSize) {
   const position = component?.position || {};
@@ -32,9 +30,8 @@ export function airflowCanvasOffsetBounds(component, canvasSize) {
 }
 /**
  * 计算出风图层的定位盒。
- * 分组内外口径刻意不同：未分组时 left / top 是画布绝对坐标；分组内时是相对组内原点的坐标，
- * 且先按组旋转把偏移转到组的本地坐标系、再除以组缩放以抵消父层 transform，rotation 只留自身角度，
- * scale 为自身缩放除以组缩放，保证视觉大小与未分组一致。
+ * 分组内外口径刻意不同：未分组时 left / top 是画布绝对坐标；分组内时是相对组内原点，并先按组
+ * 旋转把偏移转到本地坐标系、再除以组缩放抵消父层 transform，rotation 只留自身角度、scale 除以组缩放。
  */
 export function airflowLayerGeometry(sourceComponent, { grouped: isGrouped = false } = {}) {
   const componentPosition = sourceComponent?.position || {};
@@ -96,9 +93,8 @@ export function airflowLayerGeometry(sourceComponent, { grouped: isGrouped = fal
 }
 /**
  * 围绕枢轴点旋转一组控件的变换。
- *
- * 做法：先把各控件中心平移到以枢轴为原点的相对坐标，
- * 乘上旋转矩阵后再平移回去，最后按控件自身宽高还原成左上角坐标。
+ * 先把各控件中心平移到以枢轴为原点的相对坐标，乘旋转矩阵后再平移回去，
+ * 最后按控件自身宽高还原成左上角坐标。
  */
 export function rotateMultiSelectionTransforms(transforms, pivotX, pivotY, pivotRotationDegrees) {
   // 本次旋转增量由角度制换算成弧度，只算一次供下面所有控件复用。
@@ -120,10 +116,9 @@ export function rotateMultiSelectionTransforms(transforms, pivotX, pivotY, pivot
   });
 }
 /**
- * 把画布方向的位移换算成分组本地坐标系下的位移。
- *
- * 分组带有旋转与缩放时，鼠标在屏幕上的位移并不等于控件在组内的位移，
- * 这里用逆旋转（非对角项改号）+ 除以缩放还原，拖拽才能贴着指针走。
+ * 把画布方向的位移换算成分组本地坐标系的位移。
+ * 分组带旋转缩放时鼠标位移不等于控件在组内位移，这里用逆旋转（非对角项改号）
+ * 加除以缩放还原，拖拽才能贴着指针走。
  */
 export function groupedComponentLocalDelta(
   deltaX,

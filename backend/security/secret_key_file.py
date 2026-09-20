@@ -90,10 +90,9 @@ def _read_or_create_secret_key(
             f'无法准备密钥目录 {path.parent}：{error.strerror or error}'
         ) from error
     try:
-        # 已存在的目录不会因为上面的 mode 参数改权限（挂载卷很常见），所以再收紧一次。
-        # 这一步是**尽力而为**：目录属于我们时永远成功（默认数据目录、容器里
-        # chown 给运行账号的 /run/secrets）；运维自己给的只读挂载不归我们管，
-        # 不该因为收紧不了就整个服务起不来 —— 密钥文件本身的 0600 才是主防线。
+        # 已存在的目录不会因为上面的 mode 参数改权限（挂载卷很常见），所以再收紧一次。这一步**尽力而为**：
+        # 目录属于我们时永远成功（默认数据目录、容器里 chown 给运行账号的 /run/secrets）；运维自己给的只读挂载
+        # 不归我们管，不该因为收紧不了就整个服务起不来 —— 密钥文件本身的 0600 才是主防线。
         os.chmod(path.parent, 0o700)
     except OSError:
         pass

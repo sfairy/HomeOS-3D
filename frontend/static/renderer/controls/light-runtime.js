@@ -60,9 +60,8 @@ export function lightVisualValueForCapability(
 const COLOR_CAPABLE_MODES_SET = new Set(["hs", "rgb", "rgbw", "rgbww", "xy"]);
 /**
  * 归一化 supported_color_modes：统一小写去空格并丢掉空项。
- *
- * 老固件不下发 supported_color_modes，只会给 hs_color / rgb_color，
- * 这时补一个 "hs" 作为等价声明，避免把能调色的灯误判成只能调亮度。
+ * 老固件不下发 supported_color_modes，只会给 hs_color / rgb_color，这时补一个 "hs"
+ * 作为等价声明，避免把能调色的灯误判成只能调亮度。
  */
 function resolveSupportedColorModes(attributes = {}) {
   const normalizedColorModes = Array.isArray(attributes?.supported_color_modes)
@@ -92,9 +91,8 @@ export function lightSupportsColor(entityAttributes = {}) {
 }
 /**
  * 探测灯在实时状态下的可调能力。
- * 三个依据取并集（任一成立即支持），兼容新旧 HA：supported_color_modes 声明、属性里的数值字段、
- * 旧 supported_features 位掩码（第 1 位亮度、第 2 位色温，位判断用 & 1 === 1）。
- * 非 light 域一律全 false，因为温度单位与属性名并不通用。
+ * 三个依据取并集（任一成立即支持）：supported_color_modes 声明、属性里的数值字段、
+ * 旧 supported_features 位掩码（第 1 位亮度、第 2 位色温）；非 light 域一律全 false。
  */
 export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
   const stateObject = resolveStateEntry(entityState, {});
@@ -132,9 +130,8 @@ export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
 }
 /**
  * RGB 转 HS。
- *
- * 返回 HS 而不是直接操作界面，是因为拾色盘的色相环用的就是 HS，
- * 而 HA 服务也接受 hs_color，链路中间不需要再转一次。
+ * 返回 HS 是因为拾色盘的色相环用的就是 HS，HA 服务也接受 hs_color，
+ * 链路中间不需要再转一次。
  */
 export function rgbToHsColor(rgbColor) {
   if (!Array.isArray(rgbColor) || rgbColor.length < 3) {
@@ -166,9 +163,8 @@ export function rgbToHsColor(rgbColor) {
 }
 /**
  * HS 转 RGB。
- *
  * 亮度固定按 100% 计算：HA 的亮度是独立字段，颜色只需要表达色相与饱和度，
- * 若把亮度也揉进来，界面在灯处于低亮时拾色盘会整片发暗。
+ * 若把亮度也揉进来，灯处于低亮时拾色盘会整片发暗。
  */
 export function hsToRgbColor(hsColor) {
   if (!Array.isArray(hsColor) || hsColor.length < 2) {
@@ -201,10 +197,8 @@ export function hsToRgbColor(hsColor) {
 }
 /**
  * 拾色盘点击坐标 → HS。
- *
- * 坐标约定：入参是相对拾色盘外接正方形的归一化坐标（0~1，左上为原点）。
- * 0.36 是色相环半径相对正方形的比例，用来把方形内的点折算成半径比例；
- * 角度上先算 atan2（0° 在正右方，逆时针为正），再整体 +90° 对齐色相环的绘制起点。
+ * 入参是相对拾色盘外接正方形的归一化坐标（0~1，左上为原点）；0.36 是色相环半径
+ * 相对正方形的比例，角度先算 atan2（0° 在正右方，逆时针为正）再 +90° 对齐绘制起点。
  */
 export function lightColorPickerHsFromPoint(normalizedX, normalizedY) {
   const clampedX = Math.max(0, Math.min(1, Number(normalizedX) || 0));
@@ -233,10 +227,8 @@ export function lightColorPickerPointFromHs(hueSaturation) {
 }
 /**
  * 拼装设置颜色的服务数据。
- *
- * 字段选择规则：支持 hs 或 xy 时优先发 hs_color；仅当明确只支持 rgb 时才发 rgb_color。
- * 这个「优先 hs」的顺序是刻意的——rgb_color 在部分灯上会被转回 hs 时丢精度，
- * 而 xy 灯同样接受 hs_color。
+ * 支持 hs 或 xy 时优先发 hs_color，仅当明确只支持 rgb 时才发 rgb_color；这个顺序是
+ * 刻意的——rgb_color 在部分灯上转回 hs 会丢精度，而 xy 灯同样接受 hs_color。
  */
 export function lightColorServiceData(lightAttributes, hsColorPair) {
   const colorModes = resolveSupportedColorModes(lightAttributes);
@@ -261,9 +253,8 @@ export const UNSUPPORTED_LIGHT_VISUAL_TEMPERATURE_KELVIN = 4600;
 export const UNSUPPORTED_LIGHT_VISUAL_BRIGHTNESS_PERCENT = 100;
 /**
  * 拼装预设亮度对应的服务数据。
- *
- * 100% 时走 brightness: 255 而不是 brightness_pct：满量程下按 255 发送可以避免
- * 部分固件把 100% 换算成 254 导致「按了没反应」。
+ * 100% 时走 brightness: 255 而非 brightness_pct：按 255 发送可避免部分固件
+ * 把 100% 换算成 254 导致「按了没反应」。
  */
 export function lightPresetBrightnessServiceData(brightnessPercent) {
   // 下限取 1：0% 在 HA 里等价于关灯，而调用方此处要表达的是「调到最暗但仍亮」。
@@ -283,8 +274,7 @@ export function lightPresetBrightnessServiceData(brightnessPercent) {
 }
 /**
  * 灯光详情面板的三个快捷预设。
- *
- * 冻结成常量：这是与界面文案约定死的配置（label 会直接上屏），
+ * 冻结成常量：这是与界面文案约定死的配置（label 会直接上屏）；
  * colorTemperaturePercent 用相对百分比是为了适配不同灯的色温区间。
  */
 export const LIGHT_DETAIL_PRESET_DEFINITIONS = Object.freeze([

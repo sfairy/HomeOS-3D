@@ -44,10 +44,7 @@ export function doorWindowPerspectiveCorners(corners) {
 }
 /**
  * 由四个角点求解透视矩阵并序列化成 CSS matrix3d。
- *
- * 算法：先用角点差解出单应矩阵的 H、I 两个自由度，再换算成 matrix3d 的 16 个分量，
- * 最后一步做了退化保护——四边形退化成线或点时 determinant 趋零，直接返回单位矩阵，
- * 否则 CSS 会收到 Inf / NaN 并让整个元素消失。
+ * 退化成线或点时 determinant 趋零，直接返回单位矩阵保护——否则 CSS 收到 Inf / NaN 会让整个元素消失。
  */
 export function doorWindowPerspectiveMatrix(width, height, cornerValues) {
   const safeWidth = Math.max(1, Number(width) || 1);

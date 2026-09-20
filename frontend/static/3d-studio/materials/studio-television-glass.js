@@ -9,9 +9,8 @@
 
 /**
  * 在 2D 上下文上画熄屏玻璃渐变。
- *
- * 渐变方向从左上延伸到画布高度的位置，模拟斜向的环境反光；比纯黑更有体积感，
- * 也能让人看清屏幕边界。函数内会自行设置 fillStyle 并铺满整块画布。
+ * 渐变方向从左上延伸到画布高度，模拟斜向环境反光，比纯黑更有体积感；函数会自行
+ * 设置 fillStyle 并铺满整块画布。
  */
 export function drawTelevisionGlass(canvasSize, context, warm = false) {
   const glassGradient = context.createLinearGradient(
@@ -29,9 +28,8 @@ export function drawTelevisionGlass(canvasSize, context, warm = false) {
 
 /**
  * 创建暖阳原木主题下的电视玻璃材质。
- * 用 MeshBasicMaterial（不受光照影响，屏幕不该被环境光改变），通过 onBeforeCompile 注入两段 GLSL：
- * 顶点阶段传 uv，片元阶段按「纵向 + 左上偏置」权重在两个色标间插值，复现 2D 版的斜向反光。
- * 与 drawTelevisionGlass 的暖色档同色系，不要单独改这里的颜色常量。
+ * 用 MeshBasicMaterial（不受光照影响，屏幕不该被环境光改变），通过 onBeforeCompile 注入两段 GLSL，
+ * 片元阶段按「纵向 + 左上偏置」权重在两个色标间插值；与 drawTelevisionGlass 的暖色档同色系。
  */
 export function createWarmTelevisionGlass(three) {
   const glassMaterial = new three.MeshBasicMaterial({

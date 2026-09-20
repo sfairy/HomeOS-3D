@@ -98,10 +98,8 @@ const LIGHT_PRESETS = [
 ];
 /**
  * 算出当前配置下真正可用的模块页签。
- *
- * 总览与灯光始终存在：总览聚合当前楼层上所有已配置模块，只有一个模块也仍有意义，
- * 灯光是默认落地页所以不参与判定；其余模块按配置里是否存在对应设备出现，
- * 避免出现点进去什么都没有的空页签。
+ * 总览与灯光始终存在（总览聚合当前楼层所有已配置模块，灯光是默认落地页）；
+ * 其余模块按配置里是否存在对应设备出现，避免点进去什么都没有的空页签。
  */
 export function configuredModuleKinds(rawConfig = {}) {
   return [
@@ -123,8 +121,7 @@ export function configuredModuleKinds(rawConfig = {}) {
 }
 /**
  * 挂载 3D 舞台：注册宿主消息、渲染循环与全部子系统（窗帘 / 扫地机 / 电视 / NAS / 摄像头 / 环境）。
- * 建 DOM 骨架 → 建子系统 → 监听 message 与 ResizeObserver → 建按需渲染循环 → 回 ready；
- * 不返回句柄（只由宿主消息驱动），释放统一挂在 pagehide 上。
+ * 顺序：建 DOM → 建子系统 → 监听 message 与 ResizeObserver → 建按需渲染循环 → 回 ready；不返回句柄，释放挂在 pagehide 上。
  * @param {object} stageOptions 宿主注入的依赖与回调（THREE、container、canvas、document、相机、帧循环工厂、联动钩子）。
  */
 export function mountStage(stageOptions) {
@@ -244,9 +241,8 @@ export function mountStage(stageOptions) {
   });
   /**
    * 遍历配置里的空调，把当前状态喂给模式历史。
-   *
-   * 为什么要主动遍历而不是等面板渲染：面板只有在该空调所在楼层可见时才会渲染，
-   * 「首次进入时空调已经开着」这一最常见场景恰恰不会触发面板，历史就永远记不上。
+   * 必须主动遍历而不是等面板渲染：面板只在该空调所在楼层可见时才渲染，
+   * 「首次进入时空调已开着」这一最常见场景不会触发面板，历史就永远记不上。
    */
   function observeAllClimates() {
     // 编辑器（配置预览）里的状态是占位数据，记下来会污染真实历史。
@@ -285,10 +281,8 @@ export function mountStage(stageOptions) {
     transformCameraPose(stageOptions.cameraState(true), config.floorSelection, true);
   /**
    * 归一化宿主下发的配置：深拷贝，并把所有相机姿态转换到当前楼层坐标系。
-   *
-   * 相机字段分散在 lights / security.cameras / security.presenceSensors /
-   * environment.* / devices.* 上，且都可能是 undefined，所以逐个可选补齐；
-   * 只补 focusCamera 这类坐标，不新增配置项，保持结构原样透传。
+   * 相机字段分散在 lights / security.cameras / security.presenceSensors / environment.* /
+   * devices.*，都可能 undefined 故逐个可选补齐；只补坐标、不新增配置项，结构原样透传。
    */
   function normalizeSceneConfig(sourceConfig) {
     const normalizedConfig = structuredClone(sourceConfig);
@@ -472,10 +466,8 @@ export function mountStage(stageOptions) {
   const lightControlsElement = makeElement("div", "i3d-light-controls");
   /**
    * 建一根灯光滑杆（亮度 / 色温）。
-   *
-   * 拖动（input）只写本地预览并立即重绘，松手（change）才下发命令：
-   * 否则一次拖动会给后端灌几十条命令。色温步进 10K，对应多数灯具的能力粒度，
-   * 亮度步进 1%。滑杆只在有聚焦灯且非编辑态时生效。
+   * 拖动（input）只写本地预览并立即重绘，松手（change）才下发命令，否则一次拖动会给
+   * 后端灌几十条命令；色温步进 10K、亮度步进 1%，滑杆只在有聚焦灯且非编辑态时生效。
    */
   function createSliderControl(labelText, sliderName, minValue, maxValue) {
     const sliderLabelElement = makeElement("label", "i3d-slider i3d-" + sliderName);
@@ -647,8 +639,7 @@ export function mountStage(stageOptions) {
     Math.min(coverFeedback.nextDelay(), dreamCoverFeedback.nextDelay());
   /**
    * 合成窗帘标记的展示状态：标准反馈叠加（梦幻帘才有的）叶片反馈。
-   *
-   * 叶片正在等待回报时强制覆盖成「打开中」：那一刻整体已停、叶片还在转，
+   * 叶片在等待回报时强制覆盖成「打开中」：那一刻整体已停、叶片还在转，
    * 不覆盖的话图标会闪回静止态。
    */
   function resolveCoverPresentation(
@@ -944,9 +935,8 @@ export function mountStage(stageOptions) {
   }
   /**
    * 重建窗帘绑定，并把状态同步给动画、反馈缓存与宿主。
-   *
-   * 先用快照（config / states / 场景根 / revision / 文档）短路：宿主每帧都可能调用，
-   * 没有变化时直接返回，省掉一次 filter + 重新绑定。
+   * 先用快照（config / states / 场景根 / revision / 文档）短路：宿主每帧都可能
+   * 调用，没有变化时直接返回，省掉一次 filter + 重新绑定。
    */
   function syncCurtains() {
     const modelRoot = stageOptions.modelRoot;
@@ -1243,9 +1233,8 @@ export function mountStage(stageOptions) {
   }
   /**
    * 归一化窗帘几何参数：宽度、开合方式、轨道形状、布料与梦幻帘标记。
-   *
-   * 轨道相关参数只来自场景模型（编辑器才有），布料与 coverKind 允许配置覆盖模型；
-   * unboundPosition 是未绑定实体时的预览开合度。
+   * 轨道相关参数只来自场景模型（编辑器才有），布料与 coverKind 允许配置覆盖
+   * 模型；unboundPosition 是未绑定实体时的预览开合度。
    */
   function resolveCurtainGeometry(sceneItemSource, itemConfig = {}) {
     return {
@@ -1792,7 +1781,6 @@ export function mountStage(stageOptions) {
   }
   /**
    * 按当前模块解析出要显示的标记绑定。
-   *
    * 展示态的「总览 / 全部楼层」刻意返回空数组：那两种模式只展示房子本体，
    * 设备按钮留给各自的模块页签。
    */
@@ -1874,8 +1862,7 @@ export function mountStage(stageOptions) {
     return moduleBindings.filter(isOnActiveFloor);
   };
   // 渲染楼层页签：编辑 / 视图编辑 / 范围编辑时整块隐藏；只有一个楼层时不显示页签。
-  // 编辑器画布里导航栏要留着（切模块靠它），所以那一处按 isEditorCanvas 放行；
-  // 楼层页签不跟随导航栏 —— 编辑器里楼层仍由编辑器自己管，照旧隐藏。
+  // 编辑器画布里导航栏按 isEditorCanvas 放行（切模块靠它），楼层页签不跟随、照旧隐藏；
   // 页签按签名比对重建，避免每帧重排 DOM。
   function renderFloorTabs() {
     navigationElement.hidden = !isEditorCanvas && (isEditing || isViewEditing || isRangeEditorOpen);
@@ -1990,9 +1977,8 @@ export function mountStage(stageOptions) {
   }
   /**
    * 打开灯光范围编辑器，并把开关 / 出错状态回报宿主。
-   *
-   * 编辑器是舞台内的独立浮层，宿主需要知道它是否激活，才能决定要不要
-   * 屏蔽页签与视图编辑入口，所以每次状态变化都要回报一次。
+   * 编辑器是舞台内的独立浮层，宿主需要知道它是否激活才能决定要不要屏蔽
+   * 页签与视图编辑入口，所以每次状态变化都要回报一次。
    */
   function openRangeEditor(rangeRequestId) {
     // 状态回报的统一出口：requestId 只在宿主主动下发了请求时才回带，
@@ -2159,8 +2145,7 @@ export function mountStage(stageOptions) {
     collectPresenceBindings().find(presenceMatch => presenceMatch.id === lookupId);
   /**
    * 舞台的总重绘入口：把当前配置、状态与交互态一次性铺到 DOM 与 3D 上。
-   *
-   * 调用点很多（切模块、切楼层、聚焦、状态更新），所以这里不做增量优化，
+   * 调用点很多（切模块、切楼层、聚焦、状态更新），这里不做增量优化，
    * 由各子同步函数内部用签名短路来避免重复计算。
    */
   function renderStage() {
@@ -2787,11 +2772,9 @@ export function mountStage(stageOptions) {
     }
     updateMarkerPositions(true);
   }
-  // layoutStage 会写回它自己观察的几个元素的样式（缩放变量、偏移、尺寸），在
-  // ResizeObserver 回调里同步执行时会再次触发观察通知，浏览器随即抛出
-  // 「ResizeObserver loop completed with undelivered notifications」。
-  // 这里把观察器触发的重排推迟到下一帧并合并同一帧内的多次请求：既避开该提示，
-  // 也避免连续 resize 时重复重排。pendingLayoutFrameId 同时充当「已排程」标记。
+  // layoutStage 会写回它自己观察的样式（缩放变量、偏移、尺寸），在 ResizeObserver
+  // 回调里同步执行会再次触发通知，浏览器随即抛「ResizeObserver loop completed with
+  // undelivered notifications」。故把重排推迟到下一帧并合并同帧多次请求。
   let pendingLayoutFrameId = 0;
   function scheduleLayoutStage() {
     if (pendingLayoutFrameId) {
@@ -2906,10 +2889,8 @@ export function mountStage(stageOptions) {
     markersElement.style.opacity = isFloorMarkersTransitioning ? "0" : "";
     markersElement.classList.toggle("is-concealed", shouldConcealMarkers);
   }
-  // 聚焦且非面板模式时隐藏导航与楼层页签，并置 inert，
-  // 防止还能通过键盘点到已被藏起来的按钮。
-  // 编辑器画布里分类栏要一直可用（它就是切模块的入口），因此对它单独放行；
-  // 楼层页签仍按原规则隐藏。
+  // 聚焦且非面板模式时隐藏导航与楼层页签并置 inert，防止键盘点到已藏起的按钮。
+  // 编辑器画布里分类栏单独放行（它是切模块入口），楼层页签仍按原规则隐藏。
   function updatePanelChrome() {
     const isFocusHidden = !!focusedId && !!focusMode && focusMode !== "panel";
     for (const chromeElement of [navigationElement, floorTabsElement]) {
@@ -3496,8 +3477,7 @@ export function mountStage(stageOptions) {
   }
   /**
    * 重绘灯光面板：标题状态、总开关、滑杆与预设。
-   *
-   * 面板内容完全由「当前聚焦绑定 + 其实体状态」推导，所以任何状态变化都整块重画，
+   * 内容完全由「当前聚焦绑定 + 其实体状态」推导，故任何状态变化都整块重画、
    * 不做局部更新（面板元素少，整块重画更不容易出错）。
    */
   function renderLightPanel() {
@@ -4664,10 +4644,9 @@ export function mountStage(stageOptions) {
         canvasPointerUpEvent.clientY - canvasPointerState.y
       ) < 5;
     canvasPointerState = null;
-    // 聚焦返回动画期间也允许点选其他设备：用户刚退出聚焦就想切到隔壁设备时，
-    // 等动画跑完（几百毫秒）会显得很迟钝。只对「聚焦返回」放行 ——
-    // 聚焦进入（focused 为真）、楼层过渡（owner 为 floor）、空闲旋转（owner 为 idle）
-    // 仍照旧拦截，否则会在相机还在移动时按错误的投影去拾取。
+    // 聚焦返回动画期间也允许点选其他设备：刚退出聚焦就想切隔壁设备时等动画跑完
+    // （几百毫秒）会显得迟钝。只对「聚焦返回」放行；聚焦进入、楼层过渡、空闲旋转
+    // 仍照旧拦截，否则会在相机移动时按错误的投影去拾取。
     const canPickDuringFocusReturn =
       !cameraTransition ||
       (cameraTransition.owner === "focus" && !cameraTransition.focused && !focusedId && !focusMode);
@@ -4731,10 +4710,8 @@ export function mountStage(stageOptions) {
   });
   /**
    * 宿主消息总入口：先做同源 + 来源窗口 + channel 三重校验，再按 type 分发。
-   *
-   * config 是最重的一条：同时携带配置、实体状态、编辑态与视图编辑标志，
-   * 收到后要重算楼层、模块、相机与各子系统；场景替换进行中则先挂起，
-   * 等替换完成后再处理，避免两条更新交错。
+   * config 最重：同时携带配置、实体状态、编辑态与视图编辑标志，收到后要重算
+   * 楼层、模块、相机与各子系统；场景替换进行中则先挂起，等替换完成再处理。
    */
   function handleHostMessage(messageEvent) {
     if (
@@ -5282,8 +5259,7 @@ export function mountStage(stageOptions) {
   layoutResizeObserver.observe(floorTabsElement);
   /**
    * 应用一次场景（户型 / 模型）替换。
-   *
-   * 替换前挡住并发的场景更新、关掉相机交互（否则用户在替换过程中会拖出一个悬空视角）；
+   * 替换前挡住并发的场景更新、关掉相机交互（否则用户会在替换过程中拖出悬空视角）；
    * 替换中途失败时回滚到上一份场景，并把错误抛给调用方。
    */
   async function applySceneUpdate(sceneUpdate) {
@@ -5397,11 +5373,9 @@ export function mountStage(stageOptions) {
       })
     : () => {};
   /**
-   * 渲染循环的一帧：推进各子系统动画、刷新标记与面板，返回下一帧的间隔（毫秒）。
-   *
-   * 返回值是按需渲染的核心：Infinity 表示可以停下来，0 表示下一帧立刻继续
-   * （相机过渡等连续动画），其余值按各自节奏定时唤醒。
-   * 页面隐藏或场景更新中直接返回 Infinity，等价于暂停循环。
+   * 渲染循环的一帧：推进各子系统动画、刷新标记与面板，返回下一帧间隔（毫秒）。
+   * 返回值是按需渲染的核心：Infinity 可停下，0 表示下一帧立刻继续（连续动画），
+   * 其余值按各自节奏定时唤醒；页面隐藏或场景更新中直接返回 Infinity，等价暂停。
    */
   function renderFrame(timestamp) {
     if (isDisposed || document.hidden || isSceneUpdating) {
@@ -5626,10 +5600,8 @@ export function mountStage(stageOptions) {
   });
   /**
    * 汇总舞台元数据（楼层、墙体高度、各类型模型坐标、灯光分组等）回报宿主。
-   *
-   * 编辑器 / 展示页要靠这些数据做下拉选项与坐标换算，所以这里做的是
-   * 「从场景文档反推可编辑信息」，字段一律 camelCase。
-   * 墙体高度优先取场景设置，缺失时取所有墙的最大值，再夹到 0.01~6 米。
+   * 编辑器 / 展示页靠它做下拉选项与坐标换算，即「从场景文档反推可编辑信息」，
+   * 字段一律 camelCase。墙体高度优先取场景设置，缺失时取所有墙的最大值，再夹到 0.01~6 米。
    */
   function buildMetadata() {
     const floorNumbersById = new Map(

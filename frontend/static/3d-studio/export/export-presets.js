@@ -46,9 +46,7 @@ function normalizeVector3(source, defaults = {}) {
 }
 
 /**
- * 归一化「随导出一并输出的文件」清单。
- *
- * 非数组一律当空；未知键被过滤掉，避免旧版本残留的文件名让导出流程找不到素材；
+ * 归一化「随导出一并输出的文件」清单：未知键被过滤掉，避免旧版本残留的文件名让导出流程找不到素材；
  * 前缀引用允许 1~180 个字符，长度上限与后端文档字段长度限制一致。
  */
 function normalizeSelectedFiles(files) {
@@ -139,10 +137,8 @@ export function normalizeExportPreset(rawPreset) {
 
 /**
  * 归一化整个预设槽数组。
- *
- * 槽位数量夹在 1~8 之间（常量值与此处的字面量保持一致）；
- * 入参不是数组时按默认 4 个空槽处理，保证 UI 至少有槽位可用。
- * 槽位内容允许为 null，表示该槽尚未配置。
+ * 槽位数量夹在 1~8 之间（常量值与此处字面量一致）；非数组时按默认 4 个空槽处理，保证 UI 至少有槽位可用。
+ * 槽位内容允许为 null，表示尚未配置。
  */
 export function normalizeExportPresetSlots(slots) {
   const slotList = Array.isArray(slots) ? slots : [];

@@ -14,9 +14,8 @@ const PRESENCE_SENSOR_BASE_Z_INDEX = 500000000;
 const ICON_BUTTON_EFFECT_BASE_Z_INDEX = 1000000000;
 /**
  * 给图标按钮特效组件补上缺省可见性开关。
- *
- * 用 hasOwnProperty 而不是真值判断：这两个属性都可能是 false（用户主动关闭），
- * 用 `??` 或 `||` 会把用户的选择覆盖回 true。仅对新数据（键不存在）补默认值。
+ * 用 hasOwnProperty 而非真值判断：这两个属性都可能是 false（用户主动关闭），`??` 或 `||`
+ * 会把用户的选择覆盖回 true；仅对键不存在的新数据补默认值。
  */
 export function normalizeIconButtonEffectComponent(component) {
   if (component?.type !== "icon-button-effect") {
@@ -38,10 +37,8 @@ export function normalizeIconButtonEffectComponent(component) {
 }
 /**
  * 计算宿主元素最终的 z-index。
- *
- * 加档条件：图标按钮特效在「按钮可见」或「隐藏内容也允许点击」时才抬到
- * ICON_BUTTON_EFFECT_BASE_Z_INDEX（同理，人体感应特效抬到 PRESENCE_SENSOR_BASE_Z_INDEX）——
- * 两者都不成立说明这个特效当前不可交互，不该挡住其它元素。
+ * 图标按钮特效仅在「按钮可见」或「隐藏内容也允许点击」时才抬到 ICON_BUTTON_EFFECT_BASE_Z_INDEX
+ * （人体感应特效同理抬到 PRESENCE_SENSOR_BASE_Z_INDEX）；均不成立说明当前不可交互，不该挡住其它元素。
  */
 export function componentHostZIndex(hostComponent, baseZIndex, applyTypeBoost = true) {
   const resolvedZIndex = Number(baseZIndex || 0);
@@ -72,7 +69,6 @@ export function effectFadeDuration(effectComponent) {
 }
 /**
  * 计算特效图层应该使用的尺寸。
- *
  * 优先级：fill 铺满宿主 → 组件缓存的原图尺寸 → 图片可读到的原始尺寸（dataset 优先于
  * naturalWidth，后者懒加载时可能为 0）→ 按百分比给临时尺寸并置 pendingNaturalSize，load 后重算。
  */
@@ -118,9 +114,8 @@ export function effectLayerDimensions(
 }
 /**
  * 计算被裁剪源图的原始尺寸。
- *
- * 与 effectLayerDimensions 同构，但多一层兜底：先看组件缓存的原始尺寸，
- * 再看图片元素 dataset 里的记录，最后才用元素的 naturalWidth / naturalHeight。
+ * 与 effectLayerDimensions 同构，但多一层兜底：先看组件缓存的原始尺寸，再看图片元素
+ * dataset 里的记录，最后才用元素的 naturalWidth / naturalHeight。
  */
 export function effectSourceDimensions(
   sourceComponent,
@@ -170,9 +165,8 @@ export function effectSourceDimensions(
 }
 /**
  * 把源图坐标系下的裁剪矩形换算到目标尺寸坐标系。
- *
- * 六项检查（宽高有效、起点非负、宽高为正、右 / 下边不越界）缺一不可：
- * 任何一项不成立都说明这段裁剪数据是坏的，此时宁可整图不裁也不要裁出黑边。
+ * 宽高有效、起点非负、宽高为正、右 / 下边不越界这几项检查缺一不可：
+ * 任何一项不成立都说明裁剪数据是坏的，此时宁可整图不裁也不要裁出黑边。
  */
 export function effectCropRectangle(cropImageElement, targetDimensions) {
   const datasetWidth = Number(cropImageElement?.dataset?.effectOriginalWidth || 0);
@@ -212,9 +206,8 @@ export function effectCropRectangle(cropImageElement, targetDimensions) {
 }
 /**
  * 计算裁剪后图层的定位盒。
- *
- * 裁剪块的中心相对原图中心有偏移，这个偏移要先按 scale 放大、
- * 再随图层旋转角旋转，最后叠加到原图中心上——否则旋转后裁剪块会跑到错误的位置。
+ * 裁剪块中心相对原图中心的偏移要先按 scale 放大、再随图层旋转角旋转，最后叠加到
+ * 原图中心上，否则旋转后裁剪块会跑到错误的位置。
  */
 export function effectCroppedLayerGeometry({
   centerX: centerX,
@@ -253,9 +246,8 @@ export function effectCroppedLayerGeometry({
 }
 /**
  * 为特效挑一张参考图，并算出它相对目标的缩放比例。
- *
- * 优先显式指定 effectReferenceImageId；否则在「可见、原始尺寸与目标一致、层级低于参考组件」的
- * 图片里取层级最高者（同尺寸底图通常即所属参考图）。都没有返回 null。
+ * 优先显式指定 effectReferenceImageId；否则在「可见、原始尺寸与目标一致、层级低于参考组件」
+ * 的图片里取层级最高者；都没有返回 null。
  */
 export function effectReferenceImageTransform(
   project,

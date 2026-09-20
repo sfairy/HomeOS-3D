@@ -14,9 +14,8 @@ import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=2026092013
 import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
 /**
  * 判断状态是否需要从后端补历史 / 详情。
- *
- * 空串、unknown、unavailable 都属于「前端拿不到有效读数」，
- * 需要触发一次补数据而不是直接按无效态渲染。
+ * 空串、unknown、unavailable 都属于「前端拿不到有效读数」，需要触发一次补数据
+ * 而不是直接按无效态渲染。
  */
 export function lineChartRuntimeStateNeedsHydration(stateOrChange) {
   const stateObject = resolveStateEntry(stateOrChange);
@@ -31,10 +30,9 @@ export function lineChartRuntimeStateNeedsHydration(stateOrChange) {
   );
 }
 /**
- * 递归收集文档里所有需要实时状态的实体 ID。
- * 覆盖面刻意比「绑定的实体」宽——扫地机的主机 / 地图 / 关联实体与快捷方式、人体感应的安防分区传感器、
- * light-statistics 的统计实体、weather 的太阳实体（缺省 sun.sun）、more-info(entity) 指定的实体、
- * selectedRelatedEntityIds 也直接决定渲染。虚拟实体一律跳过（由渲染器合成，订阅会被判不存在）。
+ * 递归收集文档里所有需要实时状态的实体 ID。覆盖面刻意比「绑定的实体」宽——扫地机的
+ * 主机 / 地图 / 关联实体与快捷方式、人体感应的安防分区传感器、light-statistics 的统计
+ * 实体、weather 的太阳实体（缺省 sun.sun）、more-info(entity) 指定的实体、selectedRelatedEntityIds 也直接决定渲染。虚拟实体一律跳过（由渲染器合成，订阅会被判不存在）。
  */
 export function collectEntityIds(components, entityIdSet = new Set()) {
   for (const component of components || []) {
@@ -109,9 +107,8 @@ export function collectComponents(inputComponents, predicate, matches = []) {
 }
 /**
  * 找出与指定实体绑定的折线图组件。
- *
- * 查找顺序是刻意的「由近及远」：当前页 → 当前页挂载的共享组件 → 其它页 → 全部共享组件。
- * 同一实体可能在多个页面都有图表，取最近的一个做属性来源，用户在当前页看到的样式才符合直觉。
+ * 查找顺序刻意「由近及远」：当前页 → 当前页挂载的共享组件 → 其它页 → 全部共享组件。
+ * 同一实体可能在多个页面都有图表，取最近的一个做属性来源，当前页看到的样式才符合直觉。
  */
 export function matchingLineChartComponent(documentModel, page, entityId) {
   // 判定组件是否为「绑定了目标实体」的折线图：类型与 entityId 都要匹配。它是纯判定

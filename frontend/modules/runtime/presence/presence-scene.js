@@ -19,7 +19,6 @@ import {
 } from "./presence-motion.js?v=20260920131301";
 /**
  * 创建人体存在角色场景。
- *
  * @param {Function} [wakeFrameLoop=() => {}] 唤醒空闲帧循环；角色在动时必须调用，
  *     否则舞台为省电停掉帧循环后动画会僵住。
  */
@@ -37,10 +36,8 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   let footShadowAssets = null;
   /**
    * 造一片「脚底接触阴影」。
-   *
-   * 阴影不是真实软阴影，而是一张程序生成的径向渐变贴图铺在脚下：人物很小、
-   * 又有自发光，开真实阴影的收益远低于代价。贴图与几何体只在首次调用时创建，
-   * 返回的 Mesh 每次都是新的（材质要能各自调不透明度）。
+   * 不是真实软阴影，而是程序生成的径向渐变贴图铺在脚下：人物小又有自发光，开真实
+   * 阴影收益远低于代价；贴图与几何体只在首次调用时创建，Mesh 每次新建（材质各自调不透明度）。
    */
   function createFootShadow() {
     if (!footShadowAssets) {
@@ -108,10 +105,8 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   }
   /**
    * 设置角色的整体不透明度（淡入淡出）。
-   *
-   * 不能只改 opacity：半透明材质必须同时打开 transparent 并关掉 depthWrite，
-   * 否则角色自身的前后部件会互相遮挡、出现「外壳盖住内里」的穿帮；
-   * 而 transparent 是渲染状态的开关，改动后必须置 needsUpdate 让着色器重编译。
+   * 不能只改 opacity：半透明材质必须同时开 transparent 并关 depthWrite，否则角色
+   * 前后部件互相遮挡、出现「外壳盖住内里」的穿帮；transparent 是渲染状态开关，改动后必须置 needsUpdate 重编译着色器。
    */
   function applyActorOpacity(actor, targetOpacity) {
     actor.opacity = targetOpacity;
@@ -206,9 +201,8 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
   }
   /**
    * 计算每个可点击角色在屏幕上的包围矩形。
-   *
-   * 做法是把世界包围盒的 8 个角投影到屏幕再取外接矩形 —— 比逐点采样便宜，
-   * 也够用（角色是近立方体，倾斜投影下的误差可以忽略）。
+   * 把世界包围盒的 8 个角投影到屏幕再取外接矩形 —— 比逐点采样便宜，也够用
+   * （角色是近立方体，倾斜投影下的误差可忽略）。
    */
   function computeHitRects(renderCamera, hitCanvasElement, sensorBindings) {
     const hitCanvasRect = hitCanvasElement.getBoundingClientRect();
@@ -623,9 +617,8 @@ export function createPresenceScene(sceneOptions, wakeFrameLoop = () => {}, nowP
 }
 /**
  * 创建「检测到人」的地面波纹效果：波纹出现在传感器模型（userData.environmentModelType === "presence"）
- * 的脚下，用同心圆环由中心向外扩散并淡出。
- * 所有波纹共用一份 RingGeometry 与每实例克隆的材质，环只靠缩放变形；每帧直接拷贝被跟随模型的
- * matrixWorld（传感器可能被拖动）；开启「减少动态效果」时退化为一个静态环。
+ * 的脚下，用同心圆环由中心向外扩散并淡出。所有波纹共用一份 RingGeometry 与每实例
+ * 克隆的材质，环只靠缩放变形；每帧直接拷贝被跟随模型的 matrixWorld（传感器可能被拖动），开启「减少动态效果」时退化为静态环。
  */
 export function createPresenceWaves(waveOptions) {
   const { THREE: THREE } = waveOptions;

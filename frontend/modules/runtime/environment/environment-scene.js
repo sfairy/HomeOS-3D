@@ -87,10 +87,8 @@ const MODEL_TYPE_TO_DEVICE_KIND = {
 };
 /**
  * 把「楼层场景里的静态模型」合成为页面绑定列表。
- *
- * 背景：绑定了实体的设备由 stage.js 提供绑定，但户型里还可能有没绑实体、或不属于
- * 当前页面绑定集合的模型（总览页需要显示全部）。这里按模型类型反推出所属页面，
- * 给缺绑定的模型补一个 previewOnly 的展示用绑定，使其同样参与压暗 / 发光。
+ * 背景：绑定了实体的设备由 stage.js 提供绑定，但户型里还可能有没绑实体、或不属于当前页面绑定集合的模型
+ * （总览页要显示全部）；这里按模型类型反推所属页面，给缺绑定的模型补一个 previewOnly 展示用绑定。
  */
 export function pageModelBindings(floors, sceneBindings, page, floorId) {
   // JSON.stringify([楼层, 模型]) 作为复合键：模型 ID 在不同楼层可能重名。
@@ -157,9 +155,8 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   const retainedMeshEntries = new Map();
   /**
    * 用户是否要求减少动态效果。
-   *
-   * 同时探测 globalThis.matchMedia 与 globalThis.window.matchMedia：前者在某些
-   * 宿主（自定义元素 / 测试环境）里没有，后者才是常规浏览器路径。
+   * 同时探测 globalThis.matchMedia 与 globalThis.window.matchMedia：前者在某些宿主（自定义元素 / 测试环境）里没有，
+   * 后者才是常规浏览器路径。
    */
   const prefersReducedMotion = () =>
     globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true ||
@@ -217,10 +214,8 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   const toArray = arrayCandidate =>
     Array.isArray(arrayCandidate) ? arrayCandidate : arrayCandidate ? [arrayCandidate] : [];
   /**
-   * 判断材质能否被注入着色器补丁。
-   *
-   * 白名单只收常见的内置光照材质：自定义 ShaderMaterial 的片元着色器里没有
-   * opaque_fragment / colorspace_fragment 这些 chunk，注入会直接编译失败。
+   * 判断材质能否被注入着色器补丁：白名单只收常见的内置光照材质。
+   * 自定义 ShaderMaterial 的片元着色器里没有 opaque_fragment / colorspace_fragment 这些 chunk，注入会编译失败。
    */
   const isSupportedMaterial = materialCandidate =>
     materialCandidate?.isMaterial &&
@@ -232,10 +227,8 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       materialCandidate.isMeshPhongMaterial ||
       materialCandidate.isMeshToonMaterial);
   /**
-   * 造一组 uniform 引用。
-   *
-   * amount 与全局共享（页面压暗是全场同一个值）；retain / glow / lift 每组独立，
-   * 因为它们是「按绑定」的发光参数。lift 的默认 [0.12, 0.8] 是中性设备的发光抬升曲线。
+   * 造一组 uniform 引用：amount 全局共享（页面压暗全场同值），retain / glow / lift 每组独立。
+   * 它们是「按绑定」的发光参数；lift 默认 [0.12, 0.8] 是中性设备的发光抬升曲线。
    */
   const createUniforms = () => ({
     amount: amountUniform,
@@ -311,10 +304,9 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
           "\ngl_FragColor.rgb *= mix(1.0, 0.15, hbEnvironmentAmount * (1.0 - hbEnvironmentRetain));"
       );
     };
-    // 着色器缓存键：三段注入的源码一变就必须换 key，否则 three 会复用旧 program。
-    // 版本后缀 v7 是手工递增的：改动上面的注入字符串时同步加一，避免出现「改了没生效」。
-    // 键的取法分两种情况：若原材质用的就是 three 默认实现（恒为空串），则改用注入函数源码
-    // 当键 —— 否则所有打过补丁的材质会哈希到同一个 program，互相串味。
+    // 着色器缓存键：三段注入的源码一变就必须换 key，否则 three 会复用旧 program；版本后缀 v7 手工递增。
+    // 键的取法分两种情况：原材质若用 three 默认实现（恒为空串）则改用注入函数源码当键，
+    // 否则所有打过补丁的材质会哈希到同一个 program，互相串味。
     const patchedProgramCacheKey = function () {
       return (
         (priorKey === THREE.Material.prototype.customProgramCacheKey
@@ -417,9 +409,8 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 取（必要时创建）某个基础材质在某绑定下的变体材质。
-   *
-   * 之所以要变体：一份基础材质常被多个模型共用（同一款空调），而每个绑定的发光色
-   * 与 lift 各不相同，共享材质会让后设置的绑定覆盖前一个。
+   * 之所以要变体：一份基础材质常被多个模型共用（同一款空调），而每个绑定的发光色与 lift 各不相同，
+   * 共享材质会让后设置的绑定覆盖前一个。
    */
   function resolveVariantMaterial(baseMaterial, targetBinding) {
     if (!isSupportedMaterial(baseMaterial)) {
@@ -652,9 +643,8 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   }
   /**
    * 遍历模型树，建立 mesh → 材质 / 所属模型 的索引，并给材质打补丁。
-   *
-   * 这是本模块最重的一次遍历，因此只在根节点变化、绑定变化或首次启用时执行；
-   * 已有的记录会被复用（见 entriesByMesh），避免每帧重复打补丁。
+   * 这是本模块最重的一次遍历，只在根节点变化、绑定变化或首次启用时执行；已有记录会被复用（见 entriesByMesh），
+   * 避免每帧重复打补丁。
    */
   function indexSceneGraph() {
     if (!sceneRoot?.traverse) {

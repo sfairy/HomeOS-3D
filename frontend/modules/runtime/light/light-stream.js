@@ -98,9 +98,8 @@ export function createLightStream({
   }
   /**
    * 安排一次重连（指数退避）。
-   *
-   * 退避序列：500ms、1s、2s、4s、8s、16s→封顶 15s；
-   * 已销毁、未激活、没有订阅或无重连在途时都不排新定时器。
+   * 退避序列 500ms、1s、2s、4s、8s、16s 封顶 15s；已销毁、未激活、
+   * 没有订阅或有重连在途时都不排新定时器。
    */
   function scheduleReconnect() {
     if (isDisposed || !isStreamActive || !subscribedEntityIds.length || reconnectTimerId !== null) {
@@ -139,9 +138,8 @@ export function createLightStream({
       activeSocket === nextSocket;
     /**
      * 统一的断线处理。
-     *
-     * @param {number} [closeCode=0] WebSocket 关闭码；4400/4401/4403 属于协议层拒绝
-     *        （报文非法 / 未认证 / 无权限），重连也没用，因此不再重试。
+     * @param {number} [closeCode=0] WebSocket 关闭码；4400/4401/4403 属协议层拒绝
+     *        （报文非法 / 未认证 / 无权限），重连无用，故不重试。
      */
     const handleSocketFailure = (closeCode = 0) => {
       if (isCurrentSocket()) {
@@ -259,8 +257,7 @@ export function createLightStream({
   return {
     /**
      * 设置订阅的实体列表。
-     *
-     * @param {string[]} [options.additionalEntityIds=[]] 白名单外的补充实体；
+     * @param {string[]} [options.additionalEntityIds=[]] 白名单外的补充实体，
      *        只校验 ID 形态，允许订阅本列表未覆盖的域。
      */
     configure(entityIds = [], { additionalEntityIds: additionalEntityIds = [] } = {}) {

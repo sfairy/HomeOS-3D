@@ -8,11 +8,9 @@
  */
 
 /**
- * 执行一次受超时约束的异步请求。内部 AbortController 与外部 signal 是「或」的关系，任一方触发都中断
- * 请求，且错误保留最初触发者的 reason，便于区分「用户切页取消」与「后端太慢超时」。
- * @param {number} timeoutMs 超时毫秒数；到点后以 TimeoutError 中断请求。
- * @param {(signal: AbortSignal) => Promise<*>} runWithSignal 真正发起请求的回调，必须把 signal 透传给 fetch。
- * @throws {Error} 超时（TimeoutError）、被外部取消（AbortError）或 runWithSignal 的原始错误。
+ * 执行一次受超时约束的异步请求：内部 AbortController 与外部 signal 是「或」的关系，任一方触发都中断，错误保留
+ * 最初触发者的 reason，便于区分「用户切页取消」与「后端太慢超时」；runWithSignal 必须把 signal 透传给 fetch，
+ * 否则超时无法中断请求。超时抛 TimeoutError、被外部取消抛 AbortError，或透传 runWithSignal 的原始错误。
  */
 export async function withRequestTimeout(timeoutMs, runWithSignal, externalSignal) {
   const requestAbortController = new AbortController();

@@ -82,12 +82,8 @@ if (characters) {
   };
 
   // 指针位置换算成 -1~1 的归一化坐标（--look-x / --look-y），由 CSS 决定眼珠偏移量；
-  // 保留两位小数即可，减少无意义的重绘抖动。
-  //
-  // 几何只在失效后量一次：pointermove 里读 getBoundingClientRect 会强制同步布局，
-  // 指针高频移动时等于每帧重排一次。失效也是惰性的 —— resize / 滚动只作废缓存，
-  // 真正测量发生在下一帧要用它的时候；拖动窗口时 resize 事件连着来，
-  // 每次都在事件里量一遍等于把重排搬进了 resize 处理器。
+  // 保留两位小数即可，减少重绘抖动。几何只在失效后量一次：pointermove 里读
+  // getBoundingClientRect 会强制同步布局，而 resize / 滚动只作废缓存、下一帧才真测量。
   let lookBounds = null,
     pendingLookPoint = null,
     lookFrameId = 0;

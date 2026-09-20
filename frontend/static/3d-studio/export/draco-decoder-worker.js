@@ -122,7 +122,6 @@ function initializeDecoder(options) {
 
 /**
  * 把一段 Draco 压缩数据解成 three.js 的几何数据。
- *
  * @param {object} taskConfig DRACOLoader 下发的任务配置（属性 id / 类型 / 唯一 id 开关等）。
  * @throws {Error} 几何类型未知或解码失败。
  */
@@ -194,9 +193,8 @@ function decodeGeometry(draco, decoder, encodedData, taskConfig) {
 
 /**
  * 取出网格的三角形索引。
- *
- * Draco 的索引固定为 32 位；这里在 WASM 堆上分配临时缓冲，
- * 读出后立刻 slice 成独立数组再释放，避免返回的视图指向已回收的堆内存。
+ * Draco 索引固定为 32 位；这里在 WASM 堆上分配临时缓冲，读出后立刻 slice 成
+ * 独立数组再释放，避免返回的视图指向已回收的堆内存。
  */
 function decodeIndex(dracoLib, meshDecoder, mesh) {
   const indexCount = mesh.num_faces() * 3;

@@ -31,10 +31,8 @@ logger = logging.getLogger("store.payments.sweeper")
 _MAX_ERROR_CHARS = 300
 
 # 巡检状态
-# 为什么需要它：巡检坏掉时**只往日志刷 traceback**，服务照常启动、下单照常成功，于是「用户付了钱、
-# 订单停在待支付」慢慢堆成工单而运维只有翻日志才知道。所以巡检必须留下可被接口读到的状态：上次成功
-# 是什么时候、连着失败几次、最近一次错在哪。状态只放进程内存、不落库 —— 重启后「本进程从未成功巡检」
-# 本身就是最该看到的信号。词表六档，**不要**与 ``store/ops/incidents.py`` 的 ``HEALTH_*`` 合并。
+# 巡检坏掉时**只往日志刷 traceback**，服务照常启动、下单照常成功，「用户付了钱、订单停在待支付」就
+# 慢慢堆成工单而运维只有翻日志才知道；故须留下可被接口读到的状态且只放进程内存，词表六档不与 incidents 合并。
 HEALTH_OK = "ok"
 HEALTH_DISABLED = "disabled"  # 配置关掉了巡检（间隔 0）
 HEALTH_PENDING = "pending"  # 循环还没跑完第一轮

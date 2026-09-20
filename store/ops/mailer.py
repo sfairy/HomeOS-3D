@@ -322,10 +322,9 @@ def send_verification_email(
     purpose: str,
 ) -> MailResult:
     copy = _copy_for(purpose)
-    # 站点配置优先、环境变量兜底 —— 必须在这里合并，而不是让每个调用方自己合并。
-    # 「测试邮件」按钮的全部意义就是验证**用户真正会走到的那条路**；如果这里读的是
-    # 环境变量，运营在后台改了授权码、点测试却通了（或反过来），得到的结论正好是错的。
-    # 收口在这一层，调用方漏合并的代价就从「静默用错配置」变成不可能发生。
+    # 站点配置优先、环境变量兜底的合并必须收口在这里，而不是让每个调用方自己做。
+    # 「测试邮件」按钮的意义就是验证**用户真正会走到的那条路**：若这里读环境变量，
+    # 运营改了后台授权码、点测试却通了（或反过来），得到的结论正好是错的。
     settings = mail_settings.merge_mail_settings(settings, setting)
     mode = (settings.mail_mode or "log").lower()
     site = setting.site_name or "HomeOS 授权中心"
@@ -370,10 +369,9 @@ def send_verification_email(
             exposed_code=code if expose else None,
         )
 
-    # 日志里写不写明文验证码必须区分来由：运营**显式**选 log/echo 时日志就是投递通道，写明文是
-    # 设计意图；选 smtp 但因凭据不全**回退**到日志时，运营以为「我们不打码」，实际每次注册/重置
-    # 的验证码都留在日志里，任何能读日志的人（聚合、冷备、工单附件）都能接管账号。所以回退场景
-    # 只记掩码并告警「验证码已不可见」，只有显式打开 `expose_verification_code` 才写明文。
+    # 写不写明文验证码必须区分来由：**显式**选 log/echo 时日志就是投递通道，写明文是设计意图；
+    # 选 smtp 但因凭据不全**回退**到日志时，运营以为不打码，实际验证码都留在日志里，任何能读日志
+    # 的人（聚合、冷备、工单附件）都能接管账号。故回退场景只记掩码并告警，显式打开才写明文。
     log_plaintext_code = mode in {"log", "echo"} or settings.expose_verification_code
     if log_plaintext_code:
         logger.warning(

@@ -59,10 +59,9 @@ async def reactivate_license(request: Request, _user: CurrentUser) -> dict:
     try:
         return await request.app.state.license_service.reactivate()
     except LicenseClientError as error:
-        # 状态码由底层错误决定：网络/服务端故障自带 5xx，其余按下面的兜底处理。
-        # 没有状态码时统一用 409 而不是 422：语义是「本机当前状态无法自动重新激活」
-        # （例如没有任何可复用凭证），而不是激活码本身写错了；前端收到后应引导
-        # 用户走手动激活表单，而不是反复重试同一个请求。
+        # 状态码由底层错误决定：网络/服务端故障自带 5xx。
+        # 没有状态码时统一用 409 而非 422：语义是「本机当前状态无法自动重新激活」（例如没有任何可复用凭证），
+        # 而不是激活码写错了 —— 前端应引导走手动激活表单，而不是反复重试同一个请求。
         raise HTTPException(
             status_code = error.status_code or status.HTTP_409_CONFLICT,
             detail = {

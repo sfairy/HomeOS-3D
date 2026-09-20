@@ -50,9 +50,8 @@ const METRIC_KEYS_BY_LENGTH = Object.keys(METRIC_DEFINITIONS).sort(
 );
 /**
  * 从实体的 uniqueId 中解析出「指标键」与「主机标识」。
- * 群晖形如 `<主机名>_<实例>:<指标>`，主机名是同一台机器多条实体链的合并依据；其它平台退化为
- * 「后缀匹配指标名，剩下的前缀即主机标识」。
- * @returns {{key: (string|undefined), host?: (string|null), prefix?: (string|null)}} 白名单里的指标键（匹配不上为 undefined）与主机标识。
+ * 群晖形如 `<主机名>_<实例>:<指标>`，主机名是同一台机器多条实体链的合并依据；其它平台退化为「后缀匹配指标名，
+ * 剩下的前缀即主机标识」。白名单外的指标键为 undefined，主机标识匹配不上为 null。
  */
 function resolveMetricIdentity(sourceEntity) {
   const uniqueId = sourceEntity.uniqueId || "";

@@ -17,9 +17,8 @@ const COS_MAX_POLAR_ANGLE = Math.cos(MAX_CAMERA_POLAR_ANGLE);
 
 /**
  * 就地钳制相机位置，使其落在允许的轨道范围之内。
- * 返回 true 表示位置被改动过，调用方据此决定是否重新渲染。未越界时完全不碰传入向量（保留原始浮点值），
- * 避免每帧累积舍入误差造成视角漂移。
- * @returns {boolean} 位置被修改过返回 true，否则 false。
+ * 返回 true 表示位置被改动过，调用方据此决定是否重新渲染；未越界时完全不碰传入向量
+ * （保留原始浮点值），避免每帧累积舍入误差造成视角漂移。
  */
 export function constrainCameraPosition(cameraPosition, orbitTarget) {
   const offsetX = cameraPosition.x - orbitTarget.x;

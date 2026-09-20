@@ -412,10 +412,8 @@ export function createFloorTransition({
   };
   /**
    * 预先算好滑动 / 装配动画所需的相机空间数据。
-   *
-   * 为什么要预计算：过渡期间每帧都要把楼层摆到「屏幕上某个位置」，
-   * 而把世界坐标换算成屏幕坐标需要相机矩阵与投影参数；这些在同一段过渡里
-   * 只在起止两次取值（中间按 progress 插值），提前算完能省下每层的重复计算。
+   * 为什么预计算：过渡期间每帧都要把楼层摆到「屏幕上某个位置」，世界坐标换算屏幕坐标需要相机矩阵与投影参数，
+   * 这些在同一段过渡里只在起止两次取值（中间按 progress 插值），提前算完能省下每层的重复计算。
    */
   function prepareSlideCameras(fromCameraSpec, toCameraSpec, projections = null) {
     if (assemblyState && projections) {
@@ -823,9 +821,7 @@ export function createFloorTransition({
   }
   /**
    * 按纵深算投影缩放：把世界单位换算成屏幕半高比例。
-   *
-   * 与内部同名逻辑的区别是入参是一个「投影参数对象」而不是矩阵，
-   * 供外部（导出、相机适配）复用同一套公式。
+   * 与内部同名逻辑的区别是入参是「投影参数对象」而不是矩阵，供外部（导出、相机适配）复用同一套公式。
    */
   function projectedScaleAtDepth(projectionSpec, depthValue) {
     return Math.max(

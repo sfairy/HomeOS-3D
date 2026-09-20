@@ -30,9 +30,8 @@ export function scaledExportResolution(width, height, scale = EXPORT_RENDER_SCAL
 
 /**
  * 计算 CRC-32 校验和（ZIP 每个条目都必须带）。
- *
- * 采用标准的反转多项式算法，把多项式 0xEDB88320 写成 -306674912 是为了避免
- * 有符号位移在 JS 里被提升成 32 位溢出；初始值与收尾异或均按规范取 0xFFFFFFFF。
+ * 多项式 0xEDB88320 写成 -306674912 是为了避免有符号位移在 JS 里被提升成 32 位溢出；
+ * 初始值与收尾异或均按规范取 0xFFFFFFFF。
  */
 function crc32(bytes) {
   let checksum = 4294967295;
@@ -75,10 +74,8 @@ function concatChunks(chunks) {
 
 /**
  * 生成一个只用 stored（不压缩）方式的 ZIP 字节流。
- *
- * 导出内容基本都是已经压过的图片，再走一次 deflate 收益极小，却要额外引入压缩实现，
- * 因此这里牺牲体积换实现简单与打包速度。
- * 各段偏移按 ZIP 规范手工写入：本地文件头 → 文件数据 → 中央目录 → 中央目录结束记录。
+ * 导出内容基本都是已压过的图片，再走 deflate 收益极小却要额外引入压缩实现，
+ * 因此牺牲体积换实现简单与打包速度；各段偏移按 ZIP 规范手工写入。
  */
 export function buildStoredZip(entries) {
   const localParts = [];
@@ -158,10 +155,9 @@ export function buildStoredZip(entries) {
 }
 
 /**
- * 计算「灯光图层」相对「基础图层」的增量像素。
- * 用于导出可分层的效果图：基础图已是完整场景，灯光层只承载变化过的像素，按 alpha 叠加即可还原开灯效果，
- * 文件体积大幅缩小。亮度差 ≤1.5（Rec.709 加权，低于人眼 8 位色深分辨力）且 alpha 差 ≤1/255 时视为未变化。
- * @throws {Error} 两帧尺寸不一致（多半是渲染分辨率没对齐）。
+ * 计算「灯光图层」相对「基础图层」的增量像素：基础图已是完整场景，灯光层只承载变化过的像素，
+ * 按 alpha 叠加即可还原开灯效果。亮度差 ≤1.5（Rec.709 加权，低于人眼 8 位色深分辨力）且
+ * alpha 差 ≤1/255 时视为未变化；两帧尺寸不一致（多半是渲染分辨率没对齐）时抛 Error。
  */
 export function buildLightDeltaPixels(basePixels, litPixels) {
   if (basePixels.length !== litPixels.length) {

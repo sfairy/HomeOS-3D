@@ -206,9 +206,8 @@ function animateAmount(animatingLayout, targetAmount, shouldAnimate = true) {
 }
 /**
  * 让画布上的兄弟组件为聚焦中的 3D 组件「让位」。
- *
- * 只处理画布的直接子节点：命中共享组件集合、自身不是 3D 宿主、也不是 iframe / video
- * 这类无法安全变换的内容时，才按统一距离整体平移；同时负责回收已退出候选集合的成员。
+ * 只处理画布的直接子节点：命中共享组件集合、自身不是 3D 宿主、也不是 iframe /
+ * video 这类无法安全变换的内容时，才按统一距离整体平移；并回收已退出的成员。
  */
 function updateLayout(canvasLayout) {
   // 两份 ID 集合：clientComponentIds 决定「哪些兄弟组件可能需要让位」，
@@ -331,7 +330,6 @@ function releaseLayout(releasedLayout, clientRegistration) {
 }
 /**
  * 为某个 3D 宿主元素创建聚焦让位控制器。
- *
  * @param {object} [context] 渲染上下文：`document` / `page` 用于取共享组件列表，
  *   `editable` 为真时整个让位机制被禁用（编辑器里位置必须稳定）。
  */

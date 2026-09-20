@@ -9,8 +9,7 @@
 
 /**
  * 从节点向上回溯，找出它所属的楼层 id。
- *
- * 场景里不同子系统用了不同的字段记录楼层（普通物件、区域光、环境特效、灯光缓存），
+ * 场景里不同子系统用了不同字段记录楼层（普通物件、区域光、环境特效、灯光缓存），
  * 这里按优先级依次尝试，任一命中即返回。
  */
 export function overviewFloorId(node) {
@@ -29,10 +28,8 @@ export function overviewFloorId(node) {
 
 /**
  * 构造「把世界沿 Y 轴下移 stackedHeight，再整体在屏幕上平移」的投影矩阵。
- *
- * 推导：three.js 渲染时会再乘一次 matrixWorldInverse（即视图矩阵的逆），
- * 为了让最终结果等于「原投影 × 下移」，这里的矩阵末尾必须补上一个 camera.matrixWorld。
- * 屏幕平移放在最左侧，因此它是裁剪空间下的位移 —— 与物体离相机的远近无关。
+ * three.js 渲染时会再乘一次 matrixWorldInverse，要得到「原投影 × 下移」的效果，矩阵末尾必须补一个
+ * camera.matrixWorld；屏幕平移放在最左侧，故它是裁剪空间下的位移，与物体离相机的远近无关。
  */
 export function stackProjection(
   THREE,

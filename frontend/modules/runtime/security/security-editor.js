@@ -27,7 +27,6 @@ import {
 import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260920131301";
 /**
  * 打开 3D 安防配置编辑器。
- *
  * 先取编辑授权，再建弹窗与预览舞台；舞台回报场景元数据后才渲染面板
  * （可选项来自场景，未就绪时面板只能显示加载态）。
  */
@@ -238,11 +237,8 @@ export async function openSecurityEditor({
     return selectElement;
   }
   /**
-   * 数字输入字段。
-   *
-   * 两种提交时机：shouldCommitWhileTyping 用于需要边调边看效果的字段（焦距等），
-   * 其余字段在 change 时提交；提交时若值非法（空 / 非数字 / 越界）就退回上一个合法值，
-   * 而不是把 NaN 或越界值写进草稿。
+   * 数字输入字段：shouldCommitWhileTyping 用于需边调边看效果的字段（焦距等），其余在 change 时提交。
+   * 提交时若值非法（空 / 非数字 / 越界）就退回上一个合法值，而不是把 NaN 或越界值写进草稿。
    */
   function createNumberField(
     fieldLabel,

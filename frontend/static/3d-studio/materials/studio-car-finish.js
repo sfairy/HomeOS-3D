@@ -62,10 +62,8 @@ export const CAR_GLASS_ATLAS_REGIONS = [
 const toGlslVec2 = uvPoint =>
   "vec2(" + (uvPoint[0] / 700).toFixed(7) + ", " + (uvPoint[1] / 700).toFixed(7) + ")";
 /**
- * 生成「UV 是否落在该多边形内」的 GLSL 表达式。
- *
- * 做法是逐边做半平面判定再相乘（凸多边形内判定的常见写法），
- * 因此必须先统一环绕方向，否则不同朝向的多边形会得到相反的符号。
+ * 生成「UV 是否落在该多边形内」的 GLSL 表达式：逐边做半平面判定再相乘（凸多边形内判定）。
+ * 必须先统一环绕方向，否则不同朝向的多边形会得到相反的符号。
  */
 const buildLensEdgeExpression = lens => {
   // 鞋带公式求带符号面积：为负说明是顺时针，反转后保证每条边的判定符号一致。
@@ -95,10 +93,8 @@ const buildLampGlowExpression = lampId =>
     .join(" + ");
 /**
  * 按空间位置合并重复顶点的法线，让车漆表面平滑着色。
- *
- * 车模常因 UV 或材质分组把同一位置拆成多个顶点，各自持有独立法线，
- * 渲染出来会有明显接缝。这里按位置聚类后做面积加权的法线平均，
- * 但只合并夹角在 50° 以内的邻居，以保住车身折角的硬边。
+ * 车模常因 UV 或材质分组把同一位置拆成多个顶点、各自独立法线，渲染出接缝；这里按位置聚类做面积加权平均，
+ * 但只合并夹角 50° 以内的邻居，以保住车身折角的硬边。
  */
 export function smoothCarSurfaceNormals(THREE, geometry) {
   const positionAttribute = geometry?.attributes?.position;
@@ -179,10 +175,8 @@ export function smoothCarSurfaceNormals(THREE, geometry) {
   return smoothedGeometry;
 }
 /**
- * 给车身材质注入车漆 / 玻璃 / 车灯效果。
- * 通过 onBeforeCompile 挂到标准材质上，不改几何与贴图；已注入过（userData.hbCarFinish）
- * 或非标准材质的对象原样返回。注入内容：传物件坐标到片元，用贴图 UV 判定玻璃与车灯区域，
- * 再按高度与视线方向叠加天光反射与灯带自发光。
+ * 给车身材质注入车漆 / 玻璃 / 车灯效果：通过 onBeforeCompile 挂到标准材质上，不改几何与贴图；
+ * 已注入过（userData.hbCarFinish）或非标准材质的对象原样返回。
  */
 export function applyCarFinish(material, { pearlWhite = false } = {}) {
   if (!material?.isMeshStandardMaterial || material.userData.hbCarFinish) {
@@ -222,10 +216,9 @@ export function applyCarFinish(material, { pearlWhite = false } = {}) {
         ", 0.0, 1.0);\n        float glassValue = dot(sampledDiffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));\n        hbCarGlass = glassIsland * smoothstep(0.88, 1.05, vHbCarHeight)\n          * (1.0 - smoothstep(0.055, 0.13, glassValue));\n        // Preserve the windscreen, split sunroof and rear-window seals, and the\n        // outer glazing edges. Only soften photographed bands inside the panes.\n        // Side-window pillars keep the atlas detail as well.\n        float glassSeams = max(1.0 - smoothstep(0.007, 0.019, abs(glassUv.x - 0.505)),\n          max(1.0 - smoothstep(0.002, 0.006, abs(glassUv.x - 0.635)),\n              1.0 - smoothstep(0.007, 0.020, abs(glassUv.x - 0.792))));\n        float paneInterior = smoothstep(0.704, 0.74, glassUv.y)\n          * (1.0 - smoothstep(0.907, 0.943, glassUv.y)) * (1.0 - glassSeams);\n        vec3 glassAtlas = sampledDiffuseColor.rgb * 0.7 + vec3(0.012, 0.014, 0.017);\n        vec3 paneColor = mix(vec3(0.026, 0.031, 0.038), sampledDiffuseColor.rgb, 0.15);\n        diffuseColor.rgb = mix(diffuseColor.rgb,\n          diffuse * mix(glassAtlas, paneColor, paneInterior), hbCarGlass);\n      #endif"
     );
     if (pearlWhite) {
-      // 珠光白底漆：只在暖阳原木主题下注入。用贴图亮度挑出「车身漆面」——
-      // 深色玻璃、黑色胶条与包围件的亮度都低于 0.20，再叠加 (1.0 - hbCarGlass)
-      // 排除玻璃，避免把车窗一起刷白。混入的基色带一点暖调（红>绿>蓝），
-      // 并随亮度微调明度，保留贴图上的接缝与阴影细节。
+      // 珠光白底漆：只在暖阳原木主题下注入。用贴图亮度挑出「车身漆面」（深色玻璃、胶条与包围件亮度
+      // 均低于 0.20），再叠加 (1.0 - hbCarGlass) 排除玻璃，避免把车窗一起刷白；
+      // 混入基色带暖调并随亮度微调明度，保留贴图接缝与阴影细节。
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <roughnessmap_fragment>",
         "\n      #ifdef USE_MAP\n        // Keep atlas seams and shadow detail; exclude dark glazing, rubber and trim.\n        float pearlLuma = dot(sampledDiffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));\n        float pearlPaint = smoothstep(0.20, 0.48, pearlLuma) * (1.0 - hbCarGlass);\n        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.94, 0.925, 0.89) * (0.68 + 0.32 * pearlLuma), pearlPaint);\n      #endif\n      #include <roughnessmap_fragment>"

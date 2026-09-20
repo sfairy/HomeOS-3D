@@ -37,8 +37,7 @@ const FRAME_INTERVAL_MS = 1000 / 30;
 const MOTION_DURATION_MS = 420;
 /**
  * 窗帘完全收拢时保留的最小宽度比例。
- *
- * 不能收到 0：零宽几何体的包围盒退化，光照与阴影都会出错，视觉上还会「啪」地消失。
+ * 不能收到 0：零宽几何体的包围盒退化，光照与阴影都会出错，视觉上还会「啪」地消失；
  * 12% 相当于布面折叠后的物理厚度。
  */
 const MIN_PANEL_SCALE = 0.12;
@@ -54,9 +53,8 @@ const resolveUnboundPosition = unboundBinding =>
     : 0;
 /**
  * 按帘宽推算褶皱数量。
- *
- * 公式：帘宽 ÷（对开时折半）÷ 褶皱间距（纱帘间距更密，取 0.1 米），
- * 结果夹在 4–96 之间 —— 太少看不出褶皱，太多会让顶点数爆炸（每个褶皱要 6 段）。
+ * 公式：帘宽 ÷（对开时折半）÷ 褶皱间距（纱帘 0.1 米）；结果夹在 4–96 之间 ——
+ * 太少看不出褶皱，太多会让顶点数爆炸（每个褶皱要 6 段）。
  */
 const resolveFoldCount = widthBinding =>
   Math.max(
@@ -91,9 +89,8 @@ const resolveStatePosition = receivedState =>
     : null;
 /**
  * 读取窗帘模型的基准尺寸。
- *
- * 由模型导出时写入 userData.curtainRigBasis（宽、高、厚，单位米），
- * 三个分量都必须是正的有限数；缺失时回落到标准帘尺寸 1.8 × 2.4 × 0.18。
+ * 由模型导出时写入 userData.curtainRigBasis（宽、高、厚，单位米），三个分量
+ * 都必须是正的有限数；缺失时回落到标准帘尺寸 1.8 × 2.4 × 0.18。
  */
 const resolveRigBasis = rigAnchor =>
   Array.isArray(rigAnchor.userData?.curtainRigBasis) &&
@@ -106,10 +103,8 @@ const resolveRigBasis = rigAnchor =>
     : [1.8, 2.4, 0.18];
 /**
  * 程序化生成布料网格（正弦褶皱的薄壳）。
- *
- * 为什么自己造几何而不是用模型：模型是一片平板，无法表现「收拢时褶皱变密变深」。
- * 这里沿帘宽方向铺 N 个正弦褶皱，再按需要生成正/反/上/下四面与两侧端盖，
- * 使布料具有真实厚度（0.003 米）和可用的法线。
+ * 不用模型平板是因为它表现不出「收拢时褶皱变密变深」；这里沿帘宽铺 N 个正弦褶皱，
+ * 并生成正/反/上/下四面与两侧端盖，使布料有真实厚度（0.003 米）和可用法线。
  */
 function createClothGeometry(three, folds, fabric) {
   const isSheer = fabric === "sheer";
@@ -281,9 +276,8 @@ function isDescendantOf(descendant, ancestor) {
 }
 /**
  * 在窗帘模型里定位「可被接管的骨架」。
- *
  * 需要找到两样东西：会被隐藏的原生局部（轨道杆、端盖、布面、帘头），
- * 以及一个能容纳自制骨架的锚点（优先用模型自带的 curtainRigRoot）。
+ * 以及能容纳自制骨架的锚点（优先模型自带的 curtainRigRoot）。
  */
 function locateCurtainRig(environmentRoot) {
   const curtainParts = [];

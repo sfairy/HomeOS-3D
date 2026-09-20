@@ -25,8 +25,7 @@ const isValidIconId = iconId =>
   typeof iconId == "string" && /^mdi:[a-z0-9][a-z0-9-]{0,119}$/.test(iconId);
 /**
  * 按设备聚合人体传感器实体。
- *
- * 用于「人在 / 移动」这类需要按设备绑定的交互：HA 里同一个传感器设备常有多个实体
+ * 用于「人在 / 移动」这类按设备绑定的交互：HA 里同一设备常有多个实体
  * （占用、移动、事件），面板希望用户选设备而不是逐个挑实体。
  */
 export function presenceDeviceProfiles(entities = [], devices = [], lookupState = () => null) {
@@ -48,11 +47,9 @@ export function presenceDeviceProfiles(entities = [], devices = [], lookupState 
       entityEntry.device_class ||
       entityEntry.attributes?.device_class ||
       lookupState(entityEntry.entityId)?.attributes?.device_class;
-    // 判定规则（三者取或，任一命中即排除）：
-    //   1) 有 device_class 但不在白名单内 —— 明确是别的用途；
-    //   2) 完全没有 device_class —— 只能用中英文关键词在 ID / 名称里兜底
-    //      （HA 的友好名可能是中文，因此中文词也必须认）；
-    //   3) 分类为 diagnostic / config —— HA 自己也不会把它当作主功能实体。
+    // 三者任一命中即排除：1) 有 device_class 但不在白名单 —— 明确是别的用途；
+    // 2) 完全没有 device_class —— 用中英文关键词兜底（友好名可能是中文）；
+    // 3) 分类为 diagnostic / config —— 非主功能实体。
     if (
       (deviceClass && !["occupancy", "presence", "motion"].includes(deviceClass)) ||
       (!deviceClass &&
@@ -109,10 +106,8 @@ export function presenceDeviceProfiles(entities = [], devices = [], lookupState 
 }
 /**
  * 创建编辑器的选择器集合。
- *
- * 所有依赖都从参数注入：openPicker 提供弹层实现、elements 提供元素工厂、
- * fetchIcons / getEntities / ensureEntities / entityPickerText 由编辑器提供，
- * 这样本模块既不依赖具体 UI，也便于在测试里替换数据源。
+ * 所有依赖都从参数注入（openPicker / elements / fetchIcons / getEntities /
+ * ensureEntities / entityPickerText），本模块既不依赖具体 UI，也便于测试里替换数据源。
  */
 export function createInteraction3dEditorPickers({
   openPicker: openPicker,

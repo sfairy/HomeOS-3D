@@ -234,9 +234,8 @@ def _cooldown(setting: StoreSetting, settings: SettingsDep) -> int:
 
 
 # 概览
-#: 营收与订单量按「滚动时间窗」统计，而不是「自然日」。后台没有站点时区配置，
-#: 服务端算自然日只能用 UTC 或服务器本地时区，两者在运营眼里都是猜的；滚动窗口
-#: 与运营所在时区无关，文案也直说「近 24 小时」，不会出现「今日营收怎么少了 8 小时」。
+#: 营收与订单量按「滚动时间窗」统计，而不是「自然日」：后台没有站点时区配置，服务端
+#: 算自然日只能用 UTC 或服务器本地时区（运营眼里都是猜的），滚动窗口与运营时区无关。
 _OVERVIEW_WINDOWS: tuple[tuple[str, timedelta], ...] = (
     ("last24h", timedelta(hours=24)),
     ("last7d", timedelta(days=7)),
@@ -381,10 +380,8 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
     ]
 
     # —— 待办：需要人工介入的东西 ——
-    # 「待发货」= 钱已到账但还没发出去。失败状态逐项单列，因为它们不是「排队等自动
-    # 发货」，而是「自动发货炸了 / 付款没成、必须人工重试或退款」。
-    # 清单来自 order_status.ORDER_ATTENTION_STATUSES（唯一定义）：这里按它计数，
-    # 新增一个待办状态就不必记得回来改这一段。
+    # 「待发货」= 钱已到账但还没发出去；失败状态逐项单列，因为它们不是「排队等自动发货」，
+    # 而是「自动发货炸了 / 付款没成、必须人工重试或退款」。计数按唯一清单 ORDER_ATTENTION_STATUSES。
     awaiting_fulfillment = count(
         select(func.count(Order.id)).where(
             Order.status == "paid", Order.fulfillment_mode == "automatic"
@@ -839,11 +836,9 @@ def admin_delete_product(
 ) -> dict:
     product = _product_or_404(session, product_id)
 
-    # 有历史授权或订单的商品只下架，不做物理删除，避免历史数据悬空。
-    # 注意 Order.product_id 是 NOT NULL 外键且没有 ondelete，而 SQLite 连接上开了
-    # foreign_keys=ON，所以只要有订单引用该商品，物理删除就会撞 FK 约束直接 500。
-    # 计数复用 _product_delete_refs，保证和列表接口暴露给前端的 licenseCount /
-    # orderCount 是同一套口径，确认弹窗的预告不会和实际结果打架。
+    # 有历史授权或订单的商品只下架，不做物理删除：Order.product_id 是 NOT NULL 外键且无
+    # ondelete，SQLite 又开了 foreign_keys=ON，物理删除会撞 FK 约束直接 500。
+    # 计数复用 _product_delete_refs，保证与列表接口的 licenseCount / orderCount 同一口径。
     license_counts, order_counts = _product_delete_refs(session)
     license_count = int(license_counts.get(product.id, 0))
     order_count = int(order_counts.get(product.id, 0))
@@ -990,11 +985,8 @@ def admin_upload_product_image(
 
 
 # 订单
-#: 允许被后台标记支付 / 履约的状态。参见 ``store.commerce.order_status``：
-#: 只有仍持有库存预留的订单才谈得上「入账」。终态订单一律拒绝——
-#: cancelled / expired 的库存与优惠码名额早已释放，refunded 的授权也已收回，
-#: 对它们履约等于凭空发一张可用授权，还会重复扣减预留并造成超卖。
-#: 钱确实到账的「复活」场景由支付宝结算路径处理，不走后台接口。
+#: 允许被后台标记支付 / 履约的状态：只有仍持有库存预留的订单才谈得上「入账」，终态订单一律拒绝
+#: ——cancelled / expired 库存与名额已释放、refunded 授权已收回，履约等于凭空发授权并重复扣减预留造成超卖。
 _FULFILLABLE_STATUSES = ORDER_FULFILLABLE_STATUSES
 
 #: 订单状态中文口径统一来自 ``store.commerce.order_status``（服务端唯一来源），
@@ -1051,9 +1043,8 @@ def admin_list_orders(
         limit=limit,
         offset=offset,
         # 删除守卫的第三条判据（渠道交易是否已确认关闭）前端拿不到，这里补进列表，
-        # 让「能不能删」只有一个口径 —— 否则按钮会照常显示、点下去才 409。
-        # ``paymentProvider`` 同理：人工标记支付的订单（manual）只能线下退款，前端要靠
-        # 它把退款确认框的文案换成「线下退款」，不能只说「确认退款」就把钱记成已退。
+        # 让「能不能删」只有一个口径，否则按钮照常显示、点下去才 409。``paymentProvider`` 同理：
+        # manual 订单只能线下退款，退款确认框的文案要据此换掉，不能把钱记成已退。
         render=lambda row: {
             **order_payload(row),
             "channelPayable": channel_still_payable(row),
@@ -1167,10 +1158,9 @@ def _manual_payment(
         order.order_no,
         "" if manual_settlement else "人工确认已收到钱（线下），计入营收",
     )
-    # 自动发卡商品立刻履约（发码 / 追加增量包 / 邀请奖励）。
-    # 手动发卡商品只标记已支付，把发码留给「履约」按钮——两条支付路径必须一致：
-    # 真实支付宝到账（settle_paid_order）也是见到 manual 就停在 paid 等人核对，
-    # 后台这边一按就发码的话，"人工发卡"这道闸门等于不存在。
+    # 自动发卡商品立刻履约（发码 / 追加增量包 / 邀请奖励）；手动发卡商品只标记已支付，
+    # 把发码留给「履约」按钮——两条支付路径必须一致：真实支付宝到账（settle_paid_order）
+    # 见 manual 也停在 paid 等人核对，后台一按就发码的话「人工发卡」这道闸门等于不存在。
     if order.fulfillment_mode != "manual":
         return _fulfill_with_failure_state(
             session, order=order, setting=setting, actor=_admin_actor(admin)
@@ -1197,9 +1187,8 @@ def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dic
         )
     if order.paid_at is None:
         # 只补时间戳，不碰状态：状态流转与幂等由 fulfill_order 的条件 UPDATE 负责。
-        # 同时置人工补记标记：这里也是「没收到钱就放行」的一条路 —— 例如
-        # 手动发卡的订单直接点「履约」。不标记的话，一笔钱根本没到的订单会因为
-        # 这个按钮进入营收。
+        # 同时置人工补记标记，因为这里也是「没收到钱就放行」的一条路（例如手动发卡订单
+        # 直接点「履约」）；不标记的话，钱没到的订单会因为这个按钮进入营收。
         session.execute(
             update(Order)
             .where(Order.id == order.id)
@@ -1317,10 +1306,9 @@ def admin_refund(
     """后台退款。真正的逻辑在 ``_refund_order``，这里只负责把同一订单的退款串行化。"""
     with _refund_lock(order_no):
         result = _refund_order(order_no, payload, request, session, admin)
-        # 必须在本进程锁**之内**把抢单结果与流水落库。请求会话的 commit 发生在
-        # 依赖 teardown（见 store.core.database.Database.session），那时锁早就释放了：
-        # 第二笔并发退款会读到同一个旧累计值，于是两次渠道退款都发出去、两次
-        # 抢单也都成立 —— 钱多退一倍。teardown 的 commit 之后是空操作。
+        # 必须在本进程锁**之内**把抢单结果与流水落库：请求会话的 commit 发生在依赖
+        # teardown（见 store.core.database.Database.session），那时锁早已释放，第二笔并发
+        # 退款会读到同一旧累计值，两次抢单都成立、钱多退一倍；teardown 的 commit 是空操作。
         session.commit()
         return result
 
@@ -1362,10 +1350,9 @@ def _refund_order(
 
     refund_reason = (payload.note or f"订单 {order.order_no} 后台退款")[:255]
 
-    #: 人工标记支付的订单（以及没记渠道 / 渠道名已失效的老订单）在渠道侧没有可退的
-    #: 交易：必须按**线下退款**记账，绝不能回落到「当前站点配置的渠道」——配模拟收银台
-    #: 时会「退成功」却分文未动。这里不抛 409：这类订单本来就只能线下退，
-    #: 拒绝只会让运营在后台点不动退款按钮。改为自动改走线下，并把原因写进审计与流水。
+    #: 人工标记支付的订单（以及没记渠道 / 渠道名已失效的老订单）在渠道侧没有可退交易，
+    #: 必须按**线下退款**记账，绝不能回落到「当前站点配置的渠道」——配模拟收银台时会
+    #: 「退成功」却分文未动。这里不抛 409（这类订单只能线下退），改为自动改走线下并记审计。
     forced_offline = _offline_refund_reason(order)
     offline_refund = bool(payload.offline) or bool(forced_offline)
     if forced_offline and not payload.offline:
@@ -1435,10 +1422,9 @@ def _refund_order(
         # 过去这种情况直接 409 拒绝，连「退了多少」都没记下来。
         settled_cents = max(0, amount_cents - int(result.unrefunded_cents or 0))
 
-    # 渠道确认「本次没有新增资金变动」时 settled_cents 会是 0（``fund_change=N`` /
-    # ``refund_fee=0``）。这不是一次成功的退款，而是「这笔钱早就退过了」——绝不能
-    # 因此把订单推进 ``partially_refunded``（那会让一笔资金未动的订单显示成退过钱，
-    # 还会连带把预留归还掉）。只留一条流水并如实告知运营，订单状态保持原样。
+    # 渠道确认「本次没有新增资金变动」时 settled_cents 会是 0（fund_change=N / refund_fee=0）：
+    # 这不是成功退款，而是「这笔钱早就退过了」——绝不能因此把订单推进 partially_refunded
+    # （会让资金未动的订单显示成退过钱，还连带归还预留）。只留一条流水，订单状态保持原样。
     if settled_cents <= 0:
         refund.status = "succeeded"
         refund.amount_cents = 0
@@ -1466,13 +1452,9 @@ def _refund_order(
     if not _claim_refund_amount(
         session, order, seen_cents=refunded_cents, add_cents=settled_cents
     ):
-        # 抢单失败：本次渠道退款**已经发出去了**，但本地累计值在「读」与「写」之间
-        # 被另一笔退款改动过（进程内锁没覆盖到的跨进程并发）。这里绝不能静默把本次
-        # 覆盖掉 —— 覆盖等于那笔钱从账面上消失；也不能只回一句 409 让人以为没退。
-        # 先在独立事务里把流水留下，再明确告知需要人工核对。
-        # 先回滚请求事务：它此刻可能已持有写锁，独立事务会写不进去（而这条流水
-        # 恰恰是最不能丢的那条）。回滚也会把还没落库的 refund 对象退成游离态，
-        # 正好满足 record_refund_in_new_session 的要求。
+        # 抢单失败：本次渠道退款**已经发出去了**，但本地累计值被另一笔退款改动过（进程内锁
+        # 没覆盖到的跨进程并发）。绝不能静默覆盖（那笔钱会从账面上消失），也不能只回 409。
+        # 先回滚请求事务（它可能持有写锁，独立事务写不进去），再把流水写进独立事务并报人工核对。
         session.rollback()
         refund.status = "succeeded"
         refund.amount_cents = settled_cents
@@ -2487,12 +2469,9 @@ def admin_update_settings(
         )
     updates |= _alipay_settings_updates(data)
     updates |= _mail_settings_updates(data, current=site_config.get_setting(session), settings=settings)
-    # ``update_setting`` 把 ``None`` 当作「这个字段别动」（全局约定，见其实现），
-    # 但回显开关的 NULL 本身就是一个有意义的取值（「跟随环境变量」，区别于
-    # 「生产上明确关掉」的 False）。所以这一个字段单独落地：摘出来，写入后再显式
-    # 写回 NULL。不加这个例外的话，界面上「跟随环境变量」那一项永远选不回去。
-    # 注意不能写成 ``updates.pop(...) is None``：``pop`` 无论值是什么都会摘掉这个键，
-    # 于是「显式传 false」会被顺手丢掉，界面上关掉回显却毫无反应。
+    # ``update_setting`` 把 None 当作「这个字段别动」，但回显开关的 NULL 是有意义的取值
+    # （「跟随环境变量」，区别于 False「明确关掉」），所以这一个字段被摘出来、写入后再显式
+    # 写回 NULL；不能用 ``updates.pop(...) is None``，pop 会无条件摘键，把「显式传 false」丢掉。
     clear_expose = (
         "expose_verification_code" in updates
         and updates["expose_verification_code"] is None
@@ -2626,10 +2605,9 @@ def _mail_settings_updates(data: dict, *, current: StoreSetting, settings: Setti
         if field in data:
             updates[column] = int(data[field] or 0)
 
-    # 三态回显开关：字段在请求里就代表运营做了选择。显式传 null 表示清回
-    # 「跟随环境变量」—— 列是可空的，NULL 与 False 是两件事（「没配过」vs
-    # 「生产上明确关掉」），所以这里绝不能写成 ``bool(None) == False``：那会让
-    # 运营一旦点过这个下拉框，就再也回不到「跟随环境变量」。
+    # 三态回显开关：字段在请求里就代表运营做了选择，显式传 null 表示清回「跟随环境变量」
+    # ——列可空，NULL 与 False 是两件事（「没配过」vs「明确关掉」），所以绝不能写成
+    # ``bool(None) == False``，否则运营点过这个下拉框就再回不到「跟随环境变量」。
     if "expose_verification_code" in data:
         value = data["expose_verification_code"]
         updates["expose_verification_code"] = None if value is None else bool(value)
@@ -2878,10 +2856,9 @@ def admin_create_release(
         upgrade_notes=payload.upgrade_notes or "",
     )
     session.add(release)
-    # 上面那次查询挡不住并发（两个管理员同时提交）：唯一索引是最终防线，撞上时同样
-    # 翻译成 409 —— 否则前端只会看到一个没有解释的 500。flush 必须**在 SAVEPOINT 内**
-    # 且关掉自动 flush：先建 SAVEPOINT 再显式 flush，失败时只回滚这一次插入，会话仍可
-    # 正常提交（提前 flush 会把会话打成 needs-rollback，之后连读都读不了）。
+    # 上面那次查询挡不住并发（两个管理员同时提交），唯一索引是最终防线，撞上时同样翻译成 409，
+    # 否则前端只看到没有解释的 500。flush 必须在 SAVEPOINT 内且关掉自动 flush：失败时只回滚
+    # 这次插入，会话仍可提交；提前 flush 会把会话打成 needs-rollback，之后连读都读不了。
     try:
         with session.no_autoflush, session.begin_nested():
             session.flush()
@@ -3453,11 +3430,9 @@ def admin_adjust_wallet(
             status_code=status.HTTP_400_BAD_REQUEST, detail="人工调账必须填写备注。"
         )
 
-    #: NaN / Infinity 必须在这里被挡掉。JSON 标准里没有这两个字面量，但 Python 的
-    #: ``json`` 默认**接受**它们，所以构造出来的请求体能把 nan 一路写进钱包余额：
-    #: ``nan == 0`` 与 ``nan < 0`` 全为假，后面两道守卫都会被绕过，落库之后该账号
-    #: 的余额永远算不回正常值（所有加减都是 nan）。``money.to_centi`` 对非有限数
-    #: 直接抛 ``ValueError``，这里翻译成 400 而不是让它变成 500。
+    #: NaN / Infinity 必须在这里被挡掉：JSON 标准没有这两个字面量，但 Python 的 ``json``
+    #: 默认**接受**它们，构造请求体就能把 nan 写进钱包余额——``nan == 0`` 与 ``nan < 0``
+    #: 全为假，两道守卫都被绕过且余额永远算不回正常值。``money.to_centi`` 抛 ValueError，翻成 400。
     try:
         delta_centi = money.to_centi(payload.delta)
         frozen_delta_centi = money.to_centi(payload.frozen_delta)
@@ -3482,11 +3457,9 @@ def admin_adjust_wallet(
         )
 
     try:
-        #: 上面那次判断只是**为了给出带数字的文案**，它自己挡不住并发：两个调账
-        #: 请求各自读到同一份余额、各自算出「不会为负」、再各自把结果写回去 ——
-        #: 后写的一方覆盖先写的，负余额就这么落库（而接口返回 200，没有任何异常）。
-        #: 真正的守卫传进 ``ledger_entry``，与加法压在同一条 UPDATE 的 ``WHERE`` 里，
-        #: 匹配不到行即拒绝（见 ``referrals._apply_wallet_delta``）。
+        #: 上面那次判断只是**为了给出带数字的文案**，挡不住并发：两个调账请求各自读到同一份
+        #: 余额、各自算出「不会为负」再写回，后写覆盖先写，负余额就这么落库（接口还返回 200）。
+        #: 真正的守卫传进 ``ledger_entry``，与加法压在同一条 UPDATE 的 WHERE 里，匹配不到即拒。
         entry = referrals.ledger_entry(
             session,
             wallet,
@@ -3648,8 +3621,7 @@ def admin_patch_release(
 
 
 # 只读数据面：登录尝试、验证码、解绑事件等表，出问题时靠「翻旧账」定位
-#
-# 分页口径统一为 {items, total, limit, offset}：只给 limit 而没有 offset 的话，
+# 分页口径统一为 {items, total, limit, offset}：只给 limit 没有 offset 时，
 # 第 501 条之后的记录在界面上永远看不到 —— 看不到旧记录等于白存。
 def _page_bounds(limit: int, offset: int) -> tuple[int, int]:
     """分页参数的统一闸门：单页上限 500，offset 不允许负数或离谱的大值。"""

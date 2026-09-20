@@ -30,8 +30,7 @@ function toPositiveInt(input, fallback = 0) {
 /**
  * 求不小于入参的最小 2 的幂。
  *
- * 图集尺寸必须是 2 的幂：mipmap 与部分驱动的纹理压缩才允许，
- * 而且后续按 2 倍递增试探布局也更简单。
+ * 图集尺寸必须是 2 的幂：mipmap 与部分驱动的纹理压缩才允许。
  */
 function nextPowerOfTwo(requestedValue) {
   let result = 1;
@@ -44,8 +43,7 @@ function nextPowerOfTwo(requestedValue) {
 /**
  * 按「逐行从左到右、放不下就换行」的货架算法把 tile 摆进方图。
  *
- * 为什么不用更省空间的算法：货架算法 O(n) 且结果可预测，
- * 图集每次重建都会得到完全相同的布局，便于复现问题。
+ * 货架算法 O(n) 且结果可预测，每次重建布局完全相同，便于复现问题。
  */
 function packTilesIntoAtlas(tiles, atlasSize, gutter) {
   let cursorX = gutter;
@@ -124,8 +122,7 @@ export function packSpotShadowAtlasTiles(tileSizes = [], maxAtlasSize = 4096, ti
 /**
  * 生成一盏灯的稳定键：楼层 ID + 家具 ID。
  *
- * 必须稳定，因为图集条目是按这个键在多次重建之间复用的；
- * 键为空（灯没有归属家具）的灯不参与图集。
+ * 图集条目按这个键在多次重建之间复用，所以键必须稳定；键为空的灯不参与图集。
  */
   function spotLightKey(lightObject) {
   // 优先用家具 ID 而不是灯对象的 uuid：家具可能被重建，uuid 会变，键就不稳定了。
@@ -139,9 +136,8 @@ export function packSpotShadowAtlasTiles(tileSizes = [], maxAtlasSize = 4096, ti
 }
 /**
  * 遍历场景收集「需要进图集」的聚光灯。
- *
- * 入选条件（缺一不可）：是 SpotLight、标记了 shadowCandidate、
- * 有稳定的灯键、（按需）层级可见、以及亮度大于 0 或显式要求预热。
+ * 入选条件（缺一不可）：是 SpotLight、标记了 shadowCandidate、有稳定的灯键、
+ * （按需）层级可见、以及亮度大于 0 或显式要求预热。
  */
 function collectShadowLights(searchRoot, { includeHidden: includeHidden = true } = {}) {
   const lights = [];
@@ -163,9 +159,8 @@ function collectShadowLights(searchRoot, { includeHidden: includeHidden = true }
 }
 /**
  * 判断材质是否属于会被本模块打补丁的标准光照材质。
- *
- * 只列 MeshStandard / Physical / Lambert / Phong / Toon：这些才走 three.js 的
- * lights_fragment_begin 分支。基础材质（Basic）与自定义着色器不接收阴影，打补丁反而会报错。
+ * 只列 MeshStandard / Physical / Lambert / Phong / Toon：这些才走 lights_fragment_begin
+ * 分支；Basic 与自定义着色器不接收阴影，打补丁反而报错。
  */
 function isShadowableMaterial(material) {
   return (
@@ -179,9 +174,8 @@ function isShadowableMaterial(material) {
 }
 /**
  * 片段着色器里注入的图集采样函数（GLSL 源码，字符串内的英文注释为原始注释）。
- *
- * 用 VSM（方差阴影）贴图的 rg 通道：r 是模糊后的深度均值，g 是标准差。
- * 这里刻意不走 three.js 自带的切比雪夫尾部概率，原因见函数体内注释。
+ * 用 VSM（方差阴影）贴图的 rg 通道：r 是深度均值，g 是标准差；刻意不走
+ * three.js 自带的切比雪夫尾部概率，原因见函数体内注释。
  */
 function buildAtlasFragmentChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  uniform sampler2D userSpotShadowAtlas;\n  uniform float userSpotShadowAtlasEnabled;\n  uniform vec4 userSpotShadowRect[ NUM_SPOT_LIGHTS ];\n  uniform vec4 userSpotShadowParams[ NUM_SPOT_LIGHTS ];\n  varying vec4 vUserSpotShadowCoord[ NUM_SPOT_LIGHTS ];\n\n  float getUserSpotAtlasShadow( vec4 atlasRect, vec4 shadowParams, vec4 shadowCoord ) {\n    if ( userSpotShadowAtlasEnabled < 0.5 || shadowParams.z < 0.5 ) return 1.0;\n    shadowCoord.xyz /= shadowCoord.w;\n    shadowCoord.z += shadowParams.x;\n    bool inFrustum = shadowCoord.x >= 0.0 && shadowCoord.x <= 1.0\n      && shadowCoord.y >= 0.0 && shadowCoord.y <= 1.0;\n    if ( ! inFrustum || shadowCoord.z > 1.0 ) return 1.0;\n    vec2 atlasUv = atlasRect.xy + clamp( shadowCoord.xy, 0.0, 1.0 ) * atlasRect.zw;\n    vec2 distribution = texture2D( userSpotShadowAtlas, atlasUv ).rg;\n    float mean = distribution.x;\n    // The stock VSM Chebyshev tail turns half-float depth steps from a\n    // 256px local-light map into several visible contour rings. Preserve the\n    // authored VSM blur, but use its deviation only to size one bounded edge\n    // transition. This keeps the same single texture sample and removes the\n    // long probability tail that made furniture shadows look layered.\n    float softness = clamp( abs( distribution.y ) * 0.35, 0.0007, 0.004 );\n    // A slope-scaled receiver guard keeps the newly bounded edge from\n    // exposing quantized self-shadow stripes on cabinet fronts and tabletops.\n    // It changes only the depth comparison, not the map resolution or sample\n    // count, and is capped tightly so real contact shadows stay attached.\n    // Cover the complete soft transition at equal depth, then add only a\n    // small slope allowance. This prevents the half-float map's depth bands\n    // from reappearing on large floors or through transparent glass, while\n    // keeping the allowance proportional to the authored penumbra.\n    float receiverGuard = softness + clamp( fwidth( shadowCoord.z ) * 1.5, 0.0002, 0.0015 );\n    #ifdef USE_REVERSED_DEPTH_BUFFER\n      float occludedDistance = mean - shadowCoord.z;\n    #else\n      float occludedDistance = shadowCoord.z - mean;\n    #endif\n    // The atlas contains only solid architectural occluders. Once a receiver\n    // is safely behind a wall, collapse the remaining VSM depth transition\n    // quickly instead of letting it extend through nearby cabinet backs and\n    // reveal half-float depth rows. The authored blur in atlas UV space still\n    // keeps the wall silhouette soft; this only removes light bleeding behind\n    // the blocker. Equality and the complete receiver guard remain lit.\n    float blockerTransition = max( softness * 0.5, 0.00035 );\n    float shadow = 1.0 - smoothstep(\n      receiverGuard,\n      receiverGuard + blockerTransition,\n      occludedDistance\n    );\n    return mix( 1.0, shadow, shadowParams.y );\n  }\n#endif\n";
@@ -195,8 +189,7 @@ function buildAtlasVertexParsChunk() {
 /**
  * 顶点着色器里计算每盏灯的阴影坐标（GLSL 源码）。
  *
- * params.w 是法线偏移（normalBias）：沿世界法线把采样点推离表面，
- * 用来消除斜面上的自阴影条纹（shadow acne）。
+ * params.w 是法线偏移（normalBias）：沿世界法线把采样点推离表面，消除斜面自阴影条纹。
  */
 function buildAtlasVertexChunk() {
   return "\n#if NUM_SPOT_LIGHTS > 0\n  vec3 userShadowWorldNormal = inverseTransformDirection( transformedNormal, viewMatrix );\n  vec4 userShadowWorldPosition;\n  #pragma unroll_loop_start\n  for ( int i = 0; i < NUM_SPOT_LIGHTS; i ++ ) {\n    userShadowWorldPosition = worldPosition + vec4( userShadowWorldNormal * userSpotShadowParams[ i ].w, 0.0 );\n    vUserSpotShadowCoord[ i ] = userSpotShadowMatrix[ i ] * userShadowWorldPosition;\n  }\n  #pragma unroll_loop_end\n#endif\n";
@@ -244,9 +237,8 @@ function patchLightsFragmentBegin(THREE) {
 }
 /**
  * 释放单灯阴影贴图并断开引用。
- *
- * 图集烘焙完成后单灯贴图就成了纯显存浪费，必须显式 dispose，
- * three.js 不会因为 light.shadow.map 被置空而回收纹理。
+ * 烘焙完成后单灯贴图就是纯显存浪费，必须显式 dispose：three.js 不会因
+ * light.shadow.map 被置空而回收纹理。
  */
 function disposeShadowTargets(disposedLight) {
   disposedLight?.shadow?.map?.dispose?.();
@@ -258,7 +250,6 @@ function disposeShadowTargets(disposedLight) {
 }
 /**
  * 创建聚光灯阴影图集控制器。
- *
  * @param {function(): boolean} [options.canBuild] 返回 false 时推迟烘焙（例如页面不可见）。
  * @throws {Error} 缺少 Three.js 渲染上下文，或 three.js 着色器结构不兼容时抛出。
  */
@@ -320,10 +311,9 @@ export function createSpotShadowAtlasController({
   // 逐帧同步模式才建灯索引：它每帧遍历场景，只在确实需要时才付出这份开销。
   const lightIndex = syncBeforeRender ? createRenderLightIndex() : null;
   let lastIndexSignature = "";
-  // Mesh 的 onBeforeRender 在颜色通道中触发，那时 three.js 已经持有可用的
-  // currentRenderState；scene.onBeforeRender 在 r182 里太早（state 仍为 null），
-  // 所以强制 shadowMap.render() 绝不能挂在场景钩子上。这块探针网格就是用来
-  // 借 Mesh 钩子的时机执行强制烘焙的。
+  // 强制 shadowMap.render() 不能挂在 scene.onBeforeRender 上：r182 里它太早，state 仍为 null，
+  // 而 Mesh 的 onBeforeRender 在颜色通道中触发时 three.js 已持有可用的 currentRenderState。
+  // 这块探针网格就是用来借 Mesh 钩子的时机执行强制烘焙的。
   const bakeProbeMesh = new three.Mesh(
     new three.BufferGeometry().setAttribute(
       "position",
@@ -352,10 +342,8 @@ export function createSpotShadowAtlasController({
 
   /**
    * 判断当前是否处于「阴影更新被冻结」的状态。
-   *
-   * 楼层过渡动画会把 autoUpdate 与 needsUpdate 同时置 false 来冻结阴影更新。
-   * 这段窗口里烘焙会采到正在移动的世界矩阵，得到错误结果，而且楼层落位后
-   * 没有任何机制会顺带重建；因此只能等冻结解除再烘。
+   * 楼层过渡会把 autoUpdate 与 needsUpdate 同时置 false；这段窗口里烘焙会采到
+   * 正在移动的世界矩阵，且楼层落位后没有任何机制会顺带重建，只能等解除再烘。
    */
   function areShadowUpdatesFrozen() {
     return renderer.shadowMap.autoUpdate === false && renderer.shadowMap.needsUpdate === false;
@@ -485,9 +473,8 @@ export function createSpotShadowAtlasController({
 
   /**
    * 按本帧「实际被渲染的灯」顺序同步 uniform（逐帧同步模式专用）。
-   *
-   * three.js 只给经过视锥与图层筛选的灯分配循环下标，因此 uniform 顺序
-   * 必须跟着渲染器实际使用的灯列表走，不能只按场景遍历顺序。
+   * three.js 只给经过视锥与图层筛选的灯分配循环下标，因此 uniform 顺序必须
+   * 跟着渲染器实际使用的灯列表走，不能只按场景遍历顺序。
    */
   function syncRenderLights(renderedScene, renderedCamera) {
     if (isDisposed || !syncBeforeRender || !renderedScene) {
@@ -564,9 +551,8 @@ export function createSpotShadowAtlasController({
   }
   /**
    * 把图集整张清成「白色 = 完全无遮挡」。
-   *
-   * 用纯白而不是黑色：VSM 里距离 1 代表最远，未绘制的 tile 就自动是无阴影，
-   * 这样某些灯烘焙失败时那块区域的读者不会看到整片黑块。
+   * 用纯白而非黑色：VSM 里距离 1 代表最远，未绘制的 tile 自动是无阴影，
+   * 某些灯烘焙失败时那块区域也不会出现整片黑块。
    */
   function clearAtlasTarget(target) {
     // 临时改渲染目标与清屏色，必须原样还原，否则会污染调用方的渲染状态。
@@ -582,9 +568,7 @@ export function createSpotShadowAtlasController({
   }
   /**
    * 让出主线程，避免连续烘焙多盏灯时卡住交互。
-   *
-   * 优先用 scheduler.yield（浏览器可在高优先级任务后插队调度），
-   * 不支持时退化为 setTimeout(0)。
+   * 优先用 scheduler.yield（浏览器可在高优先级任务后插队调度），不支持时退化为 setTimeout(0)。
    */
   async function yieldToScheduler() {
     if (globalThis.scheduler?.yield) {
@@ -595,9 +579,8 @@ export function createSpotShadowAtlasController({
   }
   /**
    * 完整重建图集：逐盏灯单独烘焙阴影，再逐块拷进大图。
-   *
-   * 之所以逐盏烘：three.js 的阴影通道会一次性处理所有 castShadow 灯，
-   * 而我们需要把结果拆到不同 tile 上，只能一次只让一盏灯产生阴影。
+   * 之所以逐盏烘：three.js 的阴影通道会一次性处理所有 castShadow 灯，而结果要
+   * 拆到不同 tile 上，只能一次只让一盏灯产生阴影。
    */
   async function rebuildAtlas(buildRoot, buildRevision) {
     // revision 不一致说明排队期间场景又变了，本次结果必然过期，直接放弃。
@@ -673,10 +656,9 @@ export function createSpotShadowAtlasController({
         lightState.light.visible = false;
         lightState.light.castShadow = false;
       }
-      // 烘焙走的是自建的离屏阴影通道，不能被 App 的全局阴影开关拦下：
-      // three.js 在 shadowMap.autoUpdate 与 needsUpdate 同时为 false 时会整段跳过，
-      // shadowMap.enabled 为 false 时同样如此。楼层过渡用的冻结通常已被
-      // areShadowUpdatesFrozen() 挡在外面，这里兜住其余状态。两个值都在 finally 还原。
+      // 烘焙走自建的离屏阴影通道，不能被 App 的全局阴影开关拦下：autoUpdate 与 needsUpdate
+      // 同时为 false 或 enabled 为 false 时 three.js 会整段跳过。楼层过渡的冻结通常已被
+      // areShadowUpdatesFrozen() 挡住，这里兜住其余状态，两个值都在 finally 还原。
       renderer.shadowMap.enabled = true;
       for (let lightCursor = 0; lightCursor < shadowLights.length; lightCursor += 1) {
         // 每盏灯之间都有 await，期间场景可能被改；每次循环都要重新确认 revision。
@@ -721,10 +703,9 @@ export function createSpotShadowAtlasController({
         // 目标的世界矩阵必须先更新，否则 shadow.updateMatrices 会用到上一帧的朝向，
         // 灯一动阴影就会滞后一帧。
         activeLight.updateWorldMatrix(true, false);
-        // 借探针网格的 onBeforeRender 做强制烘焙，此时 currentRenderState 才可用
-        // （见上方 bakeProbeMesh 的说明）。显式传灯列表还能覆盖 projectObject 会跳过的
-        // 灯（图层 / 层级边界情况）。three.js 自带的阴影通道可能已经先烘过这盏灯；
-        // 多烘一次代价很小，却能让图集路径的结果保持确定。
+        // 借探针网格的 onBeforeRender 做强制烘焙，此时 currentRenderState 才可用（见上方说明）。
+        // 显式传灯列表能覆盖 projectObject 会跳过的灯（图层 / 层级边界情况）；自带阴影通道
+        // 可能已先烘过这盏灯，多烘一次代价很小，却能让图集路径的结果保持确定。
         let forcedShadowBake = false;
         let shadowBakeError = null;
         bakeProbeMesh.onBeforeRender = () => {

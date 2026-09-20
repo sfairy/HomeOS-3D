@@ -1492,13 +1492,9 @@
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
-// 界面上的跨面板缓存。只放**真的被读过**的东西：
-//   · products     商品目录（签发授权 / 编辑权益的下拉框，API 全量而非当前页）
-//   · productPage  商品列表当前页（编辑时按 id 取整行，分页后拿不到全量）
-//   · licenses / coupons / accounts / releases / entitlements  各列表当前页（同一用途）
-//   · settings     站点配置响应（凭据徽标、邮件徽标要用它判断「来源是后台吗」）
-//   · featureCatalog / featureGroups  功能码目录（中文名渲染 + 选择器分组）
-//   · settingsLoaded  站点配置是否真的读到了，保存闸门读它（见 setSettingsLoadState）
+// 界面上的跨面板缓存，只放真的被读过的东西：products / productPage、各列表当前页、
+// settings（凭据与邮件徽标要读它）、featureCatalog / featureGroups；
+// settingsLoaded 是保存闸门读的「站点配置是否真的读到了」（见 setSettingsLoadState）。
 const state = {
   products: [],
   productPage: [],
@@ -1556,11 +1552,9 @@ async function storeApi(path, options = {}) {
   return data;
 }
 
-// 提交按钮的忙态：请求期间禁用并换文案。
-// 「点了没反应就再点一次」在后台会变成重复发码 / 重复扣库存，所以忙态不是装饰，
-// 而是这一层的第二道闸（第一道在服务端的条件 UPDATE）。所有表单统一走这里。
-// 用 innerHTML 而不是 textContent 存取原文案：按钮里将来加了图标，
-// textContent 的还原会把那个 <i> 节点一起抹掉。
+// 提交按钮的忙态：请求期间禁用并换文案。这不是装饰 —— 「点了没反应就再点一次」
+// 会变成重复发码 / 重复扣库存，忙态是服务端条件 UPDATE 之外的第二道闸。
+// 原文案用 innerHTML 存取，textContent 会把按钮里的图标节点一起抹掉。
 async function withBusy(form, task, busyText = '处理中…') {
   // 提交按钮不一定在表单里面：站点配置的「保存配置」常驻在面板头部，靠
   // ``form="settings-form"`` 关联（见模板注释）。只按 form.querySelector 找的话，
@@ -1600,10 +1594,9 @@ function num(value) {
   return parsed.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
 }
 
-// 概览卡主数字的字号档位。卡宽下限 186px、左右内边距各 16px，可用 154px：
-// 25px 等宽字一行 9 个字符，19px 放 13 个，16px 放 16 个（见 admin.css 的
-// .stat .stat__value--*）。超长时靠 text-overflow 出省略号，不会再折成两三行。
-// 值都是数字/斜杠，按字符数降档足够准；档位与 admin.css 的 .stat__value--* 对应。
+// 概览卡主数字的字号档位：卡宽下限 186px、内边距各 16px，可用 154px 决定三种字号
+// 各能放多少字符（见 admin.css 的 .stat .stat__value--*）；值都是数字/斜杠，
+// 按字符数降档足够准，超长交给 text-overflow 省略。
 function valueSize(value) {
   const length = String(value ?? '').length;
   if (length > 13) return ' stat__value--xs';
@@ -2067,10 +2060,8 @@ loginForm?.addEventListener('click', (event) => {
   toggle.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
 });
 
-// ``message`` 非空时把失败原因写进登录卡片，而不是只在控制台留一句。
-// 这里存在的理由是「加载失败」与「未登录」必须分开：把 500、断网、无权限
-// 一律当成未登录，运营看到的就是一个正常的登录页 —— 他会反复重输密码，
-// 而真正的问题（后端挂了 / 账号被取消了管理员）没有任何出口。
+// ``message`` 非空时把失败原因写进登录卡片：「加载失败」与「未登录」必须分开 —— 把 500、
+// 断网、无权限一律当成未登录，运营会对着正常登录页反复重输密码，真正的问题没有出口。
 function showLogin(message = '') {
   $('#admin-boot').hidden = true;
   $('#admin-login').hidden = false;
@@ -2098,11 +2089,9 @@ async function resolveAdminSession() {
   try {
     me = await storeApi('/auth/me');
   } catch (error) {
-    // 401 就是「还没登录」——这是登录页的正常状态，不是异常。
-    // 服务端的 /auth/me 在无会话时返回 401「请先登录。」，以前这里无条件把它
-    // 包装成「无法确认登录状态：请先登录。」再交给 showLogin() 显示：于是每一个
-    // 未登录的访客一打开 /admin，先看到的是一条红框报错，而不是一张干净的登录页。
-    // 真正需要报出来的故障（500、断网）仍然照实抛，见下面的注释。
+    // 401 就是「还没登录」——登录页的正常状态，不是异常；以前无条件把它包装成错误
+    // 提示，导致未登录访客一打开 /admin 先看到红框报错。真正需要报的故障（500、断网）
+    // 仍照实抛，见下面的注释。
     if (error.status === 401) return null;
     throw new Error(`无法确认登录状态：${error.message}`);
   }
@@ -2143,12 +2132,9 @@ async function bootstrap({ announce = false } = {}) {
   // 后台所有时间列都按这个时区渲染，写死在界面上比写在文档里靠谱
   $('#admin-timezone').textContent = `时间按 ${localZoneLabel()} 显示`;
   showApp();
-  // 商品目录要一并拉：授权签发 / 权益编辑的下拉框依赖它，而分页后的商品列表
-  // 只有当前一页的商品。
-  // 功能码目录必须先到：商品列表要用中文名渲染功能码这一列。
-  //
-  // 用 allSettled 而不是 all：一个面板拉不动（例如某个接口 500）不该让整页
-  // 卡在登录态，也不该让已经拿到的数据白拿。失败的只记下来，最后如实报出来。
+  // 商品目录要一并拉（授权签发 / 权益编辑的下拉框依赖它，分页列表只有当前页）；
+  // 功能码目录必须先到（商品列表要用中文名渲染功能码）。用 allSettled 而非 all：
+  // 一个面板 500 不该让整页卡在登录态，失败的记下来最后如实报出。
   const results = await Promise.allSettled([
     loadOverview(), loadProductCatalog(), loadFeatureCatalog(),
   ]);
@@ -2281,10 +2267,9 @@ function setTab(page, key, { push = false, focus = false } = {}) {
   return target.key;
 }
 
-// 让某个元素所在的 tab 显示出来。打开编辑器、从别的页面跳到某张表都需要它：
-// 不做这一步，操作生效了但屏幕上什么都没有，用户只会以为按钮没反应。
-// push 让地址栏跟着走：地址里写的 tab 必须是眼前真能看到的那个，
-// 否则刷新一次就跳到别处，用户会以为界面自己乱跑。
+// 让某个元素所在的 tab 显示出来（打开编辑器、跨页跳转都要它），否则操作生效了但屏幕上
+// 什么都没有，用户只会以为按钮没反应。push 让地址栏跟着走：地址里的 tab 必须是眼前真能
+// 看到的那个，否则刷新一次就跳到别处。
 function revealTabFor(node) {
   const pane = node && node.closest('[data-tab-pane]');
   const panel = pane && pane.closest('.admin-panel');
@@ -2365,12 +2350,8 @@ const loaders = {
   diagnostics: loadDiagnostics,
 };
 
-// 一级菜单折叠：分组之间互相独立，且默认全部展开。
-// 面板有十几个，全部摊开时侧栏需要滚一下才能看到最后一组——所以保留折叠能力，
-// 让运营可以把暂时不关心的分组收起来；但不做成手风琴式的「一次只开一组」：
-// 那会变成「想切到某个页面，先猜它在哪个组里，再点开」，而十几页的规模下
-// 分组名很难一眼对应到具体页面（「版本发布」在「商品营销」里，「审计日志」在
-// 「系统设置」里，都不直观）。默认全开的代价只是一次滚动，收益是不用猜。
+// 一级菜单折叠：分组独立且默认全开。不做手风琴式「一次只开一组」——那会变成
+// 「想切到某个页面先猜它在哪个组里」；默认全开的代价只是一次滚动，收益是不用猜。
 function setNavGroupOpen(group, open) {
   if (!group) return;
   group.classList.toggle('open', open);
@@ -2445,11 +2426,9 @@ $('#admin-nav').addEventListener('click', (event) => {
   activate(link.dataset.adminPage);
 });
 
-// --------------------------------------------------------------------------- //
-// 概览
-// --------------------------------------------------------------------------- //
-// 营收时间窗的文案。key 由服务端给（last24h / last7d / last30d），这里只做展示，
-// 不再自己算时间，避免前后端对「今天」的理解不一致。
+// --------------------------- 概览 --------------------------- //
+// 营收时间窗文案的 key 由服务端给（last24h / last7d / last30d），只做展示、不自己算时间，
+// 避免前后端对「今天」的理解不一致。
 const REVENUE_WINDOW_LABELS = {
   last24h: '近 24 小时',
   last7d: '近 7 天',
@@ -2638,10 +2617,8 @@ async function loadOverview() {
 
 
   // —— 营收 ——
-  // 钱一律用琥珀（运营域的域色）：这一屏里「金额」和「件数」长得一样，
-  // 靠色相把「这几个数字讲的是钱」立起来。
-  // 「人工补记」单独写进注脚：营收把人工补记（未收到钱就放行的单）排除在外，
-  // 这个差额必须摆在数字旁边 —— 否则运营看到「订单不少、营收偏低」只能靠猜。
+  // 钱一律用琥珀（运营域色）立住「这几个数字讲的是钱」；人工补记要单独写进注脚 ——
+  // 营收把它排除在外，差额不摆在数字旁边，运营看到「订单不少、营收偏低」只能靠猜。
   const manualNote = revenue.totalManualCents
     ? ` · 人工补记 ${money(revenue.totalManualCents)} 不计营收`
     : '';
@@ -2708,12 +2685,8 @@ async function loadOverview() {
     : emptyRow(3, `未来 ${Number(attention.expiringWindowDays || 30)} 天内没有到期的授权。`);
 
   // —— 累计 ——
-  // 每张卡是 [标签, 主数字, 补充说明, 语气]。主数字只放一个量级（不塞「x 可用 / y 冻结」
-  // 这种复合串），拆解一律走 note：卡宽只有 ~186px、主数字 25px，复合串必折行，
-  // 折行后同排卡片被撑高，数字也读不出量级。note 的排版见 .stat__note。
-  // 语气里的 is-tone-* 只表示「这个数字属于哪一族」（紫=商品、青=授权、蓝=账号），
-  // 让一屏 9 张卡能按色相分堆；真正的告警语气（is-alert / is-danger）排在后面，
-  // 权重相同靠源码顺序压过语义色。
+  // 每张卡是 [标签, 主数字, 补充说明, 语气]；主数字只放一个量级，拆解一律走 note（卡宽
+  // ~186px、主数字 25px，复合串必折行）。is-tone-* 只表示数字属于哪一族，告警语气排后面压过语义色。
   const referral = data.referral || {};
   // 积分负债 = 全部未兑付的积分 = balance（可用 + 冻结）。只给「可用」会低估要付的账，
   // 只给 balance 又看不出多少已申请提现，所以主数字给总额、note 给拆解。
@@ -3284,12 +3257,9 @@ async function loadOrders() {
   if ($('#order-review').checked) params.set('needs_review', 'true');
   const data = await pagedFetch('orders', '/orders', Object.fromEntries(params));
   $('#order-rows').innerHTML = data.items.length ? data.items.map(order => {
-    // 保留原有的全部动作与出现条件，只重新分层：
-    //   主操作 = 推进流程的那一步；其余收进 ⋯ 菜单。
-    // 与后端 admin.py 的 _FULFILLABLE_STATUSES 保持一致：只有仍持有库存预留、
-    // 尚未进入终态的订单才显示「标记支付 / 履约」。已取消 / 已过期 / 已退款 /
-    // 下单失败这些状态在进入终态时已释放库存与优惠码名额，若放行会凭空发码，
-    // 并重复扣减预留造成超卖（后端已一并返回 409，这里只是不让按钮误导人）。
+    // 与后端 admin.py 的 _FULFILLABLE_STATUSES 一致：只有仍持有库存预留、未进终态的
+    // 订单显示「标记支付 / 履约」。终态订单放行会凭空发码并重复扣预留造成超卖
+    // （后端已一并返回 409，这里只是不让按钮误导人）。
     const canMarkPaid = order.status === 'pending';
     const canFulfill = ['pending', 'paid'].includes(order.status);
     const canRefund = ['paid', 'fulfilled'].includes(order.status);
@@ -3300,8 +3270,7 @@ async function loadOrders() {
     const canReview = Boolean(order.needsReview) && order.status !== 'pending';
     // 删除守卫与后端 admin_delete_order 逐条对齐：终态 + 没发过码（licenseId）+
     // 没改过别人的授权（targetLicenseModified）+ 渠道交易已关单（channelPayable）。
-    // **不能**用 targetLicenseId 判：增量包/升级单在下单时就写上它（「打算改谁」），
-    // 用它会让这类垃圾单永远删不掉。
+    // **不能**用 targetLicenseId 判：增量包/升级单下单时就写上它，用它这类垃圾单永远删不掉。
     const terminalOrder = ['cancelled', 'expired'].includes(order.status);
     const untouchedLicense = !order.licenseId && !order.targetLicenseModified;
     const canDelete = terminalOrder && untouchedLicense && !order.channelPayable;
@@ -3454,9 +3423,8 @@ $('#order-rows').addEventListener('click', async (event) => {
     if (!ok) return;
   }
   if (action === 'refund') {
-    // 人工标记支付的订单（paymentProvider=manual）在渠道侧没有交易，服务端会按
-    // **线下退款**记账。这里必须把话说全，否则运营以为「系统会去退钱」，
-    // 点完就把订单记成已退款、用户却没收到钱。
+    // 人工标记支付的订单在渠道侧没有交易，服务端按**线下退款**记账；必须把话说全，
+    // 否则运营以为「系统会去退钱」，点完就把订单记成已退款、用户却没收到钱。
     // 渠道名由订单行上的 data-order-provider 带过来（列表渲染时就写进了 DOM）。
     const provider = String(orderProvider || '').toLowerCase();
     offlineRefund = !['', 'mock', 'alipay'].includes(provider);
@@ -4220,10 +4188,8 @@ function loadAlipayCredentials(alipay) {
 
 /**
  * 把「当前实际生效」的回调地址与签名配置念出来。
- *
- * 「用户付了钱、订单不到账」几乎全是通知地址的问题，而过去这个值只存在于服务端
- * 的拼接逻辑里：运营在后台看不到支付宝到底在往哪个地址推，只能靠翻代码或猜。
- * 这里把解析后的结果直接展示出来，排障第一步就能自证。
+ * 「用户付了钱、订单不到账」几乎全是通知地址的问题，过去这个值只在服务端拼接逻辑里，
+ * 展示解析结果能让排障第一步就自证，不用翻代码或猜支付宝往哪个地址推。
  */
 function renderAlipayEffectiveUrls(alipay) {
   const target = $('#alipay-effective-urls');
@@ -4380,9 +4346,8 @@ function renderMailPresetOptions(mail) {
 
 /**
  * 只更新「选中哪个服务商」与一行提示，**不写任何表单字段**。
- *
- * 打字过程中就把预设念出来，运营才知道「填入预设」到底会写进去什么；
- * 直接把地址认成某个服务商并静默覆盖他手填的服务器，是更糟的行为。
+ * 打字过程中就把预设念出来，运营才知道「填入预设」会写进去什么；直接认成某个
+ * 服务商并静默覆盖他手填的服务器，是更糟的行为。
  */
 function syncMailPresetHint(mail) {
   const select = $('#mail-preset-provider');
@@ -4526,10 +4491,8 @@ function mailPasswordPayload(form) {
 
 /**
  * 渲染「凭据是否可用」的结论徽标。
- *
- * 单独抽出来是因为它有两个触发点：加载配置时，以及运营**改了支付渠道下拉框**时 ——
- * 「把渠道切到 alipay，但凭据还没配」这个组合会直接导致下单 503，必须在切换的
- * 当下就变色提醒，而不是等保存之后再刷新。
+ * 单独抽出是因为有两个触发点：加载配置时，以及运营**改了支付渠道下拉框**时 ——
+ * 「切到 alipay 但凭据还没配」会直接导致下单 503，必须在切换当下变色提醒，而非等保存后。
  */
 function renderAlipayBadge(alipay) {
   const form = $('#settings-form');
@@ -4773,9 +4736,8 @@ async function loadReleases() {
   renderPager('releases');
 }
 
-// 版本记录一旦发布就代表对外承诺，但「渠道填错 / 版本号打错 / 说明写错」
-// 是真实会发生的，所以给一个修正入口；产品与渠道会决定客户端能否查到这条记录。
-// 这个函数只管表单状态，不管显隐：提交成功后要复用同一次重置再收起表单，
+// 版本记录一旦发布就代表对外承诺，但「渠道填错 / 版本号打错 / 说明写错」真实会发生，
+// 所以给一个修正入口；本函数只管表单状态不管显隐 —— 提交成功后要复用同一次重置再收起，
 // 把 showEditor 塞进来会变成「先亮出来再立刻藏起来」。
 function openReleaseEditor(release) {
   const form = $('#release-form');
@@ -5150,9 +5112,7 @@ $('#customer-search').addEventListener('click', () => {
   loadCustomers();
 });
 
-// --------------------------------------------------------------------------- //
-// 诊断数据：统一分页 + 单条撤销 + 按安全谓词清理
-// --------------------------------------------------------------------------- //
+// ------------------- 诊断数据：统一分页 + 单条撤销 + 按安全谓词清理 ------------------- //
 // 每张表各自记一份游标。诊断数据是「翻旧账」用的，过去一律 limit<=500 且无 offset，
 // 第 501 条之后的记录在界面上永远看不到。
 const paging = {};
@@ -5279,10 +5239,9 @@ function renderPager(key) {
   });
 }
 
-// 筛选控件 → 重载的绑定。统一在这里做，避免每个面板各写一遍
-// 「change 先 resetPage 再 load」而漏掉其中一步。
-// 参数是 [选择器, 面板 key] 列表；loader 走 PAGED_LOADERS，所以这些绑定必须在
-// PAGED_LOADERS 初始化之后、由 bindPanelFilters() 统一注册。
+// 筛选控件 → 重载的绑定统一在这里做，避免每个面板各写一遍「change 先 resetPage
+// 再 load」而漏掉一步；参数是 [选择器, 面板 key]，绑定必须在 PAGED_LOADERS 初始化
+// 之后由 bindPanelFilters() 统一注册。
 function bindFilters(entries) {
   entries.forEach(([selector, key]) => {
     const node = $(selector);
@@ -5319,9 +5278,8 @@ function resetFilters(selectors, key) {
 }
 
 // 本地日期（YYYY-MM-DD）→ UTC ISO。
-// 时间区间是运营按**本地日历**选的，直接当 UTC 发出去会在东八区整体偏 8 小时，
-// 出现「筛今天却查不到今天下午的单」。边界都含当天：起点取当日 00:00:00，
-// 终点取次日 00:00:00 前一秒。
+// 时间区间按**本地日历**选的，直接当 UTC 发会在东八区偏 8 小时，出现「筛今天却查不到
+// 今天下午的单」。边界都含当天：起点当日 00:00:00、终点次日 00:00:00 前一秒。
 function dayStartUtc(value) {
   if (!value) return '';
   const date = new Date(`${value}T00:00:00`);
@@ -5427,11 +5385,9 @@ function askPurge({ title, message, impact }) {
 
 $('#purge-cancel').addEventListener('click', () => purgeDialog.close());
 
-// <dialog> 的原生关闭路径不止「取消」按钮：Esc、以及部分浏览器上的点遮罩都会
-// 直接关掉它，而 ``close()`` 不会去动 purgeResolver。少了这条监听，await
-// askPurge() 的调用方（runPurge）就此挂住，表现是「点了清理没反应」，而且
-// 下次打开弹窗时上一轮的 promise 还在等 —— 每次清理都多留一个悬空回调。
-// 统一在 close 事件里收口：无论谁关的窗，等待方都能拿到「取消」。
+// <dialog> 的原生关闭路径不止「取消」按钮：Esc、点遮罩都会直接关掉它，而 close()
+// 不会动 purgeResolver —— 少了这条监听，askPurge() 的调用方会挂住（「点了清理没反应」），
+// 且上一轮的 promise 一直等待。统一在 close 事件里收口：无论谁关窗，等待方都拿到「取消」。
 purgeDialog.addEventListener('close', () => {
   const resolve = purgeResolver;
   purgeResolver = null;
@@ -5639,12 +5595,9 @@ async function loadDiagnostics() {
   await Promise.all(DIAGNOSTIC_KEYS.map(key => PAGED_LOADERS[key]()));
 }
 
-// 翻页统一在文档级委托：全部列表（含业务主表）共用同一套分页条
-// 复制按钮统一走这一个委托处理器：激活码、订单号、客户邮箱这类值一旦要运营
-// 手工敲一遍，出错只是时间问题。
-// 无论如何都先建立选区：剪贴板 API 可能因为非安全上下文、缺少用户激活或被
-// 权限策略拦下而失败，这时用户手上已经有选中内容，按一次 Ctrl/Cmd+C 就行，
-// 而不是盯着「复制失败」自己拖鼠标。
+// 翻页统一在文档级委托（全部列表共用同一套分页条）；复制按钮也走这一个处理器 ——
+// 激活码、订单号、客户邮箱手工敲一遍必然出错。无论如何先建立选区：剪贴板 API 可能因
+// 非安全上下文 / 缺用户激活 / 权限策略而失败，此时用户已有选中内容，按一次 Ctrl/Cmd+C 即可。
 function selectNodeText(node) {
   const range = document.createRange();
   range.selectNodeContents(node);
@@ -5826,13 +5779,9 @@ $('#panel-diagnostics').addEventListener('click', async (event) => {
   }
 });
 
-// --------------------------------------------------------------------------- //
-// 启动
-// --------------------------------------------------------------------------- //
-// 筛选控件在启动时统一注册，且只注册一次：它给每个筛选控件挂 change/submit 监听，
-// 挂两遍会让每次改动都触发两次列表请求。
-// 放在这里而不是各面板旁边，是因为它依赖本文件靠后定义的 PAGED_LOADERS 与
-// resetPage（提前注册会踩到暂时性死区）。
+// --------------------------- 启动 --------------------------- //
+// 筛选控件在启动时统一注册且只注册一次（挂两遍会让每次改动触发两次请求）；放在这里
+// 是因为它依赖本文件靠后定义的 PAGED_LOADERS 与 resetPage（提前注册会踩暂时性死区）。
 bindPanelFilters();
 
 const initial = parseHash();
@@ -5854,10 +5803,9 @@ window.addEventListener('hashchange', () => {
     activate(page, tab);
     return;
   }
-  // 同一个面板只换了 tab：只切显示，不重新请求。
-  // 切 tab 是纯前端动作，重拉一遍数据既慢又会把筛选/翻页状态冲掉。
-  // push 是为了让地址栏说真话：深链里的 tab 可能已经被收起（表单编辑器关掉了），
-  // 这时 setTab 会回落，回落结果要写回地址，否则「地址写 form、画面是 list」。
+  // 同一个面板只换 tab：切显示、不重新请求（重拉既慢又会冲掉筛选/翻页状态）。
+  // push 让地址栏说真话：深链 tab 可能已被收起（表单编辑器关掉了），setTab 会回落，
+  // 回落结果要写回地址，否则「地址写 form、画面是 list」。
   setTab(page, tab, { push: true });
 });
 </script>
