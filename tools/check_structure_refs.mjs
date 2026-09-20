@@ -16,12 +16,13 @@
  *   4. interaction3d resource whitelist matches frontend/modules/runtime.
  *   5. `/api/v1/modules/interaction3d/<path>` asset URLs hit a runtime module.
  *   6. `/store-static/<path>` references hit a file under store/static.
- *   7. Reports dangling `backend.app` / `backend/app` literals (informational;
+ *   7. Relative `url(...)` references in CSS resolve next to the stylesheet.
+ *   8. Reports dangling `backend.app` / `backend/app` literals (informational;
  *      time-stamped records under docs/ are excluded).
- *   8. backend/config.py still resolves the repo root from its own location.
- *   9. every repo-relative path named by the Dockerfile still exists.
+ *   9. backend/config.py still resolves the repo root from its own location.
+ *  10. every repo-relative path named by the Dockerfile still exists.
  *
- * Exits 1 when any of the first six checks fail.
+ * Exits 1 when any of the first seven checks fail.
  */
 
 import fs from "node:fs";
@@ -310,7 +311,79 @@ function checkStoreStaticRefs(problems) {
 }
 
 /**
- * Check 7 (informational): `backend.app` / `backend/app` literals. During the
+ * Check 7: relative `url(...)` references inside CSS.
+ *
+ * Every other check keys off an absolute URL, so a stylesheet that reaches an
+ * asset by relative path is invisible to them. `store/static/font.min.css` is
+ * exactly that case: it pulls the icon font with `url(../fonts/font.woff2)`.
+ *
+ * Resolution follows the **URL** space, not the directory the file happens to
+ * live in, because the store aliases directories onto different URL roots:
+ * `/store-static/font.min.css` + `../fonts/x` becomes `/fonts/x`, and
+ * `store/app.py` mounts `/fonts` from `store/static/fonts`. Modelling this also
+ * pins the aliases themselves — if `/fonts` ever stops being mounted, the font
+ * URL escapes every known mount and this check says so instead of quietly
+ * passing.
+ *
+ * Only specs carrying a real asset extension are checked, which skips
+ * `url(#filter)`, `url(data:…)`, `url(https://…)` and absolute `/…` paths
+ * (the latter are already covered by checks 1 and 6).
+ */
+const CSS_URL_RE =
+  /url\(\s*(?:["']?)((?:\.{0,2}\/)*[A-Za-z0-9_@-][A-Za-z0-9_@./-]*\.(?:woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|ico|webp|avif|cur|mp3|wav|ogg))(?:\?[^)"']*)?(?:["']?)\s*\)/g;
+
+/** URL root -> directory on disk. Order matters: longest prefix first. */
+function cssMounts() {
+  return [
+    { prefix: "/store-static/", dir: STORE_STATIC },
+    { prefix: "/static/", dir: STATIC },
+    { prefix: "/fonts/", dir: path.join(STORE_STATIC, "fonts") }
+  ];
+}
+
+/** Resolve `..`/`.` segments in a URL path, keeping it absolute. */
+function normalizeUrlPath(urlPath) {
+  const parts = [];
+  for (const segment of urlPath.split("/")) {
+    if (segment === "" || segment === ".") continue;
+    if (segment === "..") parts.pop();
+    else parts.push(segment);
+  }
+  return `/${parts.join("/")}`;
+}
+
+function checkCssRelativeUrls(problems) {
+  let checked = 0;
+  const mounts = cssMounts();
+  for (const mount of mounts) {
+    if (!fs.existsSync(mount.dir)) continue;
+    for (const file of walkFiles(mount.dir, new Set([".css"]))) {
+      const rel = path.relative(mount.dir, file).split(path.sep).join("/");
+      const source = readScannable(file, new Set([".css"]));
+      for (const match of source.matchAll(CSS_URL_RE)) {
+        const spec = match[1];
+        if (spec.startsWith("/")) continue;
+        checked += 1;
+        const urlPath = normalizeUrlPath(`${mount.prefix}${rel}/${spec}`);
+        const target = mounts.find((candidate) => urlPath.startsWith(candidate.prefix));
+        if (!target) {
+          problems.push(
+            `${relFromRoot(file)}: CSS url() escapes every mount -> ${spec} (resolves to ${urlPath})`
+          );
+          continue;
+        }
+        const onDisk = path.join(target.dir, urlPath.slice(target.prefix.length));
+        if (!exists(onDisk)) {
+          problems.push(`${relFromRoot(file)}: CSS url() not found -> ${urlPath}`);
+        }
+      }
+    }
+  }
+  return checked;
+}
+
+/**
+ * Check 8 (informational): `backend.app` / `backend/app` literals. During the
  * de-`app` refactor these must all flip; this only lists them so the batch can
  * be closed out deliberately rather than by a blind search-and-replace.
  *
@@ -422,6 +495,7 @@ function main() {
     interaction3dWhitelist: checkInteraction3dWhitelist(problems),
     interaction3dAssetUrls: checkInteraction3dAssetUrls(problems),
     storeStaticRefs: checkStoreStaticRefs(problems),
+    cssRelativeUrls: checkCssRelativeUrls(problems),
     dockerfilePaths: checkDockerfilePaths(problems)
   };
   checkBackendRootDepth(problems);
@@ -435,6 +509,7 @@ function main() {
       `${counts.interaction3dWhitelist} interaction3d whitelist entries, ` +
       `${counts.interaction3dAssetUrls} interaction3d asset URLs, ` +
       `${counts.storeStaticRefs} /store-static refs, ` +
+      `${counts.cssRelativeUrls} CSS url() refs, ` +
       `${counts.dockerfilePaths} Dockerfile paths`
   );
 

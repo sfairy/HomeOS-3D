@@ -724,7 +724,9 @@ node tools/bump_static_cache_versions.mjs
 node tools/check_structure_refs.mjs
 ```
 
-前端没有打包器，路径写错只在浏览器里变成 404。该脚本静态校验八项：`/static/...` 引用、前端相对 ESM 导入、`backend/main.py` 的 `public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime` 的双向一致、`/api/v1/modules/interaction3d/<path>` 资源 URL、`/store-static/...` 引用、`backend/config.py` 的仓库根推导、`Dockerfile` 里全部仓库相对路径，并附带列出残留的「后端 app 层」写法（信息项，不判失败）。仓库没有自动化回归网，结构改动后请同时跑它与手工冒烟。
+前端没有打包器，路径写错只在浏览器里变成 404。该脚本静态校验九项：`/static/...` 引用、前端相对 ESM 导入、`backend/main.py` 的 `public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime` 的双向一致、`/api/v1/modules/interaction3d/<path>` 资源 URL、`/store-static/...` 引用、CSS 里的相对 `url(...)`、`backend/config.py` 的仓库根推导、`Dockerfile` 里全部仓库相对路径，并附带列出残留的「后端 app 层」写法（信息项，不判失败）。仓库没有自动化回归网，结构改动后请同时跑它与手工冒烟。
+
+其中 CSS 的相对 `url(...)` 按 **URL** 而非磁盘目录解析，因为它会先落到 URL 空间再被挂载映回磁盘：`/store-static/font.min.css` 里的 `url(../fonts/font.woff2)` 实际请求 `/fonts/font.woff2`，由 `store/app.py` 的 `/fonts` 根挂载提供（`font.min.css` 写死了 `../fonts/…`，这就是那个挂载存在的原因）。因此这条检查同时钉住两件事：字体文件还在，以及 `/fonts` 挂载没被摘掉 —— 后者一旦失守，字体 URL 会落到所有已知挂载之外并被判失败，而不是安静地 404。
 
 ## 开发注意
 
@@ -740,7 +742,7 @@ node tools/check_structure_refs.mjs
 - `store/` 同样分包：`core/`（database / models / schemas / serializers / deps / env / bootstrap）、`security/`（security / request_security / password_gate / limiter / setup_guard / secret_fields / schema_guard）、`commerce/`（catalog / coupons / fulfill / order_status / money / points_migration / referrals / expiry / cashier）、`ops/`（site_settings / mailer / mail_settings / release_info / features / net_probe / incidents）。`app.py` / `run.py` / `config.py` 留在根部（`python -m store.run`、`store.app:create_app` 与 `STORE_ROOT = parents[0]`）。
 - `frontend/modules/runtime` 按功能域细分：`core/`、`camera/`、`presence/`、`vacuum/`、`climate/`、`cover/`、`television/`、`nas/`、`light/`、`environment/`、`security/`、`editor/`。下发路由由 `/api/v1/modules/interaction3d/{filename}` 改为 `{filename:path}`，白名单键改成含子目录的相对路径。
 - `frontend/static/3d-studio` 按语义细分：`studio/`（编排层与样式）、`plan/`、`reflection/`、`materials/`、`loaders/`、`export/`；`models/` 仍是模型素材目录（同时是 `main.py` 的强缓存判定前缀）。
-- `tools/check_structure_refs.mjs` 增加两项检查：`/api/v1/modules/interaction3d/<path>` 资源 URL 必须命中 `frontend/modules/runtime`，`/store-static/<path>` 引用必须命中 `store/static`；白名单检查改为递归双向比对。
+- `tools/check_structure_refs.mjs` 增加三项检查：`/api/v1/modules/interaction3d/<path>` 资源 URL 必须命中 `frontend/modules/runtime`，`/store-static/<path>` 引用必须命中 `store/static`，CSS 相对 `url(...)` 必须在 URL 空间内命中（按挂载映回磁盘，顺带钉住 `/fonts` 根挂载）；interaction3d 白名单检查改为递归双向比对。
 
 测试与死代码清理
 
