@@ -14,9 +14,14 @@
  *   2. Relative ESM imports in frontend/ (./x, ../x) exist.
  *   3. backend public_static_files entries exist under frontend/static.
  *   4. interaction3d resource whitelist matches frontend/modules/runtime.
- *   5. Reports dangling `backend.app` / `backend/app` literals (informational).
+ *   5. `/api/v1/modules/interaction3d/<path>` asset URLs hit a runtime module.
+ *   6. `/store-static/<path>` references hit a file under store/static.
+ *   7. Reports dangling `backend.app` / `backend/app` literals (informational;
+ *      time-stamped records under docs/ are excluded).
+ *   8. backend/config.py still resolves the repo root from its own location.
+ *   9. every repo-relative path named by the Dockerfile still exists.
  *
- * Exits 1 when any of the first four checks fail.
+ * Exits 1 when any of the first six checks fail.
  */
 
 import fs from "node:fs";
@@ -25,11 +30,14 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const SELF = fileURLToPath(import.meta.url);
 const FRONTEND = path.join(ROOT, "frontend");
 const STATIC = path.join(FRONTEND, "static");
 const MAIN_PY = path.join(ROOT, "backend", "main.py");
 const MODULES_API_PY = path.join(ROOT, "backend", "modules", "interaction3d", "api.py");
 const MODULES_DIR = path.join(FRONTEND, "modules", "runtime");
+const STORE = path.join(ROOT, "store");
+const STORE_STATIC = path.join(STORE, "static");
 
 const SKIP_DIR_NAMES = new Set([
   "vendor",
@@ -59,7 +67,7 @@ function shouldSkipDir(name) {
   return SKIP_DIR_NAMES.has(name) || name.startsWith(".venv");
 }
 
-function* walkFiles(dir) {
+function* walkFiles(dir, extensions = SCAN_EXTENSIONS) {
   let entries;
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -70,11 +78,11 @@ function* walkFiles(dir) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (shouldSkipDir(entry.name)) continue;
-      yield* walkFiles(full);
+      yield* walkFiles(full, extensions);
       continue;
     }
     if (!entry.isFile()) continue;
-    if (!SCAN_EXTENSIONS.has(path.extname(entry.name))) continue;
+    if (!extensions.has(path.extname(entry.name))) continue;
     yield full;
   }
 }
@@ -116,8 +124,17 @@ function stripComments(source, ext) {
 }
 
 /** Read a scannable file with its comments removed. */
-function readScannable(file) {
-  return stripComments(fs.readFileSync(file, "utf8"), path.extname(file));
+function readScannable(file, extensions = SCAN_EXTENSIONS) {
+  const ext = path.extname(file);
+  let source = fs.readFileSync(file, "utf8");
+  if (ext === ".py") {
+    // Only drop whole-line `#` comments; embedded HTML lives in f-strings.
+    source = source
+      .split("\n")
+      .map((line) => (/^\s*#/.test(line) ? "" : line))
+      .join("\n");
+  }
+  return stripComments(source, ext);
 }
 
 /** Check 1: all `/static/...` literals resolve under frontend/static. */
@@ -227,14 +244,89 @@ function checkInteraction3dWhitelist(problems) {
 }
 
 /**
- * Check 5 (informational): `backend.app` / `backend/app` literals. During the
+ * Check 5: `/api/v1/modules/interaction3d/<path>` asset URLs must hit a file
+ * under frontend/modules/runtime.
+ *
+ * Runtime modules are served by a single `{filename:path}` route whose keys are
+ * nested by functional domain, so a stale URL (e.g. a sibling that moved into a
+ * subpackage) only surfaces as a browser 404. `stage.html` is a rendered page
+ * rather than a file, so only `.js` / `.css` URLs are treated as assets.
+ */
+const INTERACTION3D_ASSET_RE =
+  /(?<![\w/])\/api\/v1\/modules\/interaction3d\/([A-Za-z0-9_@./-]+\.(?:js|css))/g;
+
+function checkInteraction3dAssetUrls(problems) {
+  let checked = 0;
+  const scan = (root, extensions) => {
+    for (const file of walkFiles(root, extensions)) {
+      const source = readScannable(file, extensions);
+      for (const match of source.matchAll(INTERACTION3D_ASSET_RE)) {
+        const relative = stripQuery(match[1]);
+        checked += 1;
+        if (!exists(path.join(MODULES_DIR, relative))) {
+          problems.push(
+            `${relFromRoot(file)}: interaction3d asset URL not found -> ${relative}`
+          );
+        }
+      }
+    }
+  };
+  scan(FRONTEND, SCAN_EXTENSIONS);
+  // api.py injects the stage stylesheet URL itself, so it counts as a caller.
+  if (fs.existsSync(MODULES_API_PY)) {
+    scan(path.dirname(MODULES_API_PY), new Set([".py"]));
+  }
+  return checked;
+}
+
+/**
+ * Check 6: `/store-static/<path>` references must hit a file under store/static.
+ * The store service mounts that directory itself, so the same argument as check
+ * 1 applies — a moved asset is only visible as a broken page.
+ */
+const STORE_STATIC_REF_RE =
+  /(?<![\w-])\/store-static\/([A-Za-z0-9_@./-]+\.(?:js|mjs|css|html|svg|png|jpg|jpeg|ico|webmanifest|mp3|woff2|ttf|json))/g;
+
+function checkStoreStaticRefs(problems) {
+  if (!fs.existsSync(STORE_STATIC)) {
+    problems.push("store/static missing; cannot verify /store-static references");
+    return 0;
+  }
+  let checked = 0;
+  const extensions = new Set([...SCAN_EXTENSIONS, ".py"]);
+  for (const file of walkFiles(STORE, extensions)) {
+    // Runtime data (SQLite, uploaded product images) is not source.
+    if (/^(data|keys|__pycache__)\//.test(path.relative(STORE, file))) continue;
+    const source = readScannable(file, extensions);
+    for (const match of source.matchAll(STORE_STATIC_REF_RE)) {
+      const relative = stripQuery(match[1]);
+      checked += 1;
+      if (!exists(path.join(STORE_STATIC, relative))) {
+        problems.push(`${relFromRoot(file)}: /store-static reference not found -> ${relative}`);
+      }
+    }
+  }
+  return checked;
+}
+
+/**
+ * Check 7 (informational): `backend.app` / `backend/app` literals. During the
  * de-`app` refactor these must all flip; this only lists them so the batch can
  * be closed out deliberately rather than by a blind search-and-replace.
+ *
+ * Time-stamped records under docs/audits and docs/releases describe the tree as
+ * it was, so they are excluded — rewriting history there would be wrong.
  */
+const HISTORICAL_DIRS = ["docs/audits", "docs/releases"];
+
 function reportBackendAppLiterals() {
   const skipDirs = new Set(["node_modules", ".git", ".venv", ".venv-store", "__pycache__", "源代码", "vendor"]);
   const hits = [];
   const walk = (dir) => {
+    const relDir = path.relative(ROOT, dir).split(path.sep).join("/");
+    if (HISTORICAL_DIRS.some((prefix) => relDir === prefix || relDir.startsWith(`${prefix}/`))) {
+      return;
+    }
     let entries;
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -248,8 +340,9 @@ function reportBackendAppLiterals() {
         continue;
       }
       if (!entry.isFile()) continue;
-      if (!/\.(js|mjs|css|html|py|md|ini|yml|yaml|json|toml)$/i.test(entry.name)) continue;
       const full = path.join(dir, entry.name);
+      if (full === SELF) continue;
+      if (!/\.(js|mjs|css|html|py|md|ini|yml|yaml|json|toml)$/i.test(entry.name)) continue;
       const lines = fs.readFileSync(full, "utf8").split("\n");
       lines.forEach((line, index) => {
         if (/backend[./]app/.test(line)) {
@@ -327,6 +420,8 @@ function main() {
     relativeImports: checkRelativeImports(problems),
     publicStaticFiles: checkPublicStaticFiles(problems),
     interaction3dWhitelist: checkInteraction3dWhitelist(problems),
+    interaction3dAssetUrls: checkInteraction3dAssetUrls(problems),
+    storeStaticRefs: checkStoreStaticRefs(problems),
     dockerfilePaths: checkDockerfilePaths(problems)
   };
   checkBackendRootDepth(problems);
@@ -338,6 +433,8 @@ function main() {
       `${counts.relativeImports} relative imports, ` +
       `${counts.publicStaticFiles} public_static_files entries, ` +
       `${counts.interaction3dWhitelist} interaction3d whitelist entries, ` +
+      `${counts.interaction3dAssetUrls} interaction3d asset URLs, ` +
+      `${counts.storeStaticRefs} /store-static refs, ` +
       `${counts.dockerfilePaths} Dockerfile paths`
   );
 

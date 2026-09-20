@@ -79,7 +79,13 @@ HomeOS/
 │       ├── logging/        # 客户端日志与全局日志面板
 │       ├── assets/         # 图标与 webmanifest
 │       ├── utils/          # 与业务无关的纯工具
-│       ├── 3d-studio/      # 户型工作室
+│       ├── 3d-studio/      # 户型工作室（入口 studio/studio-app.js，models/ 为模型素材）
+│       │   ├── studio/     # studio-app 编排层、相机/过渡/呈现、场景样式、控件、studio.css
+│       │   ├── plan/       # 底图与户型几何：比例、开洞、窗洞、平面绘制与光影
+│       │   ├── reflection/ # 地面反射：细节层 Worker、剔除、反射体
+│       │   ├── materials/  # 程序化材质：墙面/地面/柜体/车漆/电视玻璃与海报/暖阳植被
+│       │   ├── loaders/    # 外部模型装载、规范化、运行时家具、安防模型、窗帘轨道
+│       │   └── export/     # 出图与导出：预设、工具、Draco 解码器与同源 Worker
 │       ├── templates/      # 控件模板
 │       └── component-thumbnails/  audio/  vendor/（three.js、hls.js、MDI）
 ├── store/                  # 授权商店 + 授权服务器 + 运营后台
@@ -695,9 +701,9 @@ docker exec homeos-3d rm /tmp/app.tar.gz
 - 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
 - 不要改 `frontend/static/vendor/` 下的 three.js、hls.js、OrbitControls 等第三方文件。
 - 界面中文文案保持原词；缓存戳改动请用 `tools/bump_static_cache_versions.mjs`。
-- 静态资源按功能域分区：`app.css` 留在挂载根，其余分入 `bridge/`、`editor/`、`renderer/`、`display/`、`auth/`、`shared/`、`logging/`、`assets/`，以及原有的 `utils/`、`3d-studio/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`。移动文件后请跑 `node tools/check_structure_refs.mjs` 校验引用与后端路径清单。
+- 静态资源按功能域分区：`app.css` 留在挂载根，其余分入 `bridge/`、`editor/`、`renderer/`、`display/`、`auth/`、`shared/`、`logging/`、`assets/`，以及原有的 `utils/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`；`3d-studio/` 内部再按 `studio/`、`plan/`、`reflection/`、`materials/`、`loaders/`、`export/` 分组（`models/` 是模型素材，不是代码目录）。移动文件后请跑 `node tools/check_structure_refs.mjs` 校验引用与后端路径清单。
 - `migrations/env.py` 必须从 `backend` 导入 `database` 和 `models`（`from backend.core.database import Base`），不要写成相对导入，否则会重复注册表。
-- 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename}` 下发，需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
+- 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename:path}` 下发（路径含功能域子目录，如 `core/runtime.js`），需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
 - 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前，令牌值与 `frontend/static/app.css` 对齐。详见 [store/README.md](store/README.md) 的「界面主题」。
 - 改动商店授权端点吊销响应时，须保留结构化 `code` / `revoked` 字段（客户端只认这些，不再匹配 detail 文案）。
 - Docker 联调改业务代码后需要重新 `docker compose … --build`；镜像内是混淆 / 去源码产物，不能挂载源码热重载。
@@ -712,6 +718,14 @@ node tools/bump_static_cache_versions.mjs
 
 可选参数：`--dry-run` 只列出会改哪些文件与处数（不写盘）、`--version=YYYYMMDDHHMMSS` 指定戳而不取当前本地时间。
 
+目录结构改动后校验引用完整性：
+
+```bash
+node tools/check_structure_refs.mjs
+```
+
+前端没有打包器，路径写错只在浏览器里变成 404。该脚本静态校验八项：`/static/...` 引用、前端相对 ESM 导入、`backend/main.py` 的 `public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime` 的双向一致、`/api/v1/modules/interaction3d/<path>` 资源 URL、`/store-static/...` 引用、`backend/config.py` 的仓库根推导、`Dockerfile` 里全部仓库相对路径，并附带列出残留的「后端 app 层」写法（信息项，不判失败）。仓库没有自动化回归网，结构改动后请同时跑它与手工冒烟。
+
 ## 开发注意
 
 - 静态资源缓存标记统一为 `?v=YYYYMMDDHHMMSS`（14 位本地时间，例如 `?v=20260915103715`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后执行 `node tools/bump_static_cache_versions.mjs` 全局同戳 bump；`home.js` 与 `renderer.js` 必须使用同一条 `registry.js?v=`，否则会出现两份控件注册表。
@@ -719,6 +733,14 @@ node tools/bump_static_cache_versions.mjs
 ## 更新日志
 
 ### 未发布
+
+目录结构分包
+
+- `backend/` 扁平根模块按主题分包：`core/`（database / models / schemas / migrations / dependencies / canonical_json / file_lock / time_utils / conflicts）、`security/`（access / admin_account / security / http_security / auth_limiter / setup_guard / display_access / secret_key_file）、`http/`（body_guard / http_cache / streaming）、`observability/`（global_log / updates），`global_popups.py` 并入 `panel/`。`main.py` / `config.py` 留在根部：前者是启动契约与 `Dockerfile` 构建期断言，后者的 `PROJECT_ROOT = parents[1]` 决定仓库根解析。
+- `store/` 同样分包：`core/`（database / models / schemas / serializers / deps / env / bootstrap）、`security/`（security / request_security / password_gate / limiter / setup_guard / secret_fields / schema_guard）、`commerce/`（catalog / coupons / fulfill / order_status / money / points_migration / referrals / expiry / cashier）、`ops/`（site_settings / mailer / mail_settings / release_info / features / net_probe / incidents）。`app.py` / `run.py` / `config.py` 留在根部（`python -m store.run`、`store.app:create_app` 与 `STORE_ROOT = parents[0]`）。
+- `frontend/modules/runtime` 按功能域细分：`core/`、`camera/`、`presence/`、`vacuum/`、`climate/`、`cover/`、`television/`、`nas/`、`light/`、`environment/`、`security/`、`editor/`。下发路由由 `/api/v1/modules/interaction3d/{filename}` 改为 `{filename:path}`，白名单键改成含子目录的相对路径。
+- `frontend/static/3d-studio` 按语义细分：`studio/`（编排层与样式）、`plan/`、`reflection/`、`materials/`、`loaders/`、`export/`；`models/` 仍是模型素材目录（同时是 `main.py` 的强缓存判定前缀）。
+- `tools/check_structure_refs.mjs` 增加两项检查：`/api/v1/modules/interaction3d/<path>` 资源 URL 必须命中 `frontend/modules/runtime`，`/store-static/<path>` 引用必须命中 `store/static`；白名单检查改为递归双向比对。
 
 测试与死代码清理
 
