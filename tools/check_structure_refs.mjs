@@ -186,8 +186,9 @@ function checkPublicStaticFiles(problems) {
 
 /**
  * Check 4: the interaction3d whitelist doubles as the file listing of
- * frontend/modules/runtime, and the route has no sub-segments, so the
- * two sets must match exactly in both directions.
+ * frontend/modules/runtime. Its keys are paths relative to that directory and
+ * nested by functional domain, so the two sets must match exactly in both
+ * directions (a missing key only shows up as a browser 404).
  */
 function checkInteraction3dWhitelist(problems) {
   if (!fs.existsSync(MODULES_API_PY) || !fs.existsSync(MODULES_DIR)) {
@@ -203,12 +204,14 @@ function checkInteraction3dWhitelist(problems) {
   }
   const block = source.slice(start, end);
   const listed = new Set();
-  for (const match of block.matchAll(/['"]([A-Za-z0-9_@.-]+\.(?:js|css|html))['"]/g)) {
+  for (const match of block.matchAll(/['"]([A-Za-z0-9_@./-]+\.(?:js|css|html))['"]/g)) {
     listed.add(match[1]);
   }
-  const onDisk = new Set(fs.readdirSync(MODULES_DIR, { withFileTypes: true })
-    .filter((entry) => entry.isFile())
-    .map((entry) => entry.name));
+  const onDisk = new Set(
+    [...walkFiles(MODULES_DIR)].map((file) =>
+      path.relative(MODULES_DIR, file).split(path.sep).join("/")
+    )
+  );
 
   for (const name of onDisk) {
     if (!listed.has(name)) {

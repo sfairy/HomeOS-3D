@@ -64,7 +64,10 @@ HomeOS/
 │   └── main.py             # 应用装配（uvicorn backend.main:app）
 ├── frontend/               # 页面与静态资源
 │   ├── *.html              # index / display / license / login / pair / setup / 3d-studio
-│   ├── modules/runtime/    # 3D 交互舞台与配置编辑器（经 /api/v1/modules/interaction3d 下发）
+│   ├── modules/runtime/    # 3D 交互舞台与编辑器，按功能域细分（经 /api/v1/modules/interaction3d 下发）
+│   │   ├── core/           # 舞台 / 运行入口 / 共享桥 / 场景同步 / 空闲轮转 / 弹窗预览
+│   │   ├── camera climate cover light nas television vacuum presence environment security/
+│   │   └── editor/         # 配置编辑器与量程对话框
 │   └── static/             # 挂载为 /static
 │       ├── app.css         # 唯一全局样式表（保留在挂载根）
 │       ├── bridge/         # 3D 交互编辑器桥接、场景渲染助手、封面、定义

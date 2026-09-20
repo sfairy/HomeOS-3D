@@ -28750,7 +28750,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/stage.js?v=20260920093608");
+        await import("/api/v1/modules/interaction3d/core/stage.js?v=20260920093608");
       mountStage(createStageController());
       return;
     }

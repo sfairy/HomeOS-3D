@@ -531,7 +531,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     scene_path(request, sceneId)
     html = (request.app.state.settings.frontend_dir / '3d-studio.html').read_text(encoding='utf-8')
     # v= 缓存戳需要手动维护：页面本身 no-store，只有 URL 变了浏览器才会重新取样式。
-    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/stage.css?v=20260920093608"></head>')
+    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20260920093608"></head>')
     html = html.replace('<body>', f'<body class="interaction3d-stage" data-i3d-light-history-scope="{scope}">')
     return HTMLResponse(html, headers={'Cache-Control': 'no-store'})
 
@@ -620,75 +620,89 @@ def get_config(project_id: str, component_id: str, request: Request, database: D
     return {'projectId': project_id, 'componentId': component_id, 'phase': 'authorization-shell', 'component': component}
 
 
-@router.get('/{filename}')
+@router.get('/{filename:path}')
 def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> FileResponse:
     """下发 3D 交互前端资源（JS / CSS），按白名单限定可访问文件。
+
+    白名单的键是相对 ``frontend/modules/runtime`` 的路径（含子目录），
+    路由用 ``{filename:path}`` 接收，以支持按域细分后的嵌套目录。
 
     异常:
         HTTPException: 404，文件不在白名单内，或解析后落在资源目录之外。
     """
     require_access(request)
     # 白名单同时充当媒体类型表与可访问清单：没登记的文件一律 404，
-    # 前缀 /{filename} 不会退化成任意文件读取。新增资源必须在这里登记 ——
+    # 前缀 /{filename:path} 不会退化成任意文件读取。新增资源必须在这里登记 ——
     # 漏登记不会报错，只会在浏览器里表现为「某个模块 404、整条 import 链断掉」，
     # 排查时先看这里。树里每一个相对 import 都必须与下面的名单保持同步。
-    # 这个坑在 P12 收口时真踩过一次：`static-helpers.js` 漏登记，整条 import 链
+    # 这个坑在 P12 收口时真踩过一次：`core/static-helpers.js` 漏登记，整条 import 链
     # 在浏览器里 404。改动这棵树时务必对照下面名单逐个核对。
     media_types = {
         name: 'text/javascript'
         for name in (
-            # 桥：树里唯一一处「条件导入 /static 助手」的转出口（resolveStateEntry /
-            # entityDomainFromId），被上面十几份运行时文件 import —— 漏登记它，
-            # 整条 import 链会在浏览器里断在第一跳。
-            'static-helpers.js',
-            'scene-background.js',
-            'background-theme.js',
-            'security-editor.js',
-            'presence-focus-editor.js',
-            'presence-character.js',
-            'presence-motion.js',
-            'presence-scene.js',
-            'presence-editor.js',
-            'floor-navigation.js',
-            'vacuum-motion.js',
-            'vacuum-map.js',
-            'vacuum-map-editor.js',
-            'runtime.js',
-            'popup-preview.js',
-            'stage.js',
-            'television-state.js',
-            'television-panel.js',
-            'television-screen.js',
-            'nas-status.js',
-            'camera-status.js',
-            'nas-panel.js',
-            'config-editor.js',
-            'editor-save-status.js',
-            'range-dialog.js',
-            'light-range-editor.js',
-            'light-state.js',
-            'light-stream.js',
-            'camera-motion.js',
-            'idle-rotation.js',
-            'scene-sync.js',
-            'climate-state.js',
-            'climate-panel.js',
-            'environment-scene.js',
-            'environment-halos.js',
-            'environment-airflow.js',
-            'cover-state.js',
-            'cover-panel.js',
-            'cover-feedback.js',
-            'curtain-motion.js')
+            # core/：舞台、运行入口与共享桥。static-helpers 是树内唯一一处
+            # 「条件导入 /static 助手」的转出口（resolveStateEntry / entityDomainFromId），
+            # 被其余十几份运行时文件 import —— 漏登记它，整条 import 链会在浏览器里断在第一跳。
+            'core/runtime.js',
+            'core/stage.js',
+            'core/static-helpers.js',
+            'core/scene-background.js',
+            'core/background-theme.js',
+            'core/scene-sync.js',
+            'core/idle-rotation.js',
+            'core/popup-preview.js',
+            'core/editor-save-status.js',
+            'core/floor-navigation.js',
+            # camera/
+            'camera/camera-status.js',
+            'camera/camera-motion.js',
+            # climate/
+            'climate/climate-state.js',
+            'climate/climate-panel.js',
+            # cover/
+            'cover/cover-state.js',
+            'cover/cover-panel.js',
+            'cover/cover-feedback.js',
+            'cover/curtain-motion.js',
+            # presence/
+            'presence/presence-scene.js',
+            'presence/presence-motion.js',
+            'presence/presence-character.js',
+            'presence/presence-editor.js',
+            'presence/presence-focus-editor.js',
+            # vacuum/
+            'vacuum/vacuum-map.js',
+            'vacuum/vacuum-map-editor.js',
+            'vacuum/vacuum-motion.js',
+            # television/
+            'television/television-state.js',
+            'television/television-panel.js',
+            'television/television-screen.js',
+            # nas/
+            'nas/nas-status.js',
+            'nas/nas-panel.js',
+            # light/
+            'light/light-state.js',
+            'light/light-stream.js',
+            'light/light-range-editor.js',
+            # environment/
+            'environment/environment-scene.js',
+            'environment/environment-halos.js',
+            'environment/environment-airflow.js',
+            # security/：设备域编辑器（与 presence/ 同构）
+            'security/security-editor.js',
+            # editor/：配置编辑器与量程对话框
+            'editor/config-editor.js',
+            'editor/range-dialog.js')
     }
     # CSS 单独登记：两类白名单合并后就是本模块可下发的全部资源。
     media_types.update({
-        'presence-editor.css': 'text/css',
-        'runtime.css': 'text/css',
-        'stage.css': 'text/css',
-        'climate-panel.css': 'text/css',
-        'nas-panel.css': 'text/css',
-        'cover-panel.css': 'text/css'})
+        'core/runtime.css': 'text/css',
+        'core/stage.css': 'text/css',
+        'presence/presence-editor.css': 'text/css',
+        'climate/climate-panel.css': 'text/css',
+        'nas/nas-panel.css': 'text/css',
+        'cover/cover-panel.css': 'text/css'})
     # 先按白名单拒绝，再落盘检查，避免无权限的探测走到文件系统。
     if filename not in media_types:
         raise HTTPException(404, detail='3D 交互资源不存在。')

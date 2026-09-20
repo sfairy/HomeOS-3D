@@ -7,7 +7,7 @@
  *
  *   · `static/home.js` 的 `requestJson`、`static/license.js` 的 `errorMessage`、`static/display.js`、
  *     `static/global-log-boot.js`、`static/3d-studio/studio-app.js`、`static/renderer/renderer.js`、
- *     `modules/runtime/runtime.js` —— 七份只认「字符串」与 `detail.message`，**没有一个认
+ *     `modules/runtime/core/runtime.js` —— 七份只认「字符串」与 `detail.message`，**没有一个认
  *     数组**；
  *   · `static/setup.js` 那一份认数组（`detail[0]?.msg`），于是同一类错误只有初始化页可读；
  *   · `static/bridge/editor.js` 那一份只认字符串，连 `detail.message` 都不认 ——
