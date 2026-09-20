@@ -23,8 +23,8 @@
  *   - 硬性节流：默认 30fps（settings.fps），相机没动、光照没变时直接跳过整次捕获。
  */
 
-import { normalizeGroundReflection } from "../../bridge/reflection-settings.js?v=20260920103845";
-import { createReflectionCulling } from "./studio-reflection-culling.js?v=20260920103845";
+import { normalizeGroundReflection } from "../../bridge/reflection-settings.js?v=20260920104554";
+import { createReflectionCulling } from "./studio-reflection-culling.js?v=20260920104554";
 /**
  * 创建地面反射控制器（一个渲染器一份）。
  *

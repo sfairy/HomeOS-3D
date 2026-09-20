@@ -20,7 +20,7 @@
  * - 主题名 "warm-sunlight" 只在这里派生，不会下发给后端，也不落库。
  */
 
-import { createBackgroundTheme } from "./background-theme.js?v=20260920103845";
+import { createBackgroundTheme } from "./background-theme.js?v=20260920104554";
 /**
  * 求「背景锚点」：某层楼在展示坐标系里的平面中心，再往下压 0.203 米。
  *

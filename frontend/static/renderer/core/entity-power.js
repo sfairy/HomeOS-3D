@@ -18,13 +18,13 @@ import {
   climateIsPoweredOn,
   climatePowerCommand,
   resolveClimateDeviceType
-} from "../controls/climate.js?v=20260920103845";
+} from "../controls/climate.js?v=20260920104554";
 // 状态条目归一（变更对象 / 状态对象两种形态）统一走 utils/state-entry.js：
 // 本文件原先那份 unwrapStateChange 与另外四处是同一份知识，只是缺失时的兜底不同。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920103845";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920104554";
 // 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件原先自带两份
 // `String(id || "").split(".", 1)[0]`（`entityPowerIsOn` 与 `entityToggleCommand` 各一处）。
-import { entityDomainFromId } from "../../utils/entities.js?v=20260920103845";
+import { entityDomainFromId } from "../../utils/entities.js?v=20260920104554";
 
 // 兜底占位状态：本文件的下游要直接读 `.state` 与 `.attributes`（还有 `delete attributes.x`），
 // 传 null 会让「状态还没到」变成页面上的 TypeError。三处调用点都只读或 spread 出去，不修改它。

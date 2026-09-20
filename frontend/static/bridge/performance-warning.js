@@ -8,7 +8,7 @@
  *   调用方不要拆分或改写；弹窗的 class / id 前缀 `i3d-performance-` 与样式表约定死。
  * 副作用：confirmPerformanceWarning 会向 document.body 插入并移除 <dialog> 节点。
  */
-import { normalizeGroundReflection as normalizeReflection } from "./reflection-settings.js?v=20260920103845";
+import { normalizeGroundReflection as normalizeReflection } from "./reflection-settings.js?v=20260920104554";
 /**
  * 比较新旧设置，列出「变更后会更容易掉帧」的项目。
  *

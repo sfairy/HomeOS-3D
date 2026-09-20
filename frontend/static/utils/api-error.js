@@ -5,11 +5,11 @@
  * （`[{loc: ["body","activationCode"], msg: "String should have at least 8 characters"}]`），而
  * 「把失败响应归一化成人话」这段知识在主应用里原先有 **9 份**各写各的、能力还不一样：
  *
- *   · `static/home.js` 的 `requestJson`、`static/license.js` 的 `errorMessage`、`static/display.js`、
- *     `static/global-log-boot.js`、`static/3d-studio/studio/studio-app.js`、`static/renderer/renderer.js`、
+ *   · `static/editor/home.js` 的 `requestJson`、`static/auth/license.js` 的 `errorMessage`、`static/display/display.js`、
+ *     `static/logging/global-log-boot.js`、`static/3d-studio/studio/studio-app.js`、`static/renderer/core/renderer.js`、
  *     `modules/runtime/core/runtime.js` —— 七份只认「字符串」与 `detail.message`，**没有一个认
  *     数组**；
- *   · `static/setup.js` 那一份认数组（`detail[0]?.msg`），于是同一类错误只有初始化页可读；
+ *   · `static/auth/setup.js` 那一份认数组（`detail[0]?.msg`），于是同一类错误只有初始化页可读；
  *   · `static/bridge/editor.js` 那一份只认字符串，连 `detail.message` 都不认 ——
  *     户型载入失败时一律退成页面自己的重试文案。
  *

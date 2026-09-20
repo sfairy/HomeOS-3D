@@ -2,7 +2,7 @@
  * 颜色字符串归一：三份契约，各自服务一种用途。
  *
  * 位置：`utils/` 下的纯工具，被编辑器（`home.js` / `editor-utils.js`）与运行时渲染器
- *   （`renderer/renderer.js`）引用。
+ *   （`renderer/core/renderer.js`）引用。
  *
  * 为什么要有这个文件：这三处原先各有自己的「归一十六进制颜色」——
  *   `editor-utils.normalizedHexColor`、`home.js` 里的 `normalizeHexColor`、

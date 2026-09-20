@@ -19,12 +19,13 @@
  *   7. Relative `url(...)` references in CSS resolve next to the stylesheet.
  *   8. literal `frontend_dir / …` chains in the backend resolve on disk.
  *   9. every served module carries a cache stamp, and there is exactly one stamp.
- *  10. Reports dangling `backend.app` / `backend/app` literals (informational;
+ *  10. file paths named inside comments still resolve.
+ *  11. Reports dangling `backend.app` / `backend/app` literals (informational;
  *      time-stamped records under docs/ are excluded).
- *  11. backend/config.py still resolves the repo root from its own location.
- *  12. every repo-relative path named by the Dockerfile still exists.
+ *  12. backend/config.py still resolves the repo root from its own location.
+ *  13. every repo-relative path named by the Dockerfile still exists.
  *
- * Exits 1 when any of the first nine checks fail.
+ * Exits 1 when any of the first ten checks fail.
  */
 
 import fs from "node:fs";
@@ -514,7 +515,167 @@ function checkStaticCacheStamps(problems) {
 }
 
 /**
- * Check 10 (informational): `backend.app` / `backend/app` literals. During the
+ * Check 10: file paths named inside comments still resolve.
+ *
+ * The docstrings here are load-bearing — they name the file that owns a piece of
+ * knowledge ("能力解析与文案统一来自 static/renderer/controls/climate.js") — so a
+ * name that no longer resolves is worse than no name: it sends the next reader,
+ * or the next grep, to a file that is not there. Two rounds of directory
+ * refactoring left ~38 of them behind.
+ *
+ * Only mentions whose basename still exists **somewhere** are reported, which is
+ * what keeps deliberate history out of the results: prose like「原先有 9 份各写各的」
+ * names files that were deleted on purpose, and once a basename is gone from the
+ * tree it can never be flagged.
+ *
+ * The test is「greppable」rather than「resolvable from a fixed root」: a mention passes
+ * when some real path equals it or ends with `/` + it at a segment boundary.
+ * That is the property that matters to a reader — you can paste the mention into
+ * a search and land on the file — and it is deliberately tolerant of abbreviated
+ * prefixes (`interaction3d/config.py` for `backend/modules/interaction3d/config.py`).
+ * A stricter root-based rule flagged exactly those abbreviations, while a
+ * moved-file mention like `renderer/renderer.js` still fails, because the real
+ * path is `renderer/core/renderer.js` and no longer contains it.
+ *
+ * Exclusions, all of which fell out of the real false positives:
+ *   - a leading `/` or `.` drops served URLs (`/store-static/x.css`),
+ *     `api/v1/...` and bare relative specifiers (`./x.js`, `../plan/x.js`);
+ *   - only the code roots are scanned (frontend/, store/, backend/, migrations/,
+ *     docker/); markdown, docs/, deploy/, tools/ and data/ are not, so tree
+ *     diagrams and examples cannot be mistaken for references.
+ */
+const COMMENT_PATH_RE =
+  /(?<![\w/@.-])([A-Za-z0-9_@-]+(?:\/[A-Za-z0-9_@.-]+)+\.(?:js|mjs|css|py|html))/g;
+const COMMENT_SCAN_EXTENSIONS = new Set([".js", ".mjs", ".py", ".css", ".html"]);
+/** Code roots whose comments are checked; docs/ and markdown are excluded. */
+const COMMENT_SCAN_ROOTS = [
+  FRONTEND,
+  STORE,
+  path.join(ROOT, "backend"),
+  path.join(ROOT, "migrations"),
+  path.join(ROOT, "docker")
+];
+
+/**
+ * Length-preserving comment mask. The offsets of `source` must stay valid so a
+ * regex match can be tested for "is this position inside a comment?" — the
+ * existing `stripComments` deletes text and cannot answer that.
+ */
+function commentMask(source, ext) {
+  const chars = source.split("");
+  const blank = (from, to) => {
+    for (let i = from; i < to && i < chars.length; i += 1) {
+      if (chars[i] !== "\n") chars[i] = " ";
+    }
+  };
+
+  if (ext !== ".py") {
+    let index = 0;
+    while (index < source.length) {
+      const start = source.indexOf("/*", index);
+      if (start === -1) break;
+      const end = source.indexOf("*/", start + 2);
+      const stop = end === -1 ? source.length : end + 2;
+      blank(start, stop);
+      index = stop;
+    }
+  }
+  if (ext === ".html" || ext === ".webmanifest") {
+    let index = 0;
+    while (index < source.length) {
+      const start = source.indexOf("<!--", index);
+      if (start === -1) break;
+      const end = source.indexOf("-->", start + 4);
+      const stop = end === -1 ? source.length : end + 3;
+      blank(start, stop);
+      index = stop;
+    }
+  }
+  if (ext === ".py") {
+    // docstrings carry as much prose as `#` comments do, so both count
+    for (const quote of ['"""', "'''"]) {
+      let index = 0;
+      while (index < source.length) {
+        const start = source.indexOf(quote, index);
+        if (start === -1) break;
+        const end = source.indexOf(quote, start + 3);
+        const stop = end === -1 ? source.length : end + 3;
+        blank(start, stop);
+        index = stop;
+      }
+    }
+  }
+
+  // line comments, located on the already-blanked text so a `//` that sits inside
+  // a block comment cannot be counted twice
+  const masked = chars.join("");
+  let offset = 0;
+  for (const line of masked.split("\n")) {
+    let at = -1;
+    if (ext === ".py") {
+      if (/^\s*#/.test(line)) at = line.indexOf("#");
+    } else if (ext !== ".css" && ext !== ".html" && ext !== ".webmanifest") {
+      for (let i = 0; i + 1 < line.length; i += 1) {
+        if (line[i] === "/" && line[i + 1] === "/" && (i === 0 || line[i - 1] !== ":")) {
+          at = i;
+          break;
+        }
+      }
+    }
+    if (at !== -1) blank(offset + at, offset + line.length);
+    offset += line.length + 1;
+  }
+
+  return chars;
+}
+
+function checkCommentPaths(problems) {
+  let checked = 0;
+  const scanRoots = COMMENT_SCAN_ROOTS;
+
+  /** basename -> repo-relative paths, so a mention can be tested for greppability */
+  const realPaths = new Map();
+  for (const root of scanRoots) {
+    for (const file of walkFiles(root, COMMENT_SCAN_EXTENSIONS)) {
+      const base = path.basename(file);
+      if (!realPaths.has(base)) realPaths.set(base, []);
+      realPaths.get(base).push(relFromRoot(file));
+    }
+  }
+
+  for (const root of scanRoots) {
+    for (const file of walkFiles(root, COMMENT_SCAN_EXTENSIONS)) {
+      const source = fs.readFileSync(file, "utf8");
+      const chars = commentMask(source, path.extname(file));
+      for (const match of source.matchAll(COMMENT_PATH_RE)) {
+        const mention = match[1];
+        const start = match.index;
+        // the whole mention must sit in comment text
+        let inComment = true;
+        for (let i = start; i < start + mention.length; i += 1) {
+          if (chars[i] !== " ") {
+            inComment = false;
+            break;
+          }
+        }
+        if (!inComment) continue;
+        const candidates = realPaths.get(path.basename(mention));
+        if (!candidates) continue;
+        checked += 1;
+        const greppable = candidates.some(
+          (candidate) => candidate === mention || candidate.endsWith(`/${mention}`)
+        );
+        if (!greppable) {
+          problems.push(`${relFromRoot(file)}: comment names a moved file -> ${mention}`);
+        }
+      }
+    }
+  }
+  return checked;
+}
+
+/**
+ * Check 11 (informational): `backend.app` / `backend/app` literals. During the
  * de-`app` refactor these must all flip; this only lists them so the batch can
  * be closed out deliberately rather than by a blind search-and-replace.
  *
@@ -632,6 +793,7 @@ function main() {
     cssRelativeUrls: checkCssRelativeUrls(problems),
     frontendDirChains: checkFrontendDirChains(problems),
     cacheStamps: checkStaticCacheStamps(problems),
+    commentPaths: checkCommentPaths(problems),
     dockerfilePaths: checkDockerfilePaths(problems)
   };
   checkBackendRootDepth(problems);
@@ -648,6 +810,7 @@ function main() {
       `${counts.cssRelativeUrls} CSS url() refs, ` +
       `${counts.frontendDirChains} frontend_dir chains, ` +
       `${counts.cacheStamps} cache stamps, ` +
+      `${counts.commentPaths} comment paths, ` +
       `${counts.dockerfilePaths} Dockerfile paths`
   );
 

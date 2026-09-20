@@ -2,12 +2,12 @@
  * 实体检索文本与实体域：两个「从实体身上取出一个字符串」的契约，各只有一份实现。
  *
  * 位置：`utils/` 下的纯工具，被编辑器（`home.js` / `related-entities.js`）与运行时渲染器
- *   （`renderer/device-profiles.js` / `renderer/presence-runtime.js`）共用。
+ *   （`renderer/core/device-profiles.js` / `renderer/controls/presence-runtime.js`）共用。
  *
  * 为什么要有这个文件：两处知识原先各有 2~3 份副本，而副本之间**口径不同**：
 
- *   * **检索文本**：`renderer/device-profiles.js` 那份是变参 + 逐段 `trim` + 过滤空段 +
- *     小写；而 `renderer/presence-runtime.js` 与 `home.js` 里那两份是「固定四个字段拼起来、
+ *   * **检索文本**：`renderer/core/device-profiles.js` 那份是变参 + 逐段 `trim` + 过滤空段 +
+ *     小写；而 `renderer/controls/presence-runtime.js` 与 `home.js` 里那两份是「固定四个字段拼起来、
  *     保留原大小写、只在整串两端 `trim`」。调用方的正则有的带 `i` 有的不带 —— 恰好与
  *     各自拿到的那份口径配套，所以谁都没坏。但「哪份能用」取决于调用方正则写没写 `i`，
  *     照着名字换一份去调用不会报错，只会静默漏匹配。
@@ -34,7 +34,7 @@
  * 「传 falsy 会怎样」的新分支）。
  *
  * **P12 残留补齐（第二批）**：上一批刻意留下的**十一处没写 `|| ""` 守卫的内联切分**
- * （`renderer/renderer.js` 七处、`home.js`、`action-rules.js`、`renderer/climate.js`、
+ * （`renderer/core/renderer.js` 七处、`home.js`、`action-rules.js`、`renderer/controls/climate.js`、
  * `editor-document-management.js`）逐处读清输入来源后，分成两类收掉：
  *
  *   * **九处语义不变**，因为输入要么本就被 `String(x || "")` 包着（与助手函数体逐字相同），
@@ -44,9 +44,9 @@
  *     `selectedRelatedEntityIds` / `legacyRelatedEntityIds` 都 `.filter(Boolean)`）。
  *     换过去一字未变，只是把「按 ID 切域」收回一份实现。
  *   * **两处行为改动**，方向都是「更归一」：
- *     `renderer/climate.js` 的 `climateModeTranslation` —— 原先传 `null` / `0` / `false`
+ *     `renderer/controls/climate.js` 的 `climateModeTranslation` —— 原先传 `null` / `0` / `false`
  *     会拼出以 `"null"` / `"0"` / `"false"` 为域的翻译键，现在按「取不到域」返回空串；
- *     `renderer/renderer.js` 组合弹窗里的 `moduleResolvedEntityId` —— 模块没绑实体时它整个
+ *     `renderer/core/renderer.js` 组合弹窗里的 `moduleResolvedEntityId` —— 模块没绑实体时它整个
  *     是 `undefined`，原先 `.split()` 抛 `TypeError`，现在归一成 `""`（判定仍是「不是
  *     button」，只是不再把一次渲染打断）。前者当时有对照：探针 `entity-helpers` 摆了一份
  *     「毒化」的翻译字典（含 `component.x.entity.null.y` 这条键），断言换过去之后取不到它

@@ -697,7 +697,7 @@ docker exec homeos-3d rm /tmp/app.tar.gz
 
 ## 开发注意
 
-- 静态资源缓存标记统一为 `?v=YYYYMMDDHHMMSS`（14 位本地时间，例如 `?v=20260915103715`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后需要**手工把受影响的 `?v=` 同戳更新**（原先的批量改写脚本已随本次清理移除）；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer.js` 必须使用同一条 `registry.js?v=`，否则会出现两份控件注册表。
+- 静态资源缓存标记统一为 `?v=YYYYMMDDHHMMSS`（14 位本地时间，例如 `?v=20260920104554`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后请跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。全站只许存在一个戳（`README` 与历史文档里的示例除外），这一条由 `tools/check_structure_refs.mjs` 把关。
 - 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
 - 不要改 `frontend/static/vendor/` 下的 three.js、hls.js、OrbitControls 等第三方文件。
 - 界面中文文案保持原词；缓存戳改动请用 `tools/bump_static_cache_versions.mjs`。
@@ -724,19 +724,17 @@ node tools/bump_static_cache_versions.mjs
 node tools/check_structure_refs.mjs
 ```
 
-前端没有打包器，路径写错只在浏览器里变成 404。该脚本静态校验十一项：`/static/...` 引用、前端相对 ESM 导入、`backend/main.py` 的 `public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime` 的双向一致、`/api/v1/modules/interaction3d/<path>` 资源 URL、`/store-static/...` 引用、CSS 里的相对 `url(...)`、后端 `frontend_dir / …` 拼接链、静态资源缓存戳、`backend/config.py` 的仓库根推导、`Dockerfile` 里全部仓库相对路径，并附带列出残留的「后端 app 层」写法（信息项，不判失败）。仓库没有自动化回归网，结构改动后请同时跑它与手工冒烟。
+前端没有打包器，路径写错只在浏览器里变成 404。该脚本静态校验十二项：`/static/...` 引用、前端相对 ESM 导入、`backend/main.py` 的 `public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime` 的双向一致、`/api/v1/modules/interaction3d/<path>` 资源 URL、`/store-static/...` 引用、CSS 里的相对 `url(...)`、后端 `frontend_dir / …` 拼接链、静态资源缓存戳、注释里写到的文件路径、`backend/config.py` 的仓库根推导、`Dockerfile` 里全部仓库相对路径，并附带列出残留的「后端 app 层」写法（信息项，不判失败）。仓库没有自动化回归网，结构改动后请同时跑它与手工冒烟。
 
-最后三项值得单说一句，因为它们覆盖的是「其它检查看不见的那部分路径」：
+其中四项值得单说一句，因为它们覆盖的是「其它检查看不见的那部分路径」：
 
 - CSS 的相对 `url(...)` 按 **URL** 而非磁盘目录解析，因为它会先落到 URL 空间再被挂载映回磁盘：`/store-static/font.min.css` 里的 `url(../fonts/font.woff2)` 实际请求 `/fonts/font.woff2`，由 `store/app.py` 的 `/fonts` 根挂载提供（`font.min.css` 写死了 `../fonts/…`，这就是那个挂载存在的原因）。因此这条检查同时钉住两件事：字体文件还在，以及 `/fonts` 挂载没被摘掉 —— 后者一旦失守，字体 URL 会落到所有已知挂载之外并被判失败，而不是安静地 404。
 - 后端有几条路径是**在 Python 里拼出来的**，不在 `public_static_files` 清单里，原先没有任何检查覆盖：`/static` 挂载本身、两个 apple-touch-icon 路由（伸进 `static/assets/icons/`）、以及 `static/vendor/mdi` 图标根。`frontend_dir / …` 链检查逐段验证字面前缀存在，变量段（如 MDI 的版本号目录）之前的部分也会被验到。
 - 缓存戳检查是 W18 那条不变式的重建。它原本在 `backend/tools/smoke.py::check_frontend_static_cache_stamps()`，随清理测试设施的提交一起被删，此后无人看守；而它当年只覆盖 HTML，**模块 import 那一半从来是盲区** —— 这正是 2026-09-20 补齐的 19 处漏戳（含两组「带戳 / 不带戳」并存、会让同一模块被实例化两份）得以长期存在的原因。现在三处一起钉：模块 import、HTML 的 `<script src>` / `<link href>`、商店模板里非压缩的 `/store-static/…` 引用，外加「全站只许有一个戳」。
 
+- 注释里写到的文件路径是这套护栏里唯一「不关乎运行时、只关乎下一个读者」的一项，但它值得单列：代码注释在本仓库是**知识归属声明**（例如 climate 的文案口径「统一来自 `static/renderer/controls/climate.js`」），写错比不写更坏 —— 它会把下一个读者和下一次 grep 一并指向一个不存在的文件。判定用的是「可 grep 到」而非「能从某个固定根解析」：只要某条真实路径等于该提及、或在其 `/` 分段边界后与之相等即通过。这一口径是刻意的，它容忍省略前缀的写法（`interaction3d/config.py` 之于 `backend/modules/interaction3d/config.py`），却仍然抓得住真正的失效 —— `renderer/renderer.js` 会失败，因为真实路径已是 `renderer/core/renderer.js`，不再含有它。同时，只报「basename 仍存在于树中」的提及，因此「原先有 9 份各写各的」这类**故意**引用已删文件的历史叙述天然不会被误报。
+
 `/static/renderer|editor|bridge|utils/**` 不是 `no-store`（只有页面、`/api/v1/`、`/static/display/display.js|css` 与 `/static/3d-studio/` 是），所以对这些模块来说 `?v=` 是唯一的缓存失效手段：漏戳会让改动在浏览器里迟迟不生效，而「同模块一处带戳一处不带」会让浏览器当成两个模块、各留一份模块级状态。
-
-## 开发注意
-
-- 静态资源缓存标记统一为 `?v=YYYYMMDDHHMMSS`（14 位本地时间，例如 `?v=20260915103715`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后执行 `node tools/bump_static_cache_versions.mjs` 全局同戳 bump；`home.js` 与 `renderer.js` 必须使用同一条 `registry.js?v=`，否则会出现两份控件注册表。
 
 ## 更新日志
 
@@ -749,7 +747,8 @@ node tools/check_structure_refs.mjs
 - `frontend/modules/runtime` 按功能域细分：`core/`、`camera/`、`presence/`、`vacuum/`、`climate/`、`cover/`、`television/`、`nas/`、`light/`、`environment/`、`security/`、`editor/`。下发路由由 `/api/v1/modules/interaction3d/{filename}` 改为 `{filename:path}`，白名单键改成含子目录的相对路径。
 - `frontend/static/3d-studio` 按语义细分：`studio/`（编排层与样式）、`plan/`、`reflection/`、`materials/`、`loaders/`、`export/`；`models/` 仍是模型素材目录（同时是 `main.py` 的强缓存判定前缀）。
 - `frontend/static/assets` 按类型细分：`icons/`（34 个 favicon / 触屏图标 / 品牌图）+ `manifest/`（5 个 PWA 清单）。`frontend/static/renderer` 分入 `core/`（渲染主体与共享基建）、`controls/`（按域的控件运行时）、`geometry/`；`frontend/static/editor` 的选择器六件套收进 `picker/`，入口 `home.js` 与编辑器主体留在 `editor/` 根部。
-- `tools/check_structure_refs.mjs` 增加检查：`/api/v1/modules/interaction3d/<path>` 资源 URL 必须命中 `frontend/modules/runtime`，`/store-static/<path>` 引用必须命中 `store/static`，CSS 相对 `url(...)` 必须在 URL 空间内命中（按挂载映回磁盘，顺带钉住 `/fonts` 根挂载），后端 `frontend_dir / …` 拼接链必须存在（覆盖 `public_static_files` 清单之外的路径），静态资源缓存戳必须在位且全站唯一；interaction3d 白名单检查改为递归双向比对。
+- `tools/check_structure_refs.mjs` 增加检查：`/api/v1/modules/interaction3d/<path>` 资源 URL 必须命中 `frontend/modules/runtime`，`/store-static/<path>` 引用必须命中 `store/static`，CSS 相对 `url(...)` 必须在 URL 空间内命中（按挂载映回磁盘，顺带钉住 `/fonts` 根挂载），后端 `frontend_dir / …` 拼接链必须存在（覆盖 `public_static_files` 清单之外的路径），静态资源缓存戳必须在位且全站唯一，注释里写到的文件路径必须仍然「可 grep 到」；interaction3d 白名单检查改为递归双向比对。
+- 修掉 38 处注释里的过期路径。这批注释是「知识归属声明」（例如 climate 的文案口径来自 `static/renderer/controls/climate.js`），写错比不写更坏 —— 它会把下一个读者和下一次 grep 指向一个不存在的文件。改法限定在注释文本内（用保留长度的遮罩判定匹配位置，代码零改动，已用「剥掉注释后逐字节比对」验证）。同时把这条断言做成护栏第 10 项：只看注释、只报 basename 仍然存在却已成不了后缀的路径，因此「原先有 9 份各写各的」这类**故意**提及已删文件的历史叙述不会被误报，`/store-static/x.css` 这类 URL 与 `./x.js`、`../plan/x.js` 这类相对说明符也不在其中。反向测试确认它抓得住回归，代码改动不会触发。
 - 补齐 19 处缺失的静态资源缓存戳。W18 的「每个 served 模块都带戳、全站只许一个戳」断言原本在 `backend/tools/smoke.py::check_frontend_static_cache_stamps()`，随清理测试设施一起被删，且当年只覆盖 HTML；模块 import 那一半从来没被检查过。这次补齐的 19 处里有 `popup-placement.js` 与 `preview-layout.js` 两组「一处带戳一处不带」，浏览器会当成两个模块、各留一份模块级状态（W18 记录的「两份控件注册表 / 控件找不到类型」形态），而 `bridge/editor.js` 确实会在同一页里同时加载这两个编辑器，所以是可复现的。同时把该断言重建进 `check_structure_refs.mjs` 并扩展到模块 import 与商店模板。
 
 测试与死代码清理

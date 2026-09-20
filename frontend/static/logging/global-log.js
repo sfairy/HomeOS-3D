@@ -8,8 +8,8 @@
  * 约定：接口路径由注入的 api 拼接（相对 /api/v1），本模块不直接 fetch；
  *   每页 200 条，翻到「查看历史」时暂停自动刷新，避免覆盖用户正在看的内容。
  */
-import { confirmAction } from "../shared/ui-confirm.js?v=20260920103845";
-import { formatZhDateTime } from "../utils/datetime.js?v=20260920103845";
+import { confirmAction } from "../shared/ui-confirm.js?v=20260920104554";
+import { formatZhDateTime } from "../utils/datetime.js?v=20260920104554";
 
 // 日志等级的中文名，与后端 global_log.py 的等级枚举一致。
 const LEVEL_LABELS = {

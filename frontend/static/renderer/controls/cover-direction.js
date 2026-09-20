@@ -2,7 +2,7 @@
  * 窗帘「电机方向」这一份知识的唯一实现。
  *
  * 位置：`renderer/` 下的叶子模块，**不 import 任何东西** —— 这一点是刻意的，也是它存在的原因。
- * `renderer/registry.js` 与 `renderer/cover-runtime.js` 都要用它，而 `cover-runtime.js` 已经
+ * `renderer/core/registry.js` 与 `renderer/controls/cover-runtime.js` 都要用它，而 `cover-runtime.js` 已经
  * import 了 `registry.js`（取 `coverComponentIsDream`），注册表再反向 import 回去就成环。
  * 原先的绕法是「各留一份本地实现」，代价是同一份知识有两个定义点（见下面）。
  *

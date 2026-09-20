@@ -12,8 +12,8 @@
  * 跳转：设置成功即已下发登录 Cookie；先打开 /license——
  *   授权有效时该页会 303 回首页，失效/未激活则留在授权页完成激活。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=20260920103845";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920103845";
+import { apiFetch } from "../utils/api-fetch.js?v=20260920104554";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260920104554";
 
 const form = document.querySelector("#setup-form"),
   message = document.querySelector("#message"),

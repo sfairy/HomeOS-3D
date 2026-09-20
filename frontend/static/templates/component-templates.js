@@ -29,9 +29,9 @@
  * 副作用：模块导入即执行全部注册；templatesById 是模块级单例，同 id 重复注册会覆盖。
  * 新增控件类型时要同步改：本文件的 registerComponentTemplate 注册块、
  *   componentDefaultsByType（打开旧文档时补默认值）、templateScopeOrder（弹窗排序），
- *   以及前端渲染分支（renderer/registry.js、home.js）和后端 schema 的放行范围。
+ *   以及前端渲染分支（renderer/core/registry.js、home.js）和后端 schema 的放行范围。
  */
-import { interaction3dTemplate } from "../bridge/definition.js?v=20260920103845";
+import { interaction3dTemplate } from "../bridge/definition.js?v=20260920104554";
 // 模板注册表：id -> 冻结后的模板定义。模块级单例，导入即被下方的注册块填满。
 const templatesById = new Map();
 // 文档缺 theme 时的兜底主题，名字必须与后端 schema.Theme 的默认名 homeos-dark 一致。

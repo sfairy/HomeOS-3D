@@ -10,25 +10,25 @@
  * 保证离线 / 未播放时屏幕也不是纯黑。
  */
 
-import { televisionState } from "./television-state.js?v=20260920103845";
+import { televisionState } from "./television-state.js?v=20260920104554";
 // 程序化海报绘制；缓存戳需与 static 资源版本保持一致。
 const { drawTelevisionPoster: drawTelevisionPoster } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-poster.js?v=20260920103845",
+        "../../../static/3d-studio/materials/studio-television-poster.js?v=20260920104554",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-poster.js?v=20260920103845"));
+  : import("/static/3d-studio/materials/studio-television-poster.js?v=20260920104554"));
 // 熄屏玻璃渐变；冷暖两档色标都在该模块里，暖阳原木主题下传 warm=true。
 const { drawTelevisionGlass: drawTelevisionGlass } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-glass.js?v=20260920103845",
+        "../../../static/3d-studio/materials/studio-television-glass.js?v=20260920104554",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-glass.js?v=20260920103845"));
+  : import("/static/3d-studio/materials/studio-television-glass.js?v=20260920104554"));
 /**
  * 创建电视屏幕控制器。
  */

@@ -1,19 +1,19 @@
 /**
  * 状态条目归一：把 HA 推送的「变更对象」与「状态对象」两种形态收成一种。
  *
- * 位置：`utils/` 下的纯函数工具，被渲染器（`renderer/registry.js`、`renderer/entity-power.js`、
- *   `renderer/vacuum-runtime.js`、`renderer/presence-runtime.js`、`renderer/light-statistics-runtime.js`）
+ * 位置：`utils/` 下的纯函数工具，被渲染器（`renderer/core/registry.js`、`renderer/core/entity-power.js`、
+ *   `renderer/controls/vacuum-runtime.js`、`renderer/controls/presence-runtime.js`、`renderer/controls/light-statistics-runtime.js`）
  *   引用。不碰 DOM、不发请求。
  *
  * 为什么要有这个文件：这份知识原先在前端有 **5 份具名副本、3 个不同的函数名、2 种不同的契约** ——
  *
  *   | 副本 | 名字 | 契约差异 |
  *   | --- | --- | --- |
- *   | `renderer/entity-power.js` | `unwrapStateChange` | 缺失时给**占位状态对象** `{state:"",attributes:{}}` |
- *   | `renderer/vacuum-runtime.js` | `unwrapStateChange` | 缺失时给 `null` |
- *   | `renderer/presence-runtime.js` | `resolveEventState` | 缺失时给 `null`（换个名字，同一份知识） |
- *   | `renderer/registry.js` | `resolveStateEntry` | 缺失时给 `null`（同上，第三个名字） |
- *   | `renderer/light-statistics-runtime.js` | `unwrapStateChange` | **两个形参**（容器 + 键），且用 `hasOwnProperty` 判定 |
+ *   | `renderer/core/entity-power.js` | `unwrapStateChange` | 缺失时给**占位状态对象** `{state:"",attributes:{}}` |
+ *   | `renderer/controls/vacuum-runtime.js` | `unwrapStateChange` | 缺失时给 `null` |
+ *   | `renderer/controls/presence-runtime.js` | `resolveEventState` | 缺失时给 `null`（换个名字，同一份知识） |
+ *   | `renderer/core/registry.js` | `resolveStateEntry` | 缺失时给 `null`（同上，第三个名字） |
+ *   | `renderer/controls/light-statistics-runtime.js` | `unwrapStateChange` | **两个形参**（容器 + 键），且用 `hasOwnProperty` 判定 |
  *
  *   危害不在「代码多」，而在**同名不同签名**：`unwrapStateChange` 在一处是 `(状态)`、
  *   在另一处是 `(容器, 实体ID)`。照着名字把调用搬过来不会报错 —— 传进来的是个 Map 时
@@ -31,7 +31,7 @@
  *   | `null` / `undefined` | 第 2 个参数（默认 `null`） |
  *
  * **为什么用真值判定（`?.newState || x`）而不是 `hasOwnProperty`**：本仓库里 `newState` 的
- *   生产者只有一处（`renderer/renderer.js` 的乐观更新，产出 `{...原变更对象, newState: 乐观状态}`），
+ *   生产者只有一处（`renderer/core/renderer.js` 的乐观更新，产出 `{...原变更对象, newState: 乐观状态}`），
  *   所以「一个对象同时带 `state` 与假值 `newState`」这种混合形态不存在。两种判定的分歧恰好只在
  *   这种形态上，而真值判定是 5 份副本里 4 份的口径，因此统一到它 —— 被合并掉的那份严格判定
  *   （`light-statistics-runtime`）的调用点也已逐处核对：它在 `.state`、`.attributes.friendly_name`
@@ -56,7 +56,7 @@
  *   「运行侧的文件不能写裸 `/static/...` 的静态 import（舞台页能以 `file:` 打开）」，而树里
  *   早就有七处条件动态导入。于是这段导入收进纯转出口 `modules/runtime/core/static-helpers.js`
  *   （桥），其余 16 份文件写普通的静态 import —— 树按域细分后，`core/` 内的文件写
- *   `./static-helpers.js?v=20260920103845`，`core/` 以外的 15 处写 `../core/static-helpers.js?v=20260920103845`。
+ *   `./static-helpers.js?v=20260920104554`，`core/` 以外的 15 处写 `../core/static-helpers.js?v=20260920104554`。
  *   那 33 处的下游逐处过目，结论与上面 47 处同一口径（`?.` 取字段 / 真值判定 / 自己再归一一次三类，均不可观测）。
  */
 

@@ -7,7 +7,7 @@
   左侧控件图层导航、中间页面画布 / 仪表盘预览 / 组合弹窗编辑、右侧属性检查器。
   入口脚本按顺序：/static/logging/global-log-boot.js（日志面板先就绪，不依赖主脚本）、
   /static/vendor/hls.js/1.6.16/hls.min.js（摄像头 HLS 播放）、/static/editor/home.js（主体，module）。
-  版本戳约定：home.js 内部 import 的 renderer/renderer.js 与 renderer/registry.js 必须与
+  版本戳约定：home.js 内部 import 的 renderer/core/renderer.js 与 renderer/core/registry.js 必须与
   renderer.css 共用同一条 `?v=`，否则会出现两份控件注册表，表现为某些控件「找不到类型」。
   CSP 为 style-src 'self' 且 script-src 'self'，所以页面里没有任何内联 <style> / <script>，
   全部行为靠 id 与 data-* 属性与脚本约定挂接，改动这些名字等于改接口。
@@ -16,7 +16,7 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=20260920103845"></script>
+    <script src="/static/logging/client-log.js?v=20260920104554"></script>
     <!-- 编辑器是桌面级布局，固定按 1020px 逻辑宽度出图，小屏靠缩放而不是响应式重排。 -->
     <meta name="viewport" content="width=1020,user-scalable=yes" />
     <meta name="theme-color" content="#172029" />
@@ -25,26 +25,26 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>HomeOS全屋智能管家</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260920103845" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920103845" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920103845" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920103845" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260920103845" />
-    <link rel="stylesheet" href="/static/logging/global-log.css?v=20260920103845" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260920104554" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920104554" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920104554" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920104554" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260920104554" />
+    <link rel="stylesheet" href="/static/logging/global-log.css?v=20260920104554" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；app.css、renderer.css 与 home.js
          内部 import 的模块必须共用同一枚时间戳，否则样式与运行时会对不上版本。 -->
     <link
       rel="stylesheet"
-      href="/static/app.css?v=20260920103845"
+      href="/static/app.css?v=20260920104554"
     />
-    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=20260920103845" />
-    <link rel="stylesheet" href="/static/bridge/bridge.css?v=20260920103845" />
+    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=20260920104554" />
+    <link rel="stylesheet" href="/static/bridge/bridge.css?v=20260920104554" />
   </head>
   <body>
     <!-- ===== 顶部工具条：四个入口按钮的状态点都由脚本按轮询结果着色 ===== -->
     <header class="editor-header">
       <div class="brand-lockup">
-        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920103845" alt="" /><strong
+        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920104554" alt="" /><strong
           >HomeOS</strong
         ><span class="version">0.5.6</span>
       </div>
@@ -4431,11 +4431,11 @@
         </div>
       </div>
     </dialog>
-    <script type="module" src="/static/logging/global-log-boot.js?v=20260920103845"></script>
+    <script type="module" src="/static/logging/global-log-boot.js?v=20260920104554"></script>
     <script src="/static/vendor/hls.js/1.6.16/hls.min.js"></script>
     <script
       type="module"
-      src="/static/editor/home.js?v=20260920103845"
+      src="/static/editor/home.js?v=20260920104554"
     ></script>
   </body>
 </html>

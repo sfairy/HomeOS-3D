@@ -9,19 +9,19 @@
  * climateControl，以及从渲染器转出的标签 / 图标工具（climateModeLabel 等）。
  *
  * 与渲染器的约定：能力解析（支持哪些模式、温度步长）与文案统一来自
- * static/renderer/climate.js，这里只做转发，绝不另写一份口径 —— 否则 2D 面板
+ * static/renderer/controls/climate.js，这里只做转发，绝不另写一份口径 —— 否则 2D 面板
  * 与 3D 面板会出现同一台空调显示不同模式列表的问题。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920103845";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920104554";
 // 动态导入渲染器模块：开发环境走相对路径（file:），生产环境走带缓存戳的静态路径。
 // 缓存戳必须与 static 目录的统一版本号保持一致，改渲染器后要同步更新。
 const climateRendererModule = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/renderer/controls/climate.js", import.meta.url))
-  : import("/static/renderer/controls/climate.js?v=20260920103845"));
+  : import("/static/renderer/controls/climate.js?v=20260920104554"));
 const {
   normalizeClimateCapabilities: normalizeClimateCapabilities,
   climateIsPoweredOn: climateIsPoweredOn,

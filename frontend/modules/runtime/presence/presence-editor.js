@@ -26,17 +26,17 @@
  * - 正在输入的数字 / 文本用 fieldCollectors 延迟提交，保存或重渲染前统一 flush；
  * - 人物预览是独立的 WebGLRenderer（240×160），three 走动态 import 且加载失败可忽略。
  */
-import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=20260920103845";
-import { mountInteraction3d } from "../core/runtime.js?v=20260920103845";
+import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=20260920104554";
+import { mountInteraction3d } from "../core/runtime.js?v=20260920104554";
 import {
   validPresenceRoute,
   snapsToPresenceStart,
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "./presence-motion.js?v=20260920103845";
-import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260920103845";
-import { randomUuid } from "/static/utils/random-id.js?v=20260920103845";
-import { serializeEditorDraft } from "../core/editor-save-status.js?v=20260920103845";
+} from "./presence-motion.js?v=20260920104554";
+import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260920104554";
+import { randomUuid } from "/static/utils/random-id.js?v=20260920104554";
+import { serializeEditorDraft } from "../core/editor-save-status.js?v=20260920104554";
 /**
  * 打开人在传感器编辑对话框。
  */
@@ -115,7 +115,7 @@ export async function openPresenceEditor({
   styleLinkElement.rel = "stylesheet";
   // 样式与 3D 预览的 runtime.css 是两套：这里只加载编辑器自身的样式表。
   styleLinkElement.href =
-    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=20260920103845";
+    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=20260920104554";
   const dialogElement = createElement("dialog", "", "i3d-editor i3d-presence-editor");
   dialogElement.setAttribute("aria-label", manageBindings ? "配置安防" : "人物与行走路线");
   // 记下打开前的焦点，关闭时还回去，键盘用户不会丢失位置。

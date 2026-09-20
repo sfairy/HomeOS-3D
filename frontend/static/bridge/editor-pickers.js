@@ -15,15 +15,15 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../editor/picker/editor-picker-pagination.js?v=20260920103845";
-import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=20260920103845";
+} from "../editor/picker/editor-picker-pagination.js?v=20260920104554";
+import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=20260920104554";
 // 「取实体域」走 utils/entities.js 的唯一实现（P12 收口 B 类末尾那一项）：这里原先
 // 手写了一份 `pickerEntity.entityId.split(".")[0]`，而编辑器侧注入的是同一个助手。
 // 两者只差「元数据 domain 优先」这一条，而能进这个列表的实体都是 HA 目录里的行
 // （`domain` 列就是 entity_id 的前缀），虚拟实体另被 `editorEntityMatches` 滤掉 —— 同值。
-import { entityDomainOf } from "../utils/entities.js?v=20260920103845";
-import { vacuumProfiles } from "./vacuum-catalog.js?v=20260920103845";
-import { nasProfiles } from "./nas-catalog.js?v=20260920103845";
+import { entityDomainOf } from "../utils/entities.js?v=20260920104554";
+import { vacuumProfiles } from "./vacuum-catalog.js?v=20260920104554";
+import { nasProfiles } from "./nas-catalog.js?v=20260920104554";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
 // 只接受 Material Design Icons 的合法 ID（长度上限 120 与图标目录约定一致），

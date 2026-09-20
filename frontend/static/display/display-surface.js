@@ -9,7 +9,7 @@
  *   「是不是苹果移动端」由 utils/apple-device.js 统一判定（原先这里与 display.js 各抄一份，
  *   而 pairing-link.js 那第三份用的是另一套证据）。
  */
-import { isAppleMobile } from "../utils/apple-device.js?v=20260920103845";
+import { isAppleMobile } from "../utils/apple-device.js?v=20260920104554";
 
 /**
  * 按画布背景色更新苹果全屏设备的表面颜色。

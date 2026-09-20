@@ -3,7 +3,7 @@
  *
  * 位置：`utils/` 下的纯工具，被编辑器（`home.js` / `editor-utils.js`）、
  *   3D 工作室（`studio-normalization.js` / `studio-curtain-track.js` / `export-presets.js`）
- *   与运行时渲染器（`renderer/registry.js`）引用。
+ *   与运行时渲染器（`renderer/core/registry.js`）引用。
  *
  * 为什么要有这个文件：这些地方原本各自定义了一个叫 `clampNumber` 的函数 —— 名字一样、
  *   参数顺序不一样、对「非法值」的处理更是三种（分别把空串当 0、当「未设置」、当非法）。
@@ -24,7 +24,7 @@
  *
  * 兜底值本身的口径：**三个函数一律原样返回、不参与夹取**（`null` 这类区间外的哨兵因此
  *   在每一份上都能当兜底）。这条曾是三者之间最后一处差异 —— `clampCoercedNumber` 原先与值
- *   走同一次夹取（那是渲染器注册表的最初语义）。收口时先核 `renderer/registry.js` 那 190 处
+ *   走同一次夹取（那是渲染器注册表的最初语义）。收口时先核 `renderer/core/registry.js` 那 190 处
  *   调用：170 处兜底是字面量（全部落在各自区间内），20 处是表达式，其中三处**存在越界的
  *   现实可能**（`deviceButtonIconSize * 0.5` 在图标取下限 1 时算出 0.5 < 1；
  *   `panelTextTop - lineGap%` 与 `navigationTextTop - ratio * 18` 在下限 -100 附近同理）。
