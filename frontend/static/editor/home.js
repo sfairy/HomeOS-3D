@@ -19,7 +19,7 @@
  *   7. 编辑历史、草稿保存与崩溃恢复；
  *   8. 拖拽 / 缩放 / 对齐等画布手势，以及文件末尾的初始化与事件绑定。
  *
- * 版本戳约定：本文件内部所有 `import ... ?v=20260920102755` 必须使用同一条版本戳，与
+ * 版本戳约定：本文件内部所有 `import ... ?v=20260920103845` 必须使用同一条版本戳，与
  * renderer/renderer.js 引用 renderer/registry.js 的 `?v=` 完全一致 —— 两条路径都指向同一份控件
  * 注册表，版本戳一旦不同就会加载出两份注册表，表现为控件类型在某些视图里"找不到"。改动静态资源
  * 后用 tools/bump_static_cache_versions.mjs 统一改写，不要手改单处。
@@ -38,20 +38,20 @@
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260920102755";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260920103845";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260920102755";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920102755";
+import { apiFetch } from "../utils/api-fetch.js?v=20260920103845";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260920103845";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=20260920102755";
+} from "../renderer/core/renderer.js?v=20260920103845";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../renderer/core/registry.js?v=20260920102755";
+} from "../renderer/core/registry.js?v=20260920103845";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -59,7 +59,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=20260920102755";
+} from "../templates/component-templates.js?v=20260920103845";
 import {
   clone,
   newId,
@@ -69,32 +69,32 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260920102755";
-import { clampNumber } from "../utils/numbers.js?v=20260920102755";
-import { mdiIconUrl } from "../utils/icon-url.js?v=20260920102755";
-import { formatZhDateTime } from "../utils/datetime.js?v=20260920102755";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260920102755";
+} from "./editor-utils.js?v=20260920103845";
+import { clampNumber } from "../utils/numbers.js?v=20260920103845";
+import { mdiIconUrl } from "../utils/icon-url.js?v=20260920103845";
+import { formatZhDateTime } from "../utils/datetime.js?v=20260920103845";
+import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260920103845";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
-import { resolveStateEntry } from "../utils/state-entry.js?v=20260920102755";
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260920103845";
 import {
   hexColorOrEmpty,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=20260920102755";
+} from "../utils/colors.js?v=20260920103845";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=20260920102755";
+} from "../shared/popup-layout.js?v=20260920103845";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260920102755";
+} from "./dashboard-resize.js?v=20260920103845";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260920102755";
+} from "./component-page-copy.js?v=20260920103845";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -106,25 +106,25 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=20260920102755";
-import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260920102755";
-import { createButtonSound } from "../shared/sound-effects.js?v=20260920102755";
+} from "../shared/related-entities.js?v=20260920103845";
+import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260920103845";
+import { createButtonSound } from "../shared/sound-effects.js?v=20260920103845";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260920102755";
-import { confirmAction } from "../shared/ui-confirm.js?v=20260920102755";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260920102755";
+} from "./editor-dialogs.js?v=20260920103845";
+import { confirmAction } from "../shared/ui-confirm.js?v=20260920103845";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260920103845";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=20260920102755";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260920102755";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260920102755";
-import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260920102755";
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260920102755";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260920102755";
+} from "./picker/editor-picker-pagination.js?v=20260920103845";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260920103845";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260920103845";
+import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260920103845";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260920103845";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260920103845";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -132,13 +132,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=20260920102755";
+} from "../shared/action-rules.js?v=20260920103845";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260920102755";
+} from "./component-tree.js?v=20260920103845";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -148,13 +148,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260920102755";
+} from "./editor-component-collections.js?v=20260920103845";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260920102755";
+} from "./editor-basic-inspectors.js?v=20260920103845";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -165,7 +165,7 @@ import {
   popupModuleTypeLabel,
   reorderedPopupModules,
   uniquePagePath
-} from "./editor-document-management.js?v=20260920102755";
+} from "./editor-document-management.js?v=20260920103845";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -173,18 +173,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260920102755";
+} from "./editor-history.js?v=20260920103845";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=20260920102755";
-import { createLicenseCard } from "./license-card.js?v=20260920102755";
+} from "../3d-studio/loaders/studio-normalization.js?v=20260920103845";
+import { createLicenseCard } from "./license-card.js?v=20260920103845";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=20260920102755";
+} from "../bridge/editor.js?v=20260920103845";
 /**
  * 按选择器取单个 DOM 节点的简写。
  *
@@ -4448,7 +4448,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260920102755";
+          ".jpg?v=20260920103845";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }

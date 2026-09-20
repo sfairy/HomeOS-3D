@@ -16,7 +16,7 @@
 import {
   INTERACTION_PAGE_OPTIONS as PRESENCE_PAGES,
   resolveStateEntry
-} from "../core/static-helpers.js?v=20260920102755";
+} from "../core/static-helpers.js?v=20260920103845";
 /** 允许显示人体存在的页面；与编辑器的页面下拉共用一份清单，见 `static/utils/interaction-pages.js`。 */
 export { PRESENCE_PAGES };
 /**

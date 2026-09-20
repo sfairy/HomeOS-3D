@@ -14,11 +14,11 @@
 import {
   readFromMapOrRecord,
   resolveStateEntryIn
-} from "../../utils/state-entry.js?v=20260920102755";
+} from "../../utils/state-entry.js?v=20260920103845";
 // 「按 ID 取域」只有一份实现（P12 收口 B 类末尾那一项）：本文件的回退路径原先自带一份
 // `entityId.split(".", 1)[0].toLowerCase()`，切法与 `entityDomainFromId` 逐字相同
 // （本文件自己保留外层 `toLowerCase()`，因为只有这个消费方需要小写域）。
-import { entityDomainFromId } from "../../utils/entities.js?v=20260920102755";
+import { entityDomainFromId } from "../../utils/entities.js?v=20260920103845";
 
 // 这些域的「开 / 关」语义天然成立，直接按 state 判定。
 const ON_OFF_DOMAINS_SET = new Set([

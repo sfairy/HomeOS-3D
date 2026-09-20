@@ -14,7 +14,7 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920102755";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260920103845";
 /**
  * 计算要展示的分组及其中文名。
  */

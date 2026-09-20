@@ -7,7 +7,7 @@
  * 约定：needsAppleInstallGuide 来自 pairing-link.js，统一判断「是否该引导」；
  *   自动弹出要等展示页启动态（display-booting）结束，避免盖住启动遮罩。
  */
-import { needsAppleInstallGuide as shouldShowInstallGuide } from "../auth/pairing-link.js";
+import { needsAppleInstallGuide as shouldShowInstallGuide } from "../auth/pairing-link.js?v=20260920103845";
 
 // isAddToHomeLaunch 为真表示配对链接带 addToHome=1，这次落地就是引导添加主屏的场景。
 const currentUrl = new URL(location.href),
@@ -30,7 +30,7 @@ if (
   ((guideDialog.className = "apple-install-dialog"),
     guideDialog.setAttribute("aria-labelledby", "apple-install-title"),
     (guideDialog.innerHTML = `
-    <img class="apple-install-icon" src="/static/assets/icons/homeos-icon-180-h5.png?v=20260920102755" alt="">
+    <img class="apple-install-icon" src="/static/assets/icons/homeos-icon-180-h5.png?v=20260920103845" alt="">
     <p class="apple-install-eyebrow">IPHONE \xB7 IPAD</p>
     <h2 id="apple-install-title">把 HomeOS 放到主屏幕</h2>
     <p class="apple-install-intro">添加后像 App 一样从桌面全屏打开，面板功能与 App 相同。</p>

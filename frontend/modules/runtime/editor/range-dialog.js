@@ -11,11 +11,11 @@
  *       否则直接抛中文错误；打开期间会派发 hb-i3d-preview-scope 事件，
  *       通知页面其它部分暂时收起自己的 3D 预览，避免两处同时渲染。
  */
-import { mountInteraction3d } from "../core/runtime.js?v=20260920102755";
+import { mountInteraction3d } from "../core/runtime.js?v=20260920103845";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=20260920102755";
+} from "/static/bridge/bridge.js?v=20260920103845";
 /**
  * 打开照射范围编辑弹窗。
  *
@@ -50,7 +50,7 @@ export async function openInteraction3dRangeEditor({
   };
   const stylesheetLink = createElement("link");
   stylesheetLink.rel = "stylesheet";
-  stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=20260920102755";
+  stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=20260920103845";
   document.head.append(stylesheetLink);
   // 复用编辑器与运行时样式，因此类名沿用 i3d-editor。
   const dialogElement = createElement("dialog", "i3d-editor i3d-range-dialog");

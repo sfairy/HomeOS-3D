@@ -8,9 +8,9 @@
  *   直接跳登录页；只有带 body 时才声明 Content-Type: application/json；
  *   超时预算统一由 utils/api-fetch.js 决定（这里不自己写超时）。
  */
-import { setupGlobalLog } from "./global-log.js?v=20260920102755";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920102755";
-import { apiFetch } from "../utils/api-fetch.js?v=20260920102755";
+import { setupGlobalLog } from "./global-log.js?v=20260920103845";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260920103845";
+import { apiFetch } from "../utils/api-fetch.js?v=20260920103845";
 
 /**
  * 发送 JSON 请求并做统一的错误处理。

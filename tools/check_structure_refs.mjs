@@ -18,12 +18,13 @@
  *   6. `/store-static/<path>` references hit a file under store/static.
  *   7. Relative `url(...)` references in CSS resolve next to the stylesheet.
  *   8. literal `frontend_dir / …` chains in the backend resolve on disk.
- *   9. Reports dangling `backend.app` / `backend/app` literals (informational;
+ *   9. every served module carries a cache stamp, and there is exactly one stamp.
+ *  10. Reports dangling `backend.app` / `backend/app` literals (informational;
  *      time-stamped records under docs/ are excluded).
- *  10. backend/config.py still resolves the repo root from its own location.
- *  11. every repo-relative path named by the Dockerfile still exists.
+ *  11. backend/config.py still resolves the repo root from its own location.
+ *  12. every repo-relative path named by the Dockerfile still exists.
  *
- * Exits 1 when any of the first eight checks fail.
+ * Exits 1 when any of the first nine checks fail.
  */
 
 import fs from "node:fs";
@@ -419,7 +420,101 @@ function checkFrontendDirChains(problems) {
 }
 
 /**
- * Check 9 (informational): `backend.app` / `backend/app` literals. During the
+ * Check 9: static-asset cache stamps (the W18 invariant, rebuilt).
+ *
+ * `/static/renderer|editor|bridge|utils/**` are **not** served `no-store` — only
+ * the pages, `/api/v1/`, `/static/display/display.js|css` and
+ * `/static/3d-studio/` are — so the `?v=` query is the only thing that
+ * invalidates them in a browser. A missing stamp fails silently in two ways: the
+ * module sticks in cache across deploys, and when a sibling reaches the same
+ * module *with* a stamp the browser treats the two specifiers as different
+ * modules and keeps two instances with two copies of module state. That is the
+ * documented「两份控件注册表 / 控件找不到类型」failure.
+ *
+ * Three places are checked, plus uniqueness:
+ *   - module imports, resolved the same way the browser would;
+ *   - `<script src>` / `<link href>` in HTML;
+ *   - non-minified `/store-static/…` references in the store templates.
+ *
+ * `vendor` is exempt because its version lives in the path, and `*.min.js` /
+ * `*.min.css` are exempt as elsewhere in this file. `new URL(…, import.meta.url)`
+ * needs no stamp either: that is the `file://` branch, where a query string
+ * would make the path unresolvable.
+ */
+const STAMP_IMPORT_RE = /(?:from|import)\s*\(?\s*["']([^"']+)["']/g;
+const STAMP_HTML_RE = /<(?:script|link)\b[^>]*?(?:src|href)="(\/static\/[^"]+)"/gi;
+const STORE_STATIC_STAMP_RE = /\/store-static\/[A-Za-z0-9_@./-]+\.(?:js|mjs|css)(?:\?v=[0-9]{14})?/g;
+const STAMP_VALUE_RE = /\?v=([0-9]{14})/;
+
+/** The file a specifier would load, or null when it is out of scope. */
+function stampedTarget(spec, importer) {
+  const clean = spec.split("?")[0].split("#")[0];
+  if (clean.includes("${") || clean.includes("/vendor/")) return null;
+  if (clean.startsWith(".")) return path.resolve(path.dirname(importer), clean);
+  if (clean.startsWith("/static/")) return path.join(FRONTEND, clean.slice(1));
+  if (clean.startsWith("/api/v1/modules/interaction3d/")) {
+    return path.join(MODULES_DIR, clean.replace("/api/v1/modules/interaction3d/", ""));
+  }
+  return null;
+}
+
+function checkStaticCacheStamps(problems) {
+  let checked = 0;
+  const stamps = new Map();
+  const note = (stamp, where) => {
+    if (!stamps.has(stamp)) stamps.set(stamp, where);
+  };
+
+  for (const file of walkFiles(FRONTEND, new Set([".js", ".mjs"]))) {
+    if (path.basename(file).endsWith(".min.js")) continue;
+    const source = readScannable(file, new Set([".js"]));
+    for (const match of source.matchAll(STAMP_IMPORT_RE)) {
+      const spec = match[1];
+      const target = stampedTarget(spec, file);
+      if (!target || !exists(target)) continue;
+      checked += 1;
+      const found = spec.match(STAMP_VALUE_RE);
+      if (found) note(found[1], relFromRoot(file));
+      else problems.push(`${relFromRoot(file)}: import has no cache stamp -> ${spec}`);
+    }
+  }
+
+  for (const file of walkFiles(FRONTEND, new Set([".html"]))) {
+    const source = fs.readFileSync(file, "utf8");
+    for (const match of source.matchAll(STAMP_HTML_RE)) {
+      const url = match[1];
+      if (url.startsWith("/static/vendor/")) continue;
+      checked += 1;
+      const found = url.match(STAMP_VALUE_RE);
+      if (found) note(found[1], relFromRoot(file));
+      else problems.push(`${relFromRoot(file)}: HTML asset has no cache stamp -> ${url}`);
+    }
+  }
+
+  const storeTemplates = path.join(STORE, "templates");
+  if (fs.existsSync(storeTemplates)) {
+    for (const file of walkFiles(storeTemplates, new Set([".html"]))) {
+      const source = fs.readFileSync(file, "utf8");
+      for (const match of source.matchAll(STORE_STATIC_STAMP_RE)) {
+        const url = match[0];
+        if (/\.min\.(?:js|css)$/.test(url)) continue;
+        checked += 1;
+        const found = url.match(STAMP_VALUE_RE);
+        if (found) note(found[1], relFromRoot(file));
+        else problems.push(`${relFromRoot(file)}: store asset has no cache stamp -> ${url}`);
+      }
+    }
+  }
+
+  if (stamps.size > 1) {
+    const detail = [...stamps].map(([stamp, where]) => `${stamp} (${where})`).join(", ");
+    problems.push(`cache stamp is not unique — the whole repo must share one: ${detail}`);
+  }
+  return checked;
+}
+
+/**
+ * Check 10 (informational): `backend.app` / `backend/app` literals. During the
  * de-`app` refactor these must all flip; this only lists them so the batch can
  * be closed out deliberately rather than by a blind search-and-replace.
  *
@@ -536,6 +631,7 @@ function main() {
     storeStaticRefs: checkStoreStaticRefs(problems),
     cssRelativeUrls: checkCssRelativeUrls(problems),
     frontendDirChains: checkFrontendDirChains(problems),
+    cacheStamps: checkStaticCacheStamps(problems),
     dockerfilePaths: checkDockerfilePaths(problems)
   };
   checkBackendRootDepth(problems);
@@ -551,6 +647,7 @@ function main() {
       `${counts.storeStaticRefs} /store-static refs, ` +
       `${counts.cssRelativeUrls} CSS url() refs, ` +
       `${counts.frontendDirChains} frontend_dir chains, ` +
+      `${counts.cacheStamps} cache stamps, ` +
       `${counts.dockerfilePaths} Dockerfile paths`
   );
 

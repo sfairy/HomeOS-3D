@@ -10,7 +10,7 @@
  * 单位约定：本模块不涉及几何换算，坐标与单位由上层模型归一化逻辑负责。
  */
 
-import { DRACOLoader } from "/static/vendor/three/0.182.0/DRACOLoader.js?v=20260920102755";
+import { DRACOLoader } from "/static/vendor/three/0.182.0/DRACOLoader.js?v=20260920103845";
 
 /**
  * 把 Worker 启动失败的原因包装成带中文兜底文案的 Error。

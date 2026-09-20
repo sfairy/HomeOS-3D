@@ -8,7 +8,7 @@
  *   这是有意义的合法取值，不能用 0 或其它数字代替。
  * 副作用：无，纯函数（参数解构后会被局部重新赋值，但都是基本类型拷贝）。
  */
-import { clampTypedNumber } from "../utils/numbers.js?v=20260920102755";
+import { clampTypedNumber } from "../utils/numbers.js?v=20260920103845";
 
 /**
  * 计算弹窗的缩放与位置。

@@ -56,7 +56,7 @@
  *   「运行侧的文件不能写裸 `/static/...` 的静态 import（舞台页能以 `file:` 打开）」，而树里
  *   早就有七处条件动态导入。于是这段导入收进纯转出口 `modules/runtime/core/static-helpers.js`
  *   （桥），其余 16 份文件写普通的静态 import —— 树按域细分后，`core/` 内的文件写
- *   `./static-helpers.js?v=20260920102755`，`core/` 以外的 15 处写 `../core/static-helpers.js?v=20260920102755`。
+ *   `./static-helpers.js?v=20260920103845`，`core/` 以外的 15 处写 `../core/static-helpers.js?v=20260920103845`。
  *   那 33 处的下游逐处过目，结论与上面 47 处同一口径（`?.` 取字段 / 真值判定 / 自己再归一一次三类，均不可观测）。
  */
 
