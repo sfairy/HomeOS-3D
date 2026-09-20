@@ -618,45 +618,45 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         # 配对页的引导判定经 pairing-link.js → utils/apple-device.js（P10-B 收敛后
         # 苹果移动端判定只有这一份实现），所以它也在匿名图里。
         '/static/utils/apple-device.js',
-        '/static/assets/manifest.webmanifest',
-        '/static/assets/dashboard.webmanifest',
-        '/static/assets/homeos-favicon.ico',
-        '/static/assets/homeos-favicon.svg',
-        '/static/assets/homeos-icon-16.png',
-        '/static/assets/homeos-icon-32.png',
-        '/static/assets/homeos-icon-48.png',
-        '/static/assets/homeos-icon-180.png',
-        '/static/assets/homeos-icon-192.png',
-        '/static/assets/homeos-icon-512.png',
-        '/static/assets/manifest-h3.webmanifest',
-        '/static/assets/manifest-h4.webmanifest',
-        '/static/assets/manifest-h5.webmanifest',
-        '/static/assets/homeos-favicon-h3.ico',
-        '/static/assets/homeos-favicon-h3.svg',
-        '/static/assets/homeos-favicon-h4.ico',
-        '/static/assets/homeos-favicon-h4.svg',
-        '/static/assets/homeos-favicon-h5.ico',
-        '/static/assets/homeos-favicon-h5.svg',
-        '/static/assets/homeos-icon-16-h3.png',
-        '/static/assets/homeos-icon-16-h4.png',
-        '/static/assets/homeos-icon-16-h5.png',
-        '/static/assets/homeos-icon-32-h3.png',
-        '/static/assets/homeos-icon-32-h4.png',
-        '/static/assets/homeos-icon-32-h5.png',
-        '/static/assets/homeos-icon-48-h3.png',
-        '/static/assets/homeos-icon-48-h4.png',
-        '/static/assets/homeos-icon-48-h5.png',
-        '/static/assets/homeos-icon-180-h3.png',
-        '/static/assets/homeos-icon-180-h4.png',
-        '/static/assets/homeos-icon-180-h5.png',
-        '/static/assets/homeos-icon-192-h3.png',
-        '/static/assets/homeos-icon-192-h4.png',
-        '/static/assets/homeos-icon-192-h5.png',
-        '/static/assets/homeos-icon-512-h3.png',
-        '/static/assets/homeos-icon-512-h4.png',
-        '/static/assets/homeos-icon-512-h5.png',
-        '/static/assets/homeos-mark-black-orange.svg',
-        '/static/assets/homeos-mark-white-orange.svg'}
+        '/static/assets/manifest/manifest.webmanifest',
+        '/static/assets/manifest/dashboard.webmanifest',
+        '/static/assets/icons/homeos-favicon.ico',
+        '/static/assets/icons/homeos-favicon.svg',
+        '/static/assets/icons/homeos-icon-16.png',
+        '/static/assets/icons/homeos-icon-32.png',
+        '/static/assets/icons/homeos-icon-48.png',
+        '/static/assets/icons/homeos-icon-180.png',
+        '/static/assets/icons/homeos-icon-192.png',
+        '/static/assets/icons/homeos-icon-512.png',
+        '/static/assets/manifest/manifest-h3.webmanifest',
+        '/static/assets/manifest/manifest-h4.webmanifest',
+        '/static/assets/manifest/manifest-h5.webmanifest',
+        '/static/assets/icons/homeos-favicon-h3.ico',
+        '/static/assets/icons/homeos-favicon-h3.svg',
+        '/static/assets/icons/homeos-favicon-h4.ico',
+        '/static/assets/icons/homeos-favicon-h4.svg',
+        '/static/assets/icons/homeos-favicon-h5.ico',
+        '/static/assets/icons/homeos-favicon-h5.svg',
+        '/static/assets/icons/homeos-icon-16-h3.png',
+        '/static/assets/icons/homeos-icon-16-h4.png',
+        '/static/assets/icons/homeos-icon-16-h5.png',
+        '/static/assets/icons/homeos-icon-32-h3.png',
+        '/static/assets/icons/homeos-icon-32-h4.png',
+        '/static/assets/icons/homeos-icon-32-h5.png',
+        '/static/assets/icons/homeos-icon-48-h3.png',
+        '/static/assets/icons/homeos-icon-48-h4.png',
+        '/static/assets/icons/homeos-icon-48-h5.png',
+        '/static/assets/icons/homeos-icon-180-h3.png',
+        '/static/assets/icons/homeos-icon-180-h4.png',
+        '/static/assets/icons/homeos-icon-180-h5.png',
+        '/static/assets/icons/homeos-icon-192-h3.png',
+        '/static/assets/icons/homeos-icon-192-h4.png',
+        '/static/assets/icons/homeos-icon-192-h5.png',
+        '/static/assets/icons/homeos-icon-512-h3.png',
+        '/static/assets/icons/homeos-icon-512-h4.png',
+        '/static/assets/icons/homeos-icon-512-h5.png',
+        '/static/assets/icons/homeos-mark-black-orange.svg',
+        '/static/assets/icons/homeos-mark-white-orange.svg'}
 
     def premium_asset(path: str) -> bool:
         """判断该路径是否属于"需要登录且需要 assets 能力"的受保护资源。
@@ -798,7 +798,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     @app.get('/favicon.ico', include_in_schema = False)
     def favicon() -> FileResponse:
         """站点图标：浏览器标签页与书签栏使用。"""
-        return FileResponse(app_settings.frontend_dir / 'static' / 'assets' / 'homeos-favicon-h5.ico', media_type = 'image/x-icon')
+        return FileResponse(app_settings.frontend_dir / 'static' / 'assets' / 'icons' / 'homeos-favicon-h5.ico', media_type = 'image/x-icon')
 
     @app.get('/apple-touch-icon.png', include_in_schema = False)
     @app.get('/apple-touch-icon-precomposed.png', include_in_schema = False)
@@ -808,7 +808,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         同时挂在 /apple-touch-icon.png 与 /apple-touch-icon-precomposed.png 上：
         不同 iOS 版本会请求其中之一，缺了就会在添加到主屏时显示空白图标。
         """
-        return FileResponse(app_settings.frontend_dir / 'static' / 'assets' / 'homeos-icon-180-h5.png', media_type = 'image/png')
+        return FileResponse(app_settings.frontend_dir / 'static' / 'assets' / 'icons' / 'homeos-icon-180-h5.png', media_type = 'image/png')
 
     @app.get('/assets/builtin/{asset_path:path}', include_in_schema = False)
     def built_in_asset(asset_path: str, request: Request) -> FileResponse:

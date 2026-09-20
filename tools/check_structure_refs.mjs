@@ -17,12 +17,13 @@
  *   5. `/api/v1/modules/interaction3d/<path>` asset URLs hit a runtime module.
  *   6. `/store-static/<path>` references hit a file under store/static.
  *   7. Relative `url(...)` references in CSS resolve next to the stylesheet.
- *   8. Reports dangling `backend.app` / `backend/app` literals (informational;
+ *   8. literal `frontend_dir / …` chains in the backend resolve on disk.
+ *   9. Reports dangling `backend.app` / `backend/app` literals (informational;
  *      time-stamped records under docs/ are excluded).
- *   9. backend/config.py still resolves the repo root from its own location.
- *  10. every repo-relative path named by the Dockerfile still exists.
+ *  10. backend/config.py still resolves the repo root from its own location.
+ *  11. every repo-relative path named by the Dockerfile still exists.
  *
- * Exits 1 when any of the first seven checks fail.
+ * Exits 1 when any of the first eight checks fail.
  */
 
 import fs from "node:fs";
@@ -383,7 +384,42 @@ function checkCssRelativeUrls(problems) {
 }
 
 /**
- * Check 8 (informational): `backend.app` / `backend/app` literals. During the
+ * Check 8: literal `frontend_dir / …` chains in the backend resolve on disk.
+ *
+ * Several backend paths are built in Python rather than listed in
+ * `public_static_files`, so nothing else would notice if the target moved:
+ * the `/static` mount itself, the two apple-touch-icon routes that reach into
+ * `static/assets`, and the MDI icon root under `static/vendor/mdi`.
+ *
+ * Only the **literal prefix** is verified. A chain that continues with a
+ * variable (`/ version` for the MDI release folder) is checked up to the last
+ * literal segment, which is where a structural move would show up anyway.
+ */
+const FRONTEND_DIR_CHAIN_RE = /frontend_dir((?:\s*\/\s*(['"])([^'"]+)\2)+)/g;
+
+function checkFrontendDirChains(problems) {
+  let checked = 0;
+  for (const file of walkFiles(ROOT, new Set([".py"]))) {
+    const rel = path.relative(ROOT, file);
+    if (!rel.startsWith(`backend${path.sep}`)) continue;
+    const source = readScannable(file, new Set([".py"]));
+    for (const match of source.matchAll(FRONTEND_DIR_CHAIN_RE)) {
+      const segments = [...match[1].matchAll(/(['"])([^'"]+)\1/g)].map((part) => part[2]);
+      if (segments.length === 0) continue;
+      checked += 1;
+      const target = path.join(FRONTEND, ...segments);
+      if (!fs.existsSync(target)) {
+        problems.push(
+          `${rel}: frontend_dir chain not found -> frontend/${segments.join("/")}`
+        );
+      }
+    }
+  }
+  return checked;
+}
+
+/**
+ * Check 9 (informational): `backend.app` / `backend/app` literals. During the
  * de-`app` refactor these must all flip; this only lists them so the batch can
  * be closed out deliberately rather than by a blind search-and-replace.
  *
@@ -496,6 +532,7 @@ function main() {
     interaction3dAssetUrls: checkInteraction3dAssetUrls(problems),
     storeStaticRefs: checkStoreStaticRefs(problems),
     cssRelativeUrls: checkCssRelativeUrls(problems),
+    frontendDirChains: checkFrontendDirChains(problems),
     dockerfilePaths: checkDockerfilePaths(problems)
   };
   checkBackendRootDepth(problems);
@@ -510,6 +547,7 @@ function main() {
       `${counts.interaction3dAssetUrls} interaction3d asset URLs, ` +
       `${counts.storeStaticRefs} /store-static refs, ` +
       `${counts.cssRelativeUrls} CSS url() refs, ` +
+      `${counts.frontendDirChains} frontend_dir chains, ` +
       `${counts.dockerfilePaths} Dockerfile paths`
   );
 

@@ -77,7 +77,7 @@ HomeOS/
 │       ├── auth/           # 登录 / 初始化 / 配对 / 激活页脚本与样式
 │       ├── shared/         # 编辑器与运行时共用（动作规则、确认框、实体域、弹窗布局）
 │       ├── logging/        # 客户端日志与全局日志面板
-│       ├── assets/         # 图标与 webmanifest
+│       ├── assets/         # 图标与 PWA 清单：icons/（favicon / 触屏图标 / 品牌图）· manifest/（webmanifest）
 │       ├── utils/          # 与业务无关的纯工具
 │       ├── 3d-studio/      # 户型工作室（入口 studio/studio-app.js，models/ 为模型素材）
 │       │   ├── studio/     # studio-app 编排层、相机/过渡/呈现、场景样式、控件、studio.css
