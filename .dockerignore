@@ -28,7 +28,6 @@ image
 docs
 deploy
 tools
-
 # 依赖目录
 node_modules
 docker/node_modules

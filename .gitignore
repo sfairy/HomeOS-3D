@@ -23,6 +23,5 @@ docker/node_modules/
 .env
 .env.*
 !.env.example
-
 # 仓库根的 eslint 依赖（P12 前端静态检查）：只在开发期与 CI 里装，不进任何镜像。
 node_modules/

@@ -77,7 +77,12 @@ def main() -> None:
 
     os.environ.clear()
     os.environ.update(environment)
-    os.execvp(sys.executable, [sys.executable, "-m", "store.run"])
+    # 镜像里 store/run 已被编译成原生扩展，``python -m`` 只支持有字节码的模块，
+    # 因此改用 import + main() 启动。
+    os.execvp(
+        sys.executable,
+        [sys.executable, "-c", "import store.run as m; m.main()"],
+    )
 
 
 if __name__ == "__main__":

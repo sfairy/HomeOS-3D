@@ -1,9 +1,14 @@
+# syntax=docker/dockerfile:1
 # HomeOS 双镜像：app（主应用）与 store（授权商店 / 授权服务器）
-# 最终镜像：Python 仅留 .pyc；业务 JS 经 javascript-obfuscator 混淆。
+# 保护策略：业务 JS 经 javascript-obfuscator 混淆；Python 经 Cython 编译成原生扩展
+# （.so）后删除源码。运行镜像里读不到、也反编译不出后端代码。
+#
 # 构建：
 #   docker build --target app   -t homeos-3d:local .
 #   docker build --target store -t homeos-3d-store:local .
+# 或 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
+# ─── 前端 / 商店静态资源混淆 ─────────────────────────────────────
 FROM node:20-bookworm-slim AS js-tools
 
 WORKDIR /opt/obfuscate
@@ -55,10 +60,16 @@ RUN pip install --upgrade pip \
     && rm /tmp/requirements.txt
 
 
-# ─── 主应用构建（源码仅存在于此阶段）────────────────────────────
+# ─── 主应用构建（源码仅存在于此阶段，产出全为 .so 的 /app）─────────
 FROM base AS app-build
 
-COPY docker/strip_python_sources.py /tmp/strip_python_sources.py
+# 编译器只装在构建阶段：最终镜像从 base 拷 /app，工具链不进运行镜像。
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libc6-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install "cython>=3.0,<4" setuptools
+
+COPY docker/compile_python.py /tmp/compile_python.py
 COPY container_entrypoint.py ./
 COPY docker ./docker
 COPY VERSION alembic.ini ./
@@ -67,32 +78,46 @@ COPY --from=frontend-protected /work/frontend ./frontend
 COPY migrations ./migrations
 COPY keys ./keys
 RUN mkdir -p /app/image \
-    && python /tmp/strip_python_sources.py /app \
-    && test ! -f /app/backend/main.py \
-    && test -f /app/backend/main.pyc \
+    && rm -f /app/docker/compile_python.py /app/docker/obfuscate_javascript.mjs /app/docker/package.json /app/docker/package-lock.json \
+    && rm -rf /app/docker/node_modules \
+    && python /tmp/compile_python.py /app \
+    && rm -f /tmp/compile_python.py \
+    && test -f /app/backend/main.*.so \
+    && test -f /app/container_entrypoint.*.so \
+    && test -f /app/docker/start_app.*.so \
     && test -f /app/migrations/env.py \
-    && test -f /app/container_entrypoint.pyc \
-    && test -f /app/docker/start_app.pyc \
-    && rm -f /tmp/strip_python_sources.py /app/docker/obfuscate_javascript.mjs /app/docker/package.json \
-    && rm -rf /app/docker/node_modules
+    && test -f /app/backend/__init__.*.so \
+    && test ! -f /app/backend/main.py \
+    && test ! -f /app/container_entrypoint.py \
+    && test -z "$(find /app/backend /app/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
 
 
-# ─── 商店构建（源码仅存在于此阶段）──────────────────────────────
+# ─── 商店构建（源码仅存在于此阶段，产出全为 .so 的 /app）──────────
 FROM base AS store-build
 
-COPY docker/strip_python_sources.py /tmp/strip_python_sources.py
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libc6-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install "cython>=3.0,<4" setuptools
+
+COPY docker/compile_python.py /tmp/compile_python.py
 COPY container_entrypoint.py ./
 COPY docker ./docker
 COPY VERSION ./
 COPY store ./store
 COPY --from=store-static-protected /work/store/static ./store/static
-RUN python /tmp/strip_python_sources.py /app \
+RUN rm -f /app/docker/compile_python.py /app/docker/obfuscate_javascript.mjs /app/docker/package.json /app/docker/package-lock.json \
+    && rm -rf /app/docker/node_modules \
+    && python /tmp/compile_python.py /app \
+    && rm -f /tmp/compile_python.py \
+    && test -f /app/store/app.*.so \
+    && test -f /app/store/run.*.so \
+    && test -f /app/container_entrypoint.*.so \
+    && test -f /app/docker/start_store.*.so \
+    && test -f /app/store/__init__.*.so \
     && test ! -f /app/store/app.py \
-    && test -f /app/store/app.pyc \
-    && test -f /app/container_entrypoint.pyc \
-    && test -f /app/docker/start_store.pyc \
-    && rm -f /tmp/strip_python_sources.py /app/docker/obfuscate_javascript.mjs /app/docker/package.json \
-    && rm -rf /app/docker/node_modules
+    && test ! -f /app/container_entrypoint.py \
+    && test -z "$(find /app/store /app/docker \( -name '*.py' -o -name '*.pyc' \) -print -quit)"
 
 
 # ─── 主应用运行镜像（18081）──────────────────────────────────────
@@ -113,8 +138,9 @@ COPY --from=app-build --chown=homeos:homeos /app /app
 EXPOSE 18081
 VOLUME ["/data", "/run/secrets"]
 
-ENTRYPOINT ["/usr/bin/tini", "--", "python", "/app/container_entrypoint.pyc"]
-CMD ["python", "/app/docker/start_app.pyc"]
+# 入口脚本已编译成扩展模块，``python -m`` 无法运行扩展模块，故用 import + main()。
+ENTRYPOINT ["/usr/bin/tini", "--", "python", "-c", "import container_entrypoint as m; m.main()"]
+CMD ["python", "-c", "import docker.start_app as m; m.main()"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
     CMD curl -fsS "http://127.0.0.1:${APP_PORT:-18081}/health/ready" >/dev/null || exit 1
@@ -138,8 +164,8 @@ COPY --from=store-build --chown=homeos:homeos /app /app
 EXPOSE 18082
 VOLUME ["/data"]
 
-ENTRYPOINT ["/usr/bin/tini", "--", "python", "/app/container_entrypoint.pyc"]
-CMD ["python", "/app/docker/start_store.pyc"]
+ENTRYPOINT ["/usr/bin/tini", "--", "python", "-c", "import container_entrypoint as m; m.main()"]
+CMD ["python", "-c", "import docker.start_store as m; m.main()"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
     CMD curl -fsS "http://127.0.0.1:${STORE_PORT:-18082}/healthz" >/dev/null || exit 1

@@ -1,6 +1,9 @@
 # 本地构建覆盖：与 docker-compose.yml 叠用
 #
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# 构建期把 Python 编译成原生扩展（需要 gcc，已由 Dockerfile 在构建阶段安装）、
+# 把业务 JS 混淆，运行镜像不含源码。
 
 services:
   homeos-3d:

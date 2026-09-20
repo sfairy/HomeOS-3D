@@ -764,7 +764,13 @@ function checkDockerfilePaths(problems) {
     problems.push("Dockerfile missing; cannot verify build-time path assertions");
     return 0;
   }
-  const source = fs.readFileSync(dockerfile, "utf8");
+  const source = fs
+    .readFileSync(dockerfile, "utf8")
+    // 顶部解析指令（`# syntax=` / `# escape=` / `# check=`）指向的是外部构建镜像或
+    // 构建器开关，不是仓库里的文件 —— 例如 `# syntax=docker/dockerfile:1` 里的
+    // `docker/dockerfile` 会被下面的正则当成相对路径，报出一条永远修不掉的假阳性。
+    // 先剔掉这些行再扫，注释里的真实路径（`COPY docker/...` 之类）照旧保留。
+    .replace(/^#\s*(?:syntax|escape|check)\s*=.*$/gm, "");
   const seen = new Set();
   let checked = 0;
   for (const match of source.matchAll(
