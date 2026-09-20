@@ -76,15 +76,13 @@ def _recorded_revision(database_path: Path) -> str | None:
 def backup_database(database_path: Path) -> Path | None:
     """迁移前留一份可还原的快照；库文件不存在时返回 None。
 
-    用 ``VACUUM INTO`` 而不是 ``shutil.copy2``：库跑在 WAL 模式下（见
-    ``database.Database``），新写入的行先在 ``<库名>-wal`` 里，checkpoint 之前
-    主库文件可能还是「一张表都没有」的状态 —— 直接复制会得到一份打不开的空壳
-    ``.bak``，而它看起来完全正常（文件名对、大小不为零）。这是最坏的一类保险：
-    「以为有备份」比「知道自己没有备份」危险得多。
+    用 ``VACUUM INTO`` 而不是 ``shutil.copy2``：库跑在 WAL 模式下（见 ``database.Database``），
+    新写入的行先在 ``<库名>-wal`` 里，checkpoint 之前主库文件可能还是「一张表都没有」的状态 ——
+    直接复制会得到一份打不开的空壳 ``.bak``，而它看起来完全正常（文件名对、大小不为零）。
+    这是最坏的一类保险：「以为有备份」比「知道自己没有备份」危险得多。
 
-    异常:
-        MigrationBackupError: 快照写不出来。此时**不继续迁移** —— 迁移会改库结构，
-            没有退路的改动宁可不做，让运维把目录权限之类的问题解决掉再启动。
+    快照写不出来时抛 ``MigrationBackupError``，此时**不继续迁移** —— 迁移会改库结构，
+    没有退路的改动宁可不做。
     """
     if not database_path.is_file() or database_path.stat().st_size == 0:
         return None
@@ -111,15 +109,9 @@ def backup_database(database_path: Path) -> Path | None:
 def run_migrations(settings: Settings) -> None:
     """把数据库带到基线结构（串行化 + 动结构前留快照）。
 
-    唯一需要照顾的升级情况是库由更早的构建创建、alembic_version 里还写着已下线的
-    revision —— 那种库的结构已经是基线形态，直接认领基线即可，否则启动就会因
-    「找不到该 revision」而失败。这一步不读写任何业务数据。
-
-    参数:
-        settings: 应用配置，提供库文件路径与 Alembic 配置来源。
-
-    异常:
-        MigrationBackupError: 需要真的动结构、但快照写不出来（见 ``backup_database``）。
+    唯一需要照顾的升级情况是库由更早的构建创建、alembic_version 里还写着已下线的 revision ——
+    那种库的结构已经是基线形态，直接认领基线即可，否则启动会因「找不到该 revision」而失败。
+    这一步不读写任何业务数据。需要真的动结构但快照写不出来时抛 ``MigrationBackupError``。
     """
     database_path = settings.database_path
     # 锁与库文件同目录：从读 revision 到 upgrade 结束是一段「只能一个人做」的临界区。

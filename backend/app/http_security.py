@@ -2,15 +2,15 @@
 
 三件事写在一起，是因为它们共用同一份「谁在代理、能不能相信转发头」的判断：
 
-- ``resolve_client_ip``：在可信反向代理后面取出真实来源 IP。**不可信时宁可用
-  对端地址，也绝不相信客户端自己写的 X-Forwarded-For** —— 后者等于让攻击者
-  每次请求换一个 IP，限流形同虚设。
-- ``secure_cookies_enabled``：自动判断这次请求是不是 HTTPS。漏配
-  APP_COOKIE_SECURE 时，管理员会话 Cookie 与十年期的中控令牌会明文裸奔，
-  而这个开关靠「运维记得改环境变量」，本来就不该靠人。
-- ``same_origin_request``：改状态的请求必须同源。SameSite=Lax + 只收 JSON 是
-  第一道闸（挡住浏览器的跨站表单与 preflight 失败），这一道是显式的第二道，
-  免得日后新增一个 GET 写操作或 text/plain 接口就立刻可被 CSRF。
+- ``resolve_client_ip``：在可信反向代理后面取出真实来源 IP。**不可信时宁可用对端地址，
+  也绝不相信客户端自己写的 X-Forwarded-For** —— 后者等于让攻击者每次请求换一个 IP，
+  限流形同虚设。
+- ``secure_cookies_enabled``：自动判断这次请求是不是 HTTPS。漏配 APP_COOKIE_SECURE 时，
+  管理员会话 Cookie 与十年期的中控令牌会明文裸奔，而这个开关靠「运维记得改环境变量」，
+  本来就不该靠人。
+- ``same_origin_request``：改状态的请求必须同源。SameSite=Lax + 只收 JSON 是第一道闸
+  （挡住浏览器的跨站表单与 preflight 失败），这一道是显式的第二道，免得日后新增一个
+  GET 写操作或 text/plain 接口就立刻可被 CSRF。
 
 对外只暴露纯函数：不读全局状态，代理配置从 Settings 取。
 """
@@ -125,17 +125,15 @@ def _normalize_ip(value: str) -> str:
 def is_direct_local(request: Request) -> bool:
     """是否是「本机直连」：loopback 对端，且请求没带任何转发头。
 
-    两个条件缺一不可，且各自都不够：
+    两个条件缺一不可：只看对端地址不够 —— 反向代理与主应用同机部署（compose 的默认形态）时
+    所有外部请求经代理进来，对端同样是 127.0.0.1；只看有没有转发头也不够 —— 那正是客户端
+    自己就能写的字段。
 
-    - 只看对端地址不够：反向代理与主应用同机部署（compose 的默认形态）时，
-      所有外部请求经代理进来，对端同样是 127.0.0.1；
-    - 只看有没有转发头也不够：那正是客户端自己就能写的字段。
+    它回答的是「这次请求是不是本机运维亲手发的」，因此只能用于**放宽**本机操作的门槛
+    （首次初始化窗口放行、健康探针回详情），绝不能用来放宽任何认证判定。
 
-    它回答的是「这次请求是不是本机运维亲手发的」，因此只能用于**放宽**本机操作的
-    门槛（首次初始化窗口放行、健康探针回详情），绝不能用来放宽任何认证判定。
-
-    用途见 ``setup_guard.SetupGuard.authorize`` 与 ``main.create_app`` 里的
-    ``/health/*``：前者靠它区分本机运维与远程抢建，后者靠它决定要不要回版本号（B61）。
+    用途见 ``setup_guard.SetupGuard.authorize`` 与 ``main.create_app`` 里的 ``/health/*``：
+    前者靠它区分本机运维与远程抢建，后者靠它决定要不要回版本号（B61）。
     """
     if any(request.headers.get(name) for name in FORWARDED_HEADERS):
         return False
@@ -241,19 +239,15 @@ def expected_request_scheme(request: Request) -> str:
     """本应用**应当**以哪个 scheme 被访问：只按部署形态钉，不看请求头里的 Origin。
 
     判定顺序与 :func:`secure_cookies_enabled` 一致（配置 → 可信代理转发头 → 本连接）：
-
-    1. 显式配了 ``APP_BASE_URL`` 就以它的 scheme 为准 —— 反代没转发
-       ``X-Forwarded-Proto`` 时，这是唯一知道「对外是 https」的地方；
-    2. 否则若对端是可信代理且它转发了 ``X-Forwarded-Proto``，采信它
-       （浏览器里的脚本改不了这个头：``no-cors`` 下加它会触发 preflight，
-       普通表单更是加不了头；只有我们自己的代理会写它）;
-    3. 再否则看本连接自身的 scheme。
+    显式配了 ``APP_BASE_URL`` 就以它的 scheme 为准（反代没转发 ``X-Forwarded-Proto`` 时，
+    这是唯一知道「对外是 https」的地方）；否则若对端是可信代理且转发了
+    ``X-Forwarded-Proto`` 就采信它（浏览器脚本改不了这个头：``no-cors`` 下加它会触发
+    preflight，普通表单更加不了头）；再否则看本连接自身的 scheme。
 
     B28：``_origin_allowed`` 原先拿 **Origin 自己带的 scheme** 去拼白名单
-    （``f'{parsed.scheme}://{host}'``），等于让攻击者页面自己声明「我是 https 同源」。
-    同主机的明文页面（例如劫持了 80 端口的中间人，或同主机上另一个 http 站点）
-    因此能驱动 HTTPS 站点的带 Cookie 写请求。scheme 是攻击者能决定的，Host 不是，
-    所以 scheme 必须由部署形态给出，而不变量在这里集中判定一次。
+    （``f'{parsed.scheme}://{host}'``），等于让攻击者页面自己声明「我是 https 同源」，同主机的
+    明文页面（例如劫持了 80 端口的中间人）因此能驱动 HTTPS 站点的带 Cookie 写请求。scheme 是
+    攻击者能决定的、Host 不是，所以 scheme 必须由部署形态给出，并在这一处集中判定一次。
     """
     settings = _settings(request)
     base_url = str(getattr(settings, 'app_base_url', '') or '').strip().lower()

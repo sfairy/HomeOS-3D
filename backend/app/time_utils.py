@@ -2,19 +2,17 @@
 
 只有一件事：把「可能没有时区」的时间补齐成 UTC aware。
 
-为什么值得单独一个模块：这段判断原先在本包里写了 **6 份**（`dependencies` /
-`api/auth` / `display_access` 各一份具名 `_aware`，`license/service` 一份
-None 容忍的 `aware`，`global_log` 两处内联），而它是一句**安全相关**的假设 ——
-写错方向（把缺失时区理解成本机时区）会让会话过期判定随部署机器的 TZ 漂移。
+为什么值得单独一个模块：这段判断原先在本包里写了 **6 份**（``dependencies`` / ``api/auth`` /
+``display_access`` 各一份具名 ``_aware``，``license/service`` 一份 None 容忍的 ``aware``，
+``global_log`` 两处内联），而它是一句**安全相关**的假设 —— 写错方向（把缺失时区理解成本机
+时区）会让会话过期判定随部署机器的 TZ 漂移。
 
-**这里做的是「重贴标签」而不是「换算」**：``replace(tzinfo=utc)`` 不改动
-墙上时间，只是声明它本来就是 UTC。这个语义在本项目是正确的，因为落库时间
-一律以 UTC 写入（``_utc_now`` 系列），SQLite 只是把 tzinfo 丢掉了；用
-``astimezone`` 反而会按本机时区把时间搬一次，得到错误结果。
+**这里做的是「重贴标签」而不是「换算」**：``replace(tzinfo=utc)`` 不改动墙上时间，只声明它
+本来就是 UTC。这个语义在本项目是正确的，因为落库时间一律以 UTC 写入（``_utc_now`` 系列），
+SQLite 只是把 tzinfo 丢掉了；用 ``astimezone`` 反而会按本机时区把时间搬一次，得到错误结果。
 
-若调用方确实需要「换算到 UTC」（例如要序列化给外部），在拿到结果后自己
-追加 ``.astimezone(timezone.utc)`` —— 本函数刻意只管补齐，不做换算，
-避免把两种语义混成一个开关。
+若调用方确实需要「换算到 UTC」（例如要序列化给外部），在拿到结果后自己追加
+``.astimezone(timezone.utc)`` —— 本函数刻意只管补齐，不做换算。
 """
 
 from __future__ import annotations

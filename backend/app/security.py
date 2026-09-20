@@ -97,11 +97,6 @@ def set_display_cookie(response: Response, settings: Settings, token: str, *, se
     浏览器侧有效期取 display_cookie_max_age_seconds（默认 180 天）；服务端还有一层
     滑动有效期（display_token_expires_at），因此这里不需要留十年 —— 只要平板还在
     轮询，续期就会把两边一起推后。同时刷新 max_age 与 expires，兼容只认其中一个的旧浏览器。
-
-    参数:
-        secure: 是否加 Secure。调用方有请求上下文时传请求级判定结果
-            （见 http_security.secure_cookies_enabled）；只有 Settings 时留空，
-            退化成读配置开关。
     """
     max_age = settings.display_cookie_max_age_seconds
     # httponly 防脚本读取；samesite=lax 允许展示页被同源 iframe 打开；

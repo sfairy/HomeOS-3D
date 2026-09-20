@@ -57,16 +57,9 @@ def stable_version(value: str) -> tuple[int, int, int] | None:
 def release_value(payload: dict, channel: str) -> dict | None:
     """校验并归一发布信息；无发布时返回 None。
 
-    参数:
-        payload: 端点返回的原始 JSON。
-        channel: 当前更新渠道，必须与服务端返回的一致。
-
-    返回:
-        {"id": 发布 UUID, "version": 版本号}，或 None（服务端暂无发布）。
-
-    异常:
-        ValueError: product / channel 不匹配，或 release 结构非法 ——
-        这类响应说明端点被换掉了或返回了错误页面，宁可丢弃也不污染缓存。
+    ``payload`` 是端点返回的原始 JSON，``channel`` 是当前更新渠道（必须与服务端返回的一致）。
+    product / channel 不匹配或 release 结构非法时抛 ``ValueError`` —— 这类响应说明端点被换掉了
+    或返回了错误页面，宁可丢弃也不污染缓存。
     """
     if (
         not isinstance(payload, dict)
@@ -116,18 +109,7 @@ class UpdateChecker:
         wiki_url=WIKI_URL,
         clock=time.time,
     ):
-        """初始化检查器并尝试读取上一次的缓存结果。
-
-        参数:
-            data_dir: 数据目录；缓存写在 data_dir/cache/update-check.json。
-            version: 当前运行的版本号，用于判断远端是否更新。
-            channel: 发布通道（如 stable），决定请求哪个发布列表。
-            enabled: 为 False 时完全不联网，只保留缓存里的结果。
-            transport: HTTP 传输实现，测试时注入桩以避免真实请求。
-            endpoints: 发布接口地址列表，按顺序尝试直到有一个可用。
-            wiki_url: 更新说明页地址，status() 用它拼直达链接。
-            clock: 时间源，默认 time.time；注入后可控制节流与过期判定。
-        """
+        """初始化检查器并尝试读取上一次的缓存结果（enabled=False 时完全不联网，只留缓存）。"""
         self.version, self.channel, self.enabled = version, channel, enabled
         # 端点留空即回落到内置厂商端点：配置层与调用层都不必各写一份默认值。
         self.transport, self.clock = transport, clock
@@ -186,9 +168,6 @@ class UpdateChecker:
 
     async def check_once(self) -> bool:
         """尝试所有端点，任一成功即写缓存并返回 True。
-
-        返回:
-            True 表示本轮拿到了有效响应（可能内容为"暂无发布"）。
         """
         async with self.lock:
             async with httpx.AsyncClient(

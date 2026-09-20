@@ -4,16 +4,13 @@
 业务逻辑一律写在调用方，这里不持有任何模型知识。
 
 **谁在哪个线程上碰请求级会话（B36/B47）**：请求级会话由 FastAPI 的同步依赖产出
-（``dependencies.get_database_session``），因此它会被三种线程先后碰到 ——
+（``dependencies.get_database_session``），因此会被三种线程先后碰到 —— 线程池线程跑同步
+依赖（认证/授权那几层）与同步路由、事件循环线程跑 ``async def`` 路由体、线程池线程做依赖
+清理（关闭会话、归还连接）。
 
-1. 线程池线程：同步依赖（认证/授权那几层）与同步路由（``def`` 路由）都在这里跑；
-2. 事件循环线程：``async def`` 路由体在事件循环里执行；
-3. 线程池线程：依赖的清理（关闭会话、归还连接）也由线程池跑。
-
-三者是**顺序换手**而不是并发使用：会话由依赖持有，请求处理完才清理，同一时刻只有
-一个线程在用它（连接池本身也保证一条连接同时只借给一个持有者）。真正需要外部保证的
-只有 sqlite3 自己的跨线程能力 —— 见 :data:`REQUIRED_SQLITE_THREADSAFETY`：与其静默
-依赖「这台机器上恰好是 serialized 构建」，不如在启动时检查一次。
+三者是**顺序换手**而不是并发使用（会话由依赖持有，请求处理完才清理）。真正需要外部保证的
+只有 sqlite3 自己的跨线程能力 —— 见 :data:`REQUIRED_SQLITE_THREADSAFETY`：与其静默依赖
+「这台机器上恰好是 serialized 构建」，不如在启动时检查一次。
 """
 from __future__ import annotations
 
@@ -63,10 +60,6 @@ class Database:
 
     def __init__(self, database_url: str) -> None:
         """创建引擎与会话工厂。
-
-        参数:
-            database_url: SQLAlchemy 连接串；SQLite 时走这里的 PRAGMA 配置。
-
         异常:
             DatabaseConfigurationError: 运行环境的 sqlite3 线程安全等级低于
                 :data:`REQUIRED_SQLITE_THREADSAFETY`，跨线程换手不安全。

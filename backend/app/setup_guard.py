@@ -1,28 +1,22 @@
 """首次初始化的访问守卫。
 
-背景（安全审计发现）：``POST /api/v1/setup/admin`` 刻意不要求身份，唯一的闸门是
-「管理员账号文件是否已存在」。于是一台尚未初始化的实例是**先到先得**的：
-
-1. ``GET /api/v1/setup/status`` 未认证即可确认 ``initialized=false``；
-2. ``POST /api/v1/setup/admin`` 一次就创建管理员、清空旧会话，并**当场下发会话
-   Cookie**（实测返回 201 + ``role=admin``）；
-3. 自此攻击者可以写 Home Assistant 连接（连同长期令牌）、配中控设备、导出日志。
-
-当时没有 loopback 限制、没有引导密钥、没有限流、也没有审计记录。
+背景（安全审计发现）：``POST /api/v1/setup/admin`` 刻意不要求身份，唯一的闸门是「管理员账号
+文件是否已存在」。于是一台尚未初始化的实例是**先到先得**的：未认证即可确认
+``initialized=false``，一次 POST 就创建管理员并**当场下发会话 Cookie**，自此攻击者可以写
+Home Assistant 连接（连同长期令牌）、配中控设备、导出日志。当时没有 loopback 限制、没有
+引导密钥、没有限流、也没有审计记录。
 
 本模块给出的策略：
 
-- **本机直连放行**：能坐在机器前的人本来就拥有这台机器。判断标准是「TCP 对端是
-  loopback」且**请求没带任何转发头** —— 带 ``X-Forwarded-For`` / ``Forwarded``
-  说明前面还有代理，对端地址不再代表真实来源，此时不再按本机放行（否则同机反代会
-  把「先到先得」原样暴露到公网）。
-- **其它来源必须带对引导密钥**：``APP_SETUP_TOKEN``，或首次启动时自动生成的
-  32 字节随机串。生成的那份以 0600 落到 ``data_dir/setup-token`` 并打印到标准错误
-  （容器日志可见），初始化成功后立即删除 —— 一次性凭证。
+- **本机直连放行**：能坐在机器前的人本来就拥有这台机器。判断标准是「TCP 对端是 loopback」
+  且**请求没带任何转发头** —— 带 ``X-Forwarded-For`` / ``Forwarded`` 说明前面还有代理，
+  对端地址不再代表真实来源，此时不再按本机放行（否则同机反代会把「先到先得」原样暴露到公网）。
+- **其它来源必须带对引导密钥**：``APP_SETUP_TOKEN``，或首次启动时自动生成的 32 字节随机串。
+  生成的那份以 0600 落到 ``data_dir/setup-token`` 并打印到标准错误（容器日志可见），初始化
+  成功后立即删除 —— 一次性凭证。
 - 失败与成功都写审计；失败还会计入限流（与登录共用同一个进程内限流器）。
 
-刻意**不**把密钥写进全局日志正文：全局日志可被导出，而这是一枚能换取管理员身份的
-凭证。落盘 + stderr 已经足够运维取用。
+刻意**不**把密钥写进全局日志正文：全局日志可被导出，而这是一枚能换取管理员身份的凭证。
 """
 
 from __future__ import annotations
@@ -93,11 +87,6 @@ class SetupGuard:
         event_log=None,
     ) -> None:
         """记录密钥文件位置与（可选的）环境变量密钥。
-
-        参数:
-            data_dir: 数据目录；密钥文件固定为其中的 ``setup-token``。
-            configured_token: ``APP_SETUP_TOKEN`` 的值，为空表示由本类生成。
-            event_log: 可选的全局日志，用于记录初始化窗口的开合与授权失败。
         """
         self.path = Path(data_dir) / 'setup-token'
         self.marker_path = Path(data_dir) / GENERATED_MARKER_FILE
@@ -250,11 +239,6 @@ class SetupGuard:
 
     def authorize(self, request: Request, setup_token: str = '') -> None:
         """校验本次初始化请求；无权限抛 403，超限抛 429。
-
-        参数:
-            request: 当前请求（用于判定对端与限流键）。
-            setup_token: 请求体里带的引导密钥（也接受 ``X-Setup-Token`` 头）。
-
         成功不写「授权通过」之外的任何东西；失败会 record_failure 并写审计。
         """
         limiter = getattr(request.app.state, 'login_limiter', None)

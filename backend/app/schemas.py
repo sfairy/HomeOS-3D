@@ -347,15 +347,13 @@ class Studio3DDraftUpdate(BaseModel):
         """在类型边界上声明场景的体积与嵌套深度上限（B49）。
 
         这两条限制原先只存在于**这条路由**上：字节数写在 ASGI 中间件
-        （``body_guard.DraftBodyGuard``）与写盘函数（``studio3d._atomic_json_write``）里，
-        深度只写在中间件里。中间件只在装了它的应用上生效 —— 直接把路由器挂到别的
-        FastAPI 应用上（将来别的入口可能这么做）时，一个几 KB 的深层
-        嵌套 JSON 就能把 ``json.loads`` 打爆成 500。所以契约要声明在 schema 这一层：
+        （``body_guard.DraftBodyGuard``）与写盘函数（``studio3d._atomic_json_write``）里，深度只写在
+        中间件里。中间件只在装了它的应用上生效 —— 直接把路由器挂到别的 FastAPI 应用上时，一个几 KB
+        的深层嵌套 JSON 就能把 ``json.loads`` 打爆成 500。所以契约要声明在 schema 这一层：
         无论谁调用这个模型，边界都成立。
 
-        判据用的是**同一批常量**（与中间件、写盘共用一个数字），因此不会出现
-        「接口放行、落盘拒收」这种自相矛盾的门槛；序列化方式也取写盘时那一套
-        （排序 + 去空格），两处算出来的字节数一致。
+        判据用的是**同一批常量**（与中间件、写盘共用一个数字），因此不会出现「接口放行、落盘拒收」
+        这种自相矛盾的门槛；序列化方式也取写盘时那一套（排序 + 去空格），两处算出来的字节数一致。
         """
         encoded = canonical_json_bytes(value)
         if len(encoded) > MAX_SCENE_DOCUMENT_BYTES:

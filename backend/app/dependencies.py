@@ -165,15 +165,14 @@ def _display_device(
 ) -> DisplayDevice | None:
     """解析中控设备 Cookie，返回对应设备；未配对、已失效或已过期返回 None。
 
-    有效期是「滑动」的：每次活跃（>= 5 分钟节流）就把 last_seen_at 推到当前时间，
-    因此有效期按 last_seen_at + display_token_ttl_seconds 判定 ——
-    长期不用的平板与只在攻击者手里的令牌会自己过期，而正常挂机的墙面平板
-    只要还在轮询就一直有效。另有一个可选的硬上限（默认关闭），见 config。
-    两道有效期都由 ``display_access.active_display_device`` 判定（B2），
-    这里不再自己查一遍，也不再自己判断有没有查过。
+    有效期是「滑动」的：每次活跃（>= 5 分钟节流）就把 last_seen_at 推到当前时间，因此按
+    last_seen_at + display_token_ttl_seconds 判定 —— 长期不用的平板与只在攻击者手里的令牌
+    会自己过期，而正常挂机的墙面平板只要还在轮询就一直有效。另有一个可选的硬上限（默认关闭），
+    见 config。两道有效期都由 ``display_access.active_display_device`` 判定（B2），这里不再
+    自己查一遍。
 
-    副作用：同样做了心跳节流 —— 设备超过 5 分钟没活跃才写一次库并刷新
-    Cookie，因为展示页会长期挂机、每次请求都写库会拖慢整个看板。
+    副作用：同样做了心跳节流 —— 设备超过 5 分钟没活跃才写一次库并刷新 Cookie，因为展示页会
+    长期挂机、每次请求都写库会拖慢整个看板。
     """
     settings = request.app.state.settings
     token = display_token_from(request.cookies, settings)

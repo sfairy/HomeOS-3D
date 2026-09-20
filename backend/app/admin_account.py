@@ -60,9 +60,6 @@ class AdminAccountStore:
 
     def __init__(self, path: Path) -> None:
         """只记录账号文件路径，不在这里读盘。
-
-        参数:
-            path: 管理员账号 JSON 文件路径。
         """
         self.path = Path(path)
         # 已加载的凭据；None 表示尚未初始化。

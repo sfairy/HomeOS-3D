@@ -1,18 +1,17 @@
 """访问主体的唯一解析实现：一次请求（或一条连接）到底是谁。
 
-管理员会话 Cookie 与中控设备 Cookie 的校验原先在三处各写了一遍 —— HTTP 依赖
-（``dependencies._admin_session``）、页面与静态资源（``main.signed_in`` /
-``main.active_display``）、实时连接握手（``api.ha.websocket_viewer``）—— 而三处
-口径并不相同：
+管理员会话 Cookie 与中控设备 Cookie 的校验原先在三处各写一遍（HTTP 依赖
+``dependencies._admin_session``、页面与静态资源 ``main.signed_in`` /
+``main.active_display``、实时连接握手 ``api.ha.websocket_viewer``），三处口径并不相同：
 
-- 只有 HTTP 依赖查会话的**绝对寿命**（``session_hard_max_age_seconds``），
-  于是页面路由与 ``/static/*``、``/assets/builtin/*`` 对这些请求照旧放行（B3）；
-- 只有 HTTP 依赖查中控令牌的**有效期**，于是展示页与实时连接完全绕过
+- 只有 HTTP 依赖查会话的**绝对寿命**（``session_hard_max_age_seconds``），页面路由与
+  ``/static/*``、``/assets/builtin/*`` 因此照旧放行（B3）；
+- 只有 HTTP 依赖查中控令牌的**有效期**，展示页与实时连接完全绕过
   ``display_token_ttl_seconds`` / ``display_token_hard_ttl_seconds``（B2）。
 
-修法不是「给另外两处也补上判断」——那样下次再添一个入口，同样的洞会以第三种写法
-再来一次，而是把「凭据 → 主体」收敛成本模块里的唯一实现（B32）。调用方只保留
-各自确实需要的副作用：HTTP 侧重发续期 Cookie、页面侧跳登录、实时连接侧 detach。
+修法不是给另外两处补上判断 —— 那样下次再添入口，同样的洞会以第三种写法再来一次；
+而是把「凭据 → 主体」收敛成本模块的唯一实现（B32）。调用方只保留各自需要的副作用：
+HTTP 侧重发续期 Cookie、页面侧跳登录、实时连接侧 detach。
 """
 from __future__ import annotations
 
@@ -121,17 +120,15 @@ def check_admin_session(
 ) -> AdminSessionCheck:
     """校验管理员会话 Cookie，返回「是谁」以及要不要续期 / 清理。
 
-    判定顺序：账号已初始化 → Cookie 存在 → 会话行存在 → 滑动有效期未过 →
-    绝对寿命未到 → 归属当前管理员 → 用户仍启用。任一步不通过都返回 user=None，
-    由调用方决定是 401、跳登录页还是回落到中控身份。
+    判定顺序：账号已初始化 → Cookie 存在 → 会话行存在 → 滑动有效期未过 → 绝对寿命未到 →
+    归属当前管理员 → 用户仍启用。任一步不通过都返回 user=None，由调用方决定是 401、
+    跳登录页还是回落到中控身份。
 
-    绝对寿命（session_hard_max_age_seconds）是这条链上最容易漏的一环：少了它，
-    一枚被盗 Cookie 只要还在被使用就被滑动续期一直续下去。因此它写在这里，
-    而不是留给某个入口自己补。
+    绝对寿命（session_hard_max_age_seconds）是这条链上最容易漏的一环：少了它，一枚被盗
+    Cookie 只要还在被使用就会被滑动续期一直续下去。因此它写在这里，而不是留给某个入口自己补。
 
-    refresh=True 时，跨过续期窗口会把 last_seen_at / expires_at 推到当前时间
-    （写库并置 renewed=True，调用方据此重发 Cookie）；默认纯读、不产生写操作，
-    页面与实时连接这类「只想知道能不能放行」的调用方走默认值。
+    refresh=True 时跨过续期窗口会把 last_seen_at / expires_at 推到当前时间（写库并置
+    renewed=True，调用方据此重发 Cookie）；默认纯读、不产生写操作。
     """
     if account_user_id is None or not token:
         return AdminSessionCheck()

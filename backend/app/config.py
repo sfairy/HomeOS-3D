@@ -324,18 +324,14 @@ class Settings:
     def license_trusted_public_keys(self) -> dict[str, tuple[Path, str | None]]:
         """可信公钥表 keyId -> (路径, 期望 sha256)。
 
-        三种来源按优先级取其一：
-        1. 显式覆盖表（APP_LICENSE_TRUSTED_PUBLIC_KEYS），可整体替换；
-        2. 只覆盖了单个公钥文件路径时，收敛成一条以 license_key_id 为名的记录；
-        3. 默认使用仓库 keys/ 下的内置镜像。
+        三种来源按优先级取其一：显式覆盖表（APP_LICENSE_TRUSTED_PUBLIC_KEYS）整体替换；
+        只覆盖了单个公钥文件路径时收敛成一条以 license_key_id 为名的记录；否则用仓库 keys/ 下的
+        内置镜像。默认表也尊重 ``APP_LICENSE_PUBLIC_KEY_SHA256`` —— 本地 ``start.py`` 只覆盖
+        指纹、不改路径，用来对准 ``store/keys/local`` 的开发密钥。
 
-        默认表也会尊重 ``APP_LICENSE_PUBLIC_KEY_SHA256``（写入
-        ``license_public_key_sha256``）：本地 ``start.py`` 只覆盖指纹、不改路径，
-        用来对准 ``store/keys/local`` 生成的开发密钥，而不改发布版常量。
-
-        第 3 条会把 ``license-public.previous.pem`` 一并登记（存在才登记）：这就是
-        客户端侧的轮换重叠窗口 —— 服务端还在用上一代密钥签发时，客户端照样验得过。
-        keyId 一律由文件派生，所以两张表条目之间不会撞名。
+        第 3 种会把 ``license-public.previous.pem`` 一并登记（存在才登记）：这就是客户端侧的
+        轮换重叠窗口 —— 服务端还在用上一代密钥签发时，客户端照样验得过。keyId 一律由文件派生，
+        所以两张表条目之间不会撞名。
         """
         if self.license_trusted_public_keys_override:
             return {key_id: (path, expected_sha256) for key_id, path, expected_sha256 in self.license_trusted_public_keys_override}

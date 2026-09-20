@@ -140,21 +140,16 @@ _VALIDATION_MESSAGE_MAX_PARTS = 3
 def _validation_error_message(errors: list[dict]) -> str:
     """把 FastAPI 的校验错误压成一句中文摘要，供前端直接展示。
 
-    为什么值得在后端做（而不是让前端拼）：只有这里知道**约束值**。前端拿到的
-    ``detail`` 数组里 ``msg`` 是英文句子，``ctx`` 里的边界值前端要么读不出、要么得自己
-    再维护一份 pydantic 的类型表 —— 那才是真正的重复。这里给出摘要，前端那份
-    ``api-error.js`` 只负责「从任意载荷里挑出最能说明问题的那句」，不再解析语义。
+    值得在后端做（而不是让前端拼）：只有这里知道**约束值**。前端拿到的 ``detail`` 数组里
+    ``msg`` 是英文句子，``ctx`` 里的边界值前端要么读不出、要么得自己再维护一份 pydantic 类型表 ——
+    那才是真正的重复。这里给摘要，前端 ``api-error.js`` 只负责「从任意载荷里挑出最能说明问题的
+    那句」。
 
-    形态（前端 ``apiErrorMessage`` 优先取顶层 ``message``）：``参数 activationCode
-    长度不足（至少 8 个字符）``；多处用「；」连，超过
-    :data:`_VALIDATION_MESSAGE_MAX_PARTS` 处只报前几处并缀「等」。
-
-    Args:
-        errors: ``RequestValidationError.errors()`` 的原始条目（含 ``loc`` / ``type`` / ``ctx``）。
-
-    Returns:
-        str: 非空的中文摘要；连一条都解析不出来时也是「参数校验未通过。」这种兜底，
-        绝不返回空串（前端把空串当「没有可用信息」而退回更笼统的文案）。
+    形态（前端 ``apiErrorMessage`` 优先取顶层 ``message``）：``参数 activationCode 长度不足
+    （至少 8 个字符）``；多处用「；」连，超过 :data:`_VALIDATION_MESSAGE_MAX_PARTS` 处只报前几处
+    并缀「等」。``errors`` 是 ``RequestValidationError.errors()`` 的原始条目（含 loc / type / ctx）。
+    连一条都解析不出来时也返回兜底文案，绝不返回空串（前端把空串当「没有可用信息」而退回更笼统
+    的文案）。
     """
     parts: list[str] = []
     for item in errors:
@@ -202,11 +197,6 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     参数:
         settings: 覆盖配置；为 None 时从环境变量加载。
-        license_transport / license_endpoint_pool: 授权客户端的依赖注入点，
-            测试时用来替换真实网络传输。
-
-    返回:
-        已注册中间件、路由与异常处理器的应用实例。
     """
     app_settings = settings or load_settings()
 
