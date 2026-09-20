@@ -17,8 +17,8 @@
 // 复用渲染器的页面行为解析（默认空闲秒数等），缓存戳需与 static 资源版本保持一致。
 const pageBehaviorModuleUrl = new URL(
   import.meta.url.startsWith("file:")
-    ? "../../../static/bridge/page-behavior.js?v=20260920093608"
-    : "/static/bridge/page-behavior.js?v=20260920093608",
+    ? "../../../static/bridge/page-behavior.js?v=20260920101628"
+    : "/static/bridge/page-behavior.js?v=20260920101628",
   import.meta.url
 );
 export const { resolvePageBehavior } = await import(pageBehaviorModuleUrl.href);

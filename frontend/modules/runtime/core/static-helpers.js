@@ -18,7 +18,7 @@
  * 为什么要有这个文件（而不是每个文件各写一次那段条件动态导入）：本树原有 33 处内联剥壳与 3 处内联
  * 切域，逐处换助手时若每份文件自带一段导入尾巴，同一段知识会重复 16 份 —— 与「同一份知识只有一处」
  * 正好相反，而且缓存戳要在 16 处同步。有桥之后，其余文件只写一次普通的
- * `from "../core/static-helpers.js?v=20260920093608"`（同域文件则写 `./static-helpers.js`），
+ * `from "../core/static-helpers.js?v=20260920101628"`（同域文件则写 `./static-helpers.js`），
  * 与 `/static/` 树里的 import 完全同形。
  *
  * 纪律：
@@ -32,15 +32,15 @@
 // 开发态（file:）走相对路径，生产走 /static 绝对路径；两条都不能省。
 const { resolveStateEntry } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/state-entry.js", import.meta.url))
-  : import("/static/utils/state-entry.js?v=20260920093608"));
+  : import("/static/utils/state-entry.js?v=20260920101628"));
 const { entityDomainFromId } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/entities.js", import.meta.url))
-  : import("/static/utils/entities.js?v=20260920093608"));
+  : import("/static/utils/entities.js?v=20260920101628"));
 const { apiErrorMessage } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/api-error.js", import.meta.url))
-  : import("/static/utils/api-error.js?v=20260920093608"));
+  : import("/static/utils/api-error.js?v=20260920101628"));
 const { INTERACTION_PAGE_OPTIONS } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/interaction-pages.js", import.meta.url))
-  : import("/static/utils/interaction-pages.js?v=20260920093608"));
+  : import("/static/utils/interaction-pages.js?v=20260920101628"));
 
 export { INTERACTION_PAGE_OPTIONS, apiErrorMessage, entityDomainFromId, resolveStateEntry };

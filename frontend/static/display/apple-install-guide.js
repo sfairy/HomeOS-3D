@@ -30,7 +30,7 @@ if (
   ((guideDialog.className = "apple-install-dialog"),
     guideDialog.setAttribute("aria-labelledby", "apple-install-title"),
     (guideDialog.innerHTML = `
-    <img class="apple-install-icon" src="/static/assets/homeos-icon-180-h5.png?v=20260920093608" alt="">
+    <img class="apple-install-icon" src="/static/assets/homeos-icon-180-h5.png?v=20260920101628" alt="">
     <p class="apple-install-eyebrow">IPHONE \xB7 IPAD</p>
     <h2 id="apple-install-title">把 HomeOS 放到主屏幕</h2>
     <p class="apple-install-intro">添加后像 App 一样从桌面全屏打开，面板功能与 App 相同。</p>

@@ -16,19 +16,19 @@
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "../presence/presence-motion.js?v=20260920093608";
-import { mountInteraction3d } from "../core/runtime.js?v=20260920093608";
-import { openPresenceEditor } from "../presence/presence-editor.js?v=20260920093608";
+} from "../presence/presence-motion.js?v=20260920101628";
+import { mountInteraction3d } from "../core/runtime.js?v=20260920101628";
+import { openPresenceEditor } from "../presence/presence-editor.js?v=20260920101628";
 import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=20260920093608";
-import { confirmAction } from "/static/shared/ui-confirm.js?v=20260920093608";
+} from "../core/editor-save-status.js?v=20260920101628";
+import { confirmAction } from "/static/shared/ui-confirm.js?v=20260920101628";
 import { randomUuid } from "/static/utils/random-id.js";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=20260920093608";
+} from "/static/bridge/bridge.js?v=20260920101628";
 import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js";
 /**
  * 打开 3D 安防配置编辑器。
@@ -79,7 +79,7 @@ export async function openSecurityEditor({
   const styleSheetLinkElement = createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920093608";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920101628";
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D 安防配置");
   // 标记预览作用域：宿主据此识别「哪些弹窗会遮挡 3D 预览」，

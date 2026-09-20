@@ -7,11 +7,11 @@
  * 约定：页面路径由标题 slug 化而来，必须全局唯一；弹窗模块的推荐实体现
  *   与 HA 域一一对应，通用设备默认全部推荐。
  */
-import { clone, newId, slugify } from "./editor-utils.js?v=20260920093608";
+import { clone, newId, slugify } from "./editor-utils.js?v=20260920101628";
 // 「按 ID 切域」只有一份实现（P12 收口 B 类末尾那一项的残留补齐）：本文件原先在
 // popupModuleEntityRecommended 里手写 `String(entity?.entityId || "").split(".")[0]`。
 // 那条表达式与助手函数体逐字相同，换过去语义不变。
-import { entityDomainFromId } from "../utils/entities.js?v=20260920093608";
+import { entityDomainFromId } from "../utils/entities.js?v=20260920101628";
 
 /**
  * 生成不与现有页面冲突的路径。
