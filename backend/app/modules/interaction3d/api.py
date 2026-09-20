@@ -61,7 +61,6 @@ def light_history_scope(connection, viewer, project_id: str) -> str:
 
     返回:
         64 位十六进制字符串；任一前提缺失（无项目、无主体、无连接）时返回空串，
-        前端拿到空串即认为不分桶。
     """
     principal = viewer.user or viewer.display
     # 缺项目、缺主体身份或缺连接都退化到空作用域：宁可前端不缓存，也不共用错的分桶。
@@ -190,15 +189,11 @@ def _background_asset_ids(scene: object) -> set[str]:
 def snapshot_scene(request: Request, _user: LicensedUser):
     """把 studio 的户型草稿冻结成一个不可变快照，返回 sceneId。
 
-    冻结的意义：studio 草稿会被继续编辑，而舞台页的 sceneId 必须长期指向同一份数据，
-    否则同一块屏刷新前后布局就变了。底图也复制一份，之后在 studio 里删掉素材
-    也不影响已有快照。
+    冻结的意义：studio 草稿会被继续编辑，而舞台页的 sceneId 必须长期指向同一份数据，否则同一块屏
+    刷新前后布局就变了。底图也复制一份，之后在 studio 里删掉素材也不影响已有快照。
 
-    落盘后顺带做一轮快照回收（见 scene_store）：冻结是低频操作，正好是清理的好时机；
-    回收只碰「没有任何仪表盘引用、且已过保留期」的快照，正在用的绝不会被删。
-
-    异常:
-        HTTPException: 409，草稿不存在、为空或 JSON 损坏。
+    落盘后顺带做一轮快照回收（见 scene_store）：冻结是低频操作，正好是清理的好时机；回收只碰
+    「没有任何仪表盘引用、且已过保留期」的快照。草稿不存在、为空或 JSON 损坏时抛 409。
     """
     require_access(request)
     # 没有草稿说明用户还没在 3D 户型图绘制里保存过，属于可预期状态，用 409 而非 404。
@@ -321,21 +316,16 @@ def get_current_scene(scene_id: str, request: Request, viewer: LicensedViewer, p
 def get_background(scene_id: str, asset_id: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
     """读取户型快照的底图。
 
-    两个来源，都以**本场景**为准：先找随快照一起冻结的本地副本
-    （``<sceneId>-<assetId><后缀>``）；副本缺失（冻结时复制失败、素材后来才补上）时，
-    再回退到用户素材库，此时要求该素材是本场景自己引用过的底图。
+    两个来源，都以**本场景**为准：先找随快照一起冻结的本地副本（``<sceneId>-<assetId><后缀>``）；
+    副本缺失（冻结时复制失败、素材后来才补上）时回退到用户素材库，此时要求该素材是本场景自己
+    引用过的底图。
 
-    回退路径过去信的是全局草稿（``studio3d_draft_path``）——那份文件是全机共用的，
-    它此刻编辑的可能是**别的项目**的户型，于是绑项目 A 的展示页只要猜中/枚举
-    ``asset_id`` 就能把别的项目的底图取走（B24）。改为只认本场景：
-
-    - 快照 JSON 自己记着每个楼层的 ``assetId``，因此「复制失败」这个真实场景依然可取；
-    - 管理员会话额外保留「当前草稿引用过就放行」这条：管理员本来就不受素材可见范围
-      限制（``viewer_user_asset_ids`` 对它返回 None），这条只让编辑器刚换、还没冻结的
-      底图也能显示，不会让它多拿到任何东西。
-
-    异常:
-        HTTPException: 404，两种来源都取不到底图。
+    回退路径过去信的是全局草稿（``studio3d_draft_path``）—— 那份文件是全机共用的，它此刻编辑的
+    可能是**别的项目**的户型，于是绑项目 A 的展示页只要猜中 / 枚举 ``asset_id`` 就能把别的项目的
+    底图取走（B24）。改为只认本场景：快照 JSON 自己记着每个楼层的 ``assetId``，因此「复制失败」
+    这个真实场景依然可取；管理员会话额外保留「当前草稿引用过就放行」（管理员本来就不受素材可见
+    范围限制，``viewer_user_asset_ids`` 对它返回 None，这条只让编辑器刚换、还没冻结的底图也能
+    显示，不会让它多拿到任何东西）。两种来源都取不到时抛 404。
     """
     require_scene_transfer(request, viewer, scene_id, projectId)
     path = scene_path(request, scene_id)
@@ -370,24 +360,14 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
 async def control_light(payload: Interaction3dControlRequest, request: Request, database: DatabaseSession, viewer: LicensedViewer):
     """3D 舞台页的设备控制入口，按 domain 走三条不同的校验路径。
 
-    - media_player / 前端声明为 television：确认实体确实配在该控件的电视列表里，
-      且对应电视模型仍在场景中，再按 supported_features 位掩码核对能力；
-    - cover / climate：确认环境配置里的绑定与场景中的窗帘 / 空调模型，
-      再取 HA 实时状态做能力校验；
+    - media_player / 前端声明为 television：确认实体确实配在该控件的电视列表里，且对应电视模型仍在
+      场景中，再按 supported_features 位掩码核对能力；
+    - cover / climate：确认环境配置里的绑定与场景中的窗帘 / 空调模型，再取 HA 实时状态做能力校验；
     - 其余（light / switch）：只允许 turn_on / turn_off，直接转发 HA 服务调用。
 
-    参数:
-        payload: 控制请求，含 domain / service / entity_id / data 与定位字段。
-        request: 当前请求。
-        database: 请求级数据库会话。
-        viewer: 已认证且通过 api 授权的主体。
-
-    返回:
-        HA 服务调用的结果（由 call_service 透传）。
-
-    异常:
-        HTTPException: 403 实体未配置到当前控件；404 实体不存在或已禁用；
-            409 状态不可用或模型失联；415 / 413 / 422 参数或能力不匹配。
+    ``payload`` 含 domain / service / entity_id / data 与定位字段，``viewer`` 是已认证且通过 api
+    授权的主体。403 实体未配置到当前控件；404 实体不存在或已禁用；409 状态不可用或模型失联；
+    415 / 413 / 422 参数或能力不匹配。
     """
     require_access(request)
     if payload.device_kind == 'television' or payload.domain == 'media_player':

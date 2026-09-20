@@ -68,7 +68,6 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
         service: HA 服务名，必须命中 CLIMATE_SERVICES。
         data: 透传参数，必须恰好只带该服务对应的那一个键。
         state: 实体的实时状态快照，缺失视为设备不可用。
-
     异常:
         HTTPException: 422 参数或取值超出设备能力；409 状态不可用或能力尚未载入。
     """

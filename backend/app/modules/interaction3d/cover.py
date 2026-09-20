@@ -41,19 +41,17 @@ def _reported_number(value) -> bool:
 def inferred_cover_features(attributes: dict) -> int:
     """设备**从不**上报 supported_features 时，按它已经上报的状态推断能力位。
 
-    背景（B27）：``supported_features`` 是 HA 集成「自愿」上报的，一部分集成（尤其
-    是只暴露基础实体的网关）从不给这个字段。修复前凡是读不到能力位就直接 409
-    「窗帘能力尚未载入，请稍后重试。」—— 而这是**永久**条件，不是「稍后就好」：
-    前端会无限重试，用户看到一条永远不消失的「请稍后重试」，且没有任何自救办法。
+    背景（B27）：``supported_features`` 是 HA 集成「自愿」上报的，一部分集成（尤其是只暴露基础实体的
+    网关）从不给这个字段。修复前凡是读不到能力位就直接 409「窗帘能力尚未载入，请稍后重试。」——
+    而这是**永久**条件，不是「稍后就好」：前端会无限重试，用户看到一条永远不消失的提示，且没有任何
+    自救办法。
 
-    推断规则刻意保守，只认「设备自己已经报出来的东西」：
+    推断规则刻意保守，只认「设备自己已经报出来的东西」：开 / 关 / 停是 cover 实体天然具备，一律放行
+    （HA 侧不支持时会自己报错）；调位置只有上报过 ``current_position`` 才认为支持；调叶片只有上报过
+    ``current_tilt_position`` 才认为有叶片。
 
-    * 开 / 关 / 停：cover 实体天然具备，一律放行（HA 侧不支持时会自己报错）；
-    * 调位置：只有上报过 ``current_position``（位置反馈）才认为它支持定位；
-    * 调叶片：只有上报过 ``current_tilt_position`` 才认为它有叶片。
-
-    「没报过」不等于「不支持」，所以这只是一个不会再放大的下限：真正不支持的操作
-    仍由 HA 拒绝，而不会在这里被无限期地挡死。
+    「没报过」不等于「不支持」，所以这只是一个不会再放大的下限：真正不支持的操作仍由 HA 拒绝，
+    而不会在这里被无限期地挡死。
     """
     features = COVER_SERVICES['open_cover'] | COVER_SERVICES['close_cover'] | COVER_SERVICES['stop_cover']
     if _reported_number(attributes.get('current_position')):
@@ -95,8 +93,6 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
         service: HA 服务名，必须命中 COVER_SERVICES。
         data: 透传参数，按服务类型要求恰好带 position 或 tilt_position，其余服务必须为空。
         state: 实体的实时状态快照，缺失视为设备不可用。
-        dream: 该绑定是否梦幻帘，为 True 时限制调叶片的时机。
-
     异常:
         HTTPException: 422 参数非法或设备不支持该操作；409 状态不可用或不满足调整前提。
     """

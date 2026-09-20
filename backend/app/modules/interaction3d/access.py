@@ -59,7 +59,6 @@ def access_grant(request: Request) -> dict:
 
     返回:
         dict：allowed / feature / phase 与 validForSeconds（剩余有效秒数）。
-
     异常:
         HTTPException: 403，未开通增量包，或授权租约校验失败 / 已过期。
     """
@@ -142,20 +141,12 @@ def validate_module_component(component: dict) -> None:
 def require_document_changes(request: Request, document: dict, previous: dict | None = None, *, database=None) -> None:
     """保存文档时判定这次改动是否需要 3D 交互授权。
 
-    判定顺序（有意为之，先松后紧）：
-    1. 文档里没有 3D 控件 → 放行，本增量包不影响普通仪表盘的编辑；
-    2. 已有授权 → 逐控件做配置校验后放行，不比较差异；
-    3. 未授权 → 只比较受保护配置：受保护字段没变时，移动控件、
-       调整缩放等纯展示性改动仍然允许保存。
+    判定顺序（有意为之，先松后紧）：文档里没有 3D 控件 → 放行（本增量包不影响普通仪表盘的编辑）；
+    已有授权 → 逐控件做配置校验后放行，不比较差异；未授权 → 只比较受保护配置，受保护字段没变时
+    移动控件、调整缩放等纯展示性改动仍然允许保存。
 
-    参数:
-        request: 当前请求。
-        document: 即将保存的新文档。
-        previous: 上一次保存的文档；首次保存时为空。
-        database: 可选的数据库会话，透传给授权查询。
-
-    异常:
-        HTTPException: 403，未授权却改动了受保护配置，或新增了 3D 共享组件引用。
+    ``previous`` 是上一次保存的文档（首次保存为空）；``database`` 可选，透传给授权查询。
+    未授权却改动了受保护配置、或新增了 3D 共享组件引用时抛 403。
     """
     incoming = list(module_components(document))
     if not incoming:

@@ -20,10 +20,6 @@ from ...canonical_json import canonical_json
 
 def validate_config(properties: dict) -> None:
     """校验一份 3D 交互控件的 properties。
-
-    参数:
-        properties: 控件配置字典，字段来自前端序列化的 JSON。
-
     异常:
         HTTPException: 422，任一字段非法。大部分分支共用下面的 fail()，
         因此文案统一；个别字段（如转动分辨率）会给出更具体的提示。
