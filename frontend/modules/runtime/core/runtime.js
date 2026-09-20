@@ -20,12 +20,12 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { apiErrorMessage, entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260920101628";
+import { apiErrorMessage, entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260920102755";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=20260920101628";
-import { createLightStream } from "../light/light-stream.js?v=20260920101628";
+} from "./popup-preview.js?v=20260920102755";
+import { createLightStream } from "../light/light-stream.js?v=20260920102755";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**

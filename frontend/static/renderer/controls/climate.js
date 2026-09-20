@@ -20,7 +20,7 @@
 // 时不再拼出以 `"null"` / `"0"` / `"false"` 为域的翻译键，直接按「取不到域」返回空串。
 // 这条新行为的口径写在 utils/entities.js 的模块头（原探针 `entity-helpers` 的
 // climate-translation 一条已随测试清理删除，改动时请手工核对那一格）。
-import { entityDomainFromId } from "../utils/entities.js?v=20260920101628";
+import { entityDomainFromId } from "../../utils/entities.js?v=20260920102755";
 
 // 控件属性 deviceType 允许的取值；auto 表示交给 resolveClimateDeviceType 推断。
 const CLIMATE_DEVICE_TYPES = new Set(["auto", "air-conditioner", "bath-heater"]);

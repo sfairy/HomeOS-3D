@@ -10,9 +10,9 @@
  *   它们是编辑器、3D 工作室与渲染器共用的契约，唯一实现在 utils/numbers.js
  *   与 utils/colors.js（P10 B 类收敛，原先各处各有一份同名但不同义的实现）。
  */
-import { randomUuid } from "../utils/random-id.js?v=20260920101628";
-import { clampNumber } from "../utils/numbers.js?v=20260920101628";
-import { hexColorOrEmpty } from "../utils/colors.js?v=20260920101628";
+import { randomUuid } from "../utils/random-id.js?v=20260920102755";
+import { clampNumber } from "../utils/numbers.js?v=20260920102755";
+import { hexColorOrEmpty } from "../utils/colors.js?v=20260920102755";
 
 /**
  * 深拷贝一个值。

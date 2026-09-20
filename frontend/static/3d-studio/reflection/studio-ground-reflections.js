@@ -24,7 +24,7 @@
  */
 
 import { normalizeGroundReflection } from "../../bridge/reflection-settings.js";
-import { createReflectionCulling } from "./studio-reflection-culling.js?v=20260920101628";
+import { createReflectionCulling } from "./studio-reflection-culling.js?v=20260920102755";
 /**
  * 创建地面反射控制器（一个渲染器一份）。
  *

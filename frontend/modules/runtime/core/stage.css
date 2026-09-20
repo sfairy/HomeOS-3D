@@ -12,10 +12,10 @@
  *   - 状态一律用类名或 [hidden] 表达，JS 只负责切类名；
  *   - 每段动画都配一份 prefers-reduced-motion 兜底，尊重系统的「减少动态效果」。
  */
-@import "/static/bridge/controls.css?v=20260920101628";
-@import "../nas/nas-panel.css?v=20260920101628";
-@import "../climate/climate-panel.css?v=20260920101628";
-@import "../cover/cover-panel.css?v=20260920101628";
+@import "/static/bridge/controls.css?v=20260920102755";
+@import "../nas/nas-panel.css?v=20260920102755";
+@import "../climate/climate-panel.css?v=20260920102755";
+@import "../cover/cover-panel.css?v=20260920102755";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card

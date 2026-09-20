@@ -65,7 +65,7 @@ export function weatherVisual(condition, sunState = "") {
  * 实现已挪到 `utils/icon-url.js`（与 `mdiIconUrl` 同属「图标名 → vendor 地址」这一份知识，
  * 两者共用同一条白名单约束）；这里保留同名转出，页面脚本仍只 import registry 一处。
  */
-export { meteoconUrl } from "../utils/icon-url.js?v=20260920101628";
+export { meteoconUrl } from "../../utils/icon-url.js?v=20260920102755";
 /**
  * 校验 CSS 颜色，不合法则用兜底值。
  *

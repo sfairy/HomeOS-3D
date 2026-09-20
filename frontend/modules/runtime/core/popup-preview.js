@@ -181,7 +181,7 @@ export function createFocusDevicePopup(
   const stylesheetLink = popupOwnerDocument.createElement("link");
   stylesheetLink.rel = "stylesheet";
   // 复用渲染器样式表；缓存戳必须与 static 资源版本保持一致。
-  stylesheetLink.href = "/static/renderer/renderer.css?v=20260920101628";
+  stylesheetLink.href = "/static/renderer/core/renderer.css?v=20260920102755";
   const rendererHostElement = popupOwnerDocument.createElement("div");
   rendererHostElement.className = "i3d-focus-popup-host";
   previewRootElement.append(stylesheetLink, rendererHostElement);
@@ -197,8 +197,8 @@ export function createFocusDevicePopup(
     // ready 是异步的：PanelRenderer 需要先动态加载渲染器模块。
     // 加载完成后若已被销毁（用户在加载期间就退出了编辑），直接放弃初始化。
     ready: (import.meta.url.startsWith("file:")
-      ? import(new URL("../../../static/renderer/renderer.js", import.meta.url))
-      : import("/static/renderer/renderer.js")
+      ? import(new URL("../../../static/renderer/core/renderer.js", import.meta.url))
+      : import("/static/renderer/core/renderer.js")
     ).then(({ PanelRenderer: PanelRenderer }) => {
       if (isDisposed) {
         return;
