@@ -1,6 +1,6 @@
 """授权服务器业务逻辑：激活、心跳续租、租约恢复。
 
-对应客户端 `backend/app/license/service.py` 里的 ``/v2/*`` 三个端点。
+对应客户端 `backend/license/service.py` 里的 ``/v2/*`` 三个端点。
 错误语义必须与客户端约定一致：
 
 - ``401`` 表示会话失效 → 客户端会尝试 ``recover``

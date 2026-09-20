@@ -33,7 +33,7 @@ HomeOS/
 
 ### 主应用
 
-`backend/app/`（FastAPI）+ `frontend/`（HTML / 原生 JS）。负责仪表盘编辑、展示、中控配对、Home Assistant 连接、3D 户型工作室与 3D 交互舞台。启动时自动执行 Alembic 迁移。
+`backend/`（FastAPI）+ `frontend/`（HTML / 原生 JS）。负责仪表盘编辑、展示、中控配对、Home Assistant 连接、3D 户型工作室与 3D 交互舞台。启动时自动执行 Alembic 迁移。
 
 ### 授权商店与授权服务器（`store/`）
 
@@ -46,14 +46,14 @@ HomeOS/
 
 ## 仓库结构
 
-工程在仓库根目录，不再套一层 `app/`。
+工程在仓库根目录，不再套一层 `app/`：后端是 `backend/`，商店是 `store/`，两者平级。
 
 ```text
 HomeOS/
-├── backend/app/            # FastAPI 应用（PYTHONPATH 指向这里）
+├── backend/                # FastAPI 应用（PYTHONPATH 指向仓库根，启动为 backend.main:app）
 │   ├── api/                # 认证、项目、HA、资源、3D、日志、图标、中控、更新
 │   ├── ha/                 # HA 客户端、同步、状态推送
-│   ├── panel/              # 仪表盘文档与校验
+│   ├── panel/              # 仪表盘文档与校验（含全局弹窗定义）
 │   ├── modules/            # 增量能力（3D 交互）
 │   ├── license/            # 客户端授权：租约验签、心跳、能力门禁
 │   ├── http_security.py    # 真实来源 IP / HTTPS 判定 / 同源（CSRF）闸门
@@ -62,15 +62,21 @@ HomeOS/
 │   └── main.py
 ├── frontend/               # 页面与静态资源
 │   ├── *.html              # index / display / license / login / pair / setup / 3d-studio
-│   ├── modules/            # 3D 交互舞台与配置编辑器（经 /api/v1/modules/interaction3d 下发）
+│   ├── modules/runtime/    # 3D 交互舞台与配置编辑器（经 /api/v1/modules/interaction3d 下发）
 │   └── static/             # 挂载为 /static
-│       ├── *.js / *.css    # 入口脚本与样式（扁平目录）
-│       ├── renderer/       # 仪表盘运行时
+│       ├── app.css         # 唯一全局样式表（保留在挂载根）
+│       ├── bridge/         # 3D 交互编辑器桥接、场景渲染助手、封面、定义
+│       ├── editor/         # 仪表盘编辑器入口与全部编辑助手
+│       ├── renderer/       # 仪表盘控件运行时
+│       ├── display/        # 中控展示页脚本与样式
+│       ├── auth/           # 登录 / 初始化 / 配对 / 激活页脚本与样式
+│       ├── shared/         # 编辑器与运行时共用（动作规则、确认框、实体域、弹窗布局）
+│       ├── logging/        # 客户端日志与全局日志面板
+│       ├── assets/         # 图标与 webmanifest
+│       ├── utils/          # 与业务无关的纯工具
 │       ├── 3d-studio/      # 户型工作室
-│       ├── modules/        # 3D 交互编辑器桥接、封面、定义
-│       ├── utils/          # 户型工作室与 3D 交互共用工具
 │       ├── templates/      # 控件模板
-│       ├── component-thumbnails/  audio/  vendor/（three.js、hls.js、MDI）
+│       └── component-thumbnails/  audio/  vendor/（three.js、hls.js、MDI）
 ├── store/                  # 授权商店 + 授权服务器 + 运营后台
 │   ├── app.py run.py config.py models.py schemas.py serializers.py
 │   ├── api/                # store.py(/store/v1) license.py(/v2) admin.py alipay.py pages.py
@@ -87,9 +93,10 @@ HomeOS/
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
 ├── migrations/             # Alembic 单条基线迁移 0001
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # bump_static_cache_versions.mjs（静态资源 ?v=）
+├── tools/                  # check_structure_refs.mjs（引用完整性）· bump_static_cache_versions.mjs（?v=）
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（strip py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
+├── docs/                   # 时间点记录（audits / releases），索引见 docs/README.md
 ├── data/                   # 主应用运行时数据（不入库）
 ├── .env.example            # 环境变量模板（复制为 .env；A 区为部署常改项）
 ├── Dockerfile              # 多目标：app（主应用）与 store（商店）
@@ -137,7 +144,7 @@ python3 start.py
 数据库结构由单条基线迁移在主应用启动时自动建立。需要手工执行时：
 
 ```bash
-APP_DATA_DIR=./data PYTHONPATH=backend/app alembic upgrade head
+APP_DATA_DIR=./data PYTHONPATH=. alembic upgrade head
 ```
 
 ## 首次使用
@@ -189,7 +196,7 @@ APP_DATA_DIR=./data PYTHONPATH=backend/app alembic upgrade head
 ### 请求来源：谁在代理、能不能信转发头
 
 限流、审计与首次设置的放行都建立在「请求到底来自哪个 IP」上，而 `X-Forwarded-For`
-是客户端可以自己写的。判定规则（`backend/app/http_security.py` 与 `store/request_security.py`
+是客户端可以自己写的。判定规则（`backend/http_security.py` 与 `store/request_security.py`
 是同一套逻辑的两份实现，两个服务独立部署、刻意不互相 import）：
 
 - **默认不信任任何转发头**（`APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` 留空）：
@@ -226,7 +233,7 @@ SameSite=Lax + 只收 JSON 是第一道闸，代码里另有一道显式的 Orig
 
 ### 首次设置
 
-未初始化实例的「先到先得」问题由 `backend/app/setup_guard.py` 兜住，规则见上方
+未初始化实例的「先到先得」问题由 `backend/setup_guard.py` 兜住，规则见上方
 [首次设置窗口](#首次设置窗口)。
 
 ### 配对、上传与日志
@@ -291,7 +298,7 @@ SameSite=Lax + 只收 JSON 是第一道闸，代码里另有一道显式的 Orig
 
 ### 零配置指向自建授权服务器
 
-客户端默认值写在 `backend/app/config.py`：端点 `http://127.0.0.1:18082`、公钥镜像 `keys/` 及其 sha256，**密钥 id 由公钥文件字节派生**（形如 `hb-3f2a…`；服务端与客户端各自从自己那份镜像算出同一个值，因此不需要人工同步字符串）。**不设任何环境变量**，起服务后即可在 `/license` 激活。厂商生产节点与生产公钥已从代码中彻底移除，默认配置只指向自建授权服务器。
+客户端默认值写在 `backend/config.py`：端点 `http://127.0.0.1:18082`、公钥镜像 `keys/` 及其 sha256，**密钥 id 由公钥文件字节派生**（形如 `hb-3f2a…`；服务端与客户端各自从自己那份镜像算出同一个值，因此不需要人工同步字符串）。**不设任何环境变量**，起服务后即可在 `/license` 激活。厂商生产节点与生产公钥已从代码中彻底移除，默认配置只指向自建授权服务器。
 
 整个体系是「服务端签发 Ed25519 签名租约 → 客户端离线验签 → 定期心跳续租」：租约 7 天有效，客户端每 300 秒续租一次；传输层为 X25519 ECDH → HKDF-SHA256 → AES-256-GCM，端点路径本身也参与派生与认证。
 
@@ -346,7 +353,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 才判定为确认吊销并清空本地授权。
 
 其余 401/403（无上述字段）视为瞬时故障（保留本地授权继续重试）。
-详见 `backend/app/license/service.py` 的 `is_confirmed_revocation`。
+详见 `backend/license/service.py` 的 `is_confirmed_revocation`。
 
 ## 3D 户型工作室
 
@@ -455,7 +462,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | `/api/v1/updates` | 版本更新检查 |
 | `/api/v1/ws/runtime` | 实时状态 WebSocket（需 `runtime.websocket`） |
 | `/api/camera_hls/*`、`/api/camera_proxy/*`、`/api/hls/*` 等 | 摄像头与媒体代理（反向代理需一并转发） |
-| `/static/*` | 前端静态资源（静态目录扁平：`/static/home.js`、`/static/app.css`） |
+| `/static/*` | 前端静态资源（按功能域分区：`/static/editor/home.js`、`/static/app.css`） |
 | `/assets/builtin/*` | 需登录或已配对，且授权允许 `assets` |
 | `/component-lab`、`/template-assets/*` | 有意保留的 404 占位路由 |
 
@@ -683,8 +690,8 @@ docker exec homeos-3d rm /tmp/app.tar.gz
 - 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
 - 不要改 `frontend/static/vendor/` 下的 three.js、hls.js、OrbitControls 等第三方文件。
 - 界面中文文案保持原词；缓存戳改动请用 `tools/bump_static_cache_versions.mjs`。
-- 静态资源是扁平目录：`/static/home.js`、`/static/app.css`；子目录为 `renderer/`、`3d-studio/`、`modules/`、`utils/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`。
-- `migrations/env.py` 必须从 `backend/app` 导入 `database` 和 `models`（`from backend.app.database import Base`），不要写成相对导入，否则会重复注册表。
+- 静态资源按功能域分区：`app.css` 留在挂载根，其余分入 `bridge/`、`editor/`、`renderer/`、`display/`、`auth/`、`shared/`、`logging/`、`assets/`，以及原有的 `utils/`、`3d-studio/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`。移动文件后请跑 `node tools/check_structure_refs.mjs` 校验引用与后端路径清单。
+- `migrations/env.py` 必须从 `backend` 导入 `database` 和 `models`（`from backend.database import Base`），不要写成相对导入，否则会重复注册表。
 - 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename}` 下发，需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
 - 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前，令牌值与 `frontend/static/app.css` 对齐。详见 [store/README.md](store/README.md) 的「界面主题」。
 - 改动商店授权端点吊销响应时，须保留结构化 `code` / `revoked` 字段（客户端只认这些，不再匹配 detail 文案）。
@@ -712,7 +719,7 @@ node tools/bump_static_cache_versions.mjs
 
 - 不再内置任何自动化测试 / 探针：删除 `.github/workflows/ci.yml`、`docker-compose.smoke.yml`、`backend/tools/*`（冒烟、前端探针、API 错误探针）与 `store/tools/{smoke,e2e,*probe}`；`docker.yml` 去掉 `smoke` job，只保留多架构构建与可选远端部署。**仓库此后没有自动化回归网，改动请人工走关键路径。**
 - 删除运维脚本 `store/tools/{seed,gen_keys,migrate_points}.py`：密钥准备改由 `docker/license_keys.py`（`start.py` 与容器启动共用）完成，商品目录 / 站点配置由 `store/bootstrap.py` 启动时幂等补齐，积分迁移在启动时自动执行。同步删除 `ruff.toml`、`eslint.config.mjs`、根 `package.json` / `package-lock.json`（`docker/package*.json` 保留）。`tools/bump_static_cache_versions.mjs` **保留**（静态资源 `?v=` 同戳仍靠它统一改写；它只用 Node 内置模块，不依赖被删的根 `package.json`）。
-- 清理死代码与重复实现：删除 `floor-lamp.glb` 孤儿模型、`is_blacklisted()`、`public_key_pem()`、`showCapabilityDetails()`、`bootstrap_admin_*` 配置项、两个限流器的 `tracked_keys()` 与全局日志的三个排障计数器；新增 `backend/app/canonical_json.py`、`backend/app/http_cache.py`、`frontend/static/utils/icon-url.js`、`frontend/static/utils/datetime.js`、`frontend/static/utils/interaction-pages.js` 收敛此前逐处手写的规范 JSON、Cache-Control、图标 URL、时间格式与交互页面清单（那份清单原有三份字面量）。
+- 清理死代码与重复实现：删除 `floor-lamp.glb` 孤儿模型、`is_blacklisted()`、`public_key_pem()`、`showCapabilityDetails()`、`bootstrap_admin_*` 配置项、两个限流器的 `tracked_keys()` 与全局日志的三个排障计数器；新增 `backend/canonical_json.py`、`backend/http_cache.py`、`frontend/static/utils/icon-url.js`、`frontend/static/utils/datetime.js`、`frontend/static/utils/interaction-pages.js` 收敛此前逐处手写的规范 JSON、Cache-Control、图标 URL、时间格式与交互页面清单（那份清单原有三份字面量）。
 - 资金路径上的重复释放收敛为两处唯一实现：`store/fulfill.close_pending_order()`（CAS 抢 `pending` 后推进终态，「用户取消 / 后台取消 / 模拟收银台取消 / 超时过期 / 渠道对账兜底」五处共用）与 `store/fulfill.release_order_effects()`（归还预占 + 名额，闭单与「下单即失败」路径共用）。原先这段在十余处各写一遍，抄漏一处就会让 `reserved_stock` 虚高或优惠码名额被永久占用 —— 都不报错，只在某天被发现。
 - `canonical_json` 补齐漏网调用点：`interaction3d/config.py`（光区覆盖表键比对）、`api/assets.py`（裁剪元数据落盘）、`api/global_logs.py`（导出上下文）、`license/service.py`（权益集落库），以及 `interaction3d/api.py` 分桶摘要那处**漏写 `ensure_ascii=False`** 的真实分歧。
 - `meteoconUrl` 并入 `utils/icon-url.js`：它与 `mdiIconUrl` 是同一条「图标名 → vendor 地址」知识（共用同一条「只放行小写字母 / 数字 / 连字符」的白名单约束），原先 `home.js` 与 `registry.js` 各写一份 mdi 版本、`weather-chart-runtime.js` 自带 meteocons 版本。
@@ -738,8 +745,8 @@ node tools/bump_static_cache_versions.mjs
 
 安全加固
 
-- 首次设置窗口（`backend/app/setup_guard.py`）：`/api/v1/setup/admin` 过去只受「管理员账号文件是否存在」这一道闸门保护，任何能连上机器的人都能抢先把管理员建掉并当场拿到会话。现在**本机直连放行**（TCP 对端是 loopback 且请求不带任何转发头），其它来源必须带引导密钥（`APP_SETUP_TOKEN`，或首次启动自动生成并落盘到 `data/setup-token`、打印到启动日志的那一串）；失败计入登录限流，成功与失败都写审计，初始化成功后密钥立即作废。
-- 真实来源 IP（`backend/app/http_security.py`、`store/request_security.py`）：两个服务默认**不信任任何转发头**，限流、审计与登录记录一律按 TCP 对端统计 —— 此前不可信来源自己写 `X-Forwarded-For` 就能给限流换一个新桶，形同虚设。配了 `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` 后也只在连接确实来自代理时才认转发链；拿不到真实来源时按 IP 那一档主动让位，避免共享地址被一个人的失败锁死所有人。
+- 首次设置窗口（`backend/setup_guard.py`）：`/api/v1/setup/admin` 过去只受「管理员账号文件是否存在」这一道闸门保护，任何能连上机器的人都能抢先把管理员建掉并当场拿到会话。现在**本机直连放行**（TCP 对端是 loopback 且请求不带任何转发头），其它来源必须带引导密钥（`APP_SETUP_TOKEN`，或首次启动自动生成并落盘到 `data/setup-token`、打印到启动日志的那一串）；失败计入登录限流，成功与失败都写审计，初始化成功后密钥立即作废。
+- 真实来源 IP（`backend/http_security.py`、`store/request_security.py`）：两个服务默认**不信任任何转发头**，限流、审计与登录记录一律按 TCP 对端统计 —— 此前不可信来源自己写 `X-Forwarded-For` 就能给限流换一个新桶，形同虚设。配了 `APP_TRUSTED_PROXIES` / `STORE_TRUSTED_PROXIES` 后也只在连接确实来自代理时才认转发链；拿不到真实来源时按 IP 那一档主动让位，避免共享地址被一个人的失败锁死所有人。
 - Cookie `Secure` 自动判定：漏配 `APP_COOKIE_SECURE` / `STORE_COOKIE_SECURE` 不再让会话 Cookie（能看订单、能提现、能控中控）明文下发，纯 http 局域网也不会误加。
 - CSRF 同源闸门：主应用拦非 GET 的 `/api/*`，商店拦非 GET 的 `/store/v1/*` 与 `/store-admin/v1/*`；只认裸的 `scheme://host`，`http://evil@本机地址/` 这类写法不会被误判为同源。`/v2/*` 授权端点与支付宝异步回调豁免（前者报文加密签名、后者靠签名校验，都没有浏览器 Origin）。
 - 登录会话管理：新增 `GET /api/v1/auth/sessions`（只回令牌哈希）、`DELETE /api/v1/auth/sessions/{id}` 与 `DELETE /api/v1/auth/sessions`，并补上绝对寿命 `APP_SESSION_HARD_MAX_AGE_SECONDS` —— 滑动续期不能再把一枚被盗 Cookie 无限续下去。
@@ -798,7 +805,7 @@ node tools/bump_static_cache_versions.mjs
     - 授权服务器提供 `/v2/activate`、`/v2/heartbeat`、`/v2/recover`：Ed25519 签名租约、X25519 + HKDF-SHA256 + AES-256-GCM 加密传输，租约 7 天、心跳 300 秒续租。
     - 运营后台 `/admin` + `/store-admin/v1/*`：概览、商品、订单、授权、设备绑定、优惠码、提现审核、账号、站点配置、版本发布与审计日志；暗色 + 琥珀统一主题。
     - 支付渠道 `mock`（本地收银台）与 `alipay`（当面付扫码）可切换；异步通知验签 + 主动查单兜底，统一入账且重复通知只发一次码。
-- 客户端默认零配置指向自建授权服务器（`backend/app/config.py` 内置端点、由公钥派生的 keyId 与公钥 sha256），厂商生产节点与生产公钥已彻底移除。
+- 客户端默认零配置指向自建授权服务器（`backend/config.py` 内置端点、由公钥派生的 keyId 与公钥 sha256），厂商生产节点与生产公钥已彻底移除。
 - 仓库根 `keys/` 作为客户端信任锚公钥镜像，由 `store.tools.gen_keys` 从 `store/keys/local/` 自动同步，二者逐字节一致。
 - 新增 `.env` 本地配置（SMTP 授权码、支付宝私钥等只落在被 gitignore 的 `.env` 里，随仓库分发的 `.env.example` 只含占位符）与 `store/env.py` 极简加载器。
 - 新增 `tools/bump_static_cache_versions.mjs`（统一静态资源 `?v=YYYYMMDDHHMMSS`）。

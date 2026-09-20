@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>HomeOS 授权商店 · 管理后台</title>
-<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260920080000">
-<link rel="stylesheet" href="/store-static/theme.css?v=20260920080000">
-<link rel="stylesheet" href="/store-static/admin.css?v=20260920080000">
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260920093608">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260920093608">
+<link rel="stylesheet" href="/store-static/admin.css?v=20260920093608">
 </head>
 <body>
 
@@ -29,7 +29,7 @@
     </aside>
     <section class="login-card">
       <div class="login-card__brand">
-        <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260920080000" alt=""></span>
+        <span class="login-card__mark"><img src="/store-static/homeos-mark-light.svg?v=20260920093608" alt=""></span>
         <div>
           <strong>管理员登录</strong>
           <p>使用管理员邮箱进入授权商店后台。</p>
@@ -65,7 +65,7 @@
 <div id="admin-app" class="admin-shell" hidden>
   <aside class="admin-side">
     <div class="brand">
-      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=20260920080000" alt=""></span>
+      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=20260920093608" alt=""></span>
       <div class="brand__text">
         <strong>HomeOS</strong>
         <small>授权商店后台</small>
@@ -1525,8 +1525,8 @@
 <!-- 内联脚本必须带 nonce 占位符：服务端每响应替换成一次性随机值，
      否则会被自身的 CSP（script-src 无 'unsafe-inline'）挡下。
      见 store/request_security.py 的 CSP_NONCE_PLACEHOLDER。 -->
-<script src="/store-static/htmlsafe.js?v=20260920080000"></script>
-<script src="/store-static/api-error.js?v=20260920080000"></script>
+<script src="/store-static/htmlsafe.js?v=20260920093608"></script>
+<script src="/store-static/api-error.js?v=20260920093608"></script>
 <script nonce="{{NONCE}}">
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -2911,8 +2911,8 @@ $('#overview-incidents-ack').addEventListener('click', async () => {
 // --------------------------------------------------------------------------- //
 // 功能码选择器（商品「功能码」多选 / 权益「功能码」单选共用）
 // --------------------------------------------------------------------------- //
-// 功能码是主程序的能力码（backend/app/license/service.py 的 BASE_FEATURES
-// + backend/app/modules/interaction3d/access.py 的 module.3d_interaction），
+// 功能码是主程序的能力码（backend/license/service.py 的 BASE_FEATURES
+// + backend/modules/interaction3d/access.py 的 module.3d_interaction），
 // 决定客户端能用哪些能力。编辑它的地方过去都是手写英文代码的输入框：抄错一个字母
 // 不会报错——履约照发，客户端只是静默拦截，这类隐性故障极难定位。
 //

@@ -7,8 +7,8 @@
 
 代码清单必须与主项目保持一致：
 
-* ``backend/app/license/service.py`` 的 ``BASE_FEATURES``（9 项基础能力）
-* ``backend/app/modules/interaction3d/access.py`` 的 ``FEATURE``（3D 交互增量包）
+* ``backend/license/service.py`` 的 ``BASE_FEATURES``（9 项基础能力）
+* ``backend/modules/interaction3d/access.py`` 的 ``FEATURE``（3D 交互增量包）
 
 新增能力码时先改主项目，再补到这里；两边对不上等于运营勾了发不出去的能力。
 """

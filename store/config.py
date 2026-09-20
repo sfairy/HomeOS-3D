@@ -32,7 +32,7 @@ DEFAULT_DEVICE_RELEASE_COOLDOWN_SECONDS = 28800
 #:
 #: 1. **离线可用时长**：客户端把签名租约存进本地库，签名有效期内即使连不上商店也
 #:    照常放行（状态降为 ``CONNECTION_WARNING``）；租约一过就转 ``LEASE_EXPIRED``
-#:    并收回编辑器功能（见 ``backend/app/license/service.py`` 的 ``_payload``）。
+#:    并收回编辑器功能（见 ``backend/license/service.py`` 的 ``_payload``）。
 #: 2. **吊销生效上界**：管理后台停用授权/解绑设备时，客户端要等**下一次成功心跳**
 #:    才会知道。对一台**持续离线**的客户端，最坏情况就是撑到租约到期 —— 所以
 #:    「吊销最慢多久生效」在数值上就等于这个 TTL。

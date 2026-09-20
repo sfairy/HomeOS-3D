@@ -7,10 +7,10 @@
  *
  *   · `static/home.js` 的 `requestJson`、`static/license.js` 的 `errorMessage`、`static/display.js`、
  *     `static/global-log-boot.js`、`static/3d-studio/studio-app.js`、`static/renderer/renderer.js`、
- *     `modules/interaction3d/runtime.js` —— 七份只认「字符串」与 `detail.message`，**没有一个认
+ *     `modules/runtime/runtime.js` —— 七份只认「字符串」与 `detail.message`，**没有一个认
  *     数组**；
  *   · `static/setup.js` 那一份认数组（`detail[0]?.msg`），于是同一类错误只有初始化页可读；
- *   · `static/modules/interaction3d/editor.js` 那一份只认字符串，连 `detail.message` 都不认 ——
+ *   · `static/bridge/editor.js` 那一份只认字符串，连 `detail.message` 都不认 ——
  *     户型载入失败时一律退成页面自己的重试文案。
  *
  * 少一种形态不会有任何报错，只会让某一类错误在**某一个页面**上变成看不懂的一句话。这不是假设：
@@ -41,7 +41,7 @@
  * 剩下的用 `.` 拼（`body.items.0.days` → `items.0.days`）。
  *
  * 与后端的**分工**（刻意不重叠，免得同一份知识又变成两份）：
- *   · 后端负责「**这一次校验为什么没过、该怎么改**」—— `backend/app/main.py` 的
+ *   · 后端负责「**这一次校验为什么没过、该怎么改**」—— `backend/main.py` 的
  *     `RequestValidationError` 处理器在标准 422 体上**追加**一个顶层 `message`：中文摘要，且知道
  *     约束值（例如「参数 activationCode 长度不足（至少 8 个字符）。」）。它只在校验失败时出现。
  *   · 这里负责「**从任意错误载荷里挑出最能说明问题的那句话、并保证永远不出现 `[object Object]` /

@@ -1,6 +1,6 @@
 """授权服务器侧的加密传输与租约签名。
 
-必须与客户端 `backend/app/license/crypto.py` **逐字节对齐**：
+必须与客户端 `backend/license/crypto.py` **逐字节对齐**：
 
 - HKDF info = ``PROTOCOL + 0x00 + keyId + 0x00 + path``（salt=None, SHA-256, 32 字节）
 - AES-GCM AAD = ``PROTOCOL + 0x00 + b"request"|b"response" + 0x00 + path + 0x00 + keyId``
@@ -196,7 +196,7 @@ class KeyRegistry:
     * 服务端先换新密钥、客户端还是旧的 —— 旧客户端发上来的 ``keyId`` 命中上一代，
       用上一代的传输私钥解开、用上一代的签名密钥签租约，客户端照旧验得过；
     * 客户端先更新、服务端还是旧的 —— 客户端可信表里同时登记新旧两把公钥
-      （见 ``backend/app/config.py``），旧的照样能用。
+      （见 ``backend/config.py``），旧的照样能用。
 
     没有这张表时这两种状态都会硬失败：报「keyId 不匹配」（传输层）或
     「不受信任的授权公钥」（验签层）—— 两种都很像被攻击，实际只是在轮换。

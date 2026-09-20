@@ -1,6 +1,6 @@
 """请求来源解析与同源校验（真实客户端 IP / HTTPS 判定 / CSRF 同源闸门）。
 
-与 ``backend/app/http_security.py`` 是同一套判定逻辑的两份实现：两个服务是独立部署、
+与 ``backend/http_security.py`` 是同一套判定逻辑的两份实现：两个服务是独立部署、
 独立配置的（商店跑在 18082，中控后台跑在另一个进程），因此刻意不互相 import，
 免得一方的改动把另一方的启动也带崩。改这里时请同步改那边。
 
@@ -199,7 +199,7 @@ def expected_request_scheme(request: Request) -> str:
     B28：``_origin_allowed`` 原先拿 **Origin 自己带的 scheme** 去拼白名单
     （``f"{parsed.scheme}://{host}"``），等于让攻击者页面自己声明「我是 https 同源」。
     同主机的明文页面因此能驱动 HTTPS 站点的带 Cookie 写请求。scheme 是攻击者能决定的，
-    Host 不是，所以必须由部署形态给出。与 ``backend/app/http_security.py`` 的同名函数
+    Host 不是，所以必须由部署形态给出。与 ``backend/http_security.py`` 的同名函数
     是刻意重复的两份，改一处必须同步改另一处。
     """
     settings = _settings(request)

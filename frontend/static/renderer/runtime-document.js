@@ -13,11 +13,11 @@
  * 与后端 /api/projects 下发的 JSON 结构一致。
  */
 
-import { selectedRelatedEntityIds } from "../related-entities.js?v=20260920080000";
-import { isVirtualEntityId } from "../virtual-entities.js?v=20260920080000";
+import { selectedRelatedEntityIds } from "../shared/related-entities.js?v=20260920093608";
+import { isVirtualEntityId } from "../shared/virtual-entities.js?v=20260920093608";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
 // 本文件原先内联了 `stateOrChange?.newState || stateOrChange`（P12 状态条目内联收口）。
-import { resolveStateEntry } from "../utils/state-entry.js?v=20260920080000";
+import { resolveStateEntry } from "../utils/state-entry.js?v=20260920093608";
 /**
  * 判断状态是否需要从后端补历史 / 详情。
  *

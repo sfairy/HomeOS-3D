@@ -81,7 +81,7 @@ Docker / Compose 部署见仓库根 `README.md`。改动前后请人工走一遍
 
 ## 三、客户端默认已指向自建授权服务器（零配置）
 
-客户端默认值写在 `backend/app/config.py`：端点 `http://127.0.0.1:18082`、公钥镜像
+客户端默认值写在 `backend/config.py`：端点 `http://127.0.0.1:18082`、公钥镜像
 `keys/`、指纹为自建默认，**keyId 由公钥文件派生**（两侧各自从自己那份镜像算出同一个
 值，因此不必人工同步字符串）。**不设任何环境变量**，起服务后即可在 `/license`
 页用「激活码 + 购买邮箱」激活（授权码来自账号中心）：
@@ -383,7 +383,7 @@ half-away-from-zero、Python 是 half-even，落在 `.xx5` 上时给出不同分
 
 - `store/keys/local/` 下的私钥**不要提交到任何公开仓库**，它是授权服务器签名与传输的真相源。
 - 仓库根 `keys/*.pem` 是**客户端默认读取的公钥镜像**，由启动时的密钥准备流程（`docker/license_keys.py` / `start.py`）从 `store/keys/local/` 自动同步。客户端按 PEM **文件字节** 校验指纹，两处必须逐字节一致。
-- 轮换密钥：按上文「密钥轮换（S52）」把现有四件套改名成 `*.previous.pem` 后生成新四件套，镜像到仓库根 `keys/`；若不改用环境变量覆盖，请把新公钥字节的 sha256 更新进 `backend/app/config.py` 的 `DEFAULT_LICENSE_*` 常量。
+- 轮换密钥：按上文「密钥轮换（S52）」把现有四件套改名成 `*.previous.pem` 后生成新四件套，镜像到仓库根 `keys/`；若不改用环境变量覆盖，请把新公钥字节的 sha256 更新进 `backend/config.py` 的 `DEFAULT_LICENSE_*` 常量。
 - 传输层：X25519 ECDH → HKDF-SHA256 → AES-256-GCM，`path` 参与 HKDF/AAD 派生，所以端点路径本身也被认证。
 - 租约层：Ed25519 对 canonical JSON 的**原始字节**签名，`leaseSequence` 同 `activationCodeId` 下严格递增。
 - 只有写入默认密钥目录（`store/keys/local/`）时才会同步 `keys/` 镜像；用临时目录做一次性测试时不要执行同步，否则会用一次性密钥覆盖客户端信任锚。
@@ -399,7 +399,7 @@ half-away-from-zero、Python 是 half-even，落在 `.xx5` 上时给出不同分
 - `客户、激活码或实例绑定已停用`
 - `商品授权有效期已结束`
 
-其余 401/403 视为瞬时故障（保留本地授权继续重试）。改文案前请先看 `backend/app/license/service.py` 的 `is_confirmed_revocation`。
+其余 401/403 视为瞬时故障（保留本地授权继续重试）。改文案前请先看 `backend/license/service.py` 的 `is_confirmed_revocation`。
 
 ### 7.1 会话与恢复凭证：只发不吊销的时代结束了
 
@@ -634,8 +634,8 @@ body            { overflow: hidden; }
 注意 `pending` / `paid` 在订单与提现里含义不同（订单「待付款 / 已付款」vs 提现「待审核 / 已
 提现」），所以 `statusBadge(status, labels)` 接受一张标签表，两张表不能合并共用。
 
-同一口径也用在**功能码**上。功能码是主程序的能力码（`backend/app/license/service.py`
-的 `BASE_FEATURES` + `backend/app/modules/interaction3d/access.py` 的 `module.3d_interaction`），
+同一口径也用在**功能码**上。功能码是主程序的能力码（`backend/license/service.py`
+的 `BASE_FEATURES` + `backend/modules/interaction3d/access.py` 的 `module.3d_interaction`），
 决定客户端能用哪些能力。后台过去是逗号分隔 / 手写英文代码的输入框：运营得背代码，抄错一个
 字母不会报错——履约照发，客户端只是静默拦截，这类隐性故障极难定位。现在改成中文选择器，
 **三处共用同一个组件**（商品「功能码」多选，权益「手工补权益」与「改期 / 开关」单选）：

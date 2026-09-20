@@ -2,17 +2,17 @@
 <!--
   登录页（/login）。
   后端门禁顺序固定：未初始化先 303 去 /setup；已登录则按 ?next= 直接跳走（只认站内单斜杠路径）。
-  页面本身不做能力判定，登录成功后由 /static/login.js 跳回 ?next=，再由目标页自己触发 editor 授权门禁。
+  页面本身不做能力判定，登录成功后由 /static/auth/login.js 跳回 ?next=，再由目标页自己触发 editor 授权门禁。
   视觉对齐激活页（/license）与初始化页（/setup）：顶栏品牌 + 左栏说明 / 右栏表单，
-  样式统一走 /static/setup.css（勿再引用 auth.css 的展示壳）。
-  入口脚本：/static/auth-shell.js（与 /pair 共用的密码显隐）、/static/login.js（表单提交）。
+  样式统一走 /static/auth/setup.css（勿再引用 auth.css 的展示壳）。
+  入口脚本：/static/auth/auth-shell.js（与 /pair 共用的密码显隐）、/static/auth/login.js（表单提交）。
   CSP 为 style-src 'self'，因此页面里不能写内联样式与内联脚本。
 -->
 <html lang="zh-CN">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/client-log.js?v=20260920080000"></script>
+    <script src="/static/logging/client-log.js?v=20260920093608"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#151a1f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -22,19 +22,19 @@
     <title>登录 · HomeOS</title>
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；同一次发布里所有静态资源必须共用同一枚时间戳，
          否则浏览器会新老混用（例如新的 setup.css 配旧的 login.js）。 -->
-    <link rel="icon" href="/static/homeos-favicon-h5.ico?v=20260920080000" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/homeos-favicon-h5.svg?v=20260920080000" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/homeos-icon-180-h5.png?v=20260920080000" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/homeos-icon-180-h5.png?v=20260920080000" sizes="180x180" />
-    <link rel="manifest" href="/static/manifest-h5.webmanifest?v=20260920080000" />
-    <link rel="stylesheet" href="/static/setup.css?v=20260920080000" />
+    <link rel="icon" href="/static/assets/homeos-favicon-h5.ico?v=20260920093608" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/homeos-favicon-h5.svg?v=20260920093608" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/homeos-icon-180-h5.png?v=20260920093608" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/homeos-icon-180-h5.png?v=20260920093608" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest-h5.webmanifest?v=20260920093608" />
+    <link rel="stylesheet" href="/static/auth/setup.css?v=20260920093608" />
   </head>
   <body>
     <header class="hb-setup-topbar">
       <div class="hb-container hb-setup-topbar__inner">
         <a class="hb-setup-brand" href="/login" aria-label="HomeOS">
           <span class="hb-setup-brand__mark">
-            <img src="/static/homeos-mark-white-orange.svg?v=20260920080000" alt="" />
+            <img src="/static/assets/homeos-mark-white-orange.svg?v=20260920093608" alt="" />
           </span>
           <span class="hb-setup-brand__text">
             <strong>HomeOS</strong>
@@ -109,8 +109,8 @@
 
     <!-- auth-shell.js 必须在 login.js 之前执行：它负责按 data-toggle-password 绑定密码显隐
          （本页已不再有角色区，缺少角色区不会影响显隐）；login.js 只关心表单本身，两者互不等待。
-         这里同样要带 ?v=20260920080000 -->
-    <script type="module" src="/static/auth-shell.js?v=20260920080000"></script>
-    <script type="module" src="/static/login.js?v=20260920080000"></script>
+         这里同样要带 ?v=20260920093608 -->
+    <script type="module" src="/static/auth/auth-shell.js?v=20260920093608"></script>
+    <script type="module" src="/static/auth/login.js?v=20260920093608"></script>
   </body>
 </html>

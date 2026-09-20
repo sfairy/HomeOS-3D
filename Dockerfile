@@ -18,7 +18,7 @@ FROM js-tools AS frontend-protected
 WORKDIR /work
 COPY frontend ./frontend
 RUN node /opt/obfuscate/obfuscate_javascript.mjs frontend \
-    && ! grep -q '全局日志上报的启动引导' frontend/static/global-log-boot.js \
+    && ! grep -q '全局日志上报的启动引导' frontend/static/logging/global-log-boot.js \
     && grep -q . frontend/static/vendor/three/0.182.0/three.module.min.js
 
 
@@ -68,8 +68,8 @@ COPY migrations ./migrations
 COPY keys ./keys
 RUN mkdir -p /app/image \
     && python /tmp/strip_python_sources.py /app \
-    && test ! -f /app/backend/app/main.py \
-    && test -f /app/backend/app/main.pyc \
+    && test ! -f /app/backend/main.py \
+    && test -f /app/backend/main.pyc \
     && test -f /app/migrations/env.py \
     && test -f /app/container_entrypoint.pyc \
     && test -f /app/docker/start_app.pyc \

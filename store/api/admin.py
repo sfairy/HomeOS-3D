@@ -750,7 +750,7 @@ def _assert_product_configuration(
     codes = [str(code).strip() for code in (feature_codes or []) if str(code).strip()]
     unknown = sorted({code for code in codes if code not in features.FEATURE_CODES})
     if unknown:
-        # 能力码清单在主项目（``backend/app/license/service.py``）与
+        # 能力码清单在主项目（``backend/license/service.py``）与
         # ``store/features.py`` 里各有一份、必须同步；抄错的码不会让任何一步报错，
         # 只会在客户端被静默拦截，所以宁可在这里拒绝。
         raise HTTPException(

@@ -54,13 +54,13 @@
  *     后者落在无法整份加载的 DOM 渲染路径上、没有对照可挂，理由写在 `renderer.js` 的
  *     import 注释里。
  *
- * **P12 收口（续）：3D 运行时树那三处也收了**（`modules/interaction3d/` 的 `light-state.js` /
+ * **P12 收口（续）：3D 运行时树那三处也收了**（`modules/runtime/` 的 `light-state.js` /
  *   `runtime.js` / `television-state.js`）。原先记的理由是「后端按
  *   `/api/v1/modules/interaction3d/` 提供、与 `/static/` 是两个独立加载边界」—— 复核后**那条
  *   理由不成立**：真实的约束只有一条「运行侧的文件不能写裸 `/static/...` 的**静态** import
  *   （舞台页能以 `file:` 打开，那时它会被解析到文件系统根目录）」，而那棵树里早就有七处按
  *   `import.meta.url` 分流的条件动态导入。于是这段导入收进一个纯转出口
- *   `modules/interaction3d/static-helpers.js`（桥），那棵树里 33 处内联剥壳与 3 处内联切域
+ *   `modules/runtime/static-helpers.js`（桥），那棵树里 33 处内联剥壳与 3 处内联切域
  *   一并换成共享实现 —— 「按 ID 切域」此后在**两棵树里**都只有这一份实现。桥的纪律
  *   （只许转手导出、不许成为第二份实现）见该文件。
  *

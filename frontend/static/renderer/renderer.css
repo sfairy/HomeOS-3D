@@ -11,7 +11,7 @@
  * 两套控件外观 ——
  *   - index.html：编辑器，会加 .editable / .selected 等编辑态类；
  *   - display.html：中控展示页，只有运行态（无 .editable）；
- *   - modules/interaction3d/popup-preview.js：3D 场景里的弹窗预览，
+ *   - modules/runtime/popup-preview.js：3D 场景里的弹窗预览，
  *     按同一份样式注入 iframe，保证 3D 弹窗与 2D 展示页长得一样。
  *
  * 主题变量从哪来：文档里的 theme.variables（默认取

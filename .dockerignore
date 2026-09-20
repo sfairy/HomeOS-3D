@@ -15,15 +15,19 @@ store/keys/local
 .env.*
 !.env.example
 
-# 本地临时目录与旧构建
+# 本地临时目录、旧构建与对照源
 /app
 .deobf
 原项目
+源代码
 image
 
 # 文档与开发产物（不进运行镜像）
 *.md
 !README.md
+docs
+deploy
+tools
 
 # 依赖目录
 node_modules

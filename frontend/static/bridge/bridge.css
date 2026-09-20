@@ -1,0 +1,757 @@
+/*
+ * 3D 交互组件在渲染器与编辑器中的宿主样式。
+ *
+ * 位置：渲染器把一个 iframe（.i3d-frame）挂进 .hb-interaction3d-host，本文件负责这块宿主区域
+ *   的尺寸、授权状态外观、场景入场动画、封面（未授权遮罩）以及组件检查器里各设置区块的排布。
+ *   入口先 @import controls.css —— 开关样式单独成文件，是为了让同一套开关在多个编辑器复用。
+ * 约定：
+ *   - 授权状态通过宿主元素上的 data-access 属性（locked / pending / allowed）切换外观，
+ *     取值与 access-monitor.js 的状态流一一对应；
+ *   - iframe 在 .is-ready 出现前保持 opacity: 0，避免白屏闪烁；入场动画见 @keyframes i3d-scene-enter；
+ *   - 封面类名 .interaction3d-cover-* 与 cover.js 里创建的元素一一对应，改名会同时失效。
+ */
+
+/* ===== 宿主容器与授权状态 ===== */
+
+@import "/static/bridge/controls.css?v=20260920093608";
+/* 宿主铺满组件区域并把内容居中；透明背景让组件的背景设置（网格 / 星尘）由内部渲染决定。 */
+.hb-interaction3d-host {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: 14px;
+  color: #e8ecef;
+  background: transparent;
+  text-align: center;
+}
+/* 渲染器注入的包装层必须撑满，否则下面 iframe 的 inset: 0 会退化成零尺寸。 */
+.hb-interaction3d-host > div {
+  width: 100%;
+  height: 100%;
+}
+/* 锁定态保留边框与深色底：让封面看起来是一张卡片，而不是组件位置空了一块。 */
+.hb-interaction3d-host[data-access="locked"] {
+  border: 1px solid #39423e;
+  background: #151c20;
+}
+/* 运行层是 iframe 的定位上下文（relative），并裁掉超出组件的部分。 */
+.hb-interaction3d-host .hb-interaction3d-runtime {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+/* iframe 铺满宿主但默认全透明：舞台页首帧白屏不会被看到，等 .is-ready 再淡入。 */
+.hb-interaction3d-host .i3d-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+}
+/* 就绪信号由舞台页发出；缓动曲线统一，避免每次挂载的观感不一致。 */
+.hb-interaction3d-host .is-ready .i3d-frame {
+  opacity: 1;
+  animation: i3d-scene-enter 0.48s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+/* 只过渡不透明度：首帧做位移 / 缩放会让人误以为组件位置抖动。 */
+@keyframes i3d-scene-enter {
+  0% {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* 尊重系统的「减少动态效果」偏好：直接跳到终态。 */
+@media (prefers-reduced-motion: reduce) {
+  .hb-interaction3d-host .is-ready .i3d-frame {
+    animation: none;
+  }
+}
+/* 背景隐藏模式：连边框一起去掉，让 3D 场景像直接画在画布上。 */
+.hb-interaction3d-host[data-access="allowed"].is-background-hidden {
+  background: transparent;
+  border-color: transparent;
+}
+/* 校验中不画边框：授权结果通常几百毫秒内就回来，画框会闪一下。 */
+.hb-interaction3d-host[data-access="pending"] {
+  border-color: transparent;
+}
+/* 等待文案继承宿主背景，确保与后续出现的封面底色一致，切换时不闪色。 */
+.hb-interaction3d-host .i3d-access-pending {
+  display: grid;
+  place-content: center;
+  padding: 16px;
+  background: inherit;
+  color: #89949d;
+  font:
+    12px/1.6 system-ui,
+    sans-serif;
+}
+/* ===== 检查器：视图与光照设置 ===== */
+
+/* 设置区块统一用 grid 排布，间距 12px 与检查器其它区块保持一致。 */
+#interaction3d-inspector .i3d-view-options {
+  display: grid;
+  gap: 12px;
+}
+/* 滑块占满剩余宽度，右侧数值用等宽数字（tabular-nums）避免拖动时宽度跳动。 */
+#interaction3d-inspector .i3d-vignette-setting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+#interaction3d-inspector .i3d-vignette-setting input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+#interaction3d-inspector .i3d-vignette-setting output {
+  flex: none;
+  min-width: 32px;
+  text-align: right;
+  color: var(--text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+/* 房屋操作按单列排布：窄面板下按钮独占一行，min-width: 0 防止文字把布局撑破。 */
+#interaction3d-inspector .i3d-house-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+#interaction3d-inspector .i3d-house-actions button {
+  min-width: 0;
+  padding: 6px 4px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+#interaction3d-inspector .inspector-section > button {
+  font-size: 11px;
+}
+/* 手势开关两列等宽；minmax(0, 1fr) 是关键，否则长文案会把列宽顶开。 */
+#interaction3d-inspector .i3d-gesture-toggles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+#interaction3d-inspector .i3d-view-toggle {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+/* 自动旋转行：左侧文案不换行，右侧的分段控件按内容宽度固定（flex: 0 0 auto），不参与拉伸。 */
+#interaction3d-inspector .i3d-auto-rotate-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+#interaction3d-inspector .i3d-auto-rotate-row .i3d-view-toggle {
+  white-space: nowrap;
+  gap: 6px;
+}
+#interaction3d-inspector .i3d-auto-rotate-row .navigation-segmented-options {
+  flex: 0 0 auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#interaction3d-inspector .i3d-auto-rotate-row button {
+  padding-inline: 7px;
+  white-space: nowrap;
+}
+/* 视图编辑 / 范围编辑期间关掉画布选择覆盖层的指针事件，
+ * 否则在 3D 场景里的拖动会被编辑器的选择层吃掉，无法旋转或拉范围。 */
+.hb-renderer-canvas:has(.hb-interaction3d-runtime.is-view-editing)
+  > .hb-component-selection-overlay,
+.hb-renderer-canvas:has(.hb-interaction3d-runtime.is-view-editing)
+  > .hb-component-selection-overlay
+  *,
+.hb-renderer-canvas:has(.hb-interaction3d-runtime.is-range-editing)
+  > .hb-component-selection-overlay,
+.hb-renderer-canvas:has(.hb-interaction3d-runtime.is-range-editing)
+  > .hb-component-selection-overlay
+  * {
+  pointer-events: none !important;
+}
+/* ===== 未授权封面 ===== */
+
+/* isolation: isolate 把封面内部的层叠与混合模式与外部隔离，避免被画布上的效果影响。 */
+.interaction3d-cover {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  place-items: center;
+  isolation: isolate;
+  background: #141922;
+}
+/* contain 保证缩略图完整可见（不裁切），宁可留边也不丢内容。 */
+.interaction3d-cover > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+}
+/* 标题层铺满封面并压一层半透明深色蒙版：保证文字在任何底图上都有足够对比度。 */
+.interaction3d-cover-title {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+  color: #f1eadd;
+  background: #0c1218b8;
+  text-align: center;
+  text-shadow: 0 1px 4px #000;
+}
+/* 锁图标全部用 CSS 画（锁体 + 锁梁 + 锁孔），省一张图片资源也便于跟随主题色。 */
+.interaction3d-cover-lock {
+  position: relative;
+  flex: none;
+  display: block;
+  width: 19px;
+  height: 15px;
+  margin-top: 8px;
+  border: 1.5px solid #edbd65;
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+.interaction3d-cover-lock:before {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  left: 3px;
+  top: -9px;
+  border: 1.5px solid #edbd65;
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  box-sizing: border-box;
+}
+.interaction3d-cover-lock:after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 5px;
+  left: 7px;
+  top: 4px;
+  border-radius: 2px;
+  background: #edbd65;
+}
+/* 提示文案限宽 290px（约 20 个汉字），行高放宽，避免长句连成一片难以阅读。 */
+.interaction3d-cover-message {
+  max-width: 290px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.7;
+  text-align: center;
+}
+/* 每行独占一行且不换行：换行位置由文案本身控制（cover.js 里就是两个 span）。 */
+.interaction3d-cover-message > span {
+  display: block;
+  white-space: nowrap;
+}
+/* 缩略图场景更小，字号改用 clamp 随视口缩放，保证小卡片上也能占满且不溢出。 */
+.interaction3d-thumbnail .interaction3d-cover-title {
+  gap: 6px;
+  padding: 7px;
+}
+.interaction3d-thumbnail .interaction3d-cover-message {
+  max-width: 190px;
+  font-size: clamp(9px, 0.68vw, 11px);
+  line-height: 1.65;
+}
+.interaction3d-cover-title[hidden] {
+  display: none;
+}
+/* 模板卡片即使被 disabled 也要正常显示封面（购买入口），因此把全局的降透明还原回来。 */
+.component-template-preview.interaction3d-thumbnail {
+  background: #151c20;
+}
+.component-template-card:disabled .interaction3d-thumbnail {
+  opacity: 1;
+}
+/* ===== 检查器：分组与内联设置 ===== */
+
+/* 返回默认值行两端对齐：左侧文案、右侧按钮，与其它设置项的行内布局一致。 */
+#interaction3d-inspector .i3d-return-default {
+  justify-content: space-between;
+  margin: 0;
+}
+#interaction3d-inspector,
+#interaction3d-inspector .inspector-section {
+  min-width: 0;
+}
+/* 分组标题按钮独占整行且允许折行：中文标题较长，nowrap 会把面板撑宽。 */
+#interaction3d-inspector .inspector-section > button {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  white-space: normal;
+}
+#interaction3d-inspector .inspector-section > label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+#interaction3d-inspector .inspector-section-note {
+  max-width: 100%;
+  margin: 0;
+  line-height: 1.6;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#interaction3d-inspector .i3d-inspector-subsection {
+  margin: 0;
+  padding: 10px 0 0;
+  border-top: 1px solid var(--line, #303840);
+}
+#interaction3d-inspector .i3d-popup-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#interaction3d-inspector .i3d-popup-settings .inspector-section-note {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.65;
+}
+#interaction3d-inspector .i3d-popup-setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--line, #303840);
+  padding-top: 10px;
+}
+#interaction3d-inspector .i3d-popup-setting-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+#interaction3d-inspector .i3d-popup-setting-heading h4 {
+  margin: 0 auto 0 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+#interaction3d-inspector .i3d-popup-setting-heading button {
+  min-height: 26px;
+  padding: 3px 7px;
+  font-size: 11px;
+}
+#interaction3d-inspector .i3d-popup-settings label {
+  margin: 0;
+}
+#interaction3d-inspector .i3d-popup-position {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+#interaction3d-inspector .i3d-popup-position .i3d-vignette-setting {
+  gap: 4px;
+}
+#interaction3d-inspector .i3d-popup-position .i3d-vignette-setting output {
+  min-width: 28px;
+}
+#interaction3d-inspector .i3d-popup-position[hidden] {
+  display: none;
+}
+#interaction3d-inspector .i3d-popup-preview-close {
+  width: auto;
+  align-self: flex-end;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-size: 11px;
+}
+#interaction3d-inspector .i3d-inspector-subsection h3 {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted, #9ba8b3);
+}
+#interaction3d-inspector [hidden] {
+  display: none !important;
+}
+#interaction3d-inspector .i3d-inspector-subsection:after {
+  display: none;
+}
+/* 画面显示：竖排表单，与检查器其它「标题在上、控件在下」区块一致。
+ * 墙体透明度滑杆行单独收紧，避免自定义比例时把区块撑得过高。 */
+#interaction3d-inspector .i3d-picture-settings {
+  display: grid;
+  gap: 12px;
+  align-items: stretch;
+}
+#interaction3d-inspector .i3d-picture-settings > .navigation-property-control,
+#interaction3d-inspector .i3d-picture-settings > label,
+#interaction3d-inspector .i3d-picture-settings > .i3d-wall-opacity-row,
+#interaction3d-inspector .i3d-picture-settings > .inspector-section-note {
+  width: 100%;
+  min-width: 0;
+}
+/* 墙体透明度：左滑杆占满剩余宽度，右数字框固定宽度（含步进器）+ %。
+ * 数字框会被 enhanceNumberInputsIn 包进 .inspector-number-control（默认 width:100%），
+ * 若不压回固定宽度，步进器会跟着贴到行尾，中间出现大块空白。 */
+#interaction3d-inspector .i3d-wall-opacity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+#interaction3d-inspector .i3d-wall-opacity-row > input[type="range"] {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--accent, #f2a20d);
+}
+#interaction3d-inspector .i3d-wall-opacity-row > .inspector-number-control {
+  flex: none;
+  width: 64px;
+}
+#interaction3d-inspector .i3d-wall-opacity-row > .inspector-number-control input[type="number"] {
+  width: 100%;
+  height: 28px;
+  padding-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+#interaction3d-inspector .i3d-wall-opacity-unit {
+  flex: none;
+  color: var(--muted, #9ba8b3);
+  font-size: 11px;
+}
+#interaction3d-inspector .i3d-inline-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+#interaction3d-inspector .i3d-inline-section > h3 {
+  flex: none;
+  margin: 0;
+  white-space: nowrap;
+}
+#interaction3d-inspector .i3d-inline-section > button,
+#interaction3d-inspector .i3d-inline-section > select,
+#interaction3d-inspector .i3d-inline-section > label,
+#interaction3d-inspector .i3d-inline-section > .custom-select,
+#interaction3d-inspector .i3d-inline-section > .navigation-property-control,
+#interaction3d-inspector .i3d-inline-section > .image-layout-options,
+#interaction3d-inspector .i3d-inline-section > .i3d-house-actions {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+}
+#interaction3d-inspector .i3d-inline-section > button {
+  padding: 6px;
+  white-space: nowrap;
+  font-size: 11px;
+}
+#interaction3d-inspector .i3d-house-section > .inspector-section-note,
+#interaction3d-inspector .i3d-house-section > .i3d-view-options,
+#interaction3d-inspector .i3d-placement-section > .inspector-grid {
+  flex-basis: 100%;
+}
+#interaction3d-inspector .i3d-inline-section .navigation-property-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+#interaction3d-inspector .i3d-light-effects-row > button {
+  flex: 0 0 auto;
+}
+#interaction3d-inspector .i3d-idle-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#interaction3d-inspector .i3d-idle-inline > h3 {
+  display: none;
+}
+#interaction3d-inspector .i3d-idle-inline > .i3d-view-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  white-space: nowrap;
+}
+#interaction3d-inspector .i3d-idle-wait {
+  flex: 0 0 80px;
+  min-width: 0;
+}
+#interaction3d-inspector .i3d-idle-wait > label {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+}
+#interaction3d-inspector .i3d-idle-wait input {
+  width: 100%;
+  min-width: 0;
+}
+#interaction3d-inspector .i3d-idle-wait .inspector-number-control {
+  flex: 1;
+  min-width: 0;
+}
+#interaction3d-inspector .i3d-finishing-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+#interaction3d-inspector .i3d-finishing-row .i3d-vignette-setting {
+  gap: 4px;
+}
+#interaction3d-inspector .i3d-reflection-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+#interaction3d-inspector .i3d-reflection-options > label {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+  margin: 0;
+}
+#interaction3d-inspector .i3d-reflection-options > label > span:not(.custom-select) {
+  flex: none;
+  white-space: nowrap;
+}
+#interaction3d-inspector .i3d-reflection-options .custom-select {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+}
+#interaction3d-inspector .i3d-reflection-options select {
+  width: 100%;
+  min-width: 0;
+}
+#interaction3d-inspector .i3d-reflection-options .custom-select-button {
+  padding-left: 7px;
+  padding-right: 22px;
+  font-size: 11px;
+}
+#interaction3d-inspector .i3d-reflection-options .custom-select-button:after {
+  right: 9px;
+}
+/* ===== 性能告警弹窗 ===== */
+
+/* 宽度取「420px 与视口减 32px」的较小值，并显式 box-sizing：
+ * 内边距算进宽度内，窄屏上 dialog 不会溢出视口。 */
+.settings-dialog.i3d-performance-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 22px;
+  box-sizing: border-box;
+}
+.i3d-performance-dialog h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+.i3d-performance-dialog p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.i3d-performance-dialog .i3d-performance-note {
+  color: var(--muted, #a0acb5);
+}
+.i3d-performance-dialog .dialog-actions {
+  margin-top: 18px;
+}
+/* ===== 检查器：页面行为与楼层字段 ===== */
+
+/* 宽面板下行为设置排两列（1.2 : 1），窄面板下由文件末尾的规则改回单列。 */
+#interaction3d-inspector .i3d-behavior-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+#interaction3d-inspector .i3d-behavior-row .i3d-idle-inline {
+  flex-wrap: wrap;
+  padding: 0;
+  border: 0;
+  gap: 4px;
+}
+#interaction3d-inspector .i3d-behavior-row .i3d-setting-toggle {
+  font-size: 9px;
+  gap: 4px;
+  white-space: nowrap;
+}
+#interaction3d-inspector .i3d-behavior-row .i3d-idle-wait {
+  margin-left: auto;
+}
+#interaction3d-inspector .i3d-idle-inline:has([name="i3d-hide-icons-rotating"]) {
+  flex-wrap: wrap;
+}
+#interaction3d-inspector .i3d-idle-inline > .i3d-setting-toggle:last-child {
+  flex-basis: 100%;
+}
+#interaction3d-inspector .i3d-behavior-row .i3d-idle-inline > .i3d-setting-toggle {
+  flex: 0 0 100%;
+}
+#interaction3d-inspector .i3d-behavior-row .i3d-idle-inline:after {
+  display: none;
+}
+#interaction3d-inspector .i3d-floor-number-fields {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(54px, 1fr);
+  gap: 8px;
+  overflow-x: auto;
+}
+#interaction3d-inspector .i3d-floor-number-fields label {
+  min-width: 0;
+}
+#interaction3d-inspector .i3d-floor-number-fields label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#interaction3d-inspector .i3d-view-floor-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+#interaction3d-inspector .i3d-view-floor-row > label:has(input:disabled) {
+  opacity: 0.5;
+}
+#interaction3d-inspector .i3d-floor-number-group {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+#interaction3d-inspector .i3d-floor-number-group[hidden] {
+  display: none;
+}
+#interaction3d-inspector .i3d-floor-number-title {
+  color: #8d989f;
+  font-size: 9px;
+}
+/* overflow-anchor: none 是必要的：面板会动态增删字段（切分组 / 切作用域），
+ * 若开启滚动锚定，浏览器会为「补偿内容变化」而挪动滚动位置，表现为面板自己跳动。 */
+#interaction3d-inspector {
+  overflow-anchor: none;
+}
+/* 图标可见性用显式行列定位：前两个开关固定在第一行，等待时长的输入固定第二行，
+ * 这样排布与 DOM 顺序解耦，插入新控件也不会打乱既有格子。 */
+#interaction3d-inspector .i3d-icon-visibility-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 10px;
+  row-gap: 6px;
+}
+#interaction3d-inspector .i3d-icon-visibility-row > label:first-of-type {
+  grid-column: 1;
+  grid-row: 1;
+}
+#interaction3d-inspector .i3d-icon-visibility-row > label:last-of-type {
+  grid-column: 2;
+  grid-row: 1;
+}
+#interaction3d-inspector .i3d-icon-visibility-row > .i3d-idle-wait {
+  grid-column: 1;
+  grid-row: 2;
+}
+#interaction3d-inspector .i3d-icon-visibility-row > label {
+  min-width: 0;
+  font-size: 9px;
+  gap: 4px;
+  white-space: nowrap;
+}
+/* 每个页面各一条调暗强度，因此整行占满宽度。 */
+.i3d-page-dim-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.i3d-page-dim-row > * {
+  min-width: 0;
+}
+/* 行为作用域（全局 / 按页）的选择行，两列等宽。 */
+#interaction3d-inspector .i3d-behavior-scope-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+#interaction3d-inspector .i3d-behavior-scope-row > * {
+  min-width: 0;
+}
+#interaction3d-inspector .i3d-behavior-scope-row select {
+  width: 100%;
+}
+/* 可折叠分组（<details>）：overflow: visible 是必要的 —— 否则分组内的下拉菜单会被裁掉。 */
+#interaction3d-inspector .i3d-inspector-group {
+  min-width: 0;
+  border: 1px solid var(--line, #303840);
+  border-radius: 6px;
+  overflow: visible;
+}
+#interaction3d-inspector .i3d-inspector-group > summary {
+  cursor: pointer;
+  padding: 12px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text, #e7edf2);
+}
+#interaction3d-inspector .i3d-inspector-group > .inspector-section {
+  margin: 0;
+  padding: 12px 10px;
+  border-top: 1px solid var(--line, #303840);
+}
+#interaction3d-inspector .i3d-inspector-group > .inspector-section:after {
+  display: none;
+}
+/* 收尾的窄面板覆盖：行为行退回单列，字号回到 11px 并可折行
+ * （前面的 9px / nowrap 只适用于两列并排的紧凑布局）。 */
+#interaction3d-inspector .i3d-behavior-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+#interaction3d-inspector .i3d-behavior-row .i3d-setting-toggle,
+#interaction3d-inspector .i3d-return-default {
+  font-size: 11px;
+  white-space: normal;
+}
+#interaction3d-inspector .i3d-category-entry {
+  flex-wrap: nowrap;
+}
+#interaction3d-inspector .i3d-category-entry > h3 {
+  flex: 0 0 3em;
+}
+#interaction3d-inspector .i3d-category-entry > button {
+  min-height: 34px;
+}

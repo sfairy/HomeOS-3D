@@ -28,7 +28,7 @@ const SCAN_ROOTS = [
 const EXTRA_FILES = [
   path.join(ROOT, "store", "api", "pages.py"),
   path.join(ROOT, "store", "api", "alipay.py"),
-  path.join(ROOT, "backend", "app", "modules", "interaction3d", "api.py")
+  path.join(ROOT, "backend", "modules", "interaction3d", "api.py")
 ];
 
 const SKIP_DIR_NAMES = new Set([

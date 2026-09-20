@@ -185,7 +185,7 @@ _RETURN_PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} - HomeOS 授权中心</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260920080000">
+<link rel="stylesheet" href="/store-static/theme.css?v=20260920093608">
 <style>
   /* 与商店/后台同一套暗色 + 琥珀设计语言（令牌来自 theme.css） */
   body {{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;

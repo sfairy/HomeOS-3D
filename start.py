@@ -3,7 +3,7 @@
 
 同时拉起两个服务：
 
-- 主应用（backend.app.main）    http://127.0.0.1:18081
+- 主应用（backend.main）    http://127.0.0.1:18081
 - 授权商店（store）             http://127.0.0.1:18082
 
 两者共享项目根目录下的 ``.venv-store`` 虚拟环境。
@@ -121,7 +121,7 @@ def main() -> None:
 
     app_environment = base_environment.copy()
     app_environment['APP_DATA_DIR'] = str(ROOT / 'data')
-    app_environment['PYTHONPATH'] = str(ROOT / 'backend' / 'app')
+    app_environment['PYTHONPATH'] = str(ROOT)
     app_environment.update(license_overrides)
 
     store_environment = base_environment.copy()
@@ -155,7 +155,7 @@ def main() -> None:
                 python,
                 '-m',
                 'uvicorn',
-                'backend.app.main:app',
+                'backend.main:app',
                 '--host',
                 HOST,
                 '--port',
