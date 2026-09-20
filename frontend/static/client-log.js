@@ -60,9 +60,6 @@
 
   /**
    * 归一化并脱敏请求路径。
-   *
-   * @param {string} rawPath 原始地址或路径。
-   * @returns {string} 去掉查询串与哈希、长度不超过 512 的路径。
    */
   function sanitizePath(rawPath) {
     try {
@@ -121,7 +118,6 @@
   /**
    * 按白名单挑出可上报的上下文字段。
    *
-   * @param {object} contextRecord 原始上下文。
    * @returns {object} 只含白名单键、且值已脱敏的上下文。
    */
   function pickContext(contextRecord) {
@@ -185,12 +181,7 @@
   /**
    * 组装并入队一条日志事件。
    *
-   * @param {string} reportLevel 等级，非法值一律按 error 处理。
-   * @param {string} reportCategory 分类，如「界面」「网络请求」。
-   * @param {string} reportMessage 说明文案。
-   * @param {object} [reportContext] 附加上下文，会与全局上下文合并后过滤。
    * @param {string} [reportDetails] 详情（通常是堆栈），截断到 8000 字符。
-   * @returns {void}
    */
   function reportEvent(
     reportLevel,
@@ -225,11 +216,6 @@
 
   /**
    * 上报一个异常对象。
-   *
-   * @param {*} thrownValue 抛出的值（通常是 Error）。
-   * @param {object} [extraContext] 额外上下文。
-   * @param {string} [fallbackMessage] 兜底文案。
-   * @returns {void}
    */
   function reportError(thrownValue, extraContext = {}, fallbackMessage = "") {
     if (thrownValue && typeof thrownValue == "object") {
@@ -248,10 +234,6 @@
 
   /**
    * 把错误对象与响应关联，避免同一错误在别处再报一次。
-   *
-   * @param {*} errorObject 错误对象。
-   * @param {Response} response 已上报过的响应。
-   * @returns {*} 原样返回 errorObject，便于在表达式中使用。
    */
   function linkErrorToResponse(errorObject, response) {
     return (
@@ -267,9 +249,6 @@
    * 公开通道发送前规范化：钉死 page、丢掉非法时间戳、保证 message 非空。
    * 队列可能残留编辑器页的 page（例如会话过期后降级到 public-events），
    * 不处理就会被服务端以「不支持的页面」422 打回，控制台刷红。
-   *
-   * @param {object} rawEvent 队列里的原始事件。
-   * @returns {object} 可安全 POST 到 public-events 的事件。
    */
   function normalizePublicEvent(rawEvent) {
     const context = { ...(rawEvent?.context || {}) };

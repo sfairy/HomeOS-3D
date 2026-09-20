@@ -19,8 +19,6 @@ let activeFinish = null;
 
 /**
  * 确保确认框样式表只注入一次。
- *
- * @returns {Promise<void>} 样式已在文档中，或 link.load / error 之后 resolve。
  */
 function ensureConfirmStyles() {
   if (stylePromise) {
@@ -46,8 +44,6 @@ function ensureConfirmStyles() {
 
 /**
  * 取（或创建）全局唯一的确认 <dialog>。
- *
- * @returns {HTMLDialogElement} 确认框根节点。
  */
 function ensureConfirmDialog() {
   let dialogElement = document.getElementById(DIALOG_ID);
@@ -79,17 +75,6 @@ function ensureConfirmDialog() {
 
 /**
  * 弹出站内确认框，行为对齐原生 confirm：取消 / Esc / 遮罩 → false。
- *
- * @param {object} options 文案与语气。
- * @param {string} [options.kicker="CONFIRM"] 标题上方小字。
- * @param {string} options.title 主标题。
- * @param {string} options.message 警告块主句。
- * @param {string} [options.detail=""] 警告块补充说明；空则隐藏。
- * @param {string} [options.confirmLabel="确定"] 确认按钮文案。
- * @param {string} [options.cancelLabel="取消"] 取消按钮文案。
- * @param {"default"|"danger"|"warning"} [options.tone="default"] 语气；
- *   danger / warning 用警示色面板，确认按钮分别走红 / 橙。
- * @returns {Promise<boolean>} 用户是否确认。
  */
 export async function confirmAction({
   kicker = "CONFIRM",

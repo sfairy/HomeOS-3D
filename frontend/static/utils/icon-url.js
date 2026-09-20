@@ -20,9 +20,6 @@
 
 /**
  * mdi 图标名 → 本地 SVG 地址。
- *
- * @param {string} iconName 图标名，可带 `mdi:` 前缀，形如 mdi:lightbulb-outline。
- * @returns {string} SVG 资源路径；名字非法时返回空串。
  */
 export function mdiIconUrl(iconName) {
   const normalizedIconName = String(iconName || "")
@@ -40,9 +37,6 @@ export function mdiIconUrl(iconName) {
  *
  * 图标名来自后端下发，理论上可信，但仍做一次白名单校验（只允许小写字母、数字与连字符），
  * 避免异常数据拼出跨目录路径；不合法时统一回落到 code-red。
- *
- * @param {string} iconName 图标名。
- * @returns {string} `/static/vendor/meteocons/fill/<name>.svg` 形式的地址。
  */
 export function meteoconUrl(iconName) {
   const normalizedIconName = String(iconName || "").trim();

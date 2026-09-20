@@ -19,9 +19,6 @@ const FRONTEND_DEBUG_QUERY_VALUES = new Set(["1", "true"]);
 
 /**
  * 判断当前是否处于开发（诊断）模式。
- *
- * @param {object} [locationObject] 位置对象，默认取全局 `location`；测试可替换。
- * @returns {boolean} 打开返回 true；没有 location / 解析失败一律返回 false。
  */
 export function isFrontendDebugMode(locationObject = globalThis.location) {
   try {
@@ -40,10 +37,6 @@ export function isFrontendDebugMode(locationObject = globalThis.location) {
 
 /**
  * 按级别输出调试日志；开关没打开时什么都不做。
- *
- * @param {string} debugLevel `console` 的方法名（"debug" / "warn" / "error" …）。
- * @param {...*} debugArguments 原样转交给 `console` 的内容。
- * @returns {void}
  */
 export function debugLog(debugLevel, ...debugArguments) {
   if (!isFrontendDebugMode()) {

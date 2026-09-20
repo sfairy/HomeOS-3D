@@ -13,10 +13,6 @@ import { isAppleMobile } from "./utils/apple-device.js?v=20260920080000";
 
 /**
  * 按画布背景色更新苹果全屏设备的表面颜色。
- *
- * @param {object} docModel 文档模型，读取 docModel.canvas.background。
- * @param {Window} [win] 目标窗口，默认当前 window；测试时可注入替身。
- * @returns {void} 非苹果设备或非 standalone 模式直接返回，不做任何写入。
  */
 export function syncAppleDisplaySurface(docModel, win = window) {
   const { document: doc, navigator: nav } = win;

@@ -23,9 +23,6 @@
 
 /**
  * 是否为苹果移动端设备。
- *
- * @param {object} [navigatorLike] navigator 对象或替身，便于测试注入。
- * @returns {boolean} iPhone / iPad / iPadOS 桌面模式时为 true。
  */
 export function isAppleMobile(navigatorLike = navigator) {
   const userAgent = navigatorLike?.userAgent || "";

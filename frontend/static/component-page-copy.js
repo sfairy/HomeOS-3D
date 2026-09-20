@@ -48,10 +48,6 @@ function collectComponentsByIds(documentTree, wantedComponentIds) {
  *
  * 源组件在共享区时任何页面都能引用它，因此全部页面入选；
  * 源组件属于某个页面时排除它自己所在的页面，避免同页重复。
- *
- * @param {object} originDocument 源文档模型（只读）。
- * @param {string} copiedComponentId 被复制的组件 ID。
- * @returns {Array<object>} 目标页面列表；源组件不存在时为空数组。
  */
 export function copyComponentTargetPages(originDocument, copiedComponentId) {
   const locatedTarget = locateComponentWithScope(originDocument, copiedComponentId);
@@ -67,10 +63,6 @@ export function copyComponentTargetPages(originDocument, copiedComponentId) {
  *
  * 先按页面生成 key 为 "page:<path>" 的目标；只有源组件本身属于某个页面时，
  * 才在最前面插入共享区（侧边栏）这一项 —— 共享组件不允许再复制到共享区。
- *
- * @param {object} pageSourceDocument 源文档模型（只读）。
- * @param {string} sourceComponentId 被复制的组件 ID。
- * @returns {Array<{key: string, name: string, scope: string, page?: object}>} 候选项列表。
  */
 export function copyComponentTargets(pageSourceDocument, sourceComponentId) {
   const targetLocation = locateComponentWithScope(pageSourceDocument, sourceComponentId);
@@ -219,18 +211,6 @@ function addSharedComponentRefsToPages(refDocument, sharedComponentIds) {
 }
 /**
  * 批量把组件复制到目标文档的指定作用域。
- *
- * @param {object} sourceDocumentToCopy 源文档。
- * @param {object} targetDocumentToCopy 目标文档，函数会就地插入副本。
- * @param {Array<string>} componentIdsToCopy 待复制的组件 ID 列表，自动去重。
- * @param {string} targetScopeToCopy 目标作用域："shared" 或 "page:<页面路径>"。
- * @param {object} [options] 可选依赖与行为开关。
- * @param {function(*): *} [options.cloneValue] 克隆实现，默认 structuredClone。
- * @param {function(): string} [options.createId] 生成新组件 ID（必需）。
- * @param {function(object): string} [options.componentLabel] 取显示名。
- * @param {string} [options.scaleMode] 传 "proportional" 时按画布比例缩放。
- * @param {function(string): void} [options.onInvalidAction] 失效引用回调。
- * @returns {Array<object>} 新插入的组件数组；参数不合法或找不到源组件时返回空数组。
  */
 export function copyComponentsAcrossDocuments(
   sourceDocumentToCopy,
@@ -299,12 +279,6 @@ export function copyComponentsAcrossDocuments(
 }
 /**
  * 批量把组件复制到同一文档的目标作用域（不缩放坐标）。
- *
- * @param {object} batchCopySourceDocument 文档。
- * @param {Array<string>} batchCopyComponentIds 源组件 ID 列表。
- * @param {string} batchCopyTargetScope 目标作用域。
- * @param {object} [batchCopyOptions] 可选依赖。
- * @returns {Array<object>} 新组件数组。
  */
 export function copyComponentsToTarget(
   batchCopySourceDocument,

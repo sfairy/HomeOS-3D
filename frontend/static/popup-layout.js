@@ -18,9 +18,6 @@ const POPUP_HEADER_HEIGHT_PX = 88;
 
 /**
  * 归一弹窗列数。
- *
- * @param {object|number} options 布局选项对象或直接给出的列数。
- * @returns {number} 2~4 之间的列数；非法值回退为默认 3 列。
  */
 export function popupLayoutColumns(options) {
   const columns = Number(options?.columns);
@@ -34,9 +31,6 @@ export function popupLayoutColumns(options) {
 
 /**
  * 计算模块占用的列数。
- *
- * @param {string|object} moduleSpec 模块类型字符串或模块对象。
- * @returns {number} 占用列数（1 或 2）。
  */
 export function popupModuleColumnSpan(moduleSpec) {
   const type = typeof moduleSpec == "string" ? moduleSpec : moduleSpec?.type;
@@ -62,9 +56,6 @@ export function popupModuleColumnSpan(moduleSpec) {
  * 计算模块占用的行数。
  *
  * 目前所有模块都只占 1 行，保留该函数是为了以后支持高模块时不必改调用方。
- *
- * @param {string|object} rowModuleSpec 模块类型字符串或模块对象。
- * @returns {number} 固定为 1。
  */
 export function popupModuleRowSpan(rowModuleSpec) {
   return 1;
@@ -72,10 +63,6 @@ export function popupModuleRowSpan(rowModuleSpec) {
 
 /**
  * 按先后顺序为模块寻找空位（首次适配）。
- *
- * @param {Array<object>} modules 模块列表。
- * @param {number} columnLimit 可用列数。
- * @returns {Array<object>|null} 每个模块的 {x, y, width, height}；放不下返回 null。
  */
 function placeModules(modules, columnLimit) {
   const placements = [];
@@ -135,11 +122,6 @@ function placeModules(modules, columnLimit) {
 
 /**
  * 打包弹窗模块布局。
- *
- * @param {Array<object>} moduleList 模块列表。
- * @param {number|object} columnTotal 期望列数或布局选项。
- * @returns {{rows: number, columns: number, placements: Array<object>, fits: boolean}}
- *   布局结果；fits 为 false 表示超过 3 行上限，UI 需要给出提示。
  */
 export function packPopupModules(moduleList, columnTotal) {
   const columnCount = popupLayoutColumns(columnTotal);
@@ -166,10 +148,6 @@ export function packPopupModules(moduleList, columnTotal) {
  *
  * 尺寸全部取自文件顶部的 POPUP_* 常量（内边距、列宽、间距、行高、标题栏高度），
  * 改常量即改此处，不要在函数里写回数值字面量。
- *
- * @param {Array<object>} moduleSpecs 模块列表。
- * @param {number|object} layoutOptions 列数或布局选项。
- * @returns {object} 布局结果外加 gridWidth / gridHeight / popupWidth / popupHeight。
  */
 export function popupLayoutMetrics(moduleSpecs, layoutOptions) {
   const layout = packPopupModules(moduleSpecs, layoutOptions);

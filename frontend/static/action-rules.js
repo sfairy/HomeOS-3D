@@ -37,9 +37,6 @@ export const TOGGLE_ENTITY_DOMAINS = new Set([
 
 /**
  * 读取动作配置里的弹窗来源，做白名单收敛。
- *
- * @param {object} action 动作配置，允许为空。
- * @returns {string} "current" / "entity" / "custom" 之一。
  */
 export function actionPopupSource(action) {
   // 旧文档里没有 popupSource 字段，默认按「当前实体」处理，保证向后兼容。
@@ -54,9 +51,6 @@ export function actionPopupSource(action) {
 
 /**
  * 把动作配置里的弹窗相关字段归一成运行时可直接使用的结构。
- *
- * @param {object} actionSpec 动作配置。
- * @returns {{source: string, entityId: string, popupId: string}} 弹窗来源与目标 ID。
  */
 export function actionPopupData(actionSpec) {
   return {
@@ -68,9 +62,6 @@ export function actionPopupData(actionSpec) {
 
 /**
  * 判断动作是否依赖「当前组件所绑定的实体」。
- *
- * @param {object} actionRule 动作配置。
- * @returns {boolean} 需要当前绑定实体时为 true。
  */
 export function actionNeedsCurrentEntity(actionRule) {
   return (
@@ -81,9 +72,6 @@ export function actionNeedsCurrentEntity(actionRule) {
 
 /**
  * 判断给定实体 ID 是否支持 toggle 动作。
- *
- * @param {string} entityId 实体 ID，形如 light.kitchen 或虚拟实体 ID。
- * @returns {boolean} 支持开关时为 true。
  */
 export function entityIdSupportsToggle(entityId) {
   const normalizedEntityId = String(entityId || "");
@@ -96,13 +84,6 @@ export function entityIdSupportsToggle(entityId) {
 
 /**
  * 校验组件的动作配置是否成立。
- *
- * @param {object} component 组件文档，读取其 bindings.entity.entityId。
- * @param {object} actionConfig 动作配置。
- * @param {object} [options] 可选的校验上下文。
- * @param {Set<string>|null} [options.pagePaths] 已存在的页面路径集合；null 表示跳过校验。
- * @param {Set<string>|null} [options.popupIds] 已存在的弹窗 ID 集合；null 表示跳过校验。
- * @returns {boolean} 动作合法时为 true。
  */
 export function componentActionIsSupported(
   component,

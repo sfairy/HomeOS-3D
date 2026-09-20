@@ -19,8 +19,6 @@ import { withRequestTimeout } from "./request-timeout.js?v=20260920080000";
  *
  * 20 秒与仓库里既有的手写预算对齐（display.js 的 apiRequest、编辑器与舞台页里
  * 直接调 withRequestTimeout 的两处都是 2e4 / 1.5e4），保持「同一套体感」。
- *
- * @type {number}
  */
 export const API_TIMEOUT_MS = 20000;
 
@@ -30,8 +28,6 @@ export const API_TIMEOUT_MS = 20000;
  * 素材图片与 3D 导出包（ZIP）都走同一条接口通道，体积上限远大于 JSON 草稿，
  * 而中控设备 / 平板可能挂在弱网或 VPN 上；20 秒会把「正在慢慢上传」误判成
  * 「网络断了」并把用户刚到手的文件丢掉。3 分钟足够传完上限体积，又仍然有界。
- *
- * @type {number}
  */
 export const API_UPLOAD_TIMEOUT_MS = 180000;
 
@@ -41,7 +37,6 @@ export const API_UPLOAD_TIMEOUT_MS = 180000;
  * 用「体是不是二进制」而不是「调用点有没有记得传参数」来判定：上传点会随功能
  * 增加（素材、导出包、以后的固件包），靠人记的参数一定会漏。
  *
- * @param {BodyInit|null|undefined} requestBody fetch 的 body。
  * @returns {number} 该请求应使用的超时毫秒数。
  */
 function timeoutMsFor(requestBody) {
@@ -57,9 +52,6 @@ function timeoutMsFor(requestBody) {
  * 与裸 fetch 的差别只有两点：注入中止信号、到点必定抛错。其余行为（缓存策略、
  * 请求头、凭据、状态码）原样透传给 fetch，调用方不需要改自己的处理逻辑。
  *
- * @param {string} url 完整请求地址（含查询串）。
- * @param {RequestInit} [init={}] fetch 配置；body 为 Blob / File / FormData 时自动放宽预算。
- * @returns {Promise<Response>} fetch 的原始响应，状态码判断仍由调用方负责。
  * @throws {Error} 超时（name 为 TimeoutError，文案可直接展示）、调用方自身的取消
  *   （name 为 AbortError），或 fetch 原本抛出的错误。
  */

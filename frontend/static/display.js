@@ -49,8 +49,6 @@ let assetsVersion = null;
  *
  * iOS 上 visualViewport 会随地址栏收缩变化，所以改取 screen 尺寸；
  * 若屏幕方向与当前视口方向不一致（横竖屏切换途中），交换宽高。
- *
- * @returns {void}
  */
 function syncViewportSize() {
   const appleMobile = isAppleMobile();
@@ -89,8 +87,6 @@ function buildPairUrl() {
 /**
  * 请求展示页所需的接口。
  *
- * @param {string} path 接口路径，不含 /api/v1 前缀。
- * @returns {Promise<*|null>} 解析后的响应体；401 / 403 跳转时返回 null。
  * @throws {Error} 超时、HTTP 失败或响应不是合法 JSON。
  */
 async function apiRequest(path) {
@@ -152,8 +148,6 @@ async function apiRequest(path) {
 
 /**
  * 同步 HA 目录（实体 / 设备 / 翻译）并在必要时推给渲染层。
- *
- * @returns {Promise<void>}
  */
 async function refreshCatalog() {
   return (
@@ -286,7 +280,6 @@ function decodeDisplayPath(value) {
 /**
  * 根据 URL 解析当前展示的项目。
  *
- * @returns {Promise<object|null>} 项目对象；会话失效时为 null。
  * @throws {Error} 地址非法、项目不存在或名称重复时抛出中文文案。
  */
 async function resolveProject() {
@@ -319,8 +312,6 @@ async function resolveProject() {
 
 /**
  * 拉取草稿并按需重建 / 更新渲染器（带单飞与 revision 短路）。
- *
- * @returns {Promise<void>}
  */
 async function refreshDisplay() {
   if (project) {

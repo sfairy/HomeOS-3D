@@ -47,8 +47,6 @@ if (
    *
    * 有两个触发点：用户点击悬浮按钮；或链接带 addToHome=1 且展示页启动遮罩已摘掉时
    * 自动弹出（启动阶段弹窗会被 display-booting 遮罩压住，必须等遮罩消失）。
-   *
-   * @returns {void}
    */
   const openGuide = () => {
     // 重复点击时 dialog 已打开就不要再 showModal，否则会抛异常。

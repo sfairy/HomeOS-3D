@@ -77,9 +77,6 @@
  *
  * 参数接受任意层级的数组（调用方常直接传实体字段数组），`flat()` 后统一成单空格分隔的字符串：
  * 下面所有角色判定都靠正则匹配这段文本，因此字段越全，识别越准。
- *
- * @param {...*} searchParts 参与匹配的字段片段，可以是字符串或数组。
- * @returns {string} 小写、单空格分隔的检索文本。
  */
 export function entitySearchText(...searchParts) {
   return searchParts
@@ -96,10 +93,6 @@ export function entitySearchText(...searchParts) {
  * 四个字段是 `entityId` / `name` / `originalName` / `translationKey` —— 实体对象的形状
  * 由上游目录决定，把这四个名字收在这里，是为了让「哪些字段参与识别」只有一处定义：
  * 调用方各写一遍的话，加字段时必有一处漏改，而漏改的表现是「某个设备认不出来」。
- *
- * @param {object} [entity] 实体对象或元数据条目。
- * @param {...*} extraParts 调用方另外要纳入匹配的片段（如状态里的 device_class）。
- * @returns {string} 小写、单空格分隔的检索文本。
  */
 export function entitySearchTextOf(entity = {}, ...extraParts) {
   return entitySearchText(
@@ -123,10 +116,6 @@ export function entitySearchTextOf(entity = {}, ...extraParts) {
  * 刻意**不** `trim()`、不 `toLowerCase()`：消费方（渲染器）要的是上游原样的域，
  * 而需要小写归一的那个消费方（灯光统计）自己在外面 `toLowerCase()` ——
  * 把归一塞进这里会让其余调用点跟着改变行为。
- *
- * @param {string} [entityId] 实体 ID，形如 `light.kitchen`。
- * @returns {string} 裸域名字符串；`null` / `undefined` / `""` 以及不含点号的输入都归一成
- *   可用的字符串（前者为 `""`，后者原样返回），不抛异常。
  */
 export function entityDomainFromId(entityId) {
   return String(entityId || "").split(".", 1)[0];
@@ -139,9 +128,6 @@ export function entityDomainFromId(entityId) {
  * 两条路径都做 `String(...)` 归一：消费方拿它去查 `ENTITY_DOMAIN_LABELS` 这类表、
  * 或与裸域名字符串比较，收到非字符串会静默查不到（查不到就是回落到「实体」这种兜底文案，
  * 页面不报错）。返回 `""` 表示既没有 domain 也没有可切的 entityId。
- *
- * @param {object} [entity] 实体对象或元数据条目。
- * @returns {string} 裸域名字符串，取不到时为 `""`。
  */
 export function entityDomainOf(entity) {
   return entityDomainFromId(entity?.domain || entity?.entityId);

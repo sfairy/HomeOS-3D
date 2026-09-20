@@ -18,9 +18,6 @@ import { apiFetch } from "./utils/api-fetch.js?v=20260920080000";
  * 超时交给 apiFetch（普通 20 秒、上传 3 分钟）：日志上报悬挂时也必须抛错，
  * 否则调用方会一直停在「正在上报」。
  *
- * @param {string} path 接口路径，不含 /api/v1 前缀。
- * @param {RequestInit} [init] fetch 配置。
- * @returns {Promise<*>} 解析后的响应体；204 或空响应返回 null。
  * @throws {Error} 会话失效、超时、HTTP 失败或响应不是合法 JSON。
  */
 async function requestJson(path, init = {}) {

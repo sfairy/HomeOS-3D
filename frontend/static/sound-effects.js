@@ -21,9 +21,6 @@ function isSoundEnabled() {
 
 /**
  * 创建按钮音效控制器。
- *
- * @returns {{isEnabled: function(): boolean, setEnabled: function(boolean): boolean,
- *   toggle: function(): boolean, play: function(): void}} 音效控制器实例。
  */
 export function createButtonSound() {
   let enabled = isSoundEnabled();

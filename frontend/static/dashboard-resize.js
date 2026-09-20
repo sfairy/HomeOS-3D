@@ -20,13 +20,6 @@ function positiveNumberOrDefault(candidateNumber, fallbackNumber) {
 
 /**
  * 递归缩放组件子树。
- *
- * @param {object} componentNode 组件节点，可就地修改。
- * @param {number} horizontalScale 顶层组件的水平缩放比例。
- * @param {number} verticalScale 顶层组件的垂直缩放比例。
- * @param {number} contentScaleFactor 内容缩放因子（子层级按此整体缩放）。
- * @param {boolean} [isTopLevel] 是否为顶层组件；顶层按画布比例定位，子组件随父缩放。
- * @returns {void}
  */
 function scaleComponentSubtree(
   componentNode,
@@ -132,11 +125,6 @@ function isComponentOutsideCanvas(targetComponent, canvasWidth, limitHeight) {
 
 /**
  * 统计有多少顶层组件落在画布之外，用于调整尺寸前给用户提示。
- *
- * @param {object} documentModel 文档模型。
- * @param {number} documentWidth 目标画布宽度。
- * @param {number} documentHeight 目标画布高度。
- * @returns {number} 越界组件数量；画布尺寸非法时返回 0。
  */
 export function countComponentsOutsideCanvas(documentModel, documentWidth, documentHeight) {
   const limitWidth = Number(documentWidth),
@@ -151,12 +139,6 @@ export function countComponentsOutsideCanvas(documentModel, documentWidth, docum
 /**
  * 把文档缩放到目标画布尺寸。
  *
- * @param {object} sourceDocument 原始文档模型，函数内不修改它。
- * @param {number} targetWidth 目标宽度（像素整数，320~7680）。
- * @param {number} targetHeight 目标高度（像素整数，240~4320）。
- * @param {object} [options] 选项。
- * @param {boolean} [options.lockContent] 仅改画布尺寸、不缩放任何组件内容。
- * @returns {object} 缩放后的新文档模型。
  * @throws {Error} 宽或高不是范围内的整数时抛出中文错误文案。
  */
 export function resizeDashboardDocument(sourceDocument, targetWidth, targetHeight, options = {}) {

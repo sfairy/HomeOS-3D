@@ -10,18 +10,6 @@
 
 /**
  * 创建选择器查询函数集合。
- *
- * @param {object} handlers 依赖注入。
- * @param {function(string): object} handlers.entityPickerConfig 取控件类型的 picker 配置。
- * @param {function(string): Array<object>} handlers.pickerEntitiesForComponentType 取该控件可用的实体。
- * @param {function(object): string} handlers.entityPickerText 取实体展示名称。
- * @param {function(object): string} handlers.entityDomainResolver 取实体域，由调用方注入
- *   `utils/entities.js` 的 `entityDomainOf`（**名字刻意不叫 `entityDomainOf`**：
- *   那个名字只在这两处出现，同名形参会让「本文件并不 import 它」这件事在阅读时消失
- *   —— 而且形参叫 `entityDomainResolver` 才看得出「这是外面注入进来的依赖」。
- *   历史上这里的键叫 `entityDomain`，与 P10 已删掉的本地名字同名，见审计文档 4.3 B 类末尾）。
- * @returns {{editorEntityMatches: function(string, string): Array<object>,
- *   editorPickerComponentTypeLabel: function(string): string}} 查询函数集合（已冻结）。
  */
 export function createEditorPickerQueries({
   entityPickerConfig: entityPickerConfig,
@@ -31,10 +19,6 @@ export function createEditorPickerQueries({
 }) {
   /**
    * 过滤并排序某控件类型的可选实体。
-   *
-   * @param {string} componentType 控件类型。
-   * @param {string} searchText 搜索关键字。
-   * @returns {Array<object>} 排序后的实体列表。
    */
   function editorEntityMatches(componentType, searchText) {
     const pickerConfig = entityPickerConfig(componentType),
@@ -67,9 +51,6 @@ export function createEditorPickerQueries({
 
   /**
    * 取控件类型的中文显示名。
-   *
-   * @param {string} pickerComponentType 控件类型。
-   * @returns {string} 中文名；未知类型回退为「控件」。
    */
   function editorPickerComponentTypeLabel(pickerComponentType) {
     return (

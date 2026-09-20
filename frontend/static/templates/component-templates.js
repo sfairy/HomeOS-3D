@@ -608,7 +608,6 @@ const componentDefaultsByType = {
  *
  * @param {object} template 模板定义：必须含 id（全局唯一）与 create（工厂函数），
  *   可选 name / description / thumbnailId / scopes。
- * @returns {void}
  * @throws {Error} 缺少 id，或 create 不是函数——这类模板进不了库，早抛早发现。
  */
 export function registerComponentTemplate(template) {
@@ -625,9 +624,6 @@ export function registerComponentTemplate(template) {
 }
 /**
  * 按作用域列出可用模板，并给出稳定的展示顺序。
- *
- * @param {string} scope 作用域："shared"（侧边栏，所有页面可见）或 "page"（主页面）。
- * @returns {Array<object>} 属于该作用域的模板数组，顺序与 templateScopeOrder 一致。
  */
 export function listComponentTemplates(scope) {
   // 取不到排序表（例如新增作用域）时退化为空数组，模板依旧可用，只是按注册顺序排列。
@@ -648,10 +644,6 @@ export function listComponentTemplates(scope) {
 /**
  * 按模板 id 实例化一份完整组件文档。
  *
- * @param {string} templateId 模板 id，来自模板库卡片上的 data-templateId。
- * @param {object} [templateOptions] 实例化参数（id、instanceName、canvas、targetPage 等），
- *   原样透传给模板的 create()。
- * @returns {object} 组件文档对象，形态等同 backend/app/panel/schema.py 的 PanelComponent。
  * @throws {Error} 模板 id 未注册。
  */
 export function createComponentFromTemplate(templateId, templateOptions) {
@@ -772,10 +764,6 @@ function normalizeComponent(mappedComponent, canvas) {
  * 兼容意图：旧版本保存的文档可能缺 sharedComponents / customPopups / theme，
  * 或组件上还没有 templateRef。这里就地补齐后再交给编辑器渲染，避免旧项目直接报错打不开；
  * 反过来，新前端新增的默认项也通过同一入口补给旧文档，不需要写一次性迁移脚本。
- *
- * @param {object} editorDocument 已解析的项目文档，含 canvas / sharedComponents /
- *   pages / customPopups / theme。
- * @returns {object} 同一个文档对象（就地修改），缺省字段已补全。
  */
 export function normalizeDashboardDocument(editorDocument) {
   const documentCanvas = editorDocument.canvas || {};
@@ -817,10 +805,6 @@ export function normalizeDashboardDocument(editorDocument) {
  *
  * 宽度是估算值：等宽数字按字号系数累加字符数，再叠加字间距与右侧留白，
  * 目的只是让新组件「落地时框住内容」，用户之后可以随意调整字号与位置。
- *
- * @param {object} [timeOptions] 时间属性（fontSize、fontWeight、letterSpacing、
- *   hour12、showSeconds）。
- * @returns {{width: number, height: number}} 画布像素单位的宽高。
  */
 export function timeComponentDimensions(timeOptions = {}) {
   // 上下限与编辑器属性面板的滑杆范围一致，避免脏数据把默认框撑到画布之外。
@@ -849,10 +833,6 @@ export function timeComponentDimensions(timeOptions = {}) {
 }
 /**
  * 按日期属性推算日期控件的默认宽高（主行 + 可选的农历行）。
- *
- * @param {object} [dateOptions] 日期属性（primarySize、lunarSize、primarySpacing、
- *   lunarSpacing、lineGap、showWeekday、showLunar）。
- * @returns {{width: number, height: number}} 画布像素单位的宽高。
  */
 export function dateComponentDimensions(dateOptions = {}) {
   const primarySize = Math.max(12, Math.min(500, Number(dateOptions.primarySize || 36)));
@@ -878,10 +858,6 @@ export function dateComponentDimensions(dateOptions = {}) {
 }
 /**
  * 按天气属性推算天气控件的默认宽高（图标 + 温度 / 次要信息两栏）。
- *
- * @param {object} [weatherOptions] 天气属性（iconSize、iconGap、temperatureSize、
- *   secondarySize、lineGap，以及三组 *Visible 开关）。
- * @returns {{width: number, height: number}} 画布像素单位的宽高。
  */
 export function weatherComponentDimensions(weatherOptions = {}) {
   const iconSize = Math.max(12, Math.min(500, Number(weatherOptions.iconSize || 64)));
@@ -930,11 +906,7 @@ registerComponentTemplate({
   /**
    * 创建图片组件：固定 4:3 框体并居中。
    *
-   * @param {object} options 实例化参数。
    * @param {string} options.id 实例 ID，由调用方生成，模板不负责唯一性。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @returns {object} 图片组件文档。
    */
   create({ id: imageComponentId, instanceName: imageInstanceName = "图片", canvas: imageCanvas }) {
     const imageCanvasWidth = Number(imageCanvas?.width || 2778);
@@ -979,12 +951,6 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建户型图自动导图组件：占画布 56% 并居中。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名，同时写入 label。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @returns {object} 户型图自动导图组件文档。
    */
   create({
     id: floorplanComponentId,
@@ -1044,13 +1010,6 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建扫地机器人实时地图组件：占画布 56% 宽，按素材原始比例推高。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @param {string} [options.vacuumMapEntityId] 扫地机实体 ID，给了才写实体绑定。
-   * @returns {object} 扫地机器人实时地图组件文档。
    */
   create({
     id: vacuumMapComponentId,
@@ -1105,13 +1064,6 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建「图标按钮（效果）」组件：正方形按钮 + 跟随灯状态的叠加效果图。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @param {string} [options.lightEntityId] 灯实体 ID，给了才写实体绑定与点按切换动作。
-   * @returns {object} 图标按钮（效果）组件文档。
    */
   create({
     id: iconButtonEffectComponentId,
@@ -1197,12 +1149,6 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建标题按钮组件：占画布 0.18 × 0.065 并居中。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @returns {object} 标题按钮组件文档。
    */
   create({
     id: titleButtonComponentId,
@@ -1284,12 +1230,6 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建数量统计组件：与标题按钮同尺寸，便于并排排版。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @returns {object} 数量统计组件文档。
    */
   create({
     id: lightStatisticsComponentId,
@@ -1355,13 +1295,6 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建图标按钮组件：占画布 0.1 × 0.15 并居中。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @param {string} [options.lightEntityId] 灯实体 ID，给了才写绑定与点按切换动作。
-   * @returns {object} 图标按钮组件文档。
    */
   create({
     id: iconButtonComponentId,
@@ -1466,12 +1399,6 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建设备按钮组件：占画布 0.1 × 0.11 并居中，默认不绑定实体。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @returns {object} 设备按钮组件文档。
    */
   create({
     id: deviceButtonComponentId,
@@ -1543,13 +1470,6 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建传感器组件：固定 360×240 并居中，按 sensorKind 切换动效。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @param {string} [options.entityId] 传感器实体 ID，给了才写实体绑定。
-   * @returns {object} 传感器组件文档。
    */
   create({
     id: presenceSensorComponentId,
@@ -1624,12 +1544,6 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建摄像头组件：宽为画布 0.22，按 16:9 画面比例推高并居中。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @returns {object} 摄像头组件文档（含点击查看大图动作）。
    */
   create({
     id: cameraComponentId,
@@ -1692,12 +1606,6 @@ registerComponentTemplate({
   scopes: ["page"],
   /**
    * 创建空调 / 浴霸组件：占画布 0.11 × 0.08 并居中，内置动态出风效果。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @returns {object} 空调 / 浴霸组件文档（含点按详情、双击切换动作）。
    */
   create({
     id: airConditionerComponentId,
@@ -1796,12 +1704,6 @@ registerComponentTemplate({
   scopes: ["shared"],
   /**
    * 创建时间组件：宽高交给 timeComponentDimensions，与属性面板的实时估算共用一套公式。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @returns {object} 时间组件文档。
    */
   create({ id: timeComponentId, instanceName: timeInstanceName = "时间", canvas: timeCanvas }) {
     const timeCanvasWidth = Number(timeCanvas?.width || 2778);
@@ -1852,12 +1754,6 @@ registerComponentTemplate({
   scopes: ["shared"],
   /**
    * 创建日期组件：宽高交给 dateComponentDimensions，默认不显示农历。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @returns {object} 日期组件文档。
    */
   create({ id: dateComponentId, instanceName: dateInstanceName = "日期", canvas: dateCanvas }) {
     const dateCanvasWidth = Number(dateCanvas?.width || 2778);
@@ -1910,14 +1806,6 @@ registerComponentTemplate({
   scopes: ["shared"],
   /**
    * 创建天气组件：宽高交给 weatherComponentDimensions，实体绑定按需拼装。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @param {string} [options.weatherEntityId] 天气实体 ID，用于当前状态与温度。
-   * @param {string} [options.sunEntityId] 太阳实体 ID，用于日出日落等衍生信息。
-   * @returns {object} 天气组件文档。
    */
   create({
     id: weatherComponentId,
@@ -1992,13 +1880,6 @@ registerComponentTemplate({
   scopes: ["shared", "page"],
   /**
    * 创建折线图组件：占画布 0.19 × 0.16 并居中，可绑定传感器实体。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @param {string} [options.sensorEntityId] 温度 / 湿度传感器实体 ID，给了才写绑定。
-   * @returns {object} 折线图组件文档（含点按查看详情动作）。
    */
   create({
     id: lineChartComponentId,
@@ -2064,12 +1945,6 @@ registerComponentTemplate({
   scopes: ["shared", "page"],
   /**
    * 创建底图框组件：与折线图同尺寸（0.19 × 0.16），作纯装饰容器。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @returns {object} 底图框组件文档（无绑定、无动作）。
    */
   create({
     id: panelFrameComponentId,
@@ -2143,13 +2018,6 @@ registerComponentTemplate({
   scopes: ["shared"],
   /**
    * 创建导航按钮组件：占画布 0.2 × 0.085 并居中，按目标页面预置跳转动作。
-   *
-   * @param {object} options 实例化参数。
-   * @param {string} options.id 实例 ID，由调用方生成。
-   * @param {string} [options.instanceName] 实例显示名。
-   * @param {{width?: number, height?: number}} [options.canvas] 目标画布尺寸。
-   * @param {string} [options.targetPage] 目标页面 path，给了才预置 navigate 动作。
-   * @returns {object} 导航按钮组件文档。
    */
   create({
     id: navigationButtonComponentId,

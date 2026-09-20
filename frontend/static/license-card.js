@@ -18,9 +18,6 @@ const PRODUCT_TYPE_LABELS = {
 
 /**
  * 把授权记录格式化成有效期文案。
- *
- * @param {object} license 授权商品记录，可为空。
- * @returns {string} 「永久」「xxxx 到期」或「以商城授权记录为准」。
  */
 function formatValidity(license) {
   if (!license) return "以商城授权记录为准";
@@ -35,10 +32,6 @@ function formatValidity(license) {
 
 /**
  * 把授权状态数据整理成卡片渲染所需的结构。
- *
- * @param {object} [licenseData] /api/v1/license/status 的响应体。
- * @returns {{licensed: boolean, type: string, name: string, validity: string,
- *   validityNote: string, rights: Array<{name: string, enabled: boolean}>}} 卡片数据。
  */
 export function licenseCardData(licenseData = {}) {
   const isLicensed = !!licenseData.activationCodeId,
@@ -106,10 +99,6 @@ export function licenseCardData(licenseData = {}) {
 
 /**
  * 创建授权卡片渲染器。
- *
- * @param {object} handlers 依赖注入。
- * @param {HTMLDialogElement} handlers.dialog 卡片所在的对话框。
- * @returns {{render: function(object): void}} 渲染器。
  */
 export function createLicenseCard({ dialog: dialogElement }) {
   // 卡片内所有节点统一以 #license-<key> 命名，避免与页面其它元素冲突。

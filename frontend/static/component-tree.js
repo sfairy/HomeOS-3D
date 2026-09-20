@@ -10,10 +10,6 @@
 
 /**
  * 递归在组件数组中查找指定 ID 的组件。
- *
- * @param {Array<object>} componentTree 组件数组，可为空。
- * @param {string} componentId 目标组件 ID。
- * @returns {object|null} 命中的组件，未找到为 null。
  */
 export function findComponentInItems(componentTree, componentId) {
   for (const itemComponent of componentTree || []) {
@@ -30,10 +26,6 @@ export function findComponentInItems(componentTree, componentId) {
 
 /**
  * 在整份文档模型中查找组件，并标注来源作用域。
- *
- * @param {object} dashboardDocument 文档模型，含 sharedComponents 与 pages。
- * @param {string} targetComponentId 目标组件 ID。
- * @returns {{component: object, scope: string, page?: object}|null} 命中信息；未找到为 null。
  */
 export function findComponent(dashboardDocument, targetComponentId) {
   if (!dashboardDocument || !targetComponentId) {
@@ -65,11 +57,6 @@ export function findComponent(dashboardDocument, targetComponentId) {
 
 /**
  * 定位组件并给出可写的容器与下标，用于就地修改组件树。
- *
- * @param {object} documentModel 文档模型。
- * @param {string} searchedComponentId 目标组件 ID。
- * @returns {{component: object, collection: Array<object>, index: number, scope: string,
- *   page: object|null, root: boolean}|null} 位置描述；未找到为 null。
  */
 export function findComponentLocation(documentModel, searchedComponentId) {
   if (!documentModel || !searchedComponentId) {
@@ -113,10 +100,6 @@ export function findComponentLocation(documentModel, searchedComponentId) {
 
 /**
  * 取得组件的直接位置：只有位于顶层（root）才返回，嵌套子组件视为不可直接操作。
- *
- * @param {object} sourceDocument 文档模型。
- * @param {string} componentIdToLocate 目标组件 ID。
- * @returns {object|null} 顶层位置描述；嵌套或未找到为 null。
  */
 export function componentDirectLocation(sourceDocument, componentIdToLocate) {
   const location = findComponentLocation(sourceDocument, componentIdToLocate);

@@ -13,10 +13,6 @@ import { clampNumber } from "./utils/numbers.js?v=20260920080000";
 
 /**
  * 同步「显示 / 隐藏」切换按钮的按压态与文案。
- *
- * @param {HTMLElement} toggleElement 切换按钮。
- * @param {boolean} isPressed 是否处于按压（隐藏）态。
- * @returns {void}
  */
 export function setInspectorToggle(toggleElement, isPressed) {
   toggleElement.setAttribute("aria-pressed", String(isPressed));
@@ -25,10 +21,6 @@ export function setInspectorToggle(toggleElement, isPressed) {
 
 /**
  * 归一图标按钮特效的编辑层参数。
- *
- * @param {object} [component] 组件文档。
- * @param {string} [requestedLayer] 期望的层。
- * @returns {string} "button" 或 "effect"。
  */
 export function iconButtonEffectInspectorLayer(component = {}, requestedLayer = "") {
   if (requestedLayer === "button" || requestedLayer === "effect") {
@@ -41,11 +33,6 @@ export function iconButtonEffectInspectorLayer(component = {}, requestedLayer = 
 
 /**
  * 把组件按目标尺寸做中心对齐缩放。
- *
- * @param {object} sourceComponent 组件文档，就地修改其 position。
- * @param {object} properties 属性集，供 measureDimensions 计算目标尺寸。
- * @param {function(object): {width: number, height: number}} measureDimensions 尺寸计算函数。
- * @returns {void} 组件为空时直接返回。
  */
 export function fitInspectorComponentToDimensions(sourceComponent, properties, measureDimensions) {
   if (!sourceComponent) {
@@ -68,11 +55,6 @@ export function fitInspectorComponentToDimensions(sourceComponent, properties, m
 
 /**
  * 计算面板要展示的组件度量值（百分比定位 / 宽高 / 缩放 / 旋转）。
- *
- * @param {object} inspectedComponent 被检查的组件。
- * @param {object} editorDocument 当前文档模型，读取 canvas 尺寸。
- * @returns {object} 含 position、width/height、left/top、widthPercent/heightPercent、
- *   scale、rotation 的度量对象。
  */
 export function inspectorComponentMetrics(inspectedComponent, editorDocument) {
   const position = inspectedComponent.position || {};

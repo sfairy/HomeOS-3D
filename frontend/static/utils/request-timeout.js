@@ -20,8 +20,6 @@
  * @param {number} timeoutMs 超时毫秒数；到点后以 TimeoutError 中断请求。
  * @param {(signal: AbortSignal) => Promise<*>} runWithSignal 真正发起请求的回调，
  *   必须把收到的 signal 透传给 fetch，否则中断不会生效。
- * @param {AbortSignal} [externalSignal] 调用方自己的取消信号，可选。
- * @returns {Promise<*>} runWithSignal 的返回值。
  * @throws {Error} 超时（name 为 TimeoutError）、被外部取消（name 为 AbortError），
  *   或 runWithSignal 自身抛出的原始错误。
  */

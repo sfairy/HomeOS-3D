@@ -11,9 +11,6 @@ import { newId } from "./editor-utils.js?v=20260920080000";
 
 /**
  * 推导组件的显示名。
- *
- * @param {object} component 组件文档。
- * @returns {string} 优先取 properties.label / instanceName，其次按类型给中文名。
  */
 export function componentLabel(component) {
   // typeLabel 是「类型默认名」；instanceName 是用户可改的实例名，两者优先级不同。
@@ -74,10 +71,6 @@ export function componentLabel(component) {
 
 /**
  * 生成不与现有组件重名的实例名。
- *
- * @param {Array<object>} components 同级组件列表。
- * @param {string} requestedName 期望名称。
- * @returns {string} 可用名称；重名时追加「_副本」「_副本2」……
  */
 export function nextTemplateInstanceName(components, requestedName) {
   const existingLabels = new Set(
@@ -97,10 +90,6 @@ export function nextTemplateInstanceName(components, requestedName) {
 
 /**
  * 为一个「组合」生成可用名称。
- *
- * @param {Array<object>} collectionComponents 组合内的组件列表。
- * @param {string} [baseName] 基础名，默认「组合」。
- * @returns {string} 可用名称；重名时追加「 2」「 3」……（注意是空格分隔）。
  */
 export function groupNameForCollection(collectionComponents, baseName = "组合") {
   const existingNames = new Set(
@@ -120,10 +109,6 @@ export function groupNameForCollection(collectionComponents, baseName = "组合"
  * 递归刷新组件及其所有子组件的 ID。
  *
  * 复制 / 粘贴时必须整体换 ID，否则会与源组件在文档里「同 ID 双份」。
- *
- * @param {object} targetComponent 目标组件，就地修改。
- * @param {string|null} [componentId] 指定的新 ID；为空则自动生成。
- * @returns {object} 同一个组件对象。
  */
 export function refreshComponentIds(targetComponent, componentId = null) {
   targetComponent.id = componentId || newId("component");
@@ -135,10 +120,6 @@ export function refreshComponentIds(targetComponent, componentId = null) {
 
 /**
  * 生成复制后的组件显示名。
- *
- * @param {object} sourceComponent 源组件。
- * @param {Array<object>} siblingComponents 目标位置的同级组件。
- * @returns {string} 形如「图标按钮_副本2」的名称。
  */
 export function copiedComponentLabel(sourceComponent, siblingComponents) {
   // 先剥掉源名称里已有的副本后缀，避免出现「_副本_副本」。
@@ -162,9 +143,6 @@ export function copiedComponentLabel(sourceComponent, siblingComponents) {
 
 /**
  * 按数组顺序写回 zIndex。
- *
- * @param {Array<object>} orderedComponents 由底到顶排列的组件列表。
- * @returns {void}
  */
 export function applyCollectionLayerOrder(orderedComponents) {
   for (let layerIndex = 0; layerIndex < (orderedComponents || []).length; layerIndex += 1) {
@@ -181,9 +159,6 @@ export function applyCollectionLayerOrder(orderedComponents) {
  * 同步各页面对共享组件的引用顺序，使其跟随 sharedComponents 的排列。
  *
  * 删除某个共享组件后，残留的引用要一并清掉；顺序也要与图层面板一致。
- *
- * @param {object} editorDocument 文档模型，就地修改。
- * @returns {void}
  */
 export function syncSharedComponentReferenceOrder(editorDocument) {
   // 全局共享组件顺序是唯一权威：各页面只保留自己确实引用过的那些，并按此顺序重排。
@@ -201,11 +176,6 @@ export function syncSharedComponentReferenceOrder(editorDocument) {
 
 /**
  * 确保指定页面对某个共享组件建立了引用。
- *
- * @param {object} sourceDocument 文档模型，可就地修改。
- * @param {string} sharedComponentId 共享组件 ID。
- * @param {string} pagePath 页面路径。
- * @returns {boolean} 新增了引用返回 true；页面 / 组件不存在或已引用返回 false。
  */
 export function ensureSharedComponentReference(sourceDocument, sharedComponentId, pagePath) {
   // 页面不存在时不能凭空建页：调用方（面板按钮）会据此判断这次操作未生效。

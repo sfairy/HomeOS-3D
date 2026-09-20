@@ -36,9 +36,6 @@ export const RELATED_POPUP_SELECTION_LIMITS = Object.freeze({
 
 /**
  * 取某设备类型的关联数量上限。
- *
- * @param {string|object} deviceOrType 设备类型字符串或含 deviceType 的对象。
- * @returns {number} 上限；未知类型返回 0（表示不限制，由调用方决定）。
  */
 export function relatedPopupSelectionLimit(deviceOrType) {
   const normalizedDeviceType =
@@ -149,9 +146,6 @@ export const RELATED_ENTITY_DOMAIN_LABELS = Object.freeze({
 
 /**
  * 判断实体当前是否可用（未被禁用、未被删除）。
- *
- * @param {object} entityValue 实体对象。
- * @returns {boolean} 可用则为 true。
  */
 export function relatedEntityIsAvailable(entityValue) {
   return (
@@ -195,13 +189,6 @@ function findWaterHeaterEntity(waterHeaterCandidates) {
 
 /**
  * 由弹窗组件推导出「关联功能」的上下文（设备类型、主实体、兄弟实体等）。
- *
- * @param {object} component 组件文档。
- * @param {Map<string, object>} [entitiesByEntityId] 实体表。
- * @param {Map<string, object>} [devicesByDeviceId] 设备表。
- * @param {Map<string, object>} [statesByEntityId] 状态表。
- * @returns {object|null} 上下文对象；不是弹窗触发组件、缺少绑定实体或无法判定
- *   设备类型时返回 null。
  */
 export function relatedPopupContext(
   component,
@@ -307,9 +294,6 @@ export function relatedPopupContext(
 
 /**
  * 读取组件里显式勾选的关联实体 ID。
- *
- * @param {object} componentConfig 组件文档。
- * @returns {Array<string>|null} 去重后的 ID 列表；未按 selected 模式配置时为 null。
  */
 export function selectedRelatedEntityIds(componentConfig) {
   const relatedConfig = componentConfig?.properties?.relatedEntities;
@@ -329,12 +313,6 @@ export function selectedRelatedEntityIds(componentConfig) {
 
 /**
  * 计算弹窗可关联的候选实体列表（已过滤、已排序）。
- *
- * @param {object} popupComponent 弹窗组件。
- * @param {Map<string, object>} [entityCatalog] 实体表。
- * @param {Map<string, object>} [deviceCatalog] 设备表。
- * @param {Map<string, object>} [stateCatalog] 状态表。
- * @returns {Array<object>} 候选实体数组。
  */
 export function relatedPopupCandidates(
   popupComponent,
@@ -372,12 +350,6 @@ export function relatedPopupCandidates(
 
 /**
  * 生成旧版弹窗的默认关联实体（兼容未配置过 relatedEntities 的文档）。
- *
- * @param {object} popupComponentInput 弹窗组件。
- * @param {Map<string, object>} [entityLookup] 实体表。
- * @param {Map<string, object>} [deviceLookup] 设备表。
- * @param {Map<string, object>} [stateLookup] 状态表。
- * @returns {Array<string>} 默认关联的实体 ID 列表。
  */
 export function legacyRelatedEntityIds(
   popupComponentInput,
@@ -464,10 +436,6 @@ export function legacyRelatedEntityIds(
 
 /**
  * 生成关联实体的展示名：去掉源 / 主实体名称前缀，避免界面重复。
- *
- * @param {object} popupContext 关联上下文（含 source / primary 实体）。
- * @param {object} entityTarget 目标实体。
- * @returns {string} 展示名；清洗后为空时退化为实体 ID 后缀（下划线转空格）。
  */
 export function relatedEntityLabel(popupContext, entityTarget) {
   let label = String(entityTarget?.name || entityTarget?.originalName || "")
@@ -505,9 +473,6 @@ export function relatedEntityLabel(popupContext, entityTarget) {
 
 /**
  * 判断关联功能是否需要二次确认（危险按钮）。
- *
- * @param {object} confirmationCandidate 候选实体。
- * @returns {boolean} 域为 button 且名称 / ID / 翻译键含危险词时为 true。
  */
 export function relatedEntityNeedsConfirmation(confirmationCandidate) {
   if (entityDomainOf(confirmationCandidate) !== "button") {
@@ -529,10 +494,6 @@ export function relatedEntityNeedsConfirmation(confirmationCandidate) {
 
 /**
  * 计算实体可选的下拉选项（select / input_select 类功能用）。
- *
- * @param {object} componentSpec 组件文档。
- * @param {object} entityState 实体状态对象。
- * @returns {Array<string>} 去重后的选项列表，当前状态值会并入其中。
  */
 export function relatedEntityOptions(componentSpec, entityState) {
   const attributes = entityState?.attributes || {};
@@ -556,9 +517,6 @@ export function relatedEntityOptions(componentSpec, entityState) {
 
 /**
  * 取实体域对应的选择服务。
- *
- * @param {string|object} domainOrEntity 域字符串或实体对象。
- * @returns {{domain: string, service: string}|null} 服务描述；不支持的域返回 null。
  */
 export function relatedEntitySelectService(domainOrEntity) {
   const resolvedDomain =
@@ -575,13 +533,6 @@ export function relatedEntitySelectService(domainOrEntity) {
 
 /**
  * 取当前实际生效的关联实体列表。
- *
- * @param {object} selectionComponent 组件文档。
- * @param {Map<string, object>} [entityMap] 实体表。
- * @param {Map<string, object>} [deviceMap] 设备表。
- * @param {Map<string, object>} [stateMap] 状态表。
- * @returns {Array<object>|null} 生效实体数组；未配置过（null）时返回 null 表示
- *   「请调用方使用默认值」。
  */
 export function selectedRelatedEntities(
   selectionComponent,
@@ -614,9 +565,6 @@ export function selectedRelatedEntities(
 
 /**
  * 构造显式勾选模式的关联实体配置。
- *
- * @param {Array<string>} [entityIds] 关联实体 ID 列表。
- * @returns {{mode: string, entityIds: Array<string>}} 可写入 properties.relatedEntities 的对象。
  */
 export function manualRelatedEntityConfig(entityIds = []) {
   return {

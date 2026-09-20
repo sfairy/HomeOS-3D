@@ -108,8 +108,6 @@ async function loadStatus() {
  * 触发方式，闩只加在定时器那一支，初始那次就会和第一拍叠在一起（也正是本页最早的
  * 形态）。超时会由 apiFetch 抛出，所以「闩 + 超时」一起才成立：闩保证不叠加，
  * 超时保证闩一定会被放掉（否则一次弱网就把轮询永久冻住）。
- *
- * @returns {Promise<void>} 请求结束即返回；失败时抛出可读错误，由调用方写进状态栏。
  */
 async function refreshStatus() {
   if (isLoadingStatus || navigating) return;

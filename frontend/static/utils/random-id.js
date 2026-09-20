@@ -14,8 +14,6 @@
  * 这里的三级降级是刻意的：`crypto.randomUUID` 只在安全上下文（https / localhost）
  * 下存在，内网 http 部署会缺失；`crypto.getRandomValues` 在更老的 WebView 里也可能没有。
  * 若直接调用原生 API 而不兜底，编辑器会在降级环境里抛错，因此必须保留 Math.random 分支。
- *
- * @returns {string} 形如 xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx 的十六进制字符串。
  */
 export function randomUuid() {
   // 原生实现可用时直接返回，省掉一次 16 字节数组的构造与手工格式化。

@@ -12,14 +12,6 @@ const IGNORED_COMPONENT_KEYS = new Set(["actions", "bindings", "position", "prop
 
 /**
  * 创建草稿恢复写入器：把连续的恢复请求合并成一次写入。
- *
- * @param {function(object): void} writeRecovery 真正的写入实现。
- * @param {object} [options] 定时器选项，测试时可注入假定时器。
- * @param {number} [options.delay] 合并窗口毫秒数，默认 200。
- * @param {function} [options.setTimer] 定时器实现，默认 setTimeout。
- * @param {function} [options.clearTimer] 清理定时器实现，默认 clearTimeout。
- * @returns {{schedule: function(object): void, flush: function(): void,
- *   cancel: function(string): void}} 写入器实例。
  */
 export function createRecoveryWriter(
   writeRecovery,
@@ -71,10 +63,6 @@ export function createRecoveryWriter(
 
 /**
  * 收集文档内所有组件的索引信息。
- *
- * @param {object} editorDocument 文档模型。
- * @returns {{entries: Map<string, object>, order: Array<string>}} 组件 ID 到
- *   位置信息（component / scope / pagePath / parentId）的映射，以及遍历顺序。
  */
 export function editorComponentEntries(editorDocument) {
   const entriesByComponentId = new Map();
@@ -114,7 +102,6 @@ export function editorComponentEntries(editorDocument) {
 /**
  * 生成组件的「结构」签名：只保留身份与层级，忽略样式与坐标。
  *
- * @param {object} structureComponent 组件节点。
  * @returns {string} JSON 字符串签名，children 仅保留子组件 ID。
  */
 export function editorComponentStructure(structureComponent) {
@@ -133,7 +120,6 @@ export function editorComponentStructure(structureComponent) {
 /**
  * 生成只反映「页面骨架」的文档签名：清空所有组件再算签名。
  *
- * @param {object} sourceDocument 文档模型。
  * @returns {string} 文档签名。
  */
 export function editorDocumentFrameSignature(sourceDocument) {
@@ -156,7 +142,6 @@ export function editorDocumentFrameSignature(sourceDocument) {
  * 非 navigate 动作删掉 target；domain / service 属于运行时推导字段，一并删除；
  * 对象键统一排序后再序列化，保证键序不同不会产生假差异。
  *
- * @param {object} document 文档模型。
  * @returns {string} JSON 字符串签名。
  */
 export function documentSignature(document) {
@@ -205,10 +190,6 @@ export function documentSignature(document) {
 
 /**
  * 拼出草稿恢复内容的 localStorage 键名。
- *
- * @param {string} storagePrefix 键前缀。
- * @param {string} storageProjectId 项目 ID。
- * @returns {string} 完整键名。
  */
 export function recoveryStorageKey(storagePrefix, storageProjectId) {
   return "" + storagePrefix + storageProjectId;

@@ -46,11 +46,6 @@
  * 只该用在**已经确认是数字**的地方（例如刚从 `Number()` / `finite()` 出来的值）。
  * 输入不是数字时按 `Math` 的规则走：`""` 与 `null` 会被当成 0，`NaN` 会一路传播成
  * `NaN` —— 后者是有意的：静默换一个数比冒出一个 NaN 更难查。
- *
- * @param {number|string} value 待夹取的值。
- * @param {number} minimum 下限。
- * @param {number} maximum 上限。
- * @returns {number} 夹取后的值。
  */
 export function clampNumber(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
@@ -65,11 +60,7 @@ export function clampNumber(value, minimum, maximum) {
  * 原先这条与值走同一次夹取，「兜底也要落在区间内」由调用方负责 —— `registry.js` 里
  * 那一处会算出区间外兜底的调用点已经在调用点显式 `clampNumber` 夹过（见模块头）。
  *
- * @param {*} value 待处理的值。
- * @param {number} minimum 下限。
- * @param {number} maximum 上限。
  * @param {*} fallback 换算后不是有限数时使用的兜底值（可以是区间外的哨兵）。
- * @returns {number|*} 夹取后的值或兜底值。
  */
 export function clampCoercedNumber(value, minimum, maximum, fallback) {
   const parsedValue = Number(value);
@@ -85,12 +76,6 @@ export function clampCoercedNumber(value, minimum, maximum, fallback) {
  * 窗帘参数里 `curtainPreview: ""` 会被静默当成「预览 0%」，那是合法但错误的默认值。
  * 数字字符串仍然认（`"1.5"` 按 1.5 用），因为这类值来自服务端与文档的文本字段。
  * 兜底值原样返回，不参与夹取 —— 它可能是区间外的哨兵。
- *
- * @param {*} value 待处理的值。
- * @param {number} minimum 下限。
- * @param {number} maximum 上限。
- * @param {number} fallback 未设置或非法时使用的兜底值。
- * @returns {number} 夹取后的值或兜底值。
  */
 export function clampOptionalNumber(value, minimum, maximum, fallback) {
   // 空串与 null 都视为「未设置」：Number("") 会得到 0，那是个合法但错误的默认值。
@@ -109,11 +94,7 @@ export function clampOptionalNumber(value, minimum, maximum, fallback) {
  * 而是文档坏了 —— 与其猜它想表达什么，不如用默认值。兜底值原样返回，不参与夹取
  * （`null` 在这里是合法兜底：调用方要区分「没设过」与「设成了 0」）。
  *
- * @param {*} value 待处理的值。
- * @param {number} minimum 下限。
- * @param {number} maximum 上限。
  * @param {*} fallback 非数字时使用的兜底值（可以是 `null` 这类哨兵）。
- * @returns {number|null} 夹取后的值或兜底值。
  */
 export function clampTypedNumber(value, minimum, maximum, fallback) {
   return typeof value === "number" && Number.isFinite(value)

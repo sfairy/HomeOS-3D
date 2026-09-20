@@ -15,11 +15,6 @@ import { entityDomainFromId } from "./utils/entities.js?v=20260920080000";
 
 /**
  * 生成不与现有页面冲突的路径。
- *
- * @param {Array<object>} pages 现有页面列表。
- * @param {string} pageName 页面名称（中文亦可，内部会 slug 化）。
- * @param {string} [currentPath] 当前页面自身的路径，重命名时排除它以免自我冲突。
- * @returns {string} 可用路径；冲突时追加 "-2"、"-3"……
  */
 export function uniquePagePath(pages, pageName, currentPath = "") {
   const basePath = slugify(pageName);
@@ -38,11 +33,6 @@ export function uniquePagePath(pages, pageName, currentPath = "") {
 
 /**
  * 复制页面并为其及全部子组件换上新 ID。
- *
- * @param {object} sourcePage 源页面，不会被修改。
- * @param {string} targetPageName 新页面名称。
- * @param {Array<object>} [otherPages] 其余页面，用于生成不冲突的路径。
- * @returns {object} 新页面对象。
  */
 export function clonePageWithFreshIds(sourcePage, targetPageName, otherPages = []) {
   const clonedPage = clone(sourcePage);
@@ -62,10 +52,6 @@ export function clonePageWithFreshIds(sourcePage, targetPageName, otherPages = [
 
 /**
  * 按 ID 查找自定义弹窗定义。
- *
- * @param {object} editorDocument 文档模型。
- * @param {string} popupId 弹窗 ID。
- * @returns {object|null} 弹窗定义；未找到为 null。
  */
 export function findCustomPopup(editorDocument, popupId) {
   return (editorDocument?.customPopups || []).find(popup => popup.id === popupId) || null;
@@ -73,9 +59,6 @@ export function findCustomPopup(editorDocument, popupId) {
 
 /**
  * 取弹窗模块类型的中文名。
- *
- * @param {string} moduleType 模块类型。
- * @returns {string} 中文名；未知类型回退为「通用设备」。
  */
 export function popupModuleTypeLabel(moduleType) {
   return (
@@ -102,7 +85,6 @@ const CLIMATE_DEVICE_TYPES = ["auto", "air-conditioner", "bath-heater"];
 /**
  * 归一弹窗气候模块的设备类型。
  *
- * @param {string} deviceType 设备类型。
  * @returns {string} 合法类型原样返回，否则为 "auto"。
  */
 export function normalizedPopupClimateDeviceType(deviceType) {
@@ -115,10 +97,6 @@ export function normalizedPopupClimateDeviceType(deviceType) {
 
 /**
  * 判断实体是否是某类弹窗模块的推荐实体。
- *
- * @param {object} entity 实体对象。
- * @param {string} recommendedModuleType 模块类型。
- * @returns {boolean} 推荐则为 true。
  */
 export function popupModuleEntityRecommended(entity, recommendedModuleType) {
   // entity.domain 缺失时从 entityId 的前缀推导，兼容只带 ID 的瘦实体。
@@ -152,12 +130,6 @@ export function popupModuleEntityRecommended(entity, recommendedModuleType) {
 
 /**
  * 计算模块拖放后的新顺序。
- *
- * @param {Array<object>} modules 模块列表。
- * @param {string} moduleId 被拖动的模块 ID。
- * @param {string|null} [beforeModuleId] 参照模块 ID；为空表示移到末尾。
- * @param {boolean} [placeAfter] 是否插到参照模块之后。
- * @returns {Array<object>} 新数组；无变化时返回原顺序的浅拷贝。
  */
 export function reorderedPopupModules(
   modules,
@@ -191,11 +163,6 @@ export function reorderedPopupModules(
 
 /**
  * 根据拖放点位置判断插入方向与落点边缘。
- *
- * @param {HTMLElement} rowElement 目标行元素。
- * @param {DragEvent} dropEvent 拖放事件。
- * @returns {{placeAfter: boolean, edge: string}} placeAfter 表示插到该行之后，
- *   edge 为 top / bottom / left / right。
  */
 export function popupModuleDropPosition(rowElement, dropEvent) {
   const rowRect = rowElement.getBoundingClientRect();
@@ -227,10 +194,6 @@ export function popupModuleDropPosition(rowElement, dropEvent) {
 
 /**
  * 求最大公约数（辗转相除法），用于按比例简化尺寸。
- *
- * @param {number} firstNumber 第一个数。
- * @param {number} secondNumber 第二个数。
- * @returns {number} 最大公约数；两者都为 0 时返回 1，避免调用方除零。
  */
 export function greatestCommonDivisor(firstNumber, secondNumber) {
   let leftNumber = Math.abs(Math.trunc(firstNumber));

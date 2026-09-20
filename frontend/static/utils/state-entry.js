@@ -68,10 +68,6 @@
  *
  * 注意：**取到的值是假值时也返回 `null`**（`""` / `0` / `false`）—— 调用方要的是「有没有这一条」，
  * 不是「值本身」。这也是下面 `resolveStateEntryIn` 能直接串起来的原因。
- *
- * @param {Map|object} source 以实体 ID 为键的容器。
- * @param {string} key 实体 ID。
- * @returns {*} 命中的值或 `null`。
  */
 export function readFromMapOrRecord(source, key) {
   if (typeof source?.get == "function") {
@@ -83,11 +79,6 @@ export function readFromMapOrRecord(source, key) {
 
 /**
  * 剥掉变更对象的外壳，取出真正的状态对象。
- *
- * @param {object} [stateOrChange] 变更对象（含 `newState`）或状态对象本身。
- * @param {*} [fallback] 两者皆空时的返回值，默认 `null`。
- *   需要「保证下游取值不抛」的调用点传一个占位状态对象（见 `entity-power.js`）。
- * @returns {object|*} 状态对象，或 `fallback`。
  */
 export function resolveStateEntry(stateOrChange, fallback = null) {
   return stateOrChange?.newState || stateOrChange || fallback;
@@ -98,10 +89,6 @@ export function resolveStateEntry(stateOrChange, fallback = null) {
  *
  * 把两步（取容器里的一项 + 剥变更外壳）合成一个名字，是因为这两步总是连着出现：
  * 分开写时最容易漏掉第二步，而漏掉的表现是「状态里读不到东西」——不报错。
- *
- * @param {Map|object} statesByEntityId 以实体 ID 为键的状态容器。
- * @param {string} entityIdKey 实体 ID。
- * @returns {object|null} 状态对象，缺失返回 `null`。
  */
 export function resolveStateEntryIn(statesByEntityId, entityIdKey) {
   return resolveStateEntry(readFromMapOrRecord(statesByEntityId, entityIdKey));

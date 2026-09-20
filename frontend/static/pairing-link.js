@@ -18,8 +18,6 @@ export { isAppleMobile };
 /**
  * 解析并严格校验配对链接。
  *
- * @param {string} rawLink 二维码扫描得到的原始文本。
- * @returns {{server: string, code: string}} 中心服务地址（origin）与 6 位配对码。
  * @throws {Error} 链接超长、格式不符或字段缺失时抛出中文错误文案。
  */
 export function parsePairingLink(rawLink) {
@@ -52,10 +50,6 @@ export function parsePairingLink(rawLink) {
 
 /**
  * 判断是否需要向用户展示「添加到主屏幕」引导。
- *
- * @param {object} [navigatorObject] navigator 对象或替身。
- * @param {boolean} [isStandalone] 是否已处于 standalone 显示模式。
- * @returns {boolean} 需要引导时为 true。
  */
 export function needsAppleInstallGuide(navigatorObject = navigator, isStandalone = !1) {
   // 已由 HomeOS 原生 App 打开时不再引导，UA 里带 HomeOS-Apple/Android 标记。

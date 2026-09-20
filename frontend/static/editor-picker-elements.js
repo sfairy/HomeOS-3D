@@ -10,17 +10,6 @@
 
 /**
  * 创建选择器元素工厂。
- *
- * @param {object} handlers 展示文案与图标能力的依赖注入。
- * @param {function(object): string} handlers.entityKindLabel 取实体域标签。
- * @param {function(object): string} handlers.entityPickerPrimaryName 取实体主名称。
- * @param {function(object): string} handlers.entityPickerText 取实体完整展示文案。
- * @param {function(Element, Element): void} handlers.enableEntityTextHoverScroll 让过长文本可悬停滚动。
- * @param {function(object): string} handlers.assetDisplayName 取素材显示名。
- * @param {function(object): string} handlers.assetPreviewUrl 取素材预览地址。
- * @param {function(Element, string): void} handlers.bindEditorIconNameTooltip 绑定图标名提示。
- * @param {function(string): string} handlers.mdiIconUrl 由图标名生成 MDI 图标地址。
- * @returns {object} 冻结的元素工厂集合。
  */
 export function createEditorPickerElements({
   entityKindLabel: entityKindLabel,
@@ -34,11 +23,6 @@ export function createEditorPickerElements({
 }) {
   /**
    * 创建图标选择器的「清除」选项。
-   *
-   * @param {boolean} isClearSelected 当前是否已选中该项。
-   * @param {string} clearOptionLabel 按钮文案。
-   * @param {string} clearDatasetKey 存放取值的 dataset 键名。
-   * @returns {HTMLButtonElement} 选项按钮。
    */
   function createIconPickerClearOption(isClearSelected, clearOptionLabel, clearDatasetKey) {
     const clearOptionElement = document.createElement("button");
@@ -53,11 +37,6 @@ export function createEditorPickerElements({
 
   /**
    * 创建一个图标选项（用 mask-image 渲染 MDI 图标）。
-   *
-   * @param {object} icon 图标信息，含 name 与 previewUrl。
-   * @param {string} selectedIconName 当前选中的图标名。
-   * @param {string} iconDatasetKey 存放图标名的 dataset 键名。
-   * @returns {HTMLButtonElement} 选项按钮。
    */
   function createIconPickerOption(icon, selectedIconName, iconDatasetKey) {
     const iconOptionElement = document.createElement("button");
@@ -80,10 +59,6 @@ export function createEditorPickerElements({
 
   /**
    * 创建「当前图标」展示块。
-   *
-   * @param {string} iconName 当前图标名，可为空。
-   * @param {string} [emptyIconLabel] 未设置图标时的占位文案。
-   * @returns {HTMLSpanElement} 展示块。
    */
   function createEditorPickerCurrentIcon(
     iconName,
@@ -112,10 +87,6 @@ export function createEditorPickerElements({
 
   /**
    * 创建一个实体选项行（域标签 + 名称 + 实体 ID）。
-   *
-   * @param {object} entity 实体对象。
-   * @param {string} selectedEntityId 当前选中的实体 ID。
-   * @returns {HTMLButtonElement} 选项按钮。
    */
   function createEditorEntityPickerOption(entity, selectedEntityId) {
     const entityOptionElement = document.createElement("button");
@@ -152,10 +123,6 @@ export function createEditorPickerElements({
 
   /**
    * 创建「清除选择」按钮。
-   *
-   * @param {string} clearLabel 按钮文案。
-   * @param {boolean} [isClearOptionSelected] 是否处于选中态。
-   * @returns {HTMLButtonElement} 按钮元素。
    */
   function editorPickerClearOption(clearLabel, isClearOptionSelected = !1) {
     const clearButtonElement = document.createElement("button");
@@ -170,10 +137,6 @@ export function createEditorPickerElements({
 
   /**
    * 创建动作选择器里的「不使用实体」按钮。
-   *
-   * @param {string} [clearActionLabel] 按钮文案。
-   * @param {boolean} [isClearActionSelected] 是否处于选中态。
-   * @returns {HTMLButtonElement} 按钮元素。
    */
   function editorPickerClearAction(
     clearActionLabel = "不使用实体",
@@ -189,10 +152,6 @@ export function createEditorPickerElements({
 
   /**
    * 创建动作选择器里的实体按钮。
-   *
-   * @param {object} actionEntity 实体对象。
-   * @param {boolean} [isEntityActionSelected] 是否处于选中态。
-   * @returns {HTMLButtonElement} 按钮元素。
    */
   function editorPickerEntityAction(actionEntity, isEntityActionSelected = !1) {
     const entityActionElement = document.createElement("button");
@@ -208,10 +167,6 @@ export function createEditorPickerElements({
 
   /**
    * 创建「当前实体」展示块。
-   *
-   * @param {object|null} selectedEntity 当前选中的实体。
-   * @param {string} [emptyEntityLabel] 未选择时的占位文案。
-   * @returns {HTMLSpanElement} 展示块。
    */
   function createEditorPickerCurrentEntity(
     selectedEntity,
@@ -239,10 +194,6 @@ export function createEditorPickerElements({
 
   /**
    * 创建「当前素材」展示块（缩略图 + 名称）。
-   *
-   * @param {object|null} asset 当前选中的素材。
-   * @param {string} [emptyAssetLabel] 未使用素材时的占位文案。
-   * @returns {HTMLSpanElement} 展示块。
    */
   function createEditorPickerCurrentAsset(
     asset,

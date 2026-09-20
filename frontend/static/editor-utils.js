@@ -16,9 +16,6 @@ import { hexColorOrEmpty } from "./utils/colors.js?v=20260920080000";
 
 /**
  * 深拷贝一个值。
- *
- * @param {*} value 待拷贝的值。
- * @returns {*} 拷贝结果；使用 structuredClone，不支持函数 / DOM 节点。
  */
 export function clone(value) {
   return structuredClone(value);
@@ -26,9 +23,6 @@ export function clone(value) {
 
 /**
  * 生成「前缀 + 随机 UUID」形式的 ID。
- *
- * @param {string} idPrefix 前缀，如 "page" / "component"。
- * @returns {string} 新 ID。
  */
 export function newId(idPrefix) {
   return idPrefix + "-" + randomUuid();
@@ -36,9 +30,6 @@ export function newId(idPrefix) {
 
 /**
  * 把文本转成 URL 片段：去音标、转小写、非字母数字压成连字符。
- *
- * @param {string} text 原始文本，通常为页面标题。
- * @returns {string} 片段；全中文等无法转写时回退为 "page-<8 位随机>"。
  */
 export function slugify(text) {
   // slice(0, 72) 限制长度，避免生成过长的路径；结果为空串时必须有回退值，
@@ -55,9 +46,6 @@ export function slugify(text) {
 
 /**
  * HEX 转 RGB。
- *
- * @param {string} hexColorInput HEX 颜色。
- * @returns {{r: number, g: number, b: number}} 0~255 的三通道值；非法输入按黑色处理。
  */
 export function hexToRgb(hexColorInput) {
   const normalizedColor = hexColorOrEmpty(hexColorInput) || "#000000";
@@ -70,11 +58,6 @@ export function hexToRgb(hexColorInput) {
 
 /**
  * RGB 转 HEX。
- *
- * @param {number} red 红通道。
- * @param {number} green 绿通道。
- * @param {number} blue 蓝通道。
- * @returns {string} #rrggbb 小写形式；越界通道会先夹到 0~255。
  */
 export function rgbToHex(red, green, blue) {
   // 单通道转两位小写十六进制；越界与非法输入先夹到 0~255，padStart 保证 0 也输出两位。
@@ -87,9 +70,6 @@ export function rgbToHex(red, green, blue) {
 
 /**
  * RGB 转 HSV。
- *
- * @param {{r: number, g: number, b: number}} rgb 颜色对象，通道取值 0~255。
- * @returns {{h: number, s: number, v: number}} 色相 0~360、饱和度与明度 0~1。
  */
 export function rgbToHsv({ r: redValue, g: greenValue, b: blueValue }) {
   const redRatio = redValue / 255;
@@ -122,11 +102,6 @@ export function rgbToHsv({ r: redValue, g: greenValue, b: blueValue }) {
 
 /**
  * HSV 转 RGB。
- *
- * @param {number} hue 色相，可为任意角度，内部按 360 取模。
- * @param {number} saturation 饱和度 0~1。
- * @param {number} brightness 明度 0~1。
- * @returns {{r: number, g: number, b: number}} 三通道 0~255 的值。
  */
 export function hsvToRgb(hue, saturation, brightness) {
   // 二次取模把负角度（如 -30°）折回 [0, 360)，否则下面按扇区切片会落到负值区间。
@@ -159,9 +134,6 @@ export function hsvToRgb(hue, saturation, brightness) {
 
 /**
  * 把数值格式化成面板显示用的两位小数字符串。
- *
- * @param {number} fieldValue 数值。
- * @returns {string} 两位小数字符串；非有限数返回 "0"（输入框不接受 NaN）。
  */
 export function roundField(fieldValue) {
   if (Number.isFinite(fieldValue)) {
@@ -176,10 +148,6 @@ export function roundField(fieldValue) {
  *
  * 面板与后端存在两套写法：1~900 的 CSS 数值，与 0~1 的比例值。
  * 这里统一输出 0~1，方便滑杆控件使用。
- *
- * @param {number} weight 原始字重。
- * @param {number} [fallbackWeight] 非法输入时的回退比例。
- * @returns {number} 0~1 的比例值。
  */
 export function normalizedFontWeight(weight, fallbackWeight = 0.4) {
   const numericWeight = Number(weight);

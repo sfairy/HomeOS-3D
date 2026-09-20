@@ -28,9 +28,6 @@
  * 容错归一：可省略 `#`、认三位缩写，输出小写 `#rrggbb`；无法识别时返回空串。
  *
  * 用在「把用户输入 / 剪贴板里的颜色变成标准写法」的地方 —— 尽量认出来是它的目的。
- *
- * @param {string} colorInput 颜色输入，可带或不带 `#`，支持三位缩写。
- * @returns {string} `#rrggbb`；无法识别时为空串。
  */
 export function hexColorOrEmpty(colorInput) {
   const trimmedColor = String(colorInput || "").trim();
@@ -50,9 +47,6 @@ export function hexColorOrEmpty(colorInput) {
  *
  * 用在「判断用户输入到哪一步了」与「比较两个颜色是不是同一个」的地方：三位缩写在这里
  * 也算「不是一个完整的颜色」—— 比较结果要稳定，不可以因为同一颜色的两种写法而忽等忽不等。
- *
- * @param {string} hexColorInput 原始色值。
- * @returns {string} `#rrggbb`；不合法时为空串。
  */
 export function strictHexColorOrEmpty(hexColorInput) {
   const normalizedHexValue = String(hexColorInput || "")
@@ -72,9 +66,6 @@ export function strictHexColorOrEmpty(hexColorInput) {
  * 因为 HA 里用户手写的颜色常是 `#abc`，直接按六位解析会得到错值；大小写不在这里统一，
  * 调用方只要通道值，归一反而多一次改写。拿不准的输入明确返回 `null`，让调用方放弃计算
  * —— 算出一个错的颜色比不插值更糟。
- *
- * @param {string} colorValue 原始色值。
- * @returns {string|null} 六位色值；非法时为 `null`。
  */
 export function expandHexColorOrNull(colorValue) {
   const trimmedColor = String(colorValue || "").trim();

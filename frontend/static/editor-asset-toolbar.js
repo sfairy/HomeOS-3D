@@ -11,9 +11,6 @@
 
 /**
  * 从素材列表里收集去重后的文件夹名，并按中文排序。
- *
- * @param {Array<object>} assetList 素材列表。
- * @returns {Array<string>} 排序后的文件夹名数组。
  */
 export function editorAssetFolders(assetList) {
   return [...new Set((assetList || []).map(assetEntry => assetEntry.folder).filter(Boolean))].sort(
@@ -23,17 +20,6 @@ export function editorAssetFolders(assetList) {
 
 /**
  * 创建素材工具栏渲染函数。
- *
- * @param {object} handlers 依赖注入。
- * @param {Document} handlers.documentObject 用于创建节点的 document。
- * @param {function(object): string} handlers.getFolder 读取指定 picker 的当前文件夹。
- * @param {function(object, string): void} handlers.setFolder 写入当前文件夹。
- * @param {function(): Array<object>} handlers.getAssets 读取素材列表。
- * @param {function(object): HTMLInputElement} handlers.getUploadInput 取上传文件输入框。
- * @param {function(string, string): boolean} [handlers.canDeleteFolder] 判断能否删除该文件夹。
- * @param {function(object, string): void} [handlers.onDeleteFolder] 删除文件夹回调。
- * @returns {function(object, object): void} 渲染函数，入参为 pickerState 与
- *   { toolbar, controller }。
  */
 export function createEditorAssetToolbar({
   documentObject: documentObject,

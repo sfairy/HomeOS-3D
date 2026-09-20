@@ -15,8 +15,6 @@ export const ICON_VISIBILITY_VIRTUAL_SCOPE = "current_page";
 
 /**
  * 生成图标显隐虚拟实体的 ID。
- *
- * @returns {string} 形如 virtual.icon_visibility.current_page 的 ID。
  */
 export function iconVisibilityVirtualEntityId() {
   return (
@@ -26,9 +24,6 @@ export function iconVisibilityVirtualEntityId() {
 
 /**
  * 解析虚拟实体 ID。
- *
- * @param {string} entityId 待解析的实体 ID。
- * @returns {{kind: string, scope: string}|null} 解析结果；非虚拟实体或格式不完整为 null。
  */
 export function parseVirtualEntityId(entityId) {
   const entityIdString = String(entityId || "");
@@ -55,9 +50,6 @@ export function parseVirtualEntityId(entityId) {
 
 /**
  * 判断是否为合法的虚拟实体 ID。
- *
- * @param {string} candidateEntityId 待判断的实体 ID。
- * @returns {boolean} 是合法虚拟实体时为 true。
  */
 export function isVirtualEntityId(candidateEntityId) {
   return !!parseVirtualEntityId(candidateEntityId);
@@ -65,9 +57,6 @@ export function isVirtualEntityId(candidateEntityId) {
 
 /**
  * 构造一个「图标·显示隐藏」虚拟实体，供实体选择器展示与绑定。
- *
- * @param {string} [pagePath] 所属页面路径，默认空串表示当前页。
- * @returns {object} 与 HA 实体同形状的实体描述对象。
  */
 export function createIconVisibilityVirtualEntity(pagePath = "") {
   // virtual 标记让下游跳过 HA 调用；virtualKind 供运行时区分具体虚拟实体。

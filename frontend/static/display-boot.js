@@ -52,9 +52,6 @@
 
   /**
    * 根据画布背景色推导并应用明 / 暗主题。
-   *
-   * @param {object} dashboardDocument 文档模型，读取 canvas.background 与 theme.name。
-   * @returns {void}
    */
   function applyDocumentTheme(dashboardDocument) {    const background = dashboardDocument?.canvas?.background,
       colorValue = background?.type === "color" ? String(background.color || "") : "";
@@ -108,8 +105,6 @@
    *
    * 三类提示共用一个元素，按严重程度取一条（见下面三个 setter 的说明）：
    * 页面顶部只允许出现一条横幅，叠两条会互相盖住、也让读屏重复播报。
-   *
-   * @returns {void}
    */
   function renderNotice() {
     const noticeElement = document.getElementById("display-notice");
@@ -126,9 +121,6 @@
    *
    * 用于「控件操作失败」这类已经过去的事件：它们没有持续状态，留着不走反而
    * 让人以为画面还在坏着。
-   *
-   * @param {string} message 提示文案。
-   * @returns {void}
    */
   function showFlashNotice(message) {
     clearTimeout(noticeHideTimer);
@@ -140,8 +132,6 @@
 
   /**
    * 收起一次性提示。
-   *
-   * @returns {void}
    */
   function hideFlashNotice() {
     (clearTimeout(noticeHideTimer),
@@ -155,9 +145,6 @@
    *
    * 它跟着「下一次刷新成功」一起撤销（recovered），因为刷新成功正是这句话
    * 变成假话的时刻 —— 否则恢复联网后横幅会一直挂着，用户再也分不清好坏。
-   *
-   * @param {string} message 提示文案，空串表示撤销。
-   * @returns {void}
    */
   function setRefreshNotice(message) {
     ((noticeRefreshMessage = String(message || "")), renderNotice());
@@ -169,9 +156,7 @@
    * 与刷新失败分开记，是因为它的解除条件不同：刷新成功不代表实体状态会恢复，
    * 只有在渲染层重新订阅成功（收到 available 为 true）时才可以说已经恢复。
    *
-   * @param {boolean} available 实时推送当前是否可用。
    * @param {string} [message] 不可用时的文案。
-   * @returns {void}
    */
   function setRuntimePushNotice(available, message) {
     noticeRuntimeMessage = available
@@ -186,10 +171,6 @@
    * 启动层已经摘掉（phase 为 done）时不再有「错误界面」可用，改为挂一条非阻塞
    * 横幅并保留画面：之前这里直接 return，于是展示页断网后会一直安静地显示
    * 冻结的旧数据，墙面屏前的人看不出任何异常。
-   *
-   * @param {Error} error 错误对象，取其 message 作为提示文案。
-   * @param {boolean} [canEnter] 是否允许「先进入仪表盘」按钮。
-   * @returns {void}
    */
   function showError(error, canEnter = !1) {
     // 运行期失败：数据可能已经过期，但页面还能用，不要用遮罩把整屏挡住。
@@ -216,8 +197,6 @@
 
   /**
    * 进入淡出流程并在动画结束后移除启动层。
-   *
-   * @returns {void}
    */
   function finishLoading() {
     if (splashPhase === "done" || splashPhase === "leaving") return;
@@ -253,9 +232,6 @@
 
   /**
    * 判断元素是否真的可见（用于决定它是否需要算进「待加载素材」）。
-   *
-   * @param {Element} element 待判断元素。
-   * @returns {boolean} 可见则为 true。
    */
   function isVisible(element) {
     if (!element.isConnected || element.closest("[hidden]")) return !1;
@@ -289,8 +265,6 @@
 
   /**
    * 检查首屏是否还有未加载完的素材。
-   *
-   * @returns {boolean} 还有待加载素材则为 true。
    */
   function hasPendingAssets() {
     // 摄像头与扫地机地图是持续推流的组件，永远画不完，必须排除。
@@ -332,9 +306,6 @@
 
   /**
    * 渲染脚本通知「首屏已可用」时进入等待稳定阶段。
-   *
-   * @param {HTMLElement} readyShellElement 展示页根节点，后续所有查询都限定在它内部。
-   * @returns {void}
    */
   function handleReady(readyShellElement) {
     if (splashPhase !== "loading") return;

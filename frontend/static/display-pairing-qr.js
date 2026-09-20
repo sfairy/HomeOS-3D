@@ -13,9 +13,6 @@ import qrcode from "./vendor/qrcode-generator/qrcode.js";
 /**
  * 校验服务地址与配对码，拼出二维码内容。
  *
- * @param {string} serverUrl 服务地址，形如 http://192.168.1.20:18080。
- * @param {string|number} code 6 位配对码。
- * @returns {string} 二维码承载的配对链接。
  * @throws {Error} 地址不合法（含路径 / 账号 / 查询串）或配对码格式错误。
  */
 export function pairingQrPayload(serverUrl, code) {
@@ -50,9 +47,6 @@ export function pairingQrPayload(serverUrl, code) {
 
 /**
  * 把配对链接渲染成内联 SVG 二维码。
- *
- * @param {string} payload 二维码内容。
- * @returns {string} SVG 字符串。
  */
 export function pairingQrSvg(payload) {
   // 默认按 Latin-1 编码，中文域名 / 参数会乱码，必须显式切到 UTF-8。
@@ -68,12 +62,6 @@ export function pairingQrSvg(payload) {
 
 /**
  * 打开配对二维码弹窗。
- *
- * @param {object} pairing 配对信息。
- * @param {string} pairing.name 设备名称，展示在说明文案里。
- * @param {string} pairing.code 6 位配对码。
- * @param {boolean} pairing.enabled 该配对码是否仍启用。
- * @returns {void} 弹窗关闭后自行从 DOM 移除。
  */
 export function showDisplayPairingQr(pairing) {
   const dialogElement = document.createElement("dialog");

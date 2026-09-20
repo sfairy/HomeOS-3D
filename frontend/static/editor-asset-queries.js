@@ -10,13 +10,6 @@
 
 /**
  * 创建素材匹配函数。
- *
- * @param {object} handlers 读取素材状态的三个回调。
- * @param {function(): string} handlers.getImageFolder 读取当前图片文件夹。
- * @param {function(): string} handlers.getIbeFolder 读取当前 IBE 文件夹。
- * @param {function(): Array<object>} handlers.getUserAssets 读取用户素材列表。
- * @returns {function(string, string=): Array<object>} 匹配函数，
- *   入参为素材分类（"image" / "ibe"）与搜索文本。
  */
 export function createEditorAssetMatcher({
   getImageFolder: getImageFolder,

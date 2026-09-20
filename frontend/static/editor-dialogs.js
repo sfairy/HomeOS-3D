@@ -10,10 +10,6 @@
 
 /**
  * 让隐藏的设置对话框延迟挂载。
- *
- * @param {NodeListOf<HTMLDialogElement>} [dialogElements] 目标对话框集合，
- *   默认为 body 直属的 dialog.settings-dialog。
- * @returns {void}
  */
 export function deferHiddenEditorDialogs(
   dialogElements = document.querySelectorAll("body > dialog.settings-dialog")
@@ -55,8 +51,6 @@ export function deferHiddenEditorDialogs(
  *
  * 背景：用户在对话框内按下指针、拖到遮罩上松手时，浏览器会判定为点击遮罩
  * 从而关闭对话框，容易丢编辑内容。
- *
- * @returns {void}
  */
 export function installSettingsDialogBackdropGuard() {
   // 记录本次指针序列是否起始于遮罩本身，用 WeakMap 避免给 DOM 加自定义属性。

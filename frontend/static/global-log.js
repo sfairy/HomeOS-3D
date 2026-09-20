@@ -21,9 +21,6 @@ const LEVEL_LABELS = {
 
 /**
  * 把时间戳格式化成「MM-DD HH:mm:ss」。
- *
- * @param {string|number} timestamp 时间戳或可被 Date 解析的字符串。
- * @returns {string} 格式化结果；无法解析时返回「时间未知」。
  */
 function formatTimestamp(timestamp) {
   const parsedDate = new Date(timestamp);
@@ -36,11 +33,6 @@ function formatTimestamp(timestamp) {
 
 /**
  * 启动全局日志对话框。
- *
- * @param {object} handlers 依赖注入。
- * @param {function(string, object=): Promise<*>} handlers.api 请求函数，
- *   接收以 /api/v1 为前缀的路径与 fetch 配置。
- * @returns {object|null} {open, refresh} 控制器；页面缺少必要节点或已初始化时返回 null。
  */
 export function setupGlobalLog({ api: apiRequest }) {
   const openButton = document.querySelector("#global-log-open");
@@ -173,10 +165,8 @@ export function setupGlobalLog({ api: apiRequest }) {
   /**
    * 拉取日志列表。
    *
-   * @param {object} [options] 选项。
    * @param {boolean} [options.append] 为 true 时在现有列表后追加（翻页），
    *   否则从第一页重新加载。
-   * @returns {Promise<void>}
    */
   async function loadEntries({ append: append = false } = {}) {
     if (isLoading) {
