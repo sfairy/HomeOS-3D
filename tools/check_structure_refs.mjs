@@ -423,10 +423,13 @@ function checkFrontendDirChains(problems) {
  * de-`app` refactor these must all flip; this only lists them so the batch can
  * be closed out deliberately rather than by a blind search-and-replace.
  *
- * Time-stamped records under docs/audits and docs/releases describe the tree as
- * it was, so they are excluded — rewriting history there would be wrong.
+ * All of `docs/` is excluded: it holds only time-stamped records
+ * (`AUDIT-<date>.md`, `RELEASE-<version>.md`) that describe the tree as it was,
+ * so rewriting history there would be wrong. The files used to live in
+ * `docs/audits/` and `docs/releases/`; excluding the whole directory keeps this
+ * exclusion from needing an update every time the layout shifts.
  */
-const HISTORICAL_DIRS = ["docs/audits", "docs/releases"];
+const HISTORICAL_DIRS = ["docs"];
 
 function reportBackendAppLiterals() {
   const skipDirs = new Set(["node_modules", ".git", ".venv", ".venv-store", "__pycache__", "源代码", "vendor"]);
