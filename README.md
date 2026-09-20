@@ -107,7 +107,6 @@ HomeOS/
 ├── tools/                  # check_structure_refs.mjs（引用完整性）· bump_static_cache_versions.mjs（?v=）
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（strip py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
-├── docs/                   # 时间点记录（audits / releases），索引见 docs/README.md
 ├── data/                   # 主应用运行时数据（不入库）
 ├── .env.example            # 环境变量模板（复制为 .env；A 区为部署常改项）
 ├── Dockerfile              # 多目标：app（主应用）与 store（商店）
