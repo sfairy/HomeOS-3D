@@ -26,15 +26,9 @@ _mdi_metadata_cache: dict[str, tuple[int, int, tuple[dict, ...]]] = {}
 def _mdi_metadata(meta_path: Path) -> tuple[dict, ...]:
     """取（必要时重新解析）MDI 元数据。
 
-    每次先看 mtime 与字节数：没变就直接回上次解析的结果（省掉读盘 + 解析），
-    变了就重新解析并覆盖。判断依据只有「文件本身变没变」，与请求参数无关，
-    因此按路径缓存是安全的（不同版本目录的路径本来就不同）。
-
-    参数:
-        meta_path: meta.json 路径。
-
-    返回:
-        已过滤的条目元组，顺序保持文件里的原始顺序。
+    每次先看 mtime 与字节数：没变就直接回上次解析的结果（省掉读盘 + 解析），变了就重新解析并覆盖。
+    判断依据只有「文件本身变没变」，与请求参数无关，因此按路径缓存是安全的（不同版本目录的路径
+    本来就不同）。返回已过滤的条目元组，顺序保持文件里的原始顺序。
     """
     stat = meta_path.stat()
     stamp = (stat.st_mtime_ns, stat.st_size)

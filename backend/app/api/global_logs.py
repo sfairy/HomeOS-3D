@@ -106,10 +106,6 @@ class ClientLogLimiter:
 
     def allow(self, peer: str, *, anonymous: bool) -> bool:
         """判断本次上报是否放行；匿名通道阈值更低。
-
-        参数:
-            peer: 客户端地址，取不到时为 'unknown'。
-            anonymous: 是否为未登录页面（匿名）通道。
         """
         now = time.monotonic()
         with self._lock:
@@ -158,13 +154,13 @@ def _limit_client_log(request: Request, *, anonymous: bool) -> None:
 def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None, *, public: bool = False) -> None:
     """把一条客户端事件整理成日志条目写入全局日志。
 
-    身份三选一决定 source 与 actor：管理员沿用上报自带的 source、中控设备标注
-    设备与项目、未登录页面统一记为「未登录页面 / 未登录」。
-    上下文先按白名单过滤键，再交给 safe_context 做敏感值遮盖。
+    身份三选一决定 source 与 actor：管理员沿用上报自带的 source、中控设备标注设备与项目、
+    未登录页面统一记为「未登录页面 / 未登录」。上下文先按白名单过滤键，再交给 safe_context 遮盖
+    敏感值。
 
-    ``public=True`` 表示这条走的是「无需登录」的公开通道（B62）：内容没有任何身份
-    背书，因此统一加来源标记并收窄长度上限 —— 未登录页面能写进后台审计日志的文本，
-    必须一眼能认出「这是外部上报的」，而不是混在系统自身的记录里。
+    ``public=True`` 表示这条走的是「无需登录」的公开通道（B62）：内容没有任何身份背书，因此统一
+    加来源标记并收窄长度上限 —— 未登录页面能写进后台审计日志的文本，必须一眼能认出「这是外部
+    上报的」，而不是混在系统自身的记录里。
     """
     message = payload.message
     details = payload.details
@@ -307,15 +303,13 @@ def create_client_log_event(payload: ClientLogEvent, request: Request, viewer: C
 def create_public_client_log_event(payload: ClientLogEvent, request: Request, response: Response, database: DatabaseSession) -> Response:
     """接收未登录页面上报的日志事件（无需登录，但必须同源）。
 
-    门禁顺序：同源校验 → 匿名限流 → 只收 warning / error → 页面路径必须在
-    PUBLIC_PAGES 或其子路径内 → 尝试解析身份（解析不到就按匿名记录）。
-    身份解析失败不算错误：未登录页面上报本来就是这个接口的常态。
+    门禁顺序：同源校验 → 匿名限流 → 只收 warning / error → 页面路径必须在 PUBLIC_PAGES 或其
+    子路径内 → 尝试解析身份（解析不到就按匿名记录，未登录页面上报本来就是这个接口的常态）。
 
-    限流必须排在两个「直接 204 丢掉」的过滤**之前**（B19）：过滤不是免费的，
-    它是外部可控输入上的一道判断，而过滤之后的 204 意味着这条请求不消耗任何配额
-    —— 只要把 level 填成 info（或把 page 填成任意不在白名单里的值），同一个来源就能
-    无限次地调这个接口，限流器连一次都不会看到。先限流后过滤，配额数的是「调了几次」，
-    与这条最终写不写日志无关。
+    **限流必须排在两个「直接 204 丢掉」的过滤之前（B19）**：过滤不是免费的，它是外部可控输入上的
+    一道判断，而过滤之后的 204 意味着这条请求不消耗任何配额 —— 只要把 level 填成 info（或把 page
+    填成任意不在白名单里的值），同一个来源就能无限次地调这个接口，限流器连一次都不会看到。
+    先限流后过滤，配额数的是「调了几次」，与这条最终写不写日志无关。
     """
     # Origin 必须与 Host 完全一致，避免被跨站页面当成日志注入通道。
     # 这条放在限流之前：它是纯判断、不改任何状态，垃圾请求在这里就结束，不必占配额。

@@ -58,13 +58,10 @@ def require_admin_account(user: User) -> None:
 def request_metadata(request: Request) -> tuple[str, str]:
     """取出用于审计与限流的请求元信息。
 
-    返回:
-        (客户端 IP, User-Agent) 二元组；按数据库列宽上限截断
-        （IP 截 64、UA 截 512），防止超长请求头把审计字段撑爆。
-
-    客户端 IP 由 :func:`http_security.resolve_client_ip` 解析：配了可信反向代理时
-    取真实来源地址，没配或对端不可信时一律用 TCP 对端地址（转发头在这两种情况下
-    都不可信，信了就等于让攻击者自选 IP）。
+    返回 ``(客户端 IP, User-Agent)``，两者都按数据库列宽上限截断（IP 64、UA 512），防止超长
+    请求头把审计字段撑爆。客户端 IP 由 :func:`http_security.resolve_client_ip` 解析：配了可信
+    反向代理时取真实来源地址，没配或对端不可信时一律用 TCP 对端地址 —— 转发头在这两种情况下
+    都不可信，信了就等于让攻击者自选 IP。
     """
     ip_address = resolve_client_ip(request).ip
     return (ip_address[:64], request.headers.get("user-agent", "")[:512])
@@ -73,15 +70,13 @@ def request_metadata(request: Request) -> tuple[str, str]:
 def login_limiter_scopes(request: Request, username: str) -> list[tuple]:
     """列出本次登录要检查 / 累加的限流档位。
 
-    三档，各挡一类攻击：
-    - 账号档（``login_account_limiter``，**不含 IP**）：换 IP 也躲不掉，这是
-      按 IP 限流被绕开后的兜底；
-    - 按 IP 档（``login_limiter``）：挡单机爆破；
-    - 按 IP + 账号档（``login_limiter``）：挡同一台机器换账号试。
+    三档，各挡一类攻击：账号档（``login_account_limiter``，**不含 IP**，换 IP 也躲不掉，
+    是按 IP 限流被绕开后的兜底）、按 IP 档（``login_limiter``，挡单机爆破）、按 IP + 账号档
+    （``login_limiter``，挡同一台机器换账号试）。
 
-    后两档只在「来源地址真的代表一个客户端」时启用：反代后面没配可信代理时，
-    所有人共用代理那一个地址，用它计数会让任何一个人失败几次就锁掉所有人
-    （包括管理员自己），还不如不统计。账号档不受影响，因此并非无保护。
+    后两档只在「来源地址真的代表一个客户端」时启用：反代后面没配可信代理时所有人共用代理那一个
+    地址，用它计数会让任何一个人失败几次就锁掉所有人（包括管理员自己）。账号档不受影响，
+    因此并非无保护。
     """
     limiter = getattr(request.app.state, "login_limiter", None)
     account_limiter = getattr(request.app.state, "login_account_limiter", None)
@@ -177,23 +172,18 @@ def setup_admin(
 ) -> UserResponse:
     """首次初始化管理员账号，或在账号文件丢失后重新设置。
 
-    请求字段：username、password、setupToken（见 SetupAdminRequest）。
-    返回：管理员 UserResponse，同时直接下发登录 Cookie（设置完即为登录态）。
-    会抛的中文错误文案：
-    - 403「首次设置需要引导密钥。…」：远程来源没带（或带错）引导密钥；
-    - 429「初始化尝试次数过多，请稍后再试。」：同一来源失败次数超限；
-    - 409「系统已经完成初始化。」：账号文件已生效，禁止二次设置；
-    - 409「这个账号名已被使用。」：重建时应与库内其它账号重名；
-    - 409「现有账号无法安全重置，请检查账号文件。」：库里有账号但找不到待重置的那一行。
+    请求字段：username、password、setupToken（见 SetupAdminRequest）。返回管理员 UserResponse，
+    同时直接下发登录 Cookie（设置完即为登录态）。会抛：403「首次设置需要引导密钥。…」（远程来源
+    没带或带错引导密钥）、429「初始化尝试次数过多，请稍后再试。」、409「系统已经完成初始化。」、
+    409「这个账号名已被使用。」、409「现有账号无法安全重置，请检查账号文件。」。
 
-    访问控制：这个端点刻意不要求身份（首次设置时还没有账号可登），所以「谁能连上
-    就先到先得」的窗口必须由别的东西关上 —— 见 setup_guard：本机直连放行，其余来源
-    必须带对启动日志里给出的引导密钥，失败会计入限流并写审计。顺序是「已初始化 →
-    409，再看引导密钥，最后才 argon2」，未授权的请求连一次哈希都换不到。
+    访问控制：这个端点刻意不要求身份（首次设置时还没有账号可登），所以「谁能连上就先到先得」的
+    窗口必须由别的东西关上 —— 见 setup_guard：本机直连放行，其余来源必须带对启动日志里给出的
+    引导密钥，失败计入限流并写审计。顺序是「已初始化 → 409，再看引导密钥，最后才 argon2」，
+    未授权的请求连一次哈希都换不到。
 
-    事务与回滚：先 BEGIN IMMEDIATE 取写锁，避免并发初始化；
-    账号文件用 stage 先落盘、activate 等库提交成功后才生效，
-    任何一步失败都回滚数据库并 abort 掉已落盘的凭据文件。
+    事务与回滚：先 BEGIN IMMEDIATE 取写锁避免并发初始化；账号文件用 stage 先落盘、activate 等库
+    提交成功后才生效，任何一步失败都回滚数据库并 abort 掉已落盘的凭据文件。
     """
     account_store = request.app.state.admin_account
     # 廉价预检放最前：已初始化时对**所有**来源都只会是 409（端点已关闭），

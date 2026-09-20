@@ -1,15 +1,14 @@
 """Home Assistant 集成的主接口面：连接配置、目录查询、历史、同步与设备控制。
 
-HA 能力码分三档，写接口各自声明需要哪一档（读接口只要求 api）：
-- ha.control   —— 调用服务、浏览媒体，只影响设备状态，风险最低；
-- ha.sync      —— 触发目录同步，会批量改库；
-- ha.configure —— 保存 / 删除连接，会改 HA 地址与 Token，风险最高。
+HA 能力码分三档，写接口各自声明需要哪一档（读接口只要求 api）：ha.control（调用服务、
+浏览媒体，只影响设备状态，风险最低）、ha.sync（触发目录同步，会批量改库）、ha.configure
+（保存 / 删除连接，会改 HA 地址与 Token，风险最高）。
 
-中控设备的可见范围另由 dependencies 层收窄：本模块所有涉及实体的查询都会经过
-viewer_entity_ids，中控设备只能看到自己绑定的实体；管理员不受限。
+中控设备的可见范围另由 dependencies 层收窄：本模块涉及实体的查询都会经过
+viewer_entity_ids，中控设备只能看到自己绑定的实体，管理员不受限。
 
-runtime_router 提供 /ws/runtime 实时状态推送：客户端订阅一批实体后，服务端把
-HA 侧的状态变化推给浏览器，并用心跳与配对状态复查维持这条长连接。
+runtime_router 提供 /ws/runtime 实时状态推送：客户端订阅一批实体后，服务端把 HA 侧的状态
+变化推给浏览器，并用心跳与配对状态复查维持这条长连接。
 """
 from __future__ import annotations
 
@@ -171,8 +170,6 @@ def load_authorized_entity_context(
 
     返回:
         (connection, entity_exists)。connection 为 None 表示尚未配置 HA；
-        entity_exists 为 False 表示实体不存在、已禁用或已失联。
-
     异常:
         HTTPException 403: 实体不属于当前中控仪表盘（由 require_viewer_entity 抛出）。
     """
@@ -317,15 +314,13 @@ async def save_connection(
 ) -> dict[str, Any]:
     """保存 HA 连接配置（需管理员 + 授权允许 api 与 ha.configure）。
 
-    门禁顺序是刻意的：先查能力码 ha.configure，再校验管理员身份 ——
-    这样即便身份不符，也不会把「授权不足」与「权限不足」两种原因的提示弄反。
+    门禁顺序是刻意的：先查能力码 ha.configure，再校验管理员身份 —— 这样即便身份不符，也不会把
+    「授权不足」与「权限不足」两种原因的提示弄反。
 
-    请求体字段: name / base_url / access_token / verify_tls。
-    未填 access_token 时沿用已保存的 Token；首次连接必须填。
-    保存前一定先用新配置试连一次，试连不过则整份配置都不落库。
-    返回连接结构，并额外带 'test'（本次试连结果）。
-    异常:
-        403 授权不足或非管理员；422 试连失败、首次连接缺 Token、旧 Token 解密失败。
+    请求体字段 name / base_url / access_token / verify_tls。未填 access_token 时沿用已保存的
+    Token，首次连接必须填。保存前一定先用新配置试连一次，试连不过则整份配置都不落库。
+    返回连接结构，并额外带 'test'（本次试连结果）。403 授权不足或非管理员；422 试连失败、
+    首次连接缺 Token、旧 Token 解密失败。
     """
     # ha.configure 是最高一档能力码：改 HA 地址与 Token 等于交出控制面。
     # 同步查库的门禁：async 路由里一律转线程池（B4），别在事件循环上开连接。
@@ -577,7 +572,6 @@ def history_state_value(raw_state: Any) -> float | str | None:
     """把 HA 的历史状态转成曲线可用的数值或字符串。
 
     返回:
-        能转成浮点数就返回浮点数（温度、湿度、电量等）；
         否则返回去掉空白的字符串；空值与空串统一返回 None，由调用方跳过该点。
     """
     try:
@@ -745,17 +739,13 @@ async def call_service(
 ) -> dict[str, Any]:
     """调用 HA 服务控制设备（需已认证 + 授权允许 api 与 ha.control）。
 
-    请求体: domain / service / entity_id / data（透传参数）。
-    校验顺序（都不通过就不必回源 HA）：
-    1. ha.control 能力码；
-    2. (domain, service) 必须在 ALLOWED_SERVICES 里；
-    3. data 里的字段必须是该服务允许的参数；
-    4. homeassistant.toggle 要求实体域本身可开关，其它服务要求服务域与实体域一致；
-    5. 实体必须在当前主体可见范围内且同步正常。
-    返回 {'ok': True, 'result': {...}}。
-    异常:
-        403 授权不足或服务不在白名单；422 参数不允许、域不匹配；
-        409 未配置 HA；404 实体不存在 / 禁用 / 失联；502 调用失败。
+    请求体 domain / service / entity_id / data（透传参数）。校验顺序（任一不通过就不必回源 HA）：
+    ha.control 能力码 → (domain, service) 必须在 ALLOWED_SERVICES 里 → data 字段必须是该服务
+    允许的参数 → homeassistant.toggle 要求实体域本身可开关、其它服务要求服务域与实体域一致 →
+    实体必须在当前主体可见范围内且同步正常。返回 {'ok': True, 'result': {...}}。
+
+    403 授权不足或服务不在白名单；422 参数不允许、域不匹配；409 未配置 HA；
+    404 实体不存在 / 禁用 / 失联；502 调用失败。
     """
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.control'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许控制 Home Assistant。')
@@ -883,11 +873,10 @@ async def browse_media(
 def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
     """从 WebSocket 握手的 Cookie 解析访问主体。
 
-    与 HTTP 侧共用 ``access.resolve_principal``（B32）。这里原先独立实现了一遍：
-    WebSocket 不走 FastAPI 依赖注入，所以当时"自己读 Cookie、查会话与中控配对"
-    看着合理 —— 但那一版既不查会话的绝对寿命、也不查中控令牌的有效期，于是实时
-    连接同时成了这两道限制的旁路（B2/B3）。判据现在只有一处实现，这里只负责
-    读 Cookie、detach 对象与清理过期会话行。
+    与 HTTP 侧共用 ``access.resolve_principal``（B32）。这里原先独立实现了一遍：WebSocket 不走
+    FastAPI 依赖注入，所以当时「自己读 Cookie、查会话与中控配对」看着合理 —— 但那一版既不查会话
+    的绝对寿命、也不查中控令牌的有效期，于是实时连接同时成了这两道限制的旁路（B2/B3）。判据现在
+    只有一处实现，这里只负责读 Cookie、detach 对象与清理过期会话行。
 
     管理员会话优先；两者都拿不到返回 None，由调用方以 4401 关闭连接。
     """
@@ -915,14 +904,13 @@ def websocket_viewer(websocket: WebSocket) -> ViewerPrincipal | None:
 class DisplayBindingGuard:
     """实时连接期间复查「中控配对是否仍然有效」，结果带短缓存。
 
-    配对可能在连接期间被解绑或改绑到别的项目，因此推送循环每轮都要确认；
-    心跳是秒级的，不缓存就等于每秒查一次库。
+    配对可能在连接期间被解绑或改绑到别的项目，因此推送循环每轮都要确认；心跳是秒级的，不缓存就
+    等于每秒查一次库。
 
-    这段逻辑原先写在路由里，是个给外层 ``display_binding_cache`` 赋值却漏了
-    ``nonlocal`` 的闭包：赋值落在闭包自己的局部作用域，于是这个名字在闭包内是
-    局部的，第一次调用走到"缓存命中判断"就抛 ``UnboundLocalError``。异常又被
-    推送循环外层的 ``except Exception`` 收走且不记日志，现象是"展示设备推送一会儿
-    就断、日志里什么都没有"（4.2b）。
+    这段逻辑原先写在路由里，是个给外层 ``display_binding_cache`` 赋值却漏了 ``nonlocal`` 的闭包：
+    赋值落在闭包自己的局部作用域，于是这个名字在闭包内是局部的，第一次调用走到「缓存命中判断」
+    就抛 ``UnboundLocalError``；异常又被推送循环外层的 ``except Exception`` 收走且不记日志，
+    现象是「展示设备推送一会儿就断、日志里什么都没有」（4.2b）。
 
     缓存挂在实例上，既不再依赖作用域规则，也能单独测「第二次调用真的没查库」。
     """
@@ -966,15 +954,14 @@ class DisplayBindingGuard:
 async def run_tasks_until_first_completes(*operations) -> None:
     """并行跑几路任务，任一路结束后取消其余，并把真正的异常原样抛出。
 
-    实时连接有两路任务（感知断开、推送状态），谁先结束都要收掉另一路；同时不能
-    吞掉真正的异常 —— 原来的实现把这套逻辑写在路由的闭包里，给外层 ``failure``
-    赋值却没声明 ``nonlocal``，赋值只落在闭包自己的局部作用域，``raise failure``
-    于是永远等不到东西：两路任务里的真实异常被完全丢弃，而 ``except
-    WebSocketDisconnect`` / ``except TimeoutError`` 两个分支成了死代码（4.2b）。
+    实时连接有两路任务（感知断开、推送状态），谁先结束都要收掉另一路；同时不能吞掉真正的异常 ——
+    原来的实现把这套逻辑写在路由的闭包里，给外层 ``failure`` 赋值却没声明 ``nonlocal``，赋值只落在
+    闭包自己的局部作用域，``raise failure`` 于是永远等不到东西：两路任务里的真实异常被完全丢弃，
+    而 ``except WebSocketDisconnect`` / ``except TimeoutError`` 两个分支成了死代码（4.2b）。
 
-    ``WebSocketDisconnect`` 原样抛出（由调用方按关闭码决定记不记警告 —— 1000/1001/1005
-    是刷新页面与正常关闭，其余异常码例如 1006 要留一条日志）。谁先结束谁先到：
-    后一路在这个点已经被取消，所以它此后不会再产生异常，不存在「该报哪个」的问题。
+    ``WebSocketDisconnect`` 原样抛出（由调用方按关闭码决定记不记警告 —— 1000/1001/1005 是刷新页面
+    与正常关闭，其余异常码例如 1006 要留一条日志）。谁先结束谁先到：后一路在这个点已经被取消，
+    此后不会再产生异常。
     """
     failure: Exception | None = None
 

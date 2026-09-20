@@ -1,12 +1,12 @@
 """3D 户型图（Studio 3D）草稿与导出文件的存储接口。
 
-草稿不走数据库，而是以单文件 JSON 存在 settings.studio3d_draft_path 上：
-编辑器每次保存都带 revision，服务端比对一致再 +1，用这个字段实现乐观并发控制；
-落盘一律走「临时文件 + fsync + rename」，保证断电或崩溃不会留下半份草稿。
+草稿不走数据库，而是以单文件 JSON 存在 settings.studio3d_draft_path 上：编辑器每次保存都带
+revision，服务端比对一致再 +1，用这个字段实现乐观并发控制；落盘一律走「临时文件 + fsync +
+rename」，保证断电或崩溃不会留下半份草稿。
 
-导出方向相反 —— 前端把 ZIP（场景 JSON + 家具图片）POST 上来，服务端校验后
-解压到 settings.studio3d_exports_dir 下的一个文件夹，并注册进资产目录。
-删除导出文件夹前会先扫描所有草稿与全局弹窗，确认没有图片仍被引用。
+导出方向相反 —— 前端把 ZIP（场景 JSON + 家具图片）POST 上来，服务端校验后解压到
+settings.studio3d_exports_dir 下的一个文件夹并注册进资产目录；删除导出文件夹前会先扫描所有
+草稿与全局弹窗，确认没有图片仍被引用。
 
 所有涉及导出目录的读改写都串行化在 _storage_lock 上，避免并发上传 / 删除互相踩踏。
 """
@@ -196,13 +196,10 @@ def _document_uses_asset_prefix(value, prefix: str) -> bool:
 def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
     """校验导出 ZIP 的结构与内容，返回条目列表。
 
-    校验项：ZIP 能打开、条目数与解压后总大小在上限内、只允许单层文件名、
-    扩展名限定 .png/.json/.webp、JSON 必须能解析成对象、图片必须带正确魔数。
-    任何一项不过都直接抛 4xx 中文错误，不做「尽量解压」的兜底。
-
-    异常:
-        HTTPException 413: 解压后总大小超过 MAX_EXPORT_EXPANDED_BYTES（防 zip bomb）。
-        HTTPException 422: 文件不是 ZIP、条目数量/路径/类型非法、JSON 或图片内容无效。
+    校验项：ZIP 能打开、条目数与解压后总大小在上限内、只允许单层文件名、扩展名限定
+    .png/.json/.webp、JSON 必须能解析成对象、图片必须带正确魔数。任何一项不过都直接抛 4xx 中文
+    错误，不做「尽量解压」的兜底。413 表示解压后总大小超过 MAX_EXPORT_EXPANDED_BYTES（防 zip
+    bomb）；422 表示文件不是 ZIP、条目数量 / 路径 / 类型非法、JSON 或图片内容无效。
     """
     try:
         archive = zipfile.ZipFile(archive_path)
@@ -410,18 +407,14 @@ def _register_exported_assets(catalog, folder_name: str, target: Path, entries: 
 async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
     """上传并保存 3D 导出包（需已登录且授权允许 api）。
 
-    请求头: x-export-folder（目标文件夹名，必填）、
-    x-export-overwrite（'true' 表示允许覆盖同名文件夹）。
-    请求体: ZIP 原始字节流（场景 JSON + 家具图片）。
-    成功 201 返回 {folderName, relativePath, overwritten, files}。
+    请求头 x-export-folder（目标文件夹名，必填）、x-export-overwrite（'true' 表示允许覆盖同名
+    文件夹）；请求体是 ZIP 原始字节流（场景 JSON + 家具图片）。成功 201 返回
+    {folderName, relativePath, overwritten, files}。413 ZIP 本体或解压后总大小超限；422 ZIP 为空 /
+    结构非法；409 文件夹已存在且未允许覆盖（code=STUDIO3D_EXPORT_EXISTS）。
 
-    异常:
-        413 ZIP 本体或解压后总大小超限；422 ZIP 为空 / 结构非法；
-        409 文件夹已存在且未允许覆盖（code=STUDIO3D_EXPORT_EXISTS）。
-
-    收流部分留在事件循环里（``await request.stream()`` 本身是异步的），所有同步
-    重活——落盘、fsync、校验（要解压每个 JSON 与图片）、解压换位、生成效果变体
-    ——一律交给工作线程：一次大导出冻结全部 HTTP / WebSocket 是修复前的行为（B5/B6）。
+    收流部分留在事件循环里（``await request.stream()`` 本身是异步的），所有同步重活 —— 落盘、
+    fsync、校验（要解压每个 JSON 与图片）、解压换位、生成效果变体 —— 一律交给工作线程：
+    一次大导出冻结全部 HTTP / WebSocket 是修复前的行为（B5/B6）。
     """
     folder_name = _folder_name(request)
     overwrite = request.headers.get('x-export-overwrite', '').strip().lower() == 'true'

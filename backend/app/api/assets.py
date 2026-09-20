@@ -1,13 +1,11 @@
-'''素材（图片）的目录、上传与读取接口。
+"""素材（图片）的目录、上传与读取接口。
 
-路由前缀 /api/v1/assets；另有一个不带前缀的 read_builtin_asset 由 main.py
-直接挂载到 /assets/builtin/*。素材分三类：
-- builtin: 随发行版打包的内置素材，只读；
-- user: 用户上传的图片，落在 user_assets_dir 下，每个素材一个十六进制目录；
-- studio3d: 3D 工作室导出的图片，落在 studio3d_exports_dir 下，按文件夹分组。
-目录状态由进程内的 AssetCatalog 缓存（单进程部署前提）；
-上传的 SVG 先做白名单式清洗再落盘；读取一律带长期缓存头，靠 URL 里的版本参数失效。
-'''
+路由前缀 /api/v1/assets；另有不带前缀的 read_builtin_asset 由 main.py 直接挂到
+/assets/builtin/*。三类：builtin（随发行版打包，只读）、user（用户上传，落在
+user_assets_dir 下，每个素材一个十六进制目录）、studio3d（3D 工作室导出，按文件夹分组）。
+目录状态由进程内 AssetCatalog 缓存（单进程部署前提）；上传的 SVG 先做白名单式清洗再落盘；
+读取一律带长期缓存头，靠 URL 里的版本参数失效。
+"""
 from __future__ import annotations
 import asyncio
 import json
@@ -136,7 +134,6 @@ def user_asset_file(root: Path, asset_id: str) -> Path | None:
     """定位某个用户素材目录里唯一的图片文件；目录非法或文件数不为 1 时返回 None。
 
     参数:
-        root: 用户素材根目录。
         asset_id: 32 位十六进制素材 ID。
     """
     # 目录名必须是纯十六进制 ID：先把 ../ 这类构造挡在门口。
@@ -239,18 +236,12 @@ def _discard_variant_files(variant_path: Path | None) -> int:
 
 
 def effect_variant_payload(path: Path, full_asset_id: str, version: str, cache_root: Path) -> tuple[dict, Path] | None:
-    '''按 alpha 包围盒生成透明裁剪后的 PNG 变体，供运行时渲染器使用。
+    """按 alpha 包围盒生成透明裁剪后的 PNG 变体，供运行时渲染器使用。
 
-    原图不动：变体另存到缓存目录，文件名由「素材 ID + 版本号」的哈希决定，
-    并附一份同名 JSON 记录裁剪矩形，命中缓存时无需重新解码原图。
-    参数:
-        path: 原图路径（只支持 PNG / WebP）。
-        full_asset_id: 完整素材 ID（如 user:xxx），参与缓存键计算。
-        version: 素材版本号，内容变化时缓存键随之变化。
-        cache_root: 变体缓存目录。
-    返回:
-        (变体元数据, 变体文件路径)；不适用或收益不足时返回 None。
-    '''
+    原图不动：变体另存到缓存目录，文件名由「素材 ID + 版本号」的哈希决定，并附一份同名
+    JSON 记录裁剪矩形，命中缓存时无需重新解码原图。``path`` 只支持 PNG / WebP；
+    ``full_asset_id`` 与 ``version`` 参与缓存键。不适用或收益不足时返回 None。
+    """
     # 只有 PNG / WebP 能做无损透明裁剪，其它格式直接跳过。
     if path.suffix.lower() not in frozenset({'.png', '.webp'}):
         return None
@@ -628,10 +619,8 @@ class AssetCatalog:
 
         参数:
             built_in_root: 内置素材根目录（随仓库分发，只读）。
-            user_root: 用户上传素材根目录（可写）。
             studio3d_exports_root: 3D 工作室导出物根目录；None 表示不使用。
             effect_variants_root: 特效变体缓存根目录；None 时默认落在用户素材的
-                同级 cache/effect-variants 下。
         """
         self.built_in_root = built_in_root.resolve()
         self.user_root = user_root.resolve()
@@ -937,28 +926,19 @@ def sweep_user_asset_storage(
 
     只收两类「谁也选不中、谁也删不掉」的东西：
 
-    1. **空壳目录 / 散落文件**：目录里已经没有合法图片（上传中断留下的临时文件、被手工
-       删掉的文件、崩溃残留）。它们不会出现在素材列表里（``user_asset_file`` 返回 None），
-       因此用户根本没有办法意识到它们占着盘，更没有办法删掉它们；
-    2. **对不上任何现存素材版本的变体缓存**：素材已删、或版本已变（版本号进缓存键），
-       这些文件是纯缓存，删掉最多重算一次。
+    1. **空壳目录 / 散落文件**：目录里已经没有合法图片（上传中断的临时文件、被手工删掉的
+       文件、崩溃残留）。它们不会出现在素材列表里（``user_asset_file`` 返回 None），用户根本
+       无法意识到它们占着盘，更删不掉；
+    2. **对不上任何现存素材版本的变体缓存**：素材已删或版本已变（版本号进缓存键），纯缓存，
+       删掉最多重算一次。
 
     **刻意不回收「没有被引用的图片」**：素材库本来就有「先传进来、以后再用」的用法，
-    未被引用不等于没人要 —— 删它等于把用户的图片弄丢，这与户型快照不同（快照没人引用就
-    真的没人再会打开）。未被引用的用量改为在 :func:`sweep_user_assets_for_app` 里报出来，
-    由人来决定删不删。
+    未被引用不等于没人要 —— 删它等于把用户的图片弄丢（这与户型快照不同，快照没人引用就真的
+    没人会再打开）。未被引用的用量改为在 :func:`sweep_user_assets_for_app` 里报出来，由人决定。
 
-    参数:
-        root: 用户素材根目录。
-        variants_root: 效果变体缓存目录。
-        active_variant_keys: 现存素材版本对应的缓存键（见 ``AssetCatalog.effect_variant_keys``）。
-        now: 当前时间戳（秒，便于测试注入）；默认取系统时间。
-        orphan_grace: 空壳目录保留多久再回收。
-        variant_grace: 孤儿缓存文件保留多久再回收。
-
-    返回:
-        ``{'directories': 回收的空壳目录数, 'files': 回收的散落文件数,
-        'variants': 回收的缓存文件数, 'released': 释放的字节数, 'kept': 未动的条目数}``。
+    ``active_variant_keys`` 是现存素材版本对应的缓存键（见 ``AssetCatalog.effect_variant_keys``）；
+    ``orphan_grace`` / ``variant_grace`` 分别是空壳目录与孤儿缓存的保留期。返回
+    ``{'directories', 'files', 'variants', 'released', 'kept'}`` 五项计数。
     """
     moment = time() if now is None else now
     stats = {'directories': 0, 'files': 0, 'variants': 0, 'released': 0, 'kept': 0}
@@ -1125,13 +1105,10 @@ def asset_catalog_version(request: Request, _viewer: LicensedViewer) -> dict:
 async def upload_user_asset(request: Request, background_tasks: BackgroundTasks, _user: LicensedUser) -> dict:
     """上传一张用户图片，返回登记后的素材条目（201）。
 
-    身份与能力码：LicensedUser（认证 + api）。
-    文件名走 X-File-Name 请求头（URL 编码），请求体是裸文件流。
-    返回：素材 JSON（含 url 与 version）。
-    会抛 422：文件名无效、后缀不支持、文件为空、内容与扩展名不符、尺寸超限；
-    会抛 413：请求体超过该后缀的上限（位图 64 MB、SVG 5 MB）。逐块累计判断，
-    不信任 Content-Length —— 否则分块传输或伪造的长度都能绕过。
-    错误文案均为可直接展示的中文。
+    身份与能力码：LicensedUser（认证 + api）。文件名走 X-File-Name 请求头（URL 编码），
+    请求体是裸文件流。会抛 422（文件名无效、后缀不支持、文件为空、内容与扩展名不符、尺寸
+    超限）与 413（超过该后缀上限：位图 64 MB、SVG 5 MB）—— 逐块累计判断，**不信任
+    Content-Length**，否则分块传输或伪造的长度都能绕过。错误文案均为可直接展示的中文。
     """
     # 文件名放在自定义头里：请求体是裸文件流，没有 multipart 表单可承载文件名。
     encoded_name = request.headers.get('x-file-name', '')

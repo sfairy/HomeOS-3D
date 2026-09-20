@@ -152,15 +152,14 @@ def ensure_unique_project_name(database: DatabaseSession, name: str, exclude_pro
 def record_project_path_alias(database: DatabaseSession, project_id: str, previous_name: str) -> None:
     """记下改名前的展示地址，让已经配对的中控设备继续打得开（B38）。
 
-    展示地址由名称派生，改名会让旧地址永久 404，而平板手里存的正是旧地址。
-    这里按「旧名称 → 项目」记一行，展示页在没有现存项目占用该名称时 303 跳转。
+    展示地址由名称派生，改名会让旧地址永久 404，而平板手里存的正是旧地址。这里按「旧名称 → 项目」
+    记一行，展示页在没有现存项目占用该名称时 303 跳转。
 
-    两处细节：
-    - 先删同名别名再插入：那个名字可能属于**另一个**项目（它先放弃了这个名字，现在
-      又被本项目放弃一次）。同一时刻只能有一个解释，取最近一次放弃者 —— 平板手里
-      那个地址最可能指的就是刚刚放弃它的项目。删除+插入在同一笔事务里，靠唯一索引兜底。
-    - 每项目只保留最近 ``PROJECT_PATH_ALIAS_LIMIT`` 条：反复改名不该让别名表无界增长，
-      而平板也不会落后几十个名字（真落后那么多，重新配对是更合理的期望）。
+    两处细节：**先删同名别名再插入** —— 那个名字可能属于**另一个**项目（它先放弃了这个名字，
+    现在又被本项目放弃一次），同一时刻只能有一个解释，取最近一次放弃者（平板手里那个地址最可能
+    指的就是刚刚放弃它的项目），删除+插入在同一笔事务里、靠唯一索引兜底；**每项目只保留最近
+    ``PROJECT_PATH_ALIAS_LIMIT`` 条** —— 反复改名不该让别名表无界增长，而平板也不会落后几十个
+    名字（真落后那么多，重新配对是更合理的期望）。
     """
     database.execute(delete(ProjectPathAlias).where(ProjectPathAlias.name == previous_name))
     database.add(ProjectPathAlias(name=previous_name, project_id=project_id))
@@ -203,35 +202,24 @@ def insert_project_with_draft(
 ) -> tuple[Project, ProjectDraft]:
     """插入项目与其首版草稿，返回两行（只 flush，不提交）。
 
-    ``ensure_unique_project_name`` 与 ``unique_slug`` 都是「先查后写」：两个请求可以
-    同时查到「这个名字 / 这个 slug 没人用」，然后一起去插 —— 唯一约束成了真正的
-    裁决者，撞上的那个拿到 ``IntegrityError``（B10 / B11）。过去这意味着 500，
-    而用户只是又点了一次「新建」，或者另一个标签页刚建过同名项目。
+    ``ensure_unique_project_name`` 与 ``unique_slug`` 都是「先查后写」：两个请求可以同时查到
+    「这个名字 / 这个 slug 没人用」，然后一起去插 —— 唯一约束成了真正的裁决者，撞上的那个拿到
+    ``IntegrityError``（B10 / B11）。过去这意味着 500，而用户只是又点了一次「新建」，或者另一个
+    标签页刚建过同名项目。
 
     两条约束的退让方式不同，因此分开处理：
 
-    - 名称是用户区分仪表盘的唯一依据，也是展示地址 ``/display/{名称}`` 的路径段，
-      不能悄悄改名 —— 撞了就 409，让用户自己换一个。
+    - 名称是用户区分仪表盘的唯一依据，也是展示地址 ``/display/{名称}`` 的路径段，不能悄悄改名
+      —— 撞了就 409，让用户自己换一个。
     - slug 只是内部用的 ASCII 形式，可以随便加后缀，因此换一个后缀重试。
 
-    插入包在 SAVEPOINT 里：撞了就回滚到保存点，只撤销这一次插入，不牵连外层事务
-    已经写好的东西。重试时会重新构造两行 —— 上一轮的对象已经随保存点作废，
-    继续往上写等于往一个作废的对象上写。
+    插入包在 SAVEPOINT 里：撞了就回滚到保存点，只撤销这一次插入，不牵连外层事务已经写好的东西。
+    重试时会重新构造两行 —— 上一轮的对象已随保存点作废，继续往上写等于往一个作废的对象上写。
 
-    参数:
-        database: 请求级会话。
-        project_id: 已经生成好的项目 id（项目与草稿必须共用同一个）。
-        name: 项目名（调用方已查过一次，这里是并发下的第二道）。
-        description: 项目描述。
-        created_by: 创建者的 user id，同时作为草稿的 updated_by。
-        document: 已校验过的文档；落库时会去掉弹窗部分。
-
-    返回:
-        (项目行, 草稿行)，两行都已 flush 到当前事务。
-
-    Raises:
-        HTTPException: 名称撞唯一约束时 409；连续多轮都只撞 slug 时 409。
-        IntegrityError: 不是这两条可退让的约束（外键、非空、别的唯一约束）时原样抛出。
+    ``project_id`` 由调用方生成（项目与草稿必须共用同一个），``created_by`` 同时作为草稿的
+    updated_by，``document`` 落库时会去掉弹窗部分。返回 (项目行, 草稿行)，两行都已 flush。
+    名称撞唯一约束或连续多轮都只撞 slug 时抛 409；不是这两条可退让的约束（外键、非空、别的唯一
+    约束）时原样抛出 ``IntegrityError``。
     """
     for _ in range(SLUG_CONFLICT_ATTEMPTS):
         project = Project(
@@ -414,15 +402,15 @@ def delete_project(project_id: str, payload: ProjectDeleteRequest, request: Requ
 async def get_project_draft(project_id: str, request: Request, database: DatabaseSession, viewer: LicensedViewer) -> dict:
     """读取项目草稿：文档本体 + schemaVersion / revision / 全局弹窗版本。
 
-    打开项目前联网确认绑定（走节流窗口）：商店解绑后不能继续用离线租约读草稿。
-    节流窗口是 15 秒，比心跳间隔（默认 300 秒）短得多，因此解绑最多 15 秒就反映到
-    这里，而请求路径上不再有「每打开一次项目就一次网络往返」的等待。
+    打开项目前联网确认绑定（走 15 秒的节流窗口）：商店解绑后不能继续用离线租约读草稿，而窗口远
+    短于心跳间隔（默认 300 秒），因此解绑最多 15 秒就反映到这里，请求路径上不再有「每打开一次项目
+    就一次网络往返」的等待。
 
-    中控设备只能读自己绑定的项目，越权 403「该中控设备未绑定此仪表盘。」；
-    草稿不存在抛 404「项目草稿不存在。」。
+    中控设备只能读自己绑定的项目，越权 403「该中控设备未绑定此仪表盘。」；草稿不存在抛 404
+    「项目草稿不存在。」。
 
-    同步查库与文档水合都在工作线程里做（B4）：这条路由是 ``async def``（要 await
-    联网确认），而 SQLAlchemy 的同步会话与整份文档的 JSON 解析都不该留在事件循环上。
+    同步查库与文档水合都在工作线程里做（B4）：这条路由是 ``async def``（要 await 联网确认），
+    而 SQLAlchemy 的同步会话与整份文档的 JSON 解析都不该留在事件循环上。
     """
     await request.app.state.license_service.confirm_binding()
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'api'):
@@ -494,16 +482,12 @@ def get_project_revision(project_id: str, database: DatabaseSession, viewer: Lic
 def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: Request, background_tasks: BackgroundTasks, database: DatabaseSession, user: LicensedUser) -> dict:
     """保存仪表盘草稿（编辑器最核心的写接口）。
 
-    身份与能力码：LicensedUser + projects.write。
-    请求关键字段：document（整份文档）、revision（客户端读到的版本）、
-    globalPopupsDirty（本次是否改动了全局组合弹窗）、globalPopupRevision。
-    返回：保存后的文档（含新 revision）与投影给前端的字段。
-    会抛的中文错误：
-    - 404「项目草稿不存在。」；
-    - 409 PROJECT_REVISION_CONFLICT「草稿已被其他页面更新。」；
-    - 409 GLOBAL_POPUP_REVISION_CONFLICT「全局组合弹窗已在其他仪表盘中更新，请刷新后重试。」；
-    - 409「其他仪表盘正在更新，组合弹窗尚未删除，请重试。」；
-    - 422（校验层原始中文文案，如 ASSET_MISSING、名称重复）。
+    身份与能力码：LicensedUser + projects.write。请求关键字段 document（整份文档）、revision
+    （客户端读到的版本）、globalPopupsDirty（本次是否改动全局组合弹窗）、globalPopupRevision。
+    返回保存后的文档（含新 revision）与投影给前端的字段。会抛：404「项目草稿不存在。」；
+    409 PROJECT_REVISION_CONFLICT「草稿已被其他页面更新。」；409 GLOBAL_POPUP_REVISION_CONFLICT
+    「全局组合弹窗已在其他仪表盘中更新，请刷新后重试。」；409「其他仪表盘正在更新，组合弹窗尚未
+    删除，请重试。」；422（校验层原始中文文案，如 ASSET_MISSING、名称重复）。
     """
     require_project_write(request)
     draft = database.get(ProjectDraft, project_id)
@@ -534,14 +518,12 @@ def update_project_draft(project_id: str, payload: ProjectDraftUpdate, request: 
     # 本次被删掉的全局弹窗 = **库里有、提交里没有**的那些，要给引用它们的草稿做级联清理。
     #
     # 方向反了（写成「提交里有、库里没有」）会静默地坏三件事，都不是报错而是行为不对：
-    #   1) 新增弹窗的那一次保存里，指向这个**新**弹窗的动作会被下面的
-    #      ``clear_popup_references`` 当成悬空引用清成 ``type:"none"`` —— 用户刚配好
-    #      就失效，页面不报错、只是点下去没反应；
-    #   2) 删弹窗时这个集合是空的：级联那段形同虚设，别的草稿留着悬空引用，而那份
-    #      草稿**下次保存必定 422**（校验层判「打开了不存在的组合弹窗」）—— 那个仪表盘
-    #      从此存不回去（读取侧 referenced_only=True 也只会把找不到的弹窗略过，不提示）；
-    #   3) 当前文档自己引用着被删的弹窗时，本份文档也没清，校验层当场 422 ——
-    #      用户根本删不掉这个弹窗，且错误文案说的是「打开了不存在的组合弹窗」。
+    #   1) 新增弹窗的那一次保存里，指向这个**新**弹窗的动作会被下面的 clear_popup_references
+    #      当成悬空引用清成 ``type:"none"`` —— 用户刚配好就失效，页面不报错、只是点下去没反应；
+    #   2) 删弹窗时这个集合是空的：级联那段形同虚设，别的草稿留着悬空引用，而那份草稿**下次
+    #      保存必定 422**（校验层判「打开了不存在的组合弹窗」）—— 那个仪表盘从此存不回去；
+    #   3) 当前文档自己引用着被删的弹窗时，本份文档也没清，校验层当场 422 —— 用户根本删不掉
+    #      这个弹窗，且错误文案说的是「打开了不存在的组合弹窗」。
     removed_popup_ids = (
         stored_popup_ids - submitted_popup_ids if payload.global_popups_dirty else set()
     )

@@ -1,19 +1,18 @@
 """Home Assistant 媒体与摄像头的反向代理。
 
 浏览器不能直接访问 HA（Token 只存在服务端，HA 又常在私网），因此这里把
-/api/camera_proxy/、/api/camera_proxy_stream/、/api/image_proxy/、
-/api/media_player_proxy/、/api/hls/ 这几类路径整体中转到 HA，转发过程中：
+/api/camera_proxy/、/api/camera_proxy_stream/、/api/image_proxy/、/api/media_player_proxy/、
+/api/hls/ 这几类路径整体中转到 HA，转发过程中：
 
 - 注入服务端持有的 Bearer Token，并剥掉浏览器的 Cookie / Origin / 转发头；
 - 只放行上述路径前缀，同时拒绝路径归一化绕过（'.' / '..' / 反斜杠）；
-- **每条路径都必须给出实体归属**，且该实体属于当前主体（见
-  :func:`require_media_proxy_scope`）—— 代理会注入 HA 令牌，没有这道校验时，
-  绑在项目 A 的中控只要写下项目 B 的实体 ID 就能把别人的摄像头画面拉出来；
+- **每条路径都必须给出实体归属**，且该实体属于当前主体（见 :func:`require_media_proxy_scope`）
+  —— 代理会注入 HA 令牌，没有这道校验时，绑在项目 A 的中控只要写下项目 B 的实体 ID 就能把
+  别人的摄像头画面拉出来；
 - 快照类请求走带 TTL 的进程内缓存，避免多个看板同时刷新把 HA 打满；
 - HLS 播放地址由 /api/camera_hls/{entity_id} 换取，拿到后同样走本代理。
 
-媒体流是长连接，因此流式分支的超时设为 None（不主动掐断），其余请求使用
-HA 客户端配置的超时。
+媒体流是长连接，因此流式分支的超时设为 None（不主动掐断），其余请求使用 HA 客户端配置的超时。
 """
 from __future__ import annotations
 
@@ -145,14 +144,14 @@ class HlsStreamScope:
 class MediaProxyCaches:
     """媒体代理的两份进程内记账：快照缓存与 HLS 归属（B57）。
 
-    挂在 ``app.state.media_proxy`` 而**不是**模块级字典。模块级那一版建立在「一个
-    进程里只有一个应用实例」这个假设上，而它在三处都不成立：
+    挂在 ``app.state.media_proxy`` 而**不是**模块级字典。模块级那一版建立在「一个进程里只有一个
+    应用实例」这个假设上，而它在三处都不成立：
 
     - ``create_app()`` 调两次就会共享同一份缓存 —— 第二个应用直接读到第一个应用缓存的画面；
-    - 刷新任务表里存的是 ``asyncio.Task``，而任务属于**某一个**事件循环：另一个应用
-      去 await 它会抛「attached to a different loop」；
-    - 换了一条 HA 连接时没有任何东西能让它失效 —— 地址可以不变而实例已经换了一台
-      （重装、恢复备份、同一地址换了另一套系统），此时缓存里是**上一台** HA 的画面。
+    - 刷新任务表里存的是 ``asyncio.Task``，而任务属于**某一个**事件循环：另一个应用去 await 它会抛
+      「attached to a different loop」；
+    - 换了一条 HA 连接时没有任何东西能让它失效 —— 地址可以不变而实例已经换了一台（重装、恢复
+      备份、同一地址换了另一套系统），此时缓存里是**上一台** HA 的画面。
 
     因此快照键里带连接身份（换连接后旧条目不可能被命中），两份记账另有一处显式清空
     （连接被重建时，见 :meth:`clear`）。
@@ -190,15 +189,15 @@ class MediaProxyCaches:
     def remember_snapshot(self, key: str, content: bytes, content_type: str) -> None:
         """写入快照缓存；超条数或超字节预算时淘汰最旧的一条。
 
-        用「淘汰最旧」而不是 clear()：缓存里都是活跃图片，清空会让紧接着的一轮
-        请求全部回源，反过来冲击 HA。
+        用「淘汰最旧」而不是 clear()：缓存里都是活跃图片，清空会让紧接着的一轮请求全部回源，
+        反过来冲击 HA。
 
-        单张超过 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES`` 的直接不缓存（B14）：
-        这类响应（例如一张几十 MB 的原始快照）一旦缓存，一条就能吃掉整个字节预算，
-        把真正有用的那几十张小图全挤出去，而它自己的命中率并不高。
+        单张超过 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES`` 的直接不缓存（B14）：这类响应（例如一张
+        几十 MB 的原始快照）一旦缓存，一条就能吃掉整个字节预算，把真正有用的那几十张小图全挤出去，
+        而它自己的命中率并不高。
 
-        预算与单张上限都调得很小时，缓存里至少会留下第一条 —— 与日志裁剪同一口径：
-        宁可短暂超一点，也不要出现「什么都存不下」的空转。
+        预算与单张上限都调得很小时，缓存里至少会留下第一条 —— 与日志裁剪同一口径：宁可短暂超一点，
+        也不要出现「什么都存不下」的空转。
         """
         if len(content) > CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES:
             self.snapshots.pop(key, None)
@@ -387,13 +386,13 @@ async def require_media_proxy_scope(
 ) -> None:
     """媒体代理的归属门禁：请求路径必须能定位到一个当前主体可见的实体。
 
-    过去的门禁只有「已认证 + 授权允许 api」，而本代理会**注入 HA 令牌**回源 ——
-    于是一台绑在项目 A 的中控只要请求 ``/api/camera_proxy/camera.front_door``
-    （实体 ID 是可读名字，不是保密的随机串）就能把项目 B 的画面拉出来。同类
-    HLS 端点一直在做实体校验，媒体代理这两条路径却漏了，这是跨项目 IDOR。
+    过去的门禁只有「已认证 + 授权允许 api」，而本代理会**注入 HA 令牌**回源 —— 于是一台绑在
+    项目 A 的中控只要请求 ``/api/camera_proxy/camera.front_door``（实体 ID 是可读名字，不是保密
+    的随机串）就能把项目 B 的画面拉出来。同类 HLS 端点一直在做实体校验，媒体代理这两条路径却漏了，
+    这是跨项目 IDOR。
 
-    做成**路由级依赖**而不是处理器里的一行：新增媒体路由时，`Depends` 写在
-    路由签名上，漏掉它会一眼看出来；写在函数体里则很容易「新路由忘了抄」。
+    做成**路由级依赖**而不是处理器里的一行：新增媒体路由时 ``Depends`` 写在路由签名上，漏掉它会
+    一眼看出来；写在函数体里则很容易「新路由忘了抄」。
     """
     path = request.url.path
     if not allowed_media_proxy_path(path):
@@ -467,10 +466,8 @@ def camera_supports_hls(entity_state: dict | None) -> bool | None:
 
     参数:
         entity_state: HA 返回的实体状态字典；取不到时为 None。
-
     返回:
         True 能；False 明确不支持（前端应回落到 MJPEG）；None 状态未知，
-        此时调用方按「可以试一次」处理，而不是直接回落。
     """
     if not isinstance(entity_state, dict):
         return None
@@ -552,14 +549,9 @@ def load_authorized_camera_connection(
 async def proxy_http(request: Request) -> Response:
     """媒体代理的核心实现：与身份无关的通用转发。
 
-    门禁：只允许 GET / HEAD，且路径必须命中媒体白名单；未配置 HA 抛 409；
-    凭证解密失败或回源失败抛 502。
-
-    参数:
-        request: 浏览器原始请求，查询串会原样带给 HA。
-
-    返回:
-        上游响应（流式或一次性），必要时带上改写后的缓存与 Location 头。
+    门禁：只允许 GET / HEAD，且路径必须命中媒体白名单；未配置 HA 抛 409；凭证解密失败或回源失败
+    抛 502。浏览器原始请求的查询串会原样带给 HA，返回上游响应（流式或一次性），必要时带上改写后的
+    缓存与 Location 头。
     """
     if request.method not in {'GET', 'HEAD'} or not allowed_media_proxy_path(request.url.path):
         # 路径不合规统一回 404 而不是 403：不向扫描者暴露哪些前缀存在。
@@ -673,15 +665,14 @@ async def proxy_http(request: Request) -> Response:
     async def pass_through_body():
         """非流式分支：同样逐块透传，只在「够小且要缓存」时攒一份副本。
 
-        过去这里是 ``content = upstream.content`` —— 上游给多大就占多大内存
-        （B15）：一张几十 MB 的图、或者一个被指向大文件的 image_proxy 路径，
-        都能让一次请求把整包内容钉在内存里。快照路径更吃亏：它本来就要缓存一份，
-        于是同一张图在内存里存在两份。
+        过去这里是 ``content = upstream.content`` —— 上游给多大就占多大内存（B15）：一张几十 MB 的图、
+        或者一个被指向大文件的 image_proxy 路径，都能让一次请求把整包内容钉在内存里。快照路径更吃亏：
+        它本来就要缓存一份，于是同一张图在内存里存在两份。
 
-        攒副本的边界是 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES``：一旦超过就丢掉
-        已攒的部分并停止累积（响应照旧完整透传），因此单条响应额外占用的内存
-        最多就是这一个上限。只有快照请求（``snapshot_request``）才攒 ——
-        其余路径（image_proxy / media_player_proxy / HLS 播放列表）压根不进缓存。
+        攒副本的边界是 ``CAMERA_SNAPSHOT_MAX_CACHEABLE_BYTES``：一旦超过就丢掉已攒的部分并停止累积
+        （响应照旧完整透传），因此单条响应额外占用的内存最多就是这一个上限。只有快照请求
+        （``snapshot_request``）才攒，其余路径（image_proxy / media_player_proxy / HLS 播放列表）
+        压根不进缓存。
         """
         buffered = bytearray()
         cacheable = snapshot_request
@@ -719,15 +710,10 @@ async def camera_hls_stream(
 ) -> JSONResponse:
     """为摄像头换取 HLS 播放地址（需已认证且授权允许 api）。
 
-    路径参数 entity_id 必须是当前主体可见的实体，否则 403。
-
-    返回:
-        {'url': ...} —— 可直接请求的代理播放地址；
-        {'url': None, 'fallback': 'mjpeg'} —— 该摄像头明确不支持 HLS，回落 MJPEG；
-        {'url': None, 'fallback': 'mjpeg', 'detail': ...} —— HA 侧可回落的错误。
-
-    异常:
-        409 未配置 HA；502 凭证解密失败、WebSocket 无法建立或 Token 鉴权失败。
+    路径参数 entity_id 必须是当前主体可见的实体，否则 403。返回 ``{'url': ...}``（可直接请求的
+    代理播放地址）、``{'url': None, 'fallback': 'mjpeg'}``（该摄像头明确不支持 HLS，回落 MJPEG）、
+    或带 ``detail`` 的同类回落（HA 侧可回落的错误）。409 未配置 HA；502 凭证解密失败、
+    WebSocket 无法建立或 Token 鉴权失败。
     """
     connection = await asyncio.to_thread(
         load_authorized_camera_connection, request.app.state.database, viewer, entity_id
