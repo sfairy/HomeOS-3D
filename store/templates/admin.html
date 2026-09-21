@@ -1561,6 +1561,7 @@
 <script src="/store-static/scene/scene-depth.js?v=2609212122"></script>
 <script src="/store-static/htmlsafe.js?v=2609212122"></script>
 <script src="/store-static/api-error.js?v=2609212122"></script>
+<script src="/store-static/money.js?v=2609212122"></script>
 <script nonce="{{NONCE}}">
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -1653,12 +1654,9 @@ async function withBusy(form, task, busyText = '处理中…') {
   }
 }
 
-function money(cents) {
-  // 千分位：概览与列表里动辄出现 5–6 位数，没有分隔符基本读不出量级。
-  // 金额一律两位小数（积分是另一回事，走 num()）。
-  const value = Number(cents || 0) / 100;
-  return `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+// 金额格式化的唯一实现在 store/static/money.js（前台同源）：千分位 + 两位小数。
+// 这里只是短名绑定，不是第二份实现；积分与计数另有口径，走 num()。
+const money = HBMoney.formatCents;
 
 // 积分与计数：去掉浮点尾巴（0.1+0.2 那类），至多两位小数。
 function num(value) {

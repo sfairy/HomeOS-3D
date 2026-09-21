@@ -17,9 +17,11 @@
     return storeStaticVersion ? `${url}?v=${storeStaticVersion}` : url;
   }
   const state = { products: [], product: null, configuration: null, account: null, hasLicense: false, hasTemporaryLicense: false, hasPermanentLicense: false, hasUsedTrial: false, accountLicenses: [], accountEntitlements: [], accountOrders: [], productFilter: 'all', ownedFeatureCodes: new Set(), pollTimer: null, paymentCountdownTimer: null, pendingCountdownTimer: null, accountCountdownTimer: null, accountExpiryRefreshing: false, emailCooldownTimers: new Map(), deviceReleasePolicy: null, releaseCountdownTimer: null, releaseOpening: false, releaseSubmitting: false, releaseLicenseId: null, releaseTarget: null, labelLicenseId: null, currentOrder: null, pendingOrder: null, couponPreviewTimer: null, couponPreviewSequence: 0 };
-  const money = cents => `¥${(Number(cents || 0) / 100).toFixed(2)}`;
+  // 金额格式化的唯一实现在 store/static/money.js（后台同源）。保留这两个短名是因为
+  // 下面已有 20+ 处调用点；它们只是绑定，不是第二份实现。
+  const money = HBMoney.formatCents;
   // 支付弹窗把「¥」单独排成小一号的符号，只取数字部分
-  const moneyAmount = cents => (Number(cents || 0) / 100).toFixed(2);
+  const moneyAmount = HBMoney.formatCentsPlain;
   // HTML 转义。实现在 store/static/htmlsafe.js（唯一一份）；
   // 这个名字保留是因为下面已有 20+ 处调用点。
   const escapeHtml = HtmlSafe.esc;

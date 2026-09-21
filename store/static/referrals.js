@@ -32,7 +32,7 @@
         const cents = Math.round(Number(raw || minPoints() || 0)*100);
         const bps = Math.round(Number(data.settings.withdrawalFeePercent)*100);
         const fee = Math.floor(cents*bps/10000);
-        $('#referral-fee-preview').textContent=`手续费 ${data.settings.withdrawalFeePercent}%：${(fee/100).toFixed(2)} 积分；预计到账 ${(Math.max(0,cents-fee)/100).toFixed(2)} 元。`;
+        $('#referral-fee-preview').textContent=`手续费 ${data.settings.withdrawalFeePercent}%：${HBMoney.formatPoints(fee)} 积分；预计到账 ${HBMoney.formatCentsPlain(Math.max(0,cents-fee))} 元。`;
       };
       async function refresh(){
         data=await api('/referrals');const {wallet:w,settings:s}=data;
