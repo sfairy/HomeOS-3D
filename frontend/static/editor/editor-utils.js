@@ -6,9 +6,9 @@
  * 颜色归一不在这里：它们是编辑器、3D 工作室与渲染器共用的契约，唯一实现在 utils/numbers.js
  * 与 utils/colors.js。
  */
-import { randomUuid } from "../utils/random-id.js?v=20260921090405";
-import { clampNumber } from "../utils/numbers.js?v=20260921090405";
-import { hexColorOrEmpty } from "../utils/colors.js?v=20260921090405";
+import { randomUuid } from "../utils/random-id.js?v=20260921122709";
+import { clampNumber } from "../utils/numbers.js?v=20260921122709";
+import { hexColorOrEmpty } from "../utils/colors.js?v=20260921122709";
 
 /**
  * 深拷贝一个值。

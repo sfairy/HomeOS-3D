@@ -15,9 +15,113 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+
+  /* 3D 相机的镜头。透视必须落在这层：它的直接子元素才吃得到下面的 Z 位移。
+     放到 .hos-scene 上就得靠 preserve-3d 把 3D 上下文透传下来，而极光用了
+     mix-blend-mode: screen —— 3D 渲染上下文里混合模式会被丢弃，空气感就没了。
+     原点跟着轨道环的圆心（28% / 48%）走，那里是画面的视觉锚点。 */
+  perspective: 2400px;
+  perspective-origin: 30% 50%;
 }
 
-/* 天幕。四团氛围光按「家的四个方向」铺开：左上是主控青光（山背后的信号），
+/* ===== 景深 =====
+   场景是十几张按远近排好的平面。平面的前后关系只有「层与层之间产生相对位移」时才会
+   被眼睛读成深度 —— 一张再细的插画，只要各层同步移动，看着仍然是一张图。
+   这里给每层一个 --hos-depth，它一个变量决定三件事：
+
+     位移倍率 —— 指针偏移 × 倍率（近层走得多，远层几乎不动）
+     Z 位置  —— 倍率 × 140px，进上面的透视（近层被放大，是深度的第二个线索）
+     谁在前 —— 交给 DOM 顺序，不重复声明
+
+   --hos-px / --hos-py 由 scene-depth.js 写入（指针 + 空闲漂移）。脚本不在时取 0，
+   画面与从前完全一致 —— 这份片段同时喂三个入口页、商店入口页和 Activate，不能因为
+   少了一个脚本就变样。
+
+   为什么用独立的 translate 属性而不是 transform：极光、星层、轨道环的 transform
+   已经被各自的动画占着，再写 transform 会互相覆盖；translate 与 transform 是两个
+   属性，会叠加。
+
+   为什么倍率全部 ≥ 0：Z 也就 ≥ 0，于是所有层只会被放大。全屏层被放大是安全的
+   （多出来的部分被 overflow 裁掉），被缩小才会在边缘露出底色。
+
+   放大出来的余量正好决定了位移的上限：余量 = 140×倍率/(2400−140×倍率) × 离透视角的距离。
+   位移量程必须按这个式子随视口收放，见 scene-depth.js 的 shiftRange —— 窄屏上透视角到
+   左边缘只剩 126px，量程写死成桌面尺寸就会在左边缘拉出十几像素的缝（实测过）。 */
+.hos-scene__stage > * {
+  translate: calc(var(--hos-px, 0px) * var(--hos-depth, 0))
+    calc(var(--hos-py, 0px) * var(--hos-depth, 0))
+    calc(var(--hos-depth, 0) * 140px);
+}
+
+/* 镜头本身不该跟着动：暗角与压边是「画面之外」的东西，一动就露馅。 */
+.hos-scene__vignette,
+.hos-scene__shade {
+  --hos-depth: 0;
+}
+
+.hos-scene__sky {
+  --hos-depth: 0.14;
+}
+.hos-scene__dawn {
+  --hos-depth: 0.2;
+}
+.hos-scene__ambient {
+  --hos-depth: 0.24;
+}
+.hos-scene__aurora {
+  --hos-depth: 0.3;
+}
+.hos-scene__stars--far {
+  --hos-depth: 0.36;
+}
+.hos-scene__mountains,
+.hos-scene__hex {
+  --hos-depth: 0.46;
+}
+.hos-scene__stars--near {
+  --hos-depth: 0.58;
+}
+.hos-scene__radar {
+  --hos-depth: 0.62;
+}
+.hos-scene__orbit--outer {
+  --hos-depth: 0.72;
+}
+.hos-scene__orbit--mid {
+  --hos-depth: 0.86;
+}
+.hos-scene__orbit--inner {
+  --hos-depth: 1;
+}
+.hos-scene__orbit-core {
+  --hos-depth: 1.12;
+}
+.hos-scene__mist {
+  --hos-depth: 0.8;
+}
+.hos-scene__horizon {
+  --hos-depth: 0.9;
+}
+.hos-scene__haze {
+  --hos-depth: 1.05;
+}
+.hos-scene__motes {
+  --hos-depth: 1.3;
+}
+.hos-scene__scan {
+  --hos-depth: 1.34;
+}
+
+/* page.css 那条 reduced-motion 只把 animation/transition 的时长压到 0，管不到这里的
+   translate —— 它是由 scene-depth.js 逐帧写进来的，不归动画系统管。手动关掉。
+   （脚本自己也判断了 reduced-motion，这里是兜底：用户中途改系统设置时不用重载。） */
+@media (prefers-reduced-motion: reduce) {
+  .hos-scene__stage > * {
+    translate: none;
+  }
+}
+
+/* 天幕。四团氛围光按「家的四个方向」铺开：左上是主控暖金（山背后的信号），
    右上是极光紫（夜里的天色），左下是暖光（屋里漏出来的灯），右下一点薄荷（新风外机）。
    底色用夜空族令牌，从最深的靛一路抬到地平线亮部。 */
 .hos-scene__sky {
@@ -121,7 +225,7 @@
   position: absolute;
   inset: 0;
   opacity: 0.34;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath fill='none' stroke='%235fd4ff' stroke-opacity='0.42' stroke-width='0.6' d='M28 0 L56 16 L56 48 L28 64 L0 48 L0 16 Z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath fill='none' stroke='%23ffc46a' stroke-opacity='0.42' stroke-width='0.6' d='M28 0 L56 16 L56 48 L28 64 L0 48 L0 16 Z'/%3E%3C/svg%3E");
   background-size: 56px 100px;
   mask-image: radial-gradient(ellipse at 28% 46%, black 22%, transparent 70%);
   -webkit-mask-image: radial-gradient(ellipse at 28% 46%, black 22%, transparent 70%);
@@ -163,9 +267,31 @@
   top: 48%;
   left: 28%;
   border-radius: 50%;
-  transform: translate(-50%, -50%);
+  /* 环躺在 3D 空间里：rotateX 把它压成透视里的椭圆，节点随环面绕行；三个环各倾一个
+     角度、再各自绕自己的法线转，看起来才是陀螺仪而不是三张叠起来的圆。
+     基线与 hosOrbitSpin 的函数列表必须逐项对齐（translate → rotateX → rotateY →
+     rotate）：两边列表不一致时，插值会退化成矩阵分解，rotate(360deg) 会被当成
+     「几乎没动」，环就不转了。--hos-orbit-tilt 默认 0deg，等于旧行为。 */
+  transform: translate(-50%, -50%) rotateX(var(--hos-orbit-tilt, 0deg))
+    rotateY(var(--hos-orbit-skew, 0deg)) rotate(0deg);
   pointer-events: none;
   box-sizing: border-box;
+}
+
+/* 三个环的倾角。外环几乎平躺（离镜头最远），越往里越立起来 —— 交错的倾角比一致倾角
+   更能读出「三个独立的轨道」，一致倾角会糊成一个同心圆组。 */
+.hos-scene__orbit--outer {
+  --hos-orbit-tilt: 74deg;
+}
+
+.hos-scene__orbit--mid {
+  --hos-orbit-tilt: 62deg;
+  --hos-orbit-skew: 22deg;
+}
+
+.hos-scene__orbit--inner {
+  --hos-orbit-tilt: 50deg;
+  --hos-orbit-skew: -28deg;
 }
 
 .hos-scene__orbit--outer {
@@ -214,7 +340,7 @@
   height: 8px;
   margin-left: -4px;
   border-radius: 50%;
-  background: #b8f4ff;
+  background: var(--hos-accent-bright);
   box-shadow:
     0 0 8px rgba(var(--hos-accent-rgb), 1),
     0 0 18px rgba(var(--hos-accent-rgb), 0.75),
@@ -255,7 +381,7 @@
   height: 6px;
   margin-left: -3px;
   top: -3px;
-  background: #dff9ff;
+  background: var(--hos-accent-bright);
 }
 
 .hos-scene__orbit--inner .hos-scene__orbit-node--opp {
@@ -1003,7 +1129,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #7dd3a7;
+  background: var(--hos-eco);
   box-shadow: 0 0 8px rgba(125, 211, 167, 0.65);
   animation: hosLivePulse 2.6s ease-out infinite;
 }
@@ -1109,7 +1235,8 @@
 
 @keyframes hosOrbitSpin {
   to {
-    transform: translate(-50%, -50%) rotate(360deg);
+    transform: translate(-50%, -50%) rotateX(var(--hos-orbit-tilt, 0deg))
+      rotateY(var(--hos-orbit-skew, 0deg)) rotate(360deg);
   }
 }
 

@@ -609,6 +609,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         '/static/auth/scene/page.css',
         '/static/auth/scene/scene.css',
         '/static/auth/scene/panel.css',
+        # 景深脚本同理。它不是「锦上添花可以晚一步加载」的东西：脚本被 401 挡下时不会报错，
+        # 只是场景退化成一张平面 —— 而入口页最常被看到的就是未登录那一眼。
+        # 同目录的 appearance.js 不放行：它只服务登录后的编辑器与商店，匿名读它有暴露面。
+        '/static/auth/scene/scene-depth.js',
         # 字体文件同样要放行：@font-face 的请求不带 Cookie 上下文可供白名单判断，
         # 被 401 挡下时页面只剩系统字体回退，肉眼几乎看不出是「字体没加载」。
         '/static/auth/scene/fonts/orbitron-700-latin.woff2',

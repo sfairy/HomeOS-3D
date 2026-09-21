@@ -7,11 +7,11 @@
  * 请求都走 utils/api-fetch.js（20 秒超时）：「在飞闩 + 超时」缺一不可 —— 无超时则弱网下轮询永久冻住，
  * 无闩则每 5 秒叠一个同源请求把网络压得更差。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=20260921090405";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260921090405";
+import { apiFetch } from "../utils/api-fetch.js?v=20260921122709";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260921122709";
 // 状态文案表由 license-recovery.js 统一持有：授权页与恢复页必须说同一句话，
 // 各存一份必然漂移 —— 用户在两处看到对同一状态的不同解释，就不知道该信哪个。
-import { licenseMessage } from "./license-recovery.js?v=20260921090405";
+import { licenseMessage } from "./license-recovery.js?v=20260921122709";
 
 const form = document.querySelector("#license-form"),
   message = document.querySelector("#message"),

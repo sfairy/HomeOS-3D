@@ -59,7 +59,7 @@ export const VIEWPORT_SHELL_FILES = ["viewport-shell.css", "viewport-shell.js"];
  * 直接 import 它 —— 所以它必须和 CSS 一样按构建上下文分发，而不是只留在 design/ 里：
  * 主应用镜像是 `COPY frontend`、商店镜像是 `COPY store`，design/ 根本不在任何镜像内。
  */
-export const SHARED_SCRIPTS = ["appearance.js"];
+export const SHARED_SCRIPTS = ["appearance.js", "scene-depth.js"];
 
 /**
  * Where each build context wants the files.

@@ -6,7 +6,7 @@
  * 开放重定向。提交按钮的禁用态在 finally 里复位且请求带超时（apiFetch），缺一会让按钮永久灰掉。
  */
 
-import { apiFetch } from "../utils/api-fetch.js?v=20260921090405";
+import { apiFetch } from "../utils/api-fetch.js?v=20260921122709";
 
 const form = document.querySelector("#login-form"),
   message = document.querySelector("#message"),

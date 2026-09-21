@@ -6,14 +6,15 @@
   样式来自 /static/auth/scene/ 的分发产物（源在仓库 design/scene/）。
   场景片段由后端注入：页面里那个独立的场景占位符（见 backend/http/page_shell.py
   的 SCENE_PLACEHOLDER）会被替换成整块场景标记。
-  入口脚本：/static/logging/client-log.js（head 同步执行）、/static/auth/auth-shell.js（共用密码显隐）、
+  入口脚本：/static/logging/client-log.js（head 同步执行）、
+  /static/auth/scene/scene-depth.js（场景 3D 相机）、/static/auth/auth-shell.js（共用密码显隐）、
   /static/auth/login.js（表单提交）；CSP 为 style-src 'self'，不能写内联样式/脚本。
 -->
 <html lang="zh-CN" class="hos-shell">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=20260921090405"></script>
+    <script src="/static/logging/client-log.js?v=20260921122709"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#050910" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -23,16 +24,16 @@
     <title>登录 · HomeOS</title>
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；同一次发布里所有静态资源必须共用同一枚时间戳，
          否则浏览器会新老混用（例如新的 scene.css 配旧的 login.js）。 -->
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260921090405" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260921090405" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921090405" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921090405" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260921090405" />
-    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=20260921090405" />
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=20260921090405" />
-    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=20260921090405" />
-    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=20260921090405" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=20260921090405` 的 <link>。
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260921122709" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260921122709" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921122709" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921122709" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260921122709" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=20260921122709" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=20260921122709" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=20260921122709" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=20260921122709" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=20260921122709` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -112,8 +113,11 @@
     </div>
 
     <!-- auth-shell.js 必须在 login.js 之前执行：它负责按 data-password-toggle 绑定密码显隐；
-         login.js 只关心表单本身，两者互不等待。这里同样要带 ?v=20260921090405 -->
-    <script type="module" src="/static/auth/auth-shell.js?v=20260921090405"></script>
-    <script type="module" src="/static/auth/login.js?v=20260921090405"></script>
+         login.js 只关心表单本身，两者互不等待。这里同样要带 ?v=20260921122709 -->
+    <!-- 场景 3D 相机（源：design/scene/scene-depth.js）。写成普通脚本而不是 module：
+         它不导出任何东西，越早跑越好 —— 入场动画那 0.75s 就已经带上景深。 -->
+    <script src="/static/auth/scene/scene-depth.js?v=20260921122709"></script>
+    <script type="module" src="/static/auth/auth-shell.js?v=20260921122709"></script>
+    <script type="module" src="/static/auth/login.js?v=20260921122709"></script>
   </body>
 </html>

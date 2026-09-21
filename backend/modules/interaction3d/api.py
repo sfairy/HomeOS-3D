@@ -535,7 +535,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     if '</head>' not in html:
         raise RuntimeError('3d-studio.html 缺少 </head>，舞台样式挂不上去（舞台会退化成工作室界面）')
     # v= 缓存戳需要手动维护：页面本身 no-store，只有 URL 变了浏览器才会重新取样式。
-    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20260921090405"></head>')
+    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20260921122709"></head>')
     # 舞台作用域按整枚开标签注入（保留 data-tone 等既有属性），命中数必须为 1。
     html, body_injections = _BODY_TAG_PATTERN.subn(
         lambda match: f'<body{match.group("attributes")} class="interaction3d-stage" data-i3d-light-history-scope="{scope}">',

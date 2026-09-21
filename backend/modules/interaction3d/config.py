@@ -447,9 +447,10 @@ def validate_config(properties: dict) -> None:
             fail()
         if any(not number(region[field], *bounds) for field, bounds in region_bounds.items()):
             fail()
+    # backgroundVisible 缺省 False：画布默认透明，只有显式 true 才画背景与网格。
     if properties.get('layoutMode', 'free') not in {
         'fill',
-        'free'} or not isinstance(properties.get('backgroundVisible', True), bool):
+        'free'} or not isinstance(properties.get('backgroundVisible', False), bool):
         fail()
     if not isinstance(properties.get('backgroundTheme', 'grid'), str) or properties.get('backgroundTheme', 'grid') not in {
         'dots',

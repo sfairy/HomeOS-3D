@@ -9,9 +9,9 @@
  * 整块图集只在一次完整烘焙成功后才替换旧图集，中途失败保留旧图集避免闪黑。
  */
 
-import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=20260921090405";
+import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=20260921122709";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=20260921090405";
+import { debugLog } from "../../utils/debug-log.js?v=20260921122709";
 // tile 之间的留白：紧贴会因线性过滤在边缘互相渗色。
 const DEFAULT_TILE_GUTTER = 1;
 

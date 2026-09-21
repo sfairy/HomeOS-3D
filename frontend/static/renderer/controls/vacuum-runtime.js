@@ -8,9 +8,9 @@
  * 约定：位掩码沿用 HA 官方 vacuum 集成定义，硬编码在此以免与后端版本耦合。
  */
 
-import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260921090405";
+import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260921122709";
 // 状态条目归一统一走 utils/state-entry.js，避免各处再各抄一份签名不同的副本。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260921090405";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260921122709";
 // HA vacuum 集成的能力位定义。数值来自官方 constant，不能改；只用到其中一部分。
 const VACUUM_FEATURE_FLAGS = Object.freeze({
   turn_on: 1,

@@ -3,24 +3,24 @@
  *
  * 四个 `render*Sensor` 只被本控件使用，故与注册放在一起。
  */
-import { doorWindowPerspectiveMatrix } from "../../../controls/door-window-runtime.js?v=20260921090405";
+import { doorWindowPerspectiveMatrix } from "../../../controls/door-window-runtime.js?v=20260921122709";
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=20260921090405";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=20260921122709";
 import {
   presenceAnimationPhase,
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "../../../controls/presence-runtime.js?v=20260921090405";
+} from "../../../controls/presence-runtime.js?v=20260921122709";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=20260921090405";
+import { registerComponent } from "../registry-core.js?v=20260921122709";
 // 同门分片：registry-visuals
 import {
   componentContentUnitsPx,
   resolveColor
-} from "../registry-visuals.js?v=20260921090405";
+} from "../registry-visuals.js?v=20260921122709";
 
 /**
  * 渲染门窗传感器。

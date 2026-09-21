@@ -11,7 +11,7 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=20260921090405";
+import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=20260921122709";
 /**
  * 判断是否为可用的数值型输入。
  * null、空串、非数字字符串一律视为「缺失」，避免被 Number 转成 0 或 NaN 后混进亮度 / 色温计算。

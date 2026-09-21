@@ -13,12 +13,12 @@ import {
   entityDomainFromId,
   resolveStateEntry,
   stateTextOf
-} from "./static-helpers.js?v=20260921090405";
+} from "./static-helpers.js?v=20260921122709";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=20260921090405";
-import { createLightStream } from "../light/light-stream.js?v=20260921090405";
+} from "./popup-preview.js?v=20260921122709";
+import { createLightStream } from "../light/light-stream.js?v=20260921122709";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -739,11 +739,11 @@ export function mountInteraction3d(
       refreshActivityState(true);
     }
   }
-  // 背景图开关只通过类名控制，交给 CSS 决定具体表现。
+  // 背景图开关只通过类名控制，交给 CSS 决定具体表现；缺省即透明，只有显式 true 才画背景。
   function syncBackgroundVisibility() {
     hostElement.classList.toggle(
       "is-background-hidden",
-      componentProperties.backgroundVisible === false
+      componentProperties.backgroundVisible !== true
     );
     // 材质风格挂在宿主属性上：runtime.css 里整套暖色弹窗规则都由
     // [data-scene-style="warm-wood"] 选择器下的后代选择器驱动。
