@@ -28,9 +28,9 @@ import re
 import secrets
 from pathlib import Path
 
-#: 令牌名白名单。与 ``design/scene/appearance.js`` 的 ``tokenNames()`` 一一对应，
-#: ``tools/smoke_appearance.mjs`` 会断言那份清单里每一枚都被这条正则接住 ——
-#: 往 JS 里加令牌而忘了放宽这里，护栏会先红，而不是等管理员保存时才发现少了一项。
+#: 令牌名白名单。与 ``design/scene/appearance.js`` 的 ``tokenNames()`` 一一对应 ——
+#: 往 JS 里加令牌而忘了放宽这里不会报错，只会在管理员保存时才发现少了一项；
+#: 改动任一侧请手工核对另一侧。
 _TOKEN_NAME = re.compile(
     r'^--(?:hos|hb)-(?:accent|lumen|aura|eco)(?:-rgb|-bright|-deep|-soft|-line|-text)?$'
 )

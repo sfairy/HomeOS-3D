@@ -17,6 +17,7 @@
   documentElement.classList.toggle("capture-preview", isCapturePreview);
   try {
     // 只接受 dark / light 两个已知值，脏数据一律忽略。
+    // 读不到（首次访问 / 隐私模式）就用默认主题，不为它挡住首屏。
     const storedTheme = localStorage.getItem(themeStorageKey);
     (storedTheme === "dark" || storedTheme === "light") &&
       (documentElement.dataset.displayTheme = storedTheme);
@@ -91,6 +92,7 @@
       : delete documentElement.dataset.displayTheme;
     try {
       // 记忆主题，下次进入同一页面时首帧就用对配色，避免闪白。
+      // 写不进去只是下次不再记忆，本次主题已经生效。
       themeName
         ? localStorage.setItem(themeStorageKey, themeName)
         : localStorage.removeItem(themeStorageKey);

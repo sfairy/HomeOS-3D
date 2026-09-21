@@ -13,12 +13,12 @@ import {
   entityDomainFromId,
   resolveStateEntry,
   stateTextOf
-} from "./static-helpers.js?v=20260921124622";
+} from "./static-helpers.js?v=20260921151446";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=20260921124622";
-import { createLightStream } from "../light/light-stream.js?v=20260921124622";
+} from "./popup-preview.js?v=20260921151446";
+import { createLightStream } from "../light/light-stream.js?v=20260921151446";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -896,42 +896,13 @@ export function mountInteraction3d(
     loadingElement.hidden = false;
     loadingElement.textContent = "";
     loadingElement.setAttribute("aria-label", "正在准备 3D 户型");
-    const wallTrialParam = (new URLSearchParams(window.location.search).get("wall-trial") || "")
-      .split(",")
-      .filter(trialMode => ["shader", "single", "depth", "merge"].includes(trialMode))
-      .join(",");
     stageFrameElement.src =
       INTERACTION3D_API_BASE +
       "/stage.html?" +
       new URLSearchParams({
         sceneId: componentProperties.sceneId,
         projectId: projectId,
-        lighting: normalizeLightingMode(componentProperties.lightingMode),
-        ...(wallTrialParam
-          ? {
-              "wall-trial": wallTrialParam
-            }
-          : {}),
-        ...(new URLSearchParams(window.location.search).get("furniture-runtime") === "compact"
-          ? {
-              "furniture-runtime": "compact"
-            }
-          : {}),
-        ...(new URLSearchParams(window.location.search).get("reflection-detail") === "low"
-          ? {
-              "reflection-detail": "low"
-            }
-          : {}),
-        ...(new URLSearchParams(window.location.search).get("performance-diagnostics") === "1"
-          ? {
-              "performance-diagnostics": "1",
-              ...(new URLSearchParams(window.location.search).get("reflection-work") === "baseline"
-                ? {
-                    "reflection-work": "baseline"
-                  }
-                : {})
-            }
-          : {})
+        lighting: normalizeLightingMode(componentProperties.lightingMode)
       });
     if (!isPreviewSuspended) {
       scheduleLoadTimeout();

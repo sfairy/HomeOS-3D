@@ -24,8 +24,17 @@
  *      time-stamped records under docs/ are excluded).
  *  12. backend/config.py still resolves the repo root from its own location.
  *  13. every repo-relative path named by the Dockerfile still exists.
+ *  14. the LICENSE_RESTRICTED literal is compared in exactly one module,
+ *      `frontend/static/utils/api-request.js` — see
+ *      checkLicenseRestrictionSingleSource for why that has to be pinned.
+ *  15. pointer capture (`setPointerCapture` / `releasePointerCapture`) is only
+ *      called inside `frontend/static/utils/pointer-capture.js` — see
+ *      checkPointerCaptureSingleSource.
+ *  16. the anonymous static whitelist is closed under imports: every module an
+ *      unauthenticated page can reach must itself be whitelisted — see
+ *      checkAnonymousStaticClosure.
  *
- * Exits 1 when any of the first ten checks fail.
+ * Exits 1 when any check fails, except 11, which only reports.
  */
 
 import fs from "node:fs";
@@ -531,6 +540,43 @@ function checkStaticCacheStamps(problems) {
     }
   }
 
+  // store/static 下的 JS 必须单独扫：商店是**独立的构建上下文**（`store/app.py` 只挂
+  // `/store-static` 与 `/fonts`，没有 `/static`），而上面那两轮只走 FRONTEND。空档的代价是
+  // 一整片区域完全不设防 —— 而且「戳必须唯一」这条判定**见过**的戳里当然只有一个，
+  // 于是 `store/static/palette.js` 带着一枚陈旧戳也照样全绿（它指向的 scene/appearance.js
+  // 早已随设计源更新，浏览器却按旧戳当另一个模块缓存）。
+  // **本检查的覆盖范围必须与 tools/bump_static_cache_versions.mjs 的 SCAN_ROOTS 一致**：
+  // 只测不改 → 刷新工具永远修不好；只改不测 → 错配没人发现。
+  const storeStatic = path.join(STORE, "static");
+  if (fs.existsSync(storeStatic)) {
+    for (const file of walkFiles(storeStatic, new Set([".js", ".mjs"]))) {
+      if (path.basename(file).endsWith(".min.js")) continue;
+      const source = readScannable(file, new Set([".js"]));
+      for (const match of source.matchAll(STAMP_IMPORT_RE)) {
+        const spec = match[1];
+        const target = stampedTarget(spec, file);
+        if (!target || !exists(target)) continue;
+        checked += 1;
+        const found = spec.match(STAMP_VALUE_RE);
+        if (found) note(found[1], relFromRoot(file));
+        else problems.push(`${relFromRoot(file)}: import has no cache stamp -> ${spec}`);
+      }
+    }
+    for (const file of walkFiles(storeStatic, new Set([".css"]))) {
+      if (file.endsWith(".min.css")) continue;
+      const source = readScannable(file, new Set([".css"]));
+      for (const match of source.matchAll(STAMP_CSS_IMPORT_RE)) {
+        const spec = match[1];
+        const target = cssImportTarget(spec, file);
+        if (!target || !exists(target)) continue;
+        checked += 1;
+        const found = spec.match(STAMP_VALUE_RE);
+        if (found) note(found[1], relFromRoot(file));
+        else problems.push(`${relFromRoot(file)}: CSS @import has no cache stamp -> ${spec}`);
+      }
+    }
+  }
+
   const storeTemplates = path.join(STORE, "templates");
   if (fs.existsSync(storeTemplates)) {
     for (const file of walkFiles(storeTemplates, new Set([".html"]))) {
@@ -842,6 +888,176 @@ function checkDockerfilePaths(problems) {
   return checked;
 }
 
+/**
+ * Check 14: the license-restriction literal has exactly one owner.
+ *
+ * `LICENSE_RESTRICTED` is how the backend gate (`backend/core/dependencies.py`
+ * — licensed_user / licensed_viewer — and `backend/api/assets.py`) says "this
+ * license may not do that". Every request entry point used to compare that
+ * literal for itself — five of them — and answer by sending the user somewhere
+ * the problem can be solved. A second code from the backend, or a split into
+ * per-capability codes, would then be honoured only by whichever entry points
+ * someone remembered to edit, and the rest would surface it as an ordinary
+ * business error. Nothing breaks in that state, which is what makes it nasty:
+ * the page keeps working while nobody is pointed at the page that fixes it.
+ *
+ * The comparison now lives in `frontend/static/utils/api-request.js`. Comments
+ * are stripped before matching, so naming the code in prose stays free —
+ * otherwise this guard would punish exactly the documentation that explains
+ * why it exists.
+ */
+function checkLicenseRestrictionSingleSource(problems) {
+  const owner = path.join("frontend", "static", "utils", "api-request.js");
+  const ownerFile = path.join(ROOT, owner);
+  const ownerRel = owner.split(path.sep).join("/");
+  if (!fs.existsSync(ownerFile)) {
+    problems.push(`${ownerRel} missing; the license-restriction literal has no owner`);
+    return 0;
+  }
+  if (!readScannable(ownerFile).includes('"LICENSE_RESTRICTED"')) {
+    problems.push(`${ownerRel} no longer defines the LICENSE_RESTRICTED literal`);
+  }
+  let scanned = 0;
+  for (const file of walkFiles(FRONTEND)) {
+    if (file === ownerFile) continue;
+    scanned += 1;
+    if (!/["'`]LICENSE_RESTRICTED["'`]/.test(readScannable(file))) continue;
+    problems.push(
+      `${relFromRoot(file)} compares the LICENSE_RESTRICTED literal itself; ` +
+        `call apiAuthChallenge from ${ownerRel} instead`
+    );
+  }
+  return scanned;
+}
+
+/**
+ * Check 15: pointer capture has exactly one implementation.
+ *
+ * `setPointerCapture` / `releasePointerCapture` throw for situations that are
+ * entirely expected — the pointer is already gone, the element was just pulled
+ * out of the document, or the capture was already released (pointerup happens
+ * after pointercancel / lostpointercapture often enough that a second release
+ * is normal). The tree used to answer that in three different ways: a bare call,
+ * an empty `try { … } catch {}`, or a `?.` optional call. Each site then left
+ * the reader to work out which failure was being tolerated, and the empty
+ * catches said nothing at all — the guard looked deliberate and explained
+ * nothing. Two of those three forms also disagree about what happens when the
+ * call really fails: bare rethrows, `?.` only covers a missing method.
+ *
+ * The single owner is `frontend/static/utils/pointer-capture.js`, which states
+ * the tolerated failures once. Comments are stripped before matching, so the
+ * prose above (and the mentions that survive in unrelated files) stays free.
+ * Scope is the frontend tree: `store/static` is a separate app with its own
+ * asset root and cannot import from `/static/utils/`.
+ */
+function checkPointerCaptureSingleSource(problems) {
+  const owner = path.join("frontend", "static", "utils", "pointer-capture.js");
+  const ownerFile = path.join(ROOT, owner);
+  const ownerRel = owner.split(path.sep).join("/");
+  if (!fs.existsSync(ownerFile)) {
+    problems.push(`${ownerRel} missing; pointer capture has no owner`);
+    return 0;
+  }
+  const ownerSource = readScannable(ownerFile);
+  for (const name of ["capturePointer", "releasePointer"]) {
+    if (!ownerSource.includes(`export function ${name}(`)) {
+      problems.push(`${ownerRel} no longer exports ${name}()`);
+    }
+  }
+  const directCallRe = /\.(?:set|release)PointerCapture\s*\??\.?\s*\(/;
+  let scanned = 0;
+  for (const file of walkFiles(FRONTEND)) {
+    if (file === ownerFile) continue;
+    scanned += 1;
+    if (!directCallRe.test(readScannable(file))) continue;
+    problems.push(
+      `${relFromRoot(file)} calls setPointerCapture/releasePointerCapture itself; ` +
+        `call capturePointer/releasePointer from ${ownerRel} instead`
+    );
+  }
+  return scanned;
+}
+
+/**
+ * Check 16: the anonymous whitelist is closed under imports.
+ *
+ * `public_static_files` in backend/main.py decides which `/static/...` files
+ * anyone may fetch: everything else there is 401 until the browser is
+ * authorised. The pages that need it most are the ones nobody has logged in
+ * for yet — /setup, /login, /pair, /license and the recovery page — and those
+ * pages are the ones whose own module graph has to survive that gate.
+ *
+ * An ESM graph does not half-load: one 401 on a transitively imported module
+ * and none of the page's script runs. There is nothing on screen to suggest
+ * why, either — the page keeps its HTML and CSS and simply never becomes
+ * interactive. That is why the set is written by hand with a comment urging
+ * "新增匿名页依赖的 utils 务必同步这里": the cost of forgetting is a blank
+ * page only unauthenticated users can see, which is the least-exercised path
+ * there is. This check walks the graph instead of trusting the note.
+ *
+ * The search starts from every whitelisted `.js` (and `.css`, which can pull
+ * in fonts and images) and follows imports and `/static/...` literals. Anything
+ * it reaches that the whitelist does not name is reported.
+ */
+function checkAnonymousStaticClosure(problems) {
+  const source = fs.readFileSync(MAIN_PY, "utf8");
+  const start = source.indexOf("public_static_files = {");
+  const end = source.indexOf("\n    def ", start);
+  if (start === -1 || end === -1) {
+    problems.push(`${relFromRoot(MAIN_PY)}: public_static_files block not found`);
+    return 0;
+  }
+  const allowed = new Set(
+    [...source.slice(start, end).matchAll(/['"](\/static\/[^'"]+)['"]/g)].map(hit =>
+      stripQuery(hit[1])
+    )
+  );
+  const urlOf = file => "/" + path.relative(FRONTEND, file).split(path.sep).join("/");
+  const queue = [...allowed].filter(url => url.endsWith(".js") || url.endsWith(".css"));
+  const seen = new Set();
+  let checked = 0;
+  while (queue.length > 0) {
+    const url = queue.shift();
+    if (seen.has(url)) continue;
+    seen.add(url);
+    const file = path.join(FRONTEND, url.replace(/^\/static\//, "static/"));
+    if (!exists(file)) continue; // Check 3 reports a whitelist entry with no file.
+    checked += 1;
+    const text = readScannable(file);
+    const reached = [];
+    if (path.extname(file) === ".css") {
+      for (const match of text.matchAll(CSS_URL_RE)) {
+        const specifier = stripQuery(match[1]);
+        if (specifier.startsWith("/")) {
+          reached.push(path.join(FRONTEND, specifier.replace(/^\//, "")));
+        } else if (!/^[a-z]+:/i.test(specifier)) {
+          reached.push(path.resolve(path.dirname(file), specifier));
+        }
+      }
+    } else {
+      for (const match of text.matchAll(RELATIVE_IMPORT_RE)) {
+        reached.push(path.resolve(path.dirname(file), stripQuery(match[1])));
+      }
+    }
+    for (const match of text.matchAll(STATIC_REF_RE)) {
+      reached.push(path.join(FRONTEND, stripQuery(match[0]).replace(/^\/static\//, "static/")));
+    }
+    for (const target of reached) {
+      if (!exists(target)) continue; // Check 1 / Check 2 report dangling references.
+      const targetUrl = urlOf(target);
+      if (allowed.has(targetUrl)) {
+        queue.push(targetUrl);
+        continue;
+      }
+      problems.push(
+        `${relFromRoot(file)} reaches ${targetUrl}, which is not in public_static_files; ` +
+          `an anonymous page loads this graph, so a 401 on that file leaves the page blank`
+      );
+    }
+  }
+  return checked;
+}
+
 function main() {
   const problems = [];
   const counts = {
@@ -855,7 +1071,10 @@ function main() {
     frontendDirChains: checkFrontendDirChains(problems),
     cacheStamps: checkStaticCacheStamps(problems),
     commentPaths: checkCommentPaths(problems),
-    dockerfilePaths: checkDockerfilePaths(problems)
+    dockerfilePaths: checkDockerfilePaths(problems),
+    licenseRestriction: checkLicenseRestrictionSingleSource(problems),
+    pointerCapture: checkPointerCaptureSingleSource(problems),
+    anonymousClosure: checkAnonymousStaticClosure(problems)
   };
   checkBackendRootDepth(problems);
 
@@ -872,7 +1091,10 @@ function main() {
       `${counts.frontendDirChains} frontend_dir chains, ` +
       `${counts.cacheStamps} cache stamps, ` +
       `${counts.commentPaths} comment paths, ` +
-      `${counts.dockerfilePaths} Dockerfile paths`
+      `${counts.dockerfilePaths} Dockerfile paths, ` +
+      `${counts.licenseRestriction} files scanned for the license-restriction literal, ` +
+      `${counts.pointerCapture} files scanned for direct pointer capture, ` +
+      `${counts.anonymousClosure} anonymous-graph files scanned`
   );
 
   if (problems.length > 0) {

@@ -337,7 +337,11 @@ def reverse_order_reward(
         reference=order.order_no,
         order_id=order.id,
     )
-    order.referral_reward_points_centi = 0
+    #: 只把**真正扣回的部分**结清：还有短差时保留短差，而不是清零。
+    #: 清零会让这笔债权从账上消失，而短差恰恰最容易发生在「积分正在提现审批中」的时候 ——
+    #: 那笔提现一旦被驳回，冻结会回到余额，本该追回的奖励就白拿了，库里却再也查不到欠多少。
+    #: 保留短差后，这个字段的含义变成「还没扣回的奖励」，重复调用即继续追偿。
+    order.referral_reward_points_centi = shortfall
     session.flush()
     return deductible
 
@@ -454,6 +458,12 @@ def resolve_withdrawal(
             withdrawn_delta_centi=points_centi,
             note=note or "提现完成",
             reference=withdrawal.id,
+            #: 下界守卫：冻结额是「余额里被预留的那一份」，正常情况下 balance >= frozen，
+            #: 所以扣掉冻结额不会让余额变负。但这条不变式可以由**人工调账**打破（后台调账
+            #: 允许传负 delta），一旦打破，这里就会把余额写成负数 —— 而负余额会让后续每一笔
+            #: 记账都撞守卫。宁可拒绝：CAS 与记账在同一个事务里，抛出去等于整笔回滚、
+            #: 申请仍是 pending，运营把钱补回来再点一次即可。调用方须把它转成 4xx。
+            min_balance_centi=0,
         )
     else:
         ledger_entry(

@@ -26,10 +26,6 @@ export function createDemandFrameLoop({
   let isDisposed = false;
   let isStepping = false;
   let wakeRequested = false;
-  const stats = {
-    frames: 0,
-    deadlines: 0
-  };
   // 帧句柄与延迟句柄互斥：任一非空都表示「已经安排好下一次运行」，避免重复排程。
   function cancelScheduled() {
     if (frameHandle !== null) {
@@ -74,7 +70,6 @@ export function createDemandFrameLoop({
     isStepping = true;
     // 先清标志再 step：step 期间再次 wake 会把它重新置真，从而自然续排下一帧。
     wakeRequested = false;
-    stats.frames++;
     let nextDelayMs = Infinity;
     // step 抛错也必须复位 isStepping，否则此后 wake 只会置标志、永远不再排帧，动画静默卡死。
     try {
@@ -90,16 +85,13 @@ export function createDemandFrameLoop({
       } else if (Number.isFinite(nextDelayMs)) {
         deadlineTimerId = schedule(() => {
           deadlineTimerId = null;
-          stats.deadlines++;
           wake();
         }, nextDelayMs);
       }
     }
   }
-  // stats 直接暴露内部计数对象：调用方可以长期持有引用读取，无需每次重新取句柄。
   return {
     wake: wake,
-    stats: stats,
     setAvailable(isAvailableNext) {
       // 只在可用性真正翻转时动作：重复设置同一个值不应打断已经排好的帧或定时器。
       if (!isDisposed && isAvailable !== !!isAvailableNext) {

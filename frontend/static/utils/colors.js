@@ -7,7 +7,8 @@
  *   | `expandHexColorOrNull`  | 不认 | 展开 | 六位，原样大小写 | `null` |
  * 失败写法有意：空串=「不是一个颜色」；`null`=「放弃计算」；拒绝缩写=「输入还不完整」。
  * 另有 `resolveColor`（CSS 颜色白名单校验 + 兜底色）、`mixHexColors`（十六进制线性插值）
- * 与 `paletteColor`（从全站调色板令牌里取实际色值）。
+ * 与 `paletteColor`（从全站调色板令牌里取实际色值），以及 `hexToRgbOrNull`（拆成 0~255 通道，
+ * 失败时返回 `null`，由调用方决定兜底色）。
  */
 
 /**
@@ -78,7 +79,7 @@ export function strictHexColorOrEmpty(hexColorInput) {
  * 用于取值场景（拆 RGB 通道做插值）：HA 里用户常手写 `#abc`，不展开会得到错值；
  * 大小写不归一，调用方只要通道值。拿不准明确返回 `null`，算错颜色比不插值更糟。
  */
-export function expandHexColorOrNull(colorValue) {
+function expandHexColorOrNull(colorValue) {
   const trimmedColor = String(colorValue || "").trim();
   const expandedColor = /^#[0-9a-f]{3}$/i.test(trimmedColor)
     ? "#" +
@@ -93,6 +94,27 @@ export function expandHexColorOrNull(colorValue) {
   } else {
     return null;
   }
+}
+
+/**
+ * 解析成 `{ r, g, b }` 三通道（各 0~255）；不是十六进制时返回 `null`。
+ *
+ * 三位缩写会展开（HA 里用户手写 `#abc` 很常见，不展开会算出错值），可省略 `#`，大小写不敏感 ——
+ * 即解析口径与本模块的 `hexColorOrEmpty` 一致，只是失败时不返回空串而是 `null`。
+ *
+ * 失败返回 `null` 而不是兜底色，是因为兜底策略按用途分岔：编辑器要把颜色画出来，用黑色兜底；
+ * 主题派生则应当直接抛错（配置写错要立刻暴露，不该静默变成一片黑）。
+ */
+export function hexToRgbOrNull(colorInput) {
+  const normalizedColor = hexColorOrEmpty(colorInput);
+  if (!normalizedColor) {
+    return null;
+  }
+  return {
+    r: Number.parseInt(normalizedColor.slice(1, 3), 16),
+    g: Number.parseInt(normalizedColor.slice(3, 5), 16),
+    b: Number.parseInt(normalizedColor.slice(5, 7), 16)
+  };
 }
 
 /**

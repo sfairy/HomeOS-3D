@@ -1,7 +1,7 @@
 /**
  * 接触阴影（Contact Shadow）控制器：为家具与地面接触处烘焙一圈压暗的贴地阴影，也负责家具顶面之间的「表面烘焙」。
  * 它是环境遮蔽（AO）的廉价近似，不追求全局光照的物理正确，只求把物体「钉」在地板上。
- * 对外：isContactCasterMaterial（材质资格判定）、createContactShadowController（控制器工厂，返回 sync / invalidate / dispose / settings）。
+ * 对外：createContactShadowController（控制器工厂，返回 sync / invalidate / dispose / settings）。材质资格判定 isContactCasterMaterial 只在本文件内使用，刻意不导出 —— 需要时再 export 回来（成本一行）。
  * 为什么不用实时阴影贴图：家具动辄上千网格，逐帧渲染 shadow map 的 draw call 与显存开销不可接受，且相机常做楼层切换与环绕会闪烁抖动。
  * 因此改为「只在需要时烘焙一次」：从地板下方 6cm 处朝上拍一张正交深度图，把深度换算成遮蔽浓度存进 RedFormat 贴图，地面材质着色器再按世界坐标采样。
  * 关键约定：所有贴图都在「楼层锚点帧」里烘焙，须维护 plan2ContactTransform 把世界坐标变换回烘焙时的坐标系，锚点一动（楼层过渡、家具搬动）就要重算或重烘焙。
@@ -42,7 +42,7 @@ function isVisibleWithAncestors(rootObject3d) {
  * 判定口径（四条全过才算数）：opacity >= 0.98 —— 几乎不透明的才算实体，0.98 是给浮点误差留的余量；transmission 必须为 0，排除玻璃类折射材质。
  * 允许 transparent，但必须配 alphaTest > 0 —— 树叶、栏杆这类靠 alphaTest 抠洞的材质在深度通道里能正确镂空，反而应该参与，否则树下会缺阴影。
  */
-export function isContactCasterMaterial(material) {
+function isContactCasterMaterial(material) {
   return (
     !!material &&
     material.visible !== false &&
@@ -1009,6 +1009,8 @@ export function createContactShadowController({
       !(bufferGeometry.index?.version > 0)
     ) {
       try {
+        // 参数里出现循环引用 / 不可序列化值时取不到这条键，下面会退到双通道哈希分支，
+        // 所以这里不中断阴影构建。
         geometryKey = JSON.stringify(
           [bufferGeometry.type, bufferGeometry.parameters],
           (jsonKey, jsonValue) => (jsonKey === "uuid" ? undefined : jsonValue)

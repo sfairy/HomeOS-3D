@@ -40,6 +40,7 @@ from store.payments.sweeper import (
 from store.core.bootstrap import ensure_default_products, ensure_default_settings
 from store.ops.appearance import AppearanceStore
 from store.ops.release_info import CURRENT_VERSION, ensure_current_release
+from store.security.body_guard import RequestBodyGuard
 from store.security.request_security import (
     error_page_html,
     forwarded_headers_present,
@@ -307,6 +308,11 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
                 headers={"Cache-Control": "no-store"},
             )
         return await call_next(request)
+
+    # 请求体字节上限。注册在这里意味着它比同源闸门与路由更靠外：FastAPI 是先读全请求体
+    # 再进依赖与路由的，未登录的匿名请求也能用它把内存打满（见 store/security/body_guard.py）。
+    # 位置在安全头那层**之内**：下面再注册的安全头中间件会把 413 也补上安全头。
+    app.add_middleware(RequestBodyGuard)
 
     # 安全头中间件必须**最后**注册：``@app.middleware`` 往栈顶插，最后注册的那层才
     # 在最外层，上面那道同源闸门提前返回的 403 也会被它补上头。

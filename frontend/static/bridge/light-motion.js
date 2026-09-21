@@ -7,24 +7,21 @@
  * 色温用开尔文，颜色用 0xRRGGBB；全部为纯函数。
  */
 
-// 数值统一走这两个小工具：clamp 保证写进渲染层的值永远在合法区间，
-// finiteOr 把 NaN / undefined 这类「缺失」与合法的 0 区分开（0 往往有语义）。
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-// 与 clamp 配套：只在 candidate 是有限数时采用它，否则退回 fallback，
-// 这样 NaN / undefined 不会污染后续运算（0 是合法值，不能被当成缺失）。
-const finiteOr = (candidate, fallback) => (Number.isFinite(candidate) ? candidate : fallback);
+// 数值夹取与换算统一走 utils/numbers.js（唯一实现）：clampNumber 保证写进渲染层的值永远在
+// 合法区间，finiteNumberOr 把 NaN / undefined 这类「缺失」与合法的 0 区分开（0 往往有语义）。
+import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=20260921151446";
 // 过渡用的灯态：亮度非负、颜色三通道归一到 [0,1]，避免插值过程中放大出非法值。
 const normalizeLightState = lightState => ({
-  intensity: Math.max(0, finiteOr(lightState?.intensity, 0)),
-  color: [0, 1, 2].map(channelIndex => clamp(finiteOr(lightState?.color?.[channelIndex], 1), 0, 1))
+  intensity: Math.max(0, finiteNumberOr(lightState?.intensity, 0)),
+  color: [0, 1, 2].map(channelIndex => clampNumber(finiteNumberOr(lightState?.color?.[channelIndex], 1), 0, 1))
 });
 /**
  * 区间归一：两端各自夹进 bounds，再保证下限不大于上限；顺序颠倒在这里被静默纠正，
  * 调用方无需再判大小。
  */
 function normalizeRange(minValue, maxValue, fallbackRange, bounds) {
-  const clampedMin = clamp(finiteOr(minValue, fallbackRange[0]), bounds[0], bounds[1]);
-  const clampedMax = clamp(finiteOr(maxValue, fallbackRange[1]), bounds[0], bounds[1]);
+  const clampedMin = clampNumber(finiteNumberOr(minValue, fallbackRange[0]), bounds[0], bounds[1]);
+  const clampedMax = clampNumber(finiteNumberOr(maxValue, fallbackRange[1]), bounds[0], bounds[1]);
   return [Math.min(clampedMin, clampedMax), Math.max(clampedMin, clampedMax)];
 }
 /**
@@ -40,7 +37,7 @@ export function mapLightEffectState(lightEntry) {
   const effectRange = lightEntry?.effectRange;
   // 实体没上报亮度就保持 undefined：兜底是上层的职责，这里不擅自编造数值。
   if (Number.isFinite(mappedState.brightness)) {
-    const brightnessPercent = clamp(mappedState.brightness, 0, 100);
+    const brightnessPercent = clampNumber(mappedState.brightness, 0, 100);
     // 效果区间默认 1~100；绝对范围是 0~150 —— 组件允许把亮度效果预设到 150%。
     const [brightnessMin, brightnessMax] = normalizeRange(
       effectRange?.brightnessMin,
@@ -54,7 +51,7 @@ export function mapLightEffectState(lightEntry) {
       brightnessPercent === 0
         ? 0
         : brightnessMin +
-          ((brightnessMax - brightnessMin) * (clamp(brightnessPercent, 1, 100) - 1)) / 99;
+          ((brightnessMax - brightnessMin) * (clampNumber(brightnessPercent, 1, 100) - 1)) / 99;
   }
   // 色温只有在「实体给了 kelvin」且「效果区间至少有一端可用」时才映射，
   // 否则会把未启用色温的灯拖进一个凭空的区间。
@@ -79,7 +76,7 @@ export function mapLightEffectState(lightEntry) {
     // 量程退化（上下限相等）时比例取 0，等价于取效果区间的最低色温。
     const kelvinRatio =
       kelvinRange[1] > kelvinRange[0]
-        ? clamp((mappedState.kelvin - kelvinRange[0]) / (kelvinRange[1] - kelvinRange[0]), 0, 1)
+        ? clampNumber((mappedState.kelvin - kelvinRange[0]) / (kelvinRange[1] - kelvinRange[0]), 0, 1)
         : 0;
     mappedState.kelvin = temperatureMin + (temperatureMax - temperatureMin) * kelvinRatio;
   }
@@ -89,14 +86,14 @@ export function mapLightEffectState(lightEntry) {
     Number.isFinite(lightEntry.effectDefaults?.brightness)
   ) {
     // 效果默认值同样按 150% 上限取值：与编辑器的输入上限保持一致。
-    mappedState.brightness = clamp(lightEntry.effectDefaults.brightness, 0, 150);
+    mappedState.brightness = clampNumber(lightEntry.effectDefaults.brightness, 0, 150);
   }
   // 同理：不支持色温的灯用效果默认色温兜底，避免显示成 0K 的极端冷色。
   if (
     lightEntry?.temperatureSupported === false &&
     Number.isFinite(lightEntry.effectDefaults?.kelvin)
   ) {
-    mappedState.kelvin = clamp(lightEntry.effectDefaults.kelvin, 1000, 20000);
+    mappedState.kelvin = clampNumber(lightEntry.effectDefaults.kelvin, 1000, 20000);
   }
   return mappedState;
 }
@@ -106,7 +103,7 @@ export function mapLightEffectState(lightEntry) {
  */
 export function lightEffectColorHex(kelvin) {
   // 公式以「百 K」为单位，因此先除以 100。
-  const scaledKelvin = clamp(finiteOr(kelvin, 3000), 1000, 20000) / 100;
+  const scaledKelvin = clampNumber(finiteNumberOr(kelvin, 3000), 1000, 20000) / 100;
   const redChannel =
     scaledKelvin <= 66 ? 255 : Math.pow(scaledKelvin - 60, -0.1332047592) * 329.698727446;
   const greenChannel =
@@ -120,7 +117,7 @@ export function lightEffectColorHex(kelvin) {
         ? 0
         : Math.log(scaledKelvin - 10) * 138.5177312231 - 305.0447927307;
   // 单通道收尾：四舍五入并夹到 0~255，保证下面拼出的整数始终在 0xRRGGBB 范围内。
-  const clampChannel = channel => Math.round(clamp(channel, 0, 255));
+  const clampChannel = channel => Math.round(clampNumber(channel, 0, 255));
   // 三通道各占 8 位拼成一个整数，与 CSS / three.js 的 0xRRGGBB 表示一致。
   return (
     (clampChannel(redChannel) << 16) | (clampChannel(greenChannel) << 8) | clampChannel(blueChannel)
@@ -135,7 +132,7 @@ export function lightTransitionDurationMs(wasOn, isOn, fadeDurationSeconds, opti
   if (options.immediate) {
     return 0;
   } else if (wasOn !== isOn) {
-    return clamp(finiteOr(fadeDurationSeconds, 0.3), 0, 10) * 1000;
+    return clampNumber(finiteNumberOr(fadeDurationSeconds, 0.3), 0, 10) * 1000;
   } else if (options.preview) {
     // 预览面板里的开关要「跟手」，90ms 是能看出过渡又不觉得迟钝的下限；
     // 但同一次预览里色温也变了的话，90ms 会让冷暖跳变显得生硬，放宽到 180ms。
@@ -153,8 +150,8 @@ export function createLightTransition(fromState, toState, startedAtMs, durationM
   return {
     from: normalizeLightState(fromState),
     to: normalizeLightState(toState),
-    started: finiteOr(startedAtMs, 0),
-    duration: Math.max(0, finiteOr(durationMs, 0))
+    started: finiteNumberOr(startedAtMs, 0),
+    duration: Math.max(0, finiteNumberOr(durationMs, 0))
   };
 }
 /**
@@ -165,7 +162,7 @@ export function createLightTransition(fromState, toState, startedAtMs, durationM
 export function sampleLightTransition(transition, nowMs) {
   // duration 为 0（立即生效）时直接视为完成，避免除零得到 NaN 进度。
   const progress = transition.duration
-    ? clamp((finiteOr(nowMs, transition.started) - transition.started) / transition.duration, 0, 1)
+    ? clampNumber((finiteNumberOr(nowMs, transition.started) - transition.started) / transition.duration, 0, 1)
     : 1;
   // 三次 smoothstep：进度本身已夹在 0~1，因此结果同样不会越界。
   const easedProgress = progress * progress * (3 - progress * 2);

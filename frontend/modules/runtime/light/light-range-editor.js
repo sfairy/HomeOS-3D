@@ -5,17 +5,18 @@
  * 数据模型：覆盖以 regionKey = [区域 ID, 灯具 ID] 为键，值是光区的几何与离地参数；编辑先写本地副本
  * 并即时反馈到场景，只有 commitOverrides 才回调宿主，故「改到一半关掉」不会污染已保存配置。
  * 取值口径：宽 / 深 0.5~20 米（两位小数）；离地 0~20 米，0 表示本层地面；柔和度界面按 5%~100%
- * 展示、写入时换算成 0.05~1 的比例。导出 resizeRegionDimensions / regionHeightPatch /
- * mountRegionRangeEditor / mountRangeFormControls。
+ * 展示、写入时换算成 0.05~1 的比例。对外只导出 mountRegionRangeEditor。
  */
+// 夹取与换算统一走 utils/numbers.js（唯一实现，经 static-helpers 桥取用）。
+import {
+  clampNumber,
+  coercedFiniteNumberOr
+} from "../core/static-helpers.js?v=20260921151446";
+import { capturePointer, releasePointer } from "/static/utils/pointer-capture.js?v=20260921151446";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
-// 夹取工具：所有几何与光照参数都要过它，保证写进配置的值始终在合法区间。
-const clampValue = (rawValue, lowerBound, upperBound) =>
-  Math.max(lowerBound, Math.min(upperBound, rawValue));
-// 表单读出来的都是字符串：统一转成有限数字，非法值（NaN / 空串）回落到兜底值。
+// 表单读出来的都是字符串：统一转成有限数字，非法值（NaN / 空串 / 布尔）回落到兜底值。
 // 不这样做的话，一个空输入框就能把整层的光照参数变成 NaN，画面会直接黑掉。
-const toFiniteNumber = (candidateValue, fallbackNumber = 0) =>
-  Number.isFinite(Number(candidateValue)) ? Number(candidateValue) : fallbackNumber;
+// 「空串必须回落」是有意的：`Number("")` 是 0，直接换算会把「用户清空了输入框」当成 0 写进配置。
 // 覆盖对象是纯数据（无函数 / 无循环引用），用 JSON 深拷贝最省事；
 // 顺带把 undefined 兜底成空对象。
 const deepCloneObject = sourceObject => JSON.parse(JSON.stringify(sourceObject || {}));
@@ -31,7 +32,7 @@ const toRegionKey = (areaIdPart, lightIdPart) =>
  * 拖南北向手柄只改深度、拖东西向只改宽度；等比模式取变化更大的那一轴作为缩放系数，
  * 并夹取到「宽深都不越界」的共同区间，最后统一保留两位小数。
  */
-export function resizeRegionDimensions(
+function resizeRegionDimensions(
   sourceRegion,
   requestedWidth,
   requestedDepth,
@@ -54,7 +55,7 @@ export function resizeRegionDimensions(
         : Math.abs(widthRatio - 1) >= Math.abs(depthRatio - 1)
           ? widthRatio
           : depthRatio;
-    uniformScale = clampValue(
+    uniformScale = clampNumber(
       uniformScale,
       Math.max(0.5 / sourceRegion.width, 0.5 / sourceRegion.depth),
       Math.min(20 / sourceRegion.width, 20 / sourceRegion.depth)
@@ -65,8 +66,8 @@ export function resizeRegionDimensions(
     };
   }
   return {
-    width: roundToHundredth(clampValue(requestedWidth, 0.5, 20)),
-    depth: roundToHundredth(clampValue(requestedDepth, 0.5, 20))
+    width: roundToHundredth(clampNumber(requestedWidth, 0.5, 20)),
+    depth: roundToHundredth(clampNumber(requestedDepth, 0.5, 20))
   };
 }
 /**
@@ -74,18 +75,18 @@ export function resizeRegionDimensions(
  * 用户把下限调到上限之上时直接把另一端改成同一个值（而非拒绝输入），拖到边界时手感是「推着另一端走」；
  * heightAbove / heightBelow 是旧的自动推算字段，这里显式置 undefined，由调用方删除，避免两套字段同时存在。
  */
-export function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
+function regionHeightPatch(regionDescriptor, changedField, fieldValue) {
   const heightPatch = {
     heightAbove: undefined,
     heightBelow: undefined,
     heightMin:
       regionDescriptor.heightMin === undefined
         ? undefined
-        : clampValue(regionDescriptor.heightMin, 0, 20),
+        : clampNumber(regionDescriptor.heightMin, 0, 20),
     heightMax:
       regionDescriptor.heightMax === undefined
         ? undefined
-        : clampValue(regionDescriptor.heightMax, 0, 20),
+        : clampNumber(regionDescriptor.heightMax, 0, 20),
     [changedField]: fieldValue
   };
   if (
@@ -425,7 +426,7 @@ export function mountRegionRangeEditor(
   }
   // 灯位离地高度：取不到世界坐标时用 0.065 米兜底 —— 与灯具模型落在地板上的高度一致。
   function getLampWorldHeight() {
-    return toFiniteNumber(editorHost.worldPoint?.(activeFloorId, 0, 0, 0.065)?.y, 0.065);
+    return coercedFiniteNumberOr(editorHost.worldPoint?.(activeFloorId, 0, 0, 0.065)?.y, 0.065);
   }
   // 把光区的平面偏移投影到屏幕，用于画中心十字与偏移标注。
   function projectRegionOffset(region, offsetAlongX, offsetAlongZ, screenWorldY) {
@@ -835,7 +836,7 @@ export function mountRegionRangeEditor(
         initial: deepCloneObject(overridesByRegionKey),
         changed: false
       };
-      svgElement.setPointerCapture(pointerDownEvent.pointerId);
+      capturePointer(svgElement, pointerDownEvent.pointerId);
     } else {
       const regionMarkerElement = pointerDownEvent.target.closest?.("[data-region-key]");
       if (regionMarkerElement) {
@@ -861,10 +862,10 @@ export function mountRegionRangeEditor(
     if (dragState.handle === "move") {
       applyOverride({
         offsetX: roundToHundredth(
-          clampValue((dragRegion.offsetX || 0) + moveGroundPoint.x - dragState.point.x, -100, 100)
+          clampNumber((dragRegion.offsetX || 0) + moveGroundPoint.x - dragState.point.x, -100, 100)
         ),
         offsetZ: roundToHundredth(
-          clampValue((dragRegion.offsetZ || 0) + moveGroundPoint.z - dragState.point.z, -100, 100)
+          clampNumber((dragRegion.offsetZ || 0) + moveGroundPoint.z - dragState.point.z, -100, 100)
         )
       });
     } else if (dragState.handle === "rotate") {
@@ -904,9 +905,7 @@ export function mountRegionRangeEditor(
     }
     const finishedDrag = dragState;
     dragState = null;
-    if (svgElement.hasPointerCapture(finishedDrag.pointerId)) {
-      svgElement.releasePointerCapture(finishedDrag.pointerId);
-    }
+    releasePointer(svgElement, finishedDrag.pointerId);
     if (shouldRevert) {
       overridesByRegionKey = finishedDrag.initial;
       getRegionLighting()?.setOverrides?.(overridesByRegionKey);
@@ -1010,7 +1009,7 @@ export function mountRegionRangeEditor(
       }
     };
     for (const wallItem of floorScene?.walls || []) {
-      const wallHalfThickness = Math.max(0, toFiniteNumber(wallItem.thickness, 0.12)) / 2;
+      const wallHalfThickness = Math.max(0, coercedFiniteNumberOr(wallItem.thickness, 0.12)) / 2;
       addSamplePoint(wallItem.start?.x, wallItem.start?.y, wallHalfThickness);
       addSamplePoint(wallItem.end?.x, wallItem.end?.y, wallHalfThickness);
     }
@@ -1020,15 +1019,15 @@ export function mountRegionRangeEditor(
         if (!itemOrigin) {
           continue;
         }
-        const itemRotationRad = (toFiniteNumber(floorItem.rotation) * Math.PI) / 180;
+        const itemRotationRad = (coercedFiniteNumberOr(floorItem.rotation, 0) * Math.PI) / 180;
         const itemCos = Math.cos(itemRotationRad);
         const itemSin = Math.sin(itemRotationRad);
         for (const extentSignX of [-1, 1]) {
           for (const extentSignZ of [-1, 1]) {
             const extentOffsetX =
-              (extentSignX * Math.max(0.1, toFiniteNumber(floorItem.width, 0.5))) / 2;
+              (extentSignX * Math.max(0.1, coercedFiniteNumberOr(floorItem.width, 0.5))) / 2;
             const extentOffsetZ =
-              (extentSignZ * Math.max(0.1, toFiniteNumber(floorItem.depth, 0.5))) / 2;
+              (extentSignZ * Math.max(0.1, coercedFiniteNumberOr(floorItem.depth, 0.5))) / 2;
             groundSamplePoints.push({
               point: new threeNamespace.Vector3(
                 itemOrigin.x + extentOffsetX * itemCos - extentOffsetZ * itemSin,
@@ -1262,7 +1261,7 @@ export function mountRegionRangeEditor(
     if (fieldName === "softness") {
       return applyOverride(
         {
-          softness: clampValue(toFiniteNumber(fieldControl.value, 35) / 100, 0.05, 1)
+          softness: clampNumber(coercedFiniteNumberOr(fieldControl.value, 35) / 100, 0.05, 1)
         },
         true
       );
@@ -1271,7 +1270,7 @@ export function mountRegionRangeEditor(
       const parsedHeightValue =
         fieldControl.value.trim() === ""
           ? undefined
-          : roundToHundredth(clampValue(toFiniteNumber(fieldControl.value), 0, 20));
+          : roundToHundredth(clampNumber(coercedFiniteNumberOr(fieldControl.value, 0), 0, 20));
       fieldControl.value = parsedHeightValue ?? "";
       return applyOverride(
         {
@@ -1288,9 +1287,9 @@ export function mountRegionRangeEditor(
       const nextFieldValue =
         fieldControl.value.trim() === ""
           ? currentFieldValue
-          : toFiniteNumber(fieldControl.value, currentFieldValue);
+          : coercedFiniteNumberOr(fieldControl.value, currentFieldValue);
       fieldControl.value = roundToHundredth(
-        clampValue(
+        clampNumber(
           nextFieldValue,
           fieldName === "rotation" ? -180 : 0.5,
           fieldName === "rotation" ? 180 : 20
@@ -1342,7 +1341,7 @@ export function mountRegionRangeEditor(
       applyOverride(
         {
           [offsetField]: roundToHundredth(
-            clampValue(
+            clampNumber(
               (getSelectedRegion()[offsetField] || 0) +
                 offsetSign * (editorKeyEvent.shiftKey ? 0.5 : 0.1),
               -100,
@@ -1355,7 +1354,7 @@ export function mountRegionRangeEditor(
     } else if (rangeHandleElement.dataset.rangeHandle === "rotate") {
       applyOverride(
         {
-          rotation: clampValue(
+          rotation: clampNumber(
             getSelectedRegion().rotation + directionSign * (editorKeyEvent.shiftKey ? 15 : 1),
             -180,
             180
@@ -1433,7 +1432,7 @@ export function mountRegionRangeEditor(
       const liveHeightValue =
         fieldInputEvent.target.value.trim() === ""
           ? undefined
-          : clampValue(Number(fieldInputEvent.target.value), 0, 20);
+          : clampNumber(Number(fieldInputEvent.target.value), 0, 20);
       applyOverride({
         heightEdit: {
           field: fieldInputEvent.target.dataset.field,
@@ -1443,7 +1442,7 @@ export function mountRegionRangeEditor(
     }
     if (fieldInputEvent.target === fieldElements.softness) {
       applyOverride({
-        softness: clampValue(toFiniteNumber(fieldElements.softness.value, 35) / 100, 0.05, 1)
+        softness: clampNumber(coercedFiniteNumberOr(fieldElements.softness.value, 35) / 100, 0.05, 1)
       });
     }
   });
@@ -1598,7 +1597,7 @@ export function mountRegionRangeEditor(
  * 自己做下拉是因为原生 select 的弹出层在弹窗里样式与层级都不可控；
  * 所有监听器都登记在册，dispose 时统一注销 —— 编辑器反复开关，漏一个就会累积。
  */
-export function mountRangeFormControls(editorRootElement) {
+function mountRangeFormControls(editorRootElement) {
   const formDocument = editorRootElement.ownerDocument;
   const formWindow = formDocument.defaultView;
   const customSelects = [];
@@ -1860,9 +1859,7 @@ export function mountRangeFormControls(editorRootElement) {
             55
           );
         }, 320);
-        try {
-          stepperButton.setPointerCapture(stepperPointerDownEvent.pointerId);
-        } catch {}
+        capturePointer(stepperButton, stepperPointerDownEvent.pointerId);
       });
       for (const pointerEndEventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
         addTrackedListener(stepperButton, pointerEndEventName, () => stopStepperRepeat?.());

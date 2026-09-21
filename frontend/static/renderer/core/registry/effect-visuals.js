@@ -3,20 +3,20 @@
  *
  * `components/icon-button-effect.js` 只负责注册，实际绘制在这里。
  */
-import { lightRealtimeCapabilities } from "../../controls/light-runtime.js?v=20260921142240";
+import { lightRealtimeCapabilities } from "../../controls/light-runtime.js?v=20260921151446";
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=20260921142240";
+import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=20260921151446";
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=20260921142240";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=20260921151446";
 // 同门分片：builtin-assets
 import {
   effectVariantByAssetId,
   resolveAssetUrl
-} from "./builtin-assets.js?v=20260921142240";
+} from "./builtin-assets.js?v=20260921151446";
 // 同门分片：entity-state
-import { isLightVisualActive } from "./entity-state.js?v=20260921142240";
+import { isLightVisualActive } from "./entity-state.js?v=20260921151446";
 
 /**
  * 判断灯光特效是否在「等待实时视觉参数」：刚开灯时 brightness / color_temp 常晚一拍才上报，
@@ -90,7 +90,7 @@ export function iconButtonEffectLightVisualAwaiting(effectAwaitComponent, effect
 }
 
 // 色温视觉基准点：3500K 视为中性（不做饱和调整），偏暖加饱和、偏冷减饱和。
-export const ICON_BUTTON_EFFECT_BASE_TEMPERATURE_KELVIN = 3500;
+const ICON_BUTTON_EFFECT_BASE_TEMPERATURE_KELVIN = 3500;
 
 /**
  * 把亮度百分比换算成特效层透明度。

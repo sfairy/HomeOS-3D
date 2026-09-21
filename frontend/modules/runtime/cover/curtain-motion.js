@@ -8,6 +8,9 @@
  * 50 表示 90° 打开）；开合方向 coverDirection / curtainPosition 取值 left / right / split。
  */
 
+// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
+import { sceneModelKey } from "../core/scene-model-key.js?v=20260921151446";
+
 // 轨道模型与布料几何的构建原语；开发环境走相对路径，生产环境走带缓存戳的静态路径。
 const {
   normalizeCurtainTrack: normalizeTrack,
@@ -20,11 +23,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=20260921124622",
+        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=20260921151446",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=20260921124622"));
+  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=20260921151446"));
 /** 允许的开合方向：left 只开左幅、right 只开右幅、split 对开。 */
 const DIRECTION_SET = new Set(["left", "right", "split"]);
 /** 会被本模块接管（隐藏）的局部：cloth 是布料面，band 是帘头装饰带。 */
@@ -68,9 +71,6 @@ const resolveFoldCount = widthBinding =>
       )
     )
   );
-/** 模型定位键：(楼层 ID, 模型 ID)，统一转字符串以免 null 与 undefined 混淆。 */
-const locationKey = (floorId, modelId) =>
-  JSON.stringify([String(floorId ?? ""), String(modelId ?? "")]);
 /**
  * 取开合方向。
  *
@@ -632,7 +632,7 @@ export function createCurtainMotion({
           return false;
         }
         const bindingIdKey = String(candidateBinding.id);
-        const rawLocationKey = locationKey(candidateBinding.floorId, candidateBinding.modelId);
+        const rawLocationKey = sceneModelKey(candidateBinding.floorId, candidateBinding.modelId);
         // 同一个模型只能被一条绑定接管，否则两套骨架会互相打架。
         if (seenBindingIds.has(bindingIdKey) || seenModelKeys.has(rawLocationKey)) {
           return false;
@@ -704,7 +704,7 @@ export function createCurtainMotion({
           nodeFloorId = parentNode.userData?.environmentFloorId;
         }
         modelsByLocationKey.set(
-          locationKey(nodeFloorId, sceneNode.userData.environmentModelId),
+          sceneModelKey(nodeFloorId, sceneNode.userData.environmentModelId),
           sceneNode
         );
       });
@@ -712,7 +712,7 @@ export function createCurtainMotion({
     const locatedEntries = normalizedBindings
       .map(locatedBinding => {
         const environmentModel = modelsByLocationKey.get(
-          locationKey(locatedBinding.floorId, locatedBinding.modelId)
+          sceneModelKey(locatedBinding.floorId, locatedBinding.modelId)
         );
         const locatedRig = environmentModel ? locateCurtainRig(environmentModel) : null;
         // 模型不存在或里面没有可接管的布面：跳过这条绑定（下一个修订号再试）。

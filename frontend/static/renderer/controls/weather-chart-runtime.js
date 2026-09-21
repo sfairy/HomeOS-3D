@@ -60,9 +60,9 @@ export function weatherVisual(condition, sunState = "") {
  * 实现见 `utils/icon-url.js`（与 `mdiIconUrl` 同属「图标名 → vendor 地址」这份知识，
  * 共用同一条白名单）；这里保留同名转出，页面脚本仍只 import registry 一处。
  */
-export { meteoconUrl } from "../../utils/icon-url.js?v=20260921142240";
+export { meteoconUrl } from "../../utils/icon-url.js?v=20260921151446";
 // 颜色校验（不合法用兜底色）与控件渲染共用同一份白名单实现，见 utils/colors.js。
-import { resolveColor } from "../../utils/colors.js?v=20260921142240";
+import { resolveColor } from "../../utils/colors.js?v=20260921151446";
 // 自动阈值的四档渐变色：由浅绿到红，对应「低 → 高」。顺序即取值由小到大，不能重排。
 const THRESHOLD_GRADIENT_COLORS = ["#ddffc2", "#68cc3e", "#ff8e52", "#ff1a1a"];
 /**
@@ -89,7 +89,7 @@ function sampleArrayAtRatio(values, ratio) {
  * 排序是必须的：thresholdColor 依赖「升序 + 取最后一个不超过当前值的档位」，
  * 顺序错了颜色就会错档。
  */
-export function normalizedThresholds(thresholds) {
+function normalizedThresholds(thresholds) {
   return (Array.isArray(thresholds) ? thresholds : [])
     .filter(entry => Number.isFinite(Number(entry?.value)))
     .map(threshold => ({
@@ -103,7 +103,7 @@ export function normalizedThresholds(thresholds) {
  * 用分位数而非极值：点数 ≥5 时取 5% 与 95% 分位，离群点不会把色带拉平；点数太少退化为取最小 / 最大。
  * 序列几乎恒定（跨度小于浮点误差量级）时用 ±padding 撑开四档，否则四档重叠成同一个值、图上只剩一种颜色。
  */
-export function automaticThresholds(series) {
+function automaticThresholds(series) {
   // 拍平成升序数值数组；非数值项（null / 纯字符串 / 缺 value 的项）在这一步就被滤掉。
   const sortedValues = (Array.isArray(series) ? series : [])
     .map(seriesValue => Number(seriesValue?.value ?? seriesValue))

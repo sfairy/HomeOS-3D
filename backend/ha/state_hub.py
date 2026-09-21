@@ -177,6 +177,7 @@ class StateHub:
         if queue not in self._subscribers:
             return None
         self._subscriber_entities[queue] = set(entity_ids)
+        # 队列已空：这个循环本来就靠 QueueEmpty 退出，属预期终止而非异常。
         try:
             while True:
                 queue.get_nowait()

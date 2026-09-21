@@ -94,7 +94,10 @@ export function createLightStream({
     try {
       // close 在连接尚未建立完成时可能抛错（部分浏览器），这里忽略即可。
       socketToClose?.close();
-    } catch {}
+    } catch {
+      // 见上：close 抛错说明这条连接本就没建起来，没有需要收尾的服务端状态。
+    }
+  }
   }
   /**
    * 安排一次重连（指数退避）。

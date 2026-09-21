@@ -1,17 +1,17 @@
 /**
  * 共享聚光灯阴影图集（Spot Shadow Atlas）：把每盏灯的单灯阴影图拼进一张大图，
  * 避免多灯各自占用纹理单元与显存，所有接收阴影的材质共用一次采样。
- * 对外：packSpotShadowAtlasTiles（布局计算）、guardZeroContributionSpotLights、
- * createSpotShadowAtlasController（调度烘焙、刷新几何、清理资源）。
+ * 对外：createSpotShadowAtlasController（调度烘焙、刷新几何、清理资源）；图集布局计算与
+ * 聚光灯补丁都只在本模块内使用。
  * 约定：图集尺寸是像素（2 的幂，上限取 maxTextureSize），每盏灯的 tile 记左上角与边长（x / y / size）；
  * 灯的哈希键是 floorId:itemId，与 userData 的 lightFloorId / lightItemId 绑死，改名会静默丢阴影；
  * 烘焙期间临时改灯的 visible / intensity / castShadow，finally 必须还原且 castShadow 一律还原成 false；
  * 整块图集只在一次完整烘焙成功后才替换旧图集，中途失败保留旧图集避免闪黑。
  */
 
-import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=20260921124622";
+import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=20260921151446";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=20260921124622";
+import { debugLog } from "../../utils/debug-log.js?v=20260921151446";
 // tile 之间的留白：紧贴会因线性过滤在边缘互相渗色。
 const DEFAULT_TILE_GUTTER = 1;
 
@@ -76,7 +76,7 @@ function packTilesIntoAtlas(tiles, atlasSize, gutter) {
 /**
  * 计算聚光灯阴影图集的布局：给每盏灯的阴影图挑一块位置。
  */
-export function packSpotShadowAtlasTiles(tileSizes = [], maxAtlasSize = 4096, tileGutter = DEFAULT_TILE_GUTTER) {
+function packSpotShadowAtlasTiles(tileSizes = [], maxAtlasSize = 4096, tileGutter = DEFAULT_TILE_GUTTER) {
   const atlasLimit = toPositiveInt(maxAtlasSize, 4096);
   // gutter 允许为 0（省显存），但负数没有意义，直接夹到 0。
   const gutterPx = Math.max(0, Math.floor(Number(tileGutter) || 0));
@@ -199,7 +199,7 @@ function buildAtlasVertexChunk() {
  * 它们仍会走完整段直接光计算，这里在 RE_Direct 调用外裹一层 uniform 分支整段跳过。
  * @throws {Error} three.js 版本变化导致聚光灯分支结构不再匹配时抛出，宁可失败也不要静默出错图。
  */
-export function guardZeroContributionSpotLights(lightsShader) {
+function guardZeroContributionSpotLights(lightsShader) {
   const spotLightBranchStart = lightsShader.indexOf("#if ( NUM_SPOT_LIGHTS > 0 )");
   const dirLightBranchStart = lightsShader.indexOf("#if ( NUM_DIR_LIGHTS > 0 )", spotLightBranchStart);
   const directLightCall =
@@ -310,7 +310,6 @@ export function createSpotShadowAtlasController({
   const scratchVector4 = new three.Vector4();
   // 逐帧同步模式才建灯索引：它每帧遍历场景，只在确实需要时才付出这份开销。
   const lightIndex = syncBeforeRender ? createRenderLightIndex() : null;
-  let lastIndexSignature = "";
   // 强制 shadowMap.render() 不能挂在 scene.onBeforeRender 上：r182 里它太早，state 仍为 null，
   // 而 Mesh 的 onBeforeRender 在颜色通道中触发时 three.js 已持有可用的 currentRenderState。
   // 这块探针网格就是用来借 Mesh 钩子的时机执行强制烘焙的。
@@ -485,13 +484,6 @@ export function createSpotShadowAtlasController({
     renderLights.length = renderEntries.length = 0;
     for (const renderLight of lightIndex.read(renderedScene, renderedCamera)) {
       renderLights.push(renderLight);
-    }
-    const indexSignature = lightIndex.stats.builds + ":" + lightIndex.stats.sorts;
-    // 只在统计真的变化时才写 DOM：dataset 写入会触发样式重算，每帧写代价不小。
-    if (indexSignature !== lastIndexSignature) {
-      lastIndexSignature = indexSignature;
-      renderer.domElement.dataset.lightIndexBuilds = String(lightIndex.stats.builds);
-      renderer.domElement.dataset.lightIndexSorts = String(lightIndex.stats.sorts);
     }
     // 逐项比对灯对象与其图集条目：灯没变但条目变了同样要重传 uniform。
     let isSame = syncedLights?.length === renderLights.length;

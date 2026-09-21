@@ -8,7 +8,7 @@
  */
 
 // 挂画墙可选的艺术风格。
-export const MURAL_ART_STYLES = Object.freeze([
+const MURAL_ART_STYLES = Object.freeze([
   "bauhaus",
   "colorfield",
   "linework",
@@ -18,7 +18,7 @@ export const MURAL_ART_STYLES = Object.freeze([
 ]);
 
 // 背景墙可选饰面：大理石、木饰面、格栅、石材、清水混凝土、织物、金属。
-export const FEATURE_WALL_STYLES = Object.freeze([
+const FEATURE_WALL_STYLES = Object.freeze([
   "marble",
   "wood",
   "slat",

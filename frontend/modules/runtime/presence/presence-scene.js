@@ -8,15 +8,19 @@
  * sync(...) 只在外部签名变化时调用、内部再做细粒度 diff；tick 返回 true 表示还需继续出帧。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260921142240";
-import { createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260921142240";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260921151446";
+// 「减少动态效果」偏好的唯一判定。
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=20260921151446";
+// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
+import { sceneModelKey } from "../core/scene-model-key.js?v=20260921151446";
+import { createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260921151446";
 import {
   validPresenceRoute,
   createPresenceTriggers,
   closedPath,
   sampleClosedPath,
   presenceVisibleOnPage
-} from "./presence-motion.js?v=20260921142240";
+} from "./presence-motion.js?v=20260921151446";
 /**
  * 创建人体存在角色场景。
  * @param {Function} [wakeFrameLoop=() => {}] 唤醒空闲帧循环；角色在动时必须调用，
@@ -674,14 +678,17 @@ export function createPresenceWaves(waveOptions) {
       cachedRevision = revision;
       cachedSignature = bindingSignature;
       // 按「楼层 + 模型 ID」给传感器模型建索引：绑定里存的是 ID，画波纹要拿节点。
+      // 键必须走 core/scene-model-key.js 的共享实现：场景节点的 userData 常常缺
+      // environmentFloorId，而配置侧可能写成空串，裸 JSON.stringify 会把这两者编码成
+      // 两个不同的键，波纹于是静默不出现。
       const presenceModelsByKey = new Map();
       cachedModelRoot?.traverse(modelNode => {
         if (modelNode.userData?.environmentModelType === "presence") {
           presenceModelsByKey.set(
-            JSON.stringify([
+            sceneModelKey(
               modelNode.userData.environmentFloorId,
               modelNode.userData.environmentModelId
-            ]),
+            ),
             modelNode
           );
         }
@@ -689,7 +696,7 @@ export function createPresenceWaves(waveOptions) {
       const visibleBindingIds = new Set();
       for (const waveBindingItem of waveBindings) {
         const matchedModelNode = presenceModelsByKey.get(
-          JSON.stringify([waveBindingItem.floorId, waveBindingItem.modelId])
+          sceneModelKey(waveBindingItem.floorId, waveBindingItem.modelId)
         );
         if (!matchedModelNode || !waveOptions.overlayScene) {
           continue;
@@ -802,8 +809,7 @@ export function createPresenceWaves(waveOptions) {
     if (isDisposed || !hasVisibleWave) {
       return false;
     }
-    const prefersReducedMotion =
-      globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+    const prefersReducedMotion = prefersReducedMotionNow();
     for (const visibleWave of waveRecordsByBindingId.values()) {
       if (visibleWave.group.visible) {
         // 波纹组自身不参与变换更新，每帧把被跟随模型的世界矩阵整体拷过来即可：

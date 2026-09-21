@@ -1,0 +1,29 @@
+# 死代码 / 未使用导入 / 注释掉的代码门禁。
+#
+# 只挑下面这几条，因为全仓当前已达标 —— 纳入 CI 即把「已经做到的事」钉成回归护栏。
+# 这正是这份配置的边界：**不要顺手加 RET / UP / SIM / ARG / C4 / PIE 之类的美化规则**，
+# 全仓还有 180+ 处未达标（RET501 / ARG001 / UP037 / SIM 系列等），加了会当场拦死出包，
+# 而一次「因为规则太宽而整体关掉」的取舍会把这几条真正有价值的也一起关掉。
+#
+# 复现全仓未达标规模（不要加进 CI）：
+#   ruff check . --select F,ERA,B,SIM,C4,UP,PIE,RET,ARG
+target-version = "py312"
+
+# 依赖目录与归档目录不参与扫描。ruff 默认已按 .gitignore 过滤，这里显式再钉一遍：
+# 「源代码/」是历史归档、`docker/node_modules/` 是商店前端依赖，都不是被测代码。
+extend-exclude = [
+  ".venv",
+  ".venv-store",
+  "源代码",
+  "node_modules",
+  "docker/node_modules",
+]
+
+[lint]
+select = [
+  "F401",  # 未使用的 import
+  "F811",  # 重复定义 / 未使用的 import 遮蔽（redefinition）
+  "F841",  # 赋值后从未使用的局部变量
+  "F821",  # 未定义的名字（打错变量名时唯一的静态信号）
+  "ERA001", # 被注释掉的代码
+]

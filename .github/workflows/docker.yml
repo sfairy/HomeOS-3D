@@ -38,21 +38,18 @@ jobs:
           echo "image=${base}" >> "$GITHUB_OUTPUT"
           echo "store_image=${base}-store" >> "$GITHUB_OUTPUT"
 
-  # 结构 / 导出 / 注册表 / 状态归一 / 后端路由 这几道守卫，此前只在 README 里写着、靠人手跑。
-  # 挂在 build 之前：镜像推出去之前，先把「不报错、只静默失效」的那类问题断在这里。
+  # 结构 / 导出 / 注册表 / 素材卡 / 前端卫生 / 场景同步 / 入口页 这几道守卫，此前只在 README
+  # 里写着、靠人手跑。挂在 build 之前：镜像推出去之前，先把「不报错、只静默失效」的那类问题
+  # 断在这里。
   #
-  # 未纳入的两个，各有明确原因，不是漏了：
-  #   check_frontend_hygiene.mjs  --strict 当前有 32 项 findings，全部是 design/scene/ 里
-  #     随 HomeOS-Activate 迁走而失去调用方的类名（.hos-modal / .hos-datepicker / .hos-hub /
-  #     .viewport-frame / .app-shell__content …）。这类名分归设计系统那条线清理，清完之后
-  #     把这条加进下面的清单即可；在此之前不能纳入 —— 不加 --strict 是一步永远不会失败的
-  #     空转，加了 --strict 则当场拦死出包。复现：node tools/check_frontend_hygiene.mjs --strict
-  #     （打印全部 32 条及所在文件行号；它另外三类已经是零）。
-  #   check_scene_sync.mjs        design/scene/ 正在被改写为令牌体系、分发副本尚未重新
-  #     生成，纳入会让 CI 替在途改动背红灯。
+  # 七道 Node 守卫 + ruff 全部纳入。另有一个 push / PR 触发的 guards.yml 跑同一份清单 ——
+  # 本工作流只有 workflow_dispatch（有意不在 push 上自动构建、不向 GHCR 推未打算发布的镜像），
+  # 所以「改动即校验」靠 guards.yml，这里的副本是出包前的最后一道。
   #
-  # 另需注意：本工作流只有 workflow_dispatch，所以这道守卫只在手动出包时跑，不随 push /
-  # PR 自动触发（仓库有意不消耗 Actions 额度）。要在 PR 上强制，得另建一个 push/PR 工作流。
+  # 曾经还有 smoke_registry / smoke_state_entry / smoke_backend 三项运行时冒烟，已在清理中
+  # 整体移除（README「测试与死代码清理」有记录）。注意它们的移除是有代价的：smoke_backend
+  # 同时是**唯一的路由清单校验**（拿 tools/routes.snapshot.txt 做双向 diff），删除后路由增删
+  # 没有自动检测手段 —— 改动路由请人工核对 OpenAPI 与调用方。
   guards:
     runs-on: ubuntu-latest
     steps:
@@ -72,7 +69,7 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r store/requirements.txt
 
-      - name: Structure, export, registry and state guards
+      - name: Structure, export, registry and hygiene guards
         run: |
           set -euo pipefail
           for command in \
@@ -80,16 +77,20 @@ jobs:
             "node tools/check_esm_exports.mjs" \
             "node tools/check_registry_split.mjs" \
             "node tools/check_studio_palette.mjs --strict" \
-            "node tools/smoke_registry.mjs" \
-            "node tools/smoke_state_entry.mjs"
+            "node tools/check_frontend_hygiene.mjs --strict" \
+            "node tools/check_scene_sync.mjs" \
+            "node tools/check_entry_pages.mjs"
           do
             echo "::group::${command}"
             ${command}
             echo "::endgroup::"
           done
 
-      - name: Backend and store smoke
-        run: python tools/smoke_backend.py
+      - name: Install lint tooling
+        run: pip install ruff
+
+      - name: Dead code, unused imports and commented-out code
+        run: ruff check .
 
   # 每个架构跑在**原生** runner 上，不用 QEMU：构建期要用 Cython + gcc 把 Python
   # 编译成按架构生成的 .so，模拟执行会慢一个数量级。各架构按 digest 推，最后合并 manifest。

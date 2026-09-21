@@ -8,75 +8,80 @@
  * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { resolveStateEntry } from "./static-helpers.js?v=20260921124622";
+import { resolveStateEntry } from "./static-helpers.js?v=20260921151446";
+// 「减少动态效果」偏好的唯一判定。
+import { prefersReducedMotionNow } from "./motion-preference.js?v=20260921151446";
+// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
+import { sceneModelKey } from "./scene-model-key.js?v=20260921151446";
+import { capturePointer } from "/static/utils/pointer-capture.js?v=20260921151446";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=20260921124622",
+        "../../../static/bridge/popup-placement.js?v=20260921151446",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=20260921124622"));
+  : import("/static/bridge/popup-placement.js?v=20260921151446"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=20260921124622";
-import { createSceneBackground } from "./scene-background.js?v=20260921124622";
-import { floorNavigationChoices } from "./floor-navigation.js?v=20260921124622";
+} from "../presence/presence-scene.js?v=20260921151446";
+import { createSceneBackground } from "./scene-background.js?v=20260921151446";
+import { floorNavigationChoices } from "./floor-navigation.js?v=20260921151446";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=20260921124622";
+} from "../vacuum/vacuum-motion.js?v=20260921151446";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=20260921124622";
-import { televisionState } from "../television/television-state.js?v=20260921124622";
-import { createTelevisionPanel } from "../television/television-panel.js?v=20260921124622";
-import { createTelevisionScreens } from "../television/television-screen.js?v=20260921124622";
-import { createNasPanel } from "../nas/nas-panel.js?v=20260921124622";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=20260921124622";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=20260921124622";
+} from "../vacuum/vacuum-map.js?v=20260921151446";
+import { televisionState } from "../television/television-state.js?v=20260921151446";
+import { createTelevisionPanel } from "../television/television-panel.js?v=20260921151446";
+import { createTelevisionScreens } from "../television/television-screen.js?v=20260921151446";
+import { createNasPanel } from "../nas/nas-panel.js?v=20260921151446";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=20260921151446";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=20260921151446";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=20260921124622";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=20260921124622";
-import { createCoverPanel } from "../cover/cover-panel.js?v=20260921124622";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=20260921124622";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=20260921124622";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=20260921124622";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=20260921124622";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=20260921124622";
-import { createClimatePanel } from "../climate/climate-panel.js?v=20260921124622";
+} from "../cover/cover-state.js?v=20260921151446";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=20260921151446";
+import { createCoverPanel } from "../cover/cover-panel.js?v=20260921151446";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=20260921151446";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=20260921151446";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=20260921151446";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=20260921151446";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=20260921151446";
+import { createClimatePanel } from "../climate/climate-panel.js?v=20260921151446";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=20260921124622";
-import { startSceneSync } from "./scene-sync.js?v=20260921124622";
+} from "../environment/environment-scene.js?v=20260921151446";
+import { startSceneSync } from "./scene-sync.js?v=20260921151446";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=20260921124622";
+} from "../light/light-state.js?v=20260921151446";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=20260921124622";
+} from "../camera/camera-motion.js?v=20260921151446";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=20260921124622";
+} from "./idle-rotation.js?v=20260921151446";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -107,7 +112,7 @@ const FLOOR_TAIL_DRAG_MIN_PROGRESS = 0.999;
  * 总览与灯光始终存在（总览聚合当前楼层所有已配置模块，灯光是默认落地页）；
  * 其余模块按配置里是否存在对应设备出现，避免点进去什么都没有的空页签。
  */
-export function configuredModuleKinds(rawConfig = {}) {
+function configuredModuleKinds(rawConfig = {}) {
   return [
     // 总览 始终提供：它聚合当前楼层上所有已配置模块的标记，
     // 因此哪怕只有一个模块配了设备，它依然有意义。
@@ -604,6 +609,7 @@ export function mountStage(stageOptions) {
   let coverStorage;
   if (lightHistoryScope) {
     try {
+      // 同 localStorage：会话存储被禁用时放弃封面状态的续算（storage 传 null 即关闭该能力）。
       coverStorage = window.sessionStorage;
     } catch {}
   }
@@ -1738,10 +1744,12 @@ export function mountStage(stageOptions) {
   }
   // 收集「场景里有窗帘模型但配置未绑定实体」的预览窗帘：按 楼层 + 模型 去重，
   // 让编辑器在未绑定状态下也能看到窗帘。
+  // 去重键走 core/scene-model-key.js：两侧都必须归一（配置侧可能没写楼层、场景项一侧可能缺字段），
+  // 否则同一个窗帘会被判成「未绑定」而多出一条假预览。
   function collectPreviewCovers() {
     const boundCoverKeys = new Set(
       collectCurtainBindings().map(boundCurtain =>
-        JSON.stringify([boundCurtain.floorId, boundCurtain.modelId])
+        sceneModelKey(boundCurtain.floorId, boundCurtain.modelId)
       )
     );
     return stageOptions.document.floors.flatMap(previewFloor =>
@@ -1749,7 +1757,7 @@ export function mountStage(stageOptions) {
         .filter(
           previewSceneItem =>
             previewSceneItem.type === "curtain" &&
-            !boundCoverKeys.has(JSON.stringify([previewFloor.id, previewSceneItem.id]))
+            !boundCoverKeys.has(sceneModelKey(previewFloor.id, previewSceneItem.id))
         )
         .map(previewCurtainItem => ({
           id: "preview-cover:" + JSON.stringify([previewFloor.id, previewCurtainItem.id]),
@@ -2344,7 +2352,7 @@ export function mountStage(stageOptions) {
     if (
       wasUninitialized ||
       !moduleTabsElement.animate ||
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+      prefersReducedMotionNow()
     ) {
       moduleTabsElement.hidden = isHidden;
       return;
@@ -2411,7 +2419,7 @@ export function mountStage(stageOptions) {
     cancelModuleTransition();
     if (
       !markersElement.animate ||
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+      prefersReducedMotionNow()
     ) {
       applyModuleUpdate();
       return;
@@ -2485,6 +2493,8 @@ export function mountStage(stageOptions) {
           updateMarkerVisibility();
         }
       })
+      // 动画被 cancel 时 finished 会 reject，ghost 已由 cancelModuleTransition 移除：
+      // 这里只需保证不冒出未处理的拒绝。
       .catch(() => {});
   }
   /**
@@ -3056,7 +3066,7 @@ export function mountStage(stageOptions) {
       stageOptions.setFloorSlideCameras?.(transitionFromPose, transitionTargetPose);
     }
     const isImmediate =
-      immediateTransition || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      immediateTransition || prefersReducedMotionNow();
     cameraTransition = {
       from: transitionFromPose,
       to: structuredClone(transitionTargetPose),
@@ -4512,7 +4522,7 @@ export function mountStage(stageOptions) {
           },
       moved: false
     };
-    dragStartEvent.currentTarget.setPointerCapture(dragStartEvent.pointerId);
+    capturePointer(dragStartEvent.currentTarget, dragStartEvent.pointerId);
     stageOptions.controls.enabled = false;
   }
   // 拖拽中：位移超过阈值才算真正开始移动（否则仍视作点击），并实时预览新坐标。
@@ -4763,17 +4773,27 @@ export function mountStage(stageOptions) {
       exitFocus();
     }
   });
-  window.addEventListener("keydown", keydownEvent => {
+  /**
+   * ESC 退出聚焦。具名而不是内联箭头函数：pagehide 时要能摘掉它，
+   * 而匿名函数注册的监听无法移除，会在舞台已释放后继续响应按键。
+   */
+  function handleEscapeKeydown(keydownEvent) {
     if (keydownEvent.key === "Escape") {
       exitFocus();
     }
-  });
+  }
+  window.addEventListener("keydown", handleEscapeKeydown);
   /**
    * 宿主消息总入口：先做同源 + 来源窗口 + channel 三重校验，再按 type 分发。
    * config 最重：同时携带配置、实体状态、编辑态与视图编辑标志，收到后要重算
    * 楼层、模块、相机与各子系统；场景替换进行中则先挂起，等替换完成再处理。
    */
   function handleHostMessage(messageEvent) {
+    // 释放后一律不处理：pagehide 之后仍可能有已排队的 message 到达，而下面每个分支
+    // 都会重算楼层/模块/相机并拉起定时器 —— 那时 DOM 已经拆掉，拉起的定时器不会有人清。
+    if (isDisposed) {
+      return;
+    }
     if (
       messageEvent.origin !== location.origin ||
       messageEvent.source !== window.parent ||
@@ -5335,12 +5355,17 @@ export function mountStage(stageOptions) {
     // 先占位成空函数：coverSceneUpdate() 本身可能抛错，此时 finally 仍会调用它，
     // 没有占位会解引用 undefined。
     let releaseSceneUpdate = () => {};
+    // 「模型已经真的换过」。这个标志决定失败后要不要回滚，因此只能在
+    // stageOptions.replaceScene 成功返回之后置位：置早了，失败一次就会把上一份场景
+    // 白白重套一遍（重置相机、重跑灯光），而这个二次替换本身失败时还会顶替掉原始错误。
     let didReplaceScene = false;
     // 真正执行替换：换模型 → 同步楼层 / 外观 → 重算配置与标记。
     // 失败回滚时会拿上一份场景再调一次，所以这里不能假设「只跑一次」。
     const replaceScene = async nextSceneUpdate => {
       stageOptions.finishFloorTransition?.();
       await stageOptions.replaceScene(nextSceneUpdate);
+      // 换模型这一步已经成功，从此刻起失败才需要回滚。
+      didReplaceScene = true;
       if (isDisposed) {
         return;
       }
@@ -5380,7 +5405,6 @@ export function mountStage(stageOptions) {
       stageOptions.setCameraInteraction({
         enabled: false
       });
-      didReplaceScene = true;
       await replaceScene(sceneUpdate);
       if (!isDisposed) {
         postToHost({
@@ -5390,7 +5414,13 @@ export function mountStage(stageOptions) {
       }
     } catch (sceneUpdateError) {
       if (didReplaceScene && !isDisposed) {
-        await replaceScene(previousScene);
+        try {
+          await replaceScene(previousScene);
+        } catch (rollbackError) {
+          // 回滚自己也失败时不能再往外抛：那样 throw sceneUpdateError 永远走不到，
+          // 调用方只看到一个二次故障，真正的原因（为什么开始变）就彻底消失了。
+          console.error("场景替换失败后回滚也失败，已保留最初的错误。", rollbackError);
+        }
       }
       throw sceneUpdateError;
     } finally {
@@ -5445,7 +5475,6 @@ export function mountStage(stageOptions) {
     const backgroundDelay = backgroundTheme.tick(timestamp);
     const isFloorTransitionActive =
       stageOptions.floorTransitionActive || cameraTransition?.owner === "floor";
-    stageOptions.recordFloorFrame?.(timestamp, !!isFloorTransitionActive);
     if (!isFloorTransitionActive) {
       syncCurtains();
       syncNasStatus();
@@ -5547,9 +5576,6 @@ export function mountStage(stageOptions) {
     toolbarElement.hidden = followButton.hidden;
     followButton.disabled = !followedVacuumId && !hasTrackedVacuum;
     updateMarkerPositions();
-    // 把累计帧数写到 dataset，供自动化测试判断渲染循环是否真的在跑
-    // （比截图比对稳定得多）。
-    canvasElement.dataset.stageFrameChecks = String(frameLoop.stats.frames);
     return Math.min(
       backgroundDelay,
       presenceWavesDelay ? 1000 / 30 : Infinity,
@@ -5570,79 +5596,34 @@ export function mountStage(stageOptions) {
     );
   }
   // 按需渲染循环：每帧回调 renderFrame，只有它返回非 Infinity 时才会继续下一帧。
-  // profileFrameWork 是宿主提供的性能采样钩子，采样开启时才包一层。
   frameLoop = stageOptions.createFrameLoop({
-    step: loopTimestamp =>
-      stageOptions.profileFrameWork
-        ? stageOptions.profileFrameWork("stage-updates", () => renderFrame(loopTimestamp))
-        : renderFrame(loopTimestamp)
+    step: loopTimestamp => renderFrame(loopTimestamp)
   });
   updateIdleControllers();
   // 页面卸载时统一释放：先停各子系统动画与定时器，再把所有在途控制请求
   // 按失败结清，宿主侧就不必等到各自超时才回收。
   window.addEventListener("pagehide", () => {
-    backgroundTheme.dispose();
-    stageOptions.setBackgroundTheme?.(null);
-    modulePanelAnimation?.cancel();
-    modulePanelAnimation = null;
-    cancelModuleTransition();
-    document.removeEventListener("visibilitychange", syncVacuumMaps);
-    vacuumMaps.dispose();
-    vacuumMotion.dispose();
-    presenceScene.dispose();
-    presenceWaves.dispose();
-    if (followedVacuumId) {
-      stopVacuumFollow(false);
+    // bfcache 下 pagehide 会在 pageshow 之后再次触发；释放只做一次。
+    if (isDisposed) {
+      return;
     }
-    for (const vacuumRoomTimerId of vacuumRoomTimersById.values()) {
-      clearTimeout(vacuumRoomTimerId);
-    }
-    vacuumRoomTimersById.clear();
-    isRangeEditingAllowed = false;
-    rangeEditor?.dispose();
-    stageOptions.setCurtainSync?.(null);
-    stageOptions.setTelevisionSync?.(null);
-    coverPanel.dispose();
-    curtainMotion.dispose();
-    coverFeedback.clear();
-    dreamCoverFeedback.clear();
-    bladePendingByEntityId.clear();
-    for (const televisionRequestKey of televisionRequestsById.keys()) {
-      settleTelevisionRequest(televisionRequestKey, "页面已关闭。");
-    }
-    for (const coverRequestKey of coverRequestsById.keys()) {
-      settleCoverRequest(coverRequestKey, "页面已关闭。");
-    }
-    lightStateCache.flush();
-    stopSceneSync();
-    screenOutlines.dispose();
-    nasPanel.dispose();
-    nasStatus.dispose();
-    cameraStatus.dispose();
-    televisionPanel.dispose();
-    televisionScreens.dispose();
-    environmentAirflow.dispose();
-    environmentScene.dispose();
-    climatePanel.dispose();
-    for (const climateRequestKey of climateRequestsById.keys()) {
-      settleClimateRequest(climateRequestKey, "页面已关闭。");
-    }
-    stageOptions.finishFloorTransition?.();
+    // 这一段是「关键释放」，必须先做，且不依赖后面任何一步。它们的共同性质是：
+    // 释放之后若没做到，舞台就还在动或数据就丢了 —— 渲染循环、场景轮询、
+    // window/document 级监听（它们都还指着已被拆掉的 DOM）、在途请求结清、灯光历史落盘。
+    // 原先这几件散在末尾一串裸调用里，中间任何一次 dispose 抛异常都会让它们全部被跳过：
+    // 结果是隐藏页上继续轮询、宿主一直等到各自超时才收到失败、这段灯光历史丢失。
     isDisposed = true;
-    idleRotation.dispose();
-    idleIconVisibility.dispose();
-    idleFocusExit.dispose();
-    cameraTransition = null;
-    postToHost({
-      type: "focus-state",
-      active: false
-    });
+    frameLoop.dispose();
+    stopSceneSync();
+    window.removeEventListener("keydown", handleEscapeKeydown);
+    window.removeEventListener("message", handleHostMessage);
+    window.removeEventListener("blur", clearInputState);
     for (const removedEventName of TRACKED_INPUT_EVENTS) {
       window.removeEventListener(removedEventName, trackUserInput, true);
     }
-    window.removeEventListener("blur", clearInputState);
+    document.removeEventListener("visibilitychange", syncVacuumMaps);
     document.removeEventListener?.("visibilitychange", updateIdleControllers);
-    frameLoop.dispose();
+    // 相机变更回调在释放后仍会触发 updateMarkerPositions，同样属于「还会动」。
     unsubscribeCameraChange?.();
     if (!unsubscribeCameraChange) {
       orbitControls.removeEventListener("change", updateMarkerPositions);
@@ -5657,6 +5638,68 @@ export function mountStage(stageOptions) {
       clearTimeout(pendingLightRequestTimer.timeout)
     );
     lightRequestsById.clear();
+    lightStateCache.flush();
+    // 在途控制请求一律按失败结清，宿主侧不必等到各自超时才回收。
+    for (const televisionRequestKey of televisionRequestsById.keys()) {
+      settleTelevisionRequest(televisionRequestKey, "页面已关闭。");
+    }
+    for (const coverRequestKey of coverRequestsById.keys()) {
+      settleCoverRequest(coverRequestKey, "页面已关闭。");
+    }
+    for (const climateRequestKey of climateRequestsById.keys()) {
+      settleClimateRequest(climateRequestKey, "页面已关闭。");
+    }
+    postToHost({
+      type: "focus-state",
+      active: false
+    });
+    // 其余属于尽力回收：即使某一步抛异常，上面的关键释放已经完成。注意这个 try 只能
+    // 保证「不连累关键释放」，它之后被跳过的步骤仍然会被跳过 —— 要消除这种连带需要把
+    // 每一步单独兜错，而这里剩下的多是随 DOM 一起消失的节点，不值得为此把这段拆成
+    // 几十个闭包。真正需要「一定跑到」的都已提到上面。
+    try {
+      backgroundTheme.dispose();
+      stageOptions.setBackgroundTheme?.(null);
+      modulePanelAnimation?.cancel();
+      modulePanelAnimation = null;
+      cancelModuleTransition();
+      vacuumMaps.dispose();
+      vacuumMotion.dispose();
+      presenceScene.dispose();
+      presenceWaves.dispose();
+      if (followedVacuumId) {
+        stopVacuumFollow(false);
+      }
+      for (const vacuumRoomTimerId of vacuumRoomTimersById.values()) {
+        clearTimeout(vacuumRoomTimerId);
+      }
+      vacuumRoomTimersById.clear();
+      isRangeEditingAllowed = false;
+      rangeEditor?.dispose();
+      stageOptions.setCurtainSync?.(null);
+      stageOptions.setTelevisionSync?.(null);
+      coverPanel.dispose();
+      curtainMotion.dispose();
+      coverFeedback.clear();
+      dreamCoverFeedback.clear();
+      bladePendingByEntityId.clear();
+      screenOutlines.dispose();
+      nasPanel.dispose();
+      nasStatus.dispose();
+      cameraStatus.dispose();
+      televisionPanel.dispose();
+      televisionScreens.dispose();
+      environmentAirflow.dispose();
+      environmentScene.dispose();
+      climatePanel.dispose();
+      stageOptions.finishFloorTransition?.();
+      idleRotation.dispose();
+      idleIconVisibility.dispose();
+      idleFocusExit.dispose();
+      cameraTransition = null;
+    } catch (teardownError) {
+      console.warn("3D 舞台的资源回收未走完，部分节点可能留在页面里。", teardownError);
+    }
   });
   /**
    * 汇总舞台元数据（楼层、墙体高度、各类型模型坐标、灯光分组等）回报宿主。

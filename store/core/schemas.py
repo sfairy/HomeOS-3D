@@ -8,7 +8,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class _Camel(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    #: ``allow_inf_nan=False`` 覆盖**所有** float 字段：pydantic 默认放行 ``Infinity`` /
+    #: ``NaN``，而 JSON 里 ``1e999`` 就能造出 ``Infinity``。``Field(gt=0)`` 拦不住它
+    #: （``inf > 0`` 为真），随后 ``money.to_centi`` 抛 ``ValueError`` 无人接管 —— 攻击者
+    #: 用一个字段就换到一个 500。让它在校验层变成 422 才是正确的位置。
+    model_config = ConfigDict(populate_by_name=True, extra="ignore", allow_inf_nan=False)
 
 
 # 账号
@@ -123,7 +127,7 @@ class _AdminBase(BaseModel):
     静默丢弃字段的代价是运营以为改动生效了（接口 200、库里没变），所以收紧成显式报错。
     """
 
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid", allow_inf_nan=False)
 
 
 class AdminProductRequest(_AdminBase):

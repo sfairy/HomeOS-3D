@@ -2,7 +2,7 @@
  * NAS 状态面板（3D 场景与详情弹窗共用的信息卡）。
  *
  * 把 NAS 绑定里的 statusSource 渲染成「分组 + 指标卡」，每卡显示名称、格式化数值与百分比
- * 进度条。对外提供 nasGroups、nasMetricValue、createNasPanel。指标配置来自
+ * 进度条。对外提供 nasGroups、createNasPanel。指标配置来自
  * item.statusSource.metrics（每项含 entityId / label / kind / group），kind 决定数值展示
  * 方式，visibleMetrics 是「显示哪些实体」的白名单，单位取实体属性 unit_of_measurement。
  */
@@ -10,7 +10,7 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921124622";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921151446";
 /**
  * 计算要展示的分组及其中文名。
  */
@@ -30,7 +30,7 @@ export function nasGroups(statusSource) {
 /**
  * 按指标类型格式化数值。
  */
-export function nasMetricValue(metric, state) {
+function nasMetricValue(metric, state) {
   const stateObject = resolveStateEntry(state, {});
   // 原样文本用于展示（时间戳、数值、未识别枚举都直接透传），小写文本只用于判定。
   const stateValue = String(stateObject.state ?? "").trim();
@@ -135,10 +135,17 @@ export function createNasPanel() {
   // 结构签名：指标列表与分组不变时复用已有 DOM，只改数值 —— 高频状态推送下这很关键。
   let layoutSignature = "";
   let metricCards = [];
+  // 释放标记。dispose() 只把根节点从文档里摘掉，若之后还有 update() 进来，
+  // 它会照着已摘除的树把整块指标 DOM 重建一遍 —— 白做，而且写进一棵不会再显示的树。
+  let isDisposed = false;
   /**
    * 刷新面板内容。
    */
   function update({ item: item, states: states = {} }) {
+    // 释放后一律忽略：见上面 isDisposed 的说明。
+    if (isDisposed) {
+      return;
+    }
     const sourceConfig = item.statusSource;
     // visibleMetrics 是白名单；未配置时表示「全部显示」。
     const visibleMetricIds = sourceConfig?.visibleMetrics && new Set(sourceConfig.visibleMetrics);
@@ -227,6 +234,7 @@ export function createNasPanel() {
     root: rootElement,
     update: update,
     dispose() {
+      isDisposed = true;
       rootElement.remove();
     }
   };

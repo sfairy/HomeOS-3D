@@ -8,12 +8,13 @@
  * entityId / properties）；HA 侧字段名保持下划线原样（与 Home Assistant 约定死，改名取不到）；组件类型
  * 字符串是文档与注册表的约定键，新增或改名必须同步 registry.js 的 registerComponent。
  */
-import { popupPlacement } from "../../bridge/popup-placement.js?v=20260921142240";
-import { formatZhDateTime } from "../../utils/datetime.js?v=20260921142240";
+import { popupPlacement } from "../../bridge/popup-placement.js?v=20260921151446";
+import { formatZhDateTime } from "../../utils/datetime.js?v=20260921151446";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=20260921151446";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
-} from "../../bridge/camera-popup-layout.js?v=20260921142240";
+} from "../../bridge/camera-popup-layout.js?v=20260921151446";
 // registry.js 是控件注册表的唯一出处，本文件只消费不注册。
 // 这里的 ?v= 必须与 home.js / display.js 里那条 registry.js?v= 完全一致；
 // 不一致会让注册表被加载两份，运行期两个模块各持一份 Map，控件类型彼此看不见。
@@ -39,19 +40,19 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260921142240";
-import { randomUuid } from "../../utils/random-id.js?v=20260921142240";
-import { apiErrorMessage } from "../../utils/api-error.js?v=20260921142240";
+} from "./registry.js?v=20260921151446";
+import { randomUuid } from "../../utils/random-id.js?v=20260921151446";
+import { apiErrorMessage } from "../../utils/api-error.js?v=20260921151446";
 // 颜色插值统一走 utils/colors.js，避免再出现「同名但失败值不同」的本地副本。
-import { mixHexColors, paletteColor } from "../../utils/colors.js?v=20260921142240";
+import { mixHexColors, paletteColor } from "../../utils/colors.js?v=20260921151446";
 // 「按 ID / 按实体取域」只有一份实现（唯一一处与内联旧写法有行为差异的是组合弹窗里
 // `moduleResolvedEntityId` 可能整个缺席（`undefined`）的那条 —— 旧写法抛 `TypeError`，
 // 现在归一成 `""`，渲染得更稳，不改变「是不是 button」的判定）。
-import { entityDomainFromId, entityDomainOf } from "../../utils/entities.js?v=20260921142240";
+import { entityDomainFromId, entityDomainOf } from "../../utils/entities.js?v=20260921151446";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`
 // （唯一的语义差别见 `state-entry.js` 里「为什么用真值判定」那段）。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260921142240";
-import { popupLayoutMetrics } from "../../shared/popup-layout.js?v=20260921142240";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260921151446";
+import { popupLayoutMetrics } from "../../shared/popup-layout.js?v=20260921151446";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -70,11 +71,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "../controls/climate.js?v=20260921142240";
+} from "../controls/climate.js?v=20260921151446";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260921142240";
+} from "./device-profiles.js?v=20260921151446";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -83,36 +84,35 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../../shared/related-entities.js?v=20260921142240";
-import { confirmAction } from "../../shared/ui-confirm.js?v=20260921142240";
+} from "../../shared/related-entities.js?v=20260921151446";
+import { confirmAction } from "../../shared/ui-confirm.js?v=20260921151446";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260921142240";
+} from "./entity-power.js?v=20260921151446";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../../shared/virtual-entities.js?v=20260921142240";
-import { componentActionIsSupported } from "../../shared/action-rules.js?v=20260921142240";
+} from "../../shared/virtual-entities.js?v=20260921151446";
+import { componentActionIsSupported } from "../../shared/action-rules.js?v=20260921151446";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "../geometry/transform-geometry.js?v=20260921142240";
+} from "../geometry/transform-geometry.js?v=20260921151446";
 import {
   componentHostZIndex,
   effectCropRectangle,
   effectCroppedLayerGeometry,
   effectFadeDuration,
-  effectLayerDimensions,
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "../geometry/effect-geometry.js?v=20260921142240";
+} from "../geometry/effect-geometry.js?v=20260921151446";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -131,18 +131,17 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "../controls/light-runtime.js?v=20260921142240";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260921142240";
+} from "../controls/light-runtime.js?v=20260921151446";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260921151446";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "../controls/vacuum-runtime.js?v=20260921142240";
+} from "../controls/vacuum-runtime.js?v=20260921151446";
 import {
   airerDevicePosition,
   airerPositionCalibration,
-  airerPresentationPosition,
   airerPresentationPositionForState,
   airerReportedPosition,
   airerVisualDrop,
@@ -151,7 +150,6 @@ import {
   coverPositionReachedTarget,
   coverPresentationState,
   coverToggleServiceForComponent,
-  dreamCurtainBladeLabel,
   dreamCurtainIsRetracted,
   dreamCurtainStatusFromRetraction,
   dreamCurtainStatusText,
@@ -170,16 +168,16 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "../controls/cover-runtime.js?v=20260921142240";
+} from "../controls/cover-runtime.js?v=20260921151446";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "../controls/cover-direction.js?v=20260921142240";
+import { coverMotorIsReversedForComponent } from "../controls/cover-direction.js?v=20260921151446";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260921142240";
+} from "./runtime-dialog-motion.js?v=20260921151446";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -189,90 +187,21 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260921142240";
+} from "./runtime-caches.js?v=20260921151446";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260921142240";
-// 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
-// renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
-// 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
-export { setBuiltinAssetVersions as setBuiltinAssetVersions };
+} from "./runtime-document.js?v=20260921151446";
+// 下面三处是仍被外部模块按 renderer.js 这个路径导入的实现转发：实现本身在各自的旁路模块里
+// （transform-geometry.js / asset-version.js 等），这里继续原路径转出，调用方无需改动，
+// 也避免出现两套同名实现。
+// 其余同名转发，以及几个定义在本文件、外部却已无人导入的函数，都经 tools/check_esm_exports.mjs
+// 核验后随本次清理删去 —— 要用时再 export 回来，成本一行。
 export {
+  setBuiltinAssetVersions as setBuiltinAssetVersions,
   airflowCanvasOffsetBounds as airflowCanvasOffsetBounds,
-  airflowLayerGeometry as airflowLayerGeometry,
-  groupedComponentLocalDelta as groupedComponentLocalDelta,
-  rotateMultiSelectionTransforms as rotateMultiSelectionTransforms
-};
-export {
-  componentHostZIndex as componentHostZIndex,
-  effectCroppedLayerGeometry as effectCroppedLayerGeometry,
-  effectLayerDimensions as effectLayerDimensions,
-  effectReferenceImageTransform as effectReferenceImageTransform,
-  normalizeIconButtonEffectComponent as normalizeIconButtonEffectComponent
-};
-export {
-  LIGHT_DETAIL_PRESET_DEFINITIONS as LIGHT_DETAIL_PRESET_DEFINITIONS,
-  LIGHT_PRESET_MAXIMUM_HOLD_MS as LIGHT_PRESET_MAXIMUM_HOLD_MS,
-  LIGHT_PRESET_MINIMUM_HOLD_MS as LIGHT_PRESET_MINIMUM_HOLD_MS,
-  LIGHT_PRESET_STABLE_CONFIRMATION_MS as LIGHT_PRESET_STABLE_CONFIRMATION_MS,
-  UNSUPPORTED_LIGHT_VISUAL_BRIGHTNESS_PERCENT as UNSUPPORTED_LIGHT_VISUAL_BRIGHTNESS_PERCENT,
-  UNSUPPORTED_LIGHT_VISUAL_TEMPERATURE_KELVIN as UNSUPPORTED_LIGHT_VISUAL_TEMPERATURE_KELVIN,
-  hsToRgbColor as hsToRgbColor,
-  lightColorPickerHsFromPoint as lightColorPickerHsFromPoint,
-  lightColorPickerPointFromHs as lightColorPickerPointFromHs,
-  lightColorServiceData as lightColorServiceData,
-  lightPresetBrightnessServiceData as lightPresetBrightnessServiceData,
-  lightPresetPendingDecision as lightPresetPendingDecision,
-  lightRealtimeCapabilities as lightRealtimeCapabilities,
-  lightSupportsColor as lightSupportsColor,
-  lightVisualValueForCapability as lightVisualValueForCapability,
-  relativeLightColorTemperature as relativeLightColorTemperature,
-  rgbToHsColor as rgbToHsColor
-};
-export {
-  relatedVacuumBatteryEntity as relatedVacuumBatteryEntity,
-  vacuumActionService as vacuumActionService,
-  vacuumBatteryPercent as vacuumBatteryPercent,
-  vacuumSupportedActions as vacuumSupportedActions
-};
-export {
-  airerDevicePosition as airerDevicePosition,
-  airerPositionCalibration as airerPositionCalibration,
-  airerPresentationPosition as airerPresentationPosition,
-  airerPresentationPositionForState as airerPresentationPositionForState,
-  airerReportedPosition as airerReportedPosition,
-  airerVisualDrop as airerVisualDrop,
-  coverComponentIsAirer as coverComponentIsAirer,
-  coverMotorIsReversedForComponent as coverMotorIsReversedForComponent,
-  coverPendingDisplayPosition as coverPendingDisplayPosition,
-  coverPositionReachedTarget as coverPositionReachedTarget,
-  coverToggleServiceForComponent as coverToggleServiceForComponent,
-  dreamCurtainBladeLabel as dreamCurtainBladeLabel,
-  dreamCurtainIsRetracted as dreamCurtainIsRetracted,
-  dreamCurtainStatusText as dreamCurtainStatusText,
-  dreamCurtainToggleService as dreamCurtainToggleService,
-  learnAirerPositionCalibration as learnAirerPositionCalibration,
-  relatedAirerCurrentPositionSensor as relatedAirerCurrentPositionSensor,
-  relatedAirerLightEntity as relatedAirerLightEntity,
-  relatedAirerMotorActionEntities as relatedAirerMotorActionEntities,
-  relatedAirerMotorSpeedSensor as relatedAirerMotorSpeedSensor,
-  relatedAirerPositionNumberEntity as relatedAirerPositionNumberEntity,
-  relatedWaterHeaterEntities as relatedWaterHeaterEntities,
-  waterHeaterRelatedEntityLabel as waterHeaterRelatedEntityLabel
-};
-export { runtimeDialogUsesStableMotion as runtimeDialogUsesStableMotion };
-export {
-  HistoryRefreshCoordinator as HistoryRefreshCoordinator,
-  RuntimeEffectImageLoader as RuntimeEffectImageLoader,
-  RuntimeStaticImageCache as RuntimeStaticImageCache,
-  RuntimeVacuumMapImagePreloader as RuntimeVacuumMapImagePreloader,
-  historyRequestStillRelevant as historyRequestStillRelevant
-};
-export {
-  lineChartRuntimeStateNeedsHydration as lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties as syncedLineChartProperties
 };
 // 一次订阅最多带上的实体数量：再多后端就不受理整批订阅，需要分批。
@@ -343,7 +272,7 @@ let runtimeDialogTitleSerial = 0;
  * 计算运行期弹窗的可用尺寸与缩放比例。
  * 纯函数不碰 DOM，编辑器与展示页复用同一套尺寸口径。
  */
-export function runtimeDialogLayout({
+function runtimeDialogLayout({
   layerWidth: layerWidthPx,
   layerHeight: layerHeightPx,
   layoutWidth: layoutWidthPx,
@@ -405,7 +334,7 @@ export function runtimeDialogLayout({
  * 计算弹窗层与仪表盘矩形的交集，得出真正可见的视口。
  * 仪表盘只占弹窗层一部分，弹窗要居中在可见区域上；参数缺失时退化成整层。
  */
-export function runtimeDialogViewport({
+function runtimeDialogViewport({
   layerLeft: layerLeftPx = 0,
   layerTop: layerTopPx = 0,
   layerWidth: viewportLayerWidthPx,
@@ -498,7 +427,7 @@ function isSupportedComponentAction(targetComponent, actionConfig) {
 /**
  * 取组件弹窗的标题：优先组件自身 label，空则用调用方给的兜底标题。
  */
-export function componentDialogTitle(titleComponent, fallbackTitle) {
+function componentDialogTitle(titleComponent, fallbackTitle) {
   const componentProperties = titleComponent?.properties || {};
   return String(componentProperties.label || "").trim() || fallbackTitle;
 }
@@ -506,7 +435,7 @@ export function componentDialogTitle(titleComponent, fallbackTitle) {
  * 取弹窗模块标题，四级回退：组件 title → 调用方兜底 → HA friendly_name → 实体 ID。
  * friendly_name 是 HA 约定字段名；末级兜底保证标题永远非空。
  */
-export function popupModuleDialogTitle(popupComponent, popupEntityState, fallbackTitleText = "") {
+function popupModuleDialogTitle(popupComponent, popupEntityState, fallbackTitleText = "") {
   return (
     String(popupComponent?.title || "").trim() ||
     String(fallbackTitleText || "").trim() ||
@@ -2066,7 +1995,7 @@ export class PanelRenderer {
     let previewTransforms = [];
     let isFinished = false;
     const activePointerId = scalePointerEvent.pointerId;
-    scalePointerEvent.currentTarget.setPointerCapture(activePointerId);
+    capturePointer(scalePointerEvent.currentTarget, activePointerId);
     /**
      * 多选缩放期间的指针移动处理：按指针到包围盒中心的距离比例缩放整批组件。
      * 只写预览变换与 DOM 样式、不提交文档，并同步更新多选框尺寸；缩放因子夹在上下限之间。
@@ -2186,7 +2115,7 @@ export class PanelRenderer {
     let rotatedTransforms = [];
     let isRotateFinished = false;
     const rotatePointerId = rotationPointerEvent.pointerId;
-    rotationPointerEvent.currentTarget.setPointerCapture(rotatePointerId);
+    capturePointer(rotationPointerEvent.currentTarget, rotatePointerId);
     /**
      * 多选旋转期间的指针移动处理：按指针绕包围盒中心的累计转角旋转整批组件。
      *
@@ -4473,7 +4402,7 @@ export class PanelRenderer {
     let axisLockAxis = "";
     let isDragFinished = false;
     const dragPointerId = dragPointerEvent.pointerId;
-    captureElement.setPointerCapture(dragPointerId);
+    capturePointer(captureElement, dragPointerId);
     dragRecords.forEach(movingRecord => movingRecord.host.classList.add("moving"));
     /**
      * 组件拖动期间的指针移动处理：把屏幕位移换算成画布坐标并更新整批被拖组件。
@@ -4484,10 +4413,9 @@ export class PanelRenderer {
       if (moveEvent.pointerId !== dragPointerId) {
         return;
       }
-      if (!captureElement.hasPointerCapture?.(dragPointerId) && captureElement.isConnected) {
-        try {
-          captureElement.setPointerCapture(dragPointerId);
-        } catch {}
+      // 拖拽途中元素可能被重新渲染而使捕获退化成「没有」：每次 move 补一次。
+      if (!captureElement.hasPointerCapture?.(dragPointerId)) {
+        capturePointer(captureElement, dragPointerId);
       }
       if (!isCopyDrag && isModifierKeyPressed(moveEvent)) {
         isCopyDrag = true;
@@ -5375,7 +5303,7 @@ export class PanelRenderer {
     let airflowAxisLock = "";
     let isAirflowDragFinished = false;
     const airflowPointerId = moveStartPointerEvent.pointerId;
-    airflowMoveBoundsElement.setPointerCapture(airflowPointerId);
+    capturePointer(airflowMoveBoundsElement, airflowPointerId);
     /**
      * 气流层拖动期间的指针移动处理：把位移换算成出风偏移的百分比。
      * 偏移以组件宽高百分比存储（airflowOffsetX/Y），故位移除以组件尺寸再乘 100，
@@ -5385,13 +5313,9 @@ export class PanelRenderer {
       if (airflowMoveEvent.pointerId !== airflowPointerId) {
         return;
       }
-      if (
-        !airflowMoveBoundsElement.hasPointerCapture?.(airflowPointerId) &&
-        airflowMoveBoundsElement.isConnected
-      ) {
-        try {
-          airflowMoveBoundsElement.setPointerCapture(airflowPointerId);
-        } catch {}
+      // 同上：元素被重新渲染后补一次捕获。
+      if (!airflowMoveBoundsElement.hasPointerCapture?.(airflowPointerId)) {
+        capturePointer(airflowMoveBoundsElement, airflowPointerId);
       }
       let airflowDeltaClientX = airflowMoveEvent.clientX - airflowStartPointerX;
       let airflowDeltaClientY = airflowMoveEvent.clientY - airflowStartPointerY;
@@ -5531,7 +5455,7 @@ export class PanelRenderer {
     let airflowNextScale = airflowInitialScale;
     let isAirflowScaleFinished = false;
     const airflowScaleCaptureElement = airflowScalePointerEvent.currentTarget;
-    airflowScaleCaptureElement.setPointerCapture(airflowScalePointerEvent.pointerId);
+    capturePointer(airflowScaleCaptureElement, airflowScalePointerEvent.pointerId);
     /**
      * 同步气流层几何与手柄尺寸（缩放过程中每帧调用）。
      */
@@ -5619,7 +5543,7 @@ export class PanelRenderer {
     let airflowNextRotationDeg = airflowInitialRotationDeg;
     let isAirflowRotateFinished = false;
     const airflowRotateCaptureElement = airflowRotatePointerEvent.currentTarget;
-    airflowRotateCaptureElement.setPointerCapture(airflowRotatePointerEvent.pointerId);
+    capturePointer(airflowRotateCaptureElement, airflowRotatePointerEvent.pointerId);
     /**
      * 气流层旋转期间的指针移动处理：按指针绕中心的极角差旋转出风特效。
      * 旋转角 = 起始角 +（当前极角 - 按下时极角）；与多选旋转不同，不累计增量也不做 ±π 归一化。
@@ -6551,7 +6475,7 @@ export class PanelRenderer {
     let componentNextScale = componentInitialScale;
     let isComponentScaleFinished = false;
     const componentScalePointerId = componentScalePointerEvent.pointerId;
-    componentScalePointerEvent.currentTarget.setPointerCapture(componentScalePointerId);
+    capturePointer(componentScalePointerEvent.currentTarget, componentScalePointerId);
     /**
      * 单组件缩放期间的指针移动处理：按指针到组件中心的距离比例更新缩放值。
      * 缩放值夹在 0.01~5；每帧都要把同一 transform 同步给选中覆盖层与变换手柄，
@@ -6649,7 +6573,7 @@ export class PanelRenderer {
     let componentNextRotationDeg = componentInitialRotationDeg;
     let isComponentRotateFinished = false;
     const componentRotatePointerId = componentRotatePointerEvent.pointerId;
-    componentRotatePointerEvent.currentTarget.setPointerCapture(componentRotatePointerId);
+    capturePointer(componentRotatePointerEvent.currentTarget, componentRotatePointerId);
     /**
      * 单组件旋转期间的指针移动处理：按指针绕组件中心的极角差更新旋转角。
      * 旋转角 = 按下时角度 +（当前极角 - 按下时极角），写入 transform 时保留原有缩放分量。
@@ -12819,7 +12743,7 @@ export class PanelRenderer {
       };
       colorPickerElement.addEventListener("pointerdown", colorPointerDownEvent => {
         if (lightControlsInteractive) {
-          colorPickerElement.setPointerCapture?.(colorPointerDownEvent.pointerId);
+          capturePointer(colorPickerElement, colorPointerDownEvent.pointerId);
           colorPickerElement.dataset.dragging = "true";
           handleColorPickerPointer(colorPointerDownEvent);
           colorPointerDownEvent.preventDefault();
@@ -12838,7 +12762,7 @@ export class PanelRenderer {
       const handleColorPickerRelease = async colorReleaseEvent => {
         if (colorPickerElement.dataset.dragging === "true") {
           colorPickerElement.dataset.dragging = "false";
-          colorPickerElement.releasePointerCapture?.(colorReleaseEvent.pointerId);
+          releasePointer(colorPickerElement, colorReleaseEvent.pointerId);
           await commitColorPicker();
         }
       };
@@ -14299,7 +14223,7 @@ export class PanelRenderer {
           pointerId: dialDownEvent.pointerId,
           previous: pendingTargetTemperature
         };
-        temperatureDialElement.setPointerCapture(dialDownEvent.pointerId);
+        capturePointer(temperatureDialElement, dialDownEvent.pointerId);
         temperatureDialElement.classList.add("is-dragging");
         pendingTargetTemperature = temperatureFromPointer(dialDownEvent);
         renderThermostat();
@@ -14323,9 +14247,7 @@ export class PanelRenderer {
       const dragStartTemperature = activeDialDrag.previous;
       activeDialDrag = null;
       temperatureDialElement.classList.remove("is-dragging");
-      if (temperatureDialElement.hasPointerCapture(dialReleaseEvent.pointerId)) {
-        temperatureDialElement.releasePointerCapture(dialReleaseEvent.pointerId);
-      }
+      releasePointer(temperatureDialElement, dialReleaseEvent.pointerId);
       renderThermostat(true);
       if (pendingTargetTemperature !== dragStartTemperature) {
         enqueueTemperature({

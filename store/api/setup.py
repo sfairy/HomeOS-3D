@@ -42,7 +42,7 @@ class SetupAdminRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=MIN_PASSWORD_LENGTH)
     confirm_password: str = Field(min_length=MIN_PASSWORD_LENGTH)
-    #: 非本机直连时必须提供；从本机（loopback，未经代理）访问时可以留空。
+    #: 非本机直连时必须提供；用 localhost / 127.0.0.1 从本机（loopback 对端、未经代理）访问时可以留空。
     setup_token: str = Field(default="", max_length=512)
 
 

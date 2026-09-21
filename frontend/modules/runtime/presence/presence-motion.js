@@ -3,8 +3,8 @@
  *
  * 人体存在角色沿一条闭合路径走动，并依据绑定实体的状态决定是否出现、出现多久。本模块集中放
  * 这些纯逻辑：页面过滤、路径合法性、触发条件判定与计时、沿路径取点，供 3D 场景与配置编辑器
- * 共用。对外提供 PRESENCE_PAGES、presenceVisibleOnPage、validPresenceRoute、
- * snapsToPresenceStart、presenceIsActive、createPresenceTriggers、closedPath、sampleClosedPath。
+ * 共用。对外提供 presenceVisibleOnPage、validPresenceRoute、
+ * snapsToPresenceStart、createPresenceTriggers、closedPath、sampleClosedPath。
  */
 
 // 状态条目归一（变更对象 / 状态对象两种形态）、「按 ID 切域」与交互页面清单都只有一份实现
@@ -14,9 +14,8 @@ import {
   INTERACTION_PAGE_OPTIONS as PRESENCE_PAGES,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=20260921142240";
+} from "../core/static-helpers.js?v=20260921151446";
 /** 允许显示人体存在的页面；与编辑器的页面下拉共用一份清单，见 `static/utils/interaction-pages.js`。 */
-export { PRESENCE_PAGES };
 /**
  * 判断人体存在绑定是否应该在指定页面上显示。
  */
@@ -87,7 +86,7 @@ export function snapsToPresenceStart(routePoints, probePoint, screenScale, toler
 /**
  * 判断存在传感器当前是否「有人」。
  */
-export function presenceIsActive(entityState) {
+function presenceIsActive(entityState) {
   const resolvedState = resolveStateEntry(entityState);
   return resolvedState?.available !== false && resolvedState?.state === "on";
 }

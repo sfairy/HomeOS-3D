@@ -3,6 +3,7 @@
   const esc = HtmlSafe.esc;
   const storageKey = 'hb_invite_v1';
   try {
+    // 存储不可用 / 值被改坏时只是不预填邀请码，注册流程本身不依赖它。
     const code = new URL(location.href).searchParams.get('invite');
     if (code && /^[0-9]{6}$/.test(code)) localStorage.setItem(storageKey, JSON.stringify({code, expires:Date.now()+30*86400000}));
     const saved = JSON.parse(localStorage.getItem(storageKey) || 'null');

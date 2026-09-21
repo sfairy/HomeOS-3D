@@ -3,13 +3,18 @@
  * 用 SVG 描边 + 呼吸脉冲标出；createEnvironmentHalos 在模型前方贴一片加性发光面片，用颜色表示设备状态。
  *
  * 约定：描边只依赖「模型的 27 个方向极值点」，极值点缓存以几何体 uuid 为键，几何体复用或扫地机
- * 移动组变化时自动失效重算。另导出 outlineHull（二维凸包）。
+ * 移动组变化时自动失效重算。
  */
+
+// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
+import { sceneModelKey } from "../core/scene-model-key.js?v=20260921151446";
+// 「减少动态效果」偏好的唯一判定。
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=20260921151446";
 
 /**
  * 求二维点集的凸包（Andrew 单调链算法）。
  */
-export function outlineHull(hullInput) {
+function outlineHull(hullInput) {
   // 先按 x 再按 y 排序，单调链的前提。
   const sortedPoints = hullInput
     .slice()
@@ -90,7 +95,7 @@ export function createScreenOutlines({
   // 呼吸脉冲：三个描边层同步做 1 → 0.3 → 1 的透明度过山车。
   // 用户要求减少动态效果时不做动画（数组为空，后续全部逻辑自然退化为静态描边）。
   const pulseAnimations =
-    globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true
+    prefersReducedMotionNow()
       ? []
       : [outerGlowElement, innerGlowElement, coreOutlineElement]
           .map(animatedElement =>
@@ -132,8 +137,6 @@ export function createScreenOutlines({
       }
     }
   }
-  /** 模型键：(楼层 ID, 模型 ID)。 */
-  const modelKey = modelRef => JSON.stringify([modelRef.floorId, modelRef.modelId]);
   // 27 个方向（-1/0/1 的三元组合，去掉零向量）。
   // 沿这些方向各取一个最远点，就能用极小的代价近似出模型的「轮廓点云」。
   const directionVectors = [];
@@ -211,7 +214,9 @@ export function createScreenOutlines({
     const shouldShow = shouldShowOutlines && performance.now() >= resumeAtTimestamp;
     svgElement.style.opacity = shouldShow ? "1" : "0";
     setPulseActive(shouldShow);
-    const modelKeyList = JSON.stringify(modelList.map(modelKey));
+    const modelKeyList = JSON.stringify(
+      modelList.map(modelRef => sceneModelKey(modelRef.floorId, modelRef.modelId))
+    );
     // 根节点、修订号、模型列表都没变：不需要重新索引场景。
     if (
       cachedModelRoot === syncModelRoot &&
@@ -257,15 +262,14 @@ export function createScreenOutlines({
         floorId = ancestor.userData.environmentFloorId;
       }
       modelsByKey.set(
-        modelKey({
-          floorId: floorId,
-          modelId: traversedObject.userData.environmentModelId
-        }),
+        sceneModelKey(floorId, traversedObject.userData.environmentModelId),
         traversedObject
       );
     });
     outlineModels = modelList.flatMap(outlineModelRef => {
-      const outlineModelObject = modelsByKey.get(modelKey(outlineModelRef));
+      const outlineModelObject = modelsByKey.get(
+        sceneModelKey(outlineModelRef.floorId, outlineModelRef.modelId)
+      );
       if (outlineModelObject) {
         return [outlineModelObject];
       } else {
@@ -481,9 +485,8 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
   let cachedHaloRevision;
   let cachedHalosKey;
   let isHaloActive = false;
-  /** 光晕定位键：(楼层 ID, 模型 ID)。 */
-  const haloModelKey = (keyFloorId, keyModelId) =>
-    JSON.stringify([String(keyFloorId ?? ""), String(keyModelId ?? "")]);
+  // 光晕定位键直接用共享实现：本文件原先还留着一份逐字节相同的本地定义，
+  // 与 core/scene-model-key.js 的关系见那里的模块头（同一模型不能拿到两个身份）。
   // 1×1 的共享平面：所有光晕都靠缩放变形，无需各自建几何体。
   const planeGeometry = new threeNamespace.PlaneGeometry(1, 1);
   /**
@@ -569,7 +572,7 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
           haloFloorId = haloAncestor.userData.environmentFloorId;
         }
         resolvedModelByKey.set(
-          haloModelKey(haloFloorId, object3dEntry.userData.environmentModelId),
+          sceneModelKey(haloFloorId, object3dEntry.userData.environmentModelId),
           object3dEntry
         );
       });
@@ -580,7 +583,7 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
         continue;
       }
       const haloModel = resolvedModelByKey.get(
-        haloModelKey(syncHaloItem.floorId, syncHaloItem.modelId)
+        sceneModelKey(syncHaloItem.floorId, syncHaloItem.modelId)
       );
       if (!haloModel) {
         continue;

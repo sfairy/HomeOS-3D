@@ -5,13 +5,19 @@
  * 约定：请求一律 cache: "no-store"；401 视为会话失效直接跳登录页；只有带 body 时才声明
  * Content-Type: application/json；超时预算统一由 utils/api-fetch.js 决定。
  */
-import { setupGlobalLog } from "./global-log.js?v=20260921142240";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260921142240";
-import { apiFetch } from "../utils/api-fetch.js?v=20260921142240";
+import { setupGlobalLog } from "./global-log.js?v=20260921151446";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=20260921151446";
+import { apiFetch } from "../utils/api-fetch.js?v=20260921151446";
 
 /**
  * 发送 JSON 请求并做统一的错误处理。
  * 超时交给 apiFetch（普通 20 秒、上传 3 分钟）：日志上报悬挂时也必须抛错，否则调用方会一直停在「正在上报」。
+ *
+ * 只有会话失效分支、没有授权受限分支：日志接口（backend/api/global_logs.py）过的是 CurrentUser /
+ * CurrentViewer，不过授权门禁 —— 授权坏掉时恰恰最需要收得到日志。
+ * 判定与错误形态仍取自 utils/api-request.js（同一套码），只是构造时不挂日志桥：本模块就是日志桥的
+ * 传输层，自己上报失败时再回头关联「已上报」标记没有意义。
+ *
  * @throws {Error} 会话失效、超时、HTTP 失败或响应不是合法 JSON。
  */
 async function requestJson(path, init = {}) {
@@ -39,15 +45,22 @@ async function requestJson(path, init = {}) {
       }
     }
   }
-  if (response.status === 401) {
+  const authChallenge = apiAuthChallenge(response.status, payload);
+  if (authChallenge === "session-expired") {
     window.location.assign("/login");
-    throw new Error("登录状态已失效。");
+    throw apiRequestError(payload, {
+      status: response.status,
+      message: "登录状态已失效。",
+      link: false
+    });
   }
   if (!response.ok) {
     // 文案归一交给 utils/api-error.js，它认得字符串、`detail.message` 与 FastAPI 422 数组。
-    throw new Error(
-      apiErrorMessage(payload, "请求失败（HTTP " + response.status + "）")
-    );
+    throw apiRequestError(payload, {
+      status: response.status,
+      fallback: "请求失败（HTTP " + response.status + "）",
+      link: false
+    });
   }
   return payload;
 }

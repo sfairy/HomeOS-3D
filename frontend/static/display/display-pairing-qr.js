@@ -12,7 +12,7 @@ import qrcode from "../vendor/qrcode-generator/qrcode.js";
  * 校验服务地址与配对码，拼出二维码内容。
  * @throws {Error} 地址不合法（含路径 / 账号 / 查询串）或配对码格式错误。
  */
-export function pairingQrPayload(serverUrl, code) {
+function pairingQrPayload(serverUrl, code) {
   const serverUrlObject = new URL(String(serverUrl).trim());
   // 只接受「裸 origin」形式：不允许用户信息、查询串、哈希与非根路径，
   // 否则拼出来的配对链接会被 parsePairingLink 拒绝。
@@ -45,7 +45,7 @@ export function pairingQrPayload(serverUrl, code) {
 /**
  * 把配对链接渲染成内联 SVG 二维码。
  */
-export function pairingQrSvg(payload) {
+function pairingQrSvg(payload) {
   // 默认按 Latin-1 编码，中文域名 / 参数会乱码，必须显式切到 UTF-8。
   qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
   // 纠错等级 "M"（约 15%）兼顾容错与二维码尺寸；scalable 让 SVG 自适应弹窗宽度。

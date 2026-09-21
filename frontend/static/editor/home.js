@@ -8,20 +8,21 @@
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260921142240";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260921151446";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260921142240";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260921142240";
+import { apiFetch } from "../utils/api-fetch.js?v=20260921151446";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=20260921151446";
+import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=20260921151446";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=20260921142240";
+} from "../renderer/core/renderer.js?v=20260921151446";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../renderer/core/registry.js?v=20260921142240";
+} from "../renderer/core/registry.js?v=20260921151446";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -29,7 +30,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=20260921142240";
+} from "../templates/component-templates.js?v=20260921151446";
 import {
   clone,
   newId,
@@ -39,36 +40,36 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260921142240";
-import { clampNumber } from "../utils/numbers.js?v=20260921142240";
-import { mdiIconUrl } from "../utils/icon-url.js?v=20260921142240";
-import { formatZhDateTime } from "../utils/datetime.js?v=20260921142240";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260921142240";
+} from "./editor-utils.js?v=20260921151446";
+import { clampNumber } from "../utils/numbers.js?v=20260921151446";
+import { mdiIconUrl } from "../utils/icon-url.js?v=20260921151446";
+import { formatZhDateTime } from "../utils/datetime.js?v=20260921151446";
+import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260921151446";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
-import { resolveStateEntry, stateTextOf } from "../utils/state-entry.js?v=20260921142240";
+import { resolveStateEntry, stateTextOf } from "../utils/state-entry.js?v=20260921151446";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=20260921142240";
-import { positionFloatingMenu } from "../shared/menu-positioning.js?v=20260921142240";
+} from "../utils/colors.js?v=20260921151446";
+import { positionFloatingMenu } from "../shared/menu-positioning.js?v=20260921151446";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=20260921142240";
+} from "../shared/popup-layout.js?v=20260921151446";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260921142240";
+} from "./dashboard-resize.js?v=20260921151446";
 // 导图底图分辨率必须与控件宽高比一致，否则底图在预览里会被拉伸、位置对不上（见模块注释）。
-import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=20260921142240";
+import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=20260921151446";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260921142240";
+} from "./component-page-copy.js?v=20260921151446";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -80,29 +81,29 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=20260921142240";
-import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260921142240";
-import { createButtonSound } from "../shared/sound-effects.js?v=20260921142240";
+} from "../shared/related-entities.js?v=20260921151446";
+import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260921151446";
+import { createButtonSound } from "../shared/sound-effects.js?v=20260921151446";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260921142240";
-import { confirmAction } from "../shared/ui-confirm.js?v=20260921142240";
+} from "./editor-dialogs.js?v=20260921151446";
+import { confirmAction } from "../shared/ui-confirm.js?v=20260921151446";
 // 授权状态文案与授权页、连接状态页共用同一份：状态码与文案的对应关系分散在
 // 三处必然漂移，用户在编辑器、授权页、恢复页看到对同一状态的不同解释就不知道该信哪个。
 // 该模块只在页面里存在 #license-recovery 时自举定时器（编辑器里没有这个节点，不会挂上轮询）。
-import { licenseMessage } from "../auth/license-recovery.js?v=20260921142240";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260921142240";
+import { licenseMessage } from "../auth/license-recovery.js?v=20260921151446";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260921151446";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=20260921142240";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260921142240";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260921142240";
-import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260921142240";
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260921142240";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260921142240";
+} from "./picker/editor-picker-pagination.js?v=20260921151446";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260921151446";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260921151446";
+import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260921151446";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260921151446";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260921151446";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -110,13 +111,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=20260921142240";
+} from "../shared/action-rules.js?v=20260921151446";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260921142240";
+} from "./component-tree.js?v=20260921151446";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -126,13 +127,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260921142240";
+} from "./editor-component-collections.js?v=20260921151446";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260921142240";
+} from "./editor-basic-inspectors.js?v=20260921151446";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -145,7 +146,7 @@ import {
   reorderedPopupModules,
   restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=20260921142240";
+} from "./editor-document-management.js?v=20260921151446";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -153,18 +154,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260921142240";
+} from "./editor-history.js?v=20260921151446";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=20260921142240";
-import { createLicenseCard } from "./license-card.js?v=20260921142240";
+} from "../3d-studio/loaders/studio-normalization.js?v=20260921151446";
+import { createLicenseCard } from "./license-card.js?v=20260921151446";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=20260921142240";
+} from "../bridge/editor.js?v=20260921151446";
 /**
  * 按选择器取单个 DOM 节点的简写。不做缓存与空值兜底：调用处只在模块加载时一次性缓存静态节点，
  * querySelector 找不到说明模板出错，返回 null 由使用处自行判断。
@@ -1329,8 +1330,9 @@ let lastLicenseFeatureSignature = null;
 let isLicenseActivationFormRequested = false;
 /**
  * 后端 API 的唯一出入口：统一 /api/v1 前缀、禁用缓存、统一鉴权重定向与错误形态。
- * 401 跳登录、403 + detail.code === LICENSE_RESTRICTED 跳授权页，均抛错中断调用方；
- * 其余非 2xx 把 detail.code 透传到 Error.code。请求悬挂必须抛错，否则「正在保存」闩不会复位。
+ * 401 跳登录、403 + LICENSE_RESTRICTED 跳授权页，均抛错中断调用方；判定口径与错误形态见
+ * utils/api-request.js（五处请求入口共用一份，后端新增受限码时不会漏跟）。其余非 2xx 把
+ * detail.code 透传到 Error.code。请求悬挂必须抛错，否则「正在保存」闩不会复位。
  */
 async function requestJson(requestPath, requestOptions = {}) {
   const apiResponse = await apiFetch("/api/v1" + requestPath, {
@@ -1356,36 +1358,38 @@ async function requestJson(requestPath, requestOptions = {}) {
       }
     }
   }
-  if (apiResponse.status === 401) {
+  const authChallenge = apiAuthChallenge(apiResponse.status, responseBody);
+  if (authChallenge === "session-expired") {
     window.location.assign("/login");
-    const sessionExpiredError = new Error("登录状态已失效。");
-    throw window.HABridgeLog?.linkError(sessionExpiredError, apiResponse) || sessionExpiredError;
+    throw apiRequestError(responseBody, {
+      status: apiResponse.status,
+      message: "登录状态已失效。",
+      response: apiResponse
+    });
   }
-  if (apiResponse.status === 403 && responseBody?.detail?.code === "LICENSE_RESTRICTED") {
+  if (authChallenge === "license-restricted") {
     window.location.replace("/license");
-    const licenseExpiredError = new Error("授权已失效，请重新激活。");
-    throw window.HABridgeLog?.linkError(licenseExpiredError, apiResponse) || licenseExpiredError;
+    throw apiRequestError(responseBody, {
+      status: apiResponse.status,
+      message: "授权已失效，请重新激活。",
+      response: apiResponse
+    });
   }
   if (!apiResponse.ok) {
-    const errorDetail = responseBody?.detail;
     const responseExcerpt = responseText.trim().slice(0, 240);
     // 文案归一交给 utils/api-error.js（原先这里自己判形态，只认字符串与 `detail.message`，
     // 于是 FastAPI 422 的「detail 是数组」在本接口上一律退成下面这句通用文案）。
-    const requestError = new Error(
-      apiErrorMessage(
-        responseBody,
+    throw apiRequestError(responseBody, {
+      status: apiResponse.status,
+      fallback:
         "请求失败：" +
-          requestPath.split("?")[0] +
-          "（HTTP " +
-          apiResponse.status +
-          "）" +
-          (responseExcerpt ? " · " + responseExcerpt : "")
-      )
-    );
-    if (errorDetail && typeof errorDetail == "object" && errorDetail.code) {
-      requestError.code = errorDetail.code;
-    }
-    throw window.HABridgeLog?.linkError(requestError, apiResponse) || requestError;
+        requestPath.split("?")[0] +
+        "（HTTP " +
+        apiResponse.status +
+        "）" +
+        (responseExcerpt ? " · " + responseExcerpt : ""),
+      response: apiResponse
+    });
   }
   return responseBody;
 }
@@ -1915,9 +1919,7 @@ function enhanceNumberInputsIn(numberRootNode = document) {
         stepperButtonElement.addEventListener("pointerup", stopStepperRepeat);
         stepperButtonElement.addEventListener("pointercancel", stopStepperRepeat);
         stepperButtonElement.addEventListener("lostpointercapture", stopStepperRepeat);
-        try {
-          stepperButtonElement.setPointerCapture(stepperPointerEvent.pointerId);
-        } catch {}
+        capturePointer(stepperButtonElement, stepperPointerEvent.pointerId);
       });
       return stepperButtonElement;
     };
@@ -4279,7 +4281,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260921142240";
+          ".jpg?v=20260921151446";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -11359,6 +11361,8 @@ function discardRecoverySnapshot(recoveryProjectId = activeProject?.projectId) {
   if (recoveryProjectId) {
     recoveryWriter.cancel(recoveryProjectId);
     try {
+      // 存储不可用时删不掉快照：读取侧同样进不来（readRecoverySnapshot 也整段兜错），
+      // 所以不存在「丢弃过的快照又被恢复回来」的路径。
       sessionStorage.removeItem(recoveryStorageKey(RECOVERY_STORAGE_PREFIX, recoveryProjectId));
     } catch {}
   }
@@ -11788,6 +11792,7 @@ async function restoreSavedDocument(saveHistoryEntry, historyDirection) {
  * 反向栈再应用目标文档，应用时过滤掉已不存在的组件 ID，否则选中集里会留下幽灵 ID 让检查器空白；失败时把记录压回原栈。
  */
 async function applyHistoryStep(historyStepDirection) {
+  // 等上一次写落定再走：它成功与否不影响本次操作（失败已由那一环的调用方报过）。
   await writeQueuePromise.catch(() => {});
   if (historyState.busy || !activeProject) {
     return;
@@ -14823,9 +14828,7 @@ floorplanAutoLightingHandleElement.addEventListener("pointerdown", lightingDragE
     startLeft: lightingPanelBounds.left,
     startTop: lightingPanelBounds.top
   };
-  try {
-    floorplanAutoLightingHandleElement.setPointerCapture(lightingDragEvent.pointerId);
-  } catch {}
+  capturePointer(floorplanAutoLightingHandleElement, lightingDragEvent.pointerId);
 });
 floorplanAutoLightingHandleElement.addEventListener("pointermove", lightingDragMoveEvent => {
   if (
@@ -27430,6 +27433,7 @@ window.addEventListener("resize", () => {
   positionColorPicker();
 });
 saveButtonElement.addEventListener("click", async () => {
+  // 等上一次写落定再走：它成功与否不影响本次操作（失败已由那一环的调用方报过）。
   await writeQueuePromise.catch(() => {});
   await saveDraft();
 });
@@ -27545,9 +27549,7 @@ globalColorPickerSaturationValueElement.addEventListener(
     if (activeColorInputElement) {
       saturationPointerDownEvent.preventDefault();
       colorPickerDragPointerId = saturationPointerDownEvent.pointerId;
-      globalColorPickerSaturationValueElement.setPointerCapture(
-        saturationPointerDownEvent.pointerId
-      );
+      capturePointer(globalColorPickerSaturationValueElement, saturationPointerDownEvent.pointerId);
       updateColorPickerFromPointer(saturationPointerDownEvent);
     }
   }
@@ -27563,9 +27565,7 @@ globalColorPickerSaturationValueElement.addEventListener(
 globalColorPickerSaturationValueElement.addEventListener("pointerup", saturationPointerUpEvent => {
   if (saturationPointerUpEvent.pointerId === colorPickerDragPointerId) {
     colorPickerDragPointerId = null;
-    globalColorPickerSaturationValueElement.releasePointerCapture(
-      saturationPointerUpEvent.pointerId
-    );
+    releasePointer(globalColorPickerSaturationValueElement, saturationPointerUpEvent.pointerId);
   }
 });
 globalColorPickerHueRangeInputElement.addEventListener("input", () => {
@@ -27708,6 +27708,8 @@ new MutationObserver(mutationRecords => {
 });
 deferHiddenEditorDialogs();
 setEditorMode("edit");
+// 下面这一组轮询 / 可见性刷新统一吞掉失败：它们每 15 / 30 秒重试一次，
+// 单次失败弹提示只会刷屏，真实状态下一轮就会回来。
 window.setInterval(() => {
   if (document.visibilityState === "visible") {
     refreshHaConnection().catch(() => {});

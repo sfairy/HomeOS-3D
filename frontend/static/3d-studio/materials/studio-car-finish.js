@@ -9,7 +9,7 @@
 
 // 前后车灯灯罩的轮廓多边形（贴图像素坐标），一盏灯由多段灯带组成。
 // 顶点顺序不限：生成着色器表达式前会按带符号面积统一环绕方向。
-export const CAR_LAMP_LENSES = {
+const CAR_LAMP_LENSES = {
   front: [
     [
       [208, 193],
@@ -53,7 +53,7 @@ export const CAR_LAMP_LENSES = {
 };
 // 车玻璃在贴图图集里的两块「岛区」，格式为 [minU, minV, maxU, maxV]（归一化 UV）：
 // 一块是侧窗 / 后窗带，另一块是风挡带；着色器据此判断当前像素是否落在玻璃上。
-export const CAR_GLASS_ATLAS_REGIONS = [
+const CAR_GLASS_ATLAS_REGIONS = [
   [0.3, 0.655, 0.96, 0.975],
   [0.38, 0.395, 0.81, 0.49]
 ];

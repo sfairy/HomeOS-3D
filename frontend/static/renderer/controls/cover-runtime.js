@@ -8,16 +8,16 @@
  * 约定：导入路径上的 ?v= 版本戳必须与 home.js、renderer.js 一致；`coverComponentIsDream` 从
  * `registry/cover-state.js` 取 —— 那是只依赖 utils 的叶子分片，本文件因此不再反向 import 整个注册表 barrel。
  */
-import { coverComponentIsDream } from "../core/registry/cover-state.js?v=20260921142240";
-import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260921142240";
+import { coverComponentIsDream } from "../core/registry/cover-state.js?v=20260921151446";
+import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260921151446";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=20260921142240";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=20260921151446";
 // 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
 // 本文件与 registry/cover-state.js 都要用，而后者是本文件的上游，不能再反向 import 它。
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor,
-} from "./cover-direction.js?v=20260921142240";
+} from "./cover-direction.js?v=20260921151446";
 /**
  * 通用「实体是否处于活动态」判定。
  */
@@ -593,7 +593,7 @@ export function learnAirerPositionCalibration(
  * 设备数值越大越靠下、界面坐标（晾杆高度）越大越靠上，因此是一次反向线性映射；
  * 两端未知或几乎重合时不做换算直接返回原值，避免除零或极端放大。
  */
-export function airerPresentationPosition(airerPosition, presentationCalibration = {}) {
+function airerPresentationPosition(airerPosition, presentationCalibration = {}) {
   const clampedPosition = Math.max(0, Math.min(100, Number(airerPosition) || 0));
   const raisedPosition =
     presentationCalibration.raised === null || presentationCalibration.raised === undefined
@@ -820,7 +820,7 @@ function resolvedCoverState(physicalStateInput, motorReversed = false) {
  * 位置语义：0 附近是一个方向的闭合、100 附近是反方向闭合、50 附近是 90° 全开，中间值按 0~180 度线性折算（乘 1.8）；
  * 50 度附近给 2 的容差，避免「刚好 90°」因浮点误差显示成 89°。
  */
-export function dreamCurtainBladeLabel(bladePosition) {
+function dreamCurtainBladeLabel(bladePosition) {
   const clampedBladePosition = Math.max(0, Math.min(100, Number(bladePosition) || 0));
   if (clampedBladePosition <= PERCENT_EPSILON) {
     return "一侧闭合";

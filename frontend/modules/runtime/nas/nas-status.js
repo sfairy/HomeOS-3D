@@ -2,7 +2,7 @@
  * NAS 运行状态指示灯。
  *
  * 在 NAS 模型正面叠加一颗着色器绘制的呼吸绿灯，并临时隐藏模型自带的指示灯网格，避免出现
- * 「两颗灯」。对外提供 nasState、nasDeviceState、createNasStatus。主开关可绑 binary_sensor /
+ * 「两颗灯」。对外提供 nasDeviceState、createNasStatus。主开关可绑 binary_sensor /
  * switch / input_boolean；未直接绑定时改看 statusSource 下的「主指标 + 指标列表」是否有任意
  * 一项有有效数值。
  */
@@ -10,11 +10,16 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921124622";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921151446";
+// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：模型 ID 只在一个楼层内唯一，
+// 定位必须带上楼层；两侧缺字段 / 空串必须是同一个键，否则指示灯挂不上。
+import { sceneModelKey } from "../core/scene-model-key.js?v=20260921151446";
+// 「减少动态效果」偏好的唯一判定。
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=20260921151446";
 /**
  * 归一化单个 NAS 开关实体。
  */
-export function nasState(entityId, state) {
+function nasState(entityId, state) {
   const stateObject = resolveStateEntry(state, {});
   const stateValue = stateTextOf(stateObject);
   // 只接受三元组里明确的开 / 关：unknown、unavailable 等一律算不可用，
@@ -83,11 +88,7 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
   let lastTickMs = -Infinity;
   // 两个来源都查：某些嵌入环境里 globalThis.matchMedia 缺失而 window 上有，
   // 反之（测试桩）也可能只有前者，任何一处命中即视为要求「减少动态效果」。
-  const prefersReducedMotion = () =>
-    globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true ||
-    globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
-  // 模型定位键：(楼层 ID, 模型 ID)，楼层缺失时用空串占位，保证键形状稳定。
-  const locationKey = (floorId, modelId) => JSON.stringify([floorId || "", modelId || ""]);
+  const prefersReducedMotion = () => prefersReducedMotionNow();
   /**
    * 释放一条记录：恢复被隐藏的原生指示灯，移除并销毁自制平面。
    */
@@ -185,13 +186,15 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
           ancestorFloorId = ancestor.userData.environmentFloorId;
         }
         modelsByLocation.set(
-          locationKey(ancestorFloorId, sceneObject.userData.environmentModelId),
+          sceneModelKey(ancestorFloorId, sceneObject.userData.environmentModelId),
           sceneObject
         );
       });
       const activeBindingIds = new Set();
       for (const binding of bindings) {
-        const matchedModel = modelsByLocation.get(locationKey(binding.floorId, binding.modelId));
+        const matchedModel = modelsByLocation.get(
+          sceneModelKey(binding.floorId, binding.modelId)
+        );
         if (!matchedModel) {
           continue;
         }

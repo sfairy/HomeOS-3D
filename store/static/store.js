@@ -4,7 +4,9 @@
   const STORE_PAGE_REVISION = '20260909-referrals-v1';
   const storePageHref = path => `${path}${path.includes('?') ? '&' : '?'}v=${STORE_PAGE_REVISION}`;
   // 接口下发的 logo_url 与商品图路径不带版本号，浏览器会按启发式缓存复用旧图；这里复用页面已
-  // 加载的 theme.css 上的 ?v=（由 tools/bump_static_cache_versions.mjs 统一改写）补上版本号。
+  // 加载的 theme.css 上的 `?v=`（由 tools/bump_static_cache_versions.mjs 统一改写）补上版本号。
+  // 注意 `?v=` 要用反引号包住：刷新工具是按字面量全局替换的，写成裸 `?v=` 会把这段注释也
+  // 当成待改写的戳（本文件直到 store/static 被纳入扫描范围才暴露这个问题）。
   let storeStaticVersion;
   function versionedStoreAsset(url) {
     if (typeof url !== 'string' || !url.startsWith('/store-static/') || url.includes('?')) return url;

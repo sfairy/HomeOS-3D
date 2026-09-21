@@ -471,6 +471,7 @@ class GlobalLogStore:
         if details:
             event["details"] = _safe_text(details, limit=8000)
         if client_timestamp:
+            # 客户端时间戳格式不对就丢掉这一项，事件本身仍按服务端时间入库。
             try:
                 event["clientTimestamp"] = datetime.fromisoformat(
                     client_timestamp.replace("Z", "+00:00")
@@ -735,6 +736,7 @@ class GlobalLogStore:
             self._last_pruned_at = now
             return
         for event in events:
+            # 时间戳缺失 / 解析不了：这条记录无法参与按时间裁剪，直接丢弃。
             try:
                 timestamp = datetime.fromisoformat(
                     str(event.get("lastTimestamp") or event.get("timestamp"))

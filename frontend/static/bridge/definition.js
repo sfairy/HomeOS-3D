@@ -9,7 +9,7 @@
  */
 
 // 前四个常量为下拉项与各自的白名单归一函数；interaction3dTemplate 是同一链条里的模板本体。
-export const INTERACTION3D_TYPE = "interaction3d",
+const INTERACTION3D_TYPE = "interaction3d",
   INTERACTION3D_FEATURE = "module.3d_interaction",
   INTERACTION3D_LIGHTING_MODES = [
     ["standard", "标准光影"],
@@ -97,3 +97,12 @@ export const INTERACTION3D_TYPE = "interaction3d",
       };
     }
   };
+// 对外只留下面这几个。INTERACTION3D_TYPE 与 INTERACTION3D_FEATURE 只供本模块内构造默认实例
+// （模板的 id / type 字段），它们不是「给别人的接口」，故不再导出。
+export {
+  INTERACTION3D_LIGHTING_MODES,
+  normalizeInteraction3dLightingMode,
+  BACKGROUND_THEMES,
+  normalizeBackgroundTheme,
+  interaction3dTemplate
+};

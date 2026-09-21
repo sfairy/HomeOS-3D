@@ -11,10 +11,12 @@ settings.studio3d_exports_dir 并注册进资产目录；删除前先扫描草�
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import os
 import shutil
 import tempfile
+import warnings
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,9 +25,11 @@ from urllib.parse import unquote
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
+from .assets import MAX_UPLOAD_DIMENSION, MAX_UPLOAD_PIXELS
 from ..http.body_guard import MAX_SCENE_DOCUMENT_BYTES
 from ..core.canonical_json import canonical_json, canonical_json_bytes
 from ..core.dependencies import DatabaseSession, LicensedUser
@@ -231,11 +235,43 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
             else:
                 valid = len(image_data) >= 12 and image_data[:4] == b'RIFF' and image_data[8:12] == b'WEBP'
             if valid:
+                _assert_image_within_upload_limits(image_name, image_data)
                 continue
             # 校验魔数而不只看扩展名，避免把伪装文件存进资产目录。
             format_name = 'PNG' if suffix == '.png' else 'WebP'
             raise HTTPException(status_code=422, detail=f'{image_name} 不是有效的 {format_name} 文件。')
         return entries
+
+
+def _assert_image_within_upload_limits(name: str, data: bytes) -> None:
+    """按**真实像素尺寸**校验导出包里的位图，越界抛 422。
+
+    为什么不能只验魔数 + 解压总量：一张几万见方的纯色 PNG 压缩比可以高到离谱，成包只有
+    几 MB —— 前面两道闸门都会放行，而它一旦注册成素材，解码它的是**浏览器**，炸在用户那边
+    （也顺带把缩略图 / 导出变体这些服务端步骤拖死）。上限刻意与 ``assets.validate_uploaded_image``
+    共用同一组常量：两条入口不能存在第二套口径。
+
+    只读头部、不解码像素（``Image.open`` 是惰性的），所以这一步本身不会变成新的解压炸弹入口。
+    """
+    try:
+        with warnings.catch_warnings():
+            # 尺寸超限由下面的显式判断负责，这里不靠 Pillow 的阈值报警；
+            # 让 warning 变成异常只会把「过大」误报成「已损坏」。
+            warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(data)) as probe:
+                (width, height) = probe.size
+    except Image.DecompressionBombError as error:
+        raise HTTPException(status_code=422, detail=f'{name} 像素尺寸过大，请压缩后重试。') from error
+    except (UnidentifiedImageError, OSError) as error:
+        raise HTTPException(status_code=422, detail=f'{name} 图片已损坏或无法完整解码。') from error
+    if (
+        width <= 0
+        or height <= 0
+        or width > MAX_UPLOAD_DIMENSION
+        or height > MAX_UPLOAD_DIMENSION
+        or width * height > MAX_UPLOAD_PIXELS
+    ):
+        raise HTTPException(status_code=422, detail=f'{name} 像素尺寸过大，请压缩后重试。')
 
 
 @router.get('')

@@ -8,7 +8,7 @@
  * 静态图 = 完整图片地址（setSources 整体替换，切页回收旧位图）；特效图 = 图片地址，状态记在
  * img 元素 dataset 上、元素移除即失效；扫地机地图 = 去掉 ?query 的地址（版本 token 变化仍视为同一张图）。
  */
-export const MAX_HISTORY_SERIES_CACHE_SIZE = 512;
+const MAX_HISTORY_SERIES_CACHE_SIZE = 512;
 // 历史数据的请求超时：超过 12 秒即视为失败，调用方按空序列处理，而不是一直挂着。
 export const HISTORY_FETCH_TIMEOUT_MS = 12000;
 /**

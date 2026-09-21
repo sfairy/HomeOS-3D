@@ -62,6 +62,7 @@ from store.security.security import (
     code_hash,
     new_code_salt,
     hash_password,
+    is_valid_email,
     iso,
     iso_z,
     new_order_no,
@@ -761,7 +762,11 @@ def send_verification(
     account: CurrentAccount,
 ) -> dict:
     email = payload.email.strip().lower()
-    if not email or "@" not in email:
+    # 必须走 ``is_valid_email`` 而不是 ``"@" not in email`` 这种形状判断：收件人会被原样
+    # 拼进 MIME 的 ``To``。只查 ``@`` 的话，``a@x.com,b@y.com`` 这类逗号分隔的多地址
+    # 同样通过 —— 商店官方域名就成了「给任意地址群发」的跳板；带换行的输入更直接是头注入。
+    # 这里拒绝掉，比在发信层再去分辨「一个地址还是多个」可靠得多。
+    if not is_valid_email(email):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="请输入有效的邮箱地址。")
 
     setting = site_config.get_setting(session)
@@ -1079,6 +1084,55 @@ def _note_login_failure(session, scopes: list[str]) -> None:
         )
 
 
+# --------------------------------------------------------------------------- #
+# 口令确认闸门
+# --------------------------------------------------------------------------- #
+#: 口令确认类端点的 scope 前缀。与登录**共用同一张失败计数表**，但 scope 必须独立：
+#: 登录被撞库不该把「改密码」也锁死（用户会被自己看不见的攻击拖住），改密码猜错也不该
+#: 影响登录。两者唯一的共同点只是都记账、都按次数冷却。
+_PASSWORD_CONFIRM_SCOPE_PREFIX = "confirm:"
+
+
+def _password_confirmation_scope(account) -> str:
+    """口令确认按**账号**限流，不按来源 IP。
+
+    这些端点都要求已登录，攻击者通常握着某个会话；按 IP 限流的话换一个出口地址就重置了
+    计数 —— 而他真正要猜的是这个账号的密码，账号维度才拦得住。
+    """
+    return f"{_PASSWORD_CONFIRM_SCOPE_PREFIX}{account.id}"
+
+
+def _enforce_password_confirmation_gate(session, account) -> str:
+    """校验口令之前先看冷却，返回 scope 供失败/成功记账。
+
+    `/auth/change-password`、`/account/email`、`/account/licenses/{id}/release` 都以
+    「当前密码对不对」作为判别器（403 与 200/其它码），而这条路径此前没有任何闸门 ——
+    登录那条早就限流了，等于把不限次的密码猜测挪到了这三个端点。改密码成功还能把原主踢下线，
+    所以这里不是「顺手补一道」：它是这三个端点唯一的速度限制。
+    """
+    scope = _password_confirmation_scope(account)
+    remaining = password_gate.retry_after_seconds(session, scope)
+    if remaining > 0:
+        logger.warning("口令确认被限流 scope=%s 剩余=%s 秒", scope, remaining)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"密码错误次数过多，请 {remaining} 秒后再试。",
+            headers={"Retry-After": str(remaining)},
+        )
+    return scope
+
+
+def _note_password_confirmation_failure(session, scope: str) -> None:
+    """记一次口令确认失败。
+
+    必须**先回滚本请求事务**、再用独立会话提交（与 `_note_login_failure` 同一道理）：
+    接下来要抛 403，随后的回滚会把刚写的计数一起丢掉，于是冷却永远不触发 ——
+    限流看似存在、实际是 0 次。
+    """
+    session.rollback()
+    record_attempt_in_new_session(session, scope)
+
+
 @router.post("/auth/login")
 def login(payload: LoginRequest, request: Request, session: DbSession) -> Response:
     email = payload.email.strip().lower()
@@ -1184,8 +1238,11 @@ def change_password(
     - 新密码 ≥ 8 位（与注册一致）
     - 改密后踢掉其它设备的会话，只保留当前这一个
     """
+    confirm_scope = _enforce_password_confirmation_gate(session, account)
     if not verify_password(payload.old_password, account.password_hash):
+        _note_password_confirmation_failure(session, confirm_scope)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="当前密码不正确。")
+    password_gate.clear(session, confirm_scope)
 
     if payload.new_password != payload.confirm_password:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="两次输入的新密码不一致。")
@@ -1281,8 +1338,11 @@ def change_account_email(
     邮箱就是登录名，改掉后原主再也登不进来：只验旧邮箱则拿到会话即可夺号，只验新邮箱则
     会话被劫持时守不住，要求密码是挡住会话劫持的最后一道锁。
     """
+    confirm_scope = _enforce_password_confirmation_gate(session, account)
     if not verify_password(payload.password, account.password_hash):
+        _note_password_confirmation_failure(session, confirm_scope)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="登录密码不正确。")
+    password_gate.clear(session, confirm_scope)
 
     email = payload.email.strip().lower()
     if (account.email or "").strip().lower() == email:
@@ -1352,8 +1412,11 @@ def release_device(
     license = session.get(License, license_id)
     if license is None or license.account_id != account.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="授权不存在。")
+    confirm_scope = _enforce_password_confirmation_gate(session, account)
     if not verify_password(payload.password, account.password_hash):
+        _note_password_confirmation_failure(session, confirm_scope)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="登录密码不正确。")
+    password_gate.clear(session, confirm_scope)
 
     setting = site_config.get_setting(session)
     settings: StoreSettings = request.app.state.settings

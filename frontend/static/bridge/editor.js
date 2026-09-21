@@ -8,39 +8,39 @@
  * waitInteraction3dEditorView(componentId) 拿到视图句柄再下命令；sceneId 是后端签发的 32 位十六进制，
  * 面板只做格式校验。副作用：发起授权校验与户型载入、动态 import 子编辑器、直接操作宿主 DOM。
  */
-import { resolvePageBehavior } from "./page-behavior.js?v=20260921142240";
+import { resolvePageBehavior } from "./page-behavior.js?v=20260921151446";
 import {
   performanceWarnings,
   confirmPerformanceWarning
-} from "./performance-warning.js?v=20260921142240";
-import { normalizeGroundReflection } from "./reflection-settings.js?v=20260921142240";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260921142240";
+} from "./performance-warning.js?v=20260921151446";
+import { normalizeGroundReflection } from "./reflection-settings.js?v=20260921151446";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260921151446";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   waitInteraction3dEditorView,
   cancelOtherInteraction3dViews
-} from "./bridge.js?v=20260921142240";
+} from "./bridge.js?v=20260921151446";
 import {
   createInteraction3dCover,
   updateInteraction3dCoverMessage
-} from "./cover.js?v=20260921142240";
-import { withRequestTimeout } from "../utils/request-timeout.js?v=20260921142240";
+} from "./cover.js?v=20260921151446";
+import { withRequestTimeout } from "../utils/request-timeout.js?v=20260921151446";
 // 交互页面的可选项与运行时树的人体存在显示页判定共用一份，见 utils/interaction-pages.js。
-import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=20260921142240";
+import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=20260921151446";
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
   BACKGROUND_THEMES,
   normalizeBackgroundTheme
-} from "./definition.js?v=20260921142240";
+} from "./definition.js?v=20260921151446";
 
 /**
  * 递归收集组件树里的 interaction3d 组件。
  * 用「路径片段数组」的 JSON 串当键：同一组件可能被页面与共享组件引用，
  * 路径才是它在文档里的唯一位置，仅靠 id 无法区分。
  */
-export function interaction3dEntries(componentTree, pathSegments = [], entriesByPath = new Map()) {
+function interaction3dEntries(componentTree, pathSegments = [], entriesByPath = new Map()) {
   if (Array.isArray(componentTree)) {
     componentTree.forEach((arrayItem, arrayIndex) =>
       interaction3dEntries(
@@ -102,7 +102,7 @@ function stripPositionZIndex(component) {
  * 判断两个项目版本之间「3D 交互相关内容」是否发生变化，用于决定保存前是否需要重新授权校验（3D 交互是受限功能）。
  * 除了组件属性，还要看「页面是否新引用了含 3D 交互的共享组件」—— 此时组件本身没变，但新页面上会出现 3D 交互。
  */
-export function changesInteraction3d(previousProject, nextProject) {
+function changesInteraction3d(previousProject, nextProject) {
   const previousEntriesByPath = interaction3dEntries(previousProject);
   const nextEntriesByPath = interaction3dEntries(nextProject);
   for (const [entryPath, nextEntry] of nextEntriesByPath) {
@@ -208,7 +208,7 @@ const inspectorAbortByHost = new WeakMap();
  *
  * @throws {Error} 请求失败、超时或返回体不符合约定（非 32 位十六进制）时抛出中文错误。
  */
-export async function requestInteraction3dScene() {
+async function requestInteraction3dScene() {
   // 户型解析在后端做，耗时不可控，因此必须带超时，否则面板会一直停在「正在载入」。
   return withRequestTimeout(20000, async abortSignal => {
     const response = await fetch("/api/v1/modules/interaction3d/scenes", {
@@ -516,7 +516,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       await requestInteraction3dAccess();
       // 子编辑器体积大且只在点击时才用得上，用动态 import 拆包。
       const { openInteraction3dAppearanceEditor: openAppearanceEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=20260921142240");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=20260921151446");
       await openAppearanceEditor({
         component: targetComponent,
         onSave: savedBaseLighting =>
@@ -551,7 +551,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureDevicesButton.disabled = true;
     try {
       const { openInteraction3dEditor: openDevicesEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=20260921142240");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=20260921151446");
       await openDevicesEditor({
         component: targetComponent,
         deviceKind: "devices",
@@ -585,7 +585,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 安防编辑器会接触摄像头相关配置，同样先做一次授权校验。
       await requestInteraction3dAccess();
       const { openSecurityEditor: openSecurityEditor } =
-        await import("/api/v1/modules/interaction3d/security/security-editor.js?v=20260921142240");
+        await import("/api/v1/modules/interaction3d/security/security-editor.js?v=20260921151446");
       await openSecurityEditor({
         component: targetComponent,
         panelDocument: editorOptions.document,
@@ -613,7 +613,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
     configureVacuumButton.disabled = true;
     try {
       const { openInteraction3dEditor: openVacuumEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=20260921142240");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=20260921151446");
       await openVacuumEditor({
         component: targetComponent,
         deviceKind: "vacuum",
@@ -689,7 +689,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 灯光配置涉及实体绑定，先确认当前会话仍有 3D 交互权限。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openLightingEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=20260921142240");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=20260921151446");
       await openLightingEditor({
         component: targetComponent,
         document: editorOptions.document,
@@ -718,7 +718,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       // 环境（温湿度 / 空气质量）配置同样属于受限能力，打开前校验授权。
       await requestInteraction3dAccess();
       const { openInteraction3dEditor: openEnvironmentEditor } =
-        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=20260921142240");
+        await import("/api/v1/modules/interaction3d/editor/config-editor.js?v=20260921151446");
       await openEnvironmentEditor({
         component: targetComponent,
         deviceKind: "environment",
@@ -908,6 +908,7 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
   ) {
     waitInteraction3dEditorView(targetComponent.id)
       .then(syncFloorControls)
+      // 等 3D 侧视图就绪再同步楼层控件：失败无声即可，用户到 3D 端点开时会看到真实状态。
       .catch(() => {});
   }
   floorSelectElement.addEventListener("change", async () => {

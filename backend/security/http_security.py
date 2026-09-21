@@ -28,7 +28,8 @@ from ..config import Settings
 #: 转发头：出现任一即说明「前面还有代理」。用于提示运维去配 APP_TRUSTED_PROXIES。
 FORWARDED_HEADERS = ('x-forwarded-for', 'x-forwarded-proto', 'x-real-ip', 'forwarded')
 
-#: 能代表「本机」的对端地址。用于区分「本机运维」与「外部来访者」。
+#: 能代表「本机」的地址：既用作可信的**对端**地址，也用作可信的 ``Host`` 主机名。
+#: 商店侧 ``setup_guard.LOOPBACK_HOSTS`` 是刻意重复的一份，改动必须同步。
 LOOPBACK_HOSTS = frozenset({'127.0.0.1', '::1', 'localhost'})
 
 #: uvicorn 的 ``--forwarded-allow-ips`` 里，这些写法等同于「任何对端都可以自称客户端」。
@@ -118,22 +119,57 @@ def _normalize_ip(value: str) -> str:
         return ''
 
 
-def is_direct_local(request: Request) -> bool:
-    """是否是「本机直连」：loopback 对端，且请求没带任何转发头。
+def _host_header_name(request: Request) -> str:
+    """``Host`` 头里的主机名：去端口、去 IPv6 方括号、转小写；读不到时返回空串。
 
-    两个条件缺一不可：只看对端地址不够 —— 反向代理与主应用同机部署（compose 的默认形态）时
-    所有外部请求经代理进来，对端同样是 127.0.0.1；只看有没有转发头也不够 —— 那正是客户端
-    自己就能写的字段。
+    只做「取出主机名」这一件事，判断在 :func:`is_direct_local`。
+    """
+    raw = (request.headers.get('host') or '').strip().lower()
+    if not raw:
+        return ''
+    if raw.startswith('['):
+        # ``[::1]:8000`` / ``[::1]``：方括号之间就是主机名。
+        return raw[1:].split(']', 1)[0].strip()
+    if raw.count(':') == 1:
+        # ``host:port``：冒号左边是主机名。
+        return raw.split(':', 1)[0].strip()
+    # 没有端口（``localhost``），或裸 IPv6 字面量（不合法但从宽原样处理）。
+    return raw
+
+
+def is_direct_local(request: Request) -> bool:
+    """是否是「本机直连」：loopback 对端 + loopback ``Host`` + 没有任何转发头。
+
+    三个条件缺一不可：
+
+    - **只看对端地址不够**：反向代理与主应用同机部署（compose 的默认形态）时，所有外部
+      请求经代理进来，对端同样是 ``127.0.0.1``；``ssh -L``、``kubectl port-forward``、
+      ``socat`` 之类同样让远端来访者的对端变成回环地址。
+    - **只看有没有转发头也不够**：那正是客户端自己就能写的字段，而 nginx 默认**不补**
+      ``X-Forwarded-*`` —— 一个「公网域名 → 127.0.0.1:18081」的同机反代，判据完全等同于
+      本机运维。
+    - **因此还要看 ``Host``**：它由浏览器按访问地址写入，反代默认原样透传（Caddy、
+      Traefik、以及 ``proxy_set_header Host $host`` 的 nginx 都是）。同机反代把公网域名转
+      到回环端口时 ``Host`` 是那个域名，不再落进 :data:`LOOPBACK_HOSTS`；运维用
+      ``localhost`` / ``127.0.0.1`` 打开时才是回环。编排器的健康探针同样走
+      ``http://127.0.0.1:...``（见 Dockerfile / docker-compose），照旧拿得到详情。
 
     它回答的是「这次请求是不是本机运维亲手发的」，因此只能用于**放宽**本机操作的门槛
     （首次初始化窗口放行、健康探针回详情），绝不能用来放宽任何认证判定。
+
+    已知残留（刻意接受，不要用「再加一个请求头」去补）：``ssh -L`` / ``kubectl
+    port-forward`` 这类**原样透传字节**的隧道会把 ``Host: localhost:<本地端口>`` 一并带到
+    后端，与真·本机运维在协议层不可区分；而能开这种隧道的人已经握有宿主 shell，那份
+    0600 的 ``setup-token`` 就在同一台机器上。
 
     用途见 ``setup_guard.SetupGuard.authorize`` 与 ``main.create_app`` 里的 ``/health/*``：
     前者靠它区分本机运维与远程抢建，后者靠它决定要不要回版本号。
     """
     if any(request.headers.get(name) for name in FORWARDED_HEADERS):
         return False
-    return _peer_host(request) in LOOPBACK_HOSTS
+    if _peer_host(request) not in LOOPBACK_HOSTS:
+        return False
+    return _host_header_name(request) in LOOPBACK_HOSTS
 
 
 def _is_trusted(host: str, networks) -> bool:

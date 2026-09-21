@@ -69,7 +69,8 @@
     var email = document.getElementById('email').value.trim();
     var password = document.getElementById('password').value;
     var confirmPassword = document.getElementById('confirm-password').value;
-    // 引导密钥只对「远程访问」是必需的；本机直连时留空即可（服务端按对端地址判定）。
+    // 引导密钥只对「远程访问」是必需的；用 localhost / 127.0.0.1 从本机打开时留空即可
+    // （服务端按对端地址 + Host 判定，用域名打开会被当成远程）。
     var setupToken = document.getElementById('setup-token').value.trim();
 
     if (!email) {

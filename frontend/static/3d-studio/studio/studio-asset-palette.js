@@ -20,6 +20,9 @@
  * size 模型真实占地（米，与实际不符会让用户误判可摆放空间）。
  * @type {{ category: string, label: string, note: string, items: { type: string, sub: string, icon: string, name: string, size: string }[] }[]}
  */
+// 转义实现只有一份，见 utils/html-escape.js 的模块头；本文件此前带着一份私有副本。
+import { escapeHtml } from "../../utils/html-escape.js?v=20260921151446";
+
 export const STUDIO_ASSET_PALETTE = [
   {
     category: "home",
@@ -167,12 +170,6 @@ export const STUDIO_ASSET_PALETTE = [
   }
 ];
 
-const escapeHtml = (value) =>
-  String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 
 /** 单张卡片：属性各占一行，便于与拆分前的 HTML 逐字对照。 */
 function assetCardHtml(item) {

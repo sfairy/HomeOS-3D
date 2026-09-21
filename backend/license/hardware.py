@@ -195,6 +195,7 @@ def _write_private_text(path: Path, content: str) -> None:
         os.replace(temporary, path)
         os.chmod(path, 0o600)
     finally:
+        # 临时文件已被 os.replace 带走（或压根没建），这里再删只会 FileNotFound，属预期。
         try:
             temporary.unlink()
         except FileNotFoundError:

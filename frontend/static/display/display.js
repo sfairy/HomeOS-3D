@@ -3,14 +3,15 @@
  *
  * 长期打开的运行时页面，只读消费编辑器保存的草稿：解析地址得到项目、轮询 revision 判断
  * 是否刷新、拉取目录与素材、创建 PanelRenderer 渲染文档，并处理前后台切换、断网恢复与旋转
- * 屏。未配对 / 会话失效（401）跳 /pair，授权受限（403 LICENSE_RESTRICTED）跳 /license；
+ * 屏。未配对 / 会话失效（401）跳 /pair，授权受限（403 LICENSE_RESTRICTED）就地刷新自愈
+ *（墙面屏前没人能填激活码，刷新让后端门禁重新判定）；两个判定口径见 utils/api-request.js；
  * 素材版本号形如 "内置戳:用户戳"，只在变化时重新下载；轮询 10 秒，素材版本检查 30 秒。
  */
-import { PanelRenderer } from "../renderer/core/renderer.js?v=20260921142240";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260921142240";
-import { createButtonSound } from "../shared/sound-effects.js?v=20260921142240";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=20260921142240";
-import { isAppleMobile } from "../utils/apple-device.js?v=20260921142240";
+import { PanelRenderer } from "../renderer/core/renderer.js?v=20260921151446";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=20260921151446";
+import { createButtonSound } from "../shared/sound-effects.js?v=20260921151446";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=20260921151446";
+import { isAppleMobile } from "../utils/apple-device.js?v=20260921151446";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");
@@ -105,29 +106,31 @@ async function apiRequest(path) {
             }
             return {};
           });
-    if (response.status === 401) {
+    const authChallenge = apiAuthChallenge(response.status, payload);
+    if (authChallenge === "session-expired") {
       window.location.assign(buildPairUrl());
       return null;
     }
-    if (response.status === 403 && payload?.detail?.code === "LICENSE_RESTRICTED") {
+    if (authChallenge === "license-restricted") {
       // 刷新而不是跳 /license：展示端是墙面屏，通常没人能填激活码；刷新会让后端门禁
       // 重新判定；若展示能力仍不可用，后端会把 /pair 与 /display/* 就地渲染成连接状态页
       //（那里只有「正在重连」和自动重试），因此刷新本身就是可自愈的落点。
       // 先重载再抛：重载是异步的，抛出的错误让当前这一帧立刻显示原因而不是白等。
       window.location.reload();
-      const restrictedError = new Error(
-        payload?.detail?.message || "授权后台正在验证，请稍后重试。"
-      );
-      restrictedError.code = "LICENSE_RESTRICTED";
-      throw restrictedError;
+      throw apiRequestError(payload, {
+        status: response.status,
+        message: payload?.detail?.message || "授权后台正在验证，请稍后重试。",
+        response
+      });
     }
     if (!response.ok) {
-      // 文案归一交给 utils/api-error.js，它认得字符串、`detail.message` 与 FastAPI 422 数组。
-      const detail = payload?.detail;
-      const requestError = new Error(apiErrorMessage(payload, "请求失败。"));
-      requestError.code = detail?.code || "";
-      // 先交给日志桥关联响应（避免重复上报），没有桥接时用原错误。
-      throw window.HABridgeLog?.linkError(requestError, response) || requestError;
+      // 文案归一交给 utils/api-error.js，它认得字符串、`detail.message` 与 FastAPI 422 数组；
+      // 错误形态与「先关联响应、避免重复上报」都在 utils/api-request.js 里。
+      throw apiRequestError(payload, {
+        status: response.status,
+        fallback: "请求失败。",
+        response
+      });
     }
     return payload;
   } catch (caughtError) {
@@ -315,9 +318,10 @@ async function refreshDisplay() {
   if (project) {
     return (
       refreshPromise ||
-      ((      refreshPromise = (async () => {
+      (refreshPromise = (async () => {
         // 目录同步失败不影响主流程，静默忽略。
-        refreshCatalog().catch(() => null);        let revisionResponse = null;
+        refreshCatalog().catch(() => null);
+        let revisionResponse = null;
         // 素材版本可能已被别处更新（如预览），这里先按已记录的版本比对一次。
         let hasAssetsChange = loadedAssetsVersion !== assetsVersion;
         if (panelRenderer) {
@@ -423,8 +427,7 @@ async function refreshDisplay() {
         lastGlobalPopupRevision = draftResponse.globalPopupRevision;
       })().finally(() => {
         refreshPromise = null;
-      })),
-      refreshPromise)
+      }))
     );
   }
 }

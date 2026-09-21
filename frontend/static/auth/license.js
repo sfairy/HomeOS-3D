@@ -7,11 +7,12 @@
  * 请求都走 utils/api-fetch.js（20 秒超时）：「在飞闩 + 超时」缺一不可 —— 无超时则弱网下轮询永久冻住，
  * 无闩则每 5 秒叠一个同源请求把网络压得更差。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=20260921142240";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260921142240";
+import { apiFetch } from "../utils/api-fetch.js?v=20260921151446";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260921151446";
+import { apiAuthChallenge } from "../utils/api-request.js?v=20260921151446";
 // 状态文案表由 license-recovery.js 统一持有：授权页与恢复页必须说同一句话，
 // 各存一份必然漂移 —— 用户在两处看到对同一状态的不同解释，就不知道该信哪个。
-import { licenseMessage } from "./license-recovery.js?v=20260921142240";
+import { licenseMessage } from "./license-recovery.js?v=20260921151446";
 
 const form = document.querySelector("#license-form"),
   message = document.querySelector("#message"),
@@ -66,7 +67,7 @@ function setRecoveryHint(statusCode) {
 // 读取一次授权状态并更新提示文案；可以进入编辑器时直接跳转。
 async function loadStatus() {
   const statusResponse = await apiFetch("/api/v1/license/status", { cache: "no-store" });
-  if (statusResponse.status === 401) {
+  if (apiAuthChallenge(statusResponse.status, null) === "session-expired") {
     window.location.replace("/login");
     return;
   }
@@ -139,7 +140,7 @@ async function requestRetry() {
   statusText.textContent = "正在重新连接授权后台…";
   try {
     const retryResponse = await apiFetch("/api/v1/license/retry", { method: "POST" });
-    if (retryResponse.status === 401) {
+    if (apiAuthChallenge(retryResponse.status, null) === "session-expired") {
       window.location.replace("/login");
       return;
     }

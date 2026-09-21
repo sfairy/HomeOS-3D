@@ -10,13 +10,13 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../editor/picker/editor-picker-pagination.js?v=20260921142240";
-import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=20260921142240";
+} from "../editor/picker/editor-picker-pagination.js?v=20260921151446";
+import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=20260921151446";
 // 「取实体域」走 utils/entities.js 的唯一实现：能进这个列表的实体都是 HA 目录里的行
 // （`domain` 列就是 entity_id 的前缀），虚拟实体另被 `editorEntityMatches` 滤掉，两边同值。
-import { entityDomainOf } from "../utils/entities.js?v=20260921142240";
-import { vacuumProfiles } from "./vacuum-catalog.js?v=20260921142240";
-import { nasProfiles } from "./nas-catalog.js?v=20260921142240";
+import { entityDomainOf } from "../utils/entities.js?v=20260921151446";
+import { vacuumProfiles } from "./vacuum-catalog.js?v=20260921151446";
+import { nasProfiles } from "./nas-catalog.js?v=20260921151446";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
 // 只接受 Material Design Icons 的合法 ID（长度上限 120 与图标目录约定一致），
@@ -28,7 +28,7 @@ const isValidIconId = iconId =>
  * 用于「人在 / 移动」这类按设备绑定的交互：HA 里同一设备常有多个实体
  * （占用、移动、事件），面板希望用户选设备而不是逐个挑实体。
  */
-export function presenceDeviceProfiles(entities = [], devices = [], lookupState = () => null) {
+function presenceDeviceProfiles(entities = [], devices = [], lookupState = () => null) {
   const devicesById = new Map();
   // 只考虑人体相关的域（binary_sensor / event），并剔除禁用、丢失的实体。
   for (const entityEntry of entities) {
@@ -138,6 +138,7 @@ export function createInteraction3dEditorPickers({
     // 房间请求单独 catch 成 null：它失败不应让整个设备选择器不可用。
     const [deviceRecords, areaRecords] = await Promise.all([
       fetchDevices(),
+      // 区域列表拿不到不阻塞设备选择：退化成「没有区域分组」。
       fetchAreas().catch(() => null)
     ]);
     const areaNamesById = new Map(

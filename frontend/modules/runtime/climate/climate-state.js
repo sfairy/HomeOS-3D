@@ -9,12 +9,16 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { normalizedTextOf, resolveStateEntry } from "../core/static-helpers.js?v=20260921124622";
+import {
+  finiteNumberOrNull,
+  normalizedTextOf,
+  resolveStateEntry
+} from "../core/static-helpers.js?v=20260921151446";
 // 动态导入渲染器模块：开发环境走相对路径（file:），生产环境走带缓存戳的静态路径。
 // 缓存戳必须与 static 目录的统一版本号保持一致，改渲染器后要同步更新。
 const climateRendererModule = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/renderer/controls/climate.js", import.meta.url))
-  : import("/static/renderer/controls/climate.js?v=20260921124622"));
+  : import("/static/renderer/controls/climate.js?v=20260921151446"));
 const {
   normalizeClimateCapabilities: normalizeClimateCapabilities,
   climateIsPoweredOn: climateIsPoweredOn,
@@ -23,18 +27,11 @@ const {
 } = climateRendererModule;
 export const {
   climateModeLabel,
-  climateModeIcon,
-  climateSwingModeLabel,
-  climateOptionPresentation
+  climateSwingModeLabel
 } = climateRendererModule;
-/**
- * 把任意输入转成有限数字，不可用时返回 null。
- * 特意排除布尔值与空串：Number(true) 是 1、Number("") 是 0，都会把脏数据当成合法温度。
- */
-const toFiniteNumber = input =>
-  input != null && input !== "" && typeof input != "boolean" && Number.isFinite(Number(input))
-    ? Number(input)
-    : null;
+// 温度 / 能力位等属性一律转成「有限数或 null」，实现与理由统一在 utils/numbers.js 的
+// finiteNumberOrNull（经 static-helpers 桥取用）：布尔与空白串都视为「没上报」，
+// 否则 Number(true) 是 1、Number("") 是 0，脏数据会被当成合法温度。
 /**
  * 把 HA 的空调实体状态归一化成 3D 面板使用的状态对象。
  * 字段名与 HA 属性严格对应（min_temp / max_temp / fan_mode 等），面板与动画按这些名字取值，改名需同步使用方。
@@ -46,12 +43,12 @@ export function climateState(entityId, receivedState) {
   const capabilities = normalizeClimateCapabilities(stateObject);
   // state 只认字符串：数字等异常值一律当空串，后面按不可用处理。
   const stateValue = typeof stateObject.state == "string" ? stateObject.state : "";
-  const minimum = toFiniteNumber(attributes.min_temp);
-  const maximum = toFiniteNumber(attributes.max_temp);
-  const temperature = toFiniteNumber(attributes.temperature);
-  const supportedFeatures = toFiniteNumber(attributes.supported_features) || 0;
-  const targetLow = toFiniteNumber(attributes.target_temp_low);
-  const targetHigh = toFiniteNumber(attributes.target_temp_high);
+  const minimum = finiteNumberOrNull(attributes.min_temp);
+  const maximum = finiteNumberOrNull(attributes.max_temp);
+  const temperature = finiteNumberOrNull(attributes.temperature);
+  const supportedFeatures = finiteNumberOrNull(attributes.supported_features) || 0;
+  const targetLow = finiteNumberOrNull(attributes.target_temp_low);
+  const targetHigh = finiteNumberOrNull(attributes.target_temp_high);
   // 三重判定：实体 ID 必须是原生 climate 域、HA 未标记不可用、state 不是未知态。
   const available =
     /^climate\.[a-z0-9_]+$/.test(entityId) &&
@@ -83,7 +80,7 @@ export function climateState(entityId, receivedState) {
             ? "heat"
             : "other",
     temperature: temperature,
-    currentTemperature: toFiniteNumber(attributes.current_temperature),
+    currentTemperature: finiteNumberOrNull(attributes.current_temperature),
     targetLow: targetLow,
     targetHigh: targetHigh,
     minimum: minimum,
@@ -238,7 +235,7 @@ export function climateControl(deviceState, service, value) {
   }
   let serviceData;
   if (service === "set_temperature") {
-    const requestedTemperature = toFiniteNumber(value);
+    const requestedTemperature = finiteNumberOrNull(value);
     if (!deviceState.temperatureSupported || requestedTemperature === null) {
       throw new Error("设备尚未提供可用的温度控制。");
     }

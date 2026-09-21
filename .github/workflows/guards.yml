@@ -1,0 +1,62 @@
+name: Guards
+
+# 「改动即校验」的唯一入口。
+#
+# 为什么单开一份而不是给 docker.yml 加 push 触发：docker.yml 的 build job 里写着
+# `push=${{ github.event_name != 'pull_request' }}` —— 一旦让它在 push 上跑，默认分支的每次
+# 提交都会向 GHCR 推镜像，正是该工作流注释里明确要避免的事（不消耗 Actions 额度、不向 GHCR
+# 推未打算发布的镜像）。所以静态守卫单独放这里，出包前那道留在 docker.yml。
+#
+# 两份工作流**共用同一份守卫清单**：docker.yml 的注释里也写明了这一点。改清单时两边一起改，
+# 否则「CI 过了但出包被拦」或反过来的错配不会有人发现。
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guards-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 与 Dockerfile 的 base 阶段对齐：node:20 / python:3.12。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Structure, export, registry and hygiene guards
+        run: |
+          set -euo pipefail
+          for command in \
+            "node tools/check_structure_refs.mjs" \
+            "node tools/check_esm_exports.mjs" \
+            "node tools/check_registry_split.mjs" \
+            "node tools/check_studio_palette.mjs --strict" \
+            "node tools/check_frontend_hygiene.mjs --strict" \
+            "node tools/check_scene_sync.mjs" \
+            "node tools/check_entry_pages.mjs"
+          do
+            echo "::group::${command}"
+            ${command}
+            echo "::endgroup::"
+          done
+
+      - name: Install lint tooling
+        run: pip install ruff
+
+      # 规则集与边界见仓库根的 ruff.toml：只挑全仓已达标的那几条（未使用 import、
+      # 重复定义、未使用局部变量、未定义名字、注释掉的代码）。
+      - name: Dead code, unused imports and commented-out code
+        run: ruff check .

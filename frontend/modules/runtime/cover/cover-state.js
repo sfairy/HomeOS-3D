@@ -10,18 +10,13 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921124622";
+import {
+  finiteNumberOrNull,
+  resolveStateEntry,
+  stateTextOf
+} from "../core/static-helpers.js?v=20260921151446";
 /**
- * 把任意输入转成有限数字，不可用时返回 null。
- * 只接受 number 与 string：布尔会被 Number 转成 0/1；纯空白串会被当成 0 而误判「已关到底」。
- */
-const toFiniteNumber = input =>
-  ["number", "string"].includes(typeof input) &&
-  (typeof input != "string" || input.trim() !== "") &&
-  Number.isFinite(Number(input))
-    ? Number(input)
-    : null;
-/** HA 窗帘状态 → 中文文案；同时被当作「状态是否合法」的白名单使用。 */
+ * HA 窗帘状态 → 中文文案；同时被当作「状态是否合法」的白名单使用。 */
 const STATE_LABELS = {
   open: "已打开",
   closed: "已关闭",
@@ -55,12 +50,12 @@ export function coverState(entityId, receivedState, item = {}) {
   const stateObject = resolveStateEntry(receivedState, {});
   const attributes = stateObject.attributes || {};
   const stateValue = stateTextOf(stateObject);
-  const reportedPosition = toFiniteNumber(attributes.current_position);
-  const reportedTilt = toFiniteNumber(attributes.current_tilt_position);
+  const reportedPosition = finiteNumberOrNull(attributes.current_position);
+  const reportedTilt = finiteNumberOrNull(attributes.current_tilt_position);
   // 梦幻帘由「整体 + 叶片」两套机构组成，整体位置的反馈往往不可信，
   // 需要单独判断，见下面的 overallFeedbackAvailable。
   const isDreamCover = item.coverKind === "dream";
-  const rawSupportedFeatures = toFiniteNumber(attributes.supported_features);
+  const rawSupportedFeatures = finiteNumberOrNull(attributes.supported_features);
   // supported_features 必须是安全范围内的非负整数，否则宁可按「无任何能力」处理。
   const supportedFeatures =
     Number.isSafeInteger(rawSupportedFeatures) && rawSupportedFeatures >= 0
@@ -171,7 +166,7 @@ export function coverControl(sourceState, service, value) {
   }
   let serviceData = {};
   if (service === "set_cover_position" || service === "set_cover_tilt_position") {
-    const positionValue = toFiniteNumber(value);
+    const positionValue = finiteNumberOrNull(value);
     // HA 只接受整数百分比；小数或越界值直接拒绝，避免设备侧静默忽略。
     if (!Number.isInteger(positionValue) || positionValue < 0 || positionValue > 100) {
       throw new Error("目标位置必须是 0–100 之间的整数。");

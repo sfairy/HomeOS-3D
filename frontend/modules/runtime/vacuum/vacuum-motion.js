@@ -7,12 +7,14 @@
  * heading 角度存在 a 字段（度）。地图地址由 vacuum-map.js 解析。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260921142240";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260921151446";
+// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
+import { sceneModelKey } from "../core/scene-model-key.js?v=20260921151446";
 import {
   mapSource,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=20260921142240";
+} from "./vacuum-map.js?v=20260921151446";
 /** 是否为有限数字（同时排除数字字符串）。 */
 const isFiniteNumber = candidateValue =>
   typeof candidateValue == "number" && Number.isFinite(candidateValue);
@@ -26,7 +28,7 @@ const asValidMapPoint = pointCandidate =>
  * 三步：三点标定重心插值 → 地图像素坐标；像素按图尺寸归一化到 [-0.5, 0.5] 再乘地图宽 / 深，
  * 得到以地图中心（即户型原点）为原点的局部坐标；按 mapConfig 的旋转角与偏移落到楼层坐标系。
  */
-export function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapConfig) {
+function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapConfig) {
   // 边界校验一次做全：缺任何一项都无法换算，早退比中途出 NaN 更好排查。
   if (
     !asValidMapPoint(mapPoint) ||
@@ -86,7 +88,7 @@ export function vacuumMapPoint(mapPoint, calibrationPoints, mapPixelSize, mapCon
 /**
  * 计算扫地机当前的位姿（位置 + 朝向 + 状态）。
  */
-export function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) {
+function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) {
   // 绑定了「上游共享地图」却没有解析出可用的地图绑定时，说明这张地图由别的绑定负责渲染，
   // 这条绑定就不再画第二台机器，避免同一台扫地机出现两份模型。
   if (
@@ -183,7 +185,7 @@ export function vacuumTelemetry(vacuumBinding, statesByEntityId, mapResolution) 
   };
 }
 /** 扫地机台词表，按当前行为分组；语料是固定的产品文案，改动即改变用户看到的措辞。 */
-export const VACUUM_CHAT = {
+const VACUUM_CHAT = {
   working: [
     "我真勤快！",
     "主人真懒，还好有我。",
@@ -687,7 +689,9 @@ export function createVacuumFollowCamera(threeNamespace) {
    * 收集「可能挡住视线」的网格（家具）。
    */
   function collectOccluders(occluderContext, occlusionItem) {
-    const occluderKey = JSON.stringify([occlusionItem.floorId, occlusionItem.modelId]);
+    // 与全仓其它「楼层 + 模型」键同一套归一（见 core/scene-model-key.js）：裸 JSON 会把缺失的
+    // 楼层编成 null、空串编成 ""，同一个跟随对象会以为自己换了两次，白白重建一次遮挡列表。
+    const occluderKey = sceneModelKey(occlusionItem.floorId, occlusionItem.modelId);
     if (
       cachedModelRoot !== occluderContext.modelRoot ||
       cachedSceneRevision !== occluderContext.sceneRevision ||

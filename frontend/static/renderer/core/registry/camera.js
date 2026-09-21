@@ -7,14 +7,14 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=20260921142240";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=20260921151446";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../../utils/debug-log.js?v=20260921142240";
+import { debugLog } from "../../../utils/debug-log.js?v=20260921151446";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   resolveColor
-} from "./registry-visuals.js?v=20260921142240";
+} from "./registry-visuals.js?v=20260921151446";
 
 /**
  * 取摄像头圆形裁剪的半径比例。
@@ -528,6 +528,7 @@ export function mountCameraMedia({
         );
         hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, () => {
           mediaContainer.dataset.cameraState = "manifest-parsed";
+          // 自动播放被浏览器策略拦下是预期结果（要等用户交互），不该冒出未处理的拒绝。
           cameraVideoElement.play().catch(() => {});
         });
         hlsInstance.on(window.Hls.Events.ERROR, (hlsEventName, hlsEventData) => {
@@ -573,6 +574,7 @@ export function mountCameraMedia({
         hlsInstance.attachMedia(cameraVideoElement);
       } else {
         cameraVideoElement.src = hlsSourceUrl;
+        // 自动播放被浏览器策略拦下是预期结果（要等用户交互），不该冒出未处理的拒绝。
         cameraVideoElement.play().catch(() => {});
       }
     } catch (hlsError) {

@@ -39,6 +39,14 @@ runtime_router = APIRouter(tags=['runtime'])
 MAX_RUNTIME_ENTITIES = 1000
 # 中控配对状态的缓存窗口（秒）。展示页的心跳是秒级的，不缓存就等于每秒查一次库。
 DISPLAY_BINDING_CACHE_SECONDS = 1
+#: `/ha/test` 的尝试预算 (max_failures, window_seconds, block_seconds)。
+#: 这个端点让**服务端**按请求里给的地址与 Token 发一次出网请求（TCP + TLS + 认证握手），
+#: 是内网任意地址的探测器。此前只有「管理员 + 授权允许 api」两道门禁、不限次数：
+#: 拿着管理员会话就能把它当端口扫描器用，或者单纯用它把家宽出口打满。
+HA_TEST_LIMIT = (20, 60, 120)
+#: 键空间上限：键是账号 id，外部造不出来；仍用带键上限的计数器，与其它键来自外部的
+#: 计数器保持同一套纪律。
+HA_TEST_KEYS = 1024
 # 服务调用白名单：键为 (domain, service)，值为允许透传的参数名（空集表示不接受参数）。
 # 只有列在这里的组合才能被前端调用，多传的参数会被拒绝 —— 前端被篡改也无法把 HA 任意服务当远程执行入口。
 ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
@@ -62,6 +70,9 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
     ('climate', 'set_fan_mode'): {'fan_mode'},
     ('climate', 'set_swing_mode'): {'swing_mode'},
     ('climate', 'set_preset_mode'): {'preset_mode'},
+    # 3D 面板在「没有可恢复模式」时发它，让设备自己回到默认模式（见
+    # modules/interaction3d/climate.py 的 CLIMATE_SERVICES 说明）。参数为空集。
+    ('climate', 'turn_on'): set(),
     ('water_heater', 'turn_on'): set(),
     ('water_heater', 'turn_off'): set(),
     ('water_heater', 'set_temperature'): {'temperature'},
@@ -274,6 +285,17 @@ async def test_connection(payload: HATestRequest, request: Request, user: Licens
     422 表示 HA 不可达、Token 无效或 TLS 校验失败，detail 为中文文案。
     """
     require_admin(user)
+    # 限流键用账号 id：本端点要求管理员，而它唯一能被滥用的方式就是「同一个管理员反复点」——
+    # 无论是猜内网端口还是试 Token，都记在同一个人头上。成功不重置：试连没有「成功」
+    # 这一说（对方在线与否与请求是否合规无关），重置等于给出一个免费的探测额度。
+    limiter = request.app.state.ha_test_limiter
+    remaining = limiter.retry_after(user.id)
+    if remaining > 0:
+        raise HTTPException(
+            status_code = status.HTTP_429_TOO_MANY_REQUESTS,
+            detail = f'试连过于频繁，请 {remaining} 秒后再试。',
+            headers = {'Retry-After': str(remaining)})
+    limiter.record_failure(user.id)
     client = HAClient(
         payload.base_url,
         payload.access_token,

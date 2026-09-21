@@ -6,9 +6,9 @@
  * 颜色归一不在这里：它们是编辑器、3D 工作室与渲染器共用的契约，唯一实现在 utils/numbers.js
  * 与 utils/colors.js。
  */
-import { randomUuid } from "../utils/random-id.js?v=20260921124622";
-import { clampNumber } from "../utils/numbers.js?v=20260921124622";
-import { hexColorOrEmpty } from "../utils/colors.js?v=20260921124622";
+import { randomUuid } from "../utils/random-id.js?v=20260921151446";
+import { clampNumber } from "../utils/numbers.js?v=20260921151446";
+import { hexToRgbOrNull } from "../utils/colors.js?v=20260921151446";
 
 /**
  * 深拷贝一个值。
@@ -41,15 +41,12 @@ export function slugify(text) {
 }
 
 /**
- * HEX 转 RGB。
+ * HEX 转 RGB；非法输入兜底黑色 —— 编辑器要用它把颜色画出来，拿到 `undefined` 会直接崩在渲染里。
+ * 解析（含三位缩写展开、可省略 `#`）归 utils/colors.js 的 `hexToRgbOrNull`（唯一实现），
+ * 这里只定「非法时用什么」这一件事。
  */
 export function hexToRgb(hexColorInput) {
-  const normalizedColor = hexColorOrEmpty(hexColorInput) || "#000000";
-  return {
-    r: Number.parseInt(normalizedColor.slice(1, 3), 16),
-    g: Number.parseInt(normalizedColor.slice(3, 5), 16),
-    b: Number.parseInt(normalizedColor.slice(5, 7), 16)
-  };
+  return hexToRgbOrNull(hexColorInput) || { r: 0, g: 0, b: 0 };
 }
 
 /**

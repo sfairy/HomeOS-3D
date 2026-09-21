@@ -11,9 +11,8 @@
 不通过就整个请求 422，不做部分保留（半张配色表会让界面「大部分对、某一处不对」，
 比完全没配色更难排查）。
 
-``tools/smoke_appearance.mjs`` 会读本文件的 ``_TOKEN_NAME`` 正则，断言它能接住
-``design/scene/appearance.js`` 产出的每一枚令牌名 —— 两份副本里唯一会走散的
-就是这条正则，所以护栏直接盯它。
+本文件的 ``_TOKEN_NAME`` 正则必须与 ``design/scene/appearance.js`` 的 ``tokenNames()``
+保持一致 —— 两份副本里唯一会走散的就是这条正则，改动其一时请手工核对另一份。
 """
 from __future__ import annotations
 

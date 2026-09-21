@@ -68,54 +68,9 @@ export function effectFadeDuration(effectComponent) {
   }
 }
 /**
- * 计算特效图层应该使用的尺寸。
- * 优先级：fill 铺满宿主 → 组件缓存的原图尺寸 → 图片可读到的原始尺寸（dataset 优先于
- * naturalWidth，后者懒加载时可能为 0）→ 按百分比给临时尺寸并置 pendingNaturalSize，load 后重算。
- */
-export function effectLayerDimensions(
-  layerComponent,
-  layerImageElement,
-  layerFallbackWidth,
-  layerFallbackHeight
-) {
-  if (layerComponent?.effectLayoutMode === "fill") {
-    return {
-      width: layerFallbackWidth,
-      height: layerFallbackHeight,
-      pendingNaturalSize: false
-    };
-  }
-  const declaredWidth = Number(layerComponent?.effectNaturalWidth || 0);
-  const declaredHeight = Number(layerComponent?.effectNaturalHeight || 0);
-  const layerOriginalWidth = Number(
-    layerImageElement?.dataset?.effectOriginalWidth || layerImageElement?.naturalWidth || 0
-  );
-  const layerOriginalHeight = Number(
-    layerImageElement?.dataset?.effectOriginalHeight || layerImageElement?.naturalHeight || 0
-  );
-  const resolvedWidth = declaredWidth > 0 ? declaredWidth : layerOriginalWidth;
-  const resolvedHeight = declaredHeight > 0 ? declaredHeight : layerOriginalHeight;
-  if (resolvedWidth > 0 && resolvedHeight > 0) {
-    return {
-      width: resolvedWidth,
-      height: resolvedHeight,
-      pendingNaturalSize: false
-    };
-  } else {
-    // 0.001% 的下限防止百分比为 0 时尺寸塌成 0，导致后续按尺寸做的比例换算全部除零。
-    return {
-      width:
-        (layerFallbackWidth * Math.max(0.001, Number(layerComponent?.effectWidth ?? 100))) / 100,
-      height:
-        (layerFallbackHeight * Math.max(0.001, Number(layerComponent?.effectHeight ?? 100))) / 100,
-      pendingNaturalSize: true
-    };
-  }
-}
-/**
  * 计算被裁剪源图的原始尺寸。
- * 与 effectLayerDimensions 同构，但多一层兜底：先看组件缓存的原始尺寸，再看图片元素
- * dataset 里的记录，最后才用元素的 naturalWidth / naturalHeight。
+ * 兜底顺序：先看组件缓存的原始尺寸，再看图片元素 dataset 里的记录，
+ * 最后才用元素的 naturalWidth / naturalHeight。
  */
 export function effectSourceDimensions(
   sourceComponent,

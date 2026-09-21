@@ -5,11 +5,11 @@
  * 约定：需要先有 3D 户型（component.properties.sceneId）且灯光为 region 模式，否则直接抛中文错误；
  * 打开期间派发 hb-i3d-preview-scope 事件，通知页面其它部分暂时收起自己的 3D 预览，避免两处同时渲染。
  */
-import { mountInteraction3d } from "../core/runtime.js?v=20260921142240";
+import { mountInteraction3d } from "../core/runtime.js?v=20260921151446";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=20260921142240";
+} from "/static/bridge/bridge.js?v=20260921151446";
 /**
  * 打开照射范围编辑弹窗。
  *
@@ -44,7 +44,7 @@ export async function openInteraction3dRangeEditor({
   };
   const stylesheetLink = createElement("link");
   stylesheetLink.rel = "stylesheet";
-  stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=20260921142240";
+  stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=20260921151446";
   document.head.append(stylesheetLink);
   // 复用编辑器与运行时样式，因此类名沿用 i3d-editor。
   const dialogElement = createElement("dialog", "i3d-editor i3d-range-dialog");
@@ -96,6 +96,7 @@ export async function openInteraction3dRangeEditor({
     rejectReady = reject;
   });
   // 立刻挂一个空 catch：调用方可能根本不 await ready，避免产生未处理的 Promise 拒绝。
+  // ready 由调用方 await；这里先挂一个空处理，避免没人 await 时冒出未处理的拒绝。
   readyPromise.catch(() => {});
   /** 关闭弹窗并清理所有副作用；幂等，重复调用无效果。 */
   function close() {

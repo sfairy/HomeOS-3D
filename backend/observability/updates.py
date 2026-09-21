@@ -149,6 +149,7 @@ class UpdateChecker:
         """取消后台任务并等它真正退出，避免关闭时留下悬挂任务。"""
         if self.task is not None:
             self.task.cancel()
+            # cancel() 之后 await 抛 CancelledError 正是要等的结果（任务已退场），不是错误。
             try:
                 await self.task
             except asyncio.CancelledError:
@@ -173,6 +174,7 @@ class UpdateChecker:
                 timeout=5, transport=self.transport, follow_redirects=False
             ) as client:
                 for endpoint in self.endpoints:
+                    # 这一轮取发布信息失败（网络异常 / 结构不符）：跳过，等下一个检查周期。
                     try:
                         async with client.stream(
                             "GET",

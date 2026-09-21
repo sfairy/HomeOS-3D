@@ -44,7 +44,7 @@ function collectComponentsByIds(documentTree, wantedComponentIds) {
  * 列出可作为复制目标的页面：源组件在共享区时全部页面入选；属于某页面时排除它自己所在的页，
  * 避免同页重复。
  */
-export function copyComponentTargetPages(originDocument, copiedComponentId) {
+function copyComponentTargetPages(originDocument, copiedComponentId) {
   const locatedTarget = locateComponentWithScope(originDocument, copiedComponentId);
   // 源组件在共享区时所有页面都可作为目标；否则排除它自己所在的页面。
   return locatedTarget

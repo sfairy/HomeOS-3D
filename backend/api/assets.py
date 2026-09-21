@@ -172,6 +172,7 @@ def directory_bytes(directory: Path) -> int:
     """
     total = 0
     for path in directory.rglob('*'):
+        # 条目在遍历途中被删 / 无权限：跳过它，不因一个文件中断整次统计。
         try:
             if path.is_file():
                 total += path.stat().st_size
@@ -187,6 +188,7 @@ def directory_holds_asset(directory: Path) -> bool:
     松，只要任一层还有图片文件就算有素材，避免因历史遗留的异常目录删掉用户的图。
     """
     for path in directory.rglob('*'):
+        # 单个条目探测失败不改变「目录里是否有图片」的结论，继续看下一个。
         try:
             if path.is_file() and not path.name.startswith('.') and path.suffix.lower() in UPLOAD_IMAGE_SUFFIXES:
                 return True
@@ -205,10 +207,12 @@ def _discard_variant_files(variant_path: Path | None) -> int:
         return 0
     released = 0
     for path in (variant_path, variant_path.with_suffix('.json')):
+        # 变体文件或其元数据缺失：这个变体不计入，继续下一个。
         try:
             size = path.stat().st_size
         except OSError:
             continue
+        # 删不掉（占用 / 权限）也继续：清理是尽力而为，剩下的下次再处理。
         try:
             path.unlink()
         except OSError:
@@ -673,6 +677,7 @@ class AssetCatalog:
                 path = user_asset_file(self.user_root, directory.name)
                 if path is None:
                     continue
+                # 单个资源构建负载失败（文件被删 / 读不了）：跳过它，其余资源照常列出。
                 try:
                     payload = user_asset_payload(self.user_root, directory.name, path)
                     self._attach_effect_variant(payload, path)
@@ -688,6 +693,7 @@ class AssetCatalog:
                     for path in folder.iterdir():
                         if not path.is_file() or path.name.startswith('.') or path.suffix.lower() not in frozenset({'.png', '.webp'}):
                             continue
+                        # 同上：单个导出文件读不了就跳过，不影响同目录其它导出。
                         try:
                             payload = studio3d_export_payload(folder.name, path, export_roles.get(path.name, ''), export_order.get(path.name))
                         except OSError:
@@ -924,6 +930,7 @@ def sweep_user_asset_storage(
             if entry.is_dir():
                 shutil.rmtree(entry, ignore_errors = True)
             else:
+                # 单个文件删不掉就留着，不因此中断整轮清理（与 rmtree 的 ignore_errors 同款取舍）。
                 try:
                     entry.unlink()
                 except OSError:
@@ -941,6 +948,7 @@ def sweep_user_asset_storage(
             if path.stem in active_variant_keys:
                 stats['kept'] += 1
                 continue
+            # 条目已消失：判不了年龄就不纳入本次回收，继续下一个。
             try:
                 info = path.stat()
             except OSError:
@@ -1259,6 +1267,7 @@ def delete_user_asset(asset_id: str, request: Request, database: DatabaseSession
         # 变体路径记录只在目录里，摘掉条目后就再也查不到，两件事必须在同一动作里完成。
         path.unlink()
         catalog.remove_user(full_asset_id)
+        # 目录非空 / 权限不足时留着即可：这只是顺手清理，不是这一步的目的。
         try:
             path.parent.rmdir()
         except OSError:

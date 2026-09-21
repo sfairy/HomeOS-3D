@@ -8,13 +8,14 @@
  * 滚轮在地图上缩放地图（1.08 步进）、否则缩放视图（1.12 步进）；双指捏合缩放地图。重绘无脏标记与 rAF，
  * 改动同步调用 renderEditor()（节点极少、交互低频，异步批处理只会增加不一致风险）。
  */
-import { mapCorners, mapSource } from "./vacuum-map.js?v=20260921124622";
+import { mapCorners, mapSource } from "./vacuum-map.js?v=20260921151446";
+import { capturePointer } from "/static/utils/pointer-capture.js?v=20260921151446";
 /**
  * 从户型平面数据里挑出可当参照物的家具，并把尺寸换算到像素尺度：灯具、摄像头、人体存在传感器、
  * 地面开洞、文字标签一律排除（不在落地层或只是标注），缺合法坐标或宽高非正的也丢掉。
  * 尺寸乘以 plan.pixelsPerMeter，非法时退化为 1，避免整块平面被乘成 0 而看不见。
  */
-export function planFurniture(plan = {}) {
+function planFurniture(plan = {}) {
   // pixelsPerMeter 缺失或非正时退化为 1：宁可比例不准，也不能让整张平面缩成 0。
   const pixelsPerMeter = Number(plan.pixelsPerMeter) > 0 ? Number(plan.pixelsPerMeter) : 1;
   // 这些类型不落地或本身就是开洞/标注，不能当参照物。
@@ -127,6 +128,11 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
   statusElement.setAttribute("role", "status");
   // 关闭标记：ResizeObserver 回调靠它判断自己是否还在有效生命周期内。
   let isClosed = false;
+  // 尺寸观察器。必须在这里先声明：closeEditor 定义在下方、却要 disconnect 它，
+  // 而观察器本身是在弹窗挂上页面之后才创建的 —— 用 const 声明在 680 行之后，
+  // closeEditor 一旦在创建之前被调用（提前退出、创建过程中同步抛错）就会踩到
+  // 暂时性死区抛 ReferenceError，且那时 isClosed 已被置位，弹窗再也没法关掉。
+  let resizeObserver = null;
   // 指针交互状态：同一时刻只可能是「拖动/平移」或「捏合」其中之一。
   let dragState = null;
   /**
@@ -136,7 +142,8 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
     // 只关一次：断开观察器、关闭 dialog、移除节点，避免残留节点与观察者。
     if (!isClosed) {
       isClosed = true;
-      resizeObserver.disconnect();
+      // 可能还没创建（弹窗挂上页面前就退出）：用可选调用，别让关闭流程自己抛错。
+      resizeObserver?.disconnect();
       dialogElement.close();
       dialogElement.remove();
     }
@@ -681,7 +688,7 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
         depth: draftState.map.depth
       };
       dragState = null;
-      svgElement.setPointerCapture(downEvent.pointerId);
+      capturePointer(svgElement, downEvent.pointerId);
       return;
     }
     // data-drag 决定拖动语义：map / corner:<角点序号> / rotate，未命中则退化为平移视图。
@@ -704,7 +711,7 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
         }
       };
       // 捕获指针：手指/鼠标移出 SVG 边界后仍能继续收到 move 事件，拖动不会中途断掉。
-      svgElement.setPointerCapture(downEvent.pointerId);
+      capturePointer(svgElement, downEvent.pointerId);
     }
   });
   svgElement.addEventListener("pointermove", moveEvent => {
@@ -816,7 +823,7 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
     });
   }
   // 面板尺寸变化会改变 getScreenCTM()，必须重绘才能让手柄与标签维持视觉大小。
-  const resizeObserver = new ResizeObserver(() => {
+  resizeObserver = new ResizeObserver(() => {
     if (!isClosed) {
       renderEditor();
     }

@@ -27,7 +27,7 @@ from ..observability.global_log import GlobalLogStore
 from ..core.models import LicenseState
 from ..core.time_utils import ensure_aware
 from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
-from .endpoints import LICENSE_RETRY_SECONDS, LicenseEndpointPool
+from .endpoints import LicenseEndpointPool
 from .hardware import hardware_instance_id
 from .process_lock import LicenseProcessLock
 from .trust import verify_license_trust_anchors

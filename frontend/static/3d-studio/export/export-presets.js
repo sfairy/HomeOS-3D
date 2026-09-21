@@ -5,7 +5,7 @@
  * 约定：预设内部版本固定写 1；尺寸单位为像素，楼层间距单位为米；字段名与前端 JSON 的 camelCase 对齐。
  * 纯函数，不做持久化。
  */
-import { clampNumber } from "../../utils/numbers.js?v=20260921124622";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=20260921151446";
 
 // 最多 8 个预设槽；上限与导出面板的按钮禁用条件绑定。
 export const MAX_EXPORT_PRESET_COUNT = 8;
@@ -23,25 +23,13 @@ const VALID_SELECTED_FILE_KEYS = new Set([
 ]);
 
 /**
- * 转成有限数字，失败时返回兜底值。
- */
-function toFiniteNumber(value, fallback = 0) {
-  const numericValue = Number(value);
-  if (Number.isFinite(numericValue)) {
-    return numericValue;
-  } else {
-    return fallback;
-  }
-}
-
-/**
  * 归一化一个三维向量（相机位置 / 注视点）。
  */
 function normalizeVector3(source, defaults = {}) {
   return {
-    x: toFiniteNumber(source?.x, defaults.x),
-    y: toFiniteNumber(source?.y, defaults.y),
-    z: toFiniteNumber(source?.z, defaults.z)
+    x: coercedFiniteNumberOr(source?.x, defaults.x),
+    y: coercedFiniteNumberOr(source?.y, defaults.y),
+    z: coercedFiniteNumberOr(source?.z, defaults.z)
   };
 }
 
@@ -80,7 +68,7 @@ function normalizePresetCamera(camera) {
     view: cameraView,
     // 顶视图旋转吸附到 90° 的整数倍并归一到 [0, 360)，保证预设间可稳定比较。
     topRotation:
-      (((Math.round(toFiniteNumber(camera?.topRotation, 0) / 90) * 90) % 360) + 360) % 360,
+      (((Math.round(coercedFiniteNumberOr(camera?.topRotation, 0) / 90) * 90) % 360) + 360) % 360,
     position: normalizeVector3(camera?.position, {
       x: 7,
       y: 7,
@@ -92,12 +80,12 @@ function normalizePresetCamera(camera) {
       z: 0
     }),
     // 视口高度 0.1~1000 米；相机距离较远时可到数百米，下限留出近景剖面视图。
-    visibleHeight: clampNumber(toFiniteNumber(camera?.visibleHeight, 10), 0.1, 1000),
+    visibleHeight: clampNumber(coercedFiniteNumberOr(camera?.visibleHeight, 10), 0.1, 1000),
     // 视场角 5°~120°，超出这个范围会产生透视畸变或近似正交。
-    fov: clampNumber(toFiniteNumber(camera?.fov, 36), 5, 120),
+    fov: clampNumber(coercedFiniteNumberOr(camera?.fov, 36), 5, 120),
     focalLength:
       cameraMode === "perspective"
-        ? clampNumber(toFiniteNumber(camera?.focalLength, 50), 18, 120)
+        ? clampNumber(coercedFiniteNumberOr(camera?.focalLength, 50), 18, 120)
         : null
   };
 }
@@ -110,9 +98,9 @@ export function normalizeExportPreset(rawPreset) {
     return null;
   }
   // 默认 1852×1293 对应 2 倍 DPI 的常见大屏比例；宽高都限制在 320~4096 像素。
-  const normalizedWidth = Math.round(clampNumber(toFiniteNumber(rawPreset.width, 1852), 320, 4096));
+  const normalizedWidth = Math.round(clampNumber(coercedFiniteNumberOr(rawPreset.width, 1852), 320, 4096));
   const normalizedHeight = Math.round(
-    clampNumber(toFiniteNumber(rawPreset.height, 1293), 320, 4096)
+    clampNumber(coercedFiniteNumberOr(rawPreset.height, 1293), 320, 4096)
   );
   return {
     version: 1,
@@ -128,7 +116,7 @@ export function normalizeExportPreset(rawPreset) {
     floorMode: rawPreset.floorMode === "all" ? "all" : "floor",
     floorId: String(rawPreset.floorId || "").slice(0, 180),
     // 楼层间距 0~20 米，决定全楼导出时刻意拉开的层间空隙。
-    floorGap: clampNumber(toFiniteNumber(rawPreset.floorGap, 3), 0, 20),
+    floorGap: clampNumber(coercedFiniteNumberOr(rawPreset.floorGap, 3), 0, 20),
     camera: normalizePresetCamera(rawPreset.camera),
     folderName: String(rawPreset.folderName || "").slice(0, 60),
     selectedFiles: normalizeSelectedFiles(rawPreset.selectedFiles)

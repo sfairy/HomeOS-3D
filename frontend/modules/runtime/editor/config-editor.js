@@ -8,31 +8,32 @@
  * 字段约定：草稿与后端下发的 component.properties 完全一致（camelCase），本模块只收集、不做兜底。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260921142240";
-import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=20260921142240";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260921142240";
-import { mountInteraction3d } from "../core/runtime.js?v=20260921142240";
-import { lightState } from "../light/light-state.js?v=20260921142240";
-import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=20260921142240";
-import { nasGroups } from "../nas/nas-panel.js?v=20260921142240";
-import { randomUuid } from "/static/utils/random-id.js?v=20260921142240";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260921142240";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260921151446";
+import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=20260921151446";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260921151446";
+import { mountInteraction3d } from "../core/runtime.js?v=20260921151446";
+import { lightState } from "../light/light-state.js?v=20260921151446";
+import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=20260921151446";
+import { nasGroups } from "../nas/nas-panel.js?v=20260921151446";
+import { randomUuid } from "/static/utils/random-id.js?v=20260921151446";
+import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260921151446";
+import { capturePointer } from "/static/utils/pointer-capture.js?v=20260921151446";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=20260921142240";
-import { normalizeInteraction3dLightingMode } from "/static/bridge/definition.js?v=20260921142240";
+} from "/static/bridge/bridge.js?v=20260921151446";
+import { normalizeInteraction3dLightingMode } from "/static/bridge/definition.js?v=20260921151446";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "/static/3d-studio/loaders/studio-normalization.js?v=20260921142240";
+} from "/static/3d-studio/loaders/studio-normalization.js?v=20260921151446";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=20260921142240";
-import { confirmAction } from "/static/shared/ui-confirm.js?v=20260921142240";
+} from "../core/editor-save-status.js?v=20260921151446";
+import { confirmAction } from "/static/shared/ui-confirm.js?v=20260921151446";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
@@ -188,7 +189,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=20260921142240";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=20260921151446";
   document.head.append(styleSheetLinkElement);
   // 建元素小工具，文本一律走 textContent，不拼 HTML。
   const createElement = (tagName, classNames, initialText) => {
@@ -3646,7 +3647,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=20260921142240";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=20260921151446";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   // 与上面带类名的 createElement 区分开，避免传一堆空字符串。
@@ -3696,7 +3697,7 @@ export async function openInteraction3dAppearanceEditor({
       left: dragStartRect.left,
       top: dragStartRect.top
     };
-    appearanceHeaderElement.setPointerCapture(pointerDownEvent.pointerId);
+    capturePointer(appearanceHeaderElement, pointerDownEvent.pointerId);
   });
   appearanceHeaderElement.addEventListener("pointermove", pointerMoveEvent => {
     if (!!dragState && dragState.id === pointerMoveEvent.pointerId) {

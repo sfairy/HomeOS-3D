@@ -4,13 +4,17 @@
  * 平面 y 轴对应三维世界 z 轴；本文件不做三维变换、也不感知楼层堆叠（平移与旋转由 studio-app.js 负责）。
  * 容差统一用 1e-7：平面坐标量级约 1e-1~1e4 像素、double 相对舍入误差约 1e-12，它作「同一点 / 零长度 / 平行」的判定阈值；随尺度缩放的判定（共线、端点归类、正交容差）在函数内另行派生。
  */
+// 夹取实现在 utils/numbers.js（唯一实现），这里保留 clamp 这个名字对外 —— studio-app.js 等已按此名导入。
+// 必须用 import + 本地 export，不能写成 `export { clampNumber as clamp } from ...`：
+// 纯 re-export 只对外暴露名字、不在本模块作用域建绑定，下面这些函数里的 clamp(...) 会直接 ReferenceError。
+import { clampNumber } from "../../utils/numbers.js?v=20260921151446";
+
 /**
  * 把数值夹到 [lowerBound, upperBound] 闭区间内。
- * clamp 不做 NaN 兜底（NaN 原样传出），调用方须先用 `Number(x) || 默认值` 等把脏值换掉。
+ * 不做 NaN 兜底（NaN 原样传出），调用方须先用 `Number(x) || 默认值` 等把脏值换掉。
  */
-export function clamp(value, lowerBound, upperBound) {
-  return Math.min(upperBound, Math.max(lowerBound, value));
-}
+export const clamp = clampNumber;
+
 /**
  * 把 0~1 的亮度输入映射成聚光灯的渲染强度响应。
  * 平方曲线（gamma≈2）贴近人眼对亮度的非线性感知：低亮度段压得更低、高亮度段才拉开差距。
@@ -1662,7 +1666,7 @@ export function subtractPolygonLoops(baseLoops, holeLoops, loopTolerance = 0.000
  * 流程：过滤退化轮廓 / 零长边 → 求自交点与共线重叠并按 t 切子段 → 用中点探针只留「一侧在并集内、另一侧在外」
  * 的边界边 → 按「转向最大」游走成环再 simplifyPolygon 清理；顶点先按 epsilon × 8 网格吸附成同一图节点（否则游走会因浮点误差断链），requireCompleteWalks 时任一环未闭合即整体返回空数组。
  */
-export function unionPolygonLoops(
+function unionPolygonLoops(
   loops,
   loopMergeTolerance = 0.000001,
   holesToSubtract = [],

@@ -9,7 +9,7 @@
 /**
  * 从素材列表里收集去重后的文件夹名，并按中文排序。
  */
-export function editorAssetFolders(assetList) {
+function editorAssetFolders(assetList) {
   return [...new Set((assetList || []).map(assetEntry => assetEntry.folder).filter(Boolean))].sort(
     (rightFolderName, leftFolderName) => rightFolderName.localeCompare(leftFolderName, "zh-CN")
   );

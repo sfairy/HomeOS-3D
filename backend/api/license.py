@@ -21,6 +21,14 @@ router = APIRouter(prefix='/license', tags=['license'])
 # 其余错误码一律按可重试处理 —— 网络抖动、5xx 都属于「等一会儿再来」。
 RETRY_TERMINAL_CODES = frozenset({'LICENSE_REAUTH_REQUIRED', 'LICENSE_RETRY_THROTTLED'})
 
+#: 激活尝试的失败预算 (max_failures, window_seconds, block_seconds)。
+#: 没有它时 `/license/activate` 是一个**无限次**的激活码猜测端点：每次尝试都会打到授权
+#: 服务器上（用户可控的激活码就是被猜的密文），既不设防也把上游当成了免费的尝试放大器。
+LICENSE_ACTIVATION_LIMIT = (10, 900, 900)
+#: 键空间上限：键是账号 id（库内自生成、外部造不出来），但仍按带键上限的计数器记账，
+#: 与配对的 6 位码同一套理由 —— 将来若有别的键来源，不至于变成内存放大路径。
+LICENSE_ACTIVATION_KEYS = 1024
+
 
 @router.get('/status')
 async def license_status(request: Request, _user: CurrentUser) -> dict:
@@ -37,18 +45,35 @@ async def license_status(request: Request, _user: CurrentUser) -> dict:
 
 
 @router.post('/activate')
-async def activate_license(payload: LicenseActivateRequest, request: Request, _user: CurrentUser) -> dict:
+async def activate_license(payload: LicenseActivateRequest, request: Request, user: CurrentUser) -> dict:
     """用激活码激活授权（需已登录）。
 
     请求体: activation_code（激活码）与 email（可选的绑定邮箱）。
 
     成功返回授权模块的激活结果字典；激活被服务端拒绝时抛 422，
     detail 直接使用底层返回的中文错误文案。
+
+    按**账号**限流（不按来源 IP）：本接口要求已登录，攻击者通常握着一个会话，换出口地址
+    就能把按 IP 的计数重置；而被他反复消耗的额度属于同一个账号。失败与走不通的网络错误
+    都计数 —— 后者顺带挡住「上游故障时用重试按钮把它打成雪崩」，代价是故障期间连点
+    十次会被自己锁 15 分钟。
     """
+    limiter = request.app.state.license_activation_limiter
+    key = user.id
+    remaining = limiter.retry_after(key)
+    if remaining > 0:
+        raise HTTPException(
+            status_code = status.HTTP_429_TOO_MANY_REQUESTS,
+            detail = f'激活尝试过于频繁，请 {remaining} 秒后再试。',
+            headers = {'Retry-After': str(remaining)})
     try:
-        return await request.app.state.license_service.activate(payload.activation_code, payload.email)
+        result = await request.app.state.license_service.activate(payload.activation_code, payload.email)
     except LicenseClientError as error:
+        limiter.record_failure(key)
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)) from error
+    # 成功即清账：换到一个有效激活码之后再想试别的，不该背着之前猜错的次数。
+    limiter.reset(key)
+    return result
 
 
 @router.post('/reactivate')

@@ -8,10 +8,10 @@
  * 约定：文档模型沿用 components / sharedComponents / sharedComponentIds，与 /api/projects 下发的 JSON 一致。
  */
 
-import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=20260921142240";
-import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=20260921142240";
+import { selectedRelatedEntityIds } from "../../shared/related-entities.js?v=20260921151446";
+import { isVirtualEntityId } from "../../shared/virtual-entities.js?v=20260921151446";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=20260921142240";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=20260921151446";
 /**
  * 判断状态是否需要从后端补历史 / 详情。
  * 空串、unknown、unavailable 都属于「前端拿不到有效读数」，需要触发一次补数据
@@ -108,7 +108,7 @@ export function collectComponents(inputComponents, predicate, matches = []) {
  * 查找顺序刻意「由近及远」：当前页 → 当前页挂载的共享组件 → 其它页 → 全部共享组件。
  * 同一实体可能在多个页面都有图表，取最近的一个做属性来源，当前页看到的样式才符合直觉。
  */
-export function matchingLineChartComponent(documentModel, page, entityId) {
+function matchingLineChartComponent(documentModel, page, entityId) {
   // 判定组件是否为「绑定了目标实体」的折线图：类型与 entityId 都要匹配。它是纯判定
   // 无副作用，所以能直接当 collectComponents 的 predicate 复用多次，对应下面
   // 「当前页 → 共享组件 → 其它页 → 全部共享组件」由近及远的查找顺序。

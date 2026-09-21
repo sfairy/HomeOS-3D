@@ -9,12 +9,14 @@
  * 按需驱动，每帧最多每 50ms 请求一次重绘，返回 Infinity 时舞台退出循环；主题名不下发后端、不落库。
  */
 
-import { createBackgroundTheme } from "./background-theme.js?v=20260921142240";
+import { createBackgroundTheme } from "./background-theme.js?v=20260921151446";
+// 「减少动态效果」偏好的唯一判定。
+import { prefersReducedMotionNow } from "./motion-preference.js?v=20260921151446";
 /**
  * 求「背景锚点」：某层楼在展示坐标系里的平面中心，再往下压 0.203 米，供暖阳「阳光」打光。
  * 平面中心取该层所有墙端点的包围盒中心，无墙或坐标非有限时退化为原点；结果按 scene 对象缓存。
  */
-export function backgroundFloorAnchor(
+function backgroundFloorAnchor(
   stageOptions,
   anchorCache = new WeakMap(),
   floorRef = stageOptions.backgroundFloor
@@ -119,8 +121,7 @@ export function createSceneBackground(stageOptions, requestFrame = () => {}) {
   let lastWarmFrameMs = -Infinity;
   let lastCameraPosition = null;
   // 用户在系统里要求「减少动态效果」时完全停掉暖阳的帧循环：画面停在一帧静态构图上。
-  const prefersReducedMotion =
-    globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  const prefersReducedMotion = prefersReducedMotionNow();
   /** 惰性创建全屏暖阳背景（只在第一次进入暖阳主题时建一次）。 */
   function ensureWarmBackdrop() {
     if (warmBackdrop) {

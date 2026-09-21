@@ -6,14 +6,14 @@
  * null 表示「未配置过」，与「配置为空」区分。候选排序稳定：不可用项最后、再按域优先级、
  * 最后按实体 ID 字典序。
  */
-import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles.js?v=20260921142240";
-import { entityDomainOf } from "../utils/entities.js?v=20260921142240";
+import { resolveXiaomiDeviceProfile } from "../renderer/core/device-profiles.js?v=20260921151446";
+import { entityDomainOf } from "../utils/entities.js?v=20260921151446";
 
 // 显式勾选模式的标识值，与文档里 properties.relatedEntities.mode 对应。
-export const RELATED_ENTITY_MODE_SELECTED = "selected";
+const RELATED_ENTITY_MODE_SELECTED = "selected";
 
 // 各设备类型在界面上展示的名称。
-export const RELATED_POPUP_LABELS = Object.freeze({
+const RELATED_POPUP_LABELS = Object.freeze({
   "water-heater": "热水器",
   "air-purifier": "空气净化器",
   "bath-heater": "浴霸",
@@ -22,7 +22,7 @@ export const RELATED_POPUP_LABELS = Object.freeze({
 });
 
 // 每类设备最多可关联的功能数量；12 是单屏弹窗能排下的上限。
-export const RELATED_POPUP_SELECTION_LIMITS = Object.freeze({
+const RELATED_POPUP_SELECTION_LIMITS = Object.freeze({
   "water-heater": 12,
   "air-purifier": 12,
   "bath-heater": 12,

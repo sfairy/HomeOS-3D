@@ -12,7 +12,7 @@
  * 场景里不同子系统用了不同字段记录楼层（普通物件、区域光、环境特效、灯光缓存），
  * 这里按优先级依次尝试，任一命中即返回。
  */
-export function overviewFloorId(node) {
+function overviewFloorId(node) {
   for (let currentNode = node; currentNode; currentNode = currentNode.parent) {
     const resolvedFloorId =
       currentNode.userData?.floorId ||
@@ -31,7 +31,7 @@ export function overviewFloorId(node) {
  * three.js 渲染时会再乘一次 matrixWorldInverse，要得到「原投影 × 下移」的效果，矩阵末尾必须补一个
  * camera.matrixWorld；屏幕平移放在最左侧，故它是裁剪空间下的位移，与物体离相机的远近无关。
  */
-export function stackProjection(
+function stackProjection(
   THREE,
   camera,
   stackedHeight,

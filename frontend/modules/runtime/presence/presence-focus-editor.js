@@ -8,8 +8,8 @@
  * 打开 / 关闭时派发 hb-i3d-preview-scope 并给 dialog 打标记，让 runtime.js 挂起 / 恢复渲染；
  * 命令按队列串行执行，避免并发改相机导致回填顺序错乱。
  */
-import { mountInteraction3d } from "../core/runtime.js?v=20260921142240";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260921142240";
+import { mountInteraction3d } from "../core/runtime.js?v=20260921151446";
+import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260921151446";
 /**
  * 打开聚焦视角编辑弹窗（模态，无返回值句柄）。
  */

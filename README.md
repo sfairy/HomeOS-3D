@@ -742,6 +742,42 @@ ruff check .                                      # 未使用 import / 重复定
 
 更早的版本记录已随文档精简移除；项目按**首个发布版本**维护，不再保留历史版本的数据迁移说明。
 
+### v0.6.3
+
+**质量清理（这一版的主体）**
+
+- 零引用代码清零：无人引用的具名导出 168 处（含 `renderer.js` / `registry.js` 两个 barrel 中转的 89 处）、死函数 3 处、未使用导入 1 处；各树里只在本文件内使用的函数摘掉 `export`。护栏随之补上 allow-list 说明，避免为了「保持 API 面」把无人用的名字再堆回来。
+- 删除调试与测试残留：`studio-app.js` 三块自检钩子（245 行）、5 个无门禁调试参数与配套的诊断 / HUD 子系统（583 行）、4 个 smoke 脚本与孤儿 `tools/routes.snapshot.txt`、只写不读的帧统计钩子。
+- 重复实现逐族收敛到单一实现：`clamp` / `hexToRgb`（`frontend/static/utils/`）、数值换算（`utils/numbers.js`）、复合模型键（`modules/runtime/core/scene-model-key.js`）、`prefers-reduced-motion`（`core/motion-preference.js`）、401 / 403 处置（`utils/api-request.js`）、指针捕获（`utils/pointer-capture.js`）。HTML 转义此前应用侧**一份都没有** —— 83 处 `innerHTML` 全靠人工判断插值来源，唯一实现是 `studio-asset-palette.js` 里的私有副本；现在归入 `utils/html-escape.js`，转义集与商店侧 `htmlsafe.js` 由 `check_scene_sync.mjs` 逐字节比对（商店是另一个构建上下文、`/static` 根本挂不到，两边必须各留一份，但语义不能分叉：同一个值在两个页面显示成不同的东西比缺转义更难发现）。
+- 静默失败不再无从判断：指针捕获的 41 处调用此前分成「裸调 / `try{}catch{}` / `?.`」三种写法，且 12 个 `catch` 是空的 —— 现在收口成 `utils/pointer-capture.js`，把容忍的失败写在文件头；其余 JS 空 `catch`、`.catch(() => {})` 与 Python `except: pass` 逐处补上「为什么可以吞」。顺带修掉 `display.js` 一处被自动改写弄花的单飞表达式（多余括号 + 两条语句挤在一行）。
+- `window.__haBridge*` 全局改为 ESM 显式导入导出：跨树通信不再经全局对象，删掉一半时能由 import 图直接发现，而不是等到运行时才报 undefined。
+
+**3D 运行时修复**
+
+- `climate.turn_on` 的三层契约（服务名 / 允许列表 / 调用点）此前互相对不上，开空调会落进静默失败。
+- 释放路径加固：`pagehide` 关键释放前置兜错、两个 `window` 监听回收、`handleHostMessage` / `televisionPanel` / `nasPanel` 的释放守卫。
+- `didReplaceScene` 置位时机改到替换成功之后，回滚失败不再吞掉原始错误；`vacuum-map-editor` 的 `resizeObserver` TDZ 隐患。
+
+**安全**
+
+- 未鉴权入口补请求体上限：主应用与商店各一层（默认 1 MiB，流式请求放行）。此前未鉴权端点可以先让进程把请求体读进内存。
+- 商店首次初始化的「本机直连放行」补 `Host` 校验：只认本机地址还不够，伪造 `Host` 就能命中。
+- **匿名静态白名单闭环**：`/static/` 下未列名的文件一律 401，而 `auth/license.js`（未登录也要加载）所 import 的 `utils/api-request.js` 漏列 —— 未登录打开 `/license` 时那个 import 被挡下，ESM 图整页不执行：HTML 与样式都在，页面只是永远不活。已补齐，并新增护栏在改动时就拦住（见下）。
+
+**回归网（部分恢复）**
+
+- 新增 `.github/workflows/guards.yml`（push / PR 触发）与 `ruff.toml`；`check_structure_refs.mjs` 加三条「单例所有权」检查：`LICENSE_RESTRICTED` 字面量、`setPointerCapture` / `releasePointerCapture`、匿名模块图闭合。每条都用「把修好的东西弄坏一次、确认断言变红」验证过。
+- 口径仍然明确：**没有 e2e / 冒烟 / 探针**。护栏只覆盖静态可判定的事 —— 引用能否解析、清单与树是否一致、某个策略是否只有一个主人；行为正确性依旧要靠人工走关键路径。
+
+**文档**
+
+- README「开发工具」一节重写：写清七道 Node 守卫各自把关什么；此前列为「故意没纳入」的两条（前端卫生 `--strict`、场景同步）已转入清单。也写清运行时冒烟的**移除代价** —— `smoke_backend.py` 连同它的路由快照一起删了，**后端与商店目前没有自动冒烟**，`check_registry_split.mjs` 是分片可达性唯一的一道证明。
+- `docker.yml` 的守卫清单同步为「七道 Node 守卫 + ruff」，并写明「改动即校验」由 push / PR 触发的 `guards.yml` 承担、本工作流只在手动出包时跑；README 与注释里对已删脚本的引用一并修正。
+
+**数据库**
+
+- 无结构变更、无迁移，升级只需替换镜像；请保留全部数据卷 / 数据目录（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。
+
 ### v0.6.2
 
 **授权恢复与重试**
@@ -771,7 +807,7 @@ ruff check .                                      # 未使用 import / 重复定
 - **主应用后端（B1–B66）**：媒体代理按实体归属校验（跨项目 403）、转发头默认只信回环、凭据解析收敛到 `backend/security/access.py`、阻塞端点移出事件循环（导出 ZIP / 素材落盘 / 授权服务查库）、上传与导出改为流式落盘、先查后写的并发冲突落 409/422、项目名唯一（迁移 `0002`）与展示地址别名（迁移 `0003`）、素材总量配额与孤儿回收、全局日志写入线程化、授权轮询配额按端点分桶 + 429 退避且不降级状态、网关时钟容差与租约序号自愈。
 - **前端（W1–W30）**：接口超时预算只留一个主人（`utils/api-fetch.js`）、按钮复位一律进 `finally`、展示页横幅按槽位分语义、WS 断开给可见提示、未激活页面（`pair` / `setup` / `license`）的出口、编辑器启动分片失败聚合、草稿快照只留要救的东西、乐观开关仅在真回滚时上报、ESC 逐层收口、挂载失败带原因、保存冲突留出口、弹窗模态语义与焦点、共享模块单份实例、缓存上限只认常量。
 - **代码质量（P9–P12）**：删除零引用符号与模块级死导出，重复实现收敛到 `utils/`（`numbers` / `colors` / `entities` / `datetime` / `icon-url` / `state-entry` / `api-error` / `device-profiles` 等）。
-- **失效声明**：上述自动化闸门（smoke / e2e / 各探针 / CI workflow / `ruff.toml` / `eslint.config.mjs`）已在下方「测试与死代码清理」中整体移除。修复结论仍然成立、口径仍然有效，但**改动相关代码时需人工对照**，不要再以为背后还有回归网。
+- **失效声明**：上述自动化闸门（smoke / e2e / 各探针 / CI workflow / `ruff.toml` / `eslint.config.mjs`）已在下方「测试与死代码清理」中整体移除。修复结论仍然成立、口径仍然有效，但**改动相关代码时需人工对照**，不要再以为背后还有回归网。（v0.6.3 按静态可判定的部分恢复了护栏，见该版本的「回归网」一节 —— e2e / 冒烟 / 探针没有回来。）
 
 **数据库**
 

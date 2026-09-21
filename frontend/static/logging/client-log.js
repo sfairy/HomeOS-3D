@@ -456,6 +456,7 @@
     }));
   // 恢复上次会话留下的队列（刷新 / 跳转前的日志），逐条做同样的脱敏与校验。
   try {
+    // 存储不可用 / 内容损坏时从空队列开始，丢的只是上次会话未送出的日志。
     const storedEntries = JSON.parse(bridgeWindow.sessionStorage.getItem(LOG_STORAGE_KEY) || "[]");
     if (Array.isArray(storedEntries))
       for (const storedEntry of storedEntries.slice(-MAX_QUEUED_EVENT_COUNT)) {

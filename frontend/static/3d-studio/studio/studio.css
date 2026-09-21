@@ -11,7 +11,7 @@
  * --details-panel-width 与 --preview-panel-height
  * 由 studio-app.js 拖拽分隔条时写到元素上，这里只提供默认兜底值。
  * 布局前提：桌面端工具页，body 最小宽度 1180px（窄屏只做尺寸降级），面板三栏由 grid 固定分配，
- * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=20260921124622
+ * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=20260921151446
  */
 
 /* ===== 设计令牌（主题变量） ===== */
@@ -2112,47 +2112,6 @@ body[data-tone] .scale-dialog .dialog-index {
   width: 100%;
   height: 100%;
   display: block;
-}
-/* 性能诊断浮层：默认只读展示（pointer-events: none），等宽字体 + 两列网格对齐数值。
-   预览区浮层层级约定：原图缓存 2 < 渲染遮罩 3 < 加载提示 6 < 性能面板 7。 */
-.performance-diagnostics {
-  position: absolute;
-  z-index: 7;
-  left: 10px;
-  bottom: 10px;
-  width: min(310px, calc(100% - 20px));
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 3px 9px;
-  padding: 8px 10px;
-  border: 1px solid rgba(140, 158, 176, 0.22);
-  border-radius: 8px;
-  pointer-events: none;
-  color: #85929e;
-  background: #0a0e13d1;
-  box-shadow: 0 8px 24px #0000003d;
-  backdrop-filter: blur(9px);
-  font:
-    9px/1.35 ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
-}
-.performance-diagnostics strong {
-  color: #e1e8ef;
-  font-size: 10px;
-}
-.performance-diagnostics > span:first-of-type {
-  justify-self: end;
-  color: #ffb45d;
-}
-.performance-diagnostics b {
-  min-width: 0;
-  overflow: hidden;
-  color: #c4ced7;
-  font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 /* 基础光照面板：固定在视口右上角（不随面板滚动），可由标题栏拖拽移动 ——
    拖拽逻辑直接改 left/top，所以这里必须有 position: fixed 作为起点；

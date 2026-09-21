@@ -133,6 +133,7 @@ def _public_key_candidates(raw: str) -> tuple[str, ...]:
 @lru_cache(maxsize=8)
 def _load_private_key(raw: str) -> rsa.RSAPrivateKey:
     for candidate in _private_key_candidates(raw):
+        # 候选逐个试：这一份不是 PEM 私钥就试下一份，全部失败由调用方报错。
         try:
             key = serialization.load_pem_private_key(
                 candidate.encode("utf-8"), password=None
@@ -150,6 +151,7 @@ def _load_private_key(raw: str) -> rsa.RSAPrivateKey:
 @lru_cache(maxsize=8)
 def _load_public_key(raw: str) -> rsa.RSAPublicKey:
     for candidate in _public_key_candidates(raw):
+        # 同上：这一份不是合法 PEM 公钥就试下一份。
         try:
             key = serialization.load_pem_public_key(candidate.encode("utf-8"))
         except (ValueError, TypeError):

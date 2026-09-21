@@ -7,7 +7,7 @@
  */
 
 /** 打开开发开关的查询参数名。 */
-export const FRONTEND_DEBUG_QUERY_PARAM = "debug";
+const FRONTEND_DEBUG_QUERY_PARAM = "debug";
 
 /** 被当作「已打开」的取值：只认显式的 1 / true，避免 `?debug=0` 反被当成打开。 */
 const FRONTEND_DEBUG_QUERY_VALUES = new Set(["1", "true"]);
@@ -15,7 +15,7 @@ const FRONTEND_DEBUG_QUERY_VALUES = new Set(["1", "true"]);
 /**
  * 判断当前是否处于开发（诊断）模式。
  */
-export function isFrontendDebugMode(locationObject = globalThis.location) {
+function isFrontendDebugMode(locationObject = globalThis.location) {
   try {
     const debugSearch = String(locationObject?.search || "");
     if (!debugSearch) {

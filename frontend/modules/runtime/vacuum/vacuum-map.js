@@ -12,7 +12,9 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260921142240";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260921151446";
+// 「减少动态效果」偏好的唯一判定。
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=20260921151446";
 /**
  * 计算「地图身份」字符串，用于判断绑定配置里的 sourceMapId 是否仍指向当前地图。
  * 取值优先级：saved_map_id / selected_map_id → "saved:<id>"，退化为 map_index → "index:<n>"，
@@ -227,10 +229,9 @@ export function createVacuumMaps(sceneContext, requestRender) {
   const rescheduleRefresh = () =>
     scheduleRefreshIn(Math.max(0, 1000 - (performance.now() - lastLoadTimestamp)));
   /**
-   * 是否开启了系统「减少动态效果」；开启时底图不做淡入，直接出图。
+   * 是否开启了系统「减少动态效果」（判定见 core/motion-preference.js）；开启时底图不做淡入，直接出图。
    */
-  const prefersReducedMotion = () =>
-    globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+  const prefersReducedMotion = () => prefersReducedMotionNow();
   /**
    * 作废一次尚未完成的图片加载。
    * generation 计数器是关键：onload 回调靠比对 generation 判断自己是否已被作废，

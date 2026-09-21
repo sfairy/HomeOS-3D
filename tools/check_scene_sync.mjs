@@ -129,10 +129,70 @@ function checkPaletteMirror() {
   return problems;
 }
 
+/**
+ * 转义集必须两边一致：`frontend/static/utils/html-escape.js`（应用）与
+ * `store/static/htmlsafe.js`（商店）是两份实现，因为商店是独立构建上下文
+ * （`store/app.py` 只挂 `/store-static` 与 `/fonts`，拿不到 `/static`）。
+ *
+ * 为什么值得单独钉：转义集不一致的现场表现**不是报错**，而是「同一个值在两个页面里
+ * 显示成不同的东西」—— 少转一个 `"` 就可能让属性被提前闭合，页面看着只是「布局怪」。
+ * 这条检查只比映射表本身（字符 → 实体），不比包装方式：一个是 IIFE + 全局对象、一个是
+ * ESM 具名导出，形态不同是刻意的，转义结果必须逐字节相同。
+ */
+function checkEscapeMapMirror() {
+  const appFile = path.join(ROOT, "frontend", "static", "utils", "html-escape.js");
+  const storeFile = path.join(ROOT, "store", "static", "htmlsafe.js");
+  const problems = [];
+
+  const readMap = (file) => {
+    if (!fs.existsSync(file)) return null;
+    const source = fs.readFileSync(file, "utf8");
+    // 只扫 `ESCAPE_MAP = { … }` 这一块，不扫全文：模块头里就写着 `&#39;` / `&apos;`
+    // 这类说明文字，全文扫会把这些当条目读进来。
+    const block = source.match(/(?:ESCAPE_MAP)\s*=\s*\{([\s\S]*?)\}/);
+    if (!block) return null;
+    const map = new Map();
+    // 键与值都可能是单引号或双引号：`'` 这一条的键写成 `"'"`（双引号包单引号），
+    // 只认单引号的写法会**静默漏掉这条** —— 而漏掉的那条恰好是最容易写错的一条。
+    // 引号内部不会再出现同种引号，所以用反向引用配对即可，不需要转义解析。
+    for (const match of block[1].matchAll(/(["'])((?:(?!\1).)*)\1\s*:\s*(["'])((?:(?!\3).)*)\3/g)) {
+      map.set(match[2], match[4]);
+    }
+    return map;
+  };
+
+  const appMap = readMap(appFile);
+  const storeMap = readMap(storeFile);
+  if (!appMap || !appMap.size) {
+    problems.push("frontend/static/utils/html-escape.js 里读不到转义映射表（写法变了？）");
+    return problems;
+  }
+  if (!storeMap || !storeMap.size) {
+    problems.push("store/static/htmlsafe.js 里读不到转义映射表（写法变了？）");
+    return problems;
+  }
+
+  const describe = (map) =>
+    [...map].map(([raw, entity]) => `${raw}→${entity}`).sort().join(" ");
+  const keys = new Set([...appMap.keys(), ...storeMap.keys()]);
+  for (const raw of keys) {
+    if (appMap.get(raw) !== storeMap.get(raw)) {
+      problems.push(
+        `转义不一致：'${raw}' 在应用侧是 ${appMap.get(raw) ?? "（未处理）"}、商店侧是 ${storeMap.get(raw) ?? "（未处理）"}`
+      );
+    }
+  }
+  if (problems.length) {
+    problems.push(`  应用侧映射：${describe(appMap)}`);
+    problems.push(`  商店侧映射：${describe(storeMap)}`);
+  }
+  return problems;
+}
+
 const { copied: drifted, unchanged, missingSource } = sync({ dryRun: true });
 const paletteProblems = checkPaletteMirror();
+const escapeProblems = checkEscapeMapMirror();
 let failed = false;
-
 if (missingSource.length) {
   console.error("scene design system is incomplete — canonical file(s) missing:");
   for (const file of missingSource) console.error(`  ${file}`);
@@ -159,7 +219,19 @@ if (paletteProblems.length) {
   failed = true;
 }
 
+if (escapeProblems.length) {
+  console.error("");
+  console.error("HTML escape maps have drifted apart:");
+  for (const line of escapeProblems) console.error(`  ${line}`);
+  console.error("");
+  console.error("The app and the store ship separate escape implementations (separate");
+  console.error("build contexts), so nothing but this check keeps them identical.");
+  console.error("Change both files in the same commit.");
+  failed = true;
+}
+
 if (failed) process.exit(1);
 
 console.log(`scene design system in sync (${unchanged.length} files)`);
 console.log(`store palette matches design/scene/page.css (${MIRRORED_TOKENS.length} tokens)`);
+console.log("HTML escape map matches store/static/htmlsafe.js");

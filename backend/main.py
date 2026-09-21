@@ -46,9 +46,18 @@ from .api.displays import (
     PAIRING_SHARED_ADDRESS_LIMIT,
     router as displays_router,
 )
-from .api.ha import router as ha_router, runtime_router
+from .api.ha import (
+    HA_TEST_KEYS,
+    HA_TEST_LIMIT,
+    router as ha_router,
+    runtime_router,
+)
 from .api.ha_proxy import MediaProxyCaches, router as ha_proxy_router
 from .api.global_logs import router as global_logs_router
+from .api.license import (
+    LICENSE_ACTIVATION_KEYS,
+    LICENSE_ACTIVATION_LIMIT,
+)
 from .api.appearance import router as appearance_router
 from .core.appearance import AppearanceStore
 from .api.icons import router as icons_router
@@ -279,6 +288,14 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             # 第三档：按被尝试的码记账。键是外部可控输入，因此用带键上限的一层
             # 包装 —— 否则「每次换一个码来试」就成了一条内存放大路径。
             app.state.pairing_code_limiter = BoundedAttemptLimiter(*PAIRING_CODE_LIMIT, max_keys = PAIRING_CODE_KEYS)
+            # 激活尝试的失败预算（按账号，见 license.py）：此前这个端点每次都会打到授权
+            # 服务器上、且不限次数，用户可控的激活码就是被猜的密文。
+            app.state.license_activation_limiter = BoundedAttemptLimiter(
+                *LICENSE_ACTIVATION_LIMIT, max_keys = LICENSE_ACTIVATION_KEYS)
+            # HA 试连预算（按账号，见 ha.py）：这个端点让服务端按请求里的地址发一次出网请求，
+            # 不限次数就等于给了管理员一个内网端口扫描器。
+            app.state.ha_test_limiter = BoundedAttemptLimiter(
+                *HA_TEST_LIMIT, max_keys = HA_TEST_KEYS)
             # 匿名 4xx 的形态合并计数：诊断中间件据此把「一次请求一行」压成
             # 「每形态每窗口一行」。放在这里而不是模块级全局，是为了让 create_app()
             # 多次调用（同一进程里先后建两个应用）互不共享状态。

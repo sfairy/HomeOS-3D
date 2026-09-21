@@ -6,25 +6,28 @@
  * 3d-studio/materials/studio-television-poster.js 生成程序化海报，保证离线 / 未播放时屏幕不纯黑。
  */
 
-import { televisionState } from "./television-state.js?v=20260921124622";
+import { televisionState } from "./television-state.js?v=20260921151446";
+// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：这里原先建键用裸值、
+// 查表也用裸值，一旦某一侧缺字段就成 `null` 而另一侧是 `""`，屏幕永远挂不上。
+import { sceneModelKey } from "../core/scene-model-key.js?v=20260921151446";
 // 程序化海报绘制；缓存戳需与 static 资源版本保持一致。
 const { drawTelevisionPoster: drawTelevisionPoster } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-poster.js?v=20260921124622",
+        "../../../static/3d-studio/materials/studio-television-poster.js?v=20260921151446",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-poster.js?v=20260921124622"));
+  : import("/static/3d-studio/materials/studio-television-poster.js?v=20260921151446"));
 // 熄屏玻璃渐变；冷暖两档色标都在该模块里，暖阳原木主题下传 warm=true。
 const { drawTelevisionGlass: drawTelevisionGlass } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/materials/studio-television-glass.js?v=20260921124622",
+        "../../../static/3d-studio/materials/studio-television-glass.js?v=20260921151446",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/materials/studio-television-glass.js?v=20260921124622"));
+  : import("/static/3d-studio/materials/studio-television-glass.js?v=20260921151446"));
 /**
  * 创建电视屏幕控制器。
  */
@@ -34,9 +37,6 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
   let screensByLocation = new Map();
   let modelsByLocation = new Map();
   let isDisposed = false;
-  /** 绑定 / 屏幕用「楼层 + 模型 ID」定位。 */
-  const locationKey = bindingConfig =>
-    JSON.stringify([bindingConfig.floorId, bindingConfig.modelId]);
   /**
    * 释放一块屏幕：还原原材质与原生发光网格，销毁贴图与材质。
    */
@@ -121,10 +121,10 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
         syncedRoot?.traverse(sceneObject => {
           if (sceneObject.userData?.environmentModelType === "tv") {
             modelsByLocation.set(
-              JSON.stringify([
+              sceneModelKey(
                 sceneObject.userData.environmentFloorId,
                 sceneObject.userData.environmentModelId
-              ]),
+              ),
               sceneObject
             );
           }
@@ -136,7 +136,7 @@ export function createTelevisionScreens({ THREE: THREE, requestFrame: requestFra
         if (binding.visible === false || (!binding.entityId && !binding.powerEntityId)) {
           continue;
         }
-        const location = locationKey(binding);
+        const location = sceneModelKey(binding.floorId, binding.modelId);
         const model = modelsByLocation.get(location);
         activeLocations.add(location);
         if (!model) {

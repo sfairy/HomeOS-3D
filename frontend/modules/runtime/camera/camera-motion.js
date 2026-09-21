@@ -6,13 +6,10 @@
  * 约定：position / target / up 都是长度 3 的世界坐标数组，可选的 zoom / focalLength / frameSize
  * 会一并插值；相机始终沿自身 +Z 看向目标，旋转以 (right, up, forward) 为基。
  */
-
-/** 把数值夹到区间内。 */
-const clampValue = (clampedValue, minimumValue, maximumValue) =>
-  Math.max(minimumValue, Math.min(maximumValue, clampedValue));
-/** 数值非法（NaN / Infinity / 非数字）时取兜底值。 */
-const finiteOrFallback = (numericValue, fallbackValue) =>
-  Number.isFinite(numericValue) ? numericValue : fallbackValue;
+// 夹取与换算统一走 utils/numbers.js（唯一实现，经 static-helpers 桥取用）：clampNumber 保证写进
+// 渲染层的值落在合法区间；finiteNumberOr 把 NaN / undefined 这类「缺失」与合法的 0 区分开
+// （0 往往有语义，不能被当成缺失）。
+import { clampNumber, finiteNumberOr } from "../core/static-helpers.js?v=20260921151446";
 /**
  * 浅拷贝一份姿势，数组字段单独复制。
  *
@@ -30,7 +27,7 @@ function clonePose(pose) {
 function readVector3(three, sourceArray, fallbackArray) {
   return new three.Vector3(
     ...[0, 1, 2].map(axisIndex =>
-      finiteOrFallback(sourceArray?.[axisIndex], fallbackArray[axisIndex])
+      finiteNumberOr(sourceArray?.[axisIndex], fallbackArray[axisIndex])
     )
   );
 }
@@ -105,14 +102,14 @@ function readOrbitAngles(threeLib, viewPose, resolvedPose) {
   } else {
     return {
       theta: Math.atan2(forwardVector.x, forwardVector.z),
-      phi: Math.acos(clampValue(forwardVector.y, -1, 1))
+      phi: Math.acos(clampNumber(forwardVector.y, -1, 1))
     };
   }
 }
 /**
  * 默认的缓动曲线：三次缓出（ease-out cubic）。
  */
-export function cameraMotionProgress(progressElapsedMs, progressDurationMs) {
+function cameraMotionProgress(progressElapsedMs, progressDurationMs) {
   if (progressDurationMs <= 0 || progressElapsedMs >= progressDurationMs) {
     return 1;
   } else {
@@ -120,7 +117,7 @@ export function cameraMotionProgress(progressElapsedMs, progressDurationMs) {
     return (
       1 -
       (1 -
-        clampValue(
+        clampNumber(
           Number.isNaN(progressElapsedMs) ? 0 : progressElapsedMs / progressDurationMs,
           0,
           1
@@ -157,7 +154,7 @@ export function createDampedCameraMotion(
   // 指数衰减系数：把「每秒衰减率」换算成经过 decayElapsedMs 后剩下的比例。
   // 只依赖真实经过时间（而不是帧数），因此掉帧或不同刷新率下的轨迹一致。
   const decayFactor = (decayElapsedMs, decayRatePerSecond) =>
-    Math.exp((-decayRatePerSecond * Math.max(0, finiteOrFallback(decayElapsedMs, 0))) / 1000);
+    Math.exp((-decayRatePerSecond * Math.max(0, finiteNumberOr(decayElapsedMs, 0))) / 1000);
   /** 是否停稳：立即模式或剩余幅度已小于阈值。 */
   const isDampingSettled = dampingElapsedMs =>
     immediateStart || decayFactor(dampingElapsedMs, turnRatePerSecond) <= settleEpsilon;
@@ -175,7 +172,7 @@ export function createDampedCameraMotion(
     if (!isFocusOwner || dampedElapsedMs <= dampingTailMs) {
       return 1 - decayFactor(dampedElapsedMs, dampedRatePerSecond);
     }
-    const tailRatio = clampValue((dampedElapsedMs - dampingTailMs) / SETTLE_WINDOW_MS, 0, 1);
+    const tailRatio = clampNumber((dampedElapsedMs - dampingTailMs) / SETTLE_WINDOW_MS, 0, 1);
     const tailRemaining = 1 - tailRatio;
     // rateWindowRatio = 该速率在收尾窗口内「衰减掉的比例」，作为多项式系数的输入。
     const rateWindowRatio = (dampedRatePerSecond * SETTLE_WINDOW_MS) / 1000;
@@ -212,7 +209,7 @@ export function createDampedCameraMotion(
 /**
  * 创建姿势采样器：把「已用时长」映射成「当前姿势」。
  */
-export function createFocusCameraSampler(
+function createFocusCameraSampler(
   threeFrame,
   initialPose,
   targetPose,
@@ -223,7 +220,7 @@ export function createFocusCameraSampler(
 ) {
   initialPose = clonePose(initialPose);
   targetPose = clonePose(targetPose);
-  const resolvedDurationMs = Math.max(0, finiteOrFallback(motionDurationMs, 1100));
+  const resolvedDurationMs = Math.max(0, finiteNumberOr(motionDurationMs, 1100));
   // 解算结果较重，只在第一次采样时算一次并缓存。
   let fromPose;
   let toPose;
@@ -355,8 +352,8 @@ export function createFocusCameraSampler(
       ["frameSize", 10]
     ]) {
       if (poseKeyName in initialPose || poseKeyName in targetPose) {
-        const fromKeyValue = finiteOrFallback(initialPose[poseKeyName], poseKeyDefault);
-        const toKeyValue = finiteOrFallback(targetPose[poseKeyName], poseKeyDefault);
+        const fromKeyValue = finiteNumberOr(initialPose[poseKeyName], poseKeyDefault);
+        const toKeyValue = finiteNumberOr(targetPose[poseKeyName], poseKeyDefault);
         sampledPose[poseKeyName] = fromKeyValue + (toKeyValue - fromKeyValue) * moveProgress;
       }
     }
@@ -444,15 +441,15 @@ export function automaticLightCamera(threeToolkit, lightConfig, lightTarget) {
     target: lightTargetPoint.toArray(),
     up: lightUpVector.toArray(),
     // 正交模式放大 2.2 倍：灯光编辑需要看到整个房间的范围而不是局部特写；zoom 夹在 0.01–100。
-    zoom: clampValue(
-      finiteOrFallback(lightOptions.zoom, 1) * (isPerspectiveMode ? 1 : 2.2),
+    zoom: clampNumber(
+      finiteNumberOr(lightOptions.zoom, 1) * (isPerspectiveMode ? 1 : 2.2),
       0.01,
       100
     ),
-    frameSize: clampValue(finiteOrFallback(lightOptions.frameSize, 10), 0.001, 20000),
-    focalLength: clampValue(finiteOrFallback(lightOptions.focalLength, 50), 18, 120),
+    frameSize: clampNumber(finiteNumberOr(lightOptions.frameSize, 10), 0.001, 20000),
+    focalLength: clampNumber(finiteNumberOr(lightOptions.focalLength, 50), 18, 120),
     view: lightOptions.view === "top" ? "top" : "free",
-    topRotation: clampValue(finiteOrFallback(lightOptions.topRotation, 0), 0, 360)
+    topRotation: clampNumber(finiteNumberOr(lightOptions.topRotation, 0), 0, 360)
   };
   if (!hasUsableUp) {
     // 上面那一步只是「暂时」换了个 up 方向，换完还需要重新解算一次姿态，
@@ -505,7 +502,7 @@ export function automaticAirConditionerCamera(
   for (const weightAxisName of ["x", "y", "z"]) {
     // 权重取绝对值并夹到 [0.01, 10000]：允许用负号表达「反向偏移」，但不允许为 0
     // （否则某个方向会被算成没有厚度，取景尺寸偏小）。
-    frameWeightVector[weightAxisName] = clampValue(
+    frameWeightVector[weightAxisName] = clampNumber(
       Math.abs(frameWeightVector[weightAxisName]),
       0.01,
       10000
@@ -516,10 +513,10 @@ export function automaticAirConditionerCamera(
     Math.abs(extentDirection.x) * frameWeightVector.x +
     Math.abs(extentDirection.y) * frameWeightVector.y +
     Math.abs(extentDirection.z) * frameWeightVector.z;
-  const viewportAspect = clampValue(
-    finiteOrFallback(
+  const viewportAspect = clampNumber(
+    finiteNumberOr(
       conditionerOptions.aspect,
-      finiteOrFallback(conditionerOptions.viewportAspect, 1.6)
+      finiteNumberOr(conditionerOptions.viewportAspect, 1.6)
     ),
     0.25,
     4
@@ -529,7 +526,7 @@ export function automaticAirConditionerCamera(
   const forwardExtent = weightedExtent(elevatedDirection);
   // 取景尺寸取三者最大值：竖向空间的 2.1 倍（留出上下边距），
   // 或横向范围按宽高比折算后的 1.8 倍；再夹到 [minimumFrameSize, 20000]。
-  const frameSizeValue = clampValue(
+  const frameSizeValue = clampNumber(
     Math.max(minimumFrameSize, verticalExtent * 2.1, (lateralExtent / viewportAspect) * 1.8),
     minimumFrameSize,
     20000
@@ -538,7 +535,7 @@ export function automaticAirConditionerCamera(
   // 固定 35mm 等效焦距：接近人眼观感，避免长焦压缩或广角畸变影响判断。
   const focalLengthMm = 35;
   // 相机距离：透视模式由取景尺寸（乘宽高比）+ 纵深的一半推导；正交模式只看纵深。
-  const cameraDistance = clampValue(
+  const cameraDistance = clampNumber(
     usesPerspective
       ? frameSizeValue * Math.max(viewportAspect, 1) + forwardExtent * 0.5
       : forwardExtent * 0.5 + 2,

@@ -49,7 +49,7 @@ export function lineChartGeometry(
 /**
  * 归一化精度设置：只接受 0~4 的整数，其余（含 auto、空值、越界、非整数）一律回落到 auto。
  */
-export function normalizedStatePrecision(precisionOption) {
+function normalizedStatePrecision(precisionOption) {
   if (precisionOption == null || precisionOption === "" || precisionOption === "auto") {
     return "auto";
   }
@@ -64,7 +64,7 @@ export function normalizedStatePrecision(precisionOption) {
  * 按量级自动挑选小数位：>=100 取整、>=10 一位、>=1 两位、>=0.01 三位、更小四位。
  * 读数长度基本稳定，又不会把温度之类的小数压掉。
  */
-export function automaticNumericPrecision(inputValue) {
+function automaticNumericPrecision(inputValue) {
   const magnitude = Math.abs(Number(inputValue));
   if (!Number.isFinite(magnitude) || magnitude === 0 || magnitude >= 100) {
     return 0;

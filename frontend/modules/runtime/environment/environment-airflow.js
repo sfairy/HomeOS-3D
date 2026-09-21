@@ -8,7 +8,11 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { normalizedTextOf, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921124622";
+import { normalizedTextOf, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921151446";
+// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
+import { sceneModelKey } from "../core/scene-model-key.js?v=20260921151446";
+// 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
+import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=20260921151446";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。 */
 const FLOW_STATE_COLORS = {
   cool: "#73c8ff",
@@ -25,9 +29,6 @@ const AIRFLOW_ACTIONS = new Set([
   "fan_only",
   "drying"
 ]);
-/** 绑定键：(楼层 ID, 模型 ID)。 */
-const composeBindingKey = (keyFloorId, keyModelId) =>
-  JSON.stringify([String(keyFloorId ?? ""), String(keyModelId ?? "")]);
 /**
  * 创建气流效果控制器。
  */
@@ -52,10 +53,9 @@ export function createEnvironmentAirflow({
   const isOverviewMode = () => overviewOverride ?? !focusedId;
   // reducedMotion 显式配置优先于系统偏好；两者都没有时按「不减少」处理。
   let reducedMotionOverride = typeof reducedMotion == "boolean" ? reducedMotion : undefined;
-  const reducedMotionQuery = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)");
-  // 每次调用都重读 matchMedia().matches：用户可能在页面存活期间切换系统的
-  // 「减少动态效果」，缓存成常量就再也听不到这次变化。matchMedia 本身用 ?. 兜底。
-  const prefersReducedMotion = () => reducedMotionOverride ?? reducedMotionQuery?.matches ?? false;
+  // 每次调用都重读系统偏好（实现见 core/motion-preference.js）：用户可能在页面存活期间切换系统的
+  // 「减少动态效果」，缓存成常量就再也听不到这次变化。显式配置（reducedMotion 参数）优先于系统偏好。
+  const prefersReducedMotion = () => reducedMotionOverride ?? prefersReducedMotionNow();
   // 顶点着色器：总览模式下把气幕在三个方向上都放大，让远景也能看见气流；
   // 出风口一侧（uv.y = 0）保持原始位置与宽度，因此只会向远端扩张。
   const FLOW_VERTEX_SHADER =
@@ -363,7 +363,7 @@ export function createEnvironmentAirflow({
         nodeFloorId = ancestorNode.userData?.environmentFloorId;
       }
       objectsByBindingKey.set(
-        composeBindingKey(nodeFloorId, traversedNode.userData.environmentModelId),
+        sceneModelKey(nodeFloorId, traversedNode.userData.environmentModelId),
         traversedNode
       );
     });
@@ -382,7 +382,7 @@ export function createEnvironmentAirflow({
       if (bindingConfig.visible === false || bindingConfig.modelId == null) {
         continue;
       }
-      const bindingKey = composeBindingKey(bindingConfig.floorId, bindingConfig.modelId);
+      const bindingKey = sceneModelKey(bindingConfig.floorId, bindingConfig.modelId);
       const boundModel = objectsByBindingKey.get(bindingKey);
       if (!boundModel) {
         continue;
@@ -627,14 +627,15 @@ export function createEnvironmentAirflow({
     }
     return shouldAnimate;
   }
-  /** 系统「减少动态效果」设置变化时重新结算一次（可能需要立刻关掉动画）。 */
+  /** 系统「减少动态效果」设置变化时重新结算一次（可能需要立刻关掉动画，或把停掉的动画唤醒）。 */
   const handleReducedMotionChange = () => {
     if (!isDisposed) {
       updateEffectStates();
       requestFrame();
     }
   };
-  reducedMotionQuery?.addEventListener?.("change", handleReducedMotionChange);
+  // 停在偏好变化上：摘钩函数由 motion-preference.js 返回，拿不到 matchMedia 时是空函数，不必判空。
+  const stopWatchingReducedMotion = onReducedMotionChange(handleReducedMotionChange);
   return {
     setRoot: setRoot,
     setState: setState,
@@ -659,7 +660,7 @@ export function createEnvironmentAirflow({
       if (!isDisposed) {
         isDisposed = true;
         // 必须摘掉媒体查询监听：它是全局对象上的引用，不摘会阻止本模块被回收。
-        reducedMotionQuery?.removeEventListener?.("change", handleReducedMotionChange);
+        stopWatchingReducedMotion();
         for (const disposedEffect of effectsByBindingKey.values()) {
           disposeEffect(disposedEffect);
         }

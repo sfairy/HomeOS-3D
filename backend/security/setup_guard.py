@@ -3,8 +3,9 @@
 ``POST /api/v1/setup/admin`` 刻意不要求身份，唯一的闸门是「管理员账号文件是否已存在」，
 因此尚未初始化的实例是**先到先得**的：一次 POST 就能创建管理员并当场下发会话 Cookie。
 
-- 本机直连放行（TCP 对端是 loopback 且请求没带任何转发头；带了转发头说明前面还有代理，
-  对端地址不再代表真实来源，否则同机反代会把「先到先得」暴露到公网）；
+- 本机直连放行（TCP 对端是 loopback、``Host`` 主机名也是 loopback，且请求没带任何转发头；带了
+  转发头说明前面还有代理，对端地址不再代表真实来源；``Host`` 那一条挡的是**同机反代** —— 它既
+  不补 ``X-Forwarded-*``，对端又是 127.0.0.1，只看前两条时与本机运维完全一样）；
 - 其它来源必须带对引导密钥（APP_SETUP_TOKEN 或首次启动生成的随机串，0600 落盘并打印到
   标准错误，初始化成功后立即删除）；失败与成功都写审计，失败计入限流。
 
@@ -244,13 +245,18 @@ class SetupGuard:
         self.log(
             'warning',
             '拒绝了未带正确引导密钥的初始化请求',
-            context={'host': host, 'forwarded': _looks_like_forwarded(request)},
+            context={
+                'host': host,
+                'host_header': request.headers.get('host', ''),
+                'forwarded': _looks_like_forwarded(request),
+            },
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
                 '首次设置需要引导密钥。请在服务启动日志（或容器日志）中查找 setup token，'
-                '也可以用 APP_SETUP_TOKEN 指定一份后重启；从本机直接访问则无需填写。'
+                '也可以用 APP_SETUP_TOKEN 指定一份后重启；'
+                '用 localhost / 127.0.0.1 从本机访问则无需填写。'
             ),
         )
 
@@ -282,10 +288,11 @@ def announce_setup_window(state: str, guard: SetupGuard) -> None:
         f'  密钥内容: {guard.token}',
         '  使用方式: 打开 /setup 页面填入「引导密钥」一栏；',
         '            或在 POST /api/v1/setup/admin 的请求体里加 "setupToken"（也可用 X-Setup-Token 头）。',
-        '  从本机（loopback，且未经代理）直接访问时无需填写。',
+        '  用 localhost / 127.0.0.1 从本机（未经代理）访问时无需填写。',
         '=' * 72,
         '',
     ]
+    # stderr 不可用（已关闭 / 重定向到坏管道）时放弃这次提示，启动流程照常继续。
     try:
         sys.stderr.write('\n'.join(lines) + '\n')
         sys.stderr.flush()

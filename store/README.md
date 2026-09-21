@@ -151,7 +151,7 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 | `STORE_VERIFICATION_TTL_SECONDS` / `_COOLDOWN_SECONDS` | `600` / `60` | 验证码有效期 / 重发冷却 |
 | `STORE_VERIFICATION_GLOBAL_HOURLY_LIMIT` | `500` | 验证码发信的**全站**小时上限（所有来源合计）。防「拿商店当发信机轰炸第三方」的兜底闸门；额度之内还按来源 IP（20/小时）、单邮箱（10/小时）各限一层。触顶时日志打 ERROR，并按正常业务量调高 |
 | `STORE_SESSION_MAX_AGE_SECONDS` | `2592000` | 商店会话有效期 |
-| `STORE_SETUP_TOKEN` | 空 | `/setup` 首次初始化的引导口令。留空时启动自动生成一份 32 字节随机串，落到 `data_dir/setup-token`（0600）并打印到标准错误 —— 非本机直连必须带上它，避免未初始化实例「先到先得」 |
+| `STORE_SETUP_TOKEN` | 空 | `/setup` 首次初始化的引导口令。留空时启动自动生成一份 32 字节随机串，落到 `data_dir/setup-token`（0600）并打印到标准错误 —— 只有「loopback 对端 + loopback `Host` + 无转发头」的本机直连可以不带它，其余来源（含经反代/隧道）都必须带上，避免未初始化实例「先到先得」 |
 
 **写错就起不来（这是刻意的）**：上面这些数值型 / 布尔型变量在启动时**严格解析** —— `STORE_ORDER_TTL_SECONDS=12o`、`STORE_COOKIE_SECURE=ture`、`STORE_PORT=99999` 都会让进程带着一条点名变量的错误信息拒绝启动，而不是静默回退默认值。只有「未设置」与「留空」才使用默认值（部署模板里常见的空占位写法不受影响）。布尔值接受 `true/false/1/0/yes/no/on/off`（大小写不限）。
 
@@ -513,6 +513,7 @@ store/
   security/            # 口令与会话、来源/同源判定、失败限流、初始化守卫、密钥字段、库结构守卫
   security/security.py         # 密码哈希、会话 token、激活码/邀请码生成、ISO 时间
   security/request_security.py # 真实来源 IP / Cookie Secure / CSRF（与主应用同构的另一份实现）
+  security/body_guard.py       # 请求体字节上限（默认 1 MiB；multipart 按声明长度 16 MiB）
   security/password_gate.py    # 登录与验证码的失败限流（基于数据库，跨进程一致）
   security/limiter.py          # 进程内滑动窗口限流（初始化守卫、支付跳转页查单）
   security/setup_guard.py      # 首次初始化窗口的访问守卫（本机放行 + 远程引导密钥 + 限流）

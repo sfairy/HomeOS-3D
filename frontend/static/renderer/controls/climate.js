@@ -8,7 +8,7 @@
  * 所有模式文案（关闭 / 制冷 / 取暖 / 换气…）都会直接上屏，是与界面约定死的字符串，改动需同步设计稿。
  */
 // 传 null / 0 / false 时按「取不到域」返回空串，不拼出以 "null" / "0" / "false" 为域的翻译键。
-import { entityDomainFromId } from "../../utils/entities.js?v=20260921142240";
+import { entityDomainFromId } from "../../utils/entities.js?v=20260921151446";
 
 // 控件属性 deviceType 允许的取值；auto 表示交给 resolveClimateDeviceType 推断。
 const CLIMATE_DEVICE_TYPES = new Set(["auto", "air-conditioner", "bath-heater"]);
@@ -41,7 +41,7 @@ function toNumberOrDefault(value, fallbackValue = null) {
  * 取控件上显式配置的设备类型。
  * 白名单之外的任何值都当成 auto：属性可能来自旧版本或被手工改坏，与其把非法值透传到下游，不如统一收敛成「自动推断」。
  */
-export function configuredClimateDeviceType(component) {
+function configuredClimateDeviceType(component) {
   const configuredType = String(component?.properties?.deviceType || "auto");
   if (CLIMATE_DEVICE_TYPES.has(configuredType)) {
     return configuredType;
@@ -387,7 +387,7 @@ const HORIZONTAL_POSITION_LABELS = {
  * 依次做：NFKC 归一（全角转半角）、驼峰拆词、把 + 与 & 换成 _and_、转小写、空白与 . / - 换成下划线、 压缩连续下划线并去掉首尾下划线。
  * 各家模式名从 "Fan Only" 到 "fan-only" 再到 "fanOnly" 都有，归一化后文案表与能力判断才只需维护一套键。
  */
-export function normalizeClimateModeKey(rawModeKey) {
+function normalizeClimateModeKey(rawModeKey) {
   return String(rawModeKey || "")
     .normalize("NFKC")
     .trim()
@@ -463,7 +463,7 @@ export function climateOptionPresentation(
  * 翻译键构成是 component.<平台>.entity.<域>.<翻译键>.state_attributes.<属性>.state|options.<取值>，四种属性名（preset_mode / hvac_mode / operation_mode / fan_mode）与三种后缀都试一遍，命中即返回；拿不到翻译时调用方退回本地文案表。
  * @param {string} modeInput 模式原始值。@param {object} [options] 选项：entityId、entityMetadata、entityTranslations、attributes。
  */
-export function climateModeTranslation(
+function climateModeTranslation(
   modeInput,
   {
     entityId: translationEntityId = "",
@@ -839,24 +839,6 @@ export function climateDeviceLabel(deviceLabelType) {
     return "热水器";
   } else {
     return "空调";
-  }
-}
-/**
- * 决定温控弹窗的标题，保证非空；手动改过标题的控件保持用户输入、不覆盖。
- * 浴霸沿用旧版默认标题「空调」，这里会替换成设备名。
- * @param {string} title 控件上配置的标题。@param {string} [fallbackTitle] 缺省标题。@param {string} [titleDeviceType] 设备类型。@returns {string} 最终标题。
- */
-export function climateDialogTitle(title, fallbackTitle = "", titleDeviceType = "air-conditioner") {
-  const trimmedTitle = String(title || "").trim();
-  const defaultTitle = String(fallbackTitle || "").trim() || climateDeviceLabel(titleDeviceType);
-  if (trimmedTitle) {
-    if (titleDeviceType === "bath-heater" && trimmedTitle === "空调") {
-      return defaultTitle;
-    } else {
-      return trimmedTitle;
-    }
-  } else {
-    return defaultTitle;
   }
 }
 /**

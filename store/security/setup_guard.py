@@ -4,9 +4,10 @@
 管理员」，于是一台未初始化的实例是**先到先得**的；当时唯一的保护是同源中间件，而它在请求**没有**
 Origin/Referer 时放行（``curl`` 默认不带），对脚本化攻击等于不存在。
 
-策略与主应用 ``backend/security/setup_guard.py`` 同构（store 要能单独部署，同步测试钉住两侧一致）：
-本机直连（TCP 对端是 loopback 且**没带转发头**）放行；其它来源必须带对引导密钥 ``STORE_SETUP_TOKEN``
-或首次启动生成、0600 落盘、初始化后即删的一次性凭证，失败计入按来源限流。密钥刻意不写进全局日志。
+策略与主应用 ``backend/security/setup_guard.py`` 同构（store 要能单独部署）：本机直连（TCP 对端是
+loopback、``Host`` 主机名是 loopback、且**没带转发头**）放行；其它来源必须带对引导密钥
+``STORE_SETUP_TOKEN`` 或首次启动生成、0600 落盘、初始化后即删的一次性凭证，失败计入按来源限流。
+密钥刻意不写进全局日志。两份实现是刻意重复的，**没有**自动化闸门会发现漂移，改一处必须同步改另一处。
 """
 
 from __future__ import annotations
@@ -38,11 +39,11 @@ GENERATED_MARKER_FILE = "setup-token.generated"
 #: 标记文件里那行指纹的前缀。
 FINGERPRINT_PREFIX = "sha256:"
 
-#: 判定「本机直连」时可信的对端地址。
+#: 判定「本机直连」时可信的地址：既用作**对端**地址，也用作 ``Host`` 主机名。
 #: **必须与主应用的 ``http_security.LOOPBACK_HOSTS`` 逐元素相同**：两份实现是刻意重复的同一套规则，
 #: 而这条规则是首次初始化窗口唯一的闸门。刻意**不收** ``testclient``（那是测试脚手架造出来的非 IP
 #: 对端名）也**不收空串**（``client`` 缺失只说明拿不到对端 —— unix socket 部署就是这种形态 —— 把
-#: 「拿不到」当「本机」放行等于重新打开「先到先得」）。
+#: 「拿不到」当「本机」放行等于重新打开「先到先得」；``Host`` 读不到时同理不放行）。
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 
 #: 初始化尝试的限流预算：每来源 10 次 / 15 分钟。
@@ -66,15 +67,46 @@ def peer_host(request: Request) -> str:
     return str(getattr(client, "host", "") or "").strip().lower()
 
 
+def host_header_name(request: Request) -> str:
+    """``Host`` 头里的主机名：去端口、去 IPv6 方括号、转小写；读不到时返回空串。"""
+    raw = (request.headers.get("host") or "").strip().lower()
+    if not raw:
+        return ""
+    if raw.startswith("["):
+        # ``[::1]:8000`` / ``[::1]``：方括号之间就是主机名。
+        return raw[1:].split("]", 1)[0].strip()
+    if raw.count(":") == 1:
+        # ``host:port``：冒号左边是主机名。
+        return raw.split(":", 1)[0].strip()
+    # 没有端口（``localhost``），或裸 IPv6 字面量（不合法但从宽原样处理）。
+    return raw
+
+
 def is_direct_local(request: Request) -> bool:
-    """是否是「本机直连」：loopback 对端，且没有任何转发头。
-    与 ``store/api/store.py`` 那套「验证码只回显给本机」同源，但这里刻意**不**看 ``resolve_client_ip``
-    的结果：首次初始化时运营还没来得及配 ``STORE_TRUSTED_PROXIES``，此时按「解析出的真实来源」判定，
-    远端请求会因为对端是 127.0.0.1（同机反代）而被当成本机 —— 那正是要堵的洞。
+    """是否是「本机直连」：loopback 对端 + loopback ``Host`` + 没有任何转发头。
+
+    ``Host`` 这一条不能省：对端是 loopback 只说明「流量从本机网卡进来」，而**同机反向代理**
+    正是这个形态 —— nginx 默认连 ``X-Forwarded-*`` 都不补，Caddy / Traefik / 配了
+    ``proxy_set_header Host $host`` 的 nginx 则会把访问者用的**域名**原样透传下来。于是
+    「公网域名 → 127.0.0.1:18082」的同机反代，在只看对端时与本机运维完全一样，未初始化实例
+    的「先到先得」就此暴露到公网（``kubectl port-forward``、``ssh -L``、``socat`` 同类）。
+    运营用 ``localhost`` / ``127.0.0.1`` 打开时 ``Host`` 才是回环，这条判据因此把反代挡在外面
+    而不影响本机首次设置。
+
+    与 ``store/api/store.py`` 那套「验证码只回显给本机」同源（那份刻意更宽，不要顺手统一），
+    但这里刻意**不**看 ``resolve_client_ip`` 的结果：首次初始化时运营还没来得及配
+    ``STORE_TRUSTED_PROXIES``，此时按「解析出的真实来源」判定，远端请求会因为对端是
+    127.0.0.1（同机反代）而被当成本机 —— 那正是要堵的洞。
+
+    已知残留（刻意接受，别再用「多加一个请求头」去补）：``ssh -L`` / ``kubectl port-forward``
+    这类**原样透传字节**的隧道会把 ``Host: localhost:<本地端口>`` 一并带到后端，与真·本机运维在
+    协议层不可区分；能开这种隧道的人已经握有宿主 shell，而 0600 的 ``setup-token`` 就在同一台机器上。
     """
     if forwarded_headers_present(request):
         return False
-    return peer_host(request) in LOOPBACK_HOSTS
+    if peer_host(request) not in LOOPBACK_HOSTS:
+        return False
+    return host_header_name(request) in LOOPBACK_HOSTS
 
 
 def read_token_file(text: str) -> str:
@@ -273,8 +305,9 @@ class SetupGuard:
             return
 
         logger.warning(
-            "拒绝了未带正确引导密钥的初始化请求 host=%s 是否经代理=%s 已配置密钥=%s",
+            "拒绝了未带正确引导密钥的初始化请求 对端=%s Host=%s 是否经代理=%s 已配置密钥=%s",
             host,
+            host_header_name(request) or "(缺失)",
             forwarded_headers_present(request),
             bool(self._token),
         )
@@ -282,7 +315,8 @@ class SetupGuard:
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
                 "首次设置需要引导密钥。请在服务启动日志（或容器日志）中查找 setup token，"
-                "也可以用 STORE_SETUP_TOKEN 指定一份后重启；从本机直接访问则无需填写。"
+                "也可以用 STORE_SETUP_TOKEN 指定一份后重启；"
+                "用 localhost / 127.0.0.1 从本机访问则无需填写。"
             ),
         )
 
@@ -304,10 +338,11 @@ def announce_setup_window(guard: SetupGuard) -> None:
         f"  密钥内容: {guard.token}",
         "  使用方式: 打开 /store/setup 页面填入「引导密钥」一栏；",
         "            或在 POST /store/v1/setup/admin 的请求体里加 \"setupToken\"（也可用 X-Setup-Token 头）。",
-        "  从本机（loopback，且未经代理）直接访问时无需填写。",
+        "  用 localhost / 127.0.0.1 从本机（未经代理）访问时无需填写。",
         "=" * 72,
         "",
     ]
+    # stderr 不可用（已关闭 / 重定向到坏管道）时放弃这次提示，启动流程照常继续。
     try:
         sys.stderr.write("\n".join(lines) + "\n")
         sys.stderr.flush()

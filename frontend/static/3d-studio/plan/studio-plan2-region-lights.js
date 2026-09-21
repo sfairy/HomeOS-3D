@@ -3,11 +3,19 @@
  * 为什么：一层可能有几十盏灯，逐盏走 three.js 的光照循环会让每个材质的着色器迅速膨胀，且大量灯在视觉上互相重叠、性价比极低。
  * 做法：每盏灯按其类型 + 用户微调换算成一个「光照体积」（椭圆 / 条状 / 圆角矩形 / 方形），把一层楼所有灯的体积参数（中心、半尺寸、颜色、朝向）打进 uniform 数组或数据纹理；
  * 再给每个接收面材质克隆一份，用 onBeforeCompile 注入一段循环所有体积并做「有界并集」求和的着色器片段（buildShaderChunk），把结果加到 indirectDiffuse 上。
- * 对外：regionLightKey（楼层 + 灯的键编码）、sampleRegionVolumes（CPU 侧同一套体积求值，供反射 / 预览等非着色器场景使用）、createRegionLightController（控制器工厂）。
+ * 对外：createRegionLightController（控制器工厂）；regionLightKey 与 sampleRegionVolumes 只在本模块内使用。
  * 全局约定：灯节点被强制放到 REGION_LIGHT_LAYER（30）层 —— 原生光照不再渲染它们，但体积仍参与着色，避免「灯本体不画、光也丢了」；
  * uniform 名统一带 plan2 前缀，并与接触阴影模块共享 plan2ViewToWorld / plan2MotionToLayout 的坐标系语义（世界坐标 → 布局坐标）；长度一律米、角度用度（rotation 是用户输入的角度制）；
  * 体积的 axis 分量是「编码位」而非几何方向：xy 存水平朝向单位向量，z 存形状码，w 存软边（softness），详见 buildShaderChunk 上方的说明。
  */
+
+// 数值夹取与换算统一走 utils/numbers.js（唯一实现）。
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=20260921151446";
+
+// 本地沿用短名 clamp：它在本文件的 JS 代码里出现二十余处，而下方 GLSL 源码字符串里还有**同名的
+// 着色器内建函数** clamp(...)（那些必须逐字保留）—— 把 JS 侧改名只会让 diff 变大、并让后来者
+// 更容易误改着色器字符串。实现只有一份，名字不同而已。
+const clamp = clampNumber;
 
 // 区域灯所在的自定义层号：studio-app.js 的 region-light 分支与灯控制器都用它，
 // 两边必须同一个值，否则灯会被原生光照重复计算或干脆不参与光照。
@@ -15,12 +23,6 @@ export const REGION_LIGHT_LAYER = 30;
 // 接收面分类：floor / wall / furniture。同一盏灯对不同类别用不同的增益与体积高度，
 // 让地面更亮、墙面稍暗、家具居中，避免整屋亮度一刀切。
 const REGION_KINDS = ["floor", "wall", "furniture"];
-// 把任意输入夹成有限数值；非数字 / NaN / Infinity 一律回退，防止坏数据污染 uniform。
-const toFiniteNumber = (candidateValue, fallbackValue = 0) =>
-  Number.isFinite(Number(candidateValue)) ? Number(candidateValue) : fallbackValue;
-// 通用数值夹取：把 targetValue 收进 [minValue, maxValue]。
-const clamp = (targetValue, minValue, maxValue) =>
-  Math.min(maxValue, Math.max(minValue, targetValue));
 // uniform 数组长度向上取到 16 的整数倍：GPU 对 uniform 数组的布局更友好，
 // 且容量变化不会每加一盏灯就重新编译着色器。
 const alignTo16 = sizeValue => Math.max(16, Math.ceil(sizeValue / 16) * 16);
@@ -28,7 +30,7 @@ const alignTo16 = sizeValue => Math.max(16, Math.ceil(sizeValue / 16) * 16);
  * 区域灯的稳定键：把楼层 ID 与灯 ID 编码成一个字符串，形如 `["3F","abc-uuid"]`。
  * 选 JSON 而不是 `a:b` 拼接，是因为楼层名与灯 ID 都可能含冒号之类的分隔符，JSON 转义能保证可逆；isRegionLightKey 会用同一函数回写一遍做「往返校验」，确保外部的键一定能解回原值。
  */
-export const regionLightKey = (floorKeyId, lightKeyId) =>
+const regionLightKey = (floorKeyId, lightKeyId) =>
   JSON.stringify([String(floorKeyId), String(lightKeyId)]);
 /**
  * 校验一个字符串是不是本模块生成的合法区域灯键。
@@ -257,7 +259,7 @@ function buildShaderChunk(volumeGroup) {
  * 为什么要有 CPU 版本：反射、悬浮预览、导出等场景拿不到正在编译的着色器，只能在 JS 里对同一套体积参数求值；两边必须保持一致的公式与分支条件（尤其是 axis.z 的形状码判定阈值 0.5 / 1.5 / 2.5 / 3.5），改一边就要改另一边。
  * 求值方式：逐体积算影响权重 influence（水平衰减 × 垂直衰减 × 强度），颜色按权重加权平均，总覆盖度用「有界并集」公式 1 - Π(1 - influence) 累积 —— 多盏灯重叠时不会像直接相加那样过曝，也不会像取 max 那样产生导数折痕。
  */
-export function sampleRegionVolumes(volumes, worldPoint, gain = 1) {
+function sampleRegionVolumes(volumes, worldPoint, gain = 1) {
   let coverage = 0;
   let totalWeight = 0;
   const accumulatedColor = [0, 0, 0];
@@ -478,7 +480,7 @@ export function createRegionLightController({
     const capacity = alignTo16(lightCount);
     if (lightGroup.capacity !== capacity) {
       lightGroup.capacity = capacity;
-      const maxFragmentUniforms = toFiniteNumber(renderer?.capabilities?.maxFragmentUniforms, 1024);
+      const maxFragmentUniforms = coercedFiniteNumberOr(renderer?.capabilities?.maxFragmentUniforms, 1024);
       // 每盏灯 4 个 vec4（占 4 个 uniform 槽），另留 128 给 three.js 自身的 uniform。
       // 超出上限就只能改用数据纹理 —— 这是低端 / 移动 GPU 上常见的兼容分支。
       lightGroup.textureMode = capacity * 4 + 128 > maxFragmentUniforms;
@@ -504,7 +506,7 @@ export function createRegionLightController({
         lightGroup.uniforms[uniformName].value = lightGroup.slots.map(slot => slot[slotProperty]);
       }
       if (lightGroup.textureMode) {
-        const maxTextureSize = toFiniteNumber(renderer?.capabilities?.maxTextureSize, 4096);
+        const maxTextureSize = coercedFiniteNumberOr(renderer?.capabilities?.maxTextureSize, 4096);
         if (capacity > maxTextureSize) {
           throw new RangeError(
             "区域灯数量 " + lightCount + " 超出本机数据纹理容量 " + maxTextureSize
@@ -981,9 +983,9 @@ export function createRegionLightController({
         // 用 max(0.00001) 兜底，避免除以 0 得到 Infinity。
         fullIntensity: Math.max(
           0.00001,
-          toFiniteNumber(
+          coercedFiniteNumberOr(
             lightObject.userData?.regionFullIntensity,
-            toFiniteNumber(lightObject.userData?.lightOnIntensity, lightObject.intensity) || 1
+            coercedFiniteNumberOr(lightObject.userData?.lightOnIntensity, lightObject.intensity) || 1
           )
         )
       });
@@ -1062,7 +1064,7 @@ export function createRegionLightController({
         const sunShadowStrength =
           activeLightGroup.kind === "wall"
             ? 0
-            : clamp(toFiniteNumber(settings.sunShadowStrength, 0.6), 0, 1) * motionFadeProgress;
+            : clamp(coercedFiniteNumberOr(settings.sunShadowStrength, 0.6), 0, 1) * motionFadeProgress;
         shouldUpdateUniforms ||=
           activeLightGroup.uniforms.plan2SunShadowStrength.value !== sunShadowStrength;
         activeLightGroup.uniforms.plan2SunShadowStrength.value = sunShadowStrength;
@@ -1089,7 +1091,7 @@ export function createRegionLightController({
         // 可见性两重判断：灯被隐藏 / 移出场景时 amount 直接为 0；
         // 否则按「当前 intensity ÷ 标称满值」归一化成点亮比例。
         const actualAmount = isVisibleWithin(light, rootObject)
-          ? clamp(toFiniteNumber(light.intensity) / floorEntry.fullIntensity, 0, 1.5)
+          ? clamp(coercedFiniteNumberOr(light.intensity, 0) / floorEntry.fullIntensity, 0, 1.5)
           : 0;
         // 预览模式：只亮被选中的灯（并把暗着的也提到 0.6 便于看形状），其余全灭。
         const effectiveAmount =
@@ -1134,14 +1136,14 @@ export function createRegionLightController({
         }
         floorEntry.volumeInputs = volumeInputsScratch.slice();
         const scaledRange =
-          clamp(toFiniteNumber(lightItem.lightRange, 3.5), 0.5, 10) *
-          clamp(toFiniteNumber(settings.rangeScale, 1), 0.2, 3);
+          clamp(coercedFiniteNumberOr(lightItem.lightRange, 3.5), 0.5, 10) *
+          clamp(coercedFiniteNumberOr(settings.rangeScale, 1), 0.2, 3);
         const isStripLight = lightItem.type === "striplight" || light.isRectAreaLight;
         // 默认半径 = 灯范围 × 类型系数：吸顶灯 0.45（更宽的光斑），其余 0.33。
         // 这两个系数是把「标称照射范围」换算成「视觉上的亮区半径」的标定结果。
         const defaultRadius = scaledRange * (lightItem.type === "ceilinglight" ? 0.45 : 0.33);
-        const halfWidth = Math.max(0.05, toFiniteNumber(lightItem.width, light.width || 2) / 2);
-        const halfDepth = Math.max(0.025, toFiniteNumber(lightItem.depth, light.height || 0.2) / 2);
+        const halfWidth = Math.max(0.05, coercedFiniteNumberOr(lightItem.width, light.width || 2) / 2);
+        const halfDepth = Math.max(0.025, coercedFiniteNumberOr(lightItem.depth, light.height || 0.2) / 2);
         const matrixElements = lightWorldMatrix.elements;
         // 从世界矩阵的第 0 / 2 列取水平朝向（灯的前方在 XZ 平面的投影），
         // 归一化成单位向量，作为体积的局部轴 —— axis.xy 就是这么来的。
@@ -1379,7 +1381,7 @@ export function createRegionLightController({
           intensity: inspectEntry.light.intensity,
           fullIntensity: inspectEntry.fullIntensity,
           amount: clamp(
-            toFiniteNumber(inspectEntry.light.intensity) / inspectEntry.fullIntensity,
+            coercedFiniteNumberOr(inspectEntry.light.intensity, 0) / inspectEntry.fullIntensity,
             0,
             1.5
           ),
@@ -1522,7 +1524,7 @@ export function createRegionLightController({
    * 走共享 uniform，所以改一次就作用于所有楼层的地面，不触发任何重编译。
    */
   const setFloorBrightness = brightnessPercent => {
-    const brightnessRatio = clamp(toFiniteNumber(brightnessPercent, 100), 50, 150) / 100;
+    const brightnessRatio = clamp(coercedFiniteNumberOr(brightnessPercent, 100), 50, 150) / 100;
     if (brightnessRatio === floorBrightnessUniform.value) {
       return false;
     } else {

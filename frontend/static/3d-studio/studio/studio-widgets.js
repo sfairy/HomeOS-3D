@@ -6,6 +6,8 @@
  * aria-hidden）；所有交互最终回写原生控件并派发 input / change，已有业务监听器无需改动。
  */
 
+import { capturePointer } from "../../utils/pointer-capture.js?v=20260921151446";
+
 // 原生 select → 控制器记录的映射；openController 记录当前展开的那个（全局同时只允许一个）。
 const controllersBySelect = new Map();
 let openController = null;
@@ -88,7 +90,7 @@ export function syncStudioSelect(selectElement) {
 /**
  * 把单个原生 select 增强成自定义下拉框（幂等，重复调用不会重复包装）。
  */
-export function enhanceStudioSelect(hostSelectElement) {
+function enhanceStudioSelect(hostSelectElement) {
   if (!hostSelectElement || controllersBySelect.has(hostSelectElement)) {
     return;
   }
@@ -193,7 +195,7 @@ function syncStepperButtonsDisabled(stepperInput, stepperButtons) {
 /**
  * 给数字输入框加上下步进按钮（幂等）。
  */
-export function enhanceNumberInput(numberInput) {
+function enhanceNumberInput(numberInput) {
   if (!numberInput || numberInput.closest(".number-stepper")) {
     return;
   }
@@ -296,10 +298,8 @@ export function enhanceNumberInput(numberInput) {
       stepperButtonElement.addEventListener("pointerup", handleRepeatEnd);
       stepperButtonElement.addEventListener("pointercancel", handleRepeatEnd);
       stepperButtonElement.addEventListener("lostpointercapture", handleRepeatEnd);
-      try {
-        // 捕获指针：鼠标按住后移出按钮仍能收到 pointerup，否则长按会停不下来。
-        stepperButtonElement.setPointerCapture(pointerDownEvent.pointerId);
-      } catch {}
+      // 捕获指针：鼠标按住后移出按钮仍能收到 pointerup，否则长按会停不下来。
+      capturePointer(stepperButtonElement, pointerDownEvent.pointerId);
     });
     stepperButtonsContainer.append(stepperButtonElement);
     return stepperButtonElement;

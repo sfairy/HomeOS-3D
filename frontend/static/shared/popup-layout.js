@@ -30,7 +30,7 @@ export function popupLayoutColumns(options) {
 /**
  * 计算模块占用的列数。
  */
-export function popupModuleColumnSpan(moduleSpec) {
+function popupModuleColumnSpan(moduleSpec) {
   const type = typeof moduleSpec == "string" ? moduleSpec : moduleSpec?.type;
   const deviceType =
     typeof moduleSpec == "object"
@@ -54,7 +54,7 @@ export function popupModuleColumnSpan(moduleSpec) {
  * 计算模块占用的行数。
  * 目前所有模块都只占 1 行，保留该函数是为了以后支持高模块时不必改调用方。
  */
-export function popupModuleRowSpan(rowModuleSpec) {
+function popupModuleRowSpan(rowModuleSpec) {
   return 1;
 }
 

@@ -5,16 +5,16 @@
  * 存在于 HA 的实体。虚拟实体没有对应 HA 设备；其 ID 必须能被 parseVirtualEntityId 还原出
  * kind 与 scope，展示页据此走本地逻辑而不是调用 HA 服务。
  */
-export const VIRTUAL_ENTITY_PREFIX = "virtual.";
+const VIRTUAL_ENTITY_PREFIX = "virtual.";
 export const ICON_VISIBILITY_VIRTUAL_KIND = "icon_visibility";
-export const ICON_VISIBILITY_VIRTUAL_NAME = "图标·显示隐藏";
+const ICON_VISIBILITY_VIRTUAL_NAME = "图标·显示隐藏";
 // scope 固定为当前页面：图标显隐状态按页维护，不跨页共享。
-export const ICON_VISIBILITY_VIRTUAL_SCOPE = "current_page";
+const ICON_VISIBILITY_VIRTUAL_SCOPE = "current_page";
 
 /**
  * 生成图标显隐虚拟实体的 ID。
  */
-export function iconVisibilityVirtualEntityId() {
+function iconVisibilityVirtualEntityId() {
   return (
     "" + VIRTUAL_ENTITY_PREFIX + ICON_VISIBILITY_VIRTUAL_KIND + "." + ICON_VISIBILITY_VIRTUAL_SCOPE
   );

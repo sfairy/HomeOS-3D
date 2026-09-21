@@ -14,72 +14,69 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=20260921124622";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=20260921124622";
-import { apiErrorMessage } from "../../utils/api-error.js?v=20260921124622";
+} from "../loaders/studio-curtain-track.js?v=20260921151446";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=20260921151446";
+import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=20260921151446";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=20260921151446";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "../materials/studio-surface-textures.js?v=20260921124622";
-import { createOverviewStack } from "./studio-overview-stack.js?v=20260921124622";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=20260921124622";
+} from "../materials/studio-surface-textures.js?v=20260921151446";
+import { createOverviewStack } from "./studio-overview-stack.js?v=20260921151446";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=20260921151446";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=20260921124622";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=20260921124622";
-import { compactRuntimeFurniture } from "../loaders/studio-runtime-furniture.js?v=20260921124622";
-import { createReflectionDetail } from "../reflection/studio-reflection-detail.js?v=20260921124622";
-import { createFloorTransition } from "./studio-floor-transition.js?v=20260921124622";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=20260921124622";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=20260921124622";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260921124622";
-import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=20260921124622";
+} from "./studio-camera-constraints.js?v=20260921151446";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=20260921151446";
+import { createFloorTransition } from "./studio-floor-transition.js?v=20260921151446";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=20260921151446";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=20260921151446";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260921151446";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=20260921151446";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
-  setWallCornerDistances,
-  mergeWallBands
-} from "../materials/studio-wall-materials.js?v=20260921124622";
+  setWallCornerDistances
+} from "../materials/studio-wall-materials.js?v=20260921151446";
 import {
   WARM_WOOD_STYLE,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=20260921124622";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=20260921124622";
+} from "./studio-scene-style.js?v=20260921151446";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=20260921151446";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=20260921124622";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=20260921124622";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=20260921124622";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=20260921124622";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=20260921124622";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=20260921124622";
-// 生产控制台的诊断输出与「开发 / 诊断入口」开关统一走 utils/debug-log.js：
-// debugLog 默认静默（只在 ?debug=1 时输出），isFrontendDebugMode 用来把测试钩子拦在生产之外。
-import { debugLog, isFrontendDebugMode } from "../../utils/debug-log.js?v=20260921124622";
+} from "../../bridge/render-cache.js?v=20260921151446";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=20260921151446";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=20260921151446";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=20260921151446";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=20260921151446";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=20260921151446";
+// 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
+import { debugLog } from "../../utils/debug-log.js?v=20260921151446";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=20260921124622";
+import { apiFetch } from "../../utils/api-fetch.js?v=20260921151446";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260921124622";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260921151446";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260921124622";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=20260921124622";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260921151446";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=20260921151446";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=20260921124622";
+} from "../../bridge/light-motion.js?v=20260921151446";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -119,7 +116,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=20260921124622";
+} from "../plan/geometry.js?v=20260921151446";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -128,7 +125,7 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=20260921124622";
+} from "../export/export-utils.js?v=20260921151446";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -136,25 +133,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=20260921124622";
-import { reorderFloors } from "../plan/floor-order.js?v=20260921124622";
-import { syncControlValue } from "./ui-controls.js?v=20260921124622";
+} from "../export/export-presets.js?v=20260921151446";
+import { reorderFloors } from "../plan/floor-order.js?v=20260921151446";
+import { syncControlValue } from "./ui-controls.js?v=20260921151446";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=20260921124622";
+} from "./studio-widgets.js?v=20260921151446";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=20260921124622";
+} from "../loaders/studio-external-models.js?v=20260921151446";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=20260921124622";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260921124622";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=20260921124622";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=20260921124622";
+} from "../plan/studio-plan-drawing.js?v=20260921151446";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260921151446";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=20260921151446";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=20260921151446";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -167,9 +164,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=20260921124622";
-window.__haBridgeStudioModuleVersion =
-  "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
+} from "../loaders/studio-normalization.js?v=20260921151446";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * 一律走 createElement，避免选择器与生成顺序耦合。
@@ -220,7 +215,6 @@ const PLAN_DONE = () => paletteColor("--done");
 const isRegionLightingEnabled =
   isStageViewerMode && new URLSearchParams(location.search).get("lighting") === "region";
 const WALL_RUNTIME_PROFILE = "shader";
-window.__haBridgeWallRuntimeProfile = WALL_RUNTIME_PROFILE || "baseline";
 let regionLightController = null;
 let contactShadowController = null;
 let overviewStackController = null;
@@ -1356,7 +1350,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=20260921124622"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=20260921151446"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -1372,15 +1366,24 @@ let isAutoDiagramLoading = false;
 let areExternalModelsDeferred = false;
 let deferredModelTypes = [];
 let deferredModelTimer = null;
-window.externalModelLoadsDeferred = false;
-window.__haBridgeDeferExternalModel = deferredType => {
+/**
+ * 模型延迟放行协议的宿主端。加载器（`loaders/studio-external-models.js`）只通过传给
+ * `createExternalModelManager` 的 `deferralHost` 查询状态，读端与写端都在静态可见的
+ * ESM 边界上。
+ *
+ * 此前这三件事走 `window.externalModelLoadsDeferred` / `window.__haBridgeDeferExternalModel`
+ * / `window.__haBridgeReleasingDeferredModels` 三个全局：写端在这里、读端在另一个文件，
+ * 改错名字或漏写一处都不会报错，只表现为「首屏该延后的没延后」这种安静的性能回退。
+ */
+let isReleasingDeferredModels = false;
+function deferModelTypeForLater(deferredType) {
   if (deferredType) {
     if (!deferredModelTypes.includes(deferredType)) {
       deferredModelTypes.push(deferredType);
     }
     scheduleDeferredModelLoad();
   }
-};
+}
 /**
  * 延迟释放被搁置的模型加载：页面刚打开时先压后（等首屏与草稿稳定），
  * 避免与首帧渲染抢带宽。条件不满足时 300ms 后重试而非放弃 ——
@@ -1410,7 +1413,7 @@ function scheduleDeferredModelLoad(delayMs = 900) {
   );
 }
 /**
- * 立即放行若干模型类型的加载，并取消待执行的延迟释放。置 __haBridgeReleasingDeferredModels
+ * 立即放行若干模型类型的加载，并取消待执行的延迟释放。置 isReleasingDeferredModels
  * 是给外部模型管理器的钩子：它靠这个标志区分「用户主动要模型」与「后台补加载」，
  * 只有前者允许打断当前的低优先级加载队列。
  */
@@ -1418,18 +1421,17 @@ function releaseDeferredModels(modelTypes = []) {
   window.clearTimeout(deferredModelTimer);
   deferredModelTimer = null;
   areExternalModelsDeferred = false;
-  window.externalModelLoadsDeferred = false;
   const pendingModelTypes = [...new Set(modelTypes)].filter(
     candidateModelType => ALL_ITEM_MODELS[candidateModelType]
   );
   if (!pendingModelTypes.length) {
     return [];
   }
-  window.__haBridgeReleasingDeferredModels = true;
+  isReleasingDeferredModels = true;
   const modelLoadPromises = pendingModelTypes.map(loadingModelType =>
     loadExternalItemModel(loadingModelType)
   );
-  window.__haBridgeReleasingDeferredModels = false;
+  isReleasingDeferredModels = false;
   return modelLoadPromises;
 }
 /**
@@ -1482,7 +1484,12 @@ const externalModelManager = createExternalModelManager({
   isModelInUse: isItemTypeInUse,
   requestRender: schedulePreviewRebuild,
   onLoadStateChange: updateModelLoadingStatus,
-  maxConcurrentLoads: 2
+  maxConcurrentLoads: 2,
+  deferralHost: {
+    isDeferred: () => areExternalModelsDeferred,
+    isReleasing: () => isReleasingDeferredModels,
+    defer: deferModelTypeForLater
+  }
 });
 const { loadExternalItemModel: loadExternalItemModel, modelTypeForItem: modelTypeForItem } =
   externalModelManager;
@@ -1911,6 +1918,7 @@ let baseLighting = normalizeBaseLighting(DEFAULT_BASE_LIGHTING);
 let panelResizeState = null;
 let lightingChannel = null;
 try {
+  // 不支持 / 被策略禁用时保持 null：下文一律用 lightingChannel?.，退化成「无跨标签同步」。
   if (typeof BroadcastChannel == "function") {
     lightingChannel = new BroadcastChannel("homeos-studio3d-base-lighting-v1");
   }
@@ -4595,22 +4603,9 @@ function currentPixelsPerMeter() {
   return activeScene.calibration?.pixelsPerMeter || 0;
 }
 /**
- * 带 HTTP 状态码与原始响应体的 API 错误，供上层区分 401 / 403 / 409 等分支。继承 Error，
- * 仍能被通用 try/catch 与日志模块处理；payload 保留原始响应 JSON，调用方可从 detail.code
- * 读到业务错误码（例如 LICENSE_RESTRICTED）。
- */
-class StudioRequestError extends Error {
-  /**
-   */
-  constructor(message, status, errorPayload) {
-    super(message);
-    this.status = status;
-    this.payload = errorPayload;
-  }
-}
-/**
  * 统一的工作室后端请求入口：拼 /api/v1 前缀、解析响应与错误。只读视图下禁止非 GET 请求并直接抛错；
- * cache:"no-store" 防止刷新拿到旧 revision；401 跳登录、403 且 code 为 LICENSE_RESTRICTED 跳授权页；
+ * cache:"no-store" 防止刷新拿到旧 revision；401 跳登录、403 且 code 为 LICENSE_RESTRICTED 跳授权页，
+ * 判定口径与错误形态见 utils/api-request.js（五处请求入口共用一份）；
  * 超时交给 apiFetch（20s / 3 分钟）—— 自动保存悬挂必须抛错，否则 isSaving 永不复位。
  */
 async function requestStudioApi(requestPath, requestOptions = {}) {
@@ -4636,34 +4631,30 @@ async function requestStudioApi(requestPath, requestOptions = {}) {
       responsePayload = null;
     }
   }
-  if (apiResponse.status === 401) {
+  const authChallenge = apiAuthChallenge(apiResponse.status, responsePayload);
+  if (authChallenge === "session-expired") {
     window.location.assign("/login?next=" + encodeURIComponent(window.location.pathname));
-    const loginExpiredError = new StudioRequestError(
-      "登录状态已失效。",
-      apiResponse.status,
-      responsePayload
-    );
-    throw window.HABridgeLog?.linkError(loginExpiredError, apiResponse) || loginExpiredError;
+    throw apiRequestError(responsePayload, {
+      status: apiResponse.status,
+      message: "登录状态已失效。",
+      response: apiResponse
+    });
   }
-  if (apiResponse.status === 403 && responsePayload?.detail?.code === "LICENSE_RESTRICTED") {
+  if (authChallenge === "license-restricted") {
     window.location.assign("/license");
-    const licenseRestrictedError = new StudioRequestError(
-      "当前授权无法使用户型图绘制。",
-      apiResponse.status,
-      responsePayload
-    );
-    throw (
-      window.HABridgeLog?.linkError(licenseRestrictedError, apiResponse) || licenseRestrictedError
-    );
+    throw apiRequestError(responsePayload, {
+      status: apiResponse.status,
+      message: "当前授权无法使用户型图绘制。",
+      response: apiResponse
+    });
   }
   if (!apiResponse.ok) {
     // 文案归一交给 utils/api-error.js（它认 FastAPI 422 的数组形态）。
-    const requestFailedError = new StudioRequestError(
-      apiErrorMessage(responsePayload, "请求失败（HTTP " + apiResponse.status + "）"),
-      apiResponse.status,
-      responsePayload
-    );
-    throw window.HABridgeLog?.linkError(requestFailedError, apiResponse) || requestFailedError;
+    throw apiRequestError(responsePayload, {
+      status: apiResponse.status,
+      fallback: "请求失败（HTTP " + apiResponse.status + "）",
+      response: apiResponse
+    });
   }
   return responsePayload;
 }
@@ -4810,7 +4801,6 @@ async function loadStudioRecord(record) {
   deferredModelTimer = null;
   deferredModelTypes = [];
   areExternalModelsDeferred = false;
-  window.externalModelLoadsDeferred = false;
   savedSceneRecord = record;
   studioDocument = normalizeStudioDocument(record.scene);
   if (isStageViewerMode) {
@@ -4850,7 +4840,6 @@ async function loadStudioRecord(record) {
     );
   }
   areExternalModelsDeferred = !isEmbedded;
-  window.externalModelLoadsDeferred = areExternalModelsDeferred;
   deferredModelTypes = isEmbedded ? [] : modelTypeList;
   if (!isEmbedded) {
     scheduleDeferredModelLoad();
@@ -4997,7 +4986,7 @@ async function saveStudioDraft() {
   /**
    * 提交一次场景快照，返回服务器回写的最新草稿记录（含新 revision）。抽成局部函数让「提交 → 处理 409」主流程
    * 读起来是一条直线；捕获外层 revision 常量，保证同一次保存里提交与冲突比对用同一个版本号。非 2xx 抛
-   * StudioRequestError（含 409 冲突）。
+   * 带 status 的接口错误（见 utils/api-request.js），409 冲突从中读 payload。
    */
   const putScene = async sceneRecord =>
     requestStudioApi("/studio3d", {
@@ -9400,589 +9389,6 @@ function targetPixelRatio(isMotionRender = false) {
   }
   return adaptivePixelRatio;
 }
-const isRenderStatsTestEnabled = new URLSearchParams(window.location.search).has(
-  "render-stats-test"
-);
-const isPerformanceDiagnosticsEnabled =
-  new URLSearchParams(window.location.search).get("performance-diagnostics") === "1";
-const MAX_FRAME_SAMPLE_COUNT = 240;
-const DIAGNOSTICS_PUBLISH_INTERVAL_MS = 750;
-const MAX_PENDING_GPU_QUERIES = 4;
-const performanceDiagnostics = {
-  hud: null,
-  frameIntervals: [],
-  cpuRenderTimes: [],
-  gpuRenderTimes: [],
-  lastMotionRenderAt: 0,
-  floorSwitch: null,
-  lastPublishAt: 0,
-  motionActive: false,
-  gpuContext: null,
-  gpuExtension: null,
-  gpuQueryActive: null,
-  gpuQueriesPending: [],
-  gpuStatus: "未初始化"
-};
-/**
- * 开启 ?render-stats-test 时把渲染统计写到 DOM（自动化 / 回归测试用）。数据来源是 three.js 写在 canvas
- * dataset 上的计数（draw call、三角面、实例化与材质合批节省次数），统一序列化到
- * documentElement.dataset.renderStatsTest 供测试脚本读取。output 元素按需创建并复用，避免每次调用都塞节点。
- */
-function publishRenderStatsTest() {
-  if (!isRenderStatsTestEnabled || !renderer) {
-    return;
-  }
-  publishExternalMaterialStats();
-  const statsCanvasElement = renderer.domElement;
-  const renderStats = {
-    calls: Number(statsCanvasElement.dataset.renderCalls || 0),
-    triangles: Number(statsCanvasElement.dataset.renderTriangles || 0),
-    instanceSaved: Number(statsCanvasElement.dataset.instanceDrawCallsSaved || 0),
-    staticItemSaved: Number(statsCanvasElement.dataset.staticItemDrawCallsSaved || 0)
-  };
-  let statsOutputElement = document.querySelector("#homeos-render-stats-test-output");
-  if (!statsOutputElement) {
-    statsOutputElement = document.createElement("output");
-    statsOutputElement.id = "homeos-render-stats-test-output";
-    document.body.append(statsOutputElement);
-  }
-  statsOutputElement.textContent =
-    "渲染统计：" +
-    renderStats.calls +
-    " 次调用，" +
-    renderStats.triangles +
-    " 个三角面；重复实例节省 " +
-    renderStats.instanceSaved +
-    " 次，跨模型材质合批节省 " +
-    renderStats.staticItemSaved +
-    " 次。";
-  document.documentElement.dataset.renderStatsTest = JSON.stringify(renderStats);
-}
-/**
- * 把一个采样值追加进样本数组（超出上限则丢最旧的）。只接受有限数值：NaN / Infinity 一旦
- * 进来就会污染后面的均值与分位数统计。长度超过 MAX_FRAME_SAMPLE_COUNT（240 帧，60fps 下约
- * 4 秒）就从头裁剪 —— 诊断关心的是「现在卡不卡」，而不是整段会话的历史。
- */
-function pushSample(samples, sampleValue) {
-  if (Number.isFinite(sampleValue)) {
-    samples.push(sampleValue);
-    if (samples.length > MAX_FRAME_SAMPLE_COUNT) {
-      samples.splice(0, samples.length - MAX_FRAME_SAMPLE_COUNT);
-    }
-  }
-}
-/**
- * 求一组数值的算术平均，用于帧耗时 / CPU / GPU 时间的统计展示。空数组返回 null
- * （而不是 0 或 NaN）：调用方据此区分「没有样本」与「耗时为零」，前者应显示占位符。
- */
-function averageOf(values) {
-  if (values.length) {
-    return values.reduce((runningSum, sampleItem) => runningSum + sampleItem, 0) / values.length;
-  } else {
-    return null;
-  }
-}
-/**
- * 求样本的近似分位数（用于展示 p95 / p99 帧耗时）。先复制再排序，绝不改动调用方的原数组。
- * 下标取 ceil(len × fraction) - 1 并夹到 [0, len-1]：这是「最近秩」取法，
- * len=1 时也能取到唯一样本且不会越界。
- */
-function percentileOf(sampleValues, fraction) {
-  if (!sampleValues.length) {
-    return null;
-  }
-  const sortedValues = [...sampleValues].sort((leftValue, rightValue) => leftValue - rightValue);
-  const percentileIndex = Math.min(
-    sortedValues.length - 1,
-    Math.max(0, Math.ceil(sortedValues.length * fraction) - 1)
-  );
-  return sortedValues[percentileIndex];
-}
-/**
- * 把数值四舍五入到指定小数位（仍返回数值类型，不是字符串）。非有限值返回 null 而不是 NaN：
- * 这样 JSON.stringify 会写出 null、面板显示成 "--"，比让 NaN 在序列化时静默变成 null 更好定位。
- */
-function roundToDigits(numericValue, digits = 1) {
-  if (Number.isFinite(numericValue)) {
-    return Number(numericValue.toFixed(digits));
-  } else {
-    return null;
-  }
-}
-/**
- * 初始化性能诊断 HUD 与 GPU 计时能力（只在 ?performance-diagnostics=1 时启用）。HUD 是动态创建的 output 节点、挂到 3D
- * 预览容器上（页面里没有这个元素，避免诊断代码进入正常 DOM）。aria-live="off" 是刻意的：每秒多次更新数值，不能让它被
- * 读屏反复播报。GPU 计时依赖 EXT_disjoint_timer_query_webgl2，拿不到就标记「不可用」，后续 beginGpuTimer 直接短路。
- */
-function initPerformanceDiagnostics() {
-  if (!isPerformanceDiagnosticsEnabled || !renderer || performanceDiagnostics.hud) {
-    return;
-  }
-  const hudElement = document.createElement("output");
-  hudElement.id = "performance-diagnostics";
-  hudElement.className = "performance-diagnostics";
-  hudElement.setAttribute("aria-label", "3D 性能诊断");
-  hudElement.setAttribute("aria-live", "off");
-  hudElement.textContent = "性能诊断初始化中…";
-  selectElement("#preview-3d")?.append(hudElement);
-  performanceDiagnostics.hud = hudElement;
-  performanceDiagnostics.gpuContext = renderer.getContext?.() || null;
-  performanceDiagnostics.gpuExtension =
-    performanceDiagnostics.gpuContext?.getExtension?.("EXT_disjoint_timer_query_webgl2") || null;
-  performanceDiagnostics.gpuStatus = performanceDiagnostics.gpuExtension ? "等待样本" : "不可用";
-}
-/**
- * 开始一次 GPU 计时查询（EXT_disjoint_timer_query_webgl2），供性能面板统计 GPU 耗时，成功返回 true。放弃采样的情况：
- * 诊断未开启或本帧不需采样、扩展 / 上下文不可用、已有查询在飞行。pending 队列上限 4 是刻意限制 —— 回读会强制同步 GPU，
- * 堆积太多未回读的查询反而拖慢被测量的渲染。createQuery/beginQuery 在部分驱动上会抛错，故整体 try/catch，失败即标记不可用。
- */
-function beginGpuTimer(shouldSample) {
-  if (!isPerformanceDiagnosticsEnabled || !shouldSample) {
-    return false;
-  }
-  const diagnostics = performanceDiagnostics;
-  const gpuContext = diagnostics.gpuContext;
-  const gpuExtension = diagnostics.gpuExtension;
-  if (
-    !gpuContext ||
-    !gpuExtension ||
-    diagnostics.gpuQueryActive ||
-    diagnostics.gpuQueriesPending.length >= MAX_PENDING_GPU_QUERIES
-  ) {
-    return false;
-  }
-  try {
-    const gpuQuery = gpuContext.createQuery();
-    if (gpuQuery) {
-      gpuContext.beginQuery(gpuExtension.TIME_ELAPSED_EXT, gpuQuery);
-      diagnostics.gpuQueryActive = gpuQuery;
-      diagnostics.gpuStatus = "采样中";
-      return true;
-    } else {
-      return false;
-    }
-  } catch {
-    diagnostics.gpuStatus = "不可用";
-    return false;
-  }
-}
-/**
- * 结束本帧的 GPU 查询，并挂进待回收队列。这里不取结果：GPU 结果要等命令真正执行完才可读，统一交给
- * collectGpuTimers 在后续帧轮询 QUERY_RESULT_AVAILABLE。无论成功与否都先把 gpuQueryActive 置空，
- * 否则一次失败会让后续所有帧都开不了新查询。endQuery 抛错时主动 deleteQuery 释放对象并标记不可用。
- */
-function endGpuTimer(timerStarted) {
-  if (!timerStarted) {
-    return;
-  }
-  const timerDiagnostics = performanceDiagnostics;
-  const timerGpuContext = timerDiagnostics.gpuContext;
-  const timerGpuExtension = timerDiagnostics.gpuExtension;
-  const activeGpuQuery = timerDiagnostics.gpuQueryActive;
-  timerDiagnostics.gpuQueryActive = null;
-  if (!!timerGpuContext && !!timerGpuExtension && !!activeGpuQuery) {
-    try {
-      timerGpuContext.endQuery(timerGpuExtension.TIME_ELAPSED_EXT);
-      timerDiagnostics.gpuQueriesPending.push(activeGpuQuery);
-    } catch {
-      timerGpuContext.deleteQuery?.(activeGpuQuery);
-      timerDiagnostics.gpuStatus = "不可用";
-    }
-  }
-}
-/**
- * 回收已完成的 GPU 计时查询，把耗时写进样本数组。GPU_DISJOINT_EXT 为真说明这段时间 GPU 时钟被抢占
- * （切标签页、驱动重置），已采数据全部不可信：清空队列与历史样本并标记「采样失效」，而不是硬算错误耗时。
- * 未就绪的查询留到下轮再看；已就绪的取值（纳秒 → 毫秒）后立即 deleteQuery，否则查询对象会泄漏。
- */
-function collectGpuTimers() {
-  if (!isPerformanceDiagnosticsEnabled) {
-    return;
-  }
-  const collectDiagnostics = performanceDiagnostics;
-  const collectGpuContext = collectDiagnostics.gpuContext;
-  const collectGpuExtension = collectDiagnostics.gpuExtension;
-  if (!collectGpuContext || !collectGpuExtension || !collectDiagnostics.gpuQueriesPending.length) {
-    return;
-  }
-  if (collectGpuContext.getParameter(collectGpuExtension.GPU_DISJOINT_EXT)) {
-    for (const staleGpuQuery of collectDiagnostics.gpuQueriesPending.splice(0)) {
-      collectGpuContext.deleteQuery(staleGpuQuery);
-    }
-    collectDiagnostics.gpuRenderTimes.length = 0;
-    collectDiagnostics.gpuStatus = "采样失效";
-    return;
-  }
-  const pendingGpuQueries = [];
-  for (const pendingGpuQuery of collectDiagnostics.gpuQueriesPending) {
-    if (
-      !collectGpuContext.getQueryParameter(
-        pendingGpuQuery,
-        collectGpuContext.QUERY_RESULT_AVAILABLE
-      )
-    ) {
-      pendingGpuQueries.push(pendingGpuQuery);
-      continue;
-    }
-    const gpuElapsedNs = collectGpuContext.getQueryParameter(
-      pendingGpuQuery,
-      collectGpuContext.QUERY_RESULT
-    );
-    pushSample(collectDiagnostics.gpuRenderTimes, gpuElapsedNs / 1000000);
-    collectGpuContext.deleteQuery(pendingGpuQuery);
-    collectDiagnostics.gpuStatus = "可用";
-  }
-  collectDiagnostics.gpuQueriesPending = pendingGpuQueries;
-}
-/**
- * 在「楼层切换诊断窗口」内测量某个阶段的耗时，窗口外直接透传执行。用 try/finally 记时，保证阶段里抛错
- * 也留下耗时记录（诊断代码不该因异常丢数据，也不该吞异常）。统计只累加到 floorSwitch.phases，真正的聚合
- * 与展示在 publishPerformanceDiagnostics 里做；这里保持轻量，因为它被插在渲染热路径上。
- */
-function measureDiagnosticPhase(phaseName, runPhase) {
-  const floorSwitchStats = isPerformanceDiagnosticsEnabled && performanceDiagnostics.floorSwitch;
-  if (!floorSwitchStats || performance.now() > floorSwitchStats.until) {
-    return runPhase();
-  }
-  const phaseStartMs = performance.now();
-  try {
-    return runPhase();
-  } finally {
-    const phaseDurationMs = performance.now() - phaseStartMs;
-    floorSwitchStats.phases ||= {};
-    floorSwitchStats.pendingPhases ||= {};
-    /**
-     * 该阶段在本窗口内的累计统计。首次遇到某阶段时惰性建桶；maxMs 单独记最大值而不是只看平均，
-     * 因为楼层切换的卡顿往往来自某一次异常慢的阶段（如首次编译 shader）。
-     */
-    const phaseStats = (floorSwitchStats.phases[phaseName] ||= {
-      calls: 0,
-      totalMs: 0,
-      maxMs: 0
-    });
-    phaseStats.calls++;
-    phaseStats.totalMs += phaseDurationMs;
-    phaseStats.maxMs = Math.max(phaseStats.maxMs, phaseDurationMs);
-    floorSwitchStats.pendingPhases[phaseName] =
-      (floorSwitchStats.pendingPhases[phaseName] || 0) + phaseDurationMs;
-  }
-}
-/**
- * 在每个渲染 tick 上登记帧间隔，专供「切楼层卡顿」诊断窗口统计。只在
- * tickFloorSwitchStats.until 时间窗内计数（切层后短期观测）；shouldCount=false 时仅作废
- * 上一次 tick 基准并返回，用于排除不可比的 tick。50ms 是「长帧」阈值（约 20fps 以下）。
- */
-function recordFrameTick(tickTimestampMs, shouldCount = true) {
-  const tickFloorSwitchStats =
-    isPerformanceDiagnosticsEnabled && performanceDiagnostics.floorSwitch;
-  if (!!tickFloorSwitchStats && !(performance.now() > tickFloorSwitchStats.until)) {
-    if (!shouldCount) {
-      tickFloorSwitchStats.lastTick = null;
-      return;
-    }
-    if (tickFloorSwitchStats.lastTick != null) {
-      const tickIntervalMs = tickTimestampMs - tickFloorSwitchStats.lastTick;
-      tickFloorSwitchStats.maxTickMs = Math.max(
-        tickFloorSwitchStats.maxTickMs || 0,
-        tickIntervalMs
-      );
-      if (tickIntervalMs > 50) {
-        tickFloorSwitchStats.tickLongFrames = (tickFloorSwitchStats.tickLongFrames || 0) + 1;
-      }
-    }
-    tickFloorSwitchStats.lastTick = tickTimestampMs;
-    tickFloorSwitchStats.checksSinceRender = (tickFloorSwitchStats.checksSinceRender || 0) + 1;
-  }
-}
-/**
- * 记录一帧渲染完成后的耗时数据（楼层切换诊断 + 运动会话采样）。楼层切换窗口内记录帧间隔与 CPU 提交耗时，并在出现更差的
- * 一帧时保存现场快照（worstFrame 带 shader 程序数、几何数与接触阴影统计）。运动会话把帧间隔与 CPU 耗时推入样本，间隔
- * 限制在 2~250ms（更小是同一帧重复回调、更大说明卡死，都会带偏统计）；非运动帧把 lastMotionRenderAt 归零。
- */
-function recordRenderedFrame(renderTimestampMs, cpuRenderMs, isMotionFrame) {
-  if (!isPerformanceDiagnosticsEnabled) {
-    return;
-  }
-  const frameDiagnostics = performanceDiagnostics;
-  const renderFloorSwitchStats = frameDiagnostics.floorSwitch;
-  const frameNowMs = performance.now();
-  if (renderFloorSwitchStats && frameNowMs <= renderFloorSwitchStats.until) {
-    const frameGapMs = frameNowMs - renderFloorSwitchStats.last;
-    renderFloorSwitchStats.last = frameNowMs;
-    renderFloorSwitchStats.frames++;
-    if (frameGapMs > renderFloorSwitchStats.maxMs) {
-      renderFloorSwitchStats.worstFrame = {
-        renderGapMs: frameGapMs,
-        cpuRenderMs: cpuRenderMs,
-        checksSinceRender: renderFloorSwitchStats.checksSinceRender,
-        phases: {
-          ...renderFloorSwitchStats.pendingPhases
-        },
-        programs: renderer.info.programs?.length,
-        geometries: renderer.info.memory.geometries,
-        contact: contactShadowController
-          ? {
-              ...contactShadowController.stats
-            }
-          : null
-      };
-    }
-    renderFloorSwitchStats.pendingPhases = {};
-    renderFloorSwitchStats.checksSinceRender = 0;
-    renderFloorSwitchStats.maxMs = Math.max(renderFloorSwitchStats.maxMs, frameGapMs);
-    if (frameGapMs > 50) {
-      renderFloorSwitchStats.longFrames++;
-    }
-    renderFloorSwitchStats.cpuMs += cpuRenderMs;
-    renderFloorSwitchStats.maxRenderCpuMs = Math.max(
-      renderFloorSwitchStats.maxRenderCpuMs || 0,
-      cpuRenderMs
-    );
-    if (cpuRenderMs > 50) {
-      renderFloorSwitchStats.slowRenderCount = (renderFloorSwitchStats.slowRenderCount || 0) + 1;
-    }
-  }
-  if (isMotionFrame) {
-    pushSample(frameDiagnostics.cpuRenderTimes, cpuRenderMs);
-    if (frameDiagnostics.lastMotionRenderAt > 0) {
-      const motionIntervalMs = renderTimestampMs - frameDiagnostics.lastMotionRenderAt;
-      if (motionIntervalMs >= 2 && motionIntervalMs <= 250) {
-        pushSample(frameDiagnostics.frameIntervals, motionIntervalMs);
-      }
-    }
-    frameDiagnostics.lastMotionRenderAt = renderTimestampMs;
-  } else {
-    frameDiagnostics.lastMotionRenderAt = 0;
-  }
-}
-/**
- * 遍历预览场景，汇总性能面板要展示的 3D 统计量。几处口径：材质用 Set 去重（同材质被成百上千网格共享，数网格会严重虚高）；
- * 家具统计来自建模阶段写入的 userData.runtimeFurnitureStats；「可见灯」要求 visible !== false 且 intensity > 0；阴影贴图
- * 走图集时用图集上报的 activeSpotShadows 兜底；activeUserFixtures 单独数「分组启用且亮度 > 0」的灯具。
- */
-function collectSceneStats() {
-  const materialSet = new Set();
-  const furnitureStats = {
-    before: 0,
-    after: 0,
-    triangles: 0
-  };
-  let meshCount = 0;
-  let lightCount = 0;
-  let visibleLightCount = 0;
-  let spotShadowCount = 0;
-  previewOverlayScene?.traverse(sceneObject => {
-    if (sceneObject.isMesh) {
-      meshCount += 1;
-      if (sceneObject.userData.runtimeFurnitureStats) {
-        for (const furnitureStatKey of Object.keys(furnitureStats)) {
-          furnitureStats[furnitureStatKey] +=
-            sceneObject.userData.runtimeFurnitureStats[furnitureStatKey];
-        }
-      }
-      const objectMaterials = Array.isArray(sceneObject.material)
-        ? sceneObject.material
-        : [sceneObject.material];
-      for (const objectMaterial of objectMaterials) {
-        if (objectMaterial) {
-          materialSet.add(objectMaterial);
-        }
-      }
-    }
-    if (sceneObject.isLight) {
-      lightCount += 1;
-      if (sceneObject.visible !== false && finite(sceneObject.intensity, 0) > 0) {
-        visibleLightCount += 1;
-      }
-      if (sceneObject.isSpotLight && sceneObject.castShadow && sceneObject.visible !== false) {
-        spotShadowCount += 1;
-      }
-    }
-  });
-  if (renderer?.domElement?.dataset.spotShadowMode === "atlas") {
-    spotShadowCount = Math.max(
-      spotShadowCount,
-      Math.floor(finite(renderer.domElement.dataset.activeSpotShadows, 0))
-    );
-  }
-  const activeFixtureCount = collectPreviewLights().filter(
-    ({ item: fixtureItem, group: fixtureGroup }) =>
-      fixtureGroup?.enabled !== false && finite(fixtureItem.lightBrightness, 0) > 0
-  ).length;
-  return {
-    meshes: meshCount,
-    materials: materialSet.size,
-    lights: lightCount,
-    visibleLights: visibleLightCount,
-    activeUserFixtures: activeFixtureCount,
-    activeSpotShadows: spotShadowCount,
-    runtimeFurniture: furnitureStats
-  };
-}
-/**
- * 组装并发布性能诊断报告（HUD 文本 + dataset JSON）。节流到 750ms 一次：HUD 用 innerHTML 整体重建，比逐字段改文本贵得多。
- * 报告同时写进 documentElement.dataset.performanceDiagnostics，让外部（自动化 / 远程排查）直接读结构化数据。没有样本时
- * 显示「移动镜头后采样」而不是 0 —— 帧率只在相机运动时统计，空闲时本就没有数据。
- */
-function publishPerformanceDiagnostics(publishTimestampMs = performance.now()) {
-  if (!isPerformanceDiagnosticsEnabled || !renderer || !performanceDiagnostics.hud) {
-    return;
-  }
-  const hudDiagnostics = performanceDiagnostics;
-  if (publishTimestampMs - hudDiagnostics.lastPublishAt < DIAGNOSTICS_PUBLISH_INTERVAL_MS) {
-    return;
-  }
-  hudDiagnostics.lastPublishAt = publishTimestampMs;
-  const diagnosticsCanvas = renderer.domElement;
-  const averageFrameMs = averageOf(hudDiagnostics.frameIntervals);
-  const medianFrameMs = percentileOf(hudDiagnostics.frameIntervals, 0.5);
-  const sceneStats = collectSceneStats();
-  const programCount = renderer.info.programs?.length;
-  const diagnosticsReport = {
-    enabled: true,
-    floorSwitch: hudDiagnostics.floorSwitch
-      ? {
-          target: hudDiagnostics.floorSwitch.target,
-          frames: hudDiagnostics.floorSwitch.frames,
-          maxFrameMs: roundToDigits(hudDiagnostics.floorSwitch.maxTickMs || 0, 2),
-          longFrames: hudDiagnostics.floorSwitch.tickLongFrames || 0,
-          maxRenderGapMs: roundToDigits(hudDiagnostics.floorSwitch.maxMs, 2),
-          maxRenderCpuMs: roundToDigits(hudDiagnostics.floorSwitch.maxRenderCpuMs || 0, 2),
-          slowRenderCount: hudDiagnostics.floorSwitch.slowRenderCount || 0,
-          phases: hudDiagnostics.floorSwitch.phases,
-          worstFrame: hudDiagnostics.floorSwitch.worstFrame,
-          averageCpuMs: roundToDigits(
-            hudDiagnostics.floorSwitch.cpuMs / Math.max(1, hudDiagnostics.floorSwitch.frames),
-            2
-          )
-        }
-      : null,
-    motionActive: hudDiagnostics.motionActive,
-    frame: {
-      samples: hudDiagnostics.frameIntervals.length,
-      averageFps: roundToDigits(averageFrameMs ? 1000 / averageFrameMs : null),
-      medianFps: roundToDigits(medianFrameMs ? 1000 / medianFrameMs : null),
-      p95Ms: roundToDigits(percentileOf(hudDiagnostics.frameIntervals, 0.95), 2)
-    },
-    cpuRenderMs: {
-      samples: hudDiagnostics.cpuRenderTimes.length,
-      average: roundToDigits(averageOf(hudDiagnostics.cpuRenderTimes), 2),
-      p95: roundToDigits(percentileOf(hudDiagnostics.cpuRenderTimes, 0.95), 2)
-    },
-    gpuRenderMs: {
-      supported: !!hudDiagnostics.gpuExtension,
-      status: hudDiagnostics.gpuStatus,
-      samples: hudDiagnostics.gpuRenderTimes.length,
-      average: roundToDigits(averageOf(hudDiagnostics.gpuRenderTimes), 2),
-      p95: roundToDigits(percentileOf(hudDiagnostics.gpuRenderTimes, 0.95), 2)
-    },
-    render: {
-      calls: Number(diagnosticsCanvas.dataset.renderCalls || 0),
-      triangles: Number(diagnosticsCanvas.dataset.renderTriangles || 0),
-      lines: Number(diagnosticsCanvas.dataset.renderLines || 0)
-    },
-    memory: {
-      geometries: Number(renderer.info.memory.geometries || 0),
-      textures: Number(renderer.info.memory.textures || 0),
-      programs: Number.isFinite(programCount) ? programCount : null
-    },
-    scene: sceneStats,
-    viewport: {
-      devicePixelRatio: roundToDigits(renderer.getPixelRatio(), 2),
-      canvasWidth: diagnosticsCanvas.width,
-      canvasHeight: diagnosticsCanvas.height,
-      cssWidth: Math.round(diagnosticsCanvas.clientWidth),
-      cssHeight: Math.round(diagnosticsCanvas.clientHeight)
-    },
-    lighting: {
-      adaptiveCacheEnabled: isAdaptiveRenderActive,
-      residentCacheMode: isRebuildingLightModels,
-      cacheReady: isLightCacheReady
-    }
-  };
-  const fpsSummary = diagnosticsReport.frame.samples
-    ? diagnosticsReport.frame.averageFps +
-      " / " +
-      diagnosticsReport.frame.medianFps +
-      " FPS · P95 " +
-      diagnosticsReport.frame.p95Ms +
-      " ms"
-    : "移动镜头后采样";
-  const gpuSummary = diagnosticsReport.gpuRenderMs.samples
-    ? diagnosticsReport.gpuRenderMs.average +
-      " ms · P95 " +
-      diagnosticsReport.gpuRenderMs.p95 +
-      " ms"
-    : diagnosticsReport.gpuRenderMs.status;
-  hudDiagnostics.hud.innerHTML = [
-    "<strong>3D 性能诊断</strong><span>" +
-      (hudDiagnostics.motionActive ? "交互 / 阻尼中" : "空闲") +
-      "</span>",
-    "<span>帧率</span><b>" + fpsSummary + "</b>",
-    "<span>CPU 提交</span><b>" +
-      (diagnosticsReport.cpuRenderMs.average ?? "—") +
-      " ms · P95 " +
-      (diagnosticsReport.cpuRenderMs.p95 ?? "—") +
-      " ms</b>",
-    "<span>GPU 渲染</span><b>" + gpuSummary + "</b>",
-    "<span>绘制</span><b>" +
-      diagnosticsReport.render.calls +
-      " calls · " +
-      diagnosticsReport.render.triangles.toLocaleString() +
-      " tris</b>",
-    "<span>场景</span><b>" +
-      sceneStats.meshes +
-      " mesh · " +
-      sceneStats.materials +
-      " 材质实例</b>",
-    "<span>资源</span><b>" +
-      diagnosticsReport.memory.geometries +
-      " 几何 · " +
-      diagnosticsReport.memory.textures +
-      " 纹理 · " +
-      (diagnosticsReport.memory.programs ?? "—") +
-      " 程序</b>",
-    "<span>灯光</span><b>" +
-      sceneStats.visibleLights +
-      "/" +
-      sceneStats.lights +
-      " 可见 · " +
-      sceneStats.activeUserFixtures +
-      " 用户灯 · " +
-      sceneStats.activeSpotShadows +
-      " 阴影</b>",
-    "<span>画布</span><b>" +
-      diagnosticsReport.viewport.canvasWidth +
-      "×" +
-      diagnosticsReport.viewport.canvasHeight +
-      " · DPR " +
-      diagnosticsReport.viewport.devicePixelRatio +
-      "</b>",
-    "<span>光照缓存</span><b>" +
-      (diagnosticsReport.lighting.adaptiveCacheEnabled
-        ? "自适应"
-        : diagnosticsReport.lighting.residentCacheMode
-          ? "驻留"
-          : "实时") +
-      "</b>"
-  ].join("");
-  document.documentElement.dataset.performanceDiagnostics = JSON.stringify(diagnosticsReport);
-}
-/**
- * 每帧推进一次性能诊断（由需求帧循环调用）。未启用时整段跳过。motionActive 让 HUD 显示「交互中 / 空闲」；
- * 非交互时清掉 lastMotionRenderAt，让下一段运动重新开始计算帧间隔。collectGpuTimers 必须排在
- * publishPerformanceDiagnostics 之前，这样面板本次显示的 GPU 数值才是刚回收的最新样本。
- */
-function tickPerformanceDiagnostics(diagnosticsTimestampMs, isMotionActiveFlag) {
-  if (isPerformanceDiagnosticsEnabled) {
-    performanceDiagnostics.motionActive = isMotionActiveFlag;
-    if (!isMotionActiveFlag) {
-      performanceDiagnostics.lastMotionRenderAt = 0;
-    }
-    collectGpuTimers();
-    publishPerformanceDiagnostics(diagnosticsTimestampMs);
-  }
-}
 const LIGHT_FADE_DURATION_MS = 150;
 /**
  * 请求下一帧重绘（按需渲染的统一入口）。同时置 needsRender 并清掉 hasRenderedFrame：后者表示「当前画面
@@ -11730,7 +11136,6 @@ function initializeStudioStage() {
     renderer.shadowMap.enabled = !isRegionLightingEnabled;
     renderer.shadowMap.type = threeModuleMin.VSMShadowMap;
     stageContainer.append(renderer.domElement);
-    initPerformanceDiagnostics();
     orbitControls = createOrbitControls(previewCamera);
     updateModelLoadingStatus();
     syncCameraModeButtons("orthographic");
@@ -11898,33 +11303,11 @@ function initializeStudioStage() {
       if (controlsChanged) {
         needsRender = true;
       }
-      const frameIsMotion = isCameraMotionActive || controlsChanged || isMotionRendering;
-      tickPerformanceDiagnostics(rafTimestampMs, frameIsMotion);
       if (!needsRender && hasRenderedFrame) {
         return idleDelayMs;
       }
       needsRender = false;
-      const gpuTimerStarted = beginGpuTimer(frameIsMotion);
-      const gpuTimerStartMs = isPerformanceDiagnosticsEnabled ? performance.now() : 0;
       renderer.render(previewOverlayScene, previewCamera);
-      const gpuRenderMs = isPerformanceDiagnosticsEnabled ? performance.now() - gpuTimerStartMs : 0;
-      endGpuTimer(gpuTimerStarted);
-      recordRenderedFrame(rafTimestampMs, gpuRenderMs, frameIsMotion);
-      const renderInfo = renderer.info.render;
-      renderer.domElement.dataset.renderCalls = String(renderInfo.calls);
-      renderer.domElement.dataset.renderTriangles = String(renderInfo.triangles);
-      renderer.domElement.dataset.renderLines = String(renderInfo.lines);
-      if (isStageViewerMode) {
-        const resourceSignature = JSON.stringify({
-          ...renderer.info.memory,
-          programs: renderer.info.programs?.length,
-          contact: contactShadowController?.stats
-        });
-        if (renderer.domElement.dataset.renderResources !== resourceSignature) {
-          renderer.domElement.dataset.renderResources = resourceSignature;
-        }
-      }
-      publishRenderStatsTest();
       sampleFrameInterval();
       hasRenderedFrame = true;
       if (isStageViewerMode) {
@@ -11938,9 +11321,7 @@ function initializeStudioStage() {
           lastFrameTimeMs = performance.now();
         },
         step(stepTimestampMs) {
-          const frameResult = renderFrame(stepTimestampMs);
-          renderer.domElement.dataset.renderFrameChecks = String(demandFrameLoop.stats.frames);
-          return frameResult;
+          return renderFrame(stepTimestampMs);
         }
       });
       /**
@@ -12854,12 +12235,8 @@ function ensureAutoDiagramFrame(frameAttempt = 0) {
         }
         const rendererRenderStats = renderer.info.render;
         isFrameProduced = rendererRenderStats.calls > 0 && rendererRenderStats.triangles > 0;
-        renderer.domElement.dataset.renderCalls = String(rendererRenderStats.calls);
-        renderer.domElement.dataset.renderTriangles = String(rendererRenderStats.triangles);
-        renderer.domElement.dataset.renderLines = String(rendererRenderStats.lines);
         needsRender = false;
         hasRenderedFrame = isFrameProduced;
-        publishRenderStatsTest();
       }
       if (!isFrameProduced && frameAttempt < 7) {
         ensureAutoDiagramFrame(frameAttempt + 1);
@@ -23548,9 +22925,7 @@ function makeWallSideMaterial(sideColor, sideOpacity, wallSideMaterialOptions = 
       emissiveIntensity: wallSideMaterialOptions.emissiveIntensity ?? (isWarmCleanWall ? 0.32 : 0.025)
     },
     wallSideMaterialOptions.polygonOffset !== true,
-    isRegionLightingEnabled && typeof window !== "undefined"
-      ? (new URLSearchParams(window.location.search).get("wall-trial") ?? WALL_RUNTIME_PROFILE)
-      : "single,depth",
+    isRegionLightingEnabled ? WALL_RUNTIME_PROFILE : "single,depth",
     isWarmCleanWall
   );
   createdWallSideMaterial.userData.alphaWallBand = isAlphaBand;
@@ -23568,7 +22943,7 @@ function createInvisibleWallMaterial() {
 }
 /**
  * 创建墙顶压条 / 平面色带使用的材质（贴在 XZ 平面上的 ShapeGeometry）。半透明时把不透明度再乘 1.08 并封顶 0.42：色带面积小，
- * 照原样太淡会看不出墙线位置。wall-trial=shader 试验模式下颜色整体提亮 1.2 倍以补偿试验光照下的亮度差；返回 MeshStandardMaterial。
+ * 照原样太淡会看不出墙线位置。墙面试验着色器下颜色整体提亮 1.2 倍以补偿试验光照下的亮度差；返回 MeshStandardMaterial。
  */
 function createWallTopMaterial(topBaseColor, topOpacity, topMaterialOptions = {}) {
   const isWarmWood = !!studioPalette().warmWood;
@@ -23606,7 +22981,7 @@ function createWallTopMaterial(topBaseColor, topOpacity, topMaterialOptions = {}
 /**
  * 把一组闭环挤出成墙体（沿 Y 轴从 baseY 到 topY），并挂到模型根节点下。先尝试求多边形并集：并集成功说明这些环互相接触，用
  * 并集结果可避免同一面墙被叠加渲染两次（半透明墙叠两层会露出内部接缝）；半透明但未做并集时强制 depthWrite=true + LessDepth。
- * 挤出体再绕 X 轴旋转 90° 摆到 XZ 平面，并写入墙面渐变与转角距离两组顶点属性，供 wall-trial 试验着色器使用。
+ * 挤出体再绕 X 轴旋转 90° 摆到 XZ 平面，并写入墙面渐变与转角距离两组顶点属性，供墙面试验着色器使用。
  */
 function addWallExtrusion(
   extrusionLoops,
@@ -23664,8 +23039,6 @@ function addWallExtrusion(
       invisibleMaterial,
       sideMaterial
     ]);
-    extrudedWallMesh.userData.hbMergeWallBand =
-      extrusionOptions.polygonOffset !== true && (extrusionOptions.renderOrder ?? 4) === 4;
     extrudedWallMesh.userData.reflectionRole = "wall";
     extrudedWallMesh.rotation.x = Math.PI / 2;
     extrudedWallMesh.position.y = topY;
@@ -23832,7 +23205,7 @@ function offsetPolygonOutward(polygonOffsetPoints, offset) {
 }
 /**
  * 在楼层底部铺一层极淡的接触阴影，让墙体看起来「压」在地面上。轮廓先外扩 0.028 米再合并成单个几何体；颜色 0x080B12、
- * 透明度 5.2%、depthWrite=false 且用 polygonOffset 压后，只负责暗角过渡。wall-trial 试验模式下由着色器负责 AO，
+ * 透明度 5.2%、depthWrite=false 且用 polygonOffset 压后，只负责暗角过渡。墙面试验着色器下由着色器负责 AO，
  * 这里直接跳过，避免重复叠加。无轮廓时直接返回。
  */
 function addFloorContactShadow(shadowPolygons, shadowSurfaceY) {
@@ -23875,17 +23248,12 @@ function addFloorContactShadow(shadowPolygons, shadowSurfaceY) {
   previewModelRoot.add(contactShadowMesh);
 }
 /**
- * 判断是否启用墙面试验着色器（wall-trial 含 "shader"）。查询参数 ?wall-trial=... 可覆盖编译期默认的
- * WALL_RUNTIME_PROFILE，便于不重新构建就对比不同墙面渲染方案（例如 single,depth）。
+ * 判断是否启用墙面试验着色器。此前 `?wall-trial=...` 可覆盖编译期默认值、不必重新构建就能对比
+ * 不同墙面渲染方案（例如 single,depth），该调试旁路已移除；现在只由 WALL_RUNTIME_PROFILE 决定。
  * @returns {boolean} true 表示走试验着色器分支。
  */
 function isWallShaderTrialEnabled() {
-  return (
-    isRegionLightingEnabled &&
-    (new URLSearchParams(window.location.search).get("wall-trial") ?? WALL_RUNTIME_PROFILE)
-      .split(",")
-      .includes("shader")
-  );
+  return isRegionLightingEnabled && WALL_RUNTIME_PROFILE === "shader";
 }
 /**
  * 添加地面网格（GridHelper），并注入「径向 + 视距」双衰减的自定义着色器。格数按 1.25 米一格换算、最少 12 格，基础透明度 0.24。
@@ -24961,30 +24329,6 @@ function rebuildPreviewScene({ preserveLightCache: rebuildPreserveLightCache = f
     }
   }
   batchRepeatedItemMeshes(previewModelRoot, placedItemEntries);
-  if (
-    isRegionLightingEnabled &&
-    (new URLSearchParams(window.location.search).get("wall-trial") ?? WALL_RUNTIME_PROFILE)
-      .split(",")
-      .includes("merge")
-  ) {
-    mergeWallBands(threeModuleMin, previewModelRoot, mergeGeometries);
-  }
-  if (
-    isStageViewerMode &&
-    new URLSearchParams(window.location.search).get("furniture-runtime") === "compact"
-  ) {
-    compactRuntimeFurniture(
-      previewModelRoot,
-      placedItemEntries.filter(
-        ({ item: placedItemEntry }) => !isSelected("item", placedItemEntry.id)
-      ),
-      {
-        THREE: threeModuleMin,
-        mergeGeometries: mergeGeometries,
-        materialKey: computeMaterialSignature
-      }
-    );
-  }
   mergeStaticItemMeshes(previewModelRoot, placedItemEntries);
   previewModelRoot.traverse(untaggedNode => {
     if (untaggedNode !== previewModelRoot && !untaggedNode.userData.exportRole) {
@@ -25315,22 +24659,6 @@ function rebuildModelLayer(
   }
   if (!isLightsLayer) {
     batchRepeatedItemMeshes(previewModelRoot, layeredItemEntries);
-    if (
-      isStageViewerMode &&
-      new URLSearchParams(window.location.search).get("furniture-runtime") === "compact"
-    ) {
-      compactRuntimeFurniture(
-        previewModelRoot,
-        layeredItemEntries.filter(
-          ({ item: layeredItemEntry }) => !isSelected("item", layeredItemEntry.id)
-        ),
-        {
-          THREE: threeModuleMin,
-          mergeGeometries: mergeGeometries,
-          materialKey: computeMaterialSignature
-        }
-      );
-    }
     mergeStaticItemMeshes(previewModelRoot, layeredItemEntries);
   }
   applyShadowBudget(layerShadowRoot, {
@@ -25781,7 +25109,7 @@ function beginPointerScale(snapPointerEvent) {
 /**
  * 平面画布按下指针的总分发器（左键 / 中键）。按下先聚焦画布，再按优先级判定命中：平移、楼层对齐、各绘制工具
  * （洞口 / 比例尺 / 墙 / 门窗栏杆）、标签、手柄缩放旋转、实体拖动（按住 Alt 先深拷贝再拖）、最后落空进框选并清空选择。
- * 所有分支最后都要 setPointerCapture，否则指针移出画布后会丢事件。
+ * 所有分支最后都要捕获指针（capturePointer），否则指针移出画布后会丢事件。
  */
 function onPlanCanvasPointerDown(canvasPointerEvent) {
   if (canvasPointerEvent.button !== 0 && canvasPointerEvent.button !== 1) {
@@ -25805,7 +25133,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent) {
     };
     planCanvasElement.classList.add("panning");
     syncMetricsCanvas();
-    planCanvasElement.setPointerCapture(canvasPointerEvent.pointerId);
+    capturePointer(planCanvasElement, canvasPointerEvent.pointerId);
     return;
   }
   if (floorAlignState && handleFloorAlignClick(pointerPlanPoint)) {
@@ -25823,7 +25151,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent) {
       start: pointerPlanPoint,
       current: pointerPlanPoint
     };
-    planCanvasElement.setPointerCapture(canvasPointerEvent.pointerId);
+    capturePointer(planCanvasElement, canvasPointerEvent.pointerId);
     return;
   }
   if (activeTool === "scale") {
@@ -26068,7 +25396,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent) {
             before: cloneSceneForHistory(),
             moved: false
           };
-    planCanvasElement.setPointerCapture(canvasPointerEvent.pointerId);
+    capturePointer(planCanvasElement, canvasPointerEvent.pointerId);
     return;
   }
   const dragScope = currentLightScope();
@@ -26092,7 +25420,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent) {
     if (!canvasPointerEvent.shiftKey) {
       requestSceneRefresh(dragScope);
     }
-    planCanvasElement.setPointerCapture(canvasPointerEvent.pointerId);
+    capturePointer(planCanvasElement, canvasPointerEvent.pointerId);
     return;
   }
   beginExportRender();
@@ -26172,7 +25500,7 @@ function onPlanCanvasPointerDown(canvasPointerEvent) {
     };
   }
   if (pointerInteraction) {
-    planCanvasElement.setPointerCapture(canvasPointerEvent.pointerId);
+    capturePointer(planCanvasElement, canvasPointerEvent.pointerId);
   } else {
     endExportRender();
   }
@@ -26489,9 +25817,7 @@ function onPlanCanvasPointerUp(releaseEvent) {
   }
   if (pointerInteraction.type === "draw-flooropening") {
     const { start: marqueeStartPoint, current: currentPoint } = pointerInteraction;
-    try {
-      planCanvasElement.releasePointerCapture(releaseEvent.pointerId);
-    } catch {}
+    releasePointer(planCanvasElement, releaseEvent.pointerId);
     pointerInteraction = null;
     endExportRender();
     const marqueeWidth = Math.abs(currentPoint.x - marqueeStartPoint.x) / currentPixelsPerMeter();
@@ -26535,9 +25861,7 @@ function onPlanCanvasPointerUp(releaseEvent) {
       primarySelection = null;
       multiSelection = selectedEntities;
     }
-    try {
-      planCanvasElement.releasePointerCapture(releaseEvent.pointerId);
-    } catch {}
+    releasePointer(planCanvasElement, releaseEvent.pointerId);
     pointerInteraction = null;
     renderInspector();
     renderPlanView();
@@ -26572,9 +25896,7 @@ function onPlanCanvasPointerUp(releaseEvent) {
   if (pointerInteraction.type === "pan") {
     planCanvasElement.classList.remove("panning");
   }
-  try {
-    planCanvasElement.releasePointerCapture(releaseEvent.pointerId);
-  } catch {}
+  releasePointer(planCanvasElement, releaseEvent.pointerId);
   pointerInteraction = null;
   if (interaction.type === "pan") {
     renderPlanView();
@@ -26925,7 +26247,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/core/stage.js?v=20260921124622");
+        await import("/api/v1/modules/interaction3d/core/stage.js?v=20260921151446");
       mountStage(createStageController());
       return;
     }
@@ -28433,7 +27755,7 @@ detailsResizerElement.addEventListener("pointerdown", detailsResizerPointerDownE
     detailsPanelElement.classList.add("resizing");
     studioShellElement.classList.add("resizing");
     detailsResizerElement.dataset.resizeAxis = "pending";
-    detailsResizerElement.setPointerCapture(detailsResizerPointerDownEvent.pointerId);
+    capturePointer(detailsResizerElement, detailsResizerPointerDownEvent.pointerId);
   }
 });
 detailsResizerElement.addEventListener("pointermove", detailsResizerPointerMoveEvent => {
@@ -28470,11 +27792,7 @@ const endDetailsResize = (detailsResizePointerEvent, shouldReleasePointer = true
   studioShellElement.classList.remove("resizing");
   delete detailsResizerElement.dataset.resizeAxis;
   if (shouldReleasePointer) {
-    try {
-      if (detailsResizerElement.hasPointerCapture(activeDetailsResizeState.pointerId)) {
-        detailsResizerElement.releasePointerCapture(activeDetailsResizeState.pointerId);
-      }
-    } catch {}
+    releasePointer(detailsResizerElement, activeDetailsResizeState.pointerId);
   }
   if (didPanelRatiosChange) {
     markDocumentDirty();
@@ -28630,9 +27948,7 @@ baseLightControlsHeaderElement?.addEventListener("pointerdown", panelDragStartEv
     startTop: panelStartRect.top,
     moved: false
   };
-  try {
-    baseLightControlsHeaderElement.setPointerCapture(panelDragStartEvent.pointerId);
-  } catch {}
+  capturePointer(baseLightControlsHeaderElement, panelDragStartEvent.pointerId);
 });
 baseLightControlsHeaderElement?.addEventListener("pointermove", panelDragMoveEvent => {
   if (!panelResizeState || panelDragMoveEvent.pointerId !== panelResizeState.pointerId) {
@@ -29018,9 +28334,7 @@ window.addEventListener("keydown", windowKeyDownEvent => {
     if (activeTool === "flooropening" || pointerInteraction?.type === "draw-flooropening") {
       windowKeyDownEvent.preventDefault();
       if (pointerInteraction?.type === "draw-flooropening") {
-        try {
-          planCanvasElement.releasePointerCapture(pointerInteraction.pointerId);
-        } catch {}
+        releasePointer(planCanvasElement, pointerInteraction.pointerId);
         pointerInteraction = null;
         endExportRender();
       }
@@ -29072,251 +28386,6 @@ document.addEventListener("visibilitychange", () => {
     invalidateRender();
   }
 });
-// 离线模型导出是**开发期诊断入口**（给模型核对脚本用的：把某类家具的 three.js JSON 吐到页面上）。
-// 要求诊断开关也打开（?debug=1），hook 才不进入生产运行时。
-if (isFrontendDebugMode() && new URLSearchParams(window.location.search).has("model-export")) {
-  window.__haBridgeExportFurnitureJson = (furnitureTypeKey, furnitureOverrideValues = {}) => {
-    const furnitureTypeDefinition = ITEM_TYPE_DEFINITIONS[furnitureTypeKey];
-    if (!furnitureTypeDefinition) {
-      throw new Error("Unknown furniture type: " + furnitureTypeKey);
-    }
-    const offlineFurnitureSpec = {
-      id: "offline-export-" + furnitureTypeKey,
-      type: furnitureTypeKey,
-      width: furnitureTypeDefinition.width,
-      height: furnitureTypeDefinition.height,
-      depth: furnitureTypeDefinition.depth,
-      elevation: furnitureTypeDefinition.elevation || 0,
-      rotation: 0,
-      curtainPosition: "split",
-      roundTableTurntable: false,
-      stairDirection: "right",
-      shoeCabinetMirrored: false,
-      tvMountStyle: "standard",
-      screenEnabled: true,
-      offlineModelExport: true,
-      ...furnitureOverrideValues
-    };
-    const offlineFurnitureModel = buildItemModel(offlineFurnitureSpec);
-    offlineFurnitureModel.name = "homeos-v1-" + furnitureTypeKey;
-    offlineFurnitureModel.updateMatrixWorld(true);
-    const offlineFurnitureJson = offlineFurnitureModel.toJSON();
-    disposeSceneSubtree(offlineFurnitureModel);
-    return offlineFurnitureJson;
-  };
-  const modelExportQueryValue = new URLSearchParams(window.location.search).get("model-export");
-  if (modelExportQueryValue && modelExportQueryValue !== "1") {
-    const modelExportOverrideEntry =
-      {
-        curtain_left: {
-          type: "curtain",
-          curtainPosition: "left"
-        },
-        curtain_right: {
-          type: "curtain",
-          curtainPosition: "right"
-        },
-        curtain_split: {
-          type: "curtain",
-          curtainPosition: "split"
-        },
-        rounddiningtable_turntable: {
-          type: "rounddiningtable",
-          roundTableTurntable: true
-        },
-        tv_standard: {
-          type: "tv",
-          tvMountStyle: "standard"
-        },
-        tv_tabletop: {
-          type: "tv",
-          tvMountStyle: "tabletop"
-        },
-        tv_mobile: {
-          type: "tv",
-          tvMountStyle: "mobile"
-        }
-      }[modelExportQueryValue] || {};
-    const modelExportFurnitureType = modelExportOverrideEntry.type || modelExportQueryValue;
-    requestAnimationFrame(() => {
-      try {
-        const modelExportTextArea = document.createElement("textarea");
-        modelExportTextArea.id = "homeos-model-export";
-        modelExportTextArea.hidden = true;
-        const modelExportPayload = JSON.stringify(
-          window.__haBridgeExportFurnitureJson(modelExportFurnitureType, modelExportOverrideEntry)
-        );
-        modelExportTextArea.value = modelExportPayload;
-        modelExportTextArea.textContent = modelExportPayload;
-        document.body.append(modelExportTextArea);
-        document.documentElement.dataset.modelExportReady = modelExportQueryValue;
-      } catch (modelExportFailure) {
-        document.documentElement.dataset.modelExportError =
-          modelExportFailure?.message || String(modelExportFailure);
-      }
-    });
-  }
-}
-// 材质预编译自检钩子：与 `?model-export` 同一立场 —— 它只服务于开发期排查（跑三个实例、
-// 把预编译结果写进 `data-material-test-*` 供 devtools 或外部诊断脚本读取），因此同样要求
-// `?debug=1`，不进入生产运行时。
-const materialTestTypeKey = isFrontendDebugMode()
-  ? new URLSearchParams(window.location.search).get("material-test")
-  : null;
-if (materialTestTypeKey) {
-  (async () => {
-    const materialTestRootGroup = new threeModuleMin.Group();
-    try {
-      document.documentElement.dataset.materialTestStage = "loading";
-      const materialTestDefinition = ITEM_TYPE_DEFINITIONS[materialTestTypeKey];
-      if (!materialTestDefinition || !ALL_ITEM_MODELS[materialTestTypeKey]) {
-        throw new Error("Unsupported material test type: " + materialTestTypeKey);
-      }
-      if (!(await loadExternalItemModel(materialTestTypeKey))) {
-        throw new Error("Material test model failed to load: " + materialTestTypeKey);
-      }
-      document.documentElement.dataset.materialTestStage = "renderer";
-      for (
-        let rendererWaitAttempt = 0;
-        !renderer && rendererWaitAttempt < 120;
-        rendererWaitAttempt += 1
-      ) {
-        await yieldToScheduler();
-      }
-      if (!renderer || !previewCamera || !previewOverlayScene) {
-        throw new Error("Material test renderer was not initialized");
-      }
-      const collectedMaterialSlots = [];
-      for (
-        let materialTestModelIndex = 0;
-        materialTestModelIndex < 3;
-        materialTestModelIndex += 1
-      ) {
-        const materialTestItemSpec = {
-          id: "material-test-" + materialTestTypeKey + "-" + (materialTestModelIndex + 1),
-          type: materialTestTypeKey,
-          width: materialTestDefinition.width,
-          height: materialTestDefinition.height,
-          depth: materialTestDefinition.depth,
-          elevation: 0,
-          rotation: 0
-        };
-        const materialTestItemGroup = new threeModuleMin.Group();
-        if (!addExternalItemModel(materialTestItemGroup, materialTestItemSpec)) {
-          throw new Error("Material test model was not mounted: " + materialTestTypeKey);
-        }
-        materialTestItemGroup.traverse(traversedSceneNode => {
-          if (!traversedSceneNode.isMesh) {
-            return;
-          }
-          const traversedNodeMaterials = Array.isArray(traversedSceneNode.material)
-            ? traversedSceneNode.material
-            : [traversedSceneNode.material];
-          collectedMaterialSlots.push(...traversedNodeMaterials.filter(Boolean));
-        });
-        materialTestRootGroup.add(materialTestItemGroup);
-      }
-      document.documentElement.dataset.materialTestStage = "compiling";
-      renderer.compile(materialTestRootGroup, previewCamera, previewOverlayScene);
-      const uniqueMaterialCount = new Set(collectedMaterialSlots).size;
-      for (let modelLoadWaitAttempt = 0; modelLoadWaitAttempt < 600; modelLoadWaitAttempt += 1) {
-        const externalModelLoadState = externalModelManager.modelLoadState();
-        if (externalModelLoadState.active === 0 && externalModelLoadState.queued === 0) {
-          break;
-        }
-        await yieldToScheduler();
-      }
-      const finalModelLoadState = externalModelManager.modelLoadState();
-      const materialTestStats = {
-        models: 3,
-        slots: collectedMaterialSlots.length,
-        unique: uniqueMaterialCount,
-        shared: collectedMaterialSlots.length - uniqueMaterialCount,
-        cacheMaterials: finalModelLoadState.materials,
-        cacheReuses: finalModelLoadState.materialReuses
-      };
-      document.documentElement.dataset.materialTestStats = JSON.stringify(materialTestStats);
-      const materialTestOutputElement = document.createElement("output");
-      materialTestOutputElement.id = "homeos-material-test-output";
-      materialTestOutputElement.setAttribute("aria-live", "polite");
-      materialTestOutputElement.textContent =
-        "材质测试 " +
-        materialTestTypeKey +
-        "：" +
-        materialTestStats.models +
-        " 个模型，" +
-        materialTestStats.slots +
-        " 个材质槽，" +
-        materialTestStats.unique +
-        " 种唯一材质，" +
-        materialTestStats.shared +
-        " 个槽复用；当前缓存 " +
-        materialTestStats.cacheMaterials +
-        " 种，累计复用 " +
-        materialTestStats.cacheReuses +
-        " 次。";
-      document.body.append(materialTestOutputElement);
-      document.documentElement.dataset.materialTestReady = materialTestTypeKey;
-      document.documentElement.dataset.materialTestStage = "ready";
-    } catch (materialTestFailure) {
-      document.documentElement.dataset.materialTestError =
-        materialTestFailure?.message || String(materialTestFailure);
-      document.documentElement.dataset.materialTestStage = "error";
-    } finally {
-      disposeSceneSubtree(materialTestRootGroup);
-    }
-  })();
-}
-// 实例合批自检钩子：同上（`?debug=1` 才生效），结果写在 `data-instance-test-*` 上。
-const instanceTestTypeKey = isFrontendDebugMode()
-  ? new URLSearchParams(window.location.search).get("instance-test")
-  : null;
-if (instanceTestTypeKey) {
-  const instanceTestRootGroup = new threeModuleMin.Group();
-  const instanceTestGeometry = new threeModuleMin.BoxGeometry(0.5, 0.86, 0.5);
-  try {
-    if (SELF_LIT_ITEM_TYPES.has(instanceTestTypeKey)) {
-      throw new Error("Unsupported instance test type: " + instanceTestTypeKey);
-    }
-    const instanceTestEntries = [];
-    for (let instanceTestIndex = 0; instanceTestIndex < 3; instanceTestIndex += 1) {
-      const instanceTestItemSpec = {
-        id: "instance-test-" + instanceTestTypeKey + "-" + (instanceTestIndex + 1),
-        type: instanceTestTypeKey
-      };
-      const instanceTestGroup = new threeModuleMin.Group();
-      const instanceTestMesh = new threeModuleMin.Mesh(
-        instanceTestGeometry,
-        new threeModuleMin.MeshStandardMaterial({
-          color: STUDIO_PALETTE.furniture,
-          roughness: 0.72
-        })
-      );
-      instanceTestMesh.position.y = 0.43;
-      instanceTestMesh.userData.externalModelSharedGeometry = true;
-      instanceTestGroup.position.x = instanceTestIndex * 0.9;
-      instanceTestGroup.rotation.y = threeModuleMin.MathUtils.degToRad(instanceTestIndex * 30);
-      instanceTestGroup.add(instanceTestMesh);
-      instanceTestRootGroup.add(instanceTestGroup);
-      instanceTestEntries.push({
-        item: instanceTestItemSpec,
-        group: instanceTestGroup
-      });
-    }
-    const instanceBatchingStats = batchRepeatedItemMeshes(
-      instanceTestRootGroup,
-      instanceTestEntries
-    );
-    document.documentElement.dataset.instanceTestStats = JSON.stringify(instanceBatchingStats);
-    document.documentElement.dataset.instanceTestReady = instanceTestTypeKey;
-  } catch (instanceTestFailure) {
-    document.documentElement.dataset.instanceTestError =
-      instanceTestFailure?.message || String(instanceTestFailure);
-  } finally {
-    disposeSceneSubtree(instanceTestRootGroup);
-    instanceTestGeometry.dispose();
-  }
-}
 new ResizeObserver(resizePlanCanvas).observe(planStageElement);
 initializeStudioSelects();
 initializeNumberInputs();
@@ -30665,23 +29734,7 @@ function createStageController() {
         !backgroundRoleObject.userData.backgroundThemeHidden;
     }
   }
-  const reflectionDetailController =
-    new URLSearchParams(globalThis.window?.location?.search || "").get("reflection-detail") ===
-    "low"
-      ? createReflectionDetail({
-          THREE: threeModuleMin,
-          requestFrame: () => {
-            groundReflectionsController.changed();
-            requestRenderFrame();
-          }
-        })
-      : null;
-  const isReflectionWorkBaseline =
-    new URLSearchParams(globalThis.window?.location?.search || "").get(
-      "performance-diagnostics"
-    ) === "1" && new URLSearchParams(window.location.search).get("reflection-work") === "baseline";
   const groundReflectionsController = createGroundReflections({
-    detail: reflectionDetailController,
     THREE: threeModuleMin,
     renderer: renderer,
     scene: previewOverlayScene,
@@ -30691,12 +29744,10 @@ function createStageController() {
     getFloorCamera: (reflectionFloorCamera, reflectionFloorId) =>
       overviewStackController?.reflectionCamera(reflectionFloorCamera, reflectionFloorId) ||
       reflectionFloorCamera,
-    cull: !isReflectionWorkBaseline,
+    cull: true,
     blur: false,
     syncLighting: reflectionSyncFloorCamera =>
-      isReflectionWorkBaseline
-        ? regionLightController?.sync(reflectionSyncFloorCamera, true)
-        : regionLightController?.syncCamera(reflectionSyncFloorCamera),
+      regionLightController?.syncCamera(reflectionSyncFloorCamera),
     requestFrame: () => requestRenderFrame(),
     getStateKey: () =>
       [
@@ -30708,9 +29759,6 @@ function createStageController() {
         renderer.toneMappingExposure
       ].join("|")
   });
-  const floorEffectsMode = new URLSearchParams(globalThis.window?.location?.search || "").get(
-    "floorEffects"
-  );
   let areFloorEffectsPaused = false;
   let areReflectionsSuspended = false;
   const motionPresentation = createMotionPresentation({
@@ -30745,8 +29793,7 @@ function createStageController() {
       requestRenderFrame();
     }
   }
-  const areFloorEffectsFollowed =
-    (isRegionLightingEnabled || floorEffectsMode === "follow") && floorEffectsMode !== "deferred";
+  const areFloorEffectsFollowed = isRegionLightingEnabled;
   let areShadowsFrozen = false;
   let shadowRestoreStartMs = null;
   let shadowAutoUpdateBefore = true;
@@ -30815,15 +29862,6 @@ function createStageController() {
       shadowRestoreStartMs = null;
     }
   }
-  /**
-   * 诊断相位包装器：存在 measureDiagnosticPhase 时用它测量耗时，否则直接执行原逻辑。
-   * @param {string} profiledPhaseName 相位名称。
-   * @param {Function} profiledPhaseWork 待执行的工作函数。
-   */
-  const profilePhase = (profiledPhaseName, profiledPhaseWork) =>
-    typeof measureDiagnosticPhase == "function"
-      ? measureDiagnosticPhase(profiledPhaseName, profiledPhaseWork)
-      : profiledPhaseWork();
   /**
    * 挂起或恢复楼层相关动效与阴影更新，供楼层切换、导出等需要稳定画面的场景调用。
    * @param {boolean} isFloorEffectSuspended 是否挂起。
@@ -30936,16 +29974,13 @@ function createStageController() {
   );
   previewOverlayScene.onBeforeRender = function (...overlayRenderArguments) {
     if (groundReflectionsController.stats.inCapture) {
-      if (isReflectionWorkBaseline) {
-        regionLightController?.sync(overlayRenderArguments[2], true);
-      }
       return;
     }
     restoreShadowIntensity();
     if (!areShadowsFrozen) {
-      profilePhase("curtains", () => curtainSyncHandler?.());
+      curtainSyncHandler?.();
     }
-    profilePhase("television-screens", () => televisionSyncHandler?.());
+    televisionSyncHandler?.();
     if (needsSpotShadowRefresh && !areShadowsFrozen) {
       if (
         shadowRefreshModelRoot !== previewModelRoot ||
@@ -30972,9 +30007,7 @@ function createStageController() {
       }
       contactShadowController?.invalidate(contactShadowFloorIds, true);
     }
-    profilePhase("lighting-and-contact", () =>
-      overlayOnBeforeRender?.apply(this, overlayRenderArguments)
-    );
+    overlayOnBeforeRender?.apply(this, overlayRenderArguments);
     if (!areShadowsFrozen) {
       environmentSceneController?.setRoot(
         previewModelRoot,
@@ -30985,14 +30018,11 @@ function createStageController() {
     applyBackgroundVisibility();
     syncPreviewProjection();
     if (!renderer.getRenderTarget()) {
-      profilePhase("reflections", () =>
-        groundReflectionsController.render(overlayRenderArguments[2], {
-          worldMatricesCurrent: true
-        })
-      );
+      groundReflectionsController.render(overlayRenderArguments[2], {
+        worldMatricesCurrent: true
+      });
       const reflectionStatsJson = JSON.stringify({
-        ...groundReflectionsController.stats,
-        detail: reflectionDetailController?.stats
+        ...groundReflectionsController.stats
       });
       if (renderer.domElement.dataset.reflectionStats !== reflectionStatsJson) {
         renderer.domElement.dataset.reflectionStats = reflectionStatsJson;
@@ -31970,9 +31000,7 @@ function createStageController() {
               .distanceTo(new threeModuleMin.Vector3().fromArray(floorMotionPose.target))
           }
         : null;
-      profilePhase("motion-and-settle", () =>
-        floorTransitionController.sample(motionProgress, floorMotionPose, floorMotionSample)
-      );
+      floorTransitionController.sample(motionProgress, floorMotionPose, floorMotionSample);
       if (motionProgress >= 1) {
         overviewStackAnimation = null;
         overviewStackAmount = null;
@@ -32005,41 +31033,14 @@ function createStageController() {
       floorTransitionController.finish();
       overviewStackAnimation = null;
       overviewStackAmount = null;
-      if (
-        typeof isPerformanceDiagnosticsEnabled !== "undefined" &&
-        isPerformanceDiagnosticsEnabled &&
-        performanceDiagnostics.floorSwitch
-      ) {
-        performanceDiagnostics.floorSwitch.until = performance.now() + 400;
-      }
     },
     get floorCacheSize() {
       return floorTransitionCacheById.size;
-    },
-    profileFrameWork: profilePhase,
-    recordFloorFrame(recordedFrameTimestampMs, recordedFrameDurationMs) {
-      if (typeof recordFrameTick == "function") {
-        recordFrameTick(recordedFrameTimestampMs, recordedFrameDurationMs);
-      }
     },
     get floorEffectsFollow() {
       return areFloorEffectsFollowed;
     },
     transitionFloor(transitionTargetFloorId) {
-      if (
-        typeof isPerformanceDiagnosticsEnabled !== "undefined" &&
-        isPerformanceDiagnosticsEnabled
-      ) {
-        performanceDiagnostics.floorSwitch = {
-          target: transitionTargetFloorId,
-          last: performance.now(),
-          until: Infinity,
-          frames: 0,
-          maxMs: 0,
-          longFrames: 0,
-          cpuMs: 0
-        };
-      }
       const floorIdsByElevationOrder = [...studioDocument.floors]
         .sort(
           (elevationLeftFloor, elevationRightFloor) =>
@@ -32072,12 +31073,10 @@ function createStageController() {
       };
       overviewStackAmount = overviewStackAnimation.from;
       const transitionSourceFloorKey = isOverviewStackMode ? "all" : activeFloorId;
-      const transitionDetachedRecords = profilePhase("detach-source", () =>
-        floorTransitionController.take(
-          isOverviewStackMode ? floorIdsByElevationOrder : [activeFloorId],
-          floorMatrixForId,
-          isOverviewStackMode
-        )
+      const transitionDetachedRecords = floorTransitionController.take(
+        isOverviewStackMode ? floorIdsByElevationOrder : [activeFloorId],
+        floorMatrixForId,
+        isOverviewStackMode
       );
       for (const transitionDetachedRecord of transitionDetachedRecords) {
         transitionDetachedRecord.cacheKey ||= transitionSourceFloorKey;
@@ -32184,31 +31183,25 @@ function createStageController() {
       } else {
         releaseFloorCache(new Set(transitionFloorIdList));
       }
-      profilePhase("set-destination", () =>
-        this.setFloor(transitionTargetFloorId, reusableTransitionRecords, floorMatrixForId)
-      );
+      this.setFloor(transitionTargetFloorId, reusableTransitionRecords, floorMatrixForId);
       const destinationOrbitCenter = this.getOrbitCenter();
-      const destinationFloorRecords = profilePhase("capture-destination", () =>
-        floorTransitionController.capture(
-          transitionFloorIdList,
-          floorMatrixForId,
-          transitionTargetFloorId === "all" || transitionFloorIdList.length > 1
-        )
+      const destinationFloorRecords = floorTransitionController.capture(
+        transitionFloorIdList,
+        floorMatrixForId,
+        transitionTargetFloorId === "all" || transitionFloorIdList.length > 1
       );
       for (const positionedFloorRecord of destinationFloorRecords) {
         positionedFloorRecord.cacheKey = transitionTargetFloorId;
         positionedFloorRecord.cacheEpoch = floorCacheEpoch;
       }
-      profilePhase("begin-motion", () =>
-        floorTransitionController.begin(
-          transitionDetachedRecords,
-          destinationFloorRecords,
-          floorIdsByElevationOrder,
-          transitionVisibleHeight,
-          isAdjacentFloorTransition,
-          transitionCameraUp,
-          transitionTargetFloorId
-        )
+      floorTransitionController.begin(
+        transitionDetachedRecords,
+        destinationFloorRecords,
+        floorIdsByElevationOrder,
+        transitionVisibleHeight,
+        isAdjacentFloorTransition,
+        transitionCameraUp,
+        transitionTargetFloorId
       );
       curtainSyncHandler?.();
       televisionSyncHandler?.();

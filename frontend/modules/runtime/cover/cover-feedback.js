@@ -39,9 +39,12 @@ export function createCoverFeedback({
       if (storageKey) {
         storage?.removeItem(storageKey);
       }
-    } catch {}
+    } catch {
+      // 存储不可用（隐私模式 / 被策略禁用）时删不掉：残留的旧值只会在下次 restore 时
+      // 因 scope 校验不通过而被丢弃，不会把已结束的运动恢复成活的状态。
+    }
   }
-  /** 保存当前推算位置与剩余运动，供刷新后继续。 */
+  /** 保存当前推算位置与剩余运动，供刷新后继续（存储不可用 / 配额满时放弃这次写入）。 */
   function savePresentation(entityId, entry) {
     if (!shouldPersist(entry) || !entry.estimated || entry.position === null) {
       return;
@@ -64,9 +67,12 @@ export function createCoverFeedback({
       if (storageKey) {
         storage?.setItem(storageKey, JSON.stringify(payload));
       }
-    } catch {}
+    } catch {
+      // 存储不可用或配额满：放弃这次持久化。这只是「刷新后继续运动」的锦上添花，
+      // 丢掉它不影响本次命令的执行与反馈。
+    }
   }
-  /** 从存储恢复推算位置，并按已过去的时间推进剩余运动。 */
+  /** 从存储恢复推算位置，并按已过去的时间推进剩余运动（存储不可用 / 内容损坏时不做恢复）。 */
   function restorePresentation(entityId, entry) {
     if (!shouldPersist(entry)) {
       clearPresentation(entityId);
@@ -114,7 +120,10 @@ export function createCoverFeedback({
       // 恢复出来的位置属于推算值，且整体反馈仍不可信。
       entry.estimated = true;
       entry.railUnconfirmed = true;
-    } catch {}
+    } catch {
+      // 存储不可用或内容损坏（JSON.parse 失败 / 结构不符）：不做恢复，entry 保持调用方
+      // 传入的原样。宁可少一次续算，也不让一个坏掉的快照把翻板位置定死。
+    }
   }
   /** 推进补间；返回是否有运动在推进（调用方据此决定是否重绘）。 */
   function advanceMotion(trackedEntry, timeMs) {

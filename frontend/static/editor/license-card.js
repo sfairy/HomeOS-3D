@@ -31,7 +31,7 @@ function formatValidity(license) {
 /**
  * 把授权状态数据整理成卡片渲染所需的结构。
  */
-export function licenseCardData(licenseData = {}) {
+function licenseCardData(licenseData = {}) {
   const isLicensed = !!licenseData.activationCodeId,
     // template 类商品是内部模板，不作为用户可见授权；名称非字符串的脏数据也过滤掉。
     products = Array.isArray(licenseData.products)

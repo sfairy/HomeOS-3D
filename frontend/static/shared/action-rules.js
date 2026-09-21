@@ -5,15 +5,15 @@
  * 允许取值，并校验动作配置与组件绑定是否匹配。不碰 DOM 也不请求后端；校验所需的页面路径集合、
  * 弹窗 ID 集合由调用方传入，传入 null 表示「暂不校验该维度」。
  */
-import { isVirtualEntityId } from "./virtual-entities.js?v=20260921142240";
+import { isVirtualEntityId } from "./virtual-entities.js?v=20260921151446";
 // 「按 ID 切域」只有一份实现，走 utils/entities.js 的 entityDomainFromId。
-import { entityDomainFromId } from "../utils/entities.js?v=20260921142240";
+import { entityDomainFromId } from "../utils/entities.js?v=20260921151446";
 
 // 动作类型固定三种：开关、打开更多信息、跳转页面。
 export const ACTION_TYPES = Object.freeze(["toggle", "more-info", "navigate"]);
 
 // 「更多信息」弹窗的数据来源：当前实体 / 指定实体 / 指定弹窗。
-export const POPUP_SOURCES = Object.freeze(["current", "entity", "custom"]);
+const POPUP_SOURCES = Object.freeze(["current", "entity", "custom"]);
 
 // 这些 HA 域里的实体调用 toggle 才有意义；虚拟实体单独放行（见下方判定）。
 export const TOGGLE_ENTITY_DOMAINS = new Set([
@@ -34,7 +34,7 @@ export const TOGGLE_ENTITY_DOMAINS = new Set([
 /**
  * 读取动作配置里的弹窗来源，做白名单收敛。
  */
-export function actionPopupSource(action) {
+function actionPopupSource(action) {
   // 旧文档里没有 popupSource 字段，默认按「当前实体」处理，保证向后兼容。
   const popupSource = String(action?.data?.popupSource || "current");
   if (POPUP_SOURCES.includes(popupSource)) {

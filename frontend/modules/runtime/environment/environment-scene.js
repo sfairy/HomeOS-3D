@@ -8,8 +8,13 @@
  * （模式开关 400ms，单材质淡入淡出 360ms）。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921124622";
-import { createEnvironmentHalos } from "./environment-halos.js?v=20260921124622";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921151446";
+// 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js —— 本文件原来是它的原始出处，
+// 现已提为共享实现，其余模块不再各写一份。
+import { sceneModelKey } from "../core/scene-model-key.js?v=20260921151446";
+// 「减少动态效果」偏好的唯一判定。
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=20260921151446";
+import { createEnvironmentHalos } from "./environment-halos.js?v=20260921151446";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  */
@@ -91,10 +96,10 @@ const MODEL_TYPE_TO_DEVICE_KIND = {
  * （总览页要显示全部）；这里按模型类型反推所属页面，给缺绑定的模型补一个 previewOnly 展示用绑定。
  */
 export function pageModelBindings(floors, sceneBindings, page, floorId) {
-  // JSON.stringify([楼层, 模型]) 作为复合键：模型 ID 在不同楼层可能重名。
+  // 键用 (楼层, 模型) 复合值：模型 ID 在不同楼层可能重名。
   const bindingsByKey = new Map(
     sceneBindings.map(sceneBinding => [
-      JSON.stringify([sceneBinding.floorId, sceneBinding.modelId]),
+      sceneModelKey(sceneBinding.floorId, sceneBinding.modelId),
       sceneBinding
     ])
   );
@@ -107,7 +112,10 @@ export function pageModelBindings(floors, sceneBindings, page, floorId) {
         if (!itemPage || (page !== "overview" && itemPage !== page)) {
           return [];
         }
-        const modelBindingKey = JSON.stringify([floorOfScene.id, sceneItem.id]);
+        // 与上面 bindingsByKey 同一套键。注意它还派生出合成绑定的 id（`presentation:` 前缀），
+        // 所以键的编码是**对外可见**的：对真实文档（楼层与模型 id 都是字符串）本函数与
+        // `JSON.stringify([a, b])` 逐字节相同，id 不变。
+        const modelBindingKey = sceneModelKey(floorOfScene.id, sceneItem.id);
         const existingBinding = bindingsByKey.get(modelBindingKey);
         return [
           {
@@ -154,13 +162,9 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   const retainedRoots = new Set();
   const retainedMeshEntries = new Map();
   /**
-   * 用户是否要求减少动态效果。
-   * 同时探测 globalThis.matchMedia 与 globalThis.window.matchMedia：前者在某些宿主（自定义元素 / 测试环境）里没有，
-   * 后者才是常规浏览器路径。
+   * 用户是否要求减少动态效果（判定与理由见 core/motion-preference.js）。
    */
-  const prefersReducedMotion = () =>
-    globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true ||
-    globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+  const prefersReducedMotion = () => prefersReducedMotionNow();
   // 光晕交给 environment-halos 维护，共享同一个 modeUniform 以保持显隐节奏一致。
   const halos = createEnvironmentHalos({
     THREE: THREE,
@@ -198,11 +202,6 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
   let materialsApplied = false;
   // 配置里未指定时的压暗强度（0.7 = 70%，与 pageDimming 的兜底值一致）。
   let configuredDimStrength = 0.7;
-  /**
-   * 复合模型键：楼层 + 模型 ID，用于把 mesh 记录与绑定对上。
-   */
-  const composeModelKey = (keyFloorId, modelId) =>
-    JSON.stringify([String(keyFloorId ?? ""), String(modelId ?? "")]);
   /**
    * 复合绑定键：绑定 ID + 楼层 + 模型，用于识别「同一个绑定」。
    */
@@ -487,7 +486,7 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
     const bindingsByModelKey = new Map();
     for (const pageBinding of activeBindings()) {
       if (pageBinding.modelId != null && pageBinding.visible !== false) {
-        const modelKey = composeModelKey(pageBinding.floorId, pageBinding.modelId);
+        const modelKey = sceneModelKey(pageBinding.floorId, pageBinding.modelId);
         if (!bindingsByModelKey.has(modelKey)) {
           bindingsByModelKey.set(modelKey, pageBinding);
         }
@@ -699,7 +698,7 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
             };
       materialEntry.modelNode = modelNode;
       materialEntry.modelKey =
-        foundModelId == null ? null : composeModelKey(foundFloorId, foundModelId);
+        foundModelId == null ? null : sceneModelKey(foundFloorId, foundModelId);
       nextMeshEntries.push(materialEntry);
       // 从复用表里删掉：遍历结束后表里剩下的就是「已经不在场景里」的节点。
       entriesByMesh.delete(node);
@@ -827,7 +826,7 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
       if (shouldAnimateBindings) {
         const nextBindingKeys = new Set(nextBindings.map(composeBindingKey));
         const nextModelKeys = new Set(
-          nextBindings.map(nextBinding => composeModelKey(nextBinding.floorId, nextBinding.modelId))
+          nextBindings.map(nextBinding => sceneModelKey(nextBinding.floorId, nextBinding.modelId))
         );
         // 被移除的绑定先"退休"而不是立刻删：让它的发光淡出，避免设备突兀熄灯。
         for (const retiredBinding of bindings) {
@@ -839,7 +838,7 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
         for (const [retiredKey, pendingBinding] of retiredBindings) {
           if (
             nextBindingKeys.has(retiredKey) ||
-            nextModelKeys.has(composeModelKey(pendingBinding.floorId, pendingBinding.modelId))
+            nextModelKeys.has(sceneModelKey(pendingBinding.floorId, pendingBinding.modelId))
           ) {
             retiredBindings.delete(retiredKey);
           }

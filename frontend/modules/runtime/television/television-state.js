@@ -10,16 +10,17 @@
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
 import {
   entityDomainFromId,
+  finiteNumberOrNull,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=20260921124622";
+} from "../core/static-helpers.js?v=20260921151446";
 /** 状态源既可能是 Map 也可能是普通对象，这里统一取值的入口。 */
 const readState = (states, entityId) =>
   states instanceof Map ? states.get(entityId) : states?.[entityId];
 /**
  * 从媒体实体属性里挑出可用的封面地址。
  */
-export function televisionArtwork(entityAttributes = {}) {
+function televisionArtwork(entityAttributes = {}) {
   return (
     // 只接受本机代理地址（/api/media_player_proxy 与 /api/image_proxy）：
     // 外部图片地址会绕过 HomeOS 的鉴权并在浏览器里直连第三方，既可能 403 也泄露访问行为。
@@ -58,12 +59,11 @@ export function televisionState(item, stateSources = {}, nowMs = Date.now()) {
   const isOn = item.powerEntityId ? powerControl.on : mediaOn;
   // 已开机但媒体侧没在播：面板显示「空闲」而不是沿用上一首曲目。
   const idle = isOn && (!mediaOn || ["on", "idle"].includes(stateValue));
-  // 把 HA 媒体属性（字符串数字 / null / undefined / 空串）统一成 number 或 null：
-  // 缺失与非法一律归为 null，让调用方按「没上报」处理，而不是被 NaN 顺着算术传染。
-  const toFiniteNumber = input =>
-    input !== null && input !== "" && Number.isFinite(Number(input)) ? Number(input) : null;
-  const duration = toFiniteNumber(attributes.media_duration);
-  const reportedPosition = toFiniteNumber(attributes.media_position);
+  // HA 媒体属性（字符串数字 / null / undefined / 空串）统一成 number 或 null：缺失与非法一律
+  // 归为 null，让调用方按「没上报」处理，而不是被 NaN 顺着算术传染。实现见 utils/numbers.js
+  // 的 finiteNumberOrNull（经 static-helpers 桥取用）。
+  const duration = finiteNumberOrNull(attributes.media_duration);
+  const reportedPosition = finiteNumberOrNull(attributes.media_position);
   const positionUpdatedAt = Date.parse(attributes.media_position_updated_at || "");
   // HA 只在状态变化时上报 media_position，播放期间靠「上报时刻 + 已过时间」推算，
   // 因此仅在 playing 且时间戳可解析时才累加，否则宁可原地不动。

@@ -7,21 +7,21 @@
  * 调用方判 `error.name === "TimeoutError"`，不要匹配文案。
  */
 
-import { withRequestTimeout } from "./request-timeout.js?v=20260921142240";
+import { withRequestTimeout } from "./request-timeout.js?v=20260921151446";
 
 /**
  * 普通 JSON 接口的超时预算（毫秒）。
  * 20 秒与仓库里既有的手写预算对齐（display.js 的 apiRequest、编辑器与舞台页里
  * 直接调 withRequestTimeout 的两处都是 2e4 / 1.5e4），保持「同一套体感」。
  */
-export const API_TIMEOUT_MS = 20000;
+const API_TIMEOUT_MS = 20000;
 
 /**
  * 带二进制体的上传类请求的超时预算（毫秒）：素材图片与 3D 导出包（ZIP）体积上限远大于 JSON 草稿，
  * 中控设备 / 平板挂在弱网或 VPN 上时，20 秒会把「正在慢慢上传」误判成「网络断了」并丢掉文件；
  * 3 分钟足够传完上限体积，又仍然有界。
  */
-export const API_UPLOAD_TIMEOUT_MS = 180000;
+const API_UPLOAD_TIMEOUT_MS = 180000;
 
 /**
  * 按请求体类型挑选超时预算。

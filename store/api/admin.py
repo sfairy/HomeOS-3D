@@ -2323,9 +2323,20 @@ def admin_resolve_withdrawal(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="提现申请不存在。")
     if withdrawal.status != "pending":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="该申请已处理。")
-    referrals.resolve_withdrawal(
-        session, withdrawal, approve=payload.approve, note=payload.note
-    )
+    try:
+        referrals.resolve_withdrawal(
+            session, withdrawal, approve=payload.approve, note=payload.note
+        )
+    except referrals.WalletGuardError:
+        #: 余额小于冻结额（只能由人工调账造成）时记账会被守卫拒绝。整个事务随之回滚，
+        #: 申请仍是 pending —— 所以这里必须给一句能照做的说明，而不是让它变成 500。
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "该账号余额不足以完成这笔提现（余额已低于冻结额，通常是人工调账造成的）。"
+                "请先核对并补足余额，再重新审批；本次未做任何改动。"
+            ),
+        ) from None
     _audit(
         session,
         _admin_actor(admin),

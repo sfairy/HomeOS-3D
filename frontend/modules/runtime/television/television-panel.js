@@ -11,7 +11,7 @@ import {
   televisionTime,
   televisionPower,
   televisionMediaControl
-} from "./television-state.js?v=20260921124622";
+} from "./television-state.js?v=20260921151446";
 /**
  * 创建电视面板。
  */
@@ -258,6 +258,13 @@ export function createTelevisionPanel({ onControl: onControl = async () => {} } 
      * 用新的视图模型刷新面板。
      */
     update(nextViewModel) {
+      // 释放后一律忽略：dispose() 已经 remove() 掉根节点并清空 viewModel，而 update()
+      // 会给它重新赋上视图模型并重绘 —— 那既写进一棵已摘除的 DOM，又会在下面重新
+      // 创建每秒推进进度的 setInterval；dispose() 里的清理早已跑过，那个定时器
+      // 从此没有任何人会清，一直转到页面卸载。
+      if (isDisposed) {
+        return;
+      }
       // 换了绑定项：作废在途回包并清空与旧设备相关的状态。
       if (viewModel?.item.id !== nextViewModel.item.id) {
         instanceId++;

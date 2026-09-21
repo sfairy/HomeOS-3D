@@ -7,12 +7,15 @@
  * 平面几何的 +Y 对应场景的 -Z，故所有注入代码里都带负号。
  */
 
+// 「减少动态效果」偏好的唯一判定。
+import { prefersReducedMotionNow } from "./motion-preference.js?v=20260921151446";
+
 /**
  * 归一化主题名。
  *
  * "contours" 是早期版本的旧名，仍映射到 dots，保证老配置升级后不会掉回网格。
  */
-export const normalizeBackgroundTheme = themeName =>
+const normalizeBackgroundTheme = themeName =>
   themeName === "dots" || themeName === "contours" ? "dots" : "grid";
 // 注入到顶点 / 片元着色器的代码片段。
 // 注意：字符串里的 // 是 GLSL 注释，属于着色器源码的一部分，必须原样保留 ——
@@ -41,8 +44,7 @@ export function createBackgroundTheme(
   const accentColor = new THREE.Color("#b5cbd8");
   const deepColor = new THREE.Color("#182431");
   // 用户要求「减少动态效果」时完全关掉星尘的交互反馈（既不扫描也不重绘）。
-  const prefersReducedMotion =
-    globalThis.window?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+  const prefersReducedMotion = prefersReducedMotionNow();
   let activeTheme = "grid";
   let isSyncEnabled = true;
   let isDisposed = false;

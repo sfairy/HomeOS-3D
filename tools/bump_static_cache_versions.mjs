@@ -22,7 +22,13 @@ const TEXT_EXTENSIONS = new Set([".js", ".html", ".css", ".webmanifest", ".py"])
 
 const SCAN_ROOTS = [
   path.join(ROOT, "frontend"),
-  path.join(ROOT, "store", "templates")
+  path.join(ROOT, "store", "templates"),
+  // store/static 必须和 templates 一起扫：商店是独立构建上下文，`store/static/*.js`
+  // 之间的相对 import 也带 `?v=`。曾经漏掉这一片，于是 `store/static/palette.js` 一直
+  // 停在旧戳上（护栏那侧同样漏了，两边一起沉默，直到护栏补上才暴露）。
+  // **改本清单时必须同步 tools/check_structure_refs.mjs 的戳检查**，否则会出现
+  // 「本工具改不到、护栏测得出」这种最难查的错配。
+  path.join(ROOT, "store", "static")
 ];
 
 const EXTRA_FILES = [

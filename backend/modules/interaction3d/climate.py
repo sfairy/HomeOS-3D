@@ -13,13 +13,26 @@ import math
 
 from fastapi import HTTPException
 
-# 允许透传的服务 → 该服务唯一允许出现的参数名；
+# 允许透传的服务 → 该服务唯一允许出现的参数名；``None`` 表示该服务**不带参数**。
 # 表里没有的服务，以及夹带其它参数（如同时给 temperature 与 hvac_mode）的请求一律拒绝。
+#
+# ``turn_on`` 必须留在表里，这不是预留：空调关机时 HA 上报的 state 就是 ``off``，
+# 用户最后选的 cool / heat 不再上报，于是 3D 面板在「没有可恢复模式」时（全新浏览器、
+# 清过存储、首次使用这台空调）会发 ``turn_on`` 让设备自己回到默认模式 —— 这正是
+# ``supported_features`` 第 7 位（ClimateEntityFeature.TURN_ON）的语义，前端也有对应的
+# ``turnOnSupported`` 分支。少了这一条，这条路会在两层白名单上各撞一次（本表 422、
+# ``ha.ALLOWED_SERVICES`` 403），用户看到的是「按了开启没反应」，而唯一出路是先让这台
+# 空调在别处开过一次，好让模式历史被记下来。
+#
+# 刻意**不**登记 ``climate.turn_off``：前端关机走 ``set_hvac_mode: off``，设备没有 off
+# 模式时退到 ``homeassistant.toggle``（``climate`` 在 ``TOGGLE_ENTITY_DOMAINS`` 里），
+# 永远不会构造这个服务。白名单只登记真正可达的取值。
 CLIMATE_SERVICES = {
     'set_temperature': 'temperature',
     'set_hvac_mode': 'hvac_mode',
     'set_fan_mode': 'fan_mode',
     'set_swing_mode': 'swing_mode',
+    'turn_on': None,
 }
 
 
@@ -66,22 +79,31 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
 
     参数:
         service: HA 服务名，必须命中 CLIMATE_SERVICES。
-        data: 透传参数，必须恰好只带该服务对应的那一个键。
+        data: 透传参数，必须恰好只带该服务对应的那一个键（无参数服务则必须为空）。
         state: 实体的实时状态快照，缺失视为设备不可用。
     异常:
         HTTPException: 422 参数或取值超出设备能力；409 状态不可用或能力尚未载入。
     """
-    field = CLIMATE_SERVICES.get(service)
-    # 白名单式校验：服务要在表里，data 也必须恰好只有它对应的那个键。
-    if field is None or set(data) != {field}:
+    # 白名单式校验：服务要在表里，data 也必须恰好只有它对应的那个键（或一个键都没有）。
+    # 先判「在不在表里」再取参数名：``None`` 现在是「无参数服务」的合法取值，
+    # 用 ``.get()`` 的返回值同时表达「不在表里」会分不清这两件事。
+    if service not in CLIMATE_SERVICES:
+        raise HTTPException(status_code=422, detail='3D 空调控制不支持此服务。')
+    parameter = CLIMATE_SERVICES[service]
+    expected_fields = set() if parameter is None else {parameter}
+    if set(data) != expected_fields:
         raise HTTPException(status_code=422, detail='3D 空调控制不支持此服务或参数。')
     # unknown / unavailable 与空状态同等对待，不去猜设备的真实状态。
+    # 这一层对开关机同样适用：设备失联时「开启」也不该假装成功。
     if not state or state.get('available') is False or state.get('state') in {None, '', 'unknown', 'unavailable'}:
         raise HTTPException(status_code=409, detail='空调状态暂不可用，请等待设备重新连接。')
+    # 开关机是无参数服务，也不需要读 attributes：回到哪个模式由设备自己决定。
+    if parameter is None:
+        return None
     attributes = state.get('attributes')
     if not isinstance(attributes, dict):
         raise HTTPException(status_code=409, detail='空调能力尚未载入，请稍后重试。')
-    value = data[field]
+    value = data[parameter]
     if service == 'set_temperature':
         # 温度区间与步长都来自 HA 属性；集成不上报 step 时按 HA 常见的 0.5 兜底。
         minimum, maximum = attributes.get('min_temp'), attributes.get('max_temp')
@@ -110,7 +132,7 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
             raise HTTPException(status_code=422, detail='目标温度不符合空调支持的调节步长。')
         return None
     # 模式类服务：取值必须命中 HA 当前上报的候选列表（hvac_modes / fan_modes / swing_modes）。
-    choices = attributes.get({'hvac_mode': 'hvac_modes', 'fan_mode': 'fan_modes', 'swing_mode': 'swing_modes'}[field])
+    choices = attributes.get({'hvac_mode': 'hvac_modes', 'fan_mode': 'fan_modes', 'swing_mode': 'swing_modes'}[parameter])
     if not isinstance(value, str) or not isinstance(choices, list) or not value or value not in choices:
         raise HTTPException(status_code=422, detail='该模式不在空调当前支持的选项中。')
     return None

@@ -96,6 +96,7 @@ def scene_folder_bytes(folder: Path) -> int:
         return 0
     total = 0
     for path in folder.iterdir():
+        # 单个条目 stat 失败不影响目录总量统计，继续下一个。
         try:
             if path.is_file():
                 total += path.stat().st_size
@@ -141,6 +142,7 @@ def scene_ids_in_documents(documents: Iterable[str]) -> set[str]:
     """
     found: set[str] = set()
     for raw in documents:
+        # 文档不是合法 JSON：跳过这一条，其余文档继续参与引用扫描。
         try:
             value = json.loads(raw)
         except (TypeError, ValueError):
@@ -204,6 +206,7 @@ def sweep_scenes(
         if orphan.name.partition('-')[0] in referenced:
             kept += 1
             continue
+        # 取不到修改时间：这条孤儿记录不参与按时间清理，继续下一个。
         try:
             modified = orphan.stat().st_mtime
         except OSError:

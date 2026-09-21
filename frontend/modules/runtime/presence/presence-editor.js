@@ -8,17 +8,18 @@
  * closedRouteSensorIds 记录用户意图。舞台命令：presence-top-view / presence-3d-view /
  * presence-preview-walk / presence-show-hit-range。
  */
-import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=20260921142240";
-import { mountInteraction3d } from "../core/runtime.js?v=20260921142240";
+import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=20260921151446";
+import { mountInteraction3d } from "../core/runtime.js?v=20260921151446";
 import {
   validPresenceRoute,
   snapsToPresenceStart,
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "./presence-motion.js?v=20260921142240";
-import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260921142240";
-import { randomUuid } from "/static/utils/random-id.js?v=20260921142240";
-import { serializeEditorDraft } from "../core/editor-save-status.js?v=20260921142240";
+} from "./presence-motion.js?v=20260921151446";
+import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260921151446";
+import { randomUuid } from "/static/utils/random-id.js?v=20260921151446";
+import { capturePointer } from "/static/utils/pointer-capture.js?v=20260921151446";
+import { serializeEditorDraft } from "../core/editor-save-status.js?v=20260921151446";
 /**
  * 打开人在传感器编辑对话框。
  */
@@ -97,7 +98,7 @@ export async function openPresenceEditor({
   styleLinkElement.rel = "stylesheet";
   // 样式与 3D 预览的 runtime.css 是两套：这里只加载编辑器自身的样式表。
   styleLinkElement.href =
-    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=20260921142240";
+    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=20260921151446";
   const dialogElement = createElement("dialog", "", "i3d-editor i3d-presence-editor");
   dialogElement.setAttribute("aria-label", manageBindings ? "配置安防" : "人物与行走路线");
   // 记下打开前的焦点，关闭时还回去，键盘用户不会丢失位置。
@@ -1188,7 +1189,7 @@ export async function openPresenceEditor({
     // 阻止默认行为：否则会触发文本选择 / 原生拖拽，把绘制手势打断。
     pointerDownEvent.preventDefault();
     // 捕获指针：拖出 SVG 边界（甚至移出窗口）也能继续收到 pointermove。
-    routeSvgElement.setPointerCapture(pointerDownEvent.pointerId);
+    capturePointer(routeSvgElement, pointerDownEvent.pointerId);
     // 优先判断"吸附闭合"：悬停靠近起点时点击即闭合，而不是新增一个重合点。
     if (
       !closedRouteSensorIds.has(selectedSensor.id) &&
@@ -1381,7 +1382,10 @@ export async function openPresenceEditor({
     // 它会先判断文档是否可见，隐藏状态下不会白排一帧。
     handleVisibilityChange();
     // 静默失败：three 未加载 / WebGL 不可用时，预览区域留空即可，路线编辑照常可用。
-  } catch {}
+  } catch {
+    // 见上：预览是可选装饰，失败不阻塞编辑器打开。这里刻意不上报 —— 缺 three 是
+    // 已知的降级路径，把它打成错误日志只会淹没真正的问题。
+  }
   return {
     close: closeEditor
   };

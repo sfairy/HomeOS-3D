@@ -1,6 +1,6 @@
 """HTTP 边界的通用件：请求体上限、缓存响应头与流式落盘。
 
-- `body_guard`：草稿类请求体的字节数与 JSON 嵌套深度闸门（ASGI 中间件）；
+- `body_guard`：请求体的字节数（默认 + 草稿）与 JSON 嵌套深度闸门（ASGI 中间件）；
 - `http_cache`：静态资源与图片响应的 Cache-Control 口径；
 - `streaming`：请求体边收边落盘的共用工具，避免整包进内存。
 
