@@ -18,13 +18,13 @@ import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
 } from "../core/editor-save-status.js?v=2609211957";
-import { confirmAction } from "/static/shared/ui-confirm.js?v=2609211957";
-import { randomUuid } from "/static/utils/random-id.js?v=2609211957";
 import {
+  confirmAction,
+  interaction3dPreviewSize,
+  randomUuid,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=2609211957";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=2609211957";
+} from "../core/static-helpers-editor.js?v=2609211957";
 /**
  * 打开 3D 安防配置编辑器。
  * 先取编辑授权，再建弹窗与预览舞台；舞台回报场景元数据后才渲染面板

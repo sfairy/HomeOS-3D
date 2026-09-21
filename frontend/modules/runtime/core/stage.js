@@ -8,12 +8,11 @@
  * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { resolveStateEntry } from "./static-helpers.js?v=2609211957";
+import { capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609211957";
 // 「减少动态效果」偏好的唯一判定。
 import { prefersReducedMotionNow } from "./motion-preference.js?v=2609211957";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
 import { sceneModelKey } from "./scene-model-key.js?v=2609211957";
-import { capturePointer } from "/static/utils/pointer-capture.js?v=2609211957";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(

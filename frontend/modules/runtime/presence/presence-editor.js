@@ -17,8 +17,8 @@ import {
   presenceTriggerIsTimed
 } from "./presence-motion.js?v=2609211957";
 import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609211957";
-import { randomUuid } from "/static/utils/random-id.js?v=2609211957";
-import { capturePointer } from "/static/utils/pointer-capture.js?v=2609211957";
+import { capturePointer } from "../core/static-helpers.js?v=2609211957";
+import { randomUuid } from "../core/static-helpers-editor.js?v=2609211957";
 import { serializeEditorDraft } from "../core/editor-save-status.js?v=2609211957";
 /**
  * 打开人在传感器编辑对话框。

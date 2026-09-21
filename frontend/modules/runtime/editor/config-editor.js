@@ -8,32 +8,30 @@
  * 字段约定：草稿与后端下发的 component.properties 完全一致（camelCase），本模块只收集、不做兜底。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry } from "../core/static-helpers.js?v=2609211957";
+// 桥分成两个：显示路径那份（static-helpers）只放零依赖工具，本模块是编辑器侧，其余走 editor 那份。
+import { capturePointer, resolveStateEntry } from "../core/static-helpers.js?v=2609211957";
+import {
+  DEFAULT_BASE_LIGHTING,
+  confirmAction,
+  getInteraction3dEditorView,
+  interaction3dPreviewSize,
+  normalizeBaseLighting,
+  normalizeInteraction3dLightingMode,
+  randomUuid,
+  requestInteraction3dAccess,
+  subscribeInteraction3dAccess
+} from "../core/static-helpers-editor.js?v=2609211957";
 import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609211957";
 import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609211957";
 import { mountInteraction3d } from "../core/runtime.js?v=2609211957";
 import { lightState } from "../light/light-state.js?v=2609211957";
 import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609211957";
 import { nasGroups } from "../nas/nas-panel.js?v=2609211957";
-import { randomUuid } from "/static/utils/random-id.js?v=2609211957";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=2609211957";
-import { capturePointer } from "/static/utils/pointer-capture.js?v=2609211957";
-import {
-  requestInteraction3dAccess,
-  getInteraction3dEditorView,
-  subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=2609211957";
-import { normalizeInteraction3dLightingMode } from "/static/bridge/definition.js?v=2609211957";
-import {
-  DEFAULT_BASE_LIGHTING,
-  normalizeBaseLighting
-} from "/static/3d-studio/loaders/studio-normalization.js?v=2609211957";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
 } from "../core/editor-save-status.js?v=2609211957";
-import { confirmAction } from "/static/shared/ui-confirm.js?v=2609211957";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [

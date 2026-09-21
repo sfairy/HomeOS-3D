@@ -9,7 +9,7 @@ import { mountInteraction3d } from "../core/runtime.js?v=2609211957";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=2609211957";
+} from "../core/static-helpers-editor.js?v=2609211957";
 /**
  * 打开照射范围编辑弹窗。
  *

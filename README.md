@@ -66,7 +66,7 @@ HomeOS/
 ├── frontend/               # 页面与静态资源
 │   ├── *.html              # index / display / license / login / pair / setup / 3d-studio
 │   ├── modules/runtime/    # 3D 交互舞台与编辑器，按功能域细分（经 /api/v1/modules/interaction3d 下发）
-│   │   ├── core/           # 舞台 / 运行入口 / 共享桥 / 场景同步 / 空闲轮转 / 弹窗预览
+│   │   ├── core/           # 舞台 / 运行入口 / 共享桥（两份，见下）/ 场景同步 / 空闲轮转 / 弹窗预览
 │   │   ├── camera climate cover light nas television vacuum presence environment security/
 │   │   └── editor/         # 配置编辑器与量程对话框
 │   └── static/             # 挂载为 /static
@@ -105,7 +105,7 @@ HomeOS/
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
 ├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # bump_static_cache_versions.mjs（全站静态资源缓存戳同戳刷新）
+├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· check_invariants.mjs（三条静默失效护栏）
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
@@ -643,12 +643,39 @@ node tools/bump_static_cache_versions.mjs
 
 可选参数：`--dry-run` 只列出会改哪些文件与处数（不写盘）、`--version=YYMMDDHHMM` 指定戳而不取当前本地时间。
 
-**结构改动没有自动校验**（原先的 `check_structure_refs.mjs` 已移除）。前端没有打包器，路径写错
-只在浏览器里变成 404，所以这类改动必须人工过一遍：`/static/...` 引用、前端相对 ESM 导入、
+改动前/提交前跑一遍不变量护栏（**这是现在唯一的一道自动守卫**）：
+
+```bash
+node tools/check_invariants.mjs
+```
+
+它只钉三条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里：
+
+- **运行侧裸 `/static/` 静态 import**：`frontend/modules/runtime/**` 里出现声明式 `/static/` 导入即失败
+  （舞台页能以 `file:` 打开，绝对路径在那个上下文中解析不了，表现是整棵模块树加载失败，而报错只指向
+  导入方）。合法写法只有两种：经 `core/static-helpers.js`（显示路径）或 `core/static-helpers-editor.js`
+  （编辑器路径）的桥取用；或动态 `import("/static/…")` 且同文件有 `import.meta.url.startsWith("file:")`
+  分流。`/static/vendor/` 的动态导入例外放行（第三方库只做懒加载，没有相对路径副本可供回退）。
+- **入口页取不存在的 id**：`selectElement("#x")` / `getElementById("x")` 的目标必须在同名 HTML 里存在。
+  取到 `null` 之后 `if (el)` 会静默跳过、`el?.addEventListener` 会静默不挂载，表现是「按钮点了没反应」。
+  确实由脚本动态创建的元素登记在脚本的 `DYNAMIC_IDS` 里，**登记必须连同创建点一起写明**，否则这个集合
+  会退化成误报垃圾桶。
+- **缓存戳出现第二个值**：无打包器，`?v=` 是唯一的缓存失效手段；同模块一处带戳一处不带会被当成两个模块、
+  各留一份模块级状态（两份控件注册表就是这么来的）。这条原先只能靠人工核对。
+
+**两份工作流共用这一份清单**：`.github/workflows/guards.yml`（push / PR 即跑）与
+`.github/workflows/docker.yml` 的 `guards` job（挂在镜像 `build` 之前）。改清单时**两份都要改**。
+
+**结构改动仍没有自动校验**（原先的 `check_structure_refs.mjs` 已移除，且不打算恢复）。前端没有打包器，
+路径写错只在浏览器里变成 404，所以这类改动必须人工过一遍：`/static/...` 引用、前端相对 ESM 导入、
 `backend/main.py` 的 `public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime`
 的对应、`/api/v1/modules/interaction3d/<path>` 资源 URL、`/store-static/...` 引用、CSS 里的相对
-`url(...)`、后端 `frontend_dir / …` 拼接链、静态资源缓存戳、注释里写到的文件路径、
+`url(...)`、后端 `frontend_dir / …` 拼接链、注释里写到的文件路径、
 `backend/config.py` 的仓库根推导、`Dockerfile` 里的仓库相对路径。
+
+**在 `frontend/modules/runtime/` 下新增文件时还有一处必查**：该目录的文件全部经
+`/api/v1/modules/interaction3d/{filename:path}` 下发，白名单在 `backend/modules/interaction3d/api.py`
+的 `get_resource()` 里，**漏登记不报错，只表现为浏览器里某个模块 404、整条 import 链断掉**。
 
 **前端结构 / 卫生护栏已全部移除**（原先的 `check_frontend_hygiene.mjs` / `check_studio_palette.mjs` /
 `check_registry_split.mjs` / `check_esm_exports.mjs` / `check_scene_sync.mjs` / `check_entry_pages.mjs`
@@ -679,7 +706,8 @@ Python 侧的死代码门禁由仓库根的 `ruff.toml` 单独钉住（只挑全
 ruff check .                                      # 未使用 import / 重复定义 / 未使用局部变量 / 未定义名字 / 注释掉的代码
 ```
 
-**两条工作流现在只跑 `ruff check .`**（原先的七道 Node 守卫已随本轮清理移除）：
+**两条工作流现在跑 `node tools/check_invariants.mjs` + `ruff check .`**（原先的七道 Node 守卫已随清理移除，
+本轮补回其中价值最高的那一道 —— 三条静默失效不变量）：
 
 - `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
 - `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有
@@ -705,12 +733,18 @@ ruff check .                                      # 未使用 import / 重复定
   `adaptiveDeviceLightBudget`）—— 现场看着像几何/预算算法坏了，其实是导出写法。换成
   `import { clampNumber } …; export { clampNumber as clamp };` 同样不建绑定，长得还更像「修复」，
   两种写法都要靠人认出来。
-- 另有一处这两类写法都看不见：运行时树通往 `/static/` 的共享桥
-  `modules/runtime/core/static-helpers.js`。桥写的是 `const { a, b } = await (… ? import(相对路径)
-  : import("/static/…"))`，既不是 `import … from` 也不是 `export const { … }`，所以桥里漏一个
-  `export`、拼错一个目标路径都不会有任何静态报错，只有浏览器会炸 —— 加名字到桥里后请人工核对：
+- 另有一处这两类写法都看不见：运行时树通往 `/static/` 的两份共享桥
+  `modules/runtime/core/static-helpers.js`（显示路径）与 `static-helpers-editor.js`（编辑器路径）。
+  桥写的是 `const { a, b } = await (… ? import(相对路径) : import("/static/…"))`，既不是
+  `import … from` 也不是 `export const { … }`，所以桥里漏一个 `export`、拼错一个目标路径都不会有
+  任何静态报错，只有浏览器会炸 —— 加名字到桥里后请人工核对：
   解构出的每个名字都得是两个分支目标的真实导出、两个分支必须指向同一个文件、末尾 `export { … }`
   必须与解构出的名字集合逐字相同（桥自己的「登记表」纪律）。
+
+  为什么是两份而不是一份：`static-helpers.js` 在**显示热路径**上（`stage.js` 直接 import 它），所以
+  只登记零依赖工具；`bridge/bridge.js` 的授权与视图登记接口**有模块级状态**（一个授权监视器 + 两张
+  按组件 ID 索引的 Map），一旦并进前者，纯展示页也要付这份开销。于是按「哪些模块会加载它」拆开：
+  只有用户真的打开 3D 编辑器才走到的模块，import `static-helpers-editor.js`。
 
 `utils/state-entry.js` 的契约（**已无自动断言**）：状态文本归一
 （`String(state).trim().toLowerCase()`）曾散落二十余处，如今只此一份，各域只负责

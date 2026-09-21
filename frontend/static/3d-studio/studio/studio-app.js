@@ -420,7 +420,6 @@ const sceneCountsElement = selectElement("#scene-counts");
 const previewSyncButtons = [...document.querySelectorAll("[data-preview-sync]")];
 const previewFloorButtons = [...document.querySelectorAll("[data-preview-floor]")];
 const refreshPreviewButton = selectElement("#refresh-preview");
-const refreshLightPreviewButton = selectElement("#refresh-light-preview");
 const previewQualityStatusElement = selectElement("#preview-quality-status");
 const modelLoadingStatusElement = selectElement("#model-loading-status");
 const lightCacheCanvasElement = selectElement("#preview-light-cache");
@@ -9346,10 +9345,6 @@ function applyRenderQualityMode() {
     previewQualityStatusElement.hidden = true;
     previewQualityStatusElement.title = "";
     previewQualityStatusElement.textContent = "";
-  }
-  if (refreshLightPreviewButton) {
-    refreshLightPreviewButton.hidden = true;
-    refreshLightPreviewButton.disabled = true;
   }
 }
 /**
@@ -27742,7 +27737,6 @@ refreshPreviewButton.addEventListener("click", () =>
     force: true
   })
 );
-refreshLightPreviewButton?.addEventListener("click", invalidateLightCacheSoon);
 detailsResizerElement.addEventListener("pointerdown", detailsResizerPointerDownEvent => {
   if (detailsResizerPointerDownEvent.button === 0) {
     detailsResizeState = {

@@ -651,9 +651,12 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
             # core/：舞台、运行入口与共享桥。static-helpers 是树内唯一一处
             # 「条件导入 /static 助手」的转出口（resolveStateEntry / entityDomainFromId），
             # 被其余十几份运行时文件 import —— 漏登记它，整条 import 链会在浏览器里断在第一跳。
+            # static-helpers-editor 是它的编辑侧姐妹（多登记了 bridge.js 的授权 / 视图接口，
+            # 因而有模块级状态）：只有编辑器侧那几份 import 它，显示路径不加载，故单独一个文件。
             'core/runtime.js',
             'core/stage.js',
             'core/static-helpers.js',
+            'core/static-helpers-editor.js',
             'core/scene-model-key.js',
             'core/motion-preference.js',
             'core/scene-background.js',

@@ -32,7 +32,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      # 七道 Node 守卫已在本轮清理中整体移除（README「开发工具」有记录），现在只剩这一道。
+      # 七道 Node 守卫已在本轮清理中整体移除（README「开发工具」有记录）；现在补回
+      # **一道**：tools/check_invariants.mjs 只钉三条「不报错、只静默失效」的不变量
+      # （运行侧裸 /static/ import、入口页取不存在的 id、缓存戳出现第二个值）。
+      # 这三条都是每次编辑都可能踩到、且踩到时浏览器不报错的那一类，不能留给人工 review。
+      # ubuntu-latest 自带 node，不需要额外 setup。
+      - name: Invariants (dead-end imports / missing element ids / split cache stamps)
+        run: node tools/check_invariants.mjs
+
       - name: Install lint tooling
         run: pip install ruff
 

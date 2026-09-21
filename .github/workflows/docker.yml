@@ -42,8 +42,10 @@ jobs:
   #
   # 曾经常驻在这里的是七道 Node 守卫（结构引用 / ESM 导出 / 注册表分片 / 素材卡 / 前端卫生 /
   # 场景同步 / 入口页）加三项运行时冒烟（smoke_registry / smoke_state_entry / smoke_backend），
-  # 本轮清理中已整体移除，现在只剩 ruff 一道；不变量改由人工 review 兜住，清单见 README
-  # 「开发工具」。两份工作流仍共用同一份清单，改时两边一起改。
+  # 本轮清理中已整体移除；随后补回**一道** —— tools/check_invariants.mjs 只钉三条每次编辑都
+  # 可能踩到、且踩到时浏览器不报错的不变量（运行侧裸 /static/ import、入口页取不存在的 id、
+  # 缓存戳出现第二个值）。其余不变量仍由人工 review 兜住，清单见 README「开发工具」。
+  # 两份工作流**共用同一份清单**，改时两边一起改。
   #
   # 移除的代价要说清楚：smoke_backend 同时是**唯一的路由清单校验**（拿 tools/routes.snapshot.txt
   # 做双向 diff），它也已删除 —— 改动路由请人工核对 OpenAPI 与调用方。
@@ -61,6 +63,12 @@ jobs:
 
       - name: Install lint tooling
         run: pip install ruff
+
+      # 与 guards.yml 共用同一份清单（README 明确要求两边一起改）：
+      # 三条「不报错、只静默失效」的不变量，见 tools/check_invariants.mjs 文件头。
+      # ubuntu-latest 自带 node。
+      - name: Invariants (dead-end imports / missing element ids / split cache stamps)
+        run: node tools/check_invariants.mjs
 
       - name: Dead code, unused imports and commented-out code
         run: ruff check .

@@ -9,7 +9,7 @@
  * 改动同步调用 renderEditor()（节点极少、交互低频，异步批处理只会增加不一致风险）。
  */
 import { mapCorners, mapSource } from "./vacuum-map.js?v=2609211957";
-import { capturePointer } from "/static/utils/pointer-capture.js?v=2609211957";
+import { capturePointer } from "../core/static-helpers.js?v=2609211957";
 /**
  * 从户型平面数据里挑出可当参照物的家具，并把尺寸换算到像素尺度：灯具、摄像头、人体存在传感器、
  * 地面开洞、文字标签一律排除（不在落地层或只是标注），缺合法坐标或宽高非正的也丢掉。

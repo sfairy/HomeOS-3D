@@ -2046,11 +2046,6 @@ body[data-tone] .scale-dialog .dialog-index {
   border-color: #ffa73a47;
   background: #ffa73a1a;
 }
-.preview-heading #refresh-light-preview:not(:disabled) {
-  color: #ffc071;
-  border-color: #ffa73a47;
-  background: #ffa73a1a;
-}
 /* 已存过视角的固定机位按钮染成琥珀色，与「空位」区分；状态由脚本按位图写入类名。 */
 .fixed-camera-actions button.has-saved-view {
   color: #ffc071;

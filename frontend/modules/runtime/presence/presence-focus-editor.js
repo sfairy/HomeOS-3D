@@ -9,7 +9,7 @@
  * 命令按队列串行执行，避免并发改相机导致回填顺序错乱。
  */
 import { mountInteraction3d } from "../core/runtime.js?v=2609211957";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=2609211957";
+import { interaction3dPreviewSize } from "../core/static-helpers-editor.js?v=2609211957";
 /**
  * 打开聚焦视角编辑弹窗（模态，无返回值句柄）。
  */
