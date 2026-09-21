@@ -9,7 +9,20 @@
 /* ===== 主题变量与全局重置 ===== */
 
 /* 全局调色板与字体栈。color-scheme: dark 让原生控件（下拉、日期选择、滚动条）
-   也走深色；字体按 Latin → 系统中文字体的顺序排列，避免中文回落到衬线字体。 */
+   也走深色；字体按 Latin → 系统中文字体的顺序排列，避免中文回落到衬线字体。
+
+   这里**不再自己定义颜色**，只把本文件各处的历史令牌名（--bg / --surface / --accent …）
+   别名到 design/scene/page.css 那份全站唯一调色板（index.html 已 <link> 其分发产物
+   /static/auth/scene/page.css）。别名而不是重命名，是因为本文件与 renderer.css 里
+   有 72 处 var(--accent*)、数十处 var(--surface*)：改名要逐个跟，别名一次到位，
+   以后新增的规则也自然接到同一套色。
+
+   为什么不让 app.css 自带一份色板：编辑器原来那套橙色（--accent: #f2a20d）与入口页 / 商店
+   的青是两套独立取值，改一处另一处不动，两年下来连「品牌色到底是橙还是青」都说不清。
+   现在编辑器、入口页、商店、Activate 读的是同一批 --hos-*，换色只改 design/scene/page.css。
+
+   派生色（-soft / -line）仍由本文件按 alpha 现算，因为 --hos-* 只提供 RGB 通道
+   （--hos-accent-rgb），半透明版本各处 alpha 不同，收进令牌反而要开五六个变量。 */
 :root {
   color-scheme: dark;
   font-family:
@@ -22,20 +35,38 @@
     PingFang SC,
     Microsoft YaHei,
     sans-serif;
-  /* 深色主题调色板：三档抬升面（surface / soft / raised）+ 输入框底色 field；
-     accent 是品牌橙，accent-soft 是它的 12% 透明度版本，专用于 hover / 选中底色。 */
-  --bg: #151a1f;
-  --surface: #1a2026;
-  --surface-soft: #1e252c;
-  --surface-raised: #232b33;
-  --field: #171d22;
-  --line: #303840;
-  --text: #e8ecef;
-  --muted: #89949d;
-  --accent: #f2a20d;
-  --accent-bright: #ffb52e;
-  --accent-soft: rgba(242, 162, 13, 0.12);
-  --success: #54bd78;
+
+  /* 画布与三级抬升面（surface / soft / raised）+ 输入框底色 field，全部对齐夜空族。
+     field 比画布再深一档，输入框才「陷进去」而不是浮起来。 */
+  --bg: var(--hos-sky-deep);
+  --surface: var(--hos-sky-low);
+  --surface-soft: var(--hos-sky-mid);
+  --surface-raised: var(--hos-sky-high);
+  --field: var(--hos-sky-deep);
+  --line: var(--hos-sky-haze);
+  --text: var(--hos-ink);
+  --muted: var(--hos-muted);
+
+  /* 主控色 = 品牌青。**不再是橙色**：橙色留在暖光（--warn）那一档，
+     用于「待处理 / 提醒 / 已激活」这类状态，而不是「可点击」这件事。 */
+  --accent: var(--hos-accent);
+  --accent-bright: var(--hos-accent-bright);
+  --accent-soft: rgba(var(--hos-accent-rgb), 0.12);
+
+  /* 语义色。编辑器原来只有 success 一个，缺 warn / danger / info，
+     于是各处自己写死十六进制。补齐后与商店 theme.css 的语义命名一一对应。 */
+  --success: var(--hos-eco);
+  --warn: var(--hos-lumen);
+  --danger: var(--hos-alert);
+  --info: var(--hos-cool);
+
+  /* 设备读色：控件面板与运行期弹窗按设备类型取色。 */
+  --device-light: var(--hos-lumen);
+  --device-climate: var(--hos-cool);
+  --device-airflow: var(--hos-eco);
+  --device-security: var(--hos-eco);
+  --device-offline: var(--hos-sensor);
+
   background: var(--bg);
   color: var(--text);
 }
@@ -98,7 +129,7 @@ html.editor-viewport-fit body {
   justify-content: space-between;
   padding: 0 18px;
   border-bottom: 1px solid var(--line);
-  background: #171d22;
+  background: var(--field);
   box-shadow: 0 3px 18px #0000003d;
 }
 /* 品牌区：图标 + 站点名 + 版本号横向排布；min-width: 0 让长名称可收缩而不撑破顶栏。 */
@@ -151,23 +182,6 @@ html.editor-viewport-fit body {
   background: #20262b;
   cursor: default;
 }
-/* 检查器里的保存动作行：状态文字 + 保存按钮并排，左对齐贴住栏宽。 */
-.inspector-save-actions {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 8px;
-}
-.inspector-save-actions .save-state {
-  white-space: nowrap;
-}
-.inspector-save {
-  width: 64px;
-  min-width: 64px;
-  height: 32px;
-  min-height: 32px;
-  padding: 4px 10px;
-}
 /* 顶栏状态胶囊（HA / 授权 / 日志）：圆点用 <i> 充当，connected / error / warning
    三个修饰类只改圆点颜色与光晕，尺寸和圆角在这里统一。 */
 .ha-status {
@@ -197,8 +211,8 @@ html.editor-viewport-fit body {
   box-shadow: 0 0 8px #e26b6759;
 }
 .ha-status.warning i {
-  background: #f2a20d;
-  box-shadow: 0 0 8px #f2a20d6b;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(var(--hos-accent-rgb), 0.42);
 }
 /* ===== 授权卡片 ===== */
 
@@ -493,9 +507,9 @@ h2 {
 .dashboard-control-heading #popup-new {
   min-height: 25px;
   padding: 3px 8px;
-  border-color: #f2a20d7a;
+  border-color: rgba(var(--hos-accent-rgb), 0.48);
   color: var(--accent-bright);
-  background: #f2a20d0f;
+  background: rgba(var(--hos-accent-rgb), 0.06);
   font-size: 11px;
 }
 /* hover 加强：描边提到实色橙，用 box-shadow 画 2px 外发光而非 outline，
@@ -504,8 +518,8 @@ h2 {
 .dashboard-control-heading #page-new:hover,
 .dashboard-control-heading #popup-new:hover {
   border-color: var(--accent-bright);
-  background: #f2a20d24;
-  box-shadow: 0 0 0 2px #f2a20d1a;
+  background: rgba(var(--hos-accent-rgb), 0.14);
+  box-shadow: 0 0 0 2px rgba(var(--hos-accent-rgb), 0.1);
 }
 .dashboard-control-heading button:disabled {
   color: #67727a;
@@ -547,8 +561,8 @@ h2 {
 }
 .editor-content-tabs button.active {
   color: #fff3d8;
-  background: #f2a20d1f;
-  box-shadow: inset 0 0 0 1px #f2a20d42;
+  background: rgba(var(--hos-accent-rgb), 0.12);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.26);
 }
 /* ===== 页面 / 项目选择行 ===== */
 
@@ -623,7 +637,7 @@ h2 {
 .project-floorplan-open:hover:not(:disabled) {
   border-color: var(--accent);
   color: #fff3d8;
-  background: #f2a20d1f;
+  background: rgba(var(--hos-accent-rgb), 0.12);
 }
 .project-floorplan-open:disabled {
   color: #667079;
@@ -736,7 +750,7 @@ h2 {
 }
 .custom-select-button[aria-expanded="true"] {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px #f2a20d1f;
+  box-shadow: 0 0 0 2px rgba(var(--hos-accent-rgb), 0.12);
 }
 .custom-select-button[aria-expanded="true"]:after {
   margin-top: -1px;
@@ -832,7 +846,7 @@ h2 {
   color: #f3f5f6;
   border-color: var(--accent);
   background: #252c32;
-  box-shadow: inset 0 0 0 1px #f2a20d2e;
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.18);
   font-weight: 680;
 }
 .custom-select-option:hover:not(:disabled) {
@@ -871,7 +885,7 @@ h2 {
 /* hover 用 8% 橙底作「可点」反馈，不画下划线，避免与选中态的橙条混淆。 */
 .element-list-tabs button:hover {
   color: #fff4dc;
-  background: #f2a20d14;
+  background: rgba(var(--hos-accent-rgb), 0.08);
 }
 .element-list-tabs button.active {
   color: #f1f3f4;
@@ -892,15 +906,15 @@ h2 {
   min-height: 31px;
   margin: 8px 0 9px;
   border-style: dashed;
-  border-color: #f2a20d75;
+  border-color: rgba(var(--hos-accent-rgb), 0.46);
   color: #d9ba83;
-  background: #f2a20d0b;
+  background: rgba(var(--hos-accent-rgb), 0.04);
   font-size: 11px;
 }
 .add-element-button:hover:not(:disabled) {
   border-color: var(--accent-bright);
   color: #fff0d4;
-  background: #f2a20d1a;
+  background: rgba(var(--hos-accent-rgb), 0.1);
 }
 /* 达到组件上限或未选页面时禁用：彻底去掉橙色，避免看起来仍可添加。 */
 .add-element-button:disabled {
@@ -921,7 +935,7 @@ h2 {
 }
 .component-template-body > p {
   margin: 0;
-  color: #89949d;
+  color: var(--muted);
   font-size: 10px;
   line-height: 1.55;
 }
@@ -938,14 +952,14 @@ h2 {
   gap: 7px;
   padding: 7px;
   border-color: #3a454e;
-  background: #171d22;
+  background: var(--field);
   text-align: left;
 }
 /* hover：橙色描边 + 同色 2px 外圈；用 box-shadow 不占位，卡片之间不会被挤动。 */
 .component-template-card:hover {
   border-color: var(--accent-bright);
-  background: #f2a20d14;
-  box-shadow: 0 0 0 2px #f2a20d14;
+  background: rgba(var(--hos-accent-rgb), 0.08);
+  box-shadow: 0 0 0 2px rgba(var(--hos-accent-rgb), 0.08);
 }
 /* 预览图固定 2:1（520×260），与模板缩略图的出图比例一致，避免加载完成时高度跳变。 */
 .component-template-preview {
@@ -1041,13 +1055,13 @@ h2 {
 .element-item.selected {
   border-color: var(--accent);
   color: #fff;
-  background: #f2a20d0b;
+  background: rgba(var(--hos-accent-rgb), 0.04);
 }
 /* 多选时只有主选中项（selection-primary，由 JS 标记）用实心橙边，
    其余选中项降到半透明橙边，用来区分「当前编辑的那个」。 */
 .element-item.selected:not(.selection-primary) {
-  border-color: #f2a20d7a;
-  background: #f2a20d06;
+  border-color: rgba(var(--hos-accent-rgb), 0.48);
+  background: rgba(var(--hos-accent-rgb), 0.02);
 }
 .element-item.selection-primary {
   box-shadow: none;
@@ -1072,7 +1086,7 @@ h2 {
 /* hover 提亮成亮金色，并叠 7% 橙底作为可点反馈。 */
 .element-group-back:hover {
   color: #ffd678;
-  background: #f2a20d12;
+  background: rgba(var(--hos-accent-rgb), 0.07);
 }
 /* 拖拽反馈：被拖项降透明度，落点用 inset 阴影在顶 / 底边画 2px 插入线。 */
 .element-item.dragging {
@@ -1328,7 +1342,7 @@ h2 {
 .component-label-options button.active {
   border-color: var(--accent);
   background: #252c32;
-  box-shadow: inset 0 0 0 1px #f2a20d2e;
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.18);
 }
 .component-label-options button:hover {
   border-color: #59656e;
@@ -1406,13 +1420,13 @@ h2 {
 }
 /* 开启态：半透明橙描边 + 12% 橙底，与 aria-pressed 一起表达「声音已开」。 */
 .workspace-sound-toggle[aria-pressed="true"] {
-  border-color: #f2a20d47;
+  border-color: rgba(var(--hos-accent-rgb), 0.28);
   color: #f2b23b;
-  background: #f2a20d12;
+  background: rgba(var(--hos-accent-rgb), 0.07);
 }
 .workspace-sound-toggle:hover {
   border-color: #505c65;
-  color: #f2a20d;
+  color: var(--accent);
   background: #ffffff0d;
 }
 .workspace-sound-toggle:disabled {
@@ -1617,7 +1631,7 @@ h2 {
   border-right: 1px solid #39424a;
   border-radius: 0;
   color: #7d8991;
-  background: #171d22;
+  background: var(--field);
   font-size: 11px;
   font-weight: 560;
   line-height: 1;
@@ -1628,7 +1642,7 @@ h2 {
 }
 .workspace-modes button.active {
   color: #201707;
-  background: #f2a20d;
+  background: var(--accent);
   font-weight: 700;
 }
 .workspace-modes button:hover:not(.active) {
@@ -1722,7 +1736,7 @@ h2 {
 .canvas-message strong {
   display: block;
   margin-bottom: 9px;
-  color: #e8ecef;
+  color: var(--text);
   font-size: 16px;
 }
 .canvas-message p {
@@ -1730,18 +1744,6 @@ h2 {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.65;
-}
-/* 标题上方的胶囊徽标（如「预览」）：99px 圆角即胶囊化；0.08em 字距让全大写字母不挤。 */
-.canvas-badge {
-  display: inline-flex;
-  margin-bottom: 18px;
-  padding: 5px 9px;
-  border: 1px solid rgba(242, 162, 13, 0.38);
-  border-radius: 99px;
-  color: var(--accent-bright);
-  background: #f2a20d0f;
-  font-size: 10px;
-  letter-spacing: 0.08em;
 }
 /* ===== 检查器骨架与表单 ===== */
 
@@ -1831,7 +1833,7 @@ h2 {
   border-radius: 4px;
   outline: none;
   color: #dce2e6;
-  background: #171d22;
+  background: var(--field);
   font-size: 11px;
 }
 /* 多行文本框：高度自适应内容，min-height 52px（约三行）保证空值也有足够点击区；
@@ -1851,7 +1853,7 @@ h2 {
   overflow: hidden;
   border: 1px solid #37414a;
   border-radius: 4px;
-  background: #171d22;
+  background: var(--field);
 }
 .title-button-secondary-lines-field:focus-within {
   border-color: var(--accent);
@@ -1889,7 +1891,7 @@ h2 {
 /* 只读输入（如自动生成的组件 ID）：文字与底色一起压暗，表示可复制但不可改。 */
 .inspector-section input[readonly] {
   color: #76828a;
-  background: #151a1f;
+  background: var(--bg);
 }
 .inspector-section input:disabled {
   color: #59656d;
@@ -1953,12 +1955,12 @@ h2 {
 }
 .inspector-number-stepper:hover {
   border-color: transparent;
-  color: #f2a20d;
+  color: var(--accent);
   background: #252d33;
 }
 .inspector-number-stepper:active {
   color: #171006;
-  background: #f2a20d;
+  background: var(--accent);
 }
 /* 步进箭头：8×5 的纯描边折线三角形，1.25 的描边宽度保证小尺寸下不糊。 */
 .inspector-number-stepper svg {
@@ -2198,7 +2200,7 @@ h2 {
   overflow: hidden;
   border-color: #37414a;
   color: #dce2e6;
-  background: #171d22;
+  background: var(--field);
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2300,7 +2302,7 @@ h2 {
   border-radius: 4px;
   outline: none;
   color: #dce2e6;
-  background: #171d22;
+  background: var(--field);
   font-size: 11px;
 }
 /* 菜单内输入框 / 下拉的聚焦态，与检查器里其它表单控件保持一致。 */
@@ -2319,16 +2321,16 @@ h2 {
   min-width: 47px;
   min-height: 31px;
   padding: 4px 7px;
-  border-color: #f2a20d7a;
+  border-color: rgba(var(--hos-accent-rgb), 0.48);
   color: #efc982;
-  background: #f2a20d12;
+  background: rgba(var(--hos-accent-rgb), 0.07);
   font-size: 9px;
 }
 /* 上传按钮 hover 加强橙色；9px 字号是「一行塞下两个按钮」的代价。 */
 .asset-upload-button:hover:not(:disabled) {
   border-color: var(--accent-bright);
   color: #fff0d0;
-  background: #f2a20d24;
+  background: rgba(var(--hos-accent-rgb), 0.14);
 }
 .asset-upload-hint {
   margin: -1px 1px 0;
@@ -2450,7 +2452,7 @@ h2 {
 .inspector-entity-option:hover {
   border-color: var(--accent-bright);
   color: #fff4dc;
-  background: #f2a20d1a;
+  background: rgba(var(--hos-accent-rgb), 0.1);
 }
 /* hover 时把类型标签与 ID 一并提亮，保证整行在橙底上的对比度。 */
 .inspector-entity-option:hover .inspector-entity-kind {
@@ -2463,7 +2465,7 @@ h2 {
   border-color: var(--accent);
   color: #fff;
   background: #252c32;
-  box-shadow: inset 0 0 0 1px #f2a20d2e;
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.18);
 }
 /* 当前组件不支持的实体（例如把 climate 放进只收 light 的槽位）：降到 58% 透明度但仍可选。 */
 .inspector-entity-option.unsupported {
@@ -2506,7 +2508,7 @@ h2 {
   border: 1px solid #343e46;
   border-radius: 3px;
   color: #cbd2d6;
-  background: #171d22;
+  background: var(--field);
   text-align: left;
 }
 /* 缩略图用 object-fit: contain 保留完整图形（图标类素材不能被裁切），留白由深底色补足。 */
@@ -2532,12 +2534,12 @@ h2 {
 .inspector-asset-option:hover {
   border-color: var(--accent-bright);
   color: #fff4dc;
-  background: #f2a20d1a;
+  background: rgba(var(--hos-accent-rgb), 0.1);
 }
 .inspector-asset-option.selected {
   border-color: var(--accent);
-  background: #f2a20d1a;
-  box-shadow: inset 0 0 0 1px #f2a20d33;
+  background: rgba(var(--hos-accent-rgb), 0.1);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.2);
 }
 .user-asset-option-wrap {
   position: relative;
@@ -2593,8 +2595,8 @@ h2 {
 .inspector-asset-clear.selected {
   border-color: var(--accent);
   color: #fff4dc;
-  background: #f2a20d14;
-  box-shadow: inset 0 0 0 1px #f2a20d29;
+  background: rgba(var(--hos-accent-rgb), 0.08);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.16);
 }
 /* 加载失败时只压暗破图当占位（不改 display，避免卡片高度塌陷）。 */
 .inspector-asset-option.image-load-error img {
@@ -2794,8 +2796,8 @@ h2 {
 /* 搜索框与文件夹下拉共用聚焦样式：橙描边 + 2px 极淡外圈（弹窗内刻意压低对比度）。 */
 .editor-paged-picker-search input:focus,
 .editor-paged-picker-folder:focus {
-  border-color: #f2a20da6;
-  box-shadow: 0 0 0 2px #f2a20d1c;
+  border-color: rgba(var(--hos-accent-rgb), 0.65);
+  box-shadow: 0 0 0 2px rgba(var(--hos-accent-rgb), 0.11);
 }
 .editor-paged-picker-selected {
   display: flex;
@@ -2848,7 +2850,7 @@ h2 {
 .editor-paged-picker-selected-action.selected {
   border-color: var(--accent);
   color: #fff4dc;
-  background: #f2a20d1a;
+  background: rgba(var(--hos-accent-rgb), 0.1);
 }
 .editor-paged-picker-current-label {
   flex: 0 0 auto;
@@ -3149,7 +3151,7 @@ h2 {
 .editor-paged-picker-clear.selected {
   border-color: var(--accent);
   color: #fff4dc;
-  background: #f2a20d14;
+  background: rgba(var(--hos-accent-rgb), 0.08);
 }
 .editor-paged-picker-empty {
   grid-column: 1 / -1;
@@ -3191,9 +3193,9 @@ h2 {
 }
 /* 只在按钮可用时给 hover 反馈；禁用态保持原样，避免误导用户以为能翻页。 */
 .editor-paged-picker-pagination button:not(:disabled):hover {
-  border-color: #f2a20d80;
+  border-color: rgba(var(--hos-accent-rgb), 0.5);
   color: #fff1d6;
-  background: #f2a20d14;
+  background: rgba(var(--hos-accent-rgb), 0.08);
 }
 .editor-paged-picker-pagination input {
   width: 44px;
@@ -3246,9 +3248,9 @@ h2 {
   align-items: center;
   gap: 8px;
   padding: 8px;
-  border: 1px solid rgba(242, 162, 13, 0.28);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.28);
   border-radius: 6px;
-  background: #f2a20d0e;
+  background: rgba(var(--hos-accent-rgb), 0.05);
 }
 .light-statistics-entity-pending[hidden] {
   display: none;
@@ -3277,9 +3279,9 @@ h2 {
 .light-statistics-entity-pending > button {
   min-height: 29px;
   padding: 0 10px;
-  border-color: #f2a20d75;
+  border-color: rgba(var(--hos-accent-rgb), 0.46);
   color: #f7d99d;
-  background: #f2a20d17;
+  background: rgba(var(--hos-accent-rgb), 0.09);
   font-size: 9px;
 }
 /* 统计提示条：默认琥珀色（提醒），.error 变体由下一段切成红色（失败）。 */
@@ -3742,8 +3744,8 @@ h2 {
 }
 .navigation-segmented-options button.active {
   color: #fff4dc;
-  background: #f2a20d29;
-  box-shadow: inset 0 0 0 1px #f2a20d7a;
+  background: rgba(var(--hos-accent-rgb), 0.16);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.48);
 }
 .cover-settings-compact {
   gap: 7px;
@@ -3790,7 +3792,7 @@ h2 {
   border: 1px solid #39434b;
   border-radius: 4px;
   color: #7d8991;
-  background: #171d22;
+  background: var(--field);
   font-size: 9px;
 }
 /* 紧凑档：宽度自适应、最小 44px（接近无障碍最小点击区），默认无边框透明底；
@@ -3807,7 +3809,7 @@ h2 {
 .inspector-visibility-toggle.compact[aria-pressed="false"] {
   border-color: var(--accent);
   color: var(--accent-bright);
-  background: #f2a20d12;
+  background: rgba(var(--hos-accent-rgb), 0.07);
 }
 /* 键盘聚焦时才画外框（outline 留 2px 间隙，不与橙色描边重叠）。 */
 .inspector-visibility-toggle.compact[aria-pressed="false"]:focus-visible {
@@ -3822,8 +3824,8 @@ h2 {
 .inspector-visibility-toggle.compact[aria-pressed="false"]:hover {
   border-color: var(--accent-bright);
   color: #fff0d4;
-  background: #f2a20d24;
-  box-shadow: 0 0 0 2px #f2a20d1a;
+  background: rgba(var(--hos-accent-rgb), 0.14);
+  box-shadow: 0 0 0 2px rgba(var(--hos-accent-rgb), 0.1);
 }
 /* 紧凑档的状态圆点：4px 灰点，比标准档的 5px 橙点更弱，侧栏里不会到处是亮点。 */
 .inspector-visibility-toggle.compact:before {
@@ -3851,7 +3853,7 @@ h2 {
   margin-right: 5px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 5px #f2a20d73;
+  box-shadow: 0 0 5px rgba(var(--hos-accent-rgb), 0.45);
   content: "";
   vertical-align: 1px;
 }
@@ -3871,7 +3873,7 @@ h2 {
   height: 4px;
   margin-right: 4px;
   background: var(--accent);
-  box-shadow: 0 0 4px #f2a20d52;
+  box-shadow: 0 0 4px rgba(var(--hos-accent-rgb), 0.32);
   opacity: 0.9;
 }
 /* 显示 / 隐藏开关组：两列等宽；最后一项「全部显示 / 全部隐藏」跨整行。 */
@@ -3892,7 +3894,7 @@ h2 {
   overflow: hidden;
   border: 1px solid #37414a;
   border-radius: 4px;
-  background: #171d22;
+  background: var(--field);
 }
 .navigation-icon-field-row:focus-within {
   border-color: var(--accent);
@@ -4017,7 +4019,7 @@ h2 {
   border: 1px solid #343e46;
   border-radius: 3px;
   color: #98a3aa;
-  background: #171d22;
+  background: var(--field);
   content-visibility: auto;
   contain-intrinsic-size: 51px;
 }
@@ -4044,8 +4046,8 @@ h2 {
 .navigation-icon-option.selected {
   border-color: var(--accent);
   color: #fff4dc;
-  background: #f2a20d14;
-  box-shadow: inset 0 0 0 1px #f2a20d29;
+  background: rgba(var(--hos-accent-rgb), 0.08);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.16);
 }
 .navigation-icon-clear {
   grid-column: 1 / -1;
@@ -4111,15 +4113,15 @@ h2 {
 .navigation-batch-section > button {
   width: 100%;
   min-height: 34px;
-  border-color: #f2a20d94;
+  border-color: rgba(var(--hos-accent-rgb), 0.58);
   color: #ffe6b9;
-  background: #f2a20d21;
+  background: rgba(var(--hos-accent-rgb), 0.13);
   font-size: 10px;
 }
 .navigation-batch-section > button:hover:not(:disabled) {
   border-color: var(--accent-bright);
   color: #fff2d9;
-  background: #f2a20d33;
+  background: rgba(var(--hos-accent-rgb), 0.2);
 }
 /* 显式写 opacity: 1 是为了压过浏览器给 disabled 控件的默认降透明，
    这里的禁用状态由颜色表达（灰字 + 深底），不整体变淡。 */
@@ -4252,15 +4254,15 @@ h2 {
   min-width: 52px;
   min-height: 24px;
   padding: 3px 7px;
-  border-color: #f2a20d61;
+  border-color: rgba(var(--hos-accent-rgb), 0.38);
   color: #e8c37e;
-  background: #f2a20d12;
+  background: rgba(var(--hos-accent-rgb), 0.07);
   font-size: 9px;
 }
 .navigation-style-apply-page-toggle:hover {
-  border-color: #f2a20db8;
+  border-color: rgba(var(--hos-accent-rgb), 0.72);
   color: #fff0cf;
-  background: #f2a20d21;
+  background: rgba(var(--hos-accent-rgb), 0.13);
 }
 /* 页面组内的选项网格：三列紧密排布（gap 仅 1px），靠 hover 底色区分条目。 */
 .navigation-style-apply-page-options {
@@ -4364,7 +4366,7 @@ h2 {
 .effect-image-align-option:has(input:checked) {
   border-color: var(--accent);
   box-shadow: none;
-  background: #f2a20d0b;
+  background: rgba(var(--hos-accent-rgb), 0.04);
 }
 /* ===== 效果图对齐选项 ===== */
 
@@ -4474,15 +4476,15 @@ h2 {
 .inspector-action-preview {
   min-height: 26px;
   padding: 4px 8px;
-  border-color: #f2a20d80;
+  border-color: rgba(var(--hos-accent-rgb), 0.5);
   color: #ffe3ae;
-  background: #f2a20d17;
+  background: rgba(var(--hos-accent-rgb), 0.09);
   font-size: 9px;
 }
 .inspector-action-preview:hover {
-  border-color: #f2a20dc7;
+  border-color: rgba(var(--hos-accent-rgb), 0.78);
   color: #fff0cf;
-  background: #f2a20d26;
+  background: rgba(var(--hos-accent-rgb), 0.15);
 }
 /* 门窗透视方向：固定三列等宽（俯视/正视/侧视），窄栏下靠 9px 字挤压适配。 */
 .door-window-perspective-actions {
@@ -4501,9 +4503,9 @@ h2 {
   white-space: nowrap;
 }
 .door-window-perspective-action.active {
-  border-color: #f2a20dc2;
+  border-color: rgba(var(--hos-accent-rgb), 0.76);
   color: #ffe3ae;
-  background: #f2a20d1f;
+  background: rgba(var(--hos-accent-rgb), 0.12);
 }
 .door-window-perspective-action:disabled {
   opacity: 0.42;
@@ -4659,13 +4661,48 @@ h2 {
 
 /* 通用设置弹窗：宽度跟随视口收缩；padding 置 0 由内部标题 / 内容 / 页脚各自留白。 */
 .settings-dialog {
+  /* 弹窗色调层。与入口页共用同一套语义（--hos-lumen 暖光 / --hos-aura 极光 /
+     --hos-eco 薄荷 / --hos-sensor 中性），但**只改弹窗自己的眉标与顶边光带**，
+     不碰全局 --accent ——「可点击」这件事在编辑器里始终是同一枚青。
+     顶栏四个对话框各自声明 data-tone（HA=aura、授权=lumen、会话与日志=sensor），
+     没有 data-tone 的弹窗不点色，与改造前视觉完全一致。 */
+  --dlg-tone: var(--hos-accent);
+  --dlg-tone-rgb: var(--hos-accent-rgb);
+
   width: min(620px, calc(100vw - 40px));
   padding: 0;
   border: 1px solid #3a444c;
   border-radius: 9px;
   color: var(--text);
-  background: #1a2026;
+  background: var(--surface);
   box-shadow: 0 30px 100px #00000094;
+}
+/* 色调变体。取值与 design/scene/page.css 的 .hos-tone--* 一一对应，
+   刻意重复写一遍而不是复用那个类：入口页的 tone 类同时改坞体、按钮与场景边角光，
+   这里是弹窗，只有眉标和顶边该跟着走。
+   sensor 在入口页没有对应色调（那里只有「你是哪个入口」四种说法），
+   但顶栏的会话与日志同属「本机自身的运行事实」，中性灰蓝比任何一种语义色都准确。
+   只声明 --dlg-tone / --dlg-tone-rgb 两枚：这个层目前只用在眉标文字与顶边光带上，
+   多声明一枚没人读的 -bright 等于给下一个人留一个「它到底影响哪儿」的问题。 */
+.settings-dialog[data-tone="lumen"] {
+  --dlg-tone: var(--hos-lumen);
+  --dlg-tone-rgb: var(--hos-lumen-rgb);
+}
+.settings-dialog[data-tone="aura"] {
+  --dlg-tone: var(--hos-aura);
+  --dlg-tone-rgb: var(--hos-aura-rgb);
+}
+.settings-dialog[data-tone="eco"] {
+  --dlg-tone: var(--hos-eco);
+  --dlg-tone-rgb: var(--hos-eco-rgb);
+}
+.settings-dialog[data-tone="sensor"] {
+  --dlg-tone: var(--hos-sensor);
+  --dlg-tone-rgb: var(--hos-sensor-rgb);
+}
+.settings-dialog[data-tone="alert"] {
+  --dlg-tone: var(--hos-alert);
+  --dlg-tone-rgb: var(--hos-alert-rgb);
 }
 .settings-dialog::backdrop {
   background: #05080bb8;
@@ -4698,6 +4735,64 @@ h2 {
   justify-content: center;
   gap: 10px;
   margin-top: 10px;
+}
+
+/* 导图保存完成提示。
+   刻意不复用 #floorplan-auto-diagram-dialog：那是编辑面板，生成完成时用户可能正接着
+   调参数或已经把它关掉，把完成提示塞进去会互相打断。这里是一个独立的一次性浮层。
+   它盖满整个编辑区，所以「必须点得掉」是硬要求：背景点击、Esc、关闭、完成四个出口
+   都在 JS 里显式接上；这里的 pointer-events:auto 是前提 —— 父层一旦继承到 none，
+   所有按钮都会点不动，那正是「弹窗关不掉」的成因。 */
+.floorplan-auto-diagram-complete-overlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  padding: 20px;
+  overflow: auto;
+  pointer-events: auto;
+  background: #05080bb8;
+  backdrop-filter: blur(4px);
+}
+.floorplan-auto-diagram-complete-overlay > .floorplan-auto-diagram-complete-dialog {
+  position: relative;
+  z-index: 1;
+  margin: auto;
+  pointer-events: auto;
+}
+/* 完成提示比编辑面板窄：内容只有一段说明、一个保存位置和两个动作。 */
+.floorplan-auto-diagram-complete-dialog {
+  width: min(500px, calc(100vw - 40px));
+}
+.floorplan-auto-diagram-complete-dialog .dialog-actions button {
+  min-width: 120px;
+}
+/* 保存位置：字段名弱一档，路径等宽显示并截断 —— 它是这一屏唯一需要被读出来的信息。 */
+.floorplan-auto-diagram-complete-dialog .export-notice-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 8px 0 4px;
+  padding: 13px 15px;
+  border: 1px solid #303b43;
+  border-radius: 8px;
+  background: #00000029;
+  text-align: left;
+}
+.floorplan-auto-diagram-complete-dialog .export-notice-summary span {
+  color: #7f8c96;
+  font-size: 10px;
+}
+.floorplan-auto-diagram-complete-dialog .export-notice-summary strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #91ddb5;
+  font: 11px ui-monospace, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* ===== 户型图自动布灯面板 ===== */
 
@@ -4869,6 +4964,133 @@ h2 {
 }
 /* ===== 对话框标题与表单 ===== */
 
+/* ===== 站点配色 ===== */
+
+/* 配色面板。宽度比其它设置弹窗宽一档：预设卡片是横排的，窄了会挤成两行两列，
+   而「一眼看完全部预设」正是这个面板唯一的用处。 */
+.settings-dialog.appearance-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.appearance-body {
+  display: grid;
+  gap: 14px;
+  padding: 16px 20px 20px;
+}
+.appearance-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.appearance-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+}
+/* 预设卡片：整块就是单选按钮，选中态由 aria-checked 驱动 ——
+   键盘用户与读屏用户拿到的是同一套语义，不必再自己维护一个 .is-active。 */
+.appearance-preset {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--field);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.appearance-preset:hover {
+  border-color: var(--accent);
+}
+.appearance-preset[aria-checked="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.appearance-preset strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+.appearance-preset small {
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+/* 预设卡片上的四枚色点：直接画出「这个预设是四个什么颜色」，
+   比任何文字描述都短。 */
+.appearance-preset-dots {
+  display: flex;
+  gap: 4px;
+}
+.appearance-preset-dots i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--dot);
+}
+.appearance-custom {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--field);
+  font-size: 12px;
+}
+.appearance-custom > span {
+  color: var(--muted);
+}
+.appearance-custom small {
+  grid-column: 3;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+.appearance-custom input[type="color"] {
+  width: 34px;
+  height: 26px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.appearance-custom input[type="text"] {
+  width: 92px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--text);
+  background: var(--surface);
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+/* 手输了半截 / 写了非法值：只描红，不改数值 —— 把用户正在输入的内容擦掉
+   比留一个红框难用得多。真正非法时 change 会把输入框回灌成当前值。 */
+.appearance-custom input[type="text"].is-invalid {
+  border-color: var(--hos-alert, #e0787a);
+}
+/* 这枚色已被自定义覆盖：给整块加一道主控色描边，让「预设不再决定主控色」看得见。 */
+.appearance-custom.is-custom {
+  border-color: var(--accent);
+}
+/* 预览条：四束光各占一条，拖动色轮时它们即时变化 ——
+   面板里唯一能回答「我这一改，整个界面长什么样」的东西。 */
+.appearance-preview {
+  display: flex;
+  gap: 6px;
+}
+.appearance-swatch {
+  height: 6px;
+  flex: 1 1 0;
+  border-radius: 3px;
+  background: var(--sw);
+  transition: background 0.12s ease-out;
+}
+
 /* 所有 <dialog> 共用同一个标题条：左侧小字 + 标题，右侧圆形关闭按钮。 */
 .dialog-heading {
   display: flex;
@@ -4876,13 +5098,23 @@ h2 {
   justify-content: space-between;
   padding: 18px 20px;
   border-bottom: 1px solid var(--line);
-  background: #171d22;
+  background: var(--field);
 }
 .dialog-heading span {
   color: var(--accent);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.15em;
+}
+/* 只有显式声明 data-tone 的弹窗才点色：顶栏四个对话框各自表态，
+   其余二十来个弹窗（删除确认、重命名、导图导出…）保持改造前的样子 ——
+   它们属于「当前页面正在做的事」，跟着页面走同一枚青，不需要再分域。 */
+.settings-dialog[data-tone] .dialog-heading {
+  box-shadow: inset 0 2px 0 var(--dlg-tone);
+}
+.settings-dialog[data-tone] .dialog-heading span {
+  color: var(--dlg-tone);
+  text-shadow: 0 0 10px rgba(var(--dlg-tone-rgb), 0.3);
 }
 /* 标题主行；上方 9px 小字只占 12px 行高，这里再用 margin-top 5px 拉开两行层级。 */
 .dialog-heading h2 {
@@ -4971,12 +5203,12 @@ h2 {
   display: none;
 }
 .project-canvas-fields.fixed {
-  border-color: #f2a20d38;
-  background: #f2a20d06;
+  border-color: rgba(var(--hos-accent-rgb), 0.22);
+  background: rgba(var(--hos-accent-rgb), 0.02);
 }
 .project-canvas-fields.fixed input[readonly] {
   color: #c7a963;
-  border-color: #f2a20d38;
+  border-color: rgba(var(--hos-accent-rgb), 0.22);
   background: #13181c;
   cursor: not-allowed;
 }
@@ -5038,9 +5270,9 @@ h2 {
   background: #182027;
 }
 .project-aspect-lock.locked {
-  border-color: #f2a20d75;
+  border-color: rgba(var(--hos-accent-rgb), 0.46);
   color: #e3b557;
-  background: #f2a20d12;
+  background: rgba(var(--hos-accent-rgb), 0.07);
 }
 .project-aspect-lock.locked output {
   color: #f2b744;
@@ -5159,8 +5391,8 @@ h2 {
 }
 .effect-realtime-options .check-row:has(input:checked) {
   color: #fff4dc;
-  background: #f2a20d29;
-  box-shadow: inset 0 0 0 1px #f2a20d7a;
+  background: rgba(var(--hos-accent-rgb), 0.16);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.48);
 }
 .effect-realtime-options .check-row:has(input:focus-visible) {
   outline: 2px solid var(--accent);
@@ -5209,9 +5441,9 @@ h2 {
 }
 .recovery-message {
   padding: 13px 14px;
-  border: 1px solid rgba(242, 162, 13, 0.32);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.32);
   border-radius: 6px;
-  background: #f2a20d0e;
+  background: rgba(var(--hos-accent-rgb), 0.05);
 }
 .recovery-message strong {
   display: block;
@@ -5242,9 +5474,9 @@ h2 {
   display: grid;
   gap: 9px;
   padding: 12px;
-  border: 1px solid rgba(242, 162, 13, 0.3);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.3);
   border-radius: 7px;
-  background: #f2a20d0b;
+  background: rgba(var(--hos-accent-rgb), 0.04);
 }
 .copy-component-scale-options[hidden] {
   display: none;
@@ -5278,8 +5510,8 @@ h2 {
 /* 选项卡片是 <label>，选中态靠 :has(input:checked) 驱动；
    radio 本身只保留 accent-color，不做视觉隐藏（这里点击热区已经是整卡）。 */
 .copy-component-scale-options > label:has(input:checked) {
-  border-color: #f2a20d9e;
-  background: #f2a20d14;
+  border-color: rgba(var(--hos-accent-rgb), 0.62);
+  background: rgba(var(--hos-accent-rgb), 0.08);
 }
 .copy-component-scale-options input {
   accent-color: var(--accent);
@@ -5332,8 +5564,8 @@ h2 {
 /* 当前会话用左侧橙色竖条 + 由左向右淡出的橙底标出：一眼认出「这条是自己」，
    不至于把它当成陌生来源。 */
 .session-item.is-current {
-  border-color: #f2a20d42;
-  background: linear-gradient(90deg, #f2a20d12, #1a2025 46%);
+  border-color: rgba(var(--hos-accent-rgb), 0.26);
+  background: linear-gradient(90deg, rgba(var(--hos-accent-rgb), 0.07), #1a2025 46%);
   box-shadow: inset 2px 0 0 var(--accent);
 }
 .session-copy {
@@ -5449,11 +5681,11 @@ h2 {
   background: #11171c;
 }
 .display-pairing-form input:focus {
-  border-color: #f2a20db8;
+  border-color: rgba(var(--hos-accent-rgb), 0.72);
   background: #11171c;
   box-shadow:
     inset 0 1px 3px #0000005c,
-    0 0 0 2px #f2a20d1a;
+    0 0 0 2px rgba(var(--hos-accent-rgb), 0.1);
 }
 /* 配对码逐字加宽字距并启用等宽数字：6 位码在输入过程中不会因字符宽度变化而抖动，
    也便于人工逐位核对。 */
@@ -5624,7 +5856,7 @@ h2 {
   margin: 2px -20px -20px;
   padding: 15px 20px;
   border-top: 1px solid var(--line);
-  background: #171d22;
+  background: var(--field);
 }
 .popup-module-dialog .dialog-actions button {
   min-width: 76px;
@@ -5669,8 +5901,8 @@ h2 {
   box-shadow: 0 0 9px #e26b6759;
 }
 .connection-state-heading > i.warning {
-  background: #f2a20d;
-  box-shadow: 0 0 9px #f2a20d6b;
+  background: var(--accent);
+  box-shadow: 0 0 9px rgba(var(--hos-accent-rgb), 0.42);
 }
 .connection-state-heading strong {
   display: block;
@@ -5716,7 +5948,7 @@ h2 {
 .sync-overview {
   padding: 15px 20px 18px;
   border-top: 1px solid var(--line);
-  background: #171d22;
+  background: var(--field);
 }
 .sync-overview[hidden] {
   display: none;
@@ -5840,9 +6072,9 @@ h2 {
 }
 /* 选中态用橙色描边 + 低透明度橙底；未选中时按钮边框本就透明，这里只需覆盖配色。 */
 .popup-list-item.selected {
-  border-color: #f2a20d47;
+  border-color: rgba(var(--hos-accent-rgb), 0.28);
   color: #fff2d6;
-  background: #f2a20d13;
+  background: rgba(var(--hos-accent-rgb), 0.07);
 }
 .popup-list-item.selected:before {
   background: var(--accent);
@@ -6415,16 +6647,16 @@ h2 {
   align-self: end;
   min-height: 28px;
   padding: 4px 8px;
-  border: 1px solid rgba(242, 162, 13, 0.34);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.34);
   border-radius: 4px;
-  background: #f2a20d0e;
+  background: rgba(var(--hos-accent-rgb), 0.05);
   color: #cbb990;
   font-size: 9px;
   line-height: 1;
 }
 .component-popup-preview:hover:not(:disabled) {
-  border-color: #f2a20d9e;
-  background: #f2a20d1f;
+  border-color: rgba(var(--hos-accent-rgb), 0.62);
+  background: rgba(var(--hos-accent-rgb), 0.12);
   color: #ffe4ae;
 }
 /* ===== 弹窗外观（编辑器预览） ===== */
@@ -6647,12 +6879,8 @@ h2 {
   min-height: 50px;
   font-size: 16px;
 }
-/* 风速与紧凑分组的按钮压低到 42px：这两组选项本身行数多，
+/* 紧凑分组的按钮压低到 42px：这组选项本身行数多，
    沿用 50px 会把卡片内容挤出可视区。 */
-.hb-custom-popup-module--climate
-  .hb-climate-details-group.fan-options
-  .hb-climate-details-options
-  button,
 .hb-custom-popup-module--climate
   .hb-climate-details-group.compact-options
   .hb-climate-details-options

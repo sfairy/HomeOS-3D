@@ -299,8 +299,8 @@ export function nasProfiles(entities = [], devices = []) {
     metricKeyOrder.includes(rankedMetric.key)
       ? metricKeyOrder.indexOf(rankedMetric.key)
       : metricKeyOrder.length;
-  // 收尾四件事：只保留「有指标」或「来自注册表」的 profile；指标按白名单排序并截到 48 条
-  // （一次渲染的上限，再多对用户没意义）；挑一个主指标（优先系统指标）作行摘要；
+  // 收尾四件事：只保留「有指标」或「来自注册表」的 profile；指标按白名单排序（不再截断条数）；
+  // 挑一个主指标（优先系统指标）作行摘要；
   // 指标来自子设备时，把设备名括号内的部分作为前缀标出来，最后整体按 NAS 名称排序。
   return profiles
     .filter(keptProfile => keptProfile.registry || keptProfile.metrics.length)
@@ -310,7 +310,7 @@ export function nasProfiles(entities = [], devices = []) {
           metricRank(metricA) - metricRank(metricB) ||
           metricA.entityId.localeCompare(metricB.entityId)
       );
-      const selectedMetrics = profileEntry.metrics.slice(0, 48);
+      const selectedMetrics = profileEntry.metrics.slice();
       const primaryMetric = selectedMetrics.find(isSystemMetric) || selectedMetrics[0];
       return {
         deviceId: profileEntry.device.deviceId,

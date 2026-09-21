@@ -10,7 +10,7 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921090405";
 /**
  * 把任意输入转成有限数字，不可用时返回 null。
  * 只接受 number 与 string：布尔会被 Number 转成 0/1；纯空白串会被当成 0 而误判「已关到底」。
@@ -54,9 +54,7 @@ export function coverIconIsOn(binding, iconState) {
 export function coverState(entityId, receivedState, item = {}) {
   const stateObject = resolveStateEntry(receivedState, {});
   const attributes = stateObject.attributes || {};
-  const stateValue = String(stateObject.state || "")
-    .trim()
-    .toLowerCase();
+  const stateValue = stateTextOf(stateObject);
   const reportedPosition = toFiniteNumber(attributes.current_position);
   const reportedTilt = toFiniteNumber(attributes.current_tilt_position);
   // 梦幻帘由「整体 + 叶片」两套机构组成，整体位置的反馈往往不可信，

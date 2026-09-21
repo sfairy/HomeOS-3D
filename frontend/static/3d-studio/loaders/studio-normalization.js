@@ -6,7 +6,7 @@
  * 是纯函数，不持有状态、不写回入参。夹取统一用 utils/numbers.js 的 clampNumber，区间上下
  * 限与其余各处相反时结果会静默不同，故按同一份口径。
  */
-import { clampNumber } from "../../utils/numbers.js?v=20260920131301";
+import { clampNumber } from "../../utils/numbers.js?v=20260921090405";
 
 /**
  * 转成有限数字，失败时用兜底值（JSON 里的 null / "" / "abc" 直接运算会得到 NaN）。

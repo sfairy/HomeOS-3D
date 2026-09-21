@@ -243,6 +243,16 @@ class StoreSettings:
         return self.data_dir / "store.db"
 
     @property
+    def appearance_path(self) -> Path:
+        """站点配色文件；删除该文件并重启即可回到设计系统默认配色。
+
+        与主应用的 ``AppearanceStore`` 同款做法（``data/appearance.json``）：
+        两份文件各自独立 —— 商店是独立部署、独立域名的对外站点，
+        它的配色不该跟着主应用中控走。
+        """
+        return self.data_dir / "appearance.json"
+
+    @property
     def database_url(self) -> str:
         return f"sqlite:///{self.database_path}"
 

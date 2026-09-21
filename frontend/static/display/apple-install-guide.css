@@ -111,14 +111,6 @@
   font-size: 12px;
   color: #9cafa5;
 }
-.apple-install-copy {
-  border: 1px solid #476658;
-  background: transparent;
-  color: #c5efdd;
-  border-radius: 10px;
-  padding: 10px 14px;
-  cursor: pointer;
-}
 .apple-install-done {
   display: block;
   width: 100%;
@@ -130,8 +122,4 @@
   font: 600 15px system-ui;
   cursor: pointer;
   margin-top: 22px;
-}
-/* 复制结果提示：没有文案时（:empty）整行隐藏，不占位。 */
-.apple-install-copy-status:empty {
-  display: none;
 }

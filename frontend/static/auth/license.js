@@ -7,22 +7,41 @@
  * 请求都走 utils/api-fetch.js（20 秒超时）：「在飞闩 + 超时」缺一不可 —— 无超时则弱网下轮询永久冻住，
  * 无闩则每 5 秒叠一个同源请求把网络压得更差。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=20260920131301";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920131301";
+import { apiFetch } from "../utils/api-fetch.js?v=20260921090405";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260921090405";
+// 状态文案表由 license-recovery.js 统一持有：授权页与恢复页必须说同一句话，
+// 各存一份必然漂移 —— 用户在两处看到对同一状态的不同解释，就不知道该信哪个。
+import { licenseMessage } from "./license-recovery.js?v=20260921090405";
 
 const form = document.querySelector("#license-form"),
   message = document.querySelector("#message"),
   statusText = document.querySelector("#license-status-text"),
   recoveryHint = document.querySelector("#license-recovery-hint"),
+  retryButton = document.querySelector("#license-retry"),
   submit = form.querySelector('button[type="submit"]'),
   logout = document.querySelector("#logout");
 
-// activationPending 防止重复提交激活码；navigating 防止跳转前重复发轮询请求；
-// isLoadingStatus 防止「上一次还没回来就再发一次」（弱网下会越堆越多）。
+// activationPending 防止重复提交激活码；retrying 防止重复点击「重试」；
+// navigating 防止跳转前重复发轮询请求；isLoadingStatus 防止「上一次还没回来就再发一次」。
 let activationPending = !1,
+  retrying = !1,
   navigating = !1,
   isLoadingStatus = !1,
   statusTimer = null;
+
+/**
+ * 状态色调：把「现在处于什么状态」先交给颜色说一遍。
+ * 只切表现层类名，不参与任何门禁判断 —— 颜色读错最多是误解，逻辑读错才是事故。
+ */
+const TONE_CLASSES = ["hos-tone--eco", "hos-tone--lumen", "hos-tone--alert"];
+
+function paintTone(tone) {
+  for (const element of [statusText, recoveryHint]) {
+    if (!element) continue;
+    element.classList.remove(...TONE_CLASSES);
+    if (tone) element.classList.add(`hos-tone--${tone}`);
+  }
+}
 
 // 已确定可以进入编辑器：停掉轮询再跳转，避免跳转瞬间又发一次状态请求。
 function enterEditor() {
@@ -65,36 +84,30 @@ async function loadStatus() {
     statusText.textContent =
       statusPayload.lastError ||
       "授权连接异常，请重新激活后再进入编辑器。";
+    paintTone("lumen");
     setRecoveryHint(statusPayload.status || "");
     return;
   }
   if (statusPayload.allowed) {
     statusText.textContent =
       "当前授权有效，但未包含编辑器权益，请联系授权管理员。";
+    paintTone("lumen");
     setRecoveryHint("");
     return;
   }
-  // 各状态码对应一句面向用户的中文说明，与后端 license/service.py 的状态枚举保持一致。
-  // 优先展示服务端 lastError（含硬件指纹升级迁移说明），本地文案仅作兜底。
-  const STATUS_MESSAGES = {
-    UNACTIVATED: "当前设备尚未激活，激活后才能进入编辑器。",
-    LEASE_EXPIRED: "授权租约已经到期，请恢复网络后点击重新激活，或重新填写激活码。",
-    INSTANCE_MISMATCH:
-      "本机硬件指纹与授权绑定不一致（升级、换机或硬件变更后常见）。请先在商店账号中心解除设备绑定，冷却结束后用同一激活码在本页重新激活。",
-    CLOCK_ROLLBACK: "检测到系统时间回拨，请校准时间后重新验证。",
-    STARTUP_VALIDATION_REQUIRED:
-      "服务重启后正在等待授权后台确认，请恢复网络；成功后会自动进入系统。",
-    CONNECTION_WARNING: "授权服务器连接异常，请检查网络后点击重新激活。",
-    DEACTIVATED: "授权已在后台停用或释放，请使用有效激活码重新激活。",
-    INVALID: "本地授权凭证无效，请重新激活。",
-    REVOKED: "授权已停用或已在商店解绑，请输入有效激活码重新激活。"
-  };
+  // 文案口径统一在 license-recovery.js：服务端 lastError（含硬件指纹升级迁移说明）优先，
+  // 本地按状态码兜底，并叠加「限流 / 正在重试 / 第 N 次倒计时」三段实时提示。
   const statusCode = statusPayload.status || "";
-  statusText.textContent =
-    (typeof statusPayload.lastError === "string" && statusPayload.lastError.trim()) ||
-    STATUS_MESSAGES[statusCode] ||
-    "当前授权不可用，请输入激活码。";
+  statusText.textContent = licenseMessage(
+    statusPayload,
+    typeof statusPayload.lastError === "string" ? statusPayload.lastError.trim() : ""
+  );
+  // 硬件指纹不匹配是唯一「必须先去商店解绑」的终态，与「等着就好」的等待态区分开。
+  paintTone(statusCode === "INSTANCE_MISMATCH" ? "alert" : "lumen");
   setRecoveryHint(statusCode);
+  // 后端说不可重试（已进终态）时藏起按钮：留一个必然失败的按钮，用户只会反复点，
+  // 而真正该做的是输入激活码。
+  retryButton.hidden = !statusPayload.canRetry;
 }
 
 /**
@@ -112,7 +125,42 @@ async function refreshStatus() {
   }
 }
 
-// 一次性挂上三类监听：表单激活、退出本机登录、以及 5 秒轮询状态。
+/**
+ * 「重新连接授权后台」：请求后端立刻重试一轮（会清掉端点冷却，不等下一拍轮询）。
+ *
+ * 重试后再读一次状态而不是直接用 /retry 的响应体：这样「重试」与「轮询」共用同一条
+ * 判定路径（含 enterEditor 跳转），不必再维护第二份「拿到状态后该怎么办」的逻辑。
+ */
+async function requestRetry() {
+  // 激活请求进行中不插队：两条路径都会写授权状态，先到的那条可能被后到的那条覆盖。
+  if (retrying || activationPending || navigating) return;
+  retrying = !0;
+  retryButton.disabled = !0;
+  statusText.textContent = "正在重新连接授权后台…";
+  try {
+    const retryResponse = await apiFetch("/api/v1/license/retry", { method: "POST" });
+    if (retryResponse.status === 401) {
+      window.location.replace("/login");
+      return;
+    }
+    const retryPayload = await retryResponse.json().catch(() => ({}));
+    if (!retryResponse.ok)
+      throw new Error(apiErrorMessage(retryPayload, "重新连接授权失败，请稍后再试。"));
+  } catch (caughtError) {
+    // 只改文案、不清空状态：失败原因由随后的 refreshStatus 用最新状态覆盖，
+    // 避免把「刚才那一下失败」当成当前授权状态展示出来。
+    statusText.textContent = caughtError.message;
+    paintTone("alert");
+  } finally {
+    // 与激活提交同理：重试闩漏放一次，按钮就永久灰掉，用户唯一自救入口被锁死。
+    retrying = !1;
+    retryButton.disabled = !1;
+  }
+  // 无论成败都把最新状态读回来：可能刚刚自己恢复了（跳转），也可能错误文案已过时。
+  await refreshStatus().catch(() => {});
+}
+
+// 一次性挂上四类监听：表单激活、重新连接、退出本机登录、以及 5 秒轮询状态。
 (form.addEventListener("submit", async submitEvent => {
   // 激活中或正在跳转时忽略重复提交。
   if ((submitEvent.preventDefault(), !(activationPending || navigating))) {
@@ -149,6 +197,7 @@ async function refreshStatus() {
     }
   }
 }),
+  retryButton.addEventListener("click", () => requestRetry()),
   logout.addEventListener("click", async () => {
     // 退出失败（网络异常）也照样跳登录页，避免用户卡在授权页。
     (await apiFetch("/api/v1/auth/logout", { method: "POST" }).catch(() => {}),
@@ -156,13 +205,16 @@ async function refreshStatus() {
   }),
   refreshStatus().catch(loadError => {
     statusText.textContent = loadError.message;
+    paintTone("alert");
   }),
   // 5e3 = 5 秒；轮询间隔固定，不用退避，因为授权页通常很快被离开。
   (statusTimer = window.setInterval(() => {
-    // 激活请求进行中不再轮询，避免状态互相覆盖；上一次状态请求还没回来则整拍跳过
+    // 激活或重试请求进行中不再轮询，避免状态互相覆盖；上一次状态请求还没回来则整拍跳过
     // （重发由 refreshStatus 自己的闩拦下，这里省掉一次无谓的调用）。
     activationPending ||
+      retrying ||
       refreshStatus().catch(refreshError => {
         statusText.textContent = refreshError.message;
+        paintTone("alert");
       });
   }, 5e3)));

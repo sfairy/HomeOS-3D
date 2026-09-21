@@ -11,20 +11,20 @@
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "../presence/presence-motion.js?v=20260920131301";
-import { mountInteraction3d } from "../core/runtime.js?v=20260920131301";
-import { openPresenceEditor } from "../presence/presence-editor.js?v=20260920131301";
+} from "../presence/presence-motion.js?v=20260921090405";
+import { mountInteraction3d } from "../core/runtime.js?v=20260921090405";
+import { openPresenceEditor } from "../presence/presence-editor.js?v=20260921090405";
 import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=20260920131301";
-import { confirmAction } from "/static/shared/ui-confirm.js?v=20260920131301";
-import { randomUuid } from "/static/utils/random-id.js?v=20260920131301";
+} from "../core/editor-save-status.js?v=20260921090405";
+import { confirmAction } from "/static/shared/ui-confirm.js?v=20260921090405";
+import { randomUuid } from "/static/utils/random-id.js?v=20260921090405";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=20260920131301";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260920131301";
+} from "/static/bridge/bridge.js?v=20260921090405";
+import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260921090405";
 /**
  * 打开 3D 安防配置编辑器。
  * 先取编辑授权，再建弹窗与预览舞台；舞台回报场景元数据后才渲染面板
@@ -73,7 +73,7 @@ export async function openSecurityEditor({
   const styleSheetLinkElement = createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920131301";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=20260921090405";
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D 安防配置");
   // 标记预览作用域：宿主据此识别「哪些弹窗会遮挡 3D 预览」，
@@ -636,7 +636,6 @@ export async function openSecurityEditor({
       );
       if (
         !addableModel ||
-        getItemList().length >= 128 ||
         getItemList().some(
           existingItemProbe =>
             existingItemProbe.floorId === selectedFloorId &&
@@ -675,7 +674,7 @@ export async function openSecurityEditor({
       markPropertiesDirty();
       renderPanel();
     });
-    addItemButtonElement.disabled = !addableModelList.length || getItemList().length >= 128;
+    addItemButtonElement.disabled = !addableModelList.length;
     currentContainerElement.append(addItemButtonElement);
     if (!getFloorModelList().length) {
       currentContainerElement.append(

@@ -8,6 +8,11 @@
 #   docker build --target store -t homeos-3d-store:local .
 # 或 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
+# Cython 必须钉死版本：3.3.0 的 AnalyseExpressionsTransform 在本项目的
+# backend/observability/global_log.py 上会崩溃（`(value or {}).items()` 触发类型推断
+# 回归），3.1.x / 3.2.x 正常。升级前请先用两个 target 各跑一次构建验证。
+ARG CYTHON_VERSION=3.1.6
+
 # ─── 前端 / 商店静态资源混淆 ─────────────────────────────────────
 FROM node:20-bookworm-slim AS js-tools
 
@@ -62,12 +67,13 @@ RUN pip install --upgrade pip \
 
 # ─── 主应用构建（源码仅存在于此阶段，产出全为 .so 的 /app）─────────
 FROM base AS app-build
+ARG CYTHON_VERSION
 
 # 编译器只装在构建阶段：最终镜像从 base 拷 /app，工具链不进运行镜像。
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc libc6-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install "cython>=3.0,<4" setuptools
+    && pip install "cython==${CYTHON_VERSION}" setuptools
 
 COPY docker/compile_python.py /tmp/compile_python.py
 COPY container_entrypoint.py ./
@@ -94,11 +100,12 @@ RUN mkdir -p /app/image \
 
 # ─── 商店构建（源码仅存在于此阶段，产出全为 .so 的 /app）──────────
 FROM base AS store-build
+ARG CYTHON_VERSION
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc libc6-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install "cython>=3.0,<4" setuptools
+    && pip install "cython==${CYTHON_VERSION}" setuptools
 
 COPY docker/compile_python.py /tmp/compile_python.py
 COPY container_entrypoint.py ./

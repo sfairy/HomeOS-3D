@@ -11,6 +11,18 @@
 
 /* ===== 渲染器视口与运行时对话框层 ===== */
 
+/*
+ * z-index 阶梯：画布内浮层取 32 位有符号整数的高位，确保压住宿主文档里的一切
+ * （编辑器浮层、display-boot 的启动遮罩 2147483000、apple-install-guide 的 10001）。
+ * 这里只定义层级名；--hb-* 主题色仍由 renderer.js 写在渲染容器上，本文件不定义。
+ */
+:root {
+  --z-edit-group: 2147483644; /* 正在编辑的组：抬到选中框之上 */
+  --z-selection-overlay: 2147483645; /* 选中框：压在组之上、弹窗层之下 */
+  --z-selection-bounds: 2147483646; /* 选中范围盒与变换手柄 */
+  --z-top: 2147483647; /* 运行时弹窗层与右键菜单：32 位上限 */
+}
+
 /* 视口只负责裁剪与定位，尺寸由渲染器按画布与容器比例写入。 */
 .hb-renderer-viewport {
   position: relative;
@@ -23,11 +35,11 @@
   -webkit-user-select: none;
   user-select: none;
 }
-/* 弹窗层：z-index 取 32 位有符号整数上限，确保压住编辑器所有浮层。
+/* 弹窗层：z-index 取 32 位有符号整数上限（--z-top），确保压住编辑器所有浮层。
    层内用 grid + place-items 居中，弹窗尺寸交给 dialog 自己决定。 */
 .hb-renderer-runtime-dialog-layer {
   position: absolute;
-  z-index: 2147483647;
+  z-index: var(--z-top, 2147483647);
   inset: 0;
   display: grid;
   overflow: hidden;
@@ -155,17 +167,17 @@
 }
 /* 正在编辑的组抬到选中框之上，否则它的内容会被选中框挡住点不到。 */
 .hb-renderer-canvas.hb-editing-group > .hb-component.hb-active-edit-group {
-  z-index: 2147483644 !important;
+  z-index: var(--z-edit-group, 2147483644) !important;
   pointer-events: auto;
 }
 
 /* ===== 编辑态选中框与变换手柄 ===== */
 
-/* 选中框：跟随宿主定位，z-index 压在组之上、弹窗层之下（2147483645）。
+/* 选中框：跟随宿主定位，z-index 压在组之上、弹窗层之下（--z-selection-overlay）。
    touch-action: none 是必须的，否则触屏拖动手柄会被页面滚动手势抢走。 */
 .hb-component-selection-overlay {
   position: absolute;
-  z-index: 2147483645;
+  z-index: var(--z-selection-overlay, 2147483645);
   cursor: move;
   touch-action: none;
   transform-origin: center;
@@ -273,7 +285,7 @@
 /* 选中范围盒：铺满宿主但不吃事件，四个角的短线与手柄各自定位。 */
 .hb-selection-bounds {
   position: absolute;
-  z-index: 2147483646;
+  z-index: var(--z-selection-bounds, 2147483646);
   top: 0;
   left: 0;
   width: 100%;
@@ -285,7 +297,7 @@
   position: absolute;
   width: 18px;
   height: 18px;
-  border-color: #f4a816eb;
+  border-color: rgba(var(--hos-lumen-rgb), 0.92);
   border-style: solid;
   border-width: 0;
   pointer-events: none;
@@ -342,7 +354,7 @@
   left: 50%;
   width: 14px;
   height: 14px;
-  border: 1px solid rgba(244, 168, 22, 0.9);
+  border: 1px solid rgba(var(--hos-lumen-rgb), 0.9);
   border-radius: 50%;
   background: #1a2025d1;
   box-shadow: 0 1px 4px #00000061;
@@ -414,10 +426,12 @@
   overflow: visible;
   pointer-events: none;
 }
-/* 引导四边形的虚线描边：vector-effect 保证画布缩放后线宽不变，仍是 1.4px。 */
+/* 引导四边形的虚线描边：vector-effect 保证画布缩放后线宽不变，仍是 1.4px。
+   描边与被描的面同色系（面上是 6% 的 accent，边是 92% 的 accent-bright）：
+   原来是「面上一点橙、边上一圈金」，两个色相各自为政，缩放时看着像两个图层。 */
 .hb-door-window-perspective-guide polygon {
-  fill: #f2a20d0f;
-  stroke: #ffbe42eb;
+  fill: rgba(var(--hos-accent-rgb), 0.06);
+  stroke: var(--hos-accent-bright);
   stroke-width: 1.4;
   stroke-dasharray: 5 4;
   vector-effect: non-scaling-stroke;
@@ -452,7 +466,7 @@
   background: #1a2025;
   box-shadow:
     0 1px 5px #00000080,
-    0 0 8px #f2a20d4d;
+    0 0 8px rgba(var(--hos-accent-rgb), 0.3);
   content: "";
   transform: translate(-50%, -50%) rotate(45deg);
 }
@@ -513,7 +527,7 @@
    outline 会跟着 overflow 被裁掉，而这层是允许溢出显示的。 */
 .hb-effect-selection-bounds {
   box-sizing: border-box;
-  border: 1px solid rgba(244, 168, 22, 0.88);
+  border: 1px solid rgba(var(--hos-lumen-rgb), 0.88);
   box-shadow:
     0 0 0 1px #11151bb8,
     inset 0 0 0 1px #ffc7581f;
@@ -604,9 +618,15 @@
   pointer-events: none;
 }
 /* 图标本体用 mask 而不是 <img>：颜色由渲染器写的 background-color 决定，
-   换色只需改变量，不必换图；-webkit- 前缀是为老版 Safari 保留的。 */
-.hb-air-conditioner-icon {
-  display: block;
+   换色只需改变量，不必换图；-webkit- 前缀是为老版 Safari 保留的。
+   下面这些图标共用同一组 mask 声明，各自规则里只留尺寸与定位。 */
+.hb-air-conditioner-icon,
+.hb-icon-button-effect-icon,
+.hb-title-button-icon,
+.hb-light-statistics-icon,
+.hb-icon-button-icon,
+.hb-device-button-icon,
+.hb-navigation-icon {
   background-position: center;
   background-repeat: no-repeat;
   mask-position: center;
@@ -615,6 +635,9 @@
   -webkit-mask-position: center;
   -webkit-mask-repeat: no-repeat;
   -webkit-mask-size: contain;
+}
+.hb-air-conditioner-icon {
+  display: block;
   pointer-events: none;
 }
 /* 运行中给图标加外发光（drop-shadow，比 box-shadow 更贴合不规则图标），
@@ -697,14 +720,6 @@
 }
 .hb-icon-button-effect-icon {
   display: block;
-  background-position: center;
-  background-repeat: no-repeat;
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
   pointer-events: none;
 }
 
@@ -791,14 +806,6 @@
   display: block;
   width: var(--title-icon-size);
   height: var(--title-icon-size);
-  background-position: center;
-  background-repeat: no-repeat;
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -812,7 +819,7 @@
   left: var(--title-marker-left);
   width: 0;
   height: 0;
-  border-top: var(--title-marker-size) solid #f2a20d;
+  border-top: var(--title-marker-size) solid var(--hos-accent);
   border-right: calc(var(--title-marker-size) * 0.58) solid transparent;
   border-left: calc(var(--title-marker-size) * 0.58) solid transparent;
   filter: drop-shadow(
@@ -849,12 +856,6 @@
   flex: none;
   align-self: center;
   background: var(--light-statistics-icon-color);
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
   transition:
     background-color 0.24s ease,
     filter 0.24s ease;
@@ -971,14 +972,6 @@
   top: var(--icon-button-icon-top);
   left: var(--icon-button-icon-left);
   display: block;
-  background-position: center;
-  background-repeat: no-repeat;
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
   filter: drop-shadow(0 0 var(--icon-button-icon-glow-size, 9px) rgba(255, 255, 255, 0.08));
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -1006,14 +999,6 @@
   display: block;
   width: 50%;
   height: 50%;
-  background-position: center;
-  background-repeat: no-repeat;
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
-  -webkit-mask-position: center;
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
   filter: drop-shadow(0 0 var(--device-button-icon-glow-size, 5px) rgba(55, 155, 255, 0.12));
   pointer-events: none;
 }
@@ -1450,9 +1435,6 @@
   width: var(--navigation-icon-size);
   height: var(--navigation-icon-size);
   background: center / contain no-repeat;
-  mask-position: center;
-  mask-repeat: no-repeat;
-  mask-size: contain;
   opacity: var(--navigation-icon-opacity);
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -2058,8 +2040,6 @@
   .hb-camera-preview-stage.is-revealing .hb-camera-preview-scan-line {
     display: none;
   }
-}
-@media (prefers-reduced-motion: reduce) {
   .hb-custom-popup-camera-stage.is-connecting .hb-camera-preview-scan-line,
   .hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-reveal-veil,
   .hb-custom-popup-camera-stage.is-revealing .hb-camera-preview-scan-line,
@@ -2137,8 +2117,8 @@
 /* 扫地主色收敛成弹窗级局部变量：机器人雷达、状态点、动画发光都取它，
    以后调整主色只改这两行。 */
 .hb-entity-details-dialog.vacuum-details {
-  --hb-vacuum-accent: #f4a816;
-  --hb-vacuum-accent-soft: rgba(244, 168, 22, 0.12);
+  --hb-vacuum-accent: var(--hos-lumen);
+  --hb-vacuum-accent-soft: rgba(var(--hos-lumen-rgb), 0.12);
   width: min(840px, calc(100% - 24px));
   max-height: min(458px, calc(100% - 20px));
   border-color: #a0aab28f;
@@ -2205,7 +2185,7 @@
 }
 .hb-entity-details-dialog.vacuum-details .hb-entity-details-heading span.is-active:before {
   background: var(--hb-vacuum-accent);
-  box-shadow: 0 0 12px #f4a8169e;
+  box-shadow: 0 0 12px rgba(var(--hos-lumen-rgb), 0.62);
 }
 .hb-entity-details-dialog.vacuum-details .hb-entity-details-heading button {
   display: none;
@@ -2241,7 +2221,7 @@
   border: 1px solid rgba(126, 141, 153, 0.14);
   border-radius: 18px;
   background:
-    radial-gradient(circle at 50% 40%, rgba(244, 168, 22, 0.075), transparent 48%),
+    radial-gradient(circle at 50% 40%, rgba(var(--hos-lumen-rgb), 0.075), transparent 48%),
     linear-gradient(145deg, #ffffff0b, #ffffff03);
   box-shadow:
     inset 0 1px #ffffff09,
@@ -2492,10 +2472,10 @@
 /* 工作中的三项状态：雷达顶灯亮成主题色、回充时电池环发光、暂停时机器人降饱和压暗。 */
 .hb-vacuum-visual.is-working .hb-vacuum-robot-lidar:after {
   background: var(--hb-vacuum-accent);
-  box-shadow: 0 0 9px #f4a816c2;
+  box-shadow: 0 0 9px rgba(var(--hos-lumen-rgb), 0.76);
 }
 .hb-vacuum-visual.is-returning .hb-vacuum-battery-ring {
-  box-shadow: 0 0 32px #f4a8161f;
+  box-shadow: 0 0 32px rgba(var(--hos-lumen-rgb), 0.12);
 }
 .hb-vacuum-visual.is-paused .hb-vacuum-robot {
   filter: saturate(0.5) brightness(0.8);
@@ -2662,13 +2642,13 @@
    禁用（该能力档位不支持）只降不透明度并去掉手型光标，避免用户以为可以点。 */
 .hb-vacuum-details-actions button:hover:not(:disabled),
 .hb-vacuum-details-actions button.active {
-  border-color: #f4a8166b;
+  border-color: rgba(var(--hos-lumen-rgb), 0.42);
   color: var(--hb-vacuum-accent);
   background: var(--hb-vacuum-accent-soft);
 }
 .hb-vacuum-details-actions button.active > i {
-  border-color: #f4a81673;
-  box-shadow: 0 0 12px #f4a8161f;
+  border-color: rgba(var(--hos-lumen-rgb), 0.45);
+  box-shadow: 0 0 12px rgba(var(--hos-lumen-rgb), 0.12);
 }
 .hb-vacuum-details-actions button:active:not(:disabled) {
   transform: translateY(1px);
@@ -2741,12 +2721,12 @@
   color: #dce2e4;
 }
 .hb-vacuum-details-options button.active {
-  border-color: #f4a8166b;
+  border-color: rgba(var(--hos-lumen-rgb), 0.42);
   color: #f4f1ea;
   background: var(--hb-vacuum-accent-soft);
   box-shadow:
     inset 0 1px #ffffff09,
-    0 0 10px #f4a81612;
+    0 0 10px rgba(var(--hos-lumen-rgb), 0.07);
 }
 .hb-vacuum-details-options button:disabled {
   cursor: default;
@@ -2942,13 +2922,13 @@
 /* 床架主色收敛成局部变量（滑杆、下拉、角度读数都用它），
    背景那圈暖色径向渐变与主色同调。 */
 .hb-entity-details-dialog.electric-bed-details {
-  --hb-bed-accent: #d3a56c;
+  --hb-bed-accent: var(--hos-lumen);
   width: min(760px, calc(100% - 24px));
   max-height: min(580px, calc(100% - 20px));
   border-color: #a0aab28f;
   border-radius: 22px;
   background:
-    radial-gradient(circle at 18% 48%, rgba(211, 165, 108, 0.1), transparent 35%),
+    radial-gradient(circle at 18% 48%, rgba(var(--hos-lumen-rgb), 0.1), transparent 35%),
     linear-gradient(145deg, #1b2228, #12181d 48%, #0d1216);
   box-shadow:
     0 30px 90px #000000c2,
@@ -3334,16 +3314,16 @@
 }
 /* 悬停：主题色描边 + 稍亮底色，只改颜色不改尺寸，避免鼠标移入移出时抖动。 */
 .hb-electric-bed-select-trigger:hover:not(:disabled) {
-  border-color: #d3a56c7a;
+  border-color: rgba(var(--hos-lumen-rgb), 0.48);
   background: linear-gradient(145deg, #ffffff16, #ffffff06);
 }
 /* 展开态直接用 aria-expanded 属性驱动（而不是额外加类名），样式与无障碍状态天然同步；
    下面那条把箭头下移 3px 并旋转 225deg，形成向上翻的视觉。 */
 .hb-electric-bed-select-trigger[aria-expanded="true"] {
-  border-color: color-mix(in srgb, var(--hb-bed-accent, #d3a56c) 72%, transparent);
+  border-color: color-mix(in srgb, var(--hb-bed-accent, var(--hos-lumen)) 72%, transparent);
   color: #f4eee8;
   box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--hb-bed-accent, #d3a56c) 18%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--hb-bed-accent, var(--hos-lumen)) 18%, transparent),
     0 8px 20px #0003;
 }
 .hb-electric-bed-select-trigger[aria-expanded="true"] > i:after {
@@ -3352,7 +3332,7 @@
 }
 /* 键盘聚焦环用 outline（不占布局），再靠 outline-offset 与描边留出 2px 间隙。 */
 .hb-electric-bed-select-trigger:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--hb-bed-accent, #d3a56c) 34%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--hb-bed-accent, var(--hos-lumen)) 34%, transparent);
   outline-offset: 2px;
 }
 /* 禁用：去掉手型光标并降不透明度表示不可操作。 */
@@ -3365,7 +3345,7 @@
 .hb-electric-bed-select-menu {
   position: fixed;
   inset: auto;
-  z-index: 2147483647;
+  z-index: var(--z-top, 2147483647);
   display: grid;
   gap: 2px;
   margin: 0;
@@ -3380,7 +3360,7 @@
     0 16px 42px #000000b3,
     inset 0 1px #ffffff0d;
   box-sizing: border-box;
-  scrollbar-color: rgba(211, 165, 108, 0.42) transparent;
+  scrollbar-color: rgba(var(--hos-lumen-rgb), 0.42) transparent;
 }
 /* [hidden] 与 ::backdrop：菜单本体是 <div popover="auto">（不是 <dialog>），隐藏状态由 JS
    两手维护 —— hidden 属性 + hidePopover()；不支持 popover 的浏览器退回纯定位，那时只有
@@ -3421,10 +3401,10 @@
   background: #ffffff0e;
 }
 .hb-electric-bed-select-option.active {
-  border-color: color-mix(in srgb, var(--hb-bed-accent, #d3a56c) 52%, transparent);
+  border-color: color-mix(in srgb, var(--hb-bed-accent, var(--hos-lumen)) 52%, transparent);
   color: #f8efe5;
-  background: color-mix(in srgb, var(--hb-bed-accent, #d3a56c) 17%, transparent);
-  box-shadow: inset 0 0 12px #d3a56c14;
+  background: color-mix(in srgb, var(--hb-bed-accent, var(--hos-lumen)) 17%, transparent);
+  box-shadow: inset 0 0 12px rgba(var(--hos-lumen-rgb), 0.08);
 }
 /* 选项按钮组：auto-fit + minmax(70px) 让 2~4 个档位自动均分成一到两行，不用 JS 算列数。 */
 .hb-electric-bed-capability .hb-capability-options {
@@ -3445,7 +3425,7 @@
   border-color: color-mix(in srgb, var(--hb-bed-accent) 64%, transparent);
   color: #f3eadf;
   background: color-mix(in srgb, var(--hb-bed-accent) 15%, transparent);
-  box-shadow: 0 0 12px #d3a56c1f;
+  box-shadow: 0 0 12px rgba(var(--hos-lumen-rgb), 0.12);
 }
 /* 记忆位：两列等宽网格，按钮单行省略，长名称不会把网格撑歪。 */
 .hb-electric-bed-memory-list {
@@ -3841,9 +3821,9 @@
 }
 /* 关闭按钮已被上面的 display: none 隐藏，这条 hover 规则因此不会命中，保留仅为结构兼容。 */
 .hb-entity-details-dialog.light-details .hb-entity-details-heading button:hover {
-  border-color: #f4a8167a;
-  color: #f4a816;
-  background: #f4a81612;
+  border-color: rgba(var(--hos-lumen-rgb), 0.48);
+  color: var(--hos-lumen);
+  background: rgba(var(--hos-lumen-rgb), 0.07);
 }
 .hb-entity-details-dialog.light-details .hb-entity-details-card {
   max-height: min(620px, calc(100vh - 60px));
@@ -4047,8 +4027,8 @@
   box-shadow:
     inset 0 9px 19px #ffffff80,
     0 10px 17px #00000059,
-    0 0 0 2px #f4a816e0,
-    0 0 18px #f4a81680;
+    0 0 0 2px rgba(var(--hos-lumen-rgb), 0.88),
+    0 0 18px rgba(var(--hos-lumen-rgb), 0.5);
 }
 /* 按下时整盏灯提亮一级。 */
 .hb-entity-details-dialog.light-details .hb-light-visual:active {
@@ -4309,9 +4289,9 @@
 /* ===== 墙壁开关的可视化（本身即可点击） ===== */
 
 /* 300×270 的可点区域，内部元素都相对它绝对定位。
-   --hb-switch-accent 默认薄荷绿 #6bd39a，用于背光与指示灯。 */
+   --hb-switch-accent 默认生态薄荷（--hos-eco），用于背光与指示灯。 */
 .hb-switch-visual {
-  --hb-switch-accent: #6bd39a;
+  --hb-switch-accent: var(--hos-eco);
   position: relative;
   display: block;
   width: 300px;
@@ -4524,9 +4504,9 @@
 }
 /* 开启时描边混入薄荷绿，并加一层外发光。 */
 .hb-switch-details-power.is-on {
-  border-color: color-mix(in srgb, #6bd39a 48%, rgba(160, 170, 178, 0.42));
+  border-color: color-mix(in srgb, var(--hos-eco) 48%, rgba(160, 170, 178, 0.42));
   box-shadow:
-    0 0 22px #6bd39a1a,
+    0 0 22px rgba(var(--hos-eco-rgb), 0.1),
     inset 0 1px #e2eaef12;
 }
 /* 翘板「按下」：缩到 0.94 再弹回。 */
@@ -5365,7 +5345,7 @@
   line-height: 1.2;
 }
 .hb-entity-details-dialog.climate-details .hb-entity-details-heading > div > span.is-on {
-  color: var(--hb-climate-accent, #8ec5e4);
+  color: var(--hb-climate-accent, var(--hos-cool));
 }
 /* 头部里的电源按钮改造为 170px 宽胶囊：深色半透明底 + 25px 圆角，
    覆盖通用电源按钮（灯 / 空调共用）那套卡片外观。 */
@@ -5411,10 +5391,10 @@
   .hb-entity-details-heading
   .hb-climate-details-power.is-on
   span {
-  border-color: var(--hb-climate-accent, #f4a816);
-  color: var(--hb-climate-accent, #f4a816);
-  background: var(--hb-climate-accent-soft, rgba(244, 168, 22, 0.08));
-  box-shadow: 0 0 12px var(--hb-climate-accent-soft, rgba(244, 168, 22, 0.18));
+  border-color: var(--hb-climate-accent, var(--hos-lumen));
+  color: var(--hb-climate-accent, var(--hos-lumen));
+  background: var(--hb-climate-accent-soft, rgba(var(--hos-lumen-rgb), 0.08));
+  box-shadow: 0 0 12px var(--hb-climate-accent-soft, rgba(var(--hos-lumen-rgb), 0.18));
 }
 /* 运行中再做 2.4s 的呼吸发光。 */
 .hb-entity-details-dialog.climate-details
@@ -5435,7 +5415,7 @@
    --hb-climate-visual-accent 是机型色，各状态按需覆盖。
    406×126 的尺寸与头部 146px 高度配套。 */
 .hb-climate-visual {
-  --hb-climate-visual-accent: #65717a;
+  --hb-climate-visual-accent: var(--hos-sensor);
   position: absolute;
   z-index: 2;
   top: 18px;
@@ -5830,7 +5810,7 @@
 }
 /* 控件区重定义强调色为橙 #ff8a65，并把列宽改为 63% / 37%、首行固定 190px。 */
 .hb-entity-details-dialog.water-heater-details .hb-climate-details-controls {
-  --hb-climate-accent: #ff8a65;
+  --hb-climate-accent: var(--hos-heat);
   --hb-climate-accent-soft: #5a2d24;
   position: relative;
   grid-template-columns: minmax(0, 63%) minmax(0, 37%);
@@ -5982,8 +5962,33 @@
   right: 28px;
   bottom: 24px;
   width: 37%;
-  max-height: 200px;
+  /* 弹窗内只留三排高度（3 × 40px 行高 + 内边距），再多就会盖住上方的表盘；
+     超出部分靠常显滚动条查看，而不是把内容叠在一起。 */
+  max-height: 146px;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: auto;
   box-sizing: border-box;
+}
+/* 上面把 scrollbar-width 设成 auto 后基础规则的细条不再生效，
+   这里补回一条 4px 窄条及其轨道 / 滑块配色（不透明轨道便于在深色面板上辨认）。 */
+.hb-entity-details-dialog.water-heater-details
+  .hb-water-heater-control-panel
+  > .hb-water-heater-extensions::-webkit-scrollbar {
+  display: block;
+  width: 4px;
+}
+.hb-entity-details-dialog.water-heater-details
+  .hb-water-heater-control-panel
+  > .hb-water-heater-extensions::-webkit-scrollbar-track {
+  background: transparent;
+}
+.hb-entity-details-dialog.water-heater-details
+  .hb-water-heater-control-panel
+  > .hb-water-heater-extensions::-webkit-scrollbar-thumb {
+  background: #505b63;
+  border-radius: 4px;
 }
 /* 面板内的扩展网格行高 40px（基础是 48px），控件同步压到 40px（见下一条）。 */
 .hb-entity-details-dialog.water-heater-details
@@ -6076,13 +6081,13 @@
   flex: 0 1 auto;
   padding-bottom: 12px;
 }
-/* 卡片内的关联扩展条：就地重定义强调色为暖黄 #f4a816（覆盖热水器橙），
+/* 卡片内的关联扩展条：就地重定义强调色为暖光（--hos-lumen，覆盖热水器的热色），
    并压到 78px 高的一条通栏。 */
 .hb-entity-details-dialog.climate-details:not(.water-heater-details)
   .hb-entity-details-card
   > .hb-related-entity-extensions {
-  --hb-climate-accent: #f4a816;
-  --hb-climate-accent-soft: rgba(244, 168, 22, 0.12);
+  --hb-climate-accent: var(--hos-lumen);
+  --hb-climate-accent-soft: rgba(var(--hos-lumen-rgb), 0.12);
   width: auto;
   max-height: 78px;
   flex: 0 0 auto;
@@ -6385,7 +6390,7 @@
 .hb-related-select-menu {
   position: fixed;
   inset: auto;
-  z-index: 2147483647;
+  z-index: var(--z-top, 2147483647);
   display: grid;
   gap: 2px;
   margin: 0;
@@ -6556,9 +6561,9 @@
 }
 /* 空调 / 热水器弹窗标题栏按钮的悬停色改用暖黄。 */
 .hb-entity-details-dialog.climate-details .hb-entity-details-heading button:hover {
-  border-color: #f4a8167a;
-  color: #f4a816;
-  background: #f4a81612;
+  border-color: rgba(var(--hos-lumen-rgb), 0.48);
+  color: var(--hos-lumen);
+  background: rgba(var(--hos-lumen-rgb), 0.07);
 }
 
 /* ===== 弹窗头部状态条 ===== */
@@ -6581,7 +6586,7 @@
     sans-serif;
 }
 .hb-entity-details-state strong {
-  color: #f4a816;
+  color: var(--hos-lumen);
   font:
     700 18px/1.2 Helvetica Neue,
     PingFang SC,
@@ -6841,15 +6846,15 @@
   align-items: center;
   gap: 9px;
 }
-/* 28px 圆形图标，统一用灯的暖黄 #f4a816（色温滑杆也是这个色）。 */
+/* 28px 圆形图标，统一用灯的暖光（--hos-lumen，色温滑杆也是这个色）。 */
 .hb-light-details-slider-icon {
   display: grid;
   width: 28px;
   height: 28px;
-  border: 1px solid rgba(244, 168, 22, 0.24);
+  border: 1px solid rgba(var(--hos-lumen-rgb), 0.24);
   border-radius: 50%;
-  color: #f4a816;
-  background: #f4a81612;
+  color: var(--hos-lumen);
+  background: rgba(var(--hos-lumen-rgb), 0.07);
   box-shadow: 0 5px 12px #0003;
   font:
     15px/1 Helvetica Neue,
@@ -6939,14 +6944,14 @@
 }
 /* 色温轨道是固定四段渐变，直接表现「暖黄 → 中性白 → 冷蓝」的色温轴，不随数值变化。 */
 .hb-light-details-temperature input {
-  background: linear-gradient(90deg, #f4a816, #f6c76d 35%, #e5dfcf 57%, #72b9ed);
+  background: linear-gradient(90deg, var(--hos-lumen), #f6c76d 35%, #e5dfcf 57%, #72b9ed);
 }
 /* 亮度轨道用变量分段画进度：--hb-light-slider-progress（JS 写入）之前是暖黄，之后是深灰。 */
 .hb-light-details-brightness input {
   background: linear-gradient(
     90deg,
-    #f4a816 0%,
-    #f4a816 var(--hb-light-slider-progress),
+    var(--hos-lumen) 0%,
+    var(--hos-lumen) var(--hb-light-slider-progress),
     #343d44 var(--hb-light-slider-progress),
     #343d44 100%
   );
@@ -7001,8 +7006,8 @@
 /* 悬停 / 按下 / 聚焦 / 禁用的反馈对两个类名一致。 */
 .hb-light-details-power:hover:not(:disabled),
 .hb-climate-details-power:hover:not(:disabled) {
-  border-color: #f4a81652;
-  background: linear-gradient(145deg, #f4a81613, #ffffff05);
+  border-color: rgba(var(--hos-lumen-rgb), 0.32);
+  background: linear-gradient(145deg, rgba(var(--hos-lumen-rgb), 0.07), #ffffff05);
 }
 .hb-light-details-power:active:not(:disabled),
 .hb-climate-details-power:active:not(:disabled) {
@@ -7010,7 +7015,7 @@
 }
 .hb-light-details-power:focus-visible,
 .hb-climate-details-power:focus-visible {
-  outline: 2px solid rgba(244, 168, 22, 0.42);
+  outline: 2px solid rgba(var(--hos-lumen-rgb), 0.42);
   outline-offset: 2px;
 }
 .hb-light-details-power:disabled,
@@ -7042,9 +7047,9 @@
 /* 开启态：图标与文字一起提亮，作为整行的唯一状态信号。 */
 .hb-light-details-power.is-on span,
 .hb-climate-details-power.is-on span {
-  border-color: #f4a81657;
-  color: #f4a816;
-  background: #f4a81614;
+  border-color: rgba(var(--hos-lumen-rgb), 0.34);
+  color: var(--hos-lumen);
+  background: rgba(var(--hos-lumen-rgb), 0.08);
 }
 .hb-light-details-power.is-on strong,
 .hb-climate-details-power.is-on strong {
@@ -7057,7 +7062,7 @@
    --hb-climate-accent 与 --hb-climate-accent-soft 就地定义，下面所有子元素都从这里取色，
    接入新机型只需覆盖这两个变量。 */
 .hb-climate-details-controls {
-  --hb-climate-accent: #f4a816;
+  --hb-climate-accent: var(--hos-lumen);
   --hb-climate-accent-soft: #5a4219;
   display: grid;
   min-height: 0;
@@ -7565,7 +7570,7 @@
 .hb-climate-select-menu {
   position: fixed;
   inset: auto;
-  z-index: 2147483647;
+  z-index: var(--z-top, 2147483647);
   display: grid;
   gap: 3px;
   margin: 0;
@@ -7846,8 +7851,7 @@
   cursor: default;
   opacity: 0.55;
 }
-/* 风速 / 紧凑两组选项按钮：两列（图标 + 文字）居中，34px 高。 */
-.hb-climate-details-group.fan-options .hb-climate-details-options button,
+/* 紧凑分组的选项按钮：两列（图标 + 文字）居中，34px 高。 */
 .hb-climate-details-group.compact-options .hb-climate-details-options button {
   min-height: 34px;
   grid-template-columns: auto auto;
@@ -7856,14 +7860,12 @@
   justify-content: center;
   gap: 4px;
 }
-/* 这两组按钮里的图标与文字都被压到 15px，以保证一行放得下。 */
-.hb-climate-details-group.fan-options .hb-climate-details-options button i,
+/* 这组按钮里的图标与文字都被压到 15px，以保证一行放得下。 */
 .hb-climate-details-group.compact-options .hb-climate-details-options button i {
   width: 15px;
   height: 15px;
   font-size: 11px;
 }
-.hb-climate-details-group.fan-options .hb-climate-details-options button span,
 .hb-climate-details-group.compact-options .hb-climate-details-options button span {
   display: grid;
   height: 15px;
@@ -8533,9 +8535,9 @@
   display: none;
 }
 .hb-custom-popup-heading button:hover {
-  border-color: #f4a8167a;
-  color: #f4a816;
-  background: #f4a81612;
+  border-color: rgba(var(--hos-lumen-rgb), 0.48);
+  color: var(--hos-lumen);
+  background: rgba(var(--hos-lumen-rgb), 0.07);
 }
 /* 12 列网格承载各模块，模块用 grid-column: span N 决定宽度；
    内容区可滚动，min-height: 0 是让 flex 子项能收缩的关键。 */
@@ -8944,7 +8946,7 @@
 }
 /* 生效态直接取 --hb-climate-accent，空调家族统一配色。 */
 .hb-custom-popup-module--climate .hb-custom-popup-module-status.is-live {
-  color: var(--hb-climate-accent, #8ec5e4);
+  color: var(--hb-climate-accent, var(--hos-cool));
 }
 /* 关掉状态胶囊的通用呼吸：空调另有专门的运行指示（风口 / 气流）。 */
 .hb-custom-popup-module--climate .hb-custom-popup-module-status.is-running {
@@ -9160,11 +9162,7 @@
   min-height: 0;
   font-size: 16px;
 }
-/* 风速 / 紧凑两组按钮都不设最小高度，完全由网格行高决定。 */
-.hb-custom-popup-module--climate
-  .hb-climate-details-group.fan-options
-  .hb-climate-details-options
-  button,
+/* 紧凑分组按钮不设最小高度，完全由网格行高决定。 */
 .hb-custom-popup-module--climate
   .hb-climate-details-group.compact-options
   .hb-climate-details-options
@@ -9193,12 +9191,7 @@
   height: 20px;
   font-size: 14px;
 }
-/* 风速与紧凑两种按钮的文字都单行居中，最小 20px 高。 */
-.hb-custom-popup-module--climate
-  .hb-climate-details-group.fan-options
-  .hb-climate-details-options
-  button
-  span,
+/* 紧凑分组按钮的文字单行居中，最小 20px 高。 */
 .hb-custom-popup-module--climate
   .hb-climate-details-group.compact-options
   .hb-climate-details-options
@@ -9630,7 +9623,7 @@
 
 /* 强调色与详情弹窗共用 --hb-bed-accent。 */
 .hb-custom-popup-module--electric-bed {
-  --hb-bed-accent: #d3a56c;
+  --hb-bed-accent: var(--hos-lumen);
   grid-template-rows: auto minmax(0, 1fr);
 }
 /* 3D 卡片更矮，标题区压到 48px、标题 24px。 */
@@ -9852,14 +9845,6 @@
   color: #7e898f;
   font-size: 14px;
   font-weight: 540;
-}
-/* 内容区可滚动：不同实体的能力项数量差别很大。 */
-.hb-capability-details-body {
-  display: grid;
-  min-height: 0;
-  gap: 12px;
-  padding: 0 30px 28px;
-  overflow: auto;
 }
 .hb-capability-details-controls {
   display: grid;
@@ -10499,55 +10484,6 @@
 
 /* ===== 能力指标卡（pm25 / 空气质量 / 滤芯寿命） ===== */
 
-/* 三列等宽网格，指标少时也不会被拉伸变形。 */
-.hb-capability-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-/* 单张卡片：最小 66px 高，浅描边 + 极淡渐变底。 */
-.hb-capability-metric {
-  display: grid;
-  min-width: 0;
-  min-height: 66px;
-  align-content: center;
-  gap: 6px;
-  padding: 12px 13px;
-  border: 1px solid rgba(126, 141, 153, 0.15);
-  border-radius: 14px;
-  background: linear-gradient(145deg, #ffffff0b, #ffffff04);
-  box-shadow: inset 0 1px #ffffff06;
-}
-/* 标签名 12px 单行截断。 */
-.hb-capability-metric small {
-  overflow: hidden;
-  color: #7e898f;
-  font-size: 12px;
-  font-weight: 540;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* 指标值 19px 单行截断，长数值不换行。 */
-.hb-capability-metric strong {
-  overflow: hidden;
-  color: #eef3f4;
-  font-size: 19px;
-  font-weight: 560;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* 三类指标各用一种色：pm25 蓝、空气质量绿、滤芯寿命米黄，
-   颜色只用于数值，标签保持中性灰。 */
-.hb-capability-metric--pm25 strong {
-  color: #b8d9ed;
-}
-.hb-capability-metric--airQuality strong {
-  color: #a8d89b;
-}
-.hb-capability-metric--filterLife strong {
-  color: #d9c08e;
-}
 /* 3D 弹窗预览里同一组指标同样三列。 */
 .hb-custom-air-purifier-metrics {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -10557,10 +10493,10 @@
 
 /* 与详情弹窗共用同一套强调色变量，区别只在尺寸与排版更紧凑。 */
 .hb-custom-popup-module--air-purifier {
-  --hb-air-purifier-accent: #76cfa1;
-  --hb-air-purifier-accent-soft: rgba(118, 207, 161, 0.13);
-  --hb-air-purifier-ui-accent: #8ec5e4;
-  --hb-air-purifier-ui-accent-soft: rgba(142, 197, 228, 0.12);
+  --hb-air-purifier-accent: var(--hos-eco);
+  --hb-air-purifier-accent-soft: rgba(var(--hos-eco-rgb), 0.13);
+  --hb-air-purifier-ui-accent: var(--hos-cool);
+  --hb-air-purifier-ui-accent-soft: rgba(var(--hos-cool-rgb), 0.12);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
   border-color: #a2b1b866;
@@ -10742,14 +10678,14 @@
   background: var(--hb-air-purifier-ui-accent-soft);
   box-shadow:
     inset 0 1px #ffffff0d,
-    0 0 12px #8ec5e42e;
+    0 0 12px rgba(var(--hos-cool-rgb), 0.18);
 }
 
 /* ===== 热水器 / 媒体播放器：3D 弹窗预览模块 ===== */
 
 /* 3D 弹窗按整宽排版，宽度交给外层网格决定。 */
 .hb-custom-popup-module--water-heater {
-  --hb-climate-accent: #ff8a65;
+  --hb-climate-accent: var(--hos-heat);
   --hb-climate-accent-soft: #5a2d24;
   width: 100%;
   max-width: none;
@@ -10891,9 +10827,6 @@
   box-sizing: border-box;
 }
 /* 净化器详情的能力区边距。 */
-.hb-entity-details-dialog.air-purifier-details .hb-capability-details-body {
-  padding: 0 30px 28px;
-}
 .hb-entity-details-dialog.air-purifier-details .hb-capability-details-controls {
   gap: 10px;
 }
@@ -11109,24 +11042,20 @@
 /* ≤560px：指标卡由三列降为两列；filterLife 固定占满整行，
    避免剩下它单独落在一行显得空。 */
 @media (max-width: 560px) {
-  .hb-capability-metrics,
   .hb-custom-air-purifier-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .hb-capability-metric--filterLife {
-    grid-column: 1 / -1;
   }
-}
 
 /* ===== 空气净化器详情弹窗 ===== */
 
 /* 两套强调色并存：accent 是机器指示灯 / 表盘的绿，ui-accent 是控件与
    数值的蓝，分别控制「设备本体」和「界面元素」。 */
 .hb-entity-details-dialog.air-purifier-details {
-  --hb-air-purifier-accent: #76cfa1;
-  --hb-air-purifier-accent-soft: rgba(118, 207, 161, 0.13);
-  --hb-air-purifier-ui-accent: #8ec5e4;
-  --hb-air-purifier-ui-accent-soft: rgba(142, 197, 228, 0.12);
+  --hb-air-purifier-accent: var(--hos-eco);
+  --hb-air-purifier-accent-soft: rgba(var(--hos-eco-rgb), 0.13);
+  --hb-air-purifier-ui-accent: var(--hos-cool);
+  --hb-air-purifier-ui-accent-soft: rgba(var(--hos-cool-rgb), 0.12);
   width: min(920px, calc(100% - 24px));
   max-height: min(520px, calc(100% - 20px));
   border-color: #a2b1b866;
@@ -11240,7 +11169,7 @@
   border-radius: 50%;
   background: radial-gradient(
     ellipse,
-    rgba(142, 197, 228, 0.15),
+    rgba(var(--hos-cool-rgb), 0.15),
     rgba(126, 141, 153, 0.055) 44%,
     transparent 73%
   );
@@ -11763,12 +11692,12 @@
 /* 空气质量两档降级配色：warning 琥珀、poor 红，
    同时改写 accent-soft 让外发光跟着变色。 */
 .hb-air-purifier-gauge.is-warning {
-  --hb-air-purifier-accent: #e4b15f;
-  --hb-air-purifier-accent-soft: rgba(228, 177, 95, 0.15);
+  --hb-air-purifier-accent: var(--hos-lumen);
+  --hb-air-purifier-accent-soft: rgba(var(--hos-lumen-rgb), 0.15);
 }
 .hb-air-purifier-gauge.is-poor {
-  --hb-air-purifier-accent: #db7770;
-  --hb-air-purifier-accent-soft: rgba(219, 119, 112, 0.15);
+  --hb-air-purifier-accent: var(--hos-alert);
+  --hb-air-purifier-accent-soft: rgba(var(--hos-alert-rgb), 0.15);
 }
 /* 表盘中央读数区。 */
 .hb-air-purifier-gauge-content {
@@ -11927,7 +11856,7 @@
   background: var(--hb-air-purifier-ui-accent-soft);
   box-shadow:
     inset 0 1px #ffffff0d,
-    0 0 12px #8ec5e42e;
+    0 0 12px rgba(var(--hos-cool-rgb), 0.18);
 }
 /* 自定义弹窗（3D 场景内）里风速档同样三列。 */
 .hb-custom-popup-module--air-purifier .hb-air-purifier-speed-options {
@@ -12012,11 +11941,11 @@
 
 /* ===== 人体存在传感器（状态可视化 + 人形行走动效） ===== */
 
-/* 强调色默认沿用「无人」色 #758189，占用态由下面 is-occupied 切到青绿。
+/* 强调色默认沿用「无人」色（--hos-sensor），占用态由下面 is-occupied 切到生态薄荷。
    尺寸与运动参数（--hb-presence-*）全部由 registry.js 以内联变量写入，
    本文件只给默认值，缺变量时仍可渲染。 */
 .hb-presence-sensor {
-  --hb-presence-accent: var(--hb-presence-clear, #758189);
+  --hb-presence-accent: var(--hb-presence-clear, var(--hos-sensor));
   position: relative;
   display: block;
   width: 100%;
@@ -12033,9 +11962,9 @@
     opacity 0.35s ease;
   container-type: size;
 }
-/* 占用态换色：#77d6be 是默认的「有人」色，可由组件属性覆盖。 */
+/* 占用态换色：--hos-eco 是默认的「有人」色，可由组件属性覆盖。 */
 .hb-presence-sensor.is-occupied {
-  --hb-presence-accent: var(--hb-presence-occupied, #77d6be);
+  --hb-presence-accent: var(--hb-presence-occupied, var(--hos-eco));
 }
 /* 无人态整体隐藏：房间里没人时不占视觉。 */
 .hb-presence-sensor.is-clear {
@@ -12345,44 +12274,9 @@
   animation: hb-presence-limb-back 0.72s ease-in-out infinite;
   animation-delay: var(--hb-presence-step-delay, 0s);
 }
-/* 文字区：靠右留 10% 避免贴边，行距走变量。 */
-.hb-presence-sensor-copy {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  min-width: 0;
-  justify-items: start;
-  gap: var(--hb-presence-copy-gap, 7px);
-  padding-right: 10%;
-}
-/* 主文案单行截断：控件尺寸可变，宁可省略也不能撑破宿主。 */
-.hb-presence-sensor-copy strong {
-  max-width: 100%;
-  overflow: hidden;
-  color: #e8edef;
-  font-size: var(--hb-presence-copy-main-size, 20px);
-  font-weight: 610;
-  letter-spacing: 0.02em;
-  line-height: 1.08;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* 副文案用强调色，跟随状态切换过渡。 */
-.hb-presence-sensor-copy small {
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--hb-presence-accent);
-  font-size: var(--hb-presence-copy-secondary-size, 10px);
-  font-weight: 540;
-  letter-spacing: 0.055em;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: color 0.35s ease;
-}
 /* 详情弹窗：底色叠一层以强调色为中心的径向渐变，和传感器同调。 */
 .hb-entity-details-dialog.presence-details {
-  --hb-presence-accent: var(--hb-presence-clear, #758189);
+  --hb-presence-accent: var(--hb-presence-clear, var(--hos-sensor));
   width: min(760px, calc(100% - 24px));
   max-height: min(560px, calc(100% - 20px));
   border-color: #97aeb27a;
@@ -12400,7 +12294,7 @@
 }
 /* dataset 由渲染器写入，这里用属性选择器而不是类名来切占用色。 */
 .hb-entity-details-dialog.presence-details[data-presence-state="occupied"] {
-  --hb-presence-accent: var(--hb-presence-occupied, #77d6be);
+  --hb-presence-accent: var(--hb-presence-occupied, var(--hos-eco));
 }
 /* 卡片高度上限与弹窗一致，减掉 60px 给浏览器安全区。 */
 .hb-entity-details-dialog.presence-details .hb-entity-details-card {
@@ -12432,7 +12326,7 @@
 }
 /* 占用中的状态字用「有人」色。 */
 .hb-entity-details-dialog.presence-details .hb-entity-details-heading span.is-on {
-  color: var(--hb-presence-occupied, #77d6be);
+  color: var(--hb-presence-occupied, var(--hos-eco));
 }
 /* 该弹窗不显示标题栏按钮，关闭交给遮罩与 Esc。 */
 .hb-entity-details-dialog.presence-details .hb-entity-details-heading button {
@@ -12586,13 +12480,13 @@
 }
 /* 有人格：青绿 + 外发光，最亮。 */
 .hb-presence-details-timeline > div:nth-child(2) i.is-occupied {
-  background: var(--hb-presence-occupied, #77d6be);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--hb-presence-occupied, #77d6be) 38%, transparent);
+  background: var(--hb-presence-occupied, var(--hos-eco));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--hb-presence-occupied, var(--hos-eco)) 38%, transparent);
   opacity: 0.92;
 }
 /* 无人格：弱灰。 */
 .hb-presence-details-timeline > div:nth-child(2) i.is-clear {
-  background: var(--hb-presence-clear, #758189);
+  background: var(--hb-presence-clear, var(--hos-sensor));
   opacity: 0.36;
 }
 /* 不可用格：偏暖的暗灰，与「无人」区分开。 */
@@ -12766,7 +12660,7 @@
 
 /* ===== 门磁 / 窗磁传感器 ===== */
 
-/* 默认青色 #77d6be；整体套一层与强调色同色的外发光。 */
+/* 默认生态薄荷（--hos-eco）；整体套一层与强调色同色的外发光。 */
 .hb-door-window-sensor {
   position: relative;
   display: block;
@@ -12775,10 +12669,10 @@
   overflow: visible;
   border: 0;
   background: transparent;
-  color: var(--hb-door-window-accent, #77d6be);
+  color: var(--hb-door-window-accent, var(--hos-eco));
   opacity: 1;
   filter: drop-shadow(
-    0 0 8px color-mix(in srgb, var(--hb-door-window-accent, #77d6be) 25%, transparent)
+    0 0 8px color-mix(in srgb, var(--hb-door-window-accent, var(--hos-eco)) 25%, transparent)
   );
   transition:
     opacity 0.3s ease,
@@ -13628,8 +13522,8 @@
 .hb-floorplan-auto-diagram-loading i {
   width: 22px;
   height: 22px;
-  border: 2px solid rgba(242, 162, 13, 0.2);
-  border-top-color: #f2a20d;
+  border: 2px solid rgba(var(--hos-accent-rgb), 0.2);
+  border-top-color: var(--hos-accent);
   border-radius: 50%;
   animation: hb-floorplan-loading-spin 0.8s linear infinite;
 }
@@ -13681,16 +13575,16 @@
 .hb-floorplan-auto-diagram-layer.is-active {
   opacity: 1;
 }
-/* 切换按钮：胶囊形，主色 #f2a20d 描边 + 半透明底。 */
+/* 切换按钮：胶囊形，主控色描边 + 半透明底。 */
 .hb-floorplan-auto-diagram-button {
   position: relative;
   z-index: 3;
   margin: 8px;
   padding: 7px 12px;
-  border: 1px solid rgba(242, 162, 13, 0.38);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.38);
   border-radius: 999px;
-  color: #dfe6ea;
-  background: #121c23d1;
+  color: var(--hos-ink);
+  background: rgba(var(--hos-sky-high-rgb), 0.82);
   cursor: pointer;
   font: inherit;
   transition:
@@ -13698,11 +13592,12 @@
     background 0.2s ease,
     border-color 0.2s ease;
 }
-/* 激活态反色：实底加浅金描边。 */
+/* 激活态反色：实底加亮色描边。描边与被压住的实底同色系，
+   否则蓝底配一圈金边，反而像没选中。 */
 .hb-floorplan-auto-diagram-button.is-active {
-  color: #fff;
-  background: #f2a20dd1;
-  border-color: #ffd876e6;
+  color: var(--hos-sky-deep);
+  background: rgba(var(--hos-accent-rgb), 0.82);
+  border-color: var(--hos-accent-bright);
 }
 /* 生成中禁用并换成 wait 光标。 */
 .hb-floorplan-auto-diagram-button:disabled {

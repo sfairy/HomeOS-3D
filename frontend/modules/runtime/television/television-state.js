@@ -8,7 +8,11 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { entityDomainFromId, resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
+import {
+  entityDomainFromId,
+  resolveStateEntry,
+  stateTextOf
+} from "../core/static-helpers.js?v=20260921090405";
 /** 状态源既可能是 Map 也可能是普通对象，这里统一取值的入口。 */
 const readState = (states, entityId) =>
   states instanceof Map ? states.get(entityId) : states?.[entityId];
@@ -38,7 +42,9 @@ export function televisionState(item, stateSources = {}, nowMs = Date.now()) {
   const stateObject = resolveStateEntry(receivedState, {});
   const attributes = stateObject.attributes || {};
   // 媒体实体缺失时用 unknown 兜底，后面统一按不可用处理。
-  const stateValue = String(stateObject.state || "unknown").toLowerCase();
+  // 兜底写在归一之后：`state` 是纯空白时 `stateTextOf` 先给出空串，这里才兜成 unknown，
+  // 于是「空白不影响判定」这一条对兜底也成立。
+  const stateValue = stateTextOf(stateObject) || "unknown";
   // 媒体侧可用性：绑定了实体、HA 未标记不可用、状态非未知。
   const mediaAvailable =
     !!item.entityId &&

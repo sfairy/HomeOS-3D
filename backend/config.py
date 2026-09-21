@@ -214,6 +214,14 @@ class Settings:
         return self.data_dir / 'admin-account.json'
 
     @property
+    def appearance_path(self) -> Path:
+        """站点配色文件；删除该文件并重启即可回到设计系统默认配色。
+
+        与 ``admin-account.json`` 同款做法：几十字节的设置不值得为它开一张表再走迁移。
+        """
+        return self.data_dir / 'appearance.json'
+
+    @property
     def frontend_dir(self) -> Path:
         """前端页面与静态资源根目录（挂载为 /static）。"""
         return self.project_root / 'frontend'

@@ -39,6 +39,12 @@ from starlette.concurrency import run_in_threadpool
 # 这个前缀必须与前端请求、舞台页注入的样式链接保持一致。
 router = APIRouter(prefix='/modules/interaction3d', tags=['3D interaction'])
 
+#: 舞台页的 ``<body>`` 开标签。匹配整枚标签而不是写死 ``'<body>'``：舞台页与工作室
+#: 共用同一份 HTML，工作室的 ``<body>`` 带 ``data-tone``，一旦模板再加上任何属性，
+#: 写死的字符串就会**静默替换 0 次** —— 页面照常返回 200，但少了 ``.interaction3d-stage``
+#: 前缀，stage.css 里每一条作用域样式全部失效，顶栏、素材库与户型画布会整片漏进舞台。
+_BODY_TAG_PATTERN = re.compile(r'<body(?P<attributes>[^>]*)>', re.IGNORECASE)
+
 
 class Interaction3dControlRequest(HAServiceCallRequest):
     """3D 舞台页的设备控制请求：在 HA 服务调用之上补三个定位字段。
@@ -516,6 +522,8 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     用字符串替换而不是改静态文件：这份页面与编辑器共用同一个文件，这里只做两处追加 ——
     <head> 末尾挂本模块样式，<body> 上挂 class 与 data-* 作用域。
     页面本身 no-store，保证改版后前端立刻拿到新版本。
+
+    两处追加都**必须命中**，否则整页会退化成工作室界面（见各处的断言）。
     """
     database = request.app.state.database.session_factory()
     with database:
@@ -524,9 +532,18 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
         scope = light_history_scope(active_connection(database), viewer, projectId)
     scene_path(request, sceneId)
     html = (request.app.state.settings.frontend_dir / '3d-studio.html').read_text(encoding='utf-8')
+    if '</head>' not in html:
+        raise RuntimeError('3d-studio.html 缺少 </head>，舞台样式挂不上去（舞台会退化成工作室界面）')
     # v= 缓存戳需要手动维护：页面本身 no-store，只有 URL 变了浏览器才会重新取样式。
-    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20260920131301"></head>')
-    html = html.replace('<body>', f'<body class="interaction3d-stage" data-i3d-light-history-scope="{scope}">')
+    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=20260921090405"></head>')
+    # 舞台作用域按整枚开标签注入（保留 data-tone 等既有属性），命中数必须为 1。
+    html, body_injections = _BODY_TAG_PATTERN.subn(
+        lambda match: f'<body{match.group("attributes")} class="interaction3d-stage" data-i3d-light-history-scope="{scope}">',
+        html,
+        count = 1,
+    )
+    if body_injections != 1:
+        raise RuntimeError('3d-studio.html 里找不到 <body> 开标签，舞台作用域无处可挂（舞台会退化成工作室界面）')
     return HTMLResponse(html, headers={'Cache-Control': 'no-store'})
 
 

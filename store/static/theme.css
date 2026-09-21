@@ -1,12 +1,19 @@
 /* ==========================================================================
-   HomeOS 统一设计系统 · 暗色 + 琥珀。
+   HomeOS 统一设计系统 · 深空 + 青色。
    本文件是商店（store.html / admin.html / 模拟收银台）**唯一**的样式基座：令牌 → 重置 → 排版 → 组件。
    页面级布局分别写在 store.css 与 admin.css，那两份文件只允许摆放区块，不允许重新定义组件外观。
-   与主程序 frontend/static/app.css 同源：
-     canvas #151a1f   surface #1a2026   soft #1e252c   raised #232b33   field #171d22
-     hairline #303840 / #3b444d   ink #e8ecef   muted #89949d / #6f7a82
-     accent #f2a20d（亮 #ffb52e，深 #ef9900，渐变 #ffb82e → #ef9900）   success #54bd78   danger #e26b67
-   --hb-bg / --hb-accent / --hb-success 三个值必须与主程序（frontend/static/app.css）逐字符一致：主程序改色而这里没跟，两套界面就会配色不一致。
+
+   配色与入口页的场景设计系统同源（源在仓库 design/scene/，令牌见其 page.css 的 --hos-*）：
+     canvas #050910   surface #0a1520   soft #0e1d2b   raised #132636   field #071019
+     hairline #1b3242 / #27495f   ink #f1f7fb   muted #8ea8b8 / #6d8797
+     accent #ffc46a（亮 #ffd9a0，深 #e09523）  success #58bd93  danger #e0787a  warm #f0c48a
+   ! 这里**不再**与主程序 frontend/static/app.css 逐字对齐：app.css 是中控台内部的琥珀主题，
+     而商店是面向买家的「授权服务中心」，与 /setup、/login、Activate 激活页同属对外入口，
+     视觉基准是场景设计系统。两者同为暖色琥珀，但 app.css 走自己的变量名与字号阶梯。
+
+   强调色一律用 rgba(var(--hb-accent-rgb), α) 而不是写死的 rgba(255, 196, 106, α)：
+   改品牌色时只要动三个 channel 令牌，散落在 store.css / admin.css 的 27 处透明度
+   派生色会一起跟上（过去它们全是写死的琥珀，换色只能靠全局搜替换）。
    ========================================================================== */
 
 /* 1. 令牌 */
@@ -14,52 +21,144 @@
   color-scheme: dark;
   accent-color: var(--hb-accent);
 
-  /* 画布与表面 */
-  --hb-bg: #151a1f;
-  --hb-surface: #1a2026;
-  --hb-surface-soft: #1e252c;
-  --hb-surface-raised: #232b33;
-  --hb-field: #171d22;
-  --hb-line: #303840;
-  --hb-line-soft: #262e36;
-  --hb-line-strong: #3b444d;
+  /* 夜空族：与场景（design/scene/page.css 的 --hos-sky-*）同值。首页夜空与入口页山景
+     必须是同一天色，否则从入口页点进商城会「天亮了一次」。
+     色面（surface）是商店侧的层级名、天空（sky）是场景侧的层级名，指向同一批值，
+     所以下面用 var() 别名而不是抄一遍十六进制：抄一遍就迟早只改一侧。 */
+  --hb-sky-deep: #050912;
+  --hb-sky-low: #081020;
+  --hb-sky-mid: #0d1728;
+  --hb-sky-high: #16263c;
+  --hb-sky-haze: #24395a;
+  --hb-sky-deep-rgb: 5, 9, 18;
+  --hb-sky-low-rgb: 8, 16, 32;
+  --hb-sky-mid-rgb: 13, 23, 40;
+  --hb-sky-high-rgb: 22, 38, 60;
+  --hb-sky-haze-rgb: 36, 57, 90;
+
+  /* 画布与表面：五级分层。 */
+  --hb-bg: var(--hb-sky-deep);
+  --hb-surface: var(--hb-sky-low);
+  --hb-surface-soft: var(--hb-sky-mid);
+  --hb-surface-raised: var(--hb-sky-high);
+  /* 比画布再深一档，输入框才「陷进去」而不是浮起来 */
+  --hb-field: #04070e;
+  --hb-line: #1b2f4a;
+  --hb-line-soft: #142137;
+  --hb-line-strong: #2b4a6e;
 
   /* 文字 */
-  --hb-ink: #e8ecef;
-  --hb-ink-soft: #c3ccd3;
-  --hb-muted: #89949d;
-  --hb-muted-dim: #6f7a82;
+  --hb-ink: #f1f7fb;
+  --hb-ink-soft: #c8dbe8;
+  --hb-muted: #8ea8b8;
+  --hb-muted-dim: #6d8797;
 
-  /* 强调色：单一琥珀策略，与主程序一致 */
-  --hb-accent: #f2a20d;
-  --hb-accent-bright: #ffb52e;
-  --hb-accent-deep: #ef9900;
-  --hb-accent-soft: rgba(242, 162, 13, 0.12);
-  --hb-accent-faint: rgba(242, 162, 13, 0.06);
-  --hb-accent-line: rgba(242, 162, 13, 0.42);
-  --hb-accent-grad: linear-gradient(180deg, #ffb82e, #ef9900);
-  --hb-accent-glow: 0 10px 26px -14px rgba(242, 162, 13, 0.8);
+  /* 强调色：与场景同一枚青色（design/scene/page.css 的 --hos-accent） */
+  --hb-accent-rgb: 255, 196, 106;
+  --hb-accent: #ffc46a;
+  --hb-accent-bright: #ffd9a0;
+  --hb-accent-deep: #e09523;
+  --hb-accent-soft: rgba(var(--hb-accent-rgb), 0.12);
+  --hb-accent-faint: rgba(var(--hb-accent-rgb), 0.06);
+  --hb-accent-line: rgba(var(--hb-accent-rgb), 0.42);
+  --hb-accent-grad: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent-deep));
+  /* 悬停时的提亮版：主按钮默认就用渐变底，再叠一层 filter 会让上面的深色文字发灰，
+     所以单独给一份更亮的渐变。 */
+  --hb-accent-grad-hover: linear-gradient(180deg, #ffd9a0, #ffc46a);
+  --hb-accent-glow: 0 10px 26px -14px rgba(var(--hb-accent-rgb), 0.8);
 
   /* 表单聚焦环：三层一起用才成立——贴边描边（把 1px 边框「加粗」成 2px）
-     + 4px 扩散环（保证在深色底上的可辨识度）+ 负 spread 的琥珀辉光
-     （只作为光晕，不糊成一片黄）。整站输入控件共用这一个变量，
+     + 4px 扩散环（保证在深色底上的可辨识度）+ 负 spread 的辉光
+     （只作为光晕，不糊成一片亮蓝）。整站输入控件共用这一个变量，
      避免各页各写一份 box-shadow 后逐渐走样。 */
   --hb-focus-ring: 0 0 0 1px var(--hb-accent), 0 0 0 4px var(--hb-accent-soft),
-    0 0 20px -10px rgba(242, 162, 13, 0.85);
+    0 0 20px -10px rgba(var(--hb-accent-rgb), 0.85);
 
-  /* 语义色 */
-  --hb-success: #54bd78;
-  --hb-success-soft: rgba(84, 189, 120, 0.13);
-  --hb-success-line: rgba(84, 189, 120, 0.32);
-  --hb-success-text: #7ed09b;
-  --hb-danger: #e26b67;
-  --hb-danger-soft: rgba(226, 107, 103, 0.13);
-  --hb-danger-line: rgba(226, 107, 103, 0.34);
-  --hb-danger-text: #ef9f9b;
-  --hb-warning-soft: rgba(242, 162, 13, 0.13);
-  --hb-warning-line: rgba(242, 162, 13, 0.32);
+  /* 亮底上用深色文字。主按钮 / 选中态 / 徽标的「亮渐变 + 深字」组合共用这一枚，
+     避免每处各写一个近黑的十六进制。 */
+  --hb-on-bright: #041018;
 
-  /* 圆角：与主程序一致的「小圆角」控制台风格 */
+  /* ── 居家三光 ────────────────────────────────────────────────────────────
+     与场景调色板同名同值（design/scene/page.css 的 --hos-lumen / --hos-aura / --hos-eco）。
+     这两组令牌必须逐个相等，`tools/check_scene_sync.mjs` 会比对 —— 靠人记得改两侧
+     是过去琥珀主题能留在这里三个月的唯一原因。 */
+  --hb-lumen-rgb: 255, 157, 77;
+  --hb-lumen: #ff9d4d;
+  --hb-lumen-bright: #ffba83;
+  --hb-lumen-deep: #c96a1d;
+  --hb-lumen-soft: rgba(var(--hb-lumen-rgb), 0.13);
+  --hb-lumen-line: rgba(var(--hb-lumen-rgb), 0.32);
+  --hb-lumen-text: #ffba83;
+  --hb-aura-rgb: 201, 160, 255;
+  --hb-aura: #c9a0ff;
+  --hb-aura-bright: #e7d6ff;
+  --hb-aura-deep: #9253e6;
+  --hb-aura-soft: rgba(var(--hb-aura-rgb), 0.13);
+  --hb-aura-line: rgba(var(--hb-aura-rgb), 0.32);
+  --hb-eco-rgb: 95, 208, 168;
+  --hb-eco: #5fd0a8;
+  --hb-eco-bright: #88dcbf;
+  --hb-eco-deep: #3b8e71;
+  --hb-eco-soft: rgba(var(--hb-eco-rgb), 0.13);
+  --hb-eco-line: rgba(var(--hb-eco-rgb), 0.32);
+
+  /* ── 设备读色 ────────────────────────────────────────────────────────────
+     heat ↔ cool 是温度的两端，alert 是超限，sensor 是离线 / 未知。
+     商店里的授权状态、后台的库存与订单状态都从这几个色取，不再各写各的绿黄红。 */
+  --hb-heat-rgb: 255, 138, 101;
+  --hb-heat: #ff8a65;
+  --hb-heat-soft: rgba(var(--hb-heat-rgb), 0.13);
+  --hb-cool-rgb: 88, 196, 255;
+  --hb-cool: #58c4ff;
+  --hb-cool-soft: rgba(var(--hb-cool-rgb), 0.13);
+  --hb-sensor-rgb: 158, 176, 196;
+  --hb-sensor: #9eb0c4;
+  --hb-sensor-soft: rgba(var(--hb-sensor-rgb), 0.12);
+
+  /* 语义色：成功 = 生态薄荷、危险 = 珊瑚、提醒 = 暖光。
+     三者的通道值就是上面的 eco / alert / lumen，所以 --hb-success-* 是别名而不是
+     另一套颜色 —— 状态语义与设备语义在这里是同一件事。 */
+  --hb-success-rgb: var(--hb-eco-rgb);
+  --hb-success: var(--hb-eco);
+  --hb-success-soft: var(--hb-eco-soft);
+  --hb-success-line: var(--hb-eco-line);
+  --hb-success-text: var(--hb-eco-bright);
+  --hb-alert-rgb: 240, 122, 126;
+  --hb-alert: #f07a7e;
+  --hb-alert-bright: #f5a3a6;
+  --hb-alert-soft: rgba(var(--hb-alert-rgb), 0.13);
+  --hb-alert-line: rgba(var(--hb-alert-rgb), 0.34);
+  --hb-danger-rgb: var(--hb-alert-rgb);
+  --hb-danger: var(--hb-alert);
+  --hb-danger-soft: var(--hb-alert-soft);
+  --hb-danger-line: var(--hb-alert-line);
+  --hb-danger-text: var(--hb-alert-bright);
+  --hb-warning-rgb: var(--hb-lumen-rgb);
+  --hb-warning: var(--hb-lumen);
+  --hb-warning-soft: var(--hb-lumen-soft);
+  --hb-warning-line: var(--hb-lumen-line);
+  --hb-warning-text: var(--hb-lumen-text);
+
+  /* 渐变（按钮 / 徽标 / 分色卡面）。多色那条只给标题与光带，压在一起的渐变最多三色。 */
+  --hb-grad-lumen: linear-gradient(180deg, var(--hb-lumen-bright), var(--hb-lumen-deep));
+  --hb-grad-aura: linear-gradient(180deg, var(--hb-aura-bright), var(--hb-aura-deep));
+  --hb-grad-eco: linear-gradient(180deg, var(--hb-eco-bright), var(--hb-eco-deep));
+  --hb-grad-aurora: linear-gradient(
+    100deg,
+    var(--hb-accent) 0%,
+    var(--hb-aura) 48%,
+    var(--hb-lumen) 100%
+  );
+
+  /* 组件色调的默认值：主控青。由下面的 [data-tone] 逐项覆写。 */
+  --hb-tone: var(--hb-accent);
+  --hb-tone-rgb: var(--hb-accent-rgb);
+  --hb-tone-soft: var(--hb-accent-soft);
+  --hb-tone-line: var(--hb-accent-line);
+  --hb-tone-text: var(--hb-accent-bright);
+  --hb-grad-tone: var(--hb-accent-grad);
+
+  /* 圆角：控制台风格的「小圆角」，比场景坞（20px）收一档 */
   --hb-radius-xs: 6px;
   --hb-radius-sm: 8px;
   --hb-radius-md: 10px;
@@ -73,12 +172,14 @@
   --hb-shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.35);
   --hb-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   --hb-shadow-lg: 0 30px 100px rgba(0, 0, 0, 0.58);
-  --hb-card-bg: linear-gradient(180deg, #1d242b 0%, #191f25 100%);
+  --hb-card-bg: linear-gradient(180deg, var(--hb-surface-soft) 0%, var(--hb-surface) 100%);
 
-  /* 排版 */
-  --hb-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --hb-font-mono: SFMono-Regular, ui-monospace, Consolas, Menlo, monospace;
+  /* 排版：与场景同一套本地字体（store/static/scene/fonts.css 定义 @font-face）。
+     display 给标题，mono 给数字与代码。CJK 走系统字体回退 —— 只打包了 latin 子集。 */
+  --hb-font: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
+  --hb-font-display: 'Orbitron', 'Exo 2', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --hb-font-mono: 'JetBrains Mono', SFMono-Regular, ui-monospace, Consolas, Menlo, monospace;
 
   /* 动效 */
   --hb-transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease,
@@ -87,6 +188,87 @@
   /* 尺寸 */
   --hb-topbar-h: 62px;
   --hb-container: 1180px;
+}
+
+/* 组件色调开关，默认主控青。
+   给任意元素加 `data-tone="lumen|aura|eco|heat|cool|alert|sensor"`，它和它的子树里的
+   --hb-tone* 就切到该色系。卡片 / 图标 / 徽标 / 统计数字统一只读这几个变量，
+   于是「给一张卡换个色」= 在模板上加一个属性，而不是把 border + background + color
+   三处颜色各抄一遍（过去商店里正是这么做的，24 个写死的十六进制就是这么来的）。
+
+   为什么是 data 属性而不是 .hb-tone--x 类：这些分色是**数据**的性质（这张卡是温控、
+   这个数字是授权数），不是版面的性质。写在模板的属性位上，改配色时不会有人误以为
+   它是布局钩子。 */
+[data-tone='accent'] {
+  --hb-tone: var(--hb-accent);
+  --hb-tone-rgb: var(--hb-accent-rgb);
+  --hb-tone-soft: var(--hb-accent-soft);
+  --hb-tone-line: var(--hb-accent-line);
+  --hb-tone-text: var(--hb-accent-bright);
+  --hb-grad-tone: var(--hb-accent-grad);
+}
+
+[data-tone='lumen'] {
+  --hb-tone: var(--hb-lumen);
+  --hb-tone-rgb: var(--hb-lumen-rgb);
+  --hb-tone-soft: var(--hb-lumen-soft);
+  --hb-tone-line: var(--hb-lumen-line);
+  --hb-tone-text: var(--hb-lumen-text);
+  --hb-grad-tone: var(--hb-grad-lumen);
+}
+
+[data-tone='aura'] {
+  --hb-tone: var(--hb-aura);
+  --hb-tone-rgb: var(--hb-aura-rgb);
+  --hb-tone-soft: var(--hb-aura-soft);
+  --hb-tone-line: var(--hb-aura-line);
+  --hb-tone-text: var(--hb-aura-bright);
+  --hb-grad-tone: var(--hb-grad-aura);
+}
+
+[data-tone='eco'] {
+  --hb-tone: var(--hb-eco);
+  --hb-tone-rgb: var(--hb-eco-rgb);
+  --hb-tone-soft: var(--hb-eco-soft);
+  --hb-tone-line: var(--hb-eco-line);
+  --hb-tone-text: var(--hb-eco-bright);
+  --hb-grad-tone: var(--hb-grad-eco);
+}
+
+[data-tone='heat'] {
+  --hb-tone: var(--hb-heat);
+  --hb-tone-rgb: var(--hb-heat-rgb);
+  --hb-tone-soft: var(--hb-heat-soft);
+  --hb-tone-line: rgba(var(--hb-heat-rgb), 0.32);
+  --hb-tone-text: var(--hb-heat);
+  --hb-grad-tone: linear-gradient(180deg, #ffb59c, #e0663c);
+}
+
+[data-tone='cool'] {
+  --hb-tone: var(--hb-cool);
+  --hb-tone-rgb: var(--hb-cool-rgb);
+  --hb-tone-soft: var(--hb-cool-soft);
+  --hb-tone-line: rgba(var(--hb-cool-rgb), 0.32);
+  --hb-tone-text: var(--hb-cool);
+  --hb-grad-tone: linear-gradient(180deg, #b7e6ff, #2f8fd0);
+}
+
+[data-tone='alert'] {
+  --hb-tone: var(--hb-alert);
+  --hb-tone-rgb: var(--hb-alert-rgb);
+  --hb-tone-soft: var(--hb-alert-soft);
+  --hb-tone-line: var(--hb-alert-line);
+  --hb-tone-text: var(--hb-alert-bright);
+  --hb-grad-tone: linear-gradient(180deg, #ffc9cb, #d0555a);
+}
+
+[data-tone='sensor'] {
+  --hb-tone: var(--hb-sensor);
+  --hb-tone-rgb: var(--hb-sensor-rgb);
+  --hb-tone-soft: var(--hb-sensor-soft);
+  --hb-tone-line: rgba(var(--hb-sensor-rgb), 0.28);
+  --hb-tone-text: var(--hb-sensor);
+  --hb-grad-tone: linear-gradient(180deg, #cfdae6, #77879a);
 }
 
 /* 2. 重置与基础 */
@@ -106,10 +288,13 @@ body {
   margin: 0;
   color: var(--hb-ink);
   background-color: var(--hb-bg);
-  /* 主程序是纯平深色画布，这里只留两处极淡的氛围光 */
+  /* 深空画布上的三团氛围光，与入口页场景插画同源：
+     右上主控青（山后的信号）、左下居家暖光（屋里的灯）、中部极光紫（夜里的天色）。
+     前台分页没有场景层，页面「有厚度、有温度」就靠这三团 —— 只留青会是仪表盘。 */
   background-image:
-    radial-gradient(circle at 88% -6%, rgba(242, 162, 13, 0.08), transparent 34rem),
-    radial-gradient(circle at 4% 4%, rgba(120, 140, 160, 0.05), transparent 26rem);
+    radial-gradient(circle at 88% -6%, rgba(var(--hb-accent-rgb), 0.1), transparent 34rem),
+    radial-gradient(circle at 6% 96%, rgba(var(--hb-lumen-rgb), 0.075), transparent 30rem),
+    radial-gradient(circle at 52% 34%, rgba(var(--hb-aura-rgb), 0.05), transparent 26rem);
   background-attachment: fixed;
   font-family: var(--hb-font);
   font-size: 14px;
@@ -152,7 +337,7 @@ select:-webkit-autofill {
 }
 
 ::selection {
-  color: #1e1607;
+  color: var(--hb-on-bright);
   background: var(--hb-accent-bright);
 }
 
@@ -279,60 +464,12 @@ b {
   color: var(--hb-muted);
 }
 
-.hb-mono {
-  font-family: var(--hb-font-mono);
-}
-
-.hb-nowrap {
-  white-space: nowrap;
-}
-
-.hb-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 /* 4. 布局骨架 */
 .hb-container {
   width: 100%;
   max-width: var(--hb-container);
   margin: 0 auto;
   padding: 0 24px;
-}
-
-.hb-stack {
-  display: grid;
-  gap: 16px;
-}
-
-.hb-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.hb-grid-2,
-.hb-grid-3,
-.hb-grid-4 {
-  display: grid;
-  gap: 14px;
-}
-
-.hb-grid-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.hb-grid-3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.hb-grid-4 {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 /* 5. 按钮 */
@@ -369,15 +506,15 @@ b {
 
 .hb-button--primary {
   border-color: transparent;
-  color: #24190a;
+  color: var(--hb-on-bright);
   background: var(--hb-accent-grad);
   box-shadow: var(--hb-accent-glow);
 }
 
 .hb-button--primary:hover {
   border-color: transparent;
-  color: #24190a;
-  background: linear-gradient(180deg, #ffc247, #f7a400);
+  color: var(--hb-on-bright);
+  background: var(--hb-accent-grad-hover);
 }
 
 .hb-button--secondary {
@@ -412,7 +549,7 @@ b {
 
 .hb-button--danger:hover {
   border-color: var(--hb-danger);
-  color: #1b0f0f;
+  color: var(--hb-on-bright);
   background: var(--hb-danger);
 }
 
@@ -424,7 +561,7 @@ b {
 
 .hb-button--success:hover {
   border-color: var(--hb-success);
-  color: #0c1a12;
+  color: var(--hb-on-bright);
   background: var(--hb-success);
 }
 
@@ -436,7 +573,7 @@ b {
 
 .hb-button--warning:hover {
   border-color: var(--hb-accent);
-  color: #24190a;
+  color: var(--hb-on-bright);
   background: var(--hb-accent-grad);
 }
 
@@ -469,7 +606,6 @@ b {
   opacity: 0.75;
 }
 
-.hb-button .fa-solid,
 .hb-button .fa-regular,
 .hb-button .fa-duotone {
   font-size: 0.95em;
@@ -496,36 +632,21 @@ b {
   background: var(--hb-accent-soft);
 }
 
-/* 操作按钮组（表格单元格内） */
-.hb-actions {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 6px;
-}
-
 /* 6. 表单 */
-.hb-form {
-  display: grid;
-  gap: 16px;
-}
-
 .hb-field {
   display: grid;
   gap: 7px;
   min-width: 0;
 }
 
-.hb-field > span,
-.hb-label {
-  color: #aab4bc;
+.hb-field > span {
+  color: var(--hb-ink-soft);
   font-size: 12px;
   font-weight: 620;
   letter-spacing: 0.02em;
 }
 
-.hb-field > small,
-.hb-help {
+.hb-field > small {
   color: var(--hb-muted-dim);
   font-size: 11.5px;
   line-height: 1.55;
@@ -533,10 +654,7 @@ b {
 
 .hb-input,
 .hb-select,
-.hb-textarea,
-.hb-form input:not([type="checkbox"]):not([type="radio"]),
-.hb-form select,
-.hb-form textarea {
+.hb-textarea {
   width: 100%;
   min-height: 40px;
   padding: 8px 13px;
@@ -551,25 +669,19 @@ b {
 }
 
 .hb-input::placeholder,
-.hb-textarea::placeholder,
-.hb-form input::placeholder,
-.hb-form textarea::placeholder {
-  color: #5d6871;
+.hb-textarea::placeholder {
+  color: var(--hb-muted-dim);
 }
 
 .hb-input:focus,
 .hb-select:focus,
-.hb-textarea:focus,
-.hb-form input:focus,
-.hb-form select:focus,
-.hb-form textarea:focus {
+.hb-textarea:focus {
   border-color: var(--hb-accent);
   outline: none;
   box-shadow: var(--hb-focus-ring);
 }
 
-.hb-select,
-.hb-form select {
+.hb-select {
   appearance: none;
   padding-right: 34px;
   background-image: linear-gradient(45deg, transparent 50%, var(--hb-muted) 50%),
@@ -580,14 +692,12 @@ b {
   cursor: pointer;
 }
 
-.hb-select option,
-.hb-form select option {
+.hb-select option {
   color: var(--hb-ink);
   background: var(--hb-surface-raised);
 }
 
-.hb-textarea,
-.hb-form textarea {
+.hb-textarea {
   min-height: 84px;
   resize: vertical;
 }
@@ -598,13 +708,13 @@ b {
 }
 
 .hb-input.is-invalid {
-  border-color: rgba(226, 107, 103, 0.6);
-  box-shadow: 0 0 0 3px rgba(226, 107, 103, 0.1);
+  border-color: rgba(var(--hb-danger-rgb), 0.6);
+  box-shadow: 0 0 0 3px rgba(var(--hb-danger-rgb), 0.1);
 }
 
 .hb-input.is-valid {
-  border-color: rgba(84, 189, 120, 0.55);
-  box-shadow: 0 0 0 3px rgba(84, 189, 120, 0.1);
+  border-color: rgba(var(--hb-success-rgb), 0.55);
+  box-shadow: 0 0 0 3px rgba(var(--hb-success-rgb), 0.1);
 }
 
 /* 密码框：输入 + 显隐按钮 */
@@ -639,14 +749,6 @@ b {
   background: var(--hb-accent-soft);
 }
 
-/* 输入 + 按钮并排（验证码） */
-.hb-input-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: end;
-}
-
 /* 勾选 */
 .hb-check {
   display: inline-flex;
@@ -661,7 +763,7 @@ b {
   width: 16px;
   height: 16px;
   margin: 0;
-  border: 1px solid #46514f;
+  border: 1px solid var(--hb-line-strong);
   border-radius: 5px;
   background: var(--hb-field);
   cursor: pointer;
@@ -736,10 +838,6 @@ b {
   box-shadow: var(--hb-elev-1);
 }
 
-.hb-card--flat {
-  background: var(--hb-surface);
-}
-
 .hb-card__head {
   display: flex;
   padding: 18px 20px;
@@ -762,11 +860,6 @@ b {
 
 .hb-card__body {
   padding: 20px;
-}
-
-.hb-card__foot {
-  padding: 16px 20px 18px;
-  border-top: 1px solid var(--hb-line-soft);
 }
 
 /* 页面区块：外层留白更松，用于前台的内容段 */
@@ -796,12 +889,6 @@ b {
   font-weight: 620;
   line-height: 1.5;
   white-space: nowrap;
-}
-
-.hb-tag--accent {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
 }
 
 .hb-tag--success {
@@ -876,7 +963,7 @@ b {
   flex: 0 0 6px;
   border-radius: 999px;
   background: var(--hb-success);
-  box-shadow: 0 0 8px rgba(84, 189, 120, 0.55);
+  box-shadow: 0 0 8px rgba(var(--hb-success-rgb), 0.55);
 }
 
 .hb-dot--idle {
@@ -943,22 +1030,7 @@ b {
   line-height: 1.65;
 }
 
-.hb-empty--inline {
-  padding: 22px 16px;
-  border-style: solid;
-  border-color: var(--hb-line-soft);
-  font-size: 12.5px;
-}
-
 /* 10. 表格 */
-.hb-table-wrap {
-  border: 1px solid var(--hb-line);
-  border-radius: var(--hb-radius-lg);
-  background: var(--hb-surface);
-  box-shadow: var(--hb-elev-1);
-  overflow: clip;
-}
-
 .hb-table {
   width: 100%;
   border-collapse: collapse;
@@ -971,8 +1043,8 @@ b {
   top: 0;
   padding: 10px 14px;
   border-bottom: 1px solid var(--hb-line);
-  color: #7e8a94;
-  background: #1c222a;
+  color: var(--hb-muted-dim);
+  background: var(--hb-surface-soft);
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.05em;
@@ -1013,27 +1085,6 @@ b {
   font-size: 11.5px;
 }
 
-.hb-table .hb-cell-truncate {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.hb-table-empty {
-  padding: 46px 16px;
-  color: var(--hb-muted);
-  text-align: center;
-}
-
-.hb-table-empty span {
-  display: block;
-  margin-bottom: 8px;
-  color: #3d4750;
-  font-size: 26px;
-  line-height: 1;
-}
-
 /* 11. 对话框 */
 .hb-dialog {
   width: min(440px, calc(100vw - 32px));
@@ -1043,17 +1094,13 @@ b {
   border: 1px solid var(--hb-line-strong);
   border-radius: var(--hb-radius-xl);
   color: var(--hb-ink);
-  background: linear-gradient(180deg, #1e252c, #181e24);
+  background: linear-gradient(180deg, var(--hb-surface-soft), var(--hb-surface));
   box-shadow: var(--hb-shadow-lg);
 }
 
 .hb-dialog::backdrop {
-  background: rgba(5, 8, 11, 0.72);
+  background: color-mix(in srgb, var(--hb-bg) 72%, transparent);
   backdrop-filter: blur(5px);
-}
-
-.hb-dialog--wide {
-  width: min(560px, calc(100vw - 32px));
 }
 
 .hb-dialog__head {
@@ -1113,50 +1160,6 @@ b {
   border-color: var(--hb-line-strong);
   color: var(--hb-ink);
   background: rgba(255, 255, 255, 0.08);
-}
-
-/* 对话框里的强调数值（金额、倒计时） */
-.hb-dialog__value {
-  display: block;
-  color: var(--hb-accent-bright);
-  font-family: var(--hb-font-mono);
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-}
-
-.hb-dialog__meta {
-  display: block;
-  margin-top: 12px;
-  color: var(--hb-muted-dim);
-  font-family: var(--hb-font-mono);
-  font-size: 11.5px;
-  overflow-wrap: anywhere;
-}
-
-.hb-dialog__notice {
-  display: grid;
-  margin-top: 14px;
-  padding: 12px 14px;
-  gap: 3px;
-  border: 1px solid var(--hb-accent-line);
-  border-radius: var(--hb-radius-md);
-  background: var(--hb-accent-faint);
-  text-align: center;
-}
-
-.hb-dialog__notice b {
-  color: var(--hb-accent-bright);
-  font-family: var(--hb-font-mono);
-  font-size: 24px;
-  letter-spacing: 0.06em;
-}
-
-.hb-dialog__notice small {
-  color: var(--hb-muted);
-  font-size: 11.5px;
-  line-height: 1.5;
 }
 
 .hb-dialog__status {
@@ -1226,7 +1229,7 @@ b {
   transition: var(--hb-transition);
 }
 
-/* 选中/悬停时上缘亮起一道琥珀线（与统计卡、页头横幅同一套语言）。
+/* 选中/悬停时上缘亮起一道青色线（与统计卡、页头横幅同一套语言）。
    平时完全透明，所以静止状态下卡片仍是干净的深色块。 */
 .hb-addon-card::before {
   position: absolute;
@@ -1339,7 +1342,7 @@ html.hb-auth-hint .hb-guest-only {
   display: none !important;
 }
 
-/* 共享动效：前台页头横幅、认证页左栏与后台面板头都用同一块「控制台铭牌」质感——细网格 + 琥珀辉光。网格按 46px 一循环，所以位移正好一个循环长度就能无缝接回，做出几乎察觉不到的漂移。
+/* 共享动效：前台页头横幅、认证页左栏与后台面板头都用同一块「控制台铭牌」质感——细网格 + 青色辉光。网格按 46px 一循环，所以位移正好一个循环长度就能无缝接回，做出几乎察觉不到的漂移。
    放在设计系统里而不是各自的页面样式表里：前台 theme+store、后台 theme+admin 互不加载，keyframes 放任何一边都会让另一边引用到一个不存在的动画名，而那种失败是静默的（只是不动了）。 */
 @keyframes hb-head-drift {
   from {
@@ -1357,27 +1360,14 @@ html.hb-auth-hint .hb-guest-only {
     padding: 0 18px;
   }
 
-  .hb-grid-4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .hb-grid-3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
+    }
 
 @media (max-width: 680px) {
   h1 {
     font-size: 24px;
   }
 
-  .hb-grid-2,
-  .hb-grid-3,
-  .hb-grid-4 {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .hb-section-head {
+    .hb-section-head {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -1386,11 +1376,7 @@ html.hb-auth-hint .hb-guest-only {
     padding: 20px 16px;
   }
 
-  .hb-input-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .hb-dialog__foot--split {
+    .hb-dialog__foot--split {
     grid-template-columns: 1fr;
   }
 }

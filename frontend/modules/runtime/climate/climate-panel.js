@@ -12,7 +12,7 @@ import {
   climateModeLabel,
   climateSwingModeLabel,
   createClimateModeHistory
-} from "./climate-state.js?v=20260920131301";
+} from "./climate-state.js?v=20260921090405";
 /**
  * HA 的 fan_mode 取值 → 中文文案。
  * 各厂商写法不一（medium/middle 都是中风），故常见写法都列上；未收录的原样显示。

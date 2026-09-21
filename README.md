@@ -1,6 +1,6 @@
 # HomeOS
 
-面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.1**（见 `VERSION`）。
+面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.2**（见 `VERSION`）。
 
 提供可视化编辑器、3D 户型工作室、全屏展示页和中控配对；后端是 FastAPI，前端是原生 HTML / CSS / JavaScript，数据默认落在本机 SQLite。
 
@@ -76,10 +76,10 @@ HomeOS/
 │       ├── renderer/       # 控件运行时：core/（渲染主体与共享基建）· controls/（按域）· geometry/
 │       ├── display/        # 中控展示页脚本与样式
 │       ├── auth/           # 登录 / 初始化 / 配对 / 激活页脚本与样式
-│       ├── shared/         # 编辑器与运行时共用（动作规则、确认框、实体域、弹窗布局）
+│       ├── shared/         # 编辑器与运行时共用（动作规则、确认框、实体域、弹窗布局、浮动菜单定位）
 │       ├── logging/        # 客户端日志与全局日志面板
 │       ├── assets/         # icons/（favicon / 触屏图标 / 品牌图）· manifest/（webmanifest）
-│       ├── utils/          # 与业务无关的纯工具
+│       ├── utils/          # 与业务无关的纯工具（颜色 / 数值 / 日期 / 实体域等）
 │       ├── 3d-studio/      # 户型工作室（入口 studio/studio-app.js，models/ 为模型素材）
 │       │   ├── studio/     # 编排层、相机/过渡/呈现、场景样式、控件、studio.css
 │       │   ├── plan/       # 底图与户型几何：比例、开洞、窗洞、平面绘制与光影
@@ -105,7 +105,7 @@ HomeOS/
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
 ├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # check_structure_refs.mjs（引用完整性）· bump_static_cache_versions.mjs（?v=）
+├── tools/                  # check_structure_refs.mjs / check_frontend_hygiene.mjs / check_studio_palette.mjs / check_registry_split.mjs / check_esm_exports.mjs（含共享桥）/ smoke_registry.mjs / smoke_state_entry.mjs / bump_static_cache_versions.mjs · smoke_backend.py
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
@@ -559,8 +559,9 @@ Compose 还可选：`HOMEOS_IMAGE` / `HOMEOS_STORE_IMAGE`（覆盖镜像名）�
 编译期约束（`docker/compile_python.py`）：
 
 - 入口脚本已编译成扩展模块，`python -m` 不能运行扩展模块，因此容器 `ENTRYPOINT` / `CMD` 与 `docker/start_store.py` 都用 `python -c "import ... as m; m.main()"` 拉起。
-- Cython 并行 `cythonize` 在本项目上偶发崩溃，脚本默认并行、失败自动回退单进程重试。
-- 需要 `gcc` + `libc6-dev` + `cython` / `setuptools`，只在构建阶段安装，不进运行镜像（原生扩展按平台编译，CI 的多架构构建会走 QEMU 模拟，耗时明显长于本机）。
+- Cython 版本在 `Dockerfile` 里钉死（`ARG CYTHON_VERSION=3.1.6`）。**3.3.0 有回归**：在 `backend/observability/global_log.py` 的 `for key, item in (value or {}).items()` 上类型推断崩溃，导致构建失败。升级该 ARG 前请先用两个 target 各构建一次验证。
+- Cython 并行 `cythonize` 偶发崩溃，脚本默认并行、失败自动回退单进程重试。
+- 需要 `gcc` + `libc6-dev` + `cython` / `setuptools`，只在构建阶段安装，不进运行镜像。原生扩展按平台编译，所以 CI 不再用 QEMU 模拟：`amd64` / `arm64` 各跑在原生 runner 上按 digest 推送，再由 `merge` job 合并 manifest list（见 `.github/workflows/docker.yml`）。
 
 生产清单与反代示例见 [deploy/PRODUCTION.md](deploy/PRODUCTION.md)、[deploy/Caddyfile.example](deploy/Caddyfile.example)、[deploy/nginx.conf.example](deploy/nginx.conf.example)。
 
@@ -650,6 +651,79 @@ node tools/check_structure_refs.mjs
 
 前端没有打包器，路径写错只在浏览器里变成 404。该脚本静态校验 `/static/...` 引用、前端相对 ESM 导入、`backend/main.py` 的 `public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime` 的双向一致、`/api/v1/modules/interaction3d/<path>` 资源 URL、`/store-static/...` 引用、CSS 里的相对 `url(...)`、后端 `frontend_dir / …` 拼接链、静态资源缓存戳、注释里写到的文件路径、`backend/config.py` 的仓库根推导、`Dockerfile` 里全部仓库相对路径，并附带列出残留的「后端 app 层」写法（信息项，不判失败）。仓库没有自动化回归网，结构改动后请同时跑它与手工冒烟。
 
+前端结构 / 卫生护栏（默认只读报清单，`--strict` 才判失败）：
+
+```bash
+node tools/check_frontend_hygiene.mjs --strict   # 死类名、跨文件同名规则、重复 @keyframes、与令牌逐字节同值的 hex、z-index 清单
+node tools/check_studio_palette.mjs --strict      # 3D 工作室素材卡：渲染早于 DOM 缓存、容器留空、数据表字段与页签归属
+node tools/check_registry_split.mjs               # 控件注册表分片：barrel 可达、注册点唯一、componentsByType 只一份、版本戳一致
+node tools/check_esm_exports.mjs                  # ESM 具名导出：每个具名 import 都能在目标模块里找到同名导出
+```
+
+前两个是**报告模式**：不加 `--strict` 一律退出 0，只打印清单。要当守卫用就必须带 `--strict`，
+接 CI 时尤其别忘 —— 少一个参数不会报错，只会安静地什么都不拦。
+
+这些守卫已经接进 `.github/workflows/docker.yml` 的 `guards` job，挂在镜像 `build` 之前。但那个工作流
+只有 `workflow_dispatch`（仓库有意不在 push / PR 上自动跑、不消耗 Actions 额度），所以它们只在手动
+出包时执行；要在 PR 上强制，得另建一个 push/PR 工作流。
+
+`guards` job 目前纳入 6 个 Node 守卫 + 后端冒烟，**两个故意没纳入**：
+
+- `check_frontend_hygiene.mjs` —— `--strict` 当前有 32 项 findings，全部是 `design/scene/` 里随
+  `HomeOS-Activate` 迁出而失去调用方的类名（`.hos-modal` / `.hos-datepicker` / `.hos-hub` /
+  `.viewport-frame` / `.app-shell__content` …）。这类名分归设计系统那条线清理，清完后把这条加进
+  `guards` 的清单即可。复现（打印全部 32 条及文件行号）：`node tools/check_frontend_hygiene.mjs --strict`。
+  注意它另外三类（重复 `@keyframes`、与令牌同值的 hex、`z-index` 清单中的硬值）目前都已经是零，
+  所以这条一旦清完就是一道干净的门禁。
+- `check_scene_sync.mjs` —— `design/scene/` 正在被改写为令牌体系、分发副本尚未重新生成，纳入会让
+  CI 替在途改动背红灯。
+
+控件注册表（`renderer/core/registry.js` + `renderer/core/registry/`）的运行时冒烟：
+
+```bash
+node tools/smoke_registry.mjs                     # 带 DOM 桩真实加载 registry.js，断言 18 个控件类型都注册且能渲染
+```
+
+注册是 import 副作用：漏引入一个 `registry/components/<类型>.js` 不会报错、不会 404，只会在页面上
+变成「控件尚未实现」。`check_registry_split.mjs` 证明每个分片都被引入，`smoke_registry.mjs` 证明引入
+之后真的执行到了注册那一行，两个一起跑才算数。
+
+相邻的另一类静默故障是**分片自己漏写 `export`**：导入它的模块整页抛 SyntaxError，而报错信息指向
+**导入方**（`air-conditioner.js:26`），很容易被误判成缓存没刷或路径写错。`check_esm_exports.mjs` 把
+「每个具名 import 都能在目标模块里找到同名导出」静态钉住，改动 import / export 后请跑它。
+
+它另外单独查一处前四类写法都看不见的地方 —— 运行时树通往 `/static/` 的共享桥
+`modules/runtime/core/static-helpers.js`。桥写的是 `const { a, b } = await (… ? import(相对路径)
+: import("/static/…"))`，既不是 `import … from` 也不是 `export const { … }`，所以桥里漏一个
+`export`、拼错一个目标路径，守卫会全绿而只有浏览器报错。现在守卫连桥一起钉：解构出的每个名字都得
+是两个分支目标的真实导出、两个分支必须指向同一个文件、末尾 `export { … }` 必须与解构出的名字集合
+逐字相同（桥自己的「登记表」纪律）。加名字到桥里后请顺手跑一次，它比浏览器先报。
+
+`utils/state-entry.js` 的契约冒烟（纯函数，不需要 DOM 桩）：
+
+```bash
+node tools/smoke_state_entry.mjs                  # 24 条用例钉住状态文本归一的边界，含 0 / false / 缺省三种
+```
+
+状态文本归一（`String(state).trim().toLowerCase()`）曾散落二十余处，如今只此一份，各域只负责
+「哪些词算活动」。这份冒烟守的是 `stateTextOf` 里那个 `?? ""`：改成 `|| ""` 之后 `state: 0` 与
+`state: ""` 会一起塌成空串，而 `0` / `1` 正是 HA 开关量的常见写法 —— 现场表现只是「离线设备显示成
+未知」，不报错、不 404。同一处还要保证 `normalizedTextOf` 真被复用，而不是在 `stateTextOf` 里又手写
+一遍归一。
+
+后端与商店冒烟（复用现有依赖，不装新东西）：
+
+```bash
+python tools/smoke_backend.py                     # 导入 backend.main / store.app + 路由清单比对 + 关键路径状态码
+python tools/smoke_backend.py --update-snapshot   # 仅在确知路由增删时重写 tools/routes.snapshot.txt
+```
+
+它在临时目录里自己造一副一次性商店密钥（`docker/license_keys.py` 的 `ensure_store_license_keys`）并把
+公钥指纹指给主应用。这一步是必需的：`store/create_app()` 在**默认**密钥目录下缺钥就直接 raise（防止
+「商店一把钥、客户端另一把」的静默激活失败），只有自定义目录才允许自动生成。没有这一步，脚本就只在
+「本地跑过 `python start.py`」的机器上能过 —— 干净检出（也就是 CI）里必然红，而红的原因跟被测代码
+毫无关系。临时目录在 `finally` 里删掉。
+
 几处口径值得记住：
 
 - **CSS 的相对 `url(...)` 按 URL 而非磁盘目录解析**：`/store-static/font.min.css` 里的 `url(../fonts/font.woff2)` 实际请求 `/fonts/font.woff2`，由 `store/app.py` 的 `/fonts` 根挂载提供。这条检查因此同时钉住字体文件与那个挂载。
@@ -662,6 +736,26 @@ node tools/check_structure_refs.mjs
 ## 更新日志
 
 更早的版本记录已随文档精简移除；项目按**首个发布版本**维护，不再保留历史版本的数据迁移说明。
+
+### v0.6.2
+
+**授权恢复与重试**
+
+- 新增 `POST /api/v1/license/retry`：立即发起一轮授权恢复并清掉端点黑名单 —— 「重新连接」不必再等下一个心跳周期，也不会被上一轮失败留下的冷却直接挡回。管理员会话拿完整状态，中控设备只拿脱敏摘要（`availability()` 的白名单字段），展示端既不需要、也不该看到授权标识与凭证。
+- 新增匿名可读的 `GET /api/v1/license/availability`，并把连接状态页挂到已有的展示入口上：`allows('display')` 为假时 `/pair` 与 `/display/*` 直接渲染 `frontend/license-recovery.html`，而不是落 403 错误页。不新增路由是有意的 —— 设备刷新后仍停在自己的地址上，授权一恢复就能进画面，也避免「授权不可用反而要先去登录」这种死路。页面打开即自检、每 5 秒复查、`online` 事件立刻复查，网络恢复后无需人工操作；已有项目与设备配对不受影响。
+- 授权失败分级处置：区分「等一会儿再来」（网络抖动 / 5xx）与「再点也没用」（要求人工重新激活、刚点过被节流），把结论（`canRetry` / `nextRetryAt` / `retryAttempt` / `retrying`）交给前端决定是否继续显示重试按钮，而不是让前端从状态码猜。端点拉黑时长与重试节奏对齐为 120 秒：黑名单若比重试节奏还长，每一轮自动重试都会整轮撞在冷却里。
+- 授权租约凭证写入加跨进程文件锁（`backend/license/process_lock.py`）：同一数据目录只允许一个「凭证写入者」，第二个实例启动即失败并说明原因。用文件锁而不是「建锁文件 + 退出删除」，是因为内核会在进程结束（含被 kill）时自动释放，不存在要人来清理的陈旧锁；取非阻塞语义是有意的 —— 抢不到锁意味着确实已有实例在跑，正确行为是立刻失败而不是排队等一个永远不会结束的对方。
+- 编辑器授权卡片新增「重新连接授权后台」：与授权页、恢复页共用同一份状态文案（`frontend/static/auth/license-recovery.js`），三处不再各说各话；完整状态行仍只显示一次错误原文，重试倒计时另起一行，两者不互相覆盖。
+
+**修复**
+
+- 户型自动导图底图分辨率改为「保留控件宽高比、面积对齐画布」换算（`frontend/static/editor/floorplan-auto-diagram-layout.js`）：此前直接按画布尺寸导出，底图与预览不同比，放进控件框会被拉伸 / 留边，表现为「导图与预览位置对不上」。面积对齐保证渲染像素量与画布同级，宽高比一致保证不产生偏移。
+- 导图生成完成改为可关闭的浮层：它铺满整个编辑区，所以「点得掉」是硬要求 —— 完成按钮、关闭按钮、背景点击、Esc 四个出口都在，并在 `pagehide` 时兜底移除（浮层挂在 `body` 上，残留监听会一直引用旧 DOM）。置换失败改为恢复预览图元并提示「请重试」，不再静默留下一个已隐藏的图元。
+- 展示端授权受限（403 `LICENSE_RESTRICTED`）改为刷新当前页并把原因交给启动层：墙面屏前通常没人能填激活码，让后端门禁重新判定、把页面换成连接状态页才是可自愈的路径；启动失败时 `online` 事件自动重试一次。
+
+**数据库**
+
+- 无结构变更、无迁移，升级只需替换镜像；请保留全部数据卷 / 数据目录（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。
 
 ### v0.6.1
 

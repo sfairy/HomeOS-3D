@@ -8,12 +8,17 @@
  * 加载兜底 45 秒（超时按加载失败提示，避免永远停在骨架屏）。dispose 后所有方法都是空操作。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { apiErrorMessage, entityDomainFromId, resolveStateEntry } from "./static-helpers.js?v=20260920131301";
+import {
+  apiErrorMessage,
+  entityDomainFromId,
+  resolveStateEntry,
+  stateTextOf
+} from "./static-helpers.js?v=20260921090405";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=20260920131301";
-import { createLightStream } from "../light/light-stream.js?v=20260920131301";
+} from "./popup-preview.js?v=20260921090405";
+import { createLightStream } from "../light/light-stream.js?v=20260921090405";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**
@@ -530,9 +535,7 @@ export function mountInteraction3d(
       }
       const motorReverseEntityState =
         resolveStateEntry(statesMap[motorReversePair.entityId]);
-      const motorReverseStateText = String(motorReverseEntityState?.state || "")
-        .trim()
-        .toLowerCase();
+      const motorReverseStateText = stateTextOf(motorReverseEntityState);
       const isMotorReverseEnabled =
         motorReverseEntityState?.available === false
           ? null

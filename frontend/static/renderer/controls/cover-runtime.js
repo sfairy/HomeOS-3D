@@ -5,27 +5,24 @@
  * 处理「电机反转」（接线方向与界面相反）造成的开合颠倒；晾衣机专题（同设备里的灯、设定位置、当前
  * 位置、电机速度与升降按钮）；梦幻帘专题（叶片位置与角度的文案、收起 / 展开判定）；同设备的开关 / 下拉 / 数值实体。
  *
- * 约定：导入路径上的 ?v= 版本戳必须与 home.js、renderer.js 一致；本文件反向 import registry.js
- * （为拿 coverComponentIsDream），循环依赖是既有结构，故顶层不得执行依赖 registry 初始化结果的副作用。
+ * 约定：导入路径上的 ?v= 版本戳必须与 home.js、renderer.js 一致；`coverComponentIsDream` 从
+ * `registry/cover-state.js` 取 —— 那是只依赖 utils 的叶子分片，本文件因此不再反向 import 整个注册表 barrel。
  */
-import { coverComponentIsDream } from "../core/registry.js?v=20260920131301";
-import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260920131301";
-// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
+import { coverComponentIsDream } from "../core/registry/cover-state.js?v=20260921090405";
+import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260921090405";
+// 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=20260921090405";
 // 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
-// 本文件与 registry.js 都要用，而 registry.js 是本文件的上游，不能再反向 import 它。
+// 本文件与 registry/cover-state.js 都要用，而后者是本文件的上游，不能再反向 import 它。
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor,
-} from "./cover-direction.js?v=20260920131301";
+} from "./cover-direction.js?v=20260921090405";
 /**
  * 通用「实体是否处于活动态」判定。
  */
 export function runtimeEntityStateIsActive(eventState) {
-  const normalizedState = String(eventState?.newState?.state ?? eventState?.state ?? "")
-    .trim()
-    .toLowerCase();
-  return ["on", "open", "true", "home"].includes(normalizedState);
+  return ["on", "open", "true", "home"].includes(stateTextOf(eventState));
 }
 // 百分比容差：1% 以内都当作端点（完全关闭 / 完全打开），避免设备上报 0.4 之类的残值导致状态闪烁。
 const PERCENT_EPSILON = 1;
@@ -74,9 +71,7 @@ export function coverPendingDisplayPosition(fromPosition, toPosition, moveDirect
  */
 export function runtimeCoverStateIsActive(coverEventState) {
   const coverState = resolveStateEntry(coverEventState, {});
-  const rawCoverState = String(coverState.state || "")
-    .trim()
-    .toLowerCase();
+  const rawCoverState = stateTextOf(coverState);
   // opening / closing 直接给出结论，且 closing 要显式返回 false：
   // 此时位置百分比往往还是旧的高值，若走位置判断会把正在关闭的窗帘显示成打开。
   if (rawCoverState === "opening") {

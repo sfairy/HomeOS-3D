@@ -23,6 +23,26 @@ export function resolveStateEntry(stateOrChange, fallback = null) {
   return stateOrChange?.newState || stateOrChange || fallback;
 }
 
+/**
+ * 把任意值归一成可比对的小写文本：去首尾空白 + 转小写。全仓只此一份 ——
+ * 各域只决定「哪些词算活动」，大小写与空白差异不归它们管；`hvac_action`
+ * 这类同为「HA 枚举文案」的属性也走这里。
+ */
+export function normalizedTextOf(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * 把「状态对象 / 变更对象」归一成小写状态文本。取 `?? ""` 而非 `|| ""`：
+ * `0` / `"0"` 这类值是有效读数（HA 开关量确有 `0` / `1` 写法），
+ * 只有 null / undefined 才算「没上报」。
+ */
+export function stateTextOf(stateOrChange) {
+  return normalizedTextOf(resolveStateEntry(stateOrChange)?.state);
+}
+
 /** 从「实体 ID → 状态 / 变更」容器里取出并剥离成状态对象。 */
 export function resolveStateEntryIn(statesByEntityId, entityIdKey) {
   return resolveStateEntry(readFromMapOrRecord(statesByEntityId, entityIdKey));

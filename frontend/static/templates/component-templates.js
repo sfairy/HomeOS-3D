@@ -8,7 +8,29 @@
  * 颜色统一 #rrggbb 小写十六进制，透明度用 0~1 的 opacity；scopes 决定出现区域（shared = 侧边栏，
  * page = 主页面）；zIndex 从 1 起，负数留给背景类组件。模块导入即执行全部注册，templatesById 是模块级单例。
  */
-import { interaction3dTemplate } from "../bridge/definition.js?v=20260920131301";
+import { interaction3dTemplate } from "../bridge/definition.js?v=20260921090405";
+import { paletteColor } from "../utils/colors.js?v=20260921090405";
+
+/**
+ * 模板里「主控色」的出厂默认值。
+ *
+ * 模板对象是**模块级**字面量，本函数在模块求值时就被调用一次，把结果写进模板。
+ * 这依赖一个有保证的时序：模板模块的入口在 index.html 里是 `<script type="module">`，
+ * 而模块脚本执行前解析器必须等已发出的样式表加载完（否则会闪一帧无样式），
+ * 所以此刻 design/scene 的调色板已经应用，getComputedStyle 能取到真值。
+ * 取不到时 paletteColor 回落到与调色板同值的字面量，模板依然可用。
+ *
+ * 为什么不直接写死 #5fd4ff：写死之后「换主控色」要在两个地方改，而模板里这四处
+ * 是**写进用户文档**的（markerColor / iconActiveColor / countActiveColor），
+ * 漏改就会留下一批新组件停在旧色上，肉眼看不出来是哪儿的问题。
+ *
+ * 注意作用边界：这只改「新建组件」的出厂值。用户已保存的文档里存的是当时写入的
+ * 十六进制，不在这里改写 —— 那是用户数据，要变色由编辑器里的组件属性面板负责。
+ */
+function themeAccentDefault() {
+  return paletteColor("--hos-accent", "#5fd4ff");
+}
+
 // 模板注册表：id -> 冻结后的模板定义。模块级单例，导入即被下方的注册块填满。
 const templatesById = new Map();
 // 文档缺 theme 时的兜底主题，名字必须与后端 schema.Theme 的默认名 homeos-dark 一致。
@@ -153,7 +175,7 @@ const componentDefaultsByType = {
       frameSize: 119,
       frameOffsetY: -6.1,
       markerVisible: true,
-      markerColor: "#f2a20d",
+      markerColor: themeAccentDefault(),
       markerSize: 16,
       markerTop: 110,
       opacity: 1
@@ -1171,7 +1193,7 @@ registerComponentTemplate({
         frameOffsetX: -7.2,
         frameOffsetY: -6.1,
         markerVisible: true,
-        markerColor: "#f2a20d",
+        markerColor: themeAccentDefault(),
         markerSize: 16,
         markerLeft: 1.8,
         markerTop: 110
@@ -1226,7 +1248,7 @@ registerComponentTemplate({
         iconVisible: true,
         icon: "mdi:lightbulb-group-outline",
         iconColor: "#8b9298",
-        iconActiveColor: "#f2a20d",
+        iconActiveColor: themeAccentDefault(),
         iconGap: 4.5,
         titleVisible: true,
         titleColor: "#b9bbc0",
@@ -1235,7 +1257,7 @@ registerComponentTemplate({
         titleSpacing: 1.2,
         countVisible: true,
         countColor: "#b9bbc0",
-        countActiveColor: "#f2a20d",
+        countActiveColor: themeAccentDefault(),
         countSize: 34,
         countWeight: 0.35,
         countSpacing: 0,

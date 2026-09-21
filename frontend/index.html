@@ -12,7 +12,7 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=20260920131301"></script>
+    <script src="/static/logging/client-log.js?v=20260921090405"></script>
     <!-- 编辑器是桌面级布局，固定按 1020px 逻辑宽度出图，小屏靠缩放而不是响应式重排。 -->
     <meta name="viewport" content="width=1020,user-scalable=yes" />
     <meta name="theme-color" content="#172029" />
@@ -21,33 +21,42 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>HomeOS全屋智能管家</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260920131301" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920131301" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260920131301" />
-    <link rel="stylesheet" href="/static/logging/global-log.css?v=20260920131301" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260921090405" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260921090405" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921090405" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921090405" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260921090405" />
+    <link rel="stylesheet" href="/static/logging/global-log.css?v=20260921090405" />
+    <!-- 全站调色板（design/scene/page.css 的分发产物）。index.html **不再自带色板**：
+         app.css 的 :root 只是把它别名成 --bg / --accent 这些历史令牌名。
+         必须在 app.css 之前加载：别名在解析时就要能取到 --hos-*，顺序反了第一批
+         自定义属性会解析成无效值，整页回落成透明底 + 默认蓝链接。 -->
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=20260921090405" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；app.css、renderer.css 与 home.js
          内部 import 的模块必须共用同一枚时间戳，否则样式与运行时会对不上版本。 -->
     <link
       rel="stylesheet"
-      href="/static/app.css?v=20260920131301"
+      href="/static/app.css?v=20260921090405"
     />
-    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=20260920131301" />
-    <link rel="stylesheet" href="/static/bridge/bridge.css?v=20260920131301" />
+    <link rel="stylesheet" href="/static/renderer/core/renderer.css?v=20260921090405" />
+    <link rel="stylesheet" href="/static/bridge/bridge.css?v=20260921090405" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=20260921090405` 的 <link>。
+         必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
+    <!--{{APPEARANCE}}-->
   </head>
   <body>
     <!-- ===== 顶部工具条：四个入口按钮的状态点都由脚本按轮询结果着色 ===== -->
     <header class="editor-header">
       <div class="brand-lockup">
-        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920131301" alt="" /><strong
+        <img class="brand-icon" src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260921090405" alt="" /><strong
           >HomeOS</strong
-        ><span class="version">0.6.1</span>
+        ><span class="version">0.6.2</span>
       </div>
       <div class="header-actions">
         <button id="ha-open" class="ha-status" type="button"><i></i><span>HA 未配置</span></button
         ><button id="license-open" class="ha-status" type="button"><i></i><span>授权状态</span></button
         ><button id="sessions-open" class="ha-status" type="button"><i></i><span>登录会话</span></button
+        ><button id="appearance-open" class="ha-status" type="button"><i></i><span>配色</span></button
         ><button id="global-log-open" class="ha-status global-log-open" type="button"><i></i><span>日志</span></button
         ><button id="logout">退出</button>
       </div>
@@ -3503,7 +3512,7 @@
       </div>
     </dialog>
     <!-- 登录会话：列出当前管理员的所有登录会话，支持撤销单条 / 一键退出其他设备。 -->
-    <dialog id="sessions-dialog" class="settings-dialog sessions-dialog">
+    <dialog id="sessions-dialog" class="settings-dialog sessions-dialog" data-tone="sensor">
       <div class="dialog-heading">
         <div>
           <span>SIGN-IN SESSIONS</span>
@@ -3684,7 +3693,7 @@
     </dialog>
     <!-- HA 连接与实体同步：连接表单与「已连接」视图互斥显示——
          未配置时显示表单，已配置时显示连接视图（含重连 / 删除入口），切换由 #ha-connection-view 的 hidden 控制。 -->
-    <dialog id="ha-dialog" class="settings-dialog">
+    <dialog id="ha-dialog" class="settings-dialog" data-tone="aura">
       <div class="dialog-heading">
         <div>
           <span>HOME ASSISTANT</span>
@@ -3751,7 +3760,7 @@
       </div>
     </dialog>
     <!-- 授权信息：展示租约状态与设备绑定；这里刻意复用 .ha-connection-view 的只读视图样式。 -->
-    <dialog id="license-dialog" class="settings-dialog license-dialog">
+    <dialog id="license-dialog" class="settings-dialog license-dialog" data-tone="lumen">
       <div class="dialog-heading">
         <div>
           <span>LICENSE INFORMATION</span>
@@ -3797,9 +3806,16 @@
           </section>
         </div>
         <div id="license-detail-error" class="settings-message error" hidden></div>
+        <!-- 重试结果单独一行：它会带「第 N 次重试倒计时」这类会变的内容，
+             不能和上面的错误详情挤在同一块提示里互相覆盖。 -->
+        <div id="license-retry-message" class="settings-message" role="status" hidden></div>
         <p id="license-recovery-hint" class="license-recovery" hidden></p>
       </section>
+      <!-- 两个动作是一条递进的阶梯：「重新连接」只用本地恢复凭证轻量续租（多数网络类故障
+           在这一步就好），「重新激活」才会带着本机保存的激活码重跑完整激活流程
+           （只有凭证也失效时才需要，代价是可能要求用户重新输入激活码）。 -->
       <div class="license-actions">
+        <button id="license-dialog-retry" type="button" hidden>重新连接授权后台</button>
         <button id="license-reactivate" type="button">重新激活</button>
       </div>
       <!-- 授权激活：商店购买邮箱 + 激活码一起送后端做绑定校验；
@@ -3831,6 +3847,47 @@
         <div class="dialog-actions"><button class="primary" type="submit">激活并绑定本机</button></div>
       </form>
     </dialog>
+    <!-- 站点配色：四束光的预设与自定义主控色。
+         即时预览走 CSSOM（documentElement.style.setProperty），不受 CSP 的
+         style-src 'self' 限制；点「保存」才写 /api/v1/appearance，后端据此
+         生成 /appearance.css，改完刷新也是同一套颜色。 -->
+    <dialog id="appearance-dialog" class="settings-dialog appearance-dialog" data-tone="aura">
+      <div class="dialog-heading">
+        <div>
+          <span>SITE PALETTE</span>
+          <h2>站点配色</h2>
+        </div>
+        <button id="appearance-close" class="icon-button" type="button" aria-label="关闭配色设置">
+          &times;
+        </button>
+      </div>
+      <div class="appearance-body">
+        <p class="appearance-hint">
+          配色分两层：一个主控色决定「可进入 / 可操作」的青，三束居家光分别代表灯光与已激活（暖光）、
+          氛围与恢复（极光紫）、在线与节能（薄荷）。温度与安防的读色不在这里 ——
+          它们编码物理含义，改掉会让「热」看起来像「冷」。
+        </p>
+        <div id="appearance-preset-list" class="appearance-presets" role="radiogroup" aria-label="配色预设"></div>
+        <label class="appearance-custom">
+          <span>自定义主控色</span>
+          <input id="appearance-accent" type="color" value="#ffc46a" />
+          <input id="appearance-accent-hex" type="text" inputmode="latin" spellcheck="false" maxlength="7" placeholder="#ffc46a" />
+          <small>自定义只换主控色，暖光 / 极光紫 / 薄荷沿用所选预设。</small>
+        </label>
+        <div class="appearance-preview" aria-hidden="true">
+          <span class="appearance-swatch" data-swatch="accent"></span>
+          <span class="appearance-swatch" data-swatch="lumen"></span>
+          <span class="appearance-swatch" data-swatch="aura"></span>
+          <span class="appearance-swatch" data-swatch="eco"></span>
+        </div>
+        <div id="appearance-message" class="settings-message" role="status" hidden></div>
+        <div class="dialog-actions">
+          <button id="appearance-reset" type="button">恢复默认</button
+          ><button id="appearance-save" class="primary" type="button">保存配色</button>
+        </div>
+      </div>
+    </dialog>
+
     <!-- 删除 HA 连接：只解除本机保存的凭证，不动 Home Assistant 侧的任何数据。 -->
     <dialog id="delete-ha-dialog" class="settings-dialog delete-dialog">
       <div class="dialog-heading">
@@ -4379,7 +4436,7 @@
     </dialog>
     <!-- 全局日志：内容由 /static/logging/global-log.js 渲染到 .global-log-body（分页 + 级别过滤），
          页面里只留容器，避免日志量大时把主文档撑大。 -->
-    <dialog id="global-log-dialog" class="settings-dialog global-log-dialog">
+    <dialog id="global-log-dialog" class="settings-dialog global-log-dialog" data-tone="sensor">
       <div class="dialog-heading">
         <div>
           <span>GLOBAL LOG</span>
@@ -4420,11 +4477,14 @@
         </div>
       </div>
     </dialog>
-    <script type="module" src="/static/logging/global-log-boot.js?v=20260920131301"></script>
+    <script type="module" src="/static/logging/global-log-boot.js?v=20260921090405"></script>
+    <!-- 站点配色面板：独立模块，顶栏「配色」按钮即它的入口。
+         与 home.js 分开是因为它不依赖编辑器状态 —— 换配色是站点级设置，不是仪表盘级。 -->
+    <script type="module" src="/static/editor/appearance.js?v=20260921090405"></script>
     <script src="/static/vendor/hls.js/1.6.16/hls.min.js"></script>
     <script
       type="module"
-      src="/static/editor/home.js?v=20260920131301"
+      src="/static/editor/home.js?v=20260921090405"
     ></script>
   </body>
 </html>

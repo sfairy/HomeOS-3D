@@ -100,8 +100,16 @@ def create_blank_project(
             },
             "theme": {
                 "name": "homeos-dark",
-                # 主题只预置强调色，其余变量由前端按内置主题补齐。
-                "variables": {"accent": "#f2a20d"},
+                # 刻意留空 variables：空 = 「跟随设计系统的主控色」。
+                #
+                # 这里原先预置 accent: #f2a20d（编辑器旧版橙色）。那是个三方不一致：
+                # schema.Theme 的默认本来就是 {}，前端兜底主题 DEFAULT_DASHBOARD_THEME
+                # 也是 {}，渲染器每个默认色都走 paletteColor("--hos-accent", …) ——
+                # 只有这一个 Python 字面量还写着橙色，于是每建一个新仪表盘，
+                # theme.variables 被 renderer.js 原样写成 CSS 变量挂到渲染容器上，
+                # var(--accent, var(--hos-accent)) 的回落链永远轮不到，
+                # 新建项目就自动脱离全站配色（改主控色也对它无效）。
+                "variables": {},
             },
             # 空白项目没有任何共享组件、组合弹窗与页面，
             # 但保留空数组让前端拿到稳定的结构，不必做存在性判断。

@@ -22,6 +22,7 @@ from store.core.deps import CurrentAccount, DbSession, order_or_404
 from store.core.models import Account, Order, Product, ProductImage
 from store.commerce.order_status import order_status_label
 from store.payments.base import PaymentError
+from store.api.page_shell import SCENE_PLACEHOLDER, inject_scene
 from store.security.request_security import render_template
 from store.security.security import token_matches, utcnow
 from store.core.serializers import order_payload
@@ -29,6 +30,19 @@ from store.core.serializers import order_payload
 logger = logging.getLogger("store.pages")
 
 router = APIRouter(tags=["pages"])
+
+
+def _render_page(request: Request, template_text: str) -> HTMLResponse:
+    """模板 → 响应：填 CSP nonce，再把场景片段填进 ``<!--{{SCENE}}-->``。
+
+    两步都是纯字符串替换，顺序无关；放在一处是为了让「新加一个入口页」只需要把模板
+    读出来交给它，而不是各自拼 ``HTMLResponse`` 时忘掉其中一步（忘掉 nonce = 内联脚本
+    被 CSP 拒；忘掉场景 = 页面看起来正常但少了整块插画）。
+    """
+    text = render_template(template_text, request)
+    return HTMLResponse(
+        inject_scene(text, request), headers={"Cache-Control": "no-store"}
+    )
 
 
 def _render_store_page(request: Request) -> HTMLResponse:
@@ -43,7 +57,7 @@ def _render_store_page(request: Request) -> HTMLResponse:
     # 同名局部变量会把它在这个函数里遮掉 —— 现在没问题，但下一个人在这里
     # 加一句 ``html.escape(...)`` 就会撞上 AttributeError。
     template = template_path.read_text(encoding="utf-8")
-    return HTMLResponse(render_template(template, request), headers={"Cache-Control": "no-store"})
+    return _render_page(request, template)
 
 
 def _home(request: Request, session: DbSession) -> Response:
@@ -88,10 +102,7 @@ def admin_page(request: Request, session: DbSession) -> HTMLResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="管理后台模板缺失。"
         )
-    return HTMLResponse(
-        render_template(template_path.read_text(encoding="utf-8"), request),
-        headers={"Cache-Control": "no-store"},
-    )
+    return _render_page(request, template_path.read_text(encoding="utf-8"))
 
 
 @router.get("/setup", include_in_schema=False)
@@ -101,10 +112,7 @@ def setup_page(request: Request) -> HTMLResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="初始化页面模板缺失。"
         )
-    return HTMLResponse(
-        render_template(template_path.read_text(encoding="utf-8"), request),
-        headers={"Cache-Control": "no-store"},
-    )
+    return _render_page(request, template_path.read_text(encoding="utf-8"))
 
 
 # 商品图
@@ -158,46 +166,65 @@ def _cashier_html(order: Order, product: Product | None, *, request: Request) ->
     # 内联脚本必须带本次响应的 nonce，否则会被自身的 CSP（``script-src`` 无
     # ``'unsafe-inline'``）挡下 —— 见 ``store/request_security.csp_header``。
     nonce = html.escape(str(getattr(request.state, "csp_nonce", "") or ""), quote=True)
-    # 文本上下文单独转义：``<title>`` 与 ``<dd>`` 里出现 ``<`` 会被当成标签，
+    # 文本上下文单独转义：``<title>`` 与 ``.hos-meta-pill`` 里出现 ``<`` 会被当成标签，
     # 而这里的数据有用户可控的部分（邮箱），不转义就是存储型 XSS。
     order_no = html.escape(str(payload["orderNo"]))
     product_name = html.escape(str(payload["productName"]))
     email = html.escape(str(payload["email"]))
     status_text = html.escape(str(payload["status"]))
-    return f"""<!doctype html>
-<html lang="zh-CN">
+    markup = f"""<!doctype html>
+<html lang="zh-CN" class="hos-shell">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#151a1f">
+<meta name="theme-color" content="#050910">
 <title>模拟收银台 · {order_no}</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=20260920131301">
-<link rel="stylesheet" href="/store-static/store.css?v=20260920131301">
-<link rel="icon" href="/store-static/favicon-rounded.png?v=20260920131301">
+<link rel="stylesheet" href="/store-static/scene/fonts.css?v=20260921090405">
+<link rel="stylesheet" href="/store-static/scene/page.css?v=20260921090405">
+<link rel="stylesheet" href="/store-static/scene/scene.css?v=20260921090405">
+<link rel="stylesheet" href="/store-static/scene/panel.css?v=20260921090405">
+<link rel="icon" href="/store-static/favicon-rounded.png?v=20260921090405">
+<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=20260921090405` 的 <link>。
+     必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
+<!--{{APPEARANCE}}-->
 </head>
 <body>
-<div class="hb-cashier">
-  <div class="hb-cashier__card">
-    <div class="hb-cashier__head">
-      <h1>模拟收银台</h1>
-      <span class="hb-tag hb-tag--accent">仅本地联调</span>
-    </div>
-    <div>
-      <div class="hb-cashier__amount">¥{amount:.2f}</div>
-      <div class="hb-cashier__product">{product_name}</div>
-    </div>
-    <dl class="hb-cashier__meta">
-      <div><dt>订单号</dt><dd>{order_no}</dd></div>
-      <div><dt>下单邮箱</dt><dd>{email}</dd></div>
-      <div><dt>状态</dt><dd>{status_text}</dd></div>
-    </dl>
-    <p id="cashier-message" class="hb-cashier__message">确认支付后将立即发码，请勿关闭本页。</p>
-    <div class="hb-cashier__actions">
-      <button id="cashier-confirm" class="hb-button hb-button--primary hb-button--lg">确认支付</button>
-      <button id="cashier-cancel" class="hb-button hb-button--secondary hb-button--lg">取消订单</button>
-    </div>
-    <a class="hb-cashier__back" href="/user/dashboard/index">返回账号中心</a>
+<div class="hos-page">
+{SCENE_PLACEHOLDER}
+<main class="hos-dock">
+<section class="hos-panel hos-rise">
+  <span class="hos-panel__edge" aria-hidden="true"></span>
+  <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+  <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+  <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+  <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+  <div class="hos-eyebrow-row">
+    <p class="hos-eyebrow">Mock Checkout</p>
+    <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>仅本地联调</span>
   </div>
+  <h1>模拟收银台</h1>
+  <p class="hos-amount">¥{amount:.2f}</p>
+  <p class="hos-panel__desc">{product_name}</p>
+  <div class="hos-result-meta">
+    <span class="hos-meta-pill"><strong>订单号</strong>{order_no}</span>
+    <span class="hos-meta-pill"><strong>下单邮箱</strong>{email}</span>
+    <span class="hos-meta-pill"><strong>状态</strong>{status_text}</span>
+  </div>
+  <p id="cashier-message" class="hos-msg">确认支付后将立即发码，请勿关闭本页。</p>
+  <div class="hos-actions">
+    <button id="cashier-confirm" class="hos-btn-primary" type="button">确认支付</button>
+    <button id="cashier-cancel" class="hos-btn-ghost" type="button">取消订单</button>
+  </div>
+  <div class="hos-panel__copy">
+    <p class="hos-panel__meta">
+      <span>模拟支付渠道</span>
+      <span class="hos-panel__meta-sep" aria-hidden="true"></span>
+      <span>不会真实扣款</span>
+    </p>
+    <p><a href="/user/dashboard/index">返回账号中心</a></p>
+  </div>
+</section>
+</main>
 </div>
 <script nonce="{nonce}">
 const ORDER = {safe};
@@ -219,11 +246,11 @@ async function act(action) {{
     }});
     const body = await response.json().catch(() => ({{}}));
     if (!response.ok) throw new Error(body.detail || '操作失败。');
-    message.className = 'hb-cashier__message is-success';
+    message.className = 'hos-msg is-ok';
     message.textContent = action === 'pay' ? '支付成功，正在前往账号中心…' : '订单已取消。';
     setTimeout(() => {{ location.href = '/user/dashboard/index'; }}, 700);
   }} catch (error) {{
-    message.className = 'hb-cashier__message is-error';
+    message.className = 'hos-msg is-err';
     message.textContent = error.message;
     confirmButton.disabled = false; cancelButton.disabled = false;
   }}
@@ -234,6 +261,9 @@ cancelButton.addEventListener('click', () => act('cancel'));
 </body>
 </html>
 """
+    # 场景片段仍走统一的注入函数：收银台是独立响应（不经 render_template），
+    # 但场景内容与商店其它入口页必须逐字一致，所以不能在这里另抄一份标记。
+    return inject_scene(markup, request)
 
 
 @router.get("/store/mock/pay/{order_no}", include_in_schema=False)

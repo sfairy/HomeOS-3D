@@ -10,7 +10,9 @@
 
 .global-log-open i {
   background: var(--accent);
-  box-shadow: 0 0 8px #f2a20d59;
+  /* 光晕取主控色的通道三元组，别再写一遍 #f2a20d 的十六进制 ——
+     那是编辑器旧橙色，主控色换成青之后这里会变成一颗「橙芯青光」的圆点。 */
+  box-shadow: 0 0 8px rgba(var(--hos-accent-rgb), 0.35);
 }
 
 /* ===== 对话框骨架 ===== */
@@ -127,18 +129,21 @@
   border-radius: 50%;
   background: #71808a;
 }
-/* 等级色只在圆点与徽标上体现，正文保持中性色以免整屏发花。 */
+/* 等级色只在圆点与徽标上体现，正文保持中性色以免整屏发花。
+   三档直接用全站语义色：成功=生态薄荷、提醒=暖光、错误=珊瑚。
+   原来 success 走 var(--success) 而 warning / error 各写一个十六进制，
+   三种状态两边两套取值，改语义色时只有一条会跟着走。 */
 .global-log-item.success > i {
-  background: var(--success);
-  box-shadow: 0 0 7px #54bd7859;
+  background: var(--hos-eco);
+  box-shadow: 0 0 7px rgba(var(--hos-eco-rgb), 0.35);
 }
 .global-log-item.warning > i {
-  background: #f2a20d;
-  box-shadow: 0 0 7px #f2a20d52;
+  background: var(--hos-lumen);
+  box-shadow: 0 0 7px rgba(var(--hos-lumen-rgb), 0.32);
 }
 .global-log-item.error > i {
-  background: #e26b67;
-  box-shadow: 0 0 7px #e26b6752;
+  background: var(--hos-alert);
+  box-shadow: 0 0 7px rgba(var(--hos-alert-rgb), 0.32);
 }
 .global-log-item > div {
   display: grid;
@@ -170,16 +175,16 @@
   font-weight: 700;
 }
 .global-log-item.success b {
-  border-color: #54bd7852;
-  color: #8ed5a7;
+  border-color: rgba(var(--hos-eco-rgb), 0.34);
+  color: var(--hos-eco-bright);
 }
 .global-log-item.warning b {
-  border-color: #f2a20d57;
-  color: #eabb64;
+  border-color: rgba(var(--hos-lumen-rgb), 0.34);
+  color: var(--hos-lumen-bright);
 }
 .global-log-item.error b {
-  border-color: #e26b675c;
-  color: #e99995;
+  border-color: rgba(var(--hos-alert-rgb), 0.36);
+  color: var(--hos-alert-bright);
 }
 
 /* ===== 空态 ===== */

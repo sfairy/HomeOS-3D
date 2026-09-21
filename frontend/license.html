@@ -1,74 +1,74 @@
 <!doctype html>
 <!--
-  授权激活页（/license），视觉对齐 /setup：暗色琥珀 + 顶栏品牌 + 左栏说明 / 右栏表单。
-  后端门禁：未初始化 → /setup；未登录 → /login；仅当 ACTIVE 且具备 editor 时 303 回首页；CONNECTION_WARNING 等宽限态留在本页展示。
-  表单字段与后端激活请求体对齐：email 最长 255、activationCode 最长 128；#logout 退出的是本机管理员会话（不是商店账号）。
-  入口脚本：/static/logging/client-log.js（head 同步执行）、/static/auth/license.js（module）。
+  授权激活页（/license）。
+  后端门禁：未初始化 → /setup；未登录 → /login；仅当 ACTIVE 且具备 editor 时 303 回首页；
+  CONNECTION_WARNING 等宽限态留在本页展示告警。
+  表单字段与后端激活请求体对齐：email 最长 255、activationCode 最长 128；
+  #logout 退出的是本机管理员会话（不是商店账号）。
+  id 契约（license.js 直接解引用，缺一个就整段接线中断）：
+  #license-form / #message / #license-status-text / #license-recovery-hint / #license-retry / #logout。
+  视觉与 /setup、/login、/license-recovery、/pair 统一：全屏场景 + 右侧玻璃表单坞。
+  场景片段由后端注入：页面里那个独立的场景占位符（见 backend/http/page_shell.py
+  的 SCENE_PLACEHOLDER）会被替换成整块场景标记。
 -->
-<html lang="zh-CN">
+<html lang="zh-CN" class="hos-shell">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=20260920131301"></script>
+    <script src="/static/logging/client-log.js?v=20260921090405"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#151a1f" />
+    <meta name="theme-color" content="#050910" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>激活授权 · HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260920131301" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920131301" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260920131301" />
-    <link rel="stylesheet" href="/static/auth/setup.css?v=20260920131301" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260921090405" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260921090405" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921090405" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921090405" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=20260921090405" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=20260921090405` 的 <link>。
+         必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
+    <!--{{APPEARANCE}}-->
   </head>
   <body>
-    <header class="hb-setup-topbar">
-      <div class="hb-container hb-setup-topbar__inner">
-        <a class="hb-setup-brand" href="/license" aria-label="HomeOS">
-          <span class="hb-setup-brand__mark">
-            <img src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920131301" alt="" />
-          </span>
-          <span class="hb-setup-brand__text">
-            <strong>HomeOS</strong>
-            <small>激活授权</small>
-          </span>
-        </a>
-        <div class="hb-setup-topbar__actions">
-          <span class="hb-setup-topbar__meta">LICENSE · 0.6.1</span>
-          <button id="logout" class="hb-setup-logout" type="button">退出本机登录</button>
-        </div>
-      </div>
-    </header>
+    <div class="hos-page hos-tone--eco">
+      <!--{{SCENE}}-->
 
-    <main class="hb-setup-main">
-      <div class="hb-container">
-        <div class="hb-auth-shell">
-          <aside class="hb-auth-aside">
-            <span class="hb-kicker">License</span>
-            <h2>用激活码<strong>绑定本机</strong></h2>
-            <p>
-              激活码来自商店购买或管理员签发。绑定后授权跟随本机硬件指纹；换机前请先在商店账号中心解绑。
-            </p>
-            <ul>
-              <li><span class="hb-check" aria-hidden="true">✓</span>一机一码，激活即绑定硬件指纹</li>
-              <li><span class="hb-check" aria-hidden="true">✓</span>邮箱填写商店购买账号，不是本机管理员</li>
-              <li><span class="hb-check" aria-hidden="true">✓</span>解绑后需过冷却期才能在新设备重绑</li>
-            </ul>
-          </aside>
+      <main class="hos-dock">
+        <section class="hos-panel hos-rise">
+          <span class="hos-panel__edge" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
 
-          <section class="hb-auth-card">
-            <div class="hb-auth-brand">
-              <strong>激活 HomeOS</strong>
-              <p id="license-status-text">正在读取授权状态…</p>
-            </div>
-            <p id="license-recovery-hint" class="hb-license-recovery" hidden></p>
-            <form id="license-form" class="hb-auth-form">
-              <label>
-                商店购买邮箱
+          <div class="hos-eyebrow-row">
+            <p class="hos-eyebrow">License</p>
+            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>一机一码</span>
+          </div>
+          <h1>激活 HomeOS</h1>
+          <p id="license-status-text" class="hos-panel__desc">正在读取授权状态…</p>
+
+          <p id="license-recovery-hint" class="hos-notice" role="note" hidden></p>
+
+          <!-- 「重新连接」是次要动作：它的定位是「不用等下一拍轮询」，而不是替代填激活码，
+               因此默认隐藏，由脚本按后端 canRetry 决定是否露出。 -->
+          <div class="hos-actions">
+            <button id="license-retry" class="hos-btn-ghost" type="button" hidden>重新连接授权后台</button>
+          </div>
+
+          <form id="license-form" class="hos-form">
+            <div class="hos-field">
+              <div class="hos-label-row"><label for="license-email">商店购买邮箱</label></div>
+              <div class="hos-control">
                 <input
+                  id="license-email"
                   name="email"
                   type="email"
                   maxlength="255"
@@ -76,12 +76,17 @@
                   placeholder="下单 / 收码用的商店邮箱"
                   required
                 />
-                <small>填写商店账号邮箱，不是本机管理员账号。</small>
-              </label>
-              <label>
-                激活码
+              </div>
+              <small>填写商店账号邮箱，不是本机管理员账号。</small>
+            </div>
+
+            <div class="hos-field">
+              <div class="hos-label-row"><label for="license-code">激活码</label></div>
+              <div class="hos-control">
                 <input
+                  id="license-code"
                   name="activationCode"
+                  class="hos-mono"
                   minlength="8"
                   maxlength="128"
                   autocomplete="off"
@@ -89,19 +94,33 @@
                   spellcheck="false"
                   required
                 />
-                <small>首次激活绑定本机；换机或硬件变更后需先在商店解绑再激活。</small>
-              </label>
-              <p id="message" class="hb-setup-error" role="alert" hidden></p>
-              <button class="hb-button hb-button--primary hb-button--lg hb-button--block" type="submit">
-                激活并绑定本机
-              </button>
-            </form>
-            <p class="hb-auth-switch">激活成功后将自动进入编辑器。本页右上角可退出本机登录。</p>
-          </section>
-        </div>
-      </div>
-    </main>
+              </div>
+              <small>首次激活绑定本机；换机或硬件变更后需先在商店解绑再激活。</small>
+            </div>
 
-    <script type="module" src="/static/auth/license.js?v=20260920131301"></script>
+            <p id="message" class="hos-msg is-err" role="alert" hidden></p>
+
+            <div class="hos-actions">
+              <button class="hos-btn-primary" type="submit">激活并绑定本机</button>
+            </div>
+          </form>
+
+          <div class="hos-panel__copy">
+            <div class="hos-panel__meta">
+              <span>绑定硬件指纹</span>
+              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+              <span>换机需先解绑</span>
+              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+              <span>激活即进编辑器</span>
+            </div>
+            <p>激活成功后将自动进入编辑器。</p>
+            <!-- id=logout 必须在场：license.js 顶层就 addEventListener，缺了会中断整段接线。 -->
+            <button id="logout" class="hos-text-button" type="button">退出本机登录</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/static/auth/license.js?v=20260921090405"></script>
   </body>
 </html>

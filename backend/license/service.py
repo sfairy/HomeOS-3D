@@ -14,6 +14,7 @@ import os
 import secrets
 import threading
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -26,12 +27,45 @@ from ..observability.global_log import GlobalLogStore
 from ..core.models import LicenseState
 from ..core.time_utils import ensure_aware
 from .crypto import LeaseVerifier, LicenseCryptoError, LicenseTransportCipher, SecretCipher, parse_timestamp
-from .endpoints import LicenseEndpointPool
+from .endpoints import LICENSE_RETRY_SECONDS, LicenseEndpointPool
 from .hardware import hardware_instance_id
+from .process_lock import LicenseProcessLock
 from .trust import verify_license_trust_anchors
 
 #: 服务端结构化吊销码；仅凭 ``code`` / ``revoked`` 判定「确认吊销」。
 CONFIRMED_REVOCATION_CODES = frozenset({'REVOKED', 'LICENSE_REVOKED'})
+#: 服务端只发中文文案、不发结构化 code 时的吊销文案。仅作 ``code`` 之外的兜底：
+#: 有的部署版本（或前置网关）会把 ``code`` 吃掉，只留 detail，漏掉这几句会让已吊销的
+#: 安装被当成「网络故障」一直重试，用户看到「正在重试」但永远不会恢复。
+CONFIRMED_REVOCATION_MESSAGES = (
+    '实例绑定已停用',
+    '客户授权或激活码已停用',
+    '客户、激活码或实例绑定已停用',
+    '商品授权有效期已结束')
+
+# 自动重试的退避阶梯（秒）：失败次数越多等得越久，第 5 次之后固定 300 秒。
+# 阶梯而不是固定间隔，是因为「刚断网」和「服务端长时间故障」要区分对待：
+# 前者几秒内就能恢复，等 5 分钟会让用户以为程序坏了；后者密集重打只会把限流窗口填满。
+RETRY_DELAYS = (2, 5, 10, 30, 60, 300)
+#: 终态集合：落到这些状态就不再自动重试，必须有人介入（重新激活 / 校准时间 / 检查安装数据）。
+#: 判定用「集合」而不是逐处 if，是因为「哪些状态该停」会被多处引用，漏一处就会出现
+#: 「明明要人工处理，后台还在无限重试」的静默错配。
+TERMINAL_STATES = frozenset({
+    'INVALID',
+    'REVOKED',
+    'DEACTIVATED',
+    'CLOCK_ROLLBACK',
+    'REMOTE_REJECTED',
+    'INSTANCE_MISMATCH',
+    'RECOVERY_REQUIRED'})
+
+#: 会要求用户手动重新激活的错误码（前端据此隐藏「重试」并引导去激活页）。
+REAUTH_REQUIRED = 'LICENSE_REAUTH_REQUIRED'
+#: 重试被节流（点得太快）：与「需要人工介入」不同，稍等即可再次尝试。
+RETRY_THROTTLED = 'LICENSE_RETRY_THROTTLED'
+# 手动重试的最小间隔（秒）。存在的理由是「连点」：按钮每点一次都会触发一轮真实的
+# 令牌轮换，没有任何间隔的话，用户因为着急而连点会把授权服务的限流窗口直接填满。
+MANUAL_RETRY_THROTTLE_SECONDS = 2.0
 
 
 class LicenseClientError(RuntimeError):
@@ -72,12 +106,18 @@ class LicenseClientError(RuntimeError):
         """仅在授权服务「确认吊销」时返回 True。
 
         401/403 也可能是会话过期或同步竞态，此时必须保留本地授权以便自动重试恢复。
-        仅认结构化 ``code``（``REVOKED`` / ``LICENSE_REVOKED``）。
+        判据两条，任一命中即算确认吊销：
+        - 结构化 ``code``（``REVOKED`` / ``LICENSE_REVOKED``），最可靠；
+        - 中文 detail 命中吊销文案（``CONFIRMED_REVOCATION_MESSAGES``），
+          兜住服务端没带 ``code`` 的版本 —— 漏掉它会把已吊销当成网络故障无限重试。
         """
         # 只有 401/403 才可能是吊销；网络错误、5xx 一律不算。
         if self.status_code not in frozenset({401, 403}):
             return False
-        return self.code in CONFIRMED_REVOCATION_CODES
+        if self.code in CONFIRMED_REVOCATION_CODES:
+            return True
+        detail = str(self)
+        return any(message in detail for message in CONFIRMED_REVOCATION_MESSAGES)
 
 
 # 租约已到期时的重试间隔：比常规心跳更密，尽量缩短功能不可用的窗口。
@@ -143,6 +183,22 @@ class LicenseService:
         self._last_binding_confirm_at = 0.0
         # 429 冷却截止（单调时钟，0 表示不在冷却）：与「失败降级」分开记，429 不说明绑定有效与否。
         self._rate_limited_until = 0.0
+        # 授权凭证的进程锁：既保证「同一 data/ 只跑一个服务」，也保证本进程内同一时刻
+        # 只有一处能写凭证 —— 手动重试与心跳并发续租会写出两份并行租约。
+        self._process_lock = LicenseProcessLock(settings.data_dir)
+        # 手动重试任务句柄：多个页面同时点「重试」共用同一个任务，不排队做多轮令牌轮换。
+        self._retry_task = None
+        # 连续失败次数：决定退避阶梯 RETRY_DELAYS 取到第几级。
+        self._failures = 0
+        # 下一次计划重试的单调时刻；None 表示不排重试（刚成功，或已进入终态）。
+        self._next_attempt = None
+        # 手动重试的节流截止（单调时钟）：连点两次不该真的发起两轮令牌轮换。
+        self._manual_retry_after = 0.0
+        # 最近一次失败的业务错误码：供 availability() 与前端区分「等一会儿」与「要人工介入」。
+        self._error_code = None
+        # 成功代数：每次成功落库自增。手动重试据此判断「本轮开始后已有人成功」，
+        # 从而跳过一轮必然拿到旧租约的重复请求。
+        self._success_generation = 0
 
     #: 打开编辑器等入口强制联网确认，状态轮询走节流。
     #: 取 60 秒：服务端额度按「300 秒心跳 = 12 次/小时」定，60 秒把稳态压到同量级。
@@ -230,6 +286,9 @@ class LicenseService:
             'INSTANCE_MISMATCH': '硬件指纹不匹配',
             'CLOCK_ROLLBACK': '系统时间异常',
             'DEACTIVATED': '已停用',
+            'RECOVERY_RETRY': '授权会话重试中',
+            'RECOVERY_REQUIRED': '授权会话需人工恢复',
+            'REMOTE_REJECTED': '授权后台明确拒绝',
             'STARTUP_VALIDATION_REQUIRED': '等待启动联网验证'}
         with self._event_lock:
             previous = self._observed_status
@@ -244,7 +303,7 @@ class LicenseService:
                 message += f'''；原因：{reason}'''
             # 级别：正常 success，停用/未激活 info，其余 warning；不可恢复错误再升 error。
             level = 'success' if status == 'ACTIVE' else 'info' if status in frozenset({'DEACTIVATED', 'UNACTIVATED'}) else 'warning'
-            if status in frozenset({'INVALID', 'REVOKED', 'CLOCK_ROLLBACK', 'INSTANCE_MISMATCH'}):
+            if status in frozenset({'INVALID', 'REVOKED', 'CLOCK_ROLLBACK', 'INSTANCE_MISMATCH', 'RECOVERY_REQUIRED', 'REMOTE_REJECTED'}):
                 level = 'error'
             self._log_event(level, message)
 
@@ -279,6 +338,13 @@ class LicenseService:
         """联网成功：汇报此前累计的心跳/恢复失败次数，并清掉对应的失败计数。"""
         # 联网通了，限流冷却即失效；留着它会让心跳循环多睡一轮、confirm_binding 少确认一次。
         self._rate_limited_until = 0.0
+        # 重试计划一并归零：失败计数、错误码、计划时刻描述的都只是「上一次失败」，
+        # 成功后还留着，下一次偶发失败就会从一个很高的退避档开始。
+        self._failures = 0
+        self._error_code = None
+        self._next_attempt = None
+        # 成功代数自增：正在飞行的手动重试据此得知「本轮期间已经成功了，不必再来一轮」。
+        self._success_generation += 1
         with self._event_lock:
             # 只汇报并清理这两类：本地校验与激活各自有独立的成功路径。
             failures = [(name, self._event_failures.pop(name)) for name in ('心跳', '租约恢复') if name in self._event_failures]
@@ -347,6 +413,38 @@ class LicenseService:
         os.chmod(path, 0o600)
         self._cached_instance_id = value
         return value
+
+    @asynccontextmanager
+    async def _credential_operation(self):
+        """凭证读写的临界区：串行化续租，并保证进程内只有一个凭证写入者。
+
+        两层锁各有分工，缺一不可：
+        - ``_heartbeat_lock`` 管**本进程内**的并发（手动重试 vs 心跳 vs 恢复）；
+        - 进程锁管**跨进程**（同机被误启动两份服务）。进程锁通常在 start() 就已长期持有，
+          此时这里只是复用；若本实例不是长期持有者，就临时加锁、用完即放。
+        """
+        async with self._heartbeat_lock:
+            # 只有「当前没持锁」时才临时加：长期持有者已经锁住了，重复 acquire 是空操作。
+            temporary = self._process_lock.fd is None
+            if temporary:
+                self._process_lock.acquire()
+            try:
+                yield
+            finally:
+                # 只释放自己临时取得的那一次：把 start() 拿到的长期锁放掉会让
+                # 单实例保护在运行中途失效。
+                if temporary:
+                    self._process_lock.release()
+
+    def _next_retry_delay(self, http_status: int | None) -> float:
+        """按失败次数取退避间隔（秒）。
+
+        401 固定 2 秒：它多半是会话/恢复令牌轮换的瞬时竞态，重试越快恢复越快；
+        其余按 RETRY_DELAYS 递增，次数超出阶梯长度就停在最后一档。
+        """
+        if http_status == 401:
+            return 2.0
+        return float(RETRY_DELAYS[min(self._failures - 1, len(RETRY_DELAYS) - 1)])
 
     def _state(self, database) -> LicenseState:
         """取（或初始化）单行授权状态，并处理实例 ID 变化。
@@ -429,17 +527,35 @@ class LicenseService:
             state = self._state(database)
             self._validate_saved_state(state, database)
             # 三者同时成立才要求联网确认：配置要求授权、已有激活记录、本地有签名租约。纯离线部署不受影响。
-            pending = bool(self.settings.license_required and state.license_id and state.signed_lease)
+            # 再排除终态：已吊销 / 校验无效 / 时间异常都不是「联网就能确认」的事，
+            # 把它们算成待确认会让每次启动都白等一轮联网，还会盖掉本该显示的失败原因。
+            pending = bool(
+                self.settings.license_required
+                and state.license_id
+                and state.signed_lease
+                and state.status not in TERMINAL_STATES
+            )
             self._record_status('STARTUP_VALIDATION_REQUIRED' if pending else state.status)
             return pending
 
     async def start(self) -> None:
-        """启动授权服务：离线校验本地状态，必要时联网确认，然后拉起心跳循环。
+        """启动授权服务：抢数据目录进程锁、离线校验本地状态，必要时联网确认，然后拉起心跳循环。
 
-        副作用: 可能修改数据库状态字段；会创建后台心跳任务。
+        副作用: 可能修改数据库状态字段；会长期持有数据目录的进程锁；会创建后台心跳任务。
+        异常:
+            RuntimeError: 同一数据目录已有实例在运行（进程锁抢不到）。
         """
+        # 已在运行就直接返回：重复 start() 会拉起第二个心跳循环，两条循环并发续租。
+        if self._task is not None and not self._task.done():
+            return
+        # 抢进程锁必须在校验之前：抢不到说明同一份 data/ 已有一个实例在跑，此时两条心跳会
+        # 各自续租出并行租约，先写的那份被判成重放而作废。让它明确失败，而不是进入「半个实例」状态。
+        self._process_lock.acquire()
         # 离线校验要读写 LicenseState：放线程池，别在事件循环里做同步查库。
         self._startup_validation_pending = await asyncio.to_thread(self._begin_startup_validation)
+        # 有待确认就先排一次「立刻重试」：心跳循环据此不必等一个完整间隔才开始恢复。
+        if self._startup_validation_pending:
+            self._next_attempt = time.monotonic()
         # 没配置端点就没法联网确认，直接跳过（保持离线验签给出的判定）。
         if self._startup_validation_pending and self._endpoint_pool.configured:
             try:
@@ -457,15 +573,23 @@ class LicenseService:
             self._task = asyncio.create_task(self._heartbeat_loop(), name='license-heartbeat')
 
     async def stop(self) -> None:
-        """停止心跳循环并等待其退出。"""
+        """停止心跳循环、取消在飞的手动重试，并释放进程锁。"""
         self._stop.set()
         # 两个事件都要 set：心跳循环可能正卡在 wait 上，必须被唤醒才能看到停信号。
         self._schedule_changed.set()
-        tasks = [task for task in (self._task,) if task is not None]
+        # 手动重试也要收掉：它可能正卡在一次网络请求上，不取消就会在 stop() 之后继续
+        # 持有凭证锁，甚至把状态写回一个已经停下来的服务。
+        if self._retry_task is not None and not self._retry_task.done():
+            self._retry_task.cancel()
+        tasks = [task for task in (self._task, self._retry_task) if task is not None]
         if tasks:
-            await asyncio.gather(*tasks)
+            # return_exceptions：取消会以 CancelledError 收尾，不该据此让 stop() 失败。
+            await asyncio.gather(*tasks, return_exceptions=True)
         # 置空句柄，避免重复 stop() 时 await 一个已结束的任务。
         self._task = None
+        self._retry_task = None
+        # 最后才释放进程锁：要等任务真的停下，否则新实例可能在旧实例还在写凭证时启动。
+        self._process_lock.release()
 
     def _lease_expired(self, expires_at: datetime, *, now: datetime) -> bool:
         """租约是否**确实**已到期（含时钟偏移容差）。
@@ -794,7 +918,9 @@ class LicenseService:
 
     async def heartbeat(self) -> dict:
         """对外的心跳入口：串行化，避免与恢复流程并发续租。"""
-        async with self._heartbeat_lock:
+        # 走凭证临界区而不是只取 _heartbeat_lock：续租会写凭证，必须在「本进程唯一写入者」
+        # 的保护下进行（生产里 start() 已持有进程锁，这里只是复用同一把临界区）。
+        async with self._credential_operation():
             return await self._heartbeat_unlocked()
 
     async def _heartbeat_unlocked(self) -> dict:
@@ -845,13 +971,72 @@ class LicenseService:
                     retry_after_seconds=error.retry_after_seconds,
                 ) from error
             # 其它失败按租约剩余有效期降级为 CONNECTION_WARNING 或 LEASE_EXPIRED，等下一轮重试。
-            await asyncio.to_thread(self._mark_failure, str(error))
+            await asyncio.to_thread(self._mark_failure, error)
             raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=getattr(error, 'code', None)) from error
 
     async def recover(self) -> dict:
         """对外恢复入口：串行化，与心跳共用同一把锁。"""
-        async with self._heartbeat_lock:
+        async with self._credential_operation():
             return await self._recover_unlocked()
+
+    async def retry_now(self) -> dict:
+        '''用户 / 展示端显式触发的「立刻重试」，返回最新状态。
+
+        与后台心跳的差别就是本方法存在的理由：它**当场**发起一轮恢复，并清掉端点黑名单，
+        所以手动点击不会被上一轮失败留下的冷却直接挡回（否则点了等于没点）。
+
+        并发语义（三个细节都是有意的）：
+        - 同一时刻只跑一个重试任务：多个页面同时点就共用它，而不是排队做多轮令牌轮换；
+        - 节流窗口内直接返回当前状态、不发请求 —— 连点不该变成对授权服务的压测；
+        - ``shield`` 保证等待方被取消时不会把共享任务一起取消（否则先点的那台设备一刷新，
+          后点的那台就永远等不到结果）。
+        '''
+        if self._retry_task is not None and not self._retry_task.done():
+            await asyncio.shield(self._retry_task)
+            return await asyncio.to_thread(self.status)
+        if time.monotonic() < self._manual_retry_after:
+            return await asyncio.to_thread(self.status)
+        # 先占住节流窗口再建任务：窗口要在请求之前占住，否则并发点击会一起通过判定。
+        self._manual_retry_after = time.monotonic() + MANUAL_RETRY_THROTTLE_SECONDS
+        self._retry_task = asyncio.create_task(self._manual_retry(), name='license-manual-retry')
+        await asyncio.shield(self._retry_task)
+        return await asyncio.to_thread(self.status)
+
+    async def _manual_retry(self) -> None:
+        """手动重试的实现（在凭证临界区里执行）。
+
+        异常:
+            LicenseClientError: 本机已进入终态、联网重试没有意义时抛 REAUTH_REQUIRED，
+                由路由层转成 409，前端据此隐藏重试按钮、引导去激活页。
+        """
+        generation = self._success_generation
+        async with self._credential_operation():
+            # 本轮开始后已经有别的路径成功了：直接返回，不必再用旧租约发一轮请求。
+            if generation != self._success_generation:
+                return
+            with self.database.session_factory() as database:
+                state = self._state(database)
+                # 时钟异常是本机时间的问题：重试前按当前时间重新校验一次，
+                # 已校准时间的用户点一下就能自己恢复，不必走激活流程。
+                if state.status == 'CLOCK_ROLLBACK':
+                    state.status = 'ACTIVE'
+                    self._validate_saved_state(state, database)
+                if state.status in frozenset({'ACTIVE', 'LEASE_EXPIRED', 'CONNECTION_WARNING'}):
+                    self._validate_saved_state(state, database)
+                if state.status in TERMINAL_STATES - {'RECOVERY_REQUIRED', 'REMOTE_REJECTED'} or not state.license_id:
+                    # 终态或压根未激活：联网也不会有结果，只能让人来处理。
+                    raise LicenseClientError(
+                        state.last_error or '当前授权需要重新激活。',
+                        status_code=409,
+                        code=REAUTH_REQUIRED)
+            # 清黑名单：用户明确要求「现在就再试」，沿用上一轮的冷却会让这一下必然无效。
+            self._endpoint_pool.retry_failed()
+            try:
+                await self._recover_unlocked()
+            except LicenseClientError:
+                # 失败已在底层记好状态与重试计划，这里不再上抛：手动重试的返回值统一走
+                # status()，让前端看到真实状态与倒计时，而不是一个错误页。
+                pass
 
     async def _recover_unlocked(self) -> dict:
         """用恢复令牌重新换取租约（调用方须已持有 _heartbeat_lock）。"""
@@ -888,7 +1073,7 @@ class LicenseService:
                     code=error.code,
                     retry_after_seconds=error.retry_after_seconds,
                 ) from error
-            await asyncio.to_thread(self._mark_failure, str(error))
+            await asyncio.to_thread(self._mark_failure, error)
             raise LicenseClientError(str(error), status_code=getattr(error, 'status_code', None), code=getattr(error, 'code', None)) from error
 
     def _mark_revoked(self, message: str) -> None:
@@ -933,21 +1118,67 @@ class LicenseService:
             self._record_status(state.status)
         # 已确认吊销，不再需要启动联网确认。
         self._startup_validation_pending = False
+        # 记下终局错误码并清掉重试计划：吊销必须人工处理，后台不该继续排重试。
+        self._error_code = 'LICENSE_REVOKED'
+        self._next_attempt = None
         # 唤醒心跳循环重算等待（此时无授权，会转入空转等待）。
         self._schedule_changed.set()
 
-    def _mark_failure(self, message: str) -> None:
-        """非吊销类失败：按租约剩余有效期把状态降级为「连接异常」或「已到期」。"""
+    def _mark_failure(self, error: Exception) -> None:
+        """非吊销类失败：分类记录状态、定下错误码，并排下一次自动重试。
+
+        分三档处置：
+        - **终局**（本地凭证解不开 / 缺凭证 / 4xx 明确拒绝）→ 不再自动重试，
+          前端要引导人工介入（重新激活、检查授权）；
+        - **会话失效**（401）→ 先记 RECOVERY_RETRY（下轮重试），连续失败才升成 RECOVERY_REQUIRED；
+        - **网络类** → 按租约剩余有效期降级为 CONNECTION_WARNING（仍可用）或 LEASE_EXPIRED（拦截）。
+        """
+        message = str(error)
+        http_status = getattr(error, 'status_code', None)
+        code = getattr(error, 'code', None)
+        self._failures += 1
+        retry = True
         with self.database.session_factory() as database:
             state = self._state(database)
-            expires = ensure_aware(state.lease_expires_at)
-            # 租约未到期只是联系不上服务器，功能继续可用；已到期则必须拦截等恢复。
-            state.status = 'CONNECTION_WARNING' if expires and expires > datetime.now(timezone.utc) else 'LEASE_EXPIRED'
+            if state.status in TERMINAL_STATES - {'RECOVERY_REQUIRED', 'REMOTE_REJECTED'}:
+                # 已经是终态：保留原状态与原因为准，不因为一次新的失败改写成别的说法。
+                retry = False
+                code = code or state.status
+            elif isinstance(error, LicenseCryptoError) or code == 'CREDENTIAL_MISSING':
+                # 凭证本身坏了，重试不会变好：本机已无法证明身份，必须人工重新激活。
+                state.status = 'INVALID' if isinstance(error, LicenseCryptoError) else 'RECOVERY_REQUIRED'
+                code = code or 'CREDENTIAL_INVALID'
+                retry = False
+            elif http_status == 401:
+                # 会话与恢复令牌都失效（调用方先试过恢复才走到这里）：第一次按「重试中」，
+                # 再失败一次就认为自动恢复无望，转人工。
+                retry = state.status not in frozenset({'RECOVERY_RETRY', 'RECOVERY_REQUIRED'})
+                state.status = 'RECOVERY_RETRY' if retry else 'RECOVERY_REQUIRED'
+                code = code or 'RECOVERY_TOKEN_INVALID'
+            elif http_status is not None and 400 <= http_status < 500 and http_status not in frozenset({408, 429}):
+                # 4xx 是业务拒绝（除超时/限流）：换地址、换时间都不会变，直接判终局。
+                state.status = 'REMOTE_REJECTED'
+                code = code or 'LICENSE_REMOTE_REJECTED'
+                retry = False
+            elif state.status in frozenset({'RECOVERY_RETRY', 'REMOTE_REJECTED', 'RECOVERY_REQUIRED'}):
+                # 已经处在恢复流程里：保持该状态语义，只更新错误码与重试计划。
+                code = code or 'NETWORK_UNAVAILABLE'
+                retry = state.status == 'RECOVERY_RETRY'
+            else:
+                expires = ensure_aware(state.lease_expires_at)
+                # 租约未到期只是联系不上服务器，功能继续可用；已到期则必须拦截等恢复。
+                state.status = 'CONNECTION_WARNING' if expires and expires > datetime.now(timezone.utc) else 'LEASE_EXPIRED'
+                code = code or 'NETWORK_UNAVAILABLE'
             # 同样截断，避免超长错误进库。
             state.last_error = message[:1000]
             database.commit()
             # 启动确认未完成时对外仍显示「等待启动联网验证」，不因一次失败改变门禁语义。
             self._record_status('STARTUP_VALIDATION_REQUIRED' if self._startup_validation_pending else state.status)
+        self._error_code = code
+        # 只有「可重试」才排计划时刻；终态排了会让后台对着一个注定失败的状态无限重试。
+        self._next_attempt = time.monotonic() + self._next_retry_delay(http_status) if retry else None
+        # 计划可能变了，唤醒心跳循环立刻重算等待时间（否则要等当前这一觉睡完）。
+        self._schedule_changed.set()
 
     def _clear_startup_validation(self) -> None:
         """联网确认失败但非确认吊销时，把判定权交回离线验签。
@@ -986,12 +1217,26 @@ class LicenseService:
         # 不允许负等待；到期时间比间隔更近时提前唤醒。
         return max(0, min(interval, remaining))
 
+    def _scheduled_wait_seconds(self, state: LicenseState) -> float | None:
+        """算出本轮该等多久：优先听「计划重试时刻」，没有计划才按常规心跳节奏。
+
+        计划时刻存在意味着上一轮失败已经算好了退避（见 :meth:`_mark_failure`）；此时必须
+        以它为准，否则「失败退避」和「心跳间隔」会各走各的，退避形同虚设。
+        未激活或已进入终态时返回 None，调用方据此一直等到有变更为止。
+        """
+        if not state.license_id or state.status in TERMINAL_STATES:
+            return None
+        if self._next_attempt is not None:
+            # 已过计划时刻就返回 0（立刻试），而不是再等一个完整的心跳间隔。
+            return max(0.0, self._next_attempt - time.monotonic())
+        return self._heartbeat_wait_seconds(state)
+
     def _heartbeat_wait(self) -> float | None:
         """读库算出本轮该等多久（同步，供心跳循环放线程池）。"""
         with self.database.session_factory() as database:
-            wait_seconds = self._heartbeat_wait_seconds(self._state(database))
+            wait_seconds = self._scheduled_wait_seconds(self._state(database))
         if wait_seconds is None:
-            # 未激活无需联网，冷却不改变这一点（调用方据此一直等到有变更为止）。
+            # 未激活 / 终态无需联网，冷却不改变这一点（调用方据此一直等到有变更为止）。
             return None
         # 冷却期内不再重打：等待至少覆盖冷却剩余，否则每次撞 429 都在把窗口重新填满。
         return max(wait_seconds, self._rate_limit_remaining())
@@ -1060,7 +1305,7 @@ class LicenseService:
             # 时钟回拨时租约到期判断不可信，直接覆盖为 CLOCK_ROLLBACK。
             effective_status = 'CLOCK_ROLLBACK'
             effective_error = '检测到系统时间回拨，请校准系统时间后重新验证授权。'
-        elif lease_expires and self._lease_expired(lease_expires, now=now) and effective_status in frozenset({'ACTIVE', 'CONNECTION_WARNING'}):
+        elif lease_expires and self._lease_expired(lease_expires, now=now) and effective_status in frozenset({'ACTIVE', 'CONNECTION_WARNING', 'RECOVERY_RETRY'}):
             # 库里写着 ACTIVE 但租约已到期：覆盖为 LEASE_EXPIRED，避免前端显示正常却被门禁拦下。
             effective_status = 'LEASE_EXPIRED'
             if not effective_error:
@@ -1136,12 +1381,68 @@ class LicenseService:
             'leaseExpiresAt': ensure_aware(state.lease_expires_at),
             'lastHeartbeatAt': ensure_aware(state.last_heartbeat_at),
             'lastVerifiedAt': ensure_aware(state.last_verified_at),
+            # 重试相关字段：前端据此决定提示文案、按钮可见性与倒计时。
+            'errorCode': self._error_code,
+            'retryable': self._retry_scheduled(),
+            'canRetry': self._can_retry(effective_status),
+            'retrying': self._retry_in_flight(),
+            'retryAttempt': self._failures,
+            'nextRetryAt': self._next_retry_at(),
             'lastError': effective_error}
 
     def status(self) -> dict:
         """取当前状态（开一个短事务，读单行状态后组装成字典）。"""
         with self.database.session_factory() as database:
             return self._payload(self._state(database))
+
+    #: availability() 对外暴露的字段白名单。用白名单而不是黑名单，是为了日后往 status()
+    #: 加字段时不会「顺手」把它泄露给匿名页面。
+    AVAILABILITY_FIELDS = ('status', 'errorCode', 'retryable', 'canRetry', 'retrying', 'retryAttempt', 'nextRetryAt')
+
+    def availability(self) -> dict:
+        '''公开的可用性摘要：给恢复页与展示端，不含任何标识、凭证或原始错误。
+
+        与 status() 的分工：status() 面向管理员，含激活码提示、租约 / 会话标识与原始
+        lastError；恢复页（可能未登录）绝不能拿到这些，所以另出一个只含「状态 + 能否重试」
+        的响应体，由字段白名单保证不泄露。
+        '''
+        result = self.status()
+        output = {key: result[key] for key in self.AVAILABILITY_FIELDS if key in result}
+        # displayAllowed 现算而不是从 status 里取：它由签名租约 + 权益集合共同决定，
+        # 复用 lastError 之类的字段推断会把「文件坏了」误判成「没权限」。
+        output['displayAllowed'] = self.allows('display')
+        return output
+
+    def _retry_in_flight(self) -> bool:
+        """是否有手动重试正在执行（前端据此显示「正在验证」而不是倒计时）。"""
+        return self._retry_task is not None and not self._retry_task.done()
+
+    def _retry_scheduled(self) -> bool:
+        """是否已排好下一轮自动重试（前端据此决定要不要显示倒计时）。"""
+        return self._next_attempt is not None
+
+    def _next_retry_at(self) -> str | None:
+        """下一轮计划重试的墙钟时刻（ISO 串）；没排重试则为 None。
+
+        返回绝对时刻而不是「还剩几秒」：前端自己算倒计时，才不会因为一次网络往返
+        把剩余时间算少、显示成「0 秒后重试」却迟迟不动。
+        """
+        if self._next_attempt is None:
+            return None
+        remaining = max(0.0, self._next_attempt - time.monotonic())
+        return (datetime.now(timezone.utc) + timedelta(seconds=remaining)).isoformat()
+
+    def _can_retry(self, effective_status: str) -> bool:
+        """现在点「重试」是否有意义。
+
+        终态返回 False，前端据此隐藏按钮：留一个必然失败的按钮，用户只会反复点，
+        而真正该做的是去激活页。
+        """
+        if not self.settings.license_required:
+            return False
+        if effective_status in TERMINAL_STATES or effective_status == 'UNACTIVATED':
+            return False
+        return bool(effective_status)
 
     def _verified_access(self, state: LicenseState, feature: str | None = None) -> bool:
         """重新校验签名租约，而不是信任可被改写的 SQLite 状态字段。
@@ -1151,8 +1452,11 @@ class LicenseService:
         if not self.settings.license_required:
             # 关闭授权校验的部署形态直接放行。
             return True
-        if self._startup_validation_pending or state.status not in frozenset({'ACTIVE', 'CONNECTION_WARNING'}):
+        if self._startup_validation_pending or state.status not in frozenset({'ACTIVE', 'CONNECTION_WARNING', 'RECOVERY_RETRY'}):
             # 启动确认未完成，或状态不在可放行集合内时短路，避免无谓的验签开销。
+            # RECOVERY_RETRY 也在放行集合里：它表示「会话在重试、本地租约仍有效」，
+            # 与 429 同理 —— 一次会话失败不足以把正在正常使用的编辑器锁死，
+            # 真正决定放不放行的仍是下面的签名租约验签与到期判定。
             return False
         if not (state.signed_lease and state.license_id and state.lease_id and state.session_id):
             # 四个字段（租约、授权标识、租约标识、会话标识）缺一不可，否则记录不完整。

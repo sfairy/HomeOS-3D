@@ -6,7 +6,7 @@
  * <origin>/pair?scan=1#code=xxxxxx&type=homeos-pair&version=1，任一环节不符即视为无效，
  * 宁可报错也不降级接受。
  */
-import { isAppleMobile } from "../utils/apple-device.js?v=20260920131301";
+import { isAppleMobile } from "../utils/apple-device.js?v=20260921090405";
 
 // 重新导出保持本模块的公开面不变（apple-install-guide.js 经 needsAppleInstallGuide 使用它）。
 export { isAppleMobile };

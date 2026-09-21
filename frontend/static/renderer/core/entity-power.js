@@ -10,11 +10,11 @@ import {
   climateIsPoweredOn,
   climatePowerCommand,
   resolveClimateDeviceType
-} from "../controls/climate.js?v=20260920131301";
-// 状态条目归一（变更对象 / 状态对象两种形态）统一走 utils/state-entry.js。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
+} from "../controls/climate.js?v=20260921090405";
+// 状态条目归一与小写状态文本统一走 utils/state-entry.js。
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=20260921090405";
 // 「按 ID 取域」只有一份实现，走 utils/entities.js 的 entityDomainFromId。
-import { entityDomainFromId } from "../../utils/entities.js?v=20260920131301";
+import { entityDomainFromId } from "../../utils/entities.js?v=20260921090405";
 
 // 兜底占位状态：本文件的下游要直接读 `.state` 与 `.attributes`（还有 `delete attributes.x`），
 // 传 null 会让「状态还没到」变成页面上的 TypeError。三处调用点都只读或 spread 出去，不修改它。
@@ -43,10 +43,8 @@ export function entityPowerTarget(runtimeEntityId, component = {}, deviceProfile
 export function entityPowerIsOn(entityId, stateInput, ownerComponent = {}) {
   const stateObject = resolveStateEntry(stateInput, EMPTY_ENTITY_STATE);
   const domain = entityDomainFromId(entityId);
-  // 状态统一小写去空格再比较，HA 侧偶发带空格或大小写不一致时不会误判。
-  const normalizedState = String(stateObject.state || "")
-    .trim()
-    .toLowerCase();
+  // 大小写与空格差异由 stateTextOf 统一处理，HA 侧偶发不规范时不会误判。
+  const normalizedState = stateTextOf(stateObject);
   if (domain === "climate") {
     return climateIsPoweredOn(
       stateObject,

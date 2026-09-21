@@ -1,71 +1,69 @@
 <!doctype html>
 <!--
-  首次设置页（/setup）：创建本机唯一的超级管理员账号，视觉对齐商店认证页（暗色琥珀 + 左栏说明 / 右栏表单）。
+  首次设置页（/setup）：创建本机唯一的超级管理员账号。
+  视觉与 /login、/license、/license-recovery、/pair 统一：全屏场景（HomeOS-Activate 激活页同款）
+  + 右侧玻璃表单坞，样式来自 /static/auth/scene/ 的分发产物。
+  场景片段由后端注入：本文件里那个独立的场景占位符（见 backend/http/page_shell.py 的
+  SCENE_PLACEHOLDER）会被替换成 frontend/static/auth/scene/scene.html 的内容
+  （改场景请改设计系统源，别在这里手写）。
   表单约束与后端 SetupAdminRequest 一致：账号 3–64、密码 8–256。
   引导密钥默认隐藏；非本机打开时由 setup.js 显示并改为必填。
   入口脚本：/static/logging/client-log.js（head 同步执行）、/static/auth/setup.js（module，表单提交）。
+  CSP 为 style-src 'self'，不能写内联样式/脚本，字体也只能走本站。
 -->
-<html lang="zh-CN">
+<html lang="zh-CN" class="hos-shell">
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=20260920131301"></script>
+    <script src="/static/logging/client-log.js?v=20260921090405"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#151a1f" />
+    <meta name="theme-color" content="#050910" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>初始化 · HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260920131301" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260920131301" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260920131301" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260920131301" />
-    <link rel="stylesheet" href="/static/auth/setup.css?v=20260920131301" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260921090405" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260921090405" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921090405" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921090405" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=20260921090405" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=20260921090405` 的 <link>。
+         必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
+    <!--{{APPEARANCE}}-->
   </head>
   <body>
-    <header class="hb-setup-topbar">
-      <div class="hb-container hb-setup-topbar__inner">
-        <a class="hb-setup-brand" href="/setup" aria-label="HomeOS">
-          <span class="hb-setup-brand__mark">
-            <img src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260920131301" alt="" />
-          </span>
-          <span class="hb-setup-brand__text">
-            <strong>HomeOS</strong>
-            <small>本机初始化</small>
-          </span>
-        </a>
-        <span class="hb-setup-topbar__meta">FIRST SETUP · 0.6.1</span>
-      </div>
-    </header>
+    <div class="hos-page hos-tone--lumen">
+      <!--{{SCENE}}-->
 
-    <main class="hb-setup-main">
-      <div class="hb-container">
-        <div class="hb-auth-shell">
-          <aside class="hb-auth-aside">
-            <span class="hb-kicker">First Setup</span>
-            <h2>先设置<strong>本机管理员</strong></h2>
-            <p>
-              这是安装后的第一步：创建本机唯一的超级管理员账号。完成后即可登录编辑器、连接
-              Home Assistant，并用商店激活码完成授权绑定。
-            </p>
-            <ul>
-              <li><span class="hb-check" aria-hidden="true">✓</span>账号与密码保存在本机，不经过第三方云</li>
-              <li><span class="hb-check" aria-hidden="true">✓</span>创建成功后自动登录，并先检查授权状态</li>
-              <li><span class="hb-check" aria-hidden="true">✓</span>远程打开时需启动日志里的引导密钥</li>
-            </ul>
-          </aside>
+      <main class="hos-dock">
+        <section class="hos-panel hos-rise">
+          <span class="hos-panel__edge" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
 
-          <section class="hb-auth-card">
-            <div class="hb-auth-brand">
-              <strong>设置管理员</strong>
-              <p>首次安装或重置账号后，在这里设置管理员账号和密码。</p>
-            </div>
-            <form id="setup-form" class="hb-auth-form">
-              <label>
-                管理员账号
+          <div class="hos-eyebrow-row">
+            <p class="hos-eyebrow">First Setup</p>
+            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号存本机</span>
+          </div>
+          <h1>设置管理员</h1>
+          <p class="hos-panel__desc">
+            这是安装后的第一步：创建本机唯一的超级管理员账号。完成后即可登录编辑器、
+            连接 Home Assistant，并用商店激活码完成授权绑定。
+          </p>
+
+          <form id="setup-form" class="hos-form">
+            <div class="hos-field">
+              <div class="hos-label-row"><label for="setup-username">管理员账号</label></div>
+              <div class="hos-control">
                 <input
+                  id="setup-username"
                   name="username"
                   placeholder="输入管理员账号"
                   autocomplete="username"
@@ -73,55 +71,74 @@
                   maxlength="64"
                   required
                 />
-              </label>
-              <label>
-                密码
-                <span class="hb-password-field">
-                  <input
-                    id="setup-password"
-                    name="password"
-                    type="password"
-                    placeholder="至少 8 个字符"
-                    autocomplete="new-password"
-                    minlength="8"
-                    maxlength="256"
-                    required
-                  />
-                  <button type="button" data-password-toggle aria-label="显示密码">显示</button>
-                </span>
-              </label>
-              <label>
-                再次输入密码
-                <span class="hb-password-field">
-                  <input
-                    id="setup-password-confirmation"
-                    name="passwordConfirmation"
-                    type="password"
-                    placeholder="再次输入密码"
-                    autocomplete="new-password"
-                    minlength="8"
-                    maxlength="256"
-                    required
-                  />
-                  <button type="button" data-password-toggle aria-label="显示密码">显示</button>
-                </span>
-              </label>
-              <label id="setup-token-field" hidden>
-                引导密钥
-                <input name="setupToken" placeholder="见服务启动日志" autocomplete="off" maxlength="256" />
-                <small>非本机访问必须填写；密钥在服务启动日志或 APP_SETUP_TOKEN 中。</small>
-              </label>
-              <p id="message" class="hb-setup-error" role="alert" hidden></p>
-              <button class="hb-button hb-button--primary hb-button--lg hb-button--block" type="submit">
-                保存账号并继续
-              </button>
-            </form>
-            <p class="hb-auth-switch">本页仅用于首次初始化；完成后会先检查授权，未激活将进入激活页。</p>
-          </section>
-        </div>
-      </div>
-    </main>
+              </div>
+            </div>
 
-    <script type="module" src="/static/auth/setup.js?v=20260920131301"></script>
+            <div class="hos-field">
+              <div class="hos-label-row"><label for="setup-password">密码</label></div>
+              <div class="hos-control hos-password-field">
+                <input
+                  id="setup-password"
+                  name="password"
+                  type="password"
+                  placeholder="至少 8 个字符"
+                  autocomplete="new-password"
+                  minlength="8"
+                  maxlength="256"
+                  required
+                />
+                <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+              </div>
+            </div>
+
+            <div class="hos-field">
+              <div class="hos-label-row"><label for="setup-password-confirmation">再次输入密码</label></div>
+              <div class="hos-control hos-password-field">
+                <input
+                  id="setup-password-confirmation"
+                  name="passwordConfirmation"
+                  type="password"
+                  placeholder="再次输入密码"
+                  autocomplete="new-password"
+                  minlength="8"
+                  maxlength="256"
+                  required
+                />
+                <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+              </div>
+            </div>
+
+            <div class="hos-field" id="setup-token-field" hidden>
+              <div class="hos-label-row"><label for="setup-token">引导密钥</label></div>
+              <div class="hos-control">
+                <input id="setup-token" name="setupToken" placeholder="见服务启动日志" autocomplete="off" maxlength="256" />
+              </div>
+              <small>非本机访问必须填写；密钥在服务启动日志或 APP_SETUP_TOKEN 中。</small>
+            </div>
+
+            <p id="message" class="hos-msg is-err" role="alert" hidden></p>
+
+            <div class="hos-actions">
+              <button class="hos-btn-primary" type="submit">保存账号并继续</button>
+            </div>
+          </form>
+
+          <div class="hos-panel__copy">
+            <div class="hos-panel__meta">
+              <span>仅本机</span>
+              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+              <span>不经过第三方云</span>
+              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+              <span>完成后先验授权</span>
+            </div>
+            <p>本页仅用于首次初始化；完成后会先检查授权，未激活将进入激活页。</p>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- auth-shell.js 负责 .hos-password-field 里的密码显隐，必须在 setup.js 之前执行。 -->
+    <script type="module" src="/static/auth/auth-shell.js?v=20260921090405"></script>
+    <script type="module" src="/static/auth/setup.js?v=20260921090405"></script>
   </body>
 </html>

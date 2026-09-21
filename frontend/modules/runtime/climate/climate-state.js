@@ -9,12 +9,12 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
+import { normalizedTextOf, resolveStateEntry } from "../core/static-helpers.js?v=20260921090405";
 // 动态导入渲染器模块：开发环境走相对路径（file:），生产环境走带缓存戳的静态路径。
 // 缓存戳必须与 static 目录的统一版本号保持一致，改渲染器后要同步更新。
 const climateRendererModule = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/renderer/controls/climate.js", import.meta.url))
-  : import("/static/renderer/controls/climate.js?v=20260920131301"));
+  : import("/static/renderer/controls/climate.js?v=20260921090405"));
 const {
   normalizeClimateCapabilities: normalizeClimateCapabilities,
   climateIsPoweredOn: climateIsPoweredOn,
@@ -68,11 +68,7 @@ export function climateState(entityId, receivedState) {
     running:
       available &&
       // hvac_action 是「正在制冷 / 制热 / 待机」的细粒度动作；未知态不算运行。
-      !["unknown", "unavailable"].includes(
-        String(attributes.hvac_action || "")
-          .trim()
-          .toLowerCase()
-      ) &&
+      !["unknown", "unavailable"].includes(normalizedTextOf(attributes.hvac_action || "")) &&
       climateIsRunning(stateObject, "air-conditioner"),
     name: String(attributes.friendly_name || entityId || "空调"),
     mode: stateValue,

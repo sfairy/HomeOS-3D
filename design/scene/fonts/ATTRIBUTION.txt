@@ -1,0 +1,29 @@
+Bundled web fonts — HomeOS entry pages
+======================================
+
+These four font families are redistributed here as latin-subset WOFF2 files.
+All of them are licensed under the SIL Open Font License, Version 1.1
+(https://openfontlicense.org), which permits bundling and redistribution
+provided the copyright notice and license are kept with the files.
+
+  Orbitron            orbitron-700-latin.woff2
+    Copyright 2009 The Orbitron Project Authors
+    https://github.com/theleagueof/orbitron
+
+  Exo 2               exo-2-400-latin.woff2           (variable, wght 400-700)
+    Copyright 2013 The Exo 2 Project Authors
+    https://github.com/googlefonts/Exo-2.0
+
+  JetBrains Mono      jetbrains-mono-400-latin.woff2  (variable, wght 400-500)
+    Copyright 2020 The JetBrains Mono Project Authors
+    https://github.com/JetBrains/JetBrainsMono
+
+  Share Tech Mono     share-tech-mono-400-latin.woff2
+    Copyright 2012 Google Inc.
+    https://fonts.google.com/specimen/Share+Tech+Mono
+
+Full license text: https://openfontlicense.org/open-font-license-official-text/
+
+CJK glyphs are intentionally NOT bundled — Noto Sans SC is several megabytes and
+the system fallback (PingFang SC / Microsoft YaHei) is already installed on every
+supported client.

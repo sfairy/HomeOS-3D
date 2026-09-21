@@ -378,5 +378,10 @@
         splashPhase !== "done" &&
           document.getElementById("display-shell")?.contains(focusEvent.target) &&
           getSplashElement()?.focus({ preventScroll: !0 });
+      }),
+      // 断网导致的启动失败，在恢复联网后自动重试一次：墙面屏前通常没人能去点「重试」，
+      // 自愈是唯一合理的出口。只在错误终态时重载，正常运行中不因网络抖动打断画面。
+      window.addEventListener("online", () => {
+        splashPhase === "error" && location.reload();
       })));
 })();

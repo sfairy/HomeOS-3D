@@ -2,9 +2,20 @@
    HomeOS 授权商店 · 管理后台。依赖 theme.css（令牌 + 按钮 / 表单 / 卡片 / 表格 / 对话框 / 胶囊）。
    本文件只做三件事：后台骨架（左侧 rail + 主工作区）、面板与数据表排版、后台专属小组件（KPI 卡、行内 ⋯ 菜单、危险操作区、确认弹窗外观）。
 
-   设计定位暗色「专业控制台」，与主程序（frontend/static/app.css）共用同一套配色令牌：
-   --hb-bg / --hb-accent / --hb-success 由 theme.css 提供，必须与主程序完全一致，**不要在这里改这三个值**。
-   在此基础上：面板标题 22px / KPI 数值 25px / 正文 13.5px / 辅助 11.5px 建立层级；画布→卡片→浮层三级分层表面；状态一律用「柔和底色 + 同色文字 + 光点」胶囊，琥珀只留给真正的强调与待办。
+   配色不再是「暗色专业控制台」这一条路。全站（商店前台 / 后台 / 主程序入口页 / 场景插画）
+   共用 design/scene/page.css 那一份调色板：青是主控，暖光、极光紫、薄荷是居家三光，
+   heat / cool / alert / sensor 是设备读色。theme.css 逐字镜像这批令牌，
+   tools/check_scene_sync.mjs 比对两侧取值，所以这里的颜色**必须**走 var()，不写十六进制。
+
+   两套分色在这一层叠起来，各管一件事：
+     · 业务域（--a-tint*，来自 data-domain）→ 「这一屏属于哪个业务域」：面板头辉光、
+       编号、角线、侧栏选中态、表格行悬停条。
+     · 组件族（--hb-tone*，来自 .is-tone-*）→ 「这一屏里哪个数字讲的是哪件事」：
+       KPI 卡边框与数值、订单漏斗的色带。
+   两者在 .is-tone-* 里会打架，所以消费族色时一律读 --hb-tone*，不读 --a-tint*。
+
+   画布 → 卡片 → 浮层三级分层走 --a-glass（半透底 + 背板模糊 + 顶缘高光）：
+   后台卡片曾经全是不透明底，把 .admin-main 的三束氛围光整块盖住，整屏是平的。
 
    后台专属令牌用 --a-* 前缀，避免污染前台 store.css。已彻底移除 Bootstrap：不再有 .btn / .form-control / .card / .alert 语义。
    ========================================================================== */
@@ -16,49 +27,116 @@
    弹窗会变成一层没有底色的浅边虚影。
    （admin.css 只被 admin.html 引入，放 :root 不会影响前台 store.html。） */
 :root {
-  --a-radius: 14px;
-  --a-radius-sm: 9px;
-  --a-line: #29313a;
-  --a-line-soft: #222a32;
-  --a-surface: #1a2026;
-  --a-surface-2: #1e252c;
-  --a-surface-3: #232b33;
-  --a-elev-1: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 1px 2px rgba(0, 0, 0, 0.35);
-  --a-elev-2: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 14px 34px -16px rgba(0, 0, 0, 0.75);
-  --a-transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease,
-    box-shadow 0.16s ease, transform 0.16s ease;
+  --a-radius: var(--hb-radius-lg);
+  --a-radius-sm: var(--hb-radius-sm);
+  --a-line: var(--hb-line);
+  --a-line-soft: var(--hb-line-soft);
+  --a-surface: var(--hb-surface);
+  --a-surface-2: var(--hb-surface-soft);
+  --a-surface-3: var(--hb-surface-raised);
+  --a-elev-1: var(--hb-elev-1);
+  --a-elev-2: var(--hb-elev-2);
+  --a-transition: var(--hb-transition);
+
+  /* 玻璃面：工作区的面板 / 卡片 / 表格 / KPI 卡共用一套「半透底 + 背板模糊 + 顶缘发丝」。
+     后台原来各写各的不透明底（--a-surface / --hb-card-bg），下面那三束氛围光全被盖住，
+     整屏就是一块平板。半透之后光从卡片后面透出来，卡片之间才有前后关系。
+     不透明度取 0.58–0.66：再透会让 11px 的小字压在氛围光上发虚，再实就回到不透明。 */
+  --a-glass: linear-gradient(
+    180deg,
+    rgba(var(--hb-sky-high-rgb), 0.58),
+    rgba(var(--hb-sky-low-rgb), 0.66)
+  );
+  --a-glass-blur: blur(10px) saturate(135%);
+  /* 顶缘高光。深色玻璃靠这一道 1px 才「立」得起来，否则像贴纸。 */
+  --a-hairline: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+
+  /* 默认色调 = 主控青。登录页、确认弹窗、轻提示这些 body 直属容器读这里。 */
+  --a-tint: var(--hb-accent);
+  --a-tint-bright: var(--hb-accent-bright);
+  --a-tint-soft: var(--hb-accent-soft);
+  --a-tint-faint: var(--hb-accent-faint);
+  --a-tint-line: var(--hb-accent-line);
+  --a-tint-grad: var(--hb-accent-grad);
 }
 
-/* 业务域色调层：五个业务域各一个色相，页面骨架（面板头辉光、编号、角线、KPI 顶缘、漏斗条、侧栏选中态）跟着所属域变色，形成「一眼看出在哪个业务域」的色彩编码。
-   用 hue 变量而不是五套色值：一行 `--a-tint-h: 265` 就能把整层 token 重算一遍，加域只加一行；手写五套必然漏改。
-   **--hb-bg / --hb-accent / --hb-success 一个字都不能动**（与 theme.css 逐字对齐），所以多色是「新增一层」而非改品牌色；琥珀只保留在可点的东西与 is-alert / is-danger 这类**语气**上。
-   默认 38° = 琥珀，与 --hb-accent 同色相：没有 data-domain 的容器（登录页、确认弹窗、轻提示）看不出域色差。 */
-:root {
-  --a-tint-h: 38;
-  --a-tint: hsl(var(--a-tint-h) 90% 62%);
-  --a-tint-bright: hsl(var(--a-tint-h) 96% 72%);
-  --a-tint-soft: hsl(var(--a-tint-h) 90% 62% / 0.13);
-  --a-tint-faint: hsl(var(--a-tint-h) 90% 62% / 0.06);
-  --a-tint-line: hsl(var(--a-tint-h) 90% 62% / 0.42);
-  --a-tint-grad: linear-gradient(180deg, hsl(var(--a-tint-h) 96% 72%), hsl(var(--a-tint-h) 92% 50%));
+/* 业务域色调层：五个业务域各一种语义色，页面骨架（面板头辉光、编号、角线、
+   KPI 顶缘、漏斗条、侧栏选中态）跟着所属域变色，形成「一眼看出在哪个业务域」。
+
+   这一层不再自己造色相。原来用 `hsl(var(--a-tint-h) …)` 现算，算出来的青和
+   theme.css 里的青永远差几个百分点 —— 前台一个青、后台另一个青，肉眼能看出
+   「不是同一个颜色」。现在直接引用前台的色调开关 --hb-tone*（见 theme.css 的
+   [data-tone]），后台 / 前台 / 入口页场景共用一份色板。
+
+   --a-tint* 保留为 --hb-tone* 的别名，后台里 40 多处旧引用不用逐个改：
+   别名必须声明在**带 data-domain 的那个元素**上，因为自定义属性在声明处求值 ——
+   写在 :root 上会固定解析成主控青，域色就永远不生效。 */
+[data-domain],
+.admin-shell {
+  --a-tint: var(--hb-tone);
+  --a-tint-bright: var(--hb-tone-text);
+  --a-tint-soft: var(--hb-tone-soft);
+  --a-tint-faint: rgba(var(--hb-tone-rgb), 0.06);
+  --a-tint-line: var(--hb-tone-line);
+  --a-tint-grad: var(--hb-grad-tone);
 }
 
-/* 域 → 色相。面板与侧栏分组两边都挂 data-domain：
-   面板负责工作区，分组负责侧栏那一组链接的选中态与色点。 */
-.admin-panel[data-domain="operations"],
-.nav-group[data-domain="operations"] { --a-tint-h: 38; }   /* 琥珀：概览 / 订单 / 提现 */
+/* 域 → 色调。面板与侧栏分组两边都挂 data-domain：
+   面板负责工作区，分组负责侧栏那一组链接的选中态与色点。
 
-.admin-panel[data-domain="catalog"],
-.nav-group[data-domain="catalog"] { --a-tint-h: 265; }     /* 紫：商品 / 优惠码 / 版本 */
+   五域的分色不是凑数：概览与订单是主控（青）、商品与版本是货架（暖光）、
+   激活码与绑定是「已生效」（薄荷）、权益与流水是档案（极光紫）、
+   站点配置与审计是运维（传感器灰蓝）。这套词汇与商店前台的能力卡、
+   账号中心统计、中控示意完全一致 —— 全站只有一个颜色语言。 */
+.admin-panel[data-domain='operations'],
+.nav-group[data-domain='operations'] {
+  --hb-tone: var(--hb-accent);
+  --hb-tone-rgb: var(--hb-accent-rgb);
+  --hb-tone-soft: var(--hb-accent-soft);
+  --hb-tone-line: var(--hb-accent-line);
+  --hb-tone-text: var(--hb-accent-bright);
+  --hb-grad-tone: var(--hb-accent-grad);
+}
 
-.admin-panel[data-domain="licensing"],
-.nav-group[data-domain="licensing"] { --a-tint-h: 190; }   /* 青：激活码 / 绑定 / 账号 */
+.admin-panel[data-domain='catalog'],
+.nav-group[data-domain='catalog'] {
+  --hb-tone: var(--hb-lumen);
+  --hb-tone-rgb: var(--hb-lumen-rgb);
+  --hb-tone-soft: var(--hb-lumen-soft);
+  --hb-tone-line: var(--hb-lumen-line);
+  --hb-tone-text: var(--hb-lumen-text);
+  --hb-grad-tone: var(--hb-grad-lumen);
+}
 
-.admin-panel[data-domain="data"],
-.nav-group[data-domain="data"] { --a-tint-h: 215; }        /* 蓝：权益 / 流水 / 客户 / 诊断 */
+.admin-panel[data-domain='licensing'],
+.nav-group[data-domain='licensing'] {
+  --hb-tone: var(--hb-eco);
+  --hb-tone-rgb: var(--hb-eco-rgb);
+  --hb-tone-soft: var(--hb-eco-soft);
+  --hb-tone-line: var(--hb-eco-line);
+  --hb-tone-text: var(--hb-eco-bright);
+  --hb-grad-tone: var(--hb-grad-eco);
+}
 
-.admin-panel[data-domain="system"],
-.nav-group[data-domain="system"] { --a-tint-h: 158; }      /* 翠：站点配置 / 审计 */
+.admin-panel[data-domain='data'],
+.nav-group[data-domain='data'] {
+  --hb-tone: var(--hb-aura);
+  --hb-tone-rgb: var(--hb-aura-rgb);
+  --hb-tone-soft: var(--hb-aura-soft);
+  --hb-tone-line: var(--hb-aura-line);
+  --hb-tone-text: var(--hb-aura-bright);
+  --hb-grad-tone: var(--hb-grad-aura);
+}
+
+.admin-panel[data-domain='system'],
+.nav-group[data-domain='system'] {
+  --hb-tone: var(--hb-sensor);
+  --hb-tone-rgb: var(--hb-sensor-rgb);
+  --hb-tone-soft: var(--hb-sensor-soft);
+  --hb-tone-line: rgba(var(--hb-sensor-rgb), 0.28);
+  --hb-tone-text: var(--hb-sensor);
+  --hb-grad-tone: linear-gradient(180deg, var(--hb-sensor), var(--hb-muted-dim));
+}
 
 
 /* 骨架沿用主程序的做法（见 frontend/static/app.css）：body 不滚，主区是唯一
@@ -93,7 +171,7 @@ body {
   min-height: 0;
   border-right: 1px solid var(--a-line);
   color: var(--hb-muted);
-  background: linear-gradient(180deg, #181e24 0%, #151a1f 100%);
+  background: linear-gradient(180deg, var(--hb-surface-soft) 0%, var(--hb-surface) 100%);
 }
 
 .admin-side .brand {
@@ -311,7 +389,7 @@ body {
   bottom: 7px;
   left: 15px;
   width: 1px;
-  background: linear-gradient(180deg, var(--a-line) 0%, rgba(41, 49, 58, 0.15) 100%);
+  background: linear-gradient(180deg, var(--a-line) 0%, color-mix(in srgb, var(--a-line) 15%, transparent) 100%);
   content: "";
   pointer-events: none;
 }
@@ -365,7 +443,7 @@ body {
    与工作区的面板头同一个色相，「现在在哪」这件事不需要再读一遍文字。 */
 .admin-side a.nav-link.active {
   color: var(--a-tint-bright);
-  background: linear-gradient(90deg, var(--a-tint-soft), hsl(var(--a-tint-h) 90% 62% / 0.02));
+  background: linear-gradient(90deg, var(--a-tint-soft), rgba(var(--hb-tone-rgb), 0.02));
 }
 
 .admin-side a.nav-link.active::before {
@@ -403,7 +481,7 @@ body {
 }
 
 .admin-side a.nav-link.active .nav-badge {
-  border-color: hsl(var(--a-tint-h) 90% 62% / 0.6);
+  border-color: rgba(var(--hb-tone-rgb), 0.6);
 }
 
 /* 底部账号区：整块压低一档底色，和上面的导航列表分开，
@@ -452,26 +530,6 @@ body {
   white-space: nowrap;
 }
 
-/* 时间口径写在界面上：后台时间列按浏览器本地时区渲染，而库内是 UTC。
-   这是解释性文案，不是操作项，所以压到最暗一档，别跟待办抢注意力。 */
-.admin-side__tz {
-  margin: 0 0 10px;
-  padding: 0 2px;
-  color: var(--hb-muted-dim);
-  font-size: 10.5px;
-  line-height: 1.5;
-}
-
-.admin-side__actions {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.admin-side__actions .hb-button {
-  width: 100%;
-}
-
 /* 主工作区（唯一滚动容器） */
 .admin-main {
   min-width: 0;
@@ -491,7 +549,7 @@ body {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 0 10px;
-  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  border-bottom: 1px solid var(--hb-line);
   margin-bottom: 18px;
   position: sticky;
   top: 0;
@@ -505,7 +563,7 @@ body {
   align-items: center;
   gap: 10px;
   font-size: 13px;
-  color: var(--text-subtle, #9aa3b2);
+  color: var(--hb-muted);
 }
 
 .admin-topbar__left .who__avatar {
@@ -515,7 +573,7 @@ body {
 }
 
 .admin-topbar__email {
-  color: var(--text, #e6e8ee);
+  color: var(--hb-ink);
   font-weight: 500;
 }
 
@@ -532,12 +590,13 @@ body {
 
 /* admin-main 背景氛围层 */
 .admin-main {
-  /* 氛围层：五个业务域的色相各来一圈极淡的辉光（alpha ~0.05）铺在工作区底下，随面板域色给页面「有深度」的观感。
-     亮度必须低于 0.06——再高就会和卡片背景抢对比度，正文小字开始发灰。
+  /* 氛围层：三束居家光（主控青 / 极光紫 / 暖光）各来一圈极淡的辉光（alpha ~0.05）铺在工作区底下。
+     前台与入口页的场景是同一组光，只是这里压到几乎看不见 —— 后台是长时间注视的界面，
+     亮度必须低于 0.06，再高就会和卡片背景抢对比度，正文小字开始发灰。
      写在这里而不是另加 ::before 层：滚动容器的背景不随内容滚动，天然就是固定底，不需要 background-attachment: fixed（那个在滚动容器上会强制合成层重绘，长表格滚动时掉帧）。 */
-  background-image: radial-gradient(90% 55% at 12% 0%, hsl(38 90% 62% / 0.05), transparent 70%),
-    radial-gradient(75% 50% at 88% 8%, hsl(265 90% 62% / 0.045), transparent 72%),
-    radial-gradient(80% 55% at 50% 100%, hsl(190 90% 62% / 0.04), transparent 74%);
+  background-image: radial-gradient(90% 55% at 12% 0%, rgba(var(--hb-accent-rgb), 0.05), transparent 70%),
+    radial-gradient(75% 50% at 88% 8%, rgba(var(--hb-aura-rgb), 0.045), transparent 72%),
+    radial-gradient(80% 55% at 50% 100%, rgba(var(--hb-lumen-rgb), 0.04), transparent 74%);
   background-repeat: no-repeat;
 }
 
@@ -566,6 +625,26 @@ body {
 
 .admin-panel.active {
   display: block;
+}
+
+/* 后台的卡片与表格套同一层玻璃。
+   改 .hb-card 本身而不是在 admin 里重画：卡片的内边距、圆角、表头分隔全在
+   theme.css 里，重画一份就等着两侧走散。这里只叠背景与阴影两层。
+   只用 --a-glass 覆盖 background：--hb-card-bg 仍作为 admin.css 加载失败时的兜底
+   （单文件部署漏拷 admin.css 时后台还能看，只是没有玻璃感）。 */
+.admin-panel .hb-card,
+.admin-panel .table-wrap {
+  background: var(--a-glass);
+  backdrop-filter: var(--a-glass-blur);
+  box-shadow: var(--a-hairline), var(--a-elev-1);
+}
+
+/* 卡中卡（概览的待办磁贴等）不再叠一层模糊：两层 backdrop-filter 嵌套在
+   Chrome 上会导致内层采不到外层的背景，直接变成一片透明。改成薄底 + 继承外层的玻璃感。 */
+.admin-panel .hb-card .hb-card {
+  background: rgba(var(--hb-sky-high-rgb), 0.34);
+  backdrop-filter: none;
+  box-shadow: var(--a-hairline);
 }
 
 /* 面板头（标题 + 说明 + 操作区） */
@@ -599,8 +678,8 @@ body {
   z-index: 0;
   background-image: linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
     linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    radial-gradient(120% 155% at 0% 0%, hsl(var(--a-tint-h) 90% 62% / 0.2), transparent 62%),
-    radial-gradient(88% 140% at 100% 100%, hsl(var(--a-tint-h) 90% 62% / 0.1), transparent 58%);
+    radial-gradient(120% 155% at 0% 0%, rgba(var(--hb-tone-rgb), 0.2), transparent 62%),
+    radial-gradient(88% 140% at 100% 100%, rgba(var(--hb-tone-rgb), 0.1), transparent 58%);
   background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%;
   background-position: 0 0, 0 0, 0 0, 0 0;
   content: "";
@@ -615,7 +694,7 @@ body {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: linear-gradient(90deg, transparent, hsl(var(--a-tint-h) 90% 62% / 0.42) 22%, transparent 78%),
+  background-image: linear-gradient(90deg, transparent, rgba(var(--hb-tone-rgb), 0.42) 22%, transparent 78%),
     linear-gradient(180deg, transparent, var(--a-tint) 24%, var(--a-tint) 76%, transparent),
     linear-gradient(var(--a-tint-line), var(--a-tint-line)),
     linear-gradient(var(--a-tint-line), var(--a-tint-line)),
@@ -711,7 +790,7 @@ body {
   height: 6px;
   border-radius: 999px;
   background: var(--a-tint);
-  box-shadow: 0 0 8px hsl(var(--a-tint-h) 96% 66% / 0.8);
+  box-shadow: 0 0 8px rgba(var(--hb-tone-rgb), 0.8);
   content: "";
 }
 
@@ -766,6 +845,16 @@ body {
   color: var(--a-tint-bright);
 }
 
+/* 配置面板的五个 tab 各自带 data-tone（见 admin.html）：选中态改读分区自己的色调，
+   而不是整面板的域色 —— 否则五个 tab 选中后全是同一个传感器灰蓝。
+   选择器多一个 [data-tone]，特异性高于上面那条，所以不依赖书写顺序。 */
+.admin-tabs__tab[data-tone][aria-selected="true"] {
+  color: var(--hb-tone-text);
+}
+.admin-tabs__tab[data-tone][aria-selected="true"]::after {
+  background: var(--hb-grad-tone);
+}
+
 .admin-tabs__tab[aria-selected="true"]::after {
   position: absolute;
   right: 10px;
@@ -774,29 +863,8 @@ body {
   height: 2px;
   border-radius: 2px;
   background: var(--a-tint-grad);
-  box-shadow: 0 0 10px hsl(var(--a-tint-h) 96% 66% / 0.55);
+  box-shadow: 0 0 10px rgba(var(--hb-tone-rgb), 0.55);
   content: "";
-}
-
-/* 标签上的计数徽标（例如「待人工复核 3」）：0 时不显示，由 JS 决定是否渲染 */
-.admin-tabs__count {
-  margin-left: 6px;
-  padding: 0 6px;
-  border-radius: 999px;
-  color: var(--a-tint-bright);
-  background: var(--a-tint-soft);
-  font-family: var(--hb-font-mono);
-  font-size: 10.5px;
-  font-weight: 700;
-}
-
-.admin-tabs--sub {
-  margin-bottom: 12px;
-}
-
-.admin-tabs--sub .admin-tabs__tab {
-  padding: 6px 11px 8px;
-  font-size: 12px;
 }
 
 /* 标签页内容：切换靠 hidden 属性，所以这里只负责「显示时」的排版。
@@ -1036,7 +1104,7 @@ body {
   height: 15px;
   margin: 1px 0 0;
   flex: 0 0 15px;
-  border: 1px solid #46514f;
+  border: 1px solid var(--hb-line-strong);
   border-radius: 5px;
   background: var(--hb-field);
   cursor: pointer;
@@ -1369,6 +1437,153 @@ body {
   content: "";
 }
 
+/* 站点配置的五个分区各挂一个 data-tone（见 admin.html 的 data-tab-strip），
+   于是 tab 选中态与分区标题一起变色 ——「我正站在哪一段」由一个颜色回答。
+   这一层与面板级的 data-domain 是两套词汇、互不冲突：面板答「这是哪个业务域」，
+   分区答「这段配置在配什么」。站点配置整面板都属于 system 域（传感器灰蓝），
+   只靠域色的话五个 tab 全是同一个灰蓝，等于没分。 */
+.admin-tab-pane[data-tone] .admin-grid__section {
+  color: var(--hb-tone-text);
+}
+.admin-tab-pane[data-tone] .admin-grid__section::after {
+  background: linear-gradient(90deg, var(--hb-tone-line), var(--a-line));
+}
+/* 站点配色分页。面板放在 <form> 之外（见 admin.html 的注释），所以这里不依赖
+   表单栅格；preset 卡片与主应用编辑器面板同构，只是换了 hb- 前缀的令牌。 */
+.admin-palette-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.admin-palette-preset {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--a-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-ink);
+  background: rgba(var(--hb-sky-deep-rgb), 0.5);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.admin-palette-preset:hover {
+  border-color: var(--hb-tone-line);
+}
+/* 选中态由 aria-checked 驱动：键盘与读屏拿到同一套语义，
+   不必再维护一个会和 aria 走散的 .is-active。 */
+.admin-palette-preset[aria-checked="true"] {
+  border-color: var(--hb-tone-line);
+  box-shadow: inset 0 0 0 1px var(--hb-tone-line);
+}
+.admin-palette-preset strong {
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.admin-palette-preset small {
+  color: var(--hb-muted);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+/* 卡片上的四枚色点：直接画出「这个预设是四个什么颜色」，比文字描述短得多。 */
+.admin-palette-dots {
+  display: flex;
+  gap: 4px;
+}
+.admin-palette-dots i {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--dot);
+}
+.admin-palette-custom {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--a-line);
+  border-radius: var(--hb-radius-sm);
+  background: rgba(var(--hb-sky-deep-rgb), 0.5);
+  font-size: 12px;
+}
+.admin-palette-custom > span {
+  color: var(--hb-muted);
+}
+.admin-palette-custom small {
+  grid-column: 3;
+  color: var(--hb-muted);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+.admin-palette-custom input[type="color"] {
+  width: 34px;
+  height: 26px;
+  padding: 2px;
+  border: 1px solid var(--a-line);
+  border-radius: 5px;
+  background: rgba(var(--hb-sky-deep-rgb), 0.6);
+  cursor: pointer;
+}
+/* 手输了半截 / 写错的十六进制值：只标红输入框，不弹提示 ——
+   用户还在打字，弹出来的每一句都是噪音。 */
+.admin-palette-custom input[type="text"].is-invalid {
+  border-color: rgba(var(--hb-alert-rgb), 0.55);
+}
+/* 主控色被手动改过：给整块加一道主控色描边，让「预设不再决定主控色」看得见。 */
+.admin-palette-custom.is-custom {
+  border-color: var(--hb-accent-line);
+}
+/* 预览条：四束光各占一条，拖动色轮时即时变化 ——
+   面板里唯一能回答「我这一改，整个商店长什么样」的东西。 */
+.admin-palette-preview {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.admin-palette-preview span {
+  height: 6px;
+  flex: 1 1 0;
+  border-radius: 3px;
+  background: var(--sw);
+  transition: background 0.12s ease-out;
+}
+/* 配色面板自己的提示行。刻意不复用后台的 toast：那个是浮层，会盖在色轮上，
+   而「配色已保存」这条信息应该留在它所属的面板里。 */
+.admin-inline-msg {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--a-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-muted);
+  background: rgba(var(--hb-sky-deep-rgb), 0.5);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.admin-inline-msg.is-ok {
+  border-color: var(--hb-success-line);
+  color: var(--hb-success-text);
+  background: var(--hb-success-soft);
+}
+.admin-inline-msg.is-err {
+  border-color: rgba(var(--hb-alert-rgb), 0.32);
+  color: var(--hb-alert);
+  background: rgba(var(--hb-alert-rgb), 0.12);
+}
+
+/* 诊断条目：「通过 / 没测到」的结论由每条的 .is-ok / .is-warn 决定，
+   但整段的边框与底纹跟着分区色调走，扫一眼就知道这一段的结论属于哪个分区。 */
+.admin-tab-pane[data-tone] .admin-diagnostic {
+  border-color: rgba(var(--hb-tone-rgb), 0.12);
+}
+.admin-tab-pane[data-tone] .admin-form-actions .admin-status-chip:not(.is-alert):not(.is-muted) {
+  border-color: var(--hb-tone-line);
+  background: var(--hb-tone-soft);
+  color: var(--hb-tone-text);
+}
+
 /* 动作条单独收口：不加分隔时「保存配置」会被读成最后一个字段的附属按钮，
    而它其实作用于整张表单。 */
 .admin-grid > .admin-form-actions {
@@ -1436,7 +1651,7 @@ body {
 
 .pill--success {
   border-color: var(--hb-success-line);
-  color: #7ed09b;
+  color: var(--hb-success-text);
   background: var(--hb-success-soft);
 }
 
@@ -1448,13 +1663,13 @@ body {
 
 .pill--danger {
   border-color: var(--hb-danger-line);
-  color: #ef9f9b;
+  color: var(--hb-danger-text);
   background: var(--hb-danger-soft);
 }
 
 .pill--info {
-  border-color: #3d4a55;
-  color: #a8b6c2;
+  border-color: var(--hb-line-strong);
+  color: var(--hb-sensor);
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -1477,8 +1692,9 @@ body {
   max-height: min(72vh, 820px);
   border: 1px solid var(--a-line);
   border-radius: var(--a-radius);
-  background: var(--a-surface);
-  box-shadow: var(--a-elev-1);
+  background: var(--a-glass);
+  backdrop-filter: var(--a-glass-blur);
+  box-shadow: var(--a-hairline), var(--a-elev-1);
   overflow: auto;
 }
 
@@ -1542,7 +1758,7 @@ body {
 .table-empty span {
   display: block;
   margin-bottom: 8px;
-  color: #3d4750;
+  color: var(--hb-line-strong);
   font-size: 26px;
   line-height: 1;
 }
@@ -1850,11 +2066,11 @@ body {
 }
 
 .menu__item.is-danger {
-  color: #e79b97;
+  color: var(--hb-danger-text);
 }
 
 .menu__item.is-danger:hover {
-  color: #ffbfbb;
+  color: var(--hb-alert-bright);
   background: var(--hb-danger-soft);
 }
 
@@ -1891,8 +2107,9 @@ body {
   padding: 14px 16px 15px;
   border: 1px solid var(--a-line);
   border-radius: var(--a-radius);
-  background: var(--hb-card-bg);
-  box-shadow: var(--a-elev-1);
+  background: var(--a-glass);
+  backdrop-filter: var(--a-glass-blur);
+  box-shadow: var(--a-hairline), var(--a-elev-1);
   transition: var(--a-transition);
 }
 
@@ -1979,51 +2196,103 @@ body {
   letter-spacing: 0;
 }
 
-/* 色相修饰类（KPI 卡与订单漏斗共用）：域色解决「这一屏属于哪个业务域」，但一屏里 4–8 张 KPI 卡全同一色就读不出「哪个数字讲的是哪件事」。
-   这一类只给一个 `--a-tone` 色相，具体色值由使用它的组件派生，加一族只加一行；色相与业务域对齐（紫=商品、青=授权、蓝=账号、翠=系统）。
-   必须排在 .stat.is-alert / .stat.is-danger **之前**：is-alert（待处理，琥珀）是语气，语义上要压过语义色相；两者权重相同时靠源码顺序决胜，顺序反了就会出现「琥珀告警卡被染成蓝的」。 */
-.is-tone-amber { --a-tone: 38; }
-.is-tone-violet { --a-tone: 265; }
-.is-tone-cyan { --a-tone: 190; }
-.is-tone-blue { --a-tone: 215; }
-.is-tone-emerald { --a-tone: 158; }
-.is-tone-slate { --a-tone: 205; }
+/* 族色修饰类（KPI 卡与订单漏斗共用）：域色解决「这一屏属于哪个业务域」，但一屏里
+   4–8 张 KPI 卡全同一色就读不出「哪个数字讲的是哪件事」。
+
+   类名沿用模板里已有的 is-tone-*（admin.html 里 20 多处引用），但**不再自造色相**：
+   六个类各自把 --hb-tone* 换成前台同名的那束语义色（theme.css 的 --hb-lumen /
+   --hb-aura / --hb-eco / --hb-cool / --hb-accent / --hb-sensor）。
+   原来给的是 `--a-tone: 38` 这样的色相数字，再由消费者 `hsl(var(--a-tone) 90% 62%)`
+   现算 —— 算出来的琥珀与商店的暖光差着几个百分点，前台一个色、后台另一个色。
+   现在两侧引用同一批令牌，后台的薄荷与商店的薄荷是同一个绿。
+
+   映射不是重命名：琥珀 = 暖光（营收 / 待处理）、青 = 主控（已支付 / 在线）、
+   翠 = 生态薄荷（已履约）、紫 = 极光（商品 / 权限）、蓝 = 清凉（账号 / 积分）、
+   灰蓝 = 传感器（已退款 / 已取消 —— 流程已终结，不该再抢注意力）。
+
+   必须排在 .stat.is-alert / .stat.is-danger **之前**：is-alert（待处理）是语气，
+   语义上要压过族色；两者权重相同时靠源码顺序决胜，顺序反了就会出现
+   「告警卡被染成蓝的」。 */
+.is-tone-amber {
+  --hb-tone: var(--hb-lumen);
+  --hb-tone-rgb: var(--hb-lumen-rgb);
+  --hb-tone-text: var(--hb-lumen-text);
+  --hb-tone-line: var(--hb-lumen-line);
+}
+
+.is-tone-violet {
+  --hb-tone: var(--hb-aura);
+  --hb-tone-rgb: var(--hb-aura-rgb);
+  --hb-tone-text: var(--hb-aura-bright);
+  --hb-tone-line: var(--hb-aura-line);
+}
+
+.is-tone-cyan {
+  --hb-tone: var(--hb-accent);
+  --hb-tone-rgb: var(--hb-accent-rgb);
+  --hb-tone-text: var(--hb-accent-bright);
+  --hb-tone-line: var(--hb-accent-line);
+}
+
+.is-tone-blue {
+  --hb-tone: var(--hb-cool);
+  --hb-tone-rgb: var(--hb-cool-rgb);
+  --hb-tone-text: var(--hb-cool);
+  --hb-tone-line: rgba(var(--hb-cool-rgb), 0.34);
+}
+
+.is-tone-emerald {
+  --hb-tone: var(--hb-eco);
+  --hb-tone-rgb: var(--hb-eco-rgb);
+  --hb-tone-text: var(--hb-eco-bright);
+  --hb-tone-line: var(--hb-eco-line);
+}
+
+.is-tone-slate {
+  --hb-tone: var(--hb-sensor);
+  --hb-tone-rgb: var(--hb-sensor-rgb);
+  --hb-tone-text: var(--hb-sensor);
+  --hb-tone-line: rgba(var(--hb-sensor-rgb), 0.28);
+}
 
 /* KPI 卡：只换颜色，字号 / 降档阈值 / padding 一律不动 ——
    这几个值与 admin.html 的 valueSize()、admin.css 的 .stat__value--* 档位联动，
-   动一个值就会让卡片放不下。 */
-.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald) {
-  border-color: hsl(var(--a-tone) 90% 62% / 0.3);
+   动一个值就会让卡片放不下。消费者一律读 --hb-tone*（族色类已经换过），
+   不读 --a-tint* —— 那是所属业务域的色，两者在这一层是两件事。 */
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald, .is-tone-slate) {
+  border-color: var(--hb-tone-line);
 }
 
-.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald) strong,
-.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald) .stat__value {
-  color: hsl(var(--a-tone) 96% 74%);
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald, .is-tone-slate) strong,
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald, .is-tone-slate) .stat__value {
+  color: var(--hb-tone-text);
 }
 
-/* 悬停顶缘用同一个色相（只改 background，opacity 仍由 .stat:hover::before 控） */
-.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald)::before {
-  background: linear-gradient(90deg, hsl(var(--a-tone) 90% 62% / 0.45), transparent 72%);
+/* 悬停顶缘用同一个族色（只改 background，opacity 仍由 .stat:hover::before 控） */
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald, .is-tone-slate)::before {
+  background: linear-gradient(90deg, rgba(var(--hb-tone-rgb), 0.45), transparent 72%);
 }
 
+/* 「待处理」语气。用暖光而不是主控青：待支付订单 / 待发货这类数字需要的是
+   「这里有事等你」，而不是「这一点可以点」。青是操作色，暖光是状态色。 */
 .stat.is-alert {
-  border-color: rgba(242, 162, 13, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 30px -18px rgba(242, 162, 13, 0.7);
+  border-color: var(--hb-lumen-line);
+  box-shadow: var(--a-hairline), 0 14px 30px -18px rgba(var(--hb-lumen-rgb), 0.7);
 }
 
 .stat.is-alert strong,
 .stat.is-alert .stat__value {
-  color: var(--hb-accent-bright);
+  color: var(--hb-lumen-text);
 }
 
 .stat.is-danger {
   border-color: var(--hb-danger-line);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 30px -18px rgba(226, 107, 103, 0.5);
+  box-shadow: var(--a-hairline), 0 14px 30px -18px rgba(var(--hb-danger-rgb), 0.5);
 }
 
 .stat.is-danger strong,
 .stat.is-danger .stat__value {
-  color: #f0a5a2;
+  color: var(--hb-danger-text);
 }
 
 /* 卡片里的补充说明（营收卡的「收款 x · 退款 y」）。值下面一行小字，
@@ -2050,7 +2319,7 @@ body {
    容器边框取域色（概览属运营域，即琥珀），卡片内部仍走 is-alert / is-danger
    的语气色——「有没有事」和「这是哪一域」是两件事，不该混在一个变量里。 */
 .overview-todos {
-  border-color: hsl(var(--a-tint-h) 90% 62% / 0.28);
+  border-color: rgba(var(--hb-tone-rgb), 0.28);
 }
 
 .overview-todos__grid {
@@ -2078,8 +2347,10 @@ body {
   transform: translateY(-1px);
 }
 
+/* 「待处理」：与 .stat.is-alert 同一枚暖光。语气色必须全后台只有一套取值，
+   否则概览上「待支付订单」这张卡是暖光、旁边待办磁贴是主控青，同一个含义两种颜色。 */
 .overview-todo.is-alert {
-  border-color: rgba(242, 162, 13, 0.4);
+  border-color: var(--hb-lumen-line);
 }
 
 .overview-todo.is-danger {
@@ -2100,7 +2371,7 @@ body {
 }
 
 .overview-todo.is-danger .overview-todo__count {
-  color: #f0a5a2;
+  color: var(--hb-danger-text);
 }
 
 .overview-todo__label {
@@ -2174,19 +2445,19 @@ body {
   background: linear-gradient(90deg, var(--a-tint), var(--a-tint-line) 60%, transparent 92%);
 }
 
-/* 漏斗条按订单状态着色：待支付=琥珀、已支付/发货中=青、已完成=翠、
-   已退款/已关闭=灰蓝（单独一条规则，见下）。状态本身就是语义，
-   一屏里 6 个条子同色的话，读者得逐个去读标签才知道哪一段是「漏掉的」。 */
-.funnel-item:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald)
+/* 漏斗条按订单状态着色：待支付 = 暖光、已支付/发货中 = 主控青、已完成 = 生态薄荷、
+   已退款/已关闭 = 传感器灰蓝。状态本身就是语义，一屏里 6 个条子同色的话，
+   读者得逐个去读标签才知道哪一段是「漏掉的」。
+   色值来自上面的 .is-tone-*，这里只负责把它画成一条渐隐的色带 ——
+   已终结的状态（slate）不再需要单独特判，它映射到的传感器灰本来就是低饱和的。 */
+.funnel-item:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald, .is-tone-slate)
   .funnel-item__fill {
-  background: linear-gradient(90deg, hsl(var(--a-tone) 90% 62%), hsl(var(--a-tone) 90% 62% / 0.42) 62%, transparent 94%);
-}
-
-/* 已退款 / 已取消 / 已过期 = 「这笔单子已经结束了」，跟仍在流程里的状态
-   抢注意力没有意义，所以单独给一条低饱和的灰蓝，而不是塞进上面那条
-   90% 饱和的色带（`.is-tone-slate` 的色相偏蓝，直接用会很跳）。 */
-.funnel-item.is-tone-slate .funnel-item__fill {
-  background: linear-gradient(90deg, hsl(210 14% 58%), hsl(210 14% 58% / 0.42) 62%, transparent 94%);
+  background: linear-gradient(
+    90deg,
+    var(--hb-tone),
+    var(--hb-tone-line) 62%,
+    transparent 94%
+  );
 }
 
 .funnel-item__amount {
@@ -2226,25 +2497,6 @@ body {
   max-height: min(34vh, 340px);
 }
 
-/* 一行里放两个日期输入框（订单的创建时间区间）。
-   用 inline-flex 而不是 grid：它要跟在其它筛选控件后面共处一行，
-   栅格会把工具栏的换行行为搞乱。 */
-.hb-field-inline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.hb-field-inline .hb-input {
-  width: 148px;
-}
-
-.hb-field-inline__sep {
-  color: var(--hb-muted);
-  font-size: 11.5px;
-  white-space: nowrap;
-}
-
 /* 概览页的「维护模式」行 */
 .setting-row {
   display: flex;
@@ -2271,7 +2523,7 @@ body {
   padding: 18px 20px;
   border: 1px solid var(--hb-danger-line);
   border-radius: var(--a-radius);
-  background: linear-gradient(180deg, rgba(226, 107, 103, 0.07), transparent);
+  background: linear-gradient(180deg, rgba(var(--hb-danger-rgb), 0.07), transparent);
 }
 
 .danger-zone h3 {
@@ -2279,7 +2531,7 @@ body {
   margin: 0 0 7px;
   align-items: center;
   gap: 8px;
-  color: #f0a5a2;
+  color: var(--hb-danger-text);
   font-size: 13px;
   font-weight: 650;
   letter-spacing: 0.02em;
@@ -2311,12 +2563,12 @@ body {
   border: 1px solid var(--a-line);
   border-radius: 16px;
   color: var(--hb-ink);
-  background: linear-gradient(180deg, #1e252c, #181e24);
+  background: linear-gradient(180deg, var(--hb-surface-soft), var(--hb-surface));
   box-shadow: var(--a-elev-2);
 }
 
 .confirm-dialog::backdrop {
-  background: rgba(5, 8, 11, 0.82);
+  background: color-mix(in srgb, var(--hb-bg) 82%, transparent);
   backdrop-filter: blur(5px);
 }
 
@@ -2334,16 +2586,16 @@ body {
   border-radius: 12px;
   color: var(--hb-accent-bright);
   background: var(--hb-accent-soft);
-  box-shadow: 0 10px 26px -14px rgba(242, 162, 13, 0.8);
+  box-shadow: 0 10px 26px -14px rgba(var(--hb-accent-rgb), 0.8);
   font-size: 20px;
   line-height: 1;
 }
 
 .confirm-dialog.is-danger .confirm-dialog__icon {
   border-color: var(--hb-danger-line);
-  color: #f0a5a2;
+  color: var(--hb-danger-text);
   background: var(--hb-danger-soft);
-  box-shadow: 0 10px 26px -14px rgba(226, 107, 103, 0.8);
+  box-shadow: 0 10px 26px -14px rgba(var(--hb-danger-rgb), 0.8);
 }
 
 /* 会降级成「停用 / 下架」这类可恢复结果时用告警色，避免和不可恢复的删除长得一样 */
@@ -2386,7 +2638,7 @@ body {
 }
 
 .confirm-dialog.is-danger .confirm-dialog__impact b {
-  color: #f0a5a2;
+  color: var(--hb-danger-text);
 }
 
 .confirm-dialog__actions {
@@ -2396,272 +2648,20 @@ body {
   gap: 8px;
 }
 
-/* 登录页 */
-/* body 是 overflow: hidden（单滚动容器需要），登录页得自己兜底滚动：
-   margin 不计入 max-height 也不跟着滚，所以用元素自身的 padding。
-   布局对齐商店 hb-auth-shell：左说明栏 + 右表单卡。 */
-.login-wrap {
-  position: relative;
-  z-index: 1;
-  width: min(1080px, calc(100vw - 40px));
-  max-height: 100vh;
-  margin: 0 auto;
-  padding: clamp(28px, 8vh, 64px) 0 32px;
-  overflow-y: auto;
-}
+/* 后台登录：整页场景壳（与商店前台入口页、主项目入口页同款；场景与玻璃坞在
+   /store-static/scene/，源在仓库 design/scene/）。原来的「左说明栏 + 右表单卡」
+   已被玻璃坞取代，所以这一段只剩把壳钉在视口上。
 
-/* 登录页整屏一层极淡的琥珀网格 + 顶部辉光，撑起「控制台」的第一印象。
-   #admin-login 登录成功后会被 JS 置为 hidden，:has() 让这层装饰自动消失，
-   不需要额外的 JS 钩子；不支持 :has() 的浏览器只是少了这层装饰。 */
-body:has(#admin-login:not([hidden]))::before {
+   用 fixed 而不是让 #admin-login 走文档流：.hos-page 的 height: 100% 依赖父级有
+   确定高度，而它是 body 的直接子元素。钉在视口上就不依赖那条高度链，也不会在
+   #admin-app / #admin-boot 还占着位置时被挤走。
+
+   登录成功/失败由 admin.html 里的 showLogin() 切 #admin-login 的 hidden，
+   整块壳跟着一起出现消失 —— 页面里只有这一处场景，不必再叠一层空状态。 */
+#admin-login {
   position: fixed;
+  z-index: 1;
   inset: 0;
-  z-index: 0;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    radial-gradient(circle at 88% -6%, rgba(242, 162, 13, 0.1), transparent 34rem),
-    radial-gradient(circle at 4% 4%, rgba(120, 140, 160, 0.05), transparent 26rem);
-  background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%;
-  content: "";
-  pointer-events: none;
-  -webkit-mask-image: radial-gradient(130% 100% at 50% 0%, #000 22%, transparent 80%);
-  mask-image: radial-gradient(130% 100% at 50% 0%, #000 22%, transparent 80%);
-}
-
-.login-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 404px);
-  align-items: stretch;
-  gap: 26px;
-}
-
-.login-aside {
-  position: relative;
-  display: flex;
-  min-height: 420px;
-  padding: 44px 38px;
-  flex-direction: column;
-  justify-content: center;
-  gap: 20px;
-  border: 1px solid var(--a-line);
-  border-radius: 18px;
-  background: linear-gradient(150deg, #1f2731 0%, #171c22 58%, #1c222a 100%);
-  box-shadow: var(--a-elev-2);
-  overflow: hidden;
-}
-
-.login-aside::before {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    radial-gradient(120% 150% at 100% 0%, rgba(242, 162, 13, 0.22), transparent 62%),
-    radial-gradient(90% 130% at 0% 100%, rgba(242, 162, 13, 0.09), transparent 56%);
-  background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%;
-  -webkit-mask-image: linear-gradient(258deg, #000 16%, rgba(0, 0, 0, 0.4) 58%, transparent 90%);
-  mask-image: linear-gradient(258deg, #000 16%, rgba(0, 0, 0, 0.4) 58%, transparent 90%);
-  content: "";
-  pointer-events: none;
-}
-
-.login-aside > * {
-  position: relative;
-}
-
-.login-aside h2 {
-  margin: 0;
-  color: var(--hb-ink);
-  font-size: clamp(26px, 3vw, 34px);
-  font-weight: 650;
-  letter-spacing: -0.028em;
-  line-height: 1.2;
-}
-
-.login-aside h2 strong {
-  color: var(--hb-accent-bright);
-}
-
-@supports (background-clip: text) or (-webkit-background-clip: text) {
-  .login-aside h2 strong {
-    -webkit-background-clip: text;
-    background-clip: text;
-    background-image: linear-gradient(96deg, #ffc65a 6%, var(--hb-accent) 62%, var(--hb-accent-deep, #ef9900));
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-  }
-}
-
-.login-aside > p {
-  margin: 0;
-  color: var(--hb-muted);
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-.login-aside ul {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  gap: 11px;
-  list-style: none;
-}
-
-.login-aside li {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  color: var(--hb-ink-soft);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.login-check {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  flex: 0 0 20px;
-  place-items: center;
-  border: 1px solid var(--hb-accent-line);
-  border-radius: 6px;
-  background: var(--hb-accent-soft);
-  color: var(--hb-accent-bright);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.login-card {
-  position: relative;
-  display: flex;
-  padding: 34px 30px;
-  flex-direction: column;
-  border: 1px solid var(--a-line);
-  border-radius: 18px;
-  background: linear-gradient(180deg, #1e252c, #181e24);
-  box-shadow: var(--a-elev-2);
-  overflow: hidden;
-}
-
-/* 左上 / 右下两道琥珀角线：与前台 .hb-auth-card 同一套「设备取景框」角标 */
-.login-card::before,
-.login-card::after {
-  position: absolute;
-  width: 16px;
-  height: 16px;
-  content: "";
-  pointer-events: none;
-}
-
-.login-card::before {
-  top: 9px;
-  left: 9px;
-  border-top: 1px solid var(--hb-accent-line);
-  border-left: 1px solid var(--hb-accent-line);
-  border-top-left-radius: 4px;
-}
-
-.login-card::after {
-  right: 9px;
-  bottom: 9px;
-  border-right: 1px solid var(--hb-accent-line);
-  border-bottom: 1px solid var(--hb-accent-line);
-  border-bottom-right-radius: 4px;
-}
-
-.login-card__brand {
-  display: flex;
-  margin-bottom: 22px;
-  align-items: center;
-  gap: 12px;
-}
-
-.login-card__mark {
-  display: grid;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
-  place-items: center;
-  border: 1px solid var(--hb-accent-line);
-  border-radius: 13px;
-  background: var(--hb-accent-soft);
-  box-shadow: 0 12px 28px -16px rgba(242, 162, 13, 0.8);
-}
-
-.login-card__mark img {
-  width: 25px;
-  height: 25px;
-}
-
-.login-card__brand strong {
-  display: block;
-  color: var(--hb-ink);
-  font-size: 18px;
-  font-weight: 650;
-  letter-spacing: -0.015em;
-}
-
-.login-card__brand p {
-  margin: 4px 0 0;
-  color: var(--hb-muted);
-  font-size: 12.5px;
-  line-height: 1.55;
-}
-
-.login-form {
-  display: grid;
-  gap: 15px;
-}
-
-.login-form .hb-password-field .hb-input {
-  width: 100%;
-}
-
-.login-switch {
-  margin: 18px 0 0;
-  color: var(--hb-muted);
-  font-size: 12.5px;
-  text-align: center;
-}
-
-.login-switch a {
-  color: var(--hb-accent-bright);
-  text-decoration: none;
-}
-
-.login-switch a:hover {
-  color: var(--hb-accent);
-}
-
-.admin-alert {
-  margin-top: 16px;
-  padding: 11px 14px;
-  border: 1px solid var(--hb-danger-line);
-  border-radius: var(--a-radius-sm);
-  color: #f2b0ad;
-  background: #26181a;
-  font-size: 12.5px;
-  line-height: 1.6;
-}
-
-@media (max-width: 860px) {
-  .login-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .login-aside {
-    min-height: 0;
-    padding: 28px 24px;
-  }
-
-  .login-aside h2 {
-    font-size: clamp(22px, 6vw, 28px);
-  }
-
-  .login-card {
-    padding: 28px 22px;
-  }
 }
 
 /* 轻提示 */
@@ -2689,26 +2689,26 @@ body:has(#admin-login:not([hidden]))::before {
 
 .admin-toast__item.is-success {
   border-color: var(--hb-success-line);
-  color: #9adcb0;
-  background: #16241c;
+  color: var(--hb-success-text);
+  background: var(--hb-success-soft);
 }
 
 .admin-toast__item.is-danger {
   border-color: var(--hb-danger-line);
-  color: #f2b0ad;
-  background: #26181a;
+  color: var(--hb-danger-text);
+  background: var(--hb-danger-soft);
 }
 
 .admin-toast__item.is-warning {
   border-color: var(--hb-warning-line);
-  color: #eabb64;
-  background: #241d12;
+  color: var(--hb-warning-text);
+  background: var(--hb-warning-soft);
 }
 
 .admin-toast__item.is-info {
-  border-color: var(--a-line);
+  border-color: var(--hb-line);
   color: var(--hb-ink-soft);
-  background: #1b2229;
+  background: var(--hb-sensor-soft);
 }
 
 /* 杂项 */
@@ -2801,11 +2801,7 @@ body:has(#admin-login:not([hidden]))::before {
     padding: 10px 12px 12px;
   }
 
-  .admin-side__actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .admin-main {
+    .admin-main {
     padding: 0 13px 26px;
   }
 

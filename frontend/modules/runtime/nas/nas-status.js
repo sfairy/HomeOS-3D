@@ -10,15 +10,13 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921090405";
 /**
  * 归一化单个 NAS 开关实体。
  */
 export function nasState(entityId, state) {
   const stateObject = resolveStateEntry(state, {});
-  const stateValue = String(stateObject.state || "")
-    .trim()
-    .toLowerCase();
+  const stateValue = stateTextOf(stateObject);
   // 只接受三元组里明确的开 / 关：unknown、unavailable 等一律算不可用，
   // 否则设备掉线时指示灯会继续按「上一次的 on」亮着。
   const available =
@@ -57,9 +55,7 @@ export function nasDeviceState(item, stateSources = {}) {
       // 数值型传感器只要 state 不是空 / 未知就算「有数据」，
       // 具体数值不参与判断 —— 这里只关心 NAS 是否在响应。
       metricState?.state != null &&
-      !["", "unknown", "unavailable", "none"].includes(
-        String(metricState.state).trim().toLowerCase()
-      )
+      !["", "unknown", "unavailable", "none"].includes(stateTextOf(metricState))
     );
   });
   // 指标模式下「有数据」即视为开机，没有单独的关闭态可言。

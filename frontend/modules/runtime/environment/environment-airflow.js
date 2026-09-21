@@ -8,7 +8,7 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
+import { normalizedTextOf, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921090405";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。 */
 const FLOW_STATE_COLORS = {
   cool: "#73c8ff",
@@ -427,8 +427,8 @@ export function createEnvironmentAirflow({
           ? entityStates.get(effectBinding.entityId)
           : entityStates?.[effectBinding.entityId];
       const stateBody = resolveStateEntry(stateRecord, {});
-      const stateValue = String(stateBody.state || "").toLowerCase();
-      const hvacAction = String(stateBody.attributes?.hvac_action || "").toLowerCase();
+      const stateValue = stateTextOf(stateBody);
+      const hvacAction = normalizedTextOf(stateBody.attributes?.hvac_action || "");
       // 聚焦了别的设备时，本设备的气流不显示（画面里只保留一个焦点）。
       const isFocusTarget = !focusedId || effectBinding.id === focusedId;
       // 出风判定：state 不是关机 / 未知，且 hvac_action 为空（设备没上报）或落在白名单内。

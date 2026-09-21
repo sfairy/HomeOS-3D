@@ -8,17 +8,17 @@
  * closedRouteSensorIds 记录用户意图。舞台命令：presence-top-view / presence-3d-view /
  * presence-preview-walk / presence-show-hit-range。
  */
-import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=20260920131301";
-import { mountInteraction3d } from "../core/runtime.js?v=20260920131301";
+import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=20260921090405";
+import { mountInteraction3d } from "../core/runtime.js?v=20260921090405";
 import {
   validPresenceRoute,
   snapsToPresenceStart,
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "./presence-motion.js?v=20260920131301";
-import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260920131301";
-import { randomUuid } from "/static/utils/random-id.js?v=20260920131301";
-import { serializeEditorDraft } from "../core/editor-save-status.js?v=20260920131301";
+} from "./presence-motion.js?v=20260921090405";
+import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260921090405";
+import { randomUuid } from "/static/utils/random-id.js?v=20260921090405";
+import { serializeEditorDraft } from "../core/editor-save-status.js?v=20260921090405";
 /**
  * 打开人在传感器编辑对话框。
  */
@@ -97,7 +97,7 @@ export async function openPresenceEditor({
   styleLinkElement.rel = "stylesheet";
   // 样式与 3D 预览的 runtime.css 是两套：这里只加载编辑器自身的样式表。
   styleLinkElement.href =
-    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=20260920131301";
+    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=20260921090405";
   const dialogElement = createElement("dialog", "", "i3d-editor i3d-presence-editor");
   dialogElement.setAttribute("aria-label", manageBindings ? "配置安防" : "人物与行走路线");
   // 记下打开前的焦点，关闭时还回去，键盘用户不会丢失位置。
@@ -813,8 +813,7 @@ export async function openPresenceEditor({
       markPresenceDirty("选择人在传感器后，请在顶视图中绘制行走路径。");
       renderControls();
     });
-    // 上限 128 条：与后端校验的绑定数上限一致，超了直接禁用按钮而不是静默拒绝。
-    addSensorButton.disabled = sensorBindings.length >= 128 || !floors.length;
+    addSensorButton.disabled = !floors.length;
     // 只读模式（从人物与路线面板进入）不给增删入口。
     if (manageBindings) {
       bindingsPanelElement.append(addSensorButton);

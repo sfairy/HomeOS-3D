@@ -1,0 +1,1315 @@
+/* HomeOS 玻璃表单坞（canonical 源：design/scene/panel.css）
+
+   由 HomeOS-Activate 激活页的表单坞抽取，类名统一 hos- 前缀，并做了两处必要泛化：
+
+   1. 原文件里的 `label` / `input, textarea` 是裸元素选择器。它只在「整页就是一个
+      表单坞」时成立；本套件要进商店（同页还有前台与后台的裸 label/input），
+      会直接污染出去，因此全部收拢到 .hos-panel 作用域下。
+   2. 原文件用 `#form` / `#msg` / `#hwid` / `#token` 这类 id 做样式钩子。id 是页面的
+      契约（脚本按 id 取节点），不适合承担样式，改成 .hos-form / .hos-msg / .hos-mono。
+
+   分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。 */
+
+/* ── 坞体 ───────────────────────────────────────────────────── */
+
+.hos-panel {
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: 40px 36px 24px;
+  border-radius: 20px;
+  position: relative;
+  background: linear-gradient(165deg, rgba(12, 26, 40, 0.82) 0%, rgba(8, 14, 22, 0.92) 100%);
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.26);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 48px rgba(var(--hos-tone-rgb), 0.1),
+    0 28px 64px rgba(0, 0, 0, 0.45);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--hos-tone-rgb), 0.28) transparent;
+  box-sizing: border-box;
+}
+
+/* 左边一道纵向流光，顶部一道水平高光：玻璃盒子的两道「边」。 */
+.hos-panel__edge {
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--hos-tone) 30%,
+    rgba(var(--hos-lumen-rgb), 0.7) 70%,
+    transparent
+  );
+  box-shadow: 0 0 12px rgba(var(--hos-tone-rgb), 0.45);
+}
+
+.hos-panel__corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(var(--hos-tone-rgb), 0.55);
+  border-style: solid;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.hos-panel__corner--tl {
+  top: 12px;
+  left: 12px;
+  border-width: 1.5px 0 0 1.5px;
+}
+
+.hos-panel__corner--tr {
+  top: 12px;
+  right: 12px;
+  border-width: 1.5px 1.5px 0 0;
+}
+
+.hos-panel__corner--bl {
+  bottom: 12px;
+  left: 12px;
+  border-width: 0 0 1.5px 1.5px;
+}
+
+.hos-panel__corner--br {
+  right: 12px;
+  bottom: 12px;
+  border-width: 0 1.5px 1.5px 0;
+}
+
+.hos-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(var(--hos-tone-rgb), 0.55),
+    rgba(var(--hos-tone-rgb), 0.95),
+    rgba(var(--hos-tone-rgb), 0.55),
+    transparent
+  );
+  box-shadow: 0 0 12px rgba(var(--hos-tone-rgb), 0.55);
+}
+
+/* ── 抬头 ───────────────────────────────────────────────────── */
+
+.hos-eyebrow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.hos-eyebrow {
+  margin: 0;
+  font-family: var(--hos-font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(var(--hos-tone-rgb), 0.95);
+  text-shadow: 0 0 10px rgba(var(--hos-tone-rgb), 0.35);
+}
+
+.hos-secure {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
+  background: rgba(4, 12, 20, 0.4);
+  color: rgba(186, 214, 232, 0.55);
+  font-family: var(--hos-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hos-secure-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--hos-eco);
+  box-shadow: 0 0 8px rgba(var(--hos-eco-rgb), 0.7);
+}
+
+.hos-panel h1,
+.hos-panel h2 {
+  margin: 0 0 10px;
+  font-family: var(--hos-font-display);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: linear-gradient(120deg, #f7fcff 0%, var(--hos-tone-bright) 52%, var(--hos-tone) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 18px rgba(var(--hos-tone-rgb), 0.18));
+}
+
+.hos-panel__desc {
+  margin: 0 0 20px;
+  color: rgba(186, 214, 232, 0.58);
+  font-size: var(--hos-fs-body-sm);
+  line-height: 1.7;
+  letter-spacing: 0.03em;
+}
+
+/* ── 能力小卡（Activate 用来说明令牌/指纹/序列/授权四段） ────── */
+
+.hos-hub {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  margin-bottom: 22px;
+  padding: 12px 4px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
+  background: linear-gradient(180deg, rgba(12, 28, 42, 0.55), rgba(4, 12, 20, 0.62));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+.hos-hub::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 6%;
+  right: 6%;
+  height: 1px;
+  /* 能力条顶部走整条极光带（青→极光紫→暖光），是坞里唯一一处三色渐变：
+     它标的是「这个家有哪些能力」，正好是青、紫、暖光三种语义的交汇处。 */
+  background: var(--hos-grad-aurora);
+  opacity: 0.55;
+}
+
+.hos-hub__scan {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -20%;
+  width: 28%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(var(--hos-tone-rgb), 0.08),
+    transparent
+  );
+  animation: hosHubScan 4.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes hosHubScan {
+  0%,
+  12% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  28% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.55;
+  }
+  88%,
+  100% {
+    transform: translateX(420%);
+    opacity: 0;
+  }
+}
+
+.hos-hub__item {
+  position: relative;
+  padding: 4px 8px;
+  text-align: center;
+}
+
+.hos-hub__item + .hos-hub__item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 16%;
+  bottom: 16%;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(var(--hos-tone-rgb), 0.2), transparent);
+}
+
+.hos-hub__code {
+  display: block;
+  font-family: var(--hos-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: rgba(186, 214, 232, 0.4);
+}
+
+.hos-hub__name {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+/* 枢纽卡的四条挂载状态各读一种设备色：灯（暖光）、摄像头（青）、新风（薄荷）、
+   传感器（极光紫）。原来四行是四个写死的 rgba，改品牌色时它们不会跟着变。 */
+.hos-hub__item:nth-of-type(1) .hos-hub__name {
+  color: rgba(var(--hos-lumen-rgb), 0.9);
+}
+.hos-hub__item:nth-of-type(2) .hos-hub__name {
+  color: rgba(var(--hos-accent-rgb), 0.9);
+}
+.hos-hub__item:nth-of-type(3) .hos-hub__name {
+  color: rgba(var(--hos-eco-rgb), 0.9);
+}
+.hos-hub__item:nth-of-type(4) .hos-hub__name {
+  color: rgba(var(--hos-aura-rgb), 0.9);
+}
+
+/* ── 表单骨架 ───────────────────────────────────────────────── */
+
+.hos-form {
+  display: grid;
+  gap: 14px;
+}
+
+.hos-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.hos-field {
+  min-width: 0;
+}
+
+.hos-field:focus-within .hos-label-row label {
+  color: var(--hos-tone);
+  text-shadow: 0 0 10px rgba(var(--hos-tone-rgb), 0.3);
+}
+
+/* 控件本身是一个动作按钮的字段，用来和左边的输入框并排成一行（验证码 + 获取验证码）。
+   标签行用 visibility 留出同高的空位（不是 display:none —— 那样按钮会往上跳，
+   和左边的输入框错开一个标签的高度），按钮再 flex 撑满剩下的高度，
+   于是两格不需要任何写死的高度就自动对齐。 */
+.hos-field--action {
+  display: flex;
+  flex-direction: column;
+}
+
+.hos-field--action .hos-label-row {
+  visibility: hidden;
+}
+
+.hos-field--action .hos-btn-ghost {
+  width: 100%;
+}
+
+.hos-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.hos-panel label {
+  margin: 0;
+  font-family: var(--hos-font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(186, 214, 232, 0.52);
+  transition:
+    color 0.2s ease,
+    text-shadow 0.2s ease;
+}
+
+.hos-hint {
+  font-family: var(--hos-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: rgba(140, 168, 184, 0.45);
+  transition: color 0.2s ease;
+}
+
+.hos-hint.is-ok {
+  color: var(--hos-ok);
+}
+.hos-hint.is-warn {
+  color: var(--hos-warn);
+}
+
+/* 输入框外壳：焦点态在壳上做描边与左侧光条，输入框本体透明无边框。 */
+.hos-control {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
+  background: rgba(4, 12, 20, 0.55);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.hos-control::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.hos-control:hover {
+  border-color: rgba(var(--hos-tone-rgb), 0.3);
+}
+
+.hos-control:focus-within {
+  background: rgba(8, 20, 32, 0.72);
+  border-color: rgba(var(--hos-tone-rgb), 0.6);
+  box-shadow:
+    0 0 0 3px rgba(var(--hos-tone-rgb), 0.14),
+    0 0 24px rgba(var(--hos-tone-rgb), 0.12);
+}
+
+.hos-control:focus-within::before {
+  background: var(--hos-tone);
+  box-shadow: 0 0 10px rgba(var(--hos-tone-rgb), 0.65);
+}
+
+.hos-control.is-valid {
+  border-color: rgba(var(--hos-eco-rgb), 0.42);
+  box-shadow: 0 0 0 1px rgba(var(--hos-eco-rgb), 0.08);
+}
+
+.hos-control.is-valid:focus-within {
+  border-color: rgba(var(--hos-tone-rgb), 0.6);
+  box-shadow:
+    0 0 0 3px rgba(var(--hos-tone-rgb), 0.14),
+    0 0 24px rgba(var(--hos-tone-rgb), 0.12);
+}
+
+.hos-panel input,
+.hos-panel textarea,
+.hos-panel select {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--hos-ink);
+  padding: 13px 15px;
+  font: 500 0.92rem/1.4 var(--hos-font-ui);
+  letter-spacing: 0.02em;
+  caret-color: var(--hos-tone);
+}
+
+.hos-panel input:disabled,
+.hos-panel textarea:disabled {
+  opacity: 0.78;
+  cursor: default;
+}
+
+.hos-mono {
+  font-family: var(--hos-font-mono);
+  font-size: 0.84rem;
+  letter-spacing: 0.04em;
+}
+
+.hos-panel input::placeholder,
+.hos-panel textarea::placeholder {
+  color: rgba(186, 214, 232, 0.28);
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.hos-field small {
+  display: block;
+  margin-top: 7px;
+  color: rgba(140, 168, 184, 0.45);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+
+/* ── 密码显隐 ───────────────────────────────────────────────── */
+
+.hos-password-field {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.hos-password-field input {
+  padding-right: 68px;
+}
+
+.hos-password-field button {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  color: rgba(186, 214, 232, 0.55);
+  background: transparent;
+  font: 600 0.72rem/1 var(--hos-font-ui);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
+}
+
+.hos-password-field button:hover {
+  color: var(--hos-tone);
+  background: rgba(var(--hos-tone-rgb), 0.12);
+}
+
+/* ── 分段选择 ───────────────────────────────────────────────── */
+
+.hos-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.16);
+  background: rgba(3, 10, 16, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.hos-seg--wrap {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (min-width: 520px) {
+  .hos-seg--wrap {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.hos-seg button {
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 10px;
+  background: transparent;
+  color: rgba(186, 214, 232, 0.5);
+  font: 600 0.86rem/1.2 var(--hos-font-ui);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.hos-seg button:hover {
+  color: rgba(241, 247, 251, 0.85);
+}
+
+.hos-seg button[aria-pressed='true'] {
+  color: #041018;
+  background: var(--hos-grad-tone);
+  box-shadow: 0 6px 16px rgba(var(--hos-tone-rgb), 0.22);
+}
+
+/* ── 日期字段与日历（Activate 签发页专用，随坞体一起分发） ──── */
+
+.hos-date-field {
+  position: relative;
+  margin-top: 10px;
+  z-index: 2;
+}
+
+.hos-date-field__control {
+  padding-right: 4px;
+}
+
+.hos-date-field__control input {
+  font-family: var(--hos-font-mono);
+  font-size: 0.84rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.hos-date-field__control input:disabled {
+  cursor: default;
+  opacity: 0.78;
+  color: rgba(186, 214, 232, 0.55);
+}
+
+.hos-date-field__control.is-open {
+  border-color: rgba(var(--hos-tone-rgb), 0.6);
+  box-shadow:
+    0 0 0 3px rgba(var(--hos-tone-rgb), 0.14),
+    0 0 24px rgba(var(--hos-tone-rgb), 0.12);
+}
+
+.hos-date-field__toggle {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-right: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(186, 214, 232, 0.45);
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
+}
+
+.hos-date-field__toggle:hover:not(:disabled) {
+  color: var(--hos-tone);
+  background: rgba(var(--hos-tone-rgb), 0.12);
+}
+
+.hos-date-field__toggle:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.hos-date-field__control.is-open .hos-date-field__toggle {
+  color: var(--hos-tone);
+  background: rgba(var(--hos-tone-rgb), 0.16);
+}
+
+.hos-datepicker {
+  position: fixed;
+  z-index: 2000;
+  margin: 0;
+  padding: 14px 14px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.28);
+  background: linear-gradient(165deg, rgba(10, 22, 34, 0.96) 0%, rgba(5, 12, 20, 0.98) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 28px rgba(var(--hos-tone-rgb), 0.12),
+    0 -16px 40px rgba(0, 0, 0, 0.45);
+  animation: hosDatepickerInUp 0.22s var(--hos-ease) both;
+  pointer-events: auto;
+  box-sizing: border-box;
+  color: var(--hos-ink);
+}
+
+@keyframes hosDatepickerInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hos-datepicker__edge {
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    var(--hos-tone) 30%,
+    rgba(var(--hos-lumen-rgb), 0.65) 70%,
+    transparent
+  );
+  box-shadow: 0 0 10px rgba(var(--hos-tone-rgb), 0.4);
+  pointer-events: none;
+}
+
+.hos-datepicker__head {
+  display: grid;
+  grid-template-columns: 36px 1fr 36px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.hos-datepicker__title {
+  margin: 0;
+  text-align: center;
+  font-family: var(--hos-font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(var(--hos-tone-rgb), 0.95);
+  text-shadow: 0 0 10px rgba(var(--hos-tone-rgb), 0.3);
+}
+
+.hos-datepicker__nav {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.16);
+  border-radius: 10px;
+  background: rgba(3, 10, 16, 0.55);
+  color: rgba(186, 214, 232, 0.7);
+  font: 600 1.15rem/1 var(--hos-font-mono);
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.hos-datepicker__nav:hover {
+  color: var(--hos-tone);
+  border-color: rgba(var(--hos-tone-rgb), 0.45);
+  background: rgba(var(--hos-tone-rgb), 0.1);
+}
+
+.hos-datepicker__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.hos-datepicker__weekdays span {
+  text-align: center;
+  font-family: var(--hos-font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: rgba(140, 168, 184, 0.45);
+  padding: 4px 0;
+}
+
+.hos-datepicker__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.hos-datepicker__day {
+  aspect-ratio: 1;
+  min-height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(241, 247, 251, 0.88);
+  font: 500 0.78rem/1 var(--hos-font-mono);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.hos-datepicker__day:hover {
+  background: rgba(var(--hos-tone-rgb), 0.12);
+  color: var(--hos-tone);
+}
+
+.hos-datepicker__day.is-out {
+  color: rgba(186, 214, 232, 0.28);
+}
+
+.hos-datepicker__day.is-today:not(.is-selected) {
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-tone-rgb), 0.45);
+  color: var(--hos-tone);
+}
+
+.hos-datepicker__day.is-selected {
+  color: #041018;
+  background: var(--hos-grad-tone);
+  box-shadow: 0 4px 12px rgba(var(--hos-tone-rgb), 0.28);
+}
+
+.hos-datepicker__day.is-selected.is-out {
+  color: #041018;
+  opacity: 0.72;
+}
+
+.hos-datepicker__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(var(--hos-tone-rgb), 0.1);
+}
+
+.hos-datepicker__chip {
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: rgba(3, 10, 16, 0.45);
+  color: rgba(186, 214, 232, 0.62);
+  font: 600 0.68rem/1 var(--hos-font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.hos-datepicker__chip:hover {
+  color: var(--hos-tone);
+  border-color: rgba(var(--hos-tone-rgb), 0.4);
+  background: rgba(var(--hos-tone-rgb), 0.1);
+}
+
+/* ── 动作与按钮 ─────────────────────────────────────────────── */
+
+.hos-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.hos-panel button,
+.hos-modal button {
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    filter 0.18s ease,
+    opacity 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.hos-panel button:active:not(:disabled),
+.hos-modal button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.hos-panel button:disabled,
+.hos-modal button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* 主/次按钮同时服务 <button> 与 <a>（「返回登录」这类跳转语义上就是链接，不该做成按钮）。
+   display / 居中 / 去下划线必须写在这条共享规则里：只给 <button> 写，同一个类名挂到 <a>
+   上会退化成一坨左对齐、带下划线的普通链接。 */
+.hos-btn-primary,
+.hos-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 12px;
+}
+
+/* 主按钮：高光扫过（::after）是它唯一的动效，4.8s 一轮，避免抢注意力。 */
+.hos-btn-primary {
+  position: relative;
+  overflow: hidden;
+  flex: 1 1 100%;
+  min-height: 48px;
+  color: #041018;
+  font: 700 0.95rem/1 var(--hos-font-ui);
+  background: var(--hos-grad-tone);
+  box-shadow:
+    0 12px 28px rgba(var(--hos-tone-rgb), 0.28),
+    0 0 0 1px rgba(var(--hos-tone-rgb), 0.28) inset;
+}
+
+.hos-btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.35) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: hosSheen 4.8s ease-in-out infinite;
+}
+
+@keyframes hosSheen {
+  0%,
+  60%,
+  100% {
+    transform: translateX(-120%);
+  }
+  75% {
+    transform: translateX(120%);
+  }
+}
+
+.hos-btn-primary:hover:not(:disabled) {
+  background: var(--hos-grad-tone-hover);
+}
+
+.hos-btn-ghost {
+  flex: 1 1 auto;
+  min-height: 42px;
+  padding: 0 14px;
+  color: rgba(210, 232, 242, 0.9);
+  font: 600 0.86rem/1 var(--hos-font-ui);
+  background: rgba(var(--hos-tone-rgb), 0.06);
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
+}
+
+.hos-btn-ghost:hover:not(:disabled) {
+  background: rgba(var(--hos-tone-rgb), 0.12);
+  border-color: rgba(var(--hos-tone-rgb), 0.35);
+  color: var(--hos-ink);
+}
+
+/* ── 状态文案与告警 ─────────────────────────────────────────── */
+
+/* 默认中性可见，由 .is-ok / .is-err 上色。
+   主项目入口页只往里写错误，所以那边的 #message 直接带 is-err。 */
+.hos-msg {
+  min-height: 0;
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: rgba(186, 214, 232, 0.72);
+}
+
+.hos-msg:empty {
+  display: none;
+}
+
+.hos-msg:not(:empty) {
+  min-height: 1.25em;
+  margin-top: 0;
+}
+
+.hos-msg.is-ok {
+  color: var(--hos-ok);
+}
+
+.hos-msg.is-err {
+  color: var(--hos-err);
+}
+
+/* 非报错的状态说明（授权状态、重连进度）：比 .hos-panel__desc 更像正文。 */
+.hos-status {
+  margin: 0;
+  color: rgba(186, 214, 232, 0.66);
+  font-size: var(--hos-fs-body-sm);
+  line-height: 1.65;
+  letter-spacing: 0.03em;
+}
+
+/* 表单内的整块说明条（比 .hos-msg 更重）：授权找回提示、添加到主屏幕说明。
+   暖光是「待办 / 提醒」的语气，与青色主控区分开。 */
+.hos-notice {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--hos-lumen-rgb), 0.35);
+  border-radius: 12px;
+  background: rgba(var(--hos-lumen-rgb), 0.08);
+  color: var(--hos-lumen);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+/* 状态色的语义层。同一行状态文字在「已激活 / 等待中 / 异常」时曾经长得一模一样，
+   得读完整句才知道现在能不能进去 —— 颜色是唯一先于文字到达眼睛的通道
+   （绿 = 通了、暖光 = 等着、珊瑚 = 挡住了）。
+   只在带上色调类时生效：不写类就仍是原来的中性灰，未接入的页面不受影响。 */
+.hos-status.hos-tone--eco,
+.hos-panel__desc.hos-tone--eco {
+  color: var(--hos-eco);
+}
+
+.hos-status.hos-tone--lumen,
+.hos-panel__desc.hos-tone--lumen {
+  color: var(--hos-lumen);
+}
+
+.hos-status.hos-tone--alert,
+.hos-panel__desc.hos-tone--alert {
+  color: var(--hos-alert);
+}
+
+/* 提示条默认暖光（「待办 / 提醒」的语气）。异常态连同描边与底色一起换成珊瑚：
+   同一条提示，颜色说明它是「提醒你去做」还是「已经挡住路了」。 */
+.hos-notice.hos-tone--alert {
+  border-color: rgba(var(--hos-alert-rgb), 0.35);
+  background: rgba(var(--hos-alert-rgb), 0.08);
+  color: var(--hos-alert);
+}
+
+.hos-notice.hos-tone--eco {
+  border-color: rgba(var(--hos-eco-rgb), 0.35);
+  background: rgba(var(--hos-eco-rgb), 0.08);
+  color: var(--hos-eco);
+}
+
+/* 坞底的换页提示（「没有账号？注册」「已有账号？登录」）。 */
+.hos-switch {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(var(--hos-tone-rgb), 0.1);
+  color: rgba(186, 214, 232, 0.5);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.hos-switch a {
+  color: var(--hos-tone);
+  text-decoration: none;
+}
+
+.hos-switch a:hover {
+  text-decoration: underline;
+}
+
+/* 无底色的小文字动作（坞脚的「退出本机登录」「管理员重新激活」）。
+   不做成 .hos-btn-ghost 是因为它要待在居中排版的坞脚里：那套按钮带
+   flex: 1 1 auto 与 42px 最小高度，放进 .hos-panel__copy 会被拉成一条横杠。 */
+.hos-text-button {
+  flex: 0 0 auto;
+  align-self: center;
+  min-height: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(186, 214, 232, 0.5);
+  font: 500 0.78rem/1.4 var(--hos-font-ui);
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease;
+}
+
+.hos-text-button:hover {
+  color: var(--hos-tone);
+  background: rgba(var(--hos-tone-rgb), 0.08);
+}
+
+/* ── 结果弹窗 ───────────────────────────────────────────────── */
+
+.hos-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+.hos-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hos-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 10, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.hos-modal__card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 560px);
+  max-height: min(86vh, 720px);
+  overflow: auto;
+  padding: 26px 26px 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.28);
+  background: linear-gradient(165deg, rgba(12, 26, 40, 0.94) 0%, rgba(8, 14, 22, 0.97) 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 48px rgba(var(--hos-tone-rgb), 0.12),
+    0 28px 80px rgba(0, 0, 0, 0.55);
+  transform: translateY(12px) scale(0.98);
+  transition: transform 0.28s var(--hos-ease);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--hos-tone-rgb), 0.28) transparent;
+}
+
+.hos-modal.is-open .hos-modal__card {
+  transform: translateY(0) scale(1);
+}
+
+.hos-modal__card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(var(--hos-tone-rgb), 0.55),
+    rgba(var(--hos-tone-rgb), 0.95),
+    rgba(var(--hos-tone-rgb), 0.55),
+    transparent
+  );
+}
+
+.hos-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.hos-modal__kicker {
+  margin: 0 0 6px;
+  font-family: var(--hos-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--hos-ok);
+}
+
+.hos-modal__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.hos-modal__close {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--hos-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.hos-modal__close:hover {
+  color: var(--hos-ink);
+  border-color: rgba(var(--hos-tone-rgb), 0.3);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.hos-modal .hos-control {
+  margin-top: 0;
+}
+
+.hos-modal textarea {
+  min-height: 150px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.hos-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.hos-modal__actions .hos-btn-primary {
+  flex: 1 1 140px;
+  min-height: 44px;
+}
+
+.hos-modal__tip {
+  margin: 14px 0 0;
+  color: var(--hos-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.hos-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.hos-meta-pill {
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+  color: rgba(186, 214, 232, 0.82);
+  font-family: var(--hos-font-mono);
+  font-size: 0.7rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hos-meta-pill strong {
+  color: var(--hos-tone);
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+/* 金额：收银台 / 订单确认里的视觉焦点，等宽数字比 UI 字体更像「账单」。
+   cqw 按 .hos-page 解析（它是容器），窄屏下 dock 占满整屏所以不会缩得离谱。 */
+.hos-amount {
+  margin: 0;
+  font-family: var(--hos-font-mono);
+  font-size: clamp(26px, 5.5cqw, 38px);
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: var(--hos-tone);
+  text-shadow: 0 0 26px rgba(var(--hos-tone-rgb), 0.3);
+}
+
+/* 提交中：按钮自己转一圈，不需要额外的 spinner 元素。
+   限定在两种主/次按钮上，不写成裸 `.is-loading::after` —— 那会让任何人给
+   一个元素挂上这个类名就凭空多出一个伪元素。 */
+.hos-btn-primary.is-loading,
+.hos-btn-ghost.is-loading {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.hos-btn-primary.is-loading::after,
+.hos-btn-ghost.is-loading::after {
+  content: '';
+  /* 逐个把 .hos-btn-primary::after 那层高光扫过的定位/尺寸复位。少了这几行，转圈会因为
+     继承 position: absolute + inset: 0 变成盖满整颗按钮的大圆环（高光规则的特异性低，
+     但它没被覆盖的属性依然生效）。 */
+  position: static;
+  inset: auto;
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin: 0 0 0 0.5em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  background: none;
+  box-shadow: none;
+  transform: none;
+  vertical-align: middle;
+  animation: hosSpin 0.6s linear infinite;
+}
+
+@keyframes hosSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 坞脚 ───────────────────────────────────────────────────── */
+
+.hos-panel__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(var(--hos-tone-rgb), 0.1);
+  text-align: center;
+  font-family: var(--hos-font-ui);
+  font-size: var(--hos-fs-micro);
+  letter-spacing: 0.06em;
+  line-height: 1.55;
+  color: rgba(186, 214, 232, 0.55);
+}
+
+.hos-panel__meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--hos-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(186, 214, 232, 0.4);
+}
+
+.hos-panel__meta-sep {
+  width: 1px;
+  height: 10px;
+  background: rgba(186, 214, 232, 0.18);
+}
+
+.hos-panel__copy p {
+  margin: 0;
+  letter-spacing: 0.08em;
+  color: rgba(186, 214, 232, 0.42);
+}
+
+/* ── 窄屏 ───────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .hos-panel {
+    max-height: none;
+    padding: 30px 22px 18px;
+  }
+
+  .hos-panel h1,
+  .hos-panel h2 {
+    font-size: 26px;
+    letter-spacing: 0.1em;
+  }
+
+  .hos-row-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hos-btn-primary::after,
+  .hos-hub__scan {
+    animation: none;
+  }
+
+  /* 提交中的转圈不被上面那条覆盖（.hos-btn-primary.is-loading::after 的特异性更高），
+     所以单独处理：降速而不是停掉 —— 停掉只剩一个带缺口的圆环，看起来像界面卡死了。 */
+  .hos-btn-primary.is-loading::after,
+  .hos-btn-ghost.is-loading::after {
+    animation-duration: 1.6s;
+  }
+}

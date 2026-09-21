@@ -2,16 +2,58 @@
   站内统一确认框样式（配合 /static/shared/ui-confirm.js）。
 
   自包含：不依赖 app.css / renderer.css 的主题变量，编辑器与展示页都能用。
-  配色对齐编辑器深色弹窗（#1a2026 面、#f2a20d 强调、危险红）。
+
+  自包含**不等于**自带一套配色。本文件原来把编辑器当时的调色板抄了一遍
+  （#1a2026 面、#303840 线、#e8ecef 字、#f2a20d 强调），八个令牌抄成四十个字面量：
+  编辑器换色之后，确认框就成了唯一一处还停在旧配色上的界面 —— 而它偏偏是
+  破坏性操作的最后一道关，最容易被人盯着看。
+
+  现在每个色值都写成 `var(<调色板令牌>, <同值字面量>)`：
+   - 页面加载了场景调色板（index.html / display.html / 3d-studio.html 都加载）→ 跟着调色板走；
+   - 页面没加载（本文件由 ui-confirm.js 动态注入，调用方不受控）→ 回落到字面量。
+  回落值必须与令牌同值，它不是「备用配色」，只是调色板不在场时的同一枚色。
+  改配色时两边一起改，`tools/check_scene_sync.mjs` 不覆盖这里（本文件不参与镜像），
+  所以上面这句提醒就是这条约束的唯一保障。
 */
 
 .ui-confirm-dialog {
+  /* 层级：panel 最暗（陷进去）< heading < 对话框本体最亮（浮起来）。
+     与商店 / 后台的「画布 → 卡片 → 浮层」同一套夜空族三级分层。 */
+  --uc-surface: var(--hos-sky-high, #16263c);
+  --uc-surface-soft: var(--hos-sky-mid, #0d1728);
+  --uc-surface-inset: var(--hos-sky-deep, #050912);
+  --uc-text: var(--hos-ink, #f1f7fb);
+  --uc-text-dim: var(--hos-muted, rgba(186, 214, 232, 0.58));
+
+  /* 调色板只提供半透明色的**通道三元组**（--hos-lumen-rgb），没有 -soft / -line 这类
+     成品令牌（那是商店 theme.css 的 --hb-lumen-soft 一层的职责）。这里按本组件需要的
+     alpha 现场派生，并把字面量整串写进 var() 的回落位。 */
+  --uc-line: rgba(var(--hos-sky-haze-rgb, 36, 57, 90), 0.75);
+  --uc-line-strong: var(--hos-sky-haze, #24395a);
+
+  --uc-accent: var(--hos-lumen, #ffb86e);
+  --uc-accent-strong: var(--hos-lumen-bright, #ffd9a8);
+  /* 面板里的次级文字（原来是 #d4b57a / #a8925f 这类压暗的暖色）：
+     直接给亮色会太跳，压到 0.8 才回到与正文同一层的观感。 */
+  --uc-accent-dim: rgba(var(--hos-lumen-rgb, 255, 184, 110), 0.8);
+  --uc-accent-line: rgba(var(--hos-lumen-rgb, 255, 184, 110), 0.32);
+  --uc-accent-soft: rgba(var(--hos-lumen-rgb, 255, 184, 110), 0.13);
+
+  --uc-danger: var(--hos-alert, #f07a7e);
+  --uc-danger-strong: var(--hos-alert-bright, #f5a3a6);
+  --uc-danger-line: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.34);
+  --uc-danger-soft: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.13);
+  --uc-danger-dim: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.72);
+  --uc-danger-faint: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.6);
+
+  --uc-backdrop: rgba(var(--hos-sky-deep-rgb, 5, 9, 18), 0.72);
+
   width: min(420px, calc(100vw - 40px));
   padding: 0;
-  border: 1px solid #3a444c;
+  border: 1px solid var(--uc-line);
   border-radius: 9px;
-  color: #e8ecef;
-  background: #1a2026;
+  color: var(--uc-text);
+  background: var(--uc-surface);
   box-shadow: 0 30px 100px #00000094;
   font:
     12px/1.45 Inter,
@@ -26,7 +68,7 @@
 }
 
 .ui-confirm-dialog::backdrop {
-  background: #05080bb8;
+  background: var(--uc-backdrop);
   backdrop-filter: blur(4px);
 }
 
@@ -35,23 +77,23 @@
   align-items: center;
   justify-content: space-between;
   padding: 18px 20px;
-  border-bottom: 1px solid #303840;
-  background: #171d22;
+  border-bottom: 1px solid var(--uc-surface-inset);
+  background: var(--uc-surface-soft);
 }
 
 .ui-confirm-dialog__heading span {
-  color: #f2a20d;
+  color: var(--uc-accent);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.15em;
 }
 
 .ui-confirm-dialog[data-tone="danger"] .ui-confirm-dialog__heading span {
-  color: #df7772;
+  color: var(--uc-danger);
 }
 
 .ui-confirm-dialog[data-tone="warning"] .ui-confirm-dialog__heading span {
-  color: #f0c56c;
+  color: var(--uc-accent-strong);
 }
 
 .ui-confirm-dialog__heading h2 {
@@ -64,19 +106,19 @@
   width: 32px;
   min-height: 32px;
   padding: 0;
-  border: 1px solid #39424a;
+  border: 1px solid var(--uc-line);
   border-radius: 50%;
-  color: #dce1e5;
-  background: #20272e;
+  color: var(--uc-text);
+  background: var(--uc-surface-soft);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
 }
 
 .ui-confirm-dialog__close:hover {
-  border-color: #515d67;
-  background: #293139;
-  color: #fff;
+  border-color: var(--uc-line-strong);
+  background: var(--uc-surface);
+  color: var(--uc-text);
 }
 
 .ui-confirm-dialog__body {
@@ -87,54 +129,54 @@
 
 .ui-confirm-dialog__panel {
   padding: 12px;
-  border: 1px solid #35404a;
+  border: 1px solid var(--uc-line);
   border-radius: 6px;
-  color: #aeb8bf;
-  background: #151b20;
+  color: var(--uc-text-dim);
+  background: var(--uc-surface-inset);
 }
 
 .ui-confirm-dialog__panel[data-tone="danger"] {
-  border-color: rgba(205, 87, 82, 0.34);
-  color: #dca3a0;
-  background: #cd575212;
+  border-color: var(--uc-danger-line);
+  color: var(--uc-danger-dim);
+  background: var(--uc-danger-soft);
 }
 
 .ui-confirm-dialog__panel[data-tone="warning"] {
-  border-color: rgba(242, 162, 13, 0.32);
-  color: #d4b57a;
-  background: #f2a20d0e;
+  border-color: var(--uc-accent-line);
+  color: var(--uc-accent-dim);
+  background: var(--uc-accent-soft);
 }
 
 .ui-confirm-dialog__panel strong {
   display: block;
-  color: #e8ecef;
+  color: var(--uc-text);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.55;
 }
 
 .ui-confirm-dialog__panel[data-tone="danger"] strong {
-  color: #f0b4b1;
+  color: var(--uc-danger-strong);
 }
 
 .ui-confirm-dialog__panel[data-tone="warning"] strong {
-  color: #f0c56c;
+  color: var(--uc-accent-strong);
 }
 
 .ui-confirm-dialog__panel p {
   margin: 6px 0 0;
-  color: #89949d;
+  color: var(--uc-text-dim);
   font-size: 10px;
   line-height: 1.65;
   white-space: pre-line;
 }
 
 .ui-confirm-dialog__panel[data-tone="danger"] p {
-  color: #a87876;
+  color: var(--uc-danger-faint);
 }
 
 .ui-confirm-dialog__panel[data-tone="warning"] p {
-  color: #a8925f;
+  color: var(--uc-accent-dim);
 }
 
 .ui-confirm-dialog__actions {
@@ -146,42 +188,45 @@
 .ui-confirm-dialog__actions button {
   min-height: 32px;
   padding: 6px 11px;
-  border: 1px solid #39424a;
+  border: 1px solid var(--uc-line);
   border-radius: 5px;
-  color: #dce1e5;
-  background: #20272e;
+  color: var(--uc-text);
+  background: var(--uc-surface-soft);
   font: inherit;
   cursor: pointer;
 }
 
 .ui-confirm-dialog__actions button:hover {
-  border-color: #515d67;
-  background: #293139;
-  color: #fff;
+  border-color: var(--uc-line-strong);
+  background: var(--uc-surface);
+  color: var(--uc-text);
 }
 
+/* 主操作 / 提醒操作共用暖光实底。深色字压亮底，所以字色取夜空最深一档。 */
 .ui-confirm-dialog__accept.is-primary {
-  border-color: #f4a719;
-  color: #1e1607;
-  background: linear-gradient(180deg, #ffb82e, #ef9900);
+  border-color: var(--hos-lumen-deep, #d98836);
+  color: var(--hos-sky-deep, #050912);
+  background: var(--hos-grad-lumen, linear-gradient(180deg, #ffd9a8, #d98836));
   font-weight: 700;
 }
 
+/* 危险操作：珊瑚红实底。改语义色之后仍是「红得起来」的那一档 ——
+   用 --hos-alert 本身当底、亮一档当描边，不再各写四个红。 */
 .ui-confirm-dialog__accept.is-danger {
-  border-color: #b7514e;
-  color: #fff0ef;
-  background: #9d403d;
+  border-color: var(--uc-danger-line);
+  color: var(--hos-ink, #f1f7fb);
+  background: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.55);
   font-weight: 700;
 }
 
 .ui-confirm-dialog__accept.is-danger:hover {
-  border-color: #e17873;
-  background: #b94c48;
+  border-color: var(--uc-danger-strong);
+  background: rgba(var(--hos-alert-rgb, 240, 122, 126), 0.72);
 }
 
 .ui-confirm-dialog__accept.is-warning {
-  border-color: #f4a719;
-  color: #1e1607;
-  background: linear-gradient(180deg, #ffb82e, #ef9900);
+  border-color: var(--hos-lumen-deep, #d98836);
+  color: var(--hos-sky-deep, #050912);
+  background: var(--hos-grad-lumen, linear-gradient(180deg, #ffd9a8, #d98836));
   font-weight: 700;
 }

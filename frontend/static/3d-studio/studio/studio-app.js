@@ -14,71 +14,72 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=20260920131301";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=20260920131301";
-import { apiErrorMessage } from "../../utils/api-error.js?v=20260920131301";
+} from "../loaders/studio-curtain-track.js?v=20260921090405";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=20260921090405";
+import { apiErrorMessage } from "../../utils/api-error.js?v=20260921090405";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "../materials/studio-surface-textures.js?v=20260920131301";
-import { createOverviewStack } from "./studio-overview-stack.js?v=20260920131301";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=20260920131301";
+} from "../materials/studio-surface-textures.js?v=20260921090405";
+import { createOverviewStack } from "./studio-overview-stack.js?v=20260921090405";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=20260921090405";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=20260920131301";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=20260920131301";
-import { compactRuntimeFurniture } from "../loaders/studio-runtime-furniture.js?v=20260920131301";
-import { createReflectionDetail } from "../reflection/studio-reflection-detail.js?v=20260920131301";
-import { createFloorTransition } from "./studio-floor-transition.js?v=20260920131301";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=20260920131301";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=20260920131301";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260920131301";
+} from "./studio-camera-constraints.js?v=20260921090405";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=20260921090405";
+import { compactRuntimeFurniture } from "../loaders/studio-runtime-furniture.js?v=20260921090405";
+import { createReflectionDetail } from "../reflection/studio-reflection-detail.js?v=20260921090405";
+import { createFloorTransition } from "./studio-floor-transition.js?v=20260921090405";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=20260921090405";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=20260921090405";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=20260921090405";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=20260921090405";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances,
   mergeWallBands
-} from "../materials/studio-wall-materials.js?v=20260920131301";
+} from "../materials/studio-wall-materials.js?v=20260921090405";
 import {
   WARM_WOOD_STYLE,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=20260920131301";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=20260920131301";
+} from "./studio-scene-style.js?v=20260921090405";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=20260921090405";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=20260920131301";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=20260920131301";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=20260920131301";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=20260920131301";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=20260920131301";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=20260920131301";
+} from "../../bridge/render-cache.js?v=20260921090405";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=20260921090405";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=20260921090405";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=20260921090405";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=20260921090405";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=20260921090405";
 // 生产控制台的诊断输出与「开发 / 诊断入口」开关统一走 utils/debug-log.js：
 // debugLog 默认静默（只在 ?debug=1 时输出），isFrontendDebugMode 用来把测试钩子拦在生产之外。
-import { debugLog, isFrontendDebugMode } from "../../utils/debug-log.js?v=20260920131301";
+import { debugLog, isFrontendDebugMode } from "../../utils/debug-log.js?v=20260921090405";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=20260920131301";
+import { apiFetch } from "../../utils/api-fetch.js?v=20260921090405";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260920131301";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=20260921090405";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260920131301";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=20260920131301";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=20260921090405";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=20260921090405";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=20260920131301";
+} from "../../bridge/light-motion.js?v=20260921090405";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -118,7 +119,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=20260920131301";
+} from "../plan/geometry.js?v=20260921090405";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -127,7 +128,7 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=20260920131301";
+} from "../export/export-utils.js?v=20260921090405";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -135,25 +136,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=20260920131301";
-import { reorderFloors } from "../plan/floor-order.js?v=20260920131301";
-import { syncControlValue } from "./ui-controls.js?v=20260920131301";
+} from "../export/export-presets.js?v=20260921090405";
+import { reorderFloors } from "../plan/floor-order.js?v=20260921090405";
+import { syncControlValue } from "./ui-controls.js?v=20260921090405";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=20260920131301";
+} from "./studio-widgets.js?v=20260921090405";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=20260920131301";
+} from "../loaders/studio-external-models.js?v=20260921090405";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=20260920131301";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260920131301";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=20260920131301";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=20260920131301";
+} from "../plan/studio-plan-drawing.js?v=20260921090405";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=20260921090405";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=20260921090405";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=20260921090405";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -166,7 +167,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=20260920131301";
+} from "../loaders/studio-normalization.js?v=20260921090405";
 window.__haBridgeStudioModuleVersion =
   "20260904-local-shadow-edge-v6-depth-precision-v1-model-load-state-v3-floor-scope-v1-ground-grid-v3-depth-fade-v2-local-shadow-depth-v1-export-shadow-quality-v1-base-light-entry-v1-auto-diagram-preview-hd-v1-auto-diagram-floor-v1-20260905-first-light-prewarm-v3-20260905-orbit-architecture-center-v1";
 /**
@@ -176,6 +177,46 @@ window.__haBridgeStudioModuleVersion =
  */
 const selectElement = selector => document.querySelector(selector);
 const isStageViewerMode = window.location.pathname === "/api/v1/modules/interaction3d/stage.html";
+
+/**
+ * 平面画布（2D planContext）取色。
+ *
+ * CanvasRenderingContext2D 只认具体色值，`ctx.strokeStyle = "var(--hos-accent)"` 会被
+ * 静默忽略（非法值直接丢弃，画笔保持上一次的颜色）—— 所以画布上的品牌色必须从
+ * CSS 变量里读出来。这里读的是 studio.css 的别名令牌（--accent / --accent-bright /
+ * --guide / --done），别名再指向 design/scene 那份全站调色板，改色只改设计源。
+ *
+ * 取一次就缓存：getComputedStyle 会强制一次样式解析，而这里是按帧调用的热路径
+ * （拖拽标定线时每帧重画十几个点）。令牌在一次页面生命周期内不会变，缓存安全。
+ *
+ * 20260921 之前这些位置写的是字面量（#ff9d2e 选中 / #43d2e6 吸附 / #76cfa1 闭合），
+ * 33 处；与入口页 / 商店的色板完全无关，工作室里是第三套橙。
+ */
+const canvasPaletteCache = new Map();
+function paletteColor(token) {
+  const cached = canvasPaletteCache.get(token);
+  if (cached !== undefined) return cached;
+  let resolved = "";
+  try {
+    resolved = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+  } catch {
+    /* 无 document（极少见的嵌入场景）：走下面的兜底 */
+  }
+  // 兜底写全站主控青：取值失败时画布上宁可是「对的颜色」而不是「上一次的颜色」。
+  const value = resolved || "#5fd4ff";
+  canvasPaletteCache.set(token, value);
+  return value;
+}
+
+/** 选中物 / 当前阶段 / 标定参考点。 */
+const PLAN_ACCENT = () => paletteColor("--accent");
+/** 选中物的高亮变体（预览中的窗、悬停项）。 */
+const PLAN_ACCENT_BRIGHT = () => paletteColor("--accent-bright");
+/** 吸附点 / 量测读数 / 窗默认描边。 */
+const PLAN_GUIDE = () => paletteColor("--guide");
+/** 闭合空间有效。 */
+const PLAN_DONE = () => paletteColor("--done");
+
 const isRegionLightingEnabled =
   isStageViewerMode && new URLSearchParams(location.search).get("lighting") === "region";
 const WALL_RUNTIME_PROFILE = "shader";
@@ -457,6 +498,9 @@ const exportCompletePathElement = selectElement("#export-complete-path");
 const studioShellElement = selectElement(".studio-shell");
 const detailsPanelElement = selectElement(".details-panel");
 const detailsResizerElement = selectElement("#details-resizer");
+/* 素材卡片必须先渲染：下面两行一次性抓走全部 [data-item-type] 与分组标题并据此绑事件，
+   晚于这里生成的卡片会「看得见、点不动」。数据表在 studio-asset-palette.js。 */
+renderStudioAssetPalette(selectElement("#asset-grid"));
 const assetCategoryButtons = [...document.querySelectorAll("[data-asset-category]")];
 const assetHeadingCategoryButtons = [...document.querySelectorAll("[data-asset-heading-category]")];
 const itemTypeButtons = [...document.querySelectorAll("[data-item-type]")];
@@ -1312,7 +1356,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=20260920131301"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=20260921090405"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -5324,7 +5368,7 @@ function drawPlanRailing(railing, railingOptions = {}) {
   const railingStrokeColor = railingOptions.preview
     ? "rgba(123, 220, 240, .72)"
     : isRailingSelected
-      ? "#ffaf46"
+      ? PLAN_ACCENT_BRIGHT()
       : "#8bd7e8";
   const railingOutlineWidthPx = Math.max(
     10,
@@ -5370,7 +5414,7 @@ function drawPlanDoor(door, doorOptions = {}) {
   const doorStrokeColor = doorOptions.preview
     ? "rgba(255, 189, 110, .76)"
     : isDoorSelected
-      ? "#ffaf46"
+      ? PLAN_ACCENT_BRIGHT()
       : ["solid", "double", "entry", "roller-shutter", "frame-only"].includes(doorType)
         ? "#edf2f7"
         : "#bfe9ff";
@@ -5413,7 +5457,7 @@ function drawPlanDoor(door, doorOptions = {}) {
       drawFloatingLabel(
         doorPlacement.center,
         "仅门框 · " + door.width.toFixed(2) + " m",
-        "#ffaf46"
+        PLAN_ACCENT_BRIGHT()
       );
     }
     return;
@@ -5464,7 +5508,7 @@ function drawPlanDoor(door, doorOptions = {}) {
       drawFloatingLabel(
         doorPlacement.center,
         "玻璃推拉门 · " + door.width.toFixed(2) + " m",
-        "#ffaf46"
+        PLAN_ACCENT_BRIGHT()
       );
     }
     return;
@@ -5528,7 +5572,7 @@ function drawPlanDoor(door, doorOptions = {}) {
       drawFloatingLabel(
         doorPlacement.center,
         "卷帘门 · " + door.width.toFixed(2) + " m",
-        "#ffaf46"
+        PLAN_ACCENT_BRIGHT()
       );
     }
     return;
@@ -5588,7 +5632,7 @@ function drawPlanDoor(door, doorOptions = {}) {
       drawFloatingLabel(
         doorPlacement.center,
         "入户门（常闭）· " + door.width.toFixed(2) + " m",
-        "#ffaf46"
+        PLAN_ACCENT_BRIGHT()
       );
     }
     return;
@@ -5624,7 +5668,7 @@ function drawPlanDoor(door, doorOptions = {}) {
       drawFloatingLabel(
         doorPlacement.center,
         "双开门 · " + door.width.toFixed(2) + " m",
-        "#ffaf46"
+        PLAN_ACCENT_BRIGHT()
       );
     }
     return;
@@ -5694,7 +5738,7 @@ function drawPlanDoor(door, doorOptions = {}) {
     drawFloatingLabel(
       doorPlacement.center,
       "" + (doorType === "glass" ? "玻璃门 · " : "") + door.width.toFixed(2) + " m",
-      "#ffaf46"
+      PLAN_ACCENT_BRIGHT()
     );
   }
 }
@@ -5713,7 +5757,7 @@ function drawPlanItem(itemToDraw) {
   planContext.translate(itemCenterScreen.x, itemCenterScreen.y);
   planContext.rotate((itemToDraw.rotation * Math.PI) / 180);
   planContext.fillStyle = itemToDraw.color + "c7";
-  planContext.strokeStyle = isItemSelected ? "#ff9d2e" : "rgba(234, 240, 244, .72)";
+  planContext.strokeStyle = isItemSelected ? PLAN_ACCENT() : "rgba(234, 240, 244, .72)";
   planContext.lineWidth = isItemSelected ? 2 : 1;
   if (itemToDraw.type === "flooropening") {
     planContext.fillStyle = "rgba(9, 17, 25, .55)";
@@ -6045,7 +6089,7 @@ function drawPlanItem(itemToDraw) {
       0,
       curtainTrack.length,
       isItemSelected ? 2 : 1.5,
-      isItemSelected ? "#ff9d2e" : "#b6c0ca"
+      isItemSelected ? PLAN_ACCENT() : "#b6c0ca"
     );
     for (const curtainPanel of curtainPanelRanges(
       curtainTrack,
@@ -6091,7 +6135,7 @@ function drawPlanItem(itemToDraw) {
         planContext.stroke();
       }
     };
-    planContext.strokeStyle = isItemSelected ? "#ff9d2e" : "rgba(234, 240, 244, .72)";
+    planContext.strokeStyle = isItemSelected ? PLAN_ACCENT() : "rgba(234, 240, 244, .72)";
     planContext.lineWidth = isItemSelected ? 2 : 1.5;
     planContext.beginPath();
     planContext.moveTo(-itemWidthPx * 0.5, 0);
@@ -6166,7 +6210,7 @@ function drawPlanItem(itemToDraw) {
     }
   } else if (itemToDraw.type === "aquarium") {
     planContext.fillStyle = "rgba(92, 174, 202, .25)";
-    planContext.strokeStyle = isItemSelected ? "#ff9d2e" : "rgba(178, 225, 238, .9)";
+    planContext.strokeStyle = isItemSelected ? PLAN_ACCENT() : "rgba(178, 225, 238, .9)";
     planContext.beginPath();
     planContext.rect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
     planContext.fill();
@@ -6389,7 +6433,7 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   } else if (itemToDraw.type === "glasspartition") {
     planContext.fillStyle = "rgba(169, 197, 211, .2)";
-    planContext.strokeStyle = isItemSelected ? "#ff9d2e" : "rgba(183, 218, 231, .82)";
+    planContext.strokeStyle = isItemSelected ? PLAN_ACCENT() : "rgba(183, 218, 231, .82)";
     planContext.beginPath();
     planContext.rect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
     planContext.fill();
@@ -6731,7 +6775,8 @@ function drawPlanItem(itemToDraw) {
     planContext.stroke();
   }
   if (isItemSelected) {
-    planContext.strokeStyle = "rgba(255, 157, 46, .9)";
+    // 选中框：与其余选中态同一枚令牌，不再写死「旧橙的 90%」。
+    planContext.strokeStyle = PLAN_ACCENT();
     planContext.lineWidth = 1;
     planContext.setLineDash([5, 3]);
     planContext.strokeRect(-itemWidthPx / 2, -itemDepthPx / 2, itemWidthPx, itemDepthPx);
@@ -6758,7 +6803,7 @@ function drawPlanItem(itemToDraw) {
       );
     }
     const rotationHandleTipY = -itemDepthPx / 2 - 17;
-    planContext.strokeStyle = "#ff9d2e";
+    planContext.strokeStyle = PLAN_ACCENT();
     planContext.beginPath();
     planContext.moveTo(0, -itemDepthPx / 2);
     planContext.lineTo(0, rotationHandleTipY + 4);
@@ -7224,8 +7269,8 @@ function renderPlanView() {
       width: 1
     });
     if (activeTool === "wall" || isPlanWallSelected) {
-      drawPlanPoint(planWall.start, isPlanWallSelected ? "#ff9d2e" : "#6c7c88", 3.5);
-      drawPlanPoint(planWall.end, isPlanWallSelected ? "#ff9d2e" : "#6c7c88", 3.5);
+      drawPlanPoint(planWall.start, isPlanWallSelected ? PLAN_ACCENT() : "#6c7c88", 3.5);
+      drawPlanPoint(planWall.end, isPlanWallSelected ? PLAN_ACCENT() : "#6c7c88", 3.5);
     }
     if (isPlanWallSelected && multiSelection.length <= 1) {
       drawFloatingLabel(
@@ -7253,7 +7298,7 @@ function renderPlanView() {
       cap: "butt"
     });
     drawPlanLine(planWindowPlacement.start, planWindowPlacement.end, {
-      color: isPlanWindowSelected ? "#ffaf46" : "#43d2e6",
+      color: isPlanWindowSelected ? PLAN_ACCENT_BRIGHT() : PLAN_GUIDE(),
       width: isPlanWindowSelected ? 5 : 3,
       cap: "butt"
     });
@@ -7281,14 +7326,14 @@ function renderPlanView() {
           y: planWindowPlacement.center.y + windowDividerNormal.y * windowDividerHalfWidthPx
         },
         {
-          color: isPlanWindowSelected ? "#ffaf46" : "rgba(224, 250, 255, .9)",
+          color: isPlanWindowSelected ? PLAN_ACCENT_BRIGHT() : "rgba(224, 250, 255, .9)",
           width: 1.5,
           cap: "butt"
         }
       );
     }
     if (isPlanWindowSelected && multiSelection.length <= 1) {
-      drawFloatingLabel(planWindowPlacement.center, planWindow.width.toFixed(2) + " m", "#43d2e6");
+      drawFloatingLabel(planWindowPlacement.center, planWindow.width.toFixed(2) + " m", PLAN_GUIDE());
     }
   }
   for (const planDoor of activeScene.doors) {
@@ -7339,8 +7384,8 @@ function renderPlanView() {
       width: 2,
       dash: [7, 5]
     });
-    drawPlanPoint(calibrationReference.start, "#ff9d2e", 3.5);
-    drawPlanPoint(calibrationReference.end, "#ff9d2e", 3.5);
+    drawPlanPoint(calibrationReference.start, PLAN_ACCENT(), 3.5);
+    drawPlanPoint(calibrationReference.end, PLAN_ACCENT(), 3.5);
     drawFloatingLabel(
       {
         x: (calibrationReference.start.x + calibrationReference.end.x) / 2,
@@ -7352,24 +7397,24 @@ function renderPlanView() {
   }
   if (scalePreviewStart && scalePreviewCurrent) {
     drawPlanLine(scalePreviewStart, scalePreviewCurrent, {
-      color: "#ff9d2e",
+      color: PLAN_ACCENT(),
       width: 2,
       dash: [7, 5]
     });
-    drawPlanPoint(scalePreviewStart, "#ff9d2e");
-    drawPlanPoint(scalePreviewCurrent, "#ff9d2e");
+    drawPlanPoint(scalePreviewStart, PLAN_ACCENT());
+    drawPlanPoint(scalePreviewCurrent, PLAN_ACCENT());
   }
   if (scaleStartPoint && snapTarget) {
     const isClosingSpace = isSnapClosingSpace(snapTarget);
     drawPlanLine(scaleStartPoint, snapTarget.point, {
-      color: "#ff9d2e",
+      color: PLAN_ACCENT(),
       width: 2,
       dash: [7, 5]
     });
-    drawPlanPoint(scaleStartPoint, "#ff9d2e");
+    drawPlanPoint(scaleStartPoint, PLAN_ACCENT());
     drawPlanPoint(
       snapTarget.point,
-      isClosingSpace ? "#76cfa1" : snapTarget.kind ? "#43d2e6" : "#ff9d2e",
+      isClosingSpace ? PLAN_DONE() : snapTarget.kind ? PLAN_GUIDE() : PLAN_ACCENT(),
       isClosingSpace ? 5 : 3.5
     );
     const scaleDistanceMeters =
@@ -7383,11 +7428,11 @@ function renderPlanView() {
       "#ffb04a"
     );
     if (isClosingSpace) {
-      drawFloatingLabel(snapTarget.point, "点击闭合空间", "#76cfa1");
+      drawFloatingLabel(snapTarget.point, "点击闭合空间", PLAN_DONE());
     }
   } else if (snapTarget?.kind && ["wall", "scale"].includes(activeTool)) {
-    drawPlanPoint(snapTarget.point, "#43d2e6");
-    drawFloatingLabel(snapTarget.point, snapTarget.label, "#43d2e6");
+    drawPlanPoint(snapTarget.point, PLAN_GUIDE());
+    drawFloatingLabel(snapTarget.point, snapTarget.label, PLAN_GUIDE());
   }
   if (activeTool === "window" && windowSnapTarget) {
     const previewWindowRecord = {
@@ -26880,7 +26925,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/core/stage.js?v=20260920131301");
+        await import("/api/v1/modules/interaction3d/core/stage.js?v=20260921090405");
       mountStage(createStageController());
       return;
     }

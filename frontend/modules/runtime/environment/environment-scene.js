@@ -8,8 +8,8 @@
  * （模式开关 400ms，单材质淡入淡出 360ms）。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
-import { createEnvironmentHalos } from "./environment-halos.js?v=20260920131301";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921090405";
+import { createEnvironmentHalos } from "./environment-halos.js?v=20260921090405";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  */
@@ -563,7 +563,7 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
           entityStates instanceof Map ? entityStates.get(entityId) : entityStates?.[entityId];
         // 状态可能是事件包裹（newState）或就是 state 本身，两种形态都兼容。
         const state = resolveStateEntry(stateRecord, {});
-        const stateKey = String(state.state || "").toLowerCase();
+        const stateKey = stateTextOf(state);
         // off 也算「不活跃」，因此这里只排除空值与未知态；on / cool / heat 等都会命中色板。
         const isStateActive = !["", "off", "unknown", "unavailable"].includes(stateKey);
         const isSelected = materialBinding.id === selectedId;

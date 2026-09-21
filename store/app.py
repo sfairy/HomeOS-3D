@@ -15,6 +15,7 @@ from store import __version__
 from store.ops import incidents
 from store.api import admin as admin_api
 from store.api import alipay as alipay_api
+from store.api import appearance as appearance_api
 from store.api import license as license_api
 from store.api import pages as pages_api
 from store.api import setup as setup_api
@@ -37,6 +38,7 @@ from store.payments.sweeper import (
     sweep_status,
 )
 from store.core.bootstrap import ensure_default_products, ensure_default_settings
+from store.ops.appearance import AppearanceStore
 from store.ops.release_info import CURRENT_VERSION, ensure_current_release
 from store.security.request_security import (
     error_page_html,
@@ -268,6 +270,10 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.state.database = database
     app.state.license_authority = authority
     app.state.setup_guard = setup_guard
+    # 商店站点配色：一个 JSON 文件，没有迁移、也没有表。失败只退回默认配色 ——
+    # 配色是纯装饰，不该让商店起不来（那会把「改错了颜色」升级成「顾客打不开商店」）。
+    app.state.appearance = AppearanceStore(settings.appearance_path)
+    app.state.appearance.load()
 
     @app.middleware("http")
     async def require_same_origin_for_writes(request: Request, call_next):
@@ -352,8 +358,31 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
     app.include_router(store_api.router)
     app.include_router(alipay_api.router)
     app.include_router(admin_api.router)
+    app.include_router(appearance_api.router)
     app.include_router(setup_api.router)
     app.include_router(pages_api.router)
+
+    @app.get("/store-appearance.css", include_in_schema=False)
+    def appearance_stylesheet(request: Request) -> Response:
+        """商店站点配色样式表：内容就是当前配置展开出的 ``:root{…}``。
+
+        不需要登录：它只含颜色字面量，和 ``theme.css`` 一样是公开的设计系统资源，
+        而且要能跟在未登录也会看到的商店首页后面加载。
+
+        ``?v=`` 与 ETag 都在：URL 带版本时给一年强缓存（改配色 URL 就变），
+        不带时要求每次校验 —— 手敲地址看到的一定是当前值。
+        """
+        revision = app.state.appearance.revision
+        has_version = request.query_params.get("v") == revision
+        response = Response(
+            content=app.state.appearance.css(),
+            media_type="text/css",
+            headers={"ETag": f'"{revision}"'},
+        )
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable" if has_version else "no-cache"
+        )
+        return response
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:

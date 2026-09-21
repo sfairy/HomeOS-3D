@@ -47,24 +47,40 @@ export function formatLocalDate(displayOptions, dateValue = new Date()) {
   }
 }
 /**
- * 把时间点格式化成中文农历文案（形如「农历八月初六」）。
+ * 把时间点格式化成中文农历文案（形如「农历八月初十」）。
  * 依赖 Intl 中文农历历法；引擎缺失该历法时返回空串，由调用方隐藏这一行，而不是整个控件渲染失败。
+ * 不能直接用 format()：它对「日」会输出阿拉伯数字（如「八月10日」），不符合中文农历读法，
+ * 这里改成取部件后按农历口径重排日号。
  */
 export function formatLunarDate(dateSource = new Date()) {
   try {
-    // Intl 的中文农历历法在部分环境不可用，且输出的月份 / 日期之间可能夹空格，这里一次性去掉。
-    const lunarText = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
+    // Intl 的中文农历历法在部分环境不可用，先构造格式化器再确认历法真的落到了 chinese。
+    const lunarFormatter = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
       month: "long",
       day: "numeric"
-    })
-      .format(dateSource)
-      .replace(/\s+/g, "");
-    if (lunarText) {
-      // 不同运行时有的已经自带「农历」前缀，有的没有，统一补齐且不重复叠加。
-      return "农历" + lunarText.replace(/^农历/, "");
-    } else {
+    });
+    if (lunarFormatter.resolvedOptions().calendar !== "chinese") {
       return "";
     }
+    const lunarParts = lunarFormatter.formatToParts(dateSource);
+    const lunarMonthText = lunarParts.find(lunarPart => lunarPart.type === "month")?.value;
+    const lunarDayNumber = Number(lunarParts.find(lunarPart => lunarPart.type === "day")?.value);
+    // 月名缺失、日号不是 1-30 的整数都说明这个历法输出不可用，交给调用方隐藏。
+    if (!lunarMonthText || !Number.isInteger(lunarDayNumber) || lunarDayNumber < 1 || lunarDayNumber > 30) {
+      return "";
+    }
+    // 日号按农历读法重排：初一…初十 / 十一…十九 / 二十 / 廿一…廿九 / 三十。
+    const lunarDayText =
+      lunarDayNumber === 10
+        ? "初十"
+        : lunarDayNumber === 20
+          ? "二十"
+          : lunarDayNumber === 30
+            ? "三十"
+            : "" +
+              (lunarDayNumber < 10 ? "初" : lunarDayNumber < 20 ? "十" : "廿") +
+              "一二三四五六七八九"[lunarDayNumber % 10 - 1];
+    return "农历" + lunarMonthText + lunarDayText;
   } catch {
     // 历法不支持时静默降级：返回空串交由调用方隐藏这一行，而不是让整个控件渲染失败。
     return "";

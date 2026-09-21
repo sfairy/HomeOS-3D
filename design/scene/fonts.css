@@ -1,0 +1,54 @@
+/* HomeOS 入口页显示字体：本地自托管（canonical 源：design/scene/fonts.css）
+
+   为什么不用 Google Fonts 的 CSS：
+   1. 主应用的 CSP 是 `style-src 'self'`，外链样式表会被直接拦下；
+   2. 签发服务在卖家 NAS 上跑，离线/内网环境不能依赖外网字体；
+   3. 三端各自独立构建，字体必须随各自镜像分发。
+
+   只收 latin 子集（合计约 86 KB）：Exo 2 与 JetBrains Mono 在上游是可变字体，
+   一份文件覆盖多个字重；CJK 不下载，交给系统字体回退（见 page.css 的 --hos-font-cjk）。
+   unicode-range 与上游一致：不写的话浏览器会拿这套 latin-only 字体去试 CJK 码位，
+   白白多一次请求再逐字回退。
+
+   分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。 */
+
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/orbitron-700-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Exo 2 与 JetBrains Mono 是可变字体：一份文件覆盖整段字重，别按字重拆成多份下载。 */
+@font-face {
+  font-family: 'Exo 2';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./fonts/exo-2-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url('./fonts/jetbrains-mono-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Share Tech Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/share-tech-mono-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

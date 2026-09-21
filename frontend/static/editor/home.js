@@ -8,20 +8,20 @@
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260920131301";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260921090405";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260920131301";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920131301";
+import { apiFetch } from "../utils/api-fetch.js?v=20260921090405";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260921090405";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=20260920131301";
+} from "../renderer/core/renderer.js?v=20260921090405";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../renderer/core/registry.js?v=20260920131301";
+} from "../renderer/core/registry.js?v=20260921090405";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -29,7 +29,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=20260920131301";
+} from "../templates/component-templates.js?v=20260921090405";
 import {
   clone,
   newId,
@@ -39,32 +39,36 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260920131301";
-import { clampNumber } from "../utils/numbers.js?v=20260920131301";
-import { mdiIconUrl } from "../utils/icon-url.js?v=20260920131301";
-import { formatZhDateTime } from "../utils/datetime.js?v=20260920131301";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260920131301";
-// 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`：
+} from "./editor-utils.js?v=20260921090405";
+import { clampNumber } from "../utils/numbers.js?v=20260921090405";
+import { mdiIconUrl } from "../utils/icon-url.js?v=20260921090405";
+import { formatZhDateTime } from "../utils/datetime.js?v=20260921090405";
+import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260921090405";
+// 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
-import { resolveStateEntry } from "../utils/state-entry.js?v=20260920131301";
+import { resolveStateEntry, stateTextOf } from "../utils/state-entry.js?v=20260921090405";
 import {
   hexColorOrEmpty,
+  paletteColor,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=20260920131301";
+} from "../utils/colors.js?v=20260921090405";
+import { positionFloatingMenu } from "../shared/menu-positioning.js?v=20260921090405";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=20260920131301";
+} from "../shared/popup-layout.js?v=20260921090405";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260920131301";
+} from "./dashboard-resize.js?v=20260921090405";
+// 导图底图分辨率必须与控件宽高比一致，否则底图在预览里会被拉伸、位置对不上（见模块注释）。
+import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=20260921090405";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260920131301";
+} from "./component-page-copy.js?v=20260921090405";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -76,25 +80,29 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=20260920131301";
-import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260920131301";
-import { createButtonSound } from "../shared/sound-effects.js?v=20260920131301";
+} from "../shared/related-entities.js?v=20260921090405";
+import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260921090405";
+import { createButtonSound } from "../shared/sound-effects.js?v=20260921090405";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260920131301";
-import { confirmAction } from "../shared/ui-confirm.js?v=20260920131301";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260920131301";
+} from "./editor-dialogs.js?v=20260921090405";
+import { confirmAction } from "../shared/ui-confirm.js?v=20260921090405";
+// 授权状态文案与授权页、连接状态页共用同一份：状态码与文案的对应关系分散在
+// 三处必然漂移，用户在编辑器、授权页、恢复页看到对同一状态的不同解释就不知道该信哪个。
+// 该模块只在页面里存在 #license-recovery 时自举定时器（编辑器里没有这个节点，不会挂上轮询）。
+import { licenseMessage } from "../auth/license-recovery.js?v=20260921090405";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260921090405";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=20260920131301";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260920131301";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260920131301";
-import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260920131301";
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260920131301";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260920131301";
+} from "./picker/editor-picker-pagination.js?v=20260921090405";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260921090405";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260921090405";
+import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260921090405";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260921090405";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260921090405";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -102,13 +110,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=20260920131301";
+} from "../shared/action-rules.js?v=20260921090405";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260920131301";
+} from "./component-tree.js?v=20260921090405";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -118,13 +126,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260920131301";
+} from "./editor-component-collections.js?v=20260921090405";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260920131301";
+} from "./editor-basic-inspectors.js?v=20260921090405";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -137,7 +145,7 @@ import {
   reorderedPopupModules,
   restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=20260920131301";
+} from "./editor-document-management.js?v=20260921090405";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -145,18 +153,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260920131301";
+} from "./editor-history.js?v=20260921090405";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=20260920131301";
-import { createLicenseCard } from "./license-card.js?v=20260920131301";
+} from "../3d-studio/loaders/studio-normalization.js?v=20260921090405";
+import { createLicenseCard } from "./license-card.js?v=20260921090405";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=20260920131301";
+} from "../bridge/editor.js?v=20260921090405";
 /**
  * 按选择器取单个 DOM 节点的简写。不做缓存与空值兜底：调用处只在模块加载时一次性缓存静态节点，
  * querySelector 找不到说明模板出错，返回 null 由使用处自行判断。
@@ -214,6 +222,8 @@ const licenseOpenButtonElement = findElement("#license-open");
 const licenseDialogElement = findElement("#license-dialog");
 const licenseCloseButtonElement = findElement("#license-close");
 const licenseReactivateButtonElement = findElement("#license-reactivate");
+const licenseDialogRetryButtonElement = findElement("#license-dialog-retry");
+const licenseRetryMessageElement = findElement("#license-retry-message");
 const licenseFormElement = findElement("#license-form");
 const licenseMessageElement = findElement("#license-message");
 const licenseDetailIndicatorElement = findElement("#license-detail-indicator");
@@ -1436,29 +1446,19 @@ function closeCustomSelectMenu(customSelectRecord = openCustomSelect) {
   }
 }
 /**
- * 把自建下拉菜单摆到触发按钮下方或上方。三条边界是刻意的：最小 80px 保证仍可点、最大 320px
- * 防止在小屏上撑破视口；横向钳制在 [8, 视口宽 − 菜单宽 − 8]，下方放不下则翻到按钮上方。
+ * 把自建下拉菜单摆到触发按钮下方或上方。
+ * 与图标下拉不同：间距 4px、高度按内容（scrollHeight）取并钳在 80~320，
+ * 翻转也看内容高而不是可用空间 —— 内容不多时下方空间小也能原样放下。
  */
 function positionCustomSelectMenu(openSelectRecord) {
-  if (openSelectRecord.menu.hidden) {
-    return;
-  }
-  const selectButtonRect = openSelectRecord.button.getBoundingClientRect();
-  const selectMenuMaxHeightPx = Math.max(80, Math.min(320, window.innerHeight - 16));
-  openSelectRecord.menu.style.width = selectButtonRect.width + "px";
-  openSelectRecord.menu.style.maxHeight = selectMenuMaxHeightPx + "px";
-  const selectMenuHeightPx = Math.min(openSelectRecord.menu.scrollHeight, selectMenuMaxHeightPx);
-  const selectMenuLeftPx = Math.max(
-    8,
-    Math.min(window.innerWidth - selectButtonRect.width - 8, selectButtonRect.left)
-  );
-  const selectMenuBelowTopPx = selectButtonRect.bottom + 4;
-  const selectMenuTopPx =
-    selectMenuBelowTopPx + selectMenuHeightPx <= window.innerHeight - 8
-      ? selectMenuBelowTopPx
-      : Math.max(8, selectButtonRect.top - selectMenuHeightPx - 4);
-  openSelectRecord.menu.style.left = selectMenuLeftPx + "px";
-  openSelectRecord.menu.style.top = selectMenuTopPx + "px";
+  positionFloatingMenu({
+    anchorElement: openSelectRecord.button,
+    menuElement: openSelectRecord.menu,
+    heightMode: "content",
+    gapPx: 4,
+    contentHeightCapPx: 320,
+    contentHeightFloorPx: 80
+  });
 }
 /**
  * 把原生 select 的选项镜像成自建菜单，并同步按钮文案与禁用态。
@@ -4279,7 +4279,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260920131301";
+          ".jpg?v=20260921090405";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -4464,9 +4464,7 @@ function lightStatisticsEntityStatus(statisticsTargetEntityId, statisticsEntity 
   }
   const statisticsStateEntry = editorRenderer?.states?.get?.(statisticsTargetEntityId);
   const statisticsEntityState = resolveStateEntry(statisticsStateEntry);
-  const statisticsStateText = String(statisticsEntityState?.state ?? "")
-    .trim()
-    .toLowerCase();
+  const statisticsStateText = stateTextOf(statisticsEntityState);
   const statisticsStatus = lightStatisticsEntityStateStatus(
     statisticsEntity,
     statisticsEntityState
@@ -5601,286 +5599,78 @@ attachInfiniteScroll(lightStatisticsIconOptionsElement, () =>
   })
 );
 /**
- * 把导航图标下拉摆到按钮下方（下方空间不足则翻到上方）。间距 5px、距视口边缘 8px；高度上限 390px、下限 150px，
- * 优先向下展开的条件是「下方空间 ≥ 250px 或下方不窄于上方」（250 约为一屏舒适图标高度）。菜单宽度跟随触发按钮；
- * 列表可用高度再扣掉菜单头部（搜索框那行）的 57px 并保底 90px，避免扣成负数把列表压没。
+ * 把导航图标下拉摆到按钮下方（空间不足则翻到上方）。
+ * 间距 / 高度 / 列表阈值全取 positionFloatingMenu 的默认值，差别只在锚点是按钮的父元素。
  */
 function positionNavigationIconMenu() {
-  if (navigationIconMenuElement.hidden) {
-    return;
-  }
-  const navigationIconButtonRect =
-    navigationIconButtonElement.parentElement.getBoundingClientRect();
-  const navigationIconMenuGapPx = 5;
-  const navigationIconMenuMarginPx = 8;
-  const navigationIconSpaceBelowPx =
-    window.innerHeight -
-    navigationIconButtonRect.bottom -
-    navigationIconMenuGapPx -
-    navigationIconMenuMarginPx;
-  const navigationIconSpaceAbovePx =
-    navigationIconButtonRect.top - navigationIconMenuGapPx - navigationIconMenuMarginPx;
-  const navigationIconOpensBelow =
-    navigationIconSpaceBelowPx >= 250 || navigationIconSpaceBelowPx >= navigationIconSpaceAbovePx;
-  const navigationIconMenuHeightPx = Math.max(
-    150,
-    Math.min(
-      390,
-      navigationIconOpensBelow ? navigationIconSpaceBelowPx : navigationIconSpaceAbovePx
-    )
-  );
-  navigationIconMenuElement.style.left =
-    clampNumber(
-      navigationIconButtonRect.left,
-      navigationIconMenuMarginPx,
-      Math.max(
-        navigationIconMenuMarginPx,
-        window.innerWidth - navigationIconButtonRect.width - navigationIconMenuMarginPx
-      )
-    ) + "px";
-  navigationIconMenuElement.style.top = navigationIconOpensBelow
-    ? navigationIconButtonRect.bottom + navigationIconMenuGapPx + "px"
-    : Math.max(
-        navigationIconMenuMarginPx,
-        navigationIconButtonRect.top - navigationIconMenuHeightPx - navigationIconMenuGapPx
-      ) + "px";
-  navigationIconMenuElement.style.width = navigationIconButtonRect.width + "px";
-  navigationIconMenuElement.style.maxHeight = navigationIconMenuHeightPx + "px";
-  navigationIconOptionsElement.style.maxHeight =
-    Math.max(90, navigationIconMenuHeightPx - 57) + "px";
+  positionFloatingMenu({
+    anchorElement: navigationIconButtonElement.parentElement,
+    menuElement: navigationIconMenuElement,
+    optionsElement: navigationIconOptionsElement
+  });
 }
 /**
- * 把图标按钮「效果」图标下拉摆到按钮下方（空间不足则翻到上方）。定位规则、间距与高度上下限同
- * positionNavigationIconMenu（gap 5 / margin 8 / 高度 150~390 / 优先下方阈值 250）。
+ * 把图标按钮「效果」图标下拉摆到按钮下方（空间不足则翻到上方）。
+ *
+ * 阈值与 positionNavigationIconMenu 相同（gap 5 / margin 8 / 高度 150~390 / 阈值 250）。
  */
 function positionIconButtonEffectIconMenu() {
-  if (iconButtonEffectIconMenuElement.hidden) {
-    return;
-  }
-  const effectIconButtonRect =
-    iconButtonEffectIconButtonElement.parentElement.getBoundingClientRect();
-  const effectIconMenuGapPx = 5;
-  const effectIconMenuMarginPx = 8;
-  const effectIconSpaceBelowPx =
-    window.innerHeight - effectIconButtonRect.bottom - effectIconMenuGapPx - effectIconMenuMarginPx;
-  const effectIconSpaceAbovePx =
-    effectIconButtonRect.top - effectIconMenuGapPx - effectIconMenuMarginPx;
-  const effectIconOpensBelow =
-    effectIconSpaceBelowPx >= 250 || effectIconSpaceBelowPx >= effectIconSpaceAbovePx;
-  const effectIconMenuHeightPx = Math.max(
-    150,
-    Math.min(390, effectIconOpensBelow ? effectIconSpaceBelowPx : effectIconSpaceAbovePx)
-  );
-  iconButtonEffectIconMenuElement.style.left =
-    clampNumber(
-      effectIconButtonRect.left,
-      effectIconMenuMarginPx,
-      Math.max(
-        effectIconMenuMarginPx,
-        window.innerWidth - effectIconButtonRect.width - effectIconMenuMarginPx
-      )
-    ) + "px";
-  iconButtonEffectIconMenuElement.style.top = effectIconOpensBelow
-    ? effectIconButtonRect.bottom + effectIconMenuGapPx + "px"
-    : Math.max(
-        effectIconMenuMarginPx,
-        effectIconButtonRect.top - effectIconMenuHeightPx - effectIconMenuGapPx
-      ) + "px";
-  iconButtonEffectIconMenuElement.style.width = effectIconButtonRect.width + "px";
-  iconButtonEffectIconMenuElement.style.maxHeight = effectIconMenuHeightPx + "px";
-  iconButtonEffectIconOptionsElement.style.maxHeight =
-    Math.max(90, effectIconMenuHeightPx - 57) + "px";
+  positionFloatingMenu({
+    anchorElement: iconButtonEffectIconButtonElement.parentElement,
+    menuElement: iconButtonEffectIconMenuElement,
+    optionsElement: iconButtonEffectIconOptionsElement
+  });
 }
 /**
- * 把图标按钮的图标下拉摆到按钮下方（空间不足则翻到上方）。与导航图标下拉共用同一套定位规则
- * （gap 5 / margin 8 / 高度 150~390 / 优先下方阈值 250）；列表最大高度额外扣掉菜单头部 57px 并保底 90px。
+ * 把图标按钮的图标下拉摆到按钮下方（空间不足则翻到上方）。
+ *
+ * 阈值与 positionNavigationIconMenu 相同（gap 5 / margin 8 / 高度 150~390 / 阈值 250）。
  */
 function positionIconButtonIconMenu() {
-  if (iconButtonIconMenuElement.hidden) {
-    return;
-  }
-  const iconButtonIconButtonRect =
-    iconButtonIconButtonElement.parentElement.getBoundingClientRect();
-  const iconButtonIconMenuGapPx = 5;
-  const iconButtonIconMenuMarginPx = 8;
-  const iconButtonIconSpaceBelowPx =
-    window.innerHeight -
-    iconButtonIconButtonRect.bottom -
-    iconButtonIconMenuGapPx -
-    iconButtonIconMenuMarginPx;
-  const iconButtonIconSpaceAbovePx =
-    iconButtonIconButtonRect.top - iconButtonIconMenuGapPx - iconButtonIconMenuMarginPx;
-  const iconButtonIconOpensBelow =
-    iconButtonIconSpaceBelowPx >= 250 || iconButtonIconSpaceBelowPx >= iconButtonIconSpaceAbovePx;
-  const iconButtonIconMenuHeightPx = Math.max(
-    150,
-    Math.min(
-      390,
-      iconButtonIconOpensBelow ? iconButtonIconSpaceBelowPx : iconButtonIconSpaceAbovePx
-    )
-  );
-  iconButtonIconMenuElement.style.left =
-    clampNumber(
-      iconButtonIconButtonRect.left,
-      iconButtonIconMenuMarginPx,
-      Math.max(
-        iconButtonIconMenuMarginPx,
-        window.innerWidth - iconButtonIconButtonRect.width - iconButtonIconMenuMarginPx
-      )
-    ) + "px";
-  iconButtonIconMenuElement.style.top = iconButtonIconOpensBelow
-    ? iconButtonIconButtonRect.bottom + iconButtonIconMenuGapPx + "px"
-    : Math.max(
-        iconButtonIconMenuMarginPx,
-        iconButtonIconButtonRect.top - iconButtonIconMenuHeightPx - iconButtonIconMenuGapPx
-      ) + "px";
-  iconButtonIconMenuElement.style.width = iconButtonIconButtonRect.width + "px";
-  iconButtonIconMenuElement.style.maxHeight = iconButtonIconMenuHeightPx + "px";
-  iconButtonIconOptionsElement.style.maxHeight =
-    Math.max(90, iconButtonIconMenuHeightPx - 57) + "px";
+  positionFloatingMenu({
+    anchorElement: iconButtonIconButtonElement.parentElement,
+    menuElement: iconButtonIconMenuElement,
+    optionsElement: iconButtonIconOptionsElement
+  });
 }
 /**
  * 把标题按钮图标下拉摆到按钮下方（空间不足则翻到上方）。
  *
- * 定位规则与 positionNavigationIconMenu 相同。
+ * 阈值与 positionNavigationIconMenu 相同（gap 5 / margin 8 / 高度 150~390 / 阈值 250）。
  */
 function positionTitleButtonIconMenu() {
-  if (titleButtonIconMenuElement.hidden) {
-    return;
-  }
-  const titleIconButtonRect = titleButtonIconButtonElement.parentElement.getBoundingClientRect();
-  const titleIconMenuGapPx = 5;
-  const titleIconMenuMarginPx = 8;
-  const titleIconSpaceBelowPx =
-    window.innerHeight - titleIconButtonRect.bottom - titleIconMenuGapPx - titleIconMenuMarginPx;
-  const titleIconSpaceAbovePx =
-    titleIconButtonRect.top - titleIconMenuGapPx - titleIconMenuMarginPx;
-  const titleIconOpensBelow =
-    titleIconSpaceBelowPx >= 250 || titleIconSpaceBelowPx >= titleIconSpaceAbovePx;
-  const titleIconMenuHeightPx = Math.max(
-    150,
-    Math.min(390, titleIconOpensBelow ? titleIconSpaceBelowPx : titleIconSpaceAbovePx)
-  );
-  titleButtonIconMenuElement.style.left =
-    clampNumber(
-      titleIconButtonRect.left,
-      titleIconMenuMarginPx,
-      Math.max(
-        titleIconMenuMarginPx,
-        window.innerWidth - titleIconButtonRect.width - titleIconMenuMarginPx
-      )
-    ) + "px";
-  titleButtonIconMenuElement.style.top = titleIconOpensBelow
-    ? titleIconButtonRect.bottom + titleIconMenuGapPx + "px"
-    : Math.max(
-        titleIconMenuMarginPx,
-        titleIconButtonRect.top - titleIconMenuHeightPx - titleIconMenuGapPx
-      ) + "px";
-  titleButtonIconMenuElement.style.width = titleIconButtonRect.width + "px";
-  titleButtonIconMenuElement.style.maxHeight = titleIconMenuHeightPx + "px";
-  titleButtonIconOptionsElement.style.maxHeight = Math.max(90, titleIconMenuHeightPx - 57) + "px";
+  positionFloatingMenu({
+    anchorElement: titleButtonIconButtonElement.parentElement,
+    menuElement: titleButtonIconMenuElement,
+    optionsElement: titleButtonIconOptionsElement
+  });
 }
 /**
  * 把灯光统计的图标下拉摆到按钮下方（空间不足则翻到上方）。
  *
- * 定位规则与其它图标下拉一致（gap 5 / margin 8 / 高度 150~390 / 优先下方阈值 250）。
+ * 阈值与 positionNavigationIconMenu 相同（gap 5 / margin 8 / 高度 150~390 / 阈值 250）。
  */
 function positionLightStatisticsIconMenu() {
-  if (lightStatisticsIconMenuElement.hidden) {
-    return;
-  }
-  const statisticsIconButtonRect =
-    lightStatisticsIconButtonElement.parentElement.getBoundingClientRect();
-  const statisticsIconMenuGapPx = 5;
-  const statisticsIconMenuMarginPx = 8;
-  const statisticsIconSpaceBelowPx =
-    window.innerHeight -
-    statisticsIconButtonRect.bottom -
-    statisticsIconMenuGapPx -
-    statisticsIconMenuMarginPx;
-  const statisticsIconSpaceAbovePx =
-    statisticsIconButtonRect.top - statisticsIconMenuGapPx - statisticsIconMenuMarginPx;
-  const statisticsIconOpensBelow =
-    statisticsIconSpaceBelowPx >= 250 || statisticsIconSpaceBelowPx >= statisticsIconSpaceAbovePx;
-  const statisticsIconMenuHeightPx = Math.max(
-    150,
-    Math.min(
-      390,
-      statisticsIconOpensBelow ? statisticsIconSpaceBelowPx : statisticsIconSpaceAbovePx
-    )
-  );
-  lightStatisticsIconMenuElement.style.left =
-    clampNumber(
-      statisticsIconButtonRect.left,
-      statisticsIconMenuMarginPx,
-      Math.max(
-        statisticsIconMenuMarginPx,
-        window.innerWidth - statisticsIconButtonRect.width - statisticsIconMenuMarginPx
-      )
-    ) + "px";
-  lightStatisticsIconMenuElement.style.top = statisticsIconOpensBelow
-    ? statisticsIconButtonRect.bottom + statisticsIconMenuGapPx + "px"
-    : Math.max(
-        statisticsIconMenuMarginPx,
-        statisticsIconButtonRect.top - statisticsIconMenuHeightPx - statisticsIconMenuGapPx
-      ) + "px";
-  lightStatisticsIconMenuElement.style.width = statisticsIconButtonRect.width + "px";
-  lightStatisticsIconMenuElement.style.maxHeight = statisticsIconMenuHeightPx + "px";
-  lightStatisticsIconOptionsElement.style.maxHeight =
-    Math.max(90, statisticsIconMenuHeightPx - 57) + "px";
+  positionFloatingMenu({
+    anchorElement: lightStatisticsIconButtonElement.parentElement,
+    menuElement: lightStatisticsIconMenuElement,
+    optionsElement: lightStatisticsIconOptionsElement
+  });
 }
 /**
  * 把灯光统计的实体下拉摆到按钮下方（空间不足则翻到上方）。
  *
- * 定位规则与其它实体/图标下拉一致（gap 5 / margin 8 / 高度 150~390 / 优先下方阈值 250）。
+ * 比图标下拉更宽更高：高度上限 430、列表扣 58px；宽度先取锚点宽再压进视口（clamped）。
  */
 function positionLightStatisticsEntityMenu() {
-  if (lightStatisticsEntityMenuElement.hidden) {
-    return;
-  }
-  const statisticsEntityButtonRect = lightStatisticsEntityButtonElement.getBoundingClientRect();
-  const statisticsEntityMenuGapPx = 5;
-  const statisticsEntityMenuMarginPx = 8;
-  const statisticsEntityMenuWidthPx = Math.min(
-    statisticsEntityButtonRect.width,
-    window.innerWidth - statisticsEntityMenuMarginPx * 2
-  );
-  const statisticsEntitySpaceBelowPx =
-    window.innerHeight -
-    statisticsEntityButtonRect.bottom -
-    statisticsEntityMenuGapPx -
-    statisticsEntityMenuMarginPx;
-  const statisticsEntitySpaceAbovePx =
-    statisticsEntityButtonRect.top - statisticsEntityMenuGapPx - statisticsEntityMenuMarginPx;
-  const statisticsEntityOpensBelow =
-    statisticsEntitySpaceBelowPx >= 250 ||
-    statisticsEntitySpaceBelowPx >= statisticsEntitySpaceAbovePx;
-  const statisticsEntityMenuHeightPx = Math.max(
-    150,
-    Math.min(
-      430,
-      statisticsEntityOpensBelow ? statisticsEntitySpaceBelowPx : statisticsEntitySpaceAbovePx
-    )
-  );
-  lightStatisticsEntityMenuElement.style.left =
-    clampNumber(
-      statisticsEntityButtonRect.left,
-      statisticsEntityMenuMarginPx,
-      Math.max(
-        statisticsEntityMenuMarginPx,
-        window.innerWidth - statisticsEntityMenuWidthPx - statisticsEntityMenuMarginPx
-      )
-    ) + "px";
-  lightStatisticsEntityMenuElement.style.top = statisticsEntityOpensBelow
-    ? statisticsEntityButtonRect.bottom + statisticsEntityMenuGapPx + "px"
-    : Math.max(
-        statisticsEntityMenuMarginPx,
-        statisticsEntityButtonRect.top - statisticsEntityMenuHeightPx - statisticsEntityMenuGapPx
-      ) + "px";
-  lightStatisticsEntityMenuElement.style.width = statisticsEntityMenuWidthPx + "px";
-  lightStatisticsEntityMenuElement.style.maxHeight = statisticsEntityMenuHeightPx + "px";
-  lightStatisticsEntityOptionsElement.style.maxHeight =
-    Math.max(90, statisticsEntityMenuHeightPx - 58) + "px";
+  positionFloatingMenu({
+    anchorElement: lightStatisticsEntityButtonElement,
+    menuElement: lightStatisticsEntityMenuElement,
+    optionsElement: lightStatisticsEntityOptionsElement,
+    widthMode: "clamped",
+    maxHeightPx: 430,
+    listTrimPx: 58
+  });
 }
 /**
  * 取某种组件的实体选择器配置（触发按钮、下拉菜单、搜索框、选项容器），含 except（菜单互斥分组名）与
@@ -6530,35 +6320,19 @@ function updateRelatedPopup(editedComponent, anchorElement) {
   filterRelatedEntityOptions();
 }
 /**
- * 把实体下拉摆到按钮下方（空间不足则翻到上方）。与图标菜单同一套规则，差别是高度上限放宽到 430、
- * 列表减 58px 让出搜索框；宽度取按钮宽度并压进视口。只需传控件类型，句柄由 entityPickerConfig 解析。
+ * 把实体下拉摆到按钮下方（空间不足则翻到上方）。阈值同 positionLightStatisticsEntityMenu
+ * （clamped 宽 / 高度 150~430 / 列表扣 58px）；句柄由 entityPickerConfig 按类型解析。
  */
 function positionEntityPickerMenu(pickerComponentType = "image") {
   const activePickerConfig = entityPickerConfig(pickerComponentType);
-  if (activePickerConfig.menu.hidden) {
-    return;
-  }
-  const buttonRect = activePickerConfig.button.getBoundingClientRect();
-  const verticalGapPx = 5;
-  const viewportMarginPx = 8;
-  const menuWidthPx = Math.min(buttonRect.width, window.innerWidth - viewportMarginPx * 2);
-  const spaceBelowPx = window.innerHeight - buttonRect.bottom - verticalGapPx - viewportMarginPx;
-  const spaceAbovePx = buttonRect.top - verticalGapPx - viewportMarginPx;
-  const isBelowPreferred = spaceBelowPx >= 250 || spaceBelowPx >= spaceAbovePx;
-  const menuHeightPx = Math.max(150, Math.min(430, isBelowPreferred ? spaceBelowPx : spaceAbovePx));
-  const buttonLeftPx = buttonRect.left;
-  activePickerConfig.menu.style.left =
-    clampNumber(
-      buttonLeftPx,
-      viewportMarginPx,
-      Math.max(viewportMarginPx, window.innerWidth - menuWidthPx - viewportMarginPx)
-    ) + "px";
-  activePickerConfig.menu.style.width = menuWidthPx + "px";
-  activePickerConfig.menu.style.maxHeight = menuHeightPx + "px";
-  activePickerConfig.options.style.maxHeight = Math.max(90, menuHeightPx - 58) + "px";
-  activePickerConfig.menu.style.top = isBelowPreferred
-    ? buttonRect.bottom + verticalGapPx + "px"
-    : Math.max(viewportMarginPx, buttonRect.top - menuHeightPx - verticalGapPx) + "px";
+  positionFloatingMenu({
+    anchorElement: activePickerConfig.button,
+    menuElement: activePickerConfig.menu,
+    optionsElement: activePickerConfig.options,
+    widthMode: "clamped",
+    maxHeightPx: 430,
+    listTrimPx: 58
+  });
 }
 /**
  * 把图片素材下拉摆到触发按钮下方。直接复用通用的实体选择器菜单定位逻辑（传入 "image" 取图片类的
@@ -6935,35 +6709,19 @@ function probeAssetNaturalSize(probedComponent, probedAsset) {
   }
 }
 /**
- * 把图片素材下拉摆到按钮下方（空间不足则翻到上方）。同一套定位规则，但素材菜单头部更高：
- * 高度上限 470，列表减 150px 让出搜索框 + 文件夹下拉那一整块。
+ * 把图片素材下拉摆到按钮下方（空间不足则翻到上方）。
+ * 素材菜单头部更高：优先向下阈值 260、高度上限 470、列表扣 150px 保底 80px。
  */
 function positionImageAssetMenu() {
-  if (imageAssetMenuElement.hidden) {
-    return;
-  }
-  const assetButtonRect = imageAssetButtonElement.getBoundingClientRect();
-  const menuGapPx = 5;
-  const menuMarginPx = 8;
-  const availableBelowPx = window.innerHeight - assetButtonRect.bottom - menuGapPx - menuMarginPx;
-  const availableAbovePx = assetButtonRect.top - menuGapPx - menuMarginPx;
-  const shouldOpenBelow = availableBelowPx >= 260 || availableBelowPx >= availableAbovePx;
-  const assetMenuHeightPx = Math.max(
-    150,
-    Math.min(470, shouldOpenBelow ? availableBelowPx : availableAbovePx)
-  );
-  imageAssetMenuElement.style.left =
-    clampNumber(
-      assetButtonRect.left,
-      menuMarginPx,
-      Math.max(menuMarginPx, window.innerWidth - assetButtonRect.width - menuMarginPx)
-    ) + "px";
-  imageAssetMenuElement.style.width = assetButtonRect.width + "px";
-  imageAssetMenuElement.style.maxHeight = assetMenuHeightPx + "px";
-  imageAssetOptionsElement.style.maxHeight = Math.max(80, assetMenuHeightPx - 150) + "px";
-  imageAssetMenuElement.style.top = shouldOpenBelow
-    ? assetButtonRect.bottom + menuGapPx + "px"
-    : Math.max(menuMarginPx, assetButtonRect.top - assetMenuHeightPx - menuGapPx) + "px";
+  positionFloatingMenu({
+    anchorElement: imageAssetButtonElement,
+    menuElement: imageAssetMenuElement,
+    optionsElement: imageAssetOptionsElement,
+    preferBelowPx: 260,
+    maxHeightPx: 470,
+    listTrimPx: 150,
+    listMinHeightPx: 80
+  });
 }
 /**
  * 把素材大图预览摆在菜单的左侧或右侧。菜单位于屏幕左半边时预览放右边，否则放左边 —— 尽量不遮住正在
@@ -7119,37 +6877,20 @@ function syncImageAssetSelection(imageComponent) {
   probeAssetNaturalSize(imageComponent, matchedAsset);
 }
 /**
- * 把效果素材下拉摆到按钮下方（空间不足则翻到上方）。与图标下拉同一套规则，但高度区间不同：优先下方
- * 阈值 260、上限 470（效果素材网格更密，一屏能放更多），列表可用高度扣掉菜单头部 150px 并保底 80px。
+ * 把效果素材下拉摆到按钮下方（空间不足则翻到上方）。
+ *
+ * 阈值与 positionImageAssetMenu 相同（阈值 260 / 上限 470 / 列表扣 150px 保底 80px）。
  */
 function positionEffectAssetMenu() {
-  if (iconButtonEffectAssetMenuElement.hidden) {
-    return;
-  }
-  const effectButtonRect = iconButtonEffectAssetButtonElement.getBoundingClientRect();
-  const effectMenuGapPx = 5;
-  const effectMarginPx = 8;
-  const effectBelowPx =
-    window.innerHeight - effectButtonRect.bottom - effectMenuGapPx - effectMarginPx;
-  const effectAbovePx = effectButtonRect.top - effectMenuGapPx - effectMarginPx;
-  const shouldOpenEffectBelow = effectBelowPx >= 260 || effectBelowPx >= effectAbovePx;
-  const effectMenuHeightPx = Math.max(
-    150,
-    Math.min(470, shouldOpenEffectBelow ? effectBelowPx : effectAbovePx)
-  );
-  iconButtonEffectAssetMenuElement.style.left =
-    clampNumber(
-      effectButtonRect.left,
-      effectMarginPx,
-      Math.max(effectMarginPx, window.innerWidth - effectButtonRect.width - effectMarginPx)
-    ) + "px";
-  iconButtonEffectAssetMenuElement.style.width = effectButtonRect.width + "px";
-  iconButtonEffectAssetMenuElement.style.maxHeight = effectMenuHeightPx + "px";
-  iconButtonEffectAssetOptionsElement.style.maxHeight =
-    Math.max(80, effectMenuHeightPx - 150) + "px";
-  iconButtonEffectAssetMenuElement.style.top = shouldOpenEffectBelow
-    ? effectButtonRect.bottom + effectMenuGapPx + "px"
-    : Math.max(effectMarginPx, effectButtonRect.top - effectMenuHeightPx - effectMenuGapPx) + "px";
+  positionFloatingMenu({
+    anchorElement: iconButtonEffectAssetButtonElement,
+    menuElement: iconButtonEffectAssetMenuElement,
+    optionsElement: iconButtonEffectAssetOptionsElement,
+    preferBelowPx: 260,
+    maxHeightPx: 470,
+    listTrimPx: 150,
+    listMinHeightPx: 80
+  });
 }
 /**
  * 渲染「图标按钮效果」的素材下拉（清空项 + 当前文件夹或搜索命中的素材）。
@@ -7354,34 +7095,25 @@ function renderPopupEntityOptions(popupConfigElement, popupSearchQuery = "") {
   }
 }
 /**
- * 把弹窗实体下拉摆到按钮下方（下方放不下则翻到上方）。宽度取 min(按钮宽, 视口宽 - 16)，高度上限 340
- * 且不超过视口高 - 16，即同时限制「太宽」与「太高」两种溢出；列表可用高度扣掉菜单头部 58px 并保底 120px。
- * 翻转判断用实际内容高度（scrollHeight 截到上限）而非可用空间：内容不多时下方空间小也能原样放下，不必翻上去。
+ * 把弹窗实体下拉摆到按钮下方（下方放不下则翻到上方）。宽度取 min(按钮宽, 视口宽 - 16)、
+ * 高度上限 min(340, 视口高 - 16)；列表扣 58px 保底 120px，翻转用实际内容高。
  */
 function positionPopupEntityMenu(triggerConfigElement) {
   const popupEntityButton = triggerConfigElement?.querySelector("[data-popup-entity-button]");
   const entityMenuElement = triggerConfigElement?.querySelector("[data-popup-entity-menu]");
-  if (!popupEntityButton || !entityMenuElement || entityMenuElement.hidden) {
+  if (!popupEntityButton || !entityMenuElement) {
     return;
   }
-  const popupButtonRect = popupEntityButton.getBoundingClientRect();
-  const popupMenuWidthPx = Math.min(popupButtonRect.width, window.innerWidth - 16);
-  const maxMenuHeightPx = Math.min(340, window.innerHeight - 16);
-  entityMenuElement.style.width = popupMenuWidthPx + "px";
-  entityMenuElement.style.maxHeight = maxMenuHeightPx + "px";
-  const optionsListElement = entityMenuElement.querySelector("[data-popup-entity-options]");
-  if (optionsListElement) {
-    optionsListElement.style.maxHeight = Math.max(120, maxMenuHeightPx - 58) + "px";
-  }
-  const menuLeftPx = clampNumber(popupButtonRect.left, 8, window.innerWidth - popupMenuWidthPx - 8);
-  const menuContentHeightPx = Math.min(entityMenuElement.scrollHeight, maxMenuHeightPx);
-  const menuTopPx = popupButtonRect.bottom + 5;
-  const resolvedTopPx =
-    menuTopPx + menuContentHeightPx <= window.innerHeight - 8
-      ? menuTopPx
-      : Math.max(8, popupButtonRect.top - menuContentHeightPx - 5);
-  entityMenuElement.style.left = menuLeftPx + "px";
-  entityMenuElement.style.top = resolvedTopPx + "px";
+  positionFloatingMenu({
+    anchorElement: popupEntityButton,
+    menuElement: entityMenuElement,
+    optionsElement: entityMenuElement.querySelector("[data-popup-entity-options]"),
+    widthMode: "clamped",
+    heightMode: "content",
+    contentHeightCapPx: 340,
+    listTrimPx: 58,
+    listMinHeightPx: 120
+  });
 }
 /**
  * 把组件的动作配置同步到 tap / doubleTap / hold 三块动作控件区（先幂等 initActionPopupConfig 补齐弹窗
@@ -8230,7 +7962,8 @@ function syncTitleButtonInspector(titleButtonComponent) {
   );
   titleButtonFrameOffsetXInputElement.value = roundField(Number(titleProperties.frameOffsetX ?? 0));
   titleButtonFrameOffsetYInputElement.value = roundField(Number(titleProperties.frameOffsetY ?? 0));
-  titleButtonMarkerColorInputElement.value = titleProperties.markerColor || "#f2a20d";
+  titleButtonMarkerColorInputElement.value =
+    titleProperties.markerColor || paletteColor("--hos-accent", "#5fd4ff");
   titleButtonMarkerSizeInputElement.value = roundField(Number(titleProperties.markerSize ?? 10));
   titleButtonMarkerLeftInputElement.value = roundField(Number(titleProperties.markerLeft ?? 1.8));
   titleButtonMarkerTopInputElement.value = roundField(Number(titleProperties.markerTop ?? 84));
@@ -8305,7 +8038,7 @@ function syncLightStatisticsInspector(lightStatisticsComponent) {
   renderLightStatisticsIconPreview(statisticsProperties.icon ?? "mdi:lightbulb-group-outline");
   lightStatisticsIconColorInputElement.value = statisticsProperties.iconColor || "#8b9298";
   lightStatisticsIconActiveColorInputElement.value =
-    statisticsProperties.iconActiveColor || "#f2a20d";
+    statisticsProperties.iconActiveColor || paletteColor("--hos-accent", "#5fd4ff");
   lightStatisticsIconSizeInputElement.value = roundField(
     Number(statisticsProperties.iconSize ?? 42)
   );
@@ -8321,7 +8054,7 @@ function syncLightStatisticsInspector(lightStatisticsComponent) {
   );
   lightStatisticsCountColorInputElement.value = statisticsProperties.countColor || "#b9bbc0";
   lightStatisticsCountActiveColorInputElement.value =
-    statisticsProperties.countActiveColor || "#f2a20d";
+    statisticsProperties.countActiveColor || paletteColor("--hos-accent", "#5fd4ff");
   lightStatisticsCountSizeInputElement.value = roundField(
     Number(statisticsProperties.countSize ?? 34)
   );
@@ -12606,6 +12339,17 @@ function renderLicenseStatus(licenseState) {
   licenseCardController.render(licenseState);
   licenseDetailErrorElement.hidden = !licenseState?.lastError;
   licenseDetailErrorElement.textContent = licenseState?.lastError || "";
+  // 重试入口与其说明，露出与否由后端 canRetry 决定：终态（未激活 / 已撤销）下留一个
+  // 必然失败的重试按钮，只会让用户反复点，而真正该做的是填激活码。
+  // 文案复用共用表且不传 lastError —— 那句话已经由上面的错误行显示过一次了。
+  licenseDialogRetryButtonElement.hidden = !licenseState?.canRetry;
+  setSettingsMessage(
+    licenseRetryMessageElement,
+    licenseState?.canRetry || licenseState?.retrying || licenseState?.retryable
+      ? licenseMessage(licenseState || {})
+      : "",
+    licenseError ? "error" : ""
+  );
   const recoveryHintElement = document.querySelector("#license-recovery-hint");
   if (recoveryHintElement) {
     if (licenseStatusCode === "INSTANCE_MISMATCH") {
@@ -12706,6 +12450,24 @@ licenseFormElement.addEventListener("submit", async licenseSubmitEvent => {
     setSettingsMessage(licenseMessageElement, licenseActivateError.message, "error");
   } finally {
     licenseSubmitButton.disabled = false;
+  }
+});
+// 「重新连接授权后台」：轻量续租，只走本地恢复凭证，不等下一次状态轮询。
+// 与「重新激活」的分工：本按钮不要求用户重新输入激活码，因此可以先试；它失败后再由用户
+// 决定是否走完整的重新激活流程（那个路径可能要求补填激活码）。
+licenseDialogRetryButtonElement.addEventListener("click", async () => {
+  licenseDialogRetryButtonElement.disabled = true;
+  setSettingsMessage(licenseRetryMessageElement, "正在重新连接授权后台…");
+  try {
+    await requestJson("/license/retry", { method: "POST" });
+    setSettingsMessage(licenseRetryMessageElement, "已重新连接授权后台。", "success");
+  } catch (licenseRetryError) {
+    // 失败文案由后端 detail 翻好（是否可重试也由后端给结论），这里不再自行分类。
+    setSettingsMessage(licenseRetryMessageElement, licenseRetryError.message, "error");
+  } finally {
+    licenseDialogRetryButtonElement.disabled = false;
+    // 无论成败都读一次最新状态：重试可能已经成功（按钮随之隐藏），也可能带回新的错误码。
+    await refreshLicenseStatus().catch(() => {});
   }
 });
 licenseReactivateButtonElement.addEventListener("click", async () => {
@@ -15206,6 +14968,8 @@ floorplanAutoDiagramOpenStudioButtonElement.addEventListener("click", () => {
   }
   const sourceComponentPosition = diagramStudioComponent.position || {};
   const projectCanvas = activeProject.document.canvas || {};
+  // 保留控件宽高比、面积对齐画布：底图与预览同比例才不会产生位置偏移。
+  const exportResolution = floorplanAutoDiagramExportResolution(sourceComponentPosition, projectCanvas);
   floorplanAutoDiagramStatusElement.textContent = "正在后台生成底图和灯组效果，请稍候…";
   floorplanAutoDiagramOpenStudioButtonElement.disabled = true;
   floorplanAutoDiagramFloorSelectElement.disabled = true;
@@ -15214,14 +14978,8 @@ floorplanAutoDiagramOpenStudioButtonElement.addEventListener("click", () => {
     {
       type: "homeos-floorplan-auto-diagram-generate",
       componentId: diagramStudioComponent.id,
-      width: Math.max(
-        320,
-        Math.round(Number(projectCanvas.width || sourceComponentPosition.width || 2778))
-      ),
-      height: Math.max(
-        320,
-        Math.round(Number(projectCanvas.height || sourceComponentPosition.height || 1940))
-      ),
+      width: exportResolution.width,
+      height: exportResolution.height,
       folderName: exportFolderName
     },
     window.location.origin
@@ -15299,6 +15057,90 @@ floorplanAutoDiagramBindingListElement.addEventListener("change", lightGroupChan
     }
   });
 });
+/**
+ * 「导图保存完成」浮层的当前实例；同一时刻只允许存在一个。
+ */
+let autoDiagramCompleteOverlay = null;
+/**
+ * 移除导图完成浮层（没有时是空操作）。
+ * 先取出引用再置空：移除过程中若抛错，也不会留下一个指向已移除节点的「伪存在」状态。
+ */
+function closeAutoDiagramCompleteDialog() {
+  const overlayElement = autoDiagramCompleteOverlay;
+  overlayElement && ((autoDiagramCompleteOverlay = null), overlayElement.remove());
+}
+/**
+ * 提示「导图已生成并置入仪表盘」。
+ *
+ * 「点得掉」是这个浮层唯一不能出错的属性：它铺满整个编辑区，只要有一个出口失效
+ * （完成按钮 / 关闭按钮 / 背景点击 / Esc）就等于把编辑器锁死。所以四个出口都显式接上，
+ * 并在 pagehide 时兜底移除 —— 浮层挂在 body 上，页面被隐藏后残留的监听会一直引用旧 DOM。
+ *
+ * 参数:
+ *   manifest: 后台导出清单，用 overwritten 决定文案、relativePath 显示保存位置。
+ *   counts: 本次置换掉的图片数与效果按钮数，来自文档变更的返回值。
+ */
+function showAutoDiagramCompleteDialog(manifest, { buttonCount = 0, imageCount = 0 } = {}) {
+  closeAutoDiagramCompleteDialog();
+  const isOverwritten = manifest?.overwritten === true;
+  const overlayElement = document.createElement("div");
+  overlayElement.className = "floorplan-auto-diagram-complete-overlay";
+  overlayElement.setAttribute("role", "dialog");
+  overlayElement.setAttribute("aria-modal", "true");
+  overlayElement.setAttribute("aria-label", isOverwritten ? "导图覆盖完成" : "导图保存完成");
+  // 结构用静态字符串：动态内容一律事后 textContent 写入，避免把后台字段当 HTML 拼。
+  overlayElement.innerHTML = [
+    '<section class="settings-dialog floorplan-auto-diagram-dialog floorplan-auto-diagram-complete-dialog" tabindex="-1">',
+    '<div class="dialog-heading"><div><span>EXPORT COMPLETE</span><h2 data-export-complete-title></h2></div>',
+    '<button type="button" class="icon-button" data-export-complete-close aria-label="关闭导图完成提示">×</button></div>',
+    '<div class="floorplan-auto-diagram-guide">',
+    "<p data-export-complete-message></p>",
+    '<div class="export-notice-summary"><span>保存位置</span><strong data-export-complete-path></strong></div>',
+    '<div class="dialog-actions"><button type="button" class="primary" data-export-complete-confirm>完成</button></div>',
+    "</div></section>"
+  ].join("");
+  overlayElement.querySelector("[data-export-complete-title]").textContent = isOverwritten
+    ? "导图覆盖完成"
+    : "导图保存完成";
+  overlayElement.querySelector("[data-export-complete-message]").textContent = isOverwritten
+    ? "新导图已安全替换，并更新 " + imageCount + " 张图片和 " + buttonCount + " 个效果按钮。"
+    : "导图已置入仪表盘，共生成 " +
+      imageCount +
+      " 张图片和 " +
+      buttonCount +
+      " 个效果按钮。";
+  overlayElement.querySelector("[data-export-complete-path]").textContent =
+    "data/" + (manifest?.relativePath || "exports");
+  // isClosed 保证四个出口重复触发时只关一次（Esc 与 point 事件常会连着来）。
+  let isClosed = false;
+  const close = () => {
+    if (isClosed) return;
+    isClosed = true;
+    // 两个全局监听必须显式摘掉：它们挂在 window / document 上，浮层移除后仍会存活。
+    window.removeEventListener("pagehide", close);
+    document.removeEventListener("keydown", handleKeydown, true);
+    closeAutoDiagramCompleteDialog();
+  };
+  const handleKeydown = keydownEvent => {
+    keydownEvent.key === "Escape" && (keydownEvent.preventDefault(), close());
+  };
+  // 只有点在浮层本体（背景）上才算「点外部关闭」；点在对话框内部不该关。
+  overlayElement.addEventListener("click", clickEvent => {
+    clickEvent.target === overlayElement && close();
+  });
+  for (const dismissElement of overlayElement.querySelectorAll(
+    "[data-export-complete-close], [data-export-complete-confirm]"
+  )) {
+    dismissElement.addEventListener("click", close);
+  }
+  window.addEventListener("pagehide", close);
+  // 捕获阶段监听 Esc：编辑器内部监听器密集，冒泡阶段可能先被它们吞掉。
+  document.addEventListener("keydown", handleKeydown, true);
+  autoDiagramCompleteOverlay = overlayElement;
+  document.body.appendChild(overlayElement);
+  // 焦点交给主按钮：键盘用户回车即可关闭，读屏也会播报对话框标签。
+  overlayElement.querySelector("[data-export-complete-confirm]")?.focus();
+}
 window.addEventListener("message", messageEvent => {
   if (messageEvent.origin !== window.location.origin) {
     return;
@@ -15502,6 +15344,11 @@ window.addEventListener("message", messageEvent => {
   if (exportComponentElement) {
     exportComponentElement.hidden = true;
   }
+  // 置换失败时把预览图元放回来：底图其实已经生成好了，继续用 hidden 遮着它，
+  // 用户看到的就只是「图元消失了」而不是「哪一步失败了」。
+  const restoreAutoDiagramPreview = () => {
+    exportComponentElement?.isConnected && (exportComponentElement.hidden = false);
+  };
   mutateDocument(exportDraftDocument => {
     let componentLocation = findComponentLocation(exportDraftDocument, exportComponentId);
     const diagramSourceComponent = componentLocation?.component;
@@ -15933,14 +15780,17 @@ window.addEventListener("message", messageEvent => {
       removed: true,
       selectedId:
         (backgroundLayer || floorPlanLayer || baseWithPlanLayer || placedEffectComponents[0])?.id ||
-        null
+        null,
+      // 完成提示要报「生成了几张图片、几个效果按钮」。这两个数只有在这里是现成的：
+      // 事后从文档里按 autoDiagramFolder 反查会把上一次导图的组件也算进来。
+      buttonCount: placedEffectComponents.length,
+      imageCount: baseLayerComponents.length
     };
   })
     .then(spliceResult => {
       if (!spliceResult?.removed) {
-        if (exportComponentElement?.isConnected) {
-          exportComponentElement.hidden = false;
-        }
+        restoreAutoDiagramPreview();
+        floorplanAutoDiagramStatusElement.textContent = "图片已生成，但控件置换失败，请重试。";
         return;
       }
       const selectedPlacedId = spliceResult.selectedId;
@@ -15953,8 +15803,14 @@ window.addEventListener("message", messageEvent => {
       );
       renderComponentLists();
       syncInspector();
+      // 置换成功才提示：失败时给「重试」，成功时给「完成」，两者不能同时出现。
+      showAutoDiagramCompleteDialog(exportManifest, spliceResult);
     })
-    .catch(handleOperationError);
+    .catch(exportSpliceError => {
+      restoreAutoDiagramPreview();
+      floorplanAutoDiagramStatusElement.textContent = "图片已生成，但控件置换失败，请重试。";
+      handleOperationError(exportSpliceError);
+    });
 });
 const effectPropertyConfigsByElement = new Map([
   [
@@ -20970,7 +20826,7 @@ const titleButtonDefaults = {
   frameOffsetX: 0,
   frameOffsetY: 0,
   markerVisible: true,
-  markerColor: "#f2a20d",
+  markerColor: paletteColor("--hos-accent", "#5fd4ff"),
   markerSize: 10,
   markerLeft: 1.8,
   markerTop: 84

@@ -17,24 +17,24 @@ from store.core.models import Release
 
 logger = logging.getLogger("store.ops.release_info")
 
-CURRENT_VERSION = "0.6.1"
+CURRENT_VERSION = "0.6.2"
 CURRENT_RELEASE_DATE = "2026-09-20"
 CURRENT_UPGRADE_NOTES = (
-    "1. 全量安全与质量审计（P1–P12）落地：修复授权商店与主应用的一批高危 / 中危缺陷"
-    "（首次设置守卫、CSRF 同源闸门、会话与配对码生命周期、上传体积上限、媒体代理归属、"
-    "并发写入的唯一性退让等），详见仓库 README 的更新日志。\n"
-    "2. 数据库迁移由单条基线扩展为 0001 → 0003：0002 为项目名加唯一索引并对历史重名行做"
-    "确定性改名，0003 新建 project_path_aliases，让改名前的展示地址仍可访问（303 跳转）。"
-    "启动时自动执行，无需手工命令。\n"
-    "3. 邀请积分由 FLOAT（积分）改为 INTEGER（厘，1 积分 = 100 厘），启动时自动完成"
-    "「补列 → 回填 + 逐行对账 → 退役旧列」并先做数据库快照；对外 JSON 仍是两位小数字符串，"
-    "前端与客户端无需改动。\n"
-    "4. 授权服务器心跳现在校验 instanceId，吊销响应改为结构化 code / revoked："
-    "旧客户端必须与本服务端一并升级，否则会被判为确认吊销。\n"
-    "5. 仓库目录分包（backend/、store/ 与前端静态资源按功能域分组），对运行时行为无影响；"
-    "同步移除内置自动化测试设施（此后改动请人工走关键路径）。\n"
-    "6. 升级时请保留全部数据卷 / 数据目录（homeos-3d-data / homeos-3d-store-data /"
-    "homeos-3d-license-keys / homeos-3d-client-keys），不要删卷。"
+    "1. 授权恢复链路重做：新增 ``POST /api/v1/license/retry``（立即发起一轮恢复并跳过端点"
+    "冷却）与匿名可读的 ``GET /api/v1/license/availability``；授权不可用时 /pair 与 /display/* "
+    "会就地渲染连接状态页（不新增路由、不要求登录）。展示端在授权受限时不再跳到需要登录的"
+    "管理员激活页，而是留在原地自动重试，网络恢复后无需人工操作。\n"
+    "2. 授权失败改为分级处置：网络类故障按指数退避自动重试，并把「可重试 / 需人工介入」的"
+    "结论（canRetry / nextRetryAt / retryAttempt）交给前端决定是否继续显示重试按钮；端点"
+    "拉黑时长与重试节奏对齐为 120 秒，避免每一轮重试都撞在冷却里。\n"
+    "3. 授权租约凭证写入增加跨进程文件锁（backend/license/process_lock.py）：同一数据目录"
+    "只允许一个实例续租，第二个实例启动即失败并说明原因，不再出现两个进程互相把对方写成"
+    "重放而各自锁死。\n"
+    "4. 户型自动导图：底图分辨率改为「保留控件宽高比、面积对齐画布」换算，修复导图与预览"
+    "比例不一致导致的位置偏移；生成完成改为可关闭的浮层（完成 / 关闭 / 背景点击 / Esc），"
+    "置换失败时恢复预览并提示重试。\n"
+    "5. 无数据库结构变更、无迁移；升级只需替换镜像并保留全部数据卷 / 数据目录"
+    "（homeos-3d-data / homeos-3d-store-data / homeos-3d-license-keys / homeos-3d-client-keys）。"
 )
 
 

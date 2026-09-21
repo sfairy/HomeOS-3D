@@ -17,6 +17,8 @@ docker/node_modules/
 /app/
 .deobf/
 /源代码/
+# 一次性验证脚本的落盘痕迹（跑起来的临时 APP_DATA_DIR / 截图 / cookie）。可随时删。
+.tmp-verify/
 
 # 本地配置：.env 里是 SMTP 授权码、初始管理员密码等真实凭据，绝不能提交。
 # .env.example 是模板，需要随仓库分发。

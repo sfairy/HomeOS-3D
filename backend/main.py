@@ -49,6 +49,8 @@ from .api.displays import (
 from .api.ha import router as ha_router, runtime_router
 from .api.ha_proxy import MediaProxyCaches, router as ha_proxy_router
 from .api.global_logs import router as global_logs_router
+from .api.appearance import router as appearance_router
+from .core.appearance import AppearanceStore
 from .api.icons import router as icons_router
 from .api.license import router as license_router
 from .modules.interaction3d.api import router as interaction3d_router
@@ -56,6 +58,7 @@ from .api.projects import router as projects_router
 from .api.studio3d import router as studio3d_router
 from .security.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
 from .http.body_guard import DraftBodyGuard
+from .http.page_shell import APPEARANCE_PATH, render_shell_page
 from .config import Settings, load_settings
 from .core.database import Database
 from .ha.service import HAConnectorService
@@ -280,6 +283,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             app.state.error_tally = RepeatedErrorTally()
             # 首次初始化的守卫：没带引导密钥的远程请求不允许抢建管理员账号。
             app.state.setup_guard = SetupGuard(app_settings.data_dir, app_settings.setup_token, event_log = app.state.global_log)
+            # 站点配色：一个 JSON 文件，没有迁移、也没有表。失败只退回默认配色并记一条日志 ——
+            # 配色是纯装饰，不该让服务起不来（那会把「改错了颜色」升级成「全家打不开中控」）。
+            app.state.appearance = AppearanceStore(app_settings.appearance_path)
+            app.state.appearance.load()
             if account_state in ('empty', 'reset_required'):
                 # 打印到启动日志（stderr），密钥本身不进全局日志：全局日志可导出。
                 announce_setup_window(account_state, app.state.setup_guard)
@@ -505,6 +512,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
     app.include_router(license_router, prefix = '/api/v1')
     app.include_router(interaction3d_router, prefix = '/api/v1')
     app.include_router(global_logs_router, prefix = '/api/v1')
+    app.include_router(appearance_router, prefix = '/api/v1')
     app.include_router(updates_router, prefix = '/api/v1')
     # 静态资源挂载在 /static；是否允许匿名访问由下面的中间件按白名单决定。
     app.mount('/static', StaticFiles(directory = app_settings.frontend_dir / 'static'), name = 'static')
@@ -572,11 +580,13 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         # 漏掉这个入口会让「未激活」状态反过来把客户端日志上报一起挡掉。
         '/static/logging/client-log.js',
         '/static/auth/pair.js',
-        '/static/auth/auth.css',
-        '/static/auth/setup.css',
         '/static/auth/login.js',
         '/static/auth/setup.js',
         '/static/auth/license.js',
+        # 恢复页（/pair 与 /display/* 在授权不可用时就地渲染的那一页）的入口脚本：
+        # 那些地址恰恰是「授权不可用」时才会渲染它，所以必须在匿名白名单里 ——
+        # 否则未登录时恢复页连脚本都加载不到，直接白屏。
+        '/static/auth/license-recovery.js',
         '/static/auth/auth-shell.js',
         '/static/auth/pairing-link.js',
         '/static/auth/pairing-entry.js',
@@ -592,6 +602,19 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         # 配对页的引导判定经 pairing-link.js → utils/apple-device.js
         # （苹果移动端判定只有这一份实现），所以它也在匿名图里。
         '/static/utils/apple-device.js',
+        # 入口页的场景外壳（design/scene 的分发产物）。这几份必须在匿名白名单里：
+        # 未初始化 / 未登录时正是靠它们渲染 /setup、/login、/pair、/license 四个页面，
+        # 漏一个就是「页面能打开、样式全丢」——而问题只在未登录时才出现。
+        '/static/auth/scene/fonts.css',
+        '/static/auth/scene/page.css',
+        '/static/auth/scene/scene.css',
+        '/static/auth/scene/panel.css',
+        # 字体文件同样要放行：@font-face 的请求不带 Cookie 上下文可供白名单判断，
+        # 被 401 挡下时页面只剩系统字体回退，肉眼几乎看不出是「字体没加载」。
+        '/static/auth/scene/fonts/orbitron-700-latin.woff2',
+        '/static/auth/scene/fonts/exo-2-400-latin.woff2',
+        '/static/auth/scene/fonts/jetbrains-mono-400-latin.woff2',
+        '/static/auth/scene/fonts/share-tech-mono-400-latin.woff2',
         '/static/assets/manifest/manifest.webmanifest',
         '/static/assets/manifest/dashboard.webmanifest',
         '/static/assets/icons/homeos-favicon.ico',
@@ -788,6 +811,43 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             raise HTTPException(status_code = 401, detail = '请先登录或完成中控设备配对。')
         return read_builtin_asset(asset_path, request)
 
+    def render_page(request: Request, filename: str, *, scene: bool = True) -> Response:
+        """本应用所有 HTML 页面的统一出口（见 ``http/page_shell``）。
+
+        收成一个闭包是为了让 ``app_settings``、``version`` 与配色版本号在调用处不必各写
+        一遍 —— 九个路由各拼一次参数，迟早有一个漏带配色版本，而那一页会安静地不跟配色。
+        """
+        return render_shell_page(
+            app_settings.frontend_dir,
+            filename,
+            app_settings.version,
+            request.app.state.appearance.revision,
+            scene = scene,
+            request = request,
+        )
+
+    @app.get(APPEARANCE_PATH, include_in_schema = False)
+    def appearance_stylesheet(request: Request) -> Response:
+        """站点配色样式表：内容就是当前配置展开出的 ``:root{…}``。
+
+        不需要登录：它只含颜色字面量，和 page.css 一样是公开的设计系统资源，
+        而且要能跟在未登录的 /login、/setup 后面加载。
+
+        ``?v=`` 与 ETag 都在：URL 带版本时给一年强缓存（改配色 URL 就变），
+        不带时要求每次校验 —— 手敲 ``/appearance.css`` 看到的一定是当前值。
+        """
+        revision = request.app.state.appearance.revision
+        has_version = request.query_params.get('v') == revision
+        response = Response(
+            content = request.app.state.appearance.css(),
+            media_type = 'text/css',
+            headers = {'ETag': f'"{revision}"'},
+        )
+        response.headers['Cache-Control'] = (
+            'public, max-age=31536000, immutable' if has_version else 'no-cache'
+        )
+        return response
+
     @app.get('/health/ready', include_in_schema = False)
     def health_ready(request: Request) -> dict[str, str | bool]:
         """就绪探针：真的连一次数据库，连不上就返回 500 让编排器不转发流量。
@@ -814,7 +874,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             if destination == '/':
                 destination = '/license'
             return RedirectResponse(destination, status_code = 303)
-        return FileResponse(app_settings.frontend_dir / 'login.html')
+        return render_page(request, 'login.html')
 
     @app.get('/setup', include_in_schema = False)
     def setup_page(request: Request):
@@ -826,7 +886,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             if signed_in(request):
                 return RedirectResponse('/license', status_code = 303)
             return RedirectResponse('/login', status_code = 303)
-        return FileResponse(app_settings.frontend_dir / 'setup.html')
+        return render_page(request, 'setup.html')
 
     @app.get('/pair', include_in_schema = False)
     def pair_page(request: Request):
@@ -848,8 +908,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             if paired_project is not None:
                 return RedirectResponse(display_path(paired_project.name), status_code = 303)
         if not request.app.state.license_service.allows('display'):
-            raise HTTPException(status_code = 403, detail = '当前授权状态不允许添加中控设备。')
-        return FileResponse(app_settings.frontend_dir / 'pair.html')
+            # 不落 403 错误页：授权不可用时墙面设备没有键盘，报错页无从处理。改为把恢复页
+            # 就地渲染在同一个地址上，它可以自动重试、网络恢复后无需人工介入。
+            return render_page(request, 'license-recovery.html')
+        return render_page(request, 'pair.html')
 
     @app.get('/', include_in_schema = False)
     async def home_page(request: Request):
@@ -866,7 +928,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         license_status = await asyncio.to_thread(request.app.state.license_service.status)
         if license_status.get('status') != 'ACTIVE' or not license_status.get('editorAllowed'):
             return RedirectResponse('/license', status_code = 303)
-        return FileResponse(app_settings.frontend_dir / 'index.html')
+        return render_page(request, 'index.html', scene = False)
 
     @app.get('/license', include_in_schema = False)
     async def license_page(request: Request):
@@ -884,7 +946,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         license_status = await asyncio.to_thread(request.app.state.license_service.status)
         if license_status.get('status') == 'ACTIVE' and license_status.get('editorAllowed'):
             return RedirectResponse('/', status_code = 303)
-        return FileResponse(app_settings.frontend_dir / 'license.html')
+        return render_page(request, 'license.html')
 
     @app.get('/3d-studio', include_in_schema = False)
     async def three_d_studio_page(request: Request):
@@ -897,7 +959,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         license_status = await asyncio.to_thread(request.app.state.license_service.status)
         if license_status.get('status') != 'ACTIVE' or not license_status.get('editorAllowed'):
             return RedirectResponse('/license', status_code = 303)
-        return FileResponse(app_settings.frontend_dir / '3d-studio.html')
+        return render_page(request, '3d-studio.html', scene = False)
 
     @app.get('/display/{project_name:path}', include_in_schema = False)
     def display_page(project_name: str, request: Request):
@@ -914,7 +976,9 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         if not viewer_signed_in and device is None:
             return pairing_redirect(request)
         if not request.app.state.license_service.allows('display'):
-            raise HTTPException(status_code = 403, detail = '当前授权状态不允许打开正式显示页面。')
+            # 与 /pair 同理：展示地址本身就是恢复页的最佳落点 —— 设备刷新后仍回到这里，
+            # 授权一恢复就能直接进画面，不需要用户重新输地址。
+            return render_page(request, 'license-recovery.html')
         with request.app.state.database.session_factory() as database:
             (project, alias_name) = resolve_display_project(database, project_name)
         if project is None:
@@ -927,7 +991,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         # 「某个旧名称曾经存在」。
         if alias_name is not None:
             return RedirectResponse(display_path(project.name), status_code = 303)
-        response = FileResponse(app_settings.frontend_dir / 'display.html')
+        response = render_page(request, 'display.html', scene = False)
         if device is not None:
             # 打开展示页即顺带续期 Cookie，减少设备因长期不活跃而掉配对。
             token = display_token_from(request.cookies, app_settings)

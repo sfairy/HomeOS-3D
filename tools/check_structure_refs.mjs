@@ -362,12 +362,19 @@ function checkCssRelativeUrls(problems) {
     if (!fs.existsSync(mount.dir)) continue;
     for (const file of walkFiles(mount.dir, new Set([".css"]))) {
       const rel = path.relative(mount.dir, file).split(path.sep).join("/");
+      // A stylesheet's URLs resolve against its own **directory**, so the
+      // basename is dropped before appending the specifier. Keeping it would
+      // turn `fonts.css` + `./fonts/x.woff2` into `fonts.css/fonts/x.woff2`,
+      // i.e. a 404 the browser never asked for. The `..`-heavy case the mounts
+      // were originally modelled on (`font.min.css` + `../fonts/x`) is
+      // unaffected: `..` pops the same segment either way.
+      const relDir = rel.slice(0, rel.lastIndexOf("/") + 1);
       const source = readScannable(file, new Set([".css"]));
       for (const match of source.matchAll(CSS_URL_RE)) {
         const spec = match[1];
         if (spec.startsWith("/")) continue;
         checked += 1;
-        const urlPath = normalizeUrlPath(`${mount.prefix}${rel}/${spec}`);
+        const urlPath = normalizeUrlPath(`${mount.prefix}${relDir}${spec}`);
         const target = mounts.find((candidate) => urlPath.startsWith(candidate.prefix));
         if (!target) {
           problems.push(
@@ -445,6 +452,7 @@ function checkFrontendDirChains(problems) {
 const STAMP_IMPORT_RE = /(?:from|import)\s*\(?\s*["']([^"']+)["']/g;
 const STAMP_HTML_RE = /<(?:script|link)\b[^>]*?(?:src|href)="(\/static\/[^"]+)"/gi;
 const STORE_STATIC_STAMP_RE = /\/store-static\/[A-Za-z0-9_@./-]+\.(?:js|mjs|css)(?:\?v=[0-9]{14})?/g;
+const STAMP_CSS_IMPORT_RE = /@import\s+(?:url\(\s*)?["']([^"']+)["']/g;
 const STAMP_VALUE_RE = /\?v=([0-9]{14})/;
 
 /** The file a specifier would load, or null when it is out of scope. */
@@ -457,6 +465,23 @@ function stampedTarget(spec, importer) {
     return path.join(MODULES_DIR, clean.replace("/api/v1/modules/interaction3d/", ""));
   }
   return null;
+}
+
+/**
+ * The file a CSS `@import` would load, or null when it is out of scope.
+ *
+ * `@import` accepts bare relative URLs (`"controls.css"`), which `stampedTarget`
+ * deliberately rejects because a bare specifier in JS means a package import.
+ * CSS has no packages, so here everything that is not an absolute URL resolves
+ * against the importing stylesheet.
+ */
+function cssImportTarget(spec, importer) {
+  const clean = spec.split("?")[0].split("#")[0];
+  if (clean.includes("${")) return null;
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(clean)) return null;
+  if (clean.includes("/vendor/")) return null;
+  if (clean.startsWith("/static/")) return path.join(FRONTEND, clean.slice(1));
+  return path.resolve(path.dirname(importer), clean);
 }
 
 function checkStaticCacheStamps(problems) {
@@ -492,6 +517,20 @@ function checkStaticCacheStamps(problems) {
     }
   }
 
+  for (const file of walkFiles(FRONTEND, new Set([".css"]))) {
+    if (file.endsWith(".min.css")) continue;
+    const source = readScannable(file, new Set([".css"]));
+    for (const match of source.matchAll(STAMP_CSS_IMPORT_RE)) {
+      const spec = match[1];
+      const target = cssImportTarget(spec, file);
+      if (!target || !exists(target)) continue;
+      checked += 1;
+      const found = spec.match(STAMP_VALUE_RE);
+      if (found) note(found[1], relFromRoot(file));
+      else problems.push(`${relFromRoot(file)}: CSS @import has no cache stamp -> ${spec}`);
+    }
+  }
+
   const storeTemplates = path.join(STORE, "templates");
   if (fs.existsSync(storeTemplates)) {
     for (const file of walkFiles(storeTemplates, new Set([".html"]))) {
@@ -515,6 +554,12 @@ function checkStaticCacheStamps(problems) {
 }
 
 /**
+ * Check 9 covers CSS `@import` too: a stylesheet pulled in by another one needs
+ * the same stamp as everything else. `@import` is the one import form the
+ * browser resolves at parse time, so a missing stamp there is exactly as stale
+ * as a missing stamp on a `<link>` — and, being CSS, it was the form nothing
+ * checked until `presence-editor.css` shipped one without a stamp.
+ *
  * Check 10: file paths named inside comments still resolve.
  *
  * The docstrings here are load-bearing — they name the file that owns a piece of
@@ -543,9 +588,13 @@ function checkStaticCacheStamps(problems) {
  *   - only the code roots are scanned (frontend/, store/, backend/, migrations/,
  *     docker/); markdown, docs/, deploy/, tools/ and data/ are not, so tree
  *     diagrams and examples cannot be mistaken for references.
+ *
+ * The trailing `(?![\w])` matters: without it `data/appearance.json` matched as
+ * `data/appearance.js` (the `.js` alternative hitting the prefix of `.json`),
+ * and every mention of that settings file was reported as a moved `.js` module.
  */
 const COMMENT_PATH_RE =
-  /(?<![\w/@.-])([A-Za-z0-9_@-]+(?:\/[A-Za-z0-9_@.-]+)+\.(?:js|mjs|css|py|html))/g;
+  /(?<![\w/@.-])([A-Za-z0-9_@-]+(?:\/[A-Za-z0-9_@.-]+)+\.(?:js|mjs|css|py|html))(?![\w])/g;
 const COMMENT_SCAN_EXTENSIONS = new Set([".js", ".mjs", ".py", ".css", ".html"]);
 /** Code roots whose comments are checked; docs/ and markdown are excluded. */
 const COMMENT_SCAN_ROOTS = [
@@ -553,7 +602,13 @@ const COMMENT_SCAN_ROOTS = [
   STORE,
   path.join(ROOT, "backend"),
   path.join(ROOT, "migrations"),
-  path.join(ROOT, "docker")
+  path.join(ROOT, "docker"),
+  // `design/` is the canonical source the other roots' copies are generated
+  // from, and every generated copy names it in its header (so the next reader
+  // does not edit a file that gets overwritten). Scanning it is also what makes
+  // those mentions resolve: the name only counts as greppable when a real path
+  // under a scanned root equals it.
+  path.join(ROOT, "design")
 ];
 
 /**

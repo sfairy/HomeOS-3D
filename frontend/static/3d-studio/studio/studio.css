@@ -2,29 +2,47 @@
  * 3D 户型工作室（/3d-studio）的唯一样式表。只服务 studio.html 一个页面，页面无内联 <style>
  * （CSP 为 style-src 'self'），所有视觉规则都必须写在这里。
  *
- * 主题变量：调色板（--bg / --surface / --accent / --cyan / --danger 等）在本文件顶部 :root 定义，
- * 不依赖 app.css 或后端主题，改配色只改这一处；--details-panel-width 与 --preview-panel-height
+ * 主题变量：本文件**不再自带色板**，:root 只把历史令牌名（--bg / --surface / --accent …）
+ * 别名到 design/scene/page.css 那份全站唯一调色板（3d-studio.html 已 <link> 其分发产物）。
+ * 别名而不是重命名：本文件有 33 处 var(--accent*) 与多条 var(--surface*)，改名要逐个跟。
+ * 画布（studio-app.js 的 2D planContext）读不到 CSS 变量，那边的色值由 paletteColor() 从
+ * 计算样式取一次再缓存，常量名与本文件的令牌一一对应，改这里那边跟着走。
+ *
+ * --details-panel-width 与 --preview-panel-height
  * 由 studio-app.js 拖拽分隔条时写到元素上，这里只提供默认兜底值。
  * 布局前提：桌面端工具页，body 最小宽度 1180px（窄屏只做尺寸降级），面板三栏由 grid 固定分配，
- * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=，否则会加载出两套模块级单例。
+ * 页面本身不允许出现滚动条。本文件与 studio-app.js 必须共用同一条 ?v=20260921090405
  */
 
 /* ===== 设计令牌（主题变量） ===== */
 
 :root {
   color-scheme: dark;
-  --bg: #0a0f14;
-  --surface: #111820;
-  --surface-raised: #17212b;
-  --surface-soft: #1b2631;
-  --line: rgba(255, 255, 255, 0.09);
-  --line-strong: rgba(255, 255, 255, 0.16);
-  --text: #f5f7f9;
-  --muted: #8794a1;
-  --accent: #ff9d2e;
-  --accent-soft: rgba(255, 157, 46, 0.16);
-  --cyan: #43d2e6;
-  --danger: #ff6b72;
+  --bg: var(--hos-sky-deep);
+  --surface: var(--hos-sky-low);
+  --surface-raised: var(--hos-sky-high);
+  --surface-soft: var(--hos-sky-mid);
+  --line: var(--hos-sky-haze);
+  --line-strong: rgba(var(--hos-sky-haze-rgb), 0.6);
+  --text: var(--hos-ink);
+  --muted: var(--hos-muted);
+
+  /* 主控色：选中物、当前阶段、标定参考点。原来是橙色 #ff9d2e，
+     现在与编辑器 / 入口页 / 商店共用同一枚青。 */
+  --accent: var(--hos-accent);
+  --accent-bright: var(--hos-accent-bright);
+  --accent-soft: rgba(var(--hos-accent-rgb), 0.16);
+
+  /* 已完成阶段。原来借用 --cyan，可 --cyan 同时还是画布上的吸附 / 量测色 ——
+     一个令牌背两种语义，改色时必然误伤另一半。拆开：完成态属于「正常」，走生态薄荷。 */
+  --done: var(--hos-eco);
+
+  /* 量测 / 吸附 / HUD 次级读数。取极光紫而不是另一枚青：主控色已经是青，
+     再来一枚 #43d2e6 这样只差几度的青，画布上根本分不出「这个点是选中还是吸附」。 */
+  --guide: var(--hos-aura);
+
+  --danger: var(--hos-alert);
+
   font-family:
     Inter,
     ui-sans-serif,
@@ -134,11 +152,11 @@ input[type="number"]::-webkit-outer-spin-button {
 .number-stepper .number-stepper-button:hover:not(:disabled) {
   border-color: #ffa73a6b;
   color: #ffc071;
-  background: #ff9d2e1a;
+  background: rgba(var(--hos-accent-rgb), 0.1);
 }
 .number-stepper .number-stepper-button:active:not(:disabled) {
   transform: none;
-  background: #ff9d2e29;
+  background: rgba(var(--hos-accent-rgb), 0.16);
 }
 .number-stepper .number-stepper-button:focus-visible {
   position: relative;
@@ -258,6 +276,27 @@ button:disabled {
   height: 32px;
   object-fit: contain;
 }
+/* ===== 页面色调（极光紫） ===== */
+
+/* 工作室是「把家画出来」的创作页，色调取极光紫，与画布上的量测 / 吸附色同源（--guide）：
+   界面上偏紫的东西一律是「在引导你怎么画」（量测线、吸附提示、顶栏眉标、弹窗索引），
+   偏青的东西是「你按下去了什么」（选中物、当前阶段）。改造前这两件事共用一枚青，
+   画布上根本分不出「这个点是选中还是吸附」，拆开之后规则才学得会。
+   声明在 body 而不是 :root：色调是页面身份，与 --accent 这类设计令牌不是一层。 */
+body[data-tone='aura'] {
+  --studio-tone: var(--hos-aura);
+  --studio-tone-rgb: var(--hos-aura-rgb);
+}
+/* 顶栏眉标与弹窗索引跟着页面色调走。没有 data-tone 时这两处仍是中性灰 ——
+   工具页默认不该抢画布的注意力，只有在明确表态色调的页面上才点色。 */
+body[data-tone] .header-leading p,
+body[data-tone] .scale-dialog .dialog-index {
+  color: var(--studio-tone);
+}
+body[data-tone] .scale-dialog .dialog-index {
+  text-shadow: 0 0 10px rgba(var(--studio-tone-rgb), 0.3);
+}
+
 .header-leading p,
 .eyebrow,
 .dialog-index {
@@ -317,20 +356,20 @@ button:disabled {
   font-size: 10px;
 }
 /* complete / active 两个状态类由 studio-app.js 按当前阶段写到 li 上，
-   配色与 --cyan（已完成）/ --accent（进行中）两枚令牌绑定，不在这里写死色值。 */
+   配色与 --done（已完成）/ --accent（进行中）两枚令牌绑定，不在这里写死色值。 */
 .workflow-steps li.complete {
-  color: #aab4be;
+  color: var(--muted);
 }
 .workflow-steps li.complete i {
-  color: #152027;
-  border-color: var(--cyan);
-  background: var(--cyan);
+  color: var(--hos-sky-deep);
+  border-color: var(--done);
+  background: var(--done);
 }
 .workflow-steps li.active {
   color: var(--text);
 }
 .workflow-steps li.active i {
-  color: #211307;
+  color: var(--hos-sky-deep);
   border-color: var(--accent);
   background: var(--accent);
   box-shadow: 0 0 0 4px var(--accent-soft);
@@ -565,8 +604,8 @@ button:disabled {
   bottom: -3px;
 }
 .floor-row.active {
-  border-color: #ff9d2e57;
-  background: #ff9d2e14;
+  border-color: rgba(var(--hos-accent-rgb), 0.34);
+  background: rgba(var(--hos-accent-rgb), 0.08);
 }
 /* unaligned = 该楼层还没做过「对齐基点」，用琥珀色提醒；楼号与标高两处都要染色，
    所以分成 > span 与 > small 两条规则（两处文字在不同网格列，无法合并选择器）。 */
@@ -585,7 +624,7 @@ button:disabled {
 }
 .floor-row.active > button:first-child {
   color: #ffc071;
-  background: #ff9d2e1f;
+  background: rgba(var(--hos-accent-rgb), 0.12);
 }
 .floor-row > span {
   min-width: 0;
@@ -683,7 +722,7 @@ button:disabled {
   padding-left: 2px;
 }
 .model-settings-row input:focus {
-  border-color: #ff9d2e7a;
+  border-color: rgba(var(--hos-accent-rgb), 0.48);
 }
 /* 「可选参数」行（例如地脚线、模型朝向）：上方用 1px 分隔线与主参数区分，
    三列 = 描述 + 输入 + 开关；min-height 32px 保证这一行的点击区域够大。 */
@@ -724,16 +763,16 @@ button:disabled {
   text-align: center;
 }
 .model-settings-option-row input:focus {
-  border-color: #ff9d2e7a;
+  border-color: rgba(var(--hos-accent-rgb), 0.48);
 }
 .model-settings-option-row button {
   min-width: 42px;
   height: 26px;
   padding: 0 6px;
-  border-color: #ff9d2e4d;
+  border-color: rgba(var(--hos-accent-rgb), 0.3);
   border-radius: 7px;
   color: #ffc071;
-  background: #ff9d2e14;
+  background: rgba(var(--hos-accent-rgb), 0.08);
   font-size: 10px;
 }
 /* 用 aria-pressed 而不是额外的 .on 类表示开关态：脚本只需切换一个属性，
@@ -742,12 +781,6 @@ button:disabled {
   border-color: var(--line);
   color: #7f8b95;
   background: #00000029;
-}
-.asset-tip {
-  margin: 6px 0 0;
-  color: #7b8893;
-  font-size: 10px;
-  line-height: 1.45;
 }
 /* 素材库分类页签（灯光 / 家具 / 其它）：三列等宽，选中页由 .active 打底，
    同一时刻只显示一个 .asset-grid / .light-asset-row，切换逻辑在 studio-app.js。 */
@@ -1059,11 +1092,11 @@ button:disabled {
   width: 100%;
   height: 34px;
   padding: 0 10px;
-  border: 1px solid #ff9d2e47;
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.28);
   border-radius: 7px;
   outline: 0;
   color: #fff;
-  background: #ff9d2e0f;
+  background: rgba(var(--hos-accent-rgb), 0.06);
   font-size: 10px;
 }
 .light-group-area-new-row input:focus {
@@ -1074,7 +1107,7 @@ button:disabled {
   padding: 0 10px;
   border-radius: 7px;
   color: #e1ad66;
-  background: #ff9d2e12;
+  background: rgba(var(--hos-accent-rgb), 0.07);
   font-size: 10px;
   white-space: nowrap;
 }
@@ -1171,7 +1204,7 @@ button:disabled {
    高于这里的 .asset-card:hover（0,2,0）—— 否则素材卡 hover 只会变成通用灰色，
    丢失「可放置」的橙色提示。 */
 .asset-card:hover {
-  border-color: #ff9d2e5c !important;
+  border-color: rgba(var(--hos-accent-rgb), 0.36) !important;
   background: var(--accent-soft) !important;
 }
 .asset-card i {
@@ -1262,7 +1295,7 @@ button:disabled {
    与画布里橙色选中框形成同一套「当前对象」语言。 */
 .tool-button.active {
   color: #fff;
-  border-color: #ff9d2e4d;
+  border-color: rgba(var(--hos-accent-rgb), 0.3);
   background: var(--accent-soft);
 }
 .tool-button.active i {
@@ -1279,12 +1312,6 @@ button:disabled {
 }
 .toolbar-actions .danger-action:not(:disabled) {
   color: #ff8e93;
-}
-.toolbar-actions .icon-action {
-  width: 34px;
-  min-width: 34px;
-  padding: 0;
-  font-size: 18px;
 }
 /* 吸附按钮的定位锚点：设置齿轮弹出的浮层以它为参照做 absolute 定位，
    所以这里只负责建立定位上下文与水平对齐。 */
@@ -1312,7 +1339,7 @@ button:disabled {
 /* 吸附开启态：按钮整体亮橙，右侧计数胶囊反相成橙底深字，
    扫一眼就能确认吸附是否生效、当前抓住了几个点。 */
 .toolbar-actions .snap-toggle.active {
-  border-color: #ff9d2e52;
+  border-color: rgba(var(--hos-accent-rgb), 0.32);
   color: #f4f6f8;
   background: var(--accent-soft);
 }
@@ -1439,11 +1466,7 @@ button:disabled {
     height: 32px;
     padding-inline: 7px;
   }
-  .toolbar-actions .icon-action {
-    width: 32px;
-    min-width: 32px;
   }
-}
 /* 画布底纹用两层同色 1px 线性渐变拼出 24px 网格：比 background-image 贴图省一次请求，
    也随 DPR 缩放保持锐利。网格只是视觉参考，不参与任何坐标换算。 */
 .plan-stage {
@@ -1505,7 +1528,7 @@ button:disabled {
   display: grid;
   place-items: center;
   margin: 0 auto 13px;
-  border: 1px solid rgba(255, 157, 46, 0.4);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.4);
   border-radius: 50%;
   color: var(--accent);
   font-size: 10px;
@@ -1553,7 +1576,7 @@ button:disabled {
   font-size: 10px;
 }
 /* 底部左侧 HUD：光标坐标（等宽字体防抖动）+ 吸附开关状态，
-   第二个 span 用 --cyan 与坐标区分，两者都由脚本按帧写入文本。 */
+   第二个 span 用 --guide 与坐标区分，两者都由脚本按帧写入文本。 */
 .canvas-hud.bottom-left {
   bottom: 12px;
   left: 12px;
@@ -1568,7 +1591,7 @@ button:disabled {
     monospace;
 }
 .canvas-hud.bottom-left span + span {
-  color: var(--cyan);
+  color: var(--guide);
 }
 .canvas-hud.bottom-right {
   right: 12px;
@@ -1605,7 +1628,7 @@ button:disabled {
   place-items: center;
   border: 1px dashed var(--accent);
   border-radius: 12px;
-  background: #ff9d2e14;
+  background: rgba(var(--hos-accent-rgb), 0.08);
   color: var(--accent);
   font-size: 12px;
   font-weight: 700;
@@ -1708,7 +1731,7 @@ button:disabled {
   border-radius: 5px;
   background:
     radial-gradient(circle, #a5b2bc 1px, transparent 1.5px) 1px 1px / 5px 5px,
-    #17212b;
+    var(--surface-raised);
   box-shadow: 0 0 0 5px #0a0f14db;
   transform: translateY(-50%);
   cursor: move;
@@ -1854,11 +1877,11 @@ button:disabled {
 .preview-primary-controls .open-export {
   border-color: #ffa73a52;
   color: #ffc071;
-  background: #ff9d2e17;
+  background: rgba(var(--hos-accent-rgb), 0.09);
 }
 .preview-primary-controls .open-export:hover {
   border-color: #ffa73a8f;
-  background: #ff9d2e26;
+  background: rgba(var(--hos-accent-rgb), 0.15);
 }
 .preview-secondary-controls #reset-camera {
   color: #8996a1;
@@ -1946,32 +1969,6 @@ button:disabled {
 }
 .camera-focal-control.is-disabled {
   opacity: 0.58;
-}
-/* 导出表单里的楼层切换：外观与预览区的楼层开关同款，但宽度用 max-content ——
-   它在导出面板里独占一行，按容器拉满会显得比旁边的表单控件更「重」。 */
-.export-floor-switch {
-  display: flex;
-  width: max-content;
-  gap: 2px;
-  margin-bottom: 8px;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #00000029;
-}
-.export-floor-switch button {
-  min-height: 28px;
-  padding: 4px 9px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #8996a1;
-  font-size: 10px;
-}
-.export-floor-switch button.active {
-  color: #eef4ff;
-  background: #869ece3d;
-  box-shadow: inset 0 0 0 1px #c2d3f426;
 }
 .export-composition-heading {
   align-items: center;
@@ -2297,7 +2294,7 @@ button:disabled {
 .save-base-lighting {
   border-color: #ffa73a52;
   color: #ffc071;
-  background: #ff9d2e1a;
+  background: rgba(var(--hos-accent-rgb), 0.1);
 }
 /* 预览区两张离屏 canvas 的覆盖层：灯光合图缓存（z-index 2）与渲染遮罩（z-index 3），
    都是 inset: 0 铺满 + pointer-events: none。切换时只切 [hidden]、不销毁节点，
@@ -2558,7 +2555,7 @@ button:disabled {
   padding: 0 7px;
   border-radius: 5px;
   color: #e1ad66;
-  background: #ff9d2e12;
+  background: rgba(var(--hos-accent-rgb), 0.07);
   font-size: 10px;
   white-space: nowrap;
 }
@@ -2717,7 +2714,7 @@ select option:disabled {
 /* 展开态：描边变橙 + 两层箭头互换角度，形成「箭头翻转」的效果。 */
 .studio-select.open .studio-select-trigger {
   border-color: #ffa73a8f;
-  box-shadow: 0 0 0 2px #ff9d2e14;
+  box-shadow: 0 0 0 2px rgba(var(--hos-accent-rgb), 0.08);
 }
 .studio-select.open .studio-select-trigger:before {
   background: #ffc071;
@@ -2731,7 +2728,7 @@ select option:disabled {
    （全局 button 的焦点环是 2px 实色，放在这个 36px 控件上过重）。 */
 .studio-select-trigger:focus-visible {
   border-color: #ffa73ab8;
-  outline: 2px solid rgba(255, 157, 46, 0.16);
+  outline: 2px solid rgba(var(--hos-accent-rgb), 0.16);
   outline-offset: 1px;
 }
 .studio-select-trigger:disabled {
@@ -2782,7 +2779,7 @@ select option:disabled {
 }
 .studio-select-option.selected {
   color: #ffc071;
-  background: #ff9d2e1f;
+  background: rgba(var(--hos-accent-rgb), 0.12);
 }
 .studio-select-option:disabled {
   color: #65717c;
@@ -2802,7 +2799,7 @@ select option:disabled {
 }
 .light-group-rename-field .studio-select-trigger {
   height: 38px;
-  border-color: #ff9d2e61;
+  border-color: rgba(var(--hos-accent-rgb), 0.38);
   line-height: 36px;
 }
 .field-section input[readonly] {
@@ -2945,10 +2942,10 @@ select option:disabled {
   width: 100%;
   height: 34px;
   padding: 0 9px;
-  border: 1px solid rgba(255, 157, 46, 0.38);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.38);
   border-radius: 7px;
   color: #fff;
-  background: #ff9d2e14;
+  background: rgba(var(--hos-accent-rgb), 0.08);
 }
 /* 所有对话框共用的底部动作条：右对齐、按钮统一 min-width 100px / 38px 高，
    让「取消 / 确认」在不同宽度的对话框里始终落在同一位置。 */
@@ -3056,21 +3053,21 @@ select option:disabled {
   width: 100%;
   height: 38px;
   padding: 0 11px;
-  border: 1px solid rgba(255, 157, 46, 0.38);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.38);
   border-radius: 8px;
   outline: 0;
   color: #fff;
-  background: #ff9d2e14;
+  background: rgba(var(--hos-accent-rgb), 0.08);
 }
 .light-group-rename-field input:focus {
   border-color: #ffa73ab8;
-  box-shadow: 0 0 0 3px #ff9d2e14;
+  box-shadow: 0 0 0 3px rgba(var(--hos-accent-rgb), 0.08);
 }
 .light-group-rename-field select {
   width: 100%;
   height: 38px;
   padding: 0 34px 0 11px;
-  border: 1px solid rgba(255, 157, 46, 0.38);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.38);
   border-radius: 8px;
   outline: 0;
   color: #fff;
@@ -3078,7 +3075,7 @@ select option:disabled {
 }
 .light-group-rename-field select:focus {
   border-color: #ffa73ab8;
-  box-shadow: 0 0 0 3px #ff9d2e14;
+  box-shadow: 0 0 0 3px rgba(var(--hos-accent-rgb), 0.08);
 }
 /* 灯具属性批量应用对话框：加宽到 720px 以容纳多列目标列表；内部用 flex column +
    max-height 收在视口内，让「说明 / 目标列表 / 动作条」三段中只有列表滚动。 */
@@ -3135,7 +3132,7 @@ select option:disabled {
   padding: 0 8px;
   border-radius: 5px;
   color: #e0a653;
-  background: #ff9d2e0f;
+  background: rgba(var(--hos-accent-rgb), 0.06);
   font-size: 10px;
 }
 /* 目标列表自身滚动：上限 min(430px, 100vh - 330px)，后者保证在矮屏上
@@ -3301,7 +3298,7 @@ select option:disabled {
   display: grid;
   gap: 3px;
   padding: 9px 10px;
-  border: 1px solid rgba(242, 162, 13, 0.5);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.5);
   border-radius: 8px;
   color: #f5dca8;
   background: #67430e3d;
@@ -3386,14 +3383,14 @@ select option:disabled {
 }
 /* 悬停：橙色只做到「淡淡一层」的程度，避免与下面的 .active 抢视觉焦点。 */
 .export-preset-slots button:hover {
-  border-color: #ff9d2e52;
-  background: #ff9d2e09;
+  border-color: rgba(var(--hos-accent-rgb), 0.32);
+  background: rgba(var(--hos-accent-rgb), 0.04);
 }
 /* 当前选中的槽位：实线橙框 + 外扩 1px 的极淡光晕，靠边框深浅而不是填充色区分。 */
 .export-preset-slots button.active {
-  border-color: #ff9d2e9e;
-  background: #ff9d2e14;
-  box-shadow: 0 0 0 1px #ff9d2e14;
+  border-color: rgba(var(--hos-accent-rgb), 0.62);
+  background: rgba(var(--hos-accent-rgb), 0.08);
+  box-shadow: 0 0 0 1px rgba(var(--hos-accent-rgb), 0.08);
 }
 /* 选中但从未存过值（脚本不加 .has-value）：改成虚线灰框、去掉光晕，
    语义是「这是个空位，可以被覆盖」，与「已存过值」的实线橙框形成对照。 */
@@ -3454,7 +3451,7 @@ select option:disabled {
   display: grid;
   width: 25px;
   height: 25px;
-  border: 1px solid rgba(255, 157, 46, 0.24);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.24);
   border-radius: 6px;
   color: var(--accent);
   place-items: center;
@@ -3655,7 +3652,7 @@ select option:disabled {
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 8px #ff9d2e61;
+  box-shadow: 0 0 8px rgba(var(--hos-accent-rgb), 0.38);
 }
 .export-file-list span {
   grid-area: name;
@@ -3706,7 +3703,7 @@ select option:disabled {
   padding: 4px 8px;
   border-color: #ffa73a47;
   color: #ffc071;
-  background: #ff9d2e1a;
+  background: rgba(var(--hos-accent-rgb), 0.1);
   font-size: 10px;
   white-space: nowrap;
 }
@@ -3898,16 +3895,16 @@ body.auto-diagram-embedded .export-preview-frame {
   transform: translate(-50%);
 }
 .toast.error {
-  border-color: #ff6b7259;
-  color: #ff9aa0;
+  border-color: rgba(var(--hos-alert-rgb), 0.35);
+  color: var(--hos-alert-bright);
 }
 .toast.warning {
-  border-color: #f4a8166b;
-  color: #f5c46b;
+  border-color: rgba(var(--hos-lumen-rgb), 0.42);
+  color: var(--hos-lumen-bright);
 }
 .toast.success {
-  border-color: #76cfa161;
-  color: #91ddb5;
+  border-color: rgba(var(--hos-eco-rgb), 0.38);
+  color: var(--hos-eco-bright);
 }
 /* ===== 窄屏降级（≤1380px） ===== */
 

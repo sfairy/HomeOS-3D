@@ -136,9 +136,8 @@ def validate_config(properties: dict) -> None:
         'presenceSensors',
         'cameras'}:
         fail()
-    # 单表 128 条上限：超出说明数据异常，直接拒绝而不是逐条慢慢校验。
     cameras = security.get('cameras', [])
-    if not isinstance(cameras, list) or len(cameras) > 128:
+    if not isinstance(cameras, list):
         fail()
     # id 全局唯一，(floorId, modelId) 组合也唯一 —— 同一个模型上不该挂两个摄像头。
     camera_ids = set()
@@ -186,7 +185,7 @@ def validate_config(properties: dict) -> None:
         validate_camera(item.get('focusCamera'))
     # 人形传感器：除基本字段外还有路径、触发模式与展示页范围三组约束。
     people = security.get('presenceSensors', [])
-    if not isinstance(people, list) or len(people) > 128:
+    if not isinstance(people, list):
         fail()
     # id 全局唯一；每层最多一个同模型（modelId）的人形，避免重叠渲染。
     presence_ids = set()
@@ -566,7 +565,7 @@ def validate_config(properties: dict) -> None:
         fail()
     # 灯光表：entityId 可空（纯装饰的灯），一旦填写就必须是合法的 HA 实体 ID。
     lights = properties.get('lights', [])
-    if not isinstance(lights, list) or len(lights) > 128:
+    if not isinstance(lights, list):
         fail()
     ids = set()
     for light in lights:
@@ -652,7 +651,7 @@ def validate_config(properties: dict) -> None:
         fail()
     # 空调：entityId 只允许 climate.* 域，且 (楼层, 模型) 组合唯一。
     air_conditioners = environment.get('airConditioners', [])
-    if not isinstance(air_conditioners, list) or len(air_conditioners) > 128:
+    if not isinstance(air_conditioners, list):
         fail()
     ids = set()
     models = set()
@@ -702,7 +701,7 @@ def validate_config(properties: dict) -> None:
         validate_camera(item.get('focusCamera'))
     # 窗帘：entityId 只允许 cover.* 域；coverKind 区分普通帘与梦幻帘（可控时机不同）。
     curtains = environment.get('curtains', [])
-    if not isinstance(curtains, list) or len(curtains) > 128:
+    if not isinstance(curtains, list):
         fail()
     ids = set()
     models = set()
@@ -775,7 +774,7 @@ def validate_config(properties: dict) -> None:
         fail()
     # 电视：entityId 是 media_player.*，电源实体另存 powerEntityId（允许 switch 等其它域）。
     televisions = devices.get('televisions', [])
-    if not isinstance(televisions, list) or len(televisions) > 128:
+    if not isinstance(televisions, list):
         fail()
     tv_ids = set()
     tv_models = set()
@@ -827,7 +826,7 @@ def validate_config(properties: dict) -> None:
         validate_camera(item.get('focusCamera'))
     # 扫地机：地图与快捷入口是嵌套结构；relatedEntityIds 是额外放开控制的相关实体。
     vacuums = devices.get('vacuums', [])
-    if not isinstance(vacuums, list) or len(vacuums) > 128:
+    if not isinstance(vacuums, list):
         fail()
     vacuum_ids = set()
     vacuum_models = set()
@@ -905,7 +904,7 @@ def validate_config(properties: dict) -> None:
         if 'visible' in mapping and not isinstance(mapping['visible'], bool):
             fail()
         shortcuts = item.get('shortcuts', [])
-        if not isinstance(shortcuts, list) or len(shortcuts) > 64:
+        if not isinstance(shortcuts, list):
             fail()
         shortcut_ids = set()
         for shortcut in shortcuts:
@@ -949,11 +948,11 @@ def validate_config(properties: dict) -> None:
         if any(not text(item.get(key, '')) for key in ('deviceId', 'deviceName')):
             fail()
         related = item.get('relatedEntityIds', [])
-        if not isinstance(related, list) or len(related) > 512 or any(not text(entity) or not re.fullmatch('[a-z_]+\\.[a-z0-9_]+', entity) for entity in related):
+        if not isinstance(related, list) or any(not text(entity) or not re.fullmatch('[a-z_]+\\.[a-z0-9_]+', entity) for entity in related):
             fail()
     # NAS 面板：statusSource 描述由哪台设备驱动，可选的可见指标与分组顺序控制展示。
     nas = devices.get('nas', [])
-    if not isinstance(nas, list) or len(nas) > 128:
+    if not isinstance(nas, list):
         fail()
     ids = set()
     models = set()
@@ -1017,7 +1016,7 @@ def validate_config(properties: dict) -> None:
                 fail()
             if not isinstance(source['primaryEntityId'], str) or source['primaryEntityId'] != '' and not re.fullmatch('(?:sensor|binary_sensor)\\.[a-z0-9_]+', source['primaryEntityId']):
                 fail()
-            if not isinstance(source['metrics'], list) or not 0 <= len(source['metrics']) <= 48:
+            if not isinstance(source['metrics'], list):
                 fail()
             metric_ids = set()
             for metric in source['metrics']:
@@ -1038,7 +1037,7 @@ def validate_config(properties: dict) -> None:
             # visibleMetrics 是展示白名单：必须是 metrics 的子集且不重复。
             if 'visibleMetrics' in source:
                 visible = source['visibleMetrics']
-                if not isinstance(visible, list) or len(visible) > 48 or any(not isinstance(entity, str) or entity not in metric_ids for entity in visible) or len(set(visible)) != len(visible):
+                if not isinstance(visible, list) or any(not isinstance(entity, str) or entity not in metric_ids for entity in visible) or len(set(visible)) != len(visible):
                     fail()
             # groupOrder 是分组排序：最多 4 组，取值来自已知分组且不重复。
             if 'groupOrder' in source:

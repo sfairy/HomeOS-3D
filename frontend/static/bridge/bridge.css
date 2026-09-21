@@ -9,7 +9,7 @@
 
 /* ===== 宿主容器与授权状态 ===== */
 
-@import "/static/bridge/controls.css?v=20260920131301";
+@import "/static/bridge/controls.css?v=20260921090405";
 /* 宿主铺满组件区域并把内容居中；透明背景让组件的背景设置（网格 / 星尘）由内部渲染决定。 */
 .hb-interaction3d-host {
   display: flex;
@@ -56,15 +56,10 @@
   opacity: 1;
   animation: i3d-scene-enter 0.48s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-/* 只过渡不透明度：首帧做位移 / 缩放会让人误以为组件位置抖动。 */
-@keyframes i3d-scene-enter {
-  0% {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+/* 只过渡不透明度：首帧做位移 / 缩放会让人误以为组件位置抖动。
+   @keyframes i3d-scene-enter 定义在 runtime.css —— 上面这条规则用的是宿主文档里的
+   同名动画，而 runtime.css 是 bridge.js 挂载 3D 时注入宿主文档的（舞台页 iframe
+   内部也靠它）。两个文档各留一份会让名字在同一文档里重复，所以此处不再定义。 */
 /* 尊重系统的「减少动态效果」偏好：直接跳到终态。 */
 @media (prefers-reduced-motion: reduce) {
   .hb-interaction3d-host .is-ready .i3d-frame {
@@ -425,7 +420,11 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  accent-color: var(--accent, #f2a20d);
+  /* accent-color 的回落值必须与 --accent 的取值同源（design/scene 的 --hos-accent）。
+     这里保留字面量是因为本文件同时被 index.html（有调色板）和 display.html 以 @import
+     链路引入，而 controls.css 还会被运行期动态注入的 runtime.css / stage.css 引入 ——
+     那些页面不保证加载了调色板。回落值不是「备用配色」，只是调色板不在场时的同一枚色。 */
+  accent-color: var(--accent, var(--hos-accent, #5fd4ff));
 }
 #interaction3d-inspector .i3d-wall-opacity-row > .inspector-number-control {
   flex: none;

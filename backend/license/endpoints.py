@@ -14,9 +14,11 @@ import threading
 import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-# 失败地址默认拉黑 5 分钟：足够覆盖一次网络抖动或服务端重启，
-# 又不至于让一个已恢复的地址长时间被跳过。
-LICENSE_ENDPOINT_BLACKLIST_SECONDS = 300
+# 一轮计划重试的间隔下限（秒）。端点拉黑时长与它对齐：黑名单若比重试节奏还长，
+# 每一轮自动重试都会整轮撞在冷却里，把「自动恢复」拖成「干等一个冷却周期」。
+LICENSE_RETRY_SECONDS = 120
+# 失败地址拉黑时长。与重试间隔取同一枚常量，保证每轮重试都至少有机会重新探测所有地址。
+LICENSE_ENDPOINT_BLACKLIST_SECONDS = LICENSE_RETRY_SECONDS
 # 批次白名单：只有这三类名字可以被配置，写错会直接抛 ValueError，
 # 而不是被静默忽略导致「配了地址却永远不生效」。
 LICENSE_ENDPOINT_BATCH_NAMES = ('esa', 'eo', 'direct')
@@ -124,3 +126,18 @@ class LicenseEndpointPool:
         with self._lock:
             # 以 self._clock() 起算，与 candidates() 的过期判据用同一时间源。
             self._blacklist_until[base_url] = self._clock() + self._blacklist_seconds
+
+    def retry_failed(self) -> None:
+        """清空黑名单，让一次计划重试能重新探测所有地址。
+
+        存在的理由是「拉黑」与「人工重试」的判据不同：拉黑是为了在连续失败时快速止损，
+        而用户明确点了重试，就是要求「现在就再试一遍」，沿用旧冷却会让这一下必然无效。
+        """
+        with self._lock:
+            self._blacklist_until.clear()
+
+    def is_blacklisted(self, base_url: str) -> bool:
+        """某地址当前是否处于拉黑期；供上层决定要不要提示「稍后再试」。"""
+        with self._lock:
+            # 用 get 默认 0：未拉黑过的地址不必先写入字典再判断。
+            return self._blacklist_until.get(base_url, 0) > self._clock()

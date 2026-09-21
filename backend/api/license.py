@@ -11,11 +11,15 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from ..core.dependencies import CurrentUser
+from ..core.dependencies import CurrentUser, CurrentViewer
 from ..license import LicenseClientError
 from ..core.schemas import LicenseActivateRequest
 
 router = APIRouter(prefix='/license', tags=['license'])
+
+# 这两个错误码表示「再点重试也不会变好」：前者要求人工重新激活，后者是刚点过（节流）。
+# 其余错误码一律按可重试处理 —— 网络抖动、5xx 都属于「等一会儿再来」。
+RETRY_TERMINAL_CODES = frozenset({'LICENSE_REAUTH_REQUIRED', 'LICENSE_RETRY_THROTTLED'})
 
 
 @router.get('/status')
@@ -67,3 +71,49 @@ async def reactivate_license(request: Request, _user: CurrentUser) -> dict:
             detail = {
                 'code': error.code or 'LICENSE_REACTIVATE_FAILED',
                 'message': str(error)}) from error
+
+
+@router.post('/retry')
+async def retry_license(request: Request, viewer: CurrentViewer) -> dict:
+    """立刻重试一次授权恢复（需已登录或已配对的中控设备）。
+
+    与 ``/status`` 的差别就是本接口存在的全部理由：``/status`` 只读状态、重试交给后台心跳，
+    因此「点了重试但要等下一个心跳周期」；本接口当场发起一轮恢复，并清掉端点黑名单，
+    使手动点击不会被上一轮失败留下的冷却直接挡回。
+
+    身份：CurrentViewer —— 中控设备与管理员都可重试，这正是展示端卡在受限页时的自救出口。
+
+    返回: 管理员会话拿完整状态；中控设备只拿 ``availability()`` 的摘要 ——
+    展示端既不需要、也不该看到授权标识与凭证字段。
+    """
+    # 本接口有真实副作用（触发联网重试），属于写操作，必须自己挡跨站请求：
+    # 只接受同源发起，作为 SameSite Cookie 之外的兜底。
+    origin = request.headers.get('origin')
+    if (origin and origin.rstrip('/') != str(request.base_url).rstrip('/')) or request.headers.get('sec-fetch-site') == 'cross-site':
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='不允许跨站重试授权。')
+    try:
+        result = await request.app.state.license_service.retry_now()
+    except LicenseClientError as error:
+        # 分流成两种信号：可重试 → 503（稍后再来），需人工介入 → 409（再点也没用）。
+        # 前端据此决定是否继续显示重试按钮，所以必须由后端给结论，而不是让前端猜错误码含义。
+        retryable = error.code not in RETRY_TERMINAL_CODES and not error.is_confirmed_revocation
+        raise HTTPException(
+            status_code = status.HTTP_503_SERVICE_UNAVAILABLE if retryable else status.HTTP_409_CONFLICT,
+            detail = {
+                'code': error.code or ('LICENSE_RETRYABLE' if retryable else 'LICENSE_REAUTH_REQUIRED'),
+                'message': str(error),
+                'retryable': retryable}) from error
+    return result if viewer.is_admin_session else await asyncio.to_thread(request.app.state.license_service.availability)
+
+
+@router.get('/availability')
+async def license_availability(request: Request) -> dict:
+    """匿名可读的授权可用性摘要（无需登录、无需配对）。
+
+    恢复页与展示端恰恰是在「授权不可用」时才打开它：前者由 /pair 与 /display/* 就地渲染
+    （授权不可用时不再落 403），此时可能既登不上、也没配对成功，所以本接口不能要求身份。
+    代价是返回体必须脱敏：只给状态与「能否重试」，不给授权标识、租约、密钥或原始错误文案
+    （脱敏口径统一在 ``service.availability()`` 里）。
+    """
+    # 与 /status 同理：组摘要要查库并核对硬件指纹，同步跑在事件循环上会拖住所有请求。
+    return await asyncio.to_thread(request.app.state.license_service.availability)

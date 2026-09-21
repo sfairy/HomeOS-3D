@@ -53,7 +53,7 @@ body.hb-store-loading .hb-topbar::after {
   z-index: 60;
   top: 0;
   border-bottom: 1px solid var(--hb-line);
-  background: rgba(21, 26, 31, 0.86);
+  background: color-mix(in srgb, var(--hb-bg) 86%, transparent);
   backdrop-filter: blur(14px);
 }
 
@@ -81,12 +81,17 @@ body.hb-store-loading .hb-topbar::after {
   min-width: 0;
 }
 
+/* 品牌字标走 Orbitron（--hb-font-display），与入口页场景里那个 HomeOS 字标同一款：
+   这是整站唯一一处「品牌露出」，用显示字体把商店和激活页系在一起。
+   字重提到 700（Orbitron 只打包了 700，写别的字重会被浏览器合成），
+   字距放宽一点 —— Orbitron 的 O 本就很圆，再挤在一起会糊。 */
 .hb-brand__text strong {
   display: block;
   color: var(--hb-ink);
-  font-size: 14.5px;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+  font-family: var(--hb-font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   line-height: 1.25;
 }
 
@@ -184,10 +189,10 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 .hb-site-footer {
   position: relative;
   margin-top: auto;
-  background: rgba(26, 32, 38, 0.6);
+  background: color-mix(in srgb, var(--hb-surface) 60%, transparent);
 }
 
-/* 页脚上缘由素线换成「两端隐去、中央偏琥珀」的发丝线：整页最后一条水平线
+/* 页脚上缘由素线换成「两端隐去、中央偏青色」的发丝线：整页最后一条水平线
    落在视口底部，用渐变收尾比一条贯穿全宽的实线更干净，也呼应页头横幅
    与卡片上缘的那套指示灯语言。 */
 .hb-site-footer::before {
@@ -263,8 +268,8 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 }
 
 /* 通用页面区块：定义「科技感」在首页之外那几页的落点。首页用整屏视觉重量立第一印象，内页更密、需要可读性，所以改成「一块有分量的控制台铭牌 + 干净的正文」。
-   ::before 漂移细网格 + 左琥珀辉光 + 右下补光；::after 下缘指示灯 + 左上/右下两道 HUD 角线；
-   eyebrow 状态点 + 分区名 + 等宽路径；h1 放大到 27–40px，强调短语走琥珀渐变，与首页同一套排印语言。
+   ::before 漂移细网格 + 左青色辉光 + 右下补光；::after 下缘指示灯 + 左上/右下两道 HUD 角线；
+   eyebrow 状态点 + 分区名 + 等宽路径；h1 放大到 27–40px，强调短语走青色渐变，与首页同一套排印语言。
    正文区域（卡片 / 表格 / 列表）保持干净——正文要的是可读性，不是氛围。 */
 .hb-page-head,
 .hb-account-heading {
@@ -279,12 +284,12 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   border: 1px solid var(--hb-line);
   border-radius: var(--hb-radius-xl);
   /* 三档深色斜向过渡：比单色底多一层「面板厚度」，也把辉光衬得更亮 */
-  background: linear-gradient(126deg, #1e252d 0%, #171c22 58%, #1b2128 100%);
+  background: linear-gradient(126deg, var(--hb-surface-soft) 0%, var(--hb-surface) 58%, var(--hb-surface-raised) 100%);
   box-shadow: var(--hb-elev-2);
   overflow: hidden;
 }
 
-/* 细网格 + 双层琥珀辉光。网格两个方向各 46px 一循环，所以按 46px 位移可以
+/* 细网格 + 双层青色辉光。网格两个方向各 46px 一循环，所以按 46px 位移可以
    无缝循环，做出一条几乎察觉不到的漂移，让整块铭牌「是活的」而不是一张贴图。 */
 .hb-page-head::before,
 .hb-account-heading::before {
@@ -293,8 +298,8 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    radial-gradient(120% 155% at 0% 0%, rgba(242, 162, 13, 0.2), transparent 62%),
-    radial-gradient(88% 140% at 100% 100%, rgba(242, 162, 13, 0.1), transparent 58%);
+    radial-gradient(120% 155% at 0% 0%, rgba(var(--hb-accent-rgb), 0.2), transparent 62%),
+    radial-gradient(88% 140% at 100% 100%, rgba(var(--hb-accent-rgb), 0.1), transparent 58%);
   background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%;
   background-position: 0 0, 0 0, 0 0, 0 0;
   -webkit-mask-image: linear-gradient(104deg, #000 16%, rgba(0, 0, 0, 0.45) 58%, transparent 90%);
@@ -357,7 +362,7 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   flex: 0 0 6px;
   border-radius: 999px;
   background: var(--hb-accent-bright);
-  box-shadow: 0 0 0 3px rgba(242, 162, 13, 0.14);
+  box-shadow: 0 0 0 3px rgba(var(--hb-accent-rgb), 0.14);
   content: "";
   animation: hb-head-blip 2.6s ease-in-out infinite;
 }
@@ -403,8 +408,8 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   line-height: 1.14;
 }
 
-/* 强调短语走琥珀渐变，与首页 hero 的 h1 strong 完全同一套处理；
-   @supports 兜底，老浏览器退化成纯琥珀色而不是透明字。 */
+/* 强调短语走青色渐变，与首页 hero 的 h1 strong 完全同一套处理；
+   @supports 兜底，老浏览器退化成纯青色色而不是透明字。 */
 .hb-page-head h1 strong,
 .hb-account-heading h1 strong {
   color: var(--hb-accent-bright);
@@ -413,7 +418,7 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 @supports (background-clip: text) or (-webkit-background-clip: text) {
   .hb-page-head h1 strong,
   .hb-account-heading h1 strong {
-    background-image: linear-gradient(96deg, #ffc65a 6%, var(--hb-accent) 62%, #ef9900);
+    background-image: linear-gradient(96deg, var(--hb-accent-bright) 6%, var(--hb-accent) 62%, var(--hb-accent-deep));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -459,7 +464,6 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 @media (prefers-reduced-motion: reduce) {
   .hb-page-head::before,
   .hb-account-heading::before,
-  .hb-auth-aside::before,
   .hb-page-head__eyebrow::before,
   .hb-account-heading__eyebrow::before {
     animation: none;
@@ -478,27 +482,21 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   margin-bottom: 12px;
 }
 
-/* HUD 角标：主面板的左上 / 右下角线。给「页面主角面板」（认证卡、结算摘要、邀请卡、维护卡、收银卡）加一对 16px 琥珀角线，像设备屏幕的取景框。
+/* HUD 角标：主面板的左上 / 右下角线。给「页面主角面板」（结算摘要、邀请卡、维护卡）加一对 16px 青色角线，像设备屏幕的取景框。
    只是 2 条 1px 线、贴在面板内缩 9px 处：不放四角（每张卡都加会变成整页噪声，反看不出主次）；内缩而不贴边（面板圆角 14–18px，贴边的直角线会与圆角互相打架）。 */
-.hb-auth-card,
 .referral-share,
-.hb-maintenance-card,
-.hb-cashier__card {
+.hb-maintenance-card {
   position: relative;
 }
 
 /* .hb-product-summary 自己就是 position: sticky（已属于定位元素），
    这里不能改写成 relative，否则结算页右侧摘要会失去吸顶。 */
-.hb-auth-card::before,
 .hb-product-summary::before,
 .referral-share::before,
 .hb-maintenance-card::before,
-.hb-cashier__card::before,
-.hb-auth-card::after,
 .hb-product-summary::after,
 .referral-share::after,
-.hb-maintenance-card::after,
-.hb-cashier__card::after {
+.hb-maintenance-card::after {
   position: absolute;
   width: 16px;
   height: 16px;
@@ -507,11 +505,9 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   pointer-events: none;
 }
 
-.hb-auth-card::before,
 .hb-product-summary::before,
 .referral-share::before,
-.hb-maintenance-card::before,
-.hb-cashier__card::before {
+.hb-maintenance-card::before {
   top: 9px;
   left: 9px;
   border-right: 0;
@@ -519,11 +515,9 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   border-top-left-radius: var(--hb-radius-xs);
 }
 
-.hb-auth-card::after,
 .hb-product-summary::after,
 .referral-share::after,
-.hb-maintenance-card::after,
-.hb-cashier__card::after {
+.hb-maintenance-card::after {
   right: 9px;
   bottom: 9px;
   border-top: 0;
@@ -532,7 +526,7 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 }
 
 /* 首页：单屏居中 hero（整页不滚动）。首页只留一块内容——居中的品牌宣言 + 三步流程（原先的商品区与保障条已删：商品在 /products 有完整筛选，首页再罗列一遍既稀释焦点、又在只上架 1–2 个 SKU 时显得零散）。
-   页面「厚度」改由背景特效层承担而不是堆卡片：细网格 + 琥珀辉光 + 扫描线，三层透明度都压得很低，只在暗色画布上隐约可见，不参与信息传达。
+   页面「厚度」改由背景特效层承担而不是堆卡片：细网格 + 青色辉光 + 扫描线，三层透明度都压得很低，只在暗色画布上隐约可见，不参与信息传达。
    不滚动的做法：body 本是「min-height:100vh 的纵向 flex」，把首页 main 变成 flex:1 的弹性块，hero 就吃掉「顶栏以下、页脚以上」全部剩余高度。
    刻意**不写** `height:100svh` + `overflow:hidden` 这类硬锁：body 的高度语义是 min-height，内容真放不下时（小屏、放大字号、首访多出的第三个按钮）会自然长高照常滚动，而硬锁会把页脚或流程条直接裁掉——代价是「一屏装下」不是强保证，而是「装得下时不滚、装不下时不裁」。
    用 :has() 而不是让 JS 往 body 挂类名，是为了让这条规则在 JS 失败时也不参与（退化结果只是首页恢复成普通滚动流，不会错版）。 */
@@ -572,7 +566,169 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   mask-image: radial-gradient(ellipse 96% 68% at 50% 32%, #000 6%, transparent 76%);
 }
 
-/* 琥珀辉光：落在标题后方，非常缓慢地呼吸，幅度小到「感觉得到但注意不到」 */
+/* 夜空：把首页背后的画布从「平涂深色」换成场景那条 168° 渐变，四团氛围光与
+   design/scene/scene.css 的 .hos-scene__sky 同参数同位置，只是尺寸单位换成 vw
+   （这里没有 .hos-page 那层容器，cqw 会按小视口解析）。两端回落到 --hb-bg，
+   所以与顶栏、页脚、正文区无缝接上。 */
+.hb-hero__sky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 45% at 26% 18%, rgba(var(--hb-accent-rgb), 0.16), transparent 62%),
+    radial-gradient(ellipse 55% 40% at 66% 6%, rgba(var(--hb-aura-rgb), 0.11), transparent 58%),
+    radial-gradient(ellipse 50% 36% at 34% 74%, rgba(var(--hb-lumen-rgb), 0.1), transparent 70%),
+    radial-gradient(ellipse 38% 26% at 84% 58%, rgba(var(--hb-eco-rgb), 0.05), transparent 66%),
+    linear-gradient(
+      168deg,
+      var(--hb-sky-deep) 0%,
+      var(--hb-sky-low) 18%,
+      var(--hb-sky-high) 42%,
+      var(--hb-sky-haze) 56%,
+      var(--hb-sky-mid) 74%,
+      var(--hb-sky-deep) 100%
+    );
+}
+
+/* 极光：两条斜向光带，模糊 + screen 叠加，慢慢漂移。与场景同款 ——
+   a 是青→极光紫（冷色过渡），b 是暖光→薄荷（暖色过渡）。 */
+.hb-hero__aurora {
+  position: absolute;
+  filter: blur(28px);
+  mix-blend-mode: screen;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.hb-hero__aurora--a {
+  top: -16%;
+  left: 4%;
+  width: min(58vw, 640px);
+  height: min(34vw, 360px);
+  background: linear-gradient(
+    118deg,
+    transparent 8%,
+    rgba(var(--hb-accent-rgb), 0.24) 30%,
+    rgba(var(--hb-aura-rgb), 0.2) 52%,
+    rgba(var(--hb-accent-rgb), 0.08) 74%,
+    transparent 88%
+  );
+  animation: hbHeroAuroraA 16s ease-in-out infinite;
+}
+
+.hb-hero__aurora--b {
+  top: -4%;
+  left: 42%;
+  width: min(48vw, 520px);
+  height: min(28vw, 280px);
+  background: linear-gradient(
+    100deg,
+    transparent 12%,
+    rgba(var(--hb-lumen-rgb), 0.16) 36%,
+    rgba(var(--hb-eco-rgb), 0.11) 58%,
+    rgba(var(--hb-lumen-rgb), 0.07) 78%,
+    transparent 88%
+  );
+  animation: hbHeroAuroraB 22s ease-in-out infinite;
+  animation-delay: -4s;
+}
+
+/* 星野：两层点阵（远层小、近层大），各自缓慢呼吸出闪烁感。
+   上密下疏靠 mask 收边 —— 下半屏要留给标题与按钮，星星在那里只会变成噪点
+   （正文区另有细网格，两者不叠在同一段高度上）。 */
+.hb-hero__stars {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.5) 46%, transparent 74%);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.5) 46%, transparent 74%);
+}
+
+.hb-hero__stars--far {
+  opacity: 0.55;
+  background-image:
+    radial-gradient(1px 1px at 8% 14%, rgba(220, 240, 255, 0.55), transparent),
+    radial-gradient(1px 1px at 22% 6%, rgba(220, 240, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 41% 18%, rgba(160, 230, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 57% 4%, rgba(220, 240, 255, 0.3), transparent),
+    radial-gradient(1px 1px at 74% 15%, rgba(220, 240, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 88% 9%, rgba(160, 230, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 15% 32%, rgba(220, 240, 255, 0.28), transparent),
+    radial-gradient(1px 1px at 63% 28%, rgba(220, 240, 255, 0.32), transparent);
+  animation: hbHeroStars 14s ease-in-out infinite;
+}
+
+.hb-hero__stars--near {
+  background-image:
+    radial-gradient(1.6px 1.6px at 12% 10%, rgba(220, 240, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 28% 16%, rgba(220, 240, 255, 0.55), transparent),
+    radial-gradient(1.8px 1.8px at 48% 8%, rgba(160, 230, 255, 0.85), transparent),
+    radial-gradient(1px 1px at 66% 20%, rgba(220, 240, 255, 0.45), transparent),
+    radial-gradient(1.6px 1.6px at 82% 12%, rgba(220, 240, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 18% 28%, rgba(160, 230, 255, 0.5), transparent),
+    radial-gradient(1.2px 1.2px at 38% 24%, rgba(220, 240, 255, 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 72% 30%, rgba(160, 230, 255, 0.55), transparent),
+    radial-gradient(1.4px 1.4px at 9% 42%, rgba(180, 235, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 52% 36%, rgba(220, 240, 255, 0.4), transparent);
+  animation: hbHeroStars 8s ease-in-out infinite;
+  animation-delay: -2s;
+}
+
+@keyframes hbHeroStars {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes hbHeroAuroraA {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: translate3d(0, 0, 0) rotate(-8deg) scale(1);
+  }
+
+  50% {
+    opacity: 0.72;
+    transform: translate3d(3%, 2%, 0) rotate(-4deg) scale(1.04);
+  }
+}
+
+@keyframes hbHeroAuroraB {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translate3d(0, 0, 0) rotate(6deg) scale(1);
+  }
+
+  50% {
+    opacity: 0.66;
+    transform: translate3d(-4%, 3%, 0) rotate(2deg) scale(1.05);
+  }
+}
+
+/* 地平线辉光：画面下缘一条青中带暖金的柔光，顶替场景里「山脚下那层雾」的位置。
+   没有它，夜空的渐变会在底边直接切给页脚，看着像被裁过。 */
+.hb-hero__horizon {
+  position: absolute;
+  right: 0;
+  bottom: 4%;
+  left: 0;
+  height: 190px;
+  background: radial-gradient(
+    ellipse 70% 100% at 32% 100%,
+    rgba(var(--hb-accent-rgb), 0.14) 0%,
+    rgba(var(--hb-lumen-rgb), 0.09) 38%,
+    rgba(var(--hb-aura-rgb), 0.05) 58%,
+    transparent 76%
+  );
+  filter: blur(9px);
+  pointer-events: none;
+}
+
+/* 青色辉光：落在标题后方，非常缓慢地呼吸，幅度小到「感觉得到但注意不到」 */
 .hb-hero__glow {
   position: absolute;
   top: -140px;
@@ -583,8 +739,8 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   border-radius: 999px;
   background: radial-gradient(
     closest-side,
-    rgba(242, 162, 13, 0.17),
-    rgba(242, 162, 13, 0.05) 46%,
+    rgba(var(--hb-accent-rgb), 0.17),
+    rgba(var(--hb-accent-rgb), 0.05) 46%,
     transparent 72%
   );
   animation: hb-hero-breathe 9s ease-in-out infinite;
@@ -603,14 +759,14 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   }
 }
 
-/* 扫描线：一条极细的琥珀光带自上而下掠过 */
+/* 扫描线：一条极细的青色光带自上而下掠过 */
 .hb-hero__sweep {
   position: absolute;
   top: 0;
   right: 0;
   left: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(242, 162, 13, 0.55), transparent);
+  background: linear-gradient(90deg, transparent, rgba(var(--hb-accent-rgb), 0.55), transparent);
   animation: hb-hero-scan 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
@@ -650,7 +806,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   text-wrap: balance;
 }
 
-/* 强调短语走琥珀渐变；@supports 兜底，老浏览器退化成纯琥珀色而不是透明字 */
+/* 强调短语走青色渐变；@supports 兜底，老浏览器退化成纯青色色而不是透明字 */
 .hb-hero h1 strong {
   color: var(--hb-accent-bright);
 }
@@ -659,7 +815,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   .hb-hero h1 strong {
     -webkit-background-clip: text;
     background-clip: text;
-    background-image: linear-gradient(96deg, #ffc65a 4%, var(--hb-accent) 58%, var(--hb-accent-deep));
+    background-image: linear-gradient(96deg, var(--hb-accent-bright) 4%, var(--hb-accent) 58%, var(--hb-accent-deep));
     color: transparent;
     -webkit-text-fill-color: transparent;
   }
@@ -811,6 +967,9 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   gap: 14px;
 }
 
+/* 能力卡：按能力分色（温控 / 安防 / 机器人 / 灯光…，由模板上的 data-tone 决定）。
+   图标块用色调软底 + 色调文字，卡片描边默认走中性线，hover 才亮成该能力的色调 ——
+   一排卡片全是同一种青色时，用户读不出「这张卡在讲什么」。 */
 .hb-cap {
   display: flex;
   flex-direction: column;
@@ -822,7 +981,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 .hb-cap:hover {
-  border-color: var(--hb-accent-line);
+  border-color: var(--hb-tone-line);
   transform: translateY(-2px);
 }
 
@@ -832,14 +991,17 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   height: 38px;
   margin-bottom: 14px;
   place-items: center;
-  border: 1px solid var(--hb-accent-line);
+  border: 1px solid var(--hb-tone-line);
   border-radius: var(--hb-radius-sm);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
+  color: var(--hb-tone-text);
+  background: var(--hb-tone-soft);
   font-size: 16px;
 }
 
+/* 卡片标题左侧一条能力色竖线：比整卡染底更安静，但足够让四张卡彼此可辨。 */
 .hb-cap h3 {
+  padding-left: 10px;
+  border-left: 2px solid var(--hb-tone-line);
   color: var(--hb-ink);
   font-size: 14.5px;
   font-weight: 650;
@@ -957,15 +1119,17 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background-size: 34px 34px;
 }
 
+/* 四个房间各一色（template 上挂 data-tone）：客厅暖光、厨房薄荷、主卧极光紫、阳台青。
+   中点示意图的价值就在「一眼看出哪间房在发生什么」，四间同色等于没画。 */
 .hb-console__room {
   position: absolute;
   display: flex;
   padding: 8px 10px;
   align-items: flex-start;
-  border: 1px dashed var(--hb-line-strong);
+  border: 1px dashed var(--hb-tone-line);
   border-radius: var(--hb-radius-sm);
-  color: var(--hb-muted-dim);
-  background: rgba(255, 255, 255, 0.016);
+  color: var(--hb-tone-text);
+  background: var(--hb-tone-soft);
   font-size: 11px;
   letter-spacing: 0.08em;
 }
@@ -998,7 +1162,8 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   height: 36%;
 }
 
-/* 设备点位：开启态带琥珀光晕，关闭态只留一个暗点 */
+/* 设备点位：开启态取设备自身的读色（灯=暖光、空调=清凉、氛围=极光紫、新风=薄荷），
+   关闭态一律退成传感器灰。所以「哪些灯亮着」不用读文字，扫一眼点位色就知道。 */
 .hb-console__node {
   position: absolute;
   width: 9px;
@@ -1008,13 +1173,13 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 .hb-console__node--on {
-  background: var(--hb-accent-bright);
-  box-shadow: 0 0 0 3px var(--hb-accent-soft), 0 0 14px 2px rgba(242, 162, 13, 0.55);
+  background: var(--hb-tone-text);
+  box-shadow: 0 0 0 3px var(--hb-tone-soft), 0 0 14px 2px rgba(var(--hb-tone-rgb), 0.55);
 }
 
 .hb-console__node--off {
-  background: var(--hb-muted-dim);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+  background: var(--hb-sensor);
+  box-shadow: 0 0 0 3px var(--hb-sensor-soft);
 }
 
 .hb-console__node--a { top: 30%; left: 24%; }
@@ -1039,12 +1204,13 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--hb-muted-dim);
+  background: var(--hb-sensor);
 }
 
+/* 图例的「开启」是通用在线态，用生态薄荷；具体点位才按设备读色。 */
 .hb-console__dot--on {
   margin-left: 8px;
-  background: var(--hb-accent-bright);
+  background: var(--hb-eco);
 }
 
 .hb-console__side {
@@ -1057,7 +1223,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 
 .hb-console__card {
   padding: 13px 14px;
-  border: 1px solid var(--hb-line);
+  border: 1px solid var(--hb-tone-line);
   border-radius: var(--hb-radius-md);
   background: var(--hb-surface-soft);
 }
@@ -1072,6 +1238,8 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   font-weight: 620;
 }
 
+/* 徽标：默认中性（尺寸 / 单位这类非状态文字），--on 表示「处于生效状态」，
+   取所属卡片的色调 —— 已开启跟着灯是暖光，制冷跟着空调是清凉，已布防跟着安防是薄荷。 */
 .hb-console__badge {
   padding: 2px 8px;
   border: 1px solid var(--hb-line);
@@ -1082,9 +1250,9 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 .hb-console__badge--on {
-  border-color: var(--hb-accent-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
+  border-color: var(--hb-tone-line);
+  color: var(--hb-tone-text);
+  background: var(--hb-tone-soft);
 }
 
 .hb-console__slider {
@@ -1095,12 +1263,13 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   overflow: hidden;
 }
 
+/* 亮度条走所属卡片的色调（主灯→暖光，制冷→清凉）。 */
 .hb-console__slider i {
   display: block;
   width: 72%;
   height: 100%;
   border-radius: inherit;
-  background: var(--hb-accent-grad);
+  background: var(--hb-grad-tone);
 }
 
 .hb-console__reading {
@@ -1112,6 +1281,8 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 .hb-console__reading strong {
+  /* 温度读数按冷热语义上色：制冷是清凉蓝，制热会切到暖橙。 */
+  color: var(--hb-tone-text);
   font-size: 26px;
   font-weight: 660;
   letter-spacing: -0.02em;
@@ -1183,6 +1354,9 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background: var(--hb-surface);
 }
 
+/* 步骤序号：四步走一条色相环 —— 青（进入）→ 极光紫（配置）→ 暖光（激活）→ 薄荷（就绪），
+   由模板给每个 .hb-steps__item 挂 data-tone。流程类内容用色彩表示「走到第几步」，
+   比四个一模一样的青色方块更容易一眼看出进度语义。 */
 .hb-steps__index {
   display: grid;
   width: 30px;
@@ -1190,8 +1364,8 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   flex: 0 0 30px;
   place-items: center;
   border-radius: var(--hb-radius-sm);
-  color: var(--hb-bg);
-  background: var(--hb-accent-grad);
+  color: var(--hb-on-bright);
+  background: var(--hb-grad-tone);
   font-family: var(--hb-font-mono);
   font-size: 12px;
   font-weight: 700;
@@ -1219,6 +1393,8 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   gap: 14px;
 }
 
+/* 各档位按档分色：入门薄荷、进阶青、专业暖光（推荐档默认青，模板会挂 data-tone）。
+   和「能力卡」同一套开关，所以整站的分色词汇只有一套。 */
 .hb-tier {
   display: flex;
   flex-direction: column;
@@ -1228,12 +1404,10 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background: var(--hb-card-bg);
 }
 
-/* 推荐的中间那档：只加边框和一层极淡的琥珀底，不做放大，
-   否则窄屏换行后「突出」的那张会莫名其妙地比邻居大一圈。 */
 .hb-tier--featured {
-  border-color: var(--hb-accent-line);
-  background: linear-gradient(180deg, var(--hb-accent-faint), transparent 46%), var(--hb-card-bg);
-  box-shadow: var(--hb-accent-glow);
+  border-color: var(--hb-tone-line);
+  background: linear-gradient(180deg, var(--hb-tone-soft), transparent 46%), var(--hb-card-bg);
+  box-shadow: 0 10px 26px -14px rgba(var(--hb-tone-rgb), 0.8);
 }
 
 .hb-tier__head {
@@ -1310,8 +1484,10 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background: var(--hb-surface);
 }
 
+/* 保障条：图标各取一枚语义色（数据=青、支付=薄荷、解绑=极光紫、订单=暖光），
+   由模板上的 data-tone 决定；四条全青时读起来像「四个都只是装饰」。 */
 .hb-trust__item i {
-  color: var(--hb-accent);
+  color: var(--hb-tone-text);
   font-size: 15px;
 }
 
@@ -1432,13 +1608,20 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 
 @media (prefers-reduced-motion: reduce) {
   .hb-hero__glow,
-  .hb-hero__sweep {
+  .hb-hero__sweep,
+  .hb-hero__aurora,
+  .hb-hero__stars {
     animation: none;
   }
 
   /* 扫描线静止时会变成一条横贯页面的亮线，直接藏起来更干净 */
   .hb-hero__sweep {
     display: none;
+  }
+
+  /* 星野静止时把远层压暗一点：不动之后它和近层就没区别了，两层同亮度会显得脏 */
+  .hb-hero__stars--far {
+    opacity: 0.4;
   }
 }
 
@@ -1459,17 +1642,16 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background: var(--hb-surface);
 }
 
-.hb-assurance-grid article > i,
-.hb-assurance-grid__icon {
+.hb-assurance-grid article > i {
   display: grid;
   width: 34px;
   height: 34px;
   flex: 0 0 34px;
   place-items: center;
-  border: 1px solid var(--hb-accent-line);
+  border: 1px solid var(--hb-tone-line);
   border-radius: var(--hb-radius-sm);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
+  color: var(--hb-tone-text);
+  background: var(--hb-tone-soft);
   font-size: 13px;
 }
 
@@ -1524,7 +1706,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   border-color: var(--hb-accent-line);
   color: var(--hb-accent-bright);
   background: var(--hb-accent-soft);
-  box-shadow: 0 6px 20px -12px rgba(242, 162, 13, 0.9);
+  box-shadow: 0 6px 20px -12px rgba(var(--hb-accent-rgb), 0.9);
 }
 
 .hb-filter__count {
@@ -1543,11 +1725,11 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 全授权（主授权 + 增量包）是客单价最高、也最省事的一档，默认给它更高的视觉
-   权重：琥珀描边 + 琥珀底纹 + 常亮的顶部光带。这里只做「加权」，真正的推荐
+   权重：青色描边 + 青色底纹 + 常亮的顶部光带。这里只做「加权」，真正的推荐
    角标文案仍由后台商品的 badge 字段决定，不写死在样式里。 */
 .hb-addon-card[data-product-group="bundle"] {
   border-color: var(--hb-accent-line);
-  background: linear-gradient(168deg, rgba(242, 162, 13, 0.09), rgba(255, 255, 255, 0.012) 48%), var(--hb-card-bg);
+  background: linear-gradient(168deg, rgba(var(--hb-accent-rgb), 0.09), rgba(255, 255, 255, 0.012) 48%), var(--hb-card-bg);
   box-shadow: var(--hb-elev-2);
 }
 
@@ -1583,7 +1765,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   overflow: hidden;
 }
 
-/* 顶部一道渐隐琥珀线：结算卡是这一页唯一的主面板，用它跟统计卡 / 页头横幅
+/* 顶部一道渐隐青色线：结算卡是这一页唯一的主面板，用它跟统计卡 / 页头横幅
    串成同一套「面板上缘指示灯」的语言。 */
 .hb-checkout-card::before {
   position: absolute;
@@ -1596,7 +1778,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   pointer-events: none;
 }
 
-/* 结算卡头：加一条下缘发丝线 + 一段琥珀短线，把标题区从表单正文里切出来，
+/* 结算卡头：加一条下缘发丝线 + 一段青色短线，把标题区从表单正文里切出来，
    读起来像一块控制台面板的表头，而不是一张表单的开头。 */
 .hb-checkout-card__header {
   position: relative;
@@ -1809,7 +1991,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   place-items: center;
   border: 1px solid var(--hb-line-soft);
   border-radius: var(--hb-radius-md);
-  background: radial-gradient(circle at 50% 30%, rgba(242, 162, 13, 0.12), transparent 70%),
+  background: radial-gradient(circle at 50% 30%, rgba(var(--hb-accent-rgb), 0.12), transparent 70%),
     var(--hb-surface-raised);
 }
 
@@ -1961,11 +2143,11 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   z-index: 1300;
   inset: 0;
   margin: auto;
-  box-shadow: 0 0 0 100vmax rgba(5, 8, 11, 0.72), var(--hb-shadow-lg);
+  box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--hb-bg) 72%, transparent), var(--hb-shadow-lg);
 }
 
 /* 收款台类弹窗：付款码弹窗（#payment-dialog）与待支付订单弹窗（#pending-order-dialog）共用一套骨架与信息块——宽度、三段式固定布局、金额行、倒计时行、订单号行，两者只差一个二维码（写在一起是为了避免改了一个忘了另一个）。
-   按「先扫码 / 先核对 → 再等结果」分三段：白底二维码 + 琥珀辉光优先吸引视线；金额与倒计时各占一条带边框的行，形成同一组待确认信息；订单号贴底、用分隔线断开，方便对客服报单号。 */
+   按「先扫码 / 先核对 → 再等结果」分三段：白底二维码 + 青色辉光优先吸引视线；金额与倒计时各占一条带边框的行，形成同一组待确认信息；订单号贴底、用分隔线断开，方便对客服报单号。 */
 :is(.hb-payment-dialog, .hb-pending-dialog) {
   width: min(404px, calc(100vw - 28px));
 }
@@ -1999,7 +2181,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   padding: 18px 24px 20px;
 }
 
-/* 二维码必须白底（扫码要求高对比），外圈两层琥珀只作引导，不参与识别 */
+/* 二维码必须白底（扫码要求高对比），外圈两层青色只作引导，不参与识别 */
 .hb-pay-scan {
   display: grid;
   justify-items: center;
@@ -2201,7 +2383,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 
 /* 订单作废（超时 / 取消 / 支付失败）：二维码失去意义——渠道侧的交易随后会被
    关单，扫出来的结果只会是「订单已关闭」。这里把白底高对比的码压暗去彩，
-   连同琥珀辉光和脉动圆点一起收掉，避免继续诱导扫码；信息与按钮保持可用。 */
+   连同青色辉光和脉动圆点一起收掉，避免继续诱导扫码；信息与按钮保持可用。 */
 .hb-payment-dialog.is-closed #payment-qr {
   filter: grayscale(1);
   opacity: 0.34;
@@ -2293,227 +2475,49 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   color: var(--hb-accent-bright);
 }
 
-/* 6. 认证页（登录 / 注册 / 找回） */
-.hb-auth-page {
-  padding: 56px 0 84px;
-}
+/* 6. 入口分页（登录 / 注册 / 找回）：整页场景壳
 
-/* 左栏从 1fr 加宽到 1.2fr：品牌宣言那侧有 3 条清单，太窄会挤成三行折行；
-   右栏固定 404px 是表单的舒适宽度，再宽输入框就空得发慌。 */
-.hb-auth-shell {
-  display: grid;
-  max-width: 1080px;
-  margin: 0 auto;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 404px);
-  align-items: stretch;
-  gap: 26px;
-}
+   这三块从「顶栏 + 左右两栏」换成了与主项目入口页、商店后台登录同款的整页场景
+   （场景插画与玻璃表单坞在 /store-static/scene/，源在仓库 design/scene/）。
+   三张表单共用一份场景与一块玻璃坞，靠 [hidden] 在坞内切换（store.js 的 showPage
+   按 location.pathname 切分页）—— store.html 是「一份 HTML 服务所有前台路由」，
+   各带一份场景就要在一个响应里塞三份一模一样的标记。
 
-.hb-auth-aside {
-  position: relative;
-  display: flex;
-  padding: 44px 38px;
-  flex-direction: column;
-  justify-content: center;
-  gap: 20px;
-  border: 1px solid var(--hb-line);
-  border-radius: var(--hb-radius-xl);
-  /* 与页头横幅同一套三档斜向过渡，让认证页的左栏读起来是「一块面板」
-     而不是一个比页面略亮的空盒子 */
-  background: linear-gradient(150deg, #1f2731 0%, #171c22 58%, #1c222a 100%);
-  box-shadow: var(--hb-elev-2);
-  overflow: hidden;
-}
-
-/* 与页头横幅同一套质感，但方向相反（从右上铺开），
-   让左右两栏在同一页里形成对称的斜向光源，而不是两片一样的底纹。
-   网格保持 46px 一循环，可以直接复用横幅的 hb-head-drift 做无缝漂移。
-   这里占用了 ::before，所以 .hb-auth-aside 不参与 2.1 节的 HUD 角标
-   （大块底纹与角线叠在一起会互相干扰，角标留给右侧的表单卡）。 */
-.hb-auth-aside::before {
-  position: absolute;
+   整块壳钉在视口上、顶栏与页脚让位：场景是一整幅插画，让 sticky 顶栏压在上面
+   会切掉山脊的顶部。用 :has() 而不是让 JS 往 body 挂类名（与首页 --flush 那条
+   同一思路）：JS 失败时整块壳保持隐藏，退化成原来的普通文档流，不会错版。
+   维护模式下 showPage() 不会被调用，三张表单保持初始的 [hidden]，壳也就不出现。 */
+.hb-auth-stage {
+  position: fixed;
   inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    radial-gradient(120% 150% at 100% 0%, rgba(242, 162, 13, 0.22), transparent 62%),
-    radial-gradient(90% 130% at 0% 100%, rgba(242, 162, 13, 0.09), transparent 56%);
-  background-size: 46px 46px, 46px 46px, 100% 100%, 100% 100%;
-  background-position: 0 0, 0 0, 0 0, 0 0;
-  -webkit-mask-image: linear-gradient(258deg, #000 16%, rgba(0, 0, 0, 0.4) 58%, transparent 90%);
-  mask-image: linear-gradient(258deg, #000 16%, rgba(0, 0, 0, 0.4) 58%, transparent 90%);
-  content: "";
-  pointer-events: none;
-  animation: hb-head-drift 26s linear infinite;
+  display: none;
 }
 
-.hb-auth-aside > * {
-  position: relative;
-}
-
-.hb-auth-aside h2 {
-  font-size: clamp(26px, 3vw, 34px);
-  letter-spacing: -0.028em;
-  line-height: 1.2;
-}
-
-.hb-auth-aside h2 strong {
-  color: var(--hb-accent-bright);
-}
-
-@supports (background-clip: text) or (-webkit-background-clip: text) {
-  .hb-auth-aside h2 strong {
-    -webkit-background-clip: text;
-    background-clip: text;
-    background-image: linear-gradient(96deg, #ffc65a 6%, var(--hb-accent) 62%, var(--hb-accent-deep));
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-  }
-}
-
-.hb-auth-aside > p {
-  color: var(--hb-muted);
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-.hb-auth-aside ul {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  gap: 11px;
-  list-style: none;
-}
-
-.hb-auth-aside li {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  color: var(--hb-ink-soft);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-/* 勾选图标收进一枚等宽的小方章：比裸图标多一层「清单项」的界面感，
-   也让三条清单在视觉上等距对齐（图标列宽度固定为 20px）。 */
-.hb-auth-aside li i {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  flex: 0 0 20px;
-  place-items: center;
-  border: 1px solid var(--hb-accent-line);
-  border-radius: var(--hb-radius-xs);
-  background: var(--hb-accent-soft);
-  color: var(--hb-accent-bright);
-  font-size: 10px;
-}
-
-.hb-auth-card {
-  display: flex;
-  padding: 34px 30px;
-  flex-direction: column;
-  border: 1px solid var(--hb-line);
-  border-radius: var(--hb-radius-xl);
-  background: var(--hb-card-bg);
-  box-shadow: var(--hb-elev-2);
-}
-
-.hb-auth-brand {
-  margin-bottom: 22px;
-}
-
-.hb-auth-brand strong {
+body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-auth-stage {
   display: block;
-  color: var(--hb-ink);
-  font-size: 20px;
-  font-weight: 660;
-  letter-spacing: -0.015em;
 }
 
-.hb-auth-brand p {
-  margin-top: 6px;
-  color: var(--hb-muted);
-  font-size: 12.5px;
-  line-height: 1.6;
+body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-topbar,
+body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-footer {
+  display: none;
 }
 
-.hb-auth-form {
-  display: grid;
-  gap: 15px;
-}
-
-.hb-auth-form label {
-  display: grid;
-  gap: 7px;
-  color: #aab4bc;
-  font-size: 12px;
-  font-weight: 620;
-  letter-spacing: 0.02em;
-}
-
-.hb-auth-form input {
-  width: 100%;
-  min-height: 44px;
-  padding: 9px 13px;
-  border: 1px solid var(--hb-line-strong);
-  border-radius: var(--hb-radius-sm);
-  color: var(--hb-ink);
-  background: var(--hb-field);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 400;
-  transition: var(--hb-transition);
-}
-
-.hb-auth-form input::placeholder {
-  color: #5d6871;
-}
-
-.hb-auth-form input:focus {
-  border-color: var(--hb-accent);
-  outline: none;
-  box-shadow: var(--hb-focus-ring);
-}
-
-.hb-auth-code-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 132px;
-  align-items: end;
-  gap: 10px;
-}
-
-.hb-auth-code-row .hb-button {
-  min-height: 44px;
-  padding: 9px 10px;
-}
-
-.hb-auth-forgot {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.hb-auth-forgot a {
-  font-size: 12.5px;
-}
-
-.hb-auth-switch {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid var(--hb-line-soft);
-  color: var(--hb-muted);
-  font-size: 12.5px;
-  text-align: center;
-}
-
-.hb-auth-switch a {
+/* 入口分页里的换页提示（「还没有账号？立即注册」）：玻璃坞用的是 hos-switch，
+   这里只补链接色，让它在商店的青色令牌下与前台其它链接一致。 */
+.hb-auth-stage .hos-switch a {
   font-weight: 650;
 }
 
-.hb-password-mismatch {
-  color: var(--hb-danger-text);
-  font-size: 12px;
+/* 「忘记密码？」在标签行右侧，本体是链接而不是提示文案。.hos-hint 的灰（0.45 alpha）
+   在 0.68rem 下会和左边标签糊成一片，分不出可以点，所以按链接着色。
+   选择器带上 .hos-label-row，特异性高过 .hos-hint 自身那条。 */
+.hb-auth-stage .hos-label-row a.hos-hint {
+  color: var(--hos-accent);
+  text-decoration: none;
+}
+
+.hb-auth-stage .hos-label-row a.hos-hint:hover {
+  text-decoration: underline;
 }
 
 /* --------------------------------------------------------------------------
@@ -2543,8 +2547,10 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   gap: 12px;
 }
 
-/* 统计卡：顶部一道渐隐琥珀线 + 等宽数字。四个数字并列时，等宽 + tabular-nums
-   才能让位数不同的数值左对齐；标签走大写等宽，读起来像仪表盘表头。 */
+/* 统计卡：顶部一道渐隐色调线 + 等宽数字。四个数字并列时，等宽 + tabular-nums
+   才能让位数不同的数值左对齐；标签走大写等宽，读起来像仪表盘表头。
+   每张卡的顶部线与数字各按自己的语义分色（已激活=暖光、设备=青、席位=极光紫、
+   剩余天数=就绪薄荷 / 临期珊瑚），与后台徽标同一套 data-tone，改一处两处一起变。 */
 .hb-account-stats article,
 .referral-stats article {
   position: relative;
@@ -2563,7 +2569,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   right: 14px;
   left: 14px;
   height: 1px;
-  background: linear-gradient(90deg, var(--hb-accent-line), transparent 72%);
+  background: linear-gradient(90deg, var(--hb-tone-line), transparent 72%);
   content: "";
   pointer-events: none;
 }
@@ -2588,7 +2594,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 .referral-stats strong {
   display: block;
   margin-top: 8px;
-  color: var(--hb-ink);
+  color: var(--hb-tone-text);
   font-family: var(--hb-font-mono);
   font-size: 26px;
   font-variant-numeric: tabular-nums;
@@ -2656,7 +2662,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background: var(--hb-accent-soft);
 }
 
-/* 激活态：左侧一道亮起的琥珀条。横排时这条指示线在底部，竖排后转 90°，
+/* 激活态：左侧一道亮起的青色条。横排时这条指示线在底部，竖排后转 90°，
    落在导轨 6px 内边距里，不占文字宽度。 */
 .hb-account-tabs__item.is-active::before {
   position: absolute;
@@ -2666,7 +2672,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   height: 18px;
   border-radius: 2px;
   background: var(--hb-accent-grad);
-  box-shadow: 0 0 12px rgba(242, 162, 13, 0.65);
+  box-shadow: 0 0 12px rgba(var(--hb-accent-rgb), 0.65);
   content: "";
   transform: translateY(-50%);
 }
@@ -2725,7 +2731,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   padding: 4px 0;
 }
 
-/* 卡片外壳：只负责边框、底色和悬停琥珀条，内边距与排列交给两种版式变体。
+/* 卡片外壳：只负责边框、底色和悬停青色条，内边距与排列交给两种版式变体。
    （--stacked = 抬头/主体/脚注的规格表结构；--row = 左内容 + 右状态列的订单结构） */
 .hb-account-item {
   position: relative;
@@ -2737,7 +2743,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   transition: var(--hb-transition);
 }
 
-/* 悬停时左缘亮起一条琥珀条。用伪元素而不是 border-left，
+/* 悬停时左缘亮起一条青色条。用伪元素而不是 border-left，
    是为了不改变盒宽——列表项在悬停瞬间掉 2px 会很明显。 */
 .hb-account-item::before {
   position: absolute;
@@ -2747,7 +2753,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   width: 2px;
   border-radius: 0 2px 2px 0;
   background: var(--hb-accent-grad);
-  box-shadow: 0 0 14px rgba(242, 162, 13, 0.6);
+  box-shadow: 0 0 14px rgba(var(--hb-accent-rgb), 0.6);
   content: "";
   opacity: 0;
   pointer-events: none;
@@ -2872,7 +2878,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   overflow-wrap: anywhere;
 }
 
-/* 永久授权（无到期日）用琥珀强调，和「有效」绿芯片一起构成一眼可辨的状态 */
+/* 永久授权（无到期日）用青色强调，和「有效」绿芯片一起构成一眼可辨的状态 */
 .hb-account-facts .is-accent {
   color: var(--hb-accent-bright);
 }
@@ -2992,7 +2998,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   font-size: 11.5px;
 }
 
-/* 面板顶部的解绑规则提示：左缘一道琥珀线，让它读起来是「说明」而不是「报错」 */
+/* 面板顶部的解绑规则提示：左缘一道青色线，让它读起来是「说明」而不是「报错」 */
 #account-release-policy {
   margin-bottom: 14px;
   padding: 11px 14px 11px 15px;
@@ -3121,7 +3127,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   min-width: 180px;
   flex: 1 1 180px;
   gap: 7px;
-  color: #aab4bc;
+  color: var(--hb-ink-soft);
   font-size: 12px;
   font-weight: 620;
 }
@@ -3190,7 +3196,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background: rgba(255, 255, 255, 0.022);
 }
 
-/* 悬停时左缘亮起琥珀条，与账号中心的列表项保持同一套「行选中」语言 */
+/* 悬停时左缘亮起青色条，与账号中心的列表项保持同一套「行选中」语言 */
 .referral-table tbody tr td:first-child {
   box-shadow: inset 2px 0 0 transparent;
   transition: box-shadow 0.14s ease;
@@ -3325,7 +3331,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    radial-gradient(closest-side, rgba(242, 162, 13, 0.18), transparent 74%);
+    radial-gradient(closest-side, rgba(var(--hb-accent-rgb), 0.18), transparent 74%);
   background-position: 0 0, 0 0, 50% 46%;
   background-size: 58px 58px, 58px 58px, 760px 520px;
   background-repeat: repeat, repeat, no-repeat;
@@ -3383,7 +3389,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 .hb-maintenance-orbit {
   position: absolute;
   inset: 0;
-  border: 1px dashed rgba(242, 162, 13, 0.35);
+  border: 1px dashed rgba(var(--hb-accent-rgb), 0.35);
   border-radius: 999px;
   animation: hb-orbit-spin 16s linear infinite;
 }
@@ -3391,7 +3397,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 .hb-maintenance-orbit--inner {
   inset: 22px;
   border-style: solid;
-  border-color: rgba(242, 162, 13, 0.18);
+  border-color: rgba(var(--hb-accent-rgb), 0.18);
   animation-direction: reverse;
   animation-duration: 11s;
 }
@@ -3455,136 +3461,6 @@ body.hb-maintenance-active .hb-site-footer {
   display: none;
 }
 
-/* 10. 模拟收银台（store/api/pages.py 注入的独立页面） */
-.hb-cashier {
-  position: relative;
-  display: grid;
-  min-height: 100vh;
-  padding: 48px 20px;
-  place-items: center;
-  overflow: hidden;
-}
-
-/* 收银台是独立页面（pages.py 注入的 HTML，没有商店外壳），
-   所以背景纹理直接铺在整屏容器上，用径向遮罩收成中央光晕。 */
-.hb-cashier::before {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    radial-gradient(closest-side, rgba(242, 162, 13, 0.16), transparent 72%);
-  background-position: 0 0, 0 0, 50% 42%;
-  background-size: 58px 58px, 58px 58px, 720px 500px;
-  background-repeat: repeat, repeat, no-repeat;
-  -webkit-mask-image: radial-gradient(ellipse 90% 62% at 50% 42%, #000 6%, transparent 82%);
-  mask-image: radial-gradient(ellipse 90% 62% at 50% 42%, #000 6%, transparent 82%);
-  content: "";
-  pointer-events: none;
-}
-
-.hb-cashier__card {
-  display: grid;
-  width: min(440px, 100%);
-  padding: 28px;
-  gap: 16px;
-  border: 1px solid var(--hb-line);
-  border-radius: var(--hb-radius-xl);
-  background: var(--hb-card-bg);
-  box-shadow: var(--hb-shadow-lg);
-}
-
-.hb-cashier__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.hb-cashier__head h1 {
-  font-size: 17px;
-}
-
-.hb-cashier__amount {
-  color: var(--hb-accent-bright);
-  font-family: var(--hb-font-mono);
-  font-size: 36px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-}
-
-.hb-cashier__product {
-  margin-top: -10px;
-  color: var(--hb-muted);
-  font-size: 13px;
-}
-
-.hb-cashier__meta {
-  display: grid;
-  margin: 0;
-  gap: 8px;
-  padding: 14px 0;
-  border-top: 1px solid var(--hb-line-soft);
-  border-bottom: 1px solid var(--hb-line-soft);
-}
-
-.hb-cashier__meta > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.hb-cashier__meta dt {
-  flex: 0 0 auto;
-  color: var(--hb-muted);
-  font-size: 12px;
-}
-
-.hb-cashier__meta dd {
-  margin: 0;
-  color: var(--hb-ink-soft);
-  font-family: var(--hb-font-mono);
-  font-size: 12px;
-  text-align: right;
-  overflow-wrap: anywhere;
-}
-
-.hb-cashier__message {
-  padding: 11px 14px;
-  border: 1px solid var(--hb-line-soft);
-  border-radius: var(--hb-radius-sm);
-  color: var(--hb-muted);
-  background: rgba(255, 255, 255, 0.02);
-  font-size: 12.5px;
-  line-height: 1.6;
-}
-
-.hb-cashier__message.is-success {
-  border-color: var(--hb-success-line);
-  color: var(--hb-success-text);
-  background: var(--hb-success-soft);
-}
-
-.hb-cashier__message.is-error {
-  border-color: var(--hb-danger-line);
-  color: var(--hb-danger-text);
-  background: var(--hb-danger-soft);
-}
-
-.hb-cashier__actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-}
-
-.hb-cashier__back {
-  color: var(--hb-muted);
-  font-size: 12.5px;
-  text-align: center;
-}
-
 /* 11. 窄屏 */
 @media (max-width: 980px) {
   .hb-hero {
@@ -3608,14 +3484,7 @@ body.hb-maintenance-active .hb-site-footer {
     order: -1;
   }
 
-  .hb-auth-shell {
-    grid-template-columns: minmax(0, 1fr);
-    max-width: 560px;
-  }
 
-  .hb-auth-aside {
-    padding: 26px 22px;
-  }
 
   .referral-share {
     grid-template-columns: minmax(0, 1fr);
@@ -3734,23 +3603,18 @@ body.hb-maintenance-active .hb-site-footer {
   }
 
   /* 角标内缩距离跟着卡片内边距一起收：窄屏下卡片内边距收到 22px 左右，
-     9px 内缩的 16px 角线会顶到正文，所以改成 7px 内缩 + 13px 角线。 */
-  .hb-auth-card::before,
+     9px 内缩的 16px 角线会顶到正文，所以改成 7px 内缩 + 13px 角线。 */::before,
   .hb-product-summary::before,
   .referral-share::before,
-  .hb-maintenance-card::before,
-  .hb-cashier__card::before {
+  .hb-maintenance-card::before {
     top: 7px;
     left: 7px;
     width: 13px;
     height: 13px;
   }
-
-  .hb-auth-card::after,
   .hb-product-summary::after,
   .referral-share::after,
-  .hb-maintenance-card::after,
-  .hb-cashier__card::after {
+  .hb-maintenance-card::after {
     right: 7px;
     bottom: 7px;
     width: 13px;
@@ -3824,7 +3688,4 @@ body.hb-maintenance-active .hb-site-footer {
     justify-items: start;
   }
 
-  .hb-cashier__actions {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }

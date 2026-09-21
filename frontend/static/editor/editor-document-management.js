@@ -5,10 +5,10 @@
  * 弹窗模块的中文名与推荐实体判定、模块拖放目标位置计算、辗转相除法求最大公约数、记住 / 恢复仪表盘。
  * 约定：页面路径由标题 slug 化而来且必须全局唯一；弹窗模块的推荐实体与 HA 域一一对应，通用设备默认全推荐。
  */
-import { clone, newId, slugify } from "./editor-utils.js?v=20260920131301";
+import { clone, newId, slugify } from "./editor-utils.js?v=20260921090405";
 // 「按 ID 切域」只有一份实现：统一走 utils/entities.js 的 entityDomainFromId，
 // 不要在这里重新内联 `String(entityId).split(".")[0]`。
-import { entityDomainFromId } from "../utils/entities.js?v=20260920131301";
+import { entityDomainFromId } from "../utils/entities.js?v=20260921090405";
 
 /**
  * 「上次打开哪个仪表盘」的会话级记忆键。

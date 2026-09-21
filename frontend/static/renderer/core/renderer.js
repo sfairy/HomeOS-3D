@@ -8,12 +8,12 @@
  * entityId / properties）；HA 侧字段名保持下划线原样（与 Home Assistant 约定死，改名取不到）；组件类型
  * 字符串是文档与注册表的约定键，新增或改名必须同步 registry.js 的 registerComponent。
  */
-import { popupPlacement } from "../../bridge/popup-placement.js?v=20260920131301";
-import { formatZhDateTime } from "../../utils/datetime.js?v=20260920131301";
+import { popupPlacement } from "../../bridge/popup-placement.js?v=20260921090405";
+import { formatZhDateTime } from "../../utils/datetime.js?v=20260921090405";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
-} from "../../bridge/camera-popup-layout.js?v=20260920131301";
+} from "../../bridge/camera-popup-layout.js?v=20260921090405";
 // registry.js 是控件注册表的唯一出处，本文件只消费不注册。
 // 这里的 ?v= 必须与 home.js / display.js 里那条 registry.js?v= 完全一致；
 // 不一致会让注册表被加载两份，运行期两个模块各持一份 Map，控件类型彼此看不见。
@@ -39,19 +39,19 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=20260920131301";
-import { randomUuid } from "../../utils/random-id.js?v=20260920131301";
-import { apiErrorMessage } from "../../utils/api-error.js?v=20260920131301";
-// 颜色解析统一走 utils/colors.js，避免再出现「同名但失败值不同」的本地副本。
-import { expandHexColorOrNull } from "../../utils/colors.js?v=20260920131301";
+} from "./registry.js?v=20260921090405";
+import { randomUuid } from "../../utils/random-id.js?v=20260921090405";
+import { apiErrorMessage } from "../../utils/api-error.js?v=20260921090405";
+// 颜色插值统一走 utils/colors.js，避免再出现「同名但失败值不同」的本地副本。
+import { mixHexColors, paletteColor } from "../../utils/colors.js?v=20260921090405";
 // 「按 ID / 按实体取域」只有一份实现（唯一一处与内联旧写法有行为差异的是组合弹窗里
 // `moduleResolvedEntityId` 可能整个缺席（`undefined`）的那条 —— 旧写法抛 `TypeError`，
 // 现在归一成 `""`，渲染得更稳，不改变「是不是 button」的判定）。
-import { entityDomainFromId, entityDomainOf } from "../../utils/entities.js?v=20260920131301";
+import { entityDomainFromId, entityDomainOf } from "../../utils/entities.js?v=20260921090405";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`
 // （唯一的语义差别见 `state-entry.js` 里「为什么用真值判定」那段）。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260920131301";
-import { popupLayoutMetrics } from "../../shared/popup-layout.js?v=20260920131301";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260921090405";
+import { popupLayoutMetrics } from "../../shared/popup-layout.js?v=20260921090405";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -70,11 +70,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "../controls/climate.js?v=20260920131301";
+} from "../controls/climate.js?v=20260921090405";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=20260920131301";
+} from "./device-profiles.js?v=20260921090405";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -83,26 +83,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../../shared/related-entities.js?v=20260920131301";
-import { confirmAction } from "../../shared/ui-confirm.js?v=20260920131301";
+} from "../../shared/related-entities.js?v=20260921090405";
+import { confirmAction } from "../../shared/ui-confirm.js?v=20260921090405";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=20260920131301";
+} from "./entity-power.js?v=20260921090405";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../../shared/virtual-entities.js?v=20260920131301";
-import { componentActionIsSupported } from "../../shared/action-rules.js?v=20260920131301";
+} from "../../shared/virtual-entities.js?v=20260921090405";
+import { componentActionIsSupported } from "../../shared/action-rules.js?v=20260921090405";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "../geometry/transform-geometry.js?v=20260920131301";
+} from "../geometry/transform-geometry.js?v=20260921090405";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -112,7 +112,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "../geometry/effect-geometry.js?v=20260920131301";
+} from "../geometry/effect-geometry.js?v=20260921090405";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -131,14 +131,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "../controls/light-runtime.js?v=20260920131301";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260920131301";
+} from "../controls/light-runtime.js?v=20260921090405";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=20260921090405";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "../controls/vacuum-runtime.js?v=20260920131301";
+} from "../controls/vacuum-runtime.js?v=20260921090405";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -170,16 +170,16 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "../controls/cover-runtime.js?v=20260920131301";
+} from "../controls/cover-runtime.js?v=20260921090405";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "../controls/cover-direction.js?v=20260920131301";
+import { coverMotorIsReversedForComponent } from "../controls/cover-direction.js?v=20260921090405";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=20260920131301";
+} from "./runtime-dialog-motion.js?v=20260921090405";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -189,13 +189,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=20260920131301";
+} from "./runtime-caches.js?v=20260921090405";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=20260920131301";
+} from "./runtime-document.js?v=20260921090405";
 // 以下若干 export 块是刻意保留的转发：这些实现历史上就定义在本文件里，其它模块一直按
 // renderer.js 的路径导入；实现后来迁到 transform-geometry.js / light-runtime.js 等旁路模块，
 // 这里继续原路径转出，调用方无需改动，也避免出现两套同名实现。
@@ -277,6 +277,41 @@ export {
 };
 // 一次订阅最多带上的实体数量：再多后端就不受理整批订阅，需要分批。
 const RUNTIME_SUBSCRIPTION_ENTITY_LIMIT = 1000;
+
+/**
+ * 空气质量四档读色 + 各档的半透明底色。
+ *
+ * 十二个色值原先在两个渲染函数里各写了一遍（净化器详情弹窗与 3D 弹窗预览模块），
+ * 两边必须逐字相同才不会「同一个读数两个颜色」，而这种约束没有任何东西在守。
+ * 现在只有这一份。
+ *
+ * 色值走 paletteColor() 而不是直接给 var()：这两个映射会被 setProperty 写成
+ * **内联自定义属性**（`--hb-air-purifier-accent` / `-accent-soft`），内联值再被
+ * 别处的 var() 消费。写 var() 也成立，但取实际色值更短，也不会在两条自定义属性
+ * 之间再套一层变量间接 —— 出问题时 computed 面板里直接就是最终颜色。
+ * 取不到调色板（页面未加载）时回落到与调色板同值的字面量。
+ */
+const AIR_QUALITY_TONES = {
+  excellent: { token: "--hos-eco", fallback: "#4ed6a8", rgbFallback: "78, 214, 168" },
+  good: { token: "--hos-eco", fallback: "#4ed6a8", rgbFallback: "78, 214, 168" },
+  warning: { token: "--hos-lumen", fallback: "#ffb86e", rgbFallback: "255, 184, 110" },
+  poor: { token: "--hos-alert", fallback: "#f07a7e", rgbFallback: "240, 122, 126" },
+  unknown: { token: "--hos-sensor", fallback: "#9eb0c4", rgbFallback: "158, 176, 196" }
+};
+
+/** 未知 / 缺档一律按「好」渲染：读数缺失不该显示成故障色。 */
+function airQualityTone(level) {
+  return AIR_QUALITY_TONES[level] || AIR_QUALITY_TONES.excellent;
+}
+function airQualityAccent(level) {
+  const tone = airQualityTone(level);
+  return paletteColor(tone.token, tone.fallback);
+}
+function airQualityAccentSoft(level, alpha) {
+  const tone = airQualityTone(level);
+  const channels = paletteColor(`${tone.token}-rgb`, tone.rgbFallback);
+  return `rgba(${channels}, ${alpha})`;
+}
 // 弹窗默认占画布短边的比例（0.76）：留出四周的呼吸边距，视觉上不顶边。
 const DEFAULT_DIALOG_TARGET_OCCUPANCY = 0.76;
 // 紧凑弹窗（如纯文字提示）用更小的占比，避免小块内容被放大得过大。
@@ -620,43 +655,6 @@ function createSwitchVisual({
     visual: switchElement,
     sync: syncVisual
   };
-}
-/**
- * 在两个十六进制颜色之间做线性插值。
- *
- * 用于按亮度百分比混合开关 / 指示灯的底色。
- */
-function mixHexColors(startColor, endColor, blendRatio = 0) {
-  // 三位简写先展开成六位（utils/colors.js 的唯一实现）：HA 里用户手写的颜色常是 #abc，
-  // 直接按六位解析会得到错值。
-  const normalizedStartColor = expandHexColorOrNull(startColor);
-  const normalizedEndColor = expandHexColorOrNull(endColor);
-  // 任一端不是 hex（例如 rgb() 写法或主题变量名）就放弃插值，原样返回起点色 ——
-  // 返回一个算错的颜色比返回未混合的颜色更糟。
-  if (!normalizedStartColor || !normalizedEndColor) {
-    return startColor;
-  }
-  // 夹到 0~1：比例来自亮度百分比之类的计算值，可能因浮点误差略微越界。
-  const clampedBlendRatio = Math.max(0, Math.min(1, Number(blendRatio) || 0));
-  /**
-   * 取出 #RRGGBB 中某个通道的十进制值。
-   */
-  const parseColorChannel = (hexString, channelOffset) =>
-    Number.parseInt(hexString.slice(channelOffset, channelOffset + 2), 16);
-  return (
-    "#" +
-    [1, 3, 5]
-      .map(channelIndex =>
-        Math.round(
-          parseColorChannel(normalizedStartColor, channelIndex) +
-            (parseColorChannel(normalizedEndColor, channelIndex) -
-              parseColorChannel(normalizedStartColor, channelIndex)) *
-              clampedBlendRatio
-        )
-      )
-      .map(channelValue => channelValue.toString(16).padStart(2, "0"))
-      .join("")
-  );
 }
 /**
  * 仪表盘控件渲染器：编辑器与中控展示页共用的渲染入口。
@@ -9512,22 +9510,8 @@ export class PanelRenderer {
       );
       purifierGaugeElement.classList.toggle("is-warning", airQualityLevel === "warning");
       purifierGaugeElement.classList.toggle("is-poor", airQualityLevel === "poor");
-      const airQualityAccentColor =
-        {
-          excellent: "#76cfa1",
-          good: "#76cfa1",
-          warning: "#e4b15f",
-          poor: "#db7770",
-          unknown: "#7d8990"
-        }[airQualityLevel] || "#76cfa1";
-      const airQualityAccentSoftColor =
-        {
-          excellent: "rgba(118,207,161,.13)",
-          good: "rgba(118,207,161,.13)",
-          warning: "rgba(228,177,95,.15)",
-          poor: "rgba(219,119,112,.15)",
-          unknown: "rgba(125,137,144,.13)"
-        }[airQualityLevel] || "rgba(118,207,161,.13)";
+      const airQualityAccentColor = airQualityAccent(airQualityLevel);
+      const airQualityAccentSoftColor = airQualityAccentSoft(airQualityLevel, 0.14);
       purifierDialogElement.style.setProperty("--hb-air-purifier-accent", airQualityAccentColor);
       purifierDialogElement.style.setProperty(
         "--hb-air-purifier-accent-soft",
@@ -11132,7 +11116,7 @@ export class PanelRenderer {
           mode: climateMode = "off",
           visualMode: climateVisualMode = "off",
           running: climateRunning = false,
-          accentColor: climateAccentColor = "#65717a",
+          accentColor: climateAccentColor = paletteColor("--hos-sensor", "#9eb0c4"),
           targetTemperature: climateTargetTemperature
         } = {}) => {
           const isClimateVisualOn = climateVisualMode !== "off";
@@ -12000,20 +11984,8 @@ export class PanelRenderer {
           );
           airPurifierGaugeElement.classList.toggle("is-warning", airQualityGrade === "warning");
           airPurifierGaugeElement.classList.toggle("is-poor", airQualityGrade === "poor");
-          const airQualityColor = {
-            excellent: "#76cfa1",
-            good: "#76cfa1",
-            warning: "#e4b15f",
-            poor: "#db7770",
-            unknown: "#7d8990"
-          }[airQualityGrade];
-          const airQualitySoftColor = {
-            excellent: "rgba(118,207,161,.13)",
-            good: "rgba(118,207,161,.13)",
-            warning: "rgba(228,177,95,.15)",
-            poor: "rgba(219,119,112,.15)",
-            unknown: "rgba(125,137,144,.13)"
-          }[airQualityGrade];
+          const airQualityColor = airQualityAccent(airQualityGrade);
+          const airQualitySoftColor = airQualityAccentSoft(airQualityGrade, 0.14);
           popupModuleElement.style.setProperty("--hb-air-purifier-accent", airQualityColor);
           popupModuleElement.style.setProperty(
             "--hb-air-purifier-accent-soft",
@@ -13995,13 +13967,13 @@ export class PanelRenderer {
       );
       const modeAccentColor =
         effectMode === "cool"
-          ? climateModeColors.cool || "#73c8ff"
+          ? climateModeColors.cool || paletteColor("--hos-cool", "#58c4ff")
           : effectMode === "heat"
-            ? climateModeColors.heat || "#ff8a65"
-            : climateModeColors.other || "#dce2e6";
+            ? climateModeColors.heat || paletteColor("--hos-heat", "#ff8a65")
+            : climateModeColors.other || paletteColor("--hos-ink", "#f1f7fb");
       const climateAccentColorValue =
         effectMode === "off"
-          ? "#65717a"
+          ? paletteColor("--hos-sensor", "#9eb0c4")
           : effectMode === "cool"
             ? mixHexColors(modeAccentColor, "#ffffff", temperatureRatio * 0.32)
             : effectMode === "heat"
@@ -17619,7 +17591,7 @@ export class PanelRenderer {
     const presenceClearColor =
       presenceComponent.properties?.iconColor ||
       presenceComponent.properties?.clearColor ||
-      "#758189";
+      paletteColor("--hos-sensor", "#9eb0c4");
     /**
      * 把存在感类实体的状态归一成展示所需的 key 与元数据。
      * 人体、门窗、水浸、烟雾、燃气几类传感器判定规则完全不同，统一交给 presenceSensorPresentation；
@@ -18822,7 +18794,7 @@ export class PanelRenderer {
         mode: climateModeName = "off",
         visualMode: climateVisualModeName = "off",
         running: isClimateUnitRunning = false,
-        accentColor: climateAccentColorRgb = "#65717a",
+        accentColor: climateAccentColorRgb = paletteColor("--hos-sensor", "#9eb0c4"),
         targetTemperature: targetTemperatureCelsius
       } = {}) => {
         const isClimateUnitOn = climateVisualModeName !== "off";
@@ -19173,9 +19145,10 @@ export class PanelRenderer {
               });
             },
             modeColors: {
-              cool: detailsComponent.properties?.airflowCoolColor || "#73c8ff",
-              heat: detailsComponent.properties?.airflowHeatColor || "#ff8a65",
-              other: detailsComponent.properties?.airflowOtherColor || "#dce2e6"
+              cool: detailsComponent.properties?.airflowCoolColor || paletteColor("--hos-cool", "#58c4ff"),
+              heat: detailsComponent.properties?.airflowHeatColor || paletteColor("--hos-heat", "#ff8a65"),
+              other:
+                detailsComponent.properties?.airflowOtherColor || paletteColor("--hos-ink", "#f1f7fb")
             }
           })
       : null;

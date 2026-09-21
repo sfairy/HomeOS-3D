@@ -37,7 +37,9 @@
         // 不能直接展示 balance：那样「可用」会把已申请提现的钱也算进去，
         // 用户看着 100 积分却提不出来。
         const available = Math.max(0, Number(w?.balance || 0) - Number(w?.frozen || 0));
-        $('#referral-stats').innerHTML=[['可用积分',available],['提现中积分',w?.frozen],['累计净奖励',w?.earned],['已提现积分',w?.withdrawn]].map(([label,v])=>`<article><small>${label}</small><strong>${esc(typeof v === 'number' ? v.toFixed(2) : (v||'0.00'))}</strong><small>积分</small></article>`).join('');
+        // 四张积分卡各挂一个语义色（与账号概览、后台徽标同一套 data-tone 词汇）：
+        // 可用=薄荷（正常）、提现中=暖光（待办）、累计=青（主控）、已提现=极光紫（归档）。
+        $('#referral-stats').innerHTML=[['可用积分',available,'eco'],['提现中积分',w?.frozen,'lumen'],['累计净奖励',w?.earned,'accent'],['已提现积分',w?.withdrawn,'aura']].map(([label,v,tone])=>`<article data-tone="${tone}"><small>${label}</small><strong>${esc(typeof v === 'number' ? v.toFixed(2) : (v||'0.00'))}</strong><small>积分</small></article>`).join('');
         $('#referral-withdraw-form button').disabled=!w || available<100 || Number(w.frozen)>0;
         $('#referral-guide-reward').textContent=`好友注册后，实际支付成功的订单，按实付金额的 ${s.ratePercent}% 奖励积分。注册本身不发积分，支付成功后自动入账。`;
         $('#referral-guide-fee').textContent=`1 积分等于 1 元，满 100 积分可以申请提现。当前手续费 ${s.withdrawalFeePercent}%，申请 100 积分，扣除 ${s.withdrawalFeePercent} 积分手续费，实际到账 ${(100-Number(s.withdrawalFeePercent)).toFixed(2)} 元。手续费不足 0.01 部分舍去。`;

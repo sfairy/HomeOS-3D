@@ -1,0 +1,82 @@
+<!doctype html>
+<!--
+  连接状态页：为「授权后台暂时联系不上」提供一个不吓人的出口。
+  挂载方式：**没有独立路由**，由后端在 allows('display') 为假时就地渲染在 /pair 与
+  /display/* 上（见 backend/main.py 的 pair_page / display_page）。这样设备刷新后仍停在
+  自己的地址上，授权一恢复就能直接进画面；也避免了「授权不可用反而要先去登录」这种死路。
+  与 /license 的分工：/license 是管理员填激活码的地方；本页面向展示端与普通用户，只说明
+  「正在重试 / 需要管理员介入」，并提供一键重连。
+  视觉与 /setup、/login、/license、/pair 统一：全屏场景 + 右侧玻璃表单坞。
+  id 契约：license-recovery.js 只在 #license-recovery 存在时自举 —— 那段自举同时被 /license 引用，
+  加个根节点就等于在授权页也挂一套定时器，所以这个 id 不能省。
+  场景片段由后端注入：页面里那个独立的场景占位符（见 backend/http/page_shell.py
+  的 SCENE_PLACEHOLDER）会被替换成整块场景标记。
+-->
+<html lang="zh-CN" class="hos-shell">
+  <head>
+    <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
+    <meta charset="utf-8" />
+    <script src="/static/logging/client-log.js?v=20260921090405"></script>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#050910" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="HomeOS" />
+    <title>连接状态 · HomeOS</title>
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260921090405" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260921090405" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921090405" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921090405" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=20260921090405" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=20260921090405" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=20260921090405` 的 <link>。
+         必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
+    <!--{{APPEARANCE}}-->
+  </head>
+  <body>
+    <div class="hos-page hos-tone--alert">
+      <!--{{SCENE}}-->
+
+      <main class="hos-dock">
+        <!-- 本页会被就地渲染在 /pair 与 /display/* 上，本身没有「自己的地址」可以指回去，
+             所以坞里不提供「回到某页」的链接，只留「管理员重新激活」这一条明确出口。 -->
+        <section class="hos-panel hos-rise" id="license-recovery">
+          <span class="hos-panel__edge" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--tl" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--tr" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
+          <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
+
+          <div class="hos-eyebrow-row">
+            <p class="hos-eyebrow">Connection</p>
+            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>自动重连中</span>
+          </div>
+          <h1>正在连接你的家</h1>
+          <p id="recovery-message" class="hos-status" role="status" aria-live="polite">正在读取授权状态…</p>
+
+          <div class="hos-actions">
+            <button id="recovery-retry" class="hos-btn-primary" type="button">重新连接授权后台</button>
+          </div>
+
+          <div class="hos-panel__copy">
+            <div class="hos-panel__meta">
+              <span>项目与配对不清除</span>
+              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+              <span>本地租约内可用</span>
+              <i class="hos-panel__meta-sep" aria-hidden="true"></i>
+              <span>网络恢复自动打开</span>
+            </div>
+            <p>已有项目、设备配对和连接信息不会被清除。</p>
+            <a class="hos-text-button" href="/license">管理员重新激活</a>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/static/auth/license-recovery.js?v=20260921090405"></script>
+  </body>
+</html>

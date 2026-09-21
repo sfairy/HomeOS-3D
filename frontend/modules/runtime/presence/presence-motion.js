@@ -12,8 +12,9 @@
 // 不能写裸 `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
 import {
   INTERACTION_PAGE_OPTIONS as PRESENCE_PAGES,
-  resolveStateEntry
-} from "../core/static-helpers.js?v=20260920131301";
+  resolveStateEntry,
+  stateTextOf
+} from "../core/static-helpers.js?v=20260921090405";
 /** 允许显示人体存在的页面；与编辑器的页面下拉共用一份清单，见 `static/utils/interaction-pages.js`。 */
 export { PRESENCE_PAGES };
 /**
@@ -129,12 +130,13 @@ export function createPresenceTriggers(nowProvider = () => Date.now()) {
       }
       for (const binding of bindings) {
         const state = resolveStateEntry(states[binding.entityId]);
+        // 保留原样大小写：下面要拿 `stateText` 跟用户填的 triggerValue 逐字比对。
         const stateText = typeof state?.state == "string" ? state.state.trim() : "";
         // 可用性三重判断：未标记不可用、state 非空、且不是 unknown / unavailable。
         const isAvailable =
           state?.available !== false &&
           !!stateText &&
-          !["unknown", "unavailable"].includes(stateText.toLowerCase());
+          !["unknown", "unavailable"].includes(stateTextOf(state));
         let triggerMode = binding.triggerMode || "auto";
         if (triggerMode === "auto") {
           // 自动识别：event.* 按事件处理；名字里带「人数」语义且值是数字的按阈值处理；

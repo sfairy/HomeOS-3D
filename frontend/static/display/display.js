@@ -6,11 +6,11 @@
  * 屏。未配对 / 会话失效（401）跳 /pair，授权受限（403 LICENSE_RESTRICTED）跳 /license；
  * 素材版本号形如 "内置戳:用户戳"，只在变化时重新下载；轮询 10 秒，素材版本检查 30 秒。
  */
-import { PanelRenderer } from "../renderer/core/renderer.js?v=20260920131301";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920131301";
-import { createButtonSound } from "../shared/sound-effects.js?v=20260920131301";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=20260920131301";
-import { isAppleMobile } from "../utils/apple-device.js?v=20260920131301";
+import { PanelRenderer } from "../renderer/core/renderer.js?v=20260921090405";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260921090405";
+import { createButtonSound } from "../shared/sound-effects.js?v=20260921090405";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=20260921090405";
+import { isAppleMobile } from "../utils/apple-device.js?v=20260921090405";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");
@@ -110,8 +110,16 @@ async function apiRequest(path) {
       return null;
     }
     if (response.status === 403 && payload?.detail?.code === "LICENSE_RESTRICTED") {
-      window.location.replace("/license");
-      return null;
+      // 刷新而不是跳 /license：展示端是墙面屏，通常没人能填激活码；刷新会让后端门禁
+      // 重新判定；若展示能力仍不可用，后端会把 /pair 与 /display/* 就地渲染成连接状态页
+      //（那里只有「正在重连」和自动重试），因此刷新本身就是可自愈的落点。
+      // 先重载再抛：重载是异步的，抛出的错误让当前这一帧立刻显示原因而不是白等。
+      window.location.reload();
+      const restrictedError = new Error(
+        payload?.detail?.message || "授权后台正在验证，请稍后重试。"
+      );
+      restrictedError.code = "LICENSE_RESTRICTED";
+      throw restrictedError;
     }
     if (!response.ok) {
       // 文案归一交给 utils/api-error.js，它认得字符串、`detail.message` 与 FastAPI 422 数组。

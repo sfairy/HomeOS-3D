@@ -9,17 +9,28 @@
  */
 
 // 开发态（file:）走相对路径，生产走 /static 绝对路径；两条都不能省。
-const { resolveStateEntry } = await (import.meta.url.startsWith("file:")
+const {
+  resolveStateEntry,
+  stateTextOf,
+  normalizedTextOf
+} = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/state-entry.js", import.meta.url))
-  : import("/static/utils/state-entry.js?v=20260920131301"));
+  : import("/static/utils/state-entry.js?v=20260921090405"));
 const { entityDomainFromId } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/entities.js", import.meta.url))
-  : import("/static/utils/entities.js?v=20260920131301"));
+  : import("/static/utils/entities.js?v=20260921090405"));
 const { apiErrorMessage } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/api-error.js", import.meta.url))
-  : import("/static/utils/api-error.js?v=20260920131301"));
+  : import("/static/utils/api-error.js?v=20260921090405"));
 const { INTERACTION_PAGE_OPTIONS } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/interaction-pages.js", import.meta.url))
-  : import("/static/utils/interaction-pages.js?v=20260920131301"));
+  : import("/static/utils/interaction-pages.js?v=20260921090405"));
 
-export { INTERACTION_PAGE_OPTIONS, apiErrorMessage, entityDomainFromId, resolveStateEntry };
+export {
+  INTERACTION_PAGE_OPTIONS,
+  apiErrorMessage,
+  entityDomainFromId,
+  normalizedTextOf,
+  resolveStateEntry,
+  stateTextOf
+};

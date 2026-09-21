@@ -1,0 +1,295 @@
+/* HomeOS 入口页容器与表单坞（canonical 源：design/scene/page.css）
+   提供 :root 调色板、页面色调开关，以及 .hos-page / .hos-dock / .hos-rise。
+   场景层见 scene.css，表单控件见 panel.css。
+   分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。 */
+
+/* ── 调色板 ────────────────────────────────────────────────────────────────
+   放在 :root 而不是 .hos-page：商店是「一个文档里既有全屏入口壳、又有可滚动前台」，
+   前台与后台不在 .hos-page 里，令牌挂在 .hos-page 上它们就取不到。
+
+   智能家居不是「一块屏幕」而是「一个家」，所以颜色分两层：
+
+   ① 一个主控色 + 三束居家光。暖金是主控（进入 / 可操作），暖光是灯与「已激活」，
+      极光紫是氛围与恢复路径，薄荷是生态在线。只用一个冷色，界面会像仪表盘而不是家。
+   ② 一套设备读色。温度天然是双向的（热 ↔ 冷），安防是「正常 / 告警」，离线要灰。
+      这些不是装饰色，是把「这个数字在说什么」画出来。
+
+   所有「半透明派生色」一律写 rgba(var(--hos-x-rgb), α)，不写死 rgba(255, 196, 106, α)：
+   换一个通道值，全仓十几处派生色一起跟上。 */
+:root {
+  color-scheme: dark;
+
+  /* 夜空面：蓝相往靛偏约 6°，给极光紫与暖金让出色域（原 #050910 是纯蓝，加紫会发灰）。 */
+  --hos-sky-deep: #050912;
+  --hos-sky-low: #081020;
+  --hos-sky-mid: #0d1728;
+  --hos-sky-high: #16263c;
+  --hos-sky-haze: #24395a;
+  /* 同族 RGB 通道：玻璃面、雾、暗角要按 alpha 叠在场景上，只有十六进制没法做半透明派生。 */
+  --hos-sky-deep-rgb: 5, 9, 18;
+  --hos-sky-low-rgb: 8, 16, 32;
+  --hos-sky-mid-rgb: 13, 23, 40;
+  --hos-sky-high-rgb: 22, 38, 60;
+  --hos-sky-haze-rgb: 36, 57, 90;
+
+  /* 主控暖金：品牌锚点，用于「进入 / 可操作」。全站在暖色琥珀一套上，
+     暖光、极光紫、薄荷退为语义辅助，主控只留给「进门 / 能点」这一件事。
+     主控与暖光同属暖色，靠一亮一沉区分（金 vs 橙），不是靠色相拉开。 */
+  --hos-accent-rgb: 255, 196, 106;
+  --hos-accent: #ffc46a;
+  --hos-accent-bright: #ffd9a0;
+  --hos-accent-deep: #e09523;
+
+  /* 居家暖光：灯、居家氛围、授权「已激活」、流程完成。 */
+  --hos-lumen-rgb: 255, 157, 77;
+  --hos-lumen: #ff9d4d;
+  --hos-lumen-bright: #ffba83;
+  --hos-lumen-deep: #c96a1d;
+
+  /* 氛围极光：次级强调、版面过渡、找回 / 恢复这类「异常但可控」的路径。 */
+  --hos-aura-rgb: 201, 160, 255;
+  --hos-aura: #c9a0ff;
+  --hos-aura-bright: #e7d6ff;
+  --hos-aura-deep: #9253e6;
+
+  /* 生态薄荷：在线、正常、节能、已布防。 */
+  --hos-eco-rgb: 95, 208, 168;
+  --hos-eco: #5fd0a8;
+  --hos-eco-bright: #88dcbf;
+  --hos-eco-deep: #3b8e71;
+
+  /* 设备读色。heat ↔ cool 是温度的两端，alert 是超限，sensor 是离线 / 未知。
+     场景样式本身只用得上其中一两枚，但整组必须留在这里：商店的 theme.css 会镜像
+     同一批令牌，`check_scene_sync.mjs` 逐个比对两侧取值 —— 删掉不常用的几枚，
+     镜像表就会缺项，而那正是过去两个色板慢慢走散的起点。 */
+  --hos-heat-rgb: 255, 138, 101;
+  --hos-heat: #ff8a65;
+  --hos-cool-rgb: 88, 196, 255;
+  --hos-cool: #58c4ff;
+  --hos-alert-rgb: 240, 122, 126;
+  --hos-alert: #f07a7e;
+  --hos-alert-bright: #f5a3a6;
+  --hos-sensor-rgb: 158, 176, 196;
+  --hos-sensor: #9eb0c4;
+
+  /* 渐变：单色竖渐变给按钮（深色文字压在上面要够亮），三色横渐变给标题与光带。 */
+  --hos-grad-accent: linear-gradient(180deg, var(--hos-accent-bright), var(--hos-accent-deep));
+  --hos-grad-lumen: linear-gradient(180deg, var(--hos-lumen-bright), var(--hos-lumen-deep));
+  --hos-grad-aura: linear-gradient(180deg, var(--hos-aura-bright), var(--hos-aura-deep));
+  --hos-grad-eco: linear-gradient(180deg, var(--hos-eco-bright), var(--hos-eco-deep));
+  --hos-grad-aurora: linear-gradient(
+    100deg,
+    var(--hos-accent) 0%,
+    var(--hos-aura) 48%,
+    var(--hos-lumen) 100%
+  );
+
+  /* 状态文案色（比语义色亮一档，保证在深空底上的可读性）。 */
+  --hos-ok: var(--hos-eco-bright);
+  --hos-warn: var(--hos-lumen-bright);
+  --hos-err: var(--hos-alert-bright);
+
+  /* 页面色调开关，默认「主控青」。
+     panel.css 通篇只认 var(--hos-tone*)，所以「换掉一整页的颜色」= 给 .hos-page
+     加一个 .hos-tone--* 类：坞体描边、眉标、聚焦环、主按钮、边角光、状态条一起走。
+     这样五个入口页同结构不同意（登录=青、激活=暖光、找回=极光紫、配对=薄荷），
+     而不需要在页面里逐条覆写颜色。 */
+  --hos-tone: var(--hos-accent);
+  --hos-tone-rgb: var(--hos-accent-rgb);
+  --hos-tone-bright: var(--hos-accent-bright);
+  --hos-tone-deep: var(--hos-accent-deep);
+  --hos-grad-tone: var(--hos-grad-accent);
+  --hos-grad-tone-hover: linear-gradient(180deg, #ffd9a0, #ffc46a);
+
+  /* 天气与远景：黎明冷灰、地平线暖调。 */
+  --hos-dawn-rgb: 168, 196, 220;
+
+  /* 文字 */
+  --hos-ink: #f1f7fb;
+  --hos-muted: rgba(186, 214, 232, 0.58);
+
+  /* 只打包 latin 子集（见 fonts.css）：CJK 交给系统字体回退，不下载数 MB 的 Noto Sans SC。 */
+  --hos-font-cjk: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC',
+    'Noto Sans CJK SC', sans-serif;
+  --hos-font-brand: 'Orbitron', 'Exo 2', var(--hos-font-cjk);
+  --hos-font-display: 'Exo 2', var(--hos-font-cjk);
+  --hos-font-ui: 'Exo 2', var(--hos-font-cjk);
+  --hos-font-mono: 'Share Tech Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  --hos-fs-micro: 12px;
+  --hos-fs-caption: 13px;
+  --hos-fs-body-sm: 14px;
+  --hos-fs-body: 15px;
+
+  --hos-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 色调类。刻意只改 --hos-tone*，不碰 --hos-accent：
+   场景插画与状态色属于「家的客观事实」，页面色调属于「你在哪个入口」，
+   两者分开，换入口色时插画里的青色不会跟着变成紫色。 */
+.hos-tone--lumen {
+  --hos-tone: var(--hos-lumen);
+  --hos-tone-rgb: var(--hos-lumen-rgb);
+  --hos-tone-bright: var(--hos-lumen-bright);
+  --hos-tone-deep: var(--hos-lumen-deep);
+  --hos-grad-tone: var(--hos-grad-lumen);
+  --hos-grad-tone-hover: linear-gradient(180deg, #ffe6c4, #f0a352);
+}
+
+.hos-tone--aura {
+  --hos-tone: var(--hos-aura);
+  --hos-tone-rgb: var(--hos-aura-rgb);
+  --hos-tone-bright: var(--hos-aura-bright);
+  --hos-tone-deep: var(--hos-aura-deep);
+  --hos-grad-tone: var(--hos-grad-aura);
+  --hos-grad-tone-hover: linear-gradient(180deg, #ded6ff, #8b78f0);
+}
+
+.hos-tone--eco {
+  --hos-tone: var(--hos-eco);
+  --hos-tone-rgb: var(--hos-eco-rgb);
+  --hos-tone-bright: var(--hos-eco-bright);
+  --hos-tone-deep: var(--hos-eco-deep);
+  --hos-grad-tone: var(--hos-grad-eco);
+  --hos-grad-tone-hover: linear-gradient(180deg, #a9ecd8, #3fc79a);
+}
+
+/* 异常路径专用（找回 / 恢复 / 需人工处理）。用珊瑚而不是把青色调暗：
+   一整页的色调本身就在说「这里发生的事和别人不一样」，比任何一段文案都先被读到。 */
+.hos-tone--alert {
+  --hos-tone: var(--hos-alert);
+  --hos-tone-rgb: var(--hos-alert-rgb);
+  --hos-tone-bright: var(--hos-alert-bright);
+  --hos-tone-deep: #c85a5e;
+  --hos-grad-tone: linear-gradient(180deg, #ffc9cb, #d0555a);
+  --hos-grad-tone-hover: linear-gradient(180deg, #ffdfe0, #e07074);
+}
+
+/* 页面尺寸与壳层。Activate 把它放在自己的缩放壳里（.app-shell__content--fluid
+   给了确定高度），主项目入口页由 .hos-shell 提供高度；商店在同一个文档里切换分页，
+   父级没有确定高度，由商店样式补 min-height 兜底（见 store.css 的 .hb-auth-page）。 */
+
+.hos-page {
+  /* 坞宽相对画布；场景内装饰用 cqw（见 hos-scene） */
+  --hos-gutter: clamp(20px, 3.5%, 48px);
+  --hos-dock-w: min(540px, 50%);
+  --hos-dock-span: var(--hos-dock-w);
+
+  position: relative;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: var(--hos-sky-deep);
+  font-family: var(--hos-font-ui);
+  font-size: 16px;
+  color: var(--hos-ink);
+  container-type: inline-size;
+  container-name: hos-page;
+}
+
+.hos-page > .hos-scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* [hidden] 必须赢。窄屏那段把 .hos-page 改成了 display: flex，而作者样式会盖掉浏览器
+   默认的 [hidden] { display: none } —— 商店的 store.html / setup.html 在同一个文档里
+   放了好几块整屏壳（登录 / 注册 / 找回 / 已初始化），靠 hidden 切换，漏掉这条就会
+   几块壳叠在一起同时显示。特异性 0,2,0 高于 .hos-page 的 0,1,0，与书写顺序无关。 */
+.hos-page[hidden] {
+  display: none;
+}
+
+.hos-page > .hos-dock {
+  position: absolute;
+  z-index: 20;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--hos-dock-w);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--hos-gutter);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.hos-page > .hos-dock > * {
+  pointer-events: auto;
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .hos-page {
+    --hos-dock-w: min(480px, 52%);
+  }
+}
+
+@media (max-width: 900px) {
+  .hos-page {
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .hos-page > .hos-scene {
+    position: relative;
+    inset: auto;
+    flex: 0 0 auto;
+    min-height: 260px;
+  }
+
+  .hos-page > .hos-dock {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    flex: 1 1 auto;
+    align-items: flex-start;
+    padding: 8px 18px 28px;
+  }
+}
+
+.hos-rise {
+  animation: hosFadeRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes hosFadeRise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hos-page *,
+  .hos-page *::before,
+  .hos-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 只有入口页把自己的 <html> 标成 .hos-shell；商店在同一个文档里还要滚动前台，
+   所以这份全屏锁定不能挂在裸 html/body 上。 */
+html.hos-shell,
+html.hos-shell body {
+  height: 100%;
+  margin: 0;
+  background: var(--hos-sky-deep);
+  -webkit-font-smoothing: antialiased;
+}
+
+html.hos-shell body {
+  overflow: hidden;
+}
+
+html.hos-shell body.modal-open {
+  overflow: hidden;
+}
+

@@ -8,75 +8,75 @@
  * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { resolveStateEntry } from "./static-helpers.js?v=20260920131301";
+import { resolveStateEntry } from "./static-helpers.js?v=20260921090405";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=20260920131301",
+        "../../../static/bridge/popup-placement.js?v=20260921090405",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=20260920131301"));
+  : import("/static/bridge/popup-placement.js?v=20260921090405"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=20260920131301";
-import { createSceneBackground } from "./scene-background.js?v=20260920131301";
-import { floorNavigationChoices } from "./floor-navigation.js?v=20260920131301";
+} from "../presence/presence-scene.js?v=20260921090405";
+import { createSceneBackground } from "./scene-background.js?v=20260921090405";
+import { floorNavigationChoices } from "./floor-navigation.js?v=20260921090405";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=20260920131301";
+} from "../vacuum/vacuum-motion.js?v=20260921090405";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=20260920131301";
-import { televisionState } from "../television/television-state.js?v=20260920131301";
-import { createTelevisionPanel } from "../television/television-panel.js?v=20260920131301";
-import { createTelevisionScreens } from "../television/television-screen.js?v=20260920131301";
-import { createNasPanel } from "../nas/nas-panel.js?v=20260920131301";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=20260920131301";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=20260920131301";
+} from "../vacuum/vacuum-map.js?v=20260921090405";
+import { televisionState } from "../television/television-state.js?v=20260921090405";
+import { createTelevisionPanel } from "../television/television-panel.js?v=20260921090405";
+import { createTelevisionScreens } from "../television/television-screen.js?v=20260921090405";
+import { createNasPanel } from "../nas/nas-panel.js?v=20260921090405";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=20260921090405";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=20260921090405";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=20260920131301";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=20260920131301";
-import { createCoverPanel } from "../cover/cover-panel.js?v=20260920131301";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=20260920131301";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=20260920131301";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=20260920131301";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=20260920131301";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=20260920131301";
-import { createClimatePanel } from "../climate/climate-panel.js?v=20260920131301";
+} from "../cover/cover-state.js?v=20260921090405";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=20260921090405";
+import { createCoverPanel } from "../cover/cover-panel.js?v=20260921090405";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=20260921090405";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=20260921090405";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=20260921090405";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=20260921090405";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=20260921090405";
+import { createClimatePanel } from "../climate/climate-panel.js?v=20260921090405";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=20260920131301";
-import { startSceneSync } from "./scene-sync.js?v=20260920131301";
+} from "../environment/environment-scene.js?v=20260921090405";
+import { startSceneSync } from "./scene-sync.js?v=20260921090405";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=20260920131301";
+} from "../light/light-state.js?v=20260921090405";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=20260920131301";
+} from "../camera/camera-motion.js?v=20260921090405";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=20260920131301";
+} from "./idle-rotation.js?v=20260921090405";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -96,6 +96,12 @@ const LIGHT_PRESETS = [
     temperaturePercent: 100
   }
 ];
+/**
+ * 楼层过渡「末段可接管」的进度阈值。阻尼收敛的进度按 e^(-rt) 逼近 1，楼层 owner 的停稳判定
+ * 要等衰减到 0.0005（约 1.09s），但进度到 0.999 时（约 0.86s）画面与标记其实已经就位；
+ * 这中间的两百多毫秒相机几乎不动，让用户干等会显得按下没反应，所以按 0.999 提前放行。
+ */
+const FLOOR_TAIL_DRAG_MIN_PROGRESS = 0.999;
 /**
  * 算出当前配置下真正可用的模块页签。
  * 总览与灯光始终存在（总览聚合当前楼层所有已配置模块，灯光是默认落地页）；
@@ -2951,6 +2957,9 @@ export function mountStage(stageOptions) {
     const activeCameraTransition = cameraTransition;
     const elapsedMs = Math.max(0, transitionTimestamp - cameraTransition.started);
     const transitionProgress = cameraTransition.transition.progress(elapsedMs);
+    // 记下当前进度：楼层过渡末段允许用户按下即接管相机（见 canvas 的 pointerdown），
+    // 那个判断读的必须是本帧刚算出的值。
+    cameraTransition.amount = transitionProgress;
     focusViewportInset =
       cameraTransition.inset +
       (cameraTransition.targetInset - cameraTransition.inset) * transitionProgress;
@@ -4605,6 +4614,57 @@ export function mountStage(stageOptions) {
           }
         : null;
   });
+  /**
+   * 楼层切换末段按下即接管相机。
+   *
+   * 阻尼收敛的尾巴里相机几乎不动，用户想转视角往往要等到动画彻底停稳（约 1.09s）才有反应；
+   * 这里在进度到达末段阈值、且画面与标记都已铺好时，把过渡一次性收敛到终点并交还给轨道控制，
+   * 于是「按下」这一刻就能开始拖动旋转。未到末段时照旧不打断楼层动画；聚焦进入、空闲旋转等
+   * 其它 owner 也一律不在这里处理，保持原有拦截语义。
+   *
+   * 用 capture 监听：抢在轨道控制自己的 pointerdown 之前完成收敛与 enable，同一个事件后续
+   * 就能立刻被轨道控制接管成一次拖拽。
+   */
+  canvasElement.addEventListener(
+    "pointerdown",
+    floorTailDragPointerDownEvent => {
+      if (
+        floorTailDragPointerDownEvent.isPrimary === false ||
+        (floorTailDragPointerDownEvent.button != null &&
+          floorTailDragPointerDownEvent.button !== 0) ||
+        isRangeEditorOpen ||
+        followedVacuumId ||
+        markerDragState ||
+        (!isInteractive && !isEditing && !isViewEditing) ||
+        focusedId ||
+        focusMode
+      ) {
+        return;
+      }
+      if (cameraTransition?.owner !== "floor") {
+        return;
+      }
+      if (
+        !(cameraTransition.amount >= FLOOR_TAIL_DRAG_MIN_PROGRESS) ||
+        !cameraTransition.presentationRevealed ||
+        !cameraTransition.markersRevealed
+      ) {
+        return;
+      }
+      const settledFloorTransition = cameraTransition;
+      cameraTransition = null;
+      // 用「当前相机状态」当收尾姿态，把楼层过渡直接推到 100%，避免动画从末段再补一次位移。
+      stageOptions.advanceFloorTransition?.(1, stageOptions.cameraState());
+      stageOptions.endCameraMotion();
+      settledFloorTransition.done?.();
+      stageOptions.setOrbitPivot(null);
+      syncCameraInteraction();
+      updateIdleControllers();
+    },
+    {
+      capture: true
+    }
+  );
   canvasElement.addEventListener("pointermove", canvasPointerMoveEvent => {
     if (
       canvasPointerState &&

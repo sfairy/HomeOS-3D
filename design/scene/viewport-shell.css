@@ -1,0 +1,107 @@
+/* 视口缩放壳的样式（canonical 源：design/scene/viewport-shell.css）
+
+   配合 viewport-shell.js 使用：.viewport-frame 是铺满窗口的底板，.app-shell 是缩放对象，
+   .app-shell__content 承载固定 1366×1024 的设计稿内容层。
+
+   只有需要固定比例画布的页面才引这份（目前是 HomeOS-Activate 签发页）；
+   主项目与商店的入口页是全视口自适应，引了反而会把内容缩错。
+
+   分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。 */
+
+.viewport-frame {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, #050910 0%, #0a121c 30%, #0d1624 60%, #070b12 100%);
+}
+
+.viewport-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% -10%, rgba(255, 196, 106, 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 55% at 88% 65%, rgba(56, 189, 248, 0.03) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 50% 95%, rgba(48, 209, 88, 0.015) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 45% 50%, rgba(255, 159, 10, 0.008) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  animation: hosViewportGlow 14s ease-in-out infinite;
+}
+
+@keyframes hosViewportGlow {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  25% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  75% {
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport-frame::before {
+    animation: none;
+    opacity: 0.85;
+  }
+}
+
+.app-shell {
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  background: transparent;
+  flex-direction: column;
+  transition: transform 0.15s ease-out;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+.app-shell--scaling {
+  align-items: center;
+  justify-content: center;
+}
+
+.app-shell--scaling.app-shell--resizing {
+  will-change: transform;
+}
+
+.app-shell__content {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-shell__content--fluid {
+  width: 100%;
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-shrink: 1;
+}
+
+@media (max-width: 639px) {
+  .app-shell--mobile-native {
+    min-width: 100vw;
+    max-width: 100% !important;
+    transform: none !important;
+  }
+
+  .app-shell {
+    overflow-x: hidden;
+  }
+}

@@ -7,8 +7,8 @@
  * 没有超时就没有结论，没有 finally 就没有下一次点击。
  * 跳转：设置成功即已下发登录 Cookie，先打开 /license —— 授权有效时该页 303 回首页，失效 / 未激活则留下完成激活。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=20260920131301";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260920131301";
+import { apiFetch } from "../utils/api-fetch.js?v=20260921090405";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260921090405";
 
 const form = document.querySelector("#setup-form"),
   message = document.querySelector("#message"),
@@ -21,16 +21,8 @@ if (tokenField && !LOOPBACK_HOSTS.has(window.location.hostname)) {
   tokenField.querySelector("input").required = true;
 }
 
-form.querySelectorAll("[data-password-toggle]").forEach(button => {
-  button.addEventListener("click", () => {
-    const field = button.closest(".hb-password-field")?.querySelector("input");
-    if (!field) return;
-    const show = field.type === "password";
-    field.type = show ? "text" : "password";
-    button.textContent = show ? "隐藏" : "显示";
-    button.setAttribute("aria-label", show ? "隐藏密码" : "显示密码");
-  });
-});
+// 密码显隐由 /static/auth/auth-shell.js 统一接线（按 .hos-password-field 找最近输入框），
+// 这里不再重复绑定：两处都挂监听会让一次点击切换两次，等于按钮没反应。
 
 form.addEventListener("submit", async submitEvent => {
   submitEvent.preventDefault();

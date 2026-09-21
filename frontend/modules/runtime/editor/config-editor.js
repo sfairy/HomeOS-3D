@@ -8,31 +8,31 @@
  * 字段约定：草稿与后端下发的 component.properties 完全一致（camelCase），本模块只收集、不做兜底。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
-import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=20260920131301";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260920131301";
-import { mountInteraction3d } from "../core/runtime.js?v=20260920131301";
-import { lightState } from "../light/light-state.js?v=20260920131301";
-import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=20260920131301";
-import { nasGroups } from "../nas/nas-panel.js?v=20260920131301";
-import { randomUuid } from "/static/utils/random-id.js?v=20260920131301";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260920131301";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260921090405";
+import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=20260921090405";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=20260921090405";
+import { mountInteraction3d } from "../core/runtime.js?v=20260921090405";
+import { lightState } from "../light/light-state.js?v=20260921090405";
+import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=20260921090405";
+import { nasGroups } from "../nas/nas-panel.js?v=20260921090405";
+import { randomUuid } from "/static/utils/random-id.js?v=20260921090405";
+import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260921090405";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=20260920131301";
-import { normalizeInteraction3dLightingMode } from "/static/bridge/definition.js?v=20260920131301";
+} from "/static/bridge/bridge.js?v=20260921090405";
+import { normalizeInteraction3dLightingMode } from "/static/bridge/definition.js?v=20260921090405";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "/static/3d-studio/loaders/studio-normalization.js?v=20260920131301";
+} from "/static/3d-studio/loaders/studio-normalization.js?v=20260921090405";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=20260920131301";
-import { confirmAction } from "/static/shared/ui-confirm.js?v=20260920131301";
+} from "../core/editor-save-status.js?v=20260921090405";
+import { confirmAction } from "/static/shared/ui-confirm.js?v=20260921090405";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
@@ -188,7 +188,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920131301";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=20260921090405";
   document.head.append(styleSheetLinkElement);
   // 建元素小工具，文本一律走 textContent，不拼 HTML。
   const createElement = (tagName, classNames, initialText) => {
@@ -1606,7 +1606,7 @@ export async function openInteraction3dEditor({
       return;
     }
     const addableModels = listAddableModels();
-    if (!addableModels.length || getItemList().length >= 128) {
+    if (!addableModels.length) {
       return;
     }
     pickerGeneration++;
@@ -1681,7 +1681,7 @@ export async function openInteraction3dEditor({
         const chosenModel = listAddableModels().find(
           modelCandidateMatch => modelCandidateMatch.key === chosenModelKey
         );
-        if (!chosenModel || getItemList().length >= 128) {
+        if (!chosenModel) {
           throw new Error("该对象已添加或不再可用，请关闭窗口后重新选择。");
         }
         const newItem = {
@@ -1749,7 +1749,7 @@ export async function openInteraction3dEditor({
   // 因此这里的逻辑比其它选择器重一些。
   async function openVacuumRoomPicker(roomPickerTriggerEvent) {
     const vacuumModelRecord = findVacuumModel();
-    if (!vacuumModelRecord || getItemList().length >= 64) {
+    if (!vacuumModelRecord) {
       return;
     }
     const vacuumPickerGeneration = ++pickerGeneration;
@@ -1765,7 +1765,6 @@ export async function openInteraction3dEditor({
             !isAccessAllowed ||
             vacuumPickerGeneration !== pickerGeneration ||
             findVacuumModel() !== vacuumModelRecord ||
-            getItemList().length >= 64 ||
             !pickedRoomEntityId
           ) {
             return;
@@ -1879,7 +1878,6 @@ export async function openInteraction3dEditor({
     shortcutSectionElement.className += " i3d-compact-list";
     const shortcutHeaderRowElement = createElement("div", "i3d-config-list-row");
     const addShortcutButton = createButton("添加快捷指令", openAddDialog);
-    addShortcutButton.disabled = getItemList().length >= 64;
     shortcutHeaderRowElement.append(addShortcutButton);
     shortcutSectionElement.append(shortcutHeaderRowElement);
     if (!getItemList().some(existingShortcutProbe => existingShortcutProbe.id === selectedItemId)) {
@@ -2264,7 +2262,7 @@ export async function openInteraction3dEditor({
       const listHeadingElement = createElement("div", "i3d-light-heading");
       const floorModels = listAddableModels();
       const addItemButton = createButton("添加" + kindLabel, openAddDialog);
-      addItemButton.disabled = !floorModels.length || getItemList().length >= 128;
+      addItemButton.disabled = !floorModels.length;
       listHeadingElement.className = "i3d-config-list-row";
       currentContainer.append(listHeadingElement);
       listHeadingElement.append(addItemButton);
@@ -3648,7 +3646,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=20260920131301";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=20260921090405";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   // 与上面带类名的 createElement 区分开，避免传一堆空字符串。

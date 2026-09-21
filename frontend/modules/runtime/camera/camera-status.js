@@ -9,16 +9,15 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260920131301";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921090405";
 /**
  * 判断摄像头实体是否在线。
  */
 export function cameraOnline(stateOrChange) {
   // 同时兼容两种入参：事件对象走 newState，直接传 state 时用自身。
   const stateEntry = resolveStateEntry(stateOrChange);
-  const stateText = String(stateEntry?.state || "")
-    .trim()
-    .toLowerCase();
+  // 大小写与空格归一不归这里管，交给唯一的 state-entry.js。
+  const stateText = stateTextOf(stateEntry);
   return (
     // available === false 是 HA 明确的「不可用」标记，优先于 state 文案判断。
     stateEntry?.available !== false &&
