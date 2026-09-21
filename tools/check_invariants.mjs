@@ -1,8 +1,8 @@
 /**
- * 六条「不报错、只静默失效」的不变量守卫。
+ * 八条「不报错、只静默失效」的不变量守卫。
  *
- * 为什么只留六条：上一轮清理把原先的七道 Node 护栏整套移除（README「开发工具」有记录），
- * 理由是它们把关的多是「改结构才触发」的一次性问题。但下面六条对应的失效方式恰好相反 ——
+ * 为什么只留八条：上一轮清理把原先的七道 Node 护栏整套移除（README「开发工具」有记录），
+ * 理由是它们把关的多是「改结构才触发」的一次性问题。但下面八条对应的失效方式恰好相反 ——
  * 它们**每次编辑都可能踩到，且踩到时浏览器/解释器不报错**，正好是人工 review 最容易漏的那一类：
  *
  *   1. `frontend/modules/runtime/**` 里出现裸 `/static/...` 静态 import。
@@ -24,15 +24,35 @@
  *      版本号分散在 JS 常量、CSS 的三条遮罩地址与后端的目录解析里，升级图标库漏改一处不会报错：
  *      CSS 那三条是舞台灯光素材图标（写错即空白），JS 那份写错则整套图标 404。
  *
- *   6. 相对 import（`./x`、`../x`）解析不到真实文件。
+ *   6. import 的说明符解析不到真实文件 —— 相对路径算错层数，或绝对路径没落到承载它的地方。
  *      外提/搬迁模块时最容易漏的一步：文件换了目录、层数没跟着改。ESM 在解析期解析说明符，
  *      一个少写的 `../` 会让导入方所在的整棵模块树加载失败 —— `editor/home/` 那批外提文件
  *      把 `./editor-utils.js` 少写了一层，症状是整个编辑器打不开，控制台却只指向那一行。
+ *      绝对路径还有第二种断法：`/api/v1/modules/interaction3d/...` 的 runtime 资源**是一张
+ *      服务端白名单**，文件放进磁盘不等于能被下发。所以这条同时校验白名单与磁盘一一对应。
+ *
+ *   7. 物件构建体用了 `itemBuilderContext` 提供的键，却没在自己函数顶部解构出来。
+ *      同样是外提留下的：`buildItemModel` 那条 5744 行 if/else 链拆成 62 个构建体时，
+ *      函数的**签名依赖**（context 的键）随函数一起搬走了，但函数体里对 `furnitureDarkColor`
+ *      这类配色别名的取用点没跟着补进解构列表。表现是 `ReferenceError: furnitureDarkColor
+ *      is not defined`，且只在**该物件类型被渲染时**才炸 —— 窗帘、蹲便器、小便器、壁灯、落地灯
+ *      五类各少一个名字，不点开那几类就永远看不见。这是全仓最大的一次外提，也是最容易漏的一类。
+ *
+ *   8. HTML 的 `<script src>` / `<link href>` 与 CSS 的 `url()` / `@import` 指向不存在的资源。
+ *      与第 3 条同源：没有打包器，静态文件路径全靠手写。这类断法是**最安静的一种** ——
+ *      JS/CSS 缺了会整片功能消失，字体或图标缺了只是一处样式悄悄回退到系统默认，
+ *      而 `?v=` 戳正好把它们从缓存里救出来一次、下一个人再把路径改错时又悄悄生效。
+ *      判定按 URL（不是按磁盘）：`/store-static/` 与 `/fonts` 是两个挂在同一目录上的 URL，
+ *      磁盘上「往上跳出挂载点」的写法在浏览器里可能是合法的。
  *
  * 明确不做的事：不检查 ESM 导出完整性（导入方引了一个目标模块没有导出的名字）、
  * 不检查注册表分片是否齐全。那两类需要「允许新文件先落地再接线」的宽容度，硬拦会把正常改动挡死。
  * 第 6 条不在此列：import 里既然已经写死了文件名，就不存在「先落地再接线」的中间态，
- * 解析不到只可能是层数写错。只判相对说明符，绝对路径（`/static/...`）由第 1 条在运行侧把关。
+ * 解析不到只可能是层数写错，或者绝对路径写到了不承载它的前缀上。绝对说明符只在能算出
+ * 服务端真实口径时才判（两个 StaticFiles 挂载点 + runtime 白名单），其余按路由放过。
+ * 第 7 条同理：构建体顶部那行解构就是它的完整外部依赖清单，缺一项必然是漏搬，不存在中间态。
+ * 第 8 条只判「文件型资源」：`<img src>`/`srcset`、HTML 内联 `<style>`、以及 HTML 里的相对引用
+ * （相对的是**文档 URL**，而文档 URL 由路由决定，换算不出唯一答案）都放过。
  *
  * Usage:
  *   node tools/check_invariants.mjs
@@ -431,11 +451,11 @@ function checkMdiVersion() {
 }
 
 // ---------------------------------------------------------------------------
-// 6) 相对 import 必须解析到真实文件
+// 6) import 说明符（相对 + 可解析的绝对）必须落到真实文件 / 白名单上
 // ---------------------------------------------------------------------------
 
 /**
- * 只判「相对说明符 → 真实文件」这一件事，不碰导出符号（见文件头「明确不做的事」）。
+ * 判「说明符 → 真实文件」这一件事，不碰导出符号（见文件头「明确不做的事」）。
  *
  * 与第 1 条一样按整份文本匹配：说明符可以跨行写，逐行比对会把
  * `import {\n a,\n b\n} from "../x.js"` 这类写法整片漏掉。
@@ -444,13 +464,45 @@ function checkMdiVersion() {
  * 之后到第一个 `;` 之间没有任何 `from`，可选写法会越过函数体去咬住函数里第一个 `.` 开头的字符串
  * （`.menu__pop`、`.interaction3d-cover-message`），把 CSS 选择器当成模块路径。
  * 所以 `from` 是硬条件，且拆成三条：带 `from` 的声明式导入/re-export、副作用导入、动态导入。
+ *
+ * 相对说明符（`.` 或 `..` 开头）按导入方所在目录换算；绝对说明符（`/` 开头）按**服务端真正
+ * 的解析口径**换算，算不出口径的一律不判（路由不是文件）：
+ *   - `/static/...`、`/store-static/...` → 两个 StaticFiles 挂载点，拼成磁盘路径后存在即通过；
+ *   - `/api/v1/modules/interaction3d/...` → runtime 资源有显式白名单，**登记了才算存在**。
+ *
+ * 只判 `.js/.css/.mjs` 结尾的绝对说明符，`/n/...` 这类页面路由与其余 `/api/v1/...` 一律放过。
  */
-const REL_IMPORT_RE = /^[ \t]*(?:import|export)\b[^;]*?\bfrom\s*["'](\.[^"']+)["']/gm;
-const REL_BARE_IMPORT_RE = /^[ \t]*import\s*["'](\.[^"']+)["']/gm;
-const REL_DYN_IMPORT_RE = /\bimport\s*\(\s*["'](\.[^"']+)["']/g;
+const MODULE_IMPORT_RE = /^[ \t]*(?:import|export)\b[^;]*?\bfrom\s*["']([./][^"']*)["']/gm;
+const MODULE_BARE_IMPORT_RE = /^[ \t]*import\s*["']([./][^"']*)["']/gm;
+const MODULE_DYN_IMPORT_RE = /\bimport\s*\(\s*["']([./][^"']*)["']/g;
+
+/** StaticFiles 挂载点 → 磁盘根。只登记真正下发 JS/CSS 的两个（商店的 `/fonts` 只发字体）。 */
+const STATIC_MOUNTS = [
+  ["/static/", path.join(ROOT, "frontend", "static")],
+  ["/store-static/", path.join(ROOT, "store", "static")]
+];
+
+/** 运行侧资源路由前缀：URL 里这段之后与 `RUNTIME_DIR`（见第 1 条）一一对应，但**要过白名单**。 */
+const RUNTIME_RESOURCE_PREFIX = "/api/v1/modules/interaction3d/";
+const INTERACTION3D_API = path.join(ROOT, "backend", "modules", "interaction3d", "api.py");
+
+/**
+ * 读 `get_resource()` 里的白名单。现读而不在这里抄一份：抄一份就等于给「新增一个 runtime 模块」
+ * 留了个必须手工同步的步骤，而漏同步的后果正是本守卫要拦的（浏览器 404、import 链断在第一跳）。
+ */
+function readRuntimeResourceWhitelist() {
+  if (!fs.existsSync(INTERACTION3D_API)) return new Set();
+  const text = fs.readFileSync(INTERACTION3D_API, "utf8");
+  const start = text.indexOf("media_types = {");
+  const end = text.indexOf("if filename not in media_types", start);
+  if (start === -1 || end === -1) return new Set();
+  const names = new Set();
+  for (const match of text.slice(start, end).matchAll(/'([^']+\.[a-z]+)'/g)) names.add(match[1]);
+  return names;
+}
 
 /** 扫描面与第 3 条的 `?v=` 戳一致：前端与商店的 JS 都可能被静态服务直接喂给浏览器。 */
-const REL_IMPORT_SCAN_ROOTS = [path.join(ROOT, "frontend"), path.join(ROOT, "store")];
+const MODULE_SCAN_ROOTS = [path.join(ROOT, "frontend"), path.join(ROOT, "store")];
 
 /** 行号查询表：按换行位建一次索引，避免对 home.js（近 1MB）每条 import 都重切一遍全文。 */
 function makeLineCounter(text) {
@@ -470,9 +522,36 @@ function makeLineCounter(text) {
   };
 }
 
-function checkRelativeImports() {
+function checkModuleSpecifiers() {
   const problems = [];
-  for (const root of REL_IMPORT_SCAN_ROOTS) {
+  const runtimeWhitelist = readRuntimeResourceWhitelist();
+
+  // runtime 白名单与磁盘必须一一对应，两个方向都会造成「不报错、只在浏览器里 404」：
+  // 少登记 → 文件在磁盘上却不被下发；多登记 → 文件已删/改名，要等有人 import 到才暴露。
+  if (runtimeWhitelist.size > 0) {
+    const apiFile = rel(INTERACTION3D_API);
+    for (const name of runtimeWhitelist) {
+      if (!fs.existsSync(path.join(RUNTIME_DIR, name))) {
+        problems.push({
+          file: apiFile,
+          line: 0,
+          detail: `白名单里的 "${name}" 在 frontend/modules/runtime 下已经不存在`
+        });
+      }
+    }
+    for (const file of walk(RUNTIME_DIR, new Set([".js", ".css"]))) {
+      const name = path.relative(RUNTIME_DIR, file).split(path.sep).join("/");
+      if (!runtimeWhitelist.has(name)) {
+        problems.push({
+          file: apiFile,
+          line: 0,
+          detail: `frontend/modules/runtime/${name} 没登记进 get_resource() 白名单（请求它只会 404）`
+        });
+      }
+    }
+  }
+
+  for (const root of MODULE_SCAN_ROOTS) {
     for (const file of walk(root, new Set([".js"]))) {
       const text = fs.readFileSync(file, "utf8");
       const lineAt = makeLineCounter(text);
@@ -481,17 +560,348 @@ function checkRelativeImports() {
       const report = (spec, index) => {
         // `?v=` 戳与 `#` 片段不参与文件系统解析。
         const target = spec.split("?")[0].split("#")[0];
-        if (fs.existsSync(path.resolve(path.dirname(file), target))) return;
+        let disk = null;
+        let unlisted = false;
+        if (target.startsWith("/")) {
+          // 绝对说明符只在「能算出服务端口径」时才判；其余是路由，不是文件。
+          if (!/\.(?:js|css|mjs)$/.test(target)) return;
+          const mount = STATIC_MOUNTS.find(([prefix]) => target.startsWith(prefix));
+          if (mount) {
+            disk = path.join(mount[1], target.slice(mount[0].length));
+          } else if (target.startsWith(RUNTIME_RESOURCE_PREFIX)) {
+            const name = target.slice(RUNTIME_RESOURCE_PREFIX.length);
+            disk = path.join(RUNTIME_DIR, name);
+            unlisted = !runtimeWhitelist.has(name);
+          } else {
+            return;
+          }
+        } else {
+          disk = path.resolve(path.dirname(file), target);
+        }
+
+        const exists = fs.existsSync(disk);
+        if (exists && !unlisted) return;
         const line = lineAt(index);
         const key = `${line}:${spec}`;
         if (seen.has(key)) return;
         seen.add(key);
-        problems.push({ file: rel(file), line, detail: `"${spec}" —— 解析不到文件` });
+        problems.push({
+          file: rel(file),
+          line,
+          detail: exists
+            ? `"${spec}" —— 文件在，但没登记进 get_resource() 白名单（浏览器 404）`
+            : `"${spec}" —— 解析不到文件`
+        });
       };
 
-      for (const match of text.matchAll(REL_IMPORT_RE)) report(match[1], match.index);
-      for (const match of text.matchAll(REL_BARE_IMPORT_RE)) report(match[1], match.index);
-      for (const match of text.matchAll(REL_DYN_IMPORT_RE)) report(match[1], match.index);
+      for (const match of text.matchAll(MODULE_IMPORT_RE)) report(match[1], match.index);
+      for (const match of text.matchAll(MODULE_BARE_IMPORT_RE)) report(match[1], match.index);
+      for (const match of text.matchAll(MODULE_DYN_IMPORT_RE)) report(match[1], match.index);
+    }
+  }
+  return problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+// ---------------------------------------------------------------------------
+// 7) 物件构建体必须解构它用到的每个 context 键
+// ---------------------------------------------------------------------------
+
+const STUDIO_APP = path.join(ROOT, "frontend", "static", "3d-studio", "studio", "studio-app.js");
+const ITEM_BUILDERS_DIR = path.join(ROOT, "frontend", "static", "3d-studio", "studio", "item-builders");
+
+/**
+ * 抹掉注释与字符串/模板，保留长度与换行 —— 这样按偏移算出的行号与原文一致。
+ *
+ * 不做这一步会把注释里提到的名字、以及字符串里的 CSS 选择器当成代码引用
+ * （第 6 条的正则最初就踩过这个坑，见那里的注释）。
+ */
+function stripCommentsAndStrings(src) {
+  const out = [...src];
+  let i = 0;
+  while (i < src.length) {
+    const c = src[i];
+    const n = src[i + 1];
+    if (c === "/" && n === "/") {
+      while (i < src.length && src[i] !== "\n") {
+        out[i] = " ";
+        i += 1;
+      }
+      continue;
+    }
+    if (c === "/" && n === "*") {
+      out[i] = " ";
+      out[i + 1] = " ";
+      i += 2;
+      while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) {
+        if (src[i] !== "\n") out[i] = " ";
+        i += 1;
+      }
+      if (i < src.length) {
+        out[i] = " ";
+        out[i + 1] = " ";
+        i += 2;
+      }
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") {
+      const quote = c;
+      out[i] = " ";
+      i += 1;
+      while (i < src.length && src[i] !== quote) {
+        if (src[i] === "\\") {
+          out[i] = " ";
+          out[i + 1] = " ";
+          i += 2;
+          continue;
+        }
+        if (src[i] !== "\n") out[i] = " ";
+        i += 1;
+      }
+      if (i < src.length) {
+        out[i] = " ";
+        i += 1;
+      }
+      continue;
+    }
+    i += 1;
+  }
+  return out.join("");
+}
+
+/** 从 openIdx 处的开括号出发，返回配对闭括号的下标；找不到返回 -1。 */
+function balancedEnd(src, openIdx) {
+  let depth = 0;
+  for (let i = openIdx; i < src.length; i += 1) {
+    const c = src[i];
+    if ("{[(".includes(c)) depth += 1;
+    else if ("}])".includes(c)) {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/** 取一个对象字面量的顶层键名（`a,` / `b: x` / `c = d` 都算）。 */
+function topLevelKeysOf(objectLiteralBody) {
+  const keys = [];
+  let depth = 0;
+  for (const rawLine of objectLiteralBody.split("\n")) {
+    if (depth === 0) {
+      const match = rawLine.trim().match(/^([A-Za-z_$][\w$]*)\s*[,:]/);
+      if (match) keys.push(match[1]);
+    }
+    for (const c of rawLine) {
+      if ("{[(".includes(c)) depth += 1;
+      else if ("}])".includes(c)) depth -= 1;
+    }
+  }
+  return keys;
+}
+
+/**
+ * 构建体可见的 context 键 = `ITEM_BUILDER_DEPS` 的键 ∪ `itemBuilderContext` 自有的键。
+ *
+ * 两条都从 studio-app.js 现读，不在这里抄一份常量：抄一份就等于给「给上下文加个键」
+ * 留了个必须手工同步的步骤，而漏同步的后果正是本守卫要拦的东西。
+ */
+function readBuilderContextKeys() {
+  const text = fs.readFileSync(STUDIO_APP, "utf8");
+  const keys = new Set();
+  for (const [name] of [["ITEM_BUILDER_DEPS"], ["itemBuilderContext"]]) {
+    const decl = text.indexOf(`const ${name} = {`);
+    if (decl === -1) continue;
+    const open = text.indexOf("{", decl);
+    const close = balancedEnd(text, open);
+    if (close === -1) continue;
+    for (const key of topLevelKeysOf(text.slice(open + 1, close))) keys.add(key);
+  }
+  return keys;
+}
+
+function checkBuilderContextKeys() {
+  if (!fs.existsSync(STUDIO_APP) || !fs.existsSync(ITEM_BUILDERS_DIR)) return [];
+  const contextKeys = readBuilderContextKeys();
+  if (contextKeys.size === 0) return [];
+
+  const problems = [];
+  for (const file of walk(ITEM_BUILDERS_DIR, new Set([".js"]))) {
+    // registry.js 只有分派表，没有构建体，也就没有 context 解构。
+    if (path.basename(file) === "registry.js") continue;
+    const raw = fs.readFileSync(file, "utf8");
+    const src = stripCommentsAndStrings(raw);
+    const lineAt = makeLineCounter(raw);
+
+    const imported = new Set();
+    for (const match of src.matchAll(/import\s*\{([^}]*)\}\s*from/g)) {
+      for (const name of match[1].split(",")) {
+        const last = name.trim().split(/\s+as\s+/).pop().trim();
+        if (last) imported.add(last);
+      }
+    }
+    for (const match of src.matchAll(/import\s+([A-Za-z_$][\w$]*)\s+from/g)) imported.add(match[1]);
+
+    const fnRe = /export\s+function\s+([A-Za-z_$][\w$]*)\s*\(\s*([A-Za-z_$][\w$]*)\s*\)\s*\{/g;
+    for (const match of src.matchAll(fnRe)) {
+      const fnName = match[1];
+      const paramName = match[2];
+      const open = src.indexOf("{", match.index + match[0].length - 1);
+      const close = balancedEnd(src, open);
+      if (close === -1) continue;
+      const body = src.slice(open, close + 1);
+
+      // 该函数从 context 解构出的名字（支持 `a`、`a: b`、`a = 默认值`）。
+      const destructured = new Set();
+      let destructureEnd = -1;
+      const declMatch = body.match(/\bconst\s*\{/);
+      if (declMatch) {
+        const dOpen = body.indexOf("{", declMatch.index);
+        const dClose = balancedEnd(body, dOpen);
+        if (dClose !== -1 && new RegExp(`=\\s*${paramName}\\s*;`).test(body.slice(dClose, dClose + paramName.length + 8))) {
+          destructureEnd = body.indexOf(";", dClose);
+          for (const part of body.slice(dOpen + 1, dClose).split(",")) {
+            const key = part.trim().split(/[:=]/)[0].trim();
+            if (/^[A-Za-z_$][\w$]*$/.test(key)) destructured.add(key);
+          }
+        }
+      }
+
+      // 函数内自己声明的名字，避免把局部变量报成漏搬。
+      const local = new Set();
+      for (const d of body.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) local.add(d[1]);
+      for (const d of body.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)/g)) local.add(d[1]);
+
+      for (const key of contextKeys) {
+        if (imported.has(key) || destructured.has(key) || local.has(key)) continue;
+        // 整词匹配、且前一个字符不是 `.`（排除属性访问）；`[$]` 需转义。
+        const re = new RegExp(`([^.\\w$])${key.replace(/\$/g, "\\$")}(?![\\w$])`, "g");
+        const hit = re.exec(body);
+        if (!hit) continue;
+        const abs = open + hit.index + 1;
+        // `key:` 是对象字面量的键，不是引用。
+        if (/^\s*:/.test(src.slice(abs + key.length))) continue;
+        // 解构块自身里的名字不算「未解构地使用」。
+        if (destructureEnd >= 0 && hit.index > 0 && hit.index < destructureEnd) continue;
+        problems.push({
+          file: rel(file),
+          line: lineAt(abs),
+          detail: `${fnName}() 用到了 context 的 ${key}，但顶部解构里没有它`
+        });
+      }
+    }
+  }
+  return problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+// ---------------------------------------------------------------------------
+// 8) HTML 属性 / CSS url() 里的资源引用必须解析到真实文件
+// ---------------------------------------------------------------------------
+
+/** 扫描面与第 3、6 条一致：前端与商店的 HTML/CSS 都会被浏览器直接加载。 */
+const ASSET_SCAN_ROOTS = [path.join(ROOT, "frontend"), path.join(ROOT, "store")];
+
+/** `<script src>` / `<link href>`：两种标签共用一条，属性值可以跨行。 */
+const HTML_ASSET_RE = /<(?:script|link)\b[^>]*?\b(?:src|href)\s*=\s*["']([^"']+)["']/gi;
+/** CSS 的 `url(...)`（带引号 / 不带引号两种写法）与 `@import "..."`。 */
+const CSS_URL_RE = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)'"\s][^)'"]*?))\s*\)/gi;
+const CSS_IMPORT_RE = /@import\s+["']([^"']+)["']/gi;
+
+/** 这些前缀不是文件：协议、片段、以及由路由（而非静态目录）承载的绝对路径。 */
+const NON_FILE_PREFIX_RE = /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i;
+
+/**
+ * URL 挂载表：`[URL 前缀, 磁盘根, 是否要过 runtime 白名单]`，按磁盘根由长到短排列。
+ *
+ * 与第 6 条的 `STATIC_MOUNTS` 分开，因为这里多了一条**靠目录别名存在、而不是前缀直连**的挂载点：
+ * 商店把 `store/static/fonts` 同时挂在 `/fonts` 下，于是 `/store-static/font.min.css` 里写
+ * `../fonts/font.woff2` 在磁盘上「不存在」、在浏览器里却正中 `/fonts`。
+ */
+const URL_MOUNTS = [
+  ["/api/v1/modules/interaction3d/", RUNTIME_DIR, true],
+  ["/fonts/", path.join(ROOT, "store", "static", "fonts"), false],
+  ["/store-static/", path.join(ROOT, "store", "static"), false],
+  ["/static/", path.join(ROOT, "frontend", "static"), false]
+];
+
+/** 相对引用按 URL 语义折叠 `.`/`..`，与浏览器一致。 */
+function resolveRelativeUrl(fromUrl, spec) {
+  const stack = [];
+  for (const part of (fromUrl.slice(0, fromUrl.lastIndexOf("/") + 1) + spec).split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") stack.pop();
+    else stack.push(part);
+  }
+  return "/" + stack.join("/");
+}
+
+/** 文件 → 它被下发时的 URL。不在任何挂载点下（由路由下发，如 index.html）返回 null。 */
+function fileToUrl(file) {
+  const normalized = path.resolve(file);
+  for (const [prefix, dir] of URL_MOUNTS) {
+    const root = path.resolve(dir);
+    if (normalized === root || normalized.startsWith(root + path.sep)) {
+      return prefix + path.relative(root, normalized).split(path.sep).join("/");
+    }
+  }
+  return null;
+}
+
+/**
+ * 一条资源引用换算成磁盘路径；算不出来（该由人工/路由保证）返回 null。
+ *
+ * 这里**按 URL 而不是按文件系统**解析：引用是浏览器按**被引用文件自己的 URL** 解析的，
+ * 磁盘上的相对关系只是碰巧一致，越出挂载点的写法（`store/static/font.min.css` 里写
+ * `../fonts/font.woff2` → `/fonts/font.woff2`）在磁盘上 "不存在"、在浏览器里却正中另一个挂载点。
+ */
+function resolveAssetRef(spec, fromUrl, runtimeWhitelist) {
+  const target = spec.split("?")[0].split("#")[0];
+  // 模板占位（Jinja 的 `{{ }}`、JS 模板串）与协议/片段一律不判。
+  if (!target || /[{}]/.test(target) || NON_FILE_PREFIX_RE.test(target)) return null;
+  // 相对引用要先知道被引用文件自己的 URL；HTML 由路由下发（`/`、`/n/...`），算不出就放过。
+  if (!target.startsWith("/") && fromUrl === null) return null;
+  const url = target.startsWith("/") ? target : resolveRelativeUrl(fromUrl, target);
+  const mount = URL_MOUNTS.find(([prefix]) => url.startsWith(prefix));
+  if (!mount) return null; // `/n/...`、`/api/v1/...` 等：路由，不是文件
+  const name = url.slice(mount[0].length);
+  if (mount[2]) return { disk: path.join(mount[1], name), unlisted: !runtimeWhitelist.has(name) };
+  return { disk: path.join(mount[1], name), unlisted: false };
+}
+
+function checkHtmlAssetRefs() {
+  const problems = [];
+  const runtimeWhitelist = readRuntimeResourceWhitelist();
+
+  const scan = (file, re) => {
+    const text = fs.readFileSync(file, "utf8");
+    const lineAt = makeLineCounter(text);
+    const fromUrl = fileToUrl(file);
+    const seen = new Set();
+    for (const match of text.matchAll(re)) {
+      const spec = match[1] ?? match[2] ?? match[3];
+      if (spec === undefined) continue;
+      const resolved = resolveAssetRef(spec, fromUrl, runtimeWhitelist);
+      if (!resolved) continue;
+      const exists = fs.existsSync(resolved.disk);
+      if (exists && !resolved.unlisted) continue;
+      const line = lineAt(match.index);
+      const key = `${line}:${spec}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      problems.push({
+        file: rel(file),
+        line,
+        detail: exists
+          ? `"${spec}" —— 文件在，但没登记进 get_resource() 白名单（浏览器 404）`
+          : `"${spec}" —— 解析不到文件`
+      });
+    }
+  };
+
+  for (const root of ASSET_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".html", ".htm"]))) scan(file, HTML_ASSET_RE);
+    for (const file of walk(root, new Set([".css"]))) {
+      scan(file, CSS_URL_RE);
+      scan(file, CSS_IMPORT_RE);
     }
   }
   return problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
@@ -526,9 +936,19 @@ const checks = [
     run: checkMdiVersion
   },
   {
-    title: "相对 import 解析不到真实文件（搬家时少改了一层 ../）",
-    hint: "按导入方所在目录重算层数：文件深一层，`./x` 就要写成 `../x`、`../x` 写成 `../../x`",
-    run: checkRelativeImports
+    title: "import 说明符解析不到真实文件 / runtime 资源没登记进白名单",
+    hint: "相对路径按导入方所在目录重算层数（文件深一层，`./x` 写成 `../x`、`../x` 写成 `../../x`）；绝对路径只判能算出服务端口径的（/static、/store-static、/api/v1/modules/interaction3d），后者新增文件必须同时登记进 backend/modules/interaction3d/api.py 的 get_resource() 白名单",
+    run: checkModuleSpecifiers
+  },
+  {
+    title: "物件构建体用了 context 的键却没解构（该物件一渲染就 ReferenceError）",
+    hint: "把缺的名字补进该函数顶部的 `const { ... } = context;`；键表由 studio-app.js 的 ITEM_BUILDER_DEPS 与 itemBuilderContext 现读，改上下文不需要同步本文件",
+    run: checkBuilderContextKeys
+  },
+  {
+    title: "HTML 的 script/link、CSS 的 url()/@import 指向不存在的资源",
+    hint: "按被引用文件的位置改：HTML 只判 `/static/...`、`/store-static/...`、`/api/v1/modules/interaction3d/...` 这类绝对引用（相对引用按页面路由解析，判不了），CSS 的 url() 相对该 CSS 文件解析；runtime 资源同样要登记进 get_resource() 白名单",
+    run: checkHtmlAssetRefs
   }
 ];
 
