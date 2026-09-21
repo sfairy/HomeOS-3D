@@ -1,6 +1,6 @@
 # HomeOS
 
-面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.4**（见 `VERSION`）。
+面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.3**（见 `VERSION`）。
 
 提供可视化编辑器、3D 户型工作室、全屏展示页和中控配对；后端是 FastAPI，前端是原生 HTML / CSS / JavaScript，数据默认落在本机 SQLite。
 
@@ -736,26 +736,6 @@ ruff check .                                      # 未使用 import / 重复定
 
 更早的版本记录已随文档精简移除；项目按**首个发布版本**维护，不再保留历史版本的数据迁移说明。
 
-### v0.6.4
-
-**回归网收缩（这一版的主体）**
-
-- 移除全部静态守卫脚本：`check_structure_refs.mjs`、`check_esm_exports.mjs`、`check_registry_split.mjs`、
-  `check_studio_palette.mjs`、`check_frontend_hygiene.mjs`、`check_scene_sync.mjs`、`check_entry_pages.mjs`。
-  场景分发工具 `tools/sync_scene_assets.mjs` 一并移除（`tools/bump_static_cache_versions.mjs` 保留）。
-- `guards.yml` 与 `docker.yml` 的守卫清单同步收缩为 `ruff check .` 一道；两份工作流的清单仍共用，改时两份都要改。
-- **移除的代价**：这些脚本把关的都是「不报错、只静默失效」的那类问题 —— 结构引用能否解析、ESM 具名导出、
-  控件注册表分片可达、design/scene 分发副本与令牌一致、两侧 HTML 转义集逐字节相同、入口页门链与状态名对齐。
-  它们不再是自动的，全部落回人工 review；README「开发工具」一节改为逐条列出要人工核对的不变量。
-- 运行时报错提示里指向已删脚本的指引（`backend/http/page_shell.py`、`store/api/page_shell.py` 的
-  「请先运行 node tools/sync_scene_assets.mjs」）改为「请从 design/scene/scene.html 同步分发副本」——
-  否则排障时会被指去跑一个并不存在的命令。
-- 同步清理约 40 处指向已删脚本的注释与文档引用，并移除 `.cursor/rules/temp-dir-cleanup.mdc`。
-
-**数据库**
-
-- 无结构变更、无迁移，升级只需替换镜像；请保留全部数据卷 / 数据目录（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。
-
 ### v0.6.3
 
 **质量清理（这一版的主体）**
@@ -776,11 +756,14 @@ ruff check .                                      # 未使用 import / 重复定
 
 - 未鉴权入口补请求体上限：主应用与商店各一层（默认 1 MiB，流式请求放行）。此前未鉴权端点可以先让进程把请求体读进内存。
 - 商店首次初始化的「本机直连放行」补 `Host` 校验：只认本机地址还不够，伪造 `Host` 就能命中。
-- **匿名静态白名单闭环**：`/static/` 下未列名的文件一律 401，而 `auth/license.js`（未登录也要加载）所 import 的 `utils/api-request.js` 漏列 —— 未登录打开 `/license` 时那个 import 被挡下，ESM 图整页不执行：HTML 与样式都在，页面只是永远不活。已补齐，并新增护栏在改动时就拦住（见下）。
+- **匿名静态白名单闭环**：`/static/` 下未列名的文件一律 401，而 `auth/license.js`（未登录也要加载）所 import 的 `utils/api-request.js` 漏列 —— 未登录打开 `/license` 时那个 import 被挡下，ESM 图整页不执行：HTML 与样式都在，页面只是永远不活。已补齐（当时新增的护栏随本版回归网收缩一并移除）。
 
-**回归网（部分恢复）**
+**回归网：短暂恢复后整体移除**
 
-- 新增 `.github/workflows/guards.yml`（push / PR 触发）与 `ruff.toml`；`check_structure_refs.mjs` 加三条「单例所有权」检查：`LICENSE_RESTRICTED` 字面量、`setPointerCapture` / `releasePointerCapture`、匿名模块图闭合。每条都用「把修好的东西弄坏一次、确认断言变红」验证过。
+- 一度新增 `.github/workflows/guards.yml`（push / PR 触发）与 `ruff.toml`；`check_structure_refs.mjs` 加三条「单例所有权」检查：`LICENSE_RESTRICTED` 字面量、`setPointerCapture` / `releasePointerCapture`、匿名模块图闭合。每条都用「把修好的东西弄坏一次、确认断言变红」验证过。
+- 随后这些守卫又被整体移除：`check_structure_refs.mjs`、`check_esm_exports.mjs`、`check_registry_split.mjs`、`check_studio_palette.mjs`、`check_frontend_hygiene.mjs`、`check_scene_sync.mjs`、`check_entry_pages.mjs`，以及场景分发工具 `tools/sync_scene_assets.mjs`（`tools/bump_static_cache_versions.mjs` 保留）。`guards.yml` 与 `docker.yml` 的清单同步收缩为 `ruff check .` 一道，两份仍共用，改时两份都要改。
+- **移除的代价**：这些脚本把关的都是「不报错、只静默失效」的那类问题 —— 结构引用能否解析、ESM 具名导出、控件注册表分片可达、design/scene 分发副本与令牌一致、两侧 HTML 转义集逐字节相同、入口页门链与状态名对齐。它们不再是自动的，全部落回人工 review；README「开发工具」一节改为逐条列出要人工核对的不变量。
+- 运行时报错提示里指向已删脚本的指引（`backend/http/page_shell.py`、`store/api/page_shell.py` 的「请先运行 node tools/sync_scene_assets.mjs」）改为「请从 design/scene/scene.html 同步分发副本」—— 否则排障时会被指去跑一个并不存在的命令；另同步清理约 40 处指向已删脚本的注释与文档引用，并移除 `.cursor/rules/temp-dir-cleanup.mdc`。
 - 口径仍然明确：**没有 e2e / 冒烟 / 探针**。护栏只覆盖静态可判定的事 —— 引用能否解析、清单与树是否一致、某个策略是否只有一个主人；行为正确性依旧要靠人工走关键路径。
 
 **文档**
@@ -821,7 +804,7 @@ ruff check .                                      # 未使用 import / 重复定
 - **主应用后端（B1–B66）**：媒体代理按实体归属校验（跨项目 403）、转发头默认只信回环、凭据解析收敛到 `backend/security/access.py`、阻塞端点移出事件循环（导出 ZIP / 素材落盘 / 授权服务查库）、上传与导出改为流式落盘、先查后写的并发冲突落 409/422、项目名唯一（迁移 `0002`）与展示地址别名（迁移 `0003`）、素材总量配额与孤儿回收、全局日志写入线程化、授权轮询配额按端点分桶 + 429 退避且不降级状态、网关时钟容差与租约序号自愈。
 - **前端（W1–W30）**：接口超时预算只留一个主人（`utils/api-fetch.js`）、按钮复位一律进 `finally`、展示页横幅按槽位分语义、WS 断开给可见提示、未激活页面（`pair` / `setup` / `license`）的出口、编辑器启动分片失败聚合、草稿快照只留要救的东西、乐观开关仅在真回滚时上报、ESC 逐层收口、挂载失败带原因、保存冲突留出口、弹窗模态语义与焦点、共享模块单份实例、缓存上限只认常量。
 - **代码质量（P9–P12）**：删除零引用符号与模块级死导出，重复实现收敛到 `utils/`（`numbers` / `colors` / `entities` / `datetime` / `icon-url` / `state-entry` / `api-error` / `device-profiles` 等）。
-- **失效声明**：上述自动化闸门（smoke / e2e / 各探针 / CI workflow / `ruff.toml` / `eslint.config.mjs`）已在下方「测试与死代码清理」中整体移除。修复结论仍然成立、口径仍然有效，但**改动相关代码时需人工对照**，不要再以为背后还有回归网。（v0.6.3 曾按静态可判定的部分恢复护栏，v0.6.4 又把它们整体移除，见各版本对应一节 —— e2e / 冒烟 / 探针始终没有回来。）
+- **失效声明**：上述自动化闸门（smoke / e2e / 各探针 / CI workflow / `ruff.toml` / `eslint.config.mjs`）已在下方「测试与死代码清理」中整体移除。修复结论仍然成立、口径仍然有效，但**改动相关代码时需人工对照**，不要再以为背后还有回归网。（v0.6.3 曾按静态可判定的部分恢复护栏，同一版又整体移除，见该版本的「回归网」一节 —— e2e / 冒烟 / 探针始终没有回来。）
 
 **数据库**
 
