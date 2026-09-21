@@ -1,4 +1,4 @@
-"""入口页的场景外壳与站点配色注入。
+"""入口页的场景外壳、开通轨与站点配色注入。
 
 ``/setup``、``/login``、``/license``、``/pair`` 与就地渲染在 /pair、/display/* 上的恢复页，
 表单各不相同，但外壳完全一样：全屏场景 + 右侧玻璃坞。外壳标记只有一份，在
@@ -8,6 +8,15 @@
 
 为什么不把片段抄进每个 HTML：五个页面各粘一份 150 行的场景 DOM，改一次场景要改五处，
 而且抄漏一处不会有任何报错 —— 只是那一页少了山、星星和小屋，没人会发现。
+
+外壳的**结构与品牌锚点**五页共用，但填进去的**左侧文案**按页给，见
+``SCENE_VALUES_BY_PAGE``：这五个页面是同一条开通链路上的五道门，左栏那三行是唯一
+能说清「这一道门在做什么」的地方。共用一份取值时左栏就只剩装饰，五页之间仅剩右栏
+表单的差别。
+
+右栏那条**开通轨**（``<!--{{STEPS}}-->``）也走同一条路，但它的取值按**访问者**给：
+同一页对管理员与墙面板的读数不同（见 ``commissioning``）。它是一个嵌在面板里的
+小块标记，所以注入时按插入点的缩进逐行对齐 —— 见 ``_indent_at``。
 
 为什么占位符替换而不是模板引擎：这几个页面就是静态 HTML，引入 Jinja 只为插一段标记，
 等于给主应用多开一条「模板里的表达式会被求值」的路径，而它现在完全没有模板层。
@@ -28,6 +37,8 @@ from pathlib import Path
 from fastapi import Request
 from fastapi.responses import HTMLResponse, Response
 
+from .commissioning import rail_markup
+
 #: 页面模板里的场景插入点。用 HTML 注释包起来，这样直接用浏览器打开
 #: ``frontend/*.html``（不经后端）时它不会在页面上显示成一行乱码。
 SCENE_PLACEHOLDER = '<!--{{SCENE}}-->'
@@ -35,12 +46,11 @@ SCENE_PLACEHOLDER = '<!--{{SCENE}}-->'
 #: 站点配色样式表的插入点。同样用注释包起来，理由同上。
 APPEARANCE_PLACEHOLDER = '<!--{{APPEARANCE}}-->'
 
+#: 开通轨（五道门的进度）的插入点。别页没有这条轨，所以非入口页里不该出现它。
+STEPS_PLACEHOLDER = '<!--{{STEPS}}-->'
+
 #: 配色样式表的公开路径。前后端都认这一个字符串，别在别处再拼一遍。
 APPEARANCE_PATH = '/appearance.css'
-
-#: 页面模板里的场景插入点。用 HTML 注释包起来，这样直接用浏览器打开
-#: ``frontend/*.html``（不经后端）时它不会在页面上显示成一行乱码。
-SCENE_PLACEHOLDER = '<!--{{SCENE}}-->'
 
 #: 片段里剩下的花括号占位符。填空不全会把 ``{{TITLE}}`` 直接印在用户脸上，
 #: 所以宁可在这里抛异常 —— 500 在开发时立刻可见，静默漏填则是上线后才发现。
@@ -48,6 +58,20 @@ _PLACEHOLDER_PATTERN = re.compile(r'\{\{([A-Z_]+)\}\}')
 
 #: 片段自带的说明注释，不进响应：里面写着 canonical 路径与占位符清单。
 _HTML_COMMENT_PATTERN = re.compile(r'<!--.*?-->', re.DOTALL)
+
+#: 三个插入点，以及「它被写进注释里」的后果。
+#:
+#: 三者都值得挡：插入点本身就是一条注释，所以在文件顶部的说明注释里提一句占位符是
+#: 很自然的写法 —— 而那句话会被当成第二个插入点，把整块标记换进注释里，页面看起来
+#: 完全正常，只是少了场景/配色/进度轨。
+#:
+#: 后果文案写进表里而不是三处各写一段 raise：新加占位符时只会往这里添一行，
+#: 不会漏掉某个分支 —— 而漏掉的那一支正是「安静地坏掉」的类型。
+_COMMENT_TRAPS = (
+    (SCENE_PLACEHOLDER, '整块场景会被塞进注释，页面上看不到场景'),
+    (APPEARANCE_PLACEHOLDER, '注释里的 <link> 不会生效，页面会安静地保持默认配色'),
+    (STEPS_PLACEHOLDER, '整条开通轨会被塞进注释，页面上看不到进度'),
+)
 
 
 def _comment_spans(text: str) -> list[tuple[int, int]]:
@@ -73,45 +97,114 @@ def _comment_spans(text: str) -> list[tuple[int, int]]:
 
 def _assert_placeholders_are_real(text: str) -> None:
     spans = _comment_spans(text)
-    for match in re.finditer(re.escape(SCENE_PLACEHOLDER), text):
-        offset = match.start()
-        # `start < offset` 而不是 `<=`：占位符本身是一条完整的注释，它的区间起点
-        # 恰好等于自己的偏移，用 `<=` 会把每个正常的插入点都判成「在注释里」。
-        if any(start < offset < end for start, end in spans):
-            line = text.count('\n', 0, offset) + 1
-            raise RuntimeError(
-                f'{SCENE_PLACEHOLDER} 出现在了第 {line} 行的注释里，插入点必须是独立的占位符；'
-                '注释里提到它会被一起替换掉，结果是整块场景被塞进注释、页面上看不到场景'
-            )
-    # 配色占位符不受这条约束：它替换出来的本身就是一个普通标签，被塞进注释里会
-    # 让 `<link>` 失效 —— 而「注释里提到了一句 <!--{{APPEARANCE}}-->」这种写法
-    # 自然得多，所以这里显式检查，免得那个页面安静地不跟配色。
-    for match in re.finditer(re.escape(APPEARANCE_PLACEHOLDER), text):
-        offset = match.start()
-        if any(start < offset < end for start, end in spans):
-            line = text.count('\n', 0, offset) + 1
-            raise RuntimeError(
-                f'{APPEARANCE_PLACEHOLDER} 出现在了第 {line} 行的注释里，插入点必须是独立的占位符；'
-                '注释里的 <link> 不会生效，页面会安静地保持默认配色'
-            )
+    for placeholder, consequence in _COMMENT_TRAPS:
+        for match in re.finditer(re.escape(placeholder), text):
+            offset = match.start()
+            # `start < offset` 而不是 `<=`：占位符本身是一条完整的注释，它的区间起点
+            # 恰好等于自己的偏移，用 `<=` 会把每个正常的插入点都判成「在注释里」。
+            if any(start < offset < end for start, end in spans):
+                line = text.count('\n', 0, offset) + 1
+                raise RuntimeError(
+                    f'{placeholder} 出现在了第 {line} 行的注释里，插入点必须是独立的占位符；'
+                    f'注释里提到它会被一起替换掉：{consequence}'
+                )
 
-#: 主应用入口页的场景取值。仅 ``VERSION`` 随发布变化，其余是本端的固定品牌口径。
+
+def _indent_at(text: str, placeholder: str) -> str:
+    """插入点所在行、行首到插入点之间的那段缩进。
+
+    注入的标记要逐行补上这段缩进，否则读 ``view-source`` 的人会看到一块贴着左边、
+    却又分明嵌在表单坞里的标记。顺带要求插入点独占一行：写在一行中间时这段前缀
+    就是半行代码，跟着复制到每一行去只会更难认。
+
+    返回值同时是**替换键**的一部分（调用处拼成 ``indent + placeholder``）：插入点
+    前面那段空格不会被 ``str.replace`` 吃掉，只换占位符本身的话，注入块的第一行
+    会额外多出这一份缩进（``<ol>`` 比 ``<li>`` 还深两格），而它只是难看、不会报错。
+    """
+    offset = text.index(placeholder)
+    gutter = text[text.rfind('\n', 0, offset) + 1:offset]
+    if gutter.strip():
+        raise RuntimeError(f'{placeholder} 必须独占一行，它前面只有缩进（实际是 {gutter!r}）')
+    return gutter
+
+#: 入口页左侧品牌区的取值。
+#:
+#: 分两半：「品牌锚点」（名称、标题、图标）五页共用一份 —— 换一页就换一个品牌名
+#: 不是设计，是穿帮；其余按页面给。
+#:
+#: 为什么必须按页面给：这五个页面是同一条开通链路上的五道门（/setup → /login →
+#: /license → /pair → 进中控），左侧那三行是唯一能说清「这一道门在做什么」的地方。
+#: 原先五页共用一份取值，于是左栏彻底成了装饰，五页之间只剩右栏表单能区分。
+#:
 #: 商店与 Activate 各有自己的一份（store/api/pages.py、HomeOS-Activate/src/ui/page.mjs）。
-SCENE_VALUES = {
-    'SHELL_TITLE': 'HomeOS 本机中控',
+_SCENE_BRAND = {
     'SHELL_NAME': 'HomeOS',
-    'STATUS_LABEL': '本机服务就绪',
-    'TITLE': '本机中控 · 数据自持',
-    'TAGLINE': '数据本机 · 一键纳管 · 3D 全景',
+    'SHELL_TITLE': 'HomeOS 本机中控',
     'LOGO_SRC': '/static/assets/icons/homeos-mark-white-orange.svg',
-    'SIGNAL_ITEMS': (
-        '<span>本机运行</span>'
-        '<span class="hos-scene__signal-sep" aria-hidden="true"></span>'
-        '<span>离线可用</span>'
-        '<span class="hos-scene__signal-sep" aria-hidden="true"></span>'
-        '<span>无需公网</span>'
-    ),
 }
+
+
+def _signal(*items: str) -> str:
+    """把若干短句拼成品牌区那行信号，中间自动插分隔点。
+
+    让调用方逐个手写 `hos-scene__signal-sep` 是个必然出错的设计：漏一个就有两个词
+    连在一起（「本机运行离线可用」），而它看起来只是文案少了个空格，没人会当 bug。
+    """
+    separator = '<span class="hos-scene__signal-sep" aria-hidden="true"></span>'
+    return separator.join(f'<span>{item}</span>' for item in items)
+
+
+#: 页面模板文件名 → 该页左侧的取值。键与 ``render_shell_page`` 收到的 ``filename`` 同源。
+SCENE_VALUES_BY_PAGE = {
+    'setup.html': {
+        'STATUS_LABEL': '首次初始化',
+        'TITLE': '第一步 · 建立本机管理员',
+        'TAGLINE': '账号与密码只落本机，不经过第三方云',
+        'SIGNAL_ITEMS': _signal('本机唯一管理员', '数据不出机', '完成后验授权'),
+    },
+    'login.html': {
+        'STATUS_LABEL': '本机服务就绪',
+        'TITLE': '本机中控 · 数据自持',
+        'TAGLINE': '登录后进入 3D 全景编辑器，纳管灯光、空调、窗帘与影音',
+        'SIGNAL_ITEMS': _signal('会话仅存本机', '连续失败限流', '无需公网'),
+    },
+    'license.html': {
+        'STATUS_LABEL': '等待激活',
+        'TITLE': '授权激活 · 一机一码',
+        'TAGLINE': '激活后解锁 3D 编辑器与设备纳管',
+        'SIGNAL_ITEMS': _signal('绑定硬件指纹', '换机需先解绑', '激活即进编辑器'),
+    },
+    'pair.html': {
+        'STATUS_LABEL': '等待配对',
+        'TITLE': '配对中控设备',
+        'TAGLINE': '扫码或手输配对码，把这块屏接进这个家',
+        'SIGNAL_ITEMS': _signal('配对码由管理员设置', '扫码或手输', '下发设备 Cookie'),
+    },
+    'license-recovery.html': {
+        'STATUS_LABEL': '授权暂不可达',
+        'TITLE': '正在连接你的家',
+        'TAGLINE': '授权后台联系不上，本地租约内项目与配对照常可用',
+        'SIGNAL_ITEMS': _signal('项目与配对不清除', '本地租约内可用', '恢复后自动进画面'),
+    },
+}
+
+
+def scene_values(page: str) -> dict[str, str]:
+    """某一页的完整场景取值。未登记的页面直接抛。
+
+    为什么不回落到一份默认值：那正是这个模块反复躲开的那种坏法 —— 新加一个入口页
+    忘了登记，页面**照常返回**，只是左侧又变回通用文案，没有任何地方会报错。
+    抛异常则第一次访问就是 500，加页面的人当场就知道要登记（与未填占位符同样的处置）。
+    """
+    try:
+        page_values = SCENE_VALUES_BY_PAGE[page]
+    except KeyError as error:
+        known = '、'.join(sorted(SCENE_VALUES_BY_PAGE))
+        raise RuntimeError(
+            f'{page} 没有登记左侧文案；请在 page_shell.SCENE_VALUES_BY_PAGE 里补一份'
+            f'（已登记：{known}）'
+        ) from error
+    return {**_SCENE_BRAND, **page_values}
 
 
 def scene_path(frontend_dir: Path) -> Path:
@@ -119,31 +212,36 @@ def scene_path(frontend_dir: Path) -> Path:
     return frontend_dir / 'static' / 'auth' / 'scene' / 'scene.html'
 
 
-@lru_cache(maxsize = 8)
-def _scene_markup(scene_file: str, modified_ns: int, version: str) -> str:
+@lru_cache(maxsize = 16)
+def _scene_markup(scene_file: str, modified_ns: int, version: str, page: str) -> str:
     """读片段并填占位符。
 
     缓存键里带 ``st_mtime_ns``：静态目录在部署后可能被原地替换（滚更新），
     只按路径缓存会把旧片段一直发下去；mtime 一变键就变，缓存自然失效。
     ``version`` 同样进键 —— 版本号写在片段的标题栏里。
+    ``page`` 也进键：片段本身只有一份，但每页填进去的文案不同（见 SCENE_VALUES_BY_PAGE），
+    少带这个键会让五页里最后渲染的那一页的文案被其余四页共用。
+
+    maxsize 从 8 提到 16：键空间随页面数乘开（五页 × 各自的 mtime/version 组合），
+    太小会在滚更新期间把刚填好的页面挤出去、每次请求重读一遍片段。
     """
     template = Path(scene_file).read_text(encoding = 'utf-8')
     template = _HTML_COMMENT_PATTERN.sub('', template)
     rendered = template.replace('{{VERSION}}', version)
-    for key, value in SCENE_VALUES.items():
+    for key, value in scene_values(page).items():
         rendered = rendered.replace('{{' + key + '}}', value)
     missing = sorted(set(_PLACEHOLDER_PATTERN.findall(rendered)))
     if missing:
         raise RuntimeError(
             f'{scene_file} 里仍有未填充的占位符：{", ".join(missing)}；'
-            '请同步 backend/http/page_shell.py 的 SCENE_VALUES'
+            '请同步 backend/http/page_shell.py 的 SCENE_VALUES_BY_PAGE'
         )
     return rendered
 
 
-def scene_markup(frontend_dir: Path, version: str) -> str:
-    """填充好的场景片段。文件缺失时报错而不是静默返回空串 —— 外壳没了页面还「正常」返回，
-    是最难排查的一种坏法。"""
+def scene_markup(frontend_dir: Path, version: str, page: str) -> str:
+    """填充好的场景片段，``page`` 决定左侧文案。文件缺失时报错而不是静默返回空串 ——
+    外壳没了页面还「正常」返回，是最难排查的一种坏法。"""
     path = scene_path(frontend_dir)
     try:
         stat = path.stat()
@@ -151,7 +249,7 @@ def scene_markup(frontend_dir: Path, version: str) -> str:
         raise RuntimeError(
             f'场景片段缺失：{path}；请先运行 node tools/sync_scene_assets.mjs'
         ) from error
-    return _scene_markup(str(path), stat.st_mtime_ns, version)
+    return _scene_markup(str(path), stat.st_mtime_ns, version, page)
 
 
 def appearance_link(revision: str) -> str:
@@ -169,7 +267,7 @@ def _require_placeholder(page_path: Path, text: str, placeholder: str, why: str)
         raise RuntimeError(f'{page_path} 缺少 {placeholder} 占位符，{why}')
 
 
-@lru_cache(maxsize = 32)
+@lru_cache(maxsize = 64)
 def _render_page_cached(
     page_file: str,
     page_modified_ns: int,
@@ -178,12 +276,22 @@ def _render_page_cached(
     version: str,
     revision: str,
     with_scene: bool,
+    page: str,
+    rail: tuple[str, ...] | None,
 ) -> str:
     """渲染结果缓存。
 
     缓存键里带页面与场景片段的 mtime：静态目录在部署后可能被原地替换（滚更新），
     只按路径缓存会把旧页面一直发下去。场景片段虽然另有一层自己的缓存，但这一层
     缓存的是**整页**（含片段），所以它的 mtime 也必须进键。
+
+    ``page`` 进键的理由与 ``_scene_markup`` 相同：五页共用一份片段模板，填进去的
+    左侧文案不同，键里少了它就会串页。
+
+    ``rail`` 也进键，理由同一类：同一条 ``/pair`` 对管理员和墙面板的进度读数不同
+    （见 ``commissioning``），少了这个键就会把先渲染的那一种人读到的进度发给后一种人
+    —— 而且不会报错。状态元组的取值空间很小（每页最多四种访问者），
+    ``maxsize`` 因此从 32 提到 64：五页各自的分支加上编辑器与展示页仍在上限内。
     """
     page_path = Path(page_file)
     text = page_path.read_text(encoding = 'utf-8')
@@ -193,10 +301,28 @@ def _render_page_cached(
         APPEARANCE_PLACEHOLDER,
         '页面不会跟随站点配色（CSP 下配色只能靠这个 <link> 注入，少了它页面会安静地保持默认色）',
     )
+    _assert_placeholders_are_real(text)
     if with_scene:
         _require_placeholder(page_path, text, SCENE_PLACEHOLDER, '页面未接入场景外壳')
-        _assert_placeholders_are_real(text)
-        text = text.replace(SCENE_PLACEHOLDER, scene_markup(Path(frontend_dir), version))
+        text = text.replace(SCENE_PLACEHOLDER, scene_markup(Path(frontend_dir), version, page))
+    if rail is not None:
+        _require_placeholder(
+            page_path,
+            text,
+            STEPS_PLACEHOLDER,
+            '这一页登记了开通轨读数，却没有插入点（见 registry：backend/http/commissioning.py）',
+        )
+        indent = _indent_at(text, STEPS_PLACEHOLDER)
+        # 替换键带上插入点前面那段缩进：单换占位符的话，它自己的缩进会留在原地，
+        # 注入块的第一行就会比其余行深两格（见 _indent_at）。
+        text = text.replace(indent + STEPS_PLACEHOLDER, rail_markup(rail, indent = indent))
+    elif STEPS_PLACEHOLDER in text:
+        # 反向的漏法：页面留着插入点，调用方却没给读数。占位符是一条注释，会原样
+        # 落在响应里 —— 页面上什么都看不见，只是少了一条进度轨。
+        raise RuntimeError(
+            f'{page_path} 留着 {STEPS_PLACEHOLDER} 但没有开通轨读数；'
+            '入口页请走 render_page（它会带上 rail），别的页面请删掉这个占位符'
+        )
     return text.replace(APPEARANCE_PLACEHOLDER, appearance_link(revision))
 
 
@@ -207,12 +333,17 @@ def render_shell_page(
     revision: str,
     *,
     scene: bool = True,
+    rail: tuple[str, ...] | None = None,
     request: Request | None = None,
 ) -> Response:
-    """本应用所有 HTML 页面的统一出口：场景外壳（可选）+ 站点配色样式表。
+    """本应用所有 HTML 页面的统一出口：场景外壳（可选）+ 站点配色样式表 + 开通轨（可选）。
 
-    两个占位符都是**必填**的：不带就说明这个页面没被改造过，结果分别是「看起来正常但
-    少了场景」和「看起来正常但不跟随配色」—— 都不会报错，所以在这里直接抛异常。
+    三个占位符都是**必填**的：不带就说明这个页面没被改造过，结果分别是「看起来正常但
+    少了场景」「看起来正常但不跟随配色」和「看起来正常但不显示进度」—— 都不会报错，
+    所以在这里直接抛异常。
+
+    ``rail`` 只给五个入口页（见 ``commissioning.RAIL_PAGES``）：它按**访问者**给，
+    不是按页面给，所以在调用处算好再传进来。
 
     带 ``request`` 时会回 ``ETag`` 并处理 ``If-None-Match``。原先编辑器首页走
     ``FileResponse``（自带 ETag），改到这里渲染后必须自己补上，否则 4400 行的
@@ -235,9 +366,16 @@ def render_shell_page(
         version,
         revision,
         scene,
+        filename,
+        rail,
     )
     etag = f'"{hashlib.sha1(rendered.encode("utf-8")).hexdigest()[:32]}"'
     if request is not None and request.headers.get('if-none-match') == etag:
         # 304 不带 body，也不该带 Content-Type。
         return Response(status_code = 304, headers = {'ETag': etag})
-    return HTMLResponse(rendered, headers = {'ETag': etag})
+    headers = {'ETag': etag}
+    # 不给这里加 Cache-Control：入口页的整页缓存策略在 `backend/main.py` 的响应头中间件里
+    # 统一决定了（`/pair`、`/login`、`/setup`、`/license`、`/display/*` 一律 no-store），
+    # 在这里再写一遍只会被覆盖掉 —— 而按访问者变化的页面**必须**是不可共享的，
+    # 覆盖掉的恰好是那条更弱的指令。
+    return HTMLResponse(rendered, headers = headers)

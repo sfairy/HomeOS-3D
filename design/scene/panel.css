@@ -145,6 +145,149 @@
   box-shadow: 0 0 8px rgba(var(--hos-eco-rgb), 0.7);
 }
 
+/* ── 开通路径 ──────────────────────────────────────────────────────────────
+   五个入口页不是五张长得像的表单，而是同一条门链上的五道门：
+   /setup → /login → /license → /pair → 进中控（后端门禁顺序见 main.py 各路由）。
+   这条步骤条把「走到哪、还剩几步」画出来。
+
+   为什么值得占这块地方：本机中控的开通本来就是一串有先后顺序的门，而用户在第 4 道
+   门前面最想知道的就是「还差几步」。少了它，五页之间只剩右栏表单的差别，用户在
+   两页之间来回跳时没有任何「我在往前推进」的反馈 —— 那正是「五张像表单的页面」
+   和「一条开通流程」的区别。
+
+   标记不在这份样式表里，也不在页面 HTML 里：它由后端按**访问者**填
+   （backend/http/commissioning.py），因为同一条 /pair 对管理员与墙面板的读数不同。
+   这里只定四个状态的读法：
+
+     is-done     已过（实心，比当前项沉一档）
+     is-current  这一页正在做的事（亮起 + 呼吸光环 + aria-current）
+     is-blocked  停在这一格过不去（珊瑚，刻意不呼吸）
+     is-skipped  这道门对当前访问者不适用（虚线的连接线 + 更暗的字）
+
+   状态用类而不是 data 属性：只有 is-current 需要同步 aria-current，两处各写一份
+   迟早会走散。四个状态各自一个类，谁在什么处境下用哪一个由 commissioning.py 一处说了算。 */
+
+.hos-steps {
+  display: flex;
+  align-items: center;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.hos-steps__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--hos-font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: rgba(186, 214, 232, 0.3);
+  white-space: nowrap;
+  transition: color 0.3s var(--hos-ease);
+}
+
+/* 末项不抢空间：它右边不该再有一段空白把整条撑到贴边。 */
+.hos-steps__item:last-child {
+  flex: 0 0 auto;
+}
+
+/* 连接线由每一项自己向右撑开，不额外插空元素 —— 空 <i> 只能靠 :nth-child 对齐，
+   少写一个整条就会错位一格。 */
+.hos-steps__item::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  margin-left: 6px;
+  background: rgba(var(--hos-tone-rgb), 0.16);
+}
+
+.hos-steps__item:last-child::after {
+  display: none;
+}
+
+.hos-steps__dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+}
+
+/* 已过：实心，但比当前项沉一档 —— 走过的门要看得见，却不能和「你在这里」抢眼。 */
+.hos-steps__item.is-done {
+  color: rgba(var(--hos-tone-rgb), 0.55);
+}
+
+.hos-steps__item.is-done .hos-steps__dot {
+  background: currentColor;
+}
+
+/* 当前：这一页正在做的事。亮起来，并带一圈呼吸光环。 */
+.hos-steps__item.is-current {
+  color: var(--hos-tone-bright);
+}
+
+.hos-steps__item.is-current .hos-steps__dot {
+  background: var(--hos-tone);
+  box-shadow: 0 0 0 3px rgba(var(--hos-tone-rgb), 0.18);
+  animation: hosStepBreathe 2.6s ease-in-out infinite;
+}
+
+/* 中断：停在这一步过不去。用珊瑚而不是把当前色调暗 ——「走不动了」和「还没走到」
+   必须是两种读法。刻意**不**呼吸：光环在动会读成「正在处理」，而这里恰恰是没在动。 */
+.hos-steps__item.is-blocked {
+  color: var(--hos-alert-bright);
+}
+
+.hos-steps__item.is-blocked .hos-steps__dot {
+  background: var(--hos-alert);
+  box-shadow: 0 0 0 3px rgba(var(--hos-alert-rgb), 0.2);
+}
+
+/* 不适用：这道门对当前访问者根本不存在 —— 墙面板不走「登录」（见
+   backend/http/commissioning.py）。既不实心也不算待办，而是把这一格与它右侧的连接线
+   一起画成虚的：实心读作「已经过」，空心读作「迟早要走」，只有虚线读作「与你无关」。
+   改成灰字而不加删除线：这一格在窄屏上只有两个字，加线会把它读成「被跳过的一次失败」。 */
+.hos-steps__item.is-skipped {
+  color: rgba(var(--hos-tone-rgb), 0.22);
+}
+
+.hos-steps__item.is-skipped::after {
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(var(--hos-tone-rgb), 0.16) 0 3px,
+    transparent 3px 7px
+  );
+}
+
+@keyframes hosStepBreathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(var(--hos-tone-rgb), 0.18);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(var(--hos-tone-rgb), 0.05);
+  }
+}
+
+/* 窄屏：12 个汉字 + 5 个圆点 + 4 段连接线要挤进 360px 里的约 250px。
+   收到 0.56rem / 几乎不设字距，连接线由 flex 自己让位（标签 nowrap 不缩，只缩线）。 */
+@media (max-width: 480px) {
+  .hos-steps__item {
+    font-size: 0.56rem;
+    gap: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  .hos-steps__item::after {
+    margin-left: 4px;
+  }
+}
+
 .hos-panel h1,
 .hos-panel h2 {
   margin: 0 0 10px;
@@ -1303,6 +1446,13 @@
 @media (prefers-reduced-motion: reduce) {
   .hos-btn-primary::after,
   .hos-hub__scan {
+    animation: none;
+  }
+
+  /* 开通轨上「当前这一格」的呼吸光环同理：它表达的「正在处理」由实心点 + 更亮的前景色
+     已经说清楚了，环本身是纯粹的动效。停在这里而不是缩短周期 —— 一个反复放大缩小的
+     光斑正是这个偏好要避开的東西。 */
+  .hos-steps__item.is-current .hos-steps__dot {
     animation: none;
   }
 

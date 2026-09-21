@@ -1,6 +1,6 @@
 # HomeOS
 
-面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.2**（见 `VERSION`）。
+面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.3**（见 `VERSION`）。
 
 提供可视化编辑器、3D 户型工作室、全屏展示页和中控配对；后端是 FastAPI，前端是原生 HTML / CSS / JavaScript，数据默认落在本机 SQLite。
 
@@ -92,7 +92,7 @@ HomeOS/
 ├── store/                  # 授权商店 + 授权服务器 + 运营后台
 │   ├── app.py run.py config.py
 │   ├── core/               # 连接/表/请求体模型/序列化/公共依赖/.env/启动默认数据
-│   ├── security/           # 口令会话、来源与同源校验、失败限流、初始化守卫、库结构守卫
+│   ├── security/           # 口令会话、来源与同源校验、失败限流、初始化守卫、请求体上限、库结构守卫
 │   ├── commerce/           # 商品·订单·履约·优惠码·积分与邀请（含 money/catalog/order_status）
 │   ├── ops/                # 站点配置、邮件、发布信息、能力码目录、可达性探测、异常计数
 │   ├── api/                # store.py(/store/v1) license.py(/v2) admin.py alipay.py setup.py pages.py
@@ -105,7 +105,7 @@ HomeOS/
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
 ├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # check_structure_refs.mjs / check_frontend_hygiene.mjs / check_studio_palette.mjs / check_registry_split.mjs / check_esm_exports.mjs（含共享桥）/ smoke_registry.mjs / smoke_state_entry.mjs / bump_static_cache_versions.mjs · smoke_backend.py
+├── tools/                  # check_structure_refs.mjs / check_frontend_hygiene.mjs / check_studio_palette.mjs / check_registry_split.mjs / check_esm_exports.mjs（含共享桥与作用域绑定）/ check_scene_sync.mjs / check_entry_pages.mjs / bump_static_cache_versions.mjs · sync_scene_assets.mjs
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
@@ -173,7 +173,7 @@ APP_DATA_DIR=./data PYTHONPATH=. alembic upgrade head
 
 `/api/v1/setup/admin` 不能要求登录（此时还没有账号），所以必须自己把「谁有资格创建管理员」管住，否则任何能连上这台机器的人都能抢先建掉管理员并当场拿到会话。当前规则：
 
-- **本机直连放行**：TCP 对端是 `127.0.0.1` / `::1`，且请求不带任何转发头（`X-Forwarded-*`、`Forwarded`）。带转发头说明前面还有代理，对端地址不再代表真实来源，此时不再按本机放行。
+- **本机直连放行**：三个条件同时成立 —— TCP 对端是 `127.0.0.1` / `::1`、`Host` 头的主机名也是 `127.0.0.1` / `::1` / `localhost`、且请求不带任何转发头（`X-Forwarded-*`、`Forwarded`）。带转发头说明前面还有代理，对端地址不再代表真实来源；`Host` 那一条专门挡**同机反向代理** —— nginx 默认连转发头都不补、对端又是 `127.0.0.1`，只看前两条时一个「公网域名 → `127.0.0.1`」的反代与运维坐在本机操作完全一样（`kubectl port-forward`、`ssh -L`、`socat` 同理）。Caddy / Traefik / `proxy_set_header Host $host` 的 nginx 会把访问者用的域名原样透传，因此这类请求不再被当成本机。**从本机操作请用 `localhost` 或 `127.0.0.1` 打开**，用域名打开则要填引导密钥。
 - **其它来源必须带引导密钥**：`APP_SETUP_TOKEN` 的值，或首次启动时自动生成的那一串。生成的密钥写在 `$APP_DATA_DIR/setup-token`（权限 `0600`）并打印到启动日志 / 容器日志：
 
   ```text
@@ -657,40 +657,59 @@ node tools/check_structure_refs.mjs
 node tools/check_frontend_hygiene.mjs --strict   # 死类名、跨文件同名规则、重复 @keyframes、与令牌逐字节同值的 hex、z-index 清单
 node tools/check_studio_palette.mjs --strict      # 3D 工作室素材卡：渲染早于 DOM 缓存、容器留空、数据表字段与页签归属
 node tools/check_registry_split.mjs               # 控件注册表分片：barrel 可达、注册点唯一、componentsByType 只一份、版本戳一致
-node tools/check_esm_exports.mjs                  # ESM 具名导出：每个具名 import 都能在目标模块里找到同名导出
+node tools/check_esm_exports.mjs                  # ESM 具名导出：引用方要的名字都存在，且导出方自己不把「只在 export {} 里的名字」当本地变量读
+node tools/check_scene_sync.mjs                   # design/scene 分发副本与令牌源同步、商店调色板与设计源一致、两侧 HTML 转义集一致
+node tools/check_entry_pages.mjs                  # 五个入口页：门链顺序、开通轨读数分支、占位符、外壳清单、以及状态名在 CSS 里有规则
 ```
 
 前两个是**报告模式**：不加 `--strict` 一律退出 0，只打印清单。要当守卫用就必须带 `--strict`，
 接 CI 时尤其别忘 —— 少一个参数不会报错，只会安静地什么都不拦。
 
-这些守卫已经接进 `.github/workflows/docker.yml` 的 `guards` job，挂在镜像 `build` 之前。但那个工作流
-只有 `workflow_dispatch`（仓库有意不在 push / PR 上自动跑、不消耗 Actions 额度），所以它们只在手动
-出包时执行；要在 PR 上强制，得另建一个 push/PR 工作流。
+**五个入口页**（`/setup` → `/login` → `/license` → `/pair` → 进中控）的轨道读数不在 HTML 里，
+由 `backend/http/commissioning.py` 按**访问者**填：同一条 `/pair` 对管理员（带着会话）与一台
+墙面板（不走登录、键盘都没有）读数是两种，写死在页面上必然对其中一种撒谎。`check_entry_pages.mjs`
+静态核对「页面 ↔ 读数分支 ↔ CSS 状态名」三者是否还互相对得上 —— 它们任一处走散都不会报错，
+只会让某一步安静地不亮、或者亮错一格。
 
-`guards` job 目前纳入 6 个 Node 守卫 + 后端冒烟，**两个故意没纳入**：
-
-- `check_frontend_hygiene.mjs` —— `--strict` 当前有 32 项 findings，全部是 `design/scene/` 里随
-  `HomeOS-Activate` 迁出而失去调用方的类名（`.hos-modal` / `.hos-datepicker` / `.hos-hub` /
-  `.viewport-frame` / `.app-shell__content` …）。这类名分归设计系统那条线清理，清完后把这条加进
-  `guards` 的清单即可。复现（打印全部 32 条及文件行号）：`node tools/check_frontend_hygiene.mjs --strict`。
-  注意它另外三类（重复 `@keyframes`、与令牌同值的 hex、`z-index` 清单中的硬值）目前都已经是零，
-  所以这条一旦清完就是一道干净的门禁。
-- `check_scene_sync.mjs` —— `design/scene/` 正在被改写为令牌体系、分发副本尚未重新生成，纳入会让
-  CI 替在途改动背红灯。
-
-控件注册表（`renderer/core/registry.js` + `renderer/core/registry/`）的运行时冒烟：
+Python 侧的死代码门禁由仓库根的 `ruff.toml` 单独钉住（只挑全仓已达标的那几条，边界写在该文件注释里）：
 
 ```bash
-node tools/smoke_registry.mjs                     # 带 DOM 桩真实加载 registry.js，断言 18 个控件类型都注册且能渲染
+ruff check .                                      # 未使用 import / 重复定义 / 未使用局部变量 / 未定义名字 / 注释掉的代码
 ```
 
-注册是 import 副作用：漏引入一个 `registry/components/<类型>.js` 不会报错、不会 404，只会在页面上
-变成「控件尚未实现」。`check_registry_split.mjs` 证明每个分片都被引入，`smoke_registry.mjs` 证明引入
-之后真的执行到了注册那一行，两个一起跑才算数。
+**两条工作流共用同一份清单**：
+
+- `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
+- `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有
+  `workflow_dispatch`（仓库有意不在 push 上自动构建、也不向 GHCR 推未打算发布的镜像），
+  所以它是出包前那道。
+
+改清单时**两份都要改**，否则会出现「CI 绿、出包红」这种最难查的错配。
+此前列为「故意没纳入」的两条现在都在清单里：`check_frontend_hygiene.mjs --strict` 的 32 项
+`design/scene/` 死类名已清理干净，`check_scene_sync.mjs` 的分发副本也已重新生成并同步。
+
+**HTML 转义**由 `frontend/static/utils/html-escape.js`（应用侧）与 `store/static/htmlsafe.js`
+（商店侧）各一份提供 —— 商店是独立构建上下文（`store/app.py` 只挂 `/store-static` 与 `/fonts`，
+拿不到 `/static`），它 import 不到应用侧那份，只能各留一份。转义集不一致**不会报错**，只会让
+同一个值在两个页面里显示成不同的东西（少转一个 `"` 就是属性提前闭合，现场看着只是「布局怪」），
+所以 `check_scene_sync.mjs` 直接比对两边的映射表。判定只认映射表、不比包装方式：一边是 IIFE 挂
+全局、一边是 ESM 具名导出，形态不同是刻意的，转义结果必须逐字节相同。
+
+控件注册表（`renderer/core/registry.js` + `renderer/core/registry/`）的注册是 import 副作用：漏引入一个
+`registry/components/<类型>.js` 不会报错、不会 404，只会在页面上变成「控件尚未实现」。
+`check_registry_split.mjs` 静态证明每个分片都被引入 —— 运行时冒烟已在清理中移除，这是目前唯一一道。
 
 相邻的另一类静默故障是**分片自己漏写 `export`**：导入它的模块整页抛 SyntaxError，而报错信息指向
 **导入方**（`air-conditioner.js:26`），很容易被误判成缓存没刷或路径写错。`check_esm_exports.mjs` 把
 「每个具名 import 都能在目标模块里找到同名导出」静态钉住，改动 import / export 后请跑它。
+
+方向相反、更容易归错因的是另一种：**导出方自己把「只在 `export {}` 里出现的名字」当本地变量读**。
+`export { clampNumber as clamp } from "utils/numbers.js"` 只把 `clamp` 挂上对外接口、**不在本模块
+作用域建绑定**，于是同文件里那些 `clamp(...)` 成了运行期 ReferenceError，栈顶指向导出方自己的函数
+（`geometry.js` 的 `adaptiveDeviceLightBudget`）—— 现场看着像几何/预算算法坏了，其实是导出写法。
+换成 `import { clampNumber } …; export { clampNumber as clamp };` 同样不建绑定，长得还更像「修复」，
+守卫两种都报。判定收得很紧：只针对「对外暴露、而本模块没有同名绑定」的名字，且扫正文时把字符串与
+模板字面量的内容一起挖空（3d-studio 的字面量里大量是 HTML 与文案，不挖必然假阳性）。
 
 它另外单独查一处前四类写法都看不见的地方 —— 运行时树通往 `/static/` 的共享桥
 `modules/runtime/core/static-helpers.js`。桥写的是 `const { a, b } = await (… ? import(相对路径)
@@ -699,30 +718,16 @@ node tools/smoke_registry.mjs                     # 带 DOM 桩真实加载 regi
 是两个分支目标的真实导出、两个分支必须指向同一个文件、末尾 `export { … }` 必须与解构出的名字集合
 逐字相同（桥自己的「登记表」纪律）。加名字到桥里后请顺手跑一次，它比浏览器先报。
 
-`utils/state-entry.js` 的契约冒烟（纯函数，不需要 DOM 桩）：
-
-```bash
-node tools/smoke_state_entry.mjs                  # 24 条用例钉住状态文本归一的边界，含 0 / false / 缺省三种
-```
-
-状态文本归一（`String(state).trim().toLowerCase()`）曾散落二十余处，如今只此一份，各域只负责
-「哪些词算活动」。这份冒烟守的是 `stateTextOf` 里那个 `?? ""`：改成 `|| ""` 之后 `state: 0` 与
+`utils/state-entry.js` 的契约（**已无自动断言**）：状态文本归一
+（`String(state).trim().toLowerCase()`）曾散落二十余处，如今只此一份，各域只负责
+「哪些词算活动」。要小心 `stateTextOf` 里那个 `?? ""`：改成 `|| ""` 之后 `state: 0` 与
 `state: ""` 会一起塌成空串，而 `0` / `1` 正是 HA 开关量的常见写法 —— 现场表现只是「离线设备显示成
 未知」，不报错、不 404。同一处还要保证 `normalizedTextOf` 真被复用，而不是在 `stateTextOf` 里又手写
 一遍归一。
 
-后端与商店冒烟（复用现有依赖，不装新东西）：
-
-```bash
-python tools/smoke_backend.py                     # 导入 backend.main / store.app + 路由清单比对 + 关键路径状态码
-python tools/smoke_backend.py --update-snapshot   # 仅在确知路由增删时重写 tools/routes.snapshot.txt
-```
-
-它在临时目录里自己造一副一次性商店密钥（`docker/license_keys.py` 的 `ensure_store_license_keys`）并把
-公钥指纹指给主应用。这一步是必需的：`store/create_app()` 在**默认**密钥目录下缺钥就直接 raise（防止
-「商店一把钥、客户端另一把」的静默激活失败），只有自定义目录才允许自动生成。没有这一步，脚本就只在
-「本地跑过 `python start.py`」的机器上能过 —— 干净检出（也就是 CI）里必然红，而红的原因跟被测代码
-毫无关系。临时目录在 `finally` 里删掉。
+后端与商店**目前没有自动冒烟**：`smoke_backend.py`（导入 `backend.main` / `store.app` + 路由清单双向
+比对 + 关键路径状态码）已在清理中移除，连同它的快照 `tools/routes.snapshot.txt`。移除的代价要说清楚 ——
+它是**唯一的路由清单校验**，此后增删路由没有任何自动信号，改动路由请人工核对 OpenAPI 与调用方。
 
 几处口径值得记住：
 
@@ -798,7 +803,7 @@ python tools/smoke_backend.py --update-snapshot   # 仅在确知路由增删时�
 - 清理死代码与重复实现，新增 `backend/core/canonical_json.py`、`backend/http/http_cache.py`、`frontend/static/utils/{icon-url,datetime,interaction-pages}.js` 收敛此前逐处手写的规范 JSON、Cache-Control、图标 URL、时间格式与交互页面清单。
 - 资金路径上的重复释放收敛为 `store/commerce/fulfill.py` 的 `close_pending_order()`（CAS 抢 `pending` 后推进终态，「用户取消 / 后台取消 / 模拟收银台取消 / 超时过期 / 渠道对账兜底」五处共用）与同文件的 `release_order_effects()`（归还预占 + 名额）。原先这段在十余处各写一遍，抄漏一处就会让 `reserved_stock` 虚高或优惠码名额被永久占用。
 - 首次管理员只剩 `/setup` 一条路径：`STORE_ADMIN_EMAIL` / `STORE_ADMIN_PASSWORD` 的预置分支（解析后从未被消费）连同 README / `.env.example` / 启动提示里的说明一并移除。
-- 3D 工作室的 `dataset` 诊断属性（约 60 处写入）**保留**：它们不是残留死代码，而是浏览器里排查阴影 / 合批 / 预编译状态的唯一观测面；顺带把 `?material-test` / `?instance-test` 与 `?model-export` 一样要求 `?debug=1`。
+- 3D 工作室的 `dataset` 诊断属性（约 60 处写入）**保留**：它们不是残留死代码，而是浏览器里排查阴影 / 合批 / 预编译状态的唯一观测面。同一批的 `?material-test` / `?instance-test` / `?model-export` 三块自检钩子曾只要求 `?debug=1`，后续清理中已**整体删除** —— 它们是被动探针（打开页面自己跑一遍再打印结论），不构成产品能力，留着就是一条生产可达的调试旁路。
 - 更新 README / store/README 与产品代码注释里对已删脚本、已删断言的全部引用。
 
 ### v0.5.6

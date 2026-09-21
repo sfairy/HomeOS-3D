@@ -57,7 +57,8 @@ from .modules.interaction3d.api import router as interaction3d_router
 from .api.projects import router as projects_router
 from .api.studio3d import router as studio3d_router
 from .security.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
-from .http.body_guard import DraftBodyGuard
+from .http.body_guard import RequestBodyGuard
+from .http.commissioning import has_rail, rail_states
 from .http.page_shell import APPEARANCE_PATH, render_shell_page
 from .config import Settings, load_settings
 from .core.database import Database
@@ -214,6 +215,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             )
             if allow_ips_warning:
                 app.state.global_log.append('warning', '系统后台', '配置', allow_ips_warning)
+                # stderr 已关闭时这句提醒写不出去：告警本身已进 event_log，不该因此中断启动。
                 try:
                     sys.stderr.write(f'{allow_ips_warning}\n')
                 except OSError:
@@ -599,6 +601,11 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         # 所以这份共用的纯文本工具也在匿名图里 —— 它不碰 DOM、不发请求，
         # 符合上面「utils/ 只放与业务无关的纯工具」的口径。
         '/static/utils/api-error.js',
+        # 401（会话过期）/ 403（授权受限）的判定与翻文案收敛在 utils/api-request.js，
+        # 而 license.js 属于匿名图：漏了它，未激活时那个 import 会被 401 挡下，
+        # 整页脚本都不执行（正是上面说的「页面能打开、脚本不跑」）。它只 import
+        # api-error.js，不碰 DOM、不发请求，符合「utils/ 只放纯工具」的口径。
+        '/static/utils/api-request.js',
         # 配对页的引导判定经 pairing-link.js → utils/apple-device.js
         # （苹果移动端判定只有这一份实现），所以它也在匿名图里。
         '/static/utils/apple-device.js',
@@ -820,13 +827,29 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
         收成一个闭包是为了让 ``app_settings``、``version`` 与配色版本号在调用处不必各写
         一遍 —— 九个路由各拼一次参数，迟早有一个漏带配色版本，而那一页会安静地不跟配色。
+
+        入口页（五个）额外带上开通轨读数。读数**按访问者**算而不是按页面算：同一条
+        ``/pair`` 对管理员与墙面板的进度不一样（见 ``http/commissioning``），所以这里
+        多花一次会话查询是必要的，不是重复劳动 —— 路由那边即使刚查过，也不该把结论
+        往下传：调用点分散在六个路由里，迟早有一个忘了传，而那一页会显示别人的进度。
+
+        ``active_display`` 只在带设备 Cookie 时才查库，非设备访客（绝大多数入口页请求）
+        是纯 Cookie 解析，所以这里无条件算它不会变成每次两查。
         """
+        rail = None
+        if has_rail(filename):
+            rail = rail_states(
+                filename,
+                admin_session = signed_in(request),
+                device = active_display(request) is not None,
+            )
         return render_shell_page(
             app_settings.frontend_dir,
             filename,
             app_settings.version,
             request.app.state.appearance.revision,
             scene = scene,
+            rail = rail,
             request = request,
         )
 
@@ -1023,10 +1046,11 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
 
     # camera / HLS 反向代理自行定义 /api/* 路径，因此不挂 /api/v1 前缀。
     app.include_router(ha_proxy_router)
-    # 草稿类请求体的字节 / 深度上限。注册在这里意味着它比同源闸门与
-    # 资源鉴权更靠外：FastAPI 是先读全请求体再进依赖与路由的，只有在中间件
-    # 层拦才算拦得住（未登录的匿名请求也能用它把内存打满）。
-    app.add_middleware(DraftBodyGuard)
+    # 请求体的字节 / 嵌套深度上限：默认 1 MiB，草稿类写路由单独放宽（8 / 32 MiB），
+    # 三个流式上传端点原样放行。注册在这里意味着它比同源闸门与资源鉴权更靠外：
+    # FastAPI 是先读全请求体再进依赖与路由的，只有在中间件层拦才算拦得住
+    # （未登录的匿名请求也能用它把内存打满）。
+    app.add_middleware(RequestBodyGuard)
     # 诊断中间件放在最后注册：它会包住上面所有路由（含 ha_proxy），
     # 从而也能记录代理请求的耗时与错误。
     app.middleware('http')(record_request_diagnostics)

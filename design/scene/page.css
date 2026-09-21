@@ -89,11 +89,12 @@
   --hos-warn: var(--hos-lumen-bright);
   --hos-err: var(--hos-alert-bright);
 
-  /* 页面色调开关，默认「主控青」。
+  /* 页面色调开关，默认「主控暖金」。
      panel.css 通篇只认 var(--hos-tone*)，所以「换掉一整页的颜色」= 给 .hos-page
-     加一个 .hos-tone--* 类：坞体描边、眉标、聚焦环、主按钮、边角光、状态条一起走。
-     这样五个入口页同结构不同意（登录=青、激活=暖光、找回=极光紫、配对=薄荷），
-     而不需要在页面里逐条覆写颜色。 */
+     加一个 .hos-tone--* 类：坞体描边、眉标、开通路径、聚焦环、主按钮、边角光、
+     状态条一起走。这样五个入口页同结构不同调（登录=主控暖金、初始化=居家暖光、
+     配对=氛围极光、激活=生态薄荷、连接中断=珊瑚），而不需要在页面里逐条覆写颜色、
+     也不会因为这些页面共用一份 panel.css 而糊成同一个颜色。 */
   --hos-tone: var(--hos-accent);
   --hos-tone-rgb: var(--hos-accent-rgb);
   --hos-tone-bright: var(--hos-accent-bright);
