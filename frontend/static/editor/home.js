@@ -176,6 +176,12 @@ import { createEntityOptions } from "./home/entity-options.js?v=2609220052";
 import { createPickers } from "./home/pickers.js?v=2609220052";
 import { createFormWidgets } from "./home/form-widgets.js?v=2609220052";
 import { createColorPicker } from "./home/color-picker.js?v=2609220052";
+import { createSectionRegistry } from "./home/sections.js?v=2609220052";
+
+// 分节绑定的注册器：每个 bindXxxSection() 都从它拿 on(...)，同名重复绑定会先撤销上一次
+// （编辑器被重新初始化时不会再叠加监听）。见 home/sections.js。
+const sections = createSectionRegistry();
+
 /**
  * 按选择器取单个 DOM 节点的简写。不做缓存与空值兜底：调用处只在模块加载时一次性缓存静态节点，
  * querySelector 找不到说明模板出错，返回 null 由使用处自行判断。
@@ -4671,60 +4677,7 @@ const ENTITY_DOMAIN_LABELS = {
 const MAX_LIGHT_STATISTICS_ENTITIES = 100;
 
 
-document.addEventListener("pointerover", pointerOverEvent => {
-  const hoveredRowElement = findOverflowPreviewTarget(pointerOverEvent.target);
-  const hoveredRow = findOverflowRow(hoveredRowElement);
-  const isPointerInsideRow =
-    pointerOverEvent.relatedTarget instanceof Node &&
-    hoveredRow?.contains(pointerOverEvent.relatedTarget);
-  if (!hoveredRowElement || isPointerInsideRow || hoverScrollStateByRow.has(hoveredRowElement)) {
-    return;
-  }
-  const overflowScrollDistance = Math.max(
-    0,
-    hoveredRowElement.scrollWidth - hoveredRowElement.clientWidth
-  );
-  if (overflowScrollDistance <= 2) {
-    return;
-  }
-  const hoverScrollEntry = {
-    timer: null,
-    frame: null
-  };
-  hoverScrollStateByRow.set(hoveredRowElement, hoverScrollEntry);
-  hoverScrollEntry.timer = window.setTimeout(() => {
-    if (!hoveredRowElement.isConnected) {
-      stopHoverScroll(hoveredRowElement);
-      return;
-    }
-    hoveredRowElement.classList.add("hover-scrolling");
-    const hoverScrollStartTime = performance.now();
-    /**
-     * 逐帧推进悬停横向滚动。用 requestAnimationFrame 而非 CSS transition/定时器，使滚动与刷新同步、指针移出能立刻停住。
-     * 速度系数 0.04（像素/毫秒，约 40px/秒）在「看得清实体名」与「不用久等」之间取平衡；
-     * 滚动距离夹到 overflowScrollDistance，避免滚出边界留下空白。
-     */
-    const stepHoverScroll = hoverScrollTimestamp => {
-      const elapsedScrollPx = (hoverScrollTimestamp - hoverScrollStartTime) * 0.04;
-      hoveredRowElement.scrollLeft = Math.min(overflowScrollDistance, elapsedScrollPx);
-      if (elapsedScrollPx < overflowScrollDistance) {
-        hoverScrollEntry.frame = window.requestAnimationFrame(stepHoverScroll);
-      }
-    };
-    hoverScrollEntry.frame = window.requestAnimationFrame(stepHoverScroll);
-  }, 350);
-});
-document.addEventListener("pointerout", pointerOutEvent => {
-  const leftRowElement = findOverflowPreviewTarget(pointerOutEvent.target);
-  const leftRow = findOverflowRow(leftRowElement);
-  const isPointerStillInsideRow =
-    pointerOutEvent.relatedTarget instanceof Node &&
-    leftRow?.contains(pointerOutEvent.relatedTarget);
-  if (!!leftRowElement && !isPointerStillInsideRow) {
-    stopHoverScroll(leftRowElement);
-  }
-});
-
+bindPointerSection();
 
 /**
  * 渲染导航按钮的图标预览与复制按钮状态。图标用 CSS mask + 背景色实现，所以同一张 SVG 能跟随主题色
@@ -10149,13 +10102,8 @@ function readRecoverySnapshot(snapshotProjectId) {
   }
 }
 const recoveryWriter = createRecoveryWriter(persistRecoverySnapshot);
-window.addEventListener("pagehide", recoveryWriter.flush);
-window.addEventListener("beforeunload", recoveryWriter.flush);
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    recoveryWriter.flush();
-  }
-});
+bindLifecycleSection();
+
 /**
  * 把当前未保存状态排入恢复快照写队列（真正的防抖与合并由 recoveryWriter 负责）；没有未保存改动时不写，避免用
  * 「等于已保存内容」的快照覆盖掉更有价值的旧快照。快照刻意不带撤销 / 重做栈：那两个栈各自是「最多 MAX_HISTORY_ENTRIES
@@ -11168,1049 +11116,12 @@ async function refreshLicenseStatus() {
   renderLicenseStatus(licenseResponse);
   return licenseResponse;
 }
-licenseOpenButtonElement.addEventListener("click", async () => {
-  setSettingsMessage(licenseMessageElement, "");
-  isLicenseActivationFormRequested = false;
-  try {
-    const licenseStateForDialog = await refreshLicenseStatus();
-    if (!licenseStateForDialog?.required || licenseStateForDialog.allowed) {
-      licenseDialogElement.showModal();
-    }
-  } catch (licenseDialogError) {
-    handleOperationError(licenseDialogError);
-  }
-});
-licenseCloseButtonElement.addEventListener("click", () => licenseDialogElement.close());
-licenseDialogElement.addEventListener("click", licenseBackdropEvent => {
-  if (licenseBackdropEvent.target === licenseDialogElement) {
-    licenseDialogElement.close();
-  }
-});
-licenseFormElement.addEventListener("submit", async licenseSubmitEvent => {
-  licenseSubmitEvent.preventDefault();
-  const licenseSubmitButton = licenseFormElement.querySelector('button[type="submit"]');
-  const activationCodeInput = String(
-    new FormData(licenseFormElement).get("activationCode") || ""
-  ).trim();
-  const licenseEmailInput = String(new FormData(licenseFormElement).get("email") || "").trim();
-  licenseSubmitButton.disabled = true;
-  setSettingsMessage(licenseMessageElement, "正在绑定实例并获取签名租约…");
-  try {
-    const activateResponse = await requestJson("/license/activate", {
-      method: "POST",
-      body: JSON.stringify({
-        activationCode: activationCodeInput,
-        email: licenseEmailInput
-      })
-    });
-    licenseFormElement.reset();
-    isLicenseActivationFormRequested = false;
-    renderLicenseStatus(activateResponse);
-    setSettingsMessage(licenseMessageElement, "当前实例已成功激活。", "success");
-  } catch (licenseActivateError) {
-    setSettingsMessage(licenseMessageElement, licenseActivateError.message, "error");
-  } finally {
-    licenseSubmitButton.disabled = false;
-  }
-});
-// 「重新连接授权后台」：轻量续租，只走本地恢复凭证，不等下一次状态轮询。
-// 与「重新激活」的分工：本按钮不要求用户重新输入激活码，因此可以先试；它失败后再由用户
-// 决定是否走完整的重新激活流程（那个路径可能要求补填激活码）。
-licenseDialogRetryButtonElement.addEventListener("click", async () => {
-  licenseDialogRetryButtonElement.disabled = true;
-  setSettingsMessage(licenseRetryMessageElement, "正在重新连接授权后台…");
-  try {
-    await requestJson("/license/retry", { method: "POST" });
-    setSettingsMessage(licenseRetryMessageElement, "已重新连接授权后台。", "success");
-  } catch (licenseRetryError) {
-    // 失败文案由后端 detail 翻好（是否可重试也由后端给结论），这里不再自行分类。
-    setSettingsMessage(licenseRetryMessageElement, licenseRetryError.message, "error");
-  } finally {
-    licenseDialogRetryButtonElement.disabled = false;
-    // 无论成败都读一次最新状态：重试可能已经成功（按钮随之隐藏），也可能带回新的错误码。
-    await refreshLicenseStatus().catch(() => {});
-  }
-});
-licenseReactivateButtonElement.addEventListener("click", async () => {
-  licenseReactivateButtonElement.disabled = true;
-  setSettingsMessage(licenseMessageElement, "正在重新激活并获取签名租约…");
-  try {
-    const reactivateResponse = await requestJson("/license/reactivate", {
-      method: "POST"
-    });
-    licenseFormElement.reset();
-    isLicenseActivationFormRequested = false;
-    renderLicenseStatus(reactivateResponse);
-    setSettingsMessage(licenseMessageElement, "已重新激活，授权租约与恢复凭证均已更新。", "success");
-  } catch (licenseReactivateError) {
-    // 任何失败都把激活表单交给用户：无凭证可复用时要用户补输入，网络类故障时
-    // 手动激活也是唯一还能推进的路径。
-    revealLicenseActivationForm(licenseReactivateError.message);
-    await refreshLicenseStatus().catch(() => {});
-  } finally {
-    licenseReactivateButtonElement.disabled = false;
-  }
-});
-haOpenButtonElement.addEventListener("click", async () => {
-  isEditingHaConnection = false;
-  setSettingsMessage(haMessageElement, "");
-  await refreshHaConnection({
-    preserveForm: false
-  });
-  haDialogElement.showModal();
-});
-haCloseButtonElement.addEventListener("click", () => {
-  isEditingHaConnection = false;
-  haDialogElement.close();
-});
-haDialogElement.addEventListener("click", haBackdropEvent => {
-  if (haBackdropEvent.target === haDialogElement) {
-    isEditingHaConnection = false;
-    haDialogElement.close();
-  }
-});
-haFormElement.addEventListener("input", () => {
-  if (!haFormElement.hidden) {
-    isEditingHaConnection = true;
-  }
-});
-haTestButtonElement.addEventListener("click", async () => {
-  setSettingsMessage(haMessageElement, "正在测试地址、Token 和版本…");
-  haTestButtonElement.disabled = true;
-  try {
-    const haTestResult = await requestJson("/ha/test", {
-      method: "POST",
-      body: JSON.stringify(collectHaConnectionInput(true))
-    });
-    setSettingsMessage(
-      haMessageElement,
-      "连接成功：" +
-        (haTestResult.locationName || "Home Assistant") +
-        " · " +
-        (haTestResult.version || "未知版本"),
-      "success"
-    );
-  } catch (haTestError) {
-    setSettingsMessage(haMessageElement, haTestError.message, "error");
-  } finally {
-    haTestButtonElement.disabled = false;
-  }
-});
-haFormElement.addEventListener("submit", async haSubmitEvent => {
-  haSubmitEvent.preventDefault();
-  const haSubmitButton = haFormElement.querySelector('button[type="submit"]');
-  haSubmitButton.disabled = true;
-  setSettingsMessage(haMessageElement, "正在验证并加密保存连接…");
-  try {
-    try {
-      haConnectionInfo = await requestJson("/ha/connection", {
-        method: "PUT",
-        body: JSON.stringify(collectHaConnectionInput(false))
-      });
-    } catch (haUrlChangeError) {
-      // 409 + HA_URL_CHANGED_TOKEN_REUSE = 换了地址但要复用旧令牌：必须由用户确认
-      // 新地址可信，不能静默把令牌发过去（后端拒绝的正是这种「静默复用」）。
-      if (haUrlChangeError.code !== "HA_URL_CHANGED_TOKEN_REUSE") {
-        throw haUrlChangeError;
-      }
-      const confirmedUrlReuse = await confirmAction({
-        kicker: "CAUTION",
-        title: "确认新的 Home Assistant 地址",
-        message: "你改了 Home Assistant 地址，但仍使用已保存的令牌。",
-        detail:
-          "继续保存会把旧令牌发送到新的地址去验证。只有在新地址确实是你自己的 Home Assistant 时才确认。\n也可以直接在上面的 Token 输入框里重新输入令牌。",
-        confirmLabel: "确认继续",
-        tone: "warning"
-      });
-      if (!confirmedUrlReuse) {
-        throw new Error("已取消：请确认新地址可信，或重新输入 Token。");
-      }
-      haConnectionInfo = await requestJson("/ha/connection", {
-        method: "PUT",
-        body: JSON.stringify(collectHaConnectionInput(false, true))
-      });
-    }
-    isEditingHaConnection = false;
-    syncHaConnectionUi();
-    if (
-      !(await waitForHaConnection()) &&
-      !haConnectionInfo?.lastError &&
-      haConnectionStatus?.status !== "error"
-    ) {
-      haDetailStatusElement.textContent = "后台仍在建立实时连接";
-    }
-  } catch (haSaveError) {
-    isEditingHaConnection = true;
-    syncHaConnectionUi();
-    setSettingsMessage(haMessageElement, haSaveError.message, "error");
-  } finally {
-    haSubmitButton.disabled = false;
-  }
-});
-haEditButtonElement.addEventListener("click", startHaEditing);
-haEditCancelButtonElement.addEventListener("click", cancelHaEditing);
-haDeleteButtonElement.addEventListener("click", () => {
-  deleteHaFormElement.reset();
-  setSettingsMessage(deleteHaMessageElement, "");
-  haDialogElement.close();
-  deleteHaDialogElement.showModal();
-});
-deleteHaCloseButtonElement.addEventListener("click", () => deleteHaDialogElement.close());
-deleteHaCancelButtonElement.addEventListener("click", () => deleteHaDialogElement.close());
-deleteHaDialogElement.addEventListener("click", deleteHaBackdropEvent => {
-  if (deleteHaBackdropEvent.target === deleteHaDialogElement) {
-    deleteHaDialogElement.close();
-  }
-});
-deleteHaFormElement.addEventListener("submit", async deleteHaSubmitEvent => {
-  deleteHaSubmitEvent.preventDefault();
-  if (String(new FormData(deleteHaFormElement).get("confirmation") || "").trim() !== "删除连接") {
-    setSettingsMessage(deleteHaMessageElement, "请输入“删除连接”确认。", "error");
-    return;
-  }
-  const deleteHaSubmitButton = deleteHaFormElement.querySelector('button[type="submit"]');
-  deleteHaSubmitButton.disabled = true;
-  setSettingsMessage(deleteHaMessageElement, "正在断开连接并清除同步目录…");
-  try {
-    await requestJson("/ha/connection", {
-      method: "DELETE"
-    });
-    deleteHaDialogElement.close();
-    haConnectionInfo = null;
-    haConnectionStatus = null;
-    isEditingHaConnection = false;
-    await refreshHaConnection({
-      preserveForm: false
-    });
-  } catch (deleteHaError) {
-    setSettingsMessage(deleteHaMessageElement, deleteHaError.message, "error");
-  } finally {
-    deleteHaSubmitButton.disabled = false;
-  }
-});
-projectNewButtonElement.addEventListener("click", async () => {
-  if (!guardUnsavedChanges()) {
-    openProjectDialog("create");
-  }
-});
-projectCloseButtonElement.addEventListener("click", () => projectDialogElement.close());
-projectCancelButtonElement.addEventListener("click", () => projectDialogElement.close());
-projectDialogElement.addEventListener("click", projectBackdropEvent => {
-  if (projectBackdropEvent.target === projectDialogElement) {
-    projectDialogElement.close();
-  }
-});
-projectCanvasWidthInputElement.addEventListener("input", () => {
-  syncLockedCanvasDimension("width");
-  renderAspectRatio();
-});
-projectCanvasHeightInputElement.addEventListener("input", () => {
-  syncLockedCanvasDimension("height");
-  renderAspectRatio();
-});
-projectAspectLockButtonElement.addEventListener("click", () => {
-  if (!["create", "resize"].includes(projectDialogMode)) {
-    return;
-  }
-  const inputWidthValue = Number(projectCanvasWidthInputElement.value);
-  const inputHeightValue = Number(projectCanvasHeightInputElement.value);
-  if (
-    !Number.isInteger(inputWidthValue) ||
-    !Number.isInteger(inputHeightValue) ||
-    inputWidthValue < 320 ||
-    inputWidthValue > 7680 ||
-    inputHeightValue < 240 ||
-    inputHeightValue > 4320
-  ) {
-    setSettingsMessage(projectMessageElement, "请先输入有效的宽度和高度后再锁定比例。", "error");
-    return;
-  }
-  isAspectLocked = !isAspectLocked;
-  if (isAspectLocked) {
-    lockedCanvasWidth = inputWidthValue;
-    lockedCanvasHeight = inputHeightValue;
-  }
-  setSettingsMessage(projectMessageElement, "");
-  syncAspectLockButton(false);
-});
-projectResizeWarningCloseButtonElement.addEventListener("click", () =>
-  settleCanvasResizeWarning(false)
-);
-projectResizeWarningCancelButtonElement.addEventListener("click", () =>
-  settleCanvasResizeWarning(false)
-);
-projectResizeWarningConfirmButtonElement.addEventListener("click", () =>
-  settleCanvasResizeWarning(true)
-);
-projectResizeWarningDialogElement.addEventListener("cancel", resizeWarningCancelEvent => {
-  resizeWarningCancelEvent.preventDefault();
-  settleCanvasResizeWarning(false);
-});
-projectFormElement.addEventListener("submit", async projectSubmitEvent => {
-  projectSubmitEvent.preventDefault();
-  const projectFormData = new FormData(projectFormElement);
-  const projectNameInput = String(projectFormData.get("name") || "").trim();
-  const formCanvasWidth = Number(projectFormData.get("canvasWidth"));
-  const formCanvasHeight = Number(projectFormData.get("canvasHeight"));
-  const lockContentChecked =
-    projectDialogMode === "resize" && projectContentLockCheckboxElement.checked;
-  if (projectDialogMode === "resize" && lockContentChecked) {
-    const currentCanvasWidth = Number(activeProject?.document?.canvas?.width || 2778);
-    const currentCanvasHeight = Number(activeProject?.document?.canvas?.height || 1940);
-    const outsideComponentCount =
-      formCanvasWidth !== currentCanvasWidth || formCanvasHeight !== currentCanvasHeight
-        ? // 先在「已按 lockContent 预演过」的文档上统计：外框尺寸与最终落盘的
-          // 完全一致，铺满型 3D 也就不会被误判成越界。
-          countComponentsOutsideCanvas(
-            resizeDashboardDocument(
-              activeProject.document,
-              formCanvasWidth,
-              formCanvasHeight,
-              {
-                lockContent: true
-              }
-            ),
-            formCanvasWidth,
-            formCanvasHeight
-          )
-        : 0;
-    if (
-      outsideComponentCount > 0 &&
-      !(await confirmCanvasResize(outsideComponentCount, formCanvasWidth, formCanvasHeight))
-    ) {
-      return;
-    }
-  }
-  projectSubmitButtonElement.disabled = true;
-  setSettingsMessage(
-    projectMessageElement,
-    projectDialogMode === "resize"
-      ? "正在调整整个仪表盘…"
-      : projectDialogMode === "edit"
-        ? "正在保存仪表盘名称…"
-        : "正在创建空白仪表盘…"
-  );
-  try {
-    if (projectDialogMode === "resize") {
-      const resizedDocument = resizeDashboardDocument(
-        activeProject.document,
-        formCanvasWidth,
-        formCanvasHeight,
-        {
-          lockContent: lockContentChecked
-        }
-      );
-      resizedDocument.name = projectNameInput;
-      await applyDocumentChange(resizedDocument);
-      projectDialogElement.close();
-    } else if (projectDialogMode === "edit") {
-      const renamedDocument = clone(activeProject.document);
-      renamedDocument.name = projectNameInput;
-      await applyDocumentChange(renamedDocument);
-      projectDialogElement.close();
-    } else {
-      const createProjectPayload = {
-        name: projectNameInput,
-        canvasWidth: formCanvasWidth,
-        canvasHeight: formCanvasHeight
-      };
-      const createdProject = await requestJson("/projects", {
-        method: "POST",
-        body: JSON.stringify(createProjectPayload)
-      });
-      projectDialogElement.close();
-      await loadProjects(createdProject.id);
-    }
-  } catch (projectDialogError) {
-    setSettingsMessage(projectMessageElement, projectDialogError.message, "error");
-  } finally {
-    projectSubmitButtonElement.disabled = false;
-  }
-});
-projectActionsButtonElement.addEventListener("click", () => {
-  const menuWasHidden = projectActionsMenuElement.hidden;
-  closeCustomSelectMenu();
-  closeProjectActionsMenu();
-  closePageActionsMenu();
-  projectActionsMenuElement.hidden = !menuWasHidden;
-  projectActionsButtonElement.setAttribute("aria-expanded", String(menuWasHidden));
-});
-projectFloorplanOpenButtonElement.addEventListener("click", () => {
-  if (!guardUnsavedChanges()) {
-    window.location.assign("/3d-studio");
-  }
-});
-projectActionsMenuElement.addEventListener("click", async projectActionsClickEvent => {
-  const projectAction =
-    projectActionsClickEvent.target.closest("[data-project-action]")?.dataset.projectAction;
-  if (!!projectAction && !!activeProject && (closeProjectActionsMenu(), !guardUnsavedChanges())) {
-    if (projectAction === "edit") {
-      openProjectDialog("edit");
-      return;
-    }
-    if (projectAction === "resize") {
-      openProjectDialog("resize");
-      return;
-    }
-    if (projectAction === "duplicate") {
-      const sourceProjectName = activeProject.document.name;
-      const existingProjectNames = new Set(
-        projects.map(projectNameCandidate => projectNameCandidate.name)
-      );
-      let copyName = sourceProjectName + " 副本";
-      let copyIndex = 2;
-      while (existingProjectNames.has(copyName)) {
-        copyName = sourceProjectName + " 副本 " + copyIndex++;
-      }
-      try {
-        const duplicatedProject = await requestJson(
-          "/projects/" + activeProject.projectId + "/duplicate",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              name: copyName
-            })
-          }
-        );
-        await loadProjects(duplicatedProject.id);
-      } catch (duplicateProjectError) {
-        handleOperationError(duplicateProjectError);
-      }
-      return;
-    }
-    if (projectAction === "delete") {
-      const projectToDelete = projects.find(
-        deleteCandidateProject => deleteCandidateProject.id === activeProject.projectId
-      );
-      if (!projectToDelete) {
-        return;
-      }
-      deleteProjectFormElement.reset();
-      deleteProjectNameElement.textContent = "“" + projectToDelete.name + "”";
-      deleteProjectDialogElement.dataset.projectId = projectToDelete.id;
-      deleteProjectDialogElement.dataset.projectName = projectToDelete.name;
-      setSettingsMessage(deleteProjectMessageElement, "");
-      deleteProjectDialogElement.showModal();
-    }
-  }
-});
-deleteProjectCloseButtonElement.addEventListener("click", () => deleteProjectDialogElement.close());
-deleteProjectCancelButtonElement.addEventListener("click", () =>
-  deleteProjectDialogElement.close()
-);
-deleteProjectDialogElement.addEventListener("click", deleteProjectBackdropEvent => {
-  if (deleteProjectBackdropEvent.target === deleteProjectDialogElement) {
-    deleteProjectDialogElement.close();
-  }
-});
-deleteProjectFormElement.addEventListener("submit", async deleteProjectSubmitEvent => {
-  deleteProjectSubmitEvent.preventDefault();
-  const deleteProjectSubmitButton = deleteProjectFormElement.querySelector('button[type="submit"]');
-  const deleteProjectConfirmText = String(
-    new FormData(deleteProjectFormElement).get("confirmation") || ""
-  );
-  const deleteProjectTargetId = deleteProjectDialogElement.dataset.projectId;
-  const deleteProjectTargetName = deleteProjectDialogElement.dataset.projectName;
-  if (deleteProjectConfirmText !== deleteProjectTargetName) {
-    setSettingsMessage(
-      deleteProjectMessageElement,
-      "请输入与项目名称完全一致的确认文字。",
-      "error"
-    );
-    return;
-  }
-  deleteProjectSubmitButton.disabled = true;
-  setSettingsMessage(deleteProjectMessageElement, "正在删除项目和草稿…");
-  try {
-    await requestJson("/projects/" + deleteProjectTargetId, {
-      method: "DELETE",
-      body: JSON.stringify({
-        confirmation: deleteProjectConfirmText
-      })
-    });
-    discardRecoverySnapshot(deleteProjectTargetId);
-    deleteProjectDialogElement.close();
-    editorRenderer?.destroy();
-    editorRenderer = null;
-    activeProject = null;
-    clearComponentSelection();
-    await loadProjects();
-  } catch (deleteProjectError) {
-    setSettingsMessage(deleteProjectMessageElement, deleteProjectError.message, "error");
-  } finally {
-    deleteProjectSubmitButton.disabled = false;
-  }
-});
-pageNewButtonElement.addEventListener("click", () => openPageDialog("create"));
-pageCloseButtonElement.addEventListener("click", () => pageDialogElement.close());
-pageCancelButtonElement.addEventListener("click", () => pageDialogElement.close());
-pageDialogElement.addEventListener("click", pageBackdropEvent => {
-  if (pageBackdropEvent.target === pageDialogElement) {
-    pageDialogElement.close();
-  }
-});
-pageFormElement.addEventListener("submit", async pageSubmitEvent => {
-  pageSubmitEvent.preventDefault();
-  const pageNameInput = String(new FormData(pageFormElement).get("name") || "").trim();
-  const pageDraftDocument = clone(activeProject.document);
-  const pageSelectPath = pageSelectElement.value;
-  pageSubmitButtonElement.disabled = true;
-  setSettingsMessage(
-    pageMessageElement,
-    pageDialogMode === "rename" ? "正在保存页面名称…" : "正在创建页面…"
-  );
-  try {
-    if (pageDialogMode === "rename") {
-      const renamedPage = pageDraftDocument.pages.find(
-        pageCandidate => pageCandidate.path === pageSelectPath
-      );
-      renamedPage.name = pageNameInput;
-      await applyDocumentChange(pageDraftDocument, pageSelectPath);
-    } else {
-      const newPageObject = {
-        id: newId("page"),
-        name: pageNameInput,
-        path: uniquePagePath(activeProject?.document?.pages, pageNameInput),
-        sharedComponentIds: pageDraftDocument.sharedComponents.map(
-          sharedComponentCandidate => sharedComponentCandidate.id
-        ),
-        components: []
-      };
-      const insertIndex = Math.max(
-        0,
-        pageDraftDocument.pages.findIndex(existingPage => existingPage.path === pageSelectPath)
-      );
-      pageDraftDocument.pages.splice(insertIndex + 1, 0, newPageObject);
-      await applyDocumentChange(pageDraftDocument, newPageObject.path);
-    }
-    pageDialogElement.close();
-  } catch (pageDialogError) {
-    setSettingsMessage(pageMessageElement, pageDialogError.message, "error");
-  } finally {
-    pageSubmitButtonElement.disabled = false;
-  }
-});
-componentGroupRenameCloseButtonElement.addEventListener("click", () =>
-  componentGroupRenameDialogElement.close()
-);
-componentGroupRenameCancelButtonElement.addEventListener("click", () =>
-  componentGroupRenameDialogElement.close()
-);
-componentGroupRenameDialogElement.addEventListener("click", groupRenameBackdropEvent => {
-  if (groupRenameBackdropEvent.target === componentGroupRenameDialogElement) {
-    componentGroupRenameDialogElement.close();
-  }
-});
-componentGroupRenameFormElement.addEventListener("submit", groupRenameSubmitEvent => {
-  groupRenameSubmitEvent.preventDefault();
-  const groupComponentId = componentGroupRenameDialogElement.dataset.groupId || "";
-  const renamedGroupComponent = findComponent(activeProject?.document, groupComponentId)?.component;
-  if (!renamedGroupComponent || renamedGroupComponent.type !== "group") {
-    componentGroupRenameDialogElement.close();
-    return;
-  }
-  const currentGroupLabel = componentLabel(renamedGroupComponent);
-  const groupNameInput = String(new FormData(componentGroupRenameFormElement).get("name") || "")
-    .trim()
-    .slice(0, 128);
-  if (!groupNameInput) {
-    setSettingsMessage(componentGroupRenameMessageElement, "请输入组合名称。", "error");
-    return;
-  }
-  if (groupNameInput === currentGroupLabel) {
-    componentGroupRenameDialogElement.close();
-    return;
-  }
-  mutateDocument(groupRenameDraftDocument => {
-    const groupComponentInDraft = findComponent(
-      groupRenameDraftDocument,
-      groupComponentId
-    )?.component;
-    if (groupComponentInDraft?.type === "group") {
-      groupComponentInDraft.properties = {
-        ...(groupComponentInDraft.properties || {}),
-        label: groupNameInput
-      };
-    }
-  });
-  componentGroupRenameDialogElement.close();
-});
-pageActionsButtonElement.addEventListener("click", () => {
-  const pageMenuWasHidden = pageActionsMenuElement.hidden;
-  closeCustomSelectMenu();
-  closeProjectActionsMenu();
-  closePageActionsMenu();
-  pageActionsMenuElement.hidden = !pageMenuWasHidden;
-  pageActionsButtonElement.setAttribute("aria-expanded", String(pageMenuWasHidden));
-});
-pageActionsMenuElement.addEventListener("click", async pageActionsClickEvent => {
-  const pageAction = pageActionsClickEvent.target.closest("[data-page-action]")?.dataset.pageAction;
-  const pageForAction = currentPage();
-  if (!pageAction || !pageForAction || !activeProject) {
-    return;
-  }
-  closePageActionsMenu();
-  if (pageAction === "rename") {
-    openPageDialog("rename");
-    return;
-  }
-  const pageActionDocument = clone(activeProject.document);
-  const pageIndex = pageActionDocument.pages.findIndex(
-    pageIndexCandidate => pageIndexCandidate.path === pageForAction.path
-  );
-  if (pageAction === "default") {
-    if (pageActionDocument.defaultPagePath === pageForAction.path) {
-      return;
-    }
-    pageActionDocument.defaultPagePath = pageForAction.path;
-    try {
-      await applyDocumentChange(pageActionDocument, pageForAction.path);
-      await saveDraft();
-    } catch (defaultPageError) {
-      handleOperationError(defaultPageError);
-    }
-    return;
-  }
-  if (pageAction === "duplicate") {
-    const duplicatedPage = clonePageWithFreshIds(
-      pageForAction,
-      pageForAction.name + " 副本",
-      activeProject.document.pages
-    );
-    pageActionDocument.pages.splice(pageIndex + 1, 0, duplicatedPage);
-    try {
-      await applyDocumentChange(pageActionDocument, duplicatedPage.path);
-    } catch (duplicatePageError) {
-      handleOperationError(duplicatePageError);
-    }
-    return;
-  }
-  if (pageAction === "delete") {
-    deletePageDialogElement.dataset.pagePath = pageForAction.path;
-    deletePageNameElement.textContent = "“" + pageForAction.name + "”";
-    setSettingsMessage(deletePageMessageElement, "");
-    deletePageDialogElement.showModal();
-  }
-});
-deletePageCloseButtonElement.addEventListener("click", () => deletePageDialogElement.close());
-deletePageCancelButtonElement.addEventListener("click", () => deletePageDialogElement.close());
-deletePageDialogElement.addEventListener("click", deletePageBackdropEvent => {
-  if (deletePageBackdropEvent.target === deletePageDialogElement) {
-    deletePageDialogElement.close();
-  }
-});
-deletePageConfirmButtonElement.addEventListener("click", async () => {
-  const deletedPagePath = deletePageDialogElement.dataset.pagePath;
-  const deletePageDocument = clone(activeProject.document);
-  const deletedPageIndex = deletePageDocument.pages.findIndex(
-    deletedPageCandidate => deletedPageCandidate.path === deletedPagePath
-  );
-  if (deletedPageIndex < 0) {
-    setSettingsMessage(deletePageMessageElement, "页面已经不存在，请刷新后重试。", "error");
-    return;
-  }
-  const deletedPage = deletePageDocument.pages[deletedPageIndex];
-  deletePageDocument.pages.splice(deletedPageIndex, 1);
-  const fallbackPagePath =
-    deletePageDocument.pages[Math.max(0, deletedPageIndex - 1)]?.path ||
-    deletePageDocument.pages[0]?.path ||
-    null;
-  const fallbackPage = deletePageDocument.pages.find(
-    fallbackCandidate => fallbackCandidate.path === fallbackPagePath
-  );
-  if (deletePageDocument.defaultPagePath === deletedPagePath) {
-    deletePageDocument.defaultPagePath = fallbackPagePath;
-  }
-  /**
-   * 把组件树里所有指向被删页面的引用改写到回退页面：导航按钮的 properties.targetPage（同时改写主/副标题，
-   * 但只在标题还是默认值时才改，避免覆盖用户自定义文案），以及 tap/doubleTap/hold 三种动作里 type === "navigate" 的 target。
-   * 没有回退页面时（删掉的是最后一个页面）删除引用字段而非留一个空串目标，让渲染器走「未设置跳转」分支。
-   */
-  const remapPageReferences = componentList => {
-    for (const scannedComponent of componentList || []) {
-      scannedComponent.properties = {
-        ...(scannedComponent.properties || {})
-      };
-      if (
-        scannedComponent.type === "navigation-button" &&
-        scannedComponent.properties.targetPage === deletedPagePath
-      ) {
-        if (
-          !scannedComponent.properties.mainText ||
-          scannedComponent.properties.mainText === "页面导航" ||
-          scannedComponent.properties.mainText === deletedPage?.name
-        ) {
-          scannedComponent.properties.mainText = fallbackPage?.name || "页面导航";
-        }
-        const deletedPageLabelUpper = String(deletedPagePath).replace(/[-_]+/g, " ").toUpperCase();
-        if (
-          !scannedComponent.properties.secondaryText ||
-          scannedComponent.properties.secondaryText === "NAVIGATION" ||
-          scannedComponent.properties.secondaryText === deletedPageLabelUpper
-        ) {
-          scannedComponent.properties.secondaryText = fallbackPagePath
-            ? String(fallbackPagePath).replace(/[-_]+/g, " ").toUpperCase()
-            : "NAVIGATION";
-        }
-        if (fallbackPagePath) {
-          scannedComponent.properties.targetPage = fallbackPagePath;
-        } else {
-          delete scannedComponent.properties.targetPage;
-        }
-      }
-      scannedComponent.actions = {
-        ...(scannedComponent.actions || {})
-      };
-      for (const actionKind of ["tap", "doubleTap", "hold"]) {
-        if (
-          scannedComponent.actions[actionKind]?.type === "navigate" &&
-          scannedComponent.actions[actionKind]?.target === deletedPagePath
-        ) {
-          if (scannedComponent.type === "navigation-button" && fallbackPagePath) {
-            scannedComponent.actions[actionKind] = {
-              type: "navigate",
-              target: fallbackPagePath
-            };
-          } else {
-            delete scannedComponent.actions[actionKind];
-          }
-        }
-      }
-      remapPageReferences(scannedComponent.children);
-    }
-  };
-  remapPageReferences(deletePageDocument.sharedComponents);
-  for (const scannedPage of deletePageDocument.pages) {
-    remapPageReferences(scannedPage.components);
-  }
-  deletePageConfirmButtonElement.disabled = true;
-  setSettingsMessage(deletePageMessageElement, "正在删除页面…");
-  try {
-    await applyDocumentChange(deletePageDocument, fallbackPagePath);
-    deletePageDialogElement.close();
-  } catch (deletePageError) {
-    setSettingsMessage(deletePageMessageElement, deletePageError.message, "error");
-  } finally {
-    deletePageConfirmButtonElement.disabled = false;
-  }
-});
-componentContextMenuElement.addEventListener("click", contextMenuClickEvent => {
-  const menuComponentId = contextMenuComponentId;
-  const componentAction =
-    contextMenuClickEvent.target.closest("[data-component-action]")?.dataset.componentAction;
-  const labelColorElement = contextMenuClickEvent.target.closest("[data-label-color]");
-  if (!menuComponentId || (!componentAction && !labelColorElement)) {
-    return;
-  }
-  const actionComponentIds = selectedComponentIds.has(menuComponentId)
-    ? [...selectedComponentIds]
-    : [menuComponentId];
-  closeComponentContextMenu();
-  if (componentAction === "copy") {
-    duplicateComponents(actionComponentIds, menuComponentId);
-    return;
-  }
-  if (componentAction === "group") {
-    groupSelectedComponents(actionComponentIds);
-    return;
-  }
-  if (componentAction === "ungroup") {
-    ungroupComponent(menuComponentId);
-    return;
-  }
-  if (componentAction === "rename-group") {
-    openGroupRenameDialog(menuComponentId);
-    return;
-  }
-  if (componentAction === "copy-to-page") {
-    openCopyComponentDialog(actionComponentIds);
-    return;
-  }
-  if (componentAction === "visibility") {
-    const visibilityFlags = actionComponentIds
-      .map(
-        scannedVisibilityId =>
-          findComponent(activeProject?.document, scannedVisibilityId)?.component
-      )
-      .filter(Boolean)
-      .map(scannedVisibilityComponent => scannedVisibilityComponent.style?.visible !== false);
-    if (
-      visibilityFlags.length !== actionComponentIds.length ||
-      !visibilityFlags.length ||
-      !visibilityFlags.every(visibilityFlag => visibilityFlag === visibilityFlags[0])
-    ) {
-      return;
-    }
-    setComponentsVisibility(actionComponentIds, !visibilityFlags[0]);
-    return;
-  }
-  if (componentAction === "delete") {
-    openDeleteComponentDialog(actionComponentIds);
-    return;
-  }
-  if (labelColorElement) {
-    setComponentsLabelColor(actionComponentIds, labelColorElement.dataset.labelColor);
-  }
-});
-deleteComponentCloseButtonElement.addEventListener("click", () =>
-  deleteComponentDialogElement.close()
-);
-deleteComponentCancelButtonElement.addEventListener("click", () =>
-  deleteComponentDialogElement.close()
-);
-deleteComponentDialogElement.addEventListener("click", deleteComponentBackdropEvent => {
-  if (deleteComponentBackdropEvent.target === deleteComponentDialogElement) {
-    deleteComponentDialogElement.close();
-  }
-});
-copyComponentPageCloseButtonElement.addEventListener("click", () =>
-  copyComponentPageDialogElement.close()
-);
-copyComponentPageCancelButtonElement.addEventListener("click", () =>
-  copyComponentPageDialogElement.close()
-);
-copyComponentPageDialogElement.addEventListener("click", copyPageBackdropEvent => {
-  if (copyPageBackdropEvent.target === copyComponentPageDialogElement) {
-    copyComponentPageDialogElement.close();
-  }
-});
-copyComponentSuccessStayButtonElement.addEventListener("click", () => {
-  copySuccessNavigationTarget = null;
-  copyComponentSuccessDialogElement.close();
-});
-copyComponentSuccessGoButtonElement.addEventListener("click", () => {
-  handleCopySuccessConfirm().catch(handleOperationError);
-});
-copyComponentSuccessDialogElement.addEventListener("click", copySuccessBackdropEvent => {
-  if (copySuccessBackdropEvent.target === copyComponentSuccessDialogElement) {
-    copySuccessNavigationTarget = null;
-    copyComponentSuccessDialogElement.close();
-  }
-});
-copyComponentPageScopeSelectElement.addEventListener("change", () => {
-  renderCopyComponentDialog();
-});
-copyComponentPageProjectSelectElement.addEventListener("change", () => {
-  if (copyComponentPageScopeSelectElement.value === "other") {
-    renderCopyComponentDialog();
-  }
-});
-copyComponentPageFormElement.addEventListener("submit", async copyComponentSubmitEvent => {
-  copyComponentSubmitEvent.preventDefault();
-  let componentIdsToCopy = [];
-  try {
-    componentIdsToCopy = JSON.parse(copyComponentPageDialogElement.dataset.componentIds || "[]");
-  } catch {
-    componentIdsToCopy = [];
-  }
-  const copyTargetValue = copyComponentPageTargetSelectElement.value;
-  const isCrossProjectCopy = copyComponentPageScopeSelectElement.value === "other";
-  if (!!activeProject && !!componentIdsToCopy.length && !!copyTargetValue) {
-    copyComponentPageSubmitButtonElement.disabled = true;
-    setSettingsMessage(copyComponentPageMessageElement, "正在复制控件…");
-    try {
-      if (isCrossProjectCopy) {
-        const copyTargetProjectId = copyComponentPageProjectSelectElement.value;
-        if (
-          !copyTargetProjectId ||
-          !copyTargetDraft ||
-          copyTargetDraft.projectId !== copyTargetProjectId
-        ) {
-          throw new Error("目标仪表盘尚未加载完成，请稍后重试。");
-        }
-        const targetProjectDraftDocument = clone(copyTargetDraft.document);
-        const copyScaleMode = copyComponentScaleOptionsElement.hidden
-          ? "none"
-          : copyComponentPageFormElement.elements.copyScaleMode.value;
-        let droppedActionCount = 0;
-        const copiedComponents = copyComponentsAcrossDocuments(
-          activeProject.document,
-          targetProjectDraftDocument,
-          componentIdsToCopy,
-          copyTargetValue,
-          {
-            cloneValue: clone,
-            createId: () => newId("component"),
-            componentLabel: componentLabel,
-            scaleMode: copyScaleMode,
-            onInvalidAction: () => {
-              droppedActionCount += 1;
-            }
-          }
-        );
-        if (!copiedComponents.length) {
-          throw new Error("目标页面或源控件已发生变化，请重新操作。");
-        }
-        const copyDraftResponse = await requestJson(
-          "/projects/" + encodeURIComponent(copyTargetProjectId) + "/draft",
-          {
-            method: "PUT",
-            body: JSON.stringify({
-              revision: copyTargetDraft.revision,
-              globalPopupRevision: copyTargetDraft.globalPopupRevision,
-              globalPopupsDirty: false,
-              document: targetProjectDraftDocument
-            })
-          }
-        );
-        copyTargetDraft = copyDraftResponse;
-        const copyTargetProject = projects.find(
-          copyTargetCandidate => copyTargetCandidate.id === copyTargetProjectId
-        );
-        if (copyTargetProject) {
-          copyTargetProject.draftRevision = copyDraftResponse.revision;
-        }
-        const copyTargetProjectName = copyTargetProject?.name || "目标仪表盘";
-        const copyTargetPageLabel =
-          copyComponentPageTargetSelectElement.selectedOptions[0]?.textContent || "目标区域";
-        const cleanupNotice = droppedActionCount
-          ? "（已清理 " + droppedActionCount + " 个目标仪表盘不存在的跳转或弹窗动作）"
-          : "";
-        copyComponentPageDialogElement.close();
-        showCopySuccessDialog(
-          "已复制 " +
-            copiedComponents.length +
-            " 个控件到“" +
-            copyTargetProjectName +
-            "”的“" +
-            copyTargetPageLabel +
-            "”，并已保存" +
-            cleanupNotice +
-            "。",
-          {
-            projectId: copyTargetProjectId,
-            pagePath:
-              copyTargetValue === "shared"
-                ? copyTargetDraft.document.pages?.[0]?.path
-                : copyTargetValue.replace(/^page:/, ""),
-            scope: copyTargetValue === "shared" ? "shared" : "page"
-          }
-        );
-        return;
-      }
-      const localDraftDocument = clone(activeProject.document);
-      const copiedLocalComponents = copyComponentsToTarget(
-        localDraftDocument,
-        componentIdsToCopy,
-        copyTargetValue,
-        {
-          cloneValue: clone,
-          createId: () => newId("component"),
-          componentLabel: componentLabel
-        }
-      );
-      if (!copiedLocalComponents.length) {
-        throw new Error("目标页面或源控件已发生变化，请重新操作。");
-      }
-      selectedComponentId = copiedLocalComponents[0].id;
-      selectedComponentIds = new Set(
-        copiedLocalComponents.map(copiedComponentItem => copiedComponentItem.id)
-      );
-      selectionAnchorComponentId = copiedLocalComponents[0].id;
-      const localCopyPagePath =
-        copyTargetValue === "shared"
-          ? pageSelectElement.value
-          : copyTargetValue.replace(/^page:/, "");
-      const localCopyTargetLabel =
-        copyComponentPageTargetSelectElement.selectedOptions[0]?.textContent || "目标区域";
-      await applyDocumentChange(localDraftDocument, localCopyPagePath);
-      copyComponentPageDialogElement.close();
-      showCopySuccessDialog(
-        "已复制 " +
-          copiedLocalComponents.length +
-          " 个控件到“" +
-          localCopyTargetLabel +
-          "”，并已保存。",
-        {
-          projectId: activeProject.projectId,
-          pagePath: localCopyPagePath,
-          scope: copyTargetValue === "shared" ? "shared" : "page"
-        }
-      );
-    } catch (copyComponentError) {
-      setSettingsMessage(copyComponentPageMessageElement, copyComponentError.message, "error");
-    } finally {
-      if (!isCrossProjectCopy || !copyComponentPageMessageElement.classList.contains("success")) {
-        copyComponentPageSubmitButtonElement.disabled = false;
-      }
-    }
-  }
-});
-deleteComponentConfirmButtonElement.addEventListener("click", () => {
-  let pendingDeleteComponentIds = [];
-  try {
-    pendingDeleteComponentIds = JSON.parse(
-      deleteComponentDialogElement.dataset.componentIds || "[]"
-    );
-  } catch {
-    pendingDeleteComponentIds = [];
-  }
-  if (!pendingDeleteComponentIds.length) {
-    return;
-  }
-  deleteComponentDialogElement.close();
-  const deleteIdSet = new Set(pendingDeleteComponentIds);
-  selectedComponentIds = new Set(
-    [...selectedComponentIds].filter(
-      selectedComponentIdCandidate => !deleteIdSet.has(selectedComponentIdCandidate)
-    )
-  );
-  if (deleteIdSet.has(selectedComponentId)) {
-    selectedComponentId = selectedComponentIds.values().next().value || null;
-  }
-  if (deleteIdSet.has(selectionAnchorComponentId)) {
-    selectionAnchorComponentId = selectedComponentId;
-  }
-  mutateDocument(deleteDraftDocument => {
-    for (const deletedComponentId of pendingDeleteComponentIds) {
-      removeComponent(deleteDraftDocument, deletedComponentId);
-    }
-  });
-});
-imageInspectorFormElement.addEventListener("submit", imageInspectorSubmitEvent =>
-  imageInspectorSubmitEvent.preventDefault()
-);
-iconButtonEffectInspectorFormElement.addEventListener(
-  "submit",
-  iconButtonEffectInspectorSubmitEvent => iconButtonEffectInspectorSubmitEvent.preventDefault()
-);
-titleButtonInspectorFormElement.addEventListener("submit", titleButtonInspectorSubmitEvent =>
-  titleButtonInspectorSubmitEvent.preventDefault()
-);
-lightStatisticsInspectorFormElement.addEventListener(
-  "submit",
-  lightStatisticsInspectorSubmitEvent => lightStatisticsInspectorSubmitEvent.preventDefault()
-);
-iconButtonInspectorFormElement.addEventListener("submit", iconButtonInspectorSubmitEvent =>
-  iconButtonInspectorSubmitEvent.preventDefault()
-);
-vacuumMapInspectorFormElement.addEventListener("submit", vacuumMapInspectorSubmitEvent =>
-  vacuumMapInspectorSubmitEvent.preventDefault()
-);
-cameraInspectorFormElement.addEventListener("submit", cameraInspectorSubmitEvent =>
-  cameraInspectorSubmitEvent.preventDefault()
-);
-airConditionerInspectorFormElement.addEventListener("submit", airConditionerInspectorSubmitEvent =>
-  airConditionerInspectorSubmitEvent.preventDefault()
-);
-timeInspectorFormElement.addEventListener("submit", timeInspectorSubmitEvent =>
-  timeInspectorSubmitEvent.preventDefault()
-);
-dateInspectorFormElement.addEventListener("submit", dateInspectorSubmitEvent =>
-  dateInspectorSubmitEvent.preventDefault()
-);
-weatherInspectorFormElement.addEventListener("submit", weatherInspectorSubmitEvent =>
-  weatherInspectorSubmitEvent.preventDefault()
-);
-lineChartInspectorFormElement.addEventListener("submit", lineChartInspectorSubmitEvent =>
-  lineChartInspectorSubmitEvent.preventDefault()
-);
-panelFrameInspectorFormElement.addEventListener("submit", panelFrameInspectorSubmitEvent =>
-  panelFrameInspectorSubmitEvent.preventDefault()
-);
-navigationInspectorFormElement.addEventListener("submit", navigationInspectorSubmitEvent =>
-  navigationInspectorSubmitEvent.preventDefault()
-);
+bindLicenseSection();
+
+bindProjectSection();
+
+bindDialogSection();
+
 const textInputConfigsByElement = new Map([
   [
     imageLabelTextInputElement,
@@ -12786,425 +11697,8 @@ for (const actionControlNode of document.querySelectorAll(".component-action-con
     }
   });
 }
-document.addEventListener("click", documentClickEvent => {
-  const entityPickerButton = documentClickEvent.target.closest("[data-popup-entity-button]");
-  if (entityPickerButton) {
-    const entityTriggerHost = entityPickerButton.closest("[data-action-trigger]");
-    const entityOptionsMenuElement = entityTriggerHost?.querySelector("[data-popup-entity-menu]");
-    if (!entityTriggerHost || !entityOptionsMenuElement) {
-      return;
-    }
-    const entityMenuWasHidden = entityOptionsMenuElement.hidden;
-    closePopupEntityMenus(entityMenuWasHidden ? entityTriggerHost : null);
-    entityOptionsMenuElement.hidden = !entityMenuWasHidden;
-    entityPickerButton.setAttribute("aria-expanded", String(entityMenuWasHidden));
-    if (entityMenuWasHidden) {
-      const entitySearchInput = entityTriggerHost.querySelector("[data-popup-entity-search]");
-      entitySearchInput.value = "";
-      renderPopupEntityOptions(entityTriggerHost, "");
-      positionPopupEntityMenu(entityTriggerHost);
-      window.requestAnimationFrame(() =>
-        entitySearchInput.focus({
-          preventScroll: true
-        })
-      );
-    }
-    return;
-  }
-  const popupActionEntityOption = documentClickEvent.target.closest(
-    "[data-popup-action-entity-id]"
-  );
-  if (!popupActionEntityOption) {
-    return;
-  }
-  const entityActionTriggerHost = popupActionEntityOption.closest("[data-action-trigger]");
-  const popupEntityIdInput = entityActionTriggerHost?.querySelector("[data-popup-entity]");
-  if (!!entityActionTriggerHost && !!popupEntityIdInput) {
-    popupEntityIdInput.value = popupActionEntityOption.dataset.popupActionEntityId;
-    syncPopupEntityButton(entityActionTriggerHost);
-    closePopupEntityMenus();
-    popupEntityIdInput.dispatchEvent(
-      new Event("change", {
-        bubbles: true
-      })
-    );
-  }
-});
-document.addEventListener("input", documentInputEvent => {
-  const entitySearchField = documentInputEvent.target.closest("[data-popup-entity-search]");
-  const searchTriggerHost = entitySearchField?.closest("[data-action-trigger]");
-  if (!!entitySearchField && !!searchTriggerHost) {
-    renderPopupEntityOptions(searchTriggerHost, entitySearchField.value);
-    positionPopupEntityMenu(searchTriggerHost);
-  }
-});
-iconButtonPreviewDetailsButtonElement.addEventListener("click", () => {
-  const previewIconComponent = selectedComponent();
-  const previewIconEntityId = previewIconComponent?.bindings?.entity?.entityId || "";
-  if (previewIconComponent?.type === "icon-button" && !!previewIconEntityId) {
-    try {
-      ensureEditorRenderer().showEntityDetails(previewIconComponent, {
-        preview: true
-      });
-    } catch (iconPreviewError) {
-      handleOperationError(iconPreviewError);
-    }
-  }
-});
-airConditionerPreviewDetailsButtonElement.addEventListener("click", () => {
-  const previewAirConditioner = selectedComponent();
-  const previewAcEntityId = previewAirConditioner?.bindings?.entity?.entityId || "";
-  if (previewAirConditioner?.type === "air-conditioner" && !!previewAcEntityId) {
-    try {
-      ensureEditorRenderer().showEntityDetails(previewAirConditioner, {
-        preview: true
-      });
-    } catch (acPreviewError) {
-      handleOperationError(acPreviewError);
-    }
-  }
-});
-imageLayoutOptionsElement.addEventListener("click", imageLayoutClickEvent => {
-  const imageLayoutOption = imageLayoutClickEvent.target.closest("[data-image-layout]");
-  const layoutComponentId = selectedComponentId;
-  if (!imageLayoutOption || !layoutComponentId) {
-    return;
-  }
-  const requestedLayout = imageLayoutOption.dataset.imageLayout === "fill" ? "fill" : "free";
-  const layoutComponent = selectedComponent();
-  const currentLayout = layoutComponent?.properties?.layoutMode === "fill" ? "fill" : "free";
-  if (!!layoutComponent && layoutComponent.type === "image" && currentLayout !== requestedLayout) {
-    mutateDocument(layoutDraftDocument => {
-      const layoutComponentInDraft = findComponent(
-        layoutDraftDocument,
-        layoutComponentId
-      )?.component;
-      if (!layoutComponentInDraft || layoutComponentInDraft.type !== "image") {
-        return;
-      }
-      layoutComponentInDraft.properties = {
-        ...(layoutComponentInDraft.properties || {}),
-        fit: "contain"
-      };
-      layoutComponentInDraft.style = {
-        ...(layoutComponentInDraft.style || {})
-      };
-      if (requestedLayout === "fill") {
-        layoutComponentInDraft.properties.freeLayout = {
-          position: clone(layoutComponentInDraft.position || {}),
-          scale: clampNumber(Number(layoutComponentInDraft.style.scale || 1), 0.01, 5)
-        };
-        layoutComponentInDraft.properties.layoutMode = "fill";
-        layoutComponentInDraft.position = {
-          ...(layoutComponentInDraft.position || {}),
-          x: 0,
-          y: 0,
-          width: Number(layoutDraftDocument.canvas?.width || 2778),
-          height: Number(layoutDraftDocument.canvas?.height || 1940),
-          rotation: 0
-        };
-        layoutComponentInDraft.style.scale = 1;
-        return;
-      }
-      const savedFreeLayout = layoutComponentInDraft.properties.freeLayout;
-      layoutComponentInDraft.properties.layoutMode = "free";
-      if (savedFreeLayout?.position) {
-        layoutComponentInDraft.position = clone(savedFreeLayout.position);
-        layoutComponentInDraft.style.scale = clampNumber(
-          Number(savedFreeLayout.scale || 1),
-          0.01,
-          5
-        );
-      } else {
-        const naturalImageWidth = Number(
-          layoutComponentInDraft.properties.naturalWidth ||
-            layoutComponentInDraft.position?.width ||
-            100
-        );
-        const naturalImageHeight = Number(
-          layoutComponentInDraft.properties.naturalHeight ||
-            layoutComponentInDraft.position?.height ||
-            100
-        );
-        const imageCanvasWidth = Number(layoutDraftDocument.canvas?.width || 2778);
-        const imageCanvasHeight = Number(layoutDraftDocument.canvas?.height || 1940);
-        layoutComponentInDraft.position = {
-          ...(layoutComponentInDraft.position || {}),
-          x: (imageCanvasWidth - naturalImageWidth) / 2,
-          y: (imageCanvasHeight - naturalImageHeight) / 2,
-          width: naturalImageWidth,
-          height: naturalImageHeight,
-          rotation: 0
-        };
-        layoutComponentInDraft.style.scale = 1;
-      }
-      delete layoutComponentInDraft.properties.freeLayout;
-    });
-  }
-});
-imageInspectorFormElement.addEventListener("input", imageInspectorInputEvent => {
-  const inspectedImage = selectedComponent();
-  if (!inspectedImage || inspectedImage.type !== "image") {
-    return;
-  }
-  const editedFieldInput = imageInspectorInputEvent.target;
-  if (String(editedFieldInput.value).trim() === "") {
-    return;
-  }
-  const fieldNumberValue = Number(editedFieldInput.value);
-  if (!Number.isFinite(fieldNumberValue)) {
-    return;
-  }
-  const canvasPixelWidth = Number(activeProject.document.canvas.width || 2778);
-  const canvasPixelHeight = Number(activeProject.document.canvas.height || 1940);
-  const imagePositionWidth = Number(inspectedImage.position?.width || 100);
-  const imagePositionHeight = Number(inspectedImage.position?.height || 100);
-  if (editedFieldInput === imageOpacityInputElement) {
-    const clampedOpacity = clampNumber(fieldNumberValue, 0, 100);
-    editorRenderer?.previewComponentProperties(inspectedImage.id, {
-      opacity: clampedOpacity / 100
-    });
-  } else if (editedFieldInput === imageLeftInputElement) {
-    const leftPercent = clampNumber(fieldNumberValue, 0, 100);
-    editorRenderer?.previewComponentTransform(inspectedImage.id, {
-      x: (canvasPixelWidth * leftPercent) / 100 - imagePositionWidth / 2
-    });
-  } else if (editedFieldInput === imageTopInputElement) {
-    const topPercent = clampNumber(fieldNumberValue, 0, 100);
-    editorRenderer?.previewComponentTransform(inspectedImage.id, {
-      y: (canvasPixelHeight * topPercent) / 100 - imagePositionHeight / 2
-    });
-  } else if (editedFieldInput === imageScaleInputElement) {
-    const scalePercent = clampNumber(fieldNumberValue, 1, 500);
-    editorRenderer?.previewComponentTransform(inspectedImage.id, {
-      scale: scalePercent / 100
-    });
-  } else if (editedFieldInput === imageRotationInputElement) {
-    const rotationDeg = clampNumber(fieldNumberValue, -360, 360);
-    editorRenderer?.previewComponentTransform(inspectedImage.id, {
-      rotation: rotationDeg
-    });
-  }
-});
-imageInspectorFormElement.addEventListener("change", imageInspectorChangeEvent => {
-  const changedInputElement = imageInspectorChangeEvent.target;
-  const imageComponentId = selectedComponentId;
-  if (
-    !!imageComponentId &&
-    !![
-      imageLabelTextInputElement,
-      imageOpacityInputElement,
-      imageLeftInputElement,
-      imageTopInputElement,
-      imageScaleInputElement,
-      imageRotationInputElement
-    ].includes(changedInputElement)
-  ) {
-    if (
-      [
-        imageOpacityInputElement,
-        imageLeftInputElement,
-        imageTopInputElement,
-        imageScaleInputElement,
-        imageRotationInputElement
-      ].includes(changedInputElement) &&
-      (String(changedInputElement.value).trim() === "" ||
-        !Number.isFinite(Number(changedInputElement.value)))
-    ) {
-      syncInspector();
-      return;
-    }
-    mutateDocument(imageChangeDraftDocument => {
-      const imageComponentInDraft = findComponent(
-        imageChangeDraftDocument,
-        imageComponentId
-      )?.component;
-      if (!imageComponentInDraft || imageComponentInDraft.type !== "image") {
-        return;
-      }
-      imageComponentInDraft.properties = {
-        ...(imageComponentInDraft.properties || {})
-      };
-      imageComponentInDraft.position = {
-        ...(imageComponentInDraft.position || {})
-      };
-      imageComponentInDraft.style = {
-        ...(imageComponentInDraft.style || {})
-      };
-      imageComponentInDraft.bindings = {
-        ...(imageComponentInDraft.bindings || {})
-      };
-      imageComponentInDraft.actions = {
-        ...(imageComponentInDraft.actions || {})
-      };
-      imageComponentInDraft.properties.fit = "contain";
-      const canvasWidthForImage = Number(imageChangeDraftDocument.canvas.width || 2778);
-      const canvasHeightForImage = Number(imageChangeDraftDocument.canvas.height || 1940);
-      const imageInputNumber = Number(changedInputElement.value);
-      if (changedInputElement === imageLabelTextInputElement) {
-        imageComponentInDraft.properties.label = changedInputElement.value.trim();
-      } else if (changedInputElement === imageOpacityInputElement) {
-        imageComponentInDraft.properties.opacity = clampNumber(imageInputNumber, 0, 100) / 100;
-      } else if (changedInputElement === imageLeftInputElement) {
-        imageComponentInDraft.position.x =
-          (canvasWidthForImage * clampNumber(imageInputNumber, 0, 100)) / 100 -
-          Number(imageComponentInDraft.position.width || 100) / 2;
-      } else if (changedInputElement === imageTopInputElement) {
-        imageComponentInDraft.position.y =
-          (canvasHeightForImage * clampNumber(imageInputNumber, 0, 100)) / 100 -
-          Number(imageComponentInDraft.position.height || 100) / 2;
-      } else if (changedInputElement === imageScaleInputElement) {
-        imageComponentInDraft.style.scale = clampNumber(imageInputNumber, 1, 500) / 100;
-      } else if (changedInputElement === imageRotationInputElement) {
-        setComponentsRotation(
-          imageChangeDraftDocument,
-          imageComponentId,
-          clampNumber(imageInputNumber, -360, 360)
-        );
-      }
-    });
-  }
-});
-const floorplanDiagramInputSet = new Set([
-  floorplanAutoDiagramLeftInputElement,
-  floorplanAutoDiagramTopInputElement,
-  floorplanAutoDiagramWidthInputElement,
-  floorplanAutoDiagramHeightInputElement,
-  floorplanAutoDiagramScaleInputElement,
-  floorplanAutoDiagramRotationInputElement
-]);
-floorplanAutoDiagramInspectorFormElement.addEventListener("input", floorplanInputEvent => {
-  const inspectedDiagram = selectedComponent();
-  const diagramFieldInput = floorplanInputEvent.target;
-  if (
-    !inspectedDiagram ||
-    inspectedDiagram.type !== "floorplan-auto-diagram" ||
-    !floorplanDiagramInputSet.has(diagramFieldInput)
-  ) {
-    return;
-  }
-  const diagramNumberValue = Number(diagramFieldInput.value);
-  if (!Number.isFinite(diagramNumberValue)) {
-    return;
-  }
-  const diagramCanvasWidth = Number(activeProject.document.canvas.width || 2778);
-  const diagramCanvasHeight = Number(activeProject.document.canvas.height || 1940);
-  const diagramPositionWidth = Number(inspectedDiagram.position?.width || 100);
-  const diagramPositionHeight = Number(inspectedDiagram.position?.height || 100);
-  if (diagramFieldInput === floorplanAutoDiagramLeftInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
-      x:
-        (diagramCanvasWidth * clampNumber(diagramNumberValue, 0, 100)) / 100 -
-        diagramPositionWidth / 2
-    });
-  } else if (diagramFieldInput === floorplanAutoDiagramTopInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
-      y:
-        (diagramCanvasHeight * clampNumber(diagramNumberValue, 0, 100)) / 100 -
-        diagramPositionHeight / 2
-    });
-  } else if (diagramFieldInput === floorplanAutoDiagramWidthInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
-      width: (diagramCanvasWidth * clampNumber(diagramNumberValue, 0.1, 100)) / 100
-    });
-  } else if (diagramFieldInput === floorplanAutoDiagramHeightInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
-      height: (diagramCanvasHeight * clampNumber(diagramNumberValue, 0.1, 100)) / 100
-    });
-  } else if (diagramFieldInput === floorplanAutoDiagramScaleInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
-      scale: clampNumber(diagramNumberValue, 1, 500) / 100
-    });
-  } else if (diagramFieldInput === floorplanAutoDiagramRotationInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
-      rotation: clampNumber(diagramNumberValue, -360, 360)
-    });
-  }
-});
-floorplanAutoDiagramInspectorFormElement.addEventListener("change", floorplanChangeEvent => {
-  const changedDiagramInput = floorplanChangeEvent.target;
-  const diagramComponentId = selectedComponentId;
-  if (
-    !!diagramComponentId &&
-    !![
-      floorplanAutoDiagramLabelTextInputElement,
-      floorplanAutoDiagramFolderTextInputElement,
-      ...floorplanDiagramInputSet
-    ].includes(changedDiagramInput)
-  ) {
-    if (
-      floorplanDiagramInputSet.has(changedDiagramInput) &&
-      !Number.isFinite(Number(changedDiagramInput.value))
-    ) {
-      syncInspector();
-      return;
-    }
-    mutateDocument(diagramDraftDocument => {
-      const diagramComponent = findComponent(diagramDraftDocument, diagramComponentId)?.component;
-      if (!!diagramComponent && diagramComponent.type === "floorplan-auto-diagram") {
-        diagramComponent.properties = {
-          ...(diagramComponent.properties || {})
-        };
-        diagramComponent.position = {
-          ...(diagramComponent.position || {})
-        };
-        diagramComponent.style = {
-          ...(diagramComponent.style || {})
-        };
-        if (changedDiagramInput === floorplanAutoDiagramLabelTextInputElement) {
-          diagramComponent.properties.label = changedDiagramInput.value.trim();
-        } else if (changedDiagramInput === floorplanAutoDiagramFolderTextInputElement) {
-          diagramComponent.properties.exportFolder = changedDiagramInput.value.trim();
-        } else {
-          const diagramDocumentWidth = Number(diagramDraftDocument.canvas.width || 2778);
-          const diagramDocumentHeight = Number(diagramDraftDocument.canvas.height || 1940);
-          const diagramFieldValue = Number(changedDiagramInput.value);
-          if (changedDiagramInput === floorplanAutoDiagramLeftInputElement) {
-            diagramComponent.position.x =
-              (diagramDocumentWidth * clampNumber(diagramFieldValue, 0, 100)) / 100 -
-              Number(diagramComponent.position.width || 100) / 2;
-          } else if (changedDiagramInput === floorplanAutoDiagramTopInputElement) {
-            diagramComponent.position.y =
-              (diagramDocumentHeight * clampNumber(diagramFieldValue, 0, 100)) / 100 -
-              Number(diagramComponent.position.height || 100) / 2;
-          } else if (changedDiagramInput === floorplanAutoDiagramWidthInputElement) {
-            diagramComponent.position.width =
-              (diagramDocumentWidth * clampNumber(diagramFieldValue, 0.1, 100)) / 100;
-          } else if (changedDiagramInput === floorplanAutoDiagramHeightInputElement) {
-            diagramComponent.position.height =
-              (diagramDocumentHeight * clampNumber(diagramFieldValue, 0.1, 100)) / 100;
-          } else if (changedDiagramInput === floorplanAutoDiagramScaleInputElement) {
-            diagramComponent.style.scale = clampNumber(diagramFieldValue, 1, 500) / 100;
-          } else if (changedDiagramInput === floorplanAutoDiagramRotationInputElement) {
-            setComponentsRotation(
-              diagramDraftDocument,
-              diagramComponentId,
-              clampNumber(diagramFieldValue, -360, 360)
-            );
-          }
-        }
-      }
-    });
-  }
-});
-floorplanAutoDiagramLayoutElement.addEventListener("click", floorplanLayoutClickEvent => {
-  const floorplanLayoutOption = floorplanLayoutClickEvent.target.closest("[data-floorplan-layout]");
-  const floorplanComponentId = selectedComponentId;
-  if (!!floorplanLayoutOption && !!floorplanComponentId) {
-    mutateDocument(floorplanLayoutDraftDocument => {
-      const floorplanComponent = findComponent(
-        floorplanLayoutDraftDocument,
-        floorplanComponentId
-      )?.component;
-      if (floorplanComponent?.type === "floorplan-auto-diagram") {
-        floorplanComponent.properties = {
-          ...(floorplanComponent.properties || {}),
-          layoutMode: floorplanLayoutOption.dataset.floorplanLayout === "fill" ? "fill" : "free"
-        };
-      }
-    });
-  }
-});
+bindDocumentSection();
+
 /**
  * 向指定 3D 导图预览 iframe 发送相机指令。预览跑在 iframe 里，跨文档只能走 postMessage；
  * targetOrigin 固定用同源 window.location.origin，而不是通配的 "*"。
@@ -13283,539 +11777,8 @@ function reloadDiagramPreview(diagramPreviewElement) {
   diagramUrl.searchParams.set("auto-diagram-refresh", String(Date.now()));
   diagramPreviewElement.src = diagramUrl.toString();
 }
-window.addEventListener("pageshow", pageshowEvent => {
-  if (pageshowEvent.persisted) {
-    for (const restoredDiagramPreview of document.querySelectorAll(
-      ".hb-floorplan-auto-diagram-preview"
-    )) {
-      reloadDiagramPreview(restoredDiagramPreview);
-    }
-  }
-});
-floorplanAutoDiagramCameraViewElement.addEventListener("click", cameraViewClickEvent => {
-  const cameraViewOption = cameraViewClickEvent.target.closest("[data-floorplan-camera-view]");
-  const cameraViewComponentId = selectedComponentId;
-  if (!cameraViewOption || !cameraViewComponentId) {
-    return;
-  }
-  const requestedCameraView =
-    cameraViewOption.dataset.floorplanCameraView === "top" ? "top" : "free";
-  mutateDocument(cameraViewDraftDocument => {
-    const cameraViewComponent = findComponent(
-      cameraViewDraftDocument,
-      cameraViewComponentId
-    )?.component;
-    if (cameraViewComponent?.type === "floorplan-auto-diagram") {
-      cameraViewComponent.properties = {
-        ...(cameraViewComponent.properties || {}),
-        cameraView: requestedCameraView
-      };
-    }
-  });
-  postDiagramCameraCommand(cameraViewComponentId, "set-view", requestedCameraView);
-});
-floorplanAutoDiagramFloorSelectElement.addEventListener("change", () => {
-  const floorSelectComponentId = selectedComponentId;
-  const selectedFloorValue = String(floorplanAutoDiagramFloorSelectElement.value || "");
-  const floorSelectComponent = selectedComponent();
-  if (
-    !!floorSelectComponentId &&
-    !!selectedFloorValue &&
-    floorSelectComponent?.type === "floorplan-auto-diagram"
-  ) {
-    mutateDocument(floorSelectDraftDocument => {
-      const floorSelectComponentInDraft = findComponent(
-        floorSelectDraftDocument,
-        floorSelectComponentId
-      )?.component;
-      if (floorSelectComponentInDraft?.type === "floorplan-auto-diagram") {
-        floorSelectComponentInDraft.properties = {
-          ...(floorSelectComponentInDraft.properties || {}),
-          floorSelection: selectedFloorValue
-        };
-      }
-    });
-    postDiagramFloorCommand(floorSelectComponentId, selectedFloorValue);
-    postDiagramCameraCommand(floorSelectComponentId, "restore", {
-      view: floorSelectComponent.properties?.cameraView || "free",
-      mode: floorSelectComponent.properties?.cameraMode || "orthographic",
-      topRotation: Number(floorSelectComponent.properties?.cameraTopRotation || 0),
-      focalLength: Number(floorSelectComponent.properties?.cameraFocalLength || 50)
-    });
-  }
-});
-floorplanAutoDiagramCameraModeElement.addEventListener("click", cameraModeClickEvent => {
-  const cameraModeOption = cameraModeClickEvent.target.closest("[data-floorplan-camera-mode]");
-  const cameraModeComponentId = selectedComponentId;
-  if (!cameraModeOption || !cameraModeComponentId) {
-    return;
-  }
-  const requestedCameraMode =
-    cameraModeOption.dataset.floorplanCameraMode === "perspective" ? "perspective" : "orthographic";
-  mutateDocument(cameraModeDraftDocument => {
-    const cameraModeComponent = findComponent(
-      cameraModeDraftDocument,
-      cameraModeComponentId
-    )?.component;
-    if (cameraModeComponent?.type === "floorplan-auto-diagram") {
-      cameraModeComponent.properties = {
-        ...(cameraModeComponent.properties || {}),
-        cameraMode: requestedCameraMode
-      };
-    }
-  });
-  postDiagramCameraCommand(cameraModeComponentId, "set-mode", requestedCameraMode);
-});
-floorplanAutoDiagramFocalLengthInputElement.addEventListener("change", () => {
-  const focalLengthComponentId = selectedComponentId;
-  if (
-    !focalLengthComponentId ||
-    String(floorplanAutoDiagramFocalLengthInputElement.value).trim() === ""
-  ) {
-    return syncInspector();
-  }
-  const clampedFocalLength = clampNumber(
-    Number(floorplanAutoDiagramFocalLengthInputElement.value),
-    18,
-    120
-  );
-  mutateDocument(focalLengthDraftDocument => {
-    const focalLengthComponent = findComponent(
-      focalLengthDraftDocument,
-      focalLengthComponentId
-    )?.component;
-    if (focalLengthComponent?.type === "floorplan-auto-diagram") {
-      focalLengthComponent.properties = {
-        ...(focalLengthComponent.properties || {}),
-        cameraFocalLength: clampedFocalLength
-      };
-    }
-  });
-  postDiagramCameraCommand(focalLengthComponentId, "set-focal-length", clampedFocalLength);
-});
-floorplanAutoDiagramRotateTopButtonElement.addEventListener("click", () => {
-  const rotateTopComponentId = selectedComponentId;
-  if (rotateTopComponentId) {
-    mutateDocument(rotateTopDraftDocument => {
-      const rotateTopComponent = findComponent(
-        rotateTopDraftDocument,
-        rotateTopComponentId
-      )?.component;
-      if (rotateTopComponent?.type === "floorplan-auto-diagram") {
-        rotateTopComponent.properties = {
-          ...(rotateTopComponent.properties || {}),
-          cameraView: "top",
-          cameraTopRotation:
-            (Number(rotateTopComponent.properties?.cameraTopRotation || 0) + 90) % 360
-        };
-      }
-    });
-    postDiagramCameraCommand(rotateTopComponentId, "rotate-top");
-  }
-});
-/**
- * 找到某个户型图组件对应的预览 iframe。iframe 藏在组件 DOM 内部，用 CSS.escape 转义组件 ID 后再拼选择器，
- * 避免 ID 里的特殊字符把选择器写坏。默认参数取当前正在编辑光照的组件。
- */
-function findDiagramPreviewFrame(lightingComponentId = baseLightingComponentId) {
-  if (lightingComponentId) {
-    return document.querySelector(
-      '.hb-component[data-component-id="' +
-        CSS.escape(lightingComponentId) +
-        '"] .hb-floorplan-auto-diagram-preview'
-    );
-  } else {
-    return null;
-  }
-}
-/**
- * 向户型预览 iframe 下发「基础光照」命令。命令共有 request-state / preview / reset / save / cancel 几种；
- * payload 为空时不发送 lighting 字段，让 iframe 侧区分「不改光照只下命令」与「带新光照下发」。
- */
-function postBaseLightingCommand(lightingCommand, lightingPayload = null) {
-  const lightingFrame = findDiagramPreviewFrame();
-  if (lightingFrame?.contentWindow) {
-    lightingFrame.contentWindow.postMessage(
-      {
-        type: "homeos-floorplan-auto-diagram-base-lighting",
-        componentId: baseLightingComponentId,
-        command: lightingCommand,
-        ...(lightingPayload
-          ? {
-              lighting: lightingPayload
-            }
-          : {})
-      },
-      window.location.origin
-    );
-    return true;
-  } else {
-    return false;
-  }
-}
-/**
- * 把光照参数写进光照面板的各输入框并返回归一化结果。先归一化再回填，保证面板显示的值与真正下发给 iframe
- * 的一致。整数滑块（step === "5"）显示取整值，其余通道保留两位小数 —— 浮点运算会产生 0.30000000000000004
- * 这类尾数，直接回填会让输入框显示得很脏。
- */
-function applyBaseLightingToPanel(baseLighting) {
-  const normalizedLighting = normalizeBaseLighting(baseLighting);
-  for (const lightInputElement of floorplanBaseLightElements) {
-    const lightChannelValue = normalizedLighting[lightInputElement.dataset.floorplanBaseLight];
-    lightInputElement.value =
-      lightInputElement.step === "5"
-        ? String(Math.round(lightChannelValue))
-        : String(Number(lightChannelValue.toFixed(2)));
-  }
-  return normalizedLighting;
-}
-/**
- * 从光照面板的各输入框读出光照参数并归一化。输入框的通道名写在 data-floorplan-base-light 上，靠它组装对象，
- * 因此新增光照通道只要加 DOM 并登记进 floorplanBaseLightElements 即可。
- */
-function readBaseLightingFromPanel() {
-  const lightingInputValues = {};
-  for (const lightFieldElement of floorplanBaseLightElements) {
-    lightingInputValues[lightFieldElement.dataset.floorplanBaseLight] = Number(
-      lightFieldElement.value
-    );
-  }
-  return normalizeBaseLighting(lightingInputValues);
-}
-/**
- * 关闭基础光照面板并清空编辑态。cancelPreview 默认为 true：面板关闭意味着放弃未保存的调整，需要通知
- * iframe 还原到保存过的光照，否则预览会停留在临时值上。取消预览时同步下发 cancel 并清掉 baseLightingComponentId
- * 与拖拽状态，防止下次打开串到别的组件上。
- */
-function closeLightingPanel({ cancelPreview: cancelLightingPreview = true } = {}) {
-  if (!floorplanAutoLightingPanelElement.hidden) {
-    if (cancelLightingPreview) {
-      postBaseLightingCommand("cancel");
-    }
-    floorplanAutoLightingPanelElement.hidden = true;
-    floorplanAutoLightingPanelElement.setAttribute("aria-busy", "false");
-    baseLightingComponentId = "";
-    lightingPanelDragState = null;
-  }
-}
-/**
- * 打开基础光照面板并把该户型图切到「浏览」交互模式：必须切到 view，否则用户调光照时拖动鼠标会移动组件而不是旋转视角；
- * 同时把 iframe 的 is-position-mode 换成 is-view-mode，让内部 3D 端同步切换。面板默认靠右对齐，超出视口或太靠边就改为
- * 按 left/top 定位并夹到距边 8px 内（给面板阴影与圆角留量）。打开后先 request-state 拉取当前光照，等 iframe 回包再填充面板。
- */
-function openLightingPanel(lightingHostComponentId) {
-  const lightingPreviewFrame = findDiagramPreviewFrame(lightingHostComponentId);
-  if (!lightingHostComponentId || !lightingPreviewFrame?.contentWindow) {
-    return;
-  }
-  baseLightingComponentId = lightingHostComponentId;
-  lightingPreviewFrame.classList.remove("is-position-mode");
-  lightingPreviewFrame.classList.add("is-view-mode");
-  mutateDocument(interactionModeDraftDocument => {
-    const interactionModeComponent = findComponent(
-      interactionModeDraftDocument,
-      lightingHostComponentId
-    )?.component;
-    if (interactionModeComponent?.type === "floorplan-auto-diagram") {
-      interactionModeComponent.properties = {
-        ...(interactionModeComponent.properties || {}),
-        interactionMode: "view"
-      };
-    }
-  });
-  applyBaseLightingToPanel(baseLightingSettings);
-  floorplanAutoLightingStatusElement.textContent = "正在读取当前光照设置…";
-  floorplanAutoLightingPanelElement.hidden = false;
-  floorplanAutoLightingPanelElement.setAttribute("aria-busy", "true");
-  const lightingPanelRect = floorplanAutoLightingPanelElement.getBoundingClientRect();
-  if (
-    lightingPanelRect.right > window.innerWidth - 8 ||
-    lightingPanelRect.bottom > window.innerHeight - 8 ||
-    lightingPanelRect.left < 8 ||
-    lightingPanelRect.top < 8
-  ) {
-    floorplanAutoLightingPanelElement.style.right = "auto";
-    floorplanAutoLightingPanelElement.style.left =
-      clampNumber(
-        lightingPanelRect.left,
-        8,
-        Math.max(8, window.innerWidth - lightingPanelRect.width - 8)
-      ) + "px";
-    floorplanAutoLightingPanelElement.style.top =
-      clampNumber(
-        lightingPanelRect.top,
-        8,
-        Math.max(8, window.innerHeight - lightingPanelRect.height - 8)
-      ) + "px";
-  }
-  postBaseLightingCommand("request-state");
-}
-floorplanAutoDiagramOpenBaseLightingButtonElement.addEventListener("click", () => {
-  openLightingPanel(selectedComponentId);
-});
-for (const lightInputNode of floorplanBaseLightElements) {
-  lightInputNode.addEventListener("input", () => {
-    if (!floorplanAutoLightingPanelElement.hidden) {
-      floorplanAutoLightingStatusElement.textContent = "修改已实时预览，保存后同步到全部3D入口。";
-      postBaseLightingCommand("preview", readBaseLightingFromPanel());
-    }
-  });
-}
-floorplanAutoLightingResetButtonElement.addEventListener("click", () => {
-  applyBaseLightingToPanel(DEFAULT_BASE_LIGHTING);
-  floorplanAutoLightingStatusElement.textContent = "已预览默认光照，点击保存后生效。";
-  postBaseLightingCommand("reset");
-});
-floorplanAutoLightingSaveButtonElement.addEventListener("click", () => {
-  floorplanAutoLightingStatusElement.textContent = "正在保存并同步…";
-  floorplanAutoLightingPanelElement.setAttribute("aria-busy", "true");
-  postBaseLightingCommand("save", readBaseLightingFromPanel());
-});
-floorplanAutoLightingCloseButtonElement.addEventListener("click", () => closeLightingPanel());
-floorplanAutoLightingHandleElement.addEventListener("pointerdown", lightingDragEvent => {
-  if (lightingDragEvent.button !== 0 || lightingDragEvent.target.closest("button")) {
-    return;
-  }
-  const lightingPanelBounds = floorplanAutoLightingPanelElement.getBoundingClientRect();
-  lightingPanelDragState = {
-    pointerId: lightingDragEvent.pointerId,
-    startX: lightingDragEvent.clientX,
-    startY: lightingDragEvent.clientY,
-    startLeft: lightingPanelBounds.left,
-    startTop: lightingPanelBounds.top
-  };
-  capturePointer(floorplanAutoLightingHandleElement, lightingDragEvent.pointerId);
-});
-floorplanAutoLightingHandleElement.addEventListener("pointermove", lightingDragMoveEvent => {
-  if (
-    !lightingPanelDragState ||
-    lightingDragMoveEvent.pointerId !== lightingPanelDragState.pointerId
-  ) {
-    return;
-  }
-  lightingDragMoveEvent.preventDefault();
-  const movedPanelBounds = floorplanAutoLightingPanelElement.getBoundingClientRect();
-  const maxPanelLeft = Math.max(8, window.innerWidth - movedPanelBounds.width - 8);
-  const maxPanelTop = Math.max(8, window.innerHeight - movedPanelBounds.height - 8);
-  floorplanAutoLightingPanelElement.style.right = "auto";
-  floorplanAutoLightingPanelElement.style.left =
-    clampNumber(
-      lightingPanelDragState.startLeft +
-        lightingDragMoveEvent.clientX -
-        lightingPanelDragState.startX,
-      8,
-      maxPanelLeft
-    ) + "px";
-  floorplanAutoLightingPanelElement.style.top =
-    clampNumber(
-      lightingPanelDragState.startTop +
-        lightingDragMoveEvent.clientY -
-        lightingPanelDragState.startY,
-      8,
-      maxPanelTop
-    ) + "px";
-});
-/**
- * 结束光照面板拖拽，清空拖拽状态。同时挂到 pointerup 与 pointercancel 上：指针被系统夺走（如触控被取消）
- * 时也要复位，否则状态残留会让下次 pointermove 用旧的起点继续拖动。
- */
-const endLightingPanelDrag = dragEndEvent => {
-  if (!!lightingPanelDragState && dragEndEvent.pointerId === lightingPanelDragState.pointerId) {
-    lightingPanelDragState = null;
-  }
-};
-floorplanAutoLightingHandleElement.addEventListener("pointerup", endLightingPanelDrag);
-floorplanAutoLightingHandleElement.addEventListener("pointercancel", endLightingPanelDrag);
-/**
- * 关闭自动图示对话框并清掉挂在 dataset 上的临时状态。componentId 与 cancelRemovesComponent 用 dataset
- * 传递，是因为对话框 DOM 是复用的，必须在关闭时清空，否则下次打开会误用上一次的组件 ID。
- */
-function closeAutoDiagramDialog() {
-  if (floorplanAutoDiagramDialogElement.open) {
-    floorplanAutoDiagramDialogElement.close();
-  }
-  floorplanAutoDiagramDialogElement.dataset.componentId = "";
-  floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent = "false";
-  floorplanAutoDiagramGuideElement.hidden = false;
-}
-/**
- * 打开自动图示对话框并记录它正在编辑哪个组件。对话框 DOM 复用，所以组件 ID 与「取消时是否删除该组件」
- * 都暂存在 dataset 上，由 settleAutoDiagramDialog 在收尾时读取。cancelRemovesComponent 用于「刚新建就取消」
- * 的场景，避免留下一个空组件。
- */
-function openAutoDiagramDialog(
-  dialogComponentId,
-  { cancelRemovesComponent: cancelRemovesComponent = false } = {}
-) {
-  if (dialogComponentId) {
-    floorplanAutoDiagramDialogElement.dataset.componentId = dialogComponentId;
-    floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent =
-      String(cancelRemovesComponent);
-    floorplanAutoDiagramGuideElement.hidden = false;
-    if (!floorplanAutoDiagramDialogElement.open) {
-      floorplanAutoDiagramDialogElement.showModal();
-    }
-  }
-}
-/**
- * 收尾自动图示对话框：按需删除「新建后又被取消」的组件。先读出 dataset 再 closeAutoDiagramDialog
- * （它会把 dataset 清空），顺序不能反。删除时同步修正选中集与锚点，避免选中态指向已不存在的组件；
- * 最后走 mutateDocument 落盘，保证这次删除进入历史记录、可以撤销。
- */
-function settleAutoDiagramDialog() {
-  const pendingDialogComponentId = floorplanAutoDiagramDialogElement.dataset.componentId;
-  const shouldRemoveOnCancel =
-    floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent === "true";
-  closeAutoDiagramDialog();
-  if (!!shouldRemoveOnCancel && !!pendingDialogComponentId) {
-    selectedComponentIds.delete(pendingDialogComponentId);
-    if (selectedComponentId === pendingDialogComponentId) {
-      selectedComponentId = selectedComponentIds.values().next().value || null;
-    }
-    if (selectionAnchorComponentId === pendingDialogComponentId) {
-      selectionAnchorComponentId = selectedComponentId;
-    }
-    mutateDocument(cancelRemoveDraftDocument => {
-      removeComponent(cancelRemoveDraftDocument, pendingDialogComponentId);
-    });
-  }
-}
-floorplanAutoDiagramOpenStudioButtonElement.addEventListener("click", () => {
-  const diagramStudioComponent = selectedComponent();
-  if (diagramStudioComponent?.type !== "floorplan-auto-diagram") {
-    return;
-  }
-  if (
-    diagramStudioComponent.properties?.generated === true &&
-    diagramStudioComponent.properties?.previewing !== true
-  ) {
-    mutateDocument(previewingDraftDocument => {
-      const previewingComponent = findComponent(
-        previewingDraftDocument,
-        diagramStudioComponent.id
-      )?.component;
-      if (previewingComponent?.type === "floorplan-auto-diagram") {
-        previewingComponent.properties = {
-          ...(previewingComponent.properties || {}),
-          previewReady: true,
-          previewing: true,
-          interactionMode: "position"
-        };
-      }
-    });
-    return;
-  }
-  const studioDialogFrame = document.querySelector(
-    '.hb-component[data-component-id="' +
-      CSS.escape(diagramStudioComponent.id) +
-      '"] .hb-floorplan-auto-diagram-preview'
-  );
-  if (!studioDialogFrame?.contentWindow) {
-    openAutoDiagramDialog(diagramStudioComponent.id);
-    return;
-  }
-  const exportFolderName = String(diagramStudioComponent.properties?.exportFolder || "").trim();
-  if (
-    !exportFolderName ||
-    /[<>:"/\\|?*\x00-\x1f\x7f]/.test(exportFolderName) ||
-    exportFolderName.startsWith(".") ||
-    /[. ]$/.test(exportFolderName)
-  ) {
-    floorplanAutoDiagramStatusElement.textContent = "请先填写有效的导图文件夹名称。";
-    floorplanAutoDiagramFolderTextInputElement.focus();
-    return;
-  }
-  const sourceComponentPosition = diagramStudioComponent.position || {};
-  const projectCanvas = activeProject.document.canvas || {};
-  // 保留控件宽高比、面积对齐画布：底图与预览同比例才不会产生位置偏移。
-  const exportResolution = floorplanAutoDiagramExportResolution(sourceComponentPosition, projectCanvas);
-  floorplanAutoDiagramStatusElement.textContent = "正在后台生成底图和灯组效果，请稍候…";
-  floorplanAutoDiagramOpenStudioButtonElement.disabled = true;
-  floorplanAutoDiagramFloorSelectElement.disabled = true;
-  floorplanAutoDiagramOpenStudioButtonElement.textContent = "正在后台生成…";
-  studioDialogFrame.contentWindow.postMessage(
-    {
-      type: "homeos-floorplan-auto-diagram-generate",
-      componentId: diagramStudioComponent.id,
-      width: exportResolution.width,
-      height: exportResolution.height,
-      folderName: exportFolderName
-    },
-    window.location.origin
-  );
-});
-floorplanAutoDiagramViewToggleButtonElement.addEventListener("click", () => {
-  const interactionModeComponentId = selectedComponentId;
-  if (interactionModeComponentId) {
-    mutateDocument(toggleModeDraftDocument => {
-      const toggleModeComponent = findComponent(
-        toggleModeDraftDocument,
-        interactionModeComponentId
-      )?.component;
-      if (toggleModeComponent?.type === "floorplan-auto-diagram") {
-        toggleModeComponent.properties = {
-          ...(toggleModeComponent.properties || {}),
-          interactionMode:
-            toggleModeComponent.properties?.interactionMode === "view" ? "position" : "view"
-        };
-      }
-    });
-  }
-});
-floorplanAutoDiagramCloseButtonElement.addEventListener("click", settleAutoDiagramDialog);
-floorplanAutoDiagramLaterButtonElement.addEventListener("click", settleAutoDiagramDialog);
-floorplanAutoDiagramDialogElement.addEventListener("cancel", dialogCancelEvent => {
-  dialogCancelEvent.preventDefault();
-  settleAutoDiagramDialog();
-});
-floorplanAutoDiagramContinueButtonElement.addEventListener("click", () => {
-  const continuedComponentId = floorplanAutoDiagramDialogElement.dataset.componentId;
-  if (continuedComponentId) {
-    mutateDocument(continueDraftDocument => {
-      const continueComponent = findComponent(
-        continueDraftDocument,
-        continuedComponentId
-      )?.component;
-      if (continueComponent?.type === "floorplan-auto-diagram") {
-        continueComponent.properties = {
-          ...(continueComponent.properties || {}),
-          previewReady: true,
-          previewing: true,
-          interactionMode: "position"
-        };
-      }
-    });
-    closeAutoDiagramDialog();
-  }
-});
-floorplanAutoDiagramBindingListElement.addEventListener("change", lightGroupChangeEvent => {
-  const lightGroupSelect = lightGroupChangeEvent.target.closest("[data-floorplan-light-group-id]");
-  const lightGroupComponentId = selectedComponentId;
-  if (!lightGroupSelect || !lightGroupComponentId) {
-    return;
-  }
-  const lightGroupId = lightGroupSelect.dataset.floorplanLightGroupId;
-  mutateDocument(lightGroupDraftDocument => {
-    const lightGroupComponent = findComponent(
-      lightGroupDraftDocument,
-      lightGroupComponentId
-    )?.component;
-    if (!lightGroupComponent || lightGroupComponent.type !== "floorplan-auto-diagram") {
-      return;
-    }
-    lightGroupComponent.bindings = {
-      ...(lightGroupComponent.bindings || {})
-    };
-    const lightGroupBindingKey = "lightGroup:" + lightGroupId;
-    if (lightGroupSelect.value) {
-      lightGroupComponent.bindings[lightGroupBindingKey] = {
-        entityId: lightGroupSelect.value
-      };
-    } else {
-      delete lightGroupComponent.bindings[lightGroupBindingKey];
-    }
-  });
-});
+bindFloorplanSection();
+
 /**
  * 「导图保存完成」浮层的当前实例；同一时刻只允许存在一个。
  */
@@ -13900,677 +11863,8 @@ function showAutoDiagramCompleteDialog(manifest, { buttonCount = 0, imageCount =
   // 焦点交给主按钮：键盘用户回车即可关闭，读屏也会播报对话框标签。
   overlayElement.querySelector("[data-export-complete-confirm]")?.focus();
 }
-window.addEventListener("message", messageEvent => {
-  if (messageEvent.origin !== window.location.origin) {
-    return;
-  }
-  const messageData = messageEvent.data;
-  if (messageData?.type === "homeos-floorplan-auto-diagram-base-lighting-state") {
-    const lightingStateComponentId = String(messageData.componentId || "");
-    const lightingStateFrame = findDiagramPreviewFrame(lightingStateComponentId);
-    if (
-      !lightingStateFrame ||
-      messageEvent.source !== lightingStateFrame.contentWindow ||
-      lightingStateComponentId !== baseLightingComponentId
-    ) {
-      return;
-    }
-    if (messageData.status === "ready" || messageData.status === "saved") {
-      baseLightingSettings = normalizeBaseLighting(
-        messageData.savedLighting || messageData.lighting
-      );
-      applyBaseLightingToPanel(messageData.lighting || baseLightingSettings);
-    }
-    floorplanAutoLightingPanelElement.setAttribute("aria-busy", "false");
-    if (messageData.status === "saved") {
-      floorplanAutoLightingStatusElement.textContent =
-        "已保存，并同步到实时预览、手动导图和自动导图。";
-    } else if (messageData.status === "ready") {
-      floorplanAutoLightingStatusElement.textContent = "修改会实时同步到当前3D预览。";
-    }
-    return;
-  }
-  if (messageData?.type === "homeos-floorplan-auto-diagram-ready") {
-    const readyComponentId = String(messageData.componentId || "");
-    const readyFrame = document.querySelector(
-      '.hb-component[data-component-id="' +
-        CSS.escape(readyComponentId) +
-        '"] .hb-floorplan-auto-diagram-preview'
-    );
-    if (!readyFrame || messageEvent.source !== readyFrame.contentWindow) {
-      return;
-    }
-    readyFrame.classList.add("is-ready");
-    readyFrame.parentElement?.querySelector(".hb-floorplan-auto-diagram-loading")?.remove();
-    const readyComponent = findComponent(activeProject?.document, readyComponentId)?.component;
-    if (readyComponent?.type === "floorplan-auto-diagram") {
-      const reportedFloors = (Array.isArray(messageData.floors) ? messageData.floors : [])
-        .map(floorEntry => ({
-          id: String(floorEntry?.id || ""),
-          name: String(floorEntry?.name || "")
-        }))
-        .filter(validFloor => validFloor.id);
-      const reportedFloorSelection = String(messageData.floorSelection || "");
-      floorplanAutoDiagramStateByComponentId.set(readyComponentId, {
-        floors: reportedFloors,
-        selected: reportedFloorSelection
-      });
-      const readyProperties = readyComponent.properties || {};
-      if (
-        Object.prototype.hasOwnProperty.call(readyProperties, "floorSelection") &&
-        reportedFloorSelection &&
-        readyProperties.floorSelection !== reportedFloorSelection
-      ) {
-        mutateDocument(floorSyncDraftDocument => {
-          const floorSyncComponent = findComponent(
-            floorSyncDraftDocument,
-            readyComponentId
-          )?.component;
-          if (floorSyncComponent?.type === "floorplan-auto-diagram") {
-            floorSyncComponent.properties = {
-              ...(floorSyncComponent.properties || {}),
-              floorSelection: reportedFloorSelection
-            };
-          }
-        });
-      }
-      syncInspector();
-      readyFrame.contentWindow.postMessage(
-        {
-          type: "homeos-floorplan-auto-diagram-camera",
-          componentId: readyComponentId,
-          command: "restore",
-          value: {
-            view: readyComponent.properties?.cameraView || "free",
-            mode: readyComponent.properties?.cameraMode || "orthographic",
-            topRotation: Number(readyComponent.properties?.cameraTopRotation || 0),
-            focalLength: Number(readyComponent.properties?.cameraFocalLength || 50)
-          }
-        },
-        window.location.origin
-      );
-    }
-    return;
-  }
-  if (messageData?.type === "homeos-floorplan-auto-diagram-floor-state") {
-    const floorStateComponentId = String(messageData.componentId || "");
-    const floorStateFrame = document.querySelector(
-      '.hb-component[data-component-id="' +
-        CSS.escape(floorStateComponentId) +
-        '"] .hb-floorplan-auto-diagram-preview'
-    );
-    if (!floorStateFrame || messageEvent.source !== floorStateFrame.contentWindow) {
-      return;
-    }
-    const floorStateFloors = (Array.isArray(messageData.floors) ? messageData.floors : [])
-      .map(floorStateEntry => ({
-        id: String(floorStateEntry?.id || ""),
-        name: String(floorStateEntry?.name || "")
-      }))
-      .filter(validFloorState => validFloorState.id);
-    const floorStateSelection = String(messageData.floorSelection || "");
-    floorplanAutoDiagramStateByComponentId.set(floorStateComponentId, {
-      floors: floorStateFloors,
-      selected: floorStateSelection
-    });
-    const floorStateComponent = findComponent(
-      activeProject?.document,
-      floorStateComponentId
-    )?.component;
-    if (
-      floorStateComponent?.type === "floorplan-auto-diagram" &&
-      floorStateSelection &&
-      floorStateComponent.properties?.floorSelection !== floorStateSelection
-    ) {
-      mutateDocument(floorStateDraftDocument => {
-        const floorStateComponentInDraft = findComponent(
-          floorStateDraftDocument,
-          floorStateComponentId
-        )?.component;
-        if (floorStateComponentInDraft?.type === "floorplan-auto-diagram") {
-          floorStateComponentInDraft.properties = {
-            ...(floorStateComponentInDraft.properties || {}),
-            floorSelection: floorStateSelection
-          };
-        }
-      });
-    }
-    if (floorStateComponentId === selectedComponentId) {
-      syncInspector();
-    }
-    return;
-  }
-  if (messageData?.type === "homeos-floorplan-auto-diagram-stopped") {
-    const stoppedComponentId = String(messageData.componentId || "");
-    const stoppedFrame = document.querySelector(
-      '.hb-component[data-component-id="' +
-        CSS.escape(stoppedComponentId) +
-        '"] .hb-floorplan-auto-diagram-preview'
-    );
-    if (!stoppedFrame || messageEvent.source !== stoppedFrame.contentWindow) {
-      return;
-    }
-    floorplanAutoDiagramOpenStudioButtonElement.disabled = false;
-    if (stoppedComponentId === selectedComponentId) {
-      floorplanAutoDiagramFloorSelectElement.disabled = false;
-    }
-    floorplanAutoDiagramOpenStudioButtonElement.textContent = "确定位置大小并后台生成";
-    floorplanAutoDiagramStatusElement.textContent = messageData.message || "已停止本次生成。";
-    if (messageData.reason === "rename") {
-      floorplanAutoDiagramFolderTextInputElement.focus();
-    }
-    return;
-  }
-  if (messageData?.type === "homeos-floorplan-auto-diagram-error") {
-    const errorComponentId = String(messageData.componentId || "");
-    const errorFrame = document.querySelector(
-      '.hb-component[data-component-id="' +
-        CSS.escape(errorComponentId) +
-        '"] .hb-floorplan-auto-diagram-preview'
-    );
-    if (!errorFrame || messageEvent.source !== errorFrame.contentWindow) {
-      return;
-    }
-    floorplanAutoDiagramOpenStudioButtonElement.disabled = false;
-    if (errorComponentId === selectedComponentId) {
-      floorplanAutoDiagramFloorSelectElement.disabled = false;
-    }
-    floorplanAutoDiagramOpenStudioButtonElement.textContent = "确定位置大小并后台生成";
-    floorplanAutoDiagramStatusElement.textContent = messageData.message || "后台生成失败，请重试。";
-    return;
-  }
-  if (!messageData || messageData.type !== "homeos-floorplan-auto-diagram-export") {
-    return;
-  }
-  const exportComponentId = String(messageData.componentId || "");
-  const exportFrame = document.querySelector(
-    '.hb-component[data-component-id="' +
-      CSS.escape(exportComponentId) +
-      '"] .hb-floorplan-auto-diagram-preview'
-  );
-  if (!exportFrame || messageEvent.source !== exportFrame.contentWindow) {
-    return;
-  }
-  const exportManifest = messageData.manifest;
-  const exportFolderId = String(messageData.folderName || exportManifest?.exportName || "").trim();
-  if (!exportComponentId || !exportManifest || !exportFolderId) {
-    return;
-  }
-  floorplanAutoDiagramOpenStudioButtonElement.disabled = false;
-  floorplanAutoDiagramOpenStudioButtonElement.textContent = "确定位置大小并后台生成";
-  floorplanAutoDiagramStatusElement.textContent = "已生成，正在置换到仪表盘…";
-  const exportComponentElement = exportFrame.closest(".hb-component");
-  if (exportComponentElement) {
-    exportComponentElement.hidden = true;
-  }
-  // 置换失败时把预览图元放回来：底图其实已经生成好了，继续用 hidden 遮着它，
-  // 用户看到的就只是「图元消失了」而不是「哪一步失败了」。
-  const restoreAutoDiagramPreview = () => {
-    exportComponentElement?.isConnected && (exportComponentElement.hidden = false);
-  };
-  mutateDocument(exportDraftDocument => {
-    let componentLocation = findComponentLocation(exportDraftDocument, exportComponentId);
-    const diagramSourceComponent = componentLocation?.component;
-    if (
-      !diagramSourceComponent ||
-      diagramSourceComponent.type !== "floorplan-auto-diagram" ||
-      !componentLocation.page
-    ) {
-      return null;
-    }
-    const diagramPage = componentLocation.page;
-    const autoDiagramComponents = [];
-    /**
-     * 递归收集属于本次自动图示导出文件夹的所有组件：用 autoDiagramFolder 标记归属（等于导出文件夹 ID），
-     * 因为同一页面里可能同时存在多组自动图示，只能靠标记区分；沿 children 递归保证嵌套布局里的图元也被回收替换。
-     */
-    const collectAutoDiagramComponents = componentBranch => {
-      for (const branchComponent of componentBranch || []) {
-        if (branchComponent?.properties?.autoDiagramFolder === exportFolderId) {
-          autoDiagramComponents.push(branchComponent);
-        }
-        collectAutoDiagramComponents(branchComponent?.children);
-      }
-    };
-    collectAutoDiagramComponents(diagramPage.components);
-    const baseImagesByRole = new Map(
-      autoDiagramComponents
-        .filter(imageCandidate => imageCandidate.type === "image")
-        .map(imageComponentEntry => [
-          imageComponentEntry.properties?.autoDiagramRole === "base"
-            ? "background-with-plan"
-            : String(imageComponentEntry.properties?.autoDiagramRole || ""),
-          imageComponentEntry
-        ])
-    );
-    const lightEffectsByKey = new Map(
-      autoDiagramComponents
-        .filter(effectCandidate => effectCandidate.type === "icon-button-effect")
-        .map(lightEffectComponent => {
-          const effectRoleKey = String(
-            lightEffectComponent.properties?.autoDiagramRole || "light-group"
-          );
-          const effectLayerId = String(
-            lightEffectComponent.properties?.autoDiagramLayerId ||
-              lightEffectComponent.properties?.autoDiagramGroupId ||
-              ""
-          );
-          return [effectRoleKey + ":" + effectLayerId, lightEffectComponent];
-        })
-    );
-    for (const staleComponent of autoDiagramComponents) {
-      removeComponent(exportDraftDocument, staleComponent.id);
-    }
-    componentLocation = findComponentLocation(exportDraftDocument, exportComponentId);
-    if (!componentLocation) {
-      return null;
-    }
-    const documentWidthPx = Number(exportDraftDocument.canvas?.width || 2778);
-    const documentHeightPx = Number(exportDraftDocument.canvas?.height || 1940);
-    const resolutionWidth = Math.max(
-      1,
-      Number(exportManifest.resolution?.width || diagramSourceComponent.position?.width || 1)
-    );
-    const resolutionHeight = Math.max(
-      1,
-      Number(exportManifest.resolution?.height || diagramSourceComponent.position?.height || 1)
-    );
-    const sourceLayoutMode =
-      diagramSourceComponent.properties?.layoutMode === "fill" ? "fill" : "free";
-    const diagramPositionValue = diagramSourceComponent.position || {};
-    const diagramScale =
-      sourceLayoutMode === "fill"
-        ? 1
-        : Math.max(0.01, Math.min(5, Number(diagramSourceComponent.style?.scale || 1)));
-    const sourceWidth =
-      sourceLayoutMode === "fill" ? documentWidthPx : Number(diagramPositionValue.width || 100);
-    const sourceHeight =
-      sourceLayoutMode === "fill" ? documentHeightPx : Number(diagramPositionValue.height || 100);
-    const scaledWidth = sourceWidth * diagramScale;
-    const scaledHeight = sourceHeight * diagramScale;
-    const diagramX =
-      sourceLayoutMode === "fill"
-        ? 0
-        : Number(diagramPositionValue.x || 0) - (scaledWidth - sourceWidth) / 2;
-    const diagramY =
-      sourceLayoutMode === "fill"
-        ? 0
-        : Number(diagramPositionValue.y || 0) - (scaledHeight - sourceHeight) / 2;
-    const diagramRotation =
-      sourceLayoutMode === "fill" ? 0 : Number(diagramPositionValue.rotation || 0);
-    const imageLayerComponents = [
-      {
-        role: "background",
-        file: exportManifest.backgroundImage,
-        label: "00底图",
-        visible: true
-      },
-      {
-        role: "floor-plan",
-        file: exportManifest.floorPlanImage,
-        label: "00户型图",
-        visible: true
-      },
-      {
-        role: "background-with-plan",
-        file: exportManifest.baseImage,
-        label: "00底图带户型",
-        visible: false
-      }
-    ]
-      .filter(imageSpec => imageSpec.file)
-      .map(layerSpec => {
-        const existingLayerComponent = baseImagesByRole.get(layerSpec.role);
-        const layerComponent = existingLayerComponent
-          ? clone(existingLayerComponent)
-          : createComponentFromTemplate("image", {
-              id: newId("component"),
-              instanceName: layerSpec.label,
-              canvas: exportDraftDocument.canvas
-            });
-        layerComponent.position = {
-          ...(layerComponent.position || {}),
-          x: diagramX,
-          y: diagramY,
-          width: scaledWidth,
-          height: scaledHeight,
-          rotation: diagramRotation
-        };
-        layerComponent.style = {
-          ...(layerComponent.style || {}),
-          scale: 1,
-          visible: existingLayerComponent
-            ? existingLayerComponent.style?.visible !== false
-            : layerSpec.visible
-        };
-        layerComponent.bindings = {};
-        layerComponent.actions = {};
-        layerComponent.properties = {
-          ...(layerComponent.properties || {}),
-          instanceName: layerSpec.label,
-          label: layerSpec.label,
-          assetId: "studio3d:" + exportFolderId + "/" + layerSpec.file,
-          naturalWidth: resolutionWidth,
-          naturalHeight: resolutionHeight,
-          opacity: 1,
-          fit: "contain",
-          layoutMode: sourceLayoutMode,
-          autoDiagramFolder: exportFolderId,
-          autoDiagramRole: layerSpec.role,
-          autoDiagramCamera: exportManifest.camera || null
-        };
-        return layerComponent;
-      });
-    const backgroundLayer = imageLayerComponents.find(
-      backgroundCandidate => backgroundCandidate.properties?.autoDiagramRole === "background"
-    );
-    const floorPlanLayer = imageLayerComponents.find(
-      floorPlanCandidate => floorPlanCandidate.properties?.autoDiagramRole === "floor-plan"
-    );
-    const baseWithPlanLayer = imageLayerComponents.find(
-      baseWithPlanCandidate =>
-        baseWithPlanCandidate.properties?.autoDiagramRole === "background-with-plan"
-    );
-    const preferredBaseLayer = baseWithPlanLayer || floorPlanLayer || backgroundLayer;
-    const lightGroupSpecs = (Array.isArray(exportManifest.groups) ? exportManifest.groups : [])
-      .filter(groupEntry => String(groupEntry?.id || groupEntry?.groupId || "") && groupEntry?.file)
-      .map(groupSpec => ({
-        role: "light-group",
-        id: String(groupSpec.id || groupSpec.groupId || ""),
-        name: String(groupSpec.name || groupSpec.note || "灯组"),
-        note: String(groupSpec.note || groupSpec.name || "灯组"),
-        file: groupSpec.file,
-        icon: "mdi:lightbulb-outline",
-        anchor: groupSpec.anchor
-      }));
-    const screenSpecs = (Array.isArray(exportManifest.screens) ? exportManifest.screens : [])
-      .filter(
-        screenEntry => String(screenEntry?.id || screenEntry?.itemId || "") && screenEntry?.file
-      )
-      .map(screenSpec => ({
-        role: "television",
-        id: String(screenSpec.id || screenSpec.itemId || ""),
-        name: String(screenSpec.name || "电视画面"),
-        note: String(screenSpec.name || "电视画面"),
-        file: screenSpec.file,
-        icon: "mdi:television",
-        anchor: screenSpec.anchor
-      }));
-    const vehicleSpecs = (Array.isArray(exportManifest.vehicles) ? exportManifest.vehicles : [])
-      .filter(
-        vehicleEntry => String(vehicleEntry?.id || vehicleEntry?.itemId || "") && vehicleEntry?.file
-      )
-      .map(vehicleSpec => ({
-        role: "vehicle",
-        id: String(vehicleSpec.id || vehicleSpec.itemId || ""),
-        name: String(vehicleSpec.name || "汽车充电"),
-        note: String(vehicleSpec.name || "汽车充电"),
-        file: vehicleSpec.file,
-        icon: "mdi:car-electric",
-        anchor: vehicleSpec.anchor
-      }));
-    const overlaySpecs = [...screenSpecs, ...vehicleSpecs, ...lightGroupSpecs];
-    const diagramCenterX = diagramX + scaledWidth / 2;
-    const diagramCenterY = diagramY + scaledHeight / 2;
-    const diagramRotationRad = (diagramRotation * Math.PI) / 180;
-    const overlayScale = Math.min(scaledWidth / resolutionWidth, scaledHeight / resolutionHeight);
-    const overlaySourceWidth = resolutionWidth * overlayScale;
-    const overlaySourceHeight = resolutionHeight * overlayScale;
-    const placedOverlayAnchors = [];
-    /**
-     * 为自动生成的图元挑选互不重叠的归一化锚点（0~1）：优先用图元自带 anchor；缺失时按序号均分横向位置、纵向固定
-     * 在 0.9（画面底部），避免多个新图元叠在正中。以「图元在底图上的相对尺寸 × 1.08」作为锚点最小间距并设下限
-     * 0.035/0.045 —— 底图很小时相对尺寸会退化成 0，没有下限会让所有候选点重合；候选点按同心环由内向外枚举取第一个足够远的点。
-     */
-    const placeOverlayAnchor = (overlaySpecItem, overlayIndex, overlayWidthPx, overlayHeightPx) => {
-      const anchorX = Number(overlaySpecItem.anchor?.x);
-      const anchorY = Number(overlaySpecItem.anchor?.y);
-      const defaultAnchor = {
-        x: overlaySpecs.length > 1 ? (overlayIndex + 1) / (overlaySpecs.length + 1) : 0.5,
-        y: 0.9
-      };
-      const preferredAnchor =
-        Number.isFinite(anchorX) && Number.isFinite(anchorY)
-          ? {
-              x: anchorX,
-              y: anchorY
-            }
-          : defaultAnchor;
-      const anchorSpacingX = Math.max(
-        0.035,
-        (overlayWidthPx / Math.max(overlaySourceWidth, 1)) * 1.08
-      );
-      const anchorSpacingY = Math.max(
-        0.045,
-        (overlayHeightPx / Math.max(overlaySourceHeight, 1)) * 1.08
-      );
-      const anchorCandidates = [[0, 0]];
-      for (let ringIndex = 1; ringIndex <= 4; ringIndex += 1) {
-        anchorCandidates.push(
-          [0, -anchorSpacingY * ringIndex],
-          [anchorSpacingX * ringIndex, 0],
-          [0, anchorSpacingY * ringIndex],
-          [-anchorSpacingX * ringIndex, 0],
-          [anchorSpacingX * ringIndex, -anchorSpacingY * ringIndex],
-          [anchorSpacingX * ringIndex, anchorSpacingY * ringIndex],
-          [-anchorSpacingX * ringIndex, anchorSpacingY * ringIndex],
-          [-anchorSpacingX * ringIndex, -anchorSpacingY * ringIndex]
-        );
-      }
-      let chosenAnchor = null;
-      for (const [offsetX, offsetY] of anchorCandidates) {
-        const candidateAnchor = {
-          x: clampNumber(preferredAnchor.x + offsetX, anchorSpacingX / 2, 1 - anchorSpacingX / 2),
-          y: clampNumber(preferredAnchor.y + offsetY, anchorSpacingY / 2, 1 - anchorSpacingY / 2)
-        };
-        if (
-          !placedOverlayAnchors.some(
-            placedAnchor =>
-              Math.abs(candidateAnchor.x - placedAnchor.x) <
-                (anchorSpacingX + placedAnchor.spacingX) / 2 &&
-              Math.abs(candidateAnchor.y - placedAnchor.y) <
-                (anchorSpacingY + placedAnchor.spacingY) / 2
-          )
-        ) {
-          chosenAnchor = candidateAnchor;
-          break;
-        }
-      }
-      chosenAnchor ||= {
-        x: clampNumber(defaultAnchor.x, anchorSpacingX / 2, 1 - anchorSpacingX / 2),
-        y: clampNumber(defaultAnchor.y, anchorSpacingY / 2, 1 - anchorSpacingY / 2)
-      };
-      placedOverlayAnchors.push({
-        ...chosenAnchor,
-        spacingX: anchorSpacingX,
-        spacingY: anchorSpacingY
-      });
-      return chosenAnchor;
-    };
-    const placedEffectComponents = overlaySpecs.map((overlaySpec, overlaySpecIndex) => {
-      const existingEffectComponent = lightEffectsByKey.get(
-        overlaySpec.role + ":" + overlaySpec.id
-      );
-      const effectComponentToPlace = existingEffectComponent
-        ? clone(existingEffectComponent)
-        : createComponentFromTemplate("icon-button-effect", {
-            id: newId("component"),
-            instanceName: overlaySpec.name,
-            canvas: exportDraftDocument.canvas
-          });
-      const savedSceneAnchor = existingEffectComponent?.properties?.autoDiagramSceneAnchor;
-      const sceneAnchorChanged =
-        !savedSceneAnchor ||
-        Math.abs(Number(savedSceneAnchor.x) - Number(overlaySpec.anchor?.x)) > 0.002 ||
-        Math.abs(Number(savedSceneAnchor.y) - Number(overlaySpec.anchor?.y)) > 0.002;
-      const layoutVersionStale =
-        !!existingEffectComponent &&
-        Number(existingEffectComponent.properties?.autoDiagramLayoutVersion || 0) <
-          AUTO_DIAGRAM_LAYOUT_VERSION;
-      const needsLayoutRefresh =
-        !existingEffectComponent ||
-        layoutVersionStale ||
-        (overlaySpec.role === "light-group" && sceneAnchorChanged);
-      let buttonAnchor = existingEffectComponent?.properties?.autoDiagramButtonAnchor || null;
-      if (needsLayoutRefresh) {
-        const placedEffectWidth = Number(
-          effectComponentToPlace.position?.width || documentWidthPx * 0.075
-        );
-        const placedEffectHeight = Number(
-          effectComponentToPlace.position?.height || placedEffectWidth
-        );
-        const effectScale = Math.max(
-          0.01,
-          Math.min(5, Number(effectComponentToPlace.style?.scale || 1))
-        );
-        buttonAnchor = placeOverlayAnchor(
-          overlaySpec,
-          overlaySpecIndex,
-          placedEffectWidth * effectScale,
-          placedEffectHeight * effectScale
-        );
-        const sourceAnchorX = -overlaySourceWidth / 2 + buttonAnchor.x * overlaySourceWidth;
-        const sourceAnchorY = -overlaySourceHeight / 2 + buttonAnchor.y * overlaySourceHeight;
-        const rotatedAnchorX =
-          sourceAnchorX * Math.cos(diagramRotationRad) -
-          sourceAnchorY * Math.sin(diagramRotationRad);
-        const rotatedAnchorY =
-          sourceAnchorX * Math.sin(diagramRotationRad) +
-          sourceAnchorY * Math.cos(diagramRotationRad);
-        effectComponentToPlace.position = {
-          ...(effectComponentToPlace.position || {}),
-          x: diagramCenterX + rotatedAnchorX - placedEffectWidth / 2,
-          y: diagramCenterY + rotatedAnchorY - placedEffectHeight / 2,
-          rotation: diagramRotation
-        };
-      } else if (
-        Number.isFinite(Number(buttonAnchor?.x)) &&
-        Number.isFinite(Number(buttonAnchor?.y))
-      ) {
-        const existingEffectWidth = Number(
-          effectComponentToPlace.position?.width || documentWidthPx * 0.075
-        );
-        const existingEffectHeight = Number(
-          effectComponentToPlace.position?.height || existingEffectWidth
-        );
-        const existingEffectScale = Math.max(
-          0.01,
-          Math.min(5, Number(effectComponentToPlace.style?.scale || 1))
-        );
-        placedOverlayAnchors.push({
-          x: Number(buttonAnchor.x),
-          y: Number(buttonAnchor.y),
-          spacingX: Math.max(
-            0.035,
-            ((existingEffectWidth * existingEffectScale) / Math.max(overlaySourceWidth, 1)) * 1.08
-          ),
-          spacingY: Math.max(
-            0.045,
-            ((existingEffectHeight * existingEffectScale) / Math.max(overlaySourceHeight, 1)) * 1.08
-          )
-        });
-      }
-      effectComponentToPlace.style = {
-        ...(effectComponentToPlace.style || {}),
-        visible: true
-      };
-      effectComponentToPlace.bindings = {
-        ...(effectComponentToPlace.bindings || {})
-      };
-      if (!existingEffectComponent && overlaySpec.role === "light-group") {
-        const lightGroupBinding = diagramSourceComponent.bindings?.["lightGroup:" + overlaySpec.id];
-        if (lightGroupBinding?.entityId) {
-          effectComponentToPlace.bindings.entity = {
-            entityId: lightGroupBinding.entityId
-          };
-        }
-      }
-      effectComponentToPlace.actions = Object.keys(effectComponentToPlace.actions || {}).length
-        ? {
-            ...(effectComponentToPlace.actions || {})
-          }
-        : {
-            tap: {
-              type: "toggle"
-            }
-          };
-      effectComponentToPlace.properties = {
-        ...(effectComponentToPlace.properties || {}),
-        instanceName: overlaySpec.name,
-        label: overlaySpec.name,
-        note: overlaySpec.note,
-        icon: existingEffectComponent?.properties?.icon || overlaySpec.icon,
-        effectAssetId: "studio3d:" + exportFolderId + "/" + overlaySpec.file,
-        effectNaturalWidth: resolutionWidth,
-        effectNaturalHeight: resolutionHeight,
-        effectReferenceImageId: preferredBaseLayer?.id || "",
-        effectLayoutMode: sourceLayoutMode,
-        effectLeft: (diagramCenterX / documentWidthPx) * 100,
-        effectTop: (diagramCenterY / documentHeightPx) * 100,
-        effectScale: 1,
-        effectRotation: diagramRotation,
-        autoDiagramFolder: exportFolderId,
-        autoDiagramRole: overlaySpec.role,
-        autoDiagramLayerId: overlaySpec.id,
-        autoDiagramSceneAnchor: overlaySpec.anchor || null,
-        autoDiagramButtonAnchor: buttonAnchor,
-        autoDiagramLayoutVersion: AUTO_DIAGRAM_LAYOUT_VERSION,
-        ...(overlaySpec.role === "light-group"
-          ? {
-              autoDiagramGroupId: overlaySpec.id
-            }
-          : {})
-      };
-      return effectComponentToPlace;
-    });
-    const baseLayerComponents = [floorPlanLayer, backgroundLayer, baseWithPlanLayer].filter(
-      Boolean
-    );
-    const removedComponentIndex = componentLocation.index;
-    removeComponent(exportDraftDocument, exportComponentId);
-    componentLocation.collection.splice(
-      removedComponentIndex,
-      0,
-      ...placedEffectComponents,
-      ...baseLayerComponents
-    );
-    applyCollectionLayerOrder(componentLocation.collection);
-    return {
-      removed: true,
-      selectedId:
-        (backgroundLayer || floorPlanLayer || baseWithPlanLayer || placedEffectComponents[0])?.id ||
-        null,
-      // 完成提示要报「生成了几张图片、几个效果按钮」。这两个数只有在这里是现成的：
-      // 事后从文档里按 autoDiagramFolder 反查会把上一次导图的组件也算进来。
-      buttonCount: placedEffectComponents.length,
-      imageCount: baseLayerComponents.length
-    };
-  })
-    .then(spliceResult => {
-      if (!spliceResult?.removed) {
-        restoreAutoDiagramPreview();
-        floorplanAutoDiagramStatusElement.textContent = "图片已生成，但控件置换失败，请重试。";
-        return;
-      }
-      const selectedPlacedId = spliceResult.selectedId;
-      selectedComponentId = selectedPlacedId;
-      selectedComponentIds = selectedPlacedId ? new Set([selectedPlacedId]) : new Set();
-      selectionAnchorComponentId = selectedPlacedId;
-      editorRenderer?.setSelectedComponents(
-        selectedPlacedId ? [selectedPlacedId] : [],
-        selectedPlacedId
-      );
-      renderComponentLists();
-      syncInspector();
-      // 置换成功才提示：失败时给「重试」，成功时给「完成」，两者不能同时出现。
-      showAutoDiagramCompleteDialog(exportManifest, spliceResult);
-    })
-    .catch(exportSpliceError => {
-      restoreAutoDiagramPreview();
-      floorplanAutoDiagramStatusElement.textContent = "图片已生成，但控件置换失败，请重试。";
-      handleOperationError(exportSpliceError);
-    });
-});
+bindMessageSection();
+
 const effectPropertyConfigsByElement = new Map([
   [
     iconButtonEffectColorTemperatureRealtimeCheckboxElement,
@@ -14774,399 +12068,8 @@ for (const previewEventName of ["focusin", "pointerdown"]) {
     applyEffectPreviewState(focusEvent.target)
   );
 }
-iconButtonEffectInspectorFormElement.addEventListener("input", effectInputEvent => {
-  const inspectedEffectComponent = selectedComponent();
-  if (!inspectedEffectComponent || inspectedEffectComponent.type !== "icon-button-effect") {
-    return;
-  }
-  applyEffectPreviewState(effectInputEvent.target);
-  const propertyConfig = effectPropertyConfigsByElement.get(effectInputEvent.target);
-  if (propertyConfig) {
-    let nextPropertyValue =
-      propertyConfig.type === "boolean"
-        ? effectInputEvent.target.checked
-        : effectInputEvent.target.type === "color"
-          ? effectInputEvent.target.value
-          : Number(effectInputEvent.target.value);
-    if (propertyConfig.type !== "boolean" && effectInputEvent.target.type !== "color") {
-      if (!Number.isFinite(nextPropertyValue)) {
-        return;
-      }
-      nextPropertyValue =
-        clampNumber(nextPropertyValue, propertyConfig.min, propertyConfig.max) /
-        (propertyConfig.divisor || 1);
-    }
-    editorRenderer?.previewComponentProperties(inspectedEffectComponent.id, {
-      [propertyConfig.property]: nextPropertyValue
-    });
-    return;
-  }
-  if (
-    !effectTransformInputSet.has(effectInputEvent.target) ||
-    !Number.isFinite(Number(effectInputEvent.target.value))
-  ) {
-    return;
-  }
-  const transformInputValue = Number(effectInputEvent.target.value);
-  const effectCanvasWidth = Number(activeProject.document.canvas.width || 2778);
-  const effectCanvasHeight = Number(activeProject.document.canvas.height || 1940);
-  const effectPositionWidth = Number(inspectedEffectComponent.position?.width || 100);
-  const effectPositionHeight = Number(inspectedEffectComponent.position?.height || 100);
-  if (effectInputEvent.target === iconButtonEffectLeftInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
-      x:
-        (effectCanvasWidth * clampNumber(transformInputValue, 0, 100)) / 100 -
-        effectPositionWidth / 2
-    });
-  } else if (effectInputEvent.target === iconButtonEffectTopInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
-      y:
-        (effectCanvasHeight * clampNumber(transformInputValue, 0, 100)) / 100 -
-        effectPositionHeight / 2
-    });
-  } else if (effectInputEvent.target === iconButtonEffectWidthInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
-      width: (effectCanvasWidth * clampNumber(transformInputValue, 0.1, 100)) / 100
-    });
-  } else if (effectInputEvent.target === iconButtonEffectHeightInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
-      height: (effectCanvasHeight * clampNumber(transformInputValue, 0.1, 100)) / 100
-    });
-  } else if (effectInputEvent.target === iconButtonEffectScaleInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
-      scale: clampNumber(transformInputValue, 1, 500) / 100
-    });
-  } else if (effectInputEvent.target === iconButtonEffectRotationInputElement) {
-    editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
-      rotation: clampNumber(transformInputValue, -360, 360)
-    });
-  }
-});
-iconButtonEffectInspectorFormElement.addEventListener("change", effectChangeEvent => {
-  const changedEffectInput = effectChangeEvent.target;
-  const changedPropertyConfig = effectPropertyConfigsByElement.get(changedEffectInput);
-  if (!changedPropertyConfig && !effectTransformInputSet.has(changedEffectInput)) {
-    return;
-  }
-  if (changedEffectInput.type === "number" && !Number.isFinite(Number(changedEffectInput.value))) {
-    syncInspector();
-    return;
-  }
-  const effectComponentId = selectedComponentId;
-  mutateDocument(effectChangeDraftDocument => {
-    const effectComponentInDraft = findComponent(
-      effectChangeDraftDocument,
-      effectComponentId
-    )?.component;
-    if (!effectComponentInDraft || effectComponentInDraft.type !== "icon-button-effect") {
-      return;
-    }
-    effectComponentInDraft.properties = {
-      ...(effectComponentInDraft.properties || {})
-    };
-    effectComponentInDraft.position = {
-      ...(effectComponentInDraft.position || {})
-    };
-    effectComponentInDraft.style = {
-      ...(effectComponentInDraft.style || {})
-    };
-    if (changedPropertyConfig) {
-      effectComponentInDraft.properties[changedPropertyConfig.property] =
-        changedPropertyConfig.type === "boolean"
-          ? changedEffectInput.checked
-          : changedEffectInput.type === "color"
-            ? changedEffectInput.value
-            : clampNumber(
-                Number(changedEffectInput.value),
-                changedPropertyConfig.min,
-                changedPropertyConfig.max
-              ) / (changedPropertyConfig.divisor || 1);
-      return;
-    }
-    const effectDocCanvasWidth = Number(effectChangeDraftDocument.canvas.width || 2778);
-    const effectDocCanvasHeight = Number(effectChangeDraftDocument.canvas.height || 1940);
-    const effectNumericValue = Number(changedEffectInput.value);
-    if (changedEffectInput === iconButtonEffectLeftInputElement) {
-      effectComponentInDraft.position.x =
-        (effectDocCanvasWidth * clampNumber(effectNumericValue, 0, 100)) / 100 -
-        Number(effectComponentInDraft.position.width || 100) / 2;
-    } else if (changedEffectInput === iconButtonEffectTopInputElement) {
-      effectComponentInDraft.position.y =
-        (effectDocCanvasHeight * clampNumber(effectNumericValue, 0, 100)) / 100 -
-        Number(effectComponentInDraft.position.height || 100) / 2;
-    } else if (changedEffectInput === iconButtonEffectWidthInputElement) {
-      effectComponentInDraft.position.width =
-        (effectDocCanvasWidth * clampNumber(effectNumericValue, 0.1, 100)) / 100;
-    } else if (changedEffectInput === iconButtonEffectHeightInputElement) {
-      effectComponentInDraft.position.height =
-        (effectDocCanvasHeight * clampNumber(effectNumericValue, 0.1, 100)) / 100;
-    } else if (changedEffectInput === iconButtonEffectScaleInputElement) {
-      effectComponentInDraft.style.scale = clampNumber(effectNumericValue, 1, 500) / 100;
-    } else if (changedEffectInput === iconButtonEffectRotationInputElement) {
-      setComponentsRotation(
-        effectChangeDraftDocument,
-        effectComponentId,
-        clampNumber(effectNumericValue, -360, 360)
-      );
-    }
-  });
-});
-iconButtonEffectEffectLayoutOptionsElement.addEventListener("click", effectLayoutClickEvent => {
-  const effectLayoutOption = effectLayoutClickEvent.target.closest("[data-ibe-layout]");
-  const effectLayoutComponentId = selectedComponentId;
-  if (!!effectLayoutOption && !!effectLayoutComponentId) {
-    mutateDocument(effectLayoutDraftDocument => {
-      const effectLayoutComponent = findComponent(
-        effectLayoutDraftDocument,
-        effectLayoutComponentId
-      )?.component;
-      if (!!effectLayoutComponent && effectLayoutComponent.type === "icon-button-effect") {
-        effectLayoutComponent.properties = {
-          ...(effectLayoutComponent.properties || {}),
-          effectLayoutMode: effectLayoutOption.dataset.ibeLayout === "fill" ? "fill" : "free"
-        };
-      }
-    });
-  }
-});
-/**
- * 收集一个页面下所有普通图片组件（含深层子组件）。只认 type === "image"：图标按钮的图片效果、自动图示的分层底图等
- * 都不是「普通图片」，不能参与图片对齐。pageSource 缺失时返回空数组。
- */
-function collectPageImages(pageSource) {
-  const pageImages = [];
-  /**
-   * 递归把组件树里的图片组件推进外层 pageImages 结果数组。
-   */
-  const collectImageComponents = componentItems => {
-    for (const imageItem of componentItems || []) {
-      if (imageItem.type === "image") {
-        pageImages.push(imageItem);
-      }
-      collectImageComponents(imageItem.children);
-    }
-  };
-  collectImageComponents(pageSource?.components);
-  return pageImages;
-}
-/**
- * 构造「图片对齐」对话框里的一张可选图片行（单选按钮 + 缩略图 + 摘要）。摘要里的位置与尺寸换算成画布百分比展示：
- * position 存的是左上角坐标与尺寸，用户更易懂中心点位置，故 x/y 各加半个自身尺寸后再除以画布尺寸（缺省 2778×1940）。
- * scale 以 1 为基准、显示成百分比；铺满模式（layoutMode === "fill"）下位置没有意义，改为只显示可见性。
- */
-function createImageAlignOption(imageComponentOption, isChosenImage) {
-  const optionLabelElement = document.createElement("label");
-  optionLabelElement.className = "effect-image-align-option";
-  const optionRadioElement = document.createElement("input");
-  optionRadioElement.type = "radio";
-  optionRadioElement.name = "effect-image-align-target";
-  optionRadioElement.value = imageComponentOption.id;
-  optionRadioElement.checked = isChosenImage;
-  const optionPreviewElement = document.createElement("span");
-  optionPreviewElement.className = "effect-image-align-option-preview";
-  const foundAsset = findAssetById(imageComponentOption.properties?.assetId || "");
-  const previewAssetUrl = resolveAssetPreviewUrl(foundAsset);
-  if (previewAssetUrl) {
-    const optionPreviewImage = document.createElement("img");
-    optionPreviewImage.src = previewAssetUrl;
-    optionPreviewImage.alt = "";
-    optionPreviewElement.append(optionPreviewImage);
-  } else {
-    optionPreviewElement.textContent = "无预览";
-  }
-  const optionCopyElement = document.createElement("span");
-  optionCopyElement.className = "effect-image-align-option-copy";
-  const optionTitleElement = document.createElement("strong");
-  optionTitleElement.textContent = componentLabel(imageComponentOption);
-  const optionLayoutElement = document.createElement("small");
-  const isFillLayout = imageComponentOption.properties?.layoutMode === "fill";
-  const visibilityLabel = imageComponentOption.style?.visible === false ? "隐藏" : "显示";
-  const optionCanvasWidth = Number(activeProject?.document?.canvas?.width || 2778);
-  const optionCanvasHeight = Number(activeProject?.document?.canvas?.height || 1940);
-  const optionPosition = imageComponentOption.position || {};
-  const optionWidth = Number(optionPosition.width || 100);
-  const optionHeight = Number(optionPosition.height || 100);
-  const centerLeftPercent = roundField(
-    ((Number(optionPosition.x || 0) + optionWidth / 2) / optionCanvasWidth) * 100
-  );
-  const centerTopPercent = roundField(
-    ((Number(optionPosition.y || 0) + optionHeight / 2) / optionCanvasHeight) * 100
-  );
-  const optionScalePercent = roundField(Number(imageComponentOption.style?.scale || 1) * 100);
-  const optionRotationDeg = roundField(Number(optionPosition.rotation || 0));
-  optionLayoutElement.textContent = isFillLayout
-    ? "铺满 · 覆盖整个画布"
-    : "自由 · 左 " + centerLeftPercent + "% · 上 " + centerTopPercent + "%";
-  const optionDetailElement = document.createElement("small");
-  optionDetailElement.textContent = isFillLayout
-    ? visibilityLabel
-    : "缩放 " + optionScalePercent + "% · 旋转 " + optionRotationDeg + "° · " + visibilityLabel;
-  optionCopyElement.append(optionTitleElement, optionLayoutElement, optionDetailElement);
-  optionLabelElement.append(optionRadioElement, optionPreviewElement, optionCopyElement);
-  return optionLabelElement;
-}
-/**
- * 打开「选择图片对齐基准」对话框，仅对 icon-button-effect 组件可用（只有效果组件需要跟随某张参考图排版）。
- * 默认选中已保存的 effectReferenceImageId，没有保存过时默认选本页第一张图片（alignableIndex === 0），让用户少点一次；
- * 本页没有普通图片时禁用确认按钮并给出提示文案。确认后由对话框的确认回调写回 properties 并触发重新布局。
- */
-function openImageAlignDialog() {
-  const alignEffectComponent = selectedComponent();
-  const alignSourcePage = currentPage();
-  if (
-    !alignEffectComponent ||
-    alignEffectComponent.type !== "icon-button-effect" ||
-    !alignSourcePage
-  ) {
-    return;
-  }
-  const alignableImages = collectPageImages(alignSourcePage);
-  const referenceImageId = String(alignEffectComponent.properties?.effectReferenceImageId || "");
-  effectImageAlignOptionsElement.replaceChildren(
-    ...alignableImages.map((alignableImage, alignableIndex) =>
-      createImageAlignOption(
-        alignableImage,
-        alignableImage.id === referenceImageId || (!referenceImageId && alignableIndex === 0)
-      )
-    )
-  );
-  imageAlignSourceComponentId = alignEffectComponent.id;
-  effectImageAlignMessageElement.hidden = alignableImages.length > 0;
-  effectImageAlignMessageElement.textContent = alignableImages.length
-    ? ""
-    : "本页面没有可以对齐的普通图片。";
-  effectImageAlignConfirmButtonElement.disabled = alignableImages.length === 0;
-  effectImageAlignDialogElement.showModal();
-}
-iconButtonEffectEffectAlignImageButtonElement.addEventListener("click", openImageAlignDialog);
-effectImageAlignCloseButtonElement.addEventListener("click", () =>
-  effectImageAlignDialogElement.close()
-);
-effectImageAlignCancelButtonElement.addEventListener("click", () =>
-  effectImageAlignDialogElement.close()
-);
-effectImageAlignDialogElement.addEventListener("click", alignDialogBackdropEvent => {
-  if (alignDialogBackdropEvent.target === effectImageAlignDialogElement) {
-    effectImageAlignDialogElement.close();
-  }
-});
-effectImageAlignDialogElement.addEventListener("close", () => {
-  imageAlignSourceComponentId = null;
-});
-effectImageAlignConfirmButtonElement.addEventListener("click", () => {
-  const chosenImageId = effectImageAlignOptionsElement.querySelector(
-    'input[name="effect-image-align-target"]:checked'
-  )?.value;
-  const pendingAlignComponentId = imageAlignSourceComponentId;
-  if (!pendingAlignComponentId || !chosenImageId) {
-    effectImageAlignMessageElement.textContent = "请选择一张本页面图片。";
-    effectImageAlignMessageElement.hidden = false;
-    return;
-  }
-  effectImageAlignDialogElement.close();
-  mutateDocument(alignDraftDocument => {
-    const alignComponent = findComponent(alignDraftDocument, pendingAlignComponentId)?.component;
-    const currentAlignPage =
-      alignDraftDocument.pages?.find(
-        alignPageCandidate => alignPageCandidate.path === pageSelectElement.value
-      ) || alignDraftDocument.pages?.[0];
-    const referenceImageComponent = findComponentInItems(
-      currentAlignPage?.components,
-      chosenImageId
-    );
-    if (
-      !alignComponent ||
-      alignComponent.type !== "icon-button-effect" ||
-      !referenceImageComponent ||
-      referenceImageComponent.type !== "image"
-    ) {
-      return;
-    }
-    const alignCanvasWidth = Number(alignDraftDocument.canvas?.width || 2778);
-    const alignCanvasHeight = Number(alignDraftDocument.canvas?.height || 1940);
-    const referencePosition = referenceImageComponent.position || {};
-    const referenceWidth = Number(referencePosition.width || 100);
-    const referenceHeight = Number(referencePosition.height || 100);
-    const referenceIsFill = referenceImageComponent.properties?.layoutMode === "fill";
-    alignComponent.properties = {
-      ...(alignComponent.properties || {}),
-      effectReferenceImageId: referenceImageComponent.id,
-      effectLayoutMode: referenceIsFill ? "fill" : "free",
-      ...(referenceIsFill
-        ? {}
-        : {
-            effectLeft:
-              ((Number(referencePosition.x || 0) + referenceWidth / 2) / alignCanvasWidth) * 100,
-            effectTop:
-              ((Number(referencePosition.y || 0) + referenceHeight / 2) / alignCanvasHeight) * 100,
-            effectScale: clampNumber(Number(referenceImageComponent.style?.scale || 1), 0.01, 5),
-            effectRotation: Number(referencePosition.rotation || 0)
-          })
-    };
-  });
-});
-iconButtonEffectPreviewStateElement.addEventListener("click", previewStateClickEvent => {
-  const previewStateOption = previewStateClickEvent.target.closest("[data-ibe-preview]");
-  const previewToggleComponentId = selectedComponentId;
-  if (!previewStateOption || !previewToggleComponentId) {
-    return;
-  }
-  const requestedPreviewState = ["on", "off"].includes(previewStateOption.dataset.ibePreview)
-    ? previewStateOption.dataset.ibePreview
-    : "auto";
-  iconButtonEffectPreviewStateByComponentId.set(previewToggleComponentId, requestedPreviewState);
-  editorRenderer?.setComponentPreviewState(previewToggleComponentId, requestedPreviewState);
-  syncInspector();
-});
-iconButtonEffectLayerOptionsElement.addEventListener("click", layerOptionsClickEvent => {
-  const effectLayerOption = layerOptionsClickEvent.target.closest("[data-ibe-layer]");
-  const layerComponentId = selectedComponentId;
-  if (!effectLayerOption || !layerComponentId) {
-    return;
-  }
-  const requestedLayer = effectLayerOption.dataset.ibeLayer === "effect" ? "effect" : "button";
-  const layerPreviewStatus = requestedLayer === "effect" ? "on" : "off";
-  iconButtonEffectLayerByComponentId.set(layerComponentId, requestedLayer);
-  iconButtonEffectPreviewStateByComponentId.set(layerComponentId, layerPreviewStatus);
-  editorRenderer?.setComponentPreviewState(layerComponentId, layerPreviewStatus);
-  editorRenderer?.setComponentSelectionLayer(layerComponentId, requestedLayer);
-  closeAllDropdownMenus();
-  syncInspector();
-});
-iconButtonEffectButtonVisibleButtonElement.addEventListener("click", () => {
-  const buttonVisibleComponentId = selectedComponentId;
-  if (buttonVisibleComponentId) {
-    mutateDocument(buttonVisibleDraftDocument => {
-      const buttonVisibleComponent = findComponent(
-        buttonVisibleDraftDocument,
-        buttonVisibleComponentId
-      )?.component;
-      if (!!buttonVisibleComponent && buttonVisibleComponent.type === "icon-button-effect") {
-        buttonVisibleComponent.properties = {
-          ...(buttonVisibleComponent.properties || {}),
-          buttonVisible: buttonVisibleComponent.properties?.buttonVisible === false
-        };
-      }
-    });
-  }
-});
-iconButtonEffectEffectVisibleButtonElement.addEventListener("click", () => {
-  const effectVisibleComponentId = selectedComponentId;
-  if (effectVisibleComponentId) {
-    mutateDocument(effectVisibleDraftDocument => {
-      const effectVisibleComponent = findComponent(
-        effectVisibleDraftDocument,
-        effectVisibleComponentId
-      )?.component;
-      if (!!effectVisibleComponent && effectVisibleComponent.type === "icon-button-effect") {
-        effectVisibleComponent.properties = {
-          ...(effectVisibleComponent.properties || {}),
-          effectVisible: effectVisibleComponent.properties?.effectVisible === false
-        };
-      }
-    });
-  }
-});
+bindIconButtonEffectSection();
+
 const titleButtonConfigsByElement = new Map([
   [
     titleButtonMainColorInputElement,
@@ -16521,551 +13424,8 @@ bindInspectorFieldHandlers(
   cameraConfigsByElement,
   cameraTransformKeyByElement
 );
-deviceButtonStatePrecisionSelectElement.addEventListener("change", () => {
-  const statePrecisionComponentId = selectedComponentId;
-  if (statePrecisionComponentId) {
-    mutateDocument(statePrecisionDraftDocument => {
-      const statePrecisionComponent = findComponent(
-        statePrecisionDraftDocument,
-        statePrecisionComponentId
-      )?.component;
-      if (!statePrecisionComponent || statePrecisionComponent.type !== "device-button") {
-        return;
-      }
-      const statePrecisionValue = ["0", "1", "2", "3", "4"].includes(
-        deviceButtonStatePrecisionSelectElement.value
-      )
-        ? Number(deviceButtonStatePrecisionSelectElement.value)
-        : "auto";
-      statePrecisionComponent.properties = {
-        ...(statePrecisionComponent.properties || {}),
-        statePrecision: statePrecisionValue
-      };
-    });
-  }
-});
-presenceSensorKindSelectElement.addEventListener("change", () => {
-  const sensorKindComponentId = selectedComponentId;
-  if (sensorKindComponentId) {
-    mutateDocument(sensorKindDraftDocument => {
-      const sensorKindComponent = findComponent(
-        sensorKindDraftDocument,
-        sensorKindComponentId
-      )?.component;
-      if (!sensorKindComponent || sensorKindComponent.type !== "presence-sensor") {
-        return;
-      }
-      const requestedSensorKind = [
-        "presence",
-        "door-window",
-        "water-leak",
-        "smoke",
-        "natural-gas"
-      ].includes(presenceSensorKindSelectElement.value)
-        ? presenceSensorKindSelectElement.value
-        : "presence";
-      sensorKindComponent.properties = {
-        ...(sensorKindComponent.properties || {}),
-        sensorKind: requestedSensorKind
-      };
-      if (requestedSensorKind !== "door-window") {
-        doorWindowPerspectiveEditIds.delete(sensorKindComponentId);
-        editorRenderer?.setComponentSelectionLayer(sensorKindComponentId, "button");
-      }
-    });
-  }
-});
-doorWindowPerspectiveEditButtonElement.addEventListener("click", () => {
-  const perspectiveEditComponent = selectedComponent();
-  if (
-    !!perspectiveEditComponent &&
-    perspectiveEditComponent.type === "presence-sensor" &&
-    perspectiveEditComponent.properties?.sensorKind === "door-window"
-  ) {
-    doorWindowPerspectiveEditIds.add(perspectiveEditComponent.id);
-    doorWindowPerspectiveEditButtonElement.classList.add("active");
-    doorWindowPerspectiveEditButtonElement.setAttribute("aria-pressed", "true");
-    doorWindowPerspectiveSaveButtonElement.disabled = false;
-    editorRenderer?.setComponentSelectionLayer(perspectiveEditComponent.id, "perspective");
-  }
-});
-doorWindowPerspectiveSaveButtonElement.addEventListener("click", () => {
-  const perspectiveSaveComponent = selectedComponent();
-  if (
-    !!perspectiveSaveComponent &&
-    perspectiveSaveComponent.type === "presence-sensor" &&
-    perspectiveSaveComponent.properties?.sensorKind === "door-window"
-  ) {
-    doorWindowPerspectiveEditIds.delete(perspectiveSaveComponent.id);
-    doorWindowPerspectiveEditButtonElement.classList.remove("active");
-    doorWindowPerspectiveEditButtonElement.setAttribute("aria-pressed", "false");
-    doorWindowPerspectiveSaveButtonElement.disabled = true;
-    editorRenderer?.setComponentSelectionLayer(perspectiveSaveComponent.id, "button");
-  }
-});
-doorWindowPerspectiveResetButtonElement.addEventListener("click", () => {
-  const perspectiveResetComponentId = selectedComponentId;
-  if (perspectiveResetComponentId) {
-    mutateDocument(perspectiveResetDraftDocument => {
-      const perspectiveResetComponent = findComponent(
-        perspectiveResetDraftDocument,
-        perspectiveResetComponentId
-      )?.component;
-      if (
-        !!perspectiveResetComponent &&
-        perspectiveResetComponent.type === "presence-sensor" &&
-        perspectiveResetComponent.properties?.sensorKind === "door-window"
-      ) {
-        perspectiveResetComponent.properties = {
-          ...(perspectiveResetComponent.properties || {}),
-          perspectiveCorners: [...DEFAULT_PERSPECTIVE_CORNERS]
-        };
-      }
-    });
-  }
-});
-cameraFitOptionsElement.addEventListener("click", cameraFitClickEvent => {
-  const cameraFitOption = cameraFitClickEvent.target.closest("[data-camera-fit]");
-  const cameraFitComponentId = selectedComponentId;
-  if (!cameraFitOption || !cameraFitComponentId) {
-    return;
-  }
-  const requestedCameraFit = cameraFitOption.dataset.cameraFit === "contain" ? "contain" : "fill";
-  mutateDocument(cameraFitDraftDocument => {
-    const cameraFitComponent = findComponent(
-      cameraFitDraftDocument,
-      cameraFitComponentId
-    )?.component;
-    if (!!cameraFitComponent && cameraFitComponent.type === "camera") {
-      cameraFitComponent.properties = {
-        ...(cameraFitComponent.properties || {}),
-        fit: requestedCameraFit
-      };
-    }
-  });
-});
-cameraDisplayModeOptionsElement.addEventListener("click", displayModeClickEvent => {
-  const displayModeOption = displayModeClickEvent.target.closest("[data-camera-display-mode]");
-  const displayModeComponentId = selectedComponentId;
-  if (!displayModeOption || !displayModeComponentId) {
-    return;
-  }
-  const requestedDisplayMode =
-    displayModeOption.dataset.cameraDisplayMode === "snapshot" ? "snapshot" : "live";
-  mutateDocument(displayModeDraftDocument => {
-    const displayModeComponent = findComponent(
-      displayModeDraftDocument,
-      displayModeComponentId
-    )?.component;
-    if (!!displayModeComponent && displayModeComponent.type === "camera") {
-      displayModeComponent.properties = {
-        ...(displayModeComponent.properties || {}),
-        displayMode: requestedDisplayMode
-      };
-    }
-  });
-});
-cameraRefreshIntervalInputElement.addEventListener("change", () => {
-  const refreshIntervalComponentId = selectedComponentId;
-  if (!refreshIntervalComponentId) {
-    return;
-  }
-  const refreshIntervalInput = Number(cameraRefreshIntervalInputElement.value);
-  const normalizedRefreshInterval = Number.isFinite(refreshIntervalInput)
-    ? Math.max(6, Math.round(refreshIntervalInput))
-    : 10;
-  cameraRefreshIntervalInputElement.value = String(normalizedRefreshInterval);
-  mutateDocument(refreshIntervalDraftDocument => {
-    const refreshIntervalComponent = findComponent(
-      refreshIntervalDraftDocument,
-      refreshIntervalComponentId
-    )?.component;
-    if (!!refreshIntervalComponent && refreshIntervalComponent.type === "camera") {
-      refreshIntervalComponent.properties = {
-        ...(refreshIntervalComponent.properties || {}),
-        refreshInterval: normalizedRefreshInterval
-      };
-    }
-  });
-});
-cameraMediaVisibleButtonElement.addEventListener("click", () => {
-  const mediaVisibleComponentId = selectedComponentId;
-  if (mediaVisibleComponentId) {
-    mutateDocument(mediaVisibleDraftDocument => {
-      const mediaVisibleComponent = findComponent(
-        mediaVisibleDraftDocument,
-        mediaVisibleComponentId
-      )?.component;
-      if (!!mediaVisibleComponent && mediaVisibleComponent.type === "camera") {
-        mediaVisibleComponent.properties = {
-          ...(mediaVisibleComponent.properties || {}),
-          mediaVisible: mediaVisibleComponent.properties?.mediaVisible === false
-        };
-      }
-    });
-  }
-});
-cameraFrameVisibleButtonElement.addEventListener("click", () => {
-  const frameVisibleComponentId = selectedComponentId;
-  if (frameVisibleComponentId) {
-    mutateDocument(frameVisibleDraftDocument => {
-      const frameVisibleComponent = findComponent(
-        frameVisibleDraftDocument,
-        frameVisibleComponentId
-      )?.component;
-      if (!!frameVisibleComponent && frameVisibleComponent.type === "camera") {
-        frameVisibleComponent.properties = {
-          ...(frameVisibleComponent.properties || {}),
-          frameVisible: frameVisibleComponent.properties?.frameVisible === false
-        };
-      }
-    });
-  }
-});
-/**
- * 记录并应用空调组件在编辑器里的预览状态（开/关/自动）。状态存放在模块级 Map 里而不是写进文档，
- * 因为它只是编辑期的可视化辅助，不该进入历史记录或被保存；非 "on"/"off" 的输入统一归一为 "auto"。
- */
-function applyAirConditionerPreviewState(previewTargetComponentId, previewModeRequest = "auto") {
-  if (!previewTargetComponentId) {
-    return;
-  }
-  const resolvedPreviewMode = ["on", "off"].includes(previewModeRequest)
-    ? previewModeRequest
-    : "auto";
-  airConditionerPreviewStateByComponentId.set(previewTargetComponentId, resolvedPreviewMode);
-  editorRenderer?.setComponentPreviewState(previewTargetComponentId, resolvedPreviewMode);
-}
-airConditionerPreviewStateElement.addEventListener("click", acPreviewStateClickEvent => {
-  const acPreviewStateOption = acPreviewStateClickEvent.target.closest(
-    "[data-air-conditioner-preview]"
-  );
-  if (!!acPreviewStateOption && !!selectedComponentId) {
-    applyAirConditionerPreviewState(
-      selectedComponentId,
-      acPreviewStateOption.dataset.airConditionerPreview
-    );
-    syncInspector();
-  }
-});
-airConditionerDeviceTypeElement.addEventListener("click", acDeviceTypeClickEvent => {
-  const acDeviceTypeOption = acDeviceTypeClickEvent.target.closest(
-    "[data-air-conditioner-device-type]"
-  );
-  const acDeviceTypeComponentId = selectedComponentId;
-  if (!acDeviceTypeOption || !acDeviceTypeComponentId) {
-    return;
-  }
-  const requestedAcDeviceType = ["air-conditioner", "bath-heater"].includes(
-    acDeviceTypeOption.dataset.airConditionerDeviceType
-  )
-    ? acDeviceTypeOption.dataset.airConditionerDeviceType
-    : "auto";
-  mutateDocument(acDeviceTypeDraftDocument => {
-    const acDeviceTypeComponent = findComponent(
-      acDeviceTypeDraftDocument,
-      acDeviceTypeComponentId
-    )?.component;
-    if (!!acDeviceTypeComponent && acDeviceTypeComponent.type === "air-conditioner") {
-      acDeviceTypeComponent.properties = {
-        ...(acDeviceTypeComponent.properties || {}),
-        deviceType: requestedAcDeviceType
-      };
-    }
-  });
-});
-airConditionerLayerOptionsElement.addEventListener("click", acLayerClickEvent => {
-  const acLayerOption = acLayerClickEvent.target.closest("[data-air-conditioner-layer]");
-  if (!acLayerOption || !selectedComponentId) {
-    return;
-  }
-  const requestedAcLayer =
-    acLayerOption.dataset.airConditionerLayer === "airflow" ? "airflow" : "button";
-  airConditionerLayerByComponentId.set(selectedComponentId, requestedAcLayer);
-  applyAirConditionerPreviewState(
-    selectedComponentId,
-    requestedAcLayer === "airflow" ? "on" : "off"
-  );
-  editorRenderer?.setComponentSelectionLayer(selectedComponentId, requestedAcLayer);
-  closeAllDropdownMenus();
-  syncInspector();
-});
-airConditionerAirflowVisibleButtonElement.addEventListener("click", () => {
-  const airflowVisibleComponentId = selectedComponentId;
-  if (airflowVisibleComponentId) {
-    applyAirConditionerPreviewState(airflowVisibleComponentId, "on");
-    mutateDocument(airflowVisibleDraftDocument => {
-      const airflowVisibleComponent = findComponent(
-        airflowVisibleDraftDocument,
-        airflowVisibleComponentId
-      )?.component;
-      if (!!airflowVisibleComponent && airflowVisibleComponent.type === "air-conditioner") {
-        airflowVisibleComponent.properties = {
-          ...(airflowVisibleComponent.properties || {}),
-          airflowVisible: airflowVisibleComponent.properties?.airflowVisible === false
-        };
-      }
-    });
-  }
-});
-for (const [visibilityToggleElement, visibilityPropertyKey] of [
-  [airConditionerIconVisibleButtonElement, "iconVisible"],
-  [airConditionerMainVisibleButtonElement, "mainTextVisible"],
-  [airConditionerSecondaryVisibleButtonElement, "secondaryTextVisible"]
-]) {
-  visibilityToggleElement.addEventListener("click", () => {
-    const visibilityToggleComponentId = selectedComponentId;
-    if (visibilityToggleComponentId) {
-      mutateDocument(acVisibilityDraftDocument => {
-        const acVisibilityComponent = findComponent(
-          acVisibilityDraftDocument,
-          visibilityToggleComponentId
-        )?.component;
-        if (!!acVisibilityComponent && acVisibilityComponent.type === "air-conditioner") {
-          acVisibilityComponent.properties = {
-            ...(acVisibilityComponent.properties || {}),
-            [visibilityPropertyKey]:
-              acVisibilityComponent.properties?.[visibilityPropertyKey] === false
-          };
-        }
-      });
-    }
-  });
-}
-airConditionerAirflowMotionElement.addEventListener("click", airflowMotionClickEvent => {
-  const airflowMotionOption = airflowMotionClickEvent.target.closest("[data-airflow-motion]");
-  const airflowMotionComponentId = selectedComponentId;
-  if (!!airflowMotionOption && !!airflowMotionComponentId) {
-    applyAirConditionerPreviewState(airflowMotionComponentId, "on");
-    mutateDocument(airflowMotionDraftDocument => {
-      const airflowMotionComponent = findComponent(
-        airflowMotionDraftDocument,
-        airflowMotionComponentId
-      )?.component;
-      if (!!airflowMotionComponent && airflowMotionComponent.type === "air-conditioner") {
-        airflowMotionComponent.properties = {
-          ...(airflowMotionComponent.properties || {}),
-          airflowMotion:
-            airflowMotionOption.dataset.airflowMotion === "static" ? "static" : "dynamic"
-        };
-      }
-    });
-  }
-});
-for (const airflowSectionEventName of ["focusin", "pointerdown", "input"]) {
-  airConditionerAirflowSectionElement.addEventListener(
-    airflowSectionEventName,
-    airflowSectionEvent => {
-      if (
-        airConditionerConfigsByElement.has(airflowSectionEvent.target) &&
-        selectedComponent()?.type === "air-conditioner"
-      ) {
-        applyAirConditionerPreviewState(selectedComponentId, "on");
-      }
-    }
-  );
-}
-const previewStateByInputElement = new Map([
-  [iconButtonIconOffOpacityInputElement, "off"],
-  [iconButtonMainOffOpacityInputElement, "off"],
-  [iconButtonSecondaryOffOpacityInputElement, "off"],
-  [iconButtonFrameOffOpacityInputElement, "off"],
-  [iconButtonOnFillVisibleButtonElement, "on"],
-  [iconButtonIconOnOpacityInputElement, "on"],
-  [iconButtonMainOnOpacityInputElement, "on"],
-  [iconButtonSecondaryOnOpacityInputElement, "on"],
-  [iconButtonOnFillColorInputElement, "on"],
-  [iconButtonOnFillStrengthInputElement, "on"],
-  [iconButtonFrameOnOpacityInputElement, "on"],
-  [deviceButtonIconOnColorInputElement, "on"]
-]);
-/**
- * 同步图标按钮预览切换按钮的选中态。用 class 与 aria-pressed 双写：class 负责样式、aria-pressed 负责无障碍朗读，
- * 只改 class 会让屏幕阅读器读不出当前是开还是关。
- */
-function syncIconButtonPreviewButtons(previewStateValue) {
-  for (const previewButtonNode of iconButtonPreviewStateElement.querySelectorAll(
-    "[data-icon-button-preview]"
-  )) {
-    const isButtonActive = previewButtonNode.dataset.iconButtonPreview === previewStateValue;
-    previewButtonNode.classList.toggle("active", isButtonActive);
-    previewButtonNode.setAttribute("aria-pressed", String(isButtonActive));
-  }
-}
-/**
- * 记录并应用图标按钮/设备按钮/传感器的预览状态（开/关/自动），与空调预览同理，状态存在模块级 Map、仅用于编辑期预览。
- * "auto" 表示解除强制预览（从 Map 里删除），以按键值不同区分是「显式置 auto」还是「保留上次的开关预览」。
- */
-function applyIconButtonPreviewState(previewComponentIdForIcon, previewModeForIcon = "auto") {
-  if (!previewComponentIdForIcon) {
-    return;
-  }
-  const resolvedIconPreviewMode = ["on", "off"].includes(previewModeForIcon)
-    ? previewModeForIcon
-    : "auto";
-  if (resolvedIconPreviewMode === "auto") {
-    iconButtonPreviewStateByComponentId.delete(previewComponentIdForIcon);
-  } else {
-    iconButtonPreviewStateByComponentId.set(previewComponentIdForIcon, resolvedIconPreviewMode);
-  }
-  editorRenderer?.setComponentPreviewState(previewComponentIdForIcon, resolvedIconPreviewMode);
-  if (previewComponentIdForIcon === selectedComponentId) {
-    syncIconButtonPreviewButtons(resolvedIconPreviewMode);
-  }
-}
-/**
- * 聚焦/编辑某个输入框时，把预览切到它能体现的开关态。previewStateByInputElement 只登记了「Off 类」与「On 类」输入框；
- * 特例：设备按钮的 iconColor 未登记但语义上属于「未激活」态，故单独判一次并回落到 "off"。不适用于图标按钮类组件时不做任何事。
- */
-function activatePreviewForInput(previewInputElement) {
-  const previewOwnerComponent = selectedComponent();
-  const previewStateToApply =
-    previewStateByInputElement.get(previewInputElement) ||
-    (previewOwnerComponent?.type === "device-button" &&
-    previewInputElement === iconButtonIconColorInputElement
-      ? "off"
-      : null);
-  if (
-    !!previewStateToApply &&
-    !!["icon-button", "device-button", "presence-sensor"].includes(previewOwnerComponent?.type)
-  ) {
-    applyIconButtonPreviewState(previewOwnerComponent.id, previewStateToApply);
-  }
-}
-/**
- * 输入框失焦后把预览恢复为自动，避免强制预览一直粘着。只对登记过预览态（或设备按钮 iconColor 特例）的输入框生效，
- * 并限定组件类型，逻辑与 activatePreviewForInput 对称。
- */
-function resetPreviewForInput(resetInputElement) {
-  const resetOwnerComponent = selectedComponent();
-  if (
-    !!previewStateByInputElement.has(resetInputElement) ||
-    (resetOwnerComponent?.type === "device-button" &&
-      resetInputElement === iconButtonIconColorInputElement)
-  ) {
-    if (["icon-button", "device-button", "presence-sensor"].includes(resetOwnerComponent?.type)) {
-      applyIconButtonPreviewState(resetOwnerComponent.id, "auto");
-    }
-  }
-}
-for (const previewSyncEventName of ["focusin", "pointerdown", "input"]) {
-  iconButtonInspectorFormElement.addEventListener(previewSyncEventName, previewSyncEvent =>
-    activatePreviewForInput(previewSyncEvent.target)
-  );
-}
-coverSettingsKindElement.addEventListener("click", coverKindClickEvent => {
-  const coverKindOption = coverKindClickEvent.target.closest("[data-cover-kind]");
-  const coverKindComponentId = selectedComponentId;
-  if (!coverKindOption || !coverKindComponentId) {
-    return;
-  }
-  const requestedCoverKind = ["standard", "dream", "airer"].includes(
-    coverKindOption.dataset.coverKind
-  )
-    ? coverKindOption.dataset.coverKind
-    : "auto";
-  mutateDocument(coverKindDraftDocument => {
-    const coverKindComponent = findComponent(
-      coverKindDraftDocument,
-      coverKindComponentId
-    )?.component;
-    if (
-      coverKindComponent &&
-      String(coverKindComponent.bindings?.entity?.entityId || "").startsWith("cover.")
-    ) {
-      coverKindComponent.properties = {
-        ...(coverKindComponent.properties || {}),
-        coverKind: requestedCoverKind
-      };
-    }
-  });
-});
-coverSettingsDirectionElement.addEventListener("click", coverDirectionClickEvent => {
-  const coverDirectionOption = coverDirectionClickEvent.target.closest("[data-cover-direction]");
-  const coverDirectionComponentId = selectedComponentId;
-  if (!coverDirectionOption || !coverDirectionComponentId) {
-    return;
-  }
-  const requestedCoverDirection = ["left", "right"].includes(
-    coverDirectionOption.dataset.coverDirection
-  )
-    ? coverDirectionOption.dataset.coverDirection
-    : "split";
-  mutateDocument(coverDirectionDraftDocument => {
-    const coverDirectionComponent = findComponent(
-      coverDirectionDraftDocument,
-      coverDirectionComponentId
-    )?.component;
-    if (
-      coverDirectionComponent &&
-      String(coverDirectionComponent.bindings?.entity?.entityId || "").startsWith("cover.")
-    ) {
-      coverDirectionComponent.properties = {
-        ...(coverDirectionComponent.properties || {}),
-        coverDirection: requestedCoverDirection
-      };
-    }
-  });
-});
-coverSettingsMotorDirectionElement.addEventListener("click", motorDirectionClickEvent => {
-  const motorDirectionOption = motorDirectionClickEvent.target.closest(
-    "[data-cover-motor-direction]"
-  );
-  const motorDirectionComponentId = selectedComponentId;
-  if (!motorDirectionOption || !motorDirectionComponentId) {
-    return;
-  }
-  const requestedMotorDirection = ["normal", "reversed"].includes(
-    motorDirectionOption.dataset.coverMotorDirection
-  )
-    ? motorDirectionOption.dataset.coverMotorDirection
-    : "auto";
-  mutateDocument(motorDirectionDraftDocument => {
-    const motorDirectionComponent = findComponent(
-      motorDirectionDraftDocument,
-      motorDirectionComponentId
-    )?.component;
-    if (
-      motorDirectionComponent &&
-      String(motorDirectionComponent.bindings?.entity?.entityId || "").startsWith("cover.")
-    ) {
-      motorDirectionComponent.properties = {
-        ...(motorDirectionComponent.properties || {}),
-        coverMotorDirection: requestedMotorDirection
-      };
-    }
-  });
-});
-iconButtonInspectorFormElement.addEventListener("focusout", previewFocusOutEvent => {
-  const focusOutComponent = selectedComponent();
-  if (
-    (!!previewStateByInputElement.has(previewFocusOutEvent.target) ||
-      (focusOutComponent?.type === "device-button" &&
-        previewFocusOutEvent.target === iconButtonIconColorInputElement)) &&
-    (!(previewFocusOutEvent.relatedTarget instanceof Node) ||
-      !iconButtonPreviewStateElement.contains(previewFocusOutEvent.relatedTarget))
-  ) {
-    window.requestAnimationFrame(() => {
-      if (
-        activeColorInputElement === previewFocusOutEvent.target &&
-        !globalColorPickerElement.hidden
-      ) {
-        return;
-      }
-      if (
-        previewStateByInputElement.get(document.activeElement) ||
-        (selectedComponent()?.type === "device-button" &&
-        document.activeElement === iconButtonIconColorInputElement
-          ? "off"
-          : null)
-      ) {
-        activatePreviewForInput(document.activeElement);
-      } else {
-        resetPreviewForInput(previewFocusOutEvent.target);
-      }
-    });
-  }
-});
+bindDeviceSection();
+
 for (const [titleVisibilityElement, titleVisibilityKey] of [
   [titleButtonMainVisibleButtonElement, "mainTextVisible"],
   [titleButtonSecondaryVisibleButtonElement, "secondaryTextVisible"],
@@ -17237,2677 +13597,8 @@ function previewTimeResize(resizedTimeComponent, timeDimensionProperties) {
     height: nextTimeHeight
   });
 }
-timeInspectorFormElement.addEventListener("input", timeInputEvent => {
-  const timeInspectorComponent = selectedComponent();
-  if (!timeInspectorComponent || timeInspectorComponent.type !== "time") {
-    return;
-  }
-  const timeInputElement = timeInputEvent.target;
-  const colorPropertyKey = timeColorPropertyByElement.get(timeInputElement);
-  if (colorPropertyKey) {
-    editorRenderer?.previewComponentProperties(timeInspectorComponent.id, {
-      [colorPropertyKey]: timeInputElement.value
-    });
-    return;
-  }
-  const timeConfig = timePropertyConfigsByElement.get(timeInputElement);
-  if (timeConfig) {
-    if (
-      String(timeInputElement.value).trim() === "" ||
-      !Number.isFinite(Number(timeInputElement.value))
-    ) {
-      return;
-    }
-    const timePropertyValue =
-      clampNumber(Number(timeInputElement.value), timeConfig.minimum, timeConfig.maximum) /
-      timeConfig.divisor;
-    const nextTimeProperties = {
-      ...(timeInspectorComponent.properties || {}),
-      [timeConfig.property]: timePropertyValue
-    };
-    editorRenderer?.previewComponentProperties(timeInspectorComponent.id, {
-      [timeConfig.property]: timePropertyValue
-    });
-    if (timeConfig.resizes) {
-      previewTimeResize(timeInspectorComponent, nextTimeProperties);
-    }
-    return;
-  }
-  if (
-    !timeTransformInputSet.has(timeInputElement) ||
-    String(timeInputElement.value).trim() === "" ||
-    !Number.isFinite(Number(timeInputElement.value))
-  ) {
-    return;
-  }
-  const timeNumericValue = Number(timeInputElement.value);
-  const timeCanvasWidth = Number(activeProject.document.canvas.width || 2778);
-  const timeCanvasHeight = Number(activeProject.document.canvas.height || 1940);
-  const timePositionWidth = Number(timeInspectorComponent.position?.width || 100);
-  const timePositionHeight = Number(timeInspectorComponent.position?.height || 100);
-  if (timeInputElement === timeLeftInputElement) {
-    const clampedTimeLeft = clampNumber(timeNumericValue, 0, 100);
-    editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
-      x: (timeCanvasWidth * clampedTimeLeft) / 100 - timePositionWidth / 2
-    });
-  } else if (timeInputElement === timeTopInputElement) {
-    const clampedTimeTop = clampNumber(timeNumericValue, 0, 100);
-    editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
-      y: (timeCanvasHeight * clampedTimeTop) / 100 - timePositionHeight / 2
-    });
-  } else if (timeInputElement === timeScaleInputElement) {
-    const clampedTimeScale = clampNumber(timeNumericValue, 1, 500);
-    editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
-      scale: clampedTimeScale / 100
-    });
-  } else if (timeInputElement === timeRotationInputElement) {
-    const clampedTimeRotation = clampNumber(timeNumericValue, -360, 360);
-    editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
-      rotation: clampedTimeRotation
-    });
-  }
-});
-timeInspectorFormElement.addEventListener("change", timeChangeEvent => {
-  const changedTimeInput = timeChangeEvent.target;
-  const timeChangeComponentId = selectedComponentId;
-  if (!timeChangeComponentId) {
-    return;
-  }
-  const timeColorKey = timeColorPropertyByElement.get(changedTimeInput);
-  const timeChangeConfig = timePropertyConfigsByElement.get(changedTimeInput);
-  if (!!timeColorKey || !!timeChangeConfig || !!timeTransformInputSet.has(changedTimeInput)) {
-    if (
-      (timeChangeConfig || timeTransformInputSet.has(changedTimeInput)) &&
-      (String(changedTimeInput.value).trim() === "" ||
-        !Number.isFinite(Number(changedTimeInput.value)))
-    ) {
-      syncInspector();
-      return;
-    }
-    mutateDocument(timeChangeDraftDocument => {
-      const timeChangeComponent = findComponent(
-        timeChangeDraftDocument,
-        timeChangeComponentId
-      )?.component;
-      if (!timeChangeComponent || timeChangeComponent.type !== "time") {
-        return;
-      }
-      timeChangeComponent.properties = {
-        ...(timeChangeComponent.properties || {})
-      };
-      timeChangeComponent.position = {
-        ...(timeChangeComponent.position || {})
-      };
-      timeChangeComponent.style = {
-        ...(timeChangeComponent.style || {})
-      };
-      const timeDocCanvasWidth = Number(timeChangeDraftDocument.canvas.width || 2778);
-      const timeDocCanvasHeight = Number(timeChangeDraftDocument.canvas.height || 1940);
-      const timeChangeValue = Number(changedTimeInput.value);
-      if (timeColorKey) {
-        timeChangeComponent.properties[timeColorKey] = changedTimeInput.value;
-      } else if (timeChangeConfig) {
-        timeChangeComponent.properties[timeChangeConfig.property] =
-          clampNumber(timeChangeValue, timeChangeConfig.minimum, timeChangeConfig.maximum) /
-          timeChangeConfig.divisor;
-        if (timeChangeConfig.resizes) {
-          fitTimeComponentToDimensions(timeChangeComponent, timeChangeComponent.properties);
-        }
-      } else if (changedTimeInput === timeLeftInputElement) {
-        timeChangeComponent.position.x =
-          (timeDocCanvasWidth * clampNumber(timeChangeValue, 0, 100)) / 100 -
-          Number(timeChangeComponent.position.width || 100) / 2;
-      } else if (changedTimeInput === timeTopInputElement) {
-        timeChangeComponent.position.y =
-          (timeDocCanvasHeight * clampNumber(timeChangeValue, 0, 100)) / 100 -
-          Number(timeChangeComponent.position.height || 100) / 2;
-      } else if (changedTimeInput === timeScaleInputElement) {
-        timeChangeComponent.style.scale = clampNumber(timeChangeValue, 1, 500) / 100;
-      } else if (changedTimeInput === timeRotationInputElement) {
-        setComponentsRotation(
-          timeChangeDraftDocument,
-          timeChangeComponentId,
-          clampNumber(timeChangeValue, -360, 360)
-        );
-      }
-    });
-  }
-});
-for (const timeToggleElement of [timeHourFormatElement, timeSecondsElement]) {
-  timeToggleElement.addEventListener("click", timeToggleClickEvent => {
-    const timeToggleComponentId = selectedComponentId;
-    const hourFormatOption = timeToggleClickEvent.target.closest("[data-time-hour-format]");
-    const secondsOption = timeToggleClickEvent.target.closest("[data-time-seconds]");
-    if (!!timeToggleComponentId && (!!hourFormatOption || !!secondsOption)) {
-      mutateDocument(timeToggleDraftDocument => {
-        const timeToggleComponent = findComponent(
-          timeToggleDraftDocument,
-          timeToggleComponentId
-        )?.component;
-        if (!!timeToggleComponent && timeToggleComponent.type === "time") {
-          timeToggleComponent.properties = {
-            ...(timeToggleComponent.properties || {})
-          };
-          if (hourFormatOption) {
-            timeToggleComponent.properties.hour12 =
-              hourFormatOption.dataset.timeHourFormat === "12";
-          }
-          if (secondsOption) {
-            timeToggleComponent.properties.showSeconds = secondsOption.dataset.timeSeconds === "on";
-          }
-          fitTimeComponentToDimensions(timeToggleComponent, timeToggleComponent.properties);
-        }
-      });
-    }
-  });
-}
-const dateColorPropertyByElement = new Map([
-  [datePrimaryColorInputElement, "primaryColor"],
-  [dateLunarColorInputElement, "lunarColor"]
-]);
-const datePropertyConfigsByElement = new Map([
-  [
-    datePrimarySizeInputElement,
-    {
-      property: "primarySize",
-      minimum: 12,
-      maximum: 500,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    datePrimaryWeightInputElement,
-    {
-      property: "primaryWeight",
-      minimum: 0,
-      maximum: 1,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    datePrimarySpacingInputElement,
-    {
-      property: "primarySpacing",
-      minimum: -20,
-      maximum: 100,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    dateLunarSizeInputElement,
-    {
-      property: "lunarSize",
-      minimum: 10,
-      maximum: 500,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    dateLunarWeightInputElement,
-    {
-      property: "lunarWeight",
-      minimum: 0,
-      maximum: 1,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    dateLunarSpacingInputElement,
-    {
-      property: "lunarSpacing",
-      minimum: -20,
-      maximum: 100,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    dateLineGapInputElement,
-    {
-      property: "lineGap",
-      minimum: 0,
-      maximum: 200,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    dateOpacityInputElement,
-    {
-      property: "opacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100,
-      resizes: false
-    }
-  ]
-]);
-const dateTransformInputSet = new Set([
-  dateLeftInputElement,
-  dateTopInputElement,
-  dateScaleInputElement,
-  dateRotationInputElement
-]);
-/**
- * 日期组件尺寸类属性变更的即时预览：按新属性算出目标宽高，保持组件中心不动重置左上角坐标，只推给渲染器做临时变换，不写回文档。
- */
-function previewDateResize(resizedDateComponent, dateDimensionProperties) {
-  const dateWidth = Number(resizedDateComponent.position?.width || 100);
-  const dateHeight = Number(resizedDateComponent.position?.height || 100);
-  const dateCenterX = Number(resizedDateComponent.position?.x || 0) + dateWidth / 2;
-  const dateCenterY = Number(resizedDateComponent.position?.y || 0) + dateHeight / 2;
-  const { width: nextDateWidth, height: nextDateHeight } =
-    dateComponentDimensions(dateDimensionProperties);
-  editorRenderer?.previewComponentTransform(resizedDateComponent.id, {
-    x: dateCenterX - nextDateWidth / 2,
-    y: dateCenterY - nextDateHeight / 2,
-    width: nextDateWidth,
-    height: nextDateHeight
-  });
-}
-dateInspectorFormElement.addEventListener("input", dateInputEvent => {
-  const dateInspectorComponent = selectedComponent();
-  if (!dateInspectorComponent || dateInspectorComponent.type !== "date") {
-    return;
-  }
-  const dateInputElement = dateInputEvent.target;
-  const dateColorKey = dateColorPropertyByElement.get(dateInputElement);
-  if (dateColorKey) {
-    editorRenderer?.previewComponentProperties(dateInspectorComponent.id, {
-      [dateColorKey]: dateInputElement.value
-    });
-    return;
-  }
-  const dateConfig = datePropertyConfigsByElement.get(dateInputElement);
-  if (dateConfig) {
-    if (
-      String(dateInputElement.value).trim() === "" ||
-      !Number.isFinite(Number(dateInputElement.value))
-    ) {
-      return;
-    }
-    const dateColorClampedValue =
-      clampNumber(Number(dateInputElement.value), dateConfig.minimum, dateConfig.maximum) /
-      dateConfig.divisor;
-    const dateColorPropertyPatch = {
-      ...(dateInspectorComponent.properties || {}),
-      [dateConfig.property]: dateColorClampedValue
-    };
-    editorRenderer?.previewComponentProperties(dateInspectorComponent.id, {
-      [dateConfig.property]: dateColorClampedValue
-    });
-    if (dateConfig.resizes) {
-      previewDateResize(dateInspectorComponent, dateColorPropertyPatch);
-    }
-    return;
-  }
-  if (
-    !dateTransformInputSet.has(dateInputElement) ||
-    String(dateInputElement.value).trim() === "" ||
-    !Number.isFinite(Number(dateInputElement.value))
-  ) {
-    return;
-  }
-  const dateTransformInputNumber = Number(dateInputElement.value);
-  const dateTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778);
-  const dateTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940);
-  const dateTransformComponentWidth = Number(dateInspectorComponent.position?.width || 100);
-  const dateTransformComponentHeight = Number(dateInspectorComponent.position?.height || 100);
-  if (dateInputElement === dateLeftInputElement) {
-    const dateLeftPercent = clampNumber(dateTransformInputNumber, 0, 100);
-    editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
-      x: (dateTransformCanvasWidth * dateLeftPercent) / 100 - dateTransformComponentWidth / 2
-    });
-  } else if (dateInputElement === dateTopInputElement) {
-    const dateTopPercent = clampNumber(dateTransformInputNumber, 0, 100);
-    editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
-      y: (dateTransformCanvasHeight * dateTopPercent) / 100 - dateTransformComponentHeight / 2
-    });
-  } else if (dateInputElement === dateScaleInputElement) {
-    const dateScalePercent = clampNumber(dateTransformInputNumber, 1, 500);
-    editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
-      scale: dateScalePercent / 100
-    });
-  } else if (dateInputElement === dateRotationInputElement) {
-    const dateRotationDegrees = clampNumber(dateTransformInputNumber, -360, 360);
-    editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
-      rotation: dateRotationDegrees
-    });
-  }
-});
-dateInspectorFormElement.addEventListener("change", dateChangeEvent => {
-  const dateChangeInputElement = dateChangeEvent.target;
-  const dateChangeComponentId = selectedComponentId;
-  if (!dateChangeComponentId) {
-    return;
-  }
-  const dateChangeColorProperty = dateColorPropertyByElement.get(dateChangeInputElement);
-  const dateChangePropertyConfig = datePropertyConfigsByElement.get(dateChangeInputElement);
-  if (
-    !!dateChangeColorProperty ||
-    !!dateChangePropertyConfig ||
-    !!dateTransformInputSet.has(dateChangeInputElement)
-  ) {
-    if (
-      (dateChangePropertyConfig || dateTransformInputSet.has(dateChangeInputElement)) &&
-      (String(dateChangeInputElement.value).trim() === "" ||
-        !Number.isFinite(Number(dateChangeInputElement.value)))
-    ) {
-      syncInspector();
-      return;
-    }
-    mutateDocument(dateChangeDraftDocument => {
-      const dateChangeComponent = findComponent(
-        dateChangeDraftDocument,
-        dateChangeComponentId
-      )?.component;
-      if (!dateChangeComponent || dateChangeComponent.type !== "date") {
-        return;
-      }
-      dateChangeComponent.properties = {
-        ...(dateChangeComponent.properties || {})
-      };
-      dateChangeComponent.position = {
-        ...(dateChangeComponent.position || {})
-      };
-      dateChangeComponent.style = {
-        ...(dateChangeComponent.style || {})
-      };
-      const dateChangeCanvasWidth = Number(dateChangeDraftDocument.canvas.width || 2778);
-      const dateChangeCanvasHeight = Number(dateChangeDraftDocument.canvas.height || 1940);
-      const dateChangeInputNumber = Number(dateChangeInputElement.value);
-      if (dateChangeColorProperty) {
-        dateChangeComponent.properties[dateChangeColorProperty] = dateChangeInputElement.value;
-      } else if (dateChangePropertyConfig) {
-        dateChangeComponent.properties[dateChangePropertyConfig.property] =
-          clampNumber(
-            dateChangeInputNumber,
-            dateChangePropertyConfig.minimum,
-            dateChangePropertyConfig.maximum
-          ) / dateChangePropertyConfig.divisor;
-        if (dateChangePropertyConfig.resizes) {
-          fitDateComponentToDimensions(dateChangeComponent, dateChangeComponent.properties);
-        }
-      } else if (dateChangeInputElement === dateLeftInputElement) {
-        dateChangeComponent.position.x =
-          (dateChangeCanvasWidth * clampNumber(dateChangeInputNumber, 0, 100)) / 100 -
-          Number(dateChangeComponent.position.width || 100) / 2;
-      } else if (dateChangeInputElement === dateTopInputElement) {
-        dateChangeComponent.position.y =
-          (dateChangeCanvasHeight * clampNumber(dateChangeInputNumber, 0, 100)) / 100 -
-          Number(dateChangeComponent.position.height || 100) / 2;
-      } else if (dateChangeInputElement === dateScaleInputElement) {
-        dateChangeComponent.style.scale = clampNumber(dateChangeInputNumber, 1, 500) / 100;
-      } else if (dateChangeInputElement === dateRotationInputElement) {
-        setComponentsRotation(
-          dateChangeDraftDocument,
-          dateChangeComponentId,
-          clampNumber(dateChangeInputNumber, -360, 360)
-        );
-      }
-    });
-  }
-});
-for (const dateVisibilityElement of [dateWeekdayElement, dateLunarElement]) {
-  dateVisibilityElement.addEventListener("click", dateVisibilityEvent => {
-    const dateVisibilityComponentId = selectedComponentId;
-    const weekdayToggleElement = dateVisibilityEvent.target.closest("[data-date-weekday]");
-    const dateLunarToggleElement = dateVisibilityEvent.target.closest("[data-date-lunar]");
-    if (!!dateVisibilityComponentId && (!!weekdayToggleElement || !!dateLunarToggleElement)) {
-      mutateDocument(dateVisibilityDraftDocument => {
-        const dateVisibilityComponent = findComponent(
-          dateVisibilityDraftDocument,
-          dateVisibilityComponentId
-        )?.component;
-        if (!!dateVisibilityComponent && dateVisibilityComponent.type === "date") {
-          dateVisibilityComponent.properties = {
-            ...(dateVisibilityComponent.properties || {})
-          };
-          if (weekdayToggleElement) {
-            dateVisibilityComponent.properties.showWeekday =
-              weekdayToggleElement.dataset.dateWeekday === "on";
-          }
-          if (dateLunarToggleElement) {
-            dateVisibilityComponent.properties.showLunar =
-              dateLunarToggleElement.dataset.dateLunar === "on";
-          }
-          fitDateComponentToDimensions(dateVisibilityComponent, dateVisibilityComponent.properties);
-        }
-      });
-    }
-  });
-}
-const weatherColorPropertiesByElement = new Map([
-  [weatherTemperatureColorInputElement, "temperatureColor"],
-  [weatherSecondaryColorInputElement, "secondaryColor"]
-]);
-const weatherPropertyConfigsByElement = new Map([
-  [
-    weatherIconSizeInputElement,
-    {
-      property: "iconSize",
-      minimum: 12,
-      maximum: 500,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    weatherIconGapInputElement,
-    {
-      property: "iconGap",
-      minimum: 0,
-      maximum: 300,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    weatherTemperatureSizeInputElement,
-    {
-      property: "temperatureSize",
-      minimum: 12,
-      maximum: 500,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    weatherTemperatureWeightInputElement,
-    {
-      property: "temperatureWeight",
-      minimum: 0,
-      maximum: 1,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    weatherTemperatureSpacingInputElement,
-    {
-      property: "temperatureSpacing",
-      minimum: -20,
-      maximum: 100,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    weatherSecondarySizeInputElement,
-    {
-      property: "secondarySize",
-      minimum: 10,
-      maximum: 500,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    weatherSecondaryWeightInputElement,
-    {
-      property: "secondaryWeight",
-      minimum: 0,
-      maximum: 1,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    weatherSecondarySpacingInputElement,
-    {
-      property: "secondarySpacing",
-      minimum: -20,
-      maximum: 100,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    weatherLineGapInputElement,
-    {
-      property: "lineGap",
-      minimum: 0,
-      maximum: 200,
-      divisor: 1,
-      resizes: true
-    }
-  ],
-  [
-    weatherOpacityInputElement,
-    {
-      property: "opacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100,
-      resizes: false
-    }
-  ]
-]);
-const weatherTransformInputSet = new Set([
-  weatherLeftInputElement,
-  weatherTopInputElement,
-  weatherScaleInputElement,
-  weatherRotationInputElement
-]);
-/**
- * 天气组件尺寸预览：按新属性算出目标宽高，以中心为锚点反推新的左上角坐标，仅通知渲染器做临时变换，最终值仍由 change 里的 mutateDocument 落盘。
- */
-function previewWeatherComponentResize(weatherResizeComponent, weatherResizeProperties) {
-  const weatherResizeWidth = Number(weatherResizeComponent.position?.width || 100);
-  const weatherResizeHeight = Number(weatherResizeComponent.position?.height || 100);
-  const weatherResizeCenterX =
-    Number(weatherResizeComponent.position?.x || 0) + weatherResizeWidth / 2;
-  const weatherResizeCenterY =
-    Number(weatherResizeComponent.position?.y || 0) + weatherResizeHeight / 2;
-  const { width: weatherResizeTargetWidth, height: weatherResizeTargetHeight } =
-    weatherComponentDimensions(weatherResizeProperties);
-  editorRenderer?.previewComponentTransform(weatherResizeComponent.id, {
-    x: weatherResizeCenterX - weatherResizeTargetWidth / 2,
-    y: weatherResizeCenterY - weatherResizeTargetHeight / 2,
-    width: weatherResizeTargetWidth,
-    height: weatherResizeTargetHeight
-  });
-}
-weatherInspectorFormElement.addEventListener("input", weatherInputEvent => {
-  const weatherInputComponent = selectedComponent();
-  if (!weatherInputComponent || weatherInputComponent.type !== "weather") {
-    return;
-  }
-  const weatherInputElement = weatherInputEvent.target;
-  const weatherInputColorProperty = weatherColorPropertiesByElement.get(weatherInputElement);
-  if (weatherInputColorProperty) {
-    editorRenderer?.previewComponentProperties(weatherInputComponent.id, {
-      [weatherInputColorProperty]: weatherInputElement.value
-    });
-    return;
-  }
-  const weatherInputPropertyConfig = weatherPropertyConfigsByElement.get(weatherInputElement);
-  if (weatherInputPropertyConfig) {
-    if (
-      String(weatherInputElement.value).trim() === "" ||
-      !Number.isFinite(Number(weatherInputElement.value))
-    ) {
-      return;
-    }
-    const weatherInputPropertyValue =
-      clampNumber(
-        Number(weatherInputElement.value),
-        weatherInputPropertyConfig.minimum,
-        weatherInputPropertyConfig.maximum
-      ) / weatherInputPropertyConfig.divisor;
-    const weatherResizePropertiesPatch = {
-      ...(weatherInputComponent.properties || {}),
-      [weatherInputPropertyConfig.property]: weatherInputPropertyValue
-    };
-    editorRenderer?.previewComponentProperties(weatherInputComponent.id, {
-      [weatherInputPropertyConfig.property]: weatherInputPropertyValue
-    });
-    if (weatherInputPropertyConfig.resizes) {
-      previewWeatherComponentResize(weatherInputComponent, weatherResizePropertiesPatch);
-    }
-    return;
-  }
-  if (
-    !weatherTransformInputSet.has(weatherInputElement) ||
-    String(weatherInputElement.value).trim() === "" ||
-    !Number.isFinite(Number(weatherInputElement.value))
-  ) {
-    return;
-  }
-  const weatherTransformInputNumber = Number(weatherInputElement.value);
-  const weatherTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778);
-  const weatherTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940);
-  const weatherTransformComponentWidth = Number(weatherInputComponent.position?.width || 100);
-  const weatherTransformComponentHeight = Number(weatherInputComponent.position?.height || 100);
-  if (weatherInputElement === weatherLeftInputElement) {
-    const weatherLeftPercent = clampNumber(weatherTransformInputNumber, 0, 100);
-    editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
-      x:
-        (weatherTransformCanvasWidth * weatherLeftPercent) / 100 -
-        weatherTransformComponentWidth / 2
-    });
-  } else if (weatherInputElement === weatherTopInputElement) {
-    const weatherTopPercent = clampNumber(weatherTransformInputNumber, 0, 100);
-    editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
-      y:
-        (weatherTransformCanvasHeight * weatherTopPercent) / 100 -
-        weatherTransformComponentHeight / 2
-    });
-  } else if (weatherInputElement === weatherScaleInputElement) {
-    const weatherScalePercent = clampNumber(weatherTransformInputNumber, 1, 500);
-    editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
-      scale: weatherScalePercent / 100
-    });
-  } else if (weatherInputElement === weatherRotationInputElement) {
-    const weatherRotationDegrees = clampNumber(weatherTransformInputNumber, -360, 360);
-    editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
-      rotation: weatherRotationDegrees
-    });
-  }
-});
-weatherInspectorFormElement.addEventListener("change", weatherChangeEvent => {
-  const weatherChangeInputElement = weatherChangeEvent.target;
-  const weatherChangeComponentId = selectedComponentId;
-  if (!weatherChangeComponentId) {
-    return;
-  }
-  const weatherChangeColorProperty = weatherColorPropertiesByElement.get(weatherChangeInputElement);
-  const weatherChangePropertyConfig =
-    weatherPropertyConfigsByElement.get(weatherChangeInputElement);
-  if (
-    !!weatherChangeColorProperty ||
-    !!weatherChangePropertyConfig ||
-    !!weatherTransformInputSet.has(weatherChangeInputElement)
-  ) {
-    if (
-      (weatherChangePropertyConfig || weatherTransformInputSet.has(weatherChangeInputElement)) &&
-      (String(weatherChangeInputElement.value).trim() === "" ||
-        !Number.isFinite(Number(weatherChangeInputElement.value)))
-    ) {
-      syncInspector();
-      return;
-    }
-    mutateDocument(weatherChangeDraftDocument => {
-      const weatherChangeComponent = findComponent(
-        weatherChangeDraftDocument,
-        weatherChangeComponentId
-      )?.component;
-      if (!weatherChangeComponent || weatherChangeComponent.type !== "weather") {
-        return;
-      }
-      weatherChangeComponent.properties = {
-        ...(weatherChangeComponent.properties || {})
-      };
-      weatherChangeComponent.position = {
-        ...(weatherChangeComponent.position || {})
-      };
-      weatherChangeComponent.style = {
-        ...(weatherChangeComponent.style || {})
-      };
-      const weatherChangeCanvasWidth = Number(weatherChangeDraftDocument.canvas.width || 2778);
-      const weatherChangeCanvasHeight = Number(weatherChangeDraftDocument.canvas.height || 1940);
-      const weatherChangeInputNumber = Number(weatherChangeInputElement.value);
-      if (weatherChangeColorProperty) {
-        weatherChangeComponent.properties[weatherChangeColorProperty] =
-          weatherChangeInputElement.value;
-      } else if (weatherChangePropertyConfig) {
-        weatherChangeComponent.properties[weatherChangePropertyConfig.property] =
-          clampNumber(
-            weatherChangeInputNumber,
-            weatherChangePropertyConfig.minimum,
-            weatherChangePropertyConfig.maximum
-          ) / weatherChangePropertyConfig.divisor;
-        if (weatherChangePropertyConfig.resizes) {
-          fitWeatherComponentToDimensions(
-            weatherChangeComponent,
-            weatherChangeComponent.properties
-          );
-        }
-      } else if (weatherChangeInputElement === weatherLeftInputElement) {
-        weatherChangeComponent.position.x =
-          (weatherChangeCanvasWidth * clampNumber(weatherChangeInputNumber, 0, 100)) / 100 -
-          Number(weatherChangeComponent.position.width || 100) / 2;
-      } else if (weatherChangeInputElement === weatherTopInputElement) {
-        weatherChangeComponent.position.y =
-          (weatherChangeCanvasHeight * clampNumber(weatherChangeInputNumber, 0, 100)) / 100 -
-          Number(weatherChangeComponent.position.height || 100) / 2;
-      } else if (weatherChangeInputElement === weatherScaleInputElement) {
-        weatherChangeComponent.style.scale = clampNumber(weatherChangeInputNumber, 1, 500) / 100;
-      } else if (weatherChangeInputElement === weatherRotationInputElement) {
-        setComponentsRotation(
-          weatherChangeDraftDocument,
-          weatherChangeComponentId,
-          clampNumber(weatherChangeInputNumber, -360, 360)
-        );
-      }
-    });
-  }
-});
-for (const weatherVisibilityElement of [
-  weatherIconVisibleElement,
-  weatherTemperatureVisibleElement,
-  weatherConditionVisibleElement,
-  weatherHumidityVisibleElement
-]) {
-  weatherVisibilityElement.addEventListener("click", weatherVisibilityEvent => {
-    const weatherVisibilityComponentId = selectedComponentId;
-    const weatherVisibilityButtonElement = weatherVisibilityEvent.target.closest("button");
-    if (!weatherVisibilityComponentId || !weatherVisibilityButtonElement) {
-      return;
-    }
-    const weatherVisibilityEntry = [
-      ["weatherIconVisible", "iconVisible"],
-      ["weatherTemperatureVisible", "temperatureVisible"],
-      ["weatherConditionVisible", "conditionVisible"],
-      ["weatherHumidityVisible", "humidityVisible"]
-    ].find(
-      ([weatherVisibilityDatasetKey]) =>
-        weatherVisibilityButtonElement.dataset[weatherVisibilityDatasetKey] !== undefined
-    );
-    if (!weatherVisibilityEntry) {
-      return;
-    }
-    const [weatherVisibilityDatasetKeyName, weatherVisibilityPropertyName] = weatherVisibilityEntry;
-    mutateDocument(weatherVisibilityDraftDocument => {
-      const weatherVisibilityComponent = findComponent(
-        weatherVisibilityDraftDocument,
-        weatherVisibilityComponentId
-      )?.component;
-      if (!!weatherVisibilityComponent && weatherVisibilityComponent.type === "weather") {
-        weatherVisibilityComponent.properties = {
-          ...(weatherVisibilityComponent.properties || {}),
-          [weatherVisibilityPropertyName]:
-            weatherVisibilityButtonElement.dataset[weatherVisibilityDatasetKeyName] === "on"
-        };
-        fitWeatherComponentToDimensions(
-          weatherVisibilityComponent,
-          weatherVisibilityComponent.properties
-        );
-      }
-    });
-  });
-}
-const lineChartColorPropertiesByElement = new Map([
-  [lineChartValueColorInputElement, "valueColor"],
-  [lineChartStatePrecisionSelectElement, "statePrecision"],
-  [lineChartThresholdModeSelectElement, "thresholdMode"]
-]);
-const lineChartPropertyConfigsByElement = new Map([
-  [
-    lineChartValueScaleInputElement,
-    {
-      property: "valueScale",
-      minimum: 10,
-      maximum: 500,
-      divisor: 1
-    }
-  ],
-  [
-    lineChartValueOffsetXInputElement,
-    {
-      property: "valueOffsetX",
-      minimum: -100,
-      maximum: 100,
-      divisor: 1
-    }
-  ],
-  [
-    lineChartValueOffsetYInputElement,
-    {
-      property: "valueOffsetY",
-      minimum: -100,
-      maximum: 100,
-      divisor: 1
-    }
-  ],
-  [
-    lineChartUpdateIntervalInputElement,
-    {
-      property: "updateInterval",
-      minimum: 30,
-      maximum: 86400,
-      divisor: 1
-    }
-  ],
-  [
-    lineChartHoursInputElement,
-    {
-      property: "hours",
-      minimum: 1,
-      maximum: 168,
-      divisor: 1
-    }
-  ],
-  [
-    lineChartCurveRadiusInputElement,
-    {
-      property: "cornerRadius",
-      minimum: 0,
-      maximum: 50,
-      divisor: 1
-    }
-  ]
-]);
-const lineChartTransformInputSet = new Set([
-  lineChartLeftInputElement,
-  lineChartTopInputElement,
-  lineChartWidthInputElement,
-  lineChartHeightInputElement,
-  lineChartScaleInputElement,
-  lineChartRotationInputElement
-]);
-lineChartInspectorFormElement.addEventListener("input", lineChartInputEvent => {
-  const lineChartInputComponent = selectedComponent();
-  if (!lineChartInputComponent || lineChartInputComponent.type !== "line-chart") {
-    return;
-  }
-  const lineChartInputElement = lineChartInputEvent.target;
-  const lineChartInputColorProperty = lineChartColorPropertiesByElement.get(lineChartInputElement);
-  const lineChartInputPropertyConfig = lineChartPropertyConfigsByElement.get(lineChartInputElement);
-  if (lineChartInputColorProperty) {
-    editorRenderer?.previewComponentProperties(lineChartInputComponent.id, {
-      [lineChartInputColorProperty]: lineChartInputElement.value
-    });
-    return;
-  }
-  if (lineChartInputPropertyConfig) {
-    if (
-      String(lineChartInputElement.value).trim() === "" ||
-      !Number.isFinite(Number(lineChartInputElement.value))
-    ) {
-      return;
-    }
-    const lineChartInputPropertyValue = clampNumber(
-      Number(lineChartInputElement.value),
-      lineChartInputPropertyConfig.minimum,
-      lineChartInputPropertyConfig.maximum
-    );
-    if (!["updateInterval", "hours"].includes(lineChartInputPropertyConfig.property)) {
-      editorRenderer?.previewComponentProperties(lineChartInputComponent.id, {
-        [lineChartInputPropertyConfig.property]:
-          lineChartInputPropertyValue / lineChartInputPropertyConfig.divisor
-      });
-    }
-    return;
-  }
-  if (
-    lineChartThresholdInputs.findIndex(
-      lineChartThresholdProbeItem =>
-        lineChartThresholdProbeItem.value === lineChartInputElement ||
-        lineChartThresholdProbeItem.color === lineChartInputElement
-    ) >= 0
-  ) {
-    const lineChartThresholdValues = lineChartThresholdInputs.map(lineChartThresholdSourceItem => ({
-      value: Number(lineChartThresholdSourceItem.value.value),
-      color: lineChartThresholdSourceItem.color.value
-    }));
-    if (
-      lineChartThresholdValues.every(lineChartThresholdValueItem =>
-        Number.isFinite(lineChartThresholdValueItem.value)
-      )
-    ) {
-      editorRenderer?.previewComponentProperties(lineChartInputComponent.id, {
-        thresholdMode: "manual",
-        thresholds: lineChartThresholdValues
-      });
-    }
-    return;
-  }
-  if (
-    !lineChartTransformInputSet.has(lineChartInputElement) ||
-    String(lineChartInputElement.value).trim() === "" ||
-    !Number.isFinite(Number(lineChartInputElement.value))
-  ) {
-    return;
-  }
-  const lineChartTransformInputNumber = Number(lineChartInputElement.value);
-  const lineChartTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778);
-  const lineChartTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940);
-  const lineChartTransformComponentWidth = Number(lineChartInputComponent.position?.width || 100);
-  const lineChartTransformComponentHeight = Number(lineChartInputComponent.position?.height || 100);
-  const lineChartTransformCenterX =
-    Number(lineChartInputComponent.position?.x || 0) + lineChartTransformComponentWidth / 2;
-  const lineChartTransformCenterY =
-    Number(lineChartInputComponent.position?.y || 0) + lineChartTransformComponentHeight / 2;
-  if (lineChartInputElement === lineChartLeftInputElement) {
-    editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
-      x:
-        (lineChartTransformCanvasWidth * clampNumber(lineChartTransformInputNumber, 0, 100)) / 100 -
-        lineChartTransformComponentWidth / 2
-    });
-  } else if (lineChartInputElement === lineChartTopInputElement) {
-    editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
-      y:
-        (lineChartTransformCanvasHeight * clampNumber(lineChartTransformInputNumber, 0, 100)) /
-          100 -
-        lineChartTransformComponentHeight / 2
-    });
-  } else if (lineChartInputElement === lineChartWidthInputElement) {
-    const lineChartTransformWidthPx =
-      (lineChartTransformCanvasWidth * clampNumber(lineChartTransformInputNumber, 0.1, 100)) / 100;
-    editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
-      x: lineChartTransformCenterX - lineChartTransformWidthPx / 2,
-      width: lineChartTransformWidthPx
-    });
-  } else if (lineChartInputElement === lineChartHeightInputElement) {
-    const lineChartTransformHeightPx =
-      (lineChartTransformCanvasHeight * clampNumber(lineChartTransformInputNumber, 0.1, 100)) / 100;
-    editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
-      y: lineChartTransformCenterY - lineChartTransformHeightPx / 2,
-      height: lineChartTransformHeightPx
-    });
-  } else if (lineChartInputElement === lineChartScaleInputElement) {
-    editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
-      scale: clampNumber(lineChartTransformInputNumber, 1, 500) / 100
-    });
-  } else if (lineChartInputElement === lineChartRotationInputElement) {
-    editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
-      rotation: clampNumber(lineChartTransformInputNumber, -360, 360)
-    });
-  }
-});
-lineChartInspectorFormElement.addEventListener("change", lineChartChangeEvent => {
-  const lineChartChangeInputElement = lineChartChangeEvent.target;
-  const lineChartChangeComponentId = selectedComponentId;
-  if (!lineChartChangeComponentId) {
-    return;
-  }
-  const lineChartChangeColorProperty = lineChartColorPropertiesByElement.get(
-    lineChartChangeInputElement
-  );
-  const lineChartChangePropertyConfig = lineChartPropertyConfigsByElement.get(
-    lineChartChangeInputElement
-  );
-  const lineChartChangeThresholdIndex = lineChartThresholdInputs.findIndex(
-    lineChartThresholdProbeEntry =>
-      lineChartThresholdProbeEntry.value === lineChartChangeInputElement ||
-      lineChartThresholdProbeEntry.color === lineChartChangeInputElement
-  );
-  if (
-    !!lineChartChangeColorProperty ||
-    !!lineChartChangePropertyConfig ||
-    !(lineChartChangeThresholdIndex < 0) ||
-    !!lineChartTransformInputSet.has(lineChartChangeInputElement)
-  ) {
-    if (
-      (lineChartChangePropertyConfig ||
-        lineChartTransformInputSet.has(lineChartChangeInputElement) ||
-        (lineChartChangeThresholdIndex >= 0 && lineChartChangeInputElement.type === "number")) &&
-      (String(lineChartChangeInputElement.value).trim() === "" ||
-        !Number.isFinite(Number(lineChartChangeInputElement.value)))
-    ) {
-      syncInspector();
-      return;
-    }
-    mutateDocument(lineChartChangeDraftDocument => {
-      const lineChartChangeComponent = findComponent(
-        lineChartChangeDraftDocument,
-        lineChartChangeComponentId
-      )?.component;
-      if (!lineChartChangeComponent || lineChartChangeComponent.type !== "line-chart") {
-        return;
-      }
-      lineChartChangeComponent.properties = {
-        ...(lineChartChangeComponent.properties || {})
-      };
-      lineChartChangeComponent.position = {
-        ...(lineChartChangeComponent.position || {})
-      };
-      lineChartChangeComponent.style = {
-        ...(lineChartChangeComponent.style || {})
-      };
-      const lineChartChangeCanvasWidth = Number(lineChartChangeDraftDocument.canvas.width || 2778);
-      const lineChartChangeCanvasHeight = Number(
-        lineChartChangeDraftDocument.canvas.height || 1940
-      );
-      const lineChartChangeComponentWidth = Number(lineChartChangeComponent.position.width || 100);
-      const lineChartChangeComponentHeight = Number(
-        lineChartChangeComponent.position.height || 100
-      );
-      const lineChartChangeCenterX =
-        Number(lineChartChangeComponent.position.x || 0) + lineChartChangeComponentWidth / 2;
-      const lineChartChangeCenterY =
-        Number(lineChartChangeComponent.position.y || 0) + lineChartChangeComponentHeight / 2;
-      const lineChartChangeInputNumber = Number(lineChartChangeInputElement.value);
-      if (lineChartChangeColorProperty) {
-        lineChartChangeComponent.properties[lineChartChangeColorProperty] =
-          lineChartChangeInputElement.value;
-        if (
-          lineChartChangeInputElement === lineChartThresholdModeSelectElement &&
-          lineChartChangeInputElement.value === "manual" &&
-          (!Array.isArray(lineChartChangeComponent.properties.thresholds) ||
-            !lineChartChangeComponent.properties.thresholds.some(lineChartThresholdValueProbe =>
-              Number.isFinite(Number(lineChartThresholdValueProbe?.value))
-            ))
-        ) {
-          lineChartChangeComponent.properties.thresholds = lineChartThresholdInputs.map(
-            lineChartThresholdSourceEntry => ({
-              value: Number(lineChartThresholdSourceEntry.value.value),
-              color: lineChartThresholdSourceEntry.color.value
-            })
-          );
-        }
-      } else if (lineChartChangePropertyConfig) {
-        lineChartChangeComponent.properties[lineChartChangePropertyConfig.property] =
-          clampNumber(
-            lineChartChangeInputNumber,
-            lineChartChangePropertyConfig.minimum,
-            lineChartChangePropertyConfig.maximum
-          ) / lineChartChangePropertyConfig.divisor;
-      } else if (lineChartChangeThresholdIndex >= 0) {
-        lineChartChangeComponent.properties.thresholdMode = "manual";
-        lineChartChangeComponent.properties.thresholds = lineChartThresholdInputs.map(
-          lineChartThresholdSourceRecord => ({
-            value: Number(lineChartThresholdSourceRecord.value.value),
-            color: lineChartThresholdSourceRecord.color.value
-          })
-        );
-      } else if (lineChartChangeInputElement === lineChartLeftInputElement) {
-        lineChartChangeComponent.position.x =
-          (lineChartChangeCanvasWidth * clampNumber(lineChartChangeInputNumber, 0, 100)) / 100 -
-          lineChartChangeComponentWidth / 2;
-      } else if (lineChartChangeInputElement === lineChartTopInputElement) {
-        lineChartChangeComponent.position.y =
-          (lineChartChangeCanvasHeight * clampNumber(lineChartChangeInputNumber, 0, 100)) / 100 -
-          lineChartChangeComponentHeight / 2;
-      } else if (lineChartChangeInputElement === lineChartWidthInputElement) {
-        lineChartChangeComponent.position.width =
-          (lineChartChangeCanvasWidth * clampNumber(lineChartChangeInputNumber, 0.1, 100)) / 100;
-        lineChartChangeComponent.position.x =
-          lineChartChangeCenterX - lineChartChangeComponent.position.width / 2;
-      } else if (lineChartChangeInputElement === lineChartHeightInputElement) {
-        lineChartChangeComponent.position.height =
-          (lineChartChangeCanvasHeight * clampNumber(lineChartChangeInputNumber, 0.1, 100)) / 100;
-        lineChartChangeComponent.position.y =
-          lineChartChangeCenterY - lineChartChangeComponent.position.height / 2;
-      } else if (lineChartChangeInputElement === lineChartScaleInputElement) {
-        lineChartChangeComponent.style.scale =
-          clampNumber(lineChartChangeInputNumber, 1, 500) / 100;
-      } else if (lineChartChangeInputElement === lineChartRotationInputElement) {
-        setComponentsRotation(
-          lineChartChangeDraftDocument,
-          lineChartChangeComponentId,
-          clampNumber(lineChartChangeInputNumber, -360, 360)
-        );
-      }
-    });
-  }
-});
-lineChartValueVisibleElement.addEventListener("click", lineChartValueVisibleEvent => {
-  const lineChartValueVisibleButtonElement = lineChartValueVisibleEvent.target.closest(
-    "[data-line-chart-value-visible]"
-  );
-  const lineChartValueVisibleComponentId = selectedComponentId;
-  if (!!lineChartValueVisibleButtonElement && !!lineChartValueVisibleComponentId) {
-    mutateDocument(lineChartValueVisibleDraftDocument => {
-      const lineChartValueVisibleComponent = findComponent(
-        lineChartValueVisibleDraftDocument,
-        lineChartValueVisibleComponentId
-      )?.component;
-      if (
-        !!lineChartValueVisibleComponent &&
-        lineChartValueVisibleComponent.type === "line-chart"
-      ) {
-        lineChartValueVisibleComponent.properties = {
-          ...(lineChartValueVisibleComponent.properties || {}),
-          valueVisible: lineChartValueVisibleButtonElement.dataset.lineChartValueVisible === "on"
-        };
-      }
-    });
-  }
-});
-const panelFrameColorPropertiesByElement = new Map([
-  [panelFrameMainColorInputElement, "mainColor"],
-  [panelFrameSecondaryColorInputElement, "secondaryColor"],
-  [panelFrameEdgeColorInputElement, "edgeColor"],
-  [panelFrameGlowColorInputElement, "glowColor"]
-]);
-const panelFramePropertyConfigsByElement = new Map([
-  [
-    panelFrameMainSizeInputElement,
-    {
-      property: "mainSize",
-      minimum: 8,
-      maximum: 500,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameMainWeightInputElement,
-    {
-      property: "mainWeight",
-      minimum: 0,
-      maximum: 3,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameMainOpacityInputElement,
-    {
-      property: "mainOpacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100
-    }
-  ],
-  [
-    panelFrameMainSpacingInputElement,
-    {
-      property: "mainSpacing",
-      minimum: -20,
-      maximum: 100,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameMainLeftInputElement,
-    {
-      property: "mainTextLeft",
-      minimum: -100,
-      maximum: 200,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameMainTopInputElement,
-    {
-      property: "mainTextTop",
-      minimum: -100,
-      maximum: 200,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameSecondarySizeInputElement,
-    {
-      property: "secondarySize",
-      minimum: 6,
-      maximum: 500,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameSecondaryWeightInputElement,
-    {
-      property: "secondaryWeight",
-      minimum: 0,
-      maximum: 3,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameSecondaryOpacityInputElement,
-    {
-      property: "secondaryOpacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100
-    }
-  ],
-  [
-    panelFrameSecondarySpacingInputElement,
-    {
-      property: "secondarySpacing",
-      minimum: -20,
-      maximum: 100,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameSecondaryLeftInputElement,
-    {
-      property: "secondaryTextLeft",
-      minimum: -100,
-      maximum: 200,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameSecondaryTopInputElement,
-    {
-      property: "secondaryTextTop",
-      minimum: -100,
-      maximum: 200,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameEdgeWidthInputElement,
-    {
-      property: "edgeWidth",
-      minimum: 0,
-      maximum: 20,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameEdgeOpacityInputElement,
-    {
-      property: "edgeOpacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100
-    }
-  ],
-  [
-    panelFrameRadiusInputElement,
-    {
-      property: "radius",
-      minimum: 0,
-      maximum: 50,
-      divisor: 100
-    }
-  ],
-  [
-    panelFrameEdgeAngleInputElement,
-    {
-      property: "edgeAngle",
-      minimum: 0,
-      maximum: 360,
-      divisor: 1
-    }
-  ],
-  [
-    panelFrameGlowStrengthInputElement,
-    {
-      property: "glowStrength",
-      minimum: 0,
-      maximum: 500,
-      divisor: 100
-    }
-  ],
-  [
-    panelFrameGlowSizeInputElement,
-    {
-      property: "glowSize",
-      minimum: 0,
-      maximum: 300,
-      divisor: 100
-    }
-  ],
-  [
-    panelFrameGlowAngleInputElement,
-    {
-      property: "glowAngle",
-      minimum: 0,
-      maximum: 360,
-      divisor: 1
-    }
-  ]
-]);
-const panelFrameTransformInputSet = new Set([
-  panelFrameLeftInputElement,
-  panelFrameTopInputElement,
-  panelFrameWidthInputElement,
-  panelFrameHeightInputElement,
-  panelFrameScaleInputElement,
-  panelFrameRotationInputElement
-]);
-panelFrameInspectorFormElement.addEventListener("input", panelFrameInputEvent => {
-  const panelFrameInputComponent = selectedComponent();
-  if (!panelFrameInputComponent || panelFrameInputComponent.type !== "panel-frame") {
-    return;
-  }
-  const panelFrameInputElement = panelFrameInputEvent.target;
-  const panelFrameInputColorProperty =
-    panelFrameColorPropertiesByElement.get(panelFrameInputElement);
-  const panelFrameInputPropertyConfig =
-    panelFramePropertyConfigsByElement.get(panelFrameInputElement);
-  if (panelFrameInputColorProperty) {
-    editorRenderer?.previewComponentProperties(panelFrameInputComponent.id, {
-      [panelFrameInputColorProperty]: panelFrameInputElement.value
-    });
-    return;
-  }
-  if (panelFrameInputPropertyConfig) {
-    if (
-      String(panelFrameInputElement.value).trim() === "" ||
-      !Number.isFinite(Number(panelFrameInputElement.value))
-    ) {
-      return;
-    }
-    const panelFrameInputPropertyValue = clampNumber(
-      Number(panelFrameInputElement.value),
-      panelFrameInputPropertyConfig.minimum,
-      panelFrameInputPropertyConfig.maximum
-    );
-    editorRenderer?.previewComponentProperties(panelFrameInputComponent.id, {
-      [panelFrameInputPropertyConfig.property]:
-        panelFrameInputPropertyValue / panelFrameInputPropertyConfig.divisor
-    });
-    return;
-  }
-  if (
-    !panelFrameTransformInputSet.has(panelFrameInputElement) ||
-    String(panelFrameInputElement.value).trim() === "" ||
-    !Number.isFinite(Number(panelFrameInputElement.value))
-  ) {
-    return;
-  }
-  const panelFrameTransformInputNumber = Number(panelFrameInputElement.value);
-  const panelFrameTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778);
-  const panelFrameTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940);
-  const panelFrameTransformComponentWidth = Number(panelFrameInputComponent.position?.width || 100);
-  const panelFrameTransformComponentHeight = Number(
-    panelFrameInputComponent.position?.height || 100
-  );
-  const panelFrameTransformCenterX =
-    Number(panelFrameInputComponent.position?.x || 0) + panelFrameTransformComponentWidth / 2;
-  const panelFrameTransformCenterY =
-    Number(panelFrameInputComponent.position?.y || 0) + panelFrameTransformComponentHeight / 2;
-  if (panelFrameInputElement === panelFrameLeftInputElement) {
-    editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
-      x:
-        (panelFrameTransformCanvasWidth * clampNumber(panelFrameTransformInputNumber, 0, 100)) /
-          100 -
-        panelFrameTransformComponentWidth / 2
-    });
-  } else if (panelFrameInputElement === panelFrameTopInputElement) {
-    editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
-      y:
-        (panelFrameTransformCanvasHeight * clampNumber(panelFrameTransformInputNumber, 0, 100)) /
-          100 -
-        panelFrameTransformComponentHeight / 2
-    });
-  } else if (panelFrameInputElement === panelFrameWidthInputElement) {
-    const panelFrameTransformWidthPx =
-      (panelFrameTransformCanvasWidth * clampNumber(panelFrameTransformInputNumber, 0.1, 100)) /
-      100;
-    editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
-      x: panelFrameTransformCenterX - panelFrameTransformWidthPx / 2,
-      width: panelFrameTransformWidthPx
-    });
-  } else if (panelFrameInputElement === panelFrameHeightInputElement) {
-    const panelFrameTransformHeightPx =
-      (panelFrameTransformCanvasHeight * clampNumber(panelFrameTransformInputNumber, 0.1, 100)) /
-      100;
-    editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
-      y: panelFrameTransformCenterY - panelFrameTransformHeightPx / 2,
-      height: panelFrameTransformHeightPx
-    });
-  } else if (panelFrameInputElement === panelFrameScaleInputElement) {
-    editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
-      scale: clampNumber(panelFrameTransformInputNumber, 1, 500) / 100
-    });
-  } else if (panelFrameInputElement === panelFrameRotationInputElement) {
-    editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
-      rotation: clampNumber(panelFrameTransformInputNumber, -360, 360)
-    });
-  }
-});
-panelFrameInspectorFormElement.addEventListener("change", panelFrameChangeEvent => {
-  const panelFrameChangeInputElement = panelFrameChangeEvent.target;
-  const panelFrameChangeComponentId = selectedComponentId;
-  if (!panelFrameChangeComponentId) {
-    return;
-  }
-  const panelFrameChangeColorProperty = panelFrameColorPropertiesByElement.get(
-    panelFrameChangeInputElement
-  );
-  const panelFrameChangePropertyConfig = panelFramePropertyConfigsByElement.get(
-    panelFrameChangeInputElement
-  );
-  if (
-    !!panelFrameChangeColorProperty ||
-    !!panelFrameChangePropertyConfig ||
-    !!panelFrameTransformInputSet.has(panelFrameChangeInputElement)
-  ) {
-    if (
-      (panelFrameChangePropertyConfig ||
-        panelFrameTransformInputSet.has(panelFrameChangeInputElement)) &&
-      (String(panelFrameChangeInputElement.value).trim() === "" ||
-        !Number.isFinite(Number(panelFrameChangeInputElement.value)))
-    ) {
-      syncInspector();
-      return;
-    }
-    mutateDocument(panelFrameChangeDraftDocument => {
-      const panelFrameChangeComponent = findComponent(
-        panelFrameChangeDraftDocument,
-        panelFrameChangeComponentId
-      )?.component;
-      if (!panelFrameChangeComponent || panelFrameChangeComponent.type !== "panel-frame") {
-        return;
-      }
-      panelFrameChangeComponent.properties = {
-        ...(panelFrameChangeComponent.properties || {})
-      };
-      panelFrameChangeComponent.position = {
-        ...(panelFrameChangeComponent.position || {})
-      };
-      panelFrameChangeComponent.style = {
-        ...(panelFrameChangeComponent.style || {})
-      };
-      const panelFrameChangeCanvasWidth = Number(
-        panelFrameChangeDraftDocument.canvas.width || 2778
-      );
-      const panelFrameChangeCanvasHeight = Number(
-        panelFrameChangeDraftDocument.canvas.height || 1940
-      );
-      const panelFrameChangeComponentWidth = Number(
-        panelFrameChangeComponent.position.width || 100
-      );
-      const panelFrameChangeComponentHeight = Number(
-        panelFrameChangeComponent.position.height || 100
-      );
-      const panelFrameChangeCenterX =
-        Number(panelFrameChangeComponent.position.x || 0) + panelFrameChangeComponentWidth / 2;
-      const panelFrameChangeCenterY =
-        Number(panelFrameChangeComponent.position.y || 0) + panelFrameChangeComponentHeight / 2;
-      const panelFrameChangeInputNumber = Number(panelFrameChangeInputElement.value);
-      if (panelFrameChangeColorProperty) {
-        panelFrameChangeComponent.properties[panelFrameChangeColorProperty] =
-          panelFrameChangeInputElement.value;
-      } else if (panelFrameChangePropertyConfig) {
-        panelFrameChangeComponent.properties[panelFrameChangePropertyConfig.property] =
-          clampNumber(
-            panelFrameChangeInputNumber,
-            panelFrameChangePropertyConfig.minimum,
-            panelFrameChangePropertyConfig.maximum
-          ) / panelFrameChangePropertyConfig.divisor;
-      } else if (panelFrameChangeInputElement === panelFrameLeftInputElement) {
-        panelFrameChangeComponent.position.x =
-          (panelFrameChangeCanvasWidth * clampNumber(panelFrameChangeInputNumber, 0, 100)) / 100 -
-          panelFrameChangeComponentWidth / 2;
-      } else if (panelFrameChangeInputElement === panelFrameTopInputElement) {
-        panelFrameChangeComponent.position.y =
-          (panelFrameChangeCanvasHeight * clampNumber(panelFrameChangeInputNumber, 0, 100)) / 100 -
-          panelFrameChangeComponentHeight / 2;
-      } else if (panelFrameChangeInputElement === panelFrameWidthInputElement) {
-        panelFrameChangeComponent.position.width =
-          (panelFrameChangeCanvasWidth * clampNumber(panelFrameChangeInputNumber, 0.1, 100)) / 100;
-        panelFrameChangeComponent.position.x =
-          panelFrameChangeCenterX - panelFrameChangeComponent.position.width / 2;
-      } else if (panelFrameChangeInputElement === panelFrameHeightInputElement) {
-        panelFrameChangeComponent.position.height =
-          (panelFrameChangeCanvasHeight * clampNumber(panelFrameChangeInputNumber, 0.1, 100)) / 100;
-        panelFrameChangeComponent.position.y =
-          panelFrameChangeCenterY - panelFrameChangeComponent.position.height / 2;
-      } else if (panelFrameChangeInputElement === panelFrameScaleInputElement) {
-        panelFrameChangeComponent.style.scale =
-          clampNumber(panelFrameChangeInputNumber, 1, 500) / 100;
-      } else if (panelFrameChangeInputElement === panelFrameRotationInputElement) {
-        setComponentsRotation(
-          panelFrameChangeDraftDocument,
-          panelFrameChangeComponentId,
-          clampNumber(panelFrameChangeInputNumber, -360, 360)
-        );
-      }
-    });
-  }
-});
-for (const [panelFrameVisibilityButton, panelFrameVisibilityProperty] of [
-  [panelFrameMainVisibleButtonElement, "mainTextVisible"],
-  [panelFrameSecondaryVisibleButtonElement, "secondaryTextVisible"],
-  [panelFrameEdgeVisibleButtonElement, "edgeVisible"],
-  [panelFrameGlowVisibleButtonElement, "glowVisible"]
-]) {
-  panelFrameVisibilityButton.addEventListener("click", () => {
-    const panelFrameVisibilityComponentId = selectedComponentId;
-    if (panelFrameVisibilityComponentId) {
-      mutateDocument(panelFrameVisibilityDraftDocument => {
-        const panelFrameVisibilityComponent = findComponent(
-          panelFrameVisibilityDraftDocument,
-          panelFrameVisibilityComponentId
-        )?.component;
-        if (
-          !!panelFrameVisibilityComponent &&
-          panelFrameVisibilityComponent.type === "panel-frame"
-        ) {
-          panelFrameVisibilityComponent.properties = {
-            ...(panelFrameVisibilityComponent.properties || {}),
-            [panelFrameVisibilityProperty]:
-              panelFrameVisibilityComponent.properties?.[panelFrameVisibilityProperty] === false
-          };
-        }
-      });
-    }
-  });
-}
-const navigationColorPropertiesByElement = new Map([
-  [navigationMainTextInputElement, "mainText"],
-  [navigationSecondaryTextInputElement, "secondaryText"],
-  [navigationMainColorInputElement, "mainColor"],
-  [navigationSecondaryColorInputElement, "secondaryColor"],
-  [navigationIconColorInputElement, "iconColor"],
-  [navigationFrameColorInputElement, "frameColor"],
-  [navigationGlowColorInputElement, "glowColor"]
-]);
-const navigationPropertyConfigsByElement = new Map([
-  [
-    navigationMainSizeInputElement,
-    {
-      property: "mainSize",
-      minimum: 1,
-      maximum: 500,
-      divisor: 1
-    }
-  ],
-  [
-    navigationSecondarySizeInputElement,
-    {
-      property: "secondarySize",
-      minimum: 1,
-      maximum: 500,
-      divisor: 1
-    }
-  ],
-  [
-    navigationMainWeightInputElement,
-    {
-      property: "mainWeight",
-      minimum: 0,
-      maximum: 3,
-      divisor: 1
-    }
-  ],
-  [
-    navigationSecondaryWeightInputElement,
-    {
-      property: "secondaryWeight",
-      minimum: 0,
-      maximum: 3,
-      divisor: 1
-    }
-  ],
-  [
-    navigationMainSpacingInputElement,
-    {
-      property: "mainSpacing",
-      minimum: -20,
-      maximum: 100,
-      divisor: 1
-    }
-  ],
-  [
-    navigationSecondarySpacingInputElement,
-    {
-      property: "secondarySpacing",
-      minimum: -20,
-      maximum: 100,
-      divisor: 1
-    }
-  ],
-  [
-    navigationMainTextLeftInputElement,
-    {
-      property: "mainTextLeft",
-      minimum: -100,
-      maximum: 200,
-      divisor: 1
-    }
-  ],
-  [
-    navigationMainTextTopInputElement,
-    {
-      property: "mainTextTop",
-      minimum: -100,
-      maximum: 200,
-      divisor: 1
-    }
-  ],
-  [
-    navigationSecondaryTextLeftInputElement,
-    {
-      property: "secondaryTextLeft",
-      minimum: -100,
-      maximum: 200,
-      divisor: 1
-    }
-  ],
-  [
-    navigationSecondaryTextTopInputElement,
-    {
-      property: "secondaryTextTop",
-      minimum: -100,
-      maximum: 200,
-      divisor: 1
-    }
-  ],
-  [
-    navigationTextIdleOpacityInputElement,
-    {
-      property: "textIdleOpacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100
-    }
-  ],
-  [
-    navigationTextActiveOpacityInputElement,
-    {
-      property: "textActiveOpacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100
-    }
-  ],
-  [
-    navigationIconSizeInputElement,
-    {
-      property: "iconSize",
-      minimum: 1,
-      maximum: 500,
-      divisor: 1
-    }
-  ],
-  [
-    navigationIconLeftInputElement,
-    {
-      property: "iconLeft",
-      minimum: -100,
-      maximum: 200,
-      divisor: 1
-    }
-  ],
-  [
-    navigationIconTopInputElement,
-    {
-      property: "iconTop",
-      minimum: -100,
-      maximum: 200,
-      divisor: 1
-    }
-  ],
-  [
-    navigationIconIdleOpacityInputElement,
-    {
-      property: "iconIdleOpacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100
-    }
-  ],
-  [
-    navigationIconActiveOpacityInputElement,
-    {
-      property: "iconActiveOpacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100
-    }
-  ],
-  [
-    navigationFrameWidthInputElement,
-    {
-      property: "frameWidth",
-      minimum: 0,
-      maximum: 20,
-      divisor: 1
-    }
-  ],
-  [
-    navigationFrameIdleOpacityInputElement,
-    {
-      property: "frameIdleOpacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100
-    }
-  ],
-  [
-    navigationFrameActiveOpacityInputElement,
-    {
-      property: "frameActiveOpacity",
-      minimum: 0,
-      maximum: 100,
-      divisor: 100
-    }
-  ],
-  [
-    navigationRadiusInputElement,
-    {
-      property: "radius",
-      minimum: 0,
-      maximum: 50,
-      divisor: 100
-    }
-  ],
-  [
-    navigationFrameAngleInputElement,
-    {
-      property: "frameAngle",
-      minimum: 0,
-      maximum: 360,
-      divisor: 1
-    }
-  ],
-  [
-    navigationGlowAngleInputElement,
-    {
-      property: "glowAngle",
-      minimum: 0,
-      maximum: 360,
-      divisor: 1
-    }
-  ],
-  [
-    navigationGlowIdleStrengthInputElement,
-    {
-      property: "glowIdleStrength",
-      minimum: 0,
-      maximum: 500,
-      divisor: 100
-    }
-  ],
-  [
-    navigationGlowIdleSizeInputElement,
-    {
-      property: "glowIdleSize",
-      minimum: 0,
-      maximum: 300,
-      divisor: 100
-    }
-  ],
-  [
-    navigationGlowActiveStrengthInputElement,
-    {
-      property: "glowActiveStrength",
-      minimum: 0,
-      maximum: 500,
-      divisor: 100
-    }
-  ],
-  [
-    navigationGlowActiveSizeInputElement,
-    {
-      property: "glowActiveSize",
-      minimum: 0,
-      maximum: 300,
-      divisor: 100
-    }
-  ]
-]);
-const navigationToggleStateByElement = new Map([
-  [navigationTextIdleOpacityInputElement, "off"],
-  [navigationIconIdleOpacityInputElement, "off"],
-  [navigationFrameIdleOpacityInputElement, "off"],
-  [navigationGlowIdleStrengthInputElement, "off"],
-  [navigationGlowIdleSizeInputElement, "off"],
-  [navigationTextActiveOpacityInputElement, "on"],
-  [navigationIconActiveOpacityInputElement, "on"],
-  [navigationFrameActiveOpacityInputElement, "on"],
-  [navigationGlowActiveStrengthInputElement, "on"],
-  [navigationGlowActiveSizeInputElement, "on"]
-]);
-/**
- * 把导航按钮检查器里的「预览状态」分段控件切到指定档位（on / off）。
- *
- * @param {string} navigationPreviewState 目标档位；传空值时不做任何切换。
- */
-function setNavigationPreviewState(navigationPreviewState) {
-  if (navigationPreviewState) {
-    for (const navigationPreviewButton of navigationPreviewStateElement.querySelectorAll(
-      "[data-navigation-preview]"
-    )) {
-      navigationPreviewButton.classList.toggle(
-        "active",
-        navigationPreviewButton.dataset.navigationPreview === navigationPreviewState
-      );
-    }
-  }
-}
-/**
- * 应用导航按钮的预览状态：写入按组件 ID 索引的临时状态表并通知渲染器，若该组件正处于选中态则同步顶部按钮的 active 样式。
- */
-function applyNavigationPreviewState(navigationPreviewComponentId, navigationPreviewStateValue) {
-  if (!navigationPreviewComponentId) {
-    return;
-  }
-  const navigationNormalizedPreviewState = ["on", "off"].includes(navigationPreviewStateValue)
-    ? navigationPreviewStateValue
-    : "auto";
-  if (navigationNormalizedPreviewState === "auto") {
-    navigationPreviewStateByComponentId.delete(navigationPreviewComponentId);
-  } else {
-    navigationPreviewStateByComponentId.set(
-      navigationPreviewComponentId,
-      navigationNormalizedPreviewState
-    );
-  }
-  editorRenderer?.setComponentPreviewState(
-    navigationPreviewComponentId,
-    navigationNormalizedPreviewState
-  );
-  if (navigationPreviewComponentId === selectedComponentId) {
-    setNavigationPreviewState(navigationNormalizedPreviewState);
-  }
-}
-/**
- * 从点击的分段控件反查它代表的预览档位，并把该档位应用到当前选中的导航按钮。
- *
- * @returns {?string} 应用的档位文案；元素无法识别或选中项不是导航按钮时返回 null。
- */
-function syncNavigationPreviewFromElement(navigationPreviewInputElement) {
-  const navigationToggleState = navigationToggleStateByElement.get(navigationPreviewInputElement);
-  const navigationPreviewComponent = selectedComponent();
-  if (!navigationToggleState || navigationPreviewComponent?.type !== "navigation-button") {
-    return null;
-  } else {
-    applyNavigationPreviewState(navigationPreviewComponent.id, navigationToggleState);
-    return navigationToggleState;
-  }
-}
-const navigationTransformInputSet = new Set([
-  navigationLeftInputElement,
-  navigationTopInputElement,
-  navigationWidthInputElement,
-  navigationHeightInputElement,
-  navigationScaleInputElement,
-  navigationRotationInputElement
-]);
-/**
- * 把导航按钮检查器的某个输入框映射到它负责的样式属性名：颜色/数值配置表优先，随后是宽高等几何输入；
- * 返回空串表示该输入框不参与样式变更（调用方据此跳过）。
- */
-function navigationPropertyNameFromElement(navigationPropertyInputElement) {
-  const navigationColorPropertyName = navigationColorPropertiesByElement.get(
-    navigationPropertyInputElement
-  );
-  if (
-    navigationColorPropertyName &&
-    navigationStylePropertyDefinitions[navigationColorPropertyName]
-  ) {
-    return navigationColorPropertyName;
-  }
-  const navigationConfigPropertyName = navigationPropertyConfigsByElement.get(
-    navigationPropertyInputElement
-  )?.property;
-  if (
-    navigationConfigPropertyName &&
-    navigationStylePropertyDefinitions[navigationConfigPropertyName]
-  ) {
-    return navigationConfigPropertyName;
-  } else if (navigationPropertyInputElement === navigationWidthInputElement) {
-    return "width";
-  } else if (navigationPropertyInputElement === navigationHeightInputElement) {
-    return "height";
-  } else if (navigationPropertyInputElement === navigationScaleInputElement) {
-    return "scale";
-  } else if (navigationPropertyInputElement === navigationRotationInputElement) {
-    return "rotation";
-  } else {
-    return "";
-  }
-}
-navigationInspectorFormElement.addEventListener("input", navigationInputEvent => {
-  const navigationInputComponent = selectedComponent();
-  if (!navigationInputComponent || navigationInputComponent.type !== "navigation-button") {
-    return;
-  }
-  const navigationInputElement = navigationInputEvent.target;
-  const navigationInputColorProperty =
-    navigationColorPropertiesByElement.get(navigationInputElement);
-  if (navigationInputColorProperty) {
-    if (!textInputConfigsByElement.has(navigationInputElement)) {
-      editorRenderer?.previewComponentProperties(navigationInputComponent.id, {
-        [navigationInputColorProperty]: navigationInputElement.value
-      });
-    }
-    return;
-  }
-  const navigationInputPropertyConfig =
-    navigationPropertyConfigsByElement.get(navigationInputElement);
-  if (navigationInputPropertyConfig) {
-    if (
-      String(navigationInputElement.value).trim() === "" ||
-      !Number.isFinite(Number(navigationInputElement.value))
-    ) {
-      return;
-    }
-    const navigationInputPropertyValue = clampNumber(
-      Number(navigationInputElement.value),
-      navigationInputPropertyConfig.minimum,
-      navigationInputPropertyConfig.maximum
-    );
-    syncNavigationPreviewFromElement(navigationInputElement);
-    editorRenderer?.previewComponentProperties(navigationInputComponent.id, {
-      [navigationInputPropertyConfig.property]:
-        navigationInputPropertyValue / navigationInputPropertyConfig.divisor
-    });
-    return;
-  }
-  if (
-    !navigationTransformInputSet.has(navigationInputElement) ||
-    String(navigationInputElement.value).trim() === "" ||
-    !Number.isFinite(Number(navigationInputElement.value))
-  ) {
-    return;
-  }
-  const navigationTransformInputNumber = Number(navigationInputElement.value);
-  const navigationTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778);
-  const navigationTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940);
-  const navigationTransformComponentWidth = Number(navigationInputComponent.position?.width || 100);
-  const navigationTransformComponentHeight = Number(
-    navigationInputComponent.position?.height || 100
-  );
-  if (navigationInputElement === navigationLeftInputElement) {
-    const navigationLeftPercent = clampNumber(navigationTransformInputNumber, 0, 100);
-    editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
-      x:
-        (navigationTransformCanvasWidth * navigationLeftPercent) / 100 -
-        navigationTransformComponentWidth / 2
-    });
-  } else if (navigationInputElement === navigationTopInputElement) {
-    const navigationTopPercent = clampNumber(navigationTransformInputNumber, 0, 100);
-    editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
-      y:
-        (navigationTransformCanvasHeight * navigationTopPercent) / 100 -
-        navigationTransformComponentHeight / 2
-    });
-  } else if (navigationInputElement === navigationWidthInputElement) {
-    const navigationWidthPercent = clampNumber(navigationTransformInputNumber, 0.1, 100);
-    const navigationPreviewWidthPx =
-      (navigationTransformCanvasWidth * navigationWidthPercent) / 100;
-    const navigationCenterX =
-      Number(navigationInputComponent.position?.x || 0) + navigationTransformComponentWidth / 2;
-    editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
-      x: navigationCenterX - navigationPreviewWidthPx / 2,
-      width: navigationPreviewWidthPx
-    });
-  } else if (navigationInputElement === navigationHeightInputElement) {
-    const navigationHeightPercent = clampNumber(navigationTransformInputNumber, 0.1, 100);
-    const navigationPreviewHeightPx =
-      (navigationTransformCanvasHeight * navigationHeightPercent) / 100;
-    const navigationCenterY =
-      Number(navigationInputComponent.position?.y || 0) + navigationTransformComponentHeight / 2;
-    editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
-      y: navigationCenterY - navigationPreviewHeightPx / 2,
-      height: navigationPreviewHeightPx
-    });
-  } else if (navigationInputElement === navigationScaleInputElement) {
-    const navigationScalePercent = clampNumber(navigationTransformInputNumber, 1, 500);
-    editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
-      scale: navigationScalePercent / 100
-    });
-  } else if (navigationInputElement === navigationRotationInputElement) {
-    const navigationRotationDegrees = clampNumber(navigationTransformInputNumber, -360, 360);
-    editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
-      rotation: navigationRotationDegrees
-    });
-  }
-});
-navigationInspectorFormElement.addEventListener("focusin", navigationFocusEvent => {
-  syncNavigationPreviewFromElement(navigationFocusEvent.target);
-});
-navigationInspectorFormElement.addEventListener("change", navigationChangeEvent => {
-  const navigationChangeInputElement = navigationChangeEvent.target;
-  const navigationChangeComponentId = selectedComponentId;
-  if (!navigationChangeComponentId) {
-    return;
-  }
-  const navigationChangeColorProperty = navigationColorPropertiesByElement.get(
-    navigationChangeInputElement
-  );
-  const navigationChangePropertyConfig = navigationPropertyConfigsByElement.get(
-    navigationChangeInputElement
-  );
-  const navigationChangeToggleState = navigationToggleStateByElement.get(
-    navigationChangeInputElement
-  );
-  const navigationChangePropertyName = navigationPropertyNameFromElement(
-    navigationChangeInputElement
-  );
-  if (
-    navigationChangeInputElement === navigationLabelTextInputElement ||
-    !!navigationChangeColorProperty ||
-    !!navigationChangePropertyConfig ||
-    !!navigationTransformInputSet.has(navigationChangeInputElement)
-  ) {
-    if (
-      (navigationChangePropertyConfig ||
-        navigationTransformInputSet.has(navigationChangeInputElement)) &&
-      (String(navigationChangeInputElement.value).trim() === "" ||
-        !Number.isFinite(Number(navigationChangeInputElement.value)))
-    ) {
-      syncInspector();
-      return;
-    }
-    if (navigationChangeToggleState) {
-      syncNavigationPreviewFromElement(navigationChangeInputElement);
-    }
-    mutateDocument(navigationChangeDraftDocument => {
-      const navigationChangeComponent = findComponent(
-        navigationChangeDraftDocument,
-        navigationChangeComponentId
-      )?.component;
-      if (!navigationChangeComponent || navigationChangeComponent.type !== "navigation-button") {
-        return;
-      }
-      navigationChangeComponent.properties = {
-        ...(navigationChangeComponent.properties || {})
-      };
-      navigationChangeComponent.position = {
-        ...(navigationChangeComponent.position || {})
-      };
-      navigationChangeComponent.style = {
-        ...(navigationChangeComponent.style || {})
-      };
-      navigationChangeComponent.actions = {
-        ...(navigationChangeComponent.actions || {})
-      };
-      const navigationPreviousActionValue = navigationChangePropertyName
-        ? getNavigationStyleValue(navigationChangeComponent, navigationChangePropertyName)
-        : undefined;
-      const navigationChangeCanvasWidth = Number(
-        navigationChangeDraftDocument.canvas.width || 2778
-      );
-      const navigationChangeCanvasHeight = Number(
-        navigationChangeDraftDocument.canvas.height || 1940
-      );
-      const navigationChangeInputNumber = Number(navigationChangeInputElement.value);
-      if (navigationChangeInputElement === navigationLabelTextInputElement) {
-        navigationChangeComponent.properties.label = navigationChangeInputElement.value.trim();
-      } else if (navigationChangeColorProperty) {
-        navigationChangeComponent.properties[navigationChangeColorProperty] =
-          navigationChangeInputElement.value;
-      } else if (navigationChangePropertyConfig) {
-        navigationChangeComponent.properties[navigationChangePropertyConfig.property] =
-          clampNumber(
-            navigationChangeInputNumber,
-            navigationChangePropertyConfig.minimum,
-            navigationChangePropertyConfig.maximum
-          ) / navigationChangePropertyConfig.divisor;
-      } else if (navigationChangeInputElement === navigationLeftInputElement) {
-        navigationChangeComponent.position.x =
-          (navigationChangeCanvasWidth * clampNumber(navigationChangeInputNumber, 0, 100)) / 100 -
-          Number(navigationChangeComponent.position.width || 100) / 2;
-      } else if (navigationChangeInputElement === navigationTopInputElement) {
-        navigationChangeComponent.position.y =
-          (navigationChangeCanvasHeight * clampNumber(navigationChangeInputNumber, 0, 100)) / 100 -
-          Number(navigationChangeComponent.position.height || 100) / 2;
-      } else if (navigationChangeInputElement === navigationWidthInputElement) {
-        const navigationChangeWidthPx =
-          (navigationChangeCanvasWidth * clampNumber(navigationChangeInputNumber, 0.1, 100)) / 100;
-        const navigationChangeCenterX =
-          Number(navigationChangeComponent.position.x || 0) +
-          Number(navigationChangeComponent.position.width || 100) / 2;
-        navigationChangeComponent.position.x =
-          navigationChangeCenterX - navigationChangeWidthPx / 2;
-        navigationChangeComponent.position.width = navigationChangeWidthPx;
-      } else if (navigationChangeInputElement === navigationHeightInputElement) {
-        const navigationChangeHeightPx =
-          (navigationChangeCanvasHeight * clampNumber(navigationChangeInputNumber, 0.1, 100)) / 100;
-        const navigationChangeCenterY =
-          Number(navigationChangeComponent.position.y || 0) +
-          Number(navigationChangeComponent.position.height || 100) / 2;
-        navigationChangeComponent.position.y =
-          navigationChangeCenterY - navigationChangeHeightPx / 2;
-        navigationChangeComponent.position.height = navigationChangeHeightPx;
-      } else if (navigationChangeInputElement === navigationScaleInputElement) {
-        navigationChangeComponent.style.scale =
-          clampNumber(navigationChangeInputNumber, 1, 500) / 100;
-      } else if (navigationChangeInputElement === navigationRotationInputElement) {
-        setComponentsRotation(
-          navigationChangeDraftDocument,
-          navigationChangeComponentId,
-          clampNumber(navigationChangeInputNumber, -360, 360)
-        );
-      }
-      if (navigationChangePropertyName) {
-        rememberNavigationStyleChange(
-          navigationChangeComponentId,
-          navigationChangePropertyName,
-          navigationPreviousActionValue,
-          getNavigationStyleValue(navigationChangeComponent, navigationChangePropertyName)
-        );
-      }
-    });
-  }
-});
-const navigationVisibilityPropertiesByButton = new Map([
-  [navigationMainVisibleButtonElement, "mainTextVisible"],
-  [navigationSecondaryVisibleButtonElement, "secondaryTextVisible"],
-  [navigationIconVisibleButtonElement, "iconVisible"],
-  [navigationFrameVisibleButtonElement, "frameVisible"],
-  [navigationGlowVisibleButtonElement, "glowVisible"]
-]);
-for (const [
-  navigationVisibilityButton,
-  navigationVisibilityProperty
-] of navigationVisibilityPropertiesByButton) {
-  navigationVisibilityButton.addEventListener("click", () => {
-    const navigationVisibilityComponentId = selectedComponentId;
-    if (navigationVisibilityComponentId) {
-      mutateDocument(navigationVisibilityDraftDocument => {
-        const navigationVisibilityComponent = findComponent(
-          navigationVisibilityDraftDocument,
-          navigationVisibilityComponentId
-        )?.component;
-        if (
-          !navigationVisibilityComponent ||
-          navigationVisibilityComponent.type !== "navigation-button"
-        ) {
-          return;
-        }
-        const navigationPreviousVisibility = getNavigationStyleValue(
-          navigationVisibilityComponent,
-          navigationVisibilityProperty
-        );
-        navigationVisibilityComponent.properties = {
-          ...(navigationVisibilityComponent.properties || {}),
-          [navigationVisibilityProperty]:
-            navigationVisibilityComponent.properties?.[navigationVisibilityProperty] === false
-        };
-        rememberNavigationStyleChange(
-          navigationVisibilityComponentId,
-          navigationVisibilityProperty,
-          navigationPreviousVisibility,
-          getNavigationStyleValue(navigationVisibilityComponent, navigationVisibilityProperty)
-        );
-      });
-    }
-  });
-}
-navigationPreviewStateElement.addEventListener("click", navigationPreviewClickEvent => {
-  const navigationPreviewButtonElement = navigationPreviewClickEvent.target.closest(
-    "[data-navigation-preview]"
-  );
-  const navigationPreviewClickComponentId = selectedComponentId;
-  if (!navigationPreviewButtonElement || !navigationPreviewClickComponentId) {
-    return;
-  }
-  const navigationPreviewDatasetState = ["off", "on"].includes(
-    navigationPreviewButtonElement.dataset.navigationPreview
-  )
-    ? navigationPreviewButtonElement.dataset.navigationPreview
-    : "auto";
-  applyNavigationPreviewState(navigationPreviewClickComponentId, navigationPreviewDatasetState);
-});
+bindInspectorSection();
 
-
-const navigationStylePropertyDefinitions = {
-  mainTextVisible: {
-    group: "文字",
-    label: "主文字显示"
-  },
-  secondaryTextVisible: {
-    group: "文字",
-    label: "副文字显示"
-  },
-  mainColor: {
-    group: "文字",
-    label: "主文字颜色"
-  },
-  secondaryColor: {
-    group: "文字",
-    label: "副文字颜色"
-  },
-  mainSize: {
-    group: "文字",
-    label: "主文字大小"
-  },
-  secondarySize: {
-    group: "文字",
-    label: "副文字大小"
-  },
-  mainWeight: {
-    group: "文字",
-    label: "主文字笔画粗细"
-  },
-  secondaryWeight: {
-    group: "文字",
-    label: "副文字笔画粗细"
-  },
-  mainSpacing: {
-    group: "文字",
-    label: "主文字字间距"
-  },
-  secondarySpacing: {
-    group: "文字",
-    label: "副文字字间距"
-  },
-  mainTextLeft: {
-    group: "文字",
-    label: "主文字左右位置"
-  },
-  mainTextTop: {
-    group: "文字",
-    label: "主文字上下位置"
-  },
-  secondaryTextLeft: {
-    group: "文字",
-    label: "副文字左右位置"
-  },
-  secondaryTextTop: {
-    group: "文字",
-    label: "副文字上下位置"
-  },
-  textIdleOpacity: {
-    group: "文字",
-    label: "文字选择前透明度"
-  },
-  textActiveOpacity: {
-    group: "文字",
-    label: "文字选择后透明度"
-  },
-  iconVisible: {
-    group: "图标",
-    label: "图标显示"
-  },
-  iconColor: {
-    group: "图标",
-    label: "图标颜色"
-  },
-  iconSize: {
-    group: "图标",
-    label: "图标大小"
-  },
-  iconLeft: {
-    group: "图标",
-    label: "图标左右位置"
-  },
-  iconTop: {
-    group: "图标",
-    label: "图标上下位置"
-  },
-  iconIdleOpacity: {
-    group: "图标",
-    label: "图标选择前透明度"
-  },
-  iconActiveOpacity: {
-    group: "图标",
-    label: "图标选择后透明度"
-  },
-  frameVisible: {
-    group: "外框",
-    label: "外框显示"
-  },
-  frameColor: {
-    group: "外框",
-    label: "外框颜色"
-  },
-  frameWidth: {
-    group: "外框",
-    label: "外框粗细"
-  },
-  frameIdleOpacity: {
-    group: "外框",
-    label: "外框选择前透明度"
-  },
-  frameActiveOpacity: {
-    group: "外框",
-    label: "外框选择后透明度"
-  },
-  radius: {
-    group: "外框",
-    label: "外框圆角"
-  },
-  frameAngle: {
-    group: "外框",
-    label: "外框渐变角度"
-  },
-  glowVisible: {
-    group: "背景光晕",
-    label: "背景光晕显示"
-  },
-  glowColor: {
-    group: "背景光晕",
-    label: "背景光晕颜色"
-  },
-  glowAngle: {
-    group: "背景光晕",
-    label: "背景光晕角度"
-  },
-  glowIdleStrength: {
-    group: "背景光晕",
-    label: "选择前光晕强度"
-  },
-  glowIdleSize: {
-    group: "背景光晕",
-    label: "选择前光晕大小"
-  },
-  glowActiveStrength: {
-    group: "背景光晕",
-    label: "选择后光晕强度"
-  },
-  glowActiveSize: {
-    group: "背景光晕",
-    label: "选择后光晕大小"
-  },
-  width: {
-    group: "尺寸与变换",
-    label: "控件宽度"
-  },
-  height: {
-    group: "尺寸与变换",
-    label: "控件高度"
-  },
-  scale: {
-    group: "尺寸与变换",
-    label: "控件缩放"
-  },
-  rotation: {
-    group: "尺寸与变换",
-    label: "控件旋转"
-  }
-};
-
-
-/**
- * 用 JSON 序列化结果判断两个属性值是否相等：属性值可能是数组或对象（如透视四角），直接用 === 比不出内容相等；
- * 属性值体量都很小，序列化的开销可以接受。
- */
-function areComponentValuesEqual(firstComponentValue, secondComponentValue) {
-  return JSON.stringify(firstComponentValue) === JSON.stringify(secondComponentValue);
-}
-/**
- * 记录导航按钮某个属性「本次编辑前的值」，供退出编辑时生成变更摘要。只记第一笔：同一属性被连续改动时保留最早的那次旧值，
- * 这样摘要里展示的是会话开始前的状态而非中间态；属性不在已知样式表内、或新旧值本就相等时直接忽略，避免把噪声写进摘要。
- */
-function rememberNavigationStyleChange(
-  navigationComponentId,
-  navigationPropertyKey,
-  previousPropertyValue,
-  updatedPropertyValue
-) {
-  if (!navigationComponentId || !navigationStylePropertyDefinitions[navigationPropertyKey]) {
-    return;
-  }
-  let navigationSavedPropertyValues =
-    navigationButtonSavedSettingsByComponentId.get(navigationComponentId);
-  if (
-    !!navigationSavedPropertyValues ||
-    !areComponentValuesEqual(previousPropertyValue, updatedPropertyValue)
-  ) {
-    if (!navigationSavedPropertyValues) {
-      navigationSavedPropertyValues = new Map();
-      navigationButtonSavedSettingsByComponentId.set(
-        navigationComponentId,
-        navigationSavedPropertyValues
-      );
-    }
-    if (!navigationSavedPropertyValues.has(navigationPropertyKey)) {
-      navigationSavedPropertyValues.set(navigationPropertyKey, clone(previousPropertyValue));
-    }
-  }
-}
-/**
- * 清理某导航按钮已记录变更中「属性键已废弃」的条目：旧版本记录下的键可能已从 navigationStylePropertyDefinitions 移除，
- * 留着会让摘要显示不出来的属性；顺带在表为空时删掉整个 Map 项，防止泄漏。
- */
-function pruneNavigationSavedSettings(navigationSettingsComponent) {
-  const navigationSavedSettings = navigationButtonSavedSettingsByComponentId.get(
-    navigationSettingsComponent?.id
-  );
-  if (navigationSavedSettings) {
-    for (const navigationSavedPropertyKey of navigationSavedSettings.keys()) {
-      if (!navigationStylePropertyDefinitions[navigationSavedPropertyKey]) {
-        navigationSavedSettings.delete(navigationSavedPropertyKey);
-      }
-    }
-    if (!navigationSavedSettings.size) {
-      navigationButtonSavedSettingsByComponentId.delete(navigationSettingsComponent.id);
-    }
-  }
-}
-
-
-navigationApplyStyleButtonElement.addEventListener("click", openNavigationStyleApplyDialog);
-panelFrameApplyStyleButtonElement.addEventListener("click", openPanelFrameStyleApplyDialog);
-cameraApplyStyleButtonElement.addEventListener("click", openCameraStyleApplyDialog);
-titleButtonApplyStyleButtonElement.addEventListener("click", openTitleButtonStyleApplyDialog);
-lineChartApplyStyleButtonElement.addEventListener("click", openLineChartStyleApplyDialog);
-iconButtonEffectApplyStyleButtonElement.addEventListener(
-  "click",
-  openIconButtonEffectStyleApplyDialog
-);
-iconButtonApplyStyleButtonElement.addEventListener("click", openIconButtonStyleApplyDialog);
-airConditionerApplyStyleButtonElement.addEventListener("click", openAirConditionerStyleApplyDialog);
-navigationStyleApplyCloseButtonElement.addEventListener("click", () =>
-  navigationStyleApplyDialogElement.close()
-);
-navigationStyleApplyCancelButtonElement.addEventListener("click", () =>
-  navigationStyleApplyDialogElement.close()
-);
-navigationStyleApplyDialogElement.addEventListener("click", styleDialogClickEvent => {
-  if (styleDialogClickEvent.target === navigationStyleApplyDialogElement) {
-    navigationStyleApplyDialogElement.close();
-  }
-});
-navigationStyleApplyDialogElement.addEventListener("close", () => {
-  appliedStyleRecord = null;
-});
-navigationStyleApplyConfirmButtonElement.addEventListener("click", () => {
-  const styleSourceComponentId = appliedStyleRecord?.sourceId;
-  const styleComponentType = appliedStyleRecord?.type;
-  const selectedStylePropertyKeys = [
-    ...navigationStyleApplyPropertiesElement.querySelectorAll(
-      "[data-navigation-style-property]:checked"
-    )
-  ].map(stylePropertyCheckbox => stylePropertyCheckbox.dataset.navigationStyleProperty);
-  const selectedTargetComponentIds = [
-    ...navigationStyleApplyTargetsElement.querySelectorAll("[data-navigation-target-id]:checked")
-  ].map(styleTargetCheckbox => styleTargetCheckbox.dataset.navigationTargetId);
-  if (
-    !styleSourceComponentId ||
-    !selectedStylePropertyKeys.length ||
-    !selectedTargetComponentIds.length
-  ) {
-    const styleTypeLabel =
-      styleComponentType === "panel-frame"
-        ? "底图框"
-        : styleComponentType === "camera"
-          ? "摄像头实时预览"
-          : styleComponentType === "title-button"
-            ? "标题按钮"
-            : styleComponentType === "air-conditioner"
-              ? "空调"
-              : styleComponentType === "line-chart"
-                ? "折线图"
-                : styleComponentType === "icon-button-effect"
-                  ? "图标按钮（效果）"
-                  : styleComponentType === "icon-button"
-                    ? "图标按钮"
-                    : styleComponentType === "device-button"
-                      ? "设备按钮"
-                      : styleComponentType === "presence-sensor"
-                        ? "传感器"
-                        : "导航按钮";
-    navigationStyleApplyMessageElement.textContent =
-      "请至少选择一项修改和一个目标" + styleTypeLabel + "。";
-    navigationStyleApplyMessageElement.hidden = false;
-    return;
-  }
-  navigationStyleApplyDialogElement.close();
-  mutateDocument(styleApplyDraftDocument => {
-    const styleSourceComponentDraft = findComponent(
-      styleApplyDraftDocument,
-      styleSourceComponentId
-    )?.component;
-    if (!!styleSourceComponentDraft && styleSourceComponentDraft.type === styleComponentType) {
-      for (const styleTargetComponentId of selectedTargetComponentIds) {
-        const styleTargetComponentDraft = findComponent(
-          styleApplyDraftDocument,
-          styleTargetComponentId
-        )?.component;
-        if (
-          !!styleTargetComponentDraft &&
-          styleTargetComponentDraft.type === styleComponentType &&
-          (styleComponentType !== "presence-sensor" ||
-            resolveSensorKind(styleTargetComponentDraft) ===
-              resolveSensorKind(styleSourceComponentDraft))
-        ) {
-          for (const appliedStylePropertyKey of selectedStylePropertyKeys) {
-            if (styleComponentType === "panel-frame") {
-              applyPanelFrameStyleChange(
-                styleSourceComponentDraft,
-                styleTargetComponentDraft,
-                appliedStylePropertyKey
-              );
-            } else if (styleComponentType === "camera") {
-              applyCameraStyleChange(
-                styleSourceComponentDraft,
-                styleTargetComponentDraft,
-                appliedStylePropertyKey
-              );
-            } else if (styleComponentType === "title-button") {
-              applyTitleButtonStyleChange(
-                styleSourceComponentDraft,
-                styleTargetComponentDraft,
-                appliedStylePropertyKey
-              );
-            } else if (styleComponentType === "line-chart") {
-              applyLineChartStyleChange(
-                styleSourceComponentDraft,
-                styleTargetComponentDraft,
-                appliedStylePropertyKey
-              );
-            } else if (styleComponentType === "icon-button-effect") {
-              applyIconButtonEffectStyleChange(
-                styleSourceComponentDraft,
-                styleTargetComponentDraft,
-                appliedStylePropertyKey
-              );
-            } else if (styleComponentType === "air-conditioner") {
-              applyAirConditionerStyleChange(
-                styleSourceComponentDraft,
-                styleTargetComponentDraft,
-                appliedStylePropertyKey
-              );
-            } else if (
-              ["icon-button", "device-button", "presence-sensor"].includes(styleComponentType)
-            ) {
-              applyIconButtonStyleChange(
-                styleSourceComponentDraft,
-                styleTargetComponentDraft,
-                appliedStylePropertyKey
-              );
-            } else {
-              applyStyleChangeToComponent(
-                styleSourceComponentDraft,
-                styleTargetComponentDraft,
-                appliedStylePropertyKey
-              );
-            }
-          }
-        }
-      }
-    }
-  }).then(() => {
-    const styleApplyButton =
-      styleComponentType === "panel-frame"
-        ? panelFrameApplyStyleButtonElement
-        : styleComponentType === "camera"
-          ? cameraApplyStyleButtonElement
-          : styleComponentType === "title-button"
-            ? titleButtonApplyStyleButtonElement
-            : styleComponentType === "air-conditioner"
-              ? airConditionerApplyStyleButtonElement
-              : styleComponentType === "line-chart"
-                ? lineChartApplyStyleButtonElement
-                : styleComponentType === "icon-button-effect"
-                  ? iconButtonEffectApplyStyleButtonElement
-                  : ["icon-button", "device-button", "presence-sensor"].includes(styleComponentType)
-                    ? iconButtonApplyStyleButtonElement
-                    : navigationApplyStyleButtonElement;
-    if (styleComponentType === "panel-frame") {
-      window.clearTimeout(panelFrameApplyFeedbackTimeoutId);
-    } else if (styleComponentType === "camera") {
-      window.clearTimeout(cameraApplyFeedbackTimeoutId);
-    } else if (styleComponentType === "title-button") {
-      window.clearTimeout(titleButtonApplyFeedbackTimeoutId);
-    } else if (styleComponentType === "air-conditioner") {
-      window.clearTimeout(airConditionerApplyFeedbackTimeoutId);
-    } else if (styleComponentType === "line-chart") {
-      window.clearTimeout(lineChartApplyFeedbackTimeoutId);
-    } else if (styleComponentType === "icon-button-effect") {
-      window.clearTimeout(effectApplyFeedbackTimeoutId);
-    } else if (["icon-button", "device-button", "presence-sensor"].includes(styleComponentType)) {
-      window.clearTimeout(deviceButtonApplyFeedbackTimeoutId);
-    } else {
-      window.clearTimeout(navigationApplyFeedbackTimeoutId);
-    }
-    styleApplyButton.classList.add("applied");
-    const styleFeedbackTimeoutId = window.setTimeout(() => {
-      styleApplyButton.classList.remove("applied");
-      if (selectedComponentId === styleSourceComponentId) {
-        syncInspector();
-      }
-    }, 1800);
-    if (styleComponentType === "panel-frame") {
-      panelFrameApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
-    } else if (styleComponentType === "camera") {
-      cameraApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
-    } else if (styleComponentType === "title-button") {
-      titleButtonApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
-    } else if (styleComponentType === "air-conditioner") {
-      airConditionerApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
-    } else if (styleComponentType === "line-chart") {
-      lineChartApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
-    } else if (styleComponentType === "icon-button-effect") {
-      effectApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
-    } else if (["icon-button", "device-button", "presence-sensor"].includes(styleComponentType)) {
-      deviceButtonApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
-    } else {
-      navigationApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
-    }
-  });
-});
-navigationIconButtonElement.addEventListener("click", () => {
-  const isNavigationIconMenuHidden = navigationIconMenuElement.hidden;
-  closeAllDropdownMenus(isNavigationIconMenuHidden ? "navigation-icon" : null);
-  navigationIconMenuElement.hidden = !isNavigationIconMenuHidden;
-  navigationIconButtonElement.setAttribute("aria-expanded", String(isNavigationIconMenuHidden));
-  if (isNavigationIconMenuHidden) {
-    loadNavigationIconOptions(navigationIconSearchInputElement.value)
-      .then(() => {
-        positionNavigationIconMenu();
-        navigationIconSearchInputElement.focus({
-          preventScroll: true
-        });
-      })
-      .catch(handleOperationError);
-  }
-});
-navigationIconCopyButtonElement.addEventListener("click", async () => {
-  const navigationSelectedIconName = selectedComponent()?.properties?.icon || "";
-  if (navigationSelectedIconName) {
-    try {
-      await copyTextToClipboard(navigationSelectedIconName);
-      window.clearTimeout(navigationIconCopiedTimeoutId);
-      navigationIconCopyButtonElement.classList.add("copied");
-      navigationIconCopiedTimeoutId = window.setTimeout(
-        () => navigationIconCopyButtonElement.classList.remove("copied"),
-        1200
-      );
-    } catch (navigationIconCopyError) {
-      handleOperationError(navigationIconCopyError);
-    }
-  }
-});
-navigationIconSearchInputElement.addEventListener("input", () => {
-  window.clearTimeout(navigationIconSearchDebounceTimeoutId);
-  navigationIconSearchDebounceTimeoutId = window.setTimeout(() => {
-    loadNavigationIconOptions(navigationIconSearchInputElement.value).catch(handleOperationError);
-  }, 160);
-});
-navigationIconOptionsElement.addEventListener("click", navigationIconOptionClickEvent => {
-  const navigationIconOptionElement =
-    navigationIconOptionClickEvent.target.closest("[data-icon-name]");
-  const navigationIconComponentId = selectedComponentId;
-  if (!navigationIconOptionElement || !navigationIconComponentId) {
-    return;
-  }
-  const navigationIconDatasetName = navigationIconOptionElement.dataset.iconName;
-  closeAllDropdownMenus();
-  mutateDocument(navigationIconDraftDocument => {
-    const navigationIconComponent = findComponent(
-      navigationIconDraftDocument,
-      navigationIconComponentId
-    )?.component;
-    if (!navigationIconComponent || navigationIconComponent.type !== "navigation-button") {
-      return;
-    }
-    const navigationIconPreviousValue = getNavigationStyleValue(navigationIconComponent, "icon");
-    const navigationIconVisiblePreviousValue = getNavigationStyleValue(
-      navigationIconComponent,
-      "iconVisible"
-    );
-    navigationIconComponent.properties = {
-      ...(navigationIconComponent.properties || {}),
-      icon: navigationIconDatasetName,
-      iconVisible: !!navigationIconDatasetName
-    };
-    rememberNavigationStyleChange(
-      navigationIconComponentId,
-      "icon",
-      navigationIconPreviousValue,
-      getNavigationStyleValue(navigationIconComponent, "icon")
-    );
-    rememberNavigationStyleChange(
-      navigationIconComponentId,
-      "iconVisible",
-      navigationIconVisiblePreviousValue,
-      getNavigationStyleValue(navigationIconComponent, "iconVisible")
-    );
-  });
-});
 iconButtonEffectIconButtonElement.addEventListener("click", () => {
   const isEffectIconMenuHidden = iconButtonEffectIconMenuElement.hidden;
   closeAllDropdownMenus(isEffectIconMenuHidden ? "ibe-icon" : null);
@@ -20594,681 +14285,8 @@ function refreshAssetPickerViews() {
     positionEffectAssetMenu();
   }
 }
-imageAssetUploadButtonElement.addEventListener("click", () => imageAssetUploadInputElement.click());
-iconButtonEffectAssetUploadButtonElement.addEventListener("click", () =>
-  iconButtonEffectAssetUploadInputElement.click()
-);
-imageAssetUploadInputElement.addEventListener("change", async () => {
-  await uploadAssetFiles(imageAssetUploadInputElement.files, "image");
-  imageAssetUploadInputElement.value = "";
-});
-iconButtonEffectAssetUploadInputElement.addEventListener("change", async () => {
-  await uploadAssetFiles(iconButtonEffectAssetUploadInputElement.files, "ibe");
-  iconButtonEffectAssetUploadInputElement.value = "";
-});
-for (const assetOptionsElement of [imageAssetOptionsElement, iconButtonEffectAssetOptionsElement]) {
-  assetOptionsElement.addEventListener("click", assetOptionsClickEvent => {
-    const deleteUserAssetElement = assetOptionsClickEvent.target.closest(
-      "[data-delete-user-asset]"
-    );
-    if (deleteUserAssetElement) {
-      assetOptionsClickEvent.preventDefault();
-      assetOptionsClickEvent.stopPropagation();
-      requestDeleteAsset(deleteUserAssetElement.dataset.deleteUserAsset);
-    }
-  });
-}
-deleteAssetCloseButtonElement.addEventListener("click", () => deleteAssetDialogElement.close());
-deleteAssetCancelButtonElement.addEventListener("click", () => deleteAssetDialogElement.close());
-deleteAssetDialogElement.addEventListener("click", deleteAssetDialogClickEvent => {
-  if (deleteAssetDialogClickEvent.target === deleteAssetDialogElement) {
-    deleteAssetDialogElement.close();
-  }
-});
-deleteAssetConfirmButtonElement.addEventListener("click", async () => {
-  const deleteAssetRequestId = String(pendingDeleteAssetId || "").replace(/^user:/, "");
-  if (/^[0-9a-f]{32}$/.test(deleteAssetRequestId)) {
-    deleteAssetConfirmButtonElement.disabled = true;
-    try {
-      await requestJson("/assets/user/" + deleteAssetRequestId, {
-        method: "DELETE"
-      });
-      pendingDeleteAssetId = null;
-      deleteAssetDialogElement.close();
-      await reloadAssetCatalog();
-    } catch (deleteAssetError) {
-      if (deleteAssetError?.code === "ASSET_IN_USE") {
-        handleOperationError(
-          new Error("这张图片仍被户型图绘制或仪表盘使用，请先移除引用后再删除。")
-        );
-      } else {
-        handleOperationError(deleteAssetError);
-      }
-    } finally {
-      deleteAssetConfirmButtonElement.disabled = false;
-    }
-  }
-});
-deleteAssetFolderCloseButtonElement.addEventListener("click", () =>
-  deleteAssetFolderDialogElement.close()
-);
-deleteAssetFolderCancelButtonElement.addEventListener("click", () =>
-  deleteAssetFolderDialogElement.close()
-);
-deleteAssetFolderDialogElement.addEventListener("click", deleteAssetFolderClickEvent => {
-  if (deleteAssetFolderClickEvent.target === deleteAssetFolderDialogElement) {
-    deleteAssetFolderDialogElement.close();
-  }
-});
-deleteAssetFolderDialogElement.addEventListener("close", () => {
-  if (!deleteAssetFolderConfirmButtonElement.disabled) {
-    pendingDeleteAssetFolder = null;
-  }
-});
-deleteAssetFolderConfirmButtonElement.addEventListener("click", async () => {
-  const deleteAssetFolderRequest = pendingDeleteAssetFolder;
-  if (deleteAssetFolderRequest?.folderName) {
-    deleteAssetFolderConfirmButtonElement.disabled = true;
-    try {
-      await requestJson("/studio3d/exports", {
-        method: "DELETE",
-        headers: {
-          "X-Export-Folder": encodeURIComponent(deleteAssetFolderRequest.folderName)
-        }
-      });
-      pendingDeleteAssetFolder = null;
-      deleteAssetFolderDialogElement.close();
-      await reloadAssetCatalog({
-        refreshInspector: false
-      });
-      refreshAssetPickerViews();
-    } catch (deleteAssetFolderError) {
-      if (deleteAssetFolderError?.code === "STUDIO3D_EXPORT_IN_USE") {
-        handleOperationError(
-          new Error("这个文件夹中的图片仍被仪表盘、弹窗或户型图绘制使用，请先移除引用后再删除。")
-        );
-      } else {
-        handleOperationError(deleteAssetFolderError);
-      }
-    } finally {
-      deleteAssetFolderConfirmButtonElement.disabled = false;
-    }
-  }
-});
-imageAssetButtonElement.addEventListener("click", async () => {
-  const isImageAssetMenuHidden = imageAssetMenuElement.hidden;
-  closeAllDropdownMenus(isImageAssetMenuHidden ? "asset" : null);
-  imageAssetMenuElement.hidden = !isImageAssetMenuHidden;
-  imageAssetButtonElement.setAttribute("aria-expanded", String(isImageAssetMenuHidden));
-  if (isImageAssetMenuHidden) {
-    try {
-      await reloadAssetCatalog({
-        refreshInspector: false
-      });
-      syncAssetFolderOptions("image");
-    } catch (imageAssetCatalogError) {
-      handleOperationError(imageAssetCatalogError);
-    }
-    renderImageAssetOptions(imageAssetSearchInputElement.value);
-    positionImageAssetMenu();
-    window.requestAnimationFrame(() => {
-      positionImageAssetMenu();
-      imageAssetSearchInputElement.focus({
-        preventScroll: true
-      });
-    });
-  }
-});
-imageAssetFolderSelectElement.addEventListener("change", () => {
-  imageAssetFolder = imageAssetFolderSelectElement.value;
-  imageAssetSearchInputElement.value = "";
-  renderImageAssetOptions();
-});
-imageAssetSearchInputElement.addEventListener("input", () =>
-  renderImageAssetOptions(imageAssetSearchInputElement.value)
-);
-imageAssetOptionsElement.addEventListener("pointerover", imageAssetPointerOverEvent => {
-  const imageAssetHoverElement = imageAssetPointerOverEvent.target.closest("[data-asset-id]");
-  if (
-    !imageAssetHoverElement ||
-    imageAssetHoverElement.contains(imageAssetPointerOverEvent.relatedTarget)
-  ) {
-    return;
-  }
-  const hoveredAsset = findAssetById(imageAssetHoverElement.dataset.assetId);
-  scheduleAssetPreview(hoveredAsset, imageAssetHoverElement);
-});
-imageAssetOptionsElement.addEventListener("pointerleave", hideAssetLargePreview);
-imageAssetOptionsElement.addEventListener("scroll", hideAssetLargePreview);
-imageAssetOptionsElement.addEventListener("click", async imageAssetClickEvent => {
-  const imageAssetElement = imageAssetClickEvent.target.closest("[data-asset-id]");
-  if (!imageAssetElement || !selectedComponentId) {
-    return;
-  }
-  const imageAssetComponentId = selectedComponentId;
-  const imageAssetId = imageAssetElement.dataset.assetId;
-  hideAssetLargePreview();
-  closeAllDropdownMenus();
-  if (!imageAssetId) {
-    mutateDocument(imageAssetDraftDocument => {
-      const imageAssetComponent = findComponent(
-        imageAssetDraftDocument,
-        imageAssetComponentId
-      )?.component;
-      if (!!imageAssetComponent && imageAssetComponent.type === "image") {
-        imageAssetComponent.properties = {
-          ...(imageAssetComponent.properties || {}),
-          fit: "contain"
-        };
-        delete imageAssetComponent.properties.assetId;
-        delete imageAssetComponent.properties.naturalWidth;
-        delete imageAssetComponent.properties.naturalHeight;
-      }
-    });
-    return;
-  }
-  const imageAssetRecord = findAssetById(imageAssetId);
-  if (imageAssetRecord) {
-    try {
-      const imageAssetSize = await measureAssetImageSize(imageAssetRecord);
-      mutateDocument(imageAssetSizeDraftDocument => {
-        const imageAssetSizeComponent = findComponent(
-          imageAssetSizeDraftDocument,
-          imageAssetComponentId
-        )?.component;
-        if (!!imageAssetSizeComponent && imageAssetSizeComponent.type === "image") {
-          applyAssetNaturalSize(imageAssetSizeComponent, imageAssetId, imageAssetSize);
-        }
-      });
-    } catch (imageAssetMeasureError) {
-      handleOperationError(imageAssetMeasureError);
-    }
-  }
-});
-iconButtonEffectAssetButtonElement.addEventListener("click", async () => {
-  const isEffectAssetMenuHidden = iconButtonEffectAssetMenuElement.hidden;
-  closeAllDropdownMenus(isEffectAssetMenuHidden ? "ibe-asset" : null);
-  iconButtonEffectAssetMenuElement.hidden = !isEffectAssetMenuHidden;
-  iconButtonEffectAssetButtonElement.setAttribute("aria-expanded", String(isEffectAssetMenuHidden));
-  if (isEffectAssetMenuHidden) {
-    try {
-      await reloadAssetCatalog({
-        refreshInspector: false
-      });
-      syncAssetFolderOptions("ibe");
-    } catch (effectAssetCatalogError) {
-      handleOperationError(effectAssetCatalogError);
-    }
-    renderEffectAssetOptions(iconButtonEffectAssetSearchInputElement.value);
-    positionEffectAssetMenu();
-    window.requestAnimationFrame(() => {
-      positionEffectAssetMenu();
-      iconButtonEffectAssetSearchInputElement.focus({
-        preventScroll: true
-      });
-    });
-  }
-});
-iconButtonEffectAssetFolderSelectElement.addEventListener("change", () => {
-  effectAssetFolder = iconButtonEffectAssetFolderSelectElement.value;
-  iconButtonEffectAssetSearchInputElement.value = "";
-  renderEffectAssetOptions();
-});
-iconButtonEffectAssetSearchInputElement.addEventListener("input", () =>
-  renderEffectAssetOptions(iconButtonEffectAssetSearchInputElement.value)
-);
-iconButtonEffectAssetOptionsElement.addEventListener("pointerover", effectAssetPointerOverEvent => {
-  const effectAssetHoverElement = effectAssetPointerOverEvent.target.closest("[data-asset-id]");
-  if (
-    !!effectAssetHoverElement &&
-    !effectAssetHoverElement.contains(effectAssetPointerOverEvent.relatedTarget)
-  ) {
-    scheduleAssetPreview(
-      findAssetById(effectAssetHoverElement.dataset.assetId),
-      effectAssetHoverElement,
-      iconButtonEffectAssetMenuElement
-    );
-  }
-});
-iconButtonEffectAssetOptionsElement.addEventListener("pointerleave", hideAssetLargePreview);
-iconButtonEffectAssetOptionsElement.addEventListener("scroll", hideAssetLargePreview);
-iconButtonEffectAssetOptionsElement.addEventListener("click", async effectAssetClickEvent => {
-  const effectAssetElement = effectAssetClickEvent.target.closest("[data-asset-id]");
-  const effectAssetComponentId = selectedComponentId;
-  if (!effectAssetElement || !effectAssetComponentId) {
-    return;
-  }
-  const effectAssetId = effectAssetElement.dataset.assetId;
-  hideAssetLargePreview();
-  closeAllDropdownMenus();
-  const effectAssetRecord = effectAssetId ? findAssetById(effectAssetId) : null;
-  let effectAssetSize = null;
-  if (effectAssetRecord) {
-    try {
-      effectAssetSize = await measureAssetImageSize(effectAssetRecord);
-    } catch (effectAssetMeasureError) {
-      handleOperationError(effectAssetMeasureError);
-      return;
-    }
-  }
-  mutateDocument(effectAssetDraftDocument => {
-    const effectAssetComponent = findComponent(
-      effectAssetDraftDocument,
-      effectAssetComponentId
-    )?.component;
-    if (!!effectAssetComponent && effectAssetComponent.type === "icon-button-effect") {
-      effectAssetComponent.properties = {
-        ...(effectAssetComponent.properties || {})
-      };
-      if (effectAssetId && effectAssetSize) {
-        effectAssetComponent.properties.effectAssetId = effectAssetId;
-        effectAssetComponent.properties.effectNaturalWidth = effectAssetSize.width;
-        effectAssetComponent.properties.effectNaturalHeight = effectAssetSize.height;
-        delete effectAssetComponent.properties.effectWidth;
-        delete effectAssetComponent.properties.effectHeight;
-      } else {
-        delete effectAssetComponent.properties.effectAssetId;
-        delete effectAssetComponent.properties.effectNaturalWidth;
-        delete effectAssetComponent.properties.effectNaturalHeight;
-      }
-    }
-  });
-});
-undoButtonElement.addEventListener("click", () => applyHistoryStep("undo"));
-redoButtonElement.addEventListener("click", () => applyHistoryStep("redo"));
-recoveryRestoreButtonElement.addEventListener("click", () => {
-  if (!recoverySnapshot || !activeProject) {
-    recoveryDialogElement.close();
-    return;
-  }
-  const recoveredSnapshot = recoverySnapshot;
-  recoverySnapshot = null;
-  activeProject = {
-    ...activeProject,
-    document: clone(recoveredSnapshot.document)
-  };
-  selectedComponentId = findComponent(activeProject.document, recoveredSnapshot.selectedComponentId)
-    ? recoveredSnapshot.selectedComponentId
-    : null;
-  const recoveredComponentIds = Array.isArray(recoveredSnapshot.selectedComponentIds)
-    ? recoveredSnapshot.selectedComponentIds.filter(recoveredComponentId =>
-        findComponent(activeProject.document, recoveredComponentId)
-      )
-    : [];
-  selectedComponentIds = new Set(
-    recoveredComponentIds.length
-      ? recoveredComponentIds
-      : selectedComponentId
-        ? [selectedComponentId]
-        : []
-  );
-  selectionAnchorComponentId = selectedComponentId;
-  // 现在的快照不带历史栈（见 scheduleRecoverySnapshot），所以这里通常拿到 undefined
-  // 并落成空栈；老快照（带 undo / redo）也仍然按原样恢复。
-  historyState.undo = Array.isArray(recoveredSnapshot.undo) ? clone(recoveredSnapshot.undo) : [];
-  historyState.redo = Array.isArray(recoveredSnapshot.redo) ? clone(recoveredSnapshot.redo) : [];
-  recoveryDialogElement.close();
-  renderEditorWorkspace(recoveredSnapshot.selectedPath || null);
-  refreshDirtyState();
-  syncHistoryButtons();
-});
-recoveryDiscardButtonElement.addEventListener("click", () => {
-  discardRecoverySnapshot(activeProject?.projectId);
-  recoverySnapshot = null;
-  recoveryDialogElement.close();
-  refreshDirtyState();
-  syncHistoryButtons();
-});
-recoveryDialogElement.addEventListener("cancel", recoveryCancelEvent =>
-  recoveryCancelEvent.preventDefault()
-);
-errorDialogCloseButtonElement.addEventListener("click", () => errorDialogElement.close());
-errorDialogConfirmButtonElement.addEventListener("click", () => errorDialogElement.close());
-errorDialogElement.addEventListener("click", errorDialogClickEvent => {
-  if (errorDialogClickEvent.target === errorDialogElement) {
-    errorDialogElement.close();
-  }
-});
-showSharedComponentsButtonElement.addEventListener("click", () => setComponentScope("shared"));
-showPageComponentsButtonElement.addEventListener("click", () => setComponentScope("page"));
-addComponentButtonElement.addEventListener("click", () => {
-  if (!addComponentButtonElement.disabled) {
-    renderComponentTemplates();
-    componentTemplateDialogElement.showModal();
-  }
-});
-componentTemplateCloseButtonElement.addEventListener("click", () =>
-  componentTemplateDialogElement.close()
-);
-componentTemplateDialogElement.addEventListener("click", templateDialogClickEvent => {
-  if (templateDialogClickEvent.target === componentTemplateDialogElement) {
-    componentTemplateDialogElement.close();
-  }
-});
-componentTemplateListElement.addEventListener("click", templateListClickEvent => {
-  const templateItemElement = templateListClickEvent.target.closest("[data-template-id]");
-  const templatePagePath = pageSelectElement.value;
-  if (!templateItemElement || templateItemElement.disabled || !templatePagePath) {
-    return;
-  }
-  const currentComponentScope = componentScope;
-  const activeGroupEntry = activeGroupId
-    ? findComponent(activeProject?.document, activeGroupId)
-    : null;
-  const activeGroupChildComponent =
-    activeGroupEntry?.component?.type === "group" ? activeGroupEntry.component : null;
-  const templateTargetScope = activeGroupChildComponent
-    ? activeGroupEntry.scope
-    : currentComponentScope;
-  const newComponentId = newId("component");
-  componentTemplateDialogElement.close();
-  selectedComponentId = newComponentId;
-  selectedComponentIds = new Set([newComponentId]);
-  selectionAnchorComponentId = newComponentId;
-  const createComponentPromise = mutateDocument(templateDraftDocument => {
-    const templateTargetPage = templateDraftDocument.pages.find(
-      templatePageMatch => templatePageMatch.path === templatePagePath
-    );
-    if (!templateTargetPage) {
-      throw new Error("当前页面不存在。");
-    }
-    const draftGroupEntry = activeGroupChildComponent
-      ? findComponent(templateDraftDocument, activeGroupChildComponent.id)
-      : null;
-    const draftGroupComponent =
-      draftGroupEntry?.component?.type === "group" ? draftGroupEntry.component : null;
-    const targetComponentCollection =
-      currentComponentScope === "shared"
-        ? templateDraftDocument.sharedComponents
-        : templateTargetPage.components;
-    const insertionCollection = draftGroupComponent
-      ? (draftGroupComponent.children ||= [])
-      : targetComponentCollection;
-    const templateLabel =
-      templateItemElement.dataset.templateId === "navigation-button"
-        ? "导航按钮"
-        : templateItemElement.dataset.templateId === "interaction3d"
-          ? "3D 交互"
-          : templateItemElement.dataset.templateId === "floorplan-auto-diagram"
-            ? "户型图自动导图"
-            : templateItemElement.dataset.templateId === "icon-button-effect"
-              ? "图标按钮（效果）"
-              : templateItemElement.dataset.templateId === "title-button"
-                ? "标题按钮"
-                : templateItemElement.dataset.templateId === "light-statistics"
-                  ? "数量统计"
-                  : templateItemElement.dataset.templateId === "icon-button"
-                    ? "图标按钮"
-                    : templateItemElement.dataset.templateId === "device-button"
-                      ? "设备按钮"
-                      : templateItemElement.dataset.templateId === "presence-sensor"
-                        ? "传感器"
-                        : templateItemElement.dataset.templateId === "air-conditioner"
-                          ? "空调 / 浴霸"
-                          : templateItemElement.dataset.templateId === "vacuum-map"
-                            ? "扫地机器人实时地图"
-                            : templateItemElement.dataset.templateId === "camera"
-                              ? "摄像头实时预览"
-                              : templateItemElement.dataset.templateId === "time"
-                                ? "时间"
-                                : templateItemElement.dataset.templateId === "date"
-                                  ? "日期"
-                                  : templateItemElement.dataset.templateId === "weather"
-                                    ? "天气"
-                                    : templateItemElement.dataset.templateId === "line-chart"
-                                      ? "折线图"
-                                      : templateItemElement.dataset.templateId === "panel-frame"
-                                        ? "底图框"
-                                        : "图片";
-    const templateInstanceName = nextTemplateInstanceName(insertionCollection, templateLabel);
-    const createdComponent = createComponentFromTemplate(templateItemElement.dataset.templateId, {
-      id: newComponentId,
-      instanceName: templateInstanceName,
-      canvas: templateDraftDocument.canvas
-    });
-    if (draftGroupComponent) {
-      const groupWidth = Number(draftGroupComponent.position?.width || 100);
-      const groupHeight = Number(draftGroupComponent.position?.height || 100);
-      const createdWidth = Number(createdComponent.position?.width || 100);
-      const createdHeight = Number(createdComponent.position?.height || 100);
-      createdComponent.position = {
-        ...(createdComponent.position || {}),
-        x: (groupWidth - createdWidth) / 2,
-        y: (groupHeight - createdHeight) / 2
-      };
-    }
-    insertionCollection.unshift(createdComponent);
-    applyCollectionLayerOrder(insertionCollection);
-    if (templateTargetScope === "shared" && !draftGroupComponent) {
-      for (const sharedReferencePage of templateDraftDocument.pages) {
-        sharedReferencePage.sharedComponentIds = [
-          createdComponent.id,
-          ...(sharedReferencePage.sharedComponentIds || []).filter(
-            sharedReferenceId => sharedReferenceId !== createdComponent.id
-          )
-        ];
-      }
-      syncSharedComponentReferenceOrder(templateDraftDocument);
-    }
-  }, templatePagePath);
-  if (templateItemElement.dataset.templateId === "floorplan-auto-diagram") {
-    createComponentPromise.then(() =>
-      openAutoDiagramDialog(newComponentId, {
-        cancelRemovesComponent: true
-      })
-    );
-  }
-});
-showEditorPreviewButtonElement.addEventListener("click", () => setEditorMode("edit"));
-showDashboardPreviewButtonElement.addEventListener("click", () => setEditorMode("dashboard"));
-soundToggleButtonElement.addEventListener("click", async () => {
-  if (!activeProject) {
-    return;
-  }
-  const soundToggleDocument = clone(activeProject.document);
-  soundToggleDocument.soundEnabled = activeProject.document.soundEnabled === false;
-  try {
-    await applyDocumentChange(soundToggleDocument);
-    await saveDraft();
-  } catch (soundToggleError) {
-    handleOperationError(soundToggleError);
-  }
-});
-openHomeAssistantButtonElement.addEventListener("click", openHomeAssistantDashboard);
-showPageEditorButtonElement.addEventListener("click", () => setEditorMode("edit"));
-showPopupEditorButtonElement.addEventListener("click", () => setEditorMode("popup"));
-projectSelectElement.addEventListener("change", () => {
-  closeProjectActionsMenu();
-  if (
-    hasUnsavedChanges &&
-    activeProject &&
-    projectSelectElement.value !== activeProject.projectId
-  ) {
-    projectSelectElement.value = activeProject.projectId;
-    syncCustomSelect(projectSelectElement);
-    guardUnsavedChanges();
-    return;
-  }
-  if (projectSelectElement.value) {
-    openProjectDraft(projectSelectElement.value).catch(handleOperationError);
-  }
-});
-pageSelectElement.addEventListener("change", () => {
-  closePageActionsMenu();
-  syncDefaultPageAction();
-  activeGroupId = null;
-  if (editorMode === "popup") {
-    setEditorMode("edit");
-  }
-  editorRenderer?.navigate(pageSelectElement.value);
-  dashboardPreviewRenderer?.navigate(pageSelectElement.value);
-  const selectedPageComponent = findComponent(activeProject?.document, selectedComponentId);
-  if (
-    selectedPageComponent?.scope === "page" &&
-    selectedPageComponent.page?.path !== pageSelectElement.value
-  ) {
-    selectComponent(null);
-  }
-  renderComponentLists();
-  syncInspector();
-});
-/**
- * 打开组合弹窗的「新建 / 重命名」对话框。两种用途共用同一个表单，靠 popupDialogMode 区分：重命名时回填现有名称，
- * 新建时预置「新建组合弹窗」并全选，便于直接改写。
- */
-function openPopupNameDialog(popupNameMode) {
-  popupDialogMode = popupNameMode;
-  const popupBeingRenamed = findCustomPopup(activeProject?.document, selectedPopupId);
-  popupNameDialogTitleElement.textContent =
-    popupNameMode === "rename" ? "重命名组合弹窗" : "新建组合弹窗";
-  popupNameFormElement.elements.name.value =
-    popupNameMode === "rename" ? popupBeingRenamed?.name || "" : "新建组合弹窗";
-  popupNameDialogElement.showModal();
-  popupNameFormElement.elements.name.select();
-}
-popupNewButtonElement.addEventListener("click", () => openPopupNameDialog("create"));
-popupNameCloseButtonElement.addEventListener("click", () => popupNameDialogElement.close());
-popupNameCancelButtonElement.addEventListener("click", () => popupNameDialogElement.close());
-popupNameFormElement.addEventListener("submit", popupNameSubmitEvent => {
-  popupNameSubmitEvent.preventDefault();
-  const popupNameInput = popupNameFormElement.elements.name.value.trim();
-  if (!popupNameInput) {
-    return;
-  }
-  const popupId = popupDialogMode === "create" ? newId("custom-popup") : selectedPopupId;
-  popupNameDialogElement.close();
-  mutateDocument(popupNameDraftDocument => {
-    popupNameDraftDocument.customPopups = popupNameDraftDocument.customPopups || [];
-    if (popupDialogMode === "rename") {
-      const popupToRename = popupNameDraftDocument.customPopups.find(
-        popupMatch => popupMatch.id === selectedPopupId
-      );
-      if (popupToRename) {
-        popupToRename.name = popupNameInput;
-      }
-      return;
-    }
-    popupNameDraftDocument.customPopups.push({
-      id: popupId,
-      name: popupNameInput,
-      templateRef: {
-        templateId: "custom-popup",
-        version: 1
-      },
-      layout: {
-        columns: 3
-      },
-      modules: []
-    });
-    selectedPopupId = popupId;
-    setEditorMode("popup");
-  });
-});
-popupSelectElement.addEventListener("change", () => {
-  closePopupActionsMenu();
-  selectedPopupId = popupSelectElement.value || null;
-  setEditorMode("popup");
-});
-popupListElement.addEventListener("click", popupListClickEvent => {
-  const popupListItemElement = popupListClickEvent.target.closest("[data-popup-id]");
-  if (popupListItemElement) {
-    closePopupActionsMenu();
-    selectedPopupId = popupListItemElement.dataset.popupId;
-    popupSelectElement.value = selectedPopupId;
-    renderPopupList(activeProject.document, selectedPopupId);
-    setEditorMode("popup");
-  }
-});
-popupListElement.addEventListener("contextmenu", popupListContextMenuEvent => {
-  const popupContextItemElement = popupListContextMenuEvent.target.closest("[data-popup-id]");
-  if (!popupContextItemElement) {
-    return;
-  }
-  popupListContextMenuEvent.preventDefault();
-  selectedPopupId = popupContextItemElement.dataset.popupId;
-  popupSelectElement.value = selectedPopupId;
-  renderPopupList(activeProject.document, selectedPopupId);
-  setEditorMode("popup");
-  moduleDialogPopupId = selectedPopupId;
-  popupActionsMenuElement.hidden = false;
-  popupActionsMenuElement.style.left = "0px";
-  popupActionsMenuElement.style.top = "0px";
-  const popupMenuRect = popupActionsMenuElement.getBoundingClientRect();
-  popupActionsMenuElement.style.left =
-    clampNumber(popupListContextMenuEvent.clientX, 8, window.innerWidth - popupMenuRect.width - 8) +
-    "px";
-  popupActionsMenuElement.style.top =
-    clampNumber(
-      popupListContextMenuEvent.clientY,
-      8,
-      window.innerHeight - popupMenuRect.height - 8
-    ) + "px";
-});
-popupActionsButtonElement.addEventListener("click", () => {
-  if (popupActionsButtonElement.disabled) {
-    return;
-  }
-  const isPopupActionsMenuHidden = popupActionsMenuElement.hidden;
-  closeProjectActionsMenu();
-  closePageActionsMenu();
-  popupActionsMenuElement.hidden = !isPopupActionsMenuHidden;
-  popupActionsButtonElement.setAttribute("aria-expanded", String(isPopupActionsMenuHidden));
-});
-popupActionsMenuElement.addEventListener("click", popupActionsClickEvent => {
-  const popupActionName =
-    popupActionsClickEvent.target.closest("[data-popup-action]")?.dataset.popupAction;
-  const popupActionTargetId = moduleDialogPopupId || selectedPopupId;
-  closePopupActionsMenu();
-  if (!!popupActionName && !!popupActionTargetId) {
-    if (popupActionName === "rename") {
-      openPopupNameDialog("rename");
-      return;
-    }
-    if (popupActionName === "duplicate") {
-      const duplicatedPopupId = newId("custom-popup");
-      selectedPopupId = duplicatedPopupId;
-      mutateDocument(popupDuplicateDraftDocument => {
-        /**
-         * 草稿文档里被复制的原弹窗；逐层深拷贝并重新生成各模块 ID，
-         * 否则副本与原弹窗会指向同一个模块对象。
-         */
-        const popupToDuplicate = (popupDuplicateDraftDocument.customPopups || []).find(
-          popupDuplicateMatch => popupDuplicateMatch.id === popupActionTargetId
-        );
-        if (!popupToDuplicate) {
-          return;
-        }
-        const duplicatedPopup = clone(popupToDuplicate);
-        duplicatedPopup.id = duplicatedPopupId;
-        duplicatedPopup.name = popupToDuplicate.name + "_副本";
-        duplicatedPopup.modules = (duplicatedPopup.modules || []).map(popupModuleCopy => ({
-          ...popupModuleCopy,
-          id: newId("popup-module")
-        }));
-        popupDuplicateDraftDocument.customPopups.push(duplicatedPopup);
-      });
-      return;
-    }
-    if (popupActionName === "delete") {
-      /**
-       * 待删除的弹窗记录（读当前文档即可，确认框里还要展示它的名字）。
-       *
-       * @type {?object}
-       */
-      const popupToDelete = (activeProject?.document?.customPopups || []).find(
-        popupDeleteCandidate => popupDeleteCandidate.id === popupActionTargetId
-      );
-      if (!popupToDelete) {
-        return;
-      }
-      popupModuleDraft = popupActionTargetId;
-      deletePopupNameElement.textContent = popupToDelete.name;
-      // 影响面必须在 showModal 之前填好：确认框是模态的，弹出来之后前端没机会再改内容。
-      renderPopupDeleteUsage(activeProject?.document, popupToDelete.id);
-      deletePopupDialogElement.showModal();
-    }
-  }
-});
+bindAssetSection();
+
 /**
  * 关闭「删除组合弹窗」确认框，并清掉暂存的待删弹窗 ID。不用等 `close` 事件，
  * 因为点确认时也会走 close，两条路径都要清空暂存值。
@@ -21377,793 +14395,12 @@ function renderPopupDeleteUsage(documentSource, popupId) {
   }
   deletePopupUsageListElement.replaceChildren(...usageListItems);
 }
-deletePopupCloseButtonElement.addEventListener("click", closeDeletePopupDialog);
-deletePopupCancelButtonElement.addEventListener("click", closeDeletePopupDialog);
-deletePopupDialogElement.addEventListener("close", () => {
-  popupModuleDraft = null;
-  // 清掉上一次的影响面：确认框是同一个 DOM，留着旧清单会让下一次删除显示上一个弹窗的控件。
-  deletePopupUsageSummaryElement.textContent = "";
-  deletePopupUsageListElement.replaceChildren();
-});
-deletePopupConfirmButtonElement.addEventListener("click", () => {
-  const popupIdToDelete = popupModuleDraft;
-  if (popupIdToDelete) {
-    popupModuleDraft = null;
-    deletePopupDialogElement.close();
-    deletePopupConfirmButtonElement.disabled = true;
-    mutateDocument(popupDeleteDraftDocument => {
-      popupDeleteDraftDocument.customPopups = (popupDeleteDraftDocument.customPopups || []).filter(
-        popupIdMatch => popupIdMatch.id !== popupIdToDelete
-      );
-      /**
-       * 递归清理组件树中所有指向待删弹窗的 more-info 动作。一个弹窗可能被多个组件（含子组件）的 more-info 动作引用，
-       * 删掉弹窗后这些动作会变成悬空引用、点击无反应，因此统一重置为 type:"none"；沿 children 递归，保证深层布局里的引用也一起清掉。
-       */
-      const clearPopupModuleReferences = componentNodes => {
-        for (const componentNode of componentNodes || []) {
-          for (const [componentActionKey, componentActionValue] of Object.entries(
-            componentNode.actions || {}
-          )) {
-            if (
-              componentActionValue.type === "more-info" &&
-              componentActionValue.data?.popupSource === "custom" &&
-              componentActionValue.data?.popupId === popupIdToDelete
-            ) {
-              componentNode.actions[componentActionKey] = {
-                type: "none",
-                data: {}
-              };
-            }
-          }
-          clearPopupModuleReferences(componentNode.children);
-        }
-      };
-      clearPopupModuleReferences(popupDeleteDraftDocument.sharedComponents);
-      for (const popupPage of popupDeleteDraftDocument.pages || []) {
-        clearPopupModuleReferences(popupPage.components);
-      }
-      selectedPopupId = popupDeleteDraftDocument.customPopups[0]?.id || null;
-      if (!selectedPopupId) {
-        setEditorMode("edit");
-      }
-    }).finally(() => {
-      deletePopupConfirmButtonElement.disabled = false;
-    });
-  }
-});
-popupModuleCloseButtonElement.addEventListener("click", () => {
-  closePopupModuleEntityMenu();
-  popupModuleDialogElement.close();
-});
-popupModuleCancelButtonElement.addEventListener("click", () => {
-  closePopupModuleEntityMenu();
-  popupModuleDialogElement.close();
-});
-popupModuleEntityButtonElement.addEventListener("click", () => {
-  const isPopupModuleEntityMenuHidden = popupModuleEntityMenuElement.hidden;
-  popupModuleEntityMenuElement.hidden = !isPopupModuleEntityMenuHidden;
-  popupModuleEntityButtonElement.setAttribute(
-    "aria-expanded",
-    String(isPopupModuleEntityMenuHidden)
-  );
-  if (isPopupModuleEntityMenuHidden) {
-    renderPopupModuleEntityOptions();
-    window.requestAnimationFrame(() =>
-      popupModuleEntitySearchInputElement.focus({
-        preventScroll: true
-      })
-    );
-  }
-});
-popupModuleEntitySearchInputElement.addEventListener("input", () =>
-  renderPopupModuleEntityOptions()
-);
-popupModuleEntityOptionsElement.addEventListener("click", popupModuleEntityClickEvent => {
-  const popupModuleEntityElement = popupModuleEntityClickEvent.target.closest(
-    "[data-popup-module-entity-id]"
-  );
-  if (popupModuleEntityElement) {
-    popupModuleFormElement.elements.entityId.value =
-      popupModuleEntityElement.dataset.popupModuleEntityId;
-    syncPopupModuleEntityButton();
-    closePopupModuleEntityMenu();
-  }
-});
-popupModuleClimateDeviceTypeElement.addEventListener("click", climateDeviceTypeClickEvent => {
-  const climateDeviceTypeElement = climateDeviceTypeClickEvent.target.closest(
-    "[data-popup-module-device-type]"
-  );
-  if (!!climateDeviceTypeElement && popupModuleFormElement.elements.type.value === "climate") {
-    syncPopupModuleDeviceType(climateDeviceTypeElement.dataset.popupModuleDeviceType);
-  }
-});
-popupModuleFormElement.elements.type.addEventListener("change", () => {
-  syncPopupModuleDeviceType();
-  popupModuleEntityOptionsElement.replaceChildren();
-});
-popupModuleFormElement.addEventListener("submit", popupModuleSubmitEvent => {
-  popupModuleSubmitEvent.preventDefault();
-  const popupModuleTargetPopupId = selectedPopupId;
-  const popupModuleType = popupModuleFormElement.elements.type.value;
-  const popupModuleSubmitEntityId = popupModuleFormElement.elements.entityId.value;
-  const popupModuleTitle = popupModuleFormElement.elements.title.value.trim();
-  const popupModuleDeviceType = normalizedPopupClimateDeviceType(
-    popupModuleFormElement.elements.deviceType.value
-  );
-  if (!popupModuleTargetPopupId || !popupModuleSubmitEntityId) {
-    return;
-  }
-  const popupModulePopup = findCustomPopup(activeProject?.document, selectedPopupId);
-  const popupModuleDraftEntry = {
-    id: selectedPopupModuleId || "candidate",
-    type: popupModuleType,
-    entityId: popupModuleSubmitEntityId,
-    ...(popupModuleTitle
-      ? {
-          title: popupModuleTitle
-        }
-      : {}),
-    ...(popupModuleType === "climate"
-      ? {
-          properties: {
-            deviceType: popupModuleDeviceType
-          }
-        }
-      : {})
-  };
-  const nextPopupModules = selectedPopupModuleId
-    ? (popupModulePopup?.modules || []).map(existingPopupModule =>
-        existingPopupModule.id === selectedPopupModuleId
-          ? {
-              ...existingPopupModule,
-              ...popupModuleDraftEntry
-            }
-          : existingPopupModule
-      )
-    : [...(popupModulePopup?.modules || []), popupModuleDraftEntry];
-  if (!popupModulePopup || !packPopupModules(nextPopupModules, popupModulePopup.layout).fits) {
-    handleOperationError(new Error("当前布局已超过 3 行，可增加列数或删除其它模块。"));
-    return;
-  }
-  closePopupModuleEntityMenu();
-  popupModuleDialogElement.close();
-  mutateDocument(popupModuleDraftDocument => {
-    /**
-     * 草稿文档里承载本次模块编辑的弹窗；找不到说明弹窗已被删除，
-     * 直接放弃这次写入（例如对话框打开期间在别处删掉了它）。
-     */
-    const popupModuleDraftPopup = (popupModuleDraftDocument.customPopups || []).find(
-      popupModulePopupMatch => popupModulePopupMatch.id === popupModuleTargetPopupId
-    );
-    if (!popupModuleDraftPopup) {
-      return;
-    }
-    const popupModuleExisting = popupModuleDraftPopup.modules.find(
-      popupModuleMatch => popupModuleMatch.id === selectedPopupModuleId
-    );
-    if (popupModuleExisting) {
-      popupModuleExisting.type = popupModuleType;
-      popupModuleExisting.entityId = popupModuleSubmitEntityId;
-      if (popupModuleTitle) {
-        popupModuleExisting.title = popupModuleTitle;
-      } else {
-        delete popupModuleExisting.title;
-      }
-      if (popupModuleType === "climate") {
-        popupModuleExisting.properties = {
-          ...(popupModuleExisting.properties || {}),
-          deviceType: popupModuleDeviceType
-        };
-      } else if (popupModuleExisting.properties?.deviceType) {
-        const { deviceType: removedDeviceType, ...remainingPopupProperties } =
-          popupModuleExisting.properties;
-        if (Object.keys(remainingPopupProperties).length) {
-          popupModuleExisting.properties = remainingPopupProperties;
-        } else {
-          delete popupModuleExisting.properties;
-        }
-      }
-      delete popupModuleExisting.deviceType;
-      return;
-    }
-    popupModuleDraftPopup.modules.push({
-      id: newId("popup-module"),
-      type: popupModuleType,
-      entityId: popupModuleSubmitEntityId,
-      ...(popupModuleTitle
-        ? {
-            title: popupModuleTitle
-          }
-        : {}),
-      ...(popupModuleType === "climate"
-        ? {
-            properties: {
-              deviceType: popupModuleDeviceType
-            }
-          }
-        : {})
-    });
-  });
-});
-document.addEventListener("pointerdown", documentPointerDownEvent => {
-  const deleteAssetFolderClosestElement = documentPointerDownEvent.target.closest(
-    "#delete-asset-folder-dialog"
-  );
-  if (!componentContextMenuElement.contains(documentPointerDownEvent.target)) {
-    closeComponentContextMenu();
-  }
-  if (
-    !deleteAssetFolderClosestElement &&
-    openCustomSelect &&
-    !openCustomSelect.button.contains(documentPointerDownEvent.target) &&
-    !openCustomSelect.menu.contains(documentPointerDownEvent.target)
-  ) {
-    closeCustomSelectMenu();
-  }
-  if (!documentPointerDownEvent.target.closest(".dashboard-select-row")) {
-    closeProjectActionsMenu();
-  }
-  if (!documentPointerDownEvent.target.closest(".page-control .page-select-row")) {
-    closePageActionsMenu();
-  }
-  if (
-    !documentPointerDownEvent.target.closest("#popup-list") &&
-    !documentPointerDownEvent.target.closest("#popup-actions-menu")
-  ) {
-    closePopupActionsMenu();
-  }
-  if (!documentPointerDownEvent.target.closest("#popup-module-entity-picker")) {
-    closePopupModuleEntityMenu();
-  }
-  if (!documentPointerDownEvent.target.closest(".component-popup-entity-picker")) {
-    closePopupEntityMenus();
-  }
-  if (!documentPointerDownEvent.target.closest("#image-entity-picker")) {
-    closeDropdownMenu(imageEntityMenuElement, imageEntityButtonElement);
-  }
-  if (!documentPointerDownEvent.target.closest("#weather-entity-picker")) {
-    closeDropdownMenu(weatherEntityMenuElement, weatherEntityButtonElement);
-  }
-  if (!documentPointerDownEvent.target.closest("#line-chart-entity-picker")) {
-    closeDropdownMenu(lineChartEntityMenuElement, lineChartEntityButtonElement);
-  }
-  if (!documentPointerDownEvent.target.closest("#ibe-entity-picker")) {
-    closeDropdownMenu(iconButtonEffectEntityMenuElement, iconButtonEffectEntityButtonElement);
-  }
-  if (!documentPointerDownEvent.target.closest("#icon-button-entity-picker")) {
-    closeDropdownMenu(iconButtonEntityMenuElement, iconButtonEntityButtonElement);
-  }
-  if (!documentPointerDownEvent.target.closest("#vacuum-map-entity-picker")) {
-    closeDropdownMenu(vacuumMapEntityMenuElement, vacuumMapEntityButtonElement);
-  }
-  if (!documentPointerDownEvent.target.closest("#camera-entity-picker")) {
-    closeDropdownMenu(cameraEntityMenuElement, cameraEntityButtonElement);
-  }
-  if (!documentPointerDownEvent.target.closest("#air-conditioner-entity-picker")) {
-    closeDropdownMenu(airConditionerEntityMenuElement, airConditionerEntityButtonElement);
-  }
-  if (!documentPointerDownEvent.target.closest("#title-button-entity-picker")) {
-    closeDropdownMenu(titleButtonEntityMenuElement, titleButtonEntityButtonElement);
-  }
-  if (
-    !lightStatisticsEntityMenuElement.hidden &&
-    !documentPointerDownEvent.target.closest("#light-statistics-entity-picker") &&
-    !lightStatisticsEntityMenuElement.contains(documentPointerDownEvent.target)
-  ) {
-    closeDropdownMenu(lightStatisticsEntityMenuElement, lightStatisticsEntityButtonElement);
-    resetLightStatisticsPicker();
-  }
-  if (!documentPointerDownEvent.target.closest("#light-statistics-action-entity-picker")) {
-    closeDropdownMenu(
-      lightStatisticsActionEntityMenuElement,
-      lightStatisticsActionEntityButtonElement
-    );
-  }
-  if (!documentPointerDownEvent.target.closest("#navigation-entity-picker")) {
-    closeDropdownMenu(navigationEntityMenuElement, navigationEntityButtonElement);
-  }
-  const imageAssetFolderMenuElement = customSelectsBySelectElement.get(
-    imageAssetFolderSelectElement
-  )?.menu;
-  if (
-    !deleteAssetFolderClosestElement &&
-    !documentPointerDownEvent.target.closest("#image-asset-picker") &&
-    !imageAssetFolderMenuElement?.contains(documentPointerDownEvent.target)
-  ) {
-    closeDropdownMenu(imageAssetMenuElement, imageAssetButtonElement);
-  }
-  const effectAssetFolderMenuElement = customSelectsBySelectElement.get(
-    iconButtonEffectAssetFolderSelectElement
-  )?.menu;
-  if (
-    !deleteAssetFolderClosestElement &&
-    !documentPointerDownEvent.target.closest("#ibe-asset-picker") &&
-    !effectAssetFolderMenuElement?.contains(documentPointerDownEvent.target)
-  ) {
-    closeDropdownMenu(iconButtonEffectAssetMenuElement, iconButtonEffectAssetButtonElement);
-  }
-  if (
-    !documentPointerDownEvent.target.closest("#ibe-icon-picker") &&
-    !iconButtonEffectIconMenuElement.contains(documentPointerDownEvent.target)
-  ) {
-    closeDropdownMenu(iconButtonEffectIconMenuElement, iconButtonEffectIconButtonElement);
-  }
-  if (
-    !documentPointerDownEvent.target.closest("#icon-button-icon-picker") &&
-    !iconButtonIconMenuElement.contains(documentPointerDownEvent.target)
-  ) {
-    closeDropdownMenu(iconButtonIconMenuElement, iconButtonIconButtonElement);
-  }
-  if (
-    !documentPointerDownEvent.target.closest("#title-button-icon-picker") &&
-    !titleButtonIconMenuElement.contains(documentPointerDownEvent.target)
-  ) {
-    closeDropdownMenu(titleButtonIconMenuElement, titleButtonIconButtonElement);
-  }
-  if (
-    !documentPointerDownEvent.target.closest("#light-statistics-icon-picker") &&
-    !lightStatisticsIconMenuElement.contains(documentPointerDownEvent.target)
-  ) {
-    closeDropdownMenu(lightStatisticsIconMenuElement, lightStatisticsIconButtonElement);
-  }
-  if (
-    !documentPointerDownEvent.target.closest("#navigation-icon-picker") &&
-    !navigationIconMenuElement.contains(documentPointerDownEvent.target)
-  ) {
-    closeDropdownMenu(navigationIconMenuElement, navigationIconButtonElement);
-  }
-});
-const scaleInputElements = new Set([
-  imageScaleInputElement,
-  iconButtonEffectScaleInputElement,
-  titleButtonScaleInputElement,
-  lightStatisticsScaleInputElement,
-  iconButtonScaleInputElement,
-  airConditionerScaleInputElement,
-  vacuumMapScaleInputElement,
-  cameraScaleInputElement,
-  timeScaleInputElement,
-  dateScaleInputElement,
-  weatherScaleInputElement,
-  lineChartScaleInputElement,
-  panelFrameScaleInputElement,
-  navigationScaleInputElement
-]);
-document.addEventListener(
-  "input",
-  scaleInputCaptureEvent => {
-    if (selectedComponentIds.size < 2 || !scaleInputElements.has(scaleInputCaptureEvent.target)) {
-      return;
-    }
-    scaleInputCaptureEvent.stopPropagation();
-    const scaleInputValue = Number(scaleInputCaptureEvent.target.value);
-    if (!Number.isFinite(scaleInputValue)) {
-      return;
-    }
-    const scaledPlacements = scaledSelectionPlacements(clampNumber(scaleInputValue, 1, 500) / 100);
-    if (scaledPlacements.length) {
-      editorRenderer?.previewComponentsTransform(scaledPlacements, selectedComponentId);
-    }
-  },
-  true
-);
-document.addEventListener(
-  "change",
-  documentChangeEvent => {
-    if (selectedComponentIds.size < 2 || !scaleInputElements.has(documentChangeEvent.target)) {
-      return;
-    }
-    documentChangeEvent.stopPropagation();
-    const changeInputValue = Number(documentChangeEvent.target.value);
-    if (!Number.isFinite(changeInputValue)) {
-      syncInspector();
-      return;
-    }
-    const selectedComponentIdSet = new Set(selectedComponentIds);
-    const changedScaledPlacements = scaledSelectionPlacements(
-      clampNumber(changeInputValue, 1, 500) / 100
-    );
-    if (changedScaledPlacements.length) {
-      mutateDocument(scaleDraftDocument => {
-        for (const scaledPlacement of changedScaledPlacements) {
-          if (!selectedComponentIdSet.has(scaledPlacement.componentId)) {
-            continue;
-          }
-          const scaledComponentRecord = findComponent(
-            scaleDraftDocument,
-            scaledPlacement.componentId
-          )?.component;
-          if (scaledComponentRecord) {
-            scaledComponentRecord.position = {
-              ...(scaledComponentRecord.position || {}),
-              x: scaledPlacement.x,
-              y: scaledPlacement.y
-            };
-            scaledComponentRecord.style = {
-              ...(scaledComponentRecord.style || {}),
-              scale: scaledPlacement.scale
-            };
-          }
-        }
-      });
-    }
-  },
-  true
-);
-document.addEventListener("keydown", documentKeydownEvent => {
-  const keyboardTargetElement = documentKeydownEvent.target.closest(
-    'input, textarea, select, button, [contenteditable="true"], dialog'
-  );
-  if (editorMode === "edit" && selectedComponentIds.size && !keyboardTargetElement) {
-    if (
-      (documentKeydownEvent.metaKey || documentKeydownEvent.ctrlKey) &&
-      !documentKeydownEvent.altKey &&
-      !documentKeydownEvent.shiftKey &&
-      documentKeydownEvent.key.toLowerCase() === "d"
-    ) {
-      documentKeydownEvent.preventDefault();
-      duplicateComponents([...selectedComponentIds], selectedComponentId);
-      return;
-    }
-    if (
-      !documentKeydownEvent.metaKey &&
-      !documentKeydownEvent.ctrlKey &&
-      !documentKeydownEvent.altKey &&
-      (documentKeydownEvent.key === "Delete" || documentKeydownEvent.key === "Backspace")
-    ) {
-      documentKeydownEvent.preventDefault();
-      openDeleteComponentDialog([...selectedComponentIds]);
-      return;
-    }
-  }
-  const arrowKeyDeltas = {
-    ArrowLeft: [-1, 0],
-    ArrowRight: [1, 0],
-    ArrowUp: [0, -1],
-    ArrowDown: [0, 1]
-  };
-  if (
-    arrowKeyDeltas[documentKeydownEvent.key] &&
-    editorMode === "edit" &&
-    selectedComponentIds.size &&
-    !documentKeydownEvent.metaKey &&
-    !documentKeydownEvent.ctrlKey &&
-    !documentKeydownEvent.altKey &&
-    !keyboardTargetElement
-  ) {
-    documentKeydownEvent.preventDefault();
-    const nudgeStep = documentKeydownEvent.shiftKey ? 10 : 1;
-    const [nudgeOffsetX, nudgeOffsetY] = arrowKeyDeltas[documentKeydownEvent.key];
-    nudgeSelectedComponents(nudgeOffsetX * nudgeStep, nudgeOffsetY * nudgeStep);
-    return;
-  }
-  if (documentKeydownEvent.key !== "Enter" || documentKeydownEvent.isComposing) {
-    return;
-  }
-  const enterTargetElement = documentKeydownEvent.target.closest(
-    'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])'
-  );
-  if (enterTargetElement) {
-    documentKeydownEvent.preventDefault();
-    enterTargetElement.blur();
-  }
-});
-inspectorElement.addEventListener("scroll", () => {
-  hideAssetLargePreview();
-  positionImagePickerMenu();
-  positionEntityPickerMenu("weather");
-  positionEntityPickerMenu("line-chart");
-  positionEntityPickerMenu("icon-button-effect");
-  positionEntityPickerMenu("icon-button");
-  positionEntityPickerMenu("vacuum-map");
-  positionEntityPickerMenu("camera");
-  positionEntityPickerMenu("air-conditioner");
-  positionEntityPickerMenu("title-button");
-  positionEntityPickerMenu("light-statistics");
-  positionLightStatisticsEntityMenu();
-  positionImageAssetMenu();
-  positionEffectAssetMenu();
-  positionIconButtonEffectIconMenu();
-  positionIconButtonIconMenu();
-  positionTitleButtonIconMenu();
-  positionLightStatisticsIconMenu();
-  positionNavigationIconMenu();
-  positionColorPicker();
-  for (const popupEntityScrollMenuElement of document.querySelectorAll(
-    "[data-popup-entity-menu]:not([hidden])"
-  )) {
-    positionPopupEntityMenu(popupEntityScrollMenuElement.closest("[data-action-trigger]"));
-  }
-});
-window.addEventListener("resize", () => {
-  refreshEditorViewportFit();
-  refreshComponentDialogScale();
-  closeComponentContextMenu();
-  closeCustomSelectMenu();
-  closeAllDropdownMenus();
-  closePopupEntityMenus();
-  positionColorPicker();
-});
-saveButtonElement.addEventListener("click", async () => {
-  // 等上一次写落定再走：它成功与否不影响本次操作（失败已由那一环的调用方报过）。
-  await writeQueuePromise.catch(() => {});
-  await saveDraft();
-});
-displayDevicesOpenButtonElement.addEventListener("click", openDisplayDevicesDialog);
-displayDevicesCloseButtonElement.addEventListener("click", () =>
-  displayDevicesDialogElement.close()
-);
-sessionsOpenButtonElement.addEventListener("click", openSessionsDialog);
-sessionsCloseButtonElement.addEventListener("click", () => sessionsDialogElement.close());
-sessionsRevokeOthersButtonElement.addEventListener("click", openSessionsRevokeOthersDialog);
-sessionsRevokeOthersCloseButtonElement.addEventListener("click", () =>
-  sessionsRevokeOthersDialogElement.close()
-);
-sessionsRevokeOthersCancelButtonElement.addEventListener("click", () =>
-  sessionsRevokeOthersDialogElement.close()
-);
-sessionsRevokeOthersConfirmButtonElement.addEventListener("click", async () => {
-  sessionsRevokeOthersConfirmButtonElement.disabled = true;
-  setSettingsMessage(sessionsRevokeOthersMessageElement, "");
-  setSettingsMessage(sessionsMessageElement, "");
-  try {
-    await requestJson("/auth/sessions", { method: "DELETE" });
-    sessionsRevokeOthersDialogElement.close();
-    await loadLoginSessions();
-    setSettingsMessage(
-      sessionsMessageElement,
-      "已退出其他所有设备的登录会话。",
-      "success"
-    );
-  } catch (revokeOtherSessionsError) {
-    setSettingsMessage(
-      sessionsRevokeOthersMessageElement,
-      revokeOtherSessionsError.message,
-      "error"
-    );
-    sessionsRevokeOthersConfirmButtonElement.disabled = false;
-  }
-});
-sessionsRevokeCloseButtonElement.addEventListener("click", () =>
-  sessionsRevokeDialogElement.close()
-);
-sessionsRevokeCancelButtonElement.addEventListener("click", () =>
-  sessionsRevokeDialogElement.close()
-);
-sessionsRevokeConfirmButtonElement.addEventListener("click", async () => {
-  const revokedSessionId = sessionsRevokeDialogElement.dataset.sessionId;
-  if (!revokedSessionId) {
-    setSettingsMessage(
-      sessionsRevokeMessageElement,
-      "会话已经不存在，请刷新后重试。",
-      "error"
-    );
-    return;
-  }
-  sessionsRevokeConfirmButtonElement.disabled = true;
-  setSettingsMessage(sessionsRevokeMessageElement, "");
-  setSettingsMessage(sessionsMessageElement, "");
-  try {
-    await requestJson("/auth/sessions/" + encodeURIComponent(revokedSessionId), {
-      method: "DELETE"
-    });
-    sessionsRevokeDialogElement.close();
-    delete sessionsRevokeDialogElement.dataset.sessionId;
-    await loadLoginSessions();
-  } catch (revokeSessionError) {
-    setSettingsMessage(sessionsRevokeMessageElement, revokeSessionError.message, "error");
-    sessionsRevokeConfirmButtonElement.disabled = false;
-  }
-});
-displayPairingCustomCodeTextInputElement.addEventListener("input", () => {
-  displayPairingCustomCodeTextInputElement.value = displayPairingCustomCodeTextInputElement.value
-    .replace(/\D/g, "")
-    .slice(0, 6);
-});
-displayPairingFormElement.addEventListener("submit", createDisplayPairingCode);
-logoutButtonElement.addEventListener("click", async () => {
-  if (!guardUnsavedChanges()) {
-    await requestJson("/auth/logout", {
-      method: "POST"
-    });
-    window.location.assign("/login");
-  }
-});
-enhanceNativeSelectsIn();
-enhanceColorInputsIn(document);
-enhanceNumberInputsIn(document);
+bindPopupModuleSection();
 
+bindDocumentPointerSection();
 
-globalColorPickerSaturationValueElement.addEventListener(
-  "pointerdown",
-  saturationPointerDownEvent => {
-    if (activeColorInputElement) {
-      saturationPointerDownEvent.preventDefault();
-      colorPickerDragPointerId = saturationPointerDownEvent.pointerId;
-      capturePointer(globalColorPickerSaturationValueElement, saturationPointerDownEvent.pointerId);
-      updateColorPickerFromPointer(saturationPointerDownEvent);
-    }
-  }
-);
-globalColorPickerSaturationValueElement.addEventListener(
-  "pointermove",
-  saturationPointerMoveEvent => {
-    if (saturationPointerMoveEvent.pointerId === colorPickerDragPointerId) {
-      updateColorPickerFromPointer(saturationPointerMoveEvent);
-    }
-  }
-);
-globalColorPickerSaturationValueElement.addEventListener("pointerup", saturationPointerUpEvent => {
-  if (saturationPointerUpEvent.pointerId === colorPickerDragPointerId) {
-    colorPickerDragPointerId = null;
-    releasePointer(globalColorPickerSaturationValueElement, saturationPointerUpEvent.pointerId);
-  }
-});
-globalColorPickerHueRangeInputElement.addEventListener("input", () => {
-  if (activeColorInputElement) {
-    colorPickerHue = clampNumber(Number(globalColorPickerHueRangeInputElement.value), 0, 360);
-    commitColorPickerHsv();
-  }
-});
-globalColorPickerHexTextInputElement.addEventListener("input", () => {
-  const hexColorInputValue = hexColorOrEmpty(globalColorPickerHexTextInputElement.value);
-  if (hexColorInputValue) {
-    syncColorPickerFromHex(hexColorInputValue, true);
-  }
-});
-globalColorPickerHexTextInputElement.addEventListener("change", () => {
-  const hexColorChangeInput = hexColorOrEmpty(globalColorPickerHexTextInputElement.value);
-  if (hexColorChangeInput) {
-    syncColorPickerFromHex(hexColorChangeInput, true);
-  } else if (activeColorInputElement) {
-    globalColorPickerHexTextInputElement.value = String(
-      activeColorInputElement.value || ""
-    ).toUpperCase();
-  }
-});
+bindInspectorScrollSection();
 
-
-for (const colorChannelInput of [
-  globalColorPickerRedInputElement,
-  globalColorPickerGreenInputElement,
-  globalColorPickerBlueInputElement
-]) {
-  colorChannelInput.addEventListener("input", commitColorPickerFromRgb);
-  colorChannelInput.addEventListener("change", commitColorPickerFromRgb);
-}
-globalColorPickerCopyButtonElement.addEventListener("click", async () => {
-  if (activeColorInputElement) {
-    try {
-      await copyTextToClipboard(String(activeColorInputElement.value || "").toUpperCase());
-      window.clearTimeout(colorPickerCopyResetTimer);
-      globalColorPickerCopyButtonElement.classList.add("copied");
-      colorPickerCopyResetTimer = window.setTimeout(
-        () => globalColorPickerCopyButtonElement.classList.remove("copied"),
-        1200
-      );
-    } catch (copyColorError) {
-      handleOperationError(copyColorError);
-    }
-  }
-});
-globalColorPickerPasteButtonElement.addEventListener("click", async () => {
-  if (activeColorInputElement) {
-    try {
-      const clipboardRawText = await navigator.clipboard.readText();
-      const clipboardHexColor = hexColorOrEmpty(clipboardRawText);
-      if (!clipboardHexColor) {
-        throw new Error("剪贴板中没有可用的十六进制颜色值。");
-      }
-      globalColorPickerHexTextInputElement.value = clipboardHexColor.toUpperCase();
-      syncColorPickerFromHex(clipboardHexColor, true);
-      globalColorPickerPasteButtonElement.classList.add("copied");
-      window.setTimeout(() => globalColorPickerPasteButtonElement.classList.remove("copied"), 1200);
-    } catch (pasteColorError) {
-      handleOperationError(pasteColorError);
-    }
-  }
-});
-document.addEventListener(
-  "click",
-  pickerGuardClickEvent => {
-    const clickedButtonElement = pickerGuardClickEvent.target.closest("button");
-    if (!clickedButtonElement) {
-      return;
-    }
-    let isPickerHandled = false;
-    if (
-      [
-        navigationIconButtonElement,
-        iconButtonEffectIconButtonElement,
-        iconButtonIconButtonElement,
-        titleButtonIconButtonElement,
-        lightStatisticsIconButtonElement
-      ].includes(clickedButtonElement)
-    ) {
-      isPickerHandled = openIconPicker(clickedButtonElement);
-    } else if (clickedButtonElement === lightStatisticsEntityButtonElement) {
-      isPickerHandled = openLightStatisticsEntityPicker();
-    } else if (clickedButtonElement.matches("[data-popup-entity-button]")) {
-      isPickerHandled = openPopupEntityPicker(clickedButtonElement);
-    } else if (clickedButtonElement === popupModuleEntityButtonElement) {
-      isPickerHandled = openPopupModuleEntityPicker();
-    } else if (
-      [imageAssetButtonElement, iconButtonEffectAssetButtonElement].includes(clickedButtonElement)
-    ) {
-      isPickerHandled = openAssetPicker(clickedButtonElement);
-    } else {
-      isPickerHandled = openEntityPicker(clickedButtonElement);
-    }
-    if (isPickerHandled) {
-      pickerGuardClickEvent.preventDefault();
-      pickerGuardClickEvent.stopImmediatePropagation();
-    }
-  },
-  true
-);
-document.addEventListener("pointerdown", documentPointerDownCaptureEvent => {
-  if (
-    !globalColorPickerElement.hidden &&
-    !globalColorPickerElement.contains(documentPointerDownCaptureEvent.target) &&
-    documentPointerDownCaptureEvent.target !== activeColorInputElement
-  ) {
-    closeColorPicker();
-  }
-});
-// dialog 以任何方式关闭时取色器都要收拾干净：它可能正挂在那只 dialog 里（见 colorPickerHostFor），
-// 而 dialog 关闭一帧后会被惰性卸载（editor-dialogs.js）—— 留在里面的取色器会连着被摘离文档。
-// Esc 关闭不会有 pointerdown，所以不能只靠上面那条兜。close 事件不冒泡，只能在捕获阶段听。
-//
-// 这里必须走完整的 closeColorPicker（它会隐藏面板并补发 change），不能只把活跃输入框清掉：
-// activeColorInputElement 的 isConnected 判据**认不出已脱离文档的取色器**，于是面板会一直
-// 保持可见；等 dialog 被摘走，那个还亮着的面板连同 hidden=false 的状态一起消失，下次打开
-// 同一只 dialog 时又原样冒出来。判据收紧到「取色器就挂在这只正在关闭的 dialog 里」：
-// 文档里别的元素也会发 close，无差别收起会把侧栏输入框刚打开的面板一起关掉。
-document.addEventListener(
-  "close",
-  closeEvent => {
-    if (closeEvent.target?.contains?.(globalColorPickerElement)) {
-      closeColorPicker();
-    }
-  },
-  true
-);
-new MutationObserver(mutationRecords => {
-  for (const mutationRecord of mutationRecords) {
-    for (const addedNode of mutationRecord.addedNodes) {
-      if (addedNode instanceof HTMLElement) {
-        enhanceNativeSelectsIn(addedNode);
-        enhanceColorInputsIn(addedNode);
-        enhanceNumberInputsIn(addedNode);
-      }
-    }
-  }
-}).observe(document.body, {
-  childList: true,
-  subtree: true
-});
-deferHiddenEditorDialogs();
-setEditorMode("edit");
-// 下面这一组轮询 / 可见性刷新统一吞掉失败：它们每 15 / 30 秒重试一次，
-// 单次失败弹提示只会刷屏，真实状态下一轮就会回来。
-window.setInterval(() => {
-  if (document.visibilityState === "visible") {
-    refreshHaConnection().catch(() => {});
-    refreshLicenseStatus().catch(() => {});
-  }
-}, 15000);
-window.setInterval(() => {
-  if (document.visibilityState === "visible") {
-    pollAssetCatalogVersion().catch(() => {});
-  }
-}, 30000);
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
-    refreshHaConnection().catch(() => {});
-    pollAssetCatalogVersion().catch(() => {});
-    refreshLicenseStatus().catch(() => {});
-  }
-});
 /**
  * 启动阶段的分片加载清单：每一项是「一个可以独立失败的加载动作 + 它在报错里的名字」。名字不是装饰：Promise.allSettled 只会说
  * 「第 3 片失败了」，而用户看到的必须是「实体清单没读出来」。写成函数而不是常量，是为了让这份清单能被整份取出来（按源码文本
@@ -22228,3 +14465,7887 @@ async function loadEditorBootSlices() {
 }
 
 loadEditorBootSlices().catch(handleOperationError);
+
+// --------------------------- 分节绑定 --------------------------- //
+// 绑定收进各节后仍在上面的原位置调用，顺序不变；分节的意义见 home/sections.js 的注释。
+/**
+ * 画布指针悬停。
+ *
+ * 指针进出画布时的悬停提示与光标。
+ */
+function bindPointerSection() {
+  const on = sections.section("pointer");
+  on(document, "pointerover", function onDocumentPointerover(pointerOverEvent) {
+    const hoveredRowElement = findOverflowPreviewTarget(pointerOverEvent.target);
+    const hoveredRow = findOverflowRow(hoveredRowElement);
+    const isPointerInsideRow =
+      pointerOverEvent.relatedTarget instanceof Node &&
+      hoveredRow?.contains(pointerOverEvent.relatedTarget);
+    if (!hoveredRowElement || isPointerInsideRow || hoverScrollStateByRow.has(hoveredRowElement)) {
+      return;
+    }
+    const overflowScrollDistance = Math.max(
+      0,
+      hoveredRowElement.scrollWidth - hoveredRowElement.clientWidth
+    );
+    if (overflowScrollDistance <= 2) {
+      return;
+    }
+    const hoverScrollEntry = {
+      timer: null,
+      frame: null
+    };
+    hoverScrollStateByRow.set(hoveredRowElement, hoverScrollEntry);
+    hoverScrollEntry.timer = window.setTimeout(() => {
+      if (!hoveredRowElement.isConnected) {
+        stopHoverScroll(hoveredRowElement);
+        return;
+      }
+      hoveredRowElement.classList.add("hover-scrolling");
+      const hoverScrollStartTime = performance.now();
+      /**
+       * 逐帧推进悬停横向滚动。用 requestAnimationFrame 而非 CSS transition/定时器，使滚动与刷新同步、指针移出能立刻停住。
+       * 速度系数 0.04（像素/毫秒，约 40px/秒）在「看得清实体名」与「不用久等」之间取平衡；
+       * 滚动距离夹到 overflowScrollDistance，避免滚出边界留下空白。
+       */
+      const stepHoverScroll = hoverScrollTimestamp => {
+        const elapsedScrollPx = (hoverScrollTimestamp - hoverScrollStartTime) * 0.04;
+        hoveredRowElement.scrollLeft = Math.min(overflowScrollDistance, elapsedScrollPx);
+        if (elapsedScrollPx < overflowScrollDistance) {
+          hoverScrollEntry.frame = window.requestAnimationFrame(stepHoverScroll);
+        }
+      };
+      hoverScrollEntry.frame = window.requestAnimationFrame(stepHoverScroll);
+    }, 350);
+  });
+  on(document, "pointerout", function onDocumentPointerout(pointerOutEvent) {
+    const leftRowElement = findOverflowPreviewTarget(pointerOutEvent.target);
+    const leftRow = findOverflowRow(leftRowElement);
+    const isPointerStillInsideRow =
+      pointerOutEvent.relatedTarget instanceof Node &&
+      leftRow?.contains(pointerOutEvent.relatedTarget);
+    if (!!leftRowElement && !isPointerStillInsideRow) {
+      stopHoverScroll(leftRowElement);
+    }
+  });
+}
+
+/**
+ * 页面生命周期。
+ *
+ * pagehide 时把未保存草稿刷进 sessionStorage，以及同一处的收尾。
+ */
+function bindLifecycleSection() {
+  const on = sections.section("lifecycle");
+  on(window, "pagehide", recoveryWriter.flush);
+  on(window, "beforeunload", recoveryWriter.flush);
+  on(document, "visibilitychange", function onDocumentVisibilitychange() {
+    if (document.hidden) {
+      recoveryWriter.flush();
+    }
+  });
+}
+
+/**
+ * 授权弹窗。
+ *
+ * 授权状态、激活码提交与续租按钮。激活流程整段走一个 async 回调，出错要给出可操作提示。
+ */
+function bindLicenseSection() {
+  const on = sections.section("license");
+  on(licenseOpenButtonElement, "click", async function onLicenseOpenButtonClick() {
+    setSettingsMessage(licenseMessageElement, "");
+    isLicenseActivationFormRequested = false;
+    try {
+      const licenseStateForDialog = await refreshLicenseStatus();
+      if (!licenseStateForDialog?.required || licenseStateForDialog.allowed) {
+        licenseDialogElement.showModal();
+      }
+    } catch (licenseDialogError) {
+      handleOperationError(licenseDialogError);
+    }
+  });
+  on(licenseCloseButtonElement, "click", function onLicenseCloseButtonClick() { return licenseDialogElement.close(); });
+  on(licenseDialogElement, "click", function onLicenseDialogClick(licenseBackdropEvent) {
+    if (licenseBackdropEvent.target === licenseDialogElement) {
+      licenseDialogElement.close();
+    }
+  });
+  on(licenseFormElement, "submit", async function onLicenseFormSubmit(licenseSubmitEvent) {
+    licenseSubmitEvent.preventDefault();
+    const licenseSubmitButton = licenseFormElement.querySelector('button[type="submit"]');
+    const activationCodeInput = String(
+      new FormData(licenseFormElement).get("activationCode") || ""
+    ).trim();
+    const licenseEmailInput = String(new FormData(licenseFormElement).get("email") || "").trim();
+    licenseSubmitButton.disabled = true;
+    setSettingsMessage(licenseMessageElement, "正在绑定实例并获取签名租约…");
+    try {
+      const activateResponse = await requestJson("/license/activate", {
+        method: "POST",
+        body: JSON.stringify({
+          activationCode: activationCodeInput,
+          email: licenseEmailInput
+        })
+      });
+      licenseFormElement.reset();
+      isLicenseActivationFormRequested = false;
+      renderLicenseStatus(activateResponse);
+      setSettingsMessage(licenseMessageElement, "当前实例已成功激活。", "success");
+    } catch (licenseActivateError) {
+      setSettingsMessage(licenseMessageElement, licenseActivateError.message, "error");
+    } finally {
+      licenseSubmitButton.disabled = false;
+    }
+  });
+  // 「重新连接授权后台」：轻量续租，只走本地恢复凭证，不等下一次状态轮询。
+  // 与「重新激活」的分工：本按钮不要求用户重新输入激活码，因此可以先试；它失败后再由用户
+  // 决定是否走完整的重新激活流程（那个路径可能要求补填激活码）。
+  on(licenseDialogRetryButtonElement, "click", async function onLicenseDialogRetryButtonClick() {
+    licenseDialogRetryButtonElement.disabled = true;
+    setSettingsMessage(licenseRetryMessageElement, "正在重新连接授权后台…");
+    try {
+      await requestJson("/license/retry", { method: "POST" });
+      setSettingsMessage(licenseRetryMessageElement, "已重新连接授权后台。", "success");
+    } catch (licenseRetryError) {
+      // 失败文案由后端 detail 翻好（是否可重试也由后端给结论），这里不再自行分类。
+      setSettingsMessage(licenseRetryMessageElement, licenseRetryError.message, "error");
+    } finally {
+      licenseDialogRetryButtonElement.disabled = false;
+      // 无论成败都读一次最新状态：重试可能已经成功（按钮随之隐藏），也可能带回新的错误码。
+      await refreshLicenseStatus().catch(() => {});
+    }
+  });
+  on(licenseReactivateButtonElement, "click", async function onLicenseReactivateButtonClick() {
+    licenseReactivateButtonElement.disabled = true;
+    setSettingsMessage(licenseMessageElement, "正在重新激活并获取签名租约…");
+    try {
+      const reactivateResponse = await requestJson("/license/reactivate", {
+        method: "POST"
+      });
+      licenseFormElement.reset();
+      isLicenseActivationFormRequested = false;
+      renderLicenseStatus(reactivateResponse);
+      setSettingsMessage(licenseMessageElement, "已重新激活，授权租约与恢复凭证均已更新。", "success");
+    } catch (licenseReactivateError) {
+      // 任何失败都把激活表单交给用户：无凭证可复用时要用户补输入，网络类故障时
+      // 手动激活也是唯一还能推进的路径。
+      revealLicenseActivationForm(licenseReactivateError.message);
+      await refreshLicenseStatus().catch(() => {});
+    } finally {
+      licenseReactivateButtonElement.disabled = false;
+    }
+  });
+  on(haOpenButtonElement, "click", async function onHaOpenButtonClick() {
+    isEditingHaConnection = false;
+    setSettingsMessage(haMessageElement, "");
+    await refreshHaConnection({
+      preserveForm: false
+    });
+    haDialogElement.showModal();
+  });
+  on(haCloseButtonElement, "click", function onHaCloseButtonClick() {
+    isEditingHaConnection = false;
+    haDialogElement.close();
+  });
+  on(haDialogElement, "click", function onHaDialogClick(haBackdropEvent) {
+    if (haBackdropEvent.target === haDialogElement) {
+      isEditingHaConnection = false;
+      haDialogElement.close();
+    }
+  });
+  on(haFormElement, "input", function onHaFormInput() {
+    if (!haFormElement.hidden) {
+      isEditingHaConnection = true;
+    }
+  });
+  on(haTestButtonElement, "click", async function onHaTestButtonClick() {
+    setSettingsMessage(haMessageElement, "正在测试地址、Token 和版本…");
+    haTestButtonElement.disabled = true;
+    try {
+      const haTestResult = await requestJson("/ha/test", {
+        method: "POST",
+        body: JSON.stringify(collectHaConnectionInput(true))
+      });
+      setSettingsMessage(
+        haMessageElement,
+        "连接成功：" +
+          (haTestResult.locationName || "Home Assistant") +
+          " · " +
+          (haTestResult.version || "未知版本"),
+        "success"
+      );
+    } catch (haTestError) {
+      setSettingsMessage(haMessageElement, haTestError.message, "error");
+    } finally {
+      haTestButtonElement.disabled = false;
+    }
+  });
+  on(haFormElement, "submit", async function onHaFormSubmit(haSubmitEvent) {
+    haSubmitEvent.preventDefault();
+    const haSubmitButton = haFormElement.querySelector('button[type="submit"]');
+    haSubmitButton.disabled = true;
+    setSettingsMessage(haMessageElement, "正在验证并加密保存连接…");
+    try {
+      try {
+        haConnectionInfo = await requestJson("/ha/connection", {
+          method: "PUT",
+          body: JSON.stringify(collectHaConnectionInput(false))
+        });
+      } catch (haUrlChangeError) {
+        // 409 + HA_URL_CHANGED_TOKEN_REUSE = 换了地址但要复用旧令牌：必须由用户确认
+        // 新地址可信，不能静默把令牌发过去（后端拒绝的正是这种「静默复用」）。
+        if (haUrlChangeError.code !== "HA_URL_CHANGED_TOKEN_REUSE") {
+          throw haUrlChangeError;
+        }
+        const confirmedUrlReuse = await confirmAction({
+          kicker: "CAUTION",
+          title: "确认新的 Home Assistant 地址",
+          message: "你改了 Home Assistant 地址，但仍使用已保存的令牌。",
+          detail:
+            "继续保存会把旧令牌发送到新的地址去验证。只有在新地址确实是你自己的 Home Assistant 时才确认。\n也可以直接在上面的 Token 输入框里重新输入令牌。",
+          confirmLabel: "确认继续",
+          tone: "warning"
+        });
+        if (!confirmedUrlReuse) {
+          throw new Error("已取消：请确认新地址可信，或重新输入 Token。");
+        }
+        haConnectionInfo = await requestJson("/ha/connection", {
+          method: "PUT",
+          body: JSON.stringify(collectHaConnectionInput(false, true))
+        });
+      }
+      isEditingHaConnection = false;
+      syncHaConnectionUi();
+      if (
+        !(await waitForHaConnection()) &&
+        !haConnectionInfo?.lastError &&
+        haConnectionStatus?.status !== "error"
+      ) {
+        haDetailStatusElement.textContent = "后台仍在建立实时连接";
+      }
+    } catch (haSaveError) {
+      isEditingHaConnection = true;
+      syncHaConnectionUi();
+      setSettingsMessage(haMessageElement, haSaveError.message, "error");
+    } finally {
+      haSubmitButton.disabled = false;
+    }
+  });
+}
+
+/**
+ * 项目与安防编辑入口。
+ *
+ * 项目菜单、安防（HA）编辑开关、删除项目确认。
+ */
+function bindProjectSection() {
+  const on = sections.section("project");
+  on(haEditButtonElement, "click", startHaEditing);
+  on(haEditCancelButtonElement, "click", cancelHaEditing);
+  on(haDeleteButtonElement, "click", function onHaDeleteButtonClick() {
+    deleteHaFormElement.reset();
+    setSettingsMessage(deleteHaMessageElement, "");
+    haDialogElement.close();
+    deleteHaDialogElement.showModal();
+  });
+  on(deleteHaCloseButtonElement, "click", function onDeleteHaCloseButtonClick() { return deleteHaDialogElement.close(); });
+  on(deleteHaCancelButtonElement, "click", function onDeleteHaCancelButtonClick() { return deleteHaDialogElement.close(); });
+  on(deleteHaDialogElement, "click", function onDeleteHaDialogClick(deleteHaBackdropEvent) {
+    if (deleteHaBackdropEvent.target === deleteHaDialogElement) {
+      deleteHaDialogElement.close();
+    }
+  });
+  on(deleteHaFormElement, "submit", async function onDeleteHaFormSubmit(deleteHaSubmitEvent) {
+    deleteHaSubmitEvent.preventDefault();
+    if (String(new FormData(deleteHaFormElement).get("confirmation") || "").trim() !== "删除连接") {
+      setSettingsMessage(deleteHaMessageElement, "请输入“删除连接”确认。", "error");
+      return;
+    }
+    const deleteHaSubmitButton = deleteHaFormElement.querySelector('button[type="submit"]');
+    deleteHaSubmitButton.disabled = true;
+    setSettingsMessage(deleteHaMessageElement, "正在断开连接并清除同步目录…");
+    try {
+      await requestJson("/ha/connection", {
+        method: "DELETE"
+      });
+      deleteHaDialogElement.close();
+      haConnectionInfo = null;
+      haConnectionStatus = null;
+      isEditingHaConnection = false;
+      await refreshHaConnection({
+        preserveForm: false
+      });
+    } catch (deleteHaError) {
+      setSettingsMessage(deleteHaMessageElement, deleteHaError.message, "error");
+    } finally {
+      deleteHaSubmitButton.disabled = false;
+    }
+  });
+  on(projectNewButtonElement, "click", async function onProjectNewButtonClick() {
+    if (!guardUnsavedChanges()) {
+      openProjectDialog("create");
+    }
+  });
+  on(projectCloseButtonElement, "click", function onProjectCloseButtonClick() { return projectDialogElement.close(); });
+  on(projectCancelButtonElement, "click", function onProjectCancelButtonClick() { return projectDialogElement.close(); });
+  on(projectDialogElement, "click", function onProjectDialogClick(projectBackdropEvent) {
+    if (projectBackdropEvent.target === projectDialogElement) {
+      projectDialogElement.close();
+    }
+  });
+  on(projectCanvasWidthInputElement, "input", function onProjectCanvasWidthInputInput() {
+    syncLockedCanvasDimension("width");
+    renderAspectRatio();
+  });
+  on(projectCanvasHeightInputElement, "input", function onProjectCanvasHeightInputInput() {
+    syncLockedCanvasDimension("height");
+    renderAspectRatio();
+  });
+  on(projectAspectLockButtonElement, "click", function onProjectAspectLockButtonClick() {
+    if (!["create", "resize"].includes(projectDialogMode)) {
+      return;
+    }
+    const inputWidthValue = Number(projectCanvasWidthInputElement.value);
+    const inputHeightValue = Number(projectCanvasHeightInputElement.value);
+    if (
+      !Number.isInteger(inputWidthValue) ||
+      !Number.isInteger(inputHeightValue) ||
+      inputWidthValue < 320 ||
+      inputWidthValue > 7680 ||
+      inputHeightValue < 240 ||
+      inputHeightValue > 4320
+    ) {
+      setSettingsMessage(projectMessageElement, "请先输入有效的宽度和高度后再锁定比例。", "error");
+      return;
+    }
+    isAspectLocked = !isAspectLocked;
+    if (isAspectLocked) {
+      lockedCanvasWidth = inputWidthValue;
+      lockedCanvasHeight = inputHeightValue;
+    }
+    setSettingsMessage(projectMessageElement, "");
+    syncAspectLockButton(false);
+  });
+  on(projectResizeWarningCloseButtonElement, "click", function onProjectResizeWarningCloseButtonClick() { return settleCanvasResizeWarning(false); }
+  );
+  on(projectResizeWarningCancelButtonElement, "click", function onProjectResizeWarningCancelButtonClick() { return settleCanvasResizeWarning(false); }
+  );
+  on(projectResizeWarningConfirmButtonElement, "click", function onProjectResizeWarningConfirmButtonClick() { return settleCanvasResizeWarning(true); }
+  );
+  on(projectResizeWarningDialogElement, "cancel", function onProjectResizeWarningDialogCancel(resizeWarningCancelEvent) {
+    resizeWarningCancelEvent.preventDefault();
+    settleCanvasResizeWarning(false);
+  });
+  on(projectFormElement, "submit", async function onProjectFormSubmit(projectSubmitEvent) {
+    projectSubmitEvent.preventDefault();
+    const projectFormData = new FormData(projectFormElement);
+    const projectNameInput = String(projectFormData.get("name") || "").trim();
+    const formCanvasWidth = Number(projectFormData.get("canvasWidth"));
+    const formCanvasHeight = Number(projectFormData.get("canvasHeight"));
+    const lockContentChecked =
+      projectDialogMode === "resize" && projectContentLockCheckboxElement.checked;
+    if (projectDialogMode === "resize" && lockContentChecked) {
+      const currentCanvasWidth = Number(activeProject?.document?.canvas?.width || 2778);
+      const currentCanvasHeight = Number(activeProject?.document?.canvas?.height || 1940);
+      const outsideComponentCount =
+        formCanvasWidth !== currentCanvasWidth || formCanvasHeight !== currentCanvasHeight
+          ? // 先在「已按 lockContent 预演过」的文档上统计：外框尺寸与最终落盘的
+            // 完全一致，铺满型 3D 也就不会被误判成越界。
+            countComponentsOutsideCanvas(
+              resizeDashboardDocument(
+                activeProject.document,
+                formCanvasWidth,
+                formCanvasHeight,
+                {
+                  lockContent: true
+                }
+              ),
+              formCanvasWidth,
+              formCanvasHeight
+            )
+          : 0;
+      if (
+        outsideComponentCount > 0 &&
+        !(await confirmCanvasResize(outsideComponentCount, formCanvasWidth, formCanvasHeight))
+      ) {
+        return;
+      }
+    }
+    projectSubmitButtonElement.disabled = true;
+    setSettingsMessage(
+      projectMessageElement,
+      projectDialogMode === "resize"
+        ? "正在调整整个仪表盘…"
+        : projectDialogMode === "edit"
+          ? "正在保存仪表盘名称…"
+          : "正在创建空白仪表盘…"
+    );
+    try {
+      if (projectDialogMode === "resize") {
+        const resizedDocument = resizeDashboardDocument(
+          activeProject.document,
+          formCanvasWidth,
+          formCanvasHeight,
+          {
+            lockContent: lockContentChecked
+          }
+        );
+        resizedDocument.name = projectNameInput;
+        await applyDocumentChange(resizedDocument);
+        projectDialogElement.close();
+      } else if (projectDialogMode === "edit") {
+        const renamedDocument = clone(activeProject.document);
+        renamedDocument.name = projectNameInput;
+        await applyDocumentChange(renamedDocument);
+        projectDialogElement.close();
+      } else {
+        const createProjectPayload = {
+          name: projectNameInput,
+          canvasWidth: formCanvasWidth,
+          canvasHeight: formCanvasHeight
+        };
+        const createdProject = await requestJson("/projects", {
+          method: "POST",
+          body: JSON.stringify(createProjectPayload)
+        });
+        projectDialogElement.close();
+        await loadProjects(createdProject.id);
+      }
+    } catch (projectDialogError) {
+      setSettingsMessage(projectMessageElement, projectDialogError.message, "error");
+    } finally {
+      projectSubmitButtonElement.disabled = false;
+    }
+  });
+  on(projectActionsButtonElement, "click", function onProjectActionsButtonClick() {
+    const menuWasHidden = projectActionsMenuElement.hidden;
+    closeCustomSelectMenu();
+    closeProjectActionsMenu();
+    closePageActionsMenu();
+    projectActionsMenuElement.hidden = !menuWasHidden;
+    projectActionsButtonElement.setAttribute("aria-expanded", String(menuWasHidden));
+  });
+  on(projectFloorplanOpenButtonElement, "click", function onProjectFloorplanOpenButtonClick() {
+    if (!guardUnsavedChanges()) {
+      window.location.assign("/3d-studio");
+    }
+  });
+  on(projectActionsMenuElement, "click", async function onProjectActionsMenuClick(projectActionsClickEvent) {
+    const projectAction =
+      projectActionsClickEvent.target.closest("[data-project-action]")?.dataset.projectAction;
+    if (!!projectAction && !!activeProject && (closeProjectActionsMenu(), !guardUnsavedChanges())) {
+      if (projectAction === "edit") {
+        openProjectDialog("edit");
+        return;
+      }
+      if (projectAction === "resize") {
+        openProjectDialog("resize");
+        return;
+      }
+      if (projectAction === "duplicate") {
+        const sourceProjectName = activeProject.document.name;
+        const existingProjectNames = new Set(
+          projects.map(projectNameCandidate => projectNameCandidate.name)
+        );
+        let copyName = sourceProjectName + " 副本";
+        let copyIndex = 2;
+        while (existingProjectNames.has(copyName)) {
+          copyName = sourceProjectName + " 副本 " + copyIndex++;
+        }
+        try {
+          const duplicatedProject = await requestJson(
+            "/projects/" + activeProject.projectId + "/duplicate",
+            {
+              method: "POST",
+              body: JSON.stringify({
+                name: copyName
+              })
+            }
+          );
+          await loadProjects(duplicatedProject.id);
+        } catch (duplicateProjectError) {
+          handleOperationError(duplicateProjectError);
+        }
+        return;
+      }
+      if (projectAction === "delete") {
+        const projectToDelete = projects.find(
+          deleteCandidateProject => deleteCandidateProject.id === activeProject.projectId
+        );
+        if (!projectToDelete) {
+          return;
+        }
+        deleteProjectFormElement.reset();
+        deleteProjectNameElement.textContent = "“" + projectToDelete.name + "”";
+        deleteProjectDialogElement.dataset.projectId = projectToDelete.id;
+        deleteProjectDialogElement.dataset.projectName = projectToDelete.name;
+        setSettingsMessage(deleteProjectMessageElement, "");
+        deleteProjectDialogElement.showModal();
+      }
+    }
+  });
+  on(deleteProjectCloseButtonElement, "click", function onDeleteProjectCloseButtonClick() { return deleteProjectDialogElement.close(); });
+  on(deleteProjectCancelButtonElement, "click", function onDeleteProjectCancelButtonClick() { return deleteProjectDialogElement.close(); }
+  );
+  on(deleteProjectDialogElement, "click", function onDeleteProjectDialogClick(deleteProjectBackdropEvent) {
+    if (deleteProjectBackdropEvent.target === deleteProjectDialogElement) {
+      deleteProjectDialogElement.close();
+    }
+  });
+  on(deleteProjectFormElement, "submit", async function onDeleteProjectFormSubmit(deleteProjectSubmitEvent) {
+    deleteProjectSubmitEvent.preventDefault();
+    const deleteProjectSubmitButton = deleteProjectFormElement.querySelector('button[type="submit"]');
+    const deleteProjectConfirmText = String(
+      new FormData(deleteProjectFormElement).get("confirmation") || ""
+    );
+    const deleteProjectTargetId = deleteProjectDialogElement.dataset.projectId;
+    const deleteProjectTargetName = deleteProjectDialogElement.dataset.projectName;
+    if (deleteProjectConfirmText !== deleteProjectTargetName) {
+      setSettingsMessage(
+        deleteProjectMessageElement,
+        "请输入与项目名称完全一致的确认文字。",
+        "error"
+      );
+      return;
+    }
+    deleteProjectSubmitButton.disabled = true;
+    setSettingsMessage(deleteProjectMessageElement, "正在删除项目和草稿…");
+    try {
+      await requestJson("/projects/" + deleteProjectTargetId, {
+        method: "DELETE",
+        body: JSON.stringify({
+          confirmation: deleteProjectConfirmText
+        })
+      });
+      discardRecoverySnapshot(deleteProjectTargetId);
+      deleteProjectDialogElement.close();
+      editorRenderer?.destroy();
+      editorRenderer = null;
+      activeProject = null;
+      clearComponentSelection();
+      await loadProjects();
+    } catch (deleteProjectError) {
+      setSettingsMessage(deleteProjectMessageElement, deleteProjectError.message, "error");
+    } finally {
+      deleteProjectSubmitButton.disabled = false;
+    }
+  });
+  on(pageNewButtonElement, "click", function onPageNewButtonClick() { return openPageDialog("create"); });
+  on(pageCloseButtonElement, "click", function onPageCloseButtonClick() { return pageDialogElement.close(); });
+  on(pageCancelButtonElement, "click", function onPageCancelButtonClick() { return pageDialogElement.close(); });
+  on(pageDialogElement, "click", function onPageDialogClick(pageBackdropEvent) {
+    if (pageBackdropEvent.target === pageDialogElement) {
+      pageDialogElement.close();
+    }
+  });
+  on(pageFormElement, "submit", async function onPageFormSubmit(pageSubmitEvent) {
+    pageSubmitEvent.preventDefault();
+    const pageNameInput = String(new FormData(pageFormElement).get("name") || "").trim();
+    const pageDraftDocument = clone(activeProject.document);
+    const pageSelectPath = pageSelectElement.value;
+    pageSubmitButtonElement.disabled = true;
+    setSettingsMessage(
+      pageMessageElement,
+      pageDialogMode === "rename" ? "正在保存页面名称…" : "正在创建页面…"
+    );
+    try {
+      if (pageDialogMode === "rename") {
+        const renamedPage = pageDraftDocument.pages.find(
+          pageCandidate => pageCandidate.path === pageSelectPath
+        );
+        renamedPage.name = pageNameInput;
+        await applyDocumentChange(pageDraftDocument, pageSelectPath);
+      } else {
+        const newPageObject = {
+          id: newId("page"),
+          name: pageNameInput,
+          path: uniquePagePath(activeProject?.document?.pages, pageNameInput),
+          sharedComponentIds: pageDraftDocument.sharedComponents.map(
+            sharedComponentCandidate => sharedComponentCandidate.id
+          ),
+          components: []
+        };
+        const insertIndex = Math.max(
+          0,
+          pageDraftDocument.pages.findIndex(existingPage => existingPage.path === pageSelectPath)
+        );
+        pageDraftDocument.pages.splice(insertIndex + 1, 0, newPageObject);
+        await applyDocumentChange(pageDraftDocument, newPageObject.path);
+      }
+      pageDialogElement.close();
+    } catch (pageDialogError) {
+      setSettingsMessage(pageMessageElement, pageDialogError.message, "error");
+    } finally {
+      pageSubmitButtonElement.disabled = false;
+    }
+  });
+}
+
+/**
+ * 组件分组、页面与组件删除。
+ *
+ * 重命名分组、删除页面/组件、行内右键菜单与二次确认。这一片原本是 500 行顶层匿名回调。
+ */
+function bindDialogSection() {
+  const on = sections.section("dialogs");
+  on(componentGroupRenameCloseButtonElement, "click", function onComponentGroupRenameCloseButtonClick() { return componentGroupRenameDialogElement.close(); }
+  );
+  on(componentGroupRenameCancelButtonElement, "click", function onComponentGroupRenameCancelButtonClick() { return componentGroupRenameDialogElement.close(); }
+  );
+  on(componentGroupRenameDialogElement, "click", function onComponentGroupRenameDialogClick(groupRenameBackdropEvent) {
+    if (groupRenameBackdropEvent.target === componentGroupRenameDialogElement) {
+      componentGroupRenameDialogElement.close();
+    }
+  });
+  on(componentGroupRenameFormElement, "submit", function onComponentGroupRenameFormSubmit(groupRenameSubmitEvent) {
+    groupRenameSubmitEvent.preventDefault();
+    const groupComponentId = componentGroupRenameDialogElement.dataset.groupId || "";
+    const renamedGroupComponent = findComponent(activeProject?.document, groupComponentId)?.component;
+    if (!renamedGroupComponent || renamedGroupComponent.type !== "group") {
+      componentGroupRenameDialogElement.close();
+      return;
+    }
+    const currentGroupLabel = componentLabel(renamedGroupComponent);
+    const groupNameInput = String(new FormData(componentGroupRenameFormElement).get("name") || "")
+      .trim()
+      .slice(0, 128);
+    if (!groupNameInput) {
+      setSettingsMessage(componentGroupRenameMessageElement, "请输入组合名称。", "error");
+      return;
+    }
+    if (groupNameInput === currentGroupLabel) {
+      componentGroupRenameDialogElement.close();
+      return;
+    }
+    mutateDocument(groupRenameDraftDocument => {
+      const groupComponentInDraft = findComponent(
+        groupRenameDraftDocument,
+        groupComponentId
+      )?.component;
+      if (groupComponentInDraft?.type === "group") {
+        groupComponentInDraft.properties = {
+          ...(groupComponentInDraft.properties || {}),
+          label: groupNameInput
+        };
+      }
+    });
+    componentGroupRenameDialogElement.close();
+  });
+  on(pageActionsButtonElement, "click", function onPageActionsButtonClick() {
+    const pageMenuWasHidden = pageActionsMenuElement.hidden;
+    closeCustomSelectMenu();
+    closeProjectActionsMenu();
+    closePageActionsMenu();
+    pageActionsMenuElement.hidden = !pageMenuWasHidden;
+    pageActionsButtonElement.setAttribute("aria-expanded", String(pageMenuWasHidden));
+  });
+  on(pageActionsMenuElement, "click", async function onPageActionsMenuClick(pageActionsClickEvent) {
+    const pageAction = pageActionsClickEvent.target.closest("[data-page-action]")?.dataset.pageAction;
+    const pageForAction = currentPage();
+    if (!pageAction || !pageForAction || !activeProject) {
+      return;
+    }
+    closePageActionsMenu();
+    if (pageAction === "rename") {
+      openPageDialog("rename");
+      return;
+    }
+    const pageActionDocument = clone(activeProject.document);
+    const pageIndex = pageActionDocument.pages.findIndex(
+      pageIndexCandidate => pageIndexCandidate.path === pageForAction.path
+    );
+    if (pageAction === "default") {
+      if (pageActionDocument.defaultPagePath === pageForAction.path) {
+        return;
+      }
+      pageActionDocument.defaultPagePath = pageForAction.path;
+      try {
+        await applyDocumentChange(pageActionDocument, pageForAction.path);
+        await saveDraft();
+      } catch (defaultPageError) {
+        handleOperationError(defaultPageError);
+      }
+      return;
+    }
+    if (pageAction === "duplicate") {
+      const duplicatedPage = clonePageWithFreshIds(
+        pageForAction,
+        pageForAction.name + " 副本",
+        activeProject.document.pages
+      );
+      pageActionDocument.pages.splice(pageIndex + 1, 0, duplicatedPage);
+      try {
+        await applyDocumentChange(pageActionDocument, duplicatedPage.path);
+      } catch (duplicatePageError) {
+        handleOperationError(duplicatePageError);
+      }
+      return;
+    }
+    if (pageAction === "delete") {
+      deletePageDialogElement.dataset.pagePath = pageForAction.path;
+      deletePageNameElement.textContent = "“" + pageForAction.name + "”";
+      setSettingsMessage(deletePageMessageElement, "");
+      deletePageDialogElement.showModal();
+    }
+  });
+  on(deletePageCloseButtonElement, "click", function onDeletePageCloseButtonClick() { return deletePageDialogElement.close(); });
+  on(deletePageCancelButtonElement, "click", function onDeletePageCancelButtonClick() { return deletePageDialogElement.close(); });
+  on(deletePageDialogElement, "click", function onDeletePageDialogClick(deletePageBackdropEvent) {
+    if (deletePageBackdropEvent.target === deletePageDialogElement) {
+      deletePageDialogElement.close();
+    }
+  });
+  on(deletePageConfirmButtonElement, "click", async function onDeletePageConfirmButtonClick() {
+    const deletedPagePath = deletePageDialogElement.dataset.pagePath;
+    const deletePageDocument = clone(activeProject.document);
+    const deletedPageIndex = deletePageDocument.pages.findIndex(
+      deletedPageCandidate => deletedPageCandidate.path === deletedPagePath
+    );
+    if (deletedPageIndex < 0) {
+      setSettingsMessage(deletePageMessageElement, "页面已经不存在，请刷新后重试。", "error");
+      return;
+    }
+    const deletedPage = deletePageDocument.pages[deletedPageIndex];
+    deletePageDocument.pages.splice(deletedPageIndex, 1);
+    const fallbackPagePath =
+      deletePageDocument.pages[Math.max(0, deletedPageIndex - 1)]?.path ||
+      deletePageDocument.pages[0]?.path ||
+      null;
+    const fallbackPage = deletePageDocument.pages.find(
+      fallbackCandidate => fallbackCandidate.path === fallbackPagePath
+    );
+    if (deletePageDocument.defaultPagePath === deletedPagePath) {
+      deletePageDocument.defaultPagePath = fallbackPagePath;
+    }
+    /**
+     * 把组件树里所有指向被删页面的引用改写到回退页面：导航按钮的 properties.targetPage（同时改写主/副标题，
+     * 但只在标题还是默认值时才改，避免覆盖用户自定义文案），以及 tap/doubleTap/hold 三种动作里 type === "navigate" 的 target。
+     * 没有回退页面时（删掉的是最后一个页面）删除引用字段而非留一个空串目标，让渲染器走「未设置跳转」分支。
+     */
+    const remapPageReferences = componentList => {
+      for (const scannedComponent of componentList || []) {
+        scannedComponent.properties = {
+          ...(scannedComponent.properties || {})
+        };
+        if (
+          scannedComponent.type === "navigation-button" &&
+          scannedComponent.properties.targetPage === deletedPagePath
+        ) {
+          if (
+            !scannedComponent.properties.mainText ||
+            scannedComponent.properties.mainText === "页面导航" ||
+            scannedComponent.properties.mainText === deletedPage?.name
+          ) {
+            scannedComponent.properties.mainText = fallbackPage?.name || "页面导航";
+          }
+          const deletedPageLabelUpper = String(deletedPagePath).replace(/[-_]+/g, " ").toUpperCase();
+          if (
+            !scannedComponent.properties.secondaryText ||
+            scannedComponent.properties.secondaryText === "NAVIGATION" ||
+            scannedComponent.properties.secondaryText === deletedPageLabelUpper
+          ) {
+            scannedComponent.properties.secondaryText = fallbackPagePath
+              ? String(fallbackPagePath).replace(/[-_]+/g, " ").toUpperCase()
+              : "NAVIGATION";
+          }
+          if (fallbackPagePath) {
+            scannedComponent.properties.targetPage = fallbackPagePath;
+          } else {
+            delete scannedComponent.properties.targetPage;
+          }
+        }
+        scannedComponent.actions = {
+          ...(scannedComponent.actions || {})
+        };
+        for (const actionKind of ["tap", "doubleTap", "hold"]) {
+          if (
+            scannedComponent.actions[actionKind]?.type === "navigate" &&
+            scannedComponent.actions[actionKind]?.target === deletedPagePath
+          ) {
+            if (scannedComponent.type === "navigation-button" && fallbackPagePath) {
+              scannedComponent.actions[actionKind] = {
+                type: "navigate",
+                target: fallbackPagePath
+              };
+            } else {
+              delete scannedComponent.actions[actionKind];
+            }
+          }
+        }
+        remapPageReferences(scannedComponent.children);
+      }
+    };
+    remapPageReferences(deletePageDocument.sharedComponents);
+    for (const scannedPage of deletePageDocument.pages) {
+      remapPageReferences(scannedPage.components);
+    }
+    deletePageConfirmButtonElement.disabled = true;
+    setSettingsMessage(deletePageMessageElement, "正在删除页面…");
+    try {
+      await applyDocumentChange(deletePageDocument, fallbackPagePath);
+      deletePageDialogElement.close();
+    } catch (deletePageError) {
+      setSettingsMessage(deletePageMessageElement, deletePageError.message, "error");
+    } finally {
+      deletePageConfirmButtonElement.disabled = false;
+    }
+  });
+  on(componentContextMenuElement, "click", function onComponentContextMenuClick(contextMenuClickEvent) {
+    const menuComponentId = contextMenuComponentId;
+    const componentAction =
+      contextMenuClickEvent.target.closest("[data-component-action]")?.dataset.componentAction;
+    const labelColorElement = contextMenuClickEvent.target.closest("[data-label-color]");
+    if (!menuComponentId || (!componentAction && !labelColorElement)) {
+      return;
+    }
+    const actionComponentIds = selectedComponentIds.has(menuComponentId)
+      ? [...selectedComponentIds]
+      : [menuComponentId];
+    closeComponentContextMenu();
+    if (componentAction === "copy") {
+      duplicateComponents(actionComponentIds, menuComponentId);
+      return;
+    }
+    if (componentAction === "group") {
+      groupSelectedComponents(actionComponentIds);
+      return;
+    }
+    if (componentAction === "ungroup") {
+      ungroupComponent(menuComponentId);
+      return;
+    }
+    if (componentAction === "rename-group") {
+      openGroupRenameDialog(menuComponentId);
+      return;
+    }
+    if (componentAction === "copy-to-page") {
+      openCopyComponentDialog(actionComponentIds);
+      return;
+    }
+    if (componentAction === "visibility") {
+      const visibilityFlags = actionComponentIds
+        .map(
+          scannedVisibilityId =>
+            findComponent(activeProject?.document, scannedVisibilityId)?.component
+        )
+        .filter(Boolean)
+        .map(scannedVisibilityComponent => scannedVisibilityComponent.style?.visible !== false);
+      if (
+        visibilityFlags.length !== actionComponentIds.length ||
+        !visibilityFlags.length ||
+        !visibilityFlags.every(visibilityFlag => visibilityFlag === visibilityFlags[0])
+      ) {
+        return;
+      }
+      setComponentsVisibility(actionComponentIds, !visibilityFlags[0]);
+      return;
+    }
+    if (componentAction === "delete") {
+      openDeleteComponentDialog(actionComponentIds);
+      return;
+    }
+    if (labelColorElement) {
+      setComponentsLabelColor(actionComponentIds, labelColorElement.dataset.labelColor);
+    }
+  });
+  on(deleteComponentCloseButtonElement, "click", function onDeleteComponentCloseButtonClick() { return deleteComponentDialogElement.close(); }
+  );
+  on(deleteComponentCancelButtonElement, "click", function onDeleteComponentCancelButtonClick() { return deleteComponentDialogElement.close(); }
+  );
+  on(deleteComponentDialogElement, "click", function onDeleteComponentDialogClick(deleteComponentBackdropEvent) {
+    if (deleteComponentBackdropEvent.target === deleteComponentDialogElement) {
+      deleteComponentDialogElement.close();
+    }
+  });
+  on(copyComponentPageCloseButtonElement, "click", function onCopyComponentPageCloseButtonClick() { return copyComponentPageDialogElement.close(); }
+  );
+  on(copyComponentPageCancelButtonElement, "click", function onCopyComponentPageCancelButtonClick() { return copyComponentPageDialogElement.close(); }
+  );
+  on(copyComponentPageDialogElement, "click", function onCopyComponentPageDialogClick(copyPageBackdropEvent) {
+    if (copyPageBackdropEvent.target === copyComponentPageDialogElement) {
+      copyComponentPageDialogElement.close();
+    }
+  });
+  on(copyComponentSuccessStayButtonElement, "click", function onCopyComponentSuccessStayButtonClick() {
+    copySuccessNavigationTarget = null;
+    copyComponentSuccessDialogElement.close();
+  });
+  on(copyComponentSuccessGoButtonElement, "click", function onCopyComponentSuccessGoButtonClick() {
+    handleCopySuccessConfirm().catch(handleOperationError);
+  });
+  on(copyComponentSuccessDialogElement, "click", function onCopyComponentSuccessDialogClick(copySuccessBackdropEvent) {
+    if (copySuccessBackdropEvent.target === copyComponentSuccessDialogElement) {
+      copySuccessNavigationTarget = null;
+      copyComponentSuccessDialogElement.close();
+    }
+  });
+  on(copyComponentPageScopeSelectElement, "change", function onCopyComponentPageScopeSelectChange() {
+    renderCopyComponentDialog();
+  });
+  on(copyComponentPageProjectSelectElement, "change", function onCopyComponentPageProjectSelectChange() {
+    if (copyComponentPageScopeSelectElement.value === "other") {
+      renderCopyComponentDialog();
+    }
+  });
+  on(copyComponentPageFormElement, "submit", async function onCopyComponentPageFormSubmit(copyComponentSubmitEvent) {
+    copyComponentSubmitEvent.preventDefault();
+    let componentIdsToCopy = [];
+    try {
+      componentIdsToCopy = JSON.parse(copyComponentPageDialogElement.dataset.componentIds || "[]");
+    } catch {
+      componentIdsToCopy = [];
+    }
+    const copyTargetValue = copyComponentPageTargetSelectElement.value;
+    const isCrossProjectCopy = copyComponentPageScopeSelectElement.value === "other";
+    if (!!activeProject && !!componentIdsToCopy.length && !!copyTargetValue) {
+      copyComponentPageSubmitButtonElement.disabled = true;
+      setSettingsMessage(copyComponentPageMessageElement, "正在复制控件…");
+      try {
+        if (isCrossProjectCopy) {
+          const copyTargetProjectId = copyComponentPageProjectSelectElement.value;
+          if (
+            !copyTargetProjectId ||
+            !copyTargetDraft ||
+            copyTargetDraft.projectId !== copyTargetProjectId
+          ) {
+            throw new Error("目标仪表盘尚未加载完成，请稍后重试。");
+          }
+          const targetProjectDraftDocument = clone(copyTargetDraft.document);
+          const copyScaleMode = copyComponentScaleOptionsElement.hidden
+            ? "none"
+            : copyComponentPageFormElement.elements.copyScaleMode.value;
+          let droppedActionCount = 0;
+          const copiedComponents = copyComponentsAcrossDocuments(
+            activeProject.document,
+            targetProjectDraftDocument,
+            componentIdsToCopy,
+            copyTargetValue,
+            {
+              cloneValue: clone,
+              createId: () => newId("component"),
+              componentLabel: componentLabel,
+              scaleMode: copyScaleMode,
+              onInvalidAction: () => {
+                droppedActionCount += 1;
+              }
+            }
+          );
+          if (!copiedComponents.length) {
+            throw new Error("目标页面或源控件已发生变化，请重新操作。");
+          }
+          const copyDraftResponse = await requestJson(
+            "/projects/" + encodeURIComponent(copyTargetProjectId) + "/draft",
+            {
+              method: "PUT",
+              body: JSON.stringify({
+                revision: copyTargetDraft.revision,
+                globalPopupRevision: copyTargetDraft.globalPopupRevision,
+                globalPopupsDirty: false,
+                document: targetProjectDraftDocument
+              })
+            }
+          );
+          copyTargetDraft = copyDraftResponse;
+          const copyTargetProject = projects.find(
+            copyTargetCandidate => copyTargetCandidate.id === copyTargetProjectId
+          );
+          if (copyTargetProject) {
+            copyTargetProject.draftRevision = copyDraftResponse.revision;
+          }
+          const copyTargetProjectName = copyTargetProject?.name || "目标仪表盘";
+          const copyTargetPageLabel =
+            copyComponentPageTargetSelectElement.selectedOptions[0]?.textContent || "目标区域";
+          const cleanupNotice = droppedActionCount
+            ? "（已清理 " + droppedActionCount + " 个目标仪表盘不存在的跳转或弹窗动作）"
+            : "";
+          copyComponentPageDialogElement.close();
+          showCopySuccessDialog(
+            "已复制 " +
+              copiedComponents.length +
+              " 个控件到“" +
+              copyTargetProjectName +
+              "”的“" +
+              copyTargetPageLabel +
+              "”，并已保存" +
+              cleanupNotice +
+              "。",
+            {
+              projectId: copyTargetProjectId,
+              pagePath:
+                copyTargetValue === "shared"
+                  ? copyTargetDraft.document.pages?.[0]?.path
+                  : copyTargetValue.replace(/^page:/, ""),
+              scope: copyTargetValue === "shared" ? "shared" : "page"
+            }
+          );
+          return;
+        }
+        const localDraftDocument = clone(activeProject.document);
+        const copiedLocalComponents = copyComponentsToTarget(
+          localDraftDocument,
+          componentIdsToCopy,
+          copyTargetValue,
+          {
+            cloneValue: clone,
+            createId: () => newId("component"),
+            componentLabel: componentLabel
+          }
+        );
+        if (!copiedLocalComponents.length) {
+          throw new Error("目标页面或源控件已发生变化，请重新操作。");
+        }
+        selectedComponentId = copiedLocalComponents[0].id;
+        selectedComponentIds = new Set(
+          copiedLocalComponents.map(copiedComponentItem => copiedComponentItem.id)
+        );
+        selectionAnchorComponentId = copiedLocalComponents[0].id;
+        const localCopyPagePath =
+          copyTargetValue === "shared"
+            ? pageSelectElement.value
+            : copyTargetValue.replace(/^page:/, "");
+        const localCopyTargetLabel =
+          copyComponentPageTargetSelectElement.selectedOptions[0]?.textContent || "目标区域";
+        await applyDocumentChange(localDraftDocument, localCopyPagePath);
+        copyComponentPageDialogElement.close();
+        showCopySuccessDialog(
+          "已复制 " +
+            copiedLocalComponents.length +
+            " 个控件到“" +
+            localCopyTargetLabel +
+            "”，并已保存。",
+          {
+            projectId: activeProject.projectId,
+            pagePath: localCopyPagePath,
+            scope: copyTargetValue === "shared" ? "shared" : "page"
+          }
+        );
+      } catch (copyComponentError) {
+        setSettingsMessage(copyComponentPageMessageElement, copyComponentError.message, "error");
+      } finally {
+        if (!isCrossProjectCopy || !copyComponentPageMessageElement.classList.contains("success")) {
+          copyComponentPageSubmitButtonElement.disabled = false;
+        }
+      }
+    }
+  });
+  on(deleteComponentConfirmButtonElement, "click", function onDeleteComponentConfirmButtonClick() {
+    let pendingDeleteComponentIds = [];
+    try {
+      pendingDeleteComponentIds = JSON.parse(
+        deleteComponentDialogElement.dataset.componentIds || "[]"
+      );
+    } catch {
+      pendingDeleteComponentIds = [];
+    }
+    if (!pendingDeleteComponentIds.length) {
+      return;
+    }
+    deleteComponentDialogElement.close();
+    const deleteIdSet = new Set(pendingDeleteComponentIds);
+    selectedComponentIds = new Set(
+      [...selectedComponentIds].filter(
+        selectedComponentIdCandidate => !deleteIdSet.has(selectedComponentIdCandidate)
+      )
+    );
+    if (deleteIdSet.has(selectedComponentId)) {
+      selectedComponentId = selectedComponentIds.values().next().value || null;
+    }
+    if (deleteIdSet.has(selectionAnchorComponentId)) {
+      selectionAnchorComponentId = selectedComponentId;
+    }
+    mutateDocument(deleteDraftDocument => {
+      for (const deletedComponentId of pendingDeleteComponentIds) {
+        removeComponent(deleteDraftDocument, deletedComponentId);
+      }
+    });
+  });
+  on(imageInspectorFormElement, "submit", function onImageInspectorFormSubmit(imageInspectorSubmitEvent) { return imageInspectorSubmitEvent.preventDefault(); }
+  );
+  on(iconButtonEffectInspectorFormElement, "submit",
+    function onIconButtonEffectInspectorFormSubmit(iconButtonEffectInspectorSubmitEvent) { return iconButtonEffectInspectorSubmitEvent.preventDefault(); }
+  );
+  on(titleButtonInspectorFormElement, "submit", function onTitleButtonInspectorFormSubmit(titleButtonInspectorSubmitEvent) { return titleButtonInspectorSubmitEvent.preventDefault(); }
+  );
+  on(lightStatisticsInspectorFormElement, "submit",
+    function onLightStatisticsInspectorFormSubmit(lightStatisticsInspectorSubmitEvent) { return lightStatisticsInspectorSubmitEvent.preventDefault(); }
+  );
+  on(iconButtonInspectorFormElement, "submit", function onIconButtonInspectorFormSubmit(iconButtonInspectorSubmitEvent) { return iconButtonInspectorSubmitEvent.preventDefault(); }
+  );
+  on(vacuumMapInspectorFormElement, "submit", function onVacuumMapInspectorFormSubmit(vacuumMapInspectorSubmitEvent) { return vacuumMapInspectorSubmitEvent.preventDefault(); }
+  );
+  on(cameraInspectorFormElement, "submit", function onCameraInspectorFormSubmit(cameraInspectorSubmitEvent) { return cameraInspectorSubmitEvent.preventDefault(); }
+  );
+  on(airConditionerInspectorFormElement, "submit", function onAirConditionerInspectorFormSubmit(airConditionerInspectorSubmitEvent) { return airConditionerInspectorSubmitEvent.preventDefault(); }
+  );
+  on(timeInspectorFormElement, "submit", function onTimeInspectorFormSubmit(timeInspectorSubmitEvent) { return timeInspectorSubmitEvent.preventDefault(); }
+  );
+  on(dateInspectorFormElement, "submit", function onDateInspectorFormSubmit(dateInspectorSubmitEvent) { return dateInspectorSubmitEvent.preventDefault(); }
+  );
+  on(weatherInspectorFormElement, "submit", function onWeatherInspectorFormSubmit(weatherInspectorSubmitEvent) { return weatherInspectorSubmitEvent.preventDefault(); }
+  );
+  on(lineChartInspectorFormElement, "submit", function onLineChartInspectorFormSubmit(lineChartInspectorSubmitEvent) { return lineChartInspectorSubmitEvent.preventDefault(); }
+  );
+  on(panelFrameInspectorFormElement, "submit", function onPanelFrameInspectorFormSubmit(panelFrameInspectorSubmitEvent) { return panelFrameInspectorSubmitEvent.preventDefault(); }
+  );
+  on(navigationInspectorFormElement, "submit", function onNavigationInspectorFormSubmit(navigationInspectorSubmitEvent) { return navigationInspectorSubmitEvent.preventDefault(); }
+  );
+}
+
+/**
+ * 文档级事件与图片/平面图检查器。
+ *
+ * 挂在 document 上的 click / input / change 兜底，以及图片检查器与平面图自动图检查器的回填。
+ */
+function bindDocumentSection() {
+  const on = sections.section("document");
+  on(document, "click", function onDocumentClick(documentClickEvent) {
+    const entityPickerButton = documentClickEvent.target.closest("[data-popup-entity-button]");
+    if (entityPickerButton) {
+      const entityTriggerHost = entityPickerButton.closest("[data-action-trigger]");
+      const entityOptionsMenuElement = entityTriggerHost?.querySelector("[data-popup-entity-menu]");
+      if (!entityTriggerHost || !entityOptionsMenuElement) {
+        return;
+      }
+      const entityMenuWasHidden = entityOptionsMenuElement.hidden;
+      closePopupEntityMenus(entityMenuWasHidden ? entityTriggerHost : null);
+      entityOptionsMenuElement.hidden = !entityMenuWasHidden;
+      entityPickerButton.setAttribute("aria-expanded", String(entityMenuWasHidden));
+      if (entityMenuWasHidden) {
+        const entitySearchInput = entityTriggerHost.querySelector("[data-popup-entity-search]");
+        entitySearchInput.value = "";
+        renderPopupEntityOptions(entityTriggerHost, "");
+        positionPopupEntityMenu(entityTriggerHost);
+        window.requestAnimationFrame(() =>
+          entitySearchInput.focus({
+            preventScroll: true
+          })
+        );
+      }
+      return;
+    }
+    const popupActionEntityOption = documentClickEvent.target.closest(
+      "[data-popup-action-entity-id]"
+    );
+    if (!popupActionEntityOption) {
+      return;
+    }
+    const entityActionTriggerHost = popupActionEntityOption.closest("[data-action-trigger]");
+    const popupEntityIdInput = entityActionTriggerHost?.querySelector("[data-popup-entity]");
+    if (!!entityActionTriggerHost && !!popupEntityIdInput) {
+      popupEntityIdInput.value = popupActionEntityOption.dataset.popupActionEntityId;
+      syncPopupEntityButton(entityActionTriggerHost);
+      closePopupEntityMenus();
+      popupEntityIdInput.dispatchEvent(
+        new Event("change", {
+          bubbles: true
+        })
+      );
+    }
+  });
+  on(document, "input", function onDocumentInput(documentInputEvent) {
+    const entitySearchField = documentInputEvent.target.closest("[data-popup-entity-search]");
+    const searchTriggerHost = entitySearchField?.closest("[data-action-trigger]");
+    if (!!entitySearchField && !!searchTriggerHost) {
+      renderPopupEntityOptions(searchTriggerHost, entitySearchField.value);
+      positionPopupEntityMenu(searchTriggerHost);
+    }
+  });
+  on(iconButtonPreviewDetailsButtonElement, "click", function onIconButtonPreviewDetailsButtonClick() {
+    const previewIconComponent = selectedComponent();
+    const previewIconEntityId = previewIconComponent?.bindings?.entity?.entityId || "";
+    if (previewIconComponent?.type === "icon-button" && !!previewIconEntityId) {
+      try {
+        ensureEditorRenderer().showEntityDetails(previewIconComponent, {
+          preview: true
+        });
+      } catch (iconPreviewError) {
+        handleOperationError(iconPreviewError);
+      }
+    }
+  });
+  on(airConditionerPreviewDetailsButtonElement, "click", function onAirConditionerPreviewDetailsButtonClick() {
+    const previewAirConditioner = selectedComponent();
+    const previewAcEntityId = previewAirConditioner?.bindings?.entity?.entityId || "";
+    if (previewAirConditioner?.type === "air-conditioner" && !!previewAcEntityId) {
+      try {
+        ensureEditorRenderer().showEntityDetails(previewAirConditioner, {
+          preview: true
+        });
+      } catch (acPreviewError) {
+        handleOperationError(acPreviewError);
+      }
+    }
+  });
+  on(imageLayoutOptionsElement, "click", function onImageLayoutOptionsClick(imageLayoutClickEvent) {
+    const imageLayoutOption = imageLayoutClickEvent.target.closest("[data-image-layout]");
+    const layoutComponentId = selectedComponentId;
+    if (!imageLayoutOption || !layoutComponentId) {
+      return;
+    }
+    const requestedLayout = imageLayoutOption.dataset.imageLayout === "fill" ? "fill" : "free";
+    const layoutComponent = selectedComponent();
+    const currentLayout = layoutComponent?.properties?.layoutMode === "fill" ? "fill" : "free";
+    if (!!layoutComponent && layoutComponent.type === "image" && currentLayout !== requestedLayout) {
+      mutateDocument(layoutDraftDocument => {
+        const layoutComponentInDraft = findComponent(
+          layoutDraftDocument,
+          layoutComponentId
+        )?.component;
+        if (!layoutComponentInDraft || layoutComponentInDraft.type !== "image") {
+          return;
+        }
+        layoutComponentInDraft.properties = {
+          ...(layoutComponentInDraft.properties || {}),
+          fit: "contain"
+        };
+        layoutComponentInDraft.style = {
+          ...(layoutComponentInDraft.style || {})
+        };
+        if (requestedLayout === "fill") {
+          layoutComponentInDraft.properties.freeLayout = {
+            position: clone(layoutComponentInDraft.position || {}),
+            scale: clampNumber(Number(layoutComponentInDraft.style.scale || 1), 0.01, 5)
+          };
+          layoutComponentInDraft.properties.layoutMode = "fill";
+          layoutComponentInDraft.position = {
+            ...(layoutComponentInDraft.position || {}),
+            x: 0,
+            y: 0,
+            width: Number(layoutDraftDocument.canvas?.width || 2778),
+            height: Number(layoutDraftDocument.canvas?.height || 1940),
+            rotation: 0
+          };
+          layoutComponentInDraft.style.scale = 1;
+          return;
+        }
+        const savedFreeLayout = layoutComponentInDraft.properties.freeLayout;
+        layoutComponentInDraft.properties.layoutMode = "free";
+        if (savedFreeLayout?.position) {
+          layoutComponentInDraft.position = clone(savedFreeLayout.position);
+          layoutComponentInDraft.style.scale = clampNumber(
+            Number(savedFreeLayout.scale || 1),
+            0.01,
+            5
+          );
+        } else {
+          const naturalImageWidth = Number(
+            layoutComponentInDraft.properties.naturalWidth ||
+              layoutComponentInDraft.position?.width ||
+              100
+          );
+          const naturalImageHeight = Number(
+            layoutComponentInDraft.properties.naturalHeight ||
+              layoutComponentInDraft.position?.height ||
+              100
+          );
+          const imageCanvasWidth = Number(layoutDraftDocument.canvas?.width || 2778);
+          const imageCanvasHeight = Number(layoutDraftDocument.canvas?.height || 1940);
+          layoutComponentInDraft.position = {
+            ...(layoutComponentInDraft.position || {}),
+            x: (imageCanvasWidth - naturalImageWidth) / 2,
+            y: (imageCanvasHeight - naturalImageHeight) / 2,
+            width: naturalImageWidth,
+            height: naturalImageHeight,
+            rotation: 0
+          };
+          layoutComponentInDraft.style.scale = 1;
+        }
+        delete layoutComponentInDraft.properties.freeLayout;
+      });
+    }
+  });
+  on(imageInspectorFormElement, "input", function onImageInspectorFormInput(imageInspectorInputEvent) {
+    const inspectedImage = selectedComponent();
+    if (!inspectedImage || inspectedImage.type !== "image") {
+      return;
+    }
+    const editedFieldInput = imageInspectorInputEvent.target;
+    if (String(editedFieldInput.value).trim() === "") {
+      return;
+    }
+    const fieldNumberValue = Number(editedFieldInput.value);
+    if (!Number.isFinite(fieldNumberValue)) {
+      return;
+    }
+    const canvasPixelWidth = Number(activeProject.document.canvas.width || 2778);
+    const canvasPixelHeight = Number(activeProject.document.canvas.height || 1940);
+    const imagePositionWidth = Number(inspectedImage.position?.width || 100);
+    const imagePositionHeight = Number(inspectedImage.position?.height || 100);
+    if (editedFieldInput === imageOpacityInputElement) {
+      const clampedOpacity = clampNumber(fieldNumberValue, 0, 100);
+      editorRenderer?.previewComponentProperties(inspectedImage.id, {
+        opacity: clampedOpacity / 100
+      });
+    } else if (editedFieldInput === imageLeftInputElement) {
+      const leftPercent = clampNumber(fieldNumberValue, 0, 100);
+      editorRenderer?.previewComponentTransform(inspectedImage.id, {
+        x: (canvasPixelWidth * leftPercent) / 100 - imagePositionWidth / 2
+      });
+    } else if (editedFieldInput === imageTopInputElement) {
+      const topPercent = clampNumber(fieldNumberValue, 0, 100);
+      editorRenderer?.previewComponentTransform(inspectedImage.id, {
+        y: (canvasPixelHeight * topPercent) / 100 - imagePositionHeight / 2
+      });
+    } else if (editedFieldInput === imageScaleInputElement) {
+      const scalePercent = clampNumber(fieldNumberValue, 1, 500);
+      editorRenderer?.previewComponentTransform(inspectedImage.id, {
+        scale: scalePercent / 100
+      });
+    } else if (editedFieldInput === imageRotationInputElement) {
+      const rotationDeg = clampNumber(fieldNumberValue, -360, 360);
+      editorRenderer?.previewComponentTransform(inspectedImage.id, {
+        rotation: rotationDeg
+      });
+    }
+  });
+  on(imageInspectorFormElement, "change", function onImageInspectorFormChange(imageInspectorChangeEvent) {
+    const changedInputElement = imageInspectorChangeEvent.target;
+    const imageComponentId = selectedComponentId;
+    if (
+      !!imageComponentId &&
+      !![
+        imageLabelTextInputElement,
+        imageOpacityInputElement,
+        imageLeftInputElement,
+        imageTopInputElement,
+        imageScaleInputElement,
+        imageRotationInputElement
+      ].includes(changedInputElement)
+    ) {
+      if (
+        [
+          imageOpacityInputElement,
+          imageLeftInputElement,
+          imageTopInputElement,
+          imageScaleInputElement,
+          imageRotationInputElement
+        ].includes(changedInputElement) &&
+        (String(changedInputElement.value).trim() === "" ||
+          !Number.isFinite(Number(changedInputElement.value)))
+      ) {
+        syncInspector();
+        return;
+      }
+      mutateDocument(imageChangeDraftDocument => {
+        const imageComponentInDraft = findComponent(
+          imageChangeDraftDocument,
+          imageComponentId
+        )?.component;
+        if (!imageComponentInDraft || imageComponentInDraft.type !== "image") {
+          return;
+        }
+        imageComponentInDraft.properties = {
+          ...(imageComponentInDraft.properties || {})
+        };
+        imageComponentInDraft.position = {
+          ...(imageComponentInDraft.position || {})
+        };
+        imageComponentInDraft.style = {
+          ...(imageComponentInDraft.style || {})
+        };
+        imageComponentInDraft.bindings = {
+          ...(imageComponentInDraft.bindings || {})
+        };
+        imageComponentInDraft.actions = {
+          ...(imageComponentInDraft.actions || {})
+        };
+        imageComponentInDraft.properties.fit = "contain";
+        const canvasWidthForImage = Number(imageChangeDraftDocument.canvas.width || 2778);
+        const canvasHeightForImage = Number(imageChangeDraftDocument.canvas.height || 1940);
+        const imageInputNumber = Number(changedInputElement.value);
+        if (changedInputElement === imageLabelTextInputElement) {
+          imageComponentInDraft.properties.label = changedInputElement.value.trim();
+        } else if (changedInputElement === imageOpacityInputElement) {
+          imageComponentInDraft.properties.opacity = clampNumber(imageInputNumber, 0, 100) / 100;
+        } else if (changedInputElement === imageLeftInputElement) {
+          imageComponentInDraft.position.x =
+            (canvasWidthForImage * clampNumber(imageInputNumber, 0, 100)) / 100 -
+            Number(imageComponentInDraft.position.width || 100) / 2;
+        } else if (changedInputElement === imageTopInputElement) {
+          imageComponentInDraft.position.y =
+            (canvasHeightForImage * clampNumber(imageInputNumber, 0, 100)) / 100 -
+            Number(imageComponentInDraft.position.height || 100) / 2;
+        } else if (changedInputElement === imageScaleInputElement) {
+          imageComponentInDraft.style.scale = clampNumber(imageInputNumber, 1, 500) / 100;
+        } else if (changedInputElement === imageRotationInputElement) {
+          setComponentsRotation(
+            imageChangeDraftDocument,
+            imageComponentId,
+            clampNumber(imageInputNumber, -360, 360)
+          );
+        }
+      });
+    }
+  });
+  const floorplanDiagramInputSet = new Set([
+    floorplanAutoDiagramLeftInputElement,
+    floorplanAutoDiagramTopInputElement,
+    floorplanAutoDiagramWidthInputElement,
+    floorplanAutoDiagramHeightInputElement,
+    floorplanAutoDiagramScaleInputElement,
+    floorplanAutoDiagramRotationInputElement
+  ]);
+  on(floorplanAutoDiagramInspectorFormElement, "input", function onFloorplanAutoDiagramInspectorFormInput(floorplanInputEvent) {
+    const inspectedDiagram = selectedComponent();
+    const diagramFieldInput = floorplanInputEvent.target;
+    if (
+      !inspectedDiagram ||
+      inspectedDiagram.type !== "floorplan-auto-diagram" ||
+      !floorplanDiagramInputSet.has(diagramFieldInput)
+    ) {
+      return;
+    }
+    const diagramNumberValue = Number(diagramFieldInput.value);
+    if (!Number.isFinite(diagramNumberValue)) {
+      return;
+    }
+    const diagramCanvasWidth = Number(activeProject.document.canvas.width || 2778);
+    const diagramCanvasHeight = Number(activeProject.document.canvas.height || 1940);
+    const diagramPositionWidth = Number(inspectedDiagram.position?.width || 100);
+    const diagramPositionHeight = Number(inspectedDiagram.position?.height || 100);
+    if (diagramFieldInput === floorplanAutoDiagramLeftInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
+        x:
+          (diagramCanvasWidth * clampNumber(diagramNumberValue, 0, 100)) / 100 -
+          diagramPositionWidth / 2
+      });
+    } else if (diagramFieldInput === floorplanAutoDiagramTopInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
+        y:
+          (diagramCanvasHeight * clampNumber(diagramNumberValue, 0, 100)) / 100 -
+          diagramPositionHeight / 2
+      });
+    } else if (diagramFieldInput === floorplanAutoDiagramWidthInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
+        width: (diagramCanvasWidth * clampNumber(diagramNumberValue, 0.1, 100)) / 100
+      });
+    } else if (diagramFieldInput === floorplanAutoDiagramHeightInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
+        height: (diagramCanvasHeight * clampNumber(diagramNumberValue, 0.1, 100)) / 100
+      });
+    } else if (diagramFieldInput === floorplanAutoDiagramScaleInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
+        scale: clampNumber(diagramNumberValue, 1, 500) / 100
+      });
+    } else if (diagramFieldInput === floorplanAutoDiagramRotationInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedDiagram.id, {
+        rotation: clampNumber(diagramNumberValue, -360, 360)
+      });
+    }
+  });
+  on(floorplanAutoDiagramInspectorFormElement, "change", function onFloorplanAutoDiagramInspectorFormChange(floorplanChangeEvent) {
+    const changedDiagramInput = floorplanChangeEvent.target;
+    const diagramComponentId = selectedComponentId;
+    if (
+      !!diagramComponentId &&
+      !![
+        floorplanAutoDiagramLabelTextInputElement,
+        floorplanAutoDiagramFolderTextInputElement,
+        ...floorplanDiagramInputSet
+      ].includes(changedDiagramInput)
+    ) {
+      if (
+        floorplanDiagramInputSet.has(changedDiagramInput) &&
+        !Number.isFinite(Number(changedDiagramInput.value))
+      ) {
+        syncInspector();
+        return;
+      }
+      mutateDocument(diagramDraftDocument => {
+        const diagramComponent = findComponent(diagramDraftDocument, diagramComponentId)?.component;
+        if (!!diagramComponent && diagramComponent.type === "floorplan-auto-diagram") {
+          diagramComponent.properties = {
+            ...(diagramComponent.properties || {})
+          };
+          diagramComponent.position = {
+            ...(diagramComponent.position || {})
+          };
+          diagramComponent.style = {
+            ...(diagramComponent.style || {})
+          };
+          if (changedDiagramInput === floorplanAutoDiagramLabelTextInputElement) {
+            diagramComponent.properties.label = changedDiagramInput.value.trim();
+          } else if (changedDiagramInput === floorplanAutoDiagramFolderTextInputElement) {
+            diagramComponent.properties.exportFolder = changedDiagramInput.value.trim();
+          } else {
+            const diagramDocumentWidth = Number(diagramDraftDocument.canvas.width || 2778);
+            const diagramDocumentHeight = Number(diagramDraftDocument.canvas.height || 1940);
+            const diagramFieldValue = Number(changedDiagramInput.value);
+            if (changedDiagramInput === floorplanAutoDiagramLeftInputElement) {
+              diagramComponent.position.x =
+                (diagramDocumentWidth * clampNumber(diagramFieldValue, 0, 100)) / 100 -
+                Number(diagramComponent.position.width || 100) / 2;
+            } else if (changedDiagramInput === floorplanAutoDiagramTopInputElement) {
+              diagramComponent.position.y =
+                (diagramDocumentHeight * clampNumber(diagramFieldValue, 0, 100)) / 100 -
+                Number(diagramComponent.position.height || 100) / 2;
+            } else if (changedDiagramInput === floorplanAutoDiagramWidthInputElement) {
+              diagramComponent.position.width =
+                (diagramDocumentWidth * clampNumber(diagramFieldValue, 0.1, 100)) / 100;
+            } else if (changedDiagramInput === floorplanAutoDiagramHeightInputElement) {
+              diagramComponent.position.height =
+                (diagramDocumentHeight * clampNumber(diagramFieldValue, 0.1, 100)) / 100;
+            } else if (changedDiagramInput === floorplanAutoDiagramScaleInputElement) {
+              diagramComponent.style.scale = clampNumber(diagramFieldValue, 1, 500) / 100;
+            } else if (changedDiagramInput === floorplanAutoDiagramRotationInputElement) {
+              setComponentsRotation(
+                diagramDraftDocument,
+                diagramComponentId,
+                clampNumber(diagramFieldValue, -360, 360)
+              );
+            }
+          }
+        }
+      });
+    }
+  });
+  on(floorplanAutoDiagramLayoutElement, "click", function onFloorplanAutoDiagramLayoutClick(floorplanLayoutClickEvent) {
+    const floorplanLayoutOption = floorplanLayoutClickEvent.target.closest("[data-floorplan-layout]");
+    const floorplanComponentId = selectedComponentId;
+    if (!!floorplanLayoutOption && !!floorplanComponentId) {
+      mutateDocument(floorplanLayoutDraftDocument => {
+        const floorplanComponent = findComponent(
+          floorplanLayoutDraftDocument,
+          floorplanComponentId
+        )?.component;
+        if (floorplanComponent?.type === "floorplan-auto-diagram") {
+          floorplanComponent.properties = {
+            ...(floorplanComponent.properties || {}),
+            layoutMode: floorplanLayoutOption.dataset.floorplanLayout === "fill" ? "fill" : "free"
+          };
+        }
+      });
+    }
+  });
+}
+
+/**
+ * 平面图面板入口。
+ *
+ * pageshow 恢复、打开基础照明/工作室、视图切换等平面图侧入口。
+ */
+function bindFloorplanSection() {
+  const on = sections.section("floorplan");
+  on(window, "pageshow", function onWindowPageshow(pageshowEvent) {
+    if (pageshowEvent.persisted) {
+      for (const restoredDiagramPreview of document.querySelectorAll(
+        ".hb-floorplan-auto-diagram-preview"
+      )) {
+        reloadDiagramPreview(restoredDiagramPreview);
+      }
+    }
+  });
+  on(floorplanAutoDiagramCameraViewElement, "click", function onFloorplanAutoDiagramCameraViewClick(cameraViewClickEvent) {
+    const cameraViewOption = cameraViewClickEvent.target.closest("[data-floorplan-camera-view]");
+    const cameraViewComponentId = selectedComponentId;
+    if (!cameraViewOption || !cameraViewComponentId) {
+      return;
+    }
+    const requestedCameraView =
+      cameraViewOption.dataset.floorplanCameraView === "top" ? "top" : "free";
+    mutateDocument(cameraViewDraftDocument => {
+      const cameraViewComponent = findComponent(
+        cameraViewDraftDocument,
+        cameraViewComponentId
+      )?.component;
+      if (cameraViewComponent?.type === "floorplan-auto-diagram") {
+        cameraViewComponent.properties = {
+          ...(cameraViewComponent.properties || {}),
+          cameraView: requestedCameraView
+        };
+      }
+    });
+    postDiagramCameraCommand(cameraViewComponentId, "set-view", requestedCameraView);
+  });
+  on(floorplanAutoDiagramFloorSelectElement, "change", function onFloorplanAutoDiagramFloorSelectChange() {
+    const floorSelectComponentId = selectedComponentId;
+    const selectedFloorValue = String(floorplanAutoDiagramFloorSelectElement.value || "");
+    const floorSelectComponent = selectedComponent();
+    if (
+      !!floorSelectComponentId &&
+      !!selectedFloorValue &&
+      floorSelectComponent?.type === "floorplan-auto-diagram"
+    ) {
+      mutateDocument(floorSelectDraftDocument => {
+        const floorSelectComponentInDraft = findComponent(
+          floorSelectDraftDocument,
+          floorSelectComponentId
+        )?.component;
+        if (floorSelectComponentInDraft?.type === "floorplan-auto-diagram") {
+          floorSelectComponentInDraft.properties = {
+            ...(floorSelectComponentInDraft.properties || {}),
+            floorSelection: selectedFloorValue
+          };
+        }
+      });
+      postDiagramFloorCommand(floorSelectComponentId, selectedFloorValue);
+      postDiagramCameraCommand(floorSelectComponentId, "restore", {
+        view: floorSelectComponent.properties?.cameraView || "free",
+        mode: floorSelectComponent.properties?.cameraMode || "orthographic",
+        topRotation: Number(floorSelectComponent.properties?.cameraTopRotation || 0),
+        focalLength: Number(floorSelectComponent.properties?.cameraFocalLength || 50)
+      });
+    }
+  });
+  on(floorplanAutoDiagramCameraModeElement, "click", function onFloorplanAutoDiagramCameraModeClick(cameraModeClickEvent) {
+    const cameraModeOption = cameraModeClickEvent.target.closest("[data-floorplan-camera-mode]");
+    const cameraModeComponentId = selectedComponentId;
+    if (!cameraModeOption || !cameraModeComponentId) {
+      return;
+    }
+    const requestedCameraMode =
+      cameraModeOption.dataset.floorplanCameraMode === "perspective" ? "perspective" : "orthographic";
+    mutateDocument(cameraModeDraftDocument => {
+      const cameraModeComponent = findComponent(
+        cameraModeDraftDocument,
+        cameraModeComponentId
+      )?.component;
+      if (cameraModeComponent?.type === "floorplan-auto-diagram") {
+        cameraModeComponent.properties = {
+          ...(cameraModeComponent.properties || {}),
+          cameraMode: requestedCameraMode
+        };
+      }
+    });
+    postDiagramCameraCommand(cameraModeComponentId, "set-mode", requestedCameraMode);
+  });
+  on(floorplanAutoDiagramFocalLengthInputElement, "change", function onFloorplanAutoDiagramFocalLengthInputChange() {
+    const focalLengthComponentId = selectedComponentId;
+    if (
+      !focalLengthComponentId ||
+      String(floorplanAutoDiagramFocalLengthInputElement.value).trim() === ""
+    ) {
+      return syncInspector();
+    }
+    const clampedFocalLength = clampNumber(
+      Number(floorplanAutoDiagramFocalLengthInputElement.value),
+      18,
+      120
+    );
+    mutateDocument(focalLengthDraftDocument => {
+      const focalLengthComponent = findComponent(
+        focalLengthDraftDocument,
+        focalLengthComponentId
+      )?.component;
+      if (focalLengthComponent?.type === "floorplan-auto-diagram") {
+        focalLengthComponent.properties = {
+          ...(focalLengthComponent.properties || {}),
+          cameraFocalLength: clampedFocalLength
+        };
+      }
+    });
+    postDiagramCameraCommand(focalLengthComponentId, "set-focal-length", clampedFocalLength);
+  });
+  on(floorplanAutoDiagramRotateTopButtonElement, "click", function onFloorplanAutoDiagramRotateTopButtonClick() {
+    const rotateTopComponentId = selectedComponentId;
+    if (rotateTopComponentId) {
+      mutateDocument(rotateTopDraftDocument => {
+        const rotateTopComponent = findComponent(
+          rotateTopDraftDocument,
+          rotateTopComponentId
+        )?.component;
+        if (rotateTopComponent?.type === "floorplan-auto-diagram") {
+          rotateTopComponent.properties = {
+            ...(rotateTopComponent.properties || {}),
+            cameraView: "top",
+            cameraTopRotation:
+              (Number(rotateTopComponent.properties?.cameraTopRotation || 0) + 90) % 360
+          };
+        }
+      });
+      postDiagramCameraCommand(rotateTopComponentId, "rotate-top");
+    }
+  });
+  /**
+   * 找到某个户型图组件对应的预览 iframe。iframe 藏在组件 DOM 内部，用 CSS.escape 转义组件 ID 后再拼选择器，
+   * 避免 ID 里的特殊字符把选择器写坏。默认参数取当前正在编辑光照的组件。
+   */
+  function findDiagramPreviewFrame(lightingComponentId = baseLightingComponentId) {
+    if (lightingComponentId) {
+      return document.querySelector(
+        '.hb-component[data-component-id="' +
+          CSS.escape(lightingComponentId) +
+          '"] .hb-floorplan-auto-diagram-preview'
+      );
+    } else {
+      return null;
+    }
+  }
+  /**
+   * 向户型预览 iframe 下发「基础光照」命令。命令共有 request-state / preview / reset / save / cancel 几种；
+   * payload 为空时不发送 lighting 字段，让 iframe 侧区分「不改光照只下命令」与「带新光照下发」。
+   */
+  function postBaseLightingCommand(lightingCommand, lightingPayload = null) {
+    const lightingFrame = findDiagramPreviewFrame();
+    if (lightingFrame?.contentWindow) {
+      lightingFrame.contentWindow.postMessage(
+        {
+          type: "homeos-floorplan-auto-diagram-base-lighting",
+          componentId: baseLightingComponentId,
+          command: lightingCommand,
+          ...(lightingPayload
+            ? {
+                lighting: lightingPayload
+              }
+            : {})
+        },
+        window.location.origin
+      );
+      return true;
+    } else {
+      return false;
+    }
+  }
+  /**
+   * 把光照参数写进光照面板的各输入框并返回归一化结果。先归一化再回填，保证面板显示的值与真正下发给 iframe
+   * 的一致。整数滑块（step === "5"）显示取整值，其余通道保留两位小数 —— 浮点运算会产生 0.30000000000000004
+   * 这类尾数，直接回填会让输入框显示得很脏。
+   */
+  function applyBaseLightingToPanel(baseLighting) {
+    const normalizedLighting = normalizeBaseLighting(baseLighting);
+    for (const lightInputElement of floorplanBaseLightElements) {
+      const lightChannelValue = normalizedLighting[lightInputElement.dataset.floorplanBaseLight];
+      lightInputElement.value =
+        lightInputElement.step === "5"
+          ? String(Math.round(lightChannelValue))
+          : String(Number(lightChannelValue.toFixed(2)));
+    }
+    return normalizedLighting;
+  }
+  /**
+   * 从光照面板的各输入框读出光照参数并归一化。输入框的通道名写在 data-floorplan-base-light 上，靠它组装对象，
+   * 因此新增光照通道只要加 DOM 并登记进 floorplanBaseLightElements 即可。
+   */
+  function readBaseLightingFromPanel() {
+    const lightingInputValues = {};
+    for (const lightFieldElement of floorplanBaseLightElements) {
+      lightingInputValues[lightFieldElement.dataset.floorplanBaseLight] = Number(
+        lightFieldElement.value
+      );
+    }
+    return normalizeBaseLighting(lightingInputValues);
+  }
+  /**
+   * 关闭基础光照面板并清空编辑态。cancelPreview 默认为 true：面板关闭意味着放弃未保存的调整，需要通知
+   * iframe 还原到保存过的光照，否则预览会停留在临时值上。取消预览时同步下发 cancel 并清掉 baseLightingComponentId
+   * 与拖拽状态，防止下次打开串到别的组件上。
+   */
+  function closeLightingPanel({ cancelPreview: cancelLightingPreview = true } = {}) {
+    if (!floorplanAutoLightingPanelElement.hidden) {
+      if (cancelLightingPreview) {
+        postBaseLightingCommand("cancel");
+      }
+      floorplanAutoLightingPanelElement.hidden = true;
+      floorplanAutoLightingPanelElement.setAttribute("aria-busy", "false");
+      baseLightingComponentId = "";
+      lightingPanelDragState = null;
+    }
+  }
+  /**
+   * 打开基础光照面板并把该户型图切到「浏览」交互模式：必须切到 view，否则用户调光照时拖动鼠标会移动组件而不是旋转视角；
+   * 同时把 iframe 的 is-position-mode 换成 is-view-mode，让内部 3D 端同步切换。面板默认靠右对齐，超出视口或太靠边就改为
+   * 按 left/top 定位并夹到距边 8px 内（给面板阴影与圆角留量）。打开后先 request-state 拉取当前光照，等 iframe 回包再填充面板。
+   */
+  function openLightingPanel(lightingHostComponentId) {
+    const lightingPreviewFrame = findDiagramPreviewFrame(lightingHostComponentId);
+    if (!lightingHostComponentId || !lightingPreviewFrame?.contentWindow) {
+      return;
+    }
+    baseLightingComponentId = lightingHostComponentId;
+    lightingPreviewFrame.classList.remove("is-position-mode");
+    lightingPreviewFrame.classList.add("is-view-mode");
+    mutateDocument(interactionModeDraftDocument => {
+      const interactionModeComponent = findComponent(
+        interactionModeDraftDocument,
+        lightingHostComponentId
+      )?.component;
+      if (interactionModeComponent?.type === "floorplan-auto-diagram") {
+        interactionModeComponent.properties = {
+          ...(interactionModeComponent.properties || {}),
+          interactionMode: "view"
+        };
+      }
+    });
+    applyBaseLightingToPanel(baseLightingSettings);
+    floorplanAutoLightingStatusElement.textContent = "正在读取当前光照设置…";
+    floorplanAutoLightingPanelElement.hidden = false;
+    floorplanAutoLightingPanelElement.setAttribute("aria-busy", "true");
+    const lightingPanelRect = floorplanAutoLightingPanelElement.getBoundingClientRect();
+    if (
+      lightingPanelRect.right > window.innerWidth - 8 ||
+      lightingPanelRect.bottom > window.innerHeight - 8 ||
+      lightingPanelRect.left < 8 ||
+      lightingPanelRect.top < 8
+    ) {
+      floorplanAutoLightingPanelElement.style.right = "auto";
+      floorplanAutoLightingPanelElement.style.left =
+        clampNumber(
+          lightingPanelRect.left,
+          8,
+          Math.max(8, window.innerWidth - lightingPanelRect.width - 8)
+        ) + "px";
+      floorplanAutoLightingPanelElement.style.top =
+        clampNumber(
+          lightingPanelRect.top,
+          8,
+          Math.max(8, window.innerHeight - lightingPanelRect.height - 8)
+        ) + "px";
+    }
+    postBaseLightingCommand("request-state");
+  }
+  on(floorplanAutoDiagramOpenBaseLightingButtonElement, "click", function onFloorplanAutoDiagramOpenBaseLightingButtonClick() {
+    openLightingPanel(selectedComponentId);
+  });
+  for (const lightInputNode of floorplanBaseLightElements) {
+    on(lightInputNode, "input", function onLightInputNodeInput() {
+      if (!floorplanAutoLightingPanelElement.hidden) {
+        floorplanAutoLightingStatusElement.textContent = "修改已实时预览，保存后同步到全部3D入口。";
+        postBaseLightingCommand("preview", readBaseLightingFromPanel());
+      }
+    });
+  }
+  on(floorplanAutoLightingResetButtonElement, "click", function onFloorplanAutoLightingResetButtonClick() {
+    applyBaseLightingToPanel(DEFAULT_BASE_LIGHTING);
+    floorplanAutoLightingStatusElement.textContent = "已预览默认光照，点击保存后生效。";
+    postBaseLightingCommand("reset");
+  });
+  on(floorplanAutoLightingSaveButtonElement, "click", function onFloorplanAutoLightingSaveButtonClick() {
+    floorplanAutoLightingStatusElement.textContent = "正在保存并同步…";
+    floorplanAutoLightingPanelElement.setAttribute("aria-busy", "true");
+    postBaseLightingCommand("save", readBaseLightingFromPanel());
+  });
+  on(floorplanAutoLightingCloseButtonElement, "click", function onFloorplanAutoLightingCloseButtonClick() { return closeLightingPanel(); });
+  on(floorplanAutoLightingHandleElement, "pointerdown", function onFloorplanAutoLightingHandlePointerdown(lightingDragEvent) {
+    if (lightingDragEvent.button !== 0 || lightingDragEvent.target.closest("button")) {
+      return;
+    }
+    const lightingPanelBounds = floorplanAutoLightingPanelElement.getBoundingClientRect();
+    lightingPanelDragState = {
+      pointerId: lightingDragEvent.pointerId,
+      startX: lightingDragEvent.clientX,
+      startY: lightingDragEvent.clientY,
+      startLeft: lightingPanelBounds.left,
+      startTop: lightingPanelBounds.top
+    };
+    capturePointer(floorplanAutoLightingHandleElement, lightingDragEvent.pointerId);
+  });
+  on(floorplanAutoLightingHandleElement, "pointermove", function onFloorplanAutoLightingHandlePointermove(lightingDragMoveEvent) {
+    if (
+      !lightingPanelDragState ||
+      lightingDragMoveEvent.pointerId !== lightingPanelDragState.pointerId
+    ) {
+      return;
+    }
+    lightingDragMoveEvent.preventDefault();
+    const movedPanelBounds = floorplanAutoLightingPanelElement.getBoundingClientRect();
+    const maxPanelLeft = Math.max(8, window.innerWidth - movedPanelBounds.width - 8);
+    const maxPanelTop = Math.max(8, window.innerHeight - movedPanelBounds.height - 8);
+    floorplanAutoLightingPanelElement.style.right = "auto";
+    floorplanAutoLightingPanelElement.style.left =
+      clampNumber(
+        lightingPanelDragState.startLeft +
+          lightingDragMoveEvent.clientX -
+          lightingPanelDragState.startX,
+        8,
+        maxPanelLeft
+      ) + "px";
+    floorplanAutoLightingPanelElement.style.top =
+      clampNumber(
+        lightingPanelDragState.startTop +
+          lightingDragMoveEvent.clientY -
+          lightingPanelDragState.startY,
+        8,
+        maxPanelTop
+      ) + "px";
+  });
+  /**
+   * 结束光照面板拖拽，清空拖拽状态。同时挂到 pointerup 与 pointercancel 上：指针被系统夺走（如触控被取消）
+   * 时也要复位，否则状态残留会让下次 pointermove 用旧的起点继续拖动。
+   */
+  const endLightingPanelDrag = dragEndEvent => {
+    if (!!lightingPanelDragState && dragEndEvent.pointerId === lightingPanelDragState.pointerId) {
+      lightingPanelDragState = null;
+    }
+  };
+  on(floorplanAutoLightingHandleElement, "pointerup", endLightingPanelDrag);
+  on(floorplanAutoLightingHandleElement, "pointercancel", endLightingPanelDrag);
+  /**
+   * 关闭自动图示对话框并清掉挂在 dataset 上的临时状态。componentId 与 cancelRemovesComponent 用 dataset
+   * 传递，是因为对话框 DOM 是复用的，必须在关闭时清空，否则下次打开会误用上一次的组件 ID。
+   */
+  function closeAutoDiagramDialog() {
+    if (floorplanAutoDiagramDialogElement.open) {
+      floorplanAutoDiagramDialogElement.close();
+    }
+    floorplanAutoDiagramDialogElement.dataset.componentId = "";
+    floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent = "false";
+    floorplanAutoDiagramGuideElement.hidden = false;
+  }
+  /**
+   * 打开自动图示对话框并记录它正在编辑哪个组件。对话框 DOM 复用，所以组件 ID 与「取消时是否删除该组件」
+   * 都暂存在 dataset 上，由 settleAutoDiagramDialog 在收尾时读取。cancelRemovesComponent 用于「刚新建就取消」
+   * 的场景，避免留下一个空组件。
+   */
+  function openAutoDiagramDialog(
+    dialogComponentId,
+    { cancelRemovesComponent: cancelRemovesComponent = false } = {}
+  ) {
+    if (dialogComponentId) {
+      floorplanAutoDiagramDialogElement.dataset.componentId = dialogComponentId;
+      floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent =
+        String(cancelRemovesComponent);
+      floorplanAutoDiagramGuideElement.hidden = false;
+      if (!floorplanAutoDiagramDialogElement.open) {
+        floorplanAutoDiagramDialogElement.showModal();
+      }
+    }
+  }
+  /**
+   * 收尾自动图示对话框：按需删除「新建后又被取消」的组件。先读出 dataset 再 closeAutoDiagramDialog
+   * （它会把 dataset 清空），顺序不能反。删除时同步修正选中集与锚点，避免选中态指向已不存在的组件；
+   * 最后走 mutateDocument 落盘，保证这次删除进入历史记录、可以撤销。
+   */
+  function settleAutoDiagramDialog() {
+    const pendingDialogComponentId = floorplanAutoDiagramDialogElement.dataset.componentId;
+    const shouldRemoveOnCancel =
+      floorplanAutoDiagramDialogElement.dataset.cancelRemovesComponent === "true";
+    closeAutoDiagramDialog();
+    if (!!shouldRemoveOnCancel && !!pendingDialogComponentId) {
+      selectedComponentIds.delete(pendingDialogComponentId);
+      if (selectedComponentId === pendingDialogComponentId) {
+        selectedComponentId = selectedComponentIds.values().next().value || null;
+      }
+      if (selectionAnchorComponentId === pendingDialogComponentId) {
+        selectionAnchorComponentId = selectedComponentId;
+      }
+      mutateDocument(cancelRemoveDraftDocument => {
+        removeComponent(cancelRemoveDraftDocument, pendingDialogComponentId);
+      });
+    }
+  }
+  on(floorplanAutoDiagramOpenStudioButtonElement, "click", function onFloorplanAutoDiagramOpenStudioButtonClick() {
+    const diagramStudioComponent = selectedComponent();
+    if (diagramStudioComponent?.type !== "floorplan-auto-diagram") {
+      return;
+    }
+    if (
+      diagramStudioComponent.properties?.generated === true &&
+      diagramStudioComponent.properties?.previewing !== true
+    ) {
+      mutateDocument(previewingDraftDocument => {
+        const previewingComponent = findComponent(
+          previewingDraftDocument,
+          diagramStudioComponent.id
+        )?.component;
+        if (previewingComponent?.type === "floorplan-auto-diagram") {
+          previewingComponent.properties = {
+            ...(previewingComponent.properties || {}),
+            previewReady: true,
+            previewing: true,
+            interactionMode: "position"
+          };
+        }
+      });
+      return;
+    }
+    const studioDialogFrame = document.querySelector(
+      '.hb-component[data-component-id="' +
+        CSS.escape(diagramStudioComponent.id) +
+        '"] .hb-floorplan-auto-diagram-preview'
+    );
+    if (!studioDialogFrame?.contentWindow) {
+      openAutoDiagramDialog(diagramStudioComponent.id);
+      return;
+    }
+    const exportFolderName = String(diagramStudioComponent.properties?.exportFolder || "").trim();
+    if (
+      !exportFolderName ||
+      /[<>:"/\\|?*\x00-\x1f\x7f]/.test(exportFolderName) ||
+      exportFolderName.startsWith(".") ||
+      /[. ]$/.test(exportFolderName)
+    ) {
+      floorplanAutoDiagramStatusElement.textContent = "请先填写有效的导图文件夹名称。";
+      floorplanAutoDiagramFolderTextInputElement.focus();
+      return;
+    }
+    const sourceComponentPosition = diagramStudioComponent.position || {};
+    const projectCanvas = activeProject.document.canvas || {};
+    // 保留控件宽高比、面积对齐画布：底图与预览同比例才不会产生位置偏移。
+    const exportResolution = floorplanAutoDiagramExportResolution(sourceComponentPosition, projectCanvas);
+    floorplanAutoDiagramStatusElement.textContent = "正在后台生成底图和灯组效果，请稍候…";
+    floorplanAutoDiagramOpenStudioButtonElement.disabled = true;
+    floorplanAutoDiagramFloorSelectElement.disabled = true;
+    floorplanAutoDiagramOpenStudioButtonElement.textContent = "正在后台生成…";
+    studioDialogFrame.contentWindow.postMessage(
+      {
+        type: "homeos-floorplan-auto-diagram-generate",
+        componentId: diagramStudioComponent.id,
+        width: exportResolution.width,
+        height: exportResolution.height,
+        folderName: exportFolderName
+      },
+      window.location.origin
+    );
+  });
+  on(floorplanAutoDiagramViewToggleButtonElement, "click", function onFloorplanAutoDiagramViewToggleButtonClick() {
+    const interactionModeComponentId = selectedComponentId;
+    if (interactionModeComponentId) {
+      mutateDocument(toggleModeDraftDocument => {
+        const toggleModeComponent = findComponent(
+          toggleModeDraftDocument,
+          interactionModeComponentId
+        )?.component;
+        if (toggleModeComponent?.type === "floorplan-auto-diagram") {
+          toggleModeComponent.properties = {
+            ...(toggleModeComponent.properties || {}),
+            interactionMode:
+              toggleModeComponent.properties?.interactionMode === "view" ? "position" : "view"
+          };
+        }
+      });
+    }
+  });
+  on(floorplanAutoDiagramCloseButtonElement, "click", settleAutoDiagramDialog);
+  on(floorplanAutoDiagramLaterButtonElement, "click", settleAutoDiagramDialog);
+  on(floorplanAutoDiagramDialogElement, "cancel", function onFloorplanAutoDiagramDialogCancel(dialogCancelEvent) {
+    dialogCancelEvent.preventDefault();
+    settleAutoDiagramDialog();
+  });
+  on(floorplanAutoDiagramContinueButtonElement, "click", function onFloorplanAutoDiagramContinueButtonClick() {
+    const continuedComponentId = floorplanAutoDiagramDialogElement.dataset.componentId;
+    if (continuedComponentId) {
+      mutateDocument(continueDraftDocument => {
+        const continueComponent = findComponent(
+          continueDraftDocument,
+          continuedComponentId
+        )?.component;
+        if (continueComponent?.type === "floorplan-auto-diagram") {
+          continueComponent.properties = {
+            ...(continueComponent.properties || {}),
+            previewReady: true,
+            previewing: true,
+            interactionMode: "position"
+          };
+        }
+      });
+      closeAutoDiagramDialog();
+    }
+  });
+  on(floorplanAutoDiagramBindingListElement, "change", function onFloorplanAutoDiagramBindingListChange(lightGroupChangeEvent) {
+    const lightGroupSelect = lightGroupChangeEvent.target.closest("[data-floorplan-light-group-id]");
+    const lightGroupComponentId = selectedComponentId;
+    if (!lightGroupSelect || !lightGroupComponentId) {
+      return;
+    }
+    const lightGroupId = lightGroupSelect.dataset.floorplanLightGroupId;
+    mutateDocument(lightGroupDraftDocument => {
+      const lightGroupComponent = findComponent(
+        lightGroupDraftDocument,
+        lightGroupComponentId
+      )?.component;
+      if (!lightGroupComponent || lightGroupComponent.type !== "floorplan-auto-diagram") {
+        return;
+      }
+      lightGroupComponent.bindings = {
+        ...(lightGroupComponent.bindings || {})
+      };
+      const lightGroupBindingKey = "lightGroup:" + lightGroupId;
+      if (lightGroupSelect.value) {
+        lightGroupComponent.bindings[lightGroupBindingKey] = {
+          entityId: lightGroupSelect.value
+        };
+      } else {
+        delete lightGroupComponent.bindings[lightGroupBindingKey];
+      }
+    });
+  });
+}
+
+/**
+ * 宿主消息处理。
+ *
+ * window message 一个 670 行的分支处理：宿主下发的场景/状态/偏好都从这里进。
+ */
+function bindMessageSection() {
+  const on = sections.section("message");
+  on(window, "message", function onWindowMessage(messageEvent) {
+    if (messageEvent.origin !== window.location.origin) {
+      return;
+    }
+    const messageData = messageEvent.data;
+    if (messageData?.type === "homeos-floorplan-auto-diagram-base-lighting-state") {
+      const lightingStateComponentId = String(messageData.componentId || "");
+      const lightingStateFrame = findDiagramPreviewFrame(lightingStateComponentId);
+      if (
+        !lightingStateFrame ||
+        messageEvent.source !== lightingStateFrame.contentWindow ||
+        lightingStateComponentId !== baseLightingComponentId
+      ) {
+        return;
+      }
+      if (messageData.status === "ready" || messageData.status === "saved") {
+        baseLightingSettings = normalizeBaseLighting(
+          messageData.savedLighting || messageData.lighting
+        );
+        applyBaseLightingToPanel(messageData.lighting || baseLightingSettings);
+      }
+      floorplanAutoLightingPanelElement.setAttribute("aria-busy", "false");
+      if (messageData.status === "saved") {
+        floorplanAutoLightingStatusElement.textContent =
+          "已保存，并同步到实时预览、手动导图和自动导图。";
+      } else if (messageData.status === "ready") {
+        floorplanAutoLightingStatusElement.textContent = "修改会实时同步到当前3D预览。";
+      }
+      return;
+    }
+    if (messageData?.type === "homeos-floorplan-auto-diagram-ready") {
+      const readyComponentId = String(messageData.componentId || "");
+      const readyFrame = document.querySelector(
+        '.hb-component[data-component-id="' +
+          CSS.escape(readyComponentId) +
+          '"] .hb-floorplan-auto-diagram-preview'
+      );
+      if (!readyFrame || messageEvent.source !== readyFrame.contentWindow) {
+        return;
+      }
+      readyFrame.classList.add("is-ready");
+      readyFrame.parentElement?.querySelector(".hb-floorplan-auto-diagram-loading")?.remove();
+      const readyComponent = findComponent(activeProject?.document, readyComponentId)?.component;
+      if (readyComponent?.type === "floorplan-auto-diagram") {
+        const reportedFloors = (Array.isArray(messageData.floors) ? messageData.floors : [])
+          .map(floorEntry => ({
+            id: String(floorEntry?.id || ""),
+            name: String(floorEntry?.name || "")
+          }))
+          .filter(validFloor => validFloor.id);
+        const reportedFloorSelection = String(messageData.floorSelection || "");
+        floorplanAutoDiagramStateByComponentId.set(readyComponentId, {
+          floors: reportedFloors,
+          selected: reportedFloorSelection
+        });
+        const readyProperties = readyComponent.properties || {};
+        if (
+          Object.prototype.hasOwnProperty.call(readyProperties, "floorSelection") &&
+          reportedFloorSelection &&
+          readyProperties.floorSelection !== reportedFloorSelection
+        ) {
+          mutateDocument(floorSyncDraftDocument => {
+            const floorSyncComponent = findComponent(
+              floorSyncDraftDocument,
+              readyComponentId
+            )?.component;
+            if (floorSyncComponent?.type === "floorplan-auto-diagram") {
+              floorSyncComponent.properties = {
+                ...(floorSyncComponent.properties || {}),
+                floorSelection: reportedFloorSelection
+              };
+            }
+          });
+        }
+        syncInspector();
+        readyFrame.contentWindow.postMessage(
+          {
+            type: "homeos-floorplan-auto-diagram-camera",
+            componentId: readyComponentId,
+            command: "restore",
+            value: {
+              view: readyComponent.properties?.cameraView || "free",
+              mode: readyComponent.properties?.cameraMode || "orthographic",
+              topRotation: Number(readyComponent.properties?.cameraTopRotation || 0),
+              focalLength: Number(readyComponent.properties?.cameraFocalLength || 50)
+            }
+          },
+          window.location.origin
+        );
+      }
+      return;
+    }
+    if (messageData?.type === "homeos-floorplan-auto-diagram-floor-state") {
+      const floorStateComponentId = String(messageData.componentId || "");
+      const floorStateFrame = document.querySelector(
+        '.hb-component[data-component-id="' +
+          CSS.escape(floorStateComponentId) +
+          '"] .hb-floorplan-auto-diagram-preview'
+      );
+      if (!floorStateFrame || messageEvent.source !== floorStateFrame.contentWindow) {
+        return;
+      }
+      const floorStateFloors = (Array.isArray(messageData.floors) ? messageData.floors : [])
+        .map(floorStateEntry => ({
+          id: String(floorStateEntry?.id || ""),
+          name: String(floorStateEntry?.name || "")
+        }))
+        .filter(validFloorState => validFloorState.id);
+      const floorStateSelection = String(messageData.floorSelection || "");
+      floorplanAutoDiagramStateByComponentId.set(floorStateComponentId, {
+        floors: floorStateFloors,
+        selected: floorStateSelection
+      });
+      const floorStateComponent = findComponent(
+        activeProject?.document,
+        floorStateComponentId
+      )?.component;
+      if (
+        floorStateComponent?.type === "floorplan-auto-diagram" &&
+        floorStateSelection &&
+        floorStateComponent.properties?.floorSelection !== floorStateSelection
+      ) {
+        mutateDocument(floorStateDraftDocument => {
+          const floorStateComponentInDraft = findComponent(
+            floorStateDraftDocument,
+            floorStateComponentId
+          )?.component;
+          if (floorStateComponentInDraft?.type === "floorplan-auto-diagram") {
+            floorStateComponentInDraft.properties = {
+              ...(floorStateComponentInDraft.properties || {}),
+              floorSelection: floorStateSelection
+            };
+          }
+        });
+      }
+      if (floorStateComponentId === selectedComponentId) {
+        syncInspector();
+      }
+      return;
+    }
+    if (messageData?.type === "homeos-floorplan-auto-diagram-stopped") {
+      const stoppedComponentId = String(messageData.componentId || "");
+      const stoppedFrame = document.querySelector(
+        '.hb-component[data-component-id="' +
+          CSS.escape(stoppedComponentId) +
+          '"] .hb-floorplan-auto-diagram-preview'
+      );
+      if (!stoppedFrame || messageEvent.source !== stoppedFrame.contentWindow) {
+        return;
+      }
+      floorplanAutoDiagramOpenStudioButtonElement.disabled = false;
+      if (stoppedComponentId === selectedComponentId) {
+        floorplanAutoDiagramFloorSelectElement.disabled = false;
+      }
+      floorplanAutoDiagramOpenStudioButtonElement.textContent = "确定位置大小并后台生成";
+      floorplanAutoDiagramStatusElement.textContent = messageData.message || "已停止本次生成。";
+      if (messageData.reason === "rename") {
+        floorplanAutoDiagramFolderTextInputElement.focus();
+      }
+      return;
+    }
+    if (messageData?.type === "homeos-floorplan-auto-diagram-error") {
+      const errorComponentId = String(messageData.componentId || "");
+      const errorFrame = document.querySelector(
+        '.hb-component[data-component-id="' +
+          CSS.escape(errorComponentId) +
+          '"] .hb-floorplan-auto-diagram-preview'
+      );
+      if (!errorFrame || messageEvent.source !== errorFrame.contentWindow) {
+        return;
+      }
+      floorplanAutoDiagramOpenStudioButtonElement.disabled = false;
+      if (errorComponentId === selectedComponentId) {
+        floorplanAutoDiagramFloorSelectElement.disabled = false;
+      }
+      floorplanAutoDiagramOpenStudioButtonElement.textContent = "确定位置大小并后台生成";
+      floorplanAutoDiagramStatusElement.textContent = messageData.message || "后台生成失败，请重试。";
+      return;
+    }
+    if (!messageData || messageData.type !== "homeos-floorplan-auto-diagram-export") {
+      return;
+    }
+    const exportComponentId = String(messageData.componentId || "");
+    const exportFrame = document.querySelector(
+      '.hb-component[data-component-id="' +
+        CSS.escape(exportComponentId) +
+        '"] .hb-floorplan-auto-diagram-preview'
+    );
+    if (!exportFrame || messageEvent.source !== exportFrame.contentWindow) {
+      return;
+    }
+    const exportManifest = messageData.manifest;
+    const exportFolderId = String(messageData.folderName || exportManifest?.exportName || "").trim();
+    if (!exportComponentId || !exportManifest || !exportFolderId) {
+      return;
+    }
+    floorplanAutoDiagramOpenStudioButtonElement.disabled = false;
+    floorplanAutoDiagramOpenStudioButtonElement.textContent = "确定位置大小并后台生成";
+    floorplanAutoDiagramStatusElement.textContent = "已生成，正在置换到仪表盘…";
+    const exportComponentElement = exportFrame.closest(".hb-component");
+    if (exportComponentElement) {
+      exportComponentElement.hidden = true;
+    }
+    // 置换失败时把预览图元放回来：底图其实已经生成好了，继续用 hidden 遮着它，
+    // 用户看到的就只是「图元消失了」而不是「哪一步失败了」。
+    const restoreAutoDiagramPreview = () => {
+      exportComponentElement?.isConnected && (exportComponentElement.hidden = false);
+    };
+    mutateDocument(exportDraftDocument => {
+      let componentLocation = findComponentLocation(exportDraftDocument, exportComponentId);
+      const diagramSourceComponent = componentLocation?.component;
+      if (
+        !diagramSourceComponent ||
+        diagramSourceComponent.type !== "floorplan-auto-diagram" ||
+        !componentLocation.page
+      ) {
+        return null;
+      }
+      const diagramPage = componentLocation.page;
+      const autoDiagramComponents = [];
+      /**
+       * 递归收集属于本次自动图示导出文件夹的所有组件：用 autoDiagramFolder 标记归属（等于导出文件夹 ID），
+       * 因为同一页面里可能同时存在多组自动图示，只能靠标记区分；沿 children 递归保证嵌套布局里的图元也被回收替换。
+       */
+      const collectAutoDiagramComponents = componentBranch => {
+        for (const branchComponent of componentBranch || []) {
+          if (branchComponent?.properties?.autoDiagramFolder === exportFolderId) {
+            autoDiagramComponents.push(branchComponent);
+          }
+          collectAutoDiagramComponents(branchComponent?.children);
+        }
+      };
+      collectAutoDiagramComponents(diagramPage.components);
+      const baseImagesByRole = new Map(
+        autoDiagramComponents
+          .filter(imageCandidate => imageCandidate.type === "image")
+          .map(imageComponentEntry => [
+            imageComponentEntry.properties?.autoDiagramRole === "base"
+              ? "background-with-plan"
+              : String(imageComponentEntry.properties?.autoDiagramRole || ""),
+            imageComponentEntry
+          ])
+      );
+      const lightEffectsByKey = new Map(
+        autoDiagramComponents
+          .filter(effectCandidate => effectCandidate.type === "icon-button-effect")
+          .map(lightEffectComponent => {
+            const effectRoleKey = String(
+              lightEffectComponent.properties?.autoDiagramRole || "light-group"
+            );
+            const effectLayerId = String(
+              lightEffectComponent.properties?.autoDiagramLayerId ||
+                lightEffectComponent.properties?.autoDiagramGroupId ||
+                ""
+            );
+            return [effectRoleKey + ":" + effectLayerId, lightEffectComponent];
+          })
+      );
+      for (const staleComponent of autoDiagramComponents) {
+        removeComponent(exportDraftDocument, staleComponent.id);
+      }
+      componentLocation = findComponentLocation(exportDraftDocument, exportComponentId);
+      if (!componentLocation) {
+        return null;
+      }
+      const documentWidthPx = Number(exportDraftDocument.canvas?.width || 2778);
+      const documentHeightPx = Number(exportDraftDocument.canvas?.height || 1940);
+      const resolutionWidth = Math.max(
+        1,
+        Number(exportManifest.resolution?.width || diagramSourceComponent.position?.width || 1)
+      );
+      const resolutionHeight = Math.max(
+        1,
+        Number(exportManifest.resolution?.height || diagramSourceComponent.position?.height || 1)
+      );
+      const sourceLayoutMode =
+        diagramSourceComponent.properties?.layoutMode === "fill" ? "fill" : "free";
+      const diagramPositionValue = diagramSourceComponent.position || {};
+      const diagramScale =
+        sourceLayoutMode === "fill"
+          ? 1
+          : Math.max(0.01, Math.min(5, Number(diagramSourceComponent.style?.scale || 1)));
+      const sourceWidth =
+        sourceLayoutMode === "fill" ? documentWidthPx : Number(diagramPositionValue.width || 100);
+      const sourceHeight =
+        sourceLayoutMode === "fill" ? documentHeightPx : Number(diagramPositionValue.height || 100);
+      const scaledWidth = sourceWidth * diagramScale;
+      const scaledHeight = sourceHeight * diagramScale;
+      const diagramX =
+        sourceLayoutMode === "fill"
+          ? 0
+          : Number(diagramPositionValue.x || 0) - (scaledWidth - sourceWidth) / 2;
+      const diagramY =
+        sourceLayoutMode === "fill"
+          ? 0
+          : Number(diagramPositionValue.y || 0) - (scaledHeight - sourceHeight) / 2;
+      const diagramRotation =
+        sourceLayoutMode === "fill" ? 0 : Number(diagramPositionValue.rotation || 0);
+      const imageLayerComponents = [
+        {
+          role: "background",
+          file: exportManifest.backgroundImage,
+          label: "00底图",
+          visible: true
+        },
+        {
+          role: "floor-plan",
+          file: exportManifest.floorPlanImage,
+          label: "00户型图",
+          visible: true
+        },
+        {
+          role: "background-with-plan",
+          file: exportManifest.baseImage,
+          label: "00底图带户型",
+          visible: false
+        }
+      ]
+        .filter(imageSpec => imageSpec.file)
+        .map(layerSpec => {
+          const existingLayerComponent = baseImagesByRole.get(layerSpec.role);
+          const layerComponent = existingLayerComponent
+            ? clone(existingLayerComponent)
+            : createComponentFromTemplate("image", {
+                id: newId("component"),
+                instanceName: layerSpec.label,
+                canvas: exportDraftDocument.canvas
+              });
+          layerComponent.position = {
+            ...(layerComponent.position || {}),
+            x: diagramX,
+            y: diagramY,
+            width: scaledWidth,
+            height: scaledHeight,
+            rotation: diagramRotation
+          };
+          layerComponent.style = {
+            ...(layerComponent.style || {}),
+            scale: 1,
+            visible: existingLayerComponent
+              ? existingLayerComponent.style?.visible !== false
+              : layerSpec.visible
+          };
+          layerComponent.bindings = {};
+          layerComponent.actions = {};
+          layerComponent.properties = {
+            ...(layerComponent.properties || {}),
+            instanceName: layerSpec.label,
+            label: layerSpec.label,
+            assetId: "studio3d:" + exportFolderId + "/" + layerSpec.file,
+            naturalWidth: resolutionWidth,
+            naturalHeight: resolutionHeight,
+            opacity: 1,
+            fit: "contain",
+            layoutMode: sourceLayoutMode,
+            autoDiagramFolder: exportFolderId,
+            autoDiagramRole: layerSpec.role,
+            autoDiagramCamera: exportManifest.camera || null
+          };
+          return layerComponent;
+        });
+      const backgroundLayer = imageLayerComponents.find(
+        backgroundCandidate => backgroundCandidate.properties?.autoDiagramRole === "background"
+      );
+      const floorPlanLayer = imageLayerComponents.find(
+        floorPlanCandidate => floorPlanCandidate.properties?.autoDiagramRole === "floor-plan"
+      );
+      const baseWithPlanLayer = imageLayerComponents.find(
+        baseWithPlanCandidate =>
+          baseWithPlanCandidate.properties?.autoDiagramRole === "background-with-plan"
+      );
+      const preferredBaseLayer = baseWithPlanLayer || floorPlanLayer || backgroundLayer;
+      const lightGroupSpecs = (Array.isArray(exportManifest.groups) ? exportManifest.groups : [])
+        .filter(groupEntry => String(groupEntry?.id || groupEntry?.groupId || "") && groupEntry?.file)
+        .map(groupSpec => ({
+          role: "light-group",
+          id: String(groupSpec.id || groupSpec.groupId || ""),
+          name: String(groupSpec.name || groupSpec.note || "灯组"),
+          note: String(groupSpec.note || groupSpec.name || "灯组"),
+          file: groupSpec.file,
+          icon: "mdi:lightbulb-outline",
+          anchor: groupSpec.anchor
+        }));
+      const screenSpecs = (Array.isArray(exportManifest.screens) ? exportManifest.screens : [])
+        .filter(
+          screenEntry => String(screenEntry?.id || screenEntry?.itemId || "") && screenEntry?.file
+        )
+        .map(screenSpec => ({
+          role: "television",
+          id: String(screenSpec.id || screenSpec.itemId || ""),
+          name: String(screenSpec.name || "电视画面"),
+          note: String(screenSpec.name || "电视画面"),
+          file: screenSpec.file,
+          icon: "mdi:television",
+          anchor: screenSpec.anchor
+        }));
+      const vehicleSpecs = (Array.isArray(exportManifest.vehicles) ? exportManifest.vehicles : [])
+        .filter(
+          vehicleEntry => String(vehicleEntry?.id || vehicleEntry?.itemId || "") && vehicleEntry?.file
+        )
+        .map(vehicleSpec => ({
+          role: "vehicle",
+          id: String(vehicleSpec.id || vehicleSpec.itemId || ""),
+          name: String(vehicleSpec.name || "汽车充电"),
+          note: String(vehicleSpec.name || "汽车充电"),
+          file: vehicleSpec.file,
+          icon: "mdi:car-electric",
+          anchor: vehicleSpec.anchor
+        }));
+      const overlaySpecs = [...screenSpecs, ...vehicleSpecs, ...lightGroupSpecs];
+      const diagramCenterX = diagramX + scaledWidth / 2;
+      const diagramCenterY = diagramY + scaledHeight / 2;
+      const diagramRotationRad = (diagramRotation * Math.PI) / 180;
+      const overlayScale = Math.min(scaledWidth / resolutionWidth, scaledHeight / resolutionHeight);
+      const overlaySourceWidth = resolutionWidth * overlayScale;
+      const overlaySourceHeight = resolutionHeight * overlayScale;
+      const placedOverlayAnchors = [];
+      /**
+       * 为自动生成的图元挑选互不重叠的归一化锚点（0~1）：优先用图元自带 anchor；缺失时按序号均分横向位置、纵向固定
+       * 在 0.9（画面底部），避免多个新图元叠在正中。以「图元在底图上的相对尺寸 × 1.08」作为锚点最小间距并设下限
+       * 0.035/0.045 —— 底图很小时相对尺寸会退化成 0，没有下限会让所有候选点重合；候选点按同心环由内向外枚举取第一个足够远的点。
+       */
+      const placeOverlayAnchor = (overlaySpecItem, overlayIndex, overlayWidthPx, overlayHeightPx) => {
+        const anchorX = Number(overlaySpecItem.anchor?.x);
+        const anchorY = Number(overlaySpecItem.anchor?.y);
+        const defaultAnchor = {
+          x: overlaySpecs.length > 1 ? (overlayIndex + 1) / (overlaySpecs.length + 1) : 0.5,
+          y: 0.9
+        };
+        const preferredAnchor =
+          Number.isFinite(anchorX) && Number.isFinite(anchorY)
+            ? {
+                x: anchorX,
+                y: anchorY
+              }
+            : defaultAnchor;
+        const anchorSpacingX = Math.max(
+          0.035,
+          (overlayWidthPx / Math.max(overlaySourceWidth, 1)) * 1.08
+        );
+        const anchorSpacingY = Math.max(
+          0.045,
+          (overlayHeightPx / Math.max(overlaySourceHeight, 1)) * 1.08
+        );
+        const anchorCandidates = [[0, 0]];
+        for (let ringIndex = 1; ringIndex <= 4; ringIndex += 1) {
+          anchorCandidates.push(
+            [0, -anchorSpacingY * ringIndex],
+            [anchorSpacingX * ringIndex, 0],
+            [0, anchorSpacingY * ringIndex],
+            [-anchorSpacingX * ringIndex, 0],
+            [anchorSpacingX * ringIndex, -anchorSpacingY * ringIndex],
+            [anchorSpacingX * ringIndex, anchorSpacingY * ringIndex],
+            [-anchorSpacingX * ringIndex, anchorSpacingY * ringIndex],
+            [-anchorSpacingX * ringIndex, -anchorSpacingY * ringIndex]
+          );
+        }
+        let chosenAnchor = null;
+        for (const [offsetX, offsetY] of anchorCandidates) {
+          const candidateAnchor = {
+            x: clampNumber(preferredAnchor.x + offsetX, anchorSpacingX / 2, 1 - anchorSpacingX / 2),
+            y: clampNumber(preferredAnchor.y + offsetY, anchorSpacingY / 2, 1 - anchorSpacingY / 2)
+          };
+          if (
+            !placedOverlayAnchors.some(
+              placedAnchor =>
+                Math.abs(candidateAnchor.x - placedAnchor.x) <
+                  (anchorSpacingX + placedAnchor.spacingX) / 2 &&
+                Math.abs(candidateAnchor.y - placedAnchor.y) <
+                  (anchorSpacingY + placedAnchor.spacingY) / 2
+            )
+          ) {
+            chosenAnchor = candidateAnchor;
+            break;
+          }
+        }
+        chosenAnchor ||= {
+          x: clampNumber(defaultAnchor.x, anchorSpacingX / 2, 1 - anchorSpacingX / 2),
+          y: clampNumber(defaultAnchor.y, anchorSpacingY / 2, 1 - anchorSpacingY / 2)
+        };
+        placedOverlayAnchors.push({
+          ...chosenAnchor,
+          spacingX: anchorSpacingX,
+          spacingY: anchorSpacingY
+        });
+        return chosenAnchor;
+      };
+      const placedEffectComponents = overlaySpecs.map((overlaySpec, overlaySpecIndex) => {
+        const existingEffectComponent = lightEffectsByKey.get(
+          overlaySpec.role + ":" + overlaySpec.id
+        );
+        const effectComponentToPlace = existingEffectComponent
+          ? clone(existingEffectComponent)
+          : createComponentFromTemplate("icon-button-effect", {
+              id: newId("component"),
+              instanceName: overlaySpec.name,
+              canvas: exportDraftDocument.canvas
+            });
+        const savedSceneAnchor = existingEffectComponent?.properties?.autoDiagramSceneAnchor;
+        const sceneAnchorChanged =
+          !savedSceneAnchor ||
+          Math.abs(Number(savedSceneAnchor.x) - Number(overlaySpec.anchor?.x)) > 0.002 ||
+          Math.abs(Number(savedSceneAnchor.y) - Number(overlaySpec.anchor?.y)) > 0.002;
+        const layoutVersionStale =
+          !!existingEffectComponent &&
+          Number(existingEffectComponent.properties?.autoDiagramLayoutVersion || 0) <
+            AUTO_DIAGRAM_LAYOUT_VERSION;
+        const needsLayoutRefresh =
+          !existingEffectComponent ||
+          layoutVersionStale ||
+          (overlaySpec.role === "light-group" && sceneAnchorChanged);
+        let buttonAnchor = existingEffectComponent?.properties?.autoDiagramButtonAnchor || null;
+        if (needsLayoutRefresh) {
+          const placedEffectWidth = Number(
+            effectComponentToPlace.position?.width || documentWidthPx * 0.075
+          );
+          const placedEffectHeight = Number(
+            effectComponentToPlace.position?.height || placedEffectWidth
+          );
+          const effectScale = Math.max(
+            0.01,
+            Math.min(5, Number(effectComponentToPlace.style?.scale || 1))
+          );
+          buttonAnchor = placeOverlayAnchor(
+            overlaySpec,
+            overlaySpecIndex,
+            placedEffectWidth * effectScale,
+            placedEffectHeight * effectScale
+          );
+          const sourceAnchorX = -overlaySourceWidth / 2 + buttonAnchor.x * overlaySourceWidth;
+          const sourceAnchorY = -overlaySourceHeight / 2 + buttonAnchor.y * overlaySourceHeight;
+          const rotatedAnchorX =
+            sourceAnchorX * Math.cos(diagramRotationRad) -
+            sourceAnchorY * Math.sin(diagramRotationRad);
+          const rotatedAnchorY =
+            sourceAnchorX * Math.sin(diagramRotationRad) +
+            sourceAnchorY * Math.cos(diagramRotationRad);
+          effectComponentToPlace.position = {
+            ...(effectComponentToPlace.position || {}),
+            x: diagramCenterX + rotatedAnchorX - placedEffectWidth / 2,
+            y: diagramCenterY + rotatedAnchorY - placedEffectHeight / 2,
+            rotation: diagramRotation
+          };
+        } else if (
+          Number.isFinite(Number(buttonAnchor?.x)) &&
+          Number.isFinite(Number(buttonAnchor?.y))
+        ) {
+          const existingEffectWidth = Number(
+            effectComponentToPlace.position?.width || documentWidthPx * 0.075
+          );
+          const existingEffectHeight = Number(
+            effectComponentToPlace.position?.height || existingEffectWidth
+          );
+          const existingEffectScale = Math.max(
+            0.01,
+            Math.min(5, Number(effectComponentToPlace.style?.scale || 1))
+          );
+          placedOverlayAnchors.push({
+            x: Number(buttonAnchor.x),
+            y: Number(buttonAnchor.y),
+            spacingX: Math.max(
+              0.035,
+              ((existingEffectWidth * existingEffectScale) / Math.max(overlaySourceWidth, 1)) * 1.08
+            ),
+            spacingY: Math.max(
+              0.045,
+              ((existingEffectHeight * existingEffectScale) / Math.max(overlaySourceHeight, 1)) * 1.08
+            )
+          });
+        }
+        effectComponentToPlace.style = {
+          ...(effectComponentToPlace.style || {}),
+          visible: true
+        };
+        effectComponentToPlace.bindings = {
+          ...(effectComponentToPlace.bindings || {})
+        };
+        if (!existingEffectComponent && overlaySpec.role === "light-group") {
+          const lightGroupBinding = diagramSourceComponent.bindings?.["lightGroup:" + overlaySpec.id];
+          if (lightGroupBinding?.entityId) {
+            effectComponentToPlace.bindings.entity = {
+              entityId: lightGroupBinding.entityId
+            };
+          }
+        }
+        effectComponentToPlace.actions = Object.keys(effectComponentToPlace.actions || {}).length
+          ? {
+              ...(effectComponentToPlace.actions || {})
+            }
+          : {
+              tap: {
+                type: "toggle"
+              }
+            };
+        effectComponentToPlace.properties = {
+          ...(effectComponentToPlace.properties || {}),
+          instanceName: overlaySpec.name,
+          label: overlaySpec.name,
+          note: overlaySpec.note,
+          icon: existingEffectComponent?.properties?.icon || overlaySpec.icon,
+          effectAssetId: "studio3d:" + exportFolderId + "/" + overlaySpec.file,
+          effectNaturalWidth: resolutionWidth,
+          effectNaturalHeight: resolutionHeight,
+          effectReferenceImageId: preferredBaseLayer?.id || "",
+          effectLayoutMode: sourceLayoutMode,
+          effectLeft: (diagramCenterX / documentWidthPx) * 100,
+          effectTop: (diagramCenterY / documentHeightPx) * 100,
+          effectScale: 1,
+          effectRotation: diagramRotation,
+          autoDiagramFolder: exportFolderId,
+          autoDiagramRole: overlaySpec.role,
+          autoDiagramLayerId: overlaySpec.id,
+          autoDiagramSceneAnchor: overlaySpec.anchor || null,
+          autoDiagramButtonAnchor: buttonAnchor,
+          autoDiagramLayoutVersion: AUTO_DIAGRAM_LAYOUT_VERSION,
+          ...(overlaySpec.role === "light-group"
+            ? {
+                autoDiagramGroupId: overlaySpec.id
+              }
+            : {})
+        };
+        return effectComponentToPlace;
+      });
+      const baseLayerComponents = [floorPlanLayer, backgroundLayer, baseWithPlanLayer].filter(
+        Boolean
+      );
+      const removedComponentIndex = componentLocation.index;
+      removeComponent(exportDraftDocument, exportComponentId);
+      componentLocation.collection.splice(
+        removedComponentIndex,
+        0,
+        ...placedEffectComponents,
+        ...baseLayerComponents
+      );
+      applyCollectionLayerOrder(componentLocation.collection);
+      return {
+        removed: true,
+        selectedId:
+          (backgroundLayer || floorPlanLayer || baseWithPlanLayer || placedEffectComponents[0])?.id ||
+          null,
+        // 完成提示要报「生成了几张图片、几个效果按钮」。这两个数只有在这里是现成的：
+        // 事后从文档里按 autoDiagramFolder 反查会把上一次导图的组件也算进来。
+        buttonCount: placedEffectComponents.length,
+        imageCount: baseLayerComponents.length
+      };
+    })
+      .then(spliceResult => {
+        if (!spliceResult?.removed) {
+          restoreAutoDiagramPreview();
+          floorplanAutoDiagramStatusElement.textContent = "图片已生成，但控件置换失败，请重试。";
+          return;
+        }
+        const selectedPlacedId = spliceResult.selectedId;
+        selectedComponentId = selectedPlacedId;
+        selectedComponentIds = selectedPlacedId ? new Set([selectedPlacedId]) : new Set();
+        selectionAnchorComponentId = selectedPlacedId;
+        editorRenderer?.setSelectedComponents(
+          selectedPlacedId ? [selectedPlacedId] : [],
+          selectedPlacedId
+        );
+        renderComponentLists();
+        syncInspector();
+        // 置换成功才提示：失败时给「重试」，成功时给「完成」，两者不能同时出现。
+        showAutoDiagramCompleteDialog(exportManifest, spliceResult);
+      })
+      .catch(exportSpliceError => {
+        restoreAutoDiagramPreview();
+        floorplanAutoDiagramStatusElement.textContent = "图片已生成，但控件置换失败，请重试。";
+        handleOperationError(exportSpliceError);
+      });
+  });
+}
+
+/**
+ * 按钮图标效果检查器。
+ *
+ * 图标效果表单的回填、对齐方式与预览状态。
+ */
+function bindIconButtonEffectSection() {
+  const on = sections.section("icon-button-effect");
+  on(iconButtonEffectInspectorFormElement, "input", function onIconButtonEffectInspectorFormInput(effectInputEvent) {
+    const inspectedEffectComponent = selectedComponent();
+    if (!inspectedEffectComponent || inspectedEffectComponent.type !== "icon-button-effect") {
+      return;
+    }
+    applyEffectPreviewState(effectInputEvent.target);
+    const propertyConfig = effectPropertyConfigsByElement.get(effectInputEvent.target);
+    if (propertyConfig) {
+      let nextPropertyValue =
+        propertyConfig.type === "boolean"
+          ? effectInputEvent.target.checked
+          : effectInputEvent.target.type === "color"
+            ? effectInputEvent.target.value
+            : Number(effectInputEvent.target.value);
+      if (propertyConfig.type !== "boolean" && effectInputEvent.target.type !== "color") {
+        if (!Number.isFinite(nextPropertyValue)) {
+          return;
+        }
+        nextPropertyValue =
+          clampNumber(nextPropertyValue, propertyConfig.min, propertyConfig.max) /
+          (propertyConfig.divisor || 1);
+      }
+      editorRenderer?.previewComponentProperties(inspectedEffectComponent.id, {
+        [propertyConfig.property]: nextPropertyValue
+      });
+      return;
+    }
+    if (
+      !effectTransformInputSet.has(effectInputEvent.target) ||
+      !Number.isFinite(Number(effectInputEvent.target.value))
+    ) {
+      return;
+    }
+    const transformInputValue = Number(effectInputEvent.target.value);
+    const effectCanvasWidth = Number(activeProject.document.canvas.width || 2778);
+    const effectCanvasHeight = Number(activeProject.document.canvas.height || 1940);
+    const effectPositionWidth = Number(inspectedEffectComponent.position?.width || 100);
+    const effectPositionHeight = Number(inspectedEffectComponent.position?.height || 100);
+    if (effectInputEvent.target === iconButtonEffectLeftInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+        x:
+          (effectCanvasWidth * clampNumber(transformInputValue, 0, 100)) / 100 -
+          effectPositionWidth / 2
+      });
+    } else if (effectInputEvent.target === iconButtonEffectTopInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+        y:
+          (effectCanvasHeight * clampNumber(transformInputValue, 0, 100)) / 100 -
+          effectPositionHeight / 2
+      });
+    } else if (effectInputEvent.target === iconButtonEffectWidthInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+        width: (effectCanvasWidth * clampNumber(transformInputValue, 0.1, 100)) / 100
+      });
+    } else if (effectInputEvent.target === iconButtonEffectHeightInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+        height: (effectCanvasHeight * clampNumber(transformInputValue, 0.1, 100)) / 100
+      });
+    } else if (effectInputEvent.target === iconButtonEffectScaleInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+        scale: clampNumber(transformInputValue, 1, 500) / 100
+      });
+    } else if (effectInputEvent.target === iconButtonEffectRotationInputElement) {
+      editorRenderer?.previewComponentTransform(inspectedEffectComponent.id, {
+        rotation: clampNumber(transformInputValue, -360, 360)
+      });
+    }
+  });
+  on(iconButtonEffectInspectorFormElement, "change", function onIconButtonEffectInspectorFormChange(effectChangeEvent) {
+    const changedEffectInput = effectChangeEvent.target;
+    const changedPropertyConfig = effectPropertyConfigsByElement.get(changedEffectInput);
+    if (!changedPropertyConfig && !effectTransformInputSet.has(changedEffectInput)) {
+      return;
+    }
+    if (changedEffectInput.type === "number" && !Number.isFinite(Number(changedEffectInput.value))) {
+      syncInspector();
+      return;
+    }
+    const effectComponentId = selectedComponentId;
+    mutateDocument(effectChangeDraftDocument => {
+      const effectComponentInDraft = findComponent(
+        effectChangeDraftDocument,
+        effectComponentId
+      )?.component;
+      if (!effectComponentInDraft || effectComponentInDraft.type !== "icon-button-effect") {
+        return;
+      }
+      effectComponentInDraft.properties = {
+        ...(effectComponentInDraft.properties || {})
+      };
+      effectComponentInDraft.position = {
+        ...(effectComponentInDraft.position || {})
+      };
+      effectComponentInDraft.style = {
+        ...(effectComponentInDraft.style || {})
+      };
+      if (changedPropertyConfig) {
+        effectComponentInDraft.properties[changedPropertyConfig.property] =
+          changedPropertyConfig.type === "boolean"
+            ? changedEffectInput.checked
+            : changedEffectInput.type === "color"
+              ? changedEffectInput.value
+              : clampNumber(
+                  Number(changedEffectInput.value),
+                  changedPropertyConfig.min,
+                  changedPropertyConfig.max
+                ) / (changedPropertyConfig.divisor || 1);
+        return;
+      }
+      const effectDocCanvasWidth = Number(effectChangeDraftDocument.canvas.width || 2778);
+      const effectDocCanvasHeight = Number(effectChangeDraftDocument.canvas.height || 1940);
+      const effectNumericValue = Number(changedEffectInput.value);
+      if (changedEffectInput === iconButtonEffectLeftInputElement) {
+        effectComponentInDraft.position.x =
+          (effectDocCanvasWidth * clampNumber(effectNumericValue, 0, 100)) / 100 -
+          Number(effectComponentInDraft.position.width || 100) / 2;
+      } else if (changedEffectInput === iconButtonEffectTopInputElement) {
+        effectComponentInDraft.position.y =
+          (effectDocCanvasHeight * clampNumber(effectNumericValue, 0, 100)) / 100 -
+          Number(effectComponentInDraft.position.height || 100) / 2;
+      } else if (changedEffectInput === iconButtonEffectWidthInputElement) {
+        effectComponentInDraft.position.width =
+          (effectDocCanvasWidth * clampNumber(effectNumericValue, 0.1, 100)) / 100;
+      } else if (changedEffectInput === iconButtonEffectHeightInputElement) {
+        effectComponentInDraft.position.height =
+          (effectDocCanvasHeight * clampNumber(effectNumericValue, 0.1, 100)) / 100;
+      } else if (changedEffectInput === iconButtonEffectScaleInputElement) {
+        effectComponentInDraft.style.scale = clampNumber(effectNumericValue, 1, 500) / 100;
+      } else if (changedEffectInput === iconButtonEffectRotationInputElement) {
+        setComponentsRotation(
+          effectChangeDraftDocument,
+          effectComponentId,
+          clampNumber(effectNumericValue, -360, 360)
+        );
+      }
+    });
+  });
+  on(iconButtonEffectEffectLayoutOptionsElement, "click", function onIconButtonEffectEffectLayoutOptionsClick(effectLayoutClickEvent) {
+    const effectLayoutOption = effectLayoutClickEvent.target.closest("[data-ibe-layout]");
+    const effectLayoutComponentId = selectedComponentId;
+    if (!!effectLayoutOption && !!effectLayoutComponentId) {
+      mutateDocument(effectLayoutDraftDocument => {
+        const effectLayoutComponent = findComponent(
+          effectLayoutDraftDocument,
+          effectLayoutComponentId
+        )?.component;
+        if (!!effectLayoutComponent && effectLayoutComponent.type === "icon-button-effect") {
+          effectLayoutComponent.properties = {
+            ...(effectLayoutComponent.properties || {}),
+            effectLayoutMode: effectLayoutOption.dataset.ibeLayout === "fill" ? "fill" : "free"
+          };
+        }
+      });
+    }
+  });
+  /**
+   * 收集一个页面下所有普通图片组件（含深层子组件）。只认 type === "image"：图标按钮的图片效果、自动图示的分层底图等
+   * 都不是「普通图片」，不能参与图片对齐。pageSource 缺失时返回空数组。
+   */
+  function collectPageImages(pageSource) {
+    const pageImages = [];
+    /**
+     * 递归把组件树里的图片组件推进外层 pageImages 结果数组。
+     */
+    const collectImageComponents = componentItems => {
+      for (const imageItem of componentItems || []) {
+        if (imageItem.type === "image") {
+          pageImages.push(imageItem);
+        }
+        collectImageComponents(imageItem.children);
+      }
+    };
+    collectImageComponents(pageSource?.components);
+    return pageImages;
+  }
+  /**
+   * 构造「图片对齐」对话框里的一张可选图片行（单选按钮 + 缩略图 + 摘要）。摘要里的位置与尺寸换算成画布百分比展示：
+   * position 存的是左上角坐标与尺寸，用户更易懂中心点位置，故 x/y 各加半个自身尺寸后再除以画布尺寸（缺省 2778×1940）。
+   * scale 以 1 为基准、显示成百分比；铺满模式（layoutMode === "fill"）下位置没有意义，改为只显示可见性。
+   */
+  function createImageAlignOption(imageComponentOption, isChosenImage) {
+    const optionLabelElement = document.createElement("label");
+    optionLabelElement.className = "effect-image-align-option";
+    const optionRadioElement = document.createElement("input");
+    optionRadioElement.type = "radio";
+    optionRadioElement.name = "effect-image-align-target";
+    optionRadioElement.value = imageComponentOption.id;
+    optionRadioElement.checked = isChosenImage;
+    const optionPreviewElement = document.createElement("span");
+    optionPreviewElement.className = "effect-image-align-option-preview";
+    const foundAsset = findAssetById(imageComponentOption.properties?.assetId || "");
+    const previewAssetUrl = resolveAssetPreviewUrl(foundAsset);
+    if (previewAssetUrl) {
+      const optionPreviewImage = document.createElement("img");
+      optionPreviewImage.src = previewAssetUrl;
+      optionPreviewImage.alt = "";
+      optionPreviewElement.append(optionPreviewImage);
+    } else {
+      optionPreviewElement.textContent = "无预览";
+    }
+    const optionCopyElement = document.createElement("span");
+    optionCopyElement.className = "effect-image-align-option-copy";
+    const optionTitleElement = document.createElement("strong");
+    optionTitleElement.textContent = componentLabel(imageComponentOption);
+    const optionLayoutElement = document.createElement("small");
+    const isFillLayout = imageComponentOption.properties?.layoutMode === "fill";
+    const visibilityLabel = imageComponentOption.style?.visible === false ? "隐藏" : "显示";
+    const optionCanvasWidth = Number(activeProject?.document?.canvas?.width || 2778);
+    const optionCanvasHeight = Number(activeProject?.document?.canvas?.height || 1940);
+    const optionPosition = imageComponentOption.position || {};
+    const optionWidth = Number(optionPosition.width || 100);
+    const optionHeight = Number(optionPosition.height || 100);
+    const centerLeftPercent = roundField(
+      ((Number(optionPosition.x || 0) + optionWidth / 2) / optionCanvasWidth) * 100
+    );
+    const centerTopPercent = roundField(
+      ((Number(optionPosition.y || 0) + optionHeight / 2) / optionCanvasHeight) * 100
+    );
+    const optionScalePercent = roundField(Number(imageComponentOption.style?.scale || 1) * 100);
+    const optionRotationDeg = roundField(Number(optionPosition.rotation || 0));
+    optionLayoutElement.textContent = isFillLayout
+      ? "铺满 · 覆盖整个画布"
+      : "自由 · 左 " + centerLeftPercent + "% · 上 " + centerTopPercent + "%";
+    const optionDetailElement = document.createElement("small");
+    optionDetailElement.textContent = isFillLayout
+      ? visibilityLabel
+      : "缩放 " + optionScalePercent + "% · 旋转 " + optionRotationDeg + "° · " + visibilityLabel;
+    optionCopyElement.append(optionTitleElement, optionLayoutElement, optionDetailElement);
+    optionLabelElement.append(optionRadioElement, optionPreviewElement, optionCopyElement);
+    return optionLabelElement;
+  }
+  /**
+   * 打开「选择图片对齐基准」对话框，仅对 icon-button-effect 组件可用（只有效果组件需要跟随某张参考图排版）。
+   * 默认选中已保存的 effectReferenceImageId，没有保存过时默认选本页第一张图片（alignableIndex === 0），让用户少点一次；
+   * 本页没有普通图片时禁用确认按钮并给出提示文案。确认后由对话框的确认回调写回 properties 并触发重新布局。
+   */
+  function openImageAlignDialog() {
+    const alignEffectComponent = selectedComponent();
+    const alignSourcePage = currentPage();
+    if (
+      !alignEffectComponent ||
+      alignEffectComponent.type !== "icon-button-effect" ||
+      !alignSourcePage
+    ) {
+      return;
+    }
+    const alignableImages = collectPageImages(alignSourcePage);
+    const referenceImageId = String(alignEffectComponent.properties?.effectReferenceImageId || "");
+    effectImageAlignOptionsElement.replaceChildren(
+      ...alignableImages.map((alignableImage, alignableIndex) =>
+        createImageAlignOption(
+          alignableImage,
+          alignableImage.id === referenceImageId || (!referenceImageId && alignableIndex === 0)
+        )
+      )
+    );
+    imageAlignSourceComponentId = alignEffectComponent.id;
+    effectImageAlignMessageElement.hidden = alignableImages.length > 0;
+    effectImageAlignMessageElement.textContent = alignableImages.length
+      ? ""
+      : "本页面没有可以对齐的普通图片。";
+    effectImageAlignConfirmButtonElement.disabled = alignableImages.length === 0;
+    effectImageAlignDialogElement.showModal();
+  }
+  on(iconButtonEffectEffectAlignImageButtonElement, "click", openImageAlignDialog);
+  on(effectImageAlignCloseButtonElement, "click", function onEffectImageAlignCloseButtonClick() { return effectImageAlignDialogElement.close(); }
+  );
+  on(effectImageAlignCancelButtonElement, "click", function onEffectImageAlignCancelButtonClick() { return effectImageAlignDialogElement.close(); }
+  );
+  on(effectImageAlignDialogElement, "click", function onEffectImageAlignDialogClick(alignDialogBackdropEvent) {
+    if (alignDialogBackdropEvent.target === effectImageAlignDialogElement) {
+      effectImageAlignDialogElement.close();
+    }
+  });
+  on(effectImageAlignDialogElement, "close", function onEffectImageAlignDialogClose() {
+    imageAlignSourceComponentId = null;
+  });
+  on(effectImageAlignConfirmButtonElement, "click", function onEffectImageAlignConfirmButtonClick() {
+    const chosenImageId = effectImageAlignOptionsElement.querySelector(
+      'input[name="effect-image-align-target"]:checked'
+    )?.value;
+    const pendingAlignComponentId = imageAlignSourceComponentId;
+    if (!pendingAlignComponentId || !chosenImageId) {
+      effectImageAlignMessageElement.textContent = "请选择一张本页面图片。";
+      effectImageAlignMessageElement.hidden = false;
+      return;
+    }
+    effectImageAlignDialogElement.close();
+    mutateDocument(alignDraftDocument => {
+      const alignComponent = findComponent(alignDraftDocument, pendingAlignComponentId)?.component;
+      const currentAlignPage =
+        alignDraftDocument.pages?.find(
+          alignPageCandidate => alignPageCandidate.path === pageSelectElement.value
+        ) || alignDraftDocument.pages?.[0];
+      const referenceImageComponent = findComponentInItems(
+        currentAlignPage?.components,
+        chosenImageId
+      );
+      if (
+        !alignComponent ||
+        alignComponent.type !== "icon-button-effect" ||
+        !referenceImageComponent ||
+        referenceImageComponent.type !== "image"
+      ) {
+        return;
+      }
+      const alignCanvasWidth = Number(alignDraftDocument.canvas?.width || 2778);
+      const alignCanvasHeight = Number(alignDraftDocument.canvas?.height || 1940);
+      const referencePosition = referenceImageComponent.position || {};
+      const referenceWidth = Number(referencePosition.width || 100);
+      const referenceHeight = Number(referencePosition.height || 100);
+      const referenceIsFill = referenceImageComponent.properties?.layoutMode === "fill";
+      alignComponent.properties = {
+        ...(alignComponent.properties || {}),
+        effectReferenceImageId: referenceImageComponent.id,
+        effectLayoutMode: referenceIsFill ? "fill" : "free",
+        ...(referenceIsFill
+          ? {}
+          : {
+              effectLeft:
+                ((Number(referencePosition.x || 0) + referenceWidth / 2) / alignCanvasWidth) * 100,
+              effectTop:
+                ((Number(referencePosition.y || 0) + referenceHeight / 2) / alignCanvasHeight) * 100,
+              effectScale: clampNumber(Number(referenceImageComponent.style?.scale || 1), 0.01, 5),
+              effectRotation: Number(referencePosition.rotation || 0)
+            })
+      };
+    });
+  });
+  on(iconButtonEffectPreviewStateElement, "click", function onIconButtonEffectPreviewStateClick(previewStateClickEvent) {
+    const previewStateOption = previewStateClickEvent.target.closest("[data-ibe-preview]");
+    const previewToggleComponentId = selectedComponentId;
+    if (!previewStateOption || !previewToggleComponentId) {
+      return;
+    }
+    const requestedPreviewState = ["on", "off"].includes(previewStateOption.dataset.ibePreview)
+      ? previewStateOption.dataset.ibePreview
+      : "auto";
+    iconButtonEffectPreviewStateByComponentId.set(previewToggleComponentId, requestedPreviewState);
+    editorRenderer?.setComponentPreviewState(previewToggleComponentId, requestedPreviewState);
+    syncInspector();
+  });
+  on(iconButtonEffectLayerOptionsElement, "click", function onIconButtonEffectLayerOptionsClick(layerOptionsClickEvent) {
+    const effectLayerOption = layerOptionsClickEvent.target.closest("[data-ibe-layer]");
+    const layerComponentId = selectedComponentId;
+    if (!effectLayerOption || !layerComponentId) {
+      return;
+    }
+    const requestedLayer = effectLayerOption.dataset.ibeLayer === "effect" ? "effect" : "button";
+    const layerPreviewStatus = requestedLayer === "effect" ? "on" : "off";
+    iconButtonEffectLayerByComponentId.set(layerComponentId, requestedLayer);
+    iconButtonEffectPreviewStateByComponentId.set(layerComponentId, layerPreviewStatus);
+    editorRenderer?.setComponentPreviewState(layerComponentId, layerPreviewStatus);
+    editorRenderer?.setComponentSelectionLayer(layerComponentId, requestedLayer);
+    closeAllDropdownMenus();
+    syncInspector();
+  });
+  on(iconButtonEffectButtonVisibleButtonElement, "click", function onIconButtonEffectButtonVisibleButtonClick() {
+    const buttonVisibleComponentId = selectedComponentId;
+    if (buttonVisibleComponentId) {
+      mutateDocument(buttonVisibleDraftDocument => {
+        const buttonVisibleComponent = findComponent(
+          buttonVisibleDraftDocument,
+          buttonVisibleComponentId
+        )?.component;
+        if (!!buttonVisibleComponent && buttonVisibleComponent.type === "icon-button-effect") {
+          buttonVisibleComponent.properties = {
+            ...(buttonVisibleComponent.properties || {}),
+            buttonVisible: buttonVisibleComponent.properties?.buttonVisible === false
+          };
+        }
+      });
+    }
+  });
+  on(iconButtonEffectEffectVisibleButtonElement, "click", function onIconButtonEffectEffectVisibleButtonClick() {
+    const effectVisibleComponentId = selectedComponentId;
+    if (effectVisibleComponentId) {
+      mutateDocument(effectVisibleDraftDocument => {
+        const effectVisibleComponent = findComponent(
+          effectVisibleDraftDocument,
+          effectVisibleComponentId
+        )?.component;
+        if (!!effectVisibleComponent && effectVisibleComponent.type === "icon-button-effect") {
+          effectVisibleComponent.properties = {
+            ...(effectVisibleComponent.properties || {}),
+            effectVisible: effectVisibleComponent.properties?.effectVisible === false
+          };
+        }
+      });
+    }
+  });
+}
+
+/**
+ * 设备类控件。
+ *
+ * 设备状态精度、空调送风动效、窗帘设置等设备面板控件。
+ */
+function bindDeviceSection() {
+  const on = sections.section("device");
+  on(deviceButtonStatePrecisionSelectElement, "change", function onDeviceButtonStatePrecisionSelectChange() {
+    const statePrecisionComponentId = selectedComponentId;
+    if (statePrecisionComponentId) {
+      mutateDocument(statePrecisionDraftDocument => {
+        const statePrecisionComponent = findComponent(
+          statePrecisionDraftDocument,
+          statePrecisionComponentId
+        )?.component;
+        if (!statePrecisionComponent || statePrecisionComponent.type !== "device-button") {
+          return;
+        }
+        const statePrecisionValue = ["0", "1", "2", "3", "4"].includes(
+          deviceButtonStatePrecisionSelectElement.value
+        )
+          ? Number(deviceButtonStatePrecisionSelectElement.value)
+          : "auto";
+        statePrecisionComponent.properties = {
+          ...(statePrecisionComponent.properties || {}),
+          statePrecision: statePrecisionValue
+        };
+      });
+    }
+  });
+  on(presenceSensorKindSelectElement, "change", function onPresenceSensorKindSelectChange() {
+    const sensorKindComponentId = selectedComponentId;
+    if (sensorKindComponentId) {
+      mutateDocument(sensorKindDraftDocument => {
+        const sensorKindComponent = findComponent(
+          sensorKindDraftDocument,
+          sensorKindComponentId
+        )?.component;
+        if (!sensorKindComponent || sensorKindComponent.type !== "presence-sensor") {
+          return;
+        }
+        const requestedSensorKind = [
+          "presence",
+          "door-window",
+          "water-leak",
+          "smoke",
+          "natural-gas"
+        ].includes(presenceSensorKindSelectElement.value)
+          ? presenceSensorKindSelectElement.value
+          : "presence";
+        sensorKindComponent.properties = {
+          ...(sensorKindComponent.properties || {}),
+          sensorKind: requestedSensorKind
+        };
+        if (requestedSensorKind !== "door-window") {
+          doorWindowPerspectiveEditIds.delete(sensorKindComponentId);
+          editorRenderer?.setComponentSelectionLayer(sensorKindComponentId, "button");
+        }
+      });
+    }
+  });
+  on(doorWindowPerspectiveEditButtonElement, "click", function onDoorWindowPerspectiveEditButtonClick() {
+    const perspectiveEditComponent = selectedComponent();
+    if (
+      !!perspectiveEditComponent &&
+      perspectiveEditComponent.type === "presence-sensor" &&
+      perspectiveEditComponent.properties?.sensorKind === "door-window"
+    ) {
+      doorWindowPerspectiveEditIds.add(perspectiveEditComponent.id);
+      doorWindowPerspectiveEditButtonElement.classList.add("active");
+      doorWindowPerspectiveEditButtonElement.setAttribute("aria-pressed", "true");
+      doorWindowPerspectiveSaveButtonElement.disabled = false;
+      editorRenderer?.setComponentSelectionLayer(perspectiveEditComponent.id, "perspective");
+    }
+  });
+  on(doorWindowPerspectiveSaveButtonElement, "click", function onDoorWindowPerspectiveSaveButtonClick() {
+    const perspectiveSaveComponent = selectedComponent();
+    if (
+      !!perspectiveSaveComponent &&
+      perspectiveSaveComponent.type === "presence-sensor" &&
+      perspectiveSaveComponent.properties?.sensorKind === "door-window"
+    ) {
+      doorWindowPerspectiveEditIds.delete(perspectiveSaveComponent.id);
+      doorWindowPerspectiveEditButtonElement.classList.remove("active");
+      doorWindowPerspectiveEditButtonElement.setAttribute("aria-pressed", "false");
+      doorWindowPerspectiveSaveButtonElement.disabled = true;
+      editorRenderer?.setComponentSelectionLayer(perspectiveSaveComponent.id, "button");
+    }
+  });
+  on(doorWindowPerspectiveResetButtonElement, "click", function onDoorWindowPerspectiveResetButtonClick() {
+    const perspectiveResetComponentId = selectedComponentId;
+    if (perspectiveResetComponentId) {
+      mutateDocument(perspectiveResetDraftDocument => {
+        const perspectiveResetComponent = findComponent(
+          perspectiveResetDraftDocument,
+          perspectiveResetComponentId
+        )?.component;
+        if (
+          !!perspectiveResetComponent &&
+          perspectiveResetComponent.type === "presence-sensor" &&
+          perspectiveResetComponent.properties?.sensorKind === "door-window"
+        ) {
+          perspectiveResetComponent.properties = {
+            ...(perspectiveResetComponent.properties || {}),
+            perspectiveCorners: [...DEFAULT_PERSPECTIVE_CORNERS]
+          };
+        }
+      });
+    }
+  });
+  on(cameraFitOptionsElement, "click", function onCameraFitOptionsClick(cameraFitClickEvent) {
+    const cameraFitOption = cameraFitClickEvent.target.closest("[data-camera-fit]");
+    const cameraFitComponentId = selectedComponentId;
+    if (!cameraFitOption || !cameraFitComponentId) {
+      return;
+    }
+    const requestedCameraFit = cameraFitOption.dataset.cameraFit === "contain" ? "contain" : "fill";
+    mutateDocument(cameraFitDraftDocument => {
+      const cameraFitComponent = findComponent(
+        cameraFitDraftDocument,
+        cameraFitComponentId
+      )?.component;
+      if (!!cameraFitComponent && cameraFitComponent.type === "camera") {
+        cameraFitComponent.properties = {
+          ...(cameraFitComponent.properties || {}),
+          fit: requestedCameraFit
+        };
+      }
+    });
+  });
+  on(cameraDisplayModeOptionsElement, "click", function onCameraDisplayModeOptionsClick(displayModeClickEvent) {
+    const displayModeOption = displayModeClickEvent.target.closest("[data-camera-display-mode]");
+    const displayModeComponentId = selectedComponentId;
+    if (!displayModeOption || !displayModeComponentId) {
+      return;
+    }
+    const requestedDisplayMode =
+      displayModeOption.dataset.cameraDisplayMode === "snapshot" ? "snapshot" : "live";
+    mutateDocument(displayModeDraftDocument => {
+      const displayModeComponent = findComponent(
+        displayModeDraftDocument,
+        displayModeComponentId
+      )?.component;
+      if (!!displayModeComponent && displayModeComponent.type === "camera") {
+        displayModeComponent.properties = {
+          ...(displayModeComponent.properties || {}),
+          displayMode: requestedDisplayMode
+        };
+      }
+    });
+  });
+  on(cameraRefreshIntervalInputElement, "change", function onCameraRefreshIntervalInputChange() {
+    const refreshIntervalComponentId = selectedComponentId;
+    if (!refreshIntervalComponentId) {
+      return;
+    }
+    const refreshIntervalInput = Number(cameraRefreshIntervalInputElement.value);
+    const normalizedRefreshInterval = Number.isFinite(refreshIntervalInput)
+      ? Math.max(6, Math.round(refreshIntervalInput))
+      : 10;
+    cameraRefreshIntervalInputElement.value = String(normalizedRefreshInterval);
+    mutateDocument(refreshIntervalDraftDocument => {
+      const refreshIntervalComponent = findComponent(
+        refreshIntervalDraftDocument,
+        refreshIntervalComponentId
+      )?.component;
+      if (!!refreshIntervalComponent && refreshIntervalComponent.type === "camera") {
+        refreshIntervalComponent.properties = {
+          ...(refreshIntervalComponent.properties || {}),
+          refreshInterval: normalizedRefreshInterval
+        };
+      }
+    });
+  });
+  on(cameraMediaVisibleButtonElement, "click", function onCameraMediaVisibleButtonClick() {
+    const mediaVisibleComponentId = selectedComponentId;
+    if (mediaVisibleComponentId) {
+      mutateDocument(mediaVisibleDraftDocument => {
+        const mediaVisibleComponent = findComponent(
+          mediaVisibleDraftDocument,
+          mediaVisibleComponentId
+        )?.component;
+        if (!!mediaVisibleComponent && mediaVisibleComponent.type === "camera") {
+          mediaVisibleComponent.properties = {
+            ...(mediaVisibleComponent.properties || {}),
+            mediaVisible: mediaVisibleComponent.properties?.mediaVisible === false
+          };
+        }
+      });
+    }
+  });
+  on(cameraFrameVisibleButtonElement, "click", function onCameraFrameVisibleButtonClick() {
+    const frameVisibleComponentId = selectedComponentId;
+    if (frameVisibleComponentId) {
+      mutateDocument(frameVisibleDraftDocument => {
+        const frameVisibleComponent = findComponent(
+          frameVisibleDraftDocument,
+          frameVisibleComponentId
+        )?.component;
+        if (!!frameVisibleComponent && frameVisibleComponent.type === "camera") {
+          frameVisibleComponent.properties = {
+            ...(frameVisibleComponent.properties || {}),
+            frameVisible: frameVisibleComponent.properties?.frameVisible === false
+          };
+        }
+      });
+    }
+  });
+  /**
+   * 记录并应用空调组件在编辑器里的预览状态（开/关/自动）。状态存放在模块级 Map 里而不是写进文档，
+   * 因为它只是编辑期的可视化辅助，不该进入历史记录或被保存；非 "on"/"off" 的输入统一归一为 "auto"。
+   */
+  function applyAirConditionerPreviewState(previewTargetComponentId, previewModeRequest = "auto") {
+    if (!previewTargetComponentId) {
+      return;
+    }
+    const resolvedPreviewMode = ["on", "off"].includes(previewModeRequest)
+      ? previewModeRequest
+      : "auto";
+    airConditionerPreviewStateByComponentId.set(previewTargetComponentId, resolvedPreviewMode);
+    editorRenderer?.setComponentPreviewState(previewTargetComponentId, resolvedPreviewMode);
+  }
+  on(airConditionerPreviewStateElement, "click", function onAirConditionerPreviewStateClick(acPreviewStateClickEvent) {
+    const acPreviewStateOption = acPreviewStateClickEvent.target.closest(
+      "[data-air-conditioner-preview]"
+    );
+    if (!!acPreviewStateOption && !!selectedComponentId) {
+      applyAirConditionerPreviewState(
+        selectedComponentId,
+        acPreviewStateOption.dataset.airConditionerPreview
+      );
+      syncInspector();
+    }
+  });
+  on(airConditionerDeviceTypeElement, "click", function onAirConditionerDeviceTypeClick(acDeviceTypeClickEvent) {
+    const acDeviceTypeOption = acDeviceTypeClickEvent.target.closest(
+      "[data-air-conditioner-device-type]"
+    );
+    const acDeviceTypeComponentId = selectedComponentId;
+    if (!acDeviceTypeOption || !acDeviceTypeComponentId) {
+      return;
+    }
+    const requestedAcDeviceType = ["air-conditioner", "bath-heater"].includes(
+      acDeviceTypeOption.dataset.airConditionerDeviceType
+    )
+      ? acDeviceTypeOption.dataset.airConditionerDeviceType
+      : "auto";
+    mutateDocument(acDeviceTypeDraftDocument => {
+      const acDeviceTypeComponent = findComponent(
+        acDeviceTypeDraftDocument,
+        acDeviceTypeComponentId
+      )?.component;
+      if (!!acDeviceTypeComponent && acDeviceTypeComponent.type === "air-conditioner") {
+        acDeviceTypeComponent.properties = {
+          ...(acDeviceTypeComponent.properties || {}),
+          deviceType: requestedAcDeviceType
+        };
+      }
+    });
+  });
+  on(airConditionerLayerOptionsElement, "click", function onAirConditionerLayerOptionsClick(acLayerClickEvent) {
+    const acLayerOption = acLayerClickEvent.target.closest("[data-air-conditioner-layer]");
+    if (!acLayerOption || !selectedComponentId) {
+      return;
+    }
+    const requestedAcLayer =
+      acLayerOption.dataset.airConditionerLayer === "airflow" ? "airflow" : "button";
+    airConditionerLayerByComponentId.set(selectedComponentId, requestedAcLayer);
+    applyAirConditionerPreviewState(
+      selectedComponentId,
+      requestedAcLayer === "airflow" ? "on" : "off"
+    );
+    editorRenderer?.setComponentSelectionLayer(selectedComponentId, requestedAcLayer);
+    closeAllDropdownMenus();
+    syncInspector();
+  });
+  on(airConditionerAirflowVisibleButtonElement, "click", function onAirConditionerAirflowVisibleButtonClick() {
+    const airflowVisibleComponentId = selectedComponentId;
+    if (airflowVisibleComponentId) {
+      applyAirConditionerPreviewState(airflowVisibleComponentId, "on");
+      mutateDocument(airflowVisibleDraftDocument => {
+        const airflowVisibleComponent = findComponent(
+          airflowVisibleDraftDocument,
+          airflowVisibleComponentId
+        )?.component;
+        if (!!airflowVisibleComponent && airflowVisibleComponent.type === "air-conditioner") {
+          airflowVisibleComponent.properties = {
+            ...(airflowVisibleComponent.properties || {}),
+            airflowVisible: airflowVisibleComponent.properties?.airflowVisible === false
+          };
+        }
+      });
+    }
+  });
+  for (const [visibilityToggleElement, visibilityPropertyKey] of [
+    [airConditionerIconVisibleButtonElement, "iconVisible"],
+    [airConditionerMainVisibleButtonElement, "mainTextVisible"],
+    [airConditionerSecondaryVisibleButtonElement, "secondaryTextVisible"]
+  ]) {
+    on(visibilityToggleElement, "click", function onVisibilityToggleClick() {
+      const visibilityToggleComponentId = selectedComponentId;
+      if (visibilityToggleComponentId) {
+        mutateDocument(acVisibilityDraftDocument => {
+          const acVisibilityComponent = findComponent(
+            acVisibilityDraftDocument,
+            visibilityToggleComponentId
+          )?.component;
+          if (!!acVisibilityComponent && acVisibilityComponent.type === "air-conditioner") {
+            acVisibilityComponent.properties = {
+              ...(acVisibilityComponent.properties || {}),
+              [visibilityPropertyKey]:
+                acVisibilityComponent.properties?.[visibilityPropertyKey] === false
+            };
+          }
+        });
+      }
+    });
+  }
+  on(airConditionerAirflowMotionElement, "click", function onAirConditionerAirflowMotionClick(airflowMotionClickEvent) {
+    const airflowMotionOption = airflowMotionClickEvent.target.closest("[data-airflow-motion]");
+    const airflowMotionComponentId = selectedComponentId;
+    if (!!airflowMotionOption && !!airflowMotionComponentId) {
+      applyAirConditionerPreviewState(airflowMotionComponentId, "on");
+      mutateDocument(airflowMotionDraftDocument => {
+        const airflowMotionComponent = findComponent(
+          airflowMotionDraftDocument,
+          airflowMotionComponentId
+        )?.component;
+        if (!!airflowMotionComponent && airflowMotionComponent.type === "air-conditioner") {
+          airflowMotionComponent.properties = {
+            ...(airflowMotionComponent.properties || {}),
+            airflowMotion:
+              airflowMotionOption.dataset.airflowMotion === "static" ? "static" : "dynamic"
+          };
+        }
+      });
+    }
+  });
+  for (const airflowSectionEventName of ["focusin", "pointerdown", "input"]) {
+    on(airConditionerAirflowSectionElement, airflowSectionEventName,
+      function onAirConditionerAirflowSection(airflowSectionEvent) {
+        if (
+          airConditionerConfigsByElement.has(airflowSectionEvent.target) &&
+          selectedComponent()?.type === "air-conditioner"
+        ) {
+          applyAirConditionerPreviewState(selectedComponentId, "on");
+        }
+      }
+    );
+  }
+  const previewStateByInputElement = new Map([
+    [iconButtonIconOffOpacityInputElement, "off"],
+    [iconButtonMainOffOpacityInputElement, "off"],
+    [iconButtonSecondaryOffOpacityInputElement, "off"],
+    [iconButtonFrameOffOpacityInputElement, "off"],
+    [iconButtonOnFillVisibleButtonElement, "on"],
+    [iconButtonIconOnOpacityInputElement, "on"],
+    [iconButtonMainOnOpacityInputElement, "on"],
+    [iconButtonSecondaryOnOpacityInputElement, "on"],
+    [iconButtonOnFillColorInputElement, "on"],
+    [iconButtonOnFillStrengthInputElement, "on"],
+    [iconButtonFrameOnOpacityInputElement, "on"],
+    [deviceButtonIconOnColorInputElement, "on"]
+  ]);
+  /**
+   * 同步图标按钮预览切换按钮的选中态。用 class 与 aria-pressed 双写：class 负责样式、aria-pressed 负责无障碍朗读，
+   * 只改 class 会让屏幕阅读器读不出当前是开还是关。
+   */
+  function syncIconButtonPreviewButtons(previewStateValue) {
+    for (const previewButtonNode of iconButtonPreviewStateElement.querySelectorAll(
+      "[data-icon-button-preview]"
+    )) {
+      const isButtonActive = previewButtonNode.dataset.iconButtonPreview === previewStateValue;
+      previewButtonNode.classList.toggle("active", isButtonActive);
+      previewButtonNode.setAttribute("aria-pressed", String(isButtonActive));
+    }
+  }
+  /**
+   * 记录并应用图标按钮/设备按钮/传感器的预览状态（开/关/自动），与空调预览同理，状态存在模块级 Map、仅用于编辑期预览。
+   * "auto" 表示解除强制预览（从 Map 里删除），以按键值不同区分是「显式置 auto」还是「保留上次的开关预览」。
+   */
+  function applyIconButtonPreviewState(previewComponentIdForIcon, previewModeForIcon = "auto") {
+    if (!previewComponentIdForIcon) {
+      return;
+    }
+    const resolvedIconPreviewMode = ["on", "off"].includes(previewModeForIcon)
+      ? previewModeForIcon
+      : "auto";
+    if (resolvedIconPreviewMode === "auto") {
+      iconButtonPreviewStateByComponentId.delete(previewComponentIdForIcon);
+    } else {
+      iconButtonPreviewStateByComponentId.set(previewComponentIdForIcon, resolvedIconPreviewMode);
+    }
+    editorRenderer?.setComponentPreviewState(previewComponentIdForIcon, resolvedIconPreviewMode);
+    if (previewComponentIdForIcon === selectedComponentId) {
+      syncIconButtonPreviewButtons(resolvedIconPreviewMode);
+    }
+  }
+  /**
+   * 聚焦/编辑某个输入框时，把预览切到它能体现的开关态。previewStateByInputElement 只登记了「Off 类」与「On 类」输入框；
+   * 特例：设备按钮的 iconColor 未登记但语义上属于「未激活」态，故单独判一次并回落到 "off"。不适用于图标按钮类组件时不做任何事。
+   */
+  function activatePreviewForInput(previewInputElement) {
+    const previewOwnerComponent = selectedComponent();
+    const previewStateToApply =
+      previewStateByInputElement.get(previewInputElement) ||
+      (previewOwnerComponent?.type === "device-button" &&
+      previewInputElement === iconButtonIconColorInputElement
+        ? "off"
+        : null);
+    if (
+      !!previewStateToApply &&
+      !!["icon-button", "device-button", "presence-sensor"].includes(previewOwnerComponent?.type)
+    ) {
+      applyIconButtonPreviewState(previewOwnerComponent.id, previewStateToApply);
+    }
+  }
+  /**
+   * 输入框失焦后把预览恢复为自动，避免强制预览一直粘着。只对登记过预览态（或设备按钮 iconColor 特例）的输入框生效，
+   * 并限定组件类型，逻辑与 activatePreviewForInput 对称。
+   */
+  function resetPreviewForInput(resetInputElement) {
+    const resetOwnerComponent = selectedComponent();
+    if (
+      !!previewStateByInputElement.has(resetInputElement) ||
+      (resetOwnerComponent?.type === "device-button" &&
+        resetInputElement === iconButtonIconColorInputElement)
+    ) {
+      if (["icon-button", "device-button", "presence-sensor"].includes(resetOwnerComponent?.type)) {
+        applyIconButtonPreviewState(resetOwnerComponent.id, "auto");
+      }
+    }
+  }
+  for (const previewSyncEventName of ["focusin", "pointerdown", "input"]) {
+    on(iconButtonInspectorFormElement, previewSyncEventName, function onIconButtonInspectorForm(previewSyncEvent) { return activatePreviewForInput(previewSyncEvent.target); }
+    );
+  }
+  on(coverSettingsKindElement, "click", function onCoverSettingsKindClick(coverKindClickEvent) {
+    const coverKindOption = coverKindClickEvent.target.closest("[data-cover-kind]");
+    const coverKindComponentId = selectedComponentId;
+    if (!coverKindOption || !coverKindComponentId) {
+      return;
+    }
+    const requestedCoverKind = ["standard", "dream", "airer"].includes(
+      coverKindOption.dataset.coverKind
+    )
+      ? coverKindOption.dataset.coverKind
+      : "auto";
+    mutateDocument(coverKindDraftDocument => {
+      const coverKindComponent = findComponent(
+        coverKindDraftDocument,
+        coverKindComponentId
+      )?.component;
+      if (
+        coverKindComponent &&
+        String(coverKindComponent.bindings?.entity?.entityId || "").startsWith("cover.")
+      ) {
+        coverKindComponent.properties = {
+          ...(coverKindComponent.properties || {}),
+          coverKind: requestedCoverKind
+        };
+      }
+    });
+  });
+  on(coverSettingsDirectionElement, "click", function onCoverSettingsDirectionClick(coverDirectionClickEvent) {
+    const coverDirectionOption = coverDirectionClickEvent.target.closest("[data-cover-direction]");
+    const coverDirectionComponentId = selectedComponentId;
+    if (!coverDirectionOption || !coverDirectionComponentId) {
+      return;
+    }
+    const requestedCoverDirection = ["left", "right"].includes(
+      coverDirectionOption.dataset.coverDirection
+    )
+      ? coverDirectionOption.dataset.coverDirection
+      : "split";
+    mutateDocument(coverDirectionDraftDocument => {
+      const coverDirectionComponent = findComponent(
+        coverDirectionDraftDocument,
+        coverDirectionComponentId
+      )?.component;
+      if (
+        coverDirectionComponent &&
+        String(coverDirectionComponent.bindings?.entity?.entityId || "").startsWith("cover.")
+      ) {
+        coverDirectionComponent.properties = {
+          ...(coverDirectionComponent.properties || {}),
+          coverDirection: requestedCoverDirection
+        };
+      }
+    });
+  });
+  on(coverSettingsMotorDirectionElement, "click", function onCoverSettingsMotorDirectionClick(motorDirectionClickEvent) {
+    const motorDirectionOption = motorDirectionClickEvent.target.closest(
+      "[data-cover-motor-direction]"
+    );
+    const motorDirectionComponentId = selectedComponentId;
+    if (!motorDirectionOption || !motorDirectionComponentId) {
+      return;
+    }
+    const requestedMotorDirection = ["normal", "reversed"].includes(
+      motorDirectionOption.dataset.coverMotorDirection
+    )
+      ? motorDirectionOption.dataset.coverMotorDirection
+      : "auto";
+    mutateDocument(motorDirectionDraftDocument => {
+      const motorDirectionComponent = findComponent(
+        motorDirectionDraftDocument,
+        motorDirectionComponentId
+      )?.component;
+      if (
+        motorDirectionComponent &&
+        String(motorDirectionComponent.bindings?.entity?.entityId || "").startsWith("cover.")
+      ) {
+        motorDirectionComponent.properties = {
+          ...(motorDirectionComponent.properties || {}),
+          coverMotorDirection: requestedMotorDirection
+        };
+      }
+    });
+  });
+  on(iconButtonInspectorFormElement, "focusout", function onIconButtonInspectorFormFocusout(previewFocusOutEvent) {
+    const focusOutComponent = selectedComponent();
+    if (
+      (!!previewStateByInputElement.has(previewFocusOutEvent.target) ||
+        (focusOutComponent?.type === "device-button" &&
+          previewFocusOutEvent.target === iconButtonIconColorInputElement)) &&
+      (!(previewFocusOutEvent.relatedTarget instanceof Node) ||
+        !iconButtonPreviewStateElement.contains(previewFocusOutEvent.relatedTarget))
+    ) {
+      window.requestAnimationFrame(() => {
+        if (
+          activeColorInputElement === previewFocusOutEvent.target &&
+          !globalColorPickerElement.hidden
+        ) {
+          return;
+        }
+        if (
+          previewStateByInputElement.get(document.activeElement) ||
+          (selectedComponent()?.type === "device-button" &&
+          document.activeElement === iconButtonIconColorInputElement
+            ? "off"
+            : null)
+        ) {
+          activatePreviewForInput(document.activeElement);
+        } else {
+          resetPreviewForInput(previewFocusOutEvent.target);
+        }
+      });
+    }
+  });
+}
+
+/**
+ * 各组件检查器。
+ *
+ * 时间、日期、天气、折线图、面板框、导航等检查器的 input / change / focusin 回填与样式应用。
+ */
+function bindInspectorSection() {
+  const on = sections.section("inspector");
+  on(timeInspectorFormElement, "input", function onTimeInspectorFormInput(timeInputEvent) {
+    const timeInspectorComponent = selectedComponent();
+    if (!timeInspectorComponent || timeInspectorComponent.type !== "time") {
+      return;
+    }
+    const timeInputElement = timeInputEvent.target;
+    const colorPropertyKey = timeColorPropertyByElement.get(timeInputElement);
+    if (colorPropertyKey) {
+      editorRenderer?.previewComponentProperties(timeInspectorComponent.id, {
+        [colorPropertyKey]: timeInputElement.value
+      });
+      return;
+    }
+    const timeConfig = timePropertyConfigsByElement.get(timeInputElement);
+    if (timeConfig) {
+      if (
+        String(timeInputElement.value).trim() === "" ||
+        !Number.isFinite(Number(timeInputElement.value))
+      ) {
+        return;
+      }
+      const timePropertyValue =
+        clampNumber(Number(timeInputElement.value), timeConfig.minimum, timeConfig.maximum) /
+        timeConfig.divisor;
+      const nextTimeProperties = {
+        ...(timeInspectorComponent.properties || {}),
+        [timeConfig.property]: timePropertyValue
+      };
+      editorRenderer?.previewComponentProperties(timeInspectorComponent.id, {
+        [timeConfig.property]: timePropertyValue
+      });
+      if (timeConfig.resizes) {
+        previewTimeResize(timeInspectorComponent, nextTimeProperties);
+      }
+      return;
+    }
+    if (
+      !timeTransformInputSet.has(timeInputElement) ||
+      String(timeInputElement.value).trim() === "" ||
+      !Number.isFinite(Number(timeInputElement.value))
+    ) {
+      return;
+    }
+    const timeNumericValue = Number(timeInputElement.value);
+    const timeCanvasWidth = Number(activeProject.document.canvas.width || 2778);
+    const timeCanvasHeight = Number(activeProject.document.canvas.height || 1940);
+    const timePositionWidth = Number(timeInspectorComponent.position?.width || 100);
+    const timePositionHeight = Number(timeInspectorComponent.position?.height || 100);
+    if (timeInputElement === timeLeftInputElement) {
+      const clampedTimeLeft = clampNumber(timeNumericValue, 0, 100);
+      editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
+        x: (timeCanvasWidth * clampedTimeLeft) / 100 - timePositionWidth / 2
+      });
+    } else if (timeInputElement === timeTopInputElement) {
+      const clampedTimeTop = clampNumber(timeNumericValue, 0, 100);
+      editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
+        y: (timeCanvasHeight * clampedTimeTop) / 100 - timePositionHeight / 2
+      });
+    } else if (timeInputElement === timeScaleInputElement) {
+      const clampedTimeScale = clampNumber(timeNumericValue, 1, 500);
+      editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
+        scale: clampedTimeScale / 100
+      });
+    } else if (timeInputElement === timeRotationInputElement) {
+      const clampedTimeRotation = clampNumber(timeNumericValue, -360, 360);
+      editorRenderer?.previewComponentTransform(timeInspectorComponent.id, {
+        rotation: clampedTimeRotation
+      });
+    }
+  });
+  on(timeInspectorFormElement, "change", function onTimeInspectorFormChange(timeChangeEvent) {
+    const changedTimeInput = timeChangeEvent.target;
+    const timeChangeComponentId = selectedComponentId;
+    if (!timeChangeComponentId) {
+      return;
+    }
+    const timeColorKey = timeColorPropertyByElement.get(changedTimeInput);
+    const timeChangeConfig = timePropertyConfigsByElement.get(changedTimeInput);
+    if (!!timeColorKey || !!timeChangeConfig || !!timeTransformInputSet.has(changedTimeInput)) {
+      if (
+        (timeChangeConfig || timeTransformInputSet.has(changedTimeInput)) &&
+        (String(changedTimeInput.value).trim() === "" ||
+          !Number.isFinite(Number(changedTimeInput.value)))
+      ) {
+        syncInspector();
+        return;
+      }
+      mutateDocument(timeChangeDraftDocument => {
+        const timeChangeComponent = findComponent(
+          timeChangeDraftDocument,
+          timeChangeComponentId
+        )?.component;
+        if (!timeChangeComponent || timeChangeComponent.type !== "time") {
+          return;
+        }
+        timeChangeComponent.properties = {
+          ...(timeChangeComponent.properties || {})
+        };
+        timeChangeComponent.position = {
+          ...(timeChangeComponent.position || {})
+        };
+        timeChangeComponent.style = {
+          ...(timeChangeComponent.style || {})
+        };
+        const timeDocCanvasWidth = Number(timeChangeDraftDocument.canvas.width || 2778);
+        const timeDocCanvasHeight = Number(timeChangeDraftDocument.canvas.height || 1940);
+        const timeChangeValue = Number(changedTimeInput.value);
+        if (timeColorKey) {
+          timeChangeComponent.properties[timeColorKey] = changedTimeInput.value;
+        } else if (timeChangeConfig) {
+          timeChangeComponent.properties[timeChangeConfig.property] =
+            clampNumber(timeChangeValue, timeChangeConfig.minimum, timeChangeConfig.maximum) /
+            timeChangeConfig.divisor;
+          if (timeChangeConfig.resizes) {
+            fitTimeComponentToDimensions(timeChangeComponent, timeChangeComponent.properties);
+          }
+        } else if (changedTimeInput === timeLeftInputElement) {
+          timeChangeComponent.position.x =
+            (timeDocCanvasWidth * clampNumber(timeChangeValue, 0, 100)) / 100 -
+            Number(timeChangeComponent.position.width || 100) / 2;
+        } else if (changedTimeInput === timeTopInputElement) {
+          timeChangeComponent.position.y =
+            (timeDocCanvasHeight * clampNumber(timeChangeValue, 0, 100)) / 100 -
+            Number(timeChangeComponent.position.height || 100) / 2;
+        } else if (changedTimeInput === timeScaleInputElement) {
+          timeChangeComponent.style.scale = clampNumber(timeChangeValue, 1, 500) / 100;
+        } else if (changedTimeInput === timeRotationInputElement) {
+          setComponentsRotation(
+            timeChangeDraftDocument,
+            timeChangeComponentId,
+            clampNumber(timeChangeValue, -360, 360)
+          );
+        }
+      });
+    }
+  });
+  for (const timeToggleElement of [timeHourFormatElement, timeSecondsElement]) {
+    on(timeToggleElement, "click", function onTimeToggleClick(timeToggleClickEvent) {
+      const timeToggleComponentId = selectedComponentId;
+      const hourFormatOption = timeToggleClickEvent.target.closest("[data-time-hour-format]");
+      const secondsOption = timeToggleClickEvent.target.closest("[data-time-seconds]");
+      if (!!timeToggleComponentId && (!!hourFormatOption || !!secondsOption)) {
+        mutateDocument(timeToggleDraftDocument => {
+          const timeToggleComponent = findComponent(
+            timeToggleDraftDocument,
+            timeToggleComponentId
+          )?.component;
+          if (!!timeToggleComponent && timeToggleComponent.type === "time") {
+            timeToggleComponent.properties = {
+              ...(timeToggleComponent.properties || {})
+            };
+            if (hourFormatOption) {
+              timeToggleComponent.properties.hour12 =
+                hourFormatOption.dataset.timeHourFormat === "12";
+            }
+            if (secondsOption) {
+              timeToggleComponent.properties.showSeconds = secondsOption.dataset.timeSeconds === "on";
+            }
+            fitTimeComponentToDimensions(timeToggleComponent, timeToggleComponent.properties);
+          }
+        });
+      }
+    });
+  }
+  const dateColorPropertyByElement = new Map([
+    [datePrimaryColorInputElement, "primaryColor"],
+    [dateLunarColorInputElement, "lunarColor"]
+  ]);
+  const datePropertyConfigsByElement = new Map([
+    [
+      datePrimarySizeInputElement,
+      {
+        property: "primarySize",
+        minimum: 12,
+        maximum: 500,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      datePrimaryWeightInputElement,
+      {
+        property: "primaryWeight",
+        minimum: 0,
+        maximum: 1,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      datePrimarySpacingInputElement,
+      {
+        property: "primarySpacing",
+        minimum: -20,
+        maximum: 100,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      dateLunarSizeInputElement,
+      {
+        property: "lunarSize",
+        minimum: 10,
+        maximum: 500,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      dateLunarWeightInputElement,
+      {
+        property: "lunarWeight",
+        minimum: 0,
+        maximum: 1,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      dateLunarSpacingInputElement,
+      {
+        property: "lunarSpacing",
+        minimum: -20,
+        maximum: 100,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      dateLineGapInputElement,
+      {
+        property: "lineGap",
+        minimum: 0,
+        maximum: 200,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      dateOpacityInputElement,
+      {
+        property: "opacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100,
+        resizes: false
+      }
+    ]
+  ]);
+  const dateTransformInputSet = new Set([
+    dateLeftInputElement,
+    dateTopInputElement,
+    dateScaleInputElement,
+    dateRotationInputElement
+  ]);
+  /**
+   * 日期组件尺寸类属性变更的即时预览：按新属性算出目标宽高，保持组件中心不动重置左上角坐标，只推给渲染器做临时变换，不写回文档。
+   */
+  function previewDateResize(resizedDateComponent, dateDimensionProperties) {
+    const dateWidth = Number(resizedDateComponent.position?.width || 100);
+    const dateHeight = Number(resizedDateComponent.position?.height || 100);
+    const dateCenterX = Number(resizedDateComponent.position?.x || 0) + dateWidth / 2;
+    const dateCenterY = Number(resizedDateComponent.position?.y || 0) + dateHeight / 2;
+    const { width: nextDateWidth, height: nextDateHeight } =
+      dateComponentDimensions(dateDimensionProperties);
+    editorRenderer?.previewComponentTransform(resizedDateComponent.id, {
+      x: dateCenterX - nextDateWidth / 2,
+      y: dateCenterY - nextDateHeight / 2,
+      width: nextDateWidth,
+      height: nextDateHeight
+    });
+  }
+  on(dateInspectorFormElement, "input", function onDateInspectorFormInput(dateInputEvent) {
+    const dateInspectorComponent = selectedComponent();
+    if (!dateInspectorComponent || dateInspectorComponent.type !== "date") {
+      return;
+    }
+    const dateInputElement = dateInputEvent.target;
+    const dateColorKey = dateColorPropertyByElement.get(dateInputElement);
+    if (dateColorKey) {
+      editorRenderer?.previewComponentProperties(dateInspectorComponent.id, {
+        [dateColorKey]: dateInputElement.value
+      });
+      return;
+    }
+    const dateConfig = datePropertyConfigsByElement.get(dateInputElement);
+    if (dateConfig) {
+      if (
+        String(dateInputElement.value).trim() === "" ||
+        !Number.isFinite(Number(dateInputElement.value))
+      ) {
+        return;
+      }
+      const dateColorClampedValue =
+        clampNumber(Number(dateInputElement.value), dateConfig.minimum, dateConfig.maximum) /
+        dateConfig.divisor;
+      const dateColorPropertyPatch = {
+        ...(dateInspectorComponent.properties || {}),
+        [dateConfig.property]: dateColorClampedValue
+      };
+      editorRenderer?.previewComponentProperties(dateInspectorComponent.id, {
+        [dateConfig.property]: dateColorClampedValue
+      });
+      if (dateConfig.resizes) {
+        previewDateResize(dateInspectorComponent, dateColorPropertyPatch);
+      }
+      return;
+    }
+    if (
+      !dateTransformInputSet.has(dateInputElement) ||
+      String(dateInputElement.value).trim() === "" ||
+      !Number.isFinite(Number(dateInputElement.value))
+    ) {
+      return;
+    }
+    const dateTransformInputNumber = Number(dateInputElement.value);
+    const dateTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778);
+    const dateTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940);
+    const dateTransformComponentWidth = Number(dateInspectorComponent.position?.width || 100);
+    const dateTransformComponentHeight = Number(dateInspectorComponent.position?.height || 100);
+    if (dateInputElement === dateLeftInputElement) {
+      const dateLeftPercent = clampNumber(dateTransformInputNumber, 0, 100);
+      editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
+        x: (dateTransformCanvasWidth * dateLeftPercent) / 100 - dateTransformComponentWidth / 2
+      });
+    } else if (dateInputElement === dateTopInputElement) {
+      const dateTopPercent = clampNumber(dateTransformInputNumber, 0, 100);
+      editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
+        y: (dateTransformCanvasHeight * dateTopPercent) / 100 - dateTransformComponentHeight / 2
+      });
+    } else if (dateInputElement === dateScaleInputElement) {
+      const dateScalePercent = clampNumber(dateTransformInputNumber, 1, 500);
+      editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
+        scale: dateScalePercent / 100
+      });
+    } else if (dateInputElement === dateRotationInputElement) {
+      const dateRotationDegrees = clampNumber(dateTransformInputNumber, -360, 360);
+      editorRenderer?.previewComponentTransform(dateInspectorComponent.id, {
+        rotation: dateRotationDegrees
+      });
+    }
+  });
+  on(dateInspectorFormElement, "change", function onDateInspectorFormChange(dateChangeEvent) {
+    const dateChangeInputElement = dateChangeEvent.target;
+    const dateChangeComponentId = selectedComponentId;
+    if (!dateChangeComponentId) {
+      return;
+    }
+    const dateChangeColorProperty = dateColorPropertyByElement.get(dateChangeInputElement);
+    const dateChangePropertyConfig = datePropertyConfigsByElement.get(dateChangeInputElement);
+    if (
+      !!dateChangeColorProperty ||
+      !!dateChangePropertyConfig ||
+      !!dateTransformInputSet.has(dateChangeInputElement)
+    ) {
+      if (
+        (dateChangePropertyConfig || dateTransformInputSet.has(dateChangeInputElement)) &&
+        (String(dateChangeInputElement.value).trim() === "" ||
+          !Number.isFinite(Number(dateChangeInputElement.value)))
+      ) {
+        syncInspector();
+        return;
+      }
+      mutateDocument(dateChangeDraftDocument => {
+        const dateChangeComponent = findComponent(
+          dateChangeDraftDocument,
+          dateChangeComponentId
+        )?.component;
+        if (!dateChangeComponent || dateChangeComponent.type !== "date") {
+          return;
+        }
+        dateChangeComponent.properties = {
+          ...(dateChangeComponent.properties || {})
+        };
+        dateChangeComponent.position = {
+          ...(dateChangeComponent.position || {})
+        };
+        dateChangeComponent.style = {
+          ...(dateChangeComponent.style || {})
+        };
+        const dateChangeCanvasWidth = Number(dateChangeDraftDocument.canvas.width || 2778);
+        const dateChangeCanvasHeight = Number(dateChangeDraftDocument.canvas.height || 1940);
+        const dateChangeInputNumber = Number(dateChangeInputElement.value);
+        if (dateChangeColorProperty) {
+          dateChangeComponent.properties[dateChangeColorProperty] = dateChangeInputElement.value;
+        } else if (dateChangePropertyConfig) {
+          dateChangeComponent.properties[dateChangePropertyConfig.property] =
+            clampNumber(
+              dateChangeInputNumber,
+              dateChangePropertyConfig.minimum,
+              dateChangePropertyConfig.maximum
+            ) / dateChangePropertyConfig.divisor;
+          if (dateChangePropertyConfig.resizes) {
+            fitDateComponentToDimensions(dateChangeComponent, dateChangeComponent.properties);
+          }
+        } else if (dateChangeInputElement === dateLeftInputElement) {
+          dateChangeComponent.position.x =
+            (dateChangeCanvasWidth * clampNumber(dateChangeInputNumber, 0, 100)) / 100 -
+            Number(dateChangeComponent.position.width || 100) / 2;
+        } else if (dateChangeInputElement === dateTopInputElement) {
+          dateChangeComponent.position.y =
+            (dateChangeCanvasHeight * clampNumber(dateChangeInputNumber, 0, 100)) / 100 -
+            Number(dateChangeComponent.position.height || 100) / 2;
+        } else if (dateChangeInputElement === dateScaleInputElement) {
+          dateChangeComponent.style.scale = clampNumber(dateChangeInputNumber, 1, 500) / 100;
+        } else if (dateChangeInputElement === dateRotationInputElement) {
+          setComponentsRotation(
+            dateChangeDraftDocument,
+            dateChangeComponentId,
+            clampNumber(dateChangeInputNumber, -360, 360)
+          );
+        }
+      });
+    }
+  });
+  for (const dateVisibilityElement of [dateWeekdayElement, dateLunarElement]) {
+    on(dateVisibilityElement, "click", function onDateVisibilityClick(dateVisibilityEvent) {
+      const dateVisibilityComponentId = selectedComponentId;
+      const weekdayToggleElement = dateVisibilityEvent.target.closest("[data-date-weekday]");
+      const dateLunarToggleElement = dateVisibilityEvent.target.closest("[data-date-lunar]");
+      if (!!dateVisibilityComponentId && (!!weekdayToggleElement || !!dateLunarToggleElement)) {
+        mutateDocument(dateVisibilityDraftDocument => {
+          const dateVisibilityComponent = findComponent(
+            dateVisibilityDraftDocument,
+            dateVisibilityComponentId
+          )?.component;
+          if (!!dateVisibilityComponent && dateVisibilityComponent.type === "date") {
+            dateVisibilityComponent.properties = {
+              ...(dateVisibilityComponent.properties || {})
+            };
+            if (weekdayToggleElement) {
+              dateVisibilityComponent.properties.showWeekday =
+                weekdayToggleElement.dataset.dateWeekday === "on";
+            }
+            if (dateLunarToggleElement) {
+              dateVisibilityComponent.properties.showLunar =
+                dateLunarToggleElement.dataset.dateLunar === "on";
+            }
+            fitDateComponentToDimensions(dateVisibilityComponent, dateVisibilityComponent.properties);
+          }
+        });
+      }
+    });
+  }
+  const weatherColorPropertiesByElement = new Map([
+    [weatherTemperatureColorInputElement, "temperatureColor"],
+    [weatherSecondaryColorInputElement, "secondaryColor"]
+  ]);
+  const weatherPropertyConfigsByElement = new Map([
+    [
+      weatherIconSizeInputElement,
+      {
+        property: "iconSize",
+        minimum: 12,
+        maximum: 500,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      weatherIconGapInputElement,
+      {
+        property: "iconGap",
+        minimum: 0,
+        maximum: 300,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      weatherTemperatureSizeInputElement,
+      {
+        property: "temperatureSize",
+        minimum: 12,
+        maximum: 500,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      weatherTemperatureWeightInputElement,
+      {
+        property: "temperatureWeight",
+        minimum: 0,
+        maximum: 1,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      weatherTemperatureSpacingInputElement,
+      {
+        property: "temperatureSpacing",
+        minimum: -20,
+        maximum: 100,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      weatherSecondarySizeInputElement,
+      {
+        property: "secondarySize",
+        minimum: 10,
+        maximum: 500,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      weatherSecondaryWeightInputElement,
+      {
+        property: "secondaryWeight",
+        minimum: 0,
+        maximum: 1,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      weatherSecondarySpacingInputElement,
+      {
+        property: "secondarySpacing",
+        minimum: -20,
+        maximum: 100,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      weatherLineGapInputElement,
+      {
+        property: "lineGap",
+        minimum: 0,
+        maximum: 200,
+        divisor: 1,
+        resizes: true
+      }
+    ],
+    [
+      weatherOpacityInputElement,
+      {
+        property: "opacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100,
+        resizes: false
+      }
+    ]
+  ]);
+  const weatherTransformInputSet = new Set([
+    weatherLeftInputElement,
+    weatherTopInputElement,
+    weatherScaleInputElement,
+    weatherRotationInputElement
+  ]);
+  /**
+   * 天气组件尺寸预览：按新属性算出目标宽高，以中心为锚点反推新的左上角坐标，仅通知渲染器做临时变换，最终值仍由 change 里的 mutateDocument 落盘。
+   */
+  function previewWeatherComponentResize(weatherResizeComponent, weatherResizeProperties) {
+    const weatherResizeWidth = Number(weatherResizeComponent.position?.width || 100);
+    const weatherResizeHeight = Number(weatherResizeComponent.position?.height || 100);
+    const weatherResizeCenterX =
+      Number(weatherResizeComponent.position?.x || 0) + weatherResizeWidth / 2;
+    const weatherResizeCenterY =
+      Number(weatherResizeComponent.position?.y || 0) + weatherResizeHeight / 2;
+    const { width: weatherResizeTargetWidth, height: weatherResizeTargetHeight } =
+      weatherComponentDimensions(weatherResizeProperties);
+    editorRenderer?.previewComponentTransform(weatherResizeComponent.id, {
+      x: weatherResizeCenterX - weatherResizeTargetWidth / 2,
+      y: weatherResizeCenterY - weatherResizeTargetHeight / 2,
+      width: weatherResizeTargetWidth,
+      height: weatherResizeTargetHeight
+    });
+  }
+  on(weatherInspectorFormElement, "input", function onWeatherInspectorFormInput(weatherInputEvent) {
+    const weatherInputComponent = selectedComponent();
+    if (!weatherInputComponent || weatherInputComponent.type !== "weather") {
+      return;
+    }
+    const weatherInputElement = weatherInputEvent.target;
+    const weatherInputColorProperty = weatherColorPropertiesByElement.get(weatherInputElement);
+    if (weatherInputColorProperty) {
+      editorRenderer?.previewComponentProperties(weatherInputComponent.id, {
+        [weatherInputColorProperty]: weatherInputElement.value
+      });
+      return;
+    }
+    const weatherInputPropertyConfig = weatherPropertyConfigsByElement.get(weatherInputElement);
+    if (weatherInputPropertyConfig) {
+      if (
+        String(weatherInputElement.value).trim() === "" ||
+        !Number.isFinite(Number(weatherInputElement.value))
+      ) {
+        return;
+      }
+      const weatherInputPropertyValue =
+        clampNumber(
+          Number(weatherInputElement.value),
+          weatherInputPropertyConfig.minimum,
+          weatherInputPropertyConfig.maximum
+        ) / weatherInputPropertyConfig.divisor;
+      const weatherResizePropertiesPatch = {
+        ...(weatherInputComponent.properties || {}),
+        [weatherInputPropertyConfig.property]: weatherInputPropertyValue
+      };
+      editorRenderer?.previewComponentProperties(weatherInputComponent.id, {
+        [weatherInputPropertyConfig.property]: weatherInputPropertyValue
+      });
+      if (weatherInputPropertyConfig.resizes) {
+        previewWeatherComponentResize(weatherInputComponent, weatherResizePropertiesPatch);
+      }
+      return;
+    }
+    if (
+      !weatherTransformInputSet.has(weatherInputElement) ||
+      String(weatherInputElement.value).trim() === "" ||
+      !Number.isFinite(Number(weatherInputElement.value))
+    ) {
+      return;
+    }
+    const weatherTransformInputNumber = Number(weatherInputElement.value);
+    const weatherTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778);
+    const weatherTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940);
+    const weatherTransformComponentWidth = Number(weatherInputComponent.position?.width || 100);
+    const weatherTransformComponentHeight = Number(weatherInputComponent.position?.height || 100);
+    if (weatherInputElement === weatherLeftInputElement) {
+      const weatherLeftPercent = clampNumber(weatherTransformInputNumber, 0, 100);
+      editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
+        x:
+          (weatherTransformCanvasWidth * weatherLeftPercent) / 100 -
+          weatherTransformComponentWidth / 2
+      });
+    } else if (weatherInputElement === weatherTopInputElement) {
+      const weatherTopPercent = clampNumber(weatherTransformInputNumber, 0, 100);
+      editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
+        y:
+          (weatherTransformCanvasHeight * weatherTopPercent) / 100 -
+          weatherTransformComponentHeight / 2
+      });
+    } else if (weatherInputElement === weatherScaleInputElement) {
+      const weatherScalePercent = clampNumber(weatherTransformInputNumber, 1, 500);
+      editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
+        scale: weatherScalePercent / 100
+      });
+    } else if (weatherInputElement === weatherRotationInputElement) {
+      const weatherRotationDegrees = clampNumber(weatherTransformInputNumber, -360, 360);
+      editorRenderer?.previewComponentTransform(weatherInputComponent.id, {
+        rotation: weatherRotationDegrees
+      });
+    }
+  });
+  on(weatherInspectorFormElement, "change", function onWeatherInspectorFormChange(weatherChangeEvent) {
+    const weatherChangeInputElement = weatherChangeEvent.target;
+    const weatherChangeComponentId = selectedComponentId;
+    if (!weatherChangeComponentId) {
+      return;
+    }
+    const weatherChangeColorProperty = weatherColorPropertiesByElement.get(weatherChangeInputElement);
+    const weatherChangePropertyConfig =
+      weatherPropertyConfigsByElement.get(weatherChangeInputElement);
+    if (
+      !!weatherChangeColorProperty ||
+      !!weatherChangePropertyConfig ||
+      !!weatherTransformInputSet.has(weatherChangeInputElement)
+    ) {
+      if (
+        (weatherChangePropertyConfig || weatherTransformInputSet.has(weatherChangeInputElement)) &&
+        (String(weatherChangeInputElement.value).trim() === "" ||
+          !Number.isFinite(Number(weatherChangeInputElement.value)))
+      ) {
+        syncInspector();
+        return;
+      }
+      mutateDocument(weatherChangeDraftDocument => {
+        const weatherChangeComponent = findComponent(
+          weatherChangeDraftDocument,
+          weatherChangeComponentId
+        )?.component;
+        if (!weatherChangeComponent || weatherChangeComponent.type !== "weather") {
+          return;
+        }
+        weatherChangeComponent.properties = {
+          ...(weatherChangeComponent.properties || {})
+        };
+        weatherChangeComponent.position = {
+          ...(weatherChangeComponent.position || {})
+        };
+        weatherChangeComponent.style = {
+          ...(weatherChangeComponent.style || {})
+        };
+        const weatherChangeCanvasWidth = Number(weatherChangeDraftDocument.canvas.width || 2778);
+        const weatherChangeCanvasHeight = Number(weatherChangeDraftDocument.canvas.height || 1940);
+        const weatherChangeInputNumber = Number(weatherChangeInputElement.value);
+        if (weatherChangeColorProperty) {
+          weatherChangeComponent.properties[weatherChangeColorProperty] =
+            weatherChangeInputElement.value;
+        } else if (weatherChangePropertyConfig) {
+          weatherChangeComponent.properties[weatherChangePropertyConfig.property] =
+            clampNumber(
+              weatherChangeInputNumber,
+              weatherChangePropertyConfig.minimum,
+              weatherChangePropertyConfig.maximum
+            ) / weatherChangePropertyConfig.divisor;
+          if (weatherChangePropertyConfig.resizes) {
+            fitWeatherComponentToDimensions(
+              weatherChangeComponent,
+              weatherChangeComponent.properties
+            );
+          }
+        } else if (weatherChangeInputElement === weatherLeftInputElement) {
+          weatherChangeComponent.position.x =
+            (weatherChangeCanvasWidth * clampNumber(weatherChangeInputNumber, 0, 100)) / 100 -
+            Number(weatherChangeComponent.position.width || 100) / 2;
+        } else if (weatherChangeInputElement === weatherTopInputElement) {
+          weatherChangeComponent.position.y =
+            (weatherChangeCanvasHeight * clampNumber(weatherChangeInputNumber, 0, 100)) / 100 -
+            Number(weatherChangeComponent.position.height || 100) / 2;
+        } else if (weatherChangeInputElement === weatherScaleInputElement) {
+          weatherChangeComponent.style.scale = clampNumber(weatherChangeInputNumber, 1, 500) / 100;
+        } else if (weatherChangeInputElement === weatherRotationInputElement) {
+          setComponentsRotation(
+            weatherChangeDraftDocument,
+            weatherChangeComponentId,
+            clampNumber(weatherChangeInputNumber, -360, 360)
+          );
+        }
+      });
+    }
+  });
+  for (const weatherVisibilityElement of [
+    weatherIconVisibleElement,
+    weatherTemperatureVisibleElement,
+    weatherConditionVisibleElement,
+    weatherHumidityVisibleElement
+  ]) {
+    on(weatherVisibilityElement, "click", function onWeatherVisibilityClick(weatherVisibilityEvent) {
+      const weatherVisibilityComponentId = selectedComponentId;
+      const weatherVisibilityButtonElement = weatherVisibilityEvent.target.closest("button");
+      if (!weatherVisibilityComponentId || !weatherVisibilityButtonElement) {
+        return;
+      }
+      const weatherVisibilityEntry = [
+        ["weatherIconVisible", "iconVisible"],
+        ["weatherTemperatureVisible", "temperatureVisible"],
+        ["weatherConditionVisible", "conditionVisible"],
+        ["weatherHumidityVisible", "humidityVisible"]
+      ].find(
+        ([weatherVisibilityDatasetKey]) =>
+          weatherVisibilityButtonElement.dataset[weatherVisibilityDatasetKey] !== undefined
+      );
+      if (!weatherVisibilityEntry) {
+        return;
+      }
+      const [weatherVisibilityDatasetKeyName, weatherVisibilityPropertyName] = weatherVisibilityEntry;
+      mutateDocument(weatherVisibilityDraftDocument => {
+        const weatherVisibilityComponent = findComponent(
+          weatherVisibilityDraftDocument,
+          weatherVisibilityComponentId
+        )?.component;
+        if (!!weatherVisibilityComponent && weatherVisibilityComponent.type === "weather") {
+          weatherVisibilityComponent.properties = {
+            ...(weatherVisibilityComponent.properties || {}),
+            [weatherVisibilityPropertyName]:
+              weatherVisibilityButtonElement.dataset[weatherVisibilityDatasetKeyName] === "on"
+          };
+          fitWeatherComponentToDimensions(
+            weatherVisibilityComponent,
+            weatherVisibilityComponent.properties
+          );
+        }
+      });
+    });
+  }
+  const lineChartColorPropertiesByElement = new Map([
+    [lineChartValueColorInputElement, "valueColor"],
+    [lineChartStatePrecisionSelectElement, "statePrecision"],
+    [lineChartThresholdModeSelectElement, "thresholdMode"]
+  ]);
+  const lineChartPropertyConfigsByElement = new Map([
+    [
+      lineChartValueScaleInputElement,
+      {
+        property: "valueScale",
+        minimum: 10,
+        maximum: 500,
+        divisor: 1
+      }
+    ],
+    [
+      lineChartValueOffsetXInputElement,
+      {
+        property: "valueOffsetX",
+        minimum: -100,
+        maximum: 100,
+        divisor: 1
+      }
+    ],
+    [
+      lineChartValueOffsetYInputElement,
+      {
+        property: "valueOffsetY",
+        minimum: -100,
+        maximum: 100,
+        divisor: 1
+      }
+    ],
+    [
+      lineChartUpdateIntervalInputElement,
+      {
+        property: "updateInterval",
+        minimum: 30,
+        maximum: 86400,
+        divisor: 1
+      }
+    ],
+    [
+      lineChartHoursInputElement,
+      {
+        property: "hours",
+        minimum: 1,
+        maximum: 168,
+        divisor: 1
+      }
+    ],
+    [
+      lineChartCurveRadiusInputElement,
+      {
+        property: "cornerRadius",
+        minimum: 0,
+        maximum: 50,
+        divisor: 1
+      }
+    ]
+  ]);
+  const lineChartTransformInputSet = new Set([
+    lineChartLeftInputElement,
+    lineChartTopInputElement,
+    lineChartWidthInputElement,
+    lineChartHeightInputElement,
+    lineChartScaleInputElement,
+    lineChartRotationInputElement
+  ]);
+  on(lineChartInspectorFormElement, "input", function onLineChartInspectorFormInput(lineChartInputEvent) {
+    const lineChartInputComponent = selectedComponent();
+    if (!lineChartInputComponent || lineChartInputComponent.type !== "line-chart") {
+      return;
+    }
+    const lineChartInputElement = lineChartInputEvent.target;
+    const lineChartInputColorProperty = lineChartColorPropertiesByElement.get(lineChartInputElement);
+    const lineChartInputPropertyConfig = lineChartPropertyConfigsByElement.get(lineChartInputElement);
+    if (lineChartInputColorProperty) {
+      editorRenderer?.previewComponentProperties(lineChartInputComponent.id, {
+        [lineChartInputColorProperty]: lineChartInputElement.value
+      });
+      return;
+    }
+    if (lineChartInputPropertyConfig) {
+      if (
+        String(lineChartInputElement.value).trim() === "" ||
+        !Number.isFinite(Number(lineChartInputElement.value))
+      ) {
+        return;
+      }
+      const lineChartInputPropertyValue = clampNumber(
+        Number(lineChartInputElement.value),
+        lineChartInputPropertyConfig.minimum,
+        lineChartInputPropertyConfig.maximum
+      );
+      if (!["updateInterval", "hours"].includes(lineChartInputPropertyConfig.property)) {
+        editorRenderer?.previewComponentProperties(lineChartInputComponent.id, {
+          [lineChartInputPropertyConfig.property]:
+            lineChartInputPropertyValue / lineChartInputPropertyConfig.divisor
+        });
+      }
+      return;
+    }
+    if (
+      lineChartThresholdInputs.findIndex(
+        lineChartThresholdProbeItem =>
+          lineChartThresholdProbeItem.value === lineChartInputElement ||
+          lineChartThresholdProbeItem.color === lineChartInputElement
+      ) >= 0
+    ) {
+      const lineChartThresholdValues = lineChartThresholdInputs.map(lineChartThresholdSourceItem => ({
+        value: Number(lineChartThresholdSourceItem.value.value),
+        color: lineChartThresholdSourceItem.color.value
+      }));
+      if (
+        lineChartThresholdValues.every(lineChartThresholdValueItem =>
+          Number.isFinite(lineChartThresholdValueItem.value)
+        )
+      ) {
+        editorRenderer?.previewComponentProperties(lineChartInputComponent.id, {
+          thresholdMode: "manual",
+          thresholds: lineChartThresholdValues
+        });
+      }
+      return;
+    }
+    if (
+      !lineChartTransformInputSet.has(lineChartInputElement) ||
+      String(lineChartInputElement.value).trim() === "" ||
+      !Number.isFinite(Number(lineChartInputElement.value))
+    ) {
+      return;
+    }
+    const lineChartTransformInputNumber = Number(lineChartInputElement.value);
+    const lineChartTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778);
+    const lineChartTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940);
+    const lineChartTransformComponentWidth = Number(lineChartInputComponent.position?.width || 100);
+    const lineChartTransformComponentHeight = Number(lineChartInputComponent.position?.height || 100);
+    const lineChartTransformCenterX =
+      Number(lineChartInputComponent.position?.x || 0) + lineChartTransformComponentWidth / 2;
+    const lineChartTransformCenterY =
+      Number(lineChartInputComponent.position?.y || 0) + lineChartTransformComponentHeight / 2;
+    if (lineChartInputElement === lineChartLeftInputElement) {
+      editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
+        x:
+          (lineChartTransformCanvasWidth * clampNumber(lineChartTransformInputNumber, 0, 100)) / 100 -
+          lineChartTransformComponentWidth / 2
+      });
+    } else if (lineChartInputElement === lineChartTopInputElement) {
+      editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
+        y:
+          (lineChartTransformCanvasHeight * clampNumber(lineChartTransformInputNumber, 0, 100)) /
+            100 -
+          lineChartTransformComponentHeight / 2
+      });
+    } else if (lineChartInputElement === lineChartWidthInputElement) {
+      const lineChartTransformWidthPx =
+        (lineChartTransformCanvasWidth * clampNumber(lineChartTransformInputNumber, 0.1, 100)) / 100;
+      editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
+        x: lineChartTransformCenterX - lineChartTransformWidthPx / 2,
+        width: lineChartTransformWidthPx
+      });
+    } else if (lineChartInputElement === lineChartHeightInputElement) {
+      const lineChartTransformHeightPx =
+        (lineChartTransformCanvasHeight * clampNumber(lineChartTransformInputNumber, 0.1, 100)) / 100;
+      editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
+        y: lineChartTransformCenterY - lineChartTransformHeightPx / 2,
+        height: lineChartTransformHeightPx
+      });
+    } else if (lineChartInputElement === lineChartScaleInputElement) {
+      editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
+        scale: clampNumber(lineChartTransformInputNumber, 1, 500) / 100
+      });
+    } else if (lineChartInputElement === lineChartRotationInputElement) {
+      editorRenderer?.previewComponentTransform(lineChartInputComponent.id, {
+        rotation: clampNumber(lineChartTransformInputNumber, -360, 360)
+      });
+    }
+  });
+  on(lineChartInspectorFormElement, "change", function onLineChartInspectorFormChange(lineChartChangeEvent) {
+    const lineChartChangeInputElement = lineChartChangeEvent.target;
+    const lineChartChangeComponentId = selectedComponentId;
+    if (!lineChartChangeComponentId) {
+      return;
+    }
+    const lineChartChangeColorProperty = lineChartColorPropertiesByElement.get(
+      lineChartChangeInputElement
+    );
+    const lineChartChangePropertyConfig = lineChartPropertyConfigsByElement.get(
+      lineChartChangeInputElement
+    );
+    const lineChartChangeThresholdIndex = lineChartThresholdInputs.findIndex(
+      lineChartThresholdProbeEntry =>
+        lineChartThresholdProbeEntry.value === lineChartChangeInputElement ||
+        lineChartThresholdProbeEntry.color === lineChartChangeInputElement
+    );
+    if (
+      !!lineChartChangeColorProperty ||
+      !!lineChartChangePropertyConfig ||
+      !(lineChartChangeThresholdIndex < 0) ||
+      !!lineChartTransformInputSet.has(lineChartChangeInputElement)
+    ) {
+      if (
+        (lineChartChangePropertyConfig ||
+          lineChartTransformInputSet.has(lineChartChangeInputElement) ||
+          (lineChartChangeThresholdIndex >= 0 && lineChartChangeInputElement.type === "number")) &&
+        (String(lineChartChangeInputElement.value).trim() === "" ||
+          !Number.isFinite(Number(lineChartChangeInputElement.value)))
+      ) {
+        syncInspector();
+        return;
+      }
+      mutateDocument(lineChartChangeDraftDocument => {
+        const lineChartChangeComponent = findComponent(
+          lineChartChangeDraftDocument,
+          lineChartChangeComponentId
+        )?.component;
+        if (!lineChartChangeComponent || lineChartChangeComponent.type !== "line-chart") {
+          return;
+        }
+        lineChartChangeComponent.properties = {
+          ...(lineChartChangeComponent.properties || {})
+        };
+        lineChartChangeComponent.position = {
+          ...(lineChartChangeComponent.position || {})
+        };
+        lineChartChangeComponent.style = {
+          ...(lineChartChangeComponent.style || {})
+        };
+        const lineChartChangeCanvasWidth = Number(lineChartChangeDraftDocument.canvas.width || 2778);
+        const lineChartChangeCanvasHeight = Number(
+          lineChartChangeDraftDocument.canvas.height || 1940
+        );
+        const lineChartChangeComponentWidth = Number(lineChartChangeComponent.position.width || 100);
+        const lineChartChangeComponentHeight = Number(
+          lineChartChangeComponent.position.height || 100
+        );
+        const lineChartChangeCenterX =
+          Number(lineChartChangeComponent.position.x || 0) + lineChartChangeComponentWidth / 2;
+        const lineChartChangeCenterY =
+          Number(lineChartChangeComponent.position.y || 0) + lineChartChangeComponentHeight / 2;
+        const lineChartChangeInputNumber = Number(lineChartChangeInputElement.value);
+        if (lineChartChangeColorProperty) {
+          lineChartChangeComponent.properties[lineChartChangeColorProperty] =
+            lineChartChangeInputElement.value;
+          if (
+            lineChartChangeInputElement === lineChartThresholdModeSelectElement &&
+            lineChartChangeInputElement.value === "manual" &&
+            (!Array.isArray(lineChartChangeComponent.properties.thresholds) ||
+              !lineChartChangeComponent.properties.thresholds.some(lineChartThresholdValueProbe =>
+                Number.isFinite(Number(lineChartThresholdValueProbe?.value))
+              ))
+          ) {
+            lineChartChangeComponent.properties.thresholds = lineChartThresholdInputs.map(
+              lineChartThresholdSourceEntry => ({
+                value: Number(lineChartThresholdSourceEntry.value.value),
+                color: lineChartThresholdSourceEntry.color.value
+              })
+            );
+          }
+        } else if (lineChartChangePropertyConfig) {
+          lineChartChangeComponent.properties[lineChartChangePropertyConfig.property] =
+            clampNumber(
+              lineChartChangeInputNumber,
+              lineChartChangePropertyConfig.minimum,
+              lineChartChangePropertyConfig.maximum
+            ) / lineChartChangePropertyConfig.divisor;
+        } else if (lineChartChangeThresholdIndex >= 0) {
+          lineChartChangeComponent.properties.thresholdMode = "manual";
+          lineChartChangeComponent.properties.thresholds = lineChartThresholdInputs.map(
+            lineChartThresholdSourceRecord => ({
+              value: Number(lineChartThresholdSourceRecord.value.value),
+              color: lineChartThresholdSourceRecord.color.value
+            })
+          );
+        } else if (lineChartChangeInputElement === lineChartLeftInputElement) {
+          lineChartChangeComponent.position.x =
+            (lineChartChangeCanvasWidth * clampNumber(lineChartChangeInputNumber, 0, 100)) / 100 -
+            lineChartChangeComponentWidth / 2;
+        } else if (lineChartChangeInputElement === lineChartTopInputElement) {
+          lineChartChangeComponent.position.y =
+            (lineChartChangeCanvasHeight * clampNumber(lineChartChangeInputNumber, 0, 100)) / 100 -
+            lineChartChangeComponentHeight / 2;
+        } else if (lineChartChangeInputElement === lineChartWidthInputElement) {
+          lineChartChangeComponent.position.width =
+            (lineChartChangeCanvasWidth * clampNumber(lineChartChangeInputNumber, 0.1, 100)) / 100;
+          lineChartChangeComponent.position.x =
+            lineChartChangeCenterX - lineChartChangeComponent.position.width / 2;
+        } else if (lineChartChangeInputElement === lineChartHeightInputElement) {
+          lineChartChangeComponent.position.height =
+            (lineChartChangeCanvasHeight * clampNumber(lineChartChangeInputNumber, 0.1, 100)) / 100;
+          lineChartChangeComponent.position.y =
+            lineChartChangeCenterY - lineChartChangeComponent.position.height / 2;
+        } else if (lineChartChangeInputElement === lineChartScaleInputElement) {
+          lineChartChangeComponent.style.scale =
+            clampNumber(lineChartChangeInputNumber, 1, 500) / 100;
+        } else if (lineChartChangeInputElement === lineChartRotationInputElement) {
+          setComponentsRotation(
+            lineChartChangeDraftDocument,
+            lineChartChangeComponentId,
+            clampNumber(lineChartChangeInputNumber, -360, 360)
+          );
+        }
+      });
+    }
+  });
+  on(lineChartValueVisibleElement, "click", function onLineChartValueVisibleClick(lineChartValueVisibleEvent) {
+    const lineChartValueVisibleButtonElement = lineChartValueVisibleEvent.target.closest(
+      "[data-line-chart-value-visible]"
+    );
+    const lineChartValueVisibleComponentId = selectedComponentId;
+    if (!!lineChartValueVisibleButtonElement && !!lineChartValueVisibleComponentId) {
+      mutateDocument(lineChartValueVisibleDraftDocument => {
+        const lineChartValueVisibleComponent = findComponent(
+          lineChartValueVisibleDraftDocument,
+          lineChartValueVisibleComponentId
+        )?.component;
+        if (
+          !!lineChartValueVisibleComponent &&
+          lineChartValueVisibleComponent.type === "line-chart"
+        ) {
+          lineChartValueVisibleComponent.properties = {
+            ...(lineChartValueVisibleComponent.properties || {}),
+            valueVisible: lineChartValueVisibleButtonElement.dataset.lineChartValueVisible === "on"
+          };
+        }
+      });
+    }
+  });
+  const panelFrameColorPropertiesByElement = new Map([
+    [panelFrameMainColorInputElement, "mainColor"],
+    [panelFrameSecondaryColorInputElement, "secondaryColor"],
+    [panelFrameEdgeColorInputElement, "edgeColor"],
+    [panelFrameGlowColorInputElement, "glowColor"]
+  ]);
+  const panelFramePropertyConfigsByElement = new Map([
+    [
+      panelFrameMainSizeInputElement,
+      {
+        property: "mainSize",
+        minimum: 8,
+        maximum: 500,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameMainWeightInputElement,
+      {
+        property: "mainWeight",
+        minimum: 0,
+        maximum: 3,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameMainOpacityInputElement,
+      {
+        property: "mainOpacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100
+      }
+    ],
+    [
+      panelFrameMainSpacingInputElement,
+      {
+        property: "mainSpacing",
+        minimum: -20,
+        maximum: 100,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameMainLeftInputElement,
+      {
+        property: "mainTextLeft",
+        minimum: -100,
+        maximum: 200,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameMainTopInputElement,
+      {
+        property: "mainTextTop",
+        minimum: -100,
+        maximum: 200,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameSecondarySizeInputElement,
+      {
+        property: "secondarySize",
+        minimum: 6,
+        maximum: 500,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameSecondaryWeightInputElement,
+      {
+        property: "secondaryWeight",
+        minimum: 0,
+        maximum: 3,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameSecondaryOpacityInputElement,
+      {
+        property: "secondaryOpacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100
+      }
+    ],
+    [
+      panelFrameSecondarySpacingInputElement,
+      {
+        property: "secondarySpacing",
+        minimum: -20,
+        maximum: 100,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameSecondaryLeftInputElement,
+      {
+        property: "secondaryTextLeft",
+        minimum: -100,
+        maximum: 200,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameSecondaryTopInputElement,
+      {
+        property: "secondaryTextTop",
+        minimum: -100,
+        maximum: 200,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameEdgeWidthInputElement,
+      {
+        property: "edgeWidth",
+        minimum: 0,
+        maximum: 20,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameEdgeOpacityInputElement,
+      {
+        property: "edgeOpacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100
+      }
+    ],
+    [
+      panelFrameRadiusInputElement,
+      {
+        property: "radius",
+        minimum: 0,
+        maximum: 50,
+        divisor: 100
+      }
+    ],
+    [
+      panelFrameEdgeAngleInputElement,
+      {
+        property: "edgeAngle",
+        minimum: 0,
+        maximum: 360,
+        divisor: 1
+      }
+    ],
+    [
+      panelFrameGlowStrengthInputElement,
+      {
+        property: "glowStrength",
+        minimum: 0,
+        maximum: 500,
+        divisor: 100
+      }
+    ],
+    [
+      panelFrameGlowSizeInputElement,
+      {
+        property: "glowSize",
+        minimum: 0,
+        maximum: 300,
+        divisor: 100
+      }
+    ],
+    [
+      panelFrameGlowAngleInputElement,
+      {
+        property: "glowAngle",
+        minimum: 0,
+        maximum: 360,
+        divisor: 1
+      }
+    ]
+  ]);
+  const panelFrameTransformInputSet = new Set([
+    panelFrameLeftInputElement,
+    panelFrameTopInputElement,
+    panelFrameWidthInputElement,
+    panelFrameHeightInputElement,
+    panelFrameScaleInputElement,
+    panelFrameRotationInputElement
+  ]);
+  on(panelFrameInspectorFormElement, "input", function onPanelFrameInspectorFormInput(panelFrameInputEvent) {
+    const panelFrameInputComponent = selectedComponent();
+    if (!panelFrameInputComponent || panelFrameInputComponent.type !== "panel-frame") {
+      return;
+    }
+    const panelFrameInputElement = panelFrameInputEvent.target;
+    const panelFrameInputColorProperty =
+      panelFrameColorPropertiesByElement.get(panelFrameInputElement);
+    const panelFrameInputPropertyConfig =
+      panelFramePropertyConfigsByElement.get(panelFrameInputElement);
+    if (panelFrameInputColorProperty) {
+      editorRenderer?.previewComponentProperties(panelFrameInputComponent.id, {
+        [panelFrameInputColorProperty]: panelFrameInputElement.value
+      });
+      return;
+    }
+    if (panelFrameInputPropertyConfig) {
+      if (
+        String(panelFrameInputElement.value).trim() === "" ||
+        !Number.isFinite(Number(panelFrameInputElement.value))
+      ) {
+        return;
+      }
+      const panelFrameInputPropertyValue = clampNumber(
+        Number(panelFrameInputElement.value),
+        panelFrameInputPropertyConfig.minimum,
+        panelFrameInputPropertyConfig.maximum
+      );
+      editorRenderer?.previewComponentProperties(panelFrameInputComponent.id, {
+        [panelFrameInputPropertyConfig.property]:
+          panelFrameInputPropertyValue / panelFrameInputPropertyConfig.divisor
+      });
+      return;
+    }
+    if (
+      !panelFrameTransformInputSet.has(panelFrameInputElement) ||
+      String(panelFrameInputElement.value).trim() === "" ||
+      !Number.isFinite(Number(panelFrameInputElement.value))
+    ) {
+      return;
+    }
+    const panelFrameTransformInputNumber = Number(panelFrameInputElement.value);
+    const panelFrameTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778);
+    const panelFrameTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940);
+    const panelFrameTransformComponentWidth = Number(panelFrameInputComponent.position?.width || 100);
+    const panelFrameTransformComponentHeight = Number(
+      panelFrameInputComponent.position?.height || 100
+    );
+    const panelFrameTransformCenterX =
+      Number(panelFrameInputComponent.position?.x || 0) + panelFrameTransformComponentWidth / 2;
+    const panelFrameTransformCenterY =
+      Number(panelFrameInputComponent.position?.y || 0) + panelFrameTransformComponentHeight / 2;
+    if (panelFrameInputElement === panelFrameLeftInputElement) {
+      editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
+        x:
+          (panelFrameTransformCanvasWidth * clampNumber(panelFrameTransformInputNumber, 0, 100)) /
+            100 -
+          panelFrameTransformComponentWidth / 2
+      });
+    } else if (panelFrameInputElement === panelFrameTopInputElement) {
+      editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
+        y:
+          (panelFrameTransformCanvasHeight * clampNumber(panelFrameTransformInputNumber, 0, 100)) /
+            100 -
+          panelFrameTransformComponentHeight / 2
+      });
+    } else if (panelFrameInputElement === panelFrameWidthInputElement) {
+      const panelFrameTransformWidthPx =
+        (panelFrameTransformCanvasWidth * clampNumber(panelFrameTransformInputNumber, 0.1, 100)) /
+        100;
+      editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
+        x: panelFrameTransformCenterX - panelFrameTransformWidthPx / 2,
+        width: panelFrameTransformWidthPx
+      });
+    } else if (panelFrameInputElement === panelFrameHeightInputElement) {
+      const panelFrameTransformHeightPx =
+        (panelFrameTransformCanvasHeight * clampNumber(panelFrameTransformInputNumber, 0.1, 100)) /
+        100;
+      editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
+        y: panelFrameTransformCenterY - panelFrameTransformHeightPx / 2,
+        height: panelFrameTransformHeightPx
+      });
+    } else if (panelFrameInputElement === panelFrameScaleInputElement) {
+      editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
+        scale: clampNumber(panelFrameTransformInputNumber, 1, 500) / 100
+      });
+    } else if (panelFrameInputElement === panelFrameRotationInputElement) {
+      editorRenderer?.previewComponentTransform(panelFrameInputComponent.id, {
+        rotation: clampNumber(panelFrameTransformInputNumber, -360, 360)
+      });
+    }
+  });
+  on(panelFrameInspectorFormElement, "change", function onPanelFrameInspectorFormChange(panelFrameChangeEvent) {
+    const panelFrameChangeInputElement = panelFrameChangeEvent.target;
+    const panelFrameChangeComponentId = selectedComponentId;
+    if (!panelFrameChangeComponentId) {
+      return;
+    }
+    const panelFrameChangeColorProperty = panelFrameColorPropertiesByElement.get(
+      panelFrameChangeInputElement
+    );
+    const panelFrameChangePropertyConfig = panelFramePropertyConfigsByElement.get(
+      panelFrameChangeInputElement
+    );
+    if (
+      !!panelFrameChangeColorProperty ||
+      !!panelFrameChangePropertyConfig ||
+      !!panelFrameTransformInputSet.has(panelFrameChangeInputElement)
+    ) {
+      if (
+        (panelFrameChangePropertyConfig ||
+          panelFrameTransformInputSet.has(panelFrameChangeInputElement)) &&
+        (String(panelFrameChangeInputElement.value).trim() === "" ||
+          !Number.isFinite(Number(panelFrameChangeInputElement.value)))
+      ) {
+        syncInspector();
+        return;
+      }
+      mutateDocument(panelFrameChangeDraftDocument => {
+        const panelFrameChangeComponent = findComponent(
+          panelFrameChangeDraftDocument,
+          panelFrameChangeComponentId
+        )?.component;
+        if (!panelFrameChangeComponent || panelFrameChangeComponent.type !== "panel-frame") {
+          return;
+        }
+        panelFrameChangeComponent.properties = {
+          ...(panelFrameChangeComponent.properties || {})
+        };
+        panelFrameChangeComponent.position = {
+          ...(panelFrameChangeComponent.position || {})
+        };
+        panelFrameChangeComponent.style = {
+          ...(panelFrameChangeComponent.style || {})
+        };
+        const panelFrameChangeCanvasWidth = Number(
+          panelFrameChangeDraftDocument.canvas.width || 2778
+        );
+        const panelFrameChangeCanvasHeight = Number(
+          panelFrameChangeDraftDocument.canvas.height || 1940
+        );
+        const panelFrameChangeComponentWidth = Number(
+          panelFrameChangeComponent.position.width || 100
+        );
+        const panelFrameChangeComponentHeight = Number(
+          panelFrameChangeComponent.position.height || 100
+        );
+        const panelFrameChangeCenterX =
+          Number(panelFrameChangeComponent.position.x || 0) + panelFrameChangeComponentWidth / 2;
+        const panelFrameChangeCenterY =
+          Number(panelFrameChangeComponent.position.y || 0) + panelFrameChangeComponentHeight / 2;
+        const panelFrameChangeInputNumber = Number(panelFrameChangeInputElement.value);
+        if (panelFrameChangeColorProperty) {
+          panelFrameChangeComponent.properties[panelFrameChangeColorProperty] =
+            panelFrameChangeInputElement.value;
+        } else if (panelFrameChangePropertyConfig) {
+          panelFrameChangeComponent.properties[panelFrameChangePropertyConfig.property] =
+            clampNumber(
+              panelFrameChangeInputNumber,
+              panelFrameChangePropertyConfig.minimum,
+              panelFrameChangePropertyConfig.maximum
+            ) / panelFrameChangePropertyConfig.divisor;
+        } else if (panelFrameChangeInputElement === panelFrameLeftInputElement) {
+          panelFrameChangeComponent.position.x =
+            (panelFrameChangeCanvasWidth * clampNumber(panelFrameChangeInputNumber, 0, 100)) / 100 -
+            panelFrameChangeComponentWidth / 2;
+        } else if (panelFrameChangeInputElement === panelFrameTopInputElement) {
+          panelFrameChangeComponent.position.y =
+            (panelFrameChangeCanvasHeight * clampNumber(panelFrameChangeInputNumber, 0, 100)) / 100 -
+            panelFrameChangeComponentHeight / 2;
+        } else if (panelFrameChangeInputElement === panelFrameWidthInputElement) {
+          panelFrameChangeComponent.position.width =
+            (panelFrameChangeCanvasWidth * clampNumber(panelFrameChangeInputNumber, 0.1, 100)) / 100;
+          panelFrameChangeComponent.position.x =
+            panelFrameChangeCenterX - panelFrameChangeComponent.position.width / 2;
+        } else if (panelFrameChangeInputElement === panelFrameHeightInputElement) {
+          panelFrameChangeComponent.position.height =
+            (panelFrameChangeCanvasHeight * clampNumber(panelFrameChangeInputNumber, 0.1, 100)) / 100;
+          panelFrameChangeComponent.position.y =
+            panelFrameChangeCenterY - panelFrameChangeComponent.position.height / 2;
+        } else if (panelFrameChangeInputElement === panelFrameScaleInputElement) {
+          panelFrameChangeComponent.style.scale =
+            clampNumber(panelFrameChangeInputNumber, 1, 500) / 100;
+        } else if (panelFrameChangeInputElement === panelFrameRotationInputElement) {
+          setComponentsRotation(
+            panelFrameChangeDraftDocument,
+            panelFrameChangeComponentId,
+            clampNumber(panelFrameChangeInputNumber, -360, 360)
+          );
+        }
+      });
+    }
+  });
+  for (const [panelFrameVisibilityButton, panelFrameVisibilityProperty] of [
+    [panelFrameMainVisibleButtonElement, "mainTextVisible"],
+    [panelFrameSecondaryVisibleButtonElement, "secondaryTextVisible"],
+    [panelFrameEdgeVisibleButtonElement, "edgeVisible"],
+    [panelFrameGlowVisibleButtonElement, "glowVisible"]
+  ]) {
+    on(panelFrameVisibilityButton, "click", function onPanelFrameVisibilityButtonClick() {
+      const panelFrameVisibilityComponentId = selectedComponentId;
+      if (panelFrameVisibilityComponentId) {
+        mutateDocument(panelFrameVisibilityDraftDocument => {
+          const panelFrameVisibilityComponent = findComponent(
+            panelFrameVisibilityDraftDocument,
+            panelFrameVisibilityComponentId
+          )?.component;
+          if (
+            !!panelFrameVisibilityComponent &&
+            panelFrameVisibilityComponent.type === "panel-frame"
+          ) {
+            panelFrameVisibilityComponent.properties = {
+              ...(panelFrameVisibilityComponent.properties || {}),
+              [panelFrameVisibilityProperty]:
+                panelFrameVisibilityComponent.properties?.[panelFrameVisibilityProperty] === false
+            };
+          }
+        });
+      }
+    });
+  }
+  const navigationColorPropertiesByElement = new Map([
+    [navigationMainTextInputElement, "mainText"],
+    [navigationSecondaryTextInputElement, "secondaryText"],
+    [navigationMainColorInputElement, "mainColor"],
+    [navigationSecondaryColorInputElement, "secondaryColor"],
+    [navigationIconColorInputElement, "iconColor"],
+    [navigationFrameColorInputElement, "frameColor"],
+    [navigationGlowColorInputElement, "glowColor"]
+  ]);
+  const navigationPropertyConfigsByElement = new Map([
+    [
+      navigationMainSizeInputElement,
+      {
+        property: "mainSize",
+        minimum: 1,
+        maximum: 500,
+        divisor: 1
+      }
+    ],
+    [
+      navigationSecondarySizeInputElement,
+      {
+        property: "secondarySize",
+        minimum: 1,
+        maximum: 500,
+        divisor: 1
+      }
+    ],
+    [
+      navigationMainWeightInputElement,
+      {
+        property: "mainWeight",
+        minimum: 0,
+        maximum: 3,
+        divisor: 1
+      }
+    ],
+    [
+      navigationSecondaryWeightInputElement,
+      {
+        property: "secondaryWeight",
+        minimum: 0,
+        maximum: 3,
+        divisor: 1
+      }
+    ],
+    [
+      navigationMainSpacingInputElement,
+      {
+        property: "mainSpacing",
+        minimum: -20,
+        maximum: 100,
+        divisor: 1
+      }
+    ],
+    [
+      navigationSecondarySpacingInputElement,
+      {
+        property: "secondarySpacing",
+        minimum: -20,
+        maximum: 100,
+        divisor: 1
+      }
+    ],
+    [
+      navigationMainTextLeftInputElement,
+      {
+        property: "mainTextLeft",
+        minimum: -100,
+        maximum: 200,
+        divisor: 1
+      }
+    ],
+    [
+      navigationMainTextTopInputElement,
+      {
+        property: "mainTextTop",
+        minimum: -100,
+        maximum: 200,
+        divisor: 1
+      }
+    ],
+    [
+      navigationSecondaryTextLeftInputElement,
+      {
+        property: "secondaryTextLeft",
+        minimum: -100,
+        maximum: 200,
+        divisor: 1
+      }
+    ],
+    [
+      navigationSecondaryTextTopInputElement,
+      {
+        property: "secondaryTextTop",
+        minimum: -100,
+        maximum: 200,
+        divisor: 1
+      }
+    ],
+    [
+      navigationTextIdleOpacityInputElement,
+      {
+        property: "textIdleOpacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100
+      }
+    ],
+    [
+      navigationTextActiveOpacityInputElement,
+      {
+        property: "textActiveOpacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100
+      }
+    ],
+    [
+      navigationIconSizeInputElement,
+      {
+        property: "iconSize",
+        minimum: 1,
+        maximum: 500,
+        divisor: 1
+      }
+    ],
+    [
+      navigationIconLeftInputElement,
+      {
+        property: "iconLeft",
+        minimum: -100,
+        maximum: 200,
+        divisor: 1
+      }
+    ],
+    [
+      navigationIconTopInputElement,
+      {
+        property: "iconTop",
+        minimum: -100,
+        maximum: 200,
+        divisor: 1
+      }
+    ],
+    [
+      navigationIconIdleOpacityInputElement,
+      {
+        property: "iconIdleOpacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100
+      }
+    ],
+    [
+      navigationIconActiveOpacityInputElement,
+      {
+        property: "iconActiveOpacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100
+      }
+    ],
+    [
+      navigationFrameWidthInputElement,
+      {
+        property: "frameWidth",
+        minimum: 0,
+        maximum: 20,
+        divisor: 1
+      }
+    ],
+    [
+      navigationFrameIdleOpacityInputElement,
+      {
+        property: "frameIdleOpacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100
+      }
+    ],
+    [
+      navigationFrameActiveOpacityInputElement,
+      {
+        property: "frameActiveOpacity",
+        minimum: 0,
+        maximum: 100,
+        divisor: 100
+      }
+    ],
+    [
+      navigationRadiusInputElement,
+      {
+        property: "radius",
+        minimum: 0,
+        maximum: 50,
+        divisor: 100
+      }
+    ],
+    [
+      navigationFrameAngleInputElement,
+      {
+        property: "frameAngle",
+        minimum: 0,
+        maximum: 360,
+        divisor: 1
+      }
+    ],
+    [
+      navigationGlowAngleInputElement,
+      {
+        property: "glowAngle",
+        minimum: 0,
+        maximum: 360,
+        divisor: 1
+      }
+    ],
+    [
+      navigationGlowIdleStrengthInputElement,
+      {
+        property: "glowIdleStrength",
+        minimum: 0,
+        maximum: 500,
+        divisor: 100
+      }
+    ],
+    [
+      navigationGlowIdleSizeInputElement,
+      {
+        property: "glowIdleSize",
+        minimum: 0,
+        maximum: 300,
+        divisor: 100
+      }
+    ],
+    [
+      navigationGlowActiveStrengthInputElement,
+      {
+        property: "glowActiveStrength",
+        minimum: 0,
+        maximum: 500,
+        divisor: 100
+      }
+    ],
+    [
+      navigationGlowActiveSizeInputElement,
+      {
+        property: "glowActiveSize",
+        minimum: 0,
+        maximum: 300,
+        divisor: 100
+      }
+    ]
+  ]);
+  const navigationToggleStateByElement = new Map([
+    [navigationTextIdleOpacityInputElement, "off"],
+    [navigationIconIdleOpacityInputElement, "off"],
+    [navigationFrameIdleOpacityInputElement, "off"],
+    [navigationGlowIdleStrengthInputElement, "off"],
+    [navigationGlowIdleSizeInputElement, "off"],
+    [navigationTextActiveOpacityInputElement, "on"],
+    [navigationIconActiveOpacityInputElement, "on"],
+    [navigationFrameActiveOpacityInputElement, "on"],
+    [navigationGlowActiveStrengthInputElement, "on"],
+    [navigationGlowActiveSizeInputElement, "on"]
+  ]);
+  /**
+   * 把导航按钮检查器里的「预览状态」分段控件切到指定档位（on / off）。
+   *
+   * @param {string} navigationPreviewState 目标档位；传空值时不做任何切换。
+   */
+  function setNavigationPreviewState(navigationPreviewState) {
+    if (navigationPreviewState) {
+      for (const navigationPreviewButton of navigationPreviewStateElement.querySelectorAll(
+        "[data-navigation-preview]"
+      )) {
+        navigationPreviewButton.classList.toggle(
+          "active",
+          navigationPreviewButton.dataset.navigationPreview === navigationPreviewState
+        );
+      }
+    }
+  }
+  /**
+   * 应用导航按钮的预览状态：写入按组件 ID 索引的临时状态表并通知渲染器，若该组件正处于选中态则同步顶部按钮的 active 样式。
+   */
+  function applyNavigationPreviewState(navigationPreviewComponentId, navigationPreviewStateValue) {
+    if (!navigationPreviewComponentId) {
+      return;
+    }
+    const navigationNormalizedPreviewState = ["on", "off"].includes(navigationPreviewStateValue)
+      ? navigationPreviewStateValue
+      : "auto";
+    if (navigationNormalizedPreviewState === "auto") {
+      navigationPreviewStateByComponentId.delete(navigationPreviewComponentId);
+    } else {
+      navigationPreviewStateByComponentId.set(
+        navigationPreviewComponentId,
+        navigationNormalizedPreviewState
+      );
+    }
+    editorRenderer?.setComponentPreviewState(
+      navigationPreviewComponentId,
+      navigationNormalizedPreviewState
+    );
+    if (navigationPreviewComponentId === selectedComponentId) {
+      setNavigationPreviewState(navigationNormalizedPreviewState);
+    }
+  }
+  /**
+   * 从点击的分段控件反查它代表的预览档位，并把该档位应用到当前选中的导航按钮。
+   *
+   * @returns {?string} 应用的档位文案；元素无法识别或选中项不是导航按钮时返回 null。
+   */
+  function syncNavigationPreviewFromElement(navigationPreviewInputElement) {
+    const navigationToggleState = navigationToggleStateByElement.get(navigationPreviewInputElement);
+    const navigationPreviewComponent = selectedComponent();
+    if (!navigationToggleState || navigationPreviewComponent?.type !== "navigation-button") {
+      return null;
+    } else {
+      applyNavigationPreviewState(navigationPreviewComponent.id, navigationToggleState);
+      return navigationToggleState;
+    }
+  }
+  const navigationTransformInputSet = new Set([
+    navigationLeftInputElement,
+    navigationTopInputElement,
+    navigationWidthInputElement,
+    navigationHeightInputElement,
+    navigationScaleInputElement,
+    navigationRotationInputElement
+  ]);
+  /**
+   * 把导航按钮检查器的某个输入框映射到它负责的样式属性名：颜色/数值配置表优先，随后是宽高等几何输入；
+   * 返回空串表示该输入框不参与样式变更（调用方据此跳过）。
+   */
+  function navigationPropertyNameFromElement(navigationPropertyInputElement) {
+    const navigationColorPropertyName = navigationColorPropertiesByElement.get(
+      navigationPropertyInputElement
+    );
+    if (
+      navigationColorPropertyName &&
+      navigationStylePropertyDefinitions[navigationColorPropertyName]
+    ) {
+      return navigationColorPropertyName;
+    }
+    const navigationConfigPropertyName = navigationPropertyConfigsByElement.get(
+      navigationPropertyInputElement
+    )?.property;
+    if (
+      navigationConfigPropertyName &&
+      navigationStylePropertyDefinitions[navigationConfigPropertyName]
+    ) {
+      return navigationConfigPropertyName;
+    } else if (navigationPropertyInputElement === navigationWidthInputElement) {
+      return "width";
+    } else if (navigationPropertyInputElement === navigationHeightInputElement) {
+      return "height";
+    } else if (navigationPropertyInputElement === navigationScaleInputElement) {
+      return "scale";
+    } else if (navigationPropertyInputElement === navigationRotationInputElement) {
+      return "rotation";
+    } else {
+      return "";
+    }
+  }
+  on(navigationInspectorFormElement, "input", function onNavigationInspectorFormInput(navigationInputEvent) {
+    const navigationInputComponent = selectedComponent();
+    if (!navigationInputComponent || navigationInputComponent.type !== "navigation-button") {
+      return;
+    }
+    const navigationInputElement = navigationInputEvent.target;
+    const navigationInputColorProperty =
+      navigationColorPropertiesByElement.get(navigationInputElement);
+    if (navigationInputColorProperty) {
+      if (!textInputConfigsByElement.has(navigationInputElement)) {
+        editorRenderer?.previewComponentProperties(navigationInputComponent.id, {
+          [navigationInputColorProperty]: navigationInputElement.value
+        });
+      }
+      return;
+    }
+    const navigationInputPropertyConfig =
+      navigationPropertyConfigsByElement.get(navigationInputElement);
+    if (navigationInputPropertyConfig) {
+      if (
+        String(navigationInputElement.value).trim() === "" ||
+        !Number.isFinite(Number(navigationInputElement.value))
+      ) {
+        return;
+      }
+      const navigationInputPropertyValue = clampNumber(
+        Number(navigationInputElement.value),
+        navigationInputPropertyConfig.minimum,
+        navigationInputPropertyConfig.maximum
+      );
+      syncNavigationPreviewFromElement(navigationInputElement);
+      editorRenderer?.previewComponentProperties(navigationInputComponent.id, {
+        [navigationInputPropertyConfig.property]:
+          navigationInputPropertyValue / navigationInputPropertyConfig.divisor
+      });
+      return;
+    }
+    if (
+      !navigationTransformInputSet.has(navigationInputElement) ||
+      String(navigationInputElement.value).trim() === "" ||
+      !Number.isFinite(Number(navigationInputElement.value))
+    ) {
+      return;
+    }
+    const navigationTransformInputNumber = Number(navigationInputElement.value);
+    const navigationTransformCanvasWidth = Number(activeProject.document.canvas.width || 2778);
+    const navigationTransformCanvasHeight = Number(activeProject.document.canvas.height || 1940);
+    const navigationTransformComponentWidth = Number(navigationInputComponent.position?.width || 100);
+    const navigationTransformComponentHeight = Number(
+      navigationInputComponent.position?.height || 100
+    );
+    if (navigationInputElement === navigationLeftInputElement) {
+      const navigationLeftPercent = clampNumber(navigationTransformInputNumber, 0, 100);
+      editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
+        x:
+          (navigationTransformCanvasWidth * navigationLeftPercent) / 100 -
+          navigationTransformComponentWidth / 2
+      });
+    } else if (navigationInputElement === navigationTopInputElement) {
+      const navigationTopPercent = clampNumber(navigationTransformInputNumber, 0, 100);
+      editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
+        y:
+          (navigationTransformCanvasHeight * navigationTopPercent) / 100 -
+          navigationTransformComponentHeight / 2
+      });
+    } else if (navigationInputElement === navigationWidthInputElement) {
+      const navigationWidthPercent = clampNumber(navigationTransformInputNumber, 0.1, 100);
+      const navigationPreviewWidthPx =
+        (navigationTransformCanvasWidth * navigationWidthPercent) / 100;
+      const navigationCenterX =
+        Number(navigationInputComponent.position?.x || 0) + navigationTransformComponentWidth / 2;
+      editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
+        x: navigationCenterX - navigationPreviewWidthPx / 2,
+        width: navigationPreviewWidthPx
+      });
+    } else if (navigationInputElement === navigationHeightInputElement) {
+      const navigationHeightPercent = clampNumber(navigationTransformInputNumber, 0.1, 100);
+      const navigationPreviewHeightPx =
+        (navigationTransformCanvasHeight * navigationHeightPercent) / 100;
+      const navigationCenterY =
+        Number(navigationInputComponent.position?.y || 0) + navigationTransformComponentHeight / 2;
+      editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
+        y: navigationCenterY - navigationPreviewHeightPx / 2,
+        height: navigationPreviewHeightPx
+      });
+    } else if (navigationInputElement === navigationScaleInputElement) {
+      const navigationScalePercent = clampNumber(navigationTransformInputNumber, 1, 500);
+      editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
+        scale: navigationScalePercent / 100
+      });
+    } else if (navigationInputElement === navigationRotationInputElement) {
+      const navigationRotationDegrees = clampNumber(navigationTransformInputNumber, -360, 360);
+      editorRenderer?.previewComponentTransform(navigationInputComponent.id, {
+        rotation: navigationRotationDegrees
+      });
+    }
+  });
+  on(navigationInspectorFormElement, "focusin", function onNavigationInspectorFormFocusin(navigationFocusEvent) {
+    syncNavigationPreviewFromElement(navigationFocusEvent.target);
+  });
+  on(navigationInspectorFormElement, "change", function onNavigationInspectorFormChange(navigationChangeEvent) {
+    const navigationChangeInputElement = navigationChangeEvent.target;
+    const navigationChangeComponentId = selectedComponentId;
+    if (!navigationChangeComponentId) {
+      return;
+    }
+    const navigationChangeColorProperty = navigationColorPropertiesByElement.get(
+      navigationChangeInputElement
+    );
+    const navigationChangePropertyConfig = navigationPropertyConfigsByElement.get(
+      navigationChangeInputElement
+    );
+    const navigationChangeToggleState = navigationToggleStateByElement.get(
+      navigationChangeInputElement
+    );
+    const navigationChangePropertyName = navigationPropertyNameFromElement(
+      navigationChangeInputElement
+    );
+    if (
+      navigationChangeInputElement === navigationLabelTextInputElement ||
+      !!navigationChangeColorProperty ||
+      !!navigationChangePropertyConfig ||
+      !!navigationTransformInputSet.has(navigationChangeInputElement)
+    ) {
+      if (
+        (navigationChangePropertyConfig ||
+          navigationTransformInputSet.has(navigationChangeInputElement)) &&
+        (String(navigationChangeInputElement.value).trim() === "" ||
+          !Number.isFinite(Number(navigationChangeInputElement.value)))
+      ) {
+        syncInspector();
+        return;
+      }
+      if (navigationChangeToggleState) {
+        syncNavigationPreviewFromElement(navigationChangeInputElement);
+      }
+      mutateDocument(navigationChangeDraftDocument => {
+        const navigationChangeComponent = findComponent(
+          navigationChangeDraftDocument,
+          navigationChangeComponentId
+        )?.component;
+        if (!navigationChangeComponent || navigationChangeComponent.type !== "navigation-button") {
+          return;
+        }
+        navigationChangeComponent.properties = {
+          ...(navigationChangeComponent.properties || {})
+        };
+        navigationChangeComponent.position = {
+          ...(navigationChangeComponent.position || {})
+        };
+        navigationChangeComponent.style = {
+          ...(navigationChangeComponent.style || {})
+        };
+        navigationChangeComponent.actions = {
+          ...(navigationChangeComponent.actions || {})
+        };
+        const navigationPreviousActionValue = navigationChangePropertyName
+          ? getNavigationStyleValue(navigationChangeComponent, navigationChangePropertyName)
+          : undefined;
+        const navigationChangeCanvasWidth = Number(
+          navigationChangeDraftDocument.canvas.width || 2778
+        );
+        const navigationChangeCanvasHeight = Number(
+          navigationChangeDraftDocument.canvas.height || 1940
+        );
+        const navigationChangeInputNumber = Number(navigationChangeInputElement.value);
+        if (navigationChangeInputElement === navigationLabelTextInputElement) {
+          navigationChangeComponent.properties.label = navigationChangeInputElement.value.trim();
+        } else if (navigationChangeColorProperty) {
+          navigationChangeComponent.properties[navigationChangeColorProperty] =
+            navigationChangeInputElement.value;
+        } else if (navigationChangePropertyConfig) {
+          navigationChangeComponent.properties[navigationChangePropertyConfig.property] =
+            clampNumber(
+              navigationChangeInputNumber,
+              navigationChangePropertyConfig.minimum,
+              navigationChangePropertyConfig.maximum
+            ) / navigationChangePropertyConfig.divisor;
+        } else if (navigationChangeInputElement === navigationLeftInputElement) {
+          navigationChangeComponent.position.x =
+            (navigationChangeCanvasWidth * clampNumber(navigationChangeInputNumber, 0, 100)) / 100 -
+            Number(navigationChangeComponent.position.width || 100) / 2;
+        } else if (navigationChangeInputElement === navigationTopInputElement) {
+          navigationChangeComponent.position.y =
+            (navigationChangeCanvasHeight * clampNumber(navigationChangeInputNumber, 0, 100)) / 100 -
+            Number(navigationChangeComponent.position.height || 100) / 2;
+        } else if (navigationChangeInputElement === navigationWidthInputElement) {
+          const navigationChangeWidthPx =
+            (navigationChangeCanvasWidth * clampNumber(navigationChangeInputNumber, 0.1, 100)) / 100;
+          const navigationChangeCenterX =
+            Number(navigationChangeComponent.position.x || 0) +
+            Number(navigationChangeComponent.position.width || 100) / 2;
+          navigationChangeComponent.position.x =
+            navigationChangeCenterX - navigationChangeWidthPx / 2;
+          navigationChangeComponent.position.width = navigationChangeWidthPx;
+        } else if (navigationChangeInputElement === navigationHeightInputElement) {
+          const navigationChangeHeightPx =
+            (navigationChangeCanvasHeight * clampNumber(navigationChangeInputNumber, 0.1, 100)) / 100;
+          const navigationChangeCenterY =
+            Number(navigationChangeComponent.position.y || 0) +
+            Number(navigationChangeComponent.position.height || 100) / 2;
+          navigationChangeComponent.position.y =
+            navigationChangeCenterY - navigationChangeHeightPx / 2;
+          navigationChangeComponent.position.height = navigationChangeHeightPx;
+        } else if (navigationChangeInputElement === navigationScaleInputElement) {
+          navigationChangeComponent.style.scale =
+            clampNumber(navigationChangeInputNumber, 1, 500) / 100;
+        } else if (navigationChangeInputElement === navigationRotationInputElement) {
+          setComponentsRotation(
+            navigationChangeDraftDocument,
+            navigationChangeComponentId,
+            clampNumber(navigationChangeInputNumber, -360, 360)
+          );
+        }
+        if (navigationChangePropertyName) {
+          rememberNavigationStyleChange(
+            navigationChangeComponentId,
+            navigationChangePropertyName,
+            navigationPreviousActionValue,
+            getNavigationStyleValue(navigationChangeComponent, navigationChangePropertyName)
+          );
+        }
+      });
+    }
+  });
+  const navigationVisibilityPropertiesByButton = new Map([
+    [navigationMainVisibleButtonElement, "mainTextVisible"],
+    [navigationSecondaryVisibleButtonElement, "secondaryTextVisible"],
+    [navigationIconVisibleButtonElement, "iconVisible"],
+    [navigationFrameVisibleButtonElement, "frameVisible"],
+    [navigationGlowVisibleButtonElement, "glowVisible"]
+  ]);
+  for (const [
+    navigationVisibilityButton,
+    navigationVisibilityProperty
+  ] of navigationVisibilityPropertiesByButton) {
+    on(navigationVisibilityButton, "click", function onNavigationVisibilityButtonClick() {
+      const navigationVisibilityComponentId = selectedComponentId;
+      if (navigationVisibilityComponentId) {
+        mutateDocument(navigationVisibilityDraftDocument => {
+          const navigationVisibilityComponent = findComponent(
+            navigationVisibilityDraftDocument,
+            navigationVisibilityComponentId
+          )?.component;
+          if (
+            !navigationVisibilityComponent ||
+            navigationVisibilityComponent.type !== "navigation-button"
+          ) {
+            return;
+          }
+          const navigationPreviousVisibility = getNavigationStyleValue(
+            navigationVisibilityComponent,
+            navigationVisibilityProperty
+          );
+          navigationVisibilityComponent.properties = {
+            ...(navigationVisibilityComponent.properties || {}),
+            [navigationVisibilityProperty]:
+              navigationVisibilityComponent.properties?.[navigationVisibilityProperty] === false
+          };
+          rememberNavigationStyleChange(
+            navigationVisibilityComponentId,
+            navigationVisibilityProperty,
+            navigationPreviousVisibility,
+            getNavigationStyleValue(navigationVisibilityComponent, navigationVisibilityProperty)
+          );
+        });
+      }
+    });
+  }
+  on(navigationPreviewStateElement, "click", function onNavigationPreviewStateClick(navigationPreviewClickEvent) {
+    const navigationPreviewButtonElement = navigationPreviewClickEvent.target.closest(
+      "[data-navigation-preview]"
+    );
+    const navigationPreviewClickComponentId = selectedComponentId;
+    if (!navigationPreviewButtonElement || !navigationPreviewClickComponentId) {
+      return;
+    }
+    const navigationPreviewDatasetState = ["off", "on"].includes(
+      navigationPreviewButtonElement.dataset.navigationPreview
+    )
+      ? navigationPreviewButtonElement.dataset.navigationPreview
+      : "auto";
+    applyNavigationPreviewState(navigationPreviewClickComponentId, navigationPreviewDatasetState);
+  });
+
+
+  const navigationStylePropertyDefinitions = {
+    mainTextVisible: {
+      group: "文字",
+      label: "主文字显示"
+    },
+    secondaryTextVisible: {
+      group: "文字",
+      label: "副文字显示"
+    },
+    mainColor: {
+      group: "文字",
+      label: "主文字颜色"
+    },
+    secondaryColor: {
+      group: "文字",
+      label: "副文字颜色"
+    },
+    mainSize: {
+      group: "文字",
+      label: "主文字大小"
+    },
+    secondarySize: {
+      group: "文字",
+      label: "副文字大小"
+    },
+    mainWeight: {
+      group: "文字",
+      label: "主文字笔画粗细"
+    },
+    secondaryWeight: {
+      group: "文字",
+      label: "副文字笔画粗细"
+    },
+    mainSpacing: {
+      group: "文字",
+      label: "主文字字间距"
+    },
+    secondarySpacing: {
+      group: "文字",
+      label: "副文字字间距"
+    },
+    mainTextLeft: {
+      group: "文字",
+      label: "主文字左右位置"
+    },
+    mainTextTop: {
+      group: "文字",
+      label: "主文字上下位置"
+    },
+    secondaryTextLeft: {
+      group: "文字",
+      label: "副文字左右位置"
+    },
+    secondaryTextTop: {
+      group: "文字",
+      label: "副文字上下位置"
+    },
+    textIdleOpacity: {
+      group: "文字",
+      label: "文字选择前透明度"
+    },
+    textActiveOpacity: {
+      group: "文字",
+      label: "文字选择后透明度"
+    },
+    iconVisible: {
+      group: "图标",
+      label: "图标显示"
+    },
+    iconColor: {
+      group: "图标",
+      label: "图标颜色"
+    },
+    iconSize: {
+      group: "图标",
+      label: "图标大小"
+    },
+    iconLeft: {
+      group: "图标",
+      label: "图标左右位置"
+    },
+    iconTop: {
+      group: "图标",
+      label: "图标上下位置"
+    },
+    iconIdleOpacity: {
+      group: "图标",
+      label: "图标选择前透明度"
+    },
+    iconActiveOpacity: {
+      group: "图标",
+      label: "图标选择后透明度"
+    },
+    frameVisible: {
+      group: "外框",
+      label: "外框显示"
+    },
+    frameColor: {
+      group: "外框",
+      label: "外框颜色"
+    },
+    frameWidth: {
+      group: "外框",
+      label: "外框粗细"
+    },
+    frameIdleOpacity: {
+      group: "外框",
+      label: "外框选择前透明度"
+    },
+    frameActiveOpacity: {
+      group: "外框",
+      label: "外框选择后透明度"
+    },
+    radius: {
+      group: "外框",
+      label: "外框圆角"
+    },
+    frameAngle: {
+      group: "外框",
+      label: "外框渐变角度"
+    },
+    glowVisible: {
+      group: "背景光晕",
+      label: "背景光晕显示"
+    },
+    glowColor: {
+      group: "背景光晕",
+      label: "背景光晕颜色"
+    },
+    glowAngle: {
+      group: "背景光晕",
+      label: "背景光晕角度"
+    },
+    glowIdleStrength: {
+      group: "背景光晕",
+      label: "选择前光晕强度"
+    },
+    glowIdleSize: {
+      group: "背景光晕",
+      label: "选择前光晕大小"
+    },
+    glowActiveStrength: {
+      group: "背景光晕",
+      label: "选择后光晕强度"
+    },
+    glowActiveSize: {
+      group: "背景光晕",
+      label: "选择后光晕大小"
+    },
+    width: {
+      group: "尺寸与变换",
+      label: "控件宽度"
+    },
+    height: {
+      group: "尺寸与变换",
+      label: "控件高度"
+    },
+    scale: {
+      group: "尺寸与变换",
+      label: "控件缩放"
+    },
+    rotation: {
+      group: "尺寸与变换",
+      label: "控件旋转"
+    }
+  };
+
+
+  /**
+   * 用 JSON 序列化结果判断两个属性值是否相等：属性值可能是数组或对象（如透视四角），直接用 === 比不出内容相等；
+   * 属性值体量都很小，序列化的开销可以接受。
+   */
+  function areComponentValuesEqual(firstComponentValue, secondComponentValue) {
+    return JSON.stringify(firstComponentValue) === JSON.stringify(secondComponentValue);
+  }
+  /**
+   * 记录导航按钮某个属性「本次编辑前的值」，供退出编辑时生成变更摘要。只记第一笔：同一属性被连续改动时保留最早的那次旧值，
+   * 这样摘要里展示的是会话开始前的状态而非中间态；属性不在已知样式表内、或新旧值本就相等时直接忽略，避免把噪声写进摘要。
+   */
+  function rememberNavigationStyleChange(
+    navigationComponentId,
+    navigationPropertyKey,
+    previousPropertyValue,
+    updatedPropertyValue
+  ) {
+    if (!navigationComponentId || !navigationStylePropertyDefinitions[navigationPropertyKey]) {
+      return;
+    }
+    let navigationSavedPropertyValues =
+      navigationButtonSavedSettingsByComponentId.get(navigationComponentId);
+    if (
+      !!navigationSavedPropertyValues ||
+      !areComponentValuesEqual(previousPropertyValue, updatedPropertyValue)
+    ) {
+      if (!navigationSavedPropertyValues) {
+        navigationSavedPropertyValues = new Map();
+        navigationButtonSavedSettingsByComponentId.set(
+          navigationComponentId,
+          navigationSavedPropertyValues
+        );
+      }
+      if (!navigationSavedPropertyValues.has(navigationPropertyKey)) {
+        navigationSavedPropertyValues.set(navigationPropertyKey, clone(previousPropertyValue));
+      }
+    }
+  }
+  /**
+   * 清理某导航按钮已记录变更中「属性键已废弃」的条目：旧版本记录下的键可能已从 navigationStylePropertyDefinitions 移除，
+   * 留着会让摘要显示不出来的属性；顺带在表为空时删掉整个 Map 项，防止泄漏。
+   */
+  function pruneNavigationSavedSettings(navigationSettingsComponent) {
+    const navigationSavedSettings = navigationButtonSavedSettingsByComponentId.get(
+      navigationSettingsComponent?.id
+    );
+    if (navigationSavedSettings) {
+      for (const navigationSavedPropertyKey of navigationSavedSettings.keys()) {
+        if (!navigationStylePropertyDefinitions[navigationSavedPropertyKey]) {
+          navigationSavedSettings.delete(navigationSavedPropertyKey);
+        }
+      }
+      if (!navigationSavedSettings.size) {
+        navigationButtonSavedSettingsByComponentId.delete(navigationSettingsComponent.id);
+      }
+    }
+  }
+
+
+  on(navigationApplyStyleButtonElement, "click", openNavigationStyleApplyDialog);
+  on(panelFrameApplyStyleButtonElement, "click", openPanelFrameStyleApplyDialog);
+  on(cameraApplyStyleButtonElement, "click", openCameraStyleApplyDialog);
+  on(titleButtonApplyStyleButtonElement, "click", openTitleButtonStyleApplyDialog);
+  on(lineChartApplyStyleButtonElement, "click", openLineChartStyleApplyDialog);
+  on(iconButtonEffectApplyStyleButtonElement, "click",
+    openIconButtonEffectStyleApplyDialog
+  );
+  on(iconButtonApplyStyleButtonElement, "click", openIconButtonStyleApplyDialog);
+  on(airConditionerApplyStyleButtonElement, "click", openAirConditionerStyleApplyDialog);
+  on(navigationStyleApplyCloseButtonElement, "click", function onNavigationStyleApplyCloseButtonClick() { return navigationStyleApplyDialogElement.close(); }
+  );
+  on(navigationStyleApplyCancelButtonElement, "click", function onNavigationStyleApplyCancelButtonClick() { return navigationStyleApplyDialogElement.close(); }
+  );
+  on(navigationStyleApplyDialogElement, "click", function onNavigationStyleApplyDialogClick(styleDialogClickEvent) {
+    if (styleDialogClickEvent.target === navigationStyleApplyDialogElement) {
+      navigationStyleApplyDialogElement.close();
+    }
+  });
+  on(navigationStyleApplyDialogElement, "close", function onNavigationStyleApplyDialogClose() {
+    appliedStyleRecord = null;
+  });
+  on(navigationStyleApplyConfirmButtonElement, "click", function onNavigationStyleApplyConfirmButtonClick() {
+    const styleSourceComponentId = appliedStyleRecord?.sourceId;
+    const styleComponentType = appliedStyleRecord?.type;
+    const selectedStylePropertyKeys = [
+      ...navigationStyleApplyPropertiesElement.querySelectorAll(
+        "[data-navigation-style-property]:checked"
+      )
+    ].map(stylePropertyCheckbox => stylePropertyCheckbox.dataset.navigationStyleProperty);
+    const selectedTargetComponentIds = [
+      ...navigationStyleApplyTargetsElement.querySelectorAll("[data-navigation-target-id]:checked")
+    ].map(styleTargetCheckbox => styleTargetCheckbox.dataset.navigationTargetId);
+    if (
+      !styleSourceComponentId ||
+      !selectedStylePropertyKeys.length ||
+      !selectedTargetComponentIds.length
+    ) {
+      const styleTypeLabel =
+        styleComponentType === "panel-frame"
+          ? "底图框"
+          : styleComponentType === "camera"
+            ? "摄像头实时预览"
+            : styleComponentType === "title-button"
+              ? "标题按钮"
+              : styleComponentType === "air-conditioner"
+                ? "空调"
+                : styleComponentType === "line-chart"
+                  ? "折线图"
+                  : styleComponentType === "icon-button-effect"
+                    ? "图标按钮（效果）"
+                    : styleComponentType === "icon-button"
+                      ? "图标按钮"
+                      : styleComponentType === "device-button"
+                        ? "设备按钮"
+                        : styleComponentType === "presence-sensor"
+                          ? "传感器"
+                          : "导航按钮";
+      navigationStyleApplyMessageElement.textContent =
+        "请至少选择一项修改和一个目标" + styleTypeLabel + "。";
+      navigationStyleApplyMessageElement.hidden = false;
+      return;
+    }
+    navigationStyleApplyDialogElement.close();
+    mutateDocument(styleApplyDraftDocument => {
+      const styleSourceComponentDraft = findComponent(
+        styleApplyDraftDocument,
+        styleSourceComponentId
+      )?.component;
+      if (!!styleSourceComponentDraft && styleSourceComponentDraft.type === styleComponentType) {
+        for (const styleTargetComponentId of selectedTargetComponentIds) {
+          const styleTargetComponentDraft = findComponent(
+            styleApplyDraftDocument,
+            styleTargetComponentId
+          )?.component;
+          if (
+            !!styleTargetComponentDraft &&
+            styleTargetComponentDraft.type === styleComponentType &&
+            (styleComponentType !== "presence-sensor" ||
+              resolveSensorKind(styleTargetComponentDraft) ===
+                resolveSensorKind(styleSourceComponentDraft))
+          ) {
+            for (const appliedStylePropertyKey of selectedStylePropertyKeys) {
+              if (styleComponentType === "panel-frame") {
+                applyPanelFrameStyleChange(
+                  styleSourceComponentDraft,
+                  styleTargetComponentDraft,
+                  appliedStylePropertyKey
+                );
+              } else if (styleComponentType === "camera") {
+                applyCameraStyleChange(
+                  styleSourceComponentDraft,
+                  styleTargetComponentDraft,
+                  appliedStylePropertyKey
+                );
+              } else if (styleComponentType === "title-button") {
+                applyTitleButtonStyleChange(
+                  styleSourceComponentDraft,
+                  styleTargetComponentDraft,
+                  appliedStylePropertyKey
+                );
+              } else if (styleComponentType === "line-chart") {
+                applyLineChartStyleChange(
+                  styleSourceComponentDraft,
+                  styleTargetComponentDraft,
+                  appliedStylePropertyKey
+                );
+              } else if (styleComponentType === "icon-button-effect") {
+                applyIconButtonEffectStyleChange(
+                  styleSourceComponentDraft,
+                  styleTargetComponentDraft,
+                  appliedStylePropertyKey
+                );
+              } else if (styleComponentType === "air-conditioner") {
+                applyAirConditionerStyleChange(
+                  styleSourceComponentDraft,
+                  styleTargetComponentDraft,
+                  appliedStylePropertyKey
+                );
+              } else if (
+                ["icon-button", "device-button", "presence-sensor"].includes(styleComponentType)
+              ) {
+                applyIconButtonStyleChange(
+                  styleSourceComponentDraft,
+                  styleTargetComponentDraft,
+                  appliedStylePropertyKey
+                );
+              } else {
+                applyStyleChangeToComponent(
+                  styleSourceComponentDraft,
+                  styleTargetComponentDraft,
+                  appliedStylePropertyKey
+                );
+              }
+            }
+          }
+        }
+      }
+    }).then(() => {
+      const styleApplyButton =
+        styleComponentType === "panel-frame"
+          ? panelFrameApplyStyleButtonElement
+          : styleComponentType === "camera"
+            ? cameraApplyStyleButtonElement
+            : styleComponentType === "title-button"
+              ? titleButtonApplyStyleButtonElement
+              : styleComponentType === "air-conditioner"
+                ? airConditionerApplyStyleButtonElement
+                : styleComponentType === "line-chart"
+                  ? lineChartApplyStyleButtonElement
+                  : styleComponentType === "icon-button-effect"
+                    ? iconButtonEffectApplyStyleButtonElement
+                    : ["icon-button", "device-button", "presence-sensor"].includes(styleComponentType)
+                      ? iconButtonApplyStyleButtonElement
+                      : navigationApplyStyleButtonElement;
+      if (styleComponentType === "panel-frame") {
+        window.clearTimeout(panelFrameApplyFeedbackTimeoutId);
+      } else if (styleComponentType === "camera") {
+        window.clearTimeout(cameraApplyFeedbackTimeoutId);
+      } else if (styleComponentType === "title-button") {
+        window.clearTimeout(titleButtonApplyFeedbackTimeoutId);
+      } else if (styleComponentType === "air-conditioner") {
+        window.clearTimeout(airConditionerApplyFeedbackTimeoutId);
+      } else if (styleComponentType === "line-chart") {
+        window.clearTimeout(lineChartApplyFeedbackTimeoutId);
+      } else if (styleComponentType === "icon-button-effect") {
+        window.clearTimeout(effectApplyFeedbackTimeoutId);
+      } else if (["icon-button", "device-button", "presence-sensor"].includes(styleComponentType)) {
+        window.clearTimeout(deviceButtonApplyFeedbackTimeoutId);
+      } else {
+        window.clearTimeout(navigationApplyFeedbackTimeoutId);
+      }
+      styleApplyButton.classList.add("applied");
+      const styleFeedbackTimeoutId = window.setTimeout(() => {
+        styleApplyButton.classList.remove("applied");
+        if (selectedComponentId === styleSourceComponentId) {
+          syncInspector();
+        }
+      }, 1800);
+      if (styleComponentType === "panel-frame") {
+        panelFrameApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
+      } else if (styleComponentType === "camera") {
+        cameraApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
+      } else if (styleComponentType === "title-button") {
+        titleButtonApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
+      } else if (styleComponentType === "air-conditioner") {
+        airConditionerApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
+      } else if (styleComponentType === "line-chart") {
+        lineChartApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
+      } else if (styleComponentType === "icon-button-effect") {
+        effectApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
+      } else if (["icon-button", "device-button", "presence-sensor"].includes(styleComponentType)) {
+        deviceButtonApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
+      } else {
+        navigationApplyFeedbackTimeoutId = styleFeedbackTimeoutId;
+      }
+    });
+  });
+  on(navigationIconButtonElement, "click", function onNavigationIconButtonClick() {
+    const isNavigationIconMenuHidden = navigationIconMenuElement.hidden;
+    closeAllDropdownMenus(isNavigationIconMenuHidden ? "navigation-icon" : null);
+    navigationIconMenuElement.hidden = !isNavigationIconMenuHidden;
+    navigationIconButtonElement.setAttribute("aria-expanded", String(isNavigationIconMenuHidden));
+    if (isNavigationIconMenuHidden) {
+      loadNavigationIconOptions(navigationIconSearchInputElement.value)
+        .then(() => {
+          positionNavigationIconMenu();
+          navigationIconSearchInputElement.focus({
+            preventScroll: true
+          });
+        })
+        .catch(handleOperationError);
+    }
+  });
+  on(navigationIconCopyButtonElement, "click", async function onNavigationIconCopyButtonClick() {
+    const navigationSelectedIconName = selectedComponent()?.properties?.icon || "";
+    if (navigationSelectedIconName) {
+      try {
+        await copyTextToClipboard(navigationSelectedIconName);
+        window.clearTimeout(navigationIconCopiedTimeoutId);
+        navigationIconCopyButtonElement.classList.add("copied");
+        navigationIconCopiedTimeoutId = window.setTimeout(
+          () => navigationIconCopyButtonElement.classList.remove("copied"),
+          1200
+        );
+      } catch (navigationIconCopyError) {
+        handleOperationError(navigationIconCopyError);
+      }
+    }
+  });
+  on(navigationIconSearchInputElement, "input", function onNavigationIconSearchInputInput() {
+    window.clearTimeout(navigationIconSearchDebounceTimeoutId);
+    navigationIconSearchDebounceTimeoutId = window.setTimeout(() => {
+      loadNavigationIconOptions(navigationIconSearchInputElement.value).catch(handleOperationError);
+    }, 160);
+  });
+  on(navigationIconOptionsElement, "click", function onNavigationIconOptionsClick(navigationIconOptionClickEvent) {
+    const navigationIconOptionElement =
+      navigationIconOptionClickEvent.target.closest("[data-icon-name]");
+    const navigationIconComponentId = selectedComponentId;
+    if (!navigationIconOptionElement || !navigationIconComponentId) {
+      return;
+    }
+    const navigationIconDatasetName = navigationIconOptionElement.dataset.iconName;
+    closeAllDropdownMenus();
+    mutateDocument(navigationIconDraftDocument => {
+      const navigationIconComponent = findComponent(
+        navigationIconDraftDocument,
+        navigationIconComponentId
+      )?.component;
+      if (!navigationIconComponent || navigationIconComponent.type !== "navigation-button") {
+        return;
+      }
+      const navigationIconPreviousValue = getNavigationStyleValue(navigationIconComponent, "icon");
+      const navigationIconVisiblePreviousValue = getNavigationStyleValue(
+        navigationIconComponent,
+        "iconVisible"
+      );
+      navigationIconComponent.properties = {
+        ...(navigationIconComponent.properties || {}),
+        icon: navigationIconDatasetName,
+        iconVisible: !!navigationIconDatasetName
+      };
+      rememberNavigationStyleChange(
+        navigationIconComponentId,
+        "icon",
+        navigationIconPreviousValue,
+        getNavigationStyleValue(navigationIconComponent, "icon")
+      );
+      rememberNavigationStyleChange(
+        navigationIconComponentId,
+        "iconVisible",
+        navigationIconVisiblePreviousValue,
+        getNavigationStyleValue(navigationIconComponent, "iconVisible")
+      );
+    });
+  });
+}
+
+/**
+ * 素材、撤销与预览。
+ *
+ * 素材上传与效果素材、撤销/重做、编辑器预览开关。
+ */
+function bindAssetSection() {
+  const on = sections.section("asset");
+  on(imageAssetUploadButtonElement, "click", function onImageAssetUploadButtonClick() { return imageAssetUploadInputElement.click(); });
+  on(iconButtonEffectAssetUploadButtonElement, "click", function onIconButtonEffectAssetUploadButtonClick() { return iconButtonEffectAssetUploadInputElement.click(); }
+  );
+  on(imageAssetUploadInputElement, "change", async function onImageAssetUploadInputChange() {
+    await uploadAssetFiles(imageAssetUploadInputElement.files, "image");
+    imageAssetUploadInputElement.value = "";
+  });
+  on(iconButtonEffectAssetUploadInputElement, "change", async function onIconButtonEffectAssetUploadInputChange() {
+    await uploadAssetFiles(iconButtonEffectAssetUploadInputElement.files, "ibe");
+    iconButtonEffectAssetUploadInputElement.value = "";
+  });
+  for (const assetOptionsElement of [imageAssetOptionsElement, iconButtonEffectAssetOptionsElement]) {
+    on(assetOptionsElement, "click", function onAssetOptionsClick(assetOptionsClickEvent) {
+      const deleteUserAssetElement = assetOptionsClickEvent.target.closest(
+        "[data-delete-user-asset]"
+      );
+      if (deleteUserAssetElement) {
+        assetOptionsClickEvent.preventDefault();
+        assetOptionsClickEvent.stopPropagation();
+        requestDeleteAsset(deleteUserAssetElement.dataset.deleteUserAsset);
+      }
+    });
+  }
+  on(deleteAssetCloseButtonElement, "click", function onDeleteAssetCloseButtonClick() { return deleteAssetDialogElement.close(); });
+  on(deleteAssetCancelButtonElement, "click", function onDeleteAssetCancelButtonClick() { return deleteAssetDialogElement.close(); });
+  on(deleteAssetDialogElement, "click", function onDeleteAssetDialogClick(deleteAssetDialogClickEvent) {
+    if (deleteAssetDialogClickEvent.target === deleteAssetDialogElement) {
+      deleteAssetDialogElement.close();
+    }
+  });
+  on(deleteAssetConfirmButtonElement, "click", async function onDeleteAssetConfirmButtonClick() {
+    const deleteAssetRequestId = String(pendingDeleteAssetId || "").replace(/^user:/, "");
+    if (/^[0-9a-f]{32}$/.test(deleteAssetRequestId)) {
+      deleteAssetConfirmButtonElement.disabled = true;
+      try {
+        await requestJson("/assets/user/" + deleteAssetRequestId, {
+          method: "DELETE"
+        });
+        pendingDeleteAssetId = null;
+        deleteAssetDialogElement.close();
+        await reloadAssetCatalog();
+      } catch (deleteAssetError) {
+        if (deleteAssetError?.code === "ASSET_IN_USE") {
+          handleOperationError(
+            new Error("这张图片仍被户型图绘制或仪表盘使用，请先移除引用后再删除。")
+          );
+        } else {
+          handleOperationError(deleteAssetError);
+        }
+      } finally {
+        deleteAssetConfirmButtonElement.disabled = false;
+      }
+    }
+  });
+  on(deleteAssetFolderCloseButtonElement, "click", function onDeleteAssetFolderCloseButtonClick() { return deleteAssetFolderDialogElement.close(); }
+  );
+  on(deleteAssetFolderCancelButtonElement, "click", function onDeleteAssetFolderCancelButtonClick() { return deleteAssetFolderDialogElement.close(); }
+  );
+  on(deleteAssetFolderDialogElement, "click", function onDeleteAssetFolderDialogClick(deleteAssetFolderClickEvent) {
+    if (deleteAssetFolderClickEvent.target === deleteAssetFolderDialogElement) {
+      deleteAssetFolderDialogElement.close();
+    }
+  });
+  on(deleteAssetFolderDialogElement, "close", function onDeleteAssetFolderDialogClose() {
+    if (!deleteAssetFolderConfirmButtonElement.disabled) {
+      pendingDeleteAssetFolder = null;
+    }
+  });
+  on(deleteAssetFolderConfirmButtonElement, "click", async function onDeleteAssetFolderConfirmButtonClick() {
+    const deleteAssetFolderRequest = pendingDeleteAssetFolder;
+    if (deleteAssetFolderRequest?.folderName) {
+      deleteAssetFolderConfirmButtonElement.disabled = true;
+      try {
+        await requestJson("/studio3d/exports", {
+          method: "DELETE",
+          headers: {
+            "X-Export-Folder": encodeURIComponent(deleteAssetFolderRequest.folderName)
+          }
+        });
+        pendingDeleteAssetFolder = null;
+        deleteAssetFolderDialogElement.close();
+        await reloadAssetCatalog({
+          refreshInspector: false
+        });
+        refreshAssetPickerViews();
+      } catch (deleteAssetFolderError) {
+        if (deleteAssetFolderError?.code === "STUDIO3D_EXPORT_IN_USE") {
+          handleOperationError(
+            new Error("这个文件夹中的图片仍被仪表盘、弹窗或户型图绘制使用，请先移除引用后再删除。")
+          );
+        } else {
+          handleOperationError(deleteAssetFolderError);
+        }
+      } finally {
+        deleteAssetFolderConfirmButtonElement.disabled = false;
+      }
+    }
+  });
+  on(imageAssetButtonElement, "click", async function onImageAssetButtonClick() {
+    const isImageAssetMenuHidden = imageAssetMenuElement.hidden;
+    closeAllDropdownMenus(isImageAssetMenuHidden ? "asset" : null);
+    imageAssetMenuElement.hidden = !isImageAssetMenuHidden;
+    imageAssetButtonElement.setAttribute("aria-expanded", String(isImageAssetMenuHidden));
+    if (isImageAssetMenuHidden) {
+      try {
+        await reloadAssetCatalog({
+          refreshInspector: false
+        });
+        syncAssetFolderOptions("image");
+      } catch (imageAssetCatalogError) {
+        handleOperationError(imageAssetCatalogError);
+      }
+      renderImageAssetOptions(imageAssetSearchInputElement.value);
+      positionImageAssetMenu();
+      window.requestAnimationFrame(() => {
+        positionImageAssetMenu();
+        imageAssetSearchInputElement.focus({
+          preventScroll: true
+        });
+      });
+    }
+  });
+  on(imageAssetFolderSelectElement, "change", function onImageAssetFolderSelectChange() {
+    imageAssetFolder = imageAssetFolderSelectElement.value;
+    imageAssetSearchInputElement.value = "";
+    renderImageAssetOptions();
+  });
+  on(imageAssetSearchInputElement, "input", function onImageAssetSearchInputInput() { return renderImageAssetOptions(imageAssetSearchInputElement.value); }
+  );
+  on(imageAssetOptionsElement, "pointerover", function onImageAssetOptionsPointerover(imageAssetPointerOverEvent) {
+    const imageAssetHoverElement = imageAssetPointerOverEvent.target.closest("[data-asset-id]");
+    if (
+      !imageAssetHoverElement ||
+      imageAssetHoverElement.contains(imageAssetPointerOverEvent.relatedTarget)
+    ) {
+      return;
+    }
+    const hoveredAsset = findAssetById(imageAssetHoverElement.dataset.assetId);
+    scheduleAssetPreview(hoveredAsset, imageAssetHoverElement);
+  });
+  on(imageAssetOptionsElement, "pointerleave", hideAssetLargePreview);
+  on(imageAssetOptionsElement, "scroll", hideAssetLargePreview);
+  on(imageAssetOptionsElement, "click", async function onImageAssetOptionsClick(imageAssetClickEvent) {
+    const imageAssetElement = imageAssetClickEvent.target.closest("[data-asset-id]");
+    if (!imageAssetElement || !selectedComponentId) {
+      return;
+    }
+    const imageAssetComponentId = selectedComponentId;
+    const imageAssetId = imageAssetElement.dataset.assetId;
+    hideAssetLargePreview();
+    closeAllDropdownMenus();
+    if (!imageAssetId) {
+      mutateDocument(imageAssetDraftDocument => {
+        const imageAssetComponent = findComponent(
+          imageAssetDraftDocument,
+          imageAssetComponentId
+        )?.component;
+        if (!!imageAssetComponent && imageAssetComponent.type === "image") {
+          imageAssetComponent.properties = {
+            ...(imageAssetComponent.properties || {}),
+            fit: "contain"
+          };
+          delete imageAssetComponent.properties.assetId;
+          delete imageAssetComponent.properties.naturalWidth;
+          delete imageAssetComponent.properties.naturalHeight;
+        }
+      });
+      return;
+    }
+    const imageAssetRecord = findAssetById(imageAssetId);
+    if (imageAssetRecord) {
+      try {
+        const imageAssetSize = await measureAssetImageSize(imageAssetRecord);
+        mutateDocument(imageAssetSizeDraftDocument => {
+          const imageAssetSizeComponent = findComponent(
+            imageAssetSizeDraftDocument,
+            imageAssetComponentId
+          )?.component;
+          if (!!imageAssetSizeComponent && imageAssetSizeComponent.type === "image") {
+            applyAssetNaturalSize(imageAssetSizeComponent, imageAssetId, imageAssetSize);
+          }
+        });
+      } catch (imageAssetMeasureError) {
+        handleOperationError(imageAssetMeasureError);
+      }
+    }
+  });
+  on(iconButtonEffectAssetButtonElement, "click", async function onIconButtonEffectAssetButtonClick() {
+    const isEffectAssetMenuHidden = iconButtonEffectAssetMenuElement.hidden;
+    closeAllDropdownMenus(isEffectAssetMenuHidden ? "ibe-asset" : null);
+    iconButtonEffectAssetMenuElement.hidden = !isEffectAssetMenuHidden;
+    iconButtonEffectAssetButtonElement.setAttribute("aria-expanded", String(isEffectAssetMenuHidden));
+    if (isEffectAssetMenuHidden) {
+      try {
+        await reloadAssetCatalog({
+          refreshInspector: false
+        });
+        syncAssetFolderOptions("ibe");
+      } catch (effectAssetCatalogError) {
+        handleOperationError(effectAssetCatalogError);
+      }
+      renderEffectAssetOptions(iconButtonEffectAssetSearchInputElement.value);
+      positionEffectAssetMenu();
+      window.requestAnimationFrame(() => {
+        positionEffectAssetMenu();
+        iconButtonEffectAssetSearchInputElement.focus({
+          preventScroll: true
+        });
+      });
+    }
+  });
+  on(iconButtonEffectAssetFolderSelectElement, "change", function onIconButtonEffectAssetFolderSelectChange() {
+    effectAssetFolder = iconButtonEffectAssetFolderSelectElement.value;
+    iconButtonEffectAssetSearchInputElement.value = "";
+    renderEffectAssetOptions();
+  });
+  on(iconButtonEffectAssetSearchInputElement, "input", function onIconButtonEffectAssetSearchInputInput() { return renderEffectAssetOptions(iconButtonEffectAssetSearchInputElement.value); }
+  );
+  on(iconButtonEffectAssetOptionsElement, "pointerover", function onIconButtonEffectAssetOptionsPointerover(effectAssetPointerOverEvent) {
+    const effectAssetHoverElement = effectAssetPointerOverEvent.target.closest("[data-asset-id]");
+    if (
+      !!effectAssetHoverElement &&
+      !effectAssetHoverElement.contains(effectAssetPointerOverEvent.relatedTarget)
+    ) {
+      scheduleAssetPreview(
+        findAssetById(effectAssetHoverElement.dataset.assetId),
+        effectAssetHoverElement,
+        iconButtonEffectAssetMenuElement
+      );
+    }
+  });
+  on(iconButtonEffectAssetOptionsElement, "pointerleave", hideAssetLargePreview);
+  on(iconButtonEffectAssetOptionsElement, "scroll", hideAssetLargePreview);
+  on(iconButtonEffectAssetOptionsElement, "click", async function onIconButtonEffectAssetOptionsClick(effectAssetClickEvent) {
+    const effectAssetElement = effectAssetClickEvent.target.closest("[data-asset-id]");
+    const effectAssetComponentId = selectedComponentId;
+    if (!effectAssetElement || !effectAssetComponentId) {
+      return;
+    }
+    const effectAssetId = effectAssetElement.dataset.assetId;
+    hideAssetLargePreview();
+    closeAllDropdownMenus();
+    const effectAssetRecord = effectAssetId ? findAssetById(effectAssetId) : null;
+    let effectAssetSize = null;
+    if (effectAssetRecord) {
+      try {
+        effectAssetSize = await measureAssetImageSize(effectAssetRecord);
+      } catch (effectAssetMeasureError) {
+        handleOperationError(effectAssetMeasureError);
+        return;
+      }
+    }
+    mutateDocument(effectAssetDraftDocument => {
+      const effectAssetComponent = findComponent(
+        effectAssetDraftDocument,
+        effectAssetComponentId
+      )?.component;
+      if (!!effectAssetComponent && effectAssetComponent.type === "icon-button-effect") {
+        effectAssetComponent.properties = {
+          ...(effectAssetComponent.properties || {})
+        };
+        if (effectAssetId && effectAssetSize) {
+          effectAssetComponent.properties.effectAssetId = effectAssetId;
+          effectAssetComponent.properties.effectNaturalWidth = effectAssetSize.width;
+          effectAssetComponent.properties.effectNaturalHeight = effectAssetSize.height;
+          delete effectAssetComponent.properties.effectWidth;
+          delete effectAssetComponent.properties.effectHeight;
+        } else {
+          delete effectAssetComponent.properties.effectAssetId;
+          delete effectAssetComponent.properties.effectNaturalWidth;
+          delete effectAssetComponent.properties.effectNaturalHeight;
+        }
+      }
+    });
+  });
+  on(undoButtonElement, "click", function onUndoButtonClick() { return applyHistoryStep("undo"); });
+  on(redoButtonElement, "click", function onRedoButtonClick() { return applyHistoryStep("redo"); });
+  on(recoveryRestoreButtonElement, "click", function onRecoveryRestoreButtonClick() {
+    if (!recoverySnapshot || !activeProject) {
+      recoveryDialogElement.close();
+      return;
+    }
+    const recoveredSnapshot = recoverySnapshot;
+    recoverySnapshot = null;
+    activeProject = {
+      ...activeProject,
+      document: clone(recoveredSnapshot.document)
+    };
+    selectedComponentId = findComponent(activeProject.document, recoveredSnapshot.selectedComponentId)
+      ? recoveredSnapshot.selectedComponentId
+      : null;
+    const recoveredComponentIds = Array.isArray(recoveredSnapshot.selectedComponentIds)
+      ? recoveredSnapshot.selectedComponentIds.filter(recoveredComponentId =>
+          findComponent(activeProject.document, recoveredComponentId)
+        )
+      : [];
+    selectedComponentIds = new Set(
+      recoveredComponentIds.length
+        ? recoveredComponentIds
+        : selectedComponentId
+          ? [selectedComponentId]
+          : []
+    );
+    selectionAnchorComponentId = selectedComponentId;
+    // 现在的快照不带历史栈（见 scheduleRecoverySnapshot），所以这里通常拿到 undefined
+    // 并落成空栈；老快照（带 undo / redo）也仍然按原样恢复。
+    historyState.undo = Array.isArray(recoveredSnapshot.undo) ? clone(recoveredSnapshot.undo) : [];
+    historyState.redo = Array.isArray(recoveredSnapshot.redo) ? clone(recoveredSnapshot.redo) : [];
+    recoveryDialogElement.close();
+    renderEditorWorkspace(recoveredSnapshot.selectedPath || null);
+    refreshDirtyState();
+    syncHistoryButtons();
+  });
+  on(recoveryDiscardButtonElement, "click", function onRecoveryDiscardButtonClick() {
+    discardRecoverySnapshot(activeProject?.projectId);
+    recoverySnapshot = null;
+    recoveryDialogElement.close();
+    refreshDirtyState();
+    syncHistoryButtons();
+  });
+  on(recoveryDialogElement, "cancel", function onRecoveryDialogCancel(recoveryCancelEvent) { return recoveryCancelEvent.preventDefault(); }
+  );
+  on(errorDialogCloseButtonElement, "click", function onErrorDialogCloseButtonClick() { return errorDialogElement.close(); });
+  on(errorDialogConfirmButtonElement, "click", function onErrorDialogConfirmButtonClick() { return errorDialogElement.close(); });
+  on(errorDialogElement, "click", function onErrorDialogClick(errorDialogClickEvent) {
+    if (errorDialogClickEvent.target === errorDialogElement) {
+      errorDialogElement.close();
+    }
+  });
+  on(showSharedComponentsButtonElement, "click", function onShowSharedComponentsButtonClick() { return setComponentScope("shared"); });
+  on(showPageComponentsButtonElement, "click", function onShowPageComponentsButtonClick() { return setComponentScope("page"); });
+  on(addComponentButtonElement, "click", function onAddComponentButtonClick() {
+    if (!addComponentButtonElement.disabled) {
+      renderComponentTemplates();
+      componentTemplateDialogElement.showModal();
+    }
+  });
+  on(componentTemplateCloseButtonElement, "click", function onComponentTemplateCloseButtonClick() { return componentTemplateDialogElement.close(); }
+  );
+  on(componentTemplateDialogElement, "click", function onComponentTemplateDialogClick(templateDialogClickEvent) {
+    if (templateDialogClickEvent.target === componentTemplateDialogElement) {
+      componentTemplateDialogElement.close();
+    }
+  });
+  on(componentTemplateListElement, "click", function onComponentTemplateListClick(templateListClickEvent) {
+    const templateItemElement = templateListClickEvent.target.closest("[data-template-id]");
+    const templatePagePath = pageSelectElement.value;
+    if (!templateItemElement || templateItemElement.disabled || !templatePagePath) {
+      return;
+    }
+    const currentComponentScope = componentScope;
+    const activeGroupEntry = activeGroupId
+      ? findComponent(activeProject?.document, activeGroupId)
+      : null;
+    const activeGroupChildComponent =
+      activeGroupEntry?.component?.type === "group" ? activeGroupEntry.component : null;
+    const templateTargetScope = activeGroupChildComponent
+      ? activeGroupEntry.scope
+      : currentComponentScope;
+    const newComponentId = newId("component");
+    componentTemplateDialogElement.close();
+    selectedComponentId = newComponentId;
+    selectedComponentIds = new Set([newComponentId]);
+    selectionAnchorComponentId = newComponentId;
+    const createComponentPromise = mutateDocument(templateDraftDocument => {
+      const templateTargetPage = templateDraftDocument.pages.find(
+        templatePageMatch => templatePageMatch.path === templatePagePath
+      );
+      if (!templateTargetPage) {
+        throw new Error("当前页面不存在。");
+      }
+      const draftGroupEntry = activeGroupChildComponent
+        ? findComponent(templateDraftDocument, activeGroupChildComponent.id)
+        : null;
+      const draftGroupComponent =
+        draftGroupEntry?.component?.type === "group" ? draftGroupEntry.component : null;
+      const targetComponentCollection =
+        currentComponentScope === "shared"
+          ? templateDraftDocument.sharedComponents
+          : templateTargetPage.components;
+      const insertionCollection = draftGroupComponent
+        ? (draftGroupComponent.children ||= [])
+        : targetComponentCollection;
+      const templateLabel =
+        templateItemElement.dataset.templateId === "navigation-button"
+          ? "导航按钮"
+          : templateItemElement.dataset.templateId === "interaction3d"
+            ? "3D 交互"
+            : templateItemElement.dataset.templateId === "floorplan-auto-diagram"
+              ? "户型图自动导图"
+              : templateItemElement.dataset.templateId === "icon-button-effect"
+                ? "图标按钮（效果）"
+                : templateItemElement.dataset.templateId === "title-button"
+                  ? "标题按钮"
+                  : templateItemElement.dataset.templateId === "light-statistics"
+                    ? "数量统计"
+                    : templateItemElement.dataset.templateId === "icon-button"
+                      ? "图标按钮"
+                      : templateItemElement.dataset.templateId === "device-button"
+                        ? "设备按钮"
+                        : templateItemElement.dataset.templateId === "presence-sensor"
+                          ? "传感器"
+                          : templateItemElement.dataset.templateId === "air-conditioner"
+                            ? "空调 / 浴霸"
+                            : templateItemElement.dataset.templateId === "vacuum-map"
+                              ? "扫地机器人实时地图"
+                              : templateItemElement.dataset.templateId === "camera"
+                                ? "摄像头实时预览"
+                                : templateItemElement.dataset.templateId === "time"
+                                  ? "时间"
+                                  : templateItemElement.dataset.templateId === "date"
+                                    ? "日期"
+                                    : templateItemElement.dataset.templateId === "weather"
+                                      ? "天气"
+                                      : templateItemElement.dataset.templateId === "line-chart"
+                                        ? "折线图"
+                                        : templateItemElement.dataset.templateId === "panel-frame"
+                                          ? "底图框"
+                                          : "图片";
+      const templateInstanceName = nextTemplateInstanceName(insertionCollection, templateLabel);
+      const createdComponent = createComponentFromTemplate(templateItemElement.dataset.templateId, {
+        id: newComponentId,
+        instanceName: templateInstanceName,
+        canvas: templateDraftDocument.canvas
+      });
+      if (draftGroupComponent) {
+        const groupWidth = Number(draftGroupComponent.position?.width || 100);
+        const groupHeight = Number(draftGroupComponent.position?.height || 100);
+        const createdWidth = Number(createdComponent.position?.width || 100);
+        const createdHeight = Number(createdComponent.position?.height || 100);
+        createdComponent.position = {
+          ...(createdComponent.position || {}),
+          x: (groupWidth - createdWidth) / 2,
+          y: (groupHeight - createdHeight) / 2
+        };
+      }
+      insertionCollection.unshift(createdComponent);
+      applyCollectionLayerOrder(insertionCollection);
+      if (templateTargetScope === "shared" && !draftGroupComponent) {
+        for (const sharedReferencePage of templateDraftDocument.pages) {
+          sharedReferencePage.sharedComponentIds = [
+            createdComponent.id,
+            ...(sharedReferencePage.sharedComponentIds || []).filter(
+              sharedReferenceId => sharedReferenceId !== createdComponent.id
+            )
+          ];
+        }
+        syncSharedComponentReferenceOrder(templateDraftDocument);
+      }
+    }, templatePagePath);
+    if (templateItemElement.dataset.templateId === "floorplan-auto-diagram") {
+      createComponentPromise.then(() =>
+        openAutoDiagramDialog(newComponentId, {
+          cancelRemovesComponent: true
+        })
+      );
+    }
+  });
+  on(showEditorPreviewButtonElement, "click", function onShowEditorPreviewButtonClick() { return setEditorMode("edit"); });
+  on(showDashboardPreviewButtonElement, "click", function onShowDashboardPreviewButtonClick() { return setEditorMode("dashboard"); });
+  on(soundToggleButtonElement, "click", async function onSoundToggleButtonClick() {
+    if (!activeProject) {
+      return;
+    }
+    const soundToggleDocument = clone(activeProject.document);
+    soundToggleDocument.soundEnabled = activeProject.document.soundEnabled === false;
+    try {
+      await applyDocumentChange(soundToggleDocument);
+      await saveDraft();
+    } catch (soundToggleError) {
+      handleOperationError(soundToggleError);
+    }
+  });
+  on(openHomeAssistantButtonElement, "click", openHomeAssistantDashboard);
+  on(showPageEditorButtonElement, "click", function onShowPageEditorButtonClick() { return setEditorMode("edit"); });
+  on(showPopupEditorButtonElement, "click", function onShowPopupEditorButtonClick() { return setEditorMode("popup"); });
+  on(projectSelectElement, "change", function onProjectSelectChange() {
+    closeProjectActionsMenu();
+    if (
+      hasUnsavedChanges &&
+      activeProject &&
+      projectSelectElement.value !== activeProject.projectId
+    ) {
+      projectSelectElement.value = activeProject.projectId;
+      syncCustomSelect(projectSelectElement);
+      guardUnsavedChanges();
+      return;
+    }
+    if (projectSelectElement.value) {
+      openProjectDraft(projectSelectElement.value).catch(handleOperationError);
+    }
+  });
+  on(pageSelectElement, "change", function onPageSelectChange() {
+    closePageActionsMenu();
+    syncDefaultPageAction();
+    activeGroupId = null;
+    if (editorMode === "popup") {
+      setEditorMode("edit");
+    }
+    editorRenderer?.navigate(pageSelectElement.value);
+    dashboardPreviewRenderer?.navigate(pageSelectElement.value);
+    const selectedPageComponent = findComponent(activeProject?.document, selectedComponentId);
+    if (
+      selectedPageComponent?.scope === "page" &&
+      selectedPageComponent.page?.path !== pageSelectElement.value
+    ) {
+      selectComponent(null);
+    }
+    renderComponentLists();
+    syncInspector();
+  });
+  /**
+   * 打开组合弹窗的「新建 / 重命名」对话框。两种用途共用同一个表单，靠 popupDialogMode 区分：重命名时回填现有名称，
+   * 新建时预置「新建组合弹窗」并全选，便于直接改写。
+   */
+  function openPopupNameDialog(popupNameMode) {
+    popupDialogMode = popupNameMode;
+    const popupBeingRenamed = findCustomPopup(activeProject?.document, selectedPopupId);
+    popupNameDialogTitleElement.textContent =
+      popupNameMode === "rename" ? "重命名组合弹窗" : "新建组合弹窗";
+    popupNameFormElement.elements.name.value =
+      popupNameMode === "rename" ? popupBeingRenamed?.name || "" : "新建组合弹窗";
+    popupNameDialogElement.showModal();
+    popupNameFormElement.elements.name.select();
+  }
+  on(popupNewButtonElement, "click", function onPopupNewButtonClick() { return openPopupNameDialog("create"); });
+  on(popupNameCloseButtonElement, "click", function onPopupNameCloseButtonClick() { return popupNameDialogElement.close(); });
+  on(popupNameCancelButtonElement, "click", function onPopupNameCancelButtonClick() { return popupNameDialogElement.close(); });
+  on(popupNameFormElement, "submit", function onPopupNameFormSubmit(popupNameSubmitEvent) {
+    popupNameSubmitEvent.preventDefault();
+    const popupNameInput = popupNameFormElement.elements.name.value.trim();
+    if (!popupNameInput) {
+      return;
+    }
+    const popupId = popupDialogMode === "create" ? newId("custom-popup") : selectedPopupId;
+    popupNameDialogElement.close();
+    mutateDocument(popupNameDraftDocument => {
+      popupNameDraftDocument.customPopups = popupNameDraftDocument.customPopups || [];
+      if (popupDialogMode === "rename") {
+        const popupToRename = popupNameDraftDocument.customPopups.find(
+          popupMatch => popupMatch.id === selectedPopupId
+        );
+        if (popupToRename) {
+          popupToRename.name = popupNameInput;
+        }
+        return;
+      }
+      popupNameDraftDocument.customPopups.push({
+        id: popupId,
+        name: popupNameInput,
+        templateRef: {
+          templateId: "custom-popup",
+          version: 1
+        },
+        layout: {
+          columns: 3
+        },
+        modules: []
+      });
+      selectedPopupId = popupId;
+      setEditorMode("popup");
+    });
+  });
+  on(popupSelectElement, "change", function onPopupSelectChange() {
+    closePopupActionsMenu();
+    selectedPopupId = popupSelectElement.value || null;
+    setEditorMode("popup");
+  });
+  on(popupListElement, "click", function onPopupListClick(popupListClickEvent) {
+    const popupListItemElement = popupListClickEvent.target.closest("[data-popup-id]");
+    if (popupListItemElement) {
+      closePopupActionsMenu();
+      selectedPopupId = popupListItemElement.dataset.popupId;
+      popupSelectElement.value = selectedPopupId;
+      renderPopupList(activeProject.document, selectedPopupId);
+      setEditorMode("popup");
+    }
+  });
+  on(popupListElement, "contextmenu", function onPopupListContextmenu(popupListContextMenuEvent) {
+    const popupContextItemElement = popupListContextMenuEvent.target.closest("[data-popup-id]");
+    if (!popupContextItemElement) {
+      return;
+    }
+    popupListContextMenuEvent.preventDefault();
+    selectedPopupId = popupContextItemElement.dataset.popupId;
+    popupSelectElement.value = selectedPopupId;
+    renderPopupList(activeProject.document, selectedPopupId);
+    setEditorMode("popup");
+    moduleDialogPopupId = selectedPopupId;
+    popupActionsMenuElement.hidden = false;
+    popupActionsMenuElement.style.left = "0px";
+    popupActionsMenuElement.style.top = "0px";
+    const popupMenuRect = popupActionsMenuElement.getBoundingClientRect();
+    popupActionsMenuElement.style.left =
+      clampNumber(popupListContextMenuEvent.clientX, 8, window.innerWidth - popupMenuRect.width - 8) +
+      "px";
+    popupActionsMenuElement.style.top =
+      clampNumber(
+        popupListContextMenuEvent.clientY,
+        8,
+        window.innerHeight - popupMenuRect.height - 8
+      ) + "px";
+  });
+  on(popupActionsButtonElement, "click", function onPopupActionsButtonClick() {
+    if (popupActionsButtonElement.disabled) {
+      return;
+    }
+    const isPopupActionsMenuHidden = popupActionsMenuElement.hidden;
+    closeProjectActionsMenu();
+    closePageActionsMenu();
+    popupActionsMenuElement.hidden = !isPopupActionsMenuHidden;
+    popupActionsButtonElement.setAttribute("aria-expanded", String(isPopupActionsMenuHidden));
+  });
+  on(popupActionsMenuElement, "click", function onPopupActionsMenuClick(popupActionsClickEvent) {
+    const popupActionName =
+      popupActionsClickEvent.target.closest("[data-popup-action]")?.dataset.popupAction;
+    const popupActionTargetId = moduleDialogPopupId || selectedPopupId;
+    closePopupActionsMenu();
+    if (!!popupActionName && !!popupActionTargetId) {
+      if (popupActionName === "rename") {
+        openPopupNameDialog("rename");
+        return;
+      }
+      if (popupActionName === "duplicate") {
+        const duplicatedPopupId = newId("custom-popup");
+        selectedPopupId = duplicatedPopupId;
+        mutateDocument(popupDuplicateDraftDocument => {
+          /**
+           * 草稿文档里被复制的原弹窗；逐层深拷贝并重新生成各模块 ID，
+           * 否则副本与原弹窗会指向同一个模块对象。
+           */
+          const popupToDuplicate = (popupDuplicateDraftDocument.customPopups || []).find(
+            popupDuplicateMatch => popupDuplicateMatch.id === popupActionTargetId
+          );
+          if (!popupToDuplicate) {
+            return;
+          }
+          const duplicatedPopup = clone(popupToDuplicate);
+          duplicatedPopup.id = duplicatedPopupId;
+          duplicatedPopup.name = popupToDuplicate.name + "_副本";
+          duplicatedPopup.modules = (duplicatedPopup.modules || []).map(popupModuleCopy => ({
+            ...popupModuleCopy,
+            id: newId("popup-module")
+          }));
+          popupDuplicateDraftDocument.customPopups.push(duplicatedPopup);
+        });
+        return;
+      }
+      if (popupActionName === "delete") {
+        /**
+         * 待删除的弹窗记录（读当前文档即可，确认框里还要展示它的名字）。
+         *
+         * @type {?object}
+         */
+        const popupToDelete = (activeProject?.document?.customPopups || []).find(
+          popupDeleteCandidate => popupDeleteCandidate.id === popupActionTargetId
+        );
+        if (!popupToDelete) {
+          return;
+        }
+        popupModuleDraft = popupActionTargetId;
+        deletePopupNameElement.textContent = popupToDelete.name;
+        // 影响面必须在 showModal 之前填好：确认框是模态的，弹出来之后前端没机会再改内容。
+        renderPopupDeleteUsage(activeProject?.document, popupToDelete.id);
+        deletePopupDialogElement.showModal();
+      }
+    }
+  });
+}
+
+/**
+ * 弹层模块编辑。
+ *
+ * 弹层模块的关闭与选择。
+ */
+function bindPopupModuleSection() {
+  const on = sections.section("popup-module");
+  on(deletePopupCloseButtonElement, "click", closeDeletePopupDialog);
+  on(deletePopupCancelButtonElement, "click", closeDeletePopupDialog);
+  on(deletePopupDialogElement, "close", function onDeletePopupDialogClose() {
+    popupModuleDraft = null;
+    // 清掉上一次的影响面：确认框是同一个 DOM，留着旧清单会让下一次删除显示上一个弹窗的控件。
+    deletePopupUsageSummaryElement.textContent = "";
+    deletePopupUsageListElement.replaceChildren();
+  });
+  on(deletePopupConfirmButtonElement, "click", function onDeletePopupConfirmButtonClick() {
+    const popupIdToDelete = popupModuleDraft;
+    if (popupIdToDelete) {
+      popupModuleDraft = null;
+      deletePopupDialogElement.close();
+      deletePopupConfirmButtonElement.disabled = true;
+      mutateDocument(popupDeleteDraftDocument => {
+        popupDeleteDraftDocument.customPopups = (popupDeleteDraftDocument.customPopups || []).filter(
+          popupIdMatch => popupIdMatch.id !== popupIdToDelete
+        );
+        /**
+         * 递归清理组件树中所有指向待删弹窗的 more-info 动作。一个弹窗可能被多个组件（含子组件）的 more-info 动作引用，
+         * 删掉弹窗后这些动作会变成悬空引用、点击无反应，因此统一重置为 type:"none"；沿 children 递归，保证深层布局里的引用也一起清掉。
+         */
+        const clearPopupModuleReferences = componentNodes => {
+          for (const componentNode of componentNodes || []) {
+            for (const [componentActionKey, componentActionValue] of Object.entries(
+              componentNode.actions || {}
+            )) {
+              if (
+                componentActionValue.type === "more-info" &&
+                componentActionValue.data?.popupSource === "custom" &&
+                componentActionValue.data?.popupId === popupIdToDelete
+              ) {
+                componentNode.actions[componentActionKey] = {
+                  type: "none",
+                  data: {}
+                };
+              }
+            }
+            clearPopupModuleReferences(componentNode.children);
+          }
+        };
+        clearPopupModuleReferences(popupDeleteDraftDocument.sharedComponents);
+        for (const popupPage of popupDeleteDraftDocument.pages || []) {
+          clearPopupModuleReferences(popupPage.components);
+        }
+        selectedPopupId = popupDeleteDraftDocument.customPopups[0]?.id || null;
+        if (!selectedPopupId) {
+          setEditorMode("edit");
+        }
+      }).finally(() => {
+        deletePopupConfirmButtonElement.disabled = false;
+      });
+    }
+  });
+  on(popupModuleCloseButtonElement, "click", function onPopupModuleCloseButtonClick() {
+    closePopupModuleEntityMenu();
+    popupModuleDialogElement.close();
+  });
+  on(popupModuleCancelButtonElement, "click", function onPopupModuleCancelButtonClick() {
+    closePopupModuleEntityMenu();
+    popupModuleDialogElement.close();
+  });
+  on(popupModuleEntityButtonElement, "click", function onPopupModuleEntityButtonClick() {
+    const isPopupModuleEntityMenuHidden = popupModuleEntityMenuElement.hidden;
+    popupModuleEntityMenuElement.hidden = !isPopupModuleEntityMenuHidden;
+    popupModuleEntityButtonElement.setAttribute(
+      "aria-expanded",
+      String(isPopupModuleEntityMenuHidden)
+    );
+    if (isPopupModuleEntityMenuHidden) {
+      renderPopupModuleEntityOptions();
+      window.requestAnimationFrame(() =>
+        popupModuleEntitySearchInputElement.focus({
+          preventScroll: true
+        })
+      );
+    }
+  });
+  on(popupModuleEntitySearchInputElement, "input", function onPopupModuleEntitySearchInputInput() { return renderPopupModuleEntityOptions(); }
+  );
+  on(popupModuleEntityOptionsElement, "click", function onPopupModuleEntityOptionsClick(popupModuleEntityClickEvent) {
+    const popupModuleEntityElement = popupModuleEntityClickEvent.target.closest(
+      "[data-popup-module-entity-id]"
+    );
+    if (popupModuleEntityElement) {
+      popupModuleFormElement.elements.entityId.value =
+        popupModuleEntityElement.dataset.popupModuleEntityId;
+      syncPopupModuleEntityButton();
+      closePopupModuleEntityMenu();
+    }
+  });
+  on(popupModuleClimateDeviceTypeElement, "click", function onPopupModuleClimateDeviceTypeClick(climateDeviceTypeClickEvent) {
+    const climateDeviceTypeElement = climateDeviceTypeClickEvent.target.closest(
+      "[data-popup-module-device-type]"
+    );
+    if (!!climateDeviceTypeElement && popupModuleFormElement.elements.type.value === "climate") {
+      syncPopupModuleDeviceType(climateDeviceTypeElement.dataset.popupModuleDeviceType);
+    }
+  });
+  on(popupModuleFormElement.elements.type, "change", function onTargetChange() {
+    syncPopupModuleDeviceType();
+    popupModuleEntityOptionsElement.replaceChildren();
+  });
+  on(popupModuleFormElement, "submit", function onPopupModuleFormSubmit(popupModuleSubmitEvent) {
+    popupModuleSubmitEvent.preventDefault();
+    const popupModuleTargetPopupId = selectedPopupId;
+    const popupModuleType = popupModuleFormElement.elements.type.value;
+    const popupModuleSubmitEntityId = popupModuleFormElement.elements.entityId.value;
+    const popupModuleTitle = popupModuleFormElement.elements.title.value.trim();
+    const popupModuleDeviceType = normalizedPopupClimateDeviceType(
+      popupModuleFormElement.elements.deviceType.value
+    );
+    if (!popupModuleTargetPopupId || !popupModuleSubmitEntityId) {
+      return;
+    }
+    const popupModulePopup = findCustomPopup(activeProject?.document, selectedPopupId);
+    const popupModuleDraftEntry = {
+      id: selectedPopupModuleId || "candidate",
+      type: popupModuleType,
+      entityId: popupModuleSubmitEntityId,
+      ...(popupModuleTitle
+        ? {
+            title: popupModuleTitle
+          }
+        : {}),
+      ...(popupModuleType === "climate"
+        ? {
+            properties: {
+              deviceType: popupModuleDeviceType
+            }
+          }
+        : {})
+    };
+    const nextPopupModules = selectedPopupModuleId
+      ? (popupModulePopup?.modules || []).map(existingPopupModule =>
+          existingPopupModule.id === selectedPopupModuleId
+            ? {
+                ...existingPopupModule,
+                ...popupModuleDraftEntry
+              }
+            : existingPopupModule
+        )
+      : [...(popupModulePopup?.modules || []), popupModuleDraftEntry];
+    if (!popupModulePopup || !packPopupModules(nextPopupModules, popupModulePopup.layout).fits) {
+      handleOperationError(new Error("当前布局已超过 3 行，可增加列数或删除其它模块。"));
+      return;
+    }
+    closePopupModuleEntityMenu();
+    popupModuleDialogElement.close();
+    mutateDocument(popupModuleDraftDocument => {
+      /**
+       * 草稿文档里承载本次模块编辑的弹窗；找不到说明弹窗已被删除，
+       * 直接放弃这次写入（例如对话框打开期间在别处删掉了它）。
+       */
+      const popupModuleDraftPopup = (popupModuleDraftDocument.customPopups || []).find(
+        popupModulePopupMatch => popupModulePopupMatch.id === popupModuleTargetPopupId
+      );
+      if (!popupModuleDraftPopup) {
+        return;
+      }
+      const popupModuleExisting = popupModuleDraftPopup.modules.find(
+        popupModuleMatch => popupModuleMatch.id === selectedPopupModuleId
+      );
+      if (popupModuleExisting) {
+        popupModuleExisting.type = popupModuleType;
+        popupModuleExisting.entityId = popupModuleSubmitEntityId;
+        if (popupModuleTitle) {
+          popupModuleExisting.title = popupModuleTitle;
+        } else {
+          delete popupModuleExisting.title;
+        }
+        if (popupModuleType === "climate") {
+          popupModuleExisting.properties = {
+            ...(popupModuleExisting.properties || {}),
+            deviceType: popupModuleDeviceType
+          };
+        } else if (popupModuleExisting.properties?.deviceType) {
+          const { deviceType: removedDeviceType, ...remainingPopupProperties } =
+            popupModuleExisting.properties;
+          if (Object.keys(remainingPopupProperties).length) {
+            popupModuleExisting.properties = remainingPopupProperties;
+          } else {
+            delete popupModuleExisting.properties;
+          }
+        }
+        delete popupModuleExisting.deviceType;
+        return;
+      }
+      popupModuleDraftPopup.modules.push({
+        id: newId("popup-module"),
+        type: popupModuleType,
+        entityId: popupModuleSubmitEntityId,
+        ...(popupModuleTitle
+          ? {
+              title: popupModuleTitle
+            }
+          : {}),
+        ...(popupModuleType === "climate"
+          ? {
+              properties: {
+                deviceType: popupModuleDeviceType
+              }
+            }
+          : {})
+      });
+    });
+  });
+}
+
+/**
+ * 文档级指针与按键。
+ *
+ * 挂在 document 上的 pointerdown / input / keydown：关下拉、抓输入、快捷键。
+ */
+function bindDocumentPointerSection() {
+  const on = sections.section("document-pointer");
+  on(document, "pointerdown", function onDocumentPointerdown(documentPointerDownEvent) {
+    const deleteAssetFolderClosestElement = documentPointerDownEvent.target.closest(
+      "#delete-asset-folder-dialog"
+    );
+    if (!componentContextMenuElement.contains(documentPointerDownEvent.target)) {
+      closeComponentContextMenu();
+    }
+    if (
+      !deleteAssetFolderClosestElement &&
+      openCustomSelect &&
+      !openCustomSelect.button.contains(documentPointerDownEvent.target) &&
+      !openCustomSelect.menu.contains(documentPointerDownEvent.target)
+    ) {
+      closeCustomSelectMenu();
+    }
+    if (!documentPointerDownEvent.target.closest(".dashboard-select-row")) {
+      closeProjectActionsMenu();
+    }
+    if (!documentPointerDownEvent.target.closest(".page-control .page-select-row")) {
+      closePageActionsMenu();
+    }
+    if (
+      !documentPointerDownEvent.target.closest("#popup-list") &&
+      !documentPointerDownEvent.target.closest("#popup-actions-menu")
+    ) {
+      closePopupActionsMenu();
+    }
+    if (!documentPointerDownEvent.target.closest("#popup-module-entity-picker")) {
+      closePopupModuleEntityMenu();
+    }
+    if (!documentPointerDownEvent.target.closest(".component-popup-entity-picker")) {
+      closePopupEntityMenus();
+    }
+    if (!documentPointerDownEvent.target.closest("#image-entity-picker")) {
+      closeDropdownMenu(imageEntityMenuElement, imageEntityButtonElement);
+    }
+    if (!documentPointerDownEvent.target.closest("#weather-entity-picker")) {
+      closeDropdownMenu(weatherEntityMenuElement, weatherEntityButtonElement);
+    }
+    if (!documentPointerDownEvent.target.closest("#line-chart-entity-picker")) {
+      closeDropdownMenu(lineChartEntityMenuElement, lineChartEntityButtonElement);
+    }
+    if (!documentPointerDownEvent.target.closest("#ibe-entity-picker")) {
+      closeDropdownMenu(iconButtonEffectEntityMenuElement, iconButtonEffectEntityButtonElement);
+    }
+    if (!documentPointerDownEvent.target.closest("#icon-button-entity-picker")) {
+      closeDropdownMenu(iconButtonEntityMenuElement, iconButtonEntityButtonElement);
+    }
+    if (!documentPointerDownEvent.target.closest("#vacuum-map-entity-picker")) {
+      closeDropdownMenu(vacuumMapEntityMenuElement, vacuumMapEntityButtonElement);
+    }
+    if (!documentPointerDownEvent.target.closest("#camera-entity-picker")) {
+      closeDropdownMenu(cameraEntityMenuElement, cameraEntityButtonElement);
+    }
+    if (!documentPointerDownEvent.target.closest("#air-conditioner-entity-picker")) {
+      closeDropdownMenu(airConditionerEntityMenuElement, airConditionerEntityButtonElement);
+    }
+    if (!documentPointerDownEvent.target.closest("#title-button-entity-picker")) {
+      closeDropdownMenu(titleButtonEntityMenuElement, titleButtonEntityButtonElement);
+    }
+    if (
+      !lightStatisticsEntityMenuElement.hidden &&
+      !documentPointerDownEvent.target.closest("#light-statistics-entity-picker") &&
+      !lightStatisticsEntityMenuElement.contains(documentPointerDownEvent.target)
+    ) {
+      closeDropdownMenu(lightStatisticsEntityMenuElement, lightStatisticsEntityButtonElement);
+      resetLightStatisticsPicker();
+    }
+    if (!documentPointerDownEvent.target.closest("#light-statistics-action-entity-picker")) {
+      closeDropdownMenu(
+        lightStatisticsActionEntityMenuElement,
+        lightStatisticsActionEntityButtonElement
+      );
+    }
+    if (!documentPointerDownEvent.target.closest("#navigation-entity-picker")) {
+      closeDropdownMenu(navigationEntityMenuElement, navigationEntityButtonElement);
+    }
+    const imageAssetFolderMenuElement = customSelectsBySelectElement.get(
+      imageAssetFolderSelectElement
+    )?.menu;
+    if (
+      !deleteAssetFolderClosestElement &&
+      !documentPointerDownEvent.target.closest("#image-asset-picker") &&
+      !imageAssetFolderMenuElement?.contains(documentPointerDownEvent.target)
+    ) {
+      closeDropdownMenu(imageAssetMenuElement, imageAssetButtonElement);
+    }
+    const effectAssetFolderMenuElement = customSelectsBySelectElement.get(
+      iconButtonEffectAssetFolderSelectElement
+    )?.menu;
+    if (
+      !deleteAssetFolderClosestElement &&
+      !documentPointerDownEvent.target.closest("#ibe-asset-picker") &&
+      !effectAssetFolderMenuElement?.contains(documentPointerDownEvent.target)
+    ) {
+      closeDropdownMenu(iconButtonEffectAssetMenuElement, iconButtonEffectAssetButtonElement);
+    }
+    if (
+      !documentPointerDownEvent.target.closest("#ibe-icon-picker") &&
+      !iconButtonEffectIconMenuElement.contains(documentPointerDownEvent.target)
+    ) {
+      closeDropdownMenu(iconButtonEffectIconMenuElement, iconButtonEffectIconButtonElement);
+    }
+    if (
+      !documentPointerDownEvent.target.closest("#icon-button-icon-picker") &&
+      !iconButtonIconMenuElement.contains(documentPointerDownEvent.target)
+    ) {
+      closeDropdownMenu(iconButtonIconMenuElement, iconButtonIconButtonElement);
+    }
+    if (
+      !documentPointerDownEvent.target.closest("#title-button-icon-picker") &&
+      !titleButtonIconMenuElement.contains(documentPointerDownEvent.target)
+    ) {
+      closeDropdownMenu(titleButtonIconMenuElement, titleButtonIconButtonElement);
+    }
+    if (
+      !documentPointerDownEvent.target.closest("#light-statistics-icon-picker") &&
+      !lightStatisticsIconMenuElement.contains(documentPointerDownEvent.target)
+    ) {
+      closeDropdownMenu(lightStatisticsIconMenuElement, lightStatisticsIconButtonElement);
+    }
+    if (
+      !documentPointerDownEvent.target.closest("#navigation-icon-picker") &&
+      !navigationIconMenuElement.contains(documentPointerDownEvent.target)
+    ) {
+      closeDropdownMenu(navigationIconMenuElement, navigationIconButtonElement);
+    }
+  });
+  const scaleInputElements = new Set([
+    imageScaleInputElement,
+    iconButtonEffectScaleInputElement,
+    titleButtonScaleInputElement,
+    lightStatisticsScaleInputElement,
+    iconButtonScaleInputElement,
+    airConditionerScaleInputElement,
+    vacuumMapScaleInputElement,
+    cameraScaleInputElement,
+    timeScaleInputElement,
+    dateScaleInputElement,
+    weatherScaleInputElement,
+    lineChartScaleInputElement,
+    panelFrameScaleInputElement,
+    navigationScaleInputElement
+  ]);
+  on(document, "input",
+    scaleInputCaptureEvent => {
+      if (selectedComponentIds.size < 2 || !scaleInputElements.has(scaleInputCaptureEvent.target)) {
+        return;
+      }
+      scaleInputCaptureEvent.stopPropagation();
+      const scaleInputValue = Number(scaleInputCaptureEvent.target.value);
+      if (!Number.isFinite(scaleInputValue)) {
+        return;
+      }
+      const scaledPlacements = scaledSelectionPlacements(clampNumber(scaleInputValue, 1, 500) / 100);
+      if (scaledPlacements.length) {
+        editorRenderer?.previewComponentsTransform(scaledPlacements, selectedComponentId);
+      }
+    },
+    true
+  );
+  on(document, "change",
+    documentChangeEvent => {
+      if (selectedComponentIds.size < 2 || !scaleInputElements.has(documentChangeEvent.target)) {
+        return;
+      }
+      documentChangeEvent.stopPropagation();
+      const changeInputValue = Number(documentChangeEvent.target.value);
+      if (!Number.isFinite(changeInputValue)) {
+        syncInspector();
+        return;
+      }
+      const selectedComponentIdSet = new Set(selectedComponentIds);
+      const changedScaledPlacements = scaledSelectionPlacements(
+        clampNumber(changeInputValue, 1, 500) / 100
+      );
+      if (changedScaledPlacements.length) {
+        mutateDocument(scaleDraftDocument => {
+          for (const scaledPlacement of changedScaledPlacements) {
+            if (!selectedComponentIdSet.has(scaledPlacement.componentId)) {
+              continue;
+            }
+            const scaledComponentRecord = findComponent(
+              scaleDraftDocument,
+              scaledPlacement.componentId
+            )?.component;
+            if (scaledComponentRecord) {
+              scaledComponentRecord.position = {
+                ...(scaledComponentRecord.position || {}),
+                x: scaledPlacement.x,
+                y: scaledPlacement.y
+              };
+              scaledComponentRecord.style = {
+                ...(scaledComponentRecord.style || {}),
+                scale: scaledPlacement.scale
+              };
+            }
+          }
+        });
+      }
+    },
+    true
+  );
+  on(document, "keydown", function onDocumentKeydown(documentKeydownEvent) {
+    const keyboardTargetElement = documentKeydownEvent.target.closest(
+      'input, textarea, select, button, [contenteditable="true"], dialog'
+    );
+    if (editorMode === "edit" && selectedComponentIds.size && !keyboardTargetElement) {
+      if (
+        (documentKeydownEvent.metaKey || documentKeydownEvent.ctrlKey) &&
+        !documentKeydownEvent.altKey &&
+        !documentKeydownEvent.shiftKey &&
+        documentKeydownEvent.key.toLowerCase() === "d"
+      ) {
+        documentKeydownEvent.preventDefault();
+        duplicateComponents([...selectedComponentIds], selectedComponentId);
+        return;
+      }
+      if (
+        !documentKeydownEvent.metaKey &&
+        !documentKeydownEvent.ctrlKey &&
+        !documentKeydownEvent.altKey &&
+        (documentKeydownEvent.key === "Delete" || documentKeydownEvent.key === "Backspace")
+      ) {
+        documentKeydownEvent.preventDefault();
+        openDeleteComponentDialog([...selectedComponentIds]);
+        return;
+      }
+    }
+    const arrowKeyDeltas = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1]
+    };
+    if (
+      arrowKeyDeltas[documentKeydownEvent.key] &&
+      editorMode === "edit" &&
+      selectedComponentIds.size &&
+      !documentKeydownEvent.metaKey &&
+      !documentKeydownEvent.ctrlKey &&
+      !documentKeydownEvent.altKey &&
+      !keyboardTargetElement
+    ) {
+      documentKeydownEvent.preventDefault();
+      const nudgeStep = documentKeydownEvent.shiftKey ? 10 : 1;
+      const [nudgeOffsetX, nudgeOffsetY] = arrowKeyDeltas[documentKeydownEvent.key];
+      nudgeSelectedComponents(nudgeOffsetX * nudgeStep, nudgeOffsetY * nudgeStep);
+      return;
+    }
+    if (documentKeydownEvent.key !== "Enter" || documentKeydownEvent.isComposing) {
+      return;
+    }
+    const enterTargetElement = documentKeydownEvent.target.closest(
+      'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])'
+    );
+    if (enterTargetElement) {
+      documentKeydownEvent.preventDefault();
+      enterTargetElement.blur();
+    }
+  });
+}
+
+/**
+ * 检查器滚动收尾。
+ *
+ * 检查器滚动时收起浮层，以及挂在末尾的一批控件绑定。
+ */
+function bindInspectorScrollSection() {
+  const on = sections.section("inspector-scroll");
+  on(inspectorElement, "scroll", function onInspectorScroll() {
+    hideAssetLargePreview();
+    positionImagePickerMenu();
+    positionEntityPickerMenu("weather");
+    positionEntityPickerMenu("line-chart");
+    positionEntityPickerMenu("icon-button-effect");
+    positionEntityPickerMenu("icon-button");
+    positionEntityPickerMenu("vacuum-map");
+    positionEntityPickerMenu("camera");
+    positionEntityPickerMenu("air-conditioner");
+    positionEntityPickerMenu("title-button");
+    positionEntityPickerMenu("light-statistics");
+    positionLightStatisticsEntityMenu();
+    positionImageAssetMenu();
+    positionEffectAssetMenu();
+    positionIconButtonEffectIconMenu();
+    positionIconButtonIconMenu();
+    positionTitleButtonIconMenu();
+    positionLightStatisticsIconMenu();
+    positionNavigationIconMenu();
+    positionColorPicker();
+    for (const popupEntityScrollMenuElement of document.querySelectorAll(
+      "[data-popup-entity-menu]:not([hidden])"
+    )) {
+      positionPopupEntityMenu(popupEntityScrollMenuElement.closest("[data-action-trigger]"));
+    }
+  });
+  on(window, "resize", function onWindowResize() {
+    refreshEditorViewportFit();
+    refreshComponentDialogScale();
+    closeComponentContextMenu();
+    closeCustomSelectMenu();
+    closeAllDropdownMenus();
+    closePopupEntityMenus();
+    positionColorPicker();
+  });
+  on(saveButtonElement, "click", async function onSaveButtonClick() {
+    // 等上一次写落定再走：它成功与否不影响本次操作（失败已由那一环的调用方报过）。
+    await writeQueuePromise.catch(() => {});
+    await saveDraft();
+  });
+  on(displayDevicesOpenButtonElement, "click", openDisplayDevicesDialog);
+  on(displayDevicesCloseButtonElement, "click", function onDisplayDevicesCloseButtonClick() { return displayDevicesDialogElement.close(); }
+  );
+  on(sessionsOpenButtonElement, "click", openSessionsDialog);
+  on(sessionsCloseButtonElement, "click", function onSessionsCloseButtonClick() { return sessionsDialogElement.close(); });
+  on(sessionsRevokeOthersButtonElement, "click", openSessionsRevokeOthersDialog);
+  on(sessionsRevokeOthersCloseButtonElement, "click", function onSessionsRevokeOthersCloseButtonClick() { return sessionsRevokeOthersDialogElement.close(); }
+  );
+  on(sessionsRevokeOthersCancelButtonElement, "click", function onSessionsRevokeOthersCancelButtonClick() { return sessionsRevokeOthersDialogElement.close(); }
+  );
+  on(sessionsRevokeOthersConfirmButtonElement, "click", async function onSessionsRevokeOthersConfirmButtonClick() {
+    sessionsRevokeOthersConfirmButtonElement.disabled = true;
+    setSettingsMessage(sessionsRevokeOthersMessageElement, "");
+    setSettingsMessage(sessionsMessageElement, "");
+    try {
+      await requestJson("/auth/sessions", { method: "DELETE" });
+      sessionsRevokeOthersDialogElement.close();
+      await loadLoginSessions();
+      setSettingsMessage(
+        sessionsMessageElement,
+        "已退出其他所有设备的登录会话。",
+        "success"
+      );
+    } catch (revokeOtherSessionsError) {
+      setSettingsMessage(
+        sessionsRevokeOthersMessageElement,
+        revokeOtherSessionsError.message,
+        "error"
+      );
+      sessionsRevokeOthersConfirmButtonElement.disabled = false;
+    }
+  });
+  on(sessionsRevokeCloseButtonElement, "click", function onSessionsRevokeCloseButtonClick() { return sessionsRevokeDialogElement.close(); }
+  );
+  on(sessionsRevokeCancelButtonElement, "click", function onSessionsRevokeCancelButtonClick() { return sessionsRevokeDialogElement.close(); }
+  );
+  on(sessionsRevokeConfirmButtonElement, "click", async function onSessionsRevokeConfirmButtonClick() {
+    const revokedSessionId = sessionsRevokeDialogElement.dataset.sessionId;
+    if (!revokedSessionId) {
+      setSettingsMessage(
+        sessionsRevokeMessageElement,
+        "会话已经不存在，请刷新后重试。",
+        "error"
+      );
+      return;
+    }
+    sessionsRevokeConfirmButtonElement.disabled = true;
+    setSettingsMessage(sessionsRevokeMessageElement, "");
+    setSettingsMessage(sessionsMessageElement, "");
+    try {
+      await requestJson("/auth/sessions/" + encodeURIComponent(revokedSessionId), {
+        method: "DELETE"
+      });
+      sessionsRevokeDialogElement.close();
+      delete sessionsRevokeDialogElement.dataset.sessionId;
+      await loadLoginSessions();
+    } catch (revokeSessionError) {
+      setSettingsMessage(sessionsRevokeMessageElement, revokeSessionError.message, "error");
+      sessionsRevokeConfirmButtonElement.disabled = false;
+    }
+  });
+  on(displayPairingCustomCodeTextInputElement, "input", function onDisplayPairingCustomCodeTextInputInput() {
+    displayPairingCustomCodeTextInputElement.value = displayPairingCustomCodeTextInputElement.value
+      .replace(/\D/g, "")
+      .slice(0, 6);
+  });
+  on(displayPairingFormElement, "submit", createDisplayPairingCode);
+  on(logoutButtonElement, "click", async function onLogoutButtonClick() {
+    if (!guardUnsavedChanges()) {
+      await requestJson("/auth/logout", {
+        method: "POST"
+      });
+      window.location.assign("/login");
+    }
+  });
+  enhanceNativeSelectsIn();
+  enhanceColorInputsIn(document);
+  enhanceNumberInputsIn(document);
+
+
+  on(globalColorPickerSaturationValueElement, "pointerdown",
+    function onGlobalColorPickerSaturationValuePointerdown(saturationPointerDownEvent) {
+      if (activeColorInputElement) {
+        saturationPointerDownEvent.preventDefault();
+        colorPickerDragPointerId = saturationPointerDownEvent.pointerId;
+        capturePointer(globalColorPickerSaturationValueElement, saturationPointerDownEvent.pointerId);
+        updateColorPickerFromPointer(saturationPointerDownEvent);
+      }
+    }
+  );
+  on(globalColorPickerSaturationValueElement, "pointermove",
+    function onGlobalColorPickerSaturationValuePointermove(saturationPointerMoveEvent) {
+      if (saturationPointerMoveEvent.pointerId === colorPickerDragPointerId) {
+        updateColorPickerFromPointer(saturationPointerMoveEvent);
+      }
+    }
+  );
+  on(globalColorPickerSaturationValueElement, "pointerup", function onGlobalColorPickerSaturationValuePointerup(saturationPointerUpEvent) {
+    if (saturationPointerUpEvent.pointerId === colorPickerDragPointerId) {
+      colorPickerDragPointerId = null;
+      releasePointer(globalColorPickerSaturationValueElement, saturationPointerUpEvent.pointerId);
+    }
+  });
+  on(globalColorPickerHueRangeInputElement, "input", function onGlobalColorPickerHueRangeInputInput() {
+    if (activeColorInputElement) {
+      colorPickerHue = clampNumber(Number(globalColorPickerHueRangeInputElement.value), 0, 360);
+      commitColorPickerHsv();
+    }
+  });
+  on(globalColorPickerHexTextInputElement, "input", function onGlobalColorPickerHexTextInputInput() {
+    const hexColorInputValue = hexColorOrEmpty(globalColorPickerHexTextInputElement.value);
+    if (hexColorInputValue) {
+      syncColorPickerFromHex(hexColorInputValue, true);
+    }
+  });
+  on(globalColorPickerHexTextInputElement, "change", function onGlobalColorPickerHexTextInputChange() {
+    const hexColorChangeInput = hexColorOrEmpty(globalColorPickerHexTextInputElement.value);
+    if (hexColorChangeInput) {
+      syncColorPickerFromHex(hexColorChangeInput, true);
+    } else if (activeColorInputElement) {
+      globalColorPickerHexTextInputElement.value = String(
+        activeColorInputElement.value || ""
+      ).toUpperCase();
+    }
+  });
+
+
+  for (const colorChannelInput of [
+    globalColorPickerRedInputElement,
+    globalColorPickerGreenInputElement,
+    globalColorPickerBlueInputElement
+  ]) {
+    on(colorChannelInput, "input", commitColorPickerFromRgb);
+    on(colorChannelInput, "change", commitColorPickerFromRgb);
+  }
+  on(globalColorPickerCopyButtonElement, "click", async function onGlobalColorPickerCopyButtonClick() {
+    if (activeColorInputElement) {
+      try {
+        await copyTextToClipboard(String(activeColorInputElement.value || "").toUpperCase());
+        window.clearTimeout(colorPickerCopyResetTimer);
+        globalColorPickerCopyButtonElement.classList.add("copied");
+        colorPickerCopyResetTimer = window.setTimeout(
+          () => globalColorPickerCopyButtonElement.classList.remove("copied"),
+          1200
+        );
+      } catch (copyColorError) {
+        handleOperationError(copyColorError);
+      }
+    }
+  });
+  on(globalColorPickerPasteButtonElement, "click", async function onGlobalColorPickerPasteButtonClick() {
+    if (activeColorInputElement) {
+      try {
+        const clipboardRawText = await navigator.clipboard.readText();
+        const clipboardHexColor = hexColorOrEmpty(clipboardRawText);
+        if (!clipboardHexColor) {
+          throw new Error("剪贴板中没有可用的十六进制颜色值。");
+        }
+        globalColorPickerHexTextInputElement.value = clipboardHexColor.toUpperCase();
+        syncColorPickerFromHex(clipboardHexColor, true);
+        globalColorPickerPasteButtonElement.classList.add("copied");
+        window.setTimeout(() => globalColorPickerPasteButtonElement.classList.remove("copied"), 1200);
+      } catch (pasteColorError) {
+        handleOperationError(pasteColorError);
+      }
+    }
+  });
+  on(document, "click",
+    pickerGuardClickEvent => {
+      const clickedButtonElement = pickerGuardClickEvent.target.closest("button");
+      if (!clickedButtonElement) {
+        return;
+      }
+      let isPickerHandled = false;
+      if (
+        [
+          navigationIconButtonElement,
+          iconButtonEffectIconButtonElement,
+          iconButtonIconButtonElement,
+          titleButtonIconButtonElement,
+          lightStatisticsIconButtonElement
+        ].includes(clickedButtonElement)
+      ) {
+        isPickerHandled = openIconPicker(clickedButtonElement);
+      } else if (clickedButtonElement === lightStatisticsEntityButtonElement) {
+        isPickerHandled = openLightStatisticsEntityPicker();
+      } else if (clickedButtonElement.matches("[data-popup-entity-button]")) {
+        isPickerHandled = openPopupEntityPicker(clickedButtonElement);
+      } else if (clickedButtonElement === popupModuleEntityButtonElement) {
+        isPickerHandled = openPopupModuleEntityPicker();
+      } else if (
+        [imageAssetButtonElement, iconButtonEffectAssetButtonElement].includes(clickedButtonElement)
+      ) {
+        isPickerHandled = openAssetPicker(clickedButtonElement);
+      } else {
+        isPickerHandled = openEntityPicker(clickedButtonElement);
+      }
+      if (isPickerHandled) {
+        pickerGuardClickEvent.preventDefault();
+        pickerGuardClickEvent.stopImmediatePropagation();
+      }
+    },
+    true
+  );
+  on(document, "pointerdown", function onDocumentPointerdown(documentPointerDownCaptureEvent) {
+    if (
+      !globalColorPickerElement.hidden &&
+      !globalColorPickerElement.contains(documentPointerDownCaptureEvent.target) &&
+      documentPointerDownCaptureEvent.target !== activeColorInputElement
+    ) {
+      closeColorPicker();
+    }
+  });
+  // dialog 以任何方式关闭时取色器都要收拾干净：它可能正挂在那只 dialog 里（见 colorPickerHostFor），
+  // 而 dialog 关闭一帧后会被惰性卸载（editor-dialogs.js）—— 留在里面的取色器会连着被摘离文档。
+  // Esc 关闭不会有 pointerdown，所以不能只靠上面那条兜。close 事件不冒泡，只能在捕获阶段听。
+  //
+  // 这里必须走完整的 closeColorPicker（它会隐藏面板并补发 change），不能只把活跃输入框清掉：
+  // activeColorInputElement 的 isConnected 判据**认不出已脱离文档的取色器**，于是面板会一直
+  // 保持可见；等 dialog 被摘走，那个还亮着的面板连同 hidden=false 的状态一起消失，下次打开
+  // 同一只 dialog 时又原样冒出来。判据收紧到「取色器就挂在这只正在关闭的 dialog 里」：
+  // 文档里别的元素也会发 close，无差别收起会把侧栏输入框刚打开的面板一起关掉。
+  on(document, "close",
+    closeEvent => {
+      if (closeEvent.target?.contains?.(globalColorPickerElement)) {
+        closeColorPicker();
+      }
+    },
+    true
+  );
+  new MutationObserver(mutationRecords => {
+    for (const mutationRecord of mutationRecords) {
+      for (const addedNode of mutationRecord.addedNodes) {
+        if (addedNode instanceof HTMLElement) {
+          enhanceNativeSelectsIn(addedNode);
+          enhanceColorInputsIn(addedNode);
+          enhanceNumberInputsIn(addedNode);
+        }
+      }
+    }
+  }).observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  deferHiddenEditorDialogs();
+  setEditorMode("edit");
+  // 下面这一组轮询 / 可见性刷新统一吞掉失败：它们每 15 / 30 秒重试一次，
+  // 单次失败弹提示只会刷屏，真实状态下一轮就会回来。
+  window.setInterval(() => {
+    if (document.visibilityState === "visible") {
+      refreshHaConnection().catch(() => {});
+      refreshLicenseStatus().catch(() => {});
+    }
+  }, 15000);
+  window.setInterval(() => {
+    if (document.visibilityState === "visible") {
+      pollAssetCatalogVersion().catch(() => {});
+    }
+  }, 30000);
+  on(document, "visibilitychange", function onDocumentVisibilitychange() {
+    if (document.visibilityState === "visible") {
+      refreshHaConnection().catch(() => {});
+      pollAssetCatalogVersion().catch(() => {});
+      refreshLicenseStatus().catch(() => {});
+    }
+  });
+}
