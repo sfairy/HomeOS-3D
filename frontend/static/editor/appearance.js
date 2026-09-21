@@ -25,9 +25,9 @@ import {
   normalizeHex,
   resolveTokens,
   rgbTriplet,
-} from "../auth/scene/appearance.js?v=2609212100";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609212100";
-import { apiFetch } from "../utils/api-fetch.js?v=2609212100";
+} from "../auth/scene/appearance.js?v=2609212122";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609212122";
+import { apiFetch } from "../utils/api-fetch.js?v=2609212122";
 
 /** 面板用到的元素。全部取自 index.html 的 #appearance-dialog。 */
 const dialog = document.getElementById("appearance-dialog");

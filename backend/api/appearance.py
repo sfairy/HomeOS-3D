@@ -65,7 +65,7 @@ def update_appearance(
         tokens = validate_tokens(payload.tokens)
     except AppearanceError as error:
         raise HTTPException(
-            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code = status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail = str(error),
         ) from error
     return request.app.state.appearance.save(preset = preset, tokens = tokens)

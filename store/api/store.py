@@ -458,7 +458,7 @@ def _evaluate_coupon_limited(
         # 人工发卡商品由运营手工核对后发码，折扣没法自动结算，因此明确不支持。
         # 关键是**两条路径都拒绝**：否则会一边静默忽略、一边照常打折。
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=_MANUAL_COUPON_DETAIL
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=_MANUAL_COUPON_DETAIL
         )
     scope = f"coupon:{account.id}"
     if password_gate.retry_after_seconds(session, scope) > 0:
@@ -767,7 +767,7 @@ def send_verification(
     # 同样通过 —— 商店官方域名就成了「给任意地址群发」的跳板；带换行的输入更直接是头注入。
     # 这里拒绝掉，比在发信层再去分辨「一个地址还是多个」可靠得多。
     if not is_valid_email(email):
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="请输入有效的邮箱地址。")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="请输入有效的邮箱地址。")
 
     setting = site_config.get_setting(session)
     # 邮件 / 验证码相关配置一律用**合并后**的值（站点配置优先、环境变量兜底）：直接拿 ``app.state.settings``
@@ -972,7 +972,7 @@ def record_attempt_in_new_session(session, scope: str) -> None:
 def register(payload: RegisterRequest, request: Request, session: DbSession) -> Response:
     email = payload.email.strip().lower()
     if payload.confirm_password and payload.confirm_password != payload.password:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="两次输入的密码不一致。")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="两次输入的密码不一致。")
 
     # 顺序不能反：先消费验证码，再回答「这个邮箱是否已注册」，否则任何人都能拿瞎编的
     # 验证码探出账号是否存在（409 = 有、请先获取验证码 = 无），枚举口又从 _assert_purpose_allowed 挪回来。
@@ -1245,7 +1245,7 @@ def change_password(
     password_gate.clear(session, confirm_scope)
 
     if payload.new_password != payload.confirm_password:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="两次输入的新密码不一致。")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="两次输入的新密码不一致。")
 
     if verify_password(payload.new_password, account.password_hash):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="新密码与当前密码相同。")
@@ -1271,7 +1271,7 @@ def change_password(
 def reset_password(payload: PasswordResetRequest, request: Request, session: DbSession) -> dict:
     email = payload.email.strip().lower()
     if payload.confirm_password and payload.confirm_password != payload.password:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="两次输入的密码不一致。")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="两次输入的密码不一致。")
     # 同 ``register`` —— 先消费验证码，再表态邮箱是否存在。
     # 「尚未注册」这个回答只该给到已经证明持有该邮箱的人；否则这里就是一个
     # 一次请求一个答案的枚举探针（而且它连验证码都不用去拿）。
@@ -1594,7 +1594,7 @@ def create_order(
         target_license_id = (payload.target_license_id or "").strip()
         if not target_license_id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="请选择增量包要附加到的主授权。",
             )
         target_license = session.get(License, target_license_id)
@@ -2090,7 +2090,7 @@ def request_withdrawal(
     points_centi = money.to_centi(payload.points)
     if points_centi < minimum_centi:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"最低提现 {money.format_centi(minimum_centi)} 积分。",
         )
     # 「可用积分」口径必须与前端展示一致（余额 - 冻结）；只比 balance 的话，

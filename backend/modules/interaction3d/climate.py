@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 # 允许透传的服务 → 该服务唯一允许出现的参数名；``None`` 表示该服务**不带参数**。
 # 表里没有的服务，以及夹带其它参数（如同时给 temperature 与 hvac_mode）的请求一律拒绝。
@@ -57,7 +57,7 @@ def require_air_conditioner_model(bindings: list, entity_id: str, scene: dict) -
         models = [item for item in floor.get('scene', {}).get('items', []) if item.get('id') == binding.get('modelId')]
         if len(models) == 1 and models[0].get('type') in {'wallac', 'floorac', 'airoutlet'}:
             return None
-    raise HTTPException(status_code=409, detail='空调模型已失联，请在环境配置中重新选择模型。')
+    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='空调模型已失联，请在环境配置中重新选择模型。')
 
 
 def _number(value) -> bool:
@@ -88,21 +88,21 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
     # 先判「在不在表里」再取参数名：``None`` 现在是「无参数服务」的合法取值，
     # 用 ``.get()`` 的返回值同时表达「不在表里」会分不清这两件事。
     if service not in CLIMATE_SERVICES:
-        raise HTTPException(status_code=422, detail='3D 空调控制不支持此服务。')
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='3D 空调控制不支持此服务。')
     parameter = CLIMATE_SERVICES[service]
     expected_fields = set() if parameter is None else {parameter}
     if set(data) != expected_fields:
-        raise HTTPException(status_code=422, detail='3D 空调控制不支持此服务或参数。')
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='3D 空调控制不支持此服务或参数。')
     # unknown / unavailable 与空状态同等对待，不去猜设备的真实状态。
     # 这一层对开关机同样适用：设备失联时「开启」也不该假装成功。
     if not state or state.get('available') is False or state.get('state') in {None, '', 'unknown', 'unavailable'}:
-        raise HTTPException(status_code=409, detail='空调状态暂不可用，请等待设备重新连接。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='空调状态暂不可用，请等待设备重新连接。')
     # 开关机是无参数服务，也不需要读 attributes：回到哪个模式由设备自己决定。
     if parameter is None:
         return None
     attributes = state.get('attributes')
     if not isinstance(attributes, dict):
-        raise HTTPException(status_code=409, detail='空调能力尚未载入，请稍后重试。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='空调能力尚未载入，请稍后重试。')
     value = data[parameter]
     if service == 'set_temperature':
         # 温度区间与步长都来自 HA 属性；集成不上报 step 时按 HA 常见的 0.5 兜底。
@@ -120,19 +120,19 @@ def validate_climate_command(service: str, data: dict, state: dict | None) -> No
             or minimum >= maximum
             or step <= 0
         ):
-            raise HTTPException(status_code=409, detail='空调未提供有效的温度调节能力。')
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='空调未提供有效的温度调节能力。')
         # 先挡越界值，再挡不在刻度上的值，两类错误分别给不同提示。
         if not _number(value) or not minimum <= value <= maximum:
-            raise HTTPException(status_code=422, detail='目标温度超出空调支持的范围。')
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='目标温度超出空调支持的范围。')
         # 目标温度必须落在「从 min_temp 起、以 step 为间隔」的刻度上，
         # 否则设备会四舍五入到别的值，表现为「点了没反应」。
         increments = (value - minimum) / step
         # abs_tol=1e-6 容忍浮点误差（26.5 这类值在二进制下无法精确表示）。
         if not (math.isfinite(increments) and math.isclose(increments, round(increments), abs_tol=1e-06)):
-            raise HTTPException(status_code=422, detail='目标温度不符合空调支持的调节步长。')
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='目标温度不符合空调支持的调节步长。')
         return None
     # 模式类服务：取值必须命中 HA 当前上报的候选列表（hvac_modes / fan_modes / swing_modes）。
     choices = attributes.get({'hvac_mode': 'hvac_modes', 'fan_mode': 'fan_modes', 'swing_mode': 'swing_modes'}[parameter])
     if not isinstance(value, str) or not isinstance(choices, list) or not value or value not in choices:
-        raise HTTPException(status_code=422, detail='该模式不在空调当前支持的选项中。')
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='该模式不在空调当前支持的选项中。')
     return None

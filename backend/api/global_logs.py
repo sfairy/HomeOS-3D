@@ -138,7 +138,7 @@ def _limit_client_log(request: Request, *, anonymous: bool) -> None:
     address = resolve_client_ip(request)
     peer = address.ip or 'unknown'
     if not limiter.allow(peer, anonymous=anonymous):
-        raise HTTPException(status_code=429, detail='日志上报过于频繁，请稍后重试。', headers={'Retry-After': '60'})
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail='日志上报过于频繁，请稍后重试。', headers={'Retry-After': '60'})
 
 
 def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None, *, public: bool = False) -> None:
@@ -296,7 +296,7 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
     # 结果是登录页 / 配对页的前端日志静默丢失 —— 通道是 fire-and-forget，丢了不报错，
     # 只在真正需要排查时才发现日志是空的。跨站页面一定会带 Origin，公共判据同样挡得住。
     if not same_origin_request(request):
-        raise HTTPException(status_code=403, detail='日志只允许同源页面上报。')
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='日志只允许同源页面上报。')
     _limit_client_log(request, anonymous=True)
     # 未登录页面只允许上报异常：正常信息没有上报价值，也堵住刷日志的水位。直接 204 丢掉
     # 而不是 422：日志通道是 fire-and-forget，打回 422 只会让浏览器控制台刷红。

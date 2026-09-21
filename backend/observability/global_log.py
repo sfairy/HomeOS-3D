@@ -70,8 +70,11 @@ _SECRET_PATTERNS = (
 )
 
 
-def _utc_now() -> datetime:
-    """统一的时间来源：日志内所有时间戳都必须是 UTC aware。"""
+def utc_now() -> datetime:
+    """统一的时间来源：日志内所有时间戳都必须是 UTC aware。
+
+    返回 ``datetime``（与 ``api/studio3d`` 那个返回 ISO 字符串的 ``utc_iso_now()`` 区分开）。
+    """
     return datetime.now(timezone.utc)
 
 
@@ -81,7 +84,7 @@ def _storage_diagnostic(message: str) -> None:
     只用 stderr：此时日志系统本身已不可用。写失败静默忽略，告警不该反过来把进程搞崩。
     """
     try:
-        sys.stderr.write(f"{_utc_now().isoformat()} {message}\n")
+        sys.stderr.write(f"{utc_now().isoformat()} {message}\n")
         sys.stderr.flush()
     except OSError:
         pass
@@ -311,7 +314,7 @@ class GlobalLogStore:
         折叠期间同一签名不再逐条落盘，文件里那条的 repeatCount 会偏小；窗口一结束就把最终
         快照推回待写队列，读接口按 id 去重后拿到的就是准确计数。
         """
-        cutoff = _utc_now() - timedelta(seconds=self.FOLD_WINDOW_SECONDS)
+        cutoff = utc_now() - timedelta(seconds=self.FOLD_WINDOW_SECONDS)
         expired = [
             signature
             for signature, (seen_at, _event) in self._recent_events.items()
@@ -324,7 +327,7 @@ class GlobalLogStore:
             # 走统一的入队口：这一条常常与队列里那条同 id（同一签名的首个快照），原地替换才不会
             # 在队列满时挤掉另一条真实事件。
             self._queue_event_locked(event)
-            self._last_queued_at[event["id"]] = _utc_now()
+            self._last_queued_at[event["id"]] = utc_now()
 
     def _queue_event_locked(self, event: dict[str, Any]) -> None:
         """把一条事件放进待写队列；同 id 已在队列里就**原地替换**。调用方必须已持锁。
@@ -427,21 +430,12 @@ class GlobalLogStore:
         self._tail_checked = False
         self._write_failures += 1
         self._last_error = _safe_text(error, limit=500)
-        now = _utc_now()
+        now = utc_now()
         if self._last_warning_at is None or now - self._last_warning_at >= timedelta(
             seconds=30
         ):
             _storage_diagnostic(f"全局日志存储不可用，暂存最近 200 条事件：{self._last_error}")
             self._last_warning_at = now
-
-    def prune_now(self) -> None:
-        """立刻按保留天数与文件上限裁剪一次（跳过节流），只给排障 / 运维用。
-
-        会加锁，因此不会和后台写线程撞在一起。常规路径不要调它 —— 裁剪是全量重写。
-        """
-        with self._lock:
-            self._last_pruned_at = None
-            self._prune_if_needed()
 
     def storage_status(self) -> dict[str, Any]:
         """当前存储健康状况，供 /api/v1/logs 的运维视图展示。"""
@@ -477,7 +471,7 @@ class GlobalLogStore:
         )
         event = {
             "id": str(uuid4()),
-            "timestamp": _utc_now().isoformat(),
+            "timestamp": utc_now().isoformat(),
             "level": normalized_level,
             "source": _safe_text(source, limit=64) or "系统后台",
             "category": _safe_text(category, limit=64) or "系统",
@@ -518,7 +512,7 @@ class GlobalLogStore:
                 ensure_ascii=False,
                 sort_keys=True,
             )
-            now = _utc_now()
+            now = utc_now()
             recent = self._recent_events.get(signature)
             # FOLD_WINDOW_SECONDS 窗口内同签名折叠：保留首次的 id 与时间戳，叠加计数并记录最后
             # 一次发生时间，前端据此显示「重复 N 次」；窗口随每次命中向后滑动。
@@ -575,7 +569,7 @@ class GlobalLogStore:
             with self._lock:
                 events = self._read_events()
         result = []
-        cutoff = _utc_now() - timedelta(days=self.retention_days)
+        cutoff = utc_now() - timedelta(days=self.retention_days)
         # reversed：文件里是追加写的，倒着遍历即最新的在前。
         for event in reversed(events):
             try:
@@ -733,7 +727,7 @@ class GlobalLogStore:
         未超限时 PRUNE_INTERVAL_SECONDS），绝不在每次写入时触发，否则请求量会直接放大成磁盘读写量。
         文件还不存在时（一条都没写过）不是故障：吞掉 FileNotFoundError，否则会被上游记成存储故障。
         """
-        now = _utc_now()
+        now = utc_now()
         # 首次（_last_pruned_at 为 None）允许立刻裁一次，清掉超过保留期的旧数据。
         if self._last_pruned_at is not None:
             elapsed = now - self._last_pruned_at

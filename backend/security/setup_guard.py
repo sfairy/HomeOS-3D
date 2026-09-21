@@ -198,7 +198,7 @@ class SetupGuard:
                 self.marker_path.unlink(missing_ok=True)
             except OSError:
                 # 删不掉不该让「已经初始化成功」变成失败：闸门已经关上，这份文件最多是一枚死凭证。
-                self.log('warning', '初始化完成，但未能删除引导密钥文件，请手动检查')
+                self.warn_durable('初始化完成，但未能删除引导密钥文件，请手动检查')
         self._token = ''
         self._generated = False
 
@@ -214,7 +214,7 @@ class SetupGuard:
                 return None
             on_disk = read_token_file(self.path.read_text(encoding='utf-8'))
             if not self._is_ours(on_disk):
-                self.log('warning', '检测到预置的引导密钥文件（不是本服务生成的），已保留')
+                self.warn_durable('检测到预置的引导密钥文件（不是本服务生成的），已保留')
                 return None
             self.path.unlink()
             # 标记跟着一起走：留着它只会让下一个人对着一个来历不明的文件猜。
@@ -273,6 +273,19 @@ class SetupGuard:
             self._event_log.append(level, '系统后台', '账号', message, context=context or {})
         except Exception:  # noqa: BLE001 - 审计失败不该改变接口结论
             pass
+
+    def warn_durable(self, message: str) -> None:
+        """磁盘副作用的警告：同时写 stderr 与全局日志。
+
+        这类警告描述的是「文件已经留在盘上了」—— 全局日志自身可能已经损坏（``log`` 会静默
+        吞掉异常），而那正是需要看到它的时候。stderr 会被容器日志收走，不依赖全局日志。
+        """
+        try:
+            sys.stderr.write(f'[setup] {message}\n')
+            sys.stderr.flush()
+        except OSError:
+            pass
+        self.log('warning', message)
 
 
 def announce_setup_window(state: str, guard: SetupGuard) -> None:

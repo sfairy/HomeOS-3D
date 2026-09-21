@@ -84,13 +84,13 @@ def setup_admin(
     # ``is_valid_email`` 再落库 —— 只有「首次设置」不过，恰恰是部署者最认真输入的一次。
     if not is_valid_email(email):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="请输入有效的邮箱地址（形如 name@example.com）。",
         )
 
     if payload.confirm_password != payload.password:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="两次输入的密码不一致。",
         )
 

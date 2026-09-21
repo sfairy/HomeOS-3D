@@ -171,8 +171,6 @@ class HASnapshot:
     # 设备注册表（`config/device_registry/list`），None 表示本次未取到。
     areas: list[dict[str, Any]] | None
     # 区域注册表（`config/area_registry/list`），None 表示本次未取到。
-    services: list[dict[str, Any]] | None
-    # HA 服务列表；当前 `fetch_snapshot` 不采集，固定为 None，字段保留在快照结构里。
 
 
 class HAClient:
@@ -469,7 +467,6 @@ class HAClient:
             entities=list(entities or []) if entities is not None else None,
             devices=list(devices or []) if devices is not None else None,
             areas=list(areas or []) if areas is not None else None,
-            services=None,
         )
 
     async def fetch_registries(

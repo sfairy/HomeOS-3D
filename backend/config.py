@@ -186,7 +186,9 @@ class Settings:
     license_transport_public_key_path_override: Path | None = None
     license_transport_public_key_sha256: str = DEFAULT_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256
     license_transport_key_id_override: str = ''
-    # 硬件指纹覆盖项：容器里拿不到真实机器信息时用于人工指定。
+    # 硬件指纹覆盖项。**没有环境变量入口**，只能由直接构造 Settings 的调用方（测试、嵌入式
+    # 调用）设置 —— 生产环境不需要它：容器里拿不到真实机器信息时，hardware_identity 会退到
+    # data_dir 下的持久化兜底 ID（hardware-fallback-id），那才是线上的答案。
     hardware_machine_id_override: str = ''
     hardware_board_id_override: str = ''
     # 三个密钥文件的路径覆盖项；为空时统一落在 data_dir/secrets/ 下。
@@ -383,7 +385,12 @@ def load_settings() -> Settings:
     else:
         license_batches = DEFAULT_LICENSE_SERVER_BATCHES
 
-    # 用字典展开而非逐项赋值：字段名与变量名对齐，漏改一处也不会静默用错默认值。
+    # 用字典展开而非逐项赋值：字段名与变量名对齐，漏一项会在构造时报错而不是静默用错值。
+    #
+    # 但**默认值确实有两份**：dataclass 字段上的默认值 + 下面 ``os.getenv`` 的第二个参数。
+    # 这份清单是有意保留的，代价是改默认值必须两处同改（``license_required`` 那条注释就是
+    # 在提醒这件事）—— 否则「显式设了环境变量的部署」与「直接构造 Settings 的入口」会拿到
+    # 两个不同的产品，而且没有任何检查会发现。新增字段时请把两处写成同一个数。
     trusted_proxies = tuple(
         piece.strip()
         for piece in os.getenv('APP_TRUSTED_PROXIES', '').split(',')

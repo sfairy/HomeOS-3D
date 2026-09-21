@@ -1,7 +1,7 @@
 """中控设备（墙面屏）的配对码与设备管理接口。
 
 路由前缀 /api/v1/displays。管理类接口一律要求管理员，而设备侧的 /pair
-必须免登录可用，因此门禁写在各个路由里（require_admin），不挂在依赖上。
+必须免登录可用，因此门禁写在各个路由里（require_admin_for_displays），不挂在依赖上。
 库里只存配对码哈希用于校验，另存一份可解密的密文供管理员回看原码。
 """
 from __future__ import annotations
@@ -61,7 +61,7 @@ PAIRING_CODE_KEYS = 1024
 PAIRING_SHARED_ADDRESS_LIMIT = (40, 300, 120)
 
 
-def require_admin(user: User) -> None:
+def require_admin_for_displays(user: User) -> None:
     """确认当前用户是管理员，否则 403「仅管理员可以管理中控设备。」。
 
     不放进依赖层，是因为本 router 里的 /pair 必须对未登录设备开放。
@@ -216,7 +216,7 @@ def list_display_devices(request: Request, database: DatabaseSession, user: Lice
     返回 {items: [...]}，按最后活跃时间倒序，项目名一并带上；
     每条附 expiresAt / expired，便于发现「快过期或已过期」的平板。
     """
-    require_admin(user)
+    require_admin_for_displays(user)
     devices = list(
         database.scalars(
             select(DisplayDevice)
@@ -259,7 +259,7 @@ def list_pairing_codes(
     仅管理员可调用。查询参数 projectId 为可选过滤条件（前端 camelCase 别名）。
     返回 {items: [...]}，每条含明文配对码（解密失败为 null）与 pairingUrl。
     """
-    require_admin(user)
+    require_admin_for_displays(user)
     query = select(DisplayPairingCode).order_by(DisplayPairingCode.created_at.desc())
     # projectId 只是可选过滤条件：不传就返回全部配对码。
     if project_id is not None:
@@ -316,7 +316,7 @@ def create_pairing_code(
     请求字段：project_id、name（为空时默认「<仪表盘名> 中控」）、code（可选自定义）。
     返回：配对码 JSON。仪表盘不存在抛 404「仪表盘不存在。」。
     """
-    require_admin(user)
+    require_admin_for_displays(user)
     # 能力码之上再加一层：api 只说明能调接口，新增中控设备还需要 display 能力。
     if not request.app.state.license_service.allows('display'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许添加中控设备。')
@@ -356,7 +356,7 @@ def update_pairing_code(
     返回：更新后的配对码 JSON（含解析出的明文码）。
     配对码不存在抛 404「配对码不存在。」；目标仪表盘不存在抛 404「仪表盘不存在。」。
     """
-    require_admin(user)
+    require_admin_for_displays(user)
     pairing = database.get(DisplayPairingCode, pairing_id)
     if pairing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='配对码不存在。')
@@ -393,7 +393,7 @@ def delete_pairing_code(pairing_id: str, database: DatabaseSession, user: Licens
     仅管理员可调用；配对码不存在抛 404「配对码不存在。」。
     只删配对码本身，已配对出来的设备令牌独立存在，不受影响。
     """
-    require_admin(user)
+    require_admin_for_displays(user)
     pairing = database.get(DisplayPairingCode, pairing_id)
     if pairing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='配对码不存在。')
@@ -544,7 +544,7 @@ def update_display_device(
     设备不存在或已吊销抛 404「中控设备不存在。」；目标仪表盘不存在抛 404「仪表盘不存在。」；
     授权已收回 ``display`` 时抛 403。
     """
-    require_admin(user)
+    require_admin_for_displays(user)
     # 能力码：与 POST /pair 同一条口径。授权收回 display 之后还能改绑/改名，
     # 等于留着一条「继续把设备往仪表盘上挂」的通道 —— 虽然改的是已有设备，
     # 但它同样是在运营一条授权之外的中控链路。
@@ -583,7 +583,7 @@ def revoke_display_device(device_id: str, database: DatabaseSession, user: Licen
     仅管理员可调用；设备不存在或已吊销抛 404「中控设备不存在。」。
     只写 revoked_at 时间戳：行保留供审计，令牌随即失效。
     """
-    require_admin(user)
+    require_admin_for_displays(user)
     device = database.get(DisplayDevice, device_id)
     if device is None or device.revoked_at is not None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='中控设备不存在。')

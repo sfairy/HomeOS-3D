@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from math import isfinite
 
 # 服务 → HA 能力位（CoverEntityFeature 的取值），按设备实际上报的能力放行。
@@ -83,7 +83,7 @@ def require_curtain_model(bindings: list, entity_id: str, scene: dict) -> None:
         # 模型同样必须唯一，且类型是普通窗帘。
         if len(models) == 1 and models[0].get('type') == 'curtain':
             return None
-    raise HTTPException(status_code=409, detail='窗帘模型已失联，请在环境配置中重新选择普通窗帘模型。')
+    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='窗帘模型已失联，请在环境配置中重新选择普通窗帘模型。')
 
 
 def validate_cover_command(service: str, data: dict, state: dict | None, *, dream: bool = False) -> None:
@@ -105,22 +105,22 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
     else:
         fields = set()
     if required_feature is None or not isinstance(data, dict) or set(data) != fields:
-        raise HTTPException(status_code=422, detail='3D 窗帘控制不支持此服务或参数。')
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='3D 窗帘控制不支持此服务或参数。')
     if service in ('set_cover_position', 'set_cover_tilt_position'):
         # 位置只接受 0~100 的整数：bool 是 int 子类须单独排除，浮点与字符串也一律拒绝，
         # 否则 HA 侧按各自规则截断，行程会与用户预期不一致。
         position = data['position'] if service == 'set_cover_position' else data['tilt_position']
         if not isinstance(position, int) or isinstance(position, bool) or not 0 <= position <= 100:
-            raise HTTPException(status_code=422, detail='窗帘位置必须是 0 到 100 的整数。')
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='窗帘位置必须是 0 到 100 的整数。')
     # 状态缺失 / unknown / unavailable 一律按不可用处理，不做乐观转发。
     if not isinstance(state, dict) or state.get('available') is False or state.get('state') in (None, '', 'unknown', 'unavailable'):
-        raise HTTPException(status_code=409, detail='窗帘状态暂不可用，请等待设备重新连接。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='窗帘状态暂不可用，请等待设备重新连接。')
     attributes = state.get('attributes')
     # 区分「真的还没载入」（瞬时状态，值得让前端稍后重试）与「这个设备从不声明能力位」
     # （永久条件，再报 409 只会让前端无限重试）。判据是 attributes 本身在不在：连属性都没有时
     # 无从判断；有属性、只是缺 supported_features，就是设备不给这个字段。
     if not isinstance(attributes, dict):
-        raise HTTPException(status_code=409, detail='窗帘能力尚未载入，请稍后重试。')
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='窗帘能力尚未载入，请稍后重试。')
     features = attributes.get('supported_features')
     inferred = features is None
     if inferred:
@@ -128,13 +128,13 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
     elif not isinstance(features, int) or isinstance(features, bool) or features < 0:
         # 上报了但值不可用（字符串、负数、布尔）同样是永久条件：说清是设备上报的问题，
         # 不要用「请稍后重试」把用户困在重试循环里。
-        raise HTTPException(status_code=422, detail='窗帘上报的能力值无法识别，请检查设备配置。')
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='窗帘上报的能力值无法识别，请检查设备配置。')
     # 位掩码比对：请求的服务必须出现在设备声明支持的能力位里。
     if not features & required_feature:
         # 推断出来的「不支持」要给出可自救的说明；设备明确上报的能力位则只需一句结论。
         if inferred and service in INFERRED_FEATURE_HINT:
-            raise HTTPException(status_code=422, detail=INFERRED_FEATURE_HINT[service])
-        raise HTTPException(status_code=422, detail='窗帘当前不支持此操作。')
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=INFERRED_FEATURE_HINT[service])
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='窗帘当前不支持此操作。')
     if dream and service in ('set_cover_position', 'set_cover_tilt_position'):
 
         # 梦幻帘的叶片判断要做数值解析：HA 常把位置上报成数字字符串，这里统一转 float。
@@ -155,12 +155,12 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
         # 没有叶片能力时只需不打断正在运行的帘：位置指令照常放行。
         if not has_tilt:
             if state.get('state') in ('opening', 'closing'):
-                raise HTTPException(status_code=409, detail='窗帘正在运行，请停止后再调整叶片。')
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='窗帘正在运行，请停止后再调整叶片。')
             return None
         # 有叶片能力时，只有整体确实 closed 且实际行程为 0 才允许调叶片 ——
         # 帘体未合拢时调叶片会与行程电机抢状态，HA 侧结果不确定。
         if state.get('state') != 'closed' or (
             attributes.get('current_position') is not None and number(attributes.get('current_position')) != 0
         ):
-            raise HTTPException(status_code=409, detail='只有确认整体完全关闭且停止后，才能调整叶片。')
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='只有确认整体完全关闭且停止后，才能调整叶片。')
     return None

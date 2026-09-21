@@ -159,7 +159,12 @@ def _json_for_script(payload: dict) -> str:
     return text
 
 
-def _cashier_html(order: Order, product: Product | None, *, request: Request) -> str:
+def _cashier_html(order: Order, *, request: Request) -> str:
+    """把订单渲染成模拟收银台页面。
+
+    不再接收 ``Product``：页面上的商品名取自 ``order_payload`` 的 ``productName``（订单自己
+    记着下单时的名字），调用方若为此多查一次商品表，查到的还是「现在」的名字。
+    """
     payload = order_payload(order)
     amount = payload["amountCents"] / 100
     safe = _json_for_script(payload)
@@ -179,12 +184,12 @@ def _cashier_html(order: Order, product: Product | None, *, request: Request) ->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#050910">
 <title>模拟收银台 · {order_no}</title>
-<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609212100">
-<link rel="stylesheet" href="/store-static/scene/page.css?v=2609212100">
-<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609212100">
-<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609212100">
-<link rel="icon" href="/store-static/favicon-rounded.png?v=2609212100">
-<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609212100` 的 <link>。
+<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609212122">
+<link rel="stylesheet" href="/store-static/scene/page.css?v=2609212122">
+<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609212122">
+<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609212122">
+<link rel="icon" href="/store-static/favicon-rounded.png?v=2609212122">
+<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609212122` 的 <link>。
      必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
 <!--{{APPEARANCE}}-->
 </head>
@@ -287,9 +292,8 @@ def mock_cashier(
         # 与「订单不存在」同一个状态码：不给出「这个单号存在」的旁路信息
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="订单不存在。")
 
-    product = session.get(Product, order.product_id) if order.product_id else None
     return HTMLResponse(
-        _cashier_html(order, product, request=request),
+        _cashier_html(order, request=request),
         headers={"Cache-Control": "no-store"},
     )
 

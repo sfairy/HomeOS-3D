@@ -87,11 +87,6 @@ export function rgbTriplet(hex) {
   return hexToRgb(hex).join(", ");
 }
 
-/** 按比例向白 / 黑插值；`amount` 为 0..1，负数向黑。 */
-function mixChannel(channel, amount, target) {
-  return Math.round(channel + (target - channel) * amount);
-}
-
 /**
  * 由一个基色推出 `-bright` 与 `-deep`。
  *

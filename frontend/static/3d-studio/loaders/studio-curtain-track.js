@@ -6,7 +6,7 @@
  * 顶边离地 height - 0.06 米。约定：curtainMeet 为两片帘布搭接百分比，curtainPreview 为开合预览百分比；
  * 参数夹取用 utils/numbers.js 的 clampOptionalNumber（空串 / null 表示「未设置」，不能按 0 用）。
  */
-import { clampOptionalNumber } from "../../utils/numbers.js?v=2609212100";
+import { clampOptionalNumber } from "../../utils/numbers.js?v=2609212122";
 
 /**
  * 归一化窗帘轨道参数。

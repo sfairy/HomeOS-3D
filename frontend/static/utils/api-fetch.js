@@ -7,11 +7,15 @@
  * 调用方判 `error.name === "TimeoutError"`，不要匹配文案。
  */
 
-import { withRequestTimeout } from "./request-timeout.js?v=2609212100";
+import { withRequestTimeout } from "./request-timeout.js?v=2609212122";
 
 /**
  * 普通 JSON 接口的超时预算（毫秒）。
- * 20 秒与仓库里既有的手写预算对齐，保持「同一套体感」。
+ *
+ * 20 秒是全站 JSON 请求的默认体感，直接调 ``withRequestTimeout`` 的地方只剩两处，都用
+ * ``SCENE_REQUEST_TIMEOUT_MS``（见下）而不是裸字面量：编辑器桥与户型工作室的 3D 场景同步。
+ * 另有 ``auth/license-recovery.js`` 自带 15 秒预算，那是有意独立（该页不 import 本模块，
+ * 授权恢复要在授权服务器不可达时先于其它请求失败），不要顺手合并。
  */
 const API_TIMEOUT_MS = 20000;
 

@@ -135,9 +135,3 @@ class LicenseEndpointPool:
         """
         with self._lock:
             self._blacklist_until.clear()
-
-    def is_blacklisted(self, base_url: str) -> bool:
-        """某地址当前是否处于拉黑期；供上层决定要不要提示「稍后再试」。"""
-        with self._lock:
-            # 用 get 默认 0：未拉黑过的地址不必先写入字典再判断。
-            return self._blacklist_until.get(base_url, 0) > self._clock()

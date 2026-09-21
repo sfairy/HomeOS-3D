@@ -8,10 +8,10 @@
  * 不要给它们加会改变盒模型的 margin；状态一律用类名或 [hidden] 表达，JS 只切类名；
  * 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609212100";
-@import "../nas/nas-panel.css?v=2609212100";
-@import "../climate/climate-panel.css?v=2609212100";
-@import "../cover/cover-panel.css?v=2609212100";
+@import "/static/bridge/controls.css?v=2609212122";
+@import "../nas/nas-panel.css?v=2609212122";
+@import "../climate/climate-panel.css?v=2609212122";
+@import "../cover/cover-panel.css?v=2609212122";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card

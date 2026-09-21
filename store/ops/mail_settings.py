@@ -116,29 +116,6 @@ SMTP_PRESETS: tuple[dict[str, object], ...] = (
 )
 
 
-def email_domain(email: str | None) -> str:
-    """取出邮箱的域名部分（小写）；不像邮箱就返回空串。"""
-    address = (email or "").strip()
-    if "@" not in address:
-        return ""
-    return address.rsplit("@", 1)[1].strip().lower()
-
-
-def preset_for_email(email: str | None) -> dict[str, object] | None:
-    """按邮箱域名反查 SMTP 预设；没有对应服务商时返回 ``None``。
-
-    自定义域名（企业邮箱、自建邮局）刻意不猜：猜错的代价是运营照着填完、
-    点「测试凭据」才发现登录被拒，而正确参数只有他们自己的管理员知道。
-    """
-    domain = email_domain(email)
-    if not domain:
-        return None
-    for preset in SMTP_PRESETS:
-        if domain in tuple(preset["domains"]):  # type: ignore[arg-type]
-            return preset
-    return None
-
-
 def mail_presets_payload() -> list[dict]:
     """预设清单的 JSON 形态（供后台渲染下拉框 / 填充表单）。"""
     return [

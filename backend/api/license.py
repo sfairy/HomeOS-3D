@@ -18,9 +18,12 @@ from ..core.schemas import LicenseActivateRequest
 
 router = APIRouter(prefix='/license', tags=['license'])
 
-# 这两个错误码表示「再点重试也不会变好」：前者要求人工重新激活，后者是刚点过（节流）。
+# 「再点重试也不会变好」的错误码：目前只有「要求人工重新激活」。
 # 其余错误码一律按可重试处理 —— 网络抖动、5xx 都属于「等一会儿再来」。
-RETRY_TERMINAL_CODES = frozenset({'LICENSE_REAUTH_REQUIRED', 'LICENSE_RETRY_THROTTLED'})
+#
+# 这里曾经还列着 'LICENSE_RETRY_THROTTLED'，但那个码从来没有被产生过：节流窗口内
+# retry_now() 是「直接返回当前状态」，不抛异常（见 service.MANUAL_RETRY_THROTTLE_SECONDS）。
+RETRY_TERMINAL_CODES = frozenset({'LICENSE_REAUTH_REQUIRED'})
 
 #: 激活尝试的失败预算 (max_failures, window_seconds, block_seconds)。
 #: 没有它时 `/license/activate` 是一个**无限次**的激活码猜测端点：每次尝试都会打到授权

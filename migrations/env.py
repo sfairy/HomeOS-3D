@@ -25,18 +25,6 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-    )
-    with context.begin_transaction():
-        context.run_migrations()
-
-
 def run_migrations_online() -> None:
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
@@ -49,7 +37,15 @@ def run_migrations_online() -> None:
             context.run_migrations()
 
 
+# 只支持在线模式。alembic 的离线模式（``--sql``：不连库、只打印 SQL）在这里没有调用方：
+# 应用内的唯一入口是 ``backend/core/migrations.py`` 的 ``command.upgrade``（总是在线），文档里
+# 给运维的命令同样是 ``alembic upgrade head``。
+#
+# 不用「把 offline 分支删掉、直接无条件在线」的写法：那样 ``alembic upgrade head --sql`` 会
+# 静默地去连真库并**真的执行迁移**，而调用方以为自己只是在导出 SQL。宁可明确拒绝。
 if context.is_offline_mode():
-    run_migrations_offline()
-else:
-    run_migrations_online()
+    raise RuntimeError(
+        "本仓库不支持 alembic 离线模式（--sql）：迁移只在应用内以在线方式执行"
+        "（见 backend/core/migrations.py）。"
+    )
+run_migrations_online()

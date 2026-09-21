@@ -17,6 +17,9 @@ from store.core.models import Release
 
 logger = logging.getLogger("store.ops.release_info")
 
+#: **产品版本**：客户端拿它比对 ``/store/v1/updates/latest`` 判断有没有新版本，会写进 ``releases``
+#: 表。别与 ``store.__version__``（服务端口线版本，进 /healthz 与 OpenAPI）混用 —— 两者含义不同，
+#: 但排查时都以 "version" 出现在响应里。
 CURRENT_VERSION = "0.6.2"
 CURRENT_RELEASE_DATE = "2026-09-20"
 CURRENT_UPGRADE_NOTES = (

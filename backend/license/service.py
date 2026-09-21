@@ -62,10 +62,9 @@ TERMINAL_STATES = frozenset({
 
 #: 会要求用户手动重新激活的错误码（前端据此隐藏「重试」并引导去激活页）。
 REAUTH_REQUIRED = 'LICENSE_REAUTH_REQUIRED'
-#: 重试被节流（点得太快）：与「需要人工介入」不同，稍等即可再次尝试。
-RETRY_THROTTLED = 'LICENSE_RETRY_THROTTLED'
 # 手动重试的最小间隔（秒）。存在的理由是「连点」：按钮每点一次都会触发一轮真实的
 # 令牌轮换，没有任何间隔的话，用户因为着急而连点会把授权服务的限流窗口直接填满。
+# 注意窗口内**不抛错**：retry_now() 直接返回当前状态，所以没有对应的错误码。
 MANUAL_RETRY_THROTTLE_SECONDS = 2.0
 
 

@@ -88,6 +88,9 @@ class StoreSetting(Base):
     alipay_return_url: Mapped[str] = mapped_column(String(512), default="")
 
     referral_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    #: 三列比例用 float 存是**已知且被隔离**的取舍：它们不参与分/厘的累加，唯一转换点是
+    #: ``money.percent_to_bps``（``Decimal(str(x))``，走字符串而非二进制浮点）。金额与积分
+    #: 一律 int，别按这三列的样子把金额也改成 float。
     referral_rate_percent: Mapped[float] = mapped_column(default=10.0)
     referral_withdrawal_fee_percent: Mapped[float] = mapped_column(default=1.0)
     referral_withdrawal_min_points: Mapped[float] = mapped_column(default=100.0)
@@ -355,9 +358,9 @@ class Order(Base):
     product_id: Mapped[str] = mapped_column(String(36), ForeignKey("products.id"), index=True)
     product_name: Mapped[str] = mapped_column(String(255), default="")
     product_type: Mapped[str] = mapped_column(String(32), default="base")
-    #: base | addon | package
+    #: base | addon | upgrade | package（值域见 ``store/api/store.py`` 下单时的分支）。
     order_type: Mapped[str] = mapped_column(String(32), default="base", index=True)
-    #: issue | patch
+    #: issue | patch | upgrade（同上；``fulfill.py`` 按它决定发新码还是改既有授权）。
     license_action: Mapped[str] = mapped_column(String(32), default="issue")
     target_license_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("licenses.id", ondelete="SET NULL")

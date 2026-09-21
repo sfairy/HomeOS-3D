@@ -93,8 +93,12 @@ class DisplayPairingCodeRequest(BaseModel):
 
     @field_validator('name')
     @classmethod
-    def trim_pairing_name(cls, value: str | None) -> str | None:
-        """设备名去空白校验（口径见模块级 `_validated_device_name`）。"""
+    def _validate_name(cls, value: str | None) -> str | None:
+        """设备名去空白校验（口径见模块级 `_validated_device_name`）。
+
+        「设备名」在本文件里有四个字段（配对码申请 / 配对码修改 / 已配对设备改名 /
+        设备申请），四处的口径必须是同一个，所以校验器同名、都转发到同一个 helper。
+        """
         return _validated_device_name(value)
 
 
@@ -109,8 +113,12 @@ class DisplayPairingCodeUpdateRequest(BaseModel):
 
     @field_validator('name')
     @classmethod
-    def trim_pairing_name(cls, value: str | None) -> str | None:
-        """设备名去空白校验（口径见模块级 `_validated_device_name`）。"""
+    def _validate_name(cls, value: str | None) -> str | None:
+        """设备名去空白校验（口径见模块级 `_validated_device_name`）。
+
+        「设备名」在本文件里有四个字段（配对码申请 / 配对码修改 / 已配对设备改名 /
+        设备申请），四处的口径必须是同一个，所以校验器同名、都转发到同一个 helper。
+        """
         return _validated_device_name(value)
 
 
@@ -124,8 +132,12 @@ class DisplayPairRequest(BaseModel):
 
     @field_validator('device_name')
     @classmethod
-    def trim_device_name(cls, value: str | None) -> str | None:
-        """设备名去空白校验（口径见模块级 `_validated_device_name`）。"""
+    def _validate_name(cls, value: str | None) -> str | None:
+        """设备名去空白校验（口径见模块级 `_validated_device_name`）。
+
+        「设备名」在本文件里有四个字段（配对码申请 / 配对码修改 / 已配对设备改名 /
+        设备申请），四处的口径必须是同一个，所以校验器同名、都转发到同一个 helper。
+        """
         return _validated_device_name(value)
 
 
@@ -139,8 +151,12 @@ class DisplayDeviceUpdateRequest(BaseModel):
 
     @field_validator('name')
     @classmethod
-    def trim_display_name(cls, value: str | None) -> str | None:
-        """设备名去空白校验（口径见模块级 `_validated_device_name`）。"""
+    def _validate_name(cls, value: str | None) -> str | None:
+        """设备名去空白校验（口径见模块级 `_validated_device_name`）。
+
+        「设备名」在本文件里有四个字段（配对码申请 / 配对码修改 / 已配对设备改名 /
+        设备申请），四处的口径必须是同一个，所以校验器同名、都转发到同一个 helper。
+        """
         return _validated_device_name(value)
 
 
@@ -276,7 +292,7 @@ class ProjectCreateRequest(BaseModel):
 
     @field_validator('name')
     @classmethod
-    def trim_project_name(cls, value: str) -> str:
+    def _validate_project_name(cls, value: str) -> str:
         """项目名去空白校验（口径见模块级 `_validated_project_name`）。"""
         return _validated_project_name(value)
 
@@ -304,7 +320,7 @@ class ProjectDuplicateRequest(BaseModel):
 
     @field_validator('name')
     @classmethod
-    def trim_project_name(cls, value: str) -> str:
+    def _validate_project_name(cls, value: str) -> str:
         """项目名去空白校验（口径见模块级 `_validated_project_name`）。"""
         return _validated_project_name(value)
 

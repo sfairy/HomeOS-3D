@@ -761,7 +761,8 @@ class AssetCatalog:
 
     def asset_exists(self, asset_id: str) -> bool:
         """判断素材 ID 是否在目录里；user: 与 studio3d: 都查用户侧索引。"""
-        # 三类素材的可见性规则不同；studio3d 走到最后的 effect_variant_path 兜底（不存在即 404）。
+        # 前缀决定查哪本索引：user: 与 studio3d: 共用用户侧目录（studio3d 的导出图也登记在那里，
+        # 所以这里不是「走到兜底」），builtin: 走内置目录，其余前缀一律不存在。
         if asset_id.startswith('user:'):
             self._load_user()
             with self.mutation_lock:

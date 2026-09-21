@@ -106,7 +106,7 @@ ALLOWED_SERVICES: dict[tuple[str, str], set[str]] = {
 }
 
 
-def require_admin(user: User) -> None:
+def require_admin_for_ha(user: User) -> None:
     """要求当前用户是 admin，否则 403。
 
     改 HA 连接配置是整个集成里权限最高的一档，普通用户与中控设备都不允许。
@@ -246,7 +246,7 @@ async def delete_connection(request: Request, database: DatabaseSession, user: L
     顺序：先停连接器 → 删库 → 清空状态缓存并广播目录变更 → 重新启动连接器。
     异常: HTTPException 404 当前没有可删除的连接。
     """
-    require_admin(user)
+    require_admin_for_ha(user)
     connection = active_connection(database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Home Assistant 连接不存在。')
@@ -284,7 +284,7 @@ async def test_connection(payload: HATestRequest, request: Request, user: Licens
     请求体 base_url / access_token / verify_tls。成功返回 {'ok': True, **HA 探测结果}；
     422 表示 HA 不可达、Token 无效或 TLS 校验失败，detail 为中文文案。
     """
-    require_admin(user)
+    require_admin_for_ha(user)
     # 限流键用账号 id：本端点要求管理员，而它唯一能被滥用的方式就是「同一个管理员反复点」——
     # 无论是猜内网端口还是试 Token，都记在同一个人头上。成功不重置：试连没有「成功」
     # 这一说（对方在线与否与请求是否合规无关），重置等于给出一个免费的探测额度。
@@ -326,7 +326,7 @@ async def save_connection(
     # 同步查库的门禁：async 路由里一律转线程池，别在事件循环上开连接。
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.configure'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许配置 Home Assistant。')
-    require_admin(user)
+    require_admin_for_ha(user)
     connector = request.app.state.ha_connector
     connection = active_connection(database)
     # 链路本地地址（169.254.x.x / fe80::）只在 APIPA 场景才指向真实主机，否则多半是误填，提示一句。
@@ -686,7 +686,7 @@ async def run_sync(request: Request, user: LicensedUser) -> dict[str, Any]:
     """
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'ha.sync'):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='当前授权不允许同步 Home Assistant。')
-    require_admin(user)
+    require_admin_for_ha(user)
     connection = await asyncio.to_thread(load_active_connection_snapshot, request.app.state.database)
     if connection is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='请先配置 Home Assistant 连接。')

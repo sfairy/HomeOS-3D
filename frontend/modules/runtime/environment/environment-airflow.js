@@ -8,11 +8,11 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { normalizedTextOf, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609212100";
+import { normalizedTextOf, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609212122";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609212100";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609212122";
 // 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
-import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609212100";
+import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609212122";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。 */
 const FLOW_STATE_COLORS = {
   cool: "#73c8ff",

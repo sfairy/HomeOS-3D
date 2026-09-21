@@ -245,7 +245,10 @@ _OVERVIEW_WINDOWS: tuple[tuple[str, timedelta], ...] = (
 
 #: 真的收到过钱的状态。``fulfillment_failed`` 的钱已到账（只是没发出去），``partially_refunded``
 #: 表示「收到过钱、退了一部分、还有余额没退」，两者都必须计入，否则部分退款订单的营收会算成 0。
-#: 口径与 order_status.REFUNDABLE_STATUSES 一致，两处必须同改。
+#:
+#: 与 ``order_status.REFUNDABLE_STATUSES`` 的**唯一差别是多一个 ``refunded``**，这不是疏漏而是
+#: 故意的：全额退完的订单已经不能再退（故不在可退集合里），但营收的 gross / refund 两端都发生在
+#: 它身上，历史口径必须留着它。改这个集合前先读这句，别把 ``refunded`` 「对齐」掉。
 PAID_MONEY_STATUSES: tuple[str, ...] = (
     "paid",
     "fulfilled",
@@ -723,7 +726,7 @@ def _assert_product_configuration(
         catalog.validate_fulfillment_mode(fulfillment_mode)
     except ValueError as error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
         ) from error
 
     codes = [str(code).strip() for code in (feature_codes or []) if str(code).strip()]
@@ -733,7 +736,7 @@ def _assert_product_configuration(
         # ``store/ops/features.py`` 里各有一份、必须同步；抄错的码不会让任何一步报错，
         # 只会在客户端被静默拦截，所以宁可在这里拒绝。
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"功能码 {'、'.join(unknown)} 不在能力目录里，客户端不会认它。"
                 "请从「功能码」选择器里勾选。"
@@ -747,7 +750,7 @@ def _assert_product_configuration(
     if [str(item).strip() for item in (included_product_ids or []) if str(item).strip()]:
         return
     raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail="套餐必须填写功能码，或指定「套餐包含商品 ID」，否则发货后客户端拿不到任何能力。",
     )
 
@@ -950,7 +953,7 @@ def admin_upload_product_image(
     suffix = _image_suffix(content)
     if suffix is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "只支持 PNG / JPEG / WebP / GIF 图片（按文件内容识别，与文件名无关）。"
                 "SVG 不支持：它是能内嵌脚本的 XML，而商品图是按原样回给浏览器的同源资源。"
@@ -998,11 +1001,7 @@ _FULFILLABLE_STATUSES = ORDER_FULFILLABLE_STATUSES
 #: 避免「后台弹窗说 cancelled、页面显示已取消」这种同一状态两套说法。
 #: 取文案一律走 ``order_status_label()`` 或 ``ORDER_STATUS_LABELS``（后者用于
 #: 批量拼列表），不要在后台再留一份「本地副本」——曾经那份 `_ORDER_STATUS_LABELS`
-#: 就是没人读的别名。
-
-
-def _status_label(status: str) -> str:
-    return order_status_label(status)
+#: 就是没人读的别名，`_status_label` 那种一层转发也算同一种病。
 
 
 @router.get("/orders")
@@ -1186,7 +1185,7 @@ def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dic
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                f"订单状态为{_status_label(order.status)}，不能履约；"
+                f"订单状态为{order_status_label(order.status)}，不能履约；"
                 "只有待付款或已付款的订单可以履约。"
             ),
         )
@@ -1330,7 +1329,7 @@ def _refund_order(
     if order.status not in ORDER_REFUNDABLE_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"订单状态为{_status_label(order.status)}，无法退款。",
+            detail=f"订单状态为{order_status_label(order.status)}，无法退款。",
         )
 
     total_cents = max(0, int(order.amount_cents or 0))
@@ -1346,7 +1345,7 @@ def _refund_order(
     amount_cents = remaining_cents if payload.amount_cents is None else int(payload.amount_cents)
     if amount_cents > remaining_cents:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"退款金额超出可退余额：本次最多可退 ¥{remaining_cents / 100:.2f}"
                 f"（订单 ¥{total_cents / 100:.2f}，已退 ¥{refunded_cents / 100:.2f}）。"
@@ -2190,7 +2189,9 @@ def admin_patch_coupon(
 
     除了 ``code`` 本身（它是对外承诺，改了会让已发放的码失效）以外，
     其余字段都允许修正：折扣、门槛、名额、有效期、适用范围。
-    核销记录不会被删除，``redeemed_count`` 始终是唯一的用量口径。
+    核销记录不会被删除（作废只是打标记，见 ``admin_void_redemption``），所以 ``redeemed_count``
+    在任何时刻都能由记录**重算**出来（``_recount_coupon_usage``）—— 它是「此刻还被占用多少名额」的
+    唯一权威；而「历史上被占用过多少次」是另一个字段 ``redemptionCount``，两者不可互相替代。
     """
     coupon = session.get(Coupon, coupon_id)
     if coupon is None:
@@ -2465,7 +2466,7 @@ def admin_update_settings(
         candidate = updates["payment_provider"]
         if not is_known_provider(candidate):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"支付渠道「{candidate}」不受支持，可选值为 "
                     f"{'、'.join(PROVIDER_NAMES)}，留空表示跟随环境变量。"
@@ -2504,14 +2505,15 @@ def admin_update_settings(
     return _settings_response(setting, settings)
 
 
-#: 支付宝的纯文本配置项：前端字段名 → 数据库列名。留空即清空、跟随环境变量。
-_ALIPAY_TEXT_FIELDS = {
-    "alipay_app_id": "alipay_app_id",
-    "alipay_seller_id": "alipay_seller_id",
-    "alipay_gateway_url": "alipay_gateway_url",
-    "alipay_notify_url": "alipay_notify_url",
-    "alipay_return_url": "alipay_return_url",
-}
+#: 支付宝的纯文本配置项（前端字段名 == 数据库列名，故只列一次）。留空即清空、跟随环境变量。
+#: 曾经写成「字段名 → 同名字段名」的字典，看着像配置表、实际只是集合，读的人得先确认两边真的相等。
+_ALIPAY_TEXT_FIELDS: tuple[str, ...] = (
+    "alipay_app_id",
+    "alipay_seller_id",
+    "alipay_gateway_url",
+    "alipay_notify_url",
+    "alipay_return_url",
+)
 
 #: 回调地址的字段名 → 中文标签，仅用于报错文案。
 _ALIPAY_CALLBACK_LABELS = {
@@ -2528,9 +2530,9 @@ def _alipay_settings_updates(data: dict) -> dict:
     """
     updates: dict = {}
     try:
-        for field, column in _ALIPAY_TEXT_FIELDS.items():
+        for field in _ALIPAY_TEXT_FIELDS:
             if field in data:
-                updates[column] = str(data[field] or "").strip()
+                updates[field] = str(data[field] or "").strip()
         if updates.get("alipay_gateway_url"):
             validate_gateway_url(updates["alipay_gateway_url"])
         for field, label in _ALIPAY_CALLBACK_LABELS.items():
@@ -2553,17 +2555,17 @@ def _alipay_settings_updates(data: dict) -> dict:
             updates["alipay_sandbox"] = bool(data["alipay_sandbox"])
     except PaymentError as error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
         ) from error
     return updates
 
 
-#: 邮件的纯文本配置项：前端字段名 → 数据库列名。留空即清空、跟随环境变量。
-_MAIL_TEXT_FIELDS = {
-    "mail_from": "mail_from",
-    "smtp_host": "smtp_host",
-    "smtp_username": "smtp_username",
-}
+#: 邮件的纯文本配置项（前端字段名 == 数据库列名，故只列一次）。留空即清空、跟随环境变量。
+_MAIL_TEXT_FIELDS: tuple[str, ...] = (
+    "mail_from",
+    "smtp_host",
+    "smtp_username",
+)
 
 
 def _mail_settings_updates(data: dict, *, current: StoreSetting, settings: SettingsDep) -> dict:
@@ -2573,15 +2575,15 @@ def _mail_settings_updates(data: dict, *, current: StoreSetting, settings: Setti
     环境变量，只校验提交的那半会漏掉跨来源的死锁。
     """
     updates: dict = {}
-    for field, column in _MAIL_TEXT_FIELDS.items():
+    for field in _MAIL_TEXT_FIELDS:
         if field in data:
-            updates[column] = str(data[field] or "").strip()
+            updates[field] = str(data[field] or "").strip()
 
     if "mail_mode" in data:
         mode = str(data["mail_mode"] or "").strip().lower()
         if mode and mode not in mail_settings.MAIL_MODES:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"邮件投递方式「{mode}」不受支持，可选值为 "
                     f"{'、'.join(mail_settings.MAIL_MODES)}，留空表示跟随环境变量。"
@@ -2593,7 +2595,7 @@ def _mail_settings_updates(data: dict, *, current: StoreSetting, settings: Setti
         security = str(data["smtp_security"] or "").strip().lower()
         if security and security not in mail_settings.SMTP_SECURITY_MODES:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"SMTP 加密方式「{security}」不受支持，可选值为 "
                     f"{'、'.join(mail_settings.SMTP_SECURITY_MODES)}，留空表示跟随环境变量。"
@@ -2656,7 +2658,7 @@ def _validate_verification_window(
         mail_settings.validate_verification_window(ttl, cooldown)
     except ValueError as error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(error)
         ) from error
 
 
@@ -2727,7 +2729,7 @@ def admin_test_mail_delivery(
     email = normalize_email(payload.email or "")
     if email and not is_valid_email(email):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="请输入有效的邮箱地址。"
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="请输入有效的邮箱地址。"
         )
 
     setting = site_config.get_setting(session)
@@ -3296,7 +3298,7 @@ def admin_create_entitlement(
     # 一直拒绝 —— 表现是「后台显示已发放、功能却打不开」。所以必须对齐能力目录。
     if feature_code not in features.FEATURE_CODES:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 f"功能码 {feature_code} 不在能力目录里，客户端不会认它。"
                 "请从「功能码」选择器里勾选。"
@@ -3362,7 +3364,7 @@ def admin_patch_entitlement(
         # 创建时校验、编辑时不校验，等于给同一条规则留了一个后门。
         if feature_code not in features.FEATURE_CODES:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"功能码 {feature_code} 不在能力目录里，客户端不会认它。"
                     "请从「功能码」选择器里勾选。"

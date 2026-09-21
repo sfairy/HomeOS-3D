@@ -88,9 +88,6 @@ FEATURE_CODES_BY_GROUP: dict[str, frozenset[str]] = {
     for group, _ in FEATURE_GROUPS
 }
 
-#: 基础能力集合（主项目 ``license/service.py`` 的 ``BASE_FEATURES`` 同集）
-BASE_FEATURES: frozenset[str] = FEATURE_CODES_BY_GROUP["base"]
-
 #: 播种商品时写进 ``feature_codes_json`` 的**顺序**。内容由目录决定，顺序只是展示，
 #: 换顺序会让新装站点的功能码顺序与老站点不同。
 BASE_PRODUCT_FEATURES: tuple[str, ...] = (

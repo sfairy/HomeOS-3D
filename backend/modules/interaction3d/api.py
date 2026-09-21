@@ -17,7 +17,7 @@ import re
 import shutil
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import Field
 from sqlalchemy import select
@@ -190,7 +190,7 @@ def _background_asset_ids(scene: object) -> set[str]:
     }
 
 
-@router.post('/scenes', status_code=201)
+@router.post('/scenes', status_code=status.HTTP_201_CREATED)
 def snapshot_scene(request: Request, _user: LicensedUser):
     """把 studio 的户型草稿冻结成一个不可变快照，返回 sceneId。
 
@@ -301,7 +301,7 @@ def get_current_scene(scene_id: str, request: Request, viewer: LicensedViewer, p
     # 无变化：回 204 空响应，前端什么都不用做，这是轮询的主路径。
     if key == since:
         from fastapi.responses import Response
-        return Response(status_code=204, headers={'Cache-Control': 'no-store'})
+        return Response(status_code=status.HTTP_204_NO_CONTENT, headers={'Cache-Control': 'no-store'})
     payload['syncKey'] = key
     # referenceScene 是快照里的对照版本，供前端做本地比对与回滚。
     payload['referenceScene'] = reference['scene']
@@ -535,7 +535,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     if '</head>' not in html:
         raise RuntimeError('3d-studio.html 缺少 </head>，舞台样式挂不上去（舞台会退化成工作室界面）')
     # v= 缓存戳需要手动维护：页面本身 no-store，只有 URL 变了浏览器才会重新取样式。
-    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=2609212100"></head>')
+    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=2609212122"></head>')
     # 舞台作用域按整枚开标签注入（保留 data-tone 等既有属性），命中数必须为 1。
     html, body_injections = _BODY_TAG_PATTERN.subn(
         lambda match: f'<body{match.group("attributes")} class="interaction3d-stage" data-i3d-light-history-scope="{scope}">',
@@ -561,12 +561,12 @@ def get_render_cache(scene_id: str, cache_key: str, request: Request, viewer: Li
     from fastapi.responses import Response
     # 返回空体而不是错误：前端据此直接走渲染流程，不必额外处理一种失败态。
     if content is None:
-        return Response(status_code=204, headers={'Cache-Control': 'no-store'})
+        return Response(status_code=status.HTTP_204_NO_CONTENT, headers={'Cache-Control': 'no-store'})
     # private + no-cache：允许浏览器存，但每次都要回源确认（内容可能已被别的屏覆盖）。
     return Response(content, media_type='image/png', headers={'Cache-Control': 'private, no-cache'})
 
 
-@router.put('/scenes/{scene_id}/render-cache/{cache_key}', status_code=204)
+@router.put('/scenes/{scene_id}/render-cache/{cache_key}', status_code=status.HTTP_204_NO_CONTENT)
 async def put_render_cache(scene_id: str, cache_key: str, request: Request, viewer: LicensedViewer, projectId: str = ''):
     """接收舞台页回传的灯光合图 PNG 并写入缓存。
 
@@ -592,7 +592,7 @@ async def put_render_cache(scene_id: str, cache_key: str, request: Request, view
     # 写入同样丢线程池：内部要加 flock、校验图片并清理整目录。
     await run_in_threadpool(write_cache, path, bytes(content))
     from fastapi.responses import Response
-    return Response(status_code=204, headers={'Cache-Control': 'no-store'})
+    return Response(status_code=status.HTTP_204_NO_CONTENT, headers={'Cache-Control': 'no-store'})
 
 
 @router.get('/access')

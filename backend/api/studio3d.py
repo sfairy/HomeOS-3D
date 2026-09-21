@@ -47,15 +47,17 @@ MAX_DRAFT_BYTES = MAX_SCENE_DOCUMENT_BYTES
 MAX_EXPORT_ARCHIVE_BYTES = 536870912
 MAX_EXPORT_EXPANDED_BYTES = 1073741824
 MAX_EXPORT_FILES = 512
-# 预留的「必含文件」清单，目前为空即不强制任何文件名；保留是为了将来校验固定文件时不必改契约。
-REQUIRED_EXPORT_FILES = {}
 # 导出目录的互斥锁：上传、覆盖、删除都会做「先落临时目录再 rename」的多步操作，
 # 不加锁时两个并发请求的中间目录可能互相覆盖。
 _storage_lock = RLock()
 
 
-def _utc_now() -> str:
-    """当前 UTC 时间的 ISO 字符串，写入草稿的 updatedAt 字段。"""
+def utc_iso_now() -> str:
+    """当前 UTC 时间的 ISO 字符串，写入草稿的 updatedAt 字段。
+
+    注意与 ``observability/global_log`` 的同名概念区分：那个 ``utc_now()`` 返回的是
+    ``datetime``，本函数返回的是**字符串**。两个模块此前都叫 ``_utc_now``，看名字分不出。
+    """
     return datetime.now(timezone.utc).isoformat()
 
 
@@ -69,7 +71,7 @@ def _atomic_json_write(path: Path, payload: dict) -> None:
     encoded = canonical_json_bytes(payload)
     # 写盘前就拦下超大草稿，避免先把大文件写出去再回滚。
     if len(encoded) > MAX_DRAFT_BYTES:
-        raise HTTPException(status_code=413, detail='户型图数据过大，无法保存。')
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail='户型图数据过大，无法保存。')
     # 临时文件必须与目标同目录：跨文件系统的 rename 不是原子操作。
     (descriptor, temporary_name) = tempfile.mkstemp(prefix='.draft-', suffix='.tmp', dir=path.parent)
     temporary_path = Path(temporary_name)
@@ -144,7 +146,7 @@ def migrate_legacy_scene(database: DatabaseSession, draft_path: Path) -> dict | 
     if selected_scene is None:
         return None
     # 迁移产物从 revision 1 起步，让客户端拿到的初始版本号与新建草稿一致。
-    payload = {'revision': 1, 'scene': selected_scene, 'updatedAt': _utc_now()}
+    payload = {'revision': 1, 'scene': selected_scene, 'updatedAt': utc_iso_now()}
     _atomic_json_write(draft_path, payload)
     return payload
 
@@ -160,7 +162,7 @@ def _folder_name(request: Request) -> str:
         # 前端发的是 URL 编码值，这里解码后统一去掉首尾空白。
         name = unquote(encoded).strip()
     except (UnicodeError, ValueError) as error:
-        raise HTTPException(status_code=422, detail='导出文件夹名称无效。') from error
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='导出文件夹名称无效。') from error
     # Windows / NAS 共享上的保留字符，命中就拒绝，避免跨平台拷贝时出错。
     invalid_characters = '<>:"/\\|?*'
     if (
@@ -175,7 +177,7 @@ def _folder_name(request: Request) -> str:
         # 兜底再确认一次「只剩文件名」，挡住用 '..' 拼出的路径穿越。
         or Path(name).name != name
     ):
-        raise HTTPException(status_code=422, detail='文件夹名不能包含路径符号、控制字符或系统保留符号。')
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='文件夹名不能包含路径符号、控制字符或系统保留符号。')
     return name
 
 
@@ -198,15 +200,15 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
     try:
         archive = zipfile.ZipFile(archive_path)
     except zipfile.BadZipFile as error:
-        raise HTTPException(status_code=422, detail='导出数据不是有效的 ZIP 文件。') from error
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='导出数据不是有效的 ZIP 文件。') from error
     with archive:
         entries = archive.infolist()
         # 空包与超量包都拒绝；数量上限同时也约束了后面逐个校验的开销。
         if not entries or len(entries) > MAX_EXPORT_FILES:
-            raise HTTPException(status_code=422, detail='导出文件数量无效。')
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='导出文件数量无效。')
         names = {entry.filename for entry in entries}
         if not names:
-            raise HTTPException(status_code=422, detail='导出包不能为空。')
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='导出包不能为空。')
         expanded_size = 0
         for entry in entries:
             name = entry.filename
@@ -220,20 +222,20 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
                 or '\\' in name
                 or Path(name).suffix.lower() not in frozenset({'.png', '.json', '.webp'})
             ):
-                raise HTTPException(status_code=422, detail='导出包包含无效文件路径或文件类型。')
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='导出包包含无效文件路径或文件类型。')
             # 按声明的解压后大小累计，挡住 zip bomb 把磁盘写满。
             expanded_size += entry.file_size
             if expanded_size > MAX_EXPORT_EXPANDED_BYTES:
-                raise HTTPException(status_code=413, detail='导出内容超过 NAS 保存上限。')
+                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail='导出内容超过 NAS 保存上限。')
         for json_name in [name for name in names if name.lower().endswith('.json')]:
             try:
                 value = json.loads(archive.read(json_name))
             except (UnicodeDecodeError, json.JSONDecodeError, KeyError) as error:
-                raise HTTPException(status_code=422, detail=f'{json_name} 内容无效。') from error
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f'{json_name} 内容无效。') from error
             # JSON 必须是对象：场景文件结构固定，数组或标量说明包不是本项目的导出。
             if isinstance(value, dict):
                 continue
-            raise HTTPException(status_code=422, detail=f'{json_name} 内容无效。')
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f'{json_name} 内容无效。')
         for image_name in [name for name in names if Path(name).suffix.lower() in frozenset({'.png', '.webp'})]:
             # 图片逐个读出来验魔数；条目数量已被上限约束，不会在这里放大内存开销。
             image_data = archive.read(image_name)
@@ -248,7 +250,7 @@ def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:
                 continue
             # 校验魔数而不只看扩展名，避免把伪装文件存进资产目录。
             format_name = 'PNG' if suffix == '.png' else 'WebP'
-            raise HTTPException(status_code=422, detail=f'{image_name} 不是有效的 {format_name} 文件。')
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f'{image_name} 不是有效的 {format_name} 文件。')
         return entries
 
 
@@ -270,9 +272,9 @@ def _assert_image_within_upload_limits(name: str, data: bytes) -> None:
             with Image.open(io.BytesIO(data)) as probe:
                 (width, height) = probe.size
     except Image.DecompressionBombError as error:
-        raise HTTPException(status_code=422, detail=f'{name} 像素尺寸过大，请压缩后重试。') from error
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f'{name} 像素尺寸过大，请压缩后重试。') from error
     except (UnidentifiedImageError, OSError) as error:
-        raise HTTPException(status_code=422, detail=f'{name} 图片已损坏或无法完整解码。') from error
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f'{name} 图片已损坏或无法完整解码。') from error
     if (
         width <= 0
         or height <= 0
@@ -280,7 +282,7 @@ def _assert_image_within_upload_limits(name: str, data: bytes) -> None:
         or height > MAX_UPLOAD_DIMENSION
         or width * height > MAX_UPLOAD_PIXELS
     ):
-        raise HTTPException(status_code=422, detail=f'{name} 像素尺寸过大，请压缩后重试。')
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f'{name} 像素尺寸过大，请压缩后重试。')
 
 
 @router.get('')
@@ -322,7 +324,7 @@ def update_studio3d_draft(payload: Studio3DDraftUpdate, request: Request, _user:
             # 每次成功保存都 +1，客户端拿着新版本号继续编辑，形成串行化的版本链。
             'revision': current_revision + 1,
             'scene': payload.scene,
-            'updatedAt': _utc_now()}
+            'updatedAt': utc_iso_now()}
         _atomic_json_write(request.app.state.settings.studio3d_draft_path, updated)
         request.app.state.global_log.append('success', '3D户型图编辑器', '配置', f"3D 户型图草稿已保存（修订 {updated['revision']}）")
         return updated
@@ -341,16 +343,6 @@ def check_studio3d_export(request: Request, _user: LicensedUser) -> dict:
         return {'folderName': folder_name, 'exists': target.exists()}
 
 
-def _atomic_swap(source: Path, destination: Path) -> None:
-    """原子替换一个路径（单独包一层是为了让「替换失败」可注入）。
-
-    覆盖导出时用「旧目录改名 → 新目录就位 → 删旧」的换位法，其中任何一步都可能失败；要复现
-    「新目录就位失败且回滚也失败」这种罕见组合，直接打 os.replace 会污染整个进程，因此留这
-    一个可替换的入口（排障时手工打桩用）。
-    """
-    os.replace(source, destination)
-
-
 def _install_export(settings, folder_name: str, temporary_archive: Path, entries: list[zipfile.ZipInfo], overwrite: bool) -> bool:
     """在写锁内把校验过的 ZIP 解压成正式导出目录，返回是否覆盖了旧文件夹。
 
@@ -362,7 +354,7 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
     with _storage_lock:
         target_exists = target.exists()
         if target_exists and not overwrite:
-            raise HTTPException(status_code=409, detail={
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
                 'code': 'STUDIO3D_EXPORT_EXISTS',
                 'message': '该文件夹已存在，请确认覆盖或换一个文件夹名。',
                 'folderName': folder_name})
@@ -385,15 +377,15 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
             if target_exists:
                 # 换位法：新目录就位失败时把旧目录改回来，任何时刻都有一份可用数据。
                 backup = settings.studio3d_exports_dir / f'.previous-{uuid4().hex}'
-                _atomic_swap(target, backup)
+                os.replace(target, backup)
                 try:
-                    _atomic_swap(staging, target)
+                    os.replace(staging, target)
                     shutil.rmtree(backup, ignore_errors=True)
                 except Exception as error:
                     # 回滚失败不能顶掉原始异常：那样看到的都是「回滚失败」，真正的原因
                     # （新目录没能就位）反而丢了。把两者一起说清并链上原始异常。
                     try:
-                        _atomic_swap(backup, target)
+                        os.replace(backup, target)
                     except OSError as rollback_error:
                         raise RuntimeError(
                             f'导出目录替换失败且回滚未完成（{type(error).__name__}: {error}；'
@@ -401,7 +393,7 @@ def _install_export(settings, folder_name: str, temporary_archive: Path, entries
                         ) from error
                     raise
             else:
-                _atomic_swap(staging, target)
+                os.replace(staging, target)
         finally:
             # 失败路径清掉暂存目录；成功时它已被 rename 走，这里不会命中。
             if staging.exists():
@@ -442,7 +434,7 @@ async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
             def _reject_oversized(received: int) -> None:
                 # 边收边计数，超过压缩包上限立刻中断，不等整个流收完。
                 if received > MAX_EXPORT_ARCHIVE_BYTES:
-                    raise HTTPException(status_code=413, detail='导出 ZIP 超过 NAS 保存上限。')
+                    raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail='导出 ZIP 超过 NAS 保存上限。')
 
             written = await write_stream_in_batches(request.stream(), output, before_write=_reject_oversized)
             # flush + fsync 真的等存储设备回应（NAS 上可能到秒级），不能占着事件循环。
@@ -451,7 +443,7 @@ async def save_studio3d_export(request: Request, _user: LicensedUser) -> dict:
         temporary_archive.chmod(384)
         # 空文件也会在 ZIP 解析时报错，这里提前给出更明确的提示。
         if written == 0:
-            raise HTTPException(status_code=422, detail='导出 ZIP 为空。')
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='导出 ZIP 为空。')
         # 校验会逐个解压 JSON 与图片（最多 MAX_EXPORT_EXPANDED_BYTES），同样放线程池。
         entries = await run_in_threadpool(_validate_archive, temporary_archive)
         # 解压与目录换位连同 _storage_lock 一起搬进线程池：在事件循环里等同步锁会卡住别的请求。
@@ -520,10 +512,10 @@ def delete_studio3d_export_folder(request: Request, database: DatabaseSession, _
     root = settings.studio3d_exports_dir.resolve()
     target = (root / folder_name).resolve()
     if not target.is_relative_to(root) or target.parent != root:
-        raise HTTPException(status_code=422, detail='导出文件夹名称无效。')
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='导出文件夹名称无效。')
     with _storage_lock:
         if not target.is_dir():
-            raise HTTPException(status_code=404, detail='导图文件夹不存在。')
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='导图文件夹不存在。')
         # 先改名成隐藏目录再删：rename 是瞬时的，界面不会看到「删到一半」的目录。
         discarded = root / f'.deleted-{uuid4().hex}'
         os.replace(target, discarded)

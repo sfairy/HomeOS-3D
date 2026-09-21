@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from store.commerce import coupons, fulfill
 from store.ops import incidents
 from store.core.models import Order, StoreSetting
-from store.commerce.order_status import ORDER_STATUS_LABELS, RESERVING_STATUSES
+from store.commerce.order_status import RESERVING_STATUSES, order_status_label
 from store.security.security import utcnow
 
 logger = logging.getLogger("store.payments.settlement")
@@ -111,7 +111,7 @@ def settle_paid_order(
             )
         order.needs_review = True
         order.review_note = (
-            f"订单{_status_text(original_status)}后才收到支付（{source}），"
+            f"订单{order_status_label(original_status)}后才收到支付（{source}），"
             "库存预留此前已释放，请核对是否需要补货或退款。"
         )
         session.flush()
@@ -186,8 +186,4 @@ def _mark_fulfillment_failed(session: Session, *, order_id: str, error: Exceptio
 def _short_error(error: Exception) -> str:
     text = str(error).strip() or error.__class__.__name__
     return text[:230]
-
-
-def _status_text(status: str) -> str:
-    return ORDER_STATUS_LABELS.get(status, status)
 

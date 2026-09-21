@@ -124,5 +124,4 @@ def _read_or_create_secret_key(
                 f'无法写入密钥文件 {path}：{error.strerror or error}'
             ) from error
 
-    # 循环只可能以 return 或 raise 结束；这行是给静态检查看的兜底。
-    raise error_factory(f'无法创建密钥文件 {path}。')
+    # 循环体每条路径都以 return 或 raise 结束（attempts 是正数常量），所以没有循环外的兜底 return。

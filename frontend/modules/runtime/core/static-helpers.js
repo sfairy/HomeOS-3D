@@ -19,16 +19,16 @@ const {
   normalizedTextOf
 } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/state-entry.js", import.meta.url))
-  : import("/static/utils/state-entry.js?v=2609212100"));
+  : import("/static/utils/state-entry.js?v=2609212122"));
 const { entityDomainFromId } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/entities.js", import.meta.url))
-  : import("/static/utils/entities.js?v=2609212100"));
+  : import("/static/utils/entities.js?v=2609212122"));
 const { apiErrorMessage } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/api-error.js", import.meta.url))
-  : import("/static/utils/api-error.js?v=2609212100"));
+  : import("/static/utils/api-error.js?v=2609212122"));
 const { INTERACTION_PAGE_OPTIONS } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/interaction-pages.js", import.meta.url))
-  : import("/static/utils/interaction-pages.js?v=2609212100"));
+  : import("/static/utils/interaction-pages.js?v=2609212122"));
 // 数值换算与夹取（唯一实现仍在 utils/numbers.js）：运行侧大量几何 / 光照 / 面板字段都要过它，
 // 缺了这条桥，各模块就会各自再造一份口径不同的夹取与换算。
 const {
@@ -38,11 +38,11 @@ const {
   finiteNumberOrNull
 } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/numbers.js", import.meta.url))
-  : import("/static/utils/numbers.js?v=2609212100"));
+  : import("/static/utils/numbers.js?v=2609212122"));
 // 指针捕获：`stage.js` 的标记拖拽（显示路径）与编辑器的平面图拖拽都要用，且实现零依赖。
 const { capturePointer, releasePointer } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/pointer-capture.js", import.meta.url))
-  : import("/static/utils/pointer-capture.js?v=2609212100"));
+  : import("/static/utils/pointer-capture.js?v=2609212122"));
 
 export {
   INTERACTION_PAGE_OPTIONS,

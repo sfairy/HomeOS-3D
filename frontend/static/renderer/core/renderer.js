@@ -8,13 +8,13 @@
  * entityId / properties）；HA 侧字段名保持下划线原样（与 Home Assistant 约定死，改名取不到）；组件类型
  * 字符串是文档与注册表的约定键，新增或改名必须同步 registry.js 的 registerComponent。
  */
-import { popupPlacement } from "../../bridge/popup-placement.js?v=2609212100";
-import { formatZhDateTime } from "../../utils/datetime.js?v=2609212100";
-import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609212100";
+import { popupPlacement } from "../../bridge/popup-placement.js?v=2609212122";
+import { formatZhDateTime } from "../../utils/datetime.js?v=2609212122";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609212122";
 import {
   cameraPopupLayout,
   cameraPreviewRatio
-} from "../../bridge/camera-popup-layout.js?v=2609212100";
+} from "../../bridge/camera-popup-layout.js?v=2609212122";
 // registry.js 是控件注册表的唯一出处，本文件只消费不注册。
 // 这里的 ?v= 必须与 home.js / display.js 里那条 registry.js?v= 完全一致；
 // 不一致会让注册表被加载两份，运行期两个模块各持一份 Map，控件类型彼此看不见。
@@ -40,19 +40,19 @@ import {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry.js?v=2609212100";
-import { randomUuid } from "../../utils/random-id.js?v=2609212100";
-import { apiErrorMessage } from "../../utils/api-error.js?v=2609212100";
+} from "./registry.js?v=2609212122";
+import { randomUuid } from "../../utils/random-id.js?v=2609212122";
+import { apiErrorMessage } from "../../utils/api-error.js?v=2609212122";
 // 颜色插值统一走 utils/colors.js，避免再出现「同名但失败值不同」的本地副本。
-import { mixHexColors, paletteColor } from "../../utils/colors.js?v=2609212100";
+import { mixHexColors, paletteColor } from "../../utils/colors.js?v=2609212122";
 // 「按 ID / 按实体取域」只有一份实现（唯一一处与内联旧写法有行为差异的是组合弹窗里
 // `moduleResolvedEntityId` 可能整个缺席（`undefined`）的那条 —— 旧写法抛 `TypeError`，
 // 现在归一成 `""`，渲染得更稳，不改变「是不是 button」的判定）。
-import { entityDomainFromId, entityDomainOf } from "../../utils/entities.js?v=2609212100";
+import { entityDomainFromId, entityDomainOf } from "../../utils/entities.js?v=2609212122";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`
 // （唯一的语义差别见 `state-entry.js` 里「为什么用真值判定」那段）。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=2609212100";
-import { popupLayoutMetrics } from "../../shared/popup-layout.js?v=2609212100";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=2609212122";
+import { popupLayoutMetrics } from "../../shared/popup-layout.js?v=2609212122";
 import {
   bathHeaterModeUsesAirflow,
   climateControlStructureKey,
@@ -71,11 +71,11 @@ import {
   reconcileClimateTargetTemperature,
   resolveClimateDeviceType,
   waterHeaterStatusLabel
-} from "../controls/climate.js?v=2609212100";
+} from "../controls/climate.js?v=2609212122";
 import {
   applyXiaomiDeviceProfile,
   resolveXiaomiDeviceProfile
-} from "./device-profiles.js?v=2609212100";
+} from "./device-profiles.js?v=2609212122";
 import {
   relatedEntityLabel,
   relatedEntityNeedsConfirmation,
@@ -84,26 +84,26 @@ import {
   relatedPopupContext,
   selectedRelatedEntities,
   selectedRelatedEntityIds
-} from "../../shared/related-entities.js?v=2609212100";
-import { confirmAction } from "../../shared/ui-confirm.js?v=2609212100";
+} from "../../shared/related-entities.js?v=2609212122";
+import { confirmAction } from "../../shared/ui-confirm.js?v=2609212122";
 import {
   entityPowerIsOn,
   entityPowerTarget,
   entityToggleCommand,
   optimisticToggleState
-} from "./entity-power.js?v=2609212100";
+} from "./entity-power.js?v=2609212122";
 import {
   ICON_VISIBILITY_VIRTUAL_KIND,
   isVirtualEntityId,
   parseVirtualEntityId
-} from "../../shared/virtual-entities.js?v=2609212100";
-import { componentActionIsSupported } from "../../shared/action-rules.js?v=2609212100";
+} from "../../shared/virtual-entities.js?v=2609212122";
+import { componentActionIsSupported } from "../../shared/action-rules.js?v=2609212122";
 import {
   airflowCanvasOffsetBounds,
   airflowLayerGeometry,
   groupedComponentLocalDelta,
   rotateMultiSelectionTransforms
-} from "../geometry/transform-geometry.js?v=2609212100";
+} from "../geometry/transform-geometry.js?v=2609212122";
 import {
   componentHostZIndex,
   effectCropRectangle,
@@ -112,7 +112,7 @@ import {
   effectReferenceImageTransform,
   effectSourceDimensions,
   normalizeIconButtonEffectComponent
-} from "../geometry/effect-geometry.js?v=2609212100";
+} from "../geometry/effect-geometry.js?v=2609212122";
 import {
   LIGHT_DETAIL_PRESET_DEFINITIONS,
   LIGHT_PRESET_MAXIMUM_HOLD_MS,
@@ -131,14 +131,14 @@ import {
   lightVisualValueForCapability,
   relativeLightColorTemperature,
   rgbToHsColor
-} from "../controls/light-runtime.js?v=2609212100";
-import { entityMetadataIsAvailable } from "./entity-metadata.js?v=2609212100";
+} from "../controls/light-runtime.js?v=2609212122";
+import { entityMetadataIsAvailable } from "./entity-metadata.js?v=2609212122";
 import {
   relatedVacuumBatteryEntity,
   vacuumActionService,
   vacuumBatteryPercent,
   vacuumSupportedActions
-} from "../controls/vacuum-runtime.js?v=2609212100";
+} from "../controls/vacuum-runtime.js?v=2609212122";
 import {
   airerDevicePosition,
   airerPositionCalibration,
@@ -168,16 +168,16 @@ import {
   runtimeCoverStateIsActive,
   runtimeEntityStateIsActive,
   waterHeaterRelatedEntityLabel
-} from "../controls/cover-runtime.js?v=2609212100";
+} from "../controls/cover-runtime.js?v=2609212122";
 // 电机方向（读控件配置）在 cover-direction.js：它能被 registry.js 与 cover-runtime.js
 // 同时 import（叶子模块，不成环）。本文件只做转出，公开面不变。
-import { coverMotorIsReversedForComponent } from "../controls/cover-direction.js?v=2609212100";
+import { coverMotorIsReversedForComponent } from "../controls/cover-direction.js?v=2609212122";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance,
   playStableRuntimeDialogEntrance,
   runtimeDialogUsesStableMotion
-} from "./runtime-dialog-motion.js?v=2609212100";
+} from "./runtime-dialog-motion.js?v=2609212122";
 import {
   HISTORY_FETCH_TIMEOUT_MS,
   HistoryRefreshCoordinator,
@@ -187,13 +187,13 @@ import {
   cacheHistorySeries,
   historyRequestStillRelevant,
   historySeriesCacheKey
-} from "./runtime-caches.js?v=2609212100";
+} from "./runtime-caches.js?v=2609212122";
 import {
   collectComponents,
   collectEntityIds,
   lineChartRuntimeStateNeedsHydration,
   syncedLineChartProperties
-} from "./runtime-document.js?v=2609212100";
+} from "./runtime-document.js?v=2609212122";
 // 下面三处是仍被外部模块按 renderer.js 这个路径导入的实现转发：实现本身在各自的旁路模块里
 // （transform-geometry.js / asset-version.js 等），这里继续原路径转出，调用方无需改动，
 // 也避免出现两套同名实现。

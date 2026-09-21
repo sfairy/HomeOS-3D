@@ -13,7 +13,7 @@ import json
 import math
 import re
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from ...core.canonical_json import canonical_json
 
@@ -471,7 +471,7 @@ def validate_config(properties: dict) -> None:
         fail()
     # 这一条单独给出文案：便于前端区分「转动分辨率」设置项自身非法。
     if properties.get('motionRenderScale') is not None and not number(properties['motionRenderScale'], 0.25, 1):
-        raise HTTPException(status_code=422, detail='3D 转动分辨率无效')
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='3D 转动分辨率无效')
     # 舞台整体渲染倍率；转动时的降级倍率另由 motionRenderScale 控制（可为 None）。
     if not number(properties.get('renderScale', 1), 0.25, 2):
         fail()

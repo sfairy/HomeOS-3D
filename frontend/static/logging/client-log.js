@@ -65,7 +65,10 @@
       let normalizedPath = parsedUrl.pathname;
       try {
         normalizedPath = decodeURIComponent(normalizedPath);
-      } catch {}
+      } catch {
+        // 畸形百分号编码（如 %zz）时保留原样：这里的路径只用于把请求归类成脱敏标签，
+        // 解不出来不影响归类，也没必要为此丢掉整条日志。
+      }
       // HLS 流地址带随机 token，统一折叠成 [stream]；邮箱 / JWT 也一并替换。
       return normalizedPath
         .split(/[?#]/, 1)[0]

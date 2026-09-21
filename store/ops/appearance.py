@@ -13,6 +13,8 @@
 
 本文件的 ``_TOKEN_NAME`` 正则必须与 ``design/scene/appearance.js`` 的 ``tokenNames()``
 保持一致 —— 两份副本里唯一会走散的就是这条正则，改动其一时请手工核对另一份。
+（商店页面实际加载的是它的分发副本 ``store/static/scene/appearance.js``，那份由
+``design/scene/`` 手工同步，只读；改配色请改源文件，见 ``store/README.md``。）
 """
 from __future__ import annotations
 
@@ -24,6 +26,10 @@ from pathlib import Path
 
 #: 令牌名白名单。与 ``backend/core/appearance.py`` 逐字相同，与
 #: ``design/scene/appearance.js`` 的 ``tokenNames()`` 一一对应。
+#:
+#: 前缀同时收 ``--hos-`` 与 ``--hb-`` 是**故意的**：前者归主应用与 3D 场景、后者归商店
+#: （appearance.js 的 ``tokensToCss`` 两个命名空间一起发）。看着像改名前缀的历史残留，
+#: 别顺手收窄 —— 收窄的结果是商店自己的令牌被 422 拒掉。
 _TOKEN_NAME = re.compile(
     r'^--(?:hos|hb)-(?:accent|lumen|aura|eco)(?:-rgb|-bright|-deep|-soft|-line|-text)?$'
 )
@@ -31,16 +37,24 @@ _TOKEN_NAME = re.compile(
 _TOKEN_NAME_EXTRA = frozenset({'--hb-accent-grad-hover'})
 
 _HEX = r'#[0-9a-f]{6}'
+#: 软色（-soft）与描边（-line）同形：都是半透明 rgba，所以共用同一个 pattern 对象
+#: ——两个后缀各自一个键是必须的（下面按后缀查表），重复的只是取值本身。
+_SOFT_PATTERN = re.compile(r'^rgba\(\d{1,3}, \d{1,3}, \d{1,3}, 0?\.\d+\)$')
 _VALUE_PATTERNS: dict[str, re.Pattern[str]] = {
     '-rgb': re.compile(r'^\d{1,3}, \d{1,3}, \d{1,3}$'),
-    '-soft': re.compile(r'^rgba\(\d{1,3}, \d{1,3}, \d{1,3}, 0?\.\d+\)$'),
-    '-line': re.compile(r'^rgba\(\d{1,3}, \d{1,3}, \d{1,3}, 0?\.\d+\)$'),
+    '-soft': _SOFT_PATTERN,
+    '-line': _SOFT_PATTERN,
 }
 _VALUE_DEFAULT = re.compile(rf'^{_HEX}$')
 _VALUE_GRADIENT = re.compile(rf'^linear-gradient\(180deg, {_HEX}, {_HEX}\)$')
 
 #: 允许的预设 id。取值合法性（防写坏样式表）与「是不是我们发出去的预设」
 #: 是两件事：后者防的是下拉框里出现一个从来没见过的名字。
+#:
+#: ``custom`` 商店界面**永远不会发出**（``store/static/palette.js`` 的 ``draft.preset``
+#: 只取自 ``PRESETS``，目前只有 ``amber``），保留它是为了两件事：与主应用那份同名副本
+#: 的取值集对齐，以及在 ``load()`` 时容忍一个手改/历史遗留的 ``preset`` —— 校验失败会连
+#: **tokens 一起丢弃**（见 ``load``），为一个只是标签的字段赔上整份配色不划算。
 PRESET_IDS = frozenset({'amber', 'custom'})
 
 SCHEMA_VERSION = 1

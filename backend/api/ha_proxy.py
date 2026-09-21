@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from ..core.database import Database
-from ..core.dependencies import ShortLivedLicensedViewer, ViewerPrincipal, require_viewer_entity
+from ..core.dependencies import LicensedViewer, ViewerPrincipal, require_viewer_entity
 from ..ha.client import HAClientError
 from ..ha.crypto import CredentialCipherError
 from .ha import active_connection, load_active_connection_snapshot
@@ -342,7 +342,7 @@ def _viewer_can_see_entity(database_manager: Database, viewer: ViewerPrincipal, 
 
 
 async def require_media_proxy_scope(
-    request: Request, viewer: ShortLivedLicensedViewer
+    request: Request, viewer: LicensedViewer
 ) -> None:
     """媒体代理的归属门禁：请求路径必须能定位到一个当前主体可见的实体。
 
@@ -639,7 +639,7 @@ async def proxy_http(request: Request) -> Response:
 
 @router.get('/api/camera_hls/{entity_id}')
 async def camera_hls_stream(
-    entity_id: str, request: Request, viewer: ShortLivedLicensedViewer
+    entity_id: str, request: Request, viewer: LicensedViewer
 ) -> JSONResponse:
     """为摄像头换取 HLS 播放地址（需已认证且授权允许 api）。
 
@@ -707,7 +707,7 @@ async def camera_hls_stream(
 @router.api_route('/api/hls/{path:path}', methods=['GET', 'HEAD'])
 async def proxy_home_assistant_media(
     request: Request,
-    _viewer: ShortLivedLicensedViewer,
+    _viewer: LicensedViewer,
     _scope: None = Depends(require_media_proxy_scope),
 ) -> Response:
     """五条媒体路径共用的代理入口（需已认证、授权允许 api、且实体对当前主体可见）。

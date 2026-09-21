@@ -267,23 +267,6 @@ def licensed_viewer(request: Request, viewer: CurrentViewer) -> ViewerPrincipal:
 # 正式展示页与 3D 舞台用这一组：认证 + api 门禁，且不长期占用连接。
 LicensedViewer = Annotated[ViewerPrincipal, Depends(licensed_viewer)]
 
-# 语义同 CurrentViewer，只改名字以在路由签名里表达"还没过授权门禁"。
-ShortLivedCurrentViewer = Annotated[
-    ViewerPrincipal, Depends(authenticated_short_lived_viewer)
-]
-
-
-def licensed_short_lived_viewer(
-    request: Request, viewer: ShortLivedCurrentViewer
-) -> ViewerPrincipal:
-    """ShortLivedCurrentViewer 版本的授权门禁，直接复用 licensed_viewer 口径。"""
-    return licensed_viewer(request, viewer)
-
-
-ShortLivedLicensedViewer = Annotated[
-    ViewerPrincipal, Depends(licensed_short_lived_viewer)
-]
-
 
 def require_viewer_project(viewer: ViewerPrincipal, project_id: str) -> None:
     """确认当前主体有权访问指定项目，否则 403。
