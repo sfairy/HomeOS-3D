@@ -24,6 +24,8 @@ from __future__ import annotations
 
 from fastapi.responses import JSONResponse
 
+from .http_cache import NO_STORE
+
 #: 请求允许的最大嵌套深度。
 #:
 #: 文档层级固定（文档 → 页面 → 组件 → 属性 → 绑定 …），实测个位数，留到 64 是给模板与自定义字段余量。
@@ -253,7 +255,7 @@ def _too_deep_detail(is_draft: bool) -> str:
 async def _send_error(send, status_code: int, detail: str) -> None:
     """直接回一个 JSON 错误（走真正的 Response，保证头部与 JSON 体一致）。"""
     response = JSONResponse(
-        {'detail': detail}, status_code=status_code, headers={'cache-control': 'no-store'}
+        {'detail': detail}, status_code=status_code, headers={'cache-control': NO_STORE}
     )
     await response({'type': 'http'}, None, send)
 

@@ -28,7 +28,7 @@ from ..core.dependencies import DatabaseSession, LicensedUser, LicensedViewer, a
 from ..core.canonical_json import canonical_json
 from ..http.http_cache import set_private_immutable_cache, set_versioned_private_cache
 from ..panel.documents import parse_document
-from ..panel.entity_refs import document_keyed_values
+from ..panel.entity_refs import document_mentioned_values, document_mentions
 from ..core.models import Project, ProjectDraft
 from ..panel.global_popups import global_popups
 from ..http.streaming import write_stream_in_batches
@@ -856,11 +856,20 @@ def referenced_user_asset_ids(database, studio3d_draft_path: Path) -> set[str]:
     """此刻仍被引用的用户素材 ID（不含 ``user:`` 前缀）集合。
 
     引用来源三处：项目草稿文档、全局组合弹窗（独立存放）、3D 户型草稿（不在库里，
-    单独读盘）。键名扫描复用 ``document_keyed_values``，与「哪些实体还有人用」同一套启发式。
+    单独读盘）。判据是「文档里出现过 ``user:`` 开头的字符串」—— 与删素材守卫
+    （``document_uses_asset``）同一套「任意提及」口径，两处结论必须一致：否则会出现
+    「巡检说这张图没人用、真去删又被拒绝」，而巡检结果直接进磁盘告警文案。
     """
-    def is_user_asset(value: str) -> bool:
+    def is_user_asset(text: str) -> bool:
         """只收用户上传的图片：内置素材不会出现在这个目录里。"""
-        return value.startswith('user:')
+        return text.startswith('user:')
+
+    def referenced_in(value) -> set[str]:
+        """从一份文档里捞出全部用户素材 ID（去掉前缀，与磁盘目录名对齐）。"""
+        return {
+            asset_id.removeprefix('user:')
+            for asset_id in document_mentioned_values(value, is_user_asset)
+        }
 
     referenced: set[str] = set()
     for document_json in database.scalars(select(ProjectDraft.document_json)):
@@ -868,23 +877,14 @@ def referenced_user_asset_ids(database, studio3d_draft_path: Path) -> set[str]:
         document = parse_document(document_json)
         if document is None:
             continue
-        referenced.update(
-            value.removeprefix('user:')
-            for value in document_keyed_values(document, 'assetId', keep = is_user_asset)
-        )
-    referenced.update(
-        value.removeprefix('user:')
-        for value in document_keyed_values({'customPopups': global_popups(database)}, 'assetId', keep = is_user_asset)
-    )
+        referenced.update(referenced_in(document))
+    referenced.update(referenced_in({'customPopups': global_popups(database)}))
     if studio3d_draft_path.is_file():
         try:
             studio_draft = json.loads(studio3d_draft_path.read_text(encoding = 'utf-8'))
         except (OSError, json.JSONDecodeError):
             studio_draft = { }
-        referenced.update(
-            value.removeprefix('user:')
-            for value in document_keyed_values(studio_draft.get('scene', { }), 'assetId', keep = is_user_asset)
-        )
+        referenced.update(referenced_in(studio_draft.get('scene', { })))
     return referenced
 
 
@@ -1006,16 +1006,13 @@ def sweep_user_assets_for_app(app) -> dict[str, int]:
 
 
 def document_uses_asset(value, asset_id: str) -> bool:
-    """递归判断一份文档（任意嵌套的 dict/list）里是否引用了指定素材 ID。
+    """整份文档（任意嵌套的 dict/list）里是否还有地方提到该素材 ID。
 
-    只看值不看键名，用于删除素材前的引用检查。
+    判据是「**键名或值里出现过这个字符串**」，比 ``document_keyed_values`` 那种按字段名猜的
+    收集更宽 —— 这里的后果是「拒删」，宽一格只是少删一张图；窄一格会删掉仍被引用的素材，
+    引用它的控件渲染回退或报错（前端 ``requestDeleteAsset`` 用的是同一套判据）。
     """
-    if isinstance(value, dict):
-        return any((document_uses_asset(item, asset_id) for item in value.values()))
-    if isinstance(value, list):
-        return any((document_uses_asset(item, asset_id) for item in value))
-    # 递归到标量再比较：不关心键名，只关心文档里有没有引用这个 ID。
-    return value == asset_id
+    return document_mentions(value, lambda text: text == asset_id)
 
 @router.get('/builtin')
 def list_builtin_assets(request: Request, _viewer: LicensedViewer) -> dict:

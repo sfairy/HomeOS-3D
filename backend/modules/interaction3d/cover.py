@@ -7,7 +7,8 @@
 from __future__ import annotations
 
 from fastapi import HTTPException, status
-from math import isfinite
+
+from .numbers import as_finite_number
 
 # 服务 → HA 能力位（CoverEntityFeature 的取值），按设备实际上报的能力放行。
 COVER_SERVICES = {
@@ -25,17 +26,11 @@ INFERRED_FEATURE_HINT = {
 
 
 def _reported_number(value) -> bool:
-    """判断上报值是否是一个可用的数值（bool / 空串 / 非数字都不算）。
+    """上报值是否是一个可用的数值（bool / 空串 / 非数字都不算）。
 
-    HA 常把位置上报成数字字符串，因此这里既认 int / float 也认能转成数字的字符串；
-    非有限值（NaN / inf）不算「有值」—— 拿它做判断会得出无意义的结论。
+    读 HA **属性**，所以接受数字字符串（集成常把位置上报成 ``"42"``）。
     """
-    if isinstance(value, bool) or not isinstance(value, (str, int, float)):
-        return False
-    try:
-        return isfinite(float(value))
-    except ValueError:
-        return False
+    return as_finite_number(value) is not None
 
 
 def inferred_cover_features(attributes: dict) -> int:
@@ -136,22 +131,11 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=INFERRED_FEATURE_HINT[service])
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail='窗帘当前不支持此操作。')
     if dream and service in ('set_cover_position', 'set_cover_tilt_position'):
-
-        # 梦幻帘的叶片判断要做数值解析：HA 常把位置上报成数字字符串，这里统一转 float。
-        def number(value):
-            """把上报值解析成有限浮点数；bool、NaN 与非数字一律返回 None（视作没有该值）。"""
-            if isinstance(value, bool) or not isinstance(value, (str, int, float)):
-                return None
-            try:
-                value = float(value)
-                # NaN / inf 会让后续比较失去意义，一律归一成 None（即「没有这个值」）。
-                return value if isfinite(value) else None
-            except ValueError:
-                return None
+        # 梦幻帘的叶片判断要做数值解析：HA 常把位置上报成数字字符串，由 as_finite_number 统一转换。
 
         # 是否真有叶片能力：要么上报了 current_tilt_position，要么 240（16+32+64+128）
         # 中任意一个能力位被置起。
-        has_tilt = number(attributes.get('current_tilt_position')) is not None or bool(features & 240)
+        has_tilt = as_finite_number(attributes.get('current_tilt_position')) is not None or bool(features & 240)
         # 没有叶片能力时只需不打断正在运行的帘：位置指令照常放行。
         if not has_tilt:
             if state.get('state') in ('opening', 'closing'):
@@ -160,7 +144,7 @@ def validate_cover_command(service: str, data: dict, state: dict | None, *, drea
         # 有叶片能力时，只有整体确实 closed 且实际行程为 0 才允许调叶片 ——
         # 帘体未合拢时调叶片会与行程电机抢状态，HA 侧结果不确定。
         if state.get('state') != 'closed' or (
-            attributes.get('current_position') is not None and number(attributes.get('current_position')) != 0
+            attributes.get('current_position') is not None and as_finite_number(attributes.get('current_position')) != 0
         ):
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='只有确认整体完全关闭且停止后，才能调整叶片。')
     return None

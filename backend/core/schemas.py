@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..http.body_guard import MAX_JSON_DEPTH, MAX_SCENE_DOCUMENT_BYTES, json_nesting_depth
+from ..panel.documents import DESIGN_HEIGHT, DESIGN_WIDTH
 from .canonical_json import canonical_json_bytes
 from ..ha.client import HAClientError, normalize_base_url
 
@@ -287,8 +288,11 @@ class ProjectCreateRequest(BaseModel):
 
     name: str = Field(min_length=1, max_length=128)
     description: str = Field(default='', max_length=2000)
-    canvas_width: int = Field(default=2778, alias='canvasWidth', ge=320, le=7680)
-    canvas_height: int = Field(default=1940, alias='canvasHeight', ge=240, le=4320)
+    # 默认画布 = 设计标称尺寸（见 ``panel/documents.py`` 的 DESIGN_WIDTH/HEIGHT）：这里单向
+    # 引用它，别再写一遍字面量 —— 改了设计基准而漏改这里，新建的仪表盘尺寸就会和前端按标称
+    # 值算出来的布局对不上。
+    canvas_width: int = Field(default=DESIGN_WIDTH, alias='canvasWidth', ge=320, le=7680)
+    canvas_height: int = Field(default=DESIGN_HEIGHT, alias='canvasHeight', ge=240, le=4320)
 
     @field_validator('name')
     @classmethod

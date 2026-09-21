@@ -36,7 +36,8 @@ from .security.access import (
     resolve_principal,
 )
 from .security.admin_account import AdminAccountStore
-from .http.http_cache import set_versioned_private_cache
+from .core.dependencies import DISPLAY_HEARTBEAT_THROTTLE_SECONDS
+from .http.http_cache import NO_STORE, set_no_store_with_revalidation, set_public_immutable_cache, set_versioned_private_cache
 from .api.auth import router as auth_router
 from .api.assets import AssetCatalog, read_builtin_asset, router as assets_router, sweep_user_assets_for_app
 from .api.displays import (
@@ -237,13 +238,13 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                     'warning', '系统后台', '配置',
                     'APP_BASE_URL 是 https 但未配置 APP_TRUSTED_PROXIES：限流与审计会按反向代理地址统计，建议按部署方式配置。',
                 )
-            # 中控令牌的有效期必须大于心跳节流窗口（5 分钟），否则设备会在
-            # 有机会续期之前就先过期 —— 表现是「配对完没几分钟就回配对页」。
+            # 中控令牌的有效期必须大于心跳节流窗口，否则设备会在有机会续期之前就先过期
+            # —— 表现是「配对完没几分钟就回配对页」。窗口值见 DISPLAY_HEARTBEAT_THROTTLE_SECONDS。
             display_ttl = int(getattr(app_settings, 'display_token_ttl_seconds', 0) or 0)
-            if 0 < display_ttl <= 300:
+            if 0 < display_ttl <= DISPLAY_HEARTBEAT_THROTTLE_SECONDS:
                 app.state.global_log.append(
                     'warning', '系统后台', '配置',
-                    f'APP_DISPLAY_TOKEN_TTL_SECONDS={display_ttl} 小于中控心跳节流窗口（5 分钟）：'
+                    f'APP_DISPLAY_TOKEN_TTL_SECONDS={display_ttl} 小于中控心跳节流窗口（{DISPLAY_HEARTBEAT_THROTTLE_SECONDS // 60} 分钟）：'
                     '中控设备会在能续期之前就过期，请把有效期调到 5 分钟以上（默认 180 天）。',
                 )
             display_hard_ttl = int(getattr(app_settings, 'display_token_hard_ttl_seconds', 0) or 0)
@@ -711,6 +712,13 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         """这些私有资源带不可变缓存（内容变即换 URL），因此不受 no-store 影响。"""
         return path.startswith(('/api/v1/assets/effect-variant', '/api/v1/assets/user/', '/api/v1/assets/studio3d-export/'))
 
+    # 页面路径集合。两处判定口径不同，因此是两个常量而不是一个：
+    # - ``PUBLIC_PAGE_PATHS``：安全头作用面里的页面（不含 ``/``，首页由 ``app_surface`` 单独判）；
+    # - ``PUBLIC_OR_ENTRY_PAGE_PATHS``：要禁止缓存的入口页面，比上面多一个 ``/``（首页）。
+    # 新增页面时两处都要看：只进前面那个 = 首页之外的新页面不会被禁缓存。
+    public_page_paths = {'/pair', '/login', '/setup', '/license', '/3d-studio'}
+    public_or_entry_page_paths = public_page_paths | {'/'}
+
     @app.middleware('http')
     async def protect_assets_and_add_security_headers(request: Request, call_next):
         """资源鉴权 + 安全响应头 + 缓存策略，三件事合并在一个中间件里。
@@ -729,7 +737,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         # 需要加安全头的页面与接口集合（静态资源与展示页也包含在内）。
         app_surface = (
             path == '/'
-            or path in {'/pair', '/login', '/setup', '/license', '/3d-studio'}
+            or path in public_page_paths
             or path.startswith('/api/v1/')
             or path.startswith('/static/')
             or path.startswith('/assets/builtin/')
@@ -761,15 +769,14 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             # 没有版本戳就只能 no-cache，否则换了模型用户看不到。
             set_versioned_private_cache(response, bool(request.query_params.get('v')))
         elif (
-            path in {'/', '/pair', '/login', '/setup', '/license', '/3d-studio'}
+            path in public_or_entry_page_paths
             or (path.startswith('/api/v1/') and not immutable_private_asset(path))
             or path.startswith('/display/')
             or path.startswith('/static/3d-studio/')
             or path in {'/static/display/display.js', '/static/display/display.css'}
         ):
-            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
+            # 入口页面与它们的 JS/CSS：内容一变就必须立刻换新，否则前端资源戳全对不上。
+            set_no_store_with_revalidation(response)
         return response
 
     @app.middleware('http')
@@ -787,7 +794,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             return JSONResponse(
                 {'detail': '跨站请求已被拒绝（来源校验未通过）。'},
                 status_code = 403,
-                headers = {'Cache-Control': 'no-store'},
+                headers = {'Cache-Control': NO_STORE},
             )
         return await call_next(request)
 
@@ -900,9 +907,10 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             media_type = 'text/css',
             headers = {'ETag': f'"{revision}"'},
         )
-        response.headers['Cache-Control'] = (
-            'public, max-age=31536000, immutable' if has_version else 'no-cache'
-        )
+        if has_version:
+            set_public_immutable_cache(response)
+        else:
+            response.headers['Cache-Control'] = 'no-cache'
         return response
 
     @app.get('/health/ready', include_in_schema = False)

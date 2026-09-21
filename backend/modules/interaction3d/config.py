@@ -16,6 +16,7 @@ import re
 from fastapi import HTTPException, status
 
 from ...core.canonical_json import canonical_json
+from .numbers import as_finite_number
 
 
 def validate_config(properties: dict) -> None:
@@ -30,13 +31,13 @@ def validate_config(properties: dict) -> None:
         raise HTTPException(422, detail='3D 交互配置无效，请检查户型、灯光、环境及图标设置。')
 
     def number(value, low, high):
-        """值是否为 [low, high] 内的有限实数；bool 需单独排除（它是 int 的子类）。"""
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
-            return False
-        try:
-            return math.isfinite(value) and low <= value <= high
-        except OverflowError:
-            return False
+        """值是否为 [low, high] 内的有限实数；bool 需单独排除（它是 int 的子类）。
+
+        ``from_text=False``：配置来自前端 JSON，数值字段写成字符串就是配置错了，
+        不能替它转换后放过（读 HA 属性那条路径才接受数字字符串）。
+        """
+        parsed = as_finite_number(value, from_text = False)
+        return parsed is not None and low <= parsed <= high
 
     def positive_number(value):
         """严格正数：尺寸、命中区域取 0 没有意义，因此 0 不算合法。"""

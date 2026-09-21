@@ -27,6 +27,7 @@ from ...core.dependencies import DatabaseSession, LicensedViewer, LicensedUser, 
 from ...core.models import HAEntity, ProjectDraft
 from ...panel.documents import parse_document, require_document
 from ...core.schemas import HAServiceCallRequest
+from ...http.http_cache import NO_STORE
 from ...api.ha import active_connection, call_service
 from ...api.assets import user_asset_file, UPLOAD_CONTENT_TYPES
 from .access import access_grant, module_components, require_access
@@ -266,7 +267,7 @@ def get_scene(scene_id: str, request: Request, viewer: LicensedViewer, projectId
             continue
         # url 上带 projectId：中控设备取图时要用它过 require_viewer_project。
         background['url'] = f'/api/v1/modules/interaction3d/scenes/{scene_id}/background/{asset_id}?{urlencode({"projectId": projectId})}'
-    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
+    return JSONResponse(payload, headers={'Cache-Control': NO_STORE})
 
 
 @router.get('/scenes/{scene_id}/current')
@@ -301,7 +302,7 @@ def get_current_scene(scene_id: str, request: Request, viewer: LicensedViewer, p
     # 无变化：回 204 空响应，前端什么都不用做，这是轮询的主路径。
     if key == since:
         from fastapi.responses import Response
-        return Response(status_code=status.HTTP_204_NO_CONTENT, headers={'Cache-Control': 'no-store'})
+        return Response(status_code=status.HTTP_204_NO_CONTENT, headers={'Cache-Control': NO_STORE})
     payload['syncKey'] = key
     # referenceScene 是快照里的对照版本，供前端做本地比对与回滚。
     payload['referenceScene'] = reference['scene']
@@ -314,7 +315,7 @@ def get_current_scene(scene_id: str, request: Request, viewer: LicensedViewer, p
             continue
         background['url'] = f'/api/v1/modules/interaction3d/scenes/{scene_id}/background/{asset_id}?{urlencode({"projectId": projectId})}'
     # 同样 no-store：场景来自草稿、随时会变，更不能让浏览器缓存。
-    return JSONResponse(payload, headers={'Cache-Control': 'no-store'})
+    return JSONResponse(payload, headers={'Cache-Control': NO_STORE})
 
 
 @router.get('/scenes/{scene_id}/background/{asset_id}')
@@ -341,7 +342,7 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
             copy_path = folder / f'{scene_id}-{asset_id}{suffix}'
             if not copy_path.is_file():
                 continue
-            return FileResponse(copy_path, media_type=media_type, headers={'Cache-Control': 'no-store'})
+            return FileResponse(copy_path, media_type=media_type, headers={'Cache-Control': NO_STORE})
     try:
         # 回退路径：快照建立时复制失败，或素材是后来才补上的，就从用户素材库直读。
         scene = json.loads(path.read_text(encoding='utf-8'))['scene']
@@ -354,7 +355,7 @@ def get_background(scene_id: str, asset_id: str, request: Request, viewer: Licen
             referenced = asset_id in _background_asset_ids(draft_payload.get('scene', {}))
         asset = user_asset_file(request.app.state.settings.user_assets_dir.resolve(), asset_id) if referenced else None
         if asset:
-            return FileResponse(asset, headers={'Cache-Control': 'no-store'})
+            return FileResponse(asset, headers={'Cache-Control': NO_STORE})
     except (OSError, ValueError, KeyError, AttributeError):
         # 草稿损坏或不存在时直接落到 404，不向调用方暴露内部状态。
         pass
@@ -544,7 +545,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     )
     if body_injections != 1:
         raise RuntimeError('3d-studio.html 里找不到 <body> 开标签，舞台作用域无处可挂（舞台会退化成工作室界面）')
-    return HTMLResponse(html, headers={'Cache-Control': 'no-store'})
+    return HTMLResponse(html, headers={'Cache-Control': NO_STORE})
 
 
 @router.get('/scenes/{scene_id}/render-cache/{cache_key}')
@@ -561,7 +562,7 @@ def get_render_cache(scene_id: str, cache_key: str, request: Request, viewer: Li
     from fastapi.responses import Response
     # 返回空体而不是错误：前端据此直接走渲染流程，不必额外处理一种失败态。
     if content is None:
-        return Response(status_code=status.HTTP_204_NO_CONTENT, headers={'Cache-Control': 'no-store'})
+        return Response(status_code=status.HTTP_204_NO_CONTENT, headers={'Cache-Control': NO_STORE})
     # private + no-cache：允许浏览器存，但每次都要回源确认（内容可能已被别的屏覆盖）。
     return Response(content, media_type='image/png', headers={'Cache-Control': 'private, no-cache'})
 
@@ -592,7 +593,7 @@ async def put_render_cache(scene_id: str, cache_key: str, request: Request, view
     # 写入同样丢线程池：内部要加 flock、校验图片并清理整目录。
     await run_in_threadpool(write_cache, path, bytes(content))
     from fastapi.responses import Response
-    return Response(status_code=status.HTTP_204_NO_CONTENT, headers={'Cache-Control': 'no-store'})
+    return Response(status_code=status.HTTP_204_NO_CONTENT, headers={'Cache-Control': NO_STORE})
 
 
 @router.get('/access')
@@ -601,7 +602,7 @@ def get_access(request: Request, _viewer: LicensedViewer) -> JSONResponse:
 
     响应不缓存：授权状态随时可能变化。
     """
-    return JSONResponse(access_grant(request), headers={'Cache-Control': 'no-store'})
+    return JSONResponse(access_grant(request), headers={'Cache-Control': NO_STORE})
 
 
 @router.get('/projects/{project_id}/components/{component_id}/config')
@@ -725,4 +726,4 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
     if not path.is_relative_to(root) or not path.is_file():
         raise HTTPException(404, detail='3D 交互资源不存在。')
     # no-store：前端资源迭代频繁，宁可每次回源，也不要出现「改完没生效」。
-    return FileResponse(path, media_type=media_types[filename], headers={'Cache-Control': 'no-store'})
+    return FileResponse(path, media_type=media_types[filename], headers={'Cache-Control': NO_STORE})

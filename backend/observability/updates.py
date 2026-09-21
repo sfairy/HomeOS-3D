@@ -20,6 +20,7 @@ import httpx
 from fastapi import APIRouter, Request, Response
 
 from ..core.dependencies import CurrentUser
+from ..http.http_cache import NO_STORE
 
 router = APIRouter()
 # 内置发布端点与说明页地址：这是**厂商运营**的地址，仅在显式打开 settings.update_checks_enabled 时使用；
@@ -255,5 +256,5 @@ def update_status(
     需要登录（CurrentUser），并显式禁用中间层缓存 ——
     否则反向代理可能把一次旧结果长期返回给所有页面。
     """
-    response.headers["Cache-Control"] = "no-store"
+    response.headers["Cache-Control"] = NO_STORE
     return request.app.state.update_checker.status()

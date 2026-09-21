@@ -39,6 +39,14 @@ from ..panel.entity_refs import document_entity_ids
 from ..security.security import set_display_cookie
 from .time_utils import ensure_aware
 
+#: 中控设备心跳的续期节流窗口（秒）：活跃到这个间隔才回写 ``last_seen_at`` 并续期 Cookie。
+#: 每次心跳都写库会把这块平板变成热点行，节流的意义就在这里。
+#:
+#: 它同时是**启动自检的依据**：令牌有效期必须大于这个窗口，否则设备会在有机会续期之前
+#: 先过期（表现是「刚配对完就回配对页」）—— 见 ``main.py`` 里对
+#: ``display_token_ttl_seconds`` 的告警。
+DISPLAY_HEARTBEAT_THROTTLE_SECONDS = 300
+
 
 def get_database_session(request: Request):
     """把应用级会话工厂转成 FastAPI 的请求级依赖。
@@ -183,9 +191,10 @@ def _display_device(
 ) -> DisplayDevice | None:
     """解析中控设备 Cookie，返回对应设备；未配对、已失效或已过期返回 None。
 
-    有效期是「滑动」的：每次活跃（>= 5 分钟节流）就把 last_seen_at 推到当前时间，按
-    last_seen_at + display_token_ttl_seconds 判定 —— 长期不用的平板与只在攻击者手里的令牌
-    会自己过期，正常挂机的墙面平板只要还在轮询就一直有效；另有一个可选的硬上限（默认关闭）。
+    有效期是「滑动」的：每次活跃（>= ``DISPLAY_HEARTBEAT_THROTTLE_SECONDS`` 节流）就把
+    last_seen_at 推到当前时间，按 last_seen_at + display_token_ttl_seconds 判定 ——
+    长期不用的平板与只在攻击者手里的令牌会自己过期，正常挂机的墙面平板只要还在轮询就一直有效；
+    另有一个可选的硬上限（默认关闭）。
     """
     settings = request.app.state.settings
     token = display_token_from(request.cookies, settings)
@@ -195,8 +204,10 @@ def _display_device(
     device = active_display_device(database, settings, token, now=now)
     if device is None:
         return None
-    # 5 分钟节流窗口：只有设备"冷下来"才回写活跃时间并续期 Cookie。
-    if now - ensure_aware(device.last_seen_at) >= timedelta(minutes=5):
+    # 节流窗口：只有设备"冷下来"才回写活跃时间并续期 Cookie（每次心跳都写库会把它变成热点行）。
+    if now - ensure_aware(device.last_seen_at) >= timedelta(
+        seconds=DISPLAY_HEARTBEAT_THROTTLE_SECONDS
+    ):
         device.last_seen_at = now
         database.commit()
         # 重新下发 Cookie 是为了刷新浏览器侧的有效期，值不变。

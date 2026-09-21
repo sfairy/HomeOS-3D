@@ -8,11 +8,13 @@
 """
 from __future__ import annotations
 
-from collections import OrderedDict, defaultdict, deque
+from collections import OrderedDict
 from math import ceil
 from threading import Lock
 # 用 monotonic 而非 time.time：系统时间被校准时不会让封禁窗口提前结束或永久卡死。
 from time import monotonic
+
+from .sliding_window import SlidingWindow
 
 #: ``LoginAttemptLimiter`` 内部两张表合计保留的键数量上限。键常常来自外部（被猜的用户名、
 #: 被试的配对码、请求对端地址），不封顶就是一条内存放大路径：每换一个新键只留一条记录，
@@ -93,6 +95,10 @@ class LoginAttemptLimiter:
 
     默认策略：300 秒窗口内失败 5 次，封禁 600 秒。达到阈值时清空窗口计数，这样解封后是
     重新开始计数，而不是一进来就又被立刻封禁。键空间有上限（``max_keys``，见 ``_trim``）。
+
+    窗口本身（裁剪 + 键上限的机械）来自 ``sliding_window.KeyedWindows``；这里只留配额与
+    「失败到阈值就封禁」这一步业务。注意**没有**直接用 ``KeyedWindows`` 的 LRU 淘汰：封禁
+    表中的键必须优先保住（丢它等于自己给自己解封），淘汰顺序由 ``_trim`` 决定。
     """
 
     def __init__(
@@ -112,8 +118,9 @@ class LoginAttemptLimiter:
         self.window_seconds = window_seconds
         self.block_seconds = block_seconds
         self.max_keys = max(1, int(max_keys))
-        self._failures = defaultdict(deque)
-        self._blocked_until = {}
+        # 用 SlidingWindow 而不是裸 deque：窗口裁剪这套判据与客户端日志限流器共用一份。
+        self._failures: dict[str, SlidingWindow] = {}
+        self._blocked_until: dict[str, float] = {}
         self._lock = Lock()
         # 下一次清扫的触发线：每次清扫后抬一个步长，见 _trim。
         self._trim_threshold = self.max_keys
@@ -135,13 +142,13 @@ class LoginAttemptLimiter:
         now = monotonic()
         with self._lock:
             # 先剔除窗口外的旧失败，保证计数反映的是「最近一段时间的失败」。
-            self._prune(key, now)
-            failures = self._failures[key]
-            failures.append(now)
-            if len(failures) >= self.max_failures:
+            window = self._failure_window(key)
+            window.prune(self.window_seconds, now)
+            window.append(now)
+            if len(window) >= self.max_failures:
                 self._blocked_until[key] = now + self.block_seconds
                 # 清空窗口：解封后重新计数，避免刚解封就被一次失败再次封禁。
-                failures.clear()
+                window.clear()
             # 记账是唯一会让内部状态增长的动作，压回上限也放在这里。
             self._trim(now, keep_key=key)
 
@@ -150,6 +157,14 @@ class LoginAttemptLimiter:
         with self._lock:
             self._failures.pop(key, None)
             self._blocked_until.pop(key, None)
+
+    def _failure_window(self, key: str) -> SlidingWindow:
+        """取该键的失败窗口（没有就建）；调用方必须已持有 ``_lock``。"""
+        window = self._failures.get(key)
+        if window is None:
+            window = SlidingWindow()
+            self._failures[key] = window
+        return window
 
     def _trim(self, now: float, *, keep_key: str | None = None) -> None:
         """把内部状态压回 ``max_keys`` 以内；调用方必须已持有 ``_lock``。
@@ -209,14 +224,13 @@ class LoginAttemptLimiter:
             return max(1, ceil(remaining))
 
     def _prune(self, key: str, now: float) -> None:
-        """丢弃窗口外的失败时间戳；窗口清空后连键一起删掉。"""
-        failures = self._failures.get(key)
-        if failures is None:
+        """丢弃窗口外的失败时间戳；窗口清空后连键一起删掉。
+
+        必须连键删掉：键来自外部，空窗口留在字典里就等于攻击者能靠换新键把它撑大。
+        """
+        window = self._failures.get(key)
+        if window is None:
             return
-        cutoff = now - self.window_seconds
-        # deque 里时间递增，从头弹出即可；一旦空掉就删除整个键，
-        # 否则 defaultdict 会为每个尝试过的用户名永久留一个空 deque。
-        while failures and failures[0] < cutoff:
-            failures.popleft()
-        if not failures:
-            self._failures.pop(key, None)
+        window.prune(self.window_seconds, now)
+        if not len(window):
+            del self._failures[key]

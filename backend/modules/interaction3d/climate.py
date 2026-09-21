@@ -13,6 +13,8 @@ import math
 
 from fastapi import HTTPException, status
 
+from .numbers import as_finite_number
+
 # 允许透传的服务 → 该服务唯一允许出现的参数名；``None`` 表示该服务**不带参数**。
 # 表里没有的服务，以及夹带其它参数（如同时给 temperature 与 hvac_mode）的请求一律拒绝。
 #
@@ -61,17 +63,12 @@ def require_air_conditioner_model(bindings: list, entity_id: str, scene: dict) -
 
 
 def _number(value) -> bool:
-    """判断是否为有限实数。
+    """本次服务调用传来的值是否为有限实数。
 
-    bool 是 int 的子类，必须单独排除，否则 True 会被当成 1 参与范围比较。
+    ``from_text=False``：读的是前端发来的 JSON 参数，字符串说明调用方用错了类型，
+    不替它转换（与窗帘那边读 HA 属性、接受数字字符串的口径刻意不同）。
     """
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
-        return False
-    try:
-        # 超大整数转 float 会溢出并让 isfinite 抛 OverflowError，这里兜住不退到路由层。
-        return math.isfinite(value)
-    except OverflowError:
-        return False
+    return as_finite_number(value, from_text = False) is not None
 
 
 def validate_climate_command(service: str, data: dict, state: dict | None) -> None:

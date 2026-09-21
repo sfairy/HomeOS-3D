@@ -24,6 +24,7 @@ from ..core.database import Database
 from ..core.dependencies import LicensedViewer, ViewerPrincipal, require_viewer_entity
 from ..ha.client import HAClientError
 from ..ha.crypto import CredentialCipherError
+from ..http.http_cache import PRIVATE_BRIEF_IMMUTABLE_CACHE, PRIVATE_NO_STORE
 from .ha import active_connection, load_active_connection_snapshot
 
 router = APIRouter(include_in_schema=False)
@@ -455,7 +456,7 @@ def versioned_image_proxy_cache_control(path: str, query: str, status_code: int)
             if separator
         )
         # 摄像头快照等实时图片没有 hb 参数，返回 None 以免被浏览器缓存住。
-        return 'private, max-age=600, immutable' if versioned else None
+        return PRIVATE_BRIEF_IMMUTABLE_CACHE if versioned else None
     return None
 
 
@@ -470,7 +471,7 @@ def camera_snapshot_cache_key(connection_id: str, base_url: str, path: str) -> s
 
 def _camera_snapshot_response(entry: CameraSnapshotCacheEntry) -> Response:
     """把缓存条目转成响应；快照统一按 no-store 下发，缓存策略由服务端掌握。"""
-    return Response(content=entry.content, media_type=entry.content_type, headers={'cache-control': 'private, no-store'})
+    return Response(content=entry.content, media_type=entry.content_type, headers={'cache-control': PRIVATE_NO_STORE})
 
 
 def load_authorized_camera_connection(

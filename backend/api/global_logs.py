@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import threading
 import time
-from collections import OrderedDict, deque
 from datetime import datetime
 from typing import Annotated
 
@@ -21,6 +20,7 @@ from ..core.canonical_json import canonical_json
 from ..core.dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..observability.global_log import event_context, safe_context
 from ..security.http_security import resolve_client_ip, same_origin_request
+from ..security.sliding_window import KeyedWindows, SlidingWindow
 
 router = APIRouter(prefix='/logs', tags=['global-logs'])
 
@@ -79,50 +79,52 @@ PUBLIC_EVENT_MARKER = '[公开上报] '
 #: 细节留给已认证通道 —— 审计日志的存储不该由未登录页面决定。
 PUBLIC_EVENT_MESSAGE_LIMIT = 300
 PUBLIC_EVENT_DETAILS_LIMIT = 1200
-#: 匿名通道每分钟允许的上报条数（已认证通道 120）。匿名通道是「异常上报」，
-#: 正常页面的 15 分钟窗口里到不了这个数；而刷日志的成本被压到 10 条/分钟/IP。
+
+#: 客户端日志上报的配额表。三个数各自防的是不同的事，改动前先看 ClientLogLimiter 的类说明：
+#: 匿名通道每分钟 10 条（异常上报纸，正常页面的窗口里到不了这个数）、已认证 120 条、
+#: 全局 600 条（兜住「不停换 IP 上报」）；窗口固定 60 秒，peer 表上限防止伪造 IP 撑爆内存。
 ANONYMOUS_CLIENT_LOG_PER_MINUTE = 10
+AUTHENTICATED_CLIENT_LOG_PER_MINUTE = 120
+CLIENT_LOG_GLOBAL_PER_MINUTE = 600
+CLIENT_LOG_WINDOW_SECONDS = 60
+CLIENT_LOG_MAX_PEERS = 512
+#: 超限时给客户端的 ``Retry-After``：整个窗口的长度、而不是「本条还差多久」—— 客户端拿到
+#: 精确剩余秒数也做不了什么，反而会照着它卡点重试。
+CLIENT_LOG_RETRY_AFTER_SECONDS = CLIENT_LOG_WINDOW_SECONDS
 
 
 class ClientLogLimiter:
     """客户端日志上报的双层限流器。
 
     目标是「限制匿名上报」又不让每个任意 IP 都在内存里留下常驻记录：每个 peer 只保留一个
-    60 秒滑动窗口，客户端条目数封顶并按 LRU 淘汰，另加一个全局窗口兜住「不停换 IP 刷日志」。
+    60 秒滑动窗口，peer 数量封顶并按 LRU 淘汰，另加一个全局窗口兜住「不停换 IP 刷日志」。
+
+    窗口的裁剪与键上限来自 ``sliding_window.KeyedWindows``（与登录 / 配对限流器共用一份）：
+    这里只留三个配额与「超了就不记」这一步。注意与 ``LoginAttemptLimiter`` 的差别 —— 这里
+    没有封禁表，超限只是这次不记，所以淘汰可以简单地按最近使用来。
     """
 
     def __init__(self) -> None:
-        """初始化按 peer 与全局两个滑动窗口，以及保护它们的锁。"""
+        """按配额表建两张窗口表：按 peer 的（有键上限）与全局的（无键上限）。"""
         self._lock = threading.Lock()
-        # 按 peer 的窗口；键的插入顺序即最近使用顺序，供 LRU 淘汰使用。
-        self._clients = OrderedDict()
-        # 全局窗口：兜住不断更换 IP 上报的情况。
-        self._all = deque()
+        # 键即 peer 地址，键空间由外部决定，必须有上限。
+        self._clients = KeyedWindows(CLIENT_LOG_WINDOW_SECONDS, max_keys=CLIENT_LOG_MAX_PEERS)
+        # 全局窗口只有一个键，不需要键上限。
+        self._global = SlidingWindow()
 
     def allow(self, peer: str, *, anonymous: bool) -> bool:
         """判断本次上报是否放行；匿名通道阈值更低。"""
         now = time.monotonic()
+        quota = (
+            ANONYMOUS_CLIENT_LOG_PER_MINUTE if anonymous else AUTHENTICATED_CLIENT_LOG_PER_MINUTE
+        )
         with self._lock:
-            # 取不到就建空窗口；重新插回队尾，使 OrderedDict 的顺序即最近使用顺序。
-            bucket = self._clients.pop(peer, deque())
-            self._clients[peer] = bucket
-            # 客户端条目上限：防止大量伪造 IP 把内存撑成一张巨大的表。
-            while len(self._clients) > 512:
-                self._clients.popitem(last=False)
-            # 60 秒滑动窗口：分别清理该 peer 的窗口与全局窗口中的过期时间戳。
-            for queue in (bucket, self._all):
-                if not queue:
-                    continue
-                while queue[0] <= now - 60:
-                    queue.popleft()
-                    if not queue:
-                        break
-            # 匿名每分钟 10 条（见 ANONYMOUS_CLIENT_LOG_PER_MINUTE）、已登录 120 条，
-            # 全局 600 条：全局那一档兜住「不停换 IP 上报」。
-            if len(bucket) >= (ANONYMOUS_CLIENT_LOG_PER_MINUTE if anonymous else 120) or len(self._all) >= 600:
+            # 两张窗口都要先裁剪：全局那一档看的也是「最近 60 秒」。
+            self._global.prune(CLIENT_LOG_WINDOW_SECONDS, now)
+            if self._clients.count(peer, now) >= quota or len(self._global) >= CLIENT_LOG_GLOBAL_PER_MINUTE:
                 return False
-            bucket.append(now)
-            self._all.append(now)
+            self._clients.record(peer, now)
+            self._global.append(now)
             return True
 
 
@@ -138,7 +140,7 @@ def _limit_client_log(request: Request, *, anonymous: bool) -> None:
     address = resolve_client_ip(request)
     peer = address.ip or 'unknown'
     if not limiter.allow(peer, anonymous=anonymous):
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail='日志上报过于频繁，请稍后重试。', headers={'Retry-After': '60'})
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail='日志上报过于频繁，请稍后重试。', headers={'Retry-After': str(CLIENT_LOG_RETRY_AFTER_SECONDS)})
 
 
 def _append_client_event(payload: ClientLogEvent, request: Request, viewer=None, *, public: bool = False) -> None:

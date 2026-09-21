@@ -36,6 +36,7 @@ from ..core.dependencies import DatabaseSession, LicensedUser
 from ..panel.global_popups import global_popups
 from ..core.models import Project, ProjectDraft
 from ..panel.documents import parse_document
+from ..panel.entity_refs import document_mentions
 from ..core.schemas import Studio3DDraftUpdate
 from ..http.streaming import flush_and_sync, write_stream_in_batches
 
@@ -182,12 +183,12 @@ def _folder_name(request: Request) -> str:
 
 
 def _document_uses_asset_prefix(value, prefix: str) -> bool:
-    """递归判断文档里是否存在以该前缀开头的字符串（用于查图片引用）。"""
-    if isinstance(value, dict):
-        return any((_document_uses_asset_prefix(item, prefix) for item in value.values()))
-    if isinstance(value, list):
-        return any((_document_uses_asset_prefix(item, prefix) for item in value))
-    return isinstance(value, str) and value.startswith(prefix)
+    """整份文档里是否存在以该前缀开头的字符串（用于查图片引用）。
+
+    判据与 ``assets.document_uses_asset`` 同源（键名与值都算，见 ``panel/entity_refs``），
+    宽一格只是少删一张图，窄一格会把还在用的导出图删掉。
+    """
+    return document_mentions(value, lambda text: text.startswith(prefix))
 
 
 def _validate_archive(archive_path: Path) -> list[zipfile.ZipInfo]:

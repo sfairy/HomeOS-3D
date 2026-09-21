@@ -22,6 +22,7 @@ from ..panel.global_popups import clear_popup_references, global_popup_state, gl
 from ..core.models import GlobalCustomPopupState, Project, ProjectDraft, ProjectPathAlias
 from ..modules.interaction3d.scene_store import sweep_scenes_for_app
 from ..panel.documents import create_blank_project, parse_document, require_document
+from ..panel.entity_refs import document_keyed_values
 from ..panel.schema import validate_panel_document
 from ..modules.interaction3d.access import require_document_changes as require_interaction3d_changes
 from ..core.schemas import ProjectCreateRequest, ProjectDeleteRequest, ProjectDraftUpdate, ProjectDuplicateRequest
@@ -54,19 +55,17 @@ def require_project_write(request: Request) -> None:
 
 
 def document_asset_ids(value) -> set[str]:
-    """递归收集文档里引用的全部素材 ID（只认 builtin: 与 user: 两种前缀）。"""
-    result = set()
-    if isinstance(value, dict):
-        # 键名按 assetId 后缀识别（大小写不敏感），并限定前缀，避免把普通 URL 误当素材。
-        for key, item in value.items():
-            if isinstance(item, str) and key.lower().endswith('assetid') and item.startswith(('builtin:', 'user:')):
-                result.add(item)
-                continue
-            result.update(document_asset_ids(item))
-    elif isinstance(value, list):
-        for item in value:
-            result.update(document_asset_ids(item))
-    return result
+    """收集文档里引用的全部素材 ID（只认 builtin: 与 user: 两种前缀）。
+
+    走 ``document_keyed_values`` 的字段收集口径（键名 ``assetId`` 后缀 + ``assetIds`` 列表），
+    而不是「任意字符串以某前缀开头」：这里的结果决定保存接口是否 422，判据必须跟着
+    写入端（``panel/schema.py`` 的素材字段）走，不能因为文案里恰好出现 ``user:xxx`` 就拒存。
+    """
+    return document_keyed_values(
+        value,
+        'assetId',
+        keep = lambda item: item.startswith(('builtin:', 'user:')),
+    )
 
 
 def validate_document_assets(request: Request, document: dict) -> set[str]:

@@ -366,6 +366,17 @@ class Settings:
         return (self.project_root / 'VERSION').read_text(encoding='utf-8').strip()
 
 
+def _env_default(field_name: str) -> str:
+    """环境变量缺省值 = 该字段在 dataclass 上的默认值。
+
+    同一个默认值写两遍（字段一处、``os.getenv`` 第二参数一处）最容易悄悄走散：
+    改了字段默认值，显式设了环境变量的部署仍按旧值跑。这里统一从字段读，返回值是
+    字符串（``os.getenv`` 要的就是字符串），调用方按字段类型再 ``int()`` / ``float()``。
+    空字符串默认值（如 ``update_wiki_url``）不用走这里 —— 空就是空，没有第二份真相。
+    """
+    return str(Settings.__dataclass_fields__[field_name].default)
+
+
 def load_settings() -> Settings:
     """从环境变量组装 Settings；未设置的项一律回落到内置默认值。"""
     data_dir = Path(os.getenv('APP_DATA_DIR', PROJECT_ROOT / 'data')).expanduser().resolve()
@@ -387,10 +398,10 @@ def load_settings() -> Settings:
 
     # 用字典展开而非逐项赋值：字段名与变量名对齐，漏一项会在构造时报错而不是静默用错值。
     #
-    # 但**默认值确实有两份**：dataclass 字段上的默认值 + 下面 ``os.getenv`` 的第二个参数。
-    # 这份清单是有意保留的，代价是改默认值必须两处同改（``license_required`` 那条注释就是
-    # 在提醒这件事）—— 否则「显式设了环境变量的部署」与「直接构造 Settings 的入口」会拿到
-    # 两个不同的产品，而且没有任何检查会发现。新增字段时请把两处写成同一个数。
+    # 数值/字符串默认值不再手写第二遍：一律走 ``_env_default``（从 dataclass 字段读），
+    # 否则改了字段默认值，「显式设了环境变量的部署」与「直接构造 Settings 的入口」会拿到
+    # 两个不同的产品，而且没有任何检查会发现。空串默认值仍写 ``''``（空就是空）。
+    # ``license_required`` 是唯一例外：它**故意**硬编码 True，不读环境变量。
     trusted_proxies = tuple(
         piece.strip()
         for piece in os.getenv('APP_TRUSTED_PROXIES', '').split(',')
@@ -406,29 +417,29 @@ def load_settings() -> Settings:
     return Settings(**{
         'data_dir': data_dir,
         'app_base_url': os.getenv('APP_BASE_URL', '').strip().rstrip('/'),
-        'session_max_age_seconds': int(os.getenv('APP_SESSION_MAX_AGE_SECONDS', '28800')),
-        'session_hard_max_age_seconds': int(os.getenv('APP_SESSION_HARD_MAX_AGE_SECONDS', '2592000')),
+        'session_max_age_seconds': int(os.getenv('APP_SESSION_MAX_AGE_SECONDS', _env_default('session_max_age_seconds'))),
+        'session_hard_max_age_seconds': int(os.getenv('APP_SESSION_HARD_MAX_AGE_SECONDS', _env_default('session_hard_max_age_seconds'))),
         'cookie_secure': _environment_bool('APP_COOKIE_SECURE'),
         'trusted_proxies': trusted_proxies,
-        'display_cookie_max_age_seconds': int(os.getenv('APP_DISPLAY_COOKIE_MAX_AGE_SECONDS', '15552000')),
-        'display_token_ttl_seconds': int(os.getenv('APP_DISPLAY_TOKEN_TTL_SECONDS', '15552000')),
-        'display_token_hard_ttl_seconds': int(os.getenv('APP_DISPLAY_TOKEN_HARD_TTL_SECONDS', '0')),
+        'display_cookie_max_age_seconds': int(os.getenv('APP_DISPLAY_COOKIE_MAX_AGE_SECONDS', _env_default('display_cookie_max_age_seconds'))),
+        'display_token_ttl_seconds': int(os.getenv('APP_DISPLAY_TOKEN_TTL_SECONDS', _env_default('display_token_ttl_seconds'))),
+        'display_token_hard_ttl_seconds': int(os.getenv('APP_DISPLAY_TOKEN_HARD_TTL_SECONDS', _env_default('display_token_hard_ttl_seconds'))),
         # 更新检查默认**关闭**：它要走外网、按固定周期向发布端点上报本机版本与
         # 渠道，属于「可选的发布发现」，不该在自托管部署里默认发生。想开就显式设
         # APP_UPDATE_CHECKS=1；端点也能换成自建（APP_UPDATE_ENDPOINTS）。
         'update_checks_enabled': _environment_bool('APP_UPDATE_CHECKS'),
-        'update_channel': os.getenv('APP_UPDATE_CHANNEL', 'docker').strip().lower(),
+        'update_channel': os.getenv('APP_UPDATE_CHANNEL', _env_default('update_channel')).strip().lower(),
         'update_endpoints': update_endpoints,
         'update_wiki_url': os.getenv('APP_UPDATE_WIKI_URL', '').strip(),
-        'ha_request_timeout_seconds': float(os.getenv('APP_HA_REQUEST_TIMEOUT_SECONDS', '10')),
-        'ha_reconcile_interval_seconds': int(os.getenv('APP_HA_RECONCILE_INTERVAL_SECONDS', '1800')),
-        'ha_websocket_max_size_bytes': int(os.getenv('APP_HA_WEBSOCKET_MAX_SIZE_BYTES', str(67108864))),
+        'ha_request_timeout_seconds': float(os.getenv('APP_HA_REQUEST_TIMEOUT_SECONDS', _env_default('ha_request_timeout_seconds'))),
+        'ha_reconcile_interval_seconds': int(os.getenv('APP_HA_RECONCILE_INTERVAL_SECONDS', _env_default('ha_reconcile_interval_seconds'))),
+        'ha_websocket_max_size_bytes': int(os.getenv('APP_HA_WEBSOCKET_MAX_SIZE_BYTES', _env_default('ha_websocket_max_size_bytes'))),
         # 硬编码 True：授权校验始终开启，README 明确不能用环境变量关闭（字段默认值也是 True，
         # 两处一致，字段不会撒谎）。内部工具可以显式传 False。
         'license_required': True,
         'license_server_url': custom_license_url or SELF_HOSTED_LICENSE_SERVER_URL,
         'license_server_batches': license_batches,
-        'license_request_timeout_seconds': float(os.getenv('APP_LICENSE_REQUEST_TIMEOUT_SECONDS', '10')),
+        'license_request_timeout_seconds': float(os.getenv('APP_LICENSE_REQUEST_TIMEOUT_SECONDS', _env_default('license_request_timeout_seconds'))),
         'license_public_key_path_override': _environment_path('APP_LICENSE_PUBLIC_KEY_FILE'),
         'license_public_key_sha256': os.getenv('APP_LICENSE_PUBLIC_KEY_SHA256', '').strip() or DEFAULT_LICENSE_PUBLIC_KEY_SHA256,
         # 留空 = keyId 由公钥文件派生（推荐）；显式设置走老路径，轮换需两边同步改。
