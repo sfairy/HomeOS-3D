@@ -7,7 +7,7 @@
 // 夹取实现在 utils/numbers.js（唯一实现），这里保留 clamp 这个名字对外 —— studio-app.js 等已按此名导入。
 // 必须用 import + 本地 export，不能写成 `export { clampNumber as clamp } from ...`：
 // 纯 re-export 只对外暴露名字、不在本模块作用域建绑定，下面这些函数里的 clamp(...) 会直接 ReferenceError。
-import { clampNumber } from "../../utils/numbers.js?v=2609220023";
+import { clampNumber } from "../../utils/numbers.js?v=2609220052";
 
 /**
  * 把数值夹到 [lowerBound, upperBound] 闭区间内。

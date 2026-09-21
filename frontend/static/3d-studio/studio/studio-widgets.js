@@ -6,7 +6,7 @@
  * aria-hidden）；所有交互最终回写原生控件并派发 input / change，已有业务监听器无需改动。
  */
 
-import { capturePointer } from "../../utils/pointer-capture.js?v=2609220023";
+import { capturePointer } from "../../utils/pointer-capture.js?v=2609220052";
 
 // 原生 select → 控制器记录的映射；openController 记录当前展开的那个（全局同时只允许一个）。
 const controllersBySelect = new Map();

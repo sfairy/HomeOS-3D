@@ -6,7 +6,7 @@
  * 开启；播放用 Audio 克隆节点，保证快速连点时每次都能从头出声。
  */
 const SOUND_ENABLED_STORAGE_KEY = "homeos-dashboard-sound-enabled",
-  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3?v=2609220023";
+  BUTTON_CLICK_SOUND_URL = "/static/audio/button-click.mp3?v=2609220052";
 
 // 读取音效开关：存储项缺失视为开启；隐私模式禁读 localStorage 时同样兜底为开启。
 function isSoundEnabled() {

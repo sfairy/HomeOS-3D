@@ -10,20 +10,20 @@ import {
   formatLineChartValue,
   mountCameraMedia,
   renderLineChartDetails
-} from "../../registry.js?v=2609220023";
-import { paletteColor } from "../../../../utils/colors.js?v=2609220023";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609220023";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609220023";
-import { popupLayoutMetrics } from "../../../../shared/popup-layout.js?v=2609220023";
+} from "../../registry.js?v=2609220052";
+import { paletteColor } from "../../../../utils/colors.js?v=2609220052";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609220052";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609220052";
+import { popupLayoutMetrics } from "../../../../shared/popup-layout.js?v=2609220052";
 import {
   bathHeaterModeUsesAirflow,
   climateIsPoweredOn,
   climateModeLabel,
   climatePowerCommand,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=2609220023";
-import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609220023";
-import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609220023";
+} from "../../../controls/climate.js?v=2609220052";
+import { applyXiaomiDeviceProfile } from "../../device-profiles.js?v=2609220052";
+import { hsToRgbColor, lightSupportsColor } from "../../../controls/light-runtime.js?v=2609220052";
 import {
   airerPositionCalibration,
   airerVisualDrop,
@@ -39,15 +39,15 @@ import {
   relatedAirerMotorSpeedSensor,
   relatedAirerPositionNumberEntity,
   relatedDeviceDomainEntity
-} from "../../../controls/cover-runtime.js?v=2609220023";
+} from "../../../controls/cover-runtime.js?v=2609220052";
 import {
   coverMotorIsReversedForComponent
-} from "../../../controls/cover-direction.js?v=2609220023";
+} from "../../../controls/cover-direction.js?v=2609220052";
 import {
   playFixedDeviceDropEntrance,
   playMediaSpeakerEntrance
-} from "../../runtime-dialog-motion.js?v=2609220023";
-import { syncedLineChartProperties } from "../../runtime-document.js?v=2609220023";
+} from "../../runtime-dialog-motion.js?v=2609220052";
+import { syncedLineChartProperties } from "../../runtime-document.js?v=2609220052";
 import {
   airQualityAccent,
   airQualityAccentSoft,
@@ -55,7 +55,7 @@ import {
   appendAirerVisual,
   createSwitchVisual,
   popupModuleDialogTitle
-} from "../primitives.js?v=2609220023";
+} from "../primitives.js?v=2609220052";
 
 export const customPopupMethods = {
   /**

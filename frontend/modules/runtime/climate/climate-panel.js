@@ -12,10 +12,10 @@ import {
   climateModeLabel,
   climateSwingModeLabel,
   createClimateModeHistory
-} from "./climate-state.js?v=2609220023";
+} from "./climate-state.js?v=2609220052";
 // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现；运行侧不能写裸 `/static/...` 的
 // 静态 import，故经 static-helpers 桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609220023";
+import { createDomFactory } from "../core/static-helpers.js?v=2609220052";
 /**
  * HA 的 fan_mode 取值 → 中文文案。
  * 各厂商写法不一（medium/middle 都是中风），故常见写法都列上；未收录的原样显示。

@@ -11,10 +11,10 @@ import {
   televisionTime,
   televisionPower,
   televisionMediaControl
-} from "./television-state.js?v=2609220023";
+} from "./television-state.js?v=2609220052";
 // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现；运行侧不能写裸 `/static/...` 的静态
 // import，故经 static-helpers 桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609220023";
+import { createDomFactory } from "../core/static-helpers.js?v=2609220052";
 /**
  * 创建电视面板。
  *

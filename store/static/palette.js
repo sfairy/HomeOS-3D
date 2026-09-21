@@ -25,7 +25,7 @@ import {
   PRESETS,
   normalizeHex,
   resolveTokens,
-} from "./scene/appearance.js?v=2609220023";
+} from "./scene/appearance.js?v=2609220052";
 
 const dialogPane = document.querySelector('[data-tab-pane="palette"]');
 const presetList = document.getElementById("palette-preset-list");

@@ -13,12 +13,12 @@ import {
   finiteNumberOrNull,
   normalizedTextOf,
   resolveStateEntry
-} from "../core/static-helpers.js?v=2609220023";
+} from "../core/static-helpers.js?v=2609220052";
 // 动态导入渲染器模块：开发环境走相对路径（file:），生产环境走带缓存戳的静态路径。
 // 缓存戳必须与 static 目录的统一版本号保持一致，改渲染器后要同步更新。
 const climateRendererModule = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/renderer/controls/climate.js", import.meta.url))
-  : import("/static/renderer/controls/climate.js?v=2609220023"));
+  : import("/static/renderer/controls/climate.js?v=2609220052"));
 const {
   normalizeClimateCapabilities: normalizeClimateCapabilities,
   climateIsPoweredOn: climateIsPoweredOn,

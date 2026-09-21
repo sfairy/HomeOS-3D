@@ -5,9 +5,9 @@
  * 约定：请求一律 cache: "no-store"；401 视为会话失效直接跳登录页；只有带 body 时才声明
  * Content-Type: application/json；超时预算统一由 utils/api-fetch.js 决定。
  */
-import { setupGlobalLog } from "./global-log.js?v=2609220023";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609220023";
-import { apiFetch } from "../utils/api-fetch.js?v=2609220023";
+import { setupGlobalLog } from "./global-log.js?v=2609220052";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609220052";
+import { apiFetch } from "../utils/api-fetch.js?v=2609220052";
 
 /**
  * 发送 JSON 请求并做统一的错误处理。

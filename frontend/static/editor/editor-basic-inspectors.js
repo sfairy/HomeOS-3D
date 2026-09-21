@@ -7,8 +7,8 @@
  * 留在 home.js 里贴着对应的 sync 函数）。画布默认尺寸 2778×1940 与后端 schema 一致；百分比
  * 保留 editor-utils 的 roundField 精度并对越界做 clamp。
  */
-import { roundField } from "./editor-utils.js?v=2609220023";
-import { clampNumber } from "../utils/numbers.js?v=2609220023";
+import { roundField } from "./editor-utils.js?v=2609220052";
+import { clampNumber } from "../utils/numbers.js?v=2609220052";
 
 /**
  * 同步「显示 / 隐藏」切换按钮的按压态与文案。
