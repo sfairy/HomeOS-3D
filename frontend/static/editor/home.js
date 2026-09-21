@@ -19,10 +19,7 @@ import {
   setBuiltinAssetVersions,
   syncedLineChartProperties
 } from "../renderer/core/renderer.js?v=2609220141";
-import {
-  lightStatisticsEntityStateStatus,
-  lightStatisticsEntitySupport
-} from "../renderer/core/registry.js?v=2609220141";
+
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -31,25 +28,16 @@ import {
   timeComponentDimensions,
   weatherComponentDimensions
 } from "../templates/component-templates.js?v=2609220141";
-import {
-  clone,
-  newId,
-  hexToRgb,
-  rgbToHex,
-  rgbToHsv,
-  hsvToRgb,
-  roundField,
-  normalizedFontWeight
-} from "./editor-utils.js?v=2609220141";
+import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609220141";
 import { clampNumber } from "../utils/numbers.js?v=2609220141";
 // 数字输入的步进实现（含 step 非法时的兜底步长）只有一份，策略参数见该模块头部。
-import { stepNumberInput } from "../shared/number-input-stepper.js?v=2609220141";
+
 import { mdiIconUrl } from "../utils/icon-url.js?v=2609220141";
 import { formatZhDateTime } from "../utils/datetime.js?v=2609220141";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=2609220141";
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609220141";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
-import { resolveStateEntry, stateTextOf } from "../utils/state-entry.js?v=2609220141";
+
 import {
   hexColorOrEmpty,
   paletteColor,
@@ -84,7 +72,7 @@ import {
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
 } from "../shared/related-entities.js?v=2609220141";
-import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=2609220141";
+
 import { createButtonSound } from "../shared/sound-effects.js?v=2609220141";
 import {
   deferHiddenEditorDialogs,
@@ -103,7 +91,7 @@ import {
 } from "./picker/editor-picker-pagination.js?v=2609220141";
 import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609220141";
 import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609220141";
-import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=2609220141";
+
 import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609220141";
 import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609220141";
 import {
@@ -1440,7 +1428,6 @@ function handleOperationError(operationError, { phase: errorPhase = "editor-oper
     errorDialogElement.showModal();
   }
 }
-
 
 // ── 外提到 static/editor/home/*.js 的模块 ────────────────────────────────────
 // 下面这些函数已经搬到子目录，通过工厂注入依赖。ctx 的每一项都是 getter：读到的始终是
@@ -4673,9 +4660,7 @@ const ENTITY_DOMAIN_LABELS = {
   zone: "区域"
 };
 
-
 const MAX_LIGHT_STATISTICS_ENTITIES = 100;
-
 
 bindPointerSection();
 
@@ -4886,9 +4871,7 @@ enhanceEntityCopyButtons();
 const ICON_PAGE_SIZE = 160;
 const iconListStateByElement = new WeakMap();
 
-
 let iconTooltipElement = null;
-
 
 attachInfiniteScroll(navigationIconOptionsElement, () =>
   loadNavigationIconOptions(navigationIconSearchInputElement.value, {
@@ -4915,7 +4898,6 @@ attachInfiniteScroll(lightStatisticsIconOptionsElement, () =>
     append: true
   })
 );
-
 
 let relatedPopupElement = null;
 let relatedPopupTitleElement = null;
@@ -5235,7 +5217,6 @@ function updateRelatedPopup(editedComponent, anchorElement) {
   relatedPopupListElement.replaceChildren(...optionButtons);
   filterRelatedEntityOptions();
 }
-
 
 /**
  * 把素材记录解析成可直接用于 img / 背景图的 URL：自带 url 的直用；assetId 以 user: 开头的走
@@ -6808,7 +6789,7 @@ function syncTitleButtonInspector(titleButtonComponent) {
   titleButtonFrameOffsetXInputElement.value = roundField(Number(titleProperties.frameOffsetX ?? 0));
   titleButtonFrameOffsetYInputElement.value = roundField(Number(titleProperties.frameOffsetY ?? 0));
   titleButtonMarkerColorInputElement.value =
-    titleProperties.markerColor || paletteColor("--hos-accent", "#5fd4ff");
+    titleProperties.markerColor || paletteColor("--hos-accent", "#ffc46a");
   titleButtonMarkerSizeInputElement.value = roundField(Number(titleProperties.markerSize ?? 10));
   titleButtonMarkerLeftInputElement.value = roundField(Number(titleProperties.markerLeft ?? 1.8));
   titleButtonMarkerTopInputElement.value = roundField(Number(titleProperties.markerTop ?? 84));
@@ -6883,7 +6864,7 @@ function syncLightStatisticsInspector(lightStatisticsComponent) {
   renderLightStatisticsIconPreview(statisticsProperties.icon ?? "mdi:lightbulb-group-outline");
   lightStatisticsIconColorInputElement.value = statisticsProperties.iconColor || "#8b9298";
   lightStatisticsIconActiveColorInputElement.value =
-    statisticsProperties.iconActiveColor || paletteColor("--hos-accent", "#5fd4ff");
+    statisticsProperties.iconActiveColor || paletteColor("--hos-accent", "#ffc46a");
   lightStatisticsIconSizeInputElement.value = roundField(
     Number(statisticsProperties.iconSize ?? 42)
   );
@@ -6899,7 +6880,7 @@ function syncLightStatisticsInspector(lightStatisticsComponent) {
   );
   lightStatisticsCountColorInputElement.value = statisticsProperties.countColor || "#b9bbc0";
   lightStatisticsCountActiveColorInputElement.value =
-    statisticsProperties.countActiveColor || paletteColor("--hos-accent", "#5fd4ff");
+    statisticsProperties.countActiveColor || paletteColor("--hos-accent", "#ffc46a");
   lightStatisticsCountSizeInputElement.value = roundField(
     Number(statisticsProperties.countSize ?? 34)
   );
@@ -8507,7 +8488,6 @@ function renderPopupList(sourceDocument, initialPopupId = selectedPopupId) {
     popupListElement.append(popupItemButton);
   }
 }
-
 
 /**
  * 收起组合弹窗模块的实体候选菜单，并同步 aria-expanded。
@@ -14022,7 +14002,6 @@ imageEntityOptionsElement.addEventListener("click", imageEntityOptionClickEvent 
   });
 });
 
-
 bindEntityPicker("weather");
 bindEntityPicker("line-chart");
 bindEntityPicker("title-button");
@@ -14034,9 +14013,7 @@ bindEntityPicker("camera");
 bindEntityPicker("air-conditioner");
 bindEntityPicker("navigation-button");
 
-
 let activeEditorPicker = null;
-
 
 /**
  * 打开图片素材选择器（控件图片 image / 效果图片 ibe 两种用途）。打开前先静默重载素材目录保证列表最新；重载完成时只有本次
@@ -20364,7 +20341,6 @@ function bindInspectorSection() {
     applyNavigationPreviewState(navigationPreviewClickComponentId, navigationPreviewDatasetState);
   });
 
-
   const navigationStylePropertyDefinitions = {
     mainTextVisible: {
       group: "文字",
@@ -20532,7 +20508,6 @@ function bindInspectorSection() {
     }
   };
 
-
   /**
    * 用 JSON 序列化结果判断两个属性值是否相等：属性值可能是数组或对象（如透视四角），直接用 === 比不出内容相等；
    * 属性值体量都很小，序列化的开销可以接受。
@@ -20590,7 +20565,6 @@ function bindInspectorSection() {
       }
     }
   }
-
 
   on(navigationApplyStyleButtonElement, "click", openNavigationStyleApplyDialog);
   on(panelFrameApplyStyleButtonElement, "click", openPanelFrameStyleApplyDialog);
@@ -22161,7 +22135,6 @@ function bindInspectorScrollSection() {
   enhanceColorInputsIn(document);
   enhanceNumberInputsIn(document);
 
-
   on(globalColorPickerSaturationValueElement, "pointerdown",
     function onGlobalColorPickerSaturationValuePointerdown(saturationPointerDownEvent) {
       if (activeColorInputElement) {
@@ -22207,7 +22180,6 @@ function bindInspectorScrollSection() {
       ).toUpperCase();
     }
   });
-
 
   for (const colorChannelInput of [
     globalColorPickerRedInputElement,

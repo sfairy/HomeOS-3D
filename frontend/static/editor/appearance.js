@@ -18,13 +18,11 @@
  */
 
 import {
-  COLOR_LABELS,
   CONFIGURABLE,
   DEFAULT_PRESET,
   PRESETS,
   normalizeHex,
-  resolveTokens,
-  rgbTriplet,
+  resolveTokens
 } from "../auth/scene/appearance.js?v=2609220141";
 import { apiErrorMessage } from "../utils/api-error.js?v=2609220141";
 import { apiFetch } from "../utils/api-fetch.js?v=2609220141";

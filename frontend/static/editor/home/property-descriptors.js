@@ -7,22 +7,8 @@
  * ctx —— ctx 的每一项都是 home.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 
-import {
-  clone,
-  newId,
-  hexToRgb,
-  rgbToHex,
-  rgbToHsv,
-  hsvToRgb,
-  roundField,
-  normalizedFontWeight
-} from "../editor-utils.js?v=2609220141";
-import {
-  componentDirectLocation,
-  findComponent,
-  findComponentInItems,
-  findComponentLocation
-} from "../component-tree.js?v=2609220141";
+import { clone, roundField } from "../editor-utils.js?v=2609220141";
+import { findComponent } from "../component-tree.js?v=2609220141";
 import {
   hexColorOrEmpty,
   paletteColor,
@@ -1254,7 +1240,7 @@ export function createPropertyDescriptors(ctx) {
     frameOffsetX: 0,
     frameOffsetY: 0,
     markerVisible: true,
-    markerColor: paletteColor("--hos-accent", "#5fd4ff"),
+    markerColor: paletteColor("--hos-accent", "#ffc46a"),
     markerSize: 10,
     markerLeft: 1.8,
     markerTop: 84

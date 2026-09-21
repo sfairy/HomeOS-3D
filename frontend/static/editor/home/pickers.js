@@ -22,17 +22,9 @@ import {
 } from "../picker/editor-picker-pagination.js?v=2609220141";
 import { clampNumber } from "../../utils/numbers.js?v=2609220141";
 import { createEditorPickerLifecycle } from "../picker/editor-picker-lifecycle.js?v=2609220141";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609220141";
-import {
-  componentDirectLocation,
-  findComponent,
-  findComponentInItems,
-  findComponentLocation
-} from "../component-tree.js?v=2609220141";
-import {
-  lightStatisticsEntityStateStatus,
-  lightStatisticsEntitySupport
-} from "../../renderer/core/registry.js?v=2609220141";
+import { entityDomainOf } from "../../utils/entities.js?v=2609220141";
+import { findComponent } from "../component-tree.js?v=2609220141";
+import { lightStatisticsEntitySupport } from "../../renderer/core/registry.js?v=2609220141";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -45,19 +37,7 @@ import {
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
 } from "../../shared/related-entities.js?v=2609220141";
-import {
-  clonePageWithFreshIds,
-  findCustomPopup,
-  greatestCommonDivisor,
-  normalizedPopupClimateDeviceType,
-  popupModuleDropPosition,
-  popupModuleEntityRecommended,
-  popupModuleTypeLabel,
-  rememberEditorProject,
-  reorderedPopupModules,
-  restoredEditorProject,
-  uniquePagePath
-} from "../editor-document-management.js?v=2609220141";
+import { popupModuleEntityRecommended } from "../editor-document-management.js?v=2609220141";
 
 export function createPickers(ctx) {
 

@@ -16,29 +16,15 @@ import {
   entityIdSupportsToggle
 } from "../../shared/action-rules.js?v=2609220141";
 import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js?v=2609220141";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609220141";
-import {
-  componentDirectLocation,
-  findComponent,
-  findComponentInItems,
-  findComponentLocation
-} from "../component-tree.js?v=2609220141";
+import { entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609220141";
+import { findComponent } from "../component-tree.js?v=2609220141";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
 } from "../../renderer/core/registry.js?v=2609220141";
 import {
-  clonePageWithFreshIds,
-  findCustomPopup,
-  greatestCommonDivisor,
   normalizedPopupClimateDeviceType,
-  popupModuleDropPosition,
-  popupModuleEntityRecommended,
-  popupModuleTypeLabel,
-  rememberEditorProject,
-  reorderedPopupModules,
-  restoredEditorProject,
-  uniquePagePath
+  popupModuleEntityRecommended
 } from "../editor-document-management.js?v=2609220141";
 import { positionFloatingMenu } from "../../shared/menu-positioning.js?v=2609220141";
 import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609220141";

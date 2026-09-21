@@ -13,16 +13,7 @@ import {
   paletteColor,
   strictHexColorOrEmpty
 } from "../../utils/colors.js?v=2609220141";
-import {
-  clone,
-  newId,
-  hexToRgb,
-  rgbToHex,
-  rgbToHsv,
-  hsvToRgb,
-  roundField,
-  normalizedFontWeight
-} from "../editor-utils.js?v=2609220141";
+import { hexToRgb, rgbToHex, rgbToHsv, hsvToRgb } from "../editor-utils.js?v=2609220141";
 
 export function createColorPicker(ctx) {
 
