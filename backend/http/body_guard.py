@@ -69,7 +69,13 @@ _STREAMING_UPLOADS = (
     # 3D 导出 ZIP 归档：压缩包上限（backend/api/studio3d.py）。
     ('POST', '/api/v1/studio3d/exports'),
     # 舞台页回传的灯光合图 PNG：单条缓存体积上限（backend/modules/interaction3d/api.py）。
-    ('PUT', '/api/v1/interaction3d/scenes/'),
+    #
+    # 这里必须是**挂载后的完整路径**：该路由的 APIRouter 自带 prefix='/modules/interaction3d'，
+    # 再由 main.py 以 prefix='/api/v1' 挂上。曾经漏掉中间那段 ``/modules``，于是这条豁免
+    # 对真实请求永远不命中 —— 回传的 PNG 被当成普通 JSON 端点处理：超 1 MiB 先被 413 拦，
+    # 没超则被送去跑 JSON 嵌套深度扫描，而二进制里的括号字节会被数成「嵌套过深」，
+    # 一张中等熵的渲染图就回 422。核对办法：前缀必须能 match 到路由装饰器上那条路径。
+    ('PUT', '/api/v1/modules/interaction3d/scenes/'),
 )
 
 
@@ -132,8 +138,16 @@ def _needs_depth_scan(payload: bytes) -> bool:
 
     开销只有两次 ``bytes.count``（C 实现）。字符串内部的括号会把计数算高，
     那只是让少数请求多跑一次扫描，不影响结论。
+
+    **先看首字节**：深度只可能出现在以 ``{`` 或 ``[`` 开头的 JSON 里，而 PNG 之类的
+    二进制体也会碰巧含大量括号字节 —— 只看括号数量会把一张渲染图数成「嵌套过深」
+    而回 422。加了这道前置判断，真 JSON 与二进制各归各位，``json.loads`` 那条
+    路径的防护一点没少（深到能打爆解析器的输入必然以括号开头）。
     """
-    return payload.count(b'{') + payload.count(b'[') > MAX_JSON_DEPTH
+    stripped = payload.lstrip()
+    if not stripped or stripped[0] not in (0x7B, 0x5B):
+        return False
+    return stripped.count(b'{') + stripped.count(b'[') > MAX_JSON_DEPTH
 
 
 def json_nesting_depth(payload: bytes) -> int:
