@@ -11,10 +11,10 @@ import {
   televisionTime,
   televisionPower,
   televisionMediaControl
-} from "./television-state.js?v=2609212122";
+} from "./television-state.js?v=2609220023";
 // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现；运行侧不能写裸 `/static/...` 的静态
 // import，故经 static-helpers 桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609212122";
+import { createDomFactory } from "../core/static-helpers.js?v=2609220023";
 /**
  * 创建电视面板。
  *
@@ -26,7 +26,7 @@ export function createTelevisionPanel({
   onControl: onControl = async () => {}
 } = {}) {
   // 类名统一带 i3d- 前缀，样式分别写在 stage.css / nas-panel.css，避免与宿主页面的样式互相污染。
-  const { createElement } = createDomFactory(hostElement?.ownerDocument || globalThis.document);
+  const { el: createElement } = createDomFactory(hostElement?.ownerDocument || globalThis.document);
   const rootElement = createElement("div", "i3d-television-panel");
   // 标题区沿用 NAS 面板的样式类，两个面板在弹窗里外观一致。
   const headingElement = createElement("div", "i3d-nas-heading");

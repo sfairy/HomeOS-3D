@@ -5,7 +5,7 @@
  * 本身合法，只是可能让低端设备掉帧。导出 performanceWarnings、confirmPerformanceWarning。告警
  * 文案由本文件统一产出（未做 i18n），调用方不要改写。
  */
-import { normalizeGroundReflection as normalizeReflection } from "./reflection-settings.js?v=2609212122";
+import { normalizeGroundReflection as normalizeReflection } from "./reflection-settings.js?v=2609220023";
 /**
  * 比较新旧设置，列出「变更后会更容易掉帧」的项目。
  * 只提示「变贵」的方向（如分辨率调高、开启反射），调低画质不产生告警。

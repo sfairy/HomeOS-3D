@@ -5,12 +5,12 @@
  * 约定：需要先有 3D 户型（component.properties.sceneId）且灯光为 region 模式，否则直接抛中文错误；
  * 打开期间派发 hb-i3d-preview-scope 事件，通知页面其它部分暂时收起自己的 3D 预览，避免两处同时渲染。
  */
-import { mountInteraction3d } from "../core/runtime.js?v=2609212122";
+import { mountInteraction3d } from "../core/runtime.js?v=2609220023";
 import {
   createDomFactory,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "../core/static-helpers-editor.js?v=2609212122";
+} from "../core/static-helpers-editor.js?v=2609220023";
 /**
  * 打开照射范围编辑弹窗。
  *
@@ -37,10 +37,10 @@ export async function openInteraction3dRangeEditor({
   // 记住打开前的焦点元素，关闭时还回去，保证键盘用户不会丢失位置。
   const previouslyFocusedElement = document.activeElement;
   // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现见 /static/shared/dom-factory.js。
-  const { createElement } = createDomFactory(document);
+  const { el: createElement } = createDomFactory(document);
   const stylesheetLink = createElement("link");
   stylesheetLink.rel = "stylesheet";
-  stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=2609212122";
+  stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=2609220023";
   document.head.append(stylesheetLink);
   // 复用编辑器与运行时样式，因此类名沿用 i3d-editor。
   const dialogElement = createElement("dialog", "i3d-editor i3d-range-dialog");

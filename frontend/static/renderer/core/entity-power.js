@@ -10,11 +10,11 @@ import {
   climateIsPoweredOn,
   climatePowerCommand,
   resolveClimateDeviceType
-} from "../controls/climate.js?v=2609212122";
+} from "../controls/climate.js?v=2609220023";
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609212122";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609220023";
 // 「按 ID 取域」只有一份实现，走 utils/entities.js 的 entityDomainFromId。
-import { entityDomainFromId } from "../../utils/entities.js?v=2609212122";
+import { entityDomainFromId } from "../../utils/entities.js?v=2609220023";
 
 // 兜底占位状态：本文件的下游要直接读 `.state` 与 `.attributes`（还有 `delete attributes.x`），
 // 传 null 会让「状态还没到」变成页面上的 TypeError。三处调用点都只读或 spread 出去，不修改它。

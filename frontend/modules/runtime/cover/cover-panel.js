@@ -12,10 +12,10 @@ import {
   coverControl,
   coverStateLabel,
   coverCanAdjustBlades
-} from "./cover-state.js?v=2609212122";
+} from "./cover-state.js?v=2609220023";
 // DOM 工厂（带类名/文本的元素、普通按钮、replaceChildren 兜底）的唯一实现；运行侧不能写裸
 // `/static/...` 的静态 import，故经 static-helpers 桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609212122";
+import { createDomFactory } from "../core/static-helpers.js?v=2609220023";
 /**
  * 创建窗帘面板。
  */
@@ -26,7 +26,7 @@ export function createCoverPanel({
 } = {}) {
   // 刻意用宿主的 ownerDocument：面板被放进别的文档（弹窗、预览 iframe）时才不会造出属于外部
   // 文档的孤儿节点（append 会静默无效或抛 "not a child of this node"）。
-  const { createElement, replaceChildren } = createDomFactory(
+  const { el: createElement, replaceChildren } = createDomFactory(
     hostElement?.ownerDocument || globalThis.document
   );
   const rootElement = hostElement || createElement("section");

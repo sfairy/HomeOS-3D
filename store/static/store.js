@@ -810,6 +810,9 @@
     $('#home-account-link').hidden = !state.account;
     $('#home-login-link').hidden = Boolean(state.account);
     $('#home-register-link').hidden = Boolean(state.account);
+    // 管理后台入口：只给管理员账号。标记里默认 hidden，这里只负责在确认过
+    // /auth/me 的 isAdmin 之后放行；非管理员（含未登录）保持隐藏。
+    $$('[data-admin-entry]').forEach(entry => { entry.hidden = !state.account?.isAdmin; });
   }
 
   function setAuthHint(authenticated, hasPermanentLicense = false, hasTemporaryLicense = false) {

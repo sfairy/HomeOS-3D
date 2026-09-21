@@ -8,14 +8,14 @@
  */
 
 // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现，与其它运行侧模块同一座桥。
-import { createDomFactory } from "./static-helpers.js?v=2609212122";
+import { createDomFactory } from "./static-helpers.js?v=2609220023";
 // 复用渲染器的弹窗落位与摄像头版式算法；开发环境走相对路径，生产环境走静态路径。
 const { popupPlacement: popupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/popup-placement.js", import.meta.url))
-  : import("/static/bridge/popup-placement.js?v=2609212122"));
+  : import("/static/bridge/popup-placement.js?v=2609220023"));
 const { cameraPopupLayout: cameraPopupLayout } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/camera-popup-layout.js", import.meta.url))
-  : import("/static/bridge/camera-popup-layout.js?v=2609212122"));
+  : import("/static/bridge/camera-popup-layout.js?v=2609220023"));
 /**
  * 计算弹窗预览的落位与缩放。
  */
@@ -56,7 +56,7 @@ function popupPreviewPlacement(kind, width, height, settings) {
 export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
   // 工厂按宿主的 ownerDocument 创建节点：嵌在 iframe 里也落在正确的文档中。
   // 实现见 /static/shared/dom-factory.js（经 static-helpers 桥取用）。
-  const { createElement } = createDomFactory(hostElement.ownerDocument || document);
+  const { el: createElement } = createDomFactory(hostElement.ownerDocument || document);
   const layerElement = createElement("div", "i3d-popup-preview-layer");
   const previewElement = createElement("section", "i3d-popup-preview");
   // aria-label 通过属性设置而不是 innerHTML，避免把无障碍文案与结构耦合。
@@ -170,7 +170,7 @@ export function createFocusDevicePopup(
   const stylesheetLink = popupOwnerDocument.createElement("link");
   stylesheetLink.rel = "stylesheet";
   // 复用渲染器样式表；缓存戳必须与 static 资源版本保持一致。
-  stylesheetLink.href = "/static/renderer/core/renderer.css?v=2609212122";
+  stylesheetLink.href = "/static/renderer/core/renderer.css?v=2609220023";
   const rendererHostElement = popupOwnerDocument.createElement("div");
   rendererHostElement.className = "i3d-focus-popup-host";
   previewRootElement.append(stylesheetLink, rendererHostElement);
@@ -187,7 +187,7 @@ export function createFocusDevicePopup(
     // 加载完成后若已被销毁（用户在加载期间就退出了编辑），直接放弃初始化。
     ready: (import.meta.url.startsWith("file:")
       ? import(new URL("../../../static/renderer/core/renderer.js", import.meta.url))
-      : import("/static/renderer/core/renderer.js?v=2609212122")
+      : import("/static/renderer/core/renderer.js?v=2609220023")
     ).then(({ PanelRenderer: PanelRenderer }) => {
       if (isDisposed) {
         return;

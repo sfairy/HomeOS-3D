@@ -14,9 +14,9 @@ import {
   readFromMapOrRecord,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=2609212122";
+} from "../core/static-helpers.js?v=2609220023";
 // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现同样经桥取用。
-import { createDomFactory } from "../core/static-helpers.js?v=2609212122";
+import { createDomFactory } from "../core/static-helpers.js?v=2609220023";
 /**
  * 计算要展示的分组及其中文名。
  */
@@ -124,7 +124,7 @@ function nasMetricValue(metric, state) {
  * 文档时才不会造出属于外部文档的孤儿节点）；省略则用全局 document。
  */
 export function createNasPanel({ element: hostElement } = {}) {
-  const { createElement } = createDomFactory(hostElement?.ownerDocument || globalThis.document);
+  const { el: createElement } = createDomFactory(hostElement?.ownerDocument || globalThis.document);
   const rootElement = createElement("div", "i3d-nas-panel");
   const headingElement = createElement("div", "i3d-nas-heading");
   const titleElement = createElement("h3", "");

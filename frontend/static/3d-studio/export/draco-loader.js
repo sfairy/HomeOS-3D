@@ -6,7 +6,7 @@
  * Worker，而部署环境 CSP 只允许同源脚本，故改成直接用同源的 draco-decoder-worker.js。
  */
 
-import { DRACOLoader } from "/static/vendor/three/0.182.0/DRACOLoader.js?v=2609212122";
+import { DRACOLoader } from "/static/vendor/three/0.182.0/DRACOLoader.js?v=2609220023";
 
 /**
  * 把 Worker 启动失败的原因包装成带中文兜底文案的 Error。

@@ -133,6 +133,10 @@ def account_payload(account: Account) -> dict:
     return {
         "id": account.id,
         "email": account.email,
+        # 是否管理员：前台据此决定「管理后台」入口显不显示。这是账号**自己**的属性，
+        # 只有持该账号会话的人拿得到，不构成对他人的信息泄漏；权限本身仍由
+        # ``require_admin`` 在后台 API 上判定，前端这个字段只管入口可见性。
+        "isAdmin": bool(account.is_admin),
         # 邮箱是否已验证：未验证会被 ``_require_verified`` 挡在查看订单/下单之外，
         # 前端必须能看出来并给出「去验证」入口，否则用户只看到一个无法解释的 401。
         "emailVerified": account.email_verified_at is not None,

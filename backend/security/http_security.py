@@ -291,7 +291,18 @@ def expected_request_scheme(request: Request) -> str:
         forwarded_proto = request.headers.get('x-forwarded-proto', '').split(',')[0].strip().lower()
         if forwarded_proto in {'http', 'https'}:
             return forwarded_proto
-    return (request.url.scheme or 'http').lower()
+    return _http_scheme((request.url.scheme or 'http').lower())
+
+
+def _http_scheme(scheme: str) -> str:
+    """把连接层的 scheme 归一到 ``http`` / ``https``。
+
+    WebSocket 握手时 Starlette（按 ASGI）给的 ``request.url.scheme`` 是 ``ws`` / ``wss``，
+    而浏览器的 ``Origin`` 头永远是 ``http`` / ``https``（``ws`` 不是合法的 Origin scheme）。
+    不归一化就会拼出 ``ws://host`` 去比 ``http://host``，永不相等 —— WebSocket 握手会被
+    无条件判成跨站（本地开发未配 ``APP_BASE_URL`` 时必现），HTTP 侧照旧不受影响。
+    """
+    return {'ws': 'http', 'wss': 'https'}.get(scheme, scheme)
 
 
 def origin_allowed(request: Request, origin: str) -> bool:
