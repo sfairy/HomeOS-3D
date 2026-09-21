@@ -236,7 +236,10 @@ export function mountStage(stageOptions) {
       // 隐私模式 / 存储被禁用时读 localStorage 会抛异常：
       // 宁可放弃灯光历史的持久化，也不能让整个舞台挂掉，所以吞掉异常并留空。
       localStorageRef = window.localStorage;
-    } catch {}
+    } catch {
+      // 见上：localStorageRef 保持 undefined，createLightStateCache 会退化到纯内存、
+      // 不持久化。舞台的其余部分照常工作。
+    }
   }
   // 按 scope 隔离灯光历史（scope 由 body 上的 data 属性给出）：
   // 同一台设备可能同时出现在多个页面作用域里，不隔离会互相覆盖。
@@ -611,7 +614,10 @@ export function mountStage(stageOptions) {
     try {
       // 同 localStorage：会话存储被禁用时放弃封面状态的续算（storage 传 null 即关闭该能力）。
       coverStorage = window.sessionStorage;
-    } catch {}
+    } catch {
+      // 见上：coverStorage 保持 undefined，翻板的续算与持久化整体关闭，
+      // 开关与滑杆的即时反馈不受影响。
+    }
   }
   const coverFeedback = createCoverFeedback({
     commandPreview: true,

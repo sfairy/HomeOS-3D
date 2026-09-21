@@ -11364,7 +11364,10 @@ function discardRecoverySnapshot(recoveryProjectId = activeProject?.projectId) {
       // 存储不可用时删不掉快照：读取侧同样进不来（readRecoverySnapshot 也整段兜错），
       // 所以不存在「丢弃过的快照又被恢复回来」的路径。
       sessionStorage.removeItem(recoveryStorageKey(RECOVERY_STORAGE_PREFIX, recoveryProjectId));
-    } catch {}
+    } catch {
+      // 见上：删不掉时读取侧同样进不来（readRecoverySnapshot 也整段兜错），
+      // 不存在「丢弃过的快照又被恢复回来」的路径。
+    }
   }
 }
 /**
