@@ -16,9 +16,10 @@
   inset: 0;
   pointer-events: none;
 
-  /* 3D 相机的镜头。透视必须落在这层：它的直接子元素才吃得到下面的 Z 位移。
-     放到 .hos-scene 上就得靠 preserve-3d 把 3D 上下文透传下来，而极光用了
-     mix-blend-mode: screen —— 3D 渲染上下文里混合模式会被丢弃，空气感就没了。
+  /* 透视只服务一件事：三个轨道环的 3D 倾角（见 .hos-scene__orbit 的 rotateX/rotateY）。
+     景深不做 Z 位移 —— 理由写在下面「景深」那段的 ①②③。
+     放在这层而不是 .hos-scene：子元素才吃得到透视，同时不给 .hos-scene 建 3D 上下文，
+     极光的 mix-blend-mode: screen 才保得住。
      原点跟着轨道环的圆心（28% / 48%）走，那里是画面的视觉锚点。 */
   perspective: 2400px;
   perspective-origin: 30% 50%;
@@ -27,30 +28,33 @@
 /* ===== 景深 =====
    场景是十几张按远近排好的平面。平面的前后关系只有「层与层之间产生相对位移」时才会
    被眼睛读成深度 —— 一张再细的插画，只要各层同步移动，看着仍然是一张图。
-   这里给每层一个 --hos-depth，它一个变量决定三件事：
-
-     位移倍率 —— 指针偏移 × 倍率（近层走得多，远层几乎不动）
-     Z 位置  —— 倍率 × 140px，进上面的透视（近层被放大，是深度的第二个线索）
-     谁在前 —— 交给 DOM 顺序，不重复声明
+   这里给每层一个 --hos-depth，它就是位移倍率：指针偏移 × 倍率（近层走得多，远层几乎不动）。
+   层的前后关系交给 DOM 顺序，不重复声明。
 
    --hos-px / --hos-py 由 scene-depth.js 写入（指针 + 空闲漂移）。脚本不在时取 0，
    画面与从前完全一致 —— 这份片段同时喂三个入口页、商店入口页和 Activate，不能因为
    少了一个脚本就变样。
 
+   只有 X/Y，**没有 Z**。曾经用「倍率 × 140px 的 Z 位移 + 透视」做近大远小，三种代价
+   一起判死了这条路：
+     ① Z 与指针无关，是常量 —— 于是每层被**永久**放大。实测 scan 层 1060.9px 对
+        978px（+8.48%），静止时构图就已经不是设计稿那一张；
+     ② 放大倍率几乎都是非整数，而 hex 层是 56×100 的 SVG 平铺、星层是 1px 点阵：
+        平铺花纹被非整数放大后，再逐帧亚像素平移，就爬出摩尔纹 —— 表现就是「画面在闪」；
+     ③ 带 Z 的子元素落进 3D 渲染上下文，极光的 mix-blend-mode: screen 会被丢掉，
+        空气感没了（这正是上面 .hos-scene__stage 那段注释警告过的事）。
+   不到 9% 的放大换不来这些，深度交给倍率差读就够了。
+
    为什么用独立的 translate 属性而不是 transform：极光、星层、轨道环的 transform
    已经被各自的动画占着，再写 transform 会互相覆盖；translate 与 transform 是两个
    属性，会叠加。
 
-   为什么倍率全部 ≥ 0：Z 也就 ≥ 0，于是所有层只会被放大。全屏层被放大是安全的
-   （多出来的部分被 overflow 裁掉），被缩小才会在边缘露出底色。
-
-   放大出来的余量正好决定了位移的上限：余量 = 140×倍率/(2400−140×倍率) × 离透视角的距离。
-   位移量程必须按这个式子随视口收放，见 scene-depth.js 的 shiftRange —— 窄屏上透视角到
-   左边缘只剩 126px，量程写死成桌面尺寸就会在左边缘拉出十几像素的缝（实测过）。 */
+   谁可以动：只有「自带定位尺寸」的装饰层（极光、晨光、暖光、雷达、轨道环、雾带、
+   地平线）。inset: 0 的满屏层一律 --hos-depth: 0，见下面那段 —— 它们没有位移余量，
+   一动就在边缘露出底下的天幕。 */
 .hos-scene__stage > * {
   translate: calc(var(--hos-px, 0px) * var(--hos-depth, 0))
-    calc(var(--hos-py, 0px) * var(--hos-depth, 0))
-    calc(var(--hos-depth, 0) * 140px);
+    calc(var(--hos-py, 0px) * var(--hos-depth, 0));
 }
 
 /* 镜头本身不该跟着动：暗角与压边是「画面之外」的东西，一动就露馅。 */
@@ -59,9 +63,22 @@
   --hos-depth: 0;
 }
 
-.hos-scene__sky {
-  --hos-depth: 0.14;
+/* 满屏层一律 0。它们是 inset: 0，边框就贴在视口边上，没有位移余量 —— 一动就在对侧
+   露出底下的天幕，成了一条会呼吸的暗缝。默认值本来就是 0，这里显式列出来，是为了让
+   「哪些层不许动」在代码里可读：少写一行，下一个改动就可能把它挪到别处。
+   其中星层与 hex 还有第二个理由 —— 见上面「景深」那段 ②，平铺花纹一移动就爬摩尔纹。 */
+.hos-scene__sky,
+.hos-scene__stars--far,
+.hos-scene__stars--near,
+.hos-scene__hex,
+.hos-scene__mountains,
+.hos-scene__scan,
+.hos-scene__motes,
+.hos-scene__haze {
+  --hos-depth: 0;
 }
+
+/* 有自己定位尺寸的装饰层：按远近给倍率。它们移的是自己，不会带出画布边缘。 */
 .hos-scene__dawn {
   --hos-depth: 0.2;
 }
@@ -71,45 +88,26 @@
 .hos-scene__aurora {
   --hos-depth: 0.3;
 }
-.hos-scene__stars--far {
-  --hos-depth: 0.36;
-}
-.hos-scene__mountains,
-.hos-scene__hex {
-  --hos-depth: 0.46;
-}
-.hos-scene__stars--near {
-  --hos-depth: 0.58;
-}
 .hos-scene__radar {
   --hos-depth: 0.62;
 }
 .hos-scene__orbit--outer {
   --hos-depth: 0.72;
 }
+.hos-scene__mist {
+  --hos-depth: 0.8;
+}
 .hos-scene__orbit--mid {
   --hos-depth: 0.86;
+}
+.hos-scene__horizon {
+  --hos-depth: 0.9;
 }
 .hos-scene__orbit--inner {
   --hos-depth: 1;
 }
 .hos-scene__orbit-core {
   --hos-depth: 1.12;
-}
-.hos-scene__mist {
-  --hos-depth: 0.8;
-}
-.hos-scene__horizon {
-  --hos-depth: 0.9;
-}
-.hos-scene__haze {
-  --hos-depth: 1.05;
-}
-.hos-scene__motes {
-  --hos-depth: 1.3;
-}
-.hos-scene__scan {
-  --hos-depth: 1.34;
 }
 
 /* page.css 那条 reduced-motion 只把 animation/transition 的时长压到 0，管不到这里的
@@ -278,20 +276,24 @@
   box-sizing: border-box;
 }
 
-/* 三个环的倾角。外环几乎平躺（离镜头最远），越往里越立起来 —— 交错的倾角比一致倾角
-   更能读出「三个独立的轨道」，一致倾角会糊成一个同心圆组。 */
+/* 三个环的倾角。外环最平（离镜头最远），越往里越立起来 —— 交错的倾角比一致倾角
+   更能读出「三个独立的轨道」，一致倾角会糊成一个同心圆组。
+
+   倾角封顶在 46°：cos 就是环在屏幕上的扁平比，74° 时只剩 cos74° ≈ 0.28 —— 圆环被压成
+   一条斜线，三个环一起就散成了三根线头，再也读不出「轨道」。46°/34°/22° 分别落在
+   0.69 / 0.83 / 0.93，还是明确的椭圆，但环的轮廓仍然完整。 */
 .hos-scene__orbit--outer {
-  --hos-orbit-tilt: 74deg;
+  --hos-orbit-tilt: 46deg;
 }
 
 .hos-scene__orbit--mid {
-  --hos-orbit-tilt: 62deg;
-  --hos-orbit-skew: 22deg;
+  --hos-orbit-tilt: 34deg;
+  --hos-orbit-skew: 14deg;
 }
 
 .hos-scene__orbit--inner {
-  --hos-orbit-tilt: 50deg;
-  --hos-orbit-skew: -28deg;
+  --hos-orbit-tilt: 22deg;
+  --hos-orbit-skew: -18deg;
 }
 
 .hos-scene__orbit--outer {

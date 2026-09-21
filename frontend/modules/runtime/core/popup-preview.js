@@ -10,10 +10,10 @@
 // 复用渲染器的弹窗落位与摄像头版式算法；开发环境走相对路径，生产环境走静态路径。
 const { popupPlacement: popupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/popup-placement.js", import.meta.url))
-  : import("/static/bridge/popup-placement.js?v=20260921124622"));
+  : import("/static/bridge/popup-placement.js?v=20260921142240"));
 const { cameraPopupLayout: cameraPopupLayout } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/camera-popup-layout.js", import.meta.url))
-  : import("/static/bridge/camera-popup-layout.js?v=20260921124622"));
+  : import("/static/bridge/camera-popup-layout.js?v=20260921142240"));
 /**
  * 计算弹窗预览的落位与缩放。
  */
@@ -174,7 +174,7 @@ export function createFocusDevicePopup(
   const stylesheetLink = popupOwnerDocument.createElement("link");
   stylesheetLink.rel = "stylesheet";
   // 复用渲染器样式表；缓存戳必须与 static 资源版本保持一致。
-  stylesheetLink.href = "/static/renderer/core/renderer.css?v=20260921124622";
+  stylesheetLink.href = "/static/renderer/core/renderer.css?v=20260921142240";
   const rendererHostElement = popupOwnerDocument.createElement("div");
   rendererHostElement.className = "i3d-focus-popup-host";
   previewRootElement.append(stylesheetLink, rendererHostElement);
@@ -191,7 +191,7 @@ export function createFocusDevicePopup(
     // 加载完成后若已被销毁（用户在加载期间就退出了编辑），直接放弃初始化。
     ready: (import.meta.url.startsWith("file:")
       ? import(new URL("../../../static/renderer/core/renderer.js", import.meta.url))
-      : import("/static/renderer/core/renderer.js?v=20260921124622")
+      : import("/static/renderer/core/renderer.js?v=20260921142240")
     ).then(({ PanelRenderer: PanelRenderer }) => {
       if (isDisposed) {
         return;

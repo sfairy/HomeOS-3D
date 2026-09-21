@@ -214,17 +214,14 @@
   box-sizing: border-box;
   pointer-events: none;
 
-  /* 坞体随指针微倾。挂在坞上而不是面板上：面板的 transform 已经归 .hos-rise 的入场
-     动画所有，同一元素上再写一次会被动画覆盖（fill-mode: both 会一直兜着最终值）。
-     坞是它们的父节点，倾坞等于倾里面的面板，两个 transform 各归各的。
-
-     角度上限 2.6°，且只有指针设备才写入（见 scene-depth.js）：再大就会让输入框看着
-     是斜的，光标落点也跟着偏 —— 这里是「桌面在动」的暗示，不是真的把表单转过来。
-
-     perspective() 写在函数列表里，不靠祖先 —— 坞是全屏绝对定位，祖先链上没有透视。 */
-  transform: perspective(1600px) rotateX(var(--hos-tilt-x, 0deg))
-    rotateY(var(--hos-tilt-y, 0deg));
-  transform-origin: 50% 50%;
+  /* 坞体（表单）**不**参与 3D：这里不做微倾。
+     三个理由，任何一个都够：
+     ① 坞里全是输入框。斜着看输入框，视觉位置与光标落点会偏，这是可用性问题，不是美感；
+     ② 坞内面板是 backdrop-filter: blur(22px) 的玻璃（见 panel.css）。逐帧改父级
+        transform，背板模糊就要每一帧重新采样一次 —— 玻璃会跟着「抖」；
+     ③ 深度已经由场景那侧用视差表达了。坞保持端正是「贴在屏幕上的表单」，场景在它背后
+        动 —— 一动一静，两个平面反而分得更清楚。
+     所以倾斜只留在场景里（轨道环的 3D 倾角），不进城里的表单。 */
 }
 
 .hos-page > .hos-dock > * {
@@ -259,8 +256,6 @@
     flex: 1 1 auto;
     align-items: flex-start;
     padding: 8px 18px 28px;
-    /* 窄屏改成上下堆叠，坞不再是「右边的一扇窗」，透视倾斜失去了参照物 —— 关掉。 */
-    transform: none;
   }
 }
 
@@ -288,11 +283,8 @@
     transition-duration: 0.01ms !important;
   }
 
-  /* 上面那条只压时长。坞的倾斜是 transform，不归动画系统管，得单独关：
-     2.6° 的持续晃动对前庭敏感的人是实打实的干扰。 */
-  .hos-page > .hos-dock {
-    transform: none;
-  }
+  /* 上面那条只压时长。场景的位移是 translate，由 scene-depth.js 逐帧写进来，不归动画
+     系统管，各自在 scene.css / 脚本里单独关。 */
 }
 
 /* 只有入口页把自己的 <html> 标成 .hos-shell；商店在同一个文档里还要滚动前台，

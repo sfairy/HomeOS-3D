@@ -4,11 +4,11 @@
  * 图层是否点亮走 `entity-state.js` 的 `isLayerEntityActive`（比通用活动态更宽）。
  */
 // 同门分片：builtin-assets
-import { resolveAssetUrl } from "../builtin-assets.js?v=20260921124622";
+import { resolveAssetUrl } from "../builtin-assets.js?v=20260921142240";
 // 同门分片：entity-state
-import { isLayerEntityActive } from "../entity-state.js?v=20260921124622";
+import { isLayerEntityActive } from "../entity-state.js?v=20260921142240";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=20260921124622";
+import { registerComponent } from "../registry-core.js?v=20260921142240";
 
 // 户型图自动导图控件：编辑器里嵌 iframe 实时预览 3D 构图，运行时用底图 + 图层叠加渲染。
 registerComponent("floorplan-auto-diagram", {

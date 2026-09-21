@@ -5,8 +5,8 @@
  * 返回的 key 只有 occupied / clear / unknown / unavailable，界面文案（有人 / 无人 / 未知 / 离线）
  * 与 key 一一对应且直接上屏。状态条目归一走 `utils/state-entry.js`。
  */
-import { entitySearchTextOf } from "../../utils/entities.js?v=20260921124622";
-import { resolveStateEntry } from "../../utils/state-entry.js?v=20260921124622";
+import { entitySearchTextOf } from "../../utils/entities.js?v=20260921142240";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=20260921142240";
 
 /**
  * 把带单位的时长状态换算成秒。

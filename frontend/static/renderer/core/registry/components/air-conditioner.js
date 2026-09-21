@@ -4,27 +4,27 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=20260921124622";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=20260921142240";
 import {
   climateDefaultIcon,
   resolveClimateDeviceType
-} from "../../../controls/climate.js?v=20260921124622";
+} from "../../../controls/climate.js?v=20260921142240";
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=20260921124622";
-import { mdiIconUrl } from "../../../../utils/icon-url.js?v=20260921124622";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=20260921142240";
+import { mdiIconUrl } from "../../../../utils/icon-url.js?v=20260921142240";
 // 同门分片：entity-state
 import {
   isClimateDeviceActive,
   resolveClimateLabel
-} from "../entity-state.js?v=20260921124622";
+} from "../entity-state.js?v=20260921142240";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=20260921124622";
+import { registerComponent } from "../registry-core.js?v=20260921142240";
 // 同门分片：registry-visuals
 import {
   applyFontWeight,
   componentContentUnitsPx,
   resolveColor
-} from "../registry-visuals.js?v=20260921124622";
+} from "../registry-visuals.js?v=20260921142240";
 
 // 空调 / 浴霸控件：本体内绘制出风图层，弹窗里再展开完整控制面板。
 registerComponent("air-conditioner", {

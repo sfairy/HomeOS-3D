@@ -9,24 +9,24 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=20260921124622"></script>
+    <script src="/static/logging/client-log.js?v=20260921142240"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#111820" />
     <title>户型图绘制</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260921124622" type="image/svg+xml" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260921142240" type="image/svg+xml" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
     <!-- 全站调色板（design/scene/page.css 的分发产物）。studio.css 的 :root 只是把它
          别名成 --bg / --accent / --guide 这些历史令牌名；画布色值由 studio-app.js 的
          paletteColor() 从计算样式里读同一批变量。必须在 studio.css 之前加载。 -->
     <link
       rel="stylesheet"
-      href="/static/auth/scene/page.css?v=20260921124622"
+      href="/static/auth/scene/page.css?v=20260921142240"
     />
     <link
       rel="stylesheet"
-      href="/static/3d-studio/studio/studio.css?v=20260921124622"
+      href="/static/3d-studio/studio/studio.css?v=20260921142240"
     />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=20260921124622` 的 <link>。
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=20260921142240` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -34,7 +34,7 @@
     <!-- ===== 顶部工作流条（六个步骤只是进度指示，点击不生效；data-step 供脚本高亮当前阶段） ===== -->
     <header class="studio-header">
       <div class="header-leading">
-        <img class="brand-logo" src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260921124622" alt="HomeOS" />
+        <img class="brand-logo" src="/static/assets/icons/homeos-mark-white-orange.svg?v=20260921142240" alt="HomeOS" />
         <div class="header-title">
           <p>HOMEOS · DESKTOP CREATOR</p>
           <div class="header-title-row">
@@ -1485,11 +1485,11 @@
       <button type="button" data-floor-action="rename">重命名</button
       ><button type="button" data-floor-action="delete">删除楼层</button>
     </div>
-    <!-- 入口脚本：本页唯一的 module。它与 studio.css 必须共用同一条 ?v=20260921124622
+    <!-- 入口脚本：本页唯一的 module。它与 studio.css 必须共用同一条 ?v=20260921142240
          否则浏览器会缓存两份模块实例，出现两套注册表与缓存版本号。 -->
     <script
       type="module"
-      src="/static/3d-studio/studio/studio-app.js?v=20260921124622"
+      src="/static/3d-studio/studio/studio-app.js?v=20260921142240"
     ></script>
   </body>
 </html>
