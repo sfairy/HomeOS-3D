@@ -8,13 +8,13 @@
  * （模式开关 400ms，单材质淡入淡出 360ms）。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921192957";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609211953";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js —— 本文件原来是它的原始出处，
 // 现已提为共享实现，其余模块不再各写一份。
-import { sceneModelKey } from "../core/scene-model-key.js?v=20260921192957";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609211953";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=20260921192957";
-import { createEnvironmentHalos } from "./environment-halos.js?v=20260921192957";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609211953";
+import { createEnvironmentHalos } from "./environment-halos.js?v=2609211953";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  */

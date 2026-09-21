@@ -2001,8 +2001,10 @@ h2 {
 }
 /* ===== 全局取色器 ===== */
 
-/* fixed 定位由 JS 按触发点摆放；层级 760 高于侧栏所有菜单，
-   但仍低于浏览器 <dialog> 的顶层渲染，弹窗里打开时靠 dialog 自身层级兜底。 */
+/* fixed 定位由 JS 按触发点摆放；层级 760 高于侧栏所有菜单。
+   但 z-index 管不到模态 <dialog>：它在顶层渲染，而且会让 dialog 之外的一切 inert ——
+   实测连 popover 都不在命中栈里。触发取色器的输入框在 dialog 里时，
+   home.js 的 colorPickerHostFor 会把取色器挂进那只 dialog，跟着它一起进顶层。 */
 .global-color-picker {
   position: fixed;
   z-index: 760;

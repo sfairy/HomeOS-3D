@@ -7,13 +7,13 @@
  * 把这份判定留在叶子里，两个方向都不成环。
  */
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=20260921192957";
+import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609211953";
 // 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
 // 它不 import 任何东西，避免 cover-runtime.js 与本文件反向 import 成环。
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor
-} from "../../controls/cover-direction.js?v=20260921192957";
+} from "../../controls/cover-direction.js?v=2609211953";
 
 /**
  * 通用「活动态」判定：on / open / true / home 都算活动。

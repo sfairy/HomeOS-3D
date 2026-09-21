@@ -1,10 +1,13 @@
 /**
  * Unify hardcoded static-asset `?v=` cache-busting query strings to a single
- * local timestamp: YYYYMMDDHHMMSS (e.g. 20260915103715).
+ * local timestamp: YYMMDDHHMM (e.g. 2609151037).
+ *
+ * 年份只留后两位、秒不参与：这枚戳只用来「让浏览器认成新 URL」，不需要可读的绝对时间，
+ * 10 位比 14 位好在 URL 短一半且一眼看得出来是两个数字块（日期 / 时分）。
  *
  * Usage:
  *   node tools/bump_static_cache_versions.mjs
- *   node tools/bump_static_cache_versions.mjs --version=20260915103715
+ *   node tools/bump_static_cache_versions.mjs --version=2609151037
  *   node tools/bump_static_cache_versions.mjs --dry-run
  *
  * Does not touch dynamic versions (assets.py mtime hex, store product images,
@@ -65,12 +68,13 @@ function pad2(n) {
 
 function localTimestamp(date = new Date()) {
   return (
-    String(date.getFullYear()) +
+    // getFullYear() % 100 会把 2000 年算成 0，这里用 pad2 补成 "00" 即可；
+    // 负年份（公元前）不在本工具的取值范围内。
+    pad2(date.getFullYear() % 100) +
     pad2(date.getMonth() + 1) +
     pad2(date.getDate()) +
     pad2(date.getHours()) +
-    pad2(date.getMinutes()) +
-    pad2(date.getSeconds())
+    pad2(date.getMinutes())
   );
 }
 
@@ -87,14 +91,14 @@ function parseArgs(argv) {
       continue;
     }
     if (arg === "--help" || arg === "-h") {
-      console.log(`Usage: node tools/bump_static_cache_versions.mjs [--version=YYYYMMDDHHMMSS] [--dry-run]`);
+      console.log(`Usage: node tools/bump_static_cache_versions.mjs [--version=YYMMDDHHMM] [--dry-run]`);
       process.exit(0);
     }
     console.error(`Unknown argument: ${arg}`);
     process.exit(1);
   }
-  if (version !== null && !/^\d{14}$/.test(version)) {
-    console.error(`--version must be 14 digits (YYYYMMDDHHMMSS), got: ${version}`);
+  if (version !== null && !/^\d{10}$/.test(version)) {
+    console.error(`--version must be 10 digits (YYMMDDHHMM), got: ${version}`);
     process.exit(1);
   }
   return { version: version || localTimestamp(), dryRun };

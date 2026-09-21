@@ -10,13 +10,13 @@ import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "../editor/picker/editor-picker-pagination.js?v=20260921192957";
-import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=20260921192957";
+} from "../editor/picker/editor-picker-pagination.js?v=2609211953";
+import { createEditorPickerQueries } from "../editor/picker/editor-picker-queries.js?v=2609211953";
 // 「取实体域」走 utils/entities.js 的唯一实现：能进这个列表的实体都是 HA 目录里的行
 // （`domain` 列就是 entity_id 的前缀），虚拟实体另被 `editorEntityMatches` 滤掉，两边同值。
-import { entityDomainOf } from "../utils/entities.js?v=20260921192957";
-import { vacuumProfiles } from "./vacuum-catalog.js?v=20260921192957";
-import { nasProfiles } from "./nas-catalog.js?v=20260921192957";
+import { entityDomainOf } from "../utils/entities.js?v=2609211953";
+import { vacuumProfiles } from "./vacuum-catalog.js?v=2609211953";
+import { nasProfiles } from "./nas-catalog.js?v=2609211953";
 // 灯光按钮的默认图标；与后端图标目录里的命名保持一致。
 const DEFAULT_LIGHT_ICON = "mdi:lightbulb-outline";
 // 只接受 Material Design Icons 的合法 ID（长度上限 120 与图标目录约定一致），

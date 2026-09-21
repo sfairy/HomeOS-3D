@@ -13,7 +13,7 @@ import {
   finiteNumberOrNull,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=20260921192957";
+} from "../core/static-helpers.js?v=2609211953";
 /** 状态源既可能是 Map 也可能是普通对象，这里统一取值的入口。 */
 const readState = (states, entityId) =>
   states instanceof Map ? states.get(entityId) : states?.[entityId];

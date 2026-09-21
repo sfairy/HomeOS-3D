@@ -11,20 +11,20 @@
 import {
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "../presence/presence-motion.js?v=20260921192957";
-import { mountInteraction3d } from "../core/runtime.js?v=20260921192957";
-import { openPresenceEditor } from "../presence/presence-editor.js?v=20260921192957";
+} from "../presence/presence-motion.js?v=2609211953";
+import { mountInteraction3d } from "../core/runtime.js?v=2609211953";
+import { openPresenceEditor } from "../presence/presence-editor.js?v=2609211953";
 import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=20260921192957";
-import { confirmAction } from "/static/shared/ui-confirm.js?v=20260921192957";
-import { randomUuid } from "/static/utils/random-id.js?v=20260921192957";
+} from "../core/editor-save-status.js?v=2609211953";
+import { confirmAction } from "/static/shared/ui-confirm.js?v=2609211953";
+import { randomUuid } from "/static/utils/random-id.js?v=2609211953";
 import {
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "/static/bridge/bridge.js?v=20260921192957";
-import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=20260921192957";
+} from "/static/bridge/bridge.js?v=2609211953";
+import { interaction3dPreviewSize } from "/static/bridge/preview-layout.js?v=2609211953";
 /**
  * 打开 3D 安防配置编辑器。
  * 先取编辑授权，再建弹窗与预览舞台；舞台回报场景元数据后才渲染面板
@@ -73,7 +73,7 @@ export async function openSecurityEditor({
   const styleSheetLinkElement = createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=20260921192957";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609211953";
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D 安防配置");
   // 标记预览作用域：宿主据此识别「哪些弹窗会遮挡 3D 预览」，

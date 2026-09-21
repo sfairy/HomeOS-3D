@@ -8,21 +8,21 @@
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260921192957";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609211953";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260921192957";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=20260921192957";
-import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=20260921192957";
+import { apiFetch } from "../utils/api-fetch.js?v=2609211953";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609211953";
+import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609211953";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=20260921192957";
+} from "../renderer/core/renderer.js?v=2609211953";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../renderer/core/registry.js?v=20260921192957";
+} from "../renderer/core/registry.js?v=2609211953";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -30,7 +30,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=20260921192957";
+} from "../templates/component-templates.js?v=2609211953";
 import {
   clone,
   newId,
@@ -40,36 +40,36 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260921192957";
-import { clampNumber } from "../utils/numbers.js?v=20260921192957";
-import { mdiIconUrl } from "../utils/icon-url.js?v=20260921192957";
-import { formatZhDateTime } from "../utils/datetime.js?v=20260921192957";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260921192957";
+} from "./editor-utils.js?v=2609211953";
+import { clampNumber } from "../utils/numbers.js?v=2609211953";
+import { mdiIconUrl } from "../utils/icon-url.js?v=2609211953";
+import { formatZhDateTime } from "../utils/datetime.js?v=2609211953";
+import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=2609211953";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
-import { resolveStateEntry, stateTextOf } from "../utils/state-entry.js?v=20260921192957";
+import { resolveStateEntry, stateTextOf } from "../utils/state-entry.js?v=2609211953";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=20260921192957";
-import { positionFloatingMenu } from "../shared/menu-positioning.js?v=20260921192957";
+} from "../utils/colors.js?v=2609211953";
+import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609211953";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=20260921192957";
+} from "../shared/popup-layout.js?v=2609211953";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260921192957";
+} from "./dashboard-resize.js?v=2609211953";
 // 导图底图分辨率必须与控件宽高比一致，否则底图在预览里会被拉伸、位置对不上（见模块注释）。
-import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=20260921192957";
+import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609211953";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260921192957";
+} from "./component-page-copy.js?v=2609211953";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -81,29 +81,29 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=20260921192957";
-import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260921192957";
-import { createButtonSound } from "../shared/sound-effects.js?v=20260921192957";
+} from "../shared/related-entities.js?v=2609211953";
+import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=2609211953";
+import { createButtonSound } from "../shared/sound-effects.js?v=2609211953";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260921192957";
-import { confirmAction } from "../shared/ui-confirm.js?v=20260921192957";
+} from "./editor-dialogs.js?v=2609211953";
+import { confirmAction } from "../shared/ui-confirm.js?v=2609211953";
 // 授权状态文案与授权页、连接状态页共用同一份：状态码与文案的对应关系分散在
 // 三处必然漂移，用户在编辑器、授权页、恢复页看到对同一状态的不同解释就不知道该信哪个。
 // 该模块只在页面里存在 #license-recovery 时自举定时器（编辑器里没有这个节点，不会挂上轮询）。
-import { licenseMessage } from "../auth/license-recovery.js?v=20260921192957";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260921192957";
+import { licenseMessage } from "../auth/license-recovery.js?v=2609211953";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609211953";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=20260921192957";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260921192957";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260921192957";
-import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260921192957";
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260921192957";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260921192957";
+} from "./picker/editor-picker-pagination.js?v=2609211953";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609211953";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609211953";
+import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=2609211953";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609211953";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609211953";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -111,13 +111,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=20260921192957";
+} from "../shared/action-rules.js?v=2609211953";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260921192957";
+} from "./component-tree.js?v=2609211953";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -127,13 +127,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260921192957";
+} from "./editor-component-collections.js?v=2609211953";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260921192957";
+} from "./editor-basic-inspectors.js?v=2609211953";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -146,7 +146,7 @@ import {
   reorderedPopupModules,
   restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=20260921192957";
+} from "./editor-document-management.js?v=2609211953";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -154,18 +154,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260921192957";
+} from "./editor-history.js?v=2609211953";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=20260921192957";
-import { createLicenseCard } from "./license-card.js?v=20260921192957";
+} from "../3d-studio/loaders/studio-normalization.js?v=2609211953";
+import { createLicenseCard } from "./license-card.js?v=2609211953";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=20260921192957";
+} from "../bridge/editor.js?v=2609211953";
 /**
  * 按选择器取单个 DOM 节点的简写。不做缓存与空值兜底：调用处只在模块加载时一次性缓存静态节点，
  * querySelector 找不到说明模板出错，返回 null 由使用处自行判断。
@@ -464,6 +464,11 @@ const imageAssetLargePreviewElement = findElement("#image-asset-large-preview");
 const imageAssetLargePreviewImageElement = findElement("#image-asset-large-preview-image");
 const imageAssetLargePreviewNameElement = findElement("#image-asset-large-preview-name");
 const globalColorPickerElement = findElement("#global-color-picker");
+/**
+ * 取色器在 body 里的原位（它下面那个兄弟）。打开时它会被挂进 dialog（见 colorPickerHostFor），
+ * 收起时必须按原位插回去而不是 append 到末尾 —— body 下还有别的 fixed 覆盖层，末尾会改掉同层级的先后。
+ */
+const globalColorPickerHomeNextSibling = globalColorPickerElement?.nextElementSibling || null;
 const globalColorPickerSaturationValueElement = findElement("#global-color-picker-sv");
 const globalColorPickerMarkerElement = findElement("#global-color-picker-marker");
 const globalColorPickerHueRangeInputElement = findElement("#global-color-picker-hue");
@@ -1717,6 +1722,18 @@ function positionColorPicker() {
   globalColorPickerElement.style.top = colorPickerTopPx + "px";
 }
 /**
+ * 取色器该挂到哪个父节点下。
+ *
+ * 模态 <dialog> 在顶层渲染，body 级的 position: fixed 元素会被它整个压住。而且不只是
+ * 「被遮住」：模态 dialog 会把 dialog 之外的一切设为 inert，实测连 popover 都不出现在
+ * elementsFromPoint 的命中栈里 —— 提层级、加 z-index 都救不回来。
+ * 所以输入框在 dialog 里时（例如站点配色面板的主控色），取色器必须挂进**同一个 dialog**，
+ * 跟着它一起进顶层；没有 dialog 时回到 body，z-index 与侧栏菜单的关系不变。
+ */
+function colorPickerHostFor(colorInputElement) {
+  return colorInputElement.closest("dialog[open]") || document.body;
+}
+/**
  * 为某个颜色输入框打开取色器，并把输入框现值解析成初始 HSV。同一时刻只服务一个输入框：
  * 切换前先关掉旧的，避免 input 事件被派发到已经不该响应的控件上。
  */
@@ -1726,6 +1743,10 @@ function openColorPickerForInput(colorInputElement) {
   }
   if (activeColorInputElement && activeColorInputElement !== colorInputElement) {
     closeColorPicker();
+  }
+  const colorPickerHost = colorPickerHostFor(colorInputElement);
+  if (globalColorPickerElement.parentElement !== colorPickerHost) {
+    colorPickerHost.append(globalColorPickerElement);
   }
   activeColorInputElement = colorInputElement;
   activeColorHex = hexColorOrEmpty(colorInputElement.value) || "#000000";
@@ -1738,10 +1759,30 @@ function openColorPickerForInput(colorInputElement) {
   window.requestAnimationFrame(positionColorPicker);
 }
 /**
+ * 把取色器从它可能所在的 dialog 里还回 body 原位。
+ *
+ * 参照节点必须现取：globalColorPickerHomeNextSibling 那个兄弟自己就是一只 <dialog>，
+ * 而惰性卸载（editor-dialogs.js）会把它摘离 DOM。拿着一个已脱离文档的节点去 insertBefore
+ * 会抛 NotFoundError —— 于是 closeColorPicker 后面的「隐藏面板」全被跳过，取色器就这么
+ * 亮着被 dialog 一起摘走。取不到活的参照就退化成 append，位置差一点也好过面板关不上。
+ */
+function returnColorPickerToBody() {
+  if (globalColorPickerElement.parentElement === document.body) {
+    return;
+  }
+  const anchor =
+    globalColorPickerHomeNextSibling?.isConnected ? globalColorPickerHomeNextSibling : null;
+  document.body.insertBefore(globalColorPickerElement, anchor);
+}
+/**
  * 关闭取色器面板，并在颜色确实变化时补发 change 事件。拖动过程中只派发 input（实时预览），
  * 收尾才补一次 change：调用方普遍把 change 当作「一次编辑结束」的提交点，只有此时才写历史。
  */
 function closeColorPicker() {
+  // 先把它从 dialog 里还回 body 原位，无论有没有 active 输入框：留在 dialog 里的话，
+  // dialog 关闭一帧后会被惰性卸载（editor-dialogs.js），取色器会连着被摘离文档
+  // —— 之后 document.getElementById 都找不到它，只能靠这里的模块引用重新挂回去。
+  returnColorPickerToBody();
   if (!activeColorInputElement) {
     return;
   }
@@ -4281,7 +4322,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260921192957";
+          ".jpg?v=2609211953";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -27695,6 +27736,24 @@ document.addEventListener("pointerdown", documentPointerDownCaptureEvent => {
     closeColorPicker();
   }
 });
+// dialog 以任何方式关闭时取色器都要收拾干净：它可能正挂在那只 dialog 里（见 colorPickerHostFor），
+// 而 dialog 关闭一帧后会被惰性卸载（editor-dialogs.js）—— 留在里面的取色器会连着被摘离文档。
+// Esc 关闭不会有 pointerdown，所以不能只靠上面那条兜。close 事件不冒泡，只能在捕获阶段听。
+//
+// 这里必须走完整的 closeColorPicker（它会隐藏面板并补发 change），不能只把活跃输入框清掉：
+// activeColorInputElement 的 isConnected 判据**认不出已脱离文档的取色器**，于是面板会一直
+// 保持可见；等 dialog 被摘走，那个还亮着的面板连同 hidden=false 的状态一起消失，下次打开
+// 同一只 dialog 时又原样冒出来。判据收紧到「取色器就挂在这只正在关闭的 dialog 里」：
+// 文档里别的元素也会发 close，无差别收起会把侧栏输入框刚打开的面板一起关掉。
+document.addEventListener(
+  "close",
+  closeEvent => {
+    if (closeEvent.target?.contains?.(globalColorPickerElement)) {
+      closeColorPicker();
+    }
+  },
+  true
+);
 new MutationObserver(mutationRecords => {
   for (const mutationRecord of mutationRecords) {
     for (const addedNode of mutationRecord.addedNodes) {
