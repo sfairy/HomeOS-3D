@@ -15,16 +15,16 @@ const {
   normalizedTextOf
 } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/state-entry.js", import.meta.url))
-  : import("/static/utils/state-entry.js?v=20260921152526"));
+  : import("/static/utils/state-entry.js?v=20260921192957"));
 const { entityDomainFromId } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/entities.js", import.meta.url))
-  : import("/static/utils/entities.js?v=20260921152526"));
+  : import("/static/utils/entities.js?v=20260921192957"));
 const { apiErrorMessage } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/api-error.js", import.meta.url))
-  : import("/static/utils/api-error.js?v=20260921152526"));
+  : import("/static/utils/api-error.js?v=20260921192957"));
 const { INTERACTION_PAGE_OPTIONS } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/interaction-pages.js", import.meta.url))
-  : import("/static/utils/interaction-pages.js?v=20260921152526"));
+  : import("/static/utils/interaction-pages.js?v=20260921192957"));
 // 数值换算与夹取（唯一实现仍在 utils/numbers.js）：运行侧大量几何 / 光照 / 面板字段都要过它，
 // 缺了这条桥，各模块就会各自再造一份口径不同的夹取与换算。
 const {
@@ -34,7 +34,7 @@ const {
   finiteNumberOrNull
 } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/numbers.js", import.meta.url))
-  : import("/static/utils/numbers.js?v=20260921152526"));
+  : import("/static/utils/numbers.js?v=20260921192957"));
 
 export {
   INTERACTION_PAGE_OPTIONS,

@@ -8,18 +8,18 @@
  * closedRouteSensorIds 记录用户意图。舞台命令：presence-top-view / presence-3d-view /
  * presence-preview-walk / presence-show-hit-range。
  */
-import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=20260921152526";
-import { mountInteraction3d } from "../core/runtime.js?v=20260921152526";
+import { openPresenceFocusEditor } from "./presence-focus-editor.js?v=20260921192957";
+import { mountInteraction3d } from "../core/runtime.js?v=20260921192957";
 import {
   validPresenceRoute,
   snapsToPresenceStart,
   PRESENCE_TRIGGER_MODES,
   presenceTriggerIsTimed
-} from "./presence-motion.js?v=20260921152526";
-import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260921152526";
-import { randomUuid } from "/static/utils/random-id.js?v=20260921152526";
-import { capturePointer } from "/static/utils/pointer-capture.js?v=20260921152526";
-import { serializeEditorDraft } from "../core/editor-save-status.js?v=20260921152526";
+} from "./presence-motion.js?v=20260921192957";
+import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260921192957";
+import { randomUuid } from "/static/utils/random-id.js?v=20260921192957";
+import { capturePointer } from "/static/utils/pointer-capture.js?v=20260921192957";
+import { serializeEditorDraft } from "../core/editor-save-status.js?v=20260921192957";
 /**
  * 打开人在传感器编辑对话框。
  */
@@ -98,7 +98,7 @@ export async function openPresenceEditor({
   styleLinkElement.rel = "stylesheet";
   // 样式与 3D 预览的 runtime.css 是两套：这里只加载编辑器自身的样式表。
   styleLinkElement.href =
-    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=20260921152526";
+    "/api/v1/modules/interaction3d/presence/presence-editor.css?v=20260921192957";
   const dialogElement = createElement("dialog", "", "i3d-editor i3d-presence-editor");
   dialogElement.setAttribute("aria-label", manageBindings ? "配置安防" : "人物与行走路线");
   // 记下打开前的焦点，关闭时还回去，键盘用户不会丢失位置。

@@ -25,9 +25,9 @@ import {
   normalizeHex,
   resolveTokens,
   rgbTriplet,
-} from "../auth/scene/appearance.js?v=20260921152526";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260921152526";
-import { apiFetch } from "../utils/api-fetch.js?v=20260921152526";
+} from "../auth/scene/appearance.js?v=20260921192957";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260921192957";
+import { apiFetch } from "../utils/api-fetch.js?v=20260921192957";
 
 /** 面板用到的元素。全部取自 index.html 的 #appearance-dialog。 */
 const dialog = document.getElementById("appearance-dialog");
@@ -117,6 +117,23 @@ function repaint() {
   applyPreview(tokens);
 }
 
+/**
+ * 给每枚色点染上所属预设的颜色。
+ *
+ * 必须走 CSSOM 赋值，不能写成 `style="--dot:…"`：主应用的 CSP 是 `style-src 'self'`，
+ * 内联 style 属性会被浏览器直接拦掉 —— 色点全变成透明，页面上只剩一条控制台报错。
+ * 这一条与文件头「即时预览用 setProperty」是同一个理由。
+ */
+function paintPresetDots() {
+  for (const button of presetList.querySelectorAll(".appearance-preset")) {
+    const preset = PRESETS.find((item) => item.id === button.dataset.preset);
+    if (!preset) continue;
+    for (const dot of button.querySelectorAll("[data-dot]")) {
+      dot.style.setProperty("--dot", preset.colors[dot.dataset.dot] || "transparent");
+    }
+  }
+}
+
 /** 建预设卡片。只在打开面板时建一次（内容不会变）。 */
 function buildPresetCards() {
   if (!presetList || presetList.childElementCount) return;
@@ -124,14 +141,13 @@ function buildPresetCards() {
     (preset) => `
       <button class="appearance-preset" type="button" role="radio" aria-checked="false" data-preset="${preset.id}">
         <span class="appearance-preset-dots" aria-hidden="true">
-          ${CONFIGURABLE.map(
-            (name) => `<i style="--dot:${preset.colors[name]}"></i>`
-          ).join("")}
+          ${CONFIGURABLE.map((name) => `<i data-dot="${name}"></i>`).join("")}
         </span>
         <strong>${preset.label}</strong>
         <small>${preset.hint}</small>
       </button>`
   ).join("");
+  paintPresetDots();
   presetList.addEventListener("click", (event) => {
     const button = event.target.closest(".appearance-preset");
     if (!button) return;

@@ -10,9 +10,9 @@
 import {
   readFromMapOrRecord,
   resolveStateEntryIn
-} from "../../utils/state-entry.js?v=20260921152526";
+} from "../../utils/state-entry.js?v=20260921192957";
 // 「按 ID 取域」只有一份实现；这里保留外层 `toLowerCase()`，因为只有这个消费方需要小写域。
-import { entityDomainFromId } from "../../utils/entities.js?v=20260921152526";
+import { entityDomainFromId } from "../../utils/entities.js?v=20260921192957";
 
 // 这些域的「开 / 关」语义天然成立，直接按 state 判定。
 const ON_OFF_DOMAINS_SET = new Set([

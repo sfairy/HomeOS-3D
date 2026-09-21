@@ -7,7 +7,7 @@
  * `content` 按菜单内容高（scrollHeight）取。内容高度必须在写好 maxHeight 之后才读，
  * 否则量到的是未受限的高度，翻转判断会提前。
  */
-import { clampNumber } from "../utils/numbers.js?v=20260921152526";
+import { clampNumber } from "../utils/numbers.js?v=20260921192957";
 
 /**
  * 摆一个浮动菜单，返回解出的几何量（调用方与测试可据此再定位）。

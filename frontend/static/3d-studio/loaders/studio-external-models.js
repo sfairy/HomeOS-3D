@@ -11,20 +11,20 @@
 import {
   applyCarFinish,
   smoothCarSurfaceNormals
-} from "../materials/studio-car-finish.js?v=20260921151446";
+} from "../materials/studio-car-finish.js?v=20260921192957";
 import {
   repairGlassCabinetBack,
   repairWallCabinetSides
-} from "../materials/studio-cabinet-back.js?v=20260921151446";
-import { finite } from "./studio-normalization.js?v=20260921151446";
+} from "../materials/studio-cabinet-back.js?v=20260921192957";
+import { finite } from "./studio-normalization.js?v=20260921192957";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=20260921151446";
+import { debugLog } from "../../utils/debug-log.js?v=20260921192957";
 // 暖阳原木（warm-wood）主题专用的两个模块：地板材质着色器增强与树叶几何放大。
 // 两者都只在 palette.warmWood 为真时被调用，其它主题下不产生任何效果。
-import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=20260921151446";
-import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=20260921151446";
-const HOME_LITE_MODEL_VERSION = "20260921151446";
-const APPLIANCE_LITE_MODEL_VERSION = "20260921151446";
+import { decorateWarmFloor } from "../studio/studio-scene-style.js?v=20260921192957";
+import { enlargeWarmLeaves } from "../materials/studio-warm-foliage.js?v=20260921192957";
+const HOME_LITE_MODEL_VERSION = "20260921192957";
+const APPLIANCE_LITE_MODEL_VERSION = "20260921192957";
 /**
  * 自带独立 GLB 资源的异形柱形：方形柱沿用原先烘焙好的方盒，因此仍留在普通的
  * "pillar" 模型上，物件本身的行为保持不变。
@@ -91,262 +91,262 @@ function defineApplianceItemModel(applianceModelKey, applianceModelOverrides) {
     fallbackUrl:
       "/static/3d-studio/models/" +
       applianceModelKey +
-      ".glb?v=20260921151446",
+      ".glb?v=20260921192957",
     ...applianceModelOverrides
   });
 }
 const EXTERNAL_ITEM_MODELS = Object.freeze({
   sofa: {
-    url: "/static/3d-studio/models/sofa-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/sofa.glb?v=20260921151446",
+    url: "/static/3d-studio/models/sofa-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/sofa.glb?v=20260921192957",
     scaleBasis: [2.2, 0.82, 0.9],
     preserveOrigin: true,
     groundAlign: true,
     groundOffset: -0.008
   },
-  coffeetable: defineHomeItemModel("coffeetable", "20260921151446", {
+  coffeetable: defineHomeItemModel("coffeetable", "20260921192957", {
     scaleBasis: [1.7, 0.5, 1.25],
     preserveOrigin: true
   }),
-  squarecoffeetable: defineHomeItemModel("squarecoffeetable", "20260921151446", {
-    url: "/static/3d-studio/models/squarecoffeetable-lite.glb?v=20260921151446",
+  squarecoffeetable: defineHomeItemModel("squarecoffeetable", "20260921192957", {
+    url: "/static/3d-studio/models/squarecoffeetable-lite.glb?v=20260921192957",
     fallbackUrl:
-      "/static/3d-studio/models/squarecoffeetable.glb?v=20260921151446",
+      "/static/3d-studio/models/squarecoffeetable.glb?v=20260921192957",
     scaleBasis: [1.4, 0.46, 0.7],
     preserveOrigin: true
   }),
-  tvstand: defineHomeItemModel("tvstand", "20260921151446", {
-    url: "/static/3d-studio/models/tvstand-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/tvstand.glb?v=20260921151446",
+  tvstand: defineHomeItemModel("tvstand", "20260921192957", {
+    url: "/static/3d-studio/models/tvstand-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/tvstand.glb?v=20260921192957",
     scaleBasis: [1.8, 0.48, 0.42],
     preserveOrigin: true
   }),
-  rug: defineHomeItemModel("rug", "20260921151446", {
+  rug: defineHomeItemModel("rug", "20260921192957", {
     scaleBasis: [2, 0.012, 1.4],
     preserveOrigin: true
   }),
-  plant: defineHomeItemModel("plant", "20260921151446", {
+  plant: defineHomeItemModel("plant", "20260921192957", {
     scaleBasis: [0.75, 1.6, 0.75],
     preserveOrigin: true
   }),
-  bed: defineHomeItemModel("bed", "20260921151446", {
+  bed: defineHomeItemModel("bed", "20260921192957", {
     scaleBasis: [1.8, 0.62, 2],
     preserveOrigin: true,
     geometryRevision: "20260908-base-inset-v1"
   }),
-  nightstand: defineHomeItemModel("nightstand", "20260921151446", {
+  nightstand: defineHomeItemModel("nightstand", "20260921192957", {
     scaleBasis: [0.5, 0.55, 0.42],
     preserveOrigin: true
   }),
-  vanity: defineHomeItemModel("vanity", "20260921151446", {
+  vanity: defineHomeItemModel("vanity", "20260921192957", {
     scaleBasis: [1.2, 1.55, 0.5],
     preserveOrigin: true
   }),
-  desk: defineHomeItemModel("desk", "20260921151446", {
+  desk: defineHomeItemModel("desk", "20260921192957", {
     scaleBasis: [1.4, 0.76, 0.65],
     preserveOrigin: true
   }),
-  bookcase: defineHomeItemModel("bookcase", "20260921151446", {
+  bookcase: defineHomeItemModel("bookcase", "20260921192957", {
     scaleBasis: [1.2, 1.9, 0.32],
     preserveOrigin: true
   }),
   smallcar: {
-    url: "/static/3d-studio/models/car-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/car.glb?v=20260921151446"
+    url: "/static/3d-studio/models/car-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/car.glb?v=20260921192957"
   },
   airoutlet: {
-    url: "/static/3d-studio/models/air-outlet-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/air-outlet.glb?v=20260921151446"
+    url: "/static/3d-studio/models/air-outlet-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/air-outlet.glb?v=20260921192957"
   },
   pipelinewaterpurifier: {
-    url: "/static/3d-studio/models/pipeline-water-purifier-lite.glb?v=20260921151446",
+    url: "/static/3d-studio/models/pipeline-water-purifier-lite.glb?v=20260921192957",
     fallbackUrl:
-      "/static/3d-studio/models/pipeline-water-purifier.glb?v=20260921151446"
+      "/static/3d-studio/models/pipeline-water-purifier.glb?v=20260921192957"
   },
   tea_bar_machine: {
-    url: "/static/3d-studio/models/tea-bar-machine-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/tea-bar-machine.glb?v=20260921151446"
+    url: "/static/3d-studio/models/tea-bar-machine-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/tea-bar-machine.glb?v=20260921192957"
   },
   elevator: {
-    url: "/static/3d-studio/models/elevator-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/elevator.glb?v=20260921151446"
+    url: "/static/3d-studio/models/elevator-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/elevator.glb?v=20260921192957"
   },
   steelstairs: {
-    url: "/static/3d-studio/models/steel-stairs-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/steel-stairs.glb?v=20260921151446"
+    url: "/static/3d-studio/models/steel-stairs-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/steel-stairs.glb?v=20260921192957"
   },
   glassstairs: {
-    url: "/static/3d-studio/models/glass-stairs-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/glass-stairs.glb?v=20260921151446"
+    url: "/static/3d-studio/models/glass-stairs-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/glass-stairs.glb?v=20260921192957"
   },
   piano: {
-    url: "/static/3d-studio/models/piano-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/piano.glb?v=20260921151446",
+    url: "/static/3d-studio/models/piano-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/piano.glb?v=20260921192957",
     materialRevision: "20260914-piano-surface-shadow-v1",
     preserveAspect: true
   }
 });
 export const ALL_ITEM_MODELS = Object.freeze({
   ...EXTERNAL_ITEM_MODELS,
-  bed: defineHomeItemModel("bed", "20260921151446", {
+  bed: defineHomeItemModel("bed", "20260921192957", {
     scaleBasis: [1.8, 0.62, 2],
     preserveOrigin: true,
     geometryRevision: "20260908-base-inset-v1"
   }),
-  nightstand: defineHomeItemModel("nightstand", "20260921151446", {
+  nightstand: defineHomeItemModel("nightstand", "20260921192957", {
     scaleBasis: [0.5, 0.55, 0.42],
     preserveOrigin: true
   }),
-  vanity: defineHomeItemModel("vanity", "20260921151446", {
+  vanity: defineHomeItemModel("vanity", "20260921192957", {
     scaleBasis: [1.2, 1.55, 0.5],
     preserveOrigin: true
   }),
-  desk: defineHomeItemModel("desk", "20260921151446", {
+  desk: defineHomeItemModel("desk", "20260921192957", {
     scaleBasis: [1.4, 0.76, 0.65],
     preserveOrigin: true
   }),
-  bookcase: defineHomeItemModel("bookcase", "20260921151446", {
-    url: "/static/3d-studio/models/bookcase-lite.glb?v=20260921151446",
+  bookcase: defineHomeItemModel("bookcase", "20260921192957", {
+    url: "/static/3d-studio/models/bookcase-lite.glb?v=20260921192957",
     scaleBasis: [1.2, 1.9, 0.32],
     preserveOrigin: true
   }),
-  aquarium: defineHomeItemModel("aquarium", "20260921151446", {
+  aquarium: defineHomeItemModel("aquarium", "20260921192957", {
     scaleBasis: [1.5, 1.4, 0.55],
     preserveOrigin: true
   }),
-  table: defineHomeItemModel("table", "20260921151446", {
+  table: defineHomeItemModel("table", "20260921192957", {
     scaleBasis: [2.4, 0.82, 1.8],
     preserveOrigin: true
   }),
-  rounddiningtable: defineHomeItemModel("rounddiningtable", "20260921151446", {
+  rounddiningtable: defineHomeItemModel("rounddiningtable", "20260921192957", {
     scaleBasis: [2.2, 0.78, 2.2],
     preserveOrigin: true
   }),
-  chair: defineHomeItemModel("chair", "20260921151446", {
+  chair: defineHomeItemModel("chair", "20260921192957", {
     scaleBasis: [0.5, 0.86, 0.5],
     preserveOrigin: true
   }),
-  bar: defineHomeItemModel("bar", "20260921151446", {
+  bar: defineHomeItemModel("bar", "20260921192957", {
     scaleBasis: [2.2, 1.05, 0.65],
     preserveOrigin: true
   }),
-  sideboard: defineHomeItemModel("sideboard", "20260921151446", {
+  sideboard: defineHomeItemModel("sideboard", "20260921192957", {
     scaleBasis: [1.6, 2.2, 0.45],
     preserveOrigin: true
   }),
-  shoecabinet: defineHomeItemModel("shoecabinet", "20260921151446", {
+  shoecabinet: defineHomeItemModel("shoecabinet", "20260921192957", {
     scaleBasis: [1.8, 2.25, 0.42],
     preserveOrigin: true
   }),
-  cabinet: defineHomeItemModel("cabinet", "20260921151446", {
+  cabinet: defineHomeItemModel("cabinet", "20260921192957", {
     scaleBasis: [1.6, 1.9, 0.45],
     preserveOrigin: true
   }),
-  glasscabinet: defineHomeItemModel("glasscabinet", "20260921151446", {
-    url: "/static/3d-studio/models/glasscabinet-lite.glb?v=20260921151446",
+  glasscabinet: defineHomeItemModel("glasscabinet", "20260921192957", {
+    url: "/static/3d-studio/models/glasscabinet-lite.glb?v=20260921192957",
     scaleBasis: [1.2, 1.9, 0.4],
     preserveOrigin: true
   }),
-  shelf: defineHomeItemModel("shelf", "20260921151446", {
+  shelf: defineHomeItemModel("shelf", "20260921192957", {
     scaleBasis: [1.2, 1.8, 0.45],
     preserveOrigin: true
   }),
-  wallcabinet: defineHomeItemModel("wallcabinet", "20260921151446", {
-    url: "/static/3d-studio/models/wallcabinet-lite.glb?v=20260921151446",
+  wallcabinet: defineHomeItemModel("wallcabinet", "20260921192957", {
+    url: "/static/3d-studio/models/wallcabinet-lite.glb?v=20260921192957",
     scaleBasis: [1.5, 0.82, 0.35],
     preserveOrigin: true
   }),
-  kitchenbase: defineHomeItemModel("kitchenbase", "20260921151446", {
+  kitchenbase: defineHomeItemModel("kitchenbase", "20260921192957", {
     scaleBasis: [2.4, 0.85, 0.6],
     preserveOrigin: true
   }),
-  kitchensink: defineHomeItemModel("kitchensink", "20260921151446", {
+  kitchensink: defineHomeItemModel("kitchensink", "20260921192957", {
     scaleBasis: [1.2, 0.85, 0.6],
     preserveOrigin: true
   }),
-  kitchencooktop: defineHomeItemModel("kitchencooktop", "20260921151446", {
+  kitchencooktop: defineHomeItemModel("kitchencooktop", "20260921192957", {
     scaleBasis: [1.2, 0.85, 0.6],
     preserveOrigin: true
   }),
-  basin: defineHomeItemModel("basin", "20260921151446", {
+  basin: defineHomeItemModel("basin", "20260921192957", {
     scaleBasis: [0.9, 0.88, 0.5],
     preserveOrigin: true
   }),
-  toilet: defineHomeItemModel("toilet", "20260921151446", {
+  toilet: defineHomeItemModel("toilet", "20260921192957", {
     scaleBasis: [0.42, 0.52, 0.7],
     preserveOrigin: true
   }),
-  squattoilet: defineHomeItemModel("squattoilet", "20260921151446", {
+  squattoilet: defineHomeItemModel("squattoilet", "20260921192957", {
     scaleBasis: [0.45, 0.18, 0.65],
     preserveOrigin: true
   }),
-  urinal: defineHomeItemModel("urinal", "20260921151446", {
+  urinal: defineHomeItemModel("urinal", "20260921192957", {
     scaleBasis: [0.38, 0.72, 0.34],
     preserveOrigin: true
   }),
-  shower: defineHomeItemModel("shower", "20260921151446", {
+  shower: defineHomeItemModel("shower", "20260921192957", {
     scaleBasis: [0.9, 2.1, 0.9],
     preserveOrigin: true
   }),
-  bathtub: defineHomeItemModel("bathtub", "20260921151446", {
+  bathtub: defineHomeItemModel("bathtub", "20260921192957", {
     scaleBasis: [1.7, 0.58, 0.78],
     preserveOrigin: true
   }),
-  glasspartition: defineHomeItemModel("glasspartition", "20260921151446", {
+  glasspartition: defineHomeItemModel("glasspartition", "20260921192957", {
     scaleBasis: [1.2, 2, 0.08],
     preserveOrigin: true
   }),
-  stairs: defineHomeItemModel("stairs", "20260921151446", {
+  stairs: defineHomeItemModel("stairs", "20260921192957", {
     scaleBasis: [1, 1.65, 2.8],
     preserveOrigin: true
   }),
-  pillar: defineHomeItemModel("pillar", "20260921151446", {
+  pillar: defineHomeItemModel("pillar", "20260921192957", {
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   }),
   // 异形柱必须有真实资源：替换外部模型时，程序化生成的柱体会被加载进来的 GLB 顶掉，而一个烘焙成方盒的模型会悄悄把所有非方形柱形都变成方形。
   // 这些网格与 studio-app.js 构建出的几何同源（见 gen-pillars.mjs），并共用柱体的 scaleBasis，因此物件仍保持 0.45 × 2.8 × 0.45 的占地与「底面在原点」的摆放约定。
   pillar_round: {
-    url: "/static/3d-studio/models/pillar-round-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/pillar-round.glb?v=20260921151446",
+    url: "/static/3d-studio/models/pillar-round-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/pillar-round.glb?v=20260921192957",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_semicircle: {
-    url: "/static/3d-studio/models/pillar-semicircle-lite.glb?v=20260921151446",
+    url: "/static/3d-studio/models/pillar-semicircle-lite.glb?v=20260921192957",
     fallbackUrl:
-      "/static/3d-studio/models/pillar-semicircle.glb?v=20260921151446",
+      "/static/3d-studio/models/pillar-semicircle.glb?v=20260921192957",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_quarter: {
-    url: "/static/3d-studio/models/pillar-quarter-lite.glb?v=20260921151446",
-    fallbackUrl: "/static/3d-studio/models/pillar-quarter.glb?v=20260921151446",
+    url: "/static/3d-studio/models/pillar-quarter-lite.glb?v=20260921192957",
+    fallbackUrl: "/static/3d-studio/models/pillar-quarter.glb?v=20260921192957",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
   pillar_quarterinner: {
-    url: "/static/3d-studio/models/pillar-quarterinner-lite.glb?v=20260921151446",
+    url: "/static/3d-studio/models/pillar-quarterinner-lite.glb?v=20260921192957",
     fallbackUrl:
-      "/static/3d-studio/models/pillar-quarterinner.glb?v=20260921151446",
+      "/static/3d-studio/models/pillar-quarterinner.glb?v=20260921192957",
     scaleBasis: [0.45, 2.8, 0.45],
     preserveOrigin: true
   },
-  curtain_left: defineHomeItemModel("curtain_left", "20260921151446", {
+  curtain_left: defineHomeItemModel("curtain_left", "20260921192957", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
-  curtain_right: defineHomeItemModel("curtain_right", "20260921151446", {
+  curtain_right: defineHomeItemModel("curtain_right", "20260921192957", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
-  curtain_split: defineHomeItemModel("curtain_split", "20260921151446", {
+  curtain_split: defineHomeItemModel("curtain_split", "20260921192957", {
     scaleBasis: [1.8, 2.4, 0.18],
     preserveOrigin: true
   }),
   rounddiningtable_turntable: defineHomeItemModel(
     "rounddiningtable_turntable",
-    "20260921151446",
+    "20260921192957",
     {
       scaleBasis: [2.2, 0.78, 2.2],
       preserveOrigin: true
