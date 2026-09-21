@@ -16,7 +16,7 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=2609220052";
+} from "../editor-utils.js?v=2609220052";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -26,7 +26,7 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=2609220052";
+} from "../editor-component-collections.js?v=2609220052";
 
 export function createStyleApplyDialogs(ctx) {
 

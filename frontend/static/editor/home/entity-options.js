@@ -14,19 +14,19 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=2609220052";
-import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=2609220052";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=2609220052";
+} from "../../shared/action-rules.js?v=2609220052";
+import { createIconVisibilityVirtualEntity } from "../../shared/virtual-entities.js?v=2609220052";
+import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../../utils/entities.js?v=2609220052";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=2609220052";
+} from "../component-tree.js?v=2609220052";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../renderer/core/registry.js?v=2609220052";
+} from "../../renderer/core/registry.js?v=2609220052";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -39,9 +39,9 @@ import {
   reorderedPopupModules,
   restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=2609220052";
-import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609220052";
-import { resolveStateEntry, stateTextOf } from "../utils/state-entry.js?v=2609220052";
+} from "../editor-document-management.js?v=2609220052";
+import { positionFloatingMenu } from "../../shared/menu-positioning.js?v=2609220052";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609220052";
 
 export function createEntityOptions(ctx) {
 
