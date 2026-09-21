@@ -131,6 +131,8 @@ import {
   syncSharedComponentReferenceOrder
 } from "./editor-component-collections.js?v=2609212122";
 import {
+  applyInspectorFields,
+  applyInspectorToggles,
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
@@ -7251,6 +7253,104 @@ function fitTimeComponentToDimensions(
 ) {
   fitInspectorComponentToDimensions(timeFitComponent, timeFitProperties, timeComponentDimensions);
 }
+// 时间 / 日期 / 天气三个面板的回填描述表（其余组件仍手写，逐个换成表即可）。
+// 每行 = 一个控件 ← 一个来源，取值形状见 editor-basic-inspectors.js 的 applyInspectorFields：
+//   { constant }                  固定文案（组件类型标题）
+//   { metric: "left" }            度量值（位置百分比 / 缩放 / 旋转）
+//   { property, fallback }        文本或颜色：空值与缺字段都回落
+//   { property, fallback, clamp/multiply/transform }  数值：默认值、夹取、倍率、归一
+const TIME_INSPECTOR_FIELDS = [
+  { element: timeTypeTextInputElement, constant: "时间" },
+  { element: timeLabelTextInputElement, property: "label", fallback: "" },
+  { element: timeColorInputElement, property: "color", fallback: "#248eb2" },
+  { element: timeFontSizeInputElement, property: "fontSize", fallback: 96, clamp: [12, 500] },
+  { element: timeFontWeightInputElement, property: "fontWeight", transform: normalizedFontWeight },
+  { element: timeLetterSpacingInputElement, property: "letterSpacing", fallback: 2.2, clamp: [-20, 100] },
+  // opacity 存 0~1，面板按百分比显示。
+  { element: timeOpacityInputElement, property: "opacity", fallback: 1, multiply: 100, clamp: [0, 100] },
+  { element: timeLeftInputElement, metric: "left" },
+  { element: timeTopInputElement, metric: "top" },
+  { element: timeScaleInputElement, metric: "scale" },
+  { element: timeRotationInputElement, metric: "rotation" }
+];
+const TIME_INSPECTOR_TOGGLES = [
+  {
+    container: timeHourFormatElement,
+    dataset: "timeHourFormat",
+    attribute: "time-hour-format",
+    // 时分制只在显式 true 时算 12 小时制，老文档缺字段走 24 小时制。
+    active: timeProperties => (timeProperties.hour12 === true ? "12" : "24")
+  },
+  {
+    container: timeSecondsElement,
+    dataset: "timeSeconds",
+    attribute: "time-seconds",
+    active: timeProperties => (timeProperties.showSeconds === true ? "on" : "off")
+  }
+];
+const DATE_INSPECTOR_FIELDS = [
+  { element: dateTypeTextInputElement, constant: "日期" },
+  { element: dateLabelTextInputElement, property: "label", fallback: "" },
+  { element: datePrimaryColorInputElement, property: "primaryColor", fallback: "#8d9296" },
+  { element: datePrimarySizeInputElement, property: "primarySize", fallback: 36, clamp: [12, 500] },
+  { element: datePrimaryWeightInputElement, property: "primaryWeight", transform: normalizedFontWeight },
+  { element: datePrimarySpacingInputElement, property: "primarySpacing", fallback: 1, clamp: [-20, 100] },
+  { element: dateLunarColorInputElement, property: "lunarColor", fallback: "#7f878c" },
+  // 农历字号下限比主文案低 2：副行字号本来就小。
+  { element: dateLunarSizeInputElement, property: "lunarSize", fallback: 24, clamp: [10, 500] },
+  { element: dateLunarWeightInputElement, property: "lunarWeight", transform: normalizedFontWeight },
+  { element: dateLunarSpacingInputElement, property: "lunarSpacing", fallback: 1, clamp: [-20, 100] },
+  { element: dateLineGapInputElement, property: "lineGap", fallback: 8, clamp: [0, 200] },
+  { element: dateOpacityInputElement, property: "opacity", fallback: 1, multiply: 100, clamp: [0, 100] },
+  { element: dateLeftInputElement, metric: "left" },
+  { element: dateTopInputElement, metric: "top" },
+  { element: dateScaleInputElement, metric: "scale" },
+  { element: dateRotationInputElement, metric: "rotation" }
+];
+const DATE_INSPECTOR_TOGGLES = [
+  {
+    container: dateWeekdayElement,
+    dataset: "dateWeekday",
+    attribute: "date-weekday",
+    // 「显示星期」默认开（只在显式 false 时算关），「显示农历」默认关（只在显式 true 时算开）：
+    // 用严格比较而非取反，避免 undefined 被误判成另一档。
+    active: dateProperties => (dateProperties.showWeekday === false ? "off" : "on")
+  },
+  {
+    container: dateLunarElement,
+    dataset: "dateLunar",
+    attribute: "date-lunar",
+    active: dateProperties => (dateProperties.showLunar === true ? "on" : "off")
+  }
+];
+const WEATHER_INSPECTOR_FIELDS = [
+  { element: weatherTypeTextInputElement, constant: "天气" },
+  { element: weatherLabelTextInputElement, property: "label", fallback: "" },
+  { element: weatherIconSizeInputElement, property: "iconSize", fallback: 64, clamp: [12, 500] },
+  { element: weatherIconGapInputElement, property: "iconGap", fallback: 22, clamp: [0, 300] },
+  { element: weatherTemperatureColorInputElement, property: "temperatureColor", fallback: "#aeb3b7" },
+  { element: weatherTemperatureSizeInputElement, property: "temperatureSize", fallback: 32, clamp: [12, 500] },
+  { element: weatherTemperatureWeightInputElement, property: "temperatureWeight", transform: normalizedFontWeight },
+  { element: weatherTemperatureSpacingInputElement, property: "temperatureSpacing", fallback: 1, clamp: [-20, 100] },
+  { element: weatherSecondaryColorInputElement, property: "secondaryColor", fallback: "#8d9296" },
+  { element: weatherSecondarySizeInputElement, property: "secondarySize", fallback: 18, clamp: [10, 500] },
+  { element: weatherSecondaryWeightInputElement, property: "secondaryWeight", transform: normalizedFontWeight },
+  { element: weatherSecondarySpacingInputElement, property: "secondarySpacing", fallback: 1, clamp: [-20, 100] },
+  { element: weatherLineGapInputElement, property: "lineGap", fallback: 7, clamp: [0, 200] },
+  { element: weatherOpacityInputElement, property: "opacity", fallback: 1, multiply: 100, clamp: [0, 100] },
+  { element: weatherLeftInputElement, metric: "left" },
+  { element: weatherTopInputElement, metric: "top" },
+  { element: weatherScaleInputElement, metric: "scale" },
+  { element: weatherRotationInputElement, metric: "rotation" }
+];
+const WEATHER_VISIBILITY_TOGGLES = [
+  // dataset 键 = 按钮的 data-weather-*-visible，判读的却是 properties 里的短名（iconVisible 等）：
+  // 两者不同名，所以 dataset 与 active 都要写全。
+  { container: weatherIconVisibleElement, dataset: "weatherIconVisible", active: weatherProperties => (weatherProperties.iconVisible !== false), ariaPressed: true },
+  { container: weatherTemperatureVisibleElement, dataset: "weatherTemperatureVisible", active: weatherProperties => (weatherProperties.temperatureVisible !== false), ariaPressed: true },
+  { container: weatherConditionVisibleElement, dataset: "weatherConditionVisible", active: weatherProperties => (weatherProperties.conditionVisible !== false), ariaPressed: true },
+  { container: weatherHumidityVisibleElement, dataset: "weatherHumidityVisible", active: weatherProperties => (weatherProperties.humidityVisible !== false), ariaPressed: true }
+];
 /**
  * 把时间组件的当前值回填到检查器。12/24 小时制与「显示秒」用 active class 表示选中（未写 aria-pressed，
  * 与天气/日期的分段控件写法保持历史一致）。字号、字距、透明度都做边界夹取：12~500、-20~100（允许负值做紧凑排版）、
@@ -7258,45 +7358,11 @@ function fitTimeComponentToDimensions(
  */
 function syncTimeInspector(timeComponent) {
   const timeProperties = timeComponent.properties || {};
-  const {
-    left: timeLeftValue,
-    top: timeTopValue,
-    scale: timeScaleValue,
-    rotation: timeRotationValue
-  } = inspectorComponentMetrics(timeComponent, activeProject.document);
-  timeTypeTextInputElement.value = "时间";
-  timeLabelTextInputElement.value = timeProperties.label || "";
-  for (const hourFormatButtonElement of timeHourFormatElement.querySelectorAll(
-    "[data-time-hour-format]"
-  )) {
-    hourFormatButtonElement.classList.toggle(
-      "active",
-      hourFormatButtonElement.dataset.timeHourFormat ===
-        (timeProperties.hour12 === true ? "12" : "24")
-    );
-  }
-  for (const secondsToggleElement of timeSecondsElement.querySelectorAll("[data-time-seconds]")) {
-    secondsToggleElement.classList.toggle(
-      "active",
-      secondsToggleElement.dataset.timeSeconds ===
-        (timeProperties.showSeconds === true ? "on" : "off")
-    );
-  }
-  timeColorInputElement.value = timeProperties.color || "#248eb2";
-  timeFontSizeInputElement.value = roundField(
-    clampNumber(Number(timeProperties.fontSize ?? 96), 12, 500)
-  );
-  timeFontWeightInputElement.value = roundField(normalizedFontWeight(timeProperties.fontWeight));
-  timeLetterSpacingInputElement.value = roundField(
-    clampNumber(Number(timeProperties.letterSpacing ?? 2.2), -20, 100)
-  );
-  timeOpacityInputElement.value = roundField(
-    clampNumber(Number(timeProperties.opacity ?? 1) * 100, 0, 100)
-  );
-  timeLeftInputElement.value = timeLeftValue;
-  timeTopInputElement.value = timeTopValue;
-  timeScaleInputElement.value = timeScaleValue;
-  timeRotationInputElement.value = timeRotationValue;
+  applyInspectorFields(TIME_INSPECTOR_FIELDS, {
+    properties: timeProperties,
+    metrics: inspectorComponentMetrics(timeComponent, activeProject.document)
+  });
+  applyInspectorToggles(TIME_INSPECTOR_TOGGLES, timeProperties);
   timeScaleInputElement.disabled = false;
   timeRotationInputElement.disabled = false;
 }
@@ -7312,61 +7378,15 @@ function fitDateComponentToDimensions(
   fitInspectorComponentToDimensions(dateFitComponent, dateFitProperties, dateComponentDimensions);
 }
 /**
- * 把日期组件的当前值回填到检查器。「显示星期」默认开（只在显式为 false 时算关）、「显示农历」默认关
- * （只在显式为 true 时算开），用严格比较而非取反，避免 undefined 被误判。主副文案各有字号（12~500 / 10~500）、
- * 字重、字距、行距（0~200）与颜色。
+ * 把日期组件的当前值回填到检查器。主副文案各有字号、字重、字距、行距与颜色，见上面的描述表。
  */
 function syncDateInspector(dateComponent) {
   const dateProperties = dateComponent.properties || {};
-  const {
-    left: dateLeftValue,
-    top: dateTopValue,
-    scale: dateScaleValue,
-    rotation: dateRotationValue
-  } = inspectorComponentMetrics(dateComponent, activeProject.document);
-  dateTypeTextInputElement.value = "日期";
-  dateLabelTextInputElement.value = dateProperties.label || "";
-  for (const weekdayButtonElement of dateWeekdayElement.querySelectorAll("[data-date-weekday]")) {
-    weekdayButtonElement.classList.toggle(
-      "active",
-      weekdayButtonElement.dataset.dateWeekday ===
-        (dateProperties.showWeekday === false ? "off" : "on")
-    );
-  }
-  for (const lunarToggleElement of dateLunarElement.querySelectorAll("[data-date-lunar]")) {
-    lunarToggleElement.classList.toggle(
-      "active",
-      lunarToggleElement.dataset.dateLunar === (dateProperties.showLunar === true ? "on" : "off")
-    );
-  }
-  datePrimaryColorInputElement.value = dateProperties.primaryColor || "#8d9296";
-  datePrimarySizeInputElement.value = roundField(
-    clampNumber(Number(dateProperties.primarySize ?? 36), 12, 500)
-  );
-  datePrimaryWeightInputElement.value = roundField(
-    normalizedFontWeight(dateProperties.primaryWeight)
-  );
-  datePrimarySpacingInputElement.value = roundField(
-    clampNumber(Number(dateProperties.primarySpacing ?? 1), -20, 100)
-  );
-  dateLunarColorInputElement.value = dateProperties.lunarColor || "#7f878c";
-  dateLunarSizeInputElement.value = roundField(
-    clampNumber(Number(dateProperties.lunarSize ?? 24), 10, 500)
-  );
-  dateLunarWeightInputElement.value = roundField(normalizedFontWeight(dateProperties.lunarWeight));
-  dateLunarSpacingInputElement.value = roundField(
-    clampNumber(Number(dateProperties.lunarSpacing ?? 1), -20, 100)
-  );
-  dateLineGapInputElement.value = roundField(
-    clampNumber(Number(dateProperties.lineGap ?? 8), 0, 200)
-  );
-  dateOpacityInputElement.value = roundField(
-    clampNumber(Number(dateProperties.opacity ?? 1) * 100, 0, 100)
-  );
-  dateLeftInputElement.value = dateLeftValue;
-  dateTopInputElement.value = dateTopValue;
-  dateScaleInputElement.value = dateScaleValue;
-  dateRotationInputElement.value = dateRotationValue;
+  applyInspectorFields(DATE_INSPECTOR_FIELDS, {
+    properties: dateProperties,
+    metrics: inspectorComponentMetrics(dateComponent, activeProject.document)
+  });
+  applyInspectorToggles(DATE_INSPECTOR_TOGGLES, dateProperties);
   dateScaleInputElement.disabled = false;
   dateRotationInputElement.disabled = false;
 }
@@ -7386,87 +7406,18 @@ function fitWeatherComponentToDimensions(
   );
 }
 /**
- * 把天气组件的当前值回填到检查器。四个显示开关（图标 / 温度 / 描述 / 湿度）用表格驱动，属性键到 dataset 键
- * 靠正则把驼峰转成短横线（weatherIconVisible → data-weather-icon-visible），加开关只要往表里补一行。
+ * 把天气组件的当前值回填到检查器。四个显示开关（图标 / 温度 / 描述 / 湿度）在描述表里，
+ * data 属性名由 dataset 键推导（weatherIconVisible → data-weather-icon-visible）。
  * 所有可选项默认都是「显示」（!== false），老文档缺字段时不会出现空白组件。
  */
 function syncWeatherInspector(weatherComponent) {
   const weatherProperties = weatherComponent.properties || {};
-  const {
-    left: weatherLeftValue,
-    top: weatherTopValue,
-    scale: weatherScaleValue,
-    rotation: weatherRotationValue
-  } = inspectorComponentMetrics(weatherComponent, activeProject.document);
   syncEntityPickerValue(weatherComponent);
-  weatherTypeTextInputElement.value = "天气";
-  weatherLabelTextInputElement.value = weatherProperties.label || "";
-  const visibilityToggleRows = [
-    [weatherIconVisibleElement, "weatherIconVisible", weatherProperties.iconVisible !== false],
-    [
-      weatherTemperatureVisibleElement,
-      "weatherTemperatureVisible",
-      weatherProperties.temperatureVisible !== false
-    ],
-    [
-      weatherConditionVisibleElement,
-      "weatherConditionVisible",
-      weatherProperties.conditionVisible !== false
-    ],
-    [
-      weatherHumidityVisibleElement,
-      "weatherHumidityVisible",
-      weatherProperties.humidityVisible !== false
-    ]
-  ];
-  for (const [toggleContainerElement, propertyKey, isToggleVisible] of visibilityToggleRows) {
-    for (const toggleElement of toggleContainerElement.querySelectorAll(
-      "[data-" + propertyKey.replace(/[A-Z]/g, letterChar => "-" + letterChar.toLowerCase()) + "]"
-    )) {
-      const toggleState = toggleElement.dataset[propertyKey];
-      toggleElement.classList.toggle("active", toggleState === (isToggleVisible ? "on" : "off"));
-      toggleElement.setAttribute(
-        "aria-pressed",
-        String(toggleState === (isToggleVisible ? "on" : "off"))
-      );
-    }
-  }
-  weatherIconSizeInputElement.value = roundField(
-    clampNumber(Number(weatherProperties.iconSize ?? 64), 12, 500)
-  );
-  weatherIconGapInputElement.value = roundField(
-    clampNumber(Number(weatherProperties.iconGap ?? 22), 0, 300)
-  );
-  weatherTemperatureColorInputElement.value = weatherProperties.temperatureColor || "#aeb3b7";
-  weatherTemperatureSizeInputElement.value = roundField(
-    clampNumber(Number(weatherProperties.temperatureSize ?? 32), 12, 500)
-  );
-  weatherTemperatureWeightInputElement.value = roundField(
-    normalizedFontWeight(weatherProperties.temperatureWeight)
-  );
-  weatherTemperatureSpacingInputElement.value = roundField(
-    clampNumber(Number(weatherProperties.temperatureSpacing ?? 1), -20, 100)
-  );
-  weatherSecondaryColorInputElement.value = weatherProperties.secondaryColor || "#8d9296";
-  weatherSecondarySizeInputElement.value = roundField(
-    clampNumber(Number(weatherProperties.secondarySize ?? 18), 10, 500)
-  );
-  weatherSecondaryWeightInputElement.value = roundField(
-    normalizedFontWeight(weatherProperties.secondaryWeight)
-  );
-  weatherSecondarySpacingInputElement.value = roundField(
-    clampNumber(Number(weatherProperties.secondarySpacing ?? 1), -20, 100)
-  );
-  weatherLineGapInputElement.value = roundField(
-    clampNumber(Number(weatherProperties.lineGap ?? 7), 0, 200)
-  );
-  weatherOpacityInputElement.value = roundField(
-    clampNumber(Number(weatherProperties.opacity ?? 1) * 100, 0, 100)
-  );
-  weatherLeftInputElement.value = weatherLeftValue;
-  weatherTopInputElement.value = weatherTopValue;
-  weatherScaleInputElement.value = weatherScaleValue;
-  weatherRotationInputElement.value = weatherRotationValue;
+  applyInspectorFields(WEATHER_INSPECTOR_FIELDS, {
+    properties: weatherProperties,
+    metrics: inspectorComponentMetrics(weatherComponent, activeProject.document)
+  });
+  applyInspectorToggles(WEATHER_VISIBILITY_TOGGLES, weatherProperties);
   weatherScaleInputElement.disabled = false;
   weatherRotationInputElement.disabled = false;
 }
