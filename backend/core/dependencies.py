@@ -130,21 +130,44 @@ def authenticated_short_lived_user(
 CurrentUser = Annotated[User, Depends(authenticated_short_lived_user)]
 
 
+def license_restricted_detail(license_status: str, message: str) -> dict:
+    """构造 LICENSE_RESTRICTED 的 403 detail —— 全仓唯一一处组装这三个字段。
+
+    前端只认 `code`，并靠 `licenseStatus` 决定要不要弹「去 /license 重新激活」的引导。
+    少一个字段不会报错，只会让那条引导永不出现：用户看到的是一句业务失败文案，然后卡在
+    死路上（`assets.py` 曾经就漏了 `licenseStatus`，是同一语义四份拷贝里唯一漏的那个）。
+
+    单独拆出这个纯函数是为了兼容异步调用点：`projects.py` 的能力码判定跑在工作线程里，
+    它自己 await 出 status 再调这里，形状仍然与同步调用点逐字相同。
+    """
+    return {
+        "code": "LICENSE_RESTRICTED",
+        "message": message,
+        "licenseStatus": license_status,
+    }
+
+
+def require_capability(request: Request, capability: str, message: str) -> None:
+    """能力码门禁：不允许就抛 403 LICENSE_RESTRICTED。
+
+    新增带门禁的路由请走这里，不要手写 HTTPException —— 手写的那几处字段已经在漂移了
+    （有一处漏 licenseStatus，另一处文案不同导致前端判不出同一类错误）。
+    """
+    if not request.app.state.license_service.allows(capability):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=license_restricted_detail(
+                request.app.state.license_service.status()["status"], message
+            ),
+        )
+
+
 def licensed_user(request: Request, user: CurrentUser) -> User:
     """在已登录基础上要求授权允许 `api` 能力，否则 403。
 
     403 的 detail 里回带当前授权状态，前端据此引导用户去 /license 处理。
     """
-    if not request.app.state.license_service.allows("api"):
-        license_status = request.app.state.license_service.status()
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "LICENSE_RESTRICTED",
-                "message": "当前授权状态不允许执行此操作。",
-                "licenseStatus": license_status["status"],
-            },
-        )
+    require_capability(request, "api", "当前授权状态不允许执行此操作。")
     return user
 
 
@@ -235,18 +258,9 @@ CurrentViewer = Annotated[ViewerPrincipal, Depends(authenticated_short_lived_vie
 def licensed_viewer(request: Request, viewer: CurrentViewer) -> ViewerPrincipal:
     """在已认证基础上要求授权允许 `api` 能力，否则 403。
 
-    与 licensed_user 的区别只在主体类型，门禁口径完全一致。
+    与 licensed_user 的区别只在主体类型，门禁口径完全一致（同一个 require_capability）。
     """
-    if not request.app.state.license_service.allows("api"):
-        license_status = request.app.state.license_service.status()
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "LICENSE_RESTRICTED",
-                "message": "当前授权状态不允许执行此操作。",
-                "licenseStatus": license_status["status"],
-            },
-        )
+    require_capability(request, "api", "当前授权状态不允许执行此操作。")
     return viewer
 
 

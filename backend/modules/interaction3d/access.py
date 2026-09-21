@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, Request
 
-from ...license.crypto import LicenseCryptoError, parse_timestamp
+from ...license.crypto import LicenseCryptoError
 from .config import validate_config
 
 # 本增量包自己的能力码；与编辑器的 'editor' 一起构成双重门禁。
@@ -68,25 +68,14 @@ def access_grant(request: Request) -> dict:
     lifetime = float(MAX_GRANT_SECONDS)
     # 未开启授权强制（开发 / 自托管部署）时没有租约可校验，直接用默认值。
     if service.settings.license_required:
-        with service.database.session_factory() as database:
-            state = service._state(database)
-            try:
-                payload = service.verifier.verify(state.signed_lease or '', state.instance_id)
-                # 起算点取「租约整体到期时间」与「各相关权益到期时间」中最早的那个。
-                deadlines = [parse_timestamp(payload['expiresAt'])]
-                for item in payload.get('entitlements', []):
-                    if not isinstance(item, dict):
-                        continue
-                    # 只关心与本页面有关的两个能力码，其它权益何时到期不影响这里。
-                    if item.get('code') not in {'editor', FEATURE}:
-                        continue
-                    if not item.get('expiresAt'):
-                        continue
-                    deadlines.append(parse_timestamp(item['expiresAt']))
-                lifetime = min(lifetime, (min(deadlines) - datetime.now(timezone.utc)).total_seconds())
-            except (LicenseCryptoError, KeyError, TypeError, ValueError) as error:
-                # 租约损坏或签名不匹配时宁可拒绝，不退化到「当没开授权强制」而放行。
-                raise HTTPException(403, detail='3D 交互授权校验失败。') from error
+        # 租约的读取与验签交给 LicenseService 的公开方法，本模块不碰它的内部成员：
+        # 「租约怎么验」的规则只有一份，改验签时不会漏掉这份拷贝。
+        try:
+            deadline = service.earliest_entitlement_expiry({'editor', FEATURE})
+        except (LicenseCryptoError, KeyError, TypeError, ValueError) as error:
+            # 租约损坏或签名不匹配时宁可拒绝，不退化到「当没开授权强制」而放行。
+            raise HTTPException(403, detail='3D 交互授权校验失败。') from error
+        lifetime = min(lifetime, (deadline - datetime.now(timezone.utc)).total_seconds())
         # 租约本身还在，但权益已经过期：同样不放行。
         if lifetime <= 0:
             raise HTTPException(403, detail='3D 交互授权已到期。')

@@ -12,7 +12,6 @@ import time
 from collections import OrderedDict, deque
 from datetime import datetime
 from typing import Annotated
-from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
@@ -21,7 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from ..core.canonical_json import canonical_json
 from ..core.dependencies import CurrentUser, CurrentViewer, DatabaseSession, authenticated_viewer
 from ..observability.global_log import event_context, safe_context
-from ..security.http_security import resolve_client_ip
+from ..security.http_security import resolve_client_ip, same_origin_request
 
 router = APIRouter(prefix='/logs', tags=['global-logs'])
 
@@ -130,14 +129,11 @@ class ClientLogLimiter:
 def _limit_client_log(request: Request, *, anonymous: bool) -> None:
     """对上报做限流，超限抛 429 并带 Retry-After。
 
-    限流器懒挂在全局日志对象上并复用它已有的锁：状态随日志对象一起存活，
-    不必为日志模块单独维护一个全局单例，也不会额外引入一把锁。
+    限流器挂在全局日志对象上（``shared_auxiliary``）并复用它已有的锁：状态随日志对象
+    一起存活，不必为日志模块单独维护一个全局单例，也不会额外引入一把锁。
     """
     store = request.app.state.global_log
-    with store._lock:
-        if not hasattr(store, 'client_limiter'):
-            store.client_limiter = ClientLogLimiter()
-        limiter = store.client_limiter
+    limiter = store.shared_auxiliary('client_log_limiter', ClientLogLimiter)
     # 取不到地址时归到同一个桶；走统一解析：配了可信代理按真实客户端计数，否则用 TCP 对端地址。
     address = resolve_client_ip(request)
     peer = address.ip or 'unknown'
@@ -293,10 +289,13 @@ def create_public_client_log_event(payload: ClientLogEvent, request: Request, re
     **限流必须排在两个「直接 204 丢掉」的过滤之前**：过滤是免费对外的一道判断，过滤之后的 204
     不消耗任何配额 —— 只要把 level 填成 info，同一个来源就能无限次地调这个接口。
     """
-    # Origin 必须与 Host 完全一致，避免被跨站页面当成日志注入通道。
-    # 这条放在限流之前：它是纯判断、不改任何状态，垃圾请求在这里就结束，不必占配额。
-    origin = urlsplit(request.headers.get('origin', ''))
-    if origin.scheme not in frozenset({'http', 'https'}) or origin.netloc.casefold() != request.headers.get('host', '').casefold():
+    # 同源校验：与 CSRF 中间件（main.py）共用同一份判据。
+    #
+    # 原先这里内联了一份，口径与 same_origin_request **相反**：没有 Origin 头就直接 403
+    # （脚本 / 内部调用被拒），且不认 app_base_url（反代下 Host 是内网地址时全部 403）。
+    # 结果是登录页 / 配对页的前端日志静默丢失 —— 通道是 fire-and-forget，丢了不报错，
+    # 只在真正需要排查时才发现日志是空的。跨站页面一定会带 Origin，公共判据同样挡得住。
+    if not same_origin_request(request):
         raise HTTPException(status_code=403, detail='日志只允许同源页面上报。')
     _limit_client_log(request, anonymous=True)
     # 未登录页面只允许上报异常：正常信息没有上报价值，也堵住刷日志的水位。直接 204 丢掉

@@ -11,6 +11,8 @@
 // （叶子模块，自己没有 import，也不碰 DOM / 注册表），所以「不碰 DOM、不读注册表」这条
 // 位置说明仍然成立；灯域判定与 `entityDomainFromId` 是同一份知识，不再内联。
 import { entityDomainFromId } from "../../utils/entities.js?v=2609211957";
+// 「属性里有没有可用数值」的唯一口径（空串 / 布尔算缺失）：与特效层共用同一份实现。
+import { isUsableNumber } from "../../utils/numbers.js?v=2609211957";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`。
 import { resolveStateEntry } from "../../utils/state-entry.js?v=2609211957";
 
@@ -104,13 +106,13 @@ export function lightRealtimeCapabilities(entityId = "", entityState = {}) {
     ? stateAttributes.supported_color_modes
     : [];
   const supportedFeatures = Number(stateAttributes.supported_features || 0);
-  // 判断某属性是否已上报可用数值：null / undefined 视为缺失，其余经 Number 转换后校验
-  // 有限性（HA 上报的数值属性可能是字符串）。调用点都希望「无效即等于没上报」，
-  // 例如 brightness 为空时才需要退回 supported_features 位掩码来推断能力。
+  // 判断某属性是否已上报可用数值。口径统一在 utils/numbers.js 的 isUsableNumber：
+  // null / undefined / 空串 / 布尔都算缺失，数字字符串算可用（HA 上报的数值属性可能是字符串）。
+  // 调用点都希望「无效即等于没上报」，例如 brightness 为空时才需要退回 supported_features
+  // 位掩码来推断能力。这里曾自持一份只判 Number.isFinite 的实现，把 "" 当成 0 而误判为
+  // 「支持亮度」，与特效层那份（明确排除空串）给出相反答案。
   const hasNumericAttribute = attributeName =>
-    stateAttributes[attributeName] !== null &&
-    stateAttributes[attributeName] !== undefined &&
-    Number.isFinite(Number(stateAttributes[attributeName]));
+    isUsableNumber(stateAttributes[attributeName]);
   // 亮度判定：onoff 模式是唯一的纯开关模式，其余（brightness / color_temp / 彩色）都隐含可调亮度。
   return {
     brightness:

@@ -276,7 +276,7 @@ def expected_request_scheme(request: Request) -> str:
     ``X-Forwarded-Proto`` 就采信它（浏览器脚本改不了这个头：``no-cors`` 下加它会触发
     preflight，普通表单更加不了头）；再否则看本连接自身的 scheme。
 
-    ``_origin_allowed`` 不能拿 **Origin 自己带的 scheme** 去拼白名单
+    ``origin_allowed`` 不能拿 **Origin 自己带的 scheme** 去拼白名单
     （``f'{parsed.scheme}://{host}'``），等于让攻击者页面自己声明「我是 https 同源」，同主机的
     明文页面（例如劫持了 80 端口的中间人）因此能驱动 HTTPS 站点的带 Cookie 写请求。scheme 是
     攻击者能决定的、Host 不是，所以 scheme 必须由部署形态给出，并在这一处集中判定一次。
@@ -294,8 +294,13 @@ def expected_request_scheme(request: Request) -> str:
     return (request.url.scheme or 'http').lower()
 
 
-def _origin_allowed(request: Request, origin: str) -> bool:
-    """给定一个 ``scheme://host`` 形态的来源，判断它是否属于本应用。"""
+def origin_allowed(request: Request, origin: str) -> bool:
+    """给定一个 ``scheme://host`` 形态的来源，判断它是否属于本应用。
+
+    这是「Origin 是否属于本应用」的唯一判据，HTTP 请求（``same_origin_request``）与
+    WebSocket 握手（``ha.websocket_origin_allowed``）共用 —— 两侧曾经各写一套，规则随即漂移：
+    WS 那套不查 ``app_base_url``，反代下会把合法连接判成跨站。
+    """
     parsed = urlsplit(origin)
     # Origin 必须是裸的 scheme://host：``http://evil@本机地址/`` 这类写法会让
     # 朴素的字符串比较误判为同源，因此带 userinfo / 路径 / 查询的一律拒绝。
@@ -327,19 +332,20 @@ def same_origin_request(request: Request) -> bool:
     """改状态的请求是否来自本应用（CSRF 第二道闸）。
 
     判定依据是浏览器无法伪造的这两个头：
-    - 有 ``Origin``：用 :func:`_origin_allowed` 比较；
+
+    - 有 ``Origin``：用 :func:`origin_allowed` 比较；
     - 只有 ``Referer``：取它的 scheme://host 做同样的比较（老浏览器表单提交）；
     - 两个都没有：放行。浏览器发起的跨站写请求一定带 Origin，缺头说明是
       脚本 / 本机工具（curl、健康检查、内部调用），它们本来也带不上受害者的 Cookie。
     """
     origin = request.headers.get('origin', '').strip()
     if origin:
-        return _origin_allowed(request, origin)
+        return origin_allowed(request, origin)
     referer = request.headers.get('referer', '').strip()
     if not referer:
         return True
     referer_origin = _origin_from_referer(referer)
-    return bool(referer_origin) and _origin_allowed(request, referer_origin)
+    return bool(referer_origin) and origin_allowed(request, referer_origin)
 
 
 def forwarded_headers_present(request: Request) -> bool:

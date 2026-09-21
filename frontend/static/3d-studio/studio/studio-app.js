@@ -60,6 +60,8 @@ import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609211957";
 import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609211957";
 import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609211957";
 import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609211957";
+// 3D 场景接口的超时预算：与编辑器桥（bridge/editor.js）读同一个常量，避免两侧各写一个字面量。
+import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609211957";
 // 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
 import { debugLog } from "../../utils/debug-log.js?v=2609211957";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
@@ -30466,7 +30468,7 @@ function createStageController() {
         since: savedSceneRecord.syncKey || ""
       });
       const sceneSyncResponse = await withRequestTimeout(
-        15000,
+        SCENE_REQUEST_TIMEOUT_MS,
         async sceneSyncSignal => {
           const sceneSyncHttpResponse = await fetch(
             "/api/v1/modules/interaction3d/scenes/" +

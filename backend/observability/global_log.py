@@ -243,6 +243,9 @@ class GlobalLogStore:
         # 只到秒级时读到过期内容。
         self._file_cache: tuple[tuple[int, int, int], list[dict[str, Any]]] | None = None
         self._file_revision = 0
+        # 挂在日志对象上的附加状态（如客户端日志限流器）：与日志对象同生共死，因而
+        # 「同一进程里先后建两个应用」各自持有自己的一份，不会互相污染。
+        self._auxiliary: dict[str, object] = {}
         try:
             self._prepare_directory()
         except OSError as error:
@@ -254,6 +257,23 @@ class GlobalLogStore:
             target=self._writer_loop, name="global-log-writer", daemon=True
         )
         self._writer.start()
+
+    def shared_auxiliary(self, key: str, factory):
+        """取挂在日志对象上的附加状态；第一次调用时用 ``factory()`` 建。
+
+        客户端日志限流器（见 api/global_logs.py）要复用日志对象已有的锁：状态随日志对象
+        一起存活，就不必为日志模块再维护一个全局单例，也不会额外引入第二把锁。
+
+        放成公开方法而不是让调用方直接读 ``_lock`` / 写新属性，是为了把「懒建 + 加锁」
+        这两件事收在一处 —— 调用方自己 ``hasattr`` 再赋值，就等于绕过了本对象的状态管理，
+        而且以后换锁实现时那些访问点不会跟着改。键用字符串让每个调用方各自命名，
+        不同调用方拿到的是不同对象。
+        """
+        with self._lock:
+            state = self._auxiliary.get(key)
+            if state is None:
+                state = self._auxiliary[key] = factory()
+            return state
 
     def _writer_loop(self) -> None:
         """后台写线程主体：批量刷盘 + 节流裁剪，直到 stop() 被调用。

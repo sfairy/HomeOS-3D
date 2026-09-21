@@ -64,7 +64,7 @@ from .api.icons import router as icons_router
 from .api.license import router as license_router
 from .modules.interaction3d.api import router as interaction3d_router
 from .api.projects import router as projects_router
-from .api.studio3d import router as studio3d_router
+from .api.studio3d import migrate_legacy_scene, router as studio3d_router
 from .security.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
 from .http.body_guard import RequestBodyGuard
 from .http.commissioning import has_rail, rail_states
@@ -322,6 +322,19 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
                 await asyncio.to_thread(sweep_user_assets_for_app, app)
             except Exception as error:  # noqa: BLE001 - 巡检是附加工作，启动不能因它失败
                 app.state.global_log.append('warning', '系统后台', '存储', f'用户素材巡检失败：{error}')
+            # 3D 户型图的旧数据迁移：把旧版仪表盘文档里的 studio3d 字段搬成独立草稿文件。
+            # 放在启动期一次性做，而不是挂在 GET /studio3d 上 —— 它写文件又改库，读接口带
+            # 副作用会让「同时打开两个页面」被锁串行化，也让冷启动的第一个读请求多一次写盘。
+            # 已有草稿文件时整体跳过（同一次启动内不必再扫全部文档）。
+            if not app_settings.studio3d_draft_path.is_file():
+                def _migrate_studio3d_draft() -> None:
+                    with app.state.database.session_factory() as session:
+                        migrate_legacy_scene(session, app_settings.studio3d_draft_path)
+                try:
+                    await asyncio.to_thread(_migrate_studio3d_draft)
+                except Exception as error:  # noqa: BLE001 - 迁移是附加工作，失败不阻断启动
+                    app.state.global_log.append(
+                        'warning', '系统后台', '存储', f'3D 户型图旧数据迁移失败：{error}')
             app.state.ha_connector = HAConnectorService(
                 app_settings,
                 app.state.database,

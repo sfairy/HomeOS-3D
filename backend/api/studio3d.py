@@ -99,18 +99,23 @@ def _read_draft(path: Path) -> dict | None:
     try:
         payload = json.loads(path.read_text(encoding='utf-8'))
     except (OSError, json.JSONDecodeError) as error:
-        raise HTTPException(status_code=500, detail='独立户型图草稿已损坏，请从 NAS 备份恢复。') from error
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='独立户型图草稿已损坏，请从 NAS 备份恢复。') from error
     # revision 必须是整数：后续的并发比对全靠它，缺失或类型不对一律按损坏处理。
     if not isinstance(payload, dict) or not isinstance(payload.get('revision'), int):
-        raise HTTPException(status_code=500, detail='独立户型图草稿格式无效，请从 NAS 备份恢复。')
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='独立户型图草稿格式无效，请从 NAS 备份恢复。')
     return payload
 
 
-def _migrate_legacy_scene(request: Request, database: DatabaseSession) -> dict | None:
+def migrate_legacy_scene(database: DatabaseSession, draft_path: Path) -> dict | None:
     """把旧版仪表盘文档里的 studio3d 字段迁出成独立草稿文件。
 
     迁移只做一次：从所有草稿里挑出第一份可用场景写入草稿文件（revision=1），并把该字段
     从所有文档中删净 —— 不删的话每次启动都会重复迁移。没有任何可迁内容时返回 None。
+
+    **在启动期调用，不在 GET 路由里调用**：它写文件（`_atomic_json_write`）又 `commit()` 改库，
+    挂在 `GET /studio3d` 上等于让一个读接口带副作用 —— 并发 GET 会被 `_storage_lock` 串行化，
+    每次冷启动的第一个读请求还要额外写盘。参数用 `draft_path` 而不是 `Request`，就是为了
+    让「谁触发它」这件事在签名上就看得出来。
     """
     selected_scene = None
     changed = False
@@ -122,8 +127,12 @@ def _migrate_legacy_scene(request: Request, database: DatabaseSession) -> dict |
         if document is None:
             continue
         # pop 而非 get：迁走之后要把它从文档里彻底移除，避免下次再被扫到。
-        scene = document.pop('studio3d', None)
-        if scene is None:
+        # 用哨兵而不是 None 判定「键到底在不在」：`"studio3d": null` 也是一份要清理的残留，
+        # 若按 `scene is None` 跳过，这条草稿会被判成「无需处理」而永远不落库，
+        # 结果是每次启动都重扫一遍同一份文档（而它看起来明明已经删干净了）。
+        missing = object()
+        scene = document.pop('studio3d', missing)
+        if scene is missing:
             continue
         # 只采用第一份有效场景；后续文档里的字段照删，但内容不再覆盖。
         if selected_scene is None and isinstance(scene, dict):
@@ -136,7 +145,7 @@ def _migrate_legacy_scene(request: Request, database: DatabaseSession) -> dict |
         return None
     # 迁移产物从 revision 1 起步，让客户端拿到的初始版本号与新建草稿一致。
     payload = {'revision': 1, 'scene': selected_scene, 'updatedAt': _utc_now()}
-    _atomic_json_write(request.app.state.settings.studio3d_draft_path, payload)
+    _atomic_json_write(draft_path, payload)
     return payload
 
 
@@ -275,18 +284,18 @@ def _assert_image_within_upload_limits(name: str, data: bytes) -> None:
 
 
 @router.get('')
-def get_studio3d_draft(request: Request, database: DatabaseSession, _user: LicensedUser) -> dict:
+def get_studio3d_draft(request: Request, _user: LicensedUser) -> dict:
     """读取 3D 户型图草稿（需已登录且授权允许 api）。
 
-    返回 {revision, scene, updatedAt}；草稿文件不存在时先尝试从旧版仪表盘文档迁移，
-    迁移也拿不到内容才返回 revision=0 的空草稿，前端据此进入新建流程。
+    返回 {revision, scene, updatedAt}；草稿文件不存在时返回 revision=0 的空草稿，
+    前端据此进入新建流程。
+
+    旧版仪表盘文档里的 studio3d 字段由启动期的 `migrate_legacy_scene` 一次性迁出
+    （见 backend/main.py 的 lifespan）。这里刻意不做迁移：读接口不该写文件改库。
     """
-    # 读操作同样加锁：读取过程中可能触发迁移（写文件 + 改库），必须与写入串行。
+    # 读操作同样加锁：必须与写入串行。
     with _storage_lock:
         payload = _read_draft(request.app.state.settings.studio3d_draft_path)
-        # 只在确实没有草稿文件时才迁移，保证旧数据只被搬一次。
-        if payload is None:
-            payload = _migrate_legacy_scene(request, database)
         return payload or {'revision': 0, 'scene': None, 'updatedAt': None}
 
 

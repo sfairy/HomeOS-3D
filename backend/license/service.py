@@ -14,6 +14,7 @@ import os
 import secrets
 import threading
 import time
+from collections.abc import Collection
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
@@ -1394,6 +1395,39 @@ class LicenseService:
         """取当前状态（开一个短事务，读单行状态后组装成字典）。"""
         with self.database.session_factory() as database:
             return self._payload(self._state(database))
+
+    def earliest_entitlement_expiry(self, codes: Collection[str]) -> datetime:
+        """取「租约整体到期时间」与指定权益到期时间中最早的一个。
+
+        interaction3d 的授权信息接口（`modules/interaction3d/access.py` 的 access_grant）
+        需要它来收窄下发给前端的有效期：给满 15 秒而租约 3 秒后到期，前端就会高估可用时间。
+
+        参数:
+            codes: 关心到期时间的能力码集合；其余权益不参与取最早值。
+
+        异常:
+            LicenseCryptoError / KeyError / TypeError / ValueError —— 没有租约、租约签名
+            不匹配或字段缺失。**由调用方决定拒绝策略**，这里不做「失败就当没开授权强制」的
+            放行兜底。返回时间可能已经过去（权益已到期），调用方自行比较。
+
+        之所以把它做成公开方法：原先调用方直接读 ``_state`` / ``verifier`` / ``database``
+        四个内部成员来自己算，等于把「租约怎么验签」这件事复制到了授权模块之外 ——
+        验签规则一改，那份拷贝不会跟着改。
+        """
+        with self.database.session_factory() as database:
+            state = self._state(database)
+            payload = self.verifier.verify(state.signed_lease or '', state.instance_id)
+        # 起算点取「租约整体到期时间」与「各相关权益到期时间」中最早的那个。
+        deadlines = [parse_timestamp(payload['expiresAt'])]
+        for item in payload.get('entitlements', []):
+            if not isinstance(item, dict):
+                continue
+            if item.get('code') not in codes:
+                continue
+            if not item.get('expiresAt'):
+                continue
+            deadlines.append(parse_timestamp(item['expiresAt']))
+        return min(deadlines)
 
     #: availability() 对外暴露的字段白名单。用白名单而不是黑名单，是为了日后往 status()
     #: 加字段时不会「顺手」把它泄露给匿名页面。

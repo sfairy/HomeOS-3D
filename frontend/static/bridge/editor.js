@@ -15,6 +15,7 @@ import {
 } from "./performance-warning.js?v=2609211957";
 import { normalizeGroundReflection } from "./reflection-settings.js?v=2609211957";
 import { apiErrorMessage } from "../utils/api-error.js?v=2609211957";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../utils/api-fetch.js?v=2609211957";
 import {
   requestInteraction3dAccess,
   getInteraction3dEditorView,
@@ -210,7 +211,9 @@ const inspectorAbortByHost = new WeakMap();
  */
 async function requestInteraction3dScene() {
   // 户型解析在后端做，耗时不可控，因此必须带超时，否则面板会一直停在「正在载入」。
-  return withRequestTimeout(20000, async abortSignal => {
+  // 预算取自 utils/api-fetch.js 的 SCENE_REQUEST_TIMEOUT_MS：工作室侧拉取场景读的是同一个
+  // 常量，两侧不会再各写一个字面量而漂开。
+  return withRequestTimeout(SCENE_REQUEST_TIMEOUT_MS, async abortSignal => {
     const response = await fetch("/api/v1/modules/interaction3d/scenes", {
       method: "POST",
       credentials: "same-origin",

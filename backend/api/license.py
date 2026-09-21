@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from ..core.dependencies import CurrentUser, CurrentViewer
 from ..license import LicenseClientError
+from ..security.http_security import same_origin_request
 from ..core.schemas import LicenseActivateRequest
 
 router = APIRouter(prefix='/license', tags=['license'])
@@ -113,8 +114,12 @@ async def retry_license(request: Request, viewer: CurrentViewer) -> dict:
     """
     # 本接口有真实副作用（触发联网重试），属于写操作，必须自己挡跨站请求：
     # 只接受同源发起，作为 SameSite Cookie 之外的兜底。
-    origin = request.headers.get('origin')
-    if (origin and origin.rstrip('/') != str(request.base_url).rstrip('/')) or request.headers.get('sec-fetch-site') == 'cross-site':
+    #
+    # 判据必须复用 same_origin_request，不能拿 str(request.base_url) 裸比较 —— 反代改写
+    # Host 之后 base_url 是内网地址，合法的同源重试会被判成跨站而 403（用户点了「重试」
+    # 却永远失败）。而且裸比较认不出 `http://evil@本机地址/` 这类构造，反而比公共判据更松。
+    # sec-fetch-site 是额外的第二道闸，保留。
+    if not same_origin_request(request) or request.headers.get('sec-fetch-site') == 'cross-site':
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='不允许跨站重试授权。')
     try:
         result = await request.app.state.license_service.retry_now()

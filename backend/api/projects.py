@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..core.canonical_json import canonical_json
 from ..core.conflicts import is_unique_violation
-from ..core.dependencies import DatabaseSession, LicensedUser, LicensedViewer, require_viewer_project
+from ..core.dependencies import DatabaseSession, LicensedUser, LicensedViewer, license_restricted_detail, require_viewer_project
 from ..panel.global_popups import clear_popup_references, global_popup_state, global_popups, hydrate_document_popups, strip_document_popups
 from ..core.models import GlobalCustomPopupState, Project, ProjectDraft, ProjectPathAlias
 from ..modules.interaction3d.scene_store import sweep_scenes_for_app
@@ -414,14 +414,14 @@ async def get_project_draft(project_id: str, request: Request, database: Databas
     """
     await request.app.state.license_service.confirm_binding()
     if not await asyncio.to_thread(request.app.state.license_service.allows, 'api'):
+        # 异步调用点自己 await 出 status，detail 仍由 license_restricted_detail 统一组装 ——
+        # 字段与同步门禁逐字相同，前端不必按调用点分支。
         license_status = await asyncio.to_thread(request.app.state.license_service.status)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                'code': 'LICENSE_RESTRICTED',
-                'message': '设备绑定已解除或授权不可用，请重新激活。',
-                'licenseStatus': license_status['status'],
-            },
+            detail=license_restricted_detail(
+                license_status['status'], '设备绑定已解除或授权不可用，请重新激活。'
+            ),
         )
     require_viewer_project(viewer, project_id)
     payload = await asyncio.to_thread(_draft_payload, database, project_id, viewer)

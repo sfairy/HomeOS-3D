@@ -14,7 +14,6 @@ import time
 import traceback
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from urllib.parse import urlsplit
 from uuid import uuid4
 
 from anyio import create_task_group
@@ -25,6 +24,7 @@ from ..security.access import admin_token_from, discard_expired_session, display
 from ..core.database import Database
 from ..core.dependencies import DatabaseSession, LicensedUser, LicensedViewer, ViewerPrincipal, require_viewer_entity, viewer_entity_ids
 from ..security.display_access import active_display_device
+from ..security.http_security import origin_allowed
 from ..observability.global_log import event_context
 from ..ha.client import HAClient, HAClientError, link_local_address
 from ..ha.crypto import CredentialCipherError
@@ -953,39 +953,18 @@ async def run_tasks_until_first_completes(*operations) -> None:
 def websocket_origin_allowed(websocket: WebSocket) -> bool:
     """校验 WebSocket 握手的 Origin 是否来自本应用主机。
 
-    配置了 app_base_url 时必须与之完全一致（含 scheme 与端口）；否则退化为「Origin 的
-    host 与请求 Host 相同」，且要求 Origin 只能是 scheme://host 形态（防止 evil@host 绕过）。
+    与 HTTP 侧共用 :func:`http_security.origin_allowed` 同一套加固规则（含 ``app_base_url``
+    与「拒绝带 userinfo / 路径 / 查询的 Origin」）。两侧各写一套时规则会漂移：原先 WS 这份
+    不查 ``app_base_url``，反代部署下会把合法连接判成跨站而全部拒掉。
+
+    与 ``same_origin_request`` 的唯一差别是**这里缺 Origin 一律拒绝**：浏览器一定会带 Origin，
+    而 WebSocket 握手不受 SameSite Cookie 保护（不存在 CSRF 头那道闸），所以缺头只能理解为
+    非浏览器客户端，必须挡在门外。
     """
     origin = websocket.headers.get('origin', '').strip()
-    # 浏览器一定会带 Origin，缺失说明不是页面发起的连接，直接拒绝。
     if not origin:
         return False
-    configured_base_url = websocket.app.state.settings.app_base_url
-    if configured_base_url:
-        # 显式配置的基址最可靠：要求 Origin 与它完全一致。
-        parsed = urlsplit(configured_base_url)
-        expected_origin = (
-            f'{parsed.scheme}://{parsed.netloc}'
-            if parsed.scheme in {'http', 'https'} and parsed.netloc
-            else ''
-        )
-        return bool(expected_origin) and origin == expected_origin
-    parsed_origin = urlsplit(origin)
-    host = websocket.headers.get('host', '').strip()
-    # 没配置基址时的兜底比较：不接受带用户信息、路径、查询或片段的 Origin。
-    if (
-        parsed_origin.scheme not in {'http', 'https'}
-        or not parsed_origin.netloc
-        or parsed_origin.username is not None
-        or parsed_origin.password is not None
-        or parsed_origin.path not in {'', '/'}
-        or parsed_origin.query
-        or parsed_origin.fragment
-        or not host
-    ):
-        return False
-    # 域名比较不区分大小写。
-    return parsed_origin.netloc.casefold() == host.casefold()
+    return origin_allowed(websocket, origin)
 
 
 @runtime_router.websocket('/ws/runtime')

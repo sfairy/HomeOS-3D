@@ -22,7 +22,7 @@ from pathlib import Path
 
 from fastapi import HTTPException, Request, status
 
-from .http_security import FORWARDED_HEADERS, _peer_host, is_direct_local
+from .http_security import _peer_host, forwarded_headers_present, is_direct_local
 
 #: 生成密钥的长度（``token_urlsafe(32)`` 约 43 个字符）。
 TOKEN_BYTES = 32
@@ -60,8 +60,13 @@ def read_token_file(text: str) -> str:
 
 
 def _looks_like_forwarded(request: Request) -> bool:
-    """请求是否经过代理（用于在拒绝对话里给出更准确的提示）。"""
-    return any(request.headers.get(name) for name in FORWARDED_HEADERS)
+    """请求是否经过代理（用于在拒绝对话里给出更准确的提示）。
+
+    转发头清单的唯一判据在 http_security.forwarded_headers_present（启动期「你前面有代理
+    但没配可信代理」的告警读的也是它）。这里保留一层同名薄封装只是为了调用点读起来贴合
+    「拒绝对话」的语境，实现不再自持一份 —— 两处各写一遍时清单会漂移。
+    """
+    return forwarded_headers_present(request)
 
 
 class SetupGuard:

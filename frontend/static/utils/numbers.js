@@ -40,6 +40,18 @@ export function finiteNumberOr(value, fallback) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+/**
+ * 值是否算「已上报的可用数值」：数字与数字字符串算可用，其余一律算缺失。
+ *
+ * 这是能力探测（HA 属性里有没有亮度 / 色温）与实时值等待判定共用的唯一口径。
+ * 「空串算缺失」不是洁癖：`Number("")` 是 0，只写 `Number.isFinite(Number(v))` 会把
+ * `brightness: ""` 判成「已上报亮度 0」，于是能力探测回答「支持亮度」—— 界面上出现一根
+ * 亮度条、拖了却毫无作用，不报错、也不 404。布尔同理（`true` 会被换算成 1）。
+ */
+export function isUsableNumber(value) {
+  return !isAbsentValue(value) && Number.isFinite(Number(value));
+}
+
 /** 先 `Number()` 再判定；非有限数用兜底值。 */
 export function coercedFiniteNumberOr(value, fallback) {
   const parsedValue = isAbsentValue(value) ? NaN : Number(value);

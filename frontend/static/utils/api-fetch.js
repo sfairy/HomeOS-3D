@@ -11,10 +11,23 @@ import { withRequestTimeout } from "./request-timeout.js?v=2609211957";
 
 /**
  * 普通 JSON 接口的超时预算（毫秒）。
- * 20 秒与仓库里既有的手写预算对齐（display.js 的 apiRequest、编辑器与舞台页里
- * 直接调 withRequestTimeout 的两处都是 2e4 / 1.5e4），保持「同一套体感」。
+ * 20 秒与仓库里既有的手写预算对齐，保持「同一套体感」。
  */
 const API_TIMEOUT_MS = 20000;
+
+/**
+ * 3D 场景接口（``/modules/interaction3d/scenes``）的超时预算（毫秒）。
+ *
+ * 单独一个常量是因为它有两个调用方、而且分处两棵模块树：编辑器桥（bridge/editor.js 的
+ * ``requestInteraction3dScene``，POST 新建场景）与户型工作室（3d-studio/studio/studio-app.js
+ * 的 ``readSceneUpdate``，GET 拉取最新场景）。两侧原先各写一个字面量（20000 与 15000），
+ * 于是后端稍慢时工作室会先放弃、编辑器却还在等 —— 同一件事给出两种体感，而且改一处不会
+ * 提醒另一处。
+ *
+ * 取值按较宽的那个（20 秒）：POST 那条要在后端解析整份户型，是真实的重活。
+ * 工作室拉取虽然便宜，也一并放宽，宁可等满也不要让它在后端还正常时先判「同步不可用」。
+ */
+export const SCENE_REQUEST_TIMEOUT_MS = 20000;
 
 /**
  * 带二进制体的上传类请求的超时预算（毫秒）：素材图片与 3D 导出包（ZIP）体积上限远大于 JSON 草稿，

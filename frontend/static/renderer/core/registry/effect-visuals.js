@@ -9,7 +9,7 @@ import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609211957";
+import { clampCoercedNumber, isUsableNumber } from "../../../utils/numbers.js?v=2609211957";
 // 同门分片：builtin-assets
 import {
   effectVariantByAssetId,
@@ -54,14 +54,12 @@ export function iconButtonEffectLightVisualAwaiting(effectAwaitComponent, effect
     effectAwaitEntityId,
     effectAwaitState
   );
-  // 判断某属性是否已带上可用数值：null / undefined / 空串一律算「缺席」（HA 里未上报
-  // 的属性正是这几种形态），其余再经 Number 转换并校验有限性 —— 因为 HA 上报的数值
-  // 属性可能是字符串。返回 false 表示实时值还没到，调用方据此继续等待视觉。
+  // 判断某属性是否已带上可用数值：null / undefined / 空串 / 布尔一律算「缺席」（HA 里未上报
+  // 的属性正是这几种形态），数字字符串则算可用。口径唯一实现在 utils/numbers.js 的
+  // isUsableNumber，能力探测与这里共用 —— 原先两处各写一份，判空串的口径正好相反。
+  // 返回 false 表示实时值还没到，调用方据此继续等待视觉。
   const hasNumericAttribute = attributeKey =>
-    effectAwaitAttributes[attributeKey] !== null &&
-    effectAwaitAttributes[attributeKey] !== undefined &&
-    effectAwaitAttributes[attributeKey] !== "" &&
-    Number.isFinite(Number(effectAwaitAttributes[attributeKey]));
+    isUsableNumber(effectAwaitAttributes[attributeKey]);
   if (
     effectAwaitProperties.effectBrightnessRealtime !== false &&
     effectAwaitRealtimeCapabilities.brightness &&

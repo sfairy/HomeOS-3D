@@ -18,6 +18,7 @@
 """
 from __future__ import annotations
 
+import errno
 import os
 from pathlib import Path
 
@@ -67,11 +68,27 @@ class LicenseProcessLock:
         fd = os.open(self.path, os.O_CREAT | os.O_RDWR, 0o600)
         try:
             _lock(fd)
-        except BaseException:
+        except OSError as error:
             # 抢不到就把刚打开的描述符关掉再抛：漏掉它会让「启动失败」也留下一个
             # 悬空句柄，反复重试启动就会一路泄漏下去。
             os.close(fd)
-            raise RuntimeError('同一数据目录已有 HA Bridge 进程运行，请通过现有服务管理器重启，勿重复启动。')
+            # 「锁被占用」只是 EAGAIN/EWOULDBLOCK 这一种。原先这里 catch BaseException
+            # 并把一切失败都说成「已有进程运行」，于是只读卷（EROFS）、配额满（ENOSPC）、
+            # 权限不足（EACCES）全被误诊成重复启动 —— 运维会照着这句话去杀一个并不存在的
+            # 进程，真实的挂载问题反而被盖住。所以要按 errno 分流，并且必须 from error：
+            # 链上原始 OSError，日志里才看得到到底是哪一个失败。
+            if error.errno in (errno.EAGAIN, errno.EWOULDBLOCK):
+                raise RuntimeError(
+                    '同一数据目录已有 HA Bridge 进程运行，请通过现有服务管理器重启，勿重复启动。'
+                ) from error
+            raise RuntimeError(
+                f'无法锁定授权数据目录的进程锁（{self.path}）：{error.strerror or error}。'
+                '请检查该目录的挂载状态与权限。'
+            ) from error
+        except BaseException as error:
+            # 非 OSError（KeyboardInterrupt 等）同样要先归还描述符，再原样抛出。
+            os.close(fd)
+            raise error
         # 只有真的锁上了才记录：上面任何一步失败都不该留下「以为自己持锁」的状态。
         self.fd = fd
 

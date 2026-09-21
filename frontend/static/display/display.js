@@ -9,6 +9,7 @@
  */
 import { PanelRenderer } from "../renderer/core/renderer.js?v=2609211957";
 import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609211957";
+import { apiFetch } from "../utils/api-fetch.js?v=2609211957";
 import { createButtonSound } from "../shared/sound-effects.js?v=2609211957";
 import { syncAppleDisplaySurface } from "./display-surface.js?v=2609211957";
 import { isAppleMobile } from "../utils/apple-device.js?v=2609211957";
@@ -80,32 +81,28 @@ function buildPairUrl() {
 
 /**
  * 请求展示页所需的接口。
- * @throws {Error} 超时、HTTP 失败或响应不是合法 JSON。
+ *
+ * 超时预算与超时错误的形态都交给 utils/api-fetch.js（`apiFetch`）：它是全站接口的唯一
+ * 出入口，20 秒预算与 `name === "TimeoutError"` 的约定都在那里。这里曾自持一个 20 秒
+ * `AbortController`，并且超时抛的是**裸 Error**（name 是 "Error"）—— 调用方按 name 判
+ * 「是不是超时」时永远落空，只能靠中文文案猜，而文案是会随版本改的。
+ *
+ * @throws {Error} 超时（name 为 TimeoutError）、HTTP 失败或响应不是合法 JSON。
  */
 async function apiRequest(path) {
   // 追加 _=时间戳 与 no-store 双保险，绕过浏览器与中间层缓存。
   const separator = path.includes("?") ? "&" : "?";
-  const abortController = new AbortController();
-  // 20 秒超时：中控设备网络不佳时也要尽快走错误分支提示用户。
-  const timeoutId = window.setTimeout(() => abortController.abort(), 20000);
   try {
-    const response = await fetch("/api/v1" + path + separator + "_=" + Date.now(), {
+    const response = await apiFetch("/api/v1" + path + separator + "_=" + Date.now(), {
       cache: "no-store",
       headers: {
         "Cache-Control": "no-cache"
-      },
-      signal: abortController.signal
+      }
     });
     const payload =
       response.status === 204
         ? null
-        : await response.json().catch(cause => {
-            // 因超时被中断时把原因抛出去，交给外层统一转成超时文案。
-            if (abortController.signal.aborted) {
-              throw cause;
-            }
-            return {};
-          });
+        : await response.json().catch(() => ({}));
     const authChallenge = apiAuthChallenge(response.status, payload);
     if (authChallenge === "session-expired") {
       window.location.assign(buildPairUrl());
@@ -134,8 +131,10 @@ async function apiRequest(path) {
     }
     return payload;
   } catch (caughtError) {
-    if (abortController.signal.aborted) {
-      throw new Error("仪表盘更新请求超时，请检查网络连接。");
+    // 超时已经由 apiFetch 抛成 name === "TimeoutError" 的错误，后续按 name 分支的调用方
+    // 都能认出它，这里直接透传，不再把名字抹平。
+    if (caughtError?.name === "TimeoutError") {
+      throw caughtError;
     }
     // fetch 在网络层断掉时抛的是 `TypeError: Failed to fetch`，这句话会原样出现在
     // 启动层的错误界面和运行期横幅上，对用户没有任何意义，这里换成可读文案。
@@ -143,8 +142,6 @@ async function apiRequest(path) {
       throw new Error("无法连接服务器，请检查网络连接。");
     }
     throw caughtError;
-  } finally {
-    window.clearTimeout(timeoutId);
   }
 }
 
