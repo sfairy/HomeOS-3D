@@ -531,16 +531,11 @@
         </div>
       </header>
       <div class="panel-toolbar">
+        <!-- 状态选项由服务端词表填充（`/order-status-meta`）：写死在模板里的那份曾漏掉
+             partially_refunded，从概览漏斗点「部分退款」进来时 select 找不到对应 option，
+             静默退化成「全部状态」—— 筛了个寂寞，还看不出来。 -->
         <select class="hb-select" id="order-status" aria-label="按订单状态筛选">
           <option value="">全部状态</option>
-          <option value="pending">待付款</option>
-          <option value="paid">已付款</option>
-          <option value="fulfilled">已完成</option>
-          <option value="payment_failed">支付失败</option>
-          <option value="fulfillment_failed">发货失败</option>
-          <option value="cancelled">已取消</option>
-          <option value="expired">已过期</option>
-          <option value="refunded">已退款</option>
         </select>
         <input class="hb-input" id="order-keyword" aria-label="订单号或邮箱关键字" placeholder="订单号 / 邮箱">
         <label class="hb-field panel-toolbar__field">
@@ -1773,17 +1768,54 @@ const STATUS_TONES = {
   partially_refunded: 'warning',
 };
 
-function statusBadge(status, labels = ORDER_STATUS) {
-  return pill(labels[status] || status, STATUS_TONES[status] || 'muted');
+// 中文文案由调用方传入（订单取接口下发的 ``statusLabel``，提现同理）：后台不再自存
+// 「状态 → 中文」的第二份词表。自存那份与 store/commerce/order_status.py 只靠注释约定
+// 「逐字对齐」，漏一个键就静默显示成 snake_case —— partially_refunded 曾经就是这样。
+function statusBadge(status, label) {
+  return pill(label || status, STATUS_TONES[status] || 'muted');
 }
 
-// 订单状态中文口径与服务端 store/commerce/order_status.py 的 ORDER_STATUS_LABELS 逐字对齐：payment_failed 是「支付渠道拒单」、fulfillment_failed 是「发货失败等人工处理」、partially_refunded 也要登记，否则后台会原样显示 snake_case。
-const ORDER_STATUS = {
-  pending: '待付款', paid: '已付款', fulfilled: '已完成',
-  cancelled: '已取消', expired: '已过期',
-  payment_failed: '支付失败', fulfillment_failed: '发货失败', refunded: '已退款',
-  partially_refunded: '部分退款',
-};
+// 订单状态词表与动作集合：**由服务端下发**（`/order-status-meta`，取自
+// store/commerce/order_status.py）。手写这两样的代价是静默的：动作数组漏掉
+// fulfillment_failed / partially_refunded，于是概览待办让运营「去订单里重试履约或退款」，
+// 点进筛选列表却一排操作按钮都没有；筛选下拉漏掉 partially_refunded，跳转退化成全部。
+let orderStatusMetaPromise = null;
+
+// 由服务端词表填选项的筛选器：跳转目标可能先于选项到位设值 —— 赋给一个不存在的 option
+// 会把 select 静默设成空值，所以先把意图记下来，等选项填好再补一次。
+const PENDING_FILTER_VALUES = new Map();
+
+// 选项是否已按词表填过：只填一次，之后刷新列表不重建 DOM（重建会丢掉当前选中项）。
+let orderStatusOptionsApplied = false;
+
+function applyOrderStatusOptions(meta) {
+  if (orderStatusOptionsApplied) return;
+  orderStatusOptionsApplied = true;
+  const select = $('#order-status');
+  select.append(...meta.choices.map(code => new Option(meta.labels[code] || code, code)));
+  const pendingValue = PENDING_FILTER_VALUES.get('#order-status');
+  if (pendingValue !== undefined) {
+    PENDING_FILTER_VALUES.delete('#order-status');
+    select.value = pendingValue;
+  }
+}
+
+function orderStatusMeta() {
+  // 面板每次加载都问它，但词表在页面生命周期内不变，故只取一次（并发调用共享同一个 Promise）。
+  if (!orderStatusMetaPromise) {
+    orderStatusMetaPromise = api('/order-status-meta')
+      .then(meta => {
+        applyOrderStatusOptions(meta);
+        return meta;
+      })
+      .catch(error => {
+        // 失败必须允许下次重试：不清掉缓存的 Promise，一次网络抖动会让订单面板永久不可用。
+        orderStatusMetaPromise = null;
+        throw error;
+      });
+  }
+  return orderStatusMetaPromise;
+}
 
 // 订单漏斗条的颜色：状态本身就是要表达的意思，一屏几条同色的话，
 // 读者得逐个读标签才知道哪一段是「漏掉的」。色相与业务域对齐
@@ -1823,10 +1855,6 @@ const PRODUCT_TYPE = {
   base: '基础授权', bundle: '全授权', package: '套餐',
   module: '增量包', template: '模板',
 };
-
-// 提现状态：与前台钱包流水（store/static/referrals.js）同一套说法。
-// pending/paid 在订单里另有含义，不能共用 ORDER_STATUS。
-const WITHDRAWAL_STATUS = { pending: '待审核', paid: '已提现', rejected: '已驳回' };
 
 // 积分流水类型：**由接口下发**（`/referral-ledger` 响应里的 `kinds`），这里只作缓存。
 // 后台不再自存词表 —— 自存的那份 6 个键里只有 manual_adjust 与后端对得上，而筛选是精确
@@ -2571,7 +2599,14 @@ function jumpFromOverview(target) {
     const node = $(target.filter);
     // 复选类筛选取的是 checked 而不是 value，赋值给 value 等于什么都没做。
     if (node && node.type === 'checkbox') node.checked = Boolean(target.value);
-    else if (node) node.value = target.value ?? '';
+    else if (node) {
+      node.value = target.value ?? '';
+      // 选项由服务端词表填的筛选器（订单状态）此刻可能还没选项：赋值给不存在的 value 会把
+      // select 静默设成空值，跳转就悄悄退化成「全部」。把意图记下来，填完选项后补一次。
+      if (node.tagName === 'SELECT' && node.value !== String(target.value ?? '')) {
+        PENDING_FILTER_VALUES.set(target.filter, target.value);
+      }
+    }
   }
   // 目标面板可能停在别的页码上，不清零会落到空的第 N 页
   resetPage(target.page);
@@ -3352,6 +3387,8 @@ $('#product-form').addEventListener('submit', async (event) => {
 // 订单
 // --------------------------------------------------------------------------- //
 async function loadOrders() {
+  // 词表先到位：下面要用它填筛选下拉并给按钮做门禁，缺了它会渲染出一排没有操作的订单。
+  const orderStatus = await orderStatusMeta();
   const params = new URLSearchParams();
   const status = $('#order-status').value;
   const keyword = $('#order-keyword').value.trim();
@@ -3367,9 +3404,14 @@ async function loadOrders() {
     // 与后端 admin.py 的 _FULFILLABLE_STATUSES 一致：只有仍持有库存预留、未进终态的
     // 订单显示「标记支付 / 履约」。终态订单放行会凭空发码并重复扣预留造成超卖
     // （后端已一并返回 409，这里只是不让按钮误导人）。
-    const canMarkPaid = order.status === 'pending';
-    const canFulfill = ['pending', 'paid'].includes(order.status);
-    const canRefund = ['paid', 'fulfilled'].includes(order.status);
+    // 三组门禁一律取服务端集合（`order_status.py`）：手写数组与后端漂移过一次 ——
+    // fulfillment_failed（自动发货炸了，等人工重试）与 partially_refunded（还能退第二次）
+    // 都在服务端集合里，却都不在界面的数组里，于是「该出现的按钮」一个都没有。
+    // 「标记支付」多一条 ``!order.paidAt``：它是给「钱还没记上」的订单补记（不计营收），
+    // 已付过的订单只有「履约」这一个有意义的动作。
+    const canMarkPaid = orderStatus.fulfillable.includes(order.status) && !order.paidAt;
+    const canFulfill = orderStatus.fulfillable.includes(order.status);
+    const canRefund = orderStatus.refundable.includes(order.status);
     const canCancel = order.status === 'pending';
     // 「标记已处理」只在订单确实挂着待复核时出现（needsReview 由后端返回），
     // 且未支付的单谈不上「已处理」。清标记刻意不自动发生：复活单的价值就在于
@@ -3402,7 +3444,7 @@ async function loadOrders() {
       <td>${cell(order.productName)}</td>
       <td class="nowrap">${esc(ORDER_TYPE[order.orderType] || order.orderType)} · ${esc(LICENSE_ACTION[order.licenseAction] || order.licenseAction)}</td>
       <td class="nowrap">${money(order.amountCents)}</td>
-      <td class="nowrap">${statusBadge(order.status)}${manualBadge}</td>
+      <td class="nowrap">${statusBadge(order.status, order.statusLabel)}${manualBadge}</td>
       <td class="nowrap">${dt(order.createdAt)}</td>
       <td class="nowrap">${actions(
         primary,
@@ -3963,7 +4005,7 @@ async function loadWithdrawals() {
       <td class="nowrap">${esc(item.points)}</td>
       <td class="nowrap">${esc(item.feePoints)}</td>
       <td class="nowrap">${esc(item.netPoints)}</td>
-      <td class="nowrap">${statusBadge(item.status, WITHDRAWAL_STATUS)}</td>
+      <td class="nowrap">${statusBadge(item.status, item.statusLabel)}</td>
       <td class="nowrap">${dt(item.createdAt)}</td>
       <td class="nowrap">${actions(
         // 通过/驳回是「提现审核」这个面板的核心决策，保留为同级主操作
@@ -5404,6 +5446,8 @@ function resetFilters(selectors, key) {
     if (!node) return;
     if (node.type === 'checkbox') node.checked = false;
     else node.value = '';
+    // 重置也是「用户的明确意图」：清掉还没补上的跳转意图，否则下次加载会把它又设回来。
+    PENDING_FILTER_VALUES.delete(selector);
   });
   resetPage(key);
   PAGED_LOADERS[key]();

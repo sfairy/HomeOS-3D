@@ -993,15 +993,40 @@ def admin_upload_product_image(
 
 
 # 订单
-#: 允许被后台标记支付 / 履约的状态：只有仍持有库存预留的订单才谈得上「入账」，终态订单一律拒绝
-#: ——cancelled / expired 库存与名额已释放、refunded 授权已收回，履约等于凭空发授权并重复扣减预留造成超卖。
-_FULFILLABLE_STATUSES = ORDER_FULFILLABLE_STATUSES
+#: 可履约状态的中文清单（拼 409 文案用）：由 ``ORDER_FULFILLABLE_STATUSES`` 现算，
+#: 不再手写「只有待付款或已付款的订单可以履约」—— 那种手写文案在集合加入
+#: ``fulfillment_failed`` 之后就与事实相反了，而它只出现在报错路径上，没人会发现。
+_FULFILLABLE_STATUS_TEXT = " / ".join(
+    ORDER_STATUS_LABELS.get(code, code) for code in ORDER_FULFILLABLE_STATUSES
+)
 
 #: 订单状态中文口径统一来自 ``store.commerce.order_status``（服务端唯一来源），
 #: 避免「后台弹窗说 cancelled、页面显示已取消」这种同一状态两套说法。
 #: 取文案一律走 ``order_status_label()`` 或 ``ORDER_STATUS_LABELS``（后者用于
 #: 批量拼列表），不要在后台再留一份「本地副本」——曾经那份 `_ORDER_STATUS_LABELS`
 #: 就是没人读的别名，`_status_label` 那种一层转发也算同一种病。
+
+
+@router.get("/order-status-meta")
+def admin_order_status_meta(_admin: AdminAccount) -> dict:
+    """下发订单状态词表与两个动作集合（后台下拉、标签、按钮门禁的唯一来源）。
+
+    这份元数据存在的理由是可验证的：后台曾把「哪些状态能履约 / 能退款」手写成
+    ``['pending','paid']`` / ``['paid','fulfilled']``，于是 ``fulfillment_failed``
+    （概览的待办卡片明确写着「请到订单里重试履约或退款」）在所有按钮的判据里都不在列 ——
+    运营按提示点进筛选列表，看到的是一排没有任何操作的订单；``partially_refunded``
+    同理（服务端允许退第二次，界面不给按钮）。筛选下拉还漏了 ``partially_refunded``，
+    从漏斗图点进来时 ``select.value`` 设不上，静默退化成「全部状态」。
+
+    这类漂移不会有任何报错，只表现为「说好的按钮没有」。状态集合与词表都只有一份，
+    需要它们的界面从这里取，不再在模板里抄第二份。
+    """
+    return {
+        "labels": dict(ORDER_STATUS_LABELS),
+        "choices": list(ORDER_STATUS_CHOICES),
+        "fulfillable": list(ORDER_FULFILLABLE_STATUSES),
+        "refundable": list(ORDER_REFUNDABLE_STATUSES),
+    }
 
 
 @router.get("/orders")
@@ -1134,14 +1159,20 @@ def _manual_payment(
         return order_payload(order)
     # payment_failed 不在这里补标记：该状态在支付失败时已释放库存预留与优惠码
     # 名额，再标记支付并履约会造成二次扣减。
-    if order.status not in _FULFILLABLE_STATUSES:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"订单状态为 {order.status}，无法标记支付。")
+    if order.status not in ORDER_FULFILLABLE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"订单状态为{order_status_label(order.status)}，无法标记支付；"
+                f"只有{_FULFILLABLE_STATUS_TEXT}的订单可以标记支付。"
+            ),
+        )
     # 条件 UPDATE 抢单：后台按钮可以双击、也可能与「履约」按钮并发点击。
     # 只靠上面的读判断的话，两个请求各自把订单标成 paid 并各发一次码。
     result = session.execute(
         update(Order)
         .where(Order.id == order.id)
-        .where(Order.status.in_(_FULFILLABLE_STATUSES))
+        .where(Order.status.in_(ORDER_FULFILLABLE_STATUSES))
         .values(
             status="paid",
             paid_at=order.paid_at or utcnow(),
@@ -1181,12 +1212,12 @@ def admin_fulfill(order_no: str, session: DbSession, admin: AdminAccount) -> dic
         return order_payload(order)
     # 终态订单不能履约：cancelled / expired 的库存与优惠码名额早已释放，
     # refunded 的授权已收回。放行会凭空发码，并重复扣减预留造成超卖。
-    if order.status not in _FULFILLABLE_STATUSES:
+    if order.status not in ORDER_FULFILLABLE_STATUSES:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"订单状态为{order_status_label(order.status)}，不能履约；"
-                "只有待付款或已付款的订单可以履约。"
+                f"只有{_FULFILLABLE_STATUS_TEXT}的订单可以履约。"
             ),
         )
     if order.paid_at is None:
@@ -2308,6 +2339,9 @@ def admin_list_withdrawals(
             "feePercent": float(money.from_centi(row.fee_bps)),
             "netPoints": money.format_centi(row.net_points_centi),
             "status": row.status,
+            #: 中文口径由服务端下发（``referrals.WITHDRAWAL_STATUS_LABELS``）：前台
+            #: 钱包流水与后台列表必须同一套说法，模板里那份手写映射已经删掉。
+            "statusLabel": referrals.WITHDRAWAL_STATUS_LABELS.get(row.status, row.status),
             "note": row.note,
             "createdAt": iso_z(row.created_at),
             "resolvedAt": iso_z(row.resolved_at),
