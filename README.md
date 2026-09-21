@@ -106,7 +106,7 @@ HomeOS/
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
 ├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· check_invariants.mjs（五条静默失效护栏，含后端包级环与 mdi 版本）
+├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· check_invariants.mjs（六条静默失效护栏：裸 /static、DOM id、缓存戳、后端包级环、mdi 版本、相对 import）
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
@@ -652,7 +652,7 @@ node tools/bump_static_cache_versions.mjs
 node tools/check_invariants.mjs
 ```
 
-它钉五条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里：
+它钉六条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里：
 
 - **运行侧裸 `/static/` 静态 import**：`frontend/modules/runtime/**` 里出现声明式 `/static/` 导入即失败
   （舞台页能以 `file:` 打开，绝对路径在那个上下文中解析不了，表现是整棵模块树加载失败，而报错只指向
@@ -678,16 +678,23 @@ node tools/check_invariants.mjs
   `MDI_VERSION`），后端 `api/icons.py` 改成从 `static/vendor/mdi/` 目录扫出来，CSS 里那三条遮罩地址
   只能跟着目录名走。守卫会核对全站只有一个版本值、且该版本的 `meta.json` 真的存在 ——
   漏改一处的表现是舞台灯光素材图标空白或整套图标 404，都不会报错。
+- **相对 import 解析不到真实文件**：`frontend/**` 与 `store/**` 里 `from "./x.js"` / `import("../x.js")`
+  的说明符会按导入方所在目录解析到真实文件，解析不到即失败。外提模块时最容易漏这一步：
+  文件换了目录、层数没跟着改（`editor/home/` 那批外提文件就少写了一层 `../`），浏览器里表现为
+  导入方所在的整棵模块树加载失败，而控制台只指向那一行。只判相对说明符，绝对路径由第 1 条在
+  运行侧把关；**不判导出符号**（那需要「允许新文件先落地再接线」的宽容度）。
 
 **两份工作流共用这一份清单**：`.github/workflows/guards.yml`（push / PR 即跑）与
 `.github/workflows/docker.yml` 的 `guards` job（挂在镜像 `build` 之前）。改清单时**两份都要改**。
 
 **结构改动仍没有自动校验**（原先的 `check_structure_refs.mjs` 已移除，且不打算恢复）。前端没有打包器，
-路径写错只在浏览器里变成 404，所以这类改动必须人工过一遍：`/static/...` 引用、前端相对 ESM 导入、
-`backend/main.py` 的 `public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime`
+路径写错只在浏览器里变成 404，所以这类改动必须人工过一遍：`/static/...` 引用、`backend/main.py` 的
+`public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime`
 的对应、`/api/v1/modules/interaction3d/<path>` 资源 URL、`/store-static/...` 引用、CSS 里的相对
 `url(...)`、后端 `frontend_dir / …` 拼接链、注释里写到的文件路径、
 `backend/config.py` 的仓库根推导、`Dockerfile` 里的仓库相对路径。
+（相对 ESM 导入是唯一有自动校验的一项，见上面第 6 条不变量；`/static/...` 绝对引用只由第 1 条
+在运行侧拦「裸静态 import」，`frontend/static/**` 之间的绝对路径仍然只能人工核对。）
 
 **在 `frontend/modules/runtime/` 下新增文件时还有一处必查**：该目录的文件全部经
 `/api/v1/modules/interaction3d/{filename:path}` 下发，白名单在 `backend/modules/interaction3d/api.py`
@@ -723,7 +730,7 @@ ruff check .                                      # 未使用 import / 重复定
 ```
 
 **两条工作流现在跑 `node tools/check_invariants.mjs` + `ruff check .`**（原先的七道 Node 守卫已随清理移除，
-本轮补回其中价值最高的那一道 —— 五条静默失效不变量）：
+本轮补回其中价值最高的那一道 —— 六条静默失效不变量）：
 
 - `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
 - `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有
