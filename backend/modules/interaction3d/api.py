@@ -536,7 +536,7 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
     if '</head>' not in html:
         raise RuntimeError('3d-studio.html 缺少 </head>，舞台样式挂不上去（舞台会退化成工作室界面）')
     # v= 缓存戳需要手动维护：页面本身 no-store，只有 URL 变了浏览器才会重新取样式。
-    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=2609220023"></head>')
+    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=2609220052"></head>')
     # 舞台作用域按整枚开标签注入（保留 data-tone 等既有属性），命中数必须为 1。
     html, body_injections = _BODY_TAG_PATTERN.subn(
         lambda match: f'<body{match.group("attributes")} class="interaction3d-stage" data-i3d-light-history-scope="{scope}">',
@@ -656,6 +656,21 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
             # 因而有模块级状态）：只有编辑器侧那几份 import 它，显示路径不加载，故单独一个文件。
             'core/runtime.js',
             'core/stage.js',
+            # core/stage/：mountStage 里按簇外提的函数。每一份都由 stage.js 的
+            # createXxx(ctx) 工厂注入同一份 ctx（stage.js 里是 getter/setter），
+            # 只认白名单 —— 漏登记就表现为浏览器里那一份 404、整条 import 链断掉。
+            'core/stage/binding-collectors.js',
+            'core/stage/camera-transition.js',
+            'core/stage/config-metadata.js',
+            'core/stage/cover-presentation.js',
+            'core/stage/dom-host.js',
+            'core/stage/geometry.js',
+            'core/stage/host-messages.js',
+            'core/stage/input-activity.js',
+            'core/stage/light-state.js',
+            'core/stage/marker-layer.js',
+            'core/stage/presence-hitboxes.js',
+            'core/stage/request-settlement.js',
             'core/static-helpers.js',
             'core/static-helpers-editor.js',
             'core/scene-model-key.js',

@@ -8,79 +8,91 @@
  * （requestId 自增），结果用 { type:"control-result", requestId, error } 配对，配不上一律忽略；挂载完成回 ready。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609220023";
+import { capturePointer, resolveStateEntry } from "./static-helpers.js?v=2609220052";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609220023";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609220052";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "./scene-model-key.js?v=2609220023";
+import { sceneModelKey } from "./scene-model-key.js?v=2609220052";
 const { popupPlacement: computePopupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/bridge/popup-placement.js?v=2609220023",
+        "../../../static/bridge/popup-placement.js?v=2609220052",
         import.meta.url
       )
     )
-  : import("/static/bridge/popup-placement.js?v=2609220023"));
+  : import("/static/bridge/popup-placement.js?v=2609220052"));
 import {
   createPresenceScene,
   createPresenceWaves
-} from "../presence/presence-scene.js?v=2609220023";
-import { createSceneBackground } from "./scene-background.js?v=2609220023";
-import { floorNavigationChoices } from "./floor-navigation.js?v=2609220023";
+} from "../presence/presence-scene.js?v=2609220052";
+import { createSceneBackground } from "./scene-background.js?v=2609220052";
+import { floorNavigationChoices } from "./floor-navigation.js?v=2609220052";
 import {
   createVacuumMotion,
   vacuumQuip,
   createVacuumFollowCamera,
   vacuumBirdCamera,
   vacuumFollowPose
-} from "../vacuum/vacuum-motion.js?v=2609220023";
+} from "../vacuum/vacuum-motion.js?v=2609220052";
 import {
   createVacuumMaps,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "../vacuum/vacuum-map.js?v=2609220023";
-import { televisionState } from "../television/television-state.js?v=2609220023";
-import { createTelevisionPanel } from "../television/television-panel.js?v=2609220023";
-import { createTelevisionScreens } from "../television/television-screen.js?v=2609220023";
-import { createNasPanel } from "../nas/nas-panel.js?v=2609220023";
-import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609220023";
-import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609220023";
+} from "../vacuum/vacuum-map.js?v=2609220052";
+import { televisionState } from "../television/television-state.js?v=2609220052";
+import { createTelevisionPanel } from "../television/television-panel.js?v=2609220052";
+import { createTelevisionScreens } from "../television/television-screen.js?v=2609220052";
+import { createNasPanel } from "../nas/nas-panel.js?v=2609220052";
+import { createNasStatus, nasDeviceState } from "../nas/nas-status.js?v=2609220052";
+import { createCameraStatus, cameraOnline } from "../camera/camera-status.js?v=2609220052";
 import {
   coverState,
   coverIconIsOn,
   coverCanAdjustBlades
-} from "../cover/cover-state.js?v=2609220023";
-import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609220023";
-import { createCoverPanel } from "../cover/cover-panel.js?v=2609220023";
-import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609220023";
-import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609220023";
-import { createScreenOutlines } from "../environment/environment-halos.js?v=2609220023";
-import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609220023";
-import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609220023";
-import { createClimatePanel } from "../climate/climate-panel.js?v=2609220023";
+} from "../cover/cover-state.js?v=2609220052";
+import { createCoverFeedback } from "../cover/cover-feedback.js?v=2609220052";
+import { createCoverPanel } from "../cover/cover-panel.js?v=2609220052";
+import { createCurtainMotion } from "../cover/curtain-motion.js?v=2609220052";
+import { createEnvironmentAirflow } from "../environment/environment-airflow.js?v=2609220052";
+import { createScreenOutlines } from "../environment/environment-halos.js?v=2609220052";
+import { mountRegionRangeEditor } from "../light/light-range-editor.js?v=2609220052";
+import { climateState, createClimateModeHistory } from "../climate/climate-state.js?v=2609220052";
+import { createClimatePanel } from "../climate/climate-panel.js?v=2609220052";
 import {
   createEnvironmentScene,
   pageDimming,
   pageModelBindings
-} from "../environment/environment-scene.js?v=2609220023";
-import { startSceneSync } from "./scene-sync.js?v=2609220023";
+} from "../environment/environment-scene.js?v=2609220052";
+import { startSceneSync } from "./scene-sync.js?v=2609220052";
 import {
   lightCommand,
   createLightPreview,
   createLightStateCache,
   lightRenderState
-} from "../light/light-state.js?v=2609220023";
+} from "../light/light-state.js?v=2609220052";
 import {
   createDampedCameraMotion,
   automaticLightCamera,
   automaticAirConditionerCamera
-} from "../camera/camera-motion.js?v=2609220023";
+} from "../camera/camera-motion.js?v=2609220052";
 import {
   resolvePageBehavior,
   createIdleRotation,
   createIdleIconVisibility,
   createIdleFocusExit
-} from "./idle-rotation.js?v=2609220023";
+} from "./idle-rotation.js?v=2609220052";
+import { createStageMetadata } from "./stage/config-metadata.js?v=2609220052";
+import { createBindingCollectors } from "./stage/binding-collectors.js?v=2609220052";
+import { createStageGeometry } from "./stage/geometry.js?v=2609220052";
+import { createDomAndHostBridge } from "./stage/dom-host.js?v=2609220052";
+import { createLightStateReaders } from "./stage/light-state.js?v=2609220052";
+import { createRequestSettlement } from "./stage/request-settlement.js?v=2609220052";
+import { createCoverPresentation } from "./stage/cover-presentation.js?v=2609220052";
+import { createPresenceHitBoxes } from "./stage/presence-hitboxes.js?v=2609220052";
+import { createMarkerLayer } from "./stage/marker-layer.js?v=2609220052";
+import { createInputActivity } from "./stage/input-activity.js?v=2609220052";
+import { createCameraTransition } from "./stage/camera-transition.js?v=2609220052";
+import { createHostMessageHandler } from "./stage/host-messages.js?v=2609220052";
 const DEFAULT_MARKER_ICON_SVG =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 15c0-2-3-3-3-7a7 7 0 0 1 14 0c0 4-3 5-3 7l-1 3H9l-1-3Z"/><path d="M9 21h6M9 15h6"/></svg>';
 const LIGHT_PRESETS = [
@@ -301,10 +313,8 @@ export function mountStage(stageOptions) {
       }
     }
   }
-  // 读某盏灯的当前状态：先问本地缓存（含滑动历史 / 上次已知值），
-  // 缓存没有才回落到宿主下发的实体状态，避免宿主状态滞后时灯色闪一下。
-  const readLightState = entityId =>
-    lightStateCache.resolve(entityId || "", statesByEntityId[entityId]);
+
+
   let lightEffectPreview = null;
   let sceneProperties = {
     lights: []
@@ -318,125 +328,737 @@ export function mountStage(stageOptions) {
   let queuedConfigMessage = null;
   // 初值取 -Infinity：首帧就被视为「已空闲」，空闲旋转可以立刻开始。
   let lastActivityTimestamp = -Infinity;
-  // 相机姿态一律经宿主转换：舞台侧存的是「相对楼层」坐标，由宿主叠加楼层抬升。
-  // absolute 为 true 表示传入的已经是世界坐标，不再二次叠加。
-  const transformCameraPose = (pose, floorSelectionId = config.floorSelection, absolute = false) =>
-    stageOptions.transformCamera?.(pose, floorSelectionId, absolute) ?? pose;
-  // 取当前相机在世界坐标下的姿态快照，用于恢复视角与判断相机是否变化。
-  const currentCameraSnapshot = () =>
-    transformCameraPose(stageOptions.cameraState(true), config.floorSelection, true);
-  /**
-   * 归一化宿主下发的配置：深拷贝，并把所有相机姿态转换到当前楼层坐标系。
-   * 相机字段分散在 lights / security.cameras / security.presenceSensors / environment.* /
-   * devices.*，都可能 undefined 故逐个可选补齐；只补坐标、不新增配置项，结构原样透传。
-   */
-  function normalizeSceneConfig(sourceConfig) {
-    const normalizedConfig = structuredClone(sourceConfig);
-    normalizedConfig.camera = transformCameraPose(
-      normalizedConfig.floorCameras?.[normalizedConfig.floorSelection] || normalizedConfig.camera,
-      normalizedConfig.floorSelection
-    );
-    normalizedConfig.lights = (normalizedConfig.lights || []).map(lightItem => ({
-      ...lightItem,
-      ...(lightItem.focusCamera
-        ? {
-            focusCamera: transformCameraPose(lightItem.focusCamera, normalizedConfig.floorSelection)
-          }
-        : {})
-    }));
-    if (normalizedConfig.security?.cameras) {
-      normalizedConfig.security.cameras = (normalizedConfig.security.cameras || []).map(
-        cameraConfigItem => ({
-          ...cameraConfigItem,
-          ...(cameraConfigItem.focusCamera
-            ? {
-                focusCamera: transformCameraPose(
-                  cameraConfigItem.focusCamera,
-                  normalizedConfig.floorSelection
-                )
-              }
-            : {})
-        })
-      );
+
+
+
+
+
+
+
+
+
+
+  // ── 外提到 core/stage/*.js 的模块 ──────────────────────────────────────────
+  // 下面这些函数已经搬到子目录，通过工厂注入依赖。ctx 的每一项都是 getter：
+  // 读到的始终是调用时刻的值（不是构造时的快照），因此这段可以放在各依赖声明之前 ——
+  // getter 体只在被读时求值，不存在「用到未初始化绑定」的时序问题。
+  // 被外提代码写回的那几项另配 setter，写的就是同一个 let。
+  const ctx = {
+    get DEFAULT_MARKER_ICON_SVG() {
+      return DEFAULT_MARKER_ICON_SVG;
+    },
+    get THREE() {
+      return THREE;
+    },
+    get activateBinding() {
+      return activateBinding;
+    },
+    get activeModule() {
+      return activeModule;
+    },
+    set activeModule(value) {
+      activeModule = value;
+    },
+    get activePointerIds() {
+      return activePointerIds;
+    },
+    get applyLightStates() {
+      return applyLightStates;
+    },
+    get applyPageBehavior() {
+      return applyPageBehavior;
+    },
+    get areIconsHiddenByRotation() {
+      return areIconsHiddenByRotation;
+    },
+    set areIconsHiddenByRotation(value) {
+      areIconsHiddenByRotation = value;
+    },
+    get areIdleIconsHidden() {
+      return areIdleIconsHidden;
+    },
+    get automaticAirConditionerCamera() {
+      return automaticAirConditionerCamera;
+    },
+    get automaticLightCamera() {
+      return automaticLightCamera;
+    },
+    get backgroundTheme() {
+      return backgroundTheme;
+    },
+    get beginCameraTransition() {
+      return beginCameraTransition;
+    },
+    get bladePendingByEntityId() {
+      return bladePendingByEntityId;
+    },
+    get buildMetadata() {
+      return buildMetadata;
+    },
+    get cachedMarkerFloorId() {
+      return cachedMarkerFloorId;
+    },
+    set cachedMarkerFloorId(value) {
+      cachedMarkerFloorId = value;
+    },
+    get cachedSceneDocument() {
+      return cachedSceneDocument;
+    },
+    set cachedSceneDocument(value) {
+      cachedSceneDocument = value;
+    },
+    get cameraOnline() {
+      return cameraOnline;
+    },
+    get cameraTransition() {
+      return cameraTransition;
+    },
+    set cameraTransition(value) {
+      cameraTransition = value;
+    },
+    get cancelModuleTransition() {
+      return cancelModuleTransition;
+    },
+    get canvasElement() {
+      return canvasElement;
+    },
+    get capturePointer() {
+      return capturePointer;
+    },
+    get climateRequestsById() {
+      return climateRequestsById;
+    },
+    get climateState() {
+      return climateState;
+    },
+    get collectModuleBindings() {
+      return collectModuleBindings;
+    },
+    get computePanelInsetRatio() {
+      return computePanelInsetRatio;
+    },
+    get config() {
+      return config;
+    },
+    set config(value) {
+      config = value;
+    },
+    get configRevisionCount() {
+      return configRevisionCount;
+    },
+    set configRevisionCount(value) {
+      configRevisionCount = value;
+    },
+    get configuredModuleKinds() {
+      return configuredModuleKinds;
+    },
+    get configuredModules() {
+      return configuredModules;
+    },
+    set configuredModules(value) {
+      configuredModules = value;
+    },
+    get constrainCameraPose() {
+      return constrainCameraPose;
+    },
+    get containerElement() {
+      return containerElement;
+    },
+    get controlErrorElement() {
+      return controlErrorElement;
+    },
+    get coverBindings() {
+      return coverBindings;
+    },
+    get coverFeedback() {
+      return coverFeedback;
+    },
+    get coverIconIsOn() {
+      return coverIconIsOn;
+    },
+    get coverRequestsById() {
+      return coverRequestsById;
+    },
+    get coverState() {
+      return coverState;
+    },
+    get createDampedCameraMotion() {
+      return createDampedCameraMotion;
+    },
+    get currentCameraSnapshot() {
+      return currentCameraSnapshot;
+    },
+    get currentFloorId() {
+      return currentFloorId;
+    },
+    set currentFloorId(value) {
+      currentFloorId = value;
+    },
+    get curtainMotion() {
+      return curtainMotion;
+    },
+    get dreamCoverFeedback() {
+      return dreamCoverFeedback;
+    },
+    get editingVacuumId() {
+      return editingVacuumId;
+    },
+    set editingVacuumId(value) {
+      editingVacuumId = value;
+    },
+    get exitFocus() {
+      return exitFocus;
+    },
+    get findBinding() {
+      return findBinding;
+    },
+    get findFocusedBinding() {
+      return findFocusedBinding;
+    },
+    get floorNavigationChoices() {
+      return floorNavigationChoices;
+    },
+    get focusBinding() {
+      return focusBinding;
+    },
+    get focusMode() {
+      return focusMode;
+    },
+    set focusMode(value) {
+      focusMode = value;
+    },
+    get focusRestoreCameraPose() {
+      return focusRestoreCameraPose;
+    },
+    set focusRestoreCameraPose(value) {
+      focusRestoreCameraPose = value;
+    },
+    get focusViewportInset() {
+      return focusViewportInset;
+    },
+    set focusViewportInset(value) {
+      focusViewportInset = value;
+    },
+    get focusedId() {
+      return focusedId;
+    },
+    set focusedId(value) {
+      focusedId = value;
+    },
+    get followButton() {
+      return followButton;
+    },
+    get followCameraPose() {
+      return followCameraPose;
+    },
+    set followCameraPose(value) {
+      followCameraPose = value;
+    },
+    get followedVacuumId() {
+      return followedVacuumId;
+    },
+    set followedVacuumId(value) {
+      followedVacuumId = value;
+    },
+    get frameLoop() {
+      return frameLoop;
+    },
+    get hasActivityState() {
+      return hasActivityState;
+    },
+    set hasActivityState(value) {
+      hasActivityState = value;
+    },
+    get hasIdleReturnPending() {
+      return hasIdleReturnPending;
+    },
+    get hasInitializedFloor() {
+      return hasInitializedFloor;
+    },
+    set hasInitializedFloor(value) {
+      hasInitializedFloor = value;
+    },
+    get hasUserInteracted() {
+      return hasUserInteracted;
+    },
+    set hasUserInteracted(value) {
+      hasUserInteracted = value;
+    },
+    get idleFocusExit() {
+      return idleFocusExit;
+    },
+    get idleIconHideDeadline() {
+      return idleIconHideDeadline;
+    },
+    set idleIconHideDeadline(value) {
+      idleIconHideDeadline = value;
+    },
+    get idleIconVisibility() {
+      return idleIconVisibility;
+    },
+    get idleRotation() {
+      return idleRotation;
+    },
+    get idleSinceTimestamp() {
+      return idleSinceTimestamp;
+    },
+    set idleSinceTimestamp(value) {
+      idleSinceTimestamp = value;
+    },
+    get isActivityHeld() {
+      return isActivityHeld;
+    },
+    set isActivityHeld(value) {
+      isActivityHeld = value;
+    },
+    get isDisposed() {
+      return isDisposed;
+    },
+    get isEditing() {
+      return isEditing;
+    },
+    set isEditing(value) {
+      isEditing = value;
+    },
+    get isEditorCanvas() {
+      return isEditorCanvas;
+    },
+    set isEditorCanvas(value) {
+      isEditorCanvas = value;
+    },
+    get isFocusableDevice() {
+      return isFocusableDevice;
+    },
+    get isIdleRotating() {
+      return isIdleRotating;
+    },
+    get isInteractive() {
+      return isInteractive;
+    },
+    set isInteractive(value) {
+      isInteractive = value;
+    },
+    get isOnActiveFloor() {
+      return isOnActiveFloor;
+    },
+    get isOverviewMode() {
+      return isOverviewMode;
+    },
+    get isPageVisible() {
+      return isPageVisible;
+    },
+    set isPageVisible(value) {
+      isPageVisible = value;
+    },
+    get isPresenceHitRangeVisible() {
+      return isPresenceHitRangeVisible;
+    },
+    set isPresenceHitRangeVisible(value) {
+      isPresenceHitRangeVisible = value;
+    },
+    get isPresencePreviewWalk() {
+      return isPresencePreviewWalk;
+    },
+    set isPresencePreviewWalk(value) {
+      isPresencePreviewWalk = value;
+    },
+    get isPresented() {
+      return isPresented;
+    },
+    set isPresented(value) {
+      isPresented = value;
+    },
+    get isPresentedVisible() {
+      return isPresentedVisible;
+    },
+    set isPresentedVisible(value) {
+      isPresentedVisible = value;
+    },
+    get isRangeEditingAllowed() {
+      return isRangeEditingAllowed;
+    },
+    set isRangeEditingAllowed(value) {
+      isRangeEditingAllowed = value;
+    },
+    get isRangeEditorBusy() {
+      return isRangeEditorBusy;
+    },
+    set isRangeEditorBusy(value) {
+      isRangeEditorBusy = value;
+    },
+    get isRangeEditorOnly() {
+      return isRangeEditorOnly;
+    },
+    set isRangeEditorOnly(value) {
+      isRangeEditorOnly = value;
+    },
+    get isRangeEditorOpen() {
+      return isRangeEditorOpen;
+    },
+    get isSceneUpdating() {
+      return isSceneUpdating;
+    },
+    set isSceneUpdating(value) {
+      isSceneUpdating = value;
+    },
+    get isViewEditing() {
+      return isViewEditing;
+    },
+    set isViewEditing(value) {
+      isViewEditing = value;
+    },
+    get lastActivityTimestamp() {
+      return lastActivityTimestamp;
+    },
+    set lastActivityTimestamp(value) {
+      lastActivityTimestamp = value;
+    },
+    get layoutPresenceHitBoxes() {
+      return layoutPresenceHitBoxes;
+    },
+    get layoutStage() {
+      return layoutStage;
+    },
+    get lightEffectPreview() {
+      return lightEffectPreview;
+    },
+    set lightEffectPreview(value) {
+      lightEffectPreview = value;
+    },
+    get lightPanelElement() {
+      return lightPanelElement;
+    },
+    get lightPreview() {
+      return lightPreview;
+    },
+    get lightRenderState() {
+      return lightRenderState;
+    },
+    get lightRequestsById() {
+      return lightRequestsById;
+    },
+    get lightStateCache() {
+      return lightStateCache;
+    },
+    get makeElement() {
+      return makeElement;
+    },
+    get markerDragState() {
+      return markerDragState;
+    },
+    set markerDragState(value) {
+      markerDragState = value;
+    },
+    get markerLayoutSignature() {
+      return markerLayoutSignature;
+    },
+    set markerLayoutSignature(value) {
+      markerLayoutSignature = value;
+    },
+    get markerPointsById() {
+      return markerPointsById;
+    },
+    get markersById() {
+      return markersById;
+    },
+    get markersElement() {
+      return markersElement;
+    },
+    get maybeOpenDevicePopup() {
+      return maybeOpenDevicePopup;
+    },
+    get moduleEmptyElement() {
+      return moduleEmptyElement;
+    },
+    get moduleTransition() {
+      return moduleTransition;
+    },
+    get moveFocusInto() {
+      return moveFocusInto;
+    },
+    get nasDeviceState() {
+      return nasDeviceState;
+    },
+    get normalizeSceneConfig() {
+      return normalizeSceneConfig;
+    },
+    get observeAllClimates() {
+      return observeAllClimates;
+    },
+    get openRangeEditor() {
+      return openRangeEditor;
+    },
+    get pageBehavior() {
+      return pageBehavior;
+    },
+    set pageBehavior(value) {
+      pageBehavior = value;
+    },
+    get pendingFloorId() {
+      return pendingFloorId;
+    },
+    set pendingFloorId(value) {
+      pendingFloorId = value;
+    },
+    get pendingModule() {
+      return pendingModule;
+    },
+    set pendingModule(value) {
+      pendingModule = value;
+    },
+    get pointerToFloorPoint() {
+      return pointerToFloorPoint;
+    },
+    get postToHost() {
+      return postToHost;
+    },
+    get preFollowCameraState() {
+      return preFollowCameraState;
+    },
+    set preFollowCameraState(value) {
+      preFollowCameraState = value;
+    },
+    get prefersReducedMotionNow() {
+      return prefersReducedMotionNow;
+    },
+    get presenceHitBoxesById() {
+      return presenceHitBoxesById;
+    },
+    get presenceHitLayerElement() {
+      return presenceHitLayerElement;
+    },
+    get presenceScene() {
+      return presenceScene;
+    },
+    get presentationLayout() {
+      return presentationLayout;
+    },
+    set presentationLayout(value) {
+      presentationLayout = value;
+    },
+    get pressedKeys() {
+      return pressedKeys;
+    },
+    get queuedConfigMessage() {
+      return queuedConfigMessage;
+    },
+    set queuedConfigMessage(value) {
+      queuedConfigMessage = value;
+    },
+    get rangeEditor() {
+      return rangeEditor;
+    },
+    get readLightState() {
+      return readLightState;
+    },
+    get renderLightPanel() {
+      return renderLightPanel;
+    },
+    get renderMarkers() {
+      return renderMarkers;
+    },
+    get renderStage() {
+      return renderStage;
+    },
+    get resolveCurtainGeometry() {
+      return resolveCurtainGeometry;
+    },
+    get resolveLightState() {
+      return resolveLightState;
+    },
+    get resolvePageBehavior() {
+      return resolvePageBehavior;
+    },
+    get resolveStateEntry() {
+      return resolveStateEntry;
+    },
+    get savedCameraPose() {
+      return savedCameraPose;
+    },
+    set savedCameraPose(value) {
+      savedCameraPose = value;
+    },
+    get sceneModelKey() {
+      return sceneModelKey;
+    },
+    get sceneProperties() {
+      return sceneProperties;
+    },
+    set sceneProperties(value) {
+      sceneProperties = value;
+    },
+    get screenOutlines() {
+      return screenOutlines;
+    },
+    get selectedId() {
+      return selectedId;
+    },
+    set selectedId(value) {
+      selectedId = value;
+    },
+    get sendLightCommand() {
+      return sendLightCommand;
+    },
+    get settleClimateRequest() {
+      return settleClimateRequest;
+    },
+    get settleCoverRequest() {
+      return settleCoverRequest;
+    },
+    get settleLightCommand() {
+      return settleLightCommand;
+    },
+    get settleTelevisionRequest() {
+      return settleTelevisionRequest;
+    },
+    get stageOptions() {
+      return stageOptions;
+    },
+    get statesByEntityId() {
+      return statesByEntityId;
+    },
+    set statesByEntityId(value) {
+      statesByEntityId = value;
+    },
+    get stopVacuumFollow() {
+      return stopVacuumFollow;
+    },
+    get syncCameraInteraction() {
+      return syncCameraInteraction;
+    },
+    get syncCoverFeedback() {
+      return syncCoverFeedback;
+    },
+    get syncPresenceScene() {
+      return syncPresenceScene;
+    },
+    get syncVacuumMaps() {
+      return syncVacuumMaps;
+    },
+    get televisionRequestsById() {
+      return televisionRequestsById;
+    },
+    get televisionState() {
+      return televisionState;
+    },
+    get tempProjectedPoint() {
+      return tempProjectedPoint;
+    },
+    get toolbarElement() {
+      return toolbarElement;
+    },
+    get transformCameraPose() {
+      return transformCameraPose;
+    },
+    get updateActivityHolds() {
+      return updateActivityHolds;
+    },
+    get updateIdleControllers() {
+      return updateIdleControllers;
+    },
+    get updateMarkerPositions() {
+      return updateMarkerPositions;
+    },
+    get updateMarkerVisibility() {
+      return updateMarkerVisibility;
+    },
+    get updatePanelChrome() {
+      return updatePanelChrome;
+    },
+    get vacuumBirdCamera() {
+      return vacuumBirdCamera;
+    },
+    get vacuumFollowCamera() {
+      return vacuumFollowCamera;
+    },
+    get vacuumFollowPose() {
+      return vacuumFollowPose;
+    },
+    get vacuumMotion() {
+      return vacuumMotion;
+    },
+    get vacuumQuip() {
+      return vacuumQuip;
+    },
+    get vacuumRoomTimersById() {
+      return vacuumRoomTimersById;
+    },
+    get vacuumStatusPresentation() {
+      return vacuumStatusPresentation;
+    },
+    get vacuumWorkingLayerElement() {
+      return vacuumWorkingLayerElement;
+    },
+    get wakeFrameLoop() {
+      return wakeFrameLoop;
     }
-    if (normalizedConfig.security?.presenceSensors) {
-      normalizedConfig.security.presenceSensors = normalizedConfig.security.presenceSensors.map(
-        sensorItem => ({
-          ...sensorItem,
-          ...(sensorItem.focusCamera
-            ? {
-                focusCamera: transformCameraPose(
-                  sensorItem.focusCamera,
-                  normalizedConfig.floorSelection
-                )
-              }
-            : {})
-        })
-      );
-    }
-    if (normalizedConfig.environment) {
-      for (const environmentKey of ["airConditioners", "curtains"]) {
-        normalizedConfig.environment[environmentKey] = (
-          normalizedConfig.environment[environmentKey] || []
-        ).map(environmentItem => ({
-          ...environmentItem,
-          ...(environmentItem.focusCamera
-            ? {
-                focusCamera: transformCameraPose(
-                  environmentItem.focusCamera,
-                  normalizedConfig.floorSelection
-                )
-              }
-            : {})
-        }));
-      }
-    }
-    for (const deviceKey of ["nas", "televisions", "vacuums"]) {
-      if (normalizedConfig.devices?.[deviceKey]) {
-        normalizedConfig.devices[deviceKey] = normalizedConfig.devices[deviceKey].map(
-          deviceItem => ({
-            ...deviceItem,
-            ...(deviceItem.focusCamera
-              ? {
-                  focusCamera: transformCameraPose(
-                    deviceItem.focusCamera,
-                    normalizedConfig.floorSelection
-                  )
-                }
-              : {})
-          })
-        );
-      }
-    }
-    if (normalizedConfig.devices?.vacuums) {
-      for (const configuredVacuumItem of normalizedConfig.devices.vacuums) {
-        configuredVacuumItem.followCamera &&= transformCameraPose(
-          configuredVacuumItem.followCamera,
-          normalizedConfig.floorSelection
-        );
-      }
-    }
-    return normalizedConfig;
-  }
-  // 统一回传通道：带固定 channel 标识，且只发给同源父窗口，
-  // 避免被其它嵌入页面或跨源窗口收到。
-  const postToHost = outboundMessage =>
-    window.parent.postMessage(
-      {
-        channel: "hb-i3d-v1",
-        ...outboundMessage
-      },
-      location.origin
-    );
-  // 建元素小工具：文本一律走 textContent，不拼 HTML，天然免疫转义问题。
-  const makeElement = (tagName, className, textContent) => {
-    const element = document.createElement(tagName);
-    element.className = className || "";
-    if (textContent) {
-      element.textContent = textContent;
-    }
-    return element;
   };
+  const { buildMetadata, normalizeSceneConfig } = createStageMetadata(ctx);
+  const {
+    collectAllDeviceBindings,
+    collectCameraBindings,
+    collectClimateBindings,
+    collectCurtainBindings,
+    collectModuleBindings,
+    collectNasBindings,
+    collectOverviewBindings,
+    collectPresenceBindings,
+    collectPreviewCovers,
+    collectTelevisionBindings,
+    collectVacuumBindings,
+    collectVacuumRoomShortcuts,
+    resolveModuleBindings
+  } = createBindingCollectors(ctx);
+  const {
+    cameraPosesEqual,
+    constrainCameraPose,
+    currentCameraSnapshot,
+    isFocusableDevice,
+    pointerToFloorPoint,
+    resolveCurtainGeometry,
+    transformCameraPose
+  } = createStageGeometry(ctx);
+  const { makeElement, postToHost } = createDomAndHostBridge(ctx);
+  const { applyLightStates, lightStateForBinding, readLightState, resolveLightState } = createLightStateReaders(ctx);
+  const {
+    settleClimateRequest,
+    settleCoverRequest,
+    settleLightCommand,
+    settleTelevisionRequest
+  } = createRequestSettlement(ctx);
+  const {
+    nextCoverDelayMs,
+    pruneBladePreviews,
+    resolveCoverPresentation,
+    syncCoverFeedback
+  } = createCoverPresentation(ctx);
+  const { layoutPresenceHitBoxes } = createPresenceHitBoxes(ctx);
+  const {
+    beginMarkerDrag,
+    cancelMarkerDrag,
+    endMarkerDrag,
+    moveMarkerDrag,
+    renderMarkers,
+    updateMarkerPositions,
+    updateMarkerVisibility
+  } = createMarkerLayer(ctx);
+  const {
+    applyPageBehavior,
+    clearInputState,
+    trackUserInput,
+    updateActivityHolds,
+    updateIdleControllers
+  } = createInputActivity(ctx);
+  const {
+    advanceCameraTransition,
+    beginCameraTransition,
+    focusBinding,
+    stopVacuumFollow,
+    syncCameraInteraction,
+    updateVacuumFollow
+  } = createCameraTransition(ctx);
+  const { applySceneUpdate, handleHostMessage } = createHostMessageHandler(ctx);
+
   const markersElement = makeElement("div", "i3d-markers");
   const vacuumWorkingLayerElement = makeElement("div", "i3d-vacuum-working-layer");
   let idleIconHideDeadline = 0;
@@ -624,21 +1246,8 @@ export function mountStage(stageOptions) {
         });
       })
   });
-  /**
-   * 结清一条空调控制请求：清超时定时器、出表，再按有无错误 resolve / reject。
-   */
-  function settleClimateRequest(pendingClimateKey, climateError) {
-    const pendingClimateRequest = climateRequestsById.get(pendingClimateKey);
-    if (pendingClimateRequest) {
-      clearTimeout(pendingClimateRequest.timeout);
-      climateRequestsById.delete(pendingClimateKey);
-      if (climateError) {
-        pendingClimateRequest.reject(new Error(climateError));
-      } else {
-        pendingClimateRequest.resolve();
-      }
-    }
-  }
+
+
   const bladePendingByEntityId = new Map();
   const coverRequestsById = new Map();
   let coverStorage;
@@ -660,68 +1269,12 @@ export function mountStage(stageOptions) {
     commandPreview: true,
     travelTime: 2400
   });
-  // 清理「叶片待确认」状态。梦幻帘的整体动作与叶片动作是两条反馈：
-  // 只有整体位置回报到位、且叶片反馈回到 50（水平）时，才认为整体动作结束、
-  // 可以开始叶片预览；否则一直挂着，避免两条反馈互相打架。
-  function pruneBladePreviews() {
-    for (const [previewEntityId, pendingBladeRequest] of bladePendingByEntityId) {
-      const standardFeedback = coverFeedback.read(previewEntityId);
-      const dreamFeedback = dreamCoverFeedback.read(previewEntityId);
-      if (!standardFeedback?.available || !dreamFeedback?.available) {
-        bladePendingByEntityId.delete(previewEntityId);
-        continue;
-      }
-      if (
-        standardFeedback.positionReported &&
-        standardFeedback.raw.attributes.current_position !== pendingBladeRequest.reported
-      ) {
-        bladePendingByEntityId.delete(previewEntityId);
-        continue;
-      }
-      if (!(Math.abs((dreamFeedback.position ?? -100) - 50) > 0.01)) {
-        bladePendingByEntityId.delete(previewEntityId);
-        coverFeedback.startPreview(previewEntityId, pendingBladeRequest.requestId);
-      }
-    }
-  }
-  // 两个窗帘反馈源取较小延迟，让动画节奏跟随更活跃的那个。
-  const nextCoverDelayMs = () =>
-    Math.min(coverFeedback.nextDelay(), dreamCoverFeedback.nextDelay());
-  /**
-   * 合成窗帘标记的展示状态：标准反馈叠加（梦幻帘才有的）叶片反馈。
-   * 叶片在等待回报时强制覆盖成「打开中」：那一刻整体已停、叶片还在转，
-   * 不覆盖的话图标会闪回静止态。
-   */
-  function resolveCoverPresentation(
-    coverBindingItem,
-    baseCoverState = coverState(
-      coverBindingItem.entityId,
-      statesByEntityId[coverBindingItem.entityId],
-      coverBindingItem
-    )
-  ) {
-    const standardPresentation = coverFeedback.read(coverBindingItem.entityId, baseCoverState);
-    if (coverBindingItem.coverKind !== "dream") {
-      return standardPresentation;
-    }
-    const dreamCoverState = dreamCoverFeedback.read(coverBindingItem.entityId);
-    const isBladePending = bladePendingByEntityId.has(coverBindingItem.entityId);
-    return {
-      ...standardPresentation,
-      ...(isBladePending
-        ? {
-            state: "opening",
-            opening: true,
-            closing: false,
-            moving: true,
-            closedConfirmed: false
-          }
-        : {}),
-      tiltPosition: dreamCoverState?.position ?? baseCoverState.tiltPosition,
-      tiltTarget: dreamCoverState?.targetPosition ?? null,
-      error: dreamCoverState?.error || standardPresentation?.error || ""
-    };
-  }
+
+
+
+
+
+
   const coverPanel = createCoverPanel({
     onPreview: (coverEntityId, bladePosition) => {
       const panelCoverBinding = collectCurtainBindings().find(
@@ -868,36 +1421,8 @@ export function mountStage(stageOptions) {
         wakeFrameLoop();
       })
   });
-  /**
-   * 结清窗帘控制请求：清定时器、撤回叶片待确认标记、把失败原因写进反馈，
-   * 再重绘标记与灯光面板并唤醒渲染。
-   */
-  function settleCoverRequest(pendingCoverKey, coverError) {
-    const pendingCoverRequest = coverRequestsById.get(pendingCoverKey);
-    if (pendingCoverRequest) {
-      clearTimeout(pendingCoverRequest.timeout);
-      coverRequestsById.delete(pendingCoverKey);
-      if (coverError) {
-        if (
-          bladePendingByEntityId.get(pendingCoverRequest.entityId)?.requestId === pendingCoverKey
-        ) {
-          bladePendingByEntityId.delete(pendingCoverRequest.entityId);
-        }
-        dreamCoverFeedback.fail(pendingCoverRequest.entityId, pendingCoverKey, coverError);
-        pendingCoverRequest.feedback.fail(
-          pendingCoverRequest.entityId,
-          pendingCoverKey,
-          coverError
-        );
-        syncCoverFeedback();
-        renderLightPanel();
-        wakeFrameLoop();
-        pendingCoverRequest.reject(new Error(coverError));
-      } else {
-        pendingCoverRequest.resolve();
-      }
-    }
-  }
+
+
   const televisionRequestsById = new Map();
   const nasPanel = createNasPanel();
   const televisionPanel = createTelevisionPanel({
@@ -935,21 +1460,8 @@ export function mountStage(stageOptions) {
         });
       })
   });
-  /**
-   * 结清电视控制请求：清超时定时器并按结果 resolve / reject。
-   */
-  function settleTelevisionRequest(pendingTelevisionKey, televisionError) {
-    const pendingTelevisionRequest = televisionRequestsById.get(pendingTelevisionKey);
-    if (pendingTelevisionRequest) {
-      clearTimeout(pendingTelevisionRequest.timeout);
-      televisionRequestsById.delete(pendingTelevisionKey);
-      if (televisionError) {
-        pendingTelevisionRequest.reject(new Error(televisionError));
-      } else {
-        pendingTelevisionRequest.resolve();
-      }
-    }
-  }
+
+
   lightPanelElement.append(
     lightPanelHeader,
     lightControlsElement,
@@ -965,23 +1477,8 @@ export function mountStage(stageOptions) {
   });
   let curtainFloorIds = [];
   let coverBindings = [];
-  // 把窗帘展示状态同步给标记图标与 3D 窗帘动画；
-  // immediate 表示不做插值直接置位，供拖拽预览等需要即时反馈的场景使用。
-  function syncCoverFeedback() {
-    for (const coverMarkerBinding of coverBindings) {
-      const coverIconState = resolveCoverPresentation(coverMarkerBinding);
-      curtainMotion.setState(coverMarkerBinding.id, coverIconState, {
-        immediate: true
-      });
-      const coverMarkerElement = markersById.get("cover:" + coverMarkerBinding.id);
-      if (coverMarkerElement) {
-        coverMarkerElement.classList.toggle(
-          "is-on",
-          coverIconIsOn(coverMarkerBinding, coverIconState)
-        );
-      }
-    }
-  }
+
+
   /**
    * 重建窗帘绑定，并把状态同步给动画、反馈缓存与宿主。
    * 快照键：配置 / 状态表 / 场景根 / revision / 文档 —— 宿主每帧都可能调用，
@@ -1206,154 +1703,21 @@ export function mountStage(stageOptions) {
     getObjectCamera: cameraRequest =>
       stageOptions.presentationCamera?.(cameraRequest) || stageOptions.camera
   });
-  /**
-   * 收集空调绑定：把配置项与场景模型（挂机 / 柜机 / 出风口）合并。
-   * 坐标优先用配置里的显式值（编辑器拖拽过），缺省回落到模型坐标与几何中心高度。
-   */
-  function collectClimateBindings() {
-    return (config.environment?.airConditioners || []).map(airConditionerEntry => {
-      const climateSceneItem = stageOptions.document.floors
-        .find(floorCandidate => floorCandidate.id === airConditionerEntry.floorId)
-        ?.scene.items.find(
-          sceneItemCandidate =>
-            sceneItemCandidate.id === airConditionerEntry.modelId &&
-            ["wallac", "floorac", "airoutlet"].includes(sceneItemCandidate.type)
-        );
-      return {
-        ...airConditionerEntry,
-        deviceKind: "climate",
-        x: Number.isFinite(airConditionerEntry.x)
-          ? airConditionerEntry.x
-          : (climateSceneItem?.x ?? 0),
-        y: Number.isFinite(airConditionerEntry.y)
-          ? airConditionerEntry.y
-          : (climateSceneItem?.y ?? 0),
-        height: Number.isFinite(airConditionerEntry.height)
-          ? airConditionerEntry.height
-          : climateSceneItem
-            ? (Number(climateSceneItem.elevation) || 0) +
-              (Number(climateSceneItem.height) || 0.28) / 2
-            : 0,
-        modelAvailable: !!climateSceneItem,
-        icon: airConditionerEntry.icon || "mdi:air-conditioner"
-      };
-    });
-  }
-  /**
-   * 归一化窗帘几何参数：宽度、开合方式、轨道形状、布料与梦幻帘标记。
-   * 轨道相关参数只来自场景模型（编辑器才有），布料与 coverKind 允许配置覆盖
-   * 模型；unboundPosition 是未绑定实体时的预览开合度。
-   */
-  function resolveCurtainGeometry(sceneItemSource, itemConfig = {}) {
-    return {
-      curtainWidth: Number(sceneItemSource?.width) || 1.8,
-      curtainPosition: sceneItemSource?.curtainPosition || "split",
-      curtainTrack: sceneItemSource?.curtainTrack || "straight",
-      curtainCorner: sceneItemSource?.curtainCorner,
-      curtainLeftLength: sceneItemSource?.curtainLeftLength,
-      curtainRightLength: sceneItemSource?.curtainRightLength,
-      curtainMeet: sceneItemSource?.curtainMeet,
-      curtainFabric: sceneItemSource?.curtainFabric || itemConfig.curtainFabric || "cloth",
-      coverKind: itemConfig.coverKind === "dream" ? "dream" : "standard",
-      unboundPosition: Number.isFinite(itemConfig.unboundPosition)
-        ? itemConfig.unboundPosition
-        : Number(sceneItemSource?.curtainPreview) || 0
-    };
-  }
-  /**
-   * 收集窗帘绑定：合并配置项与场景模型，坐标 / 高度缺省取模型几何中心。
-   */
-  function collectCurtainBindings() {
-    return (config.environment?.curtains || []).map(curtainBindingEntry => {
-      const curtainSceneItem = stageOptions.document.floors
-        .find(matchingFloor => matchingFloor.id === curtainBindingEntry.floorId)
-        ?.scene.items.find(
-          matchingSceneItem =>
-            matchingSceneItem.id === curtainBindingEntry.modelId &&
-            matchingSceneItem.type === "curtain"
-        );
-      return {
-        ...curtainBindingEntry,
-        deviceKind: "cover",
-        x: Number.isFinite(curtainBindingEntry.x)
-          ? curtainBindingEntry.x
-          : (curtainSceneItem?.x ?? 0),
-        y: Number.isFinite(curtainBindingEntry.y)
-          ? curtainBindingEntry.y
-          : (curtainSceneItem?.y ?? 0),
-        height: Number.isFinite(curtainBindingEntry.height)
-          ? curtainBindingEntry.height
-          : curtainSceneItem
-            ? (Number(curtainSceneItem.elevation) || 0) +
-              (Number(curtainSceneItem.height) || 2.4) / 2
-            : 0,
-        ...resolveCurtainGeometry(curtainSceneItem, curtainBindingEntry),
-        modelAvailable: !!curtainSceneItem,
-        icon: curtainBindingEntry.icon || "mdi:curtains"
-      };
-    });
-  }
-  /**
-   * 收集 NAS 绑定：clickAction 缺省为 focus（点击聚焦），坐标缺省取模型几何中心。
-   */
-  function collectNasBindings() {
-    return (config.devices?.nas || []).map(nasEntry => {
-      const nasSceneItem = stageOptions.document.floors
-        .find(nasFloor => nasFloor.id === nasEntry.floorId)
-        ?.scene.items.find(
-          nasSceneItemCandidate =>
-            nasSceneItemCandidate.id === nasEntry.modelId && nasSceneItemCandidate.type === "nas"
-        );
-      return {
-        ...nasEntry,
-        clickAction: nasEntry.clickAction || "focus",
-        deviceKind: "nas",
-        x: Number.isFinite(nasEntry.x) ? nasEntry.x : (nasSceneItem?.x ?? 0),
-        y: Number.isFinite(nasEntry.y) ? nasEntry.y : (nasSceneItem?.y ?? 0),
-        height: Number.isFinite(nasEntry.height)
-          ? nasEntry.height
-          : (Number(nasSceneItem?.elevation) || 0) + (Number(nasSceneItem?.height) || 0.34) / 2,
-        modelAvailable: !!nasSceneItem,
-        icon: nasEntry.icon || "mdi:nas"
-      };
-    });
-  }
+
+
+
+
+
+
+
+
   const followButton = makeElement("button", "", "跟随漫游");
   followButton.type = "button";
   followButton.hidden = true;
   followButton.title = "以鸟瞰视角跟随扫地机";
   toolbarElement.append(followButton);
-  /**
-   * 退出扫地机跟随视角。
-   */
-  function stopVacuumFollow(restoreCamera = true) {
-    if (!followedVacuumId) {
-      return;
-    }
-    const previousCameraState = preFollowCameraState;
-    followedVacuumId = "";
-    preFollowCameraState = null;
-    followCameraPose = null;
-    vacuumFollowCamera.reset();
-    postToHost({
-      type: "vacuum-follow-state",
-      active: false
-    });
-    followButton.textContent = "跟随漫游";
-    followButton.setAttribute("aria-pressed", "false");
-    stageOptions.endCameraMotion();
-    if (restoreCamera && previousCameraState) {
-      beginCameraTransition(
-        previousCameraState,
-        false,
-        false,
-        () => stageOptions.restoreCamera(previousCameraState),
-        "follow-return"
-      );
-    }
-    syncCameraInteraction();
-    updateIdleControllers();
-  }
+
+
   followButton.addEventListener("click", () => {
     if (followedVacuumId) {
       stopVacuumFollow();
@@ -1410,46 +1774,10 @@ export function mountStage(stageOptions) {
     wakeFrameLoop();
   });
   const vacuumFollowCamera = createVacuumFollowCamera(THREE);
-  // 每帧推进跟随相机：目标点取扫地机世界坐标再抬高 0.05 米，
-  // 否则相机会贴地、被机身自己挡住。
-  function updateVacuumFollow(deltaSeconds) {
-    if (!followedVacuumId) {
-      return;
-    }
-    const followWorldPosition = vacuumMotion.worldPosition(followedVacuumId);
-    // 需要绑定的 floorId / modelId 才能查模型锚点：相机取景对准房间里的模型，
-    // 而不是只盯着机体自身坐标。
-    const followedVacuumBinding = (config.devices?.vacuums || []).find(
-      followedVacuum => followedVacuum.id === followedVacuumId
-    );
-    if (!followWorldPosition || !followedVacuumBinding) {
-      stopVacuumFollow();
-      return;
-    }
-    const followAnchorCenter = stageOptions.environmentModelPose(
-      followedVacuumBinding.floorId,
-      followedVacuumBinding.modelId
-    )?.center;
-    // 取景点优先用模型锚点中心（相机看向房间整体）；模型尚未就绪时退回机体世界坐标。
-    // 统一抬高 0.05 米：地板高度处相机会贴地并被机身自己遮挡。
-    const followRevealTarget = (
-      followAnchorCenter ? new THREE.Vector3(...followAnchorCenter) : followWorldPosition.clone()
-    ).add(new THREE.Vector3(0, 0.05, 0));
-    const followPose = vacuumFollowPose(followCameraPose, followRevealTarget.toArray());
-    const followCameraTarget = new THREE.Vector3(...followPose.position);
-    vacuumFollowCamera.reveal(
-      stageOptions,
-      followedVacuumBinding,
-      followRevealTarget,
-      followCameraTarget
-    );
-    stageOptions.setFocusViewport(0);
-    stageOptions.applyCameraPose(followPose);
-  }
-  // 只有这几类设备点标记后会弹出面板（聚焦流程）；其余绑定点一下就是就地执行，
-  // 不进聚焦态。用于决定标记是否需要「选中」视觉与是否接管指针。
-  const isFocusableDevice = device =>
-    ["nas", "television", "vacuum", "presence", "camera"].includes(device?.deviceKind);
+
+
+
+
   const vacuumMaps = createVacuumMaps(stageOptions, () => {
     stageOptions.requestRender?.();
     wakeFrameLoop();
@@ -1463,44 +1791,8 @@ export function mountStage(stageOptions) {
   presenceHitLayerElement.setAttribute("aria-hidden", "true");
   containerElement.append(presenceHitLayerElement);
   const presenceHitBoxesById = new Map();
-  // 布置人体传感器的点击热区：只有编辑态且开启了命中范围（或已有热区）才算，
-  // 直接复用传感器在屏幕上的投影矩形，避免与 3D 拾取维护两套坐标。
-  function layoutPresenceHitBoxes() {
-    if ((!isEditing || !isPresenceHitRangeVisible) && !presenceHitBoxesById.size) {
-      return;
-    }
-    const presenceHitRects =
-      isEditing && isPresenceHitRangeVisible
-        ? presenceScene.hitRects(
-            stageOptions.camera,
-            canvasElement,
-            config.security?.presenceSensors || []
-          )
-        : [];
-    const presenceHitRectIds = new Set(presenceHitRects.map(hitRect => hitRect.id));
-    const presenceContainerRect = containerElement.getBoundingClientRect();
-    for (const [hitBoxId, staleHitBoxElement] of presenceHitBoxesById) {
-      if (!presenceHitRectIds.has(hitBoxId)) {
-        staleHitBoxElement.remove();
-        presenceHitBoxesById.delete(hitBoxId);
-      }
-    }
-    for (const hitBoxRect of presenceHitRects) {
-      let hitBoxElement = presenceHitBoxesById.get(hitBoxRect.id);
-      if (!hitBoxElement) {
-        hitBoxElement = makeElement("div", "i3d-presence-hit-box");
-        presenceHitBoxesById.set(hitBoxRect.id, hitBoxElement);
-        presenceHitLayerElement.append(hitBoxElement);
-      }
-      Object.assign(hitBoxElement.style, {
-        left: hitBoxRect.left - presenceContainerRect.left - hitBoxRect.padding + "px",
-        top: hitBoxRect.top - presenceContainerRect.top - hitBoxRect.padding + "px",
-        width: hitBoxRect.width + hitBoxRect.padding * 2 + "px",
-        height: hitBoxRect.height + hitBoxRect.padding * 2 + "px",
-        borderRadius: hitBoxRect.padding + "px"
-      });
-    }
-  }
+
+
   // 人体存在场景的开关条件：已呈现、非编辑器画布，且（非编辑态或正处于安防模块）。
   // 编辑其它模块时要关掉，免得场景特效干扰布点。
   // 快照键 = 配置 / 状态表 / revision / 楼层 / 开关 / 预览行走 / 模块。
@@ -1589,78 +1881,10 @@ export function mountStage(stageOptions) {
     }
   );
   document.addEventListener("visibilitychange", syncVacuumMaps);
-  /**
-   * 收集扫地机绑定：合并配置项、场景模型与运行期偏移（拖拽 / 动画位置）。
-   * 编辑态忽略偏移，保证编辑器里显示的一直是配置坐标。
-   */
-  function collectVacuumBindings() {
-    return (config.devices?.vacuums || []).map(vacuumBindingEntry => {
-      const vacuumSceneItem = stageOptions.document.floors
-        .find(vacuumFloor => vacuumFloor.id === vacuumBindingEntry.floorId)
-        ?.scene.items.find(
-          vacuumSceneItemCandidate =>
-            vacuumSceneItemCandidate.id === vacuumBindingEntry.modelId &&
-            vacuumSceneItemCandidate.type === "robotvacuum"
-        );
-      // 编辑态必须忽略运行期偏移：编辑器里显示与保存的都是配置坐标，
-      // 否则拖拽动画跑过之后会把动画位置当成用户摆的位置存下去。
-      const vacuumOffset = (!isEditing && vacuumMotion.offset(vacuumBindingEntry.id)) || {
-        x: 0,
-        y: 0
-      };
-      return {
-        ...vacuumBindingEntry,
-        deviceKind: "vacuum",
-        clickAction: vacuumBindingEntry.clickAction || "focus-panel",
-        x:
-          (Number.isFinite(vacuumBindingEntry.x)
-            ? vacuumBindingEntry.x
-            : (vacuumSceneItem?.x ?? 0)) + vacuumOffset.x,
-        y:
-          (Number.isFinite(vacuumBindingEntry.y)
-            ? vacuumBindingEntry.y
-            : (vacuumSceneItem?.y ?? 0)) + vacuumOffset.y,
-        height: Number.isFinite(vacuumBindingEntry.height)
-          ? vacuumBindingEntry.height
-          : (Number(vacuumSceneItem?.elevation) || 0) +
-            (Number(vacuumSceneItem?.height) || 0.85) +
-            0.25,
-        modelAvailable: !!vacuumSceneItem,
-        icon: vacuumBindingEntry.icon || "mdi:robot-vacuum"
-      };
-    });
-  }
-  // 收集扫地机房间快捷入口：visible === false 的扫地机不生成入口，
-  // 避免出现看得见却点不到的按钮。
-  function collectVacuumRoomShortcuts() {
-    return collectVacuumBindings()
-      .filter(
-        filteredVacuum =>
-          filteredVacuum.visible !== false &&
-          (isEditing || filteredVacuum.entityId) &&
-          (isEditing ||
-            (!vacuumStatusPresentation(filteredVacuum, statesByEntityId).active &&
-              resolveStateEntry(statesByEntityId[filteredVacuum.entityId])?.state !== "paused"))
-      )
-      .flatMap(shortcutOwnerVacuum =>
-        (shortcutOwnerVacuum.shortcuts || [])
-          .filter(vacuumShortcutEntry => isEditing || vacuumShortcutEntry.entityId)
-          .map(roomShortcut => ({
-            ...roomShortcut,
-            id: "vacuum-room:" + shortcutOwnerVacuum.id + ":" + roomShortcut.id,
-            vacuumId: shortcutOwnerVacuum.id,
-            shortcutId: roomShortcut.id,
-            floorId: shortcutOwnerVacuum.floorId,
-            height: roomShortcut.height ?? 0.08,
-            deviceKind: "vacuum-room",
-            modelAvailable: shortcutOwnerVacuum.modelAvailable,
-            icon: roomShortcut.icon || "mdi:broom",
-            size: roomShortcut.size ?? 44,
-            iconSize: roomShortcut.iconSize ?? 26,
-            hitSize: roomShortcut.hitSize ?? 44
-          }))
-      );
-  }
+
+
+
+
   // 决定是否顺带弹出设备原生弹窗（摄像头 / 扫地机）：仅在非编辑、可交互且
   // 绑定确实带弹窗目标时触发，其余情况把点击留给宿主处理。
   function maybeOpenDevicePopup(popupBinding) {
@@ -1693,166 +1917,18 @@ export function mountStage(stageOptions) {
       });
     }
   }
-  /**
-   * 收集电视绑定：合并配置项与场景模型，坐标缺省取模型位置。
-   */
-  function collectTelevisionBindings() {
-    return (config.devices?.televisions || []).map(televisionEntry => {
-      const televisionSceneItem = stageOptions.document.floors
-        .find(televisionFloor => televisionFloor.id === televisionEntry.floorId)
-        ?.scene.items.find(
-          televisionSceneItemCandidate =>
-            televisionSceneItemCandidate.id === televisionEntry.modelId &&
-            televisionSceneItemCandidate.type === "tv"
-        );
-      return {
-        ...televisionEntry,
-        clickAction: televisionEntry.clickAction || "focus-panel",
-        deviceKind: "television",
-        x: Number.isFinite(televisionEntry.x) ? televisionEntry.x : (televisionSceneItem?.x ?? 0),
-        y: Number.isFinite(televisionEntry.y) ? televisionEntry.y : (televisionSceneItem?.y ?? 0),
-        height: Number.isFinite(televisionEntry.height)
-          ? televisionEntry.height
-          : (Number(televisionSceneItem?.elevation) || 0) +
-            (Number(televisionSceneItem?.height) || 0.92) * 0.62,
-        modelAvailable: !!televisionSceneItem,
-        icon: televisionEntry.icon || "mdi:television"
-      };
-    });
-  }
-  // 收集「场景里有窗帘模型但配置未绑定实体」的预览窗帘：按 楼层 + 模型 去重，
-  // 让编辑器在未绑定状态下也能看到窗帘。
-  // 去重键走 core/scene-model-key.js：两侧都必须归一（配置侧可能没写楼层、场景项一侧可能缺字段），
-  // 否则同一个窗帘会被判成「未绑定」而多出一条假预览。
-  function collectPreviewCovers() {
-    const boundCoverKeys = new Set(
-      collectCurtainBindings().map(boundCurtain =>
-        sceneModelKey(boundCurtain.floorId, boundCurtain.modelId)
-      )
-    );
-    return stageOptions.document.floors.flatMap(previewFloor =>
-      (previewFloor.scene?.items || [])
-        .filter(
-          previewSceneItem =>
-            previewSceneItem.type === "curtain" &&
-            !boundCoverKeys.has(sceneModelKey(previewFloor.id, previewSceneItem.id))
-        )
-        .map(previewCurtainItem => ({
-          id: "preview-cover:" + JSON.stringify([previewFloor.id, previewCurtainItem.id]),
-          floorId: previewFloor.id,
-          modelId: previewCurtainItem.id,
-          entityId: "",
-          deviceKind: "cover",
-          ...resolveCurtainGeometry(previewCurtainItem),
-          modelAvailable: true,
-          previewOnly: true
-        }))
-    );
-  }
-  // 所有已配置设备，不分它属于哪个模块。ID 约定与各模块保持一致，
-  // 这样总览页可以直接复用 findBinding / activateBinding。
-  function collectAllDeviceBindings() {
-    return [
-      ...collectClimateBindings(),
-      ...collectCurtainBindings(),
-      ...collectNasBindings(),
-      ...collectTelevisionBindings(),
-      ...collectVacuumBindings(),
-      ...collectCameraBindings(),
-      ...collectPresenceBindings()
-    ].map(bindingEntry => ({
-      ...bindingEntry,
-      id: ["camera", "presence"].includes(bindingEntry.deviceKind)
-        ? bindingEntry.id
-        : bindingEntry.deviceKind + ":" + bindingEntry.id
-    }));
-  }
-  // 总览页的标记集合：灯光 + 全部设备。
-  function collectOverviewBindings() {
-    return [...(config.lights || []), ...collectAllDeviceBindings()];
-  }
-  /**
-   * 按当前模块解析出要显示的标记绑定。
-   * 展示态的「总览 / 全部楼层」刻意返回空数组：那两种模式只展示房子本体，
-   * 设备按钮留给各自的模块页签。
-   */
-  function resolveModuleBindings() {
-    if (!isEditing && isOverviewMode()) {
-      // 总览 / 全部楼层 只展示房子；设备按钮各自留在自己的页签里。
-      return [];
-    } else if (activeModule === "overview") {
-      return collectOverviewBindings();
-    } else if (activeModule === "security") {
-      return [...collectCameraBindings(), ...collectPresenceBindings()];
-    } else if (activeModule === "vacuum-shortcut") {
-      return collectVacuumRoomShortcuts().filter(
-        shortcutFilterEntry => shortcutFilterEntry.vacuumId === editingVacuumId
-      );
-    } else if (activeModule === "nas") {
-      return collectNasBindings();
-    } else if (activeModule === "vacuum") {
-      return collectVacuumBindings()
-        .filter(vacuumFilterEntry => isEditing || vacuumFilterEntry.entityId)
-        .map(vacuumBinding => ({
-          ...vacuumBinding,
-          id: isEditing ? vacuumBinding.id : "vacuum:" + vacuumBinding.id
-        }));
-    } else if (activeModule === "television") {
-      return collectTelevisionBindings();
-    } else if (activeModule === "devices") {
-      return [...collectNasBindings(), ...collectTelevisionBindings()].map(deviceBinding => ({
-        ...deviceBinding,
-        id: deviceBinding.deviceKind + ":" + deviceBinding.id
-      }));
-    } else if (activeModule === "cover") {
-      return collectCurtainBindings();
-    } else if (activeModule === "climate") {
-      return collectClimateBindings();
-    } else {
-      return [...collectClimateBindings(), ...collectCurtainBindings()].map(
-        environmentDeviceBinding => ({
-          ...environmentDeviceBinding,
-          id: environmentDeviceBinding.deviceKind + ":" + environmentDeviceBinding.id
-        })
-      );
-    }
-  }
-  // 模块绑定的统一入口：安防模块把摄像头与人体传感器合并，其余模块直接用
-  // resolveModuleBindings 的结果。
-  const collectModuleBindings = () => {
-    let moduleBindings =
-      activeModule === "security"
-        ? [
-            ...collectCameraBindings(),
-            ...collectPresenceBindings().filter(
-              securitySensorEntry => isEditing && securitySensorEntry.modelId
-            )
-          ]
-        : activeModule === "light"
-          ? config.lights || []
-          : [
-              ...resolveModuleBindings(),
-              ...(activeModule === "vacuum" && !isEditing ? collectVacuumRoomShortcuts() : [])
-            ];
-    if (!isEditing && activeModule === "light") {
-      moduleBindings = [
-        ...moduleBindings,
-        ...collectVacuumBindings()
-          .filter(
-            overviewVacuumEntry =>
-              overviewVacuumEntry.entityId &&
-              vacuumStatusPresentation(overviewVacuumEntry, statesByEntityId).active &&
-              vacuumQuip(overviewVacuumEntry, statesByEntityId, performance.now())
-          )
-          .map(quipVacuum => ({
-            ...quipVacuum,
-            id: "vacuum:" + quipVacuum.id,
-            overviewQuip: true
-          }))
-      ];
-    }
-    return moduleBindings.filter(isOnActiveFloor);
-  };
+
+
+
+
+
+
+
+
+
+
+
+
   // 渲染楼层页签：编辑 / 视图编辑 / 范围编辑时整块隐藏；只有一个楼层时不显示页签。
   // 编辑器画布里导航栏按 isEditorCanvas 放行（切模块靠它），楼层页签不跟随、照旧隐藏；
   // 页签按签名比对重建，避免每帧重排 DOM。
@@ -2072,63 +2148,10 @@ export function mountStage(stageOptions) {
       isRangeEditorBusy = false;
     }
   }
-  // 收集摄像头绑定：尺寸缺省 0.2 / 0.3 / 0.2 米，用于画状态罩的包围盒。
-  const collectCameraBindings = () =>
-    (config.security?.cameras || []).map(securityCameraEntry => {
-      const securityCameraSceneItem = stageOptions.document.floors
-        .find(securityCameraFloor => securityCameraFloor.id === securityCameraEntry.floorId)
-        ?.scene.items.find(
-          cameraSceneItemCandidate =>
-            cameraSceneItemCandidate.id === securityCameraEntry.modelId &&
-            cameraSceneItemCandidate.type === "camera"
-        );
-      return {
-        ...securityCameraEntry,
-        buttonHidden: false,
-        hiddenClickable: false,
-        id: "camera:" + securityCameraEntry.id,
-        deviceKind: "camera",
-        clickAction: "focus",
-        modelAvailable: !!securityCameraSceneItem,
-        icon: securityCameraEntry.icon || "mdi:cctv",
-        x: Number.isFinite(securityCameraEntry.x)
-          ? securityCameraEntry.x
-          : (securityCameraSceneItem?.x ?? 0),
-        y: Number.isFinite(securityCameraEntry.y)
-          ? securityCameraEntry.y
-          : (securityCameraSceneItem?.y ?? 0),
-        height: Number.isFinite(securityCameraEntry.height)
-          ? securityCameraEntry.height
-          : (Number(securityCameraSceneItem?.elevation) || 0) +
-            (Number(securityCameraSceneItem?.height) || 0.3) / 2
-      };
-    });
-  // 收集人体传感器绑定，供存在场景与点击热区布局共用。
-  const collectPresenceBindings = () =>
-    (config.security?.presenceSensors || []).map(presenceSensorBindingEntry => {
-      const presenceSceneItem = stageOptions.document.floors
-        .find(sensorFloor => sensorFloor.id === presenceSensorBindingEntry.floorId)
-        ?.scene.items.find(
-          sensorSceneItemCandidate =>
-            sensorSceneItemCandidate.id === presenceSensorBindingEntry.modelId &&
-            sensorSceneItemCandidate.type === "presence"
-        );
-      return {
-        ...presenceSensorBindingEntry,
-        modelAvailable: presenceSensorBindingEntry.modelId ? !!presenceSceneItem : undefined,
-        id: "presence:" + presenceSensorBindingEntry.id,
-        deviceKind: "presence",
-        clickAction: "focus",
-        icon: "mdi:motion-sensor",
-        size: presenceSensorBindingEntry.modelId ? 36 : presenceSensorBindingEntry.size,
-        x: presenceSceneItem?.x ?? presenceSensorBindingEntry.route?.[0]?.x ?? 0,
-        y: presenceSceneItem?.y ?? presenceSensorBindingEntry.route?.[0]?.y ?? 0,
-        height: presenceSceneItem
-          ? (Number(presenceSceneItem.elevation) || 0) +
-            (Number(presenceSceneItem.height) || 0.2) / 2
-          : (presenceSensorBindingEntry.size ?? 1) * 0.7
-      };
-    });
+
+
+
+
   // 按标记 ID 反查绑定：先查当前模块的集合，再兜底查摄像头与人体传感器 ——
   // 这两类在安防模块之外（如总览联动的命令行）也可能被点中。
   const findBinding = lookupId =>
@@ -2509,103 +2532,14 @@ export function mountStage(stageOptions) {
   }
   // 运行态焦点：编辑态用 selectedId，这里只解析展示态的 focusedId。
   const findFocusedBinding = () => findBinding(focusedId);
-  // 一帧里要用的灯状态：正在预览灯光效果时用预览值覆盖真实值，
-  // 预览结束后立刻回落到真实状态（preview.state 的第二个参数就是回落值）。
-  const resolveLightState = lightEntityId =>
-    lightPreview.state(lightEntityId, readLightState(lightEntityId));
-  // 取某盏灯的渲染状态：编辑态下若正在预览该灯的灯光效果，强制按「开且可用」渲染，
-  // 让编辑器立刻看到效果而不依赖实体真实状态。
-  function lightStateForBinding(lightBinding) {
-    const lightSnapshot = resolveLightState(lightBinding.entityId);
-    if (isEditing && lightEffectPreview?.id === lightBinding.id) {
-      lightSnapshot.on = true;
-      lightSnapshot.available = true;
-      if (lightEffectPreview.kind !== "defaults") {
-        lightSnapshot.brightness = lightEffectPreview.kind === "brightnessMin" ? 1 : 100;
-      }
-      if (lightEffectPreview.kind.startsWith("brightness")) {
-        lightSnapshot.brightnessSupported = true;
-      }
-      if (lightEffectPreview.kind.startsWith("temperature")) {
-        lightSnapshot.temperatureSupported = true;
-        lightSnapshot.kelvin = lightEffectPreview.kind.endsWith("Min")
-          ? lightSnapshot.minimum
-          : lightSnapshot.maximum;
-      }
-    }
-    return lightSnapshot;
-  }
-  // 把灯光状态铺到 3D 场景；preview 表示允许采用本地预览值（滑杆拖动中）。
-  // immediate 用于场景替换后直接置位，跳过过渡。
-  function applyLightStates(options) {
-    const previewMode = isEditing || isViewEditing;
-    const previewLightId =
-      previewMode && !isViewEditing && focusMode !== "edit" ? lightEffectPreview?.id : null;
-    stageOptions.setEditorEffects?.(previewMode, !!previewLightId);
-    if (
-      (!stageOptions.floorTransitionActive && cameraTransition?.owner !== "floor") ||
-      !!stageOptions.floorEffectsFollow
-    ) {
-      stageOptions.setLightStates(
-        (config.lights || [])
-          .filter(light => light.entityId)
-          .map(lightStateEntry => {
-            const lightState = lightStateForBinding(lightStateEntry);
-            return {
-              ...lightStateEntry,
-              ...(isEditing && lightEffectPreview?.id === lightStateEntry.id
-                ? lightState
-                : lightRenderState(lightState)),
-              ...(previewMode && lightStateEntry.id !== previewLightId
-                ? {
-                    on: false
-                  }
-                : {})
-            };
-          }),
-        previewMode
-          ? {
-              ...options,
-              editor: true,
-              immediate: true
-            }
-          : options
-      );
-    }
-  }
-  // 同步相机交互控制权：范围编辑器打开时交给它，本次直接返回。
-  function syncCameraInteraction() {
-    if (isRangeEditorOpen && rangeEditor?.syncCameraInteraction) {
-      rangeEditor.syncCameraInteraction();
-      return;
-    }
-    if (isRangeEditorOpen || followedVacuumId) {
-      stageOptions.setCameraInteraction({
-        enabled: false,
-        panEnabled: false,
-        zoomEnabled: false
-      });
-      return;
-    }
-    const cameraConfig = {
-      ...config.camera,
-      ...resolvePageBehavior(config, activeModule).interaction
-    };
-    const isFreeInteraction =
-      isViewEditing || focusMode === "edit" || (isEditing && !focusMode && !cameraTransition);
-    stageOptions.setCameraInteraction({
-      enabled:
-        !markerDragState &&
-        (isFreeInteraction ||
-          (isInteractive &&
-            (!focusMode || focusMode === "panel") &&
-            !cameraTransition &&
-            !isIdleRotating)),
-      rotationMode: isFreeInteraction ? "free" : cameraConfig.rotationMode,
-      panEnabled: isFreeInteraction,
-      zoomEnabled: isFreeInteraction
-    });
-  }
+
+
+
+
+
+
+
+
   // 算出面板对取景的遮挡比例：摄像头与通用弹窗两套布局不同，
   // 聚焦定位时用它把模型推到未被面板挡住的一侧。
   const computePanelInsetRatio = () => {
@@ -2799,90 +2733,8 @@ export function mountStage(stageOptions) {
       }
     }
   }
-  // 依据楼层过渡进度与相机过渡状态决定标记可见性：过渡未揭开标记时隐藏，
-  // 否则用户会看到标记在新旧楼层之间漂移。
-  function updateMarkerVisibility() {
-    const isFloorMarkersTransitioning =
-      cameraTransition?.owner === "floor" && !cameraTransition.markersRevealed;
-    const hasHiddenClickable =
-      !isEditing &&
-      !isViewEditing &&
-      collectModuleBindings().some(
-        concealedMarkerBinding =>
-          concealedMarkerBinding.visible !== false &&
-          concealedMarkerBinding.buttonHidden !== true &&
-          concealedMarkerBinding.hiddenClickable === true
-      );
-    const shouldConcealMarkers =
-      isFloorMarkersTransitioning ||
-      hasUserInteracted ||
-      areIconsHiddenByRotation ||
-      (areIdleIconsHidden && !hasHiddenClickable) ||
-      (hasIdleReturnPending && pageBehavior.hideIconsWhileRotating === true) ||
-      (!!focusMode && !["edit", "panel"].includes(focusMode));
-    for (const [markerId, marker] of markersById) {
-      const isButtonHidden = !isEditing && findBinding(markerId)?.buttonHidden === true;
-      const isHiddenClickable =
-        !isEditing &&
-        !isViewEditing &&
-        !isButtonHidden &&
-        findBinding(markerId)?.hiddenClickable === true;
-      marker.disabled =
-        cameraTransition?.owner === "floor" ||
-        isButtonHidden ||
-        (!isEditing && (isOverviewMode() || findBinding(markerId)?.overviewQuip === true));
-      const visibilityBinding = findBinding(markerId);
-      const isPassiveMarker =
-        !isEditing &&
-        (visibilityBinding?.passiveSensor ||
-          (visibilityBinding?.deviceKind === "vacuum" &&
-            vacuumStatusPresentation(visibilityBinding, statesByEntityId).active));
-      const markerLayerElement = isPassiveMarker ? vacuumWorkingLayerElement : markersElement;
-      if (marker.parentElement !== markerLayerElement) {
-        markerLayerElement.append(marker);
-      }
-      const isIdleHidden =
-        (isFloorMarkersTransitioning && isPassiveMarker) ||
-        (!isPassiveMarker &&
-          (areIdleIconsHidden || areIconsHiddenByRotation) &&
-          !isHiddenClickable &&
-          !isEditing &&
-          !isViewEditing);
-      marker.classList.toggle("is-hidden-clickable", isHiddenClickable);
-      marker.classList.toggle("is-idle-hidden", isIdleHidden);
-      if (
-        isIdleHidden ||
-        isButtonHidden ||
-        (!isEditing && (isOverviewMode() || findBinding(markerId)?.overviewQuip === true))
-      ) {
-        moveFocusInto(marker);
-        marker.setAttribute("inert", "");
-      } else {
-        marker.removeAttribute("inert");
-      }
-      marker.title = isHiddenClickable ? "" : marker.getAttribute("aria-label") || "";
-    }
-    if (shouldConcealMarkers) {
-      moveFocusInto(
-        markersElement,
-        lightPanelElement.classList.contains("is-open") ? lightPanelElement : canvasElement
-      );
-      markersElement.setAttribute("inert", "");
-    } else if (moduleTransition) {
-      markersElement.setAttribute("inert", "");
-    } else {
-      markersElement.removeAttribute("inert");
-    }
-    markersElement.removeAttribute("aria-hidden");
-    if (shouldConcealMarkers && idleSinceTimestamp === null) {
-      idleSinceTimestamp = performance.now();
-    } else if (!shouldConcealMarkers) {
-      idleSinceTimestamp = null;
-    }
-    markersElement.style.transition = isFloorMarkersTransitioning ? "none" : "";
-    markersElement.style.opacity = isFloorMarkersTransitioning ? "0" : "";
-    markersElement.classList.toggle("is-concealed", shouldConcealMarkers);
-  }
+
+
   // 聚焦且非面板模式时隐藏导航与楼层页签并置 inert，防止键盘点到已藏起的按钮。
   // 编辑器画布里分类栏单独放行（它是切模块入口），楼层页签仍按原规则隐藏。
   function updatePanelChrome() {
@@ -2937,151 +2789,14 @@ export function mountStage(stageOptions) {
     renderStage();
     updateMarkerVisibility();
   }
-  // 推进相机过渡动画，由渲染循环每帧调用。
-  function advanceCameraTransition(transitionTimestamp) {
-    if (!cameraTransition) {
-      return;
-    }
-    const activeCameraTransition = cameraTransition;
-    const elapsedMs = Math.max(0, transitionTimestamp - cameraTransition.started);
-    const transitionProgress = cameraTransition.transition.progress(elapsedMs);
-    // 记下当前进度：楼层过渡末段允许用户按下即接管相机（见 canvas 的 pointerdown），
-    // 那个判断读的必须是本帧刚算出的值。
-    cameraTransition.amount = transitionProgress;
-    focusViewportInset =
-      cameraTransition.inset +
-      (cameraTransition.targetInset - cameraTransition.inset) * transitionProgress;
-    const transitionPose = cameraTransition.transition.sample(elapsedMs);
-    if (cameraTransition.owner === "floor") {
-      stageOptions.advanceFloorTransition?.(transitionProgress, transitionPose);
-    }
-    if (stageOptions.applyCameraFrame) {
-      stageOptions.applyCameraFrame(transitionPose, transitionProgress, focusViewportInset);
-    } else {
-      stageOptions.applyCameraPose(transitionPose, transitionProgress);
-      stageOptions.setFocusViewport(focusViewportInset);
-    }
-    if (
-      cameraTransition.owner === "floor" &&
-      transitionProgress >= 0.9 &&
-      !cameraTransition.presentationRevealed
-    ) {
-      cameraTransition.presentationRevealed = true;
-      renderStage();
-    }
-    if (
-      cameraTransition.owner === "floor" &&
-      transitionProgress >= 0.9 &&
-      !cameraTransition.markersRevealed
-    ) {
-      cameraTransition.markersRevealed = true;
-      updateMarkerVisibility();
-      updateMarkerPositions(true);
-    }
-    if (
-      cameraTransition.transition.settled(elapsedMs) &&
-      cameraTransition === activeCameraTransition
-    ) {
-      cameraTransition = null;
-      stageOptions.endCameraMotion();
-      syncCameraInteraction();
-      activeCameraTransition.done?.();
-      updateIdleControllers();
-    }
-  }
-  // 约束相机姿态：非俯视（top）视图要夹住缩放与目标点，
-  // 防止外部存进越界值把视角带飞。
-  function constrainCameraPose(cameraPose) {
-    if (!cameraPose) {
-      return cameraPose;
-    }
-    if (cameraPose.view !== "top") {
-      return stageOptions.constrainCameraPose({
-        ...cameraPose,
-        up: [0, 1, 0]
-      });
-    }
-    const poseTargetPoint = new THREE.Vector3(...cameraPose.target);
-    const topViewHeight = Math.max(
-      new THREE.Vector3(...cameraPose.position).distanceTo(poseTargetPoint),
-      0.001
-    );
-    const topRotationRad = THREE.MathUtils.degToRad(cameraPose.topRotation || 0);
-    const upVector = new THREE.Vector3(
-      ...(cameraPose.up || [Math.sin(topRotationRad), 0, -Math.cos(topRotationRad)])
-    );
-    upVector.y = 0;
-    if (upVector.lengthSq() < 1e-12) {
-      upVector.set(Math.sin(topRotationRad), 0, -Math.cos(topRotationRad));
-    }
-    return stageOptions.constrainCameraPose({
-      ...cameraPose,
-      position: [poseTargetPoint.x, poseTargetPoint.y + topViewHeight, poseTargetPoint.z],
-      up: upVector.normalize().toArray()
-    });
-  }
-  /**
-   * 启动一次相机过渡。
-   */
-  function beginCameraTransition(
-    targetCameraPose,
-    focused,
-    immediateTransition = false,
-    onTransitionDone,
-    transitionOwner = "focus",
-    floorFrame = null
-  ) {
-    const transitionTargetPose =
-      transitionOwner === "follow-return"
-        ? targetCameraPose
-        : constrainCameraPose(targetCameraPose);
-    const transitionFromPose = stageOptions.beginCameraMotion(
-      transitionTargetPose.mode,
-      transitionTargetPose,
-      transitionOwner
-    );
-    if (transitionOwner === "floor") {
-      stageOptions.setFloorSlideCameras?.(transitionFromPose, transitionTargetPose);
-    }
-    const isImmediate =
-      immediateTransition || prefersReducedMotionNow();
-    cameraTransition = {
-      from: transitionFromPose,
-      to: structuredClone(transitionTargetPose),
-      inset: focusViewportInset,
-      targetInset: focused ? computePanelInsetRatio() : 0,
-      transition: createDampedCameraMotion(THREE, transitionFromPose, transitionTargetPose, {
-        immediate: isImmediate,
-        owner: transitionOwner,
-        floorFrame: floorFrame
-      }),
-      focused: focused,
-      owner: transitionOwner,
-      started: performance.now(),
-      done: onTransitionDone
-    };
-    updateIdleControllers();
-    syncCameraInteraction();
-    advanceCameraTransition(cameraTransition.started);
-    wakeFrameLoop();
-  }
-  // 比较两个相机姿态是否等价：缩放用 1e-6 容差、位置分量用更小的容差。
-  // 容差太小会被浮点误差判成「变了」而反复重启过渡。
-  function cameraPosesEqual(poseA, poseB) {
-    return (
-      poseA.mode === poseB.mode &&
-      Math.abs(poseA.zoom - poseB.zoom) < 0.000001 &&
-      ["position", "target", "up"].every(poseKey =>
-        (poseA[poseKey] || [0, 1, 0]).every(
-          (poseValue, poseValueIndex) =>
-            Math.abs(poseValue - (poseB[poseKey] || [0, 1, 0])[poseValueIndex]) < 0.000001
-        )
-      ) &&
-      ["frameSize", "focalLength"].every(
-        numberKey => Math.abs((poseA[numberKey] || 0) - (poseB[numberKey] || 0)) < 0.000001
-      )
-    );
-  }
+
+
+
+
+
+
+
+
   const idleRotation = createIdleRotation({
     returnToBase(onReturned) {
       hasIdleReturnPending = true;
@@ -3150,80 +2865,14 @@ export function mountStage(stageOptions) {
   const idleFocusExit = createIdleFocusExit({
     onExit: () => exitFocus()
   });
-  // 把页面行为（自动旋转、空闲隐藏图标、空闲退出聚焦）下发给三个空闲控制器。
-  // 行为随模块变化，所以每次配置更新都要重算一遍。
-  function applyPageBehavior() {
-    pageBehavior = resolvePageBehavior(config, activeModule);
-    idleRotation.configure(pageBehavior.autoRotate);
-    idleIconVisibility.configure(pageBehavior.idleHideIcons);
-    idleFocusExit.configure(pageBehavior.idleExitFocus);
-    syncCameraInteraction();
-    if (!pageBehavior.hideIconsWhileRotating) {
-      areIconsHiddenByRotation = false;
-      idleIconHideDeadline = 0;
-    }
-  }
-  // 统一开关空闲控制器：只有已呈现、页面可见、可交互且行为允许时才启用。
-  function updateIdleControllers() {
-    const canAnimate =
-      isPresented &&
-      isPageVisible &&
-      isInteractive &&
-      !isEditing &&
-      !isViewEditing &&
-      !isRangeEditorOpen &&
-      !document.hidden &&
-      !isDisposed;
-    if (!canAnimate) {
-      clearInputState();
-    }
-    idleRotation.setAvailable(
-      canAnimate &&
-        !followedVacuumId &&
-        !focusedId &&
-        !focusMode &&
-        (!cameraTransition || cameraTransition.owner === "idle")
-    );
-    idleFocusExit.setAvailable(
-      canAnimate && !!focusedId && ["runtime", "panel"].includes(focusMode) && !cameraTransition
-    );
-    idleIconVisibility.setAvailable(canAnimate);
-    frameLoop?.setAvailable(!document.hidden && (!hasActivityState || isPresentedVisible));
-    if (document.hidden || !isPresentedVisible) {
-      backgroundTheme.suspend();
-    }
-    wakeFrameLoop();
-  }
-  // 只要有指针按下或按键未松开就保持「活动中」，暂停空闲旋转与隐藏。
-  function updateActivityHolds() {
-    const isHeld = isActivityHeld || activePointerIds.size > 0 || pressedKeys.size > 0;
-    idleRotation.hold(isHeld);
-    idleIconVisibility.hold(isHeld);
-    idleFocusExit.hold(isHeld);
-    wakeFrameLoop();
-  }
-  // 记录用户活动：刷新最后活动时间戳；ESC 顺便退出扫地机跟随视角。
-  function trackUserInput(inputEvent) {
-    if (followedVacuumId && inputEvent.key === "Escape") {
-      stopVacuumFollow();
-    }
-    lastActivityTimestamp = performance.now();
-    hasUserInteracted = false;
-    updateMarkerVisibility();
-    if (inputEvent.type === "pointerdown") {
-      activePointerIds.add(inputEvent.pointerId);
-    }
-    if (inputEvent.type === "pointerup" || inputEvent.type === "pointercancel") {
-      activePointerIds.delete(inputEvent.pointerId);
-    }
-    if (inputEvent.type === "keydown") {
-      pressedKeys.add(inputEvent.code || inputEvent.key);
-    }
-    if (inputEvent.type === "keyup") {
-      pressedKeys.delete(inputEvent.code || inputEvent.key);
-    }
-    updateActivityHolds();
-  }
+
+
+
+
+
+
+
+
   const TRACKED_INPUT_EVENTS = [
     "pointerdown",
     "pointermove",
@@ -3239,14 +2888,8 @@ export function mountStage(stageOptions) {
       passive: true
     });
   }
-  // 清空输入状态（窗口失焦 / 页面隐藏时调用），否则会误判成「一直有人在操作」，
-  // 空闲旋转与隐藏图标就一直不触发。
-  function clearInputState() {
-    activePointerIds.clear();
-    pressedKeys.clear();
-    isActivityHeld = false;
-    updateActivityHolds();
-  }
+
+
   window.addEventListener("blur", clearInputState);
   if (document.addEventListener) {
     document.addEventListener("visibilitychange", updateIdleControllers);
@@ -3304,120 +2947,8 @@ export function mountStage(stageOptions) {
     }
     syncCameraInteraction();
   }
-  /**
-   * 聚焦到某个绑定：选中它、把相机推到其 focusCamera 姿态，并按需打开设备面板。
-   */
-  function focusBinding(focusId, focusModeName = "runtime", immediateFocus = false) {
-    const focusedBinding = findBinding(focusId);
-    if (!focusedBinding || focusedBinding.modelAvailable === false) {
-      return;
-    }
-    if (lightEffectPreview) {
-      lightEffectPreview = null;
-      applyLightStates();
-    }
-    if (focusedId === focusId && focusMode === focusModeName && focusModeName === "runtime") {
-      exitFocus();
-      return;
-    }
-    if (["runtime", "panel"].includes(focusModeName) && (!isInteractive || isOverviewMode())) {
-      return;
-    }
-    idleFocusExit.activity();
-    if (focusModeName === "panel") {
-      if (focusRestoreCameraPose || cameraTransition) {
-        exitFocus({
-          immediate: true
-        });
-      }
-      focusedId = focusId;
-      focusMode = "panel";
-      controlErrorElement.textContent = "";
-      lightPanelElement.removeAttribute("inert");
-      lightPanelElement.classList.add("is-open");
-      updatePanelChrome();
-      renderLightPanel();
-      syncCameraInteraction();
-      updateIdleControllers();
-      postToHost({
-        type: "focus-state",
-        active: false,
-        panelOpen: true,
-        id: focusId
-      });
-      maybeOpenDevicePopup(focusedBinding);
-      return;
-    }
-    focusRestoreCameraPose ||= stageOptions.cameraState(true);
-    const focusAnchor =
-      focusedBinding.deviceKind === "presence"
-        ? presenceScene.anchor(focusedBinding.id.slice(9))
-        : focusedBinding.modelId
-          ? stageOptions.environmentModelPose?.(focusedBinding.floorId, focusedBinding.modelId)
-          : null;
-    const focusTarget =
-      focusAnchor?.center ||
-      stageOptions
-        .worldPoint(
-          focusedBinding.floorId,
-          focusedBinding.x,
-          focusedBinding.y,
-          focusedBinding.height
-        )
-        ?.toArray();
-    if (!focusTarget) {
-      return;
-    }
-    focusedId = focusId;
-    focusMode = focusModeName;
-    controlErrorElement.textContent = "";
-    if (isEditing || !isFocusableDevice(focusedBinding) || focusedBinding.clickAction !== "focus") {
-      lightPanelElement.removeAttribute("inert");
-      lightPanelElement.classList.add("is-open");
-    } else {
-      lightPanelElement.setAttribute("inert", "");
-      lightPanelElement.classList.remove("is-open");
-    }
-    stageOptions.setOrbitPivot(null);
-    updatePanelChrome();
-    renderLightPanel();
-    const baseCameraPose = config.camera || savedCameraPose || focusRestoreCameraPose;
-    const focusPose =
-      focusedBinding.focusCamera ||
-      (focusedBinding.modelId
-        ? automaticAirConditionerCamera(
-            THREE,
-            {
-              ...baseCameraPose,
-              viewportAspect: canvasElement.clientWidth / Math.max(1, canvasElement.clientHeight)
-            },
-            focusTarget,
-            focusAnchor?.forward,
-            focusAnchor?.size,
-            focusedBinding.deviceKind === "nas"
-              ? {
-                  minimumFrameSize: 0.7,
-                  minimumDistance: 0.6
-                }
-              : {}
-          )
-        : automaticLightCamera(THREE, baseCameraPose, focusTarget));
-    if (!isEditing) {
-      postToHost({
-        type: "focus-state",
-        active: true,
-        id: focusId
-      });
-    }
-    beginCameraTransition(focusPose, true, immediateFocus, () => {
-      if (focusedBinding.deviceKind !== "camera") {
-        maybeOpenDevicePopup(focusedBinding);
-      }
-    });
-    if (focusedBinding.deviceKind === "camera") {
-      maybeOpenDevicePopup(focusedBinding);
-    }
-  }
+
+
   resetViewButton.addEventListener("click", () => {
     if (focusMode || focusRestoreCameraPose || cameraTransition) {
       exitFocus();
@@ -3723,45 +3254,8 @@ export function mountStage(stageOptions) {
     };
     lightPreview.hold(queuedCommandRequest.entityId, queuedPreviewToken);
   }
-  // 结清灯光命令：清超时、按需下发排队中的下一条、回滚或确认本地预览，
-  // 最后把错误写进面板提示。超时时不下发排队命令，避免超时后还继续往设备灌命令。
-  function settleLightCommand(lightRequestKey, lightError = "", isTimedOut = false) {
-    const lightRequest = lightRequestsById.get(lightRequestKey);
-    if (!lightRequest) {
-      return;
-    }
-    clearTimeout(lightRequest.timeout);
-    lightRequestsById.delete(lightRequestKey);
-    const nextCommand = lightRequest.next;
-    const shouldSendNext =
-      nextCommand &&
-      !isTimedOut &&
-      !isDisposed &&
-      !isEditing &&
-      isInteractive &&
-      activeModule === "light" &&
-      currentFloorId !== "all" &&
-      (config.lights || []).some(
-        matchingLightEntry =>
-          isOnActiveFloor(matchingLightEntry) &&
-          matchingLightEntry.entityId === lightRequest.entityId
-      ) &&
-      readLightState(lightRequest.entityId).available;
-    if (lightError) {
-      lightPreview.reject(lightRequest.entityId, lightRequest.previewToken);
-    } else {
-      lightPreview.acknowledge(lightRequest.entityId, lightRequest.previewToken);
-    }
-    if (shouldSendNext) {
-      sendLightCommand(nextCommand.command, nextCommand.previewToken);
-    } else if (nextCommand) {
-      lightPreview.reject(lightRequest.entityId, nextCommand.previewToken);
-    }
-    if (findFocusedBinding()?.entityId === lightRequest.entityId) {
-      controlErrorElement.textContent = shouldSendNext ? "" : lightError;
-    }
-    renderMarkers();
-  }
+
+
   /**
    * 执行一次灯光操作（开关、亮度、色温、预设），必要时补一条开灯命令。
    */
@@ -3957,638 +3451,20 @@ export function mountStage(stageOptions) {
   // 标记布局签名：坐标与可见性都没变时跳过 DOM 写入 ——
   // 每帧写 style.left/top 会强制样式重算，是这类页面的主要开销。
   let markerLayoutSignature = "";
-  /**
-   * 把标记的世界坐标投影成屏幕坐标并摆放 DOM：空闲超过 240ms 且没有扫地机在动时跳过（省每帧投影），
-   * 投影结果落在 NDC ±1.05 之外视为不可见（留 5% 余量避免边缘闪现）。
-   * @param {boolean} [forceLayout=false] 强制重排，忽略签名缓存。
-   */
-  function updateMarkerPositions(forceLayout = false) {
-    if (isRangeEditorOpen || isSceneUpdating || isDisposed) {
-      return;
-    }
-    if (stageOptions.floorTransitionActive || cameraTransition) {
-      screenOutlines.pause();
-    }
-    screenOutlines.update();
-    if (
-      idleSinceTimestamp !== null &&
-      performance.now() - idleSinceTimestamp >= 240 &&
-      !collectModuleBindings().some(
-        positionedMarkerBinding =>
-          positionedMarkerBinding.deviceKind === "vacuum" &&
-          vacuumStatusPresentation(positionedMarkerBinding, statesByEntityId).active
-      )
-    ) {
-      markerLayoutSignature = "";
-      return;
-    }
-    stageOptions.camera.updateMatrixWorld();
-    if (cachedSceneDocument !== stageOptions.document || cachedMarkerFloorId !== currentFloorId) {
-      markerPointsById.clear();
-      cachedSceneDocument = stageOptions.document;
-      cachedMarkerFloorId = currentFloorId;
-    }
-    const viewportRect = presentationLayout || containerElement.getBoundingClientRect();
-    const viewportWidth = presentationLayout?.width || viewportRect.width;
-    const viewportHeight = presentationLayout?.height || viewportRect.height;
-    if (moduleTransition && stageOptions.presentationPoint) {
-      for (const outgoingMarker of moduleTransition.outgoing) {
-        if (!outgoingMarker.node) {
-          continue;
-        }
-        const markerWorldPoint = stageOptions.presentationPoint(
-          outgoingMarker.floorId,
-          outgoingMarker.x,
-          outgoingMarker.y,
-          outgoingMarker.height
-        );
-        if (!markerWorldPoint) {
-          outgoingMarker.node.hidden = true;
-          continue;
-        }
-        const markerProjectedPoint = markerWorldPoint.project(stageOptions.camera);
-        outgoingMarker.node.hidden =
-          markerProjectedPoint.z < -1 ||
-          markerProjectedPoint.z > 1 ||
-          Math.abs(markerProjectedPoint.x) > 1.05 ||
-          Math.abs(markerProjectedPoint.y) > 1.05;
-        outgoingMarker.node.style.left = ((markerProjectedPoint.x + 1) * viewportWidth) / 2 + "px";
-        outgoingMarker.node.style.top = ((1 - markerProjectedPoint.y) * viewportHeight) / 2 + "px";
-      }
-    }
-    const isUniformOverview =
-      currentFloorId === "all" && stageOptions.document.uniformOverviewStack === true;
-    const layoutSignature =
-      viewportWidth +
-      ":" +
-      viewportHeight +
-      ":" +
-      isUniformOverview +
-      ":" +
-      stageOptions.camera.matrixWorld.elements +
-      ":" +
-      stageOptions.camera.projectionMatrix.elements;
-    if (
-      forceLayout === true ||
-      !!stageOptions.floorTransitionActive ||
-      layoutSignature !== markerLayoutSignature
-    ) {
-      markerLayoutSignature = layoutSignature;
-      for (const markerBindingEntry of collectModuleBindings()) {
-        const markerPositionBinding =
-          markerDragState?.id === markerBindingEntry.id
-            ? {
-                ...markerBindingEntry,
-                ...markerDragState.point
-              }
-            : markerBindingEntry;
-        const markerBindingId = markerPositionBinding.id;
-        const markerElementRef = markersById.get(markerBindingId);
-        if (!markerElementRef) {
-          continue;
-        }
-        const isMarkerVisible =
-          (isEditing || markerPositionBinding.visible !== false) &&
-          (isEditing || markerPositionBinding.buttonHidden !== true) &&
-          markerPositionBinding.modelAvailable !== false &&
-          (currentFloorId === "all" || markerPositionBinding.floorId === currentFloorId);
-        let cachedMarkerPoint = markerPointsById.get(markerBindingId);
-        if (
-          isMarkerVisible &&
-          (!cachedMarkerPoint ||
-            cachedMarkerPoint.floorId !== markerPositionBinding.floorId ||
-            cachedMarkerPoint.x !== markerPositionBinding.x ||
-            cachedMarkerPoint.y !== markerPositionBinding.y ||
-            cachedMarkerPoint.height !== markerPositionBinding.height)
-        ) {
-          cachedMarkerPoint = {
-            floorId: markerPositionBinding.floorId,
-            x: markerPositionBinding.x,
-            y: markerPositionBinding.y,
-            height: markerPositionBinding.height,
-            point: stageOptions.worldPoint(
-              markerPositionBinding.floorId,
-              markerPositionBinding.x,
-              markerPositionBinding.y,
-              markerPositionBinding.height
-            )
-          };
-          markerPointsById.set(markerBindingId, cachedMarkerPoint);
-        }
-        const resolvedMarkerPoint =
-          isMarkerVisible &&
-          ((stageOptions.floorTransitionActive || isUniformOverview) &&
-          stageOptions.presentationPoint
-            ? stageOptions.presentationPoint(
-                markerPositionBinding.floorId,
-                markerPositionBinding.x,
-                markerPositionBinding.y,
-                markerPositionBinding.height
-              )
-            : cachedMarkerPoint?.point);
-        if (!resolvedMarkerPoint) {
-          markerElementRef.hidden = true;
-          continue;
-        }
-        const projectedMarkerPoint = tempProjectedPoint
-          .copy(resolvedMarkerPoint)
-          .project(stageOptions.camera);
-        markerElementRef.hidden =
-          projectedMarkerPoint.z < -1 ||
-          projectedMarkerPoint.z > 1 ||
-          Math.abs(projectedMarkerPoint.x) > 1.05 ||
-          Math.abs(projectedMarkerPoint.y) > 1.05;
-        markerElementRef.style.left = ((projectedMarkerPoint.x + 1) * viewportWidth) / 2 + "px";
-        markerElementRef.style.top = ((1 - projectedMarkerPoint.y) * viewportHeight) / 2 + "px";
-      }
-    }
-  }
-  /**
-   * 重绘标记列表：按当前模块的绑定集合增删 DOM 节点并同步内容。
-   *
-   * 场景替换过程中（isSceneUpdating）不重绘，避免与场景更新互相竞争。
-   */
-  function renderMarkers() {
-    if (isSceneUpdating) {
-      return;
-    }
-    wakeFrameLoop();
-    const activeMarkerIds = new Set(
-      collectModuleBindings().map(renderMarkerBinding => renderMarkerBinding.id)
-    );
-    for (const [activeMarkerId, staleMarker] of markersById) {
-      if (!activeMarkerIds.has(activeMarkerId)) {
-        staleMarker.remove();
-        markersById.delete(activeMarkerId);
-        markerPointsById.delete(activeMarkerId);
-      }
-    }
-    for (const renderedBinding of collectModuleBindings()) {
-      let markerElement = markersById.get(renderedBinding.id);
-      if (!markerElement) {
-        markerElement = makeElement(renderedBinding.passiveSensor ? "div" : "button", "i3d-marker");
-        markerElement.type = "button";
-        markerElement.addEventListener("click", markerClickEvent => {
-          markerClickEvent.stopPropagation();
-          if (
-            !findBinding(renderedBinding.id)?.passiveSensor &&
-            !isSceneUpdating &&
-            !isViewEditing &&
-            focusMode !== "edit" &&
-            (!!isEditing || findBinding(renderedBinding.id)?.buttonHidden !== true)
-          ) {
-            if (markerElement.dataset.dragged === "true") {
-              markerElement.dataset.dragged = "";
-              return;
-            }
-            activateBinding(renderedBinding.id, true);
-          }
-        });
-        markerElement.addEventListener("pointerdown", markerPointerDownEvent =>
-          beginMarkerDrag(markerPointerDownEvent, renderedBinding.id)
-        );
-        markerElement.addEventListener("pointermove", moveMarkerDrag);
-        markerElement.addEventListener("pointerup", endMarkerDrag);
-        markerElement.addEventListener("pointercancel", cancelMarkerDrag);
-        markersElement.append(markerElement);
-        markersById.set(renderedBinding.id, markerElement);
-      }
-      const iconName = /^mdi:[a-z0-9-]+$/.test(renderedBinding.icon || "")
-        ? renderedBinding.icon
-        : "";
-      const isVacuumMarker = renderedBinding.deviceKind === "vacuum";
-      const isVacuumRoomMarker = renderedBinding.deviceKind === "vacuum-room";
-      if (!isVacuumMarker && markerElement.dataset.icon !== iconName) {
-        markerElement.dataset.icon = iconName;
-        if (iconName) {
-          const iconElement = makeElement("span", "i3d-marker-icon");
-          iconElement.setAttribute("aria-hidden", "true");
-          iconElement.style.maskImage =
-            'url("/static/vendor/mdi/7.4.47/svg/' + iconName.slice(4) + '.svg")';
-          iconElement.style.webkitMaskImage = iconElement.style.maskImage;
-          markerElement.replaceChildren(iconElement);
-        } else {
-          markerElement.innerHTML = DEFAULT_MARKER_ICON_SVG;
-        }
-      }
-      const deviceState = renderedBinding.deviceKind?.startsWith("vacuum")
-        ? {
-            available:
-              !!statesByEntityId[renderedBinding.entityId] &&
-              !["unknown", "unavailable"].includes(
-                statesByEntityId[renderedBinding.entityId].state
-              ),
-            on: statesByEntityId[renderedBinding.entityId]?.state === "cleaning"
-          }
-        : renderedBinding.deviceKind === "television"
-          ? televisionState(renderedBinding, statesByEntityId)
-          : renderedBinding.deviceKind === "nas"
-            ? nasDeviceState(renderedBinding, statesByEntityId)
-            : renderedBinding.deviceKind === "cover"
-              ? coverState(
-                  renderedBinding.entityId,
-                  statesByEntityId[renderedBinding.entityId],
-                  renderedBinding
-                )
-              : renderedBinding.modelId
-                ? climateState(renderedBinding.entityId, statesByEntityId[renderedBinding.entityId])
-                : resolveLightState(renderedBinding.entityId);
-      const markerSize =
-        Number.isFinite(renderedBinding.size) && renderedBinding.size > 0
-          ? renderedBinding.size
-          : 44;
-      const iconSize =
-        Number.isFinite(renderedBinding.iconSize) && renderedBinding.iconSize > 0
-          ? renderedBinding.iconSize
-          : isVacuumMarker
-            ? 26
-            : Math.min(markerSize, Math.max(4, markerSize - 18));
-      const hitSize =
-        Number.isFinite(renderedBinding.hitSize) && renderedBinding.hitSize > 0
-          ? renderedBinding.hitSize
-          : Math.max(44, markerSize);
-      markerElement.style.width = markerElement.style.height = hitSize + "px";
-      markerElement.classList.toggle("is-vacuum-status", isVacuumMarker);
-      markerElement.classList.toggle("is-overview-quip", renderedBinding.overviewQuip === true);
-      markerElement.style.pointerEvents =
-        renderedBinding.overviewQuip || renderedBinding.passiveSensor ? "none" : "";
-      markerElement.classList.toggle("is-presence-wave", renderedBinding.passiveSensor === true);
-      markerElement.classList.toggle(
-        "is-security-label",
-        renderedBinding.deviceKind === "camera" ||
-          (renderedBinding.deviceKind === "presence" && isEditing)
-      );
-      if (isVacuumMarker) {
-        let statusElement = markerElement.querySelector(".i3d-vacuum-status");
-        if (
-          !statusElement ||
-          statusElement.dataset.compact !== String(renderedBinding.overviewQuip === true)
-        ) {
-          statusElement = makeElement("span", "i3d-vacuum-status");
-          statusElement.dataset.compact = String(renderedBinding.overviewQuip === true);
-          if (!renderedBinding.overviewQuip) {
-            statusElement.append(
-              makeElement("strong", "i3d-vacuum-status-name"),
-              makeElement("span", "i3d-vacuum-status-detail")
-            );
-            statusElement.lastElementChild.append(
-              makeElement("span", "i3d-vacuum-status-text"),
-              makeElement("span", "i3d-vacuum-status-battery")
-            );
-          }
-          statusElement.append(makeElement("span", "i3d-vacuum-quip"));
-          if (renderedBinding.overviewQuip) {
-            Object.assign(statusElement.style, {
-              opacity: ".55",
-              pointerEvents: "none",
-              background: "none",
-              border: "none",
-              boxShadow: "none",
-              backdropFilter: "none",
-              webkitBackdropFilter: "none"
-            });
-            statusElement.lastElementChild.style.pointerEvents = "none";
-          }
-          markerElement.replaceChildren(statusElement);
-        }
-        const vacuumStatus = vacuumStatusPresentation(renderedBinding, statesByEntityId);
-        const statusScale = markerSize / 44;
-        if (!renderedBinding.overviewQuip) {
-          statusElement.querySelector(".i3d-vacuum-status-name").textContent =
-            renderedBinding.label || "扫地机器人";
-          statusElement.querySelector(".i3d-vacuum-status-text").textContent = vacuumStatus.status;
-          statusElement.querySelector(".i3d-vacuum-status-battery").textContent =
-            vacuumStatus.battery;
-        }
-        const quipElement = statusElement.querySelector(".i3d-vacuum-quip");
-        quipElement.textContent = vacuumStatus.active
-          ? vacuumQuip(renderedBinding, statesByEntityId, performance.now())
-          : "";
-        quipElement.hidden = !quipElement.textContent;
-        statusElement.style.transform = "translate(-50%,-50%) scale(" + statusScale + ")";
-        statusElement.style.fontSize = Math.max(8, iconSize / 2) + "px";
-        const statusHeight = Math.max(
-          renderedBinding.overviewQuip ? 28 : 50,
-          statusElement.offsetHeight
-        );
-        markerElement.style.width = Math.max(hitSize, statusScale * 140) + "px";
-        markerElement.style.height = Math.max(hitSize, statusHeight * statusScale) + "px";
-        markerElement.dataset.status = vacuumStatus.status;
-        markerElement.title =
-          (renderedBinding.label || "扫地机器人") +
-          " · " +
-          vacuumStatus.status +
-          " · " +
-          vacuumStatus.battery;
-        deviceState.on = vacuumStatus.active;
-        deviceState.available = vacuumStatus.available;
-      }
-      if (renderedBinding.deviceKind === "camera" || renderedBinding.deviceKind === "presence") {
-        const entityState = resolveStateEntry(statesByEntityId[renderedBinding.entityId]);
-        const isAvailable =
-          renderedBinding.deviceKind === "camera"
-            ? cameraOnline(entityState)
-            : entityState?.available !== false &&
-              !!entityState?.state &&
-              !["unknown", "unavailable"].includes(entityState.state);
-        deviceState.available = isAvailable;
-        deviceState.on =
-          renderedBinding.deviceKind === "camera"
-            ? entityState?.state === "recording"
-            : entityState?.state === "on";
-        if (renderedBinding.passiveSensor) {
-          if (!markerElement.querySelector(".i3d-sensor-wave")) {
-            markerElement.replaceChildren(
-              ...[0, 1, 2].map(() => makeElement("span", "i3d-sensor-wave"))
-            );
-          }
-          markerElement.hidden = !isAvailable;
-          markerElement.setAttribute("aria-hidden", "true");
-          markerElement.classList.toggle("is-inactive", !isAvailable);
-        } else {
-          const isSensorChoice = renderedBinding.deviceKind === "presence" && isEditing;
-          markerElement.classList.toggle("is-sensor-choice", isSensorChoice);
-          let securityLabelElement = markerElement.querySelector(".i3d-security-label");
-          if (!securityLabelElement) {
-            securityLabelElement = makeElement("span", "i3d-security-label");
-            securityLabelElement.append(makeElement("strong"), makeElement("span"));
-            markerElement.append(securityLabelElement);
-          }
-          securityLabelElement.children[0].textContent =
-            renderedBinding.label ||
-            (renderedBinding.deviceKind === "camera" ? "摄像头" : "人体传感器");
-          securityLabelElement.children[1].textContent =
-            isEditing && !renderedBinding.entityId
-              ? "未绑定实体"
-              : isAvailable
-                ? renderedBinding.deviceKind === "presence"
-                  ? entityState.state === "on"
-                    ? "有人"
-                    : "检测中"
-                  : "在线"
-                : "离线";
-          securityLabelElement.children[1].hidden = isSensorChoice;
-          securityLabelElement.classList.toggle(
-            "is-camera-status",
-            renderedBinding.deviceKind === "camera"
-          );
-          securityLabelElement.classList.toggle("is-camera-offline", !isAvailable);
-          securityLabelElement.style.fontSize = (renderedBinding.fontSize || 12) + "px";
-          if (renderedBinding.deviceKind === "camera") {
-            const securityIconElement = markerElement.querySelector(".i3d-marker-icon");
-            if (securityIconElement && securityIconElement.parentNode !== securityLabelElement) {
-              securityLabelElement.append(securityIconElement);
-            }
-            securityLabelElement.style.setProperty("--i3d-marker-icon-size", iconSize + "px");
-          }
-          markerElement.style.setProperty("--i3d-security-scale", String(markerSize / 44));
-          markerElement.style.width =
-            Math.max(
-              hitSize,
-              ((renderedBinding.deviceKind === "camera"
-                ? securityLabelElement.offsetWidth || 0
-                : isSensorChoice
-                  ? 120
-                  : 180) *
-                markerSize) /
-                44
-            ) + "px";
-          markerElement.style.height =
-            Math.max(
-              hitSize,
-              ((renderedBinding.deviceKind === "camera"
-                ? securityLabelElement.offsetHeight || 0
-                : isSensorChoice
-                  ? 32
-                  : 58) *
-                markerSize) /
-                44
-            ) + "px";
-        }
-      }
-      markerElement.classList.toggle("i3d-vacuum-room", isVacuumRoomMarker);
-      markerElement.classList.toggle(
-        "is-icon-hidden",
-        isVacuumRoomMarker && renderedBinding.iconHidden === true
-      );
-      if (isVacuumRoomMarker) {
-        let roomLabelElement = markerElement.querySelector(".i3d-room-label");
-        if (!roomLabelElement) {
-          roomLabelElement = makeElement("span", "i3d-room-label");
-          markerElement.append(roomLabelElement);
-        }
-        roomLabelElement.textContent = renderedBinding.label || "清扫";
-        roomLabelElement.hidden = renderedBinding.labelHidden === true;
-        roomLabelElement.style.fontSize = (renderedBinding.fontSize || 12) + "px";
-      }
-      markerElement.style.setProperty("--i3d-marker-size", markerSize + "px");
-      markerElement.style.setProperty("--i3d-marker-icon-size", iconSize + "px");
-      markerElement.setAttribute(
-        "aria-label",
-        renderedBinding.overviewQuip
-          ? vacuumQuip(renderedBinding, statesByEntityId, performance.now())
-          : renderedBinding.label || deviceState.name || "灯光"
-      );
-      if (!isVacuumMarker) {
-        markerElement.title = renderedBinding.label || deviceState.name;
-      }
-      markerElement.classList.toggle(
-        "is-on",
-        renderedBinding.deviceKind === "cover"
-          ? coverIconIsOn(renderedBinding, deviceState)
-          : deviceState.on
-      );
-      markerElement.classList.toggle("is-offline", !isEditing && !deviceState.available);
-      markerElement.classList.toggle("is-nas", renderedBinding.deviceKind === "nas");
-      markerElement.classList.toggle("is-selected", isEditing && selectedId === renderedBinding.id);
-    }
-    applyLightStates();
-    renderStage();
-    renderLightPanel();
-    layoutStage();
-    updateMarkerVisibility();
-    updateMarkerPositions(true);
-  }
-  // 把指针位置换算成该楼层的平面坐标；指针没有落在楼层上时返回 null。
-  function pointerToFloorPoint(dragPointerEvent, dragBinding) {
-    const floorOrigin = stageOptions.worldPoint(dragBinding.floorId, 0, 0, dragBinding.height);
-    if (!floorOrigin) {
-      return null;
-    }
-    const canvasContainerRect = containerElement.getBoundingClientRect();
-    const raycaster = new THREE.Raycaster();
-    const pointerNdc = new THREE.Vector2(
-      ((dragPointerEvent.clientX - canvasContainerRect.left) / canvasContainerRect.width) * 2 - 1,
-      1 - ((dragPointerEvent.clientY - canvasContainerRect.top) / canvasContainerRect.height) * 2
-    );
-    if (stageOptions.presentationRay) {
-      stageOptions.presentationRay(dragBinding.floorId, pointerNdc, raycaster);
-    } else {
-      raycaster.setFromCamera(pointerNdc, stageOptions.camera);
-    }
-    const hitPoint = raycaster.ray.intersectPlane(
-      new THREE.Plane(new THREE.Vector3(0, 1, 0), -floorOrigin.y),
-      new THREE.Vector3()
-    );
-    if (!hitPoint) {
-      return null;
-    }
-    const xAxisVector = stageOptions
-      .worldPoint(dragBinding.floorId, 1, 0, dragBinding.height)
-      .sub(floorOrigin);
-    const yAxisVector = stageOptions
-      .worldPoint(dragBinding.floorId, 0, 1, dragBinding.height)
-      .sub(floorOrigin);
-    const offsetVector = hitPoint.sub(floorOrigin);
-    return {
-      x: Math.round((offsetVector.dot(xAxisVector) / xAxisVector.lengthSq()) * 100) / 100,
-      y: Math.round((offsetVector.dot(yAxisVector) / yAxisVector.lengthSq()) * 100) / 100
-    };
-  }
-  // 开始拖拽标记：只在编辑态、无聚焦、鼠标左键时生效，并把指针捕获到元素上，
-  // 这样指针移出元素也不会丢事件。
-  function beginMarkerDrag(dragStartEvent, dragBindingId) {
-    if (!isEditing || focusMode || dragStartEvent.button !== 0) {
-      return;
-    }
-    dragStartEvent.preventDefault();
-    dragStartEvent.stopPropagation();
-    const draggedBinding = findBinding(dragBindingId);
-    if (!draggedBinding) {
-      return;
-    }
-    if (draggedBinding.deviceKind === "presence") {
-      selectedId = dragBindingId;
-      renderStage();
-      postToHost({
-        type: "edit",
-        action: "select",
-        id: dragBindingId
-      });
-      return;
-    }
-    selectedId = dragBindingId;
-    renderStage();
-    postToHost({
-      type: "edit",
-      action: "select",
-      id: dragBindingId
-    });
-    const pointerOffset = pointerToFloorPoint(dragStartEvent, draggedBinding);
-    markerDragState = {
-      id: dragBindingId,
-      pointerId: dragStartEvent.pointerId,
-      clientX: dragStartEvent.clientX,
-      clientY: dragStartEvent.clientY,
-      original: {
-        x: draggedBinding.x,
-        y: draggedBinding.y
-      },
-      point: {
-        x: draggedBinding.x,
-        y: draggedBinding.y
-      },
-      height: draggedBinding.height,
-      offset: pointerOffset
-        ? {
-            x: draggedBinding.x - pointerOffset.x,
-            y: draggedBinding.y - pointerOffset.y
-          }
-        : {
-            x: 0,
-            y: 0
-          },
-      moved: false
-    };
-    capturePointer(dragStartEvent.currentTarget, dragStartEvent.pointerId);
-    stageOptions.controls.enabled = false;
-  }
-  // 拖拽中：位移超过阈值才算真正开始移动（否则仍视作点击），并实时预览新坐标。
-  function moveMarkerDrag(dragMoveEvent) {
-    if (
-      !markerDragState ||
-      markerDragState.pointerId !== dragMoveEvent.pointerId ||
-      (Math.hypot(
-        dragMoveEvent.clientX - markerDragState.clientX,
-        dragMoveEvent.clientY - markerDragState.clientY
-      ) < 4 &&
-        !markerDragState.moved)
-    ) {
-      return;
-    }
-    const draggedPosition = pointerToFloorPoint(dragMoveEvent, findBinding(markerDragState.id));
-    if (draggedPosition) {
-      markerDragState.moved = true;
-      markerDragState.point = {
-        x: Math.round((draggedPosition.x + markerDragState.offset.x) * 100) / 100,
-        y: Math.round((draggedPosition.y + markerDragState.offset.y) * 100) / 100
-      };
-      if (activeModule === "light") {
-        Object.assign(findBinding(markerDragState.id), markerDragState.point);
-      }
-      updateMarkerPositions(true);
-    }
-  }
-  // 结束拖拽：把最终坐标回报宿主落库；在元素上打 dataset.dragged，
-  // 让紧随而来的 click 事件知道这是一次拖拽而不是点击。
-  function endMarkerDrag(dragEndEvent) {
-    if (!!markerDragState && markerDragState.pointerId === dragEndEvent.pointerId) {
-      if (markerDragState.moved) {
-        dragEndEvent.currentTarget.dataset.dragged = "true";
-        const draggedBindingEntry = findBinding(markerDragState.id);
-        const draggedModel =
-          draggedBindingEntry.deviceKind === "camera"
-            ? config.security?.cameras?.find(
-                draggedCameraEntry => "camera:" + draggedCameraEntry.id === draggedBindingEntry.id
-              )
-            : draggedBindingEntry.deviceKind === "vacuum-room"
-              ? config.devices?.vacuums
-                  ?.find(
-                    draggedVacuumEntry => draggedVacuumEntry.id === draggedBindingEntry.vacuumId
-                  )
-                  ?.shortcuts?.find(
-                    draggedShortcutEntry =>
-                      draggedShortcutEntry.id === draggedBindingEntry.shortcutId
-                  )
-              : activeModule === "light"
-                ? draggedBindingEntry
-                : (["nas", "television", "vacuum"].includes(activeModule)
-                    ? config.devices?.[
-                        activeModule === "vacuum"
-                          ? "vacuums"
-                          : activeModule === "television"
-                            ? "televisions"
-                            : "nas"
-                      ] || []
-                    : config.environment?.[
-                        activeModule === "cover" ? "curtains" : "airConditioners"
-                      ] || []
-                  ).find(deviceEntry => deviceEntry.id === markerDragState.id);
-        if (draggedModel) {
-          Object.assign(draggedModel, markerDragState.point);
-        }
-        postToHost({
-          type: "edit",
-          action: "position",
-          id: draggedBindingEntry.id,
-          x: markerDragState.point.x,
-          y: markerDragState.point.y
-        });
-      }
-      markerDragState = null;
-      syncCameraInteraction();
-    }
-  }
-  // 取消拖拽：灯光模块下把坐标回滚到按下时的快照，其它模块交给
-  // 宿主下发的 config 覆盖成正确值。
-  function cancelMarkerDrag() {
-    if (markerDragState && activeModule === "light") {
-      Object.assign(findBinding(markerDragState.id), markerDragState.original);
-    }
-    markerDragState = null;
-    syncCameraInteraction();
-    updateMarkerPositions(true);
-  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   let canvasPointerState;
   canvasElement.addEventListener("pointerdown", canvasPointerDownEvent => {
     canvasPointerState =
@@ -4761,541 +3637,8 @@ export function mountStage(stageOptions) {
     }
   }
   window.addEventListener("keydown", handleEscapeKeydown);
-  /**
-   * 宿主消息总入口：先做同源 + 来源窗口 + channel 三重校验，再按 type 分发。
-   * config 最重：同时携带配置、实体状态、编辑态与视图编辑标志，收到后要重算
-   * 楼层、模块、相机与各子系统；场景替换进行中则先挂起，等替换完成再处理。
-   */
-  function handleHostMessage(messageEvent) {
-    // 释放后一律不处理：pagehide 之后仍可能有已排队的 message 到达，而下面每个分支
-    // 都会重算楼层/模块/相机并拉起定时器 —— 那时 DOM 已经拆掉，拉起的定时器不会有人清。
-    if (isDisposed) {
-      return;
-    }
-    if (
-      messageEvent.origin !== location.origin ||
-      messageEvent.source !== window.parent ||
-      messageEvent.data?.channel !== "hb-i3d-v1"
-    ) {
-      return;
-    }
-    const message = messageEvent.data;
-    wakeFrameLoop();
-    if (message.type === "presentation-layout") {
-      if (
-        Number.isFinite(message.width) &&
-        message.width > 0 &&
-        Number.isFinite(message.height) &&
-        message.height > 0
-      ) {
-        presentationLayout = {
-          width: message.width,
-          height: message.height
-        };
-        layoutStage();
-      }
-    } else if (message.type === "config") {
-      if (isSceneUpdating) {
-        // 场景替换进行中：先挂起这条 config 并保留整个事件（后面会重放），
-        // 只保留最新一条即可，中间状态没必要逐条应用。
-        queuedConfigMessage = messageEvent;
-        return;
-      }
-      isRangeEditorOnly = message.rangeEditorOnly === true;
-      isRangeEditingAllowed = message.allowRangeEditing === true || message.editing === true;
-      if (
-        isRangeEditorOpen &&
-        (!isRangeEditingAllowed ||
-          message.viewEditing === true ||
-          message.properties?.lightingMode !== "region" ||
-          message.properties?.floorSelection !== sceneProperties.floorSelection ||
-          JSON.stringify(message.properties?.camera) !== JSON.stringify(sceneProperties.camera) ||
-          JSON.stringify(message.properties?.lightRegionOverrides || {}) !==
-            JSON.stringify(sceneProperties.lightRegionOverrides || {}))
-      ) {
-        rangeEditor?.close();
-      }
-      hasUserInteracted = false;
-      if (
-        message.editing ||
-        message.viewEditing ||
-        sceneProperties.floorSelection !== message.properties.floorSelection ||
-        JSON.stringify(sceneProperties.floorCameras) !==
-          JSON.stringify(message.properties.floorCameras)
-      ) {
-        pendingFloorId = "";
-        pendingModule = "";
-      }
-      sceneProperties = structuredClone(message.properties);
-      if (!hasInitializedFloor && !message.editing && !message.viewEditing) {
-        hasInitializedFloor = true;
-        if (stageOptions.document.floors.length > 1) {
-          pendingFloorId = "all";
-        }
-      }
-      if (
-        pendingFloorId &&
-        pendingFloorId !== "all" &&
-        !stageOptions.document.floors.some(validFloorEntry => validFloorEntry.id === pendingFloorId)
-      ) {
-        pendingFloorId = "";
-      }
-      if (
-        message?.editing ||
-        message?.viewEditing ||
-        (sceneProperties.floorSelection !== config.floorSelection && !pendingFloorId)
-      ) {
-        stageOptions.finishFloorTransition?.();
-      }
-      stageOptions.setFloorGap?.(sceneProperties.floorGap);
-      stageOptions.setUniformOverviewStack?.(sceneProperties.uniformOverviewStack);
-      message.properties = normalizeSceneConfig({
-        ...sceneProperties,
-        ...(pendingFloorId
-          ? {
-              floorSelection: pendingFloorId
-            }
-          : {})
-      });
-      if (pendingFloorId && savedCameraPose) {
-        message.properties.camera = savedCameraPose;
-      } else if (pendingFloorId && pendingFloorId !== sceneProperties.floorSelection) {
-        message.properties.camera = transformCameraPose(
-          sceneProperties.floorCameras?.[pendingFloorId] || null,
-          pendingFloorId
-        );
-      }
-      idleRotation.activity();
-      idleIconVisibility.activity();
-      idleFocusExit.activity();
-      const isCameraChanged =
-        (isViewEditing && message.viewEditing !== true) ||
-        JSON.stringify(config.camera) !== JSON.stringify(message.properties.camera);
-      if (
-        (focusMode || focusRestoreCameraPose || cameraTransition) &&
-        (isCameraChanged ||
-          // 材质风格与墙体透明度都会整体改变画面，和换楼层一样必须先退出聚焦，
-          // 否则聚焦态的调暗 / 相机都还停留在旧风格上。
-          config.sceneStyle !== message.properties.sceneStyle ||
-          config.wallOpacity !== message.properties.wallOpacity ||
-          config.floorSelection !== message.properties.floorSelection ||
-          isEditing !== (message.editing === true) ||
-          message.viewEditing === true ||
-          (isEditing && selectedId !== (message.selectedId || "")))
-      ) {
-        exitFocus({
-          immediate: true
-        });
-        if (cameraTransition) {
-          cameraTransition = null;
-          stageOptions.finishFloorTransition?.();
-          stageOptions.endCameraMotion();
-        }
-      }
-      config = structuredClone(message.properties);
-      isEditing = message.editing === true;
-      isViewEditing = message.viewEditing === true;
-      selectedId = message.selectedId || "";
-      // config 携带的是全量状态，直接整份替换；增量合并只发生在 states 消息。
-      statesByEntityId = message.states || {};
-      isEditorCanvas = message.editorCanvas === true && !isEditing;
-      // 材质风格同时落在 body 上：3D 舞台之外的宿主 UI（弹窗、灯控面板等）
-      // 也由 stage.css / runtime.css 的 [data-scene-style="warm-wood"] 规则驱动。
-      if (document.body?.dataset) {
-        document.body.dataset.sceneStyle =
-          config.sceneStyle === "warm-wood" ? "warm-wood" : "default";
-      }
-      // 配置整份替换后，空调状态也跟着变了：先把「上次使用的模式」补齐。
-      observeAllClimates();
-      // 第二个参数带上整份配置：背景控制器据此判断是否切到暖阳、是否停掉动态背景。
-      backgroundTheme.configure(config.backgroundTheme, config);
-      // 编辑态强制不可交互：否则在编辑器里挪标记会顺手触发设备的控制命令。
-      isInteractive = !isEditing && message.interactive === true;
-      editingVacuumId = message.editingVacuumId || "";
-      configuredModules = configuredModuleKinds(config);
-      let nextModule = isEditing
-        ? [
-            "security",
-            "climate",
-            "cover",
-            "nas",
-            "television",
-            "vacuum",
-            "vacuum-shortcut"
-          ].includes(message.editingModule)
-          ? message.editingModule
-          : "light"
-        : ["overview", "security", "light", "devices", "vacuum"].includes(activeModule)
-          ? activeModule
-          : ["nas", "television"].includes(activeModule)
-            ? "devices"
-            : "environment";
-      if (!isEditing && nextModule !== "overview" && !configuredModules.includes(nextModule)) {
-        nextModule = "light";
-      }
-      if (pendingModule && !configuredModules.includes(pendingModule)) {
-        pendingModule = "";
-      }
-      if (activeModule !== nextModule) {
-        stopVacuumFollow();
-        exitFocus({
-          immediate: true
-        });
-        cancelModuleTransition();
-        activeModule = nextModule;
-        markerPointsById.clear();
-      }
-      for (const pendingLightRequest of lightRequestsById.values()) {
-        if (
-          pendingLightRequest.next &&
-          (!isInteractive ||
-            !(config.lights || []).some(
-              pendingLightEntry => pendingLightEntry.entityId === pendingLightRequest.entityId
-            ))
-        ) {
-          lightPreview.reject(pendingLightRequest.entityId, pendingLightRequest.next.previewToken);
-          pendingLightRequest.next = null;
-        }
-      }
-      applyPageBehavior();
-      updateIdleControllers();
-      stageOptions.appearance(
-        isRangeEditorOpen
-          ? {
-              ...config,
-              lightRegionOverrides: stageOptions.regionLighting.getOverrides()
-            }
-          : config
-      );
-      const activeFloorId =
-        stageOptions.document.floors.some(
-          activeFloorEntry => activeFloorEntry.id === config.floorSelection
-        ) || config.floorSelection === "all"
-          ? config.floorSelection
-          : stageOptions.document.floors[0].id;
-      // 单层视图下「总览」依然有效，所以这里不会把它换成「灯光」。
-      if (!isEditing && activeFloorId === "all") {
-        activeModule = "overview";
-      }
-      if (currentFloorId !== activeFloorId) {
-        stopVacuumFollow(false);
-        currentFloorId = activeFloorId;
-        stageOptions.setFloor(activeFloorId);
-        stageOptions.restoreCamera(
-          constrainCameraPose(config.camera || stageOptions.floorDefaultCamera?.(activeFloorId))
-        );
-        savedCameraPose = stageOptions.cameraState();
-      } else if (isCameraChanged) {
-        stageOptions.restoreCamera(constrainCameraPose(config.camera || savedCameraPose));
-        savedCameraPose = stageOptions.cameraState();
-      }
-      syncCameraInteraction();
-      toolbarElement.hidden = true;
-      updatePanelChrome();
-      if (isViewEditing || (!isEditing && !isInteractive)) {
-        exitFocus({
-          immediate: true
-        });
-      }
-      renderMarkers();
-      // 记录本次配置的代次；下面的呈现等待只在代次未被超越时回报结果，
-      // 否则会把旧配置的相机姿态当成最新的发给宿主。
-      const configRevision = ++configRevisionCount;
-      (isPresented ? Promise.resolve() : stageOptions.whenPresented())
-        .then(() => {
-          if (!isDisposed && configRevision === configRevisionCount) {
-            isPresented = true;
-            updateIdleControllers();
-            updateMarkerPositions(true);
-            postToHost({
-              type: "presented",
-              configId: message.configId,
-              camera: transformCameraPose(stageOptions.cameraState(), config.floorSelection, true)
-            });
-          }
-        })
-        .catch(presentationFailure => {
-          if (!isDisposed && configRevision === configRevisionCount) {
-            postToHost({
-              type: "error",
-              message: presentationFailure.message || "户型画面准备失败，请重新载入。"
-            });
-          }
-        });
-    } else if (message.type === "vacuum-room-result") {
-      clearTimeout(vacuumRoomTimersById.get(message.id));
-      vacuumRoomTimersById.delete(message.id);
-      const roomMarker = markersById.get(message.id);
-      if (roomMarker) {
-        roomMarker.disabled = false;
-        roomMarker.title = message.error || "";
-      }
-      if (message.error) {
-        moduleEmptyElement.hidden = false;
-        moduleEmptyElement.textContent = message.error;
-      }
-    } else if (message.type === "range-editor") {
-      if (message.flush === true) {
-        const rangeEditorBlockedReason =
-          !isRangeEditingAllowed || !isRangeEditorOpen ? "请先打开照射范围编辑。" : "";
-        if (!rangeEditorBlockedReason) {
-          rangeEditor.flush();
-        }
-        postToHost({
-          type: "range-editor-state",
-          active: isRangeEditorOpen,
-          requestId: message.requestId,
-          ...(rangeEditorBlockedReason
-            ? {
-                error: rangeEditorBlockedReason
-              }
-            : {})
-        });
-      } else if (message.open === false) {
-        isRangeEditorBusy = !!message.requestId;
-        try {
-          rangeEditor?.close();
-        } finally {
-          isRangeEditorBusy = false;
-        }
-        if (message.requestId) {
-          postToHost({
-            type: "range-editor-state",
-            active: false,
-            requestId: message.requestId
-          });
-        }
-      } else {
-        openRangeEditor(message.requestId);
-      }
-    } else if (message.type === "range-save-result") {
-      rangeEditor?.setSaveStatus?.(message.error || "");
-    } else if (message.type === "activity-state") {
-      hasActivityState = true;
-      isPageVisible = message.visible === true;
-      isPresentedVisible =
-        message.presentedVisible === undefined ? isPageVisible : message.presentedVisible === true;
-      stageOptions.setPresentedVisible?.(isPresentedVisible);
-      syncVacuumMaps();
-      if (!isPageVisible) {
-        hasUserInteracted = false;
-      }
-      updateIdleControllers();
-    } else if (message.type === "user-activity") {
-      hasUserInteracted = false;
-      lastActivityTimestamp = performance.now();
-      updateMarkerVisibility();
-      isActivityHeld = message.held === true;
-      updateActivityHolds();
-    } else if (message.type === "dismiss-focus") {
-      idleRotation.activity();
-      idleIconVisibility.activity();
-      exitFocus({
-        immediate: message.immediate === true
-      });
-    } else if (message.type === "states") {
-      statesByEntityId =
-        message.patch === true
-          ? {
-              ...statesByEntityId,
-              ...(message.states || {})
-            }
-          : message.states || {};
-      // 状态更新是记录「上次使用的模式」的主要时机，必须放在灯光 reconcile 之前，
-      // 与配置分支保持同一顺序，避免两处行为漂移。
-      observeAllClimates();
-      for (const reconciledLightEntry of config.lights || []) {
-        if (
-          message.patch !== true ||
-          Object.hasOwn(message.states || {}, reconciledLightEntry.entityId)
-        ) {
-          lightPreview.reconcile(
-            reconciledLightEntry.entityId,
-            readLightState(reconciledLightEntry.entityId)
-          );
-        }
-      }
-      renderMarkers();
-    } else if (message.type === "control-result") {
-      if (televisionRequestsById.has(message.requestId)) {
-        settleTelevisionRequest(message.requestId, message.error);
-      } else if (coverRequestsById.has(message.requestId)) {
-        settleCoverRequest(message.requestId, message.error);
-      } else if (climateRequestsById.has(message.requestId)) {
-        settleClimateRequest(message.requestId, message.error);
-      } else {
-        settleLightCommand(message.requestId, message.error || "", message.timedOut === true);
-      }
-    } else if (message.type === "editor-command" && isEditing) {
-      try {
-        if (message.command === "presence-top-view") {
-          const { floorId: topViewFloorId, box: topViewBox } = message.value || {};
-          if (
-            !topViewBox ||
-            ![topViewBox.x, topViewBox.y, topViewBox.w, topViewBox.h].every(Number.isFinite) ||
-            topViewBox.w <= 0 ||
-            topViewBox.h <= 0
-          ) {
-            throw new Error("顶视图范围无效。");
-          }
-          const topViewCenter = stageOptions.worldPoint(
-            topViewFloorId,
-            topViewBox.x + topViewBox.w / 2,
-            topViewBox.y + topViewBox.h / 2,
-            0
-          );
-          const topViewMin = stageOptions.worldPoint(topViewFloorId, topViewBox.x, topViewBox.y, 0);
-          const topViewMax = stageOptions.worldPoint(
-            topViewFloorId,
-            topViewBox.x + topViewBox.w,
-            topViewBox.y + topViewBox.h,
-            0
-          );
-          if (!topViewCenter || !topViewMin || !topViewMax) {
-            throw new Error("请选择有效楼层。");
-          }
-          const topViewFrameSize = Math.max(
-            Math.abs(topViewMax.z - topViewMin.z),
-            Math.abs(topViewMax.x - topViewMin.x) /
-              (canvasElement.clientWidth / Math.max(1, canvasElement.clientHeight))
-          );
-          exitFocus({
-            immediate: true
-          });
-          stageOptions.restoreCamera({
-            mode: "orthographic",
-            view: "top",
-            topRotation: 0,
-            position: [
-              topViewCenter.x,
-              topViewCenter.y + Math.max(20, topViewFrameSize * 2),
-              topViewCenter.z
-            ],
-            target: topViewCenter.toArray(),
-            up: [0, 0, -1],
-            zoom: 1,
-            frameSize: topViewFrameSize
-          });
-        } else if (message.command === "presence-3d-view") {
-          stageOptions.setCameraView?.("free");
-          stageOptions.restoreCamera(
-            config.camera || stageOptions.floorDefaultCamera?.(currentFloorId) || savedCameraPose
-          );
-        } else if (message.command === "presence-preview-walk") {
-          isPresencePreviewWalk = message.value === true;
-          syncPresenceScene();
-        } else if (message.command === "presence-show-hit-range") {
-          isPresenceHitRangeVisible = message.value === true;
-          layoutPresenceHitBoxes();
-        } else if (message.command === "edit-follow-camera") {
-          const cameraBinding = findBinding(message.id);
-          if (cameraBinding?.deviceKind !== "vacuum") {
-            throw new Error("请选择扫地机。");
-          }
-          focusBinding(message.id, "edit", true);
-          const cameraTarget =
-            stageOptions.environmentModelPose(cameraBinding.floorId, cameraBinding.modelId)
-              ?.center || stageOptions.cameraState().target;
-          beginCameraTransition(
-            cameraBinding.followCamera ||
-              vacuumBirdCamera(config.camera || stageOptions.cameraState(), cameraTarget),
-            false,
-            true
-          );
-        } else if (message.command === "edit-light-camera") {
-          focusBinding(message.id, "edit", true);
-        } else if (message.command === "preview-light-camera") {
-          focusBinding(message.id, "preview");
-        } else if (message.command === "preview-light-effect") {
-          if (
-            ![
-              "brightnessMin",
-              "brightnessMax",
-              "temperatureMin",
-              "temperatureMax",
-              "defaults"
-            ].includes(message.value)
-          ) {
-            throw new Error("请选择要预览的效果。");
-          }
-          if (!findBinding(message.id)) {
-            throw new Error("灯光按钮已移除。");
-          }
-          if (!findBinding(message.id).entityId) {
-            throw new Error("请先绑定实体，再预览灯光效果。");
-          }
-          focusBinding(message.id, "preview");
-          lightEffectPreview = {
-            id: message.id,
-            kind: message.value
-          };
-          applyLightStates({
-            preview: true
-          });
-          renderLightPanel();
-        } else if (message.command === "cancel-light-camera") {
-          exitFocus({
-            immediate: true
-          });
-        } else {
-          if (focusMode !== "edit" || message.id !== focusedId) {
-            throw new Error(
-              activeModule === "nas"
-                ? "请先调整这台NAS的聚焦视角。"
-                : activeModule === "cover"
-                  ? "请先调整这幅窗帘的聚焦视角。"
-                  : activeModule === "climate"
-                    ? "请先调整这台空调的聚焦视角。"
-                    : "请先调整这盏灯的聚焦视角。"
-            );
-          }
-          if (message.command === "focus-projection") {
-            stageOptions.setCameraProjection(message.value);
-          }
-          if (message.command === "focus-focal-length") {
-            stageOptions.setCameraFocalLength(message.value);
-          }
-        }
-        syncCameraInteraction();
-        const cameraSnapshot = currentCameraSnapshot();
-        postToHost({
-          type: "edit",
-          action: "focus-camera",
-          requestId: message.requestId,
-          id: message.id,
-          camera: cameraSnapshot
-        });
-        if (message.command === "save-light-camera") {
-          exitFocus({
-            immediate: true
-          });
-        }
-      } catch (editorCommandError) {
-        postToHost({
-          type: "edit",
-          action: "focus-camera",
-          requestId: message.requestId,
-          error: editorCommandError.message
-        });
-      }
-    } else if (message.type === "editor-command" && isViewEditing) {
-      if (message.command === "projection") {
-        stageOptions.setCameraProjection(message.value);
-      }
-      if (message.command === "focal-length") {
-        stageOptions.setCameraFocalLength(message.value);
-      }
-      syncCameraInteraction();
-      if (message.command === "save-camera" || message.requestId) {
-        postToHost({
-          type: "edit",
-          action: "camera",
-          requestId: message.requestId,
-          camera: currentCameraSnapshot()
-        });
-      }
-    }
-  }
+
+
   window.addEventListener("message", handleHostMessage);
   const orbitControls = stageOptions.controls;
   const unsubscribeCameraChange = stageOptions.onCameraChange?.(() => {
@@ -5315,103 +3658,8 @@ export function mountStage(stageOptions) {
   layoutResizeObserver.observe(lightPanelElement);
   layoutResizeObserver.observe(navigationElement);
   layoutResizeObserver.observe(floorTabsElement);
-  /**
-   * 应用一次场景（户型 / 模型）替换。
-   * 替换前挡住并发的场景更新、关掉相机交互（否则用户会在替换过程中拖出悬空视角）；
-   * 替换中途失败时回滚到上一份场景，并把错误抛给调用方。
-   */
-  async function applySceneUpdate(sceneUpdate) {
-    const previousScene = stageOptions.savedScene;
-    const currentCameraPose = currentCameraSnapshot();
-    hasUserInteracted =
-      hasUserInteracted ||
-      (hasIdleReturnPending && pageBehavior.hideIconsWhileRotating === true) ||
-      areIdleIconsHidden;
-    isSceneUpdating = true;
-    idleRotation.activity();
-    updateMarkerVisibility();
-    // 先占位成空函数：coverSceneUpdate() 本身可能抛错，此时 finally 仍会调用它，
-    // 没有占位会解引用 undefined。
-    let releaseSceneUpdate = () => {};
-    // 「模型已经真的换过」。这个标志决定失败后要不要回滚，因此只能在
-    // stageOptions.replaceScene 成功返回之后置位：置早了，失败一次就会把上一份场景
-    // 白白重套一遍（重置相机、重跑灯光），而这个二次替换本身失败时还会顶替掉原始错误。
-    let didReplaceScene = false;
-    // 真正执行替换：换模型 → 同步楼层 / 外观 → 重算配置与标记。
-    // 失败回滚时会拿上一份场景再调一次，所以这里不能假设「只跑一次」。
-    const replaceScene = async nextSceneUpdate => {
-      stageOptions.finishFloorTransition?.();
-      await stageOptions.replaceScene(nextSceneUpdate);
-      // 换模型这一步已经成功，从此刻起失败才需要回滚。
-      didReplaceScene = true;
-      if (isDisposed) {
-        return;
-      }
-      stageOptions.setFloorGap?.(sceneProperties.floorGap);
-      stageOptions.setUniformOverviewStack?.(sceneProperties.uniformOverviewStack);
-      config = normalizeSceneConfig({
-        ...sceneProperties,
-        ...(pendingFloorId
-          ? {
-              floorSelection: pendingFloorId
-            }
-          : {})
-      });
-      const updateActiveFloorId =
-        stageOptions.document.floors.some(
-          updateFloorEntry => updateFloorEntry.id === config.floorSelection
-        ) || config.floorSelection === "all"
-          ? config.floorSelection
-          : stageOptions.document.floors[0].id;
-      currentFloorId = updateActiveFloorId;
-      stageOptions.setFloor(updateActiveFloorId);
-      stageOptions.appearance(config);
-      savedCameraPose = transformCameraPose(
-        sceneProperties.floorCameras?.[updateActiveFloorId] ||
-          sceneProperties.camera ||
-          currentCameraPose,
-        updateActiveFloorId
-      );
-      stageOptions.restoreCamera(transformCameraPose(currentCameraPose, updateActiveFloorId));
-      applyLightStates({
-        immediate: true
-      });
-      await stageOptions.whenPresented();
-    };
-    try {
-      releaseSceneUpdate = stageOptions.coverSceneUpdate();
-      stageOptions.setCameraInteraction({
-        enabled: false
-      });
-      await replaceScene(sceneUpdate);
-      if (!isDisposed) {
-        postToHost({
-          type: "model-metadata",
-          metadata: buildMetadata()
-        });
-      }
-    } catch (sceneUpdateError) {
-      if (didReplaceScene && !isDisposed) {
-        try {
-          await replaceScene(previousScene);
-        } catch (rollbackError) {
-          // 回滚自己也失败时不能再往外抛：那样 throw sceneUpdateError 永远走不到，
-          // 调用方只看到一个二次故障，真正的原因（为什么开始变）就彻底消失了。
-          console.error("场景替换失败后回滚也失败，已保留最初的错误。", rollbackError);
-        }
-      }
-      throw sceneUpdateError;
-    } finally {
-      releaseSceneUpdate();
-      isSceneUpdating = false;
-      markerPointsById.clear();
-      if (!isDisposed && (syncCameraInteraction(), renderMarkers(), queuedConfigMessage)) {
-        const queuedSceneUpdate = queuedConfigMessage;
-        queuedConfigMessage = null;
-        handleHostMessage(queuedSceneUpdate);
-      }
-    }
-  }
+
+
   const stopSceneSync = stageOptions.readSceneUpdate
     ? startSceneSync({
         eligible: () =>
@@ -5679,194 +3927,8 @@ export function mountStage(stageOptions) {
       console.warn("3D 舞台的资源回收未走完，部分节点可能留在页面里。", teardownError);
     }
   });
-  /**
-   * 汇总舞台元数据（楼层、墙体高度、各类型模型坐标、灯光分组等）回报宿主。
-   * 编辑器 / 展示页靠它做下拉选项与坐标换算，即「从场景文档反推可编辑信息」，
-   * 字段一律 camelCase。墙体高度优先取场景设置，缺失时取所有墙的最大值，再夹到 0.01~6 米。
-   */
-  function buildMetadata() {
-    const floorNumbersById = new Map(
-      floorNavigationChoices(stageOptions.document.floors)
-        .filter(([metadataFloorKey]) => metadataFloorKey !== "all")
-        .map(([metadataFloorName, metadataFloorNumberText]) => [
-          metadataFloorName,
-          metadataFloorNumberText.startsWith("B")
-            ? -Number(metadataFloorNumberText.slice(1))
-            : Number(metadataFloorNumberText.slice(0, -1))
-        ])
-    );
-    stageOptions.regionLighting?.sync?.(stageOptions.camera);
-    return {
-      floorGap: stageOptions.document.previewFloorGap,
-      uniformOverviewStack: stageOptions.document.uniformOverviewStack === true,
-      appearanceCapabilities: {
-        detailedLighting: (stageOptions.regionLighting?.stats?.detailedMaterials || 0) > 0
-      },
-      camera: transformCameraPose(
-        stageOptions.cameraState(),
-        config.floorSelection || stageOptions.document.activeFloorId,
-        true
-      ),
-      baseLighting: stageOptions.document.baseLighting,
-      defaults: stageOptions.defaults,
-      floors: stageOptions.document.floors.map(metadataFloor => {
-        const configuredWallHeight = metadataFloor.scene.settings?.wallHeight;
-        const wallHeights = metadataFloor.scene.walls
-          .map(wall => wall.height)
-          .filter(wallHeight => Number.isFinite(wallHeight) && wallHeight > 0);
-        const resolvedWallHeight = Math.max(
-          0.01,
-          Math.min(
-            6,
-            Number.isFinite(configuredWallHeight) && configuredWallHeight > 0
-              ? configuredWallHeight
-              : Math.max(0, ...wallHeights) || 2.8
-          )
-        );
-        return {
-          id: metadataFloor.id,
-          name: metadataFloor.name,
-          elevation: metadataFloor.elevation,
-          number: floorNumbersById.get(metadataFloor.id),
-          wallHeight: resolvedWallHeight,
-          plan: {
-            pixelsPerMeter: metadataFloor.scene.calibration?.pixelsPerMeter || 1,
-            walls: metadataFloor.scene.walls.map(metadataWall => ({
-              start: metadataWall.start,
-              end: metadataWall.end,
-              thickness: metadataWall.thickness
-            })),
-            items: metadataFloor.scene.items.map(
-              ({
-                id: itemId,
-                type: itemType,
-                name: itemName,
-                x: itemX,
-                y: itemY,
-                width: itemWidth,
-                depth: itemDepth,
-                rotation: itemRotation,
-                color: itemColor
-              }) => ({
-                id: itemId,
-                type: itemType,
-                name: itemName,
-                x: itemX,
-                y: itemY,
-                width: itemWidth,
-                depth: itemDepth,
-                rotation: itemRotation,
-                color: itemColor
-              })
-            )
-          },
-          cameras: metadataFloor.scene.items
-            .filter(sceneItem => sceneItem.type === "camera")
-            .map((cameraSourceItem, cameraIndex) => ({
-              id: cameraSourceItem.id,
-              name: cameraSourceItem.name || "摄像头 " + (cameraIndex + 1),
-              x: cameraSourceItem.x,
-              y: cameraSourceItem.y,
-              height:
-                (Number(cameraSourceItem.elevation) || 0) +
-                (Number(cameraSourceItem.height) || 0.3) / 2
-            })),
-          presenceSensors: metadataFloor.scene.items
-            .filter(presenceSourceItem => presenceSourceItem.type === "presence")
-            .map((presenceItem, presenceIndex) => ({
-              id: presenceItem.id,
-              name: presenceItem.name || "人体传感器 " + (presenceIndex + 1)
-            })),
-          vacuums: metadataFloor.scene.items
-            .filter(vacuumSourceItem => vacuumSourceItem.type === "robotvacuum")
-            .map((vacuumItem, vacuumIndex) => ({
-              id: vacuumItem.id,
-              name: vacuumItem.name || "扫地机 " + (vacuumIndex + 1),
-              x: vacuumItem.x,
-              y: vacuumItem.y,
-              height: (Number(vacuumItem.elevation) || 0) + (Number(vacuumItem.height) || 0.85) / 2
-            })),
-          televisions: metadataFloor.scene.items
-            .filter(televisionSourceItem => televisionSourceItem.type === "tv")
-            .map((televisionItem, televisionIndex) => ({
-              id: televisionItem.id,
-              name: televisionItem.name || "电视 " + (televisionIndex + 1),
-              type: televisionItem.type,
-              x: televisionItem.x,
-              y: televisionItem.y,
-              height:
-                (Number(televisionItem.elevation) || 0) +
-                (Number(televisionItem.height) || 0.92) * 0.62
-            })),
-          nas: metadataFloor.scene.items
-            .filter(nasSourceItem => nasSourceItem.type === "nas")
-            .map((nasItem, nasIndex) => ({
-              id: nasItem.id,
-              name: nasItem.name || "NAS " + (nasIndex + 1),
-              type: nasItem.type,
-              x: nasItem.x,
-              y: nasItem.y,
-              height: (Number(nasItem.elevation) || 0) + (Number(nasItem.height) || 0.34) / 2
-            })),
-          curtains: metadataFloor.scene.items
-            .filter(curtainSourceItem => curtainSourceItem.type === "curtain")
-            .map((curtainItem, curtainIndex) => ({
-              id: curtainItem.id,
-              name: curtainItem.name || "窗帘 " + (curtainIndex + 1),
-              type: curtainItem.type,
-              x: curtainItem.x,
-              y: curtainItem.y,
-              height:
-                (Number(curtainItem.elevation) || 0) + (Number(curtainItem.height) || 2.4) / 2,
-              curtainPosition: curtainItem.curtainPosition || "split",
-              curtainTrack: curtainItem.curtainTrack || "straight",
-              curtainFabric: curtainItem.curtainFabric
-            })),
-          airConditioners: metadataFloor.scene.items
-            .filter(airConditionerSourceItem =>
-              ["wallac", "floorac", "airoutlet"].includes(airConditionerSourceItem.type)
-            )
-            .map((airConditionerItem, airConditionerIndex) => ({
-              id: airConditionerItem.id,
-              name:
-                airConditionerItem.name ||
-                (airConditionerItem.type === "airoutlet"
-                  ? "出风口"
-                  : airConditionerItem.type === "wallac"
-                    ? "挂机空调"
-                    : "柜机空调") +
-                  " " +
-                  (airConditionerIndex + 1),
-              type: airConditionerItem.type,
-              x: airConditionerItem.x,
-              y: airConditionerItem.y,
-              height:
-                (Number(airConditionerItem.elevation) || 0) +
-                (Number(airConditionerItem.height) || 0.28) / 2
-            })),
-          groups: metadataFloor.scene.lightGroups.map(lightGroup => {
-            const groupItems = metadataFloor.scene.items.filter(
-              groupItem => groupItem.lightGroupId === lightGroup.id
-            );
-            const groupPoints = groupItems.length
-              ? groupItems
-              : metadataFloor.scene.walls.map(groupWall => groupWall.start);
-            return {
-              id: lightGroup.id,
-              name: lightGroup.name,
-              height: resolvedWallHeight,
-              x: groupPoints.length
-                ? groupPoints.reduce((sumX, pointX) => sumX + pointX.x, 0) / groupPoints.length
-                : 0,
-              y: groupPoints.length
-                ? groupPoints.reduce((sumY, pointY) => sumY + pointY.y, 0) / groupPoints.length
-                : 0
-            };
-          })
-        };
-      })
-    };
-  }
+
+
   postToHost({
     // 挂载即回报 ready：metadata 里带平面图、墙体高度与各类模型坐标，
     // 宿主靠它初始化编辑器；statePatches 表示后续 states 会走增量合并。
