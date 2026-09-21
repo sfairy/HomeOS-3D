@@ -6,14 +6,14 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609211953";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609211957";
 // 同门分片：entity-state
 import {
   isClimateDeviceActive,
   resolveClimateEffectMode
-} from "./entity-state.js?v=2609211953";
+} from "./entity-state.js?v=2609211957";
 // 同门分片：registry-visuals
-import { resolveColor } from "./registry-visuals.js?v=2609211953";
+import { resolveColor } from "./registry-visuals.js?v=2609211957";
 
 /**
  * 生成空调 / 浴霸出风动画的 SVG（data URI）。

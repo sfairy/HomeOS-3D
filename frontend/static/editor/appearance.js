@@ -25,9 +25,9 @@ import {
   normalizeHex,
   resolveTokens,
   rgbTriplet,
-} from "../auth/scene/appearance.js?v=2609211953";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609211953";
-import { apiFetch } from "../utils/api-fetch.js?v=2609211953";
+} from "../auth/scene/appearance.js?v=2609211957";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609211957";
+import { apiFetch } from "../utils/api-fetch.js?v=2609211957";
 
 /** 面板用到的元素。全部取自 index.html 的 #appearance-dialog。 */
 const dialog = document.getElementById("appearance-dialog");
@@ -198,6 +198,10 @@ async function save() {
   try {
     const payload = await apiFetch("/api/v1/appearance", {
       method: "PUT",
+      // 必须显式声明 JSON：apiFetch 只是 fetch 的透传，而 fetch 对字符串 body 的默认
+      // Content-Type 是 text/plain。FastAPI 只在 application/json 下才把请求体当对象解析，
+      // 少了这一行后端会在进入 validate_tokens 之前就以 422 拒绝（model_attributes_type）。
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ preset: draft.preset, tokens: draftTokens() }),
     });
     saved = { ...draft };

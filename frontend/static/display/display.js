@@ -7,11 +7,11 @@
  *（墙面屏前没人能填激活码，刷新让后端门禁重新判定）；两个判定口径见 utils/api-request.js；
  * 素材版本号形如 "内置戳:用户戳"，只在变化时重新下载；轮询 10 秒，素材版本检查 30 秒。
  */
-import { PanelRenderer } from "../renderer/core/renderer.js?v=2609211953";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609211953";
-import { createButtonSound } from "../shared/sound-effects.js?v=2609211953";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=2609211953";
-import { isAppleMobile } from "../utils/apple-device.js?v=2609211953";
+import { PanelRenderer } from "../renderer/core/renderer.js?v=2609211957";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609211957";
+import { createButtonSound } from "../shared/sound-effects.js?v=2609211957";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=2609211957";
+import { isAppleMobile } from "../utils/apple-device.js?v=2609211957";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");

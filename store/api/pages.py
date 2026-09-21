@@ -179,12 +179,12 @@ def _cashier_html(order: Order, product: Product | None, *, request: Request) ->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#050910">
 <title>模拟收银台 · {order_no}</title>
-<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609211953">
-<link rel="stylesheet" href="/store-static/scene/page.css?v=2609211953">
-<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609211953">
-<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609211953">
-<link rel="icon" href="/store-static/favicon-rounded.png?v=2609211953">
-<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609211953` 的 <link>。
+<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609211957">
+<link rel="stylesheet" href="/store-static/scene/page.css?v=2609211957">
+<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609211957">
+<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609211957">
+<link rel="icon" href="/store-static/favicon-rounded.png?v=2609211957">
+<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609211957` 的 <link>。
      必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
 <!--{{APPEARANCE}}-->
 </head>

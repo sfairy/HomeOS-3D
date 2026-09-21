@@ -7,9 +7,9 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609211953";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609211957";
 
-export { resolveColor } from "../../../utils/colors.js?v=2609211953";
+export { resolveColor } from "../../../utils/colors.js?v=2609211957";
 
 /**
  * 以「极细字重 + 描边」还原设计稿字重：字重有 1~900 与 0~1 两种量纲，先归一化到 0~1。
