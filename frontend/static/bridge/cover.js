@@ -40,7 +40,7 @@ export function createInteraction3dCover({ showTitle: isTitleVisible = !0 } = {}
   // 缩略图 URL 上的版本戳与后端静态资源缓存戳机制一致；
   // 换图后必须同步改这里，否则浏览器会一直吃旧缓存。
   ((coverImageElement.src =
-    "/static/component-thumbnails/interaction3d.png?v=20260921151446"),
+    "/static/component-thumbnails/interaction3d.png?v=20260921152526"),
     (coverImageElement.alt = ""),
     (coverImageElement.decoding = "async"));
   const titleElement = document.createElement("span");

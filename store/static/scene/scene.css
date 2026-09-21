@@ -296,21 +296,35 @@
   --hos-orbit-skew: -18deg;
 }
 
+/* 三个环的尺寸写成纯 cqw 份额，不再 `min(…cqw, 固定px)`。份额按 Activate 那张
+   1366×1024 设计画布标定（620 / 1366 = 45.4cqw），所以 Activate 上的尺寸与改动前逐像素
+   相同，而全视口自适应的入口页会跟着画布等比放大 —— 同一份 CSS 在两种外壳下都成立。
+
+   旧写法的毛病只在宽屏上显形：`min(64cqw, 620px)` 在画布宽过 970px 后被 620px 冻住，
+   1920 宽下外环只占画布 41%、与右侧表单坞之间空出四百多像素，三个环就不像构图的一部分，
+   倒像贴在左半屏的一张纸。Activate 显得更「大气」，一半正因为它固定在 1366 画布上，
+   环永远占画布 45%。
+
+   45.4cqw 同时不裁切：环心在 left: 28%，而不再自转的外环投影盒宽恒定在 1.15 倍直径
+   （实测 1002.66 / 871.70，30 帧零摆动），半宽 0.575 倍直径要 ≤ 0.28 倍画布，即直径
+   ≤ 48.7cqw。45.4cqw 留了余量，1920 宽下离左边缘 37px；份额制所以任何窗宽都同比例，不会更近。 */
 .hos-scene__orbit--outer {
-  width: min(64cqw, 620px);
-  height: min(64cqw, 620px);
+  width: 45.4cqw;
+  height: 45.4cqw;
   border: 1px solid rgba(var(--hos-accent-rgb), 0.2);
   box-shadow:
     0 0 18px rgba(var(--hos-accent-rgb), 0.08),
     inset 0 0 18px rgba(var(--hos-accent-rgb), 0.05);
-  animation:
-    hosOrbitSpin 42s linear infinite,
-    hosOrbitBreath 7s ease-in-out infinite;
+  /* 外环不自转。实心圆环在 3D 里绕法线转，投影盒会随自转相位在 1.10～1.27 倍直径之间鼓缩，
+     看上去就是「椭圆的形状在缓慢摆动」—— 那正是入口页显得晃的原因。自转让给虚线环：
+     虚线转起来读作「刻度在流」，不会被当成轮廓在变形。外环只留呼吸。 */
+  animation: hosOrbitBreath 7s ease-in-out infinite;
 }
 
+/* 尺寸份额同外环，按 1366 画布标定（440 / 1366 = 32.2cqw）。 */
 .hos-scene__orbit--mid {
-  width: min(46cqw, 440px);
-  height: min(46cqw, 440px);
+  width: 32.2cqw;
+  height: 32.2cqw;
   border: 1.5px dashed rgba(var(--hos-accent-rgb), 0.28);
   box-shadow:
     0 0 14px rgba(var(--hos-accent-rgb), 0.06),
@@ -321,17 +335,16 @@
   animation-delay: 0s, 0.8s;
 }
 
+/* 内环同外环：实心环停自转，只留呼吸（呼吸相位与外环错开 1.4s）。份额 280 / 1366 = 20.5cqw。 */
 .hos-scene__orbit--inner {
-  width: min(30cqw, 280px);
-  height: min(30cqw, 280px);
+  width: 20.5cqw;
+  height: 20.5cqw;
   border: 1px solid rgba(var(--hos-accent-rgb), 0.34);
   box-shadow:
     0 0 22px rgba(var(--hos-accent-rgb), 0.12),
     inset 0 0 16px rgba(var(--hos-accent-rgb), 0.08);
-  animation:
-    hosOrbitSpin 16s linear infinite,
-    hosOrbitBreath 4.2s ease-in-out infinite;
-  animation-delay: 0s, 1.4s;
+  animation: hosOrbitBreath 4.2s ease-in-out infinite;
+  animation-delay: 1.4s;
 }
 
 .hos-scene__orbit-node {
@@ -464,12 +477,14 @@
   animation: hosOrbitArcSweep 4.8s linear infinite;
 }
 
+/* 圆心光斑与雷达扫描和三个环同心，尺寸也按同一份 1366 画布标定：
+   160 / 1366 = 11.7cqw、380 / 1366 = 27.8cqw。 */
 .hos-scene__orbit-core {
   position: absolute;
   top: 48%;
   left: 28%;
-  width: min(18cqw, 160px);
-  height: min(18cqw, 160px);
+  width: 11.7cqw;
+  height: 11.7cqw;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   background: radial-gradient(
@@ -486,8 +501,8 @@
   position: absolute;
   top: 48%;
   left: 28%;
-  width: min(40cqw, 380px);
-  height: min(40cqw, 380px);
+  width: 27.8cqw;
+  height: 27.8cqw;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   background: conic-gradient(

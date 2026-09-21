@@ -8,16 +8,16 @@
  * 约定：导入路径上的 ?v= 版本戳必须与 home.js、renderer.js 一致；`coverComponentIsDream` 从
  * `registry/cover-state.js` 取 —— 那是只依赖 utils 的叶子分片，本文件因此不再反向 import 整个注册表 barrel。
  */
-import { coverComponentIsDream } from "../core/registry/cover-state.js?v=20260921151446";
-import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260921151446";
+import { coverComponentIsDream } from "../core/registry/cover-state.js?v=20260921152526";
+import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=20260921152526";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
-import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=20260921151446";
+import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=20260921152526";
 // 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
 // 本文件与 registry/cover-state.js 都要用，而后者是本文件的上游，不能再反向 import 它。
 import {
   coverMotorIsReversedForComponent,
   coverPhysicalStateForReversedMotor,
-} from "./cover-direction.js?v=20260921151446";
+} from "./cover-direction.js?v=20260921152526";
 /**
  * 通用「实体是否处于活动态」判定。
  */

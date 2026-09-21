@@ -6,7 +6,7 @@
  * <origin>/pair?scan=1#code=xxxxxx&type=homeos-pair&version=1，任一环节不符即视为无效，
  * 宁可报错也不降级接受。
  */
-import { isAppleMobile } from "../utils/apple-device.js?v=20260921151446";
+import { isAppleMobile } from "../utils/apple-device.js?v=20260921152526";
 
 /**
  * 解析并严格校验配对链接；链接超长、格式不符或字段缺失时抛中文错误文案。

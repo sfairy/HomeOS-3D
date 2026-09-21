@@ -8,19 +8,19 @@
  * sync(...) 只在外部签名变化时调用、内部再做细粒度 diff；tick 返回 true 表示还需继续出帧。
  */
 // 状态条目归一与「按 ID 切域」经 static-helpers 桥取用（运行侧不能写裸 /static/... 的静态 import）。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260921151446";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260921152526";
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "../core/motion-preference.js?v=20260921151446";
+import { prefersReducedMotionNow } from "../core/motion-preference.js?v=20260921152526";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=20260921151446";
-import { createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260921151446";
+import { sceneModelKey } from "../core/scene-model-key.js?v=20260921152526";
+import { createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=20260921152526";
 import {
   validPresenceRoute,
   createPresenceTriggers,
   closedPath,
   sampleClosedPath,
   presenceVisibleOnPage
-} from "./presence-motion.js?v=20260921151446";
+} from "./presence-motion.js?v=20260921152526";
 /**
  * 创建人体存在角色场景。
  * @param {Function} [wakeFrameLoop=() => {}] 唤醒空闲帧循环；角色在动时必须调用，

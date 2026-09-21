@@ -7,14 +7,14 @@
 import {
   clampCoercedNumber,
   clampNumber
-} from "../../../../utils/numbers.js?v=20260921151446";
+} from "../../../../utils/numbers.js?v=20260921152526";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=20260921151446";
+import { registerComponent } from "../registry-core.js?v=20260921152526";
 // 同门分片：registry-visuals
 import {
   appendSvgElement,
   resolveColor
-} from "../registry-visuals.js?v=20260921151446";
+} from "../registry-visuals.js?v=20260921152526";
 
 // 面板框控件：纯装饰性外框（描边 + 光晕），内部内容由子组件承载。
 registerComponent("panel-frame", {
