@@ -8,8 +8,8 @@
  * （模式开关 400ms，单材质淡入淡出 360ms）。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921122709";
-import { createEnvironmentHalos } from "./environment-halos.js?v=20260921122709";
+import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921124622";
+import { createEnvironmentHalos } from "./environment-halos.js?v=20260921124622";
 /**
  * 计算「当前页面应该压暗多少、降饱和多少」。
  */

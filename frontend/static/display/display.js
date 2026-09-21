@@ -6,11 +6,11 @@
  * 屏。未配对 / 会话失效（401）跳 /pair，授权受限（403 LICENSE_RESTRICTED）跳 /license；
  * 素材版本号形如 "内置戳:用户戳"，只在变化时重新下载；轮询 10 秒，素材版本检查 30 秒。
  */
-import { PanelRenderer } from "../renderer/core/renderer.js?v=20260921122709";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260921122709";
-import { createButtonSound } from "../shared/sound-effects.js?v=20260921122709";
-import { syncAppleDisplaySurface } from "./display-surface.js?v=20260921122709";
-import { isAppleMobile } from "../utils/apple-device.js?v=20260921122709";
+import { PanelRenderer } from "../renderer/core/renderer.js?v=20260921124622";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260921124622";
+import { createButtonSound } from "../shared/sound-effects.js?v=20260921124622";
+import { syncAppleDisplaySurface } from "./display-surface.js?v=20260921124622";
+import { isAppleMobile } from "../utils/apple-device.js?v=20260921124622";
 
 const displayRootElement = document.querySelector("#display-root");
 const displayShellElement = document.querySelector("#display-shell");

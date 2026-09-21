@@ -11,34 +11,34 @@
 // 注册是 import 副作用：漏一个分片，对应控件类型会静默变成「控件尚未实现」；
 // tools/check_registry_split.mjs 核对分片都被引入，tools/smoke_registry.mjs 带 DOM 桩
 // 真实加载一遍、逐个类型确认注册成功。公开导出名与顺序保持拆分前不变。
-import "./registry/components/air-conditioner.js?v=20260921122709";
-import "./registry/components/camera.js?v=20260921122709";
-import "./registry/components/date.js?v=20260921122709";
-import "./registry/components/floorplan-auto-diagram.js?v=20260921122709";
-import "./registry/components/icon-button.js?v=20260921122709";
-import "./registry/components/icon-button-effect.js?v=20260921122709";
-import "./registry/components/image.js?v=20260921122709";
-import "./registry/components/interaction3d.js?v=20260921122709";
-import "./registry/components/light-statistics.js?v=20260921122709";
-import "./registry/components/line-chart.js?v=20260921122709";
-import "./registry/components/navigation-button.js?v=20260921122709";
-import "./registry/components/panel-frame.js?v=20260921122709";
-import "./registry/components/presence-sensor.js?v=20260921122709";
-import "./registry/components/time.js?v=20260921122709";
-import "./registry/components/title-button.js?v=20260921122709";
-import "./registry/components/vacuum-map.js?v=20260921122709";
-import "./registry/components/weather.js?v=20260921122709";
+import "./registry/components/air-conditioner.js?v=20260921124622";
+import "./registry/components/camera.js?v=20260921124622";
+import "./registry/components/date.js?v=20260921124622";
+import "./registry/components/floorplan-auto-diagram.js?v=20260921124622";
+import "./registry/components/icon-button.js?v=20260921124622";
+import "./registry/components/icon-button-effect.js?v=20260921124622";
+import "./registry/components/image.js?v=20260921124622";
+import "./registry/components/interaction3d.js?v=20260921124622";
+import "./registry/components/light-statistics.js?v=20260921124622";
+import "./registry/components/line-chart.js?v=20260921124622";
+import "./registry/components/navigation-button.js?v=20260921124622";
+import "./registry/components/panel-frame.js?v=20260921124622";
+import "./registry/components/presence-sensor.js?v=20260921124622";
+import "./registry/components/time.js?v=20260921124622";
+import "./registry/components/title-button.js?v=20260921124622";
+import "./registry/components/vacuum-map.js?v=20260921124622";
+import "./registry/components/weather.js?v=20260921124622";
 
 // 分片：airflow
 export {
   renderAirConditionerAirflowLayer
-} from "./registry/airflow.js?v=20260921122709";
+} from "./registry/airflow.js?v=20260921124622";
 // 分片：builtin-assets
 export {
   setBuiltinAssetVersions,
   staticAssetImageSource,
   vacuumMapImageSource
-} from "./registry/builtin-assets.js?v=20260921122709";
+} from "./registry/builtin-assets.js?v=20260921124622";
 // 分片：camera
 export {
   appendCameraFrame,
@@ -46,60 +46,60 @@ export {
   mountCameraMedia,
   mountCameraSnapshot,
   prewarmCameraMedia
-} from "./registry/camera.js?v=20260921122709";
+} from "./registry/camera.js?v=20260921124622";
 // 分片：cover-state
 export {
   COVER_CLOSED_POSITION_EPSILON,
   coverComponentIsActive,
   coverComponentIsDream
-} from "./registry/cover-state.js?v=20260921122709";
+} from "./registry/cover-state.js?v=20260921124622";
 // 分片：effect-visuals
 export {
   ICON_BUTTON_EFFECT_BASE_TEMPERATURE_KELVIN,
   iconButtonEffectLightVisualAwaiting,
   iconButtonEffectLightVisualState,
   renderIconButtonEffectLayer
-} from "./registry/effect-visuals.js?v=20260921122709";
+} from "./registry/effect-visuals.js?v=20260921124622";
 // 分片：entity-state
 export {
   formatEntityState
-} from "./registry/entity-state.js?v=20260921122709";
+} from "./registry/entity-state.js?v=20260921124622";
 // 分片：history-chart
 export {
   renderLineChartDetails
-} from "./registry/history-chart.js?v=20260921122709";
+} from "./registry/history-chart.js?v=20260921124622";
 // 分片：navigation-effects
 export {
   navigationButtonIsActive
-} from "./registry/navigation-effects.js?v=20260921122709";
+} from "./registry/navigation-effects.js?v=20260921124622";
 // 分片：registry-core
 export {
   registerComponent,
   renderRegisteredComponent
-} from "./registry/registry-core.js?v=20260921122709";
+} from "./registry/registry-core.js?v=20260921124622";
 // 分片：registry-visuals
 export {
   componentContentUnitsPx,
   navigationContentUnitPx
-} from "./registry/registry-visuals.js?v=20260921122709";
+} from "./registry/registry-visuals.js?v=20260921124622";
 
 // ── 各 runtime 纯函数的统一再导出（原样保留）──
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport,
   lightStatisticsSummary
-} from "../controls/light-statistics-runtime.js?v=20260921122709";
+} from "../controls/light-statistics-runtime.js?v=20260921124622";
 import {
   automaticNumericPrecision,
   formatLineChartValue,
   formatNumericValue,
   lineChartGeometry,
   normalizedStatePrecision
-} from "../controls/line-chart-runtime.js?v=20260921122709";
+} from "../controls/line-chart-runtime.js?v=20260921124622";
 import {
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix
-} from "../controls/door-window-runtime.js?v=20260921122709";
+} from "../controls/door-window-runtime.js?v=20260921124622";
 import {
   automaticThresholds,
   meteoconUrl,
@@ -108,12 +108,12 @@ import {
   smoothChartPath,
   thresholdColor,
   weatherVisual
-} from "../controls/weather-chart-runtime.js?v=20260921122709";
+} from "../controls/weather-chart-runtime.js?v=20260921124622";
 import {
   formatLocalDate,
   formatLocalTime,
   formatLunarDate
-} from "../controls/date-time-runtime.js?v=20260921122709";
+} from "../controls/date-time-runtime.js?v=20260921124622";
 // 统一再导出各 runtime 的纯函数：页面脚本只 import registry.js 一处即可，
 // 也保证注册表与这些工具用的是同一份模块实例（版本戳不一致会出现两份）。
 export {
@@ -145,7 +145,7 @@ import {
   presenceMotionEventConfig,
   presenceSensorPresentation,
   presenceStateTimestamp
-} from "../controls/presence-runtime.js?v=20260921122709";
+} from "../controls/presence-runtime.js?v=20260921124622";
 export {
   formatPresenceDuration as formatPresenceDuration,
   presenceAnimationPhase as presenceAnimationPhase,

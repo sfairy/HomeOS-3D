@@ -7,12 +7,12 @@
  * heading 角度存在 a 字段（度）。地图地址由 vacuum-map.js 解析。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry } from "../core/static-helpers.js?v=20260921122709";
+import { resolveStateEntry } from "../core/static-helpers.js?v=20260921124622";
 import {
   mapSource,
   vacuumStatusPresentation,
   vacuumBindingsForMap
-} from "./vacuum-map.js?v=20260921122709";
+} from "./vacuum-map.js?v=20260921124622";
 /** 是否为有限数字（同时排除数字字符串）。 */
 const isFiniteNumber = candidateValue =>
   typeof candidateValue == "number" && Number.isFinite(candidateValue);

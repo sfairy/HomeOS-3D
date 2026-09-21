@@ -4,13 +4,13 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../../utils/numbers.js?v=20260921122709";
+import { clampCoercedNumber } from "../../../../utils/numbers.js?v=20260921124622";
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=20260921122709";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=20260921124622";
 // 同门分片：builtin-assets
-import { vacuumMapImageSource } from "../builtin-assets.js?v=20260921122709";
+import { vacuumMapImageSource } from "../builtin-assets.js?v=20260921124622";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=20260921122709";
+import { registerComponent } from "../registry-core.js?v=20260921124622";
 
 // 扫地机地图控件：图片地址由 vacuumMapImageSource 生成，并交给预加载器提前取图。
 registerComponent("vacuum-map", {

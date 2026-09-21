@@ -8,20 +8,20 @@
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260921122709";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=20260921124622";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=20260921122709";
-import { apiErrorMessage } from "../utils/api-error.js?v=20260921122709";
+import { apiFetch } from "../utils/api-fetch.js?v=20260921124622";
+import { apiErrorMessage } from "../utils/api-error.js?v=20260921124622";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=20260921122709";
+} from "../renderer/core/renderer.js?v=20260921124622";
 import {
   lightStatisticsEntityStateStatus,
   lightStatisticsEntitySupport
-} from "../renderer/core/registry.js?v=20260921122709";
+} from "../renderer/core/registry.js?v=20260921124622";
 import {
   createComponentFromTemplate,
   dateComponentDimensions,
@@ -29,7 +29,7 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=20260921122709";
+} from "../templates/component-templates.js?v=20260921124622";
 import {
   clone,
   newId,
@@ -39,36 +39,36 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "./editor-utils.js?v=20260921122709";
-import { clampNumber } from "../utils/numbers.js?v=20260921122709";
-import { mdiIconUrl } from "../utils/icon-url.js?v=20260921122709";
-import { formatZhDateTime } from "../utils/datetime.js?v=20260921122709";
-import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260921122709";
+} from "./editor-utils.js?v=20260921124622";
+import { clampNumber } from "../utils/numbers.js?v=20260921124622";
+import { mdiIconUrl } from "../utils/icon-url.js?v=20260921124622";
+import { formatZhDateTime } from "../utils/datetime.js?v=20260921124622";
+import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=20260921124622";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
-import { resolveStateEntry, stateTextOf } from "../utils/state-entry.js?v=20260921122709";
+import { resolveStateEntry, stateTextOf } from "../utils/state-entry.js?v=20260921124622";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=20260921122709";
-import { positionFloatingMenu } from "../shared/menu-positioning.js?v=20260921122709";
+} from "../utils/colors.js?v=20260921124622";
+import { positionFloatingMenu } from "../shared/menu-positioning.js?v=20260921124622";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=20260921122709";
+} from "../shared/popup-layout.js?v=20260921124622";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=20260921122709";
+} from "./dashboard-resize.js?v=20260921124622";
 // 导图底图分辨率必须与控件宽高比一致，否则底图在预览里会被拉伸、位置对不上（见模块注释）。
-import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=20260921122709";
+import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=20260921124622";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=20260921122709";
+} from "./component-page-copy.js?v=20260921124622";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -80,29 +80,29 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=20260921122709";
-import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260921122709";
-import { createButtonSound } from "../shared/sound-effects.js?v=20260921122709";
+} from "../shared/related-entities.js?v=20260921124622";
+import { createIconVisibilityVirtualEntity } from "../shared/virtual-entities.js?v=20260921124622";
+import { createButtonSound } from "../shared/sound-effects.js?v=20260921124622";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=20260921122709";
-import { confirmAction } from "../shared/ui-confirm.js?v=20260921122709";
+} from "./editor-dialogs.js?v=20260921124622";
+import { confirmAction } from "../shared/ui-confirm.js?v=20260921124622";
 // 授权状态文案与授权页、连接状态页共用同一份：状态码与文案的对应关系分散在
 // 三处必然漂移，用户在编辑器、授权页、恢复页看到对同一状态的不同解释就不知道该信哪个。
 // 该模块只在页面里存在 #license-recovery 时自举定时器（编辑器里没有这个节点，不会挂上轮询）。
-import { licenseMessage } from "../auth/license-recovery.js?v=20260921122709";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260921122709";
+import { licenseMessage } from "../auth/license-recovery.js?v=20260921124622";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=20260921124622";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=20260921122709";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260921122709";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260921122709";
-import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260921122709";
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260921122709";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260921122709";
+} from "./picker/editor-picker-pagination.js?v=20260921124622";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=20260921124622";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=20260921124622";
+import { createEditorPickerLifecycle } from "./picker/editor-picker-lifecycle.js?v=20260921124622";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=20260921124622";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=20260921124622";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -110,13 +110,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=20260921122709";
+} from "../shared/action-rules.js?v=20260921124622";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=20260921122709";
+} from "./component-tree.js?v=20260921124622";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -126,13 +126,13 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=20260921122709";
+} from "./editor-component-collections.js?v=20260921124622";
 import {
   fitInspectorComponentToDimensions,
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=20260921122709";
+} from "./editor-basic-inspectors.js?v=20260921124622";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -145,7 +145,7 @@ import {
   reorderedPopupModules,
   restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=20260921122709";
+} from "./editor-document-management.js?v=20260921124622";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -153,18 +153,18 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=20260921122709";
+} from "./editor-history.js?v=20260921124622";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=20260921122709";
-import { createLicenseCard } from "./license-card.js?v=20260921122709";
+} from "../3d-studio/loaders/studio-normalization.js?v=20260921124622";
+import { createLicenseCard } from "./license-card.js?v=20260921124622";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=20260921122709";
+} from "../bridge/editor.js?v=20260921124622";
 /**
  * 按选择器取单个 DOM 节点的简写。不做缓存与空值兜底：调用处只在模块加载时一次性缓存静态节点，
  * querySelector 找不到说明模板出错，返回 null 由使用处自行判断。
@@ -4279,7 +4279,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=20260921122709";
+          ".jpg?v=20260921124622";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }

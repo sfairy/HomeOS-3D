@@ -8,7 +8,7 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { normalizedTextOf, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921122709";
+import { normalizedTextOf, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=20260921124622";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。 */
 const FLOW_STATE_COLORS = {
   cool: "#73c8ff",

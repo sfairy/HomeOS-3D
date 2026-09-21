@@ -2,9 +2,9 @@
  * `image` 控件：只做资源解析与等比铺放；没有资源时在编辑器里给出「尚未选择图片」提示。
  */
 // 同门分片：builtin-assets
-import { staticAssetImageSource } from "../builtin-assets.js?v=20260921122709";
+import { staticAssetImageSource } from "../builtin-assets.js?v=20260921124622";
 // 同门分片：registry-core
-import { registerComponent } from "../registry-core.js?v=20260921122709";
+import { registerComponent } from "../registry-core.js?v=20260921124622";
 
 // 图片控件：只做资源解析与等比铺放；没有资源时在编辑器里给出「尚未选择图片」提示。
 registerComponent("image", {

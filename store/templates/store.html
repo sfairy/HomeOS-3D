@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#050910">
   <meta name="description" content="注册账号、购买授权与管理激活设备">
-  <link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260921122709">
+  <link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=20260921124622">
   <title>HomeOS 授权服务 - HomeOS 授权中心</title>
   <link rel="stylesheet" href="/store-static/font.min.css">
-  <link rel="stylesheet" href="/store-static/theme.css?v=20260921122709">
+  <link rel="stylesheet" href="/store-static/theme.css?v=20260921124622">
   <!-- 场景设计系统的分发产物（源在仓库 design/scene/）。登录 / 注册 / 找回这三块整屏壳
        用的是它，前台其余分页仍走 theme.css + store.css 的令牌。 -->
-  <link rel="stylesheet" href="/store-static/scene/fonts.css?v=20260921122709">
-  <link rel="stylesheet" href="/store-static/scene/page.css?v=20260921122709">
-  <link rel="stylesheet" href="/store-static/scene/scene.css?v=20260921122709">
-  <link rel="stylesheet" href="/store-static/scene/panel.css?v=20260921122709">
-  <link rel="stylesheet" href="/store-static/store.css?v=20260921122709">
-  <script src="/store-static/auth-bootstrap.js?v=20260921122709"></script>
-  <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=20260921122709` 的 <link>。
+  <link rel="stylesheet" href="/store-static/scene/fonts.css?v=20260921124622">
+  <link rel="stylesheet" href="/store-static/scene/page.css?v=20260921124622">
+  <link rel="stylesheet" href="/store-static/scene/scene.css?v=20260921124622">
+  <link rel="stylesheet" href="/store-static/scene/panel.css?v=20260921124622">
+  <link rel="stylesheet" href="/store-static/store.css?v=20260921124622">
+  <script src="/store-static/auth-bootstrap.js?v=20260921124622"></script>
+  <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=20260921124622` 的 <link>。
        必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
   <!--{{APPEARANCE}}-->
 </head>
@@ -27,12 +27,12 @@
 <header class="hb-topbar">
   <div class="hb-container hb-topbar__inner">
     <a class="hb-brand" href="/" aria-label="HomeOS 授权中心 首页">
-      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=20260921122709" alt=""></span>
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=20260921124622" alt=""></span>
       <span class="hb-brand__text"><strong>HomeOS</strong><small>授权服务中心</small></span>
     </a>
     <nav class="hb-nav" id="navbarNav" aria-label="主导航">
       <a class="hb-nav__link" data-hb-nav="home" href="/">首页</a>
-      <a class="hb-nav__link" data-hb-nav="purchase" href="/products?v=20260921122709">购买授权</a>
+      <a class="hb-nav__link" data-hb-nav="purchase" href="/products?v=20260921124622">购买授权</a>
       <a class="hb-nav__link hb-auth-only" data-hb-nav="account" href="/user/dashboard/index">账号中心</a>
       <a class="hb-nav__link hb-auth-only" data-hb-nav="referrals" href="/user/referrals">邀请有礼</a>
     </nav>
@@ -48,7 +48,7 @@
 <main id="store-maintenance" class="hb-maintenance-page" hidden aria-labelledby="store-maintenance-title">
   <section class="hb-maintenance-card">
     <div class="hb-maintenance-brand">
-      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=20260921122709" alt=""></span>
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=20260921124622" alt=""></span>
       <span><strong id="maintenance-site-name">HomeOS</strong><small>授权服务中心</small></span>
     </div>
     <div class="hb-maintenance-visual" aria-hidden="true">
@@ -88,7 +88,7 @@
       <p class="hb-lead">HomeOS 是跑在自己服务器上的全屋智能管家：3D 户型里开关灯与窗帘，统一纳管家电与环境，
         场景、安防与全屏中控都在同一个界面里完成 —— 数据留在本机，不经过任何第三方云。</p>
       <div class="hb-hero__actions">
-        <a class="hb-button hb-button--primary hb-button--lg" id="home-purchase-link" href="/products?v=20260921122709" hidden>选择授权版本 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
+        <a class="hb-button hb-button--primary hb-button--lg" id="home-purchase-link" href="/products?v=20260921124622" hidden>选择授权版本 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
         <a class="hb-button hb-button--primary hb-button--lg" id="home-login-link" href="/user/authentication/login">登录账号 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
         <a class="hb-button hb-button--secondary hb-button--lg" id="home-register-link" href="/user/authentication/register">注册账号</a>
         <a class="hb-button hb-button--secondary hb-button--lg" id="home-account-link" href="/user/dashboard/index" hidden>进入账号中心</a>
@@ -268,7 +268,7 @@
           <li>Home Assistant 实体同步</li>
           <li>中控配对与全局日志</li>
         </ul>
-        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=20260921122709">查看价格</a>
+        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=20260921124622">查看价格</a>
       </article>
       <article class="hb-tier hb-tier--featured" data-tone="accent">
         <header class="hb-tier__head">
@@ -280,7 +280,7 @@
           <li>3D 户型工作室与自动导图</li>
           <li>3D 交互舞台：灯、窗帘、空调、电视、扫地机</li>
         </ul>
-        <a class="hb-button hb-button--primary hb-tier__action" href="/products?v=20260921122709">查看价格</a>
+        <a class="hb-button hb-button--primary hb-tier__action" href="/products?v=20260921124622">查看价格</a>
       </article>
       <article class="hb-tier" data-tone="aura">
         <header class="hb-tier__head">
@@ -292,7 +292,7 @@
           <li>单个能力单独购买</li>
           <li>不影响原授权有效期</li>
         </ul>
-        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=20260921122709">查看增量包</a>
+        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=20260921124622">查看增量包</a>
       </article>
     </div>
     <p class="hb-tiers__note">具体在售商品与价格以商品列表为准；买错或换机都可以在账号中心自助处理。</p>
@@ -383,7 +383,7 @@
       <span><i class="fa-duotone fa-regular fa-box-open"></i></span>
       <strong>商品不可购买</strong>
       <p>该商品可能已下架或链接已失效，请返回商品列表重新选择。</p>
-      <a class="hb-button hb-button--secondary" href="/products?v=20260921122709">返回商品列表</a>
+      <a class="hb-button hb-button--secondary" href="/products?v=20260921124622">返回商品列表</a>
     </section>
 
     <div class="hb-checkout-shell" id="store-checkout-shell">
@@ -460,7 +460,7 @@
       </div>
 
       <aside class="hb-product-summary">
-        <div class="hb-product-cover"><img id="store-product-image" src="/store-static/homeos-mark.svg?v=20260921122709" alt="授权商品"></div>
+        <div class="hb-product-cover"><img id="store-product-image" src="/store-static/homeos-mark.svg?v=20260921124622" alt="授权商品"></div>
         <div class="hb-product-summary__content">
           <div class="hb-product-summary__badges">
             <span><i class="fa-duotone fa-regular fa-bolt"></i> <b id="store-delivery-label">自动发货</b></span>
@@ -859,7 +859,7 @@
 <footer class="hb-site-footer">
   <div class="hb-container hb-site-footer__inner">
     <div class="hb-site-footer__brand">
-      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=20260921122709" alt=""></span>
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=20260921124622" alt=""></span>
       <div>
         <strong id="footer-site-name">HomeOS 授权中心</strong>
         <p>安全支付，自动发码，账号统一管理。</p>
@@ -868,7 +868,7 @@
     <div class="hb-site-footer__meta">
       <nav class="hb-site-footer__links">
         <a href="/">首页</a>
-        <a href="/products?v=20260921122709">购买授权</a>
+        <a href="/products?v=20260921124622">购买授权</a>
         <a class="hb-guest-only" href="/user/authentication/login">账号登录</a>
         <a class="hb-auth-only" href="/user/dashboard/index">账号中心</a>
       </nav>
@@ -1008,11 +1008,15 @@
 
 <div id="store-toast" class="hb-toast" role="status" aria-live="polite"></div>
 
+<!-- 场景 3D 相机（源：design/scene/scene-depth.js）。普通脚本而不是 module：不导出
+     任何东西，越早跑越好 —— 入口动画那 0.75s 就已经带上景深。CSP 的 script-src 含
+     'self'，同源外部脚本不需要 nonce。 -->
+<script src="/store-static/scene/scene-depth.js?v=20260921124622"></script>
 <script src="/store-static/jquery.min.js"></script>
 <script src="/store-static/jquery.qrcode.min.js"></script>
-<script src="/store-static/htmlsafe.js?v=20260921122709"></script>
-<script src="/store-static/api-error.js?v=20260921122709"></script>
-<script src="/store-static/referrals.js?v=20260921122709"></script>
-<script src="/store-static/store.js?v=20260921122709"></script>
+<script src="/store-static/htmlsafe.js?v=20260921124622"></script>
+<script src="/store-static/api-error.js?v=20260921124622"></script>
+<script src="/store-static/referrals.js?v=20260921124622"></script>
+<script src="/store-static/store.js?v=20260921124622"></script>
 </body>
 </html>

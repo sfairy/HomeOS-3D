@@ -5,8 +5,8 @@
  * 归一特效层参数、把组件对齐到目标尺寸，以及把像素坐标换算成百分比与缩放值。画布默认尺寸
  * 2778×1940 与后端 schema 一致；百分比保留 editor-utils 的 roundField 精度并对越界做 clamp。
  */
-import { roundField } from "./editor-utils.js?v=20260921122709";
-import { clampNumber } from "../utils/numbers.js?v=20260921122709";
+import { roundField } from "./editor-utils.js?v=20260921124622";
+import { clampNumber } from "../utils/numbers.js?v=20260921124622";
 
 /**
  * 同步「显示 / 隐藏」切换按钮的按压态与文案。

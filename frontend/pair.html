@@ -18,8 +18,8 @@
     <!-- pairing-entry.js 必须是本页第一个脚本：它要在其它脚本读地址栏之前，
          把 location.hash 里的配对信息搬到 window.__HA_BRIDGE_PAIRING_HASH__ 并清掉哈希，
          否则刷新页面会重复触发一次配对。 -->
-    <script src="/static/auth/pairing-entry.js?v=20260921122709"></script>
-    <script src="/static/logging/client-log.js?v=20260921122709"></script>
+    <script src="/static/auth/pairing-entry.js?v=20260921124622"></script>
+    <script src="/static/logging/client-log.js?v=20260921124622"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#050910" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -27,16 +27,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>配对中控设备 · HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260921122709" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260921122709" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921122709" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/dashboard.webmanifest?v=20260921122709" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=20260921124622" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=20260921124622" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=20260921124622" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/dashboard.webmanifest?v=20260921124622" />
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新，同一次发布必须共用同一枚时间戳。 -->
-    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=20260921122709" />
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=20260921122709" />
-    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=20260921122709" />
-    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=20260921122709" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=20260921122709` 的 <link>。
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=20260921124622" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=20260921124622" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=20260921124622" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=20260921124622" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=20260921124622` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -106,11 +106,11 @@
       </main>
     </div>
 
-    <!-- auth-shell.js 也要带 ?v=20260921122709 -->
+    <!-- auth-shell.js 也要带 ?v=20260921124622 -->
     <!-- 场景 3D 相机（源：design/scene/scene-depth.js）。写成普通脚本而不是 module：
          它不导出任何东西，越早跑越好 —— 入场动画那 0.75s 就已经带上景深。 -->
-    <script src="/static/auth/scene/scene-depth.js?v=20260921122709"></script>
-    <script type="module" src="/static/auth/auth-shell.js?v=20260921122709"></script>
-    <script type="module" src="/static/auth/pair.js?v=20260921122709"></script>
+    <script src="/static/auth/scene/scene-depth.js?v=20260921124622"></script>
+    <script type="module" src="/static/auth/auth-shell.js?v=20260921124622"></script>
+    <script type="module" src="/static/auth/pair.js?v=20260921124622"></script>
   </body>
 </html>
