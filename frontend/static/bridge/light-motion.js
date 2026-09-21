@@ -9,9 +9,9 @@
 
 // 数值夹取与换算统一走 utils/numbers.js（唯一实现）：clampNumber 保证写进渲染层的值永远在
 // 合法区间，finiteNumberOr 把 NaN / undefined 这类「缺失」与合法的 0 区分开（0 往往有语义）。
-import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609220052";
+import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609220141";
 // 色温换算（含唯一的公式与单通道夹取）也共用 utils/colors.js，别在这里再写一份系数。
-import { kelvinToRgbHex } from "../utils/colors.js?v=2609220052";
+import { kelvinToRgbHex } from "../utils/colors.js?v=2609220141";
 // 过渡用的灯态：亮度非负、颜色三通道归一到 [0,1]，避免插值过程中放大出非法值。
 const normalizeLightState = lightState => ({
   intensity: Math.max(0, finiteNumberOr(lightState?.intensity, 0)),

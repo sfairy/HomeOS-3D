@@ -7,12 +7,12 @@
  * ctx —— ctx 的每一项都是 home.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 
-import { clampNumber } from "../../utils/numbers.js?v=2609220052";
+import { clampNumber } from "../../utils/numbers.js?v=2609220141";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../../utils/colors.js?v=2609220052";
+} from "../../utils/colors.js?v=2609220141";
 import {
   clone,
   newId,
@@ -22,7 +22,7 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "../editor-utils.js?v=2609220052";
+} from "../editor-utils.js?v=2609220141";
 
 export function createColorPicker(ctx) {
 

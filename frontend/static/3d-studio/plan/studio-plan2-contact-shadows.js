@@ -8,7 +8,7 @@
  * 烘焙会临时改写 renderer 的 renderTarget / viewport / scissor / clearColor / autoClear / shadowMap / xr，finally 里必须逐项还原，否则主渲染会花屏。
  * 遮蔽强度统一走 plan2ContactOpacity / plan2SurfaceOpacity 两个 uniform 做淡入淡出，开关、挂起、楼层切换都只改这两个值，不重建贴图。
  */
-import { roundToDecimals } from "../../utils/numbers.js?v=2609220052";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609220141";
 
 /**
  * 沿父链向上查找某个 userData 字段，返回第一个存在的值。

@@ -256,6 +256,7 @@ export function buildToiletItem(context) {
 export function buildSquattoiletItem(context) {
   const {
     addBoxMesh,
+    furnitureDarkColor,
     furnitureLightColor,
     furnitureSoftColor,
     itemDepth,
@@ -328,6 +329,7 @@ export function buildUrinalItem(context) {
     addCylinderMesh,
     furnitureDarkColor,
     furnitureLightColor,
+    furnitureSoftColor,
     itemDepth,
     itemGroup,
     itemHeight,

@@ -14,13 +14,13 @@ import {
   createCurtainTrack,
   curtainPanelRanges,
   addTrackCurtain
-} from "../loaders/studio-curtain-track.js?v=2609220052";
-import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609220052";
-import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609220052";
-import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609220052";
-import { paletteColor } from "../../utils/colors.js?v=2609220052";
-import { roundToDecimals } from "../../utils/numbers.js?v=2609220052";
-import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609220052";
+} from "../loaders/studio-curtain-track.js?v=2609220141";
+import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609220141";
+import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609220141";
+import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609220141";
+import { paletteColor } from "../../utils/colors.js?v=2609220141";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609220141";
+import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609220141";
 // 物件类型词表（SQUARE_EDGE / LIGHT / APPLIANCE / EXTERNAL_MODEL …）与构建分派共用同一份定义，
 // 新增物件类型只需要改 studio-item-types.js 一处。
 import {
@@ -34,71 +34,71 @@ import {
   STAIR_DIRECTION_ITEM_TYPES,
   STAIR_ITEM_TYPES,
   isRoundTableTurntableItem
-} from "./studio-item-types.js?v=2609220052";
+} from "./studio-item-types.js?v=2609220141";
 // 物件模型的构建分派：谓词 + 62 个构建体都在 item-builders/ 下，
 // 本文件只提供它们需要的模块私有依赖（ITEM_BUILDER_DEPS）与本次调用的入参。
-import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609220052";
+import { buildItemBody, finishItemModel } from "./item-builders/registry.js?v=2609220141";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
   normalizeFeatureWallStyle,
   createMuralArtTexture,
   createFeatureWallTexture
-} from "../materials/studio-surface-textures.js?v=2609220052";
-import { createOverviewStack } from "./studio-overview-stack.js?v=2609220052";
-import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609220052";
+} from "../materials/studio-surface-textures.js?v=2609220141";
+import { createOverviewStack } from "./studio-overview-stack.js?v=2609220141";
+import { windowGeometryParts } from "../plan/studio-window-geometry.js?v=2609220141";
 import {
   MAX_CAMERA_POLAR_ANGLE,
   constrainCameraPosition,
   constrainCameraPose
-} from "./studio-camera-constraints.js?v=2609220052";
-import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609220052";
-import { createFloorTransition } from "./studio-floor-transition.js?v=2609220052";
-import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609220052";
-import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609220052";
-import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609220052";
-import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609220052";
+} from "./studio-camera-constraints.js?v=2609220141";
+import { addSecurityModel } from "../loaders/studio-security-models.js?v=2609220141";
+import { createFloorTransition } from "./studio-floor-transition.js?v=2609220141";
+import { floorOpeningPolygon } from "../plan/studio-floor-openings.js?v=2609220141";
+import { createGroundReflections } from "../reflection/studio-ground-reflections.js?v=2609220141";
+import { createMotionPresentation } from "./studio-motion-presentation.js?v=2609220141";
+import { renderStudioAssetPalette } from "./studio-asset-palette.js?v=2609220141";
 import {
   createWallSideMaterial,
   setWallGradientHeight,
   setWallCornerDistances
-} from "../materials/studio-wall-materials.js?v=2609220052";
+} from "../materials/studio-wall-materials.js?v=2609220141";
 import {
   WARM_WOOD_STYLE,
   decorateWarmFloor
-} from "./studio-scene-style.js?v=2609220052";
-import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609220052";
+} from "./studio-scene-style.js?v=2609220141";
+import { createWarmTelevisionGlass } from "../materials/studio-television-glass.js?v=2609220141";
 import {
   RENDER_CACHE_VERSION,
   createRenderCache,
   cacheSceneDescriptor,
   sha256,
   stableCacheJSON
-} from "../../bridge/render-cache.js?v=2609220052";
-import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609220052";
-import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609220052";
-import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609220052";
-import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609220052";
-import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609220052";
+} from "../../bridge/render-cache.js?v=2609220141";
+import { transformSceneCamera } from "../../bridge/scene-frame.js?v=2609220141";
+import { sceneUpdatePlan } from "../../bridge/scene-update.js?v=2609220141";
+import { createDemandFrameLoop } from "../../bridge/frame-loop.js?v=2609220141";
+import { cacheObjectTransforms } from "../../bridge/scene-matrices.js?v=2609220141";
+import { withRequestTimeout } from "../../utils/request-timeout.js?v=2609220141";
 // 3D 场景接口的超时预算：与编辑器桥（bridge/editor.js）读同一个常量，避免两侧各写一个字面量。
-import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609220052";
+import { SCENE_REQUEST_TIMEOUT_MS } from "../../utils/api-fetch.js?v=2609220141";
 // 生产控制台的诊断输出统一走 utils/debug-log.js：debugLog 默认静默（只在 ?debug=1 时输出）。
-import { debugLog } from "../../utils/debug-log.js?v=2609220052";
+import { debugLog } from "../../utils/debug-log.js?v=2609220141";
 // 接口请求的超时预算由 utils/api-fetch.js 统一持有（requestStudioApi 是唯一出入口）。
-import { apiFetch } from "../../utils/api-fetch.js?v=2609220052";
+import { apiFetch } from "../../utils/api-fetch.js?v=2609220141";
 import * as threeModuleMin from "/static/vendor/three/0.182.0/three.module.min.js";
-import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=2609220052";
+import { OrbitControls } from "/static/vendor/three/0.182.0/OrbitControls.js?v=2609220141";
 import { RoundedBoxGeometry } from "/static/vendor/three/0.182.0/RoundedBoxGeometry.js";
 import { mergeGeometries } from "/static/vendor/three/0.182.0/BufferGeometryUtils.js";
-import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=2609220052";
-import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609220052";
+import { GLTFLoader } from "/static/vendor/three/0.182.0/GLTFLoader.js?v=2609220141";
+import { SameOriginDRACOLoader } from "../export/draco-loader.js?v=2609220141";
 import {
   createLightTransition,
   sampleLightTransition,
   lightTransitionDurationMs,
   mapLightEffectState,
   lightEffectColorHex
-} from "../../bridge/light-motion.js?v=2609220052";
+} from "../../bridge/light-motion.js?v=2609220141";
 import {
   adaptiveDeviceLightBudget,
   adaptiveLightRenderCost,
@@ -138,7 +138,7 @@ import {
   wallIntersections,
   wallJoinExtensions,
   wallSolidPieces
-} from "../plan/geometry.js?v=2609220052";
+} from "../plan/geometry.js?v=2609220141";
 import {
   buildLightDeltaPixels,
   buildStoredZip,
@@ -147,7 +147,7 @@ import {
   EXPORT_IMAGE_QUALITY,
   EXPORT_RENDER_SCALE,
   scaledExportResolution
-} from "../export/export-utils.js?v=2609220052";
+} from "../export/export-utils.js?v=2609220141";
 import {
   MAX_EXPORT_PRESET_COUNT,
   exportPresetIsEmpty,
@@ -155,25 +155,25 @@ import {
   normalizeActiveExportPresetSlot,
   normalizeExportPreset,
   normalizeExportPresetSlots
-} from "../export/export-presets.js?v=2609220052";
-import { reorderFloors } from "../plan/floor-order.js?v=2609220052";
-import { syncControlValue } from "./ui-controls.js?v=2609220052";
+} from "../export/export-presets.js?v=2609220141";
+import { reorderFloors } from "../plan/floor-order.js?v=2609220141";
+import { syncControlValue } from "./ui-controls.js?v=2609220141";
 import {
   initializeNumberInputs,
   initializeStudioSelects,
   syncStudioSelect
-} from "./studio-widgets.js?v=2609220052";
+} from "./studio-widgets.js?v=2609220141";
 import {
   createExternalModelManager,
   ALL_ITEM_MODELS
-} from "../loaders/studio-external-models.js?v=2609220052";
+} from "../loaders/studio-external-models.js?v=2609220141";
 import {
   createPlanDrawingTools,
   drawTrackedText
-} from "../plan/studio-plan-drawing.js?v=2609220052";
-import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609220052";
-import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609220052";
-import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609220052";
+} from "../plan/studio-plan-drawing.js?v=2609220141";
+import { createSpotShadowAtlasController } from "./studio-shadow-atlas.js?v=2609220141";
+import { createRegionLightController, REGION_LIGHT_LAYER } from "../plan/studio-plan2-region-lights.js?v=2609220141";
+import { createContactShadowController } from "../plan/studio-plan2-contact-shadows.js?v=2609220141";
 import {
   DEFAULT_BASE_LIGHTING,
   finite,
@@ -186,7 +186,7 @@ import {
   normalizeFullRotation,
   normalizeLabelText,
   normalizePoint
-} from "../loaders/studio-normalization.js?v=2609220052";
+} from "../loaders/studio-normalization.js?v=2609220141";
 /**
  * document.querySelector 的简写别名，只用于页面里必然存在的固定节点；动态列表项
  * 一律走 createElement，避免选择器与生成顺序耦合。
@@ -1281,7 +1281,7 @@ function currentFloorModelTypes() {
   return collectItemModelTypes(modelSourceFloors);
 }
 const dracoLoader = new SameOriginDRACOLoader(
-  "/static/3d-studio/export/draco-decoder-worker.js?v=2609220052"
+  "/static/3d-studio/export/draco-decoder-worker.js?v=2609220141"
 );
 dracoLoader.setDecoderPath("/static/vendor/three/0.182.0/draco/");
 dracoLoader.setDecoderConfig({
@@ -20392,7 +20392,7 @@ async function initializeStudio() {
     if (isStageViewerMode) {
       await new Promise(requestAnimationFrame);
       const { mountStage: mountStage } =
-        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609220052");
+        await import("/api/v1/modules/interaction3d/core/stage.js?v=2609220141");
       mountStage(createStageController());
       return;
     }

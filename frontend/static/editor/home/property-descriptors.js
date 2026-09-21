@@ -16,18 +16,18 @@ import {
   hsvToRgb,
   roundField,
   normalizedFontWeight
-} from "../editor-utils.js?v=2609220052";
+} from "../editor-utils.js?v=2609220141";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "../component-tree.js?v=2609220052";
+} from "../component-tree.js?v=2609220141";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../../utils/colors.js?v=2609220052";
+} from "../../utils/colors.js?v=2609220141";
 
 export function createPropertyDescriptors(ctx) {
 

@@ -16,6 +16,8 @@
 export function buildTrackCurtainItem(context) {
   const {
     addTrackCurtain,
+    furnitureDarkColor,
+    furnitureLightColor,
     highlightSelectedModel,
     isSelected,
     itemGroup,
@@ -208,6 +210,7 @@ export function buildWalllampItem(context) {
   const {
     addBoxMesh,
     addCylinderMesh,
+    furnitureLightColor,
     itemDepth,
     itemGroup,
     itemHeight,
@@ -314,6 +317,7 @@ export function buildFloorlampItem(context) {
   const {
     addCylinderMesh,
     furnitureDarkColor,
+    furnitureSoftColor,
     itemDepth,
     itemGroup,
     itemHeight,
