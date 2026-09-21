@@ -16,7 +16,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 
 from ..core.conflicts import is_unique_violation
-from ..core.dependencies import DatabaseSession, LicensedUser
+from ..security.dependencies import DatabaseSession, LicensedUser
 from ..security.display_access import display_path, display_token_expired, display_token_expires_at
 from ..security.http_security import resolve_client_ip, secure_cookies_enabled
 from ..ha.crypto import CredentialCipher, CredentialCipherError

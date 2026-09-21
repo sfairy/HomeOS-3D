@@ -24,7 +24,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, R
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import select
-from ..core.dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_capability, require_viewer_studio3d_asset, require_viewer_user_asset, viewer_user_asset_ids
+from ..security.dependencies import DatabaseSession, LicensedUser, LicensedViewer, authenticated_short_lived_viewer, licensed_viewer, require_capability, require_viewer_studio3d_asset, require_viewer_user_asset, viewer_user_asset_ids
 from ..core.canonical_json import canonical_json
 from ..http.http_cache import set_private_immutable_cache, set_versioned_private_cache
 from ..panel.documents import parse_document

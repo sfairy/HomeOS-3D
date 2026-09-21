@@ -28,6 +28,8 @@ import re
 import secrets
 from pathlib import Path
 
+from .static_revision import file_revision
+
 #: 令牌名白名单。与 ``design/scene/appearance.js`` 的 ``tokenNames()`` 一一对应 ——
 #: 往 JS 里加令牌而忘了放宽这里不会报错，只会在管理员保存时才发现少了一项；
 #: 改动任一侧请手工核对另一侧。
@@ -181,13 +183,10 @@ class AppearanceStore:
     def revision(self) -> str:
         """当前配置的版本号，用于 ``?v=`` 缓存戳。
 
-        用文件 mtime 而不是自增计数：多进程 / 重启后计数会从头开始，
-        而 mtime 单调，浏览器不会把一份旧响应当成新的。
+        与页面里其它服务端拼出来的静态链接同一口径，见 ``core/static_revision.py``：
+        取文件 mtime，改完配色 URL 立刻变；多进程 / 重启后也不会像自增计数那样从头开始。
         """
-        try:
-            return str(self.path.stat().st_mtime_ns)
-        except OSError:
-            return '0'
+        return file_revision(self.path)
 
     @property
     def configured(self) -> bool:

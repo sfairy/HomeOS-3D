@@ -36,7 +36,7 @@ from .security.access import (
     resolve_principal,
 )
 from .security.admin_account import AdminAccountStore
-from .core.dependencies import DISPLAY_HEARTBEAT_THROTTLE_SECONDS
+from .security.dependencies import DISPLAY_HEARTBEAT_THROTTLE_SECONDS
 from .http.http_cache import NO_STORE, set_no_store_with_revalidation, set_public_immutable_cache, set_versioned_private_cache
 from .api.auth import router as auth_router
 from .api.assets import AssetCatalog, read_builtin_asset, router as assets_router, sweep_user_assets_for_app

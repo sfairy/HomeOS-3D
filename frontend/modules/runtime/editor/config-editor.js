@@ -9,7 +9,7 @@
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
 // 桥分成两个：显示路径那份（static-helpers）只放零依赖工具，本模块是编辑器侧，其余走 editor 那份。
-import { capturePointer, resolveStateEntry } from "../core/static-helpers.js?v=2609220052";
+import { applyMdiMask, capturePointer, resolveStateEntry } from "../core/static-helpers.js?v=2609220052";
 import {
   DEFAULT_BASE_LIGHTING,
   confirmAction,
@@ -1967,11 +1967,8 @@ export async function openInteraction3dEditor({
     const iconPickerButton = createButton("", () => openShortcutPicker("icon", iconPickerButton));
     iconPickerButton.className = "i3d-picker-button i3d-icon-picker-button";
     const iconPreviewElement = createElement("i");
-    iconPreviewElement.style.maskImage =
-      "url('/static/vendor/mdi/7.4.47/svg/" +
-      (selectedShortcut.icon || defaultIcon).slice(4) +
-      ".svg')";
-    iconPreviewElement.style.webkitMaskImage = iconPreviewElement.style.maskImage;
+    // 遮罩地址与 mdi 版本号只此一份（utils/icon-url.js）：名字不带 mdi: 前缀也能正确取图标。
+    applyMdiMask(iconPreviewElement, selectedShortcut.icon || defaultIcon);
     iconPickerButton.append(
       iconPreviewElement,
       createElement("span", "", selectedShortcut.icon || defaultIcon)
@@ -2956,12 +2953,7 @@ export async function openInteraction3dEditor({
           itemIconPickerButton.className = "i3d-picker-button i3d-icon-picker-button";
           const itemIconPreviewElement = createElement("i");
           itemIconPreviewElement.setAttribute("aria-hidden", "true");
-          const iconMaskUrl =
-            "/static/vendor/mdi/7.4.47/svg/" +
-            selectedItem.icon.replace(/^mdi:/, "") +
-            ".svg";
-          itemIconPreviewElement.style.maskImage = 'url("' + iconMaskUrl + '")';
-          itemIconPreviewElement.style.webkitMaskImage = 'url("' + iconMaskUrl + '")';
+          applyMdiMask(itemIconPreviewElement, selectedItem.icon);
           itemIconPickerButton.append(
             itemIconPreviewElement,
             createElement("span", "", selectedItem.icon)

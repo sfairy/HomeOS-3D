@@ -34,6 +34,11 @@ const SCAN_ROOTS = [
   path.join(ROOT, "store", "static")
 ];
 
+// 这几个 Python 文件**当前一个 ?v= 字面量都没有**：它们渲染的页面里，静态链接的版本号
+// 由文件 mtime 现算（backend/core/static_revision.py、store/core/static_revision.py）。
+// 之所以仍列在这里：本清单的价值在于「漏一个文件，那里的字面量就永远停在旧戳上」，
+// 而漏掉一个曾经有过字面量的文件比多扫一个空文件危险得多 —— 万一哪天有人又把
+// ?v=YYMMDDHHMM 写回这些模板，它仍然会被改写、也会被 check_invariants 的单一戳校验看见。
 const EXTRA_FILES = [
   path.join(ROOT, "store", "api", "pages.py"),
   path.join(ROOT, "store", "api", "alipay.py"),

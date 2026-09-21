@@ -18,6 +18,7 @@ from store.ops import incidents, site_settings as site_config
 from store.core.deps import DbSession
 from store.security.limiter import SlidingWindowLimiter
 from store.core.models import Order
+from store.core.static_revision import file_revision
 from store.payments.alipay import cents_from_yuan
 from store.payments.base import PaymentError
 from store.payments.reconcile import reconcile_alipay_order
@@ -166,7 +167,7 @@ _RETURN_PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} - HomeOS 授权中心</title>
-<link rel="stylesheet" href="/store-static/theme.css?v=2609220052">
+<link rel="stylesheet" href="/store-static/theme.css?v={theme_stamp}">
 <style>
   /* 与商店/后台同一套暗色 + 琥珀设计语言（令牌来自 theme.css） */
   body {{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
@@ -224,6 +225,9 @@ def alipay_return(
                 order_block="",
                 next_url="/user/dashboard/index",
                 next_label="前往账号中心",
+                # 主题表按文件 mtime 带版本号（见 core/static_revision.py），
+                # 免得这里的字面量要与模板里那份手工同步。
+                theme_stamp=file_revision(settings.static_dir / "theme.css"),
             ),
             headers={"Cache-Control": "no-store"},
         )
@@ -283,6 +287,7 @@ def alipay_return(
             order_block=order_block,
             next_url="/user/dashboard/index",
             next_label="前往账号中心",
+            theme_stamp=file_revision(settings.static_dir / "theme.css"),
         ),
         headers={"Cache-Control": "no-store"},
     )

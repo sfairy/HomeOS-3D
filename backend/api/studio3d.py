@@ -32,7 +32,7 @@ from starlette.concurrency import run_in_threadpool
 from .assets import MAX_UPLOAD_DIMENSION, MAX_UPLOAD_PIXELS
 from ..http.body_guard import MAX_SCENE_DOCUMENT_BYTES
 from ..core.canonical_json import canonical_json, canonical_json_bytes
-from ..core.dependencies import DatabaseSession, LicensedUser
+from ..security.dependencies import DatabaseSession, LicensedUser
 from ..panel.global_popups import global_popups
 from ..core.models import Project, ProjectDraft
 from ..panel.documents import parse_document

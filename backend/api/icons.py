@@ -2,15 +2,19 @@
 
 路由前缀 /api/v1/icons。数据源是随前端一起发布的静态目录
 （frontend/static/vendor/mdi/<version>/meta.json），本模块只读不写。
+
+版本号从目录扫出来而不是写死：升级图标库只要把新版本目录放进 vendor 即可，
+写死时得同时改这里与前端三处（`utils/icon-url.js` 的 `MDI_VERSION`、studio.css 里
+三条遮罩地址），漏改一处就静默 404（图标选择器全空、舞台标记不出图）。
 """
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
-from ..core.dependencies import LicensedUser
+from ..security.dependencies import LicensedUser
 
 router = APIRouter(prefix='/icons', tags=['icons'])
 
@@ -21,6 +25,32 @@ router = APIRouter(prefix='/icons', tags=['icons'])
 #: 表现为「新图标搜不到、旧图标搜得到」，而磁盘上明明已经是新文件。
 #: 存快照而不是用 lru_cache 是为了让「文件变没变」这件事可观测：排障时可以直接看这张表。
 _mdi_metadata_cache: dict[str, tuple[int, int, tuple[dict, ...]]] = {}
+
+
+def _mdi_version_root(frontend_dir: Path) -> Path:
+    """定位当前的 mdi 版本目录：``frontend/static/vendor/mdi/<version>``。
+
+    以目录为准（取带 meta.json 的最高版本），这样升级只改资源、不改代码。
+    一个都找不到时抛 500 —— 图标库缺失属于部署事故，静默回空列表会让「图标全都没了」
+    看起来像搜索没命中。
+    """
+    vendor_root = frontend_dir / 'static' / 'vendor' / 'mdi'
+    versions = [
+        entry.name
+        for entry in vendor_root.iterdir()
+        if entry.is_dir() and (entry / 'meta.json').exists()
+    ] if vendor_root.is_dir() else []
+    if not versions:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail='图标库未安装：找不到 static/vendor/mdi/<version>/meta.json。',
+        )
+
+    def version_key(name: str) -> tuple[int, ...]:
+        # 目录名是纯数字点分版本；非常规命名排到最后（仍可用，但不会盖过规范版本）。
+        return tuple(int(part) for part in name.split('.')) if name.replace('.', '').isdigit() else (-1,)
+
+    return vendor_root / max(versions, key=version_key)
 
 
 def _mdi_metadata(meta_path: Path) -> tuple[dict, ...]:
@@ -70,9 +100,8 @@ def icons(
     返回 {library, version, total, offset, items[{name, slug, previewUrl}]}，
     total 始终是全量命中数，分页只影响 items。
     """
-    # 版本号与静态目录 frontend/static/vendor/mdi/<version> 强绑定，升级图标库必须同步改这里。
-    version = '7.4.47'
-    root = request.app.state.settings.frontend_dir / 'static' / 'vendor' / 'mdi' / version
+    root = _mdi_version_root(request.app.state.settings.frontend_dir)
+    version = root.name
     # 允许直接粘贴 mdi:home 这种图标名：先剥掉前缀再匹配，同时统一小写。
     normalized = query.strip().lower().removeprefix('mdi:')
     matches = []

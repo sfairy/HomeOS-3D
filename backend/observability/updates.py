@@ -19,7 +19,7 @@ from uuid import UUID
 import httpx
 from fastapi import APIRouter, Request, Response
 
-from ..core.dependencies import CurrentUser
+from ..security.dependencies import CurrentUser
 from ..http.http_cache import NO_STORE
 
 router = APIRouter()

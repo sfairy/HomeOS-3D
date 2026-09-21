@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from ..core.database import Database
-from ..core.dependencies import LicensedViewer, ViewerPrincipal, require_viewer_entity
+from ..security.dependencies import LicensedViewer, ViewerPrincipal, require_viewer_entity
 from ..ha.client import HAClientError
 from ..ha.crypto import CredentialCipherError
 from ..http.http_cache import PRIVATE_BRIEF_IMMUTABLE_CACHE, PRIVATE_NO_STORE

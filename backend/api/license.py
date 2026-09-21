@@ -11,7 +11,7 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, Request, status
 
-from ..core.dependencies import CurrentUser, CurrentViewer
+from ..security.dependencies import CurrentUser, CurrentViewer
 from ..license import LicenseClientError
 from ..security.http_security import same_origin_request
 from ..core.schemas import LicenseActivateRequest

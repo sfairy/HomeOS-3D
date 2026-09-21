@@ -26,6 +26,7 @@ from store.api.page_shell import SCENE_PLACEHOLDER, inject_scene
 from store.security.request_security import render_template
 from store.security.security import token_matches, utcnow
 from store.core.serializers import order_payload
+from store.core.static_revision import file_revision
 
 logger = logging.getLogger("store.pages")
 
@@ -177,6 +178,15 @@ def _cashier_html(order: Order, *, request: Request) -> str:
     product_name = html.escape(str(payload["productName"]))
     email = html.escape(str(payload["email"]))
     status_text = html.escape(str(payload["status"]))
+    # 样式与图标的版本号取自文件 mtime（见 core/static_revision.py）：页面由后端渲染，
+    # 不必再让人记得把这里的 ?v= 字面量与模板里那份同步。五条链接指向同几个文件，
+    # 各自取各自的 mtime，因此不存在「同值」要求。
+    static_dir = request.app.state.settings.static_dir
+    scene_stamp = file_revision(static_dir / "scene" / "page.css")
+    fonts_stamp = file_revision(static_dir / "scene" / "fonts.css")
+    scene_only_stamp = file_revision(static_dir / "scene" / "scene.css")
+    panel_stamp = file_revision(static_dir / "scene" / "panel.css")
+    favicon_stamp = file_revision(static_dir / "favicon-rounded.png")
     markup = f"""<!doctype html>
 <html lang="zh-CN" class="hos-shell">
 <head>
@@ -184,12 +194,13 @@ def _cashier_html(order: Order, *, request: Request) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#050910">
 <title>模拟收银台 · {order_no}</title>
-<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609220052">
-<link rel="stylesheet" href="/store-static/scene/page.css?v=2609220052">
-<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609220052">
-<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609220052">
-<link rel="icon" href="/store-static/favicon-rounded.png?v=2609220052">
-<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609220052` 的 <link>。
+<link rel="stylesheet" href="/store-static/scene/fonts.css?v={fonts_stamp}">
+<link rel="stylesheet" href="/store-static/scene/page.css?v={scene_stamp}">
+<link rel="stylesheet" href="/store-static/scene/scene.css?v={scene_only_stamp}">
+<link rel="stylesheet" href="/store-static/scene/panel.css?v={panel_stamp}">
+<link rel="icon" href="/store-static/favicon-rounded.png?v={favicon_stamp}">
+<!-- 站点配色覆盖：后端把它换成指向 `/store-appearance.css` 的 <link>，版本号取
+     配色文件的 mtime（见 store/ops/appearance.py）。
      必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
 <!--{{APPEARANCE}}-->
 </head>

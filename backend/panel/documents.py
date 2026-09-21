@@ -11,15 +11,11 @@ from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
 
+from ..core.design import DESIGN_HEIGHT, DESIGN_WIDTH
 from .schema import validate_panel_document
 
 if TYPE_CHECKING:
     from ..core.models import ProjectDraft
-
-# 设计标称画布尺寸，对应常见 16:9 大屏在 2 倍 DPI 下的像素数。
-DESIGN_WIDTH = 2778
-DESIGN_HEIGHT = 1940
-
 
 def parse_document(value: object) -> dict | None:
     """把库里存的文档 JSON 解析成字典；坏了或不是对象时回 ``None``。

@@ -13,9 +13,9 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..http.body_guard import MAX_JSON_DEPTH, MAX_SCENE_DOCUMENT_BYTES, json_nesting_depth
-from ..panel.documents import DESIGN_HEIGHT, DESIGN_WIDTH
+from .design import DESIGN_HEIGHT, DESIGN_WIDTH
 from .canonical_json import canonical_json_bytes
-from ..ha.client import HAClientError, normalize_base_url
+from .ha_url import HAClientError, normalize_base_url
 
 # 禁止出现在用户名 / 设备名里的控制字符（含 NUL 与 DEL）。
 CONTROL_CHARACTERS = re.compile('[\\x00-\\x1f\\x7f]')

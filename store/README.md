@@ -70,6 +70,18 @@ STORE_SMTP_USE_SSL=true
 
 Docker / Compose 部署见仓库根 `README.md`。改动前后请人工走一遍关键路径：管理员 `/setup` → 下单（模拟支付）→ 发码 → 客户端 `/license` 激活 → 心跳续租 → 后台吊销。
 
+### 必须单进程（一个 worker）运行
+
+`run.py` 起的是单 worker 的 uvicorn。**不要加 `--workers N`**，也不要在反代后面挂多份商店实例共享同一个数据目录 —— 原因不是数据库（WAL + `busy_timeout` 已经就绪，多连接是安全的），而是**进程内状态**：
+
+| 进程内状态 | 多 worker 下会怎样 |
+| --- | --- |
+| 站点配色快照（`ops/appearance.py` 启动时 `load()` 一次，保存只刷新处理该请求的那个进程） | 后台改完配色只有一个 worker 立刻生效，其余继续发旧配色，直到重启 |
+| 进程内滑动窗口限流（`security/limiter.py`：初始化守卫、支付跳转页查单） | 每个 worker 各算一份预算，实际额度被放大成 N 倍 |
+| 巡检 / 入账异常 / 迁移结果（`payments/sweeper.py`、`ops/incidents.py`、`commerce/points_migration.py`） | `/healthz` 与后台卡片只反映**收到这次请求的那个进程**，「本进程没跑过」是设计如此（见「六、巡检与入账异常」），前提就是「进程即实例」 |
+
+跨进程一致的那几件（登录与验证码失败限流 `security/password_gate.py`、初始化胜负判定）走的是数据库，不受这条约束。
+
 ---
 
 ## 三、客户端默认已指向自建授权服务器（零配置）
@@ -591,11 +603,12 @@ store/
 后端把它作为 `<link>` 注入每个页面的 `<!--{{APPEARANCE}}-->` 占位处；那份样式表排在
 所有样式表之后，所以它赢。删掉 `data/appearance.json` 即回到设计系统默认值。
 
-维护时的三条硬规矩：
+维护时的四条硬规矩：
 
 1. **`theme.css` 必须排在任何页面样式表之前。** 顺序反了就会出现「页面布局被组件样式反向覆盖」这类难查的问题。
 2. **新样式加进对应层级，不要靠提高特异性取胜。** 页面级差异写进 `store.css` / `admin.css`，组件级差异写进 `theme.css` 的组件章节 —— 不要在模板里内联 `<style>`。
 3. **改配色只改 `design/scene/page.css`，别在商店里补一份。** `--hb-bg` / `--hb-accent` / `--hb-success` 与主程序的 `--bg` / `--accent` / `--success` 必须同步，主程序改色而商店没跟就会出现配色漂移，而这已无自动比对，只能靠人记得改两侧。
+4. **`static/scene/` 是只读分发副本。** 里面的 `fonts.css` / `page.css` / `scene.css` / `panel.css` / `appearance.js` / `scene-depth.js` 都由 `design/scene/` 手工同步而来（`store/templates/_scene.html` 同理，它是 `scene.html` 的片段版）。就地改这里等于改一份会被下次同步覆盖的副本，而且改出来的差异谁也看不见：源文件不会跟着变，主应用那份副本也不会。**要改就改 `design/scene/` 的源文件，再按主 README「design/scene 分发副本」一节列出的三份副本逐个同步。**
 
 另外两处**内联** HTML 也走同一套令牌，改配色时别漏：`api/pages.py` 的模拟收银台（`_cashier_html`）和 `api/alipay.py` 的同步跳转页（`_RETURN_PAGE`）。
 

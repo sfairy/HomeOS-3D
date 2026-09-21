@@ -13,7 +13,7 @@ from sqlalchemy import delete, select, text
 
 from ..security.access import admin_token_from, check_admin_session
 from ..security.admin_account import AdminAccountConflict, EXTERNAL_PASSWORD_SENTINEL
-from ..core.dependencies import CurrentUser, DatabaseSession
+from ..security.dependencies import CurrentUser, DatabaseSession
 from ..security.http_security import resolve_client_ip, secure_cookies_enabled
 from ..core.models import LoginSession, User
 from ..core.schemas import (

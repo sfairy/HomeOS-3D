@@ -7,20 +7,46 @@
  *   | `meteoconUrl` | meteocons fill | 回落 `code-red.svg`（天气图标不能空） |
  *
  * 两种「校验不过」都刻意：前者返回空串让调用方不渲染；后者回落 code-red.svg，因天气图标位留空会塌陷。
+ *
+ * `applyMdiMask` 是给「把图标当遮罩上色」的那批调用点用的（编辑器图标选择按钮、舞台标记、
+ * 安防图标）：三处原先各自拼 `url('/static/vendor/mdi/7.4.47/svg/' + name.slice(4) + '.svg')`，
+ * 于是版本号在运行时树里散了三份，而 `slice(4)` 在没带 `mdi:` 前缀的名字上会切错字符。
  */
 
+//: mdi 版本目录名。与 `static/vendor/mdi/<version>`、`api/icons.py` 的解析结果、
+//: `3d-studio/studio/studio.css` 里那三条写死的遮罩地址必须是同一个版本，
+//: `tools/check_invariants.mjs` 会核对全站只出现一个值。
+export const MDI_VERSION = "7.4.47";
+
 /**
- * mdi 图标名 → 本地 SVG 地址。
+ * mdi 图标名 → 本地 SVG 地址。名字不合白名单时返回空串。
  */
 export function mdiIconUrl(iconName) {
   const normalizedIconName = String(iconName || "")
     .trim()
     .replace(/^mdi:/, "");
   if (/^[a-z0-9-]+$/.test(normalizedIconName)) {
-    return "/static/vendor/mdi/7.4.47/svg/" + normalizedIconName + ".svg";
+    return "/static/vendor/mdi/" + MDI_VERSION + "/svg/" + normalizedIconName + ".svg";
   } else {
     return "";
   }
+}
+
+/**
+ * 给元素套上 mdi 图标的遮罩（颜色随 currentColor 走）。
+ *
+ * 名字不合法时**不动元素**：`mask-image: url("")` 会被解析成当前文档地址，白多一次请求，
+ * 所以这里宁可留着空白。返回是否设置成功。
+ */
+export function applyMdiMask(element, iconName) {
+  const iconUrl = mdiIconUrl(iconName);
+  if (!iconUrl) {
+    return false;
+  }
+  const maskValue = 'url("' + iconUrl + '")';
+  element.style.maskImage = maskValue;
+  element.style.webkitMaskImage = maskValue;
+  return true;
 }
 
 /**

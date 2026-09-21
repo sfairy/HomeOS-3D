@@ -5,6 +5,12 @@
 2. 授权层 —— 在认证之上叠加能力码门禁（api / projects.write 等）；
 3. 可见范围层 —— 中控设备只能看到自己绑定的实体与图片，由 viewer_entity_ids 收窄。
 
+**为什么放在 `security/` 而不是 `api/`**：这三层被 `api`、`modules/interaction3d`
+与 `observability` 三处共用，而它们互相之间还有反向 import（例如 `api/projects.py`
+调 3D 模块的门禁）。依赖提供者若待在 `api/`，包级依赖图上会同时与 `modules`、
+`observability` 成环；下沉到 `security/` 后三处都只是「向上依赖安全层」。
+本模块只依赖 `security` / `panel` / `core`，不反向 import 任何路由。
+
 命名约定：带 `short_lived` 的版本会在返回前把 ORM 对象 detach（expunge），让数据库连接
 尽早归还连接池；中控设备长时间挂着展示页，不这样做容易耗尽连接。
 """
@@ -17,17 +23,17 @@ from fastapi import Depends, HTTPException, Request, Response, status
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from ..security.access import (
+from .access import (
     ViewerPrincipal,
     admin_token_from,
     check_admin_session,
     discard_expired_session,
     display_token_from,
 )
-from ..security.display_access import active_display_device
+from .display_access import active_display_device
 from ..panel.global_popups import hydrate_document_popups
-from ..security.http_security import secure_cookies_enabled
-from .models import (
+from .http_security import secure_cookies_enabled
+from ..core.models import (
     DisplayDevice,
     HAConnection,
     HAEntity,
@@ -36,8 +42,8 @@ from .models import (
 )
 from ..panel.documents import parse_document
 from ..panel.entity_refs import document_entity_ids
-from ..security.security import set_display_cookie
-from .time_utils import ensure_aware
+from .security import set_display_cookie
+from ..core.time_utils import ensure_aware
 
 #: 中控设备心跳的续期节流窗口（秒）：活跃到这个间隔才回写 ``last_seen_at`` 并续期 Cookie。
 #: 每次心跳都写库会把这块平板变成热点行，节流的意义就在这里。

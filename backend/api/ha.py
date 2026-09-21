@@ -22,7 +22,7 @@ from sqlalchemy import func, or_, select
 
 from ..security.access import admin_token_from, discard_expired_session, display_token_from, resolve_principal
 from ..core.database import Database
-from ..core.dependencies import DatabaseSession, LicensedUser, LicensedViewer, ViewerPrincipal, require_viewer_entity, viewer_entity_ids
+from ..security.dependencies import DatabaseSession, LicensedUser, LicensedViewer, ViewerPrincipal, require_viewer_entity, viewer_entity_ids
 from ..security.display_access import active_display_device
 from ..security.http_security import origin_allowed
 from ..observability.global_log import event_context

@@ -67,9 +67,8 @@ export function createMarkerLayer(ctx) {
         if (iconName) {
           const iconElement = ctx.makeElement("span", "i3d-marker-icon");
           iconElement.setAttribute("aria-hidden", "true");
-          iconElement.style.maskImage =
-            'url("/static/vendor/mdi/7.4.47/svg/' + iconName.slice(4) + '.svg")';
-          iconElement.style.webkitMaskImage = iconElement.style.maskImage;
+          // 遮罩地址与图标名白名单统一在 utils/icon-url.js（版本号只此一份）。
+          ctx.applyMdiMask(iconElement, iconName);
           markerElement.replaceChildren(iconElement);
         } else {
           markerElement.innerHTML = ctx.DEFAULT_MARKER_ICON_SVG;

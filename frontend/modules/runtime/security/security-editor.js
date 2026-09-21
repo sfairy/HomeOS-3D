@@ -18,6 +18,7 @@ import {
   EDITOR_SAVE_STATUS,
   serializeEditorDraft
 } from "../core/editor-save-status.js?v=2609220052";
+import { applyMdiMask } from "../core/static-helpers.js?v=2609220052";
 import {
   confirmAction,
   createDomFactory,
@@ -1045,11 +1046,8 @@ export async function openSecurityEditor({
         });
         iconPickerButtonElement.className = "i3d-picker-button i3d-icon-picker-button";
         const iconMaskElement = createElement("i");
-        iconMaskElement.style.maskImage =
-          "url('/static/vendor/mdi/7.4.47/svg/" +
-          (selectedItem.icon || "mdi:cctv").slice(4) +
-          ".svg')";
-        iconMaskElement.style.webkitMaskImage = iconMaskElement.style.maskImage;
+        // 遮罩地址与 mdi 版本号只此一份（utils/icon-url.js）。
+        applyMdiMask(iconMaskElement, selectedItem.icon || "mdi:cctv");
         iconPickerButtonElement.textContent = "";
         iconPickerButtonElement.append(
           iconMaskElement,

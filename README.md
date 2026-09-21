@@ -52,11 +52,11 @@ HomeOS/
 ```text
 HomeOS/
 ├── backend/                # FastAPI 应用（PYTHONPATH 指向仓库根，启动为 backend.main:app）
-│   ├── core/               # 数据库 / ORM 模型 / 请求响应模型 / 迁移与装配依赖
-│   ├── security/           # 身份会话、登录与配对限流、来源与同源校验、初始化守卫
+│   ├── core/               # 数据库 / ORM 模型 / 请求响应模型 / 迁移 / 画布与地址常量、静态资源版本（design·ha_url·static_revision）
+│   ├── security/           # 身份会话、请求级认证授权依赖（dependencies）、限流、来源与同源校验、初始化守卫
 │   ├── http/               # 请求体上限、缓存响应头、流式落盘
 │   ├── observability/      # 全局事件日志与版本更新检查
-│   ├── api/                # 认证、项目、HA、资源、3D、日志、图标、中控、更新
+│   ├── api/                # 认证、项目、HA、资源、3D、日志、图标、中控（更新检查在 observability）
 │   ├── ha/                 # HA 客户端、同步、状态推送
 │   ├── panel/              # 仪表盘文档与校验（含全局弹窗定义）
 │   ├── modules/            # 增量能力（3D 交互）
@@ -106,7 +106,7 @@ HomeOS/
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
 ├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· check_invariants.mjs（三条静默失效护栏）
+├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· check_invariants.mjs（五条静默失效护栏，含后端包级环与 mdi 版本）
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
@@ -623,7 +623,9 @@ docker exec homeos-3d rm /tmp/app.tar.gz
 
 ## 开发注意
 
-- 静态资源缓存标记统一为 `?v=YYMMDDHHMM`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609201045`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后请跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。全站只许存在一个戳（`README` 与历史文档里的示例除外）—— 这条现在只能靠人工核对。
+- 静态资源缓存标记统一为 `?v=YYMMDDHHMM`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609201045`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后请跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。全站只许存在一个戳（`README` 与历史文档里的示例除外）—— 这条由 `tools/check_invariants.mjs` 兜底，不必再人工核对。
+  这条约定只针对**前端之间互相引用**的资源（同值是为了不让同一模块被当成两份）。**后端渲染页面时拼出来的**静态链接（舞台页注入的 `stage.css`、模拟收银台与支付宝回跳页里的 `scene/*.css`、配色样式表）改用文件 mtime 现算版本号，见 `backend/core/static_revision.py` 与 `store/core/static_revision.py`：那些 URL 之间没有同值要求，用 mtime 就不必再让任何人记得同步字面量（也少一个「忘了跑 bump」的静默失效点）。`tools/bump_static_cache_versions.mjs` 的 `EXTRA_FILES` 仍保留这几个 Python 文件，是为了万一有人把字面量写回去时仍能发现。
+- mdi 图标版本只在前端 `frontend/static/utils/icon-url.js` 的 `MDI_VERSION` 里写一次：图标地址（含舞台标记与编辑器图标按钮的遮罩）一律经 `mdiIconUrl` / `applyMdiMask` 取用，后端 `api/icons.py` 从 `static/vendor/mdi/` 目录里扫出版本。升级图标库 = 把新版本目录放进 `vendor/mdi/` + 改 `MDI_VERSION` + 同步 `3d-studio/studio/studio.css` 里那三条遮罩地址，`check_invariants.mjs` 会核对全站只有一个版本值且目录存在。
 - 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
 - 不要改 `frontend/static/vendor/` 下的 three.js、hls.js、OrbitControls 等第三方文件。
 - 界面中文文案保持原词；缓存戳改动请用 `tools/bump_static_cache_versions.mjs`。
@@ -650,7 +652,7 @@ node tools/bump_static_cache_versions.mjs
 node tools/check_invariants.mjs
 ```
 
-它只钉三条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里：
+它钉五条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里：
 
 - **运行侧裸 `/static/` 静态 import**：`frontend/modules/runtime/**` 里出现声明式 `/static/` 导入即失败
   （舞台页能以 `file:` 打开，绝对路径在那个上下文中解析不了，表现是整棵模块树加载失败，而报错只指向
@@ -663,6 +665,19 @@ node tools/check_invariants.mjs
   会退化成误报垃圾桶。
 - **缓存戳出现第二个值**：无打包器，`?v=` 是唯一的缓存失效手段；同模块一处带戳一处不带会被当成两个模块、
   各留一份模块级状态（两份控件注册表就是这么来的）。这条原先只能靠人工核对。
+- **后端包之间的新环**：`backend/**` 的跨二级包 import 会按文件解析出包级图，出现环即失败。
+  Python 的包级环通常不报错 —— 谁先被导入、环上的名字此刻是否已初始化全看启动顺序，改一圈 import
+  就可能在某个部署路径下变成空模块。上一轮把 `core.schemas → panel.documents`（画布常量）与
+  `core.schemas → ha.client`（HA 地址规则）分别下沉到 `core/design.py`、`core/ha_url.py`，
+  `core.dependencies` 也从 `core/` 挪到 `security/dependencies.py`（它是认证授权门禁，被 `api`、
+  `modules`、`observability` 三处共用，留在 `core` 或 `api` 都会成环）。
+  目前**只登记了一条例外**：`backend.api | backend.modules`（项目保存/删除要调 3D 模块的授权门禁与
+  快照回收，3D 路由反过来要调 `api/ha.py` 的 `call_service`；拆掉它得先把那段校验从路由里提成普通函数）。
+  例外写在脚本的 `ALLOWED_BACKEND_CYCLES` 里并附理由，**新增别的环会直接失败**。
+- **mdi 图标版本出现第二个值**：版本号只该有一份前端来源（`frontend/static/utils/icon-url.js` 的
+  `MDI_VERSION`），后端 `api/icons.py` 改成从 `static/vendor/mdi/` 目录扫出来，CSS 里那三条遮罩地址
+  只能跟着目录名走。守卫会核对全站只有一个版本值、且该版本的 `meta.json` 真的存在 ——
+  漏改一处的表现是舞台灯光素材图标空白或整套图标 404，都不会报错。
 
 **两份工作流共用这一份清单**：`.github/workflows/guards.yml`（push / PR 即跑）与
 `.github/workflows/docker.yml` 的 `guards` job（挂在镜像 `build` 之前）。改清单时**两份都要改**。
@@ -708,7 +723,7 @@ ruff check .                                      # 未使用 import / 重复定
 ```
 
 **两条工作流现在跑 `node tools/check_invariants.mjs` + `ruff check .`**（原先的七道 Node 守卫已随清理移除，
-本轮补回其中价值最高的那一道 —— 三条静默失效不变量）：
+本轮补回其中价值最高的那一道 —— 五条静默失效不变量）：
 
 - `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
 - `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有

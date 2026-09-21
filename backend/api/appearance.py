@@ -22,7 +22,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..core.appearance import AppearanceError, validate_preset, validate_tokens
-from ..core.dependencies import CurrentUser
+from ..security.dependencies import CurrentUser
 
 router = APIRouter(prefix = '/appearance', tags = ['appearance'])
 

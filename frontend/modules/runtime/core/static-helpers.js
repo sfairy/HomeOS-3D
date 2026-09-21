@@ -69,6 +69,10 @@ const { capturePointer, releasePointer } = await (import.meta.url.startsWith("fi
 const { positionFloatingMenu } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/menu-positioning.js", import.meta.url))
   : import("/static/shared/menu-positioning.js?v=2609220052"));
+// mdi 遮罩：舞台标记（显示路径）与编辑器两侧的图标按钮都造遮罩，版本号与白名单只此一份。
+const { applyMdiMask, mdiIconUrl } = await (import.meta.url.startsWith("file:")
+  ? import(new URL("../../../static/utils/icon-url.js", import.meta.url))
+  : import("/static/utils/icon-url.js?v=2609220052"));
 
 export {
   COVER_FEATURE_CLOSE,
@@ -78,6 +82,7 @@ export {
   COVER_FEATURE_STOP,
   INTERACTION_PAGE_OPTIONS,
   apiErrorMessage,
+  applyMdiMask,
   capturePointer,
   clampNumber,
   coercedFiniteNumberOr,
@@ -87,6 +92,7 @@ export {
   entityDomainFromId,
   finiteNumberOr,
   finiteNumberOrNull,
+  mdiIconUrl,
   normalizedTextOf,
   positionFloatingMenu,
   readFromMapOrRecord,

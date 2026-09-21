@@ -23,7 +23,8 @@ from pydantic import Field
 from sqlalchemy import select
 
 from ...core.canonical_json import canonical_json_bytes
-from ...core.dependencies import DatabaseSession, LicensedViewer, LicensedUser, require_viewer_project
+from ...core.static_revision import file_revision
+from ...security.dependencies import DatabaseSession, LicensedViewer, LicensedUser, require_viewer_project
 from ...core.models import HAEntity, ProjectDraft
 from ...panel.documents import parse_document, require_document
 from ...core.schemas import HAServiceCallRequest
@@ -532,11 +533,18 @@ def get_stage(request: Request, viewer: LicensedViewer, sceneId: str, projectId:
         # 作用域要在会话关闭前算完，它依赖 HA 连接表。
         scope = light_history_scope(active_connection(database), viewer, projectId)
     scene_path(request, sceneId)
-    html = (request.app.state.settings.frontend_dir / '3d-studio.html').read_text(encoding='utf-8')
+    settings = request.app.state.settings
+    html = (settings.frontend_dir / '3d-studio.html').read_text(encoding='utf-8')
     if '</head>' not in html:
         raise RuntimeError('3d-studio.html 缺少 </head>，舞台样式挂不上去（舞台会退化成工作室界面）')
-    # v= 缓存戳需要手动维护：页面本身 no-store，只有 URL 变了浏览器才会重新取样式。
-    html = html.replace('</head>', '<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v=2609220052"></head>')
+    # 样式表按文件 mtime 带版本号（与页面里其它服务端拼出来的静态链接同一口径，见
+    # core/static_revision.py）：页面本身 no-store，URL 变了浏览器才会重新取样式，
+    # 而 mtime 让人不必记得改这行字面量。
+    style_revision = file_revision(settings.frontend_dir / 'modules' / 'runtime' / 'core' / 'stage.css')
+    html = html.replace(
+        '</head>',
+        f'<link rel="stylesheet" href="/api/v1/modules/interaction3d/core/stage.css?v={style_revision}"></head>',
+    )
     # 舞台作用域按整枚开标签注入（保留 data-tone 等既有属性），命中数必须为 1。
     html, body_injections = _BODY_TAG_PATTERN.subn(
         lambda match: f'<body{match.group("attributes")} class="interaction3d-stage" data-i3d-light-history-scope="{scope}">',
