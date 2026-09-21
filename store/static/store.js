@@ -859,8 +859,11 @@
   }
 
   function statusLabel(order) {
-    // 与服务端 store/commerce/order_status.py 的口径保持一致（详见 admin.html 的同名注释）。
-    return ({ pending: '待付款', paid: order.fulfillmentMode === 'manual' ? '待人工发卡' : '已付款', fulfilled: '已完成', cancelled: '已取消', expired: '已过期', payment_failed: '支付失败', fulfillment_failed: '发货失败', refunded: '已退款' })[order.status] || order.status;
+    // 「已付款但要人工发卡」是前台自己的措辞（后台列表不区分这一档），所以只这一档由前台判。
+    // 其余一律用服务端下发的 statusLabel —— 它来自 store/commerce/order_status.py 的唯一词表。
+    // 前台自存一份就会漏值：partially_refunded（后台可真实写入）曾因此被原样显示成 snake_case。
+    if (order.status === 'paid' && order.fulfillmentMode === 'manual') return '待人工发卡';
+    return order.statusLabel || order.status;
   }
 
   function startEmailCooldown(button, seconds) {
@@ -1115,11 +1118,15 @@
         ? `<a class="hb-button hb-button--primary" href="${escapeHtml(storePageHref('/products'))}&upgrade=${encodeURIComponent(item.activationCodeId)}">升级为永久授权</a>`
         : '';
       const actions = `<div class="hb-account-actions">${upgradeAction}${labelAction}${releaseAction}</div>`;
-      const source = ({ admin_manual: '后台手动发卡', historical_import: '历史导入', payment_manual: '支付后手动发卡', payment_automatic: '支付后自动发卡' })[item.issuanceSource] || '后台发放';
+      // 来源与「是否手动发放」都由服务端下发（store/core/serializers.py 的
+      // ISSUANCE_SOURCE_LABELS）。前台曾自存一份 admin_manual/historical_import/
+      // payment_manual 的映射，而后端只写 manual / payment_automatic —— 手工签发的授权
+      // 落到兜底文案，手动发放提示的判断也恒为 false。
+      const source = item.issuanceSourceLabel || '后台发放';
       const status = !item.active ? '已停用' : expired ? '已到期' : '有效';
       const validity = item.validityDays ? `${item.validityDays} 天` : '永久授权';
       const period = item.accessExpiresAt ? `${item.accessStartedAt ? new Date(item.accessStartedAt).toLocaleDateString('zh-CN') : '发卡日'} 至 ${new Date(item.accessExpiresAt).toLocaleDateString('zh-CN')}` : validity;
-      const manualNote = ['admin_manual', 'historical_import'].includes(item.issuanceSource) ? '<p class="hb-account-manual-note">该授权由后台手动发放，因此没有支付订单。</p>' : '';
+      const manualNote = item.manuallyIssued ? '<p class="hb-account-manual-note">该授权由后台手动发放，因此没有支付订单。</p>' : '';
       const title = item.userLabel || `主授权 #${payload.licenses.length - index}`;
       const productLine = item.userLabel ? `<p>${escapeHtml(item.productName)}</p>` : '';
       const statusChip = metaChip(status, licenseStateVariant(item.active, expired));

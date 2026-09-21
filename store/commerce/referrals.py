@@ -27,6 +27,37 @@ from store.security.security import new_referral_code, new_uuid
 
 logger = logging.getLogger("store.commerce.referrals")
 
+#: 积分流水类型（``ReferralLedger.kind``）的取值与中文名 —— **后端是唯一出处**。
+#:
+#: 本模块与 ``api/admin.py`` 的人工调账就是全部写入方，所以词表放在这里。后台的筛选下拉与
+#: 流水列表都改由接口下发（``ledger_kind_options``），不再自存一份 —— 自存的那份 6 个键里
+#: 只有 ``manual_adjust`` 与后端对得上，而筛选是精确等值匹配，选任何一项都返回空列表。
+#: 前台用户流水（store/static/referrals.js）有意使用另一套更口语的说法（如 reward 说成
+#: 「邀请奖励」），那是面向用户的措辞，不并入这张账务口径的表。
+LEDGER_KIND_LABELS: dict[str, str] = {
+    "reward": "下单奖励",
+    "reversal": "奖励退回",
+    "freeze": "提现冻结",
+    "withdrawal": "提现完成",
+    "release": "提现驳回退回",
+    "manual_adjust": "人工调账",
+}
+
+#: 提现申请状态（``ReferralWithdrawal.status``）的取值与中文名。同上，后台由接口下发。
+WITHDRAWAL_STATUS_LABELS: dict[str, str] = {
+    "pending": "待审核",
+    "paid": "已提现",
+    "rejected": "已驳回",
+}
+
+
+def ledger_kind_options() -> list[dict[str, str]]:
+    """给后台筛选下拉用的 ``[{value, label}]``，顺序即展示顺序。"""
+    return [
+        {"value": kind, "label": label}
+        for kind, label in LEDGER_KIND_LABELS.items()
+    ]
+
 
 class WalletConflictError(RuntimeError):
     """并发改动同一本钱包时的冲突（调用方应提示重试，而不是当成 500）。

@@ -10,7 +10,11 @@
     if (saved?.expires > Date.now() && /^[0-9]{6}$/.test(saved.code) && $('#store-register-form [name="referralCode"]')) $('#store-register-form [name="referralCode"]').value = saved.code;
     else if (saved) localStorage.removeItem(storageKey);
   } catch {}
-  const labels = {reward:'邀请奖励',freeze:'提现冻结',withdrawal:'提现完成',release:'退回积分',reversal:'邀请失败',pending:'待审核',paid:'已提现',rejected:'已驳回 / 撤销'};
+  // 积分流水的类型标签。键必须覆盖后端全部写入方（store/commerce/referrals.py 的
+  // LEDGER_KIND_LABELS 与 api/admin.py 的人工调账）：曾漏掉 manual_adjust，于是后台人工
+  // 调账出现在用户自己的流水里时会原样显示成 snake_case。
+  // 措辞有意与后台的账务口径不同（reward 这里叫「邀请奖励」），那是对用户更直白说法。
+  const labels = {reward:'邀请奖励',reversal:'邀请失败',freeze:'提现冻结',withdrawal:'提现完成',release:'退回积分',manual_adjust:'人工调账',pending:'待审核',paid:'已提现',rejected:'已驳回 / 撤销'};
   const date = v => v ? new Date(v).toLocaleString('zh-CN', {hour12:false}) : '—';
   const table = (heads, rows) => rows.length ? `<div class="referral-table-wrap"><table class="referral-table"><thead><tr>${heads.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="referral-empty">暂无记录。分享邀请链接，开始积累积分。</p>';
   window.HBReferrals = {
@@ -18,9 +22,14 @@
     async init(api, toast){
       let data, kind='ledger', page=1, requestKey=crypto.randomUUID(), busy=false, sequence=0;
       const error = e => {$('#referral-error').textContent=e.message;$('#referral-error').hidden=false;toast(e.message);};
+      // 提现下限只有一个主人：服务端下发的 settings.withdrawalMinPoints（后台可配）。
+      // 前端曾把它写死成 100，于是调低到 50 时有 50~99 积分的用户永远提不出来（按钮一直灰着），
+      // 调高到 200 时 100 积分的用户能点但会被服务端驳回。data 还没到（init 的第一帧）时给 0，
+      // 让按钮先可用；refresh() 一回来就会用真实值纠正。
+      const minPoints = () => Math.max(0, Number(data?.settings?.withdrawalMinPoints ?? 0));
       const preview = () => {
         const raw = $('#referral-withdraw-form').elements.points.value;
-        const cents = Math.round(Number(raw || 100)*100);
+        const cents = Math.round(Number(raw || minPoints() || 0)*100);
         const bps = Math.round(Number(data.settings.withdrawalFeePercent)*100);
         const fee = Math.floor(cents*bps/10000);
         $('#referral-fee-preview').textContent=`手续费 ${data.settings.withdrawalFeePercent}%：${(fee/100).toFixed(2)} 积分；预计到账 ${(Math.max(0,cents-fee)/100).toFixed(2)} 元。`;
@@ -41,9 +50,15 @@
         // 四张积分卡各挂一个语义色（与账号概览、后台徽标同一套 data-tone 词汇）：
         // 可用=薄荷（正常）、提现中=暖光（待办）、累计=青（主控）、已提现=极光紫（归档）。
         $('#referral-stats').innerHTML=[['可用积分',available,'eco'],['提现中积分',w?.frozen,'lumen'],['累计净奖励',w?.earned,'accent'],['已提现积分',w?.withdrawn,'aura']].map(([label,v,tone])=>`<article data-tone="${tone}"><small>${label}</small><strong>${esc(typeof v === 'number' ? v.toFixed(2) : (v||'0.00'))}</strong><small>积分</small></article>`).join('');
-        $('#referral-withdraw-form button').disabled=!w || available<100 || Number(w.frozen)>0;
+        $('#referral-withdraw-form button').disabled=!w || available<minPoints() || Number(w.frozen)>0;
         $('#referral-guide-reward').textContent=`好友注册后，实际支付成功的订单，按实付金额的 ${s.ratePercent}% 奖励积分。注册本身不发积分，支付成功后自动入账。`;
-        $('#referral-guide-fee').textContent=`1 积分等于 1 元，满 100 积分可以申请提现。当前手续费 ${s.withdrawalFeePercent}%，申请 100 积分，扣除 ${s.withdrawalFeePercent} 积分手续费，实际到账 ${(100-Number(s.withdrawalFeePercent)).toFixed(2)} 元。手续费不足 0.01 部分舍去。`;
+        $('#referral-guide-fee').textContent=`1 积分等于 1 元，满 ${minPoints()} 积分可以申请提现。当前手续费 ${s.withdrawalFeePercent}%，申请 ${minPoints()} 积分，扣除 ${s.withdrawalFeePercent} 积分手续费，实际到账 ${(minPoints()-Number(s.withdrawalFeePercent)).toFixed(2)} 元。手续费不足 0.01 部分舍去。`;
+        // 输入框的下限同样跟服务端走：模板里的 min/placeholder 是给「还没拿到设置」时兜底的静态值。
+        const pointsInput = $('#referral-withdraw-form').elements.points;
+        pointsInput.min = String(minPoints());
+        pointsInput.placeholder = `最低 ${minPoints()}`;
+        // 区块抬头那句「满 N 积分可申请提现」同样跟着服务端走，否则调低门槛后正文与输入框自相矛盾。
+        $('#referral-withdraw-lead').textContent = `1 积分等于 1 元，满 ${minPoints()} 积分可申请提现。提交申请后凭申请编号联系客服人工办理。`;
         preview();
       }
       async function history(){
@@ -62,7 +77,7 @@
           const item=await api('/referrals/withdrawals',{method:'POST',body:JSON.stringify({points:form.elements.points.value,requestKey,expectedFeePercent:data.settings.withdrawalFeePercent})});
           requestKey=crypto.randomUUID();$('#referral-application').textContent=`申请已提交，编号：${item.id}。请联系客服办理提现。`;
           kind='withdrawals';page=1;await refresh();await history();
-        }catch(err){error(err);await refresh().catch(()=>{});}finally{busy=false;const avail=Math.max(0,Number(data?.wallet?.balance||0)-Number(data?.wallet?.frozen||0));form.querySelector('button').disabled=!data?.wallet||avail<100||Number(data?.wallet?.frozen)>0;}
+        }catch(err){error(err);await refresh().catch(()=>{});}finally{busy=false;const avail=Math.max(0,Number(data?.wallet?.balance||0)-Number(data?.wallet?.frozen||0));form.querySelector('button').disabled=!data?.wallet||avail<minPoints()||Number(data?.wallet?.frozen)>0;}
       };
       document.querySelectorAll('[data-referral-history]').forEach(b=>b.onclick=()=>{kind=b.dataset.referralHistory;page=1;document.querySelectorAll('[data-referral-history]').forEach(x=>{x.classList.toggle('hb-button--primary',x===b);x.classList.toggle('hb-button--secondary',x!==b);});history().catch(error);});
       $('#referral-prev').onclick=()=>{page--;history().catch(error);};$('#referral-next').onclick=()=>{page++;history().catch(error);};

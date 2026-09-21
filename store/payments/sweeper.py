@@ -40,6 +40,20 @@ HEALTH_NEVER = "never"  # 跑过，但一次都没成功
 HEALTH_FAILING = "failing"  # 成功过，但当前正在连续失败
 HEALTH_STOPPED = "stopped"  # 循环已退出（进程还在跑）
 
+#: 健康值 → 中文名。**后端是唯一出处**，概览接口随状态一起下发（同 incidents 的 label 做法）。
+#:
+#: 后台曾经自存一份，于是这里新增一档时前端不认识、直接落到 `|| '尚未启动'` 的兜底 ——
+#: 「连续失败」会被显示成「等待中」，而这块存在的全部意义就是让坏掉的巡检一眼可见。
+#: 语气（徽标颜色）不进这里：那是展示层的事，前端按 health 值自己映射更合适。
+SWEEP_HEALTH_LABELS: dict[str, str] = {
+    HEALTH_OK: "正常",
+    HEALTH_DISABLED: "已关闭",
+    HEALTH_PENDING: "尚未启动",
+    HEALTH_NEVER: "从未成功",
+    HEALTH_FAILING: "连续失败",
+    HEALTH_STOPPED: "已停止",
+}
+
 
 @dataclass
 class _SweepState:
@@ -202,6 +216,8 @@ def sweep_status() -> dict:
     moment = utcnow()
     return {
         "health": health,
+        # 中文名由后端下发：前端自存一份会在新增健康值时静默落到兜底（见 SWEEP_HEALTH_LABELS）。
+        "healthLabel": SWEEP_HEALTH_LABELS.get(health, health),
         "enabled": enabled,
         "intervalSeconds": interval_seconds,
         "rounds": rounds,

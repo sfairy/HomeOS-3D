@@ -51,7 +51,7 @@ from store.security.request_security import (
     security_headers,
 )
 from store.security.schema_guard import ensure_schema
-from store.commerce.points_migration import migrate_points
+from store.commerce.points_migration import migrate_points, migration_status
 from store.security.setup_guard import SetupGuard, announce_setup_window
 from store.ops.site_settings import get_setting
 
@@ -192,6 +192,15 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         for table in migration.tables:
             for problem in table.problems:
                 logger.error("积分迁移问题 %s：%s", table.table, problem)
+        # 「启动成功」不等于「迁移成功」：对账不通过的表会整表跳过删列，旧列仍是
+        # NOT NULL 且无 DDL 默认值，ORM 又已不映射它，之后每一次插入都会
+        # NOT NULL constraint failed。上面逐条 error 很容易淹在启动日志里，
+        # 这里补一条汇总，并指明可机器读取的地方（/healthz 的 pointsMigration）。
+        logger.warning(
+            "邀请积分口径迁移未通过：%d 张表有未决问题，旧列未退役，"
+            "之后的新写入会以 NOT NULL 失败；详见 /healthz 的 pointsMigration。",
+            sum(1 for table in migration.tables if table.problems),
+        )
 
     # 确保 docker 渠道存在当前版本的发布记录：「检查更新」查的正是这张表。
     with database.session() as session:
@@ -395,11 +404,14 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         # status 只表示「进程活着」，探活机器不会被巡检状态带偏；巡检与 incidents
         # 单独放子对象。incidents 是资金/履约路径上被刻意吞掉的异常，不参与 status ——
         # 否则探活机器会把「有订单履约失败」当成进程不健康，去重启一个本可自愈的服务。
+        # pointsMigration 同理：对账没过是数据问题，重启进程解决不了，也不该被
+        # 当成「进程挂了」去反复重启。
         return {
             "status": "ok",
             "version": __version__,
             "port": settings.port,
             "paymentSweep": sweep_status(),
+            "pointsMigration": migration_status(),
             "incidents": incidents.status(),
         }
 

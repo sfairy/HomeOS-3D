@@ -10,11 +10,11 @@
 // 本模块原本是**零 import** 的纯计算层，这里引入第一个依赖，且只依赖 `utils/entities.js`
 // （叶子模块，自己没有 import，也不碰 DOM / 注册表），所以「不碰 DOM、不读注册表」这条
 // 位置说明仍然成立；灯域判定与 `entityDomainFromId` 是同一份知识，不再内联。
-import { entityDomainFromId } from "../../utils/entities.js?v=2609211957";
+import { entityDomainFromId } from "../../utils/entities.js?v=2609212100";
 // 「属性里有没有可用数值」的唯一口径（空串 / 布尔算缺失）：与特效层共用同一份实现。
-import { isUsableNumber } from "../../utils/numbers.js?v=2609211957";
+import { isUsableNumber } from "../../utils/numbers.js?v=2609212100";
 // 状态条目归一（变更对象 / 状态对象两种形态）走 `utils/state-entry.js` 的 `resolveStateEntry`。
-import { resolveStateEntry } from "../../utils/state-entry.js?v=2609211957";
+import { resolveStateEntry } from "../../utils/state-entry.js?v=2609212100";
 
 /**
  * 把 0~100 的相对色温百分比换算成开尔文。

@@ -13,12 +13,12 @@ import {
   entityDomainFromId,
   resolveStateEntry,
   stateTextOf
-} from "./static-helpers.js?v=2609211957";
+} from "./static-helpers.js?v=2609212100";
 import {
   createPopupLayoutPreview,
   createFocusDevicePopup
-} from "./popup-preview.js?v=2609211957";
-import { createLightStream } from "../light/light-stream.js?v=2609211957";
+} from "./popup-preview.js?v=2609212100";
+import { createLightStream } from "../light/light-stream.js?v=2609212100";
 // 3D 模块专用的后端前缀：控制命令与照射范围读写都挂在这里。
 const INTERACTION3D_API_BASE = "/api/v1/modules/interaction3d";
 /**

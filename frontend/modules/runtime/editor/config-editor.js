@@ -9,7 +9,7 @@
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
 // 桥分成两个：显示路径那份（static-helpers）只放零依赖工具，本模块是编辑器侧，其余走 editor 那份。
-import { capturePointer, resolveStateEntry } from "../core/static-helpers.js?v=2609211957";
+import { capturePointer, resolveStateEntry } from "../core/static-helpers.js?v=2609212100";
 import {
   DEFAULT_BASE_LIGHTING,
   confirmAction,
@@ -20,18 +20,18 @@ import {
   randomUuid,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
-} from "../core/static-helpers-editor.js?v=2609211957";
-import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609211957";
-import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609211957";
-import { mountInteraction3d } from "../core/runtime.js?v=2609211957";
-import { lightState } from "../light/light-state.js?v=2609211957";
-import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609211957";
-import { nasGroups } from "../nas/nas-panel.js?v=2609211957";
+} from "../core/static-helpers-editor.js?v=2609212100";
+import { vacuumMapIdentity } from "../vacuum/vacuum-map.js?v=2609212100";
+import { openInteraction3dRangeEditor } from "./range-dialog.js?v=2609212100";
+import { mountInteraction3d } from "../core/runtime.js?v=2609212100";
+import { lightState } from "../light/light-state.js?v=2609212100";
+import { openVacuumMapEditor } from "../vacuum/vacuum-map-editor.js?v=2609212100";
+import { nasGroups } from "../nas/nas-panel.js?v=2609212100";
 import {
   EDITOR_SAVE_STATUS,
   editorDraftHasChanges,
   serializeEditorDraft
-} from "../core/editor-save-status.js?v=2609211957";
+} from "../core/editor-save-status.js?v=2609212100";
 // 外观编辑器的分组定义：每组为 [分组名, [字段名, 中文标签, 最小值, 最大值, 步进]]，
 // 字段名与 studio 的 baseLighting 一一对应，范围取值对应真实可用光照区间。
 const APPEARANCE_GROUPS = [
@@ -187,7 +187,7 @@ export async function openInteraction3dEditor({
   const styleSheetLinkElement = document.createElement("link");
   styleSheetLinkElement.rel = "stylesheet";
   styleSheetLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609211957";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609212100";
   document.head.append(styleSheetLinkElement);
   // 建元素小工具，文本一律走 textContent，不拼 HTML。
   const createElement = (tagName, classNames, initialText) => {
@@ -3645,7 +3645,7 @@ export async function openInteraction3dAppearanceEditor({
   const appearanceStyleLinkElement = document.createElement("link");
   appearanceStyleLinkElement.rel = "stylesheet";
   appearanceStyleLinkElement.href =
-    "/api/v1/modules/interaction3d/core/runtime.css?v=2609211957";
+    "/api/v1/modules/interaction3d/core/runtime.css?v=2609212100";
   document.head.append(appearanceStyleLinkElement);
   // 建「纯」元素的小工具（可选带文本）：外观弹窗里的节点不需要类名，
   // 与上面带类名的 createElement 区分开，避免传一堆空字符串。

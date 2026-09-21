@@ -337,7 +337,14 @@ def upgrade_license_in_place(
     license.access_expires_at = (
         moment + timedelta(days=int(validity_days)) if validity_days else None
     )
-    if license.issuance_source in {"payment_automatic", "payment_manual"}:
+    # 历史数据归一：早期版本写过 ``payment_manual``，现在已无任何写入方（全仓只有
+    # ``manual`` 与 ``payment_automatic`` 两个写入点）。升级后的这张码由订单驱动，
+    # 所以把它归到自动发码。
+    #
+    # 条件只判这一个值：原先写的是 ``in {"payment_automatic", "payment_manual"}``，
+    # 但对 ``payment_automatic`` 而言赋值与现值完全相同 —— 那半个条件是个空操作，
+    # 读起来却像在「调整来源」，容易让人以为升级会改动别的来源。
+    if license.issuance_source == "payment_manual":
         license.issuance_source = "payment_automatic"
     order.license_id = license.id
     grant_bundled_entitlements(

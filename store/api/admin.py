@@ -43,6 +43,7 @@ from store.commerce.order_status import (
     REFUNDABLE_STATUSES as ORDER_REFUNDABLE_STATUSES,
 )
 from store.commerce.order_status import refundable_cents
+from store.commerce.points_migration import migration_status
 from store.payments import PROVIDER_NAMES, is_known_provider, normalize_provider_name
 from store.payments.base import PaymentError
 from store.payments.credentials import (
@@ -469,6 +470,10 @@ def overview(session: DbSession, _admin: AdminAccount, settings: SettingsDep) ->
         # 被刻意吞掉的资金/履约异常计数。与巡检同理：这些异常不会让任何接口
         # 报错，只会让「钱收了、码没发」悄悄发生，所以必须主动摆出来。
         "incidents": incidents.status(),
+        # 启动期积分口径迁移的结果。对账不通过时旧列会被保留，而旧列是 NOT NULL
+        # 且无 DDL 默认值 —— 那是**之后每次下单写入**才炸的，届时已经与迁移无关了，
+        # 所以要在概览里能回看到「本次启动到底迁干净了没有」。
+        "pointsMigration": migration_status(),
         # —— 营收（含时间窗）——
         "revenue": revenue,
         # —— 订单漏斗 ——
@@ -3906,14 +3911,20 @@ def admin_list_referral_ledger(
             for entry in rows
         ]
 
-    return _page_items(
-        session,
-        base,
-        (ReferralLedger.created_at.desc(),),
-        limit=limit,
-        offset=offset,
-        build=build,
-    )
+    return {
+        **_page_items(
+            session,
+            base,
+            (ReferralLedger.created_at.desc(),),
+            limit=limit,
+            offset=offset,
+            build=build,
+        ),
+        # 类型词表随数据一起下发（同 ``incidents.kinds`` 的做法）：后台的筛选下拉与列表标签
+        # 都由它生成，不再自存一份。自存的那份曾经 6 个键里只有 manual_adjust 与后端对得上，
+        # 而筛选是精确等值匹配 —— 选任何一项都返回空列表；列表则把 5 类真实流水显示成英文。
+        "kinds": referrals.ledger_kind_options(),
+    }
 
 
 @router.get("/coupon-redemptions")

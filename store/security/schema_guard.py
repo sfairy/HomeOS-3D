@@ -155,6 +155,13 @@ def backup_database(
     target_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     destination = target_dir / f"{source.name}.pre-{label}-{stamp}.bak"
+    #: 同一秒内的第二次备份会撞上这个名字，而 ``VACUUM INTO`` 撞名是**直接报错** ——
+    #: 于是这次调用一份快照都没有，偏偏这时正是「刚改过一次、马上又要改」的高风险时刻
+    #: （同一秒重启、或两个进程同时启动）。加序号而不是覆盖：两份快照都不该丢。
+    suffix = 1
+    while destination.exists():
+        destination = target_dir / f"{source.name}.pre-{label}-{stamp}-{suffix}.bak"
+        suffix += 1
 
     #: **不能直接 ``shutil.copy2(store.db)``**：库跑在 WAL 模式下，未 checkpoint 的写入还在
     #: ``store.db-wal`` 里，复制出的 .bak 可能一张表都没有却看起来完全正常（「以为有备份」

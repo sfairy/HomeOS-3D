@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#151a1f">
 <title>HomeOS 授权商店 · 管理后台</title>
-<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609211957">
-<link rel="stylesheet" href="/store-static/theme.css?v=2609211957">
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609212100">
+<link rel="stylesheet" href="/store-static/theme.css?v=2609212100">
 <!-- 场景设计系统的分发产物（源在仓库 design/scene/）：登录屏是整页场景壳，
      工作台仍走 theme.css + admin.css 的令牌。 -->
-<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609211957">
-<link rel="stylesheet" href="/store-static/scene/page.css?v=2609211957">
-<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609211957">
-<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609211957">
-<link rel="stylesheet" href="/store-static/admin.css?v=2609211957">
-<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609211957` 的 <link>。
+<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609212100">
+<link rel="stylesheet" href="/store-static/scene/page.css?v=2609212100">
+<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609212100">
+<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609212100">
+<link rel="stylesheet" href="/store-static/admin.css?v=2609212100">
+<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609212100` 的 <link>。
      必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
 <!--{{APPEARANCE}}-->
 </head>
@@ -93,7 +93,7 @@
 <div id="admin-app" class="admin-shell" hidden>
   <aside class="admin-side">
     <div class="brand">
-      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=2609211957" alt=""></span>
+      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=2609212100" alt=""></span>
       <div class="brand__text">
         <strong>HomeOS</strong>
         <small>授权商店后台</small>
@@ -329,6 +329,21 @@
                 <p id="overview-incidents-detail">正在读取异常计数…</p>
               </div>
               <button class="hb-button hb-button--secondary hb-button--sm" id="overview-incidents-ack" hidden>确认已处理</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 启动期积分口径迁移的结果。与其他卡片不同，这块**只在出问题时出现**：它是启动时
+             一次性动作，正常时没有任何可操作的内容，常驻只会变成一行噪音。但对账不过时旧列会
+             留在库里，那是之后每次下单写入才以 NOT NULL 报错的——等你看到那个报错，
+             早就看不出根因在迁移了，所以必须让它在这里可见。 -->
+        <div class="hb-card" id="overview-points-migration" hidden>
+          <div class="hb-card__body">
+            <div class="setting-row">
+              <div>
+                <strong>积分迁移 <span class="hb-tag hb-tag--danger">未通过</span></strong>
+                <p id="overview-points-migration-detail"></p>
+              </div>
             </div>
           </div>
         </div>
@@ -1279,13 +1294,9 @@
       <div class="panel-toolbar">
         <input class="hb-input" id="ledger-account" placeholder="账号 ID（从「账号」页的『查看积分流水』带上）">
         <select class="hb-select" id="ledger-kind">
+          <!-- 选项由接口下发（/referral-ledger 的 kinds），这里只留「全部类型」。
+               写死在模板里就会与后端的取值漂开，而筛选是精确等值匹配。 -->
           <option value="">全部类型</option>
-          <option value="order_reward">下单奖励</option>
-          <option value="order_reward_revoke">奖励退回</option>
-          <option value="withdrawal_freeze">提现冻结</option>
-          <option value="withdrawal_confirm">提现完成</option>
-          <option value="withdrawal_refund">提现驳回退回</option>
-          <option value="manual_adjust">人工调账</option>
         </select>
         <button class="hb-button hb-button--secondary hb-button--sm" id="ledger-search">查询</button>
         <button class="hb-button hb-button--warning hb-button--sm" id="ledger-adjust">人工调账</button>
@@ -1552,9 +1563,9 @@
 <!-- 场景 3D 相机（源：design/scene/scene-depth.js）。普通脚本而不是 module：不导出
      任何东西，越早跑越好 —— 入口动画那 0.75s 就已经带上景深。CSP 的 script-src 含
      'self'，同源外部脚本不需要 nonce。 -->
-<script src="/store-static/scene/scene-depth.js?v=2609211957"></script>
-<script src="/store-static/htmlsafe.js?v=2609211957"></script>
-<script src="/store-static/api-error.js?v=2609211957"></script>
+<script src="/store-static/scene/scene-depth.js?v=2609212100"></script>
+<script src="/store-static/htmlsafe.js?v=2609212100"></script>
+<script src="/store-static/api-error.js?v=2609212100"></script>
 <script nonce="{{NONCE}}">
 'use strict';
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -1802,24 +1813,24 @@ const LICENSE_SOURCE = {
 
 // 商品类型：前台 store.js 用的口径是「全授权 / 自定义套餐 / 功能增量包」，
 // 后台列窄，取等价的短说法，含义保持一致。
+// 取值清单的唯一出处是 store/commerce/catalog.py 的 PRODUCT_TYPE_LABELS（它同时约束接口校验）；
+// 这里曾多一个 `addon`，那个值后端根本不接受 —— 真选中它只会拿到 422。
 const PRODUCT_TYPE = {
   base: '基础授权', bundle: '全授权', package: '套餐',
-  module: '增量包', template: '模板', addon: '增量包',
+  module: '增量包', template: '模板',
 };
 
 // 提现状态：与前台钱包流水（store/static/referrals.js）同一套说法。
 // pending/paid 在订单里另有含义，不能共用 ORDER_STATUS。
 const WITHDRAWAL_STATUS = { pending: '待审核', paid: '已提现', rejected: '已驳回' };
 
-// 积分流水类型
-const LEDGER_KIND = {
-  order_reward: '下单奖励',
-  order_reward_revoke: '奖励退回',
-  withdrawal_freeze: '提现冻结',
-  withdrawal_confirm: '提现完成',
-  withdrawal_refund: '提现驳回退回',
-  manual_adjust: '人工调账',
-};
+// 积分流水类型：**由接口下发**（`/referral-ledger` 响应里的 `kinds`），这里只作缓存。
+// 后台不再自存词表 —— 自存的那份 6 个键里只有 manual_adjust 与后端对得上，而筛选是精确
+// 等值匹配，选任何一项都返回空列表；列表也会把 5 类真实流水显示成英文。
+// 取值与中文名的唯一出处是 store/commerce/referrals.py 的 LEDGER_KIND_LABELS。
+let LEDGER_KIND = {};
+// 下拉是否已经按后端词表填过：只填一次，之后刷新列表不再重建 DOM（会丢掉当前选中项）。
+let ledgerKindOptionsApplied = false;
 
 // 表格内统一的操作按钮组
 function actions(...buttons) {
@@ -2568,16 +2579,17 @@ function jumpFromOverview(target) {
   activate(target.page, tab);
 }
 
-// 巡检状态 → 徽标语气 + 一句话解释。
-// 六种状态对应六种「为什么这块不能正常工作」：配置关掉了 / 循环没了 / 第一轮还没跑完 /
-// 一次都没成功 / 正在连续失败 / 正常。只写「异常」运营没法处置，也分不清该改配置还是重启。
-const SWEEP_HEALTH = {
-  ok: { tone: 'hb-tag--success', label: '正常' },
-  disabled: { tone: 'hb-tag--warning', label: '已关闭' },
-  pending: { tone: 'hb-tag--warning', label: '尚未启动' },
-  never: { tone: 'hb-tag--danger', label: '从未成功' },
-  failing: { tone: 'hb-tag--danger', label: '连续失败' },
-  stopped: { tone: 'hb-tag--danger', label: '已停止' },
+// 巡检状态 → 徽标语气。**只放语气，中文名由后端下发**（sweep.healthLabel，见
+// store/payments/sweeper.py 的 SWEEP_HEALTH_LABELS）：后台自存一份中文名时，后端新增一档
+// 就会静默落到兜底 —— 「连续失败」被显示成「等待中」，而这块存在的全部意义就是一眼可见。
+// 未知档位按 warning 兜底（可能是版本错配），配合下面按 health 分支的说明文案一起看。
+const SWEEP_HEALTH_TONE = {
+  ok: 'hb-tag--success',
+  disabled: 'hb-tag--warning',
+  pending: 'hb-tag--warning',
+  never: 'hb-tag--danger',
+  failing: 'hb-tag--danger',
+  stopped: 'hb-tag--danger',
 };
 
 // 「多久以前」给中文可读量级，别丢一个秒数让人自己换算。
@@ -2602,9 +2614,9 @@ function renderPaymentSweep(sweep) {
     detail.textContent = '这个版本的服务端没有上报巡检状态。';
     return;
   }
-  const meta = SWEEP_HEALTH[sweep.health] || SWEEP_HEALTH.pending;
-  pillNode.className = `hb-tag ${meta.tone}`;
-  pillNode.textContent = meta.label;
+  // 中文名一律用后端下发的 healthLabel；缺失（老服务端）时才退回原始 health 值。
+  pillNode.className = `hb-tag ${SWEEP_HEALTH_TONE[sweep.health] || 'hb-tag--warning'}`;
+  pillNode.textContent = sweep.healthLabel || sweep.health || '未知';
 
   const interval = Number(sweep.intervalSeconds || 0);
   const rounds = Number(sweep.rounds || 0);
@@ -2676,6 +2688,27 @@ function renderIncidents(incidents) {
     + '但发码 / 查单没有走完。请到「订单」里按状态 fulfillment_failed 处理（重试履约或退款）。';
 }
 
+// 启动期积分口径迁移（FLOAT 积分 → INTEGER 厘）的对账结果。整块只在未通过时出现：
+// 通过时没有可操作内容。文案要说清后果是**之后才发生**的，否则运营看到「迁移未通过」
+// 会以为只是历史数据的问题，而真正会炸的是下一笔下单。
+function renderPointsMigration(migration) {
+  const card = $('#overview-points-migration');
+  const detail = $('#overview-points-migration-detail');
+  if (!card || !detail) return;
+  if (!migration || migration.health !== 'degraded') {
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  const count = Number(migration.problemCount || 0);
+  const problems = (migration.problems || []).join('；');
+  detail.textContent = `本次启动的积分口径迁移有 ${num(count)} 处对账不通过`
+    + `${problems ? `（${problems}）` : ''}。`
+    + '失败的表会保留旧的小数列，而旧列是 NOT NULL 且没有默认值，'
+    + '后续对这张表的每次写入都会以 NOT NULL constraint 报错——'
+    + '请先修好对账差异再让服务继续接单，详细原因见启动日志。';
+}
+
 async function loadOverview() {
   const data = await api('/overview');
   const revenue = data.revenue || {};
@@ -2683,6 +2716,7 @@ async function loadOverview() {
 
   renderPaymentSweep(data.paymentSweep);
   renderIncidents(data.incidents);
+  renderPointsMigration(data.pointsMigration);
 
 
   // —— 营收 ——
@@ -5106,6 +5140,30 @@ $('#entitlement-rows').addEventListener('click', async (event) => {
 // --------------------------------------------------------------------------- //
 // 积分流水
 // --------------------------------------------------------------------------- //
+
+/**
+ * 用后端下发的词表填筛选下拉并刷新标签映射。
+ *
+ * 只填一次：刷新列表时重建选项会把用户当前选中的类型重置回「全部类型」。
+ * 服务端没下发 kinds（老版本）时保留空表 —— 标签会退回显示原始 kind 值，
+ * 好过显示一个错的。
+ */
+function applyLedgerKinds(kinds) {
+  if (!Array.isArray(kinds) || !kinds.length) return;
+  LEDGER_KIND = Object.fromEntries(kinds.map(item => [item.value, item.label]));
+  if (ledgerKindOptionsApplied) return;
+  const select = $('#ledger-kind');
+  const current = select.value;
+  for (const item of kinds) {
+    const option = document.createElement('option');
+    option.value = item.value;
+    option.textContent = item.label;
+    select.append(option);
+  }
+  select.value = current;
+  ledgerKindOptionsApplied = true;
+}
+
 async function loadLedger() {
   const cursor = pageState('ledger');
   const params = {};
@@ -5120,6 +5178,7 @@ async function loadLedger() {
     toast(error.message, 'danger');
     return;
   }
+  applyLedgerKinds(data.kinds);
   $('#ledger-rows').innerHTML = data.items.length ? data.items.map(entry => `
     <tr>
       <td class="nowrap">${dt(entry.createdAt)}</td>
@@ -5881,6 +5940,6 @@ window.addEventListener('hashchange', () => {
 <!-- 站点配色面板：必须是 module —— 它 import 的是 design/scene 的分发产物
      ./scene/appearance.js（预设 / 明暗派生 / 令牌展开的唯一实现）。
      内联那个经典脚本没法 import，抄一遍就成了第三份会走散的真值。 -->
-<script type="module" nonce="{{NONCE}}" src="/store-static/palette.js?v=2609211957"></script>
+<script type="module" nonce="{{NONCE}}" src="/store-static/palette.js?v=2609212100"></script>
 </body>
 </html>

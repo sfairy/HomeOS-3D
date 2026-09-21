@@ -8,7 +8,7 @@
  * 约定：控件撑满宿主元素，实际预览尺寸由 JS 按 16:9 写到内联样式，这里只负责撑满与裁切；
  * 弹窗一律用原生 dialog + ::backdrop，遮罩与焦点陷阱交给浏览器；每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609211957";
+@import "/static/bridge/controls.css?v=2609212100";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;

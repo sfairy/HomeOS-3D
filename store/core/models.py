@@ -373,7 +373,11 @@ class Order(Base):
     coupon_code: Mapped[str | None] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
     fulfillment_mode: Mapped[str] = mapped_column(String(32), default="automatic")
-    payment_provider: Mapped[str] = mapped_column(String(32), default="mock")
+    #: 下单时**冻结**在本行上的支付渠道名。默认值必须是「没有渠道」而不是 ``"mock"``：
+    #: 模拟收银台按这一列判定订单能否被标记支付/取消（``api/pages.py:_ensure_mock_order``），
+    #: 一旦有代码路径漏填而吃到 ``"mock"`` 默认值，就等于为这笔订单免费发码。
+    #: 现网写入点只有 ``api/store.py`` 下单处，显式取自站点配置（默认同为 ``""``）。
+    payment_provider: Mapped[str] = mapped_column(String(32), default="", server_default="")
     payment_payload_json: Mapped[str] = mapped_column(Text, default="{}")
     payment_trade_no: Mapped[str | None] = mapped_column(String(128))
     #: **累计**已退回到用户的金额（分）。后台退款会真的调用支付渠道，这里是对账依据；

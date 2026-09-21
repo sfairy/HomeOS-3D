@@ -22,16 +22,16 @@
 // 开发态（file:）走相对路径，生产走 /static 绝对路径；两条都不能省。
 const { randomUuid } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/random-id.js", import.meta.url))
-  : import("/static/utils/random-id.js?v=2609211957"));
+  : import("/static/utils/random-id.js?v=2609212100"));
 const { interaction3dPreviewSize } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/preview-layout.js", import.meta.url))
-  : import("/static/bridge/preview-layout.js?v=2609211957"));
+  : import("/static/bridge/preview-layout.js?v=2609212100"));
 const { normalizeInteraction3dLightingMode } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/definition.js", import.meta.url))
-  : import("/static/bridge/definition.js?v=2609211957"));
+  : import("/static/bridge/definition.js?v=2609212100"));
 const { confirmAction } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/ui-confirm.js", import.meta.url))
-  : import("/static/shared/ui-confirm.js?v=2609211957"));
+  : import("/static/shared/ui-confirm.js?v=2609212100"));
 // 授权 / 编辑器视图登记：这是本文件与 static-helpers.js 分家的原因，见文件头。
 const {
   requestInteraction3dAccess,
@@ -39,10 +39,10 @@ const {
   subscribeInteraction3dAccess
 } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/bridge.js", import.meta.url))
-  : import("/static/bridge/bridge.js?v=2609211957"));
+  : import("/static/bridge/bridge.js?v=2609212100"));
 const { DEFAULT_BASE_LIGHTING, normalizeBaseLighting } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/3d-studio/loaders/studio-normalization.js", import.meta.url))
-  : import("/static/3d-studio/loaders/studio-normalization.js?v=2609211957"));
+  : import("/static/3d-studio/loaders/studio-normalization.js?v=2609212100"));
 
 export {
   DEFAULT_BASE_LIGHTING,

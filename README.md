@@ -244,7 +244,7 @@ SameSite=Lax + 只收 JSON 是第一道闸，代码里另有一道显式的 Orig
 - **订单终态保护**：`cancelled` / `expired` / `refunded` 的订单不能再被标记支付或履约。
 - **待复核标记**：`needs_review` 目前只由「订单超时关闭后款项才到账」的复活单产生，后台可用 `POST /store-admin/v1/orders/{order_no}/review` 标记已处理，结论追加进 `review_note` 而不覆盖原原因。
 - **营收口径**：后台「标记支付」只放行订单、**不计入营收**；人工确认收款走 `settle-offline`。详见 [store/README.md](store/README.md) 的「订单与营收口径」。
-- **可观测性**：支付巡检状态与入账异常计数都能在后台概览与 `GET /healthz` 读到（非零即 `degraded`）。详见 [store/README.md](store/README.md) 的「巡检与入账异常」。
+- **可观测性**：支付巡检状态、入账异常计数与启动期积分口径迁移结果都能在后台概览与 `GET /healthz` 读到（非零即 `degraded`）。详见 [store/README.md](store/README.md) 的「巡检与入账异常」。
 - **商品图格式按内容判定**：按魔数识别 PNG / JPEG / GIF / WebP，SVG 明确 422（它是能内嵌脚本的 XML，而商品图是按后缀回 `Content-Type` 的同源资源）；落盘后缀由真实内容决定，换格式不留孤儿文件。
 - **前端转义只有一份实现**：后台、前台与邀请页统一走 `store/static/htmlsafe.js` 的 `HtmlSafe.esc`（用 `&#39;` 而非 `&apos;`）。少转一个字符不会有任何报错，只会让某个拼接点变成注入点。
 - **改库前的备份真的能还原**：商店的库跑在 WAL 模式，直接复制主库文件得到的 `.bak` 是空壳（新行还在 `store.db-wal` 里）。现改用 `VACUUM INTO` 取一致快照。

@@ -13,7 +13,7 @@ import {
   clampNumber,
   coercedFiniteNumberOr,
   releasePointer
-} from "../core/static-helpers.js?v=2609211957";
+} from "../core/static-helpers.js?v=2609212100";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 // 表单读出来的都是字符串：统一转成有限数字，非法值（NaN / 空串 / 布尔）回落到兜底值。
 // 不这样做的话，一个空输入框就能把整层的光照参数变成 NaN，画面会直接黑掉。

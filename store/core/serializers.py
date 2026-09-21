@@ -202,6 +202,23 @@ def device_release_policy(
     }
 
 
+#: 授权来源（``License.issuance_source``）→ 中文名。
+#:
+#: 后端只写两个值：``manual``（后台手工签发 / 履约方式为人工）与 ``payment_automatic``
+#: （付款后自动发码）。前台曾自存一份 `admin_manual / historical_import / payment_manual /
+#: payment_automatic` 的映射 —— 只有最后一个能命中，手工签发的授权因此落到兜底文案，
+#: 而且「该授权由后台手动发放」那条提示的判断恒为 false。字典的键必须与写入方一致。
+ISSUANCE_SOURCE_LABELS: dict[str, str] = {
+    "manual": "后台手动发卡",
+    "payment_automatic": "支付后自动发卡",
+}
+
+
+def issuance_source_label(source: str | None) -> str:
+    """来源码 → 中文名；未知值返回空串，由前台回落到「后台发放」。"""
+    return ISSUANCE_SOURCE_LABELS.get((source or "").strip(), "")
+
+
 def license_payload(
     license: License,
     *,
@@ -230,6 +247,12 @@ def license_payload(
         "priceCents": int(license.price_cents or 0),
         "validityDays": license.validity_days,
         "issuanceSource": license.issuance_source,
+        # 来源的中文名与「是否是手动签发」都由服务端给出，前台不再自存词表：
+        # 前台那份的键是 admin_manual / historical_import / payment_manual，而后端实际只写
+        # manual / payment_automatic —— 手工签发的授权因此落到兜底文案，且「该授权由后台
+        # 手动发放」那条提示的 includes 判断恒为 false，永远不会出现。
+        "issuanceSourceLabel": issuance_source_label(license.issuance_source),
+        "manuallyIssued": license.issuance_source == "manual",
         "userLabel": license.user_label,
         "active": active,
         # 全部走 iso_z：裸 ISO 串在浏览器里会偏 8 小时（见 account_payload）。

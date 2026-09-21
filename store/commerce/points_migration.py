@@ -15,6 +15,7 @@ half-away、Python 是 half-even，``.xx5`` 上会分叉（见 :mod:`store.comme
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -97,6 +98,74 @@ class MigrationReport:
         return "；".join(parts) or "无需迁移"
 
 
+#: 迁移健康值，与 ``payments.sweeper`` / ``ops.incidents`` 同构，方便 ``/healthz`` 的
+#: 读者用同一套判断处理三个子对象。
+HEALTH_PENDING = "pending"
+HEALTH_OK = "ok"
+HEALTH_DEGRADED = "degraded"
+
+#: 对账不通过时最多上报多少条问题。它是给 ``/healthz`` 一行提示用的，不是日志替身
+#: （全量问题在启动期已逐条 ``error``）。
+_MAX_REPORTED_PROBLEMS = 10
+
+#: 最近一次迁移的快照，供 ``/healthz`` 读取。
+#:
+#: 为什么要在模块里留一份：``migrate_points`` 只在启动期跑一次，而对账不通过的后果
+#: 是**运行期**才炸的 —— 该表整表跳过删列，旧列仍是 ``NOT NULL`` 且无 DDL 默认值，
+#: ORM 又已不再映射它，之后每一次插入都会 ``NOT NULL constraint failed``。
+#: 也就是说「启动成功 ≠ 迁移成功」，而启动日志滚过去之后就只剩这里能回答
+#: 「这个库到底迁干净了没有」。
+#: 进程内、不落库：这个答案取决于**本次启动**跑了什么，重启后由下一次迁移重写；
+#: 它也不是账目，丢了不影响对账。
+_LAST_RUN: dict | None = None
+_LAST_RUN_LOCK = threading.Lock()
+
+
+def remember_run(report: MigrationReport) -> None:
+    """记下本次迁移结果（由 :func:`migrate_points` 自动调用，调用方无需手动登记）。"""
+    global _LAST_RUN
+    problems = [f"{row.table}: {problem}" for row in report.tables for problem in row.problems]
+    snapshot = {
+        "ok": report.ok,
+        "changed": report.changed,
+        "summary": report.summary(),
+        "backupPath": str(report.backup_path) if report.backup_path else None,
+        "problemCount": len(problems),
+        "problems": problems[:_MAX_REPORTED_PROBLEMS],
+        "tables": [
+            {
+                "table": row.table,
+                "state": row.state,
+                "backfilled": row.backfilled,
+                "verified": row.verified,
+                "dropped": list(row.dropped),
+            }
+            for row in report.tables
+        ],
+    }
+    with _LAST_RUN_LOCK:
+        _LAST_RUN = snapshot
+
+
+def migration_status() -> dict:
+    """最近一次迁移快照，供 ``/healthz`` 与后台概览读取。"""
+    with _LAST_RUN_LOCK:
+        snapshot = _LAST_RUN
+    if snapshot is None:
+        # 没跑过就不能报 ok —— 那是在陈述一个我们并不知道的结论（与 sweeper 的 pending 同理）。
+        return {
+            "health": HEALTH_PENDING,
+            "ok": None,
+            "changed": None,
+            "summary": "",
+            "backupPath": None,
+            "problemCount": 0,
+            "problems": [],
+            "tables": [],
+        }
+    return {"health": HEALTH_OK if snapshot["ok"] else HEALTH_DEGRADED, **snapshot}
+
+
 def _convert(value: object) -> int:
     """旧 ``FLOAT`` 值 → 整数厘。比例列与金额列同式（见 ``_MIGRATION_SPEC`` 注释）。"""
     return money.to_centi(value)
@@ -140,11 +209,24 @@ def migrate_points(
     drop_legacy: bool = True,
     backup: bool = True,
 ) -> MigrationReport:
-    """执行回填 + 对账（+ 可选退役旧列）。
+    """执行回填 + 对账（+ 可选退役旧列），并记下结果供 ``/healthz`` 读取。
 
     ``drop_legacy=False`` 时只做「补列 + 回填 + 对账」，把删列留给运维择期执行。**唯一
     会破坏数据的一步是删列**，它被 ``problems`` 严格把关：任何一行对账不通过就整表跳过。
     """
+    report = _migrate_points(engine, drop_legacy=drop_legacy, backup=backup)
+    # 结果登记在这里而不是调用方：漏登记会让 ``/healthz`` 永远显示 pending，
+    # 而「迁移失败了」正是它存在的原因。
+    remember_run(report)
+    return report
+
+
+def _migrate_points(
+    engine: Engine,
+    *,
+    drop_legacy: bool = True,
+    backup: bool = True,
+) -> MigrationReport:
     report = MigrationReport()
     scanned = _scan(engine)
 
