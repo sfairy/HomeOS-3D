@@ -100,6 +100,7 @@ HomeOS/
 │   ├── payments/           # base / mock / alipay（签名·下单·验签·查单）/ 统一入账
 │   ├── templates/          # store.html（前台 8 个分页）+ admin.html（后台 15 个 panel）
 │   ├── static/             # theme.css（唯一设计系统）+ store.css / admin.css + 字体·图标·JS
+│   │   └── admin/          # 后台入口 app.js + host.js（外壳窄接口）+ 9 个基础域模块 + panels/ 10 个面板
 │   ├── keys/local/         # 授权私钥（不入库）
 │   └── data/               # 商店 SQLite 与商品图（不入库）
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
