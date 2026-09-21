@@ -106,7 +106,7 @@ HomeOS/
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
 ├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· check_invariants.mjs（八条静默失效护栏：裸 /static、DOM id、缓存戳、后端包级环、mdi 版本、import 解析、构建体解构、资源引用）
+├── tools/                  # bump_static_cache_versions.mjs（缓存戳同戳刷新）· check_invariants.mjs（九条静默失效护栏：裸 /static、DOM id、缓存戳与模块身份、后端包级环、mdi 版本、import 解析、构建体解构、资源引用、导出名）
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
@@ -652,7 +652,7 @@ node tools/bump_static_cache_versions.mjs
 node tools/check_invariants.mjs
 ```
 
-它钉八条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里：
+它钉九条「不报错、只静默失效」的不变量，每条都对应一次真实踩坑，边界写在脚本文件头里：
 
 - **运行侧裸 `/static/` 静态 import**：`frontend/modules/runtime/**` 里出现声明式 `/static/` 导入即失败
   （舞台页能以 `file:` 打开，绝对路径在那个上下文中解析不了，表现是整棵模块树加载失败，而报错只指向
@@ -703,6 +703,14 @@ node tools/check_invariants.mjs
   同时挂在 `/fonts` 下，所以 `/store-static/font.min.css` 里写 `../fonts/font.woff2` 在磁盘上
   「跳出挂载点」、在浏览器里却是合法的 `/fonts/...`。`{{ }}` 占位、`data:`、`url(#fragment)`、
   以及 HTML 里的相对引用（相对的是文档 URL，由路由决定，算不出唯一答案）一律放过。
+- **`import` 的名字不在目标模块的导出里**：静态命名导入、默认导入、命名空间成员（`ns.foo`）、
+  动态解构（`const { a } = await import(...)`，桥文件整套写法）以及 `export { a } from "…"`
+  的转出口都判。失败发生在**解析期**：`does not provide an export named`，整棵模块树起不来，
+  而报错只指向导入处、不指出该补什么 —— 大文件拆分（`buildItemModel` / `PanelRenderer` /
+  `mountStage`）之后最容易漏的就是原处那个导出名。裸说明符（`three` 之类）与 `vendor/` 下的
+  压缩产物不判：前者是本仓之外的约定，后者是一整行的打包结果、文本扫描读不出导出表。
+  **同一条里原本还有另一半**「调用的名字在本文件没有任何绑定」（漏搬 import 的另一种症状，
+  只在执行到那一行时 `ReferenceError`）—— 实测后放弃，见脚本文件头第 9 条的说明与实测数字。
 
 **两份工作流共用这一份清单**：`.github/workflows/guards.yml`（push / PR 即跑）与
 `.github/workflows/docker.yml` 的 `guards` job（挂在镜像 `build` 之前）。改清单时**两份都要改**。
@@ -749,7 +757,7 @@ ruff check .                                      # 未使用 import / 重复定
 ```
 
 **两条工作流现在跑 `node tools/check_invariants.mjs` + `ruff check .`**（原先的七道 Node 守卫已随清理移除，
-本轮补回其中价值最高的那一道 —— 八条静默失效不变量）：
+本轮补回其中价值最高的那一道 —— 九条静默失效不变量）：
 
 - `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
 - `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有
@@ -765,21 +773,24 @@ ruff check .                                      # 未使用 import / 重复定
 原先由 `check_scene_sync.mjs` 比对两份映射表，现在必须人工同步 —— 不一致不会报错，只会让同一个值
 在两个页面里显示成不同的东西（少转一个 `"` 就是属性提前闭合，现场看着只是「布局怪」）。
 
-**ESM 导出的两类静默故障**（原先由 `check_esm_exports.mjs` 静态钉住，现在只能人工核对）：
+**ESM 导出的三类静默故障**（原先由 `check_esm_exports.mjs` 静态钉住，现在由第 9 条不变量接手）：
 
 - **分片自己漏写 `export`**：导入它的模块整页抛 SyntaxError，而报错信息指向**导入方**
-  （`air-conditioner.js:26`），很容易被误判成缓存没刷或路径写错。
+  （`air-conditioner.js:26`），很容易被误判成缓存没刷或路径写错。→ 第 9 条直接报在导入处。
 - **导出方把「只在 `export {}` 里出现的名字」当本地变量读**：`export { clampNumber as clamp } from
   "utils/numbers.js"` 只把 `clamp` 挂上对外接口、**不在本模块作用域建绑定**，于是同文件里那些
   `clamp(...)` 成了运行期 ReferenceError，栈顶指向导出方自己的函数（`geometry.js` 的
   `adaptiveDeviceLightBudget`）—— 现场看着像几何/预算算法坏了，其实是导出写法。换成
   `import { clampNumber } …; export { clampNumber as clamp };` 同样不建绑定，长得还更像「修复」，
-  两种写法都要靠人认出来。
-- 另有一处这两类写法都看不见：运行时树通往 `/static/` 的两份共享桥
+  两种写法都要靠人认出来。→ 第 9 条判「转出口里的名字在本文件被取用」（当前全仓 2 处纯转出口，
+  都在 `renderer/core/`）。
+- 运行时树通往 `/static/` 的两份共享桥
   `modules/runtime/core/static-helpers.js`（显示路径）与 `static-helpers-editor.js`（编辑器路径）。
   桥写的是 `const { a, b } = await (… ? import(相对路径) : import("/static/…"))`，既不是
-  `import … from` 也不是 `export const { … }`，所以桥里漏一个 `export`、拼错一个目标路径都不会有
-  任何静态报错，只有浏览器会炸 —— 加名字到桥里后请人工核对：
+  `import … from` 也不是 `export const { … }`。→ 第 9 条现在**两种朝向都看**：桥自己解构出的名字
+  必须在两个分支目标的导出里（漏登记/改错目标会报），导入方从桥里引的名字也必须在桥的
+  `export { … }` 里（漏转出会报）。仍然只能人工核对的只剩「两个分支必须指向同一个文件」这一条，
+  加名字到桥里时请照旧核对：
   解构出的每个名字都得是两个分支目标的真实导出、两个分支必须指向同一个文件、末尾 `export { … }`
   必须与解构出的名字集合逐字相同（桥自己的「登记表」纪律）。
 

@@ -1,8 +1,8 @@
 /**
- * 八条「不报错、只静默失效」的不变量守卫。
+ * 九条「不报错、只静默失效」的不变量守卫。
  *
- * 为什么只留八条：上一轮清理把原先的七道 Node 护栏整套移除（README「开发工具」有记录），
- * 理由是它们把关的多是「改结构才触发」的一次性问题。但下面八条对应的失效方式恰好相反 ——
+ * 为什么只留九条：上一轮清理把原先的七道 Node 护栏整套移除（README「开发工具」有记录），
+ * 理由是它们把关的多是「改结构才触发」的一次性问题。但下面九条对应的失效方式恰好相反 ——
  * 它们**每次编辑都可能踩到，且踩到时浏览器/解释器不报错**，正好是人工 review 最容易漏的那一类：
  *
  *   1. `frontend/modules/runtime/**` 里出现裸 `/static/...` 静态 import。
@@ -48,14 +48,34 @@
  *      判定按 URL（不是按磁盘）：`/store-static/` 与 `/fonts` 是两个挂在同一目录上的 URL，
  *      磁盘上「往上跳出挂载点」的写法在浏览器里可能是合法的。
  *
- * 明确不做的事：不检查 ESM 导出完整性（导入方引了一个目标模块没有导出的名字）、
- * 不检查注册表分片是否齐全。那两类需要「允许新文件先落地再接线」的宽容度，硬拦会把正常改动挡死。
- * 第 6 条不在此列：import 里既然已经写死了文件名，就不存在「先落地再接线」的中间态，
- * 解析不到只可能是层数写错，或者绝对路径写到了不承载它的前缀上。绝对说明符只在能算出
- * 服务端真实口径时才判（两个 StaticFiles 挂载点 + runtime 白名单），其余按路由放过。
+ *   9. `import` 进来的名字不在目标模块的导出里（含命名空间成员、动态解构，以及桥文件的转出口）。
+ *      大文件拆分留下的伤口都在这一层：`buildItemModel` 拆成 62 个构建体、`PanelRenderer` 拆成
+ *      四块、`mountStage` 拆成六簇，每个新模块都是「从原文件剪下来的一段」，剪完对不上原处的
+ *      导出名是最容易漏的一步。失败是**解析期**的：`The requested module … does not provide an
+ *      export named`，整棵模块树起不来，而报错只指向导入处、不指出该补什么。上一版把这一条
+ *      写在「明确不做的事」里，理由是「需要允许新文件先落地再谈接线」—— 那个理由站不住：
+ *      import 里文件名与名字同时写死在那一行，不存在「还没接线」的中间态。
+ *      与第 6 条并列而不是合并：第 6 条只问「文件在不在」，这一条问「名字在不在」。
+ *
+ *      本条原本还想判另一半 ——「调用的名字在本文件没有任何绑定」（少搬一个 import 的另一种
+ *      症状：只在**执行到那一行**时才 ReferenceError，与第 7 条同类）。实测后放弃：没有语法树
+ *      就分不清对象字面量的键、成员名、解构键与真正的取用，按行级口径在全仓 298 个模块上跑出
+ *      7996 条，绝大多数是模板字符串里的 GLSL（`vec2` / `mix` / `smoothstep` / `texture2D`）与
+ *      平台内置（`Number` / `Map` / `Set`）。要判准必须引入真正的 JS 解析器，而本仓的 Node
+ *      工具链刻意保持零依赖（AI 侧用 acorn 独立核过：当时的真自由变量只有 25 处，全是浏览器
+ *      宿主全局）。宁可漏报，也不让这里变成「把误报一条条塞进去」的垃圾桶。
+ *
+ * 明确不做的事：不检查注册表分片是否齐全 —— 那类需要「允许新文件先落地再接线」的宽容度，
+ * 硬拦会把正常改动挡死。
+ * 第 6 条不在此列：import 里既然已经写死了文件名，就不存在「先落地再接线」的中间态，解析不到
+ * 只可能是层数写错，或者绝对路径写到了不承载它的前缀上。绝对说明符只在能算出服务端真实口径
+ * 时才判（两个 StaticFiles 挂载点 + runtime 白名单），其余按路由放过。
  * 第 7 条同理：构建体顶部那行解构就是它的完整外部依赖清单，缺一项必然是漏搬，不存在中间态。
  * 第 8 条只判「文件型资源」：`<img src>`/`srcset`、HTML 内联 `<style>`、以及 HTML 里的相对引用
  * （相对的是**文档 URL**，而文档 URL 由路由决定，换算不出唯一答案）都放过。
+ * 第 9 条只判「本仓可解析的相对/绝对说明符」：裸说明符（`three` 之类）不判，目标解析不出磁盘
+ * 路径时放过，目标是 `vendor/` 下的压缩产物时也放过（那类文件是一整行，文本扫描读不出导出表，
+ * 且本仓不许改）—— 判不出真假就不判，这是这套守卫唯一的底线。
  *
  * Usage:
  *   node tools/check_invariants.mjs
@@ -1009,6 +1029,356 @@ function checkHtmlAssetRefs() {
 }
 
 // ---------------------------------------------------------------------------
+// 9) 模块图对不上：导入的名字不在目标导出里 / 调用的名字在本文件没有绑定
+// ---------------------------------------------------------------------------
+
+/**
+ * 本仓可解析的模块文件（与第 3 条的扫描面一致，`vendor/` 由 walk 跳过）。
+ *
+ * 刻意与 `MODULE_REF_SCAN_ROOTS` 共用一份：两处若各写一份，就会出现「第 3 条看得见的文件
+ * 第 9 条看不见」这类偏移，而偏移本身不会有人发现。
+ */
+function moduleSourceFiles() {
+  const files = [];
+  for (const root of MODULE_REF_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".js"]))) files.push(file);
+  }
+  return files;
+}
+
+/** 括号配平用；行尾注释先摘掉，避免注释里的括号把累积逻辑带偏。 */
+function stripLineComment(line) {
+  return line.replace(/(^|[^:"'`\\])\/\/.*$/, "$1");
+}
+
+function braceDepth(chunk) {
+  let depth = 0;
+  for (const ch of chunk) {
+    if (ch === "{" || ch === "(" || ch === "[") depth += 1;
+    else if (ch === "}" || ch === ")" || ch === "]") depth -= 1;
+  }
+  return depth;
+}
+
+/**
+ * 取出「声明级」的 import / export 语句。
+ *
+ * 必须把跨行声明拼回一条再解析：`import {\n a,\n b\n} from "…"` 这种写法在本仓是常态
+ * （printWidth 100 一超就换行），逐行看只会看到 `import {` 这一个片段。第 1 条当年就踩过
+ * 「逐行匹配漏掉跨行声明」的坑，这里沿用同一口径：从行首 import/export 起累积，直到括号配平。
+ * 缩进过的行（函数体里的动态 import 之类）不算声明级，交给下面按正则单独处理。
+ */
+function readModuleDeclarations(text) {
+  const lines = text.split("\n");
+  const lineStarts = [];
+  let offset = 0;
+  for (const line of lines) {
+    lineStarts.push(offset);
+    offset += line.length + 1;
+  }
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const head = lines[i];
+    if (!/^[ \t]*(?:import|export)\b/.test(head) || /^[ \t]*(?:\/\/|\*|\/\*)/.test(head)) {
+      i += 1;
+      continue;
+    }
+    let buffer = stripLineComment(head);
+    let depth = braceDepth(buffer);
+    let last = i;
+    while (depth > 0 && last + 1 < lines.length) {
+      last += 1;
+      const chunk = stripLineComment(lines[last]);
+      buffer += ` ${chunk}`;
+      depth += braceDepth(chunk);
+    }
+    out.push({
+      text: buffer,
+      line: i + 1,
+      // 声明自身的字符区间：判「这个名字在本文件还被用在哪」时必须把自己排除掉，
+      // 否则 `export { a } from "…"` 里的 a 会被当成一次取用（上一版正是这么误报的）。
+      start: lineStarts[i],
+      end: lineStarts[last] + lines[last].length
+    });
+    i = last + 1;
+  }
+  return out;
+}
+
+/** `{ a, b as c }` → [{ imported: "a", local: "a" }, { imported: "b", local: "c" }] */
+function parseNamedList(source) {
+  const items = [];
+  for (const raw of source.split(",")) {
+    const part = raw.trim();
+    if (!part) continue;
+    const alias = part.match(/^([\w$]+)\s+as\s+([\w$]+)$/);
+    if (alias) items.push({ imported: alias[1], local: alias[2] });
+    else if (/^[\w$]+$/.test(part)) items.push({ imported: part, local: part });
+  }
+  return items;
+}
+
+/**
+ * 第三方打包产物不判：`vendor/` 下是压缩过的单行文件（`export{a as b,c,d}` 全在一行里），
+ * 文本级扫描看不见它的导出表。判不出真假就只会变成误报源，而且本仓明令不许改这些文件
+ * （README「不要改 frontend/static/vendor/ 下的 three.js…」），发现真问题也无从修。
+ * 返回 null 表示「不知道」，调用方一律放过。
+ */
+function isVendorModule(file) {
+  return rel(file).split(path.sep).includes("vendor");
+}
+
+/**
+ * 目标模块的导出表。`export * from` 递归展开（带环保护），`export { a } from "…"` 记名字，
+ * 目标是裸说明符或解析不到磁盘时不再往下追（返回 null 表示「不知道」，调用方一律放过）。
+ */
+const moduleExportsCache = new Map();
+
+function moduleExportsOf(file, stack = new Set()) {
+  const key = path.resolve(file);
+  if (isVendorModule(key)) return null;
+  if (moduleExportsCache.has(key)) return moduleExportsCache.get(key);
+  if (stack.has(key)) return { named: new Set(), hasDefault: false };
+  stack.add(key);
+
+  let text;
+  try {
+    text = fs.readFileSync(key, "utf8");
+  } catch {
+    stack.delete(key);
+    moduleExportsCache.set(key, null);
+    return null;
+  }
+
+  const named = new Set();
+  let hasDefault = false;
+  for (const decl of readModuleDeclarations(text)) {
+    const body = decl.text;
+    if (/^[ \t]*export\b/.test(body) === false) continue;
+    if (/^[ \t]*export\s+default\b/.test(body)) {
+      hasDefault = true;
+      continue;
+    }
+    const from = body.match(/\bfrom\s*["']([^"']+)["']/);
+    const star = body.match(/^[ \t]*export\s*\*\s*from\s*["']([^"']+)["']/);
+    if (star) {
+      const target = specifierToDisk(key, star[1]);
+      const sub = target ? moduleExportsOf(target, stack) : null;
+      if (sub) for (const name of sub.named) named.add(name);
+      continue;
+    }
+    const braced = body.match(/\{([^}]*)\}/);
+    if (braced && !/^[ \t]*export\s+(?:async\s+)?(?:function|class|const|let|var)\b/.test(body)) {
+      for (const item of parseNamedList(braced[1])) named.add(item.local);
+      // `export { a } from "t"` 的 a 必须在 t 里存在 —— 桥文件（static-helpers*.js）
+      // 全靠这种写法转出口，目标改了导出名而这里没跟着改，同样是解析期硬失败。
+      if (from) {
+        const target = specifierToDisk(key, from[1]);
+        const sub = target ? moduleExportsOf(target, stack) : null;
+        if (sub) {
+          for (const item of parseNamedList(braced[1])) {
+            if (!sub.named.has(item.imported)) {
+              // 记在一个特殊键上，调用方按普通问题上报
+              named.add(`\u0000missing:${item.imported}\u0000${sub.named.size === 0 ? "empty" : ""}`);
+            }
+          }
+        }
+      }
+      continue;
+    }
+    const declared = body.match(/^[ \t]*export\s+(?:async\s+)?(?:const|let|var|function|class)\s+([\w$]+)/);
+    if (declared) named.add(declared[1]);
+    const pattern = body.match(/^[ \t]*export\s+(?:const|let|var)\s*\{([^}]*)\}/);
+    if (pattern) for (const item of parseNamedList(pattern[1])) named.add(item.local);
+  }
+
+  stack.delete(key);
+  const result = { named, hasDefault };
+  moduleExportsCache.set(key, result);
+  return result;
+}
+
+/**
+ * 摘掉注释，供「这个名字在文件里还被用在哪」这类窄口径扫描用：只扫名字，注释里的同名文字
+ * 不该算取用（`registry.js` 的文件头注释就逐个列出了它转出口的名字）。
+ *
+ * 块注释的**换行必须留下**：上一条版本把整块注释删成空串，行号整体前移，报出来的位置
+ * 指向了完全无关的行。字符串里的 `//` 之类会让它多摘一点 —— 方向是「少报」而不是「误报」。
+ */
+function stripComments(text) {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, block => block.replace(/[^\n]/g, ""))
+    .split("\n")
+    .map(stripLineComment)
+    .join("\n");
+}
+
+/**
+ * 找出 `name` 在本文件里的取用行（行号，1 起）。只认两种形态：
+ *   - 调用：`name(` 或 `name?.(`
+ *   - 取值：前面不是 `.`/`?.`/`#`，后面不是 `:`（对象字面量的键、`case` 标签）
+ * 解构键（`{ name: alias }`）与成员名（`a.name`）都会被这两条排除掉。
+ */
+function findLocalUses(text, name) {
+  const lines = [];
+  const callRe = new RegExp(`(^|[^\\w$.?#])${name}\\s*(?:\\?\\.)?\\s*\\(`, "g");
+  const valueRe = new RegExp(`(^|[^\\w$.?#])${name}\\b(?!\\s*:)`, "g");
+  text.split("\n").forEach((line, index) => {
+    const stripped = stripLineComment(line);
+    if (callRe.test(stripped) || valueRe.test(stripped)) lines.push(index + 1);
+    callRe.lastIndex = 0;
+    valueRe.lastIndex = 0;
+  });
+  return lines;
+}
+
+/**
+ * 把若干字符区间挖空（保留换行），让「这个名字在本文件还被用在哪」的扫描看不到这些区间。
+ */
+function maskSpans(text, spans) {
+  const chars = [...text];
+  for (const [from, to] of spans) {
+    for (let i = from; i < to && i < chars.length; i += 1) {
+      if (chars[i] !== "\n") chars[i] = " ";
+    }
+  }
+  return chars.join("");
+}
+
+function checkModuleBindings() {
+  const problems = [];
+  const files = moduleSourceFiles();
+
+  for (const file of files) {
+    const text = fs.readFileSync(file, "utf8");
+    const lineAt = makeLineCounter(text);
+
+    // ---- 9A：导入的名字必须在目标模块的导出里 ----
+    for (const decl of readModuleDeclarations(text)) {
+      const body = decl.text;
+      const from = body.match(/\bfrom\s*["']([^"']+)["']/);
+      if (!from) continue;
+      const target = specifierToDisk(file, from[1]);
+      if (!target) continue;
+      const targetExports = moduleExportsOf(target);
+      if (!targetExports) continue;
+      const braced = body.match(/\{([^}]*)\}/);
+      const isImport = /^[ \t]*import\b/.test(body);
+      if (braced) {
+        for (const item of parseNamedList(braced[1])) {
+          if (targetExports.named.has(item.imported)) continue;
+          // 命中的是「目标模块自己的 re-export 断了」，给一条更具体的说明
+          const broken = [...targetExports.named].find(n => n.startsWith(`\u0000missing:${item.imported}\u0000`));
+          problems.push({
+            file: rel(file),
+            line: decl.line,
+            detail: `${isImport ? "import" : "export"} 的 "${item.imported}" 不在 ${rel(target)} 的导出里`
+              + (broken ? `（该模块的转出口也缺这个名字）` : "")
+          });
+        }
+      } else if (!/\*\s+as\s/.test(body)) {
+        const head = body.slice(0, body.indexOf("from")).replace(/^[ \t]*(?:import|export)\s+/, "").trim();
+        if (/^[\w$]+$/.test(head) && !targetExports.hasDefault) {
+          problems.push({ file: rel(file), line: decl.line, detail: `${rel(target)} 没有默认导出（"${head}" 引不到）` });
+        }
+      }
+    }
+
+    // ---- 9A′：命名空间成员与动态解构，同样要落在目标导出里 ----
+    const namespaceTargets = new Map();
+    for (const decl of readModuleDeclarations(text)) {
+      const ns = decl.text.match(/^[ \t]*import\s*\*\s+as\s+([\w$]+)\s*from\s*["']([^"']+)["']/);
+      if (ns) {
+        const target = specifierToDisk(file, ns[2]);
+        if (target) namespaceTargets.set(ns[1], target);
+      }
+    }
+    for (const [local, target] of namespaceTargets) {
+      const targetExports = moduleExportsOf(target);
+      if (!targetExports) continue;
+      const memberRe = new RegExp(`\\b${local}\\.([\\w$]+)`, "g");
+      const seen = new Set();
+      for (const match of text.matchAll(memberRe)) {
+        const name = match[1];
+        if (targetExports.named.has(name) || seen.has(name)) continue;
+        seen.add(name);
+        problems.push({
+          file: rel(file),
+          line: lineAt(match.index),
+          detail: `${local}.${name} 不在 ${rel(target)} 的导出里`
+        });
+      }
+    }
+    // `const { a, b } = await import("…")`（含 static-helpers*.js 的「条件动态 import + 命名导出」桥）：
+    // 只判生产分支那条绝对路径，开发态的 new URL(..., import.meta.url) 与它互斥，不重复判。
+    for (const match of text.matchAll(/const\s*\{([^}]*)\}\s*=\s*await\s*import\(\s*["']([^"']+)["']\s*\)/g)) {
+      const target = specifierToDisk(file, match[2]);
+      if (!target) continue;
+      const targetExports = moduleExportsOf(target);
+      if (!targetExports) continue;
+      for (const item of parseNamedList(match[1])) {
+        if (targetExports.named.has(item.imported)) continue;
+        problems.push({
+          file: rel(file),
+          line: lineAt(match.index),
+          detail: `动态解构出的 "${item.imported}" 不在 ${rel(target)} 的导出里`
+        });
+      }
+    }
+    for (const match of text.matchAll(/const\s*\{([^}]*)\}\s*=\s*await\s*\(\s*import\.meta\.url\.startsWith[\s\S]{0,400}?:\s*import\(\s*["'](\/[^"']+)["']\s*\)/g)) {
+      const target = specifierToDisk(file, match[2]);
+      if (!target) continue;
+      const targetExports = moduleExportsOf(target);
+      if (!targetExports) continue;
+      for (const item of parseNamedList(match[1])) {
+        if (targetExports.named.has(item.imported)) continue;
+        problems.push({
+          file: rel(file),
+          line: lineAt(match.index),
+          detail: `动态解构出的 "${item.imported}" 不在 ${rel(target)} 的导出里`
+        });
+      }
+    }
+
+    // ---- 9A″：纯转出口的名字，在本文件里不是绑定 ----
+    // `export { clampNumber as clamp } from "…"` 只把名字挂上对外接口，不在本模块作用域建绑定；
+    // 同文件里再写 `clamp(...)` 就是运行期 ReferenceError，而栈顶指向导出方自己的函数（README
+    // 记的那次现场像「几何/预算算法坏了」，其实是导出写法）。同理 `import { clampNumber } …;
+    // export { clampNumber as clamp };` 也不建绑定，两种写法一起判：只认**转出口里出现的名字**，
+    // 而且只认「后面跟 `(`」与「不跟 `:`、前面不带 `.`」这两种取用形态 —— 与 9B 相反，这里名字
+    // 是已知的、数量是个位数，窄口径就够。
+    const allDeclarations = readModuleDeclarations(text);
+    const reexports = allDeclarations
+      .map(decl => ({ decl, match: decl.text.match(/^[ \t]*export\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']/) }))
+      .filter(entry => entry.match);
+    if (reexports.length > 0) {
+      // 只挖掉「自己会列出这个名字」的语句：import 与 `export … from`。**不能**连
+      // `export function …` 一起挖 —— 那种声明的函数体也是多行的，会被当成一条声明整块挖空，
+      // 而真正的取用恰恰就写在函数体里（上一版正是这样把注入的用例漏掉的）。
+      const maskTargets = allDeclarations.filter(
+        decl => /^[ \t]*import\b/.test(decl.text) || /\bfrom\s*["']/.test(decl.text)
+      );
+      const scanBody = stripComments(maskSpans(text, maskTargets.map(d => [d.start, d.end])));
+      for (const { decl, match } of reexports) {
+        for (const item of parseNamedList(match[1])) {
+          for (const name of new Set([item.imported, item.local])) {
+            const uses = findLocalUses(scanBody, name);
+            if (uses.length === 0) continue;
+            problems.push({
+              file: rel(file),
+              line: uses[0],
+              detail: `"${name}" 在 export { … } from 里只是转出口、不在本模块建绑定，这里取用会 ReferenceError`
+            });
+          }
+        }
+      }
+    }
+  }
+  return problems.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+}
+
+// ---------------------------------------------------------------------------
 
 const checks = [
   {
@@ -1050,6 +1420,11 @@ const checks = [
     title: "HTML 的 script/link、CSS 的 url()/@import 指向不存在的资源",
     hint: "按被引用文件的位置改：HTML 只判 `/static/...`、`/store-static/...`、`/api/v1/modules/interaction3d/...` 这类绝对引用（相对引用按页面路由解析，判不了），CSS 的 url() 相对该 CSS 文件解析；runtime 资源同样要登记进 get_resource() 白名单",
     run: checkHtmlAssetRefs
+  },
+  {
+    title: "import 的名字不在目标模块的导出里（整棵模块树起不来的解析期错误）",
+    hint: "对着目标模块补导出名、或改导入名；命名空间成员 / 动态解构 / 桥文件的转出口一并判。裸说明符与 vendor 压缩产物不判，边界见文件头第 9 条",
+    run: checkModuleBindings
   }
 ];
 

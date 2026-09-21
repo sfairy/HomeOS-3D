@@ -33,9 +33,10 @@ jobs:
           python-version: "3.12"
 
       # 七道 Node 守卫已在本轮清理中整体移除（README「开发工具」有记录）；现在补回这一类里
-      # 价值最高的一道：tools/check_invariants.mjs 钉八条「不报错、只静默失效」的不变量
-      # （运行侧裸 /static、取不存在的 DOM id、缓存戳出现第二个值、后端包级环、mdi 版本、
-      # import 与 HTML/CSS 资源引用解析不到、物件构建体漏解构 context 键）。
+      # 价值最高的一道：tools/check_invariants.mjs 钉九条「不报错、只静默失效」的不变量
+      # （运行侧裸 /static、取不存在的 DOM id、缓存戳与模块身份、后端包级环、mdi 版本、
+      # import 与 HTML/CSS 资源引用解析不到、物件构建体漏解构 context 键、import 的名字
+      # 不在目标模块的导出里）。
       # 这些都是每次编辑都可能踩到、且踩到时浏览器/解释器不报错的那一类，不能留给人工 review。
       # ubuntu-latest 自带 node，不需要额外 setup。
       - name: Invariants (tools/check_invariants.mjs)
