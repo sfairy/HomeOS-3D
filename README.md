@@ -72,7 +72,7 @@ HomeOS/
 │   └── static/             # 挂载为 /static
 │       ├── app.css         # 唯一全局样式表（保留在挂载根）
 │       ├── bridge/         # 3D 交互编辑器桥接、场景渲染助手、封面、定义
-│       ├── editor/         # 仪表盘编辑器入口（home.js）与主体；picker/ 为控件/资源选择器
+│       ├── editor/         # 仪表盘编辑器：home.js 为装配层，home/ 按域外提的模块，picker/ 为控件/资源选择器
 │       ├── renderer/       # 控件运行时：core/（渲染主体与共享基建）· controls/（按域）· geometry/
 │       ├── display/        # 中控展示页脚本与样式
 │       ├── auth/           # 登录 / 初始化 / 配对 / 激活页脚本与样式
