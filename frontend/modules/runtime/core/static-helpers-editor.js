@@ -32,6 +32,10 @@ const { normalizeInteraction3dLightingMode } = await (import.meta.url.startsWith
 const { confirmAction } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/ui-confirm.js", import.meta.url))
   : import("/static/shared/ui-confirm.js?v=2609212122"));
+// DOM 工厂：编辑器侧的配置编辑器 / 量程对话框 / 三个设备编辑器都要造元素、按钮与 SVG。
+const { createDomFactory } = await (import.meta.url.startsWith("file:")
+  ? import(new URL("../../../static/shared/dom-factory.js", import.meta.url))
+  : import("/static/shared/dom-factory.js?v=2609212122"));
 // 授权 / 编辑器视图登记：这是本文件与 static-helpers.js 分家的原因，见文件头。
 const {
   requestInteraction3dAccess,
@@ -43,15 +47,20 @@ const {
 const { DEFAULT_BASE_LIGHTING, normalizeBaseLighting } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/3d-studio/loaders/studio-normalization.js", import.meta.url))
   : import("/static/3d-studio/loaders/studio-normalization.js?v=2609212122"));
+const { toSvgPoint } = await (import.meta.url.startsWith("file:")
+  ? import(new URL("../../../static/shared/svg-point.js", import.meta.url))
+  : import("/static/shared/svg-point.js?v=2609212122"));
 
 export {
   DEFAULT_BASE_LIGHTING,
   confirmAction,
+  createDomFactory,
   getInteraction3dEditorView,
   interaction3dPreviewSize,
   normalizeBaseLighting,
   normalizeInteraction3dLightingMode,
   randomUuid,
   requestInteraction3dAccess,
-  subscribeInteraction3dAccess
+  subscribeInteraction3dAccess,
+  toSvgPoint
 };

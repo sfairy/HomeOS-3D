@@ -659,6 +659,9 @@ def get_resource(filename: str, request: Request, _viewer: LicensedViewer) -> Fi
             'core/static-helpers.js',
             'core/static-helpers-editor.js',
             'core/scene-model-key.js',
+            # scene-model-bounds：模型本体世界包围盒的唯一实现，被 environment/（光晕、气幕）
+            # 与 nas/（指示灯布局）三处 import —— 漏登记同样是「某个模块 404、import 链断掉」。
+            'core/scene-model-bounds.js',
             'core/motion-preference.js',
             'core/scene-background.js',
             'core/background-theme.js',

@@ -7,6 +7,7 @@
  * | --- | --- | --- | --- |
  * | `finiteNumberOr`        | 非法 | 非法 | 兜底值 |
  * | `coercedFiniteNumberOr` | 认   | 非法 | 兜底值 |
+ * | `positiveNumberOr`      | 认   | 非法 | 兜底值（非正数也算非法，见下） |
  * | `finiteNumberOrNull`    | 认   | 非法 | `null` |
  *
  * 「认」指 `Number(x)` 能换算（`"3.5"` 与 `" 3.5 "` 都算）；「非法」一律回落，不尝试换算。
@@ -22,6 +23,9 @@
  * `clampNumber` 交给 `Math`（`null` / `""` → 0，`NaN` 原样传播，故意不兜底）；
  * `clampCoercedNumber` 先 `Number()`，非有限数回落兜底；`clampOptionalNumber` 额外把
  * `null` / `""` 视为「未设置」；`clampTypedNumber` 只认真正的 number，数字字符串也算非法。
+ *
+ * 还有 `roundToDecimals`：不属于上面两族，作用是抹平浮点末位（缓存签名靠字符串比对，
+ * 末位抖动会让缓存每帧失效）。精度必须由调用方显式传，见该函数的说明。
  */
 
 /** 只有空白的字符串等同于没填，与 `""` 同等对待（表单里很常见）。 */
@@ -56,6 +60,17 @@ export function isUsableNumber(value) {
 export function coercedFiniteNumberOr(value, fallback) {
   const parsedValue = isAbsentValue(value) ? NaN : Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : fallback;
+}
+
+/**
+ * 先 `Number()` 再判定；非有限数**或非正数**用兜底值。
+ *
+ * 用在「尺寸 / 长度 / 缩放」这类 0 与负数都没有意义的字段：0 宽高的元素不报错、也不可见，
+ * 排查起来只能靠猜；负数在这里同样是写错了配置。与 `coercedFiniteNumberOr` 的区别仅此一条。
+ */
+export function positiveNumberOr(value, fallback) {
+  const parsedValue = isAbsentValue(value) ? NaN : Number(value);
+  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
 }
 
 /**
@@ -95,4 +110,17 @@ export function clampTypedNumber(value, minimum, maximum, fallback) {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(minimum, Math.min(maximum, value))
     : fallback;
+}
+
+/**
+ * 按指定小数位四舍五入，用于**抹平浮点末位**：缓存签名 / 布局签名靠字符串比对判断「内容是否变化」，
+ * 而矩阵元素同一机位两次算出的末位都可能差 1e-16，不抹平就会每帧都判脏、缓存彻底失效。
+ *
+ * `decimals` 必须由调用方显式给出，因为「抹到几位」是各调用方的精度契约，不是通用常量：
+ * 相机矩阵抹到 8 位（1e-8 米远低于渲染精度），家具布局签名抹到 4 位（拖拽产生的 0.1mm 级抖动
+ * 不该触发重烘）。参数给 0 即取整。
+ */
+export function roundToDecimals(numericValue, decimals) {
+  const scale = 10 ** decimals;
+  return Math.round(numericValue * scale) / scale;
 }

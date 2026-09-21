@@ -6,18 +6,20 @@
  * 是纯函数，不持有状态、不写回入参。夹取统一用 utils/numbers.js 的 clampNumber，区间上下
  * 限与其余各处相反时结果会静默不同，故按同一份口径。
  */
-import { clampNumber } from "../../utils/numbers.js?v=2609212122";
+import { clampNumber, coercedFiniteNumberOr } from "../../utils/numbers.js?v=2609212122";
+// 色温换算（含唯一的公式与单通道夹取）共用 utils/colors.js：studio 侧与灯光侧的系数不许各写一份。
+import { kelvinToRgbHex as normalizedKelvinToRgbHex } from "../../utils/colors.js?v=2609212122";
 
 /**
  * 转成有限数字，失败时用兜底值（JSON 里的 null / "" / "abc" 直接运算会得到 NaN）。
+ *
+ * 薄封装 `utils/numbers.js` 的 `coercedFiniteNumberOr`：这套换算在 studio 侧被大量调用，过去这里是
+ * 裸 `Number(value)` + `Number.isFinite`，缺了那份挡板 —— `Number("")` 是 0、`Number(true)` 是 1、
+ * `Number([])` 也是 0，于是「用户清空了输入框」会被当成 0 写进场景参数。保留这个名字只是因为
+ * 调用点太多，实现不许再自己写一份。
  */
 export function finite(value, fallback = 0) {
-  const numericValue = Number(value);
-  if (Number.isFinite(numericValue)) {
-    return numericValue;
-  } else {
-    return fallback;
-  }
+  return coercedFiniteNumberOr(value, fallback);
 }
 
 /**
@@ -82,27 +84,17 @@ export function normalizeLabelText(labelText, fallbackText, maxLength) {
 }
 
 /**
- * 把色温换算成 0xRRGGBB（灯具发光色）。
- * 分段幂函数 / 对数近似式，只在 2200~6500 K 准确；越界输入先夹到边界，避免负底数或非法对数。
+ * 把色温换算成 0xRRGGBB（灯具发光色），公式与单通道收尾的唯一实现在 utils/colors.js。
+ *
+ * 色温先夹到 2200~6500 K：这是场景里灯具实际可用的色温范围，近似式在此区间内才准。调用方的
+ * 区间与灯光实体效果色那条路**有意不同**（那条按近似式名义范围 1000~20000 夹）。
  */
 export function kelvinToRgbHex(kelvin) {
-  // 近似式的自变量以百开尔文为单位，分界点 66 即 6600 K。
-  const scaledKelvin = clampNumber(finite(kelvin, 3000), 2200, 6500) / 100;
-  const redValue = scaledKelvin <= 66 ? 255 : (scaledKelvin - 60) ** -0.1332047592 * 329.698727446;
-  const greenValue =
-    scaledKelvin <= 66
-      ? Math.log(scaledKelvin) * 99.4708025861 - 161.1195681661
-      : (scaledKelvin - 60) ** -0.0755148492 * 288.1221695283;
-  const blueValue =
-    scaledKelvin >= 66
-      ? 255
-      : scaledKelvin <= 19
-        ? 0
-        : Math.log(scaledKelvin - 10) * 138.5177312231 - 305.0447927307;
-  // 把近似式算出的通道值夹到 0~255 再取整：近似式在色温两端会给出负值或 >255 的值，
-  // 不夹的话左移拼位会溢出 / 借位，把另外两个通道也污染掉。
-  const clampChannel = channelValue => Math.round(clampNumber(channelValue, 0, 255));
-  return (clampChannel(redValue) << 16) | (clampChannel(greenValue) << 8) | clampChannel(blueValue);
+  return normalizedKelvinToRgbHex(kelvin, {
+    minKelvin: 2200,
+    maxKelvin: 6500,
+    fallbackKelvin: 3000
+  });
 }
 
 /**

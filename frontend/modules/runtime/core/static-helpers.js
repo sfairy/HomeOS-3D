@@ -14,6 +14,7 @@
 
 // 开发态（file:）走相对路径，生产走 /static 绝对路径；两条都不能省。
 const {
+  readFromMapOrRecord,
   resolveStateEntry,
   stateTextOf,
   normalizedTextOf
@@ -23,12 +24,33 @@ const {
 const { entityDomainFromId } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/entities.js", import.meta.url))
   : import("/static/utils/entities.js?v=2609212122"));
+// 窗帘能力位与「有没有叶片证据」的判定：舞台（cover-state）与仪表盘注册表共用同一份口径。
+const {
+  COVER_FEATURE_CLOSE,
+  COVER_FEATURE_OPEN,
+  COVER_FEATURE_SET_POSITION,
+  COVER_FEATURE_SET_TILT_POSITION,
+  COVER_FEATURE_STOP,
+  coverFeaturesOf,
+  coverReportsTilt
+} = await (import.meta.url.startsWith("file:")
+  ? import(new URL("../../../static/utils/cover-features.js", import.meta.url))
+  : import("/static/utils/cover-features.js?v=2609212122"));
 const { apiErrorMessage } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/api-error.js", import.meta.url))
   : import("/static/utils/api-error.js?v=2609212122"));
 const { INTERACTION_PAGE_OPTIONS } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/interaction-pages.js", import.meta.url))
   : import("/static/utils/interaction-pages.js?v=2609212122"));
+// DOM 工厂：显示路径上的四个面板（气候 / 窗帘 / NAS / 电视）+ 弹窗示意预览都要造元素、
+// 按钮与 replaceChildren 兜底，实现统一在 /static/shared/dom-factory.js。
+const { createDomFactory } = await (import.meta.url.startsWith("file:")
+  ? import(new URL("../../../static/shared/dom-factory.js", import.meta.url))
+  : import("/static/shared/dom-factory.js?v=2609212122"));
+// 数字输入的步进：编辑器侧（home.js）与平面光区编辑器共用一份实现，策略经参数传入。
+const { stepNumberInput } = await (import.meta.url.startsWith("file:")
+  ? import(new URL("../../../static/shared/number-input-stepper.js", import.meta.url))
+  : import("/static/shared/number-input-stepper.js?v=2609212122"));
 // 数值换算与夹取（唯一实现仍在 utils/numbers.js）：运行侧大量几何 / 光照 / 面板字段都要过它，
 // 缺了这条桥，各模块就会各自再造一份口径不同的夹取与换算。
 const {
@@ -43,18 +65,33 @@ const {
 const { capturePointer, releasePointer } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/pointer-capture.js", import.meta.url))
   : import("/static/utils/pointer-capture.js?v=2609212122"));
+// 浮动菜单定位：编辑器里 11 处下拉 + 平面光区编辑器的自定义下拉共用一份算术，差异走参数。
+const { positionFloatingMenu } = await (import.meta.url.startsWith("file:")
+  ? import(new URL("../../../static/shared/menu-positioning.js", import.meta.url))
+  : import("/static/shared/menu-positioning.js?v=2609212122"));
 
 export {
+  COVER_FEATURE_CLOSE,
+  COVER_FEATURE_OPEN,
+  COVER_FEATURE_SET_POSITION,
+  COVER_FEATURE_SET_TILT_POSITION,
+  COVER_FEATURE_STOP,
   INTERACTION_PAGE_OPTIONS,
   apiErrorMessage,
   capturePointer,
   clampNumber,
   coercedFiniteNumberOr,
+  coverFeaturesOf,
+  coverReportsTilt,
+  createDomFactory,
   entityDomainFromId,
   finiteNumberOr,
   finiteNumberOrNull,
   normalizedTextOf,
+  positionFloatingMenu,
+  readFromMapOrRecord,
   releasePointer,
   resolveStateEntry,
-  stateTextOf
+  stateTextOf,
+  stepNumberInput
 };

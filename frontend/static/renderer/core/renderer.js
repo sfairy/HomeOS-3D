@@ -19,7 +19,7 @@ import {
 // 这里的 ?v= 必须与 home.js / display.js 里那条 registry.js?v= 完全一致；
 // 不一致会让注册表被加载两份，运行期两个模块各持一份 Map，控件类型彼此看不见。
 import {
-  COVER_CLOSED_POSITION_EPSILON,
+  COVER_POSITION_EPSILON_PERCENT,
   coverComponentIsDream,
   doorWindowPerspectiveCorners,
   doorWindowPerspectiveMatrix,
@@ -11592,7 +11592,7 @@ export class PanelRenderer {
           const isCurtainRetractedNow =
             popupCoverControls.isDreamCurtainRetracted?.() ??
             coverVisualButton.dataset.curtainRetracted === "true";
-          const shouldCloseCover = previousCoverPosition > COVER_CLOSED_POSITION_EPSILON;
+          const shouldCloseCover = previousCoverPosition > COVER_POSITION_EPSILON_PERCENT;
           if (isDreamCurtainCover) {
             popupCoverControls.beginDreamCurtainMotion?.(!isCurtainRetractedNow);
           } else {
@@ -14373,6 +14373,11 @@ export class PanelRenderer {
          * 计算并设置下拉菜单的尺寸与位置（空间不足时向上翻转）。
          * 用 fixed 定位并夹进取视口：宽度取触发器宽度与 190px 的较大值、高度上限 360px；
          * 下方容不下且上方更宽裕时向上弹；最后把 left/top 夹进视口内 10px，避免贴边或溢出。
+         *
+         * 为什么不与编辑器侧那 11 处下拉共用 `shared/menu-positioning.js`：这里有三处手感是它
+         * 没有的 —— 宽度**下限** 190px、翻转阈值用 `min(内容高, 180)` 且要求上方更宽裕、不翻转时
+         * 把 top 也夹进视口。共享实现要长出三个开关才能表达，而那三个开关只服务这一个调用点；
+         * 强行合并会改掉长菜单贴底时的翻转时机（本文件在展示页上），得靠视觉验证兜。故保留分叉。
          */
         const positionSelectMenu = () => {
           if (!isSelectMenuOpen() && selectMenuElement.hidden) {
@@ -18626,7 +18631,7 @@ export class PanelRenderer {
         const dreamCurtainRetractedState =
           detailsControls?.isDreamCurtainRetracted?.() ??
           entityCoverVisual.dataset.curtainRetracted === "true";
-        const isCoverOffClosedPosition = previousCoverPositionValue > COVER_CLOSED_POSITION_EPSILON;
+        const isCoverOffClosedPosition = previousCoverPositionValue > COVER_POSITION_EPSILON_PERCENT;
         if (isDreamCover) {
           detailsControls?.beginDreamCurtainMotion?.(!dreamCurtainRetractedState);
         }

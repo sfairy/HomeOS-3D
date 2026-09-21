@@ -29,6 +29,7 @@ import {
 import { withRequestTimeout } from "../utils/request-timeout.js?v=2609212122";
 // 交互页面的可选项与运行时树的人体存在显示页判定共用一份，见 utils/interaction-pages.js。
 import { INTERACTION_PAGE_OPTIONS } from "../utils/interaction-pages.js?v=2609212122";
+import { createDomFactory } from "../shared/dom-factory.js?v=2609212122";
 import {
   INTERACTION3D_LIGHTING_MODES,
   normalizeInteraction3dLightingMode,
@@ -281,14 +282,9 @@ export function renderInteraction3dInspector(hostElement, targetComponent, edito
       .map(detailsEntry => [detailsEntry.dataset.inspectorGroup, detailsEntry.open])
   );
   inspectorElement.replaceChildren();
-  // 面板重建时的统一元素工厂：所有子节点都经它创建，保证 className 与文本的赋值口径一致。
-  const createElement = (tagName, className = "", textContent = "") => {
-    // 文本一律用 textContent 赋值，避免面板里的用户数据（设备名等）被当作 HTML 解析。
-    const createdElement = document.createElement(tagName);
-    createdElement.className = className;
-    createdElement.textContent = textContent;
-    return createdElement;
-  };
+  // 面板重建时的统一元素工厂：唯一实现见 shared/dom-factory.js（文本一律 textContent，
+  // 避免面板里的用户数据（设备名等）被当作 HTML 解析；按钮一律显式 type="button"）。
+  const { el: createElement } = createDomFactory(document);
   // 新建一个带标题的 section 并挂到面板根节点，返回该 section 供调用方继续追加内容。
   const createSection = sectionTitle => {
     const sectionElement = createElement("section", "inspector-section");

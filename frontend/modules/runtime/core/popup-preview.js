@@ -7,6 +7,8 @@
  * camera-popup-layout.js（摄像头弹窗的固定版式），这里只补默认值，避免 2D 弹窗与 3D 预览出现两套算法。
  */
 
+// DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现，与其它运行侧模块同一座桥。
+import { createDomFactory } from "./static-helpers.js?v=2609212122";
 // 复用渲染器的弹窗落位与摄像头版式算法；开发环境走相对路径，生产环境走静态路径。
 const { popupPlacement: popupPlacement } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/popup-placement.js", import.meta.url))
@@ -52,15 +54,9 @@ function popupPreviewPlacement(kind, width, height, settings) {
  * 创建编辑面板里的弹窗示意预览（缩微色块，不含真实控件）。
  */
 export function createPopupLayoutPreview(hostElement, getLayout, onClose) {
-  // 一律用宿主元素所属的 document，保证嵌在 iframe 里也创建到正确的文档中。
-  const ownerDocument = hostElement.ownerDocument || document;
-  /** 创建元素的小工具：类名与文本是固定套路，抽出来避免重复五行样板。 */
-  const createElement = (tagName, className, textContent = "") => {
-    const element = ownerDocument.createElement(tagName);
-    element.className = className;
-    element.textContent = textContent;
-    return element;
-  };
+  // 工厂按宿主的 ownerDocument 创建节点：嵌在 iframe 里也落在正确的文档中。
+  // 实现见 /static/shared/dom-factory.js（经 static-helpers 桥取用）。
+  const { createElement } = createDomFactory(hostElement.ownerDocument || document);
   const layerElement = createElement("div", "i3d-popup-preview-layer");
   const previewElement = createElement("section", "i3d-popup-preview");
   // aria-label 通过属性设置而不是 innerHTML，避免把无障碍文案与结构耦合。

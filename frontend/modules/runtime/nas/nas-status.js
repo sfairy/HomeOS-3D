@@ -10,10 +10,11 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609212122";
+import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609212122";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js：模型 ID 只在一个楼层内唯一，
 // 定位必须带上楼层；两侧缺字段 / 空串必须是同一个键，否则指示灯挂不上。
 import { sceneModelKey } from "../core/scene-model-key.js?v=2609212122";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609212122";
 // 「减少动态效果」偏好的唯一判定。
 import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609212122";
 /**
@@ -39,10 +40,9 @@ function nasState(entityId, state) {
  * （item.statusSource，常见于用 SNMP / 传感器间接判断在线）。
  */
 export function nasDeviceState(item, stateSources = {}) {
-  // 状态源可能是 Map（舞台侧按 entityId 建的索引）也可能是普通对象；
-  // 收口成一个取值函数，下面的判定就只写一份。
-  const readState = stateEntityId =>
-    stateSources instanceof Map ? stateSources.get(stateEntityId) : stateSources[stateEntityId];
+  // 状态源可能是 Map（舞台侧按 entityId 建的索引）也可能是普通对象；取值口径只有一份实现
+  // （utils/state-entry.js 的 readFromMapOrRecord），本地不再写第二遍。
+  const readState = stateEntityId => readFromMapOrRecord(stateSources, stateEntityId);
   if (item.entityId) {
     return nasState(item.entityId, readState(item.entityId));
   }
@@ -100,45 +100,6 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
     }
     entry.mesh.removeFromParent();
     entry.mesh.material.dispose();
-  }
-  /**
-   * 计算模型（不含环境效果与嵌套的独立模型）的世界坐标包围盒。
-   * 手工遍历而非 Box3.setFromObject：后者会把状态点、光晕等子对象算进去，撑大包围盒、
-   * 让指示灯位置漂移；嵌套模型有自己的 origin，也必须排除。
-   */
-  function computeModelBounds(model) {
-    const bounds = new THREE.Box3();
-    // 递归累加世界包围盒：跳过环境效果与嵌套独立模型；对几何体自带的包围盒先
-    // clone 再变换，直接 applyMatrix4 会把它改写成世界坐标、影响其它使用者。
-    function unionMeshBounds(object, matrix) {
-      if (
-        !object.userData?.environmentEffect &&
-        (object === model || object.userData?.environmentModelId == null)
-      ) {
-        if (object.isMesh && object.geometry) {
-          if (!object.geometry.boundingBox) {
-            object.geometry.computeBoundingBox();
-          }
-          if (object.geometry.boundingBox) {
-            // clone 后再变换：直接 applyMatrix4 会改写几何体自带的包围盒。
-            bounds.union(object.geometry.boundingBox.clone().applyMatrix4(matrix));
-          }
-        }
-        for (const descendant of object.children || []) {
-          // 只有自动更新矩阵的对象才需要手动 updateMatrix；
-          // 手工管理矩阵的对象（matrixAutoUpdate = false）由它自己负责。
-          if (descendant.matrixAutoUpdate) {
-            descendant.updateMatrix();
-          }
-          unionMeshBounds(
-            descendant,
-            new THREE.Matrix4().multiplyMatrices(matrix, descendant.matrix)
-          );
-        }
-      }
-    }
-    unionMeshBounds(model, new THREE.Matrix4());
-    return bounds;
   }
   /**
    * 同步指示灯：按最新绑定与状态创建 / 更新 / 回收平面。
@@ -205,9 +166,9 @@ export function createNasStatus({ THREE: THREE, requestFrame: requestFrame = () 
           if (existing) {
             releaseEntry(existing);
           }
-          const modelBounds = computeModelBounds(matchedModel);
+          const modelBounds = modelWorldBounds(matchedModel, THREE);
           // 模型还没有几何体（正在加载）时不建立记录，下一轮结构变化会重试。
-          if (modelBounds.isEmpty()) {
+          if (!modelBounds) {
             meshesByBindingId.delete(binding.id);
             continue;
           }

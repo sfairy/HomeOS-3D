@@ -12,6 +12,7 @@ import { coverComponentIsDream } from "../core/registry/cover-state.js?v=2609212
 import { entityMetadataIsAvailable } from "../core/entity-metadata.js?v=2609212122";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`。
 import { resolveStateEntry, stateTextOf } from "../../utils/state-entry.js?v=2609212122";
+import { COVER_POSITION_EPSILON_PERCENT } from "../../utils/cover-features.js?v=2609212122";
 // 电机方向那两份知识（读控件配置 / 反转时的四态互换）都在这个叶子模块里：
 // 本文件与 registry/cover-state.js 都要用，而后者是本文件的上游，不能再反向 import 它。
 import {
@@ -24,8 +25,9 @@ import {
 export function runtimeEntityStateIsActive(eventState) {
   return ["on", "open", "true", "home"].includes(stateTextOf(eventState));
 }
-// 百分比容差：1% 以内都当作端点（完全关闭 / 完全打开），避免设备上报 0.4 之类的残值导致状态闪烁。
-const PERCENT_EPSILON = 1;
+// 百分比容差（1% 以内都当作端点）的唯一实现在 utils/cover-features.js：注册表的开合判定与
+// 渲染器的收起判定用的是同一个常量，以前本文件与 registry/cover-state.js 各写一份、只靠注释保证等值。
+const PERCENT_EPSILON = COVER_POSITION_EPSILON_PERCENT;
 /**
  * 取窗帘的当前位置百分比。
  */

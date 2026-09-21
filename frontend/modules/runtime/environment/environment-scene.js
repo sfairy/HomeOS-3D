@@ -8,7 +8,7 @@
  * （模式开关 400ms，单材质淡入淡出 360ms）。
  */
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609212122";
+import { readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609212122";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js —— 本文件原来是它的原始出处，
 // 现已提为共享实现，其余模块不再各写一份。
 import { sceneModelKey } from "../core/scene-model-key.js?v=2609212122";
@@ -556,8 +556,8 @@ export function createEnvironmentScene({ THREE: THREE, requestFrame: requestFram
           (materialBinding.deviceKind === "nas"
             ? materialBinding.statusSource?.primaryEntityId
             : "");
-        const stateRecord =
-          entityStates instanceof Map ? entityStates.get(entityId) : entityStates?.[entityId];
+        // 取值口径只有一份实现（utils/state-entry.js 的 readFromMapOrRecord），本地不再手写。
+        const stateRecord = readFromMapOrRecord(entityStates, entityId);
         // 状态可能是事件包裹（newState）或就是 state 本身，两种形态都兼容。
         const state = resolveStateEntry(stateRecord, {});
         const stateKey = stateTextOf(state);

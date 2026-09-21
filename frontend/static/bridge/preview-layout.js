@@ -5,10 +5,9 @@
  * 两边口径必须保持一致。对外导出 interaction3dPreviewSize。无副作用。
  */
 
-// 文档里的数值可能以字符串形式存于 JSON，这里统一转换；
-// 非有限数或非正数一律回落，避免 NaN / 0 传播成 0 宽高的隐形元素。
-const positiveNumberOr = (value, fallback) =>
-  Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
+// 文档里的数值可能以字符串形式存于 JSON，这里统一转换；非有限数或非正数一律回落，
+// 避免 NaN / 0 传播成 0 宽高的隐形元素（口径见 utils/numbers.js 的 positiveNumberOr）。
+import { positiveNumberOr } from "../utils/numbers.js?v=2609212122";
 /**
  * 计算预览区应占据的像素尺寸与宽高比。
  * 缩放在宽高两方向取较小者（CSS contain 语义）：宁可留边也不裁切，保证与真实投放取景一致。

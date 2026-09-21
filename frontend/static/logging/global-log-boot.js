@@ -18,6 +18,10 @@ import { apiFetch } from "../utils/api-fetch.js?v=2609212122";
  * 判定与错误形态仍取自 utils/api-request.js（同一套码），只是构造时不挂日志桥：本模块就是日志桥的
  * 传输层，自己上报失败时再回头关联「已上报」标记没有意义。
  *
+ * 与 editor/home.js 里同名的 requestJson 是**有意分叉**，别合并：那一份要挂日志桥、要带授权受限
+ * 分支（403 + LICENSE_RESTRICTED 跳授权页），而日志上报在授权坏掉时恰恰最需要能发出去。
+ * 改这里时不必同步改那一份。
+ *
  * @throws {Error} 会话失效、超时、HTTP 失败或响应不是合法 JSON。
  */
 async function requestJson(path, init = {}) {

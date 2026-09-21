@@ -11,12 +11,10 @@
 import {
   entityDomainFromId,
   finiteNumberOrNull,
+  readFromMapOrRecord,
   resolveStateEntry,
   stateTextOf
 } from "../core/static-helpers.js?v=2609212122";
-/** 状态源既可能是 Map 也可能是普通对象，这里统一取值的入口。 */
-const readState = (states, entityId) =>
-  states instanceof Map ? states.get(entityId) : states?.[entityId];
 /**
  * 从媒体实体属性里挑出可用的封面地址。
  */
@@ -39,7 +37,7 @@ function televisionArtwork(entityAttributes = {}) {
  * 把 HA 状态归一化成 3D 电视屏幕需要的展示状态。
  */
 export function televisionState(item, stateSources = {}, nowMs = Date.now()) {
-  const receivedState = readState(stateSources, item.entityId);
+  const receivedState = readFromMapOrRecord(stateSources, item.entityId);
   const stateObject = resolveStateEntry(receivedState, {});
   const attributes = stateObject.attributes || {};
   // 媒体实体缺失时用 unknown 兜底，后面统一按不可用处理。
@@ -165,7 +163,7 @@ export function televisionPower(powerItem, powerStates = {}, desiredOn) {
   // 允许「电源就是媒体播放器自身」的简化配置。
   const powerEntityId = powerItem.powerEntityId || powerItem.entityId || "";
   const domain = entityDomainFromId(powerEntityId);
-  const powerState = readState(powerStates, powerEntityId);
+  const powerState = readFromMapOrRecord(powerStates, powerEntityId);
   const powerStateObject = resolveStateEntry(powerState, {});
   const powerAvailable =
     !!powerEntityId &&
@@ -203,7 +201,7 @@ export function televisionPower(powerItem, powerStates = {}, desiredOn) {
  * 生成媒体控制（上一曲 / 下一曲 / 播放暂停）命令。
  */
 export function televisionMediaControl(mediaItem, mediaStates, action) {
-  const mediaState = readState(mediaStates, mediaItem.entityId);
+  const mediaState = readFromMapOrRecord(mediaStates, mediaItem.entityId);
   const mediaStateObject = resolveStateEntry(mediaState, {});
   const mediaPlayerState = televisionState(mediaItem, mediaStates);
   const mediaSupportedFeatures = Number(mediaStateObject.attributes?.supported_features) || 0;

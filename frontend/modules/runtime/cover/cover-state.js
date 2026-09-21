@@ -11,6 +11,13 @@
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
 import {
+  COVER_FEATURE_CLOSE,
+  COVER_FEATURE_OPEN,
+  COVER_FEATURE_SET_POSITION,
+  COVER_FEATURE_SET_TILT_POSITION,
+  COVER_FEATURE_STOP,
+  coverFeaturesOf,
+  coverReportsTilt,
   finiteNumberOrNull,
   resolveStateEntry,
   stateTextOf
@@ -56,14 +63,12 @@ export function coverState(entityId, receivedState, item = {}) {
   // 需要单独判断，见下面的 overallFeedbackAvailable。
   const isDreamCover = item.coverKind === "dream";
   const rawSupportedFeatures = finiteNumberOrNull(attributes.supported_features);
-  // supported_features 必须是安全范围内的非负整数，否则宁可按「无任何能力」处理。
-  const supportedFeatures =
-    Number.isSafeInteger(rawSupportedFeatures) && rawSupportedFeatures >= 0
-      ? rawSupportedFeatures
-      : 0;
+  // supported_features 必须是安全范围内的非负整数，否则宁可按「无任何能力」处理；
+  // 归一与「有没有叶片证据」的判定都只有一份实现（utils/cover-features.js），与仪表盘注册表共用。
+  const supportedFeatures = coverFeaturesOf(rawSupportedFeatures);
   // 240 = 16+32+64+128，即 HA 里全部 tilt（开合角度）相关能力位；
-  // 只要有任意一位，就认为设备能上报叶片角度。
-  const hasTiltFeedback = reportedTilt !== null || !!(supportedFeatures & 240);
+  // 只要有任意一位，或上报了叶片角度，就认为设备能调叶片。
+  const hasTiltFeedback = coverReportsTilt(attributes, supportedFeatures);
   // 非梦幻帘的整体位置始终可信；梦幻帘只有拿到叶片反馈时才敢相信整体位置，
   // 否则宁可当作未知，交由动画走估算逻辑。
   const overallFeedbackAvailable = !isDreamCover || hasTiltFeedback;
@@ -110,14 +115,16 @@ export function coverState(entityId, receivedState, item = {}) {
       available &&
       (normalizedState === "opening" ||
         (position !== null ? position > 0 : normalizedState === "open")),
-    openSupported: !!(supportedFeatures & 1),
-    closeSupported: !!(supportedFeatures & 2),
-    positionSupported: !!(supportedFeatures & 4),
-    stopSupported: !!(supportedFeatures & 8),
-    tiltSupported: !!(supportedFeatures & 128),
+    openSupported: !!(supportedFeatures & COVER_FEATURE_OPEN),
+    closeSupported: !!(supportedFeatures & COVER_FEATURE_CLOSE),
+    positionSupported: !!(supportedFeatures & COVER_FEATURE_SET_POSITION),
+    stopSupported: !!(supportedFeatures & COVER_FEATURE_STOP),
+    tiltSupported: !!(supportedFeatures & COVER_FEATURE_SET_TILT_POSITION),
     // 叶片可调能力：显式声明了 set_tilt_position 位即可；
     // 另外，若设备没有 tilt 反馈却支持设位置，说明位置属性其实就是叶片角度。
-    bladeSupported: !!(supportedFeatures & 128) || (!hasTiltFeedback && !!(supportedFeatures & 4))
+    bladeSupported:
+      !!(supportedFeatures & COVER_FEATURE_SET_TILT_POSITION) ||
+      (!hasTiltFeedback && !!(supportedFeatures & COVER_FEATURE_SET_POSITION))
   };
 }
 /**

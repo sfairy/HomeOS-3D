@@ -12,9 +12,11 @@ import {
   capturePointer,
   clampNumber,
   coercedFiniteNumberOr,
-  releasePointer
+  createDomFactory,
+  positionFloatingMenu,
+  releasePointer,
+  stepNumberInput as sharedStepNumberInput
 } from "../core/static-helpers.js?v=2609212122";
-const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 // 表单读出来的都是字符串：统一转成有限数字，非法值（NaN / 空串 / 布尔）回落到兜底值。
 // 不这样做的话，一个空输入框就能把整层的光照参数变成 NaN，画面会直接黑掉。
 // 「空串必须回落」是有意的：`Number("")` 是 0，直接换算会把「用户清空了输入框」当成 0 写进配置。
@@ -438,15 +440,11 @@ export function mountRegionRangeEditor(
       region.center[2] + offsetAlongX * axisZ + offsetAlongZ * axisX
     );
   }
-  // SVG 元素必须用 createElementNS 创建、属性只能用 setAttribute，
-  // 用它包一层免得每处都写命名空间。
+  // SVG 元素的唯一实现见 /static/shared/dom-factory.js（必须 createElementNS + setAttribute）。
+  // 本文件的调用点默认把新节点挂到 svgElement 上，故只在工厂外留一层默认父节点的适配。
+  const { svg } = createDomFactory(editorDocument);
   function createSvgElement(tagName, attributes, parentElement = svgElement) {
-    const svgChildElement = editorDocument.createElementNS(SVG_NAMESPACE, tagName);
-    for (const [attributeName, attributeValue] of Object.entries(attributes || {})) {
-      svgChildElement.setAttribute(attributeName, String(attributeValue));
-    }
-    parentElement.append(svgChildElement);
-    return svgChildElement;
+    return svg(tagName, attributes, parentElement);
   }
   // 生成光区的屏幕路径：方形取四角、圆形按 64 段逼近圆周（足够平滑且点数可控）。
   // insetScale 用来画内缩的虚线内框，表达「外边界是衰减到零的位置」。
@@ -1635,24 +1633,23 @@ function mountRangeFormControls(editorRootElement) {
     }
   }
   // 菜单用 fixed 定位并现算位置：普通绝对定位会被弹窗的 overflow 裁掉。
+  // 定位算法只有一份（/static/shared/menu-positioning.js，编辑器里 11 处下拉都用它），
+  // 这里把本控件的手感原样传成参数：间距 4、边距 8、高度上限 320 且下限 40、按内容取高。
+  // 视口取 formWindow：本编辑器可能被嵌进另一份文档，顶层 window 的尺寸不是它。
   function positionSelectMenu() {
     if (!openSelect) {
       return;
     }
-    const { button: anchorButton, menu: anchorMenu } = openSelect;
-    const anchorRect = anchorButton.getBoundingClientRect();
-    const maxMenuHeightPx = Math.max(40, Math.min(320, formWindow.innerHeight - 16));
-    Object.assign(anchorMenu.style, {
-      width: anchorRect.width + "px",
-      maxHeight: maxMenuHeightPx + "px",
-      left:
-        Math.max(8, Math.min(formWindow.innerWidth - anchorRect.width - 8, anchorRect.left)) + "px"
+    positionFloatingMenu({
+      anchorElement: openSelect.button,
+      menuElement: openSelect.menu,
+      heightMode: "content",
+      gapPx: 4,
+      marginPx: 8,
+      contentHeightCapPx: 320,
+      contentHeightFloorPx: 40,
+      viewportWindow: formWindow
     });
-    const menuHeightPx = Math.min(anchorMenu.scrollHeight, maxMenuHeightPx);
-    anchorMenu.style.top =
-      (anchorRect.bottom + menuHeightPx + 12 <= formWindow.innerHeight
-        ? anchorRect.bottom + 4
-        : Math.max(8, anchorRect.top - menuHeightPx - 4)) + "px";
   }
   // 把原生 select 的选项与选中值同步到自定义控件上。
   function syncCustomSelect(selectEntry) {
@@ -1778,38 +1775,14 @@ function mountRangeFormControls(editorRootElement) {
     });
     addTrackedListener(nativeSelect, "change", () => syncCustomSelect(selectEntryModel));
   }
-  // 数字输入的步进：受 min / max / step 约束后写回，并派发 input 事件 ——
-  // 与手动输入走同一条链路，避免两套校验。
-  function stepNumberInput(numberInputElement, stepDirection) {
-    if (numberInputElement.disabled || numberInputElement.readOnly) {
-      return false;
-    }
-    const valueBeforeStep = numberInputElement.value;
-    try {
-      if (stepDirection > 0) {
-        numberInputElement.stepUp();
-      } else {
-        numberInputElement.stepDown();
-      }
-    } catch {
-      return false;
-    }
-    if (valueBeforeStep === numberInputElement.value) {
-      return false;
-    } else {
-      numberInputElement.dispatchEvent(
-        new formWindow.Event("input", {
-          bubbles: true
-        })
-      );
-      numberInputElement.dispatchEvent(
-        new formWindow.Event("change", {
-          bubbles: true
-        })
-      );
-      return true;
-    }
-  }
+  // 步进实现只有一份（/static/shared/number-input-stepper.js，经 static-helpers 桥取用）。
+  // 本适配层只补两件本文件特有的事：一次步进就要落配置（立刻补发 change），事件构造器取本表单
+  // 文档那份（跨文档时全局 Event 与 formWindow.Event 不是同一个 realm 的构造器）。
+  const stepNumberInput = (numberInputElement, stepDirection) =>
+    sharedStepNumberInput(numberInputElement, stepDirection, {
+      dispatchChange: true,
+      EventConstructor: formWindow.Event
+    });
   for (const numberInput of editorRootElement.querySelectorAll("input[type=number]")) {
     const numberControlWrapper = createStyledElement("span", "inspector-number-control");
     const stepperContainer = createStyledElement("span", "inspector-number-steppers");

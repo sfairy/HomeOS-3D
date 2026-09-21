@@ -18,7 +18,11 @@ import {
 } from "./presence-motion.js?v=2609212122";
 import { DESIGNS, createWalker, animateWalker, disposeWalker } from "./presence-character.js?v=2609212122";
 import { capturePointer } from "../core/static-helpers.js?v=2609212122";
-import { randomUuid } from "../core/static-helpers-editor.js?v=2609212122";
+import {
+  createDomFactory,
+  randomUuid,
+  toSvgPoint as bridgedToSvgPoint
+} from "../core/static-helpers-editor.js?v=2609212122";
 import { serializeEditorDraft } from "../core/editor-save-status.js?v=2609212122";
 /**
  * 打开人在传感器编辑对话框。
@@ -63,37 +67,11 @@ export async function openPresenceEditor({
         : (sensor.displayDuration ?? 0)
     });
   }
-  /**
-   * 创建一个元素（本文件专用的小工具，避免重复三行样板）。
-   *
-   * @param {string} tagName 标签名。
-   */
-  const createElement = (tagName, initialText, classNames) => {
-    const createdElement = editorDocument.createElement(tagName);
-    // 一律走 textContent：路线名称等来自用户输入，用 innerHTML 会引入注入风险。
-    if (initialText) {
-      createdElement.textContent = initialText;
-    }
-    if (classNames) {
-      createdElement.className = classNames;
-    }
-    return createdElement;
-  };
-  /**
-   * 创建 SVG 元素（必须用 createElementNS，普通 createElement 拿到的是 HTML 元素）。
-   *
-   * @param {string} svgTagName SVG 标签名，如 "circle" / "polygon"。
-   */
-  const createSvgElement = (svgTagName, attributes) => {
-    const createdSvgElement = editorDocument.createElementNS(
-      "http://www.w3.org/2000/svg",
-      svgTagName
-    );
-    for (const [attributeName, attributeValue] of Object.entries(attributes || {})) {
-      createdSvgElement.setAttribute(attributeName, attributeValue);
-    }
-    return createdSvgElement;
-  };
+  // 元素 / SVG / 按钮的唯一实现见 /static/shared/dom-factory.js。本文件的调用点沿用「文本在前、
+  // 类名在后」的历史参数顺序，故只在工厂外面留一层一行的适配，不把顺序散到各调用点去改。
+  const { el, svg, button } = createDomFactory(editorDocument);
+  const createElement = (tagName, initialText, classNames) => el(tagName, classNames, initialText);
+  const createSvgElement = (svgTagName, attributes) => svg(svgTagName, attributes);
   const styleLinkElement = createElement("link");
   styleLinkElement.rel = "stylesheet";
   // 样式与 3D 预览的 runtime.css 是两套：这里只加载编辑器自身的样式表。
@@ -162,16 +140,7 @@ export async function openPresenceEditor({
   const statusElement = createElement("span", "", "presence-status");
   // role=status 让读屏器朗读提示文案（保存结果、错误信息都走这里）。
   statusElement.setAttribute("role", "status");
-  /**
-   * 造一个按钮。
-   */
-  const createButton = (buttonLabel, onButtonClick) => {
-    const buttonElement = createElement("button", buttonLabel);
-    // 显式 type=button：dialog 里的按钮默认是 submit，会误触发表单行为。
-    buttonElement.type = "button";
-    buttonElement.addEventListener("click", onButtonClick);
-    return buttonElement;
-  };
+  const createButton = (buttonLabel, onButtonClick) => button(buttonLabel, onButtonClick);
   /**
    * 关闭编辑器并释放全部资源（幂等）。
    */
@@ -1165,16 +1134,10 @@ export async function openPresenceEditor({
     syncPreview();
   }
   /**
-   * 把指针事件的屏幕坐标换算成 SVG 用户坐标（平面图像素）。
-   * getScreenCTM().inverse() 包含 viewBox 缩放与页面滚动偏移，是唯一可靠的换算方式；
-   * 直接用 clientX 加减 boundingRect 在 viewBox 缩放时会有偏差。
+   * 屏幕坐标 → SVG 用户坐标：唯一实现在 /static/shared/svg-point.js（经 static-helpers-editor 桥取用）。
+   * 这里只把 `routeSvgElement` 绑上，避免每个调用点都传一遍。
    */
-  const toSvgPoint = pointerEvent => {
-    const localPoint = routeSvgElement.createSVGPoint();
-    localPoint.x = pointerEvent.clientX;
-    localPoint.y = pointerEvent.clientY;
-    return localPoint.matrixTransform(routeSvgElement.getScreenCTM().inverse());
-  };
+  const toSvgPoint = pointerEvent => bridgedToSvgPoint(routeSvgElement, pointerEvent);
   routeSvgElement.addEventListener("pointerdown", pointerDownEvent => {
     // 只有平面视图、鼠标左键、且有合法楼层时才响应绘制。
     if (

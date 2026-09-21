@@ -12,6 +12,8 @@
 import { createRenderLightIndex } from "../../bridge/render-light-index.js?v=2609212122";
 // 生产控制台里的诊断输出统一走 utils/debug-log.js（默认静默，只在 ?debug=1 时输出）。
 import { debugLog } from "../../utils/debug-log.js?v=2609212122";
+// 让出主线程（烘焙多盏灯之间必须让路）的实现只有一份：studio/studio-yield.js。
+import { yieldToScheduler } from "./studio-yield.js?v=2609212122";
 // tile 之间的留白：紧贴会因线性过滤在边缘互相渗色。
 const DEFAULT_TILE_GUTTER = 1;
 
@@ -557,17 +559,6 @@ export function createSpotShadowAtlasController({
     renderer.clear(true, false, false);
     renderer.setRenderTarget(previousTarget);
     renderer.setClearColor(previousClearColor, previousClearAlpha);
-  }
-  /**
-   * 让出主线程，避免连续烘焙多盏灯时卡住交互。
-   * 优先用 scheduler.yield（浏览器可在高优先级任务后插队调度），不支持时退化为 setTimeout(0)。
-   */
-  async function yieldToScheduler() {
-    if (globalThis.scheduler?.yield) {
-      return globalThis.scheduler.yield();
-    } else {
-      return new Promise(resolve => setTimeout(resolve, 0));
-    }
   }
   /**
    * 完整重建图集：逐盏灯单独烘焙阴影，再逐块拷进大图。

@@ -10,6 +10,10 @@
  */
 import { mapCorners, mapSource } from "./vacuum-map.js?v=2609212122";
 import { capturePointer } from "../core/static-helpers.js?v=2609212122";
+import {
+  createDomFactory,
+  toSvgPoint as bridgedToSvgPoint
+} from "../core/static-helpers-editor.js?v=2609212122";
 /**
  * 从户型平面数据里挑出可当参照物的家具，并把尺寸换算到像素尺度：灯具、摄像头、人体存在传感器、
  * 地面开洞、文字标签一律排除（不在落地层或只是标注），缺合法坐标或宽高非正的也丢掉。
@@ -52,32 +56,11 @@ function planFurniture(plan = {}) {
  */
 export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: saveHandler }) {
   const documentRef = window.document;
-  // 本弹窗的全部 SVG 都用手写 createElementNS 构建，不依赖模板或任何前端框架。
-  const SVG_NAMESPACE_URI = "http://www.w3.org/2000/svg";
-  /**
-   * 创建 HTML 元素（可选带文本）。
-   *
-   * @param {string} tagName 标签名。
-   */
-  const createHtmlElement = (tagName, textContent) => {
-    const createdElement = documentRef.createElement(tagName);
-    if (textContent) {
-      createdElement.textContent = textContent;
-    }
-    return createdElement;
-  };
-  /**
-   * 创建 SVG 元素并批量设置属性。
-   *
-   * @param {string} svgTagName SVG 标签名。
-   */
-  const createSvgElement = (svgTagName, svgAttributes = {}) => {
-    const createdSvgElement = documentRef.createElementNS(SVG_NAMESPACE_URI, svgTagName);
-    for (const [attributeName, attributeValue] of Object.entries(svgAttributes)) {
-      createdSvgElement.setAttribute(attributeName, attributeValue);
-    }
-    return createdSvgElement;
-  };
+  // 本弹窗的全部节点都经 DOM 工厂创建（唯一实现见 /static/shared/dom-factory.js）：
+  // 元素、SVG（必须 createElementNS，普通 createElement 拿到的是 HTML 元素）与按钮。
+  const { el, svg, button } = createDomFactory(documentRef);
+  const createHtmlElement = (tagName, textContent) => el(tagName, "", textContent);
+  const createSvgElement = (svgTagName, svgAttributes = {}) => svg(svgTagName, svgAttributes);
   // 平面参照物：墙体线段 + 过滤后的家具（过滤规则见 planFurniture）。
   const walls = floor?.plan?.walls || [];
   const furnitureItems = planFurniture(floor?.plan);
@@ -148,16 +131,7 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
       dialogElement.remove();
     }
   };
-  /**
-   * 创建按钮。
-   */
-  const createButton = (buttonLabel, onClick) => {
-    const buttonElement = createHtmlElement("button", buttonLabel);
-    // 显式 type=button：防止将来被放进表单语义时退化成提交按钮。
-    buttonElement.type = "button";
-    buttonElement.addEventListener("click", onClick);
-    return buttonElement;
-  };
+  const createButton = (buttonLabel, onClick) => button(buttonLabel, onClick);
   // 保存深拷贝：调用方后续改动不会反向污染已经关闭的草稿。
   const saveButtonElement = createButton("保存", () => {
     saveHandler(structuredClone(draftState));
@@ -655,17 +629,13 @@ export function openVacuumMapEditor({ item: vacuumItem, floor: floor, onSave: sa
     );
   }
   /**
-   * 把指针事件的屏幕坐标换算成 SVG 用户坐标（即平面米）。
-   * 用 getScreenCTM().inverse() 反变换，自动吃掉 viewBox 平移缩放与元素自身旋转，
-   * 调用方拿到的点可直接参与地图几何运算。
+   * 屏幕坐标 → SVG 用户坐标（即平面米）：唯一实现在 /static/shared/svg-point.js（经
+   * static-helpers-editor 桥取用）。这里只把 `svgElement` 绑上，调用点拿到的点可直接参与地图几何运算。
    */
-  const toSvgPoint = pointerEvent => {
-    const svgPoint = svgElement.createSVGPoint();
-    svgPoint.x = pointerEvent.clientX;
-    svgPoint.y = pointerEvent.clientY;
-    return svgPoint.matrixTransform(svgElement.getScreenCTM().inverse());
-  };
-  // 多指支持：pointerId → 最新屏幕坐标；当同时按下两指时进入捏合缩放，并放弃拖动。
+  const toSvgPoint = pointerEvent => bridgedToSvgPoint(svgElement, pointerEvent);
+  /**
+   * 多指支持：pointerId → 最新屏幕坐标；当同时按下两指时进入捏合缩放，并放弃拖动。
+   */
   const pointersById = new Map();
   let pinchState = null;
   svgElement.addEventListener("pointerdown", downEvent => {

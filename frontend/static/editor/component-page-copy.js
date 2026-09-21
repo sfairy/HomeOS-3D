@@ -5,6 +5,8 @@
  * 的副本名、校验导航与弹窗引用，必要时按画布比例缩放，最后插入目标集合。复制到共享区时所有
  * 页面都要引用这批新共享组件；副作用是就地修改 targetDocument，调用方负责进历史栈。
  */
+import { positiveNumberOr } from "../utils/numbers.js?v=2609212122";
+
 function findComponentInTree(componentTree, targetComponentId) {
   for (const childComponent of componentTree || []) {
     if (childComponent.id === targetComponentId) return childComponent;
@@ -73,7 +75,9 @@ export function copyComponentTargets(pageSourceDocument, sourceComponentId) {
     : pageTargets;
 }
 // 递归给组件及其子树换新 ID；createComponentId 由调用方注入（便于测试）。
-function assignFreshComponentIds(componentNode, createComponentId) {
+// 导出给「整页复制」用（editor-document-management.js）：那份曾经自己写过一遍同款递归，
+// 两处任何一处漏改都会让复制出来的页面与源页面共用组件 ID（实体绑定互相串台）。
+export function assignFreshComponentIds(componentNode, createComponentId) {
   componentNode.id = createComponentId();
   for (const nestedChildComponent of componentNode.children || [])
     assignFreshComponentIds(nestedChildComponent, createComponentId);
@@ -108,11 +112,6 @@ function applyLayerOrder(components) {
 // 保留 6 位小数，压掉浮点误差。
 function roundSixDecimals(numericValue) {
   return Math.round(Number(numericValue) * 1e6) / 1e6;
-}
-// 正数兜底：非有限数或非正数一律用默认值。
-function positiveNumberOr(rawValue, fallbackValue) {
-  const parsedValue = Number(rawValue);
-  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : fallbackValue;
 }
 // 递归缩放组件几何：顶层按画布比例定位，子层级整体等比缩放。
 function scaleComponentGeometry(geometryComponent, scaleX, scaleY, childScale, isRoot = !0) {

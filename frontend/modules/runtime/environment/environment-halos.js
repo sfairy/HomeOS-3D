@@ -8,6 +8,7 @@
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
 import { sceneModelKey } from "../core/scene-model-key.js?v=2609212122";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609212122";
 // 「减少动态效果」偏好的唯一判定。
 import { prefersReducedMotionNow } from "../core/motion-preference.js?v=2609212122";
 
@@ -489,45 +490,6 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
   // 与 core/scene-model-key.js 的关系见那里的模块头（同一模型不能拿到两个身份）。
   // 1×1 的共享平面：所有光晕都靠缩放变形，无需各自建几何体。
   const planeGeometry = new threeNamespace.PlaneGeometry(1, 1);
-  /**
-   * 量出模型的世界包围盒（跳过环境效果与自制窗帘骨架）。
-   */
-  function computeModelBounds(boundsModelRoot) {
-    const accumulatedBounds = new threeNamespace.Box3();
-    // 递归累加世界包围盒：跳过环境效果与自制窗帘骨架（不是模型本体），
-    // 以及嵌套的独立模型；矩阵沿父级相乘传入，不读未必已更新的 matrixWorld。
-    function accumulateBounds(boundObject, boundsMatrix) {
-      if (
-        !boundObject.userData?.environmentEffect &&
-        !boundObject.userData?.curtainMotionRig &&
-        (boundObject === boundsModelRoot || boundObject.userData?.environmentModelId == null)
-      ) {
-        if (boundObject.isMesh && boundObject.geometry?.attributes?.position) {
-          if (!boundObject.geometry.boundingBox) {
-            boundObject.geometry.computeBoundingBox();
-          }
-          accumulatedBounds.union(
-            boundObject.geometry.boundingBox.clone().applyMatrix4(boundsMatrix)
-          );
-        }
-        for (const childMesh of boundObject.children || []) {
-          if (childMesh.matrixAutoUpdate) {
-            childMesh.updateMatrix();
-          }
-          accumulateBounds(
-            childMesh,
-            new threeNamespace.Matrix4().multiplyMatrices(boundsMatrix, childMesh.matrix)
-          );
-        }
-      }
-    }
-    accumulateBounds(boundsModelRoot, new threeNamespace.Matrix4());
-    if (accumulatedBounds.isEmpty()) {
-      return null;
-    } else {
-      return accumulatedBounds;
-    }
-  }
   /** 释放一片光晕（几何体是共享的，只销毁材质）。 */
   function disposeHalo(haloRecord) {
     haloRecord.mesh.removeFromParent();
@@ -588,7 +550,7 @@ export function createEnvironmentHalos({ THREE: threeNamespace, modeAmount: mode
       if (!haloModel) {
         continue;
       }
-      const modelBounds = computeModelBounds(haloModel);
+      const modelBounds = modelWorldBounds(haloModel, threeNamespace);
       if (!modelBounds) {
         continue;
       }

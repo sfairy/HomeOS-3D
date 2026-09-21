@@ -13,6 +13,7 @@ import { capturePointer, resolveStateEntry } from "../core/static-helpers.js?v=2
 import {
   DEFAULT_BASE_LIGHTING,
   confirmAction,
+  createDomFactory,
   getInteraction3dEditorView,
   interaction3dPreviewSize,
   normalizeBaseLighting,
@@ -189,23 +190,9 @@ export async function openInteraction3dEditor({
   styleSheetLinkElement.href =
     "/api/v1/modules/interaction3d/core/runtime.css?v=2609212122";
   document.head.append(styleSheetLinkElement);
-  // 建元素小工具，文本一律走 textContent，不拼 HTML。
-  const createElement = (tagName, classNames, initialText) => {
-    const createdElement = document.createElement(tagName);
-    createdElement.className = classNames || "";
-    if (initialText) {
-      createdElement.textContent = initialText;
-    }
-    return createdElement;
-  };
-  // 按钮一律显式 type="button"：弹窗内的按钮不写 type 会默认 submit，
-  // 回车键就会误触发第一个按钮。
-  const createButton = (buttonLabel, onButtonClick) => {
-    const buttonElement = createElement("button", "", buttonLabel);
-    buttonElement.type = "button";
-    buttonElement.addEventListener("click", onButtonClick);
-    return buttonElement;
-  };
+  // 元素与按钮的唯一实现见 /static/shared/dom-factory.js：文本一律 textContent（设备名等来自
+  // 用户输入），按钮一律显式 type="button"（dialog 里的按钮不写会按 submit 处理，回车即误触发）。
+  const { el: createElement, button: createButton } = createDomFactory(document);
   const editorDialogElement = createElement("dialog", "i3d-editor");
   editorDialogElement.setAttribute("aria-label", "3D " + editorKindTitle + "配置");
   editorDialogElement.setAttribute("data-i3d-preview-scope", "");

@@ -9,7 +9,10 @@
  * 命令按队列串行执行，避免并发改相机导致回填顺序错乱。
  */
 import { mountInteraction3d } from "../core/runtime.js?v=2609212122";
-import { interaction3dPreviewSize } from "../core/static-helpers-editor.js?v=2609212122";
+import {
+  createDomFactory,
+  interaction3dPreviewSize
+} from "../core/static-helpers-editor.js?v=2609212122";
 /**
  * 打开聚焦视角编辑弹窗（模态，无返回值句柄）。
  */
@@ -21,18 +24,9 @@ export function openPresenceFocusEditor({
   onSave: onSave
 }) {
   const editorDocument = window.document;
-  /**
-   * 创建一个元素（本文件专用的小工具，避免重复三行样板）。
-   *
-   * @param {string} tagName 标签名。
-   */
-  const createElement = (tagName, initialText) => {
-    const createdElement = editorDocument.createElement(tagName);
-    if (initialText) {
-      createdElement.textContent = initialText;
-    }
-    return createdElement;
-  };
+  // 元素的唯一实现见 /static/shared/dom-factory.js；本文件的历史签名是 (标签名, 文本)。
+  const { el, button } = createDomFactory(editorDocument);
+  const createElement = (tagName, initialText) => el(tagName, "", initialText);
   const dialogElement = createElement("dialog");
   dialogElement.className = "i3d-editor";
   dialogElement.setAttribute("aria-label", "人在传感器聚焦视角");
@@ -84,12 +78,10 @@ export function openPresenceFocusEditor({
   // 收集所有按钮：syncControls 统一按 isReady / isBusy 置灰，省得逐个维护。
   const actionButtons = [];
   /**
-   * 造一个按钮并登记到 actionButtons。
+   * 造一个按钮并登记到 actionButtons（登记是本文件特有的，故留在这一层）。
    */
   const createButton = (buttonLabel, onButtonClick) => {
-    const buttonElement = createElement("button", buttonLabel);
-    buttonElement.type = "button";
-    buttonElement.addEventListener("click", onButtonClick);
+    const buttonElement = button(buttonLabel, onButtonClick);
     actionButtons.push(buttonElement);
     return buttonElement;
   };

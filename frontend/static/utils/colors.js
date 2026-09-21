@@ -8,8 +8,15 @@
  * 失败写法有意：空串=「不是一个颜色」；`null`=「放弃计算」；拒绝缩写=「输入还不完整」。
  * 另有 `resolveColor`（CSS 颜色白名单校验 + 兜底色）、`mixHexColors`（十六进制线性插值）
  * 与 `paletteColor`（从全站调色板令牌里取实际色值），以及 `hexToRgbOrNull`（拆成 0~255 通道，
- * 失败时返回 `null`，由调用方决定兜底色）。
+ * 失败时返回 `null`，由调用方决定兜底色）与 `kelvinToRgbHex`（色温换算成 0xRRGGBB）。
+ *
+ * 还有两份**故意不在本模块**的颜色工具，别当成漏合并的重复：
+ *   - `design/scene/appearance.js`（及其 distribution 副本 frontend/static/auth/scene/ 与
+ *     store/static/scene/）里的 `normalizeHex` / `hexToRgb`：那份是构建隔离的独立副本（主应用与商店
+ *     各自只 COPY 自己的目录），且失败语义是**抛错** —— 配色派生遇到非法色必须立刻暴露。
+ *   - `utils/numbers.js` 里的数值夹取：本模块只做颜色，不重新实现。
  */
+import { clampNumber, coercedFiniteNumberOr } from "./numbers.js?v=2609212122";
 
 /**
  * 读取全站调色板（design/scene/page.css）里某个自定义属性的**实际色值**。
@@ -21,6 +28,9 @@
  *
  * 结果按令牌名缓存：`getComputedStyle` 每次调用都会迫使一次样式解析，而调用点常在
  * 每帧重绘的热路径上。令牌在一次页面生命周期内不变，缓存安全。
+ *
+ * 缓存键只有令牌名，不含兜底色 —— 同一个令牌在各调用点必须传同一个兜底色，否则先到的那次
+ * 会把后来者的兜底色一起定死（令牌值取到就无所谓，取不到才会分叉）。
  *
  * 页面没加载调色板（运行期动态注入的 stage / runtime 页面）时取到空串，
  * 此时返回传入的兜底色 —— 绝不返回空串让调用方拿到一个非法颜色。
@@ -128,6 +138,40 @@ export function resolveColor(colorCandidate, fallbackColor) {
   } else {
     return fallbackColor;
   }
+}
+
+/**
+ * 色温（K）换算成 `0xRRGGBB` 整数 —— Tanner Helland 经典近似式，`66` 是 6600K 分段点。
+ * 下面的浮点常数就是公式系数，改等于换公式，必须整段替换而非微调某一位。
+ *
+ * 单通道收尾要先夹到 0~255 再取整：近似式在区间两端会给出负值或 >255 的值，不夹就左移拼位
+ * 溢出 / 借位，把另外两个通道也污染掉。
+ *
+ * 参数:
+ *   kelvin: 开尔文；解析不出（含空串、布尔）时用 `options.fallbackKelvin`。
+ *   options.minKelvin / options.maxKelvin: 换算前先把色温夹进这个区间。两个调用方的区间**有意不同**
+ *     （3D 场景基础光用 2200~6500 —— 灯具实际可用的色温范围；灯光实体效果色用 1000~20000 ——
+ *     近似式本身的名义有效范围），因此由调用方显式传入，别在这里取一个「通用」默认值。
+ */
+export function kelvinToRgbHex(kelvin, options) {
+  const { minKelvin, maxKelvin, fallbackKelvin } = options;
+  // 公式以「百 K」为单位，因此先除以 100。
+  const scaledKelvin = clampNumber(coercedFiniteNumberOr(kelvin, fallbackKelvin), minKelvin, maxKelvin) / 100;
+  const redChannel =
+    scaledKelvin <= 66 ? 255 : (scaledKelvin - 60) ** -0.1332047592 * 329.698727446;
+  const greenChannel =
+    scaledKelvin <= 66
+      ? Math.log(scaledKelvin) * 99.4708025861 - 161.1195681661
+      : (scaledKelvin - 60) ** -0.0755148492 * 288.1221695283;
+  const blueChannel =
+    scaledKelvin >= 66
+      ? 255
+      : scaledKelvin <= 19
+        ? 0
+        : Math.log(scaledKelvin - 10) * 138.5177312231 - 305.0447927307;
+  // 三通道各占 8 位拼成一个整数，与 CSS / three.js 的 0xRRGGBB 表示一致。
+  const clampChannel = channel => Math.round(clampNumber(channel, 0, 255));
+  return (clampChannel(redChannel) << 16) | (clampChannel(greenChannel) << 8) | clampChannel(blueChannel);
 }
 
 /**

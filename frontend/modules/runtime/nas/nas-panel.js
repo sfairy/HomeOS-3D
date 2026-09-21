@@ -10,7 +10,13 @@
 // 状态条目归一（变更对象 / 状态对象两种形态）与「按 ID 切域」只有一份实现（`/static/utils/`
 // 里那两份），这里经 static-helpers 桥取用：运行侧（舞台页能以 file: 打开）不能写裸
 // `/static/...` 的静态 import，桥按更严的那种口径分流（见该文件里的两条纪律）。
-import { resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609212122";
+import {
+  readFromMapOrRecord,
+  resolveStateEntry,
+  stateTextOf
+} from "../core/static-helpers.js?v=2609212122";
+// DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现同样经桥取用。
+import { createDomFactory } from "../core/static-helpers.js?v=2609212122";
 /**
  * 计算要展示的分组及其中文名。
  */
@@ -113,15 +119,12 @@ function nasMetricValue(metric, state) {
 }
 /**
  * 创建 NAS 面板控制器。
+ *
+ * `element` 给出宿主容器时，节点按它的 ownerDocument 创建（面板被放进弹窗 / 预览 iframe 的另一份
+ * 文档时才不会造出属于外部文档的孤儿节点）；省略则用全局 document。
  */
-export function createNasPanel() {
-  /** 建元素的小工具，统一处理类名与文本。 */
-  const createElement = (tagName, className, textContent = "") => {
-    const element = document.createElement(tagName);
-    element.className = className;
-    element.textContent = textContent;
-    return element;
-  };
+export function createNasPanel({ element: hostElement } = {}) {
+  const { createElement } = createDomFactory(hostElement?.ownerDocument || globalThis.document);
   const rootElement = createElement("div", "i3d-nas-panel");
   const headingElement = createElement("div", "i3d-nas-heading");
   const titleElement = createElement("h3", "");
@@ -196,11 +199,8 @@ export function createNasPanel() {
     }
     let latestUpdateMs = 0;
     for (const metricCard of metricCards) {
-      // 状态源既可能是 Map 也可能是普通对象，两种都支持。
-      const metricState =
-        states instanceof Map
-          ? states.get(metricCard.metric.entityId)
-          : states[metricCard.metric.entityId];
+      // 状态源既可能是 Map 也可能是普通对象，取值口径见 utils/state-entry.js。
+      const metricState = readFromMapOrRecord(states, metricCard.metric.entityId);
       const display = nasMetricValue(metricCard.metric, metricState);
       metricCard.card.title = metricCard.metric.label + "：" + display.text;
       metricCard.value.textContent = display.text;

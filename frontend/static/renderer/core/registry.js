@@ -46,7 +46,7 @@ export {
 } from "./registry/camera.js?v=2609212122";
 // 分片：cover-state
 export {
-  COVER_CLOSED_POSITION_EPSILON,
+  COVER_POSITION_EPSILON_PERCENT,
   coverComponentIsDream
 } from "./registry/cover-state.js?v=2609212122";
 // 分片：effect-visuals

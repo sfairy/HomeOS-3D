@@ -66,6 +66,13 @@ export const DEFAULT_PRESET = "amber";
 
 /* --------------------------------------------------------------- 颜色工具 */
 
+/* 本模块是**构建隔离**的独立副本，不能 import frontend/static/utils/colors.js：主应用与商店是两个
+   独立构建上下文（Dockerfile 只 COPY 各自目录），auth 页也可能只带自身静态目录。所以这里的
+   normalizeHex / hexToRgb 与 utils/colors.js 里那几个同名工具**不是漏合并**，失败语义也刻意不同：
+   本模块用于配色派生（管理员拖色轮 → 实时算令牌表），非法色必须**抛错**让配置错误立刻暴露；
+   那边服务的是「显示路径」，要的是拿不到就兜底 / 返回 null。
+   三份副本（design/scene、frontend/static/auth/scene、store/static/scene）必须逐字一致。 */
+
 /** `#abc` / `#aabbcc` / `aabbcc` → `#aabbcc`；无法解析时返回 null。 */
 export function normalizeHex(input) {
   if (typeof input !== "string") return null;

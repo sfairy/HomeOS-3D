@@ -20,6 +20,7 @@ import {
 } from "../core/editor-save-status.js?v=2609212122";
 import {
   confirmAction,
+  createDomFactory,
   interaction3dPreviewSize,
   randomUuid,
   requestInteraction3dAccess,
@@ -53,21 +54,10 @@ export async function openSecurityEditor({
   }
   // 已保存的草稿签名：脏标记与「是否有改动」判断的唯一参照。
   let savedDraftSignature = serializeEditorDraft(draftProperties);
-  // 建元素并挂类名 / 文本的小工具；类名一律带 i3d- 前缀，样式复用 runtime.css。
-  const createElement = (tagName, classNames = "", initialText = "") => {
-    const createdElement = document.createElement(tagName);
-    createdElement.className = classNames;
-    createdElement.textContent = initialText;
-    return createdElement;
-  };
-  // 编辑器按钮统一走这里：写死 type="button"，避免浏览器按默认的 submit 处理
-  // （对话框里一旦出现表单，回车 / 点击都可能误提交）。
-  const createButton = (buttonLabel, onButtonClick) => {
-    const buttonElement = createElement("button", "", buttonLabel);
-    buttonElement.type = "button";
-    buttonElement.addEventListener("click", onButtonClick);
-    return buttonElement;
-  };
+  // 元素与按钮的唯一实现见 /static/shared/dom-factory.js：文本一律 textContent，按钮写死
+  // type="button"（对话框里出现表单时，不写 type 的回车 / 点击都可能误提交）。
+  // 类名一律带 i3d- 前缀，样式复用 runtime.css。
+  const { el: createElement, button: createButton } = createDomFactory(document);
   // 编辑器样式复用运行时的 runtime.css，打开时注入、关闭时移除，
   // 展示页无需为编辑器额外加载样式。
   const styleSheetLinkElement = createElement("link");

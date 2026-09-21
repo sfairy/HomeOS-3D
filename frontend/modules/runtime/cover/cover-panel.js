@@ -13,6 +13,9 @@ import {
   coverStateLabel,
   coverCanAdjustBlades
 } from "./cover-state.js?v=2609212122";
+// DOM 工厂（带类名/文本的元素、普通按钮、replaceChildren 兜底）的唯一实现；运行侧不能写裸
+// `/static/...` 的静态 import，故经 static-helpers 桥取用。
+import { createDomFactory } from "../core/static-helpers.js?v=2609212122";
 /**
  * 创建窗帘面板。
  */
@@ -21,30 +24,11 @@ export function createCoverPanel({
   onControl: onControl = async () => {},
   onPreview: onPreview = () => {}
 } = {}) {
-  const ownerDocument = hostElement?.ownerDocument || globalThis.document;
-  // 建元素并挂类名 / 文本；刻意用宿主的 ownerDocument，面板被放进别的文档
-  // （弹窗、预览 iframe）时才不会造出属于外部文档的孤儿节点。
-  const createElement = (tagName, className = "", textContent = "") => {
-    const element = ownerDocument.createElement(tagName);
-    element.className = className;
-    element.textContent = textContent;
-    return element;
-  };
-  /**
-   * 清空容器并填入新子节点。
-   * 优先用原生 replaceChildren；部分嵌入式 WebView 未实现该方法，
-   * 因此保留手动实现的兜底分支。
-   */
-  const replaceChildren = (containerElement, ...childNodes) => {
-    if (typeof containerElement.replaceChildren == "function") {
-      containerElement.replaceChildren(...childNodes);
-    } else {
-      for (const child of [...(containerElement.children || [])]) {
-        child.remove?.();
-      }
-      containerElement.append(...childNodes);
-    }
-  };
+  // 刻意用宿主的 ownerDocument：面板被放进别的文档（弹窗、预览 iframe）时才不会造出属于外部
+  // 文档的孤儿节点（append 会静默无效或抛 "not a child of this node"）。
+  const { createElement, replaceChildren } = createDomFactory(
+    hostElement?.ownerDocument || globalThis.document
+  );
   const rootElement = hostElement || createElement("section");
   rootElement.classList.add("i3d-cover-panel");
   const headingElement = createElement("div", "i3d-cover-heading");

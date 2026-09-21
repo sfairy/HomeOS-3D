@@ -18,6 +18,9 @@ import {
 import { drawTelevisionPoster } from "../materials/studio-television-poster.js?v=2609212122";
 import { apiAuthChallenge, apiRequestError } from "../../utils/api-request.js?v=2609212122";
 import { capturePointer, releasePointer } from "../../utils/pointer-capture.js?v=2609212122";
+import { paletteColor } from "../../utils/colors.js?v=2609212122";
+import { roundToDecimals } from "../../utils/numbers.js?v=2609212122";
+import { yieldToIdle, yieldToScheduler } from "./studio-yield.js?v=2609212122";
 import {
   FEATURE_WALL_STYLE_MATERIAL,
   normalizeMuralArtStyle,
@@ -183,36 +186,20 @@ const isStageViewerMode = window.location.pathname === "/api/v1/modules/interact
  * CSS 变量里读出来。这里读的是 studio.css 的别名令牌（--accent / --accent-bright /
  * --guide / --done），别名再指向 design/scene 那份全站调色板，改色只改设计源。
  *
- * 取一次就缓存：getComputedStyle 会强制一次样式解析，而这里是按帧调用的热路径
- * （拖拽标定线时每帧重画十几个点）。令牌在一次页面生命周期内不会变，缓存安全。
- *
- * 20260921 之前这些位置写的是字面量（#ff9d2e 选中 / #43d2e6 吸附 / #76cfa1 闭合），
- * 33 处；与入口页 / 商店的色板完全无关，工作室里是第三套橙。
+ * 取色实现走 utils/colors.js 的 paletteColor（唯一实现，按令牌名缓存）：本文件以前自己抄了一份，
+ * 与那边的差别只有「兜底色写死在这里的 #5fd4ff」—— 现在兜底色回到调用点上显式传，与 home.js、
+ * 控件注册表、模板的写法一致。
  */
-const canvasPaletteCache = new Map();
-function paletteColor(token) {
-  const cached = canvasPaletteCache.get(token);
-  if (cached !== undefined) return cached;
-  let resolved = "";
-  try {
-    resolved = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
-  } catch {
-    /* 无 document（极少见的嵌入场景）：走下面的兜底 */
-  }
-  // 兜底写全站主控青：取值失败时画布上宁可是「对的颜色」而不是「上一次的颜色」。
-  const value = resolved || "#5fd4ff";
-  canvasPaletteCache.set(token, value);
-  return value;
-}
-
+// 画布上取不到令牌时的兜底色（全站主控青）：宁可是「对的颜色」而不是「上一次的颜色」。
+const STUDIO_ACCENT_FALLBACK = "#5fd4ff";
 /** 选中物 / 当前阶段 / 标定参考点。 */
-const PLAN_ACCENT = () => paletteColor("--accent");
+const PLAN_ACCENT = () => paletteColor("--accent", STUDIO_ACCENT_FALLBACK);
 /** 选中物的高亮变体（预览中的窗、悬停项）。 */
-const PLAN_ACCENT_BRIGHT = () => paletteColor("--accent-bright");
+const PLAN_ACCENT_BRIGHT = () => paletteColor("--accent-bright", STUDIO_ACCENT_FALLBACK);
 /** 吸附点 / 量测读数 / 窗默认描边。 */
-const PLAN_GUIDE = () => paletteColor("--guide");
+const PLAN_GUIDE = () => paletteColor("--guide", STUDIO_ACCENT_FALLBACK);
 /** 闭合空间有效。 */
-const PLAN_DONE = () => paletteColor("--done");
+const PLAN_DONE = () => paletteColor("--done", STUDIO_ACCENT_FALLBACK);
 
 const isRegionLightingEnabled =
   isStageViewerMode && new URLSearchParams(location.search).get("lighting") === "region";
@@ -259,12 +246,12 @@ function sceneCacheDescriptor(widthPx, heightPx) {
     currentPreviewFloorMode() === "all" ? studioDocument.floors : [getCurrentFloor()];
   previewCamera.updateMatrixWorld();
   /**
-   * 把 4x4 矩阵元素四舍五入到 1e-8，供缓存指纹使用。取整是因为相机矩阵末位会抖动
-   * （同一机位两次 updateMatrixWorld 也可能差 1e-16），直接入哈希会让缓存无意义失效；
-   * 1e-8 米远低于渲染精度。
+   * 把 4x4 矩阵元素抹到 1e-8 供缓存指纹使用（相机矩阵末位会抖动：同一机位两次
+   * updateMatrixWorld 也可能差 1e-16，直接入哈希会让缓存无意义失效；1e-8 米远低于渲染精度）。
+   * 抹平实现只有一份（utils/numbers.js），这里的 8 是本调用方的精度契约。
    */
-  const roundMatrixElements = elements =>
-    elements.map(matrixEntry => Math.round(matrixEntry * 100000000) / 100000000);
+  const roundMatrixElements = matrixElements =>
+    matrixElements.map(matrixEntry => roundToDecimals(matrixEntry, 8));
   const visibility = [];
   previewModelRoot.traverse(object => {
     if (["background", "grid"].includes(object.userData?.exportRole)) {
@@ -10245,38 +10232,6 @@ function readCanvasPixels(readbackWidthPx, readbackHeightPx) {
 function renderPreviewFrames() {
   for (let frameIndex = 0; frameIndex < 3; frameIndex += 1) {
     renderer.render(previewOverlayScene, previewCamera);
-  }
-}
-/**
- * 让出主线程到「调度器优先级」（scheduler.yield，不支持时退到下一帧）。缓存烘焙是长任务（每盏灯都要渲染 +
- * 读像素），必须定期让路，否则这段时间页面完全不响应输入。scheduler.yield 把续体放回当前任务的优先级队列，
- * 比 rAF 恢复得更快，所以优先用它。
- */
-function yieldToScheduler() {
-  if (globalThis.scheduler?.yield) {
-    return globalThis.scheduler.yield();
-  } else {
-    return new Promise(resolveSchedulerYield =>
-      requestAnimationFrame(() => resolveSchedulerYield())
-    );
-  }
-}
-/**
- * 让出主线程到「浏览器空闲」（scheduler.yield → requestIdleCallback → rAF）。比
- * yieldToScheduler 更宽容：空闲回调让出的确实是没人用的时间片，适合夹在两次重活之间。
- * requestIdleCallback 带 80ms timeout，长时间没有空闲窗口时必须强制继续，否则烘焙被无限推迟。
- */
-function yieldToIdle() {
-  if (globalThis.scheduler?.yield) {
-    return globalThis.scheduler.yield();
-  } else if (globalThis.requestIdleCallback) {
-    return new Promise(resolveIdleYield =>
-      requestIdleCallback(() => resolveIdleYield(), {
-        timeout: 80
-      })
-    );
-  } else {
-    return new Promise(resolveFrameYield => requestAnimationFrame(() => resolveFrameYield()));
   }
 }
 /**

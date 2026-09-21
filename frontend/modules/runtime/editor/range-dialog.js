@@ -7,6 +7,7 @@
  */
 import { mountInteraction3d } from "../core/runtime.js?v=2609212122";
 import {
+  createDomFactory,
   requestInteraction3dAccess,
   subscribeInteraction3dAccess
 } from "../core/static-helpers-editor.js?v=2609212122";
@@ -35,13 +36,8 @@ export async function openInteraction3dRangeEditor({
   const componentSnapshot = structuredClone(component);
   // 记住打开前的焦点元素，关闭时还回去，保证键盘用户不会丢失位置。
   const previouslyFocusedElement = document.activeElement;
-  /** 建元素的小工具，统一处理类名与文本。 */
-  const createElement = (tagName, className = "", textContent = "") => {
-    const element = document.createElement(tagName);
-    element.className = className;
-    element.textContent = textContent;
-    return element;
-  };
+  // DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现见 /static/shared/dom-factory.js。
+  const { createElement } = createDomFactory(document);
   const stylesheetLink = createElement("link");
   stylesheetLink.rel = "stylesheet";
   stylesheetLink.href = "/api/v1/modules/interaction3d/core/runtime.css?v=2609212122";

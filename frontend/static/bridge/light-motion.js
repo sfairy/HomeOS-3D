@@ -10,6 +10,8 @@
 // 数值夹取与换算统一走 utils/numbers.js（唯一实现）：clampNumber 保证写进渲染层的值永远在
 // 合法区间，finiteNumberOr 把 NaN / undefined 这类「缺失」与合法的 0 区分开（0 往往有语义）。
 import { clampNumber, finiteNumberOr } from "../utils/numbers.js?v=2609212122";
+// 色温换算（含唯一的公式与单通道夹取）也共用 utils/colors.js，别在这里再写一份系数。
+import { kelvinToRgbHex } from "../utils/colors.js?v=2609212122";
 // 过渡用的灯态：亮度非负、颜色三通道归一到 [0,1]，避免插值过程中放大出非法值。
 const normalizeLightState = lightState => ({
   intensity: Math.max(0, finiteNumberOr(lightState?.intensity, 0)),
@@ -98,30 +100,13 @@ export function mapLightEffectState(lightEntry) {
   return mappedState;
 }
 /**
- * 色温（K）换算成 0xRRGGBB（Tanner Helland 经典近似式，66 是 6600K 分段点）。
- * 下面的浮点常数就是公式系数，改等于换公式，必须整段替换而非微调某一位。
+ * 色温（K）换算成 0xRRGGBB（灯具发光色），公式与单通道收尾的唯一实现在 utils/colors.js。
+ *
+ * 色温先夹到 1000~20000 K：这是近似式本身的名义有效范围，越界输入（HA 偶尔上报 0 或极大值）
+ * 直接夹回边界，避免负底数或非法对数。
  */
 export function lightEffectColorHex(kelvin) {
-  // 公式以「百 K」为单位，因此先除以 100。
-  const scaledKelvin = clampNumber(finiteNumberOr(kelvin, 3000), 1000, 20000) / 100;
-  const redChannel =
-    scaledKelvin <= 66 ? 255 : Math.pow(scaledKelvin - 60, -0.1332047592) * 329.698727446;
-  const greenChannel =
-    scaledKelvin <= 66
-      ? Math.log(scaledKelvin) * 99.4708025861 - 161.1195681661
-      : Math.pow(scaledKelvin - 60, -0.0755148492) * 288.1221695283;
-  const blueChannel =
-    scaledKelvin >= 66
-      ? 255
-      : scaledKelvin <= 19
-        ? 0
-        : Math.log(scaledKelvin - 10) * 138.5177312231 - 305.0447927307;
-  // 单通道收尾：四舍五入并夹到 0~255，保证下面拼出的整数始终在 0xRRGGBB 范围内。
-  const clampChannel = channel => Math.round(clampNumber(channel, 0, 255));
-  // 三通道各占 8 位拼成一个整数，与 CSS / three.js 的 0xRRGGBB 表示一致。
-  return (
-    (clampChannel(redChannel) << 16) | (clampChannel(greenChannel) << 8) | clampChannel(blueChannel)
-  );
+  return kelvinToRgbHex(kelvin, { minKelvin: 1000, maxKelvin: 20000, fallbackKelvin: 3000 });
 }
 /**
  * 决定本次灯光变化的过渡时长：开关切换用组件配置的淡入淡出（夹在 0~10 秒，默认 0.3 秒）；

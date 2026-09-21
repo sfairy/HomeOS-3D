@@ -8,6 +8,7 @@
  * 烘焙会临时改写 renderer 的 renderTarget / viewport / scissor / clearColor / autoClear / shadowMap / xr，finally 里必须逐项还原，否则主渲染会花屏。
  * 遮蔽强度统一走 plan2ContactOpacity / plan2SurfaceOpacity 两个 uniform 做淡入淡出，开关、挂起、楼层切换都只改这两个值，不重建贴图。
  */
+import { roundToDecimals } from "../../utils/numbers.js?v=2609212122";
 
 /**
  * 沿父链向上查找某个 userData 字段，返回第一个存在的值。
@@ -1075,10 +1076,11 @@ export function createContactShadowController({
     // 描述对象在世界矩阵 + 实例矩阵下的最终变换（已是烘焙坐标系）。
     const describeObjectMatrix = object => {
       const objectMatrix = bakeFrameInverse.clone().multiply(object.matrixWorld);
-      // 矩阵元素先乘 10000 再取整：布局缓存靠字符串比对判断「是否还是同一份布局」，
-      // 浮点尾数会随帧抖动，不抹平就会每帧都被判脏、缓存彻底失效。
+      // 矩阵元素抹到 1e-4：布局缓存靠字符串比对判断「是否还是同一份布局」，浮点尾数会随帧
+      // 抖动，不抹平就会每帧都被判脏、缓存彻底失效。抹平实现只有一份（utils/numbers.js），
+      // 这里的 4 是本调用方的精度契约（家具拖拽产生的 0.1mm 级抖动不该触发重烘）。
       const roundMatrixElements = matrix =>
-        matrix.elements.map(element => Math.round(element * 10000));
+        matrix.elements.map(element => roundToDecimals(element, 4));
       if (!object.isInstancedMesh) {
         return roundMatrixElements(objectMatrix);
       }

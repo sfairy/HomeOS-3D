@@ -12,17 +12,21 @@ import {
   televisionPower,
   televisionMediaControl
 } from "./television-state.js?v=2609212122";
+// DOM 工厂（元素 / 按钮 / replaceChildren 兜底）的唯一实现；运行侧不能写裸 `/static/...` 的静态
+// import，故经 static-helpers 桥取用。
+import { createDomFactory } from "../core/static-helpers.js?v=2609212122";
 /**
  * 创建电视面板。
+ *
+ * `element` 给出宿主容器时，节点按它的 ownerDocument 创建（面板被放进弹窗 / 预览 iframe 的另一份
+ * 文档时才不会造出属于外部文档的孤儿节点）；省略则用全局 document。
  */
-export function createTelevisionPanel({ onControl: onControl = async () => {} } = {}) {
-  // 建元素并顺手挂类名：类名统一带 i3d- 前缀，样式分别写在 stage.css / nas-panel.css，
-  // 避免与宿主页面的样式互相污染。
-  const createElement = (tagName, className) => {
-    const element = document.createElement(tagName);
-    element.className = className;
-    return element;
-  };
+export function createTelevisionPanel({
+  element: hostElement,
+  onControl: onControl = async () => {}
+} = {}) {
+  // 类名统一带 i3d- 前缀，样式分别写在 stage.css / nas-panel.css，避免与宿主页面的样式互相污染。
+  const { createElement } = createDomFactory(hostElement?.ownerDocument || globalThis.document);
   const rootElement = createElement("div", "i3d-television-panel");
   // 标题区沿用 NAS 面板的样式类，两个面板在弹窗里外观一致。
   const headingElement = createElement("div", "i3d-nas-heading");

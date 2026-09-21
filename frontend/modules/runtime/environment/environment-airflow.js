@@ -8,9 +8,10 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { normalizedTextOf, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609212122";
+import { normalizedTextOf, readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609212122";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
 import { sceneModelKey } from "../core/scene-model-key.js?v=2609212122";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609212122";
 // 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
 import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609212122";
 /** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。 */
@@ -65,66 +66,13 @@ export function createEnvironmentAirflow({
   const FLOW_FRAGMENT_SHADER =
     "uniform vec3 flowColor;\n    uniform float flowOpacity;\n    uniform float flowTime;\n    uniform float flowOverview;\n    varying vec2 vFlowUv;\n    varying float vFlowLayer;\n    float hash(vec2 p) {\n      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);\n    }\n    float noise(vec2 p) {\n      vec2 cell = floor(p), f = fract(p);\n      f = f * f * (3.0 - 2.0 * f);\n      return mix(mix(hash(cell), hash(cell + vec2(1.0, 0.0)), f.x),\n        mix(hash(cell + vec2(0.0, 1.0)), hash(cell + vec2(1.0)), f.x), f.y);\n    }\n    void main() {\n      float t = vFlowUv.y, across = vFlowUv.x * 2.0 - 1.0;\n      float edge = exp(-0.8 * across * across) * (1.0 - smoothstep(0.45, 1.0, abs(across)));\n      float distanceFade = smoothstep(0.0, 0.025, t) * exp(-mix(1.15, 0.9, flowOverview) * t)\n        * (1.0 - smoothstep(0.62, 1.0, t));\n      // Advected, lengthwise fibres: deliberately much longer than they are\n      // wide, so the air reads as a continuous breeze, never dots or light bars.\n      float drift = sin(t * 4.0 - flowTime * 0.45 + vFlowLayer * 2.0) * t * 0.16;\n      // Keep individual strands fine even in overview; visibility comes from\n      // their bright cores rather than widening them into opaque white bands.\n      vec2 p = vec2(vFlowUv.x * mix(22.0, 16.0, flowOverview) + drift + vFlowLayer * 23.0,\n        t * mix(1.8, 1.25, flowOverview) - flowTime * 0.9);\n      float detail = 0.28;\n      float fibres = noise(p) * (1.0 - detail) + noise(p * vec2(1.9, 0.7) + 13.0) * detail;\n      // Give the moving strands enough coverage on both pale wood and dark\n      // floors. Keep the empty space clear instead of adding a uniform veil.\n      float density = 0.012 + 1.25 * fibres * fibres;\n      // A soft density ceiling keeps the stronger near-outlet strands\n      // translucent while letting their motion remain readable at room scale.\n      density = density / (1.0 + density * 0.65);\n      // Moving fibre crests catch a white highlight, with the mode color in\n      // their softer edges. This remains one transparent draw, without lights.\n      float crest = smoothstep(0.56, 0.9, fibres);\n      float highlight = crest * crest;\n      float alpha = min(0.56, flowOpacity * edge * distanceFade\n        * (density + highlight * 0.16) * mix(1.0, 0.42, vFlowLayer));\n      vec3 strandColor = mix(flowColor, vec3(1.0), highlight * 0.68);\n      gl_FragColor = vec4(strandColor, alpha);\n      #include <colorspace_fragment>\n    }";
   /**
-   * 量出模型的世界包围盒（不含环境效果与嵌套的独立模型）。
-   */
-  function measureModelBox(modelRoot) {
-    const boundsBox = new THREE.Box3();
-    const rootMatrix = new THREE.Matrix4();
-    // 递归累加世界包围盒：跳过环境效果与嵌套的独立模型（各有自己的坐标系），
-    // 也不读 matrixWorld —— 本帧未必渲染过，改为沿父级矩阵相乘，故矩阵走参数。
-    function accumulateBounds(node, parentMatrix) {
-      if (
-        !node.userData?.environmentAirflow &&
-        (node === modelRoot || node.userData?.environmentModelId == null)
-      ) {
-        if (node.isMesh && node.geometry?.attributes?.position) {
-          const positionAttribute = node.geometry.attributes.position;
-          // getX 的可用性检查是刻意的：某些压缩几何体只提供部分读取接口。
-          if (positionAttribute.count > 0 && typeof positionAttribute.getX == "function") {
-            const nodeBox = new THREE.Box3()
-              .setFromBufferAttribute(positionAttribute)
-              .applyMatrix4(parentMatrix);
-            // 逐个分量校验有限性：模型数据里偶有 NaN，会把整个包围盒污染成无效值。
-            if (
-              [
-                nodeBox.min.x,
-                nodeBox.min.y,
-                nodeBox.min.z,
-                nodeBox.max.x,
-                nodeBox.max.y,
-                nodeBox.max.z
-              ].every(Number.isFinite)
-            ) {
-              boundsBox.union(nodeBox);
-            }
-          }
-        }
-        for (const childNode of node.children || []) {
-          // 自动更新矩阵的子节点需要手动 updateMatrix：可能本帧还没渲染过。
-          if (childNode.matrixAutoUpdate) {
-            childNode.updateMatrix();
-          }
-          accumulateBounds(
-            childNode,
-            new THREE.Matrix4().multiplyMatrices(parentMatrix, childNode.matrix)
-          );
-        }
-      }
-    }
-    accumulateBounds(modelRoot, rootMatrix);
-    if (boundsBox.isEmpty()) {
-      return null;
-    } else {
-      return boundsBox;
-    }
-  }
-  /**
    * 由模型包围盒推导出风口版式（位置、宽度、长度、下坠量）。
    * 三种形态各有经验参数：airoutlet（风口）口长沿 Z、旋转 90°；floorac（柜机）风道窄而长、略向下坠；
    * wallac（挂机）风道宽而短、下坠更多。
    */
   function resolveOutletLayout(model) {
-    const modelBox = measureModelBox(model);
+    // 精确顶点包围盒（exact）：风口模型刚加载时几何体可能还没算过缓存盒，且要挡住 NaN 顶点。
+    const modelBox = modelWorldBounds(model, THREE, { exact: true });
     if (!modelBox) {
       return null;
     }
@@ -422,10 +370,7 @@ export function createEnvironmentAirflow({
     let didChange = false;
     for (const effect of effectsByBindingKey.values()) {
       const effectBinding = effect.binding;
-      const stateRecord =
-        entityStates instanceof Map
-          ? entityStates.get(effectBinding.entityId)
-          : entityStates?.[effectBinding.entityId];
+      const stateRecord = readFromMapOrRecord(entityStates, effectBinding.entityId);
       const stateBody = resolveStateEntry(stateRecord, {});
       const stateValue = stateTextOf(stateBody);
       const hvacAction = normalizedTextOf(stateBody.attributes?.hvac_action || "");

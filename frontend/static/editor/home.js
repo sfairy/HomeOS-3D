@@ -42,6 +42,8 @@ import {
   normalizedFontWeight
 } from "./editor-utils.js?v=2609212122";
 import { clampNumber } from "../utils/numbers.js?v=2609212122";
+// 数字输入的步进实现（含 step 非法时的兜底步长）只有一份，策略参数见该模块头部。
+import { stepNumberInput } from "../shared/number-input-stepper.js?v=2609212122";
 import { mdiIconUrl } from "../utils/icon-url.js?v=2609212122";
 import { formatZhDateTime } from "../utils/datetime.js?v=2609212122";
 import { entityDomainFromId, entityDomainOf, entitySearchTextOf } from "../utils/entities.js?v=2609212122";
@@ -1840,46 +1842,6 @@ function enhanceColorInputsIn(colorRootNode = document) {
       });
     }
   });
-}
-/**
- * 对数字输入框做一次上下步进，并派发 input 事件。优先用原生 stepUp/stepDown，
- * 在 step 非法或未设置时它们会抛错，此时按 dataset.numberStep → step → 1 取步长并钳制 min/max。
- */
-function stepNumberInput(numberInput, stepDirection) {
-  if (!numberInput || numberInput.disabled || numberInput.readOnly) {
-    return false;
-  }
-  const valueBeforeStep = numberInput.value;
-  try {
-    if (stepDirection > 0) {
-      numberInput.stepUp();
-    } else {
-      numberInput.stepDown();
-    }
-  } catch {
-    const fallbackStepSize =
-      Number(numberInput.dataset?.numberStep) || Number(numberInput.step) || 1;
-    const numericInputValue = Number(numberInput.value) || 0;
-    const numericMinValue = numberInput.min === "" ? -Infinity : Number(numberInput.min);
-    const numericMaxValue = numberInput.max === "" ? Infinity : Number(numberInput.max);
-    numberInput.value = String(
-      clampNumber(
-        numericInputValue + fallbackStepSize * stepDirection,
-        numericMinValue,
-        numericMaxValue
-      )
-    );
-  }
-  if (numberInput.value === valueBeforeStep) {
-    return false;
-  } else {
-    numberInput.dispatchEvent(
-      new Event("input", {
-        bubbles: true
-      })
-    );
-    return true;
-  }
 }
 /**
  * 给检查器里的数字输入框加自绘加减按钮（原生 spinner 对滚轮与长按处理不一致）。

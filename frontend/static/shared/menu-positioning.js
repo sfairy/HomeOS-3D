@@ -6,6 +6,9 @@
  * 取高方式：`available` 按锚点上下可用空间取高并钳在 [minHeightPx, maxHeightPx]；
  * `content` 按菜单内容高（scrollHeight）取。内容高度必须在写好 maxHeight 之后才读，
  * 否则量到的是未受限的高度，翻转判断会提前。
+ *
+ * 视口默认取顶层 window；编辑器被嵌进 iframe 时传 `viewportWindow`，否则算出来的是外层窗口的
+ * 尺寸，菜单会跑到屏幕外。
  */
 import { clampNumber } from "../utils/numbers.js?v=2609212122";
 
@@ -28,13 +31,14 @@ export function positionFloatingMenu({
   contentHeightCapPx = 0,
   contentHeightFloorPx = null,
   listTrimPx = 57,
-  listMinHeightPx = 90
+  listMinHeightPx = 90,
+  viewportWindow = globalThis.window
 }) {
   if (menuElement.hidden) {
     return null;
   }
-  const viewportWidthPx = window.innerWidth;
-  const viewportHeightPx = window.innerHeight;
+  const viewportWidthPx = viewportWindow.innerWidth;
+  const viewportHeightPx = viewportWindow.innerHeight;
   const anchorRect = anchorElement.getBoundingClientRect();
   // clamped 模式再压一道「不许比视口宽」：锚点本身比视口宽时按视口收。
   const menuWidthPx =
