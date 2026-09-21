@@ -29,8 +29,7 @@ from __future__ import annotations
 STEP_LABELS = ('初始化', '登录', '激活', '配对', '进中控')
 
 #: 与 ``design/scene/panel.css``「开通路径」段里的类一一对应。写成完整字面量而不是
-#: 拼前缀：``panel.css`` 里那些规则现在只由本模块命名，而 ``check_frontend_hygiene``
-#: 判「这条规则还有没有人用」靠的就是源码里的完整类名字面量（backend 也在它的语料里）。
+#: 拼前缀：写成完整类名字面量，``panel.css`` 里那些规则才有一条能靠 grep 追溯的线索。
 DONE = 'is-done'
 CURRENT = 'is-current'
 BLOCKED = 'is-blocked'
@@ -65,7 +64,7 @@ def _signin_state(admin_session: bool) -> str:
     而异的门，而**只有两道门之后的两页**用得上它（见 ``rail_states`` 的分支）。
     写成局部变量时，它被赋值的位置在分支之外，读代码的人要在两个分支之间来回找；
     写成函数则每个用得上的分支都明写一次，护栏也才有一条能静态检查的线索
-    （``tools/check_entry_pages.mjs`` 断言只有该用的那两页调用它）。
+    （只有该用的那两页会调用它）。
     """
     return DONE if admin_session else SKIPPED
 

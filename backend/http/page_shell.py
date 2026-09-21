@@ -2,8 +2,8 @@
 
 ``/setup``、``/login``、``/license``、``/pair`` 与就地渲染在 /pair、/display/* 上的恢复页，
 表单各不相同，但外壳完全一样：全屏场景 + 右侧玻璃坞。外壳标记只有一份，在
-``design/scene/scene.html``，由 ``tools/sync_scene_assets.mjs`` 分发到
-``frontend/static/auth/scene/scene.html``；页面模板里留一个 ``<!--{{SCENE}}-->``，
+``design/scene/scene.html``，手工同步到 ``frontend/static/auth/scene/scene.html``；
+页面模板里留一个 ``<!--{{SCENE}}-->``，
 本模块在返回前把它换成填好占位符的片段。
 
 为什么不把片段抄进每个 HTML：五个页面各粘一份 150 行的场景 DOM，改一次场景要改五处，
@@ -247,7 +247,7 @@ def scene_markup(frontend_dir: Path, version: str, page: str) -> str:
         stat = path.stat()
     except FileNotFoundError as error:
         raise RuntimeError(
-            f'场景片段缺失：{path}；请先运行 node tools/sync_scene_assets.mjs'
+            f'场景片段缺失：{path}；请从 design/scene/scene.html 同步分发副本'
         ) from error
     return _scene_markup(str(path), stat.st_mtime_ns, version, page)
 
@@ -356,7 +356,7 @@ def render_shell_page(
         scene_modified_ns = scene_path(frontend_dir).stat().st_mtime_ns
     except FileNotFoundError as error:
         raise RuntimeError(
-            f'场景片段缺失：{scene_path(frontend_dir)}；请先运行 node tools/sync_scene_assets.mjs'
+            f'场景片段缺失：{scene_path(frontend_dir)}；请从 design/scene/scene.html 同步分发副本'
         ) from error
     rendered = _render_page_cached(
         str(page_path),

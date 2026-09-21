@@ -20,7 +20,7 @@
  * 为什么必须给自己留停止开关：空闲漂移没有自然终点（正弦一直在走），所以这个 rAF 循环
  * 不会像一次动画那样自己结束。标签页切走、用户开了减少动态效果，都要真的停下来。
  *
- * 分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。
+ * 改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。
  */
 (function sceneDepth() {
   const stage = document.querySelector('.hos-scene__stage');

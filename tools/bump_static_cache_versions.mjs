@@ -25,9 +25,9 @@ const SCAN_ROOTS = [
   path.join(ROOT, "store", "templates"),
   // store/static 必须和 templates 一起扫：商店是独立构建上下文，`store/static/*.js`
   // 之间的相对 import 也带 `?v=`。曾经漏掉这一片，于是 `store/static/palette.js` 一直
-  // 停在旧戳上（护栏那侧同样漏了，两边一起沉默，直到护栏补上才暴露）。
-  // **改本清单时必须同步 tools/check_structure_refs.mjs 的戳检查**，否则会出现
-  // 「本工具改不到、护栏测得出」这种最难查的错配。
+  // 停在旧戳上（当时负责比对的护栏也漏了同一片，两边一起沉默，直到那侧补上才暴露）。
+  // **本清单即全站戳的唯一来源**：漏一个目录，那里的 `?v=` 会在改动后停在旧戳上，
+  // 而没有任何自动检查会发现 —— 这正是本工具存在的理由。
   path.join(ROOT, "store", "static")
 ];
 

@@ -11,7 +11,7 @@
  * 依赖 DOM：#appShell（缩放对象）、#appContent（固定设计稿尺寸的内容层）。
  * 两者缺任意一个就直接返回：本脚本贴在共享壳里，没壳的页面不该因此报错。
  *
- * 分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。
+ * 改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。
  */
 (function syncViewportShell() {
   const DESIGN_W = 1366;

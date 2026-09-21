@@ -10,7 +10,7 @@
  *    渲染晚于那一刻，卡片就会「看得见、点不动」。
  * 2. **渲染结果必须与拆分前的 HTML 逐字一致**，缩进、属性顺序、i/span/small 的顺序
  *    都算数 —— studio.css 的 .asset-card 规则与相邻兄弟选择器都建立在这个结构上。
- *    改完跑 node tools/check_studio_palette.mjs，它逐字比对结构与字段。
+ *    改完请逐字比对结构与字段。
  * 3. data-item-type 是脚本查表键、data-asset-subcategory 决定分组显隐
  *    （与顶部页签的 data-asset-category 一一对应），两者都不能随手改。
  */
@@ -202,7 +202,7 @@ function assetGroupHtml(group) {
  * 首尾那两个换行/缩进常量不是装饰：它们复刻的是拆分前容器自身的排版
  * （`<div id="asset-grid">` 后面换一行、`</div>` 前缩进 10 空格）。
  * 去掉也能正常显示，但逐字校验就会退化成「肉眼看着一样」，
- * tools/check_studio_palette.mjs 与改前改后的 DOM diff 都依赖这个不变量。
+ * 逐字校验与改前改后的 DOM diff 都依赖这个不变量。
  */
 const GRID_LEAD = "\n";
 const GRID_TAIL = "\n          ";

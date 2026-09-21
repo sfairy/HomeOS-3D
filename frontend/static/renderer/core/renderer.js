@@ -197,8 +197,8 @@ import {
 // 下面三处是仍被外部模块按 renderer.js 这个路径导入的实现转发：实现本身在各自的旁路模块里
 // （transform-geometry.js / asset-version.js 等），这里继续原路径转出，调用方无需改动，
 // 也避免出现两套同名实现。
-// 其余同名转发，以及几个定义在本文件、外部却已无人导入的函数，都经 tools/check_esm_exports.mjs
-// 核验后随本次清理删去 —— 要用时再 export 回来，成本一行。
+// 其余同名转发，以及几个定义在本文件、外部却已无人导入的函数，都已随本次清理删去 ——
+// 要用时再 export 回来，成本一行。
 export {
   setBuiltinAssetVersions as setBuiltinAssetVersions,
   airflowCanvasOffsetBounds as airflowCanvasOffsetBounds,

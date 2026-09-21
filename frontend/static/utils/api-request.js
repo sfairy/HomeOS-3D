@@ -18,8 +18,8 @@ import { apiErrorMessage } from "./api-error.js?v=20260921152526";
 /**
  * 后端在 403 `detail.code` 里回的授权受限码。
  *
- * 刻意不导出：本模块是它在前端的唯一比较点（`tools/check_structure_refs.mjs` 第 14 条会把别处
- * 的同名比较报出来），消费方一律走下面的 `apiAuthChallenge` 拿结论，而不是自己拿这个值去比 ——
+ * 刻意不导出：本模块是它在前端的唯一比较点，消费方一律走下面的 `apiAuthChallenge` 拿结论，
+ * 而不是自己拿这个值去比 ——
  * 多一个出口就等于多一种「有人按它自己解释」的可能。
  */
 const LICENSE_RESTRICTED_CODE = "LICENSE_RESTRICTED";

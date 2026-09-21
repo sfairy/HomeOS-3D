@@ -38,53 +38,26 @@ jobs:
           echo "image=${base}" >> "$GITHUB_OUTPUT"
           echo "store_image=${base}-store" >> "$GITHUB_OUTPUT"
 
-  # 结构 / 导出 / 注册表 / 素材卡 / 前端卫生 / 场景同步 / 入口页 这几道守卫，此前只在 README
-  # 里写着、靠人手跑。挂在 build 之前：镜像推出去之前，先把「不报错、只静默失效」的那类问题
-  # 断在这里。
+  # 挂在 build 之前：镜像推出去之前，先把「不报错、只静默失效」的那类问题断在这里。
   #
-  # 七道 Node 守卫 + ruff 全部纳入。另有一个 push / PR 触发的 guards.yml 跑同一份清单 ——
-  # 本工作流只有 workflow_dispatch（有意不在 push 上自动构建、不向 GHCR 推未打算发布的镜像），
-  # 所以「改动即校验」靠 guards.yml，这里的副本是出包前的最后一道。
+  # 曾经常驻在这里的是七道 Node 守卫（结构引用 / ESM 导出 / 注册表分片 / 素材卡 / 前端卫生 /
+  # 场景同步 / 入口页）加三项运行时冒烟（smoke_registry / smoke_state_entry / smoke_backend），
+  # 本轮清理中已整体移除，现在只剩 ruff 一道；不变量改由人工 review 兜住，清单见 README
+  # 「开发工具」。两份工作流仍共用同一份清单，改时两边一起改。
   #
-  # 曾经还有 smoke_registry / smoke_state_entry / smoke_backend 三项运行时冒烟，已在清理中
-  # 整体移除（README「测试与死代码清理」有记录）。注意它们的移除是有代价的：smoke_backend
-  # 同时是**唯一的路由清单校验**（拿 tools/routes.snapshot.txt 做双向 diff），删除后路由增删
-  # 没有自动检测手段 —— 改动路由请人工核对 OpenAPI 与调用方。
+  # 移除的代价要说清楚：smoke_backend 同时是**唯一的路由清单校验**（拿 tools/routes.snapshot.txt
+  # 做双向 diff），它也已删除 —— 改动路由请人工核对 OpenAPI 与调用方。
   guards:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # 与 Dockerfile 的 base 阶段对齐：node:20 / python:3.12。
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
+      # 与 Dockerfile 的 base 阶段对齐：python:3.12。
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: store/requirements.txt
-
-      - name: Install Python dependencies
-        run: pip install -r store/requirements.txt
-
-      - name: Structure, export, registry and hygiene guards
-        run: |
-          set -euo pipefail
-          for command in \
-            "node tools/check_structure_refs.mjs" \
-            "node tools/check_esm_exports.mjs" \
-            "node tools/check_registry_split.mjs" \
-            "node tools/check_studio_palette.mjs --strict" \
-            "node tools/check_frontend_hygiene.mjs --strict" \
-            "node tools/check_scene_sync.mjs" \
-            "node tools/check_entry_pages.mjs"
-          do
-            echo "::group::${command}"
-            ${command}
-            echo "::endgroup::"
-          done
 
       - name: Install lint tooling
         run: pip install ruff

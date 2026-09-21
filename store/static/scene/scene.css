@@ -1,7 +1,7 @@
 /* HomeOS 场景层（canonical 源：design/scene/scene.css）
    由 HomeOS-Activate 激活页的场景插画抽取而来，类名统一 hos-scene__ 前缀。
    依赖同名 .hos-page 建立 container（cqw 单位按它解析）。
-   分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。 */
+   改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 */
 
 ﻿.hos-scene {
   position: relative;

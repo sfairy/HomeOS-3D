@@ -10,7 +10,7 @@
    unicode-range 与上游一致：不写的话浏览器会拿这套 latin-only 字体去试 CJK 码位，
    白白多一次请求再逐字回退。
 
-   分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。 */
+   改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 */
 
 @font-face {
   font-family: 'Orbitron';

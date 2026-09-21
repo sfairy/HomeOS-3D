@@ -6,7 +6,7 @@
    只有需要固定比例画布的页面才引这份（目前是 HomeOS-Activate 签发页）；
    主项目与商店的入口页是全视口自适应，引了反而会把内容缩错。
 
-   分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。 */
+   改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 */
 
 .viewport-frame {
   width: 100vw;

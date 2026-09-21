@@ -568,7 +568,7 @@ store/
 样式分层即「加载顺序即层级」：`theme.css`（令牌 + 组件）→ `store.css` | `admin.css`（只排区块，不重定义组件）。
 
 令牌不再由本文件各自维护：`theme.css` 的 `--hb-*` 与主程序的 `--hos-*` 现在同源于
-`design/scene/page.css`（`tools/sync_scene_assets.mjs` 分发，`tools/check_scene_sync.mjs` 兜底）。
+`design/scene/page.css`（手工同步到各分发副本，没有自动比对兜底）。
 主控色 `--hb-accent` 是青色，三束居家光分别编码语义 —— 暖光 `--hb-lumen`（灯光 / 已激活）、
 极光紫 `--hb-aura`（氛围 / 恢复）、薄荷 `--hb-eco`（在线 / 节能）；温度与安防读色另有其名，
 它们编码物理含义（热 / 冷、布防 / 异常），不参与主控色替换。
@@ -581,7 +581,7 @@ store/
 
 1. **`theme.css` 必须排在任何页面样式表之前。** 顺序反了就会出现「页面布局被组件样式反向覆盖」这类难查的问题。
 2. **新样式加进对应层级，不要靠提高特异性取胜。** 页面级差异写进 `store.css` / `admin.css`，组件级差异写进 `theme.css` 的组件章节 —— 不要在模板里内联 `<style>`。
-3. **改配色只改 `design/scene/page.css`，别在商店里补一份。** `--hb-bg` / `--hb-accent` / `--hb-success` 与主程序的 `--bg` / `--accent` / `--success` 必须同步，主程序改色而商店没跟就会出现配色漂移；`check_scene_sync.mjs` 会在漂移时失败。
+3. **改配色只改 `design/scene/page.css`，别在商店里补一份。** `--hb-bg` / `--hb-accent` / `--hb-success` 与主程序的 `--bg` / `--accent` / `--success` 必须同步，主程序改色而商店没跟就会出现配色漂移，而这已无自动比对，只能靠人记得改两侧。
 
 另外两处**内联** HTML 也走同一套令牌，改配色时别漏：`api/pages.py` 的模拟收银台（`_cashier_html`）和 `api/alipay.py` 的同步跳转页（`_RETURN_PAGE`）。
 

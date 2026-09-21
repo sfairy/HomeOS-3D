@@ -1,6 +1,6 @@
 <!-- HomeOS 场景标记片段（canonical 源：design/scene/scene.html）
      占位符：SHELL_TITLE / SHELL_NAME / VERSION / STATUS_LABEL / TITLE / TAGLINE / SIGNAL_ITEMS / LOGO_SRC
-     分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。 -->
+     改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 -->
 <div class="hos-scene">
     <div class="hos-scene__stage" aria-hidden="true">
       <div class="hos-scene__sky"></div>
@@ -42,7 +42,7 @@
                居家暖光 #ff9d4d（亮 #ffba83，深 #c96a1d）
                极光紫   #c9a0ff  生态薄荷 #5fd0a8  设备读色 heat #ff8a65 / cool #58c4ff
              覆盖不到的半透明派生色（如 fp:0.38 的山脊）按上表手工推 —— 它们不在 :root 里，
-             `check_frontend_hygiene.mjs` 的同值硬编码色检查看不到这类 rgba()。 -->
+             这类 rgba() 不在 :root 里，只能按上表手工核对。 -->
         <defs>
           <linearGradient id="hosMtFar" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#5f7396" stop-opacity="0.38" />

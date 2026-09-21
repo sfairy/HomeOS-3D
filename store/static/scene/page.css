@@ -1,7 +1,7 @@
 /* HomeOS 入口页容器与表单坞（canonical 源：design/scene/page.css）
    提供 :root 调色板、页面色调开关，以及 .hos-page / .hos-dock / .hos-rise。
    场景层见 scene.css，表单控件见 panel.css。
-   分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。 */
+   改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。 */
 
 /* ── 调色板 ────────────────────────────────────────────────────────────────
    放在 :root 而不是 .hos-page：商店是「一个文档里既有全屏入口壳、又有可滚动前台」，
@@ -60,7 +60,7 @@
 
   /* 设备读色。heat ↔ cool 是温度的两端，alert 是超限，sensor 是离线 / 未知。
      场景样式本身只用得上其中一两枚，但整组必须留在这里：商店的 theme.css 会镜像
-     同一批令牌，`check_scene_sync.mjs` 逐个比对两侧取值 —— 删掉不常用的几枚，
+     同一批令牌，两侧取值必须逐个相等 —— 删掉不常用的几枚，
      镜像表就会缺项，而那正是过去两个色板慢慢走散的起点。 */
   --hos-heat-rgb: 255, 138, 101;
   --hos-heat: #ff8a65;

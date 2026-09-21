@@ -1,7 +1,7 @@
 """商店页面外壳：把场景片段填进模板里的 ``<!--{{SCENE}}-->``，并注入站点配色样式表。
 
 与主应用的 ``backend/http/page_shell.py`` 同源同思路 —— 片段都由
-``tools/sync_scene_assets.mjs`` 从 ``design/scene/scene.html`` 分发（这里读的是
+``design/scene/scene.html`` 手工同步而来（这里读的是
 ``store/templates/_scene.html``），只有品牌取值不同：主项目讲「本机中控」，
 商店讲「授权服务」。
 
@@ -138,7 +138,7 @@ def scene_markup(templates_dir: Path, version: str) -> str:
         stat = path.stat()
     except FileNotFoundError as error:
         raise RuntimeError(
-            f'场景片段缺失：{path}；请先运行 node tools/sync_scene_assets.mjs'
+            f'场景片段缺失：{path}；请从 design/scene/scene.html 同步分发副本'
         ) from error
     return _scene_markup(str(path), stat.st_mtime_ns, version)
 

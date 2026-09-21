@@ -9,7 +9,7 @@
  * 否则同一模块会被当成两份分别求值、出现两份互不相认的 `componentsByType`。
  */
 // 注册是 import 副作用：漏一个分片，对应控件类型会静默变成「控件尚未实现」；
-// tools/check_registry_split.mjs 核对分片都被引入。这里只转出确有消费方的导出名：
+// 每个分片都必须被本文件引入。这里只转出确有消费方的导出名：
 // 实测无人从本 barrel 导入的入口已随本次清理删去（分片之间的消费按分片路径直接导入）。
 import "./registry/components/air-conditioner.js?v=20260921152526";
 import "./registry/components/camera.js?v=20260921152526";

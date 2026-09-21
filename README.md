@@ -1,6 +1,6 @@
 # HomeOS
 
-面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.3**（见 `VERSION`）。
+面向 [Home Assistant](https://www.home-assistant.io/) 的本机仪表盘与中控平台，当前版本 **0.6.4**（见 `VERSION`）。
 
 提供可视化编辑器、3D 户型工作室、全屏展示页和中控配对；后端是 FastAPI，前端是原生 HTML / CSS / JavaScript，数据默认落在本机 SQLite。
 
@@ -105,7 +105,7 @@ HomeOS/
 ├── keys/                   # 客户端默认读取的公钥镜像（启动时由密钥准备流程自动同步）
 ├── migrations/             # Alembic 基线 0001 + 增量 0002（项目名唯一）/ 0003（展示地址别名）
 ├── image/                  # 可选的自定义内置素材目录（默认空）
-├── tools/                  # check_structure_refs.mjs / check_frontend_hygiene.mjs / check_studio_palette.mjs / check_registry_split.mjs / check_esm_exports.mjs（含共享桥与作用域绑定）/ check_scene_sync.mjs / check_entry_pages.mjs / bump_static_cache_versions.mjs · sync_scene_assets.mjs
+├── tools/                  # bump_static_cache_versions.mjs（全站静态资源缓存戳同戳刷新）
 ├── docker/                 # 容器启动（start_app / start_store）与构建期保护（compile py / obfuscate js）
 ├── deploy/                 # 生产清单与反代示例（Caddy / nginx）
 ├── data/                   # 主应用运行时数据（不入库）
@@ -622,11 +622,11 @@ docker exec homeos-3d rm /tmp/app.tar.gz
 
 ## 开发注意
 
-- 静态资源缓存标记统一为 `?v=YYYYMMDDHHMMSS`（14 位本地时间，例如 `?v=20260920104554`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后请跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。全站只许存在一个戳（`README` 与历史文档里的示例除外），这一条由 `tools/check_structure_refs.mjs` 把关。
+- 静态资源缓存标记统一为 `?v=YYYYMMDDHHMMSS`（14 位本地时间，例如 `?v=20260920104554`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后请跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。全站只许存在一个戳（`README` 与历史文档里的示例除外）—— 这条现在只能靠人工核对。
 - 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
 - 不要改 `frontend/static/vendor/` 下的 three.js、hls.js、OrbitControls 等第三方文件。
 - 界面中文文案保持原词；缓存戳改动请用 `tools/bump_static_cache_versions.mjs`。
-- 静态资源按功能域分区：`app.css` 留在挂载根，其余分入 `bridge/`、`editor/`、`renderer/`、`display/`、`auth/`、`shared/`、`logging/`、`assets/`，以及原有的 `utils/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`；`3d-studio/` 内部再按 `studio/`、`plan/`、`reflection/`、`materials/`、`loaders/`、`export/` 分组（`models/` 是模型素材，不是代码目录）。移动文件后请跑 `node tools/check_structure_refs.mjs` 校验引用与后端路径清单。
+- 静态资源按功能域分区：`app.css` 留在挂载根，其余分入 `bridge/`、`editor/`、`renderer/`、`display/`、`auth/`、`shared/`、`logging/`、`assets/`，以及原有的 `utils/`、`templates/`、`component-thumbnails/`、`audio/`、`vendor/`；`3d-studio/` 内部再按 `studio/`、`plan/`、`reflection/`、`materials/`、`loaders/`、`export/` 分组（`models/` 是模型素材，不是代码目录）。移动文件后请人工核对引用与后端路径清单（没有打包器，路径写错只在浏览器里变成 404）。
 - `migrations/env.py` 必须从 `backend` 导入 `database` 和 `models`（`from backend.core.database import Base`），不要写成相对导入，否则会重复注册表。
 - 3D 交互舞台脚本由 `/api/v1/modules/interaction3d/{filename:path}` 下发（路径含功能域子目录，如 `core/runtime.js`），需要已登录或已配对，且当前授权允许编辑器或 `module.3d_interaction`。
 - 商店的样式只有一层设计系统：`theme.css`（令牌 + 组件）必须排在任何页面样式表之前，令牌值与 `frontend/static/app.css` 对齐。详见 [store/README.md](store/README.md) 的「界面主题」。
@@ -643,33 +643,35 @@ node tools/bump_static_cache_versions.mjs
 
 可选参数：`--dry-run` 只列出会改哪些文件与处数（不写盘）、`--version=YYYYMMDDHHMMSS` 指定戳而不取当前本地时间。
 
-目录结构改动后校验引用完整性：
+**结构改动没有自动校验**（原先的 `check_structure_refs.mjs` 已移除）。前端没有打包器，路径写错
+只在浏览器里变成 404，所以这类改动必须人工过一遍：`/static/...` 引用、前端相对 ESM 导入、
+`backend/main.py` 的 `public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime`
+的对应、`/api/v1/modules/interaction3d/<path>` 资源 URL、`/store-static/...` 引用、CSS 里的相对
+`url(...)`、后端 `frontend_dir / …` 拼接链、静态资源缓存戳、注释里写到的文件路径、
+`backend/config.py` 的仓库根推导、`Dockerfile` 里的仓库相对路径。
 
-```bash
-node tools/check_structure_refs.mjs
-```
+**前端结构 / 卫生护栏已全部移除**（原先的 `check_frontend_hygiene.mjs` / `check_studio_palette.mjs` /
+`check_registry_split.mjs` / `check_esm_exports.mjs` / `check_scene_sync.mjs` / `check_entry_pages.mjs`
+六道守卫与本目录的场景分发工具 `sync_scene_assets.mjs` 一起删去）。它们把关的都是**不报错、只静默
+失效**的那一类问题，所以下面这些不变量现在全部落回人工 review：
 
-前端没有打包器，路径写错只在浏览器里变成 404。该脚本静态校验 `/static/...` 引用、前端相对 ESM 导入、`backend/main.py` 的 `public_static_files`、interaction3d 资源白名单与 `frontend/modules/runtime` 的双向一致、`/api/v1/modules/interaction3d/<path>` 资源 URL、`/store-static/...` 引用、CSS 里的相对 `url(...)`、后端 `frontend_dir / …` 拼接链、静态资源缓存戳、注释里写到的文件路径、`backend/config.py` 的仓库根推导、`Dockerfile` 里全部仓库相对路径，并附带列出残留的「后端 app 层」写法（信息项，不判失败）。仓库没有自动化回归网，结构改动后请同时跑它与手工冒烟。
-
-前端结构 / 卫生护栏（默认只读报清单，`--strict` 才判失败）：
-
-```bash
-node tools/check_frontend_hygiene.mjs --strict   # 死类名、跨文件同名规则、重复 @keyframes、与令牌逐字节同值的 hex、z-index 清单
-node tools/check_studio_palette.mjs --strict      # 3D 工作室素材卡：渲染早于 DOM 缓存、容器留空、数据表字段与页签归属
-node tools/check_registry_split.mjs               # 控件注册表分片：barrel 可达、注册点唯一、componentsByType 只一份、版本戳一致
-node tools/check_esm_exports.mjs                  # ESM 具名导出：引用方要的名字都存在，且导出方自己不把「只在 export {} 里的名字」当本地变量读
-node tools/check_scene_sync.mjs                   # design/scene 分发副本与令牌源同步、商店调色板与设计源一致、两侧 HTML 转义集一致
-node tools/check_entry_pages.mjs                  # 五个入口页：门链顺序、开通轨读数分支、占位符、外壳清单、以及状态名在 CSS 里有规则
-```
-
-前两个是**报告模式**：不加 `--strict` 一律退出 0，只打印清单。要当守卫用就必须带 `--strict`，
-接 CI 时尤其别忘 —— 少一个参数不会报错，只会安静地什么都不拦。
+- **死类名 / 重复规则**：删一条 CSS 规则前先 grep 类名；跨文件同名规则、重复 `@keyframes`、
+  与令牌逐字节同值的 hex 都要人工看。
+- **3D 工作室素材卡**（`3d-studio/studio/studio-asset-palette.js`）：渲染结果必须与拆分前的 HTML
+  逐字一致（缩进、属性顺序、`i`/`span`/`small` 顺序都算数），改完请人工比对结构与字段。
+- **控件注册表分片**（`renderer/core/registry.js`）：注册是 import 副作用，漏引入一个
+  `registry/components/<类型>.js` 不会报错、不会 404，只会在页面上变成「控件尚未实现」。
+- **design/scene 分发副本**：`design/scene/` 下的 `scene.css` / `panel.css` / `page.css` /
+  `fonts.css` / `appearance.js` / `scene-depth.js` / `scene.html` 各有三份分发副本
+  （`frontend/static/auth/scene/`、`store/static/scene/`、`store/templates/_scene.html`），改动必须
+  手工同步到每一份；商店 `theme.css` 的 `--hb-*` 与设计源 `--hos-*` 令牌要逐个相等；两侧 HTML
+  转义集（`utils/html-escape.js` 与 `store/static/htmlsafe.js`）必须逐字节相同。
 
 **五个入口页**（`/setup` → `/login` → `/license` → `/pair` → 进中控）的轨道读数不在 HTML 里，
 由 `backend/http/commissioning.py` 按**访问者**填：同一条 `/pair` 对管理员（带着会话）与一台
-墙面板（不走登录、键盘都没有）读数是两种，写死在页面上必然对其中一种撒谎。`check_entry_pages.mjs`
-静态核对「页面 ↔ 读数分支 ↔ CSS 状态名」三者是否还互相对得上 —— 它们任一处走散都不会报错，
-只会让某一步安静地不亮、或者亮错一格。
+墙面板（不走登录、键盘都没有）读数是两种，写死在页面上必然对其中一种撒谎。改「页面 ↔ 读数分支 ↔
+CSS 状态名」任一处都要人工核对三者是否还互相对得上 —— 走散不会报错，只会让某一步安静地不亮、
+或者亮错一格。
 
 Python 侧的死代码门禁由仓库根的 `ruff.toml` 单独钉住（只挑全仓已达标的那几条，边界写在该文件注释里）：
 
@@ -677,46 +679,38 @@ Python 侧的死代码门禁由仓库根的 `ruff.toml` 单独钉住（只挑全
 ruff check .                                      # 未使用 import / 重复定义 / 未使用局部变量 / 未定义名字 / 注释掉的代码
 ```
 
-**两条工作流共用同一份清单**：
+**两条工作流现在只跑 `ruff check .`**（原先的七道 Node 守卫已随本轮清理移除）：
 
 - `.github/workflows/guards.yml` —— `push` / `pull_request` 触发，日常改动即校验。
 - `.github/workflows/docker.yml` 的 `guards` job —— 挂在镜像 `build` 之前。该工作流只有
   `workflow_dispatch`（仓库有意不在 push 上自动构建、也不向 GHCR 推未打算发布的镜像），
   所以它是出包前那道。
 
-改清单时**两份都要改**，否则会出现「CI 绿、出包红」这种最难查的错配。
-此前列为「故意没纳入」的两条现在都在清单里：`check_frontend_hygiene.mjs --strict` 的 32 项
-`design/scene/` 死类名已清理干净，`check_scene_sync.mjs` 的分发副本也已重新生成并同步。
+两份工作流共用同一份清单，改时**两份都要改**，否则会出现「CI 绿、出包红」这种最难查的错配。
 
 **HTML 转义**由 `frontend/static/utils/html-escape.js`（应用侧）与 `store/static/htmlsafe.js`
 （商店侧）各一份提供 —— 商店是独立构建上下文（`store/app.py` 只挂 `/store-static` 与 `/fonts`，
 拿不到 `/static`），它 import 不到应用侧那份，只能各留一份。转义集不一致**不会报错**，只会让
 同一个值在两个页面里显示成不同的东西（少转一个 `"` 就是属性提前闭合，现场看着只是「布局怪」），
-所以 `check_scene_sync.mjs` 直接比对两边的映射表。判定只认映射表、不比包装方式：一边是 IIFE 挂
-全局、一边是 ESM 具名导出，形态不同是刻意的，转义结果必须逐字节相同。
+原先由 `check_scene_sync.mjs` 比对两份映射表，现在必须人工同步 —— 不一致不会报错，只会让同一个值
+在两个页面里显示成不同的东西（少转一个 `"` 就是属性提前闭合，现场看着只是「布局怪」）。
 
-控件注册表（`renderer/core/registry.js` + `renderer/core/registry/`）的注册是 import 副作用：漏引入一个
-`registry/components/<类型>.js` 不会报错、不会 404，只会在页面上变成「控件尚未实现」。
-`check_registry_split.mjs` 静态证明每个分片都被引入 —— 运行时冒烟已在清理中移除，这是目前唯一一道。
+**ESM 导出的两类静默故障**（原先由 `check_esm_exports.mjs` 静态钉住，现在只能人工核对）：
 
-相邻的另一类静默故障是**分片自己漏写 `export`**：导入它的模块整页抛 SyntaxError，而报错信息指向
-**导入方**（`air-conditioner.js:26`），很容易被误判成缓存没刷或路径写错。`check_esm_exports.mjs` 把
-「每个具名 import 都能在目标模块里找到同名导出」静态钉住，改动 import / export 后请跑它。
-
-方向相反、更容易归错因的是另一种：**导出方自己把「只在 `export {}` 里出现的名字」当本地变量读**。
-`export { clampNumber as clamp } from "utils/numbers.js"` 只把 `clamp` 挂上对外接口、**不在本模块
-作用域建绑定**，于是同文件里那些 `clamp(...)` 成了运行期 ReferenceError，栈顶指向导出方自己的函数
-（`geometry.js` 的 `adaptiveDeviceLightBudget`）—— 现场看着像几何/预算算法坏了，其实是导出写法。
-换成 `import { clampNumber } …; export { clampNumber as clamp };` 同样不建绑定，长得还更像「修复」，
-守卫两种都报。判定收得很紧：只针对「对外暴露、而本模块没有同名绑定」的名字，且扫正文时把字符串与
-模板字面量的内容一起挖空（3d-studio 的字面量里大量是 HTML 与文案，不挖必然假阳性）。
-
-它另外单独查一处前四类写法都看不见的地方 —— 运行时树通往 `/static/` 的共享桥
-`modules/runtime/core/static-helpers.js`。桥写的是 `const { a, b } = await (… ? import(相对路径)
-: import("/static/…"))`，既不是 `import … from` 也不是 `export const { … }`，所以桥里漏一个
-`export`、拼错一个目标路径，守卫会全绿而只有浏览器报错。现在守卫连桥一起钉：解构出的每个名字都得
-是两个分支目标的真实导出、两个分支必须指向同一个文件、末尾 `export { … }` 必须与解构出的名字集合
-逐字相同（桥自己的「登记表」纪律）。加名字到桥里后请顺手跑一次，它比浏览器先报。
+- **分片自己漏写 `export`**：导入它的模块整页抛 SyntaxError，而报错信息指向**导入方**
+  （`air-conditioner.js:26`），很容易被误判成缓存没刷或路径写错。
+- **导出方把「只在 `export {}` 里出现的名字」当本地变量读**：`export { clampNumber as clamp } from
+  "utils/numbers.js"` 只把 `clamp` 挂上对外接口、**不在本模块作用域建绑定**，于是同文件里那些
+  `clamp(...)` 成了运行期 ReferenceError，栈顶指向导出方自己的函数（`geometry.js` 的
+  `adaptiveDeviceLightBudget`）—— 现场看着像几何/预算算法坏了，其实是导出写法。换成
+  `import { clampNumber } …; export { clampNumber as clamp };` 同样不建绑定，长得还更像「修复」，
+  两种写法都要靠人认出来。
+- 另有一处这两类写法都看不见：运行时树通往 `/static/` 的共享桥
+  `modules/runtime/core/static-helpers.js`。桥写的是 `const { a, b } = await (… ? import(相对路径)
+  : import("/static/…"))`，既不是 `import … from` 也不是 `export const { … }`，所以桥里漏一个
+  `export`、拼错一个目标路径都不会有任何静态报错，只有浏览器会炸 —— 加名字到桥里后请人工核对：
+  解构出的每个名字都得是两个分支目标的真实导出、两个分支必须指向同一个文件、末尾 `export { … }`
+  必须与解构出的名字集合逐字相同（桥自己的「登记表」纪律）。
 
 `utils/state-entry.js` 的契约（**已无自动断言**）：状态文本归一
 （`String(state).trim().toLowerCase()`）曾散落二十余处，如今只此一份，各域只负责
@@ -741,6 +735,26 @@ ruff check .                                      # 未使用 import / 重复定
 ## 更新日志
 
 更早的版本记录已随文档精简移除；项目按**首个发布版本**维护，不再保留历史版本的数据迁移说明。
+
+### v0.6.4
+
+**回归网收缩（这一版的主体）**
+
+- 移除全部静态守卫脚本：`check_structure_refs.mjs`、`check_esm_exports.mjs`、`check_registry_split.mjs`、
+  `check_studio_palette.mjs`、`check_frontend_hygiene.mjs`、`check_scene_sync.mjs`、`check_entry_pages.mjs`。
+  场景分发工具 `tools/sync_scene_assets.mjs` 一并移除（`tools/bump_static_cache_versions.mjs` 保留）。
+- `guards.yml` 与 `docker.yml` 的守卫清单同步收缩为 `ruff check .` 一道；两份工作流的清单仍共用，改时两份都要改。
+- **移除的代价**：这些脚本把关的都是「不报错、只静默失效」的那类问题 —— 结构引用能否解析、ESM 具名导出、
+  控件注册表分片可达、design/scene 分发副本与令牌一致、两侧 HTML 转义集逐字节相同、入口页门链与状态名对齐。
+  它们不再是自动的，全部落回人工 review；README「开发工具」一节改为逐条列出要人工核对的不变量。
+- 运行时报错提示里指向已删脚本的指引（`backend/http/page_shell.py`、`store/api/page_shell.py` 的
+  「请先运行 node tools/sync_scene_assets.mjs」）改为「请从 design/scene/scene.html 同步分发副本」——
+  否则排障时会被指去跑一个并不存在的命令。
+- 同步清理约 40 处指向已删脚本的注释与文档引用，并移除 `.cursor/rules/temp-dir-cleanup.mdc`。
+
+**数据库**
+
+- 无结构变更、无迁移，升级只需替换镜像；请保留全部数据卷 / 数据目录（`homeos-3d-data` / `homeos-3d-store-data` / `homeos-3d-license-keys` / `homeos-3d-client-keys`）。
 
 ### v0.6.3
 
@@ -807,7 +821,7 @@ ruff check .                                      # 未使用 import / 重复定
 - **主应用后端（B1–B66）**：媒体代理按实体归属校验（跨项目 403）、转发头默认只信回环、凭据解析收敛到 `backend/security/access.py`、阻塞端点移出事件循环（导出 ZIP / 素材落盘 / 授权服务查库）、上传与导出改为流式落盘、先查后写的并发冲突落 409/422、项目名唯一（迁移 `0002`）与展示地址别名（迁移 `0003`）、素材总量配额与孤儿回收、全局日志写入线程化、授权轮询配额按端点分桶 + 429 退避且不降级状态、网关时钟容差与租约序号自愈。
 - **前端（W1–W30）**：接口超时预算只留一个主人（`utils/api-fetch.js`）、按钮复位一律进 `finally`、展示页横幅按槽位分语义、WS 断开给可见提示、未激活页面（`pair` / `setup` / `license`）的出口、编辑器启动分片失败聚合、草稿快照只留要救的东西、乐观开关仅在真回滚时上报、ESC 逐层收口、挂载失败带原因、保存冲突留出口、弹窗模态语义与焦点、共享模块单份实例、缓存上限只认常量。
 - **代码质量（P9–P12）**：删除零引用符号与模块级死导出，重复实现收敛到 `utils/`（`numbers` / `colors` / `entities` / `datetime` / `icon-url` / `state-entry` / `api-error` / `device-profiles` 等）。
-- **失效声明**：上述自动化闸门（smoke / e2e / 各探针 / CI workflow / `ruff.toml` / `eslint.config.mjs`）已在下方「测试与死代码清理」中整体移除。修复结论仍然成立、口径仍然有效，但**改动相关代码时需人工对照**，不要再以为背后还有回归网。（v0.6.3 按静态可判定的部分恢复了护栏，见该版本的「回归网」一节 —— e2e / 冒烟 / 探针没有回来。）
+- **失效声明**：上述自动化闸门（smoke / e2e / 各探针 / CI workflow / `ruff.toml` / `eslint.config.mjs`）已在下方「测试与死代码清理」中整体移除。修复结论仍然成立、口径仍然有效，但**改动相关代码时需人工对照**，不要再以为背后还有回归网。（v0.6.3 曾按静态可判定的部分恢复护栏，v0.6.4 又把它们整体移除，见各版本对应一节 —— e2e / 冒烟 / 探针始终没有回来。）
 
 **数据库**
 

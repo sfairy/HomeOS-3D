@@ -1,6 +1,6 @@
 /* HomeOS 可配置配色（canonical 源：design/scene/appearance.js）
    预设、明暗派生与令牌展开都在这里，三个入口（主应用 / 商店 / Activate）共用同一份。
-   分发产物由 tools/sync_scene_assets.mjs 写入，请勿手改副本。
+   改动请以 design/scene/ 下的同名文件为准，两侧必须一致，勿单侧手改。
 
    ## 为什么这份逻辑在前端而不是后端
 
@@ -153,7 +153,7 @@ export function deriveShades(hex) {
  * 生效值」变得可疑，而下一个人一定会去改错那一个。
  *
  * 两个命名空间一起发：主应用与场景读 `--hos-*`，商店读 `--hb-*`（theme.css 是
- * page.css 的镜像，由 check_scene_sync.mjs 逐 token 比对）。同一张表在两端都无害，
+ * page.css 的镜像，两侧令牌须逐 token 相等）。同一张表在两端都无害，
  * 于是只需要一个 `GET /appearance.css` 响应体、一份前端产出。
  */
 export function appearanceTokens(colors) {
