@@ -130,6 +130,39 @@ function configuredModuleKinds(rawConfig = {}) {
   ];
 }
 /**
+ * 快照门控同步器：舞台里有一串同形状的同步函数（窗帘 / 摄像头状态 / NAS / 电视屏 /
+ * 存在感应 / 扫地机地图），都是「读一组输入 → 与上次全等就短路 → 落新快照 → 重建或刷新」。
+ * 各自手写比较时键集互不相同：少写一个键不会报错，只会让某类变化被静默吞掉（改了配置却不刷新）。
+ * 收成一处后，readInputs 返回的键就是判等的全部依据，核对键集时一眼可数。
+ *
+ * 比较是 Object.is 逐键引用相等：输入是配置对象、状态表、场景根这类引用，
+ * 内容变化时上游会换新引用（另有 revision 兜底）。键数不一致按「变了」处理 ——
+ * 宁可多跑一次重活，也不要让变化被吞掉。
+ *
+ * @param {() => object} readInputs 读取当前输入，返回的键即快照键（每次都要给出同样的键）。
+ * @param {(inputs: object) => void} apply 判定变化后执行的同步逻辑，入参即本次输入。
+ * @returns {() => void} 可反复调用的同步函数（宿主每帧调用也只在输入变化时才做重活）。
+ */
+function createSnapshotSyncer(readInputs, apply) {
+  let previousInputs = null;
+  return function syncSnapshot() {
+    const inputs = readInputs();
+    if (previousInputs && snapshotInputsEqual(previousInputs, inputs)) {
+      return;
+    }
+    previousInputs = inputs;
+    apply(inputs);
+  };
+}
+/** 逐键引用相等 + 键数一致，供 createSnapshotSyncer 判等。 */
+function snapshotInputsEqual(previousInputs, inputs) {
+  const inputKeys = Object.keys(inputs);
+  if (inputKeys.length !== Object.keys(previousInputs).length) {
+    return false;
+  }
+  return inputKeys.every(inputKey => Object.is(previousInputs[inputKey], inputs[inputKey]));
+}
+/**
  * 挂载 3D 舞台：注册宿主消息、渲染循环与全部子系统（窗帘 / 扫地机 / 电视 / NAS / 摄像头 / 环境）。
  * 顺序：建 DOM → 建子系统 → 监听 message 与 ResizeObserver → 建按需渲染循环 → 回 ready；不返回句柄，释放挂在 pagehide 上。
  * @param {object} stageOptions 宿主注入的依赖与回调（THREE、container、canvas、document、相机、帧循环工厂、联动钩子）。
@@ -930,7 +963,6 @@ export function mountStage(stageOptions) {
     THREE: THREE,
     requestRender: () => wakeFrameLoop()
   });
-  let curtainSyncSnapshot = null;
   let curtainFloorIds = [];
   let coverBindings = [];
   // 把窗帘展示状态同步给标记图标与 3D 窗帘动画；
@@ -952,78 +984,68 @@ export function mountStage(stageOptions) {
   }
   /**
    * 重建窗帘绑定，并把状态同步给动画、反馈缓存与宿主。
-   * 先用快照（config / states / 场景根 / revision / 文档）短路：宿主每帧都可能
-   * 调用，没有变化时直接返回，省掉一次 filter + 重新绑定。
+   * 快照键：配置 / 状态表 / 场景根 / revision / 文档 —— 宿主每帧都可能调用，
+   * 五个引用都没换就说明没必要重绑（filter 收集与楼层去重都不便宜）。
    */
-  function syncCurtains() {
-    const modelRoot = stageOptions.modelRoot;
-    const sceneRevision = stageOptions.sceneRevision;
-    const sceneDocument = stageOptions.document;
-    if (
-      curtainSyncSnapshot?.config === config &&
-      curtainSyncSnapshot.states === statesByEntityId &&
-      curtainSyncSnapshot.root === modelRoot &&
-      curtainSyncSnapshot.revision === sceneRevision &&
-      curtainSyncSnapshot.source === sceneDocument
-    ) {
-      return;
-    }
-    curtainSyncSnapshot = {
-      config: config,
+  const syncCurtains = createSnapshotSyncer(
+    () => ({
+      config,
       states: statesByEntityId,
-      root: modelRoot,
-      revision: sceneRevision,
-      source: sceneDocument
-    };
-    const curtainBindings = [...collectCurtainBindings(), ...collectPreviewCovers()];
-    coverBindings = curtainBindings;
-    curtainFloorIds = [
-      ...new Set(
-        curtainBindings.map(curtainFloorEntry => curtainFloorEntry.floorId).filter(Boolean)
-      )
-    ];
-    curtainMotion.setBindings(modelRoot, curtainBindings, sceneRevision);
-    coverFeedback.retain(
-      curtainBindings.map(retainedCurtainEntry => retainedCurtainEntry.entityId)
-    );
-    const dreamCurtainEntityIds = curtainBindings
-      .filter(dreamCurtainEntry => dreamCurtainEntry.coverKind === "dream")
-      .map(dreamCurtainIdEntry => dreamCurtainIdEntry.entityId);
-    dreamCoverFeedback.retain(dreamCurtainEntityIds);
-    for (const bladeEntityId of bladePendingByEntityId.keys()) {
-      if (!dreamCurtainEntityIds.includes(bladeEntityId)) {
-        bladePendingByEntityId.delete(bladeEntityId);
-      }
-    }
-    for (const curtainSyncBinding of curtainBindings) {
-      const curtainCoverState = coverState(
-        curtainSyncBinding.entityId,
-        statesByEntityId[curtainSyncBinding.entityId],
-        curtainSyncBinding
+      root: stageOptions.modelRoot,
+      revision: stageOptions.sceneRevision,
+      source: stageOptions.document
+    }),
+    ({ root, revision }) => {
+      const curtainBindings = [...collectCurtainBindings(), ...collectPreviewCovers()];
+      coverBindings = curtainBindings;
+      curtainFloorIds = [
+        ...new Set(
+          curtainBindings.map(curtainFloorEntry => curtainFloorEntry.floorId).filter(Boolean)
+        )
+      ];
+      curtainMotion.setBindings(root, curtainBindings, revision);
+      coverFeedback.retain(
+        curtainBindings.map(retainedCurtainEntry => retainedCurtainEntry.entityId)
       );
-      if (curtainSyncBinding.coverKind === "dream") {
-        dreamCoverFeedback.sync(curtainSyncBinding.entityId, {
-          ...curtainCoverState,
-          dream: false,
-          overallFeedbackAvailable: true,
-          axis: "blade",
-          state: "open",
-          position: curtainCoverState.tiltPosition,
-          opening: false,
-          closing: false,
-          moving: false
-        });
+      const dreamCurtainEntityIds = curtainBindings
+        .filter(dreamCurtainEntry => dreamCurtainEntry.coverKind === "dream")
+        .map(dreamCurtainIdEntry => dreamCurtainIdEntry.entityId);
+      dreamCoverFeedback.retain(dreamCurtainEntityIds);
+      for (const bladeEntityId of bladePendingByEntityId.keys()) {
+        if (!dreamCurtainEntityIds.includes(bladeEntityId)) {
+          bladePendingByEntityId.delete(bladeEntityId);
+        }
       }
-      coverFeedback.sync(curtainSyncBinding.entityId, curtainCoverState);
+      for (const curtainSyncBinding of curtainBindings) {
+        const curtainCoverState = coverState(
+          curtainSyncBinding.entityId,
+          statesByEntityId[curtainSyncBinding.entityId],
+          curtainSyncBinding
+        );
+        if (curtainSyncBinding.coverKind === "dream") {
+          dreamCoverFeedback.sync(curtainSyncBinding.entityId, {
+            ...curtainCoverState,
+            dream: false,
+            overallFeedbackAvailable: true,
+            axis: "blade",
+            state: "open",
+            position: curtainCoverState.tiltPosition,
+            opening: false,
+            closing: false,
+            moving: false
+          });
+        }
+        coverFeedback.sync(curtainSyncBinding.entityId, curtainCoverState);
+      }
+      syncCoverFeedback();
+      stageOptions.curtainFrame?.({
+        key: curtainMotion.poseKey(),
+        structure: curtainMotion.structureKey(),
+        floorIds: curtainFloorIds,
+        moving: curtainMotion.isMoving() || nextCoverDelayMs() <= 1000 / 30
+      });
     }
-    syncCoverFeedback();
-    stageOptions.curtainFrame?.({
-      key: curtainMotion.poseKey(),
-      structure: curtainMotion.structureKey(),
-      floorIds: curtainFloorIds,
-      moving: curtainMotion.isMoving() || nextCoverDelayMs() <= 1000 / 30
-    });
-  }
+  );
   stageOptions.setCurtainSync?.(syncCurtains);
   const nasStatus = createNasStatus({
     THREE: THREE,
@@ -1032,100 +1054,79 @@ export function mountStage(stageOptions) {
       wakeFrameLoop();
     }
   });
-  let nasSnapshot;
   const cameraStatus = createCameraStatus({
     THREE: THREE,
     requestFrame: () => stageOptions.requestRender?.()
   });
-  let cameraStatusSnapshot;
   // 摄像头状态同步：安防模块且非「全部楼层」时才全亮（1），其余压暗到 0.55，
-  // 避免未被关注的楼层抢视觉焦点。同样用快照短路，重复调用不做重活。
-  function syncCameraStatus() {
-    const statusModelRoot = stageOptions.modelRoot;
-    const statusSceneRevision = stageOptions.sceneRevision;
-    const isEnabled = !isViewEditing && !isRangeEditorOpen;
-    const statusBrightness = activeModule === "security" && currentFloorId !== "all" ? 1 : 0.55;
-    if (
-      cameraStatusSnapshot?.root === statusModelRoot &&
-      cameraStatusSnapshot.revision === statusSceneRevision &&
-      cameraStatusSnapshot.config === config &&
-      cameraStatusSnapshot.states === statesByEntityId &&
-      cameraStatusSnapshot.enabled === isEnabled &&
-      cameraStatusSnapshot.brightness === statusBrightness
-    ) {
-      return;
-    }
-    cameraStatusSnapshot = {
-      root: statusModelRoot,
-      revision: statusSceneRevision,
-      config: config,
-      states: statesByEntityId,
-      enabled: isEnabled,
-      brightness: statusBrightness
-    };
-    // 摄像头状态灯的挂载尺寸取自场景模型；模型缺失（刚删模型、跨楼层切换中）时
-    // 退回 0.2×0.3×0.2 米的缺省盒体，保证状态灯仍有锚点而不是消失。
-    const cameraBindings = (config.security?.cameras || []).map(cameraBindingEntry => {
-      const cameraSceneItem = stageOptions.document.floors
-        .find(cameraStatusFloor => cameraStatusFloor.id === cameraBindingEntry.floorId)
-        ?.scene.items.find(
-          cameraSceneItemMatch =>
-            cameraSceneItemMatch.id === cameraBindingEntry.modelId &&
-            cameraSceneItemMatch.type === "camera"
-        );
+  // 避免未被关注的楼层抢视觉焦点。快照额外带亮度与启用态 —— 这两个值会随模块切换变，漏了就压不回亮度。
+  const syncCameraStatus = createSnapshotSyncer(
+    () => {
+      const isEnabled = !isViewEditing && !isRangeEditorOpen;
+      const brightness = activeModule === "security" && currentFloorId !== "all" ? 1 : 0.55;
       return {
-        ...cameraBindingEntry,
-        width: cameraSceneItem?.width || 0.2,
-        height: cameraSceneItem?.height || 0.3,
-        depth: cameraSceneItem?.depth || 0.2
-      };
-    });
-    cameraStatus.sync({
-      root: statusModelRoot,
-      revision: statusSceneRevision,
-      bindings: cameraBindings,
-      states: statesByEntityId,
-      enabled: isEnabled,
-      brightness: statusBrightness
-    });
-  }
-  // NAS 状态同步：全部楼层时模型缩到 0.75；设备相关模块下全亮，其余压暗到 0.6。
-  function syncNasStatus() {
-    const nasEnabled = !isViewEditing && !isRangeEditorOpen;
-    const nasModelRoot = stageOptions.modelRoot;
-    const nasSceneRevision = stageOptions.sceneRevision;
-    const sizeScale = currentFloorId === "all" ? 0.75 : 1;
-    const nasBrightness =
-      currentFloorId !== "all" && ["devices", "nas", "television"].includes(activeModule) ? 1 : 0.6;
-    if (
-      nasSnapshot?.root !== nasModelRoot ||
-      nasSnapshot.revision !== nasSceneRevision ||
-      nasSnapshot.config !== config ||
-      nasSnapshot.states !== statesByEntityId ||
-      nasSnapshot.enabled !== nasEnabled ||
-      nasSnapshot.sizeScale !== sizeScale ||
-      nasSnapshot.brightness !== nasBrightness
-    ) {
-      nasSnapshot = {
-        root: nasModelRoot,
-        revision: nasSceneRevision,
-        config: config,
+        config,
         states: statesByEntityId,
-        enabled: nasEnabled,
-        sizeScale: sizeScale,
-        brightness: nasBrightness
+        root: stageOptions.modelRoot,
+        revision: stageOptions.sceneRevision,
+        enabled: isEnabled,
+        brightness
       };
-      nasStatus.sync({
-        root: nasModelRoot,
-        revision: nasSceneRevision,
-        bindings: collectNasBindings(),
-        states: statesByEntityId,
-        enabled: nasEnabled,
-        sizeScale: sizeScale,
-        brightness: nasBrightness
+    },
+    ({ root, revision, states, enabled, brightness }) => {
+      // 摄像头状态灯的挂载尺寸取自场景模型；模型缺失（刚删模型、跨楼层切换中）时
+      // 退回 0.2×0.3×0.2 米的缺省盒体，保证状态灯仍有锚点而不是消失。
+      const cameraBindings = (config.security?.cameras || []).map(cameraBindingEntry => {
+        const cameraSceneItem = stageOptions.document.floors
+          .find(cameraStatusFloor => cameraStatusFloor.id === cameraBindingEntry.floorId)
+          ?.scene.items.find(
+            cameraSceneItemMatch =>
+              cameraSceneItemMatch.id === cameraBindingEntry.modelId &&
+              cameraSceneItemMatch.type === "camera"
+          );
+        return {
+          ...cameraBindingEntry,
+          width: cameraSceneItem?.width || 0.2,
+          height: cameraSceneItem?.height || 0.3,
+          depth: cameraSceneItem?.depth || 0.2
+        };
+      });
+      cameraStatus.sync({
+        root,
+        revision,
+        bindings: cameraBindings,
+        states,
+        enabled,
+        brightness
       });
     }
-  }
+  );
+  // NAS 状态同步：全部楼层时模型缩到 0.75；设备相关模块下全亮，其余压暗到 0.6。
+  const syncNasStatus = createSnapshotSyncer(
+    () => ({
+      config,
+      states: statesByEntityId,
+      root: stageOptions.modelRoot,
+      revision: stageOptions.sceneRevision,
+      enabled: !isViewEditing && !isRangeEditorOpen,
+      sizeScale: currentFloorId === "all" ? 0.75 : 1,
+      brightness:
+        currentFloorId !== "all" && ["devices", "nas", "television"].includes(activeModule)
+          ? 1
+          : 0.6
+    }),
+    ({ root, revision, states, enabled, sizeScale, brightness }) => {
+      nasStatus.sync({
+        root,
+        revision,
+        bindings: collectNasBindings(),
+        states,
+        enabled,
+        sizeScale,
+        brightness
+      });
+    }
+  );
   const televisionScreens = createTelevisionScreens({
     THREE: THREE,
     requestFrame: invalidatedModelIds => {
@@ -1134,44 +1135,34 @@ export function mountStage(stageOptions) {
       wakeFrameLoop();
     }
   });
-  let televisionSnapshot;
   // 电视屏幕同步：灯光模块与视图编辑下不点亮屏幕（避免干扰布光预览），
-  // 其余情况按当前聚焦模型刷新画面。
-  function syncTelevisionScreens() {
-    const tvModelRoot = stageOptions.modelRoot;
-    const tvSceneRevision = stageOptions.sceneRevision;
-    const focusedModel =
-      activeModule !== "light" && !isViewEditing && !isRangeEditorOpen
-        ? isEditing
-          ? selectedId
-          : focusedId
-        : "";
-    if (
-      televisionSnapshot?.root !== tvModelRoot ||
-      televisionSnapshot.revision !== tvSceneRevision ||
-      televisionSnapshot.config !== config ||
-      televisionSnapshot.states !== statesByEntityId ||
-      televisionSnapshot.focused !== focusedModel ||
-      televisionSnapshot.module !== activeModule
-    ) {
-      televisionSnapshot = {
-        root: tvModelRoot,
-        revision: tvSceneRevision,
-        config: config,
-        states: statesByEntityId,
-        focused: focusedModel,
-        module: activeModule
-      };
+  // 其余情况按当前聚焦模型刷新画面。快照里的 focused 与 module 决定「点亮谁」，
+  // 少带一个就会出现切换聚焦后画面不跟的情况。
+  const syncTelevisionScreens = createSnapshotSyncer(
+    () => ({
+      config,
+      states: statesByEntityId,
+      root: stageOptions.modelRoot,
+      revision: stageOptions.sceneRevision,
+      focused:
+        activeModule !== "light" && !isViewEditing && !isRangeEditorOpen
+          ? isEditing
+            ? selectedId
+            : focusedId
+          : "",
+      module: activeModule
+    }),
+    ({ root, revision, states }) => {
       televisionScreens.sync({
-        root: tvModelRoot,
-        revision: tvSceneRevision,
+        root,
+        revision,
         bindings: collectTelevisionBindings(),
-        states: statesByEntityId,
+        states,
         focusedModel: "",
         dimStrength: 0
       });
     }
-  }
+  );
   const environmentScene = createEnvironmentScene({
     THREE: THREE,
     requestFrame: invalidatedIds => {
@@ -1466,7 +1457,6 @@ export function mountStage(stageOptions) {
   const vacuumMotion = createVacuumMotion(stageOptions, wakeFrameLoop);
   const presenceScene = createPresenceScene(stageOptions, wakeFrameLoop);
   const presenceWaves = createPresenceWaves(stageOptions);
-  let presenceSyncSignature = null;
   let isPresencePreviewWalk = false;
   let isPresenceHitRangeVisible = false;
   const presenceHitLayerElement = makeElement("div", "i3d-presence-hit-layer");
@@ -1513,108 +1503,91 @@ export function mountStage(stageOptions) {
   }
   // 人体存在场景的开关条件：已呈现、非编辑器画布，且（非编辑态或正处于安防模块）。
   // 编辑其它模块时要关掉，免得场景特效干扰布点。
-  function syncPresenceScene() {
-    const isPresenceEnabled =
-      isPresented &&
-      !isEditorCanvas &&
-      (!isEditing || activeModule === "security") &&
-      !isViewEditing &&
-      !isRangeEditorOpen &&
-      isPresentedVisible &&
-      !document.hidden &&
-      !stageOptions.floorTransitionActive &&
-      cameraTransition?.owner !== "floor";
-    const presenceSignature = [
-      config,
-      statesByEntityId,
-      stageOptions.sceneRevision,
-      currentFloorId,
-      isPresenceEnabled,
-      isPresencePreviewWalk,
-      activeModule
-    ];
-    if (
-      !presenceSyncSignature ||
-      !presenceSignature.every(
-        (signatureValue, signatureIndex) => signatureValue === presenceSyncSignature[signatureIndex]
-      )
-    ) {
-      presenceSyncSignature = presenceSignature;
+  // 快照键 = 配置 / 状态表 / revision / 楼层 / 开关 / 预览行走 / 模块。
+  const syncPresenceScene = createSnapshotSyncer(
+    () => {
+      const isEnabled =
+        isPresented &&
+        !isEditorCanvas &&
+        (!isEditing || activeModule === "security") &&
+        !isViewEditing &&
+        !isRangeEditorOpen &&
+        isPresentedVisible &&
+        !document.hidden &&
+        !stageOptions.floorTransitionActive &&
+        cameraTransition?.owner !== "floor";
+      return {
+        config,
+        states: statesByEntityId,
+        revision: stageOptions.sceneRevision,
+        floorId: currentFloorId,
+        enabled: isEnabled,
+        preview: isPresencePreviewWalk,
+        module: activeModule
+      };
+    },
+    ({ config: presenceConfig, states, enabled }) => {
       presenceScene.sync(
-        config.security?.presenceSensors || [],
-        statesByEntityId,
-        isPresenceEnabled,
+        presenceConfig.security?.presenceSensors || [],
+        states,
+        enabled,
         currentFloorId,
         isEditing,
         isPresencePreviewWalk,
         activeModule
       );
     }
-  }
-  let presenceSceneSignature = null;
+  );
   // 单台扫地机地图的开关条件：已呈现且不在编辑 / 视图调整中、页面可见。
-  // 用配置 + 状态拼签名短路，签名不变就不重建地图点云。
-  function syncVacuumMap() {
-    const isVacuumMapEnabled =
-      isPresented && !isEditing && !isViewEditing && isPresentedVisible && !document.hidden;
-    const vacuumMapSignature = [
+  // 快照键 = 配置 / 状态表 / revision / 开关；不变就不重建地图点云。
+  const syncVacuumMap = createSnapshotSyncer(
+    () => ({
       config,
-      statesByEntityId,
-      stageOptions.sceneRevision,
-      isVacuumMapEnabled
-    ];
-    if (
-      !presenceSceneSignature ||
-      !vacuumMapSignature.every(
-        (cachedSignatureValue, cachedSignatureIndex) =>
-          cachedSignatureValue === presenceSceneSignature[cachedSignatureIndex]
-      )
-    ) {
-      presenceSceneSignature = vacuumMapSignature;
+      states: statesByEntityId,
+      revision: stageOptions.sceneRevision,
+      enabled:
+        isPresented && !isEditing && !isViewEditing && isPresentedVisible && !document.hidden
+    }),
+    ({ states, enabled }) => {
       vacuumMotion.sync(
-        vacuumBindingsForMap(config.devices?.vacuums || [], statesByEntityId),
-        statesByEntityId,
-        isVacuumMapEnabled
+        vacuumBindingsForMap(config.devices?.vacuums || [], states),
+        states,
+        enabled
       );
     }
-  }
+  );
   // 房间清扫请求的超时表：请求期间对应按钮保持禁用，
   // 结果（成功或失败）由 vacuum-room-result 消息结清。
   const vacuumRoomTimersById = new Map();
-  let vacuumMapSyncSignature = null;
   // 扫地机地图整体只在其专属模块、且非视图编辑 / 范围编辑时开启。
-  function syncVacuumMaps() {
-    const isVacuumMapsEnabled =
-      activeModule === "vacuum" &&
-      !isViewEditing &&
-      !isRangeEditorOpen &&
-      !stageOptions.floorTransitionActive &&
-      cameraTransition?.owner !== "floor" &&
-      isPresentedVisible &&
-      !document.hidden;
-    const vacuumMapsSignature = [
-      config,
-      statesByEntityId,
-      stageOptions.sceneRevision,
-      currentFloorId,
-      isVacuumMapsEnabled
-    ];
-    if (
-      !vacuumMapSyncSignature ||
-      !vacuumMapsSignature.every(
-        (syncSignatureValue, syncSignatureIndex) =>
-          syncSignatureValue === vacuumMapSyncSignature[syncSignatureIndex]
-      )
-    ) {
-      vacuumMapSyncSignature = vacuumMapsSignature;
+  // 快照键 = 配置 / 状态表 / revision / 楼层 / 开关。
+  const syncVacuumMaps = createSnapshotSyncer(
+    () => {
+      const isEnabled =
+        activeModule === "vacuum" &&
+        !isViewEditing &&
+        !isRangeEditorOpen &&
+        !stageOptions.floorTransitionActive &&
+        cameraTransition?.owner !== "floor" &&
+        isPresentedVisible &&
+        !document.hidden;
+      return {
+        config,
+        states: statesByEntityId,
+        revision: stageOptions.sceneRevision,
+        floorId: currentFloorId,
+        enabled: isEnabled
+      };
+    },
+    ({ states, enabled }) => {
       vacuumMaps.sync(
-        vacuumBindingsForMap(collectVacuumBindings(), statesByEntityId),
-        isVacuumMapsEnabled,
+        vacuumBindingsForMap(collectVacuumBindings(), states),
+        enabled,
         currentFloorId,
-        statesByEntityId
+        states
       );
     }
-  }
+  );
   document.addEventListener("visibilitychange", syncVacuumMaps);
   /**
    * 收集扫地机绑定：合并配置项、场景模型与运行期偏移（拖拽 / 动画位置）。
