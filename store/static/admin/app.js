@@ -30,7 +30,7 @@ import { loadCustomers, loadLedger } from "./panels/ledger.js?v=2609220141";
 import { loadAudits, loadEntitlements, loadReleases } from "./panels/content.js?v=2609220141";
 import { loadDiagnostics, loadSettings } from "./panels/settings.js?v=2609220141";
 import { loadEmailVerifications, loadLicenseSessions, loadLoginAttempts, loadRecoveryTokens, loadRedemptions, loadReleaseEvents, loadSessions } from "./panels/sessions.js?v=2609220141";
-import { host } from "./host.js";
+import { host } from "./host.js?v=2609220141";
 
 
 

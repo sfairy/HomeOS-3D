@@ -12,9 +12,12 @@
  *   2. 入口 JS 里 `selectElement("#x")` / `getElementById("x")` 指向的 id 在 HTML 中不存在。
  *      取到 `null` 之后，`if (el)` 分支静默跳过、`el?.addEventListener` 静默不挂载，
  *      表现是「按钮点了没反应」，且整条链路无任何报错。`#refresh-light-preview` 就是这么丢的。
- *   3. 全站静态资源缓存戳出现第二个值。
+ *   3. 全站静态资源缓存戳出现第二个值，或同一模块被「带戳 / 不带戳」两种写法引用。
  *      无打包器，`?v=` 是唯一的缓存失效手段；同模块一处带戳一处不带会被当成两个模块、
- *      各留一份模块级状态（两份控件注册表就是这么来的）。原先这条只能靠人工核对。
+ *      各留一份模块级状态（两份控件注册表就是这么来的）。后半句比前半句更隐蔽：`?v=` 的
+ *      **值**是唯一的、前半句校验通过，漏掉的只是其中一处没写戳 —— 模块表以含查询串的 URL
+ *      为键，`./host.js` 与 `./host.js?v=…` 就是两份实例。商店后台真踩过：`admin/app.js`
+ *      漏写戳，装配好的 84 个 `host.xxx()` 回调全落在面板看不见的那份对象上。
  *   4. 后端包之间出现新的环（`backend/api → backend/modules → backend/api` 这类）。
  *      Python 的包级环通常**不报错**：谁先被导入、环上那个名字此刻是不是已初始化，全看
  *      启动顺序，改一圈 import 就可能在某个部署路径下变成 `AttributeError`/空模块。
@@ -250,6 +253,104 @@ const STAMP_EXTRA_FILES = [
 
 const STAMP_TEXT_EXTENSIONS = new Set([".js", ".html", ".css", ".webmanifest", ".py"]);
 const QUERY_V_RE = /\?v=[^"'`\s)]+/g;
+
+/**
+ * 模块身份（第 3 条真正要防的东西）。
+ *
+ * 上一条只比「`?v=` 的值有几个」，看不见**根本没写戳**的那种引用：同一个文件被
+ * `./host.js` 与 `./host.js?v=…` 两处引用时，值是唯一的、校验通过，而浏览器按 URL 认模块，
+ * 这是**两份实例**（模块表以解析后的 URL 为键，查询串参与其中）。真踩过一次：
+ * `store/static/admin/app.js` 用不带戳的写法 import `host.js`，其余 11 个面板都带戳 ——
+ * app.js 往自己那份 `Object.assign(host, …)` 装配方法，面板拿到的那份始终是空对象，
+ * 84 处 `host.xxx()` 全在调用时抛 `TypeError`。
+ *
+ * 只判「静态 import / re-export / 动态 import」这三种**会真的执行**的引用。刻意放过两类：
+ *   - `new URL("./x.js", import.meta.url)`：那是 `file:` 打开时的开发态旁路，与生产分支互斥
+ *     （static-helpers.js 的注释写明了这套双路径），同时跑不到，不算两份实例；
+ *   - 同一文件的全 `?v=` 值不同：上一条已经在全站层面拦住了。
+ */
+const MODULE_REF_SCAN_ROOTS = [
+  path.join(ROOT, "frontend"),
+  path.join(ROOT, "store", "static")
+];
+
+/** 静态 import / 副作用 import / re-export / 动态 import：都取说明符。 */
+const MODULE_REF_RES = [
+  /^[ \t]*(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/gm,
+  /^[ \t]*import\s*["']([^"']+)["']/gm,
+  /\bimport\s*\(\s*["']([^"']+)["']/g
+];
+
+/** 说明符 → 磁盘路径（忽略 `?v=`）；解析不出或不是本仓文件返回 null。 */
+function specifierToDisk(file, spec) {
+  const target = spec.split("?")[0].split("#")[0];
+  if (!target || /[{}]/.test(target)) return null;
+  let disk;
+  if (target.startsWith("/")) {
+    const mount = URL_MOUNTS.find(([prefix]) => target.startsWith(prefix));
+    if (!mount) return null;
+    disk = path.join(mount[1], target.slice(mount[0].length));
+  } else {
+    if (!target.startsWith(".")) return null;
+    disk = path.resolve(path.dirname(file), target);
+  }
+  return path.extname(disk) === ".js" && fs.existsSync(disk) ? disk : null;
+}
+
+function checkModuleInstances() {
+  const byFile = new Map(); // 磁盘路径 → { stamped: [], plain: [] }
+  const record = (disk, spec, at) => {
+    const bucket = byFile.get(disk) ?? { stamped: [], plain: [] };
+    (spec.includes("?v=") ? bucket.stamped : bucket.plain).push(`${at}  "${spec}"`);
+    byFile.set(disk, bucket);
+  };
+
+  const scanJs = (file, re) => {
+    const text = fs.readFileSync(file, "utf8");
+    const lineAt = makeLineCounter(text);
+    for (const match of text.matchAll(re)) {
+      const disk = specifierToDisk(file, match[1]);
+      if (disk) record(disk, match[1], `${rel(file)}:${lineAt(match.index)}`);
+    }
+  };
+
+  for (const root of MODULE_REF_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".js"]))) {
+      for (const re of MODULE_REF_RES) scanJs(file, re);
+    }
+  }
+
+  // 入口 HTML 的 `type="module"` 脚本也是模块表里的一条：它加载的 URL 与某处 import 不一致，
+  // 同样是两份实例（`palette.js` / `home.js` 这类入口最容易被别的模块顺手 import 一次）。
+  const HTML_MODULE_RES = [
+    /<script\b[^>]*\btype\s*=\s*["']module["'][^>]*\bsrc\s*=\s*["']([^"']+)["']/g,
+    /<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*\btype\s*=\s*["']module["']/g
+  ];
+  for (const root of STAMP_SCAN_ROOTS) {
+    for (const file of walk(root, new Set([".html"]))) {
+      const text = fs.readFileSync(file, "utf8");
+      const lineAt = makeLineCounter(text);
+      for (const re of HTML_MODULE_RES) {
+        for (const match of text.matchAll(re)) {
+          const disk = specifierToDisk(file, match[1]);
+          if (disk) record(disk, match[1], `${rel(file)}:${lineAt(match.index)}`);
+        }
+      }
+    }
+  }
+
+  const problems = [];
+  for (const [disk, bucket] of byFile) {
+    if (bucket.stamped.length === 0 || bucket.plain.length === 0) continue;
+    problems.push({
+      file: rel(disk),
+      line: 0,
+      detail: `同一模块被「带戳」与「不带戳」两种写法引用，浏览器里是两份实例 —— `
+        + `不带戳：${bucket.plain.slice(0, 3).join("  ")}；带戳：${bucket.stamped.slice(0, 3).join("  ")}`
+    });
+  }
+  return problems.sort((a, b) => a.file.localeCompare(b.file));
+}
 
 function checkSingleStamp() {
   const byValue = new Map();
@@ -921,9 +1022,9 @@ const checks = [
     run: () => checkElementIds(collectHtml())
   },
   {
-    title: "静态资源缓存戳出现多个值",
-    hint: "跑 node tools/bump_static_cache_versions.mjs 全站同戳刷新",
-    run: checkSingleStamp
+    title: "全站静态资源不是同一个 ?v= 戳，或同一模块被「带戳 / 不带戳」两种写法引用",
+    hint: "跑 node tools/bump_static_cache_versions.mjs 统一戳；带戳与不带戳混用等于两份模块实例（模块表以含查询串的 URL 为键），把那处漏掉的 ?v= 补上 —— 开发态旁路 new URL(..., import.meta.url) 不算",
+    run: () => [...checkSingleStamp(), ...checkModuleInstances()]
   },
   {
     title: "后端包之间出现新的环（导入顺序敏感的静默失效）",
