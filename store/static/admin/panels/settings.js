@@ -87,7 +87,12 @@ export async function loadSettings() {
   form.elements.referralRatePercent.value = referral.ratePercent ?? 0;
   form.elements.referralWithdrawalFeePercent.value = referral.withdrawalFeePercent ?? 0;
   form.elements.referralWithdrawalMinPoints.value = referral.withdrawalMinPoints ?? 0;
-  form.elements.deviceReleaseCooldownSeconds.value = data.deviceReleaseCooldownSeconds ?? 28800;
+  // 留空 = 跟随环境变量（与 smtpPort / verificationTtl 同款口径）：库里是 NULL 时
+  // 输入框必须是**空的**，否则运营看到的「28800」会被当成一个显式设置，随手一保存
+  // 就把「跟随环境变量」钉死成一个具体秒数 —— 那正是这次要修掉的那个 bug。
+  form.elements.deviceReleaseCooldownSeconds.value = data.deviceReleaseCooldownSeconds ?? '';
+  form.elements.deviceReleaseCooldownSeconds.placeholder =
+    `跟随环境变量（当前 ${data.deviceReleaseCooldownEffectiveSeconds ?? 0}）`;
   loadAlipayCredentials(data.alipay || {});
   loadMailSettings(data.mail || {});
   setSettingsLoadState('ready');
@@ -571,7 +576,11 @@ $('#settings-form').addEventListener('submit', async (event) => {
         referralRatePercent: Number(form.elements.referralRatePercent.value || 0),
         referralWithdrawalFeePercent: Number(form.elements.referralWithdrawalFeePercent.value || 0),
         referralWithdrawalMinPoints: Number(form.elements.referralWithdrawalMinPoints.value || 0),
-        deviceReleaseCooldownSeconds: Number(form.elements.deviceReleaseCooldownSeconds.value || 0),
+        // 留空 = 清回「跟随环境变量」（null）。必须显式发 null 而不是发 0：
+        // 0 在这里是「不限间隔」这个显式设置，两者是不同状态。
+        deviceReleaseCooldownSeconds: form.elements.deviceReleaseCooldownSeconds.value === ''
+          ? null
+          : Number(form.elements.deviceReleaseCooldownSeconds.value),
         alipayAppId: form.elements.alipayAppId.value.trim(),
         alipaySellerId: form.elements.alipaySellerId.value.trim(),
         alipayGatewayUrl: form.elements.alipayGatewayUrl.value.trim(),

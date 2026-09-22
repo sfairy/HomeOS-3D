@@ -52,6 +52,7 @@ from store.security.request_security import (
 )
 from store.security.schema_guard import ensure_schema
 from store.commerce.points_migration import migrate_points, migration_status
+from store.ops.cooldown_migration import migrate_device_release_cooldown
 from store.security.setup_guard import SetupGuard, announce_setup_window
 from store.ops.site_settings import get_setting
 
@@ -192,6 +193,15 @@ def create_app(settings: StoreSettings | None = None) -> FastAPI:
         for table in migration.tables:
             for problem in table.problems:
                 logger.error("积分迁移问题 %s：%s", table.table, problem)
+
+    # 解绑冷却的「没配过」原来是写死的 28800（NOT NULL 且无 DDL 默认值），导致
+    # STORE_DEVICE_RELEASE_COOLDOWN_SECONDS 永远不生效；这里把它搬进可空的新列。
+    # 同样必须排在 ensure_schema 之后（新列由它补出来），理由与上面一致。
+    cooldown = migrate_device_release_cooldown(database.engine)
+    if cooldown.changed:
+        logger.warning("解绑冷却配置迁移完成：%s", cooldown.summary())
+    for problem in cooldown.problems:
+        logger.error("解绑冷却配置迁移问题：%s", problem)
         # 「启动成功」不等于「迁移成功」：对账不通过的表会整表跳过删列，旧列仍是
         # NOT NULL 且无 DDL 默认值，ORM 又已不映射它，之后每一次插入都会
         # NOT NULL constraint failed。上面逐条 error 很容易淹在启动日志里，

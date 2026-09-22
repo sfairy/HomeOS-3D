@@ -2436,7 +2436,13 @@ def _settings_response(setting, settings: SettingsDep) -> dict:
         setting, settings, include_credentials=True
     ) | {
         "referral": site_config.referral_settings_payload(setting),
-        "deviceReleaseCooldownSeconds": setting.device_release_cooldown_seconds,
+        # 库里那一列的原始值：``None`` = 跟随环境变量（后台输入框显示为空）。
+        "deviceReleaseCooldownSeconds": setting.device_release_cooldown_override,
+        # 实际生效值。与原始值分开放：``None`` 时输入框是空的，运营需要看到
+        # 「不填的话到底是多少」—— 见 settings.js 里那个占位符文案。
+        "deviceReleaseCooldownEffectiveSeconds": site_config.resolve_device_release_cooldown(
+            setting, settings
+        ),
         "announcement": setting.announcement,
         #: 支付宝凭据概览（不含明文）。与 ``payment_provider`` 分开放：
         #: 前者是「渠道怎么走」，这里是「渠道的钥匙」。
@@ -2444,6 +2450,21 @@ def _settings_response(setting, settings: SettingsDep) -> dict:
         #: 注册邮箱验证码配置概览（不含 SMTP 授权码明文）。
         "mail": _mail_settings_payload(settings, setting),
     }
+
+
+#: 这些列上的 NULL 是**有意义的取值**（「跟随环境变量」），不是「这个字段别动」。
+#: ``update_setting`` 不区分这两种 None，所以它们必须在写入前摘出来、写完再显式置 NULL
+#: （见 ``admin_update_settings``）。登记在这里而不是各写一处 ``if ... is None``：
+#: 漏登记一个字段的症状是「后台清空之后保存成功、但值没变」，很难从界面上看出来。
+#: 注意键是**数据库列名**（``updates`` 用的就是列名），不是前端字段名。
+_NULL_MEANS_FOLLOW_ENV = frozenset(
+    {
+        # 验证码回显：NULL = 跟随环境变量，False = 生产上显式关掉。
+        "expose_verification_code",
+        # 解绑冷却：NULL = 跟随环境变量，0 = 显式不限间隔。
+        "device_release_cooldown_override",
+    }
+)
 
 
 @router.get("/settings")
@@ -2478,7 +2499,7 @@ def admin_update_settings(
         "referral_rate_percent": "referral_rate_percent",
         "referral_withdrawal_fee_percent": "referral_withdrawal_fee_percent",
         "referral_withdrawal_min_points": "referral_withdrawal_min_points",
-        "device_release_cooldown_seconds": "device_release_cooldown_seconds",
+        "device_release_cooldown_seconds": "device_release_cooldown_override",
         # ---- 注册邮箱验证码 ----
         "mail_mode": "mail_mode",
         "mail_from": "mail_from",
@@ -2516,21 +2537,24 @@ def admin_update_settings(
         )
     updates |= _alipay_settings_updates(data)
     updates |= _mail_settings_updates(data, current=site_config.get_setting(session), settings=settings)
-    # ``update_setting`` 把 None 当作「这个字段别动」，但回显开关的 NULL 是有意义的取值
-    # （「跟随环境变量」，区别于 False「明确关掉」），所以这一个字段被摘出来、写入后再显式
-    # 写回 NULL；不能用 ``updates.pop(...) is None``，pop 会无条件摘键，把「显式传 false」丢掉。
-    clear_expose = (
-        "expose_verification_code" in updates
-        and updates["expose_verification_code"] is None
-    )
-    if clear_expose:
-        del updates["expose_verification_code"]
+    # ``update_setting`` 把 None 当作「这个字段别动」，但有几个字段的 NULL 是**有意义的
+    # 取值**（「跟随环境变量」，区别于 0 / false 的「显式关掉」），所以它们被摘出来、
+    # 其余字段写完后再显式置 NULL；不能用 ``updates.pop(...) is None``，pop 会无条件摘键，
+    # 把「显式传 0 / false」丢掉。
+    cleared = [
+        key
+        for key in _NULL_MEANS_FOLLOW_ENV
+        if key in updates and updates[key] is None
+    ]
+    for key in cleared:
+        del updates[key]
     setting = site_config.update_setting(session, **updates)
-    if clear_expose:
-        setting.expose_verification_code = None
+    if cleared:
+        for key in cleared:
+            setattr(setting, key, None)
         setting.updated_at = utcnow()
         session.flush()
-    audited = sorted(set(updates) | ({"expose_verification_code"} if clear_expose else set()))
+    audited = sorted(set(updates) | set(cleared))
     _audit(session, _admin_actor(admin), "settings.update", "1", ",".join(audited))
     return _settings_response(setting, settings)
 

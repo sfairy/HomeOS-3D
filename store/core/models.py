@@ -95,7 +95,18 @@ class StoreSetting(Base):
     referral_withdrawal_fee_percent: Mapped[float] = mapped_column(default=1.0)
     referral_withdrawal_min_points: Mapped[float] = mapped_column(default=100.0)
 
-    device_release_cooldown_seconds: Mapped[int] = mapped_column(Integer, default=28800)
+    #: 两次**解绑**之间的最小间隔（秒）—— 约束的是「下一次解绑」，不是激活。
+    #: NULL = 跟随 ``STORE_DEVICE_RELEASE_COOLDOWN_SECONDS``；0 = 显式不限间隔。
+    #:
+    #: 第三种状态为什么必须是 NULL：0 已经被「不限间隔」占住（``release_device`` 与
+    #: 账号中心的文案都按它分支），拿 0 兼任「跟随环境变量」会让「把限制关掉」与
+    #: 「回落到环境变量」变成同一件事 —— 管理员显式设 0 之后环境变量一改就又把他
+    #: 挡回去。而原先的列 ``device_release_cooldown_seconds`` 是 **NOT NULL 且拿
+    #: 28800 当模型默认**，物理表上连 DDL 默认值都没有，等于把「没配过」写成了一个
+    #: 具体秒数，于是环境变量永远进不来（就是它导致改 ``STORE_DEVICE_RELEASE_COOLDOWN_SECONDS``
+    #: 不生效）。SQLite 改不了可空性（``schema_guard`` 对改可空性只打 warning），
+    #: 所以换列而不是改列，旧列的存量值由 ``ops.cooldown_migration`` 搬过来。
+    device_release_cooldown_override: Mapped[int | None] = mapped_column(Integer)
 
     # ---- 注册邮箱验证码（可选） ----
     #: 留空 / 0 = 跟随 STORE_* 环境变量，非空则站点配置优先 —— 验证码邮件是注册

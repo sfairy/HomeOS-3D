@@ -1016,8 +1016,8 @@
               <label class="hb-field"><span>奖励比例 %</span><input class="hb-input" type="number" step="0.01" name="referralRatePercent"></label>
               <label class="hb-field"><span>提现手续费 %</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalFeePercent"></label>
               <label class="hb-field"><span>最低提现积分</span><input class="hb-input" type="number" step="0.01" name="referralWithdrawalMinPoints"></label>
-              <label class="hb-field"><span>解绑冷却（秒）</span><input class="hb-input" type="number" name="deviceReleaseCooldownSeconds"></label>
-              <small class="admin-field-hint">两次<b>解绑</b>之间的间隔。解绑之后可以立即重新激活（同机或换机都行）；这个值只约束「下一次解绑」，不拦激活。</small>
+              <label class="hb-field"><span>解绑冷却（秒）</span><input class="hb-input" type="number" min="0" name="deviceReleaseCooldownSeconds" placeholder="跟随环境变量"></label>
+              <small class="admin-field-hint">两次<b>解绑</b>之间的间隔。<b>留空 = 跟随环境变量</b>，填 0 = 不限间隔。解绑之后可以立即重新激活（同机或换机都行）；这个值只约束「下一次解绑」，不拦激活。</small>
             </div>
           </form>
           <!-- 站点配色：单独一个分页，且刻意放在 <form> **之外** ——

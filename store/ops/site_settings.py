@@ -19,8 +19,12 @@ def resolve_device_release_cooldown(setting: StoreSetting | None, settings: Stor
 
     口径必须唯一：账号中心与客户端协议侧各读一份配置，会出现后台改成 0 后客户端
     仍被按旧值挡住、报错里的剩余秒数与后台显示对不上。
+
+    「未配置」是 ``NULL``，不是某个具体秒数（``0`` 表示显式不限间隔）。这一点以前
+    在库里表达不出来：旧列是 NOT NULL 且把默认值写成了 28800，于是 ``raw is None``
+    永远不成立、环境变量一次都进不来 —— 见 ``ops.cooldown_migration``。
     """
-    raw = setting.device_release_cooldown_seconds if setting is not None else None
+    raw = setting.device_release_cooldown_override if setting is not None else None
     if raw is None:
         raw = settings.device_release_cooldown_seconds
     return max(0, int(raw or 0))
