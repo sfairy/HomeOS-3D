@@ -169,7 +169,12 @@ def binding_version(binding: DeviceBinding | None) -> str | None:
 
 
 def device_payload(binding: DeviceBinding | None) -> dict | None:
-    if binding is None:
+    # 已解绑的行不是「当前绑定的设备」。``release`` 只把 ``active`` 置 False（行留作
+    # 历史，见 ``DeviceBinding`` 的唯一约束是 (license_id, instance_id)），所以调用方
+    # 即使把一行历史绑定递进来，这里也必须返回 None —— 否则前台会把这台已经解绑的设备
+    # 显示成「已绑定本机」，并继续给出「解除设备绑定」按钮。判定收在这里而不是只靠每个
+    # 查询自己带 ``active`` 过滤：漏一处就是一个「解绑了还显示绑着」的入口。
+    if binding is None or not binding.active:
         return None
     return {
         "bindingId": binding.id,
