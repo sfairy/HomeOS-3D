@@ -23,6 +23,7 @@ from store.core.models import Account, Order, Product, ProductImage
 from store.commerce.order_status import order_status_label
 from store.payments.base import PaymentError
 from store.api.page_shell import APPEARANCE_PLACEHOLDER, SCENE_PLACEHOLDER, inject_scene
+from store.api import page_shell
 from store.security.request_security import render_template
 from store.security.security import token_matches, utcnow
 from store.core.serializers import order_payload
@@ -33,20 +34,30 @@ logger = logging.getLogger("store.pages")
 router = APIRouter(tags=["pages"])
 
 
-def _render_page(request: Request, template_text: str) -> HTMLResponse:
-    """模板 → 响应：填 CSP nonce，再把场景片段填进 ``<!--{{SCENE}}-->``。
+def _render_page(
+    request: Request, template_text: str, session: DbSession, *, page: str
+) -> HTMLResponse:
+    """模板 → 响应：填 CSP nonce，再把场景片段与状态甲板填进各自的占位符。
 
-    两步都是纯字符串替换，顺序无关；放在一处是为了让「新加一个入口页」只需要把模板
+    三步都是纯字符串替换，顺序无关；放在一处是为了让「新加一个入口页」只需要把模板
     读出来交给它，而不是各自拼 ``HTMLResponse`` 时忘掉其中一步（忘掉 nonce = 内联脚本
-    被 CSP 拒；忘掉场景 = 页面看起来正常但少了整块插画）。
+    被 CSP 拒；忘掉场景 = 页面看起来正常但少了整块插画；忘掉甲板 = 同样看不出来）。
+
+    ``page`` 是模板文件名（``store.html`` / ``admin.html`` / ``setup.html``）。
+    商店的前台是「一份 HTML 服务所有路由」：七个路径返回的是同一份 ``store.html``，
+    所以**不能**从 URL 反推该给哪一块甲板读数 —— 由调用方在读模板时就登记下来
+    （见 ``page_shell.page_of``）。这里在替换**之前**写 ``request.state``：注入函数
+    是它的唯一消费者，晚一步就是 AttributeError。
     """
+    setattr(request.state, page_shell.PAGE_STATE_ATTR, page)
     text = render_template(template_text, request)
     return HTMLResponse(
-        inject_scene(text, request), headers={"Cache-Control": "no-store"}
+        page_shell.inject_scene(text, request, session = session),
+        headers={"Cache-Control": "no-store"},
     )
 
 
-def _render_store_page(request: Request) -> HTMLResponse:
+def _render_store_page(request: Request, session: DbSession) -> HTMLResponse:
     templates: Path = request.app.state.settings.templates_dir
     template_path = templates / "store.html"
     if not template_path.exists():
@@ -58,7 +69,7 @@ def _render_store_page(request: Request) -> HTMLResponse:
     # 同名局部变量会把它在这个函数里遮掉 —— 现在没问题，但下一个人在这里
     # 加一句 ``html.escape(...)`` 就会撞上 AttributeError。
     template = template_path.read_text(encoding="utf-8")
-    return _render_page(request, template)
+    return _render_page(request, template, session, page = "store.html")
 
 
 def _home(request: Request, session: DbSession) -> Response:
@@ -68,7 +79,7 @@ def _home(request: Request, session: DbSession) -> Response:
     )
     if (admin_count or 0) == 0:
         return RedirectResponse(url="/admin", status_code=302)
-    return _render_store_page(request)
+    return _render_store_page(request, session)
 
 
 router.add_api_route("/", _home, methods=["GET"], include_in_schema=False)
@@ -103,17 +114,21 @@ def admin_page(request: Request, session: DbSession) -> HTMLResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="管理后台模板缺失。"
         )
-    return _render_page(request, template_path.read_text(encoding="utf-8"))
+    return _render_page(
+        request, template_path.read_text(encoding="utf-8"), session, page = "admin.html"
+    )
 
 
 @router.get("/setup", include_in_schema=False)
-def setup_page(request: Request) -> HTMLResponse:
+def setup_page(request: Request, session: DbSession) -> HTMLResponse:
     template_path: Path = request.app.state.settings.templates_dir / "setup.html"
     if not template_path.exists():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="初始化页面模板缺失。"
         )
-    return _render_page(request, template_path.read_text(encoding="utf-8"))
+    return _render_page(
+        request, template_path.read_text(encoding="utf-8"), session, page = "setup.html"
+    )
 
 
 # 商品图
@@ -284,6 +299,8 @@ cancelButton.addEventListener('click', () => act('cancel'));
 """
     # 场景片段仍走统一的注入函数：收银台是独立响应（不经 render_template），
     # 但场景内容与商店其它入口页必须逐字一致，所以不能在这里另抄一份标记。
+    # 它没有甲板插入点（这一页讲的是「这一笔订单」，不是「这套服务」），
+    # 所以这里不传 session —— 注入函数只在真要填甲板时才要会话。
     return inject_scene(markup, request)
 
 

@@ -274,15 +274,40 @@
         </g>
       </svg>
 
-      <div class="hos-scene__mist hos-scene__mist--a"></div>
-      <div class="hos-scene__mist hos-scene__mist--b"></div>
-      <div class="hos-scene__horizon"></div>
-      <div class="hos-scene__haze"></div>
-      <div class="hos-scene__vignette"></div>
-      <div class="hos-scene__shade"></div>
-    </div>
+    <div class="hos-scene__mist hos-scene__mist--a"></div>
+    <div class="hos-scene__mist hos-scene__mist--b"></div>
+    <div class="hos-scene__horizon"></div>
+    <div class="hos-scene__haze"></div>
+    <div class="hos-scene__vignette"></div>
+    <div class="hos-scene__shade"></div>
+  </div>
 
-    <div class="hos-scene__bar">
+  <!-- 色调氛围层：把「一页一色」从右栏坞体铺到整幅画面上（见 scene.css 该段注释）。
+       放在 stage 之外而不是里面：stage 有 perspective，进 3D 上下文后
+       mix-blend-mode: screen 会被丢掉，空气感就没了。 -->
+  <div class="hos-scene__tint" aria-hidden="true"></div>
+
+  <!-- 设备光点层：一串跟随页面色调的「在线设备」，沿左下 → 右上铺开。
+       纯装饰（aria-hidden），八个点都由 CSS 定位与错相位。 -->
+  <div class="hos-scene__nodes" aria-hidden="true">
+    <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  </div>
+
+  <!-- 全宽指挥条：左＝品牌 lockup，右＝在线状态 + 站点名 + 版本。
+       原先这条写死了 right: var(--hos-dock-span)，跨不过右栏的坞，于是整页没有一个
+       能承载全局状态的位置（品牌、状态、版本全挤在左半屏）。 -->
+  <header class="hos-scene__head">
+    <div class="hos-scene__lockup">
+      <div class="hos-scene__mark-wrap">
+        <span class="hos-scene__mark-sheen" aria-hidden="true"></span>
+        <img src="{{LOGO_SRC}}" alt="" class="hos-scene__mark" />
+      </div>
+      <div class="hos-scene__lockup-text">
+        <span class="hos-scene__name">HomeOS</span>
+        <span class="hos-scene__accent" aria-hidden="true"></span>
+      </div>
+    </div>
+    <div class="hos-scene__head-status">
       <span class="hos-scene__live">
         <i class="hos-scene__live-dot" aria-hidden="true"></i>
         <span class="hos-scene__live-label">{{STATUS_LABEL}}</span>
@@ -293,25 +318,19 @@
         <span class="hos-scene__ver-num">v{{VERSION}}</span>
       </span>
     </div>
+  </header>
 
-    <div class="hos-scene__brand">
-      <div class="hos-scene__lockup">
-        <div class="hos-scene__mark-wrap">
-          <span class="hos-scene__mark-sheen" aria-hidden="true"></span>
-          <img src="{{LOGO_SRC}}" alt="" class="hos-scene__mark" />
-        </div>
-        <div class="hos-scene__lockup-text">
-          <h1 class="hos-scene__name">HomeOS</h1>
-          <div class="hos-scene__accent" aria-hidden="true"></div>
-        </div>
-      </div>
-      <p class="hos-scene__title">{{TITLE}}</p>
-      <p class="hos-scene__tag">
-        <span class="hos-scene__tag-line">{{TAGLINE}}</span>
-      </p>
-      <p class="hos-scene__signal">
-        <i class="hos-scene__signal-dot" aria-hidden="true"></i>
-        {{SIGNAL_ITEMS}}
-      </p>
-    </div>
+  <!-- 左栏：这一道门是什么。字标与版本号已上移顶栏，这里只留三行 ——
+       页面标题（整页最重的一块字）、一句标语、一行「这台机器具备什么」的读数条。
+       垂直居中而不是贴底：小屋在画面偏左下，压下去会撞上它。 -->
+  <div class="hos-scene__brand">
+    <p class="hos-scene__title">{{TITLE}}</p>
+    <p class="hos-scene__tag">
+      <span class="hos-scene__tag-line">{{TAGLINE}}</span>
+    </p>
+    <p class="hos-scene__signal">
+      <i class="hos-scene__signal-dot" aria-hidden="true"></i>
+      {{SIGNAL_ITEMS}}
+    </p>
   </div>
+</div>

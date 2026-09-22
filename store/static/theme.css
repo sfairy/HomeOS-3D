@@ -66,12 +66,14 @@
   --hb-ink-soft: #c8dbe8;
   --hb-ink-rgb: 241, 247, 251;
   --hb-muted-rgb: 186, 214, 232;
-  /* rgba(186,214,232,.58) 合成在 sky-low/low-mid 上约 4.8–4.9:1；
-     最亮的 sky-high(#16263c) 上是 4.41:1，略低于 AA —— 那一档在商店里
-     只当 .hb-button:hover / 原生下拉项 / 移动端导航的底色，这些地方的字色
-     都是 --hb-ink 而不是 muted，所以今天碰不到；但它是个**两侧共同**的下限，
-     要抬就得同时抬 page.css，单独改这一侧就是把刚对齐的东西又拆开。 */
-  --hb-muted: rgba(var(--hb-muted-rgb), 0.58);
+  /* 这一档与 design/scene/page.css 的 --hos-muted **必须逐个相等**，两侧一起改。
+     0.58 → 0.64 是量出来的：0.58 合成在 sky-high(#16263c) 上只有 4.41:1，略低于 AA；
+     而这一档同时是坞脚与说明文字的下限（.hos-deck__label / .hos-panel__meta /
+     .hos-scene__ver 都在用它）。0.64 把最坏情形拉过 5:1，且三档（0.82 / 0.72 / 0.64）
+     的排序不变。
+     商店前台这些页面里 0.58 时的 4.41:1 恰好碰不到（那几处用的是 --hb-ink），
+     但它是**两侧共同**的下限 —— 只改一侧就是把刚对齐的东西又拆开。 */
+  --hb-muted: rgba(var(--hb-muted-rgb), 0.64);
   --hb-muted-dim: #6d8797;
 
   /* 强调色：与场景同一枚暖金（design/scene/page.css 的 --hos-accent） */

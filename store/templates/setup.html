@@ -18,12 +18,12 @@
 <meta name="theme-color" content="#050912">
 <meta name="description" content="创建 HomeOS 授权商店的第一个管理员账号">
 <title>首次初始化 · HomeOS 授权服务中心</title>
-<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609220943">
-<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609220943">
-<link rel="stylesheet" href="/store-static/scene/page.css?v=2609220943">
-<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609220943">
-<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609220943">
-<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609220943` 的 <link>。
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609221053">
+<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609221053">
+<link rel="stylesheet" href="/store-static/scene/page.css?v=2609221053">
+<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609221053">
+<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609221053">
+<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609221053` 的 <link>。
      必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
 <!--{{APPEARANCE}}-->
 </head>
@@ -44,15 +44,20 @@
       <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
       <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
 
-      <div class="hos-eyebrow-row">
-        <p class="hos-eyebrow">Initial Setup</p>
-        <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>仅无管理员时可用</span>
+      <div class="hos-panel__head">
+        <div class="hos-eyebrow-row">
+          <p class="hos-eyebrow">本机初始化 · 01/01</p>
+          <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>仅无管理员时可用</span>
+        </div>
+        <h1>给这套授权服务开一个管理员</h1>
+        <p class="hos-panel__desc">
+          这是商店首次启动后的唯一一次初始化：设置管理员邮箱与密码，创建后自动登录后台，本页随即关闭。
+        </p>
       </div>
-      <h1>商店初始化</h1>
-      <p class="hos-panel__desc">
-        这是商店首次启动后的初始化操作：设置管理员邮箱与密码，创建后将以管理员身份
-        自动登录后台，之后本页不再可用。
-      </p>
+
+      <!-- 状态甲板（读数源：store/api/telemetry.py）。未初始化时库与站点配置都还没有
+           可读的东西，这里只有机制读数。 -->
+      <!--{{DECK}}-->
 
       <form id="setup-form" class="hos-form" autocomplete="off" data-form-type="other">
         <div class="hos-field">
@@ -119,12 +124,18 @@
       <span class="hos-panel__corner hos-panel__corner--bl" aria-hidden="true"></span>
       <span class="hos-panel__corner hos-panel__corner--br" aria-hidden="true"></span>
 
-      <div class="hos-eyebrow-row">
-        <p class="hos-eyebrow">Already Set Up</p>
-        <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>无需重复初始化</span>
+      <div class="hos-panel__head">
+        <div class="hos-eyebrow-row">
+          <p class="hos-eyebrow">Already Set Up</p>
+          <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>无需重复初始化</span>
+        </div>
+        <h1>管理员已经在了</h1>
+        <p class="hos-panel__desc">商店已完成初始化，正在跳转到管理员登录页…</p>
       </div>
-      <h1>管理员已存在</h1>
-      <p class="hos-panel__desc">商店已完成初始化，正在跳转到管理员登录页…</p>
+
+      <!-- 第二处甲板插入点：与上面表单屏用的是**同一份**读数（同一页、同一个访问者），
+           注入时一次全量替换。两处缩进必须一致，见 page_shell._deck_gutter。 -->
+      <!--{{DECK}}-->
 
       <div class="hos-actions">
         <a class="hos-btn-primary" href="/admin">前往管理员登录</a>
@@ -150,8 +161,12 @@
 <!-- 场景 3D 相机（源：design/scene/scene-depth.js）。普通脚本而不是 module：不导出
      任何东西，越早跑越好 —— 入口动画那 0.75s 就已经带上景深。CSP 的 script-src 含
      'self'，同源外部脚本不需要 nonce。 -->
-<script src="/store-static/scene/scene-depth.js?v=2609220943"></script>
-<script src="/store-static/api-error.js?v=2609220943"></script>
-<script src="/store-static/setup.js?v=2609220943"></script>
+<script src="/store-static/scene/scene-depth.js?v=2609221053"></script>
+<script src="/store-static/api-error.js?v=2609221053"></script>
+<script src="/store-static/setup.js?v=2609221053"></script>
+<!-- 状态甲板的自走读数（源：store/static/entry-deck.js）。它读页面里已有的时间戳，
+     不发任何请求；没有 .hos-deck 时自行退出，所以入口屏共用一份不会互相干扰。
+     与主应用那份是两份文件、一套 data-* 契约（见该文件头部注释）。 -->
+<script src="/store-static/entry-deck.js?v=2609221053"></script>
 </body>
 </html>

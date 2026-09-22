@@ -17,10 +17,15 @@
   max-height: 100%;
   /* 五页共用一个坞体，但自然高度差 100–200px（激活页有轨 + 两条动作行 + 两个小字，
      恢复页连表单都没有）。坞是垂直居中的，于是用户在两道门之间来回跳时整个面板会上下窜，
-     「同一条门链」的观感就散了。给一个下限，短页不显空、相邻两页也不会差出一整行。 */
-  min-height: min(600px, 100%);
+     「同一条门链」的观感就散了。给一个下限，短页不显空、相邻两页也不会差出一整行。
+
+     从 600 抬到 640：坞里多了一条四格状态甲板（.hos-deck，约 78px + 18px 间距），
+     而开通轨从 h1 下方移到坞顶又多了一条分隔（见 .hos-panel > .hos-steps）。
+     不抬这一档，恢复页那种本来最短的面板会重新变成「一半是空玻璃」，
+     而这正是当初写这个下限要解决的问题。 */
+  min-height: min(640px, 100%);
   overflow: auto;
-  padding: 40px 36px 24px;
+  padding: 34px 36px 24px;
   border-radius: 20px;
   position: relative;
   background: linear-gradient(165deg, rgba(var(--hos-sky-mid-rgb), 0.82) 0%, rgba(var(--hos-sky-low-rgb), 0.92) 100%);
@@ -108,12 +113,21 @@
 
 /* ── 抬头 ───────────────────────────────────────────────────── */
 
+/* 眉标行 + h1 + 说明收进一个区块（.hos-panel__head）。
+   为什么要有这个包裹：坞里现在有四块「读数」（开通轨、抬头、状态甲板、表单），
+   此前它们是同级的散块，靠各自 margin-bottom 拼节奏 —— 于是改任何一块的间距，
+   都在悄悄改另一块的呼吸。给抬头一个容器，它的三段内距（眉标 12 / 标题 8 / 说明 0）
+   与块间距离（18）就分开了，甲板进退不会牵动标题。 */
+.hos-panel__head {
+  margin-bottom: 18px;
+}
+
 .hos-eyebrow-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .hos-eyebrow {
@@ -177,9 +191,18 @@
 .hos-steps {
   display: flex;
   align-items: center;
-  margin: 0 0 18px;
+  margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* 开通轨移到坞顶，成为第一读数 —— 用户开门的第一句话从「这道门叫什么」，变成
+   「这道门在整条链的第几格」。它不再是 h1 的附属（原来夹在标题与说明之间，
+   读起来像标题的注脚），所以给它一条自己的底边，和下面的抬头分开。 */
+.hos-panel > .hos-steps {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(var(--hos-tone-rgb), 0.1);
 }
 
 .hos-steps__item {
@@ -316,12 +339,198 @@
   filter: drop-shadow(0 0 18px rgba(var(--hos-tone-rgb), 0.18));
 }
 
+/* 抬头块里的两处内距收窄：标题与说明说的是同一件事的两句，中间塞 10px 会读成两段。
+   间距由 .hos-panel__head 的 margin-bottom 统一给（18px），块内只留一口气。 */
+.hos-panel__head h1,
+.hos-panel__head h2 {
+  margin-bottom: 8px;
+}
+
 .hos-panel__desc {
   margin: 0 0 20px;
   color: var(--hos-muted);
   font-size: var(--hos-fs-body-sm);
   line-height: 1.7;
   letter-spacing: 0.03em;
+}
+
+.hos-panel__head .hos-panel__desc {
+  margin-bottom: 0;
+}
+
+/* ── 状态甲板 ──────────────────────────────────────────────────────────────
+   坞里的第四条读数，也是本轮新增的那一块：四格「这台机器现在是什么样」。
+
+   为什么它值得占这块地方：重构前，整页唯一带数据的只有开通轨那五格进度；
+   除此之外全页没有一个能回答「你连到哪儿了、家里有多少东西、上次同步是什么时候」
+   的地方 —— 一个智能家居中控的入口，读起来却像一张酒店入住单。
+   甲板把「这是一台在运行的中控」变成进门第一眼能看到的事实。
+
+   数据按访问者填充，且不发新请求：读数由后端按当前会话在渲染时就地算
+   （backend/http/telemetry.py），时间类的读数把时间戳注入 data-*，
+   由 entry-deck.js 在客户端自走（见该文件）。所以甲板是静态 HTML ——
+   没有接口、没有轮询、没有 CSP 例外。 */
+.hos-deck {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px 16px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
+  background: linear-gradient(180deg, rgba(var(--hos-sky-mid-rgb), 0.5), rgba(var(--hos-sky-deep-rgb), 0.6));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+
+/* 与 .hos-hub 同一套语言：顶边一道 tone 光带 + 一道缓慢扫过的光。
+   两处刻意同构 —— 它们都是「机器在读自己」，不该长得像两种组件。 */
+.hos-deck::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 6%;
+  right: 6%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(var(--hos-tone-rgb), 0.7),
+    transparent
+  );
+  box-shadow: 0 0 10px rgba(var(--hos-tone-rgb), 0.38);
+}
+
+.hos-deck__scan {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -18%;
+  width: 22%;
+  background: linear-gradient(90deg, transparent, rgba(var(--hos-tone-rgb), 0.09), transparent);
+  animation: hosDeckScan 6.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* 比 .hos-hub 的 4.8s 慢一档：甲板上有一格每秒自走（时钟），扫光节奏若与它接近，
+   眼睛会把两者读成同一个跳动的东西。 */
+@keyframes hosDeckScan {
+  0%,
+  10% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  26% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.5;
+  }
+  88%,
+  100% {
+    transform: translateX(520%);
+    opacity: 0;
+  }
+}
+
+.hos-deck__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.hos-deck__label {
+  font-family: var(--hos-font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hos-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hos-deck__value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--hos-font-mono);
+  /* 上限卡在 1.12rem 而不是 1.24rem，是甲板里最长的一格量出来的：
+     「本机时间」的 10:36:58 是八个等宽字符，1.24rem（19.84px）下宽 89px，
+     而四列在坞宽取满 600px 时每格只有 88px —— 差 1px，读数会变成「10:36:5…」。
+     1.12rem 下同一串是 80px，最窄的一格也有约 87px，四列才真的站得住。
+     这 2px 的字号换掉的是「甲板上有一格永远在省略号里」。 */
+  font-size: clamp(1rem, 1.6cqw, 1.12rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  /* 等宽数字不是装饰：时钟与「运行 3 时 12 分」两格每 30 秒自走一次，
+     比例数字会让整格的宽度随数字跳动，四个格子跟着一起晃。 */
+  font-variant-numeric: tabular-nums;
+  color: var(--hos-tone-bright);
+  text-shadow: 0 0 16px rgba(var(--hos-tone-rgb), 0.32);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hos-deck__unit {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--hos-muted);
+}
+
+/* 每格下方的一小段色条：甲板的「读数感」几乎全靠它 —— 一行等宽字是数据，
+   数据下面有一段长度可变的条，才读成仪表。长度进 CSS 类而不是内联 style：
+   主应用 CSP 是 style-src 'self'，任何 style="…" 都会被丢掉，
+   读数条会一律退化成 0 宽（也就是没有）。 */
+.hos-deck__spark {
+  height: 2px;
+  width: 26px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--hos-tone), rgba(var(--hos-tone-rgb), 0));
+  opacity: 0.55;
+}
+
+.hos-deck__spark.is-full {
+  width: 100%;
+}
+
+.hos-deck__spark.is-high {
+  width: 72%;
+}
+
+.hos-deck__spark.is-mid {
+  width: 48%;
+}
+
+.hos-deck__spark.is-low {
+  width: 26%;
+}
+
+/* 「没有 / 未连接」这一档：条缩到最短并压暗，与「有读数」在余光里就分得开 ——
+   颜色（tone-bright 与 muted）在这么小的字上区分度不够，长度才是先到的信号。 */
+.hos-deck__spark.is-none {
+  width: 12%;
+  opacity: 0.22;
+}
+
+/* 中等宽度：四列会把「本机时间」的 10:36:58 压进省略号，改成两列两行。
+   阈值 1200px 是量出来的，不是拍的：坞宽是 min(600px, 47%)，坞内可用宽 =
+   坞宽 − 2×gutter − 坞内边距(72) − 甲板内边距(32)，四列每格 = (可用宽 − 3×16) / 4。
+   四列要成立，每格得容得下最长的一格读数（10:36:58，1.12rem 下 80px），
+   即坞内可用宽 ≥ 372px —— 反推到视口宽，低于约 1190px 就不够了。
+   取 1200 是整数余量；再往下（≤1100px）page.css 还会把坞收窄到 520px，就更不该是四列。
+
+   这一步换来的是高度：两行比一行高约 25px。短屏上这 25px 由下面「短屏」那段
+   统一收回来 —— 甲板折不折，与坞里还剩多少纵向余量是两件事，不在同一个阈值上凑。 */
+@media (max-width: 1200px) {
+  .hos-deck {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* ── 能力小卡（Activate 用来说明令牌/指纹/序列/授权四段） ────── */
@@ -1495,6 +1704,73 @@
   color: var(--hos-muted);
 }
 
+/* ── 短屏 ─────────────────────────────────────────────────────
+   坞里现在有四块读数（开通轨 / 抬头 / 状态甲板 / 表单），自然高度约 660px；
+   在 1366×768 这类屏上视口可用高只有约 660px。与 page.css 那段「短屏」同一条件：
+   那边收回坞的上下留白并把坞改成顶对齐，这边收回坞内的四段内距。
+
+   这一档**不隐藏任何一块读数**。甲板是这一轮的重点，短屏上把它摘掉等于同一个页面
+   存在两套语义，而「这台机器现在什么样」恰恰是小屏主控台最该看见的一句。
+   收紧的是内距 —— 内距是呼吸，不是信息。
+
+   量出来的总账（1166×667）：坞内边距 −22、开通轨 −10、抬头 −4、抬头两行字 −11、
+   甲板 −14、表单行距 −9、坞脚 −8，合计约 −78px，与 page.css 那段的 −58px 合起来
+   约 −136px，刚好把这一档上的坞内滚动条收掉。
+
+   坞的高度下限同时归零。默认那条 min-height: min(640px, 100%) 解决的是「坞垂直居中的
+   时候，短页面板会在页与页之间上下窜」；这一档坞已经顶对齐，窜动的前提不成立，
+   再留一个下限就只是给短页（恢复页）凭空补一段空玻璃。 */
+@media (min-width: 901px) and (max-height: 820px) {
+  .hos-panel {
+    min-height: 0;
+    padding: 22px 28px 16px;
+  }
+
+  .hos-panel > .hos-steps {
+    margin-bottom: 12px;
+    padding-bottom: 11px;
+  }
+
+  .hos-panel__head {
+    margin-bottom: 12px;
+  }
+
+  .hos-eyebrow-row {
+    margin-bottom: 8px;
+  }
+
+  .hos-panel__head h1,
+  .hos-panel__head h2 {
+    margin-bottom: 6px;
+  }
+
+  .hos-panel h1,
+  .hos-panel h2 {
+    font-size: 28px;
+  }
+
+  /* 说明收到 13px / 1.5：它在坞里是唯一一段整句，两行到三行之间差着一整块甲板。 */
+  .hos-panel__desc {
+    font-size: var(--hos-fs-caption);
+    line-height: 1.5;
+  }
+
+  .hos-deck {
+    gap: 10px 14px;
+    margin-bottom: 12px;
+    padding: 11px 14px;
+  }
+
+  .hos-form {
+    gap: 11px;
+  }
+
+  .hos-panel__copy {
+    margin-top: 10px;
+    padding-top: 9px;
+  }
+}
+
 /* ── 窄屏 ───────────────────────────────────────────────────── */
 
 @media (max-width: 900px) {
@@ -1519,7 +1795,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .hos-btn-primary::after,
-  .hos-hub__scan {
+  .hos-hub__scan,
+  .hos-deck__scan {
     animation: none;
   }
 

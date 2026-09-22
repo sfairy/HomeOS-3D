@@ -9,7 +9,7 @@
  */
 
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609220943";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609221053";
 
 // 轨道模型与布料几何的构建原语；开发环境走相对路径，生产环境走带缓存戳的静态路径。
 const {
@@ -23,11 +23,11 @@ const {
 } = await (import.meta.url.startsWith("file:")
   ? import(
       new URL(
-        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=2609220943",
+        "../../../static/3d-studio/loaders/studio-curtain-track.js?v=2609221053",
         import.meta.url
       )
     )
-  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=2609220943"));
+  : import("/static/3d-studio/loaders/studio-curtain-track.js?v=2609221053"));
 /** 允许的开合方向：left 只开左幅、right 只开右幅、split 对开。 */
 const DIRECTION_SET = new Set(["left", "right", "split"]);
 /** 会被本模块接管（隐藏）的局部：cloth 是布料面，band 是帘头装饰带。 */

@@ -4,10 +4,10 @@
  * 「认不出的资源一律返回空串」是刻意约定：调用方据此渲染占位，而不是发出必然 404 的请求。
  */
 // 状态条目归一统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609220943";
+import { resolveStateEntry } from "../../../utils/state-entry.js?v=2609221053";
 
 // 内置资源的三个索引：版本戳、显式 URL、特效裁剪变体。
-// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=2609220943
+// 版本戳用于给 /assets/builtin/ 的 URL 加 ?v=2609221053
 // 特效变体记录裁剪矩形与原图尺寸，渲染时写进 dataset 供 effect-geometry 使用。
 const assetVersionByAssetId = new Map();
 

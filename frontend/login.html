@@ -14,7 +14,7 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609220943"></script>
+    <script src="/static/logging/client-log.js?v=2609221053"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#050912" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -24,16 +24,16 @@
     <title>登录 · HomeOS</title>
     <!-- ?v= 由 tools/bump_static_cache_versions.mjs 统一刷新；同一次发布里所有静态资源必须共用同一枚时间戳，
          否则浏览器会新老混用（例如新的 scene.css 配旧的 login.js）。 -->
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609220943" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609220943" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609220943" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609220943" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609220943" />
-    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609220943" />
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609220943" />
-    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609220943" />
-    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609220943" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609220943` 的 <link>。
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609221053" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609221053" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609221053" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609221053" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609221053" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609221053" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609221053" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609221053" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609221053" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609221053` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -54,15 +54,20 @@
                所以位置与状态都由后端按请求填。状态语义见 design/scene/panel.css。 -->
           <!--{{STEPS}}-->
 
-          <div class="hos-eyebrow-row">
-            <p class="hos-eyebrow">Sign In</p>
-            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号存本机</span>
+          <!-- 状态甲板（读数源：backend/http/telemetry.py）。与上面的开通轨同一套机制，
+               同样按访问者分档：未登录时只给机制读数，不给家的规模。 -->
+          <div class="hos-panel__head">
+            <div class="hos-eyebrow-row">
+              <p class="hos-eyebrow">登录 · 02/05</p>
+              <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号存本机</span>
+            </div>
+            <h1>进入本机中控</h1>
+            <p class="hos-panel__desc">
+              用首次设置时创建的管理员账号登录。会话只落在这台机器上，登录后即可进入 3D 全景编辑器。
+            </p>
           </div>
-          <h1>登录 HomeOS</h1>
-          <p class="hos-panel__desc">
-            使用首次设置时创建的本机管理员账号。账号与密码只保存在本机，登录后即可进入编辑器，
-            或先用商店激活码完成授权绑定。
-          </p>
+
+          <!--{{DECK}}-->
 
           <form id="login-form" class="hos-form">
             <div class="hos-field">
@@ -105,24 +110,27 @@
 
           <div class="hos-panel__copy">
             <div class="hos-panel__meta">
-              <span>连续失败会限流</span>
+              <span>失败多次临时限流</span>
               <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-              <span>仅本机保存</span>
+              <span>会话不离开本机</span>
               <i class="hos-panel__meta-sep" aria-hidden="true"></i>
               <span>未激活先进激活页</span>
             </div>
-            <p>登录成功后若授权失效，会先进入激活页完成绑定。</p>
+            <p>授权失效时不会丢账号：先进入激活页完成绑定，再回到这里。</p>
           </div>
         </section>
       </main>
     </div>
 
     <!-- auth-shell.js 必须在 login.js 之前执行：它负责按 data-password-toggle 绑定密码显隐；
-         login.js 只关心表单本身，两者互不等待。这里同样要带 ?v=2609220943 -->
+         login.js 只关心表单本身，两者互不等待。这里同样要带 ?v=2609221053 -->
     <!-- 场景视差相机（源：design/scene/scene-depth.js）。写成普通脚本而不是 module：
          它不导出任何东西，越早跑越好 —— 一进场（含那 0.75s 的入场动画）画面就是活的。 -->
-    <script src="/static/auth/scene/scene-depth.js?v=2609220943"></script>
-    <script type="module" src="/static/auth/auth-shell.js?v=2609220943"></script>
-    <script type="module" src="/static/auth/login.js?v=2609220943"></script>
+    <script src="/static/auth/scene/scene-depth.js?v=2609221053"></script>
+    <script type="module" src="/static/auth/auth-shell.js?v=2609221053"></script>
+    <script type="module" src="/static/auth/login.js?v=2609221053"></script>
+    <!-- 状态甲板的自走读数（源：frontend/static/auth/entry-deck.js）。它读页面里已经有的
+         时间戳，不发任何请求；没有 .hos-deck 时自行退出，所以五页共用一份不会互相干扰。 -->
+    <script type="module" src="/static/auth/entry-deck.js?v=2609221053"></script>
   </body>
 </html>

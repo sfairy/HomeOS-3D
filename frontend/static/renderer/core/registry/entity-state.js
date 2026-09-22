@@ -6,16 +6,16 @@
  * 各域的活动词表刻意保持各自一份（默认域 on/open/true/home、图层另加 opening/active/playing），
  * 词表不同是知识不同，不合并。
  */
-import { entityPowerIsOn } from "../entity-power.js?v=2609220943";
+import { entityPowerIsOn } from "../entity-power.js?v=2609221053";
 // 状态条目归一与小写状态文本统一走 utils/state-entry.js，全仓库只有这一份实现。
-import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609220943";
+import { resolveStateEntry, stateTextOf } from "../../../utils/state-entry.js?v=2609221053";
 // 「按 ID 取域」的回退路径走 `entityDomainFromId`；`元数据.domain ||` 那半截刻意保留
 // —— 它**不切点号**，换掉会改变「域里带点号」时的取值（那是另一个知识，见 `entityDomainOf` 的说明）。
-import { entityDomainFromId } from "../../../utils/entities.js?v=2609220943";
+import { entityDomainFromId } from "../../../utils/entities.js?v=2609221053";
 // 电机方向的两份知识（读控件配置 / 反转时的四态互换）在叶子模块 cover-direction.js：
 // 它不 import 任何东西，避免 cover-runtime.js 与本文件反向 import 成环。
-import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609220943";
-import { formatNumericValue } from "../../controls/line-chart-runtime.js?v=2609220943";
+import { coverMotorIsReversedForComponent } from "../../controls/cover-direction.js?v=2609221053";
+import { formatNumericValue } from "../../controls/line-chart-runtime.js?v=2609221053";
 import {
   climateEffectMode,
   climateIsPoweredOn,
@@ -23,9 +23,9 @@ import {
   climatePresentationMode,
   normalizeClimateCapabilities,
   resolveClimateDeviceType
-} from "../../controls/climate.js?v=2609220943";
+} from "../../controls/climate.js?v=2609221053";
 // 同门分片：cover-state
-import { coverComponentIsActive } from "./cover-state.js?v=2609220943";
+import { coverComponentIsActive } from "./cover-state.js?v=2609221053";
 
 /**
  * 控件「是否为活动态」的统一入口：cover 域走窗帘逻辑（活动定义与普通开关不同）。

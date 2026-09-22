@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..http.body_guard import MAX_JSON_DEPTH, MAX_SCENE_DOCUMENT_BYTES, json_nesting_depth
+from .body_limits import MAX_JSON_DEPTH, MAX_SCENE_DOCUMENT_BYTES, json_nesting_depth
 from .design import DESIGN_HEIGHT, DESIGN_WIDTH
 from .canonical_json import canonical_json_bytes
 from .ha_url import HAClientError, normalize_base_url
@@ -352,7 +352,7 @@ class Studio3DDraftUpdate(BaseModel):
     def validate_scene_size(cls, value: dict[str, Any]) -> dict[str, Any]:
         """在类型边界上声明场景的体积与嵌套深度上限。
 
-        这两条限制原先只写在路由上（字节数在 body_guard 中间件与写盘函数里、深度只在中间件里），
+        这两条限制原先只写在路由上（字节数在 body_limits 的中间件与写盘函数里、深度只在中间件里），
         而中间件只在装了它的应用上生效 —— 把路由器挂到别的 FastAPI 应用上时，一个几 KB 的深层
         嵌套 JSON 就能把 json.loads 打爆成 500，所以契约要声明在 schema 这一层。
 

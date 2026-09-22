@@ -16,7 +16,7 @@
   <head>
     <meta name="homeos-release" content="b8b761498e26327c91fefcb50cbaaa0b" />
     <meta charset="utf-8" />
-    <script src="/static/logging/client-log.js?v=2609220943"></script>
+    <script src="/static/logging/client-log.js?v=2609221053"></script>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#050912" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -24,16 +24,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="HomeOS" />
     <title>初始化 · HomeOS</title>
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609220943" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609220943" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609220943" sizes="180x180" />
-    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609220943" sizes="180x180" />
-    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609220943" />
-    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609220943" />
-    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609220943" />
-    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609220943" />
-    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609220943" />
-    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609220943` 的 <link>。
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.ico?v=2609221053" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/static/assets/icons/homeos-favicon-h5.svg?v=2609221053" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609221053" sizes="180x180" />
+    <link rel="apple-touch-icon-precomposed" href="/static/assets/icons/homeos-icon-180-h5.png?v=2609221053" sizes="180x180" />
+    <link rel="manifest" href="/static/assets/manifest/manifest-h5.webmanifest?v=2609221053" />
+    <link rel="stylesheet" href="/static/auth/scene/fonts.css?v=2609221053" />
+    <link rel="stylesheet" href="/static/auth/scene/page.css?v=2609221053" />
+    <link rel="stylesheet" href="/static/auth/scene/scene.css?v=2609221053" />
+    <link rel="stylesheet" href="/static/auth/scene/panel.css?v=2609221053" />
+    <!-- 站点配色覆盖：后端把它换成 `/appearance.css?v=2609221053` 的 <link>。
          必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
     <!--{{APPEARANCE}}-->
   </head>
@@ -54,15 +54,21 @@
                所以位置与状态都由后端按请求填。状态语义见 design/scene/panel.css。 -->
           <!--{{STEPS}}-->
 
-          <div class="hos-eyebrow-row">
-            <p class="hos-eyebrow">First Setup</p>
-            <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号存本机</span>
+          <!-- 状态甲板（读数源：backend/http/telemetry.py）。本页落在匿名档：
+               未初始化时库里还没有可读的东西，只给机制读数。 -->
+          <div class="hos-panel__head">
+            <div class="hos-eyebrow-row">
+              <p class="hos-eyebrow">本机初始化 · 01/05</p>
+              <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>账号存本机</span>
+            </div>
+            <h1>建立本机管理员</h1>
+            <p class="hos-panel__desc">
+              这台机器的第一个账号，也是唯一的超级管理员。账号与密码只落在本机，
+              不经过任何第三方云。
+            </p>
           </div>
-          <h1>设置管理员</h1>
-          <p class="hos-panel__desc">
-            这是安装后的第一步：创建本机唯一的超级管理员账号。完成后即可登录编辑器、
-            连接 Home Assistant，并用商店激活码完成授权绑定。
-          </p>
+
+          <!--{{DECK}}-->
 
           <form id="setup-form" class="hos-form">
             <div class="hos-field">
@@ -131,13 +137,13 @@
 
           <div class="hos-panel__copy">
             <div class="hos-panel__meta">
-              <span>仅本机</span>
+              <span>账号 3–64 字符</span>
               <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-              <span>不经过第三方云</span>
+              <span>密码至少 8 位</span>
               <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-              <span>完成后先验授权</span>
+              <span>非本机访问需引导密钥</span>
             </div>
-            <p>本页仅用于首次初始化；完成后会先检查授权，未激活将进入激活页。</p>
+            <p>本页只在首次初始化时出现；完成后会先检查授权，未激活将进入激活页。</p>
           </div>
         </section>
       </main>
@@ -146,8 +152,11 @@
     <!-- auth-shell.js 负责 .hos-password-field 里的密码显隐，必须在 setup.js 之前执行。 -->
     <!-- 场景视差相机（源：design/scene/scene-depth.js）。写成普通脚本而不是 module：
          它不导出任何东西，越早跑越好 —— 一进场（含那 0.75s 的入场动画）画面就是活的。 -->
-    <script src="/static/auth/scene/scene-depth.js?v=2609220943"></script>
-    <script type="module" src="/static/auth/auth-shell.js?v=2609220943"></script>
-    <script type="module" src="/static/auth/setup.js?v=2609220943"></script>
+    <script src="/static/auth/scene/scene-depth.js?v=2609221053"></script>
+    <script type="module" src="/static/auth/auth-shell.js?v=2609221053"></script>
+    <script type="module" src="/static/auth/setup.js?v=2609221053"></script>
+    <!-- 状态甲板的自走读数（源：frontend/static/auth/entry-deck.js）。它读页面里已经有的
+         时间戳，不发任何请求；没有 .hos-deck 时自行退出，所以五页共用一份不会互相干扰。 -->
+    <script type="module" src="/static/auth/entry-deck.js?v=2609221053"></script>
   </body>
 </html>

@@ -4,11 +4,11 @@
  * 返利流水的按类型筛选，以及客户维度的汇总列表。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609220943";
-import { cell, pageState, pagedFetch, renderPager } from "../table.js?v=2609220943";
-import { d, dt, num } from "../format.js?v=2609220943";
-import { state } from "../state.js?v=2609220943";
-import { openAdjustDialog } from "../dialogs.js?v=2609220943";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609221053";
+import { cell, pageState, pagedFetch, renderPager } from "../table.js?v=2609221053";
+import { d, dt, num } from "../format.js?v=2609221053";
+import { state } from "../state.js?v=2609221053";
+import { openAdjustDialog } from "../dialogs.js?v=2609221053";
 
 // 积分流水类型：**由接口下发**（`/referral-ledger` 响应里的 `kinds`），这里只作缓存。
 // 后台不再自存词表 —— 自存的那份 6 个键里只有 manual_adjust 与后端对得上，而筛选是精确

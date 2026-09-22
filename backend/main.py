@@ -70,6 +70,7 @@ from .security.auth_limiter import BoundedAttemptLimiter, LoginAttemptLimiter
 from .http.body_guard import RequestBodyGuard
 from .http.commissioning import has_rail, rail_states
 from .http.page_shell import APPEARANCE_PATH, render_shell_page
+from .http.telemetry import deck_tiles, has_deck
 from .config import Settings, load_settings
 from .core.database import Database
 from .ha.service import HAConnectorService
@@ -623,6 +624,15 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         '/static/auth/auth-shell.js',
         '/static/auth/pairing-link.js',
         '/static/auth/pairing-entry.js',
+        # 入口页状态甲板的自走读数（setup/login/license/pair/恢复页五个页面都引它）。
+        # 被 401 挡下时页面**不会白屏**，症状只在甲板上：本机时间、运行时长、距上次同步
+        # 这三格永远停在服务端的中立兜底「—」（后端刻意不注入真实值，见
+        # telemetry._elapsed_placeholder），控制台留一条 401。
+        # 它自身没有任何 import，也**不发请求**（不碰 fetch / EventSource / 轮询），
+        # 只把页面里已有的 data-since 换算成「多久之前」—— 所以白名单里放行这一个文件
+        # 就闭合了整个模块图，不像 utils/ 那几份还要逐个列。
+        # 暴露面：读的是同一张页面自己已经渲染出来的时间戳，不新增任何可读数据。
+        '/static/auth/entry-deck.js',
         # 匿名页脚本 import 的工具模块也必须在这里：模块图缺一环整页脚本都不执行
         # （login/setup/pair/license 未激活时就要能打开）。utils/ 只放纯工具、白名单
         # 按文件精确列；新增匿名页依赖的 utils 务必同步这里，否则未登录会白屏。
@@ -865,21 +875,33 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
         收成一个闭包是为了让 ``app_settings``、``version`` 与配色版本号在调用处不必各写
         一遍 —— 九个路由各拼一次参数，迟早有一个漏带配色版本，而那一页会安静地不跟配色。
 
-        入口页（五个）额外带上开通轨读数。读数**按访问者**算而不是按页面算：同一条
-        ``/pair`` 对管理员与墙面板的进度不一样（见 ``http/commissioning``），所以这里
-        多花一次会话查询是必要的，不是重复劳动 —— 路由那边即使刚查过，也不该把结论
-        往下传：调用点分散在六个路由里，迟早有一个忘了传，而那一页会显示别人的进度。
+        入口页（五个）额外带上开通轨与状态甲板读数。两者都**按访问者**算而不是按页面算：
+        同一条 ``/pair`` 对管理员与墙面板的进度与读数都不一样（见 ``http/commissioning``
+        与 ``http/telemetry``），所以这里多花一次会话查询是必要的，不是重复劳动 ——
+        路由那边即使刚查过，也不该把结论往下传：调用点分散在六个路由里，
+        迟早有一个忘了传，而那一页会显示别人的进度。
 
         ``active_display`` 只在带设备 Cookie 时才查库，非设备访客（绝大多数入口页请求）
         是纯 Cookie 解析，所以这里无条件算它不会变成每次两查。
+
+        会话与设备这两项**只算一次**、同时喂给两条注入（轨与甲板）：两处各查一遍
+        是同一份结论写两次，而它们分叉的那一天不会有任何测试发现 ——
+        只会在某页上出现「轨说你没登录，甲板说你已登录」。
         """
         rail = None
-        if has_rail(filename):
-            rail = rail_states(
-                filename,
-                admin_session = signed_in(request),
-                device = active_display(request) is not None,
-            )
+        deck = None
+        if has_rail(filename) or has_deck(filename):
+            admin_session = signed_in(request)
+            device = active_display(request) is not None
+            if has_rail(filename):
+                rail = rail_states(filename, admin_session = admin_session, device = device)
+            if has_deck(filename):
+                deck = deck_tiles(
+                    filename,
+                    admin_session = admin_session,
+                    device = device,
+                    request = request,
+                )
         return render_shell_page(
             app_settings.frontend_dir,
             filename,
@@ -887,6 +909,7 @@ def create_app(settings: Settings | None = None, license_transport = None, licen
             request.app.state.appearance.revision,
             scene = scene,
             rail = rail,
+            deck = deck,
             request = request,
         )
 

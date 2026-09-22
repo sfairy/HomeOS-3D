@@ -7,7 +7,7 @@
 
 // 文档里的数值可能以字符串形式存于 JSON，这里统一转换；非有限数或非正数一律回落，
 // 避免 NaN / 0 传播成 0 宽高的隐形元素（口径见 utils/numbers.js 的 positiveNumberOr）。
-import { positiveNumberOr } from "../utils/numbers.js?v=2609220943";
+import { positiveNumberOr } from "../utils/numbers.js?v=2609221053";
 /**
  * 计算预览区应占据的像素尺寸与宽高比。
  * 缩放在宽高两方向取较小者（CSS contain 语义）：宁可留边也不裁切，保证与真实投放取景一致。
