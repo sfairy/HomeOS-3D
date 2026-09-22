@@ -1110,6 +1110,27 @@
     setText('[data-account-tab-count="orders"]', orders.length);
   }
 
+  /* 「一键部署」指令块：脚本与**完整命令**都由后端下发（store/ops/site_settings.py 的
+     DEPLOY_SCRIPTS 按后台配置的部署地址拼好），前端只负责渲染 —— 自己再拼一份脚本名的
+     话，改脚本时页面上的命令会静默 404，而那种错很难从界面上看出来。
+     后台没配部署地址时后端回空数组，这里整块不渲染。 */
+  function deploymentMarkup() {
+    const scripts = state.configuration?.store?.deployScripts;
+    if (!Array.isArray(scripts) || !scripts.length) return '';
+    const rows = scripts.map(item => `<article class="hb-deploy-cmd">
+      <div class="hb-deploy-cmd__bar"><span class="hb-deploy-cmd__dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="hb-deploy-cmd__label">${escapeHtml(item.label)}</span></div>
+      <div class="hb-deploy-cmd__body"><code><span class="hb-deploy-cmd__prompt">$</span> ${escapeHtml(item.command)}</code><button type="button" class="hb-deploy-cmd__copy" data-deploy-copy="${escapeHtml(item.command)}">复制</button></div>
+    </article>`).join('');
+    return `<section class="hb-deploy" aria-label="一键部署指令">
+      <header class="hb-deploy__head">
+        <span class="hb-deploy__icon" aria-hidden="true"><i class="fa-duotone fa-regular fa-rocket-launch"></i></span>
+        <div class="hb-deploy__title"><strong>一键部署 HomeOS</strong><small>复制到服务器的终端执行，脚本会自动拉取并启动服务。</small></div>
+      </header>
+      <div class="hb-deploy__commands">${rows}</div>
+      <p class="hb-deploy__hint"><i class="fa-duotone fa-regular fa-circle-info" aria-hidden="true"></i> 部署完成后回到本页，用上方的激活码完成授权。</p>
+    </section>`;
+  }
+
   function renderAccount(payload) {
     $('#account-email').textContent = payload.account.email;
     state.accountLicenses = payload.licenses || [];
@@ -1152,7 +1173,7 @@
       const deviceLine = item.device
         ? `已绑定本机（硬件指纹）· <code>${escapeHtml(item.device.instanceId)}</code>`
         : '当前未绑定设备';
-      return `<article class="hb-account-item hb-account-item--stacked"><header class="hb-account-head"><div class="hb-account-ident"><div class="hb-account-title"><h3>${escapeHtml(title)}</h3>${statusChip}</div>${productLine}</div>${actions}</header><div class="hb-account-body"><p class="hb-account-license-code"><span>激活码</span><code>${escapeHtml(activationCode)}</code>${unavailable}</p><ul class="hb-account-facts">${facts}</ul></div><footer class="hb-account-foot"><div class="hb-account-foot-main"><p class="hb-account-device">${deviceLine}</p>${manualNote}</div>${releasePolicyState}</footer></article>`;
+      return `<article class="hb-account-item hb-account-item--stacked"><header class="hb-account-head"><div class="hb-account-ident"><div class="hb-account-title"><h3>${escapeHtml(title)}</h3>${statusChip}</div>${productLine}</div>${actions}</header><div class="hb-account-body"><p class="hb-account-license-code"><span>激活码</span><code>${escapeHtml(activationCode)}</code>${unavailable}</p><ul class="hb-account-facts">${facts}</ul>${item.active ? deploymentMarkup() : ''}</div><footer class="hb-account-foot"><div class="hb-account-foot-main"><p class="hb-account-device">${deviceLine}</p>${manualNote}</div>${releasePolicyState}</footer></article>`;
     }).join('') : '<div class="hb-account-empty">账号下暂无授权。</div>';
     const entitlementSection = $('#account-entitlements-section');
     const entitlementList = $('#account-entitlements');
@@ -1217,6 +1238,19 @@
   }
 
   async function accountAction(event) {
+    // 复制部署指令。命令原文放在 data-deploy-copy 上而不是读 <code> 的文本：
+    // 「$」提示符不进剪贴板，用户粘到终端里就能直接跑。
+    const copy = event.target.closest('[data-deploy-copy]');
+    if (copy) {
+      try {
+        await navigator.clipboard.writeText(copy.dataset.deployCopy);
+        toast('部署指令已复制。');
+      } catch (_) {
+        // 非安全上下文（http 局域网）里 navigator.clipboard 不存在，只能让用户手动选。
+        toast('复制失败，请手动选中命令复制。', 'err');
+      }
+      return;
+    }
     const label = event.target.closest('[data-label-license]');
     if (label) {
       const dialog = $('#license-label-dialog');

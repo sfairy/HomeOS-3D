@@ -217,6 +217,8 @@ class AdminSettingsRequest(_AdminBase):
     support_email: str | None = Field(default=None, alias="supportEmail", max_length=255)
     #: 品牌标识；留空则回落到系统默认的 homeos-mark.svg
     logo_url: str | None = Field(default=None, alias="logoUrl", max_length=512)
+    #: 「一键部署」脚本地址；留空 = 账号中心不显示部署块（刻意不给默认值，见 site_settings）
+    deploy_base_url: str | None = Field(default=None, alias="deployBaseUrl", max_length=512)
     maintenance_mode: bool | None = Field(default=None, alias="maintenanceMode")
     maintenance_message: str | None = Field(default=None, alias="maintenanceMessage", max_length=512)
     payment_provider: str | None = Field(default=None, alias="paymentProvider", max_length=32)

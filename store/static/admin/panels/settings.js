@@ -7,12 +7,12 @@
  * 清理。配置项多、互相牵扯，所以整块一个模块。
  */
 
-import { $, $$, toast } from "../dom.js?v=2609221415";
-import { state } from "../state.js?v=2609221415";
-import { api, withBusy } from "../api.js?v=2609221415";
-import { askConfirm, askPurge } from "../dialogs.js?v=2609221415";
-import { pageState } from "../table.js?v=2609221415";
-import { host } from "../host.js?v=2609221415";
+import { $, $$, toast } from "../dom.js?v=2609221451";
+import { state } from "../state.js?v=2609221451";
+import { api, withBusy } from "../api.js?v=2609221451";
+import { askConfirm, askPurge } from "../dialogs.js?v=2609221451";
+import { pageState } from "../table.js?v=2609221451";
+import { host } from "../host.js?v=2609221451";
 
 /**
  * 站点配置的「读到了吗」闸门：读失败时表单只是没回填（既非空也非对），此时保存会把支付渠道等
@@ -70,6 +70,8 @@ export async function loadSettings() {
   form.elements.supportEmail.value = store.supportEmail || '';
   // logoUrl 在响应里嵌在 store 下，写入时却是顶层字段（AdminSettingsRequest 的口径）
   form.elements.logoUrl.value = store.logoUrl || '';
+  // 留空 = 账号中心的部署块整块不显示（不是回落默认值，见 admin.html 该字段的注释）
+  form.elements.deployBaseUrl.value = store.deployBaseUrl || '';
   form.elements.description.value = store.description || '';
   form.elements.announcement.value = data.announcement || '';
   // 不再回填成 'mock'：空串是「跟随环境变量」，把它写成 mock 等于运营随手保存一次
@@ -564,6 +566,7 @@ $('#settings-form').addEventListener('submit', async (event) => {
         siteTitle: form.elements.siteTitle.value.trim(),
         supportEmail: form.elements.supportEmail.value.trim(),
         logoUrl: form.elements.logoUrl.value.trim(),
+        deployBaseUrl: form.elements.deployBaseUrl.value.trim(),
         description: form.elements.description.value.trim(),
         announcement: form.elements.announcement.value.trim(),
         paymentProvider: form.elements.paymentProvider.value,

@@ -2931,6 +2931,173 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   color: var(--hb-muted-dim);
 }
 
+/* ---- 授权卡里的「一键部署」指令块 ----------------------------------------
+   只在**有效**授权卡里出现（判据在 store.js），地址由后台「站点配置 → 站点信息」下配。
+   造型是一块深色终端面板：与上面浅一档的规格表拉开层次，让「这是要复制去跑的命令」
+   一眼可辨；配色一律走 --hb-* 令牌，不写死色值。 */
+.hb-deploy {
+  margin-top: 16px;
+  padding: 14px 15px 13px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-md);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--hb-surface-raised) 82%, transparent),
+    var(--hb-surface-soft)
+  );
+}
+
+.hb-deploy__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hb-deploy__icon {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hb-accent-line);
+  border-radius: var(--hb-radius-sm);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+  font-size: 13px;
+}
+
+.hb-deploy__title {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.hb-deploy__title strong {
+  display: block;
+  color: var(--hb-ink);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.hb-deploy__title small {
+  display: block;
+  margin-top: 3px;
+  color: var(--hb-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.hb-deploy__commands {
+  display: grid;
+  margin-top: 12px;
+  gap: 8px;
+}
+
+.hb-deploy-cmd {
+  border: 1px solid var(--hb-line-soft);
+  border-radius: var(--hb-radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+/* 命令条：左侧红黄绿「窗口灯」，右侧标签（官方源 / 国内镜像） */
+.hb-deploy-cmd__bar {
+  display: flex;
+  padding: 7px 11px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--hb-line-soft);
+}
+
+.hb-deploy-cmd__dots {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.hb-deploy-cmd__dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hb-heat);
+}
+
+.hb-deploy-cmd__dots i:nth-child(2) {
+  background: var(--hb-lumen);
+}
+
+.hb-deploy-cmd__dots i:nth-child(3) {
+  background: var(--hb-eco);
+}
+
+.hb-deploy-cmd__label {
+  color: var(--hb-eco-bright);
+  font-family: var(--hb-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.hb-deploy-cmd__body {
+  display: flex;
+  padding: 10px 11px;
+  align-items: center;
+  gap: 10px;
+}
+
+.hb-deploy-cmd__body code {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--hb-ink);
+  font-family: var(--hb-font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* 「$」是提示符不是命令内容，所以复制按钮取的是 data-deploy-copy 而不是这行文本 */
+.hb-deploy-cmd__prompt {
+  color: var(--hb-accent-bright);
+  font-weight: 700;
+  user-select: none;
+}
+
+.hb-deploy-cmd__copy {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border: 1px solid var(--hb-line);
+  border-radius: var(--hb-radius-xs);
+  color: var(--hb-ink-soft);
+  background: var(--hb-surface-soft);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--hb-transition);
+}
+
+.hb-deploy-cmd__copy:hover {
+  border-color: var(--hb-accent-line);
+  color: var(--hb-accent-bright);
+  background: var(--hb-accent-soft);
+}
+
+.hb-deploy__hint {
+  display: flex;
+  margin-top: 10px;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--hb-muted-dim);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.hb-deploy__hint i {
+  margin-top: 2px;
+  color: var(--hb-accent-bright);
+}
+
 .hb-account-actions {
   display: flex;
   flex: 0 0 auto;

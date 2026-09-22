@@ -2492,6 +2492,8 @@ def admin_update_settings(
         "support_email": "support_email",
         # logo_url 留空表示回到默认标识（见 site_settings.DEFAULT_LOGO_URL）
         "logo_url": "logo_url",
+        # 留空 = 不显示部署块（与 logo_url 不同，这里**没有**可回落的默认地址）
+        "deploy_base_url": "deploy_base_url",
         "maintenance_mode": "maintenance_mode",
         "maintenance_message": "maintenance_message",
         "payment_provider": "payment_provider",
@@ -2531,6 +2533,12 @@ def admin_update_settings(
         updates["logo_url"] = (
             str(updates["logo_url"] or "").strip() or site_config.DEFAULT_LOGO_URL
         )
+    if "deploy_base_url" in updates:
+        # 结尾斜杠在这里就去掉：前台按 ``<地址>/install.sh`` 拼接，留着它就是双斜杠。
+        # 读路径（site_settings._deploy_base_url）同样会规范化，这里是让**写进库的值**
+        # 就是干净的 —— 免得后台来回保存一次、值长得不一样。
+        # 空串是有效取值（= 不显示部署块），不像 logo_url 那样回落到默认值。
+        updates["deploy_base_url"] = str(updates["deploy_base_url"] or "").strip().rstrip("/")
     if "support_email" in updates:
         # 与 logo_url 同一口径：这个字段**没有「空着」这个状态**。
         # 允许写空串的话，库里是空的、页面上却总显示默认值（读路径回落），

@@ -169,7 +169,11 @@ export APP_LICENSE_TRANSPORT_PUBLIC_KEY_SHA256=<license-transport-public.pem 文
 
 静默回退的后果大多不表现为「少了个功能」：例如 `STORE_COOKIE_SECURE` 拼错恰好等于「显式关闭」，HTTPS 部署上的会话 Cookie 会丢掉 `Secure` 标记，而服务照常运行、日志里一个字都没有。另有几条跨字段校验，例如 `STORE_LEASE_TTL_SECONDS` 必须 ≥ 2× `STORE_HEARTBEAT_INTERVAL_SECONDS`，否则健康客户端会在两次心跳之间把租约耗到过期（表现为「网络正常但功能一阵阵消失」，两个配置项单独看都合法）。
 
-站点名、公告、客服邮箱、维护模式、邀请比例、提现手续费、解绑冷却等**运行时配置**存在数据库里，直接在 `/admin` 的「站点配置」里改，不需要重启。邮件与验证码那几项（`STORE_MAIL_MODE` / `STORE_SMTP_*` / `STORE_MAIL_FROM` / `STORE_VERIFICATION_*` / `STORE_EXPOSE_VERIFICATION_CODE`）和支付宝的 `STORE_ALIPAY_*` 也搬进了「站点配置」，同样是 DB 值优先、留空跟随 `.env`，改完免重启。两个顺手加的排障入口：
+站点名、公告、客服邮箱、维护模式、邀请比例、提现手续费、解绑冷却等**运行时配置**存在数据库里，直接在 `/admin` 的「站点配置」里改，不需要重启。邮件与验证码那几项（`STORE_MAIL_MODE` / `STORE_SMTP_*` / `STORE_MAIL_FROM` / `STORE_VERIFICATION_*` / `STORE_EXPOSE_VERIFICATION_CODE`）和支付宝的 `STORE_ALIPAY_*` 也搬进了「站点配置」，同样是 DB 值优先、留空跟随 `.env`，改完免重启。
+
+账号中心每张**有效**授权卡上的「一键部署」指令也在这里配：填「站点配置 → 站点信息 → 一键部署脚本地址」即可（脚本路径固定为 `install.sh`，完整命令由服务端拼好下发）。留空则整块不显示 —— 它没有可回落的默认地址，而一个猜出来的地址只会让用户 `curl` 到一个 404。
+
+两个顺手加的排障入口：
 
 - **发送测试邮件**（「站点配置 → 注册邮箱验证码」）—— 往任意邮箱真发一封，复用用户注册走的那条投递路径，但不写验证码记录、不占发信配额。用来区分「我们发不出去」和「对方网关拒收」。
 - **当前生效的回调地址**（「站点配置 → 支付」）—— 展示后台值 / 环境变量 / 按 `STORE_BASE_URL` 推导三层里最终用的是哪个。地址填 `localhost` 或内网会被保存时拒掉：那种值支付宝永远访问不到，表现却是「用户付了钱订单不到账」。

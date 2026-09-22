@@ -56,6 +56,9 @@ class StoreSetting(Base):
     logo_url: Mapped[str] = mapped_column(String(512), default="/store-static/homeos-mark.svg")
     maintenance_mode: Mapped[bool] = mapped_column(Boolean, default=False)
     maintenance_message: Mapped[str] = mapped_column(String(512), default="系统正在升级维护，请稍后再试。")
+    #: 「一键部署」指令的脚本托管地址（基础 URL，无结尾斜杠）。空串 = 未配置，
+    #: 账号中心的授权卡不渲染部署块 —— 地址是这台部署的对外资产，没有合理默认值可回落。
+    deploy_base_url: Mapped[str] = mapped_column(String(512), default="")
 
     #: 空字符串 = 跟随 STORE_PAYMENT_PROVIDER；非空 = 在 /admin 里显式指定，优先级更高
     payment_provider: Mapped[str] = mapped_column(String(32), default="")

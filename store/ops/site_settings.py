@@ -13,6 +13,24 @@ from store.security.security import iso, utcnow
 #: 回落到这里，而不是写空串进库（否则 ``<img src="">`` 会让标识位塌掉）。
 DEFAULT_LOGO_URL = "/store-static/homeos-mark.svg"
 
+#: 账号中心「一键部署」的脚本清单（标签, 相对基础地址的路径）。目前只有官方源一条 ——
+#: 保留成清单是为了多一条时前端不必改结构。
+#: 脚本名是这套部署的对外契约，只写在这里：前端再存一份的话，改动时必有一侧漏掉，
+#: 而漏掉的症状是「页面上的命令 curl 出来是个 404」，很难从界面上看出来。
+DEPLOY_SCRIPTS: tuple[tuple[str, str], ...] = (
+    ("OFFICIAL-SCRIPT（官方源）", "install.sh"),
+)
+
+
+def _deploy_base_url(setting: StoreSetting) -> str:
+    """部署脚本地址的唯一口径：去空白、去结尾斜杠。
+
+    结尾斜杠必须去掉：下面按 ``<地址>/install.sh`` 拼接，留着它命令就成了双斜杠。
+    存储层不强制（后台可能手粘带斜杠的地址），所以**读取侧**以本函数为唯一口径；
+    写入路径（``api/admin.py``）也顺手规范化一次，让落在库里的值本身就是干净的。
+    """
+    return (setting.deploy_base_url or "").strip().rstrip("/")
+
 
 def resolve_device_release_cooldown(setting: StoreSetting | None, settings: StoreSettings) -> int:
     """解绑冷却秒数的**唯一**取值口径：站点配置优先，未配置时回落到环境变量。
@@ -57,6 +75,7 @@ def update_setting(session: Session, **fields) -> StoreSetting:
 
 
 def store_configuration_payload(setting: StoreSetting) -> dict:
+    deploy_base = _deploy_base_url(setting)
     return {
         "siteName": setting.site_name,
         "siteTitle": setting.site_title,
@@ -66,6 +85,15 @@ def store_configuration_payload(setting: StoreSetting) -> dict:
         # 表现为「这个站没有客服邮箱」，而生效的默认值一直在那儿）。
         "supportEmail": setting.support_email or DEFAULT_SUPPORT_EMAIL,
         "logoUrl": setting.logo_url,
+        #: 账号中心「一键部署」区块。基础地址由后台配置，未配置时 deployScripts 为空、
+        #: 前台整块不渲染（没有合理默认地址可回落）。
+        "deployBaseUrl": deploy_base,
+        "deployScripts": [
+            {"label": label, "command": f"curl -sSL {deploy_base}/{path} | bash"}
+            for label, path in DEPLOY_SCRIPTS
+        ]
+        if deploy_base
+        else [],
         "maintenanceMode": bool(setting.maintenance_mode),
         "maintenanceMessage": setting.maintenance_message,
         "updatedAt": iso(setting.updated_at),
