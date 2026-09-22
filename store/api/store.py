@@ -1440,19 +1440,19 @@ def release_device(
     settings: StoreSettings = request.app.state.settings
     cooldown = site_config.resolve_device_release_cooldown(setting, settings)
     moment = utcnow()
-    last_release = session.execute(
-        select(func.max(DeviceReleaseEvent.created_at)).where(
-            DeviceReleaseEvent.license_id == license.id
+    # 冷却是「两次解绑之间」的间隔：解绑后**可以立刻激活**（任意设备），但同一张授权
+    # 在冷却期内不能再解绑一次 —— 换机这件事靠这个间隔减速，而不是靠卡住激活。
+    # 判定走 ``LicenseAuthority`` 上那一份：这里以前自己又拼了一遍同样的查询
+    # （``max(created_at)`` + 冷却窗口），与 ``release_remaining_seconds`` 是一套口径的
+    # 两份实现，改一处漏一处就会出现「报错里的剩余秒数与后台显示对不上」。
+    authority = request.app.state.license_authority
+    remaining = authority.release_remaining_seconds(session, license.id, moment)
+    if remaining > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"解绑冷却中，请 {remaining} 秒后再试。",
+            headers={"Retry-After": str(remaining)},
         )
-    ).scalar_one_or_none()
-    if last_release is not None:
-        remaining = int(max(0, ((last_release + timedelta(seconds=cooldown)) - moment).total_seconds()))
-        if remaining > 0:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"解绑冷却中，请 {remaining} 秒后再试。",
-                headers={"Retry-After": str(remaining)},
-            )
 
     # 与 ``licensing.ensure_binding`` 同一口径：同一张授权可能留下多行绑定（解绑只是
     # ``active = False``，行不删），而**不带 ORDER BY 的 ``.first()`` 挑哪一行取决于

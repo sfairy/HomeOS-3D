@@ -3500,9 +3500,12 @@ def admin_delete_product_image(
 def admin_delete_binding(binding_id: str, session: DbSession, admin: AdminAccount) -> dict:
     """物理删除设备绑定记录。
 
-    与「释放绑定」的区别：释放只是把绑定置为失效、保留历史，客户端重新激活仍
-    受冷却时间约束；删除会把记录整条抹掉（会话与找回令牌按外键级联清理），
-    客户端可以立刻重新激活。只用于清理测试机、重复绑定这类脏数据，故强制审计。
+    与「释放绑定」的区别：释放只是把绑定置为失效、保留历史（解绑事件仍留在冷却判定
+    里），删除会把记录整条抹掉（会话与找回令牌按外键级联清理）。
+
+    **两者都不改变「能否重新激活」** —— 解绑之后本来就能立刻激活（冷却约束的是
+    「下一次解绑」，见 ``store.api.store.release_device``），所以这里不能再用
+    「删了就能立刻重绑」当理由。只用于清理测试机、重复绑定这类脏数据，故强制审计。
     """
     binding = session.get(DeviceBinding, binding_id)
     if binding is None:

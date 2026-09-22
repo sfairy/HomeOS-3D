@@ -4,14 +4,14 @@
  * 激活码列表与签发/补发/升级，以及设备绑定的解绑与查看。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609221226";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609221226";
-import { state } from "../state.js?v=2609221226";
-import { d, dt, pill, utcInput } from "../format.js?v=2609221226";
-import { LICENSE_SOURCE } from "../vocab.js?v=2609221226";
-import { api, withBusy } from "../api.js?v=2609221226";
-import { askConfirm } from "../dialogs.js?v=2609221226";
-import { host } from "../host.js?v=2609221226";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609221236";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609221236";
+import { state } from "../state.js?v=2609221236";
+import { d, dt, pill, utcInput } from "../format.js?v=2609221236";
+import { LICENSE_SOURCE } from "../vocab.js?v=2609221236";
+import { api, withBusy } from "../api.js?v=2609221236";
+import { askConfirm } from "../dialogs.js?v=2609221236";
+import { host } from "../host.js?v=2609221236";
 
 // --------------------------------------------------------------------------- //
 // 激活码
@@ -212,9 +212,11 @@ export async function loadBindings() {
 
 $('#binding-refresh').addEventListener('click', () => { resetPage('bindings'); loadBindings(); });
 
-// 与「强制解绑」的区别：释放只是置为失效、保留历史，客户端重绑仍受冷却约束；
-// 删除会把记录整条抹掉（会话与找回令牌级联清理），客户端可立即重新激活。
-// 所以这里要说清「绕过冷却」这个后果，它才是运营真正关心的差别。
+// 与「强制解绑」的区别：释放只是置为失效、保留历史（解绑事件仍留在冷却判定里）；
+// 删除会把记录整条抹掉（会话与找回令牌级联清理）。
+// **两者都不影响重新激活** —— 解绑之后本来就能立刻激活（冷却约束的是「下一次解绑」，
+// 见 store.api.store.release_device）。所以这里不该再拿「能不能马上激活」当卖点，
+// 差别只剩「留不留历史 / 要不要顺手清掉这个实例的会话与找回令牌」。
 $('#binding-rows').addEventListener('click', async (event) => {
   const bindingId = event.target.dataset.bindingDelete;
   if (!bindingId) return;
@@ -222,7 +224,7 @@ $('#binding-rows').addEventListener('click', async (event) => {
   const ok = await askConfirm({
     title: '彻底删除绑定记录',
     message: `将永久删除实例 ${instanceId} 的绑定记录。`,
-    impact: '与「强制解绑」不同：删除后<b>不受解绑冷却约束</b>，该客户端可以立即重新激活。<br>仅用于清理测试机、重复绑定这类脏数据。',
+    impact: '与「强制解绑」的差别是<b>不留历史</b>：记录整条删除，该实例的会话与找回令牌一并清掉，解绑事件也不再留下。<br>重新激活不受影响 —— 解绑后本来就能立刻激活，冷却约束的是下一次解绑。<br>仅用于清理测试机、重复绑定这类脏数据。',
     okText: '永久删除',
   });
   if (!ok) return;
@@ -239,7 +241,7 @@ $('#binding-rows').addEventListener('click', async (event) => {
   const ok = await askConfirm({
     title: '强制解绑设备',
     message: '确认强制解绑该设备？',
-    impact: '该客户端下次心跳将转为<b>吊销</b>，且在冷却期内无法重新绑定。',
+    impact: '该客户端下次心跳将转为<b>吊销</b>。它现在可以立即重新激活；冷却约束的只是<b>下一次解绑</b>。',
     okText: '强制解绑',
   });
   if (!ok) return;

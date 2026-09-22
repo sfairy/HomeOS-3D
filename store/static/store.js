@@ -1333,7 +1333,7 @@
       });
       $('#release-device-dialog').close();
       state.releaseLicenseId = null; state.releaseTarget = null;
-      toast('设备已解绑。请回到 HomeOS 激活页，用商店购买邮箱与激活码重新激活（若在冷却中请稍后再试）。');
+      toast('设备已解绑。请回到 HomeOS 激活页，用商店购买邮箱与激活码重新激活。');
       await loadAccount();
     } catch (error) {
       errorNode.textContent = error.message;

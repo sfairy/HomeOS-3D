@@ -286,6 +286,11 @@ class LicenseAuthority:
             )
 
     def last_release_at(self, session: Session, license_id: str) -> datetime | None:
+        """该授权**最近一次解绑**的时刻（自助与后台强制解绑都计入）。
+
+        读的是解绑事件表而不是绑定行的 ``released_at``：一条授权可能留下多行绑定，
+        而「最近一次解绑」是全授权口径的一件事。
+        """
         return session.execute(
             select(DeviceReleaseEvent.created_at)
             .where(DeviceReleaseEvent.license_id == license_id)
@@ -296,6 +301,14 @@ class LicenseAuthority:
     def release_remaining_seconds(
         self, session: Session, license_id: str, now: datetime
     ) -> int:
+        """距该授权**下一次可以解绑**还有多少秒（0 = 现在就可以）。
+
+        冷却是「两次解绑之间」的间隔，用它给「换机」这件事减速：解绑后能立刻激活
+        （任意设备），但同一张授权在冷却期内不能再解绑一次。所以这个读数只在
+        **解绑**那条路径上判定（``store.api.store.release_device``），激活路径
+        （``ensure_binding``）刻意不看它 —— 在那里拦会把「解绑后立刻激活回来」也一起
+        挡掉，而那不是冷却要管的事。
+        """
         last = self.last_release_at(session, license_id)
         if last is None:
             return 0
@@ -391,11 +404,12 @@ class LicenseAuthority:
             binding.last_heartbeat_at = now
             return binding
 
-        remaining = self.release_remaining_seconds(session, license.id, now)
-        if remaining > 0:
-            raise LicenseServerError(
-                f"该授权刚刚解绑，冷却中，请 {remaining} 秒后再试。", status_code=409
-            )
+        # 冷却**不在这里**：它约束的是「下一次解绑」，不是「下一次激活」。解绑后用户
+        # 应当能立刻激活回来 —— 账号中心解绑成功的提示本来就叫用户回激活页，而旧实现
+        # 在这里挡一道，等于让用户解绑完必须干等一整个冷却周期（默认 8 小时）才能把
+        # 自己那台机器重新激活，同机重绑也一并被拦。同机重绑既不是换机也不构成绕过：
+        # 反复解绑/重绑同一台机器拿不到任何额外好处，而自助解绑本身受冷却与口令两道
+        # 限制（见 store.api.store.release_device），换机则下面这道判定独立负责。
         if binding.active and binding.instance_id != instance_id:
             raise LicenseServerError(
                 "该授权已绑定其他设备，请先在账号中心解除绑定。", status_code=409
