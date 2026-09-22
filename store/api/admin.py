@@ -1910,7 +1910,7 @@ def admin_delete_license(license_id: str, session: DbSession, admin: AdminAccoun
 
     active_binding = session.scalars(
         select(DeviceBinding).where(
-            DeviceBinding.license_id == license.id, DeviceBinding.active.is_(True)
+            DeviceBinding.license_id == license.id, DeviceBinding.live_clause()
         )
     ).first()
     if active_binding is not None:
@@ -2024,10 +2024,6 @@ def admin_release_binding(
             source="admin",
         )
     )
-    if account_id:
-        account = session.get(Account, account_id)
-        if account is not None:
-            account.last_device_release_at = utcnow()
     session.flush()
     _audit(session, _admin_actor(admin), "binding.release", binding.id, payload.note)
     return {"bindingId": binding.id, "released": True}

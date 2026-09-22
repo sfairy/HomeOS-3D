@@ -534,8 +534,11 @@ def _license_meta(session, licenses: list[License]) -> dict[str, dict]:
             DeviceBinding.activated_at.desc(),
         )
     ):
-        # 有序之后，先到的那一行就是该授权最该显示的一行；非活跃的一律跳过。
-        if binding.active:
+        # 有序之后，先到的那一行就是该授权最该显示的一行；非「存活」的一律跳过 ——
+        # 判据是 ``DeviceBinding.is_live``（active 且未 released），与心跳/恢复、
+        # device_payload 用的是同一份。原先这里只判 active：一行 active 但已 released
+        # 的历史绑定会被当成「当前绑定」，于是出现过「后台已解绑、前台还显示绑着」。
+        if binding.is_live:
             bindings.setdefault(binding.license_id, binding)
     releases: dict[str, object] = {}
     for license_id, created_at in session.execute(
@@ -1491,7 +1494,6 @@ def release_device(
             source="self_service",
         )
     )
-    account.last_device_release_at = moment
     session.flush()
     return {
         "activationCodeId": license.id,

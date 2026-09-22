@@ -16,6 +16,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    and_,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -147,7 +148,6 @@ class Account(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
-    last_device_release_at: Mapped[datetime | None] = mapped_column(DateTime)
     referral_code: Mapped[str | None] = mapped_column(String(16), unique=True, index=True)
     referred_by_account_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("accounts.id", ondelete="SET NULL")
@@ -569,6 +569,30 @@ class DeviceBinding(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
     license: Mapped[License] = relationship(back_populates="binding")
+
+    @property
+    def is_live(self) -> bool:
+        """这一行现在还算不算「绑定着这台设备」。
+
+        判据单点收在这里，是因为读侧原先分成了两套：心跳与租约恢复判的是
+        ``active AND released_at IS NULL``，而 ``device_payload`` 只判 ``active``。
+        正常路径上两个字段一起动（``release`` 两个都写、``ensure_binding`` 两个都复位），
+        所以一直没出问题；但重复绑定被合并时（``schema_guard._DEDUPE_BEFORE_UNIQUE``
+        用的是 ``active=any_true`` + ``released_at=latest``）两套判据可以分叉，症状是
+        「后台说绑着、客户端却已被吊销」—— 与「解绑了还显示绑着」是同一个 bug 的两面。
+
+        判据改动只发生在这一处：要收紧或放宽都改这里，别在调用点各判各的。
+        """
+        return bool(self.active) and self.released_at is None
+
+    @classmethod
+    def live_clause(cls):
+        """``is_live`` 的 SQL 形态：属性不能在 ``WHERE`` 里判，查询用这个。
+
+        与上面的属性必须同步：一处改了另一处没改，就会出现「列表里是活跃的、
+        单条详情说不是」这类对不上的读数。
+        """
+        return and_(cls.active.is_(True), cls.released_at.is_(None))
 
     __table_args__ = (
         # 用 unique Index 而不是 UniqueConstraint：表级约束在存量库上补不了

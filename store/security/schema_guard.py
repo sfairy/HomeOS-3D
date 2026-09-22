@@ -60,6 +60,15 @@ _RETIRED_COLUMNS: dict[str, tuple[str, ...]] = {
         # 与后台提示文案对不上 —— 留着是个「改了没有任何反应」的假旋钮，排障时还会引错方向。
         "payment_merchant_order_template",
     ),
+    # 账号级的「最近一次解绑设备」。
+    # 退役理由：它有两个写入点（`store.api.store.release_device` 与
+    # `store.api.admin.admin_release_binding`），但那两处**同一事务里都写了
+    # `device_release_events`**（含 `account_id`），所以这一列完全是派生值；而它唯一的
+    # 消费点 `account_payload`（账号中心与后台共用）序列化出来之后**没有任何前端读它**
+    # —— 既不在账号中心渲染，也不在后台账户面板里。一个「写得进去、读不出来、还能从
+    # 事件表算出来」的列留着只会在下次读代码时多引一遍疑。
+    # 需要这个读数时按 `max(device_release_events.created_at) where account_id = ?` 取。
+    "accounts": ("last_device_release_at",),
 }
 
 #: ``ALTER TABLE ... DROP COLUMN`` 自 SQLite 3.35.0（2021-03-12）起可用。

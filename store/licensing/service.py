@@ -167,7 +167,7 @@ class LicenseAuthority:
             license = session.get(License, row.license_id)
             if binding is None or license is None:
                 raise LicenseServerError("授权会话对应的绑定已不存在。", status_code=401)
-            if not binding.active or binding.released_at is not None:
+            if not binding.is_live:
                 raise LicenseServerError("实例绑定已停用。", status_code=403, revoked=True)
             # 会话必须属于**当前**绑定在该授权上的实例。少了这条，管理员刚做的解绑对
             # 旧设备等于没生效：设备 B 复用同一行 DeviceBinding，A 仍能凭旧 token 续租。
@@ -229,7 +229,7 @@ class LicenseAuthority:
                 raise LicenseServerError("租约恢复凭证对应的绑定已不存在。", status_code=401)
             if binding.instance_id != instance_id:
                 raise LicenseServerError("租约不属于当前实例。", status_code=403)
-            if not binding.active or binding.released_at is not None:
+            if not binding.is_live:
                 raise LicenseServerError("实例绑定已停用。", status_code=403, revoked=True)
             self.assert_usable(license, now)
 
