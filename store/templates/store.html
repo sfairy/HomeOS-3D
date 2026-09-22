@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#050912">
   <meta name="description" content="注册账号、购买授权与管理激活设备">
-  <link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609221415">
+  <link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609221451">
   <title>HomeOS 授权服务 - HomeOS 授权中心</title>
   <link rel="stylesheet" href="/store-static/font.min.css">
-  <link rel="stylesheet" href="/store-static/theme.css?v=2609221415">
+  <link rel="stylesheet" href="/store-static/theme.css?v=2609221451">
   <!-- 场景设计系统的分发产物（源在仓库 design/scene/）。登录 / 注册 / 找回这三块整屏壳
        用的是它，前台其余分页仍走 theme.css + store.css 的令牌。 -->
-  <link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609221415">
-  <link rel="stylesheet" href="/store-static/scene/page.css?v=2609221415">
-  <link rel="stylesheet" href="/store-static/scene/scene.css?v=2609221415">
-  <link rel="stylesheet" href="/store-static/scene/panel.css?v=2609221415">
-  <link rel="stylesheet" href="/store-static/store.css?v=2609221415">
-  <script src="/store-static/auth-bootstrap.js?v=2609221415"></script>
-  <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609221415` 的 <link>。
+  <link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609221451">
+  <link rel="stylesheet" href="/store-static/scene/page.css?v=2609221451">
+  <link rel="stylesheet" href="/store-static/scene/scene.css?v=2609221451">
+  <link rel="stylesheet" href="/store-static/scene/panel.css?v=2609221451">
+  <link rel="stylesheet" href="/store-static/store.css?v=2609221451">
+  <script src="/store-static/auth-bootstrap.js?v=2609221451"></script>
+  <!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609221451` 的 <link>。
        必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
   <!--{{APPEARANCE}}-->
 </head>
@@ -27,12 +27,12 @@
 <header class="hb-topbar">
   <div class="hb-container hb-topbar__inner">
     <a class="hb-brand" href="/" aria-label="HomeOS 授权中心 首页">
-      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609221415" alt=""></span>
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609221451" alt=""></span>
       <span class="hb-brand__text"><strong>HomeOS</strong><small>授权服务中心</small></span>
     </a>
     <nav class="hb-nav" id="navbarNav" aria-label="主导航">
       <a class="hb-nav__link" data-hb-nav="home" href="/">首页</a>
-      <a class="hb-nav__link" data-hb-nav="purchase" href="/products?v=2609221415">购买授权</a>
+      <a class="hb-nav__link" data-hb-nav="purchase" href="/products?v=2609221451">购买授权</a>
       <a class="hb-nav__link hb-auth-only" data-hb-nav="account" href="/user/dashboard/index">账号中心</a>
       <a class="hb-nav__link hb-auth-only" data-hb-nav="referrals" href="/user/referrals">邀请有礼</a>
       <!-- 「管理后台」入口只对管理员账号出现：初始就是 hidden，store.js 拿到
@@ -53,7 +53,7 @@
 <main id="store-maintenance" class="hb-maintenance-page" hidden aria-labelledby="store-maintenance-title">
   <section class="hb-maintenance-card">
     <div class="hb-maintenance-brand">
-      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609221415" alt=""></span>
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609221451" alt=""></span>
       <span><strong id="maintenance-site-name">HomeOS</strong><small>授权服务中心</small></span>
     </div>
     <div class="hb-maintenance-visual" aria-hidden="true">
@@ -93,7 +93,7 @@
       <p class="hb-lead">HomeOS 是跑在自己服务器上的全屋智能管家：3D 户型里开关灯与窗帘，统一纳管家电与环境，
         场景、安防与全屏中控都在同一个界面里完成 —— 数据留在本机，不经过任何第三方云。</p>
       <div class="hb-hero__actions">
-        <a class="hb-button hb-button--primary hb-button--lg" id="home-purchase-link" href="/products?v=2609221415" hidden>选择授权版本 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
+        <a class="hb-button hb-button--primary hb-button--lg" id="home-purchase-link" href="/products?v=2609221451" hidden>选择授权版本 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
         <a class="hb-button hb-button--primary hb-button--lg" id="home-login-link" href="/user/authentication/login">登录账号 <i class="fa-duotone fa-regular fa-arrow-right"></i></a>
         <a class="hb-button hb-button--secondary hb-button--lg" id="home-register-link" href="/user/authentication/register">注册账号</a>
         <a class="hb-button hb-button--secondary hb-button--lg" id="home-account-link" href="/user/dashboard/index" hidden>进入账号中心</a>
@@ -273,7 +273,7 @@
           <li>Home Assistant 实体同步</li>
           <li>中控配对与全局日志</li>
         </ul>
-        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=2609221415">查看价格</a>
+        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=2609221451">查看价格</a>
       </article>
       <article class="hb-tier hb-tier--featured" data-tone="accent">
         <header class="hb-tier__head">
@@ -285,7 +285,7 @@
           <li>3D 户型工作室与自动导图</li>
           <li>3D 交互舞台：灯、窗帘、空调、电视、扫地机</li>
         </ul>
-        <a class="hb-button hb-button--primary hb-tier__action" href="/products?v=2609221415">查看价格</a>
+        <a class="hb-button hb-button--primary hb-tier__action" href="/products?v=2609221451">查看价格</a>
       </article>
       <article class="hb-tier" data-tone="aura">
         <header class="hb-tier__head">
@@ -297,7 +297,7 @@
           <li>单个能力单独购买</li>
           <li>不影响原授权有效期</li>
         </ul>
-        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=2609221415">查看增量包</a>
+        <a class="hb-button hb-button--secondary hb-tier__action" href="/products?v=2609221451">查看增量包</a>
       </article>
     </div>
     <p class="hb-tiers__note">具体在售商品与价格以商品列表为准；买错或换机都可以在账号中心自助处理。</p>
@@ -388,7 +388,7 @@
       <span><i class="fa-duotone fa-regular fa-box-open"></i></span>
       <strong>商品不可购买</strong>
       <p>该商品可能已下架或链接已失效，请返回商品列表重新选择。</p>
-      <a class="hb-button hb-button--secondary" href="/products?v=2609221415">返回商品列表</a>
+      <a class="hb-button hb-button--secondary" href="/products?v=2609221451">返回商品列表</a>
     </section>
 
     <div class="hb-checkout-shell" id="store-checkout-shell">
@@ -465,7 +465,7 @@
       </div>
 
       <aside class="hb-product-summary">
-        <div class="hb-product-cover"><img id="store-product-image" src="/store-static/homeos-mark.svg?v=2609221415" alt="授权商品"></div>
+        <div class="hb-product-cover"><img id="store-product-image" src="/store-static/homeos-mark.svg?v=2609221451" alt="授权商品"></div>
         <div class="hb-product-summary__content">
           <div class="hb-product-summary__badges">
             <span><i class="fa-duotone fa-regular fa-bolt"></i> <b id="store-delivery-label">自动发货</b></span>
@@ -559,8 +559,6 @@
           <span>登录态失效可重登</span>
           <i class="hos-panel__meta-sep" aria-hidden="true"></i>
           <span>已授权设备不因重登解绑</span>
-          <i class="hos-panel__meta-sep" aria-hidden="true"></i>
-          <span>邮箱即账号</span>
         </div>
         <p>换浏览器只是重新登录一次，激活码与已绑定的设备仍挂在账号上。</p>
       </div>
@@ -606,19 +604,25 @@
           </div>
         </div>
 
-        <div class="hos-field">
-          <div class="hos-label-row"><label for="store-forget-password">新密码</label></div>
-          <div class="hos-control hos-password-field">
-            <input id="store-forget-password" type="password" name="password" autocomplete="new-password" minlength="6" placeholder="至少 6 位" required>
-            <button type="button" data-password-toggle aria-label="显示新密码" title="显示新密码">显示</button>
+        <!-- 两枚密码并排：认证三屏里找回屏同样是最长的一档（四组字段 + 甲板 + 抬头），
+             两行密码各占一行时 1366×768 上正好多出 38px 的坞内滚动条。
+             「注册邮箱」独占一行而不是与「获取验证码」并排：发码键与验证码是一件事，
+             拆开读反而绕 —— 与注册屏的分组不同，是因为两屏的字段集本来就不同。 -->
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-forget-password">新密码</label></div>
+            <div class="hos-control hos-password-field">
+              <input id="store-forget-password" type="password" name="password" autocomplete="new-password" minlength="6" placeholder="至少 6 位" required>
+              <button type="button" data-password-toggle aria-label="显示新密码" title="显示新密码">显示</button>
+            </div>
           </div>
-        </div>
 
-        <div class="hos-field">
-          <div class="hos-label-row"><label for="store-forget-confirm">确认新密码</label></div>
-          <div class="hos-control hos-password-field">
-            <input id="store-forget-confirm" type="password" name="confirmPassword" autocomplete="new-password" minlength="6" placeholder="请再次输入密码" required>
-            <button type="button" data-password-toggle aria-label="显示确认密码" title="显示确认密码">显示</button>
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-forget-confirm">确认新密码</label></div>
+            <div class="hos-control hos-password-field">
+              <input id="store-forget-confirm" type="password" name="confirmPassword" autocomplete="new-password" minlength="6" placeholder="请再次输入密码" required>
+              <button type="button" data-password-toggle aria-label="显示确认密码" title="显示确认密码">显示</button>
+            </div>
           </div>
         </div>
 
@@ -656,24 +660,20 @@
           <span class="hos-secure"><i class="hos-secure-dot" aria-hidden="true"></i>邮箱 + 验证码</span>
         </div>
         <h1>开一个订单跟着你的账号</h1>
-        <p class="hos-panel__desc">邮箱验证码验证后设置登录密码。注册本身不发积分，支付成功后才有奖励。</p>
+        <p class="hos-panel__desc">邮箱验证码通过后设置登录密码，账号建好即可下单。</p>
       </div>
 
       <!--{{DECK}}-->
 
       <form id="store-register-form" class="hos-form">
-        <div class="hos-field">
-          <div class="hos-label-row"><label for="store-register-email">邮箱</label></div>
-          <div class="hos-control">
-            <input id="store-register-email" type="email" name="email" autocomplete="email" placeholder="name@example.com" required>
-          </div>
-        </div>
-
+        <!-- 邮箱与「获取验证码」同一行：这一步本来就是「填邮箱 → 点发码」一个动作，
+            分两行写在版面上把它读成了两件事。顺带省下一整行的高度 —— 注册屏是
+            认证三屏里最长的一屏（四组字段 + 甲板 + 抬头），1366×768 上正好差 70px。 -->
         <div class="hos-row-2">
           <div class="hos-field">
-            <div class="hos-label-row"><label for="store-register-code">邮箱验证码</label></div>
+            <div class="hos-label-row"><label for="store-register-email">邮箱</label></div>
             <div class="hos-control">
-              <input id="store-register-code" type="text" name="code" inputmode="numeric" maxlength="6" placeholder="6 位验证码" required>
+              <input id="store-register-email" type="email" name="email" autocomplete="email" placeholder="name@example.com" required>
             </div>
           </div>
           <div class="hos-field hos-field--action">
@@ -682,30 +682,45 @@
           </div>
         </div>
 
-        <div class="hos-field">
-          <div class="hos-label-row"><label for="store-register-password">密码</label></div>
-          <div class="hos-control hos-password-field">
-            <input id="store-register-password" type="password" name="password" autocomplete="new-password" minlength="6" placeholder="至少 6 位" required>
-            <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+        <!-- 两枚 6 位码并排：验证码与邀请码是同一形状的短输入（都是 6 位数字），
+            各自独占一行时右边空着近一半的宽度。并排之后四组字段收成三行。 -->
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-code">邮箱验证码</label></div>
+            <div class="hos-control">
+              <input id="store-register-code" type="text" name="code" inputmode="numeric" maxlength="6" placeholder="6 位验证码" required>
+            </div>
+          </div>
+          <div class="hos-field">
+            <div class="hos-label-row">
+              <label for="store-register-referral">邀请码（选填）</label>
+              <span class="hos-hint">仅邀请绑定 · 无折扣</span>
+            </div>
+            <div class="hos-control">
+              <input id="store-register-referral" type="text" name="referralCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="6 位数字">
+            </div>
           </div>
         </div>
 
-        <div class="hos-field">
-          <div class="hos-label-row"><label for="store-register-confirm">确认密码</label></div>
-          <div class="hos-control hos-password-field">
-            <input id="store-register-confirm" type="password" name="confirmPassword" autocomplete="new-password" minlength="6" placeholder="请再次输入密码" required>
-            <button type="button" data-password-toggle aria-label="显示确认密码" title="显示确认密码">显示</button>
+        <div class="hos-row-2">
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-password">密码</label></div>
+            <div class="hos-control hos-password-field">
+              <input id="store-register-password" type="password" name="password" autocomplete="new-password" minlength="6" placeholder="至少 6 位" required>
+              <button type="button" data-password-toggle aria-label="显示密码" title="显示密码">显示</button>
+            </div>
+          </div>
+
+          <div class="hos-field">
+            <div class="hos-label-row"><label for="store-register-confirm">确认密码</label></div>
+            <div class="hos-control hos-password-field">
+              <input id="store-register-confirm" type="password" name="confirmPassword" autocomplete="new-password" minlength="6" placeholder="请再次输入密码" required>
+              <button type="button" data-password-toggle aria-label="显示确认密码" title="显示确认密码">显示</button>
+            </div>
           </div>
         </div>
 
         <p class="hos-msg is-err" data-password-mismatch role="alert" hidden>两次输入的密码不一致。</p>
-
-        <div class="hos-field">
-          <div class="hos-label-row"><label for="store-register-referral">邀请码（选填）</label></div>
-          <div class="hos-control">
-            <input id="store-register-referral" type="text" name="referralCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="仅用于邀请绑定，不提供购买折扣">
-          </div>
-        </div>
 
         <div class="hos-actions">
           <button class="hos-btn-primary" type="submit">注册</button>
@@ -882,7 +897,7 @@
 <footer class="hb-site-footer">
   <div class="hb-container hb-site-footer__inner">
     <div class="hb-site-footer__brand">
-      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609221415" alt=""></span>
+      <span class="hb-brand-mark"><img class="hb-store-brand-mark" src="/store-static/homeos-mark.svg?v=2609221451" alt=""></span>
       <div>
         <strong id="footer-site-name">HomeOS 授权中心</strong>
         <p>安全支付，自动发码，账号统一管理。</p>
@@ -891,7 +906,7 @@
     <div class="hb-site-footer__meta">
       <nav class="hb-site-footer__links">
         <a href="/">首页</a>
-        <a href="/products?v=2609221415">购买授权</a>
+        <a href="/products?v=2609221451">购买授权</a>
         <a class="hb-guest-only" href="/user/authentication/login">账号登录</a>
         <a class="hb-auth-only" href="/user/dashboard/index">账号中心</a>
       </nav>
@@ -1034,17 +1049,17 @@
 <!-- 场景 3D 相机（源：design/scene/scene-depth.js）。普通脚本而不是 module：不导出
      任何东西，越早跑越好 —— 入口动画那 0.75s 就已经带上景深。CSP 的 script-src 含
      'self'，同源外部脚本不需要 nonce。 -->
-<script src="/store-static/scene/scene-depth.js?v=2609221415"></script>
+<script src="/store-static/scene/scene-depth.js?v=2609221451"></script>
 <script src="/store-static/jquery.min.js"></script>
 <script src="/store-static/jquery.qrcode.min.js"></script>
-<script src="/store-static/htmlsafe.js?v=2609221415"></script>
-<script src="/store-static/api-error.js?v=2609221415"></script>
-<script src="/store-static/money.js?v=2609221415"></script>
-<script src="/store-static/referrals.js?v=2609221415"></script>
-<script src="/store-static/store.js?v=2609221415"></script>
+<script src="/store-static/htmlsafe.js?v=2609221451"></script>
+<script src="/store-static/api-error.js?v=2609221451"></script>
+<script src="/store-static/money.js?v=2609221451"></script>
+<script src="/store-static/referrals.js?v=2609221451"></script>
+<script src="/store-static/store.js?v=2609221451"></script>
 <!-- 状态甲板的自走读数（源：store/static/entry-deck.js）。它读页面里已有的时间戳，
      不发任何请求；没有 .hos-deck 时自行退出 —— store.html 承担了七个路由，
      其中只有认证三屏有甲板。与主应用那份是两份文件、一套 data-* 契约。 -->
-<script src="/store-static/entry-deck.js?v=2609221415"></script>
+<script src="/store-static/entry-deck.js?v=2609221451"></script>
 </body>
 </html>

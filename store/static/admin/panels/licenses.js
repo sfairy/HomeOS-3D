@@ -4,14 +4,14 @@
  * 激活码列表与签发/补发/升级，以及设备绑定的解绑与查看。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609221415";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609221415";
-import { state } from "../state.js?v=2609221415";
-import { d, dt, pill, utcInput } from "../format.js?v=2609221415";
-import { LICENSE_SOURCE } from "../vocab.js?v=2609221415";
-import { api, withBusy } from "../api.js?v=2609221415";
-import { askConfirm } from "../dialogs.js?v=2609221415";
-import { host } from "../host.js?v=2609221415";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609221451";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609221451";
+import { state } from "../state.js?v=2609221451";
+import { d, dt, pill, utcInput } from "../format.js?v=2609221451";
+import { LICENSE_SOURCE } from "../vocab.js?v=2609221451";
+import { api, withBusy } from "../api.js?v=2609221451";
+import { askConfirm } from "../dialogs.js?v=2609221451";
+import { host } from "../host.js?v=2609221451";
 
 // --------------------------------------------------------------------------- //
 // 激活码

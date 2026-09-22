@@ -641,7 +641,7 @@ docker exec homeos-3d rm /tmp/app.tar.gz
 
 ## 开发注意
 
-- 静态资源缓存标记统一为 `?v=2609221415`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609221415`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后请跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。全站只许存在一个戳（`README` 与历史文档里的示例除外）—— 这条由 `tools/check_invariants.mjs` 兜底，不必再人工核对。
+- 静态资源缓存标记统一为 `?v=YYMMDDHHMM`（10 位本地时间，年份取后两位、不带秒，例如 `?v=2609201045`），不要再拼接 feature-label 长串。改 JS / CSS / HTML 后请跑 `node tools/bump_static_cache_versions.mjs` 全站同戳更新；同一次改动的资源务必用同一个时间戳，`home.js` 与 `renderer/core/renderer.js` 必须使用同一条 `renderer/core/registry.js?v=`，否则会出现两份控件注册表。全站只许存在一个戳（`README` 与历史文档里的示例除外）—— 这条由 `tools/check_invariants.mjs` 兜底，不必再人工核对。
   这条约定只针对**前端之间互相引用**的资源（同值是为了不让同一模块被当成两份）。**后端渲染页面时拼出来的**静态链接（舞台页注入的 `stage.css`、模拟收银台与支付宝回跳页里的 `scene/*.css`、配色样式表）改用文件 mtime 现算版本号，见 `backend/core/static_revision.py` 与 `store/core/static_revision.py`：那些 URL 之间没有同值要求，用 mtime 就不必再让任何人记得同步字面量（也少一个「忘了跑 bump」的静默失效点）。`tools/bump_static_cache_versions.mjs` 的 `EXTRA_FILES` 仍保留这几个 Python 文件，是为了万一有人把字面量写回去时仍能发现。
 - mdi 图标版本只在前端 `frontend/static/utils/icon-url.js` 的 `MDI_VERSION` 里写一次：图标地址（含舞台标记与编辑器图标按钮的遮罩）一律经 `mdiIconUrl` / `applyMdiMask` 取用，后端 `api/icons.py` 从 `static/vendor/mdi/` 目录里扫出版本。升级图标库 = 把新版本目录放进 `vendor/mdi/` + 改 `MDI_VERSION` + 同步 `3d-studio/studio/studio.css` 里那三条遮罩地址，`check_invariants.mjs` 会核对全站只有一个版本值且目录存在。
 - 前端 JS / CSS / HTML 约定 `printWidth=100`（HTML 为 120）。`frontend/static/vendor/` 不参与格式化。
@@ -684,7 +684,7 @@ node tools/check_invariants.mjs
 - **缓存戳出现第二个值，或同一模块被「带戳 / 不带戳」两种写法引用**：无打包器，`?v=` 是唯一的缓存
   失效手段；同模块一处带戳一处不带会被当成两个模块、各留一份模块级状态（两份控件注册表就是这么来的）。
   后半句是**模块身份**问题：模块表以解析后的 URL 为键，查询串参与其中，所以 `./host.js` 与
-  `./host.js?v=2609221415` 是两份实例 —— `store/static/admin/app.js` 就漏过一次，它往自己那份
+  `./host.js?v=…` 是两份实例 —— `store/static/admin/app.js` 就漏过一次，它往自己那份
   `Object.assign(host, …)` 装配方法，其余 11 个面板拿到的那份始终是空对象，84 处 `host.xxx()`
   全在调用时抛 `TypeError`。判定同时覆盖静态 import、re-export、动态 import 与入口 HTML 的
   `type="module"` 脚本；开发态旁路 `new URL("./x.js", import.meta.url)` 与生产分支互斥，不算。
@@ -761,12 +761,64 @@ node tools/check_invariants.mjs
   （`frontend/static/auth/scene/`、`store/static/scene/`、`store/templates/_scene.html`），改动必须
   手工同步到每一份；商店 `theme.css` 的 `--hb-*` 与设计源 `--hos-*` 令牌要逐个相等；两侧 HTML
   转义集（`utils/html-escape.js` 与 `store/static/htmlsafe.js`）必须逐字节相同。
+- **场景里那间小屋的缩放**（`scene.html` 里整组那行 `translate(...) scale(...)`）：锚点钉在整组
+  bbox 的左上角，所以放大只往**右下**长 —— 左边沿与塔顶原地不动，才既不会把四个亮着的窗推进左栏
+  那张档案表的文字行，也不会让塔身从坞的玻璃面板底下穿出来。换算 `tx = 371.8 − 10S`、
+  `ty = 591.5 − 14S`：只改倍数、不改这两个分量，房子会贴着自己的左上角漂，页面照常渲染，
+  只是窗子压到字上、塔身钻进面板，没有任何断言会拦。四条约束的推导写在 `scene.html` 那处注释里。
 
 **五个入口页**（`/setup` → `/login` → `/license` → `/pair` → 进中控）的轨道读数不在 HTML 里，
 由 `backend/http/commissioning.py` 按**访问者**填：同一条 `/pair` 对管理员（带着会话）与一台
 墙面板（不走登录、键盘都没有）读数是两种，写死在页面上必然对其中一种撒谎。改「页面 ↔ 读数分支 ↔
 CSS 状态名」任一处都要人工核对三者是否还互相对得上 —— 走散不会报错，只会让某一步安静地不亮、
 或者亮错一格。
+
+**入口页左栏**那四行字（页面标题 / 标语 / 表的抬头 / 四行档案表）同样不在 HTML 里，
+占位符是 `{{TITLE}}` / `{{TAGLINE}}` / `{{DOSSIER_LABEL}}` / `{{DOSSIER}}`，取值分两处，
+两边都**按模板分页**：主应用在 `backend/http/page_shell.py` 的 `SCENE_VALUES_BY_PAGE`（五页各一份），
+商店在 `store/api/page_shell.py` 的同名字典（`store.html` / `setup.html` / `admin.html` 各一份 ——
+登录 / 找回 / 注册三屏看着像三个入口，其实是同一个文档、只注入一次场景，所以那三屏共用一份，
+而 `/setup` 与 `/admin` 是另外两份文档、各有各的门，用商店前台的文案说「注册、下单、拿码」
+等于左栏在讲另一道门）。两边都取不到页面名时不回落到默认文案，直接抛 —— 默认值正是这个
+模块反复躲开的那种坏法：新加一页忘了登记，页面照常返回，只是左栏变回通用句子，没有地方会报错。
+
+分工是钉死的：左栏说「这道门是什么」（客观事实），右栏坞头的 h1 / desc 说「你要做什么」，
+坞脚的 `.hos-panel__meta` 说「这一页怎么运作」，甲板说「这台机器现在什么样」，字段自己那一行
+右侧的小字（`.hos-hint`）说「这一格怎么填」。**任何两句能互换位置，就说明有一处该删** ——
+五处都在说同一件事时，页面看起来更满，读起来什么都没有。这条规则不只是洁癖：矮窗口（648px
+高）里坞内只剩五百来像素，重复的那一句往往就是压出滚动条的那几十像素 —— 激活屏坞脚那句
+「换机…先解绑」说的是激活码字段底下那行小字的同一件事，商店 `/setup` 引导密钥下面那三行说明
+在标签行右侧一行也说得下（「密钥在启动日志里」本就写在输入框的 placeholder 上），删掉的都是
+这种「同一件事占了两次纵向空间」。
+
+漏填会 500（`_scene_markup` 里那条 `missing` 断言），不会把 `{{TITLE}}` 直接印在用户脸上。
+唯一**刻意写死**的是顶栏那一行品牌：`HomeOS` 与它右侧的定位语「全屋智能家居」（`.hos-scene__label`）
+不走占位符，因为这一页无论在哪一道门、主应用还是商店回答的都是同一句 —— 它是「这套东西是什么」，
+不是「这一页说什么」。占位符留给按页变化的东西（`SHELL_NAME` 的「本机中控 / 授权中心」就是）。
+左栏那张表压在山脊的雾与暖光上，宽度因此写死 `470px` 而不是 `min(100%, 470px)`：百分比会让
+`/license` 这种短标题页的表窄到 364px，五个页面的右边缘在各页之间来回跳。
+
+**状态甲板**（坞里那四格 `.hos-deck` 读数）的标记由 `backend/http/telemetry.py`（商店侧
+`store/api/telemetry.py`）产出，经 `<!--{{DECK}}-->` 插入点进页面 —— 与 `{{SCENE}}` / `{{STEPS}}`
+同一套严格度：占位符要是被写进 HTML 注释里，`page_shell._COMMENT_TRAPS` 会在渲染时当场抛错，
+不静默少一块。三条规则改任何一条，都会把这块甲板从资产变成负债：
+
+1. **不发新请求、不新增公开接口。** 读数在渲染这一页时就从进程内状态与站点配置里算完；
+   入口页在未登录时就能打开，多一个匿名可读的接口就多一处要审的攻击面，而甲板要的只是几个布尔。
+2. **档位按访问者判，不按页面判。** 有管理员会话或已配对设备 Cookie 的人拿真读数（HA 连接、
+   纳管实体、项目与设备数、授权状态）；两者都没有的人只拿机制读数（服务就绪、数据不出本机、
+   运行时长），口径与 `/api/v1/setup/status` 只回 `initialized` / `version` 一致。`/login` 与
+   `/setup` 天生只有匿名访客，但 `/pair` 与恢复页也在 `main.public_page_paths` 里、任何浏览器
+   输地址就能打开 —— 按页面判的那一版，会让未登录的人在 `/pair` 上读到「纳管实体 1,646 个」。
+3. **时间类读数在客户端自走。** 时钟与运行时长由后端注入**绝对时刻**（`data-since`）而不是
+   渲染时的相对值，由 `frontend/static/auth/entry-deck.js` 与 `store/static/entry-deck.js`
+   负责把它变成「多久之前」。两份文件、一套契约：`data-deck` 与 `data-since` 两个属性名必须
+   逐字相同（商店是独立构建上下文，import 不到应用侧那一份），改一处就要改另一处 —— 走散的
+   后果是某一侧的四格安静地停在服务端注入的破折号上。
+
+甲板固定四格：坞宽 `min(600px, 47%)` 扣掉内边距后一行正好放下四格等宽数字，第五格开始换行，
+而折成两行的甲板就从「一排仪表」退化成「一张表」—— 那是另一种组件。`deck_markup` 里那条
+`len(tiles) != 4` 的断言就是钉住这件事的。
 
 Python 侧的死代码门禁由仓库根的 `ruff.toml` 单独钉住（只挑全仓已达标的那几条，边界写在该文件注释里）：
 

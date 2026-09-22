@@ -3,13 +3,13 @@
  *
  * 高亮优先级：编辑态预览 → 目标页等于当前页 → 绑定实体的活动态；都没有时不高亮。
  */
-import { randomUuid } from "../../../utils/random-id.js?v=2609221415";
+import { randomUuid } from "../../../utils/random-id.js?v=2609221451";
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609221415";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609221451";
 // 同门分片：registry-visuals
-import { resolveColor } from "./registry-visuals.js?v=2609221415";
+import { resolveColor } from "./registry-visuals.js?v=2609221451";
 
 /**
  * 生成导航按钮的边框与光晕 SVG：viewBox 宽度固定 236，高度按控件实际宽高比换算，配合

@@ -21,7 +21,7 @@ import {
   finiteNumberOrNull,
   resolveStateEntry,
   stateTextOf
-} from "../core/static-helpers.js?v=2609221415";
+} from "../core/static-helpers.js?v=2609221451";
 /**
  * HA 窗帘状态 → 中文文案；同时被当作「状态是否合法」的白名单使用。 */
 const STATE_LABELS = {

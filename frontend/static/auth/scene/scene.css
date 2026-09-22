@@ -15,14 +15,10 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-
-  /* 透视只服务一件事：三个轨道环的 3D 倾角（见 .hos-scene__orbit 的 rotateX/rotateY）。
-     景深不做 Z 位移 —— 理由写在下面「景深」那段的 ①②③。
-     放在这层而不是 .hos-scene：子元素才吃得到透视，同时不给 .hos-scene 建 3D 上下文，
-     极光的 mix-blend-mode: screen 才保得住。
-     原点跟着轨道环的圆心（28% / 48%）走，那里是画面的视觉锚点。 */
-  perspective: 2400px;
-  perspective-origin: 30% 50%;
+  /* 这里刻意**没有** perspective。它此前只服务一件事：三个轨道环的 3D 倾角。
+     倾角已被拿掉（理由写在下面「轨道环」那段），透视跟着一起去 —— 留着它不会让画面
+     更好，只会给整层挂上一个 3D 渲染上下文，让发丝线（1px 的环、山脊、星点）多经过
+     一次带透视的重新栅格化。景深不做 Z 位移的理由写在下面「景深」那段的 ①②③。 */
 }
 
 /* ===== 景深 =====
@@ -91,23 +87,22 @@
 .hos-scene__radar {
   --hos-depth: 0.62;
 }
-.hos-scene__orbit--outer {
-  --hos-depth: 0.72;
-}
 .hos-scene__mist {
   --hos-depth: 0.8;
-}
-.hos-scene__orbit--mid {
-  --hos-depth: 0.86;
 }
 .hos-scene__horizon {
   --hos-depth: 0.9;
 }
-.hos-scene__orbit--inner {
-  --hos-depth: 1;
-}
+/* 三个环与圆心光斑是**一件仪器**，给同一个倍率。
+   此前是 0.72 / 0.86 / 1.0 / 1.12 一档一档分开的：指针一动，四个同心件各自漂开几个
+   像素，同心性被破坏 —— 散得不多，但「它们属于同一个东西」这件事正是靠同心读出来的。
+   一件刚体就该一起动；远近由大气透视（外环更暗更细、内环更亮更粗）交代，
+   不靠把一台仪器拆成四层。 */
+.hos-scene__orbit--outer,
+.hos-scene__orbit--mid,
+.hos-scene__orbit--inner,
 .hos-scene__orbit-core {
-  --hos-depth: 1.12;
+  --hos-depth: 0.86;
 }
 
 /* page.css 那条 reduced-motion 只把 animation/transition 的时长压到 0，管不到这里的
@@ -263,40 +258,34 @@
   animation: hosDawnBreath 12s ease-in-out infinite;
 }
 
+/* ===== 轨道环 =====
+   三个共面同心环，各由一种「刻度」说话：
+     外环 ＝ 实心细圆 + 4 枚主刻度（12 / 3 / 6 / 9 点方向）+ 一对对径节点
+     中环 ＝ 一圈细密刻度（虚线）+ 一枚扫掠光弧
+     内环 ＝ 实心亮圆 + 一对对径节点
+   圆心另有一枚光斑，雷达扫掠与它们同心。
+
+   为什么不再是 3D 陀螺仪（此前给三个环各倾 46° / 34° / 22°、再各偏航 0° / 14° / -18°）：
+     · 三个环因此不在同一平面，投影出来是三条互不相干的曲线 —— 第一眼读到的不是
+       「一台仪器」，而是三笔划痕；
+     · 透视只有 2400px，环的近侧被放大 11%、远侧缩小 9%，倾角越大差得越多。中环那圈
+       虚线在近侧被拉长、远侧压短，一整圈长度不匀，看着像被抓过；
+     · 1px 的实心环在 3D 变换下要重新栅格化，发丝线断成一段一段 —— 外环与内环本来
+       都是 solid，在倾角下看上去却都像虚线。这正是「实心环也成了弧线」的来源。
+   共面之后环是干净的正圆，光栅化不经过 3D，发丝线连续。深度交给大气透视：
+   外环最暗最细（远处），内环最亮最粗（近处），三者靠明度差读出前后，而不是靠倾角。 */
 .hos-scene__orbit {
   position: absolute;
   top: 48%;
   left: 28%;
   border-radius: 50%;
-  /* 环躺在 3D 空间里：rotateX 把它压成透视里的椭圆，节点随环面绕行；三个环各倾一个
-     角度、再各自绕自己的法线转，看起来才是陀螺仪而不是三张叠起来的圆。
-     基线与 hosOrbitSpin 的函数列表必须逐项对齐（translate → rotateX → rotateY →
-     rotate）：两边列表不一致时，插值会退化成矩阵分解，rotate(360deg) 会被当成
-     「几乎没动」，环就不转了。--hos-orbit-tilt 默认 0deg，等于旧行为。 */
-  transform: translate(-50%, -50%) rotateX(var(--hos-orbit-tilt, 0deg))
-    rotateY(var(--hos-orbit-skew, 0deg)) rotate(0deg);
+  /* 三个环与圆心光斑共用同一个 transform 形状。rotate 写在这里、不写进动画的
+     函数列表（`hosOrbitSpin` 只写 to 的那一帧，两边形状一致才插得动）。
+     绕自己的圆心转对圆形轮廓是恒等变换 —— 转的是刻度、虚线、光弧与节点，
+     所以「转」读得出来，而「轮廓在摆」不会发生。 */
+  transform: translate(-50%, -50%) rotate(0deg);
   pointer-events: none;
   box-sizing: border-box;
-}
-
-/* 三个环的倾角。外环最平（离镜头最远），越往里越立起来 —— 交错的倾角比一致倾角
-   更能读出「三个独立的轨道」，一致倾角会糊成一个同心圆组。
-
-   倾角封顶在 46°：cos 就是环在屏幕上的扁平比，74° 时只剩 cos74° ≈ 0.28 —— 圆环被压成
-   一条斜线，三个环一起就散成了三根线头，再也读不出「轨道」。46°/34°/22° 分别落在
-   0.69 / 0.83 / 0.93，还是明确的椭圆，但环的轮廓仍然完整。 */
-.hos-scene__orbit--outer {
-  --hos-orbit-tilt: 46deg;
-}
-
-.hos-scene__orbit--mid {
-  --hos-orbit-tilt: 34deg;
-  --hos-orbit-skew: 14deg;
-}
-
-.hos-scene__orbit--inner {
-  --hos-orbit-tilt: 22deg;
-  --hos-orbit-skew: -18deg;
 }
 
 /* 三个环的尺寸写成纯 cqw 份额，不再 `min(…cqw, 固定px)`。份额按 Activate 那张
@@ -308,46 +297,92 @@
    倒像贴在左半屏的一张纸。Activate 显得更「大气」，一半正因为它固定在 1366 画布上，
    环永远占画布 45%。
 
-   45.4cqw 同时不裁切：环心在 left: 28%，而不再自转的外环投影盒宽恒定在 1.15 倍直径
-   （实测 1002.66 / 871.70，30 帧零摆动），半宽 0.575 倍直径要 ≤ 0.28 倍画布，即直径
-   ≤ 48.7cqw。45.4cqw 留了余量，1920 宽下离左边缘 37px；份额制所以任何窗宽都同比例，不会更近。 */
+   45.4cqw 同时不裁切：环心在 left: 28%，半宽 0.5 倍直径要 ≤ 0.28 倍画布，即直径
+   ≤ 56cqw。45.4cqw 留了余量，1920 宽下离左边缘 37px；份额制所以任何窗宽都同比例，不会更近。 */
 .hos-scene__orbit--outer {
   width: 45.4cqw;
   height: 45.4cqw;
-  border: 1px solid rgba(var(--hos-tone-rgb), 0.2);
+  border: 1px solid rgba(var(--hos-tone-rgb), 0.22);
   box-shadow:
-    0 0 18px rgba(var(--hos-tone-rgb), 0.08),
-    inset 0 0 18px rgba(var(--hos-tone-rgb), 0.05);
-  /* 外环不自转。实心圆环在 3D 里绕法线转，投影盒会随自转相位在 1.10～1.27 倍直径之间鼓缩，
-     看上去就是「椭圆的形状在缓慢摆动」—— 那正是入口页显得晃的原因。自转让给虚线环：
-     虚线转起来读作「刻度在流」，不会被当成轮廓在变形。外环只留呼吸。 */
-  animation: hosOrbitBreath 7s ease-in-out infinite;
+    0 0 18px rgba(var(--hos-tone-rgb), 0.07),
+    inset 0 0 18px rgba(var(--hos-tone-rgb), 0.045);
+  /* 三个环都自转，速度与方向各不相同（42s 正 / 28s 反 / 16s 正）。
+     圆环绕自己的圆心转不会改变轮廓 —— 会动的是它身上那些**不对称**的东西：主刻度、
+     细密刻度、扫掠光弧、节点。换句话说，一圈一圈转的是「仪表在走」，不是「形状在摆」。
+     此前只有中环在转、外环与内环停着（理由是「实心环转起来投影盒鼓缩」）：那个鼓缩是
+     3D 倾角带来的（旋转方盒的 AABB 在 1.10～1.27 倍之间变），共面之后不存在；
+     而三个环里只有一个在动，整组就只剩半个仪表，另一个半是死的。 */
+  animation:
+    hosOrbitSpin 42s linear infinite,
+    hosOrbitBreath 7s ease-in-out infinite;
 }
 
 /* 尺寸份额同外环，按 1366 画布标定（440 / 1366 = 32.2cqw）。 */
 .hos-scene__orbit--mid {
   width: 32.2cqw;
   height: 32.2cqw;
-  border: 1.5px dashed rgba(var(--hos-tone-rgb), 0.28);
+  /* 中环没有实心边：它整圈都由下面的细密刻度说话，是三个环里唯一的「虚」环 ——
+     一实一虚一实，比三个都是实心圆更容易一眼分出内外。 */
   box-shadow:
-    0 0 14px rgba(var(--hos-tone-rgb), 0.06),
-    inset 0 0 12px rgba(var(--hos-tone-rgb), 0.04);
+    0 0 14px rgba(var(--hos-tone-rgb), 0.055),
+    inset 0 0 12px rgba(var(--hos-tone-rgb), 0.035);
   animation:
     hosOrbitSpin 28s linear infinite reverse,
     hosOrbitBreath 5.5s ease-in-out infinite;
   animation-delay: 0s, 0.8s;
 }
 
-/* 内环同外环：实心环停自转，只留呼吸（呼吸相位与外环错开 1.4s）。份额 280 / 1366 = 20.5cqw。 */
+/* 中环的细密刻度：96 枚等分刻度，用 repeating-conic-gradient 合成，不用 border-style:dashed。
+
+   虚线边框的段长由浏览器定（Chrome 按 border-width 推）、且每一段被环的形状切出来，
+   在斜向与水平处的**视觉**长度并不相等；它还会随环一起被任何几何变换拉伸。合成刻度
+   是等角的 —— 每一枚都占同样的 1.875°（96 枚转一圈），在圆周上是等弧长，
+   转起来读作「刻度在流」而不是「一圈线在抖」。
+
+   96 这个数字来自目标段长：中环在 1512 宽的画布上直径 487px，周长 1530px，
+   96 枚各 15.9px（刻度约 8px + 间隔约 8px）。刻度做成等角而不是等长的好处就在这里：
+   画布变小，段长等比变小、枚数不变，整圈的「密」感保持一致，不会在窄屏上糊成一条灰环。 */
+.hos-scene__orbit--mid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(var(--hos-tone-rgb), 0.5) 0deg 1.875deg,
+    rgba(var(--hos-tone-rgb), 0) 1.875deg 3.75deg
+  );
+  /* 刻度只留环**边缘那一条**：radial mask 从「离边 2.4px」处开始不透明，
+     于是这份 conic 渐变只在圆环的轮廓上留下一圈刻度，圆内部是空的。 */
+  mask-image: radial-gradient(
+    circle closest-side,
+    transparent calc(100% - 2.4px),
+    black calc(100% - 1.6px),
+    black 100%,
+    transparent 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    circle closest-side,
+    transparent calc(100% - 2.4px),
+    black calc(100% - 1.6px),
+    black 100%,
+    transparent 100%
+  );
+}
+
+/* 内环：三个环里最亮最粗的一枚 —— 大气透视里它最近。份额 280 / 1366 = 20.5cqw。
+   自转相位与外环、中环都错开（16s，比中环反向的 28s 快）。 */
 .hos-scene__orbit--inner {
   width: 20.5cqw;
   height: 20.5cqw;
-  border: 1px solid rgba(var(--hos-tone-rgb), 0.34);
+  border: 1.2px solid rgba(var(--hos-tone-rgb), 0.38);
   box-shadow:
-    0 0 22px rgba(var(--hos-tone-rgb), 0.12),
-    inset 0 0 16px rgba(var(--hos-tone-rgb), 0.08);
-  animation: hosOrbitBreath 4.2s ease-in-out infinite;
-  animation-delay: 1.4s;
+    0 0 22px rgba(var(--hos-tone-rgb), 0.11),
+    inset 0 0 16px rgba(var(--hos-tone-rgb), 0.07);
+  animation:
+    hosOrbitSpin 16s linear infinite,
+    hosOrbitBreath 4.2s ease-in-out infinite;
+  animation-delay: 0s, 1.4s;
 }
 
 .hos-scene__orbit-node {
@@ -407,30 +442,31 @@
   bottom: -3px;
 }
 
+/* 外环的 4 枚主刻度：12 / 3 / 6 / 9 点方向各一枚，3.5° 宽、比细刻度亮一档。
+   它们与对径的两枚节点一起随外环自转 —— 这就是「外环在走」的全部证据（圆环本身转不转
+   看不出来）。刻度与节点是两种不同周期的读法：刻度每 42s 一圈，节点本身还在呼吸。 */
 .hos-scene__orbit-tick {
   position: absolute;
   inset: 0;
   border-radius: 50%;
   background:
     conic-gradient(
-      from 12deg,
-      transparent 0deg,
-      transparent 8deg,
-      rgba(var(--hos-tone-rgb), 0.35) 8deg,
-      rgba(var(--hos-tone-rgb), 0.35) 10deg,
-      transparent 10deg,
-      transparent 98deg,
-      rgba(var(--hos-tone-rgb), 0.28) 98deg,
-      rgba(var(--hos-tone-rgb), 0.28) 100deg,
-      transparent 100deg,
-      transparent 188deg,
-      rgba(var(--hos-tone-rgb), 0.3) 188deg,
-      rgba(var(--hos-tone-rgb), 0.3) 190deg,
-      transparent 190deg,
-      transparent 278deg,
-      rgba(var(--hos-tone-rgb), 0.25) 278deg,
-      rgba(var(--hos-tone-rgb), 0.25) 280deg,
-      transparent 280deg
+      from 0deg,
+      rgba(var(--hos-tone-rgb), 0.5) 0deg,
+      rgba(var(--hos-tone-rgb), 0.5) 3.5deg,
+      transparent 3.5deg,
+      transparent 90deg,
+      rgba(var(--hos-tone-rgb), 0.4) 90deg,
+      rgba(var(--hos-tone-rgb), 0.4) 93.5deg,
+      transparent 93.5deg,
+      transparent 180deg,
+      rgba(var(--hos-tone-rgb), 0.44) 180deg,
+      rgba(var(--hos-tone-rgb), 0.44) 183.5deg,
+      transparent 183.5deg,
+      transparent 270deg,
+      rgba(var(--hos-tone-rgb), 0.36) 270deg,
+      rgba(var(--hos-tone-rgb), 0.36) 273.5deg,
+      transparent 273.5deg
     );
   mask-image: radial-gradient(
     circle closest-side,
@@ -450,16 +486,27 @@
   animation: hosOrbitTickPulse 3.6s ease-in-out infinite;
 }
 
+/* 中环的扫掠光弧：一枚「彗星」而不是一段对称的亮斑。
+   此前的写法的峰值在 28°、两侧各用 20～42° 缓上缓下 —— 那是一条两头虚、中间亮的涂抹，
+   读起来像一圈脏污被擦过，而不是一个在轨道上跑的光点。彗星的定义是**前缘陡、尾巴长**：
+   从 62° 往前一路加亮，到 62° 断崖式收束（0.95 → 0 只隔 1°），前缘因此是一条锐利的边，
+   后面拖着 60° 的渐隐尾。方向与旋转一致（本元素自己的动画是顺时针，中环本体反向转，
+   净角速度仍由这条 4.8s 的扫掠主导），光弧始终「向前跑」。 */
 .hos-scene__orbit-arc {
   position: absolute;
   inset: 0;
   border-radius: 50%;
   background: conic-gradient(
-    from 200deg,
-    transparent 0deg,
-    rgba(var(--hos-tone-rgb), 0.45) 28deg,
-    transparent 70deg,
-    transparent 360deg
+    from 0deg,
+    rgba(var(--hos-tone-rgb), 0) 0deg,
+    rgba(var(--hos-tone-rgb), 0.04) 8deg,
+    rgba(var(--hos-tone-rgb), 0.1) 24deg,
+    rgba(var(--hos-tone-rgb), 0.19) 40deg,
+    rgba(var(--hos-tone-rgb), 0.33) 52deg,
+    rgba(var(--hos-tone-rgb), 0.62) 59deg,
+    rgba(var(--hos-tone-rgb), 0.95) 61.6deg,
+    rgba(var(--hos-tone-rgb), 0) 62.6deg,
+    rgba(var(--hos-tone-rgb), 0) 360deg
   );
   mask-image: radial-gradient(
     circle closest-side,
@@ -964,6 +1011,39 @@
   filter: drop-shadow(0 0 10px rgba(var(--hos-tone-rgb), 0.35));
 }
 
+/* 字标那一行：HomeOS + 分隔符 + 全屋智能家居。按基线对齐 —— 21px 的拉丁大写与
+   11px 的中文并排时，居中会让中文浮在字标的视觉中线之上。 */
+.hos-scene__head .hos-scene__wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.hos-scene__head .hos-scene__wordmark-sep {
+  align-self: center;
+  width: 1px;
+  height: 12px;
+  flex-shrink: 0;
+  background: rgba(var(--hos-muted-rgb), 0.26);
+}
+
+/* 定位语（「全屋智能家居」）。它是字标右侧的一句同位语，不是第二个字标：
+   字号压到 11px、字距拉到 0.3em（中文靠字距起范，加粗会变成第二个焦点），
+   颜色走 --hos-muted 而不是品牌那四档渐变 —— 渐变是字标的专属语气，
+   用两次就等于没有重点。 */
+.hos-scene__head .hos-scene__label {
+  font-family: var(--hos-font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.3em;
+  /* 字距在最后一个字后面也占一格：不补回来，「家居」右端会多出一段空气，
+     看着像与上方的字标没有对齐。 */
+  margin-right: -0.3em;
+  white-space: nowrap;
+  color: rgba(var(--hos-muted-rgb), 0.7);
+}
+
 .hos-scene__head .hos-scene__accent {
   margin-top: 6px;
   width: 56px;
@@ -1249,61 +1329,107 @@
   text-shadow: 0 0 14px rgba(var(--hos-tone-rgb), 0.12);
 }
 
-.hos-scene__signal {
-  margin: 20px 0 0;
-  display: inline-flex;
+/* ── 本机档案 ─────────────────────────────────────────────────────────────
+   左栏的第四块，也是本轮补上的那一块：四行「这台机器 / 这套服务的客观事实」。
+
+   为什么要有它：左栏此前只有三行 —— 标题、一句标语、一条三段的信号药丸。
+   在 1366×768 上量出来整块只有 162px 高，而左半屏有 720×768 的空场；
+   右栏 meanwhile 挤着四块读数（开通轨、抬头、状态甲板、表单）。一页里
+   「你在哪道门」说得极简，「你要做什么」说得极繁，左半屏就显空。
+
+   为什么不是把信号药丸加长：那三段（「会话仅存本机」「无需公网」…）本来
+   就是这张档案要说的东西，只是被压成了三个标签。这里把它们展开成
+   键 → 值 的四行：键是等宽大写的小字，值是一句能独立读懂的事实。
+   同样的信息量，换一个能占住左栏的形态 —— 而不是再叠一块新东西上去。
+
+   四行而不是三行：清单类版面里「三行」读起来像补丁，「四行」才读成一张表。
+   行与行之间的细分隔线是这张表「在读」而不是「在排版」的全部证据。 */
+/* 宽度写死而不是 min(100%, 470px)：左栏那块是「按内容收缩」的绝对定位块，
+   用百分比的话表的宽度会跟着页面标题的长度变 —— /license 的标题短，表就窄到 364px，
+   /recovery 的标题长，表是 470px，同一套页面的右边缘在五个页面之间来回跳。
+   写死 470px 之后，表自身的首选宽度把父块撑到至少 470（短标题页也一样宽），
+   max-width 再兜住窄屏。 */
+.hos-scene__dossier {
+  margin: 24px 0 0;
+  width: 470px;
+  max-width: 100%;
+  /* 用自己那组关键帧（只位移 16px），不是 .hos-scene__brand 那组按 -54% 居中的 ——
+     借错的那一版把整张表抬了自己高度的 54%，压到标题上。见 @keyframes hosDossierIn。 */
+  animation: hosDossierIn 1.15s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
+}
+
+.hos-scene__dossier-head {
+  display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 9px 16px;
-  /* 一行信号从「三段裸文字」变成一块读数条：它和三行标语说的不是一类话 ——
-     标语讲这是什么地方，信号讲这台机器此刻具备什么。给它一个容器，两者才分得开。 */
-  border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
-  border-radius: 999px;
-  background: rgba(var(--hos-sky-deep-rgb), 0.46);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  gap: 9px;
+  margin: 0;
+  padding-top: 14px;
+  border-top: 1px solid rgba(var(--hos-tone-rgb), 0.16);
   font-family: var(--hos-font-mono);
   font-size: 11px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: rgba(var(--hos-muted-rgb), 0.82);
-  animation: hosHeroIn 1.15s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
+  color: rgba(var(--hos-tone-rgb), 0.92);
+  text-shadow: 0 0 12px rgba(var(--hos-tone-rgb), 0.3);
 }
 
-/* 每一段信号前面一枚小方点，读作「这一项已就绪」。分隔竖线继续用页面给的
-   .hos-scene__signal-sep，不另生元素 —— 它由 page_shell._signal() 生成，
-   在这里再插一个只会与那份实现走散。 */
-.hos-scene__signal > span:not(.hos-scene__signal-sep) {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.hos-scene__signal > span:not(.hos-scene__signal-sep)::before {
-  content: '';
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--hos-tone);
-  box-shadow: 0 0 6px rgba(var(--hos-tone-rgb), 0.75);
-}
-
-.hos-scene__signal-dot {
+/* 恒绿点。与坞体里的 .hos-secure-dot 是同一句话（机制在跑 / 一切正常），
+   所以它不跟页面色调走：绿色在这里不是装饰，是读数。
+   顶栏那枚跟随色调的 live 点说的是「这一页属于哪条通道」，两者刻意不同色。 */
+.hos-scene__dossier-dot {
+  flex: 0 0 auto;
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  /* 恒绿。这一枚与坞体里的 .hos-secure-dot 是同一句话（机制在跑 / 一切正常），
-     它不跟页面色调走：绿色在这里不是装饰，是读数。
-     顶栏那枚跟随色调的 live 点说的是「这一页属于哪条通道」，两者刻意不同色。 */
   background: var(--hos-eco);
   box-shadow: 0 0 8px rgba(var(--hos-eco-rgb), 0.65);
   animation: hosLivePulse 2.6s ease-out infinite;
 }
 
-.hos-scene__signal-sep {
-  width: 1px;
-  height: 10px;
-  background: rgba(var(--hos-muted-rgb), 0.2);
+.hos-scene__dossier-list {
+  margin: 0;
+}
+
+/* 每一行自己带上边线，第一条与上面那条头线相接 —— 头是表头，行是表体。
+   行高一档（11px 内边距）是给「左半屏太空」这件事留的：左栏只有标题、标语、
+   这张表三块，表的行距一收紧，半个屏幕就只剩三行小字。 */
+.hos-scene__dossier-row {
+  display: grid;
+  grid-template-columns: 5.6em minmax(0, 1fr);
+  gap: 14px;
+  padding: 11px 0;
+  border-top: 1px solid rgba(var(--hos-tone-rgb), 0.08);
+}
+
+.hos-scene__dossier-row:first-child {
+  border-top: 0;
+  padding-top: 13px;
+}
+
+.hos-scene__dossier-row dt {
+  font-family: var(--hos-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(var(--hos-muted-rgb), 0.78);
+  white-space: nowrap;
+}
+
+/* 这张表压在插画中段 —— 山脊的雾与暖光正好在它背后。两行字的字号都不大
+   （11 / 14.5），只靠颜色的对比度在亮雾上会掉一档，所以两行都带一层深色投影：
+   影子的颜色取夜空最深的那一枚（--hos-sky-deep-rgb），与画面同源，
+   不引入一个画面里没有的颜色。标题、标语早就是这么做的。 */
+.hos-scene__dossier-row dt,
+.hos-scene__dossier-row dd {
+  text-shadow: 0 1px 12px rgba(var(--hos-sky-deep-rgb), 0.85);
+}
+
+.hos-scene__dossier-row dd {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  color: rgba(var(--hos-ink-rgb), 0.88);
 }
 
 /* ── 色调氛围层 ───────────────────────────────────────────────────────────
@@ -1514,17 +1640,24 @@
   }
 }
 
+/* 函数列表必须与 .hos-scene__orbit 的基线逐项一致（translate → rotate）。
+   两边不一致时插值会退化成矩阵分解，rotate(360deg) 会被当成「几乎没动」，环就不转了。 */
 @keyframes hosOrbitSpin {
   to {
-    transform: translate(-50%, -50%) rotateX(var(--hos-orbit-tilt, 0deg))
-      rotateY(var(--hos-orbit-skew, 0deg)) rotate(360deg);
+    transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 
+/* 三个环共用一条呼吸，相位各自错开（见各自 animation-delay）。
+   幅度刻意收窄到 0.78～1：深度现在是靠**大气透视**读的（外环 alpha 0.18、中环刻度 0.46、
+   内环 0.34 —— 越近越亮越实），而原先那条 0.62～1 的呼吸幅度大到会把层级翻过来：
+   外环在波峰、内环在波谷的那一刻，「远处的环」比「近处的环」还亮，
+   前后关系就随呼吸来回翻转，看着就是三个环在互相穿插。幅度收窄之后，
+   三层的最亮与最暗互不重叠，呼吸只让整组「活着」，不再改变谁前谁后。 */
 @keyframes hosOrbitBreath {
   0%,
   100% {
-    opacity: 0.62;
+    opacity: 0.78;
   }
   50% {
     opacity: 1;
@@ -1804,6 +1937,8 @@
   }
 }
 
+/* 左栏标题 + 标语的入场：整块是 absolute + top: 50%，用 -54% 把自己在竖向上摆正。
+   这一组**专属** .hos-scene__brand —— 流内的块别借（见下面 hosDossierIn 的注释）。 */
 @keyframes hosHeroIn {
   from {
     opacity: 0;
@@ -1812,6 +1947,23 @@
   to {
     opacity: 1;
     transform: translate3d(0, -54%, 0);
+  }
+}
+
+/* 档案表自己的入场。**不能借 hosHeroIn**：那是一组为「absolute + top: 50%」的块做
+   垂直居中的关键帧，-54% 是相对**元素自身高度**算的。档案表在普通流里，借过来会被
+   按自己高度的 54% 上提 —— 207px 的表抬 112px，正好压在标题和标语上，而 both 填充
+   让它永久停在那里（不是入场一瞬的抖动，是每次打开都错位）。所以这里只有位移入场的
+   16px，没有居中。
+   两个关键帧名字不同、语义不同，是刻意的：共用名字会让「谁该被居中」这件事无从检查。 */
+@keyframes hosDossierIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -1867,6 +2019,18 @@
     letter-spacing: 0.12em;
   }
 
+  /* 窄屏字标行：间距与字距各收一档。中文那四个字在 11px + 0.3em 下要占 60px 左右，
+     而这一档的右端已经只剩一枚在线药丸 —— 不收的话顶栏在 360px 宽的机器上会折行。 */
+  .hos-scene__head .hos-scene__wordmark {
+    gap: 8px;
+  }
+
+  .hos-scene__head .hos-scene__label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    margin-right: -0.2em;
+  }
+
   .hos-scene__head .hos-scene__accent {
     margin-top: 4px;
     width: 40px;
@@ -1897,18 +2061,59 @@
     display: none;
   }
 
-  /* 窄屏场景只有 260px 高，一行信号条要挤进品牌字下面，收到 9px 才不换行三次。 */
-  .hos-scene__signal {
+  /* 窄屏场景只有 260px 高，四行档案挤不下：留下前两行（「要什么」「会发生什么」），
+     后两行是补充。这里不做成横向换行 —— 键值对横过来就不再是表，读不出对齐。 */
+  .hos-scene__dossier {
     margin-top: 12px;
-    padding: 6px 11px;
+    width: 100%;
+  }
+
+  .hos-scene__dossier-head {
+    padding-top: 8px;
     font-size: 9px;
-    gap: 7px;
+    letter-spacing: 0.16em;
+  }
+
+  .hos-scene__dossier-row {
+    grid-template-columns: 4.6em minmax(0, 1fr);
+    gap: 10px;
+    padding: 5px 0;
+  }
+
+  .hos-scene__dossier-row:first-child {
+    padding-top: 7px;
+  }
+
+  .hos-scene__dossier-row dt {
+    font-size: 9px;
     letter-spacing: 0.1em;
+  }
+
+  .hos-scene__dossier-row dd {
+    font-size: 10.5px;
+    line-height: 1.35;
+  }
+
+  .hos-scene__dossier-row:nth-child(n + 3) {
+    display: none;
   }
 
   /* 光点层在 260px 的窄条里会落到山脊与屋上，读成噪点。 */
   .hos-scene__nodes {
     display: none;
+  }
+
+  /* 窄屏的中环只有 32.2cqw ≈ 116px（容器宽 360px），96 枚刻度分下来每枚 1.9px ——
+     那个尺寸下等角刻度只会糊成一圈灰，反而比不画更脏。这里减到 48 枚（每枚 3.75°、
+     约 3.8px 刻度 + 3.8px 间隔），保住「一圈刻度」的读数而不是一片灰。
+     只有这一条随尺寸变：刻度做等角是为了让整圈的密感跟着画布等比缩放，
+     但**最低可分辨段长**是有下限的，缩到阈值以下就该减枚数，不该继续等比缩。 */
+  .hos-scene__orbit--mid::before {
+    background: repeating-conic-gradient(
+      from 0deg,
+      rgba(var(--hos-tone-rgb), 0.5) 0deg 3.75deg,
+      rgba(var(--hos-tone-rgb), 0) 3.75deg 7.5deg
+    );
   }
 
   .hos-scene__aurora,

@@ -2,11 +2,11 @@
  * 设备控件区块：空调/地暖/浴霸详情（模式、目标温度、风速、摆风与联动灯）。
  */
 
-import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js?v=2609221415";
-import { randomUuid } from "../../../../utils/random-id.js?v=2609221415";
+import { capturePointer, releasePointer } from "../../../../utils/pointer-capture.js?v=2609221451";
+import { randomUuid } from "../../../../utils/random-id.js?v=2609221451";
 // 颜色插值统一走 utils/colors.js，避免再出现「同名但失败值不同」的本地副本。
-import { mixHexColors, paletteColor } from "../../../../utils/colors.js?v=2609221415";
-import { entityDomainFromId } from "../../../../utils/entities.js?v=2609221415";
+import { mixHexColors, paletteColor } from "../../../../utils/colors.js?v=2609221451";
+import { entityDomainFromId } from "../../../../utils/entities.js?v=2609221451";
 import {
   climateControlStructureKey,
   climateEffectMode,
@@ -21,7 +21,7 @@ import {
   climateSwingModeLabel,
   normalizeClimateCapabilities,
   reconcileClimateTargetTemperature
-} from "../../../controls/climate.js?v=2609221415";
+} from "../../../controls/climate.js?v=2609221451";
 
 export const climateDetailsMethods = {
   /**

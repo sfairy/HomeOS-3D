@@ -15,7 +15,7 @@
 评审 CSP 改动时得连着跳过一段 SVG。
 
 配色（``<!--{{APPEARANCE}}-->``）走同一条路：它是一个 ``<link>``，指向
-``/store-appearance.css?v=2609221415`` —— 由 ``store/api/appearance`` 生成的服务端
+``/store-appearance.css?v=<revision>`` —— 由 ``store/api/appearance`` 生成的服务端
 样式表。商店的 CSP 对 ``style-src`` 允许 ``'unsafe-inline'``，但配色仍然走服务端样式表：
 一是与主应用同一套做法，二是「配色由 URL 版本戳决定」比「靠内联脚本写一串令牌」更容易
 缓存与排查。
@@ -145,57 +145,128 @@ def _deck_gutter(text: str) -> str:
         )
     return gutters.pop()
 
-#: 商店场景的固定口径。仅 ``VERSION`` 随发布变化，由 :func:`inject_scene` 从
-#: ``store.ops.release_info.CURRENT_VERSION`` 取。
+def _dossier(*rows: tuple[str, str]) -> str:
+    """把若干「键 → 值」拼成左栏那张档案表（主应用同名函数的商店副本）。
+
+    三端各自独立构建、没有共享的 Python 包，只能各放一份；两边必须逐字一致。
+    """
+    return ''.join(
+        f'<div class="hos-scene__dossier-row"><dt>{key}</dt><dd>{value}</dd></div>'
+        for key, value in rows
+    )
+
+
+#: 商店三份模板的左栏口径，按模板文件名取（与主应用的 ``SCENE_VALUES_BY_PAGE`` 同构）。
+#: 仅 ``VERSION`` 随发布变化，由 :func:`inject_scene` 从
+#: ``store.ops.release_info.CURRENT_VERSION`` 取；``VERSION`` 不在下面这份映射里。
 #:
 #: 三条的分工与主应用那份一致（见 ``backend/http/page_shell.py`` 的 SCENE_VALUES_BY_PAGE）：
-#:   TITLE     这一页在哪、过了它是什么（左栏是整页最重的一块字）
-#:   TAGLINE   这一步具体做什么
-#:   SIGNAL    这套服务具备什么（一行读数条）
+#:   TITLE          这一页在哪、过了它是什么（左栏是整页最重的一块字）
+#:   TAGLINE        这一步具体做什么
+#:   DOSSIER        这套服务 / 这道门的客观事实（四行键值，左栏的表）
 #: 右栏的 h1 / desc 说的是「你要做什么」，坞脚 .hos-panel__meta 说的是「这一页怎么运作」，
 #: 甲板说的是「这套服务现在什么样」。五处各说一件事，任何两句能互换位置就说明有一处该删。
-SCENE_VALUES = {
+#:
+#: 商店这三屏（登录 / 找回 / 注册）看着像三个入口，其实是**同一个文档**：``store.html``
+#: 只注入一次场景，切屏只切 ``[data-store-page]`` 的显隐。所以那三屏只能共用一份口径，
+#: 写三屏都成立的授权中心事实，不能写「注册」这一步的事 —— 写窄了，切到登录屏时左栏就在
+#: 说一件与当前表单无关的事。
+#:
+#: 但**初始化屏与后台登录屏是另外两份文档**，各有各的门：``/setup`` 在建这把钥匙，
+#: ``/admin`` 在用这把钥匙。曾经三份模板共用一份「账号就是你的授权凭证」+ 授权档案，
+#: 于是在「给商店开管理员」的屏上，左栏说的是「注册、下单、拿码」——那是前台的事，
+#: 与眼前这一步无关。所以这里按页分开，与主应用对齐。
+_SCENE_SHARED = {
     'SHELL_TITLE': 'HomeOS 授权服务中心',
     'SHELL_NAME': '授权中心',
-    'STATUS_LABEL': '授权服务就绪',
-    'TITLE': '账号就是你的授权凭证',
-    'TAGLINE': '注册、下单、拿码，一台机器一份授权，全挂在这个账号上',
     'LOGO_SRC': '/store-static/homeos-mark.svg',
-    'SIGNAL_ITEMS': (
-        '<span>邮箱即账号</span>'
-        '<span class="hos-scene__signal-sep" aria-hidden="true"></span>'
-        '<span>支付后自动发码</span>'
-        '<span class="hos-scene__signal-sep" aria-hidden="true"></span>'
-        '<span>设备可自助解绑</span>'
-    ),
+}
+
+SCENE_VALUES_BY_PAGE: dict[str, dict[str, str]] = {
+    'store.html': {
+        'STATUS_LABEL': '授权服务就绪',
+        'TITLE': '账号就是你的授权凭证',
+        'TAGLINE': '注册、下单、拿码，一台机器一份授权，全挂在这个账号上',
+        'DOSSIER_LABEL': '授权档案',
+        'DOSSIER': _dossier(
+            ('账号', '邮箱即账号，验证码注册'),
+            ('授权', '一机一码，可自助解绑换机'),
+            ('发码', '支付成功后自动发码'),
+            ('售后', '订单号 + 下单邮箱即可查询'),
+        ),
+    },
+    'setup.html': {
+        'STATUS_LABEL': '尚未初始化',
+        'TITLE': '这台机器还没有店长',
+        'TAGLINE': '先把管理员定下来，商品、订单与授权才有归属',
+        'DOSSIER_LABEL': '部署档案',
+        'DOSSIER': _dossier(
+            ('身份', '管理员账号只建在这台机器上'),
+            ('权限', '商品、订单、授权码与站点配置'),
+            ('数据', '订单与激活码落在本机数据库'),
+            ('之后', '进后台开张上架'),
+        ),
+    },
+    'admin.html': {
+        'STATUS_LABEL': '授权服务就绪',
+        'TITLE': '后台只开给本机的管理员',
+        'TAGLINE': '运营动作全部在这套部署上完成，不等云端下发',
+        'DOSSIER_LABEL': '后台档案',
+        'DOSSIER': _dossier(
+            ('账号', '初始化时创建，不开放注册'),
+            ('权限', '只认本机管理员，越权一律拒绝'),
+            ('数据', '订单、授权与审计都留在本机库'),
+            ('建议', '经 HTTPS 或反代，不直连公网'),
+        ),
+    },
 }
 
 
+def scene_values(page: str) -> dict[str, str]:
+    """某一页的完整场景取值。未登记的页面直接抛。
+
+    与主应用那份 ``scene_values`` 同一条理由：回落到一份默认值正是这个模块反复躲开的
+    那种坏法 —— 新加一个入口模板忘了登记，页面**照常返回**，只是左栏又变回通用文案，
+    没有任何地方会报错。抛异常则第一次访问就是 500，加模板的人当场就知道要登记
+    （与场景片段里未填的占位符同样的处置）。
+    """
+    try:
+        page_values = SCENE_VALUES_BY_PAGE[page]
+    except KeyError as error:
+        known = '、'.join(sorted(SCENE_VALUES_BY_PAGE))
+        raise RuntimeError(
+            f'{page} 没有登记左侧文案；请在 page_shell.SCENE_VALUES_BY_PAGE 里补一份'
+            f'（已登记：{known}）'
+        ) from error
+    return {**_SCENE_SHARED, **page_values}
+
+
 @lru_cache(maxsize=8)
-def _scene_markup(scene_file: str, modified_ns: int, version: str) -> str:
+def _scene_markup(scene_file: str, modified_ns: int, version: str, page: str) -> str:
     """读片段并填占位符。
 
     缓存键里带 ``st_mtime_ns``：静态目录在部署后可能被原地替换（滚更新），只按路径
     缓存会把旧片段一直发下去；mtime 一变键就变，缓存自然失效。``version`` 同样进键 ——
-    版本号写在片段的标题栏里。
+    版本号写在片段的标题栏里。``page`` 也进键：片段只有一份，但每页填进去的文案不同
+    （见 ``SCENE_VALUES_BY_PAGE``），少带这个键会让最后渲染的那一页的文案被其余页共用。
     """
     template = Path(scene_file).read_text(encoding='utf-8')
     template = _HTML_COMMENT_PATTERN.sub('', template)
     rendered = template.replace('{{VERSION}}', version)
-    for key, value in SCENE_VALUES.items():
+    for key, value in scene_values(page).items():
         rendered = rendered.replace('{{' + key + '}}', value)
     missing = sorted(set(_PLACEHOLDER_PATTERN.findall(rendered)))
     if missing:
         raise RuntimeError(
             f'{scene_file} 里仍有未填充的占位符：{", ".join(missing)}；'
-            '请同步 store/api/page_shell.py 的 SCENE_VALUES'
+            '请同步 store/api/page_shell.py 的 SCENE_VALUES_BY_PAGE'
         )
     return rendered
 
 
-def scene_markup(templates_dir: Path, version: str) -> str:
-    """填充好的场景片段。文件缺失时报错而不是静默返回空串 —— 外壳没了页面还「正常」
-    返回，是最难排查的一种坏法。"""
+def scene_markup(templates_dir: Path, version: str, page: str) -> str:
+    """某一页填充好的场景片段。文件缺失时报错而不是静默返回空串 —— 外壳没了页面还
+    「正常」返回，是最难排查的一种坏法。"""
     path = templates_dir / SCENE_TEMPLATE_NAME
     try:
         stat = path.stat()
@@ -203,7 +274,7 @@ def scene_markup(templates_dir: Path, version: str) -> str:
         raise RuntimeError(
             f'场景片段缺失：{path}；请从 design/scene/scene.html 同步分发副本'
         ) from error
-    return _scene_markup(str(path), stat.st_mtime_ns, version)
+    return _scene_markup(str(path), stat.st_mtime_ns, version, page)
 
 
 def inject_scene(
@@ -234,12 +305,14 @@ def inject_scene(
         f'<link rel="stylesheet" href="{APPEARANCE_PATH}?v={request.app.state.appearance.revision}">',
     )
     _assert_placeholders_are_real(text)
+    page = page_of(request)
     if SCENE_PLACEHOLDER in text:
+        # 场景是**按页**填的（见 SCENE_VALUES_BY_PAGE）：先取页面名，填错页比少填更隐蔽 ——
+        # 页面照常好看，只是左栏在说另一道门的事。
         settings = request.app.state.settings
         text = text.replace(
-            SCENE_PLACEHOLDER, scene_markup(settings.templates_dir, CURRENT_VERSION)
+            SCENE_PLACEHOLDER, scene_markup(settings.templates_dir, CURRENT_VERSION, page)
         )
-    page = page_of(request)
     if DECK_PLACEHOLDER in text:
         if not page:
             raise RuntimeError(
