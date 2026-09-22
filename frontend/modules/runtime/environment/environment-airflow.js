@@ -8,18 +8,26 @@
  */
 
 // 状态条目归一与「按 ID 切域」只有一份实现（/static/utils/），这里经 static-helpers 桥取用。
-import { normalizedTextOf, readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609220141";
+import { normalizedTextOf, paletteColor, readFromMapOrRecord, resolveStateEntry, stateTextOf } from "../core/static-helpers.js?v=2609220943";
 // 模型定位键（楼层 + 模型）的唯一实现在 core/scene-model-key.js。
-import { sceneModelKey } from "../core/scene-model-key.js?v=2609220141";
-import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609220141";
+import { sceneModelKey } from "../core/scene-model-key.js?v=2609220943";
+import { modelWorldBounds } from "../core/scene-model-bounds.js?v=2609220943";
 // 「减少动态效果」偏好的唯一判定与订阅（实现见 core/motion-preference.js）。
-import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609220141";
-/** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。 */
-const FLOW_STATE_COLORS = {
-  cool: "#73c8ff",
-  heat: "#ff8a65",
-  other: "#dce2e6"
-};
+import { onReducedMotionChange, prefersReducedMotionNow } from "../core/motion-preference.js?v=2609220943";
+/** 气流颜色：按 HA 的 state（制冷 / 制热 / 其它）取色。
+    制冷取 --hos-cool、制热取 --hos-heat —— 两枚都是「设备读色」，刻意不跟主控色走：
+    主控色被改成极光紫那天，制冷气流不该跟着变紫。
+    「其它」留字面量：#dce2e6 是无色相中性灰，调色板里没有对应令牌，
+    硬套 --hos-sensor（离线 / 未知）会把「其它模式」误读成「设备离线」。
+    三档都必须在**取用时**解析（本模块在被调用时才跑），不能提到模块顶层：
+    顶层求值时样式表可能还没解析完，paletteColor 会把兜底色缓存下来、之后一直用那个。 */
+function flowStateColors() {
+  return {
+    cool: paletteColor("--hos-cool", "#58c4ff"),
+    heat: paletteColor("--hos-heat", "#ff8a65"),
+    other: "#dce2e6"
+  };
+}
 /** hvac_action 里表示「风机确实在吹」的取值；不在集合内则不出风。 */
 const AIRFLOW_ACTIONS = new Set([
   "cooling",
@@ -238,7 +246,7 @@ export function createEnvironmentAirflow({
       fragmentShader: FLOW_FRAGMENT_SHADER,
       uniforms: {
         flowColor: {
-          value: new THREE.Color(FLOW_STATE_COLORS.other)
+          value: new THREE.Color(flowStateColors().other)
         },
         // 初始不透明度为 0：等状态同步后再淡入，避免加载瞬间闪一片气流。
         flowOpacity: {
@@ -386,7 +394,8 @@ export function createEnvironmentAirflow({
       const targetOpacity =
         isEnabled && isFocusTarget && isAirflowActive ? (overviewUniformValue ? 1.45 : 1) : 0;
       const uniforms = effect.mesh.material.uniforms;
-      const targetColor = new THREE.Color(FLOW_STATE_COLORS[stateValue] || FLOW_STATE_COLORS.other);
+      const airflowFlowColors = flowStateColors();
+      const targetColor = new THREE.Color(airflowFlowColors[stateValue] || airflowFlowColors.other);
       // 只在可见时才换颜色：隐藏状态下换色会白白触发一次重绘。
       if (targetOpacity > 0 && !uniforms.flowColor.value.equals(targetColor)) {
         uniforms.flowColor.value.copy(targetColor);

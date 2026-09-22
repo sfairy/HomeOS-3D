@@ -15,11 +15,15 @@
 .hos-panel {
   width: 100%;
   max-height: 100%;
+  /* 五页共用一个坞体，但自然高度差 100–200px（激活页有轨 + 两条动作行 + 两个小字，
+     恢复页连表单都没有）。坞是垂直居中的，于是用户在两道门之间来回跳时整个面板会上下窜，
+     「同一条门链」的观感就散了。给一个下限，短页不显空、相邻两页也不会差出一整行。 */
+  min-height: min(600px, 100%);
   overflow: auto;
   padding: 40px 36px 24px;
   border-radius: 20px;
   position: relative;
-  background: linear-gradient(165deg, rgba(12, 26, 40, 0.82) 0%, rgba(8, 14, 22, 0.92) 100%);
+  background: linear-gradient(165deg, rgba(var(--hos-sky-mid-rgb), 0.82) 0%, rgba(var(--hos-sky-low-rgb), 0.92) 100%);
   border: 1px solid rgba(var(--hos-tone-rgb), 0.26);
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
@@ -129,8 +133,11 @@
   padding: 5px 10px;
   border-radius: 999px;
   border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
-  background: rgba(4, 12, 20, 0.4);
-  color: rgba(186, 214, 232, 0.55);
+  background: rgba(var(--hos-sky-deep-rgb), 0.4);
+  /* 半改色：边框早就跟着 tone，字却一直是中性灰 —— 在薄荷页上就是「薄荷框配灰字」。
+     用 bright 档而不是 rgba(--hos-tone-rgb, α)：珊瑚（恢复页的 tone）本身很暗，
+     任何能压住它的 α 都会让暖金页上的徽标白得刺眼。 */
+  color: var(--hos-tone-bright);
   font-family: var(--hos-font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.14em;
@@ -184,7 +191,9 @@
   font-family: var(--hos-font-mono);
   font-size: 0.62rem;
   letter-spacing: 0.08em;
-  color: rgba(186, 214, 232, 0.3);
+  /* 待办态。原来写的是 0.3（≈2.2:1）—— 而 /setup 上四格全是这个状态，
+     也就是说整条轨最常见的读数恰好是最难读的一种。 */
+  color: rgba(var(--hos-muted-rgb), 0.72);
   white-space: nowrap;
   transition: color 0.3s var(--hos-ease);
 }
@@ -217,9 +226,12 @@
   background: transparent;
 }
 
-/* 已过：实心，但比当前项沉一档 —— 走过的门要看得见，却不能和「你在这里」抢眼。 */
+/* 已过：实心，但比当前项沉一档 —— 走过的门要看得见，却不能和「你在这里」抢眼。
+   沉一档靠 tone → tone-bright 这一对，不靠降 α：tone 在极光紫与珊瑚上都偏暗，
+   把它们的 α 压到「看着沉一档」的程度（约 0.55）只剩 3.0–3.4:1，而这两种 tone
+   正是 /pair 与 /license-recovery 两页的全部内容 —— 整条轨会一起读不出来。 */
 .hos-steps__item.is-done {
-  color: rgba(var(--hos-tone-rgb), 0.55);
+  color: var(--hos-tone);
 }
 
 .hos-steps__item.is-done .hos-steps__dot {
@@ -251,9 +263,11 @@
 /* 不适用：这道门对当前访问者根本不存在 —— 墙面板不走「登录」（见
    backend/http/commissioning.py）。既不实心也不算待办，而是把这一格与它右侧的连接线
    一起画成虚的：实心读作「已经过」，空心读作「迟早要走」，只有虚线读作「与你无关」。
-   改成灰字而不加删除线：这一格在窄屏上只有两个字，加线会把它读成「被跳过的一次失败」。 */
+   改成灰字而不加删除线：这一格在窄屏上只有两个字，加线会把它读成「被跳过的一次失败」。
+   灰字到这个程度就是下限了 —— 再暗一档（原来的 0.22）在坞体玻璃面上只有 1.6:1，
+   「与你无关」会连读都读不出来，只剩一整行看不见的字在占位。 */
 .hos-steps__item.is-skipped {
-  color: rgba(var(--hos-tone-rgb), 0.22);
+  color: var(--hos-muted);
 }
 
 .hos-steps__item.is-skipped::after {
@@ -295,7 +309,7 @@
   font-size: 34px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  background: linear-gradient(120deg, #f7fcff 0%, var(--hos-tone-bright) 52%, var(--hos-tone) 100%);
+  background: linear-gradient(120deg, var(--hos-ink-bright) 0%, var(--hos-tone-bright) 52%, var(--hos-tone) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -304,7 +318,7 @@
 
 .hos-panel__desc {
   margin: 0 0 20px;
-  color: rgba(186, 214, 232, 0.58);
+  color: var(--hos-muted);
   font-size: var(--hos-fs-body-sm);
   line-height: 1.7;
   letter-spacing: 0.03em;
@@ -321,7 +335,7 @@
   padding: 12px 4px;
   border-radius: 14px;
   border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
-  background: linear-gradient(180deg, rgba(12, 28, 42, 0.55), rgba(4, 12, 20, 0.62));
+  background: linear-gradient(180deg, rgba(var(--hos-sky-mid-rgb), 0.55), rgba(var(--hos-sky-deep-rgb), 0.62));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   overflow: hidden;
 }
@@ -333,8 +347,8 @@
   left: 6%;
   right: 6%;
   height: 1px;
-  /* 能力条顶部走整条极光带（青→极光紫→暖光），是坞里唯一一处三色渐变：
-     它标的是「这个家有哪些能力」，正好是青、紫、暖光三种语义的交汇处。 */
+  /* 能力条顶部走整条极光带（主控暖金→极光紫→居家暖光），是坞里唯一一处三色渐变：
+     它标的是「这个家有哪些能力」，正好是金、紫、暖光三种语义的交汇处。 */
   background: var(--hos-grad-aurora);
   opacity: 0.55;
 }
@@ -395,7 +409,7 @@
   font-family: var(--hos-font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.14em;
-  color: rgba(186, 214, 232, 0.4);
+  color: var(--hos-muted);
 }
 
 .hos-hub__name {
@@ -475,17 +489,28 @@
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(186, 214, 232, 0.52);
+  color: rgba(var(--hos-muted-rgb), 0.72);
   transition:
     color 0.2s ease,
     text-shadow 0.2s ease;
 }
 
-.hos-hint {
+/* 字段的补充说明只有两种位置，但必须是同一套字：控件下方的小字（.hos-field small）
+   与标签行右侧的小字（.hos-hint，商店登录页的「忘记密码？」）。它们说的是同一类话。
+   此前两者字号相同、颜色同族，但 .hos-hint 少一个 font-weight、.hos-field small
+   多一个 margin-top —— 于是带小字的字段（激活 / 初始化）和不带的（登录 / 配对）
+   在纵向节奏上天然不同，而四种差异里只有 margin 那一条是有理由的。 */
+.hos-hint,
+.hos-field small {
   font-family: var(--hos-font-mono);
   font-size: 0.68rem;
+  font-weight: 500;
   letter-spacing: 0.04em;
-  color: rgba(140, 168, 184, 0.45);
+  line-height: 1.5;
+  color: var(--hos-muted);
+}
+
+.hos-hint {
   transition: color 0.2s ease;
 }
 
@@ -496,14 +521,20 @@
   color: var(--hos-warn);
 }
 
-/* 输入框外壳：焦点态在壳上做描边与左侧光条，输入框本体透明无边框。 */
+/* 输入框外壳：焦点态在壳上做描边与左侧光条，输入框本体透明无边框。
+   overflow:hidden 不是收尾动作，是这个壳能画出圆角的前提：圆角只裁壳自己，裁不到子元素，
+   而子元素 <input> 的 border-radius 是 0。只要它身上出现任何底色 —— 最典型的是 Chrome
+   自动填充刷上去的那层浅蓝 —— 那层底色就是一个方角矩形，四个角会各自从壳的圆角里透出一块，
+   看起来像圆角没画对。裁在壳上，任何来源的子元素底色都跟着圆角走。
+   （同层还有 .hos-password-field 的手柄，它的焦点环改成画在按钮内侧，见下方 :focus-visible。） */
 .hos-control {
   position: relative;
   display: flex;
   align-items: stretch;
   border-radius: 14px;
+  overflow: hidden;
   border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
-  background: rgba(4, 12, 20, 0.55);
+  background: rgba(var(--hos-sky-deep-rgb), 0.55);
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -531,7 +562,7 @@
 }
 
 .hos-control:focus-within {
-  background: rgba(8, 20, 32, 0.72);
+  background: rgba(var(--hos-sky-low-rgb), 0.72);
   border-color: rgba(var(--hos-tone-rgb), 0.6);
   box-shadow:
     0 0 0 3px rgba(var(--hos-tone-rgb), 0.14),
@@ -584,7 +615,7 @@
 
 .hos-panel input::placeholder,
 .hos-panel textarea::placeholder {
-  color: rgba(186, 214, 232, 0.28);
+  color: var(--hos-muted);
   font-weight: 400;
   letter-spacing: normal;
 }
@@ -592,11 +623,6 @@
 .hos-field small {
   display: block;
   margin-top: 7px;
-  color: rgba(140, 168, 184, 0.45);
-  font-size: 0.68rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  line-height: 1.5;
 }
 
 /* ── 密码显隐 ───────────────────────────────────────────────── */
@@ -615,11 +641,12 @@
   position: absolute;
   top: 50%;
   right: 8px;
-  min-height: 30px;
+  /* 控件本体高 46.6px（13px 内边距 ×2 + 0.92rem/1.4 的行高），44px 的手柄正好嵌在里面。 */
+  min-height: 44px;
   padding: 0 10px;
   border: 0;
   border-radius: 8px;
-  color: rgba(186, 214, 232, 0.55);
+  color: rgba(var(--hos-muted-rgb), 0.72);
   background: transparent;
   font: 600 0.72rem/1 var(--hos-font-ui);
   letter-spacing: 0.08em;
@@ -635,6 +662,13 @@
   background: rgba(var(--hos-tone-rgb), 0.12);
 }
 
+/* 手柄的焦点环必须画在按钮自己里面。上面 .hos-control 的裁剪是以壳的圆角为界的，
+   而 44px 的手柄塞在 46.6px 的内高里，上下各只剩约 1.3px —— 沿用默认的 outline-offset:2px，
+   环的上下两条正好整条落在壳外被裁掉，只剩左右两个竖点。 */
+.hos-password-field button:focus-visible {
+  outline-offset: -2px;
+}
+
 /* ── 分段选择 ───────────────────────────────────────────────── */
 
 .hos-seg {
@@ -644,7 +678,7 @@
   padding: 5px;
   border-radius: 14px;
   border: 1px solid rgba(var(--hos-tone-rgb), 0.16);
-  background: rgba(3, 10, 16, 0.55);
+  background: rgba(var(--hos-sky-deep-rgb), 0.55);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
@@ -663,7 +697,7 @@
   border-radius: 10px;
   padding: 11px 10px;
   background: transparent;
-  color: rgba(186, 214, 232, 0.5);
+  color: rgba(var(--hos-muted-rgb), 0.72);
   font: 600 0.86rem/1.2 var(--hos-font-ui);
   cursor: pointer;
   text-align: center;
@@ -674,11 +708,11 @@
 }
 
 .hos-seg button:hover {
-  color: rgba(241, 247, 251, 0.85);
+  color: rgba(var(--hos-ink-rgb), 0.85);
 }
 
 .hos-seg button[aria-pressed='true'] {
-  color: #041018;
+  color: var(--hos-on-bright);
   background: var(--hos-grad-tone);
   box-shadow: 0 6px 16px rgba(var(--hos-tone-rgb), 0.22);
 }
@@ -705,7 +739,7 @@
 .hos-date-field__control input:disabled {
   cursor: default;
   opacity: 0.78;
-  color: rgba(186, 214, 232, 0.55);
+  color: rgba(var(--hos-muted-rgb), 0.72);
 }
 
 .hos-date-field__control.is-open {
@@ -727,7 +761,7 @@
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: rgba(186, 214, 232, 0.45);
+  color: var(--hos-muted);
   cursor: pointer;
   transition:
     color 0.18s ease,
@@ -756,7 +790,7 @@
   padding: 14px 14px 12px;
   border-radius: 16px;
   border: 1px solid rgba(var(--hos-tone-rgb), 0.28);
-  background: linear-gradient(165deg, rgba(10, 22, 34, 0.96) 0%, rgba(5, 12, 20, 0.98) 100%);
+  background: linear-gradient(165deg, rgba(var(--hos-sky-mid-rgb), 0.96) 0%, rgba(var(--hos-sky-deep-rgb), 0.98) 100%);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   box-shadow:
@@ -822,8 +856,8 @@
   height: 36px;
   border: 1px solid rgba(var(--hos-tone-rgb), 0.16);
   border-radius: 10px;
-  background: rgba(3, 10, 16, 0.55);
-  color: rgba(186, 214, 232, 0.7);
+  background: rgba(var(--hos-sky-deep-rgb), 0.55);
+  color: rgba(var(--hos-muted-rgb), 0.72);
   font: 600 1.15rem/1 var(--hos-font-mono);
   cursor: pointer;
   transition:
@@ -850,7 +884,7 @@
   font-family: var(--hos-font-mono);
   font-size: 0.62rem;
   letter-spacing: 0.12em;
-  color: rgba(140, 168, 184, 0.45);
+  color: var(--hos-muted);
   padding: 4px 0;
 }
 
@@ -866,7 +900,7 @@
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: rgba(241, 247, 251, 0.88);
+  color: rgba(var(--hos-ink-rgb), 0.88);
   font: 500 0.78rem/1 var(--hos-font-mono);
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -882,7 +916,7 @@
 }
 
 .hos-datepicker__day.is-out {
-  color: rgba(186, 214, 232, 0.28);
+  color: var(--hos-muted);
 }
 
 .hos-datepicker__day.is-today:not(.is-selected) {
@@ -891,13 +925,13 @@
 }
 
 .hos-datepicker__day.is-selected {
-  color: #041018;
+  color: var(--hos-on-bright);
   background: var(--hos-grad-tone);
   box-shadow: 0 4px 12px rgba(var(--hos-tone-rgb), 0.28);
 }
 
 .hos-datepicker__day.is-selected.is-out {
-  color: #041018;
+  color: var(--hos-on-bright);
   opacity: 0.72;
 }
 
@@ -914,8 +948,8 @@
   border: 1px solid rgba(var(--hos-tone-rgb), 0.18);
   border-radius: 999px;
   padding: 6px 12px;
-  background: rgba(3, 10, 16, 0.45);
-  color: rgba(186, 214, 232, 0.62);
+  background: rgba(var(--hos-sky-deep-rgb), 0.45);
+  color: rgba(var(--hos-muted-rgb), 0.72);
   font: 600 0.68rem/1 var(--hos-font-mono);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -938,6 +972,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  /* 与上一块的距离写在这里，不靠「上一个兄弟碰巧有 margin-bottom」：
+     在 form 里是 grid 的 gap（14px）之后，在 form 外是 .hos-status / .hos-notice 之后，
+     此前三种情况分别是 16 / 18 / 2px —— 恢复页那颗「重新连接授权后台」就贴在状态句底下。 */
+  margin-top: 16px;
+}
+
+/* form 里已经有 14px 的 grid gap，再加 16px 会把「提交」推得离最后一个字段太远。 */
+.hos-form .hos-actions {
   margin-top: 2px;
 }
 
@@ -984,9 +1026,12 @@
 .hos-btn-primary {
   position: relative;
   overflow: hidden;
-  flex: 1 1 100%;
+  /* 与 .hos-btn-ghost 同一套宽度规则：一个按钮时撑满整行，两个按钮时平分。
+     此前主按钮写死 flex: 1 1 100%、次按钮写 1 1 auto，于是「重新连接授权后台」
+     这一句话在激活页是窄的 ghost、在恢复页是全宽的 primary —— 同一件事两个宽度。 */
+  flex: 1 1 auto;
   min-height: 48px;
-  color: #041018;
+  color: var(--hos-on-bright);
   font: 700 0.95rem/1 var(--hos-font-ui);
   background: var(--hos-grad-tone);
   box-shadow:
@@ -1020,7 +1065,8 @@
 
 .hos-btn-ghost {
   flex: 1 1 auto;
-  min-height: 42px;
+  /* 42px 是 44px 触达下限差的那 2px：这两颗按钮在激活 / 恢复两页上都是唯一出口。 */
+  min-height: 44px;
   padding: 0 14px;
   color: rgba(210, 232, 242, 0.9);
   font: 600 0.86rem/1 var(--hos-font-ui);
@@ -1034,6 +1080,28 @@
   color: var(--hos-ink);
 }
 
+/* [hidden] 必须赢过按钮类自己的 display。
+   [hidden] { display: none } 来自 UA 样式表，任何作者写的 display 都会盖过它；
+   而 .hos-btn-primary / .hos-btn-ghost / .hos-text-button 都显式写了 inline-flex。
+   激活页的 #license-retry 就一直带着 hidden 却一直画在页面上（它是「不用等下一拍轮询」，
+   本来是次要动作，结果和主按钮并排抢注意力）。规则必须排在按钮类之后：同权重，后写的赢。 */
+.hos-btn-primary[hidden],
+.hos-btn-ghost[hidden],
+.hos-text-button[hidden] {
+  display: none;
+}
+
+/* 键盘焦点环。输入框不给：它外面那层 .hos-control 的 :focus-within 边框 + 光晕
+   已经是焦点指示，再套一环会变成方框套方框。其余控件此前用的是浏览器默认的黑白双环，
+   在这块玻璃坞上像贴了一张系统截图。 */
+.hos-panel a:focus-visible,
+.hos-panel button:focus-visible,
+.hos-modal a:focus-visible,
+.hos-modal button:focus-visible {
+  outline: 2px solid rgba(var(--hos-tone-rgb), 0.85);
+  outline-offset: 2px;
+}
+
 /* ── 状态文案与告警 ─────────────────────────────────────────── */
 
 /* 默认中性可见，由 .is-ok / .is-err 上色。
@@ -1043,7 +1111,7 @@
   margin: 0;
   font-size: 0.86rem;
   line-height: 1.4;
-  color: rgba(186, 214, 232, 0.72);
+  color: rgba(var(--hos-muted-rgb), 0.72);
 }
 
 .hos-msg:empty {
@@ -1065,15 +1133,16 @@
 
 /* 非报错的状态说明（授权状态、重连进度）：比 .hos-panel__desc 更像正文。 */
 .hos-status {
-  margin: 0;
-  color: rgba(186, 214, 232, 0.66);
+  /* 恢复页上它是动作行的前一个兄弟，没有 margin 时两者只隔 2px。 */
+  margin: 0 0 16px;
+  color: rgba(var(--hos-muted-rgb), 0.72);
   font-size: var(--hos-fs-body-sm);
   line-height: 1.65;
   letter-spacing: 0.03em;
 }
 
 /* 表单内的整块说明条（比 .hos-msg 更重）：授权找回提示、添加到主屏幕说明。
-   暖光是「待办 / 提醒」的语气，与青色主控区分开。 */
+   暖光是「待办 / 提醒」的语气，与暖金主控区分开。 */
 .hos-notice {
   margin: 0 0 16px;
   padding: 10px 12px;
@@ -1123,7 +1192,7 @@
   margin-top: 20px;
   padding-top: 18px;
   border-top: 1px solid rgba(var(--hos-tone-rgb), 0.1);
-  color: rgba(186, 214, 232, 0.5);
+  color: rgba(var(--hos-muted-rgb), 0.72);
   font-size: 0.8rem;
   line-height: 1.6;
   text-align: center;
@@ -1144,12 +1213,14 @@
 .hos-text-button {
   flex: 0 0 auto;
   align-self: center;
-  min-height: 0;
+  /* 44px：这一颗是若干页上唯一的出口（「退出本机登录」「管理员重新激活」），
+     原来是 4px 内边距撑出的约 25px 高。 */
+  min-height: 44px;
   padding: 4px 8px;
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: rgba(186, 214, 232, 0.5);
+  color: rgba(var(--hos-muted-rgb), 0.72);
   font: 500 0.78rem/1.4 var(--hos-font-ui);
   letter-spacing: 0.06em;
   text-decoration: none;
@@ -1200,7 +1271,7 @@
   padding: 26px 26px 22px;
   border-radius: 20px;
   border: 1px solid rgba(var(--hos-tone-rgb), 0.28);
-  background: linear-gradient(165deg, rgba(12, 26, 40, 0.94) 0%, rgba(8, 14, 22, 0.97) 100%);
+  background: linear-gradient(165deg, rgba(var(--hos-sky-mid-rgb), 0.94) 0%, rgba(var(--hos-sky-low-rgb), 0.97) 100%);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03) inset,
     0 0 48px rgba(var(--hos-tone-rgb), 0.12),
@@ -1316,7 +1387,7 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(0, 0, 0, 0.22);
-  color: rgba(186, 214, 232, 0.82);
+  color: rgba(var(--hos-muted-rgb), 0.82);
   font-family: var(--hos-font-mono);
   font-size: 0.7rem;
   max-width: 100%;
@@ -1395,7 +1466,7 @@
   font-size: var(--hos-fs-micro);
   letter-spacing: 0.06em;
   line-height: 1.55;
-  color: rgba(186, 214, 232, 0.55);
+  color: rgba(var(--hos-muted-rgb), 0.72);
 }
 
 .hos-panel__meta {
@@ -1409,19 +1480,19 @@
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(186, 214, 232, 0.4);
+  color: var(--hos-muted);
 }
 
 .hos-panel__meta-sep {
   width: 1px;
   height: 10px;
-  background: rgba(186, 214, 232, 0.18);
+  background: rgba(var(--hos-muted-rgb), 0.18);
 }
 
 .hos-panel__copy p {
   margin: 0;
   letter-spacing: 0.08em;
-  color: rgba(186, 214, 232, 0.42);
+  color: var(--hos-muted);
 }
 
 /* ── 窄屏 ───────────────────────────────────────────────────── */
@@ -1429,6 +1500,9 @@
 @media (max-width: 900px) {
   .hos-panel {
     max-height: none;
+    /* 窄屏 dock 已经改成 flex-start（见 page.css）：此时高度下限不再承担「对齐」的作用，
+       只会让恢复页这种短面板凭空多出一段空白，再把滚动条撑出来。 */
+    min-height: 0;
     padding: 30px 22px 18px;
   }
 

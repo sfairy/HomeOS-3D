@@ -5,7 +5,7 @@
  * --display-surface-background 与 meta[theme-color]，让状态栏与页面底色一致，避免全屏下露出
  * 黑边。只有「已添加到主屏并以 standalone 运行」的设备才处理。
  */
-import { isAppleMobile } from "../utils/apple-device.js?v=2609220141";
+import { isAppleMobile } from "../utils/apple-device.js?v=2609220943";
 
 /**
  * 按画布背景色更新苹果全屏设备的表面颜色。
@@ -25,7 +25,9 @@ export function syncAppleDisplaySurface(docModel, win = window) {
     typeof background.color === "string" &&
     win.CSS?.supports("color", background.color)
       ? background.color
-      : "#070b0e";
+      // 兜底与 scene/page.css 的 --hos-sky-deep 同值：这里是 iOS 独立窗口的浏览器
+      // chrome 底色，与画布背景差一点点都会被看成「上下两条不同色的边」。
+      : "#050912";
   doc.documentElement.style.setProperty("--display-surface-background", surfaceColor);
   doc.querySelector('meta[name="theme-color"]')?.setAttribute("content", surfaceColor);
 }

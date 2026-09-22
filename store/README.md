@@ -453,7 +453,7 @@ body            { overflow: hidden; }
 | 激活码 | 停用 / 启用 | 彻底删除 |
 | 优惠码 | 停用 / 启用 | 删除 |
 | 提现审核 | 通过、驳回 | 删除 |
-| 版本发布 / 审计日志 | — | 只有一个动作，不包菜单（多一次点击没有收益） |
+| 审计日志 | — | 只有一个动作，不包菜单（多一次点击没有收益） |
 
 菜单是手写的（`rowMenu` / `menuItem` + `.admin-main` 上的一个委托监听）。两个要点：**菜单标记仍留在单元格内**、靠绝对定位浮起 —— 若 `appendChild` 到 `document.body` 以免被 `overflow` 裁掉，就会离开各表 `<tbody id="xxx-rows">` 上的事件委托，那些处理函数得全部改写；**主区一滚就收起菜单**，因为按钮在滚动容器内部、会跟着行一起移动。
 
@@ -491,7 +491,7 @@ body            { overflow: hidden; }
 
 **层级与表面**：页面标题 22px、KPI 数值 26px（等宽数字 + `tabular-nums`，多张卡的数字才能对齐）、正文 13.5px、辅助 11.5px；面板标题前加一道 3px 琥珀渐变短条（`h2::before`，零 HTML 改动）。表面分画布 → 卡片 → 浮层三级，用「1px 顶部高光 + 大范围低透明投影」拉开厚度，而不是堆同色边框。状态统一成 `.pill`（柔和底色 + 同色文字 + 发光光点），琥珀只留给真正的强调与待办（待支付订单、待审提现、维护模式）。
 
-**导航**：15 个条目按「运营手上要办的事」分成五组 —— 业务运营（概览、订单、提现审核）、商品营销（商品、优惠码、版本发布）、授权用户（激活码、设备绑定、账号）、数据资产（功能权益、积分流水、客户档案、诊断数据）、系统设置（站点配置、审计日志）。默认全开（1440×900 下恰好一屏装下），切面板时按当前页反查所在分组并展开；折叠动画走 `grid-template-rows: 0fr → 1fr`，内层容器再配 `visibility` 过渡，收起后才真正移出 Tab 焦点序列。子项角标在分组收起时看不见，所以 `setNavBadge()` 会把该组合计挂到一级菜单上。窄屏（`max-width: 860px`）下侧栏是横排平铺，那里隐藏一级菜单标题、把两层折叠容器摊平成 `display: contents`，并显式还原 `visibility`。
+**导航**：14 个条目按「运营手上要办的事」分成五组 —— 业务运营（概览、订单、提现审核）、商品营销（商品、优惠码）、授权用户（激活码、设备绑定、账号）、数据资产（功能权益、积分流水、客户档案、诊断数据）、系统设置（站点配置、审计日志）。默认全开（1440×900 下恰好一屏装下），切面板时按当前页反查所在分组并展开；折叠动画走 `grid-template-rows: 0fr → 1fr`，内层容器再配 `visibility` 过渡，收起后才真正移出 Tab 焦点序列。子项角标在分组收起时看不见，所以 `setNavBadge()` 会把该组合计挂到一级菜单上。窄屏（`max-width: 860px`）下侧栏是横排平铺，那里隐藏一级菜单标题、把两层折叠容器摊平成 `display: contents`，并显式还原 `visibility`。
 
 **登录页**：`body { overflow: hidden }` 会让登录页在很矮的窗口（横屏手机）上被裁掉且无法滚动，因此登录页改成 `max-height: 100vh` + 自身 `overflow-y: auto`，并用元素自身的 `padding` 而非 `margin`（`margin` 不计入 `max-height`，也不会跟着滚动）。
 
@@ -595,13 +595,33 @@ store/
 
 令牌不再由本文件各自维护：`theme.css` 的 `--hb-*` 与主程序的 `--hos-*` 现在同源于
 `design/scene/page.css`（手工同步到各分发副本，没有自动比对兜底）。
-主控色 `--hb-accent` 是青色，三束居家光分别编码语义 —— 暖光 `--hb-lumen`（灯光 / 已激活）、
+主控色 `--hb-accent` 是暖金（与入口页场景、主程序同一枚），三束居家光分别编码语义 —— 暖光 `--hb-lumen`（灯光 / 已激活）、
 极光紫 `--hb-aura`（氛围 / 恢复）、薄荷 `--hb-eco`（在线 / 节能）；温度与安防读色另有其名，
 它们编码物理含义（热 / 冷、布防 / 异常），不参与主控色替换。
 
 管理员改过的配色由后端生成在 `/store-appearance.css`（见 `ops/appearance.py`），
 后端把它作为 `<link>` 注入每个页面的 `<!--{{APPEARANCE}}-->` 占位处；那份样式表排在
 所有样式表之后，所以它赢。删掉 `data/appearance.json` 即回到设计系统默认值。
+
+**五处页面都要有插入点**：`store.html`、`admin.html`、`setup.html`、模拟收银台
+（`api/pages.py` 的 `_cashier_html`）、支付宝同步跳转页（`api/alipay.py` 的 `_RETURN_PAGE`）。
+`inject_scene` 找不到插入点会**抛异常**（刻意的守卫：少了那个 `<link>`，页面只会安静地
+停在默认配色，管理员会以为保存没生效），漏一处就是那一页直接 500。
+
+后两处是 Python f-string **或** `str.format` 模板，手打占位符必然出错：f-string 会把
+`<!--{{APPEARANCE}}-->` 折叠成 `<!--{APPEARANCE}-->`，`str.format` 更狠，要四层花括号才
+还原得回两层。**一律插值 `page_shell.APPEARANCE_PLACEHOLDER` 常量**，不要在模板里手写
+那串花括号 —— 这两种写法都真实翻过车，且报错点在渲染期而不是编译期。
+
+报错提示走 `store.js` 的 `toast()`：同一个节点两个语义档，`toast(msg)` 是 `role=status` /
+`aria-live=polite`（等用户读完再播报），`toast(msg, 'err')` 是 `role=alert` / `assertive` 并加
+`.hb-toast.is-err`（红边红字）。属性在写 `textContent` **之前**设置：读屏器是在 DOM 变更
+那一刻取用当前的角色与 politeness。后台走自己那套 `admin-toast__item.is-danger`。
+
+订单状态的色相只有一张真值表：`static/admin/format.js` 的 `STATUS_TONES`（状态 → 语气），
+`TONE_HUES`（语气 → `.is-tone-*` 族色类）与派生的 `STATUS_HUES`（漏斗条用）。语气只有
+success / warning / danger / muted 四种，所以漏斗最多四种色相。`.is-tone-accent` 是**域色**
+（跟随主控色），不是「蓝族的一员」—— 它曾经叫 `is-tone-cyan`，而值是琥珀。
 
 维护时的四条硬规矩：
 

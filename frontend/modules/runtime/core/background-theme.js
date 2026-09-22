@@ -8,7 +8,7 @@
  */
 
 // 「减少动态效果」偏好的唯一判定。
-import { prefersReducedMotionNow } from "./motion-preference.js?v=2609220141";
+import { prefersReducedMotionNow } from "./motion-preference.js?v=2609220943";
 
 /**
  * 归一化主题名。

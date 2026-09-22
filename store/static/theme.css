@@ -1,19 +1,21 @@
 /* ==========================================================================
-   HomeOS 统一设计系统 · 深空 + 青色。
+   HomeOS 统一设计系统 · 深空 + 暖金。
    本文件是商店（store.html / admin.html / 模拟收银台）**唯一**的样式基座：令牌 → 重置 → 排版 → 组件。
    页面级布局分别写在 store.css 与 admin.css，那两份文件只允许摆放区块，不允许重新定义组件外观。
 
-   配色与入口页的场景设计系统同源（源在仓库 design/scene/，令牌见其 page.css 的 --hos-*）：
-     canvas #050910   surface #0a1520   soft #0e1d2b   raised #132636   field #071019
-     hairline #1b3242 / #27495f   ink #f1f7fb   muted #8ea8b8 / #6d8797
-     accent #ffc46a（亮 #ffd9a0，深 #e09523）  success #58bd93  danger #e0787a  warm #f0c48a
+   配色与入口页的场景设计系统同源（源在仓库 design/scene/，令牌见其 page.css 的 --hos-*）。
+   **取值不在文件头列一遍**：这里曾经抄着一张对照表（canvas #050910 / surface #0a1520 /
+   success #58bd93 …），而它没撑到下一次改色 —— 表还在，令牌早换了两轮，谁照着表改谁错。
+   要取值看下面「1. 令牌」那一节，那是唯一的定义处；要看两侧是否走散，按 token 逐个比
+   `design/scene/page.css` 的 --hos-* 与本文件的 --hb-*。
+
    ! 这里**不再**与主程序 frontend/static/app.css 逐字对齐：app.css 是中控台内部的琥珀主题，
-     而商店是面向买家的「授权服务中心」，与 /setup、/login、Activate 激活页同属对外入口，
-     视觉基准是场景设计系统。两者同为暖色琥珀，但 app.css 走自己的变量名与字号阶梯。
+   而商店是面向买家的「授权服务中心」，与 /setup、/login、Activate 激活页同属对外入口，
+   视觉基准是场景设计系统。两者同为暖色琥珀，但 app.css 走自己的变量名与字号阶梯。
 
    强调色一律用 rgba(var(--hb-accent-rgb), α) 而不是写死的 rgba(255, 196, 106, α)：
-   改品牌色时只要动三个 channel 令牌，散落在 store.css / admin.css 的 27 处透明度
-   派生色会一起跟上（过去它们全是写死的琥珀，换色只能靠全局搜替换）。
+   改品牌色时只要动三个 channel 令牌，散落在 store.css / admin.css 的透明度派生色会一起
+   跟上（过去它们全是写死的琥珀，换色只能靠全局搜替换）。
    ========================================================================== */
 
 /* 1. 令牌 */
@@ -36,6 +38,13 @@
   --hb-sky-high-rgb: 22, 38, 60;
   --hb-sky-haze-rgb: 36, 57, 90;
 
+  /* 星空与浮尘的「一点光」。与 design/scene/page.css 的 --hos-star-* 逐字相等。
+     首页 hero 的星域与入口页场景是同一片天，用同一批值；过去这里是 18 处
+     rgba(220,240,255/160,230,255/180,235,255, α) 字面量，改天色时会漏掉这一层，
+     于是「从入口页点进商城天亮了一次」的老毛病原样复现在星空上。 */
+  --hb-star-rgb: 220, 240, 255;
+  --hb-star-cool-rgb: 168, 226, 255;
+
   /* 画布与表面：五级分层。 */
   --hb-bg: var(--hb-sky-deep);
   --hb-surface: var(--hb-sky-low);
@@ -47,24 +56,43 @@
   --hb-line-soft: #142137;
   --hb-line-strong: #2b4a6e;
 
-  /* 文字 */
+  /* 文字。与 design/scene/page.css 逐 token 相等 —— 包括 --hb-muted 那个 α。
+     它先前是实色 #8ea8b8，比场景侧的 --hos-muted 合成值亮两档：两侧都自称
+     「次级文字」，商店的比主程序的白一截，而没有任何一处会因此报错。
+     对齐后合成值见下方注释；--hb-muted-dim 是**商店自有**的第二档（表格密集、
+     需要比 PWA 面板更暗一档的脚注），不是漂移，别把它也「对齐」掉。 */
   --hb-ink: #f1f7fb;
+  --hb-ink-bright: #f7fcff;
   --hb-ink-soft: #c8dbe8;
-  --hb-muted: #8ea8b8;
+  --hb-ink-rgb: 241, 247, 251;
+  --hb-muted-rgb: 186, 214, 232;
+  /* rgba(186,214,232,.58) 合成在 sky-low/low-mid 上约 4.8–4.9:1；
+     最亮的 sky-high(#16263c) 上是 4.41:1，略低于 AA —— 那一档在商店里
+     只当 .hb-button:hover / 原生下拉项 / 移动端导航的底色，这些地方的字色
+     都是 --hb-ink 而不是 muted，所以今天碰不到；但它是个**两侧共同**的下限，
+     要抬就得同时抬 page.css，单独改这一侧就是把刚对齐的东西又拆开。 */
+  --hb-muted: rgba(var(--hb-muted-rgb), 0.58);
   --hb-muted-dim: #6d8797;
 
-  /* 强调色：与场景同一枚青色（design/scene/page.css 的 --hos-accent） */
+  /* 强调色：与场景同一枚暖金（design/scene/page.css 的 --hos-accent） */
   --hb-accent-rgb: 255, 196, 106;
   --hb-accent: #ffc46a;
   --hb-accent-bright: #ffd9a0;
   --hb-accent-deep: #e09523;
-  --hb-accent-soft: rgba(var(--hb-accent-rgb), 0.12);
+  /* 0.13 / 0.32 不是随手挑的：appearance.js:178-179 的 `appearanceTokens()` 给
+     lumen / aura / eco 发的 soft / line 就是这一对，而它给 accent 发的也是同一对。
+     这里若写成 0.12 / 0.42，管理员「打开配色面板 → 什么都不改 → 点保存」就会把
+     全站强调描边从 0.42 悄悄改成 0.32（写回的内联变量盖过这张表），
+     而且同屏的主控色软底比居家三光淡一档 —— 四枚色只有它一个不一样。 */
+  --hb-accent-soft: rgba(var(--hb-accent-rgb), 0.13);
   --hb-accent-faint: rgba(var(--hb-accent-rgb), 0.06);
-  --hb-accent-line: rgba(var(--hb-accent-rgb), 0.42);
+  --hb-accent-line: rgba(var(--hb-accent-rgb), 0.32);
   --hb-accent-grad: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent-deep));
   /* 悬停时的提亮版：主按钮默认就用渐变底，再叠一层 filter 会让上面的深色文字发灰，
-     所以单独给一份更亮的渐变。 */
-  --hb-accent-grad-hover: linear-gradient(180deg, #ffd9a0, #ffc46a);
+     所以单独给一份更亮的渐变。写 var() 而不是字面量：appearance.js:186-188 的
+     appearanceTokens() 发的就是 `${bright} → ${accent}`，管理员换掉主控色后
+     这边必须跟着换，否则按钮默认态变了、hover 态还是琥珀。 */
+  --hb-accent-grad-hover: linear-gradient(180deg, var(--hb-accent-bright), var(--hb-accent));
   --hb-accent-glow: 0 10px 26px -14px rgba(var(--hb-accent-rgb), 0.8);
 
   /* 表单聚焦环：三层一起用才成立——贴边描边（把 1px 边框「加粗」成 2px）
@@ -104,15 +132,25 @@
 
   /* ── 设备读色 ────────────────────────────────────────────────────────────
      heat ↔ cool 是温度的两端，alert 是超限，sensor 是离线 / 未知。
-     商店里的授权状态、后台的库存与订单状态都从这几个色取，不再各写各的绿黄红。 */
+     商店里的授权状态、后台的库存与订单状态都从这几个色取，不再各写各的绿黄红。
+
+     bright / deep 两档与 --hos-* 同组逐字相等。四族里只有它们先前缺这两档，
+     于是 [data-tone=heat|cool|sensor] 的渐变只能写死十六进制 ——
+     改 --hb-heat 时渐变不会跟着动，一族的两个色各自过自己的日子。 */
   --hb-heat-rgb: 255, 138, 101;
   --hb-heat: #ff8a65;
+  --hb-heat-bright: #ffb59c;
+  --hb-heat-deep: #e0663c;
   --hb-heat-soft: rgba(var(--hb-heat-rgb), 0.13);
   --hb-cool-rgb: 88, 196, 255;
   --hb-cool: #58c4ff;
+  --hb-cool-bright: #b7e6ff;
+  --hb-cool-deep: #2f8fd0;
   --hb-cool-soft: rgba(var(--hb-cool-rgb), 0.13);
   --hb-sensor-rgb: 158, 176, 196;
   --hb-sensor: #9eb0c4;
+  --hb-sensor-bright: #cfdae6;
+  --hb-sensor-deep: #77879a;
   --hb-sensor-soft: rgba(var(--hb-sensor-rgb), 0.12);
 
   /* 语义色：成功 = 生态薄荷、危险 = 珊瑚、提醒 = 暖光。
@@ -126,6 +164,8 @@
   --hb-alert-rgb: 240, 122, 126;
   --hb-alert: #f07a7e;
   --hb-alert-bright: #f5a3a6;
+  /* 与 design/scene/page.css 的 --hos-alert-deep 逐字相等。 */
+  --hb-alert-deep: #c85a5e;
   --hb-alert-soft: rgba(var(--hb-alert-rgb), 0.13);
   --hb-alert-line: rgba(var(--hb-alert-rgb), 0.34);
   --hb-danger-rgb: var(--hb-alert-rgb);
@@ -143,6 +183,13 @@
   --hb-grad-lumen: linear-gradient(180deg, var(--hb-lumen-bright), var(--hb-lumen-deep));
   --hb-grad-aura: linear-gradient(180deg, var(--hb-aura-bright), var(--hb-aura-deep));
   --hb-grad-eco: linear-gradient(180deg, var(--hb-eco-bright), var(--hb-eco-deep));
+  /* 设备读色的四支。--hb-grad-alert 与 page.css 的 --hos-grad-alert 同源同值；
+     heat / cool / sensor 这三支商店独有（场景侧没有消费点），
+     所以它们的 base / bright / deep 三档更要与 --hos-* 对齐 —— 那三档是共用真值。 */
+  --hb-grad-heat: linear-gradient(180deg, var(--hb-heat-bright), var(--hb-heat-deep));
+  --hb-grad-cool: linear-gradient(180deg, var(--hb-cool-bright), var(--hb-cool-deep));
+  --hb-grad-alert: linear-gradient(180deg, var(--hb-alert-bright), var(--hb-alert-deep));
+  --hb-grad-sensor: linear-gradient(180deg, var(--hb-sensor-bright), var(--hb-sensor-deep));
   --hb-grad-aurora: linear-gradient(
     100deg,
     var(--hb-accent) 0%,
@@ -150,7 +197,7 @@
     var(--hb-lumen) 100%
   );
 
-  /* 组件色调的默认值：主控青。由下面的 [data-tone] 逐项覆写。 */
+  /* 组件色调的默认值：主控暖金。由下面的 [data-tone] 逐项覆写。 */
   --hb-tone: var(--hb-accent);
   --hb-tone-rgb: var(--hb-accent-rgb);
   --hb-tone-soft: var(--hb-accent-soft);
@@ -190,7 +237,7 @@
   --hb-container: 1180px;
 }
 
-/* 组件色调开关，默认主控青。
+/* 组件色调开关，默认主控暖金。
    给任意元素加 `data-tone="lumen|aura|eco|heat|cool|alert|sensor"`，它和它的子树里的
    --hb-tone* 就切到该色系。卡片 / 图标 / 徽标 / 统计数字统一只读这几个变量，
    于是「给一张卡换个色」= 在模板上加一个属性，而不是把 border + background + color
@@ -241,7 +288,7 @@
   --hb-tone-soft: var(--hb-heat-soft);
   --hb-tone-line: rgba(var(--hb-heat-rgb), 0.32);
   --hb-tone-text: var(--hb-heat);
-  --hb-grad-tone: linear-gradient(180deg, #ffb59c, #e0663c);
+  --hb-grad-tone: var(--hb-grad-heat);
 }
 
 [data-tone='cool'] {
@@ -250,7 +297,7 @@
   --hb-tone-soft: var(--hb-cool-soft);
   --hb-tone-line: rgba(var(--hb-cool-rgb), 0.32);
   --hb-tone-text: var(--hb-cool);
-  --hb-grad-tone: linear-gradient(180deg, #b7e6ff, #2f8fd0);
+  --hb-grad-tone: var(--hb-grad-cool);
 }
 
 [data-tone='alert'] {
@@ -259,7 +306,7 @@
   --hb-tone-soft: var(--hb-alert-soft);
   --hb-tone-line: var(--hb-alert-line);
   --hb-tone-text: var(--hb-alert-bright);
-  --hb-grad-tone: linear-gradient(180deg, #ffc9cb, #d0555a);
+  --hb-grad-tone: var(--hb-grad-alert);
 }
 
 [data-tone='sensor'] {
@@ -268,7 +315,7 @@
   --hb-tone-soft: var(--hb-sensor-soft);
   --hb-tone-line: rgba(var(--hb-sensor-rgb), 0.28);
   --hb-tone-text: var(--hb-sensor);
-  --hb-grad-tone: linear-gradient(180deg, #cfdae6, #77879a);
+  --hb-grad-tone: var(--hb-grad-sensor);
 }
 
 /* 2. 重置与基础 */
@@ -289,8 +336,8 @@ body {
   color: var(--hb-ink);
   background-color: var(--hb-bg);
   /* 深空画布上的三团氛围光，与入口页场景插画同源：
-     右上主控青（山后的信号）、左下居家暖光（屋里的灯）、中部极光紫（夜里的天色）。
-     前台分页没有场景层，页面「有厚度、有温度」就靠这三团 —— 只留青会是仪表盘。 */
+     右上主控暖金（山后的信号）、左下居家暖光（屋里的灯）、中部极光紫（夜里的天色）。
+     前台分页没有场景层，页面「有厚度、有温度」就靠这三团 —— 只留暖金会是仪表盘。 */
   background-image:
     radial-gradient(circle at 88% -6%, rgba(var(--hb-accent-rgb), 0.1), transparent 34rem),
     radial-gradient(circle at 6% 96%, rgba(var(--hb-lumen-rgb), 0.075), transparent 30rem),
@@ -565,16 +612,20 @@ b {
   background: var(--hb-success);
 }
 
+/* 告警按钮的边框/底色一直取自 --hb-warning-*（= 居家暖光），只有文字和 hover
+   还挂在主控色上。默认琥珀看不出来，但管理员把主控色改成别的色相后，
+   这颗按钮会变成「暖光底的紫色字、hover 时整颗变紫」—— 告警语义被主题色吃掉。
+   四态全部收回暖光家族，与 .admin-toast__item.is-warning 一致。 */
 .hb-button--warning {
   border-color: var(--hb-warning-line);
-  color: var(--hb-accent-bright);
+  color: var(--hb-warning-text);
   background: var(--hb-warning-soft);
 }
 
 .hb-button--warning:hover {
-  border-color: var(--hb-accent);
+  border-color: var(--hb-warning);
   color: var(--hb-on-bright);
-  background: var(--hb-accent-grad);
+  background: var(--hb-grad-lumen);
 }
 
 .hb-button--sm {
@@ -899,7 +950,7 @@ b {
 
 .hb-tag--warning {
   border-color: var(--hb-warning-line);
-  color: var(--hb-accent-bright);
+  color: var(--hb-warning-text);
   background: var(--hb-warning-soft);
 }
 
@@ -939,7 +990,7 @@ b {
 
 .hb-meta-chip.hb-meta-chip--warning {
   border-color: var(--hb-warning-line);
-  color: var(--hb-accent-bright);
+  color: var(--hb-warning-text);
   background: var(--hb-warning-soft);
 }
 
@@ -1200,6 +1251,20 @@ b {
   transform: translate(-50%, 0);
 }
 
+/* 报错档：同一个节点，同一套几何，只换语义色。
+   以前成功与失败长得一模一样（都是 ink 字 + 中性玻璃），「登录成功，正在进入购买页」
+   和「密码错误」除了文案没有任何区别 —— 而这条提示只停留 3.2 秒，用户经常是
+   余光扫到一眼，颜色是唯一来得及读的信号。
+   底色用「半透明语义色叠在 raised 面板上」而不是单独的语义底色：提示是浮在正文上的
+   fixed 层，半透明底会把下面的文字透上来，小字立刻糊掉。
+   对比：--hb-danger-text (#f5a3a6) 叠在 --hb-surface-raised (#16263c) 上约 7.7:1。 */
+.hb-toast.is-err {
+  border-color: var(--hb-danger-line);
+  color: var(--hb-danger-text);
+  background-color: var(--hb-surface-raised);
+  background-image: linear-gradient(var(--hb-danger-soft), var(--hb-danger-soft));
+}
+
 /* 13. 商品卡（前台商品网格与账号中心共用） */
 .hb-addons-grid {
   display: grid;
@@ -1229,7 +1294,7 @@ b {
   transition: var(--hb-transition);
 }
 
-/* 选中/悬停时上缘亮起一道青色线（与统计卡、页头横幅同一套语言）。
+/* 选中/悬停时上缘亮起一道琥珀线（与统计卡、页头横幅同一套语言）。
    平时完全透明，所以静止状态下卡片仍是干净的深色块。 */
 .hb-addon-card::before {
   position: absolute;
@@ -1342,7 +1407,7 @@ html.hb-auth-hint .hb-guest-only {
   display: none !important;
 }
 
-/* 共享动效：前台页头横幅、认证页左栏与后台面板头都用同一块「控制台铭牌」质感——细网格 + 青色辉光。网格按 46px 一循环，所以位移正好一个循环长度就能无缝接回，做出几乎察觉不到的漂移。
+/* 共享动效：前台页头横幅、认证页左栏与后台面板头都用同一块「控制台铭牌」质感——细网格 + 琥珀辉光。网格按 46px 一循环，所以位移正好一个循环长度就能无缝接回，做出几乎察觉不到的漂移。
    放在设计系统里而不是各自的页面样式表里：前台 theme+store、后台 theme+admin 互不加载，keyframes 放任何一边都会让另一边引用到一个不存在的动画名，而那种失败是静默的（只是不动了）。 */
 @keyframes hb-head-drift {
   from {

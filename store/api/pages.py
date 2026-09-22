@@ -22,7 +22,7 @@ from store.core.deps import CurrentAccount, DbSession, order_or_404
 from store.core.models import Account, Order, Product, ProductImage
 from store.commerce.order_status import order_status_label
 from store.payments.base import PaymentError
-from store.api.page_shell import SCENE_PLACEHOLDER, inject_scene
+from store.api.page_shell import APPEARANCE_PLACEHOLDER, SCENE_PLACEHOLDER, inject_scene
 from store.security.request_security import render_template
 from store.security.security import token_matches, utcnow
 from store.core.serializers import order_payload
@@ -192,7 +192,7 @@ def _cashier_html(order: Order, *, request: Request) -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#050910">
+<meta name="theme-color" content="#050912">
 <title>模拟收银台 · {order_no}</title>
 <link rel="stylesheet" href="/store-static/scene/fonts.css?v={fonts_stamp}">
 <link rel="stylesheet" href="/store-static/scene/page.css?v={scene_stamp}">
@@ -201,8 +201,13 @@ def _cashier_html(order: Order, *, request: Request) -> str:
 <link rel="icon" href="/store-static/favicon-rounded.png?v={favicon_stamp}">
 <!-- 站点配色覆盖：后端把它换成指向 `/store-appearance.css` 的 <link>，版本号取
      配色文件的 mtime（见 store/ops/appearance.py）。
-     必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
-<!--{{APPEARANCE}}-->
+     必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。
+     下一行的插入点是把 page_shell 的常量插值进来、**不手打**：本模板是 f-string，
+     手写的双层花括号会被折叠成单层，占位符再也匹配不上，而 inject_scene
+     找不到插入点就抛 —— 页面直接 500。这个坑已经踩过一次了。
+     另外别在这段注释里写出插入点的名字：f-string 会连注释一起插值，
+     inject_scene 又是全量替换，注释里就会多出一条永不生效的 <link>。 -->
+{APPEARANCE_PLACEHOLDER}
 </head>
 <body>
 <div class="hos-page">

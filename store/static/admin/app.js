@@ -14,23 +14,23 @@
  *     由本文件在启动时装配 —— 这样面板模块不必 import 入口文件，也就不会出现循环依赖。
  */
 
-import { $, $$, toast } from "./dom.js?v=2609220141";
-import { localZoneLabel } from "./format.js?v=2609220141";
-import { api, storeApi } from "./api.js?v=2609220141";
-import { closeRowMenus } from "./menus.js?v=2609220141";
-import { bindFilters, resetFilters, resetPage } from "./table.js?v=2609220141";
-import { loadFeatureCatalog } from "./features.js?v=2609220141";
-import { loadOverview } from "./panels/overview.js?v=2609220141";
-import { loadProductCatalog, loadProducts } from "./panels/products.js?v=2609220141";
-import { loadOrders } from "./panels/orders.js?v=2609220141";
-import { loadBindings, loadLicenses } from "./panels/licenses.js?v=2609220141";
-import { loadCoupons } from "./panels/coupons.js?v=2609220141";
-import { loadAccounts, loadWithdrawals } from "./panels/accounts.js?v=2609220141";
-import { loadCustomers, loadLedger } from "./panels/ledger.js?v=2609220141";
-import { loadAudits, loadEntitlements, loadReleases } from "./panels/content.js?v=2609220141";
-import { loadDiagnostics, loadSettings } from "./panels/settings.js?v=2609220141";
-import { loadEmailVerifications, loadLicenseSessions, loadLoginAttempts, loadRecoveryTokens, loadRedemptions, loadReleaseEvents, loadSessions } from "./panels/sessions.js?v=2609220141";
-import { host } from "./host.js?v=2609220141";
+import { $, $$, toast } from "./dom.js?v=2609220943";
+import { localZoneLabel } from "./format.js?v=2609220943";
+import { api, storeApi } from "./api.js?v=2609220943";
+import { closeRowMenus } from "./menus.js?v=2609220943";
+import { bindFilters, resetFilters, resetPage } from "./table.js?v=2609220943";
+import { loadFeatureCatalog } from "./features.js?v=2609220943";
+import { loadOverview } from "./panels/overview.js?v=2609220943";
+import { loadProductCatalog, loadProducts } from "./panels/products.js?v=2609220943";
+import { loadOrders } from "./panels/orders.js?v=2609220943";
+import { loadBindings, loadLicenses } from "./panels/licenses.js?v=2609220943";
+import { loadCoupons } from "./panels/coupons.js?v=2609220943";
+import { loadAccounts, loadWithdrawals } from "./panels/accounts.js?v=2609220943";
+import { loadCustomers, loadLedger } from "./panels/ledger.js?v=2609220943";
+import { loadAudits, loadEntitlements } from "./panels/content.js?v=2609220943";
+import { loadDiagnostics, loadSettings } from "./panels/settings.js?v=2609220943";
+import { loadEmailVerifications, loadLicenseSessions, loadLoginAttempts, loadRecoveryTokens, loadRedemptions, loadReleaseEvents, loadSessions } from "./panels/sessions.js?v=2609220943";
+import { host } from "./host.js?v=2609220943";
 
 
 
@@ -391,7 +391,7 @@ function parseHash() {
 const loaders = {
   overview: loadOverview, products: loadProducts, orders: loadOrders, licenses: loadLicenses,
   bindings: loadBindings, coupons: loadCoupons, withdrawals: loadWithdrawals,
-  accounts: loadAccounts, settings: loadSettings, releases: loadReleases, audits: loadAudits,
+  accounts: loadAccounts, settings: loadSettings, audits: loadAudits,
   entitlements: loadEntitlements, ledger: loadLedger, customers: loadCustomers,
   diagnostics: loadDiagnostics,
 };
@@ -495,7 +495,7 @@ $('#admin-nav').addEventListener('click', (event) => {
 
 
 // 游标变化后要重新拉的那一支数据。key 与 data-pager / data-page 一一对应。
-// 除诊断页之外，还包含九张业务主表（商品/订单/授权/权益/绑定/优惠码/提现/账号/版本），
+// 除诊断页之外，还包含八张业务主表（商品/订单/授权/权益/绑定/优惠码/提现/账号），
 // 它们以前一律 limit<=500 且无 offset，第 501 条之后的记录在界面上永远看不到。
 const PAGED_LOADERS = {
   products: loadProducts,
@@ -506,7 +506,6 @@ const PAGED_LOADERS = {
   coupons: loadCoupons,
   withdrawals: loadWithdrawals,
   accounts: loadAccounts,
-  releases: loadReleases,
   sessions: loadSessions,
   'license-sessions': loadLicenseSessions,
   'recovery-tokens': loadRecoveryTokens,
@@ -545,9 +544,6 @@ function bindPanelFilters() {
     ['#account-keyword', 'accounts'],
     ['#account-role', 'accounts'],
     ['#account-status', 'accounts'],
-    ['#release-keyword', 'releases'],
-    ['#release-product', 'releases'],
-    ['#release-channel', 'releases'],
   ]);
 
   $('#product-reset').addEventListener('click', () => resetFilters(['#product-keyword', '#product-status'], 'products'));
@@ -558,8 +554,6 @@ function bindPanelFilters() {
   $('#coupon-refresh').addEventListener('click', () => { resetPage('coupons'); loadCoupons(); });
   $('#withdrawal-reset').addEventListener('click', () => resetFilters(['#withdrawal-status', '#withdrawal-keyword'], 'withdrawals'));
   $('#account-reset').addEventListener('click', () => resetFilters(['#account-keyword', '#account-role', '#account-status'], 'accounts'));
-  $('#release-reset').addEventListener('click', () => resetFilters(['#release-keyword', '#release-product', '#release-channel'], 'releases'));
-  $('#release-refresh').addEventListener('click', () => { resetPage('releases'); loadReleases(); });
 }
 
 // --------------------------- 启动 --------------------------- //

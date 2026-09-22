@@ -8,7 +8,7 @@
  * 约定：控件撑满宿主元素，实际预览尺寸由 JS 按 16:9 写到内联样式，这里只负责撑满与裁切；
  * 弹窗一律用原生 dialog + ::backdrop，遮罩与焦点陷阱交给浏览器；每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609220141";
+@import "/static/bridge/controls.css?v=2609220943";
 .hb-interaction3d-runtime {
   position: relative;
   width: 100%;
@@ -16,6 +16,11 @@
   overflow: hidden;
   background: transparent;
   color: #eee8dd;
+  /* 尺寸容器：3D 控件从小挂件到整屏背景尺寸跨度极大，加载 / 失败文案要按控件
+     实际尺寸缩放（见下面 .i3d-loading 的 cq 字号），否则整屏时 14px 根本看不清。
+     width / height 都是 100%（父层给定了像素尺寸），size containment 不会反过来
+     把自身压成零高，也不会改动子元素的百分比定位。 */
+  container-type: size;
 }
 .hb-interaction3d-runtime.is-background-hidden {
   background: transparent;
@@ -58,7 +63,13 @@
   place-items: center;
   background: transparent;
   color: #a8afb7;
-  font: 14px/1.8 sans-serif;
+  /* 字号跟着控件尺寸走：小挂件落到 16px 下限（与旧的 14px 观感接近），
+     墙面屏 / 整屏 3D 背景能放大到 40px。min() 同时看宽和高，
+     避免「很宽但很矮」的组件里字把画面撑爆。 */
+  font-family: sans-serif;
+  font-size: clamp(16px, min(2.4cqw, 6cqh), 40px);
+  line-height: 1.7;
+  letter-spacing: 0.02em;
   text-align: center;
   transition:
     opacity 0.28s ease,
@@ -74,9 +85,10 @@
 }
 .hb-interaction3d-runtime.is-loading .i3d-loading:after {
   content: "";
-  width: 20px;
-  height: 20px;
-  border: 2px solid #c5ac7926;
+  /* 用 em 跟着上面的字号一起放大：16px 时约 20px × 2px，与旧尺寸一致。 */
+  width: 1.28em;
+  height: 1.28em;
+  border: 0.13em solid #c5ac7926;
   border-top-color: #c5ac7980;
   border-radius: 50%;
   opacity: 0;
@@ -170,7 +182,7 @@
 .i3d-editor button:focus-visible,
 .i3d-editor input:focus-visible,
 .i3d-editor select:focus-visible {
-  outline: 2px solid var(--accent, var(--hos-accent, #5fd4ff));
+  outline: 2px solid var(--accent, var(--hos-accent, #ffc46a));
   outline-offset: 2px;
 }
 /* 左预览（16:9 舞台）右面板的两栏布局。 */
@@ -270,7 +282,7 @@
   height: 15px;
   padding: 0;
   margin: 0;
-  accent-color: var(--accent, var(--hos-accent, #5fd4ff));
+  accent-color: var(--accent, var(--hos-accent, #ffc46a));
 }
 .i3d-editor .i3d-toggle {
   display: flex;
@@ -283,7 +295,7 @@
   margin: 0;
   padding: 0;
   border: 0;
-  accent-color: var(--accent, var(--hos-accent, #5fd4ff));
+  accent-color: var(--accent, var(--hos-accent, #ffc46a));
 }
 /* 说明文案与错误行：错误行空着时不占高度，避免面板跳动。 */
 .i3d-editor .i3d-note {
@@ -435,16 +447,16 @@
 }
 .i3d-focus-actions button[aria-pressed="true"],
 .i3d-focus-actions[role="group"] button[aria-pressed="true"] {
-  border-color: rgba(var(--hos-accent-rgb, 95, 212, 255), 0.48);
+  border-color: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.48);
   color: var(--hos-ink, #f1f7fb);
-  background: rgba(var(--hos-accent-rgb, 95, 212, 255), 0.16);
-  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 95, 212, 255), 0.48);
+  background: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.16);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 255, 196, 106), 0.48);
 }
 /* 主按钮（保存 / 确定）：整个编辑器里只允许出现一个强调色。 */
 .i3d-editor button.primary {
-  border-color: #f4a719;
-  color: #1e1607;
-  background: linear-gradient(180deg, #ffb82e, #ef9900);
+  border-color: var(--hos-accent-deep);
+  color: var(--hos-on-bright);
+  background: var(--hos-grad-accent);
   font-weight: 700;
 }
 .i3d-focus-settings .i3d-focus-reset {
@@ -572,7 +584,7 @@
   width: 0;
   min-width: 64px;
   padding: 0;
-  accent-color: var(--accent, var(--hos-accent, #5fd4ff));
+  accent-color: var(--accent, var(--hos-accent, #ffc46a));
 }
 .i3d-floor-brightness input[type="number"] {
   width: 100%;
@@ -744,9 +756,9 @@
   cursor: pointer;
 }
 .i3d-range-dialog > header button.primary {
-  background: #dba45a;
-  color: #181c23;
-  border-color: #dba45a;
+  background: var(--hos-grad-accent);
+  color: var(--hos-on-bright);
+  border-color: var(--hos-accent-deep);
 }
 @media (max-width: 600px) {
   .i3d-range-dialog {
@@ -896,7 +908,7 @@
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: #d6b573;
+  accent-color: var(--hos-accent);
   flex: none;
 }
 /* ===== 扫地机地图编辑器 ===== */
@@ -980,7 +992,9 @@
   max-width: 100%;
 }
 .i3d-vacuum-map-editor .primary {
-  background: #3868c4;
+  background: var(--hos-grad-accent);
+  border-color: var(--hos-accent-deep);
+  color: var(--hos-on-bright);
 }
 .i3d-vacuum-map-editor .i3d-note {
   font-size: 12px;
@@ -1088,9 +1102,9 @@
   font-size: 12px;
 }
 .i3d-vacuum-map-editor .primary {
-  color: var(--accent, var(--hos-accent, #5fd4ff));
-  border-color: var(--accent, var(--hos-accent, #5fd4ff));
-  background: var(--accent-soft, rgba(var(--hos-accent-rgb, 95, 212, 255), 0.13));
+  color: var(--accent, var(--hos-accent, #ffc46a));
+  border-color: var(--accent, var(--hos-accent, #ffc46a));
+  background: var(--accent-soft, rgba(var(--hos-accent-rgb, 255, 196, 106), 0.13));
 }
 .i3d-vacuum-map-editor .inspector-number-control {
   flex: 0 0 110px;
@@ -1122,7 +1136,7 @@
   border-bottom: 1px solid #343e46;
 }
 .i3d-vacuum-map-editor .inspector-number-stepper:hover {
-  color: var(--accent, var(--hos-accent, #5fd4ff));
+  color: var(--accent, var(--hos-accent, #ffc46a));
   background: #28323a;
 }
 .i3d-vacuum-map-editor input[type="checkbox"] {
@@ -1131,10 +1145,10 @@
   min-height: 15px;
   margin: 0;
   padding: 0;
-  accent-color: var(--accent, var(--hos-accent, #5fd4ff));
+  accent-color: var(--accent, var(--hos-accent, #ffc46a));
 }
 .i3d-vacuum-map-editor :is(button, input, select):focus-visible {
-  outline: 2px solid var(--accent, var(--hos-accent, #5fd4ff));
+  outline: 2px solid var(--accent, var(--hos-accent, #ffc46a));
   outline-offset: 2px;
 }
 .i3d-vacuum-map-editor .custom-select-button {
@@ -1166,7 +1180,7 @@
 }
 .i3d-add-dialog input:focus-visible,
 .i3d-add-dialog select:focus-visible {
-  outline: 2px solid var(--accent, var(--hos-accent, #5fd4ff));
+  outline: 2px solid var(--accent, var(--hos-accent, #ffc46a));
   outline-offset: 2px;
 }
 .i3d-add-dialog .dialog-actions {

@@ -8,17 +8,17 @@
  * 未保存内容另存一份到 sessionStorage（前缀 homeos:unsaved:）供刷新后恢复。
  */
 
-import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609220141";
+import { showDisplayPairingQr } from "../display/display-pairing-qr.js?v=2609220943";
 // 所有接口调用的超时预算由 utils/api-fetch.js 统一持有（requestJson 是唯一出入口）。
-import { apiFetch } from "../utils/api-fetch.js?v=2609220141";
-import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609220141";
-import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609220141";
+import { apiFetch } from "../utils/api-fetch.js?v=2609220943";
+import { apiAuthChallenge, apiRequestError } from "../utils/api-request.js?v=2609220943";
+import { capturePointer, releasePointer } from "../utils/pointer-capture.js?v=2609220943";
 import {
   PanelRenderer,
   airflowCanvasOffsetBounds,
   setBuiltinAssetVersions,
   syncedLineChartProperties
-} from "../renderer/core/renderer.js?v=2609220141";
+} from "../renderer/core/renderer.js?v=2609220943";
 
 import {
   createComponentFromTemplate,
@@ -27,14 +27,14 @@ import {
   normalizeDashboardDocument,
   timeComponentDimensions,
   weatherComponentDimensions
-} from "../templates/component-templates.js?v=2609220141";
-import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609220141";
-import { clampNumber } from "../utils/numbers.js?v=2609220141";
+} from "../templates/component-templates.js?v=2609220943";
+import { clone, newId, roundField, normalizedFontWeight } from "./editor-utils.js?v=2609220943";
+import { clampNumber } from "../utils/numbers.js?v=2609220943";
 // 数字输入的步进实现（含 step 非法时的兜底步长）只有一份，策略参数见该模块头部。
 
-import { mdiIconUrl } from "../utils/icon-url.js?v=2609220141";
-import { formatZhDateTime } from "../utils/datetime.js?v=2609220141";
-import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609220141";
+import { mdiIconUrl } from "../utils/icon-url.js?v=2609220943";
+import { formatZhDateTime } from "../utils/datetime.js?v=2609220943";
+import { entityDomainFromId, entityDomainOf } from "../utils/entities.js?v=2609220943";
 // 状态条目归一与小写状态文本（变更对象 / 状态对象两种形态）走 `utils/state-entry.js`：
 // 本文件原先在这里内联了 `statisticsStateEntry?.newState || statisticsStateEntry`（P12 收口）。
 
@@ -42,24 +42,24 @@ import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../utils/colors.js?v=2609220141";
-import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609220141";
+} from "../utils/colors.js?v=2609220943";
+import { positionFloatingMenu } from "../shared/menu-positioning.js?v=2609220943";
 import {
   packPopupModules,
   popupLayoutColumns,
   popupLayoutMetrics
-} from "../shared/popup-layout.js?v=2609220141";
+} from "../shared/popup-layout.js?v=2609220943";
 import {
   countComponentsOutsideCanvas,
   resizeDashboardDocument
-} from "./dashboard-resize.js?v=2609220141";
+} from "./dashboard-resize.js?v=2609220943";
 // 导图底图分辨率必须与控件宽高比一致，否则底图在预览里会被拉伸、位置对不上（见模块注释）。
-import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609220141";
+import { floorplanAutoDiagramExportResolution } from "./floorplan-auto-diagram-layout.js?v=2609220943";
 import {
   copyComponentsAcrossDocuments,
   copyComponentTargets,
   copyComponentsToTarget
-} from "./component-page-copy.js?v=2609220141";
+} from "./component-page-copy.js?v=2609220943";
 import {
   RELATED_ENTITY_DOMAIN_LABELS,
   legacyRelatedEntityIds,
@@ -71,29 +71,29 @@ import {
   relatedPopupContext,
   relatedPopupSelectionLimit,
   selectedRelatedEntityIds
-} from "../shared/related-entities.js?v=2609220141";
+} from "../shared/related-entities.js?v=2609220943";
 
-import { createButtonSound } from "../shared/sound-effects.js?v=2609220141";
+import { createButtonSound } from "../shared/sound-effects.js?v=2609220943";
 import {
   deferHiddenEditorDialogs,
   installSettingsDialogBackdropGuard
-} from "./editor-dialogs.js?v=2609220141";
-import { confirmAction } from "../shared/ui-confirm.js?v=2609220141";
+} from "./editor-dialogs.js?v=2609220943";
+import { confirmAction } from "../shared/ui-confirm.js?v=2609220943";
 // 授权状态文案与授权页、连接状态页共用同一份：状态码与文案的对应关系分散在
 // 三处必然漂移，用户在编辑器、授权页、恢复页看到对同一状态的不同解释就不知道该信哪个。
 // 该模块只在页面里存在 #license-recovery 时自举定时器（编辑器里没有这个节点，不会挂上轮询）。
-import { licenseMessage } from "../auth/license-recovery.js?v=2609220141";
-import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609220141";
+import { licenseMessage } from "../auth/license-recovery.js?v=2609220943";
+import { createEditorPickerElements } from "./picker/editor-picker-elements.js?v=2609220943";
 import {
   EDITOR_PICKER_PAGE_SIZES,
   editorEntityPickerInitialPage,
   editorEntityPickerPage
-} from "./picker/editor-picker-pagination.js?v=2609220141";
-import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609220141";
-import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609220141";
+} from "./picker/editor-picker-pagination.js?v=2609220943";
+import { createEditorPickerQueries } from "./picker/editor-picker-queries.js?v=2609220943";
+import { createEditorAssetMatcher } from "./picker/editor-asset-queries.js?v=2609220943";
 
-import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609220141";
-import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609220141";
+import { createInteraction3dEditorPickers } from "../bridge/editor-pickers.js?v=2609220943";
+import { createEditorAssetToolbar } from "./picker/editor-asset-toolbar.js?v=2609220943";
 import {
   ACTION_TYPES,
   TOGGLE_ENTITY_DOMAINS,
@@ -101,13 +101,13 @@ import {
   actionPopupData,
   componentActionIsSupported,
   entityIdSupportsToggle
-} from "../shared/action-rules.js?v=2609220141";
+} from "../shared/action-rules.js?v=2609220943";
 import {
   componentDirectLocation,
   findComponent,
   findComponentInItems,
   findComponentLocation
-} from "./component-tree.js?v=2609220141";
+} from "./component-tree.js?v=2609220943";
 import {
   applyCollectionLayerOrder,
   componentLabel,
@@ -117,7 +117,7 @@ import {
   nextTemplateInstanceName,
   refreshComponentIds,
   syncSharedComponentReferenceOrder
-} from "./editor-component-collections.js?v=2609220141";
+} from "./editor-component-collections.js?v=2609220943";
 import {
   applyInspectorFields,
   applyInspectorToggles,
@@ -125,7 +125,7 @@ import {
   iconButtonEffectInspectorLayer,
   inspectorComponentMetrics,
   setInspectorToggle
-} from "./editor-basic-inspectors.js?v=2609220141";
+} from "./editor-basic-inspectors.js?v=2609220943";
 import {
   clonePageWithFreshIds,
   findCustomPopup,
@@ -138,7 +138,7 @@ import {
   reorderedPopupModules,
   restoredEditorProject,
   uniquePagePath
-} from "./editor-document-management.js?v=2609220141";
+} from "./editor-document-management.js?v=2609220943";
 import {
   createRecoveryWriter,
   documentSignature,
@@ -146,25 +146,25 @@ import {
   editorComponentStructure,
   editorDocumentFrameSignature,
   recoveryStorageKey
-} from "./editor-history.js?v=2609220141";
+} from "./editor-history.js?v=2609220943";
 import {
   DEFAULT_BASE_LIGHTING,
   normalizeBaseLighting
-} from "../3d-studio/loaders/studio-normalization.js?v=2609220141";
-import { createLicenseCard } from "./license-card.js?v=2609220141";
+} from "../3d-studio/loaders/studio-normalization.js?v=2609220943";
+import { createLicenseCard } from "./license-card.js?v=2609220943";
 import {
   guardInteraction3dChanges,
   renderInteraction3dThumbnail,
   updateInteraction3dCard,
   renderInteraction3dInspector
-} from "../bridge/editor.js?v=2609220141";
-import { createPropertyDescriptors } from "./home/property-descriptors.js?v=2609220141";
-import { createStyleApplyDialogs } from "./home/style-apply.js?v=2609220141";
-import { createEntityOptions } from "./home/entity-options.js?v=2609220141";
-import { createPickers } from "./home/pickers.js?v=2609220141";
-import { createFormWidgets } from "./home/form-widgets.js?v=2609220141";
-import { createColorPicker } from "./home/color-picker.js?v=2609220141";
-import { createSectionRegistry } from "./home/sections.js?v=2609220141";
+} from "../bridge/editor.js?v=2609220943";
+import { createPropertyDescriptors } from "./home/property-descriptors.js?v=2609220943";
+import { createStyleApplyDialogs } from "./home/style-apply.js?v=2609220943";
+import { createEntityOptions } from "./home/entity-options.js?v=2609220943";
+import { createPickers } from "./home/pickers.js?v=2609220943";
+import { createFormWidgets } from "./home/form-widgets.js?v=2609220943";
+import { createColorPicker } from "./home/color-picker.js?v=2609220943";
+import { createSectionRegistry } from "./home/sections.js?v=2609220943";
 
 // 分节绑定的注册器：每个 bindXxxSection() 都从它拿 on(...)，同名重复绑定会先撤销上一次
 // （编辑器被重新初始化时不会再叠加监听）。见 home/sections.js。
@@ -4595,7 +4595,7 @@ function renderComponentTemplates() {
         templateThumbnailElement.src =
           "/static/component-thumbnails/" +
           encodeURIComponent(templateThumbnailId) +
-          ".jpg?v=2609220141";
+          ".jpg?v=2609220943";
         templateThumbnailElement.alt = "";
         templatePreviewElement.append(templateThumbnailElement);
       }
@@ -6287,6 +6287,31 @@ function syncWeatherInspector(weatherComponent) {
   weatherScaleInputElement.disabled = false;
   weatherRotationInputElement.disabled = false;
 }
+/* 折线图出厂四档阈值。这两处（检查器回填 + 阈值解析）原本各抄了一份写死的
+   #ddffc2 / #68cc3e / #ff8e52 / #ff1a1a，与 weather-chart-runtime 的色带是第三次抄写 ——
+   换配色时三份都得改，而实际上一份都没跟着改。
+   四档令牌与 weather-chart-runtime 的 CHART_THRESHOLD_FALLBACK_COLORS 逐档对应（低 → 高）。 */
+const LINE_CHART_DEFAULT_THRESHOLD_VALUES = [0, 13, 27, 40];
+const LINE_CHART_DEFAULT_THRESHOLD_TOKENS = [
+  "--hos-eco-bright",
+  "--hos-eco",
+  "--hos-heat",
+  "--hos-alert"
+];
+const LINE_CHART_DEFAULT_THRESHOLD_FALLBACKS = ["#88dcbf", "#5fd0a8", "#ff8a65", "#f07a7e"];
+/**
+ * 生成折线图出厂阈值。颜色必须在这一步就解析成 `#rrggbb`：
+ * 下游把它们填进颜色输入框与色块，`var(--hos-eco)` 那种写法在 `<input type="color">` 里会被判非法。
+ */
+function defaultLineChartThresholds() {
+  return LINE_CHART_DEFAULT_THRESHOLD_VALUES.map((thresholdValue, thresholdIndex) => ({
+    value: thresholdValue,
+    color: paletteColor(
+      LINE_CHART_DEFAULT_THRESHOLD_TOKENS[thresholdIndex],
+      LINE_CHART_DEFAULT_THRESHOLD_FALLBACKS[thresholdIndex]
+    )
+  }));
+}
 /**
  * 把折线图组件的当前值回填到检查器。位置按中心点百分比展示（position 存左上角像素，故 x/y 各加半个自身尺寸）；
  * 宽高下限 0.1 防回填 0、缩放夹到 1~500（即 0.01~5 倍）、旋转夹到 ±360。多选时禁用宽高输入但缩放与旋转仍可批量设置；
@@ -6335,24 +6360,7 @@ function syncLineChartInspector(lineChartComponent) {
   lineChartCurveRadiusInputElement.value = roundField(
     clampNumber(Number(chartProperties.cornerRadius ?? 10), 0, 50)
   );
-  const defaultThresholds = [
-    {
-      value: 0,
-      color: "#ddffc2"
-    },
-    {
-      value: 13,
-      color: "#68cc3e"
-    },
-    {
-      value: 27,
-      color: "#ff8e52"
-    },
-    {
-      value: 40,
-      color: "#ff1a1a"
-    }
-  ];
+  const defaultThresholds = defaultLineChartThresholds();
   const hasCustomThresholds =
     Array.isArray(chartProperties.thresholds) &&
     chartProperties.thresholds.some(threshold => Number.isFinite(Number(threshold?.value)));
@@ -7397,7 +7405,8 @@ function syncAirConditionerInspector(airConditionerComponent) {
   airConditionerPreviewDetailsButtonElement.disabled =
     !airConditionerComponent.bindings?.entity?.entityId;
   airConditionerIconOffColorInputElement.value = airConditionerProperties.iconOffColor || "#9aa5ad";
-  airConditionerIconOnColorInputElement.value = airConditionerProperties.iconOnColor || "#73c8ff";
+  airConditionerIconOnColorInputElement.value =
+    airConditionerProperties.iconOnColor || paletteColor("--hos-cool", "#58c4ff");
   airConditionerBadgeColorInputElement.value = airConditionerProperties.badgeColor || "#5b5e66";
   airConditionerBadgeOpacityInputElement.value = roundField(
     Number(airConditionerProperties.badgeOpacity ?? 0.58) * 100
@@ -7476,9 +7485,9 @@ function syncAirConditionerInspector(airConditionerComponent) {
     airflowMotionButtonElement.setAttribute("aria-pressed", String(isAirflowMotionActive));
   }
   airConditionerAirflowCoolColorInputElement.value =
-    airConditionerProperties.airflowCoolColor || "#73c8ff";
+    airConditionerProperties.airflowCoolColor || paletteColor("--hos-cool", "#58c4ff");
   airConditionerAirflowHeatColorInputElement.value =
-    airConditionerProperties.airflowHeatColor || "#ff8a65";
+    airConditionerProperties.airflowHeatColor || paletteColor("--hos-heat", "#ff8a65");
   airConditionerAirflowOtherColorInputElement.value =
     airConditionerProperties.airflowOtherColor || "#dce2e6";
   airConditionerAirflowAngleInputElement.value = roundField(
@@ -8737,24 +8746,7 @@ function createPopupClimateSettings(popupKey, climateModule) {
  * 自适应分段一致，因此这里直接以它为骨架，只覆盖文档里已显式配置的档位。
  */
 function resolveLineChartThresholds(thresholdSourceModule) {
-  const defaultChartThresholds = [
-    {
-      value: 0,
-      color: "#ddffc2"
-    },
-    {
-      value: 13,
-      color: "#68cc3e"
-    },
-    {
-      value: 27,
-      color: "#ff8e52"
-    },
-    {
-      value: 40,
-      color: "#ff1a1a"
-    }
-  ];
+  const defaultChartThresholds = defaultLineChartThresholds();
   const configuredThresholds = Array.isArray(thresholdSourceModule.properties?.thresholds)
     ? thresholdSourceModule.properties.thresholds
     : [];

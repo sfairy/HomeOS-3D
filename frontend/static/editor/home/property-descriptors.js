@@ -7,13 +7,13 @@
  * ctx —— ctx 的每一项都是 home.js 里的 getter/setter，读到的始终是调用时刻的值。
  */
 
-import { clone, roundField } from "../editor-utils.js?v=2609220141";
-import { findComponent } from "../component-tree.js?v=2609220141";
+import { clone, roundField } from "../editor-utils.js?v=2609220943";
+import { findComponent } from "../component-tree.js?v=2609220943";
 import {
   hexColorOrEmpty,
   paletteColor,
   strictHexColorOrEmpty
-} from "../../utils/colors.js?v=2609220141";
+} from "../../utils/colors.js?v=2609220943";
 
 export function createPropertyDescriptors(ctx) {
 
@@ -1398,7 +1398,7 @@ export function createPropertyDescriptors(ctx) {
     mainTextVisible: true,
     secondaryTextVisible: true,
     iconOffColor: "#9aa5ad",
-    iconOnColor: "#73c8ff",
+    iconOnColor: paletteColor("--hos-cool", "#58c4ff"),
     badgeColor: "#5b5e66",
     badgeOpacity: 0.58,
     symbolSize: 14,
@@ -1419,8 +1419,8 @@ export function createPropertyDescriptors(ctx) {
     secondaryTextTop: 67,
     airflowVisible: true,
     airflowMotion: "dynamic",
-    airflowCoolColor: "#73c8ff",
-    airflowHeatColor: "#ff8a65",
+    airflowCoolColor: paletteColor("--hos-cool", "#58c4ff"),
+    airflowHeatColor: paletteColor("--hos-heat", "#ff8a65"),
     airflowOtherColor: "#dce2e6",
     airflowAngle: 7,
     airflowCurve: 20,

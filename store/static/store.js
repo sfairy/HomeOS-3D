@@ -26,8 +26,17 @@
   // 这个名字保留是因为下面已有 20+ 处调用点。
   const escapeHtml = HtmlSafe.esc;
 
-  function toast(message) {
+  // `tone` 只区分「报错」与「其它」，因为这两类需要的不是同一条通道：
+  //   报错 → role=alert / aria-live=assertive，直接打断读当前内容，并及时上红边
+  //   其它 → role=status / aria-live=polite，等用户读完当前这句再播报
+  // 属性一律在写 textContent **之前**设置：读屏器是在 DOM 变更那一刻取用当前的角色与
+  // politeness，先写文字再改 role，这一次播报仍然按旧角色发出去。
+  function toast(message, tone = 'info') {
     const node = $('#store-toast');
+    const isError = tone === 'err';
+    node.setAttribute('role', isError ? 'alert' : 'status');
+    node.setAttribute('aria-live', isError ? 'assertive' : 'polite');
+    node.classList.toggle('is-err', isError);
     node.textContent = message;
     node.classList.add('show');
     clearTimeout(node.timer);
@@ -788,7 +797,7 @@
           return;
         }
       }
-      toast(error.message);
+      toast(error.message, 'err');
     }
     finally { submit.disabled = false; }
   }
@@ -1253,7 +1262,7 @@
       if (releaseRemainingSeconds() > 0) form.querySelector('[data-release-close]').focus();
       else form.elements.password.focus();
     } catch (error) {
-      toast(error.message);
+      toast(error.message, 'err');
     } finally {
       state.releaseOpening = false;
       release.disabled = false;
@@ -1277,7 +1286,7 @@
       toast('授权备注已保存。');
       await loadAccount();
     } catch (error) {
-      toast(error.message);
+      toast(error.message, 'err');
     } finally {
       submit.disabled = false;
     }
@@ -1303,7 +1312,7 @@
       if (!ok) return;
       archive.disabled = true;
       try { await archiveOrder(archive.dataset.orderArchive); }
-      catch (error) { toast(error.message); archive.disabled = false; }
+      catch (error) { toast(error.message, 'err'); archive.disabled = false; }
     }
   }
 
@@ -1331,7 +1340,7 @@
       errorNode.hidden = false;
       if (error.status === 409) {
         $('#release-device-dialog').close();
-        toast(error.message);
+        toast(error.message, 'err');
         await loadAccount().catch(() => null);
       } else if (error.status === 429) {
         await loadAccount().catch(() => null);
@@ -1402,18 +1411,18 @@
       clearTimeout(state.couponPreviewTimer);
       if ($('#purchase-form').elements.couponCode.value.trim()) previewCoupon();
     });
-    $('#store-login-form')?.addEventListener('submit', event => login(event).catch(error => toast(error.message)));
-    $('#send-register-code')?.addEventListener('click', () => sendRegisterCode().catch(error => toast(error.message)));
-    $('#store-register-form')?.addEventListener('submit', event => register(event).catch(error => toast(error.message)));
-    $('#send-reset-code')?.addEventListener('click', () => sendResetCode().catch(error => toast(error.message)));
-    $('#store-forget-form')?.addEventListener('submit', event => resetPassword(event).catch(error => toast(error.message)));
+    $('#store-login-form')?.addEventListener('submit', event => login(event).catch(error => toast(error.message, 'err')));
+    $('#send-register-code')?.addEventListener('click', () => sendRegisterCode().catch(error => toast(error.message, 'err')));
+    $('#store-register-form')?.addEventListener('submit', event => register(event).catch(error => toast(error.message, 'err')));
+    $('#send-reset-code')?.addEventListener('click', () => sendResetCode().catch(error => toast(error.message, 'err')));
+    $('#store-forget-form')?.addEventListener('submit', event => resetPassword(event).catch(error => toast(error.message, 'err')));
     $('#account-licenses')?.addEventListener('click', accountAction);
     $('#account-orders')?.addEventListener('click', event => {
       // 「加载更多」按钮与订单操作共用同一个委派监听：都在 #account-orders 里。
       if (event.target.closest('[data-orders-more]')) {
-        return loadMoreAccountOrders().catch(error => toast(error.message));
+        return loadMoreAccountOrders().catch(error => toast(error.message, 'err'));
       }
-      return accountOrderAction(event).catch(error => toast(error.message));
+      return accountOrderAction(event).catch(error => toast(error.message, 'err'));
     });
     $('#release-device-form')?.addEventListener('submit', releaseDevice);
     $('#license-label-form')?.addEventListener('submit', saveLicenseLabel);
@@ -1427,7 +1436,7 @@
     $$('[data-label-close]').forEach(button => button.addEventListener('click', () => {
       $('#license-label-dialog').close(); state.labelLicenseId = null;
     }));
-    $('#store-logout')?.addEventListener('click', () => logout().catch(error => toast(error.message)));
+    $('#store-logout')?.addEventListener('click', () => logout().catch(error => toast(error.message, 'err')));
     bindPasswordControls($('#store-login-form'));
     bindPasswordControls($('#store-register-form'));
     bindPasswordControls($('#store-forget-form'));
@@ -1479,7 +1488,7 @@
     } catch (error) {
       document.body.classList.remove('hb-store-loading');
       if (!document.body.classList.contains('hb-maintenance-active')) showPage();
-      toast(error.message);
+      toast(error.message, 'err');
     }
   }
 

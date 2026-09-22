@@ -16,7 +16,7 @@
  *     各自只 COPY 自己的目录），且失败语义是**抛错** —— 配色派生遇到非法色必须立刻暴露。
  *   - `utils/numbers.js` 里的数值夹取：本模块只做颜色，不重新实现。
  */
-import { clampNumber, coercedFiniteNumberOr } from "./numbers.js?v=2609220141";
+import { clampNumber, coercedFiniteNumberOr } from "./numbers.js?v=2609220943";
 
 /**
  * 读取全站调色板（design/scene/page.css）里某个自定义属性的**实际色值**。

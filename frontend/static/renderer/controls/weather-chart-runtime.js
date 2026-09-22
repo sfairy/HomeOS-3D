@@ -60,11 +60,22 @@ export function weatherVisual(condition, sunState = "") {
  * 实现见 `utils/icon-url.js`（与 `mdiIconUrl` 同属「图标名 → vendor 地址」这份知识，
  * 共用同一条白名单）；这里保留同名转出，页面脚本仍只 import registry 一处。
  */
-export { meteoconUrl } from "../../utils/icon-url.js?v=2609220141";
+export { meteoconUrl } from "../../utils/icon-url.js?v=2609220943";
 // 颜色校验（不合法用兜底色）与控件渲染共用同一份白名单实现，见 utils/colors.js。
-import { resolveColor } from "../../utils/colors.js?v=2609220141";
+import { resolveColor } from "../../utils/colors.js?v=2609220943";
 // 自动阈值的四档渐变色：由浅绿到红，对应「低 → 高」。顺序即取值由小到大，不能重排。
-const THRESHOLD_GRADIENT_COLORS = ["#ddffc2", "#68cc3e", "#ff8e52", "#ff1a1a"];
+//
+// 这是一条**连续色带**，不是四个独立的语义色：它要能按顺序读出「安全 → 正常 → 偏高 → 危险」，
+// 所以四档之间靠亮度和色相同时拉开。调色板里没有一条现成的四档色带，因此色带本身由渲染层
+// 用四枚已有令牌拼出来（registry-visuals.js 的 chartThresholdPalette），这里只留兜底 ——
+// 本模块是纯计算模块，按约定不碰 DOM，不能自己去 getComputedStyle 读令牌。
+//
+// 原先这四档是直接写死在这儿的（#ddffc2 / #68cc3e / #ff8e52 / #ff1a1a），于是「改配色只改
+// page.css」这条不变量在图表上失效：管理员把主控色改成极光紫后，折线图里那条最扎眼的
+// 纯红 #ff1a1a 一点没动 —— 而它是整个界面上唯一还剩的饱和红。
+export const CHART_THRESHOLD_FALLBACK_COLORS = ["#88dcbf", "#5fd0a8", "#ff8a65", "#f07a7e"];
+// 单色兜底（「取不到任何阈值」时的那一格）。与 --hos-eco 同值。
+export const CHART_THRESHOLD_FALLBACK_COLOR = "#5fd0a8";
 /**
  * 在升序数组上按比例取插值样本，相当于一次轻量的分位数查询。
  */
@@ -89,12 +100,12 @@ function sampleArrayAtRatio(values, ratio) {
  * 排序是必须的：thresholdColor 依赖「升序 + 取最后一个不超过当前值的档位」，
  * 顺序错了颜色就会错档。
  */
-function normalizedThresholds(thresholds) {
+function normalizedThresholds(thresholds, defaultColor = CHART_THRESHOLD_FALLBACK_COLOR) {
   return (Array.isArray(thresholds) ? thresholds : [])
     .filter(entry => Number.isFinite(Number(entry?.value)))
     .map(threshold => ({
       value: Number(threshold.value),
-      color: resolveColor(threshold.color, "#68cc3e")
+      color: resolveColor(threshold.color, defaultColor)
     }))
     .sort((leftEntry, rightEntry) => leftEntry.value - rightEntry.value);
 }
@@ -103,7 +114,7 @@ function normalizedThresholds(thresholds) {
  * 用分位数而非极值：点数 ≥5 时取 5% 与 95% 分位，离群点不会把色带拉平；点数太少退化为取最小 / 最大。
  * 序列几乎恒定（跨度小于浮点误差量级）时用 ±padding 撑开四档，否则四档重叠成同一个值、图上只剩一种颜色。
  */
-function automaticThresholds(series) {
+function automaticThresholds(series, gradient = CHART_THRESHOLD_FALLBACK_COLORS) {
   // 拍平成升序数值数组；非数值项（null / 纯字符串 / 缺 value 的项）在这一步就被滤掉。
   const sortedValues = (Array.isArray(series) ? series : [])
     .map(seriesValue => Number(seriesValue?.value ?? seriesValue))
@@ -128,25 +139,25 @@ function automaticThresholds(series) {
     return [
       {
         value: minimumValue - padding,
-        color: THRESHOLD_GRADIENT_COLORS[0]
+        color: gradient[0]
       },
       {
         value: minimumValue,
-        color: THRESHOLD_GRADIENT_COLORS[1]
+        color: gradient[1]
       },
       {
         value: minimumValue + padding,
-        color: THRESHOLD_GRADIENT_COLORS[2]
+        color: gradient[2]
       },
       {
         value: minimumValue + padding * 2,
-        color: THRESHOLD_GRADIENT_COLORS[3]
+        color: gradient[3]
       }
     ];
   }
   // 正常情况：把区间三等分，四个端点各取一种颜色。
-  const step = valueSpan / (THRESHOLD_GRADIENT_COLORS.length - 1);
-  return THRESHOLD_GRADIENT_COLORS.map((colorScaleColor, colorIndex) => ({
+  const step = valueSpan / (gradient.length - 1);
+  return gradient.map((colorScaleColor, colorIndex) => ({
     value: minimumValue + step * colorIndex,
     color: colorScaleColor
   }));
@@ -154,24 +165,26 @@ function automaticThresholds(series) {
 /**
  * 决定最终使用的阈值集合。
  */
-export function resolvedThresholds(manualThresholds, seriesValues, thresholdMode = "") {
-  const normalizedManualThresholds = normalizedThresholds(manualThresholds);
+export function resolvedThresholds(manualThresholds, seriesValues, thresholdMode = "", colors = {}) {
+  const { gradient = CHART_THRESHOLD_FALLBACK_COLORS, defaultColor = CHART_THRESHOLD_FALLBACK_COLOR } =
+    colors;
+  const normalizedManualThresholds = normalizedThresholds(manualThresholds, defaultColor);
   if (thresholdMode === "auto") {
-    return automaticThresholds(seriesValues);
+    return automaticThresholds(seriesValues, gradient);
   } else if (thresholdMode === "manual" || normalizedManualThresholds.length) {
     return normalizedManualThresholds;
   } else {
-    return automaticThresholds(seriesValues);
+    return automaticThresholds(seriesValues, gradient);
   }
 }
 /**
  * 取某个数值对应的颜色。
  */
-export function thresholdColor(sortedThresholds, value) {
+export function thresholdColor(sortedThresholds, value, defaultColor = CHART_THRESHOLD_FALLBACK_COLOR) {
   return (
     sortedThresholds.filter(candidate => value >= candidate.value).at(-1)?.color ||
     sortedThresholds[0]?.color ||
-    "#68cc3e"
+    defaultColor
   );
 }
 /**

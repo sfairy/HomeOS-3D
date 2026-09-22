@@ -7,12 +7,12 @@
  * 请求都走 utils/api-fetch.js（20 秒超时）：「在飞闩 + 超时」缺一不可 —— 无超时则弱网下轮询永久冻住，
  * 无闩则每 5 秒叠一个同源请求把网络压得更差。
  */
-import { apiFetch } from "../utils/api-fetch.js?v=2609220141";
-import { apiErrorMessage } from "../utils/api-error.js?v=2609220141";
-import { apiAuthChallenge } from "../utils/api-request.js?v=2609220141";
+import { apiFetch } from "../utils/api-fetch.js?v=2609220943";
+import { apiErrorMessage } from "../utils/api-error.js?v=2609220943";
+import { apiAuthChallenge } from "../utils/api-request.js?v=2609220943";
 // 状态文案表由 license-recovery.js 统一持有：授权页与恢复页必须说同一句话，
 // 各存一份必然漂移 —— 用户在两处看到对同一状态的不同解释，就不知道该信哪个。
-import { licenseMessage } from "./license-recovery.js?v=2609220141";
+import { licenseMessage } from "./license-recovery.js?v=2609220943";
 
 const form = document.querySelector("#license-form"),
   message = document.querySelector("#message"),
@@ -33,8 +33,11 @@ let activationPending = !1,
 /**
  * 状态色调：把「现在处于什么状态」先交给颜色说一遍。
  * 只切表现层类名，不参与任何门禁判断 —— 颜色读错最多是误解，逻辑读错才是事故。
+ * 不含 eco：这一页没有「成功且停留」的时刻 —— 一旦 displayAllowed 就立刻跳转编辑器，
+ * 绿色在那之前看不到一帧。恢复页（/license-recovery）不同，它会把「通了」停半拍，
+ * 所以只有那边留 eco。
  */
-const TONE_CLASSES = ["hos-tone--eco", "hos-tone--lumen", "hos-tone--alert"];
+const TONE_CLASSES = ["hos-tone--lumen", "hos-tone--alert"];
 
 function paintTone(tone) {
   for (const element of [statusText, recoveryHint]) {

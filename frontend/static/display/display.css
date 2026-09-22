@@ -3,14 +3,20 @@
  *
  * 位置：展示页最外层布局，负责铺满屏幕、禁止滚动与统一底色。
  * 约定：--display-surface-background 由 display-surface.js 按画布背景色写入，
- *   未设置时回退到 #070b0e，保证任何设备上都不会露出白底。
+ *   未设置时回退到 --hos-sky-deep，保证任何设备上都不会露出白底。
+ *
+ * 兜底层级是「JS 写入值 → 调色板 → 字面量」而不是直接写死一个深色：这四处原本写的是
+ * #070b0e，而 display-surface.js 的兜底写法是 #050912 —— 同一件事两个值，
+ * 且谁也不引用谁。JS 那侧改成 #050912 之后这里没跟着动，两边就正式分叉了：
+ * 脚本一旦没跑（JS 被挡、极早的渲染时机），页面底色会比正常情况泛一层灰蓝。
+ * 现在两边都指向 --hos-sky-deep，改色板时不可能再漏一处。
  */
 
 /* ===== 页面底色 ===== */
 
 :root {
   color-scheme: dark;
-  background: var(--display-surface-background, #070b0e);
+  background: var(--display-surface-background, var(--hos-sky-deep, #050912));
 }
 * {
   box-sizing: border-box;
@@ -29,7 +35,7 @@ body {
   overflow: hidden;
   border: 0;
   outline: 0;
-  background: var(--display-surface-background, #070b0e);
+  background: var(--display-surface-background, var(--hos-sky-deep, #050912));
 }
 body {
   position: relative;
@@ -50,7 +56,7 @@ body {
   overflow: hidden;
   border: 0;
   outline: 0;
-  background: var(--display-surface-background, #070b0e);
+  background: var(--display-surface-background, var(--hos-sky-deep, #050912));
 }
 /* 渲染根节点铺满整块屏幕，内容居中（place-items: center）。 */
 #display-root {
@@ -64,7 +70,7 @@ body {
   overflow: hidden;
   border: 0;
   outline: 0;
-  background: var(--display-surface-background, #070b0e);
+  background: var(--display-surface-background, var(--hos-sky-deep, #050912));
   place-items: center;
   /* manipulation 去掉双击缩放延迟，按钮响应更快。 */
   touch-action: manipulation;
@@ -78,7 +84,7 @@ body {
 /* ===== 错误提示 ===== */
 
 .display-error {
-  color: #d78d89;
+  color: var(--hos-alert, #f07a7e);
   font:
     13px system-ui,
     sans-serif;
@@ -102,8 +108,8 @@ body {
   inset: 0;
   display: grid;
   border-radius: inherit;
-  color: #ebeff1c7;
-  background: #070b0e2e;
+  color: rgba(var(--hos-ink-rgb, 241, 247, 251), 0.78);
+  background: rgba(var(--hos-sky-deep-rgb, 5, 9, 18), 0.18);
   font:
     600 12px system-ui,
     sans-serif;

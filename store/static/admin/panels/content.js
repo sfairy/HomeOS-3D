@@ -1,137 +1,19 @@
 /**
- * 发布、审计与权益。
+ * 审计与权益。
  *
- * 版本发布记录、后台审计日志与账号权益（含补发与搜索）。
+ * 后台审计日志与账号权益（含补发与搜索）。
  *
- * 三块内容管理的列表与编辑器：版本发布记录、后台审计日志、账号权益。
+ * 两块内容管理的列表与编辑器：后台审计日志、账号权益。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609220141";
-import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609220141";
-import { state } from "../state.js?v=2609220141";
-import { askConfirm } from "../dialogs.js?v=2609220141";
-import { api, withBusy } from "../api.js?v=2609220141";
-import { d, dt, localInput, pill, utcInput } from "../format.js?v=2609220141";
-import { closeFeaturePickers, featureCell, renderFeatureOptions, requireFeatureCode, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609220141";
-import { host } from "../host.js?v=2609220141";
-
-// --------------------------------------------------------------------------- //
-// 版本发布
-// --------------------------------------------------------------------------- //
-export async function loadReleases() {
-  const params = new URLSearchParams();
-  const keyword = $('#release-keyword').value.trim();
-  const product = $('#release-product').value.trim();
-  const channel = $('#release-channel').value.trim();
-  if (keyword) params.set('keyword', keyword);
-  if (product) params.set('product', product);
-  if (channel) params.set('channel', channel);
-  const data = await pagedFetch('releases', '/releases', Object.fromEntries(params));
-  state.releases = data.items;
-  $('#release-rows').innerHTML = data.items.length ? data.items.map(release => `
-    <tr>
-      <td>${esc(release.product)}</td><td>${esc(release.channel)}</td>
-      <td class="mono">${esc(release.version)}</td><td class="nowrap">${esc(release.releaseDate || '—')}</td>
-      <td>${cell(release.upgradeNotes)}</td>
-      <td class="nowrap">${actions(
-        `<button class="hb-button hb-button--secondary hb-button--sm" data-release-edit="${esc(release.id)}">编辑</button>`,
-        rowMenu('更多操作',
-          menuItem('删除', `data-release-delete="${esc(release.id)}" data-release-label="${esc(release.product + '/' + release.channel + ' ' + release.version)}"`, { danger: true }),
-        ),
-      )}</td>
-    </tr>`).join('') : emptyRow(6, pageState('releases').offset > 0 ? '本页无数据' : '没有符合条件的版本记录');
-  renderPager('releases');
-}
-
-// 版本记录一旦发布就代表对外承诺，但「渠道填错 / 版本号打错 / 说明写错」真实会发生，
-// 所以给一个修正入口；本函数只管表单状态不管显隐 —— 提交成功后要复用同一次重置再收起，
-// 把 showEditor 塞进来会变成「先亮出来再立刻藏起来」。
-export function openReleaseEditor(release) {
-  const form = $('#release-form');
-  form.reset();
-  form.elements.id.value = release ? release.id : '';
-  $('#release-editor-title').textContent = release
-    ? `编辑版本 ${release.product}/${release.channel} ${release.version}`
-    : '发布新版本';
-  $('#release-submit').textContent = release ? '保存修正' : '发布';
-  $('#release-cancel').hidden = !release;
-  if (release) {
-    form.elements.product.value = release.product || 'homeos';
-    form.elements.channel.value = release.channel || 'docker';
-    form.elements.version.value = release.version || '';
-    form.elements.releaseDate.value = release.releaseDate || '';
-    form.elements.upgradeNotes.value = release.upgradeNotes || '';
-  } else {
-    form.elements.product.value = 'homeos';
-    form.elements.channel.value = 'docker';
-  }
-}
-
-$('#release-new').addEventListener('click', () => {
-  openReleaseEditor(null);
-  host.showEditor('#release-editor');
-});
-
-$('#release-cancel').addEventListener('click', () => host.hideEditor('#release-editor'));
-
-$('#release-rows').addEventListener('click', async (event) => {
-  const editId = event.target.dataset.releaseEdit;
-  if (editId) {
-    const release = state.releases.find(item => item.id === editId);
-    if (release) {
-      openReleaseEditor(release);
-      // 行内「编辑」要落到表单所在的 tab，否则表单亮在别的 tab 上，
-      // 用户看到的是「点了没反应」。
-      host.showEditor('#release-editor');
-    }
-    return;
-  }
-  const releaseId = event.target.dataset.releaseDelete;
-  if (!releaseId) return;
-  const label = event.target.dataset.releaseLabel || releaseId;
-  const ok = await askConfirm({
-    title: '删除版本记录',
-    message: `将删除版本「${label}」。`,
-    impact: '客户端「检查更新」会自动回退到<b>次新</b>的版本记录。',
-    okText: '删除',
-  });
-  if (!ok) return;
-  try {
-    await api(`/releases/${releaseId}`, { method: 'DELETE' });
-    toast('版本记录已删除');
-    await loadReleases();
-  } catch (error) { toast(error.message, 'danger'); }
-});
-
-$('#release-form').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const form = event.target;
-  const releaseId = form.elements.id.value;
-  const body = {
-    product: form.elements.product.value.trim() || 'homeos',
-    channel: form.elements.channel.value.trim() || 'docker',
-    version: form.elements.version.value.trim(),
-    releaseDate: form.elements.releaseDate.value || '',
-    upgradeNotes: form.elements.upgradeNotes.value.trim(),
-  };
-  try {
-    await withBusy(form, async () => {
-      if (releaseId) {
-        await api(`/releases/${releaseId}`, { method: 'PATCH', body: JSON.stringify(body) });
-        toast('版本记录已修正');
-      } else {
-        await api('/releases', { method: 'POST', body: JSON.stringify(body) });
-        toast('版本已发布');
-      }
-      openReleaseEditor(null);
-      // 保存成功就把表单收起来并回到列表：留着停在填好的表单上，
-      // 会让人分不清「发布成功了没有」，而列表里那条新记录才是凭证。
-      host.hideEditor('#release-editor');
-      resetPage('releases');
-      await loadReleases();
-    }, releaseId ? '保存中…' : '发布中…');
-  } catch (error) { toast(error.message, 'danger'); }
-});
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609220943";
+import { actions, cell, menuItem, pageState, pagedFetch, renderPager, resetPage, rowMenu } from "../table.js?v=2609220943";
+import { state } from "../state.js?v=2609220943";
+import { askConfirm } from "../dialogs.js?v=2609220943";
+import { api, withBusy } from "../api.js?v=2609220943";
+import { d, dt, localInput, pill, utcInput } from "../format.js?v=2609220943";
+import { closeFeaturePickers, featureCell, renderFeatureOptions, requireFeatureCode, setFeaturePickerValue, syncFeatureSummary } from "../features.js?v=2609220943";
+import { host } from "../host.js?v=2609220943";
 
 // --------------------------------------------------------------------------- //
 // 审计日志

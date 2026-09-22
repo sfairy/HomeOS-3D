@@ -18,6 +18,11 @@
    换一个通道值，全仓十几处派生色一起跟上。 */
 :root {
   color-scheme: dark;
+  /* 原生控件（勾选框 / 单选 / 进度条 / 日期选择）也走主控色。商店的 theme.css 早已
+     有这一条，五个入口页此前没有 —— 于是它们上面的原生控件一直是系统蓝，与琥珀主控
+     并排出现。放在 :root 而不是 .hos-page：商店是「一个文档里既有全屏入口壳、又有
+     可滚动前台」，前台不在 .hos-page 里。 */
+  accent-color: var(--hos-accent);
 
   /* 夜空面：蓝相往靛偏约 6°，给极光紫与暖金让出色域（原 #050910 是纯蓝，加紫会发灰）。 */
   --hos-sky-deep: #050912;
@@ -61,22 +66,36 @@
   /* 设备读色。heat ↔ cool 是温度的两端，alert 是超限，sensor 是离线 / 未知。
      场景样式本身只用得上其中一两枚，但整组必须留在这里：商店的 theme.css 会镜像
      同一批令牌，两侧取值必须逐个相等 —— 删掉不常用的几枚，
-     镜像表就会缺项，而那正是过去两个色板慢慢走散的起点。 */
+     镜像表就会缺项，而那正是过去两个色板慢慢走散的起点。
+
+     每族的 bright / deep 两档同样在列。商店要拿它们拼出
+     --hb-grad-{heat,cool,alert,sensor} 四支卡片渐变（`--hb-grad-alert` 与这里的
+     --hos-grad-alert 同源），所以这三档也一样不能缺、不能只改一侧。 */
   --hos-heat-rgb: 255, 138, 101;
   --hos-heat: #ff8a65;
+  --hos-heat-bright: #ffb59c;
+  --hos-heat-deep: #e0663c;
   --hos-cool-rgb: 88, 196, 255;
   --hos-cool: #58c4ff;
+  --hos-cool-bright: #b7e6ff;
+  --hos-cool-deep: #2f8fd0;
   --hos-alert-rgb: 240, 122, 126;
   --hos-alert: #f07a7e;
   --hos-alert-bright: #f5a3a6;
+  /* alert 的深色档。此前只有 .hos-tone--alert 里写死的一枚 #c85a5e —— 一族四枚里
+     独独缺这一个，正是因为缺它，那个 tone 的渐变也只能写死字面量。 */
+  --hos-alert-deep: #c85a5e;
   --hos-sensor-rgb: 158, 176, 196;
   --hos-sensor: #9eb0c4;
+  --hos-sensor-bright: #cfdae6;
+  --hos-sensor-deep: #77879a;
 
   /* 渐变：单色竖渐变给按钮（深色文字压在上面要够亮），三色横渐变给标题与光带。 */
   --hos-grad-accent: linear-gradient(180deg, var(--hos-accent-bright), var(--hos-accent-deep));
   --hos-grad-lumen: linear-gradient(180deg, var(--hos-lumen-bright), var(--hos-lumen-deep));
   --hos-grad-aura: linear-gradient(180deg, var(--hos-aura-bright), var(--hos-aura-deep));
   --hos-grad-eco: linear-gradient(180deg, var(--hos-eco-bright), var(--hos-eco-deep));
+  --hos-grad-alert: linear-gradient(180deg, var(--hos-alert-bright), var(--hos-alert-deep));
   --hos-grad-aurora: linear-gradient(
     100deg,
     var(--hos-accent) 0%,
@@ -100,14 +119,46 @@
   --hos-tone-bright: var(--hos-accent-bright);
   --hos-tone-deep: var(--hos-accent-deep);
   --hos-grad-tone: var(--hos-grad-accent);
-  --hos-grad-tone-hover: linear-gradient(180deg, #ffd9a0, #ffc46a);
+  /* 主按钮 hover：比默认渐变再亮一档。
+     写 var(--hos-accent*) 而不是字面量，是为了让它与 --hos-grad-accent 走同一套
+     惰性解析 —— appearance.css 覆盖 --hos-accent-bright 时这里自己跟上。
+     此前它是写死的 #ffd9a0/#ffc46a，于是管理员换掉主控色后，按钮默认态变了、
+     hover 态却还是琥珀。 */
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-accent-bright), var(--hos-accent));
 
   /* 天气与远景：黎明冷灰、地平线暖调。 */
   --hos-dawn-rgb: 168, 196, 220;
 
+  /* 星空与浮尘的「一点光」。比 --hos-cool / --hos-lumen / --hos-aura 都淡一档：
+     那三枚是「一个蓝色 / 橙色标记」，这四枚是「一粒光」。用错档位，星空会变成一片彩色噪点。
+     冷档两种：近白的远星 + 偏青的亮星（远近各一层，才不像贴上去的贴纸）。 */
+  --hos-star-rgb: 220, 240, 255;
+  --hos-star-cool-rgb: 168, 226, 255;
+  --hos-star-warm-rgb: 255, 226, 186;
+  --hos-star-aura-rgb: 214, 204, 255;
+
   /* 文字 */
   --hos-ink: #f1f7fb;
-  --hos-muted: rgba(186, 214, 232, 0.58);
+  /* 文字的最亮档：只给渐变字（坞里 h1、场景品牌字）当起始停点用。
+     两处原本各写一遍 #f7fcff —— 同一件事写两次，改一次就漏一处。 */
+  --hos-ink-bright: #f7fcff;
+  /* 次级文字的通道三元组。--hos-muted 与它下面的 --hos-ink-rgb 是 panel.css 里
+     几十处 rgba() 字面量的来源：那些值本来各写各的 α（.22/.28/.3/.4/.42/.45/.5/.52/.55/.62/.66/.72），
+     看着像一条渐变，实测在坞体玻璃面上却从 1.6:1 到 5.8:1 都有 —— 同一屏里
+     「这一格是待办还是已跳过」这种信息，有时候根本读不出来。
+     现在只保留三档，且三档都过 4.5:1：
+       0.82 = 徽标/药丸这类「读得出但不抢」的字
+       0.72 = 标签、提示、状态句
+       0.58 = --hos-muted，坞脚与说明文字（也是面板上的下限，再暗就不合规） */
+  --hos-ink-rgb: 241, 247, 251;
+  --hos-muted-rgb: 186, 214, 232;
+  --hos-muted: rgba(var(--hos-muted-rgb), 0.58);
+
+  /* 亮底上的深色文字。主按钮 / 选中态 / 徽标的「亮渐变 + 深字」组合共用这一枚，
+     免得每处各写一个近黑的十六进制（编辑器写 #1e1607、3D 工作室写 #201308、
+     面板写 #041018 —— 三个都是同一件事）。商店的 theme.css 早有 --hb-on-bright，
+     这里补上场景侧缺失的那一枚。 */
+  --hos-on-bright: #041018;
 
   /* 只打包 latin 子集（见 fonts.css）：CJK 交给系统字体回退，不下载数 MB 的 Noto Sans SC。 */
   --hos-font-cjk: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC',
@@ -127,14 +178,28 @@
 
 /* 色调类。刻意只改 --hos-tone*，不碰 --hos-accent：
    场景插画与状态色属于「家的客观事实」，页面色调属于「你在哪个入口」，
-   两者分开，换入口色时插画里的青色不会跟着变成紫色。 */
+   两者分开，换入口色时插画里的冷色不会跟着变成紫色。 */
+
+/* 主控暖金。取值与 :root 的默认完全相同 —— 加这个类不是为了让默认态变样，而是让
+   「登录页走主控色」这件事写在页面上，而不是靠在 CSS 里少写一个类。少写一个类时它
+   照样好看（:root 兜底就是主控色），但五个入口页里只有它「跟随运行期主控色」，
+   另外四页是冻结的字面色相 —— 机制不同，改主控色时只有它一个人动。 */
+.hos-tone--accent {
+  --hos-tone: var(--hos-accent);
+  --hos-tone-rgb: var(--hos-accent-rgb);
+  --hos-tone-bright: var(--hos-accent-bright);
+  --hos-tone-deep: var(--hos-accent-deep);
+  --hos-grad-tone: var(--hos-grad-accent);
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-accent-bright), var(--hos-accent));
+}
+
 .hos-tone--lumen {
   --hos-tone: var(--hos-lumen);
   --hos-tone-rgb: var(--hos-lumen-rgb);
   --hos-tone-bright: var(--hos-lumen-bright);
   --hos-tone-deep: var(--hos-lumen-deep);
   --hos-grad-tone: var(--hos-grad-lumen);
-  --hos-grad-tone-hover: linear-gradient(180deg, #ffe6c4, #f0a352);
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-lumen-bright), var(--hos-lumen));
 }
 
 .hos-tone--aura {
@@ -143,7 +208,7 @@
   --hos-tone-bright: var(--hos-aura-bright);
   --hos-tone-deep: var(--hos-aura-deep);
   --hos-grad-tone: var(--hos-grad-aura);
-  --hos-grad-tone-hover: linear-gradient(180deg, #ded6ff, #8b78f0);
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-aura-bright), var(--hos-aura));
 }
 
 .hos-tone--eco {
@@ -152,18 +217,18 @@
   --hos-tone-bright: var(--hos-eco-bright);
   --hos-tone-deep: var(--hos-eco-deep);
   --hos-grad-tone: var(--hos-grad-eco);
-  --hos-grad-tone-hover: linear-gradient(180deg, #a9ecd8, #3fc79a);
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-eco-bright), var(--hos-eco));
 }
 
-/* 异常路径专用（找回 / 恢复 / 需人工处理）。用珊瑚而不是把青色调暗：
+/* 异常路径专用（找回 / 恢复 / 需人工处理）。用珊瑚而不是把主控色调暗：
    一整页的色调本身就在说「这里发生的事和别人不一样」，比任何一段文案都先被读到。 */
 .hos-tone--alert {
   --hos-tone: var(--hos-alert);
   --hos-tone-rgb: var(--hos-alert-rgb);
   --hos-tone-bright: var(--hos-alert-bright);
-  --hos-tone-deep: #c85a5e;
-  --hos-grad-tone: linear-gradient(180deg, #ffc9cb, #d0555a);
-  --hos-grad-tone-hover: linear-gradient(180deg, #ffdfe0, #e07074);
+  --hos-tone-deep: var(--hos-alert-deep);
+  --hos-grad-tone: var(--hos-grad-alert);
+  --hos-grad-tone-hover: linear-gradient(180deg, var(--hos-alert-bright), var(--hos-alert));
 }
 
 /* 页面尺寸与壳层。Activate 把它放在自己的缩放壳里（.app-shell__content--fluid

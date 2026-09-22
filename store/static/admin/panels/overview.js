@@ -6,12 +6,12 @@
  * 概览页：营收、漏斗、待办、巡检与清结算等运营动作。待办会跳到别的面板，跳转入口经 host。
  */
 
-import { $, emptyRow, esc, toast } from "../dom.js?v=2609220141";
-import { PENDING_FILTER_VALUES, resetPage } from "../table.js?v=2609220141";
-import { STATUS_HUES, d, dt, money, num, valueSize } from "../format.js?v=2609220141";
-import { api } from "../api.js?v=2609220141";
-import { askConfirm } from "../dialogs.js?v=2609220141";
-import { host } from "../host.js?v=2609220141";
+import { $, emptyRow, esc, toast } from "../dom.js?v=2609220943";
+import { PENDING_FILTER_VALUES, resetPage } from "../table.js?v=2609220943";
+import { STATUS_HUES, d, dt, money, num, valueSize } from "../format.js?v=2609220943";
+import { api } from "../api.js?v=2609220943";
+import { askConfirm } from "../dialogs.js?v=2609220943";
+import { host } from "../host.js?v=2609220943";
 
 // --------------------------- 概览 --------------------------- //
 // 营收时间窗文案的 key 由服务端给（last24h / last7d / last30d），只做展示、不自己算时间，
@@ -310,11 +310,11 @@ export async function loadOverview() {
   const cards = [
     ['账号', data.accounts, '', 'is-tone-blue'],
     ['商品', data.products, '', 'is-tone-violet'],
-    ['有效授权', `${data.activeLicenses}/${data.licenses}`, '', 'is-tone-cyan'],
+    ['有效授权', `${data.activeLicenses}/${data.licenses}`, '', 'is-tone-accent'],
     ['权限项', `${data.activeEntitlements}/${data.entitlements}`, '', 'is-tone-violet'],
-    ['待支付订单', data.pendingOrders, '', data.pendingOrders ? 'is-alert' : 'is-tone-cyan'],
+    ['待支付订单', data.pendingOrders, '', data.pendingOrders ? 'is-alert' : 'is-tone-accent'],
     ['已履约订单', data.fulfilledOrders, '', 'is-tone-emerald'],
-    ['在线设备', data.deviceBindings, '', 'is-tone-cyan'],
+    ['在线设备', data.deviceBindings, '', 'is-tone-accent'],
     ['积分负债', num(pointsTotal), `可用 ${num(referral.availablePoints)} · 冻结 ${num(referral.frozenPoints)}`, 'is-tone-blue'],
     ['维护模式', data.maintenanceMode ? '开启' : '关闭',
       data.maintenanceMode ? '前台已拦截下单' : '前台正常营业',

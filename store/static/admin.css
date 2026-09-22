@@ -3,7 +3,7 @@
    本文件只做三件事：后台骨架（左侧 rail + 主工作区）、面板与数据表排版、后台专属小组件（KPI 卡、行内 ⋯ 菜单、危险操作区、确认弹窗外观）。
 
    配色不再是「暗色专业控制台」这一条路。全站（商店前台 / 后台 / 主程序入口页 / 场景插画）
-   共用 design/scene/page.css 那一份调色板：青是主控，暖光、极光紫、薄荷是居家三光，
+   共用 design/scene/page.css 那一份调色板：暖金是主控，暖光、极光紫、薄荷是居家三光，
    heat / cool / alert / sensor 是设备读色。theme.css 逐字镜像这批令牌，
    两侧取值必须一致（无自动比对），所以这里的颜色**必须**走 var()，不写十六进制。
 
@@ -51,7 +51,7 @@
   /* 顶缘高光。深色玻璃靠这一道 1px 才「立」得起来，否则像贴纸。 */
   --a-hairline: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 
-  /* 默认色调 = 主控青。登录页、确认弹窗、轻提示这些 body 直属容器读这里。 */
+  /* 默认色调 = 主控暖金。登录页、确认弹窗、轻提示这些 body 直属容器读这里。 */
   --a-tint: var(--hb-accent);
   --a-tint-bright: var(--hb-accent-bright);
   --a-tint-soft: var(--hb-accent-soft);
@@ -63,14 +63,14 @@
 /* 业务域色调层：五个业务域各一种语义色，页面骨架（面板头辉光、编号、角线、
    KPI 顶缘、漏斗条、侧栏选中态）跟着所属域变色，形成「一眼看出在哪个业务域」。
 
-   这一层不再自己造色相。原来用 `hsl(var(--a-tint-h) …)` 现算，算出来的青和
-   theme.css 里的青永远差几个百分点 —— 前台一个青、后台另一个青，肉眼能看出
+   这一层不再自己造色相。原来用 `hsl(var(--a-tint-h) …)` 现算，算出来的暖金和
+   theme.css 里的暖金永远差几个百分点 —— 前台一个色、后台另一个色，肉眼能看出
    「不是同一个颜色」。现在直接引用前台的色调开关 --hb-tone*（见 theme.css 的
    [data-tone]），后台 / 前台 / 入口页场景共用一份色板。
 
    --a-tint* 保留为 --hb-tone* 的别名，后台里 40 多处旧引用不用逐个改：
    别名必须声明在**带 data-domain 的那个元素**上，因为自定义属性在声明处求值 ——
-   写在 :root 上会固定解析成主控青，域色就永远不生效。 */
+   写在 :root 上会固定解析成主控暖金，域色就永远不生效。 */
 [data-domain],
 .admin-shell {
   --a-tint: var(--hb-tone);
@@ -84,7 +84,7 @@
 /* 域 → 色调。面板与侧栏分组两边都挂 data-domain：
    面板负责工作区，分组负责侧栏那一组链接的选中态与色点。
 
-   五域的分色不是凑数：概览与订单是主控（青）、商品与版本是货架（暖光）、
+   五域的分色不是凑数：概览与订单是主控（暖金）、商品与版本是货架（暖光）、
    激活码与绑定是「已生效」（薄荷）、权益与流水是档案（极光紫）、
    站点配置与审计是运维（传感器灰蓝）。这套词汇与商店前台的能力卡、
    账号中心统计、中控示意完全一致 —— 全站只有一个颜色语言。 */
@@ -590,7 +590,7 @@ body {
 
 /* admin-main 背景氛围层 */
 .admin-main {
-  /* 氛围层：三束居家光（主控青 / 极光紫 / 暖光）各来一圈极淡的辉光（alpha ~0.05）铺在工作区底下。
+  /* 氛围层：三束居家光（主控暖金 / 极光紫 / 暖光）各来一圈极淡的辉光（alpha ~0.05）铺在工作区底下。
      前台与入口页的场景是同一组光，只是这里压到几乎看不见 —— 后台是长时间注视的界面，
      亮度必须低于 0.06，再高就会和卡片背景抢对比度，正文小字开始发灰。
      写在这里而不是另加 ::before 层：滚动容器的背景不随内容滚动，天然就是固定底，不需要 background-attachment: fixed（那个在滚动容器上会强制合成层重绘，长表格滚动时掉帧）。 */
@@ -600,7 +600,7 @@ body {
   background-repeat: no-repeat;
 }
 
-/* 面板编号：/01 … /15。不能用 CSS 计数器——计数只对「生成了盒子」的元素生效，而 15 个面板同时只有 1 个可见，会让每页都显示 /01。
+/* 面板编号：/01 … /14。不能用 CSS 计数器——计数只对「生成了盒子」的元素生效，而 14 个面板同时只有 1 个可见，会让每页都显示 /01。
    也不能用 nth-child：面板内部还有 tab 容器，DOM 一插节点「.admin-main 的第 N 个子元素」就整体错位。
    所以编号挂在 **id** 上，面板怎么搬动、加多少 tab 都不会串号。 */
 #panel-overview { --a-panel-no: "01"; }
@@ -612,12 +612,11 @@ body {
 #panel-withdrawals { --a-panel-no: "07"; }
 #panel-accounts { --a-panel-no: "08"; }
 #panel-settings { --a-panel-no: "09"; }
-#panel-releases { --a-panel-no: "10"; }
-#panel-audits { --a-panel-no: "11"; }
-#panel-entitlements { --a-panel-no: "12"; }
-#panel-ledger { --a-panel-no: "13"; }
-#panel-customers { --a-panel-no: "14"; }
-#panel-diagnostics { --a-panel-no: "15"; }
+#panel-audits { --a-panel-no: "10"; }
+#panel-entitlements { --a-panel-no: "11"; }
+#panel-ledger { --a-panel-no: "12"; }
+#panel-customers { --a-panel-no: "13"; }
+#panel-diagnostics { --a-panel-no: "14"; }
 
 .admin-panel {
   display: none;
@@ -1364,7 +1363,7 @@ body {
 .admin-diagnostic.is-pass .admin-diagnostic__icon { color: var(--hb-success-text); }
 
 .admin-diagnostic.is-warn { border-color: var(--hb-warning-line); }
-.admin-diagnostic.is-warn .admin-diagnostic__icon { color: var(--hb-accent-bright); }
+.admin-diagnostic.is-warn .admin-diagnostic__icon { color: var(--hb-warning-text); }
 
 .admin-diagnostic.is-fail { border-color: var(--hb-danger-line); }
 .admin-diagnostic.is-fail .admin-diagnostic__icon { color: var(--hb-danger-text); }
@@ -1393,7 +1392,7 @@ body {
 .admin-status-chip.is-warning {
   border-color: var(--hb-warning-line);
   background: var(--hb-warning-soft);
-  color: var(--hb-accent-bright);
+  color: var(--hb-warning-text);
 }
 
 .admin-status-chip.is-danger {
@@ -1657,8 +1656,8 @@ body {
 
 .pill--warning {
   border-color: var(--hb-warning-line);
-  color: var(--hb-accent-bright);
-  background: var(--hb-accent-soft);
+  color: var(--hb-warning-text);
+  background: var(--hb-warning-soft);
 }
 
 .pill--danger {
@@ -1711,7 +1710,7 @@ body {
 }
 
 /* 悬停时左缘亮起域色条，与前台账号中心 / 邀请记录的列表保持同一套「行选中」语言。
-   取域色而非固定琥珀：这样在「激活码」（青）里悬停是青的，一眼知道在哪一类数据上
+   取域色而非固定琥珀：这样在「激活码」（暖金）里悬停是暖金的，一眼知道在哪一类数据上
    操作，也不会因为几个面板共用 .hb-table 而全部染成同一色。 */
 .table-wrap .hb-table tbody td:first-child {
   box-shadow: inset 2px 0 0 transparent;
@@ -1985,13 +1984,6 @@ body {
 #panel-accounts .hb-table th:nth-child(6) { width: 96px; }
 #panel-accounts .hb-table th:nth-child(7) { width: 100px; }
 
-/* 版本：产品 / 渠道 / 版本 / 发布日期 / 说明* / 操作 */
-#panel-releases .hb-table th:nth-child(1) { width: 96px; }
-#panel-releases .hb-table th:nth-child(2) { width: 88px; }
-#panel-releases .hb-table th:nth-child(3) { width: 124px; }
-#panel-releases .hb-table th:nth-child(4) { width: 112px; }
-#panel-releases .hb-table th:nth-child(6) { width: 100px; }
-
 /* 审计：时间 / 操作者 / 动作 / 对象* / 详情* / 操作 */
 #panel-audits .hb-table th:nth-child(1) { width: 168px; }
 #panel-audits .hb-table th:nth-child(2) { width: 176px; }
@@ -2199,16 +2191,18 @@ body {
 /* 族色修饰类（KPI 卡与订单漏斗共用）：域色解决「这一屏属于哪个业务域」，但一屏里
    4–8 张 KPI 卡全同一色就读不出「哪个数字讲的是哪件事」。
 
-   类名沿用模板里已有的 is-tone-*（admin.html 里 20 多处引用），但**不再自造色相**：
+   类名沿用已有的 is-tone-*（消费点在 admin/panels/overview.js 的 KPI 卡与
+   admin/format.js 的 STATUS_TONES→族色映射，模板里没有引用），但**不再自造色相**：
    六个类各自把 --hb-tone* 换成前台同名的那束语义色（theme.css 的 --hb-lumen /
    --hb-aura / --hb-eco / --hb-cool / --hb-accent / --hb-sensor）。
    原来给的是 `--a-tone: 38` 这样的色相数字，再由消费者 `hsl(var(--a-tone) 90% 62%)`
    现算 —— 算出来的琥珀与商店的暖光差着几个百分点，前台一个色、后台另一个色。
    现在两侧引用同一批令牌，后台的薄荷与商店的薄荷是同一个绿。
 
-   映射不是重命名：琥珀 = 暖光（营收 / 待处理）、青 = 主控（已支付 / 在线）、
-   翠 = 生态薄荷（已履约）、紫 = 极光（商品 / 权限）、蓝 = 清凉（账号 / 积分）、
-   灰蓝 = 传感器（已退款 / 已取消 —— 流程已终结，不该再抢注意力）。
+   映射不是重命名：琥珀 = 暖光（营收 / 待处理）、主控 = 主控色（有效授权 /
+   在线设备）、翠 = 生态薄荷（已履约）、紫 = 极光（商品 / 权限）、
+   蓝 = 清凉（账号 / 积分）、珊瑚 = 危险（支付失败 / 已退款）、
+   灰蓝 = 传感器（已取消 / 已过期 —— 流程已终结，不该再抢注意力）。
 
    必须排在 .stat.is-alert / .stat.is-danger **之前**：is-alert（待处理）是语气，
    语义上要压过族色；两者权重相同时靠源码顺序决胜，顺序反了就会出现
@@ -2227,11 +2221,23 @@ body {
   --hb-tone-line: var(--hb-aura-line);
 }
 
-.is-tone-cyan {
+/* 名字必须说真话：这一类装的 --hb-tone 是主控色（默认琥珀），不是青。
+   叫 is-tone-cyan 时，读代码的人会以为它和 is-tone-blue 同族，
+   写模板的人会挑它当「蓝色系」，而它跟 is-tone-amber 只差一档橙度。 */
+.is-tone-accent {
   --hb-tone: var(--hb-accent);
   --hb-tone-rgb: var(--hb-accent-rgb);
   --hb-tone-text: var(--hb-accent-bright);
   --hb-tone-line: var(--hb-accent-line);
+}
+
+/* 珊瑚：与 is-tone-amber 的「待处理」不同，这一类是「出事了」。
+   订单漏斗的支付失败 / 已退款段读它。 */
+.is-tone-danger {
+  --hb-tone: var(--hb-danger);
+  --hb-tone-rgb: var(--hb-danger-rgb);
+  --hb-tone-text: var(--hb-danger-text);
+  --hb-tone-line: var(--hb-danger-line);
 }
 
 .is-tone-blue {
@@ -2259,22 +2265,22 @@ body {
    这几个值与 admin.html 的 valueSize()、admin.css 的 .stat__value--* 档位联动，
    动一个值就会让卡片放不下。消费者一律读 --hb-tone*（族色类已经换过），
    不读 --a-tint* —— 那是所属业务域的色，两者在这一层是两件事。 */
-.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald, .is-tone-slate) {
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-accent, .is-tone-danger, .is-tone-blue, .is-tone-emerald, .is-tone-slate) {
   border-color: var(--hb-tone-line);
 }
 
-.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald, .is-tone-slate) strong,
-.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald, .is-tone-slate) .stat__value {
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-accent, .is-tone-danger, .is-tone-blue, .is-tone-emerald, .is-tone-slate) strong,
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-accent, .is-tone-danger, .is-tone-blue, .is-tone-emerald, .is-tone-slate) .stat__value {
   color: var(--hb-tone-text);
 }
 
 /* 悬停顶缘用同一个族色（只改 background，opacity 仍由 .stat:hover::before 控） */
-.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald, .is-tone-slate)::before {
+.stat:is(.is-tone-amber, .is-tone-violet, .is-tone-accent, .is-tone-danger, .is-tone-blue, .is-tone-emerald, .is-tone-slate)::before {
   background: linear-gradient(90deg, rgba(var(--hb-tone-rgb), 0.45), transparent 72%);
 }
 
-/* 「待处理」语气。用暖光而不是主控青：待支付订单 / 待发货这类数字需要的是
-   「这里有事等你」，而不是「这一点可以点」。青是操作色，暖光是状态色。 */
+/* 「待处理」语气。用暖光而不是主控暖金：待支付订单 / 待发货这类数字需要的是
+   「这里有事等你」，而不是「这一点可以点」。暖金是操作色，暖光是状态色。 */
 .stat.is-alert {
   border-color: var(--hb-lumen-line);
   box-shadow: var(--a-hairline), 0 14px 30px -18px rgba(var(--hb-lumen-rgb), 0.7);
@@ -2348,7 +2354,8 @@ body {
 }
 
 /* 「待处理」：与 .stat.is-alert 同一枚暖光。语气色必须全后台只有一套取值，
-   否则概览上「待支付订单」这张卡是暖光、旁边待办磁贴是主控青，同一个含义两种颜色。 */
+   否则概览上「待支付订单」这张卡走暖光（语义色）、旁边的待办磁贴走 --hb-tone，
+   也就是跟随管理员改的主控色 —— 同一个含义在相邻两张卡上会是两种颜色。 */
 .overview-todo.is-alert {
   border-color: var(--hb-lumen-line);
 }
@@ -2366,8 +2373,12 @@ body {
   line-height: 1.1;
 }
 
+/* 与正上方的 .stat.is-alert 同一支笔：那块的数字用 --hb-lumen-text，
+   这里的数字也必须一样，否则同一屏里两个「待处理」计数深浅不同。
+   写 --hb-warning-text 而不是 --hb-lumen-text：它俩在 theme.css:180 是别名（等值），
+   但语义名说出了「为什么用这个色」，而「待处理」正是 warning 这一档。 */
 .overview-todo.is-alert .overview-todo__count {
-  color: var(--hb-accent-bright);
+  color: var(--hb-warning-text);
 }
 
 .overview-todo.is-danger .overview-todo__count {
@@ -2445,12 +2456,13 @@ body {
   background: linear-gradient(90deg, var(--a-tint), var(--a-tint-line) 60%, transparent 92%);
 }
 
-/* 漏斗条按订单状态着色：待支付 = 暖光、已支付/发货中 = 主控青、已完成 = 生态薄荷、
-   已退款/已关闭 = 传感器灰蓝。状态本身就是语义，一屏里 6 个条子同色的话，
-   读者得逐个去读标签才知道哪一段是「漏掉的」。
+/* 漏斗条按订单状态着色：待付款 = 暖光、已付款/已完成 = 生态薄荷、
+   支付失败/发货失败/已退款 = 珊瑚、已取消/已过期 = 传感器灰蓝。
+   色相不是在这里挑的，是 format.js 的 STATUS_TONES 派生的（同一个状态在
+   订单表的胶囊和这里的条子必须是同一个色系）。
    色值来自上面的 .is-tone-*，这里只负责把它画成一条渐隐的色带 ——
    已终结的状态（slate）不再需要单独特判，它映射到的传感器灰本来就是低饱和的。 */
-.funnel-item:is(.is-tone-amber, .is-tone-violet, .is-tone-cyan, .is-tone-blue, .is-tone-emerald, .is-tone-slate)
+.funnel-item:is(.is-tone-amber, .is-tone-violet, .is-tone-accent, .is-tone-danger, .is-tone-blue, .is-tone-emerald, .is-tone-slate)
   .funnel-item__fill {
   background: linear-gradient(
     90deg,
@@ -2601,7 +2613,7 @@ body {
 /* 会降级成「停用 / 下架」这类可恢复结果时用告警色，避免和不可恢复的删除长得一样 */
 .confirm-dialog.is-warning .confirm-dialog__icon {
   border-color: var(--hb-warning-line);
-  color: var(--hb-accent-bright);
+  color: var(--hb-warning-text);
   background: var(--hb-warning-soft);
 }
 

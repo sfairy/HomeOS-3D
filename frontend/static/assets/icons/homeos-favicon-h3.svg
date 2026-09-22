@@ -2,42 +2,42 @@
   <title>HomeOS</title>
   <defs>
     <linearGradient id="fvh3House" x1="12" y1="92" x2="90" y2="10" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#0F766E"/>
-      <stop offset="24%" stop-color="#0A84FF"/>
-      <stop offset="52%" stop-color="#38BDF8"/>
-      <stop offset="78%" stop-color="#7C3AED"/>
-      <stop offset="100%" stop-color="#E9D5FF"/>
+      <stop offset="0%" stop-color="#16263C"/>
+      <stop offset="24%" stop-color="#24395A"/>
+      <stop offset="52%" stop-color="#4E6489"/>
+      <stop offset="78%" stop-color="#D89A3C"/>
+      <stop offset="100%" stop-color="#FFD9A0"/>
     </linearGradient>
     <linearGradient id="fvh3Life" x1="10" y1="48" x2="50" y2="48" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#2DD4BF" stop-opacity="0.78"/>
-      <stop offset="100%" stop-color="#2DD4BF" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#5FD0A8" stop-opacity="0.78"/>
+      <stop offset="100%" stop-color="#5FD0A8" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="fvh3Voice" x1="90" y1="48" x2="50" y2="48" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#C084FC" stop-opacity="0.76"/>
-      <stop offset="100%" stop-color="#C084FC" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#C9A0FF" stop-opacity="0.76"/>
+      <stop offset="100%" stop-color="#C9A0FF" stop-opacity="0"/>
     </linearGradient>
     <linearGradient id="fvh3Roof" x1="50" y1="8" x2="50" y2="44" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#F0FBFF" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#5FD4FF" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#FFD9A0" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#FFC46A" stop-opacity="0"/>
     </linearGradient>
     <radialGradient id="fvh3Warm" cx="50" cy="70" r="34" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#FF9500" stop-opacity="0.38"/>
-      <stop offset="50%" stop-color="#FF9500" stop-opacity="0.12"/>
-      <stop offset="100%" stop-color="#FF9500" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#FF9D4D" stop-opacity="0.38"/>
+      <stop offset="50%" stop-color="#FF9D4D" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#FF9D4D" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="fvh3Screen" x1="50" y1="48" x2="50" y2="90" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#12202C"/>
-      <stop offset="100%" stop-color="#070C12"/>
+      <stop offset="0%" stop-color="#16263C"/>
+      <stop offset="100%" stop-color="#081020"/>
     </linearGradient>
     <radialGradient id="fvh3ScreenGlow" cx="50%" cy="38%" r="75%">
-      <stop offset="0%" stop-color="#5FD4FF" stop-opacity="0.2"/>
-      <stop offset="55%" stop-color="#FF9500" stop-opacity="0.08"/>
-      <stop offset="100%" stop-color="#5FD4FF" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#FFC46A" stop-opacity="0.2"/>
+      <stop offset="55%" stop-color="#FF9D4D" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#FFC46A" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="fvh3HubGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#FFE7B0" stop-opacity="0.95"/>
-      <stop offset="40%" stop-color="#FF9500" stop-opacity="0.42"/>
-      <stop offset="100%" stop-color="#FF9500" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#FFE9C9" stop-opacity="0.95"/>
+      <stop offset="40%" stop-color="#FF9D4D" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#FF9D4D" stop-opacity="0"/>
     </radialGradient>
     <clipPath id="fvh3HouseClip">
       <path d="M50 7.8 C51.8 7.8 53.4 8.6 54.6 10.1 L91.6 39.6 C93.2 41 92.3 43.6 90.1 43.6 H82.2 V82.4 C82.2 90.2 75.8 96.4 68 96.4 H32 C24.2 96.4 17.8 90.2 17.8 82.4 V43.6 H9.9 C7.7 43.6 6.8 41 8.4 39.6 L45.4 10.1 C46.6 8.6 48.2 7.8 50 7.8 Z"/>
@@ -63,7 +63,7 @@
       }
     </style>
   </defs>
-  <rect width="128" height="128" rx="25" fill="#172029"/>
+  <rect width="128" height="128" rx="25" fill="#050912"/>
   <g clip-path="url(#fvh3TileClip)" transform="scale(1.28)">
     <path
       fill="url(#fvh3House)"
@@ -75,24 +75,24 @@
       <path d="M50 8 L92 43 L8 43 Z" fill="url(#fvh3Roof)"/>
       <ellipse cx="50" cy="72" rx="30" ry="24" fill="url(#fvh3Warm)"/>
     </g>
-    <g fill="none" stroke="#F0FBFF" stroke-linecap="round" stroke-linejoin="round">
+    <g fill="none" stroke="#FFD9A0" stroke-linecap="round" stroke-linejoin="round">
       <path class="fvh3-wifi-a" d="M46.4 38.4 Q50 35 53.6 38.4" stroke-width="2.2"/>
       <path class="fvh3-wifi-b" d="M43.4 33.6 Q50 27 56.6 33.6" stroke-width="2.1"/>
       <path class="fvh3-wifi-c" d="M39.4 28.4 Q50 19.8 60.6 28.4" stroke-width="2"/>
     </g>
-    <circle cx="50" cy="41.6" r="1.7" fill="#F0FBFF"/>
+    <circle cx="50" cy="41.6" r="1.7" fill="#FFD9A0"/>
     <rect x="28.5" y="49.5" width="43" height="39.2" rx="7.2" fill="url(#fvh3Screen)"/>
     <rect x="28.5" y="49.5" width="43" height="39.2" rx="7.2" fill="url(#fvh3ScreenGlow)"/>
     <g stroke-width="1.85" stroke-linecap="round">
-      <line x1="50" y1="69" x2="50" y2="56.8" stroke="#5FD4FF"/>
-      <line x1="50" y1="69" x2="63" y2="69" stroke="#C084FC"/>
-      <line x1="50" y1="69" x2="50" y2="81.2" stroke="#FF9500"/>
-      <line x1="50" y1="69" x2="37" y2="69" stroke="#2DD4BF"/>
+      <line x1="50" y1="69" x2="50" y2="56.8" stroke="#FFC46A"/>
+      <line x1="50" y1="69" x2="63" y2="69" stroke="#C9A0FF"/>
+      <line x1="50" y1="69" x2="50" y2="81.2" stroke="#FF9D4D"/>
+      <line x1="50" y1="69" x2="37" y2="69" stroke="#5FD0A8"/>
     </g>
-    <circle cx="50" cy="56.8" r="3" fill="#5FD4FF"/>
-    <circle cx="63" cy="69" r="3" fill="#C084FC"/>
-    <circle cx="50" cy="81.2" r="3" fill="#FF9500"/>
-    <circle cx="37" cy="69" r="3" fill="#2DD4BF"/>
+    <circle cx="50" cy="56.8" r="3" fill="#FFC46A"/>
+    <circle cx="63" cy="69" r="3" fill="#C9A0FF"/>
+    <circle cx="50" cy="81.2" r="3" fill="#FF9D4D"/>
+    <circle cx="37" cy="69" r="3" fill="#5FD0A8"/>
     <circle class="fvh3-hub" cx="50" cy="69" r="8.4" fill="url(#fvh3HubGlow)"/>
     <circle cx="50" cy="69" r="3.3" fill="#FFF6E4"/>
   </g>

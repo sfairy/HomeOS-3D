@@ -8,10 +8,10 @@
  * 不要给它们加会改变盒模型的 margin；状态一律用类名或 [hidden] 表达，JS 只切类名；
  * 每段动画都配 prefers-reduced-motion 兜底。
  */
-@import "/static/bridge/controls.css?v=2609220141";
-@import "../nas/nas-panel.css?v=2609220141";
-@import "../climate/climate-panel.css?v=2609220141";
-@import "../cover/cover-panel.css?v=2609220141";
+@import "/static/bridge/controls.css?v=2609220943";
+@import "../nas/nas-panel.css?v=2609220943";
+@import "../climate/climate-panel.css?v=2609220943";
+@import "../cover/cover-panel.css?v=2609220943";
 /* ===== 舞台页面骨架 ===== */
 
 /* 舞台是独立 iframe 文档：这里只放行 studio-shell → details-panel → preview-card
@@ -773,12 +773,12 @@ body.interaction3d-stage.is-background-hidden,
   -webkit-mask-position: center;
 }
 .interaction3d-stage .i3d-marker.is-on {
-  color: #f5ca77;
+  color: var(--hos-lumen-bright);
 }
 .interaction3d-stage .i3d-marker.is-on:before {
   background: #413323ed;
-  border-color: #c79848;
-  box-shadow: 0 0 20px #e5b75944;
+  border-color: var(--hos-lumen-deep);
+  box-shadow: 0 0 20px rgba(var(--hos-lumen-rgb), 0.27);
 }
 .interaction3d-stage .i3d-marker.is-offline {
   opacity: 0.55;
@@ -1199,7 +1199,7 @@ body.interaction3d-stage.is-background-hidden,
 }
 .plan2-range-editor .custom-select-button[aria-expanded="true"] {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(var(--hos-accent-rgb, 95, 212, 255), 0.12);
+  box-shadow: 0 0 0 2px rgba(var(--hos-accent-rgb, 255, 196, 106), 0.12);
 }
 .plan2-range-editor .custom-select-button[aria-expanded="true"]:after {
   margin-top: -1px;
@@ -1248,7 +1248,7 @@ body.interaction3d-stage.is-background-hidden,
   color: #f3f5f6;
   border-color: var(--accent);
   background: #252c32;
-  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 95, 212, 255), 0.18);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 255, 196, 106), 0.18);
   font-weight: 680;
 }
 .plan2-range-editor .custom-select-option:hover:not(:disabled) {
@@ -1299,12 +1299,12 @@ body.interaction3d-stage.is-background-hidden,
 }
 .plan2-range-editor .inspector-number-stepper:hover {
   border-color: transparent;
-  color: var(--accent, var(--hos-accent, #5fd4ff));
+  color: var(--accent, var(--hos-accent, #ffc46a));
   background: #252d33;
 }
 .plan2-range-editor .inspector-number-stepper:active {
   color: #171006;
-  background: var(--accent, var(--hos-accent, #5fd4ff));
+  background: var(--accent, var(--hos-accent, #ffc46a));
 }
 .plan2-range-editor .inspector-number-stepper svg {
   display: block;
@@ -1320,7 +1320,7 @@ body.interaction3d-stage.is-background-hidden,
   --field: #171d22;
   /* 局部主控色：范围编辑器的取色器面板沿用全站主控色，不再自带一份琥珀。
      这里不能写 var(--accent) —— 那就是自引用，CSS 会把该声明判为无效值。 */
-  --accent: var(--hos-accent, #5fd4ff);
+  --accent: var(--hos-accent, #ffc46a);
 }
 .plan2-range-editor .custom-select-menu {
   pointer-events: auto;
@@ -2162,9 +2162,9 @@ body.interaction3d-stage.is-background-hidden,
 }
 .plan2-range-editor .p2r-view-switch button[aria-pressed="true"] {
   color: var(--hos-ink, #f1f7fb);
-  background: rgba(var(--hos-accent-rgb, 95, 212, 255), 0.16);
-  border-color: rgba(var(--hos-accent-rgb, 95, 212, 255), 0.48);
-  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 95, 212, 255), 0.48);
+  background: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.16);
+  border-color: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.48);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 255, 196, 106), 0.48);
 }
 /* ===== 暖阳原木主题覆盖（sceneStyle = warm-wood） =====
  * 整段只把冷灰面板换成暖米色系：浮层用半透明暖米底 + 暖褐文字，面板内压成深褐 / 暖陶土。

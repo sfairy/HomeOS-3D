@@ -6,10 +6,10 @@
  * 19 张列表共用同一套游标、分页器与筛选口径；面板只管拼表格行，不再各写一遍翻页状态。
  */
 
-import { $, $$, esc } from "./dom.js?v=2609220141";
-import { api } from "./api.js?v=2609220141";
-import { num } from "./format.js?v=2609220141";
-import { host } from "./host.js?v=2609220141";
+import { $, $$, esc } from "./dom.js?v=2609220943";
+import { api } from "./api.js?v=2609220943";
+import { num } from "./format.js?v=2609220943";
+import { host } from "./host.js?v=2609220943";
 
 // 由服务端词表填选项的筛选器：跳转目标可能先于选项到位设值 —— 赋给一个不存在的 option
 // 会把 select 静默设成空值，所以先把意图记下来，等选项填好再补一次。
@@ -67,7 +67,7 @@ export function pageState(key) {
 }
 
 // 每个分页列表对应的表格主体。集中在这里，是为了让「加载中 / 出错」这两种瞬时
-// 状态只在一个地方渲染 —— 分散到 19 个 loader 里必然漏掉一半。
+// 状态只在一个地方渲染 —— 分散到 18 个 loader 里必然漏掉一半。
 const PAGED_TABLES = {
   products: '#product-rows',
   orders: '#order-rows',
@@ -77,7 +77,6 @@ const PAGED_TABLES = {
   coupons: '#coupon-rows',
   withdrawals: '#withdrawal-rows',
   accounts: '#account-rows',
-  releases: '#release-rows',
   audits: '#audit-rows',
   ledger: '#ledger-rows',
   customers: '#customer-rows',

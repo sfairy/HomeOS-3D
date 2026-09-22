@@ -2,7 +2,7 @@
  * 设备控件区块：存在传感器详情（在场时长、最近触发与历史时间线）。
  */
 
-import { formatZhDateTime } from "../../../../utils/datetime.js?v=2609220141";
+import { formatZhDateTime } from "../../../../utils/datetime.js?v=2609220943";
 import {
   formatPresenceDuration,
   presenceHistoryBuckets,
@@ -10,10 +10,10 @@ import {
   presenceSensorPresentation,
   presenceStateTimestamp,
   renderRegisteredComponent
-} from "../../registry.js?v=2609220141";
-import { paletteColor } from "../../../../utils/colors.js?v=2609220141";
-import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609220141";
-import { componentDialogTitle } from "../primitives.js?v=2609220141";
+} from "../../registry.js?v=2609220943";
+import { paletteColor } from "../../../../utils/colors.js?v=2609220943";
+import { resolveStateEntry } from "../../../../utils/state-entry.js?v=2609220943";
+import { componentDialogTitle } from "../primitives.js?v=2609220943";
 
 export const presenceDetailsMethods = {
   /**

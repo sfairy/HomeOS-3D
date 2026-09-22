@@ -36,22 +36,64 @@
     Microsoft YaHei,
     sans-serif;
 
-  /* 画布与三级抬升面（surface / soft / raised）+ 输入框底色 field，全部对齐夜空族。
-     field 比画布再深一档，输入框才「陷进去」而不是浮起来。 */
-  --bg: var(--hos-sky-deep);
-  --surface: var(--hos-sky-low);
-  --surface-soft: var(--hos-sky-mid);
-  --surface-raised: var(--hos-sky-high);
-  --field: var(--hos-sky-deep);
-  --line: var(--hos-sky-haze);
+  /* 画布与三级抬升面（surface / soft / raised）+ 输入框底色 field。
+     这一组**刻意不直接引用 --hos-sky-\* 令牌**，只借它们的色相 —— 明度阶梯照旧，饱和另定。
+
+     原因：--hos-sky-* 是给「天幕、玻璃面、远景色」用的大面积氛围色，是全站最饱和的一档
+     （饱和 0.63–0.75）。而编辑器的 chrome 是另一套：本文件里几十处中性石板
+     （#10161a / #11171c / #141a20 / #20272d / #2c343c / #46515a …）统统落在
+     色相 204–216°、饱和 0.22–0.43。两者直接相等的结果是：中栏 .workspace 用中性 #141a20
+     （饱和 0.38），左右两栏却用 --hos-sky-low #081020（饱和 0.75）—— **明度一模一样**
+     （都是 0.125），饱和却翻倍。于是屏幕左右各浮起一条蓝带，中间是灰的，
+     「两边蓝」指的就是这两条（它们也是编辑器里面积最大的着色区域）。
+
+     这 5 枚现在按「夜空族的色相 + 编辑器 chrome 的饱和」重取：色相保持 210–220°
+     （仍与全站同族，不会掉成两块无关的冷灰），饱和降到 ~0.37，明度阶梯逐档不动，
+     所以其余排版观感不变。
+     field 与 bg 同值（与改前一致：两者原本都指向 --hos-sky-deep）。
+
+     改主控色或改场景夜空时这 5 枚**不会**跟着动 —— 这是有意的：编辑器是工具面板，
+     底色应当中性，不跟被编辑的内容抢色。 */
+  --bg: #0b0f12;
+  --surface: #141a20;
+  --surface-soft: #192128;
+  --surface-raised: #26313c;
+  --field: #0b0f12;
+  /* 描边两档。真正的细线一律写 rgba(var(--line-rgb), α) 而不是某个灰蓝字面量：
+     它们原是 126/141/153 那一族的九个近似值（.12/.14/.15/.16/.18/.2/.22/.24/.28），
+     视觉上只有「很淡 / 淡 / 明显」三档，却散成九个数 —— 于是同一屏里两条本该一样重的
+     分隔线会差半档。现已收到 .46 / .55 / .70 三档。
+
+     **中性石板，不是场景的夜空蓝。** 这里原本写的是 var(--hos-sky-haze)（#24395a）：
+     0.6.2「站点配色体系」那轮把编辑器的 --line 一并指到了场景调色板上，于是左右两栏
+     与画布之间各浮起一条饱和蓝的竖线（.navigator 的 border-right / .inspector 的
+     border-left 就是这两条），全屏唯一的强蓝。--hos-sky-haze 是整个色板里最亮也最饱和的
+     一档（v 0.35 / s 0.60），单独当 1px 线画在 #050912 上，蓝色头一回真正被看见 ——
+     它是给「天幕、玻璃面、远景」用的，不是给 chrome 描边用的。
+     两份旁证：bridge.css 至今写着 var(--line, #303840)（兜底值就是中性石板，说明
+     --line 本来就该是中性）；app.css 自己也散着 #303941 / #46515a / #252d34 / #14191e
+     这一整套中性灰 chrome。现在 --line 回到中性，并补 --line-rgb 让上面那三档 α 有通道可用。
+     注意 --hos-sky-haze 令牌本身不动：入口页天幕与展示页仍在用它。 */
+  --line: #303840;
+  --line-rgb: 48, 56, 64;
   --text: var(--hos-ink);
   --muted: var(--hos-muted);
 
-  /* 主控色 = 品牌青。**不再是橙色**：橙色留在暖光（--warn）那一档，
+  /* 主控色 = 品牌琥珀。**不再是橙色**：橙色留在暖光（--warn）那一档，
      用于「待处理 / 提醒 / 已激活」这类状态，而不是「可点击」这件事。 */
   --accent: var(--hos-accent);
   --accent-bright: var(--hos-accent-bright);
+  --accent-deep: var(--hos-accent-deep);
   --accent-soft: rgba(var(--hos-accent-rgb), 0.12);
+  /* 亮底（主按钮渐变）上的深色文字。 */
+  --on-bright: var(--hos-on-bright);
+  /* 主控色文字的三档亮度：选中 / 悬停用亮档，次级徽标与标签用柔档，微标记与只读用暗档。
+     三档都由主控色派生（而不是三个写死的暖色），这样改主控色时它们一起走 ——
+     此前这里散着二十多个 var(--accent-text) / var(--accent-text) / var(--accent-text-dim) 之类的字面量，
+     管理员换掉主控色后它们全留在琥珀时代。 */
+  --accent-text: var(--hos-accent-bright);
+  --accent-text-soft: rgba(var(--hos-accent-rgb), 0.82);
+  --accent-text-dim: rgba(var(--hos-accent-rgb), 0.62);
 
   /* 语义色。编辑器原来只有 success 一个，缺 warn / danger / info，
      于是各处自己写死十六进制。补齐后与商店 theme.css 的语义命名一一对应。 */
@@ -226,9 +268,9 @@ html.editor-viewport-fit body {
 .license-dialog .license-recovery {
   margin: 10px 0 0;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--warn, #c48a3a) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn, #ff9d4d) 45%, transparent);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--warn, #c48a3a) 12%, transparent);
+  background: color-mix(in srgb, var(--warn, #ff9d4d) 12%, transparent);
   color: var(--text, inherit);
   font-size: 12.5px;
   line-height: 1.55;
@@ -364,9 +406,9 @@ button:hover {
   color: #fff;
 }
 button.primary {
-  border-color: #f4a719;
-  color: #1e1607;
-  background: linear-gradient(180deg, #ffb82e, #ef9900);
+  border-color: var(--accent-deep);
+  color: var(--on-bright);
+  background: var(--hos-grad-accent);
   font-weight: 700;
 }
 button.danger {
@@ -539,9 +581,11 @@ h2 {
   gap: 6px;
   margin: 1px 0 12px;
   padding: 3px;
-  border: 1px solid #303941;
+  border: 1px solid var(--line);
   border-radius: 7px;
-  background: #070b0e47;
+  /* 底色是旧的展示页画布色 #070b0e（已被 --hos-sky-deep #050912 取代）：
+     它在这个文件里是最后一次露面，换成令牌引用后不再可能与展示页分叉。 */
+  background: rgba(var(--hos-sky-deep-rgb), 0.28);
 }
 .editor-content-tabs button {
   min-width: 0;
@@ -560,7 +604,7 @@ h2 {
   background: #ffffff09;
 }
 .editor-content-tabs button.active {
-  color: #fff3d8;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.12);
   box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.26);
 }
@@ -617,7 +661,7 @@ h2 {
 /* 禁用态（如未选中页面）：降为灰字灰底，并把光标还原成默认箭头。 */
 #page-actions-button:disabled,
 #project-actions-button:disabled {
-  color: #59636b;
+  color: var(--muted);
   background: #1b2228;
   cursor: default;
 }
@@ -636,7 +680,7 @@ h2 {
 /* hover / 禁用两态：hover 借用主题橙（与页签选中同色），禁用时底色透明、不抢注意力。 */
 .project-floorplan-open:hover:not(:disabled) {
   border-color: var(--accent);
-  color: #fff3d8;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.12);
 }
 .project-floorplan-open:disabled {
@@ -884,7 +928,7 @@ h2 {
 }
 /* hover 用 8% 橙底作「可点」反馈，不画下划线，避免与选中态的橙条混淆。 */
 .element-list-tabs button:hover {
-  color: #fff4dc;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.08);
 }
 .element-list-tabs button.active {
@@ -907,13 +951,13 @@ h2 {
   margin: 8px 0 9px;
   border-style: dashed;
   border-color: rgba(var(--hos-accent-rgb), 0.46);
-  color: #d9ba83;
+  color: var(--accent-text-soft);
   background: rgba(var(--hos-accent-rgb), 0.04);
   font-size: 11px;
 }
 .add-element-button:hover:not(:disabled) {
   border-color: var(--accent-bright);
-  color: #fff0d4;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.1);
 }
 /* 达到组件上限或未选页面时禁用：彻底去掉橙色，避免看起来仍可添加。 */
@@ -1067,7 +1111,7 @@ h2 {
   box-shadow: none;
 }
 .element-item.group-item {
-  color: #f0c36a;
+  color: var(--accent-text-soft);
   font-weight: 650;
 }
 /* 「返回上级」行：无边框，只用 1px 半透明下边线与列表分隔；金色 10px 文字强调它是导航项。 */
@@ -1077,7 +1121,7 @@ h2 {
   padding: 5px 8px;
   border: 0;
   border-bottom: 1px solid rgba(124, 139, 150, 0.14);
-  color: #d3a44f;
+  color: var(--accent-text-dim);
   background: transparent;
   font-size: 10px;
   text-align: left;
@@ -1085,7 +1129,7 @@ h2 {
 }
 /* hover 提亮成亮金色，并叠 7% 橙底作为可点反馈。 */
 .element-group-back:hover {
-  color: #ffd678;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.07);
 }
 /* 拖拽反馈：被拖项降透明度，落点用 inset 阴影在顶 / 底边画 2px 插入线。 */
@@ -1421,7 +1465,7 @@ h2 {
 /* 开启态：半透明橙描边 + 12% 橙底，与 aria-pressed 一起表达「声音已开」。 */
 .workspace-sound-toggle[aria-pressed="true"] {
   border-color: rgba(var(--hos-accent-rgb), 0.28);
-  color: #f2b23b;
+  color: var(--accent-text-soft);
   background: rgba(var(--hos-accent-rgb), 0.07);
 }
 .workspace-sound-toggle:hover {
@@ -1476,13 +1520,13 @@ h2 {
   display: block;
   max-width: min(42vw, 520px);
   overflow: hidden;
-  color: #d4a64e;
+  color: var(--accent-deep);
   text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .dashboard-display-hint a:hover {
-  color: #ffc45b;
+  color: var(--accent);
   text-decoration: underline;
 }
 /* 复制按钮压到 26px 高：它整条提示都塞在 42px 的标题条里，用全局 32px 会顶满。 */
@@ -1495,8 +1539,8 @@ h2 {
   font-size: 10px;
 }
 .dashboard-display-hint button:hover {
-  border-color: #d4a64e;
-  color: #ffc45b;
+  border-color: var(--accent-deep);
+  color: var(--accent);
 }
 /* ===== 工作区工具栏与撤销重做 ===== */
 
@@ -1641,7 +1685,7 @@ h2 {
   border-right: 0;
 }
 .workspace-modes button.active {
-  color: #201707;
+  color: var(--on-bright);
   background: var(--accent);
   font-weight: 700;
 }
@@ -1661,7 +1705,11 @@ h2 {
   place-items: center;
   overflow: hidden;
   padding: 18px;
-  background-color: #141a20;
+  /* 中性石板，与左右两栏的 --surface 同值 —— 三栏是同一张底，只靠 1px 的 --line 分栏。
+     这里原先是写死的 #141a20，而 --surface 是另一个值（--hos-sky-low），
+     两者明度相同、饱和差一倍，于是正中间一块灰、两边两条蓝。现在统一到 --surface，
+     这个色值在文件里只有一处定义，不会再分叉。 */
+  background-color: var(--surface);
   background-image:
     linear-gradient(rgba(111, 126, 137, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(111, 126, 137, 0.035) 1px, transparent 1px);
@@ -1751,7 +1799,7 @@ h2 {
 .property-section {
   margin-bottom: 18px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(126, 141, 153, 0.15);
+  border-bottom: 1px solid rgba(var(--line-rgb), 0.55);
 }
 .property-section strong {
   display: block;
@@ -1959,7 +2007,7 @@ h2 {
   background: #252d33;
 }
 .inspector-number-stepper:active {
-  color: #171006;
+  color: var(--on-bright);
   background: var(--accent);
 }
 /* 步进箭头：8×5 的纯描边折线三角形，1.25 的描边宽度保证小尺寸下不糊。 */
@@ -2324,14 +2372,14 @@ h2 {
   min-height: 31px;
   padding: 4px 7px;
   border-color: rgba(var(--hos-accent-rgb), 0.48);
-  color: #efc982;
+  color: var(--accent-text-soft);
   background: rgba(var(--hos-accent-rgb), 0.07);
   font-size: 9px;
 }
 /* 上传按钮 hover 加强橙色；9px 字号是「一行塞下两个按钮」的代价。 */
 .asset-upload-button:hover:not(:disabled) {
   border-color: var(--accent-bright);
-  color: #fff0d0;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.14);
 }
 .asset-upload-hint {
@@ -2348,7 +2396,7 @@ h2 {
   min-width: 47px;
   min-height: 34px;
   padding: 4px 7px;
-  border-color: #d969637a;
+  border-color: rgba(var(--hos-alert-rgb), 0.48);
   color: #efb0ad;
   background: #5b221f33;
   font-size: 9px;
@@ -2453,12 +2501,12 @@ h2 {
 }
 .inspector-entity-option:hover {
   border-color: var(--accent-bright);
-  color: #fff4dc;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.1);
 }
 /* hover 时把类型标签与 ID 一并提亮，保证整行在橙底上的对比度。 */
 .inspector-entity-option:hover .inspector-entity-kind {
-  color: #ffe3aa;
+  color: var(--accent-text);
 }
 .inspector-entity-option:hover .inspector-entity-id {
   color: #bac3c8;
@@ -2535,7 +2583,7 @@ h2 {
 /* hover 与实体列表一致：橙色描边 + 10% 橙底。 */
 .inspector-asset-option:hover {
   border-color: var(--accent-bright);
-  color: #fff4dc;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.1);
 }
 .inspector-asset-option.selected {
@@ -2562,7 +2610,7 @@ h2 {
   height: 23px;
   min-height: 23px;
   padding: 0;
-  border-color: #d969637a;
+  border-color: rgba(var(--hos-alert-rgb), 0.48);
   border-radius: 50%;
   color: #f0b0ad;
   background: #281313e0;
@@ -2596,7 +2644,7 @@ h2 {
 }
 .inspector-asset-clear.selected {
   border-color: var(--accent);
-  color: #fff4dc;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.08);
   box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.16);
 }
@@ -2694,7 +2742,7 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   padding: 16px 18px 13px;
-  border-bottom: 1px solid rgba(126, 141, 153, 0.15);
+  border-bottom: 1px solid rgba(var(--line-rgb), 0.55);
 }
 /* 标题区左侧：大标题 + 副标题竖排；min-width: 0 让长副标题走省略号而不撑破标题栏。 */
 .editor-paged-picker-heading > div {
@@ -2730,7 +2778,7 @@ h2 {
   width: 30px;
   height: 30px;
   padding: 0;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--line-rgb), 0.55);
   border-radius: 50%;
   color: #8c989f;
   background: #ffffff06;
@@ -2809,7 +2857,7 @@ h2 {
   flex-wrap: wrap;
   gap: 8px;
   padding: 7px 9px;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--line-rgb), 0.46);
   border-radius: 5px;
   background: #ffffff05;
 }
@@ -2839,7 +2887,7 @@ h2 {
   height: 28px;
   padding: 0 9px;
   overflow: hidden;
-  border: 1px solid rgba(126, 141, 153, 0.24);
+  border: 1px solid rgba(var(--line-rgb), 0.70);
   border-radius: 5px;
   color: #aeb7bd;
   background: #ffffff06;
@@ -2851,7 +2899,7 @@ h2 {
 .editor-paged-picker-selected-action:hover,
 .editor-paged-picker-selected-action.selected {
   border-color: var(--accent);
-  color: #fff4dc;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.1);
 }
 .editor-paged-picker-current-label {
@@ -3152,7 +3200,7 @@ h2 {
 .editor-paged-picker-clear:hover,
 .editor-paged-picker-clear.selected {
   border-color: var(--accent);
-  color: #fff4dc;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.08);
 }
 .editor-paged-picker-empty {
@@ -3172,7 +3220,7 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   padding: 11px 18px 14px;
-  border-top: 1px solid rgba(126, 141, 153, 0.15);
+  border-top: 1px solid rgba(var(--line-rgb), 0.55);
 }
 .editor-paged-picker-status {
   color: #748089;
@@ -3196,7 +3244,7 @@ h2 {
 /* 只在按钮可用时给 hover 反馈；禁用态保持原样，避免误导用户以为能翻页。 */
 .editor-paged-picker-pagination button:not(:disabled):hover {
   border-color: rgba(var(--hos-accent-rgb), 0.5);
-  color: #fff1d6;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.08);
 }
 .editor-paged-picker-pagination input {
@@ -3282,7 +3330,7 @@ h2 {
   min-height: 29px;
   padding: 0 10px;
   border-color: rgba(var(--hos-accent-rgb), 0.46);
-  color: #f7d99d;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.09);
   font-size: 9px;
 }
@@ -3292,7 +3340,7 @@ h2 {
   padding: 7px 8px;
   border: 1px solid rgba(233, 156, 59, 0.24);
   border-radius: 5px;
-  color: #d7a75e;
+  color: var(--accent-text-dim);
   background: #e99c3b0e;
   font-size: 9px;
 }
@@ -3314,7 +3362,7 @@ h2 {
 .light-statistics-entity-list:empty:before {
   display: block;
   padding: 10px 8px;
-  border: 1px dashed rgba(126, 141, 153, 0.2);
+  border: 1px dashed rgba(var(--line-rgb), 0.70);
   border-radius: 5px;
   color: #66737b;
   content: "\8fd8\6ca1\6709\6dfb\52a0\7edf\8ba1\5b9e\4f53";
@@ -3328,7 +3376,7 @@ h2 {
   gap: 7px;
   min-width: 0;
   padding: 7px 8px;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--line-rgb), 0.55);
   border-radius: 6px;
   background: #ffffff05;
 }
@@ -3399,7 +3447,7 @@ h2 {
   display: grid;
   gap: 9px;
   padding: 10px;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--line-rgb), 0.46);
   border-radius: 5px;
   background: #ffffff05;
 }
@@ -3521,7 +3569,7 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   padding: 16px 18px 13px;
-  border-bottom: 1px solid rgba(126, 141, 153, 0.15);
+  border-bottom: 1px solid rgba(var(--line-rgb), 0.55);
 }
 /* 标题区左侧（标题 + 副标题竖排）；右侧固定留一个 28px 的关闭按钮。 */
 .popup-related-entity-dialog-heading > div {
@@ -3542,7 +3590,7 @@ h2 {
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--line-rgb), 0.55);
   border-radius: 50%;
   color: #8c989f;
   background: #ffffff06;
@@ -3679,7 +3727,7 @@ h2 {
   display: flex;
   justify-content: flex-end;
   padding: 11px 18px 14px;
-  border-top: 1px solid rgba(126, 141, 153, 0.15);
+  border-top: 1px solid rgba(var(--line-rgb), 0.55);
 }
 /* 底部「确定」按钮：绿色实心（与弹窗交互色一致），最小宽 76px 保证中文不折行。 */
 .popup-related-entity-dialog-footer button {
@@ -3745,7 +3793,7 @@ h2 {
   background: #ffffff0b;
 }
 .navigation-segmented-options button.active {
-  color: #fff4dc;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.16);
   box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.48);
 }
@@ -3825,7 +3873,7 @@ h2 {
 }
 .inspector-visibility-toggle.compact[aria-pressed="false"]:hover {
   border-color: var(--accent-bright);
-  color: #fff0d4;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.14);
   box-shadow: 0 0 0 2px rgba(var(--hos-accent-rgb), 0.1);
 }
@@ -4047,7 +4095,7 @@ h2 {
 }
 .navigation-icon-option.selected {
   border-color: var(--accent);
-  color: #fff4dc;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.08);
   box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.16);
 }
@@ -4116,13 +4164,13 @@ h2 {
   width: 100%;
   min-height: 34px;
   border-color: rgba(var(--hos-accent-rgb), 0.58);
-  color: #ffe6b9;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.13);
   font-size: 10px;
 }
 .navigation-batch-section > button:hover:not(:disabled) {
   border-color: var(--accent-bright);
-  color: #fff2d9;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.2);
 }
 /* 显式写 opacity: 1 是为了压过浏览器给 disabled 控件的默认降透明，
@@ -4257,13 +4305,13 @@ h2 {
   min-height: 24px;
   padding: 3px 7px;
   border-color: rgba(var(--hos-accent-rgb), 0.38);
-  color: #e8c37e;
+  color: var(--accent-text-soft);
   background: rgba(var(--hos-accent-rgb), 0.07);
   font-size: 9px;
 }
 .navigation-style-apply-page-toggle:hover {
   border-color: rgba(var(--hos-accent-rgb), 0.72);
-  color: #fff0cf;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.13);
 }
 /* 页面组内的选项网格：三列紧密排布（gap 仅 1px），靠 hover 底色区分条目。 */
@@ -4402,7 +4450,7 @@ h2 {
 }
 .effect-image-align-option:has(input:checked):after {
   border-color: var(--accent);
-  color: #1e1607;
+  color: var(--on-bright);
   background: var(--accent);
   font-weight: 800;
 }
@@ -4479,13 +4527,13 @@ h2 {
   min-height: 26px;
   padding: 4px 8px;
   border-color: rgba(var(--hos-accent-rgb), 0.5);
-  color: #ffe3ae;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.09);
   font-size: 9px;
 }
 .inspector-action-preview:hover {
   border-color: rgba(var(--hos-accent-rgb), 0.78);
-  color: #fff0cf;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.15);
 }
 /* 门窗透视方向：固定三列等宽（俯视/正视/侧视），窄栏下靠 9px 字挤压适配。 */
@@ -4506,7 +4554,7 @@ h2 {
 }
 .door-window-perspective-action.active {
   border-color: rgba(var(--hos-accent-rgb), 0.76);
-  color: #ffe3ae;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.12);
 }
 .door-window-perspective-action:disabled {
@@ -4665,7 +4713,7 @@ h2 {
 .settings-dialog {
   /* 弹窗色调层。与入口页共用同一套语义（--hos-lumen 暖光 / --hos-aura 极光 /
      --hos-eco 薄荷 / --hos-sensor 中性），但**只改弹窗自己的眉标与顶边光带**，
-     不碰全局 --accent ——「可点击」这件事在编辑器里始终是同一枚青。
+     不碰全局 --accent ——「可点击」这件事在编辑器里始终是同一枚暖金。
      顶栏四个对话框各自声明 data-tone（HA=aura、授权=lumen、会话与日志=sensor），
      没有 data-tone 的弹窗不点色，与改造前视觉完全一致。 */
   --dlg-tone: var(--hos-accent);
@@ -4902,7 +4950,7 @@ h2 {
   text-align: center;
 }
 .floorplan-auto-lighting-grid input:focus {
-  border-color: #ffa73a8f;
+  border-color: rgba(var(--hos-accent-rgb), 0.56);
 }
 /* 状态行固定 14px 最小高，避免出现/清除提示文字时面板高度跳动。 */
 .floorplan-auto-lighting-status {
@@ -5073,7 +5121,7 @@ h2 {
 /* 手输了半截 / 写了非法值：只描红，不改数值 —— 把用户正在输入的内容擦掉
    比留一个红框难用得多。真正非法时 change 会把输入框回灌成当前值。 */
 .appearance-custom input[type="text"].is-invalid {
-  border-color: var(--hos-alert, #e0787a);
+  border-color: var(--hos-alert, #f07a7e);
 }
 /* 这枚色已被自定义覆盖：给整块加一道主控色描边，让「预设不再决定主控色」看得见。 */
 .appearance-custom.is-custom {
@@ -5110,7 +5158,7 @@ h2 {
 }
 /* 只有显式声明 data-tone 的弹窗才点色：顶栏四个对话框各自表态，
    其余二十来个弹窗（删除确认、重命名、导图导出…）保持改造前的样子 ——
-   它们属于「当前页面正在做的事」，跟着页面走同一枚青，不需要再分域。 */
+   它们属于「当前页面正在做的事」，跟着页面走同一枚暖金，不需要再分域。 */
 .settings-dialog[data-tone] .dialog-heading {
   box-shadow: inset 0 2px 0 var(--dlg-tone);
 }
@@ -5209,7 +5257,7 @@ h2 {
   background: rgba(var(--hos-accent-rgb), 0.02);
 }
 .project-canvas-fields.fixed input[readonly] {
-  color: #c7a963;
+  color: var(--accent-text-dim);
   border-color: rgba(var(--hos-accent-rgb), 0.22);
   background: #13181c;
   cursor: not-allowed;
@@ -5273,11 +5321,11 @@ h2 {
 }
 .project-aspect-lock.locked {
   border-color: rgba(var(--hos-accent-rgb), 0.46);
-  color: #e3b557;
+  color: var(--accent-text-soft);
   background: rgba(var(--hos-accent-rgb), 0.07);
 }
 .project-aspect-lock.locked output {
-  color: #f2b744;
+  color: var(--accent-text-soft);
 }
 /* 与批量按钮同理：禁用不靠降透明，改用 not-allowed 光标表达。 */
 .project-aspect-lock:disabled {
@@ -5329,7 +5377,7 @@ h2 {
 }
 /* 第一行是警告主旨，单独用橙色强调，其余是解释性文字。 */
 .project-resize-warning-body p:first-child {
-  color: #f0c56c;
+  color: var(--warn);
 }
 .project-dialog {
   width: min(860px, calc(100vw - 40px));
@@ -5392,7 +5440,7 @@ h2 {
   background: transparent;
 }
 .effect-realtime-options .check-row:has(input:checked) {
-  color: #fff4dc;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.16);
   box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb), 0.48);
 }
@@ -5488,7 +5536,7 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: #edc36b;
+  color: var(--accent-text-soft);
   font-size: 10px;
 }
 /* 目标页面的宽高比读数用等宽字体：数值随选择变化时不左右抖动。 */
@@ -5772,7 +5820,7 @@ h2 {
 /* 配对码压到 13px：上面还有 12px 的名称，15px 会盖过标题的层级；
    加宽的字距与等宽数字保留，逐位核对的读法不变。 */
 .display-device-code {
-  color: #ffc45b;
+  color: var(--accent);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.08em;
@@ -5880,7 +5928,7 @@ h2 {
   align-items: flex-start;
   gap: 10px;
   padding-bottom: 15px;
-  border-bottom: 1px solid rgba(126, 141, 153, 0.15);
+  border-bottom: 1px solid rgba(var(--line-rgb), 0.55);
 }
 /* 状态圆点固定 9px，用 margin-top 手动对齐标题首行，不靠 flex 居中。 */
 .connection-state-heading > i {
@@ -6075,19 +6123,19 @@ h2 {
 /* 选中态用橙色描边 + 低透明度橙底；未选中时按钮边框本就透明，这里只需覆盖配色。 */
 .popup-list-item.selected {
   border-color: rgba(var(--hos-accent-rgb), 0.28);
-  color: #fff2d6;
+  color: var(--accent-text);
   background: rgba(var(--hos-accent-rgb), 0.07);
 }
 .popup-list-item.selected:before {
   background: var(--accent);
 }
 .popup-list-item.selected > small {
-  color: #b9924d;
+  color: var(--accent-text-dim);
 }
 /* 项目里还没有任何弹窗时的空列表提示。 */
 .popup-list-empty {
   padding: 24px 8px;
-  color: #647078;
+  color: var(--muted);
   font-size: 10px;
   line-height: 1.6;
   text-align: center;
@@ -6188,7 +6236,7 @@ h2 {
 }
 /* 选中态用实心橙 + 近黑文字，与全局 .primary 按钮保持同一套配色语言。 */
 .custom-popup-layout-toggle button.active {
-  color: #201707;
+  color: var(--on-bright);
   background: var(--accent);
   font-weight: 700;
 }
@@ -6266,7 +6314,7 @@ h2 {
   cursor: grabbing;
 }
 .popup-module-card.popup-module-dragging {
-  border-color: #f4a81680;
+  border-color: rgba(var(--hos-accent-rgb), 0.5);
   opacity: 0.34;
   transform: scale(0.985);
 }
@@ -6277,7 +6325,7 @@ h2 {
   z-index: 4;
   border-radius: 99px;
   background: var(--accent);
-  box-shadow: 0 0 12px #f4a816b8;
+  box-shadow: 0 0 12px rgba(var(--hos-accent-rgb), 0.72);
   pointer-events: none;
   content: none;
 }
@@ -6311,7 +6359,7 @@ h2 {
 }
 /* 舞台为空（或拖到卡片之外）时的追加落点提示，用内嵌虚线框表达。 */
 .custom-popup-stage.popup-module-append-target {
-  outline: 2px dashed rgba(244, 168, 22, 0.66);
+  outline: 2px dashed rgba(var(--hos-accent-rgb), 0.66);
   outline-offset: -8px;
 }
 /* 卡片标题行：左侧两行文字（名称 + 类型），右侧操作按钮固定宽度不参与压缩。 */
@@ -6427,7 +6475,7 @@ h2 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid rgba(126, 141, 153, 0.22);
+  border: 1px solid rgba(var(--line-rgb), 0.70);
   border-radius: 7px;
   background: #05090c7a;
 }
@@ -6436,7 +6484,7 @@ h2 {
   min-height: 28px;
   padding: 0 5px;
   border: 0;
-  border-right: 1px solid rgba(126, 141, 153, 0.16);
+  border-right: 1px solid rgba(var(--line-rgb), 0.55);
   border-radius: 0;
   color: #8d989f;
   background: transparent;
@@ -6449,7 +6497,7 @@ h2 {
 }
 /* 选中态配色与布局切换控件保持一致：实心橙底 + 近黑字。 */
 .popup-cover-setting-options button.active {
-  color: #211807;
+  color: var(--on-bright);
   background: var(--accent);
   font-weight: 700;
 }
@@ -6505,7 +6553,7 @@ h2 {
   min-width: 0;
   height: 28px;
   padding: 4px 5px;
-  border: 1px solid rgba(126, 141, 153, 0.28);
+  border: 1px solid rgba(var(--line-rgb), 0.70);
   border-radius: 7px;
   outline: 0;
   background: #05090c7a;
@@ -6514,8 +6562,8 @@ h2 {
   text-align: center;
 }
 .popup-line-chart-threshold-values input[type="number"]:focus {
-  border-color: #f4a816b8;
-  box-shadow: 0 0 0 2px #f4a8161f;
+  border-color: rgba(var(--hos-accent-rgb), 0.72);
+  box-shadow: 0 0 0 2px rgba(var(--hos-accent-rgb), 0.12);
 }
 .popup-line-chart-colors input[type="color"] {
   width: 100%;
@@ -6523,7 +6571,7 @@ h2 {
   height: 28px;
   padding: 3px;
   overflow: hidden;
-  border: 1px solid rgba(126, 141, 153, 0.28);
+  border: 1px solid rgba(var(--line-rgb), 0.70);
   border-radius: 7px;
   outline: 0;
   background: #05090c7a;
@@ -6652,14 +6700,14 @@ h2 {
   border: 1px solid rgba(var(--hos-accent-rgb), 0.34);
   border-radius: 4px;
   background: rgba(var(--hos-accent-rgb), 0.05);
-  color: #cbb990;
+  color: var(--accent-text-dim);
   font-size: 9px;
   line-height: 1;
 }
 .component-popup-preview:hover:not(:disabled) {
   border-color: rgba(var(--hos-accent-rgb), 0.62);
   background: rgba(var(--hos-accent-rgb), 0.12);
-  color: #ffe4ae;
+  color: var(--accent-text);
 }
 /* ===== 弹窗外观（编辑器预览） ===== */
 
@@ -6696,7 +6744,7 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid rgba(126, 141, 153, 0.12);
+  border-bottom: 1px solid rgba(var(--line-rgb), 0.46);
   background: transparent;
   text-align: center;
 }
@@ -6716,7 +6764,7 @@ h2 {
   right: 12px;
   width: 48px;
   height: 48px;
-  border: 1px solid rgba(126, 141, 153, 0.22);
+  border: 1px solid rgba(var(--line-rgb), 0.70);
   border-radius: 50%;
   color: #7f8a91;
   background: #ffffff06;
@@ -6724,9 +6772,9 @@ h2 {
   cursor: pointer;
 }
 .hb-custom-popup-heading button:hover {
-  border-color: #f4a8167a;
-  color: #f4a816;
-  background: #f4a81612;
+  border-color: rgba(var(--hos-accent-rgb), 0.48);
+  color: var(--accent);
+  background: rgba(var(--hos-accent-rgb), 0.07);
 }
 /* 12 栏网格：模块的列 / 行跨度由 JS 按弹窗布局写进 style。
    固定 12 栏是为了让 1/2、1/3、1/4 这些常见等分都能整除。 */
@@ -6748,7 +6796,7 @@ h2 {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
-  border: 1px solid rgba(126, 141, 153, 0.18);
+  border: 1px solid rgba(var(--line-rgb), 0.55);
   border-radius: 18px;
   background: linear-gradient(145deg, #ffffff0b, #ffffff04);
   box-shadow:
@@ -6951,7 +6999,7 @@ h2 {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgba(126, 141, 153, 0.14);
+  border: 1px solid rgba(var(--line-rgb), 0.46);
   border-radius: 13px;
   background: #080b0e;
   box-shadow:
@@ -7062,7 +7110,7 @@ h2 {
 }
 /* 键盘聚焦态用橙色描边，与全局按钮的 :focus-visible 保持一致。 */
 .display-pairing-qr-download:focus-visible {
-  outline: 2px solid #f8b32d;
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 /* 说明文字里的有序列表：padding-left 是给序号预留的缩进。 */

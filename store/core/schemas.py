@@ -359,22 +359,6 @@ class AdminWalletAdjustRequest(_AdminBase):
     note: str = Field(default="", max_length=255)
 
 
-class AdminReleaseRequest(_AdminBase):
-    product: str = Field(default="homeos", max_length=64)
-    channel: str = Field(default="docker", max_length=32)
-    version: str = Field(min_length=1, max_length=32)
-    release_date: str = Field(default="", alias="releaseDate", max_length=32)
-    upgrade_notes: str = Field(default="", alias="upgradeNotes")
-
-
-class AdminReleasePatch(_AdminBase):
-    product: str | None = Field(default=None, max_length=64)
-    channel: str | None = Field(default=None, max_length=32)
-    version: str | None = Field(default=None, max_length=32)
-    release_date: str | None = Field(default=None, alias="releaseDate", max_length=32)
-    upgrade_notes: str | None = Field(default=None, alias="upgradeNotes")
-
-
 class AdminWithdrawalResolveRequest(_AdminBase):
     approve: bool = True
     note: str = Field(default="", max_length=255)

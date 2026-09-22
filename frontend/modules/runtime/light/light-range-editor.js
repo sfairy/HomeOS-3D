@@ -13,10 +13,11 @@ import {
   clampNumber,
   coercedFiniteNumberOr,
   createDomFactory,
+  paletteColor,
   positionFloatingMenu,
   releasePointer,
   stepNumberInput as sharedStepNumberInput
-} from "../core/static-helpers.js?v=2609220141";
+} from "../core/static-helpers.js?v=2609220943";
 // 表单读出来的都是字符串：统一转成有限数字，非法值（NaN / 空串 / 布尔）回落到兜底值。
 // 不这样做的话，一个空输入框就能把整层的光照参数变成 NaN，画面会直接黑掉。
 // 「空串必须回落」是有意的：`Number("")` 是 0，直接换算会把「用户清空了输入框」当成 0 写进配置。
@@ -26,6 +27,42 @@ const deepCloneObject = sourceObject => JSON.parse(JSON.stringify(sourceObject |
 // 保留两位小数（厘米级精度）：避免把 0.30000000000000004 这类浮点噪声写进配置，
 // 也保证前后端比较时不会因为尾差判定为「改过了」。
 const roundToHundredth = numericInput => Math.round(numericInput * 100) / 100;
+
+/**
+ * 光区编辑器的取色。SVG 的 fill / stroke 属性和 canvas 一样读不到 CSS 变量
+ * （`stroke: "var(--hos-accent)"` 会被静默忽略，画笔保持上一次的值），
+ * 所以品牌色必须从调色板令牌里现取一次再派生。
+ *
+ * 惰性 + 记忆化：`paletteColor` 按令牌名缓存**第一次**取到的值，所以不能放在模块求值时
+ * （那一刻运行期调色板可能还没挂上，会把兜底色永久缓存下来）。放到首次绘制时取，
+ * 一次取齐后复用，不会被每帧重绘拖着反复算。
+ *
+ * 18 枚色阶全部由主控色（--hos-accent*）与传感器灰（--hos-sensor / --hos-sky-haze）派生 ——
+ * 原来是一组写死的暖色十六进制，管理员换掉主控色后这层光区纹丝不动。
+ */
+let rangeEditorPaletteCache = null;
+function rangeEditorPalette() {
+  if (rangeEditorPaletteCache) return rangeEditorPaletteCache;
+  const accentRgb = paletteColor("--hos-accent-rgb", "255, 196, 106");
+  rangeEditorPaletteCache = {
+    // 当前光区：面 + 边，以及柔和度内圈。
+    regionFill: `rgba(${accentRgb}, 0.07)`,
+    regionStroke: paletteColor("--hos-accent", "#ffc46a"),
+    softnessStroke: paletteColor("--hos-accent-bright", "#ffd9a0"),
+    // 未选中的其它光区走传感器灰，与主控暖色分开（原来是一枚 #99afc0）。
+    idleStroke: paletteColor("--hos-sensor", "#9eb0c4"),
+    idleMarkerFill: paletteColor("--hos-ink", "#f1f7fb"),
+    idleMarkerStroke: paletteColor("--hos-sky-haze", "#536777"),
+    // 三种拖拽手柄与连线。
+    handleFill: paletteColor("--hos-accent-bright", "#ffd9a0"),
+    handleStroke: paletteColor("--hos-accent-deep", "#e09523"),
+    handleHalo: `rgba(${accentRgb}, 0.2)`,
+    guideStroke: paletteColor("--hos-accent-deep", "#e09523"),
+    // 保存失败时的状态文案（原来是 #ffc28d）。
+    warningText: paletteColor("--hos-accent-bright", "#ffd9a0")
+  };
+  return rangeEditorPaletteCache;
+}
 // 光区键：用 JSON.stringify 序列化 [区域 ID, 灯具 ID]，而不是拼分隔符 ——
 // ID 里一旦出现分隔符，拼接就会撞键。
 const toRegionKey = (areaIdPart, lightIdPart) =>
@@ -343,7 +380,7 @@ export function mountRegionRangeEditor(
     }
     if (saveErrorMessage) {
       statusElement.textContent = "本次保存未成功：" + saveErrorMessage + "。当前预览仍保留。";
-      statusElement.style.color = "#ffc28d";
+      statusElement.style.color = rangeEditorPalette().warningText;
     } else {
       statusElement.style.removeProperty("color");
     }
@@ -515,6 +552,8 @@ export function mountRegionRangeEditor(
     editorHost.camera.updateMatrixWorld();
     const overlayRect = editorElement.getBoundingClientRect();
     const lampHeight = getLampWorldHeight();
+    // 本次绘制要用的色阶：一次取齐，循环里只读属性。
+    const palette = rangeEditorPalette();
     svgElement.setAttribute(
       "viewBox",
       "0 0 " + (overlayRect.width || 1) + " " + (overlayRect.height || 1)
@@ -547,8 +586,8 @@ export function mountRegionRangeEditor(
                 }
               : {}),
             d: buildRegionPathData(overlayRegion, lampHeight),
-            fill: isCurrentRegion ? "#edb06012" : "none",
-            stroke: isCurrentRegion ? "#f2b768" : "#99afc0",
+            fill: isCurrentRegion ? palette.regionFill : "none",
+            stroke: isCurrentRegion ? palette.regionStroke : palette.idleStroke,
             "stroke-width": isCurrentRegion ? 1.6 : 1,
             "stroke-dasharray": isCurrentRegion ? "none" : "4 4",
             opacity: isCurrentRegion ? 1 : 0.45
@@ -566,7 +605,7 @@ export function mountRegionRangeEditor(
               Math.max(0.05, 1 - overlayRegion.softness)
             ),
             fill: "none",
-            stroke: "#efb56f",
+            stroke: palette.softnessStroke,
             "stroke-width": 1,
             "stroke-dasharray": "3 5",
             opacity: 0.42
@@ -606,8 +645,8 @@ export function mountRegionRangeEditor(
           cx: markerX,
           cy: markerY,
           r: isCurrentRegion ? 5 : 3.8,
-          fill: isCurrentRegion ? "#ffd498" : "#e9f0f5",
-          stroke: isCurrentRegion ? "#a87029" : "#536777",
+          fill: isCurrentRegion ? palette.handleFill : palette.idleMarkerFill,
+          stroke: isCurrentRegion ? palette.handleStroke : palette.idleMarkerStroke,
           "stroke-width": 1.7,
           class: "p2r-marker"
         },
@@ -632,7 +671,7 @@ export function mountRegionRangeEditor(
         y1: lampCenterScreen[1],
         x2: regionCenterPoint[0],
         y2: regionCenterPoint[1],
-        stroke: "#e8b76e",
+        stroke: palette.guideStroke,
         "stroke-width": 1,
         "stroke-dasharray": "4 4",
         "pointer-events": "none"
@@ -653,8 +692,8 @@ export function mountRegionRangeEditor(
           cx: moveHandleX,
           cy: moveHandleY,
           r: 14,
-          fill: "#edb06033",
-          stroke: "#f2b768"
+          fill: palette.handleHalo,
+          stroke: palette.regionStroke
         },
         moveHandleElement
       );
@@ -674,7 +713,7 @@ export function mountRegionRangeEditor(
             (moveHandleY - 8) +
             "V" +
             (moveHandleY + 8),
-          stroke: "#ffe0ad",
+          stroke: palette.handleFill,
           "stroke-width": 2,
           fill: "none"
         },
@@ -730,8 +769,8 @@ export function mountRegionRangeEditor(
           width: 9,
           height: 9,
           rx: 2,
-          fill: "#ffe0ad",
-          stroke: "#9f6e33",
+          fill: palette.handleFill,
+          stroke: palette.handleStroke,
           "stroke-width": 1.2,
           class: "p2r-handle"
         },
@@ -757,7 +796,7 @@ export function mountRegionRangeEditor(
       y1: rotateAnchorPoint[1],
       x2: rotateHandlePoint[0],
       y2: rotateHandlePoint[1],
-      stroke: "#eabc7b",
+      stroke: palette.guideStroke,
       "stroke-width": 1.2
     });
     const rotateHandleElement = createSvgElement("g", {
@@ -782,8 +821,8 @@ export function mountRegionRangeEditor(
         cx: rotateHandlePoint[0],
         cy: rotateHandlePoint[1],
         r: 5,
-        fill: "#f3c581",
-        stroke: "#956527",
+        fill: palette.handleFill,
+        stroke: palette.handleStroke,
         "stroke-width": 1.2,
         class: "p2r-handle"
       },

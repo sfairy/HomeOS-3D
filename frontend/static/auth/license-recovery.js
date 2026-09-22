@@ -101,6 +101,7 @@ const recoveryRoot = typeof document === "undefined" ? null : document.querySele
 
 if (recoveryRoot) {
   const messageElement = document.querySelector("#recovery-message");
+  const errorElement = document.querySelector("#recovery-error");
   const retryButton = document.querySelector("#recovery-retry");
 
   // inFlight 防重入（点击、online、定时器三个触发源会叠加）；
@@ -117,11 +118,21 @@ if (recoveryRoot) {
     if (tone) messageElement.classList.add(`hos-tone--${tone}`);
   }
 
+  /** 清掉上一轮的错误行。错误与状态是两行，成功那一轮不能留着上一轮的报错。 */
+  function clearError() {
+    if (!errorElement) return;
+    errorElement.textContent = "";
+    errorElement.hidden = true;
+  }
+
   async function check(manual = false) {
     if (inFlight || done) return;
     window.clearTimeout(recheckTimer);
     inFlight = true;
-    retryButton.disabled = true;
+    // 只有用户自己按下的那一次才置灰。自动自检每 5 秒一轮，也跟着置灰的话，
+    // 这一页唯一的出口按钮会每 5 秒暗一下再亮回来 —— 一个「现在不能点」的假信号。
+    // 手动那次仍然要置灰：它代表"请求在飞"，而且这段时间本来就不该重复点。
+    if (manual) retryButton.disabled = true;
     if (manual) messageElement.textContent = "正在重新连接授权后台…";
     try {
       // 手动重试走 POST /retry（后端会忽略端点冷却），随后统一读 availability 取最新状态；
@@ -131,9 +142,16 @@ if (recoveryRoot) {
         manual ? { method: "POST" } : {}
       );
       const state = manual ? await licenseRequest("/api/v1/license/availability") : first;
+      clearError();
       if (state.displayAllowed) {
         done = true;
-        window.location.reload();
+        // 「通了」是这一页唯一的高光时刻。原来它直接 reload，用户看到的是「一次无声的重载」
+        // （自动自检 5 秒一轮，最迟 5 秒后才可能刷新）；停半拍把话说清楚，
+        // 也让 .hos-status 的 eco 语义层真正被用到 —— 否则那条规则永远不可达。
+        messageElement.textContent = "授权已恢复，正在进入…";
+        paintTone("eco");
+        retryButton.hidden = true;
+        window.setTimeout(() => window.location.reload(), 600);
         return;
       }
       messageElement.textContent = licenseMessage(state);
@@ -142,7 +160,13 @@ if (recoveryRoot) {
       // 后端说不可重试（终态）时把按钮藏起来：留着只会让用户反复点一个不会成功的按钮。
       retryButton.hidden = !state.canRetry;
     } catch (caughtError) {
-      messageElement.textContent = caughtError.message;
+      // 错误写进 #recovery-error 而不是状态行：状态句要继续说明「现在是什么情况」。
+      if (errorElement) {
+        errorElement.textContent = caughtError.message;
+        errorElement.hidden = false;
+      } else {
+        messageElement.textContent = caughtError.message;
+      }
       paintTone("alert");
       // 后端明确说「再试也没用」（已进终态）时藏起按钮；其余错误（断网、超时）
       // 保留按钮 —— 那正是用户能自救的场景。

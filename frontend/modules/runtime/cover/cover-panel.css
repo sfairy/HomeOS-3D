@@ -116,7 +116,7 @@
   cursor: pointer;
   background: linear-gradient(
     90deg,
-    #8cb7ca var(--hb-cover-position-progress, 0%),
+    rgba(var(--hos-cool-rgb), 0.62) var(--hb-cover-position-progress, 0%),
     #3a444b var(--hb-cover-position-progress, 0%)
   );
   box-shadow:
@@ -211,7 +211,7 @@
 /* 悬停与选中共用同一套高亮：is-active 表示当前状态就落在这个按钮上。 */
 .i3d-cover-panel .hb-cover-details-actions button:hover,
 .i3d-cover-panel .hb-cover-details-actions button.is-active {
-  border-color: #a8c5d3bd;
+  border-color: rgba(var(--hos-cool-rgb), 0.74);
   color: #e7f5fb;
   background: linear-gradient(145deg, #64899973, #202e36c7);
 }
@@ -220,11 +220,11 @@
 }
 /* is-pending：指令已发出、等待设备确认，用描边而不是改底色，避免与选中态混淆。 */
 .i3d-cover-panel .hb-cover-details-actions button.is-pending {
-  border-color: #a8c5d3bd;
-  box-shadow: inset 0 0 0 1px #a8c5d34d;
+  border-color: rgba(var(--hos-cool-rgb), 0.74);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-cool-rgb), 0.3);
 }
 .i3d-cover-panel .hb-cover-details-actions i {
-  color: #a8c5d3;
+  color: var(--hos-cool, #a8c5d3);
   font:
     500 29px/1 Helvetica Neue,
     PingFang SC,
@@ -262,7 +262,7 @@
 }
 .i3d-cover-panel button:focus-visible,
 .i3d-cover-panel input:focus-visible {
-  outline: 2px solid #a8c5d3;
+  outline: 2px solid var(--hos-cool, #a8c5d3);
   outline-offset: 3px;
 }
 /* ===== 反馈文案与提示 ===== */

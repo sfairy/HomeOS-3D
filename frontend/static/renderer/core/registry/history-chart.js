@@ -6,19 +6,19 @@
 // 数值夹取统一走 utils/numbers.js。`clampNumber` 只用于三处：那三处 `clampCoercedNumber`
 // 的兜底是**算出来的表达式**、存在越界的现实可能，所以要在调用点先夹一次
 // （见 `utils/numbers.js` 模块头那张口径表）。
-import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609220141";
-import { formatZhDateTime } from "../../../utils/datetime.js?v=2609220141";
+import { clampCoercedNumber } from "../../../utils/numbers.js?v=2609220943";
+import { formatZhDateTime } from "../../../utils/datetime.js?v=2609220943";
 import {
   formatLineChartValue,
   lineChartGeometry
-} from "../../controls/line-chart-runtime.js?v=2609220141";
+} from "../../controls/line-chart-runtime.js?v=2609220943";
 import {
   resolvedThresholds,
   smoothChartPath,
   thresholdColor
-} from "../../controls/weather-chart-runtime.js?v=2609220141";
+} from "../../controls/weather-chart-runtime.js?v=2609220943";
 // 同门分片：registry-visuals
-import { appendSvgElement } from "./registry-visuals.js?v=2609220141";
+import { appendSvgElement, chartThresholdPalette } from "./registry-visuals.js?v=2609220943";
 
 /**
  * 把历史点整理成等间隔的折线序列：丢掉时间戳或数值非法的点，追加当前值作为最新一点，
@@ -266,22 +266,27 @@ export function renderLineChartDetails(detailsComponent, detailsContext) {
   );
   const detailsElement = document.createElement("section");
   detailsElement.className = "hb-line-chart-details";
+  // 同 line-chart：阈值色带由渲染层读令牌后注入（weather-chart-runtime 是纯计算模块，不读 DOM）。
+  const detailsThresholdColors = chartThresholdPalette();
   const detailsThresholds = resolvedThresholds(
     detailsComponent.properties?.thresholds,
     detailsSamples,
-    detailsComponent.properties?.thresholdMode
+    detailsComponent.properties?.thresholdMode,
+    detailsThresholdColors
   );
   detailsElement.style.setProperty(
     "--hb-chart-current-color",
-    Number.isFinite(detailsValue) ? thresholdColor(detailsThresholds, detailsValue) : "#68cc3e"
+    Number.isFinite(detailsValue)
+      ? thresholdColor(detailsThresholds, detailsValue, detailsThresholdColors.defaultColor)
+      : detailsThresholdColors.defaultColor
   );
   detailsElement.syncLineChartState = detailsRuntimeUpdate => {
     const detailsRuntimeValue = Number.parseFloat(detailsRuntimeUpdate?.state);
     detailsElement.style.setProperty(
       "--hb-chart-current-color",
       Number.isFinite(detailsRuntimeValue)
-        ? thresholdColor(detailsThresholds, detailsRuntimeValue)
-        : "#68cc3e"
+        ? thresholdColor(detailsThresholds, detailsRuntimeValue, detailsThresholdColors.defaultColor)
+        : detailsThresholdColors.defaultColor
     );
   };
   if (!detailsSamples.length) {
@@ -333,7 +338,7 @@ export function renderLineChartDetails(detailsComponent, detailsContext) {
     : [
         {
           value: detailsGeometry.minimum,
-          color: "#68cc3e"
+          color: detailsThresholdColors.defaultColor
         }
       ];
   for (const detailsThresholdStop of [...detailsThresholdStops].sort(

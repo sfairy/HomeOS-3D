@@ -67,14 +67,14 @@
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
   input:checked {
-  border-color: var(--accent, var(--hos-accent, #5fd4ff));
-  background: var(--accent, var(--hos-accent, #5fd4ff));
+  border-color: var(--accent, var(--hos-accent, #ffc46a));
+  background: var(--accent, var(--hos-accent, #ffc46a));
 }
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
   input:checked:before {
   /* 手柄：亮到接近中性白。原来是 #fff4dc 这种暖奶白 ——
-     它跟旧橙色轨道是一对，换成青色轨道后暖白手柄会显脏。 */
+     它跟轨道本来同族，轨道落在暖金上之后，暖白手柄会和底色糊在一起。 */
   background: var(--hos-ink, #f1f7fb);
   transform: translate(12px);
 }
@@ -82,7 +82,7 @@
 :is(#interaction3d-inspector, .i3d-editor, .i3d-vacuum-map-editor, .plan2-range-editor)
   .i3d-setting-toggle
   input:focus-visible {
-  outline: 2px solid var(--accent, var(--hos-accent, #5fd4ff));
+  outline: 2px solid var(--accent, var(--hos-accent, #ffc46a));
   outline-offset: 3px;
 }
 /* 禁用态用 :has 命中整行（含文字）统一降透明度；光标恢复默认，明确「点不动」。 */

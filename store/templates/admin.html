@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#151a1f">
+<meta name="theme-color" content="#050912">
 <title>HomeOS 授权商店 · 管理后台</title>
-<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609220141">
-<link rel="stylesheet" href="/store-static/theme.css?v=2609220141">
+<link rel="icon" type="image/png" href="/store-static/favicon-rounded.png?v=2609220943">
+<link rel="stylesheet" href="/store-static/theme.css?v=2609220943">
 <!-- 场景设计系统的分发产物（源在仓库 design/scene/）：登录屏是整页场景壳，
      工作台仍走 theme.css + admin.css 的令牌。 -->
-<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609220141">
-<link rel="stylesheet" href="/store-static/scene/page.css?v=2609220141">
-<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609220141">
-<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609220141">
-<link rel="stylesheet" href="/store-static/admin.css?v=2609220141">
-<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609220141` 的 <link>。
+<link rel="stylesheet" href="/store-static/scene/fonts.css?v=2609220943">
+<link rel="stylesheet" href="/store-static/scene/page.css?v=2609220943">
+<link rel="stylesheet" href="/store-static/scene/scene.css?v=2609220943">
+<link rel="stylesheet" href="/store-static/scene/panel.css?v=2609220943">
+<link rel="stylesheet" href="/store-static/admin.css?v=2609220943">
+<!-- 站点配色覆盖：后端把它换成 `/store-appearance.css?v=2609220943` 的 <link>。
      必须排在所有样式表之后 —— 同为 :root 的令牌，后加载的赢。 -->
 <!--{{APPEARANCE}}-->
 </head>
@@ -22,7 +22,7 @@
 
 <!-- 登录屏对齐商店认证页：表单刻意不预填，靠 autocomplete / new-password / data-lpignore 等属性 + 脚本里的加载后清空（clearAutofilledLogin）挡住密码扩展。
      整页场景壳的样式来自 /store-static/scene/，场景标记由 store/api/page_shell.py 注入。 -->
-<div id="admin-login" class="hos-page hos-tone--aura" hidden>
+<div id="admin-login" class="hos-page hos-tone--accent" hidden>
   <!--{{SCENE}}-->
 
   <main class="hos-dock">
@@ -93,7 +93,7 @@
 <div id="admin-app" class="admin-shell" hidden>
   <aside class="admin-side">
     <div class="brand">
-      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=2609220141" alt=""></span>
+      <span class="brand__mark"><img src="/store-static/homeos-mark-light.svg?v=2609220943" alt=""></span>
       <div class="brand__text">
         <strong>HomeOS</strong>
         <small>授权商店后台</small>
@@ -143,13 +143,7 @@
               <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.6 12.7V4.7a1.1 1.1 0 0 1 1.1-1.1h8l7.7 7.7a1.6 1.6 0 0 1 0 2.2l-6.7 6.7a1.6 1.6 0 0 1-2.2 0z"/><circle cx="8.1" cy="8.1" r="1.4"/></svg>
               <span class="nav-label">优惠码</span>
               <span class="nav-badge" data-nav-badge="coupons"></span>
-            </a>
-            <a class="nav-link" href="#releases" data-admin-page="releases">
-              <svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.8V4.6"/><path d="m7.6 9 4.4-4.4L16.4 9"/><path d="M4.6 15v3.6A1.4 1.4 0 0 0 6 20h12a1.4 1.4 0 0 0 1.4-1.4V15"/></svg>
-              <span class="nav-label">版本发布</span>
-              <span class="nav-badge" data-nav-badge="releases"></span>
-            </a>
-          </div>
+            </a>          </div>
         </div>
       </div>
       <div class="nav-group open" data-nav-group="licensing" data-domain="licensing">
@@ -1026,15 +1020,20 @@
           <div class="admin-tab-pane" data-tab-pane="palette" role="tabpanel" data-tone="aura">
             <h4 class="admin-grid__section">站点配色</h4>
             <p class="admin-hint">
-              配色分两层：一个主控色决定「可进入 / 可操作」的青，三束居家光分别代表灯光与已激活（暖光）、
+              配色分两层：一个主控色决定「可进入 / 可操作」的暖金，三束居家光分别代表灯光与已激活（暖光）、
               氛围与恢复（极光紫）、在线与节能（薄荷）。温度与安防的读色不在这里 ——
               它们编码物理含义，改掉会让「热」看起来像「冷」。改动即时生效，保存后刷新依然是这套颜色。
             </p>
             <div id="palette-preset-list" class="admin-palette-presets" role="radiogroup" aria-label="配色预设"></div>
             <div class="admin-palette-custom">
               <span>自定义主控色</span>
-              <input id="palette-accent" type="color" value="#ffc46a" aria-label="自定义主控色">
-              <input id="palette-accent-hex" class="hb-input" type="text" inputmode="latin" spellcheck="false" maxlength="7" placeholder="#ffc46a" aria-label="主控色十六进制值">
+              <!-- 这两个框的初值由 palette.js 从**当前生效的 --hb-accent** 填
+                   （配色样式表由服务端按已保存的配置生成）。
+                   这里以前写死一枚默认琥珀：登录屏上拿不到配色接口（要管理员身份），
+                   于是无论站点真实主控色是什么，面板里显示的都是默认琥珀 ——
+                   而它正是管理员打开这一页第一眼看到的值。 -->
+              <input id="palette-accent" type="color" aria-label="自定义主控色">
+              <input id="palette-accent-hex" class="hb-input" type="text" inputmode="latin" spellcheck="false" maxlength="7" placeholder="#RRGGBB" aria-label="主控色十六进制值">
               <small>自定义只换主控色，暖光 / 极光紫 / 薄荷沿用所选预设。</small>
             </div>
             <div class="admin-palette-preview" aria-hidden="true">
@@ -1053,59 +1052,6 @@
       </div>
     </section>
 
-    <!-- 版本发布 -->
-    <section class="admin-panel" id="panel-releases" data-domain="catalog">
-      <header class="panel-head">
-        <div class="panel-head__text">
-          <h2>版本发布</h2>
-          <p>客户端「检查更新」取最新一条；删除后会自动回退到次新记录</p>
-        </div>
-        <div class="panel-head__actions">
-          <span class="panel-head__domain">商品</span>
-          <button class="hb-button hb-button--primary hb-button--sm" id="release-new">发布新版本</button>
-        </div>
-      </header>
-      <div class="admin-tabs" data-tab-strip role="tablist" aria-label="版本发布分区">
-        <button class="admin-tabs__tab" type="button" role="tab" data-tab="list">版本列表</button>
-        <button class="admin-tabs__tab" type="button" role="tab" data-tab="form">发布 / 修正</button>
-      </div>
-      <div class="admin-tab-pane" data-tab-pane="list" role="tabpanel">
-        <div class="panel-toolbar">
-          <input class="hb-input" id="release-keyword" aria-label="版本号、发布日期或更新说明关键字" placeholder="版本号 / 日期 / 说明">
-          <input class="hb-input" id="release-product" aria-label="产品标识" placeholder="产品（如 homeos）">
-          <input class="hb-input" id="release-channel" aria-label="发布渠道" placeholder="渠道（如 docker）">
-          <button class="hb-button hb-button--secondary hb-button--sm" id="release-refresh">查询</button>
-          <button class="hb-button hb-button--ghost hb-button--sm" id="release-reset">重置</button>
-        </div>
-        <div class="table-wrap">
-          <table class="hb-table">
-            <thead><tr><th>产品</th><th>渠道</th><th>版本</th><th>发布日期</th><th>说明</th><th class="nowrap">操作</th></tr></thead>
-            <tbody id="release-rows"></tbody>
-          </table>
-        </div>
-        <div class="admin-pager" data-pager="releases"></div>
-      </div>
-      <!-- 编辑器放在列表之后：各面板统一「列表在上、编辑器在下」，避免在版本发布页要先跨过表单才看得到已有记录。 -->
-      <div class="admin-tab-pane" data-tab-pane="form" role="tabpanel">
-        <div class="hb-card admin-editor" id="release-editor" hidden>
-          <div class="hb-card__body">
-            <h3 class="admin-editor__title" id="release-editor-title">发布新版本</h3>
-            <form id="release-form" class="admin-grid">
-              <input type="hidden" name="id">
-              <label class="hb-field"><span>产品</span><input class="hb-input" name="product" value="homeos"></label>
-              <label class="hb-field"><span>渠道</span><input class="hb-input" name="channel" value="docker"></label>
-              <label class="hb-field"><span>版本</span><input class="hb-input" name="version" required></label>
-              <label class="hb-field"><span>发布日期</span><input class="hb-input" type="date" name="releaseDate"></label>
-              <label class="hb-field admin-grid__full"><span>更新说明（客户端「检查更新」会原样展示，请写清升级顺序）</span><textarea class="hb-textarea" name="upgradeNotes" rows="4"></textarea></label>
-              <div class="admin-form-actions admin-grid__full">
-                <button class="hb-button hb-button--primary hb-button--sm" type="submit" id="release-submit">发布</button>
-                <button class="hb-button hb-button--secondary hb-button--sm" type="button" id="release-cancel" hidden>取消编辑</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </section>
 
     <!-- 审计日志 -->
     <section class="admin-panel" id="panel-audits" data-domain="system">
@@ -1554,12 +1500,23 @@
 
 <div id="admin-toast"></div>
 
+<!-- 三个共享实现在这里取全局别名，必须在任何 module 之前以普通脚本加载：
+     admin/dom.js → HtmlSafe.esc、admin/format.js → HBMoney.formatCents、
+     admin/api.js → ApiError.fromResponse。都是求值时就读（引用全局，不是 import），
+     少加载一个就整条依赖链 ReferenceError。
+     普通脚本立即执行、module 默认 defer，因此这里排在入口之前即可。
+     顺序与内容对齐 store.html，避免两份入口各写一套。CSP 的 script-src 含 'self'，
+     同源脚本不需要 nonce，这里不带。 -->
+<script src="/store-static/htmlsafe.js?v=2609220943"></script>
+<script src="/store-static/api-error.js?v=2609220943"></script>
+<script src="/store-static/money.js?v=2609220943"></script>
+
 <!-- 后台入口按主题拆在 store/static/admin/ 下。CSP 的 script-src 含 'self'，同源外部脚本
      不需要 nonce；这里仍然带上，与下方 palette.js 的写法保持一致。 -->
-<script type="module" nonce="{{NONCE}}" src="/store-static/admin/app.js?v=2609220141"></script>
+<script type="module" nonce="{{NONCE}}" src="/store-static/admin/app.js?v=2609220943"></script>
 <!-- 站点配色面板：必须是 module —— 它 import 的是 design/scene 的分发产物
      ./scene/appearance.js（预设 / 明暗派生 / 令牌展开的唯一实现）。
      内联那个经典脚本没法 import，抄一遍就成了第三份会走散的真值。 -->
-<script type="module" nonce="{{NONCE}}" src="/store-static/palette.js?v=2609220141"></script>
+<script type="module" nonce="{{NONCE}}" src="/store-static/palette.js?v=2609220943"></script>
 </body>
 </html>

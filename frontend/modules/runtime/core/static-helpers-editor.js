@@ -10,8 +10,9 @@
  *
  * 消费方（全部是编辑器侧、由 /static/bridge/editor.js 懒加载进来）：
  * editor/config-editor.js · editor/range-dialog.js · security/security-editor.js ·
- * presence/presence-editor.js · presence/presence-focus-editor.js · vacuum/vacuum-map-editor.js ·
- * light/light-range-editor.js
+ * presence/presence-editor.js · presence/presence-focus-editor.js · vacuum/vacuum-map-editor.js
+ * （light/light-range-editor.js 虽然同属编辑器侧，但它被 stage.js 静态 import、在显示路径上，
+ *   所以按纪律登记在 static-helpers.js 里。）
  *
  * 纪律（与 static-helpers.js 完全一致）：只许出现「条件动态 import + 命名导出」，不许出现实现；
  * 导出名必须与登记表逐字相同，动态 import 目标也只许是这些名字所属的模块。
@@ -22,20 +23,20 @@
 // 开发态（file:）走相对路径，生产走 /static 绝对路径；两条都不能省。
 const { randomUuid } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/utils/random-id.js", import.meta.url))
-  : import("/static/utils/random-id.js?v=2609220141"));
+  : import("/static/utils/random-id.js?v=2609220943"));
 const { interaction3dPreviewSize } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/preview-layout.js", import.meta.url))
-  : import("/static/bridge/preview-layout.js?v=2609220141"));
+  : import("/static/bridge/preview-layout.js?v=2609220943"));
 const { normalizeInteraction3dLightingMode } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/definition.js", import.meta.url))
-  : import("/static/bridge/definition.js?v=2609220141"));
+  : import("/static/bridge/definition.js?v=2609220943"));
 const { confirmAction } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/ui-confirm.js", import.meta.url))
-  : import("/static/shared/ui-confirm.js?v=2609220141"));
+  : import("/static/shared/ui-confirm.js?v=2609220943"));
 // DOM 工厂：编辑器侧的配置编辑器 / 量程对话框 / 三个设备编辑器都要造元素、按钮与 SVG。
 const { createDomFactory } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/dom-factory.js", import.meta.url))
-  : import("/static/shared/dom-factory.js?v=2609220141"));
+  : import("/static/shared/dom-factory.js?v=2609220943"));
 // 授权 / 编辑器视图登记：这是本文件与 static-helpers.js 分家的原因，见文件头。
 const {
   requestInteraction3dAccess,
@@ -43,13 +44,13 @@ const {
   subscribeInteraction3dAccess
 } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/bridge/bridge.js", import.meta.url))
-  : import("/static/bridge/bridge.js?v=2609220141"));
+  : import("/static/bridge/bridge.js?v=2609220943"));
 const { DEFAULT_BASE_LIGHTING, normalizeBaseLighting } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/3d-studio/loaders/studio-normalization.js", import.meta.url))
-  : import("/static/3d-studio/loaders/studio-normalization.js?v=2609220141"));
+  : import("/static/3d-studio/loaders/studio-normalization.js?v=2609220943"));
 const { toSvgPoint } = await (import.meta.url.startsWith("file:")
   ? import(new URL("../../../static/shared/svg-point.js", import.meta.url))
-  : import("/static/shared/svg-point.js?v=2609220141"));
+  : import("/static/shared/svg-point.js?v=2609220943"));
 
 export {
   DEFAULT_BASE_LIGHTING,

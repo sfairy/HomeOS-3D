@@ -39,15 +39,16 @@
     PingFang SC,
     sans-serif;
 }
-/* 三种模式的强调色：制冷蓝 / 制热橙 / 关机灰，未设置时用上面的默认灰白。 */
+/* 三种模式的强调色：制冷蓝 / 制热橙 / 关机灰。取值与 panel-renderer/device-controls/climate.js
+   完全同一套 token（--hos-cool / --hos-heat / --hos-sensor），改色只改设计源。 */
 .i3d-climate-panel[data-climate-mode="cool"] {
-  --i3d-climate-accent: #73c8ff;
+  --i3d-climate-accent: var(--hos-cool);
 }
 .i3d-climate-panel[data-climate-mode="heat"] {
-  --i3d-climate-accent: #ff8a65;
+  --i3d-climate-accent: var(--hos-heat);
 }
 .i3d-climate-panel[data-climate-mode="off"] {
-  --i3d-climate-accent: #65717a;
+  --i3d-climate-accent: var(--hos-sensor);
 }
 /* ===== 标题区 ===== */
 

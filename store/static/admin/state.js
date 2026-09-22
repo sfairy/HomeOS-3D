@@ -18,7 +18,6 @@ export const state = {
   accounts: [],
   settings: null,
   settingsLoaded: false,
-  releases: [],
   entitlements: [],
   featureCatalog: [],
   featureGroups: [],

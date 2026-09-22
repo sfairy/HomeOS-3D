@@ -26,7 +26,7 @@ import {
   PRESETS,
   normalizeHex,
   resolveTokens,
-} from "./scene/appearance.js?v=2609220141";
+} from "./scene/appearance.js?v=2609220943";
 
 const dialogPane = document.querySelector('[data-tab-pane="palette"]');
 const presetList = document.getElementById("palette-preset-list");
@@ -41,6 +41,19 @@ const swatches = new Map(
     node,
   ])
 );
+
+/** 自定义色输入框的初值：从**当前生效的 --hb-accent** 读。
+ *
+ * 这条路同时覆盖两种情况，且不需要先登录：主题表 theme.css 给出没有配置时的默认值，
+ * 服务端按已保存的配置生成的 `/store-appearance.css` 覆盖它 —— 于是 getComputedStyle
+ * 拿到的就是站点此刻真实的主控色。配色接口 `/store-admin/v1/appearance` 要管理员身份，
+ * 而这一页首先是登录屏，那会儿根本读不到。
+ * 值本身由 `./scene/appearance.js` 的预设决定，这里不再存第二份默认色。 */
+function liveAccent() {
+  const applied = getComputedStyle(document.documentElement).getPropertyValue("--hb-accent").trim();
+  const preset = PRESETS.find((item) => item.id === DEFAULT_PRESET)?.colors?.accent;
+  return normalizeHex(applied) || normalizeHex(preset) || "";
+}
 
 /** 面板当前的工作副本；打开面板时从服务端读回。 */
 let draft = { preset: DEFAULT_PRESET, accent: "" };
@@ -97,7 +110,7 @@ function paintControls() {
     button.setAttribute("aria-checked", String(button.dataset.preset === draft.preset));
   }
   const tokens = draftTokens();
-  const accent = tokens["--hos-accent"] || "";
+  const accent = tokens["--hb-accent"] || "";
   if (accentInput) accentInput.value = accent;
   if (accentHexInput && document.activeElement !== accentHexInput) accentHexInput.value = accent;
   // 自定义色输入只在「主控色被手动改过」时描边：恢复预设时用户看得见自己那枚
@@ -154,7 +167,7 @@ async function loadSaved() {
       typeof payload?.preset === "string" && payload.preset ? payload.preset : DEFAULT_PRESET;
     saved = { preset, accent: "" };
     // 服务端的 tokens 里主控色与预设不一致，说明当初存的就是自定义色。
-    const stored = normalizeHex(payload?.tokens?.["--hos-accent"]);
+    const stored = normalizeHex(payload?.tokens?.["--hb-accent"]);
     const presetAccent = normalizeHex(PRESETS.find((item) => item.id === preset)?.colors.accent);
     if (stored && stored !== presetAccent) saved.accent = stored;
   } catch {
@@ -198,6 +211,11 @@ async function save() {
 
 if (dialogPane) {
   buildPresetCards();
+  const initialAccent = liveAccent();
+  if (initialAccent) {
+    if (accentInput) accentInput.value = initialAccent;
+    if (accentHexInput) accentHexInput.placeholder = initialAccent;
+  }
   // 首次进入分页才读服务端：配色面板不是默认打开的分页，开局就多发一个请求不值。
   let loaded = false;
   const ensureLoaded = () => {
@@ -231,7 +249,7 @@ if (dialogPane) {
     const value = normalizeHex(accentHexInput.value);
     accentHexInput.classList.remove("is-invalid");
     if (!value) {
-      accentHexInput.value = draftTokens()["--hos-accent"] || "";
+      accentHexInput.value = draftTokens()["--hb-accent"] || "";
       return;
     }
     draft.accent = value;

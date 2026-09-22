@@ -9,7 +9,7 @@
 
 /* ===== 宿主容器与授权状态 ===== */
 
-@import "/static/bridge/controls.css?v=2609220141";
+@import "/static/bridge/controls.css?v=2609220943";
 /* 宿主铺满组件区域并把内容居中；透明背景让组件的背景设置（网格 / 星尘）由内部渲染决定。 */
 .hb-interaction3d-host {
   display: flex;
@@ -23,6 +23,10 @@
   color: #e8ecef;
   background: transparent;
   text-align: center;
+  /* 尺寸容器：等待 / 失败文案按组件实际尺寸缩放（见 .i3d-access-pending 的 cq 字号），
+     整屏 3D 背景上 12px 会小到看不清。宿主宽高来自 .hb-component 的内联像素，
+     size containment 不会反过来压自身尺寸。 */
+  container-type: size;
 }
 /* 渲染器注入的包装层必须撑满，否则下面 iframe 的 inset: 0 会退化成零尺寸。 */
 .hb-interaction3d-host > div {
@@ -75,16 +79,21 @@
 .hb-interaction3d-host[data-access="pending"] {
   border-color: transparent;
 }
-/* 等待文案继承宿主背景，确保与后续出现的封面底色一致，切换时不闪色。 */
+/* 等待文案继承宿主背景，确保与后续出现的封面底色一致，切换时不闪色。
+   字号同样按组件尺寸缩放（与 runtime.css 的 .i3d-loading 同一套口径），
+   小挂件 15px 起，整屏 3D 背景最大 36px。 */
 .hb-interaction3d-host .i3d-access-pending {
   display: grid;
   place-content: center;
   padding: 16px;
   background: inherit;
   color: #89949d;
-  font:
-    12px/1.6 system-ui,
+  font-family:
+    system-ui,
     sans-serif;
+  font-size: clamp(15px, min(2.2cqw, 5.5cqh), 36px);
+  line-height: 1.6;
+  letter-spacing: 0.02em;
 }
 /* ===== 检查器：视图与光照设置 ===== */
 
@@ -424,7 +433,7 @@
      这里保留字面量是因为本文件同时被 index.html（有调色板）和 display.html 以 @import
      链路引入，而 controls.css 还会被运行期动态注入的 runtime.css / stage.css 引入 ——
      那些页面不保证加载了调色板。回落值不是「备用配色」，只是调色板不在场时的同一枚色。 */
-  accent-color: var(--accent, var(--hos-accent, #5fd4ff));
+  accent-color: var(--accent, var(--hos-accent, #ffc46a));
 }
 #interaction3d-inspector .i3d-wall-opacity-row > .inspector-number-control {
   flex: none;

@@ -17,7 +17,16 @@
   align-items: center;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(160deg, #050910 0%, #0a121c 30%, #0d1624 60%, #070b12 100%);
+  /* 夜空四档：与 design/scene/page.css 的 --hos-sky-* 同值。Activate 是独立构建，
+     不保证加载得到那份调色板，所以每处都带上同值的字面兜底 —— 兜底一旦与真值不同步，
+     这一页会静默退回旧色而不是报错。 */
+  background: linear-gradient(
+    160deg,
+    var(--hos-sky-deep, #050912) 0%,
+    var(--hos-sky-low, #081020) 30%,
+    var(--hos-sky-mid, #0d1728) 60%,
+    var(--hos-sky-low, #081020) 100%
+  );
 }
 
 .viewport-frame::before {
@@ -25,10 +34,10 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 15% -10%, rgba(255, 196, 106, 0.05) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 55% at 88% 65%, rgba(56, 189, 248, 0.03) 0%, transparent 55%),
-    radial-gradient(ellipse 55% 45% at 50% 95%, rgba(48, 209, 88, 0.015) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 40% at 45% 50%, rgba(255, 159, 10, 0.008) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 60% at 15% -10%, rgba(var(--hos-accent-rgb, 255, 196, 106), 0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 55% at 88% 65%, rgba(var(--hos-cool-rgb, 88, 196, 255), 0.03) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 50% 95%, rgba(var(--hos-eco-rgb, 95, 208, 168), 0.015) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 45% 50%, rgba(var(--hos-lumen-rgb, 255, 157, 77), 0.008) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
   animation: hosViewportGlow 14s ease-in-out infinite;

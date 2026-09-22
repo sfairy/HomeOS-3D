@@ -363,7 +363,7 @@
 }
 /* hover 只提亮描边与底色，不改尺寸，避免手柄在鼠标下抖动。 */
 .hb-selection-bounds > .hb-transform-handle:hover:before {
-  border-color: #ffc14a;
+  border-color: var(--hos-accent, #ffc14a);
   background: #2c3135f0;
 }
 /* 缩放手柄挂在右下角，-3px 外扩让圆点中心压在角上；
@@ -461,7 +461,7 @@
   left: 50%;
   width: 13px;
   height: 13px;
-  border: 2px solid #ffc14a;
+  border: 2px solid var(--hos-accent, #ffc14a);
   border-radius: 3px;
   background: #1a2025;
   box-shadow:
@@ -999,11 +999,28 @@
   display: block;
   width: 50%;
   height: 50%;
-  filter: drop-shadow(0 0 var(--device-button-icon-glow-size, 5px) rgba(55, 155, 255, 0.12));
+  /* 辉光跟随**这枚设备自己的**底色，而不是一个固定蓝。
+     紧邻的 .hb-device-button-icon-badge 注释写得明白：「按设备类型取色的圆底，
+     圆底颜色 / 透明度也走变量（每个设备可以配不同颜色）」，badgeColor 由
+     button-renderer.js 写进 --device-badge-color，而 .hb-device-button-icon 正是
+     badge 的子节点（deviceButtonBadgeElement.append(deviceButtonIconElement)），
+     所以这枚变量在图标层本来就可继承 —— 用不着新令牌。
+     改之前这里是写死的 rgba(55, 155, 255)（色相 210°），于是圆底已经是设备色了、
+     图标外圈却一律泛蓝：开着灯的暖色设备顶上挂一圈冷蓝，管理员把主控色换成暖金之后
+     这一圈也不会动。今天它跟 --hos-cool 的 205° 同族，属于旧青色主控那代的残留。
+     color-mix 而不是 rgba(var(...))：--device-badge-color 是完整颜色值（可读色由
+     resolveColor 落成 #5b5e66 这类），不是 88, 196, 255 那种分量三元组。 */
+  filter: drop-shadow(
+    0 0 var(--device-button-icon-glow-size, 5px)
+      color-mix(in srgb, var(--device-badge-color, #5b5e66) 12%, transparent)
+  );
   pointer-events: none;
 }
 .hb-device-button-icon-badge.active .hb-device-button-icon {
-  filter: drop-shadow(0 0 var(--device-button-icon-active-glow-size, 7px) rgba(55, 155, 255, 0.32));
+  filter: drop-shadow(
+    0 0 var(--device-button-icon-active-glow-size, 7px)
+      color-mix(in srgb, var(--device-badge-color, #5b5e66) 32%, transparent)
+  );
 }
 
 /* ===== 摄像头控件 ===== */
@@ -1374,8 +1391,8 @@
   height: 7px;
   border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 50%;
-  background: var(--hb-chart-current-color, #68cc3e);
-  box-shadow: 0 0 8px var(--hb-chart-current-color, #68cc3e);
+  background: var(--hb-chart-current-color, var(--hos-eco, #5fd0a8));
+  box-shadow: 0 0 8px var(--hb-chart-current-color, var(--hos-eco, #5fd0a8));
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -1595,13 +1612,13 @@
   content: "";
 }
 .hb-camera-preview-status.is-live:before {
-  background: #68cc3e;
-  box-shadow: 0 0 13px #68cc3eb3;
+  background: var(--hos-eco, #5fd0a8);
+  box-shadow: 0 0 13px rgba(var(--hos-eco-rgb), 0.7);
   animation: hb-camera-status-ready 0.62s ease-out 1;
 }
 .hb-camera-preview-status.is-unavailable:before {
-  background: #d45f5f;
-  box-shadow: 0 0 10px #d45f5f75;
+  background: var(--hos-alert, #d45f5f);
+  box-shadow: 0 0 10px rgba(var(--hos-alert-rgb), 0.46);
 }
 .hb-camera-preview-heading button {
   display: none;
@@ -1781,22 +1798,22 @@
   box-shadow:
     inset 0 0 0 2px #cddee642,
     0 0 0 2px #28313673,
-    0 0 15px #68cc3e3d;
+    0 0 15px rgba(var(--hos-eco-rgb), 0.24);
   animation: hb-camera-device-lens-breathe 3.4s ease-in-out infinite;
 }
 .hb-camera-device-visual.is-live .hb-camera-device-lens:after {
-  border-color: #68cc3e8f;
+  border-color: rgba(var(--hos-eco-rgb), 0.56);
   animation: hb-camera-device-lens-ready 0.66s ease-out 1;
 }
 /* 指示灯状态色：绿=在线、红=不可用，各配一圈与灯色同源的 box-shadow 当光晕。
    不可用时镜头再加 grayscale + brightness 压暗，明确表达「有设备但没画面」。 */
 .hb-camera-device-visual.is-live .hb-camera-device-led {
-  background: #68cc3e;
-  box-shadow: 0 0 9px #68cc3ed1;
+  background: var(--hos-eco, #5fd0a8);
+  box-shadow: 0 0 9px rgba(var(--hos-eco-rgb), 0.82);
 }
 .hb-camera-device-visual.is-unavailable .hb-camera-device-led {
-  background: #d45f5f;
-  box-shadow: 0 0 8px #d45f5f94;
+  background: var(--hos-alert, #d45f5f);
+  box-shadow: 0 0 8px rgba(var(--hos-alert-rgb), 0.58);
 }
 .hb-camera-device-visual.is-unavailable .hb-camera-device-lens {
   filter: grayscale(1) brightness(0.65);
@@ -3735,7 +3752,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 7px;
-  color: var(--hb-chart-current-color, #68cc3e);
+  color: var(--hb-chart-current-color, var(--hos-eco, #5fd0a8));
   font-variant-numeric: tabular-nums;
   text-align: right;
   transform-origin: center;
@@ -4264,14 +4281,14 @@
   font-weight: 680;
   letter-spacing: 0.025em;
 }
-/* 状态副行 16px；开启时换成薄荷绿 #9ed8bc（见下一条）。 */
+/* 状态副行 16px；开启时换成 --hos-eco（见下一条）。 */
 .hb-entity-details-dialog.switch-details .hb-entity-details-heading span {
   color: #7e898f;
   font-size: 16px;
   font-weight: 540;
 }
 .hb-entity-details-dialog.switch-details .hb-entity-details-heading span.is-on {
-  color: #9ed8bc;
+  color: var(--hos-eco, #9ed8bc);
 }
 /* 开关弹窗隐藏头部的通用按钮：交互全部交给中间的开关图形。 */
 .hb-entity-details-dialog.switch-details .hb-entity-details-heading button {
@@ -4569,7 +4586,7 @@
   font-weight: 680;
   letter-spacing: 0.025em;
 }
-/* 状态副行 16px；打开时用青蓝 #a8c5d3。 */
+/* 状态副行 16px；打开时用 --hos-cool。 */
 .hb-entity-details-dialog.cover-details .hb-entity-details-heading span {
   display: block;
   margin-top: 4px;
@@ -4579,7 +4596,7 @@
   line-height: 1.2;
 }
 .hb-entity-details-dialog.cover-details .hb-entity-details-heading span.is-on {
-  color: #a8c5d3;
+  color: var(--hos-cool, #a8c5d3);
 }
 /* 隐藏头部通用按钮，交互交给窗帘图形与下方动作按钮。 */
 .hb-entity-details-dialog.cover-details .hb-entity-details-heading button {
@@ -4756,7 +4773,7 @@
 /* 悬停与「当前动作」共用同一种高亮，便于看出窗帘正处在哪个状态。 */
 .hb-cover-details-actions button:hover,
 .hb-cover-details-actions button.is-active {
-  border-color: #a8c5d3bd;
+  border-color: rgba(var(--hos-cool-rgb), 0.74);
   color: #e7f5fb;
   background: linear-gradient(145deg, #64899973, #202e36c7);
 }
@@ -4770,7 +4787,7 @@
   pointer-events: none;
 }
 .hb-cover-details-actions i {
-  color: #a8c5d3;
+  color: var(--hos-cool, #a8c5d3);
   font:
     500 29px/1 Helvetica Neue,
     PingFang SC,
@@ -5883,9 +5900,9 @@
 .hb-entity-details-dialog.water-heater-details .hb-climate-temperature-thumb {
   transform: translate(-50%, -50%) rotate(var(--hb-climate-thumb-angle)) translateY(-93px);
 }
-/* 热水器运行状态用橙色 #ff9a73，与空调的暖黄区分。 */
+/* 热水器运行状态用 --hos-heat，与空调的暖光区分。 */
 .hb-entity-details-dialog.water-heater-details .hb-entity-details-heading > div > span.is-on {
-  color: #ff9a73;
+  color: var(--hos-heat, #ff9a73);
 }
 /* 模式分组绝对定位在表盘左下：宽 74%、最高 200px，超出部分滚动，
    滚动条也染成热水器的橙色系。 */
@@ -6286,9 +6303,9 @@
   background: #ffffff05;
   box-shadow: none;
 }
-/* 亮橙 #ffab32 + 内外两层 drop-shadow，形成「已点亮」感。 */
+/* 暖光 --hos-lumen + 内外两层 drop-shadow，形成「已点亮」感。 */
 .hb-water-heater-extension-toggle.is-on i {
-  color: #ffab32;
+  color: var(--hos-lumen, #ffab32);
   background: transparent;
   filter: drop-shadow(0 0 3px rgba(255, 157, 38, 0.92))
     drop-shadow(0 0 8px rgba(255, 130, 24, 0.58));
@@ -8622,21 +8639,21 @@
 .hb-custom-popup-module-status.is-live {
   border-color: color-mix(
     in srgb,
-    var(--hb-climate-accent, #68cc3e) 42%,
+    var(--hb-climate-accent, var(--hos-eco, #5fd0a8)) 42%,
     rgba(160, 170, 178, 0.34)
   );
   color: #e1e6e9;
 }
 /* 在线：绿点 + 外发光，并用一次性 0.62s 动画强调「刚刚连接上」。 */
 .hb-custom-popup-module-status.type-camera.is-live:before {
-  background: #68cc3e;
-  box-shadow: 0 0 10px #68cc3ead;
+  background: var(--hos-eco, #5fd0a8);
+  box-shadow: 0 0 10px var(--hos-eco, #5fd0a8)ad;
   animation: hb-camera-status-ready 0.62s ease-out 1;
 }
 /* 不可用：红点 + 较弱的外发光。 */
 .hb-custom-popup-module-status.type-camera.is-unavailable:before {
-  background: #d45f5f;
-  box-shadow: 0 0 8px #d45f5f85;
+  background: var(--hos-alert, #d45f5f);
+  box-shadow: 0 0 8px rgba(var(--hos-alert-rgb), 0.52);
 }
 /* 运行中：胶囊整体 2.4s 呼吸。 */
 .hb-custom-popup-module-status.is-running {
@@ -9286,7 +9303,7 @@
 }
 /* 在线 / 生效状态用淡绿色。 */
 .hb-custom-popup-module--switch .hb-custom-popup-module-status.is-live {
-  color: #9ed8bc;
+  color: var(--hos-eco, #9ed8bc);
 }
 /* 3D 弹窗里的开关按 154×198 竖版重排，而不是控件态的横版。 */
 .hb-custom-switch-visual {
@@ -9471,7 +9488,7 @@
   gap: 7px;
   color: #eef2f3;
   text-align: right;
-  text-shadow: 0 0 22px color-mix(in srgb, var(--hb-custom-chart-accent, #68cc3e) 38%, transparent);
+  text-shadow: 0 0 22px color-mix(in srgb, var(--hb-custom-chart-accent, var(--hos-eco, #5fd0a8)) 38%, transparent);
   transform-origin: center;
   animation: hb-line-chart-current-pulse 0.58s ease-out 1.18s 1;
 }
@@ -9892,11 +9909,16 @@
   white-space: nowrap;
   cursor: pointer;
 }
-/* 选中态蓝色（#73c8ff 系）描边与淡底。 */
+/* 选中态描边与淡底。走 --hos-cool —— 能力选项框在属性弹窗里，那里没有 tone 类，
+   --hos-tone 落到默认的 --hos-accent；但「选中」在这块 UI 里一直是冷色（与设备读色的
+   cool 同族），所以显式取 cool 而不是跟着主控色走。
+   原来这里写死的是 #73c8ff 系（旧的柔蓝）：--hos-cool 是 #58c4ff，
+   两个值差一档亮度，换调色板时这里不会跟着变，于是同一屏里选中框的蓝
+   与「制冷」图标的蓝会是两种蓝。 */
 .hb-capability-options button.active {
-  border-color: #73c8ff73;
-  color: #eef7fb;
-  background: #73c8ff1c;
+  border-color: rgba(var(--hos-cool-rgb, 88, 196, 255), 0.45);
+  color: var(--hos-ink-bright, #f7fcff);
+  background: rgba(var(--hos-cool-rgb, 88, 196, 255), 0.11);
 }
 .hb-capability-options button:disabled {
   cursor: default;
@@ -9911,14 +9933,14 @@
 }
 /* 当前值用浅蓝，与选项选中态同色系。 */
 .hb-capability-range-heading output {
-  color: #a9cde0;
+  color: var(--hos-accent-bright);
   font-size: 14px;
   font-weight: 650;
 }
 /* 原生滑杆只调 accent-color，交回浏览器绘制。 */
 .hb-capability-range-group input[type="range"] {
   width: 100%;
-  accent-color: #80c8e7;
+  accent-color: var(--hos-accent);
 }
 /* 原生 select 统一成 42px 高的深色控件。 */
 .hb-capability-select {
@@ -9948,7 +9970,8 @@
   gap: 6px;
   padding: 0 19px 13px;
 }
-/* 正在播放卡：80px 封面 + 文字两列，底色带一点蓝色径向渐变。 */
+/* 正在播放卡：80px 封面 + 文字两列，底色带一点主控色径向渐变。
+   （原注释写「蓝色」，与相邻的 #80c8e7 一套；那一套已随主控色走，注释同步。） */
 .hb-media-player-now-playing {
   position: relative;
   display: grid;
@@ -9960,7 +9983,7 @@
   border: 1px solid rgba(126, 141, 153, 0.15);
   border-radius: 14px;
   background:
-    radial-gradient(circle at 18% 30%, rgba(126, 200, 231, 0.12), transparent 50%), #ffffff06;
+    radial-gradient(circle at 18% 30%, rgba(var(--hos-accent-rgb), 0.12), transparent 50%), #ffffff06;
 }
 /* 没有封面时收成单列（占位圆点由下面 :not(.has-artwork):before 画）。 */
 .hb-media-player-now-playing:not(.has-artwork) {
@@ -10024,7 +10047,7 @@
 }
 .hb-media-player-progress progress::-webkit-progress-value {
   border-radius: 99px;
-  background: #80c8e7;
+  background: var(--hos-accent);
 }
 /* 已播放 / 总时长两端对齐。 */
 .hb-media-player-progress > span {
@@ -10469,10 +10492,10 @@
   font-size: 12px;
   font-weight: 600;
 }
-/* 打开：绿色描边（#68cc3e 的 36% 透明度）+ 同色淡底。 */
+/* 打开：生态薄荷描边（--hos-eco 的 36% 透明度）+ 同色淡底。 */
 .hb-switch-visual.is-compact.is-on {
-  border-color: #68cc3e5c;
-  background: linear-gradient(145deg, #68cc3e1c, #ffffff05);
+  border-color: rgba(var(--hos-eco-rgb), 0.36);
+  background: linear-gradient(145deg, rgba(var(--hos-eco-rgb), 0.11), #ffffff05);
 }
 .hb-switch-visual.is-compact.is-on .hb-switch-visual-copy-state {
   color: #9bdc86;
@@ -10746,7 +10769,7 @@
   line-height: 1.2;
 }
 .hb-custom-popup-module--media-player .hb-custom-popup-module-status.is-live {
-  color: #80c8e7;
+  color: var(--hos-accent);
 }
 /* 音箱缩到 102×102（详情弹窗是 88px 基准 + 各自覆盖），
    内部的网罩、振膜、封面按比例重排。 */
@@ -10960,19 +10983,19 @@
   position: absolute;
   z-index: 4;
   inset: 17px;
-  border: 1px solid rgba(128, 200, 231, 0.42);
+  border: 1px solid rgba(var(--hos-accent-rgb), 0.42);
   border-radius: 50%;
   box-shadow:
-    0 0 7px #80c8e740,
-    inset 0 0 6px #80c8e724;
+    0 0 7px rgba(var(--hos-accent-rgb), 0.25),
+    inset 0 0 6px rgba(var(--hos-accent-rgb), 0.14);
   opacity: 0.62;
 }
 /* 播放中：光圈提亮到实色并做 2.2s 呼吸。 */
 .hb-media-speaker-visual.is-playing .hb-media-speaker-light {
-  border-color: #80c8e7;
+  border-color: var(--hos-accent);
   box-shadow:
-    0 0 10px #80c8e78c,
-    inset 0 0 7px #80c8e73d;
+    0 0 10px rgba(var(--hos-accent-rgb), 0.55),
+    inset 0 0 7px rgba(var(--hos-accent-rgb), 0.24);
   opacity: 1;
   animation: hb-media-speaker-breathe 2.2s ease-in-out infinite;
 }
@@ -10997,22 +11020,22 @@
   background:
     radial-gradient(
       circle at 28px 50%,
-      rgba(126, 200, 231, 0.22) 0 10px,
-      rgba(126, 200, 231, 0.09) 11px,
+      rgba(var(--hos-accent-rgb), 0.22) 0 10px,
+      rgba(var(--hos-accent-rgb), 0.09) 11px,
       transparent 38px
     ),
-    radial-gradient(circle at 18% 30%, rgba(126, 200, 231, 0.12), transparent 50%), #ffffff06;
+    radial-gradient(circle at 18% 30%, rgba(var(--hos-accent-rgb), 0.12), transparent 50%), #ffffff06;
 }
 .hb-media-player-details .hb-media-player-now-playing:not(.has-artwork):before {
   position: absolute;
   top: 50%;
   left: 28px;
-  color: #8fcce9;
+  color: var(--hos-accent-bright);
   content: "\25a3";
   font-size: 27px;
   line-height: 1;
   transform: translate(-50%, -50%);
-  text-shadow: 0 0 14px rgba(126, 200, 231, 0.45);
+  text-shadow: 0 0 14px rgba(var(--hos-accent-rgb), 0.45);
 }
 /* 音箱待机呼吸：亮度 0.9↔1.2、不透明度 0.72↔1（见上面的音箱可视化）。 */
 @keyframes hb-media-speaker-breathe {
@@ -11546,7 +11569,7 @@
   > .hb-related-entity-extensions
   .hb-water-heater-extension-toggle.is-on
   i {
-  color: #ffab32;
+  color: var(--hos-lumen, #ffab32);
   background: transparent;
 }
 /* 下拉 / 数值型扩展的间距与内边距收紧。 */

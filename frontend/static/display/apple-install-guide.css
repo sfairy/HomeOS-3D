@@ -2,8 +2,15 @@
  * 苹果设备「添加到主屏幕」引导样式（配合 apple-install-guide.js）。
  *
  * 位置：配对 / 展示页在 iPhone、iPad 上注入的悬浮按钮与说明弹窗。
- * 约定：整体走深绿暗色系，与展示页配色一致；触发按钮 z-index 必须高于
- *   展示页启动遮罩，保证引导不会被盖住。
+ * 约定：走展示页的夜空蓝灰系（--hos-sky-*）＋ 暖金强调（--hos-accent*）；
+ *   触发按钮 z-index 必须高于展示页启动遮罩，保证引导不会被盖住。
+ *
+ * 这份文件原本写的是整整一套深绿（#142b25 / #b7f2dc / #96e7c6 / #15382a 共 17 处），
+ * 而头注释当时写的是「与展示页配色一致」—— 但展示页从来不是绿的：它的底色是
+ * --display-surface-background（默认 #050912 夜空），启动层是 #11171d 蓝灰。
+ * 也就是说这句话从写下那天起就是错的，而因为整块是自洽的绿，没人能一眼看出它脱队。
+ * 现在改成真的跟随展示页，并把每个值都挂到 --hos-* 上：展示页的站点配色覆盖
+ * （/appearance.css）改主控色时，这里的按钮与序号圈会一起变。
  */
 
 /* ===== 悬浮触发按钮 ===== */
@@ -14,13 +21,13 @@
   right: 16px;
   bottom: max(16px, env(safe-area-inset-bottom));
   z-index: 10001;
-  border: 1px solid #314842;
+  border: 1px solid var(--hos-sky-haze, #24395a);
   border-radius: 24px;
   padding: 12px 18px;
-  background: #142b25ee;
-  color: #b7f2dc;
+  background: rgba(var(--hos-sky-high-rgb, 22, 38, 60), 0.93);
+  color: var(--hos-accent-bright, #ffd9a0);
   font: 600 14px system-ui;
-  box-shadow: 0 4px 20px #0003;
+  box-shadow: 0 4px 20px rgba(var(--hos-sky-deep-rgb, 5, 9, 18), 0.2);
   cursor: pointer;
 }
 
@@ -33,16 +40,16 @@
   max-height: calc(100dvh - 40px);
   overflow: auto;
   padding: 28px;
-  border: 1px solid #34453f;
+  border: 1px solid var(--hos-sky-haze, #24395a);
   border-radius: 24px;
-  background: #14201d;
-  color: #f3f7f5;
+  background: var(--hos-sky-high, #16263c);
+  color: var(--hos-ink, #f1f7fb);
   font: 14px/1.6 system-ui;
-  box-shadow: 0 24px 90px #0008;
+  box-shadow: 0 24px 90px rgba(var(--hos-sky-deep-rgb, 5, 9, 18), 0.53);
 }
 /* 弹窗遮罩加模糊，弱化背后的展示页，突出引导内容。 */
 .apple-install-dialog::backdrop {
-  background: #07110ec9;
+  background: rgba(var(--hos-sky-deep-rgb, 5, 9, 18), 0.79);
   backdrop-filter: blur(5px);
 }
 .apple-install-dialog h2 {
@@ -59,11 +66,11 @@
 .apple-install-eyebrow {
   font-size: 11px;
   letter-spacing: 2px;
-  color: #85cbb3;
+  color: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.95);
   margin: 14px 0 6px;
 }
 .apple-install-intro {
-  color: #bed0c8;
+  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
   margin: 0 0 24px;
 }
 /* 步骤列表用 grid 排布，序号圆圈与文字两列对齐。 */
@@ -84,8 +91,8 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  background: #25483a;
-  color: #a8efd0;
+  background: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.14);
+  color: var(--hos-accent-bright, #ffd9a0);
   border-radius: 50%;
 }
 .apple-install-steps strong {
@@ -93,23 +100,23 @@
 }
 .apple-install-steps p {
   margin: 4px 0 0;
-  color: #aabcb3;
+  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
   font-size: 13px;
 }
 /* 折叠说明区：上边框把「更多说明」与步骤列表分隔开。 */
 .apple-install-dialog details {
-  border-top: 1px solid #32463e;
+  border-top: 1px solid var(--hos-sky-haze, #24395a);
   padding-top: 14px;
 }
 .apple-install-dialog summary {
   cursor: pointer;
-  color: #bde9d5;
+  color: var(--hos-accent-bright, #ffd9a0);
 }
 /* 折叠区正文与页脚说明共用同一档小字号，保持信息层级一致。 */
 .apple-install-dialog details p,
 .apple-install-footnote {
   font-size: 12px;
-  color: #9cafa5;
+  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
 }
 .apple-install-done {
   display: block;
@@ -117,8 +124,8 @@
   min-height: 46px;
   border: 0;
   border-radius: 13px;
-  background: #96e7c6;
-  color: #15382a;
+  background: var(--hos-grad-accent, linear-gradient(180deg, #ffd9a0, #e09523));
+  color: var(--hos-on-bright, #041018);
   font: 600 15px system-ui;
   cursor: pointer;
   margin-top: 22px;

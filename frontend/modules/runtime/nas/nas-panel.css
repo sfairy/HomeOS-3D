@@ -6,6 +6,14 @@
  *
  * 约定：卡片底部细条宽度由 JS 写成内联 style.width，不经过自定义属性；配色统一走绿色系（NAS 属存储类
  * 设备），卡片状态只用类名表达 —— .is-wide（时间戳占整行）、.is-warning（接近阈值）、.is-unavailable（取值失败）。
+ *
+ * 绿色是**语义**（存储 / 在线），不是随手挑的色相，所以这里刻意不跟主控色走；
+ * 但每一处绿都必须落在 --hos-eco* 上，而不是写死 #6bd49c 这类字面量 —— 过去整份文件
+ * 是 15 处写死的绿（外加一个 #efbd70 的旧琥珀），换色板时它一处都不跟着变，
+ * 于是「设备读色」里唯一没接令牌的面板就是这一块。
+ *
+ * 剩下的 #ffffff04 / #ffffff08 / #ffffff10 是有意保留的：它们是中性白透明度发丝线，
+ * 不承载色相，也不该随主控色变化（--hos-* 里没有对应的「白」令牌）。
  */
 
 /* 面板外壳：固定 400px，与灯光面板展开后的高度一致，指标区内部滚动。 */
@@ -20,7 +28,7 @@
   min-height: 0;
   height: 100%;
   gap: 10px;
-  color: #e3e9e6;
+  color: var(--hos-ink, #f1f7fb);
 }
 .i3d-nas-panel[hidden] {
   display: none;
@@ -45,7 +53,7 @@
   padding: 8px 10px;
   border-radius: 9px;
   background: #ffffff08;
-  color: #9caaa4;
+  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
   font-size: 12px;
 }
 /* 指标区是面板里唯一可滚动的部分：flex: 1 占满剩余高度，标题与状态行保持不动。 */
@@ -58,13 +66,13 @@
   /* 预留滚动条宽度：内容多寡切换时卡片宽度不会来回跳。 */
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgba(183, 204, 193, 0.28) transparent;
+  scrollbar-color: rgba(var(--hos-eco-rgb, 95, 208, 168), 0.28) transparent;
   padding-right: 6px;
 }
 /* 悬停或键盘聚焦时把滚动条调亮，提示"这块可以滚"。 */
 .i3d-nas-metrics:hover,
 .i3d-nas-metrics:focus-within {
-  scrollbar-color: rgba(198, 220, 207, 0.48) transparent;
+  scrollbar-color: rgba(var(--hos-eco-rgb, 95, 208, 168), 0.48) transparent;
 }
 /* ===== 指标区滚动条（WebKit 覆盖） ===== */
 
@@ -90,18 +98,18 @@
     min-height: 32px;
     border: 2px solid transparent;
     border-radius: 99px;
-    background: #b7ccc147;
+    background: rgba(var(--hos-eco-rgb, 95, 208, 168), 0.28);
     background-clip: padding-box;
   }
   .i3d-nas-metrics:hover::-webkit-scrollbar-thumb,
   .i3d-nas-metrics:focus-within::-webkit-scrollbar-thumb {
-    background-color: #c6dccf7a;
+    background-color: rgba(var(--hos-eco-rgb, 95, 208, 168), 0.48);
   }
   .i3d-nas-metrics::-webkit-scrollbar-thumb:hover {
-    background-color: #d7eae0a6;
+    background-color: rgba(var(--hos-eco-rgb, 95, 208, 168), 0.65);
   }
   .i3d-nas-metrics::-webkit-scrollbar-thumb:active {
-    background-color: #e1f1e8cc;
+    background-color: rgba(var(--hos-eco-rgb, 95, 208, 168), 0.8);
   }
   /* 隐藏滚动条两端的按钮（Windows 上会出现小箭头），保持观感干净。 */
   .i3d-nas-metrics::-webkit-scrollbar-button {
@@ -119,7 +127,7 @@
 .i3d-nas-group h4 {
   margin: 0 0 5px;
   font-size: 11px;
-  color: #9caea4;
+  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
   letter-spacing: 0.08em;
 }
 /* 每行两张卡片；卡片内部用 space-between 把标签与数值分居两端。 */
@@ -146,7 +154,7 @@
 }
 .i3d-nas-metric span {
   min-width: 0;
-  color: #9eaba5;
+  color: var(--hos-muted, rgba(186, 214, 232, 0.58));
   font-size: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -165,13 +173,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 接近阈值：数值转琥珀色提醒。 */
+/* 接近阈值：数值转琥珀色提醒。走 --hos-lumen-bright（居家暖光）而不是 --hos-accent：
+   「阈值告警」是状态语义，不是「可进入 / 可操作」；主控色被改成极光紫那天，
+   这块的提醒不该跟着变成紫色。 */
 .i3d-nas-metric.is-warning strong {
-  color: #efbd70;
+  color: var(--hos-lumen-bright, #ffba83);
 }
-/* 取值失败/实体离线：数值压暗，弱化到背景里。 */
+/* 取值失败/实体离线：数值压暗，弱化到背景里。
+   故意低于正文对比度：这是一格「没有读数」的占位，压不住的后果是它比有效读数更抢眼。 */
 .i3d-nas-metric.is-unavailable strong {
-  color: #68756e;
+  color: rgba(var(--hos-muted-rgb, 186, 214, 232), 0.42);
 }
 /* 卡片底部的细进度条：宽度由 JS 写成内联 style.width（百分比），
    transition 让每次刷新的数值变化表现为平滑滑动而不是突跳。 */
@@ -180,7 +191,7 @@
   bottom: 0;
   left: 0;
   height: 2px;
-  background: #6bd49c;
+  background: var(--hos-eco, #5fd0a8);
   transition: width 0.3s ease;
 }
 /* ===== 底部更新时间 ===== */
@@ -189,7 +200,7 @@
   flex-shrink: 0;
   margin: 0 0 0 auto;
   font-size: 10px;
-  color: #7f9187;
+  color: rgba(var(--hos-muted-rgb, 186, 214, 232), 0.42);
   white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) {

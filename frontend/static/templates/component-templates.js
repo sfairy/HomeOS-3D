@@ -8,8 +8,8 @@
  * 颜色统一 #rrggbb 小写十六进制，透明度用 0~1 的 opacity；scopes 决定出现区域（shared = 侧边栏，
  * page = 主页面）；zIndex 从 1 起，负数留给背景类组件。模块导入即执行全部注册，templatesById 是模块级单例。
  */
-import { interaction3dTemplate } from "../bridge/definition.js?v=2609220141";
-import { paletteColor } from "../utils/colors.js?v=2609220141";
+import { interaction3dTemplate } from "../bridge/definition.js?v=2609220943";
+import { paletteColor } from "../utils/colors.js?v=2609220943";
 
 /**
  * 模板里「主控色」的出厂默认值。
@@ -20,7 +20,7 @@ import { paletteColor } from "../utils/colors.js?v=2609220141";
  * 所以此刻 design/scene 的调色板已经应用，getComputedStyle 能取到真值。
  * 取不到时 paletteColor 回落到与调色板同值的字面量，模板依然可用。
  *
- * 为什么不直接写死 #5fd4ff：写死之后「换主控色」要在两个地方改，而模板里这四处
+ * 为什么不直接写死 #ffc46a：写死之后「换主控色」要在两个地方改，而模板里这四处
  * 是**写进用户文档**的（markerColor / iconActiveColor / countActiveColor），
  * 漏改就会留下一批新组件停在旧色上，肉眼看不出来是哪儿的问题。
  *
@@ -28,7 +28,12 @@ import { paletteColor } from "../utils/colors.js?v=2609220141";
  * 十六进制，不在这里改写 —— 那是用户数据，要变色由编辑器里的组件属性面板负责。
  */
 function themeAccentDefault() {
-  return paletteColor("--hos-accent", "#5fd4ff");
+  return paletteColor("--hos-accent", "#ffc46a");
+}
+/* 空调 / 浴霸的「制冷」出厂色，取设备读色里的 cool。与 themeAccentDefault 同理：
+   必须真正解析成 #rrggbb，因为下游要把它填进 <input type="color">。 */
+function themeCoolDefault() {
+  return paletteColor("--hos-cool", "#58c4ff");
 }
 
 // 模板注册表：id -> 冻结后的模板定义。模块级单例，导入即被下方的注册块填满。
@@ -120,13 +125,16 @@ const componentDefaultsByType = {
       iconOnColor: "#ffffff",
       iconSize: 79,
       buttonOffColor: "#bababa",
-      buttonOnColor: "#feae01",
+      /* 出厂「亮起」色 = --hos-lumen（居家暖光）。原来是 #feae01，
+         一个既非主控琥珀、也非暖光的自造橙。 */
+      buttonOnColor: "#ff9d4d",
       buttonOpacity: 0.8,
       frameColor: "#dcebf2",
       frameWidth: 0,
       frameOpacity: 0,
       radius: 50,
-      glowColor: "#ffa200",
+      /* 光晕 = --hos-accent（主控琥珀）。原来是 #ffa200。 */
+      glowColor: "#ffc46a",
       glowOffStrength: 0,
       glowOnStrength: 3,
       effectAssetId: "",
@@ -1624,7 +1632,7 @@ registerComponentTemplate({
         secondaryText: "",
         icon: "mdi:air-conditioner",
         iconOffColor: "#9aa5ad",
-        iconOnColor: "#73c8ff",
+        iconOnColor: themeCoolDefault(),
         badgeColor: "#5b5e66",
         badgeOpacity: 0.58,
         symbolSize: 14,
@@ -1645,8 +1653,8 @@ registerComponentTemplate({
         secondaryTextTop: 67,
         airflowVisible: true,
         airflowMotion: "dynamic",
-        airflowCoolColor: "#73c8ff",
-        airflowHeatColor: "#ff8a65",
+        airflowCoolColor: themeCoolDefault(),
+        airflowHeatColor: paletteColor("--hos-heat", "#ff8a65"),
         airflowOtherColor: "#dce2e6",
         airflowAngle: 7,
         airflowCurve: 20,

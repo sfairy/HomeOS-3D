@@ -1,7 +1,7 @@
 """管理后台 API：``/store-admin/v1/*``。
 
 参考站没有公开管理台，这里自建最小可用后台，让商店「可运营」：
-商品、订单、激活码、设备绑定、优惠码、提现审核、站点配置、版本发布。
+商品、订单、激活码、设备绑定、优惠码、提现审核、站点配置。
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from typing import Iterator
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import and_, delete, func, or_, select, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from store.commerce import coupons, fulfill, money, referrals
@@ -80,7 +79,6 @@ from store.core.models import (
     ReferralLedger,
     ReferralWallet,
     ReferralWithdrawal,
-    Release,
     StoreSetting,
 )
 from store.core.schemas import (
@@ -96,8 +94,6 @@ from store.core.schemas import (
     AdminOrderReviewRequest,
     AdminProductPatch,
     AdminProductRequest,
-    AdminReleasePatch,
-    AdminReleaseRequest,
     AdminSettingsRequest,
     AdminWalletAdjustRequest,
     AdminWithdrawalResolveRequest,
@@ -2841,112 +2837,6 @@ def admin_test_mail_delivery(
     }
 
 
-# 版本发布
-@router.get("/releases")
-def admin_list_releases(
-    session: DbSession,
-    _admin: AdminAccount,
-    keyword: str | None = None,
-    product: str | None = None,
-    channel: str | None = None,
-    limit: int = 200,
-    offset: int = 0,
-) -> dict:
-    """版本发布记录（分页 + 筛选）。"""
-    base = select(Release)
-    if product:
-        base = base.where(Release.product == product.strip())
-    if channel:
-        base = base.where(Release.channel == channel.strip())
-    if keyword:
-        like = f"%{keyword.strip()}%"
-        base = base.where(
-            or_(
-                Release.version.like(like),
-                Release.upgrade_notes.like(like),
-                Release.release_date.like(like),
-            )
-        )
-    return _page(
-        session,
-        base,
-        (Release.created_at.desc(),),
-        limit=limit,
-        offset=offset,
-        render=_release_payload,
-    )
-
-
-@router.post("/releases")
-def admin_create_release(
-    payload: AdminReleaseRequest, session: DbSession, admin: AdminAccount
-) -> dict:
-    product = payload.product or "homeos"
-    channel = payload.channel or "docker"
-    version = payload.version
-    # (product, channel, version) 上有唯一索引：同一个版本只能有一条记录，否则客户端
-    # 「检查更新」会在同一版本的两条说法之间随机挑一条（升级说明、发布日期都可能不同）。
-    # 先查一次给出可读的 409，别让用户看见裸的 IntegrityError。
-    duplicate = session.scalars(
-        select(Release).where(
-            Release.product == product,
-            Release.channel == channel,
-            Release.version == version,
-        )
-    ).first()
-    if duplicate is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"{product}/{channel} {version} 已存在，请直接编辑那条记录。",
-        )
-
-    release = Release(
-        product=product,
-        channel=channel,
-        version=version,
-        release_date=payload.release_date or "",
-        upgrade_notes=payload.upgrade_notes or "",
-    )
-    session.add(release)
-    # 上面那次查询挡不住并发（两个管理员同时提交），唯一索引是最终防线，撞上时同样翻译成 409，
-    # 否则前端只看到没有解释的 500。flush 必须在 SAVEPOINT 内且关掉自动 flush：失败时只回滚
-    # 这次插入，会话仍可提交；提前 flush 会把会话打成 needs-rollback，之后连读都读不了。
-    try:
-        with session.no_autoflush, session.begin_nested():
-            session.flush()
-    except IntegrityError:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"{product}/{channel} {version} 已存在，请直接编辑那条记录。",
-        ) from None
-    _audit(session, _admin_actor(admin), "release.create", release.id, release.version)
-    return {
-        "id": release.id,
-        "product": release.product,
-        "channel": release.channel,
-        "version": release.version,
-        "releaseDate": release.release_date,
-        "upgradeNotes": release.upgrade_notes,
-    }
-
-
-@router.delete("/releases/{release_id}")
-def admin_delete_release(release_id: str, session: DbSession, admin: AdminAccount) -> dict:
-    """删除版本记录。
-
-    ``releases`` 是叶子表（没有任何外键指向它），物理删除不会影响授权数据；
-    客户端的「检查更新」会自动回退到次新的那条记录。
-    """
-    release = session.get(Release, release_id)
-    if release is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="版本记录不存在。")
-    label = f"{release.product}/{release.channel} {release.version}"
-    session.delete(release)
-    session.flush()
-    _audit(session, _admin_actor(admin), "release.delete", release_id, label)
-    return {"id": release_id, "deleted": True, "label": label}
-
-
 # 账号
 @router.get("/accounts")
 def admin_list_accounts(
@@ -3547,7 +3437,7 @@ def admin_adjust_wallet(
     }
 
 
-# 商品图片 / 设备绑定 / 版本发布：删除与修正
+# 商品图片 / 设备绑定：删除与修正
 def _safe_image_target(root: Path, raw: str) -> Path | None:
     """把库里的商品图相对路径解析成绝对路径；越界返回 ``None``。
     防目录穿越：``path`` 不排除被改过或历史数据里就有 ``../``，越界路径绝不能落到文件系统调用上
@@ -3626,50 +3516,6 @@ def admin_delete_binding(binding_id: str, session: DbSession, admin: AdminAccoun
         f"授权 {license_id} / 实例 {instance_id}",
     )
     return {"id": binding_id, "deleted": True, "licenseId": license_id}
-
-
-def _release_payload(release: Release) -> dict:
-    return {
-        "id": release.id,
-        "product": release.product,
-        "channel": release.channel,
-        "version": release.version,
-        "releaseDate": release.release_date,
-        "upgradeNotes": release.upgrade_notes,
-        "createdAt": iso(release.created_at),
-    }
-
-
-@router.patch("/releases/{release_id}")
-def admin_patch_release(
-    release_id: str, payload: AdminReleasePatch, session: DbSession, admin: AdminAccount
-) -> dict:
-    """修正已发布的版本记录（发错渠道、版本号打错、说明写错都要能改）。"""
-    release = session.get(Release, release_id)
-    if release is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="版本记录不存在。")
-
-    data = payload.model_dump(exclude_unset=True)
-    mapping = {
-        "product": "product",
-        "channel": "channel",
-        "version": "version",
-        "release_date": "release_date",
-        "upgrade_notes": "upgrade_notes",
-    }
-    changed: list[str] = []
-    for field, column in mapping.items():
-        if field in data and data[field] is not None:
-            setattr(release, column, data[field])
-            changed.append(field)
-
-    if not changed:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="没有需要更新的字段。"
-        )
-    session.flush()
-    _audit(session, _admin_actor(admin), "release.update", release.id, ",".join(sorted(changed)))
-    return _release_payload(release)
 
 
 # 只读数据面：登录尝试、验证码、解绑事件等表，出问题时靠「翻旧账」定位

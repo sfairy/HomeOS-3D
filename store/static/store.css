@@ -192,7 +192,7 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   background: color-mix(in srgb, var(--hb-surface) 60%, transparent);
 }
 
-/* 页脚上缘由素线换成「两端隐去、中央偏青色」的发丝线：整页最后一条水平线
+/* 页脚上缘由素线换成「两端隐去、中央偏琥珀」的发丝线：整页最后一条水平线
    落在视口底部，用渐变收尾比一条贯穿全宽的实线更干净，也呼应页头横幅
    与卡片上缘的那套指示灯语言。 */
 .hb-site-footer::before {
@@ -268,8 +268,8 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 }
 
 /* 通用页面区块：定义「科技感」在首页之外那几页的落点。首页用整屏视觉重量立第一印象，内页更密、需要可读性，所以改成「一块有分量的控制台铭牌 + 干净的正文」。
-   ::before 漂移细网格 + 左青色辉光 + 右下补光；::after 下缘指示灯 + 左上/右下两道 HUD 角线；
-   eyebrow 状态点 + 分区名 + 等宽路径；h1 放大到 27–40px，强调短语走青色渐变，与首页同一套排印语言。
+   ::before 漂移细网格 + 左琥珀辉光 + 右下补光；::after 下缘指示灯 + 左上/右下两道 HUD 角线；
+   eyebrow 状态点 + 分区名 + 等宽路径；h1 放大到 27–40px，强调短语走琥珀渐变，与首页同一套排印语言。
    正文区域（卡片 / 表格 / 列表）保持干净——正文要的是可读性，不是氛围。 */
 .hb-page-head,
 .hb-account-heading {
@@ -289,7 +289,7 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   overflow: hidden;
 }
 
-/* 细网格 + 双层青色辉光。网格两个方向各 46px 一循环，所以按 46px 位移可以
+/* 细网格 + 双层琥珀辉光。网格两个方向各 46px 一循环，所以按 46px 位移可以
    无缝循环，做出一条几乎察觉不到的漂移，让整块铭牌「是活的」而不是一张贴图。 */
 .hb-page-head::before,
 .hb-account-heading::before {
@@ -408,8 +408,8 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   line-height: 1.14;
 }
 
-/* 强调短语走青色渐变，与首页 hero 的 h1 strong 完全同一套处理；
-   @supports 兜底，老浏览器退化成纯青色色而不是透明字。 */
+/* 强调短语走琥珀渐变，与首页 hero 的 h1 strong 完全同一套处理；
+   @supports 兜底，老浏览器退化成纯琥珀色而不是透明字。 */
 .hb-page-head h1 strong,
 .hb-account-heading h1 strong {
   color: var(--hb-accent-bright);
@@ -482,7 +482,7 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
   margin-bottom: 12px;
 }
 
-/* HUD 角标：主面板的左上 / 右下角线。给「页面主角面板」（结算摘要、邀请卡、维护卡）加一对 16px 青色角线，像设备屏幕的取景框。
+/* HUD 角标：主面板的左上 / 右下角线。给「页面主角面板」（结算摘要、邀请卡、维护卡）加一对 16px 琥珀角线，像设备屏幕的取景框。
    只是 2 条 1px 线、贴在面板内缩 9px 处：不放四角（每张卡都加会变成整页噪声，反看不出主次）；内缩而不贴边（面板圆角 14–18px，贴边的直角线会与圆角互相打架）。 */
 .referral-share,
 .hb-maintenance-card {
@@ -526,7 +526,7 @@ html.hb-no-base-products .hb-site-footer__links a[href^="/products"] {
 }
 
 /* 首页：单屏居中 hero（整页不滚动）。首页只留一块内容——居中的品牌宣言 + 三步流程（原先的商品区与保障条已删：商品在 /products 有完整筛选，首页再罗列一遍既稀释焦点、又在只上架 1–2 个 SKU 时显得零散）。
-   页面「厚度」改由背景特效层承担而不是堆卡片：细网格 + 青色辉光 + 扫描线，三层透明度都压得很低，只在暗色画布上隐约可见，不参与信息传达。
+   页面「厚度」改由背景特效层承担而不是堆卡片：细网格 + 琥珀辉光 + 扫描线，三层透明度都压得很低，只在暗色画布上隐约可见，不参与信息传达。
    不滚动的做法：body 本是「min-height:100vh 的纵向 flex」，把首页 main 变成 flex:1 的弹性块，hero 就吃掉「顶栏以下、页脚以上」全部剩余高度。
    刻意**不写** `height:100svh` + `overflow:hidden` 这类硬锁：body 的高度语义是 min-height，内容真放不下时（小屏、放大字号、首访多出的第三个按钮）会自然长高照常滚动，而硬锁会把页脚或流程条直接裁掉——代价是「一屏装下」不是强保证，而是「装得下时不滚、装不下时不裁」。
    用 :has() 而不是让 JS 往 body 挂类名，是为了让这条规则在 JS 失败时也不参与（退化结果只是首页恢复成普通滚动流，不会错版）。 */
@@ -590,7 +590,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 极光：两条斜向光带，模糊 + screen 叠加，慢慢漂移。与场景同款 ——
-   a 是青→极光紫（冷色过渡），b 是暖光→薄荷（暖色过渡）。 */
+   a 是暖金→极光紫（冷色过渡），b 是暖光→薄荷（暖色过渡）。 */
 .hb-hero__aurora {
   position: absolute;
   filter: blur(28px);
@@ -645,29 +645,29 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 .hb-hero__stars--far {
   opacity: 0.55;
   background-image:
-    radial-gradient(1px 1px at 8% 14%, rgba(220, 240, 255, 0.55), transparent),
-    radial-gradient(1px 1px at 22% 6%, rgba(220, 240, 255, 0.35), transparent),
-    radial-gradient(1px 1px at 41% 18%, rgba(160, 230, 255, 0.4), transparent),
-    radial-gradient(1px 1px at 57% 4%, rgba(220, 240, 255, 0.3), transparent),
-    radial-gradient(1px 1px at 74% 15%, rgba(220, 240, 255, 0.45), transparent),
-    radial-gradient(1px 1px at 88% 9%, rgba(160, 230, 255, 0.35), transparent),
-    radial-gradient(1px 1px at 15% 32%, rgba(220, 240, 255, 0.28), transparent),
-    radial-gradient(1px 1px at 63% 28%, rgba(220, 240, 255, 0.32), transparent);
+    radial-gradient(1px 1px at 8% 14%, rgba(var(--hb-star-rgb), 0.55), transparent),
+    radial-gradient(1px 1px at 22% 6%, rgba(var(--hb-star-rgb), 0.35), transparent),
+    radial-gradient(1px 1px at 41% 18%, rgba(var(--hb-star-cool-rgb), 0.4), transparent),
+    radial-gradient(1px 1px at 57% 4%, rgba(var(--hb-star-rgb), 0.3), transparent),
+    radial-gradient(1px 1px at 74% 15%, rgba(var(--hb-star-rgb), 0.45), transparent),
+    radial-gradient(1px 1px at 88% 9%, rgba(var(--hb-star-cool-rgb), 0.35), transparent),
+    radial-gradient(1px 1px at 15% 32%, rgba(var(--hb-star-rgb), 0.28), transparent),
+    radial-gradient(1px 1px at 63% 28%, rgba(var(--hb-star-rgb), 0.32), transparent);
   animation: hbHeroStars 14s ease-in-out infinite;
 }
 
 .hb-hero__stars--near {
   background-image:
-    radial-gradient(1.6px 1.6px at 12% 10%, rgba(220, 240, 255, 0.9), transparent),
-    radial-gradient(1px 1px at 28% 16%, rgba(220, 240, 255, 0.55), transparent),
-    radial-gradient(1.8px 1.8px at 48% 8%, rgba(160, 230, 255, 0.85), transparent),
-    radial-gradient(1px 1px at 66% 20%, rgba(220, 240, 255, 0.45), transparent),
-    radial-gradient(1.6px 1.6px at 82% 12%, rgba(220, 240, 255, 0.75), transparent),
-    radial-gradient(1px 1px at 18% 28%, rgba(160, 230, 255, 0.5), transparent),
-    radial-gradient(1.2px 1.2px at 38% 24%, rgba(220, 240, 255, 0.6), transparent),
-    radial-gradient(1.5px 1.5px at 72% 30%, rgba(160, 230, 255, 0.55), transparent),
-    radial-gradient(1.4px 1.4px at 9% 42%, rgba(180, 235, 255, 0.45), transparent),
-    radial-gradient(1px 1px at 52% 36%, rgba(220, 240, 255, 0.4), transparent);
+    radial-gradient(1.6px 1.6px at 12% 10%, rgba(var(--hb-star-rgb), 0.9), transparent),
+    radial-gradient(1px 1px at 28% 16%, rgba(var(--hb-star-rgb), 0.55), transparent),
+    radial-gradient(1.8px 1.8px at 48% 8%, rgba(var(--hb-star-cool-rgb), 0.85), transparent),
+    radial-gradient(1px 1px at 66% 20%, rgba(var(--hb-star-rgb), 0.45), transparent),
+    radial-gradient(1.6px 1.6px at 82% 12%, rgba(var(--hb-star-rgb), 0.75), transparent),
+    radial-gradient(1px 1px at 18% 28%, rgba(var(--hb-star-cool-rgb), 0.5), transparent),
+    radial-gradient(1.2px 1.2px at 38% 24%, rgba(var(--hb-star-rgb), 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 72% 30%, rgba(var(--hb-star-cool-rgb), 0.55), transparent),
+    radial-gradient(1.4px 1.4px at 9% 42%, rgba(var(--hb-star-cool-rgb), 0.45), transparent),
+    radial-gradient(1px 1px at 52% 36%, rgba(var(--hb-star-rgb), 0.4), transparent);
   animation: hbHeroStars 8s ease-in-out infinite;
   animation-delay: -2s;
 }
@@ -709,7 +709,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   }
 }
 
-/* 地平线辉光：画面下缘一条青中带暖金的柔光，顶替场景里「山脚下那层雾」的位置。
+/* 地平线辉光：画面下缘一条暖金柔光，顶替场景里「山脚下那层雾」的位置。
    没有它，夜空的渐变会在底边直接切给页脚，看着像被裁过。 */
 .hb-hero__horizon {
   position: absolute;
@@ -728,7 +728,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   pointer-events: none;
 }
 
-/* 青色辉光：落在标题后方，非常缓慢地呼吸，幅度小到「感觉得到但注意不到」 */
+/* 琥珀辉光：落在标题后方，非常缓慢地呼吸，幅度小到「感觉得到但注意不到」 */
 .hb-hero__glow {
   position: absolute;
   top: -140px;
@@ -759,7 +759,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   }
 }
 
-/* 扫描线：一条极细的青色光带自上而下掠过 */
+/* 扫描线：一条极细的琥珀光带自上而下掠过 */
 .hb-hero__sweep {
   position: absolute;
   top: 0;
@@ -806,7 +806,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   text-wrap: balance;
 }
 
-/* 强调短语走青色渐变；@supports 兜底，老浏览器退化成纯青色色而不是透明字 */
+/* 强调短语走琥珀渐变；@supports 兜底，老浏览器退化成纯琥珀色而不是透明字 */
 .hb-hero h1 strong {
   color: var(--hb-accent-bright);
 }
@@ -969,7 +969,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 
 /* 能力卡：按能力分色（温控 / 安防 / 机器人 / 灯光…，由模板上的 data-tone 决定）。
    图标块用色调软底 + 色调文字，卡片描边默认走中性线，hover 才亮成该能力的色调 ——
-   一排卡片全是同一种青色时，用户读不出「这张卡在讲什么」。 */
+   一排卡片全是同一种琥珀时，用户读不出「这张卡在讲什么」。 */
 .hb-cap {
   display: flex;
   flex-direction: column;
@@ -1119,7 +1119,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background-size: 34px 34px;
 }
 
-/* 四个房间各一色（template 上挂 data-tone）：客厅暖光、厨房薄荷、主卧极光紫、阳台青。
+/* 四个房间各一色（template 上挂 data-tone）：客厅暖光、厨房薄荷、主卧极光紫、阳台暖金。
    中点示意图的价值就在「一眼看出哪间房在发生什么」，四间同色等于没画。 */
 .hb-console__room {
   position: absolute;
@@ -1354,9 +1354,9 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background: var(--hb-surface);
 }
 
-/* 步骤序号：四步走一条色相环 —— 青（进入）→ 极光紫（配置）→ 暖光（激活）→ 薄荷（就绪），
+/* 步骤序号：四步走一条色相环 —— 暖金（进入）→ 极光紫（配置）→ 暖光（激活）→ 薄荷（就绪），
    由模板给每个 .hb-steps__item 挂 data-tone。流程类内容用色彩表示「走到第几步」，
-   比四个一模一样的青色方块更容易一眼看出进度语义。 */
+   比四个一模一样的琥珀方块更容易一眼看出进度语义。 */
 .hb-steps__index {
   display: grid;
   width: 30px;
@@ -1393,7 +1393,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   gap: 14px;
 }
 
-/* 各档位按档分色：入门薄荷、进阶青、专业暖光（推荐档默认青，模板会挂 data-tone）。
+/* 各档位按档分色：入门薄荷、进阶暖金、专业暖光（推荐档默认暖金，模板会挂 data-tone）。
    和「能力卡」同一套开关，所以整站的分色词汇只有一套。 */
 .hb-tier {
   display: flex;
@@ -1484,8 +1484,8 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   background: var(--hb-surface);
 }
 
-/* 保障条：图标各取一枚语义色（数据=青、支付=薄荷、解绑=极光紫、订单=暖光），
-   由模板上的 data-tone 决定；四条全青时读起来像「四个都只是装饰」。 */
+/* 保障条：图标各取一枚语义色（数据=暖金、支付=薄荷、解绑=极光紫、订单=暖光），
+   由模板上的 data-tone 决定；四条全暖金时读起来像「四个都只是装饰」。 */
 .hb-trust__item i {
   color: var(--hb-tone-text);
   font-size: 15px;
@@ -1725,7 +1725,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 全授权（主授权 + 增量包）是客单价最高、也最省事的一档，默认给它更高的视觉
-   权重：青色描边 + 青色底纹 + 常亮的顶部光带。这里只做「加权」，真正的推荐
+   权重：琥珀描边 + 琥珀底纹 + 常亮的顶部光带。这里只做「加权」，真正的推荐
    角标文案仍由后台商品的 badge 字段决定，不写死在样式里。 */
 .hb-addon-card[data-product-group="bundle"] {
   border-color: var(--hb-accent-line);
@@ -1765,7 +1765,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   overflow: hidden;
 }
 
-/* 顶部一道渐隐青色线：结算卡是这一页唯一的主面板，用它跟统计卡 / 页头横幅
+/* 顶部一道渐隐琥珀线：结算卡是这一页唯一的主面板，用它跟统计卡 / 页头横幅
    串成同一套「面板上缘指示灯」的语言。 */
 .hb-checkout-card::before {
   position: absolute;
@@ -1778,7 +1778,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   pointer-events: none;
 }
 
-/* 结算卡头：加一条下缘发丝线 + 一段青色短线，把标题区从表单正文里切出来，
+/* 结算卡头：加一条下缘发丝线 + 一段琥珀短线，把标题区从表单正文里切出来，
    读起来像一块控制台面板的表头，而不是一张表单的开头。 */
 .hb-checkout-card__header {
   position: relative;
@@ -2147,7 +2147,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 }
 
 /* 收款台类弹窗：付款码弹窗（#payment-dialog）与待支付订单弹窗（#pending-order-dialog）共用一套骨架与信息块——宽度、三段式固定布局、金额行、倒计时行、订单号行，两者只差一个二维码（写在一起是为了避免改了一个忘了另一个）。
-   按「先扫码 / 先核对 → 再等结果」分三段：白底二维码 + 青色辉光优先吸引视线；金额与倒计时各占一条带边框的行，形成同一组待确认信息；订单号贴底、用分隔线断开，方便对客服报单号。 */
+   按「先扫码 / 先核对 → 再等结果」分三段：白底二维码 + 琥珀辉光优先吸引视线；金额与倒计时各占一条带边框的行，形成同一组待确认信息；订单号贴底、用分隔线断开，方便对客服报单号。 */
 :is(.hb-payment-dialog, .hb-pending-dialog) {
   width: min(404px, calc(100vw - 28px));
 }
@@ -2181,7 +2181,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
   padding: 18px 24px 20px;
 }
 
-/* 二维码必须白底（扫码要求高对比），外圈两层青色只作引导，不参与识别 */
+/* 二维码必须白底（扫码要求高对比），外圈两层琥珀只作引导，不参与识别 */
 .hb-pay-scan {
   display: grid;
   justify-items: center;
@@ -2383,7 +2383,7 @@ body.hb-store-body:has([data-store-page="home"]:not([hidden])) .hb-store-main--f
 
 /* 订单作废（超时 / 取消 / 支付失败）：二维码失去意义——渠道侧的交易随后会被
    关单，扫出来的结果只会是「订单已关闭」。这里把白底高对比的码压暗去彩，
-   连同青色辉光和脉动圆点一起收掉，避免继续诱导扫码；信息与按钮保持可用。 */
+   连同琥珀辉光和脉动圆点一起收掉，避免继续诱导扫码；信息与按钮保持可用。 */
 .hb-payment-dialog.is-closed #payment-qr {
   filter: grayscale(1);
   opacity: 0.34;
@@ -2503,16 +2503,19 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
 }
 
 /* 入口分页里的换页提示（「还没有账号？立即注册」）：玻璃坞用的是 hos-switch，
-   这里只补链接色，让它在商店的青色令牌下与前台其它链接一致。 */
+   这里只补链接色，让它在商店的令牌下与前台其它链接一致。 */
 .hb-auth-stage .hos-switch a {
   font-weight: 650;
 }
 
 /* 「忘记密码？」在标签行右侧，本体是链接而不是提示文案。.hos-hint 的灰（0.45 alpha）
    在 0.68rem 下会和左边标签糊成一片，分不出可以点，所以按链接着色。
-   选择器带上 .hos-label-row，特异性高过 .hos-hint 自身那条。 */
+   选择器带上 .hos-label-row，特异性高过 .hos-hint 自身那条。
+   颜色读商店自己的命名空间：这一页确实也加载了 scene/page.css（--hos-* 在那里），
+   但 store.css 是商店的样式表，跨命名空间取值等于把两个独立构建偷偷绑在一起 ——
+   哪天入口页不再引场景样式表，这里会静默退回继承色（链接变回浏览器默认蓝）。 */
 .hb-auth-stage .hos-label-row a.hos-hint {
-  color: var(--hos-accent);
+  color: var(--hb-accent);
   text-decoration: none;
 }
 
@@ -2549,7 +2552,7 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
 
 /* 统计卡：顶部一道渐隐色调线 + 等宽数字。四个数字并列时，等宽 + tabular-nums
    才能让位数不同的数值左对齐；标签走大写等宽，读起来像仪表盘表头。
-   每张卡的顶部线与数字各按自己的语义分色（已激活=暖光、设备=青、席位=极光紫、
+   每张卡的顶部线与数字各按自己的语义分色（已激活=暖光、设备=暖金、席位=极光紫、
    剩余天数=就绪薄荷 / 临期珊瑚），与后台徽标同一套 data-tone，改一处两处一起变。 */
 .hb-account-stats article,
 .referral-stats article {
@@ -2662,7 +2665,7 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   background: var(--hb-accent-soft);
 }
 
-/* 激活态：左侧一道亮起的青色条。横排时这条指示线在底部，竖排后转 90°，
+/* 激活态：左侧一道亮起的琥珀条。横排时这条指示线在底部，竖排后转 90°，
    落在导轨 6px 内边距里，不占文字宽度。 */
 .hb-account-tabs__item.is-active::before {
   position: absolute;
@@ -2731,7 +2734,7 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   padding: 4px 0;
 }
 
-/* 卡片外壳：只负责边框、底色和悬停青色条，内边距与排列交给两种版式变体。
+/* 卡片外壳：只负责边框、底色和悬停琥珀条，内边距与排列交给两种版式变体。
    （--stacked = 抬头/主体/脚注的规格表结构；--row = 左内容 + 右状态列的订单结构） */
 .hb-account-item {
   position: relative;
@@ -2743,7 +2746,7 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   transition: var(--hb-transition);
 }
 
-/* 悬停时左缘亮起一条青色条。用伪元素而不是 border-left，
+/* 悬停时左缘亮起一条琥珀条。用伪元素而不是 border-left，
    是为了不改变盒宽——列表项在悬停瞬间掉 2px 会很明显。 */
 .hb-account-item::before {
   position: absolute;
@@ -2878,7 +2881,7 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   overflow-wrap: anywhere;
 }
 
-/* 永久授权（无到期日）用青色强调，和「有效」绿芯片一起构成一眼可辨的状态 */
+/* 永久授权（无到期日）用琥珀强调，和「有效」绿芯片一起构成一眼可辨的状态 */
 .hb-account-facts .is-accent {
   color: var(--hb-accent-bright);
 }
@@ -2998,7 +3001,7 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   font-size: 11.5px;
 }
 
-/* 面板顶部的解绑规则提示：左缘一道青色线，让它读起来是「说明」而不是「报错」 */
+/* 面板顶部的解绑规则提示：左缘一道琥珀线，让它读起来是「说明」而不是「报错」 */
 #account-release-policy {
   margin-bottom: 14px;
   padding: 11px 14px 11px 15px;
@@ -3196,7 +3199,7 @@ body.hb-store-body:has(.hb-auth-stage [data-store-page]:not([hidden])) .hb-site-
   background: rgba(255, 255, 255, 0.022);
 }
 
-/* 悬停时左缘亮起青色条，与账号中心的列表项保持同一套「行选中」语言 */
+/* 悬停时左缘亮起琥珀条，与账号中心的列表项保持同一套「行选中」语言 */
 .referral-table tbody tr td:first-child {
   box-shadow: inset 2px 0 0 transparent;
   transition: box-shadow 0.14s ease;

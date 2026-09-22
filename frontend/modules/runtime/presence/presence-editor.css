@@ -8,7 +8,7 @@
  * 约定：开头 @import runtime.css 复用弹窗骨架，本文件只负责人物编辑器特有的三栏布局、路线工具、
  * 预设宫格与配色按钮。
  */
-@import "../core/runtime.css?v=2609220141";
+@import "../core/runtime.css?v=2609220943";
 /* ===== 弹窗骨架与三栏布局 ===== */
 
 /* 弹窗比通用编辑器更宽：中间要放得下户型平面。 */
@@ -51,10 +51,10 @@
 }
 /* 选中态用主控色，与舞台里人物标记的高亮色系保持一致。 */
 .i3d-presence-editor button[aria-pressed="true"] {
-  border-color: rgba(var(--hos-accent-rgb, 95, 212, 255), 0.48);
+  border-color: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.48);
   color: var(--hos-ink, #f1f7fb);
-  background: rgba(var(--hos-accent-rgb, 95, 212, 255), 0.16);
-  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 95, 212, 255), 0.48);
+  background: rgba(var(--hos-accent-rgb, 255, 196, 106), 0.16);
+  box-shadow: inset 0 0 0 1px rgba(var(--hos-accent-rgb, 255, 196, 106), 0.48);
 }
 /* ===== 参数表单与提示文字 ===== */
 

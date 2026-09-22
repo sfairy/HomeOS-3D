@@ -149,7 +149,7 @@
   opacity: 0.55;
 }
 
-/* 极光两条：主带是青→极光紫（冷色过渡），副带是暖金→薄荷（暖色过渡）。
+/* 极光两条：主带是主控暖金→极光紫，副带是居家暖光→薄荷 —— 一暖一冷，各自交代一种光。
    两条错开相位漂移，合起来才像「天在动」；同一条渐变里放四个色相会糊成灰。 */
 .hos-scene__aurora--a {
   top: -8%;
@@ -192,29 +192,29 @@
 .hos-scene__stars--far {
   opacity: 0.55;
   background-image:
-    radial-gradient(1px 1px at 8% 14%, rgba(220, 240, 255, 0.55), transparent),
-    radial-gradient(1px 1px at 22% 6%, rgba(220, 240, 255, 0.35), transparent),
-    radial-gradient(1px 1px at 41% 18%, rgba(160, 230, 255, 0.4), transparent),
-    radial-gradient(1px 1px at 57% 4%, rgba(220, 240, 255, 0.3), transparent),
-    radial-gradient(1px 1px at 74% 15%, rgba(220, 240, 255, 0.45), transparent),
-    radial-gradient(1px 1px at 88% 9%, rgba(160, 230, 255, 0.35), transparent),
-    radial-gradient(1px 1px at 15% 32%, rgba(220, 240, 255, 0.28), transparent),
-    radial-gradient(1px 1px at 63% 28%, rgba(220, 240, 255, 0.32), transparent);
+    radial-gradient(1px 1px at 8% 14%, rgba(var(--hos-star-rgb), 0.55), transparent),
+    radial-gradient(1px 1px at 22% 6%, rgba(var(--hos-star-rgb), 0.35), transparent),
+    radial-gradient(1px 1px at 41% 18%, rgba(var(--hos-star-cool-rgb), 0.4), transparent),
+    radial-gradient(1px 1px at 57% 4%, rgba(var(--hos-star-rgb), 0.3), transparent),
+    radial-gradient(1px 1px at 74% 15%, rgba(var(--hos-star-rgb), 0.45), transparent),
+    radial-gradient(1px 1px at 88% 9%, rgba(var(--hos-star-cool-rgb), 0.35), transparent),
+    radial-gradient(1px 1px at 15% 32%, rgba(var(--hos-star-rgb), 0.28), transparent),
+    radial-gradient(1px 1px at 63% 28%, rgba(var(--hos-star-rgb), 0.32), transparent);
   animation: hosStarField 14s ease-in-out infinite;
 }
 
 .hos-scene__stars--near {
   background-image:
-    radial-gradient(1.6px 1.6px at 12% 10%, rgba(220, 240, 255, 0.9), transparent),
-    radial-gradient(1px 1px at 28% 16%, rgba(220, 240, 255, 0.55), transparent),
-    radial-gradient(1.8px 1.8px at 48% 8%, rgba(160, 230, 255, 0.85), transparent),
-    radial-gradient(1px 1px at 66% 20%, rgba(220, 240, 255, 0.45), transparent),
-    radial-gradient(1.6px 1.6px at 82% 12%, rgba(220, 240, 255, 0.75), transparent),
-    radial-gradient(1px 1px at 18% 28%, rgba(160, 230, 255, 0.5), transparent),
-    radial-gradient(1.2px 1.2px at 38% 24%, rgba(220, 240, 255, 0.6), transparent),
-    radial-gradient(1.5px 1.5px at 72% 30%, rgba(160, 230, 255, 0.55), transparent),
-    radial-gradient(1.4px 1.4px at 9% 42%, rgba(180, 235, 255, 0.45), transparent),
-    radial-gradient(1px 1px at 52% 36%, rgba(220, 240, 255, 0.4), transparent);
+    radial-gradient(1.6px 1.6px at 12% 10%, rgba(var(--hos-star-rgb), 0.9), transparent),
+    radial-gradient(1px 1px at 28% 16%, rgba(var(--hos-star-rgb), 0.55), transparent),
+    radial-gradient(1.8px 1.8px at 48% 8%, rgba(var(--hos-star-cool-rgb), 0.85), transparent),
+    radial-gradient(1px 1px at 66% 20%, rgba(var(--hos-star-rgb), 0.45), transparent),
+    radial-gradient(1.6px 1.6px at 82% 12%, rgba(var(--hos-star-rgb), 0.75), transparent),
+    radial-gradient(1px 1px at 18% 28%, rgba(var(--hos-star-cool-rgb), 0.5), transparent),
+    radial-gradient(1.2px 1.2px at 38% 24%, rgba(var(--hos-star-rgb), 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 72% 30%, rgba(var(--hos-star-cool-rgb), 0.55), transparent),
+    radial-gradient(1.4px 1.4px at 9% 42%, rgba(var(--hos-star-cool-rgb), 0.45), transparent),
+    radial-gradient(1px 1px at 52% 36%, rgba(var(--hos-star-rgb), 0.4), transparent);
   animation: hosStarField 8s ease-in-out infinite;
   animation-delay: -2s;
 }
@@ -239,7 +239,7 @@
   animation-direction: reverse;
 }
 
-/* 天光核心：青核 + 极光紫过渡 + 暖金外晕。三停靠色让「光源」有方向感，
+/* 天光核心：主控暖金核 + 极光紫过渡 + 居家暖光外晕。三停靠色让「光源」有方向感，
    单色径向渐变看起来只是一团雾。 */
 .hos-scene__dawn {
   position: absolute;
@@ -561,14 +561,15 @@
   overflow: hidden;
 }
 
-/* 浮尘：8 粒，4 青 + 2 暖 + 2 紫。默认青色，后四粒逐个改色 —— 全是青会像屏幕上的噪点，
-   掺进暖与紫才像空气里的尘埃被两盏不同色温的灯照到。 */
+/* 浮尘：8 粒，4 冷 + 2 暖 + 2 紫。默认冷色，后四粒逐个改色 —— 全是冷色会像屏幕上的噪点，
+   掺进暖与紫才像空气里的尘埃被两盏不同色温的灯照到。
+   四枚色值全部来自 page.css 的 --hos-star-*（淡一档的「一点光」，而不是标记色）。 */
 .hos-scene__motes i {
   position: absolute;
   width: 2px;
   height: 2px;
   border-radius: 50%;
-  background: rgba(180, 235, 255, 0.75);
+  background: rgba(var(--hos-star-cool-rgb), 0.75);
   box-shadow: 0 0 6px rgba(var(--hos-accent-rgb), 0.55);
   animation: hosMoteFloat 12s ease-in-out infinite;
   opacity: 0;
@@ -576,13 +577,13 @@
 
 .hos-scene__motes i:nth-child(6),
 .hos-scene__motes i:nth-child(8) {
-  background: rgba(255, 226, 186, 0.75);
+  background: rgba(var(--hos-star-warm-rgb), 0.75);
   box-shadow: 0 0 6px rgba(var(--hos-lumen-rgb), 0.6);
 }
 
 .hos-scene__motes i:nth-child(5),
 .hos-scene__motes i:nth-child(7) {
-  background: rgba(214, 204, 255, 0.75);
+  background: rgba(var(--hos-star-aura-rgb), 0.75);
   box-shadow: 0 0 6px rgba(var(--hos-aura-rgb), 0.6);
 }
 
@@ -781,11 +782,20 @@
   left: -8%;
   right: -8%;
   height: 24%;
+  /* 远景地平线的雾。走 --hos-dawn-rgb —— page.css 里这枚令牌的用途写的就是
+     「天气与远景：黎明冷灰、地平线暖调」，而这条雾正好压在 bottom 8%~18% 的地平线上。
+     此前它是整个 design/scene/ 里**唯一**剩下的硬编码色值：rgba(150, 210, 240)，
+     一枚饱和的浅青蓝，属于旧青色主控那代（色相 200°，与旧主控 #5fd4ff 的 195.5° 同族）。
+     换成令牌后色相基本不动（--hos-dawn-rgb 是 168, 196, 220，色相 206°），
+     但饱和度降了约四成（b−r 从 90 掉到 52）—— 它从「一块蓝」变成「一层冷灰」，
+     不再跟暖金主控抢注意力，也终于能被配色覆盖带走。
+     这一条本来就是设计里的「远景」，用星光的 --hos-star-cool-rgb 会太亮（那是「一粒光」），
+     用 --hos-cool 会变成「制冷的语义色」，两枚都是错档。 */
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(150, 210, 240, 0.08) 40%,
-    rgba(150, 210, 240, 0.12) 55%,
+    rgba(var(--hos-dawn-rgb), 0.08) 40%,
+    rgba(var(--hos-dawn-rgb), 0.12) 55%,
     transparent
   );
   filter: blur(18px);
@@ -814,7 +824,7 @@
   );
 }
 
-/* 地平线：山脊背后同时有两种光——主控青（左，山那侧）与暖光（屋那侧）。
+/* 地平线：山脊背后同时有两种光——主控暖金（左，山那侧）与居家暖光（屋那侧）。
    两个色相叠在同一处，才像是「山后有信号塔，屋里有灯」。 */
 .hos-scene__horizon {
   position: absolute;
@@ -870,9 +880,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  /* 与下方品牌 lockup 左缘对齐，避免顶栏与主视觉错位。 */
+  /* 与下方品牌 lockup 左缘对齐，避免顶栏与主视觉错位。
+     场景层的小字（顶栏版本号、品牌标语、信号行）叠在夜空而不是坞体玻璃面上，
+     但仍走 panel.css 那三档 —— 它们和坞里的字是同一双眼睛在同一个屏幕上读的。 */
   padding: 18px clamp(28px, 4.2cqw, 60px) 14px;
-  color: rgba(186, 214, 232, 0.42);
+  color: var(--hos-muted);
   pointer-events: none;
   background: none;
 }
@@ -917,7 +929,7 @@
   line-height: 1;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(186, 214, 232, 0.4);
+  color: var(--hos-muted);
 }
 
 .hos-scene__ver-name {
@@ -928,11 +940,11 @@
   width: 1px;
   height: 11px;
   flex-shrink: 0;
-  background: rgba(186, 214, 232, 0.22);
+  background: rgba(var(--hos-muted-rgb), 0.22);
 }
 
 .hos-scene__ver-num {
-  color: rgba(186, 214, 232, 0.5);
+  color: rgba(var(--hos-muted-rgb), 0.72);
   letter-spacing: 0.08em;
   text-transform: none;
 }
@@ -1048,12 +1060,12 @@
   letter-spacing: 0.06em;
   line-height: 0.94;
   text-transform: uppercase;
-  /* 品牌字走一条三色极光带：白 → 主控青 → 极光紫 → 居家暖光。
+  /* 品牌字走一条三色极光带：白 → 主控暖金 → 极光紫 → 居家暖光。
      五个色停刚好盖住「信号 / 氛围 / 灯」三种语义，是整幅场景里色彩最饱和的一处，
      所以用的是 --hos-grad-aurora 的同款顺序而不是单色渐变。 */
   background: linear-gradient(
     118deg,
-    #f7fcff 0%,
+    var(--hos-ink-bright) 0%,
     var(--hos-accent-bright) 24%,
     var(--hos-accent) 44%,
     var(--hos-aura) 66%,
@@ -1123,7 +1135,7 @@
   font-weight: 400;
   letter-spacing: 0.18em;
   line-height: 1.55;
-  color: rgba(186, 214, 232, 0.72);
+  color: rgba(var(--hos-muted-rgb), 0.72);
   text-shadow: 0 0 14px rgba(var(--hos-accent-rgb), 0.12);
 }
 
@@ -1138,7 +1150,7 @@
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(186, 214, 232, 0.48);
+  color: rgba(var(--hos-muted-rgb), 0.72);
   animation: hosHeroIn 1.15s cubic-bezier(0.22, 1, 0.36, 1) 0.18s both;
 }
 
@@ -1147,14 +1159,14 @@
   height: 5px;
   border-radius: 50%;
   background: var(--hos-eco);
-  box-shadow: 0 0 8px rgba(125, 211, 167, 0.65);
+  box-shadow: 0 0 8px rgba(var(--hos-eco-rgb), 0.65);
   animation: hosLivePulse 2.6s ease-out infinite;
 }
 
 .hos-scene__signal-sep {
   width: 1px;
   height: 10px;
-  background: rgba(186, 214, 232, 0.2);
+  background: rgba(var(--hos-muted-rgb), 0.2);
 }
 
 @keyframes hosDawnBreath {
